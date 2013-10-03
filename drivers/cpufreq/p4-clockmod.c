@@ -140,12 +140,6 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 }
 
 
-static int cpufreq_p4_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &p4clockmod_table[0]);
-}
-
-
 static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 {
 	if (c->x86 == 0x06) {
@@ -242,12 +236,6 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 }
 
 
-static int cpufreq_p4_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
 static unsigned int cpufreq_p4_get(unsigned int cpu)
 {
 	u32 l, h;
@@ -266,19 +254,14 @@ static unsigned int cpufreq_p4_get(unsigned int cpu)
 	return stock_freq;
 }
 
-static struct freq_attr *p4clockmod_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver p4clockmod_driver = {
-	.verify		= cpufreq_p4_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= cpufreq_p4_target,
 	.init		= cpufreq_p4_cpu_init,
-	.exit		= cpufreq_p4_cpu_exit,
+	.exit		= cpufreq_generic_exit,
 	.get		= cpufreq_p4_get,
 	.name		= "p4-clockmod",
-	.attr		= p4clockmod_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id cpufreq_p4_id[] = {
