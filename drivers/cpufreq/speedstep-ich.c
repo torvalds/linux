@@ -308,7 +308,7 @@ static void get_freqs_on_cpu(void *_get_freqs)
 
 static int speedstep_cpu_init(struct cpufreq_policy *policy)
 {
-	unsigned int policy_cpu, speed;
+	unsigned int policy_cpu;
 	struct get_freqs gf;
 
 	/* only run on CPU to be set, or on its sibling */
@@ -322,19 +322,6 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	smp_call_function_single(policy_cpu, get_freqs_on_cpu, &gf, 1);
 	if (gf.ret)
 		return gf.ret;
-
-	/* get current speed setting */
-	speed = speedstep_get(policy_cpu);
-	if (!speed)
-		return -EIO;
-
-	pr_debug("currently at %s speed setting - %i MHz\n",
-		(speed == speedstep_freqs[SPEEDSTEP_LOW].frequency)
-		? "low" : "high",
-		(speed / 1000));
-
-	/* cpuinfo and default policy values */
-	policy->cur = speed;
 
 	return cpufreq_table_validate_and_show(policy, speedstep_freqs);
 }
