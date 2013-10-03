@@ -34,7 +34,6 @@ config UX500_SOC_COMMON
 
 config UX500_SOC_DB8500
 	bool
-	select CPU_FREQ_TABLE if CPU_FREQ
 	select MFD_DB8500_PRCMU
 	select PINCTRL_DB8500
 	select PINCTRL_DB8540
