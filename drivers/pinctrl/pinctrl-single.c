@@ -28,6 +28,8 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#include <linux/platform_data/pinctrl-single.h>
+
 #include "core.h"
 #include "pinconf.h"
 
@@ -159,12 +161,14 @@ struct pcs_name {
  * @irq:	optional interrupt for the controller
  * @irq_enable_mask:	optional SoC specific interrupt enable mask
  * @irq_status_mask:	optional SoC specific interrupt status mask
+ * @rearm:	optional SoC specific wake-up rearm function
  */
 struct pcs_soc_data {
 	unsigned flags;
 	int irq;
 	unsigned irq_enable_mask;
 	unsigned irq_status_mask;
+	void (*rearm)(void);
 };
 
 /**
@@ -1622,6 +1626,8 @@ static void pcs_irq_unmask(struct irq_data *d)
 	struct pcs_soc_data *pcs_soc = irq_data_get_irq_chip_data(d);
 
 	pcs_irq_set(pcs_soc, d->irq, true);
+	if (pcs_soc->rearm)
+		pcs_soc->rearm();
 }
 
 /**
@@ -1671,6 +1677,11 @@ static int pcs_irq_handle(struct pcs_soc_data *pcs_soc)
 			count++;
 		}
 	}
+
+	/*
+	 * For debugging on omaps, you may want to call pcs_soc->rearm()
+	 * here to see wake-up interrupts during runtime also.
+	 */
 
 	return count;
 }
@@ -1835,6 +1846,7 @@ static int pcs_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
+	struct pcs_pdata *pdata;
 	struct resource *res;
 	struct pcs_device *pcs;
 	const struct pcs_soc_data *soc;
@@ -1948,6 +1960,17 @@ static int pcs_probe(struct platform_device *pdev)
 	pcs->socdata.irq = irq_of_parse_and_map(np, 0);
 	if (pcs->socdata.irq)
 		pcs->flags |= PCS_FEAT_IRQ;
+
+	/* We still need auxdata for some omaps for PRM interrupts */
+	pdata = dev_get_platdata(&pdev->dev);
+	if (pdata) {
+		if (pdata->rearm)
+			pcs->socdata.rearm = pdata->rearm;
+		if (pdata->irq) {
+			pcs->socdata.irq = pdata->irq;
+			pcs->flags |= PCS_FEAT_IRQ;
+		}
+	}
 
 	if (PCS_HAS_IRQ) {
 		ret = pcs_irq_init_chained_handler(pcs, np);
