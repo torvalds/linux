@@ -102,8 +102,12 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 		fsm->a_suspend_req = 0;
 		break;
 	case OTG_STATE_A_PERIPHERAL:
+		otg_del_timer(fsm, A_BIDL_ADIS);
+		fsm->a_bidl_adis_tmout = 0;
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
+		otg_del_timer(fsm, A_WAIT_VFALL);
+		fsm->a_wait_vfall_tmout = 0;
 		otg_del_timer(fsm, A_WAIT_VRISE);
 		break;
 	case OTG_STATE_A_VBUS_ERR:
@@ -204,12 +208,14 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_GADGET);
 		otg_drv_vbus(fsm, 1);
+		otg_add_timer(fsm, A_BIDL_ADIS);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
 		otg_drv_vbus(fsm, 0);
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_HOST);
+		otg_add_timer(fsm, A_WAIT_VFALL);
 		break;
 	case OTG_STATE_A_VBUS_ERR:
 		otg_drv_vbus(fsm, 0);
@@ -324,14 +330,14 @@ int otg_statemachine(struct otg_fsm *fsm)
 	case OTG_STATE_A_PERIPHERAL:
 		if (fsm->id || fsm->a_bus_drop)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VFALL);
-		else if (fsm->b_bus_suspend)
+		else if (fsm->a_bidl_adis_tmout || fsm->b_bus_suspend)
 			otg_set_state(fsm, OTG_STATE_A_WAIT_BCON);
 		else if (!fsm->a_vbus_vld)
 			otg_set_state(fsm, OTG_STATE_A_VBUS_ERR);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
-		if (fsm->id || fsm->a_bus_req || (!fsm->a_sess_vld &&
-					!fsm->b_conn))
+		if (fsm->a_wait_vfall_tmout || fsm->id || fsm->a_bus_req ||
+				(!fsm->a_sess_vld && !fsm->b_conn))
 			otg_set_state(fsm, OTG_STATE_A_IDLE);
 		break;
 	case OTG_STATE_A_VBUS_ERR:

@@ -35,13 +35,19 @@
 #define PROTO_GADGET	(2)
 
 enum otg_fsm_timer {
+	/* Standard OTG timers */
 	A_WAIT_VRISE,
+	A_WAIT_VFALL,
 	A_WAIT_BCON,
 	A_AIDL_BDIS,
 	B_ASE0_BRST,
+	A_BIDL_ADIS,
+
+	/* Auxiliary timers */
 	B_SE0_SRP,
 	B_SRP_FAIL,
 	A_WAIT_ENUM,
+
 	NUM_OTG_FSM_TIMERS,
 };
 
@@ -69,9 +75,11 @@ struct otg_fsm {
 
 	/* Timeout indicator for timers */
 	int a_wait_vrise_tmout;
+	int a_wait_vfall_tmout;
 	int a_wait_bcon_tmout;
 	int a_aidl_bdis_tmout;
 	int b_ase0_brst_tmout;
+	int a_bidl_adis_tmout;
 
 	/* Informative variables */
 	int a_bus_drop;
