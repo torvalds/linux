@@ -1758,7 +1758,7 @@ int ath10k_wmi_vdev_up(struct ath10k *ar, u32 vdev_id, u32 aid, const u8 *bssid)
 	cmd = (struct wmi_vdev_up_cmd *)skb->data;
 	cmd->vdev_id       = __cpu_to_le32(vdev_id);
 	cmd->vdev_assoc_id = __cpu_to_le32(aid);
-	memcpy(&cmd->vdev_bssid.addr, bssid, 6);
+	memcpy(&cmd->vdev_bssid.addr, bssid, ETH_ALEN);
 
 	ath10k_dbg(ATH10K_DBG_WMI,
 		   "wmi mgmt vdev up id 0x%x assoc id %d bssid %pM\n",
