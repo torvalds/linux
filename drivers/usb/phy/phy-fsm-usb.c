@@ -71,8 +71,11 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	case OTG_STATE_B_IDLE:
 		otg_del_timer(fsm, B_SE0_SRP);
 		fsm->b_se0_srp = 0;
+		fsm->adp_sns = 0;
+		fsm->adp_prb = 0;
 		break;
 	case OTG_STATE_B_SRP_INIT:
+		fsm->data_pulse = 0;
 		fsm->b_srp_done = 0;
 		break;
 	case OTG_STATE_B_PERIPHERAL:
@@ -84,6 +87,7 @@ void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	case OTG_STATE_B_HOST:
 		break;
 	case OTG_STATE_A_IDLE:
+		fsm->adp_prb = 0;
 		break;
 	case OTG_STATE_A_WAIT_VRISE:
 		otg_del_timer(fsm, A_WAIT_VRISE);
@@ -131,6 +135,11 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_chrg_vbus(fsm, 0);
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
+		/*
+		 * Driver is responsible for starting ADP probing
+		 * if ADP sensing times out.
+		 */
+		otg_start_adp_sns(fsm);
 		otg_set_protocol(fsm, PROTO_UNDEF);
 		otg_add_timer(fsm, B_SE0_SRP);
 		break;
@@ -167,6 +176,7 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_chrg_vbus(fsm, 0);
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 0);
+		otg_start_adp_prb(fsm);
 		otg_set_protocol(fsm, PROTO_HOST);
 		break;
 	case OTG_STATE_A_WAIT_VRISE:
@@ -256,7 +266,8 @@ int otg_statemachine(struct otg_fsm *fsm)
 			otg_set_state(fsm, OTG_STATE_A_IDLE);
 		else if (fsm->b_sess_vld && fsm->otg->gadget)
 			otg_set_state(fsm, OTG_STATE_B_PERIPHERAL);
-		else if (fsm->b_bus_req && fsm->b_ssend_srp && fsm->b_se0_srp)
+		else if ((fsm->b_bus_req || fsm->adp_change || fsm->power_up) &&
+				fsm->b_ssend_srp && fsm->b_se0_srp)
 			otg_set_state(fsm, OTG_STATE_B_SRP_INIT);
 		break;
 	case OTG_STATE_B_SRP_INIT:
@@ -283,13 +294,14 @@ int otg_statemachine(struct otg_fsm *fsm)
 	case OTG_STATE_B_HOST:
 		if (!fsm->id || !fsm->b_sess_vld)
 			otg_set_state(fsm, OTG_STATE_B_IDLE);
-		else if (!fsm->b_bus_req || !fsm->a_conn)
+		else if (!fsm->b_bus_req || !fsm->a_conn || fsm->test_device)
 			otg_set_state(fsm, OTG_STATE_B_PERIPHERAL);
 		break;
 	case OTG_STATE_A_IDLE:
 		if (fsm->id)
 			otg_set_state(fsm, OTG_STATE_B_IDLE);
-		else if (!fsm->a_bus_drop && (fsm->a_bus_req || fsm->a_srp_det))
+		else if (!fsm->a_bus_drop && (fsm->a_bus_req ||
+			  fsm->a_srp_det || fsm->adp_change || fsm->power_up))
 			otg_set_state(fsm, OTG_STATE_A_WAIT_VRISE);
 		break;
 	case OTG_STATE_A_WAIT_VRISE:

@@ -54,6 +54,9 @@ enum otg_fsm_timer {
 /* OTG state machine according to the OTG spec */
 struct otg_fsm {
 	/* Input */
+	int adp_change;
+	int power_up;
+	int test_device;
 	int a_bus_drop;
 	int a_bus_req;
 	int a_bus_resume;
@@ -93,9 +96,12 @@ struct otg_fsm {
 	int b_bus_req_inf;
 
 	/* Output */
+	int data_pulse;
 	int drv_vbus;
 	int loc_conn;
 	int loc_sof;
+	int adp_prb;
+	int adp_sns;
 
 	struct otg_fsm_ops *ops;
 	struct usb_otg *otg;
@@ -111,6 +117,8 @@ struct otg_fsm_ops {
 	void	(*loc_conn)(struct otg_fsm *fsm, int on);
 	void	(*loc_sof)(struct otg_fsm *fsm, int on);
 	void	(*start_pulse)(struct otg_fsm *fsm);
+	void	(*start_adp_prb)(struct otg_fsm *fsm);
+	void	(*start_adp_sns)(struct otg_fsm *fsm);
 	void	(*add_timer)(struct otg_fsm *fsm, enum otg_fsm_timer timer);
 	void	(*del_timer)(struct otg_fsm *fsm, enum otg_fsm_timer timer);
 	int	(*start_host)(struct otg_fsm *fsm, int on);
@@ -163,7 +171,33 @@ static inline int otg_start_pulse(struct otg_fsm *fsm)
 {
 	if (!fsm->ops->start_pulse)
 		return -EOPNOTSUPP;
-	fsm->ops->start_pulse(fsm);
+	if (!fsm->data_pulse) {
+		fsm->data_pulse = 1;
+		fsm->ops->start_pulse(fsm);
+	}
+	return 0;
+}
+
+static inline int otg_start_adp_prb(struct otg_fsm *fsm)
+{
+	if (!fsm->ops->start_adp_prb)
+		return -EOPNOTSUPP;
+	if (!fsm->adp_prb) {
+		fsm->adp_sns = 0;
+		fsm->adp_prb = 1;
+		fsm->ops->start_adp_prb(fsm);
+	}
+	return 0;
+}
+
+static inline int otg_start_adp_sns(struct otg_fsm *fsm)
+{
+	if (!fsm->ops->start_adp_sns)
+		return -EOPNOTSUPP;
+	if (!fsm->adp_sns) {
+		fsm->adp_sns = 1;
+		fsm->ops->start_adp_sns(fsm);
+	}
 	return 0;
 }
 
