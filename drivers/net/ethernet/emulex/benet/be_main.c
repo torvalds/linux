@@ -474,6 +474,14 @@ static void populate_be_v2_stats(struct be_adapter *adapter)
 	drvs->rx_drops_no_tpre_descr = rxf_stats->rx_drops_no_tpre_descr;
 	drvs->rx_drops_too_many_frags = rxf_stats->rx_drops_too_many_frags;
 	adapter->drv_stats.eth_red_drops = pmem_sts->eth_red_drops;
+	if (be_roce_supported(adapter))  {
+		drvs->rx_roce_bytes_lsd = port_stats->roce_bytes_received_lsd;
+		drvs->rx_roce_bytes_msd = port_stats->roce_bytes_received_msd;
+		drvs->rx_roce_frames = port_stats->roce_frames_received;
+		drvs->roce_drops_crc = port_stats->roce_drops_crc;
+		drvs->roce_drops_payload_len =
+			port_stats->roce_drops_payload_len;
+	}
 }
 
 static void populate_lancer_stats(struct be_adapter *adapter)

@@ -325,6 +325,11 @@ struct be_drv_stats {
 	u32 rx_input_fifo_overflow_drop;
 	u32 pmem_fifo_overflow_drop;
 	u32 jabber_events;
+	u32 rx_roce_bytes_lsd;
+	u32 rx_roce_bytes_msd;
+	u32 rx_roce_frames;
+	u32 roce_drops_payload_len;
+	u32 roce_drops_crc;
 };
 
 struct be_vf_cfg {
