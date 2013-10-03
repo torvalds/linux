@@ -1058,20 +1058,13 @@ static int dvb_register(struct cx23885_tsport *port)
 		case 1:
 			fe0->dvb.frontend = dvb_attach(cx24117_attach,
 					&tbs_cx24117_config,
-					&i2c_bus->i2c_adap, NULL);
+					&i2c_bus->i2c_adap);
 			break;
 		/* PORT C */
 		case 2:
-			/* use fe1 pointer as temporary holder */
-			/* for the first frontend */
-			fe1 = videobuf_dvb_get_frontend(
-				&port->dev->ts1.frontends, 1);
-
 			fe0->dvb.frontend = dvb_attach(cx24117_attach,
 					&tbs_cx24117_config,
-					&i2c_bus->i2c_adap, fe1->dvb.frontend);
-			/* we're done, so clear fe1 pointer */
-			fe1 = NULL;
+					&i2c_bus->i2c_adap);
 			break;
 		}
 		break;

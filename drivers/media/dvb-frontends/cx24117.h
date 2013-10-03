@@ -33,11 +33,11 @@ struct cx24117_config {
 #if IS_ENABLED(CONFIG_DVB_CX24117)
 extern struct dvb_frontend *cx24117_attach(
 	const struct cx24117_config *config,
-	struct i2c_adapter *i2c, struct dvb_frontend *fe);
+	struct i2c_adapter *i2c);
 #else
 static inline struct dvb_frontend *cx24117_attach(
 	const struct cx24117_config *config,
-	struct i2c_adapter *i2c, struct dvb_frontend *fe)
+	struct i2c_adapter *i2c)
 {
 	dev_warn(&i2c->dev, "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
