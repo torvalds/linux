@@ -1053,17 +1053,6 @@ static int powernowk8_target(struct cpufreq_policy *pol,
 	return work_on_cpu(pol->cpu, powernowk8_target_fn, &pta);
 }
 
-/* Driver entry point to verify the policy and range of frequencies */
-static int powernowk8_verify(struct cpufreq_policy *pol)
-{
-	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
-
-	if (!data)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(pol, data->powernow_table);
-}
-
 struct init_on_cpu {
 	struct powernow_k8_data *data;
 	int rc;
@@ -1225,20 +1214,15 @@ out:
 	return khz;
 }
 
-static struct freq_attr *powernow_k8_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver cpufreq_amd64_driver = {
-	.verify		= powernowk8_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= powernowk8_target,
 	.bios_limit	= acpi_processor_get_bios_limit,
 	.init		= powernowk8_cpu_init,
 	.exit		= powernowk8_cpu_exit,
 	.get		= powernowk8_get,
 	.name		= "powernow-k8",
-	.attr		= powernow_k8_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static void __request_acpi_cpufreq(void)
