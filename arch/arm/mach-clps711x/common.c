@@ -29,12 +29,12 @@
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
 #include <linux/clk-provider.h>
+#include <linux/sched_clock.h>
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/sched_clock.h>
 #include <asm/system_misc.h>
 
 #include <mach/hardware.h>
