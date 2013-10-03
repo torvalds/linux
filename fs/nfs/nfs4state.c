@@ -1375,8 +1375,8 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 				goto out;
 			default:
-				printk(KERN_ERR "NFS: %s: unhandled error %d. "
-					"Zeroing state\n", __func__, status);
+				printk(KERN_ERR "NFS: %s: unhandled error %d\n",
+					 __func__, status);
 			case -ENOMEM:
 			case -NFS4ERR_DENIED:
 			case -NFS4ERR_RECLAIM_BAD:
@@ -1439,15 +1439,12 @@ restart:
 		}
 		switch (status) {
 			default:
-				printk(KERN_ERR "NFS: %s: unhandled error %d. "
-					"Zeroing state\n", __func__, status);
+				printk(KERN_ERR "NFS: %s: unhandled error %d\n",
+					__func__, status);
 			case -ENOENT:
 			case -ENOMEM:
 			case -ESTALE:
-				/*
-				 * Open state on this file cannot be recovered
-				 * All we can do is revert to using the zero stateid.
-				 */
+				/* Open state on this file cannot be recovered */
 				nfs4_state_mark_recovery_failed(state, status);
 				break;
 			case -EAGAIN:
