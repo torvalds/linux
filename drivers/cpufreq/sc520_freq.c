@@ -109,7 +109,6 @@ static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = 1000000; /* 1ms */
-	policy->cur = sc520_freq_get_cpu_frequency(0);
 
 	return cpufreq_table_validate_and_show(policy, sc520_freq_table);
 }
