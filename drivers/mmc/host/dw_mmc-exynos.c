@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
@@ -77,6 +78,7 @@ struct dw_mci_exynos_priv_data {
 	u32				sdr_timing;
 	u32				ddr_timing;
 	u32				cur_speed;
+	int				hwreset_gpio;
 };
 
 static struct dw_mci_exynos_compatible {
@@ -295,7 +297,10 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 		return ret;
 
 	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
+
+	priv->hwreset_gpio = of_get_named_gpio(np, "samsung,dw-mshc-hwreset-gpio", 0);
 	host->priv = priv;
+
 	return 0;
 }
 
@@ -480,6 +485,29 @@ static const struct of_device_id dw_mci_exynos_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_mci_exynos_match);
 
+
+static void dw_mci_exynos_shutdown(struct platform_device *pdev)
+{
+	struct dw_mci *host = platform_get_drvdata(pdev);
+	int gpio;
+
+	if (host && host->priv) {
+		struct dw_mci_exynos_priv_data *priv = host->priv;
+		gpio = priv->hwreset_gpio;
+	}
+
+	if (system_state != SYSTEM_RESTART || !gpio_is_valid(gpio))
+		return;
+
+	/* Issue eMMC HW_RST */
+	gpio_request(gpio, "GPK1");
+	gpio_direction_output(gpio, 0);
+	msleep(150);
+	gpio_direction_output(gpio, 1);
+	gpio_free(gpio);
+	msleep(150);
+}
+
 static int dw_mci_exynos_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
@@ -500,6 +528,7 @@ static const struct dev_pm_ops dw_mci_exynos_pmops = {
 static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.probe		= dw_mci_exynos_probe,
 	.remove		= dw_mci_pltfm_remove,
+	.shutdown	= dw_mci_exynos_shutdown,
 	.driver		= {
 		.name		= "dwmmc_exynos",
 		.of_match_table	= dw_mci_exynos_match,
