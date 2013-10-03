@@ -171,8 +171,6 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 		goto fail_ck;
 	}
 
-	policy->cur = omap_getspeed(policy->cpu);
-
 	if (!freq_table)
 		result = opp_init_cpufreq_table(mpu_dev, &freq_table);
 
@@ -187,8 +185,6 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 	result = cpufreq_table_validate_and_show(policy, freq_table);
 	if (result)
 		goto fail_table;
-
-	policy->cur = omap_getspeed(policy->cpu);
 
 	/*
 	 * On OMAP SMP configuartion, both processors share the voltage
