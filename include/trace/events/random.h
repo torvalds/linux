@@ -87,6 +87,28 @@ TRACE_EVENT(credit_entropy_bits,
 		  (void *)__entry->IP)
 );
 
+TRACE_EVENT(push_to_pool,
+	TP_PROTO(const char *pool_name, int pool_bits, int input_bits),
+
+	TP_ARGS(pool_name, pool_bits, input_bits),
+
+	TP_STRUCT__entry(
+		__field( const char *,	pool_name		)
+		__field(	  int,	pool_bits		)
+		__field(	  int,	input_bits		)
+	),
+
+	TP_fast_assign(
+		__entry->pool_name	= pool_name;
+		__entry->pool_bits	= pool_bits;
+		__entry->input_bits	= input_bits;
+	),
+
+	TP_printk("%s: pool_bits %d input_pool_bits %d",
+		  __entry->pool_name, __entry->pool_bits,
+		  __entry->input_bits)
+);
+
 DECLARE_EVENT_CLASS(random__get_random_bytes,
 	TP_PROTO(int nbytes, unsigned long IP),
 
