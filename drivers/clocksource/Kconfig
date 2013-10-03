@@ -71,6 +71,14 @@ config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 	help
 	  Use the always on PRCMU Timer as sched_clock
 
+config CLKSRC_EFM32
+	bool "Clocksource for Energy Micro's EFM32 SoCs" if !ARCH_EFM32
+	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
+	default ARCH_EFM32
+	help
+	  Support to use the timers of EFM32 SoCs as clock source and clock
+	  event device.
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
