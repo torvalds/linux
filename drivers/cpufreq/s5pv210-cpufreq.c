@@ -543,8 +543,6 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 	s5pv210_dram_conf[1].refresh = (__raw_readl(S5P_VA_DMC1 + 0x30) * 1000);
 	s5pv210_dram_conf[1].freq = clk_get_rate(dmc1_clk);
 
-	policy->cur = policy->min = policy->max = s5pv210_getspeed(0);
-
 	policy->cpuinfo.transition_latency = 40000;
 
 	return cpufreq_table_validate_and_show(policy, s5pv210_freq_table);
