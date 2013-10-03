@@ -920,8 +920,9 @@ static void mtip_handle_tfe(struct driver_data *dd)
 			fail_reason = "thermal shutdown";
 		}
 		if (buf[288] == 0xBF) {
+			set_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag);
 			dev_info(&dd->pdev->dev,
-				"Drive indicates rebuild has failed.\n");
+				"Drive indicates rebuild has failed. Secure erase required.\n");
 			fail_all_ncq_cmds = 1;
 			fail_reason = "rebuild failed";
 		}
@@ -1587,6 +1588,12 @@ static int mtip_get_identify(struct mtip_port *port, void __user *user_buffer)
 	}
 #endif
 
+	/* Check security locked state */
+	if (port->identify[128] & 0x4)
+		set_bit(MTIP_DDF_SEC_LOCK_BIT, &port->dd->dd_flag);
+	else
+		clear_bit(MTIP_DDF_SEC_LOCK_BIT, &port->dd->dd_flag);
+
 #ifdef MTIP_TRIM /* Disabling TRIM support temporarily */
 	/* Demux ID.DRAT & ID.RZAT to determine trim support */
 	if (port->identify[69] & (1 << 14) && port->identify[69] & (1 << 5))
@@ -1907,6 +1914,10 @@ static void mtip_dump_identify(struct mtip_port *port)
 
 	strlcpy(cbuf, (char *)(port->identify+27), 41);
 	dev_info(&port->dd->pdev->dev, "Model: %s\n", cbuf);
+
+	dev_info(&port->dd->pdev->dev, "Security: %04x %s\n",
+		port->identify[128],
+		port->identify[128] & 0x4 ? "(LOCKED)" : "");
 
 	if (mtip_hw_get_capacity(port->dd, &sectors))
 		dev_info(&port->dd->pdev->dev,
@@ -3678,7 +3689,8 @@ static int mtip_hw_exit(struct driver_data *dd)
 	 * saves its state.
 	 */
 	if (!dd->sr) {
-		if (!test_bit(MTIP_DDF_REBUILD_FAILED_BIT, &dd->dd_flag))
+		if (!test_bit(MTIP_PF_REBUILD_BIT, &dd->port->flags) &&
+		    !test_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag))
 			if (mtip_standby_immediate(dd->port))
 				dev_warn(&dd->pdev->dev,
 					"STANDBY IMMEDIATE failed\n");
