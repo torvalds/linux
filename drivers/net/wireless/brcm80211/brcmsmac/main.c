@@ -5695,7 +5695,7 @@ static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 		return true;
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
 		return true;
-	if (device == BCM4313_D11N2G_ID)
+	if (device == BCM4313_D11N2G_ID || device == BCM4313_CHIP_ID)
 		return true;
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
 		return true;
