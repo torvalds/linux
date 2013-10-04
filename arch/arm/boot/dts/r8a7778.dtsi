@@ -156,4 +156,12 @@
 		interrupts = <0 77 0x4>;
 		status = "disabled";
 	};
+
+	mmcif: mmcif@ffe4e000 {
+		compatible = "renesas,sh-mmcif";
+		reg = <0xffe4e000 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 61 4>;
+		status = "disabled";
+	};
 };
