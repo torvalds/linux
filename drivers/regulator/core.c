@@ -1281,13 +1281,8 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	 * even if it isn't hooked up and just provide a dummy.
 	 */
 	if (has_full_constraints && allow_dummy) {
-		/*
-		 * Log the substitution if regulator configuration is
-		 * not complete to help development.
-		 */
-		if (!has_full_constraints)
-			pr_warn("%s supply %s not found, using dummy regulator\n",
-				devname, id);
+		pr_warn("%s supply %s not found, using dummy regulator\n",
+			devname, id);
 
 		rdev = dummy_regulator_rdev;
 		goto found;
