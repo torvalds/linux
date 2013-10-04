@@ -122,6 +122,11 @@ struct wa_rpipe {
 };
 
 
+enum wa_dti_state {
+	WA_DTI_TRANSFER_RESULT_PENDING,
+	WA_DTI_ISOC_PACKET_STATUS_PENDING
+};
+
 /**
  * Instance of a HWA Host Controller
  *
@@ -181,6 +186,15 @@ struct wahc {
 	spinlock_t rpipe_bm_lock;	/* protect rpipe_bm */
 	struct mutex rpipe_mutex;	/* assigning resources to endpoints */
 
+	/*
+	 * dti_state is used to track the state of the dti_urb.  When dti_state
+	 * is WA_DTI_ISOC_PACKET_STATUS_PENDING, dti_isoc_xfer_in_progress and
+	 * dti_isoc_xfer_seg identify which xfer the incoming isoc packet status
+	 * refers to.
+	 */
+	enum wa_dti_state dti_state;
+	u32 dti_isoc_xfer_in_progress;
+	u8  dti_isoc_xfer_seg;
 	struct urb *dti_urb;		/* URB for reading xfer results */
 	struct urb *buf_in_urb;		/* URB for reading data in */
 	struct edc dti_edc;		/* DTI error density counter */
@@ -247,6 +261,7 @@ static inline void wa_init(struct wahc *wa)
 {
 	edc_init(&wa->nep_edc);
 	atomic_set(&wa->notifs_queued, 0);
+	wa->dti_state = WA_DTI_TRANSFER_RESULT_PENDING;
 	wa_rpipe_init(wa);
 	edc_init(&wa->dti_edc);
 	INIT_LIST_HEAD(&wa->xfer_list);
