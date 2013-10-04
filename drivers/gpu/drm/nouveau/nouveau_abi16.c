@@ -178,10 +178,10 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = device->chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		getparam->value = dev->pci_vendor;
+		getparam->value = dev->pdev->vendor;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		getparam->value = dev->pci_device;
+		getparam->value = dev->pdev->device;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
 		if (drm_pci_device_is_agp(dev))

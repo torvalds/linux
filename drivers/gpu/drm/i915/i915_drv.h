@@ -1590,39 +1590,39 @@ struct drm_i915_file_private {
 
 #define INTEL_INFO(dev)	(to_i915(dev)->info)
 
-#define IS_I830(dev)		((dev)->pci_device == 0x3577)
-#define IS_845G(dev)		((dev)->pci_device == 0x2562)
+#define IS_I830(dev)		((dev)->pdev->device == 0x3577)
+#define IS_845G(dev)		((dev)->pdev->device == 0x2562)
 #define IS_I85X(dev)		(INTEL_INFO(dev)->is_i85x)
-#define IS_I865G(dev)		((dev)->pci_device == 0x2572)
+#define IS_I865G(dev)		((dev)->pdev->device == 0x2572)
 #define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
-#define IS_I915GM(dev)		((dev)->pci_device == 0x2592)
-#define IS_I945G(dev)		((dev)->pci_device == 0x2772)
+#define IS_I915GM(dev)		((dev)->pdev->device == 0x2592)
+#define IS_I945G(dev)		((dev)->pdev->device == 0x2772)
 #define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
 #define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
 #define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
-#define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
+#define IS_GM45(dev)		((dev)->pdev->device == 0x2A42)
 #define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
-#define IS_PINEVIEW_G(dev)	((dev)->pci_device == 0xa001)
-#define IS_PINEVIEW_M(dev)	((dev)->pci_device == 0xa011)
+#define IS_PINEVIEW_G(dev)	((dev)->pdev->device == 0xa001)
+#define IS_PINEVIEW_M(dev)	((dev)->pdev->device == 0xa011)
 #define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
-#define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
+#define IS_IRONLAKE_M(dev)	((dev)->pdev->device == 0x0046)
 #define IS_IVYBRIDGE(dev)	(INTEL_INFO(dev)->is_ivybridge)
-#define IS_IVB_GT1(dev)		((dev)->pci_device == 0x0156 || \
-				 (dev)->pci_device == 0x0152 ||	\
-				 (dev)->pci_device == 0x015a)
-#define IS_SNB_GT1(dev)		((dev)->pci_device == 0x0102 || \
-				 (dev)->pci_device == 0x0106 ||	\
-				 (dev)->pci_device == 0x010A)
+#define IS_IVB_GT1(dev)		((dev)->pdev->device == 0x0156 || \
+				 (dev)->pdev->device == 0x0152 || \
+				 (dev)->pdev->device == 0x015a)
+#define IS_SNB_GT1(dev)		((dev)->pdev->device == 0x0102 || \
+				 (dev)->pdev->device == 0x0106 || \
+				 (dev)->pdev->device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
-				 ((dev)->pci_device & 0xFF00) == 0x0C00)
+				 ((dev)->pdev->device & 0xFF00) == 0x0C00)
 #define IS_ULT(dev)		(IS_HASWELL(dev) && \
-				 ((dev)->pci_device & 0xFF00) == 0x0A00)
+				 ((dev)->pdev->device & 0xFF00) == 0x0A00)
 #define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
-				 ((dev)->pci_device & 0x00F0) == 0x0020)
+				 ((dev)->pdev->device & 0x00F0) == 0x0020)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
 
 /*
