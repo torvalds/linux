@@ -402,7 +402,7 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	magic_len = strlen(ATH10K_FIRMWARE_MAGIC) + 1;
 
 	if (len < magic_len) {
-		ath10k_err("firmware image too small to contain magic: %d\n",
+		ath10k_err("firmware image too small to contain magic: %zu\n",
 			   len);
 		return -EINVAL;
 	}
@@ -429,7 +429,7 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		data += sizeof(*hdr);
 
 		if (len < ie_len) {
-			ath10k_err("Invalid length for FW IE %d (%d < %d)\n",
+			ath10k_err("Invalid length for FW IE %d (%zu < %zu)\n",
 				   ie_id, len, ie_len);
 			return -EINVAL;
 		}
