@@ -622,9 +622,9 @@ static void hdmi_std_setup_channel_mapping(struct hda_codec *codec,
 
 	if (non_pcm) {
 		for (i = 0; i < ch_alloc->channels; i++)
-			non_pcm_mapping[i] = i | (i << 4);
+			non_pcm_mapping[i] = (i << 4) | i;
 		for (; i < 8; i++)
-			non_pcm_mapping[i] = 0xf | (i << 4);
+			non_pcm_mapping[i] = (0xf << 4) | i;
 	}
 
 	for (i = 0; i < 8; i++) {
@@ -678,7 +678,7 @@ static int to_cea_slot(unsigned char c)
 		if (t->map == c)
 			return t->cea_slot;
 	}
-	return 0x0f;
+	return -1;
 }
 
 /* from CEA slot to ALSA API channel position */
@@ -731,14 +731,23 @@ static int hdmi_manual_setup_channel_mapping(struct hda_codec *codec,
 					     hda_nid_t pin_nid,
 					     int chs, unsigned char *map)
 {
-	int i;
-	for (i = 0; i < 8; i++) {
+	int alsa_pos, hdmi_slot;
+	int assignments[8] = {[0 ... 7] = 0xf};
+
+	for (alsa_pos = 0; alsa_pos < chs; alsa_pos++) {
+
+		hdmi_slot = to_cea_slot(map[alsa_pos]);
+
+		if (hdmi_slot < 0)
+			continue; /* unassigned channel */
+
+		assignments[hdmi_slot] = alsa_pos;
+	}
+
+	for (hdmi_slot = 0; hdmi_slot < 8; hdmi_slot++) {
 		int val, err;
-		if (i < chs)
-			val = to_cea_slot(map[i]);
-		else
-			val = 0xf;
-		val |= (i << 4);
+
+		val = (assignments[hdmi_slot] << 4) | hdmi_slot;
 		err = snd_hda_codec_write(codec, pin_nid, 0,
 					  AC_VERB_SET_HDMI_CHAN_SLOT, val);
 		if (err)
