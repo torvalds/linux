@@ -39,7 +39,7 @@
 		regulator-always-on;
 	};
 
-	lan0@18300000 {
+	ethernet@18300000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x18300000 0x1000>;
 
