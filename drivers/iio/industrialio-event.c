@@ -113,9 +113,14 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 		}
 		/* Blocking on device; waiting for something to be there */
 		ret = wait_event_interruptible_locked_irq(ev_int->wait,
-					!kfifo_is_empty(&ev_int->det_events));
+					!kfifo_is_empty(&ev_int->det_events) ||
+					indio_dev->info == NULL);
 		if (ret)
 			goto error_unlock;
+		if (indio_dev->info == NULL) {
+			ret = -ENODEV;
+			goto error_unlock;
+		}
 		/* Single access device so no one else can get the data */
 	}
 
@@ -452,6 +457,20 @@ error_free_setup_event_lines:
 error_ret:
 
 	return ret;
+}
+
+/**
+ * iio_device_wakeup_eventset - Wakes up the event waitqueue
+ * @indio_dev: The IIO device
+ *
+ * Wakes up the event waitqueue used for poll() and blocking read().
+ * Should usually be called when the device is unregistered.
+ */
+void iio_device_wakeup_eventset(struct iio_dev *indio_dev)
+{
+	if (indio_dev->event_interface == NULL)
+		return;
+	wake_up(&indio_dev->event_interface->wait);
 }
 
 void iio_device_unregister_eventset(struct iio_dev *indio_dev)
