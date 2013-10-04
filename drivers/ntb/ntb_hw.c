@@ -1316,10 +1316,16 @@ static void ntb_hw_link_up(struct ntb_device *ndev)
 {
 	if (ndev->conn_type == NTB_CONN_TRANSPARENT)
 		ntb_link_event(ndev, NTB_LINK_UP);
-	else
+	else {
+		u32 ntb_cntl;
+
 		/* Let's bring the NTB link up */
-		writel(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP,
-		       ndev->reg_ofs.lnk_cntl);
+		ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
+		ntb_cntl &= ~(NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK);
+		ntb_cntl |= NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP;
+		ntb_cntl |= NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP;
+		writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
+	}
 }
 
 static void ntb_hw_link_down(struct ntb_device *ndev)
@@ -1333,8 +1339,9 @@ static void ntb_hw_link_down(struct ntb_device *ndev)
 
 	/* Bring NTB link down */
 	ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
-	ntb_cntl &= ~(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
-	ntb_cntl |= NTB_CNTL_LINK_DISABLE;
+	ntb_cntl &= ~(NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP);
+	ntb_cntl &= ~(NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP);
+	ntb_cntl |= NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK;
 	writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
 }
 
