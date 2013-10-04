@@ -63,26 +63,26 @@ enum GVP_flags {
 
 
 struct Node {
-	struct  Node *ln_Succ;	/* Pointer to next (successor) */
-	struct  Node *ln_Pred;	/* Pointer to previous (predecessor) */
-	__u8    ln_Type;
-	__s8    ln_Pri;		/* Priority, for sorting */
-	__s8    *ln_Name;	/* ID string, null terminated */
+	__be32 ln_Succ;		/* Pointer to next (successor) */
+	__be32 ln_Pred;		/* Pointer to previous (predecessor) */
+	__u8   ln_Type;
+	__s8   ln_Pri;		/* Priority, for sorting */
+	__be32 ln_Name;		/* ID string, null terminated */
 } __packed;
 
 struct ExpansionRom {
 	/* -First 16 bytes of the expansion ROM */
-	__u8  er_Type;		/* Board type, size and flags */
-	__u8  er_Product;	/* Product number, assigned by manufacturer */
-	__u8  er_Flags;		/* Flags */
-	__u8  er_Reserved03;	/* Must be zero ($ff inverted) */
-	__u16 er_Manufacturer;	/* Unique ID, ASSIGNED BY COMMODORE-AMIGA! */
-	__u32 er_SerialNumber;	/* Available for use by manufacturer */
-	__u16 er_InitDiagVec;	/* Offset to optional "DiagArea" structure */
-	__u8  er_Reserved0c;
-	__u8  er_Reserved0d;
-	__u8  er_Reserved0e;
-	__u8  er_Reserved0f;
+	__u8   er_Type;		/* Board type, size and flags */
+	__u8   er_Product;	/* Product number, assigned by manufacturer */
+	__u8   er_Flags;		/* Flags */
+	__u8   er_Reserved03;	/* Must be zero ($ff inverted) */
+	__be16 er_Manufacturer;	/* Unique ID, ASSIGNED BY COMMODORE-AMIGA! */
+	__be32 er_SerialNumber;	/* Available for use by manufacturer */
+	__be16 er_InitDiagVec;	/* Offset to optional "DiagArea" structure */
+	__u8   er_Reserved0c;
+	__u8   er_Reserved0d;
+	__u8   er_Reserved0e;
+	__u8   er_Reserved0f;
 } __packed;
 
 /* er_Type board type bits */
@@ -99,13 +99,13 @@ struct ConfigDev {
 	__u8		cd_Flags;	/* (read/write) */
 	__u8		cd_Pad;		/* reserved */
 	struct ExpansionRom cd_Rom;	/* copy of board's expansion ROM */
-	void		*cd_BoardAddr;	/* where in memory the board was placed */
-	__u32		cd_BoardSize;	/* size of board in bytes */
-	__u16		cd_SlotAddr;	/* which slot number (PRIVATE) */
-	__u16		cd_SlotSize;	/* number of slots (PRIVATE) */
-	void		*cd_Driver;	/* pointer to node of driver */
-	struct ConfigDev *cd_NextCD;	/* linked list of drivers to config */
-	__u32		cd_Unused[4];	/* for whatever the driver wants */
+	__be32		cd_BoardAddr;	/* where in memory the board was placed */
+	__be32		cd_BoardSize;	/* size of board in bytes */
+	__be16		cd_SlotAddr;	/* which slot number (PRIVATE) */
+	__be16		cd_SlotSize;	/* number of slots (PRIVATE) */
+	__be32		cd_Driver;	/* pointer to node of driver */
+	__be32		cd_NextCD;	/* linked list of drivers to config */
+	__be32		cd_Unused[4];	/* for whatever the driver wants */
 } __packed;
 
 #define ZORRO_NUM_AUTO		16

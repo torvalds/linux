@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <asm/byteorder.h>
 #include <asm/setup.h>
 #include <asm/amigahw.h>
 
@@ -161,7 +162,8 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 		z = &zorro_autocon[i];
 
 		z->rom = zi->rom;
-		z->id = (z->rom.er_Manufacturer<<16) | (z->rom.er_Product<<8);
+		z->id = (be16_to_cpu(z->rom.er_Manufacturer) << 16) |
+			(z->rom.er_Product << 8);
 		if (z->id == ZORRO_PROD_GVP_EPC_BASE) {
 			/* GVP quirk */
 			unsigned long magic = zi->boardaddr + 0x8000;
