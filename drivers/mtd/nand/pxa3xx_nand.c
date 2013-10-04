@@ -540,7 +540,6 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	info->oob_size		= 0;
 	info->use_ecc		= 0;
 	info->use_spare		= 1;
-	info->use_dma		= (use_dma) ? 1 : 0;
 	info->is_ready		= 0;
 	info->retcode		= ERR_NONE;
 	if (info->cs != 0)
@@ -950,6 +949,11 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 		return info->data_dma_ch;
 	}
 
+	/*
+	 * Now that DMA buffers are allocated we turn on
+	 * DMA proper for I/O operations.
+	 */
+	info->use_dma = 1;
 	return 0;
 }
 
