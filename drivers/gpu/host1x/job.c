@@ -436,10 +436,6 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 		}
 	}
 
-	/* No relocs should remain at this point */
-	if (fw->num_relocs)
-		err = -EINVAL;
-
 out:
 	return err;
 }
@@ -492,6 +488,10 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 		offset += g->words * sizeof(u32);
 	}
+
+	/* No relocs should remain at this point */
+	if (fw.num_relocs)
+		return -EINVAL;
 
 	return 0;
 }
