@@ -105,6 +105,7 @@
 #define VIN_MAX_HEIGHT		2048
 
 enum chip_id {
+	RCAR_H2,
 	RCAR_H1,
 	RCAR_M1,
 	RCAR_E1,
@@ -300,7 +301,8 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		dmr = 0;
 		break;
 	case V4L2_PIX_FMT_RGB32:
-		if (priv->chip == RCAR_H1 || priv->chip == RCAR_E1) {
+		if (priv->chip == RCAR_H2 || priv->chip == RCAR_H1 ||
+		    priv->chip == RCAR_E1) {
 			dmr = VNDMR_EXRGB;
 			break;
 		}
@@ -1381,6 +1383,7 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 };
 
 static struct platform_device_id rcar_vin_id_table[] = {
+	{ "r8a7790-vin",  RCAR_H2 },
 	{ "r8a7779-vin",  RCAR_H1 },
 	{ "r8a7778-vin",  RCAR_M1 },
 	{ "uPD35004-vin", RCAR_E1 },
