@@ -262,7 +262,7 @@ static int tegra_gem_create(struct drm_device *drm, void *data,
 	struct drm_tegra_gem_create *args = data;
 	struct tegra_bo *bo;
 
-	bo = tegra_bo_create_with_handle(file, drm, args->size,
+	bo = tegra_bo_create_with_handle(file, drm, args->size, args->flags,
 					 &args->handle);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);

@@ -18,6 +18,8 @@
  * GNU General Public License for more details.
  */
 
+#include <drm/tegra_drm.h>
+
 #include "gem.h"
 
 static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
@@ -97,7 +99,8 @@ static void tegra_bo_destroy(struct drm_device *drm, struct tegra_bo *bo)
 	dma_free_writecombine(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
 }
 
-struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size)
+struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
+				 unsigned long flags)
 {
 	struct tegra_bo *bo;
 	int err;
@@ -126,6 +129,9 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size)
 	if (err)
 		goto err_mmap;
 
+	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
+		bo->flags |= TEGRA_BO_TILED;
+
 	return bo;
 
 err_mmap:
@@ -142,12 +148,13 @@ err_dma:
 struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
 					     struct drm_device *drm,
 					     unsigned int size,
+					     unsigned long flags,
 					     unsigned int *handle)
 {
 	struct tegra_bo *bo;
 	int ret;
 
-	bo = tegra_bo_create(drm, size);
+	bo = tegra_bo_create(drm, size, flags);
 	if (IS_ERR(bo))
 		return bo;
 
@@ -187,7 +194,7 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 	if (args->size < args->pitch * args->height)
 		args->size = args->pitch * args->height;
 
-	bo = tegra_bo_create_with_handle(file, drm, args->size,
+	bo = tegra_bo_create_with_handle(file, drm, args->size, 0,
 					 &args->handle);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);

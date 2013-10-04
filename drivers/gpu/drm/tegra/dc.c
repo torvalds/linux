@@ -47,6 +47,7 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	window.dst.h = crtc_h;
 	window.format = tegra_dc_format(fb->pixel_format);
 	window.bits_per_pixel = fb->bits_per_pixel;
+	window.tiled = tegra_fb_is_tiled(fb);
 
 	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
@@ -156,6 +157,16 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	tegra_dc_writel(dc, bo->paddr + value, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, fb->pitches[0], DC_WIN_LINE_STRIDE);
 	tegra_dc_writel(dc, format, DC_WIN_COLOR_DEPTH);
+
+	if (tegra_fb_is_tiled(fb)) {
+		value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
+			DC_WIN_BUFFER_ADDR_MODE_TILE;
+	} else {
+		value = DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV |
+			DC_WIN_BUFFER_ADDR_MODE_LINEAR;
+	}
+
+	tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
 
 	value = GENERAL_UPDATE | WIN_A_UPDATE;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
@@ -508,6 +519,16 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 
 	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
 	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
+
+	if (window->tiled) {
+		value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
+			DC_WIN_BUFFER_ADDR_MODE_TILE;
+	} else {
+		value = DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV |
+			DC_WIN_BUFFER_ADDR_MODE_LINEAR;
+	}
+
+	tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
 
 	value = WIN_ENABLE;
 

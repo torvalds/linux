@@ -19,6 +19,8 @@
 
 #include <drm/drm.h>
 
+#define DRM_TEGRA_GEM_CREATE_TILED (1 << 0)
+
 struct drm_tegra_gem_create {
 	__u64 size;
 	__u32 flags;

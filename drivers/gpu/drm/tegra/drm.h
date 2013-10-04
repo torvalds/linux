@@ -148,6 +148,7 @@ struct tegra_dc_window {
 	unsigned int format;
 	unsigned int stride[2];
 	unsigned long base[3];
+	bool tiled;
 };
 
 /* from dc.c */
@@ -254,6 +255,7 @@ extern int tegra_output_exit(struct tegra_output *output);
 /* from fb.c */
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index);
+bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
 extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
