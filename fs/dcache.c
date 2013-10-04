@@ -483,27 +483,6 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 	return parent;
 }
 
-/*
- * Unhash a dentry without inserting an RCU walk barrier or checking that
- * dentry->d_lock is locked.  The caller must take care of that, if
- * appropriate.
- */
-static void __d_shrink(struct dentry *dentry)
-{
-	if (!d_unhashed(dentry)) {
-		struct hlist_bl_head *b;
-		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
-			b = &dentry->d_sb->s_anon;
-		else
-			b = d_hash(dentry->d_parent, dentry->d_name.hash);
-
-		hlist_bl_lock(b);
-		__hlist_bl_del(&dentry->d_hash);
-		dentry->d_hash.pprev = NULL;
-		hlist_bl_unlock(b);
-	}
-}
-
 /**
  * d_drop - drop a dentry
  * @dentry: dentry to drop
@@ -522,7 +501,16 @@ static void __d_shrink(struct dentry *dentry)
 void __d_drop(struct dentry *dentry)
 {
 	if (!d_unhashed(dentry)) {
-		__d_shrink(dentry);
+		struct hlist_bl_head *b;
+		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
+			b = &dentry->d_sb->s_anon;
+		else
+			b = d_hash(dentry->d_parent, dentry->d_name.hash);
+
+		hlist_bl_lock(b);
+		__hlist_bl_del(&dentry->d_hash);
+		dentry->d_hash.pprev = NULL;
+		hlist_bl_unlock(b);
 		dentry_rcuwalk_barrier(dentry);
 	}
 }
