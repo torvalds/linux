@@ -7,7 +7,7 @@
 
 
     /*
-     *  Macintosh-specific tags (all u_long)
+     *  Macintosh-specific tags (all __be32)
      */
 
 #define BI_MAC_MODEL		0x8000	/* Mac Gestalt ID (model type) */

@@ -10,9 +10,9 @@
      *  HP9000/300-specific tags
      */
 
-#define BI_HP300_MODEL		0x8000	/* model (u_long) */
-#define BI_HP300_UART_SCODE	0x8001	/* UART select code (u_long) */
-#define BI_HP300_UART_ADDR	0x8002	/* phys. addr of UART (u_long) */
+#define BI_HP300_MODEL		0x8000	/* model (__be32) */
+#define BI_HP300_UART_SCODE	0x8001	/* UART select code (__be32) */
+#define BI_HP300_UART_ADDR	0x8002	/* phys. addr of UART (__be32) */
 
 
     /*

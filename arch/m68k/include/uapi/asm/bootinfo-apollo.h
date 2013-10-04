@@ -10,7 +10,7 @@
      *  Apollo-specific tags
      */
 
-#define BI_APOLLO_MODEL		0x8000	/* model (u_long) */
+#define BI_APOLLO_MODEL		0x8000	/* model (__be32) */
 
 
     /*

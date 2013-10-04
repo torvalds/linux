@@ -26,6 +26,7 @@
 #include <linux/initrd.h>
 
 #include <asm/bootinfo.h>
+#include <asm/byteorder.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/fpu.h>
@@ -143,11 +144,14 @@ extern void paging_init(void);
 
 static void __init m68k_parse_bootinfo(const struct bi_record *record)
 {
-	while (record->tag != BI_LAST) {
-		int unknown = 0;
-		const unsigned long *data = record->data;
+	uint16_t tag;
 
-		switch (record->tag) {
+	while ((tag = be16_to_cpu(record->tag)) != BI_LAST) {
+		int unknown = 0;
+		const void *data = record->data;
+		uint16_t size = be16_to_cpu(record->size);
+
+		switch (tag) {
 		case BI_MACHTYPE:
 		case BI_CPUTYPE:
 		case BI_FPUTYPE:
@@ -157,8 +161,11 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 
 		case BI_MEMCHUNK:
 			if (m68k_num_memory < NUM_MEMINFO) {
-				m68k_memory[m68k_num_memory].addr = data[0];
-				m68k_memory[m68k_num_memory].size = data[1];
+				const struct mem_info *m = data;
+				m68k_memory[m68k_num_memory].addr =
+					be32_to_cpu(m->addr);
+				m68k_memory[m68k_num_memory].size =
+					be32_to_cpu(m->size);
 				m68k_num_memory++;
 			} else
 				pr_warn("%s: too many memory chunks\n",
@@ -166,12 +173,15 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 			break;
 
 		case BI_RAMDISK:
-			m68k_ramdisk.addr = data[0];
-			m68k_ramdisk.size = data[1];
+			{
+				const struct mem_info *m = data;
+				m68k_ramdisk.addr = be32_to_cpu(m->addr);
+				m68k_ramdisk.size = be32_to_cpu(m->size);
+			}
 			break;
 
 		case BI_COMMAND_LINE:
-			strlcpy(m68k_command_line, (const char *)data,
+			strlcpy(m68k_command_line, data,
 				sizeof(m68k_command_line));
 			break;
 
@@ -199,9 +209,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 		}
 		if (unknown)
 			pr_warn("%s: unknown tag 0x%04x ignored\n", __func__,
-				   record->tag);
-		record = (struct bi_record *)((unsigned long)record +
-					      record->size);
+				tag);
+		record = (struct bi_record *)((unsigned long)record + size);
 	}
 
 	m68k_realnum_memory = m68k_num_memory;

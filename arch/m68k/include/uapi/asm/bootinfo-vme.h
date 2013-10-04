@@ -6,11 +6,14 @@
 #define _UAPI_ASM_M68K_BOOTINFO_VME_H
 
 
+#include <linux/types.h>
+
+
     /*
      *  VME-specific tags
      */
 
-#define BI_VME_TYPE		0x8000	/* VME sub-architecture (u_long) */
+#define BI_VME_TYPE		0x8000	/* VME sub-architecture (__be32) */
 #define BI_VME_BRDINFO		0x8001	/* VME board information (struct) */
 
 
@@ -43,13 +46,13 @@
 
 typedef struct {
 	char	bdid[4];
-	u_char	rev, mth, day, yr;
-	u_short	size, reserved;
-	u_short	brdno;
+	__u8	rev, mth, day, yr;
+	__be16	size, reserved;
+	__be16	brdno;
 	char	brdsuffix[2];
-	u_long	options;
-	u_short	clun, dlun, ctype, dnum;
-	u_long	option2;
+	__be32	options;
+	__be16	clun, dlun, ctype, dnum;
+	__be32	option2;
 } t_bdid, *p_bdid;
 
 #endif /* __ASSEMBLY__ */

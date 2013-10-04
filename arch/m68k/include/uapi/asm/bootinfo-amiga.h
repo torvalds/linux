@@ -10,15 +10,15 @@
      *  Amiga-specific tags
      */
 
-#define BI_AMIGA_MODEL		0x8000	/* model (u_long) */
+#define BI_AMIGA_MODEL		0x8000	/* model (__be32) */
 #define BI_AMIGA_AUTOCON	0x8001	/* AutoConfig device */
 					/* (AmigaOS struct ConfigDev) */
-#define BI_AMIGA_CHIP_SIZE	0x8002	/* size of Chip RAM (u_long) */
-#define BI_AMIGA_VBLANK		0x8003	/* VBLANK frequency (u_char) */
-#define BI_AMIGA_PSFREQ		0x8004	/* power supply frequency (u_char) */
-#define BI_AMIGA_ECLOCK		0x8005	/* EClock frequency (u_long) */
-#define BI_AMIGA_CHIPSET	0x8006	/* native chipset present (u_long) */
-#define BI_AMIGA_SERPER		0x8007	/* serial port period (u_short) */
+#define BI_AMIGA_CHIP_SIZE	0x8002	/* size of Chip RAM (__be32) */
+#define BI_AMIGA_VBLANK		0x8003	/* VBLANK frequency (__u8) */
+#define BI_AMIGA_PSFREQ		0x8004	/* power supply frequency (__u8) */
+#define BI_AMIGA_ECLOCK		0x8005	/* EClock frequency (__be32) */
+#define BI_AMIGA_CHIPSET	0x8006	/* native chipset present (__be32) */
+#define BI_AMIGA_SERPER		0x8007	/* serial port period (__be16) */
 
 
     /*

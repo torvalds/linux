@@ -12,6 +12,9 @@
 #define _UAPI_ASM_M68K_BOOTINFO_H
 
 
+#include <linux/types.h>
+
+
 #ifndef __ASSEMBLY__
 
     /*
@@ -28,15 +31,15 @@
      */
 
 struct bi_record {
-	unsigned short tag;		/* tag ID */
-	unsigned short size;		/* size of record (in bytes) */
-	unsigned long data[0];		/* data */
+	__be16 tag;			/* tag ID */
+	__be16 size;			/* size of record (in bytes) */
+	__be32 data[0];			/* data */
 };
 
 
 struct mem_info {
-	unsigned long addr;		/* physical address of memory chunk */
-	unsigned long size;		/* length of memory chunk (in bytes) */
+	__be32 addr;			/* physical address of memory chunk */
+	__be32 size;			/* length of memory chunk (in bytes) */
 };
 
 #endif /* __ASSEMBLY__ */
@@ -50,10 +53,10 @@ struct mem_info {
      */
 
 #define BI_LAST			0x0000	/* last record (sentinel) */
-#define BI_MACHTYPE		0x0001	/* machine type (u_long) */
-#define BI_CPUTYPE		0x0002	/* cpu type (u_long) */
-#define BI_FPUTYPE		0x0003	/* fpu type (u_long) */
-#define BI_MMUTYPE		0x0004	/* mmu type (u_long) */
+#define BI_MACHTYPE		0x0001	/* machine type (__be32) */
+#define BI_CPUTYPE		0x0002	/* cpu type (__be32) */
+#define BI_FPUTYPE		0x0003	/* fpu type (__be32) */
+#define BI_MMUTYPE		0x0004	/* mmu type (__be32) */
 #define BI_MEMCHUNK		0x0005	/* memory chunk address and size */
 					/* (struct mem_info) */
 #define BI_RAMDISK		0x0006	/* ramdisk address and size */
@@ -157,11 +160,11 @@ struct mem_info {
 #ifndef __ASSEMBLY__
 
 struct bootversion {
-	unsigned short branch;
-	unsigned long magic;
+	__be16 branch;
+	__be32 magic;
 	struct {
-		unsigned long machtype;
-		unsigned long version;
+		__be32 machtype;
+		__be32 version;
 	} machversions[0];
 } __packed;
 

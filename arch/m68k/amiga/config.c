@@ -145,37 +145,37 @@ static struct resource ram_resource[NUM_MEMINFO];
 int __init amiga_parse_bootinfo(const struct bi_record *record)
 {
 	int unknown = 0;
-	const unsigned long *data = record->data;
+	const void *data = record->data;
 
-	switch (record->tag) {
+	switch (be16_to_cpu(record->tag)) {
 	case BI_AMIGA_MODEL:
-		amiga_model = *data;
+		amiga_model = be32_to_cpup(data);
 		break;
 
 	case BI_AMIGA_ECLOCK:
-		amiga_eclock = *data;
+		amiga_eclock = be32_to_cpup(data);
 		break;
 
 	case BI_AMIGA_CHIPSET:
-		amiga_chipset = *data;
+		amiga_chipset = be32_to_cpup(data);
 		break;
 
 	case BI_AMIGA_CHIP_SIZE:
-		amiga_chip_size = *(const int *)data;
+		amiga_chip_size = be32_to_cpup(data);
 		break;
 
 	case BI_AMIGA_VBLANK:
-		amiga_vblank = *(const unsigned char *)data;
+		amiga_vblank = *(const __u8 *)data;
 		break;
 
 	case BI_AMIGA_PSFREQ:
-		amiga_psfreq = *(const unsigned char *)data;
+		amiga_psfreq = *(const __u8 *)data;
 		break;
 
 	case BI_AMIGA_AUTOCON:
 #ifdef CONFIG_ZORRO
 		if (zorro_num_autocon < ZORRO_NUM_AUTO) {
-			const struct ConfigDev *cd = (struct ConfigDev *)data;
+			const struct ConfigDev *cd = data;
 			struct zorro_dev_init *dev = &zorro_autocon_init[zorro_num_autocon++];
 			dev->rom = cd->cd_Rom;
 			dev->slotaddr = be16_to_cpu(cd->cd_SlotAddr);

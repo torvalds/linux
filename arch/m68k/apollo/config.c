@@ -11,6 +11,7 @@
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-apollo.h>
+#include <asm/byteorder.h>
 #include <asm/pgtable.h>
 #include <asm/apollohw.h>
 #include <asm/irq.h>
@@ -48,15 +49,15 @@ static const char *apollo_models[] = {
 int __init apollo_parse_bootinfo(const struct bi_record *record)
 {
 	int unknown = 0;
-	const unsigned long *data = record->data;
+	const void *data = record->data;
 
-	switch(record->tag) {
-		case BI_APOLLO_MODEL:
-			apollo_model=*data;
-			break;
+	switch (be16_to_cpu(record->tag)) {
+	case BI_APOLLO_MODEL:
+		apollo_model = be32_to_cpup(data);
+		break;
 
-		default:
-			 unknown=1;
+	default:
+		 unknown=1;
 	}
 
 	return unknown;

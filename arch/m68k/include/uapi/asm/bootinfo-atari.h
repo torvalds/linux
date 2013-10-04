@@ -10,8 +10,8 @@
      *  Atari-specific tags
      */
 
-#define BI_ATARI_MCH_COOKIE	0x8000	/* _MCH cookie from TOS (u_long) */
-#define BI_ATARI_MCH_TYPE	0x8001	/* special machine type (u_long) */
+#define BI_ATARI_MCH_COOKIE	0x8000	/* _MCH cookie from TOS (__be32) */
+#define BI_ATARI_MCH_TYPE	0x8001	/* special machine type (__be32) */
 
 
     /*
