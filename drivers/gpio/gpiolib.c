@@ -136,7 +136,7 @@ static struct gpio_desc *gpio_to_desc(unsigned gpio)
  */
 static int desc_to_gpio(const struct gpio_desc *desc)
 {
-	return desc->chip->base + gpio_chip_hwgpio(desc);
+	return desc - &gpio_desc[0];
 }
 
 
