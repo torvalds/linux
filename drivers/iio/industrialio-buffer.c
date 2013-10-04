@@ -509,7 +509,7 @@ void iio_disable_all_buffers(struct iio_dev *indio_dev)
 		indio_dev->setup_ops->postdisable(indio_dev);
 }
 
-int iio_update_buffers(struct iio_dev *indio_dev,
+static int __iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
 {
@@ -674,6 +674,29 @@ error_ret:
 
 	return ret;
 }
+
+int iio_update_buffers(struct iio_dev *indio_dev,
+		       struct iio_buffer *insert_buffer,
+		       struct iio_buffer *remove_buffer)
+{
+	int ret;
+
+	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&indio_dev->mlock);
+
+	if (indio_dev->info == NULL) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	ret = __iio_update_buffers(indio_dev, insert_buffer, remove_buffer);
+
+out_unlock:
+	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&indio_dev->info_exist_lock);
+
+	return ret;
+}
 EXPORT_SYMBOL_GPL(iio_update_buffers);
 
 ssize_t iio_buffer_store_enable(struct device *dev,
@@ -699,10 +722,10 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 		goto done;
 
 	if (requested_state)
-		ret = iio_update_buffers(indio_dev,
+		ret = __iio_update_buffers(indio_dev,
 					 indio_dev->buffer, NULL);
 	else
-		ret = iio_update_buffers(indio_dev,
+		ret = __iio_update_buffers(indio_dev,
 					 NULL, indio_dev->buffer);
 
 	if (ret < 0)
