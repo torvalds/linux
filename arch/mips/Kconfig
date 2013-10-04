@@ -1829,59 +1829,48 @@ choice
 	prompt "MIPS MT options"
 
 config MIPS_MT_DISABLED
-	bool "Disable multithreading support."
+	bool "Disable multithreading support"
 	help
-	  Use this option if your workload can't take advantage of
-	  MIPS hardware multithreading support.  On systems that don't have
-	  the option of an MT-enabled processor this option will be the only
-	  option in this menu.
+	  Use this option if your platform does not support the MT ASE
+	  which is hardware multithreading support. On systems without
+	  an MT-enabled processor, this will be the only option that is
+	  available in this menu.
 
 config MIPS_MT_SMP
 	bool "Use 1 TC on each available VPE for SMP"
 	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
+	select SYNC_R4K
 	select MIPS_MT
 	select SMP
-	select SYS_SUPPORTS_SCHED_SMT if SMP
-	select SYS_SUPPORTS_SMP
 	select SMP_UP
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_SCHED_SMT
 	select MIPS_PERF_SHARED_TC_COUNTERS
 	help
-	  This is a kernel model which is known a VSMP but lately has been
-	  marketesed into SMVP.
-	  Virtual SMP uses the processor's VPEs  to implement virtual
-	  processors. In currently available configuration of the 34K processor
-	  this allows for a dual processor. Both processors will share the same
-	  primary caches; each will obtain the half of the TLB for it's own
-	  exclusive use. For a layman this model can be described as similar to
-	  what Intel calls Hyperthreading.
-
-	  For further information see http://www.linux-mips.org/wiki/34K#VSMP
+	  This is a kernel model which is known as SMVP. This is supported
+	  on cores with the MT ASE and uses the available VPEs to implement
+	  virtual processors which supports SMP. This is equivalent to the
+	  Intel Hyperthreading feature. For further information go to
+	  <http://www.imgtec.com/mips/mips-multithreading.asp>.
 
 config MIPS_MT_SMTC
-	bool "SMTC: Use all TCs on all VPEs for SMP"
+	bool "Use all TCs on all VPEs for SMP (DEPRECATED)"
 	depends on CPU_MIPS32_R2
-	#depends on CPU_MIPS64_R2		# once there is hardware ...
 	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
-	select NR_CPUS_DEFAULT_8
 	select SMP
-	select SYS_SUPPORTS_SMP
 	select SMP_UP
+	select SYS_SUPPORTS_SMP
+	select NR_CPUS_DEFAULT_8
 	help
-	  This is a kernel model which is known a SMTC or lately has been
-	  marketesed into SMVP.
-	  is presenting the available TC's of the core as processors to Linux.
-	  On currently available 34K processors this means a Linux system will
-	  see up to 5 processors. The implementation of the SMTC kernel differs
-	  significantly from VSMP and cannot efficiently coexist in the same
-	  kernel binary so the choice between VSMP and SMTC is a compile time
-	  decision.
-
-	  For further information see http://www.linux-mips.org/wiki/34K#SMTC
+	  This is a kernel model which is known as SMTC. This is
+	  supported on cores with the MT ASE and presents all TCs
+	  available on all VPEs to support SMP. For further
+	  information see <http://www.linux-mips.org/wiki/34K#SMTC>.
 
 endchoice
 
@@ -1958,17 +1947,13 @@ config MIPS_VPE_APSP_API
 	help
 
 config MIPS_CMP
-	bool "MIPS CMP framework support"
-	depends on SYS_SUPPORTS_MIPS_CMP
-	select SMP
+	bool "MIPS CMP support"
+	depends on SYS_SUPPORTS_MIPS_CMP && MIPS_MT_SMP
 	select SYNC_R4K
-	select SYS_SUPPORTS_SMP
-	select SYS_SUPPORTS_SCHED_SMT if SMP
 	select WEAK_ORDERING
 	default n
 	help
-	  This is a placeholder option for the GCMP work. It will need to
-	  be handled differently...
+	  Enable Coherency Manager processor (CMP) support.
 
 config SB1_PASS_1_WORKAROUNDS
 	bool
