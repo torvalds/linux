@@ -792,6 +792,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlyprintk=	[X86,SH,BLACKFIN,ARM]
 			earlyprintk=vga
+			earlyprintk=efi
 			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=serial[,0x...[,baudrate]]
@@ -805,7 +806,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Append ",keep" to not disable it when the real console
 			takes over.
 
-			Only vga or serial or usb debug port at a time.
+			Only one of vga, efi, serial, or usb debug port can
+			be used at a time.
 
 			Currently only ttyS0 and ttyS1 may be specified by
 			name.  Other I/O ports may be explicitly specified
@@ -819,8 +821,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Interaction with the standard serial driver is not
 			very good.
 
-			The VGA output is eventually overwritten by the real
-			console.
+			The VGA and EFI output is eventually overwritten by
+			the real console.
 
 			The xen output can only be used by Xen PV guests.
 
