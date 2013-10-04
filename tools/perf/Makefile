@@ -1,9 +1,21 @@
+#
+# This is a simple wrapper Makefile that calls the main Makefile.perf
+# with a -j option to do parallel builds
+#
+# If you want to invoke the perf build in some non-standard way then
+# you can use the 'make -f Makefile.perf' method to invoke it.
+#
 
 #
 # Clear out the built-in rules GNU make defines by default (such as .o targets),
 # so that we pass through all targets to Makefile.perf:
 #
 .SUFFIXES:
+
+#
+# We don't want to pass along options like -j:
+#
+unexport MAKEFLAGS
 
 #
 # Do a parallel build with multiple jobs, based on the number of CPUs online
@@ -18,14 +30,12 @@ ifeq ($(JOBS),)
   endif
 endif
 
-export JOBS
-
 define print_msg
   @printf '    BUILD: Doing '\''make \033[33m-j'$(JOBS)'\033[m'\'' parallel build\n'
 endef
 
 define make
-  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) $@
+  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) O=$(O) $@
 endef
 
 #
