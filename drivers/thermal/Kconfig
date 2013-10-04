@@ -227,7 +227,7 @@ source "drivers/thermal/ti-soc-thermal/Kconfig"
 endmenu
 
 menu "Samsung thermal drivers"
-depends on PLAT_SAMSUNG
+depends on ARCH_EXYNOS
 source "drivers/thermal/samsung/Kconfig"
 endmenu
 
