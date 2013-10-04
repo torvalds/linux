@@ -384,6 +384,8 @@ static struct drxk_config maxmedia_ub425_tc_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
+	.microcode_name = "dvb-demod-drxk-01.fw",
+	.chunk_size = 62,
 	.load_firmware_sync = true,
 };
 
@@ -1234,11 +1236,6 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				goto out_free;
 			}
 		}
-
-		/* TODO: we need drx-3913k firmware in order to support DVB-T */
-		em28xx_info("MaxMedia UB425-TC/Delock 61959: only DVB-C " \
-				"supported by that driver version\n");
-
 		break;
 	case EM2884_BOARD_PCTV_510E:
 	case EM2884_BOARD_PCTV_520E:
