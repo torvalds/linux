@@ -112,7 +112,6 @@ int drm_open(struct inode *inode, struct file *filp)
 	retcode = drm_open_helper(inode, filp, dev);
 	if (retcode)
 		goto err_undo;
-	atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
 	if (need_setup) {
 		retcode = drm_setup(dev);
 		if (retcode)
@@ -376,16 +375,11 @@ static void drm_events_release(struct drm_file *file_priv)
  */
 static void drm_legacy_dev_reinit(struct drm_device *dev)
 {
-	int i;
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
 	atomic_set(&dev->ioctl_count, 0);
 	atomic_set(&dev->vma_count, 0);
-
-	for (i = 0; i < ARRAY_SIZE(dev->counts); i++)
-		atomic_set(&dev->counts[i], 0);
 
 	dev->sigdata.lock = NULL;
 
@@ -570,7 +564,6 @@ int drm_release(struct inode *inode, struct file *filp)
 	 * End inline drm_release
 	 */
 
-	atomic_inc(&dev->counts[_DRM_STAT_CLOSES]);
 	if (!--dev->open_count) {
 		if (atomic_read(&dev->ioctl_count)) {
 			DRM_ERROR("Device busy: %d\n",

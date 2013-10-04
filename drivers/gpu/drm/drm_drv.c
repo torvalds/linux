@@ -323,7 +323,6 @@ long drm_ioctl(struct file *filp,
 		return -ENODEV;
 
 	atomic_inc(&dev->ioctl_count);
-	atomic_inc(&dev->counts[_DRM_STAT_IOCTLS]);
 	++file_priv->ioctl_count;
 
 	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
