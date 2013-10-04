@@ -637,8 +637,6 @@ static void hdmi_std_setup_channel_mapping(struct hda_codec *codec,
 			break;
 		}
 	}
-
-	hdmi_debug_channel_mapping(codec, pin_nid);
 }
 
 struct channel_map_table {
@@ -793,6 +791,8 @@ static void hdmi_setup_channel_mapping(struct hda_codec *codec,
 		hdmi_std_setup_channel_mapping(codec, pin_nid, non_pcm, ca);
 		hdmi_setup_fake_chmap(map, ca);
 	}
+
+	hdmi_debug_channel_mapping(codec, pin_nid);
 }
 
 /*
@@ -983,9 +983,9 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	if (!hdmi_infoframe_uptodate(codec, pin_nid, ai.bytes,
 					sizeof(ai))) {
 		snd_printdd("hdmi_setup_audio_infoframe: "
-			    "pin=%d channels=%d\n",
+			    "pin=%d channels=%d ca=0x%02x\n",
 			    pin_nid,
-			    active_channels);
+			    active_channels, ca);
 		hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
 					   channels, per_pin->chmap,
 					   per_pin->chmap_set);
