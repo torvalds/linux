@@ -135,7 +135,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
 		goto error_ret;
 	}
 
-	indio_dev->buffer = buffer;
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	/* Enable timestamps by default */
 	buffer->scan_timestamp = true;

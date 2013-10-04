@@ -47,13 +47,16 @@ int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
 	irqreturn_t (*pollfunc_th)(int irq, void *p),
 	const struct iio_buffer_setup_ops *setup_ops)
 {
+	struct iio_buffer *buffer;
 	int ret;
 
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
+	buffer = iio_kfifo_allocate(indio_dev);
+	if (!buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(pollfunc_bh,
 						 pollfunc_th,

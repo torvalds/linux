@@ -121,13 +121,16 @@ void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 int ade7758_configure_ring(struct iio_dev *indio_dev)
 {
 	struct ade7758_state *st = iio_priv(indio_dev);
+	struct iio_buffer *buffer;
 	int ret = 0;
 
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
+	buffer = iio_kfifo_allocate(indio_dev);
+	if (!buffer) {
 		ret = -ENOMEM;
 		return ret;
 	}
+
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	indio_dev->setup_ops = &ade7758_ring_setup_ops;
 

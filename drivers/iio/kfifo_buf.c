@@ -130,6 +130,11 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	return copied;
 }
 
+static void iio_kfifo_buffer_release(struct iio_buffer *buffer)
+{
+	kfree(iio_to_kfifo(buffer));
+}
+
 static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.store_to = &iio_store_to_kfifo,
 	.read_first_n = &iio_read_first_n_kfifo,
@@ -138,6 +143,7 @@ static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
 	.get_length = &iio_get_length_kfifo,
 	.set_length = &iio_set_length_kfifo,
+	.release = &iio_kfifo_buffer_release,
 };
 
 struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
@@ -158,7 +164,7 @@ EXPORT_SYMBOL(iio_kfifo_allocate);
 
 void iio_kfifo_free(struct iio_buffer *r)
 {
-	kfree(iio_to_kfifo(r));
+	iio_buffer_put(r);
 }
 EXPORT_SYMBOL(iio_kfifo_free);
 

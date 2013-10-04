@@ -11,6 +11,7 @@
 #define _IIO_BUFFER_GENERIC_H_
 #include <linux/sysfs.h>
 #include <linux/iio/iio.h>
+#include <linux/kref.h>
 
 #ifdef CONFIG_IIO_BUFFER
 
@@ -26,6 +27,8 @@ struct iio_buffer;
  * @set_bytes_per_datum:set number of bytes per datum
  * @get_length:		get number of datums in buffer
  * @set_length:		set number of datums in buffer
+ * @release:		called when the last reference to the buffer is dropped,
+ *			should free all resources allocated by the buffer.
  *
  * The purpose of this structure is to make the buffer element
  * modular as event for a given driver, different usecases may require
@@ -47,6 +50,8 @@ struct iio_buffer_access_funcs {
 	int (*set_bytes_per_datum)(struct iio_buffer *buffer, size_t bpd);
 	int (*get_length)(struct iio_buffer *buffer);
 	int (*set_length)(struct iio_buffer *buffer, int length);
+
+	void (*release)(struct iio_buffer *buffer);
 };
 
 /**
@@ -67,6 +72,7 @@ struct iio_buffer_access_funcs {
  * @demux_list:		[INTERN] list of operations required to demux the scan.
  * @demux_bounce:	[INTERN] buffer for doing gather from incoming scan.
  * @buffer_list:	[INTERN] entry in the devices list of current buffers.
+ * @ref:		[INTERN] reference count of the buffer.
  */
 struct iio_buffer {
 	int					length;
@@ -83,6 +89,7 @@ struct iio_buffer {
 	struct list_head			demux_list;
 	void					*demux_bounce;
 	struct list_head			buffer_list;
+	struct kref				ref;
 };
 
 /**
@@ -204,6 +211,24 @@ int iio_sw_buffer_preenable(struct iio_dev *indio_dev);
 bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 	const unsigned long *mask);
 
+struct iio_buffer *iio_buffer_get(struct iio_buffer *buffer);
+void iio_buffer_put(struct iio_buffer *buffer);
+
+/**
+ * iio_device_attach_buffer - Attach a buffer to a IIO device
+ * @indio_dev: The device the buffer should be attached to
+ * @buffer: The buffer to attach to the device
+ *
+ * This function attaches a buffer to a IIO device. The buffer stays attached to
+ * the device until the device is freed. The function should only be called at
+ * most once per device.
+ */
+static inline void iio_device_attach_buffer(struct iio_dev *indio_dev,
+	struct iio_buffer *buffer)
+{
+	indio_dev->buffer = iio_buffer_get(buffer);
+}
+
 #else /* CONFIG_IIO_BUFFER */
 
 static inline int iio_buffer_register(struct iio_dev *indio_dev,
@@ -215,6 +240,9 @@ static inline int iio_buffer_register(struct iio_dev *indio_dev,
 
 static inline void iio_buffer_unregister(struct iio_dev *indio_dev)
 {}
+
+static inline void iio_buffer_get(struct iio_buffer *buffer) {}
+static inline void iio_buffer_put(struct iio_buffer *buffer) {}
 
 #endif /* CONFIG_IIO_BUFFER */
 

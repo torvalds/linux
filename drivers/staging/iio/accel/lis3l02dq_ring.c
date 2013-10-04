@@ -396,7 +396,7 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	if (!buffer)
 		return -ENOMEM;
 
-	indio_dev->buffer = buffer;
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	buffer->scan_timestamp = true;
 	indio_dev->setup_ops = &lis3l02dq_buffer_setup_ops;

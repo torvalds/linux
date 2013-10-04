@@ -265,7 +265,7 @@ static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	return buf;
 }
 
-static inline void sca3000_rb_free(struct iio_buffer *r)
+static void sca3000_ring_release(struct iio_buffer *r)
 {
 	kfree(iio_to_hw_buf(r));
 }
@@ -274,23 +274,28 @@ static const struct iio_buffer_access_funcs sca3000_ring_access_funcs = {
 	.read_first_n = &sca3000_read_first_n_hw_rb,
 	.get_length = &sca3000_ring_get_length,
 	.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum,
+	.release = sca3000_ring_release,
 };
 
 int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
-	indio_dev->buffer = sca3000_rb_allocate(indio_dev);
-	if (indio_dev->buffer == NULL)
+	struct iio_buffer *buffer;
+
+	buffer = sca3000_rb_allocate(indio_dev);
+	if (buffer == NULL)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
 	indio_dev->buffer->access = &sca3000_ring_access_funcs;
+
+	iio_device_attach_buffer(indio_dev, buffer);
 
 	return 0;
 }
 
 void sca3000_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	sca3000_rb_free(indio_dev->buffer);
+	iio_buffer_put(indio_dev->buffer);
 }
 
 static inline
