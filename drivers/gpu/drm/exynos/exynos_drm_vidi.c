@@ -420,11 +420,11 @@ static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	drm_dev->irq_enabled = 1;
 
 	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	drm_dev->vblank_disable_allowed = 1;
+	drm_dev->vblank_disable_allowed = true;
 
 	return 0;
 }

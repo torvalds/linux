@@ -1341,7 +1341,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
-	dev->vblank_disable_allowed = 1;
+	dev->vblank_disable_allowed = true;
 	if (INTEL_INFO(dev)->num_pipes == 0) {
 		intel_display_power_put(dev, POWER_DOMAIN_VGA);
 		return 0;

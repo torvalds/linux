@@ -1155,7 +1155,7 @@ struct drm_device {
 	 * Once the modeset ioctl *has* been called though, we can safely
 	 * disable them when unused.
 	 */
-	int vblank_disable_allowed;
+	bool vblank_disable_allowed;
 
 	wait_queue_head_t *vbl_queue;   /**< VBLANK wait queue */
 	atomic_t *_vblank_count;        /**< number of VBLANK interrupts (driver must alloc the right number of counters) */
