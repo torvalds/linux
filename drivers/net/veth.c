@@ -434,6 +434,25 @@ static const struct nla_policy veth_policy[VETH_INFO_MAX + 1] = {
 	[VETH_INFO_PEER]	= { .len = sizeof(struct ifinfomsg) },
 };
 
+static size_t veth_get_size(const struct net_device *dev)
+{
+	return nla_total_size(sizeof(u64)) + /* VETH_INFO_PEER */
+		0;
+}
+
+static int veth_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer = rtnl_dereference(priv->peer);
+	u64 peer_ifindex;
+
+	peer_ifindex = peer ? peer->ifindex : 0;
+	if (nla_put_u64(skb, VETH_INFO_PEER, peer_ifindex))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static struct rtnl_link_ops veth_link_ops = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct veth_priv),
@@ -443,6 +462,8 @@ static struct rtnl_link_ops veth_link_ops = {
 	.dellink	= veth_dellink,
 	.policy		= veth_policy,
 	.maxtype	= VETH_INFO_MAX,
+	.get_size	= veth_get_size,
+	.fill_info	= veth_fill_info,
 };
 
 /*
