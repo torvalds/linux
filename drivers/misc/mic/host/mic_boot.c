@@ -37,12 +37,13 @@ static void mic_reset(struct mic_device *mdev)
 
 #define MIC_RESET_TO (45)
 
+	INIT_COMPLETION(mdev->reset_wait);
 	mdev->ops->reset_fw_ready(mdev);
 	mdev->ops->reset(mdev);
 
 	for (i = 0; i < MIC_RESET_TO; i++) {
 		if (mdev->ops->is_fw_ready(mdev))
-			return;
+			goto done;
 		/*
 		 * Resets typically take 10s of seconds to complete.
 		 * Since an MMIO read is required to check if the
@@ -51,6 +52,8 @@ static void mic_reset(struct mic_device *mdev)
 		msleep(1000);
 	}
 	mic_set_state(mdev, MIC_RESET_FAILED);
+done:
+	complete_all(&mdev->reset_wait);
 }
 
 /* Initialize the MIC bootparams */
@@ -123,7 +126,8 @@ void mic_stop(struct mic_device *mdev, bool force)
 		if (MIC_RESET_FAILED == mdev->state)
 			goto unlock;
 		mic_set_shutdown_status(mdev, MIC_NOP);
-		mic_set_state(mdev, MIC_OFFLINE);
+		if (MIC_SUSPENDED != mdev->state)
+			mic_set_state(mdev, MIC_OFFLINE);
 	}
 unlock:
 	mutex_unlock(&mdev->mic_mutex);
@@ -165,7 +169,14 @@ void mic_shutdown_work(struct work_struct *work)
 	mutex_lock(&mdev->mic_mutex);
 	mic_set_shutdown_status(mdev, bootparam->shutdown_status);
 	bootparam->shutdown_status = 0;
-	if (MIC_SHUTTING_DOWN != mdev->state)
+
+	/*
+	 * if state is MIC_SUSPENDED, OSPM suspend is in progress. We do not
+	 * change the state here so as to prevent users from booting the card
+	 * during and after the suspend operation.
+	 */
+	if (MIC_SHUTTING_DOWN != mdev->state &&
+	    MIC_SUSPENDED != mdev->state)
 		mic_set_state(mdev, MIC_SHUTTING_DOWN);
 	mutex_unlock(&mdev->mic_mutex);
 }
@@ -182,4 +193,107 @@ void mic_reset_trigger_work(struct work_struct *work)
 			reset_trigger_work);
 
 	mic_stop(mdev, false);
+}
+
+/**
+ * mic_complete_resume - Complete MIC Resume after an OSPM suspend/hibernate
+ * event.
+ * @mdev: pointer to mic_device instance
+ *
+ * RETURNS: None.
+ */
+void mic_complete_resume(struct mic_device *mdev)
+{
+	if (mdev->state != MIC_SUSPENDED) {
+		dev_warn(mdev->sdev->parent, "state %d should be %d\n",
+			 mdev->state, MIC_SUSPENDED);
+		return;
+	}
+
+	/* Make sure firmware is ready */
+	if (!mdev->ops->is_fw_ready(mdev))
+		mic_stop(mdev, true);
+
+	mutex_lock(&mdev->mic_mutex);
+	mic_set_state(mdev, MIC_OFFLINE);
+	mutex_unlock(&mdev->mic_mutex);
+}
+
+/**
+ * mic_prepare_suspend - Handle suspend notification for the MIC device.
+ * @mdev: pointer to mic_device instance
+ *
+ * RETURNS: None.
+ */
+void mic_prepare_suspend(struct mic_device *mdev)
+{
+	int rc;
+
+#define MIC_SUSPEND_TIMEOUT (60 * HZ)
+
+	mutex_lock(&mdev->mic_mutex);
+	switch (mdev->state) {
+	case MIC_OFFLINE:
+		/*
+		 * Card is already offline. Set state to MIC_SUSPENDED
+		 * to prevent users from booting the card.
+		 */
+		mic_set_state(mdev, MIC_SUSPENDED);
+		mutex_unlock(&mdev->mic_mutex);
+		break;
+	case MIC_ONLINE:
+		/*
+		 * Card is online. Set state to MIC_SUSPENDING and notify
+		 * MIC user space daemon which will issue card
+		 * shutdown and reset.
+		 */
+		mic_set_state(mdev, MIC_SUSPENDING);
+		mutex_unlock(&mdev->mic_mutex);
+		rc = wait_for_completion_timeout(&mdev->reset_wait,
+						MIC_SUSPEND_TIMEOUT);
+		/* Force reset the card if the shutdown completion timed out */
+		if (!rc) {
+			mutex_lock(&mdev->mic_mutex);
+			mic_set_state(mdev, MIC_SUSPENDED);
+			mutex_unlock(&mdev->mic_mutex);
+			mic_stop(mdev, true);
+		}
+		break;
+	case MIC_SHUTTING_DOWN:
+		/*
+		 * Card is shutting down. Set state to MIC_SUSPENDED
+		 * to prevent further boot of the card.
+		 */
+		mic_set_state(mdev, MIC_SUSPENDED);
+		mutex_unlock(&mdev->mic_mutex);
+		rc = wait_for_completion_timeout(&mdev->reset_wait,
+						MIC_SUSPEND_TIMEOUT);
+		/* Force reset the card if the shutdown completion timed out */
+		if (!rc)
+			mic_stop(mdev, true);
+		break;
+	default:
+		mutex_unlock(&mdev->mic_mutex);
+		break;
+	}
+}
+
+/**
+ * mic_suspend - Initiate MIC suspend. Suspend merely issues card shutdown.
+ * @mdev: pointer to mic_device instance
+ *
+ * RETURNS: None.
+ */
+void mic_suspend(struct mic_device *mdev)
+{
+	struct mic_bootparam *bootparam = mdev->dp;
+	s8 db = bootparam->h2c_shutdown_db;
+
+	mutex_lock(&mdev->mic_mutex);
+	if (MIC_SUSPENDING == mdev->state && db != -1) {
+		bootparam->shutdown_card = 1;
+		mdev->ops->send_intr(mdev, db);
+		mic_set_state(mdev, MIC_SUSPENDED);
+	}
+	mutex_unlock(&mdev->mic_mutex);
 }

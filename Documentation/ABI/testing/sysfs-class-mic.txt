@@ -1,6 +1,6 @@
 What:		/sys/class/mic/
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		The mic class directory belongs to Intel MIC devices and
@@ -9,8 +9,8 @@ Description:
 		Integrated Core (MIC) architecture that runs a Linux OS.
 
 What:		/sys/class/mic/mic(x)
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		The directories /sys/class/mic/mic0, /sys/class/mic/mic1 etc.,
@@ -18,33 +18,41 @@ Description:
 		information specific to that MIC device.
 
 What:		/sys/class/mic/mic(x)/family
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		Provides information about the Coprocessor family for an Intel
 		MIC device. For example - "x100"
 
 What:		/sys/class/mic/mic(x)/stepping
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		Provides information about the silicon stepping for an Intel
 		MIC device. For example - "A0" or "B0"
 
 What:		/sys/class/mic/mic(x)/state
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		When read, this entry provides the current state of an Intel
 		MIC device in the context of the card OS. Possible values that
 		will be read are:
-		"offline" - The MIC device is ready to boot the card OS.
+		"offline" - The MIC device is ready to boot the card OS. On
+		reading this entry after an OSPM resume, a "boot" has to be
+		written to this entry if the card was previously shutdown
+		during OSPM suspend.
 		"online" - The MIC device has initiated booting a card OS.
 		"shutting_down" - The card OS is shutting down.
 		"reset_failed" - The MIC device has failed to reset.
+		"suspending" - The MIC device is currently being prepared for
+		suspend. On reading this entry, a "suspend" has to be written
+		to the state sysfs entry to ensure the card is shutdown during
+		OSPM suspend.
+		"suspended" - The MIC device has been suspended.
 
 		When written, this sysfs entry triggers different state change
 		operations depending upon the current state of the card OS.
@@ -54,10 +62,12 @@ Description:
 			sysfs entries.
 		"reset" - Initiates device reset.
 		"shutdown" - Initiates card OS shutdown.
+		"suspend" - Initiates card OS shutdown and also marks the card
+		as suspended.
 
 What:		/sys/class/mic/mic(x)/shutdown_status
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		An Intel MIC device runs a Linux OS during its operation. This
@@ -72,8 +82,8 @@ Description:
 		"restart" - Shutdown because of a restart command.
 
 What:		/sys/class/mic/mic(x)/cmdline
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		An Intel MIC device runs a Linux OS during its operation. Before
@@ -88,8 +98,8 @@ Description:
 		line back to this entry.
 
 What:		/sys/class/mic/mic(x)/firmware
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		When read, this sysfs entry provides the path name under
@@ -98,8 +108,8 @@ Description:
 		firmware image location under /lib/firmware/.
 
 What:		/sys/class/mic/mic(x)/ramdisk
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		When read, this sysfs entry provides the path name under
@@ -108,8 +118,8 @@ Description:
 		the ramdisk image location under /lib/firmware/.
 
 What:		/sys/class/mic/mic(x)/bootmode
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		When read, this sysfs entry provides the current bootmode for
@@ -119,8 +129,8 @@ Description:
 		b) elf - Boot an elf image for flash updates.
 
 What:		/sys/class/mic/mic(x)/log_buf_addr
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		An Intel MIC device runs a Linux OS during its operation. For
@@ -133,8 +143,8 @@ Description:
 		file of the card OS.
 
 What:		/sys/class/mic/mic(x)/log_buf_len
-Date:		August 2013
-KernelVersion:	3.11
+Date:		October 2013
+KernelVersion:	3.13
 Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		An Intel MIC device runs a Linux OS during its operation. For

@@ -23,6 +23,7 @@
 
 #include <linux/cdev.h>
 #include <linux/idr.h>
+#include <linux/notifier.h>
 
 #include "mic_intr.h"
 
@@ -75,6 +76,7 @@ enum mic_stepping {
  * @state: MIC state.
  * @shutdown_status: MIC status reported by card for shutdown/crashes.
  * @state_sysfs: Sysfs dirent for notifying ring 3 about MIC state changes.
+ * @reset_wait: Waitqueue for sleeping while reset completes.
  * @log_buf_addr: Log buffer address for MIC.
  * @log_buf_len: Log buffer length address for MIC.
  * @dp: virtio device page
@@ -83,6 +85,7 @@ enum mic_stepping {
  * @shutdown_cookie: shutdown cookie.
  * @cdev: Character device for MIC.
  * @vdev_list: list of virtio devices.
+ * @pm_notifier: Handles PM notifications from the OS.
  */
 struct mic_device {
 	struct mic_mw mmio;
@@ -110,6 +113,7 @@ struct mic_device {
 	u8 state;
 	u8 shutdown_status;
 	struct sysfs_dirent *state_sysfs;
+	struct completion reset_wait;
 	void *log_buf_addr;
 	int *log_buf_len;
 	void *dp;
@@ -118,6 +122,7 @@ struct mic_device {
 	struct mic_irq *shutdown_cookie;
 	struct cdev cdev;
 	struct list_head vdev_list;
+	struct notifier_block pm_notifier;
 };
 
 /**
@@ -192,4 +197,7 @@ void mic_create_debug_dir(struct mic_device *dev);
 void mic_delete_debug_dir(struct mic_device *dev);
 void __init mic_init_debugfs(void);
 void mic_exit_debugfs(void);
+void mic_prepare_suspend(struct mic_device *mdev);
+void mic_complete_resume(struct mic_device *mdev);
+void mic_suspend(struct mic_device *mdev);
 #endif

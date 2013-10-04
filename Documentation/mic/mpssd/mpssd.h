@@ -91,6 +91,7 @@ struct mic_info {
 	struct mic_net_info	mic_net;
 	struct mic_virtblk_info	mic_virtblk;
 	int		restart;
+	int		boot_on_resume;
 	struct mic_info *next;
 };
 

@@ -1295,7 +1295,13 @@ reset(struct mic_info *mic)
 			goto retry;
 		mpsslog("%s: %s %d state %s\n",
 			mic->name, __func__, __LINE__, state);
-		if ((!strcmp(state, "offline"))) {
+
+		/*
+		 * If the shutdown was initiated by OSPM, the state stays
+		 * in "suspended" which is also a valid condition for reset.
+		 */
+		if ((!strcmp(state, "offline")) ||
+		    (!strcmp(state, "suspended"))) {
 			free(state);
 			break;
 		}
@@ -1334,6 +1340,10 @@ static int get_mic_state(struct mic_info *mic, char *state)
 		return MIC_SHUTTING_DOWN;
 	if (!strcmp(state, "reset_failed"))
 		return MIC_RESET_FAILED;
+	if (!strcmp(state, "suspending"))
+		return MIC_SUSPENDING;
+	if (!strcmp(state, "suspended"))
+		return MIC_SUSPENDED;
 	mpsslog("%s: BUG invalid state %s\n", mic->name, state);
 	/* Invalid state */
 	assert(0);
@@ -1418,6 +1428,17 @@ retry:
 		case MIC_SHUTTING_DOWN:
 			mic_handle_shutdown(mic);
 			goto close_error;
+		case MIC_SUSPENDING:
+			mic->boot_on_resume = 1;
+			setsysfs(mic->name, "state", "suspend");
+			mic_handle_shutdown(mic);
+			goto close_error;
+		case MIC_OFFLINE:
+			if (mic->boot_on_resume) {
+				setsysfs(mic->name, "state", "boot");
+				mic->boot_on_resume = 0;
+			}
+			break;
 		default:
 			break;
 		}
@@ -1621,11 +1642,9 @@ init_mic_list(void)
 
 	while ((file = readdir(dp)) != NULL) {
 		if (!strncmp(file->d_name, "mic", 3)) {
-			mic->next = malloc(sizeof(struct mic_info));
+			mic->next = calloc(1, sizeof(struct mic_info));
 			if (mic->next) {
 				mic = mic->next;
-				mic->next = NULL;
-				memset(mic, 0, sizeof(struct mic_info));
 				mic->id = atoi(&file->d_name[3]);
 				mic->name = malloc(strlen(file->d_name) + 16);
 				if (mic->name)

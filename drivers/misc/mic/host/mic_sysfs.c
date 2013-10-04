@@ -33,6 +33,8 @@ static const char * const mic_state_string[] = {
 	[MIC_ONLINE] = "online",
 	[MIC_SHUTTING_DOWN] = "shutting_down",
 	[MIC_RESET_FAILED] = "reset_failed",
+	[MIC_SUSPENDING] = "suspending",
+	[MIC_SUSPENDED] = "suspended",
 };
 
 /*
@@ -153,6 +155,11 @@ state_store(struct device *dev, struct device_attribute *attr,
 
 	if (sysfs_streq(buf, "shutdown")) {
 		mic_shutdown(mdev);
+		goto done;
+	}
+
+	if (sysfs_streq(buf, "suspend")) {
+		mic_suspend(mdev);
 		goto done;
 	}
 

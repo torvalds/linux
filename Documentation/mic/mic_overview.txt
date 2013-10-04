@@ -4,7 +4,9 @@ that runs a Linux OS. It is a PCIe endpoint in a platform and therefore
 implements the three required standard address spaces i.e. configuration,
 memory and I/O. The host OS loads a device driver as is typical for
 PCIe devices. The card itself runs a bootstrap after reset that
-transfers control to the card OS downloaded from the host driver.
+transfers control to the card OS downloaded from the host driver. The
+host driver supports OSPM suspend and resume operations. It shuts down
+the card during suspend and reboots the card OS during resume.
 The card OS as shipped by Intel is a Linux kernel with modifications
 for the X100 devices.
 

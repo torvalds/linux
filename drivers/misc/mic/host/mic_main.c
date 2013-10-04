@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
+#include <linux/suspend.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"
@@ -187,6 +188,43 @@ static enum mic_hw_family mic_get_family(struct pci_dev *pdev)
 }
 
 /**
+* mic_pm_notifier: Notifier callback function that handles
+* PM notifications.
+*
+* @notifier_block: The notifier structure.
+* @pm_event: The event for which the driver was notified.
+* @unused: Meaningless. Always NULL.
+*
+* returns NOTIFY_DONE
+*/
+static int mic_pm_notifier(struct notifier_block *notifier,
+		unsigned long pm_event, void *unused)
+{
+	struct mic_device *mdev = container_of(notifier,
+		struct mic_device, pm_notifier);
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		/* Fall through */
+	case PM_SUSPEND_PREPARE:
+		mic_prepare_suspend(mdev);
+		break;
+	case PM_POST_HIBERNATION:
+		/* Fall through */
+	case PM_POST_SUSPEND:
+		/* Fall through */
+	case PM_POST_RESTORE:
+		mic_complete_resume(mdev);
+		break;
+	case PM_RESTORE_PREPARE:
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+/**
  * mic_device_init - Allocates and initializes the MIC device structure
  *
  * @mdev: pointer to mic_device instance
@@ -194,9 +232,11 @@ static enum mic_hw_family mic_get_family(struct pci_dev *pdev)
  *
  * returns none.
  */
-static void
+static int
 mic_device_init(struct mic_device *mdev, struct pci_dev *pdev)
 {
+	int rc;
+
 	mdev->family = mic_get_family(pdev);
 	mdev->stepping = pdev->revision;
 	mic_ops_init(mdev);
@@ -205,7 +245,20 @@ mic_device_init(struct mic_device *mdev, struct pci_dev *pdev)
 	mdev->irq_info.next_avail_src = 0;
 	INIT_WORK(&mdev->reset_trigger_work, mic_reset_trigger_work);
 	INIT_WORK(&mdev->shutdown_work, mic_shutdown_work);
+	init_completion(&mdev->reset_wait);
 	INIT_LIST_HEAD(&mdev->vdev_list);
+	mdev->pm_notifier.notifier_call = mic_pm_notifier;
+	rc = register_pm_notifier(&mdev->pm_notifier);
+	if (rc) {
+		dev_err(&pdev->dev, "register_pm_notifier failed rc %d\n",
+			rc);
+		goto register_pm_notifier_fail;
+	}
+	return 0;
+register_pm_notifier_fail:
+	flush_work(&mdev->shutdown_work);
+	flush_work(&mdev->reset_trigger_work);
+	return rc;
 }
 
 /**
@@ -224,6 +277,7 @@ static void mic_device_uninit(struct mic_device *mdev)
 	kfree(mdev->bootmode);
 	flush_work(&mdev->reset_trigger_work);
 	flush_work(&mdev->shutdown_work);
+	unregister_pm_notifier(&mdev->pm_notifier);
 }
 
 /**
@@ -253,7 +307,11 @@ static int mic_probe(struct pci_dev *pdev,
 		goto ida_fail;
 	}
 
-	mic_device_init(mdev, pdev);
+	rc = mic_device_init(mdev, pdev);
+	if (rc) {
+		dev_err(&pdev->dev, "mic_device_init failed rc %d\n", rc);
+		goto device_init_fail;
+	}
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
@@ -376,6 +434,7 @@ disable_device:
 	pci_disable_device(pdev);
 uninit_device:
 	mic_device_uninit(mdev);
+device_init_fail:
 	ida_simple_remove(&g_mic_ida, mdev->id);
 ida_fail:
 	kfree(mdev);
