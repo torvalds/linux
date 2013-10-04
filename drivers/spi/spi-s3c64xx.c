@@ -862,16 +862,12 @@ static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
 	}
 }
 
-static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
-					    struct spi_message *msg)
+static int s3c64xx_spi_prepare_message(struct spi_master *master,
+				       struct spi_message *msg)
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 	struct spi_device *spi = msg->spi;
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
-	struct spi_transfer *xfer;
-	int status = 0, cs_toggle = 0;
-	u32 speed;
-	u8 bpw;
 
 	/* If Master's(controller) state differs from that needed by Slave */
 	if (sdd->cur_speed != spi->max_speed_hz
@@ -887,12 +883,24 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 	if (s3c64xx_spi_map_mssg(sdd, msg)) {
 		dev_err(&spi->dev,
 			"Xfer: Unable to map message buffers!\n");
-		status = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	/* Configure feedback delay */
 	writel(cs->fb_delay & 0x3, sdd->regs + S3C64XX_SPI_FB_CLK);
+
+	return 0;
+}
+
+static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
+					    struct spi_message *msg)
+{
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_device *spi = msg->spi;
+	struct spi_transfer *xfer;
+	int status = 0, cs_toggle = 0;
+	u32 speed;
+	u8 bpw;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 
@@ -987,6 +995,16 @@ out:
 	msg->status = status;
 
 	spi_finalize_current_message(master);
+
+	return 0;
+}
+
+static int s3c64xx_spi_unprepare_message(struct spi_master *master,
+					    struct spi_message *msg)
+{
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+
+	s3c64xx_spi_unmap_mssg(sdd, msg);
 
 	return 0;
 }
@@ -1359,7 +1377,9 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	master->setup = s3c64xx_spi_setup;
 	master->cleanup = s3c64xx_spi_cleanup;
 	master->prepare_transfer_hardware = s3c64xx_spi_prepare_transfer;
+	master->prepare_message = s3c64xx_spi_prepare_message;
 	master->transfer_one_message = s3c64xx_spi_transfer_one_message;
+	master->unprepare_message = s3c64xx_spi_unprepare_message;
 	master->unprepare_transfer_hardware = s3c64xx_spi_unprepare_transfer;
 	master->num_chipselect = sci->num_cs;
 	master->dma_alignment = 8;
