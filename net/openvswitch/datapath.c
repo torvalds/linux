@@ -59,8 +59,6 @@
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
 
-#define REHASH_FLOW_INTERVAL (10 * 60 * HZ)
-
 int ovs_net_id __read_mostly;
 
 static void ovs_notify(struct sk_buff *skb, struct genl_info *info,
@@ -163,7 +161,7 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 {
 	struct datapath *dp = container_of(rcu, struct datapath, rcu);
 
-	ovs_flow_tbl_destroy((__force struct flow_table *)dp->table, false);
+	ovs_flow_tbl_destroy(&dp->table, false);
 	free_percpu(dp->stats_percpu);
 	release_net(ovs_dp_get_net(dp));
 	kfree(dp->ports);
@@ -235,7 +233,7 @@ void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
 	}
 
 	/* Look up flow. */
-	flow = ovs_flow_tbl_lookup(rcu_dereference(dp->table), &key);
+	flow = ovs_flow_tbl_lookup(&dp->table, &key);
 	if (unlikely(!flow)) {
 		struct dp_upcall_info upcall;
 
@@ -453,23 +451,6 @@ out:
 	return err;
 }
 
-/* Called with ovs_mutex. */
-static int flush_flows(struct datapath *dp)
-{
-	struct flow_table *old_table;
-	struct flow_table *new_table;
-
-	old_table = ovsl_dereference(dp->table);
-	new_table = ovs_flow_tbl_alloc(TBL_MIN_BUCKETS);
-	if (!new_table)
-		return -ENOMEM;
-
-	rcu_assign_pointer(dp->table, new_table);
-
-	ovs_flow_tbl_destroy(old_table, true);
-	return 0;
-}
-
 static void clear_stats(struct sw_flow *flow)
 {
 	flow->used = 0;
@@ -584,11 +565,9 @@ static struct genl_ops dp_packet_genl_ops[] = {
 
 static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats)
 {
-	struct flow_table *table;
 	int i;
 
-	table = rcu_dereference_check(dp->table, lockdep_ovsl_is_held());
-	stats->n_flows = ovs_flow_tbl_count(table);
+	stats->n_flows = ovs_flow_tbl_count(&dp->table);
 
 	stats->n_hit = stats->n_missed = stats->n_lost = 0;
 	for_each_possible_cpu(i) {
@@ -773,7 +752,6 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow_mask mask;
 	struct sk_buff *reply;
 	struct datapath *dp;
-	struct flow_table *table;
 	struct sw_flow_actions *acts = NULL;
 	struct sw_flow_match match;
 	int error;
@@ -814,31 +792,15 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	if (!dp)
 		goto err_unlock_ovs;
 
-	table = ovsl_dereference(dp->table);
-
 	/* Check if this is a duplicate flow */
-	flow = ovs_flow_tbl_lookup(table, &key);
+	flow = ovs_flow_tbl_lookup(&dp->table, &key);
 	if (!flow) {
-		struct flow_table *new_table = NULL;
 		struct sw_flow_mask *mask_p;
 
 		/* Bail out if we're not allowed to create a new flow. */
 		error = -ENOENT;
 		if (info->genlhdr->cmd == OVS_FLOW_CMD_SET)
 			goto err_unlock_ovs;
-
-		/* Expand table, if necessary, to make room. */
-		if (ovs_flow_tbl_need_to_expand(table))
-			new_table = ovs_flow_tbl_expand(table);
-		else if (time_after(jiffies, dp->last_rehash + REHASH_FLOW_INTERVAL))
-			new_table = ovs_flow_tbl_rehash(table);
-
-		if (new_table && !IS_ERR(new_table)) {
-			rcu_assign_pointer(dp->table, new_table);
-			ovs_flow_tbl_destroy(table, true);
-			table = ovsl_dereference(dp->table);
-			dp->last_rehash = jiffies;
-		}
 
 		/* Allocate flow. */
 		flow = ovs_flow_alloc();
@@ -852,7 +814,7 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		flow->unmasked_key = key;
 
 		/* Make sure mask is unique in the system */
-		mask_p = ovs_sw_flow_mask_find(table, &mask);
+		mask_p = ovs_sw_flow_mask_find(&dp->table, &mask);
 		if (!mask_p) {
 			/* Allocate a new mask if none exsits. */
 			mask_p = ovs_sw_flow_mask_alloc();
@@ -860,7 +822,7 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 				goto err_flow_free;
 			mask_p->key = mask.key;
 			mask_p->range = mask.range;
-			ovs_sw_flow_mask_insert(table, mask_p);
+			ovs_sw_flow_mask_insert(&dp->table, mask_p);
 		}
 
 		ovs_sw_flow_mask_add_ref(mask_p);
@@ -868,7 +830,7 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		rcu_assign_pointer(flow->sf_acts, acts);
 
 		/* Put flow in bucket. */
-		ovs_flow_tbl_insert(table, flow);
+		ovs_flow_tbl_insert(&dp->table, flow);
 
 		reply = ovs_flow_cmd_build_info(flow, dp, info->snd_portid,
 						info->snd_seq, OVS_FLOW_CMD_NEW);
@@ -936,7 +898,6 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *reply;
 	struct sw_flow *flow;
 	struct datapath *dp;
-	struct flow_table *table;
 	struct sw_flow_match match;
 	int err;
 
@@ -957,8 +918,7 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	table = ovsl_dereference(dp->table);
-	flow = ovs_flow_tbl_lookup(table, &key);
+	flow = ovs_flow_tbl_lookup(&dp->table, &key);
 	if (!flow || !ovs_flow_cmp_unmasked_key(flow, &match)) {
 		err = -ENOENT;
 		goto unlock;
@@ -986,7 +946,6 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *reply;
 	struct sw_flow *flow;
 	struct datapath *dp;
-	struct flow_table *table;
 	struct sw_flow_match match;
 	int err;
 
@@ -998,7 +957,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (!a[OVS_FLOW_ATTR_KEY]) {
-		err = flush_flows(dp);
+		err = ovs_flow_tbl_flush(&dp->table);
 		goto unlock;
 	}
 
@@ -1007,8 +966,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock;
 
-	table = ovsl_dereference(dp->table);
-	flow = ovs_flow_tbl_lookup(table, &key);
+	flow = ovs_flow_tbl_lookup(&dp->table, &key);
 	if (!flow || !ovs_flow_cmp_unmasked_key(flow, &match)) {
 		err = -ENOENT;
 		goto unlock;
@@ -1020,7 +978,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	ovs_flow_tbl_remove(table, flow);
+	ovs_flow_tbl_remove(&dp->table, flow);
 
 	err = ovs_flow_cmd_fill_info(flow, dp, reply, info->snd_portid,
 				     info->snd_seq, 0, OVS_FLOW_CMD_DEL);
@@ -1039,8 +997,8 @@ unlock:
 static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ovs_header *ovs_header = genlmsg_data(nlmsg_data(cb->nlh));
+	struct table_instance *ti;
 	struct datapath *dp;
-	struct flow_table *table;
 
 	rcu_read_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
@@ -1049,14 +1007,14 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		return -ENODEV;
 	}
 
-	table = rcu_dereference(dp->table);
+	ti = rcu_dereference(dp->table.ti);
 	for (;;) {
 		struct sw_flow *flow;
 		u32 bucket, obj;
 
 		bucket = cb->args[0];
 		obj = cb->args[1];
-		flow = ovs_flow_tbl_dump_next(table, &bucket, &obj);
+		flow = ovs_flow_tbl_dump_next(ti, &bucket, &obj);
 		if (!flow)
 			break;
 
@@ -1220,9 +1178,8 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_dp_set_net(dp, hold_net(sock_net(skb->sk)));
 
 	/* Allocate table. */
-	err = -ENOMEM;
-	rcu_assign_pointer(dp->table, ovs_flow_tbl_alloc(TBL_MIN_BUCKETS));
-	if (!dp->table)
+	err = ovs_flow_tbl_init(&dp->table);
+	if (err)
 		goto err_free_dp;
 
 	dp->stats_percpu = alloc_percpu(struct dp_stats_percpu);
@@ -1279,7 +1236,7 @@ err_destroy_ports_array:
 err_destroy_percpu:
 	free_percpu(dp->stats_percpu);
 err_destroy_table:
-	ovs_flow_tbl_destroy(ovsl_dereference(dp->table), false);
+	ovs_flow_tbl_destroy(&dp->table, false);
 err_free_dp:
 	release_net(ovs_dp_get_net(dp));
 	kfree(dp);

@@ -36,16 +36,20 @@
 
 #include "flow.h"
 
-#define TBL_MIN_BUCKETS		1024
-
-struct flow_table {
+struct table_instance {
 	struct flex_array *buckets;
-	unsigned int count, n_buckets;
+	unsigned int n_buckets;
 	struct rcu_head rcu;
-	struct list_head *mask_list;
 	int node_ver;
 	u32 hash_seed;
 	bool keep_flows;
+};
+
+struct flow_table {
+	struct table_instance __rcu *ti;
+	struct list_head mask_list;
+	unsigned long last_rehash;
+	unsigned int count;
 };
 
 int ovs_flow_init(void);
@@ -54,24 +58,14 @@ void ovs_flow_exit(void);
 struct sw_flow *ovs_flow_alloc(void);
 void ovs_flow_free(struct sw_flow *, bool deferred);
 
-static inline int ovs_flow_tbl_count(struct flow_table *table)
-{
-	return table->count;
-}
-
-static inline int ovs_flow_tbl_need_to_expand(struct flow_table *table)
-{
-	return (table->count > table->n_buckets);
-}
-
-struct flow_table *ovs_flow_tbl_alloc(int new_size);
-struct flow_table *ovs_flow_tbl_expand(struct flow_table *table);
-struct flow_table *ovs_flow_tbl_rehash(struct flow_table *table);
+int ovs_flow_tbl_init(struct flow_table *);
+int ovs_flow_tbl_count(struct flow_table *table);
 void ovs_flow_tbl_destroy(struct flow_table *table, bool deferred);
+int ovs_flow_tbl_flush(struct flow_table *flow_table);
 
 void ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow);
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow);
-struct sw_flow *ovs_flow_tbl_dump_next(struct flow_table *table,
+struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *table,
 				       u32 *bucket, u32 *idx);
 struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
 				    const struct sw_flow_key *);

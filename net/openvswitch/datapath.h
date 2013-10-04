@@ -58,12 +58,11 @@ struct dp_stats_percpu {
  * struct datapath - datapath for flow-based packet switching
  * @rcu: RCU callback head for deferred destruction.
  * @list_node: Element in global 'dps' list.
- * @table: Current flow table.  Protected by ovs_mutex and RCU.
+ * @table: flow table.
  * @ports: Hash table for ports.  %OVSP_LOCAL port always exists.  Protected by
  * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
- * @last_rehash: Timestamp of last rehash.
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -73,7 +72,7 @@ struct datapath {
 	struct list_head list_node;
 
 	/* Flow table. */
-	struct flow_table __rcu *table;
+	struct flow_table table;
 
 	/* Switch ports. */
 	struct hlist_head *ports;
@@ -85,7 +84,6 @@ struct datapath {
 	/* Network namespace ref. */
 	struct net *net;
 #endif
-	unsigned long last_rehash;
 };
 
 /**
