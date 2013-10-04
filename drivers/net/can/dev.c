@@ -726,23 +726,20 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (priv->do_get_state)
 		priv->do_get_state(dev, &state);
-	if (nla_put_u32(skb, IFLA_CAN_STATE, state) ||
-	    nla_put(skb, IFLA_CAN_CTRLMODE, sizeof(cm), &cm) ||
-	    nla_put_u32(skb, IFLA_CAN_RESTART_MS, priv->restart_ms) ||
-	    nla_put(skb, IFLA_CAN_BITTIMING,
+	if (nla_put(skb, IFLA_CAN_BITTIMING,
 		    sizeof(priv->bittiming), &priv->bittiming) ||
-	    nla_put(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock) ||
-	    (priv->do_get_berr_counter &&
-	     !priv->do_get_berr_counter(dev, &bec) &&
-	     nla_put(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec)) ||
 	    (priv->bittiming_const &&
 	     nla_put(skb, IFLA_CAN_BITTIMING_CONST,
-		     sizeof(*priv->bittiming_const), priv->bittiming_const)))
-		goto nla_put_failure;
+		     sizeof(*priv->bittiming_const), priv->bittiming_const)) ||
+	    nla_put(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock) ||
+	    nla_put_u32(skb, IFLA_CAN_STATE, state) ||
+	    nla_put(skb, IFLA_CAN_CTRLMODE, sizeof(cm), &cm) ||
+	    nla_put_u32(skb, IFLA_CAN_RESTART_MS, priv->restart_ms) ||
+	    (priv->do_get_berr_counter &&
+	     !priv->do_get_berr_counter(dev, &bec) &&
+	     nla_put(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec)))
+		return -EMSGSIZE;
 	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
 }
 
 static size_t can_get_xstats_size(const struct net_device *dev)
