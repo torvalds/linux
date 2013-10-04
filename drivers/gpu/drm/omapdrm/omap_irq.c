@@ -308,7 +308,7 @@ int omap_drm_irq_uninstall(struct drm_device *dev)
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
 			DRM_WAKEUP(&dev->vbl_queue[i]);
-			dev->vblank_enabled[i] = 0;
+			dev->vblank_enabled[i] = false;
 			dev->last_vblank[i] =
 				dev->driver->get_vblank_counter(dev, i);
 		}

@@ -115,7 +115,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
 	dev->driver->disable_vblank(dev, crtc);
-	dev->vblank_enabled[crtc] = 0;
+	dev->vblank_enabled[crtc] = false;
 
 	/* No further vblank irq's will be processed after
 	 * this point. Get current hardware vblank count and
@@ -235,7 +235,7 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	if (!dev->vblank_refcount)
 		goto err;
 
-	dev->vblank_enabled = kcalloc(num_crtcs, sizeof(int), GFP_KERNEL);
+	dev->vblank_enabled = kcalloc(num_crtcs, sizeof(bool), GFP_KERNEL);
 	if (!dev->vblank_enabled)
 		goto err;
 
@@ -412,7 +412,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 		for (i = 0; i < dev->num_crtcs; i++) {
 			DRM_WAKEUP(&dev->vbl_queue[i]);
-			dev->vblank_enabled[i] = 0;
+			dev->vblank_enabled[i] = false;
 			dev->last_vblank[i] =
 				dev->driver->get_vblank_counter(dev, i);
 		}
@@ -973,7 +973,7 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 			if (ret)
 				atomic_dec(&dev->vblank_refcount[crtc]);
 			else {
-				dev->vblank_enabled[crtc] = 1;
+				dev->vblank_enabled[crtc] = true;
 				drm_update_vblank_count(dev, crtc);
 			}
 		}
