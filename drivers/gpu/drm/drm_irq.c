@@ -271,7 +271,8 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 		atomic_set(&dev->vblank_refcount[i], 0);
 	}
 
-	dev->vblank_disable_allowed = 0;
+	dev->vblank_disable_allowed = false;
+
 	return 0;
 
 err:
@@ -1085,7 +1086,7 @@ void drm_vblank_post_modeset(struct drm_device *dev, int crtc)
 
 	if (dev->vblank_inmodeset[crtc]) {
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-		dev->vblank_disable_allowed = 1;
+		dev->vblank_disable_allowed = true;
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 		if (dev->vblank_inmodeset[crtc] & 0x2)

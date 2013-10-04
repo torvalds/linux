@@ -359,7 +359,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	drm_irq_install(dev);
 
-	dev->vblank_disable_allowed = 1;
+	dev->vblank_disable_allowed = true;
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 

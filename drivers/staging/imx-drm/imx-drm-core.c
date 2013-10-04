@@ -423,11 +423,11 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		goto err_init;
 
 	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	imxdrm->drm->vblank_disable_allowed = 1;
+	imxdrm->drm->vblank_disable_allowed = true;
 
 	if (!imx_drm_device_get())
 		ret = -EINVAL;
