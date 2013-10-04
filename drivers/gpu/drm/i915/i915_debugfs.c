@@ -38,9 +38,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-#define DRM_I915_RING_DEBUG 1
-
-
 #if defined(CONFIG_DEBUG_FS)
 
 enum {
