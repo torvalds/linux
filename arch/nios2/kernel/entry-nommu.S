@@ -285,8 +285,8 @@ ENTRY(sys_sigreturn)
 	ret
 
 ENTRY(sys_rt_sigreturn)
-	mov	r4, sp
 	SAVE_SWITCH_STACK
+	mov	r4, sp
 	call	do_rt_sigreturn
 	RESTORE_SWITCH_STACK
 	ret
