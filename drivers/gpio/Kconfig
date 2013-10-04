@@ -621,12 +621,12 @@ config GPIO_AMD8111
 
 	  If unsure, say N
 
-config GPIO_LANGWELL
-	bool "Intel Langwell/Penwell GPIO support"
+config GPIO_INTEL_MID
+	bool "Intel Mid GPIO support"
 	depends on PCI && X86
 	select IRQ_DOMAIN
 	help
-	  Say Y here to support Intel Langwell/Penwell GPIO.
+	  Say Y here to support Intel Mid GPIO.
 
 config GPIO_PCH
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7223/ML7831) GPIO"
