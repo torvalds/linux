@@ -161,7 +161,7 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 {
 	struct datapath *dp = container_of(rcu, struct datapath, rcu);
 
-	ovs_flow_tbl_destroy(&dp->table, false);
+	ovs_flow_tbl_destroy(&dp->table);
 	free_percpu(dp->stats_percpu);
 	release_net(ovs_dp_get_net(dp));
 	kfree(dp->ports);
@@ -795,8 +795,6 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	/* Check if this is a duplicate flow */
 	flow = ovs_flow_tbl_lookup(&dp->table, &key);
 	if (!flow) {
-		struct sw_flow_mask *mask_p;
-
 		/* Bail out if we're not allowed to create a new flow. */
 		error = -ENOENT;
 		if (info->genlhdr->cmd == OVS_FLOW_CMD_SET)
@@ -812,25 +810,14 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 
 		flow->key = masked_key;
 		flow->unmasked_key = key;
-
-		/* Make sure mask is unique in the system */
-		mask_p = ovs_sw_flow_mask_find(&dp->table, &mask);
-		if (!mask_p) {
-			/* Allocate a new mask if none exsits. */
-			mask_p = ovs_sw_flow_mask_alloc();
-			if (!mask_p)
-				goto err_flow_free;
-			mask_p->key = mask.key;
-			mask_p->range = mask.range;
-			ovs_sw_flow_mask_insert(&dp->table, mask_p);
-		}
-
-		ovs_sw_flow_mask_add_ref(mask_p);
-		flow->mask = mask_p;
 		rcu_assign_pointer(flow->sf_acts, acts);
 
 		/* Put flow in bucket. */
-		ovs_flow_tbl_insert(&dp->table, flow);
+		error = ovs_flow_tbl_insert(&dp->table, flow, &mask);
+		if (error) {
+			acts = NULL;
+			goto err_flow_free;
+		}
 
 		reply = ovs_flow_cmd_build_info(flow, dp, info->snd_portid,
 						info->snd_seq, OVS_FLOW_CMD_NEW);
@@ -1236,7 +1223,7 @@ err_destroy_ports_array:
 err_destroy_percpu:
 	free_percpu(dp->stats_percpu);
 err_destroy_table:
-	ovs_flow_tbl_destroy(&dp->table, false);
+	ovs_flow_tbl_destroy(&dp->table);
 err_free_dp:
 	release_net(ovs_dp_get_net(dp));
 	kfree(dp);

@@ -60,10 +60,11 @@ void ovs_flow_free(struct sw_flow *, bool deferred);
 
 int ovs_flow_tbl_init(struct flow_table *);
 int ovs_flow_tbl_count(struct flow_table *table);
-void ovs_flow_tbl_destroy(struct flow_table *table, bool deferred);
+void ovs_flow_tbl_destroy(struct flow_table *table);
 int ovs_flow_tbl_flush(struct flow_table *flow_table);
 
-void ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow);
+int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
+			struct sw_flow_mask *mask);
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow);
 struct sw_flow *ovs_flow_tbl_dump_next(struct table_instance *table,
 				       u32 *bucket, u32 *idx);
@@ -73,13 +74,6 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
 			       struct sw_flow_match *match);
 
-struct sw_flow_mask *ovs_sw_flow_mask_alloc(void);
-void ovs_sw_flow_mask_add_ref(struct sw_flow_mask *);
-void ovs_sw_flow_mask_del_ref(struct sw_flow_mask *, bool deferred);
-void ovs_sw_flow_mask_insert(struct flow_table *, struct sw_flow_mask *);
-struct sw_flow_mask *ovs_sw_flow_mask_find(const struct flow_table *,
-					   const struct sw_flow_mask *);
 void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		       const struct sw_flow_mask *mask);
-
 #endif /* flow_table.h */
