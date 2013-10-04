@@ -1121,7 +1121,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 
 #ifdef CONFIG_PM
 
-const struct dev_pm_ops pci_dev_pm_ops = {
+static const struct dev_pm_ops pci_dev_pm_ops = {
 	.prepare = pci_pm_prepare,
 	.complete = pci_pm_complete,
 	.suspend = pci_pm_suspend,
