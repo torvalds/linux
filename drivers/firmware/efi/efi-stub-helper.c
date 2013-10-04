@@ -567,8 +567,6 @@ static efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	 * have been allocated by UEFI, so we can safely use memcpy.
 	 */
 	memcpy((void *)new_addr, (void *)cur_image_addr, image_size);
-	/* Zero any extra space we may have allocated for BSS. */
-	memset((void *)(new_addr + image_size), alloc_size - image_size, 0);
 
 	/* Return the new address of the relocated image. */
 	*image_addr = new_addr;
