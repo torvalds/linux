@@ -43,7 +43,11 @@ create_package() {
 	mips*)
 		debarch=mips$(grep -q CPU_LITTLE_ENDIAN=y $KCONFIG_CONFIG && echo el || true) ;;
 	arm*)
-		debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el || true) ;;
+		if grep -q '^CONFIG_ARM64=y' $KCONFIG_CONFIG ; then
+			debarch=arm64
+		else
+			debarch=arm$(grep -q CONFIG_AEABI=y $KCONFIG_CONFIG && echo el || true)
+		fi ;;
 	*)
 		echo "" >&2
 		echo "** ** **  WARNING  ** ** **" >&2
