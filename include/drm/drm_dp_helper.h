@@ -266,9 +266,10 @@
 
 #define DP_TEST_REQUEST			    0x218
 # define DP_TEST_LINK_TRAINING		    (1 << 0)
-# define DP_TEST_LINK_PATTERN		    (1 << 1)
+# define DP_TEST_LINK_VIDEO_PATTERN	    (1 << 1)
 # define DP_TEST_LINK_EDID_READ		    (1 << 2)
 # define DP_TEST_LINK_PHY_TEST_PATTERN	    (1 << 3) /* DPCD >= 1.1 */
+# define DP_TEST_LINK_FAUX_PATTERN	    (1 << 4) /* DPCD >= 1.2 */
 
 #define DP_TEST_LINK_RATE		    0x219
 # define DP_LINK_RATE_162		    (0x6)
