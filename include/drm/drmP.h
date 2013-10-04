@@ -1163,7 +1163,7 @@ struct drm_device {
 					/* for wraparound handling */
 	int *vblank_enabled;            /* so we don't call enable more than
 					   once per disable */
-	int *vblank_inmodeset;          /* Display driver is setting mode */
+	unsigned int *vblank_inmodeset; /* Display driver is setting mode */
 	u32 *last_vblank_wait;		/* Last vblank seqno waited per CRTC */
 	struct timer_list vblank_disable_timer;
 
