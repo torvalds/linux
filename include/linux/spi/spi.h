@@ -257,6 +257,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
  * @cur_msg: the currently in-flight message
+ * @cur_msg_prepared: spi_prepare_message was called for the currently
+ *                    in-flight message
  * @busy: message pump is busy
  * @running: message pump is running
  * @rt: whether this queue is set to run as a realtime task
@@ -274,6 +276,10 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @unprepare_transfer_hardware: there are currently no more messages on the
  *	queue so the subsystem notifies the driver that it may relax the
  *	hardware by issuing this call
+ * @prepare_message: set up the controller to transfer a single message,
+ *                   for example doing DMA mapping.  Called from threaded
+ *                   context.
+ * @unprepare_message: undo any work done by prepare_message().
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
@@ -388,11 +394,16 @@ struct spi_master {
 	bool				running;
 	bool				rt;
 	bool				auto_runtime_pm;
+	bool                            cur_msg_prepared;
 
 	int (*prepare_transfer_hardware)(struct spi_master *master);
 	int (*transfer_one_message)(struct spi_master *master,
 				    struct spi_message *mesg);
 	int (*unprepare_transfer_hardware)(struct spi_master *master);
+	int (*prepare_message)(struct spi_master *master,
+			       struct spi_message *message);
+	int (*unprepare_message)(struct spi_master *master,
+				 struct spi_message *message);
 
 	/* gpio chip select */
 	int			*cs_gpios;

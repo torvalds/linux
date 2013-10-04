@@ -606,6 +606,18 @@ static void spi_pump_messages(struct kthread_work *work)
 
 	trace_spi_message_start(master->cur_msg);
 
+	if (master->prepare_message) {
+		ret = master->prepare_message(master, master->cur_msg);
+		if (ret) {
+			dev_err(&master->dev,
+				"failed to prepare message: %d\n", ret);
+			master->cur_msg->status = ret;
+			spi_finalize_current_message(master);
+			return;
+		}
+		master->cur_msg_prepared = true;
+	}
+
 	ret = master->transfer_one_message(master, master->cur_msg);
 	if (ret) {
 		dev_err(&master->dev,
@@ -687,6 +699,7 @@ void spi_finalize_current_message(struct spi_master *master)
 {
 	struct spi_message *mesg;
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&master->queue_lock, flags);
 	mesg = master->cur_msg;
@@ -694,6 +707,15 @@ void spi_finalize_current_message(struct spi_master *master)
 
 	queue_kthread_work(&master->kworker, &master->pump_messages);
 	spin_unlock_irqrestore(&master->queue_lock, flags);
+
+	if (master->cur_msg_prepared && master->unprepare_message) {
+		ret = master->unprepare_message(master, mesg);
+		if (ret) {
+			dev_err(&master->dev,
+				"failed to unprepare message: %d\n", ret);
+		}
+	}
+	master->cur_msg_prepared = false;
 
 	mesg->state = NULL;
 	if (mesg->complete)
