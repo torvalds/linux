@@ -200,8 +200,8 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	DPR_INIT(("tty_register start\n"));
 
-	memset(&brd->SerialDriver, 0, sizeof(struct tty_driver));
-	memset(&brd->PrintDriver, 0, sizeof(struct tty_driver));
+	memset(&brd->SerialDriver, 0, sizeof(brd->SerialDriver));
+	memset(&brd->PrintDriver, 0, sizeof(brd->PrintDriver));
 
 	brd->SerialDriver.magic = TTY_DRIVER_MAGIC;
 
@@ -222,12 +222,12 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	 * The kernel wants space to store pointers to
 	 * tty_struct's and termios's.
 	 */
-	brd->SerialDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->SerialDriver.ttys = kzalloc(brd->maxports * sizeof(*brd->SerialDriver.ttys), GFP_KERNEL);
 	if (!brd->SerialDriver.ttys)
 		return -ENOMEM;
 
 	kref_init(&brd->SerialDriver.kref);
-	brd->SerialDriver.termios = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
+	brd->SerialDriver.termios = kzalloc(brd->maxports * sizeof(*brd->SerialDriver.termios), GFP_KERNEL);
 	if (!brd->SerialDriver.termios)
 		return -ENOMEM;
 
@@ -271,11 +271,11 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	 * tty_struct's and termios's.  Must be separated from
 	 * the Serial Driver so we don't get confused
 	 */
-	brd->PrintDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->PrintDriver.ttys = kzalloc(brd->maxports * sizeof(*brd->PrintDriver.ttys), GFP_KERNEL);
 	if (!brd->PrintDriver.ttys)
 		return -ENOMEM;
 	kref_init(&brd->PrintDriver.kref);
-	brd->PrintDriver.termios = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
+	brd->PrintDriver.termios = kzalloc(brd->maxports * sizeof(*brd->PrintDriver.termios), GFP_KERNEL);
 	if (!brd->PrintDriver.termios)
 		return -ENOMEM;
 
@@ -341,7 +341,7 @@ int dgnc_tty_init(struct dgnc_board *brd)
 			 * Okay to malloc with GFP_KERNEL, we are not at
 			 * interrupt context, and there are no locks held.
 			 */
-			brd->channels[i] = kzalloc(sizeof(struct channel_t), GFP_KERNEL);
+			brd->channels[i] = kzalloc(sizeof(*brd->channels[i]), GFP_KERNEL);
 			if (!brd->channels[i]) {
 				DPR_CORE(("%s:%d Unable to allocate memory for channel struct\n",
 				    __FILE__, __LINE__));
@@ -2664,7 +2664,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return -EFAULT;
 
-	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t))) {
+	if (copy_from_user(&new_digi, new_info, sizeof(new_digi))) {
 		DPR_IOCTL(("DIGI_SETA failed copy_from_user\n"));
 		return -EFAULT;
 	}
@@ -2687,7 +2687,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	if ((ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE) && !(new_digi.digi_flags & DIGI_DTR_TOGGLE))
 		ch->ch_mostat |= (UART_MCR_DTR);
 
-	memcpy(&ch->ch_digi, &new_digi, sizeof(struct digi_t));
+	memcpy(&ch->ch_digi, &new_digi, sizeof(new_digi));
 
 	if (ch->ch_digi.digi_maxcps < 1)
 		ch->ch_digi.digi_maxcps = 1;
@@ -3369,7 +3369,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
-		if (copy_to_user(uarg, &buf, sizeof(struct digi_getcounter))) {
+		if (copy_to_user(uarg, &buf, sizeof(buf))) {
 			return -EFAULT;
 		}
 		return 0;
@@ -3417,7 +3417,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/*
 		 * Get data from user first.
 		 */
-		if (copy_from_user(&buf, uarg, sizeof(struct digi_getbuffer))) {
+		if (copy_from_user(&buf, uarg, sizeof(buf))) {
 			return -EFAULT;
 		}
 
@@ -3463,7 +3463,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
-		if (copy_to_user(uarg, &buf, sizeof(struct digi_getbuffer))) {
+		if (copy_to_user(uarg, &buf, sizeof(buf))) {
 			return -EFAULT;
 		}
 		return 0;

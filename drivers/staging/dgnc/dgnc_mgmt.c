@@ -209,7 +209,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		uint board = 0;
 		uint channel = 0;
 
-		if (copy_from_user(&ni, uarg, sizeof(struct ni_info))) {
+		if (copy_from_user(&ni, uarg, sizeof(ni))) {
 			return -EFAULT;
 		}
 
