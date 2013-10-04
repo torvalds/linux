@@ -136,6 +136,7 @@
 	pinctrl-0 = <&pinctrl_esdhc3_1>;
 	cd-gpios = <&gpio3 11 0>;
 	wp-gpios = <&gpio3 12 0>;
+	bus-width = <8>;
 	status = "okay";
 };
 
