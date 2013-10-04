@@ -404,12 +404,14 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	if (len < magic_len) {
 		ath10k_err("firmware image too small to contain magic: %zu\n",
 			   len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	if (memcmp(data, ATH10K_FIRMWARE_MAGIC, magic_len) != 0) {
 		ath10k_err("Invalid firmware magic\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	/* jump over the padding */
@@ -431,7 +433,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		if (len < ie_len) {
 			ath10k_err("Invalid length for FW IE %d (%zu < %zu)\n",
 				   ie_id, len, ie_len);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		switch (ie_id) {
