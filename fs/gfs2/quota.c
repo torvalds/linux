@@ -442,29 +442,6 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 	return 0;
 }
 
-static int qd_trylock(struct gfs2_quota_data *qd)
-{
-	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-	int found;
-
-	spin_lock(&qd_lru_lock);
-	found = qd_check_sync(sdp, qd, NULL);
-	spin_unlock(&qd_lru_lock);
-
-	if (!found)
-		return 0;
-
-	gfs2_assert_warn(sdp, qd->qd_change_sync);
-	if (bh_get(qd)) {
-		clear_bit(QDF_LOCKED, &qd->qd_flags);
-		slot_put(qd);
-		qd_put(qd);
-		return 0;
-	}
-
-	return 1;
-}
-
 static void qd_unlock(struct gfs2_quota_data *qd)
 {
 	gfs2_assert_warn(qd->qd_gl->gl_sbd,
@@ -1015,9 +992,11 @@ static int need_sync(struct gfs2_quota_data *qd)
 
 void gfs2_quota_unlock(struct gfs2_inode *ip)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qda[4];
 	unsigned int count = 0;
 	unsigned int x;
+	int found;
 
 	if (!test_and_clear_bit(GIF_QD_LOCKED, &ip->i_flags))
 		goto out;
@@ -1030,9 +1009,25 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 		sync = need_sync(qd);
 
 		gfs2_glock_dq_uninit(&ip->i_res->rs_qa_qd_ghs[x]);
+		if (!sync)
+			continue;
 
-		if (sync && qd_trylock(qd))
-			qda[count++] = qd;
+		spin_lock(&qd_lru_lock);
+		found = qd_check_sync(sdp, qd, NULL);
+		spin_unlock(&qd_lru_lock);
+
+		if (!found)
+			continue;
+
+		gfs2_assert_warn(sdp, qd->qd_change_sync);
+		if (bh_get(qd)) {
+			clear_bit(QDF_LOCKED, &qd->qd_flags);
+			slot_put(qd);
+			qd_put(qd);
+			continue;
+		}
+
+		qda[count++] = qd;
 	}
 
 	if (count) {
