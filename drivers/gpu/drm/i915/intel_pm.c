@@ -5340,7 +5340,7 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 			spin_lock_irqsave(&dev->vbl_lock, irqflags);
 			for_each_pipe(p)
 				if (p != PIPE_A)
-					dev->last_vblank[p] = 0;
+					dev->vblank[p].last = 0;
 			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 		}
 	}
