@@ -55,19 +55,20 @@
 			label = "Power Button";
 			gpios = <&gpio1 8 0>;
 			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
 		};
 
 		volume-up {
 			label = "Volume Up";
 			gpios = <&gpio2 14 0>;
 			linux,code = <115>; /* KEY_VOLUMEUP */
+			gpio-key,wakeup;
 		};
 
 		volume-down {
 			label = "Volume Down";
 			gpios = <&gpio2 15 0>;
 			linux,code = <114>; /* KEY_VOLUMEDOWN */
+			gpio-key,wakeup;
 		};
 	};
 
