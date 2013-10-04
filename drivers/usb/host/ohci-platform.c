@@ -139,14 +139,21 @@ static int ohci_platform_remove(struct platform_device *dev)
 
 static int ohci_platform_suspend(struct device *dev)
 {
-	struct usb_ohci_pdata *pdata = dev_get_platdata(dev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_ohci_pdata *pdata = dev->platform_data;
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
+	bool do_wakeup = device_may_wakeup(dev);
+	int ret;
+
+	ret = ohci_suspend(hcd, do_wakeup);
+	if (ret)
+		return ret;
 
 	if (pdata->power_suspend)
 		pdata->power_suspend(pdev);
 
-	return 0;
+	return ret;
 }
 
 static int ohci_platform_resume(struct device *dev)
