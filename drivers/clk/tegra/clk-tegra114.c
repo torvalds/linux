@@ -334,6 +334,8 @@ static struct tegra_clk_pll_params pll_c_params = {
 	.stepb_shift = 9,
 	.pdiv_tohw = pllxc_p,
 	.div_nmp = &pllxc_nmp,
+	.freq_table = pll_c_freq_table,
+	.flags = TEGRA_PLL_USE_LOCK,
 };
 
 static struct div_nmp pllcx_nmp = {
@@ -381,6 +383,8 @@ static struct tegra_clk_pll_params pll_c2_params = {
 	.ext_misc_reg[0] = 0x4f0,
 	.ext_misc_reg[1] = 0x4f4,
 	.ext_misc_reg[2] = 0x4f8,
+	.freq_table = pll_cx_freq_table,
+	.flags = TEGRA_PLL_USE_LOCK,
 };
 
 static struct tegra_clk_pll_params pll_c3_params = {
@@ -401,6 +405,8 @@ static struct tegra_clk_pll_params pll_c3_params = {
 	.ext_misc_reg[0] = 0x504,
 	.ext_misc_reg[1] = 0x508,
 	.ext_misc_reg[2] = 0x50c,
+	.freq_table = pll_cx_freq_table,
+	.flags = TEGRA_PLL_USE_LOCK,
 };
 
 static struct div_nmp pllm_nmp = {
@@ -447,6 +453,8 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.div_nmp = &pllm_nmp,
 	.pmc_divnm_reg = PMC_PLLM_WB0_OVERRIDE,
 	.pmc_divp_reg = PMC_PLLM_WB0_OVERRIDE_2,
+	.freq_table = pll_m_freq_table,
+	.flags = TEGRA_PLL_USE_LOCK,
 };
 
 static struct div_nmp pllp_nmp = {
@@ -480,6 +488,9 @@ static struct tegra_clk_pll_params pll_p_params = {
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 	.div_nmp = &pllp_nmp,
+	.freq_table = pll_p_freq_table,
+	.flags = TEGRA_PLL_FIXED | TEGRA_PLL_USE_LOCK,
+	.fixed_rate = 408000000,
 };
 
 static struct tegra_clk_pll_freq_table pll_a_freq_table[] = {
@@ -507,6 +518,8 @@ static struct tegra_clk_pll_params pll_a_params = {
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 	.div_nmp = &pllp_nmp,
+	.freq_table = pll_a_freq_table,
+	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_USE_LOCK,
 };
 
 static struct tegra_clk_pll_freq_table pll_d_freq_table[] = {
@@ -543,6 +556,9 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
 	.div_nmp = &pllp_nmp,
+	.freq_table = pll_d_freq_table,
+	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
+		 TEGRA_PLL_USE_LOCK,
 };
 
 static struct tegra_clk_pll_params pll_d2_params = {
@@ -558,6 +574,9 @@ static struct tegra_clk_pll_params pll_d2_params = {
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
 	.div_nmp = &pllp_nmp,
+	.freq_table = pll_d_freq_table,
+	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
+		 TEGRA_PLL_USE_LOCK,
 };
 
 static struct pdiv_map pllu_p[] = {
@@ -598,6 +617,9 @@ static struct tegra_clk_pll_params pll_u_params = {
 	.lock_delay = 1000,
 	.pdiv_tohw = pllu_p,
 	.div_nmp = &pllu_nmp,
+	.freq_table = pll_u_freq_table,
+	.flags = TEGRA_PLLU | TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
+		 TEGRA_PLL_USE_LOCK,
 };
 
 static struct tegra_clk_pll_freq_table pll_x_freq_table[] = {
@@ -631,6 +653,8 @@ static struct tegra_clk_pll_params pll_x_params = {
 	.stepb_shift = 24,
 	.pdiv_tohw = pllxc_p,
 	.div_nmp = &pllxc_nmp,
+	.freq_table = pll_x_freq_table,
+	.flags = TEGRA_PLL_USE_LOCK,
 };
 
 static struct tegra_clk_pll_freq_table pll_e_freq_table[] = {
@@ -664,6 +688,9 @@ static struct tegra_clk_pll_params pll_e_params = {
 	.lock_enable_bit_idx = PLLE_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 	.div_nmp = &plle_nmp,
+	.freq_table = pll_e_freq_table,
+	.flags = TEGRA_PLL_FIXED,
+	.fixed_rate = 100000000,
 };
 
 static struct div_nmp pllre_nmp = {
@@ -690,6 +717,7 @@ static struct tegra_clk_pll_params pll_re_vco_params = {
 	.iddq_reg = PLLRE_MISC,
 	.iddq_bit_idx = PLLRE_IDDQ_BIT,
 	.div_nmp = &pllre_nmp,
+	.flags = TEGRA_PLL_USE_LOCK,
 };
 
 /* possible OSC frequencies in Hz */
@@ -1086,8 +1114,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLC */
 	clk = tegra_clk_register_pllxc("pll_c", "pll_ref", clk_base,
-			pmc, 0, 0, &pll_c_params, TEGRA_PLL_USE_LOCK,
-			pll_c_freq_table, NULL);
+			pmc, 0, &pll_c_params, NULL);
 	clk_register_clkdev(clk, "pll_c", NULL);
 	clks[TEGRA114_CLK_PLL_C] = clk;
 
@@ -1102,24 +1129,20 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clks[TEGRA114_CLK_PLL_C_OUT1] = clk;
 
 	/* PLLC2 */
-	clk = tegra_clk_register_pllc("pll_c2", "pll_ref", clk_base, pmc, 0, 0,
-			     &pll_c2_params, TEGRA_PLL_USE_LOCK,
-			     pll_cx_freq_table, NULL);
+	clk = tegra_clk_register_pllc("pll_c2", "pll_ref", clk_base, pmc, 0,
+			     &pll_c2_params, NULL);
 	clk_register_clkdev(clk, "pll_c2", NULL);
 	clks[TEGRA114_CLK_PLL_C2] = clk;
 
 	/* PLLC3 */
-	clk = tegra_clk_register_pllc("pll_c3", "pll_ref", clk_base, pmc, 0, 0,
-			     &pll_c3_params, TEGRA_PLL_USE_LOCK,
-			     pll_cx_freq_table, NULL);
+	clk = tegra_clk_register_pllc("pll_c3", "pll_ref", clk_base, pmc, 0,
+			     &pll_c3_params, NULL);
 	clk_register_clkdev(clk, "pll_c3", NULL);
 	clks[TEGRA114_CLK_PLL_C3] = clk;
 
 	/* PLLP */
 	clk = tegra_clk_register_pll("pll_p", "pll_ref", clk_base, pmc, 0,
-			    408000000, &pll_p_params,
-			    TEGRA_PLL_FIXED | TEGRA_PLL_USE_LOCK,
-			    pll_p_freq_table, NULL);
+			    &pll_p_params, NULL);
 	clk_register_clkdev(clk, "pll_p", NULL);
 	clks[TEGRA114_CLK_PLL_P] = clk;
 
@@ -1171,9 +1194,8 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLM */
 	clk = tegra_clk_register_pllm("pll_m", "pll_ref", clk_base, pmc,
-			     CLK_IGNORE_UNUSED | CLK_SET_RATE_GATE, 0,
-			     &pll_m_params, TEGRA_PLL_USE_LOCK,
-			     pll_m_freq_table, NULL);
+			     CLK_IGNORE_UNUSED | CLK_SET_RATE_GATE,
+			     &pll_m_params, NULL);
 	clk_register_clkdev(clk, "pll_m", NULL);
 	clks[TEGRA114_CLK_PLL_M] = clk;
 
@@ -1193,8 +1215,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLX */
 	clk = tegra_clk_register_pllxc("pll_x", "pll_ref", clk_base,
-			pmc, CLK_IGNORE_UNUSED, 0, &pll_x_params,
-			TEGRA_PLL_USE_LOCK, pll_x_freq_table, NULL);
+			pmc, CLK_IGNORE_UNUSED, &pll_x_params, NULL);
 	clk_register_clkdev(clk, "pll_x", NULL);
 	clks[TEGRA114_CLK_PLL_X] = clk;
 
@@ -1210,9 +1231,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	writel(val, clk_base + pll_u_params.base_reg);
 
 	clk = tegra_clk_register_pll("pll_u", "pll_ref", clk_base, pmc, 0,
-			    0, &pll_u_params, TEGRA_PLLU |
-			    TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
-			    TEGRA_PLL_USE_LOCK, pll_u_freq_table, &pll_u_lock);
+			    &pll_u_params, &pll_u_lock);
 	clk_register_clkdev(clk, "pll_u", NULL);
 	clks[TEGRA114_CLK_PLL_U] = clk;
 
@@ -1245,9 +1264,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLD */
 	clk = tegra_clk_register_pll("pll_d", "pll_ref", clk_base, pmc, 0,
-			    0, &pll_d_params,
-			    TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
-			    TEGRA_PLL_USE_LOCK, pll_d_freq_table, &pll_d_lock);
+			    &pll_d_params, &pll_d_lock);
 	clk_register_clkdev(clk, "pll_d", NULL);
 	clks[TEGRA114_CLK_PLL_D] = clk;
 
@@ -1259,9 +1276,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLD2 */
 	clk = tegra_clk_register_pll("pll_d2", "pll_ref", clk_base, pmc, 0,
-			    0, &pll_d2_params,
-			    TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
-			    TEGRA_PLL_USE_LOCK, pll_d_freq_table, &pll_d2_lock);
+			    &pll_d2_params, &pll_d2_lock);
 	clk_register_clkdev(clk, "pll_d2", NULL);
 	clks[TEGRA114_CLK_PLL_D2] = clk;
 
@@ -1273,8 +1288,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLA */
 	clk = tegra_clk_register_pll("pll_a", "pll_p_out1", clk_base, pmc, 0,
-			    0, &pll_a_params, TEGRA_PLL_HAS_CPCON |
-			    TEGRA_PLL_USE_LOCK, pll_a_freq_table, NULL);
+			    &pll_a_params, NULL);
 	clk_register_clkdev(clk, "pll_a", NULL);
 	clks[TEGRA114_CLK_PLL_A] = clk;
 
@@ -1290,8 +1304,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLRE */
 	clk = tegra_clk_register_pllre("pll_re_vco", "pll_ref", clk_base, pmc,
-			     0, 0, &pll_re_vco_params, TEGRA_PLL_USE_LOCK,
-			     NULL, &pll_re_lock, pll_ref_freq);
+			     0, &pll_re_vco_params, &pll_re_lock, pll_ref_freq);
 	clk_register_clkdev(clk, "pll_re_vco", NULL);
 	clks[TEGRA114_CLK_PLL_RE_VCO] = clk;
 
@@ -1303,8 +1316,7 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 
 	/* PLLE */
 	clk = tegra_clk_register_plle_tegra114("pll_e_out0", "pll_ref",
-				      clk_base, 0, 100000000, &pll_e_params,
-				      pll_e_freq_table, NULL);
+				      clk_base, 0, &pll_e_params, NULL);
 	clk_register_clkdev(clk, "pll_e_out0", NULL);
 	clks[TEGRA114_CLK_PLL_E_OUT0] = clk;
 }

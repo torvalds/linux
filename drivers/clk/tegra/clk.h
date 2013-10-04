@@ -190,12 +190,15 @@ struct tegra_clk_pll_params {
 	u32		ext_misc_reg[3];
 	u32		pmc_divnm_reg;
 	u32		pmc_divp_reg;
+	u32		flags;
 	int		stepa_shift;
 	int		stepb_shift;
 	int		lock_delay;
 	int		max_p;
 	struct pdiv_map *pdiv_tohw;
 	struct div_nmp	*div_nmp;
+	struct tegra_clk_pll_freq_table	*freq_table;
+	unsigned long	fixed_rate;
 };
 
 /**
@@ -235,10 +238,7 @@ struct tegra_clk_pll {
 	struct clk_hw	hw;
 	void __iomem	*clk_base;
 	void __iomem	*pmc;
-	u32		flags;
-	unsigned long	fixed_rate;
 	spinlock_t	*lock;
-	struct tegra_clk_pll_freq_table	*freq_table;
 	struct tegra_clk_pll_params	*params;
 };
 
@@ -260,54 +260,42 @@ extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;
 struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
-		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
-		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
+		unsigned long flags, struct tegra_clk_pll_params *pll_params,
+		spinlock_t *lock);
 
 struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
-		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
-		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
+		unsigned long flags, struct tegra_clk_pll_params *pll_params,
+		spinlock_t *lock);
 
 struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 			    void __iomem *clk_base, void __iomem *pmc,
-			    unsigned long flags, unsigned long fixed_rate,
+			    unsigned long flags,
 			    struct tegra_clk_pll_params *pll_params,
-			    u32 pll_flags,
-			    struct tegra_clk_pll_freq_table *freq_table,
 			    spinlock_t *lock);
 
 struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 			   void __iomem *clk_base, void __iomem *pmc,
-			   unsigned long flags, unsigned long fixed_rate,
+			   unsigned long flags,
 			   struct tegra_clk_pll_params *pll_params,
-			   u32 pll_flags,
-			   struct tegra_clk_pll_freq_table *freq_table,
 			   spinlock_t *lock);
 
 struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 			   void __iomem *clk_base, void __iomem *pmc,
-			   unsigned long flags, unsigned long fixed_rate,
+			   unsigned long flags,
 			   struct tegra_clk_pll_params *pll_params,
-			   u32 pll_flags,
-			   struct tegra_clk_pll_freq_table *freq_table,
 			   spinlock_t *lock);
 
 struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 			   void __iomem *clk_base, void __iomem *pmc,
-			   unsigned long flags, unsigned long fixed_rate,
+			   unsigned long flags,
 			   struct tegra_clk_pll_params *pll_params,
-			   u32 pll_flags,
-			   struct tegra_clk_pll_freq_table *freq_table,
 			   spinlock_t *lock, unsigned long parent_rate);
 
 struct clk *tegra_clk_register_plle_tegra114(const char *name,
 				const char *parent_name,
 				void __iomem *clk_base, unsigned long flags,
-				unsigned long fixed_rate,
 				struct tegra_clk_pll_params *pll_params,
-				struct tegra_clk_pll_freq_table *freq_table,
 				spinlock_t *lock);
 
 /**

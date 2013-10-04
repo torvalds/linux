@@ -150,7 +150,7 @@
 #define mask(w) ((1 << (w)) - 1)
 #define divm_mask(p) mask(p->params->div_nmp->divm_width)
 #define divn_mask(p) mask(p->params->div_nmp->divn_width)
-#define divp_mask(p) (p->flags & TEGRA_PLLU ? PLLU_POST_DIVP_MASK :	\
+#define divp_mask(p) (p->params->flags & TEGRA_PLLU ? PLLU_POST_DIVP_MASK :\
 		      mask(p->params->div_nmp->divp_width))
 
 #define divm_max(p) (divm_mask(p))
@@ -170,10 +170,10 @@ static void clk_pll_enable_lock(struct tegra_clk_pll *pll)
 {
 	u32 val;
 
-	if (!(pll->flags & TEGRA_PLL_USE_LOCK))
+	if (!(pll->params->flags & TEGRA_PLL_USE_LOCK))
 		return;
 
-	if (!(pll->flags & TEGRA_PLL_HAS_LOCK_ENABLE))
+	if (!(pll->params->flags & TEGRA_PLL_HAS_LOCK_ENABLE))
 		return;
 
 	val = pll_readl_misc(pll);
@@ -187,13 +187,13 @@ static int clk_pll_wait_for_lock(struct tegra_clk_pll *pll)
 	u32 val, lock_mask;
 	void __iomem *lock_addr;
 
-	if (!(pll->flags & TEGRA_PLL_USE_LOCK)) {
+	if (!(pll->params->flags & TEGRA_PLL_USE_LOCK)) {
 		udelay(pll->params->lock_delay);
 		return 0;
 	}
 
 	lock_addr = pll->clk_base;
-	if (pll->flags & TEGRA_PLL_LOCK_MISC)
+	if (pll->params->flags & TEGRA_PLL_LOCK_MISC)
 		lock_addr += pll->params->misc_reg;
 	else
 		lock_addr += pll->params->base_reg;
@@ -220,7 +220,7 @@ static int clk_pll_is_enabled(struct clk_hw *hw)
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	u32 val;
 
-	if (pll->flags & TEGRA_PLLM) {
+	if (pll->params->flags & TEGRA_PLLM) {
 		val = readl_relaxed(pll->pmc + PMC_PLLP_WB0_OVERRIDE);
 		if (val & PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)
 			return val & PMC_PLLP_WB0_OVERRIDE_PLLM_ENABLE ? 1 : 0;
@@ -239,12 +239,12 @@ static void _clk_pll_enable(struct clk_hw *hw)
 	clk_pll_enable_lock(pll);
 
 	val = pll_readl_base(pll);
-	if (pll->flags & TEGRA_PLL_BYPASS)
+	if (pll->params->flags & TEGRA_PLL_BYPASS)
 		val &= ~PLL_BASE_BYPASS;
 	val |= PLL_BASE_ENABLE;
 	pll_writel_base(val, pll);
 
-	if (pll->flags & TEGRA_PLLM) {
+	if (pll->params->flags & TEGRA_PLLM) {
 		val = readl_relaxed(pll->pmc + PMC_PLLP_WB0_OVERRIDE);
 		val |= PMC_PLLP_WB0_OVERRIDE_PLLM_ENABLE;
 		writel_relaxed(val, pll->pmc + PMC_PLLP_WB0_OVERRIDE);
@@ -257,12 +257,12 @@ static void _clk_pll_disable(struct clk_hw *hw)
 	u32 val;
 
 	val = pll_readl_base(pll);
-	if (pll->flags & TEGRA_PLL_BYPASS)
+	if (pll->params->flags & TEGRA_PLL_BYPASS)
 		val &= ~PLL_BASE_BYPASS;
 	val &= ~PLL_BASE_ENABLE;
 	pll_writel_base(val, pll);
 
-	if (pll->flags & TEGRA_PLLM) {
+	if (pll->params->flags & TEGRA_PLLM) {
 		val = readl_relaxed(pll->pmc + PMC_PLLP_WB0_OVERRIDE);
 		val &= ~PMC_PLLP_WB0_OVERRIDE_PLLM_ENABLE;
 		writel_relaxed(val, pll->pmc + PMC_PLLP_WB0_OVERRIDE);
@@ -342,7 +342,7 @@ static int _get_table_rate(struct clk_hw *hw,
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table *sel;
 
-	for (sel = pll->freq_table; sel->input_rate != 0; sel++)
+	for (sel = pll->params->freq_table; sel->input_rate != 0; sel++)
 		if (sel->input_rate == parent_rate &&
 		    sel->output_rate == rate)
 			break;
@@ -432,7 +432,7 @@ static void _update_pll_mnp(struct tegra_clk_pll *pll,
 	struct tegra_clk_pll_params *params = pll->params;
 	struct div_nmp *div_nmp = params->div_nmp;
 
-	if ((pll->flags & TEGRA_PLLM) &&
+	if ((params->flags & TEGRA_PLLM) &&
 		(pll_override_readl(PMC_PLLP_WB0_OVERRIDE, pll) &
 			PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)) {
 		val = pll_override_readl(params->pmc_divp_reg, pll);
@@ -468,7 +468,7 @@ static void _get_pll_mnp(struct tegra_clk_pll *pll,
 	struct tegra_clk_pll_params *params = pll->params;
 	struct div_nmp *div_nmp = params->div_nmp;
 
-	if ((pll->flags & TEGRA_PLLM) &&
+	if ((params->flags & TEGRA_PLLM) &&
 		(pll_override_readl(PMC_PLLP_WB0_OVERRIDE, pll) &
 			PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)) {
 		val = pll_override_readl(params->pmc_divp_reg, pll);
@@ -497,11 +497,11 @@ static void _update_pll_cpcon(struct tegra_clk_pll *pll,
 	val &= ~(PLL_MISC_CPCON_MASK << PLL_MISC_CPCON_SHIFT);
 	val |= cfg->cpcon << PLL_MISC_CPCON_SHIFT;
 
-	if (pll->flags & TEGRA_PLL_SET_LFCON) {
+	if (pll->params->flags & TEGRA_PLL_SET_LFCON) {
 		val &= ~(PLL_MISC_LFCON_MASK << PLL_MISC_LFCON_SHIFT);
 		if (cfg->n >= PLLDU_LFCON_SET_DIVN)
 			val |= 1 << PLL_MISC_LFCON_SHIFT;
-	} else if (pll->flags & TEGRA_PLL_SET_DCCON) {
+	} else if (pll->params->flags & TEGRA_PLL_SET_DCCON) {
 		val &= ~(1 << PLL_MISC_DCCON_SHIFT);
 		if (rate >= (pll->params->vco_max >> 1))
 			val |= 1 << PLL_MISC_DCCON_SHIFT;
@@ -523,7 +523,7 @@ static int _program_pll(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 
 	_update_pll_mnp(pll, cfg);
 
-	if (pll->flags & TEGRA_PLL_HAS_CPCON)
+	if (pll->params->flags & TEGRA_PLL_HAS_CPCON)
 		_update_pll_cpcon(pll, cfg, rate);
 
 	if (state) {
@@ -542,11 +542,11 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags = 0;
 	int ret = 0;
 
-	if (pll->flags & TEGRA_PLL_FIXED) {
-		if (rate != pll->fixed_rate) {
+	if (pll->params->flags & TEGRA_PLL_FIXED) {
+		if (rate != pll->params->fixed_rate) {
 			pr_err("%s: Can not change %s fixed rate %lu to %lu\n",
 				__func__, __clk_get_name(hw->clk),
-				pll->fixed_rate, rate);
+				pll->params->fixed_rate, rate);
 			return -EINVAL;
 		}
 		return 0;
@@ -577,11 +577,11 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table cfg;
 
-	if (pll->flags & TEGRA_PLL_FIXED)
-		return pll->fixed_rate;
+	if (pll->params->flags & TEGRA_PLL_FIXED)
+		return pll->params->fixed_rate;
 
 	/* PLLM is used for memory; we do not change rate */
-	if (pll->flags & TEGRA_PLLM)
+	if (pll->params->flags & TEGRA_PLLM)
 		return __clk_get_rate(hw->clk);
 
 	if (_get_table_rate(hw, &cfg, rate, *prate) &&
@@ -604,17 +604,19 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 
 	val = pll_readl_base(pll);
 
-	if ((pll->flags & TEGRA_PLL_BYPASS) && (val & PLL_BASE_BYPASS))
+	if ((pll->params->flags & TEGRA_PLL_BYPASS) && (val & PLL_BASE_BYPASS))
 		return parent_rate;
 
-	if ((pll->flags & TEGRA_PLL_FIXED) && !(val & PLL_BASE_OVERRIDE)) {
+	if ((pll->params->flags & TEGRA_PLL_FIXED) &&
+			!(val & PLL_BASE_OVERRIDE)) {
 		struct tegra_clk_pll_freq_table sel;
-		if (_get_table_rate(hw, &sel, pll->fixed_rate, parent_rate)) {
+		if (_get_table_rate(hw, &sel, pll->params->fixed_rate,
+					parent_rate)) {
 			pr_err("Clock %s has unknown fixed frequency\n",
 			       __clk_get_name(hw->clk));
 			BUG();
 		}
-		return pll->fixed_rate;
+		return pll->params->fixed_rate;
 	}
 
 	_get_pll_mnp(pll, &cfg);
@@ -682,7 +684,7 @@ static int clk_plle_enable(struct clk_hw *hw)
 	u32 val;
 	int err;
 
-	if (_get_table_rate(hw, &sel, pll->fixed_rate, input_rate))
+	if (_get_table_rate(hw, &sel, pll->params->fixed_rate, input_rate))
 		return -EINVAL;
 
 	clk_pll_disable(hw);
@@ -698,7 +700,7 @@ static int clk_plle_enable(struct clk_hw *hw)
 			return err;
 	}
 
-	if (pll->flags & TEGRA_PLLE_CONFIGURE) {
+	if (pll->params->flags & TEGRA_PLLE_CONFIGURE) {
 		/* configure dividers */
 		val = pll_readl_base(pll);
 		val &= ~(divm_mask(pll) | divn_mask(pll) | divp_mask(pll));
@@ -1233,7 +1235,7 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	unsigned long flags = 0;
 	unsigned long input_rate = clk_get_rate(clk_get_parent(hw->clk));
 
-	if (_get_table_rate(hw, &sel, pll->fixed_rate, input_rate))
+	if (_get_table_rate(hw, &sel, pll->params->fixed_rate, input_rate))
 		return -EINVAL;
 
 	if (pll->lock)
@@ -1320,9 +1322,8 @@ static void clk_plle_tegra114_disable(struct clk_hw *hw)
 #endif
 
 static struct tegra_clk_pll *_tegra_init_pll(void __iomem *clk_base,
-		void __iomem *pmc, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
-		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock)
+		void __iomem *pmc, struct tegra_clk_pll_params *pll_params,
+		spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
 
@@ -1333,10 +1334,7 @@ static struct tegra_clk_pll *_tegra_init_pll(void __iomem *clk_base,
 	pll->clk_base = clk_base;
 	pll->pmc = pmc;
 
-	pll->freq_table = freq_table;
 	pll->params = pll_params;
-	pll->fixed_rate = fixed_rate;
-	pll->flags = pll_flags;
 	pll->lock = lock;
 
 	if (!pll_params->div_nmp)
@@ -1365,17 +1363,15 @@ static struct clk *_tegra_clk_register_pll(struct tegra_clk_pll *pll,
 
 struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
-		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
-		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock)
+		unsigned long flags, struct tegra_clk_pll_params *pll_params,
+		spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
-	pll_flags |= TEGRA_PLL_BYPASS;
-	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
-	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
-			      freq_table, lock);
+	pll_params->flags |= TEGRA_PLL_BYPASS;
+	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
@@ -1389,17 +1385,15 @@ struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 
 struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
-		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
-		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock)
+		unsigned long flags, struct tegra_clk_pll_params *pll_params,
+		spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
-	pll_flags |= TEGRA_PLL_LOCK_MISC | TEGRA_PLL_BYPASS;
-	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
-	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
-			      freq_table, lock);
+	pll_params->flags |= TEGRA_PLL_LOCK_MISC | TEGRA_PLL_BYPASS;
+	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
@@ -1458,10 +1452,8 @@ const struct clk_ops tegra_clk_plle_tegra114_ops = {
 
 struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 			  void __iomem *clk_base, void __iomem *pmc,
-			  unsigned long flags, unsigned long fixed_rate,
+			  unsigned long flags,
 			  struct tegra_clk_pll_params *pll_params,
-			  u32 pll_flags,
-			  struct tegra_clk_pll_freq_table *freq_table,
 			  spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
@@ -1498,9 +1490,8 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 		writel_relaxed(val_iddq, clk_base + pll_params->iddq_reg);
 	}
 
-	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
-	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
-			      freq_table, lock);
+	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
@@ -1514,22 +1505,19 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 
 struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 			  void __iomem *clk_base, void __iomem *pmc,
-			  unsigned long flags, unsigned long fixed_rate,
+			  unsigned long flags,
 			  struct tegra_clk_pll_params *pll_params,
-			  u32 pll_flags,
-			  struct tegra_clk_pll_freq_table *freq_table,
 			  spinlock_t *lock, unsigned long parent_rate)
 {
 	u32 val;
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
-	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_LOCK_MISC;
+	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_LOCK_MISC;
 
 	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
 
-	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
-			      freq_table, lock);
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
@@ -1564,10 +1552,8 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 
 struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 			  void __iomem *clk_base, void __iomem *pmc,
-			  unsigned long flags, unsigned long fixed_rate,
+			  unsigned long flags,
 			  struct tegra_clk_pll_params *pll_params,
-			  u32 pll_flags,
-			  struct tegra_clk_pll_freq_table *freq_table,
 			  spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
@@ -1588,11 +1574,10 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 
 	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
 
-	pll_flags |= TEGRA_PLL_BYPASS;
-	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
-	pll_flags |= TEGRA_PLLM;
-	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
-			      freq_table, lock);
+	pll_params->flags |= TEGRA_PLL_BYPASS;
+	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll_params->flags |= TEGRA_PLLM;
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
@@ -1606,10 +1591,8 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 
 struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 			  void __iomem *clk_base, void __iomem *pmc,
-			  unsigned long flags, unsigned long fixed_rate,
+			  unsigned long flags,
 			  struct tegra_clk_pll_params *pll_params,
-			  u32 pll_flags,
-			  struct tegra_clk_pll_freq_table *freq_table,
 			  spinlock_t *lock)
 {
 	struct clk *parent, *clk;
@@ -1632,9 +1615,8 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 
 	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
 
-	pll_flags |= TEGRA_PLL_BYPASS;
-	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
-			      freq_table, lock);
+	pll_params->flags |= TEGRA_PLL_BYPASS;
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
@@ -1684,17 +1666,15 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 struct clk *tegra_clk_register_plle_tegra114(const char *name,
 				const char *parent_name,
 				void __iomem *clk_base, unsigned long flags,
-				unsigned long fixed_rate,
 				struct tegra_clk_pll_params *pll_params,
-				struct tegra_clk_pll_freq_table *freq_table,
 				spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 	u32 val, val_aux;
 
-	pll = _tegra_init_pll(clk_base, NULL, fixed_rate, pll_params,
-			      TEGRA_PLL_HAS_LOCK_ENABLE, freq_table, lock);
+	pll_params->flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
+	pll = _tegra_init_pll(clk_base, NULL, pll_params, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
