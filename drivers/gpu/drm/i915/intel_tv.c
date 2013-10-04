@@ -1044,7 +1044,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 		tv_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
 	/* Enable two fixes for the chips that need them. */
-	if (dev->pci_device < 0x2772)
+	if (dev->pdev->device < 0x2772)
 		tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
 	I915_WRITE(TV_H_CTL_1, hctl1);

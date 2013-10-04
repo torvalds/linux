@@ -335,9 +335,6 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		goto err_g1;
 
 	dev->pdev = pdev;
-	dev->pci_device = pdev->device;
-	dev->pci_vendor = pdev->vendor;
-
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif

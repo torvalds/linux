@@ -220,7 +220,7 @@ nouveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
 	int ret;
 
 	if (plltype == PLL_MEMORY &&
-	    (dev->pci_device & 0x0ff0) == CHIPSET_NFORCE) {
+	    (dev->pdev->device & 0x0ff0) == CHIPSET_NFORCE) {
 		uint32_t mpllP;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 3), 0x6c, &mpllP);
@@ -230,7 +230,7 @@ nouveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
 		return 400000 / mpllP;
 	} else
 	if (plltype == PLL_MEMORY &&
-	    (dev->pci_device & 0xff0) == CHIPSET_NFORCE2) {
+	    (dev->pdev->device & 0xff0) == CHIPSET_NFORCE2) {
 		uint32_t clock;
 
 		pci_read_config_dword(pci_get_bus_and_slot(0, 5), 0x4c, &clock);
