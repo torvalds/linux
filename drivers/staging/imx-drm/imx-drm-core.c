@@ -396,14 +396,14 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	/*
 	 * enable drm irq mode.
-	 * - with irq_enabled = 1, we can use the vblank feature.
+	 * - with irq_enabled = true, we can use the vblank feature.
 	 *
 	 * P.S. note that we wouldn't use drm irq handler but
 	 *      just specific driver own one instead because
 	 *      drm framework supports only one irq handler and
 	 *      drivers can well take care of their interrupts
 	 */
-	drm->irq_enabled = 1;
+	drm->irq_enabled = true;
 
 	drm_mode_config_init(drm);
 	imx_drm_mode_config_init(drm);

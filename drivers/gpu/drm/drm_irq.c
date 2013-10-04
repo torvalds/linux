@@ -293,7 +293,7 @@ int drm_irq_install(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		return -EBUSY;
 	}
-	dev->irq_enabled = 1;
+	dev->irq_enabled = true;
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("irq=%d\n", drm_dev_to_irq(dev));
@@ -316,7 +316,7 @@ int drm_irq_install(struct drm_device *dev)
 
 	if (ret < 0) {
 		mutex_lock(&dev->struct_mutex);
-		dev->irq_enabled = 0;
+		dev->irq_enabled = false;
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
@@ -330,7 +330,7 @@ int drm_irq_install(struct drm_device *dev)
 
 	if (ret < 0) {
 		mutex_lock(&dev->struct_mutex);
-		dev->irq_enabled = 0;
+		dev->irq_enabled = false;
 		mutex_unlock(&dev->struct_mutex);
 		if (!drm_core_check_feature(dev, DRIVER_MODESET))
 			vga_client_register(dev->pdev, NULL, NULL, NULL);
@@ -351,14 +351,15 @@ EXPORT_SYMBOL(drm_irq_install);
 int drm_irq_uninstall(struct drm_device *dev)
 {
 	unsigned long irqflags;
-	int irq_enabled, i;
+	bool irq_enabled;
+	int i;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
 	mutex_lock(&dev->struct_mutex);
 	irq_enabled = dev->irq_enabled;
-	dev->irq_enabled = 0;
+	dev->irq_enabled = false;
 	mutex_unlock(&dev->struct_mutex);
 
 	/*
