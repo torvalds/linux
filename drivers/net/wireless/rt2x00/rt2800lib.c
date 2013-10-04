@@ -3310,8 +3310,17 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
-	if (rt2x00_rt(rt2x00dev, RT3572))
+	if (rt2x00_rt(rt2x00dev, RT3572)) {
 		rt2800_rfcsr_write(rt2x00dev, 8, 0x80);
+
+		/* AGC init */
+		if (rf->channel <= 14)
+			reg = 0x1c + (2 * rt2x00dev->lna_gain);
+		else
+			reg = 0x22 + ((rt2x00dev->lna_gain * 5) / 3);
+
+		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, reg);
+	}
 
 	if (rt2x00_rt(rt2x00dev, RT3593)) {
 		rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
@@ -4421,9 +4430,7 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 		else
 			vgc = 0x2e + rt2x00dev->lna_gain;
 	} else { /* 5GHZ band */
-		if (rt2x00_rt(rt2x00dev, RT3572))
-			vgc = 0x22 + (rt2x00dev->lna_gain * 5) / 3;
-		else if (rt2x00_rt(rt2x00dev, RT3593))
+		if (rt2x00_rt(rt2x00dev, RT3593))
 			vgc = 0x20 + (rt2x00dev->lna_gain * 5) / 3;
 		else if (rt2x00_rt(rt2x00dev, RT5592))
 			vgc = 0x24 + (2 * rt2x00dev->lna_gain);
