@@ -1630,16 +1630,14 @@ static inline void sk_filter_release(struct sk_filter *fp)
 
 static inline void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)
 {
-	unsigned int size = sk_filter_len(fp);
-
-	atomic_sub(size, &sk->sk_omem_alloc);
+	atomic_sub(sk_filter_size(fp->len), &sk->sk_omem_alloc);
 	sk_filter_release(fp);
 }
 
 static inline void sk_filter_charge(struct sock *sk, struct sk_filter *fp)
 {
 	atomic_inc(&fp->refcnt);
-	atomic_add(sk_filter_len(fp), &sk->sk_omem_alloc);
+	atomic_add(sk_filter_size(fp->len), &sk->sk_omem_alloc);
 }
 
 /*
