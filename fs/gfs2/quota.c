@@ -383,6 +383,25 @@ static void bh_put(struct gfs2_quota_data *qd)
 	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
+static int qd_check_sync(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd,
+			 u64 *sync_gen)
+{
+	if (test_bit(QDF_LOCKED, &qd->qd_flags) ||
+	    !test_bit(QDF_CHANGE, &qd->qd_flags) ||
+	    (sync_gen && (qd->qd_sync_gen >= *sync_gen)))
+		return 0;
+
+	list_move_tail(&qd->qd_list, &sdp->sd_quota_list);
+
+	set_bit(QDF_LOCKED, &qd->qd_flags);
+	gfs2_assert_warn(sdp, atomic_read(&qd->qd_count));
+	atomic_inc(&qd->qd_count);
+	qd->qd_change_sync = qd->qd_change;
+	gfs2_assert_warn(sdp, qd->qd_slot_count);
+	qd->qd_slot_count++;
+	return 1;
+}
+
 static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 {
 	struct gfs2_quota_data *qd = NULL;
@@ -397,22 +416,9 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 	spin_lock(&qd_lru_lock);
 
 	list_for_each_entry(qd, &sdp->sd_quota_list, qd_list) {
-		if (test_bit(QDF_LOCKED, &qd->qd_flags) ||
-		    !test_bit(QDF_CHANGE, &qd->qd_flags) ||
-		    qd->qd_sync_gen >= sdp->sd_quota_sync_gen)
-			continue;
-
-		list_move_tail(&qd->qd_list, &sdp->sd_quota_list);
-
-		set_bit(QDF_LOCKED, &qd->qd_flags);
-		gfs2_assert_warn(sdp, atomic_read(&qd->qd_count));
-		atomic_inc(&qd->qd_count);
-		qd->qd_change_sync = qd->qd_change;
-		gfs2_assert_warn(sdp, qd->qd_slot_count);
-		qd->qd_slot_count++;
-		found = 1;
-
-		break;
+		found = qd_check_sync(sdp, qd, &sdp->sd_quota_sync_gen);
+		if (found)
+			break;
 	}
 
 	if (!found)
@@ -439,28 +445,14 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 static int qd_trylock(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-
-	if (sdp->sd_vfs->s_flags & MS_RDONLY)
-		return 0;
+	int found;
 
 	spin_lock(&qd_lru_lock);
-
-	if (test_bit(QDF_LOCKED, &qd->qd_flags) ||
-	    !test_bit(QDF_CHANGE, &qd->qd_flags)) {
-		spin_unlock(&qd_lru_lock);
-		return 0;
-	}
-
-	list_move_tail(&qd->qd_list, &sdp->sd_quota_list);
-
-	set_bit(QDF_LOCKED, &qd->qd_flags);
-	gfs2_assert_warn(sdp, atomic_read(&qd->qd_count));
-	atomic_inc(&qd->qd_count);
-	qd->qd_change_sync = qd->qd_change;
-	gfs2_assert_warn(sdp, qd->qd_slot_count);
-	qd->qd_slot_count++;
-
+	found = qd_check_sync(sdp, qd, NULL);
 	spin_unlock(&qd_lru_lock);
+
+	if (!found)
+		return 0;
 
 	gfs2_assert_warn(sdp, qd->qd_change_sync);
 	if (bh_get(qd)) {
