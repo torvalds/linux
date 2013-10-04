@@ -1590,17 +1590,13 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	if (perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_enter", trace__sys_enter) ||
-	    perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit)) {
-		fprintf(trace->output, "Couldn't read the raw_syscalls tracepoints information!\n");
-		goto out_delete_evlist;
-	}
+		perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit))
+		goto out_error_tp;
 
 	if (trace->sched &&
-	    perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
-				   trace__sched_stat_runtime)) {
-		fprintf(trace->output, "Couldn't read the sched_stat_runtime tracepoint information!\n");
-		goto out_delete_evlist;
-	}
+		perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
+				trace__sched_stat_runtime))
+		goto out_error_tp;
 
 	err = perf_evlist__create_maps(evlist, &trace->opts.target);
 	if (err < 0) {
@@ -1717,6 +1713,29 @@ out_delete_evlist:
 out:
 	trace->live = false;
 	return err;
+out_error_tp:
+	switch(errno) {
+	case ENOENT:
+		fputs("Error:\tUnable to find debugfs\n"
+		      "Hint:\tWas your kernel was compiled with debugfs support?\n"
+		      "Hint:\tIs the debugfs filesystem mounted?\n"
+		      "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'\n",
+		      trace->output);
+		break;
+	case EACCES:
+		fprintf(trace->output,
+			"Error:\tNo permissions to read %s/tracing/events/raw_syscalls\n"
+			"Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
+			debugfs_mountpoint, debugfs_mountpoint);
+		break;
+	default: {
+		char bf[256];
+		fprintf(trace->output, "Can't trace: %s\n",
+			strerror_r(errno, bf, sizeof(bf)));
+	}
+		break;
+	}
+	goto out_delete_evlist;
 }
 
 static int trace__replay(struct trace *trace)
