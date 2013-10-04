@@ -1238,11 +1238,11 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.len = 3;
 	ret = cx24117_cmd_execute_nolock(fe, &cmd);
 	if (ret != 0)
-		return ret;
+		goto exit;
 
 	ret = cx24117_diseqc_init(fe);
 	if (ret != 0)
-		return ret;
+		goto exit;
 
 	/* CMD 3C */
 	cmd.args[0] = 0x3c;
@@ -1252,7 +1252,7 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.len = 4;
 	ret = cx24117_cmd_execute_nolock(fe, &cmd);
 	if (ret != 0)
-		return ret;
+		goto exit;
 
 	/* CMD 34 */
 	cmd.args[0] = 0x34;
@@ -1260,9 +1260,8 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.args[2] = CX24117_OCC;
 	cmd.len = 3;
 	ret = cx24117_cmd_execute_nolock(fe, &cmd);
-	if (ret != 0)
-		return ret;
 
+exit:
 	mutex_unlock(&state->priv->fe_lock);
 
 	return ret;
