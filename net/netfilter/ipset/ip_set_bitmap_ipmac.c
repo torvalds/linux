@@ -25,12 +25,13 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/ipset/ip_set_bitmap.h>
 
-#define REVISION_MIN	0
-#define REVISION_MAX	1	/* Counter support added */
+#define IPSET_TYPE_REV_MIN	0
+/*				1	   Counter support added */
+#define IPSET_TYPE_REV_MAX	2	/* Comment support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-IP_SET_MODULE_DESC("bitmap:ip,mac", REVISION_MIN, REVISION_MAX);
+IP_SET_MODULE_DESC("bitmap:ip,mac", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_bitmap:ip,mac");
 
 #define MTYPE		bitmap_ipmac
@@ -48,11 +49,8 @@ struct bitmap_ipmac {
 	u32 first_ip;		/* host byte order, included in range */
 	u32 last_ip;		/* host byte order, included in range */
 	u32 elements;		/* number of max elements in the set */
-	u32 timeout;		/* timeout value */
-	struct timer_list gc;	/* garbage collector */
 	size_t memsize;		/* members size */
-	size_t dsize;		/* size of element */
-	size_t offset[IPSET_OFFSET_MAX]; /* Offsets to extensions */
+	struct timer_list gc;	/* garbage collector */
 };
 
 /* ADT structure for generic function args */
@@ -82,13 +80,13 @@ get_elem(void *extensions, u16 id, size_t dsize)
 
 static inline int
 bitmap_ipmac_do_test(const struct bitmap_ipmac_adt_elem *e,
-		     const struct bitmap_ipmac *map)
+		     const struct bitmap_ipmac *map, size_t dsize)
 {
 	const struct bitmap_ipmac_elem *elem;
 
 	if (!test_bit(e->id, map->members))
 		return 0;
-	elem = get_elem(map->extensions, e->id, map->dsize);
+	elem = get_elem(map->extensions, e->id, dsize);
 	if (elem->filled == MAC_FILLED)
 		return e->ether == NULL ||
 		       ether_addr_equal(e->ether, elem->ether);
@@ -97,13 +95,13 @@ bitmap_ipmac_do_test(const struct bitmap_ipmac_adt_elem *e,
 }
 
 static inline int
-bitmap_ipmac_gc_test(u16 id, const struct bitmap_ipmac *map)
+bitmap_ipmac_gc_test(u16 id, const struct bitmap_ipmac *map, size_t dsize)
 {
 	const struct bitmap_ipmac_elem *elem;
 
 	if (!test_bit(id, map->members))
 		return 0;
-	elem = get_elem(map->extensions, id, map->dsize);
+	elem = get_elem(map->extensions, id, dsize);
 	/* Timer not started for the incomplete elements */
 	return elem->filled == MAC_FILLED;
 }
@@ -117,13 +115,13 @@ bitmap_ipmac_is_filled(const struct bitmap_ipmac_elem *elem)
 static inline int
 bitmap_ipmac_add_timeout(unsigned long *timeout,
 			 const struct bitmap_ipmac_adt_elem *e,
-			 const struct ip_set_ext *ext,
+			 const struct ip_set_ext *ext, struct ip_set *set,
 			 struct bitmap_ipmac *map, int mode)
 {
 	u32 t = ext->timeout;
 
 	if (mode == IPSET_ADD_START_STORED_TIMEOUT) {
-		if (t == map->timeout)
+		if (t == set->timeout)
 			/* Timeout was not specified, get stored one */
 			t = *timeout;
 		ip_set_timeout_set(timeout, t);
@@ -142,11 +140,11 @@ bitmap_ipmac_add_timeout(unsigned long *timeout,
 
 static inline int
 bitmap_ipmac_do_add(const struct bitmap_ipmac_adt_elem *e,
-		    struct bitmap_ipmac *map, u32 flags)
+		    struct bitmap_ipmac *map, u32 flags, size_t dsize)
 {
 	struct bitmap_ipmac_elem *elem;
 
-	elem = get_elem(map->extensions, e->id, map->dsize);
+	elem = get_elem(map->extensions, e->id, dsize);
 	if (test_and_set_bit(e->id, map->members)) {
 		if (elem->filled == MAC_FILLED) {
 			if (e->ether && (flags & IPSET_FLAG_EXIST))
@@ -178,22 +176,12 @@ bitmap_ipmac_do_del(const struct bitmap_ipmac_adt_elem *e,
 	return !test_and_clear_bit(e->id, map->members);
 }
 
-static inline unsigned long
-ip_set_timeout_stored(struct bitmap_ipmac *map, u32 id, unsigned long *timeout)
-{
-	const struct bitmap_ipmac_elem *elem =
-		get_elem(map->extensions, id, map->dsize);
-
-	return elem->filled == MAC_FILLED ? ip_set_timeout_get(timeout) :
-					    *timeout;
-}
-
 static inline int
 bitmap_ipmac_do_list(struct sk_buff *skb, const struct bitmap_ipmac *map,
-		     u32 id)
+		     u32 id, size_t dsize)
 {
 	const struct bitmap_ipmac_elem *elem =
-		get_elem(map->extensions, id, map->dsize);
+		get_elem(map->extensions, id, dsize);
 
 	return nla_put_ipaddr4(skb, IPSET_ATTR_IP,
 			       htonl(map->first_ip + id)) ||
@@ -216,7 +204,7 @@ bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct bitmap_ipmac *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct bitmap_ipmac_adt_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, map);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	u32 ip;
 
 	/* MAC can be src only */
@@ -245,8 +233,8 @@ bitmap_ipmac_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct bitmap_ipmac *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct bitmap_ipmac_adt_elem e = {};
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(map);
-	u32 ip;
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
+	u32 ip = 0;
 	int ret = 0;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
@@ -285,42 +273,11 @@ bitmap_ipmac_same_set(const struct ip_set *a, const struct ip_set *b)
 
 	return x->first_ip == y->first_ip &&
 	       x->last_ip == y->last_ip &&
-	       x->timeout == y->timeout &&
+	       a->timeout == b->timeout &&
 	       a->extensions == b->extensions;
 }
 
 /* Plain variant */
-
-/* Timeout variant */
-
-struct bitmap_ipmact_elem {
-	struct {
-		unsigned char ether[ETH_ALEN];
-		unsigned char filled;
-	} __attribute__ ((aligned));
-	unsigned long timeout;
-};
-
-/* Plain variant with counter */
-
-struct bitmap_ipmacc_elem {
-	struct {
-		unsigned char ether[ETH_ALEN];
-		unsigned char filled;
-	} __attribute__ ((aligned));
-	struct ip_set_counter counter;
-};
-
-/* Timeout variant with counter */
-
-struct bitmap_ipmacct_elem {
-	struct {
-		unsigned char ether[ETH_ALEN];
-		unsigned char filled;
-	} __attribute__ ((aligned));
-	unsigned long timeout;
-	struct ip_set_counter counter;
-};
 
 #include "ip_set_bitmap_gen.h"
 
@@ -330,11 +287,11 @@ static bool
 init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 	       u32 first_ip, u32 last_ip, u32 elements)
 {
-	map->members = ip_set_alloc((last_ip - first_ip + 1) * map->dsize);
+	map->members = ip_set_alloc(map->memsize);
 	if (!map->members)
 		return false;
-	if (map->dsize) {
-		map->extensions = ip_set_alloc(map->dsize * elements);
+	if (set->dsize) {
+		map->extensions = ip_set_alloc(set->dsize * elements);
 		if (!map->extensions) {
 			kfree(map->members);
 			return false;
@@ -343,7 +300,7 @@ init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 	map->first_ip = first_ip;
 	map->last_ip = last_ip;
 	map->elements = elements;
-	map->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_NO_TIMEOUT;
 
 	set->data = map;
 	set->family = NFPROTO_IPV4;
@@ -352,10 +309,10 @@ init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 }
 
 static int
-bitmap_ipmac_create(struct ip_set *set, struct nlattr *tb[],
+bitmap_ipmac_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		    u32 flags)
 {
-	u32 first_ip, last_ip, cadt_flags = 0;
+	u32 first_ip = 0, last_ip = 0;
 	u64 elements;
 	struct bitmap_ipmac *map;
 	int ret;
@@ -399,57 +356,15 @@ bitmap_ipmac_create(struct ip_set *set, struct nlattr *tb[],
 
 	map->memsize = bitmap_bytes(0, elements - 1);
 	set->variant = &bitmap_ipmac;
-	if (tb[IPSET_ATTR_CADT_FLAGS])
-		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
-		set->extensions |= IPSET_EXT_COUNTER;
-		if (tb[IPSET_ATTR_TIMEOUT]) {
-			map->dsize = sizeof(struct bitmap_ipmacct_elem);
-			map->offset[IPSET_OFFSET_TIMEOUT] =
-				offsetof(struct bitmap_ipmacct_elem, timeout);
-			map->offset[IPSET_OFFSET_COUNTER] =
-				offsetof(struct bitmap_ipmacct_elem, counter);
-
-			if (!init_map_ipmac(set, map, first_ip, last_ip,
-					    elements)) {
-				kfree(map);
-				return -ENOMEM;
-			}
-			map->timeout = ip_set_timeout_uget(
-				tb[IPSET_ATTR_TIMEOUT]);
-			set->extensions |= IPSET_EXT_TIMEOUT;
-			bitmap_ipmac_gc_init(set, bitmap_ipmac_gc);
-		} else {
-			map->dsize = sizeof(struct bitmap_ipmacc_elem);
-			map->offset[IPSET_OFFSET_COUNTER] =
-				offsetof(struct bitmap_ipmacc_elem, counter);
-
-			if (!init_map_ipmac(set, map, first_ip, last_ip,
-					    elements)) {
-				kfree(map);
-				return -ENOMEM;
-			}
-		}
-	} else if (tb[IPSET_ATTR_TIMEOUT]) {
-		map->dsize = sizeof(struct bitmap_ipmact_elem);
-		map->offset[IPSET_OFFSET_TIMEOUT] =
-			offsetof(struct bitmap_ipmact_elem, timeout);
-
-		if (!init_map_ipmac(set, map, first_ip, last_ip, elements)) {
-			kfree(map);
-			return -ENOMEM;
-		}
-		map->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
-		set->extensions |= IPSET_EXT_TIMEOUT;
+	set->dsize = ip_set_elem_len(set, tb,
+				     sizeof(struct bitmap_ipmac_elem));
+	if (!init_map_ipmac(set, map, first_ip, last_ip, elements)) {
+		kfree(map);
+		return -ENOMEM;
+	}
+	if (tb[IPSET_ATTR_TIMEOUT]) {
+		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 		bitmap_ipmac_gc_init(set, bitmap_ipmac_gc);
-	} else {
-		map->dsize = sizeof(struct bitmap_ipmac_elem);
-
-		if (!init_map_ipmac(set, map, first_ip, last_ip, elements)) {
-			kfree(map);
-			return -ENOMEM;
-		}
-		set->variant = &bitmap_ipmac;
 	}
 	return 0;
 }
@@ -460,8 +375,8 @@ static struct ip_set_type bitmap_ipmac_type = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_MAC,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_IPV4,
-	.revision_min	= REVISION_MIN,
-	.revision_max	= REVISION_MAX,
+	.revision_min	= IPSET_TYPE_REV_MIN,
+	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= bitmap_ipmac_create,
 	.create_policy	= {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },
@@ -478,6 +393,7 @@ static struct ip_set_type bitmap_ipmac_type = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
 	},
 	.me		= THIS_MODULE,
 };

@@ -107,55 +107,64 @@ enum sdp_header_types {
 	SDP_HDR_MEDIA,
 };
 
-extern unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
-				       unsigned int protoff,
-				       unsigned int dataoff,
-				       const char **dptr,
-				       unsigned int *datalen);
-extern void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb,
-					  unsigned int protoff, s16 off);
-extern unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
-					      unsigned int protoff,
-					      unsigned int dataoff,
-					      const char **dptr,
-					      unsigned int *datalen,
-					      struct nf_conntrack_expect *exp,
-					      unsigned int matchoff,
-					      unsigned int matchlen);
-extern unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
-					    unsigned int protoff,
-					    unsigned int dataoff,
-					    const char **dptr,
-					    unsigned int *datalen,
-					    unsigned int sdpoff,
-					    enum sdp_header_types type,
-					    enum sdp_header_types term,
-					    const union nf_inet_addr *addr);
-extern unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb,
-					    unsigned int protoff,
-					    unsigned int dataoff,
-					    const char **dptr,
-					    unsigned int *datalen,
-					    unsigned int matchoff,
-					    unsigned int matchlen,
-					    u_int16_t port);
-extern unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
-					       unsigned int protoff,
-					       unsigned int dataoff,
-					       const char **dptr,
-					       unsigned int *datalen,
-					       unsigned int sdpoff,
-					       const union nf_inet_addr *addr);
-extern unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb,
-					     unsigned int protoff,
-					     unsigned int dataoff,
-					     const char **dptr,
-					     unsigned int *datalen,
-					     struct nf_conntrack_expect *rtp_exp,
-					     struct nf_conntrack_expect *rtcp_exp,
-					     unsigned int mediaoff,
-					     unsigned int medialen,
-					     union nf_inet_addr *rtp_addr);
+struct nf_nat_sip_hooks {
+	unsigned int (*msg)(struct sk_buff *skb,
+			    unsigned int protoff,
+			    unsigned int dataoff,
+			    const char **dptr,
+			    unsigned int *datalen);
+
+	void (*seq_adjust)(struct sk_buff *skb,
+			   unsigned int protoff, s16 off);
+
+	unsigned int (*expect)(struct sk_buff *skb,
+			       unsigned int protoff,
+			       unsigned int dataoff,
+			       const char **dptr,
+			       unsigned int *datalen,
+			       struct nf_conntrack_expect *exp,
+			       unsigned int matchoff,
+			       unsigned int matchlen);
+
+	unsigned int (*sdp_addr)(struct sk_buff *skb,
+				 unsigned int protoff,
+				 unsigned int dataoff,
+				 const char **dptr,
+				 unsigned int *datalen,
+				 unsigned int sdpoff,
+				 enum sdp_header_types type,
+				 enum sdp_header_types term,
+				 const union nf_inet_addr *addr);
+
+	unsigned int (*sdp_port)(struct sk_buff *skb,
+				 unsigned int protoff,
+				 unsigned int dataoff,
+				 const char **dptr,
+				 unsigned int *datalen,
+				 unsigned int matchoff,
+				 unsigned int matchlen,
+				 u_int16_t port);
+
+	unsigned int (*sdp_session)(struct sk_buff *skb,
+				    unsigned int protoff,
+				    unsigned int dataoff,
+				    const char **dptr,
+				    unsigned int *datalen,
+				    unsigned int sdpoff,
+				    const union nf_inet_addr *addr);
+
+	unsigned int (*sdp_media)(struct sk_buff *skb,
+				  unsigned int protoff,
+				  unsigned int dataoff,
+				  const char **dptr,
+				  unsigned int *datalen,
+				  struct nf_conntrack_expect *rtp_exp,
+				  struct nf_conntrack_expect *rtcp_exp,
+				  unsigned int mediaoff,
+				  unsigned int medialen,
+				  union nf_inet_addr *rtp_addr);
+};
+extern const struct nf_nat_sip_hooks *nf_nat_sip_hooks;
 
 int ct_sip_parse_request(const struct nf_conn *ct, const char *dptr,
 			 unsigned int datalen, unsigned int *matchoff,
