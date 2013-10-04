@@ -664,8 +664,22 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 {
 	int ret;
 
+	if (insert_buffer == remove_buffer)
+		return 0;
+
 	mutex_lock(&indio_dev->info_exist_lock);
 	mutex_lock(&indio_dev->mlock);
+
+	if (insert_buffer && iio_buffer_is_active(insert_buffer))
+		insert_buffer = NULL;
+
+	if (remove_buffer && !iio_buffer_is_active(remove_buffer))
+		remove_buffer = NULL;
+
+	if (!insert_buffer && !remove_buffer) {
+		ret = 0;
+		goto out_unlock;
+	}
 
 	if (indio_dev->info == NULL) {
 		ret = -ENODEV;
