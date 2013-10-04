@@ -63,6 +63,7 @@ struct hdmi_spec_per_pin {
 	hda_nid_t pin_nid;
 	int num_mux_nids;
 	hda_nid_t mux_nids[HDA_MAX_CONNECTIONS];
+	hda_nid_t cvt_nid;
 
 	struct hda_codec *codec;
 	struct hdmi_eld sink_eld;
@@ -900,8 +901,9 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 {
 	hda_nid_t pin_nid = per_pin->pin_nid;
 	int channels = per_pin->channels;
+	int active_channels;
 	struct hdmi_eld *eld;
-	int ca;
+	int ca, ordered_ca;
 	union audio_infoframe ai;
 
 	if (!channels)
@@ -923,6 +925,11 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	if (ca < 0)
 		ca = 0;
 
+	ordered_ca = get_channel_allocation_order(ca);
+	active_channels = channel_allocations[ordered_ca].channels;
+
+	hdmi_set_channel_count(codec, per_pin->cvt_nid, active_channels);
+
 	memset(&ai, 0, sizeof(ai));
 	if (eld->info.conn_type == 0) { /* HDMI */
 		struct hdmi_audio_infoframe *hdmi_ai = &ai.hdmi;
@@ -930,7 +937,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 		hdmi_ai->type		= 0x84;
 		hdmi_ai->ver		= 0x01;
 		hdmi_ai->len		= 0x0a;
-		hdmi_ai->CC02_CT47	= channels - 1;
+		hdmi_ai->CC02_CT47	= active_channels - 1;
 		hdmi_ai->CA		= ca;
 		hdmi_checksum_audio_infoframe(hdmi_ai);
 	} else if (eld->info.conn_type == 1) { /* DisplayPort */
@@ -939,7 +946,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 		dp_ai->type		= 0x84;
 		dp_ai->len		= 0x1b;
 		dp_ai->ver		= 0x11 << 2;
-		dp_ai->CC02_CT47	= channels - 1;
+		dp_ai->CC02_CT47	= active_channels - 1;
 		dp_ai->CA		= ca;
 	} else {
 		snd_printd("HDMI: unknown connection type at pin %d\n",
@@ -957,7 +964,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 		snd_printdd("hdmi_setup_audio_infoframe: "
 			    "pin=%d channels=%d\n",
 			    pin_nid,
-			    channels);
+			    active_channels);
 		hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
 					   channels, per_pin->chmap,
 					   per_pin->chmap_set);
@@ -1230,6 +1237,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	per_cvt = get_cvt(spec, cvt_idx);
 	/* Claim converter */
 	per_cvt->assigned = 1;
+	per_pin->cvt_nid = per_cvt->cvt_nid;
 	hinfo->nid = per_cvt->cvt_nid;
 
 	snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
@@ -1551,8 +1559,6 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	per_pin->channels = substream->runtime->channels;
 	per_pin->setup = true;
-
-	hdmi_set_channel_count(codec, cvt_nid, substream->runtime->channels);
 
 	hdmi_setup_audio_infoframe(codec, per_pin, non_pcm);
 
