@@ -1127,7 +1127,6 @@ struct drm_device {
 	/** \name Memory management */
 	/*@{ */
 	struct list_head maplist;	/**< Linked list of regions */
-	int map_count;			/**< Number of mappable regions */
 	struct drm_open_hash map_hash;	/**< User token hash table for maps */
 
 	/** \name Context handle management */
@@ -1154,7 +1153,6 @@ struct drm_device {
 	int last_context;		/**< Last current context */
 	/*@} */
 
-	struct work_struct work;
 	/** \name VBLANK IRQ support */
 	/*@{ */
 
