@@ -140,9 +140,6 @@ static void destroy_super(struct super_block *s)
 	int i;
 	list_lru_destroy(&s->s_dentry_lru);
 	list_lru_destroy(&s->s_inode_lru);
-#ifdef CONFIG_SMP
-	free_percpu(s->s_files);
-#endif
 	for (i = 0; i < SB_FREEZE_LEVELS; i++)
 		percpu_counter_destroy(&s->s_writers.counter[i]);
 	security_sb_free(s);
@@ -172,15 +169,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	if (security_sb_alloc(s))
 		goto fail;
 
-#ifdef CONFIG_SMP
-	s->s_files = alloc_percpu(struct list_head);
-	if (!s->s_files)
-		goto fail;
-	for_each_possible_cpu(i)
-		INIT_LIST_HEAD(per_cpu_ptr(s->s_files, i));
-#else
-	INIT_LIST_HEAD(&s->s_files);
-#endif
 	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
 		if (percpu_counter_init(&s->s_writers.counter[i], 0) < 0)
 			goto fail;
@@ -722,7 +710,8 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	   make sure there are no rw files opened */
 	if (remount_ro) {
 		if (force) {
-			mark_files_ro(sb);
+			sb->s_readonly_remount = 1;
+			smp_wmb();
 		} else {
 			retval = sb_prepare_remount_readonly(sb);
 			if (retval)
