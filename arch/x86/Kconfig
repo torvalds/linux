@@ -756,17 +756,16 @@ config DMI
 	  BIOS code.
 
 config GART_IOMMU
-	bool "GART IOMMU support" if EXPERT
-	default y
+	bool "Old AMD GART IOMMU support"
 	select SWIOTLB
 	depends on X86_64 && PCI && AMD_NB
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
 	  sound, many IDE/SATA chipsets and some other devices.
-	  Provides a driver for the AMD Athlon64/Opteron/Turion/Sempron GART
-	  based hardware IOMMU and a software bounce buffer based IOMMU used
-	  on Intel systems and as fallback.
+	  Provides a driver for the older AMD Athlon64/Opteron/Turion/Sempron GART
+	  based hardware IOMMU.
+	  Newer systems typically have a better AMD IOMMU.
 	  The code is only active when needed (enough memory and limited
 	  device) unless CONFIG_IOMMU_DEBUG or iommu=force is specified
 	  too.
