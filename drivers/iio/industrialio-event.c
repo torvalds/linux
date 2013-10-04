@@ -76,6 +76,9 @@ static unsigned int iio_event_poll(struct file *filep,
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	unsigned int events = 0;
 
+	if (!indio_dev->info)
+		return -ENODEV;
+
 	poll_wait(filep, &ev_int->wait, wait);
 
 	spin_lock_irq(&ev_int->wait.lock);
@@ -95,6 +98,9 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
 	unsigned int copied;
 	int ret;
+
+	if (!indio_dev->info)
+		return -ENODEV;
 
 	if (count < sizeof(struct iio_event_data))
 		return -EINVAL;

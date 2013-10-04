@@ -1040,6 +1040,9 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int __user *ip = (int __user *)arg;
 	int fd;
 
+	if (!indio_dev->info)
+		return -ENODEV;
+
 	if (cmd == IIO_GET_EVENT_FD_IOCTL) {
 		fd = iio_event_getfd(indio_dev);
 		if (copy_to_user(ip, &fd, sizeof(fd)))
