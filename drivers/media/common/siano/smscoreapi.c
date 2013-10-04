@@ -922,8 +922,8 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	u32 i, *ptr;
 	u8 *payload = firmware->payload;
 	int rc = 0;
-	firmware->start_address = le32_to_cpu(firmware->start_address);
-	firmware->length = le32_to_cpu(firmware->length);
+	firmware->start_address = le32_to_cpup((__le32 *)&firmware->start_address);
+	firmware->length = le32_to_cpup((__le32 *)&firmware->length);
 
 	mem_address = firmware->start_address;
 
