@@ -2971,7 +2971,7 @@ static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,
 	ret = xhci_check_args(xhci_to_hcd(xhci), udev, ep, 1, true, __func__);
 	if (ret <= 0)
 		return -EINVAL;
-	if (ep->ss_ep_comp.bmAttributes == 0) {
+	if (usb_ss_max_streams(&ep->ss_ep_comp) == 0) {
 		xhci_warn(xhci, "WARN: SuperSpeed Endpoint Companion"
 				" descriptor for ep 0x%x does not support streams\n",
 				ep->desc.bEndpointAddress);
