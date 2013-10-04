@@ -595,22 +595,32 @@ static void hdmi_std_setup_channel_mapping(struct hda_codec *codec,
 				       bool non_pcm,
 				       int ca)
 {
+	struct cea_channel_speaker_allocation *ch_alloc;
 	int i;
 	int err;
 	int order;
 	int non_pcm_mapping[8];
 
 	order = get_channel_allocation_order(ca);
+	ch_alloc = &channel_allocations[order];
 
 	if (hdmi_channel_mapping[ca][1] == 0) {
-		for (i = 0; i < channel_allocations[order].channels; i++)
-			hdmi_channel_mapping[ca][i] = i | (i << 4);
-		for (; i < 8; i++)
-			hdmi_channel_mapping[ca][i] = 0xf | (i << 4);
+		int hdmi_slot = 0;
+		/* fill actual channel mappings in ALSA channel (i) order */
+		for (i = 0; i < ch_alloc->channels; i++) {
+			while (!ch_alloc->speakers[7 - hdmi_slot] && !WARN_ON(hdmi_slot >= 8))
+				hdmi_slot++; /* skip zero slots */
+
+			hdmi_channel_mapping[ca][i] = (i << 4) | hdmi_slot++;
+		}
+		/* fill the rest of the slots with ALSA channel 0xf */
+		for (hdmi_slot = 0; hdmi_slot < 8; hdmi_slot++)
+			if (!ch_alloc->speakers[7 - hdmi_slot])
+				hdmi_channel_mapping[ca][i++] = (0xf << 4) | hdmi_slot;
 	}
 
 	if (non_pcm) {
-		for (i = 0; i < channel_allocations[order].channels; i++)
+		for (i = 0; i < ch_alloc->channels; i++)
 			non_pcm_mapping[i] = i | (i << 4);
 		for (; i < 8; i++)
 			non_pcm_mapping[i] = 0xf | (i << 4);
