@@ -1473,13 +1473,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
-	/* i915 has 4 more counters */
-	dev->counters += 4;
-	dev->types[6] = _DRM_STAT_IRQ;
-	dev->types[7] = _DRM_STAT_PRIMARY;
-	dev->types[8] = _DRM_STAT_SECONDARY;
-	dev->types[9] = _DRM_STAT_DMA;
-
 	dev_priv = kzalloc(sizeof(drm_i915_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;

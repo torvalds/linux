@@ -431,15 +431,6 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 
-	/* the DRM has 6 basic counters */
-	dev->counters = 6;
-	dev->types[0] = _DRM_STAT_LOCK;
-	dev->types[1] = _DRM_STAT_OPENS;
-	dev->types[2] = _DRM_STAT_CLOSES;
-	dev->types[3] = _DRM_STAT_IOCTLS;
-	dev->types[4] = _DRM_STAT_LOCKS;
-	dev->types[5] = _DRM_STAT_UNLOCKS;
-
 	if (drm_ht_create(&dev->map_hash, 12))
 		goto err_free;
 

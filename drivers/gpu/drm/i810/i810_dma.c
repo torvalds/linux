@@ -944,8 +944,6 @@ static int i810_dma_vertex(struct drm_device *dev, void *data,
 				 dma->buflist[vertex->idx],
 				 vertex->discard, vertex->used);
 
-	atomic_add(vertex->used, &dev->counts[_DRM_STAT_SECONDARY]);
-	atomic_inc(&dev->counts[_DRM_STAT_DMA]);
 	sarea_priv->last_enqueue = dev_priv->counter - 1;
 	sarea_priv->last_dispatch = (int)hw_status[5];
 
@@ -1105,8 +1103,6 @@ static int i810_dma_mc(struct drm_device *dev, void *data,
 	i810_dma_dispatch_mc(dev, dma->buflist[mc->idx], mc->used,
 			     mc->last_render);
 
-	atomic_add(mc->used, &dev->counts[_DRM_STAT_SECONDARY]);
-	atomic_inc(&dev->counts[_DRM_STAT_DMA]);
 	sarea_priv->last_enqueue = dev_priv->counter - 1;
 	sarea_priv->last_dispatch = (int)hw_status[5];
 
@@ -1197,13 +1193,6 @@ static int i810_flip_bufs(struct drm_device *dev, void *data,
 
 int i810_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	/* i810 has 4 more counters */
-	dev->counters += 4;
-	dev->types[6] = _DRM_STAT_IRQ;
-	dev->types[7] = _DRM_STAT_PRIMARY;
-	dev->types[8] = _DRM_STAT_SECONDARY;
-	dev->types[9] = _DRM_STAT_DMA;
-
 	pci_set_master(dev->pdev);
 
 	return 0;

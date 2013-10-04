@@ -1115,13 +1115,6 @@ struct drm_device {
 	atomic_t buf_alloc;		/**< Buffer allocation in progress */
 	/*@} */
 
-	/** \name Performance counters */
-	/*@{ */
-	unsigned long counters;
-	enum drm_stat_type types[15];
-	atomic_t counts[15];
-	/*@} */
-
 	struct list_head filelist;
 
 	/** \name Memory management */
