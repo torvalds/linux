@@ -437,13 +437,11 @@ struct intel_hdmi {
 };
 
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
-#define DP_LINK_CONFIGURATION_SIZE	9
 
 struct intel_dp {
 	uint32_t output_reg;
 	uint32_t aux_ch_ctl_reg;
 	uint32_t DP;
-	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	uint32_t color_range;
@@ -548,7 +546,6 @@ extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
 extern bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 				    struct intel_connector *intel_connector);
-extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
 extern void intel_dp_start_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_stop_link_train(struct intel_dp *intel_dp);

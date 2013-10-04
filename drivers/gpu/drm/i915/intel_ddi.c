@@ -296,9 +296,6 @@ static void intel_ddi_mode_set(struct intel_encoder *encoder)
 			DRM_DEBUG_DRIVER("DP audio: write eld information\n");
 			intel_write_eld(&encoder->base, adjusted_mode);
 		}
-
-		intel_dp_init_link_config(intel_dp);
-
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 
@@ -1202,7 +1199,7 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 
 	val = DP_TP_CTL_ENABLE | DP_TP_CTL_MODE_SST |
 	      DP_TP_CTL_LINK_TRAIN_PAT1 | DP_TP_CTL_SCRAMBLE_DISABLE;
-	if (intel_dp->link_configuration[1] & DP_LANE_COUNT_ENHANCED_FRAME_EN)
+	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		val |= DP_TP_CTL_ENHANCED_FRAME_ENABLE;
 	I915_WRITE(DP_TP_CTL(port), val);
 	POSTING_READ(DP_TP_CTL(port));
