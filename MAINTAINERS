@@ -4476,6 +4476,13 @@ L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/ioc3_serial.c
 
+IOMMU DRIVERS
+M:	Joerg Roedel <joro@8bytes.org>
+L:	iommu@lists.linux-foundation.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+S:	Maintained
+F:	drivers/iommu/
+
 IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
 S:	Maintained
