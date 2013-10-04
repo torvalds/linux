@@ -2297,7 +2297,8 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
-	int ret;
+	uint8_t buf[sizeof(intel_dp->train_set) + 1];
+	int ret, len;
 
 	if (HAS_DDI(dev)) {
 		uint32_t temp = I915_READ(DP_TP_CTL(port));
@@ -2367,22 +2368,21 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	I915_WRITE(intel_dp->output_reg, *DP);
 	POSTING_READ(intel_dp->output_reg);
 
-	ret = intel_dp_aux_native_write_1(intel_dp, DP_TRAINING_PATTERN_SET,
-					  dp_train_pat);
-	if (ret != 1)
-		return false;
-
-	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) !=
+	buf[0] = dp_train_pat;
+	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) ==
 	    DP_TRAINING_PATTERN_DISABLE) {
-		ret = intel_dp_aux_native_write(intel_dp,
-						DP_TRAINING_LANE0_SET,
-						intel_dp->train_set,
-						intel_dp->lane_count);
-		if (ret != intel_dp->lane_count)
-			return false;
+		/* don't write DP_TRAINING_LANEx_SET on disable */
+		len = 1;
+	} else {
+		/* DP_TRAINING_LANEx_SET follow DP_TRAINING_PATTERN_SET */
+		memcpy(buf + 1, intel_dp->train_set, intel_dp->lane_count);
+		len = intel_dp->lane_count + 1;
 	}
 
-	return true;
+	ret = intel_dp_aux_native_write(intel_dp, DP_TRAINING_PATTERN_SET,
+					buf, len);
+
+	return ret == len;
 }
 
 static bool
