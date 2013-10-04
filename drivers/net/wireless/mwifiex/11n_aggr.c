@@ -69,7 +69,8 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	memcpy(&tx_header->eth803_hdr, skb_src->data, dt_offset);
 
 	/* Copy SNAP header */
-	snap.snap_type = *(u16 *) ((u8 *)skb_src->data + dt_offset);
+	snap.snap_type =
+		le16_to_cpu(*(__le16 *) ((u8 *)skb_src->data + dt_offset));
 	dt_offset += sizeof(u16);
 
 	memcpy(&tx_header->rfc1042_hdr, &snap, sizeof(struct rfc_1042_hdr));
@@ -189,7 +190,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 		skb_src = skb_dequeue(&pra_list->skb_head);
 
-		pra_list->total_pkts_size -= skb_src->len;
+		pra_list->total_pkt_count--;
 
 		atomic_dec(&priv->wmm.tx_pkts_queued);
 
@@ -268,7 +269,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 		skb_queue_tail(&pra_list->skb_head, skb_aggr);
 
-		pra_list->total_pkts_size += skb_aggr->len;
+		pra_list->total_pkt_count++;
 
 		atomic_inc(&priv->wmm.tx_pkts_queued);
 

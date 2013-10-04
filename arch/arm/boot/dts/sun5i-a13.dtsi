@@ -150,11 +150,10 @@
 		};
 	};
 
-	soc@01c20000 {
+	soc@01c00000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0x01c20000 0x300000>;
 		ranges;
 
 		intc: interrupt-controller@01c20400 {

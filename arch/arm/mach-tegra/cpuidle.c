@@ -44,3 +44,13 @@ void __init tegra_cpuidle_init(void)
 		break;
 	}
 }
+
+void tegra_cpuidle_pcie_irqs_in_use(void)
+{
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
+			tegra20_cpuidle_pcie_irqs_in_use();
+		break;
+	}
+}

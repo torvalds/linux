@@ -363,7 +363,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err2;
 
-	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p, GFP_KERNEL))))
+	err = br_netpoll_enable(p, GFP_KERNEL);
+	if (err)
 		goto err3;
 
 	err = netdev_master_upper_dev_link(dev, br->dev);
@@ -381,6 +382,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	list_add_rcu(&p->list, &br->port_list);
 
 	netdev_update_features(br->dev);
+
+	if (br->dev->needed_headroom < dev->needed_headroom)
+		br->dev->needed_headroom = dev->needed_headroom;
 
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);

@@ -11,32 +11,12 @@ Required properties:
 - nvidia,audio-routing : A list of the connections between audio components.
   Each entry is a pair of strings, the first being the connection's sink,
   the second being the connection's source. Valid names for sources and
-  sinks are the RT5640's pins, and the jacks on the board:
-
-  RT5640 pins:
-
-  * DMIC1
-  * DMIC2
-  * MICBIAS1
-  * IN1P
-  * IN1R
-  * IN2P
-  * IN2R
-  * HPOL
-  * HPOR
-  * LOUTL
-  * LOUTR
-  * MONOP
-  * MONON
-  * SPOLP
-  * SPOLN
-  * SPORP
-  * SPORN
-
-  Board connectors:
+  sinks are the RT5640's pins (as documented in its binding), and the jacks
+  on the board:
 
   * Headphones
   * Speakers
+  * Mic Jack
 
 - nvidia,i2s-controller : The phandle of the Tegra I2S controller that's
   connected to the CODEC.

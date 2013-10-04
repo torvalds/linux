@@ -57,6 +57,11 @@ acpi_ex_store_object_to_index(union acpi_operand_object *val_desc,
 			      union acpi_operand_object *dest_desc,
 			      struct acpi_walk_state *walk_state);
 
+static acpi_status
+acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_node *node,
+			     struct acpi_walk_state *walk_state);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_store
@@ -375,7 +380,11 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
  *              When storing into an object the data is converted to the
  *              target object type then stored in the object. This means
  *              that the target object type (for an initialized target) will
- *              not be changed by a store operation.
+ *              not be changed by a store operation. A copy_object can change
+ *              the target type, however.
+ *
+ *              The implicit_conversion flag is set to NO/FALSE only when
+ *              storing to an arg_x -- as per the rules of the ACPI spec.
  *
  *              Assumes parameters are already validated.
  *
@@ -399,7 +408,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	target_type = acpi_ns_get_type(node);
 	target_desc = acpi_ns_get_attached_object(node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p(%s) into node %p(%s)\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p (%s) to node %p (%s)\n",
 			  source_desc,
 			  acpi_ut_get_object_type_name(source_desc), node,
 			  acpi_ut_get_type_name(target_type)));
@@ -413,45 +422,30 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(status);
 	}
 
-	/* If no implicit conversion, drop into the default case below */
-
-	if ((!implicit_conversion) ||
-	    ((walk_state->opcode == AML_COPY_OP) &&
-	     (target_type != ACPI_TYPE_LOCAL_REGION_FIELD) &&
-	     (target_type != ACPI_TYPE_LOCAL_BANK_FIELD) &&
-	     (target_type != ACPI_TYPE_LOCAL_INDEX_FIELD))) {
-		/*
-		 * Force execution of default (no implicit conversion). Note:
-		 * copy_object does not perform an implicit conversion, as per the ACPI
-		 * spec -- except in case of region/bank/index fields -- because these
-		 * objects must retain their original type permanently.
-		 */
-		target_type = ACPI_TYPE_ANY;
-	}
-
 	/* Do the actual store operation */
 
 	switch (target_type) {
-	case ACPI_TYPE_BUFFER_FIELD:
-	case ACPI_TYPE_LOCAL_REGION_FIELD:
-	case ACPI_TYPE_LOCAL_BANK_FIELD:
-	case ACPI_TYPE_LOCAL_INDEX_FIELD:
-
-		/* For fields, copy the source data to the target field. */
-
-		status = acpi_ex_write_data_to_field(source_desc, target_desc,
-						     &walk_state->result_obj);
-		break;
-
 	case ACPI_TYPE_INTEGER:
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
 		/*
-		 * These target types are all of type Integer/String/Buffer, and
-		 * therefore support implicit conversion before the store.
-		 *
-		 * Copy and/or convert the source object to a new target object
+		 * The simple data types all support implicit source operand
+		 * conversion before the store.
 		 */
+
+		if ((walk_state->opcode == AML_COPY_OP) || !implicit_conversion) {
+			/*
+			 * However, copy_object and Stores to arg_x do not perform
+			 * an implicit conversion, as per the ACPI specification.
+			 * A direct store is performed instead.
+			 */
+			status = acpi_ex_store_direct_to_node(source_desc, node,
+							      walk_state);
+			break;
+		}
+
+		/* Store with implicit source operand conversion support */
+
 		status =
 		    acpi_ex_store_object_to_object(source_desc, target_desc,
 						   &new_desc, walk_state);
@@ -465,13 +459,12 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			 * the Name's type to that of the value being stored in it.
 			 * source_desc reference count is incremented by attach_object.
 			 *
-			 * Note: This may change the type of the node if an explicit store
-			 * has been performed such that the node/object type has been
-			 * changed.
+			 * Note: This may change the type of the node if an explicit
+			 * store has been performed such that the node/object type
+			 * has been changed.
 			 */
-			status =
-			    acpi_ns_attach_object(node, new_desc,
-						  new_desc->common.type);
+			status = acpi_ns_attach_object(node, new_desc,
+						       new_desc->common.type);
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 					  "Store %s into %s via Convert/Attach\n",
@@ -482,38 +475,83 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		}
 		break;
 
+	case ACPI_TYPE_BUFFER_FIELD:
+	case ACPI_TYPE_LOCAL_REGION_FIELD:
+	case ACPI_TYPE_LOCAL_BANK_FIELD:
+	case ACPI_TYPE_LOCAL_INDEX_FIELD:
+		/*
+		 * For all fields, always write the source data to the target
+		 * field. Any required implicit source operand conversion is
+		 * performed in the function below as necessary. Note, field
+		 * objects must retain their original type permanently.
+		 */
+		status = acpi_ex_write_data_to_field(source_desc, target_desc,
+						     &walk_state->result_obj);
+		break;
+
 	default:
-
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "Storing [%s] (%p) directly into node [%s] (%p)"
-				  " with no implicit conversion\n",
-				  acpi_ut_get_object_type_name(source_desc),
-				  source_desc,
-				  acpi_ut_get_object_type_name(target_desc),
-				  node));
-
 		/*
 		 * No conversions for all other types. Directly store a copy of
-		 * the source object. NOTE: This is a departure from the ACPI
-		 * spec, which states "If conversion is impossible, abort the
-		 * running control method".
+		 * the source object. This is the ACPI spec-defined behavior for
+		 * the copy_object operator.
 		 *
-		 * This code implements "If conversion is impossible, treat the
-		 * Store operation as a CopyObject".
+		 * NOTE: For the Store operator, this is a departure from the
+		 * ACPI spec, which states "If conversion is impossible, abort
+		 * the running control method". Instead, this code implements
+		 * "If conversion is impossible, treat the Store operation as
+		 * a CopyObject".
 		 */
-		status =
-		    acpi_ut_copy_iobject_to_iobject(source_desc, &new_desc,
-						    walk_state);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-
-		status =
-		    acpi_ns_attach_object(node, new_desc,
-					  new_desc->common.type);
-		acpi_ut_remove_reference(new_desc);
+		status = acpi_ex_store_direct_to_node(source_desc, node,
+						      walk_state);
 		break;
 	}
 
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_store_direct_to_node
+ *
+ * PARAMETERS:  source_desc             - Value to be stored
+ *              node                    - Named object to receive the value
+ *              walk_state              - Current walk state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: "Store" an object directly to a node. This involves a copy
+ *              and an attach.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
+			     struct acpi_namespace_node *node,
+			     struct acpi_walk_state *walk_state)
+{
+	acpi_status status;
+	union acpi_operand_object *new_desc;
+
+	ACPI_FUNCTION_TRACE(ex_store_direct_to_node);
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Storing [%s] (%p) directly into node [%s] (%p)"
+			  " with no implicit conversion\n",
+			  acpi_ut_get_object_type_name(source_desc),
+			  source_desc, acpi_ut_get_type_name(node->type),
+			  node));
+
+	/* Copy the source object to a new object */
+
+	status =
+	    acpi_ut_copy_iobject_to_iobject(source_desc, &new_desc, walk_state);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Attach the new object to the node */
+
+	status = acpi_ns_attach_object(node, new_desc, new_desc->common.type);
+	acpi_ut_remove_reference(new_desc);
 	return_ACPI_STATUS(status);
 }

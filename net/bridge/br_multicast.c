@@ -29,6 +29,7 @@
 #include <net/ipv6.h>
 #include <net/mld.h>
 #include <net/ip6_checksum.h>
+#include <net/addrconf.h>
 #endif
 
 #include "br_private.h"
@@ -724,7 +725,7 @@ static int br_ip6_multicast_add_group(struct net_bridge *br,
 {
 	struct br_ip br_group;
 
-	if (!ipv6_is_transient_multicast(group))
+	if (ipv6_addr_is_ll_all_nodes(group))
 		return 0;
 
 	br_group.u.ip6 = *group;
@@ -1255,7 +1256,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		if (!mld2q->mld2q_nsrcs)
 			group = &mld2q->mld2q_mca;
 
-		max_delay = max(msecs_to_jiffies(MLDV2_MRC(ntohs(mld2q->mld2q_mrc))), 1UL);
+		max_delay = max(msecs_to_jiffies(mldv2_mrc(mld2q)), 1UL);
 	}
 
 	br_multicast_query_received(br, port, &br->ip6_querier,
@@ -1410,7 +1411,7 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 						  &br->ip6_query;
 
 
-	if (!ipv6_is_transient_multicast(group))
+	if (ipv6_addr_is_ll_all_nodes(group))
 		return;
 
 	br_group.u.ip6 = *group;
@@ -1547,8 +1548,14 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	 *  - MLD has always Router Alert hop-by-hop option
 	 *  - But we do not support jumbrograms.
 	 */
-	if (ip6h->version != 6 ||
-	    ip6h->nexthdr != IPPROTO_HOPOPTS ||
+	if (ip6h->version != 6)
+		return 0;
+
+	/* Prevent flooding this packet if there is no listener present */
+	if (!ipv6_addr_is_ll_all_nodes(&ip6h->daddr))
+		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
+
+	if (ip6h->nexthdr != IPPROTO_HOPOPTS ||
 	    ip6h->payload_len == 0)
 		return 0;
 

@@ -6,7 +6,7 @@
  * Based on the usbvideo vicam driver, which is:
  *
  * Copyright (c) 2002 Joe Burks (jburks@wavicle.org),
- *                    Christopher L Cheney (ccheney@cheney.cx),
+ *                    Chris Cheney (chris.cheney@gmail.com),
  *                    Pavel Machek (pavel@ucw.cz),
  *                    John Tyner (jtyner@cs.ucr.edu),
  *                    Monroe Williams (monroe@pobox.com)

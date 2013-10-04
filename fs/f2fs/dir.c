@@ -270,10 +270,25 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 	struct f2fs_node *rn;
 
 	/* copy name info. to this inode page */
-	rn = (struct f2fs_node *)page_address(ipage);
+	rn = F2FS_NODE(ipage);
 	rn->i.i_namelen = cpu_to_le32(name->len);
 	memcpy(rn->i.i_name, name->name, name->len);
 	set_page_dirty(ipage);
+}
+
+int update_dent_inode(struct inode *inode, const struct qstr *name)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct page *page;
+
+	page = get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
+
+	init_dent_inode(name, page);
+	f2fs_put_page(page, 1);
+
+	return 0;
 }
 
 static int make_empty_dir(struct inode *inode,
@@ -557,6 +572,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 
 		if (inode->i_nlink == 0)
 			add_orphan_inode(sbi, inode->i_ino);
+		else
+			release_orphan_inode(sbi);
 	}
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK) {

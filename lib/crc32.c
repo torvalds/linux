@@ -131,11 +131,14 @@ crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
 #endif
 
 /**
- * crc32_le() - Calculate bitwise little-endian Ethernet AUTODIN II CRC32
- * @crc: seed value for computation.  ~0 for Ethernet, sometimes 0 for
- *	other uses, or the previous crc32 value if computing incrementally.
- * @p: pointer to buffer over which CRC is run
+ * crc32_le_generic() - Calculate bitwise little-endian Ethernet AUTODIN II
+ *			CRC32/CRC32C
+ * @crc: seed value for computation.  ~0 for Ethernet, sometimes 0 for other
+ *	 uses, or the previous crc32/crc32c value if computing incrementally.
+ * @p: pointer to buffer over which CRC32/CRC32C is run
  * @len: length of buffer @p
+ * @tab: little-endian Ethernet table
+ * @polynomial: CRC32/CRC32c LE polynomial
  */
 static inline u32 __pure crc32_le_generic(u32 crc, unsigned char const *p,
 					  size_t len, const u32 (*tab)[256],
@@ -201,11 +204,13 @@ EXPORT_SYMBOL(crc32_le);
 EXPORT_SYMBOL(__crc32c_le);
 
 /**
- * crc32_be() - Calculate bitwise big-endian Ethernet AUTODIN II CRC32
+ * crc32_be_generic() - Calculate bitwise big-endian Ethernet AUTODIN II CRC32
  * @crc: seed value for computation.  ~0 for Ethernet, sometimes 0 for
  *	other uses, or the previous crc32 value if computing incrementally.
- * @p: pointer to buffer over which CRC is run
+ * @p: pointer to buffer over which CRC32 is run
  * @len: length of buffer @p
+ * @tab: big-endian Ethernet table
+ * @polynomial: CRC32 BE polynomial
  */
 static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
 					  size_t len, const u32 (*tab)[256],

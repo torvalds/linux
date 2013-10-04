@@ -13,6 +13,7 @@
 
 #include <linux/device.h>
 #include <linux/eventfd.h>
+#include <linux/file.h>
 #include <linux/interrupt.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
@@ -227,6 +228,110 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 	return 0;
 }
 
+static int vfio_pci_count_devs(struct pci_dev *pdev, void *data)
+{
+	(*(int *)data)++;
+	return 0;
+}
+
+struct vfio_pci_fill_info {
+	int max;
+	int cur;
+	struct vfio_pci_dependent_device *devices;
+};
+
+static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
+{
+	struct vfio_pci_fill_info *fill = data;
+	struct iommu_group *iommu_group;
+
+	if (fill->cur == fill->max)
+		return -EAGAIN; /* Something changed, try again */
+
+	iommu_group = iommu_group_get(&pdev->dev);
+	if (!iommu_group)
+		return -EPERM; /* Cannot reset non-isolated devices */
+
+	fill->devices[fill->cur].group_id = iommu_group_id(iommu_group);
+	fill->devices[fill->cur].segment = pci_domain_nr(pdev->bus);
+	fill->devices[fill->cur].bus = pdev->bus->number;
+	fill->devices[fill->cur].devfn = pdev->devfn;
+	fill->cur++;
+	iommu_group_put(iommu_group);
+	return 0;
+}
+
+struct vfio_pci_group_entry {
+	struct vfio_group *group;
+	int id;
+};
+
+struct vfio_pci_group_info {
+	int count;
+	struct vfio_pci_group_entry *groups;
+};
+
+static int vfio_pci_validate_devs(struct pci_dev *pdev, void *data)
+{
+	struct vfio_pci_group_info *info = data;
+	struct iommu_group *group;
+	int id, i;
+
+	group = iommu_group_get(&pdev->dev);
+	if (!group)
+		return -EPERM;
+
+	id = iommu_group_id(group);
+
+	for (i = 0; i < info->count; i++)
+		if (info->groups[i].id == id)
+			break;
+
+	iommu_group_put(group);
+
+	return (i == info->count) ? -EINVAL : 0;
+}
+
+static bool vfio_pci_dev_below_slot(struct pci_dev *pdev, struct pci_slot *slot)
+{
+	for (; pdev; pdev = pdev->bus->self)
+		if (pdev->bus == slot->bus)
+			return (pdev->slot == slot);
+	return false;
+}
+
+struct vfio_pci_walk_info {
+	int (*fn)(struct pci_dev *, void *data);
+	void *data;
+	struct pci_dev *pdev;
+	bool slot;
+	int ret;
+};
+
+static int vfio_pci_walk_wrapper(struct pci_dev *pdev, void *data)
+{
+	struct vfio_pci_walk_info *walk = data;
+
+	if (!walk->slot || vfio_pci_dev_below_slot(pdev, walk->pdev->slot))
+		walk->ret = walk->fn(pdev, walk->data);
+
+	return walk->ret;
+}
+
+static int vfio_pci_for_each_slot_or_bus(struct pci_dev *pdev,
+					 int (*fn)(struct pci_dev *,
+						   void *data), void *data,
+					 bool slot)
+{
+	struct vfio_pci_walk_info walk = {
+		.fn = fn, .data = data, .pdev = pdev, .slot = slot, .ret = 0,
+	};
+
+	pci_walk_bus(pdev->bus, vfio_pci_walk_wrapper, &walk);
+
+	return walk.ret;
+}
+
 static long vfio_pci_ioctl(void *device_data,
 			   unsigned int cmd, unsigned long arg)
 {
@@ -407,9 +512,188 @@ static long vfio_pci_ioctl(void *device_data,
 
 		return ret;
 
-	} else if (cmd == VFIO_DEVICE_RESET)
+	} else if (cmd == VFIO_DEVICE_RESET) {
 		return vdev->reset_works ?
 			pci_reset_function(vdev->pdev) : -EINVAL;
+
+	} else if (cmd == VFIO_DEVICE_GET_PCI_HOT_RESET_INFO) {
+		struct vfio_pci_hot_reset_info hdr;
+		struct vfio_pci_fill_info fill = { 0 };
+		struct vfio_pci_dependent_device *devices = NULL;
+		bool slot = false;
+		int ret = 0;
+
+		minsz = offsetofend(struct vfio_pci_hot_reset_info, count);
+
+		if (copy_from_user(&hdr, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (hdr.argsz < minsz)
+			return -EINVAL;
+
+		hdr.flags = 0;
+
+		/* Can we do a slot or bus reset or neither? */
+		if (!pci_probe_reset_slot(vdev->pdev->slot))
+			slot = true;
+		else if (pci_probe_reset_bus(vdev->pdev->bus))
+			return -ENODEV;
+
+		/* How many devices are affected? */
+		ret = vfio_pci_for_each_slot_or_bus(vdev->pdev,
+						    vfio_pci_count_devs,
+						    &fill.max, slot);
+		if (ret)
+			return ret;
+
+		WARN_ON(!fill.max); /* Should always be at least one */
+
+		/*
+		 * If there's enough space, fill it now, otherwise return
+		 * -ENOSPC and the number of devices affected.
+		 */
+		if (hdr.argsz < sizeof(hdr) + (fill.max * sizeof(*devices))) {
+			ret = -ENOSPC;
+			hdr.count = fill.max;
+			goto reset_info_exit;
+		}
+
+		devices = kcalloc(fill.max, sizeof(*devices), GFP_KERNEL);
+		if (!devices)
+			return -ENOMEM;
+
+		fill.devices = devices;
+
+		ret = vfio_pci_for_each_slot_or_bus(vdev->pdev,
+						    vfio_pci_fill_devs,
+						    &fill, slot);
+
+		/*
+		 * If a device was removed between counting and filling,
+		 * we may come up short of fill.max.  If a device was
+		 * added, we'll have a return of -EAGAIN above.
+		 */
+		if (!ret)
+			hdr.count = fill.cur;
+
+reset_info_exit:
+		if (copy_to_user((void __user *)arg, &hdr, minsz))
+			ret = -EFAULT;
+
+		if (!ret) {
+			if (copy_to_user((void __user *)(arg + minsz), devices,
+					 hdr.count * sizeof(*devices)))
+				ret = -EFAULT;
+		}
+
+		kfree(devices);
+		return ret;
+
+	} else if (cmd == VFIO_DEVICE_PCI_HOT_RESET) {
+		struct vfio_pci_hot_reset hdr;
+		int32_t *group_fds;
+		struct vfio_pci_group_entry *groups;
+		struct vfio_pci_group_info info;
+		bool slot = false;
+		int i, count = 0, ret = 0;
+
+		minsz = offsetofend(struct vfio_pci_hot_reset, count);
+
+		if (copy_from_user(&hdr, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (hdr.argsz < minsz || hdr.flags)
+			return -EINVAL;
+
+		/* Can we do a slot or bus reset or neither? */
+		if (!pci_probe_reset_slot(vdev->pdev->slot))
+			slot = true;
+		else if (pci_probe_reset_bus(vdev->pdev->bus))
+			return -ENODEV;
+
+		/*
+		 * We can't let userspace give us an arbitrarily large
+		 * buffer to copy, so verify how many we think there
+		 * could be.  Note groups can have multiple devices so
+		 * one group per device is the max.
+		 */
+		ret = vfio_pci_for_each_slot_or_bus(vdev->pdev,
+						    vfio_pci_count_devs,
+						    &count, slot);
+		if (ret)
+			return ret;
+
+		/* Somewhere between 1 and count is OK */
+		if (!hdr.count || hdr.count > count)
+			return -EINVAL;
+
+		group_fds = kcalloc(hdr.count, sizeof(*group_fds), GFP_KERNEL);
+		groups = kcalloc(hdr.count, sizeof(*groups), GFP_KERNEL);
+		if (!group_fds || !groups) {
+			kfree(group_fds);
+			kfree(groups);
+			return -ENOMEM;
+		}
+
+		if (copy_from_user(group_fds, (void __user *)(arg + minsz),
+				   hdr.count * sizeof(*group_fds))) {
+			kfree(group_fds);
+			kfree(groups);
+			return -EFAULT;
+		}
+
+		/*
+		 * For each group_fd, get the group through the vfio external
+		 * user interface and store the group and iommu ID.  This
+		 * ensures the group is held across the reset.
+		 */
+		for (i = 0; i < hdr.count; i++) {
+			struct vfio_group *group;
+			struct fd f = fdget(group_fds[i]);
+			if (!f.file) {
+				ret = -EBADF;
+				break;
+			}
+
+			group = vfio_group_get_external_user(f.file);
+			fdput(f);
+			if (IS_ERR(group)) {
+				ret = PTR_ERR(group);
+				break;
+			}
+
+			groups[i].group = group;
+			groups[i].id = vfio_external_user_iommu_id(group);
+		}
+
+		kfree(group_fds);
+
+		/* release reference to groups on error */
+		if (ret)
+			goto hot_reset_release;
+
+		info.count = hdr.count;
+		info.groups = groups;
+
+		/*
+		 * Test whether all the affected devices are contained
+		 * by the set of groups provided by the user.
+		 */
+		ret = vfio_pci_for_each_slot_or_bus(vdev->pdev,
+						    vfio_pci_validate_devs,
+						    &info, slot);
+		if (!ret)
+			/* User has access, do the reset */
+			ret = slot ? pci_reset_slot(vdev->pdev->slot) :
+				     pci_reset_bus(vdev->pdev->bus);
+
+hot_reset_release:
+		for (i--; i >= 0; i--)
+			vfio_group_put_external_user(groups[i].group);
+
+		kfree(groups);
+		return ret;
+	}
 
 	return -ENOTTY;
 }

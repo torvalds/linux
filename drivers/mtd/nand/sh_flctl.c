@@ -137,7 +137,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	dma_cap_mask_t mask;
 	struct dma_slave_config cfg;
 	struct platform_device *pdev = flctl->pdev;
-	struct sh_flctl_platform_data *pdata = pdev->dev.platform_data;
+	struct sh_flctl_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	if (!pdata)
@@ -1131,7 +1131,7 @@ static int flctl_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		pdata = flctl_parse_dt(&pdev->dev);
 	else
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no setup data defined\n");

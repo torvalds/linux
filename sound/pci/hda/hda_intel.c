@@ -555,6 +555,9 @@ struct azx {
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	struct azx_dev saved_azx_dev;
 #endif
+
+	/* secondary power domain for hdmi audio under vga device */
+	struct dev_pm_domain hdmi_pm_domain;
 };
 
 #define CREATE_TRACE_POINTS
@@ -1160,7 +1163,7 @@ static int azx_reset(struct azx *chip, int full_reset)
 		goto __skip;
 
 	/* clear STATESTS */
-	azx_writeb(chip, STATESTS, STATESTS_INT_MASK);
+	azx_writew(chip, STATESTS, STATESTS_INT_MASK);
 
 	/* reset controller */
 	azx_enter_link_reset(chip);
@@ -1242,7 +1245,7 @@ static void azx_int_clear(struct azx *chip)
 	}
 
 	/* clear STATESTS */
-	azx_writeb(chip, STATESTS, STATESTS_INT_MASK);
+	azx_writew(chip, STATESTS, STATESTS_INT_MASK);
 
 	/* clear rirb status */
 	azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
@@ -1397,8 +1400,9 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	int i, ok;
 
 #ifdef CONFIG_PM_RUNTIME
-	if (chip->pci->dev.power.runtime_status != RPM_ACTIVE)
-		return IRQ_NONE;
+	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+		if (chip->pci->dev.power.runtime_status != RPM_ACTIVE)
+			return IRQ_NONE;
 #endif
 
 	spin_lock(&chip->reg_lock);
@@ -1409,7 +1413,7 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	}
 
 	status = azx_readl(chip, INTSTS);
-	if (status == 0) {
+	if (status == 0 || status == 0xffffffff) {
 		spin_unlock(&chip->reg_lock);
 		return IRQ_NONE;
 	}
@@ -1451,8 +1455,8 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 
 #if 0
 	/* clear state status int */
-	if (azx_readb(chip, STATESTS) & 0x04)
-		azx_writeb(chip, STATESTS, 0x04);
+	if (azx_readw(chip, STATESTS) & 0x04)
+		azx_writew(chip, STATESTS, 0x04);
 #endif
 	spin_unlock(&chip->reg_lock);
 	
@@ -2971,6 +2975,16 @@ static int azx_runtime_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
+	if (chip->disabled)
+		return 0;
+
+	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+		return 0;
+
+	/* enable controller wake up event */
+	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) |
+		  STATESTS_INT_MASK);
+
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
@@ -2983,11 +2997,37 @@ static int azx_runtime_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+	struct hda_bus *bus;
+	struct hda_codec *codec;
+	int status;
+
+	if (chip->disabled)
+		return 0;
+
+	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		hda_display_power(true);
+
+	/* Read STATESTS before controller reset */
+	status = azx_readw(chip, STATESTS);
+
 	azx_init_pci(chip);
 	azx_init_chip(chip, 1);
+
+	bus = chip->bus;
+	if (status && bus) {
+		list_for_each_entry(codec, &bus->codec_list, list)
+			if (status & (1 << codec->addr))
+				queue_delayed_work(codec->bus->workq,
+						   &codec->jackpoll_work, codec->jackpoll_interval);
+	}
+
+	/* disable controller Wake Up event*/
+	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) &
+			~STATESTS_INT_MASK);
+
 	return 0;
 }
 
@@ -2995,6 +3035,9 @@ static int azx_runtime_idle(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+
+	if (chip->disabled)
+		return 0;
 
 	if (!power_save_controller ||
 	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
@@ -3078,13 +3121,19 @@ static void azx_vs_set_state(struct pci_dev *pci,
 			   "%s: %s via VGA-switcheroo\n", pci_name(chip->pci),
 			   disabled ? "Disabling" : "Enabling");
 		if (disabled) {
+			pm_runtime_put_sync_suspend(&pci->dev);
 			azx_suspend(&pci->dev);
+			/* when we get suspended by vga switcheroo we end up in D3cold,
+			 * however we have no ACPI handle, so pci/acpi can't put us there,
+			 * put ourselves there */
+			pci->current_state = PCI_D3cold;
 			chip->disabled = true;
 			if (snd_hda_lock_devices(chip->bus))
 				snd_printk(KERN_WARNING SFX "%s: Cannot lock devices!\n",
 					   pci_name(chip->pci));
 		} else {
 			snd_hda_unlock_devices(chip->bus);
+			pm_runtime_get_noresume(&pci->dev);
 			chip->disabled = false;
 			azx_resume(&pci->dev);
 		}
@@ -3139,6 +3188,9 @@ static int register_vga_switcheroo(struct azx *chip)
 	if (err < 0)
 		return err;
 	chip->vga_switcheroo_registered = 1;
+
+	/* register as an optimus hdmi audio power domain */
+	vga_switcheroo_init_domain_pm_optimus_hdmi_audio(&chip->pci->dev, &chip->hdmi_pm_domain);
 	return 0;
 }
 #else
@@ -3376,6 +3428,7 @@ static struct snd_pci_quirk msi_black_list[] = {
 	SND_PCI_QUIRK(0x1043, 0x81f2, "ASUS", 0), /* Athlon64 X2 + nvidia */
 	SND_PCI_QUIRK(0x1043, 0x81f6, "ASUS", 0), /* nvidia */
 	SND_PCI_QUIRK(0x1043, 0x822d, "ASUS", 0), /* Athlon64 X2 + nvidia MCP55 */
+	SND_PCI_QUIRK(0x1179, 0xfb44, "Toshiba Satellite C870", 0), /* AMD Hudson */
 	SND_PCI_QUIRK(0x1849, 0x0888, "ASRock", 0), /* Athlon64 X2 + nvidia */
 	SND_PCI_QUIRK(0xa0a0, 0x0575, "Aopen MZ915-M", 0), /* ICH6 */
 	{}
@@ -3831,11 +3884,13 @@ static int azx_probe_continue(struct azx *chip)
 
 	/* Request power well for Haswell HDA controller and codec */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+#ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init();
 		if (err < 0) {
 			snd_printk(KERN_ERR SFX "Error request power-well from i915\n");
 			goto out_free;
 		}
+#endif
 		hda_display_power(true);
 	}
 
@@ -3887,7 +3942,7 @@ static int azx_probe_continue(struct azx *chip)
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 	azx_add_card_list(chip);
-	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || chip->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
 	return 0;

@@ -314,7 +314,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 static int davinci_mdio_probe(struct platform_device *pdev)
 {
-	struct mdio_platform_data *pdata = pdev->dev.platform_data;
+	struct mdio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct davinci_mdio_data *data;
 	struct resource *res;
@@ -421,8 +421,7 @@ bail_out:
 
 static int davinci_mdio_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct davinci_mdio_data *data = dev_get_drvdata(dev);
+	struct davinci_mdio_data *data = platform_get_drvdata(pdev);
 
 	if (data->bus) {
 		mdiobus_unregister(data->bus);
@@ -433,8 +432,6 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 		clk_put(data->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	dev_set_drvdata(dev, NULL);
 
 	kfree(data);
 

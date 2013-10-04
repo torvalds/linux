@@ -1770,9 +1770,6 @@ static void sis190_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	struct sis190_private *tp = netdev_priv(dev);
 	unsigned long flags;
 
-	if (regs->len > SIS190_REGS_SIZE)
-		regs->len = SIS190_REGS_SIZE;
-
 	spin_lock_irqsave(&tp->lock, flags);
 	memcpy_fromio(p, tp->mmio_addr, regs->len);
 	spin_unlock_irqrestore(&tp->lock, flags);

@@ -800,7 +800,16 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 }
 
-int MLX4_CMD_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
+static int MLX4_CMD_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
+		     struct mlx4_vhcr *vhcr,
+		     struct mlx4_cmd_mailbox *inbox,
+		     struct mlx4_cmd_mailbox *outbox,
+		     struct mlx4_cmd_info *cmd)
+{
+	return -EPERM;
+}
+
+static int MLX4_CMD_GET_OP_REQ_wrapper(struct mlx4_dev *dev, int slave,
 		     struct mlx4_vhcr *vhcr,
 		     struct mlx4_cmd_mailbox *inbox,
 		     struct mlx4_cmd_mailbox *outbox,
@@ -1252,6 +1261,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.wrapper = MLX4_CMD_UPDATE_QP_wrapper
 	},
 	{
+		.opcode = MLX4_CMD_GET_OP_REQ,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = MLX4_CMD_GET_OP_REQ_wrapper,
+	},
+	{
 		.opcode = MLX4_CMD_CONF_SPECIAL_QP,
 		.has_inbox = false,
 		.has_outbox = false,
@@ -1526,7 +1544,7 @@ static int calculate_transition(u16 oper_vlan, u16 admin_vlan)
 	return (2 * (oper_vlan == MLX4_VGT) + (admin_vlan == MLX4_VGT));
 }
 
-int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
+static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 					    int slave, int port)
 {
 	struct mlx4_vport_oper_state *vp_oper;

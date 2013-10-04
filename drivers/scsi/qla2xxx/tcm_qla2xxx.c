@@ -2,12 +2,9 @@
  * This file contains tcm implementation using v4 configfs fabric infrastructure
  * for QLogic target mode HBAs
  *
- * ?? Copyright 2010-2011 RisingTide Systems LLC.
+ * (c) Copyright 2010-2013 Datera, Inc.
  *
- * Licensed to the Linux Foundation under the General Public License (GPL)
- * version 2.
- *
- * Author: Nicholas A. Bellinger <nab@risingtidesystems.com>
+ * Author: Nicholas A. Bellinger <nab@daterainc.com>
  *
  * tcm_qla2xxx_parse_wwn() and tcm_qla2xxx_format_wwn() contains code from
  * the TCM_FC / Open-FCoE.org fabric module.
@@ -360,6 +357,14 @@ static int tcm_qla2xxx_check_prod_write_protect(struct se_portal_group *se_tpg)
 	return QLA_TPG_ATTRIB(tpg)->prod_mode_write_protect;
 }
 
+static int tcm_qla2xxx_check_demo_mode_login_only(struct se_portal_group *se_tpg)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+
+	return QLA_TPG_ATTRIB(tpg)->demo_mode_login_only;
+}
+
 static struct se_node_acl *tcm_qla2xxx_alloc_fabric_acl(
 	struct se_portal_group *se_tpg)
 {
@@ -489,38 +494,13 @@ static u32 tcm_qla2xxx_sess_get_index(struct se_session *se_sess)
 	return 0;
 }
 
-/*
- * The LIO target core uses DMA_TO_DEVICE to mean that data is going
- * to the target (eg handling a WRITE) and DMA_FROM_DEVICE to mean
- * that data is coming from the target (eg handling a READ).  However,
- * this is just the opposite of what we have to tell the DMA mapping
- * layer -- eg when handling a READ, the HBA will have to DMA the data
- * out of memory so it can send it to the initiator, which means we
- * need to use DMA_TO_DEVICE when we map the data.
- */
-static enum dma_data_direction tcm_qla2xxx_mapping_dir(struct se_cmd *se_cmd)
-{
-	if (se_cmd->se_cmd_flags & SCF_BIDI)
-		return DMA_BIDIRECTIONAL;
-
-	switch (se_cmd->data_direction) {
-	case DMA_TO_DEVICE:
-		return DMA_FROM_DEVICE;
-	case DMA_FROM_DEVICE:
-		return DMA_TO_DEVICE;
-	case DMA_NONE:
-	default:
-		return DMA_NONE;
-	}
-}
-
 static int tcm_qla2xxx_write_pending(struct se_cmd *se_cmd)
 {
 	struct qla_tgt_cmd *cmd = container_of(se_cmd,
 				struct qla_tgt_cmd, se_cmd);
 
 	cmd->bufflen = se_cmd->data_length;
-	cmd->dma_data_direction = tcm_qla2xxx_mapping_dir(se_cmd);
+	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
 
 	cmd->sg_cnt = se_cmd->t_data_nents;
 	cmd->sg = se_cmd->t_data_sg;
@@ -656,7 +636,7 @@ static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 				struct qla_tgt_cmd, se_cmd);
 
 	cmd->bufflen = se_cmd->data_length;
-	cmd->dma_data_direction = tcm_qla2xxx_mapping_dir(se_cmd);
+	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
 	cmd->aborted = (se_cmd->transport_state & CMD_T_ABORTED);
 
 	cmd->sg_cnt = se_cmd->t_data_nents;
@@ -680,7 +660,7 @@ static int tcm_qla2xxx_queue_status(struct se_cmd *se_cmd)
 	cmd->sg = NULL;
 	cmd->sg_cnt = 0;
 	cmd->offset = 0;
-	cmd->dma_data_direction = tcm_qla2xxx_mapping_dir(se_cmd);
+	cmd->dma_data_direction = target_reverse_dma_direction(se_cmd);
 	cmd->aborted = (se_cmd->transport_state & CMD_T_ABORTED);
 
 	if (se_cmd->data_direction == DMA_FROM_DEVICE) {
@@ -939,11 +919,19 @@ DEF_QLA_TPG_ATTR_BOOL(prod_mode_write_protect);
 DEF_QLA_TPG_ATTRIB(prod_mode_write_protect);
 QLA_TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
 
+/*
+ * Define tcm_qla2xxx_tpg_attrib_s_demo_mode_login_only
+ */
+DEF_QLA_TPG_ATTR_BOOL(demo_mode_login_only);
+DEF_QLA_TPG_ATTRIB(demo_mode_login_only);
+QLA_TPG_ATTR(demo_mode_login_only, S_IRUGO | S_IWUSR);
+
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrib_attrs[] = {
 	&tcm_qla2xxx_tpg_attrib_generate_node_acls.attr,
 	&tcm_qla2xxx_tpg_attrib_cache_dynamic_acls.attr,
 	&tcm_qla2xxx_tpg_attrib_demo_mode_write_protect.attr,
 	&tcm_qla2xxx_tpg_attrib_prod_mode_write_protect.attr,
+	&tcm_qla2xxx_tpg_attrib_demo_mode_login_only.attr,
 	NULL,
 };
 
@@ -1042,6 +1030,7 @@ static struct se_portal_group *tcm_qla2xxx_make_tpg(
 	QLA_TPG_ATTRIB(tpg)->generate_node_acls = 1;
 	QLA_TPG_ATTRIB(tpg)->demo_mode_write_protect = 1;
 	QLA_TPG_ATTRIB(tpg)->cache_dynamic_acls = 1;
+	QLA_TPG_ATTRIB(tpg)->demo_mode_login_only = 1;
 
 	ret = core_tpg_register(&tcm_qla2xxx_fabric_configfs->tf_ops, wwn,
 				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
@@ -1736,7 +1725,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 					tcm_qla2xxx_check_demo_write_protect,
 	.tpg_check_prod_mode_write_protect =
 					tcm_qla2xxx_check_prod_write_protect,
-	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_true,
+	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_demo_mode_login_only,
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
@@ -1784,7 +1773,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.tpg_check_demo_mode_cache	= tcm_qla2xxx_check_true,
 	.tpg_check_demo_mode_write_protect = tcm_qla2xxx_check_true,
 	.tpg_check_prod_mode_write_protect = tcm_qla2xxx_check_false,
-	.tpg_check_demo_mode_login_only	= tcm_qla2xxx_check_true,
+	.tpg_check_demo_mode_login_only	= tcm_qla2xxx_check_demo_mode_login_only,
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,

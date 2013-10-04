@@ -19,11 +19,14 @@
 
 #define CL_EXPIRE    		0x01
 #define CL_SLAVE     		0x02
-#define CL_COPY_ALL 		0x04
+#define CL_COPY_UNBINDABLE	0x04
 #define CL_MAKE_SHARED 		0x08
 #define CL_PRIVATE 		0x10
 #define CL_SHARED_TO_SLAVE	0x20
 #define CL_UNPRIVILEGED		0x40
+#define CL_COPY_MNT_NS_FILE	0x80
+
+#define CL_COPY_ALL		(CL_COPY_UNBINDABLE | CL_COPY_MNT_NS_FILE)
 
 static inline void set_mnt_shared(struct mount *mnt)
 {

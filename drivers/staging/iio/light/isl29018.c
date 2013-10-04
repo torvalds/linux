@@ -563,6 +563,7 @@ static int isl29018_probe(struct i2c_client *client,
 	mutex_init(&chip->lock);
 
 	chip->lux_scale = 1;
+	chip->lux_uscale = 0;
 	chip->range = 1000;
 	chip->adc_bit = 16;
 	chip->suspended = false;

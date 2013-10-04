@@ -29,8 +29,10 @@
 #define MV_XOR_THRESHOLD		1
 #define MV_XOR_MAX_CHANNELS             2
 
+/* Values for the XOR_CONFIG register */
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
+#define XOR_DESCRIPTOR_SWAP		BIT(14)
 
 #define XOR_CURR_DESC(chan)	(chan->mmr_base + 0x210 + (chan->idx * 4))
 #define XOR_NEXT_DESC(chan)	(chan->mmr_base + 0x200 + (chan->idx * 4))
@@ -143,7 +145,16 @@ struct mv_xor_desc_slot {
 #endif
 };
 
-/* This structure describes XOR descriptor size 64bytes	*/
+/*
+ * This structure describes XOR descriptor size 64bytes. The
+ * mv_phy_src_idx() macro must be used when indexing the values of the
+ * phy_src_addr[] array. This is due to the fact that the 'descriptor
+ * swap' feature, used on big endian systems, swaps descriptors data
+ * within blocks of 8 bytes. So two consecutive values of the
+ * phy_src_addr[] array are actually swapped in big-endian, which
+ * explains the different mv_phy_src_idx() implementation.
+ */
+#if defined(__LITTLE_ENDIAN)
 struct mv_xor_desc {
 	u32 status;		/* descriptor execution status */
 	u32 crc32_result;	/* result of CRC-32 calculation */
@@ -155,6 +166,21 @@ struct mv_xor_desc {
 	u32 reserved0;
 	u32 reserved1;
 };
+#define mv_phy_src_idx(src_idx) (src_idx)
+#else
+struct mv_xor_desc {
+	u32 crc32_result;	/* result of CRC-32 calculation */
+	u32 status;		/* descriptor execution status */
+	u32 phy_next_desc;	/* next descriptor address pointer */
+	u32 desc_command;	/* type of operation to be carried out */
+	u32 phy_dest_addr;	/* destination block address */
+	u32 byte_count;		/* size of src/dst blocks in bytes */
+	u32 phy_src_addr[8];	/* source block addresses */
+	u32 reserved1;
+	u32 reserved0;
+};
+#define mv_phy_src_idx(src_idx) (src_idx ^ 1)
+#endif
 
 #define to_mv_sw_desc(addr_hw_desc)		\
 	container_of(addr_hw_desc, struct mv_xor_desc_slot, hw_desc)

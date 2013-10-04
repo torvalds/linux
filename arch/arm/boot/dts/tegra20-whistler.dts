@@ -497,7 +497,7 @@
 
 	pmc {
 		nvidia,invert-interrupt;
-		nvidia,suspend-mode = <2>;
+		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <2000>;
 		nvidia,cpu-pwr-off-time = <1000>;
 		nvidia,core-pwr-good-time = <0 3845>;

@@ -41,15 +41,22 @@
 #define PIC_PCIE_LINK_1_IRQ		20
 #define PIC_PCIE_LINK_2_IRQ		21
 #define PIC_PCIE_LINK_3_IRQ		22
+
 #define PIC_EHCI_0_IRQ			23
 #define PIC_EHCI_1_IRQ			24
 #define PIC_OHCI_0_IRQ			25
 #define PIC_OHCI_1_IRQ			26
 #define PIC_OHCI_2_IRQ			27
 #define PIC_OHCI_3_IRQ			28
+#define PIC_2XX_XHCI_0_IRQ		23
+#define PIC_2XX_XHCI_1_IRQ		24
+#define PIC_2XX_XHCI_2_IRQ		25
+
 #define PIC_MMC_IRQ			29
 #define PIC_I2C_0_IRQ			30
 #define PIC_I2C_1_IRQ			31
+#define PIC_I2C_2_IRQ			32
+#define PIC_I2C_3_IRQ			33
 
 #ifndef __ASSEMBLY__
 
@@ -59,7 +66,17 @@ void xlp_wakeup_secondary_cpus(void);
 
 void xlp_mmu_init(void);
 void nlm_hal_init(void);
+int xlp_get_dram_map(int n, uint64_t *dram_map);
+
+/* Device tree related */
 void *xlp_dt_init(void *fdtp);
+
+static inline int cpu_is_xlpii(void)
+{
+	int chip = read_c0_prid() & 0xff00;
+
+	return chip == PRID_IMP_NETLOGIC_XLP2XX;
+}
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_NLM_XLP_H */

@@ -48,6 +48,7 @@ struct evdev_client {
 	struct evdev *evdev;
 	struct list_head node;
 	int clkid;
+	bool revoked;
 	unsigned int bufsize;
 	struct input_event buffer[];
 };
@@ -164,6 +165,9 @@ static void evdev_pass_values(struct evdev_client *client,
 	struct input_event event;
 	bool wakeup = false;
 
+	if (client->revoked)
+		return;
+
 	event.time = ktime_to_timeval(client->clkid == CLOCK_MONOTONIC ?
 				      mono : real);
 
@@ -240,7 +244,7 @@ static int evdev_flush(struct file *file, fl_owner_t id)
 	if (retval)
 		return retval;
 
-	if (!evdev->exist)
+	if (!evdev->exist || client->revoked)
 		retval = -ENODEV;
 	else
 		retval = input_flush_device(&evdev->handle, file);
@@ -429,7 +433,7 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 	if (retval)
 		return retval;
 
-	if (!evdev->exist) {
+	if (!evdev->exist || client->revoked) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -482,7 +486,7 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 		return -EINVAL;
 
 	for (;;) {
-		if (!evdev->exist)
+		if (!evdev->exist || client->revoked)
 			return -ENODEV;
 
 		if (client->packet_head == client->tail &&
@@ -511,7 +515,7 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 		if (!(file->f_flags & O_NONBLOCK)) {
 			error = wait_event_interruptible(evdev->wait,
 					client->packet_head != client->tail ||
-					!evdev->exist);
+					!evdev->exist || client->revoked);
 			if (error)
 				return error;
 		}
@@ -529,7 +533,11 @@ static unsigned int evdev_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &evdev->wait, wait);
 
-	mask = evdev->exist ? POLLOUT | POLLWRNORM : POLLHUP | POLLERR;
+	if (evdev->exist && !client->revoked)
+		mask = POLLOUT | POLLWRNORM;
+	else
+		mask = POLLHUP | POLLERR;
+
 	if (client->packet_head != client->tail)
 		mask |= POLLIN | POLLRDNORM;
 
@@ -795,6 +803,17 @@ static int evdev_handle_mt_request(struct input_dev *dev,
 	return 0;
 }
 
+static int evdev_revoke(struct evdev *evdev, struct evdev_client *client,
+			struct file *file)
+{
+	client->revoked = true;
+	evdev_ungrab(evdev, client);
+	input_flush_device(&evdev->handle, file);
+	wake_up_interruptible(&evdev->wait);
+
+	return 0;
+}
+
 static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			   void __user *p, int compat_mode)
 {
@@ -856,6 +875,12 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return evdev_grab(evdev, client);
 		else
 			return evdev_ungrab(evdev, client);
+
+	case EVIOCREVOKE:
+		if (p)
+			return -EINVAL;
+		else
+			return evdev_revoke(evdev, client, file);
 
 	case EVIOCSCLOCKID:
 		if (copy_from_user(&i, p, sizeof(unsigned int)))
@@ -1002,7 +1027,7 @@ static long evdev_ioctl_handler(struct file *file, unsigned int cmd,
 	if (retval)
 		return retval;
 
-	if (!evdev->exist) {
+	if (!evdev->exist || client->revoked) {
 		retval = -ENODEV;
 		goto out;
 	}

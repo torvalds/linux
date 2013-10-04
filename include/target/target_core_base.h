@@ -5,11 +5,12 @@
 #include <linux/configfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/percpu_ida.h>
 #include <scsi/scsi_cmnd.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#define TARGET_CORE_MOD_VERSION		"v4.1.0-rc2-ml"
+#define TARGET_CORE_MOD_VERSION		"v4.1.0"
 #define TARGET_CORE_VERSION		TARGET_CORE_MOD_VERSION
 
 /* Maximum Number of LUNs per Target Portal Group */
@@ -96,6 +97,10 @@
  * block/blk-lib.c:blkdev_issue_discard()
  */
 #define DA_EMULATE_TPWS				0
+/* Emulation for CompareAndWrite (AtomicTestandSet) by default */
+#define DA_EMULATE_CAW				1
+/* Emulation for 3rd Party Copy (ExtendedCopy) by default */
+#define DA_EMULATE_3PC				1
 /* No Emulation for PSCSI by default */
 #define DA_EMULATE_ALUA				0
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
@@ -158,6 +163,9 @@ enum se_cmd_flags_table {
 	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
 	SCF_ACK_KREF			= 0x00040000,
+	SCF_COMPARE_AND_WRITE		= 0x00080000,
+	SCF_COMPARE_AND_WRITE_POST	= 0x00100000,
+	SCF_CMD_XCOPY_PASSTHROUGH	= 0x00200000,
 };
 
 /* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
@@ -196,6 +204,7 @@ enum tcm_sense_reason_table {
 	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
 	TCM_OUT_OF_RESOURCES			= R(0x12),
 	TCM_PARAMETER_LIST_LENGTH_ERROR		= R(0x13),
+	TCM_MISCOMPARE_VERIFY			= R(0x14),
 #undef R
 };
 
@@ -415,6 +424,8 @@ struct se_cmd {
 	enum dma_data_direction	data_direction;
 	/* For SAM Task Attribute */
 	int			sam_task_attr;
+	/* Used for se_sess->sess_tag_pool */
+	unsigned int		map_tag;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
 	unsigned		cmd_wait_set:1;
@@ -444,11 +455,14 @@ struct se_cmd {
 	struct kref		cmd_kref;
 	struct target_core_fabric_ops *se_tfo;
 	sense_reason_t		(*execute_cmd)(struct se_cmd *);
-	void (*transport_complete_callback)(struct se_cmd *);
+	sense_reason_t		(*execute_rw)(struct se_cmd *, struct scatterlist *,
+					      u32, enum dma_data_direction);
+	sense_reason_t (*transport_complete_callback)(struct se_cmd *);
 
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
+	unsigned int		t_task_nolb;
 	unsigned int		transport_state;
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)
@@ -469,7 +483,9 @@ struct se_cmd {
 	struct work_struct	work;
 
 	struct scatterlist	*t_data_sg;
+	struct scatterlist	*t_data_sg_orig;
 	unsigned int		t_data_nents;
+	unsigned int		t_data_nents_orig;
 	void			*t_data_vmap;
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
@@ -536,6 +552,8 @@ struct se_session {
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
 	struct kref		sess_kref;
+	void			*sess_cmd_map;
+	struct percpu_ida	sess_tag_pool;
 };
 
 struct se_device;
@@ -589,6 +607,8 @@ struct se_dev_attrib {
 	int		emulate_tas;
 	int		emulate_tpu;
 	int		emulate_tpws;
+	int		emulate_caw;
+	int		emulate_3pc;
 	int		enforce_pr_isids;
 	int		is_nonrot;
 	int		emulate_rest_reord;
@@ -656,6 +676,7 @@ struct se_device {
 	spinlock_t		se_port_lock;
 	spinlock_t		se_tmr_lock;
 	spinlock_t		qf_cmd_lock;
+	struct semaphore	caw_sem;
 	/* Used for legacy SPC-2 reservationsa */
 	struct se_node_acl	*dev_reserved_node_acl;
 	/* Used for ALUA Logical Unit Group membership */
@@ -669,6 +690,7 @@ struct se_device {
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;
 	struct list_head	qf_cmd_list;
+	struct list_head	g_dev_node;
 	/* Pointer to associated SE HBA */
 	struct se_hba		*se_hba;
 	/* T10 Inquiry and VPD WWN Information */

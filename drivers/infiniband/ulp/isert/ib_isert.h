@@ -5,6 +5,7 @@
 #include <rdma/rdma_cm.h>
 
 #define ISERT_RDMA_LISTEN_BACKLOG	10
+#define ISCSI_ISER_SG_TABLESIZE		256
 
 enum isert_desc_type {
 	ISCSI_TX_CONTROL,
@@ -45,15 +46,26 @@ struct iser_tx_desc {
 	struct ib_send_wr send_wr;
 } __packed;
 
+struct fast_reg_descriptor {
+	struct list_head	list;
+	struct ib_mr		*data_mr;
+	struct ib_fast_reg_page_list	*data_frpl;
+	bool			valid;
+};
+
 struct isert_rdma_wr {
 	struct list_head	wr_list;
 	struct isert_cmd	*isert_cmd;
 	enum iser_ib_op_code	iser_ib_op;
 	struct ib_sge		*ib_sge;
+	struct ib_sge		s_ib_sge;
 	int			num_sge;
 	struct scatterlist	*sge;
 	int			send_wr_num;
 	struct ib_send_wr	*send_wr;
+	struct ib_send_wr	s_send_wr;
+	u32			cur_rdma_length;
+	struct fast_reg_descriptor *fr_desc;
 };
 
 struct isert_cmd {
@@ -67,8 +79,7 @@ struct isert_cmd {
 	u32			write_va_off;
 	u32			rdma_wr_num;
 	struct isert_conn	*conn;
-	struct iscsi_cmd	iscsi_cmd;
-	struct ib_sge		*ib_sge;
+	struct iscsi_cmd	*iscsi_cmd;
 	struct iser_tx_desc	tx_desc;
 	struct isert_rdma_wr	rdma_wr;
 	struct work_struct	comp_work;
@@ -106,6 +117,10 @@ struct isert_conn {
 	wait_queue_head_t	conn_wait;
 	wait_queue_head_t	conn_wait_comp_err;
 	struct kref		conn_kref;
+	struct list_head	conn_frwr_pool;
+	int			conn_frwr_pool_size;
+	/* lock to protect frwr_pool */
+	spinlock_t		conn_lock;
 };
 
 #define ISERT_MAX_CQ 64
@@ -118,6 +133,7 @@ struct isert_cq_desc {
 };
 
 struct isert_device {
+	int			use_frwr;
 	int			cqs_used;
 	int			refcount;
 	int			cq_active_qps[ISERT_MAX_CQ];
@@ -128,6 +144,12 @@ struct isert_device {
 	struct ib_cq		*dev_tx_cq[ISERT_MAX_CQ];
 	struct isert_cq_desc	*cq_desc;
 	struct list_head	dev_node;
+	struct ib_device_attr	dev_attr;
+	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
+						    struct iscsi_cmd *cmd,
+						    struct isert_rdma_wr *wr);
+	void			(*unreg_rdma_mem)(struct isert_cmd *isert_cmd,
+						  struct isert_conn *isert_conn);
 };
 
 struct isert_np {

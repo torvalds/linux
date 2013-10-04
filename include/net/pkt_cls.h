@@ -14,8 +14,8 @@ struct tcf_walker {
 	int	(*fn)(struct tcf_proto *, unsigned long node, struct tcf_walker *);
 };
 
-extern int register_tcf_proto_ops(struct tcf_proto_ops *ops);
-extern int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
+int register_tcf_proto_ops(struct tcf_proto_ops *ops);
+int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
@@ -126,17 +126,17 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	return 0;
 }
 
-extern int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
-			     struct nlattr **tb, struct nlattr *rate_tlv,
-			     struct tcf_exts *exts,
-			     const struct tcf_ext_map *map);
-extern void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
-extern void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
-	                     struct tcf_exts *src);
-extern int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
-	                 const struct tcf_ext_map *map);
-extern int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
-	                       const struct tcf_ext_map *map);
+int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
+		      struct nlattr **tb, struct nlattr *rate_tlv,
+		      struct tcf_exts *exts,
+		      const struct tcf_ext_map *map);
+void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
+void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
+		     struct tcf_exts *src);
+int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
+		  const struct tcf_ext_map *map);
+int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
+			const struct tcf_ext_map *map);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -239,14 +239,14 @@ struct tcf_ematch_ops {
 	struct list_head	link;
 };
 
-extern int tcf_em_register(struct tcf_ematch_ops *);
-extern void tcf_em_unregister(struct tcf_ematch_ops *);
-extern int tcf_em_tree_validate(struct tcf_proto *, struct nlattr *,
-				struct tcf_ematch_tree *);
-extern void tcf_em_tree_destroy(struct tcf_proto *, struct tcf_ematch_tree *);
-extern int tcf_em_tree_dump(struct sk_buff *, struct tcf_ematch_tree *, int);
-extern int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
-			       struct tcf_pkt_info *);
+int tcf_em_register(struct tcf_ematch_ops *);
+void tcf_em_unregister(struct tcf_ematch_ops *);
+int tcf_em_tree_validate(struct tcf_proto *, struct nlattr *,
+			 struct tcf_ematch_tree *);
+void tcf_em_tree_destroy(struct tcf_proto *, struct tcf_ematch_tree *);
+int tcf_em_tree_dump(struct sk_buff *, struct tcf_ematch_tree *, int);
+int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
+			struct tcf_pkt_info *);
 
 /**
  * tcf_em_tree_change - replace ematch tree of a running classifier

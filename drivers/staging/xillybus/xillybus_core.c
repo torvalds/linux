@@ -2054,7 +2054,7 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 				       NULL,
 				       MKDEV(major, i),
 				       NULL,
-				       devname);
+				       "%s", devname);
 
 		if (IS_ERR(device)) {
 			pr_warn("xillybus: Failed to create %s "

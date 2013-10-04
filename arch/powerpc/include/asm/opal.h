@@ -124,6 +124,11 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_PCI_POLL				62
 #define OPAL_PCI_MSI_EOI			63
 #define OPAL_PCI_GET_PHB_DIAG_DATA2		64
+#define OPAL_XSCOM_READ				65
+#define OPAL_XSCOM_WRITE			66
+#define OPAL_LPC_READ				67
+#define OPAL_LPC_WRITE				68
+#define OPAL_RETURN_CPU				69
 
 #ifndef __ASSEMBLY__
 
@@ -335,6 +340,17 @@ enum OpalEpowStatus {
 	OPAL_EPOW_UPS = 1,
 	OPAL_EPOW_OVER_AMBIENT_TEMP = 2,
 	OPAL_EPOW_OVER_INTERNAL_TEMP = 3
+};
+
+/*
+ * Address cycle types for LPC accesses. These also correspond
+ * to the content of the first cell of the "reg" property for
+ * device nodes on the LPC bus
+ */
+enum OpalLPCAddressType {
+	OPAL_LPC_MEM	= 0,
+	OPAL_LPC_IO	= 1,
+	OPAL_LPC_FW	= 2,
 };
 
 struct opal_machine_check_event {
@@ -631,6 +647,15 @@ int64_t opal_set_system_attention_led(uint8_t led_action);
 int64_t opal_pci_next_error(uint64_t phb_id, uint64_t *first_frozen_pe,
 			    uint16_t *pci_error_type, uint16_t *severity);
 int64_t opal_pci_poll(uint64_t phb_id);
+int64_t opal_return_cpu(void);
+
+int64_t opal_xscom_read(uint32_t gcid, uint32_t pcb_addr, uint64_t *val);
+int64_t opal_xscom_write(uint32_t gcid, uint32_t pcb_addr, uint64_t val);
+
+int64_t opal_lpc_write(uint32_t chip_id, enum OpalLPCAddressType addr_type,
+		       uint32_t addr, uint32_t data, uint32_t sz);
+int64_t opal_lpc_read(uint32_t chip_id, enum OpalLPCAddressType addr_type,
+		      uint32_t addr, uint32_t *data, uint32_t sz);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
@@ -663,6 +688,8 @@ extern void opal_nvram_init(void);
 extern int opal_machine_check(struct pt_regs *regs);
 
 extern void opal_shutdown(void);
+
+extern void opal_lpc_init(void);
 
 #endif /* __ASSEMBLY__ */
 

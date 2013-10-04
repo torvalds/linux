@@ -33,6 +33,9 @@
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
+#ifdef CONFIG_X86_64
+extern const char nmi[];
+#endif
 extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
@@ -215,13 +218,19 @@ static void __init xen_set_identity_and_release_chunk(
 	unsigned long pfn;
 
 	/*
-	 * If the PFNs are currently mapped, the VA mapping also needs
-	 * to be updated to be 1:1.
+	 * If the PFNs are currently mapped, clear the mappings
+	 * (except for the ISA region which must be 1:1 mapped) to
+	 * release the refcounts (in Xen) on the original frames.
 	 */
-	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++)
+	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+		pte_t pte = __pte_ma(0);
+
+		if (pfn < PFN_UP(ISA_END_ADDRESS))
+			pte = mfn_pte(pfn, PAGE_KERNEL_IO);
+
 		(void)HYPERVISOR_update_va_mapping(
-			(unsigned long)__va(pfn << PAGE_SHIFT),
-			mfn_pte(pfn, PAGE_KERNEL_IO), 0);
+			(unsigned long)__va(pfn << PAGE_SHIFT), pte, 0);
+	}
 
 	if (start_pfn < nr_pages)
 		*released += xen_release_chunk(
@@ -547,7 +556,13 @@ void xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-
+void __cpuinit xen_enable_nmi(void)
+{
+#ifdef CONFIG_X86_64
+	if (register_callback(CALLBACKTYPE_nmi, nmi))
+		BUG();
+#endif
+}
 void __init xen_arch_setup(void)
 {
 	xen_panic_handler_init();
@@ -565,7 +580,7 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-
+	xen_enable_nmi();
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {
 		printk(KERN_INFO "ACPI in unprivileged domain disabled\n");

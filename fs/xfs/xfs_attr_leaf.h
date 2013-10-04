@@ -333,6 +333,8 @@ int	xfs_attr3_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
 			struct xfs_buf **bpp);
 void	xfs_attr3_leaf_hdr_from_disk(struct xfs_attr3_icleaf_hdr *to,
 				     struct xfs_attr_leafblock *from);
+void	xfs_attr3_leaf_hdr_to_disk(struct xfs_attr_leafblock *to,
+				   struct xfs_attr3_icleaf_hdr *from);
 
 extern const struct xfs_buf_ops xfs_attr3_leaf_buf_ops;
 

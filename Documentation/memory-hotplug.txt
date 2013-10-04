@@ -163,7 +163,7 @@ a recent addition and not present on older kernels.
                     at read:  contains online/offline state of memory.
                     at write: user can specify "online_kernel",
                     "online_movable", "online", "offline" command
-                    which will be performed on al sections in the block.
+                    which will be performed on all sections in the block.
 'phys_device'     : read-only: designed to show the name of physical memory
                     device.  This is not well implemented now.
 'removable'       : read-only: contains an integer value indicating

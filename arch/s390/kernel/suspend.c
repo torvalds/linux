@@ -13,6 +13,7 @@
 #include <asm/ipl.h>
 #include <asm/cio.h>
 #include <asm/pci.h>
+#include "entry.h"
 
 /*
  * References to section boundaries

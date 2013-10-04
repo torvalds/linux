@@ -451,3 +451,7 @@ in your dentry operations instead.
 --
 [mandatory]
 	->readdir() is gone now; switch to ->iterate()
+[mandatory]
+	vfs_follow_link has been removed.  Filesystems must use nd_set_link
+	from ->follow_link for normal symlinks, or nd_jump_link for magic
+	/proc/<pid> style links.

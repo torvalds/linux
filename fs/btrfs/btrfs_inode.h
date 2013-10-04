@@ -213,10 +213,34 @@ static inline bool btrfs_is_free_space_inode(struct inode *inode)
 static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 {
 	if (BTRFS_I(inode)->logged_trans == generation &&
-	    BTRFS_I(inode)->last_sub_trans <= BTRFS_I(inode)->last_log_commit)
+	    BTRFS_I(inode)->last_sub_trans <=
+	    BTRFS_I(inode)->last_log_commit &&
+	    BTRFS_I(inode)->last_sub_trans <=
+	    BTRFS_I(inode)->root->last_log_commit)
 		return 1;
 	return 0;
 }
+
+struct btrfs_dio_private {
+	struct inode *inode;
+	u64 logical_offset;
+	u64 disk_bytenr;
+	u64 bytes;
+	void *private;
+
+	/* number of bios pending for this dio */
+	atomic_t pending_bios;
+
+	/* IO errors */
+	int errors;
+
+	/* orig_bio is our btrfs_io_bio */
+	struct bio *orig_bio;
+
+	/* dio_bio came from fs/direct-io.c */
+	struct bio *dio_bio;
+	u8 csum[0];
+};
 
 /*
  * Disable DIO read nolock optimization, so new dio readers will be forced

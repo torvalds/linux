@@ -9831,12 +9831,22 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 					       abort_cmd) != 0)
 			continue;
 
+		/*
+		 * If the iocbq is already being aborted, don't take a second
+		 * action, but do count it.
+		 */
+		if (iocbq->iocb_flag & LPFC_DRIVER_ABORTED)
+			continue;
+
 		/* issue ABTS for this IOCB based on iotag */
 		abtsiocb = lpfc_sli_get_iocbq(phba);
 		if (abtsiocb == NULL) {
 			errcnt++;
 			continue;
 		}
+
+		/* indicate the IO is being aborted by the driver. */
+		iocbq->iocb_flag |= LPFC_DRIVER_ABORTED;
 
 		cmd = &iocbq->iocb;
 		abtsiocb->iocb.un.acxri.abortType = ABORT_TYPE_ABTS;
@@ -9847,7 +9857,7 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 			abtsiocb->iocb.un.acxri.abortIoTag = cmd->ulpIoTag;
 		abtsiocb->iocb.ulpLe = 1;
 		abtsiocb->iocb.ulpClass = cmd->ulpClass;
-		abtsiocb->vport = phba->pport;
+		abtsiocb->vport = vport;
 
 		/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 		abtsiocb->fcp_wqidx = iocbq->fcp_wqidx;
@@ -12233,7 +12243,6 @@ static void __iomem *
 lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
 {
 	struct pci_dev *pdev;
-	unsigned long bar_map, bar_map_len;
 
 	if (!phba->pcidev)
 		return NULL;
@@ -12242,25 +12251,10 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
 
 	switch (pci_barset) {
 	case WQ_PCI_BAR_0_AND_1:
-		if (!phba->pci_bar0_memmap_p) {
-			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR0);
-			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR0);
-			phba->pci_bar0_memmap_p = ioremap(bar_map, bar_map_len);
-		}
 		return phba->pci_bar0_memmap_p;
 	case WQ_PCI_BAR_2_AND_3:
-		if (!phba->pci_bar2_memmap_p) {
-			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
-			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
-			phba->pci_bar2_memmap_p = ioremap(bar_map, bar_map_len);
-		}
 		return phba->pci_bar2_memmap_p;
 	case WQ_PCI_BAR_4_AND_5:
-		if (!phba->pci_bar4_memmap_p) {
-			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
-			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
-			phba->pci_bar4_memmap_p = ioremap(bar_map, bar_map_len);
-		}
 		return phba->pci_bar4_memmap_p;
 	default:
 		break;
@@ -15808,7 +15802,7 @@ lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *phba, uint16_t fcf_index)
 void
 lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
 {
-	struct lpfc_fcf_pri *fcf_pri;
+	struct lpfc_fcf_pri *fcf_pri, *fcf_pri_next;
 	if (fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
 				"2762 FCF (x%x) reached driver's book "
@@ -15818,7 +15812,8 @@ lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
 	}
 	/* Clear the eligible FCF record index bmask */
 	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry(fcf_pri, &phba->fcf.fcf_pri_list, list) {
+	list_for_each_entry_safe(fcf_pri, fcf_pri_next, &phba->fcf.fcf_pri_list,
+				 list) {
 		if (fcf_pri->fcf_rec.fcf_index == fcf_index) {
 			list_del_init(&fcf_pri->list);
 			break;

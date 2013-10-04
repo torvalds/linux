@@ -39,8 +39,8 @@ struct nouveau_i2c_func {
 	int  (*drv_ctl)(struct nouveau_i2c_port *, int lane, int sw, int pe);
 };
 
-#define nouveau_i2c_port_create(p,e,o,i,a,d)                                   \
-	nouveau_i2c_port_create_((p), (e), (o), (i), (a),                      \
+#define nouveau_i2c_port_create(p,e,o,i,a,f,d)                                 \
+	nouveau_i2c_port_create_((p), (e), (o), (i), (a), (f),                 \
 				 sizeof(**d), (void **)d)
 #define nouveau_i2c_port_destroy(p) ({                                         \
 	struct nouveau_i2c_port *port = (p);                                   \
@@ -53,7 +53,9 @@ struct nouveau_i2c_func {
 
 int nouveau_i2c_port_create_(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_oclass *, u8,
-			     const struct i2c_algorithm *, int, void **);
+			     const struct i2c_algorithm *,
+			     const struct nouveau_i2c_func *,
+			     int, void **);
 void _nouveau_i2c_port_dtor(struct nouveau_object *);
 #define _nouveau_i2c_port_init nouveau_object_init
 #define _nouveau_i2c_port_fini nouveau_object_fini

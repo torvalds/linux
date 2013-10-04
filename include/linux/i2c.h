@@ -447,11 +447,13 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 static inline struct i2c_adapter *
 i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 {
+#if IS_ENABLED(I2C_MUX)
 	struct device *parent = adapter->dev.parent;
 
 	if (parent != NULL && parent->type == &i2c_adapter_type)
 		return to_i2c_adapter(parent);
 	else
+#endif
 		return NULL;
 }
 
@@ -542,10 +544,24 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 
 #endif /* I2C */
 
-#if IS_ENABLED(CONFIG_ACPI_I2C)
-extern void acpi_i2c_register_devices(struct i2c_adapter *adap);
+#if IS_ENABLED(CONFIG_OF)
+/* must call put_device() when done with returned i2c_client device */
+extern struct i2c_client *of_find_i2c_device_by_node(struct device_node *node);
+
+/* must call put_device() when done with returned i2c_adapter device */
+extern struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node);
+
 #else
-static inline void acpi_i2c_register_devices(struct i2c_adapter *adap) {}
-#endif
+
+static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
+{
+	return NULL;
+}
+
+static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+{
+	return NULL;
+}
+#endif /* CONFIG_OF */
 
 #endif /* _LINUX_I2C_H */

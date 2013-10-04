@@ -209,7 +209,8 @@ static int ml86v7667_mbus_fmt(struct v4l2_subdev *sd,
 
 	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	fmt->field = V4L2_FIELD_INTERLACED;
+	/* The top field is always transferred first by the chip */
+	fmt->field = V4L2_FIELD_INTERLACED_TB;
 	fmt->width = 720;
 	fmt->height = priv->std & V4L2_STD_525_60 ? 480 : 576;
 

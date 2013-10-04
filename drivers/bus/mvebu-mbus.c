@@ -35,13 +35,9 @@
  *
  * - Provides an API for platform code or device drivers to
  *   dynamically add or remove address decoding windows for the CPU ->
- *   device accesses. This API is mvebu_mbus_add_window(),
- *   mvebu_mbus_add_window_remap_flags() and
- *   mvebu_mbus_del_window(). Since the (target, attribute) values
- *   differ from one SoC family to another, the API uses a 'const char
- *   *' string to identify devices, and this driver is responsible for
- *   knowing the mapping between the name of a device and its
- *   corresponding (target, attribute) in the current SoC family.
+ *   device accesses. This API is mvebu_mbus_add_window_by_id(),
+ *   mvebu_mbus_add_window_remap_by_id() and
+ *   mvebu_mbus_del_window().
  *
  * - Provides a debugfs interface in /sys/kernel/debug/mvebu-mbus/ to
  *   see the list of CPU -> SDRAM windows and their configuration
@@ -97,33 +93,6 @@
 
 #define DOVE_DDR_BASE_CS_OFF(n) ((n) << 4)
 
-struct mvebu_mbus_mapping {
-	const char *name;
-	u8 target;
-	u8 attr;
-	u8 attrmask;
-};
-
-/*
- * Masks used for the 'attrmask' field of mvebu_mbus_mapping. They
- * allow to get the real attribute value, discarding the special bits
- * used to select a PCI MEM region or a PCI WA region. This allows the
- * debugfs code to reverse-match the name of a device from its
- * target/attr values.
- *
- * For all devices except PCI, all bits of 'attr' must be
- * considered. For most SoCs, only bit 3 should be ignored (it allows
- * to select between PCI MEM and PCI I/O). On Orion5x however, there
- * is the special bit 5 to select a PCI WA region.
- */
-#define MAPDEF_NOMASK       0xff
-#define MAPDEF_PCIMASK      0xf7
-#define MAPDEF_ORIONPCIMASK 0xd7
-
-/* Macro used to define one mvebu_mbus_mapping entry */
-#define MAPDEF(__n, __t, __a, __m) \
-	{ .name = __n, .target = __t, .attr = __a, .attrmask = __m }
-
 struct mvebu_mbus_state;
 
 struct mvebu_mbus_soc_data {
@@ -133,7 +102,6 @@ struct mvebu_mbus_soc_data {
 	void (*setup_cpu_target)(struct mvebu_mbus_state *s);
 	int (*show_cpu_target)(struct mvebu_mbus_state *s,
 			       struct seq_file *seq, void *v);
-	const struct mvebu_mbus_mapping *map;
 };
 
 struct mvebu_mbus_state {
@@ -142,6 +110,8 @@ struct mvebu_mbus_state {
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_sdram;
 	struct dentry *debugfs_devs;
+	struct resource pcie_mem_aperture;
+	struct resource pcie_io_aperture;
 	const struct mvebu_mbus_soc_data *soc;
 	int hw_io_coherency;
 };
@@ -428,8 +398,7 @@ static int mvebu_devs_debug_show(struct seq_file *seq, void *v)
 		u64 wbase, wremap;
 		u32 wsize;
 		u8 wtarget, wattr;
-		int enabled, i;
-		const char *name;
+		int enabled;
 
 		mvebu_mbus_read_window(mbus, win,
 				       &enabled, &wbase, &wsize,
@@ -440,18 +409,9 @@ static int mvebu_devs_debug_show(struct seq_file *seq, void *v)
 			continue;
 		}
 
-
-		for (i = 0; mbus->soc->map[i].name; i++)
-			if (mbus->soc->map[i].target == wtarget &&
-			    mbus->soc->map[i].attr ==
-			    (wattr & mbus->soc->map[i].attrmask))
-				break;
-
-		name = mbus->soc->map[i].name ?: "unknown";
-
-		seq_printf(seq, "[%02d] %016llx - %016llx : %s",
+		seq_printf(seq, "[%02d] %016llx - %016llx : %04x:%04x",
 			   win, (unsigned long long)wbase,
-			   (unsigned long long)(wbase + wsize), name);
+			   (unsigned long long)(wbase + wsize), wtarget, wattr);
 
 		if (win < mbus->soc->num_remappable_wins) {
 			seq_printf(seq, " (remap %016llx)\n",
@@ -576,62 +536,12 @@ mvebu_mbus_dove_setup_cpu_target(struct mvebu_mbus_state *mbus)
 	mvebu_mbus_dram_info.num_cs = cs;
 }
 
-static const struct mvebu_mbus_mapping armada_370_map[] = {
-	MAPDEF("bootrom",     1, 0xe0, MAPDEF_NOMASK),
-	MAPDEF("devbus-boot", 1, 0x2f, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs0",  1, 0x3e, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs1",  1, 0x3d, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs2",  1, 0x3b, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs3",  1, 0x37, MAPDEF_NOMASK),
-	MAPDEF("pcie0.0",     4, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.0",     8, 0xe0, MAPDEF_PCIMASK),
-	{},
-};
-
-static const struct mvebu_mbus_soc_data armada_370_mbus_data = {
+static const struct mvebu_mbus_soc_data armada_370_xp_mbus_data = {
 	.num_wins            = 20,
 	.num_remappable_wins = 8,
 	.win_cfg_offset      = armada_370_xp_mbus_win_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
 	.show_cpu_target     = mvebu_sdram_debug_show_orion,
-	.map                 = armada_370_map,
-};
-
-static const struct mvebu_mbus_mapping armada_xp_map[] = {
-	MAPDEF("bootrom",     1, 0x1d, MAPDEF_NOMASK),
-	MAPDEF("devbus-boot", 1, 0x2f, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs0",  1, 0x3e, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs1",  1, 0x3d, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs2",  1, 0x3b, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs3",  1, 0x37, MAPDEF_NOMASK),
-	MAPDEF("pcie0.0",     4, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie0.1",     4, 0xd0, MAPDEF_PCIMASK),
-	MAPDEF("pcie0.2",     4, 0xb0, MAPDEF_PCIMASK),
-	MAPDEF("pcie0.3",     4, 0x70, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.0",     8, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.1",     8, 0xd0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.2",     8, 0xb0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.3",     8, 0x70, MAPDEF_PCIMASK),
-	MAPDEF("pcie2.0",     4, 0xf0, MAPDEF_PCIMASK),
-	MAPDEF("pcie3.0",     8, 0xf0, MAPDEF_PCIMASK),
-	{},
-};
-
-static const struct mvebu_mbus_soc_data armada_xp_mbus_data = {
-	.num_wins            = 20,
-	.num_remappable_wins = 8,
-	.win_cfg_offset      = armada_370_xp_mbus_win_offset,
-	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
-	.show_cpu_target     = mvebu_sdram_debug_show_orion,
-	.map                 = armada_xp_map,
-};
-
-static const struct mvebu_mbus_mapping kirkwood_map[] = {
-	MAPDEF("pcie0.0", 4, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.0", 4, 0xd0, MAPDEF_PCIMASK),
-	MAPDEF("sram",    3, 0x01, MAPDEF_NOMASK),
-	MAPDEF("nand",    1, 0x2f, MAPDEF_NOMASK),
-	{},
 };
 
 static const struct mvebu_mbus_soc_data kirkwood_mbus_data = {
@@ -640,16 +550,6 @@ static const struct mvebu_mbus_soc_data kirkwood_mbus_data = {
 	.win_cfg_offset      = orion_mbus_win_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
 	.show_cpu_target     = mvebu_sdram_debug_show_orion,
-	.map                 = kirkwood_map,
-};
-
-static const struct mvebu_mbus_mapping dove_map[] = {
-	MAPDEF("pcie0.0",    0x4, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.0",    0x8, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("cesa",       0x3, 0x01, MAPDEF_NOMASK),
-	MAPDEF("bootrom",    0x1, 0xfd, MAPDEF_NOMASK),
-	MAPDEF("scratchpad", 0xd, 0x0, MAPDEF_NOMASK),
-	{},
 };
 
 static const struct mvebu_mbus_soc_data dove_mbus_data = {
@@ -658,18 +558,6 @@ static const struct mvebu_mbus_soc_data dove_mbus_data = {
 	.win_cfg_offset      = orion_mbus_win_offset,
 	.setup_cpu_target    = mvebu_mbus_dove_setup_cpu_target,
 	.show_cpu_target     = mvebu_sdram_debug_show_dove,
-	.map                 = dove_map,
-};
-
-static const struct mvebu_mbus_mapping orion5x_map[] = {
-	MAPDEF("pcie0.0",     4, 0x51, MAPDEF_ORIONPCIMASK),
-	MAPDEF("pci0.0",      3, 0x51, MAPDEF_ORIONPCIMASK),
-	MAPDEF("devbus-boot", 1, 0x0f, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs0",  1, 0x1e, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs1",  1, 0x1d, MAPDEF_NOMASK),
-	MAPDEF("devbus-cs2",  1, 0x1b, MAPDEF_NOMASK),
-	MAPDEF("sram",        0, 0x00, MAPDEF_NOMASK),
-	{},
 };
 
 /*
@@ -682,7 +570,6 @@ static const struct mvebu_mbus_soc_data orion5x_4win_mbus_data = {
 	.win_cfg_offset      = orion_mbus_win_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
 	.show_cpu_target     = mvebu_sdram_debug_show_orion,
-	.map                 = orion5x_map,
 };
 
 static const struct mvebu_mbus_soc_data orion5x_2win_mbus_data = {
@@ -691,21 +578,6 @@ static const struct mvebu_mbus_soc_data orion5x_2win_mbus_data = {
 	.win_cfg_offset      = orion_mbus_win_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
 	.show_cpu_target     = mvebu_sdram_debug_show_orion,
-	.map                 = orion5x_map,
-};
-
-static const struct mvebu_mbus_mapping mv78xx0_map[] = {
-	MAPDEF("pcie0.0", 4, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie0.1", 4, 0xd0, MAPDEF_PCIMASK),
-	MAPDEF("pcie0.2", 4, 0xb0, MAPDEF_PCIMASK),
-	MAPDEF("pcie0.3", 4, 0x70, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.0", 8, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.1", 8, 0xd0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.2", 8, 0xb0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.3", 8, 0x70, MAPDEF_PCIMASK),
-	MAPDEF("pcie2.0", 4, 0xf0, MAPDEF_PCIMASK),
-	MAPDEF("pcie3.0", 8, 0xf0, MAPDEF_PCIMASK),
-	{},
 };
 
 static const struct mvebu_mbus_soc_data mv78xx0_mbus_data = {
@@ -714,7 +586,6 @@ static const struct mvebu_mbus_soc_data mv78xx0_mbus_data = {
 	.win_cfg_offset      = mv78xx0_mbus_win_offset,
 	.setup_cpu_target    = mvebu_mbus_default_setup_cpu_target,
 	.show_cpu_target     = mvebu_sdram_debug_show_orion,
-	.map                 = mv78xx0_map,
 };
 
 /*
@@ -725,9 +596,9 @@ static const struct mvebu_mbus_soc_data mv78xx0_mbus_data = {
  */
 static const struct of_device_id of_mvebu_mbus_ids[] = {
 	{ .compatible = "marvell,armada370-mbus",
-	  .data = &armada_370_mbus_data, },
+	  .data = &armada_370_xp_mbus_data, },
 	{ .compatible = "marvell,armadaxp-mbus",
-	  .data = &armada_xp_mbus_data, },
+	  .data = &armada_370_xp_mbus_data, },
 	{ .compatible = "marvell,kirkwood-mbus",
 	  .data = &kirkwood_mbus_data, },
 	{ .compatible = "marvell,dove-mbus",
@@ -748,48 +619,27 @@ static const struct of_device_id of_mvebu_mbus_ids[] = {
 /*
  * Public API of the driver
  */
-int mvebu_mbus_add_window_remap_flags(const char *devname, phys_addr_t base,
-				      size_t size, phys_addr_t remap,
-				      unsigned int flags)
+int mvebu_mbus_add_window_remap_by_id(unsigned int target,
+				      unsigned int attribute,
+				      phys_addr_t base, size_t size,
+				      phys_addr_t remap)
 {
 	struct mvebu_mbus_state *s = &mbus_state;
-	u8 target, attr;
-	int i;
 
-	if (!s->soc->map)
-		return -ENODEV;
-
-	for (i = 0; s->soc->map[i].name; i++)
-		if (!strcmp(s->soc->map[i].name, devname))
-			break;
-
-	if (!s->soc->map[i].name) {
-		pr_err("unknown device '%s'\n", devname);
-		return -ENODEV;
-	}
-
-	target = s->soc->map[i].target;
-	attr   = s->soc->map[i].attr;
-
-	if (flags == MVEBU_MBUS_PCI_MEM)
-		attr |= 0x8;
-	else if (flags == MVEBU_MBUS_PCI_WA)
-		attr |= 0x28;
-
-	if (!mvebu_mbus_window_conflicts(s, base, size, target, attr)) {
-		pr_err("cannot add window '%s', conflicts with another window\n",
-		       devname);
+	if (!mvebu_mbus_window_conflicts(s, base, size, target, attribute)) {
+		pr_err("cannot add window '%x:%x', conflicts with another window\n",
+		       target, attribute);
 		return -EINVAL;
 	}
 
-	return mvebu_mbus_alloc_window(s, base, size, remap, target, attr);
-
+	return mvebu_mbus_alloc_window(s, base, size, remap, target, attribute);
 }
 
-int mvebu_mbus_add_window(const char *devname, phys_addr_t base, size_t size)
+int mvebu_mbus_add_window_by_id(unsigned int target, unsigned int attribute,
+				phys_addr_t base, size_t size)
 {
-	return mvebu_mbus_add_window_remap_flags(devname, base, size,
-						 MVEBU_MBUS_NO_REMAP, 0);
+	return mvebu_mbus_add_window_remap_by_id(target, attribute, base,
+						 size, MVEBU_MBUS_NO_REMAP);
 }
 
 int mvebu_mbus_del_window(phys_addr_t base, size_t size)
@@ -802,6 +652,20 @@ int mvebu_mbus_del_window(phys_addr_t base, size_t size)
 
 	mvebu_mbus_disable_window(&mbus_state, win);
 	return 0;
+}
+
+void mvebu_mbus_get_pcie_mem_aperture(struct resource *res)
+{
+	if (!res)
+		return;
+	*res = mbus_state.pcie_mem_aperture;
+}
+
+void mvebu_mbus_get_pcie_io_aperture(struct resource *res)
+{
+	if (!res)
+		return;
+	*res = mbus_state.pcie_io_aperture;
 }
 
 static __init int mvebu_mbus_debugfs_init(void)
@@ -830,25 +694,13 @@ static __init int mvebu_mbus_debugfs_init(void)
 }
 fs_initcall(mvebu_mbus_debugfs_init);
 
-int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
-			   size_t mbuswins_size,
-			   phys_addr_t sdramwins_phys_base,
-			   size_t sdramwins_size)
+static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
+					 phys_addr_t mbuswins_phys_base,
+					 size_t mbuswins_size,
+					 phys_addr_t sdramwins_phys_base,
+					 size_t sdramwins_size)
 {
-	struct mvebu_mbus_state *mbus = &mbus_state;
-	const struct of_device_id *of_id;
 	int win;
-
-	for (of_id = of_mvebu_mbus_ids; of_id->compatible; of_id++)
-		if (!strcmp(of_id->compatible, soc))
-			break;
-
-	if (!of_id->compatible) {
-		pr_err("could not find a matching SoC family\n");
-		return -ENODEV;
-	}
-
-	mbus->soc = of_id->data;
 
 	mbus->mbuswins_base = ioremap(mbuswins_phys_base, mbuswins_size);
 	if (!mbus->mbuswins_base)
@@ -870,3 +722,218 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 
 	return 0;
 }
+
+int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
+			   size_t mbuswins_size,
+			   phys_addr_t sdramwins_phys_base,
+			   size_t sdramwins_size)
+{
+	const struct of_device_id *of_id;
+
+	for (of_id = of_mvebu_mbus_ids; of_id->compatible; of_id++)
+		if (!strcmp(of_id->compatible, soc))
+			break;
+
+	if (!of_id->compatible) {
+		pr_err("could not find a matching SoC family\n");
+		return -ENODEV;
+	}
+
+	mbus_state.soc = of_id->data;
+
+	return mvebu_mbus_common_init(&mbus_state,
+			mbuswins_phys_base,
+			mbuswins_size,
+			sdramwins_phys_base,
+			sdramwins_size);
+}
+
+#ifdef CONFIG_OF
+/*
+ * The window IDs in the ranges DT property have the following format:
+ *  - bits 28 to 31: MBus custom field
+ *  - bits 24 to 27: window target ID
+ *  - bits 16 to 23: window attribute ID
+ *  - bits  0 to 15: unused
+ */
+#define CUSTOM(id) (((id) & 0xF0000000) >> 24)
+#define TARGET(id) (((id) & 0x0F000000) >> 24)
+#define ATTR(id)   (((id) & 0x00FF0000) >> 16)
+
+static int __init mbus_dt_setup_win(struct mvebu_mbus_state *mbus,
+				    u32 base, u32 size,
+				    u8 target, u8 attr)
+{
+	if (!mvebu_mbus_window_conflicts(mbus, base, size, target, attr)) {
+		pr_err("cannot add window '%04x:%04x', conflicts with another window\n",
+		       target, attr);
+		return -EBUSY;
+	}
+
+	if (mvebu_mbus_alloc_window(mbus, base, size, MVEBU_MBUS_NO_REMAP,
+				    target, attr)) {
+		pr_err("cannot add window '%04x:%04x', too many windows\n",
+		       target, attr);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int __init
+mbus_parse_ranges(struct device_node *node,
+		  int *addr_cells, int *c_addr_cells, int *c_size_cells,
+		  int *cell_count, const __be32 **ranges_start,
+		  const __be32 **ranges_end)
+{
+	const __be32 *prop;
+	int ranges_len, tuple_len;
+
+	/* Allow a node with no 'ranges' property */
+	*ranges_start = of_get_property(node, "ranges", &ranges_len);
+	if (*ranges_start == NULL) {
+		*addr_cells = *c_addr_cells = *c_size_cells = *cell_count = 0;
+		*ranges_start = *ranges_end = NULL;
+		return 0;
+	}
+	*ranges_end = *ranges_start + ranges_len / sizeof(__be32);
+
+	*addr_cells = of_n_addr_cells(node);
+
+	prop = of_get_property(node, "#address-cells", NULL);
+	*c_addr_cells = be32_to_cpup(prop);
+
+	prop = of_get_property(node, "#size-cells", NULL);
+	*c_size_cells = be32_to_cpup(prop);
+
+	*cell_count = *addr_cells + *c_addr_cells + *c_size_cells;
+	tuple_len = (*cell_count) * sizeof(__be32);
+
+	if (ranges_len % tuple_len) {
+		pr_warn("malformed ranges entry '%s'\n", node->name);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
+				struct device_node *np)
+{
+	int addr_cells, c_addr_cells, c_size_cells;
+	int i, ret, cell_count;
+	const __be32 *r, *ranges_start, *ranges_end;
+
+	ret = mbus_parse_ranges(np, &addr_cells, &c_addr_cells,
+				&c_size_cells, &cell_count,
+				&ranges_start, &ranges_end);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0, r = ranges_start; r < ranges_end; r += cell_count, i++) {
+		u32 windowid, base, size;
+		u8 target, attr;
+
+		/*
+		 * An entry with a non-zero custom field do not
+		 * correspond to a static window, so skip it.
+		 */
+		windowid = of_read_number(r, 1);
+		if (CUSTOM(windowid))
+			continue;
+
+		target = TARGET(windowid);
+		attr = ATTR(windowid);
+
+		base = of_read_number(r + c_addr_cells, addr_cells);
+		size = of_read_number(r + c_addr_cells + addr_cells,
+				      c_size_cells);
+		ret = mbus_dt_setup_win(mbus, base, size, target, attr);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
+						 struct resource *mem,
+						 struct resource *io)
+{
+	u32 reg[2];
+	int ret;
+
+	/*
+	 * These are optional, so we clear them and they'll
+	 * be zero if they are missing from the DT.
+	 */
+	memset(mem, 0, sizeof(struct resource));
+	memset(io, 0, sizeof(struct resource));
+
+	ret = of_property_read_u32_array(np, "pcie-mem-aperture", reg, ARRAY_SIZE(reg));
+	if (!ret) {
+		mem->start = reg[0];
+		mem->end = mem->start + reg[1];
+		mem->flags = IORESOURCE_MEM;
+	}
+
+	ret = of_property_read_u32_array(np, "pcie-io-aperture", reg, ARRAY_SIZE(reg));
+	if (!ret) {
+		io->start = reg[0];
+		io->end = io->start + reg[1];
+		io->flags = IORESOURCE_IO;
+	}
+}
+
+int __init mvebu_mbus_dt_init(void)
+{
+	struct resource mbuswins_res, sdramwins_res;
+	struct device_node *np, *controller;
+	const struct of_device_id *of_id;
+	const __be32 *prop;
+	int ret;
+
+	np = of_find_matching_node(NULL, of_mvebu_mbus_ids);
+	if (!np) {
+		pr_err("could not find a matching SoC family\n");
+		return -ENODEV;
+	}
+
+	of_id = of_match_node(of_mvebu_mbus_ids, np);
+	mbus_state.soc = of_id->data;
+
+	prop = of_get_property(np, "controller", NULL);
+	if (!prop) {
+		pr_err("required 'controller' property missing\n");
+		return -EINVAL;
+	}
+
+	controller = of_find_node_by_phandle(be32_to_cpup(prop));
+	if (!controller) {
+		pr_err("could not find an 'mbus-controller' node\n");
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(controller, 0, &mbuswins_res)) {
+		pr_err("cannot get MBUS register address\n");
+		return -EINVAL;
+	}
+
+	if (of_address_to_resource(controller, 1, &sdramwins_res)) {
+		pr_err("cannot get SDRAM register address\n");
+		return -EINVAL;
+	}
+
+	/* Get optional pcie-{mem,io}-aperture properties */
+	mvebu_mbus_get_pcie_resources(np, &mbus_state.pcie_mem_aperture,
+					  &mbus_state.pcie_io_aperture);
+
+	ret = mvebu_mbus_common_init(&mbus_state,
+				     mbuswins_res.start,
+				     resource_size(&mbuswins_res),
+				     sdramwins_res.start,
+				     resource_size(&sdramwins_res));
+	if (ret)
+		return ret;
+
+	/* Setup statically declared windows in the DT */
+	return mbus_dt_setup(&mbus_state, np);
+}
+#endif

@@ -10,6 +10,7 @@ enum nf_ct_ext_id {
 #if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)
 	NF_CT_EXT_NAT,
 #endif
+	NF_CT_EXT_SEQADJ,
 	NF_CT_EXT_ACCT,
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	NF_CT_EXT_ECACHE,
@@ -26,17 +27,22 @@ enum nf_ct_ext_id {
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 	NF_CT_EXT_LABELS,
 #endif
+#if IS_ENABLED(CONFIG_NETFILTER_SYNPROXY)
+	NF_CT_EXT_SYNPROXY,
+#endif
 	NF_CT_EXT_NUM,
 };
 
 #define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
 #define NF_CT_EXT_NAT_TYPE struct nf_conn_nat
+#define NF_CT_EXT_SEQADJ_TYPE struct nf_conn_seqadj
 #define NF_CT_EXT_ACCT_TYPE struct nf_conn_counter
 #define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
 #define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone
 #define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
 #define NF_CT_EXT_TIMEOUT_TYPE struct nf_conn_timeout
 #define NF_CT_EXT_LABELS_TYPE struct nf_conn_labels
+#define NF_CT_EXT_SYNPROXY_TYPE struct nf_conn_synproxy
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
@@ -80,7 +86,7 @@ static inline void nf_ct_ext_destroy(struct nf_conn *ct)
 static inline void nf_ct_ext_free(struct nf_conn *ct)
 {
 	if (ct->ext)
-		kfree(ct->ext);
+		kfree_rcu(ct->ext, rcu);
 }
 
 /* Add this type, returns pointer to data or NULL. */

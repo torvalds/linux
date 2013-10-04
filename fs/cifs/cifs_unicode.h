@@ -91,6 +91,8 @@ extern __le16 *cifs_strndup_to_utf16(const char *src, const int maxlen,
 #endif /* CONFIG_CIFS_SMB2 */
 #endif
 
+wchar_t cifs_toupper(wchar_t in);
+
 /*
  * UniStrcat:  Concatenate the second string to the first
  *

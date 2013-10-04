@@ -137,10 +137,10 @@ extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba, unsigned long tce);
 extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
 				struct kvm_allocate_rma *rma);
-extern struct kvmppc_linear_info *kvm_alloc_rma(void);
-extern void kvm_release_rma(struct kvmppc_linear_info *ri);
-extern struct kvmppc_linear_info *kvm_alloc_hpt(void);
-extern void kvm_release_hpt(struct kvmppc_linear_info *li);
+extern struct kvm_rma_info *kvm_alloc_rma(void);
+extern void kvm_release_rma(struct kvm_rma_info *ri);
+extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
+extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
@@ -261,6 +261,7 @@ void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 struct openpic;
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
+extern void kvm_cma_reserve(void) __init;
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {
 	paca[cpu].kvm_hstate.xics_phys = addr;
@@ -281,13 +282,12 @@ static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
 }
 
 extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
-extern void kvm_linear_init(void);
 
 #else
-static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+static inline void __init kvm_cma_reserve(void)
 {}
 
-static inline void kvm_linear_init(void)
+static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {}
 
 static inline u32 kvmppc_get_xics_latch(void)
@@ -394,10 +394,15 @@ static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
 	}
 }
 
-/* Please call after prepare_to_enter. This function puts the lazy ee state
-   back to normal mode, without actually enabling interrupts. */
-static inline void kvmppc_lazy_ee_enable(void)
+/*
+ * Please call after prepare_to_enter. This function puts the lazy ee and irq
+ * disabled tracking state back to normal mode, without actually enabling
+ * interrupts.
+ */
+static inline void kvmppc_fix_ee_before_entry(void)
 {
+	trace_hardirqs_on();
+
 #ifdef CONFIG_PPC64
 	/* Only need to enable IRQs by hard enabling them after this */
 	local_paca->irq_happened = 0;

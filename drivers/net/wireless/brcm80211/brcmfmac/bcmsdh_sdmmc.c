@@ -350,7 +350,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 
 	sdiodev->bus_if = bus_if;
 	bus_if->bus_priv.sdio = sdiodev;
-	bus_if->align = BRCMF_SDALIGN;
 	dev_set_drvdata(&func->dev, bus_if);
 	dev_set_drvdata(&sdiodev->func[1]->dev, bus_if);
 	sdiodev->dev = &sdiodev->func[1]->dev;

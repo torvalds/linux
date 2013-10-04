@@ -248,7 +248,7 @@ static const char * const part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 static int sa1100_mtd_probe(struct platform_device *pdev)
 {
-	struct flash_platform_data *plat = pdev->dev.platform_data;
+	struct flash_platform_data *plat = dev_get_platdata(&pdev->dev);
 	struct sa_info *info;
 	int err;
 
@@ -277,9 +277,8 @@ static int sa1100_mtd_probe(struct platform_device *pdev)
 static int __exit sa1100_mtd_remove(struct platform_device *pdev)
 {
 	struct sa_info *info = platform_get_drvdata(pdev);
-	struct flash_platform_data *plat = pdev->dev.platform_data;
+	struct flash_platform_data *plat = dev_get_platdata(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
 	sa1100_destroy(info, plat);
 
 	return 0;

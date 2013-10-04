@@ -353,7 +353,7 @@ static int srom_setup_minor(struct srom_dev *srom, int index)
 
 	dev = device_create(srom_class, &platform_bus,
 			    MKDEV(srom_major, index), srom, "%d", index);
-	return PTR_RET(dev);
+	return PTR_ERR_OR_ZERO(dev);
 }
 
 /** srom_init() - Initialize the driver's module. */

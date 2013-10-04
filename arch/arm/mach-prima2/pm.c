@@ -34,7 +34,10 @@ static void sirfsoc_set_wakeup_source(void)
 	pwr_trigger_en_reg = sirfsoc_rtc_iobrg_readl(sirfsoc_pwrc_base +
 		SIRFSOC_PWRC_TRIGGER_EN);
 #define X_ON_KEY_B (1 << 0)
-	sirfsoc_rtc_iobrg_writel(pwr_trigger_en_reg | X_ON_KEY_B,
+#define RTC_ALARM0_B (1 << 2)
+#define RTC_ALARM1_B (1 << 3)
+	sirfsoc_rtc_iobrg_writel(pwr_trigger_en_reg | X_ON_KEY_B |
+		RTC_ALARM0_B | RTC_ALARM1_B,
 		sirfsoc_pwrc_base + SIRFSOC_PWRC_TRIGGER_EN);
 }
 
@@ -85,12 +88,6 @@ static const struct platform_suspend_ops sirfsoc_pm_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-int __init sirfsoc_pm_init(void)
-{
-	suspend_set_ops(&sirfsoc_pm_ops);
-	return 0;
-}
-
 static const struct of_device_id pwrc_ids[] = {
 	{ .compatible = "sirf,prima2-pwrc" },
 	{}
@@ -118,7 +115,6 @@ static int __init sirfsoc_of_pwrc_init(void)
 
 	return 0;
 }
-postcore_initcall(sirfsoc_of_pwrc_init);
 
 static const struct of_device_id memc_ids[] = {
 	{ .compatible = "sirf,prima2-memc" },
@@ -149,4 +145,11 @@ static int __init sirfsoc_memc_init(void)
 {
 	return platform_driver_register(&sirfsoc_memc_driver);
 }
-postcore_initcall(sirfsoc_memc_init);
+
+int __init sirfsoc_pm_init(void)
+{
+	sirfsoc_of_pwrc_init();
+	sirfsoc_memc_init();
+	suspend_set_ops(&sirfsoc_pm_ops);
+	return 0;
+}

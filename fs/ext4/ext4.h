@@ -180,7 +180,6 @@ struct ext4_map_blocks {
  * Flags for ext4_io_end->flags
  */
 #define	EXT4_IO_END_UNWRITTEN	0x0001
-#define EXT4_IO_END_DIRECT	0x0002
 
 /*
  * For converting uninitialized extents on a work queue. 'handle' is used for
@@ -196,8 +195,6 @@ typedef struct ext4_io_end {
 	unsigned int		flag;		/* unwritten or not */
 	loff_t			offset;		/* offset in the file */
 	ssize_t			size;		/* size of the extent */
-	struct kiocb		*iocb;		/* iocb struct for AIO */
-	int			result;		/* error value for AIO */
 	atomic_t		count;		/* reference counter */
 } ext4_io_end_t;
 
@@ -561,6 +558,18 @@ enum {
 #define EXT4_GET_BLOCKS_NO_PUT_HOLE		0x0200
 
 /*
+ * The bit position of these flags must not overlap with any of the
+ * EXT4_GET_BLOCKS_*.  They are used by ext4_ext_find_extent(),
+ * read_extent_tree_block(), ext4_split_extent_at(),
+ * ext4_ext_insert_extent(), and ext4_ext_create_new_leaf().
+ * EXT4_EX_NOCACHE is used to indicate that the we shouldn't be
+ * caching the extents when reading from the extent tree while a
+ * truncate or punch hole operation is in progress.
+ */
+#define EXT4_EX_NOCACHE				0x0400
+#define EXT4_EX_FORCE_CACHE			0x0800
+
+/*
  * Flags used by ext4_free_blocks
  */
 #define EXT4_FREE_BLOCKS_METADATA	0x0001
@@ -569,6 +578,7 @@ enum {
 #define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
 #define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
+#define EXT4_FREE_BLOCKS_RESERVE		0x0040
 
 /*
  * ioctl commands
@@ -590,6 +600,7 @@ enum {
 #define EXT4_IOC_MOVE_EXT		_IOWR('f', 15, struct move_extent)
 #define EXT4_IOC_RESIZE_FS		_IOW('f', 16, __u64)
 #define EXT4_IOC_SWAP_BOOT		_IO('f', 17)
+#define EXT4_IOC_PRECACHE_EXTENTS	_IO('f', 18)
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -900,11 +911,9 @@ struct ext4_inode_info {
 	 * Completed IOs that need unwritten extents handling and don't have
 	 * transaction reserved
 	 */
-	struct list_head i_unrsv_conversion_list;
 	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
 	atomic_t i_unwritten; /* Nr. of inflight conversions pending */
 	struct work_struct i_rsv_conversion_work;
-	struct work_struct i_unrsv_conversion_work;
 
 	spinlock_t i_block_reservation_lock;
 
@@ -1276,8 +1285,6 @@ struct ext4_sb_info {
 	struct flex_groups *s_flex_groups;
 	ext4_group_t s_flex_groups_allocated;
 
-	/* workqueue for unreserved extent convertions (dio) */
-	struct workqueue_struct *unrsv_conversion_wq;
 	/* workqueue for reserved extent conversions (buffered io) */
 	struct workqueue_struct *rsv_conversion_wq;
 
@@ -1340,9 +1347,6 @@ static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 					      struct ext4_io_end *io_end)
 {
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
-		/* Writeback has to have coversion transaction reserved */
-		WARN_ON(EXT4_SB(inode->i_sb)->s_journal && !io_end->handle &&
-			!(io_end->flag & EXT4_IO_END_DIRECT));
 		io_end->flag |= EXT4_IO_END_UNWRITTEN;
 		atomic_inc(&EXT4_I(inode)->i_unwritten);
 	}
@@ -1375,6 +1379,7 @@ enum {
 					   nolocking */
 	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-inode data */
 	EXT4_STATE_ORDERED_MODE,	/* data=ordered mode */
+	EXT4_STATE_EXT_PRECACHED,	/* extents have been precached */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
@@ -1915,7 +1920,7 @@ extern ext4_group_t ext4_get_group_number(struct super_block *sb,
 
 extern void ext4_validate_block_bitmap(struct super_block *sb,
 				       struct ext4_group_desc *desc,
-				       unsigned int block_group,
+				       ext4_group_t block_group,
 				       struct buffer_head *bh);
 extern unsigned int ext4_block_group(struct super_block *sb,
 			ext4_fsblk_t blocknr);
@@ -2417,16 +2422,32 @@ do {								\
 #define EXT4_FREECLUSTERS_WATERMARK 0
 #endif
 
+/* Update i_disksize. Requires i_mutex to avoid races with truncate */
 static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 {
-	/*
-	 * XXX: replace with spinlock if seen contended -bzzz
-	 */
+	WARN_ON_ONCE(S_ISREG(inode->i_mode) &&
+		     !mutex_is_locked(&inode->i_mutex));
 	down_write(&EXT4_I(inode)->i_data_sem);
 	if (newsize > EXT4_I(inode)->i_disksize)
 		EXT4_I(inode)->i_disksize = newsize;
 	up_write(&EXT4_I(inode)->i_data_sem);
-	return ;
+}
+
+/*
+ * Update i_disksize after writeback has been started. Races with truncate
+ * are avoided by checking i_size under i_data_sem.
+ */
+static inline void ext4_wb_update_i_disksize(struct inode *inode, loff_t newsize)
+{
+	loff_t i_size;
+
+	down_write(&EXT4_I(inode)->i_data_sem);
+	i_size = i_size_read(inode);
+	if (newsize > i_size)
+		newsize = i_size;
+	if (newsize > EXT4_I(inode)->i_disksize)
+		EXT4_I(inode)->i_disksize = newsize;
+	up_write(&EXT4_I(inode)->i_data_sem);
 }
 
 struct ext4_group_info {
@@ -2449,9 +2470,15 @@ struct ext4_group_info {
 
 #define EXT4_GROUP_INFO_NEED_INIT_BIT		0
 #define EXT4_GROUP_INFO_WAS_TRIMMED_BIT		1
+#define EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT	2
+#define EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT	3
 
 #define EXT4_MB_GRP_NEED_INIT(grp)	\
 	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))
+#define EXT4_MB_GRP_BBITMAP_CORRUPT(grp)	\
+	(test_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &((grp)->bb_state)))
+#define EXT4_MB_GRP_IBITMAP_CORRUPT(grp)	\
+	(test_bit(EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT, &((grp)->bb_state)))
 
 #define EXT4_MB_GRP_WAS_TRIMMED(grp)	\
 	(test_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
@@ -2655,6 +2682,12 @@ extern int ext4_check_blockref(const char *, unsigned int,
 struct ext4_ext_path;
 struct ext4_extent;
 
+/*
+ * Maximum number of logical blocks in a file; ext4_extent's ee_block is
+ * __le32.
+ */
+#define EXT_MAX_BLOCKS	0xffffffff
+
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
 extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
 extern int ext4_ext_index_trans_blocks(struct inode *inode, int extents);
@@ -2684,7 +2717,8 @@ extern int ext4_ext_insert_extent(handle_t *, struct inode *,
 				  struct ext4_ext_path *,
 				  struct ext4_extent *, int);
 extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
-						  struct ext4_ext_path *);
+						  struct ext4_ext_path *,
+						  int flags);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
 extern int ext4_find_delalloc_range(struct inode *inode,
@@ -2693,7 +2727,7 @@ extern int ext4_find_delalloc_range(struct inode *inode,
 extern int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
-
+extern int ext4_ext_precache(struct inode *inode);
 
 /* move_extent.c */
 extern void ext4_double_down_write_data_sem(struct inode *first,
@@ -2716,7 +2750,6 @@ extern void ext4_put_io_end_defer(ext4_io_end_t *io_end);
 extern void ext4_io_submit_init(struct ext4_io_submit *io,
 				struct writeback_control *wbc);
 extern void ext4_end_io_rsv_work(struct work_struct *work);
-extern void ext4_end_io_unrsv_work(struct work_struct *work);
 extern void ext4_io_submit(struct ext4_io_submit *io);
 extern int ext4_bio_write_page(struct ext4_io_submit *io,
 			       struct page *page,

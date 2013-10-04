@@ -5,7 +5,7 @@
 if TTY
 
 menu "Serial drivers"
-	depends on HAS_IOMEM && GENERIC_HARDIRQS
+	depends on HAS_IOMEM
 
 source "drivers/tty/serial/8250/Kconfig"
 
@@ -1438,6 +1438,15 @@ config SERIAL_EFM32_UART_CONSOLE
 	bool "EFM32 UART/USART console support"
 	depends on SERIAL_EFM32_UART=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_TILEGX
+	tristate "TILE-Gx on-chip serial port support"
+	depends on TILEGX
+	select TILE_GXIO_UART
+	select SERIAL_CORE
+	---help---
+	  This device provides access to the on-chip UARTs on the TILE-Gx
+	  processor.
 
 config SERIAL_ARC
 	tristate "ARC UART driver support"

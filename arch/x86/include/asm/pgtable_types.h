@@ -75,6 +75,9 @@
  * with swap entry format. On x86 bits 6 and 7 are *not* involved
  * into swap entry computation, but bit 6 is used for nonlinear
  * file mapping, so we borrow bit 7 for soft dirty tracking.
+ *
+ * Please note that this bit must be treated as swap dirty page
+ * mark if and only if the PTE has present bit clear!
  */
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE

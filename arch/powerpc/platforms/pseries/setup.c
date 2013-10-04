@@ -66,8 +66,8 @@
 #include <asm/firmware.h>
 #include <asm/eeh.h>
 #include <asm/reg.h>
+#include <asm/plpar_wrappers.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
 
 int CMO_PrPSP = -1;
@@ -183,7 +183,7 @@ static void __init pseries_mpic_init_IRQ(void)
 	np = of_find_node_by_path("/");
 	naddr = of_n_addr_cells(np);
 	opprop = of_get_property(np, "platform-open-pic", &opplen);
-	if (opprop != 0) {
+	if (opprop != NULL) {
 		openpic_addr = of_read_number(opprop, naddr);
 		printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 	}
@@ -323,7 +323,7 @@ static int alloc_dispatch_logs(void)
 	get_paca()->lppaca_ptr->dtl_idx = 0;
 
 	/* hypervisor reads buffer length from this field */
-	dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+	dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
 	ret = register_dtl(hard_smp_processor_id(), __pa(dtl));
 	if (ret)
 		pr_err("WARNING: DTL registration of cpu %d (hw %d) failed "
@@ -354,7 +354,7 @@ static int alloc_dispatch_log_kmem_cache(void)
 }
 early_initcall(alloc_dispatch_log_kmem_cache);
 
-static void pSeries_idle(void)
+static void pseries_lpar_idle(void)
 {
 	/* This would call on the cpuidle framework, and the back-end pseries
 	 * driver to  go to idle states
@@ -362,10 +362,22 @@ static void pSeries_idle(void)
 	if (cpuidle_idle_call()) {
 		/* On error, execute default handler
 		 * to go into low thread priority and possibly
-		 * low power mode.
+		 * low power mode by cedeing processor to hypervisor
 		 */
-		HMT_low();
-		HMT_very_low();
+
+		/* Indicate to hypervisor that we are idle. */
+		get_lppaca()->idle = 1;
+
+		/*
+		 * Yield the processor to the hypervisor.  We return if
+		 * an external interrupt occurs (which are driven prior
+		 * to returning here) or if a prod occurs from another
+		 * processor. When returning here, external interrupts
+		 * are enabled.
+		 */
+		cede_processor();
+
+		get_lppaca()->idle = 0;
 	}
 }
 
@@ -456,15 +468,14 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
 		vpa_init(boot_cpuid);
-		ppc_md.power_save = pSeries_idle;
-	}
-
-	if (firmware_has_feature(FW_FEATURE_LPAR))
+		ppc_md.power_save = pseries_lpar_idle;
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
-	else
+	} else {
+		/* No special idle routine */
 		ppc_md.enable_pmcs = power4_enable_pmcs;
+	}
 
 	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
 

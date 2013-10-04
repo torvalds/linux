@@ -636,7 +636,7 @@ ok_to_write:
 		mg_request(host->breq);
 }
 
-void mg_times_out(unsigned long data)
+static void mg_times_out(unsigned long data)
 {
 	struct mg_host *host = (struct mg_host *)data;
 	char *name;

@@ -1464,18 +1464,18 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Allocate TX descriptor ring in coherent memory */
-	greth->tx_bd_base = dma_alloc_coherent(greth->dev, 1024,
-					       &greth->tx_bd_base_phys,
-					       GFP_KERNEL | __GFP_ZERO);
+	greth->tx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->tx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->tx_bd_base) {
 		err = -ENOMEM;
 		goto error3;
 	}
 
 	/* Allocate RX descriptor ring in coherent memory */
-	greth->rx_bd_base = dma_alloc_coherent(greth->dev, 1024,
-					       &greth->rx_bd_base_phys,
-					       GFP_KERNEL | __GFP_ZERO);
+	greth->rx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->rx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->rx_bd_base) {
 		err = -ENOMEM;
 		goto error4;

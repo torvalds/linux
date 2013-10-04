@@ -292,7 +292,7 @@ static int aem_init_ipmi_data(struct aem_ipmi_data *data, int iface,
 		dev_err(bmc,
 			"Unable to register user with IPMI interface %d\n",
 			data->interface);
-		return -EACCES;
+		return err;
 	}
 
 	return 0;

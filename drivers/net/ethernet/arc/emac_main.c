@@ -149,8 +149,6 @@ static void arc_emac_tx_clean(struct net_device *ndev)
 		struct sk_buff *skb = tx_buff->skb;
 		unsigned int info = le32_to_cpu(txbd->info);
 
-		*txbd_dirty = (*txbd_dirty + 1) % TX_BD_NUM;
-
 		if ((info & FOR_EMAC) || !txbd->data)
 			break;
 
@@ -179,6 +177,8 @@ static void arc_emac_tx_clean(struct net_device *ndev)
 
 		txbd->data = 0;
 		txbd->info = 0;
+
+		*txbd_dirty = (*txbd_dirty + 1) % TX_BD_NUM;
 
 		if (netif_queue_stopped(ndev))
 			netif_wake_queue(ndev);

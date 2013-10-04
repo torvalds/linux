@@ -216,6 +216,13 @@ config BATTERY_S3C_ADC
 	help
 	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
 
+config BATTERY_TWL4030_MADC
+	tristate "TWL4030 MADC battery driver"
+	depends on TWL4030_MADC
+	help
+	  Say Y here to enable this dumb driver for batteries managed
+	  through the TWL4030 MADC.
+
 config CHARGER_88PM860X
 	tristate "Marvell 88PM860x Charger driver"
 	depends on MFD_88PM860X && BATTERY_88PM860X
@@ -262,7 +269,6 @@ config CHARGER_ISP1704
 
 config CHARGER_MAX8903
 	tristate "MAX8903 Battery DC-DC Charger for USB and Adapter Power"
-	depends on GENERIC_HARDIRQS
 	help
 	  Say Y to enable support for the MAX8903 DC-DC charger and sysfs.
 	  The driver supports controlling charger-enable and current-limit
@@ -334,6 +340,12 @@ config CHARGER_BQ2415X
 	  You'll need this driver to charge batteries on e.g. Nokia
 	  RX-51/N900.
 
+config CHARGER_BQ24190
+	tristate "TI BQ24190 battery charger driver"
+	depends on I2C && GPIOLIB
+	help
+	  Say Y to enable support for the TI BQ24190 battery charger.
+
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB347 Battery Charger"
 	depends on I2C
@@ -357,7 +369,7 @@ config AB8500_BM
 
 config BATTERY_GOLDFISH
 	tristate "Goldfish battery driver"
-	depends on GENERIC_HARDIRQS
+	depends on GOLDFISH || COMPILE_TEST
 	help
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.

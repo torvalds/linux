@@ -216,7 +216,7 @@ static int da9052_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gpio->da9052 = dev_get_drvdata(pdev->dev.parent);
-	pdata = gpio->da9052->dev->platform_data;
+	pdata = dev_get_platdata(gpio->da9052->dev);
 
 	gpio->gp = reference_gp;
 	if (pdata && pdata->gpio_base)

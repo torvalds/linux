@@ -902,7 +902,7 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	master = fsl_spi_probe(&pdev->dev, mem, irq);
-	return PTR_RET(master);
+	return PTR_ERR_OR_ZERO(master);
 }
 
 static int plat_mpc8xxx_spi_remove(struct platform_device *pdev)

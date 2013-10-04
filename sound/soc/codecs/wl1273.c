@@ -290,6 +290,18 @@ static const struct snd_kcontrol_new wl1273_controls[] = {
 		       snd_wl1273_fm_volume_get, snd_wl1273_fm_volume_put),
 };
 
+static const struct snd_soc_dapm_widget wl1273_dapm_widgets[] = {
+	SND_SOC_DAPM_INPUT("RX"),
+
+	SND_SOC_DAPM_OUTPUT("TX"),
+};
+
+static const struct snd_soc_dapm_route wl1273_dapm_routes[] = {
+	{ "Capture", NULL, "RX" },
+
+	{ "TX", NULL, "Playback" },
+};
+
 static int wl1273_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
@@ -483,6 +495,11 @@ static int wl1273_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wl1273 = {
 	.probe = wl1273_probe,
 	.remove = wl1273_remove,
+
+	.dapm_widgets = wl1273_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wl1273_dapm_widgets),
+	.dapm_routes = wl1273_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wl1273_dapm_routes),
 };
 
 static int wl1273_platform_probe(struct platform_device *pdev)

@@ -28,6 +28,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_trace.h"
 
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
@@ -80,10 +81,13 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		p->relocs[i].lobj.bo = p->relocs[i].robj;
 		p->relocs[i].lobj.written = !!r->write_domain;
 
-		/* the first reloc of an UVD job is the
-		   msg and that must be in VRAM */
-		if (p->ring == R600_RING_TYPE_UVD_INDEX && i == 0) {
-			/* TODO: is this still needed for NI+ ? */
+		/* the first reloc of an UVD job is the msg and that must be in
+		   VRAM, also but everything into VRAM on AGP cards to avoid
+		   image corruptions */
+		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
+		    p->rdev->family < CHIP_PALM &&
+		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
+
 			p->relocs[i].lobj.domain =
 				RADEON_GEM_DOMAIN_VRAM;
 
@@ -268,7 +272,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EINVAL;
 
 		/* we only support VM on some SI+ rings */
-		if ((p->rdev->asic->ring[p->ring].cs_parse == NULL) &&
+		if ((p->rdev->asic->ring[p->ring]->cs_parse == NULL) &&
 		   ((p->cs_flags & RADEON_CS_USE_VM) == 0)) {
 			DRM_ERROR("Ring %d requires VM!\n", p->ring);
 			return -EINVAL;
@@ -383,6 +387,10 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		DRM_ERROR("Invalid command stream !\n");
 		return r;
 	}
+
+	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
+		radeon_uvd_note_usage(rdev);
+
 	radeon_cs_sync_rings(parser);
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	if (r) {
@@ -474,6 +482,9 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		return r;
 	}
 
+	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
+		radeon_uvd_note_usage(rdev);
+
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
 	r = radeon_vm_alloc_pt(rdev, vm);
@@ -552,9 +563,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return r;
 	}
 
-	/* XXX pick SD/HD/MVC */
-	if (parser.ring == R600_RING_TYPE_UVD_INDEX)
-		radeon_uvd_note_usage(rdev);
+	trace_radeon_cs(&parser);
 
 	r = radeon_cs_ib_chunk(rdev, &parser);
 	if (r) {

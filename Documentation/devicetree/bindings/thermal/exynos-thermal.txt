@@ -1,0 +1,55 @@
+* Exynos Thermal Management Unit (TMU)
+
+** Required properties:
+
+- compatible : One of the following:
+	       "samsung,exynos4412-tmu"
+	       "samsung,exynos4210-tmu"
+	       "samsung,exynos5250-tmu"
+	       "samsung,exynos5440-tmu"
+- interrupt-parent : The phandle for the interrupt controller
+- reg : Address range of the thermal registers. For soc's which has multiple
+	instances of TMU and some registers are shared across all TMU's like
+	interrupt related then 2 set of register has to supplied. First set
+	belongs	to each instance of TMU and second set belongs to common TMU
+	registers.
+- interrupts : Should contain interrupt for thermal system
+- clocks : The main clock for TMU device
+- clock-names : Thermal system clock name
+- vtmu-supply: This entry is optional and provides the regulator node supplying
+		voltage to TMU. If needed this entry can be placed inside
+		board/platform specific dts file.
+
+Example 1):
+
+	tmu@100C0000 {
+		compatible = "samsung,exynos4412-tmu";
+		interrupt-parent = <&combiner>;
+		reg = <0x100C0000 0x100>;
+		interrupts = <2 4>;
+		clocks = <&clock 383>;
+		clock-names = "tmu_apbif";
+		status = "disabled";
+		vtmu-supply = <&tmu_regulator_node>;
+	};
+
+Example 2):
+
+	tmuctrl_0: tmuctrl@160118 {
+		compatible = "samsung,exynos5440-tmu";
+		reg = <0x160118 0x230>, <0x160368 0x10>;
+		interrupts = <0 58 0>;
+		clocks = <&clock 21>;
+		clock-names = "tmu_apbif";
+	};
+
+Note: For multi-instance tmu each instance should have an alias correctly
+numbered in "aliases" node.
+
+Example:
+
+aliases {
+	tmuctrl0 = &tmuctrl_0;
+	tmuctrl1 = &tmuctrl_1;
+	tmuctrl2 = &tmuctrl_2;
+};

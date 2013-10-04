@@ -416,7 +416,7 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 
 	/* because we will send data pkt when scanning
 	 * this will cause some ap like gear-3700 wep TP
-	 * lower if we retrun here, this is the diff of
+	 * lower if we return here, this is the diff of
 	 * mac80211 driver vs ieee80211 driver */
 	/* if (rtlpriv->mac80211.act_scanning)
 	 *      return; */

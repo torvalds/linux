@@ -148,16 +148,9 @@ extern int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
 #ifdef CONFIG_SYSCTL
-#ifdef DEBUG_INVALID_PACKETS
 #define LOG_INVALID(net, proto)				\
 	((net)->ct.sysctl_log_invalid == (proto) ||	\
 	 (net)->ct.sysctl_log_invalid == IPPROTO_RAW)
-#else
-#define LOG_INVALID(net, proto)				\
-	(((net)->ct.sysctl_log_invalid == (proto) ||	\
-	  (net)->ct.sysctl_log_invalid == IPPROTO_RAW)	\
-	 && net_ratelimit())
-#endif
 #else
 static inline int LOG_INVALID(struct net *net, int proto) { return 0; }
 #endif /* CONFIG_SYSCTL */

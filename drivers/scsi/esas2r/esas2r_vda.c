@@ -302,6 +302,7 @@ static void esas2r_complete_vda_ioctl(struct esas2r_adapter *a,
 		if (vi->cmd.cfg.cfg_func == VDA_CFG_GET_INIT) {
 			struct atto_ioctl_vda_cfg_cmd *cfg = &vi->cmd.cfg;
 			struct atto_vda_cfg_rsp *rsp = &rq->func_rsp.cfg_rsp;
+			char buf[sizeof(cfg->data.init.fw_release) + 1];
 
 			cfg->data_length =
 				cpu_to_le32(sizeof(struct atto_vda_cfg_init));
@@ -309,10 +310,12 @@ static void esas2r_complete_vda_ioctl(struct esas2r_adapter *a,
 				le32_to_cpu(rsp->vda_version);
 			cfg->data.init.fw_build = rsp->fw_build;
 
-			sprintf((char *)&cfg->data.init.fw_release,
-				"%1d.%02d",
+			snprintf(buf, sizeof(buf), "%1d.%02d",
 				(int)LOBYTE(le16_to_cpu(rsp->fw_release)),
 				(int)HIBYTE(le16_to_cpu(rsp->fw_release)));
+
+			memcpy(&cfg->data.init.fw_release, buf,
+			       sizeof(cfg->data.init.fw_release));
 
 			if (LOWORD(LOBYTE(cfg->data.init.fw_build)) == 'A')
 				cfg->data.init.fw_version =

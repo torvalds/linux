@@ -9,7 +9,6 @@
 #define _LINUX_EVENTFD_H
 
 #include <linux/fcntl.h>
-#include <linux/file.h>
 #include <linux/wait.h>
 
 /*
@@ -25,6 +24,8 @@
 
 #define EFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
 #define EFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS | EFD_SEMAPHORE)
+
+struct file;
 
 #ifdef CONFIG_EVENTFD
 

@@ -338,6 +338,11 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 	unsigned long doff = 7 & (unsigned long) dst;
 
 	if (len) {
+		if (!access_ok(VERIFY_READ, src, len)) {
+			*errp = -EFAULT;
+			memset(dst, 0, len);
+			return sum;
+		}
 		if (!doff) {
 			if (!soff)
 				checksum = csum_partial_cfu_aligned(

@@ -132,6 +132,12 @@ struct mlx4_ib_fmr {
 	struct mlx4_fmr         mfmr;
 };
 
+struct mlx4_ib_flow {
+	struct ib_flow ibflow;
+	/* translating DMFS verbs sniffer rule to FW API requires two reg IDs */
+	u64 reg_id[2];
+};
+
 struct mlx4_ib_wq {
 	u64		       *wrid;
 	spinlock_t		lock;
@@ -552,6 +558,12 @@ static inline struct mlx4_ib_fmr *to_mfmr(struct ib_fmr *ibfmr)
 {
 	return container_of(ibfmr, struct mlx4_ib_fmr, ibfmr);
 }
+
+static inline struct mlx4_ib_flow *to_mflow(struct ib_flow *ibflow)
+{
+	return container_of(ibflow, struct mlx4_ib_flow, ibflow);
+}
+
 static inline struct mlx4_ib_qp *to_mqp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct mlx4_ib_qp, ibqp);

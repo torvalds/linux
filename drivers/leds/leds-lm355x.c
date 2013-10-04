@@ -423,7 +423,7 @@ static const struct regmap_config lm355x_regmap = {
 static int lm355x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lm355x_platform_data *pdata = client->dev.platform_data;
+	struct lm355x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm355x_chip_data *chip;
 
 	int err;

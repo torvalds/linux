@@ -365,7 +365,7 @@
  * it to memory (non-SMP case) or SCRATCH0 Aux Reg (SMP).
  *
  * Before saving the full regfile - this reg is restored back, only
- * to be saved again on kernel mode stack, as part of ptregs.
+ * to be saved again on kernel mode stack, as part of pt_regs.
  *-------------------------------------------------------------*/
 .macro EXCPN_PROLOG_FREEUP_REG	reg
 #ifdef CONFIG_SMP
@@ -381,6 +381,28 @@
 #else
 	ld  \reg, [@ex_saved_reg1]
 #endif
+.endm
+
+/*--------------------------------------------------------------
+ * Exception Entry prologue
+ * -Switches stack to K mode (if not already)
+ * -Saves the register file
+ *
+ * After this it is safe to call the "C" handlers
+ *-------------------------------------------------------------*/
+.macro EXCEPTION_PROLOGUE
+
+	/* Need at least 1 reg to code the early exception prologue */
+	EXCPN_PROLOG_FREEUP_REG r9
+
+	/* U/K mode at time of exception (stack not switched if already K) */
+	lr  r9, [erstatus]
+
+	/* ARC700 doesn't provide auto-stack switching */
+	SWITCH_TO_KERNEL_STK
+
+	/* save the regfile */
+	SAVE_ALL_SYS
 .endm
 
 /*--------------------------------------------------------------

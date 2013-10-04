@@ -382,8 +382,6 @@ extern void irq_cpu_online(void);
 extern void irq_cpu_offline(void);
 extern int __irq_set_affinity_locked(struct irq_data *data,  const struct cpumask *cpumask);
 
-#ifdef CONFIG_GENERIC_HARDIRQS
-
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_PENDING_IRQ)
 void irq_move_irq(struct irq_data *data);
 void irq_move_masked_irq(struct irq_data *data);
@@ -801,12 +799,5 @@ static inline void irq_gc_unlock(struct irq_chip_generic *gc)
 static inline void irq_gc_lock(struct irq_chip_generic *gc) { }
 static inline void irq_gc_unlock(struct irq_chip_generic *gc) { }
 #endif
-
-#else /* !CONFIG_GENERIC_HARDIRQS */
-
-extern struct msi_desc *irq_get_msi_desc(unsigned int irq);
-extern int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry);
-
-#endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* _LINUX_IRQ_H */

@@ -397,6 +397,7 @@ batadv_add_packet(struct batadv_priv *bat_priv,
 		kfree(info);
 		return NULL;
 	}
+	info->skb_packet->priority = TC_PRIO_CONTROL;
 	skb_reserve(info->skb_packet, ETH_HLEN);
 	packet = (struct batadv_vis_packet *)skb_put(info->skb_packet, len);
 
@@ -861,6 +862,7 @@ int batadv_vis_init(struct batadv_priv *bat_priv)
 	if (!bat_priv->vis.my_info->skb_packet)
 		goto free_info;
 
+	bat_priv->vis.my_info->skb_packet->priority = TC_PRIO_CONTROL;
 	skb_reserve(bat_priv->vis.my_info->skb_packet, ETH_HLEN);
 	tmp_skb = bat_priv->vis.my_info->skb_packet;
 	packet = (struct batadv_vis_packet *)skb_put(tmp_skb, sizeof(*packet));

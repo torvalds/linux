@@ -172,8 +172,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 			.len = cpu_to_le16(sizeof(cmd.wmi) + len),
 		},
 		.wmi = {
+			.mid = 0,
 			.id = cpu_to_le16(cmdid),
-			.info1 = 0,
 		},
 	};
 	struct wil6210_mbox_ring *r = &wil->mbox_ctl.tx;
@@ -248,7 +248,7 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	iowrite32(r->head = next_head, wil->csr + HOST_MBOX +
 		  offsetof(struct wil6210_mbox_ctl, tx.head));
 
-	trace_wil6210_wmi_cmd(cmdid, buf, len);
+	trace_wil6210_wmi_cmd(&cmd.wmi, buf, len);
 
 	/* interrupt to FW */
 	iowrite32(SW_INT_MBOX, wil->csr + HOST_SW_INT);
@@ -339,7 +339,7 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 		}
 	} else {
 		cfg80211_rx_mgmt(wil->wdev, freq, signal,
-				 (void *)rx_mgmt_frame, d_len, GFP_KERNEL);
+				 (void *)rx_mgmt_frame, d_len, 0, GFP_KERNEL);
 	}
 }
 
@@ -640,9 +640,13 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			    hdr.flags);
 		if ((hdr.type == WIL_MBOX_HDR_TYPE_WMI) &&
 		    (len >= sizeof(struct wil6210_mbox_hdr_wmi))) {
-			u16 id = le16_to_cpu(evt->event.wmi.id);
-			wil_dbg_wmi(wil, "WMI event 0x%04x\n", id);
-			trace_wil6210_wmi_event(id, &evt->event.wmi, len);
+			struct wil6210_mbox_hdr_wmi *wmi = &evt->event.wmi;
+			u16 id = le16_to_cpu(wmi->id);
+			u32 tstamp = le32_to_cpu(wmi->timestamp);
+			wil_dbg_wmi(wil, "WMI event 0x%04x MID %d @%d msec\n",
+				    id, wmi->mid, tstamp);
+			trace_wil6210_wmi_event(wmi, &wmi[1],
+						len - sizeof(*wmi));
 		}
 		wil_hex_dump_wmi("evt ", DUMP_PREFIX_OFFSET, 16, 1,
 				 &evt->event.hdr, sizeof(hdr) + len, true);
@@ -920,6 +924,12 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 		cmd.sniffer_cfg.phy_support =
 			cpu_to_le32((wil->monitor_flags & MONITOR_FLAG_CONTROL)
 				    ? WMI_SNIFFER_CP : WMI_SNIFFER_DP);
+	} else {
+		/* Initialize offload (in non-sniffer mode).
+		 * Linux IP stack always calculates IP checksum
+		 * HW always calculate TCP/UDP checksum
+		 */
+		cmd.l3_l4_ctrl |= (1 << L3_L4_CTRL_TCPIP_CHECKSUM_EN_POS);
 	}
 	/* typical time for secure PCP is 840ms */
 	rc = wmi_call(wil, WMI_CFG_RX_CHAIN_CMDID, &cmd, sizeof(cmd),

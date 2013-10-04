@@ -4,7 +4,7 @@
  * This file contains the TCM Virtual Device and Disk Transport
  * agnostic related functions.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -46,6 +46,9 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
+
+DEFINE_MUTEX(g_device_mutex);
+LIST_HEAD(g_device_list);
 
 static struct se_hba *lun0_hba;
 /* not static, needed by tpg.c */
@@ -890,6 +893,32 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 	return 0;
 }
 
+int se_dev_set_emulate_caw(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_caw = flag;
+	pr_debug("dev[%p]: SE Device CompareAndWrite (AtomicTestandSet): %d\n",
+		 dev, flag);
+
+	return 0;
+}
+
+int se_dev_set_emulate_3pc(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_3pc = flag;
+	pr_debug("dev[%p]: SE Device 3rd Party Copy (EXTENDED_COPY): %d\n",
+		dev, flag);
+
+	return 0;
+}
+
 int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 {
 	if ((flag != 0) && (flag != 1)) {
@@ -1393,6 +1422,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
+	INIT_LIST_HEAD(&dev->g_dev_node);
 	spin_lock_init(&dev->stats_lock);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
@@ -1400,6 +1430,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	spin_lock_init(&dev->se_port_lock);
 	spin_lock_init(&dev->se_tmr_lock);
 	spin_lock_init(&dev->qf_cmd_lock);
+	sema_init(&dev->caw_sem, 1);
 	atomic_set(&dev->dev_ordered_id, 0);
 	INIT_LIST_HEAD(&dev->t10_wwn.t10_vpd_list);
 	spin_lock_init(&dev->t10_wwn.t10_vpd_lock);
@@ -1423,6 +1454,8 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;
 	dev->dev_attrib.emulate_tpu = DA_EMULATE_TPU;
 	dev->dev_attrib.emulate_tpws = DA_EMULATE_TPWS;
+	dev->dev_attrib.emulate_caw = DA_EMULATE_CAW;
+	dev->dev_attrib.emulate_3pc = DA_EMULATE_3PC;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
@@ -1510,6 +1543,11 @@ int target_configure_device(struct se_device *dev)
 	spin_lock(&hba->device_lock);
 	hba->dev_count++;
 	spin_unlock(&hba->device_lock);
+
+	mutex_lock(&g_device_mutex);
+	list_add_tail(&dev->g_dev_node, &g_device_list);
+	mutex_unlock(&g_device_mutex);
+
 	return 0;
 
 out_free_alua:
@@ -1527,6 +1565,10 @@ void target_free_device(struct se_device *dev)
 
 	if (dev->dev_flags & DF_CONFIGURED) {
 		destroy_workqueue(dev->tmr_wq);
+
+		mutex_lock(&g_device_mutex);
+		list_del(&dev->g_dev_node);
+		mutex_unlock(&g_device_mutex);
 
 		spin_lock(&hba->device_lock);
 		hba->dev_count--;

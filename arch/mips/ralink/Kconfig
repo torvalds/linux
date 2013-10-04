@@ -1,5 +1,12 @@
 if RALINK
 
+config CLKEVT_RT3352
+	bool
+	depends on SOC_RT305X || SOC_MT7620
+	default y
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+
 choice
 	prompt "Ralink SoC selection"
 	default SOC_RT305X
@@ -19,9 +26,12 @@ choice
 		bool "RT3883"
 		select USB_ARCH_HAS_OHCI
 		select USB_ARCH_HAS_EHCI
+		select HW_HAS_PCI
 
 	config SOC_MT7620
 		bool "MT7620"
+		select USB_ARCH_HAS_OHCI
+		select USB_ARCH_HAS_EHCI
 
 endchoice
 

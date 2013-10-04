@@ -33,7 +33,7 @@
  */
 
 /include/ "fsl/b4420si-pre.dtsi"
-/include/ "b4qds.dts"
+/include/ "b4qds.dtsi"
 
 / {
 	model = "fsl,B4420QDS";

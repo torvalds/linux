@@ -302,7 +302,7 @@ static inline bool llc_dgram_match(const struct llc_sap *sap,
 
      return sk->sk_type == SOCK_DGRAM &&
 	  llc->laddr.lsap == laddr->lsap &&
-	  llc_mac_match(llc->laddr.mac, laddr->mac);
+	  ether_addr_equal(llc->laddr.mac, laddr->mac);
 }
 
 /**
@@ -425,7 +425,7 @@ void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 	llc_pdu_decode_da(skb, laddr.mac);
 	llc_pdu_decode_dsap(skb, &laddr.lsap);
 
-	if (llc_mac_multicast(laddr.mac)) {
+	if (is_multicast_ether_addr(laddr.mac)) {
 		llc_sap_mcast(sap, &laddr, skb);
 		kfree_skb(skb);
 	} else {

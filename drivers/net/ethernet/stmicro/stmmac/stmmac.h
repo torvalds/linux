@@ -70,7 +70,6 @@ struct stmmac_priv {
 	struct net_device *dev;
 	struct device *device;
 	struct mac_device_info *hw;
-	int no_csum_insertion;
 	spinlock_t lock;
 
 	struct phy_device *phydev ____cacheline_aligned_in_smp;

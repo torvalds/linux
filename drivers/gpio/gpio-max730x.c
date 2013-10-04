@@ -166,7 +166,7 @@ int __max730x_probe(struct max7301 *ts)
 	struct max7301_platform_data *pdata;
 	int i, ret;
 
-	pdata = dev->platform_data;
+	pdata = dev_get_platdata(dev);
 
 	mutex_init(&ts->lock);
 	dev_set_drvdata(dev, ts);

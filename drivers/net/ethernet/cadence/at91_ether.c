@@ -304,7 +304,7 @@ MODULE_DEVICE_TABLE(of, at91ether_dt_ids);
 /* Detect MAC & PHY and perform ethernet interface initialization */
 static int __init at91ether_probe(struct platform_device *pdev)
 {
-	struct macb_platform_data *board_data = pdev->dev.platform_data;
+	struct macb_platform_data *board_data = dev_get_platdata(&pdev->dev);
 	struct resource *regs;
 	struct net_device *dev;
 	struct phy_device *phydev;

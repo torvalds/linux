@@ -1743,11 +1743,10 @@ static int vpbe_display_probe(struct platform_device *pdev)
 
 	printk(KERN_DEBUG "vpbe_display_probe\n");
 	/* Allocate memory for vpbe_display */
-	disp_dev = kzalloc(sizeof(struct vpbe_display), GFP_KERNEL);
-	if (!disp_dev) {
-		printk(KERN_ERR "ran out of memory\n");
+	disp_dev = devm_kzalloc(&pdev->dev, sizeof(struct vpbe_display),
+				GFP_KERNEL);
+	if (!disp_dev)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&disp_dev->dma_queue_lock);
 	/*
@@ -1786,26 +1785,24 @@ static int vpbe_display_probe(struct platform_device *pdev)
 	}
 
 	irq = res->start;
-	if (request_irq(irq, venc_isr,  IRQF_DISABLED, VPBE_DISPLAY_DRIVER,
-		disp_dev)) {
+	err = devm_request_irq(&pdev->dev, irq, venc_isr, IRQF_DISABLED,
+			       VPBE_DISPLAY_DRIVER, disp_dev);
+	if (err) {
 		v4l2_err(&disp_dev->vpbe_dev->v4l2_dev,
 				"Unable to request interrupt\n");
-		err = -ENODEV;
 		goto probe_out;
 	}
 
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {
 		if (register_device(disp_dev->dev[i], disp_dev, pdev)) {
 			err = -ENODEV;
-			goto probe_out_irq;
+			goto probe_out;
 		}
 	}
 
 	printk(KERN_DEBUG "Successfully completed the probing of vpbe v4l2 device\n");
 	return 0;
 
-probe_out_irq:
-	free_irq(res->start, disp_dev);
 probe_out:
 	for (k = 0; k < VPBE_DISPLAY_MAX_DEVICES; k++) {
 		/* Get the pointer to the layer object */
@@ -1817,7 +1814,6 @@ probe_out:
 				kfree(disp_dev->dev[k]);
 		}
 	}
-	kfree(disp_dev);
 	return err;
 }
 
@@ -1830,14 +1826,9 @@ static int vpbe_display_remove(struct platform_device *pdev)
 	struct vpbe_layer *vpbe_display_layer;
 	struct vpbe_display *disp_dev = platform_get_drvdata(pdev);
 	struct vpbe_device *vpbe_dev = disp_dev->vpbe_dev;
-	struct resource *res;
 	int i;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_remove\n");
-
-	/* unregister irq */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	free_irq(res->start, disp_dev);
 
 	/* deinitialize the vpbe display controller */
 	if (NULL != vpbe_dev->ops.deinitialize)

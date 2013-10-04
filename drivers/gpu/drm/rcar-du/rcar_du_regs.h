@@ -13,14 +13,15 @@
 #ifndef __RCAR_DU_REGS_H__
 #define __RCAR_DU_REGS_H__
 
-#define DISP2_REG_OFFSET	 0x30000
+#define DU0_REG_OFFSET		0x00000
+#define DU1_REG_OFFSET		0x30000
+#define DU2_REG_OFFSET		0x40000
 
 /* -----------------------------------------------------------------------------
  * Display Control Registers
  */
 
 #define DSYSR			0x00000	/* display 1 */
-#define D2SYSR			0x30000	/* display 2 */
 #define DSYSR_ILTS		(1 << 29)
 #define DSYSR_DSEC		(1 << 20)
 #define DSYSR_IUPD		(1 << 16)
@@ -35,7 +36,6 @@
 #define DSYSR_SCM_INT_VIDEO	(3 << 4)
 
 #define DSMR			0x00004
-#define D2SMR			0x30004
 #define DSMR_VSPM		(1 << 28)
 #define DSMR_ODPM		(1 << 27)
 #define DSMR_DIPM_DISP		(0 << 25)
@@ -60,7 +60,6 @@
 #define DSMR_CSY_MASK		(3 << 6)
 
 #define DSSR			0x00008
-#define D2SSR			0x30008
 #define DSSR_VC1FB_DSA0		(0 << 30)
 #define DSSR_VC1FB_DSA1		(1 << 30)
 #define DSSR_VC1FB_DSA2		(2 << 30)
@@ -80,7 +79,6 @@
 #define DSSR_ADC(n)		(1 << ((n)-1))
 
 #define DSRCR			0x0000c
-#define D2SRCR			0x3000c
 #define DSRCR_TVCL		(1 << 15)
 #define DSRCR_FRCL		(1 << 14)
 #define DSRCR_VBCL		(1 << 11)
@@ -90,7 +88,6 @@
 #define DSRCR_MASK		0x0000cbff
 
 #define DIER			0x00010
-#define D2IER			0x30010
 #define DIER_TVE		(1 << 15)
 #define DIER_FRE		(1 << 14)
 #define DIER_VBE		(1 << 11)
@@ -114,7 +111,6 @@
 #define DPPR_BPP32		(DPPR_BPP32_P1 | DPPR_BPP32_P2)	/* plane1 & 2 */
 
 #define DEFR			0x00020
-#define D2EFR			0x30020
 #define DEFR_CODE		(0x7773 << 16)
 #define DEFR_EXSL		(1 << 12)
 #define DEFR_EXVL		(1 << 11)
@@ -137,12 +133,10 @@
 #define DCPCR_DCE		(1 << 0)
 
 #define DEFR2			0x00034
-#define D2EFR2			0x30034
 #define DEFR2_CODE		(0x7775 << 16)
 #define DEFR2_DEFE2G		(1 << 0)
 
 #define DEFR3			0x00038
-#define D2EFR3			0x30038
 #define DEFR3_CODE		(0x7776 << 16)
 #define DEFR3_EVDA		(1 << 14)
 #define DEFR3_EVDM_1		(1 << 12)
@@ -153,7 +147,6 @@
 #define DEFR3_DEFE3		(1 << 0)
 
 #define DEFR4			0x0003c
-#define D2EFR4			0x3003c
 #define DEFR4_CODE		(0x7777 << 16)
 #define DEFR4_LRUO		(1 << 5)
 #define DEFR4_SPCE		(1 << 4)
@@ -203,6 +196,68 @@
 #define DEFR6_TCNE2		(1 << 6)
 #define DEFR6_MLOS1		(1 << 2)
 #define DEFR6_DEFAULT		(DEFR6_CODE | DEFR6_TCNE2)
+
+/* -----------------------------------------------------------------------------
+ * R8A7790-only Control Registers
+ */
+
+#define DD1SSR			0x20008
+#define DD1SSR_TVR		(1 << 15)
+#define DD1SSR_FRM		(1 << 14)
+#define DD1SSR_BUF		(1 << 12)
+#define DD1SSR_VBK		(1 << 11)
+#define DD1SSR_RINT		(1 << 9)
+#define DD1SSR_HBK		(1 << 8)
+#define DD1SSR_ADC(n)		(1 << ((n)-1))
+
+#define DD1SRCR			0x2000c
+#define DD1SRCR_TVR		(1 << 15)
+#define DD1SRCR_FRM		(1 << 14)
+#define DD1SRCR_BUF		(1 << 12)
+#define DD1SRCR_VBK		(1 << 11)
+#define DD1SRCR_RINT		(1 << 9)
+#define DD1SRCR_HBK		(1 << 8)
+#define DD1SRCR_ADC(n)		(1 << ((n)-1))
+
+#define DD1IER			0x20010
+#define DD1IER_TVR		(1 << 15)
+#define DD1IER_FRM		(1 << 14)
+#define DD1IER_BUF		(1 << 12)
+#define DD1IER_VBK		(1 << 11)
+#define DD1IER_RINT		(1 << 9)
+#define DD1IER_HBK		(1 << 8)
+#define DD1IER_ADC(n)		(1 << ((n)-1))
+
+#define DEFR8			0x20020
+#define DEFR8_CODE		(0x7790 << 16)
+#define DEFR8_VSCS		(1 << 6)
+#define DEFR8_DRGBS_DU(n)	((n) << 4)
+#define DEFR8_DRGBS_MASK	(3 << 4)
+#define DEFR8_DEFE8		(1 << 0)
+
+#define DOFLR			0x20024
+#define DOFLR_CODE		(0x7790 << 16)
+#define DOFLR_HSYCFL1		(1 << 13)
+#define DOFLR_VSYCFL1		(1 << 12)
+#define DOFLR_ODDFL1		(1 << 11)
+#define DOFLR_DISPFL1		(1 << 10)
+#define DOFLR_CDEFL1		(1 << 9)
+#define DOFLR_RGBFL1		(1 << 8)
+#define DOFLR_HSYCFL0		(1 << 5)
+#define DOFLR_VSYCFL0		(1 << 4)
+#define DOFLR_ODDFL0		(1 << 3)
+#define DOFLR_DISPFL0		(1 << 2)
+#define DOFLR_CDEFL0		(1 << 1)
+#define DOFLR_RGBFL0		(1 << 0)
+
+#define DIDSR			0x20028
+#define DIDSR_CODE		(0x7790 << 16)
+#define DIDSR_LCDS_DCLKIN(n)	(0 << (8 + (n) * 2))
+#define DIDSR_LCDS_LVDS0(n)	(2 << (8 + (n) * 2))
+#define DIDSR_LCDS_LVDS1(n)	(3 << (8 + (n) * 2))
+#define DIDSR_LCDS_MASK(n)	(3 << (8 + (n) * 2))
+#define DIDSR_PCDS_CLK(n, clk)	(clk << ((n) * 2))
+#define DIDSR_PCDS_MASK(n)	(3 << ((n) * 2))
 
 /* -----------------------------------------------------------------------------
  * Display Timing Generation Registers
@@ -349,21 +404,34 @@
 #define APnMR_BM_AD		(2 << 4)	/* Auto Display Change Mode */
 
 #define APnMWR			0x0a104
+
+#define APnDSXR			0x0a110
+#define APnDSYR			0x0a114
+#define APnDPXR			0x0a118
+#define APnDPYR			0x0a11c
+
 #define APnDSA0R		0x0a120
 #define APnDSA1R		0x0a124
 #define APnDSA2R		0x0a128
+
+#define APnSPXR			0x0a130
+#define APnSPYR			0x0a134
+#define APnWASPR		0x0a138
+#define APnWAMWR		0x0a13c
+
+#define APnBTR			0x0a140
+
 #define APnMLR			0x0a150
+#define APnSWAPR		0x0a180
 
 /* -----------------------------------------------------------------------------
  * Display Capture Registers
  */
 
+#define DCMR			0x0c100
 #define DCMWR			0x0c104
-#define DC2MWR			0x0c204
 #define DCSAR			0x0c120
-#define DC2SAR			0x0c220
 #define DCMLR			0x0c150
-#define DC2MLR			0x0c250
 
 /* -----------------------------------------------------------------------------
  * Color Palette Registers

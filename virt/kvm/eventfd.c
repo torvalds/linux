@@ -291,7 +291,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 {
 	struct kvm_irq_routing_table *irq_rt;
 	struct _irqfd *irqfd, *tmp;
-	struct file *file = NULL;
+	struct fd f;
 	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	int ret;
 	unsigned int events;
@@ -306,13 +306,13 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	INIT_WORK(&irqfd->inject, irqfd_inject);
 	INIT_WORK(&irqfd->shutdown, irqfd_shutdown);
 
-	file = eventfd_fget(args->fd);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
-		goto fail;
+	f = fdget(args->fd);
+	if (!f.file) {
+		ret = -EBADF;
+		goto out;
 	}
 
-	eventfd = eventfd_ctx_fileget(file);
+	eventfd = eventfd_ctx_fileget(f.file);
 	if (IS_ERR(eventfd)) {
 		ret = PTR_ERR(eventfd);
 		goto fail;
@@ -391,7 +391,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 					   lockdep_is_held(&kvm->irqfds.lock));
 	irqfd_update(kvm, irqfd, irq_rt);
 
-	events = file->f_op->poll(file, &irqfd->pt);
+	events = f.file->f_op->poll(f.file, &irqfd->pt);
 
 	list_add_tail(&irqfd->list, &kvm->irqfds.items);
 
@@ -408,7 +408,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	 * do not drop the file until the irqfd is fully initialized, otherwise
 	 * we might race against the POLLHUP
 	 */
-	fput(file);
+	fdput(f);
 
 	return 0;
 
@@ -422,9 +422,9 @@ fail:
 	if (eventfd && !IS_ERR(eventfd))
 		eventfd_ctx_put(eventfd);
 
-	if (!IS_ERR(file))
-		fput(file);
+	fdput(f);
 
+out:
 	kfree(irqfd);
 	return ret;
 }

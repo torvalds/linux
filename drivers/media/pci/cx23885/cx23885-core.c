@@ -1941,10 +1941,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 
 	if ((pci_status & pci_mask) & PCI_MSK_AV_CORE) {
 		cx23885_irq_disable(dev, PCI_MSK_AV_CORE);
-		if (!schedule_work(&dev->cx25840_work))
-			printk(KERN_ERR "%s: failed to set up deferred work for"
-			       " AV Core/IR interrupt. Interrupt is disabled"
-			       " and won't be re-enabled\n", dev->name);
+		schedule_work(&dev->cx25840_work);
 		handled++;
 	}
 

@@ -56,6 +56,8 @@
 #define TUNGETVNETHDRSZ _IOR('T', 215, int)
 #define TUNSETVNETHDRSZ _IOW('T', 216, int)
 #define TUNSETQUEUE  _IOW('T', 217, int)
+#define TUNSETIFINDEX	_IOW('T', 218, unsigned int)
+#define TUNGETFILTER _IOR('T', 219, struct sock_fprog)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001
@@ -70,6 +72,10 @@
 #define IFF_DETACH_QUEUE 0x0400
 /* read-only flag */
 #define IFF_PERSIST	0x0800
+#define IFF_NOFILTER	0x1000
+
+/* Socket options */
+#define TUN_TX_TIMESTAMP 1
 
 /* Features for GSO (TUNSETOFFLOAD). */
 #define TUN_F_CSUM	0x01	/* You can hand me unchecksummed packets. */

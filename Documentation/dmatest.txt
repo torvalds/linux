@@ -16,15 +16,16 @@ be built as module or inside kernel. Let's consider those cases.
 	Part 2 - When dmatest is built as a module...
 
 After mounting debugfs and loading the module, the /sys/kernel/debug/dmatest
-folder with nodes will be created. They are the same as module parameters with
-addition of the 'run' node that controls run and stop phases of the test.
+folder with nodes will be created. There are two important files located. First
+is the 'run' node that controls run and stop phases of the test, and the second
+one, 'results', is used to get the test case results.
 
 Note that in this case test will not run on load automatically.
 
 Example of usage:
-	% echo dma0chan0 > /sys/kernel/debug/dmatest/channel
-	% echo 2000 > /sys/kernel/debug/dmatest/timeout
-	% echo 1 > /sys/kernel/debug/dmatest/iterations
+	% echo dma0chan0 > /sys/module/dmatest/parameters/channel
+	% echo 2000 > /sys/module/dmatest/parameters/timeout
+	% echo 1 > /sys/module/dmatest/parameters/iterations
 	% echo 1 > /sys/kernel/debug/dmatest/run
 
 Hint: available channel list could be extracted by running the following
@@ -55,8 +56,8 @@ for the first performed test. After user gets a control, the test could be
 re-run with the same or different parameters. For the details see the above
 section "Part 2 - When dmatest is built as a module..."
 
-In both cases the module parameters are used as initial values for the test case.
-You always could check them at run-time by running
+In both cases the module parameters are used as the actual values for the test
+case. You always could check them at run-time by running
 	% grep -H . /sys/module/dmatest/parameters/*
 
 	Part 4 - Gathering the test results

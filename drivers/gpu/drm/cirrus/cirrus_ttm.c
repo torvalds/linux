@@ -148,7 +148,9 @@ cirrus_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 static int cirrus_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct cirrus_bo *cirrusbo = cirrus_bo(bo);
+
+	return drm_vma_node_verify_access(&cirrusbo->gem.vma_node, filp);
 }
 
 static int cirrus_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -326,7 +328,6 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		return ret;
 	}
 
-	cirrusbo->gem.driver_private = NULL;
 	cirrusbo->bo.bdev = &cirrus->ttm.bdev;
 	cirrusbo->bo.bdev->dev_mapping = dev->dev_mapping;
 

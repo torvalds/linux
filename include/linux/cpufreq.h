@@ -85,7 +85,6 @@ struct cpufreq_policy {
 	struct list_head        policy_list;
 	struct kobject		kobj;
 	struct completion	kobj_unregister;
-	int			transition_ongoing; /* Tracks transition status */
 };
 
 /* Only for ACPI */

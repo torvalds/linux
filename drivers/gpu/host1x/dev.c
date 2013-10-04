@@ -43,7 +43,7 @@ void host1x_set_drm_data(struct device *dev, void *data)
 void *host1x_get_drm_data(struct device *dev)
 {
 	struct host1x *host1x = dev_get_drvdata(dev);
-	return host1x->drm_data;
+	return host1x ? host1x->drm_data : NULL;
 }
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)

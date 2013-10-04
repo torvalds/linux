@@ -528,11 +528,12 @@ struct cx23885_board cx23885_boards[] = {
 		} },
 	},
 	[CX23885_BOARD_MYGICA_X8507] = {
-		.name		= "Mygica X8507",
+		.name		= "Mygica X8502/X8507 ISDB-T",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
 		.tuner_bus	= 1,
 		.porta		= CX23885_ANALOG_VIDEO,
+		.portb		= CX23885_MPEG_DVB,
 		.input		= {
 			{
 				.type   = CX23885_VMUX_TELEVISION,
@@ -1281,7 +1282,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_MYGICA_X8507:
 		/* GPIO-0 (0)Analog / (1)Digital TV */
 		/* GPIO-1 reset XC5000 */
-		/* GPIO-2 reset LGS8GL5 / LGS8G75 */
+		/* GPIO-2 demod reset */
 		cx23885_gpio_enable(dev, GPIO_0 | GPIO_1 | GPIO_2, 1);
 		cx23885_gpio_clear(dev, GPIO_1 | GPIO_2);
 		mdelay(100);
@@ -1677,6 +1678,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
+	case CX23885_BOARD_MYGICA_X8507:
 		ts1->gen_ctrl_val  = 0x5; /* Parallel */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;

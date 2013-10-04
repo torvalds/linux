@@ -455,6 +455,41 @@ bail:
 	return status;
 }
 
+/*
+ * If we have fewer than thresh credits, extend by OCFS2_MAX_TRANS_DATA.
+ * If that fails, restart the transaction & regain write access for the
+ * buffer head which is used for metadata modifications.
+ * Taken from Ext4: extend_or_restart_transaction()
+ */
+int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
+{
+	int status, old_nblks;
+
+	BUG_ON(!handle);
+
+	old_nblks = handle->h_buffer_credits;
+	trace_ocfs2_allocate_extend_trans(old_nblks, thresh);
+
+	if (old_nblks < thresh)
+		return 0;
+
+	status = jbd2_journal_extend(handle, OCFS2_MAX_TRANS_DATA);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	if (status > 0) {
+		status = jbd2_journal_restart(handle, OCFS2_MAX_TRANS_DATA);
+		if (status < 0)
+			mlog_errno(status);
+	}
+
+bail:
+	return status;
+}
+
+
 struct ocfs2_triggers {
 	struct jbd2_buffer_trigger_type	ot_triggers;
 	int				ot_offset;
@@ -801,14 +836,14 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	inode_lock = 1;
 	di = (struct ocfs2_dinode *)bh->b_data;
 
-	if (inode->i_size <  OCFS2_MIN_JOURNAL_SIZE) {
+	if (i_size_read(inode) <  OCFS2_MIN_JOURNAL_SIZE) {
 		mlog(ML_ERROR, "Journal file size (%lld) is too small!\n",
-		     inode->i_size);
+		     i_size_read(inode));
 		status = -EINVAL;
 		goto done;
 	}
 
-	trace_ocfs2_journal_init(inode->i_size,
+	trace_ocfs2_journal_init(i_size_read(inode),
 				 (unsigned long long)inode->i_blocks,
 				 OCFS2_I(inode)->ip_clusters);
 
@@ -1096,7 +1131,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
-	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, inode->i_size);
+	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 	v_blkno = 0;
 	while (v_blkno < num_blocks) {
 		status = ocfs2_extent_map_get_blocks(inode, v_blkno,

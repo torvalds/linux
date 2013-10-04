@@ -507,7 +507,7 @@ u32 cw1200_dpll_from_clk(u16 clk_khz)
 	case 0xCB20: /* 52000 KHz */
 		return 0x07627091;
 	default:
-		pr_err("Unknown Refclk freq (0x%04x), using 2600KHz\n",
+		pr_err("Unknown Refclk freq (0x%04x), using 26000KHz\n",
 		       clk_khz);
 		return 0x0EC4F121;
 	}

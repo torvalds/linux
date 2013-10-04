@@ -616,7 +616,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	/* card_detect */
 	switch (boarddata->cd_type) {
 	case ESDHC_CD_GPIO:
-		err = mmc_gpio_request_cd(host->mmc, boarddata->cd_gpio);
+		err = mmc_gpio_request_cd(host->mmc, boarddata->cd_gpio, 0);
 		if (err) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to request card-detect gpio!\n");

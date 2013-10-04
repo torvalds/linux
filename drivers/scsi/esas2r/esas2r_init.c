@@ -665,7 +665,7 @@ void esas2r_kill_adapter(int i)
 
 int esas2r_cleanup(struct Scsi_Host *host)
 {
-	struct esas2r_adapter *a = (struct esas2r_adapter *)host->hostdata;
+	struct esas2r_adapter *a;
 	int index;
 
 	if (host == NULL) {
@@ -678,6 +678,7 @@ int esas2r_cleanup(struct Scsi_Host *host)
 	}
 
 	esas2r_debug("esas2r_cleanup called for host %p", host);
+	a = (struct esas2r_adapter *)host->hostdata;
 	index = a->index;
 	esas2r_kill_adapter(index);
 	return index;
@@ -808,7 +809,7 @@ static void esas2r_init_pci_cfg_space(struct esas2r_adapter *a)
 	int pcie_cap_reg;
 
 	pcie_cap_reg = pci_find_capability(a->pcid, PCI_CAP_ID_EXP);
-	if (0xffff && pcie_cap_reg) {
+	if (0xffff & pcie_cap_reg) {
 		u16 devcontrol;
 
 		pci_read_config_word(a->pcid, pcie_cap_reg + PCI_EXP_DEVCTL,
@@ -1550,8 +1551,7 @@ void esas2r_reset_chip(struct esas2r_adapter *a)
 	 * to not overwrite a previous crash that was saved.
 	 */
 	if ((a->flags2 & AF2_COREDUMP_AVAIL)
-	    && !(a->flags2 & AF2_COREDUMP_SAVED)
-	    && a->fw_coredump_buff) {
+	    && !(a->flags2 & AF2_COREDUMP_SAVED)) {
 		esas2r_read_mem_block(a,
 				      a->fw_coredump_buff,
 				      MW_DATA_ADDR_SRAM + 0x80000,

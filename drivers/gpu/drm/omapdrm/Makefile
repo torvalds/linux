@@ -18,7 +18,4 @@ omapdrm-y := omap_drv.o \
 	omap_dmm_tiler.o \
 	tcm-sita.o
 
-# temporary:
-omapdrm-y += omap_gem_helpers.o
-
 obj-$(CONFIG_DRM_OMAP)	+= omapdrm.o

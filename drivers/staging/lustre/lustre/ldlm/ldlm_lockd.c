@@ -800,9 +800,9 @@ static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp)
 
 	init_completion(&bltd.bltd_comp);
 	bltd.bltd_num = atomic_read(&blp->blp_num_threads);
-	snprintf(bltd.bltd_name, sizeof(bltd.bltd_name) - 1,
+	snprintf(bltd.bltd_name, sizeof(bltd.bltd_name),
 		"ldlm_bl_%02d", bltd.bltd_num);
-	task = kthread_run(ldlm_bl_thread_main, &bltd, bltd.bltd_name);
+	task = kthread_run(ldlm_bl_thread_main, &bltd, "%s", bltd.bltd_name);
 	if (IS_ERR(task)) {
 		CERROR("cannot start LDLM thread ldlm_bl_%02d: rc %ld\n",
 		       atomic_read(&blp->blp_num_threads), PTR_ERR(task));

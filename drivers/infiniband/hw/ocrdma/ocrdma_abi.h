@@ -28,6 +28,9 @@
 #ifndef __OCRDMA_ABI_H__
 #define __OCRDMA_ABI_H__
 
+#define OCRDMA_ABI_VERSION 1
+/* user kernel communication data structures. */
+
 struct ocrdma_alloc_ucontext_resp {
 	u32 dev_id;
 	u32 wqe_size;
@@ -35,16 +38,16 @@ struct ocrdma_alloc_ucontext_resp {
 	u32 dpp_wqe_size;
 	u64 ah_tbl_page;
 	u32 ah_tbl_len;
-	u32 rsvd;
-	u8 fw_ver[32];
 	u32 rqe_size;
+	u8 fw_ver[32];
+	/* for future use/new features in progress */
 	u64 rsvd1;
-} __packed;
+	u64 rsvd2;
+};
 
-/* user kernel communication data structures. */
 struct ocrdma_alloc_pd_ureq {
 	u64 rsvd1;
-} __packed;
+};
 
 struct ocrdma_alloc_pd_uresp {
 	u32 id;
@@ -52,12 +55,12 @@ struct ocrdma_alloc_pd_uresp {
 	u32 dpp_page_addr_hi;
 	u32 dpp_page_addr_lo;
 	u64 rsvd1;
-} __packed;
+};
 
 struct ocrdma_create_cq_ureq {
 	u32 dpp_cq;
-	u32 rsvd;
-} __packed;
+	u32 rsvd; /* pad */
+};
 
 #define MAX_CQ_PAGES 8
 struct ocrdma_create_cq_uresp {
@@ -69,9 +72,10 @@ struct ocrdma_create_cq_uresp {
 	u64 db_page_addr;
 	u32 db_page_size;
 	u32 phase_change;
+	/* for future use/new features in progress */
 	u64 rsvd1;
 	u64 rsvd2;
-} __packed;
+};
 
 #define MAX_QP_PAGES 8
 #define MAX_UD_AV_PAGES 8
@@ -80,14 +84,14 @@ struct ocrdma_create_qp_ureq {
 	u8 enable_dpp_cq;
 	u8 rsvd;
 	u16 dpp_cq_id;
-	u32 rsvd1;
+	u32 rsvd1;	/* pad */
 };
 
 struct ocrdma_create_qp_uresp {
 	u16 qp_id;
 	u16 sq_dbid;
 	u16 rq_dbid;
-	u16 resv0;
+	u16 resv0;	/* pad */
 	u32 sq_page_size;
 	u32 rq_page_size;
 	u32 num_sq_pages;
@@ -98,19 +102,19 @@ struct ocrdma_create_qp_uresp {
 	u32 db_page_size;
 	u32 dpp_credit;
 	u32 dpp_offset;
-	u32 rsvd1;
 	u32 num_wqe_allocated;
 	u32 num_rqe_allocated;
 	u32 db_sq_offset;
 	u32 db_rq_offset;
 	u32 db_shift;
+	u64 rsvd1;
 	u64 rsvd2;
 	u64 rsvd3;
 } __packed;
 
 struct ocrdma_create_srq_uresp {
 	u16 rq_dbid;
-	u16 resv0;
+	u16 resv0;	/* pad */
 	u32 resv1;
 
 	u32 rq_page_size;
@@ -126,6 +130,6 @@ struct ocrdma_create_srq_uresp {
 
 	u64 rsvd2;
 	u64 rsvd3;
-} __packed;
+};
 
 #endif				/* __OCRDMA_ABI_H__ */

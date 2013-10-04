@@ -102,7 +102,8 @@ BEGIN_FW_FTR_SECTION
 	/* if from user, see if there are any DTL entries to process */
 	ld	r10,PACALPPACAPTR(r13)	/* get ptr to VPA */
 	ld	r11,PACA_DTL_RIDX(r13)	/* get log read index */
-	ld	r10,LPPACA_DTLIDX(r10)	/* get log write index */
+	addi	r10,r10,LPPACA_DTLIDX
+	LDX_BE	r10,0,r10		/* get log write index */
 	cmpd	cr1,r11,r10
 	beq+	cr1,33f
 	bl	.accumulate_stolen_time
@@ -522,9 +523,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	 */
 	ld	r9,PACA_SLBSHADOWPTR(r13)
 	li	r12,0
-	std	r12,SLBSHADOW_STACKESID(r9) /* Clear ESID */
-	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
-	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
+	std	r12,SLBSHADOW_STACKESID(r9)	/* Clear ESID */
+	li	r12,SLBSHADOW_STACKVSID
+	STDX_BE	r7,r12,r9			/* Save VSID */
+	li	r12,SLBSHADOW_STACKESID
+	STDX_BE	r0,r12,r9			/* Save ESID */
 
 	/* No need to check for MMU_FTR_NO_SLBIE_B here, since when
 	 * we have 1TB segments, the only CPUs known to have the errata
@@ -575,34 +578,15 @@ BEGIN_FTR_SECTION
 	ld	r7,DSCR_DEFAULT@toc(2)
 	ld	r0,THREAD_DSCR(r4)
 	cmpwi	r6,0
-	li	r8, FSCR_DSCR
 	bne	1f
 	ld	r0,0(r7)
-	b	3f
 1:
-  BEGIN_FTR_SECTION_NESTED(70)
-	mfspr	r6, SPRN_FSCR
-	or	r6, r6, r8
-	mtspr	SPRN_FSCR, r6
-    BEGIN_FTR_SECTION_NESTED(69)
-	mfspr	r6, SPRN_HFSCR
-	or	r6, r6, r8
-	mtspr	SPRN_HFSCR, r6
-    END_FTR_SECTION_NESTED(CPU_FTR_HVMODE, CPU_FTR_HVMODE, 69)
-	b	4f
-  END_FTR_SECTION_NESTED(CPU_FTR_ARCH_207S, CPU_FTR_ARCH_207S, 70)
-3:
-  BEGIN_FTR_SECTION_NESTED(70)
-	mfspr	r6, SPRN_FSCR
-	andc	r6, r6, r8
-	mtspr	SPRN_FSCR, r6
-    BEGIN_FTR_SECTION_NESTED(69)
-	mfspr	r6, SPRN_HFSCR
-	andc	r6, r6, r8
-	mtspr	SPRN_HFSCR, r6
-    END_FTR_SECTION_NESTED(CPU_FTR_HVMODE, CPU_FTR_HVMODE, 69)
-  END_FTR_SECTION_NESTED(CPU_FTR_ARCH_207S, CPU_FTR_ARCH_207S, 70)
-4:	cmpd	r0,r25
+BEGIN_FTR_SECTION_NESTED(70)
+	mfspr	r8, SPRN_FSCR
+	rldimi	r8, r6, FSCR_DSCR_LG, (63 - FSCR_DSCR_LG)
+	mtspr	SPRN_FSCR, r8
+END_FTR_SECTION_NESTED(CPU_FTR_ARCH_207S, CPU_FTR_ARCH_207S, 70)
+	cmpd	r0,r25
 	beq	2f
 	mtspr	SPRN_DSCR,r0
 2:
@@ -737,9 +721,9 @@ resume_kernel:
 
 	/*
 	 * Here we are preempting the current task. We want to make
-	 * sure we are soft-disabled first
+	 * sure we are soft-disabled first and reconcile irq state.
 	 */
-	SOFT_DISABLE_INTS(r3,r4)
+	RECONCILE_IRQ_STATE(r3,r4)
 1:	bl	.preempt_schedule_irq
 
 	/* Re-test flags and eventually loop */

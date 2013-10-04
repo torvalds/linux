@@ -79,7 +79,7 @@ static inline void ath10k_ce_src_ring_write_index_set(struct ath10k *ar,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	void __iomem *indicator_addr;
 
-	if (!test_bit(ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND, ar_pci->features)) {
+	if (!test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features)) {
 		ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
 		return;
 	}
@@ -637,6 +637,7 @@ static int ath10k_ce_completed_send_next_nolock(struct ce_state *ce_state,
 		ath10k_pci_wake(ar);
 		src_ring->hw_index =
 			ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
+		src_ring->hw_index &= nentries_mask;
 		ath10k_pci_sleep(ar);
 	}
 	read_index = src_ring->hw_index;
@@ -950,10 +951,12 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 
 	ath10k_pci_wake(ar);
 	src_ring->sw_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
+	src_ring->sw_index &= src_ring->nentries_mask;
 	src_ring->hw_index = src_ring->sw_index;
 
 	src_ring->write_index =
 		ath10k_ce_src_ring_write_index_get(ar, ctrl_addr);
+	src_ring->write_index &= src_ring->nentries_mask;
 	ath10k_pci_sleep(ar);
 
 	src_ring->per_transfer_context = (void **)ptr;
@@ -1035,8 +1038,10 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 
 	ath10k_pci_wake(ar);
 	dest_ring->sw_index = ath10k_ce_dest_ring_read_index_get(ar, ctrl_addr);
+	dest_ring->sw_index &= dest_ring->nentries_mask;
 	dest_ring->write_index =
 		ath10k_ce_dest_ring_write_index_get(ar, ctrl_addr);
+	dest_ring->write_index &= dest_ring->nentries_mask;
 	ath10k_pci_sleep(ar);
 
 	dest_ring->per_transfer_context = (void **)ptr;

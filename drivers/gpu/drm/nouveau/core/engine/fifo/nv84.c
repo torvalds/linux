@@ -28,7 +28,6 @@
 #include <core/ramht.h>
 #include <core/event.h>
 #include <core/class.h>
-#include <core/math.h>
 
 #include <subdev/timer.h>
 #include <subdev/bar.h>
@@ -57,6 +56,7 @@ nv84_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_SW   : return 0;
 	case NVDEV_ENGINE_GR   : addr = 0x0020; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0040; break;
+	case NVDEV_ENGINE_PPP  :
 	case NVDEV_ENGINE_MPEG : addr = 0x0060; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0080; break;
 	case NVDEV_ENGINE_CRYPT: addr = 0x00a0; break;
@@ -92,6 +92,7 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_SW   : return 0;
 	case NVDEV_ENGINE_GR   : engn = 0; addr = 0x0020; break;
 	case NVDEV_ENGINE_VP   : engn = 3; addr = 0x0040; break;
+	case NVDEV_ENGINE_PPP  :
 	case NVDEV_ENGINE_MPEG : engn = 1; addr = 0x0060; break;
 	case NVDEV_ENGINE_BSP  : engn = 5; addr = 0x0080; break;
 	case NVDEV_ENGINE_CRYPT: engn = 4; addr = 0x00a0; break;
@@ -258,7 +259,7 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	nv_parent(chan)->object_detach = nv50_fifo_object_detach;
 
 	ioffset = args->ioffset;
-	ilength = log2i(args->ilength / 8);
+	ilength = order_base_2(args->ilength / 8);
 
 	nv_wo32(base->ramfc, 0x3c, 0x403f6078);
 	nv_wo32(base->ramfc, 0x44, 0x01003fff);

@@ -779,16 +779,14 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	struct omap_video_timings video_timing;
 	struct hdmi_video_format video_format;
 	/* HDMI core */
-	struct hdmi_core_infoframe_avi avi_cfg = ip_data->avi_cfg;
+	struct hdmi_core_infoframe_avi *avi_cfg = &ip_data->avi_cfg;
 	struct hdmi_core_video_config v_core_cfg;
 	struct hdmi_core_packet_enable_repeat repeat_cfg;
 	struct hdmi_config *cfg = &ip_data->cfg;
 
 	hdmi_wp_init(&video_timing, &video_format);
 
-	hdmi_core_init(&v_core_cfg,
-		&avi_cfg,
-		&repeat_cfg);
+	hdmi_core_init(&v_core_cfg, avi_cfg, &repeat_cfg);
 
 	hdmi_wp_video_init_format(&video_format, &video_timing, cfg);
 
@@ -822,24 +820,24 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	 * configure packet
 	 * info frame video see doc CEA861-D page 65
 	 */
-	avi_cfg.db1_format = HDMI_INFOFRAME_AVI_DB1Y_RGB;
-	avi_cfg.db1_active_info =
-		HDMI_INFOFRAME_AVI_DB1A_ACTIVE_FORMAT_OFF;
-	avi_cfg.db1_bar_info_dv = HDMI_INFOFRAME_AVI_DB1B_NO;
-	avi_cfg.db1_scan_info = HDMI_INFOFRAME_AVI_DB1S_0;
-	avi_cfg.db2_colorimetry = HDMI_INFOFRAME_AVI_DB2C_NO;
-	avi_cfg.db2_aspect_ratio = HDMI_INFOFRAME_AVI_DB2M_NO;
-	avi_cfg.db2_active_fmt_ar = HDMI_INFOFRAME_AVI_DB2R_SAME;
-	avi_cfg.db3_itc = HDMI_INFOFRAME_AVI_DB3ITC_NO;
-	avi_cfg.db3_ec = HDMI_INFOFRAME_AVI_DB3EC_XVYUV601;
-	avi_cfg.db3_q_range = HDMI_INFOFRAME_AVI_DB3Q_DEFAULT;
-	avi_cfg.db3_nup_scaling = HDMI_INFOFRAME_AVI_DB3SC_NO;
-	avi_cfg.db4_videocode = cfg->cm.code;
-	avi_cfg.db5_pixel_repeat = HDMI_INFOFRAME_AVI_DB5PR_NO;
-	avi_cfg.db6_7_line_eoftop = 0;
-	avi_cfg.db8_9_line_sofbottom = 0;
-	avi_cfg.db10_11_pixel_eofleft = 0;
-	avi_cfg.db12_13_pixel_sofright = 0;
+	avi_cfg->db1_format = HDMI_INFOFRAME_AVI_DB1Y_RGB;
+	avi_cfg->db1_active_info =
+			HDMI_INFOFRAME_AVI_DB1A_ACTIVE_FORMAT_OFF;
+	avi_cfg->db1_bar_info_dv = HDMI_INFOFRAME_AVI_DB1B_NO;
+	avi_cfg->db1_scan_info = HDMI_INFOFRAME_AVI_DB1S_0;
+	avi_cfg->db2_colorimetry = HDMI_INFOFRAME_AVI_DB2C_NO;
+	avi_cfg->db2_aspect_ratio = HDMI_INFOFRAME_AVI_DB2M_NO;
+	avi_cfg->db2_active_fmt_ar = HDMI_INFOFRAME_AVI_DB2R_SAME;
+	avi_cfg->db3_itc = HDMI_INFOFRAME_AVI_DB3ITC_NO;
+	avi_cfg->db3_ec = HDMI_INFOFRAME_AVI_DB3EC_XVYUV601;
+	avi_cfg->db3_q_range = HDMI_INFOFRAME_AVI_DB3Q_DEFAULT;
+	avi_cfg->db3_nup_scaling = HDMI_INFOFRAME_AVI_DB3SC_NO;
+	avi_cfg->db4_videocode = cfg->cm.code;
+	avi_cfg->db5_pixel_repeat = HDMI_INFOFRAME_AVI_DB5PR_NO;
+	avi_cfg->db6_7_line_eoftop = 0;
+	avi_cfg->db8_9_line_sofbottom = 0;
+	avi_cfg->db10_11_pixel_eofleft = 0;
+	avi_cfg->db12_13_pixel_sofright = 0;
 
 	hdmi_core_aux_infoframe_avi_config(ip_data);
 

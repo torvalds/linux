@@ -245,7 +245,7 @@ static int puv3_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int puv3_i2c_suspend(struct device *dev)
 {
 	int poll_count;

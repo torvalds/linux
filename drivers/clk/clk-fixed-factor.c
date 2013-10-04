@@ -97,6 +97,8 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(clk_register_fixed_factor);
+
 #ifdef CONFIG_OF
 /**
  * of_fixed_factor_clk_setup() - Setup function for simple fixed factor clock

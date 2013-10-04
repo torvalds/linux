@@ -213,7 +213,7 @@ static int ipx_seq_socket_show(struct seq_file *seq, void *v)
 			   ntohs(ipxs->dest_addr.sock));
 	}
 
-	seq_printf(seq, "%08X  %08X  %02X     %03d\n",
+	seq_printf(seq, "%08X  %08X  %02X     %03u\n",
 		   sk_wmem_alloc_get(s),
 		   sk_rmem_alloc_get(s),
 		   s->sk_state,

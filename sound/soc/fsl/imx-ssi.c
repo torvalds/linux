@@ -571,13 +571,13 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx0");
 	if (res) {
 		imx_pcm_dma_params_init_data(&ssi->filter_data_tx, res->start,
-			false);
+			IMX_DMATYPE_SSI);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx0");
 	if (res) {
 		imx_pcm_dma_params_init_data(&ssi->filter_data_rx, res->start,
-			false);
+			IMX_DMATYPE_SSI);
 	}
 
 	platform_set_drvdata(pdev, ssi);
@@ -595,7 +595,12 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		goto failed_register;
 	}
 
-	ret = imx_pcm_fiq_init(pdev);
+	ssi->fiq_params.irq = ssi->irq;
+	ssi->fiq_params.base = ssi->base;
+	ssi->fiq_params.dma_params_rx = &ssi->dma_params_rx;
+	ssi->fiq_params.dma_params_tx = &ssi->dma_params_tx;
+
+	ret = imx_pcm_fiq_init(pdev, &ssi->fiq_params);
 	if (ret)
 		goto failed_pcm_fiq;
 

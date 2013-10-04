@@ -1,7 +1,10 @@
 * Designware APB timer
 
 Required properties:
-- compatible: "snps,dw-apb-timer-sp" or "snps,dw-apb-timer-osc"
+- compatible: One of:
+ 	"snps,dw-apb-timer"
+	"snps,dw-apb-timer-sp" <DEPRECATED>
+	"snps,dw-apb-timer-osc" <DEPRECATED>
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: IRQ line for the timer.
@@ -20,25 +23,10 @@ systems may use one.
 
 
 Example:
-
-		timer1: timer@ffc09000 {
-				compatible = "snps,dw-apb-timer-sp";
-				interrupts = <0 168 4>;
-				clock-frequency = <200000000>;
-				reg = <0xffc09000 0x1000>;
-			};
-
-		timer2: timer@ffd00000 {
-				compatible = "snps,dw-apb-timer-osc";
-				interrupts = <0 169 4>;
-				clock-frequency = <200000000>;
-				reg = <0xffd00000 0x1000>;
-			};
-
-		timer3: timer@ffe00000 {
-				compatible = "snps,dw-apb-timer-osc";
-				interrupts = <0 170 4>;
-				reg = <0xffe00000 0x1000>;
-				clocks = <&timer_clk>, <&timer_pclk>;
-				clock-names = "timer", "pclk";
-			};
+	timer@ffe00000 {
+		compatible = "snps,dw-apb-timer";
+		interrupts = <0 170 4>;
+		reg = <0xffe00000 0x1000>;
+		clocks = <&timer_clk>, <&timer_pclk>;
+		clock-names = "timer", "pclk";
+	};

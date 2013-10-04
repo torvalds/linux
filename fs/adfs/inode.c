@@ -50,7 +50,7 @@ static void adfs_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size)
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 }
 
 static int adfs_write_begin(struct file *file, struct address_space *mapping,

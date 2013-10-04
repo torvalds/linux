@@ -708,6 +708,7 @@ struct lpfc_hba {
 	uint32_t cfg_multi_ring_type;
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
+	uint32_t cfg_task_mgmt_tmo;
 	uint32_t cfg_use_msi;
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;

@@ -707,8 +707,9 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
 			tlv_mac = (void *)((u8 *)&key_material->key_param_set +
 					   key_param_len);
-			tlv_mac->tlv.type = cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
-			tlv_mac->tlv.len = cpu_to_le16(ETH_ALEN);
+			tlv_mac->header.type =
+					cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
+			tlv_mac->header.len = cpu_to_le16(ETH_ALEN);
 			memcpy(tlv_mac->mac_addr, enc_key->mac_addr, ETH_ALEN);
 			cmd_size = key_param_len + S_DS_GEN +
 				   sizeof(key_material->action) +
@@ -1069,7 +1070,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 	int i, byte_len;
 	u8 *stack_ptr = *buffer;
 
-	for (i = 0; i < MWIFIEX_MAX_FILTERS; i++) {
+	for (i = 0; i < MWIFIEX_MEF_MAX_FILTERS; i++) {
 		filter = &mef_entry->filter[i];
 		if (!filter->filt_type)
 			break;
@@ -1078,7 +1079,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 		*stack_ptr = TYPE_DNUM;
 		stack_ptr += 1;
 
-		byte_len = filter->byte_seq[MAX_BYTESEQ];
+		byte_len = filter->byte_seq[MWIFIEX_MEF_MAX_BYTESEQ];
 		memcpy(stack_ptr, filter->byte_seq, byte_len);
 		stack_ptr += byte_len;
 		*stack_ptr = byte_len;
@@ -1179,6 +1180,70 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_CFG_DATA);
 	cmd->size = cpu_to_le16(S_DS_GEN + sizeof(*cfg_data) + len);
+
+	return 0;
+}
+
+static int
+mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
+			 struct host_cmd_ds_command *cmd,
+			 u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_coalesce_cfg *coalesce_cfg =
+						&cmd->params.coalesce_cfg;
+	struct mwifiex_ds_coalesce_cfg *cfg = data_buf;
+	struct coalesce_filt_field_param *param;
+	u16 cnt, idx, length;
+	struct coalesce_receive_filt_rule *rule;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_COALESCE_CFG);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+
+	coalesce_cfg->action = cpu_to_le16(cmd_action);
+	coalesce_cfg->num_of_rules = cpu_to_le16(cfg->num_of_rules);
+	rule = coalesce_cfg->rule;
+
+	for (cnt = 0; cnt < cfg->num_of_rules; cnt++) {
+		rule->header.type = cpu_to_le16(TLV_TYPE_COALESCE_RULE);
+		rule->max_coalescing_delay =
+			cpu_to_le16(cfg->rule[cnt].max_coalescing_delay);
+		rule->pkt_type = cfg->rule[cnt].pkt_type;
+		rule->num_of_fields = cfg->rule[cnt].num_of_fields;
+
+		length = 0;
+
+		param = rule->params;
+		for (idx = 0; idx < cfg->rule[cnt].num_of_fields; idx++) {
+			param->operation = cfg->rule[cnt].params[idx].operation;
+			param->operand_len =
+					cfg->rule[cnt].params[idx].operand_len;
+			param->offset =
+				cpu_to_le16(cfg->rule[cnt].params[idx].offset);
+			memcpy(param->operand_byte_stream,
+			       cfg->rule[cnt].params[idx].operand_byte_stream,
+			       param->operand_len);
+
+			length += sizeof(struct coalesce_filt_field_param);
+
+			param++;
+		}
+
+		/* Total rule length is sizeof max_coalescing_delay(u16),
+		 * num_of_fields(u8), pkt_type(u8) and total length of the all
+		 * params
+		 */
+		rule->header.len = cpu_to_le16(length + sizeof(u16) +
+					       sizeof(u8) + sizeof(u8));
+
+		/* Add the rule length to the command size*/
+		le16_add_cpu(&cmd->size, le16_to_cpu(rule->header.len) +
+			     sizeof(struct mwifiex_ie_types_header));
+
+		rule = (void *)((u8 *)rule->params + length);
+	}
+
+	/* Add sizeof action, num_of_rules to total command length */
+	le16_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
 
 	return 0;
 }
@@ -1405,6 +1470,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	case HostCmd_CMD_MEF_CFG:
 		ret = mwifiex_cmd_mef_cfg(priv, cmd_ptr, data_buf);
+		break;
+	case HostCmd_CMD_COALESCE_CFG:
+		ret = mwifiex_cmd_coalesce_cfg(priv, cmd_ptr, cmd_action,
+					       data_buf);
 		break;
 	default:
 		dev_err(priv->adapter->dev,

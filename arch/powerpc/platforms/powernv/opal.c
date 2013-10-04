@@ -380,18 +380,20 @@ static int __init opal_init(void)
 		pr_warn("opal: Node not found\n");
 		return -ENODEV;
 	}
+
+	/* Register OPAL consoles if any ports */
 	if (firmware_has_feature(FW_FEATURE_OPALv2))
 		consoles = of_find_node_by_path("/ibm,opal/consoles");
 	else
 		consoles = of_node_get(opal_node);
-
-	/* Register serial ports */
-	for_each_child_of_node(consoles, np) {
-		if (strcmp(np->name, "serial"))
-			continue;
-		of_platform_device_create(np, NULL, NULL);
+	if (consoles) {
+		for_each_child_of_node(consoles, np) {
+			if (strcmp(np->name, "serial"))
+				continue;
+			of_platform_device_create(np, NULL, NULL);
+		}
+		of_node_put(consoles);
 	}
-	of_node_put(consoles);
 
 	/* Find all OPAL interrupts and request them */
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
@@ -422,7 +424,7 @@ void opal_shutdown(void)
 
 	for (i = 0; i < opal_irq_count; i++) {
 		if (opal_irqs[i])
-			free_irq(opal_irqs[i], 0);
+			free_irq(opal_irqs[i], NULL);
 		opal_irqs[i] = 0;
 	}
 }

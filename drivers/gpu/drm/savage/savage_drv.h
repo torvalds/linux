@@ -104,7 +104,7 @@ enum savage_family {
 	S3_LAST
 };
 
-extern struct drm_ioctl_desc savage_ioctls[];
+extern const struct drm_ioctl_desc savage_ioctls[];
 extern int savage_max_ioctl;
 
 #define S3_SAVAGE3D_SERIES(chip)  ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE_MX))

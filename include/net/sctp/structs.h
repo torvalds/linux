@@ -25,10 +25,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email addresses:
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    Randall Stewart	    <randall@sctp.chicago.il.us>
@@ -46,9 +43,6 @@
  *    Ryan Layer	    <rmlayer@us.ibm.com>
  *    Anup Pemmaiah	    <pemmaiah@cc.usu.edu>
  *    Kevin Gao             <kevin.gao@intel.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #ifndef __sctp_structs_h__
@@ -119,28 +113,26 @@ struct sctp_hashbucket {
 
 /* The SCTP globals structure. */
 extern struct sctp_globals {
-	/* The following variables are implementation specific.	 */
-
-	/* Default initialization values to be applied to new associations. */
-	__u16 max_instreams;
-	__u16 max_outstreams;
-
 	/* This is a list of groups of functions for each address
 	 * family that we support.
 	 */
 	struct list_head address_families;
 
 	/* This is the hash of all endpoints. */
-	int ep_hashsize;
 	struct sctp_hashbucket *ep_hashtable;
-
 	/* This is the hash of all associations. */
-	int assoc_hashsize;
 	struct sctp_hashbucket *assoc_hashtable;
-
 	/* This is the sctp port control hash.	*/
-	int port_hashsize;
 	struct sctp_bind_hashbucket *port_hashtable;
+
+	/* Sizes of above hashtables. */
+	int ep_hashsize;
+	int assoc_hashsize;
+	int port_hashsize;
+
+	/* Default initialization values to be applied to new associations. */
+	__u16 max_instreams;
+	__u16 max_outstreams;
 
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
@@ -782,6 +774,7 @@ struct sctp_transport {
 
 	/* Has this transport moved the ctsn since we last sacked */
 	__u32 sack_generation;
+	u32 dst_cookie;
 
 	struct flowi fl;
 

@@ -6,7 +6,7 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU && HAS_DMA
 	select HDMI
 	select I2C
 	select I2C_ALGOBIT
@@ -168,6 +168,17 @@ config DRM_I915_KMS
 	  the driver to bind to PCI devices, which precludes loading things
 	  like intelfb.
 
+config DRM_I915_PRELIMINARY_HW_SUPPORT
+	bool "Enable preliminary support for prerelease Intel hardware by default"
+	depends on DRM_I915
+	help
+	  Choose this option if you have prerelease Intel hardware and want the
+	  i915 driver to support it by default.  You can enable such support at
+	  runtime with the module option i915.preliminary_hw_support=1; this
+	  option changes the default for that module option.
+
+	  If in doubt, say "N".
+
 config DRM_MGA
 	tristate "Matrox g200/g400"
 	depends on DRM && PCI
@@ -223,3 +234,5 @@ source "drivers/gpu/drm/omapdrm/Kconfig"
 source "drivers/gpu/drm/tilcdc/Kconfig"
 
 source "drivers/gpu/drm/qxl/Kconfig"
+
+source "drivers/gpu/drm/msm/Kconfig"

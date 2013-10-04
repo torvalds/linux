@@ -59,4 +59,7 @@
 #define	r30	30
 #define	r31	31
 
+#define SPRN_TBRL	268
+#define SPRN_TBRU	269
+
 #endif /* _PPC64_PPC_ASM_H */

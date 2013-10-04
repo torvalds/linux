@@ -28,20 +28,374 @@
 
 #define CIK_RB_BITMAP_WIDTH_PER_SH  2
 
-/* SMC IND registers */
-#define GENERAL_PWRMGT                                    0xC0200000
-#       define GPU_COUNTER_CLK                            (1 << 15)
+/* DIDT IND registers */
+#define DIDT_SQ_CTRL0                                     0x0
+#       define DIDT_CTRL_EN                               (1 << 0)
+#define DIDT_DB_CTRL0                                     0x20
+#define DIDT_TD_CTRL0                                     0x40
+#define DIDT_TCP_CTRL0                                    0x60
 
+/* SMC IND registers */
+#define DPM_TABLE_475                                     0x3F768
+#       define SamuBootLevel(x)                           ((x) << 0)
+#       define SamuBootLevel_MASK                         0x000000ff
+#       define SamuBootLevel_SHIFT                        0
+#       define AcpBootLevel(x)                            ((x) << 8)
+#       define AcpBootLevel_MASK                          0x0000ff00
+#       define AcpBootLevel_SHIFT                         8
+#       define VceBootLevel(x)                            ((x) << 16)
+#       define VceBootLevel_MASK                          0x00ff0000
+#       define VceBootLevel_SHIFT                         16
+#       define UvdBootLevel(x)                            ((x) << 24)
+#       define UvdBootLevel_MASK                          0xff000000
+#       define UvdBootLevel_SHIFT                         24
+
+#define FIRMWARE_FLAGS                                    0x3F800
+#       define INTERRUPTS_ENABLED                         (1 << 0)
+
+#define NB_DPM_CONFIG_1                                   0x3F9E8
+#       define Dpm0PgNbPsLo(x)                            ((x) << 0)
+#       define Dpm0PgNbPsLo_MASK                          0x000000ff
+#       define Dpm0PgNbPsLo_SHIFT                         0
+#       define Dpm0PgNbPsHi(x)                            ((x) << 8)
+#       define Dpm0PgNbPsHi_MASK                          0x0000ff00
+#       define Dpm0PgNbPsHi_SHIFT                         8
+#       define DpmXNbPsLo(x)                              ((x) << 16)
+#       define DpmXNbPsLo_MASK                            0x00ff0000
+#       define DpmXNbPsLo_SHIFT                           16
+#       define DpmXNbPsHi(x)                              ((x) << 24)
+#       define DpmXNbPsHi_MASK                            0xff000000
+#       define DpmXNbPsHi_SHIFT                           24
+
+#define	SMC_SYSCON_RESET_CNTL				0x80000000
+#       define RST_REG                                  (1 << 0)
+#define	SMC_SYSCON_CLOCK_CNTL_0				0x80000004
+#       define CK_DISABLE                               (1 << 0)
+#       define CKEN                                     (1 << 24)
+
+#define	SMC_SYSCON_MISC_CNTL				0x80000010
+
+#define SMC_SYSCON_MSG_ARG_0                              0x80000068
+
+#define SMC_PC_C                                          0x80000370
+
+#define SMC_SCRATCH9                                      0x80000424
+
+#define RCU_UC_EVENTS                                     0xC0000004
+#       define BOOT_SEQ_DONE                              (1 << 7)
+
+#define GENERAL_PWRMGT                                    0xC0200000
+#       define GLOBAL_PWRMGT_EN                           (1 << 0)
+#       define STATIC_PM_EN                               (1 << 1)
+#       define THERMAL_PROTECTION_DIS                     (1 << 2)
+#       define THERMAL_PROTECTION_TYPE                    (1 << 3)
+#       define SW_SMIO_INDEX(x)                           ((x) << 6)
+#       define SW_SMIO_INDEX_MASK                         (1 << 6)
+#       define SW_SMIO_INDEX_SHIFT                        6
+#       define VOLT_PWRMGT_EN                             (1 << 10)
+#       define GPU_COUNTER_CLK                            (1 << 15)
+#       define DYN_SPREAD_SPECTRUM_EN                     (1 << 23)
+
+#define CNB_PWRMGT_CNTL                                   0xC0200004
+#       define GNB_SLOW_MODE(x)                           ((x) << 0)
+#       define GNB_SLOW_MODE_MASK                         (3 << 0)
+#       define GNB_SLOW_MODE_SHIFT                        0
+#       define GNB_SLOW                                   (1 << 2)
+#       define FORCE_NB_PS1                               (1 << 3)
+#       define DPM_ENABLED                                (1 << 4)
+
+#define SCLK_PWRMGT_CNTL                                  0xC0200008
+#       define SCLK_PWRMGT_OFF                            (1 << 0)
+#       define RESET_BUSY_CNT                             (1 << 4)
+#       define RESET_SCLK_CNT                             (1 << 5)
+#       define DYNAMIC_PM_EN                              (1 << 21)
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0xC0200014
+#       define CURRENT_STATE_MASK                         (0xf << 4)
+#       define CURRENT_STATE_SHIFT                        4
+#       define CURR_MCLK_INDEX_MASK                       (0xf << 8)
+#       define CURR_MCLK_INDEX_SHIFT                      8
+#       define CURR_SCLK_INDEX_MASK                       (0x1f << 16)
+#       define CURR_SCLK_INDEX_SHIFT                      16
+
+#define CG_SSP                                            0xC0200044
+#       define SST(x)                                     ((x) << 0)
+#       define SST_MASK                                   (0xffff << 0)
+#       define SSTU(x)                                    ((x) << 16)
+#       define SSTU_MASK                                  (0xf << 16)
+
+#define CG_DISPLAY_GAP_CNTL                               0xC0200060
+#       define DISP_GAP(x)                                ((x) << 0)
+#       define DISP_GAP_MASK                              (3 << 0)
+#       define VBI_TIMER_COUNT(x)                         ((x) << 4)
+#       define VBI_TIMER_COUNT_MASK                       (0x3fff << 4)
+#       define VBI_TIMER_UNIT(x)                          ((x) << 20)
+#       define VBI_TIMER_UNIT_MASK                        (7 << 20)
+#       define DISP_GAP_MCHG(x)                           ((x) << 24)
+#       define DISP_GAP_MCHG_MASK                         (3 << 24)
+
+#define SMU_VOLTAGE_STATUS                                0xC0200094
+#       define SMU_VOLTAGE_CURRENT_LEVEL_MASK             (0xff << 1)
+#       define SMU_VOLTAGE_CURRENT_LEVEL_SHIFT            1
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX_1                0xC02000F0
+#       define CURR_PCIE_INDEX_MASK                       (0xf << 24)
+#       define CURR_PCIE_INDEX_SHIFT                      24
+
+#define CG_ULV_PARAMETER                                  0xC0200158
+
+#define CG_FTV_0                                          0xC02001A8
+#define CG_FTV_1                                          0xC02001AC
+#define CG_FTV_2                                          0xC02001B0
+#define CG_FTV_3                                          0xC02001B4
+#define CG_FTV_4                                          0xC02001B8
+#define CG_FTV_5                                          0xC02001BC
+#define CG_FTV_6                                          0xC02001C0
+#define CG_FTV_7                                          0xC02001C4
+
+#define CG_DISPLAY_GAP_CNTL2                              0xC0200230
+
+#define LCAC_SX0_OVR_SEL                                  0xC0400D04
+#define LCAC_SX0_OVR_VAL                                  0xC0400D08
+
+#define LCAC_MC0_CNTL                                     0xC0400D30
+#define LCAC_MC0_OVR_SEL                                  0xC0400D34
+#define LCAC_MC0_OVR_VAL                                  0xC0400D38
+#define LCAC_MC1_CNTL                                     0xC0400D3C
+#define LCAC_MC1_OVR_SEL                                  0xC0400D40
+#define LCAC_MC1_OVR_VAL                                  0xC0400D44
+
+#define LCAC_MC2_OVR_SEL                                  0xC0400D4C
+#define LCAC_MC2_OVR_VAL                                  0xC0400D50
+
+#define LCAC_MC3_OVR_SEL                                  0xC0400D58
+#define LCAC_MC3_OVR_VAL                                  0xC0400D5C
+
+#define LCAC_CPL_CNTL                                     0xC0400D80
+#define LCAC_CPL_OVR_SEL                                  0xC0400D84
+#define LCAC_CPL_OVR_VAL                                  0xC0400D88
+
+/* dGPU */
+#define	CG_THERMAL_CTRL					0xC0300004
+#define 	DPM_EVENT_SRC(x)			((x) << 0)
+#define 	DPM_EVENT_SRC_MASK			(7 << 0)
+#define		DIG_THERM_DPM(x)			((x) << 14)
+#define		DIG_THERM_DPM_MASK			0x003FC000
+#define		DIG_THERM_DPM_SHIFT			14
+
+#define	CG_THERMAL_INT					0xC030000C
+#define		CI_DIG_THERM_INTH(x)			((x) << 8)
+#define		CI_DIG_THERM_INTH_MASK			0x0000FF00
+#define		CI_DIG_THERM_INTH_SHIFT			8
+#define		CI_DIG_THERM_INTL(x)			((x) << 16)
+#define		CI_DIG_THERM_INTL_MASK			0x00FF0000
+#define		CI_DIG_THERM_INTL_SHIFT			16
+#define 	THERM_INT_MASK_HIGH			(1 << 24)
+#define 	THERM_INT_MASK_LOW			(1 << 25)
+
+#define	CG_MULT_THERMAL_STATUS				0xC0300014
+#define		ASIC_MAX_TEMP(x)			((x) << 0)
+#define		ASIC_MAX_TEMP_MASK			0x000001ff
+#define		ASIC_MAX_TEMP_SHIFT			0
+#define		CTF_TEMP(x)				((x) << 9)
+#define		CTF_TEMP_MASK				0x0003fe00
+#define		CTF_TEMP_SHIFT				9
+
+#define	CG_SPLL_FUNC_CNTL				0xC0500140
+#define		SPLL_RESET				(1 << 0)
+#define		SPLL_PWRON				(1 << 1)
+#define		SPLL_BYPASS_EN				(1 << 3)
+#define		SPLL_REF_DIV(x)				((x) << 5)
+#define		SPLL_REF_DIV_MASK			(0x3f << 5)
+#define		SPLL_PDIV_A(x)				((x) << 20)
+#define		SPLL_PDIV_A_MASK			(0x7f << 20)
+#define		SPLL_PDIV_A_SHIFT			20
+#define	CG_SPLL_FUNC_CNTL_2				0xC0500144
+#define		SCLK_MUX_SEL(x)				((x) << 0)
+#define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define	CG_SPLL_FUNC_CNTL_3				0xC0500148
+#define		SPLL_FB_DIV(x)				((x) << 0)
+#define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
+#define		SPLL_FB_DIV_SHIFT			0
+#define		SPLL_DITHEN				(1 << 28)
+#define	CG_SPLL_FUNC_CNTL_4				0xC050014C
+
+#define	CG_SPLL_SPREAD_SPECTRUM				0xC0500164
+#define		SSEN					(1 << 0)
+#define		CLK_S(x)				((x) << 4)
+#define		CLK_S_MASK				(0xfff << 4)
+#define		CLK_S_SHIFT				4
+#define	CG_SPLL_SPREAD_SPECTRUM_2			0xC0500168
+#define		CLK_V(x)				((x) << 0)
+#define		CLK_V_MASK				(0x3ffffff << 0)
+#define		CLK_V_SHIFT				0
+
+#define	MPLL_BYPASSCLK_SEL				0xC050019C
+#	define MPLL_CLKOUT_SEL(x)			((x) << 8)
+#	define MPLL_CLKOUT_SEL_MASK			0xFF00
 #define CG_CLKPIN_CNTL                                    0xC05001A0
 #       define XTALIN_DIVIDE                              (1 << 1)
+#       define BCLK_AS_XCLK                               (1 << 2)
+#define CG_CLKPIN_CNTL_2                                  0xC05001A4
+#       define FORCE_BIF_REFCLK_EN                        (1 << 3)
+#       define MUX_TCLK_TO_XCLK                           (1 << 8)
+#define	THM_CLK_CNTL					0xC05001A8
+#	define CMON_CLK_SEL(x)				((x) << 0)
+#	define CMON_CLK_SEL_MASK			0xFF
+#	define TMON_CLK_SEL(x)				((x) << 8)
+#	define TMON_CLK_SEL_MASK			0xFF00
+#define	MISC_CLK_CTRL					0xC05001AC
+#	define DEEP_SLEEP_CLK_SEL(x)			((x) << 0)
+#	define DEEP_SLEEP_CLK_SEL_MASK			0xFF
+#	define ZCLK_SEL(x)				((x) << 8)
+#	define ZCLK_SEL_MASK				0xFF00
 
+/* KV/KB */
+#define	CG_THERMAL_INT_CTRL				0xC2100028
+#define		DIG_THERM_INTH(x)			((x) << 0)
+#define		DIG_THERM_INTH_MASK			0x000000FF
+#define		DIG_THERM_INTH_SHIFT			0
+#define		DIG_THERM_INTL(x)			((x) << 8)
+#define		DIG_THERM_INTL_MASK			0x0000FF00
+#define		DIG_THERM_INTL_SHIFT			8
+#define 	THERM_INTH_MASK				(1 << 24)
+#define 	THERM_INTL_MASK				(1 << 25)
+
+/* PCIE registers idx/data 0x38/0x3c */
+#define PB0_PIF_PWRDOWN_0                                 0x1100012 /* PCIE */
+#       define PLL_POWER_STATE_IN_TXS2_0(x)               ((x) << 7)
+#       define PLL_POWER_STATE_IN_TXS2_0_MASK             (0x7 << 7)
+#       define PLL_POWER_STATE_IN_TXS2_0_SHIFT            7
+#       define PLL_POWER_STATE_IN_OFF_0(x)                ((x) << 10)
+#       define PLL_POWER_STATE_IN_OFF_0_MASK              (0x7 << 10)
+#       define PLL_POWER_STATE_IN_OFF_0_SHIFT             10
+#       define PLL_RAMP_UP_TIME_0(x)                      ((x) << 24)
+#       define PLL_RAMP_UP_TIME_0_MASK                    (0x7 << 24)
+#       define PLL_RAMP_UP_TIME_0_SHIFT                   24
+#define PB0_PIF_PWRDOWN_1                                 0x1100013 /* PCIE */
+#       define PLL_POWER_STATE_IN_TXS2_1(x)               ((x) << 7)
+#       define PLL_POWER_STATE_IN_TXS2_1_MASK             (0x7 << 7)
+#       define PLL_POWER_STATE_IN_TXS2_1_SHIFT            7
+#       define PLL_POWER_STATE_IN_OFF_1(x)                ((x) << 10)
+#       define PLL_POWER_STATE_IN_OFF_1_MASK              (0x7 << 10)
+#       define PLL_POWER_STATE_IN_OFF_1_SHIFT             10
+#       define PLL_RAMP_UP_TIME_1(x)                      ((x) << 24)
+#       define PLL_RAMP_UP_TIME_1_MASK                    (0x7 << 24)
+#       define PLL_RAMP_UP_TIME_1_SHIFT                   24
+
+#define PCIE_CNTL2                                        0x1001001c /* PCIE */
+#       define SLV_MEM_LS_EN                              (1 << 16)
+#       define SLV_MEM_AGGRESSIVE_LS_EN                   (1 << 17)
+#       define MST_MEM_LS_EN                              (1 << 18)
+#       define REPLAY_MEM_LS_EN                           (1 << 19)
+
+#define PCIE_LC_STATUS1                                   0x1400028 /* PCIE */
+#       define LC_REVERSE_RCVR                            (1 << 0)
+#       define LC_REVERSE_XMIT                            (1 << 1)
+#       define LC_OPERATING_LINK_WIDTH_MASK               (0x7 << 2)
+#       define LC_OPERATING_LINK_WIDTH_SHIFT              2
+#       define LC_DETECTED_LINK_WIDTH_MASK                (0x7 << 5)
+#       define LC_DETECTED_LINK_WIDTH_SHIFT               5
+
+#define PCIE_P_CNTL                                       0x1400040 /* PCIE */
+#       define P_IGNORE_EDB_ERR                           (1 << 6)
+
+#define PB1_PIF_PWRDOWN_0                                 0x2100012 /* PCIE */
+#define PB1_PIF_PWRDOWN_1                                 0x2100013 /* PCIE */
+
+#define PCIE_LC_CNTL                                      0x100100A0 /* PCIE */
+#       define LC_L0S_INACTIVITY(x)                       ((x) << 8)
+#       define LC_L0S_INACTIVITY_MASK                     (0xf << 8)
+#       define LC_L0S_INACTIVITY_SHIFT                    8
+#       define LC_L1_INACTIVITY(x)                        ((x) << 12)
+#       define LC_L1_INACTIVITY_MASK                      (0xf << 12)
+#       define LC_L1_INACTIVITY_SHIFT                     12
+#       define LC_PMI_TO_L1_DIS                           (1 << 16)
+#       define LC_ASPM_TO_L1_DIS                          (1 << 24)
+
+#define PCIE_LC_LINK_WIDTH_CNTL                           0x100100A2 /* PCIE */
+#       define LC_LINK_WIDTH_SHIFT                        0
+#       define LC_LINK_WIDTH_MASK                         0x7
+#       define LC_LINK_WIDTH_X0                           0
+#       define LC_LINK_WIDTH_X1                           1
+#       define LC_LINK_WIDTH_X2                           2
+#       define LC_LINK_WIDTH_X4                           3
+#       define LC_LINK_WIDTH_X8                           4
+#       define LC_LINK_WIDTH_X16                          6
+#       define LC_LINK_WIDTH_RD_SHIFT                     4
+#       define LC_LINK_WIDTH_RD_MASK                      0x70
+#       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
+#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
+#       define LC_RENEGOTIATE_EN                          (1 << 10)
+#       define LC_SHORT_RECONFIG_EN                       (1 << 11)
+#       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
+#       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#       define LC_DYN_LANES_PWR_STATE(x)                  ((x) << 21)
+#       define LC_DYN_LANES_PWR_STATE_MASK                (0x3 << 21)
+#       define LC_DYN_LANES_PWR_STATE_SHIFT               21
+#define PCIE_LC_N_FTS_CNTL                                0x100100a3 /* PCIE */
+#       define LC_XMIT_N_FTS(x)                           ((x) << 0)
+#       define LC_XMIT_N_FTS_MASK                         (0xff << 0)
+#       define LC_XMIT_N_FTS_SHIFT                        0
+#       define LC_XMIT_N_FTS_OVERRIDE_EN                  (1 << 8)
+#       define LC_N_FTS_MASK                              (0xff << 24)
+#define PCIE_LC_SPEED_CNTL                                0x100100A4 /* PCIE */
+#       define LC_GEN2_EN_STRAP                           (1 << 0)
+#       define LC_GEN3_EN_STRAP                           (1 << 1)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 2)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_MASK         (0x3 << 3)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_SHIFT        3
+#       define LC_FORCE_EN_SW_SPEED_CHANGE                (1 << 5)
+#       define LC_FORCE_DIS_SW_SPEED_CHANGE               (1 << 6)
+#       define LC_FORCE_EN_HW_SPEED_CHANGE                (1 << 7)
+#       define LC_FORCE_DIS_HW_SPEED_CHANGE               (1 << 8)
+#       define LC_INITIATE_LINK_SPEED_CHANGE              (1 << 9)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK      (0x3 << 10)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT     10
+#       define LC_CURRENT_DATA_RATE_MASK                  (0x3 << 13) /* 0/1/2 = gen1/2/3 */
+#       define LC_CURRENT_DATA_RATE_SHIFT                 13
+#       define LC_CLR_FAILED_SPD_CHANGE_CNT               (1 << 16)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN2               (1 << 18)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN2                (1 << 19)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN3               (1 << 20)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN3                (1 << 21)
+
+#define PCIE_LC_CNTL2                                     0x100100B1 /* PCIE */
+#       define LC_ALLOW_PDWN_IN_L1                        (1 << 17)
+#       define LC_ALLOW_PDWN_IN_L23                       (1 << 18)
+
+#define PCIE_LC_CNTL3                                     0x100100B5 /* PCIE */
+#       define LC_GO_TO_RECOVERY                          (1 << 30)
+#define PCIE_LC_CNTL4                                     0x100100B6 /* PCIE */
+#       define LC_REDO_EQ                                 (1 << 5)
+#       define LC_SET_QUIESCE                             (1 << 13)
+
+/* direct registers */
 #define PCIE_INDEX  					0x38
 #define PCIE_DATA  					0x3C
+
+#define SMC_IND_INDEX_0  				0x200
+#define SMC_IND_DATA_0  				0x204
+
+#define SMC_IND_ACCESS_CNTL  				0x240
+#define		AUTO_INCREMENT_IND_0			(1 << 0)
+
+#define SMC_MESSAGE_0  					0x250
+#define		SMC_MSG_MASK				0xffff
+#define SMC_RESP_0  					0x254
+#define		SMC_RESP_MASK				0xffff
+
+#define SMC_MSG_ARG_0  					0x290
 
 #define VGA_HDP_CONTROL  				0x328
 #define		VGA_MEMORY_DISABLE				(1 << 4)
 
 #define DMIF_ADDR_CALC  				0xC00
+
+#define	PIPE0_DMIF_BUFFER_CONTROL			  0x0ca0
+#       define DMIF_BUFFERS_ALLOCATED(x)                  ((x) << 0)
+#       define DMIF_BUFFERS_ALLOCATED_COMPLETED           (1 << 4)
 
 #define	SRBM_GFX_CNTL				        0xE44
 #define		PIPEID(x)					((x) << 0)
@@ -172,6 +526,10 @@
 #define	VM_CONTEXT0_PAGE_TABLE_END_ADDR			0x157C
 #define	VM_CONTEXT1_PAGE_TABLE_END_ADDR			0x1580
 
+#define VM_L2_CG           				0x15c0
+#define		MC_CG_ENABLE				(1 << 18)
+#define		MC_LS_ENABLE				(1 << 19)
+
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x0000f000
@@ -201,6 +559,17 @@
 
 #define MC_SHARED_BLACKOUT_CNTL           		0x20ac
 
+#define MC_HUB_MISC_HUB_CG           			0x20b8
+#define MC_HUB_MISC_VM_CG           			0x20bc
+
+#define MC_HUB_MISC_SIP_CG           			0x20c0
+
+#define MC_XPB_CLK_GAT           			0x2478
+
+#define MC_CITF_MISC_RD_CG           			0x2648
+#define MC_CITF_MISC_WR_CG           			0x264c
+#define MC_CITF_MISC_VM_CG           			0x2650
+
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
 #define		NOOFBANK_MASK					0x00000003
@@ -215,9 +584,37 @@
 #define		NOOFGROUPS_SHIFT				12
 #define		NOOFGROUPS_MASK					0x00001000
 
+#define	MC_ARB_DRAM_TIMING				0x2774
+#define	MC_ARB_DRAM_TIMING2				0x2778
+
+#define MC_ARB_BURST_TIME                               0x2808
+#define		STATE0(x)				((x) << 0)
+#define		STATE0_MASK				(0x1f << 0)
+#define		STATE0_SHIFT				0
+#define		STATE1(x)				((x) << 5)
+#define		STATE1_MASK				(0x1f << 5)
+#define		STATE1_SHIFT				5
+#define		STATE2(x)				((x) << 10)
+#define		STATE2_MASK				(0x1f << 10)
+#define		STATE2_SHIFT				10
+#define		STATE3(x)				((x) << 15)
+#define		STATE3_MASK				(0x1f << 15)
+#define		STATE3_SHIFT				15
+
+#define MC_SEQ_RAS_TIMING                               0x28a0
+#define MC_SEQ_CAS_TIMING                               0x28a4
+#define MC_SEQ_MISC_TIMING                              0x28a8
+#define MC_SEQ_MISC_TIMING2                             0x28ac
+#define MC_SEQ_PMG_TIMING                               0x28b0
+#define MC_SEQ_RD_CTL_D0                                0x28b4
+#define MC_SEQ_RD_CTL_D1                                0x28b8
+#define MC_SEQ_WR_CTL_D0                                0x28bc
+#define MC_SEQ_WR_CTL_D1                                0x28c0
+
 #define MC_SEQ_SUP_CNTL           			0x28c8
 #define		RUN_MASK      				(1 << 0)
 #define MC_SEQ_SUP_PGM           			0x28cc
+#define MC_PMG_AUTO_CMD           			0x28d0
 
 #define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x28e8
 #define		TRAIN_DONE_D0      			(1 << 30)
@@ -226,10 +623,92 @@
 #define MC_IO_PAD_CNTL_D0           			0x29d0
 #define		MEM_FALL_OUT_CMD      			(1 << 8)
 
+#define MC_SEQ_MISC0           				0x2a00
+#define 	MC_SEQ_MISC0_VEN_ID_SHIFT               8
+#define 	MC_SEQ_MISC0_VEN_ID_MASK                0x00000f00
+#define 	MC_SEQ_MISC0_VEN_ID_VALUE               3
+#define 	MC_SEQ_MISC0_REV_ID_SHIFT               12
+#define 	MC_SEQ_MISC0_REV_ID_MASK                0x0000f000
+#define 	MC_SEQ_MISC0_REV_ID_VALUE               1
+#define 	MC_SEQ_MISC0_GDDR5_SHIFT                28
+#define 	MC_SEQ_MISC0_GDDR5_MASK                 0xf0000000
+#define 	MC_SEQ_MISC0_GDDR5_VALUE                5
+#define MC_SEQ_MISC1                                    0x2a04
+#define MC_SEQ_RESERVE_M                                0x2a08
+#define MC_PMG_CMD_EMRS                                 0x2a0c
+
 #define MC_SEQ_IO_DEBUG_INDEX           		0x2a44
 #define MC_SEQ_IO_DEBUG_DATA           			0x2a48
 
+#define MC_SEQ_MISC5                                    0x2a54
+#define MC_SEQ_MISC6                                    0x2a58
+
+#define MC_SEQ_MISC7                                    0x2a64
+
+#define MC_SEQ_RAS_TIMING_LP                            0x2a6c
+#define MC_SEQ_CAS_TIMING_LP                            0x2a70
+#define MC_SEQ_MISC_TIMING_LP                           0x2a74
+#define MC_SEQ_MISC_TIMING2_LP                          0x2a78
+#define MC_SEQ_WR_CTL_D0_LP                             0x2a7c
+#define MC_SEQ_WR_CTL_D1_LP                             0x2a80
+#define MC_SEQ_PMG_CMD_EMRS_LP                          0x2a84
+#define MC_SEQ_PMG_CMD_MRS_LP                           0x2a88
+
+#define MC_PMG_CMD_MRS                                  0x2aac
+
+#define MC_SEQ_RD_CTL_D0_LP                             0x2b1c
+#define MC_SEQ_RD_CTL_D1_LP                             0x2b20
+
+#define MC_PMG_CMD_MRS1                                 0x2b44
+#define MC_SEQ_PMG_CMD_MRS1_LP                          0x2b48
+#define MC_SEQ_PMG_TIMING_LP                            0x2b4c
+
+#define MC_SEQ_WR_CTL_2                                 0x2b54
+#define MC_SEQ_WR_CTL_2_LP                              0x2b58
+#define MC_PMG_CMD_MRS2                                 0x2b5c
+#define MC_SEQ_PMG_CMD_MRS2_LP                          0x2b60
+
+#define	MCLK_PWRMGT_CNTL				0x2ba0
+#       define DLL_SPEED(x)				((x) << 0)
+#       define DLL_SPEED_MASK				(0x1f << 0)
+#       define DLL_READY                                (1 << 6)
+#       define MC_INT_CNTL                              (1 << 7)
+#       define MRDCK0_PDNB                              (1 << 8)
+#       define MRDCK1_PDNB                              (1 << 9)
+#       define MRDCK0_RESET                             (1 << 16)
+#       define MRDCK1_RESET                             (1 << 17)
+#       define DLL_READY_READ                           (1 << 24)
+#define	DLL_CNTL					0x2ba4
+#       define MRDCK0_BYPASS                            (1 << 24)
+#       define MRDCK1_BYPASS                            (1 << 25)
+
+#define	MPLL_FUNC_CNTL					0x2bb4
+#define		BWCTRL(x)				((x) << 20)
+#define		BWCTRL_MASK				(0xff << 20)
+#define	MPLL_FUNC_CNTL_1				0x2bb8
+#define		VCO_MODE(x)				((x) << 0)
+#define		VCO_MODE_MASK				(3 << 0)
+#define		CLKFRAC(x)				((x) << 4)
+#define		CLKFRAC_MASK				(0xfff << 4)
+#define		CLKF(x)					((x) << 16)
+#define		CLKF_MASK				(0xfff << 16)
+#define	MPLL_FUNC_CNTL_2				0x2bbc
+#define	MPLL_AD_FUNC_CNTL				0x2bc0
+#define		YCLK_POST_DIV(x)			((x) << 0)
+#define		YCLK_POST_DIV_MASK			(7 << 0)
+#define	MPLL_DQ_FUNC_CNTL				0x2bc4
+#define		YCLK_SEL(x)				((x) << 4)
+#define		YCLK_SEL_MASK				(1 << 4)
+
+#define	MPLL_SS1					0x2bcc
+#define		CLKV(x)					((x) << 0)
+#define		CLKV_MASK				(0x3ffffff << 0)
+#define	MPLL_SS2					0x2bd0
+#define		CLKS(x)					((x) << 0)
+#define		CLKS_MASK				(0xfff << 0)
+
 #define	HDP_HOST_PATH_CNTL				0x2C00
+#define 	CLOCK_GATING_DIS			(1 << 23)
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08
 #define	HDP_NONSURFACE_SIZE				0x2C0C
@@ -237,6 +716,26 @@
 #define HDP_ADDR_CONFIG  				0x2F48
 #define HDP_MISC_CNTL					0x2F4C
 #define 	HDP_FLUSH_INVALIDATE_CACHE			(1 << 0)
+#define HDP_MEM_POWER_LS				0x2F50
+#define 	HDP_LS_ENABLE				(1 << 0)
+
+#define ATC_MISC_CG           				0x3350
+
+#define MC_SEQ_CNTL_3                                     0x3600
+#       define CAC_EN                                     (1 << 31)
+#define MC_SEQ_G5PDX_CTRL                                 0x3604
+#define MC_SEQ_G5PDX_CTRL_LP                              0x3608
+#define MC_SEQ_G5PDX_CMD0                                 0x360c
+#define MC_SEQ_G5PDX_CMD0_LP                              0x3610
+#define MC_SEQ_G5PDX_CMD1                                 0x3614
+#define MC_SEQ_G5PDX_CMD1_LP                              0x3618
+
+#define MC_SEQ_PMG_DVS_CTL                                0x3628
+#define MC_SEQ_PMG_DVS_CTL_LP                             0x362c
+#define MC_SEQ_PMG_DVS_CMD                                0x3630
+#define MC_SEQ_PMG_DVS_CMD_LP                             0x3634
+#define MC_SEQ_DLL_STBY                                   0x3638
+#define MC_SEQ_DLL_STBY_LP                                0x363c
 
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
@@ -264,6 +763,9 @@
 #       define MC_WRREQ_CREDIT(x)                         ((x) << 15)
 #       define MC_WR_CLEAN_CNT(x)                         ((x) << 20)
 #       define MC_VMID(x)                                 ((x) << 25)
+
+#define	BIF_LNCNT_RESET					0x5220
+#       define RESET_LNCNT_EN                           (1 << 0)
 
 #define	CONFIG_MEMSIZE					0x5428
 
@@ -401,6 +903,9 @@
 #       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
 #       define DC_HPDx_EN                                 (1 << 28)
 
+#define DPG_PIPE_STUTTER_CONTROL                          0x6cd4
+#       define STUTTER_ENABLE                             (1 << 0)
+
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
 
@@ -504,6 +1009,9 @@
 
 #define	CP_RB0_RPTR					0x8700
 #define	CP_RB_WPTR_DELAY				0x8704
+#define	CP_RB_WPTR_POLL_CNTL				0x8708
+#define		IDLE_POLL_COUNT(x)			((x) << 16)
+#define		IDLE_POLL_COUNT_MASK			(0xffff << 16)
 
 #define CP_MEQ_THRESHOLDS				0x8764
 #define		MEQ1_START(x)				((x) << 0)
@@ -730,6 +1238,9 @@
 #       define CP_RINGID1_INT_STAT                      (1 << 30)
 #       define CP_RINGID0_INT_STAT                      (1 << 31)
 
+#define CP_MEM_SLP_CNTL                                 0xC1E4
+#       define CP_MEM_LS_EN                             (1 << 0)
+
 #define CP_CPF_DEBUG                                    0xC200
 
 #define CP_PQ_WPTR_POLL_CNTL                            0xC20C
@@ -775,14 +1286,20 @@
 
 #define RLC_MC_CNTL                                       0xC30C
 
+#define RLC_MEM_SLP_CNTL                                  0xC318
+#       define RLC_MEM_LS_EN                              (1 << 0)
+
 #define RLC_LB_CNTR_MAX                                   0xC348
 
 #define RLC_LB_CNTL                                       0xC364
+#       define LOAD_BALANCE_ENABLE                        (1 << 0)
 
 #define RLC_LB_CNTR_INIT                                  0xC36C
 
 #define RLC_SAVE_AND_RESTORE_BASE                         0xC374
-#define RLC_DRIVER_DMA_STATUS                             0xC378
+#define RLC_DRIVER_DMA_STATUS                             0xC378 /* dGPU */
+#define RLC_CP_TABLE_RESTORE                              0xC378 /* APU */
+#define RLC_PG_DELAY_2                                    0xC37C
 
 #define RLC_GPM_UCODE_ADDR                                0xC388
 #define RLC_GPM_UCODE_DATA                                0xC38C
@@ -791,11 +1308,51 @@
 #define RLC_CAPTURE_GPU_CLOCK_COUNT                       0xC398
 #define RLC_UCODE_CNTL                                    0xC39C
 
+#define RLC_GPM_STAT                                      0xC400
+#       define RLC_GPM_BUSY                               (1 << 0)
+#       define GFX_POWER_STATUS                           (1 << 1)
+#       define GFX_CLOCK_STATUS                           (1 << 2)
+
+#define RLC_PG_CNTL                                       0xC40C
+#       define GFX_PG_ENABLE                              (1 << 0)
+#       define GFX_PG_SRC                                 (1 << 1)
+#       define DYN_PER_CU_PG_ENABLE                       (1 << 2)
+#       define STATIC_PER_CU_PG_ENABLE                    (1 << 3)
+#       define DISABLE_GDS_PG                             (1 << 13)
+#       define DISABLE_CP_PG                              (1 << 15)
+#       define SMU_CLK_SLOWDOWN_ON_PU_ENABLE              (1 << 17)
+#       define SMU_CLK_SLOWDOWN_ON_PD_ENABLE              (1 << 18)
+
+#define RLC_CGTT_MGCG_OVERRIDE                            0xC420
 #define RLC_CGCG_CGLS_CTRL                                0xC424
+#       define CGCG_EN                                    (1 << 0)
+#       define CGLS_EN                                    (1 << 1)
+
+#define RLC_PG_DELAY                                      0xC434
 
 #define RLC_LB_INIT_CU_MASK                               0xC43C
 
 #define RLC_LB_PARAMS                                     0xC444
+
+#define RLC_PG_AO_CU_MASK                                 0xC44C
+
+#define	RLC_MAX_PG_CU					0xC450
+#	define MAX_PU_CU(x)				((x) << 0)
+#	define MAX_PU_CU_MASK				(0xff << 0)
+#define RLC_AUTO_PG_CTRL                                  0xC454
+#       define AUTO_PG_EN                                 (1 << 0)
+#	define GRBM_REG_SGIT(x)				((x) << 3)
+#	define GRBM_REG_SGIT_MASK			(0xffff << 3)
+
+#define RLC_SERDES_WR_CU_MASTER_MASK                      0xC474
+#define RLC_SERDES_WR_NONCU_MASTER_MASK                   0xC478
+#define RLC_SERDES_WR_CTRL                                0xC47C
+#define		BPM_ADDR(x)				((x) << 0)
+#define		BPM_ADDR_MASK      			(0xff << 0)
+#define		CGLS_ENABLE				(1 << 16)
+#define		CGCG_OVERRIDE_0				(1 << 20)
+#define		MGCG_OVERRIDE_0				(1 << 22)
+#define		MGCG_OVERRIDE_1				(1 << 23)
 
 #define RLC_SERDES_CU_MASTER_BUSY                         0xC484
 #define RLC_SERDES_NONCU_MASTER_BUSY                      0xC488
@@ -806,6 +1363,13 @@
 
 #define RLC_GPM_SCRATCH_ADDR                              0xC4B0
 #define RLC_GPM_SCRATCH_DATA                              0xC4B4
+
+#define RLC_GPR_REG2                                      0xC4E8
+#define		REQ      				0x00000001
+#define		MESSAGE(x)      			((x) << 1)
+#define		MESSAGE_MASK      			0x0000001e
+#define		MSG_ENTER_RLC_SAFE_MODE      			1
+#define		MSG_EXIT_RLC_SAFE_MODE      			0
 
 #define CP_HPD_EOP_BASE_ADDR                              0xC904
 #define CP_HPD_EOP_BASE_ADDR_HI                           0xC908
@@ -850,6 +1414,8 @@
 #define CP_MQD_CONTROL                                  0xC99C
 #define		MQD_VMID(x)				((x) << 0)
 #define		MQD_VMID_MASK      			(0xf << 0)
+
+#define DB_RENDER_CONTROL                               0x28000
 
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0
@@ -943,6 +1509,16 @@
 #define	SQC_CACHES					0x30d20
 
 #define	CP_PERFMON_CNTL					0x36020
+
+#define	CGTS_SM_CTRL_REG				0x3c000
+#define		SM_MODE(x)				((x) << 17)
+#define		SM_MODE_MASK				(0x7 << 17)
+#define		SM_MODE_ENABLE				(1 << 20)
+#define		CGTS_OVERRIDE				(1 << 21)
+#define		CGTS_LS_OVERRIDE			(1 << 22)
+#define		ON_MONITOR_ADD_EN			(1 << 23)
+#define		ON_MONITOR_ADD(x)			((x) << 24)
+#define		ON_MONITOR_ADD_MASK			(0xff << 24)
 
 #define	CGTS_TCC_DISABLE				0x3c00c
 #define	CGTS_USER_TCC_DISABLE				0x3c010
@@ -1176,6 +1752,8 @@
 
 #define	SDMA0_UCODE_ADDR                                  0xD000
 #define	SDMA0_UCODE_DATA                                  0xD004
+#define	SDMA0_POWER_CNTL                                  0xD008
+#define	SDMA0_CLK_CTRL                                    0xD00C
 
 #define SDMA0_CNTL                                        0xD010
 #       define TRAP_ENABLE                                (1 << 0)
@@ -1300,6 +1878,13 @@
 #define UVD_RBC_RB_RPTR			0xf690
 #define UVD_RBC_RB_WPTR			0xf694
 
+#define	UVD_CGC_CTRL					0xF4B0
+#	define DCM					(1 << 0)
+#	define CG_DT(x)					((x) << 2)
+#	define CG_DT_MASK				(0xf << 2)
+#	define CLK_OD(x)				((x) << 6)
+#	define CLK_OD_MASK				(0x1f << 6)
+
 /* UVD clocks */
 
 #define CG_DCLK_CNTL			0xC050009C
@@ -1309,5 +1894,8 @@
 #	define DCLK_STATUS		(1 << 0)
 #define CG_VCLK_CNTL			0xC05000A4
 #define CG_VCLK_STATUS			0xC05000A8
+
+/* UVD CTX indirect */
+#define	UVD_CGC_MEM_CTRL				0xC0
 
 #endif

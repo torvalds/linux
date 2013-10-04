@@ -136,7 +136,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	struct i2c_pca_pf_data *i2c;
 	struct resource *res;
 	struct i2c_pca9564_pf_platform_data *platform_data =
-				pdev->dev.platform_data;
+				dev_get_platdata(&pdev->dev);
 	int ret = 0;
 	int irq;
 

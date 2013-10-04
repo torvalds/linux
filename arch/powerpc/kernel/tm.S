@@ -155,10 +155,10 @@ _GLOBAL(tm_reclaim)
 	mfvscr	vr0
 	li	r6, THREAD_TRANSACT_VSCR
 	stvx	vr0, r3, r6
+dont_backup_vec:
 	mfspr	r0, SPRN_VRSAVE
 	std	r0, THREAD_TRANSACT_VRSAVE(r3)
 
-dont_backup_vec:
 	andi.	r0, r4, MSR_FP
 	beq	dont_backup_fp
 
@@ -341,11 +341,11 @@ _GLOBAL(tm_recheckpoint)
 	lvx	vr0, r3, r5
 	mtvscr	vr0
 	REST_32VRS(0, r5, r3)			/* r5 scratch, r3 THREAD ptr */
+dont_restore_vec:
 	ld	r5, THREAD_VRSAVE(r3)
 	mtspr	SPRN_VRSAVE, r5
 #endif
 
-dont_restore_vec:
 	andi.	r0, r4, MSR_FP
 	beq	dont_restore_fp
 

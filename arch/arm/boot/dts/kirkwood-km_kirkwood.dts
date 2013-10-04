@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-98dx4122.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-98dx4122.dtsi"
 
 / {
 	model = "Keymile Kirkwood Reference Design";
@@ -48,5 +48,21 @@
 		gpios = < &gpio0 8 0		/* sda */
 			&gpio0 9 0 >;		/* scl */
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

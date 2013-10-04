@@ -247,6 +247,8 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_DFS			= BIT(16),
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
 	ATH9K_HW_CAP_PAPRD			= BIT(18),
+	ATH9K_HW_CAP_FCC_BAND_SWITCH		= BIT(19),
+	ATH9K_HW_CAP_BT_ANT_DIV			= BIT(20),
 };
 
 /*
@@ -309,8 +311,11 @@ struct ath9k_ops_config {
 	u16 ani_poll_interval; /* ANI poll interval in ms */
 
 	/* Platform specific config */
+	u32 aspm_l1_fix;
 	u32 xlna_gpio;
+	u32 ant_ctrl_comm2g_switch_enable;
 	bool xatten_margin_cfg;
+	bool alt_mingainidx;
 };
 
 enum ath9k_int {
@@ -716,11 +721,14 @@ struct ath_hw_ops {
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
-	void (*antctrl_shared_chain_lnadiv)(struct ath_hw *hw, bool enable);
 	void (*spectral_scan_config)(struct ath_hw *ah,
 				     struct ath_spec_scan *param);
 	void (*spectral_scan_trigger)(struct ath_hw *ah);
 	void (*spectral_scan_wait)(struct ath_hw *ah);
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	void (*set_bt_ant_diversity)(struct ath_hw *hw, bool enable);
+#endif
 };
 
 struct ath_nf_limits {
@@ -765,7 +773,6 @@ struct ath_hw {
 	bool aspm_enabled;
 	bool is_monitoring;
 	bool need_an_top2_fixup;
-	bool shared_chain_lnadiv;
 	u16 tx_trig_level;
 
 	u32 nf_regs[6];

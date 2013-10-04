@@ -57,12 +57,12 @@ static bool radeon_dig_encoder(struct drm_encoder *encoder)
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return ASIC_IS_DCE2(rdev) && !ASIC_IS_DCE6(rdev);
+	return ASIC_IS_DCE2(rdev) && !ASIC_IS_NODCE(rdev);
 }
 
-struct r600_audio r600_audio_status(struct radeon_device *rdev)
+struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 {
-	struct r600_audio status;
+	struct r600_audio_pin status;
 	uint32_t value;
 
 	value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);
@@ -120,16 +120,16 @@ void r600_audio_update_hdmi(struct work_struct *work)
 	struct radeon_device *rdev = container_of(work, struct radeon_device,
 						  audio_work);
 	struct drm_device *dev = rdev->ddev;
-	struct r600_audio audio_status = r600_audio_status(rdev);
+	struct r600_audio_pin audio_status = r600_audio_status(rdev);
 	struct drm_encoder *encoder;
 	bool changed = false;
 
-	if (rdev->audio_status.channels != audio_status.channels ||
-	    rdev->audio_status.rate != audio_status.rate ||
-	    rdev->audio_status.bits_per_sample != audio_status.bits_per_sample ||
-	    rdev->audio_status.status_bits != audio_status.status_bits ||
-	    rdev->audio_status.category_code != audio_status.category_code) {
-		rdev->audio_status = audio_status;
+	if (rdev->audio.pin[0].channels != audio_status.channels ||
+	    rdev->audio.pin[0].rate != audio_status.rate ||
+	    rdev->audio.pin[0].bits_per_sample != audio_status.bits_per_sample ||
+	    rdev->audio.pin[0].status_bits != audio_status.status_bits ||
+	    rdev->audio.pin[0].category_code != audio_status.category_code) {
+		rdev->audio.pin[0] = audio_status;
 		changed = true;
 	}
 
@@ -141,13 +141,13 @@ void r600_audio_update_hdmi(struct work_struct *work)
 	}
 }
 
-/*
- * turn on/off audio engine
- */
-static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
+/* enable the audio stream */
+static void r600_audio_enable(struct radeon_device *rdev,
+			      struct r600_audio_pin *pin,
+			      bool enable)
 {
 	u32 value = 0;
-	DRM_INFO("%s audio support\n", enable ? "Enabling" : "Disabling");
+
 	if (ASIC_IS_DCE4(rdev)) {
 		if (enable) {
 			value |= 0x81000000; /* Required to enable audio */
@@ -158,7 +158,7 @@ static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
 		WREG32_P(R600_AUDIO_ENABLE,
 			 enable ? 0x81000000 : 0x0, ~0x81000000);
 	}
-	rdev->audio_enabled = enable;
+	DRM_INFO("%s audio %d support\n", enable ? "Enabling" : "Disabling", pin->id);
 }
 
 /*
@@ -169,13 +169,17 @@ int r600_audio_init(struct radeon_device *rdev)
 	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
 		return 0;
 
-	r600_audio_engine_enable(rdev, true);
+	rdev->audio.enabled = true;
 
-	rdev->audio_status.channels = -1;
-	rdev->audio_status.rate = -1;
-	rdev->audio_status.bits_per_sample = -1;
-	rdev->audio_status.status_bits = 0;
-	rdev->audio_status.category_code = 0;
+	rdev->audio.num_pins = 1;
+	rdev->audio.pin[0].channels = -1;
+	rdev->audio.pin[0].rate = -1;
+	rdev->audio.pin[0].bits_per_sample = -1;
+	rdev->audio.pin[0].status_bits = 0;
+	rdev->audio.pin[0].category_code = 0;
+	rdev->audio.pin[0].id = 0;
+
+	r600_audio_enable(rdev, &rdev->audio.pin[0], true);
 
 	return 0;
 }
@@ -186,8 +190,16 @@ int r600_audio_init(struct radeon_device *rdev)
  */
 void r600_audio_fini(struct radeon_device *rdev)
 {
-	if (!rdev->audio_enabled)
+	if (!rdev->audio.enabled)
 		return;
 
-	r600_audio_engine_enable(rdev, false);
+	r600_audio_enable(rdev, &rdev->audio.pin[0], false);
+
+	rdev->audio.enabled = false;
+}
+
+struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev)
+{
+	/* only one pin on 6xx-NI */
+	return &rdev->audio.pin[0];
 }

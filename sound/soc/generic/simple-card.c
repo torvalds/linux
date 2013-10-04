@@ -105,6 +105,7 @@ static int asoc_simple_card_remove(struct platform_device *pdev)
 static struct platform_driver asoc_simple_card = {
 	.driver = {
 		.name	= "asoc-simple-card",
+		.owner = THIS_MODULE,
 	},
 	.probe		= asoc_simple_card_probe,
 	.remove		= asoc_simple_card_remove,
@@ -112,6 +113,7 @@ static struct platform_driver asoc_simple_card = {
 
 module_platform_driver(asoc_simple_card);
 
+MODULE_ALIAS("platform:asoc-simple-card");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ASoC Simple Sound Card");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

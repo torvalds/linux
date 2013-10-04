@@ -106,4 +106,9 @@ int dm646x_init_edma(struct edma_rsv_info *rsv);
 void dm646x_video_init(void);
 void dm646x_setup_vpif(struct vpif_display_config *,
 		       struct vpif_capture_config *);
+
+extern struct platform_device dm365_serial_device[];
+extern struct platform_device dm355_serial_device[];
+extern struct platform_device dm644x_serial_device[];
+extern struct platform_device dm646x_serial_device[];
 #endif /*__DAVINCI_H */

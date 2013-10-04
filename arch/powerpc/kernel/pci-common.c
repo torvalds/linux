@@ -306,7 +306,7 @@ static struct resource *__pci_mmap_make_offset(struct pci_dev *dev,
 	unsigned long io_offset = 0;
 	int i, res_bit;
 
-	if (hose == 0)
+	if (hose == NULL)
 		return NULL;		/* should never happen */
 
 	/* If memory, add on the PCI bridge address offset */
@@ -667,7 +667,7 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 				  struct device_node *dev, int primary)
 {
-	const u32 *ranges;
+	const __be32 *ranges;
 	int rlen;
 	int pna = of_n_addr_cells(dev);
 	int np = pna + 5;
@@ -687,7 +687,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	/* Parse it */
 	while ((rlen -= np * 4) >= 0) {
 		/* Read next ranges element */
-		pci_space = ranges[0];
+		pci_space = of_read_number(ranges, 1);
 		pci_addr = of_read_number(ranges + 1, 2);
 		cpu_addr = of_translate_address(dev, ranges + 3);
 		size = of_read_number(ranges + pna + 3, 2);
@@ -704,7 +704,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 		/* Now consume following elements while they are contiguous */
 		for (; rlen >= np * sizeof(u32);
 		     ranges += np, rlen -= np * 4) {
-			if (ranges[0] != pci_space)
+			if (of_read_number(ranges, 1) != pci_space)
 				break;
 			pci_next = of_read_number(ranges + 1, 2);
 			cpu_next = of_translate_address(dev, ranges + 3);
@@ -1055,8 +1055,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 * bases. This is -not- called when generating the PCI tree from
 	 * the OF device-tree.
 	 */
-	if (bus->self != NULL)
-		pci_read_bridge_bases(bus);
+	pci_read_bridge_bases(bus);
 
 	/* Now fixup the bus bus */
 	pcibios_setup_bus_self(bus);
@@ -1578,7 +1577,7 @@ fake_pci_bus(struct pci_controller *hose, int busnr)
 {
 	static struct pci_bus bus;
 
-	if (hose == 0) {
+	if (hose == NULL) {
 		printk(KERN_ERR "Can't find hose for PCI bus %d!\n", busnr);
 	}
 	bus.number = busnr;

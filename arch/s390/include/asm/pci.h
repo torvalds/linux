@@ -22,10 +22,6 @@ void pci_iounmap(struct pci_dev *, void __iomem *);
 int pci_domain_nr(struct pci_bus *);
 int pci_proc_domain(struct pci_bus *);
 
-/* MSI arch hooks */
-#define arch_setup_msi_irqs	arch_setup_msi_irqs
-#define arch_teardown_msi_irqs	arch_teardown_msi_irqs
-
 #define ZPCI_BUS_NR			0	/* default bus number */
 #define ZPCI_DEVFN			0	/* default device number */
 

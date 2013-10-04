@@ -9360,7 +9360,7 @@ static ssize_t show_port_phy(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
-	struct niu_parent *p = plat_dev->dev.platform_data;
+	struct niu_parent *p = dev_get_platdata(&plat_dev->dev);
 	u32 port_phy = p->port_phy;
 	char *orig_buf = buf;
 	int i;
@@ -9390,7 +9390,7 @@ static ssize_t show_plat_type(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
-	struct niu_parent *p = plat_dev->dev.platform_data;
+	struct niu_parent *p = dev_get_platdata(&plat_dev->dev);
 	const char *type_str;
 
 	switch (p->plat_type) {
@@ -9419,7 +9419,7 @@ static ssize_t __show_chan_per_port(struct device *dev,
 				    int rx)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
-	struct niu_parent *p = plat_dev->dev.platform_data;
+	struct niu_parent *p = dev_get_platdata(&plat_dev->dev);
 	char *orig_buf = buf;
 	u8 *arr;
 	int i;
@@ -9452,7 +9452,7 @@ static ssize_t show_num_ports(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
-	struct niu_parent *p = plat_dev->dev.platform_data;
+	struct niu_parent *p = dev_get_platdata(&plat_dev->dev);
 
 	return sprintf(buf, "%d\n", p->num_ports);
 }

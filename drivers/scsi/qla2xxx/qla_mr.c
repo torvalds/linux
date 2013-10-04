@@ -1865,7 +1865,7 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		p_sysid = utsname();
 		if (!p_sysid) {
 			ql_log(ql_log_warn, vha, 0x303c,
-			    "Not able to get the system informtion\n");
+			    "Not able to get the system information\n");
 			goto done_free_sp;
 		}
 		break;

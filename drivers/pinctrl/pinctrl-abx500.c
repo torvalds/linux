@@ -426,7 +426,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 				ret = abx500_gpio_set_bits(chip,
 					AB8500_GPIO_ALTFUN_REG,
 					af.alt_bit2,
-					!!(af.alta_val && BIT(1)));
+					!!(af.alta_val & BIT(1)));
 		} else
 			ret = abx500_gpio_set_bits(chip, AB8500_GPIO_SEL1_REG,
 					offset, 1);
@@ -447,7 +447,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 			ret = abx500_gpio_set_bits(chip,
 					AB8500_GPIO_ALTFUN_REG,
 					af.alt_bit2,
-					!!(af.altb_val && BIT(1)));
+					!!(af.altb_val & BIT(1)));
 		break;
 
 	case ABX500_ALT_C:
@@ -457,7 +457,7 @@ static int abx500_set_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 			goto out;
 
 		ret = abx500_gpio_set_bits(chip, AB8500_GPIO_ALTFUN_REG,
-				af.alt_bit2, !!(af.altc_val && BIT(0)));
+				af.alt_bit2, !!(af.altc_val & BIT(0)));
 		if (ret < 0)
 			goto out;
 
@@ -1041,98 +1041,115 @@ static int abx500_pin_config_get(struct pinctrl_dev *pctldev,
 
 static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			  unsigned pin,
-			  unsigned long config)
+			  unsigned long *configs,
+			  unsigned num_configs)
 {
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_chip *chip = &pct->chip;
 	unsigned offset;
 	int ret = -EINVAL;
-	enum pin_config_param param = pinconf_to_config_param(config);
-	enum pin_config_param argument = pinconf_to_config_argument(config);
+	int i;
+	enum pin_config_param param;
+	enum pin_config_param argument;
 
-	dev_dbg(chip->dev, "pin %d [%#lx]: %s %s\n",
-		pin, config, (param == PIN_CONFIG_OUTPUT) ? "output " : "input",
-		(param == PIN_CONFIG_OUTPUT) ? (argument ? "high" : "low") :
-		(argument ? "pull up" : "pull down"));
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		argument = pinconf_to_config_argument(configs[i]);
 
-	/* on ABx500, there is no GPIO0, so adjust the offset */
-	offset = pin - 1;
+		dev_dbg(chip->dev, "pin %d [%#lx]: %s %s\n",
+			pin, configs[i],
+			(param == PIN_CONFIG_OUTPUT) ? "output " : "input",
+			(param == PIN_CONFIG_OUTPUT) ?
+			(argument ? "high" : "low") :
+			(argument ? "pull up" : "pull down"));
 
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-		ret = abx500_gpio_direction_input(chip, offset);
-		if (ret < 0)
-			goto out;
-		/*
-		 * Some chips only support pull down, while some actually
-		 * support both pull up and pull down. Such chips have
-		 * a "pullud" range specified for the pins that support
-		 * both features. If the pin is not within that range, we
-		 * fall back to the old bit set that only support pull down.
-		 */
-		if (abx500_pullud_supported(chip, pin))
-			ret = abx500_set_pull_updown(pct,
-				pin,
-				ABX500_GPIO_PULL_NONE);
-		else
-			/* Chip only supports pull down */
-			ret = abx500_gpio_set_bits(chip, AB8500_GPIO_PUD1_REG,
-				offset, ABX500_GPIO_PULL_NONE);
-		break;
+		/* on ABx500, there is no GPIO0, so adjust the offset */
+		offset = pin - 1;
 
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		ret = abx500_gpio_direction_input(chip, offset);
-		if (ret < 0)
-			goto out;
-		/*
-		 * if argument = 1 set the pull down
-		 * else clear the pull down
-		 * Some chips only support pull down, while some actually
-		 * support both pull up and pull down. Such chips have
-		 * a "pullud" range specified for the pins that support
-		 * both features. If the pin is not within that range, we
-		 * fall back to the old bit set that only support pull down.
-		 */
-		if (abx500_pullud_supported(chip, pin))
-			ret = abx500_set_pull_updown(pct,
-				pin,
-				argument ? ABX500_GPIO_PULL_DOWN : ABX500_GPIO_PULL_NONE);
-		else
-			/* Chip only supports pull down */
-			ret = abx500_gpio_set_bits(chip, AB8500_GPIO_PUD1_REG,
-				offset,
-				argument ? ABX500_GPIO_PULL_DOWN : ABX500_GPIO_PULL_NONE);
-		break;
+		switch (param) {
+		case PIN_CONFIG_BIAS_DISABLE:
+			ret = abx500_gpio_direction_input(chip, offset);
+			if (ret < 0)
+				goto out;
+			/*
+			 * Some chips only support pull down, while some
+			 * actually support both pull up and pull down. Such
+			 * chips have a "pullud" range specified for the pins
+			 * that support both features. If the pin is not
+			 * within that range, we fall back to the old bit set
+			 * that only support pull down.
+			 */
+			if (abx500_pullud_supported(chip, pin))
+				ret = abx500_set_pull_updown(pct,
+					pin,
+					ABX500_GPIO_PULL_NONE);
+			else
+				/* Chip only supports pull down */
+				ret = abx500_gpio_set_bits(chip,
+					AB8500_GPIO_PUD1_REG, offset,
+					ABX500_GPIO_PULL_NONE);
+			break;
 
-	case PIN_CONFIG_BIAS_PULL_UP:
-		ret = abx500_gpio_direction_input(chip, offset);
-		if (ret < 0)
-			goto out;
-		/*
-		 * if argument = 1 set the pull up
-		 * else clear the pull up
-		 */
-		ret = abx500_gpio_direction_input(chip, offset);
-		/*
-		 * Some chips only support pull down, while some actually
-		 * support both pull up and pull down. Such chips have
-		 * a "pullud" range specified for the pins that support
-		 * both features. If the pin is not within that range, do
-		 * nothing
-		 */
-		if (abx500_pullud_supported(chip, pin))
-			ret = abx500_set_pull_updown(pct,
-				pin,
-				argument ? ABX500_GPIO_PULL_UP : ABX500_GPIO_PULL_NONE);
-		break;
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			ret = abx500_gpio_direction_input(chip, offset);
+			if (ret < 0)
+				goto out;
+			/*
+			 * if argument = 1 set the pull down
+			 * else clear the pull down
+			 * Some chips only support pull down, while some
+			 * actually support both pull up and pull down. Such
+			 * chips have a "pullud" range specified for the pins
+			 * that support both features. If the pin is not
+			 * within that range, we fall back to the old bit set
+			 * that only support pull down.
+			 */
+			if (abx500_pullud_supported(chip, pin))
+				ret = abx500_set_pull_updown(pct,
+					pin,
+					argument ? ABX500_GPIO_PULL_DOWN :
+					ABX500_GPIO_PULL_NONE);
+			else
+				/* Chip only supports pull down */
+				ret = abx500_gpio_set_bits(chip,
+				AB8500_GPIO_PUD1_REG,
+					offset,
+					argument ? ABX500_GPIO_PULL_DOWN :
+					ABX500_GPIO_PULL_NONE);
+			break;
 
-	case PIN_CONFIG_OUTPUT:
-		ret = abx500_gpio_direction_output(chip, offset, argument);
-		break;
+		case PIN_CONFIG_BIAS_PULL_UP:
+			ret = abx500_gpio_direction_input(chip, offset);
+			if (ret < 0)
+				goto out;
+			/*
+			 * if argument = 1 set the pull up
+			 * else clear the pull up
+			 */
+			ret = abx500_gpio_direction_input(chip, offset);
+			/*
+			 * Some chips only support pull down, while some
+			 * actually support both pull up and pull down. Such
+			 * chips have a "pullud" range specified for the pins
+			 * that support both features. If the pin is not
+			 * within that range, do nothing
+			 */
+			if (abx500_pullud_supported(chip, pin))
+				ret = abx500_set_pull_updown(pct,
+					pin,
+					argument ? ABX500_GPIO_PULL_UP :
+					ABX500_GPIO_PULL_NONE);
+			break;
 
-	default:
-		dev_err(chip->dev, "illegal configuration requested\n");
-	}
+		case PIN_CONFIG_OUTPUT:
+			ret = abx500_gpio_direction_output(chip, offset,
+				argument);
+			break;
+
+		default:
+			dev_err(chip->dev, "illegal configuration requested\n");
+		}
+	} /* for each config */
 out:
 	if (ret < 0)
 		dev_err(pct->dev, "%s failed (%d)\n", __func__, ret);

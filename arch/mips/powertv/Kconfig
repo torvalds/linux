@@ -1,14 +1,7 @@
-config BOOTLOADER_DRIVER
-	bool "PowerTV Bootloader Driver Support"
-	default n
-	depends on POWERTV
-	help
-	  Use this option if you want to load bootloader driver.
-
 config BOOTLOADER_FAMILY
 	string "POWERTV Bootloader Family string"
 	default "85"
-	depends on POWERTV && !BOOTLOADER_DRIVER
+	depends on POWERTV
 	help
 	  This value should be specified when the bootloader driver is disabled
 	  and must be exactly two characters long. Families supported are:

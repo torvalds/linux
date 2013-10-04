@@ -454,6 +454,18 @@ static void hci_setup_event_mask(struct hci_request *req)
 		events[4] |= 0x04; /* Read Remote Extended Features Complete */
 		events[5] |= 0x08; /* Synchronous Connection Complete */
 		events[5] |= 0x10; /* Synchronous Connection Changed */
+	} else {
+		/* Use a different default for LE-only devices */
+		memset(events, 0, sizeof(events));
+		events[0] |= 0x10; /* Disconnection Complete */
+		events[0] |= 0x80; /* Encryption Change */
+		events[1] |= 0x08; /* Read Remote Version Information Complete */
+		events[1] |= 0x20; /* Command Complete */
+		events[1] |= 0x40; /* Command Status */
+		events[1] |= 0x80; /* Hardware Error */
+		events[2] |= 0x04; /* Number of Completed Packets */
+		events[3] |= 0x02; /* Data Buffer Overflow */
+		events[5] |= 0x80; /* Encryption Key Refresh Complete */
 	}
 
 	if (lmp_inq_rssi_capable(hdev))
@@ -608,7 +620,7 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	 * as supported send it. If not supported assume that the controller
 	 * does not have actual support for stored link keys which makes this
 	 * command redundant anyway.
-         */
+	 */
 	if (hdev->commands[6] & 0x80) {
 		struct hci_cp_delete_stored_link_key cp;
 

@@ -27,12 +27,15 @@
 #include <linux/slab.h>
 #include <linux/pxa2xx_ssp.h>
 #include <linux/io.h>
+#include <linux/dmaengine.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 #include "mmp-sspa.h"
 
 /*
@@ -40,7 +43,7 @@
  */
 struct sspa_priv {
 	struct ssp_device *sspa;
-	struct pxa2xx_pcm_dma_params *dma_params;
+	struct snd_dmaengine_dai_dma_data *dma_params;
 	struct clk *audio_clk;
 	struct clk *sysclk;
 	int dai_fmt;
@@ -266,7 +269,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct sspa_priv *sspa_priv = snd_soc_dai_get_drvdata(dai);
 	struct ssp_device *sspa = sspa_priv->sspa;
-	struct pxa2xx_pcm_dma_params *dma_params;
+	struct snd_dmaengine_dai_dma_data *dma_params;
 	u32 sspa_ctrl;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -309,7 +312,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	dma_params = &sspa_priv->dma_params[substream->stream];
-	dma_params->dev_addr = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
+	dma_params->addr = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 				(sspa->phys_base + SSPA_TXD) :
 				(sspa->phys_base + SSPA_RXD);
 	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_params);
@@ -425,14 +428,12 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->dma_params = devm_kzalloc(&pdev->dev,
-			2 * sizeof(struct pxa2xx_pcm_dma_params), GFP_KERNEL);
+			2 * sizeof(struct snd_dmaengine_dai_dma_data),
+			GFP_KERNEL);
 	if (priv->dma_params == NULL)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -ENOMEM;
-
 	priv->sspa->mmio_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->sspa->mmio_base))
 		return PTR_ERR(priv->sspa->mmio_base);

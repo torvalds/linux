@@ -193,10 +193,12 @@
 /* Values of fields within the IPHC encoding second byte */
 #define LOWPAN_IPHC_CID		0x80
 
+#define LOWPAN_IPHC_ADDR_00	0x00
+#define LOWPAN_IPHC_ADDR_01	0x01
+#define LOWPAN_IPHC_ADDR_02	0x02
+#define LOWPAN_IPHC_ADDR_03	0x03
+
 #define LOWPAN_IPHC_SAC		0x40
-#define LOWPAN_IPHC_SAM_00	0x00
-#define LOWPAN_IPHC_SAM_01	0x10
-#define LOWPAN_IPHC_SAM_10	0x20
 #define LOWPAN_IPHC_SAM		0x30
 
 #define LOWPAN_IPHC_SAM_BIT	4
@@ -229,5 +231,17 @@
 #define LOWPAN_NHC_UDP_CS_P_10	0xF2 /* source = 0xF0 + 8bit inline,
 					dest = 16 bit inline */
 #define LOWPAN_NHC_UDP_CS_P_11	0xF3 /* source & dest = 0xF0B + 4bit inline */
+
+static inline bool lowpan_fetch_skb(struct sk_buff *skb,
+		void *data, const unsigned int len)
+{
+	if (unlikely(!pskb_may_pull(skb, len)))
+		return true;
+
+	skb_copy_from_linear_data(skb, data, len);
+	skb_pull(skb, len);
+
+	return false;
+}
 
 #endif /* __6LOWPAN_H__ */

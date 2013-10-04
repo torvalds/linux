@@ -1,6 +1,6 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2011 Solarflare Communications Inc.
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2011-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -21,31 +21,62 @@ enum efx_hwmon_type {
 	EFX_HWMON_UNKNOWN,
 	EFX_HWMON_TEMP,         /* temperature */
 	EFX_HWMON_COOL,         /* cooling device, probably a heatsink */
-	EFX_HWMON_IN            /* input voltage */
+	EFX_HWMON_IN,		/* voltage */
+	EFX_HWMON_CURR,		/* current */
+	EFX_HWMON_POWER,	/* power */
 };
 
 static const struct {
 	const char *label;
 	enum efx_hwmon_type hwmon_type;
 	int port;
-} efx_mcdi_sensor_type[MC_CMD_SENSOR_ENTRY_MAXNUM] = {
-#define SENSOR(name, label, hwmon_type, port)			\
-	[MC_CMD_SENSOR_##name] = { label, hwmon_type, port }
-	SENSOR(CONTROLLER_TEMP,	   "Controller temp.",	   EFX_HWMON_TEMP, -1),
-	SENSOR(PHY_COMMON_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, -1),
-	SENSOR(CONTROLLER_COOLING, "Controller cooling",   EFX_HWMON_COOL, -1),
-	SENSOR(PHY0_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, 0),
-	SENSOR(PHY0_COOLING,	   "PHY cooling",	   EFX_HWMON_COOL, 0),
-	SENSOR(PHY1_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, 1),
-	SENSOR(PHY1_COOLING,	   "PHY cooling",	   EFX_HWMON_COOL, 1),
-	SENSOR(IN_1V0,		   "1.0V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_1V2,		   "1.2V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_1V8,		   "1.8V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_2V5,		   "2.5V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_3V3,		   "3.3V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_12V0,		   "12.0V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_1V2A,		   "1.2V analogue supply", EFX_HWMON_IN,   -1),
-	SENSOR(IN_VREF,		   "ref. voltage",	   EFX_HWMON_IN,   -1),
+} efx_mcdi_sensor_type[] = {
+#define SENSOR(name, label, hwmon_type, port)				\
+	[MC_CMD_SENSOR_##name] = { label, EFX_HWMON_ ## hwmon_type, port }
+	SENSOR(CONTROLLER_TEMP,		"Controller ext. temp.",    TEMP,  -1),
+	SENSOR(PHY_COMMON_TEMP,		"PHY temp.",		    TEMP,  -1),
+	SENSOR(CONTROLLER_COOLING,	"Controller cooling",	    COOL,  -1),
+	SENSOR(PHY0_TEMP,		"PHY temp.",		    TEMP,  0),
+	SENSOR(PHY0_COOLING,		"PHY cooling",		    COOL,  0),
+	SENSOR(PHY1_TEMP,		"PHY temp.",		    TEMP,  1),
+	SENSOR(PHY1_COOLING,		"PHY cooling",		    COOL,  1),
+	SENSOR(IN_1V0,			"1.0V supply",		    IN,    -1),
+	SENSOR(IN_1V2,			"1.2V supply",		    IN,    -1),
+	SENSOR(IN_1V8,			"1.8V supply",		    IN,    -1),
+	SENSOR(IN_2V5,			"2.5V supply",		    IN,    -1),
+	SENSOR(IN_3V3,			"3.3V supply",		    IN,    -1),
+	SENSOR(IN_12V0,			"12.0V supply",		    IN,    -1),
+	SENSOR(IN_1V2A,			"1.2V analogue supply",	    IN,    -1),
+	SENSOR(IN_VREF,			"ref. voltage",		    IN,    -1),
+	SENSOR(OUT_VAOE,		"AOE power supply",	    IN,    -1),
+	SENSOR(AOE_TEMP,		"AOE temp.",		    TEMP,  -1),
+	SENSOR(PSU_AOE_TEMP,		"AOE PSU temp.",	    TEMP,  -1),
+	SENSOR(PSU_TEMP,		"Controller PSU temp.",	    TEMP,  -1),
+	SENSOR(FAN_0,			NULL,			    COOL,  -1),
+	SENSOR(FAN_1,			NULL,			    COOL,  -1),
+	SENSOR(FAN_2,			NULL,			    COOL,  -1),
+	SENSOR(FAN_3,			NULL,			    COOL,  -1),
+	SENSOR(FAN_4,			NULL,			    COOL,  -1),
+	SENSOR(IN_VAOE,			"AOE input supply",	    IN,    -1),
+	SENSOR(OUT_IAOE,		"AOE output current",	    CURR,  -1),
+	SENSOR(IN_IAOE,			"AOE input current",	    CURR,  -1),
+	SENSOR(NIC_POWER,		"Board power use",	    POWER, -1),
+	SENSOR(IN_0V9,			"0.9V supply",		    IN,    -1),
+	SENSOR(IN_I0V9,			"0.9V input current",	    CURR,  -1),
+	SENSOR(IN_I1V2,			"1.2V input current",	    CURR,  -1),
+	SENSOR(IN_0V9_ADC,		"0.9V supply (at ADC)",	    IN,    -1),
+	SENSOR(CONTROLLER_2_TEMP,	"Controller ext. temp. 2",  TEMP,  -1),
+	SENSOR(VREG_INTERNAL_TEMP,	"Voltage regulator temp.",  TEMP,  -1),
+	SENSOR(VREG_0V9_TEMP,		"0.9V regulator temp.",     TEMP,  -1),
+	SENSOR(VREG_1V2_TEMP,		"1.2V regulator temp.",     TEMP,  -1),
+	SENSOR(CONTROLLER_VPTAT,       "Controller int. temp. raw", IN,    -1),
+	SENSOR(CONTROLLER_INTERNAL_TEMP, "Controller int. temp.",   TEMP,  -1),
+	SENSOR(CONTROLLER_VPTAT_EXTADC,
+			      "Controller int. temp. raw (at ADC)", IN,    -1),
+	SENSOR(CONTROLLER_INTERNAL_TEMP_EXTADC,
+				 "Controller int. temp. (via ADC)", TEMP,  -1),
+	SENSOR(AMBIENT_TEMP,		"Ambient temp.",	    TEMP,  -1),
+	SENSOR(AIRFLOW,			"Air flow raw",		    IN,    -1),
 #undef SENSOR
 };
 
@@ -54,6 +85,7 @@ static const char *const sensor_status_names[] = {
 	[MC_CMD_SENSOR_STATE_WARNING] = "Warning",
 	[MC_CMD_SENSOR_STATE_FATAL] = "Fatal",
 	[MC_CMD_SENSOR_STATE_BROKEN] = "Device failure",
+	[MC_CMD_SENSOR_STATE_NO_READING] = "No reading",
 };
 
 void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
@@ -85,6 +117,7 @@ struct efx_mcdi_mon_attribute {
 	struct device_attribute dev_attr;
 	unsigned int index;
 	unsigned int type;
+	enum efx_hwmon_type hwmon_type;
 	unsigned int limit_value;
 	char name[12];
 };
@@ -92,13 +125,12 @@ struct efx_mcdi_mon_attribute {
 static int efx_mcdi_mon_update(struct efx_nic *efx)
 {
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
-	u8 inbuf[MC_CMD_READ_SENSORS_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_READ_SENSORS_EXT_IN_LEN);
 	int rc;
 
-	MCDI_SET_DWORD(inbuf, READ_SENSORS_IN_DMA_ADDR_LO,
-		       hwmon->dma_buf.dma_addr & 0xffffffff);
-	MCDI_SET_DWORD(inbuf, READ_SENSORS_IN_DMA_ADDR_HI,
-		       (u64)hwmon->dma_buf.dma_addr >> 32);
+	MCDI_SET_QWORD(inbuf, READ_SENSORS_EXT_IN_DMA_ADDR,
+		       hwmon->dma_buf.dma_addr);
+	MCDI_SET_DWORD(inbuf, READ_SENSORS_EXT_IN_LENGTH, hwmon->dma_buf.len);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_READ_SENSORS,
 			  inbuf, sizeof(inbuf), NULL, 0, NULL);
@@ -146,18 +178,32 @@ static ssize_t efx_mcdi_mon_show_value(struct device *dev,
 	struct efx_mcdi_mon_attribute *mon_attr =
 		container_of(attr, struct efx_mcdi_mon_attribute, dev_attr);
 	efx_dword_t entry;
-	unsigned int value;
+	unsigned int value, state;
 	int rc;
 
 	rc = efx_mcdi_mon_get_entry(dev, mon_attr->index, &entry);
 	if (rc)
 		return rc;
 
+	state = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
+	if (state == MC_CMD_SENSOR_STATE_NO_READING)
+		return -EBUSY;
+
 	value = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
 
-	/* Convert temperature from degrees to milli-degrees Celsius */
-	if (efx_mcdi_sensor_type[mon_attr->type].hwmon_type == EFX_HWMON_TEMP)
+	switch (mon_attr->hwmon_type) {
+	case EFX_HWMON_TEMP:
+		/* Convert temperature from degrees to milli-degrees Celsius */
 		value *= 1000;
+		break;
+	case EFX_HWMON_POWER:
+		/* Convert power from watts to microwatts */
+		value *= 1000000;
+		break;
+	default:
+		/* No conversion needed */
+		break;
+	}
 
 	return sprintf(buf, "%u\n", value);
 }
@@ -172,9 +218,19 @@ static ssize_t efx_mcdi_mon_show_limit(struct device *dev,
 
 	value = mon_attr->limit_value;
 
-	/* Convert temperature from degrees to milli-degrees Celsius */
-	if (efx_mcdi_sensor_type[mon_attr->type].hwmon_type == EFX_HWMON_TEMP)
+	switch (mon_attr->hwmon_type) {
+	case EFX_HWMON_TEMP:
+		/* Convert temperature from degrees to milli-degrees Celsius */
 		value *= 1000;
+		break;
+	case EFX_HWMON_POWER:
+		/* Convert power from watts to microwatts */
+		value *= 1000000;
+		break;
+	default:
+		/* No conversion needed */
+		break;
+	}
 
 	return sprintf(buf, "%u\n", value);
 }
@@ -221,6 +277,10 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 	strlcpy(attr->name, name, sizeof(attr->name));
 	attr->index = index;
 	attr->type = type;
+	if (type < ARRAY_SIZE(efx_mcdi_sensor_type))
+		attr->hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
+	else
+		attr->hwmon_type = EFX_HWMON_UNKNOWN;
 	attr->limit_value = limit_value;
 	sysfs_attr_init(&attr->dev_attr.attr);
 	attr->dev_attr.attr.name = attr->name;
@@ -234,36 +294,43 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 
 int efx_mcdi_mon_probe(struct efx_nic *efx)
 {
+	unsigned int n_temp = 0, n_cool = 0, n_in = 0, n_curr = 0, n_power = 0;
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
-	unsigned int n_attrs, n_temp = 0, n_cool = 0, n_in = 0;
-	u8 outbuf[MC_CMD_SENSOR_INFO_OUT_LENMAX];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SENSOR_INFO_EXT_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_SENSOR_INFO_OUT_LENMAX);
+	unsigned int n_pages, n_sensors, n_attrs, page;
 	size_t outlen;
 	char name[12];
 	u32 mask;
-	int rc, i, type;
+	int rc, i, j, type;
 
-	BUILD_BUG_ON(MC_CMD_SENSOR_INFO_IN_LEN != 0);
+	/* Find out how many sensors are present */
+	n_sensors = 0;
+	page = 0;
+	do {
+		MCDI_SET_DWORD(inbuf, SENSOR_INFO_EXT_IN_PAGE, page);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		return rc;
-	if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN)
-		return -EIO;
+		rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO, inbuf, sizeof(inbuf),
+				  outbuf, sizeof(outbuf), &outlen);
+		if (rc)
+			return rc;
+		if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN)
+			return -EIO;
 
-	/* Find out which sensors are present.  Don't create a device
-	 * if there are none.
-	 */
-	mask = MCDI_DWORD(outbuf, SENSOR_INFO_OUT_MASK);
-	if (mask == 0)
+		mask = MCDI_DWORD(outbuf, SENSOR_INFO_OUT_MASK);
+		n_sensors += hweight32(mask & ~(1 << MC_CMD_SENSOR_PAGE0_NEXT));
+		++page;
+	} while (mask & (1 << MC_CMD_SENSOR_PAGE0_NEXT));
+	n_pages = page;
+
+	/* Don't create a device if there are none */
+	if (n_sensors == 0)
 		return 0;
 
-	/* Check again for short response */
-	if (outlen < MC_CMD_SENSOR_INFO_OUT_LEN(hweight32(mask)))
-		return -EIO;
-
-	rc = efx_nic_alloc_buffer(efx, &hwmon->dma_buf,
-				  4 * MC_CMD_SENSOR_ENTRY_MAXNUM);
+	rc = efx_nic_alloc_buffer(
+		efx, &hwmon->dma_buf,
+		n_sensors * MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_LEN,
+		GFP_KERNEL);
 	if (rc)
 		return rc;
 
@@ -274,7 +341,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	 * attributes for this set of sensors: name of the driver plus
 	 * value, min, max, crit, alarm and label for each sensor.
 	 */
-	n_attrs = 1 + 6 * hweight32(mask);
+	n_attrs = 1 + 6 * n_sensors;
 	hwmon->attrs = kcalloc(n_attrs, sizeof(*hwmon->attrs), GFP_KERNEL);
 	if (!hwmon->attrs) {
 		rc = -ENOMEM;
@@ -291,26 +358,63 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail;
 
-	for (i = 0, type = -1; ; i++) {
+	for (i = 0, j = -1, type = -1; ; i++) {
+		enum efx_hwmon_type hwmon_type;
 		const char *hwmon_prefix;
 		unsigned hwmon_index;
 		u16 min1, max1, min2, max2;
 
 		/* Find next sensor type or exit if there is none */
-		type++;
-		while (!(mask & (1 << type))) {
+		do {
 			type++;
-			if (type == 32)
-				return 0;
+
+			if ((type % 32) == 0) {
+				page = type / 32;
+				j = -1;
+				if (page == n_pages)
+					return 0;
+
+				MCDI_SET_DWORD(inbuf, SENSOR_INFO_EXT_IN_PAGE,
+					       page);
+				rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO,
+						  inbuf, sizeof(inbuf),
+						  outbuf, sizeof(outbuf),
+						  &outlen);
+				if (rc)
+					goto fail;
+				if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN) {
+					rc = -EIO;
+					goto fail;
+				}
+
+				mask = (MCDI_DWORD(outbuf,
+						   SENSOR_INFO_OUT_MASK) &
+					~(1 << MC_CMD_SENSOR_PAGE0_NEXT));
+
+				/* Check again for short response */
+				if (outlen <
+				    MC_CMD_SENSOR_INFO_OUT_LEN(hweight32(mask))) {
+					rc = -EIO;
+					goto fail;
+				}
+			}
+		} while (!(mask & (1 << type % 32)));
+		j++;
+
+		if (type < ARRAY_SIZE(efx_mcdi_sensor_type)) {
+			hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
+
+			/* Skip sensors specific to a different port */
+			if (hwmon_type != EFX_HWMON_UNKNOWN &&
+			    efx_mcdi_sensor_type[type].port >= 0 &&
+			    efx_mcdi_sensor_type[type].port !=
+			    efx_port_num(efx))
+				continue;
+		} else {
+			hwmon_type = EFX_HWMON_UNKNOWN;
 		}
 
-		/* Skip sensors specific to a different port */
-		if (efx_mcdi_sensor_type[type].hwmon_type != EFX_HWMON_UNKNOWN &&
-		    efx_mcdi_sensor_type[type].port >= 0 &&
-		    efx_mcdi_sensor_type[type].port != efx_port_num(efx))
-			continue;
-
-		switch (efx_mcdi_sensor_type[type].hwmon_type) {
+		switch (hwmon_type) {
 		case EFX_HWMON_TEMP:
 			hwmon_prefix = "temp";
 			hwmon_index = ++n_temp; /* 1-based */
@@ -327,16 +431,24 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 			hwmon_prefix = "in";
 			hwmon_index = n_in++; /* 0-based */
 			break;
+		case EFX_HWMON_CURR:
+			hwmon_prefix = "curr";
+			hwmon_index = ++n_curr; /* 1-based */
+			break;
+		case EFX_HWMON_POWER:
+			hwmon_prefix = "power";
+			hwmon_index = ++n_power; /* 1-based */
+			break;
 		}
 
 		min1 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MIN1);
+					SENSOR_INFO_ENTRY, j, MIN1);
 		max1 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MAX1);
+					SENSOR_INFO_ENTRY, j, MAX1);
 		min2 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MIN2);
+					SENSOR_INFO_ENTRY, j, MIN2);
 		max2 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MAX2);
+					SENSOR_INFO_ENTRY, j, MAX2);
 
 		if (min1 != max1) {
 			snprintf(name, sizeof(name), "%s%u_input",
@@ -346,13 +458,15 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 			if (rc)
 				goto fail;
 
-			snprintf(name, sizeof(name), "%s%u_min",
-				 hwmon_prefix, hwmon_index);
-			rc = efx_mcdi_mon_add_attr(
-				efx, name, efx_mcdi_mon_show_limit,
-				i, type, min1);
-			if (rc)
-				goto fail;
+			if (hwmon_type != EFX_HWMON_POWER) {
+				snprintf(name, sizeof(name), "%s%u_min",
+					 hwmon_prefix, hwmon_index);
+				rc = efx_mcdi_mon_add_attr(
+					efx, name, efx_mcdi_mon_show_limit,
+					i, type, min1);
+				if (rc)
+					goto fail;
+			}
 
 			snprintf(name, sizeof(name), "%s%u_max",
 				 hwmon_prefix, hwmon_index);
@@ -383,7 +497,8 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 		if (rc)
 			goto fail;
 
-		if (efx_mcdi_sensor_type[type].label) {
+		if (type < ARRAY_SIZE(efx_mcdi_sensor_type) &&
+		    efx_mcdi_sensor_type[type].label) {
 			snprintf(name, sizeof(name), "%s%u_label",
 				 hwmon_prefix, hwmon_index);
 			rc = efx_mcdi_mon_add_attr(
@@ -400,8 +515,7 @@ fail:
 
 void efx_mcdi_mon_remove(struct efx_nic *efx)
 {
-	struct siena_nic_data *nic_data = efx->nic_data;
-	struct efx_mcdi_mon *hwmon = &nic_data->hwmon;
+	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
 	unsigned int i;
 
 	for (i = 0; i < hwmon->n_attrs; i++)

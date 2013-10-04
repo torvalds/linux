@@ -18,7 +18,8 @@ following:
 2. Initialise one serial port.
 3. Detect the machine type.
 4. Setup the kernel tagged list.
-5. Call the kernel image.
+5. Load initramfs.
+6. Call the kernel image.
 
 
 1. Setup and initialise RAM
@@ -120,12 +121,27 @@ tagged list.
 The boot loader must pass at a minimum the size and location of the
 system memory, and the root filesystem location.  The dtb must be
 placed in a region of memory where the kernel decompressor will not
-overwrite it.  The recommended placement is in the first 16KiB of RAM
-with the caveat that it may not be located at physical address 0 since
-the kernel interprets a value of 0 in r2 to mean neither a tagged list
-nor a dtb were passed.
+overwrite it, whilst remaining within the region which will be covered
+by the kernel's low-memory mapping.
 
-5. Calling the kernel image
+A safe location is just above the 128MiB boundary from start of RAM.
+
+5. Load initramfs.
+------------------
+
+Existing boot loaders:		OPTIONAL
+New boot loaders:		OPTIONAL
+
+If an initramfs is in use then, as with the dtb, it must be placed in
+a region of memory where the kernel decompressor will not overwrite it
+while also with the region which will be covered by the kernel's
+low-memory mapping.
+
+A safe location is just above the device tree blob which itself will
+be loaded just above the 128MiB boundary from the start of RAM as
+recommended above.
+
+6. Calling the kernel image
 ---------------------------
 
 Existing boot loaders:		MANDATORY
@@ -136,11 +152,17 @@ is stored in flash, and is linked correctly to be run from flash,
 then it is legal for the boot loader to call the zImage in flash
 directly.
 
-The zImage may also be placed in system RAM (at any location) and
-called there.  Note that the kernel uses 16K of RAM below the image
-to store page tables.  The recommended placement is 32KiB into RAM.
+The zImage may also be placed in system RAM and called there.  The
+kernel should be placed in the first 128MiB of RAM.  It is recommended
+that it is loaded above 32MiB in order to avoid the need to relocate
+prior to decompression, which will make the boot process slightly
+faster.
 
-In either case, the following conditions must be met:
+When booting a raw (non-zImage) kernel the constraints are tighter.
+In this case the kernel must be loaded at an offset into system equal
+to TEXT_OFFSET - PAGE_OFFSET.
+
+In any case, the following conditions must be met:
 
 - Quiesce all DMA capable devices so that memory does not get
   corrupted by bogus network packets or disk data. This will save

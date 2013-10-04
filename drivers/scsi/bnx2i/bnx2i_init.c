@@ -172,16 +172,14 @@ void bnx2i_start(void *handle)
 	struct bnx2i_hba *hba = handle;
 	int i = HZ;
 
-	/*
-	 * We should never register devices that don't support iSCSI
-	 * (see bnx2i_init_one), so something is wrong if we try to
-	 * start a iSCSI adapter on hardware with 0 supported iSCSI
-	 * connections
+	/* On some bnx2x devices, it is possible that iSCSI is no
+	 * longer supported after firmware is downloaded.  In that
+	 * case, the iscsi_init_msg will return failure.
 	 */
-	BUG_ON(!hba->cnic->max_iscsi_conn);
 
 	bnx2i_send_fw_iscsi_init_msg(hba);
-	while (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state) && i--)
+	while (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state) &&
+	       !test_bit(ADAPTER_STATE_INIT_FAILED, &hba->adapter_state) && i--)
 		msleep(BNX2I_INIT_POLL_TIME);
 }
 

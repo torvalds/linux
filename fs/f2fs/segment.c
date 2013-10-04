@@ -117,7 +117,6 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	}
 
 	mutex_unlock(&dirty_i->seglist_lock);
-	return;
 }
 
 /*
@@ -261,7 +260,6 @@ static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
 	void *addr = curseg->sum_blk;
 	addr += curseg->next_blkoff * sizeof(struct f2fs_summary);
 	memcpy(addr, sum, sizeof(struct f2fs_summary));
-	return;
 }
 
 /*
@@ -542,12 +540,9 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 
-	if (force) {
+	if (force)
 		new_curseg(sbi, type, true);
-		goto out;
-	}
-
-	if (type == CURSEG_WARM_NODE)
+	else if (type == CURSEG_WARM_NODE)
 		new_curseg(sbi, type, false);
 	else if (curseg->alloc_type == LFS && is_next_segment_free(sbi, type))
 		new_curseg(sbi, type, false);
@@ -555,11 +550,9 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 		change_curseg(sbi, type, true);
 	else
 		new_curseg(sbi, type, false);
-out:
 #ifdef CONFIG_F2FS_STAT_FS
 	sbi->segment_count[curseg->alloc_type]++;
 #endif
-	return;
 }
 
 void allocate_new_segments(struct f2fs_sb_info *sbi)
@@ -611,18 +604,12 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 struct bio *f2fs_bio_alloc(struct block_device *bdev, int npages)
 {
 	struct bio *bio;
-	struct bio_private *priv;
-retry:
-	priv = kmalloc(sizeof(struct bio_private), GFP_NOFS);
-	if (!priv) {
-		cond_resched();
-		goto retry;
-	}
 
 	/* No failure on bio allocation */
 	bio = bio_alloc(GFP_NOIO, npages);
 	bio->bi_bdev = bdev;
-	bio->bi_private = priv;
+	bio->bi_private = NULL;
+
 	return bio;
 }
 
@@ -681,8 +668,17 @@ static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
 		do_submit_bio(sbi, type, false);
 alloc_new:
 	if (sbi->bio[type] == NULL) {
+		struct bio_private *priv;
+retry:
+		priv = kmalloc(sizeof(struct bio_private), GFP_NOFS);
+		if (!priv) {
+			cond_resched();
+			goto retry;
+		}
+
 		sbi->bio[type] = f2fs_bio_alloc(bdev, max_hw_blocks(sbi));
 		sbi->bio[type]->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
+		sbi->bio[type]->bi_private = priv;
 		/*
 		 * The end_io will be assigned at the sumbission phase.
 		 * Until then, let bio_add_page() merge consecutive IOs as much
@@ -700,6 +696,16 @@ alloc_new:
 
 	up_write(&sbi->bio_sem);
 	trace_f2fs_submit_write_page(page, blk_addr, type);
+}
+
+void f2fs_wait_on_page_writeback(struct page *page,
+				enum page_type type, bool sync)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
+	if (PageWriteback(page)) {
+		f2fs_submit_bio(sbi, type, sync);
+		wait_on_page_writeback(page);
+	}
 }
 
 static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
@@ -1179,7 +1185,6 @@ void write_node_summaries(struct f2fs_sb_info *sbi, block_t start_blk)
 {
 	if (is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG))
 		write_normal_summaries(sbi, start_blk, CURSEG_HOT_NODE);
-	return;
 }
 
 int lookup_journal_in_cursum(struct f2fs_summary_block *sum, int type,

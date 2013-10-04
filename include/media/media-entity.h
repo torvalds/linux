@@ -23,6 +23,7 @@
 #ifndef _MEDIA_ENTITY_H
 #define _MEDIA_ENTITY_H
 
+#include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/media.h>
 
@@ -113,12 +114,15 @@ static inline u32 media_entity_subtype(struct media_entity *entity)
 }
 
 #define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
+#define MEDIA_ENTITY_ENUM_MAX_ID	64
 
 struct media_entity_graph {
 	struct {
 		struct media_entity *entity;
 		int link;
 	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
+
+	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
 	int top;
 };
 

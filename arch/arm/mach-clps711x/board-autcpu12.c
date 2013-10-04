@@ -259,11 +259,7 @@ static void __init autcpu12_init(void)
 static void __init autcpu12_init_late(void)
 {
 	gpio_request_array(autcpu12_gpios, ARRAY_SIZE(autcpu12_gpios));
-
-	if (IS_ENABLED(MTD_NAND_GPIO) && IS_ENABLED(GPIO_GENERIC_PLATFORM)) {
-		/* We are need both drivers to handle NAND */
-		platform_device_register(&autcpu12_nand_pdev);
-	}
+	platform_device_register(&autcpu12_nand_pdev);
 }
 
 MACHINE_START(AUTCPU12, "autronix autcpu12")

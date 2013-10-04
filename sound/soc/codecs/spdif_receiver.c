@@ -23,11 +23,26 @@
 #include <sound/initval.h>
 #include <linux/of.h>
 
+static const struct snd_soc_dapm_widget dir_widgets[] = {
+	SND_SOC_DAPM_INPUT("spdif-in"),
+};
+
+static const struct snd_soc_dapm_route dir_routes[] = {
+	{ "Capture", NULL, "spdif-in" },
+};
+
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S20_3LE | \
+			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
-static struct snd_soc_codec_driver soc_codec_spdif_dir;
+static struct snd_soc_codec_driver soc_codec_spdif_dir = {
+	.dapm_widgets = dir_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(dir_widgets),
+	.dapm_routes = dir_routes,
+	.num_dapm_routes = ARRAY_SIZE(dir_routes),
+};
 
 static struct snd_soc_dai_driver dir_stub_dai = {
 	.name		= "dir-hifi",

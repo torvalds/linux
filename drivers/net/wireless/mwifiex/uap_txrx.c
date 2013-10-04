@@ -24,6 +24,69 @@
 #include "11n_aggr.h"
 #include "11n_rxreorder.h"
 
+/* This function checks if particular RA list has packets more than low bridge
+ * packet threshold and then deletes packet from this RA list.
+ * Function deletes packets from such RA list and returns true. If no such list
+ * is found, false is returned.
+ */
+static bool
+mwifiex_uap_del_tx_pkts_in_ralist(struct mwifiex_private *priv,
+				  struct list_head *ra_list_head)
+{
+	struct mwifiex_ra_list_tbl *ra_list;
+	struct sk_buff *skb, *tmp;
+	bool pkt_deleted = false;
+	struct mwifiex_txinfo *tx_info;
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	list_for_each_entry(ra_list, ra_list_head, list) {
+		if (skb_queue_empty(&ra_list->skb_head))
+			continue;
+
+		skb_queue_walk_safe(&ra_list->skb_head, skb, tmp) {
+			tx_info = MWIFIEX_SKB_TXCB(skb);
+			if (tx_info->flags & MWIFIEX_BUF_FLAG_BRIDGED_PKT) {
+				__skb_unlink(skb, &ra_list->skb_head);
+				mwifiex_write_data_complete(adapter, skb, 0,
+							    -1);
+				atomic_dec(&priv->wmm.tx_pkts_queued);
+				pkt_deleted = true;
+			}
+			if ((atomic_read(&adapter->pending_bridged_pkts) <=
+					     MWIFIEX_BRIDGED_PKTS_THR_LOW))
+				break;
+		}
+	}
+
+	return pkt_deleted;
+}
+
+/* This function deletes packets from particular RA List. RA list index
+ * from which packets are deleted is preserved so that packets from next RA
+ * list are deleted upon subsequent call thus maintaining fairness.
+ */
+static void mwifiex_uap_cleanup_tx_queues(struct mwifiex_private *priv)
+{
+	unsigned long flags;
+	struct list_head *ra_list;
+	int i;
+
+	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+
+	for (i = 0; i < MAX_NUM_TID; i++, priv->del_list_idx++) {
+		if (priv->del_list_idx == MAX_NUM_TID)
+			priv->del_list_idx = 0;
+		ra_list = &priv->wmm.tid_tbl_ptr[priv->del_list_idx].ra_list;
+		if (mwifiex_uap_del_tx_pkts_in_ralist(priv, ra_list)) {
+			priv->del_list_idx++;
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+}
+
+
 static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 					 struct sk_buff *skb)
 {
@@ -40,10 +103,11 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
 
 	if ((atomic_read(&adapter->pending_bridged_pkts) >=
-					     MWIFIEX_BRIDGED_PKTS_THRESHOLD)) {
+					     MWIFIEX_BRIDGED_PKTS_THR_HIGH)) {
 		dev_err(priv->adapter->dev,
 			"Tx: Bridge packet limit reached. Drop packet!\n");
 		kfree_skb(skb);
+		mwifiex_uap_cleanup_tx_queues(priv);
 		return;
 	}
 
@@ -95,10 +159,6 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	atomic_inc(&adapter->tx_pending);
 	atomic_inc(&adapter->pending_bridged_pkts);
 
-	if ((atomic_read(&adapter->tx_pending) >= MAX_TX_PENDING)) {
-		mwifiex_set_trans_start(priv->netdev);
-		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
-	}
 	return;
 }
 

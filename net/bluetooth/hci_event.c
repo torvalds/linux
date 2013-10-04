@@ -2904,15 +2904,16 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		hci_conn_add_sysfs(conn);
 		break;
 
+	case 0x0d:	/* Connection Rejected due to Limited Resources */
 	case 0x11:	/* Unsupported Feature or Parameter Value */
 	case 0x1c:	/* SCO interval rejected */
 	case 0x1a:	/* Unsupported Remote Feature */
 	case 0x1f:	/* Unspecified error */
-		if (conn->out && conn->attempt < 2) {
+		if (conn->out) {
 			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
 					(hdev->esco_type & EDR_ESCO_MASK);
-			hci_setup_sync(conn, conn->link->handle);
-			goto unlock;
+			if (hci_setup_sync(conn, conn->link->handle))
+				goto unlock;
 		}
 		/* fall through */
 
@@ -3024,17 +3025,20 @@ unlock:
 static u8 hci_get_auth_req(struct hci_conn *conn)
 {
 	/* If remote requests dedicated bonding follow that lead */
-	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03) {
+	if (conn->remote_auth == HCI_AT_DEDICATED_BONDING ||
+	    conn->remote_auth == HCI_AT_DEDICATED_BONDING_MITM) {
 		/* If both remote and local IO capabilities allow MITM
 		 * protection then require it, otherwise don't */
-		if (conn->remote_cap == 0x03 || conn->io_capability == 0x03)
-			return 0x02;
+		if (conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT ||
+		    conn->io_capability == HCI_IO_NO_INPUT_OUTPUT)
+			return HCI_AT_DEDICATED_BONDING;
 		else
-			return 0x03;
+			return HCI_AT_DEDICATED_BONDING_MITM;
 	}
 
 	/* If remote requests no-bonding follow that lead */
-	if (conn->remote_auth == 0x00 || conn->remote_auth == 0x01)
+	if (conn->remote_auth == HCI_AT_NO_BONDING ||
+	    conn->remote_auth == HCI_AT_NO_BONDING_MITM)
 		return conn->remote_auth | (conn->auth_type & 0x01);
 
 	return conn->auth_type;
@@ -3066,7 +3070,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		/* Change the IO capability from KeyboardDisplay
 		 * to DisplayYesNo as it is not supported by BT spec. */
 		cp.capability = (conn->io_capability == 0x04) ?
-						0x01 : conn->io_capability;
+				HCI_IO_DISPLAY_YESNO : conn->io_capability;
 		conn->auth_type = hci_get_auth_req(conn);
 		cp.authentication = conn->auth_type;
 
@@ -3140,7 +3144,8 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	 * request. The only exception is when we're dedicated bonding
 	 * initiators (connect_cfm_cb set) since then we always have the MITM
 	 * bit set. */
-	if (!conn->connect_cfm_cb && loc_mitm && conn->remote_cap == 0x03) {
+	if (!conn->connect_cfm_cb && loc_mitm &&
+	    conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
 		BT_DBG("Rejecting request: remote device can't provide MITM");
 		hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
@@ -3148,8 +3153,8 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	}
 
 	/* If no side requires MITM protection; auto-accept */
-	if ((!loc_mitm || conn->remote_cap == 0x03) &&
-	    (!rem_mitm || conn->io_capability == 0x03)) {
+	if ((!loc_mitm || conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) &&
+	    (!rem_mitm || conn->io_capability == HCI_IO_NO_INPUT_OUTPUT)) {
 
 		/* If we're not the initiators request authorization to
 		 * proceed from user space (mgmt_user_confirm with

@@ -102,6 +102,7 @@ enum xway_mux {
 	XWAY_MUX_EPHY,
 	XWAY_MUX_DFE,
 	XWAY_MUX_SDIO,
+	XWAY_MUX_GPHY,
 	XWAY_MUX_NONE = 0xffff,
 };
 
@@ -109,12 +110,12 @@ static const struct ltq_mfp_pin xway_mfp[] = {
 	/*       pin    f0	f1	f2	f3   */
 	MFP_XWAY(GPIO0, GPIO,	EXIN,	NONE,	TDM),
 	MFP_XWAY(GPIO1, GPIO,	EXIN,	NONE,	NONE),
-	MFP_XWAY(GPIO2, GPIO,	CGU,	EXIN,	NONE),
+	MFP_XWAY(GPIO2, GPIO,	CGU,	EXIN,	GPHY),
 	MFP_XWAY(GPIO3, GPIO,	CGU,	NONE,	PCI),
 	MFP_XWAY(GPIO4, GPIO,	STP,	NONE,	ASC),
-	MFP_XWAY(GPIO5, GPIO,	STP,	NONE,	NONE),
+	MFP_XWAY(GPIO5, GPIO,	STP,	NONE,	GPHY),
 	MFP_XWAY(GPIO6, GPIO,	STP,	GPT,	ASC),
-	MFP_XWAY(GPIO7, GPIO,	CGU,	PCI,	NONE),
+	MFP_XWAY(GPIO7, GPIO,	CGU,	PCI,	GPHY),
 	MFP_XWAY(GPIO8, GPIO,	CGU,	NMI,	NONE),
 	MFP_XWAY(GPIO9, GPIO,	ASC,	SPI,	EXIN),
 	MFP_XWAY(GPIO10, GPIO,	ASC,	SPI,	NONE),
@@ -151,10 +152,10 @@ static const struct ltq_mfp_pin xway_mfp[] = {
 	MFP_XWAY(GPIO41, GPIO,	NONE,	NONE,	NONE),
 	MFP_XWAY(GPIO42, GPIO,	MDIO,	NONE,	NONE),
 	MFP_XWAY(GPIO43, GPIO,	MDIO,	NONE,	NONE),
-	MFP_XWAY(GPIO44, GPIO,	NONE,	NONE,	SIN),
-	MFP_XWAY(GPIO45, GPIO,	NONE,	NONE,	SIN),
+	MFP_XWAY(GPIO44, GPIO,	NONE,	GPHY,	SIN),
+	MFP_XWAY(GPIO45, GPIO,	NONE,	GPHY,	SIN),
 	MFP_XWAY(GPIO46, GPIO,	NONE,	NONE,	EXIN),
-	MFP_XWAY(GPIO47, GPIO,	NONE,	NONE,	SIN),
+	MFP_XWAY(GPIO47, GPIO,	NONE,	GPHY,	SIN),
 	MFP_XWAY(GPIO48, GPIO,	EBU,	NONE,	NONE),
 	MFP_XWAY(GPIO49, GPIO,	EBU,	NONE,	NONE),
 	MFP_XWAY(GPIO50, GPIO,	NONE,	NONE,	NONE),
@@ -207,6 +208,13 @@ static const unsigned pins_asc0_cts_rts[] = {GPIO9, GPIO10};
 static const unsigned pins_stp[] = {GPIO4, GPIO5, GPIO6};
 static const unsigned pins_nmi[] = {GPIO8};
 static const unsigned pins_mdio[] = {GPIO42, GPIO43};
+
+static const unsigned pins_gphy0_led0[] = {GPIO5};
+static const unsigned pins_gphy0_led1[] = {GPIO7};
+static const unsigned pins_gphy0_led2[] = {GPIO2};
+static const unsigned pins_gphy1_led0[] = {GPIO44};
+static const unsigned pins_gphy1_led1[] = {GPIO45};
+static const unsigned pins_gphy1_led2[] = {GPIO47};
 
 static const unsigned pins_ebu_a24[] = {GPIO13};
 static const unsigned pins_ebu_clk[] = {GPIO21};
@@ -322,6 +330,12 @@ static const struct ltq_pin_group xway_grps[] = {
 	GRP_MUX("gnt4", PCI, pins_pci_gnt4),
 	GRP_MUX("req4", PCI, pins_pci_gnt4),
 	GRP_MUX("mdio", MDIO, pins_mdio),
+	GRP_MUX("gphy0 led0", GPHY, pins_gphy0_led0),
+	GRP_MUX("gphy0 led1", GPHY, pins_gphy0_led1),
+	GRP_MUX("gphy0 lde2", GPHY, pins_gphy0_led2),
+	GRP_MUX("gphy1 led0", GPHY, pins_gphy1_led0),
+	GRP_MUX("gphy1 led1", GPHY, pins_gphy1_led1),
+	GRP_MUX("gphy1 lde2", GPHY, pins_gphy1_led2),
 };
 
 static const struct ltq_pin_group ase_grps[] = {
@@ -365,6 +379,9 @@ static const char * const xway_nmi_grps[] = {"nmi"};
 
 /* ar9/vr9/gr9 */
 static const char * const xrx_mdio_grps[] = {"mdio"};
+static const char * const xrx_gphy_grps[] = {"gphy0 led0", "gphy0 led1",
+						"gphy0 led2", "gphy1 led0",
+						"gphy1 led1", "gphy1 led2"};
 static const char * const xrx_ebu_grps[] = {"ebu a23", "ebu a24",
 						"ebu a25", "ebu cs1",
 						"ebu wait", "ebu clk",
@@ -414,6 +431,7 @@ static const struct ltq_pmx_func xrx_funcs[] = {
 	{"pci",		ARRAY_AND_SIZE(xrx_pci_grps)},
 	{"ebu",		ARRAY_AND_SIZE(xrx_ebu_grps)},
 	{"mdio",	ARRAY_AND_SIZE(xrx_mdio_grps)},
+	{"gphy",	ARRAY_AND_SIZE(xrx_gphy_grps)},
 };
 
 static const struct ltq_pmx_func ase_funcs[] = {
@@ -481,74 +499,101 @@ static int xway_pinconf_get(struct pinctrl_dev *pctldev,
 
 static int xway_pinconf_set(struct pinctrl_dev *pctldev,
 				unsigned pin,
-				unsigned long config)
+				unsigned long *configs,
+				unsigned num_configs)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctldev);
-	enum ltq_pinconf_param param = LTQ_PINCONF_UNPACK_PARAM(config);
-	int arg = LTQ_PINCONF_UNPACK_ARG(config);
+	enum ltq_pinconf_param param;
+	int arg;
 	int port = PORT(pin);
 	u32 reg;
+	int i;
 
-	switch (param) {
-	case LTQ_PINCONF_PARAM_OPEN_DRAIN:
-		if (port == PORT3)
-			reg = GPIO3_OD;
-		else
-			reg = GPIO_OD(pin);
-		if (arg == 0)
-			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
-		else
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
-		break;
+	for (i = 0; i < num_configs; i++) {
+		param = LTQ_PINCONF_UNPACK_PARAM(configs[i]);
+		arg = LTQ_PINCONF_UNPACK_ARG(configs[i]);
 
-	case LTQ_PINCONF_PARAM_PULL:
-		if (port == PORT3)
-			reg = GPIO3_PUDEN;
-		else
-			reg = GPIO_PUDEN(pin);
-		if (arg == 0) {
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
+		switch (param) {
+		case LTQ_PINCONF_PARAM_OPEN_DRAIN:
+			if (port == PORT3)
+				reg = GPIO3_OD;
+			else
+				reg = GPIO_OD(pin);
+			if (arg == 0)
+				gpio_setbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
 			break;
+
+		case LTQ_PINCONF_PARAM_PULL:
+			if (port == PORT3)
+				reg = GPIO3_PUDEN;
+			else
+				reg = GPIO_PUDEN(pin);
+			if (arg == 0) {
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+				break;
+			}
+			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
+
+			if (port == PORT3)
+				reg = GPIO3_PUDSEL;
+			else
+				reg = GPIO_PUDSEL(pin);
+			if (arg == 1)
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else if (arg == 2)
+				gpio_setbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else
+				dev_err(pctldev->dev,
+					"Invalid pull value %d\n", arg);
+			break;
+
+		case LTQ_PINCONF_PARAM_OUTPUT:
+			reg = GPIO_DIR(pin);
+			if (arg == 0)
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else
+				gpio_setbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			break;
+
+		default:
+			dev_err(pctldev->dev,
+				"Invalid config param %04x\n", param);
+			return -ENOTSUPP;
 		}
-		gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
+	} /* for each config */
 
-		if (port == PORT3)
-			reg = GPIO3_PUDSEL;
-		else
-			reg = GPIO_PUDSEL(pin);
-		if (arg == 1)
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
-		else if (arg == 2)
-			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
-		else
-			dev_err(pctldev->dev, "Invalid pull value %d\n", arg);
-		break;
-
-	case LTQ_PINCONF_PARAM_OUTPUT:
-		reg = GPIO_DIR(pin);
-		if (arg == 0)
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
-		else
-			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
-		break;
-
-	default:
-		dev_err(pctldev->dev, "Invalid config param %04x\n", param);
-		return -ENOTSUPP;
-	}
 	return 0;
 }
 
 int xway_pinconf_group_set(struct pinctrl_dev *pctldev,
 			unsigned selector,
-			unsigned long config)
+			unsigned long *configs,
+			unsigned num_configs)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctldev);
 	int i, ret = 0;
 
 	for (i = 0; i < info->grps[selector].npins && !ret; i++)
 		ret = xway_pinconf_set(pctldev,
-				info->grps[selector].pins[i], config);
+				info->grps[selector].pins[i],
+				configs,
+				num_configs);
 
 	return ret;
 }

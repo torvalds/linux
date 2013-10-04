@@ -41,7 +41,7 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 
 /**
  * Check if the given dir-inode refers to an htree-indexed directory
- * (or a directory which chould potentially get coverted to use htree
+ * (or a directory which could potentially get converted to use htree
  * indexing).
  *
  * Return 1 if it is a dx dir, 0 if not

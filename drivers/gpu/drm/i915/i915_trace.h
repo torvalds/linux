@@ -33,47 +33,52 @@ TRACE_EVENT(i915_gem_object_create,
 	    TP_printk("obj=%p, size=%u", __entry->obj, __entry->size)
 );
 
-TRACE_EVENT(i915_gem_object_bind,
-	    TP_PROTO(struct drm_i915_gem_object *obj, bool mappable),
-	    TP_ARGS(obj, mappable),
+TRACE_EVENT(i915_vma_bind,
+	    TP_PROTO(struct i915_vma *vma, bool mappable),
+	    TP_ARGS(vma, mappable),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
+			     __field(struct i915_address_space *, vm)
 			     __field(u32, offset)
 			     __field(u32, size)
 			     __field(bool, mappable)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->obj = obj;
-			   __entry->offset = obj->gtt_space->start;
-			   __entry->size = obj->gtt_space->size;
+			   __entry->obj = vma->obj;
+			   __entry->vm = vma->vm;
+			   __entry->offset = vma->node.start;
+			   __entry->size = vma->node.size;
 			   __entry->mappable = mappable;
 			   ),
 
-	    TP_printk("obj=%p, offset=%08x size=%x%s",
+	    TP_printk("obj=%p, offset=%08x size=%x%s vm=%p",
 		      __entry->obj, __entry->offset, __entry->size,
-		      __entry->mappable ? ", mappable" : "")
+		      __entry->mappable ? ", mappable" : "",
+		      __entry->vm)
 );
 
-TRACE_EVENT(i915_gem_object_unbind,
-	    TP_PROTO(struct drm_i915_gem_object *obj),
-	    TP_ARGS(obj),
+TRACE_EVENT(i915_vma_unbind,
+	    TP_PROTO(struct i915_vma *vma),
+	    TP_ARGS(vma),
 
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
+			     __field(struct i915_address_space *, vm)
 			     __field(u32, offset)
 			     __field(u32, size)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->obj = obj;
-			   __entry->offset = obj->gtt_space->start;
-			   __entry->size = obj->gtt_space->size;
+			   __entry->obj = vma->obj;
+			   __entry->vm = vma->vm;
+			   __entry->offset = vma->node.start;
+			   __entry->size = vma->node.size;
 			   ),
 
-	    TP_printk("obj=%p, offset=%08x size=%x",
-		      __entry->obj, __entry->offset, __entry->size)
+	    TP_printk("obj=%p, offset=%08x size=%x vm=%p",
+		      __entry->obj, __entry->offset, __entry->size, __entry->vm)
 );
 
 TRACE_EVENT(i915_gem_object_change_domain,
@@ -406,10 +411,12 @@ TRACE_EVENT(i915_flip_complete,
 	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
 );
 
-TRACE_EVENT(i915_reg_rw,
-	TP_PROTO(bool write, u32 reg, u64 val, int len),
+TRACE_EVENT_CONDITION(i915_reg_rw,
+	TP_PROTO(bool write, u32 reg, u64 val, int len, bool trace),
 
-	TP_ARGS(write, reg, val, len),
+	TP_ARGS(write, reg, val, len, trace),
+
+	TP_CONDITION(trace),
 
 	TP_STRUCT__entry(
 		__field(u64, val)

@@ -25,8 +25,27 @@
 #define NOUVEAU_DSM_POWER_SPEED 0x01
 #define NOUVEAU_DSM_POWER_STAMINA 0x02
 
-#define NOUVEAU_DSM_OPTIMUS_FN 0x1A
-#define NOUVEAU_DSM_OPTIMUS_ARGS 0x03000001
+#define NOUVEAU_DSM_OPTIMUS_CAPS 0x1A
+#define NOUVEAU_DSM_OPTIMUS_FLAGS 0x1B
+
+#define NOUVEAU_DSM_OPTIMUS_POWERDOWN_PS3 (3 << 24)
+#define NOUVEAU_DSM_OPTIMUS_NO_POWERDOWN_PS3 (2 << 24)
+#define NOUVEAU_DSM_OPTIMUS_FLAGS_CHANGED (1)
+
+#define NOUVEAU_DSM_OPTIMUS_SET_POWERDOWN (NOUVEAU_DSM_OPTIMUS_POWERDOWN_PS3 | NOUVEAU_DSM_OPTIMUS_FLAGS_CHANGED)
+
+/* result of the optimus caps function */
+#define OPTIMUS_ENABLED (1 << 0)
+#define OPTIMUS_STATUS_MASK (3 << 3)
+#define OPTIMUS_STATUS_OFF  (0 << 3)
+#define OPTIMUS_STATUS_ON_ENABLED  (1 << 3)
+#define OPTIMUS_STATUS_PWR_STABLE  (3 << 3)
+#define OPTIMUS_DISPLAY_HOTPLUG (1 << 6)
+#define OPTIMUS_CAPS_MASK (7 << 24)
+#define OPTIMUS_DYNAMIC_PWR_CAP (1 << 24)
+
+#define OPTIMUS_AUDIO_CAPS_MASK (3 << 27)
+#define OPTIMUS_HDA_CODEC_MASK (2 << 27) /* hda bios control */
 
 static struct nouveau_dsm_priv {
 	bool dsm_detected;
@@ -251,9 +270,18 @@ static int nouveau_dsm_pci_probe(struct pci_dev *pdev)
 		retval |= NOUVEAU_DSM_HAS_MUX;
 
 	if (nouveau_test_dsm(dhandle, nouveau_optimus_dsm,
-		NOUVEAU_DSM_OPTIMUS_FN))
+		NOUVEAU_DSM_OPTIMUS_CAPS))
 		retval |= NOUVEAU_DSM_HAS_OPT;
 
+	if (retval & NOUVEAU_DSM_HAS_OPT) {
+		uint32_t result;
+		nouveau_optimus_dsm(dhandle, NOUVEAU_DSM_OPTIMUS_CAPS, 0,
+				    &result);
+		dev_info(&pdev->dev, "optimus capabilities: %s, status %s%s\n",
+			 (result & OPTIMUS_ENABLED) ? "enabled" : "disabled",
+			 (result & OPTIMUS_DYNAMIC_PWR_CAP) ? "dynamic power, " : "",
+			 (result & OPTIMUS_HDA_CODEC_MASK) ? "hda bios codec supported" : "");
+	}
 	if (retval)
 		nouveau_dsm_priv.dhandle = dhandle;
 
@@ -328,8 +356,12 @@ void nouveau_switcheroo_optimus_dsm(void)
 	if (!nouveau_dsm_priv.optimus_detected)
 		return;
 
-	nouveau_optimus_dsm(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_OPTIMUS_FN,
-		NOUVEAU_DSM_OPTIMUS_ARGS, &result);
+	nouveau_optimus_dsm(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_OPTIMUS_FLAGS,
+			    0x3, &result);
+
+	nouveau_optimus_dsm(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_OPTIMUS_CAPS,
+		NOUVEAU_DSM_OPTIMUS_SET_POWERDOWN, &result);
+
 }
 
 void nouveau_unregister_dsm_handler(void)

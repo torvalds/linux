@@ -290,7 +290,7 @@ static void l2x0_disable(void)
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
 	__l2x0_flush_all();
 	writel_relaxed(0, l2x0_base + L2X0_CTRL);
-	dsb();
+	dsb(st);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
@@ -417,9 +417,9 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		outer_cache.disable = l2x0_disable;
 	}
 
-	printk(KERN_INFO "%s cache controller enabled\n", type);
-	printk(KERN_INFO "l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d B\n",
-			ways, cache_id, aux, l2x0_size);
+	pr_info("%s cache controller enabled\n", type);
+	pr_info("l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d kB\n",
+		ways, cache_id, aux, l2x0_size >> 10);
 }
 
 #ifdef CONFIG_OF
@@ -929,7 +929,9 @@ static const struct of_device_id l2x0_ids[] __initconst = {
 	  .data = (void *)&aurora_no_outer_data},
 	{ .compatible = "marvell,aurora-outer-cache",
 	  .data = (void *)&aurora_with_outer_data},
-	{ .compatible = "bcm,bcm11351-a2-pl310-cache",
+	{ .compatible = "brcm,bcm11351-a2-pl310-cache",
+	  .data = (void *)&bcm_l2x0_data},
+	{ .compatible = "bcm,bcm11351-a2-pl310-cache", /* deprecated name */
 	  .data = (void *)&bcm_l2x0_data},
 	{}
 };

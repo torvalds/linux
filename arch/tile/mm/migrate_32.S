@@ -136,7 +136,7 @@ STD_ENTRY(flush_and_install_context)
 	 move r8, zero  /* asids */
 	 move r9, zero  /* asidcount */
 	}
-	jal hv_flush_remote
+	jal _hv_flush_remote
 	bnz r0, .Ldone
 
 	/* Now install the new page table. */
@@ -152,7 +152,7 @@ STD_ENTRY(flush_and_install_context)
 	 move r4, r_asid
 	 moveli r5, HV_CTX_DIRECTIO | CTX_PAGE_FLAG
 	}
-	jal hv_install_context
+	jal _hv_install_context
 	bnz r0, .Ldone
 
 	/* Finally, flush the TLB. */

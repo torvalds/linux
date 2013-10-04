@@ -52,6 +52,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/bug.h>
 #include <asm/arcregs.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
@@ -99,25 +100,29 @@
 
 
 /* A copy of the ASID from the PID reg is kept in asid_cache */
-int asid_cache = FIRST_ASID;
-
-/* ASID to mm struct mapping. We have one extra entry corresponding to
- * NO_ASID to save us a compare when clearing the mm entry for old asid
- * see get_new_mmu_context (asm-arc/mmu_context.h)
- */
-struct mm_struct *asid_mm_map[NUM_ASID + 1];
+unsigned int asid_cache = MM_CTXT_FIRST_CYCLE;
 
 /*
  * Utility Routine to erase a J-TLB entry
- * The procedure is to look it up in the MMU. If found, ERASE it by
- *  issuing a TlbWrite CMD with PD0 = PD1 = 0
+ * Caller needs to setup Index Reg (manually or via getIndex)
  */
-
-static void __tlb_entry_erase(void)
+static inline void __tlb_entry_erase(void)
 {
 	write_aux_reg(ARC_REG_TLBPD1, 0);
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+}
+
+static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
+{
+	unsigned int idx;
+
+	write_aux_reg(ARC_REG_TLBPD0, vaddr_n_asid);
+
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
+	idx = read_aux_reg(ARC_REG_TLBINDEX);
+
+	return idx;
 }
 
 static void tlb_entry_erase(unsigned int vaddr_n_asid)
@@ -125,22 +130,15 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 	unsigned int idx;
 
 	/* Locate the TLB entry for this vaddr + ASID */
-	write_aux_reg(ARC_REG_TLBPD0, vaddr_n_asid);
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
+	idx = tlb_entry_lkup(vaddr_n_asid);
 
 	/* No error means entry found, zero it out */
 	if (likely(!(idx & TLB_LKUP_ERR))) {
 		__tlb_entry_erase();
-	} else {		/* Some sort of Error */
-
+	} else {
 		/* Duplicate entry error */
-		if (idx & 0x1) {
-			/* TODO we need to handle this case too */
-			pr_emerg("unhandled Duplicate flush for %x\n",
-			       vaddr_n_asid);
-		}
-		/* else entry not found so nothing to do */
+		WARN(idx == TLB_DUP_ERR, "Probe returned Dup PD for %x\n",
+					   vaddr_n_asid);
 	}
 }
 
@@ -159,7 +157,7 @@ static void utlb_invalidate(void)
 {
 #if (CONFIG_ARC_MMU_VER >= 2)
 
-#if (CONFIG_ARC_MMU_VER < 3)
+#if (CONFIG_ARC_MMU_VER == 2)
 	/* MMU v2 introduced the uTLB Flush command.
 	 * There was however an obscure hardware bug, where uTLB flush would
 	 * fail when a prior probe for J-TLB (both totally unrelated) would
@@ -180,6 +178,36 @@ static void utlb_invalidate(void)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
 #endif
 
+}
+
+static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
+{
+	unsigned int idx;
+
+	/*
+	 * First verify if entry for this vaddr+ASID already exists
+	 * This also sets up PD0 (vaddr, ASID..) for final commit
+	 */
+	idx = tlb_entry_lkup(pd0);
+
+	/*
+	 * If Not already present get a free slot from MMU.
+	 * Otherwise, Probe would have located the entry and set INDEX Reg
+	 * with existing location. This will cause Write CMD to over-write
+	 * existing entry with new PD0 and PD1
+	 */
+	if (likely(idx & TLB_LKUP_ERR))
+		write_aux_reg(ARC_REG_TLBCOMMAND, TLBGetIndex);
+
+	/* setup the other half of TLB entry (pfn, rwx..) */
+	write_aux_reg(ARC_REG_TLBPD1, pd1);
+
+	/*
+	 * Commit the Entry to MMU
+	 * It doesnt sound safe to use the TLBWriteNI cmd here
+	 * which doesn't flush uTLBs. I'd rather be safe than sorry.
+	 */
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
 /*
@@ -224,13 +252,14 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
 		return;
 
 	/*
-	 * Workaround for Android weirdism:
-	 * A binder VMA could end up in a task such that vma->mm != tsk->mm
-	 * old code would cause h/w - s/w ASID to get out of sync
+	 * - Move to a new ASID, but only if the mm is still wired in
+	 *   (Android Binder ended up calling this for vma->mm != tsk->mm,
+	 *    causing h/w - s/w ASID to get out of sync)
+	 * - Also get_new_mmu_context() new implementation allocates a new
+	 *   ASID only if it is not allocated already - so unallocate first
 	 */
-	if (current->mm != mm)
-		destroy_context(mm);
-	else
+	destroy_context(mm);
+	if (current->mm == mm)
 		get_new_mmu_context(mm);
 }
 
@@ -246,7 +275,6 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
 {
 	unsigned long flags;
-	unsigned int asid;
 
 	/* If range @start to @end is more than 32 TLB entries deep,
 	 * its better to move to a new ASID rather than searching for
@@ -268,11 +296,10 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	start &= PAGE_MASK;
 
 	local_irq_save(flags);
-	asid = vma->vm_mm->context.asid;
 
-	if (asid != NO_ASID) {
+	if (vma->vm_mm->context.asid != MM_CTXT_NO_ASID) {
 		while (start < end) {
-			tlb_entry_erase(start | (asid & 0xff));
+			tlb_entry_erase(start | hw_pid(vma->vm_mm));
 			start += PAGE_SIZE;
 		}
 	}
@@ -326,9 +353,8 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	 */
 	local_irq_save(flags);
 
-	if (vma->vm_mm->context.asid != NO_ASID) {
-		tlb_entry_erase((page & PAGE_MASK) |
-				(vma->vm_mm->context.asid & 0xff));
+	if (vma->vm_mm->context.asid != MM_CTXT_NO_ASID) {
+		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm));
 		utlb_invalidate();
 	}
 
@@ -341,8 +367,8 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	unsigned long flags;
-	unsigned int idx, asid_or_sasid;
-	unsigned long pd0_flags;
+	unsigned int asid_or_sasid, rwx;
+	unsigned long pd0, pd1;
 
 	/*
 	 * create_tlb() assumes that current->mm == vma->mm, since
@@ -381,40 +407,30 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	/* update this PTE credentials */
 	pte_val(*ptep) |= (_PAGE_PRESENT | _PAGE_ACCESSED);
 
-	/* Create HW TLB entry Flags (in PD0) from PTE Flags */
-#if (CONFIG_ARC_MMU_VER <= 2)
-	pd0_flags = ((pte_val(*ptep) & PTE_BITS_IN_PD0) >> 1);
-#else
-	pd0_flags = ((pte_val(*ptep) & PTE_BITS_IN_PD0));
-#endif
+	/* Create HW TLB(PD0,PD1) from PTE  */
 
 	/* ASID for this task */
 	asid_or_sasid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	write_aux_reg(ARC_REG_TLBPD0, address | pd0_flags | asid_or_sasid);
-
-	/* Load remaining info in PD1 (Page Frame Addr and Kx/Kw/Kr Flags) */
-	write_aux_reg(ARC_REG_TLBPD1, (pte_val(*ptep) & PTE_BITS_IN_PD1));
-
-	/* First verify if entry for this vaddr+ASID already exists */
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
+	pd0 = address | asid_or_sasid | (pte_val(*ptep) & PTE_BITS_IN_PD0);
 
 	/*
-	 * If Not already present get a free slot from MMU.
-	 * Otherwise, Probe would have located the entry and set INDEX Reg
-	 * with existing location. This will cause Write CMD to over-write
-	 * existing entry with new PD0 and PD1
+	 * ARC MMU provides fully orthogonal access bits for K/U mode,
+	 * however Linux only saves 1 set to save PTE real-estate
+	 * Here we convert 3 PTE bits into 6 MMU bits:
+	 * -Kernel only entries have Kr Kw Kx 0 0 0
+	 * -User entries have mirrored K and U bits
 	 */
-	if (likely(idx & TLB_LKUP_ERR))
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBGetIndex);
+	rwx = pte_val(*ptep) & PTE_BITS_RWX;
 
-	/*
-	 * Commit the Entry to MMU
-	 * It doesnt sound safe to use the TLBWriteNI cmd here
-	 * which doesn't flush uTLBs. I'd rather be safe than sorry.
-	 */
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+	if (pte_val(*ptep) & _PAGE_GLOBAL)
+		rwx <<= 3;		/* r w x => Kr Kw Kx 0 0 0 */
+	else
+		rwx |= (rwx << 3);	/* r w x => Kr Kw Kx Ur Uw Ux */
+
+	pd1 = rwx | (pte_val(*ptep) & PTE_BITS_NON_RWX_IN_PD1);
+
+	tlb_entry_insert(pd0, pd1);
 
 	local_irq_restore(flags);
 }
@@ -553,13 +569,6 @@ void arc_mmu_init(void)
 	if (mmu->pg_sz != PAGE_SIZE)
 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
 
-	/*
-	 * ASID mgmt data structures are compile time init
-	 *  asid_cache = FIRST_ASID and asid_mm_map[] all zeroes
-	 */
-
-	local_flush_tlb_all();
-
 	/* Enable the MMU */
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
 
@@ -671,25 +680,28 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
  * Low Level ASM TLB handler calls this if it finds that HW and SW ASIDS
  * don't match
  */
-void print_asid_mismatch(int is_fast_path)
+void print_asid_mismatch(int mm_asid, int mmu_asid, int is_fast_path)
 {
-	int pid_sw, pid_hw;
-	pid_sw = current->active_mm->context.asid;
-	pid_hw = read_aux_reg(ARC_REG_PID) & 0xff;
-
 	pr_emerg("ASID Mismatch in %s Path Handler: sw-pid=0x%x hw-pid=0x%x\n",
-	       is_fast_path ? "Fast" : "Slow", pid_sw, pid_hw);
+	       is_fast_path ? "Fast" : "Slow", mm_asid, mmu_asid);
 
 	__asm__ __volatile__("flag 1");
 }
 
-void tlb_paranoid_check(unsigned int pid_sw, unsigned long addr)
+void tlb_paranoid_check(unsigned int mm_asid, unsigned long addr)
 {
-	unsigned int pid_hw;
+	unsigned int mmu_asid;
 
-	pid_hw = read_aux_reg(ARC_REG_PID) & 0xff;
+	mmu_asid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	if (addr < 0x70000000 && ((pid_hw != pid_sw) || (pid_sw == NO_ASID)))
-		print_asid_mismatch(0);
+	/*
+	 * At the time of a TLB miss/installation
+	 *   - HW version needs to match SW version
+	 *   - SW needs to have a valid ASID
+	 */
+	if (addr < 0x70000000 &&
+	    ((mm_asid == MM_CTXT_NO_ASID) ||
+	      (mmu_asid != (mm_asid & MM_CTXT_ASID_MASK))))
+		print_asid_mismatch(mm_asid, mmu_asid, 0);
 }
 #endif

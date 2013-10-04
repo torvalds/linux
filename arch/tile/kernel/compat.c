@@ -84,7 +84,7 @@ COMPAT_SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned int, offset_high,
 {
 	return sys_llseek(fd, offset_high, offset_low, result, origin);
 }
- 
+
 /* Provide the compat syscall number to call mapping. */
 #undef __SYSCALL
 #define __SYSCALL(nr, call) [nr] = (call),

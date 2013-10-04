@@ -126,72 +126,6 @@ static void caam_jr_dequeue(unsigned long devarg)
 }
 
 /**
- * caam_jr_register() - Alloc a ring for someone to use as needed. Returns
- * an ordinal of the rings allocated, else returns -ENODEV if no rings
- * are available.
- * @ctrldev: points to the controller level dev (parent) that
- *           owns rings available for use.
- * @dev:     points to where a pointer to the newly allocated queue's
- *           dev can be written to if successful.
- **/
-int caam_jr_register(struct device *ctrldev, struct device **rdev)
-{
-	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctrldev);
-	struct caam_drv_private_jr *jrpriv = NULL;
-	int ring;
-
-	/* Lock, if free ring - assign, unlock */
-	spin_lock(&ctrlpriv->jr_alloc_lock);
-	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++) {
-		jrpriv = dev_get_drvdata(ctrlpriv->jrdev[ring]);
-		if (jrpriv->assign == JOBR_UNASSIGNED) {
-			jrpriv->assign = JOBR_ASSIGNED;
-			*rdev = ctrlpriv->jrdev[ring];
-			spin_unlock(&ctrlpriv->jr_alloc_lock);
-			return ring;
-		}
-	}
-
-	/* If assigned, write dev where caller needs it */
-	spin_unlock(&ctrlpriv->jr_alloc_lock);
-	*rdev = NULL;
-
-	return -ENODEV;
-}
-EXPORT_SYMBOL(caam_jr_register);
-
-/**
- * caam_jr_deregister() - Deregister an API and release the queue.
- * Returns 0 if OK, -EBUSY if queue still contains pending entries
- * or unprocessed results at the time of the call
- * @dev     - points to the dev that identifies the queue to
- *            be released.
- **/
-int caam_jr_deregister(struct device *rdev)
-{
-	struct caam_drv_private_jr *jrpriv = dev_get_drvdata(rdev);
-	struct caam_drv_private *ctrlpriv;
-
-	/* Get the owning controller's private space */
-	ctrlpriv = dev_get_drvdata(jrpriv->parentdev);
-
-	/*
-	 * Make sure ring empty before release
-	 */
-	if (rd_reg32(&jrpriv->rregs->outring_used) ||
-	    (rd_reg32(&jrpriv->rregs->inpring_avail) != JOBR_DEPTH))
-		return -EBUSY;
-
-	/* Release ring */
-	spin_lock(&ctrlpriv->jr_alloc_lock);
-	jrpriv->assign = JOBR_UNASSIGNED;
-	spin_unlock(&ctrlpriv->jr_alloc_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(caam_jr_deregister);
-
-/**
  * caam_jr_enqueue() - Enqueue a job descriptor head. Returns 0 if OK,
  * -EBUSY if the queue is full, -EIO if it cannot map the caller's
  * descriptor.
@@ -379,7 +313,6 @@ static int caam_jr_init(struct device *dev)
 		  (JOBR_INTC_COUNT_THLD << JRCFG_ICDCT_SHIFT) |
 		  (JOBR_INTC_TIME_THLD << JRCFG_ICTT_SHIFT));
 
-	jrp->assign = JOBR_UNASSIGNED;
 	return 0;
 }
 

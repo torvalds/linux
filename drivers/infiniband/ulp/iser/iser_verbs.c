@@ -73,6 +73,36 @@ static int iser_create_device_ib_res(struct iser_device *device)
 {
 	int i, j;
 	struct iser_cq_desc *cq_desc;
+	struct ib_device_attr *dev_attr;
+
+	dev_attr = kmalloc(sizeof(*dev_attr), GFP_KERNEL);
+	if (!dev_attr)
+		return -ENOMEM;
+
+	if (ib_query_device(device->ib_device, dev_attr)) {
+		pr_warn("Query device failed for %s\n", device->ib_device->name);
+		goto dev_attr_err;
+	}
+
+	/* Assign function handles  - based on FMR support */
+	if (device->ib_device->alloc_fmr && device->ib_device->dealloc_fmr &&
+	    device->ib_device->map_phys_fmr && device->ib_device->unmap_fmr) {
+		iser_info("FMR supported, using FMR for registration\n");
+		device->iser_alloc_rdma_reg_res = iser_create_fmr_pool;
+		device->iser_free_rdma_reg_res = iser_free_fmr_pool;
+		device->iser_reg_rdma_mem = iser_reg_rdma_mem_fmr;
+		device->iser_unreg_rdma_mem = iser_unreg_mem_fmr;
+	} else
+	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
+		iser_info("FRWR supported, using FRWR for registration\n");
+		device->iser_alloc_rdma_reg_res = iser_create_frwr_pool;
+		device->iser_free_rdma_reg_res = iser_free_frwr_pool;
+		device->iser_reg_rdma_mem = iser_reg_rdma_mem_frwr;
+		device->iser_unreg_rdma_mem = iser_unreg_mem_frwr;
+	} else {
+		iser_err("IB device does not support FMRs nor FRWRs, can't register memory\n");
+		goto dev_attr_err;
+	}
 
 	device->cqs_used = min(ISER_MAX_CQ, device->ib_device->num_comp_vectors);
 	iser_info("using %d CQs, device %s supports %d vectors\n",
@@ -128,6 +158,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	if (ib_register_event_handler(&device->event_handler))
 		goto handler_err;
 
+	kfree(dev_attr);
 	return 0;
 
 handler_err:
@@ -147,6 +178,8 @@ pd_err:
 	kfree(device->cq_desc);
 cq_desc_err:
 	iser_err("failed to allocate an IB resource\n");
+dev_attr_err:
+	kfree(dev_attr);
 	return -1;
 }
 
@@ -178,56 +211,23 @@ static void iser_free_device_ib_res(struct iser_device *device)
 }
 
 /**
- * iser_create_ib_conn_res - Creates FMR pool and Queue-Pair (QP)
+ * iser_create_fmr_pool - Creates FMR pool and page_vector
  *
- * returns 0 on success, -1 on failure
+ * returns 0 on success, or errno code on failure
  */
-static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
+int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 {
-	struct iser_device	*device;
-	struct ib_qp_init_attr	init_attr;
-	int			req_err, resp_err, ret = -ENOMEM;
+	struct iser_device *device = ib_conn->device;
 	struct ib_fmr_pool_param params;
-	int index, min_index = 0;
+	int ret = -ENOMEM;
 
-	BUG_ON(ib_conn->device == NULL);
+	ib_conn->fastreg.fmr.page_vec = kmalloc(sizeof(struct iser_page_vec) +
+						(sizeof(u64)*(ISCSI_ISER_SG_TABLESIZE + 1)),
+						GFP_KERNEL);
+	if (!ib_conn->fastreg.fmr.page_vec)
+		return ret;
 
-	device = ib_conn->device;
-
-	ib_conn->login_buf = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
-					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
-	if (!ib_conn->login_buf)
-		goto out_err;
-
-	ib_conn->login_req_buf  = ib_conn->login_buf;
-	ib_conn->login_resp_buf = ib_conn->login_buf + ISCSI_DEF_MAX_RECV_SEG_LEN;
-
-	ib_conn->login_req_dma = ib_dma_map_single(ib_conn->device->ib_device,
-				(void *)ib_conn->login_req_buf,
-				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
-
-	ib_conn->login_resp_dma = ib_dma_map_single(ib_conn->device->ib_device,
-				(void *)ib_conn->login_resp_buf,
-				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
-
-	req_err  = ib_dma_mapping_error(device->ib_device, ib_conn->login_req_dma);
-	resp_err = ib_dma_mapping_error(device->ib_device, ib_conn->login_resp_dma);
-
-	if (req_err || resp_err) {
-		if (req_err)
-			ib_conn->login_req_dma = 0;
-		if (resp_err)
-			ib_conn->login_resp_dma = 0;
-		goto out_err;
-	}
-
-	ib_conn->page_vec = kmalloc(sizeof(struct iser_page_vec) +
-				    (sizeof(u64) * (ISCSI_ISER_SG_TABLESIZE +1)),
-				    GFP_KERNEL);
-	if (!ib_conn->page_vec)
-		goto out_err;
-
-	ib_conn->page_vec->pages = (u64 *) (ib_conn->page_vec + 1);
+	ib_conn->fastreg.fmr.page_vec->pages = (u64 *)(ib_conn->fastreg.fmr.page_vec + 1);
 
 	params.page_shift        = SHIFT_4K;
 	/* when the first/last SG element are not start/end *
@@ -235,24 +235,143 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	params.max_pages_per_fmr = ISCSI_ISER_SG_TABLESIZE + 1;
 	/* make the pool size twice the max number of SCSI commands *
 	 * the ML is expected to queue, watermark for unmap at 50%  */
-	params.pool_size	 = ISCSI_DEF_XMIT_CMDS_MAX * 2;
-	params.dirty_watermark	 = ISCSI_DEF_XMIT_CMDS_MAX;
+	params.pool_size	 = cmds_max * 2;
+	params.dirty_watermark	 = cmds_max;
 	params.cache		 = 0;
 	params.flush_function	 = NULL;
 	params.access		 = (IB_ACCESS_LOCAL_WRITE  |
 				    IB_ACCESS_REMOTE_WRITE |
 				    IB_ACCESS_REMOTE_READ);
 
-	ib_conn->fmr_pool = ib_create_fmr_pool(device->pd, &params);
-	ret = PTR_ERR(ib_conn->fmr_pool);
-	if (IS_ERR(ib_conn->fmr_pool) && ret != -ENOSYS) {
-		ib_conn->fmr_pool = NULL;
-		goto out_err;
-	} else if (ret == -ENOSYS) {
-		ib_conn->fmr_pool = NULL;
+	ib_conn->fastreg.fmr.pool = ib_create_fmr_pool(device->pd, &params);
+	if (!IS_ERR(ib_conn->fastreg.fmr.pool))
+		return 0;
+
+	/* no FMR => no need for page_vec */
+	kfree(ib_conn->fastreg.fmr.page_vec);
+	ib_conn->fastreg.fmr.page_vec = NULL;
+
+	ret = PTR_ERR(ib_conn->fastreg.fmr.pool);
+	ib_conn->fastreg.fmr.pool = NULL;
+	if (ret != -ENOSYS) {
+		iser_err("FMR allocation failed, err %d\n", ret);
+		return ret;
+	} else {
 		iser_warn("FMRs are not supported, using unaligned mode\n");
-		ret = 0;
+		return 0;
 	}
+}
+
+/**
+ * iser_free_fmr_pool - releases the FMR pool and page vec
+ */
+void iser_free_fmr_pool(struct iser_conn *ib_conn)
+{
+	iser_info("freeing conn %p fmr pool %p\n",
+		  ib_conn, ib_conn->fastreg.fmr.pool);
+
+	if (ib_conn->fastreg.fmr.pool != NULL)
+		ib_destroy_fmr_pool(ib_conn->fastreg.fmr.pool);
+
+	ib_conn->fastreg.fmr.pool = NULL;
+
+	kfree(ib_conn->fastreg.fmr.page_vec);
+	ib_conn->fastreg.fmr.page_vec = NULL;
+}
+
+/**
+ * iser_create_frwr_pool - Creates pool of fast_reg descriptors
+ * for fast registration work requests.
+ * returns 0 on success, or errno code on failure
+ */
+int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
+{
+	struct iser_device	*device = ib_conn->device;
+	struct fast_reg_descriptor	*desc;
+	int i, ret;
+
+	INIT_LIST_HEAD(&ib_conn->fastreg.frwr.pool);
+	ib_conn->fastreg.frwr.pool_size = 0;
+	for (i = 0; i < cmds_max; i++) {
+		desc = kmalloc(sizeof(*desc), GFP_KERNEL);
+		if (!desc) {
+			iser_err("Failed to allocate a new fast_reg descriptor\n");
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		desc->data_frpl = ib_alloc_fast_reg_page_list(device->ib_device,
+							 ISCSI_ISER_SG_TABLESIZE + 1);
+		if (IS_ERR(desc->data_frpl)) {
+			ret = PTR_ERR(desc->data_frpl);
+			iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n", ret);
+			goto fast_reg_page_failure;
+		}
+
+		desc->data_mr = ib_alloc_fast_reg_mr(device->pd,
+						     ISCSI_ISER_SG_TABLESIZE + 1);
+		if (IS_ERR(desc->data_mr)) {
+			ret = PTR_ERR(desc->data_mr);
+			iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
+			goto fast_reg_mr_failure;
+		}
+		desc->valid = true;
+		list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
+		ib_conn->fastreg.frwr.pool_size++;
+	}
+
+	return 0;
+
+fast_reg_mr_failure:
+	ib_free_fast_reg_page_list(desc->data_frpl);
+fast_reg_page_failure:
+	kfree(desc);
+err:
+	iser_free_frwr_pool(ib_conn);
+	return ret;
+}
+
+/**
+ * iser_free_frwr_pool - releases the pool of fast_reg descriptors
+ */
+void iser_free_frwr_pool(struct iser_conn *ib_conn)
+{
+	struct fast_reg_descriptor *desc, *tmp;
+	int i = 0;
+
+	if (list_empty(&ib_conn->fastreg.frwr.pool))
+		return;
+
+	iser_info("freeing conn %p frwr pool\n", ib_conn);
+
+	list_for_each_entry_safe(desc, tmp, &ib_conn->fastreg.frwr.pool, list) {
+		list_del(&desc->list);
+		ib_free_fast_reg_page_list(desc->data_frpl);
+		ib_dereg_mr(desc->data_mr);
+		kfree(desc);
+		++i;
+	}
+
+	if (i < ib_conn->fastreg.frwr.pool_size)
+		iser_warn("pool still has %d regions registered\n",
+			  ib_conn->fastreg.frwr.pool_size - i);
+}
+
+/**
+ * iser_create_ib_conn_res - Queue-Pair (QP)
+ *
+ * returns 0 on success, -1 on failure
+ */
+static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
+{
+	struct iser_device	*device;
+	struct ib_qp_init_attr	init_attr;
+	int			ret = -ENOMEM;
+	int index, min_index = 0;
+
+	BUG_ON(ib_conn->device == NULL);
+
+	device = ib_conn->device;
 
 	memset(&init_attr, 0, sizeof init_attr);
 
@@ -282,9 +401,9 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 		goto out_err;
 
 	ib_conn->qp = ib_conn->cma_id->qp;
-	iser_info("setting conn %p cma_id %p: fmr_pool %p qp %p\n",
+	iser_info("setting conn %p cma_id %p qp %p\n",
 		  ib_conn, ib_conn->cma_id,
-		  ib_conn->fmr_pool, ib_conn->cma_id->qp);
+		  ib_conn->cma_id->qp);
 	return ret;
 
 out_err:
@@ -293,7 +412,7 @@ out_err:
 }
 
 /**
- * releases the FMR pool and QP objects, returns 0 on success,
+ * releases the QP objects, returns 0 on success,
  * -1 on failure
  */
 static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
@@ -301,13 +420,11 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 	int cq_index;
 	BUG_ON(ib_conn == NULL);
 
-	iser_info("freeing conn %p cma_id %p fmr pool %p qp %p\n",
+	iser_info("freeing conn %p cma_id %p qp %p\n",
 		  ib_conn, ib_conn->cma_id,
-		  ib_conn->fmr_pool, ib_conn->qp);
+		  ib_conn->qp);
 
 	/* qp is created only once both addr & route are resolved */
-	if (ib_conn->fmr_pool != NULL)
-		ib_destroy_fmr_pool(ib_conn->fmr_pool);
 
 	if (ib_conn->qp != NULL) {
 		cq_index = ((struct iser_cq_desc *)ib_conn->qp->recv_cq->cq_context)->cq_index;
@@ -316,21 +433,7 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 		rdma_destroy_qp(ib_conn->cma_id);
 	}
 
-	ib_conn->fmr_pool = NULL;
 	ib_conn->qp	  = NULL;
-	kfree(ib_conn->page_vec);
-
-	if (ib_conn->login_buf) {
-		if (ib_conn->login_req_dma)
-			ib_dma_unmap_single(ib_conn->device->ib_device,
-				ib_conn->login_req_dma,
-				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
-		if (ib_conn->login_resp_dma)
-			ib_dma_unmap_single(ib_conn->device->ib_device,
-				ib_conn->login_resp_dma,
-				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
-		kfree(ib_conn->login_buf);
-	}
 
 	return 0;
 }
@@ -694,7 +797,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 	page_list = page_vec->pages;
 	io_addr	  = page_list[0];
 
-	mem  = ib_fmr_pool_map_phys(ib_conn->fmr_pool,
+	mem  = ib_fmr_pool_map_phys(ib_conn->fastreg.fmr.pool,
 				    page_list,
 				    page_vec->length,
 				    io_addr);
@@ -709,7 +812,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 	mem_reg->rkey  = mem->fmr->rkey;
 	mem_reg->len   = page_vec->length * SIZE_4K;
 	mem_reg->va    = io_addr;
-	mem_reg->is_fmr = 1;
+	mem_reg->is_mr = 1;
 	mem_reg->mem_h = (void *)mem;
 
 	mem_reg->va   += page_vec->offset;
@@ -727,11 +830,17 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 }
 
 /**
- * Unregister (previosuly registered) memory.
+ * Unregister (previosuly registered using FMR) memory.
+ * If memory is non-FMR does nothing.
  */
-void iser_unreg_mem(struct iser_mem_reg *reg)
+void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
+			enum iser_data_dir cmd_dir)
 {
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
 	int ret;
+
+	if (!reg->is_mr)
+		return;
 
 	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n",reg->mem_h);
 
@@ -740,6 +849,23 @@ void iser_unreg_mem(struct iser_mem_reg *reg)
 		iser_err("ib_fmr_pool_unmap failed %d\n", ret);
 
 	reg->mem_h = NULL;
+}
+
+void iser_unreg_mem_frwr(struct iscsi_iser_task *iser_task,
+			 enum iser_data_dir cmd_dir)
+{
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_conn *ib_conn = iser_task->iser_conn->ib_conn;
+	struct fast_reg_descriptor *desc = reg->mem_h;
+
+	if (!reg->is_mr)
+		return;
+
+	reg->mem_h = NULL;
+	reg->is_mr = 0;
+	spin_lock_bh(&ib_conn->lock);
+	list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
+	spin_unlock_bh(&ib_conn->lock);
 }
 
 int iser_post_recvl(struct iser_conn *ib_conn)
@@ -779,7 +905,7 @@ int iser_post_recvm(struct iser_conn *ib_conn, int count)
 		rx_wr->sg_list	= &rx_desc->rx_sg;
 		rx_wr->num_sge	= 1;
 		rx_wr->next	= rx_wr + 1;
-		my_rx_head = (my_rx_head + 1) & (ISER_QP_MAX_RECV_DTOS - 1);
+		my_rx_head = (my_rx_head + 1) & ib_conn->qp_max_recv_dtos_mask;
 	}
 
 	rx_wr--;
@@ -863,7 +989,11 @@ static int iser_drain_tx_cq(struct iser_device  *device, int cq_index)
 		if (wc.status == IB_WC_SUCCESS) {
 			if (wc.opcode == IB_WC_SEND)
 				iser_snd_completion(tx_desc, ib_conn);
-			else
+			else if (wc.opcode == IB_WC_LOCAL_INV ||
+				 wc.opcode == IB_WC_FAST_REG_MR) {
+				atomic_dec(&ib_conn->post_send_buf_count);
+				continue;
+			} else
 				iser_err("expected opcode %d got %d\n",
 					IB_WC_SEND, wc.opcode);
 		} else {

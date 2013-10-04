@@ -53,9 +53,11 @@ static int mlx4_en_moderation_update(struct mlx4_en_priv *priv)
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		priv->tx_cq[i].moder_cnt = priv->tx_frames;
 		priv->tx_cq[i].moder_time = priv->tx_usecs;
-		err = mlx4_en_set_cq_moder(priv, &priv->tx_cq[i]);
-		if (err)
-			return err;
+		if (priv->port_up) {
+			err = mlx4_en_set_cq_moder(priv, &priv->tx_cq[i]);
+			if (err)
+				return err;
+		}
 	}
 
 	if (priv->adaptive_rx_coal)
@@ -65,9 +67,11 @@ static int mlx4_en_moderation_update(struct mlx4_en_priv *priv)
 		priv->rx_cq[i].moder_cnt = priv->rx_frames;
 		priv->rx_cq[i].moder_time = priv->rx_usecs;
 		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
-		err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
-		if (err)
-			return err;
+		if (priv->port_up) {
+			err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
+			if (err)
+				return err;
+		}
 	}
 
 	return err;

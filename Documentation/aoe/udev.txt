@@ -23,4 +23,4 @@ SUBSYSTEM=="aoe", KERNEL=="revalidate",	NAME="etherd/%k", GROUP="disk", MODE="02
 SUBSYSTEM=="aoe", KERNEL=="flush",	NAME="etherd/%k", GROUP="disk", MODE="0220"
 
 # aoe block devices     
-KERNEL=="etherd*",       NAME="%k", GROUP="disk"
+KERNEL=="etherd*",       GROUP="disk"

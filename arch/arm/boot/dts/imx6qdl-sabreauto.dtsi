@@ -45,6 +45,28 @@
 	status = "okay";
 };
 
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_CS2__GPIO6_IO15 0x80000000
+				MX6QDL_PAD_SD2_DAT2__GPIO1_IO13  0x80000000
+			>;
+		};
+	};
+
+	ecspi1 {
+		pinctrl_ecspi1_sabreauto: ecspi1-sabreauto {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D19__GPIO3_IO19 0x80000000
+			>;
+		};
+	};
+};
+
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4_1>;

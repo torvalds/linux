@@ -142,7 +142,7 @@ target:	@ We're now in the trampoline code, switch page tables
 
 	@ Invalidate the old TLBs
 	mcr	p15, 4, r0, c8, c7, 0	@ TLBIALLH
-	dsb
+	dsb	ish
 
 	eret
 

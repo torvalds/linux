@@ -721,7 +721,7 @@ static const struct net_device_ops sgiseeq_netdev_ops = {
 
 static int sgiseeq_probe(struct platform_device *pdev)
 {
-	struct sgiseeq_platform_data *pd = pdev->dev.platform_data;
+	struct sgiseeq_platform_data *pd = dev_get_platdata(&pdev->dev);
 	struct hpc3_regs *hpcregs = pd->hpc;
 	struct sgiseeq_init_block *sr;
 	unsigned int irq = pd->irq;

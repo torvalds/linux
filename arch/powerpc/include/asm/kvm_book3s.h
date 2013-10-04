@@ -334,6 +334,27 @@ static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+/*
+ * Like kvmppc_get_last_inst(), but for fetching a sc instruction.
+ * Because the sc instruction sets SRR0 to point to the following
+ * instruction, we have to fetch from pc - 4.
+ */
+static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
+{
+	ulong pc = kvmppc_get_pc(vcpu) - 4;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
+		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
+
+	r = svcpu->last_inst;
+	svcpu_put(svcpu);
+	return r;
+}
+
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
@@ -437,6 +458,23 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
+		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
+
+	return vcpu->arch.last_inst;
+}
+
+/*
+ * Like kvmppc_get_last_inst(), but for fetching a sc instruction.
+ * Because the sc instruction sets SRR0 to point to the following
+ * instruction, we have to fetch from pc - 4.
+ */
+static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
+{
+	ulong pc = kvmppc_get_pc(vcpu) - 4;
 
 	/* Load the instruction manually if it failed to do so in the
 	 * exit path */

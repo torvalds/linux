@@ -27,3 +27,13 @@ config ARM_U8500_CPUIDLE
 	help
 	  Select this to enable cpuidle for ST-E u8500 processors
 
+config CPU_IDLE_BIG_LITTLE
+	bool "Support for ARM big.LITTLE processors"
+	depends on ARCH_VEXPRESS_TC2_PM
+	select ARM_CPU_SUSPEND
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	help
+	  Select this option to enable CPU idle driver for big.LITTLE based
+	  ARM systems. Driver manages CPUs coordination through MCPM and
+	  define different C-states for little and big cores through the
+	  multiple CPU idle drivers infrastructure.

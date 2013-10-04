@@ -46,6 +46,12 @@ static inline u32 get_pmlca(int ctr)
 		case 3:
 			pmlca = mfpmr(PMRN_PMLCA3);
 			break;
+		case 4:
+			pmlca = mfpmr(PMRN_PMLCA4);
+			break;
+		case 5:
+			pmlca = mfpmr(PMRN_PMLCA5);
+			break;
 		default:
 			panic("Bad ctr number\n");
 	}
@@ -68,6 +74,12 @@ static inline void set_pmlca(int ctr, u32 pmlca)
 		case 3:
 			mtpmr(PMRN_PMLCA3, pmlca);
 			break;
+		case 4:
+			mtpmr(PMRN_PMLCA4, pmlca);
+			break;
+		case 5:
+			mtpmr(PMRN_PMLCA5, pmlca);
+			break;
 		default:
 			panic("Bad ctr number\n");
 	}
@@ -84,6 +96,10 @@ static inline unsigned int ctr_read(unsigned int i)
 			return mfpmr(PMRN_PMC2);
 		case 3:
 			return mfpmr(PMRN_PMC3);
+		case 4:
+			return mfpmr(PMRN_PMC4);
+		case 5:
+			return mfpmr(PMRN_PMC5);
 		default:
 			return 0;
 	}
@@ -103,6 +119,12 @@ static inline void ctr_write(unsigned int i, unsigned int val)
 			break;
 		case 3:
 			mtpmr(PMRN_PMC3, val);
+			break;
+		case 4:
+			mtpmr(PMRN_PMC4, val);
+			break;
+		case 5:
+			mtpmr(PMRN_PMC5, val);
 			break;
 		default:
 			break;
@@ -132,6 +154,14 @@ static void init_pmc_stop(int ctr)
 		case 3:
 			mtpmr(PMRN_PMLCA3, pmlca);
 			mtpmr(PMRN_PMLCB3, pmlcb);
+			break;
+		case 4:
+			mtpmr(PMRN_PMLCA4, pmlca);
+			mtpmr(PMRN_PMLCB4, pmlcb);
+			break;
+		case 5:
+			mtpmr(PMRN_PMLCA5, pmlca);
+			mtpmr(PMRN_PMLCB5, pmlcb);
 			break;
 		default:
 			panic("Bad ctr number!\n");

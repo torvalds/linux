@@ -1626,6 +1626,7 @@ batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 	if (!skb)
 		goto out;
 
+	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
 	tt_response = (struct batadv_tt_query_packet *)skb_put(skb, len);
 	tt_response->ttvn = ttvn;
@@ -1691,6 +1692,7 @@ static int batadv_send_tt_request(struct batadv_priv *bat_priv,
 	if (!skb)
 		goto out;
 
+	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
 
 	tt_req_len = sizeof(*tt_request);
@@ -1788,6 +1790,7 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 		if (!skb)
 			goto unlock;
 
+		skb->priority = TC_PRIO_CONTROL;
 		skb_reserve(skb, ETH_HLEN);
 		packet_pos = skb_put(skb, len);
 		tt_response = (struct batadv_tt_query_packet *)packet_pos;
@@ -1906,6 +1909,7 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 		if (!skb)
 			goto unlock;
 
+		skb->priority = TC_PRIO_CONTROL;
 		skb_reserve(skb, ETH_HLEN);
 		packet_pos = skb_put(skb, len);
 		tt_response = (struct batadv_tt_query_packet *)packet_pos;
@@ -2240,6 +2244,7 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 	if (!skb)
 		goto out;
 
+	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
 
 	roam_adv_packet = (struct batadv_roam_adv_packet *)skb_put(skb, len);

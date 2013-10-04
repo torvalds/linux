@@ -347,6 +347,7 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_iser_conn *iser_conn;
+	struct iscsi_session *session;
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
 	int error;
@@ -365,7 +366,8 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	}
 	ib_conn = ep->dd_data;
 
-	if (iser_alloc_rx_descriptors(ib_conn))
+	session = conn->session;
+	if (iser_alloc_rx_descriptors(ib_conn, session))
 		return -ENOMEM;
 
 	/* binds the iSER connection retrieved from the previously
@@ -419,12 +421,13 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	struct Scsi_Host *shost;
-	struct iser_conn *ib_conn;
+	struct iser_conn *ib_conn = NULL;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
 		return NULL;
 	shost->transportt = iscsi_iser_scsi_transport;
+	shost->cmd_per_lun = qdepth;
 	shost->max_lun = iscsi_max_lun;
 	shost->max_id = 0;
 	shost->max_channel = 0;
@@ -441,12 +444,14 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			   ep ? ib_conn->device->ib_device->dma_device : NULL))
 		goto free_host;
 
-	/*
-	 * we do not support setting can_queue cmd_per_lun from userspace yet
-	 * because we preallocate so many resources
-	 */
+	if (cmds_max > ISER_DEF_XMIT_CMDS_MAX) {
+		iser_info("cmds_max changed from %u to %u\n",
+			  cmds_max, ISER_DEF_XMIT_CMDS_MAX);
+		cmds_max = ISER_DEF_XMIT_CMDS_MAX;
+	}
+
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
-					  ISCSI_DEF_XMIT_CMDS_MAX, 0,
+					  cmds_max, 0,
 					  sizeof(struct iscsi_iser_task),
 					  initial_cmdsn, 0);
 	if (!cls_session)

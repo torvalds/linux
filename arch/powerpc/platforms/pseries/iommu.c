@@ -48,8 +48,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/udbg.h>
 #include <asm/mmzone.h>
-
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 
 static void tce_invalidate_pSeries_sw(struct iommu_table *tbl,
@@ -530,7 +529,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      const void *dma_window)
+				      const __be32 *dma_window)
 {
 	unsigned long offset, size;
 
@@ -630,7 +629,7 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
 	struct pci_dn *ppci;
-	const void *dma_window = NULL;
+	const __be32 *dma_window = NULL;
 
 	dn = pci_bus_to_OF_node(bus);
 
@@ -1152,7 +1151,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 {
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
-	const void *dma_window = NULL;
+	const __be32 *dma_window = NULL;
 	struct pci_dn *pci;
 
 	pr_debug("pci_dma_dev_setup_pSeriesLP: %s\n", pci_name(dev));
@@ -1201,7 +1200,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 	bool ddw_enabled = false;
 	struct device_node *pdn, *dn;
 	struct pci_dev *pdev;
-	const void *dma_window = NULL;
+	const __be32 *dma_window = NULL;
 	u64 dma_offset;
 
 	if (!dev->dma_mask)

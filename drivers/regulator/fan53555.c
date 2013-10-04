@@ -219,7 +219,7 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	rdesc->owner = THIS_MODULE;
 
 	di->rdev = regulator_register(&di->desc, config);
-	return PTR_RET(di->rdev);
+	return PTR_ERR_OR_ZERO(di->rdev);
 
 }
 

@@ -216,7 +216,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 					   unsigned int *indx)
 {
 	unsigned int ilen;
-	const u32 *ireg;
+	const __be32 *ireg;
 	int i;
 	int reg_tuple_size;
 	int num_servers = 0;

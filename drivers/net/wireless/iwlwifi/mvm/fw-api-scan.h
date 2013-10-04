@@ -137,6 +137,8 @@ struct iwl_ssid_ie {
  *@SCAN_FLAGS_DELAYED_SCAN_LOWBAND:
  *@SCAN_FLAGS_DELAYED_SCAN_HIGHBAND:
  *@SCAN_FLAGS_FRAGMENTED_SCAN:
+ *@SCAN_FLAGS_PASSIVE2ACTIVE: use active scan on channels that was active
+ *	in the past hour, even if they are marked as passive.
  */
 enum iwl_scan_flags {
 	SCAN_FLAGS_PERIODIC_SCAN		= BIT(0),
@@ -144,6 +146,7 @@ enum iwl_scan_flags {
 	SCAN_FLAGS_DELAYED_SCAN_LOWBAND		= BIT(2),
 	SCAN_FLAGS_DELAYED_SCAN_HIGHBAND	= BIT(3),
 	SCAN_FLAGS_FRAGMENTED_SCAN		= BIT(4),
+	SCAN_FLAGS_PASSIVE2ACTIVE		= BIT(5),
 };
 
 /**
@@ -178,7 +181,7 @@ enum iwl_scan_type {
  * @quiet_time: in msecs, dwell this time for active scan on quiet channels
  * @quiet_plcp_th: quiet PLCP threshold (channel is quiet if less than
  *	this number of packets were received (typically 1)
- * @passive2active: is auto switching from passive to active allowed (0 or 1)
+ * @passive2active: is auto switching from passive to active during scan allowed
  * @rxchain_sel_flags: RXON_RX_CHAIN_*
  * @max_out_time: in usecs, max out of serving channel time
  * @suspend_time: how long to pause scan when returning to service channel:

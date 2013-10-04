@@ -356,7 +356,7 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 
 	bo = to_tegra_bo(gem);
 
-	args->offset = tegra_bo_get_mmap_offset(bo);
+	args->offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
 
 	drm_gem_object_unreference(gem);
 
@@ -487,7 +487,7 @@ static int tegra_submit(struct drm_device *drm, void *data,
 }
 #endif
 
-static struct drm_ioctl_desc tegra_drm_ioctls[] = {
+static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 #ifdef CONFIG_DRM_TEGRA_STAGING
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_CREATE, tegra_gem_create, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_MMAP, tegra_gem_mmap, DRM_UNLOCKED),
@@ -508,7 +508,6 @@ static const struct file_operations tegra_drm_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = tegra_drm_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
@@ -633,7 +632,7 @@ struct drm_driver tegra_drm_driver = {
 	.gem_vm_ops = &tegra_bo_vm_ops,
 	.dumb_create = tegra_bo_dumb_create,
 	.dumb_map_offset = tegra_bo_dumb_map_offset,
-	.dumb_destroy = tegra_bo_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.ioctls = tegra_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(tegra_drm_ioctls),

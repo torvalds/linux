@@ -588,17 +588,6 @@ static int rdma_cancel(struct p9_client *client, struct p9_req_t *req)
 	return 1;
 }
 
-/* A request has been fully flushed without a reply.
- * That means we have posted one buffer in excess.
- */
-static int rdma_cancelled(struct p9_client *client, struct p9_req_t *req)
-{
-	struct p9_trans_rdma *rdma = client->trans;
-
-	atomic_inc(&rdma->excess_rc);
-	return 0;
-}
-
 /**
  * trans_create_rdma - Transport method for creating atransport instance
  * @client: client instance

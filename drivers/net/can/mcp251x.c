@@ -37,9 +37,6 @@
  *
  * static struct mcp251x_platform_data mcp251x_info = {
  *         .oscillator_frequency = 8000000,
- *         .board_specific_setup = &mcp251x_setup,
- *         .power_enable = mcp251x_power_enable,
- *         .transceiver_enable = NULL,
  * };
  *
  * static struct spi_board_info spi_board_info[] = {
@@ -76,6 +73,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
+#include <linux/regulator/consumer.h>
 
 /* SPI interface instruction set */
 #define INSTRUCTION_WRITE	0x02
@@ -264,6 +262,8 @@ struct mcp251x_priv {
 #define AFTER_SUSPEND_POWER 4
 #define AFTER_SUSPEND_RESTART 8
 	int restart_tx;
+	struct regulator *power;
+	struct regulator *transceiver;
 };
 
 #define MCP251X_IS(_model) \
@@ -667,16 +667,25 @@ static int mcp251x_hw_probe(struct spi_device *spi)
 	return (st1 == 0x80 && st2 == 0x07) ? 1 : 0;
 }
 
+static int mcp251x_power_enable(struct regulator *reg, int enable)
+{
+	if (IS_ERR(reg))
+		return 0;
+
+	if (enable)
+		return regulator_enable(reg);
+	else
+		return regulator_disable(reg);
+}
+
 static void mcp251x_open_clean(struct net_device *net)
 {
 	struct mcp251x_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 
 	free_irq(spi->irq, priv);
 	mcp251x_hw_sleep(spi);
-	if (pdata->transceiver_enable)
-		pdata->transceiver_enable(0);
+	mcp251x_power_enable(priv->transceiver, 0);
 	close_candev(net);
 }
 
@@ -684,7 +693,6 @@ static int mcp251x_stop(struct net_device *net)
 {
 	struct mcp251x_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 
 	close_candev(net);
 
@@ -704,8 +712,7 @@ static int mcp251x_stop(struct net_device *net)
 
 	mcp251x_hw_sleep(spi);
 
-	if (pdata->transceiver_enable)
-		pdata->transceiver_enable(0);
+	mcp251x_power_enable(priv->transceiver, 0);
 
 	priv->can.state = CAN_STATE_STOPPED;
 
@@ -928,8 +935,7 @@ static int mcp251x_open(struct net_device *net)
 {
 	struct mcp251x_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
-	unsigned long flags;
+	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_FALLING;
 	int ret;
 
 	ret = open_candev(net);
@@ -939,25 +945,17 @@ static int mcp251x_open(struct net_device *net)
 	}
 
 	mutex_lock(&priv->mcp_lock);
-	if (pdata->transceiver_enable)
-		pdata->transceiver_enable(1);
+	mcp251x_power_enable(priv->transceiver, 1);
 
 	priv->force_quit = 0;
 	priv->tx_skb = NULL;
 	priv->tx_len = 0;
 
-	flags = IRQF_ONESHOT;
-	if (pdata->irq_flags)
-		flags |= pdata->irq_flags;
-	else
-		flags |= IRQF_TRIGGER_FALLING;
-
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
 				   flags, DEVICE_NAME, priv);
 	if (ret) {
 		dev_err(&spi->dev, "failed to acquire irq %d\n", spi->irq);
-		if (pdata->transceiver_enable)
-			pdata->transceiver_enable(0);
+		mcp251x_power_enable(priv->transceiver, 0);
 		close_candev(net);
 		goto open_unlock;
 	}
@@ -1026,6 +1024,19 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY;
 	priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;
+
+	priv->power = devm_regulator_get(&spi->dev, "vdd");
+	priv->transceiver = devm_regulator_get(&spi->dev, "xceiver");
+	if ((PTR_ERR(priv->power) == -EPROBE_DEFER) ||
+	    (PTR_ERR(priv->transceiver) == -EPROBE_DEFER)) {
+		ret = -EPROBE_DEFER;
+		goto error_power;
+	}
+
+	ret = mcp251x_power_enable(priv->power, 1);
+	if (ret)
+		goto error_power;
+
 	spi_set_drvdata(spi, priv);
 
 	priv->spi = spi;
@@ -1068,29 +1079,23 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		}
 	}
 
-	if (pdata->power_enable)
-		pdata->power_enable(1);
-
-	/* Call out to platform specific setup */
-	if (pdata->board_specific_setup)
-		pdata->board_specific_setup(spi);
-
 	SET_NETDEV_DEV(net, &spi->dev);
 
 	/* Configure the SPI bus */
-	spi->mode = SPI_MODE_0;
+	spi->mode = spi->mode ? : SPI_MODE_0;
+	if (mcp251x_is_2510(spi))
+		spi->max_speed_hz = spi->max_speed_hz ? : 5 * 1000 * 1000;
+	else
+		spi->max_speed_hz = spi->max_speed_hz ? : 10 * 1000 * 1000;
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
 	/* Here is OK to not lock the MCP, no one knows about it yet */
 	if (!mcp251x_hw_probe(spi)) {
-		dev_info(&spi->dev, "Probe failed\n");
+		ret = -ENODEV;
 		goto error_probe;
 	}
 	mcp251x_hw_sleep(spi);
-
-	if (pdata->transceiver_enable)
-		pdata->transceiver_enable(0);
 
 	ret = register_candev(net);
 	if (ret)
@@ -1109,13 +1114,13 @@ error_rx_buf:
 	if (!mcp251x_enable_dma)
 		kfree(priv->spi_tx_buf);
 error_tx_buf:
-	free_candev(net);
 	if (mcp251x_enable_dma)
 		dma_free_coherent(&spi->dev, PAGE_SIZE,
 				  priv->spi_tx_buf, priv->spi_tx_dma);
+	mcp251x_power_enable(priv->power, 0);
+error_power:
+	free_candev(net);
 error_alloc:
-	if (pdata->power_enable)
-		pdata->power_enable(0);
 	dev_err(&spi->dev, "probe failed\n");
 error_out:
 	return ret;
@@ -1123,12 +1128,10 @@ error_out:
 
 static int mcp251x_can_remove(struct spi_device *spi)
 {
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
 
 	unregister_candev(net);
-	free_candev(net);
 
 	if (mcp251x_enable_dma) {
 		dma_free_coherent(&spi->dev, PAGE_SIZE,
@@ -1138,8 +1141,9 @@ static int mcp251x_can_remove(struct spi_device *spi)
 		kfree(priv->spi_rx_buf);
 	}
 
-	if (pdata->power_enable)
-		pdata->power_enable(0);
+	mcp251x_power_enable(priv->power, 0);
+
+	free_candev(net);
 
 	return 0;
 }
@@ -1149,7 +1153,6 @@ static int mcp251x_can_remove(struct spi_device *spi)
 static int mcp251x_can_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
 
@@ -1163,15 +1166,14 @@ static int mcp251x_can_suspend(struct device *dev)
 		netif_device_detach(net);
 
 		mcp251x_hw_sleep(spi);
-		if (pdata->transceiver_enable)
-			pdata->transceiver_enable(0);
+		mcp251x_power_enable(priv->transceiver, 0);
 		priv->after_suspend = AFTER_SUSPEND_UP;
 	} else {
 		priv->after_suspend = AFTER_SUSPEND_DOWN;
 	}
 
-	if (pdata->power_enable) {
-		pdata->power_enable(0);
+	if (!IS_ERR(priv->power)) {
+		regulator_disable(priv->power);
 		priv->after_suspend |= AFTER_SUSPEND_POWER;
 	}
 
@@ -1181,16 +1183,14 @@ static int mcp251x_can_suspend(struct device *dev)
 static int mcp251x_can_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
 	if (priv->after_suspend & AFTER_SUSPEND_POWER) {
-		pdata->power_enable(1);
+		mcp251x_power_enable(priv->power, 1);
 		queue_work(priv->wq, &priv->restart_work);
 	} else {
 		if (priv->after_suspend & AFTER_SUSPEND_UP) {
-			if (pdata->transceiver_enable)
-				pdata->transceiver_enable(1);
+			mcp251x_power_enable(priv->transceiver, 1);
 			queue_work(priv->wq, &priv->restart_work);
 		} else {
 			priv->after_suspend = 0;

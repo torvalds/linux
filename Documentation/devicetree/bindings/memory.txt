@@ -1,0 +1,168 @@
+*** Memory binding ***
+
+The /memory node provides basic information about the address and size
+of the physical memory. This node is usually filled or updated by the
+bootloader, depending on the actual memory configuration of the given
+hardware.
+
+The memory layout is described by the following node:
+
+/ {
+	#address-cells = <(n)>;
+	#size-cells = <(m)>;
+	memory {
+		device_type = "memory";
+		reg =  <(baseaddr1) (size1)
+			(baseaddr2) (size2)
+			...
+			(baseaddrN) (sizeN)>;
+	};
+	...
+};
+
+A memory node follows the typical device tree rules for "reg" property:
+n:		number of cells used to store base address value
+m:		number of cells used to store size value
+baseaddrX:	defines a base address of the defined memory bank
+sizeX:		the size of the defined memory bank
+
+
+More than one memory bank can be defined.
+
+
+*** Reserved memory regions ***
+
+In /memory/reserved-memory node one can create child nodes describing
+particular reserved (excluded from normal use) memory regions. Such
+memory regions are usually designed for the special usage by various
+device drivers. A good example are contiguous memory allocations or
+memory sharing with other operating system on the same hardware board.
+Those special memory regions might depend on the board configuration and
+devices used on the target system.
+
+Parameters for each memory region can be encoded into the device tree
+with the following convention:
+
+[(label):] (name) {
+	compatible = "linux,contiguous-memory-region", "reserved-memory-region";
+	reg = <(address) (size)>;
+	(linux,default-contiguous-region);
+};
+
+compatible:	one or more of:
+	- "linux,contiguous-memory-region" - enables binding of this
+	  region to Contiguous Memory Allocator (special region for
+	  contiguous memory allocations, shared with movable system
+	  memory, Linux kernel-specific).
+	- "reserved-memory-region" - compatibility is defined, given
+	  region is assigned for exclusive usage for by the respective
+	  devices.
+
+reg:	standard property defining the base address and size of
+	the memory region
+
+linux,default-contiguous-region: property indicating that the region
+	is the default region for all contiguous memory
+	allocations, Linux specific (optional)
+
+It is optional to specify the base address, so if one wants to use
+autoconfiguration of the base address, '0' can be specified as a base
+address in the 'reg' property.
+
+The /memory/reserved-memory node must contain the same #address-cells
+and #size-cells value as the root node.
+
+
+*** Device node's properties ***
+
+Once regions in the /memory/reserved-memory node have been defined, they
+may be referenced by other device nodes. Bindings that wish to reference
+memory regions should explicitly document their use of the following
+property:
+
+memory-region = <&phandle_to_defined_region>;
+
+This property indicates that the device driver should use the memory
+region pointed by the given phandle.
+
+
+*** Example ***
+
+This example defines a memory consisting of 4 memory banks. 3 contiguous
+regions are defined for Linux kernel, one default of all device drivers
+(named contig_mem, placed at 0x72000000, 64MiB), one dedicated to the
+framebuffer device (labelled display_mem, placed at 0x78000000, 8MiB)
+and one for multimedia processing (labelled multimedia_mem, placed at
+0x77000000, 64MiB). 'display_mem' region is then assigned to fb@12300000
+device for DMA memory allocations (Linux kernel drivers will use CMA is
+available or dma-exclusive usage otherwise). 'multimedia_mem' is
+assigned to scaler@12500000 and codec@12600000 devices for contiguous
+memory allocations when CMA driver is enabled.
+
+The reason for creating a separate region for framebuffer device is to
+match the framebuffer base address to the one configured by bootloader,
+so once Linux kernel drivers starts no glitches on the displayed boot
+logo appears. Scaller and codec drivers should share the memory
+allocations.
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	/* ... */
+
+	memory {
+		reg =  <0x40000000 0x10000000
+			0x50000000 0x10000000
+			0x60000000 0x10000000
+			0x70000000 0x10000000>;
+
+		reserved-memory {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/*
+			 * global autoconfigured region for contiguous allocations
+			 * (used only with Contiguous Memory Allocator)
+			 */
+			contig_region@0 {
+				compatible = "linux,contiguous-memory-region";
+				reg = <0x0 0x4000000>;
+				linux,default-contiguous-region;
+			};
+
+			/*
+			 * special region for framebuffer
+			 */
+			display_region: region@78000000 {
+				compatible = "linux,contiguous-memory-region", "reserved-memory-region";
+				reg = <0x78000000 0x800000>;
+			};
+
+			/*
+			 * special region for multimedia processing devices
+			 */
+			multimedia_region: region@77000000 {
+				compatible = "linux,contiguous-memory-region";
+				reg = <0x77000000 0x4000000>;
+			};
+		};
+	};
+
+	/* ... */
+
+	fb0: fb@12300000 {
+		status = "okay";
+		memory-region = <&display_region>;
+	};
+
+	scaler: scaler@12500000 {
+		status = "okay";
+		memory-region = <&multimedia_region>;
+	};
+
+	codec: codec@12600000 {
+		status = "okay";
+		memory-region = <&multimedia_region>;
+	};
+};

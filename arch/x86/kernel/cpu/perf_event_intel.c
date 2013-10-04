@@ -2392,6 +2392,7 @@ __init int intel_pmu_init(void)
 		break;
 
 	case 55: /* Atom 22nm "Silvermont" */
+	case 77: /* Avoton "Silvermont" */
 		memcpy(hw_cache_event_ids, slm_hw_cache_event_ids,
 			sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, slm_hw_cache_extra_regs,

@@ -199,7 +199,6 @@ static const struct file_operations imx_drm_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_gem_cma_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 	.llseek = noop_llseek,
 };
@@ -775,7 +774,7 @@ int imx_drm_remove_connector(struct imx_drm_connector *imx_drm_connector)
 }
 EXPORT_SYMBOL_GPL(imx_drm_remove_connector);
 
-static struct drm_ioctl_desc imx_drm_ioctls[] = {
+static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 	/* none so far */
 };
 
@@ -788,7 +787,7 @@ static struct drm_driver imx_drm_driver = {
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_cma_dumb_destroy,
+	.dumb_destroy		= drm_gem_dumb_destroy,
 
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= imx_drm_enable_vblank,

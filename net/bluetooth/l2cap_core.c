@@ -1415,8 +1415,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 			sk->sk_state_change(sk);
 			release_sock(sk);
 
-		} else if (chan->state == BT_CONNECT)
+		} else if (chan->state == BT_CONNECT) {
 			l2cap_do_start(chan);
+		}
 
 		l2cap_chan_unlock(chan);
 	}

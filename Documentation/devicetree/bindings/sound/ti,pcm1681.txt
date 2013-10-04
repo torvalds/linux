@@ -1,0 +1,15 @@
+Texas Instruments PCM1681 8-channel PWM Processor
+
+Required properties:
+
+ - compatible:		Should contain "ti,pcm1681".
+ - reg:			The i2c address. Should contain <0x4c>.
+
+Examples:
+
+	i2c_bus {
+		pcm1681@4c {
+			compatible = "ti,pcm1681";
+			reg = <0x4c>;
+		};
+	};

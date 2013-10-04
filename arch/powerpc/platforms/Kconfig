@@ -202,17 +202,12 @@ config PPC_P7_NAP
 	bool
 	default n
 
-config PPC_INDIRECT_IO
+config PPC_INDIRECT_PIO
 	bool
 	select GENERIC_IOMAP
 
-config PPC_INDIRECT_PIO
-	bool
-	select PPC_INDIRECT_IO
-
 config PPC_INDIRECT_MMIO
 	bool
-	select PPC_INDIRECT_IO
 
 config PPC_IO_WORKAROUNDS
 	bool

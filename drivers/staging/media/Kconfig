@@ -29,6 +29,8 @@ source "drivers/staging/media/dt3155v4l/Kconfig"
 
 source "drivers/staging/media/go7007/Kconfig"
 
+source "drivers/staging/media/msi3101/Kconfig"
+
 source "drivers/staging/media/solo6x10/Kconfig"
 
 # Keep LIRC at the end, as it has sub-menus

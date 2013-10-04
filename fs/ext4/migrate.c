@@ -39,7 +39,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	newext.ee_block = cpu_to_le32(lb->first_block);
 	newext.ee_len   = cpu_to_le16(lb->last_block - lb->first_block + 1);
 	ext4_ext_store_pblock(&newext, lb->first_pblock);
-	path = ext4_ext_find_extent(inode, lb->first_block, NULL);
+	path = ext4_ext_find_extent(inode, lb->first_block, NULL, 0);
 
 	if (IS_ERR(path)) {
 		retval = PTR_ERR(path);
@@ -494,7 +494,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * superblock modification.
 	 *
 	 * For the tmp_inode we already have committed the
-	 * trascation that created the inode. Later as and
+	 * transaction that created the inode. Later as and
 	 * when we add extents we extent the journal
 	 */
 	/*
