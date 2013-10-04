@@ -93,6 +93,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	mutex_init(&sdp->sd_quota_mutex);
+	mutex_init(&sdp->sd_quota_sync_mutex);
 	init_waitqueue_head(&sdp->sd_quota_wait);
 	INIT_LIST_HEAD(&sdp->sd_trunc_list);
 	spin_lock_init(&sdp->sd_trunc_lock);

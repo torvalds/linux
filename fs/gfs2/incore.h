@@ -714,6 +714,7 @@ struct gfs2_sbd {
 	struct list_head sd_quota_list;
 	atomic_t sd_quota_count;
 	struct mutex sd_quota_mutex;
+	struct mutex sd_quota_sync_mutex;
 	wait_queue_head_t sd_quota_wait;
 	struct list_head sd_trunc_list;
 	spinlock_t sd_trunc_lock;

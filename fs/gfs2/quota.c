@@ -1132,11 +1132,12 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	unsigned int x;
 	int error = 0;
 
-	sdp->sd_quota_sync_gen++;
-
 	qda = kcalloc(max_qd, sizeof(struct gfs2_quota_data *), GFP_KERNEL);
 	if (!qda)
 		return -ENOMEM;
+
+	mutex_lock(&sdp->sd_quota_sync_mutex);
+	sdp->sd_quota_sync_gen++;
 
 	do {
 		num_qd = 0;
@@ -1162,6 +1163,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 		}
 	} while (!error && num_qd == max_qd);
 
+	mutex_unlock(&sdp->sd_quota_sync_mutex);
 	kfree(qda);
 
 	return error;
