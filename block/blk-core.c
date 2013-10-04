@@ -145,7 +145,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->cmd = rq->__cmd;
 	rq->cmd_len = BLK_MAX_CDB;
 	rq->tag = -1;
-	rq->ref_count = 1;
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
 	rq->part = NULL;
@@ -1271,8 +1270,6 @@ static inline void blk_pm_put_request(struct request *rq) {}
 void __blk_put_request(struct request_queue *q, struct request *req)
 {
 	if (unlikely(!q))
-		return;
-	if (unlikely(--req->ref_count))
 		return;
 
 	blk_pm_put_request(req);

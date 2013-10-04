@@ -24,7 +24,6 @@ static void blk_end_sync_rq(struct request *rq, int error)
 	struct completion *waiting = rq->end_io_data;
 
 	rq->end_io_data = NULL;
-	__blk_put_request(rq->q, rq);
 
 	/*
 	 * complete last, if this is a stack request the process (and thus
@@ -102,12 +101,6 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	int err = 0;
 	unsigned long hang_check;
-
-	/*
-	 * we need an extra reference to the request, so we can look at
-	 * it after io completion
-	 */
-	rq->ref_count++;
 
 	if (!rq->sense) {
 		memset(sense, 0, sizeof(sense));
