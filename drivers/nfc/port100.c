@@ -75,6 +75,11 @@ static u8 ack_frame[PORT100_FRAME_ACK_SIZE] = {
 #define PORT100_CMD_IN_SET_PROTOCOL 0x02
 #define PORT100_CMD_IN_COMM_RF      0x04
 
+#define PORT100_CMD_TG_SET_RF       0x40
+#define PORT100_CMD_TG_SET_PROTOCOL 0x42
+#define PORT100_CMD_TG_SET_RF_OFF   0x46
+#define PORT100_CMD_TG_COMM_RF      0x48
+
 #define PORT100_CMD_SWITCH_RF       0x06
 
 #define PORT100_CMD_RESPONSE(cmd) (cmd + 1)
@@ -86,6 +91,9 @@ static u8 ack_frame[PORT100_FRAME_ACK_SIZE] = {
 
 #define PORT100_CMD_STATUS_OK      0x00
 #define PORT100_CMD_STATUS_TIMEOUT 0x80
+
+#define PORT100_MDAA_TGT_HAS_BEEN_ACTIVATED_MASK 0x01
+#define PORT100_MDAA_TGT_WAS_ACTIVATED_MASK      0x02
 
 struct port100;
 
@@ -133,6 +141,41 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 	},
 };
 
+/**
+ * Setting sets structure for tg_set_rf command
+ *
+ * @tg_set_number: Represents the entry index in the port-100 RF Base Table.
+ *                 This table contains multiple RF setting sets required for RF
+ *                 communication. this field is used for both send and receive
+ *                 settings.
+ *
+ * @tg_comm_type: Sets the communication type to be used to send and receive
+ *                data.
+ */
+struct port100_tg_rf_setting {
+	u8 tg_set_number;
+	u8 tg_comm_type;
+} __packed;
+
+#define PORT100_COMM_TYPE_TG_106A 0x0B
+#define PORT100_COMM_TYPE_TG_212F 0x0C
+#define PORT100_COMM_TYPE_TG_424F 0x0D
+
+static const struct port100_tg_rf_setting tg_rf_settings[] = {
+	[NFC_DIGITAL_RF_TECH_106A] = {
+		.tg_set_number = 8,
+		.tg_comm_type = PORT100_COMM_TYPE_TG_106A,
+	},
+	[NFC_DIGITAL_RF_TECH_212F] = {
+		.tg_set_number = 8,
+		.tg_comm_type = PORT100_COMM_TYPE_TG_212F,
+	},
+	[NFC_DIGITAL_RF_TECH_424F] = {
+		.tg_set_number = 8,
+		.tg_comm_type = PORT100_COMM_TYPE_TG_424F,
+	},
+};
+
 #define PORT100_IN_PROT_INITIAL_GUARD_TIME      0x00
 #define PORT100_IN_PROT_ADD_CRC                 0x01
 #define PORT100_IN_PROT_CHECK_CRC               0x02
@@ -155,6 +198,13 @@ static const struct port100_in_rf_setting in_rf_settings[] = {
 #define PORT100_IN_PROT_END                     0x14
 
 #define PORT100_IN_MAX_NUM_PROTOCOLS            19
+
+#define PORT100_TG_PROT_TU           0x00
+#define PORT100_TG_PROT_RF_OFF       0x01
+#define PORT100_TG_PROT_CRM          0x02
+#define PORT100_TG_PROT_END          0x03
+
+#define PORT100_TG_MAX_NUM_PROTOCOLS 3
 
 struct port100_protocol {
 	u8 number;
@@ -282,6 +332,47 @@ in_protocols[][PORT100_IN_MAX_NUM_PROTOCOLS + 1] = {
 	},
 };
 
+static struct port100_protocol
+tg_protocols[][PORT100_TG_MAX_NUM_PROTOCOLS + 1] = {
+	[NFC_DIGITAL_FRAMING_NFCA_SHORT] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCA_STANDARD] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCA_T1T] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCA_T2T] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCA_NFC_DEP] = {
+		{ PORT100_TG_PROT_TU,     1 },
+		{ PORT100_TG_PROT_RF_OFF, 0 },
+		{ PORT100_TG_PROT_CRM,    7 },
+		{ PORT100_TG_PROT_END,    0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCF] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCF_T3T] = {
+		{ PORT100_TG_PROT_END, 0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFCF_NFC_DEP] = {
+		{ PORT100_TG_PROT_TU,     1 },
+		{ PORT100_TG_PROT_RF_OFF, 0 },
+		{ PORT100_TG_PROT_CRM,    7 },
+		{ PORT100_TG_PROT_END,    0 },
+	},
+	[NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED] = {
+		{ PORT100_TG_PROT_RF_OFF, 1 },
+		{ PORT100_TG_PROT_END,    0 },
+	},
+};
+
 struct port100 {
 	struct nfc_digital_dev *nfc_digital_dev;
 
@@ -345,6 +436,14 @@ struct port100_tg_comm_rf_cmd {
 	u8 mf_halted;
 	u8 arae_flag;
 	__le16 recv_timeout;
+	u8 data[];
+} __packed;
+
+struct port100_tg_comm_rf_res {
+	u8 comm_type;
+	u8 ar_status;
+	u8 target_activated;
+	__le32 status;
 	u8 data[];
 } __packed;
 
@@ -1002,17 +1101,176 @@ static int port100_in_send_cmd(struct nfc_digital_dev *ddev,
 				      port100_in_comm_rf_complete, cb_arg);
 }
 
+static int port100_tg_set_rf(struct nfc_digital_dev *ddev, u8 rf)
+{
+	struct port100 *dev = nfc_digital_get_drvdata(ddev);
+	struct sk_buff *skb;
+	struct sk_buff *resp;
+	int rc;
+
+	if (rf >= NFC_DIGITAL_RF_TECH_LAST)
+		return -EINVAL;
+
+	skb = port100_alloc_skb(dev, sizeof(struct port100_tg_rf_setting));
+	if (!skb)
+		return -ENOMEM;
+
+	memcpy(skb_put(skb, sizeof(struct port100_tg_rf_setting)),
+	       &tg_rf_settings[rf],
+	       sizeof(struct port100_tg_rf_setting));
+
+	resp = port100_send_cmd_sync(dev, PORT100_CMD_TG_SET_RF, skb);
+
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	rc = resp->data[0];
+
+	dev_kfree_skb(resp);
+
+	return rc;
+}
+
+static int port100_tg_set_framing(struct nfc_digital_dev *ddev, int param)
+{
+	struct port100 *dev = nfc_digital_get_drvdata(ddev);
+	struct port100_protocol *protocols;
+	struct sk_buff *skb;
+	struct sk_buff *resp;
+	int rc;
+	int num_protocols;
+	size_t size;
+
+	if (param >= NFC_DIGITAL_FRAMING_LAST)
+		return -EINVAL;
+
+	protocols = tg_protocols[param];
+
+	num_protocols = 0;
+	while (protocols[num_protocols].number != PORT100_TG_PROT_END)
+		num_protocols++;
+
+	if (!num_protocols)
+		return 0;
+
+	size = sizeof(struct port100_protocol) * num_protocols;
+
+	skb = port100_alloc_skb(dev, size);
+	if (!skb)
+		return -ENOMEM;
+
+	memcpy(skb_put(skb, size), protocols, size);
+
+	resp = port100_send_cmd_sync(dev, PORT100_CMD_TG_SET_PROTOCOL, skb);
+
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	rc = resp->data[0];
+
+	dev_kfree_skb(resp);
+
+	return rc;
+}
+
 static int port100_tg_configure_hw(struct nfc_digital_dev *ddev, int type,
 				   int param)
 {
-	return -EOPNOTSUPP;
+	if (type == NFC_DIGITAL_CONFIG_RF_TECH)
+		return port100_tg_set_rf(ddev, param);
+
+	if (type == NFC_DIGITAL_CONFIG_FRAMING)
+		return port100_tg_set_framing(ddev, param);
+
+	return -EINVAL;
+}
+
+static bool port100_tg_target_activated(struct port100 *dev, u8 tgt_activated)
+{
+	u8 mask;
+
+	switch (dev->cmd_type) {
+	case PORT100_CMD_TYPE_0:
+		mask = PORT100_MDAA_TGT_HAS_BEEN_ACTIVATED_MASK;
+		break;
+	case PORT100_CMD_TYPE_1:
+		mask = PORT100_MDAA_TGT_HAS_BEEN_ACTIVATED_MASK |
+		       PORT100_MDAA_TGT_WAS_ACTIVATED_MASK;
+		break;
+	default:
+		nfc_err(&dev->interface->dev, "Unknonwn command type.\n");
+		return false;
+	}
+
+	return ((tgt_activated & mask) == mask);
+}
+
+static void port100_tg_comm_rf_complete(struct port100 *dev, void *arg,
+					struct sk_buff *resp)
+{
+	u32 status;
+	struct port100_cb_arg *cb_arg = arg;
+	nfc_digital_cmd_complete_t cb = cb_arg->complete_cb;
+	struct port100_tg_comm_rf_res *hdr;
+
+	if (IS_ERR(resp))
+		goto exit;
+
+	hdr = (struct port100_tg_comm_rf_res *)resp->data;
+
+	status = le32_to_cpu(hdr->status);
+
+	if (cb_arg->mdaa &&
+	    !port100_tg_target_activated(dev, hdr->target_activated)) {
+		kfree_skb(resp);
+		resp = ERR_PTR(-ETIMEDOUT);
+
+		goto exit;
+	}
+
+	skb_pull(resp, sizeof(struct port100_tg_comm_rf_res));
+
+	if (status != PORT100_CMD_STATUS_OK) {
+		kfree_skb(resp);
+
+		if (status == PORT100_CMD_STATUS_TIMEOUT)
+			resp = ERR_PTR(-ETIMEDOUT);
+		else
+			resp = ERR_PTR(-EIO);
+	}
+
+exit:
+	cb(dev->nfc_digital_dev, cb_arg->complete_arg, resp);
+
+	kfree(cb_arg);
 }
 
 static int port100_tg_send_cmd(struct nfc_digital_dev *ddev,
 			       struct sk_buff *skb, u16 timeout,
 			       nfc_digital_cmd_complete_t cb, void *arg)
 {
-	return -EOPNOTSUPP;
+	struct port100 *dev = nfc_digital_get_drvdata(ddev);
+	struct port100_tg_comm_rf_cmd *hdr;
+	struct port100_cb_arg *cb_arg;
+
+	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
+	if (!cb_arg)
+		return -ENOMEM;
+
+	cb_arg->complete_cb = cb;
+	cb_arg->complete_arg = arg;
+
+	skb_push(skb, sizeof(struct port100_tg_comm_rf_cmd));
+
+	hdr = (struct port100_tg_comm_rf_cmd *)skb->data;
+
+	memset(hdr, 0, sizeof(struct port100_tg_comm_rf_cmd));
+	hdr->guard_time = cpu_to_le16(500);
+	hdr->send_timeout = cpu_to_le16(0xFFFF);
+	hdr->recv_timeout = cpu_to_le16(timeout);
+
+	return port100_send_cmd_async(dev, PORT100_CMD_TG_COMM_RF, skb,
+				      port100_tg_comm_rf_complete, cb_arg);
 }
 
 static int port100_listen_mdaa(struct nfc_digital_dev *ddev,
@@ -1020,13 +1278,68 @@ static int port100_listen_mdaa(struct nfc_digital_dev *ddev,
 			       u16 timeout,
 			       nfc_digital_cmd_complete_t cb, void *arg)
 {
-	return -EOPNOTSUPP;
+	struct port100 *dev = nfc_digital_get_drvdata(ddev);
+	struct port100_tg_comm_rf_cmd *hdr;
+	struct port100_cb_arg *cb_arg;
+	struct sk_buff *skb;
+	int rc;
+
+	rc = port100_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_RF_TECH,
+				     NFC_DIGITAL_RF_TECH_106A);
+	if (rc)
+		return rc;
+
+	rc = port100_tg_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+				     NFC_DIGITAL_FRAMING_NFCA_NFC_DEP);
+	if (rc)
+		return rc;
+
+	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
+	if (!cb_arg)
+		return -ENOMEM;
+
+	cb_arg->complete_cb = cb;
+	cb_arg->complete_arg = arg;
+	cb_arg->mdaa = 1;
+
+	skb = port100_alloc_skb(dev, 0);
+	if (!skb) {
+		kfree(cb_arg);
+		return -ENOMEM;
+	}
+
+	skb_push(skb, sizeof(struct port100_tg_comm_rf_cmd));
+	hdr = (struct port100_tg_comm_rf_cmd *)skb->data;
+
+	memset(hdr, 0, sizeof(struct port100_tg_comm_rf_cmd));
+
+	hdr->guard_time = 0;
+	hdr->send_timeout = cpu_to_le16(0xFFFF);
+	hdr->mdaa = 1;
+	hdr->nfca_param[0] = (params->sens_res >> 8) & 0xFF;
+	hdr->nfca_param[1] = params->sens_res & 0xFF;
+	memcpy(hdr->nfca_param + 2, params->nfcid1, 3);
+	hdr->nfca_param[5] = params->sel_res;
+	memcpy(hdr->nfcf_param, params->nfcid2, 8);
+	hdr->nfcf_param[16] = (params->sc >> 8) & 0xFF;
+	hdr->nfcf_param[17] = params->sc & 0xFF;
+	hdr->recv_timeout = cpu_to_le16(timeout);
+
+	return port100_send_cmd_async(dev, PORT100_CMD_TG_COMM_RF, skb,
+				      port100_tg_comm_rf_complete, cb_arg);
 }
 
 static int port100_listen(struct nfc_digital_dev *ddev, u16 timeout,
 			  nfc_digital_cmd_complete_t cb, void *arg)
 {
-	return -EOPNOTSUPP;
+	struct port100 *dev = nfc_digital_get_drvdata(ddev);
+	struct sk_buff *skb;
+
+	skb = port100_alloc_skb(dev, 0);
+	if (!skb)
+		return -ENOMEM;
+
+	return port100_tg_send_cmd(ddev, skb, timeout, cb, arg);
 }
 
 static struct nfc_digital_ops port100_digital_ops = {
