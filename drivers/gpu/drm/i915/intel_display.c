@@ -10663,7 +10663,7 @@ void i915_redisable_vga(struct drm_device *dev)
 	    (I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_STATE_ENABLED) == 0)
 		return;
 
-	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
+	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
 		i915_disable_vga(dev);
 		i915_disable_vga_mem(dev);
