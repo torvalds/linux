@@ -1132,7 +1132,6 @@ struct drm_device {
 	/** \name Context handle management */
 	/*@{ */
 	struct list_head ctxlist;	/**< Linked list of context handles */
-	int ctx_count;			/**< Number of context handles */
 	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
 	struct idr ctx_idr;

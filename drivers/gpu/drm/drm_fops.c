@@ -524,7 +524,6 @@ int drm_release(struct inode *inode, struct file *filp)
 
 				list_del(&pos->head);
 				kfree(pos);
-				--dev->ctx_count;
 			}
 		}
 	}
