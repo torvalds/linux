@@ -1658,8 +1658,6 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
 	struct hda_codec *codec = info->private_data;
 	struct hdmi_spec *spec = codec->spec;
-	const unsigned int valid_mask =
-		FL | FR | RL | RR | LFE | FC | RLC | RRC;
 	unsigned int __user *dst;
 	int chs, count = 0;
 
@@ -1676,8 +1674,6 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 		for (i = 0; i < ARRAY_SIZE(channel_allocations); i++, cap++) {
 			int chs_bytes = chs * 4;
 			if (cap->channels != chs)
-				continue;
-			if (cap->spk_mask & ~valid_mask)
 				continue;
 			if (size < 8)
 				return -ENOMEM;
