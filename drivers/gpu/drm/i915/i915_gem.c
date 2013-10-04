@@ -1080,7 +1080,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			mod_timer(&timer, expire);
 		}
 
-		schedule();
+		io_schedule();
 
 		if (timeout)
 			timeout_jiffies = expire - jiffies;
