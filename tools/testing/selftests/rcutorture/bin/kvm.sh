@@ -44,7 +44,9 @@ usage () {
 	echo "       --configs \"config-file list\""
 	echo "       --datestamp string"
 	echo "       --duration minutes"
+	echo "       --interactive"
 	echo "       --kversion vN.NN"
+	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
@@ -96,9 +98,17 @@ do
 		dur=$2
 		shift
 		;;
+	--interactive)
+		RCU_QEMU_INTERACTIVE=1; export RCU_QEMU_INTERACTIVE
+		;;
 	--kversion)
 		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' error
 		kversion=$2
+		shift
+		;;
+	--mac)
+		checkarg --mac "(MAC address)" $# "$2" '^\([0-9a-fA-F]\{2\}:\)\{5\}[0-9a-fA-F]\{2\}$' error
+		RCU_QEMU_MAC=$2; export RCU_QEMU_MAC
 		shift
 		;;
 	--qemu-cmd)

@@ -115,20 +115,21 @@ QEMU="`identify_qemu $builddir/vmlinux.o`"
 
 # Generate -smp qemu argument.
 cpu_count=`configNR_CPUS.sh $config_template`
-ncpus=`grep '^processor' /proc/cpuinfo | wc -l`
-if test $cpu_count -gt $ncpus
+vcpus=`identify_qemu_vcpus`
+if test $cpu_count -gt $vcpus
 then
-	echo CPU count limited from $cpu_count to $ncpus
+	echo CPU count limited from $cpu_count to $vcpus
 	touch $resdir/Warnings
-	echo CPU count limited from $cpu_count to $ncpus >> $resdir/Warnings
-	cpu_count=$ncpus
+	echo CPU count limited from $cpu_count to $vcpus >> $resdir/Warnings
+	cpu_count=$vcpus
 fi
-if echo $qemu_args | grep -q -e -smp
-then
-	echo CPU count specified by caller
-else
-	qemu_args="$qemu_args -smp $cpu_count"
-fi
+qemu_args="`specify_qemu_cpus "$QEMU" "$qemu_args" "$cpu_count"`"
+
+# Generate architecture-specific and interaction-specific qemu arguments
+qemu_args="$qemu_args `identify_qemu_args "$QEMU" "$builddir/console.log"`"
+
+# Generate qemu -append arguments
+qemu_append="`identify_qemu_append "$QEMU"`"
 
 # Generate CPU-hotplug boot parameters
 boot_args="`rcutorture_param_onoff "$boot_args" $builddir/.config`"
@@ -137,8 +138,8 @@ boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
 # Pull in Kconfig-fragment boot parameters
 boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
 
-echo $QEMU -serial file:$builddir/console.log $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"noapic selinux=0 console=ttyS0 initcall_debug debug rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args\" > $resdir/qemu-cmd
-$QEMU -name rcu-test -serial file:$builddir/console.log $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "noapic selinux=0 console=ttyS0 initcall_debug debug rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args" &
+echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args\" > $resdir/qemu-cmd
+$QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "$qemu_append rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args" &
 qemu_pid=$!
 commandcompleted=0
 echo Monitoring qemu job at pid $qemu_pid

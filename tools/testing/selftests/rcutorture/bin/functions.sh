@@ -78,3 +78,81 @@ identify_qemu () {
 		exit 1
 	fi
 }
+
+# identify_qemu_append qemu-cmd
+#
+# Output arguments for the qemu "-append" string based on CPU type
+# and the RCU_QEMU_INTERACTIVE environment variable.
+identify_qemu_append () {
+	case "$1" in
+	qemu-system-x86_64|qemu-system-i386)
+		echo noapic selinux=0 initcall_debug debug
+		;;
+	esac
+	if test -n "$RCU_QEMU_INTERACTIVE"
+	then
+		echo root=/dev/sda
+	else
+		echo console=ttyS0
+	fi
+}
+
+# identify_qemu_args qemu-cmd serial-file
+#
+# Output arguments for qemu arguments based on the RCU_QEMU_MAC
+# and RCU_QEMU_INTERACTIVE environment variables.
+identify_qemu_args () {
+	case "$1" in
+	qemu-system-x86_64|qemu-system-i386)
+		;;
+	qemu-system-ppc64)
+		echo -enable-kvm -M pseries -cpu POWER7 -nodefaults
+		echo -device spapr-vscsi
+		if test -n "$RCU_QEMU_INTERACTIVE" -a -n "$RCU_QEMU_MAC"
+		then
+			echo -device spapr-vlan,netdev=net0,mac=$RCU_QEMU_MAC
+			echo -netdev bridge,br=br0,id=net0
+		elif test -n "$RCU_QEMU_INTERACTIVE"
+		then
+			echo -net nic -net user
+		fi
+		;;
+	esac
+	if test -n "$RCU_QEMU_INTERACTIVE"
+	then
+		echo -monitor stdio -serial pty -S
+	else
+		echo -serial file:$2
+	fi
+}
+
+# identify_qemu_vcpus
+#
+# Returns the number of virtual CPUs available to the aggregate of the
+# guest OSes.
+identify_qemu_vcpus () {
+	lscpu | grep '^CPU(s):' | sed -e 's/CPU(s)://'
+}
+
+# specify_qemu_cpus qemu-cmd qemu-args #cpus
+#
+# Appends a string containing "-smp XXX" to qemu-args, unless the incoming
+# qemu-args already contains "-smp".
+specify_qemu_cpus () {
+	local nt;
+
+	if echo $2 | grep -q -e -smp
+	then
+		echo $2
+	else
+		case "$1" in
+		qemu-system-x86_64|qemu-system-i386)
+			echo $2 -smp $3
+			;;
+		qemu-system-ppc64)
+			nt="`lscpu | grep '^NUMA node0' | sed -e 's/^[^,]*,\([0-9]*\),.*$/\1/'`"
+			echo $2 -smp cores=`expr \( $3 + $nt - 1 \) / $nt`,threads=$nt
+			;;
+		esac
+	fi
+}
