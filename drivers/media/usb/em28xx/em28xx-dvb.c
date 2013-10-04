@@ -387,6 +387,7 @@ static struct drxk_config maxmedia_ub425_tc_drxk = {
 	.microcode_name = "dvb-demod-drxk-01.fw",
 	.chunk_size = 62,
 	.load_firmware_sync = true,
+	.qam_demod_parameter_count = 2,
 };
 
 static struct drxk_config pctv_520e_drxk = {
