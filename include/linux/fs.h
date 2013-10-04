@@ -1330,6 +1330,7 @@ struct super_block {
 	 */
 	struct list_lru		s_dentry_lru ____cacheline_aligned_in_smp;
 	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
+	struct rcu_head		rcu;
 };
 
 extern struct timespec current_fs_time(struct super_block *sb);
