@@ -1699,8 +1699,8 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 }
 EXPORT_SYMBOL(regulatory_hint);
 
-void regulatory_hint_11d(struct wiphy *wiphy, enum ieee80211_band band,
-			 const u8 *country_ie, u8 country_ie_len)
+void regulatory_hint_country_ie(struct wiphy *wiphy, enum ieee80211_band band,
+				const u8 *country_ie, u8 country_ie_len)
 {
 	char alpha2[2];
 	enum environment_cap env = ENVIRON_ANY;
