@@ -640,7 +640,7 @@ int exynos5410_init_asv(struct asv_common *asv_info)
 			special_lot_group = ((chip_id3_value >> EXYNOS5410_SG_A_OFFSET) & EXYNOS5410_SG_A_MASK)
 					+ ((chip_id3_value >> EXYNOS5410_SG_B_OFFSET) & EXYNOS5410_SG_B_MASK);
 		is_speedgroup = true;
-		//special_lot_group++;
+		special_lot_group++;
 		pr_info("Exynos5410 ASV : Use Fusing Speed Group %d\n", special_lot_group);
 	} else {
 		asv_info->hpm_value = (chip_id4_value >> EXYNOS5410_TMCB_OFFSET) & EXYNOS5410_TMCB_MASK;
