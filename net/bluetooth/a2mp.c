@@ -75,20 +75,15 @@ u8 __next_ident(struct amp_mgr *mgr)
 	return mgr->ident;
 }
 
-static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
-{
-	cl->id = AMP_ID_BREDR;
-	cl->type = AMP_TYPE_BREDR;
-	cl->status = AMP_STATUS_BLUETOOTH_ONLY;
-}
-
 /* hci_dev_list shall be locked */
 static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl, u8 num_ctrl)
 {
 	int i = 0;
 	struct hci_dev *hdev;
 
-	__a2mp_cl_bredr(cl);
+	cl[0].id = AMP_ID_BREDR;
+	cl[0].type = AMP_TYPE_BREDR;
+	cl[0].status = AMP_STATUS_BLUETOOTH_ONLY;
 
 	list_for_each_entry(hdev, &hci_dev_list, list) {
 		/* Iterate through AMP controllers */
