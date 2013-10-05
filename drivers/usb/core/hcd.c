@@ -879,9 +879,9 @@ static ssize_t authorized_default_store(struct device *dev,
 	if (result == 1) {
 		usb_hcd->authorized_default = val ? 1 : 0;
 		result = size;
-	}
-	else
+	} else {
 		result = -EINVAL;
+	}
 	return result;
 }
 static DEVICE_ATTR_RW(authorized_default);
