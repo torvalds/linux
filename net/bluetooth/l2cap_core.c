@@ -3046,8 +3046,8 @@ int l2cap_ertm_init(struct l2cap_chan *chan)
 
 	skb_queue_head_init(&chan->tx_q);
 
-	chan->local_amp_id = 0;
-	chan->move_id = 0;
+	chan->local_amp_id = AMP_ID_BREDR;
+	chan->move_id = AMP_ID_BREDR;
 	chan->move_state = L2CAP_MOVE_STABLE;
 	chan->move_role = L2CAP_MOVE_ROLE_NONE;
 
@@ -3100,7 +3100,7 @@ static inline bool __l2cap_efs_supported(struct l2cap_conn *conn)
 static void __l2cap_set_ertm_timeouts(struct l2cap_chan *chan,
 				      struct l2cap_conf_rfc *rfc)
 {
-	if (chan->local_amp_id && chan->hs_hcon) {
+	if (chan->local_amp_id != AMP_ID_BREDR && chan->hs_hcon) {
 		u64 ertm_to = chan->hs_hcon->hdev->amp_be_flush_to;
 
 		/* Class 1 devices have must have ERTM timeouts
@@ -3791,12 +3791,12 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 				 * The connection will succeed after the
 				 * physical link is up.
 				 */
-				if (amp_id) {
-					__l2cap_state_change(chan, BT_CONNECT2);
-					result = L2CAP_CR_PEND;
-				} else {
+				if (amp_id == AMP_ID_BREDR) {
 					__l2cap_state_change(chan, BT_CONFIG);
 					result = L2CAP_CR_SUCCESS;
+				} else {
+					__l2cap_state_change(chan, BT_CONNECT2);
+					result = L2CAP_CR_PEND;
 				}
 				status = L2CAP_CS_NO_INFO;
 			}
@@ -4423,7 +4423,7 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 	BT_DBG("psm 0x%2.2x, scid 0x%4.4x, amp_id %d", psm, scid, req->amp_id);
 
 	/* For controller id 0 make BR/EDR connection */
-	if (req->amp_id == HCI_BREDR_ID) {
+	if (req->amp_id == AMP_ID_BREDR) {
 		l2cap_connect(conn, cmd, data, L2CAP_CREATE_CHAN_RSP,
 			      req->amp_id);
 		return 0;
@@ -4658,7 +4658,7 @@ void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 
 	if (chan->state != BT_CONNECTED) {
 		/* Ignore logical link if channel is on BR/EDR */
-		if (chan->local_amp_id)
+		if (chan->local_amp_id != AMP_ID_BREDR)
 			l2cap_logical_finish_create(chan, hchan);
 	} else {
 		l2cap_logical_finish_move(chan, hchan);
@@ -4669,7 +4669,7 @@ void l2cap_move_start(struct l2cap_chan *chan)
 {
 	BT_DBG("chan %p", chan);
 
-	if (chan->local_amp_id == HCI_BREDR_ID) {
+	if (chan->local_amp_id == AMP_ID_BREDR) {
 		if (chan->chan_policy != BT_CHANNEL_POLICY_AMP_PREFERRED)
 			return;
 		chan->move_role = L2CAP_MOVE_ROLE_INITIATOR;
@@ -4868,7 +4868,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 		goto send_move_response;
 	}
 
-	if (req->dest_amp_id) {
+	if (req->dest_amp_id != AMP_ID_BREDR) {
 		struct hci_dev *hdev;
 		hdev = hci_dev_get(req->dest_amp_id);
 		if (!hdev || hdev->dev_type != HCI_AMP ||
@@ -4898,7 +4898,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 	chan->move_id = req->dest_amp_id;
 	icid = chan->dcid;
 
-	if (!req->dest_amp_id) {
+	if (req->dest_amp_id == AMP_ID_BREDR) {
 		/* Moving to BR/EDR */
 		if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
 			chan->move_state = L2CAP_MOVE_WAIT_LOCAL_BUSY;
@@ -5090,7 +5090,7 @@ static int l2cap_move_channel_confirm(struct l2cap_conn *conn,
 	if (chan->move_state == L2CAP_MOVE_WAIT_CONFIRM) {
 		if (result == L2CAP_MC_CONFIRMED) {
 			chan->local_amp_id = chan->move_id;
-			if (!chan->local_amp_id)
+			if (chan->local_amp_id == AMP_ID_BREDR)
 				__release_logical_link(chan);
 		} else {
 			chan->move_id = chan->local_amp_id;
@@ -5130,7 +5130,7 @@ static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
 	if (chan->move_state == L2CAP_MOVE_WAIT_CONFIRM_RSP) {
 		chan->local_amp_id = chan->move_id;
 
-		if (!chan->local_amp_id && chan->hs_hchan)
+		if (chan->local_amp_id == AMP_ID_BREDR && chan->hs_hchan)
 			__release_logical_link(chan);
 
 		l2cap_move_done(chan);

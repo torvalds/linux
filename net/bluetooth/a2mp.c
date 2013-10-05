@@ -77,7 +77,7 @@ u8 __next_ident(struct amp_mgr *mgr)
 
 static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
 {
-	cl->id = 0;
+	cl->id = AMP_ID_BREDR;
 	cl->type = AMP_TYPE_BREDR;
 	cl->status = 1;
 }
@@ -216,7 +216,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		BT_DBG("Remote AMP id %d type %d status %d", cl->id, cl->type,
 		       cl->status);
 
-		if (cl->id != HCI_BREDR_ID && cl->type == HCI_AMP) {
+		if (cl->id != AMP_ID_BREDR && cl->type == HCI_AMP) {
 			struct a2mp_info_req req;
 
 			found = true;

@@ -64,7 +64,7 @@
 #define HCI_AMP		0x01
 
 /* First BR/EDR Controller shall have ID = 0 */
-#define HCI_BREDR_ID	0
+#define AMP_ID_BREDR	0x00
 
 /* AMP controller types */
 #define AMP_TYPE_BREDR	0x00
