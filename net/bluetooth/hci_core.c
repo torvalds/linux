@@ -1105,7 +1105,7 @@ static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
 	u8 ad_len = 0, flags = 0;
 	size_t name_len;
 
-	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		flags |= LE_AD_GENERAL;
 
 	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {

@@ -425,7 +425,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_HS_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_HS;
 
-	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		settings |= MGMT_SETTING_ADVERTISING;
 
 	return settings;
@@ -1463,8 +1463,8 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 			changed = true;
 		}
 
-		if (!val && test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
-			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+		if (!val && test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 			changed = true;
 		}
 
@@ -1500,7 +1500,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags) && !val)
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) && !val)
 		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(val), &val);
 
 	hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
@@ -2888,7 +2888,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 			goto failed;
 		}
 
-		if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
+		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					 MGMT_STATUS_REJECTED);
 			mgmt_pending_remove(cmd);
@@ -3236,13 +3236,13 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data, u1
 	hci_dev_lock(hdev);
 
 	val = !!cp->val;
-	enabled = test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+	enabled = test_bit(HCI_ADVERTISING, &hdev->dev_flags);
 
 	if (!hdev_is_powered(hdev) || val == enabled) {
 		bool changed = false;
 
-		if (val != test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
-			change_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+		if (val != test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+			change_bit(HCI_ADVERTISING, &hdev->dev_flags);
 			changed = true;
 		}
 
@@ -3851,7 +3851,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 				    &hdev->static_addr);
 	}
 
-	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
 		u8 adv = 0x01;
 
 		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(adv), &adv);

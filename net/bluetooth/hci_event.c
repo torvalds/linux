@@ -918,9 +918,9 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (!status) {
 		if (*sent)
-			set_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+			set_bit(HCI_ADVERTISING, &hdev->dev_flags);
 		else
-			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 	}
 
 	if (!test_bit(HCI_INIT, &hdev->flags)) {
@@ -1005,7 +1005,7 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 		} else {
 			hdev->features[1][0] &= ~LMP_HOST_LE;
 			clear_bit(HCI_LE_ENABLED, &hdev->dev_flags);
-			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 		}
 
 		if (sent->simul)
