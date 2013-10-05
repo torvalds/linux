@@ -78,7 +78,7 @@ u8 __next_ident(struct amp_mgr *mgr)
 static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
 {
 	cl->id = 0;
-	cl->type = 0;
+	cl->type = AMP_TYPE_BREDR;
 	cl->status = 1;
 }
 
@@ -352,7 +352,7 @@ static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	tmp = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
 
 	hdev = hci_dev_get(req->id);
-	if (!hdev || hdev->amp_type == HCI_BREDR || tmp) {
+	if (!hdev || hdev->amp_type == AMP_TYPE_BREDR || tmp) {
 		struct a2mp_amp_assoc_rsp rsp;
 		rsp.id = req->id;
 
@@ -459,7 +459,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	rsp.remote_id = req->local_id;
 
 	hdev = hci_dev_get(req->remote_id);
-	if (!hdev || hdev->amp_type != HCI_AMP) {
+	if (!hdev || hdev->amp_type == AMP_TYPE_BREDR) {
 		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 		goto send_rsp;
 	}
@@ -879,7 +879,7 @@ void a2mp_send_getinfo_rsp(struct hci_dev *hdev)
 	rsp.id = hdev->id;
 	rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 
-	if (hdev->amp_type != HCI_BREDR) {
+	if (hdev->amp_type != AMP_TYPE_BREDR) {
 		rsp.status = 0;
 		rsp.total_bw = cpu_to_le32(hdev->amp_total_bw);
 		rsp.max_bw = cpu_to_le32(hdev->amp_max_bw);

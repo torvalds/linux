@@ -803,7 +803,7 @@ static inline bool hci_amp_capable(void)
 
 	read_lock(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list)
-		if (hdev->amp_type == HCI_AMP &&
+		if (hdev->amp_type != AMP_TYPE_BREDR &&
 		    test_bit(HCI_UP, &hdev->flags))
 			ret = true;
 	read_unlock(&hci_dev_list_lock);
