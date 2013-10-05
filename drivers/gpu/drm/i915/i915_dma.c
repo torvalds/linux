@@ -1622,8 +1622,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_irq_init(dev);
 	intel_pm_init(dev);
-	intel_uncore_sanitize(dev);
 	intel_uncore_init(dev);
+	intel_uncore_sanitize(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
