@@ -112,8 +112,7 @@ static void malformed_message(u32 *buf)
 	msg_bufno = (buf[0] >> 12) & 0x3ff;
 	msg_data = buf[1] & 0xfffffff;
 
-	pr_warn("xillybus: Malformed message (skipping): "
-		"opcode=%d, channel=%03x, dir=%d, bufno=%03x, data=%07x\n",
+	pr_warn("xillybus: Malformed message (skipping): opcode=%d, channel=%03x, dir=%d, bufno=%03x, data=%07x\n",
 		opcode, msg_channel, msg_dir, msg_bufno, msg_data);
 }
 
@@ -153,15 +152,13 @@ irqreturn_t xillybus_isr(int irq, void *data)
 	for (i = 0; i < buf_size; i += 2)
 		if (((buf[i+1] >> 28) & 0xf) != ep->msg_counter) {
 			malformed_message(&buf[i]);
-			pr_warn("xillybus: Sending a NACK on "
-				"counter %x (instead of %x) on entry %d\n",
+			pr_warn("xillybus: Sending a NACK on counter %x (instead of %x) on entry %d\n",
 				((buf[i+1] >> 28) & 0xf),
 				ep->msg_counter,
 				i/2);
 
 			if (++ep->failed_messages > 10)
-				pr_err("xillybus: Lost sync with "
-				       "interrupt messages. Stopping.\n");
+				pr_err("xillybus: Lost sync with interrupt messages. Stopping.\n");
 			else {
 				ep->ephw->hw_sync_sgl_for_device(
 					ep,
@@ -283,13 +280,7 @@ irqreturn_t xillybus_isr(int irq, void *data)
 		case XILLYMSG_OPCODE_FATAL_ERROR:
 			ep->fatal_error = 1;
 			wake_up_interruptible(&ep->ep_wait); /* For select() */
-			pr_err("xillybus: FPGA reported a fatal "
-			       "error. This means that the low-level "
-			       "communication with the device has failed. "
-			       "This hardware problem is most likely "
-			       "unrelated to xillybus (neither kernel "
-			       "module nor FPGA core), but reports are "
-			       "still welcome. All I/O is aborted.\n");
+			pr_err("xillybus: FPGA reported a fatal error. This means that the low-level communication with the device has failed. This hardware problem is most likely unrelated to xillybus (neither kernel module nor FPGA core), but reports are still welcome. All I/O is aborted.\n");
 			break;
 		default:
 			malformed_message(&buf[i]);
@@ -486,8 +477,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 
 		if ((channelnum > ep->num_channels) ||
 		    ((channelnum == 0) && !is_writebuf)) {
-			pr_err("xillybus: IDT requests channel out "
-			       "of range. Aborting.\n");
+			pr_err("xillybus: IDT requests channel out of range. Aborting.\n");
 			return -ENODEV;
 		}
 
@@ -565,9 +555,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 				 */
 				if ((left_of_wr_salami < bytebufsize) &&
 				    (left_of_wr_salami > 0)) {
-					pr_err("xillybus: "
-					       "Corrupt buffer allocation "
-					       "in IDT. Aborting.\n");
+					pr_err("xillybus: Corrupt buffer allocation in IDT. Aborting.\n");
 					return -ENODEV;
 				}
 
@@ -644,9 +632,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 				 */
 				if ((left_of_rd_salami < bytebufsize) &&
 				    (left_of_rd_salami > 0)) {
-					pr_err("xillybus: "
-					       "Corrupt buffer allocation "
-					       "in IDT. Aborting.\n");
+					pr_err("xillybus: Corrupt buffer allocation in IDT. Aborting.\n");
 					return -ENODEV;
 				}
 
@@ -706,16 +692,14 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 	}
 
 	if (!msg_buf_done) {
-		pr_err("xillybus: Corrupt IDT: No message buffer. "
-		       "Aborting.\n");
+		pr_err("xillybus: Corrupt IDT: No message buffer. Aborting.\n");
 		return -ENODEV;
 	}
 
 	return 0;
 
 memfail:
-	pr_err("xillybus: Failed to allocate write buffer memory. "
-	       "Aborting.\n");
+	pr_err("xillybus: Failed to allocate write buffer memory. Aborting.\n");
 	return -ENOMEM;
 dmafail:
 	pr_err("xillybus: Failed to map DMA memory!. Aborting.\n");
@@ -745,8 +729,7 @@ static void xilly_scan_idt(struct xilly_endpoint *endpoint,
 	scan++;
 
 	if (scan > end_of_idt) {
-		pr_err("xillybus: IDT device name list overflow. "
-		       "Aborting.\n");
+		pr_err("xillybus: IDT device name list overflow. Aborting.\n");
 		idt_handle->chandesc = NULL;
 		return;
 	} else
@@ -757,8 +740,7 @@ static void xilly_scan_idt(struct xilly_endpoint *endpoint,
 	if (len & 0x03) {
 		idt_handle->chandesc = NULL;
 
-		pr_err("xillybus: Corrupt IDT device name list. "
-		       "Aborting.\n");
+		pr_err("xillybus: Corrupt IDT device name list. Aborting.\n");
 	}
 
 	idt_handle->entries = len >> 2;
@@ -803,8 +785,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		DMA_FROM_DEVICE);
 
 	if (channel->wr_buffers[0]->end_offset != endpoint->idtlen) {
-		pr_err("xillybus: IDT length mismatch (%d != %d). "
-		       "Aborting.\n",
+		pr_err("xillybus: IDT length mismatch (%d != %d). Aborting.\n",
 		       channel->wr_buffers[0]->end_offset, endpoint->idtlen);
 		rc = -ENODEV;
 		return rc;
@@ -821,9 +802,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 
 	/* Check version number. Accept anything below 0x82 for now. */
 	if (*version > 0x82) {
-		pr_err("xillybus: No support for IDT version 0x%02x. "
-		       "Maybe the xillybus driver needs an upgarde. "
-		       "Aborting.\n",
+		pr_err("xillybus: No support for IDT version 0x%02x. Maybe the xillybus driver needs an upgarde. Aborting.\n",
 		       (int) *version);
 		rc = -ENODEV;
 		return rc;
@@ -1312,9 +1291,7 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 				 channel->rd_wait,
 				 (!channel->rd_full),
 				 timeout) == 0) {
-			pr_warn("xillybus: "
-				"Timed out while flushing. "
-				"Output data may be lost.\n");
+			pr_warn("xillybus: Timed out while flushing. Output data may be lost.\n");
 
 			rc = -ETIMEDOUT;
 			break;
@@ -1354,11 +1331,9 @@ static void xillybus_autoflush(struct work_struct *work)
 	rc = xillybus_myflush(channel, -1);
 
 	if (rc == -EINTR)
-		pr_warn("xillybus: Autoflush failed because "
-			"work queue thread got a signal.\n");
+		pr_warn("xillybus: Autoflush failed because work queue thread got a signal.\n");
 	else if (rc)
-		pr_err("xillybus: Autoflush failed under "
-		       "weird circumstances.\n");
+		pr_err("xillybus: Autoflush failed under weird circumstances.\n");
 
 }
 
@@ -1615,8 +1590,8 @@ static int xillybus_open(struct inode *inode, struct file *filp)
 	mutex_unlock(&ep_list_lock);
 
 	if (!endpoint) {
-		pr_err("xillybus: open() failed to find a device "
-		       "for major=%d and minor=%d\n", major, minor);
+		pr_err("xillybus: open() failed to find a device for major=%d and minor=%d\n",
+		       major, minor);
 		return -ENODEV;
 	}
 
@@ -1642,15 +1617,13 @@ static int xillybus_open(struct inode *inode, struct file *filp)
 	if ((filp->f_mode & FMODE_READ) && (filp->f_flags & O_NONBLOCK) &&
 	    (channel->wr_synchronous || !channel->wr_allow_partial ||
 	     !channel->wr_supports_nonempty)) {
-		pr_err("xillybus: open() failed: "
-		       "O_NONBLOCK not allowed for read on this device\n");
+		pr_err("xillybus: open() failed: O_NONBLOCK not allowed for read on this device\n");
 		return -ENODEV;
 	}
 
 	if ((filp->f_mode & FMODE_WRITE) && (filp->f_flags & O_NONBLOCK) &&
 	    (channel->rd_synchronous || !channel->rd_allow_partial)) {
-		pr_err("xillybus: open() failed: "
-		       "O_NONBLOCK not allowed for write on this device\n");
+		pr_err("xillybus: open() failed: O_NONBLOCK not allowed for write on this device\n");
 		return -ENODEV;
 	}
 
@@ -1765,8 +1738,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 		rc = mutex_lock_interruptible(&channel->rd_mutex);
 
 		if (rc) {
-			pr_warn("xillybus: Failed to close file. "
-				"Hardware left in messy state.\n");
+			pr_warn("xillybus: Failed to close file. Hardware left in messy state.\n");
 			return rc;
 		}
 
@@ -1791,8 +1763,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 	if (filp->f_mode & FMODE_READ) {
 		rc = mutex_lock_interruptible(&channel->wr_mutex);
 		if (rc) {
-			pr_warn("xillybus: Failed to close file. "
-				"Hardware left in messy state.\n");
+			pr_warn("xillybus: Failed to close file. Hardware left in messy state.\n");
 			return rc;
 		}
 
@@ -1853,10 +1824,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 
 				if (channel->wr_sleepy) {
 					mutex_unlock(&channel->wr_mutex);
-					pr_warn("xillybus: Hardware failed to "
-						"respond to close command, "
-						"therefore left in "
-						"messy state.\n");
+					pr_warn("xillybus: Hardware failed to respond to close command, therefore left in messy state.\n");
 					return -EINTR;
 				}
 			}
@@ -2057,8 +2025,7 @@ static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
 				       "%s", devname);
 
 		if (IS_ERR(device)) {
-			pr_warn("xillybus: Failed to create %s "
-				"device. Aborting.\n", devname);
+			pr_warn("xillybus: Failed to create %s device. Aborting.\n", devname);
 			goto error3;
 		}
 	}
@@ -2141,8 +2108,7 @@ static int xilly_quiesce(struct xilly_endpoint *endpoint)
 					 XILLY_TIMEOUT);
 
 	if (endpoint->idtlen < 0) {
-		pr_err("xillybus: Failed to quiesce the device on "
-		       "exit. Quitting while leaving a mess.\n");
+		pr_err("xillybus: Failed to quiesce the device on exit. Quitting while leaving a mess.\n");
 		return -ENODEV;
 	}
 	return 0; /* Success */
