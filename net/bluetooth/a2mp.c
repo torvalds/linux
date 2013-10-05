@@ -92,7 +92,7 @@ static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl, u8 num_ctrl)
 
 	list_for_each_entry(hdev, &hci_dev_list, list) {
 		/* Iterate through AMP controllers */
-		if (hdev->id == HCI_BREDR_ID)
+		if (hdev->dev_type != HCI_AMP)
 			continue;
 
 		/* Starting from second entry */
