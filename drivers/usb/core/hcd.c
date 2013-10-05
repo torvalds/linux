@@ -40,6 +40,7 @@
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -92,10 +93,7 @@ EXPORT_SYMBOL_GPL (usb_bus_list);
 
 /* used when allocating bus numbers */
 #define USB_MAXBUS		64
-struct usb_busmap {
-	unsigned long busmap[USB_MAXBUS / (8*sizeof (unsigned long))];
-};
-static struct usb_busmap busmap;
+static DECLARE_BITMAP(busmap, USB_MAXBUS);
 
 /* used when updating list of hcds */
 DEFINE_MUTEX(usb_bus_list_lock);	/* exported only for usbfs */
@@ -941,12 +939,12 @@ static int usb_register_bus(struct usb_bus *bus)
 	int busnum;
 
 	mutex_lock(&usb_bus_list_lock);
-	busnum = find_next_zero_bit (busmap.busmap, USB_MAXBUS, 1);
+	busnum = find_next_zero_bit(busmap, USB_MAXBUS, 1);
 	if (busnum >= USB_MAXBUS) {
 		printk (KERN_ERR "%s: too many buses\n", usbcore_name);
 		goto error_find_busnum;
 	}
-	set_bit (busnum, busmap.busmap);
+	set_bit(busnum, busmap);
 	bus->busnum = busnum;
 
 	/* Add it to the local list of buses */
@@ -987,7 +985,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 
 	usb_notify_remove_bus(bus);
 
-	clear_bit (bus->busnum, busmap.busmap);
+	clear_bit(bus->busnum, busmap);
 }
 
 /**
