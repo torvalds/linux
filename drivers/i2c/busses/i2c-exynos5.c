@@ -29,7 +29,11 @@
 
 #include "i2c-exynos5.h"
 
-#define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(1000))
+#if defined(CONFIG_MACH_ODROIDXU)
+    #define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(10))
+#else
+    #define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(1000))
+#endif   
 
 struct exynos5_i2c {
 	unsigned int		suspended:1;
