@@ -418,11 +418,12 @@ static void rcu_eqs_enter(bool user)
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE((oldval & DYNTICK_TASK_NEST_MASK) == 0);
-	if ((oldval & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE)
+	if ((oldval & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE) {
 		rdtp->dynticks_nesting = 0;
-	else
+		rcu_eqs_enter_common(rdtp, oldval, user);
+	} else {
 		rdtp->dynticks_nesting -= DYNTICK_TASK_NEST_VALUE;
-	rcu_eqs_enter_common(rdtp, oldval, user);
+	}
 }
 
 /**
@@ -540,11 +541,12 @@ static void rcu_eqs_exit(bool user)
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE(oldval < 0);
-	if (oldval & DYNTICK_TASK_NEST_MASK)
+	if (oldval & DYNTICK_TASK_NEST_MASK) {
 		rdtp->dynticks_nesting += DYNTICK_TASK_NEST_VALUE;
-	else
+	} else {
 		rdtp->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
-	rcu_eqs_exit_common(rdtp, oldval, user);
+		rcu_eqs_exit_common(rdtp, oldval, user);
+	}
 }
 
 /**
