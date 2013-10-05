@@ -1550,16 +1550,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_uncore_early_sanitize(dev);
 
-	if (IS_HASWELL(dev) && (I915_READ(HSW_EDRAM_PRESENT) == 1)) {
-		/* The docs do not explain exactly how the calculation can be
-		 * made. It is somewhat guessable, but for now, it's always
-		 * 128MB.
-		 * NB: We can't write IDICR yet because we do not have gt funcs
-		 * set up */
-		dev_priv->ellc_size = 128;
-		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
-	}
-
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
 		goto out_regs;

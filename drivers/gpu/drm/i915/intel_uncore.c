@@ -222,6 +222,17 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 
 	if (HAS_FPGA_DBG_UNCLAIMED(dev))
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+
+	if (IS_HASWELL(dev) &&
+	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) == 1)) {
+		/* The docs do not explain exactly how the calculation can be
+		 * made. It is somewhat guessable, but for now, it's always
+		 * 128MB.
+		 * NB: We can't write IDICR yet because we do not have gt funcs
+		 * set up */
+		dev_priv->ellc_size = 128;
+		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
+	}
 }
 
 void intel_uncore_init(struct drm_device *dev)
