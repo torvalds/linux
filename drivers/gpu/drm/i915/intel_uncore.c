@@ -408,16 +408,46 @@ __gen4_read(64)
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
 
-#define __i915_write(x) \
+#define __gen4_write(x) \
 static void \
-i915_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+gen4_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+	REG_WRITE_HEADER; \
+	__raw_i915_write##x(dev_priv, reg, val); \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+}
+
+#define __gen5_write(x) \
+static void \
+gen5_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+	REG_WRITE_HEADER; \
+	ilk_dummy_write(dev_priv); \
+	__raw_i915_write##x(dev_priv, reg, val); \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+}
+
+#define __gen6_write(x) \
+static void \
+gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	u32 __fifo_ret = 0; \
 	REG_WRITE_HEADER; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
-	if (dev_priv->info->gen == 5) \
-		ilk_dummy_write(dev_priv); \
+	__raw_i915_write##x(dev_priv, reg, val); \
+	if (unlikely(__fifo_ret)) { \
+		gen6_gt_check_fifodbg(dev_priv); \
+	} \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+}
+
+#define __hsw_write(x) \
+static void \
+hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+	u32 __fifo_ret = 0; \
+	REG_WRITE_HEADER; \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
+	} \
 	hsw_unclaimed_reg_clear(dev_priv, reg); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (unlikely(__fifo_ret)) { \
@@ -427,11 +457,27 @@ i915_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
 }
 
-__i915_write(8)
-__i915_write(16)
-__i915_write(32)
-__i915_write(64)
-#undef __i915_write
+__hsw_write(8)
+__hsw_write(16)
+__hsw_write(32)
+__hsw_write(64)
+__gen6_write(8)
+__gen6_write(16)
+__gen6_write(32)
+__gen6_write(64)
+__gen5_write(8)
+__gen5_write(16)
+__gen5_write(32)
+__gen5_write(64)
+__gen4_write(8)
+__gen4_write(16)
+__gen4_write(32)
+__gen4_write(64)
+
+#undef __hsw_write
+#undef __gen6_write
+#undef __gen5_write
+#undef __gen4_write
 #undef REG_WRITE_HEADER
 
 void intel_uncore_init(struct drm_device *dev)
@@ -488,12 +534,27 @@ void intel_uncore_init(struct drm_device *dev)
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
 	case 6:
+		if (IS_HASWELL(dev)) {
+			dev_priv->uncore.funcs.mmio_writeb  = hsw_write8;
+			dev_priv->uncore.funcs.mmio_writew  = hsw_write16;
+			dev_priv->uncore.funcs.mmio_writel  = hsw_write32;
+			dev_priv->uncore.funcs.mmio_writeq  = hsw_write64;
+		} else {
+			dev_priv->uncore.funcs.mmio_writeb  = gen6_write8;
+			dev_priv->uncore.funcs.mmio_writew  = gen6_write16;
+			dev_priv->uncore.funcs.mmio_writel  = gen6_write32;
+			dev_priv->uncore.funcs.mmio_writeq  = gen6_write64;
+		}
 		dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
 		dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
 		dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
 		dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
 		break;
 	case 5:
+		dev_priv->uncore.funcs.mmio_writeb  = gen5_write8;
+		dev_priv->uncore.funcs.mmio_writew  = gen5_write16;
+		dev_priv->uncore.funcs.mmio_writel  = gen5_write32;
+		dev_priv->uncore.funcs.mmio_writeq  = gen5_write64;
 		dev_priv->uncore.funcs.mmio_readb  = gen5_read8;
 		dev_priv->uncore.funcs.mmio_readw  = gen5_read16;
 		dev_priv->uncore.funcs.mmio_readl  = gen5_read32;
@@ -502,16 +563,16 @@ void intel_uncore_init(struct drm_device *dev)
 	case 4:
 	case 3:
 	case 2:
+		dev_priv->uncore.funcs.mmio_writeb  = gen4_write8;
+		dev_priv->uncore.funcs.mmio_writew  = gen4_write16;
+		dev_priv->uncore.funcs.mmio_writel  = gen4_write32;
+		dev_priv->uncore.funcs.mmio_writeq  = gen4_write64;
 		dev_priv->uncore.funcs.mmio_readb  = gen4_read8;
 		dev_priv->uncore.funcs.mmio_readw  = gen4_read16;
 		dev_priv->uncore.funcs.mmio_readl  = gen4_read32;
 		dev_priv->uncore.funcs.mmio_readq  = gen4_read64;
 		break;
 	}
-	dev_priv->uncore.funcs.mmio_writeb = i915_write8;
-	dev_priv->uncore.funcs.mmio_writew = i915_write16;
-	dev_priv->uncore.funcs.mmio_writel = i915_write32;
-	dev_priv->uncore.funcs.mmio_writeq = i915_write64;
 }
 
 void intel_uncore_fini(struct drm_device *dev)
