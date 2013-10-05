@@ -1012,30 +1012,30 @@ static inline int __l2cap_no_conn_pending(struct l2cap_chan *chan)
 	return !test_bit(CONF_CONNECT_PEND, &chan->conf_state);
 }
 
-/* returns true if at least one AMP active */
-static inline bool hci_amp_capable(void)
-{
-	struct hci_dev *hdev;
-	bool ret = false;
-
-	read_lock(&hci_dev_list_lock);
-	list_for_each_entry(hdev, &hci_dev_list, list)
-		if (hdev->amp_type != AMP_TYPE_BREDR &&
-		    test_bit(HCI_UP, &hdev->flags))
-			ret = true;
-	read_unlock(&hci_dev_list_lock);
-
-	return ret;
-}
-
 static bool __amp_capable(struct l2cap_chan *chan)
 {
 	struct l2cap_conn *conn = chan->conn;
+	struct hci_dev *hdev;
+	bool amp_available = false;
 
-	if (conn->hs_enabled && hci_amp_capable() &&
-	    chan->chan_policy == BT_CHANNEL_POLICY_AMP_PREFERRED &&
-	    conn->fixed_chan_mask & L2CAP_FC_A2MP)
-		return true;
+	if (!conn->hs_enabled)
+		return false;
+
+	if (!(conn->fixed_chan_mask & L2CAP_FC_A2MP))
+		return false;
+
+	read_lock(&hci_dev_list_lock);
+	list_for_each_entry(hdev, &hci_dev_list, list) {
+		if (hdev->amp_type != AMP_TYPE_BREDR &&
+		    test_bit(HCI_UP, &hdev->flags)) {
+			amp_available = true;
+			break;
+		}
+	}
+	read_unlock(&hci_dev_list_lock);
+
+	if (chan->chan_policy == BT_CHANNEL_POLICY_AMP_PREFERRED)
+		return amp_available;
 
 	return false;
 }
