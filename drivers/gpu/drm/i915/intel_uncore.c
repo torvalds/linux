@@ -341,12 +341,20 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 	}
 }
 
+#define REG_READ_HEADER(x) \
+	unsigned long irqflags; \
+	u##x val = 0; \
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
+
+#define REG_READ_FOOTER \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
+	return val
+
 #define __i915_read(x) \
 static u##x \
 i915_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
-	unsigned long irqflags; \
-	u##x val = 0; \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
+	REG_READ_HEADER(x); \
 	if (dev_priv->info->gen == 5) \
 		ilk_dummy_write(dev_priv); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
@@ -358,9 +366,7 @@ i915_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	} else { \
 		val = __raw_i915_read##x(dev_priv, reg); \
 	} \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
-	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
-	return val; \
+	REG_READ_FOOTER; \
 }
 
 __i915_read(8)
@@ -368,14 +374,19 @@ __i915_read(16)
 __i915_read(32)
 __i915_read(64)
 #undef __i915_read
+#undef REG_READ_FOOTER
+#undef REG_READ_HEADER
+
+#define REG_WRITE_HEADER \
+	unsigned long irqflags; \
+	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
 
 #define __i915_write(x) \
 static void \
 i915_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	unsigned long irqflags; \
 	u32 __fifo_ret = 0; \
-	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
+	REG_WRITE_HEADER; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
@@ -394,6 +405,7 @@ __i915_write(16)
 __i915_write(32)
 __i915_write(64)
 #undef __i915_write
+#undef REG_WRITE_HEADER
 
 void intel_uncore_init(struct drm_device *dev)
 {
