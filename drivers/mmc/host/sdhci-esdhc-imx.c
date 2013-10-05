@@ -718,7 +718,7 @@ static void esdhc_request_done(struct mmc_request *mrq)
 static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode)
 {
 	struct mmc_command cmd = {0};
-	struct mmc_request mrq = {0};
+	struct mmc_request mrq = {NULL};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
 	char tuning_pattern[ESDHC_TUNING_BLOCK_PATTERN_LEN];
