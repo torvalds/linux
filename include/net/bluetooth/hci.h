@@ -66,6 +66,10 @@
 /* First BR/EDR Controller shall have ID = 0 */
 #define HCI_BREDR_ID	0
 
+/* AMP controller types */
+#define AMP_TYPE_BREDR	0x00
+#define AMP_TYPE_80211	0x01
+
 /* AMP controller status */
 #define AMP_CTRL_POWERED_DOWN			0x00
 #define AMP_CTRL_BLUETOOTH_ONLY			0x01
