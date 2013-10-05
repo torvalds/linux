@@ -21,5 +21,12 @@ config ODROIDXU_IOBOARD
 	---help---
 		Enables the IOBOARD Drivers
     
+config ODROIDXU_IOBOARD_DEBUG
+    bool "Enable the ODROIDXU IOBOARD Drivers"
+	depends on ODROIDXU_IOBOARD
+	default n
+	---help---
+		Enables the IOBOARD Drivers
+    
 endmenu
 

@@ -21,13 +21,20 @@
 
 //[*]--------------------------------------------------------------------------------------------------[*]
 #define BMP180_DRV_NAME		"ioboard-bmp180"
-#define BMP180_WORK_PERIOD  msecs_to_jiffies(100)     // 100 ms
+
+#if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+    #define BMP180_WORK_PERIOD  msecs_to_jiffies(1000)    // 1000 ms
+#else
+    #define BMP180_WORK_PERIOD  msecs_to_jiffies(100)     // 100 ms
+#endif    
 
 #define BMP180_OVERSAMPLE   3
 
+#define BMP180_ID           0x55
 //[*]--------------------------------------------------------------------------------------------------[*]
 // Register definitions
 //[*]--------------------------------------------------------------------------------------------------[*]
+#define BMP180_ID_REG               0xD0
 #define BMP180_TAKE_MEAS_REG		0xf4
 #define BMP180_READ_MEAS_REG_U		0xf6
 #define BMP180_READ_MEAS_REG_L		0xf7
@@ -54,8 +61,6 @@
  */
 #define BMP180_EEPROM_AC1_U	0xaa
 
-#define I2C_TRIES		5
-
 //[*]--------------------------------------------------------------------------------------------------[*]
 struct bmp180_eeprom_data {
 	s16 AC1, AC2, AC3;
@@ -79,13 +84,10 @@ struct bmp180_data {
 static int bmp180_i2c_read(const struct i2c_client *client, u8 cmd,	u8 *buf, int len)
 {
 	int err;
-	int tries = 0;
 
-	do {
-		err = i2c_smbus_read_i2c_block_data(client, cmd, len, buf);
-		if (err == len)
-			return 0;
-	} while (++tries < I2C_TRIES);
+	err = i2c_smbus_read_i2c_block_data(client, cmd, len, buf);
+	
+	if (err == len)     return 0;
 
 	return err;
 }
@@ -94,13 +96,9 @@ static int bmp180_i2c_read(const struct i2c_client *client, u8 cmd,	u8 *buf, int
 static int bmp180_i2c_write(const struct i2c_client *client, u8 cmd, u8 data)
 {
 	int err;
-	int tries = 0;
 
-	do {
-		err = i2c_smbus_write_byte_data(client, cmd, data);
-		if (!err)
-			return 0;
-	} while (++tries < I2C_TRIES);
+	err = i2c_smbus_write_byte_data(client, cmd, data);
+	if (!err)           return 0;
 
 	return err;
 }
@@ -211,6 +209,10 @@ static void bmp180_work_func(struct work_struct *work)
 	x2 = (-7357 * p) >> 16;
 	bmp180->pressure = p + ((x1 + x2 + 3791) >> 4);
 
+    #if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+        printk("===> %s : %d %d\n", __func__, bmp180->pressure, bmp180->temperature);
+    #endif
+
     if(bmp180->enabled)
 	    schedule_delayed_work(&bmp180->work, BMP180_WORK_PERIOD);
     else    {
@@ -307,6 +309,18 @@ static struct attribute_group bmp180_attribute_group = {
 };
 
 //[*]--------------------------------------------------------------------------------------------------[*]
+static int bmp180_detect(struct i2c_client *client)
+{
+    unsigned char   id;
+
+	if(bmp180_i2c_read(client, BMP180_ID_REG, &id, sizeof(id)))     return  -1;
+	    
+	if(id != BMP180_ID)     return  -1;
+	    
+	return  0;
+}
+
+//[*]--------------------------------------------------------------------------------------------------[*]
 static int bmp180_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct bmp180_data  *bmp180;
@@ -318,10 +332,7 @@ static int bmp180_probe(struct i2c_client *client, const struct i2c_device_id *i
 		return -ENOMEM;
 	}
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		pr_err("%s: client not i2c capable\n", __func__);
-		return -EIO;
-	}
+    if(bmp180_detect(client) < 0)     goto error;
 
 	i2c_set_clientdata(client, bmp180);
 	
@@ -338,6 +349,11 @@ static int bmp180_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 
 	INIT_DELAYED_WORK(&bmp180->work, bmp180_work_func);
+	
+	#if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+	    bmp180->enabled = 1;
+	#endif
+	
 	if(bmp180->enabled) schedule_delayed_work(&bmp180->work, BMP180_WORK_PERIOD);
 	
 	if ((err = sysfs_create_group(&client->dev.kobj, &bmp180_attribute_group)) < 0)		goto error;

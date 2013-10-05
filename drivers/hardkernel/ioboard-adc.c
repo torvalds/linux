@@ -31,7 +31,11 @@
 #include <plat/adc.h>
 
 //[*]--------------------------------------------------------------------------------------------------[*]
-#define ADC_WORK_PERIOD     msecs_to_jiffies(100)   // 100 ms
+#if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+    #define ADC_WORK_PERIOD     msecs_to_jiffies(1000)  // 1000 ms
+#else
+    #define ADC_WORK_PERIOD     msecs_to_jiffies(100)   // 100 ms
+#endif
 #define ADC_REF_VOLTAGE     1800                    // 1.8V
 #define ADC_CHANNEL         0
 
@@ -116,6 +120,10 @@ static void ioboard_adc_work(struct work_struct *work)
     
     adc->voltage = (ADC_REF_VOLTAGE * adc->value) / 4096;
 
+    #if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+        printk("===> %s : %d\n", __func__, adc->voltage);
+    #endif
+
     if(adc->enabled)    schedule_delayed_work(&adc->work, ADC_WORK_PERIOD);
     else    {
         adc->value      = 0;
@@ -136,6 +144,11 @@ static	int		ioboard_adc_probe		(struct platform_device *pdev)
     adc->client = s3c_adc_register( pdev, NULL, NULL, 0 );
     
 	INIT_DELAYED_WORK(&adc->work, ioboard_adc_work);
+
+    #if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+        adc->enabled = 1;
+    #endif
+
     if(adc->enabled)    schedule_delayed_work(&adc->work, ADC_WORK_PERIOD);
 
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &adc_attribute_group)) < 0)		goto error;

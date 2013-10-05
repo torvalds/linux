@@ -20,7 +20,12 @@
 
 //[*]--------------------------------------------------------------------------------------------------[*]
 #define BH1780_NAME 	    "ioboard-bh1780"
-#define BH1780_WORK_PERIOD  msecs_to_jiffies(100)     // 100 ms
+
+#if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+    #define BH1780_WORK_PERIOD  msecs_to_jiffies(1000)    // 1000 ms
+#else
+    #define BH1780_WORK_PERIOD  msecs_to_jiffies(100)     // 100 ms
+#endif
 
 //[*]--------------------------------------------------------------------------------------------------[*]
 //
@@ -119,6 +124,10 @@ static void bh1780_work_func(struct work_struct *work)
 
 	bh1780_measure(bh1780);
 
+    #if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+        printk("===> %s : %d \n", __func__, bh1780->light_data);
+    #endif
+
     if(bh1780->enabled)
 	    schedule_delayed_work(&bh1780->work, BH1780_WORK_PERIOD);
 	else    
@@ -212,21 +221,14 @@ static int bh1780_probe(struct i2c_client *client, const struct i2c_device_id *i
 		return -ENOMEM;
 	}
 
-	/* setup i2c client */
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		pr_err("%s: client not i2c capable\n", __func__);
-		return -EIO;
-	}
+	/* detect and init hardware */
+	if ((err = bh1780_detect(client, NULL)) != 0)   goto error;
+
 	i2c_set_clientdata(client, bh1780);
 	
     dev_set_drvdata(&client->dev, bh1780);
 	
 	bh1780->client = client;
-
-	/* detect and init hardware */
-	if ((err = bh1780_detect(client, NULL))) {
-		goto error;
-	}
 
 	if((err = i2c_smbus_write_byte(bh1780->client, (BH1780_COMMAND_REG + BH1780_PART_REV_REG))) < 0)	{
 		dev_err(&client->dev, "I2C write byte error: data=0x%02x\n", (BH1780_COMMAND_REG + BH1780_PART_REV_REG));
@@ -243,6 +245,11 @@ static int bh1780_probe(struct i2c_client *client, const struct i2c_device_id *i
 	bh1780_power_up(bh1780);	
 
 	INIT_DELAYED_WORK(&bh1780->work, bh1780_work_func);
+	
+	#if defined(CONFIG_ODROIDXU_IOBOARD_DEBUG)
+	    bh1780->enabled = 1;
+	#endif
+	
     if(bh1780->enabled) schedule_delayed_work(&bh1780->work, BH1780_WORK_PERIOD);
 	
 	if ((err = sysfs_create_group(&client->dev.kobj, &bh1780_attribute_group)) < 0)		goto error;
