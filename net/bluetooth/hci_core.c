@@ -1381,7 +1381,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	}
 
 	/* Controller radio is available but is currently powered down */
-	hdev->amp_status = 0;
+	hdev->amp_status = AMP_STATUS_POWERED_DOWN;
 
 	memset(hdev->eir, 0, sizeof(hdev->eir));
 	memset(hdev->dev_class, 0, sizeof(hdev->dev_class));

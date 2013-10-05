@@ -79,7 +79,7 @@ static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
 {
 	cl->id = AMP_ID_BREDR;
 	cl->type = AMP_TYPE_BREDR;
-	cl->status = 1;
+	cl->status = AMP_STATUS_BLUETOOTH_ONLY;
 }
 
 /* hci_dev_list shall be locked */
