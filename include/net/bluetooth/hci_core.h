@@ -795,22 +795,6 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
 #define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))
 
-/* returns true if at least one AMP active */
-static inline bool hci_amp_capable(void)
-{
-	struct hci_dev *hdev;
-	bool ret = false;
-
-	read_lock(&hci_dev_list_lock);
-	list_for_each_entry(hdev, &hci_dev_list, list)
-		if (hdev->amp_type != AMP_TYPE_BREDR &&
-		    test_bit(HCI_UP, &hdev->flags))
-			ret = true;
-	read_unlock(&hci_dev_list_lock);
-
-	return ret;
-}
-
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
 
