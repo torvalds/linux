@@ -103,6 +103,9 @@ um)
 parisc|mips|powerpc)
 	installed_image_path="boot/vmlinux-$version"
 	;;
+arm64)
+	installed_image_path="boot/Image-$version"
+	;;
 *)
 	installed_image_path="boot/vmlinuz-$version"
 esac
@@ -335,6 +338,11 @@ stat arch/$ARCH/boot/dts/*.dtb && {
 	mkdir -p "$tmpdir/lib/firmware/$version/device-tree"
 	cp arch/$ARCH/boot/dts/*.dtb "$tmpdir/lib/firmware/$version/device-tree"
 }
+
+# Copy boot wrapper files if built
+if [ "$ARCH" = "arm64" ] ; then
+	stat arch/arm64/boot/*.axf && cp arch/arm64/boot/*.axf "$tmpdir/boot"
+fi
 
 cat <<EOF >> debian/control
 
