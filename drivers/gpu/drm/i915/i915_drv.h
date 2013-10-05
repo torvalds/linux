@@ -399,6 +399,20 @@ struct drm_i915_display_funcs {
 struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv);
 	void (*force_wake_put)(struct drm_i915_private *dev_priv);
+
+	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
+	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
+	uint32_t (*mmio_readl)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
+	uint64_t (*mmio_readq)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
+
+	void (*mmio_writeb)(struct drm_i915_private *dev_priv, off_t offset,
+				uint8_t val, bool trace);
+	void (*mmio_writew)(struct drm_i915_private *dev_priv, off_t offset,
+				uint16_t val, bool trace);
+	void (*mmio_writel)(struct drm_i915_private *dev_priv, off_t offset,
+				uint32_t val, bool trace);
+	void (*mmio_writeq)(struct drm_i915_private *dev_priv, off_t offset,
+				uint64_t val, bool trace);
 };
 
 struct intel_uncore {
@@ -2338,37 +2352,21 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 int vlv_gpu_freq(int ddr_freq, int val);
 int vlv_freq_opcode(int ddr_freq, int val);
 
-#define __i915_read(x) \
-	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg, bool trace);
-__i915_read(8)
-__i915_read(16)
-__i915_read(32)
-__i915_read(64)
-#undef __i915_read
+#define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
+#define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)
 
-#define __i915_write(x) \
-	void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val, bool trace);
-__i915_write(8)
-__i915_write(16)
-__i915_write(32)
-__i915_write(64)
-#undef __i915_write
+#define I915_READ16(reg)	dev_priv->uncore.funcs.mmio_readw(dev_priv, (reg), true)
+#define I915_WRITE16(reg, val)	dev_priv->uncore.funcs.mmio_writew(dev_priv, (reg), (val), true)
+#define I915_READ16_NOTRACE(reg)	dev_priv->uncore.funcs.mmio_readw(dev_priv, (reg), false)
+#define I915_WRITE16_NOTRACE(reg, val)	dev_priv->uncore.funcs.mmio_writew(dev_priv, (reg), (val), false)
 
-#define I915_READ8(reg)		i915_read8(dev_priv, (reg), true)
-#define I915_WRITE8(reg, val)	i915_write8(dev_priv, (reg), (val), true)
+#define I915_READ(reg)		dev_priv->uncore.funcs.mmio_readl(dev_priv, (reg), true)
+#define I915_WRITE(reg, val)	dev_priv->uncore.funcs.mmio_writel(dev_priv, (reg), (val), true)
+#define I915_READ_NOTRACE(reg)		dev_priv->uncore.funcs.mmio_readl(dev_priv, (reg), false)
+#define I915_WRITE_NOTRACE(reg, val)	dev_priv->uncore.funcs.mmio_writel(dev_priv, (reg), (val), false)
 
-#define I915_READ16(reg)	i915_read16(dev_priv, (reg), true)
-#define I915_WRITE16(reg, val)	i915_write16(dev_priv, (reg), (val), true)
-#define I915_READ16_NOTRACE(reg)	i915_read16(dev_priv, (reg), false)
-#define I915_WRITE16_NOTRACE(reg, val)	i915_write16(dev_priv, (reg), (val), false)
-
-#define I915_READ(reg)		i915_read32(dev_priv, (reg), true)
-#define I915_WRITE(reg, val)	i915_write32(dev_priv, (reg), (val), true)
-#define I915_READ_NOTRACE(reg)		i915_read32(dev_priv, (reg), false)
-#define I915_WRITE_NOTRACE(reg, val)	i915_write32(dev_priv, (reg), (val), false)
-
-#define I915_WRITE64(reg, val)	i915_write64(dev_priv, (reg), (val), true)
-#define I915_READ64(reg)	i915_read64(dev_priv, (reg), true)
+#define I915_WRITE64(reg, val)	dev_priv->uncore.funcs.mmio_writeq(dev_priv, (reg), (val), true)
+#define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)

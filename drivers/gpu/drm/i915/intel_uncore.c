@@ -235,68 +235,6 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 	}
 }
 
-void intel_uncore_init(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	INIT_DELAYED_WORK(&dev_priv->uncore.force_wake_work,
-			  gen6_force_wake_work);
-
-	if (IS_VALLEYVIEW(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = vlv_force_wake_get;
-		dev_priv->uncore.funcs.force_wake_put = vlv_force_wake_put;
-	} else if (IS_HASWELL(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = __gen6_gt_force_wake_mt_get;
-		dev_priv->uncore.funcs.force_wake_put = __gen6_gt_force_wake_mt_put;
-	} else if (IS_IVYBRIDGE(dev)) {
-		u32 ecobus;
-
-		/* IVB configs may use multi-threaded forcewake */
-
-		/* A small trick here - if the bios hasn't configured
-		 * MT forcewake, and if the device is in RC6, then
-		 * force_wake_mt_get will not wake the device and the
-		 * ECOBUS read will return zero. Which will be
-		 * (correctly) interpreted by the test below as MT
-		 * forcewake being disabled.
-		 */
-		mutex_lock(&dev->struct_mutex);
-		__gen6_gt_force_wake_mt_get(dev_priv);
-		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
-		__gen6_gt_force_wake_mt_put(dev_priv);
-		mutex_unlock(&dev->struct_mutex);
-
-		if (ecobus & FORCEWAKE_MT_ENABLE) {
-			dev_priv->uncore.funcs.force_wake_get =
-				__gen6_gt_force_wake_mt_get;
-			dev_priv->uncore.funcs.force_wake_put =
-				__gen6_gt_force_wake_mt_put;
-		} else {
-			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
-			DRM_INFO("when using vblank-synced partial screen updates.\n");
-			dev_priv->uncore.funcs.force_wake_get =
-				__gen6_gt_force_wake_get;
-			dev_priv->uncore.funcs.force_wake_put =
-				__gen6_gt_force_wake_put;
-		}
-	} else if (IS_GEN6(dev)) {
-		dev_priv->uncore.funcs.force_wake_get =
-			__gen6_gt_force_wake_get;
-		dev_priv->uncore.funcs.force_wake_put =
-			__gen6_gt_force_wake_put;
-	}
-}
-
-void intel_uncore_fini(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	flush_delayed_work(&dev_priv->uncore.force_wake_work);
-
-	/* Paranoia: make sure we have disabled everything before we exit. */
-	intel_uncore_sanitize(dev);
-}
-
 static void intel_uncore_forcewake_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -404,7 +342,8 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 }
 
 #define __i915_read(x) \
-u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg, bool trace) { \
+static u##x \
+i915_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	unsigned long irqflags; \
 	u##x val = 0; \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
@@ -431,7 +370,8 @@ __i915_read(64)
 #undef __i915_read
 
 #define __i915_write(x) \
-void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val, bool trace) { \
+static void \
+i915_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	unsigned long irqflags; \
 	u32 __fifo_ret = 0; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
@@ -454,6 +394,77 @@ __i915_write(16)
 __i915_write(32)
 __i915_write(64)
 #undef __i915_write
+
+void intel_uncore_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	INIT_DELAYED_WORK(&dev_priv->uncore.force_wake_work,
+			  gen6_force_wake_work);
+
+	if (IS_VALLEYVIEW(dev)) {
+		dev_priv->uncore.funcs.force_wake_get = vlv_force_wake_get;
+		dev_priv->uncore.funcs.force_wake_put = vlv_force_wake_put;
+	} else if (IS_HASWELL(dev)) {
+		dev_priv->uncore.funcs.force_wake_get = __gen6_gt_force_wake_mt_get;
+		dev_priv->uncore.funcs.force_wake_put = __gen6_gt_force_wake_mt_put;
+	} else if (IS_IVYBRIDGE(dev)) {
+		u32 ecobus;
+
+		/* IVB configs may use multi-threaded forcewake */
+
+		/* A small trick here - if the bios hasn't configured
+		 * MT forcewake, and if the device is in RC6, then
+		 * force_wake_mt_get will not wake the device and the
+		 * ECOBUS read will return zero. Which will be
+		 * (correctly) interpreted by the test below as MT
+		 * forcewake being disabled.
+		 */
+		mutex_lock(&dev->struct_mutex);
+		__gen6_gt_force_wake_mt_get(dev_priv);
+		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
+		__gen6_gt_force_wake_mt_put(dev_priv);
+		mutex_unlock(&dev->struct_mutex);
+
+		if (ecobus & FORCEWAKE_MT_ENABLE) {
+			dev_priv->uncore.funcs.force_wake_get =
+				__gen6_gt_force_wake_mt_get;
+			dev_priv->uncore.funcs.force_wake_put =
+				__gen6_gt_force_wake_mt_put;
+		} else {
+			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
+			DRM_INFO("when using vblank-synced partial screen updates.\n");
+			dev_priv->uncore.funcs.force_wake_get =
+				__gen6_gt_force_wake_get;
+			dev_priv->uncore.funcs.force_wake_put =
+				__gen6_gt_force_wake_put;
+		}
+	} else if (IS_GEN6(dev)) {
+		dev_priv->uncore.funcs.force_wake_get =
+			__gen6_gt_force_wake_get;
+		dev_priv->uncore.funcs.force_wake_put =
+			__gen6_gt_force_wake_put;
+	}
+
+	dev_priv->uncore.funcs.mmio_readb  = i915_read8;
+	dev_priv->uncore.funcs.mmio_readw  = i915_read16;
+	dev_priv->uncore.funcs.mmio_readl  = i915_read32;
+	dev_priv->uncore.funcs.mmio_readq  = i915_read64;
+	dev_priv->uncore.funcs.mmio_writeb = i915_write8;
+	dev_priv->uncore.funcs.mmio_writew = i915_write16;
+	dev_priv->uncore.funcs.mmio_writel = i915_write32;
+	dev_priv->uncore.funcs.mmio_writeq = i915_write64;
+}
+
+void intel_uncore_fini(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	flush_delayed_work(&dev_priv->uncore.force_wake_work);
+
+	/* Paranoia: make sure we have disabled everything before we exit. */
+	intel_uncore_sanitize(dev);
+}
 
 static const struct register_whitelist {
 	uint64_t offset;
