@@ -25,7 +25,6 @@
 #include <asm/mac_via.h>
 #include <asm/mac_oss.h>
 
-#include <asm/bootinfo.h>
 #include <asm/machdep.h>
 
 /* Offset between Unix time (1970-based) and Mac time (1904-based) */

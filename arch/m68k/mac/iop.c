@@ -111,7 +111,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
