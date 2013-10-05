@@ -693,6 +693,20 @@ int dump_write(struct file *file, const void *addr, int nr)
 }
 EXPORT_SYMBOL(dump_write);
 
+int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
+{
+	struct file *file = cprm->file;
+	if (dump_interrupted() || !access_ok(VERIFY_READ, addr, nr))
+		return 0;
+	if (cprm->written + nr > cprm->limit)
+		return 0;
+	if (file->f_op->write(file, addr, nr, &file->f_pos) != nr)
+		return 0;
+	cprm->written += nr;
+	return 1;
+}
+EXPORT_SYMBOL(dump_emit);
+
 int dump_seek(struct file *file, loff_t off)
 {
 	int ret = 1;
