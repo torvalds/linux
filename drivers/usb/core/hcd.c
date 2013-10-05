@@ -428,7 +428,7 @@ rh_string(int id, struct usb_hcd const *hcd, u8 *data, unsigned len)
 	char const *s;
 	static char const langids[4] = {4, USB_DT_STRING, 0x09, 0x04};
 
-	// language ids
+	/* language ids */
 	switch (id) {
 	case 0:
 		/* Array of LANGID codes (0x0409 is MSFT-speak for "en-us") */
@@ -615,7 +615,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceOutRequest | USB_REQ_SET_INTERFACE:
 		break;
 	case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-		// wValue == urb->dev->devaddr
+		/* wValue == urb->dev->devaddr */
 		dev_dbg (hcd->self.controller, "root hub device address %d\n",
 			wValue);
 		break;
@@ -625,7 +625,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	/* ENDPOINT REQUESTS */
 
 	case EndpointRequest | USB_REQ_GET_STATUS:
-		// ENDPOINT_HALT flag
+		/* ENDPOINT_HALT flag */
 		tbuf[0] = 0;
 		tbuf[1] = 0;
 		len = 2;
@@ -683,7 +683,7 @@ error:
 		if (urb->transfer_buffer_length < len)
 			len = urb->transfer_buffer_length;
 		urb->actual_length = len;
-		// always USB_DIR_IN, toward host
+		/* always USB_DIR_IN, toward host */
 		memcpy (ubuf, bufp, len);
 
 		/* report whether RH hardware supports remote wakeup */
@@ -1135,7 +1135,7 @@ long usb_calc_bus_time (int speed, int is_input, int isoc, int bytecount)
 			return (9107L + BW_HOST_DELAY + tmp);
 		}
 	case USB_SPEED_HIGH:	/* ISOC or INTR */
-		// FIXME adjust for input vs output
+		/* FIXME adjust for input vs output */
 		if (isoc)
 			tmp = HS_NSECS_ISO (bytecount);
 		else
