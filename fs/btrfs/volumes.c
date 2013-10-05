@@ -1716,6 +1716,7 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 				 struct btrfs_device *srcdev)
 {
 	WARN_ON(!mutex_is_locked(&fs_info->fs_devices->device_list_mutex));
+
 	list_del_rcu(&srcdev->dev_list);
 	list_del_rcu(&srcdev->dev_alloc_list);
 	fs_info->fs_devices->num_devices--;
@@ -1725,8 +1726,12 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 	}
 	if (srcdev->can_discard)
 		fs_info->fs_devices->num_can_discard--;
-	if (srcdev->bdev)
+	if (srcdev->bdev) {
 		fs_info->fs_devices->open_devices--;
+
+		/* zero out the old super */
+		btrfs_scratch_superblock(srcdev);
+	}
 
 	call_rcu(&srcdev->rcu, free_device);
 }
