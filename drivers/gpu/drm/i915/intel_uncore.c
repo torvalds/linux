@@ -351,12 +351,27 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
 
-#define __i915_read(x) \
+#define __gen4_read(x) \
 static u##x \
-i915_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+gen4_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	REG_READ_HEADER(x); \
-	if (dev_priv->info->gen == 5) \
-		ilk_dummy_write(dev_priv); \
+	val = __raw_i915_read##x(dev_priv, reg); \
+	REG_READ_FOOTER; \
+}
+
+#define __gen5_read(x) \
+static u##x \
+gen5_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	REG_READ_HEADER(x); \
+	ilk_dummy_write(dev_priv); \
+	val = __raw_i915_read##x(dev_priv, reg); \
+	REG_READ_FOOTER; \
+}
+
+#define __gen6_read(x) \
+static u##x \
+gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	REG_READ_HEADER(x); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		if (dev_priv->uncore.forcewake_count == 0) \
 			dev_priv->uncore.funcs.force_wake_get(dev_priv); \
@@ -369,11 +384,22 @@ i915_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	REG_READ_FOOTER; \
 }
 
-__i915_read(8)
-__i915_read(16)
-__i915_read(32)
-__i915_read(64)
-#undef __i915_read
+__gen6_read(8)
+__gen6_read(16)
+__gen6_read(32)
+__gen6_read(64)
+__gen5_read(8)
+__gen5_read(16)
+__gen5_read(32)
+__gen5_read(64)
+__gen4_read(8)
+__gen4_read(16)
+__gen4_read(32)
+__gen4_read(64)
+
+#undef __gen6_read
+#undef __gen5_read
+#undef __gen4_read
 #undef REG_READ_FOOTER
 #undef REG_READ_HEADER
 
@@ -400,6 +426,7 @@ i915_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	hsw_unclaimed_reg_check(dev_priv, reg); \
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
 }
+
 __i915_write(8)
 __i915_write(16)
 __i915_write(32)
@@ -458,10 +485,29 @@ void intel_uncore_init(struct drm_device *dev)
 			__gen6_gt_force_wake_put;
 	}
 
-	dev_priv->uncore.funcs.mmio_readb  = i915_read8;
-	dev_priv->uncore.funcs.mmio_readw  = i915_read16;
-	dev_priv->uncore.funcs.mmio_readl  = i915_read32;
-	dev_priv->uncore.funcs.mmio_readq  = i915_read64;
+	switch (INTEL_INFO(dev)->gen) {
+	case 7:
+	case 6:
+		dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
+		dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
+		dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
+		dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+		break;
+	case 5:
+		dev_priv->uncore.funcs.mmio_readb  = gen5_read8;
+		dev_priv->uncore.funcs.mmio_readw  = gen5_read16;
+		dev_priv->uncore.funcs.mmio_readl  = gen5_read32;
+		dev_priv->uncore.funcs.mmio_readq  = gen5_read64;
+		break;
+	case 4:
+	case 3:
+	case 2:
+		dev_priv->uncore.funcs.mmio_readb  = gen4_read8;
+		dev_priv->uncore.funcs.mmio_readw  = gen4_read16;
+		dev_priv->uncore.funcs.mmio_readl  = gen4_read32;
+		dev_priv->uncore.funcs.mmio_readq  = gen4_read64;
+		break;
+	}
 	dev_priv->uncore.funcs.mmio_writeb = i915_write8;
 	dev_priv->uncore.funcs.mmio_writew = i915_write16;
 	dev_priv->uncore.funcs.mmio_writel = i915_write32;
