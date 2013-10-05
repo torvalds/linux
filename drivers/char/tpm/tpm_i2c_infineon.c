@@ -685,7 +685,6 @@ out_vendor:
 	chip->dev->release = NULL;
 	chip->release = NULL;
 	tpm_dev.client = NULL;
-	dev_set_drvdata(chip->dev, chip);
 out_err:
 	return rc;
 }
@@ -766,7 +765,6 @@ static int tpm_tis_i2c_remove(struct i2c_client *client)
 	chip->dev->release = NULL;
 	chip->release = NULL;
 	tpm_dev.client = NULL;
-	dev_set_drvdata(chip->dev, chip);
 
 	return 0;
 }
