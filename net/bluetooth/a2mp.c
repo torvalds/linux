@@ -210,7 +210,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		BT_DBG("Remote AMP id %d type %d status %d", cl->id, cl->type,
 		       cl->status);
 
-		if (cl->id != AMP_ID_BREDR && cl->type == HCI_AMP) {
+		if (cl->id != AMP_ID_BREDR && cl->type != AMP_TYPE_BREDR) {
 			struct a2mp_info_req req;
 
 			found = true;
