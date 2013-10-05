@@ -129,6 +129,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	struct a2mp_discov_rsp *rsp;
 	u16 ext_feat;
 	u8 num_ctrl;
+	struct hci_dev *hdev;
 
 	if (len < sizeof(*req))
 		return -EINVAL;
@@ -152,7 +153,14 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	read_lock(&hci_dev_list_lock);
 
-	num_ctrl = __hci_num_ctrl();
+	/* at minimum the BR/EDR needs to be listed */
+	num_ctrl = 1;
+
+	list_for_each_entry(hdev, &hci_dev_list, list) {
+		if (hdev->dev_type == HCI_AMP)
+			num_ctrl++;
+	}
+
 	len = num_ctrl * sizeof(struct a2mp_cl) + sizeof(*rsp);
 	rsp = kmalloc(len, GFP_ATOMIC);
 	if (!rsp) {
