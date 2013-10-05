@@ -67,7 +67,7 @@ extern Elf_Half elf_core_extra_phdrs(void);
 extern int
 elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset);
 extern int
-elf_core_write_extra_data(struct file *file, size_t *size, unsigned long limit);
+elf_core_write_extra_data(struct coredump_params *cprm);
 extern size_t elf_core_extra_data_size(void);
 
 #endif /* _LINUX_ELFCORE_H */

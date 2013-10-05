@@ -1818,8 +1818,10 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 				    cprm->mm_flags) < 0)
 		goto end_coredump;
 
-	if (!elf_core_write_extra_data(cprm->file, &size, cprm->limit))
+	cprm->written = size;
+	if (!elf_core_write_extra_data(cprm))
 		goto end_coredump;
+	size = cprm->written;
 
 	if (e_phnum == PN_XNUM) {
 		size += sizeof(*shdr4extnum);

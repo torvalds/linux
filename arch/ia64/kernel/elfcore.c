@@ -40,8 +40,7 @@ int elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset)
 	return 1;
 }
 
-int elf_core_write_extra_data(struct file *file, size_t *size,
-			      unsigned long limit)
+int elf_core_write_extra_data(struct coredump_params *cprm)
 {
 	const struct elf_phdr *const gate_phdrs =
 		(const struct elf_phdr *) (GATE_ADDR + GATE_EHDR->e_phoff);
@@ -52,8 +51,7 @@ int elf_core_write_extra_data(struct file *file, size_t *size,
 			void *addr = (void *)gate_phdrs[i].p_vaddr;
 			size_t memsz = PAGE_ALIGN(gate_phdrs[i].p_memsz);
 
-			*size += memsz;
-			if (*size > limit || !dump_write(file, addr, memsz))
+			if (!dump_emit(cprm, addr, memsz))
 				return 0;
 			break;
 		}

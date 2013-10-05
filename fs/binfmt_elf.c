@@ -2196,8 +2196,10 @@ static int elf_core_dump(struct coredump_params *cprm)
 		}
 	}
 
-	if (!elf_core_write_extra_data(cprm->file, &size, cprm->limit))
+	cprm->written = size;
+	if (!elf_core_write_extra_data(cprm))
 		goto end_coredump;
+	size = cprm->written;
 
 	if (e_phnum == PN_XNUM) {
 		size += sizeof(*shdr4extnum);
