@@ -2507,7 +2507,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		if (i == intel_dp->lane_count) {
 			++loop_tries;
 			if (loop_tries == 5) {
-				DRM_DEBUG_KMS("too many full retries, give up\n");
+				DRM_ERROR("too many full retries, give up\n");
 				break;
 			}
 			intel_dp_reset_link_train(intel_dp, &DP,
@@ -2521,7 +2521,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
 			++voltage_tries;
 			if (voltage_tries == 5) {
-				DRM_DEBUG_KMS("too many voltage retries, give up\n");
+				DRM_ERROR("too many voltage retries, give up\n");
 				break;
 			}
 		} else
