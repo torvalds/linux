@@ -2824,7 +2824,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 EXPORT_SYMBOL_GPL(usb_remove_hcd);
 
 void
-usb_hcd_platform_shutdown(struct platform_device* dev)
+usb_hcd_platform_shutdown(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 
