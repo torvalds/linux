@@ -76,7 +76,7 @@ u8 __next_ident(struct amp_mgr *mgr)
 }
 
 /* hci_dev_list shall be locked */
-static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl, u8 num_ctrl)
+static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl)
 {
 	int i = 0;
 	struct hci_dev *hdev;
@@ -91,8 +91,7 @@ static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl, u8 num_ctrl)
 			continue;
 
 		/* Starting from second entry */
-		if (++i >= num_ctrl)
-			return;
+		++i;
 
 		cl[i].id = hdev->id;
 		cl[i].type = hdev->amp_type;
@@ -166,7 +165,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	rsp->mtu = __constant_cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
 	rsp->ext_feat = 0;
 
-	__a2mp_add_cl(mgr, rsp->cl, num_ctrl);
+	__a2mp_add_cl(mgr, rsp->cl);
 
 	read_unlock(&hci_dev_list_lock);
 
