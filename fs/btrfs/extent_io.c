@@ -1614,7 +1614,7 @@ again:
 		*start = delalloc_start;
 		*end = delalloc_end;
 		free_extent_state(cached_state);
-		return found;
+		return 0;
 	}
 
 	/*
