@@ -2093,7 +2093,6 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	offset += sizeof(*elf);				/* Elf header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
-	foffset = offset;
 
 	/* Write notes phdr entry */
 	{
@@ -2157,7 +2156,6 @@ static int elf_core_dump(struct coredump_params *cprm)
 		goto end_coredump;
 
 	size = cprm->written;
-	cprm->written = foffset;	/* will disappear */
  	/* write out the notes section */
 	if (!write_note_info(&info, cprm))
 		goto end_coredump;
@@ -2170,6 +2168,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (!dump_seek(cprm->file, dataoff - foffset))
 		goto end_coredump;
 
+	cprm->written = size;
 	for (vma = first_vma(current, gate_vma); vma != NULL;
 			vma = next_vma(vma, gate_vma)) {
 		unsigned long addr;
@@ -2184,9 +2183,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 			page = get_dump_page(addr);
 			if (page) {
 				void *kaddr = kmap(page);
-				stop = ((size += PAGE_SIZE) > cprm->limit) ||
-					!dump_write(cprm->file, kaddr,
-						    PAGE_SIZE);
+				stop = !dump_emit(cprm, kaddr, PAGE_SIZE);
 				kunmap(page);
 				page_cache_release(page);
 			} else
@@ -2196,16 +2193,11 @@ static int elf_core_dump(struct coredump_params *cprm)
 		}
 	}
 
-	cprm->written = size;
 	if (!elf_core_write_extra_data(cprm))
 		goto end_coredump;
-	size = cprm->written;
 
 	if (e_phnum == PN_XNUM) {
-		size += sizeof(*shdr4extnum);
-		if (size > cprm->limit
-		    || !dump_write(cprm->file, shdr4extnum,
-				   sizeof(*shdr4extnum)))
+		if (!dump_emit(cprm, shdr4extnum, sizeof(*shdr4extnum)))
 			goto end_coredump;
 	}
 
