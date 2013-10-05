@@ -3,6 +3,8 @@
 #
 # Licensed under GPLv2
 
+if ARCH_S3C64XX
+
 # temporary until we can eliminate all drivers using it.
 config PLAT_S3C64XX
 	bool
@@ -306,3 +308,5 @@ config MACH_WLF_CRAGG_6410
 	select SAMSUNG_GPIO_EXTRA128
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.
+
+endif
