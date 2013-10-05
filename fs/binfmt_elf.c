@@ -2152,11 +2152,11 @@ static int elf_core_dump(struct coredump_params *cprm)
 		if (!dump_emit(cprm, &phdr, sizeof(phdr)))
 			goto end_coredump;
 	}
-	size = cprm->written;
 
-	if (!elf_core_write_extra_phdrs(cprm->file, offset, &size, cprm->limit))
+	if (!elf_core_write_extra_phdrs(cprm, offset))
 		goto end_coredump;
 
+	size = cprm->written;
 	cprm->written = foffset;	/* will disappear */
  	/* write out the notes section */
 	if (!write_note_info(&info, cprm))
