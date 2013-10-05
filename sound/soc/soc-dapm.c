@@ -1840,6 +1840,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 			 */
 			switch (w->id) {
 			case snd_soc_dapm_siggen:
+			case snd_soc_dapm_vmid:
 				break;
 			case snd_soc_dapm_supply:
 			case snd_soc_dapm_regulator_supply:
