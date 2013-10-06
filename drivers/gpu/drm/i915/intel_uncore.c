@@ -282,6 +282,9 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	unsigned long irqflags;
 
+	if (!dev_priv->uncore.funcs.force_wake_get)
+		return;
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (dev_priv->uncore.forcewake_count++ == 0)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv);
@@ -295,6 +298,9 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	unsigned long irqflags;
 
+	if (!dev_priv->uncore.funcs.force_wake_put)
+		return;
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (--dev_priv->uncore.forcewake_count == 0) {
 		dev_priv->uncore.forcewake_count++;
@@ -307,9 +313,7 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
-	((HAS_FORCE_WAKE((dev_priv)->dev)) && \
-	 ((reg) < 0x40000) &&            \
-	 ((reg) != FORCEWAKE))
+	 ((reg) < 0x40000 && (reg) != FORCEWAKE)
 
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
@@ -323,8 +327,7 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 static void
 hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
 {
-	if (HAS_FPGA_DBG_UNCLAIMED(dev_priv->dev) &&
-	    (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
+	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n",
 			  reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
@@ -334,8 +337,7 @@ hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
 static void
 hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 {
-	if (HAS_FPGA_DBG_UNCLAIMED(dev_priv->dev) &&
-	    (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
+	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
 		DRM_ERROR("Unclaimed write to %x\n", reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 	}
