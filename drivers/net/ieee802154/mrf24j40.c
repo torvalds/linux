@@ -678,7 +678,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 	ret = request_threaded_irq(spi->irq,
 				   NULL,
 				   mrf24j40_isr,
-				   IRQF_TRIGGER_FALLING|IRQF_ONESHOT,
+				   IRQF_TRIGGER_LOW|IRQF_ONESHOT,
 				   dev_name(&spi->dev),
 				   devrec);
 
