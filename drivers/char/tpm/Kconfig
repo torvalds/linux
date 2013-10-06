@@ -44,6 +44,16 @@ config TCG_TIS_I2C_INFINEON
 	  To compile this driver as a module, choose M here; the module
 	  will be called tpm_tis_i2c_infineon.
 
+config TCG_TIS_I2C_NUVOTON
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Nuvoton)"
+	depends on I2C
+	---help---
+	  If you have a TPM security chip with an I2C interface from
+	  Nuvoton Technology Corp. say Yes and it will be accessible
+	  from within Linux.
+	  To compile this driver as a module, choose M here; the module
+	  will be called tpm_i2c_nuvoton.
+
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
 	depends on X86
