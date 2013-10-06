@@ -613,6 +613,9 @@ static int w1_bus_notify(struct notifier_block *nb, unsigned long action,
 	sl = dev_to_w1_slave(dev);
 	fops = sl->family->fops;
 
+	if (!fops)
+		return 0;
+
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
 		/* if the family driver needs to initialize something... */
