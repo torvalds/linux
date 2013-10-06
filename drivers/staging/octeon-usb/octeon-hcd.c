@@ -2431,34 +2431,20 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
  * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		    Handle to the pipe for the transfer.
- * @buffer:	    Physical address of the data buffer in
- *		    memory. Note that this is NOT A POINTER, but
- *		    the full 64bit physical address of the
- *		    buffer. This may be zero if buffer_length is
- *		    zero.
- * @buffer_length:
- *		    Length of buffer in bytes.
  * @urb:	    URB returned when the callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
 static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
-				     int pipe_handle, uint64_t buffer,
-				     int buffer_length, struct urb *urb)
+				     int pipe_handle, struct urb *urb)
 {
 	int submit_handle;
 
-	/* Pipe handle checking is done later in a common place */
-	if (unlikely(!buffer))
-		return -EINVAL;
-	if (unlikely(buffer_length < 0))
-		return -EINVAL;
-
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_INTERRUPT,
-						      buffer,
-						      buffer_length,
+						      urb->transfer_dma,
+						      urb->transfer_buffer_length,
 						      0, /* control_header */
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
@@ -3444,10 +3430,8 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	case PIPE_INTERRUPT:
 		dev_dbg(dev, "Submit interrupt to %d.%d\n",
 			usb_pipedevice(urb->pipe), usb_pipeendpoint(urb->pipe));
-		submit_handle = cvmx_usb_submit_interrupt(&priv->usb, pipe_handle,
-					      urb->transfer_dma,
-					      urb->transfer_buffer_length,
-					      urb);
+		submit_handle = cvmx_usb_submit_interrupt(&priv->usb,
+							  pipe_handle, urb);
 		break;
 	case PIPE_CONTROL:
 		dev_dbg(dev, "Submit control to %d.%d\n",
