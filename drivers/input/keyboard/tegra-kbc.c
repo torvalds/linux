@@ -614,7 +614,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	unsigned int keymap_rows;
 	const struct of_device_id *match;
 
-	match = of_match_device(of_match_ptr(tegra_kbc_of_match), &pdev->dev);
+	match = of_match_device(tegra_kbc_of_match, &pdev->dev);
 
 	kbc = devm_kzalloc(&pdev->dev, sizeof(*kbc), GFP_KERNEL);
 	if (!kbc) {
