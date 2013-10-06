@@ -386,6 +386,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
+	ret = iwl_mvm_sf_update(mvm, NULL, false);
+	if (ret)
+		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
+
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
 	if (ret)
 		goto error;

@@ -850,7 +850,16 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				iwl_mvm_protect_session(mvm, vif, dur, dur,
 							5 * dur);
 			}
+
+			iwl_mvm_sf_update(mvm, vif, false);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
+			/*
+			 * If update fails - SF might be running in associated
+			 * mode while disassociated - which is forbidden.
+			 */
+			WARN_ONCE(iwl_mvm_sf_update(mvm, vif, false),
+				  "Failed to update SF upon disassociation\n");
+
 			/* remove AP station now that the MAC is unassoc */
 			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
 			if (ret)
@@ -1198,6 +1207,17 @@ static int iwl_mvm_mac_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	mvm->rts_threshold = value;
 
 	return 0;
+}
+
+static void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta, u32 changed)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    changed & IEEE80211_RC_NSS_CHANGED)
+		iwl_mvm_sf_update(mvm, vif, false);
 }
 
 static int iwl_mvm_mac_conf_tx(struct ieee80211_hw *hw,
@@ -1765,6 +1785,7 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.sta_notify = iwl_mvm_mac_sta_notify,
 	.allow_buffered_frames = iwl_mvm_mac_allow_buffered_frames,
 	.set_rts_threshold = iwl_mvm_mac_set_rts_threshold,
+	.sta_rc_update = iwl_mvm_sta_rc_update,
 	.conf_tx = iwl_mvm_mac_conf_tx,
 	.mgd_prepare_tx = iwl_mvm_mac_mgd_prepare_tx,
 	.sched_scan_start = iwl_mvm_mac_sched_scan_start,

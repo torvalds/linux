@@ -489,6 +489,9 @@ struct iwl_mvm {
 	u8 scan_last_antenna_idx; /* to toggle TX between antennas */
 	u8 mgmt_last_antenna_idx;
 
+	/* last smart fifo state that was successfully sent to firmware */
+	enum iwl_sf_state sf_state;
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
@@ -868,5 +871,9 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
 void iwl_mvm_tt_initialize(struct iwl_mvm *mvm);
 void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
+
+/* smart fifo */
+int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      bool added_vif);
 
 #endif /* __IWL_MVM_H__ */

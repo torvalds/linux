@@ -359,6 +359,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->aux_queue = 11;
 		mvm->first_agg_queue = 12;
 	}
+	mvm->sf_state = SF_UNINIT;
 
 	mutex_init(&mvm->mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
