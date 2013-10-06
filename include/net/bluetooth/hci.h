@@ -1046,6 +1046,18 @@ struct hci_rp_le_read_local_features {
 
 #define HCI_OP_LE_SET_RANDOM_ADDR	0x2005
 
+#define HCI_OP_LE_SET_ADV_PARAM		0x2006
+struct hci_cp_le_set_adv_param {
+	__le16   min_interval;
+	__le16   max_interval;
+	__u8     type;
+	__u8     own_address_type;
+	__u8     direct_addr_type;
+	bdaddr_t direct_addr;
+	__u8     channel_map;
+	__u8     filter_policy;
+} __packed;
+
 #define HCI_OP_LE_READ_ADV_TX_POWER	0x2007
 struct hci_rp_le_read_adv_tx_power {
 	__u8	status;
