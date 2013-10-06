@@ -20,17 +20,20 @@ in /proc/sys/kernel/sysrq:
    1 - enable all functions of sysrq
   >1 - bitmask of allowed sysrq functions (see below for detailed function
        description):
-          2 - enable control of console logging level
-          4 - enable control of keyboard (SAK, unraw)
-          8 - enable debugging dumps of processes etc.
-         16 - enable sync command
-         32 - enable remount read-only
-         64 - enable signalling of processes (term, kill, oom-kill)
-        128 - allow reboot/poweroff
-        256 - allow nicing of all RT tasks
+          2 =   0x2 - enable control of console logging level
+          4 =   0x4 - enable control of keyboard (SAK, unraw)
+          8 =   0x8 - enable debugging dumps of processes etc.
+         16 =  0x10 - enable sync command
+         32 =  0x20 - enable remount read-only
+         64 =  0x40 - enable signalling of processes (term, kill, oom-kill)
+        128 =  0x80 - allow reboot/poweroff
+        256 = 0x100 - allow nicing of all RT tasks
 
 You can set the value in the file by the following command:
     echo "number" >/proc/sys/kernel/sysrq
+
+The number may be written either as decimal or as hexadecimal with the
+0x prefix.
 
 Note that the value of /proc/sys/kernel/sysrq influences only the invocation
 via a keyboard. Invocation of any operation via /proc/sysrq-trigger is always
