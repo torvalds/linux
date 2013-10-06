@@ -1088,7 +1088,8 @@ struct snd_soc_pcm_runtime {
 /* mixer control */
 struct soc_mixer_control {
 	int min, max, platform_max;
-	unsigned int reg, rreg, shift, rshift;
+	int reg, rreg;
+	unsigned int shift, rshift;
 	unsigned int invert:1;
 	unsigned int autodisable:1;
 };
