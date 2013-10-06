@@ -2911,6 +2911,10 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		param_cp.type = LE_SCAN_ACTIVE;
 		param_cp.interval = cpu_to_le16(DISCOV_LE_SCAN_INT);
 		param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
+		if (bacmp(&hdev->bdaddr, BDADDR_ANY))
+			param_cp.own_address_type = ADDR_LE_DEV_PUBLIC;
+		else
+			param_cp.own_address_type = ADDR_LE_DEV_RANDOM;
 		hci_req_add(&req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
 			    &param_cp);
 
