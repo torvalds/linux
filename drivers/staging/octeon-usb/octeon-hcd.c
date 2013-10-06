@@ -334,7 +334,7 @@ enum cvmx_usb_stage {
  * @iso_packets:	For ISO transactions, the sub packets in the request.
  * @actual_bytes:	Actual bytes transfer for this transaction.
  * @stage:		For control transactions, the current stage.
- * @callback_data:	User's data.
+ * @urb:		URB.
  */
 struct cvmx_usb_transaction {
 	struct cvmx_usb_transaction *prev;
@@ -352,7 +352,7 @@ struct cvmx_usb_transaction {
 	int retries;
 	int actual_bytes;
 	enum cvmx_usb_stage stage;
-	void *callback_data;
+	struct urb *urb;
 };
 
 /**
@@ -2144,12 +2144,11 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 					     int pipe_handle,
 					     int submit_handle,
 					     int bytes_transferred,
-					     void *user_data)
+					     struct urb *urb)
 {
 	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
 	struct usb_hcd *hcd = octeon_to_hcd(priv);
 	struct device *dev = hcd->self.controller;
-	struct urb *urb = user_data;
 
 	urb->actual_length = bytes_transferred;
 	urb->hcpriv = NULL;
@@ -2300,7 +2299,7 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 	octeon_usb_urb_complete_callback(usb, complete_code, pipe_handle,
 					 submit_handle,
 					 transaction->actual_bytes,
-					 transaction->callback_data);
+					 transaction->urb);
 	__cvmx_usb_free_transaction(usb, transaction);
 done:
 	return;
@@ -2326,7 +2325,7 @@ done:
  *		    For ISO, the number of packet in the transaction.
  * @iso_packets:
  *		    A description of each ISO packet
- * @user_data:	    User's data for the callback
+ * @urb:	    URB for the callback
  *
  * Returns: Submit handle or negative on failure. Matches the result
  *	    in the external API.
@@ -2340,7 +2339,7 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
 					 int iso_start_frame,
 					 int iso_number_packets,
 					 struct cvmx_usb_iso_packet *iso_packets,
-					 void *user_data)
+					 struct urb *urb)
 {
 	int submit_handle;
 	struct cvmx_usb_transaction *transaction;
@@ -2366,7 +2365,7 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
 	transaction->iso_start_frame = iso_start_frame;
 	transaction->iso_number_packets = iso_number_packets;
 	transaction->iso_packets = iso_packets;
-	transaction->callback_data = user_data;
+	transaction->urb = urb;
 	if (transaction->type == CVMX_USB_TRANSFER_CONTROL)
 		transaction->stage = CVMX_USB_STAGE_SETUP;
 	else
@@ -2410,15 +2409,14 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @user_data:	    User supplied data returned when the
- *		    callback is called.
+ * @urb:	    URB returned when the callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
 static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
 				uint64_t buffer, int buffer_length,
-				void *user_data)
+				struct urb *urb)
 {
 	int submit_handle;
 
@@ -2436,7 +2434,7 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
 						      NULL, /* iso_packets */
-						      user_data);
+						      urb);
 	return submit_handle;
 }
 
@@ -2454,15 +2452,14 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @user_data:	    User supplied data returned when the
- *		    callback is called.
+ * @urb:	    URB returned when the callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
 static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 				     int pipe_handle, uint64_t buffer,
-				     int buffer_length, void *user_data)
+				     int buffer_length, struct urb *urb)
 {
 	int submit_handle;
 
@@ -2480,7 +2477,7 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
 						      NULL, /* iso_packets */
-						      user_data);
+						      urb);
 	return submit_handle;
 }
 
@@ -2502,8 +2499,7 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @user_data:	    User supplied data returned when the
- *		    callback is called.
+ * @urb:	    URB returned when the callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
@@ -2511,7 +2507,7 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
 				   int pipe_handle, uint64_t control_header,
 				   uint64_t buffer, int buffer_length,
-				   void *user_data)
+				   struct urb *urb)
 {
 	int submit_handle;
 	union cvmx_usb_control_header *header =
@@ -2536,7 +2532,7 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
 						      NULL, /* iso_packets */
-						      user_data);
+						      urb);
 	return submit_handle;
 }
 
@@ -2565,8 +2561,7 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @user_data:	    User supplied data returned when the
- *		    callback is called.
+ * @urb:	    URB returned when the callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
@@ -2576,7 +2571,7 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
 				       int number_packets, struct
 				       cvmx_usb_iso_packet packets[],
 				       uint64_t buffer, int buffer_length,
-				       void *user_data)
+				       struct urb *urb)
 {
 	int submit_handle;
 
@@ -2600,7 +2595,7 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
 						      start_frame,
 						      number_packets,
 						      packets,
-						      user_data);
+						      urb);
 	return submit_handle;
 }
 
