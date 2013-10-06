@@ -2067,12 +2067,12 @@ xfs_dir2_node_lookup(
  */
 int						/* error */
 xfs_dir2_node_removename(
-	xfs_da_args_t		*args)		/* operation arguments */
+	struct xfs_da_args	*args)		/* operation arguments */
 {
-	xfs_da_state_blk_t	*blk;		/* leaf block */
+	struct xfs_da_state_blk	*blk;		/* leaf block */
 	int			error;		/* error return value */
 	int			rval;		/* operation return value */
-	xfs_da_state_t		*state;		/* btree cursor */
+	struct xfs_da_state	*state;		/* btree cursor */
 
 	trace_xfs_dir2_node_removename(args);
 
@@ -2084,19 +2084,18 @@ xfs_dir2_node_removename(
 	state->mp = args->dp->i_mount;
 	state->blocksize = state->mp->m_dirblksize;
 	state->node_ents = state->mp->m_dir_node_ents;
-	/*
-	 * Look up the entry we're deleting, set up the cursor.
-	 */
+
+	/* Look up the entry we're deleting, set up the cursor. */
 	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error)
-		rval = error;
-	/*
-	 * Didn't find it, upper layer screwed up.
-	 */
+		goto out_free;
+
+	/* Didn't find it, upper layer screwed up. */
 	if (rval != EEXIST) {
-		xfs_da_state_free(state);
-		return rval;
+		error = rval;
+		goto out_free;
 	}
+
 	blk = &state->path.blk[state->path.active - 1];
 	ASSERT(blk->magic == XFS_DIR2_LEAFN_MAGIC);
 	ASSERT(state->extravalid);
@@ -2107,7 +2106,7 @@ xfs_dir2_node_removename(
 	error = xfs_dir2_leafn_remove(args, blk->bp, blk->index,
 		&state->extrablk, &rval);
 	if (error)
-		return error;
+		goto out_free;
 	/*
 	 * Fix the hash values up the btree.
 	 */
@@ -2122,6 +2121,7 @@ xfs_dir2_node_removename(
 	 */
 	if (!error)
 		error = xfs_dir2_node_to_leaf(state);
+out_free:
 	xfs_da_state_free(state);
 	return error;
 }
