@@ -282,22 +282,6 @@ static void stop_endpoints(struct snd_usb_substream *subs, bool wait)
 	}
 }
 
-static int deactivate_endpoints(struct snd_usb_substream *subs)
-{
-	int reta, retb;
-
-	reta = snd_usb_endpoint_deactivate(subs->sync_endpoint);
-	retb = snd_usb_endpoint_deactivate(subs->data_endpoint);
-
-	if (reta < 0)
-		return reta;
-
-	if (retb < 0)
-		return retb;
-
-	return 0;
-}
-
 static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
 				     unsigned int altsetting,
 				     struct usb_host_interface **alts,
@@ -736,7 +720,8 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	down_read(&subs->stream->chip->shutdown_rwsem);
 	if (!subs->stream->chip->shutdown) {
 		stop_endpoints(subs, true);
-		deactivate_endpoints(subs);
+		snd_usb_endpoint_deactivate(subs->sync_endpoint);
+		snd_usb_endpoint_deactivate(subs->data_endpoint);
 	}
 	up_read(&subs->stream->chip->shutdown_rwsem);
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
