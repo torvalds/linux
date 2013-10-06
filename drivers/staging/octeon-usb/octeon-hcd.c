@@ -213,18 +213,11 @@ struct cvmx_usb_iso_packet {
  *					 if the transfer fails or is canceled.
  *					 The status parameter will contain
  *					 details of why he callback was called.
- * @CVMX_USB_CALLBACK_PORT_CHANGED:	 The status of the port changed. For
- *					 example, someone may have plugged a
- *					 device in. The status parameter
- *					 contains CVMX_USB_COMPLETE_SUCCESS. Use
- *					 cvmx_usb_get_status() to get the new
- *					 port status.
  * @__CVMX_USB_CALLBACK_END:		 Do not use. Used internally for array
  *					 bounds.
  */
 enum cvmx_usb_callback {
 	CVMX_USB_CALLBACK_TRANSFER_COMPLETE,
-	CVMX_USB_CALLBACK_PORT_CHANGED,
 	__CVMX_USB_CALLBACK_END
 };
 
@@ -245,8 +238,8 @@ struct cvmx_usb_state;
  *        with a transfer.
  *      - Actual number of bytes transfer.
  *      - user_data = The user pointer supplied to the
- *        function cvmx_usb_submit() or
- *        cvmx_usb_register_callback() */
+ *        function cvmx_usb_submit().
+ */
 typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *usb,
                                          enum cvmx_usb_callback reason,
                                          enum cvmx_usb_complete status,
@@ -490,8 +483,6 @@ struct cvmx_usb_tx_fifo {
  * free_transaction_tail:  List of free transactions tail.
  * pipe:		   Storage for pipes.
  * transaction:		   Storage for transactions.
- * callback:		   User global callbacks.
- * callback_data:	   User data for each callback.
  * indent:		   Used by debug output to indent functions.
  * port_status:		   Last port status used for change notification.
  * free_pipes:		   List of all pipes that are currently closed.
@@ -510,8 +501,6 @@ struct cvmx_usb_state {
 	struct cvmx_usb_transaction *free_transaction_tail;
 	struct cvmx_usb_pipe pipe[MAX_PIPES];
 	struct cvmx_usb_transaction transaction[MAX_TRANSACTIONS];
-	cvmx_usb_callback_func_t callback[__CVMX_USB_CALLBACK_END];
-	void *callback_data[__CVMX_USB_CALLBACK_END];
 	int indent;
 	struct cvmx_usb_port_status port_status;
 	struct cvmx_usb_pipe_list free_pipes;
@@ -2202,8 +2191,8 @@ static void __cvmx_usb_perform_callback(struct cvmx_usb_state *usb,
 					enum cvmx_usb_callback reason,
 					enum cvmx_usb_complete complete_code)
 {
-	cvmx_usb_callback_func_t callback = usb->callback[reason];
-	void *user_data = usb->callback_data[reason];
+	cvmx_usb_callback_func_t callback = NULL;
+	void *user_data;
 	int submit_handle = -1;
 	int pipe_handle = -1;
 	int bytes_transferred = 0;
@@ -2408,10 +2397,8 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
  *		    transaction completes. If this parameter is
- *		    NULL, then the generic callback registered
- *		    through cvmx_usb_register_callback is
- *		    called. If both are NULL, then there is no
- *		    way to know when a transaction completes.
+ *		    NULL, then there is no way to know when a transaction
+ *		    completes.
  * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
@@ -2464,10 +2451,8 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
  *		    transaction completes. If this parameter is
- *		    NULL, then the generic callback registered
- *		    through cvmx_usb_register_callback is
- *		    called. If both are NULL, then there is no
- *		    way to know when a transaction completes.
+ *		    NULL, then there is no way to know when a transaction
+ *		    completes.
  * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
@@ -2525,10 +2510,8 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
  *		    transaction completes. If this parameter is
- *		    NULL, then the generic callback registered
- *		    through cvmx_usb_register_callback is
- *		    called. If both are NULL, then there is no
- *		    way to know when a transaction completes.
+ *		    NULL, then there is no way to know when a transaction
+ *		    completes.
  * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
@@ -2600,10 +2583,8 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
  *		    transaction completes. If this parameter is
- *		    NULL, then the generic callback registered
- *		    through cvmx_usb_register_callback is
- *		    called. If both are NULL, then there is no
- *		    way to know when a transaction completes.
+ *		    NULL, then there is no way to know when a transaction
+ *		    completes.
  * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
@@ -2775,34 +2756,6 @@ static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb, int pipe_handle)
 
 	return 0;
 }
-
-
-/**
- * Register a function to be called when various USB events occur.
- *
- * @usb:       USB device state populated by cvmx_usb_initialize().
- * @reason:    Which event to register for.
- * @callback:  Function to call when the event occurs.
- * @user_data: User data parameter to the function.
- *
- * Returns: 0 or a negative error code.
- */
-static int cvmx_usb_register_callback(struct cvmx_usb_state *usb,
-				      enum cvmx_usb_callback reason,
-				      cvmx_usb_callback_func_t callback,
-				      void *user_data)
-{
-	if (unlikely(reason >= __CVMX_USB_CALLBACK_END))
-		return -EINVAL;
-	if (unlikely(!callback))
-		return -EINVAL;
-
-	usb->callback[reason] = callback;
-	usb->callback_data[reason] = user_data;
-
-	return 0;
-}
-
 
 /**
  * Get the current USB protocol level frame number. The frame
@@ -3264,6 +3217,24 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	return 0;
 }
 
+static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
+{
+	return container_of(p, struct octeon_hcd, usb);
+}
+
+static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
+{
+	return container_of((void *)p, struct usb_hcd, hcd_priv);
+}
+
+static void octeon_usb_port_callback(struct cvmx_usb_state *usb)
+{
+	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
+
+	spin_unlock(&priv->lock);
+	usb_hcd_poll_rh_status(octeon_to_hcd(priv));
+	spin_lock(&priv->lock);
+}
 
 /**
  * Poll the USB block for status and call all needed callback
@@ -3331,9 +3302,7 @@ static int cvmx_usb_poll(struct cvmx_usb_state *usb)
 		 *
 		 * Call the user's port callback
 		 */
-		__cvmx_usb_perform_callback(usb, NULL, NULL,
-					    CVMX_USB_CALLBACK_PORT_CHANGED,
-					    CVMX_USB_COMPLETE_SUCCESS);
+		octeon_usb_port_callback(usb);
 		/* Clear the port change bits */
 		usbc_hprt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
 		usbc_hprt.s.prtena = 0;
@@ -3374,16 +3343,6 @@ static inline struct octeon_hcd *hcd_to_octeon(struct usb_hcd *hcd)
 	return (struct octeon_hcd *)(hcd->hcd_priv);
 }
 
-static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
-{
-	return container_of((void *)p, struct usb_hcd, hcd_priv);
-}
-
-static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
-{
-	return container_of(p, struct octeon_hcd, usb);
-}
-
 static irqreturn_t octeon_usb_irq(struct usb_hcd *hcd)
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
@@ -3395,43 +3354,14 @@ static irqreturn_t octeon_usb_irq(struct usb_hcd *hcd)
 	return IRQ_HANDLED;
 }
 
-static void octeon_usb_port_callback(struct cvmx_usb_state *usb,
-				     enum cvmx_usb_callback reason,
-				     enum cvmx_usb_complete status,
-				     int pipe_handle,
-				     int submit_handle,
-				     int bytes_transferred,
-				     void *user_data)
-{
-	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
-
-	spin_unlock(&priv->lock);
-	usb_hcd_poll_rh_status(octeon_to_hcd(priv));
-	spin_lock(&priv->lock);
-}
-
 static int octeon_usb_start(struct usb_hcd *hcd)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
-	unsigned long flags;
-
 	hcd->state = HC_STATE_RUNNING;
-	spin_lock_irqsave(&priv->lock, flags);
-	cvmx_usb_register_callback(&priv->usb, CVMX_USB_CALLBACK_PORT_CHANGED,
-				   octeon_usb_port_callback, NULL);
-	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
 static void octeon_usb_stop(struct usb_hcd *hcd)
 {
-	struct octeon_hcd *priv = hcd_to_octeon(hcd);
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	cvmx_usb_register_callback(&priv->usb, CVMX_USB_CALLBACK_PORT_CHANGED,
-				   NULL, NULL);
-	spin_unlock_irqrestore(&priv->lock, flags);
 	hcd->state = HC_STATE_HALT;
 }
 
