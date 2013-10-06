@@ -959,11 +959,11 @@ int snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 	if (!ep)
 		return -EINVAL;
 
-	deactivate_urbs(ep, true);
-	wait_clear_urbs(ep);
-
 	if (ep->use_count != 0)
 		return 0;
+
+	deactivate_urbs(ep, true);
+	wait_clear_urbs(ep);
 
 	clear_bit(EP_FLAG_ACTIVATED, &ep->flags);
 
