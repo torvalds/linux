@@ -1254,7 +1254,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		hci_notify(hdev, HCI_DEV_UP);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
 		    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
-		    mgmt_valid_hdev(hdev)) {
+		    hdev->dev_type == HCI_BREDR) {
 			hci_dev_lock(hdev);
 			mgmt_powered(hdev, 1);
 			hci_dev_unlock(hdev);
@@ -1394,7 +1394,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hdev->dev_flags &= ~HCI_PERSISTENT_MASK;
 
 	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags) &&
-	    mgmt_valid_hdev(hdev)) {
+	    hdev->dev_type == HCI_BREDR) {
 		hci_dev_lock(hdev);
 		mgmt_powered(hdev, 0);
 		hci_dev_unlock(hdev);

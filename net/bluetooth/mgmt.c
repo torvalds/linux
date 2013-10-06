@@ -182,11 +182,6 @@ static u8 mgmt_status_table[] = {
 	MGMT_STATUS_CONNECT_FAILED,	/* MAC Connection Failed */
 };
 
-bool mgmt_valid_hdev(struct hci_dev *hdev)
-{
-	return hdev->dev_type == HCI_BREDR;
-}
-
 static u8 mgmt_status(u8 hci_status)
 {
 	if (hci_status < ARRAY_SIZE(mgmt_status_table))
@@ -322,10 +317,8 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
-		if (!mgmt_valid_hdev(d))
-			continue;
-
-		count++;
+		if (d->dev_type == HCI_BREDR)
+			count++;
 	}
 
 	rp_len = sizeof(*rp) + (2 * count);
@@ -343,11 +336,10 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (test_bit(HCI_USER_CHANNEL, &d->dev_flags))
 			continue;
 
-		if (!mgmt_valid_hdev(d))
-			continue;
-
-		rp->index[count++] = cpu_to_le16(d->id);
-		BT_DBG("Added hci%u", d->id);
+		if (d->dev_type == HCI_BREDR) {
+			rp->index[count++] = cpu_to_le16(d->id);
+			BT_DBG("Added hci%u", d->id);
+		}
 	}
 
 	rp->num_controllers = cpu_to_le16(count);
@@ -3790,7 +3782,7 @@ done:
 
 int mgmt_index_added(struct hci_dev *hdev)
 {
-	if (!mgmt_valid_hdev(hdev))
+	if (hdev->dev_type != HCI_BREDR)
 		return -ENOTSUPP;
 
 	return mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
@@ -3800,7 +3792,7 @@ int mgmt_index_removed(struct hci_dev *hdev)
 {
 	u8 status = MGMT_STATUS_INVALID_INDEX;
 
-	if (!mgmt_valid_hdev(hdev))
+	if (hdev->dev_type != HCI_BREDR)
 		return -ENOTSUPP;
 
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
