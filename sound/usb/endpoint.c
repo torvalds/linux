@@ -426,9 +426,9 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 	list_for_each_entry(ep, &chip->ep_list, list) {
 		if (ep->ep_num == ep_num &&
 		    ep->iface == alts->desc.bInterfaceNumber &&
-		    ep->alt_idx == alts->desc.bAlternateSetting) {
+		    ep->altsetting == alts->desc.bAlternateSetting) {
 			snd_printdd(KERN_DEBUG "Re-using EP %x in iface %d,%d @%p\n",
-					ep_num, ep->iface, ep->alt_idx, ep);
+					ep_num, ep->iface, ep->altsetting, ep);
 			goto __exit_unlock;
 		}
 	}
@@ -447,7 +447,7 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 	ep->type = type;
 	ep->ep_num = ep_num;
 	ep->iface = alts->desc.bInterfaceNumber;
-	ep->alt_idx = alts->desc.bAlternateSetting;
+	ep->altsetting = alts->desc.bAlternateSetting;
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
 	ep_num &= USB_ENDPOINT_NUMBER_MASK;
 

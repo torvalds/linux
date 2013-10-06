@@ -241,17 +241,17 @@ static int start_endpoints(struct snd_usb_substream *subs, bool can_sleep)
 		struct snd_usb_endpoint *ep = subs->sync_endpoint;
 
 		if (subs->data_endpoint->iface != subs->sync_endpoint->iface ||
-		    subs->data_endpoint->alt_idx != subs->sync_endpoint->alt_idx) {
+		    subs->data_endpoint->altsetting != subs->sync_endpoint->altsetting) {
 			err = usb_set_interface(subs->dev,
 						subs->sync_endpoint->iface,
-						subs->sync_endpoint->alt_idx);
+						subs->sync_endpoint->altsetting);
 			if (err < 0) {
 				clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags);
 				snd_printk(KERN_ERR
 					   "%d:%d:%d: cannot set interface (%d)\n",
 					   subs->dev->devnum,
 					   subs->sync_endpoint->iface,
-					   subs->sync_endpoint->alt_idx, err);
+					   subs->sync_endpoint->altsetting, err);
 				return -EIO;
 			}
 		}
