@@ -246,6 +246,7 @@ static int start_endpoints(struct snd_usb_substream *subs, bool can_sleep)
 						subs->sync_endpoint->iface,
 						subs->sync_endpoint->alt_idx);
 			if (err < 0) {
+				clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags);
 				snd_printk(KERN_ERR
 					   "%d:%d:%d: cannot set interface (%d)\n",
 					   subs->dev->devnum,
