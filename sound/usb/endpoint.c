@@ -33,7 +33,6 @@
 #include "pcm.h"
 #include "quirks.h"
 
-#define EP_FLAG_ACTIVATED	0
 #define EP_FLAG_RUNNING		1
 #define EP_FLAG_STOPPING	2
 
@@ -961,8 +960,6 @@ void snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 
 	deactivate_urbs(ep, true);
 	wait_clear_urbs(ep);
-
-	clear_bit(EP_FLAG_ACTIVATED, &ep->flags);
 }
 
 /**
