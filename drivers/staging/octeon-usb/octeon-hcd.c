@@ -228,20 +228,12 @@ enum cvmx_usb_callback {
 	__CVMX_USB_CALLBACK_END
 };
 
-/**
- * USB state internal data. The contents of this structure
- * may change in future SDKs. No data in it should be referenced
- * by user's of this API.
- */
-struct cvmx_usb_state {
-	char data[65536];
-};
+struct cvmx_usb_state;
 
 /**
  * USB callback functions are always of the following type.
  * The parameters are as follows:
- *      - state = USB device state populated by
- *        cvmx_usb_initialize().
+ *      - usb = USB device state populated by cvmx_usb_initialize().
  *      - reason = The enum cvmx_usb_callback used to register
  *        the callback.
  *      - status = The enum cvmx_usb_complete representing the
@@ -255,7 +247,7 @@ struct cvmx_usb_state {
  *      - user_data = The user pointer supplied to the
  *        function cvmx_usb_submit() or
  *        cvmx_usb_register_callback() */
-typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *state,
+typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *usb,
                                          enum cvmx_usb_callback reason,
                                          enum cvmx_usb_complete status,
                                          int pipe_handle, int submit_handle,
@@ -486,7 +478,7 @@ struct cvmx_usb_tx_fifo {
 };
 
 /**
- * struct cvmx_usb_internal_state - the state of the USB block
+ * struct cvmx_usb_state - the state of the USB block
  *
  * init_flags:		   Flags passed to initialize.
  * index:		   Which USB block this is for.
@@ -508,7 +500,7 @@ struct cvmx_usb_tx_fifo {
  * frame_number:	   Increments every SOF interrupt for time keeping.
  * active_split:	   Points to the current active split, or NULL.
  */
-struct cvmx_usb_internal_state {
+struct cvmx_usb_state {
 	int init_flags;
 	int index;
 	int idle_hardware_channels;
@@ -597,7 +589,7 @@ static int octeon_usb_get_clock_type(void)
  *
  * Returns: Result of the read
  */
-static inline uint32_t __cvmx_usb_read_csr32(struct cvmx_usb_internal_state *usb,
+static inline uint32_t __cvmx_usb_read_csr32(struct cvmx_usb_state *usb,
 					     uint64_t address)
 {
 	uint32_t result = cvmx_read64_uint32(address ^ 4);
@@ -614,7 +606,7 @@ static inline uint32_t __cvmx_usb_read_csr32(struct cvmx_usb_internal_state *usb
  * @address: 64bit address to write
  * @value:   Value to write
  */
-static inline void __cvmx_usb_write_csr32(struct cvmx_usb_internal_state *usb,
+static inline void __cvmx_usb_write_csr32(struct cvmx_usb_state *usb,
 					  uint64_t address, uint32_t value)
 {
 	cvmx_write64_uint32(address ^ 4, value);
@@ -631,7 +623,7 @@ static inline void __cvmx_usb_write_csr32(struct cvmx_usb_internal_state *usb,
  *
  * Returns: Result of the read
  */
-static inline uint64_t __cvmx_usb_read_csr64(struct cvmx_usb_internal_state *usb,
+static inline uint64_t __cvmx_usb_read_csr64(struct cvmx_usb_state *usb,
 					     uint64_t address)
 {
 	uint64_t result = cvmx_read64_uint64(address);
@@ -647,7 +639,7 @@ static inline uint64_t __cvmx_usb_read_csr64(struct cvmx_usb_internal_state *usb
  * @address: 64bit address to write
  * @value:   Value to write
  */
-static inline void __cvmx_usb_write_csr64(struct cvmx_usb_internal_state *usb,
+static inline void __cvmx_usb_write_csr64(struct cvmx_usb_state *usb,
 					  uint64_t address, uint64_t value)
 {
 	cvmx_write64_uint64(address, value);
@@ -662,7 +654,8 @@ static inline void __cvmx_usb_write_csr64(struct cvmx_usb_internal_state *usb,
  *
  * Returns: Non zero if we need to do split transactions
  */
-static inline int __cvmx_usb_pipe_needs_split(struct cvmx_usb_internal_state *usb, struct cvmx_usb_pipe *pipe)
+static inline int __cvmx_usb_pipe_needs_split(struct cvmx_usb_state *usb,
+					      struct cvmx_usb_pipe *pipe)
 {
 	return ((pipe->device_speed != CVMX_USB_SPEED_HIGH) && (usb->usbcx_hprt.s.prtspd == CVMX_USB_SPEED_HIGH));
 }
@@ -723,7 +716,7 @@ static int cvmx_usb_get_num_ports(void)
  *
  * Returns: Transaction or NULL
  */
-static inline struct cvmx_usb_transaction *__cvmx_usb_alloc_transaction(struct cvmx_usb_internal_state *usb)
+static inline struct cvmx_usb_transaction *__cvmx_usb_alloc_transaction(struct cvmx_usb_state *usb)
 {
 	struct cvmx_usb_transaction *t;
 	t = usb->free_transaction_head;
@@ -748,7 +741,7 @@ static inline struct cvmx_usb_transaction *__cvmx_usb_alloc_transaction(struct c
  * @transaction:
  *		 Transaction to free
  */
-static inline void __cvmx_usb_free_transaction(struct cvmx_usb_internal_state *usb,
+static inline void __cvmx_usb_free_transaction(struct cvmx_usb_state *usb,
 					       struct cvmx_usb_transaction *transaction)
 {
 	transaction->flags = 0;
@@ -811,7 +804,7 @@ static inline void __cvmx_usb_remove_pipe(struct cvmx_usb_pipe_list *list, struc
  * other access to the Octeon USB port is made. The port starts
  * off in the disabled state.
  *
- * @state:	 Pointer to an empty struct cvmx_usb_state
+ * @usb:	 Pointer to an empty struct cvmx_usb_state
  *		 that will be populated by the initialize call.
  *		 This structure is then passed to all other USB
  *		 functions.
@@ -820,17 +813,13 @@ static inline void __cvmx_usb_remove_pipe(struct cvmx_usb_pipe_list *list, struc
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_initialize(struct cvmx_usb_state *state,
+static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 			       int usb_port_number)
 {
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	enum cvmx_usb_initialize_flags flags = 0;
 
-	/* Make sure that state is large enough to store the internal state */
-	if (sizeof(*state) < sizeof(*usb))
-		return -EINVAL;
 	/* At first allow 0-1 for the usb port number */
 	if ((usb_port_number < 0) || (usb_port_number > 1))
 		return -EINVAL;
@@ -1148,15 +1137,13 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *state,
  * The port should be disabled with all pipes closed when this
  * function is called.
  *
- * @state: USB device state populated by
- *	   cvmx_usb_initialize().
+ * @usb: USB device state populated by cvmx_usb_initialize().
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_shutdown(struct cvmx_usb_state *state)
+static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	/* Make sure all pipes are closed */
 	if (usb->idle_pipes.head ||
@@ -1183,15 +1170,13 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *state)
  * Enable a USB port. After this call succeeds, the USB port is
  * online and servicing requests.
  *
- * @state: USB device state populated by
- *	   cvmx_usb_initialize().
+ * @usb: USB device state populated by cvmx_usb_initialize().
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_enable(struct cvmx_usb_state *state)
+static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbcx_ghwcfg3 usbcx_ghwcfg3;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	usb->usbcx_hprt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
 
@@ -1280,15 +1265,12 @@ static int cvmx_usb_enable(struct cvmx_usb_state *state)
  * Transactions in process will fail and call their
  * associated callbacks.
  *
- * @state: USB device state populated by
- *	   cvmx_usb_initialize().
+ * @usb: USB device state populated by cvmx_usb_initialize().
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_disable(struct cvmx_usb_state *state)
+static int cvmx_usb_disable(struct cvmx_usb_state *usb)
 {
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
-
 	/* Disable the port */
 	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt, prtena, 1);
 	return 0;
@@ -1304,16 +1286,14 @@ static int cvmx_usb_disable(struct cvmx_usb_state *state)
  * on the last call to cvmx_usb_set_status(). In order to clear
  * them, you must update the status through cvmx_usb_set_status().
  *
- * @state: USB device state populated by
- *	   cvmx_usb_initialize().
+ * @usb: USB device state populated by cvmx_usb_initialize().
  *
  * Returns: Port status information
  */
-static struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *state)
+static struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbcx_hprt usbc_hprt;
 	struct cvmx_usb_port_status result;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	memset(&result, 0, sizeof(result));
 
@@ -1336,15 +1316,13 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *st
  * status passed to this function is not used. No fields can be
  * changed through this call.
  *
- * @state:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @port_status:
  *		 Port status to set, most like returned by cvmx_usb_get_status()
  */
-static void cvmx_usb_set_status(struct cvmx_usb_state *state,
+static void cvmx_usb_set_status(struct cvmx_usb_state *usb,
 				struct cvmx_usb_port_status port_status)
 {
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	usb->port_status = port_status;
 	return;
 }
@@ -1353,14 +1331,13 @@ static void cvmx_usb_set_status(struct cvmx_usb_state *state,
 /**
  * Convert a USB transaction into a handle
  *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @transaction:
  *		 Transaction to get handle for
  *
  * Returns: Handle
  */
-static inline int __cvmx_usb_get_submit_handle(struct cvmx_usb_internal_state *usb,
+static inline int __cvmx_usb_get_submit_handle(struct cvmx_usb_state *usb,
 					       struct cvmx_usb_transaction *transaction)
 {
 	return ((unsigned long)transaction - (unsigned long)usb->transaction) /
@@ -1371,13 +1348,12 @@ static inline int __cvmx_usb_get_submit_handle(struct cvmx_usb_internal_state *u
 /**
  * Convert a USB pipe into a handle
  *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe:	 Pipe to get handle for
  *
  * Returns: Handle
  */
-static inline int __cvmx_usb_get_pipe_handle(struct cvmx_usb_internal_state *usb,
+static inline int __cvmx_usb_get_pipe_handle(struct cvmx_usb_state *usb,
 					     struct cvmx_usb_pipe *pipe)
 {
 	return ((unsigned long)pipe - (unsigned long)usb->pipe) / sizeof(*pipe);
@@ -1389,8 +1365,7 @@ static inline int __cvmx_usb_get_pipe_handle(struct cvmx_usb_internal_state *usb
  * must be opened before data can be transferred between a device
  * and Octeon.
  *
- * @state:	     USB device state populated by
- *		     cvmx_usb_initialize().
+ * @usb:	     USB device state populated by cvmx_usb_initialize().
  * @device_addr:
  *		     USB device address to open the pipe to
  *		     (0-127).
@@ -1438,7 +1413,7 @@ static inline int __cvmx_usb_get_pipe_handle(struct cvmx_usb_internal_state *usb
  * Returns: A non negative value is a pipe handle. Negative
  *	    values are error codes.
  */
-static int cvmx_usb_open_pipe(struct cvmx_usb_state *state,
+static int cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 			      int device_addr, int endpoint_num,
 			      enum cvmx_usb_speed device_speed, int max_packet,
 			      enum cvmx_usb_transfer transfer_type,
@@ -1447,7 +1422,6 @@ static int cvmx_usb_open_pipe(struct cvmx_usb_state *state,
 			      int hub_device_addr, int hub_port)
 {
 	struct cvmx_usb_pipe *pipe;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	if (unlikely((device_addr < 0) || (device_addr > MAX_USB_ADDRESS)))
 		return -EINVAL;
@@ -1527,10 +1501,9 @@ static int cvmx_usb_open_pipe(struct cvmx_usb_state *state,
  * in non DMA mode. It is very important that this function be called quickly
  * enough to prevent FIFO overflow.
  *
- * @usb:	USB device state populated by
- *		cvmx_usb_initialize().
+ * @usb:	USB device state populated by cvmx_usb_initialize().
  */
-static void __cvmx_usb_poll_rx_fifo(struct cvmx_usb_internal_state *usb)
+static void __cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbcx_grxstsph rx_status;
 	int channel;
@@ -1571,15 +1544,15 @@ static void __cvmx_usb_poll_rx_fifo(struct cvmx_usb_internal_state *usb)
  * Fill the TX hardware fifo with data out of the software
  * fifos
  *
- * @usb:	    USB device state populated by
- *		    cvmx_usb_initialize().
+ * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @fifo:	    Software fifo to use
  * @available:	    Amount of space in the hardware fifo
  *
  * Returns: Non zero if the hardware fifo was too small and needs
  *	    to be serviced again.
  */
-static int __cvmx_usb_fill_tx_hw(struct cvmx_usb_internal_state *usb, struct cvmx_usb_tx_fifo *fifo, int available)
+static int __cvmx_usb_fill_tx_hw(struct cvmx_usb_state *usb,
+				 struct cvmx_usb_tx_fifo *fifo, int available)
 {
 	/*
 	 * We're done either when there isn't anymore space or the software FIFO
@@ -1630,10 +1603,9 @@ static int __cvmx_usb_fill_tx_hw(struct cvmx_usb_internal_state *usb, struct cvm
 /**
  * Check the hardware FIFOs and fill them as needed
  *
- * @usb:	USB device state populated by
- *		cvmx_usb_initialize().
+ * @usb:	USB device state populated by cvmx_usb_initialize().
  */
-static void __cvmx_usb_poll_tx_fifo(struct cvmx_usb_internal_state *usb)
+static void __cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 {
 	if (usb->periodic.head != usb->periodic.tail) {
 		union cvmx_usbcx_hptxsts tx_status;
@@ -1660,11 +1632,10 @@ static void __cvmx_usb_poll_tx_fifo(struct cvmx_usb_internal_state *usb)
 /**
  * Fill the TX FIFO with an outgoing packet
  *
- * @usb:	  USB device state populated by
- *		  cvmx_usb_initialize().
+ * @usb:	  USB device state populated by cvmx_usb_initialize().
  * @channel:	  Channel number to get packet from
  */
-static void __cvmx_usb_fill_tx_fifo(struct cvmx_usb_internal_state *usb, int channel)
+static void __cvmx_usb_fill_tx_fifo(struct cvmx_usb_state *usb, int channel)
 {
 	union cvmx_usbcx_hccharx hcchar;
 	union cvmx_usbcx_hcspltx usbc_hcsplt;
@@ -1712,12 +1683,11 @@ static void __cvmx_usb_fill_tx_fifo(struct cvmx_usb_internal_state *usb, int cha
  * the generic stuff will already have been done in
  * __cvmx_usb_start_channel()
  *
- * @usb:	  USB device state populated by
- *		  cvmx_usb_initialize().
+ * @usb:	  USB device state populated by cvmx_usb_initialize().
  * @channel:	  Channel to setup
  * @pipe:	  Pipe for control transaction
  */
-static void __cvmx_usb_start_channel_control(struct cvmx_usb_internal_state *usb,
+static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 					     int channel,
 					     struct cvmx_usb_pipe *pipe)
 {
@@ -1842,12 +1812,11 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_internal_state *usb
 /**
  * Start a channel to perform the pipe's head transaction
  *
- * @usb:	  USB device state populated by
- *		  cvmx_usb_initialize().
+ * @usb:	  USB device state populated by cvmx_usb_initialize().
  * @channel:	  Channel to setup
  * @pipe:	  Pipe to start
  */
-static void __cvmx_usb_start_channel(struct cvmx_usb_internal_state *usb,
+static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
 				     int channel,
 				     struct cvmx_usb_pipe *pipe)
 {
@@ -2138,15 +2107,14 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_internal_state *usb,
 
 /**
  * Find a pipe that is ready to be scheduled to hardware.
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @list:	 Pipe list to search
  * @current_frame:
  *		 Frame counter to use as a time reference.
  *
  * Returns: Pipe or NULL if none are ready
  */
-static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_internal_state *usb, struct cvmx_usb_pipe_list *list, uint64_t current_frame)
+static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_state *usb, struct cvmx_usb_pipe_list *list, uint64_t current_frame)
 {
 	struct cvmx_usb_pipe *pipe = list->head;
 	while (pipe) {
@@ -2168,11 +2136,10 @@ static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_internal
  * Called whenever a pipe might need to be scheduled to the
  * hardware.
  *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @is_sof:	 True if this schedule was called on a SOF interrupt.
  */
-static void __cvmx_usb_schedule(struct cvmx_usb_internal_state *usb, int is_sof)
+static void __cvmx_usb_schedule(struct cvmx_usb_state *usb, int is_sof)
 {
 	int channel;
 	struct cvmx_usb_pipe *pipe;
@@ -2243,8 +2210,7 @@ done:
 /**
  * Call a user's callback for a specific reason.
  *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe:	 Pipe the callback is for or NULL
  * @transaction:
  *		 Transaction the callback is for or NULL
@@ -2252,7 +2218,7 @@ done:
  * @complete_code:
  *		 Completion code for the transaction, if any
  */
-static void __cvmx_usb_perform_callback(struct cvmx_usb_internal_state *usb,
+static void __cvmx_usb_perform_callback(struct cvmx_usb_state *usb,
 					struct cvmx_usb_pipe *pipe,
 					struct cvmx_usb_transaction *transaction,
 					enum cvmx_usb_callback reason,
@@ -2280,7 +2246,7 @@ static void __cvmx_usb_perform_callback(struct cvmx_usb_internal_state *usb,
 	if (!callback)
 		return;
 
-	callback((struct cvmx_usb_state *)usb, reason, complete_code, pipe_handle, submit_handle,
+	callback(usb, reason, complete_code, pipe_handle, submit_handle,
 		 bytes_transferred, user_data);
 }
 
@@ -2289,15 +2255,14 @@ static void __cvmx_usb_perform_callback(struct cvmx_usb_internal_state *usb,
  * Signal the completion of a transaction and free it. The
  * transaction will be removed from the pipe transaction list.
  *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe:	 Pipe the transaction is on
  * @transaction:
  *		 Transaction that completed
  * @complete_code:
  *		 Completion code
  */
-static void __cvmx_usb_perform_complete(struct cvmx_usb_internal_state *usb,
+static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 					struct cvmx_usb_pipe *pipe,
 					struct cvmx_usb_transaction *transaction,
 					enum cvmx_usb_complete complete_code)
@@ -2379,7 +2344,7 @@ done:
  * Returns: Submit handle or negative on failure. Matches the result
  *	    in the external API.
  */
-static int __cvmx_usb_submit_transaction(struct cvmx_usb_internal_state *usb,
+static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
 					 int pipe_handle,
 					 enum cvmx_usb_transfer type,
 					 uint64_t buffer,
@@ -2450,8 +2415,7 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_internal_state *usb,
 /**
  * Call to submit a USB Bulk transfer to a pipe.
  *
- * @state:	    USB device state populated by
- *		    cvmx_usb_initialize().
+ * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		    Handle to the pipe for the transfer.
  * @buffer:	    Physical address of the data buffer in
@@ -2477,13 +2441,12 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_internal_state *usb,
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
-static int cvmx_usb_submit_bulk(struct cvmx_usb_state *state, int pipe_handle,
+static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
 				uint64_t buffer, int buffer_length,
 				cvmx_usb_callback_func_t callback,
 				void *user_data)
 {
 	int submit_handle;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	/* Pipe handle checking is done later in a common place */
 	if (unlikely(!buffer))
@@ -2508,8 +2471,7 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *state, int pipe_handle,
 /**
  * Call to submit a USB Interrupt transfer to a pipe.
  *
- * @state:	    USB device state populated by
- *		    cvmx_usb_initialize().
+ * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		    Handle to the pipe for the transfer.
  * @buffer:	    Physical address of the data buffer in
@@ -2535,14 +2497,13 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *state, int pipe_handle,
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
-static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *state,
+static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 				     int pipe_handle, uint64_t buffer,
 				     int buffer_length,
 				     cvmx_usb_callback_func_t callback,
 				     void *user_data)
 {
 	int submit_handle;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	/* Pipe handle checking is done later in a common place */
 	if (unlikely(!buffer))
@@ -2567,8 +2528,7 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *state,
 /**
  * Call to submit a USB Control transfer to a pipe.
  *
- * @state:	    USB device state populated by
- *		    cvmx_usb_initialize().
+ * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		    Handle to the pipe for the transfer.
  * @control_header:
@@ -2598,14 +2558,13 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *state,
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
-static int cvmx_usb_submit_control(struct cvmx_usb_state *state,
+static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
 				   int pipe_handle, uint64_t control_header,
 				   uint64_t buffer, int buffer_length,
 				   cvmx_usb_callback_func_t callback,
 				   void *user_data)
 {
 	int submit_handle;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	union cvmx_usb_control_header *header =
 		cvmx_phys_to_ptr(control_header);
 
@@ -2637,8 +2596,7 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *state,
 /**
  * Call to submit a USB Isochronous transfer to a pipe.
  *
- * @state:	    USB device state populated by
- *		    cvmx_usb_initialize().
+ * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		    Handle to the pipe for the transfer.
  * @start_frame:
@@ -2675,7 +2633,7 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *state,
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
-static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state,
+static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
 				       int pipe_handle, int start_frame,
 				       int number_packets, struct
 				       cvmx_usb_iso_packet packets[],
@@ -2684,7 +2642,6 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state,
 				       void *user_data)
 {
 	int submit_handle;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	/* Pipe handle checking is done later in a common place */
 	if (unlikely(start_frame < 0))
@@ -2719,8 +2676,7 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state,
  * a frame or two for the cvmx_usb_poll() function to call the
  * associated callback.
  *
- * @state:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		 Pipe handle to cancel requests in.
  * @submit_handle:
@@ -2729,11 +2685,10 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state,
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_cancel(struct cvmx_usb_state *state, int pipe_handle,
+static int cvmx_usb_cancel(struct cvmx_usb_state *usb, int pipe_handle,
 			   int submit_handle)
 {
 	struct cvmx_usb_transaction *transaction;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	struct cvmx_usb_pipe *pipe = usb->pipe + pipe_handle;
 
 	if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
@@ -2783,16 +2738,14 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *state, int pipe_handle,
  * Cancel all outstanding requests in a pipe. Logically all this
  * does is call cvmx_usb_cancel() in a loop.
  *
- * @state:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		 Pipe handle to cancel requests in.
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_cancel_all(struct cvmx_usb_state *state, int pipe_handle)
+static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb, int pipe_handle)
 {
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	struct cvmx_usb_pipe *pipe = usb->pipe + pipe_handle;
 
 	if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
@@ -2804,7 +2757,7 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *state, int pipe_handle)
 
 	/* Simply loop through and attempt to cancel each transaction */
 	while (pipe->head) {
-		int result = cvmx_usb_cancel(state, pipe_handle,
+		int result = cvmx_usb_cancel(usb, pipe_handle,
 			__cvmx_usb_get_submit_handle(usb, pipe->head));
 		if (unlikely(result != 0))
 			return result;
@@ -2816,17 +2769,15 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *state, int pipe_handle)
 /**
  * Close a pipe created with cvmx_usb_open_pipe().
  *
- * @state:	 USB device state populated by
- *		 cvmx_usb_initialize().
+ * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		 Pipe handle to close.
  *
  * Returns: 0 or a negative error code. EBUSY is returned if the pipe has
  *	    outstanding transfers.
  */
-static int cvmx_usb_close_pipe(struct cvmx_usb_state *state, int pipe_handle)
+static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb, int pipe_handle)
 {
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	struct cvmx_usb_pipe *pipe = usb->pipe + pipe_handle;
 
 	if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
@@ -2851,21 +2802,18 @@ static int cvmx_usb_close_pipe(struct cvmx_usb_state *state, int pipe_handle)
 /**
  * Register a function to be called when various USB events occur.
  *
- * @state:     USB device state populated by
- *	       cvmx_usb_initialize().
+ * @usb:       USB device state populated by cvmx_usb_initialize().
  * @reason:    Which event to register for.
  * @callback:  Function to call when the event occurs.
  * @user_data: User data parameter to the function.
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_register_callback(struct cvmx_usb_state *state,
+static int cvmx_usb_register_callback(struct cvmx_usb_state *usb,
 				      enum cvmx_usb_callback reason,
 				      cvmx_usb_callback_func_t callback,
 				      void *user_data)
 {
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
-
 	if (unlikely(reason >= __CVMX_USB_CALLBACK_END))
 		return -EINVAL;
 	if (unlikely(!callback))
@@ -2882,15 +2830,13 @@ static int cvmx_usb_register_callback(struct cvmx_usb_state *state,
  * Get the current USB protocol level frame number. The frame
  * number is always in the range of 0-0x7ff.
  *
- * @state: USB device state populated by
- *	   cvmx_usb_initialize().
+ * @usb: USB device state populated by cvmx_usb_initialize().
  *
  * Returns: USB frame number
  */
-static int cvmx_usb_get_frame_number(struct cvmx_usb_state *state)
+static int cvmx_usb_get_frame_number(struct cvmx_usb_state *usb)
 {
 	int frame_number;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 	union cvmx_usbcx_hfnum usbc_hfnum;
 
 	usbc_hfnum.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index));
@@ -2908,7 +2854,7 @@ static int cvmx_usb_get_frame_number(struct cvmx_usb_state *state)
  *
  * Returns: Zero on success
  */
-static int __cvmx_usb_poll_channel(struct cvmx_usb_internal_state *usb, int channel)
+static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 {
 	union cvmx_usbcx_hcintx usbc_hcint;
 	union cvmx_usbcx_hctsizx usbc_hctsiz;
@@ -3325,7 +3271,7 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_internal_state *usb, int chan
 				(usb->frame_number - pipe->next_tx_frame) % pipe->interval;
 	} else {
 		struct cvmx_usb_port_status port;
-		port = cvmx_usb_get_status((struct cvmx_usb_state *)usb);
+		port = cvmx_usb_get_status(usb);
 		if (port.port_enabled) {
 			/* We'll retry the exact same transaction again */
 			transaction->retries++;
@@ -3347,16 +3293,14 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_internal_state *usb, int chan
  * handler for the USB controller. It can also be called
  * periodically in a loop for non-interrupt based operation.
  *
- * @state:	USB device state populated by
- *		cvmx_usb_initialize().
+ * @usb: USB device state populated by cvmx_usb_initialize().
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_poll(struct cvmx_usb_state *state)
+static int cvmx_usb_poll(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbcx_hfnum usbc_hfnum;
 	union cvmx_usbcx_gintsts usbc_gintsts;
-	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
 
 	CVMX_PREFETCH(usb, 0);
 	CVMX_PREFETCH(usb, 1*128);
