@@ -520,6 +520,7 @@ static unsigned int netem_drop(struct Qdisc *sch)
 			skb->next = NULL;
 			skb->prev = NULL;
 			len = qdisc_pkt_len(skb);
+			sch->qstats.backlog -= len;
 			kfree_skb(skb);
 		}
 	}
