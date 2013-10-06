@@ -470,7 +470,7 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 		xfer->segs = DIV_ROUND_UP(urb->transfer_buffer_length,
 						xfer->seg_size);
 		if (xfer->segs >= WA_SEGS_MAX) {
-			dev_err(dev, "BUG? oops, number of segments %d bigger than %d\n",
+			dev_err(dev, "BUG? oops, number of segments %zu bigger than %d\n",
 				(urb->transfer_buffer_length/xfer->seg_size),
 				WA_SEGS_MAX);
 			result = -EINVAL;
@@ -1920,7 +1920,7 @@ static void wa_process_iso_packet_status(struct wahc *wa, struct urb *urb)
 	dev_dbg(dev, "DTI: isoc packet status %d bytes at %p\n",
 		urb->actual_length, urb->transfer_buffer);
 	if (urb->actual_length != expected_size) {
-		dev_err(dev, "DTI Error: isoc packet status--bad urb length (%d bytes vs %zu needed)\n",
+		dev_err(dev, "DTI Error: isoc packet status--bad urb length (%d bytes vs %d needed)\n",
 			urb->actual_length, expected_size);
 		goto error_parse_buffer;
 	}
