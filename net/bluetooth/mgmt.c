@@ -4660,3 +4660,36 @@ int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	return mgmt_event(MGMT_EV_DEVICE_UNBLOCKED, hdev, &ev, sizeof(ev),
 			  cmd ? cmd->sk : NULL);
 }
+
+static void adv_enable_complete(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("%s status %u", hdev->name, status);
+
+	/* Clear the advertising mgmt setting if we failed to re-enable it */
+	if (status) {
+		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+		mgmt_new_settings(hdev);
+	}
+}
+
+void mgmt_reenable_advertising(struct hci_dev *hdev)
+{
+	struct hci_request req;
+
+	if (hdev->conn_hash.le_num)
+		return;
+
+	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+		return;
+
+	hci_req_init(&req, hdev);
+	enable_advertising(&req);
+
+	/* If this fails we have no option but to let user space know
+	 * that we've disabled advertising.
+	 */
+	if (hci_req_run(&req, adv_enable_complete) < 0) {
+		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+		mgmt_new_settings(hdev);
+	}
+}
