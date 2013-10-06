@@ -622,11 +622,11 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		/* if secondary is not NULL, it might be a GO */
 		data->secondary = chanctx_conf;
 
-	if (data->notif->bt_status)
-		smps_mode = IEEE80211_SMPS_DYNAMIC;
-
-	if (le32_to_cpu(data->notif->bt_activity_grading) >= BT_LOW_TRAFFIC)
+	if (le32_to_cpu(data->notif->bt_activity_grading) >= BT_HIGH_TRAFFIC)
 		smps_mode = IEEE80211_SMPS_STATIC;
+	else if (le32_to_cpu(data->notif->bt_activity_grading) >=
+		 BT_LOW_TRAFFIC)
+		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
 	IWL_DEBUG_COEX(data->mvm,
 		       "mac %d: bt_status %d bt_activity_grading %d smps_req %d\n",
