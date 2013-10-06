@@ -80,6 +80,8 @@ struct cvm_oct_core_state {
 
 static struct cvm_oct_core_state core_state __cacheline_aligned_in_smp;
 
+static int cvm_irq_cpu;
+
 static void cvm_oct_enable_napi(void *_)
 {
 	int cpu = smp_processor_id();
@@ -112,11 +114,7 @@ static void cvm_oct_no_more_work(void)
 {
 	int cpu = smp_processor_id();
 
-	/*
-	 * CPU zero is special.  It always has the irq enabled when
-	 * waiting for incoming packets.
-	 */
-	if (cpu == 0) {
+	if (cpu == cvm_irq_cpu) {
 		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
 		return;
 	}
@@ -135,6 +133,7 @@ static irqreturn_t cvm_oct_do_interrupt(int cpl, void *dev_id)
 {
 	/* Disable the IRQ and start napi_poll. */
 	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
+	cvm_irq_cpu = smp_processor_id();
 	cvm_oct_enable_napi(NULL);
 
 	return IRQ_HANDLED;
