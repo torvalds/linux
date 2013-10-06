@@ -111,7 +111,7 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 				u8 *buf)
 {
 	int ret, i;
-	u8 *rx_array ;
+	u8 *rx_array;
 	s16 *data = (s16 *)buf;
 	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
