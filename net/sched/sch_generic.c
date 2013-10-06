@@ -829,7 +829,7 @@ void dev_deactivate_many(struct list_head *head)
 	struct net_device *dev;
 	bool sync_needed = false;
 
-	list_for_each_entry(dev, head, unreg_list) {
+	list_for_each_entry(dev, head, close_list) {
 		netdev_for_each_tx_queue(dev, dev_deactivate_queue,
 					 &noop_qdisc);
 		if (dev_ingress_queue(dev))
@@ -848,7 +848,7 @@ void dev_deactivate_many(struct list_head *head)
 		synchronize_net();
 
 	/* Wait for outstanding qdisc_run calls. */
-	list_for_each_entry(dev, head, unreg_list)
+	list_for_each_entry(dev, head, close_list)
 		while (some_qdisc_is_busy(dev))
 			yield();
 }
@@ -857,7 +857,7 @@ void dev_deactivate(struct net_device *dev)
 {
 	LIST_HEAD(single);
 
-	list_add(&dev->unreg_list, &single);
+	list_add(&dev->close_list, &single);
 	dev_deactivate_many(&single);
 	list_del(&single);
 }
