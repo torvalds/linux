@@ -105,8 +105,7 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 
 	uhci->regs = hcd->regs;
 
-	ret = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_DISABLED |
-								IRQF_SHARED);
+	ret = usb_add_hcd(hcd, pdev->resource[1].start, IRQF_SHARED);
 	if (ret)
 		goto err_uhci;
 
