@@ -205,48 +205,6 @@ struct cvmx_usb_iso_packet {
 };
 
 /**
- * enum cvmx_usb_callback - possible callback reasons for the USB API
- *
- * @CVMX_USB_CALLBACK_TRANSFER_COMPLETE: A callback of this type is called when
- *					 a submitted transfer completes. The
- *					 completion callback will be called even
- *					 if the transfer fails or is canceled.
- *					 The status parameter will contain
- *					 details of why he callback was called.
- * @__CVMX_USB_CALLBACK_END:		 Do not use. Used internally for array
- *					 bounds.
- */
-enum cvmx_usb_callback {
-	CVMX_USB_CALLBACK_TRANSFER_COMPLETE,
-	__CVMX_USB_CALLBACK_END
-};
-
-struct cvmx_usb_state;
-
-/**
- * USB callback functions are always of the following type.
- * The parameters are as follows:
- *      - usb = USB device state populated by cvmx_usb_initialize().
- *      - reason = The enum cvmx_usb_callback used to register
- *        the callback.
- *      - status = The enum cvmx_usb_complete representing the
- *        status code of a transaction.
- *      - pipe_handle = The Pipe that caused this callback, or
- *        -1 if this callback wasn't associated with a pipe.
- *      - submit_handle = Transfer submit handle causing this
- *        callback, or -1 if this callback wasn't associated
- *        with a transfer.
- *      - Actual number of bytes transfer.
- *      - user_data = The user pointer supplied to the
- *        function cvmx_usb_submit().
- */
-typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *usb,
-                                         enum cvmx_usb_callback reason,
-                                         enum cvmx_usb_complete status,
-                                         int pipe_handle, int submit_handle,
-                                         int bytes_transferred, void *user_data);
-
-/**
  * enum cvmx_usb_initialize_flags - flags used by the initialization function
  *
  * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI:    The USB port uses a 12MHz crystal
@@ -376,7 +334,6 @@ enum cvmx_usb_stage {
  * @iso_packets:	For ISO transactions, the sub packets in the request.
  * @actual_bytes:	Actual bytes transfer for this transaction.
  * @stage:		For control transactions, the current stage.
- * @callback:		User's callback function when complete.
  * @callback_data:	User's data.
  */
 struct cvmx_usb_transaction {
@@ -395,7 +352,6 @@ struct cvmx_usb_transaction {
 	int retries;
 	int actual_bytes;
 	enum cvmx_usb_stage stage;
-	cvmx_usb_callback_func_t callback;
 	void *callback_data;
 };
 
@@ -2173,50 +2129,109 @@ done:
 	return;
 }
 
-
-/**
- * Call a user's callback for a specific reason.
- *
- * @usb:	 USB device state populated by cvmx_usb_initialize().
- * @pipe:	 Pipe the callback is for or NULL
- * @transaction:
- *		 Transaction the callback is for or NULL
- * @reason:	 Reason this callback is being called
- * @complete_code:
- *		 Completion code for the transaction, if any
- */
-static void __cvmx_usb_perform_callback(struct cvmx_usb_state *usb,
-					struct cvmx_usb_pipe *pipe,
-					struct cvmx_usb_transaction *transaction,
-					enum cvmx_usb_callback reason,
-					enum cvmx_usb_complete complete_code)
+static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
 {
-	cvmx_usb_callback_func_t callback = NULL;
-	void *user_data;
-	int submit_handle = -1;
-	int pipe_handle = -1;
-	int bytes_transferred = 0;
-
-	if (pipe)
-		pipe_handle = __cvmx_usb_get_pipe_handle(usb, pipe);
-
-	if (transaction) {
-		submit_handle = __cvmx_usb_get_submit_handle(usb, transaction);
-		bytes_transferred = transaction->actual_bytes;
-		/* Transactions are allowed to override the default callback */
-		if ((reason == CVMX_USB_CALLBACK_TRANSFER_COMPLETE) && transaction->callback) {
-			callback = transaction->callback;
-			user_data = transaction->callback_data;
-		}
-	}
-
-	if (!callback)
-		return;
-
-	callback(usb, reason, complete_code, pipe_handle, submit_handle,
-		 bytes_transferred, user_data);
+	return container_of(p, struct octeon_hcd, usb);
 }
 
+static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
+{
+	return container_of((void *)p, struct usb_hcd, hcd_priv);
+}
+
+static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
+					     enum cvmx_usb_complete status,
+					     int pipe_handle,
+					     int submit_handle,
+					     int bytes_transferred,
+					     void *user_data)
+{
+	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
+	struct usb_hcd *hcd = octeon_to_hcd(priv);
+	struct device *dev = hcd->self.controller;
+	struct urb *urb = user_data;
+
+	urb->actual_length = bytes_transferred;
+	urb->hcpriv = NULL;
+
+	if (!list_empty(&urb->urb_list)) {
+		/*
+		 * It is on the dequeue_list, but we are going to call
+		 * usb_hcd_giveback_urb(), so we must clear it from
+		 * the list.  We got to it before the
+		 * octeon_usb_urb_dequeue_work() tasklet did.
+		 */
+		list_del(&urb->urb_list);
+		/* No longer on the dequeue_list. */
+		INIT_LIST_HEAD(&urb->urb_list);
+	}
+
+	/* For Isochronous transactions we need to update the URB packet status
+	   list from data in our private copy */
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+		int i;
+		/*
+		 * The pointer to the private list is stored in the setup_packet
+		 * field.
+		 */
+		struct cvmx_usb_iso_packet *iso_packet =
+			(struct cvmx_usb_iso_packet *) urb->setup_packet;
+		/* Recalculate the transfer size by adding up each packet */
+		urb->actual_length = 0;
+		for (i = 0; i < urb->number_of_packets; i++) {
+			if (iso_packet[i].status == CVMX_USB_COMPLETE_SUCCESS) {
+				urb->iso_frame_desc[i].status = 0;
+				urb->iso_frame_desc[i].actual_length = iso_packet[i].length;
+				urb->actual_length += urb->iso_frame_desc[i].actual_length;
+			} else {
+				dev_dbg(dev, "ISOCHRONOUS packet=%d of %d status=%d pipe=%d submit=%d size=%d\n",
+					i, urb->number_of_packets,
+					iso_packet[i].status, pipe_handle,
+					submit_handle, iso_packet[i].length);
+				urb->iso_frame_desc[i].status = -EREMOTEIO;
+			}
+		}
+		/* Free the private list now that we don't need it anymore */
+		kfree(iso_packet);
+		urb->setup_packet = NULL;
+	}
+
+	switch (status) {
+	case CVMX_USB_COMPLETE_SUCCESS:
+		urb->status = 0;
+		break;
+	case CVMX_USB_COMPLETE_CANCEL:
+		if (urb->status == 0)
+			urb->status = -ENOENT;
+		break;
+	case CVMX_USB_COMPLETE_STALL:
+		dev_dbg(dev, "status=stall pipe=%d submit=%d size=%d\n",
+			pipe_handle, submit_handle, bytes_transferred);
+		urb->status = -EPIPE;
+		break;
+	case CVMX_USB_COMPLETE_BABBLEERR:
+		dev_dbg(dev, "status=babble pipe=%d submit=%d size=%d\n",
+			pipe_handle, submit_handle, bytes_transferred);
+		urb->status = -EPIPE;
+		break;
+	case CVMX_USB_COMPLETE_SHORT:
+		dev_dbg(dev, "status=short pipe=%d submit=%d size=%d\n",
+			pipe_handle, submit_handle, bytes_transferred);
+		urb->status = -EREMOTEIO;
+		break;
+	case CVMX_USB_COMPLETE_ERROR:
+	case CVMX_USB_COMPLETE_XACTERR:
+	case CVMX_USB_COMPLETE_DATATGLERR:
+	case CVMX_USB_COMPLETE_FRAMEERR:
+		dev_dbg(dev, "status=%d pipe=%d submit=%d size=%d\n",
+			status, pipe_handle, submit_handle, bytes_transferred);
+		urb->status = -EPROTO;
+		break;
+	}
+	spin_unlock(&priv->lock);
+	usb_hcd_giveback_urb(octeon_to_hcd(priv), urb, urb->status);
+	spin_lock(&priv->lock);
+}
 
 /**
  * Signal the completion of a transaction and free it. The
@@ -2234,6 +2249,9 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 					struct cvmx_usb_transaction *transaction,
 					enum cvmx_usb_complete complete_code)
 {
+	int pipe_handle;
+	int submit_handle;
+
 	/* If this was a split then clear our split in progress marker */
 	if (usb->active_split == transaction)
 		usb->active_split = NULL;
@@ -2277,9 +2295,12 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 		__cvmx_usb_append_pipe(&usb->idle_pipes, pipe);
 
 	}
-	__cvmx_usb_perform_callback(usb, pipe, transaction,
-				    CVMX_USB_CALLBACK_TRANSFER_COMPLETE,
-				    complete_code);
+	pipe_handle = __cvmx_usb_get_pipe_handle(usb, pipe);
+	submit_handle = __cvmx_usb_get_submit_handle(usb, transaction);
+	octeon_usb_urb_complete_callback(usb, complete_code, pipe_handle,
+					 submit_handle,
+					 transaction->actual_bytes,
+					 transaction->callback_data);
 	__cvmx_usb_free_transaction(usb, transaction);
 done:
 	return;
@@ -2305,7 +2326,6 @@ done:
  *		    For ISO, the number of packet in the transaction.
  * @iso_packets:
  *		    A description of each ISO packet
- * @callback:	    User callback to call when the transaction completes
  * @user_data:	    User's data for the callback
  *
  * Returns: Submit handle or negative on failure. Matches the result
@@ -2320,7 +2340,6 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
 					 int iso_start_frame,
 					 int iso_number_packets,
 					 struct cvmx_usb_iso_packet *iso_packets,
-					 cvmx_usb_callback_func_t callback,
 					 void *user_data)
 {
 	int submit_handle;
@@ -2347,7 +2366,6 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
 	transaction->iso_start_frame = iso_start_frame;
 	transaction->iso_number_packets = iso_number_packets;
 	transaction->iso_packets = iso_packets;
-	transaction->callback = callback;
 	transaction->callback_data = user_data;
 	if (transaction->type == CVMX_USB_TRANSFER_CONTROL)
 		transaction->stage = CVMX_USB_STAGE_SETUP;
@@ -2392,23 +2410,14 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @callback:	    Function to call when this transaction
- *		    completes. If the return value of this
- *		    function isn't an error, then this function
- *		    is guaranteed to be called when the
- *		    transaction completes. If this parameter is
- *		    NULL, then there is no way to know when a transaction
- *		    completes.
  * @user_data:	    User supplied data returned when the
- *		    callback is called. This is only used if
- *		    callback in not NULL.
+ *		    callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
 static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
 				uint64_t buffer, int buffer_length,
-				cvmx_usb_callback_func_t callback,
 				void *user_data)
 {
 	int submit_handle;
@@ -2427,7 +2436,6 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
 						      NULL, /* iso_packets */
-						      callback,
 						      user_data);
 	return submit_handle;
 }
@@ -2446,25 +2454,15 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb, int pipe_handle,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @callback:	    Function to call when this transaction
- *		    completes. If the return value of this
- *		    function isn't an error, then this function
- *		    is guaranteed to be called when the
- *		    transaction completes. If this parameter is
- *		    NULL, then there is no way to know when a transaction
- *		    completes.
  * @user_data:	    User supplied data returned when the
- *		    callback is called. This is only used if
- *		    callback in not NULL.
+ *		    callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
 static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 				     int pipe_handle, uint64_t buffer,
-				     int buffer_length,
-				     cvmx_usb_callback_func_t callback,
-				     void *user_data)
+				     int buffer_length, void *user_data)
 {
 	int submit_handle;
 
@@ -2482,7 +2480,6 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
 						      NULL, /* iso_packets */
-						      callback,
 						      user_data);
 	return submit_handle;
 }
@@ -2505,16 +2502,8 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @callback:	    Function to call when this transaction
- *		    completes. If the return value of this
- *		    function isn't an error, then this function
- *		    is guaranteed to be called when the
- *		    transaction completes. If this parameter is
- *		    NULL, then there is no way to know when a transaction
- *		    completes.
  * @user_data:	    User supplied data returned when the
- *		    callback is called. This is only used if
- *		    callback in not NULL.
+ *		    callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
@@ -2522,7 +2511,6 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
 static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
 				   int pipe_handle, uint64_t control_header,
 				   uint64_t buffer, int buffer_length,
-				   cvmx_usb_callback_func_t callback,
 				   void *user_data)
 {
 	int submit_handle;
@@ -2548,7 +2536,6 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
 						      0, /* iso_start_frame */
 						      0, /* iso_number_packets */
 						      NULL, /* iso_packets */
-						      callback,
 						      user_data);
 	return submit_handle;
 }
@@ -2578,16 +2565,8 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
  *		    zero.
  * @buffer_length:
  *		    Length of buffer in bytes.
- * @callback:	    Function to call when this transaction
- *		    completes. If the return value of this
- *		    function isn't an error, then this function
- *		    is guaranteed to be called when the
- *		    transaction completes. If this parameter is
- *		    NULL, then there is no way to know when a transaction
- *		    completes.
  * @user_data:	    User supplied data returned when the
- *		    callback is called. This is only used if
- *		    callback in not NULL.
+ *		    callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
@@ -2597,7 +2576,6 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
 				       int number_packets, struct
 				       cvmx_usb_iso_packet packets[],
 				       uint64_t buffer, int buffer_length,
-				       cvmx_usb_callback_func_t callback,
 				       void *user_data)
 {
 	int submit_handle;
@@ -2622,7 +2600,6 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
 						      start_frame,
 						      number_packets,
 						      packets,
-						      callback,
 						      user_data);
 	return submit_handle;
 }
@@ -3217,16 +3194,6 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	return 0;
 }
 
-static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
-{
-	return container_of(p, struct octeon_hcd, usb);
-}
-
-static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
-{
-	return container_of((void *)p, struct usb_hcd, hcd_priv);
-}
-
 static void octeon_usb_port_callback(struct cvmx_usb_state *usb)
 {
 	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
@@ -3372,101 +3339,6 @@ static int octeon_usb_get_frame_number(struct usb_hcd *hcd)
 	return cvmx_usb_get_frame_number(&priv->usb);
 }
 
-static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
-					     enum cvmx_usb_callback reason,
-					     enum cvmx_usb_complete status,
-					     int pipe_handle,
-					     int submit_handle,
-					     int bytes_transferred,
-					     void *user_data)
-{
-	struct octeon_hcd *priv = cvmx_usb_to_octeon(usb);
-	struct usb_hcd *hcd = octeon_to_hcd(priv);
-	struct device *dev = hcd->self.controller;
-	struct urb *urb = user_data;
-
-	urb->actual_length = bytes_transferred;
-	urb->hcpriv = NULL;
-
-	if (!list_empty(&urb->urb_list)) {
-		/*
-		 * It is on the dequeue_list, but we are going to call
-		 * usb_hcd_giveback_urb(), so we must clear it from
-		 * the list.  We got to it before the
-		 * octeon_usb_urb_dequeue_work() tasklet did.
-		 */
-		list_del(&urb->urb_list);
-		/* No longer on the dequeue_list. */
-		INIT_LIST_HEAD(&urb->urb_list);
-	}
-
-	/* For Isochronous transactions we need to update the URB packet status
-	   list from data in our private copy */
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		int i;
-		/*
-		 * The pointer to the private list is stored in the setup_packet
-		 * field.
-		 */
-		struct cvmx_usb_iso_packet *iso_packet =
-			(struct cvmx_usb_iso_packet *) urb->setup_packet;
-		/* Recalculate the transfer size by adding up each packet */
-		urb->actual_length = 0;
-		for (i = 0; i < urb->number_of_packets; i++) {
-			if (iso_packet[i].status == CVMX_USB_COMPLETE_SUCCESS) {
-				urb->iso_frame_desc[i].status = 0;
-				urb->iso_frame_desc[i].actual_length = iso_packet[i].length;
-				urb->actual_length += urb->iso_frame_desc[i].actual_length;
-			} else {
-				dev_dbg(dev, "ISOCHRONOUS packet=%d of %d status=%d pipe=%d submit=%d size=%d\n",
-					i, urb->number_of_packets,
-					iso_packet[i].status, pipe_handle,
-					submit_handle, iso_packet[i].length);
-				urb->iso_frame_desc[i].status = -EREMOTEIO;
-			}
-		}
-		/* Free the private list now that we don't need it anymore */
-		kfree(iso_packet);
-		urb->setup_packet = NULL;
-	}
-
-	switch (status) {
-	case CVMX_USB_COMPLETE_SUCCESS:
-		urb->status = 0;
-		break;
-	case CVMX_USB_COMPLETE_CANCEL:
-		if (urb->status == 0)
-			urb->status = -ENOENT;
-		break;
-	case CVMX_USB_COMPLETE_STALL:
-		dev_dbg(dev, "status=stall pipe=%d submit=%d size=%d\n",
-			pipe_handle, submit_handle, bytes_transferred);
-		urb->status = -EPIPE;
-		break;
-	case CVMX_USB_COMPLETE_BABBLEERR:
-		dev_dbg(dev, "status=babble pipe=%d submit=%d size=%d\n",
-			pipe_handle, submit_handle, bytes_transferred);
-		urb->status = -EPIPE;
-		break;
-	case CVMX_USB_COMPLETE_SHORT:
-		dev_dbg(dev, "status=short pipe=%d submit=%d size=%d\n",
-			pipe_handle, submit_handle, bytes_transferred);
-		urb->status = -EREMOTEIO;
-		break;
-	case CVMX_USB_COMPLETE_ERROR:
-	case CVMX_USB_COMPLETE_XACTERR:
-	case CVMX_USB_COMPLETE_DATATGLERR:
-	case CVMX_USB_COMPLETE_FRAMEERR:
-		dev_dbg(dev, "status=%d pipe=%d submit=%d size=%d\n",
-			status, pipe_handle, submit_handle, bytes_transferred);
-		urb->status = -EPROTO;
-		break;
-	}
-	spin_unlock(&priv->lock);
-	usb_hcd_giveback_urb(octeon_to_hcd(priv), urb, urb->status);
-	spin_lock(&priv->lock);
-}
-
 static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 				  struct urb *urb,
 				  gfp_t mem_flags)
@@ -3595,7 +3467,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 							iso_packet,
 							urb->transfer_dma,
 							urb->transfer_buffer_length,
-							octeon_usb_urb_complete_callback,
 							urb);
 			/*
 			 * If submit failed we need to free our private packet
@@ -3613,7 +3484,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		submit_handle = cvmx_usb_submit_interrupt(&priv->usb, pipe_handle,
 					      urb->transfer_dma,
 					      urb->transfer_buffer_length,
-					      octeon_usb_urb_complete_callback,
 					      urb);
 		break;
 	case PIPE_CONTROL:
@@ -3623,7 +3493,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 					    urb->setup_dma,
 					    urb->transfer_dma,
 					    urb->transfer_buffer_length,
-					    octeon_usb_urb_complete_callback,
 					    urb);
 		break;
 	case PIPE_BULK:
@@ -3632,7 +3501,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		submit_handle = cvmx_usb_submit_bulk(&priv->usb, pipe_handle,
 					 urb->transfer_dma,
 					 urb->transfer_buffer_length,
-					 octeon_usb_urb_complete_callback,
 					 urb);
 		break;
 	}
