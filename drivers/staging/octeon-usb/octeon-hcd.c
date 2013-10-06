@@ -3348,9 +3348,9 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			dev_dbg(dev, "Failed to create pipe\n");
 			return -ENOMEM;
 		}
-		ep->hcpriv = (void *)(0x10000L + pipe_handle);
+		ep->hcpriv = (void *)(long)pipe_handle;
 	} else {
-		pipe_handle = 0xffff & (long)ep->hcpriv;
+		pipe_handle = (long)ep->hcpriv;
 	}
 
 	switch (usb_pipetype(urb->pipe)) {
@@ -3415,7 +3415,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		dev_dbg(dev, "Failed to submit\n");
 		return -ENOMEM;
 	}
-	urb->hcpriv = (void *)(long)(((submit_handle & 0xffff) << 16) | pipe_handle);
+	urb->hcpriv = (void *)(long)submit_handle;
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
@@ -3434,8 +3434,8 @@ static void octeon_usb_urb_dequeue_work(unsigned long arg)
 		list_del(&urb->urb_list);
 		/* not enqueued on dequeue_list */
 		INIT_LIST_HEAD(&urb->urb_list);
-		pipe_handle = 0xffff & (long)urb->hcpriv;
-		submit_handle = ((long)urb->hcpriv) >> 16;
+		pipe_handle = (long)urb->ep->hcpriv;
+		submit_handle = (long)urb->hcpriv;
 		cvmx_usb_cancel(&priv->usb, pipe_handle, submit_handle);
 	}
 
@@ -3468,7 +3468,7 @@ static void octeon_usb_endpoint_disable(struct usb_hcd *hcd, struct usb_host_end
 
 	if (ep->hcpriv) {
 		struct octeon_hcd *priv = hcd_to_octeon(hcd);
-		int pipe_handle = 0xffff & (long)ep->hcpriv;
+		int pipe_handle = (long)ep->hcpriv;
 		unsigned long flags;
 		spin_lock_irqsave(&priv->lock, flags);
 		cvmx_usb_cancel_all(&priv->usb, pipe_handle);
