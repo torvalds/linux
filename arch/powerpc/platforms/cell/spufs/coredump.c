@@ -27,6 +27,8 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
+#include <linux/coredump.h>
+#include <linux/binfmts.h>
 
 #include <asm/uaccess.h>
 
@@ -52,35 +54,24 @@ static ssize_t do_coredump_read(int num, struct spu_context *ctx, void *buffer,
  * These are the only things you should do on a core-file: use only these
  * functions to write out all the necessary info.
  */
-static int spufs_dump_write(struct file *file, const void *addr, int nr, loff_t *foffset)
+static int spufs_dump_write(struct coredump_params *cprm, const void *addr, int nr)
 {
-	unsigned long limit = rlimit(RLIMIT_CORE);
-	ssize_t written;
-
-	if (*foffset + nr > limit)
+	if (!dump_emit(cprm, addr, nr))
 		return -EIO;
-
-	written = file->f_op->write(file, addr, nr, &file->f_pos);
-	*foffset += written;
-
-	if (written != nr)
-		return -EIO;
-
 	return 0;
 }
 
-static int spufs_dump_align(struct file *file, char *buf, loff_t new_off,
-			    loff_t *foffset)
+static int spufs_dump_align(struct coredump_params *cprm, char *buf, loff_t new_off)
 {
 	int rc, size;
 
-	size = min((loff_t)PAGE_SIZE, new_off - *foffset);
+	size = min((loff_t)PAGE_SIZE, new_off - cprm->written);
 	memset(buf, 0, size);
 
 	rc = 0;
-	while (rc == 0 && new_off > *foffset) {
-		size = min((loff_t)PAGE_SIZE, new_off - *foffset);
-		rc = spufs_dump_write(file, buf, size, foffset);
+	while (rc == 0 && new_off > cprm->written) {
+		size = min((loff_t)PAGE_SIZE, new_off - cprm->written);
+		rc = spufs_dump_write(cprm, buf, size);
 	}
 
 	return rc;
@@ -165,7 +156,7 @@ int spufs_coredump_extra_notes_size(void)
 }
 
 static int spufs_arch_write_note(struct spu_context *ctx, int i,
-				  struct file *file, int dfd, loff_t *foffset)
+				  struct coredump_params *cprm, int dfd)
 {
 	loff_t pos = 0;
 	int sz, rc, nread, total = 0;
@@ -186,22 +177,22 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	en.n_descsz = sz;
 	en.n_type = NT_SPU;
 
-	rc = spufs_dump_write(file, &en, sizeof(en), foffset);
+	rc = spufs_dump_write(cprm, &en, sizeof(en));
 	if (rc)
 		goto out;
 
-	rc = spufs_dump_write(file, fullname, en.n_namesz, foffset);
+	rc = spufs_dump_write(cprm, fullname, en.n_namesz);
 	if (rc)
 		goto out;
 
-	rc = spufs_dump_align(file, buf, roundup(*foffset, 4), foffset);
+	rc = spufs_dump_align(cprm, buf, roundup(cprm->written, 4));
 	if (rc)
 		goto out;
 
 	do {
 		nread = do_coredump_read(i, ctx, buf, bufsz, &pos);
 		if (nread > 0) {
-			rc = spufs_dump_write(file, buf, nread, foffset);
+			rc = spufs_dump_write(cprm, buf, nread);
 			if (rc)
 				goto out;
 			total += nread;
@@ -213,15 +204,14 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 		goto out;
 	}
 
-	rc = spufs_dump_align(file, buf, roundup(*foffset - total + sz, 4),
-			      foffset);
+	rc = spufs_dump_align(cprm, buf, roundup(cprm->written - total + sz, 4));
 
 out:
 	free_page((unsigned long)buf);
 	return rc;
 }
 
-int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset)
+int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
 {
 	struct spu_context *ctx;
 	int fd, j, rc;
@@ -233,7 +223,7 @@ int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 			return rc;
 
 		for (j = 0; spufs_coredump_read[j].name != NULL; j++) {
-			rc = spufs_arch_write_note(ctx, j, file, fd, foffset);
+			rc = spufs_arch_write_note(ctx, j, cprm, fd);
 			if (rc) {
 				spu_release_saved(ctx);
 				return rc;
