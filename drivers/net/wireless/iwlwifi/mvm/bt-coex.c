@@ -921,6 +921,24 @@ u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
 	return LINK_QUAL_AGG_TIME_LIMIT_BT_ACT;
 }
 
+bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
+				     struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+
+	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	    BT_HIGH_TRAFFIC)
+		return true;
+
+	/*
+	 * In Tight, BT can't Rx while we Tx, so use both antennas since BT is
+	 * already killed.
+	 * In Loose, BT can Rx while we Tx, so forbid MIMO to let BT Rx while we
+	 * Tx.
+	 */
+	return iwl_get_coex_type(mvm, mvmsta->vif) == BT_COEX_TIGHT_LUT;
+}
+
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWBT_COEX))

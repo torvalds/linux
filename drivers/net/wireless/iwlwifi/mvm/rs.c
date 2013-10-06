@@ -1402,29 +1402,9 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
-	switch (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
-	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
-		/* nothing */
-		break;
-	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
-		/* avoid switching to antenna B but allow MIMO */
-		if (tbl->action == IWL_SISO_SWITCH_ANTENNA &&
-		    tbl->ant_type == ANT_A)
-			tbl->action = IWL_SISO_SWITCH_MIMO2;
-		break;
-	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
-	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
-		/* A - avoid antenna B and MIMO. B - switch to A */
-		if (tbl->ant_type == ANT_A)
-			valid_tx_ant =
-				first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
+	if (tbl->action == IWL_SISO_SWITCH_MIMO2 &&
+	    !iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
 		tbl->action = IWL_SISO_SWITCH_ANTENNA;
-		break;
-	default:
-		IWL_ERR(mvm, "Invalid BT load %d",
-			le32_to_cpu(mvm->last_bt_notif.bt_activity_grading));
-		break;
-	}
 
 	start_action = tbl->action;
 	while (1) {
@@ -1518,27 +1498,6 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 	u8 valid_tx_ant = iwl_fw_valid_tx_ant(mvm->fw);
 	u8 update_search_tbl_counter = 0;
 	int ret;
-
-	switch (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
-	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
-		/* nothing */
-		break;
-	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
-	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
-		/* avoid antenna B and MIMO */
-		if (tbl->action != IWL_MIMO2_SWITCH_SISO_A)
-			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
-		break;
-	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
-		/* avoid antenna B unless MIMO */
-		if (tbl->action == IWL_MIMO2_SWITCH_SISO_B)
-			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
-		break;
-	default:
-		IWL_ERR(mvm, "Invalid BT load %d",
-			le32_to_cpu(mvm->last_bt_notif.bt_activity_grading));
-		break;
-	}
 
 	start_action = tbl->action;
 	while (1) {
