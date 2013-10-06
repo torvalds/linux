@@ -946,28 +946,23 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
  *
  * @ep: the endpoint to deactivate
  *
- * If the endpoint is not currently in use, this functions will select the
- * alternate interface setting 0 for the interface of this endpoint.
+ * If the endpoint is not currently in use, this functions will
+ * deactivate its associated URBs.
  *
  * In case of any active users, this functions does nothing.
- *
- * Returns an error if usb_set_interface() failed, 0 in all other
- * cases.
  */
-int snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
+void snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 {
 	if (!ep)
-		return -EINVAL;
+		return;
 
 	if (ep->use_count != 0)
-		return 0;
+		return;
 
 	deactivate_urbs(ep, true);
 	wait_clear_urbs(ep);
 
 	clear_bit(EP_FLAG_ACTIVATED, &ep->flags);
-
-	return 0;
 }
 
 /**
