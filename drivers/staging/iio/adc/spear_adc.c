@@ -168,10 +168,9 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		scale_mv = (info->vref_external * 1000) >> DATA_BITS;
-		*val =  scale_mv / 1000;
-		*val2 = (scale_mv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = info->vref_external;
+		*val2 = DATA_BITS;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 
 	return -EINVAL;

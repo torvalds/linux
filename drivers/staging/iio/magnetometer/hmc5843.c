@@ -29,16 +29,11 @@
 #define HMC5843_CONFIG_REG_B			0x01
 #define HMC5843_MODE_REG			0x02
 #define HMC5843_DATA_OUT_X_MSB_REG		0x03
-#define HMC5843_DATA_OUT_X_LSB_REG		0x04
 #define HMC5843_DATA_OUT_Y_MSB_REG		0x05
-#define HMC5843_DATA_OUT_Y_LSB_REG		0x06
 #define HMC5843_DATA_OUT_Z_MSB_REG		0x07
-#define HMC5843_DATA_OUT_Z_LSB_REG		0x08
 /* Beware: Y and Z are exchanged on HMC5883 */
 #define HMC5883_DATA_OUT_Z_MSB_REG		0x05
-#define HMC5883_DATA_OUT_Z_LSB_REG		0x06
 #define HMC5883_DATA_OUT_Y_MSB_REG		0x07
-#define HMC5883_DATA_OUT_Y_LSB_REG		0x08
 #define HMC5843_STATUS_REG			0x09
 
 enum hmc5843_ids {
@@ -56,17 +51,11 @@ enum hmc5843_ids {
 #define HMC5843_RANGE_GAIN_DEFAULT		0x01
 #define HMC5843_RANGE_GAIN_MAX			0x07
 
-/*
- * Device status
- */
+/* Device status */
 #define HMC5843_DATA_READY			0x01
 #define HMC5843_DATA_OUTPUT_LOCK		0x02
-/* Does not exist on HMC5883, not used */
-#define HMC5843_VOLTAGE_REGULATOR_ENABLED	0x04
 
-/*
- * Mode register configuration
- */
+/* Mode register configuration */
 #define HMC5843_MODE_CONVERSION_CONTINUOUS	0x00
 #define HMC5843_MODE_CONVERSION_SINGLE		0x01
 #define HMC5843_MODE_IDLE			0x02
@@ -78,21 +67,18 @@ enum hmc5843_ids {
  * HMC5883: Typical data output rate
  */
 #define HMC5843_RATE_OFFSET			0x02
+#define HMC5843_RATE_DEFAULT			0x04
 #define HMC5843_RATE_BITMASK			0x1C
 #define HMC5843_RATE_NOT_USED			0x07
 
-/*
- * Device measurement configuration
- */
+/* Device measurement configuration */
 #define HMC5843_MEAS_CONF_NORMAL		0x00
 #define HMC5843_MEAS_CONF_POSITIVE_BIAS		0x01
 #define HMC5843_MEAS_CONF_NEGATIVE_BIAS		0x02
 #define HMC5843_MEAS_CONF_NOT_USED		0x03
 #define HMC5843_MEAS_CONF_MASK			0x03
 
-/*
- * Scaling factors: 10000000/Gain
- */
+/* Scaling factors: 10000000/Gain */
 static const int hmc5843_regval_to_nanoscale[] = {
 	6173, 7692, 10309, 12821, 18868, 21739, 25641, 35714
 };
@@ -164,24 +150,26 @@ static const int hmc5883l_regval_to_input_field_mga[] = {
  * 6		| 50			| 75
  * 7		| Not used		| Not used
  */
-static const char * const hmc5843_regval_to_sample_freq[] = {
-	"0.5", "1", "2", "5", "10", "20", "50",
+static const int hmc5843_regval_to_samp_freq[7][2] = {
+	{0, 500000}, {1, 0}, {2, 0}, {5, 0}, {10, 0}, {20, 0}, {50, 0}
 };
 
-static const char * const hmc5883_regval_to_sample_freq[] = {
-	"0.75", "1.5", "3", "7.5", "15", "30", "75",
+static const int hmc5883_regval_to_samp_freq[7][2] = {
+	{0, 750000}, {1, 500000}, {3, 0}, {7, 500000}, {15, 0}, {30, 0},
+	{75, 0}
 };
 
 /* Describe chip variants */
 struct hmc5843_chip_info {
 	const struct iio_chan_spec *channels;
-	const char * const *regval_to_sample_freq;
+	const int (*regval_to_samp_freq)[2];
 	const int *regval_to_input_field_mga;
 	const int *regval_to_nanoscale;
 };
 
 /* Each client has this additional data */
 struct hmc5843_data {
+	struct i2c_client *client;
 	struct mutex lock;
 	u8 rate;
 	u8 meas_conf;
@@ -200,18 +188,15 @@ static s32 hmc5843_configure(struct i2c_client *client,
 }
 
 /* Return the measurement value from the specified channel */
-static int hmc5843_read_measurement(struct iio_dev *indio_dev,
-				    int address,
-				    int *val)
+static int hmc5843_read_measurement(struct hmc5843_data *data,
+				    int address, int *val)
 {
-	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
-	struct hmc5843_data *data = iio_priv(indio_dev);
 	s32 result;
 	int tries = 150;
 
 	mutex_lock(&data->lock);
 	while (tries-- > 0) {
-		result = i2c_smbus_read_byte_data(client,
+		result = i2c_smbus_read_byte_data(data->client,
 			HMC5843_STATUS_REG);
 		if (result & HMC5843_DATA_READY)
 			break;
@@ -219,12 +204,12 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 	}
 
 	if (tries < 0) {
-		dev_err(&client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data not ready\n");
 		mutex_unlock(&data->lock);
 		return -EIO;
 	}
 
-	result = i2c_smbus_read_word_swapped(client, address);
+	result = i2c_smbus_read_word_swapped(data->client, address);
 	mutex_unlock(&data->lock);
 	if (result < 0)
 		return -EINVAL;
@@ -318,15 +303,13 @@ static IIO_DEVICE_ATTR(operating_mode,
  *     and BN.
  *
  */
-static s32 hmc5843_set_meas_conf(struct i2c_client *client,
-				      u8 meas_conf)
+static s32 hmc5843_set_meas_conf(struct hmc5843_data *data, u8 meas_conf)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct hmc5843_data *data = iio_priv(indio_dev);
 	u8 reg_val;
 	reg_val = (meas_conf & HMC5843_MEAS_CONF_MASK) |
 		(data->rate << HMC5843_RATE_OFFSET);
-	return i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_A, reg_val);
+	return i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_A,
+		reg_val);
 }
 
 static ssize_t hmc5843_show_measurement_configuration(struct device *dev,
@@ -344,7 +327,6 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 						size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	unsigned long meas_conf = 0;
 	int error;
@@ -357,7 +339,7 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 
 	mutex_lock(&data->lock);
 	dev_dbg(dev, "set measurement configuration to %lu\n", meas_conf);
-	if (hmc5843_set_meas_conf(client, meas_conf)) {
+	if (hmc5843_set_meas_conf(data, meas_conf)) {
 		count = -EINVAL;
 		goto exit;
 	}
@@ -374,110 +356,61 @@ static IIO_DEVICE_ATTR(meas_conf,
 			hmc5843_set_measurement_configuration,
 			0);
 
-static ssize_t hmc5843_show_sampling_frequencies_available(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static ssize_t hmc5843_show_int_plus_micros(char *buf,
+	const int (*vals)[2], int n)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct hmc5843_data *data = iio_priv(indio_dev);
-	ssize_t total_n = 0;
+	size_t len = 0;
 	int i;
 
-	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
-		ssize_t n = sprintf(buf, "%s ", data->variant->regval_to_sample_freq[i]);
-		buf += n;
-		total_n += n;
-	}
+	for (i = 0; i < n; i++)
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+			"%d.%d ", vals[i][0], vals[i][1]);
+
 	/* replace trailing space by newline */
-	buf[-1] = '\n';
+	buf[len - 1] = '\n';
 
-	return total_n;
+	return len;
 }
 
-static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(hmc5843_show_sampling_frequencies_available);
-
-static s32 hmc5843_set_rate(struct i2c_client *client,
-				u8 rate)
+static int hmc5843_check_int_plus_micros(const int (*vals)[2], int n,
+					int val, int val2)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct hmc5843_data *data = iio_priv(indio_dev);
-	u8 reg_val;
-
-	if (rate >= HMC5843_RATE_NOT_USED) {
-		dev_err(&client->dev,
-			"data output rate is not supported\n");
-		return -EINVAL;
-	}
-
-	reg_val = data->meas_conf | (rate << HMC5843_RATE_OFFSET);
-	return i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_A, reg_val);
-}
-
-static int hmc5843_check_sampling_frequency(struct hmc5843_data *data,
-						const char *buf)
-{
-	const char * const *samp_freq = data->variant->regval_to_sample_freq;
 	int i;
 
-	for (i = 0; i < HMC5843_RATE_NOT_USED; i++) {
-		if (sysfs_streq(buf, samp_freq[i]))
+	for (i = 0; i < n; i++) {
+		if (val == vals[i][0] && val2 == vals[i][1])
 			return i;
 	}
 
 	return -EINVAL;
 }
 
-static ssize_t hmc5843_set_sampling_frequency(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t hmc5843_show_samp_freq_avail(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
+	struct hmc5843_data *data = iio_priv(dev_to_iio_dev(dev));
 
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
-	struct hmc5843_data *data = iio_priv(indio_dev);
-	int rate;
-
-	rate = hmc5843_check_sampling_frequency(data, buf);
-	if (rate < 0) {
-		dev_err(&client->dev,
-			"sampling frequency is not supported\n");
-		return rate;
-	}
-
-	mutex_lock(&data->lock);
-	dev_dbg(dev, "set rate to %d\n", rate);
-	if (hmc5843_set_rate(client, rate)) {
-		count = -EINVAL;
-		goto exit;
-	}
-	data->rate = rate;
-
-exit:
-	mutex_unlock(&data->lock);
-	return count;
+	return hmc5843_show_int_plus_micros(buf,
+		data->variant->regval_to_samp_freq, HMC5843_RATE_NOT_USED);
 }
 
-static ssize_t hmc5843_show_sampling_frequency(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	struct hmc5843_data *data = iio_priv(indio_dev);
-	s32 rate;
+static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(hmc5843_show_samp_freq_avail);
 
-	rate = i2c_smbus_read_byte_data(client, this_attr->address);
-	if (rate < 0)
-		return rate;
-	rate = (rate & HMC5843_RATE_BITMASK) >> HMC5843_RATE_OFFSET;
-	return sprintf(buf, "%s\n", data->variant->regval_to_sample_freq[rate]);
+static s32 hmc5843_set_rate(struct hmc5843_data *data, u8 rate)
+{
+	u8 reg_val = data->meas_conf | (rate << HMC5843_RATE_OFFSET);
+
+	return i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_A,
+		reg_val);
 }
 
-static IIO_DEVICE_ATTR(sampling_frequency,
-			S_IWUSR | S_IRUGO,
-			hmc5843_show_sampling_frequency,
-			hmc5843_set_sampling_frequency,
-			HMC5843_CONFIG_REG_A);
+static int hmc5843_check_samp_freq(struct hmc5843_data *data,
+				   int val, int val2)
+{
+	return hmc5843_check_int_plus_micros(
+		data->variant->regval_to_samp_freq, HMC5843_RATE_NOT_USED,
+		val, val2);
+}
 
 static ssize_t hmc5843_show_range_gain(struct device *dev,
 				struct device_attribute *attr,
@@ -497,7 +430,6 @@ static ssize_t hmc5843_set_range_gain(struct device *dev,
 			size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	unsigned long range = 0;
@@ -518,7 +450,7 @@ static ssize_t hmc5843_set_range_gain(struct device *dev,
 
 	data->range = range;
 	range = range << HMC5843_RANGE_GAIN_OFFSET;
-	if (i2c_smbus_write_byte_data(client, this_attr->address, range))
+	if (i2c_smbus_write_byte_data(data->client, this_attr->address, range))
 		count = -EINVAL;
 
 exit:
@@ -534,22 +466,48 @@ static IIO_DEVICE_ATTR(in_magn_range,
 
 static int hmc5843_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
-			    int *val, int *val2,
-			    long mask)
+			    int *val, int *val2, long mask)
 {
 	struct hmc5843_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return hmc5843_read_measurement(indio_dev,
-						chan->address,
-						val);
+		return hmc5843_read_measurement(data, chan->address, val);
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = data->variant->regval_to_nanoscale[data->range];
 		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = data->variant->regval_to_samp_freq[data->rate][0];
+		*val2 = data->variant->regval_to_samp_freq[data->rate][1];
+		return IIO_VAL_INT_PLUS_MICRO;
 	}
 	return -EINVAL;
+}
+
+static int hmc5843_write_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     int val, int val2, long mask)
+{
+	struct hmc5843_data *data = iio_priv(indio_dev);
+	int ret, rate;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		rate = hmc5843_check_samp_freq(data, val, val2);
+		if (rate < 0)
+			return -EINVAL;
+
+		mutex_lock(&data->lock);
+		ret = hmc5843_set_rate(data, rate);
+		if (ret >= 0)
+			data->rate = rate;
+		mutex_unlock(&data->lock);
+
+		return ret;
+	default:
+		return -EINVAL;
+	}
 }
 
 #define HMC5843_CHANNEL(axis, addr)					\
@@ -558,7 +516,8 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
+			BIT(IIO_CHAN_INFO_SAMP_FREQ),			\
 		.address = addr						\
 	}
 
@@ -577,7 +536,6 @@ static const struct iio_chan_spec hmc5883_channels[] = {
 static struct attribute *hmc5843_attributes[] = {
 	&iio_dev_attr_meas_conf.dev_attr.attr,
 	&iio_dev_attr_operating_mode.dev_attr.attr,
-	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_in_magn_range.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	NULL
@@ -590,49 +548,40 @@ static const struct attribute_group hmc5843_group = {
 static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	[HMC5843_ID] = {
 		.channels = hmc5843_channels,
-		.regval_to_sample_freq = hmc5843_regval_to_sample_freq,
+		.regval_to_samp_freq = hmc5843_regval_to_samp_freq,
 		.regval_to_input_field_mga =
 			hmc5843_regval_to_input_field_mga,
 		.regval_to_nanoscale = hmc5843_regval_to_nanoscale,
 	},
 	[HMC5883_ID] = {
 		.channels = hmc5883_channels,
-		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
+		.regval_to_samp_freq = hmc5883_regval_to_samp_freq,
 		.regval_to_input_field_mga =
 			hmc5883_regval_to_input_field_mga,
 		.regval_to_nanoscale = hmc5883_regval_to_nanoscale,
 	},
 	[HMC5883L_ID] = {
 		.channels = hmc5883_channels,
-		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
+		.regval_to_samp_freq = hmc5883_regval_to_samp_freq,
 		.regval_to_input_field_mga =
 			hmc5883l_regval_to_input_field_mga,
 		.regval_to_nanoscale = hmc5883l_regval_to_nanoscale,
 	},
 };
 
-/* Called when we have found a new HMC58X3 */
-static void hmc5843_init_client(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static void hmc5843_init(struct hmc5843_data *data)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct hmc5843_data *data = iio_priv(indio_dev);
-
-	data->variant = &hmc5843_chip_info_tbl[id->driver_data];
-	indio_dev->channels = data->variant->channels;
-	indio_dev->num_channels = 3;
-	hmc5843_set_meas_conf(client, data->meas_conf);
-	hmc5843_set_rate(client, data->rate);
-	hmc5843_configure(client, data->operating_mode);
-	i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_B, data->range);
-	mutex_init(&data->lock);
-
-	pr_info("%s initialized\n", id->name);
+	hmc5843_set_meas_conf(data, HMC5843_MEAS_CONF_NORMAL);
+	hmc5843_set_rate(data, HMC5843_RATE_DEFAULT);
+	hmc5843_configure(data->client, HMC5843_MODE_CONVERSION_CONTINUOUS);
+	i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_B,
+		HMC5843_RANGE_GAIN_DEFAULT);
 }
 
 static const struct iio_info hmc5843_info = {
 	.attrs = &hmc5843_group,
 	.read_raw = &hmc5843_read_raw,
+	.write_raw = &hmc5843_write_raw,
 	.driver_module = THIS_MODULE,
 };
 
@@ -649,17 +598,19 @@ static int hmc5843_probe(struct i2c_client *client,
 
 	/* default settings at probe */
 	data = iio_priv(indio_dev);
-	data->meas_conf = HMC5843_MEAS_CONF_NORMAL;
-	data->range = HMC5843_RANGE_GAIN_DEFAULT;
-	data->operating_mode = HMC5843_MODE_CONVERSION_CONTINUOUS;
+	data->client = client;
+	data->variant = &hmc5843_chip_info_tbl[id->driver_data];
+	mutex_init(&data->lock);
 
 	i2c_set_clientdata(client, indio_dev);
-	hmc5843_init_client(client, id);
-
 	indio_dev->info = &hmc5843_info;
 	indio_dev->name = id->name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = data->variant->channels;
+	indio_dev->num_channels = 3;
+
+	hmc5843_init(data);
 
 	err = iio_device_register(indio_dev);
 	if (err)
@@ -687,10 +638,10 @@ static int hmc5843_suspend(struct device *dev)
 
 static int hmc5843_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct hmc5843_data *data = iio_priv(i2c_get_clientdata(client));
+	struct hmc5843_data *data = iio_priv(i2c_get_clientdata(
+		to_i2c_client(dev)));
 
-	hmc5843_configure(client, data->operating_mode);
+	hmc5843_configure(data->client, data->operating_mode);
 
 	return 0;
 }

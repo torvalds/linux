@@ -85,7 +85,6 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7606_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -101,11 +100,9 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		*val = (short) ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->range * 1000 * 2)
-			>> st->chip_info->channels[0].scan_type.realbits;
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = st->range * 2;
+		*val2 = st->chip_info->channels[0].scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 	return -EINVAL;
 }

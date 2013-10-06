@@ -82,15 +82,13 @@ static int max517_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct max517_data *data = iio_priv(indio_dev);
-	unsigned int scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
 		/* Corresponds to Vref / 2^(bits) */
-		scale_uv = (data->vref_mv[chan->channel] * 1000) >> 8;
-		*val =  scale_uv / 1000000;
-		*val2 = scale_uv % 1000000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = data->vref_mv[chan->channel];
+		*val2 = 8;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}

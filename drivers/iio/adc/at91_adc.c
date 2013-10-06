@@ -366,9 +366,9 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		*val = (st->vref_mv * 1000) >> chan->scan_type.realbits;
-		*val2 = 0;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = st->vref_mv;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		break;
 	}

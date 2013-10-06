@@ -465,6 +465,39 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 	return 1;
 }
 
+int sensor_hub_device_open(struct hid_sensor_hub_device *hsdev)
+{
+	int ret = 0;
+	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
+
+	mutex_lock(&data->mutex);
+	if (!hsdev->ref_cnt) {
+		ret = hid_hw_open(hsdev->hdev);
+		if (ret) {
+			hid_err(hsdev->hdev, "failed to open hid device\n");
+			mutex_unlock(&data->mutex);
+			return ret;
+		}
+	}
+	hsdev->ref_cnt++;
+	mutex_unlock(&data->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sensor_hub_device_open);
+
+void sensor_hub_device_close(struct hid_sensor_hub_device *hsdev)
+{
+	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
+
+	mutex_lock(&data->mutex);
+	hsdev->ref_cnt--;
+	if (!hsdev->ref_cnt)
+		hid_hw_close(hsdev->hdev);
+	mutex_unlock(&data->mutex);
+}
+EXPORT_SYMBOL_GPL(sensor_hub_device_close);
+
 static int sensor_hub_probe(struct hid_device *hdev,
 				const struct hid_device_id *id)
 {
@@ -506,12 +539,6 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		hid_err(hdev, "hw start failed\n");
 		return ret;
 	}
-	ret = hid_hw_open(hdev);
-	if (ret) {
-		hid_err(hdev, "failed to open input interrupt pipe\n");
-		goto err_stop_hw;
-	}
-
 	INIT_LIST_HEAD(&sd->dyn_callback_list);
 	sd->hid_sensor_client_cnt = 0;
 	report_enum = &hdev->report_enum[HID_INPUT_REPORT];
@@ -520,7 +547,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	if (dev_cnt > HID_MAX_PHY_DEVICES) {
 		hid_err(hdev, "Invalid Physical device count\n");
 		ret = -EINVAL;
-		goto err_close;
+		goto err_stop_hw;
 	}
 	sd->hid_sensor_hub_client_devs = kzalloc(dev_cnt *
 						sizeof(struct mfd_cell),
@@ -528,7 +555,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	if (sd->hid_sensor_hub_client_devs == NULL) {
 		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
 			ret = -ENOMEM;
-			goto err_close;
+			goto err_stop_hw;
 	}
 	list_for_each_entry(report, &report_enum->report_list, list) {
 		hid_dbg(hdev, "Report id:%x\n", report->id);
@@ -565,8 +592,6 @@ err_free_names:
 	for (i = 0; i < sd->hid_sensor_client_cnt ; ++i)
 		kfree(sd->hid_sensor_hub_client_devs[i].name);
 	kfree(sd->hid_sensor_hub_client_devs);
-err_close:
-	hid_hw_close(hdev);
 err_stop_hw:
 	hid_hw_stop(hdev);
 
