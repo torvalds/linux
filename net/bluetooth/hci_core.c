@@ -2357,7 +2357,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	set_bit(HCI_SETUP, &hdev->dev_flags);
 
-	if (hdev->dev_type != HCI_AMP) {
+	if (hdev->dev_type == HCI_BREDR) {
 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
 		/* Assume BR/EDR support until proven otherwise (such as
 		 * through reading supported features during init.
