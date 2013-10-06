@@ -505,7 +505,7 @@ static struct platform_driver ti_tsc_driver = {
 		.name   = "TI-am335x-tsc",
 		.owner	= THIS_MODULE,
 		.pm	= TITSC_PM_OPS,
-		.of_match_table = of_match_ptr(ti_tsc_dt_ids),
+		.of_match_table = ti_tsc_dt_ids,
 	},
 };
 module_platform_driver(ti_tsc_driver);
