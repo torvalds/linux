@@ -5,17 +5,6 @@
 
 if ARCH_S3C64XX
 
-# temporary until we can eliminate all drivers using it.
-config PLAT_S3C64XX
-	bool
-	depends on ARCH_S3C64XX
-	default y
-	select PM_GENERIC_DOMAINS
-	select SAMSUNG_WAKEMASK
-	help
-	  Base platform code for any Samsung S3C64XX device
-
-
 # Configuration options for the S3C6410 CPU
 
 config CPU_S3C6400
