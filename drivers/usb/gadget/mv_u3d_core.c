@@ -1938,7 +1938,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	}
 	u3d->irq = r->start;
 	if (request_irq(u3d->irq, mv_u3d_irq,
-		IRQF_DISABLED | IRQF_SHARED, driver_name, u3d)) {
+		IRQF_SHARED, driver_name, u3d)) {
 		u3d->irq = 0;
 		dev_err(&dev->dev, "Request irq %d for u3d failed\n",
 			u3d->irq);
