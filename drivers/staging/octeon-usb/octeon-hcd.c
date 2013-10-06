@@ -1252,22 +1252,6 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *us
 }
 
 /**
- * Convert a USB transaction into a handle
- *
- * @usb:	 USB device state populated by cvmx_usb_initialize().
- * @transaction:
- *		 Transaction to get handle for
- *
- * Returns: Handle
- */
-static inline int __cvmx_usb_get_submit_handle(struct cvmx_usb_state *usb,
-					       struct cvmx_usb_transaction *transaction)
-{
-	return ((unsigned long)transaction - (unsigned long)usb->transaction) /
-			sizeof(*transaction);
-}
-
-/**
  * Open a virtual pipe between the host and a USB device. A pipe
  * must be opened before data can be transferred between a device
  * and Octeon.
@@ -2131,7 +2115,8 @@ static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
 static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 					     enum cvmx_usb_complete status,
 					     struct cvmx_usb_pipe *pipe,
-					     int submit_handle,
+					     struct cvmx_usb_transaction
+						*transaction,
 					     int bytes_transferred,
 					     struct urb *urb)
 {
@@ -2172,10 +2157,10 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 				urb->iso_frame_desc[i].actual_length = iso_packet[i].length;
 				urb->actual_length += urb->iso_frame_desc[i].actual_length;
 			} else {
-				dev_dbg(dev, "ISOCHRONOUS packet=%d of %d status=%d pipe=%p submit=%d size=%d\n",
+				dev_dbg(dev, "ISOCHRONOUS packet=%d of %d status=%d pipe=%p transaction=%p size=%d\n",
 					i, urb->number_of_packets,
 					iso_packet[i].status, pipe,
-					submit_handle, iso_packet[i].length);
+					transaction, iso_packet[i].length);
 				urb->iso_frame_desc[i].status = -EREMOTEIO;
 			}
 		}
@@ -2193,26 +2178,26 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 			urb->status = -ENOENT;
 		break;
 	case CVMX_USB_COMPLETE_STALL:
-		dev_dbg(dev, "status=stall pipe=%p submit=%d size=%d\n",
-			pipe, submit_handle, bytes_transferred);
+		dev_dbg(dev, "status=stall pipe=%p transaction=%p size=%d\n",
+			pipe, transaction, bytes_transferred);
 		urb->status = -EPIPE;
 		break;
 	case CVMX_USB_COMPLETE_BABBLEERR:
-		dev_dbg(dev, "status=babble pipe=%p submit=%d size=%d\n",
-			pipe, submit_handle, bytes_transferred);
+		dev_dbg(dev, "status=babble pipe=%p transaction=%p size=%d\n",
+			pipe, transaction, bytes_transferred);
 		urb->status = -EPIPE;
 		break;
 	case CVMX_USB_COMPLETE_SHORT:
-		dev_dbg(dev, "status=short pipe=%p submit=%d size=%d\n",
-			pipe, submit_handle, bytes_transferred);
+		dev_dbg(dev, "status=short pipe=%p transaction=%p size=%d\n",
+			pipe, transaction, bytes_transferred);
 		urb->status = -EREMOTEIO;
 		break;
 	case CVMX_USB_COMPLETE_ERROR:
 	case CVMX_USB_COMPLETE_XACTERR:
 	case CVMX_USB_COMPLETE_DATATGLERR:
 	case CVMX_USB_COMPLETE_FRAMEERR:
-		dev_dbg(dev, "status=%d pipe=%p submit=%d size=%d\n",
-			status, pipe, submit_handle, bytes_transferred);
+		dev_dbg(dev, "status=%d pipe=%p transaction=%p size=%d\n",
+			status, pipe, transaction, bytes_transferred);
 		urb->status = -EPROTO;
 		break;
 	}
@@ -2237,8 +2222,6 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 					struct cvmx_usb_transaction *transaction,
 					enum cvmx_usb_complete complete_code)
 {
-	int submit_handle;
-
 	/* If this was a split then clear our split in progress marker */
 	if (usb->active_split == transaction)
 		usb->active_split = NULL;
@@ -2282,9 +2265,8 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 		__cvmx_usb_append_pipe(&usb->idle_pipes, pipe);
 
 	}
-	submit_handle = __cvmx_usb_get_submit_handle(usb, transaction);
 	octeon_usb_urb_complete_callback(usb, complete_code, pipe,
-					 submit_handle,
+					 transaction,
 					 transaction->actual_bytes,
 					 transaction->urb);
 	__cvmx_usb_free_transaction(usb, transaction);
@@ -2313,32 +2295,30 @@ done:
  *		    A description of each ISO packet
  * @urb:	    URB for the callback
  *
- * Returns: Submit handle or negative on failure. Matches the result
- *	    in the external API.
+ * Returns: Transaction or NULL on failure.
  */
-static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
-					 struct cvmx_usb_pipe *pipe,
-					 enum cvmx_usb_transfer type,
-					 uint64_t buffer,
-					 int buffer_length,
-					 uint64_t control_header,
-					 int iso_start_frame,
-					 int iso_number_packets,
-					 struct cvmx_usb_iso_packet *iso_packets,
-					 struct urb *urb)
+static struct cvmx_usb_transaction *__cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
+								  struct cvmx_usb_pipe *pipe,
+								  enum cvmx_usb_transfer type,
+								  uint64_t buffer,
+								  int buffer_length,
+								  uint64_t control_header,
+								  int iso_start_frame,
+								  int iso_number_packets,
+								  struct cvmx_usb_iso_packet *iso_packets,
+								  struct urb *urb)
 {
-	int submit_handle;
 	struct cvmx_usb_transaction *transaction;
 
 	/* Fail if the pipe isn't open */
 	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-		return -EINVAL;
+		return NULL;
 	if (unlikely(pipe->transfer_type != type))
-		return -EINVAL;
+		return NULL;
 
 	transaction = __cvmx_usb_alloc_transaction(usb);
 	if (unlikely(!transaction))
-		return -ENOMEM;
+		return NULL;
 
 	transaction->type = type;
 	transaction->buffer = buffer;
@@ -2369,13 +2349,11 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
 	}
 	pipe->tail = transaction;
 
-	submit_handle = __cvmx_usb_get_submit_handle(usb, transaction);
-
 	/* We may need to schedule the pipe if this was the head of the pipe */
 	if (!transaction->prev)
 		__cvmx_usb_schedule(usb, 0);
 
-	return submit_handle;
+	return transaction;
 }
 
 
@@ -2386,25 +2364,20 @@ static int __cvmx_usb_submit_transaction(struct cvmx_usb_state *usb,
  * @pipe:	    Handle to the pipe for the transfer.
  * @urb:	    URB.
  *
- * Returns: A submitted transaction handle or negative on
- *	    failure. Negative values are error codes.
+ * Returns: A submitted transaction or NULL on failure.
  */
-static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb,
-				struct cvmx_usb_pipe *pipe,
-				struct urb *urb)
+static struct cvmx_usb_transaction *cvmx_usb_submit_bulk(struct cvmx_usb_state *usb,
+							 struct cvmx_usb_pipe *pipe,
+							 struct urb *urb)
 {
-	int submit_handle;
-
-	submit_handle = __cvmx_usb_submit_transaction(usb, pipe,
-						      CVMX_USB_TRANSFER_BULK,
-						      urb->transfer_dma,
-						      urb->transfer_buffer_length,
-						      0, /* control_header */
-						      0, /* iso_start_frame */
-						      0, /* iso_number_packets */
-						      NULL, /* iso_packets */
-						      urb);
-	return submit_handle;
+	return __cvmx_usb_submit_transaction(usb, pipe, CVMX_USB_TRANSFER_BULK,
+					     urb->transfer_dma,
+					     urb->transfer_buffer_length,
+					     0, /* control_header */
+					     0, /* iso_start_frame */
+					     0, /* iso_number_packets */
+					     NULL, /* iso_packets */
+					     urb);
 }
 
 
@@ -2415,25 +2388,21 @@ static int cvmx_usb_submit_bulk(struct cvmx_usb_state *usb,
  * @pipe:	    Handle to the pipe for the transfer.
  * @urb:	    URB returned when the callback is called.
  *
- * Returns: A submitted transaction handle or negative on
- *	    failure. Negative values are error codes.
+ * Returns: A submitted transaction or NULL on failure.
  */
-static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
-				     struct cvmx_usb_pipe *pipe,
-				     struct urb *urb)
+static struct cvmx_usb_transaction *cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
+							      struct cvmx_usb_pipe *pipe,
+							      struct urb *urb)
 {
-	int submit_handle;
-
-	submit_handle = __cvmx_usb_submit_transaction(usb, pipe,
-						      CVMX_USB_TRANSFER_INTERRUPT,
-						      urb->transfer_dma,
-						      urb->transfer_buffer_length,
-						      0, /* control_header */
-						      0, /* iso_start_frame */
-						      0, /* iso_number_packets */
-						      NULL, /* iso_packets */
-						      urb);
-	return submit_handle;
+	return __cvmx_usb_submit_transaction(usb, pipe,
+					     CVMX_USB_TRANSFER_INTERRUPT,
+					     urb->transfer_dma,
+					     urb->transfer_buffer_length,
+					     0, /* control_header */
+					     0, /* iso_start_frame */
+					     0, /* iso_number_packets */
+					     NULL, /* iso_packets */
+					     urb);
 }
 
 
@@ -2444,14 +2413,12 @@ static int cvmx_usb_submit_interrupt(struct cvmx_usb_state *usb,
  * @pipe:	    Handle to the pipe for the transfer.
  * @urb:	    URB.
  *
- * Returns: A submitted transaction handle or negative on
- *	    failure. Negative values are error codes.
+ * Returns: A submitted transaction or NULL on failure.
  */
-static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
-				   struct cvmx_usb_pipe *pipe,
-				   struct urb *urb)
+static struct cvmx_usb_transaction *cvmx_usb_submit_control(struct cvmx_usb_state *usb,
+							    struct cvmx_usb_pipe *pipe,
+							    struct urb *urb)
 {
-	int submit_handle;
 	int buffer_length = urb->transfer_buffer_length;
 	uint64_t control_header = urb->setup_dma;
 	union cvmx_usb_control_header *header =
@@ -2460,16 +2427,14 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
 	if ((header->s.request_type & 0x80) == 0)
 		buffer_length = le16_to_cpu(header->s.length);
 
-	submit_handle = __cvmx_usb_submit_transaction(usb, pipe,
-						      CVMX_USB_TRANSFER_CONTROL,
-						      urb->transfer_dma,
-						      buffer_length,
-						      control_header,
-						      0, /* iso_start_frame */
-						      0, /* iso_number_packets */
-						      NULL, /* iso_packets */
-						      urb);
-	return submit_handle;
+	return __cvmx_usb_submit_transaction(usb, pipe,
+					     CVMX_USB_TRANSFER_CONTROL,
+					     urb->transfer_dma, buffer_length,
+					     control_header,
+					     0, /* iso_start_frame */
+					     0, /* iso_number_packets */
+					     NULL, /* iso_packets */
+					     urb);
 }
 
 
@@ -2480,27 +2445,23 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb,
  * @pipe:	    Handle to the pipe for the transfer.
  * @urb:	    URB returned when the callback is called.
  *
- * Returns: A submitted transaction handle or negative on
- *	    failure. Negative values are error codes.
+ * Returns: A submitted transaction or NULL on failure.
  */
-static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
-				       struct cvmx_usb_pipe *pipe,
-				       struct urb *urb)
+static struct cvmx_usb_transaction *cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
+								struct cvmx_usb_pipe *pipe,
+								struct urb *urb)
 {
-	int submit_handle;
 	struct cvmx_usb_iso_packet *packets;
 
 	packets = (struct cvmx_usb_iso_packet *) urb->setup_packet;
-	submit_handle = __cvmx_usb_submit_transaction(usb, pipe,
-						      CVMX_USB_TRANSFER_ISOCHRONOUS,
-						      urb->transfer_dma,
-						      urb->transfer_buffer_length,
-						      0, /* control_header */
-						      urb->start_frame,
-						      urb->number_of_packets,
-						      packets,
-						      urb);
-	return submit_handle;
+	return __cvmx_usb_submit_transaction(usb, pipe,
+					     CVMX_USB_TRANSFER_ISOCHRONOUS,
+					     urb->transfer_dma,
+					     urb->transfer_buffer_length,
+					     0, /* control_header */
+					     urb->start_frame,
+					     urb->number_of_packets,
+					     packets, urb);
 }
 
 
@@ -2513,26 +2474,17 @@ static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
  *
  * @usb:	 USB device state populated by cvmx_usb_initialize().
  * @pipe:	 Pipe to cancel requests in.
- * @submit_handle:
- *		 Handle to transaction to cancel, returned by the submit
- *		 function.
+ * @transaction: Transaction to cancel, returned by the submit function.
  *
  * Returns: 0 or a negative error code.
  */
 static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 			   struct cvmx_usb_pipe *pipe,
-			   int submit_handle)
+			   struct cvmx_usb_transaction *transaction)
 {
-	struct cvmx_usb_transaction *transaction;
-
-	if (unlikely((submit_handle < 0) || (submit_handle >= MAX_TRANSACTIONS)))
-		return -EINVAL;
-
 	/* Fail if the pipe isn't open */
 	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
 		return -EINVAL;
-
-	transaction = usb->transaction + submit_handle;
 
 	/* Fail if this transaction already completed */
 	if (unlikely((transaction->flags & __CVMX_USB_TRANSACTION_FLAGS_IN_USE) == 0))
@@ -2584,8 +2536,7 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
 
 	/* Simply loop through and attempt to cancel each transaction */
 	while (pipe->head) {
-		int result = cvmx_usb_cancel(usb, pipe,
-			__cvmx_usb_get_submit_handle(usb, pipe->head));
+		int result = cvmx_usb_cancel(usb, pipe, pipe->head);
 		if (unlikely(result != 0))
 			return result;
 	}
@@ -3231,7 +3182,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
 	struct device *dev = hcd->self.controller;
-	int submit_handle = -1;
+	struct cvmx_usb_transaction *transaction = NULL;
 	struct cvmx_usb_pipe *pipe;
 	unsigned long flags;
 	struct cvmx_usb_iso_packet *iso_packet;
@@ -3346,13 +3297,13 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			 * this saves us a bunch of logic.
 			 */
 			urb->setup_packet = (char *)iso_packet;
-			submit_handle = cvmx_usb_submit_isochronous(&priv->usb,
-								    pipe, urb);
+			transaction = cvmx_usb_submit_isochronous(&priv->usb,
+								  pipe, urb);
 			/*
 			 * If submit failed we need to free our private packet
 			 * list.
 			 */
-			if (submit_handle < 0) {
+			if (!transaction) {
 				urb->setup_packet = NULL;
 				kfree(iso_packet);
 			}
@@ -3361,26 +3312,25 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	case PIPE_INTERRUPT:
 		dev_dbg(dev, "Submit interrupt to %d.%d\n",
 			usb_pipedevice(urb->pipe), usb_pipeendpoint(urb->pipe));
-		submit_handle = cvmx_usb_submit_interrupt(&priv->usb, pipe,
-							  urb);
+		transaction = cvmx_usb_submit_interrupt(&priv->usb, pipe, urb);
 		break;
 	case PIPE_CONTROL:
 		dev_dbg(dev, "Submit control to %d.%d\n",
 			usb_pipedevice(urb->pipe), usb_pipeendpoint(urb->pipe));
-		submit_handle = cvmx_usb_submit_control(&priv->usb, pipe, urb);
+		transaction = cvmx_usb_submit_control(&priv->usb, pipe, urb);
 		break;
 	case PIPE_BULK:
 		dev_dbg(dev, "Submit bulk to %d.%d\n",
 			usb_pipedevice(urb->pipe), usb_pipeendpoint(urb->pipe));
-		submit_handle = cvmx_usb_submit_bulk(&priv->usb, pipe, urb);
+		transaction = cvmx_usb_submit_bulk(&priv->usb, pipe, urb);
 		break;
 	}
-	if (submit_handle < 0) {
+	if (!transaction) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		dev_dbg(dev, "Failed to submit\n");
 		return -ENOMEM;
 	}
-	urb->hcpriv = (void *)(long)submit_handle;
+	urb->hcpriv = transaction;
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
@@ -3393,13 +3343,11 @@ static void octeon_usb_urb_dequeue_work(unsigned long arg)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	while (!list_empty(&priv->dequeue_list)) {
-		int submit_handle;
 		struct urb *urb = container_of(priv->dequeue_list.next, struct urb, urb_list);
 		list_del(&urb->urb_list);
 		/* not enqueued on dequeue_list */
 		INIT_LIST_HEAD(&urb->urb_list);
-		submit_handle = (long)urb->hcpriv;
-		cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, submit_handle);
+		cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
