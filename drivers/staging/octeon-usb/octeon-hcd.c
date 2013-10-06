@@ -2497,57 +2497,25 @@ static int cvmx_usb_submit_control(struct cvmx_usb_state *usb, int pipe_handle,
  * @usb:	    USB device state populated by cvmx_usb_initialize().
  * @pipe_handle:
  *		    Handle to the pipe for the transfer.
- * @start_frame:
- *		    Number of frames into the future to schedule
- *		    this transaction.
- * @number_packets:
- *		    Number of sequential packets to transfer.
- *		    "packets" is a pointer to an array of this
- *		    many packet structures.
- * @packets:	    Description of each transfer packet as
- *		    defined by struct cvmx_usb_iso_packet. The array
- *		    pointed to here must stay valid until the
- *		    complete callback is called.
- * @buffer:	    Physical address of the data buffer in
- *		    memory. Note that this is NOT A POINTER, but
- *		    the full 64bit physical address of the
- *		    buffer. This may be zero if buffer_length is
- *		    zero.
- * @buffer_length:
- *		    Length of buffer in bytes.
  * @urb:	    URB returned when the callback is called.
  *
  * Returns: A submitted transaction handle or negative on
  *	    failure. Negative values are error codes.
  */
 static int cvmx_usb_submit_isochronous(struct cvmx_usb_state *usb,
-				       int pipe_handle, int start_frame,
-				       int number_packets, struct
-				       cvmx_usb_iso_packet packets[],
-				       uint64_t buffer, int buffer_length,
-				       struct urb *urb)
+				       int pipe_handle, struct urb *urb)
 {
 	int submit_handle;
+	struct cvmx_usb_iso_packet *packets;
 
-	/* Pipe handle checking is done later in a common place */
-	if (unlikely(start_frame < 0))
-		return -EINVAL;
-	if (unlikely(number_packets < 1))
-		return -EINVAL;
-	if (unlikely(!packets))
-		return -EINVAL;
-	if (unlikely(!buffer))
-		return -EINVAL;
-	if (unlikely(buffer_length < 0))
-		return -EINVAL;
-
+	packets = (struct cvmx_usb_iso_packet *) urb->setup_packet;
 	submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
 						      CVMX_USB_TRANSFER_ISOCHRONOUS,
-						      buffer,
-						      buffer_length,
+						      urb->transfer_dma,
+						      urb->transfer_buffer_length,
 						      0, /* control_header */
-						      start_frame,
-						      number_packets,
+						      urb->start_frame,
+						      urb->number_of_packets,
 						      packets,
 						      urb);
 	return submit_handle;
@@ -3410,13 +3378,9 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 			 * this saves us a bunch of logic.
 			 */
 			urb->setup_packet = (char *)iso_packet;
-			submit_handle = cvmx_usb_submit_isochronous(&priv->usb, pipe_handle,
-							urb->start_frame,
-							urb->number_of_packets,
-							iso_packet,
-							urb->transfer_dma,
-							urb->transfer_buffer_length,
-							urb);
+			submit_handle = cvmx_usb_submit_isochronous(&priv->usb,
+								    pipe_handle,
+								    urb);
 			/*
 			 * If submit failed we need to free our private packet
 			 * list.
