@@ -2530,13 +2530,6 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 	if (sta)
 		lq_cmd->agg_time_limit =
 			cpu_to_le16(iwl_mvm_bt_coex_agg_time_limit(mvm, sta));
-
-	/*
-	 * overwrite if needed, pass aggregation time limit
-	 * to uCode in uSec - This is racy - but heh, at least it helps...
-	 */
-	if (mvm && le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >= 2)
-		lq_cmd->agg_time_limit = cpu_to_le16(1200);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
