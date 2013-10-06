@@ -890,11 +890,6 @@ static int new_settings(struct hci_dev *hdev, struct sock *skip)
 	return mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), skip);
 }
 
-int mgmt_new_settings(struct hci_dev *hdev)
-{
-	return new_settings(hdev, NULL);
-}
-
 struct cmd_lookup {
 	struct sock *sk;
 	struct hci_dev *hdev;
@@ -4668,7 +4663,7 @@ static void adv_enable_complete(struct hci_dev *hdev, u8 status)
 	/* Clear the advertising mgmt setting if we failed to re-enable it */
 	if (status) {
 		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-		mgmt_new_settings(hdev);
+		new_settings(hdev, NULL);
 	}
 }
 
@@ -4690,6 +4685,6 @@ void mgmt_reenable_advertising(struct hci_dev *hdev)
 	 */
 	if (hci_req_run(&req, adv_enable_complete) < 0) {
 		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-		mgmt_new_settings(hdev);
+		new_settings(hdev, NULL);
 	}
 }
