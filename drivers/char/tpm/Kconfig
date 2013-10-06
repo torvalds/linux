@@ -33,6 +33,15 @@ config TCG_TIS
 	  from within Linux.  To compile this driver as a module, choose
 	  M here; the module will be called tpm_tis.
 
+config TCG_TIS_I2C_ATMEL
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
+	depends on I2C
+	---help---
+	  If you have an Atmel I2C TPM security chip say Yes and it will be
+	  accessible from within Linux.
+	  To compile this driver as a module, choose M here; the module will
+	  be called tpm_tis_i2c_atmel.
+
 config TCG_TIS_I2C_INFINEON
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Infineon)"
 	depends on I2C
