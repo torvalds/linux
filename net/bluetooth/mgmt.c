@@ -1411,6 +1411,20 @@ unlock:
 	return err;
 }
 
+static void enable_advertising(struct hci_request *req)
+{
+	u8 adv = 0x01;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(adv), &adv);
+}
+
+static void disable_advertising(struct hci_request *req)
+{
+	u8 adv = 0x00;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(adv), &adv);
+}
+
 static void le_enable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
@@ -1505,11 +1519,8 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) && !val) {
-		u8 adv = 0x00;
-
-		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(adv), &adv);
-	}
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) && !val)
+		disable_advertising(&req);
 
 	hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
 		    &hci_cp);
@@ -3283,7 +3294,10 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data, u1
 
 	hci_req_init(&req, hdev);
 
-	hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(val), &val);
+	if (val)
+		enable_advertising(&req);
+	else
+		disable_advertising(&req);
 
 	err = hci_req_run(&req, set_advertising_complete);
 	if (err < 0)
@@ -3861,12 +3875,9 @@ static int powered_update_hci(struct hci_dev *hdev)
 		if (bacmp(&hdev->static_addr, BDADDR_ANY))
 			hci_req_add(&req, HCI_OP_LE_SET_RANDOM_ADDR, 6,
 				    &hdev->static_addr);
-	}
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
-		u8 adv = 0x01;
-
-		hci_req_add(&req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(adv), &adv);
+		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+			enable_advertising(&req);
 	}
 
 	link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
