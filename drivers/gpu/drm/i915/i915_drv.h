@@ -441,7 +441,6 @@ struct intel_uncore {
 	func(is_valleyview) sep \
 	func(is_haswell) sep \
 	func(is_preliminary) sep \
-	func(has_force_wake) sep \
 	func(has_fbc) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
@@ -1728,8 +1727,6 @@ struct drm_i915_file_private {
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev) (INTEL_PCH_TYPE(dev) != PCH_NONE)
-
-#define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))

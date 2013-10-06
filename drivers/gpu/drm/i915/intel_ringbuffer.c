@@ -395,8 +395,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	int ret = 0;
 	u32 head;
 
-	if (HAS_FORCE_WAKE(dev))
-		gen6_gt_force_wake_get(dev_priv);
+	gen6_gt_force_wake_get(dev_priv);
 
 	if (I915_NEED_GFX_HWS(dev))
 		intel_ring_setup_status_page(ring);
@@ -469,8 +468,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
 
 out:
-	if (HAS_FORCE_WAKE(dev))
-		gen6_gt_force_wake_put(dev_priv);
+	gen6_gt_force_wake_put(dev_priv);
 
 	return ret;
 }
