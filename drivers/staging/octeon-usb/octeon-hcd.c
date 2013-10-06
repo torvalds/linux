@@ -602,7 +602,8 @@ static inline void __cvmx_usb_write_csr64(struct cvmx_usb_state *usb,
 static inline int __cvmx_usb_pipe_needs_split(struct cvmx_usb_state *usb,
 					      struct cvmx_usb_pipe *pipe)
 {
-	return ((pipe->device_speed != CVMX_USB_SPEED_HIGH) && (usb->usbcx_hprt.s.prtspd == CVMX_USB_SPEED_HIGH));
+	return pipe->device_speed != CVMX_USB_SPEED_HIGH &&
+	       usb->usbcx_hprt.s.prtspd == CVMX_USB_SPEED_HIGH;
 }
 
 
