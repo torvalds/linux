@@ -1188,6 +1188,7 @@ static int set_pairable(struct sock *sk, struct hci_dev *hdev, void *data,
 			u16 len)
 {
 	struct mgmt_mode *cp = data;
+	bool changed;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
@@ -1199,17 +1200,18 @@ static int set_pairable(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	if (cp->val)
-		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		changed = !test_and_set_bit(HCI_PAIRABLE, &hdev->dev_flags);
 	else
-		clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
+		changed = test_and_clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_PAIRABLE, hdev);
 	if (err < 0)
-		goto failed;
+		goto unlock;
 
-	err = new_settings(hdev, sk);
+	if (changed)
+		err = new_settings(hdev, sk);
 
-failed:
+unlock:
 	hci_dev_unlock(hdev);
 	return err;
 }
