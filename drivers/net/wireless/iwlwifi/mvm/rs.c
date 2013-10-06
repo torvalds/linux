@@ -309,17 +309,6 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 {
 	int ret = -EAGAIN;
 
-	/*
-	 * Don't create TX aggregation sessions when in high
-	 * BT traffic, as they would just be disrupted by BT.
-	 */
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >= 2) {
-		IWL_DEBUG_COEX(mvm, "BT traffic (%d), no aggregation allowed\n",
-			       BT_MBOX_MSG(&mvm->last_bt_notif,
-					   3, TRAFFIC_LOAD));
-		return ret;
-	}
-
 	IWL_DEBUG_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
 		     sta->addr, tid);
 	ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
