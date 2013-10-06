@@ -126,7 +126,11 @@ static inline void imx_smp_prepare(void) {}
 static inline void imx_scu_standby_enable(void) {}
 #endif
 extern void imx_src_init(void);
+#ifdef CONFIG_HAVE_IMX_SRC
 extern void imx_src_prepare_restart(void);
+#else
+static inline void imx_src_prepare_restart(void) {}
+#endif
 extern void imx_gpc_init(void);
 extern void imx_gpc_pre_suspend(void);
 extern void imx_gpc_post_resume(void);
