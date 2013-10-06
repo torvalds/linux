@@ -513,7 +513,7 @@ void cvm_oct_rx_initialize(void)
 	if (NULL == dev_for_napi)
 		panic("No net_devices were allocated.");
 
-	if (max_rx_cpus > 1  && max_rx_cpus < num_online_cpus())
+	if (max_rx_cpus >= 1 && max_rx_cpus < num_online_cpus())
 		atomic_set(&core_state.available_cores, max_rx_cpus);
 	else
 		atomic_set(&core_state.available_cores, num_online_cpus());
