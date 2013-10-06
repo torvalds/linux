@@ -1282,9 +1282,7 @@ static int cvmx_usb_disable(struct cvmx_usb_state *usb)
  * determine if the usb port has anything connected, is enabled,
  * or has some sort of error condition. The return value of this
  * call has "changed" bits to signal of the value of some fields
- * have changed between calls. These "changed" fields are based
- * on the last call to cvmx_usb_set_status(). In order to clear
- * them, you must update the status through cvmx_usb_set_status().
+ * have changed between calls.
  *
  * @usb: USB device state populated by cvmx_usb_initialize().
  *
@@ -1307,26 +1305,6 @@ static struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *us
 
 	return result;
 }
-
-
-/**
- * Set the current state of the USB port. The status is used as
- * a reference for the "changed" bits returned by
- * cvmx_usb_get_status(). Other than serving as a reference, the
- * status passed to this function is not used. No fields can be
- * changed through this call.
- *
- * @usb:	 USB device state populated by cvmx_usb_initialize().
- * @port_status:
- *		 Port status to set, most like returned by cvmx_usb_get_status()
- */
-static void cvmx_usb_set_status(struct cvmx_usb_state *usb,
-				struct cvmx_usb_port_status port_status)
-{
-	usb->port_status = port_status;
-	return;
-}
-
 
 /**
  * Convert a USB transaction into a handle
@@ -3863,7 +3841,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 			dev_dbg(dev, " C_CONNECTION\n");
 			/* Clears drivers internal connect status change flag */
 			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_set_status(&priv->usb, cvmx_usb_get_status(&priv->usb));
+			priv->usb.port_status = cvmx_usb_get_status(&priv->usb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_RESET:
@@ -3872,7 +3850,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 			 * Clears the driver's internal Port Reset Change flag.
 			 */
 			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_set_status(&priv->usb, cvmx_usb_get_status(&priv->usb));
+			priv->usb.port_status = cvmx_usb_get_status(&priv->usb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_ENABLE:
@@ -3882,7 +3860,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 			 * Change flag.
 			 */
 			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_set_status(&priv->usb, cvmx_usb_get_status(&priv->usb));
+			priv->usb.port_status = cvmx_usb_get_status(&priv->usb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
@@ -3897,7 +3875,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 			dev_dbg(dev, " C_OVER_CURRENT\n");
 			/* Clears the driver's overcurrent Change flag */
 			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_set_status(&priv->usb, cvmx_usb_get_status(&priv->usb));
+			priv->usb.port_status = cvmx_usb_get_status(&priv->usb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			break;
 		default:
