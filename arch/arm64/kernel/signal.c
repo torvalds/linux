@@ -253,13 +253,13 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	regs->regs[30] = (unsigned long)sigtramp;
 }
 
-static int setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
-			  sigset_t *set, struct pt_regs *regs)
+static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
+			  struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
 
-	frame = get_sigframe(ka, regs);
+	frame = get_sigframe(&ksig->ka, regs);
 	if (!frame)
 		return 1;
 
@@ -269,9 +269,9 @@ static int setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigframe(frame, regs, set);
 	if (err == 0) {
-		setup_return(regs, ka, frame, usig);
-		if (ka->sa.sa_flags & SA_SIGINFO) {
-			err |= copy_siginfo_to_user(&frame->info, info);
+		setup_return(regs, &ksig->ka, frame, usig);
+		if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
+			err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 			regs->regs[1] = (unsigned long)&frame->info;
 			regs->regs[2] = (unsigned long)&frame->uc;
 		}
@@ -291,13 +291,12 @@ static void setup_restart_syscall(struct pt_regs *regs)
 /*
  * OK, we're invoking a handler
  */
-static void handle_signal(unsigned long sig, struct k_sigaction *ka,
-			  siginfo_t *info, struct pt_regs *regs)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = current;
 	sigset_t *oldset = sigmask_to_save();
-	int usig = sig;
+	int usig = ksig->sig;
 	int ret;
 
 	/*
@@ -310,13 +309,12 @@ static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 	 * Set up the stack frame
 	 */
 	if (is_compat_task()) {
-		if (ka->sa.sa_flags & SA_SIGINFO)
-			ret = compat_setup_rt_frame(usig, ka, info, oldset,
-						    regs);
+		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
+			ret = compat_setup_rt_frame(usig, ksig, oldset, regs);
 		else
-			ret = compat_setup_frame(usig, ka, oldset, regs);
+			ret = compat_setup_frame(usig, ksig, oldset, regs);
 	} else {
-		ret = setup_rt_frame(usig, ka, info, oldset, regs);
+		ret = setup_rt_frame(usig, ksig, oldset, regs);
 	}
 
 	/*
@@ -324,18 +322,14 @@ static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 	 */
 	ret |= !valid_user_regs(&regs->user_regs);
 
-	if (ret != 0) {
-		force_sigsegv(sig, tsk);
-		return;
-	}
-
 	/*
 	 * Fast forward the stepping logic so we step into the signal
 	 * handler.
 	 */
-	user_fastforward_single_step(tsk);
+	if (!ret)
+		user_fastforward_single_step(tsk);
 
-	signal_delivered(sig, info, ka, regs, 0);
+	signal_setup_done(ret, ksig, 0);
 }
 
 /*
@@ -350,10 +344,9 @@ static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 static void do_signal(struct pt_regs *regs)
 {
 	unsigned long continue_addr = 0, restart_addr = 0;
-	struct k_sigaction ka;
-	siginfo_t info;
-	int signr, retval = 0;
+	int retval = 0;
 	int syscall = (int)regs->syscallno;
+	struct ksignal ksig;
 
 	/*
 	 * If we were from a system call, check for system call restarting...
@@ -387,8 +380,7 @@ static void do_signal(struct pt_regs *regs)
 	 * Get the signal to deliver. When running under ptrace, at this point
 	 * the debugger may change all of our registers.
 	 */
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
+	if (get_signal(&ksig)) {
 		/*
 		 * Depending on the signal settings, we may need to revert the
 		 * decision to restart the system call, but skip this if a
@@ -398,12 +390,12 @@ static void do_signal(struct pt_regs *regs)
 		    (retval == -ERESTARTNOHAND ||
 		     retval == -ERESTART_RESTARTBLOCK ||
 		     (retval == -ERESTARTSYS &&
-		      !(ka.sa.sa_flags & SA_RESTART)))) {
+		      !(ksig.ka.sa.sa_flags & SA_RESTART)))) {
 			regs->regs[0] = -EINTR;
 			regs->pc = continue_addr;
 		}
 
-		handle_signal(signr, &ka, &info, regs);
+		handle_signal(&ksig, regs);
 		return;
 	}
 
