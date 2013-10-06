@@ -4837,10 +4837,12 @@ static struct inode *btrfs_iget_locked(struct super_block *s,
 {
 	struct inode *inode;
 	struct btrfs_iget_args args;
+	unsigned long hashval = btrfs_inode_hash(objectid, root);
+
 	args.ino = objectid;
 	args.root = root;
 
-	inode = iget5_locked(s, objectid, btrfs_find_actor,
+	inode = iget5_locked(s, hashval, btrfs_find_actor,
 			     btrfs_init_locked_inode,
 			     (void *)&args);
 	return inode;
@@ -5460,7 +5462,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 				BTRFS_INODE_NODATASUM;
 	}
 
-	insert_inode_hash(inode);
+	btrfs_insert_inode_hash(inode);
 	inode_tree_add(inode);
 
 	trace_btrfs_inode_new(inode);

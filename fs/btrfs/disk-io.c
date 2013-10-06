@@ -2294,7 +2294,7 @@ int open_ctree(struct super_block *sb,
 	       sizeof(struct btrfs_key));
 	set_bit(BTRFS_INODE_DUMMY,
 		&BTRFS_I(fs_info->btree_inode)->runtime_flags);
-	insert_inode_hash(fs_info->btree_inode);
+	btrfs_insert_inode_hash(fs_info->btree_inode);
 
 	spin_lock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree = RB_ROOT;
