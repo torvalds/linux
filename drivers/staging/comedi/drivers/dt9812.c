@@ -85,13 +85,9 @@ for my needs.
 #define F020_MASK_DACxCN_DACxEN		0x80
 
 enum {
-	/* A/D  D/A  DI  DO  CT */
-	DT9812_DEVID_DT9812_10,	/*  8    2   8   8   1  +/- 10V */
-	DT9812_DEVID_DT9812_2PT5,	/* 8    2   8   8   1  0-2.44V */
-#if 0
-	DT9812_DEVID_DT9813,	/*  16   2   4   4   1  +/- 10V */
-	DT9812_DEVID_DT9814	/*  24   2   0   0   1  +/- 10V */
-#endif
+					/* A/D  D/A  DI  DO  CT */
+	DT9812_DEVID_DT9812_10,		/*  8    2   8   8   1  +/- 10V */
+	DT9812_DEVID_DT9812_2PT5,	/*  8    2   8   8   1  0-2.44V */
 };
 
 enum dt9812_gain {
