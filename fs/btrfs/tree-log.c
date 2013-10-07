@@ -2151,11 +2151,13 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 					return ret;
 				}
 
-				btrfs_tree_lock(next);
-				btrfs_set_lock_blocking(next);
-				clean_tree_block(trans, root, next);
-				btrfs_wait_tree_block_writeback(next);
-				btrfs_tree_unlock(next);
+				if (trans) {
+					btrfs_tree_lock(next);
+					btrfs_set_lock_blocking(next);
+					clean_tree_block(trans, root, next);
+					btrfs_wait_tree_block_writeback(next);
+					btrfs_tree_unlock(next);
+				}
 
 				WARN_ON(root_owner !=
 					BTRFS_TREE_LOG_OBJECTID);
@@ -2227,11 +2229,13 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 
 				next = path->nodes[*level];
 
-				btrfs_tree_lock(next);
-				btrfs_set_lock_blocking(next);
-				clean_tree_block(trans, root, next);
-				btrfs_wait_tree_block_writeback(next);
-				btrfs_tree_unlock(next);
+				if (trans) {
+					btrfs_tree_lock(next);
+					btrfs_set_lock_blocking(next);
+					clean_tree_block(trans, root, next);
+					btrfs_wait_tree_block_writeback(next);
+					btrfs_tree_unlock(next);
+				}
 
 				WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
 				ret = btrfs_free_and_pin_reserved_extent(root,
@@ -2301,11 +2305,13 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 
 			next = path->nodes[orig_level];
 
-			btrfs_tree_lock(next);
-			btrfs_set_lock_blocking(next);
-			clean_tree_block(trans, log, next);
-			btrfs_wait_tree_block_writeback(next);
-			btrfs_tree_unlock(next);
+			if (trans) {
+				btrfs_tree_lock(next);
+				btrfs_set_lock_blocking(next);
+				clean_tree_block(trans, log, next);
+				btrfs_wait_tree_block_writeback(next);
+				btrfs_tree_unlock(next);
+			}
 
 			WARN_ON(log->root_key.objectid !=
 				BTRFS_TREE_LOG_OBJECTID);
@@ -2608,13 +2614,10 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 		.process_func = process_one_buffer
 	};
 
-	if (trans) {
-		ret = walk_log_tree(trans, log, &wc);
-
-		/* I don't think this can happen but just in case */
-		if (ret)
-			btrfs_abort_transaction(trans, log, ret);
-	}
+	ret = walk_log_tree(trans, log, &wc);
+	/* I don't think this can happen but just in case */
+	if (ret)
+		btrfs_abort_transaction(trans, log, ret);
 
 	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
