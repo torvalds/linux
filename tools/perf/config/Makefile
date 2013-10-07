@@ -106,6 +106,7 @@ FEATURE_TESTS =				\
 	stackprotector-all		\
 	stackprotector			\
 	volatile-register-var		\
+	fortify-source			\
 	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
@@ -123,7 +124,7 @@ ifeq ($(feature-volatile-register-var), 1)
 endif
 
 ifndef PERF_DEBUG
-  ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -D_FORTIFY_SOURCE=2,-D_FORTIFY_SOURCE=2),y)
+  ifeq ($(feature-fortify-source), 1)
     CFLAGS += -D_FORTIFY_SOURCE=2
   endif
 endif
