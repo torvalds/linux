@@ -39,10 +39,14 @@ static int connect_rings(struct backend_info *);
 static void connect(struct backend_info *);
 static void backend_create_xenvif(struct backend_info *be);
 static void unregister_hotplug_status_watch(struct backend_info *be);
+static void set_backend_state(struct backend_info *be,
+			      enum xenbus_state state);
 
 static int netback_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
+
+	set_backend_state(be, XenbusStateClosed);
 
 	unregister_hotplug_status_watch(be);
 	if (be->vif) {
