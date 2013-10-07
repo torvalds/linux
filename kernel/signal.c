@@ -2379,7 +2379,7 @@ void signal_delivered(int sig, siginfo_t *info, struct k_sigaction *ka,
 	if (!(ka->sa.sa_flags & SA_NODEFER))
 		sigaddset(&blocked, sig);
 	set_current_blocked(&blocked);
-	tracehook_signal_handler(sig, info, ka, regs, stepping);
+	tracehook_signal_handler(stepping);
 }
 
 void signal_setup_done(int failed, struct ksignal *ksig, int stepping)
