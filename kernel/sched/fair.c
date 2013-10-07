@@ -1418,6 +1418,7 @@ void task_numa_free(struct task_struct *p)
 {
 	struct numa_group *grp = p->numa_group;
 	int i;
+	void *numa_faults = p->numa_faults;
 
 	if (grp) {
 		for (i = 0; i < 2*nr_node_ids; i++)
@@ -1433,7 +1434,9 @@ void task_numa_free(struct task_struct *p)
 		put_numa_group(grp);
 	}
 
-	kfree(p->numa_faults);
+	p->numa_faults = NULL;
+	p->numa_faults_buffer = NULL;
+	kfree(numa_faults);
 }
 
 /*
@@ -1450,6 +1453,10 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 
 	/* for example, ksmd faulting in a user's mm */
 	if (!p->mm)
+		return;
+
+	/* Do not worry about placement if exiting */
+	if (p->state == TASK_DEAD)
 		return;
 
 	/* Allocate buffer to track faults on a per-node basis */
