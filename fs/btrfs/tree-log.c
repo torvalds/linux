@@ -3170,11 +3170,10 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 			  struct inode *inode)
 {
 	struct btrfs_inode_item *inode_item;
-	struct btrfs_key key;
 	int ret;
 
-	memcpy(&key, &BTRFS_I(inode)->location, sizeof(key));
-	ret = btrfs_insert_empty_item(trans, log, path, &key,
+	ret = btrfs_insert_empty_item(trans, log, path,
+				      &BTRFS_I(inode)->location,
 				      sizeof(*inode_item));
 	if (ret && ret != -EEXIST)
 		return ret;
