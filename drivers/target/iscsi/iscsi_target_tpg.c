@@ -223,6 +223,7 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->cache_dynamic_acls = TA_CACHE_DYNAMIC_ACLS;
 	a->demo_mode_write_protect = TA_DEMO_MODE_WRITE_PROTECT;
 	a->prod_mode_write_protect = TA_PROD_MODE_WRITE_PROTECT;
+	a->demo_mode_discovery = TA_DEMO_MODE_DISCOVERY;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -816,6 +817,25 @@ int iscsit_ta_prod_mode_write_protect(
 	a->prod_mode_write_protect = flag;
 	pr_debug("iSCSI_TPG[%hu] - Production Mode Write Protect bit:"
 		" %s\n", tpg->tpgt, (a->prod_mode_write_protect) ?
+		"ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_demo_mode_discovery(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->demo_mode_discovery = flag;
+	pr_debug("iSCSI_TPG[%hu] - Demo Mode Discovery bit:"
+		" %s\n", tpg->tpgt, (a->demo_mode_discovery) ?
 		"ON" : "OFF");
 
 	return 0;

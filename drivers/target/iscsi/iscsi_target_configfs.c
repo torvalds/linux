@@ -1041,6 +1041,11 @@ TPG_ATTR(demo_mode_write_protect, S_IRUGO | S_IWUSR);
  */
 DEF_TPG_ATTRIB(prod_mode_write_protect);
 TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_demo_mode_discovery,
+ */
+DEF_TPG_ATTRIB(demo_mode_discovery);
+TPG_ATTR(demo_mode_discovery, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_authentication.attr,
@@ -1051,6 +1056,7 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_cache_dynamic_acls.attr,
 	&iscsi_tpg_attrib_demo_mode_write_protect.attr,
 	&iscsi_tpg_attrib_prod_mode_write_protect.attr,
+	&iscsi_tpg_attrib_demo_mode_discovery.attr,
 	NULL,
 };
 
