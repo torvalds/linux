@@ -1104,8 +1104,7 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_buffer *eb;
-	eb = find_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
-				bytenr, blocksize);
+	eb = find_extent_buffer(&BTRFS_I(btree_inode)->io_tree, bytenr);
 	return eb;
 }
 
