@@ -3740,16 +3740,21 @@ void gen6_update_ring_freq(struct drm_device *dev)
 	unsigned int gpu_freq;
 	unsigned int max_ia_freq, min_ring_freq;
 	int scaling_factor = 180;
+	struct cpufreq_policy *policy;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
-	max_ia_freq = cpufreq_quick_get_max(0);
-	/*
-	 * Default to measured freq if none found, PCU will ensure we don't go
-	 * over
-	 */
-	if (!max_ia_freq)
+	policy = cpufreq_cpu_get(0);
+	if (policy) {
+		max_ia_freq = policy->cpuinfo.max_freq;
+		cpufreq_cpu_put(policy);
+	} else {
+		/*
+		 * Default to measured freq if none found, PCU will ensure we
+		 * don't go over
+		 */
 		max_ia_freq = tsc_khz;
+	}
 
 	/* Convert from kHz to MHz */
 	max_ia_freq /= 1000;
