@@ -32,9 +32,10 @@
 #include <asm/kvm_ppc.h>
 
 #include "e500.h"
-#include "trace.h"
 #include "timing.h"
 #include "e500_mmu_host.h"
+
+#include "trace_booke.h"
 
 #define to_htlb1_esel(esel) (host_tlb_params[1].entries - (esel) - 1)
 

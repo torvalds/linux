@@ -40,7 +40,9 @@
 
 #include "timing.h"
 #include "booke.h"
-#include "trace.h"
+
+#define CREATE_TRACE_POINTS
+#include "trace_booke.h"
 
 unsigned long kvmppc_booke_handlers;
 

@@ -32,7 +32,7 @@
 #include <asm/kvm_ppc.h>
 
 #include "e500.h"
-#include "trace.h"
+#include "trace_booke.h"
 #include "timing.h"
 #include "e500_mmu_host.h"
 
