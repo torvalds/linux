@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -202,7 +203,11 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	unsigned long min_volt, max_volt;
 	int num, ret;
 
-	cpu_dev = &pdev->dev;
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev) {
+		pr_err("failed to get cpu0 device\n");
+		return -ENODEV;
+	}
 
 	np = of_node_get(cpu_dev->of_node);
 	if (!np) {

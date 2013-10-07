@@ -62,7 +62,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	struct device_node *ssi_np, *codec_np;
 	struct platform_device *ssi_pdev;
 	struct i2c_client *codec_dev;
-	struct imx_sgtl5000_data *data;
+	struct imx_sgtl5000_data *data = NULL;
 	int int_port, ext_port;
 	int ret;
 
@@ -128,7 +128,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	data->codec_clk = devm_clk_get(&codec_dev->dev, NULL);
+	data->codec_clk = clk_get(&codec_dev->dev, NULL);
 	if (IS_ERR(data->codec_clk)) {
 		ret = PTR_ERR(data->codec_clk);
 		goto fail;
@@ -172,6 +172,8 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
+	if (data && !IS_ERR(data->codec_clk))
+		clk_put(data->codec_clk);
 	if (ssi_np)
 		of_node_put(ssi_np);
 	if (codec_np)
@@ -185,6 +187,7 @@ static int imx_sgtl5000_remove(struct platform_device *pdev)
 	struct imx_sgtl5000_data *data = platform_get_drvdata(pdev);
 
 	snd_soc_unregister_card(&data->card);
+	clk_put(data->codec_clk);
 
 	return 0;
 }

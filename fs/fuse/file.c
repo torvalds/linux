@@ -2467,6 +2467,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 {
 	struct fuse_file *ff = file->private_data;
 	struct inode *inode = file->f_inode;
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = ff->fc;
 	struct fuse_req *req;
 	struct fuse_fallocate_in inarg = {
@@ -2484,9 +2485,19 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 
 	if (lock_inode) {
 		mutex_lock(&inode->i_mutex);
-		if (mode & FALLOC_FL_PUNCH_HOLE)
-			fuse_set_nowrite(inode);
+		if (mode & FALLOC_FL_PUNCH_HOLE) {
+			loff_t endbyte = offset + length - 1;
+			err = filemap_write_and_wait_range(inode->i_mapping,
+							   offset, endbyte);
+			if (err)
+				goto out;
+
+			fuse_sync_writes(inode);
+		}
 	}
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE))
+		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 
 	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req)) {
@@ -2520,11 +2531,11 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	fuse_invalidate_attr(inode);
 
 out:
-	if (lock_inode) {
-		if (mode & FALLOC_FL_PUNCH_HOLE)
-			fuse_release_nowrite(inode);
+	if (!(mode & FALLOC_FL_KEEP_SIZE))
+		clear_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
+
+	if (lock_inode)
 		mutex_unlock(&inode->i_mutex);
-	}
 
 	return err;
 }

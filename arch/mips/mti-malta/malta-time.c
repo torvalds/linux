@@ -27,6 +27,7 @@
 #include <linux/timex.h>
 #include <linux/mc146818rtc.h>
 
+#include <asm/cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/hardirq.h>
@@ -76,7 +77,7 @@ static void __init estimate_frequencies(void)
 #endif
 
 #if defined (CONFIG_KVM_GUEST) && defined (CONFIG_KVM_HOST_FREQ)
-	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 
 	/*
 	 * XXXKYMA: hardwire the CPU frequency to Host Freq/4
@@ -169,7 +170,7 @@ unsigned int get_c0_compare_int(void)
 
 void __init plat_time_init(void)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 	unsigned int freq;
 
 	estimate_frequencies();

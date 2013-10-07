@@ -968,7 +968,7 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(acpi_bus_get_device);
+EXPORT_SYMBOL(acpi_bus_get_device);
 
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *))
@@ -1121,7 +1121,7 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
 EXPORT_SYMBOL(acpi_bus_register_driver);
 
 /**
- * acpi_bus_unregister_driver - unregisters a driver with the APIC bus
+ * acpi_bus_unregister_driver - unregisters a driver with the ACPI bus
  * @driver: driver to unregister
  *
  * Unregisters a driver with the ACPI bus.  Searches the namespace for all

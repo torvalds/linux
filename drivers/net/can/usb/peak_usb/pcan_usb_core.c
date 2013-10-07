@@ -463,7 +463,7 @@ static int peak_usb_start(struct peak_usb_device *dev)
 	if (i < PCAN_USB_MAX_TX_URBS) {
 		if (i == 0) {
 			netdev_err(netdev, "couldn't setup any tx URB\n");
-			return err;
+			goto err_tx;
 		}
 
 		netdev_warn(netdev, "tx performance may be slow\n");
@@ -472,7 +472,7 @@ static int peak_usb_start(struct peak_usb_device *dev)
 	if (dev->adapter->dev_start) {
 		err = dev->adapter->dev_start(dev);
 		if (err)
-			goto failed;
+			goto err_adapter;
 	}
 
 	dev->state |= PCAN_USB_STATE_STARTED;
@@ -481,18 +481,25 @@ static int peak_usb_start(struct peak_usb_device *dev)
 	if (dev->adapter->dev_set_bus) {
 		err = dev->adapter->dev_set_bus(dev, 1);
 		if (err)
-			goto failed;
+			goto err_adapter;
 	}
 
 	dev->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	return 0;
 
-failed:
+err_adapter:
 	if (err == -ENODEV)
 		netif_device_detach(dev->netdev);
 
 	netdev_warn(netdev, "couldn't submit control: %d\n", err);
+
+	for (i = 0; i < PCAN_USB_MAX_TX_URBS; i++) {
+		usb_free_urb(dev->tx_contexts[i].urb);
+		dev->tx_contexts[i].urb = NULL;
+	}
+err_tx:
+	usb_kill_anchored_urbs(&dev->rx_submitted);
 
 	return err;
 }

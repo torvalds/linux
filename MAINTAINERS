@@ -824,15 +824,21 @@ S:	Maintained
 F:	arch/arm/mach-gemini/
 
 ARM/CSR SIRFPRIMA2 MACHINE SUPPORT
-M:	Barry Song <baohua.song@csr.com>
+M:	Barry Song <baohua@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/baohua/linux.git
 S:	Maintained
 F:	arch/arm/mach-prima2/
+F:	drivers/clk/clk-prima2.c
+F:	drivers/clocksource/timer-prima2.c
+F:	drivers/clocksource/timer-marco.c
 F:	drivers/dma/sirf-dma.c
 F:	drivers/i2c/busses/i2c-sirf.c
+F:	drivers/input/misc/sirfsoc-onkey.c
+F:	drivers/irqchip/irq-sirfsoc.c
 F:	drivers/mmc/host/sdhci-sirf.c
 F:	drivers/pinctrl/sirf/
+F:	drivers/rtc/rtc-sirfsoc.c
 F:	drivers/spi/spi-sirf.c
 
 ARM/EBSA110 MACHINE SUPPORT
@@ -1812,7 +1818,8 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BCM281XX/BCM11XXX ARM ARCHITECTURE
-M:	Christian Daudt <csd@broadcom.com>
+M:	Christian Daudt <bcm@fixthebug.org>
+L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://git.github.com/broadcom/bcm11351
 S:	Maintained
 F:	arch/arm/mach-bcm/
@@ -2638,6 +2645,18 @@ F:	drivers/md/persistent-data/
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 F:	include/uapi/linux/dm-*.h
+
+DIGI NEO AND CLASSIC PCI PRODUCTS
+M:	Lidza Louina <lidza.louina@gmail.com>
+L:	driverdev-devel@linuxdriverproject.org
+S:	Maintained
+F:	drivers/staging/dgnc/
+
+DIGI EPCA PCI PRODUCTS
+M:	Lidza Louina <lidza.louina@gmail.com>
+L:	driverdev-devel@linuxdriverproject.org
+S:	Maintained
+F:	drivers/staging/dgap/
 
 DIOLAN U2C-12 I2C DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -4456,6 +4475,13 @@ M:	Pat Gefre <pfg@sgi.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/ioc3_serial.c
+
+IOMMU DRIVERS
+M:	Joerg Roedel <joro@8bytes.org>
+L:	iommu@lists.linux-foundation.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+S:	Maintained
+F:	drivers/iommu/
 
 IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
@@ -6595,7 +6621,7 @@ S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
 PROMISE SATA TX2/TX4 CONTROLLER LIBATA DRIVER
-M:	Mikael Pettersson <mikpe@it.uu.se>
+M:	Mikael Pettersson <mikpelinux@gmail.com>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	drivers/ata/sata_promise.*
@@ -7258,9 +7284,9 @@ F:	include/linux/sched.h
 F:	include/uapi/linux/sched.h
 
 SCORE ARCHITECTURE
-M:	Chen Liqin <liqin.chen@sunplusct.com>
+M:	Chen Liqin <liqin.linux@gmail.com>
 M:	Lennox Wu <lennox.wu@gmail.com>
-W:	http://www.sunplusct.com
+W:	http://www.sunplus.com
 S:	Supported
 F:	arch/score/
 
@@ -8724,9 +8750,8 @@ F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
 
 USB/IP DRIVERS
-M:	Matt Mooney <mfm@muteddisk.com>
 L:	linux-usb@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/staging/usbip/
 
 USB ISP116X DRIVER
@@ -9366,6 +9391,7 @@ F:	arch/arm64/include/asm/xen/
 
 XEN NETWORK BACKEND DRIVER
 M:	Ian Campbell <ian.campbell@citrix.com>
+M:	Wei Liu <wei.liu2@citrix.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 S:	Supported

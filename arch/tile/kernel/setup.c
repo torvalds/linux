@@ -1268,8 +1268,7 @@ static void __init validate_va(void)
 	if ((long)VMALLOC_START >= 0)
 		early_panic(
 			"Linux VMALLOC region below the 2GB line (%#lx)!\n"
-			"Reconfigure the kernel with fewer NR_HUGE_VMAPS\n"
-			"or smaller VMALLOC_RESERVE.\n",
+			"Reconfigure the kernel with smaller VMALLOC_RESERVE.\n",
 			VMALLOC_START);
 #endif
 }

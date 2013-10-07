@@ -604,7 +604,7 @@ int cvmx_usb_initialize(struct cvmx_usb_state *state, int usb_port_number,
 			}
 	}
 
-	memset(usb, 0, sizeof(usb));
+	memset(usb, 0, sizeof(*usb));
 	usb->init_flags = flags;
 
 	/* Initialize the USB state structure */

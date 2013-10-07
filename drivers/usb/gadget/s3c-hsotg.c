@@ -543,7 +543,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	 * FIFO, requests of >512 cause the endpoint to get stuck with a
 	 * fragment of the end of the transfer in it.
 	 */
-	if (can_write > 512)
+	if (can_write > 512 && !periodic)
 		can_write = 512;
 
 	/*
@@ -2475,8 +2475,6 @@ irq_retry:
 	if (gintsts & GINTSTS_ErlySusp) {
 		dev_dbg(hsotg->dev, "GINTSTS_ErlySusp\n");
 		writel(GINTSTS_ErlySusp, hsotg->regs + GINTSTS);
-
-		s3c_hsotg_disconnect(hsotg);
 	}
 
 	/*
@@ -2962,9 +2960,6 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	if (!hsotg)
 		return -ENODEV;
 
-	if (!driver || driver != hsotg->driver || !driver->unbind)
-		return -EINVAL;
-
 	/* all endpoints should be shutdown */
 	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
@@ -2972,15 +2967,15 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
-	hsotg->driver = NULL;
+	if (!driver)
+		hsotg->driver = NULL;
+
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
-	dev_info(hsotg->dev, "unregistered gadget driver '%s'\n",
-		 driver->driver.name);
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	return 0;
 }

@@ -855,11 +855,11 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	unsigned int eth_hdr_len;
 	struct iphdr *ip;
 
-	/* Lancer ASIC has a bug wherein packets that are 32 bytes or less
+	/* Lancer, SH-R ASICs have a bug wherein Packets that are 32 bytes or less
 	 * may cause a transmit stall on that port. So the work-around is to
-	 * pad such packets to a 36-byte length.
+	 * pad short packets (<= 32 bytes) to a 36-byte length.
 	 */
-	if (unlikely(lancer_chip(adapter) && skb->len <= 32)) {
+	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
 		if (skb_padto(skb, 36))
 			goto tx_drop;
 		skb->len = 36;
@@ -1013,18 +1013,40 @@ static int be_vid_config(struct be_adapter *adapter)
 	status = be_cmd_vlan_config(adapter, adapter->if_handle,
 				    vids, num, 1, 0);
 
-	/* Set to VLAN promisc mode as setting VLAN filter failed */
 	if (status) {
-		dev_info(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
-		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering.\n");
-		goto set_vlan_promisc;
+		/* Set to VLAN promisc mode as setting VLAN filter failed */
+		if (status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
+			goto set_vlan_promisc;
+		dev_err(&adapter->pdev->dev,
+			"Setting HW VLAN filtering failed.\n");
+	} else {
+		if (adapter->flags & BE_FLAGS_VLAN_PROMISC) {
+			/* hw VLAN filtering re-enabled. */
+			status = be_cmd_rx_filter(adapter,
+						  BE_FLAGS_VLAN_PROMISC, OFF);
+			if (!status) {
+				dev_info(&adapter->pdev->dev,
+					 "Disabling VLAN Promiscuous mode.\n");
+				adapter->flags &= ~BE_FLAGS_VLAN_PROMISC;
+				dev_info(&adapter->pdev->dev,
+					 "Re-Enabling HW VLAN filtering\n");
+			}
+		}
 	}
 
 	return status;
 
 set_vlan_promisc:
-	status = be_cmd_vlan_config(adapter, adapter->if_handle,
-				    NULL, 0, 1, 1);
+	dev_warn(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
+
+	status = be_cmd_rx_filter(adapter, BE_FLAGS_VLAN_PROMISC, ON);
+	if (!status) {
+		dev_info(&adapter->pdev->dev, "Enable VLAN Promiscuous mode\n");
+		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering\n");
+		adapter->flags |= BE_FLAGS_VLAN_PROMISC;
+	} else
+		dev_err(&adapter->pdev->dev,
+			"Failed to enable VLAN Promiscuous mode.\n");
 	return status;
 }
 
@@ -1033,10 +1055,6 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
-	if (!lancer_chip(adapter) && !be_physfn(adapter)) {
-		status = -EINVAL;
-		goto ret;
-	}
 
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
@@ -1058,11 +1076,6 @@ static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
-
-	if (!lancer_chip(adapter) && !be_physfn(adapter)) {
-		status = -EINVAL;
-		goto ret;
-	}
 
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
@@ -1188,8 +1201,8 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 
 	vi->vf = vf;
 	vi->tx_rate = vf_cfg->tx_rate;
-	vi->vlan = vf_cfg->vlan_tag;
-	vi->qos = 0;
+	vi->vlan = vf_cfg->vlan_tag & VLAN_VID_MASK;
+	vi->qos = vf_cfg->vlan_tag >> VLAN_PRIO_SHIFT;
 	memcpy(&vi->mac, vf_cfg->mac_addr, ETH_ALEN);
 
 	return 0;
@@ -1199,28 +1212,29 @@ static int be_set_vf_vlan(struct net_device *netdev,
 			int vf, u16 vlan, u8 qos)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
 	int status = 0;
 
 	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if (vf >= adapter->num_vfs || vlan > 4095)
+	if (vf >= adapter->num_vfs || vlan > 4095 || qos > 7)
 		return -EINVAL;
 
-	if (vlan) {
-		if (adapter->vf_cfg[vf].vlan_tag != vlan) {
+	if (vlan || qos) {
+		vlan |= qos << VLAN_PRIO_SHIFT;
+		if (vf_cfg->vlan_tag != vlan) {
 			/* If this is new value, program it. Else skip. */
-			adapter->vf_cfg[vf].vlan_tag = vlan;
-
-			status = be_cmd_set_hsw_config(adapter, vlan,
-				vf + 1, adapter->vf_cfg[vf].if_handle, 0);
+			vf_cfg->vlan_tag = vlan;
+			status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
+						       vf_cfg->if_handle, 0);
 		}
 	} else {
 		/* Reset Transparent Vlan Tagging. */
-		adapter->vf_cfg[vf].vlan_tag = 0;
-		vlan = adapter->vf_cfg[vf].def_vid;
+		vf_cfg->vlan_tag = 0;
+		vlan = vf_cfg->def_vid;
 		status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
-			adapter->vf_cfg[vf].if_handle, 0);
+					       vf_cfg->if_handle, 0);
 	}
 
 
@@ -2802,7 +2816,7 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 	struct be_resources res = {0};
 	struct be_vf_cfg *vf_cfg;
 	u32 cap_flags, en_flags, vf;
-	int status;
+	int status = 0;
 
 	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 		    BE_IF_FLAGS_MULTICAST;
@@ -2963,6 +2977,8 @@ static void BEx_get_resources(struct be_adapter *adapter,
 
 	if (adapter->function_mode & FLEX10_MODE)
 		res->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
+	else if (adapter->function_mode & UMC_ENABLED)
+		res->max_vlans = BE_UMC_NUM_VLANS_SUPPORTED;
 	else
 		res->max_vlans = BE_NUM_VLANS_SUPPORTED;
 	res->max_mcast_mac = BE_MAX_MC;

@@ -1,4 +1,4 @@
-* Synopsis Designware PCIe interface
+* Synopsys Designware PCIe interface
 
 Required properties:
 - compatible: should contain "snps,dw-pcie" to identify the

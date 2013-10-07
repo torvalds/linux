@@ -2096,16 +2096,16 @@ static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
 				    struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t pixel_rate, pfit_size;
+	uint32_t pixel_rate;
 
 	pixel_rate = intel_crtc->config.adjusted_mode.clock;
 
 	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
 	 * adjust the pixel_rate here. */
 
-	pfit_size = intel_crtc->config.pch_pfit.size;
-	if (pfit_size) {
+	if (intel_crtc->config.pch_pfit.enabled) {
 		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
+		uint32_t pfit_size = intel_crtc->config.pch_pfit.size;
 
 		pipe_w = intel_crtc->config.requested_mode.hdisplay;
 		pipe_h = intel_crtc->config.requested_mode.vdisplay;

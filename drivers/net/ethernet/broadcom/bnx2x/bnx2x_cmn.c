@@ -2481,8 +2481,7 @@ load_error_cnic2:
 load_error_cnic1:
 	bnx2x_napi_disable_cnic(bp);
 	/* Update the number of queues without the cnic queues */
-	rc = bnx2x_set_real_num_queues(bp, 0);
-	if (rc)
+	if (bnx2x_set_real_num_queues(bp, 0))
 		BNX2X_ERR("Unable to set real_num_queues not including cnic\n");
 load_error_cnic0:
 	BNX2X_ERR("CNIC-related load failed\n");
@@ -3008,16 +3007,16 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 	u16 pmcsr;
 
 	/* If there is no power capability, silently succeed */
-	if (!bp->pm_cap) {
+	if (!bp->pdev->pm_cap) {
 		BNX2X_DEV_INFO("No power capability. Breaking.\n");
 		return 0;
 	}
 
-	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmcsr);
+	pci_read_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_CTRL, &pmcsr);
 
 	switch (state) {
 	case PCI_D0:
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL,
+		pci_write_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_CTRL,
 				      ((pmcsr & ~PCI_PM_CTRL_STATE_MASK) |
 				       PCI_PM_CTRL_PME_STATUS));
 
@@ -3041,7 +3040,7 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 		if (bp->wol)
 			pmcsr |= PCI_PM_CTRL_PME_ENABLE;
 
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL,
+		pci_write_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_CTRL,
 				      pmcsr);
 
 		/* No more memory access after this point until

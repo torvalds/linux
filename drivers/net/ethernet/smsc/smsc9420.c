@@ -1356,8 +1356,7 @@ static int smsc9420_open(struct net_device *dev)
 	smsc9420_reg_write(pd, INT_STAT, 0xFFFFFFFF);
 	smsc9420_pci_flush_write(pd);
 
-	result = request_irq(irq, smsc9420_isr, IRQF_SHARED | IRQF_DISABLED,
-			     DRV_NAME, pd);
+	result = request_irq(irq, smsc9420_isr, IRQF_SHARED, DRV_NAME, pd);
 	if (result) {
 		smsc_warn(IFUP, "Unable to use IRQ = %d", irq);
 		result = -ENODEV;
