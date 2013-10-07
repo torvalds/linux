@@ -506,11 +506,16 @@ config SUN_OPENPROMFS
 	  Only choose N if you know in advance that you will not need to modify
 	  OpenPROM settings on the running system.
 
-# Makefile helper
+# Makefile helpers
 config SPARC64_PCI
 	bool
 	default y
 	depends on SPARC64 && PCI
+
+config SPARC64_PCI_MSI
+	bool
+	default y
+	depends on SPARC64_PCI && PCI_MSI
 
 endmenu
 

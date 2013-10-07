@@ -185,10 +185,8 @@ static int ad8366_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	if (!IS_ERR(reg)) {
+	if (!IS_ERR(reg))
 		regulator_disable(reg);
-		regulator_put(reg);
-	}
 
 	return 0;
 }

@@ -229,7 +229,7 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "clock-latency", &transition_latency))
 		transition_latency = CPUFREQ_ETERNAL;
 
-	if (cpu_reg) {
+	if (!IS_ERR(cpu_reg)) {
 		struct opp *opp;
 		unsigned long min_uV, max_uV;
 		int i;

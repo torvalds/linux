@@ -223,6 +223,13 @@ void __cifs_readpage_to_fscache(struct inode *inode, struct page *page)
 		fscache_uncache_page(CIFS_I(inode)->fscache, page);
 }
 
+void __cifs_fscache_readpages_cancel(struct inode *inode, struct list_head *pages)
+{
+	cifs_dbg(FYI, "%s: (fsc: %p, i: %p)\n",
+		 __func__, CIFS_I(inode)->fscache, inode);
+	fscache_readpages_cancel(CIFS_I(inode)->fscache, pages);
+}
+
 void __cifs_fscache_invalidate_page(struct page *page, struct inode *inode)
 {
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);

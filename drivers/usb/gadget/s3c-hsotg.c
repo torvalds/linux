@@ -543,7 +543,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	 * FIFO, requests of >512 cause the endpoint to get stuck with a
 	 * fragment of the end of the transfer in it.
 	 */
-	if (can_write > 512)
+	if (can_write > 512 && !periodic)
 		can_write = 512;
 
 	/*

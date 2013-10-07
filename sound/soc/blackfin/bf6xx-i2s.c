@@ -88,6 +88,7 @@ static int bfin_i2s_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S8:
 		param.spctl |= 0x70;
 		sport->wdsize = 1;
+		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		param.spctl |= 0xf0;
 		sport->wdsize = 2;
