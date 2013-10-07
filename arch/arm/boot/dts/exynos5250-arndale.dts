@@ -412,6 +412,10 @@
 		status = "disabled";
 	};
 
+	i2s0: i2s@03830000 {
+		status = "okay";
+	};
+
 	spi_0: spi@12d20000 {
 		status = "disabled";
 	};
