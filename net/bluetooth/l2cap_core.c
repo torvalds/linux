@@ -516,12 +516,12 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	switch (chan->chan_type) {
 	case L2CAP_CHAN_CONN_ORIENTED:
 		if (conn->hcon->type == LE_LINK) {
-			/* LE connection */
-			chan->omtu = L2CAP_DEFAULT_MTU;
-			if (chan->dcid == L2CAP_CID_ATT)
+			if (chan->dcid == L2CAP_CID_ATT) {
+				chan->omtu = L2CAP_DEFAULT_MTU;
 				chan->scid = L2CAP_CID_ATT;
-			else
+			} else {
 				chan->scid = l2cap_alloc_cid(conn);
+			}
 		} else {
 			/* Alloc CID for connection-oriented socket */
 			chan->scid = l2cap_alloc_cid(conn);
