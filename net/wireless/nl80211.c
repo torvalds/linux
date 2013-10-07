@@ -356,6 +356,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_CSA_C_OFF_PRESP] = { .type = NLA_U16 },
 	[NL80211_ATTR_STA_SUPPORTED_CHANNELS] = { .type = NLA_BINARY },
 	[NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES] = { .type = NLA_BINARY },
+	[NL80211_ATTR_HANDLE_DFS] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -5768,9 +5769,9 @@ skip_beacons:
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &params.chandef))
 		return -EINVAL;
 
-	/* DFS channels are only supported for AP/P2P GO ... for now. */
 	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP ||
-	    dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO) {
+	    dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO ||
+	    dev->ieee80211_ptr->iftype == NL80211_IFTYPE_ADHOC) {
 		err = cfg80211_chandef_dfs_required(wdev->wiphy,
 						    &params.chandef);
 		if (err < 0) {
@@ -6601,6 +6602,9 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 
 	ibss.control_port =
 		nla_get_flag(info->attrs[NL80211_ATTR_CONTROL_PORT]);
+
+	ibss.userspace_handles_dfs =
+		nla_get_flag(info->attrs[NL80211_ATTR_HANDLE_DFS]);
 
 	err = cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
 	if (err)

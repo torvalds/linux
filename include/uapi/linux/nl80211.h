@@ -1501,6 +1501,13 @@ enum nl80211_commands {
  * @NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES: array of supported
  *      supported operating classes.
  *
+ * @NL80211_ATTR_HANDLE_DFS: A flag indicating whether user space
+ *	controls DFS operation in IBSS mode. If the flag is included in
+ *	%NL80211_CMD_JOIN_IBSS request, the driver will allow use of DFS
+ *	channels and reports radar events to userspace. Userspace is required
+ *	to react to radar events, e.g. initiate a channel switch or leave the
+ *	IBSS network.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1814,6 +1821,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_SUPPORTED_CHANNELS,
 
 	NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES,
+
+	NL80211_ATTR_HANDLE_DFS,
 
 	/* add attributes here, update the policy in nl80211.c */
 

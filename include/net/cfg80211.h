@@ -1664,6 +1664,9 @@ struct cfg80211_disassoc_request {
  *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
  *	required to assume that the port is unauthorized until authorized by
  *	user space. Otherwise, port is marked authorized by default.
+ * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
+ *	changes the channel when a radar is detected. This is required
+ *	to operate on DFS channels.
  * @basic_rates: bitmap of basic rates to use when creating the IBSS
  * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
@@ -1681,6 +1684,7 @@ struct cfg80211_ibss_params {
 	bool channel_fixed;
 	bool privacy;
 	bool control_port;
+	bool userspace_handles_dfs;
 	int mcast_rate[IEEE80211_NUM_BANDS];
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
@@ -3061,6 +3065,7 @@ struct cfg80211_cached_keys;
  * @conn: (private) cfg80211 software SME connection state machine data
  * @connect_keys: (private) keys to set after connection is established
  * @ibss_fixed: (private) IBSS is using fixed BSSID
+ * @ibss_dfs_possible: (private) IBSS may change to a DFS channel
  * @event_list: (private) list for internal event processing
  * @event_lock: (private) lock for event list
  */
@@ -3099,6 +3104,7 @@ struct wireless_dev {
 	struct ieee80211_channel *channel;
 
 	bool ibss_fixed;
+	bool ibss_dfs_possible;
 
 	bool ps;
 	int ps_timeout;
