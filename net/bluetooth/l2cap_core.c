@@ -497,6 +497,11 @@ void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 	chan->mode = L2CAP_MODE_LE_FLOWCTL;
 	chan->tx_credits = 0;
 	chan->rx_credits = L2CAP_LE_MAX_CREDITS;
+
+	if (chan->imtu < L2CAP_LE_DEFAULT_MPS)
+		chan->mps = chan->imtu;
+	else
+		chan->mps = L2CAP_LE_DEFAULT_MPS;
 }
 
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
@@ -645,7 +650,7 @@ static void l2cap_chan_le_connect_reject(struct l2cap_chan *chan)
 
 	rsp.dcid    = cpu_to_le16(chan->scid);
 	rsp.mtu     = cpu_to_le16(chan->imtu);
-	rsp.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
+	rsp.mps     = cpu_to_le16(chan->mps);
 	rsp.credits = cpu_to_le16(chan->rx_credits);
 	rsp.result  = cpu_to_le16(result);
 
@@ -1201,6 +1206,11 @@ static void l2cap_le_flowctl_start(struct l2cap_chan *chan)
 	chan->sdu_last_frag = NULL;
 	chan->sdu_len = 0;
 
+	if (chan->imtu < L2CAP_LE_DEFAULT_MPS)
+		chan->mps = chan->imtu;
+	else
+		chan->mps = L2CAP_LE_DEFAULT_MPS;
+
 	skb_queue_head_init(&chan->tx_q);
 
 	if (!chan->tx_credits)
@@ -1232,7 +1242,7 @@ static void l2cap_le_connect(struct l2cap_chan *chan)
 	req.psm     = chan->psm;
 	req.scid    = cpu_to_le16(chan->scid);
 	req.mtu     = cpu_to_le16(chan->imtu);
-	req.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
+	req.mps     = cpu_to_le16(chan->mps);
 	req.credits = cpu_to_le16(chan->rx_credits);
 
 	chan->ident = l2cap_get_ident(conn);
@@ -3826,7 +3836,7 @@ void __l2cap_le_connect_rsp_defer(struct l2cap_chan *chan)
 
 	rsp.dcid    = cpu_to_le16(chan->scid);
 	rsp.mtu     = cpu_to_le16(chan->imtu);
-	rsp.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
+	rsp.mps     = cpu_to_le16(chan->mps);
 	rsp.credits = cpu_to_le16(chan->rx_credits);
 	rsp.result  = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
 
@@ -5671,7 +5681,7 @@ response_unlock:
 response:
 	if (chan) {
 		rsp.mtu = cpu_to_le16(chan->imtu);
-		rsp.mps = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
+		rsp.mps = cpu_to_le16(chan->mps);
 	} else {
 		rsp.mtu = 0;
 		rsp.mps = 0;
