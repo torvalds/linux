@@ -1106,8 +1106,8 @@ int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			  u8 *dev_class);
 int mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     u8 link_type, u8 addr_type, u8 reason);
-int mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			   u8 link_type, u8 addr_type, u8 status);
+void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 link_type, u8 addr_type, u8 status);
 int mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			u8 addr_type, u8 status);
 int mgmt_pin_code_request(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 secure);

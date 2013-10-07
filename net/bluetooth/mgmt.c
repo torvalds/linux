@@ -4143,29 +4143,26 @@ int mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	return err;
 }
 
-int mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			   u8 link_type, u8 addr_type, u8 status)
+void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			    u8 link_type, u8 addr_type, u8 status)
 {
 	struct mgmt_rp_disconnect rp;
 	struct pending_cmd *cmd;
-	int err;
 
 	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, unpair_device_rsp,
 			     hdev);
 
 	cmd = mgmt_pending_find(MGMT_OP_DISCONNECT, hdev);
 	if (!cmd)
-		return -ENOENT;
+		return;
 
 	bacpy(&rp.addr.bdaddr, bdaddr);
 	rp.addr.type = link_to_bdaddr(link_type, addr_type);
 
-	err = cmd_complete(cmd->sk, cmd->index, MGMT_OP_DISCONNECT,
-			   mgmt_status(status), &rp, sizeof(rp));
+	cmd_complete(cmd->sk, cmd->index, MGMT_OP_DISCONNECT,
+		     mgmt_status(status), &rp, sizeof(rp));
 
 	mgmt_pending_remove(cmd);
-
-	return err;
 }
 
 int mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
