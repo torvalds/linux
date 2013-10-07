@@ -7,6 +7,7 @@ FILES=					\
 	test-fortify-source		\
 	test-bionic			\
 	test-libelf			\
+	test-glibc			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -37,6 +38,9 @@ test-bionic:
 
 test-libelf:
 	$(BUILD) -lelf
+
+test-glibc:
+	$(BUILD)
 
 test-libnuma:
 	$(BUILD) -lnuma
