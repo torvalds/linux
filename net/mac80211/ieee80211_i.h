@@ -501,6 +501,7 @@ struct ieee80211_if_ibss {
 	bool privacy;
 
 	bool control_port;
+	bool userspace_handles_dfs;
 
 	u8 bssid[ETH_ALEN] __aligned(2);
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
