@@ -656,7 +656,7 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 		q->quantum = nla_get_u32(tb[TCA_FQ_QUANTUM]);
 
 	if (tb[TCA_FQ_INITIAL_QUANTUM])
-		q->quantum = nla_get_u32(tb[TCA_FQ_INITIAL_QUANTUM]);
+		q->initial_quantum = nla_get_u32(tb[TCA_FQ_INITIAL_QUANTUM]);
 
 	if (tb[TCA_FQ_FLOW_DEFAULT_RATE])
 		q->flow_default_rate = nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]);
