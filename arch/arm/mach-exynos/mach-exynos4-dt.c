@@ -11,12 +11,8 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
-#include <linux/serial_core.h>
-#include <linux/memblock.h>
-#include <linux/clocksource.h>
 
 #include <asm/mach/arch.h>
 #include <plat/mfc.h>
