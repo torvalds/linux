@@ -806,7 +806,6 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 		} else {
 			us->range_type = 0;	/* XXX */
 		}
-		us->flags = s->flags;
 
 		if (s->busy)
 			us->subd_flags |= SDF_BUSY;
@@ -818,8 +817,6 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 			us->subd_flags |= SDF_LOCK_OWNER;
 		if (!s->maxdata && s->maxdata_list)
 			us->subd_flags |= SDF_MAXDATA;
-		if (s->flaglist)
-			us->subd_flags |= SDF_FLAGS;
 		if (s->range_table_list)
 			us->subd_flags |= SDF_RANGETYPE;
 		if (s->do_cmd)
@@ -875,13 +872,8 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 			return -EFAULT;
 	}
 
-	if (it.flaglist) {
-		if (!s->flaglist)
-			return -EINVAL;
-		if (copy_to_user(it.flaglist, s->flaglist,
-				 s->n_chan * sizeof(unsigned int)))
-			return -EFAULT;
-	}
+	if (it.flaglist)
+		return -EINVAL;	/* flaglist not supported */
 
 	if (it.rangelist) {
 		int i;
