@@ -2,6 +2,7 @@
 FILES=					\
 	test-hello			\
 	test-stackprotector-all		\
+	test-stackprotector		\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -17,6 +18,9 @@ test-hello:
 
 test-stackprotector-all:
 	$(BUILD) -Werror -fstack-protector-all
+
+test-stackprotector:
+	$(BUILD) -Werror -fstack-protector
 
 test-libnuma:
 	$(BUILD) -lnuma
