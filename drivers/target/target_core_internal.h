@@ -75,8 +75,6 @@ extern struct se_device *g_lun0_dev;
 
 struct se_node_acl *__core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
 		const char *);
-struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
-		unsigned char *);
 void	core_tpg_add_node_to_devs(struct se_node_acl *, struct se_portal_group *);
 void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
 struct se_lun *core_tpg_pre_addlun(struct se_portal_group *, u32);

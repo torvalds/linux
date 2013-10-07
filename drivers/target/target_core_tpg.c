@@ -116,6 +116,7 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(
 
 	return acl;
 }
+EXPORT_SYMBOL(core_tpg_get_initiator_node_acl);
 
 /*	core_tpg_add_node_to_devs():
  *
