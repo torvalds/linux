@@ -1,6 +1,7 @@
 config ALPHA
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
