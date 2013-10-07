@@ -231,6 +231,10 @@ struct kvm_vcpu_arch {
 		u64		stidp_data;
 	};
 	struct gmap *gmap;
+#define KVM_S390_PFAULT_TOKEN_INVALID	(-1UL)
+	unsigned long pfault_token;
+	unsigned long pfault_select;
+	unsigned long pfault_compare;
 };
 
 struct kvm_vm_stat {
@@ -256,6 +260,24 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 {
 	return IS_ERR_VALUE(addr);
 }
+
+#define ASYNC_PF_PER_VCPU	64
+struct kvm_vcpu;
+struct kvm_async_pf;
+struct kvm_arch_async_pf {
+	unsigned long pfault_token;
+};
+
+bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+
+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
+			       struct kvm_async_pf *work);
+
+void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+				     struct kvm_async_pf *work);
+
+void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+				 struct kvm_async_pf *work);
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);
 extern char sie_exit;

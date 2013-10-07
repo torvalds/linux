@@ -31,7 +31,7 @@ static int is_ioint(u64 type)
 	return ((type & 0xfffe0000u) != 0xfffe0000u);
 }
 
-static int psw_extint_disabled(struct kvm_vcpu *vcpu)
+int psw_extint_disabled(struct kvm_vcpu *vcpu)
 {
 	return !(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_EXT);
 }
@@ -78,11 +78,8 @@ static int __interrupt_is_deliverable(struct kvm_vcpu *vcpu,
 			return 1;
 		return 0;
 	case KVM_S390_INT_SERVICE:
-		if (psw_extint_disabled(vcpu))
-			return 0;
-		if (vcpu->arch.sie_block->gcr[0] & 0x200ul)
-			return 1;
-		return 0;
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 		if (psw_extint_disabled(vcpu))
 			return 0;
@@ -150,6 +147,8 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 	case KVM_S390_INT_EXTERNAL_CALL:
 	case KVM_S390_INT_EMERGENCY:
 	case KVM_S390_INT_SERVICE:
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 		if (psw_extint_disabled(vcpu))
 			__set_cpuflag(vcpu, CPUSTAT_EXT_INT);
@@ -222,6 +221,30 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 				      __LC_EXT_NEW_PSW, sizeof(psw_t));
 		rc |= put_guest(vcpu, inti->ext.ext_params,
 				(u32 __user *)__LC_EXT_PARAMS);
+		break;
+	case KVM_S390_INT_PFAULT_INIT:
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type, 0,
+						 inti->ext.ext_params2);
+		rc  = put_guest(vcpu, 0x2603, (u16 __user *) __LC_EXT_INT_CODE);
+		rc |= put_guest(vcpu, 0x0600, (u16 __user *) __LC_EXT_CPU_ADDR);
+		rc |= copy_to_guest(vcpu, __LC_EXT_OLD_PSW,
+				    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
+		rc |= copy_from_guest(vcpu, &vcpu->arch.sie_block->gpsw,
+				      __LC_EXT_NEW_PSW, sizeof(psw_t));
+		rc |= put_guest(vcpu, inti->ext.ext_params2,
+				(u64 __user *) __LC_EXT_PARAMS2);
+		break;
+	case KVM_S390_INT_PFAULT_DONE:
+		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type, 0,
+						 inti->ext.ext_params2);
+		rc  = put_guest(vcpu, 0x2603, (u16 __user *) __LC_EXT_INT_CODE);
+		rc |= put_guest(vcpu, 0x0680, (u16 __user *) __LC_EXT_CPU_ADDR);
+		rc |= copy_to_guest(vcpu, __LC_EXT_OLD_PSW,
+				    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
+		rc |= copy_from_guest(vcpu, &vcpu->arch.sie_block->gpsw,
+				      __LC_EXT_NEW_PSW, sizeof(psw_t));
+		rc |= put_guest(vcpu, inti->ext.ext_params2,
+				(u64 __user *) __LC_EXT_PARAMS2);
 		break;
 	case KVM_S390_INT_VIRTIO:
 		VCPU_EVENT(vcpu, 4, "interrupt: virtio parm:%x,parm64:%llx",
@@ -357,7 +380,7 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
+int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
@@ -737,6 +760,10 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 		VM_EVENT(kvm, 5, "inject: sclp parm:%x", s390int->parm);
 		inti->ext.ext_params = s390int->parm;
 		break;
+	case KVM_S390_INT_PFAULT_DONE:
+		inti->type = s390int->type;
+		inti->ext.ext_params2 = s390int->parm64;
+		break;
 	case KVM_S390_MCHK:
 		VM_EVENT(kvm, 5, "inject: machine check parm64:%llx",
 			 s390int->parm64);
@@ -823,6 +850,10 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		inti->type = s390int->type;
 		inti->mchk.mcic = s390int->parm64;
 		break;
+	case KVM_S390_INT_PFAULT_INIT:
+		inti->type = s390int->type;
+		inti->ext.ext_params2 = s390int->parm64;
+		break;
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
@@ -877,6 +908,8 @@ static inline int copy_irq_to_user(struct kvm_s390_interrupt_info *inti,
 
 	irq.type = inti->type;
 	switch (inti->type) {
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:
 		irq.u.ext = inti->ext;
@@ -956,6 +989,8 @@ static inline int copy_irq_from_user(struct kvm_s390_interrupt_info *inti,
 		return -EFAULT;
 
 	switch (inti->type) {
+	case KVM_S390_INT_PFAULT_INIT:
+	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:
 		target = (void *) &inti->ext;
@@ -1019,6 +1054,8 @@ static int enqueue_floating_irq(struct kvm_device *dev,
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
+	unsigned int i;
+	struct kvm_vcpu *vcpu;
 
 	switch (attr->group) {
 	case KVM_DEV_FLIC_ENQUEUE:
@@ -1027,6 +1064,20 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_CLEAR_IRQS:
 		r = 0;
 		clear_floating_interrupts(dev->kvm);
+		break;
+	case KVM_DEV_FLIC_APF_ENABLE:
+		dev->kvm->arch.gmap->pfault_enabled = 1;
+		break;
+	case KVM_DEV_FLIC_APF_DISABLE_WAIT:
+		dev->kvm->arch.gmap->pfault_enabled = 0;
+		/*
+		 * Make sure no async faults are in transition when
+		 * clearing the queues. So we don't need to worry
+		 * about late coming workers.
+		 */
+		synchronize_srcu(&dev->kvm->srcu);
+		kvm_for_each_vcpu(i, vcpu, dev->kvm)
+			kvm_clear_async_pf_completion_queue(vcpu);
 		break;
 	default:
 		r = -EINVAL;

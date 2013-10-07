@@ -224,6 +224,8 @@ unlock:
 static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 {
 	int rc;
+	unsigned int i;
+	struct kvm_vcpu *v;
 
 	switch (parameter & 0xff) {
 	case 0:
@@ -231,6 +233,11 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 		break;
 	case 1:
 	case 2:
+		kvm_for_each_vcpu(i, v, vcpu->kvm) {
+			v->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
+			kvm_clear_async_pf_completion_queue(v);
+		}
+
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 		break;
 	default:

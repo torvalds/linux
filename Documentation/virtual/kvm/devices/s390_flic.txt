@@ -11,6 +11,7 @@ FLIC provides support to
 - add interrupts (KVM_DEV_FLIC_ENQUEUE)
 - inspect currently pending interrupts (KVM_FLIC_GET_ALL_IRQS)
 - purge all pending floating interrupts (KVM_DEV_FLIC_CLEAR_IRQS)
+- enable/disable for the guest transparent async page faults
 
 Groups:
   KVM_DEV_FLIC_ENQUEUE
@@ -34,3 +35,12 @@ Groups:
   KVM_DEV_FLIC_CLEAR_IRQS
     Simply deletes all elements from the list of currently pending floating
     interrupts.  No interrupts are injected into the guest.
+
+  KVM_DEV_FLIC_APF_ENABLE
+    Enables async page faults for the guest. So in case of a major page fault
+    the host is allowed to handle this async and continues the guest.
+
+  KVM_DEV_FLIC_APF_DISABLE_WAIT
+    Disables async page faults for the guest and waits until already pending
+    async page faults are done. This is necessary to trigger a completion interrupt
+    for every init interrupt before migrating the interrupt list.

@@ -152,6 +152,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_KVM_S390_UCONTROL
 	case KVM_CAP_S390_UCONTROL:
 #endif
+	case KVM_CAP_ASYNC_PF:
 	case KVM_CAP_SYNC_REGS:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ENABLE_CAP:
@@ -273,6 +274,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
 	trace_kvm_s390_destroy_vcpu(vcpu->vcpu_id);
+	kvm_clear_async_pf_completion_queue(vcpu);
 	if (!kvm_is_ucontrol(vcpu->kvm)) {
 		clear_bit(63 - vcpu->vcpu_id,
 			  (unsigned long *) &vcpu->kvm->arch.sca->mcn);
@@ -322,6 +324,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 /* Section: vcpu related */
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
+	kvm_clear_async_pf_completion_queue(vcpu);
 	if (kvm_is_ucontrol(vcpu->kvm)) {
 		vcpu->arch.gmap = gmap_alloc(current->mm);
 		if (!vcpu->arch.gmap)
@@ -382,6 +386,8 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.guest_fpregs.fpc = 0;
 	asm volatile("lfpc %0" : : "Q" (vcpu->arch.guest_fpregs.fpc));
 	vcpu->arch.sie_block->gbea = 1;
+	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
+	kvm_clear_async_pf_completion_queue(vcpu);
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
 }
 
@@ -713,9 +719,88 @@ static long kvm_arch_fault_in_sync(struct kvm_vcpu *vcpu)
 	return rc;
 }
 
+static void __kvm_inject_pfault_token(struct kvm_vcpu *vcpu, bool start_token,
+				      unsigned long token)
+{
+	struct kvm_s390_interrupt inti;
+	inti.parm64 = token;
+
+	if (start_token) {
+		inti.type = KVM_S390_INT_PFAULT_INIT;
+		WARN_ON_ONCE(kvm_s390_inject_vcpu(vcpu, &inti));
+	} else {
+		inti.type = KVM_S390_INT_PFAULT_DONE;
+		WARN_ON_ONCE(kvm_s390_inject_vm(vcpu->kvm, &inti));
+	}
+}
+
+void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+				     struct kvm_async_pf *work)
+{
+	trace_kvm_s390_pfault_init(vcpu, work->arch.pfault_token);
+	__kvm_inject_pfault_token(vcpu, true, work->arch.pfault_token);
+}
+
+void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+				 struct kvm_async_pf *work)
+{
+	trace_kvm_s390_pfault_done(vcpu, work->arch.pfault_token);
+	__kvm_inject_pfault_token(vcpu, false, work->arch.pfault_token);
+}
+
+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
+			       struct kvm_async_pf *work)
+{
+	/* s390 will always inject the page directly */
+}
+
+bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * s390 will always inject the page directly,
+	 * but we still want check_async_completion to cleanup
+	 */
+	return true;
+}
+
+static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu)
+{
+	hva_t hva;
+	struct kvm_arch_async_pf arch;
+	int rc;
+
+	if (vcpu->arch.pfault_token == KVM_S390_PFAULT_TOKEN_INVALID)
+		return 0;
+	if ((vcpu->arch.sie_block->gpsw.mask & vcpu->arch.pfault_select) !=
+	    vcpu->arch.pfault_compare)
+		return 0;
+	if (psw_extint_disabled(vcpu))
+		return 0;
+	if (kvm_cpu_has_interrupt(vcpu))
+		return 0;
+	if (!(vcpu->arch.sie_block->gcr[0] & 0x200ul))
+		return 0;
+	if (!vcpu->arch.gmap->pfault_enabled)
+		return 0;
+
+	hva = gmap_fault(current->thread.gmap_addr, vcpu->arch.gmap);
+	if (copy_from_guest(vcpu, &arch.pfault_token, vcpu->arch.pfault_token, 8))
+		return 0;
+
+	rc = kvm_setup_async_pf(vcpu, current->thread.gmap_addr, hva, &arch);
+	return rc;
+}
+
 static int vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
 	int rc, cpuflags;
+
+	/*
+	 * On s390 notifications for arriving pages will be delivered directly
+	 * to the guest but the house keeping for completed pfaults is
+	 * handled outside the worker.
+	 */
+	kvm_check_async_pf_completion(vcpu);
 
 	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->run->s.regs.gprs[14], 16);
 
@@ -758,8 +843,10 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 		rc = -EREMOTE;
 
 	} else if (current->thread.gmap_pfault) {
+		trace_kvm_s390_major_guest_pfault(vcpu);
 		current->thread.gmap_pfault = 0;
-		if (kvm_arch_fault_in_sync(vcpu) >= 0)
+		if (kvm_arch_setup_async_pf(vcpu) ||
+		    (kvm_arch_fault_in_sync(vcpu) >= 0))
 			rc = 0;
 	}
 
