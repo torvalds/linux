@@ -1137,7 +1137,7 @@ static int task_numa_migrate(struct task_struct *p)
 		.p = p,
 
 		.src_cpu = task_cpu(p),
-		.src_nid = cpu_to_node(task_cpu(p)),
+		.src_nid = task_node(p),
 
 		.imbalance_pct = 112,
 
@@ -1514,6 +1514,9 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 	/* Retry task to preferred node migration if it previously failed */
 	if (p->numa_migrate_retry && time_after(jiffies, p->numa_migrate_retry))
 		numa_migrate_preferred(p);
+
+	if (migrated)
+		p->numa_pages_migrated += pages;
 
 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
 }
