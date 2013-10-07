@@ -1039,6 +1039,18 @@ void task_numa_work(struct callback_head *work)
 
 out:
 	/*
+	 * If the whole process was scanned without updates then no NUMA
+	 * hinting faults are being recorded and scan rate should be lower.
+	 */
+	if (mm->numa_scan_offset == 0 && !nr_pte_updates) {
+		p->numa_scan_period = min(p->numa_scan_period_max,
+			p->numa_scan_period << 1);
+
+		next_scan = now + msecs_to_jiffies(p->numa_scan_period);
+		mm->numa_next_scan = next_scan;
+	}
+
+	/*
 	 * It is possible to reach the end of the VMA list but the last few
 	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
 	 * would find the !migratable VMA on the next scan but not reset the
