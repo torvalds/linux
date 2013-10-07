@@ -134,9 +134,11 @@ extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
 extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
-extern void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
+extern void kvmppc_core_free_memslot(struct kvm *kvm,
+				     struct kvm_memory_slot *free,
 				     struct kvm_memory_slot *dont);
-extern int kvmppc_core_create_memslot(struct kvm_memory_slot *slot,
+extern int kvmppc_core_create_memslot(struct kvm *kvm,
+				      struct kvm_memory_slot *slot,
 				      unsigned long npages);
 extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot *memslot,
