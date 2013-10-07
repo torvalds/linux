@@ -363,7 +363,7 @@ static struct hwbus_ops cw1200_spi_hwbus_ops = {
 static int cw1200_spi_probe(struct spi_device *func)
 {
 	const struct cw1200_platform_data_spi *plat_data =
-		func->dev.platform_data;
+		dev_get_platdata(&func->dev);
 	struct hwbus_priv *self;
 	int status;
 
@@ -441,7 +441,7 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 		}
 		kfree(self);
 	}
-	cw1200_spi_off(func->dev.platform_data);
+	cw1200_spi_off(dev_get_platdata(&func->dev));
 
 	return 0;
 }

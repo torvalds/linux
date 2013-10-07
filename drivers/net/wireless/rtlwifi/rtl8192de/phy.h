@@ -39,9 +39,7 @@
 #define RT_CANNOT_IO(hw)			false
 #define HIGHPOWER_RADIOA_ARRAYLEN		22
 
-#define IQK_ADDA_REG_NUM			16
 #define MAX_TOLERANCE				5
-#define	IQK_DELAY_TIME				1
 
 #define	APK_BB_REG_NUM				5
 #define	APK_AFE_REG_NUM				16
@@ -127,13 +125,16 @@ static inline void rtl92d_release_cckandrw_pagea_ctl(struct ieee80211_hw *hw,
 			*flag);
 }
 
-u32 rtl92d_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask);
-void rtl92d_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask,
-			   u32 data);
-u32 rtl92d_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
+u32 rtl92d_phy_query_bb_reg(struct ieee80211_hw *hw,
 			    u32 regaddr, u32 bitmask);
-void rtl92d_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
+void rtl92d_phy_set_bb_reg(struct ieee80211_hw *hw,
 			   u32 regaddr, u32 bitmask, u32 data);
+u32 rtl92d_phy_query_rf_reg(struct ieee80211_hw *hw,
+			    enum radio_path rfpath, u32 regaddr,
+			    u32 bitmask);
+void rtl92d_phy_set_rf_reg(struct ieee80211_hw *hw,
+			   enum radio_path rfpath, u32 regaddr,
+			   u32 bitmask, u32 data);
 bool rtl92d_phy_mac_config(struct ieee80211_hw *hw);
 bool rtl92d_phy_bb_config(struct ieee80211_hw *hw);
 bool rtl92d_phy_rf_config(struct ieee80211_hw *hw);
@@ -141,7 +142,6 @@ bool rtl92c_phy_config_rf_with_feaderfile(struct ieee80211_hw *hw,
 					  enum radio_path rfpath);
 void rtl92d_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
 void rtl92d_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
-void rtl92d_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation);
 void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type);
 u8 rtl92d_phy_sw_chnl(struct ieee80211_hw *hw);
@@ -169,6 +169,5 @@ void rtl92d_acquire_cckandrw_pagea_ctl(struct ieee80211_hw *hw,
 				       unsigned long *flag);
 u8 rtl92d_get_rightchnlplace_for_iqk(u8 chnl);
 void rtl92d_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel);
-void rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw);
 
 #endif

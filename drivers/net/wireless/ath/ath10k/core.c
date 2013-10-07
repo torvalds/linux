@@ -39,17 +39,6 @@ MODULE_PARM_DESC(p2p, "Enable ath10k P2P support");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
-		.id = QCA988X_HW_1_0_VERSION,
-		.name = "qca988x hw1.0",
-		.patch_load_addr = QCA988X_HW_1_0_PATCH_LOAD_ADDR,
-		.fw = {
-			.dir = QCA988X_HW_1_0_FW_DIR,
-			.fw = QCA988X_HW_1_0_FW_FILE,
-			.otp = QCA988X_HW_1_0_OTP_FILE,
-			.board = QCA988X_HW_1_0_BOARD_DATA_FILE,
-		},
-	},
-	{
 		.id = QCA988X_HW_2_0_VERSION,
 		.name = "qca988x hw2.0",
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
@@ -64,7 +53,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 
 static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
-	ath10k_dbg(ATH10K_DBG_CORE, "%s\n", __func__);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot suspend complete\n");
 
 	ar->is_target_paused = true;
 	wake_up(&ar->event_queue);
@@ -112,7 +101,7 @@ static int ath10k_init_connect_htc(struct ath10k *ar)
 		goto timeout;
 	}
 
-	ath10k_dbg(ATH10K_DBG_CORE, "core wmi ready\n");
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot wmi ready\n");
 	return 0;
 
 timeout:
@@ -214,8 +203,8 @@ static int ath10k_push_board_ext_data(struct ath10k *ar,
 		return ret;
 	}
 
-	ath10k_dbg(ATH10K_DBG_CORE,
-		   "ath10k: Board extended Data download addr: 0x%x\n",
+	ath10k_dbg(ATH10K_DBG_BOOT,
+		   "boot push board extended data addr 0x%x\n",
 		   board_ext_data_addr);
 
 	if (board_ext_data_addr == 0)
@@ -446,6 +435,13 @@ static int ath10k_init_uart(struct ath10k *ar)
 		return ret;
 	}
 
+	/* Set the UART baud rate to 19200. */
+	ret = ath10k_bmi_write32(ar, hi_desired_baud_rate, 19200);
+	if (ret) {
+		ath10k_warn("could not set the baud rate (%d)\n", ret);
+		return ret;
+	}
+
 	ath10k_info("UART prints enabled\n");
 	return 0;
 }
@@ -641,6 +637,10 @@ int ath10k_core_start(struct ath10k *ar)
 	if (status)
 		goto err_disconnect_htc;
 
+	status = ath10k_debug_start(ar);
+	if (status)
+		goto err_disconnect_htc;
+
 	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
 
 	return 0;
@@ -658,6 +658,7 @@ EXPORT_SYMBOL(ath10k_core_start);
 
 void ath10k_core_stop(struct ath10k *ar)
 {
+	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
 	ath10k_htt_detach(&ar->htt);
 	ath10k_wmi_detach(ar);
@@ -717,9 +718,45 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_core_register(struct ath10k *ar)
+static int ath10k_core_check_chip_id(struct ath10k *ar)
+{
+	u32 hw_revision = MS(ar->chip_id, SOC_CHIP_ID_REV);
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot chip_id 0x%08x hw_revision 0x%x\n",
+		   ar->chip_id, hw_revision);
+
+	/* Check that we are not using hw1.0 (some of them have same pci id
+	 * as hw2.0) before doing anything else as ath10k crashes horribly
+	 * due to missing hw1.0 workarounds. */
+	switch (hw_revision) {
+	case QCA988X_HW_1_0_CHIP_ID_REV:
+		ath10k_err("ERROR: qca988x hw1.0 is not supported\n");
+		return -EOPNOTSUPP;
+
+	case QCA988X_HW_2_0_CHIP_ID_REV:
+		/* known hardware revision, continue normally */
+		return 0;
+
+	default:
+		ath10k_warn("Warning: hardware revision unknown (0x%x), expect problems\n",
+			    ar->chip_id);
+		return 0;
+	}
+
+	return 0;
+}
+
+int ath10k_core_register(struct ath10k *ar, u32 chip_id)
 {
 	int status;
+
+	ar->chip_id = chip_id;
+
+	status = ath10k_core_check_chip_id(ar);
+	if (status) {
+		ath10k_err("Unsupported chip id 0x%08x\n", ar->chip_id);
+		return status;
+	}
 
 	status = ath10k_core_probe_fw(ar);
 	if (status) {
@@ -755,6 +792,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
+
 	ath10k_core_free_firmware_files(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);

@@ -519,6 +519,8 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 	if (lmp_bredr_capable(hdev))
 		bredr_setup(req);
+	else
+		clear_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
 
 	if (lmp_le_capable(hdev))
 		le_setup(req);
@@ -607,6 +609,34 @@ static void hci_set_le_support(struct hci_request *req)
 			    &cp);
 }
 
+static void hci_set_event_mask_page_2(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	u8 events[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	/* If Connectionless Slave Broadcast master role is supported
+	 * enable all necessary events for it.
+	 */
+	if (hdev->features[2][0] & 0x01) {
+		events[1] |= 0x40;	/* Triggered Clock Capture */
+		events[1] |= 0x80;	/* Synchronization Train Complete */
+		events[2] |= 0x10;	/* Slave Page Response Timeout */
+		events[2] |= 0x20;	/* CSB Channel Map Change */
+	}
+
+	/* If Connectionless Slave Broadcast slave role is supported
+	 * enable all necessary events for it.
+	 */
+	if (hdev->features[2][0] & 0x02) {
+		events[2] |= 0x01;	/* Synchronization Train Received */
+		events[2] |= 0x02;	/* CSB Receive */
+		events[2] |= 0x04;	/* CSB Timeout */
+		events[2] |= 0x08;	/* Truncated Page Complete */
+	}
+
+	hci_req_add(req, HCI_OP_SET_EVENT_MASK_PAGE_2, sizeof(events), events);
+}
+
 static void hci_init3_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
@@ -648,6 +678,19 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	}
 }
 
+static void hci_init4_req(struct hci_request *req, unsigned long opt)
+{
+	struct hci_dev *hdev = req->hdev;
+
+	/* Set event mask page 2 if the HCI command for it is supported */
+	if (hdev->commands[22] & 0x04)
+		hci_set_event_mask_page_2(req);
+
+	/* Check for Synchronization Train support */
+	if (hdev->features[2][0] & 0x04)
+		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
+}
+
 static int __hci_init(struct hci_dev *hdev)
 {
 	int err;
@@ -667,7 +710,11 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	return __hci_req_sync(hdev, hci_init3_req, 0, HCI_INIT_TIMEOUT);
+	err = __hci_req_sync(hdev, hci_init3_req, 0, HCI_INIT_TIMEOUT);
+	if (err < 0)
+		return err;
+
+	return __hci_req_sync(hdev, hci_init4_req, 0, HCI_INIT_TIMEOUT);
 }
 
 static void hci_scan_req(struct hci_request *req, unsigned long opt)
@@ -984,6 +1031,16 @@ int hci_inquiry(void __user *arg)
 	if (!hdev)
 		return -ENODEV;
 
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		err = -EBUSY;
+		goto done;
+	}
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+
 	hci_dev_lock(hdev);
 	if (inquiry_cache_age(hdev) > INQUIRY_CACHE_AGE_MAX ||
 	    inquiry_cache_empty(hdev) || ir.flags & IREQ_CACHE_FLUSH) {
@@ -1051,14 +1108,14 @@ static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
 	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
 		flags |= LE_AD_GENERAL;
 
-	if (!lmp_bredr_capable(hdev))
+	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		if (lmp_le_br_capable(hdev))
+			flags |= LE_AD_SIM_LE_BREDR_CTRL;
+		if (lmp_host_le_br_capable(hdev))
+			flags |= LE_AD_SIM_LE_BREDR_HOST;
+	} else {
 		flags |= LE_AD_NO_BREDR;
-
-	if (lmp_le_br_capable(hdev))
-		flags |= LE_AD_SIM_LE_BREDR_CTRL;
-
-	if (lmp_host_le_br_capable(hdev))
-		flags |= LE_AD_SIM_LE_BREDR_HOST;
+	}
 
 	if (flags) {
 		BT_DBG("adv flags 0x%02x", flags);
@@ -1126,16 +1183,9 @@ void hci_update_ad(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
-/* ---- HCI ioctl helpers ---- */
-
-int hci_dev_open(__u16 dev)
+static int hci_dev_do_open(struct hci_dev *hdev)
 {
-	struct hci_dev *hdev;
 	int ret = 0;
-
-	hdev = hci_dev_get(dev);
-	if (!hdev)
-		return -ENODEV;
 
 	BT_DBG("%s %p", hdev->name, hdev);
 
@@ -1172,16 +1222,11 @@ int hci_dev_open(__u16 dev)
 		ret = hdev->setup(hdev);
 
 	if (!ret) {
-		/* Treat all non BR/EDR controllers as raw devices if
-		 * enable_hs is not set.
-		 */
-		if (hdev->dev_type != HCI_BREDR && !enable_hs)
-			set_bit(HCI_RAW, &hdev->flags);
-
 		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 			set_bit(HCI_RAW, &hdev->flags);
 
-		if (!test_bit(HCI_RAW, &hdev->flags))
+		if (!test_bit(HCI_RAW, &hdev->flags) &&
+		    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
 			ret = __hci_init(hdev);
 	}
 
@@ -1192,6 +1237,7 @@ int hci_dev_open(__u16 dev)
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+		    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags) &&
 		    mgmt_valid_hdev(hdev)) {
 			hci_dev_lock(hdev);
 			mgmt_powered(hdev, 1);
@@ -1220,8 +1266,35 @@ int hci_dev_open(__u16 dev)
 
 done:
 	hci_req_unlock(hdev);
-	hci_dev_put(hdev);
 	return ret;
+}
+
+/* ---- HCI ioctl helpers ---- */
+
+int hci_dev_open(__u16 dev)
+{
+	struct hci_dev *hdev;
+	int err;
+
+	hdev = hci_dev_get(dev);
+	if (!hdev)
+		return -ENODEV;
+
+	/* We need to ensure that no other power on/off work is pending
+	 * before proceeding to call hci_dev_do_open. This is
+	 * particularly important if the setup procedure has not yet
+	 * completed.
+	 */
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+		cancel_delayed_work(&hdev->power_off);
+
+	flush_workqueue(hdev->req_workqueue);
+
+	err = hci_dev_do_open(hdev);
+
+	hci_dev_put(hdev);
+
+	return err;
 }
 
 static int hci_dev_do_close(struct hci_dev *hdev)
@@ -1328,11 +1401,17 @@ int hci_dev_close(__u16 dev)
 	if (!hdev)
 		return -ENODEV;
 
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		err = -EBUSY;
+		goto done;
+	}
+
 	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		cancel_delayed_work(&hdev->power_off);
 
 	err = hci_dev_do_close(hdev);
 
+done:
 	hci_dev_put(hdev);
 	return err;
 }
@@ -1348,8 +1427,15 @@ int hci_dev_reset(__u16 dev)
 
 	hci_req_lock(hdev);
 
-	if (!test_bit(HCI_UP, &hdev->flags))
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		ret = -ENETDOWN;
 		goto done;
+	}
+
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		ret = -EBUSY;
+		goto done;
+	}
 
 	/* Drop queues */
 	skb_queue_purge(&hdev->rx_q);
@@ -1384,10 +1470,15 @@ int hci_dev_reset_stat(__u16 dev)
 	if (!hdev)
 		return -ENODEV;
 
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		ret = -EBUSY;
+		goto done;
+	}
+
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 
+done:
 	hci_dev_put(hdev);
-
 	return ret;
 }
 
@@ -1403,6 +1494,16 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 	hdev = hci_dev_get(dr.dev_id);
 	if (!hdev)
 		return -ENODEV;
+
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		err = -EBUSY;
+		goto done;
+	}
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
 
 	switch (cmd) {
 	case HCISETAUTH:
@@ -1462,6 +1563,7 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		break;
 	}
 
+done:
 	hci_dev_put(hdev);
 	return err;
 }
@@ -1534,7 +1636,7 @@ int hci_get_dev_info(void __user *arg)
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
-	di.type     = (hdev->bus & 0x0f) | (hdev->dev_type << 4);
+	di.type     = (hdev->bus & 0x0f) | ((hdev->dev_type & 0x03) << 4);
 	di.flags    = hdev->flags;
 	di.pkt_type = hdev->pkt_type;
 	if (lmp_bredr_capable(hdev)) {
@@ -1570,6 +1672,9 @@ static int hci_rfkill_set_block(void *data, bool blocked)
 
 	BT_DBG("%p name %s blocked %d", hdev, hdev->name, blocked);
 
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
+		return -EBUSY;
+
 	if (blocked) {
 		set_bit(HCI_RFKILLED, &hdev->dev_flags);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags))
@@ -1592,7 +1697,7 @@ static void hci_power_on(struct work_struct *work)
 
 	BT_DBG("%s", hdev->name);
 
-	err = hci_dev_open(hdev->id);
+	err = hci_dev_do_open(hdev);
 	if (err < 0) {
 		mgmt_set_powered_failed(hdev, err);
 		return;
@@ -2225,8 +2330,13 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	set_bit(HCI_SETUP, &hdev->dev_flags);
 
-	if (hdev->dev_type != HCI_AMP)
+	if (hdev->dev_type != HCI_AMP) {
 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+		/* Assume BR/EDR support until proven otherwise (such as
+		 * through reading supported features during init.
+		 */
+		set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+	}
 
 	write_lock(&hci_dev_list_lock);
 	list_add(&hdev->list, &hci_dev_list);
@@ -3272,15 +3382,13 @@ static void hci_tx_work(struct work_struct *work)
 	BT_DBG("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
 	       hdev->sco_cnt, hdev->le_cnt);
 
-	/* Schedule queues and send stuff to HCI driver */
-
-	hci_sched_acl(hdev);
-
-	hci_sched_sco(hdev);
-
-	hci_sched_esco(hdev);
-
-	hci_sched_le(hdev);
+	if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		/* Schedule queues and send stuff to HCI driver */
+		hci_sched_acl(hdev);
+		hci_sched_sco(hdev);
+		hci_sched_esco(hdev);
+		hci_sched_le(hdev);
+	}
 
 	/* Send next queued raw (unknown type) packet */
 	while ((skb = skb_dequeue(&hdev->raw_q)))
@@ -3471,7 +3579,8 @@ static void hci_rx_work(struct work_struct *work)
 			hci_send_to_sock(hdev, skb);
 		}
 
-		if (test_bit(HCI_RAW, &hdev->flags)) {
+		if (test_bit(HCI_RAW, &hdev->flags) ||
+		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 			kfree_skb(skb);
 			continue;
 		}
@@ -3526,7 +3635,7 @@ static void hci_cmd_work(struct work_struct *work)
 
 		kfree_skb(hdev->sent_cmd);
 
-		hdev->sent_cmd = skb_clone(skb, GFP_ATOMIC);
+		hdev->sent_cmd = skb_clone(skb, GFP_KERNEL);
 		if (hdev->sent_cmd) {
 			atomic_dec(&hdev->cmd_cnt);
 			hci_send_frame(skb);

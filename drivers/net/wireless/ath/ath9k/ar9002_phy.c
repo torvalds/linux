@@ -485,7 +485,7 @@ static void ar9002_hw_do_getnf(struct ath_hw *ah,
 	if (IS_CHAN_HT40(ah->curchan))
 		nfarray[3] = sign_extend32(nf, 8);
 
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+	if (!(ah->rxchainmask & BIT(1)))
 		return;
 
 	nf = MS(REG_READ(ah, AR_PHY_CH1_CCA), AR9280_PHY_CH1_MINCCA_PWR);
@@ -532,6 +532,7 @@ static void ar9002_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 				 AR_PHY_9285_ANT_DIV_ALT_LNACONF_S;
 	antconf->fast_div_bias = (regval & AR_PHY_9285_FAST_DIV_BIAS) >>
 				  AR_PHY_9285_FAST_DIV_BIAS_S;
+	antconf->lna1_lna2_switch_delta = -1;
 	antconf->lna1_lna2_delta = -3;
 	antconf->div_group = 0;
 }

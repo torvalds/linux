@@ -549,6 +549,18 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 
 	ath9k_hw_ani_init(ah);
 
+	/*
+	 * EEPROM needs to be initialized before we do this.
+	 * This is required for regulatory compliance.
+	 */
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+		u16 regdmn = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
+		if ((regdmn & 0xF0) == CTL_FCC) {
+			ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9462_FCC_2GHZ;
+			ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9462_FCC_5GHZ;
+		}
+	}
+
 	return 0;
 }
 
@@ -1644,6 +1656,19 @@ hang_check_iter:
 	return true;
 }
 
+void ath9k_hw_check_nav(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 val;
+
+	val = REG_READ(ah, AR_NAV);
+	if (val != 0xdeadbeef && val > 0x7fff) {
+		ath_dbg(common, BSTUCK, "Abnormal NAV: 0x%x\n", val);
+		REG_WRITE(ah, AR_NAV, 0);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_check_nav);
+
 bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
@@ -1822,9 +1847,9 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * re-using are present.
 	 */
 	if (AR_SREV_9462(ah) && (ah->caldata &&
-				 (!ah->caldata->done_txiqcal_once ||
-				  !ah->caldata->done_txclcal_once ||
-				  !ah->caldata->rtt_done)))
+				 (!test_bit(TXIQCAL_DONE, &ah->caldata->cal_flags) ||
+				  !test_bit(TXCLCAL_DONE, &ah->caldata->cal_flags) ||
+				  !test_bit(RTT_DONE, &ah->caldata->cal_flags))))
 		goto fail;
 
 	ath_dbg(common, RESET, "FastChannelChange for %d -> %d\n",
@@ -1880,7 +1905,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
 	} else if (caldata) {
-		caldata->paprd_packet_sent = false;
+		clear_bit(PAPRD_PACKET_SENT, &caldata->cal_flags);
 	}
 	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 
@@ -2017,8 +2042,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_init_bb(ah, chan);
 
 	if (caldata) {
-		caldata->done_txiqcal_once = false;
-		caldata->done_txclcal_once = false;
+		clear_bit(TXIQCAL_DONE, &caldata->cal_flags);
+		clear_bit(TXCLCAL_DONE, &caldata->cal_flags);
 	}
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
@@ -3240,19 +3265,19 @@ void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len)
 
 	/* chipsets >= AR9280 are single-chip */
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
-		used = snprintf(hw_name, len,
-			       "Atheros AR%s Rev:%x",
-			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
-			       ah->hw_version.macRev);
+		used = scnprintf(hw_name, len,
+				 "Atheros AR%s Rev:%x",
+				 ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
+				 ah->hw_version.macRev);
 	}
 	else {
-		used = snprintf(hw_name, len,
-			       "Atheros AR%s MAC/BB Rev:%x AR%s RF Rev:%x",
-			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
-			       ah->hw_version.macRev,
-			       ath9k_hw_rf_name((ah->hw_version.analog5GhzRev &
-						AR_RADIO_SREV_MAJOR)),
-			       ah->hw_version.phyRev);
+		used = scnprintf(hw_name, len,
+				 "Atheros AR%s MAC/BB Rev:%x AR%s RF Rev:%x",
+				 ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
+				 ah->hw_version.macRev,
+				 ath9k_hw_rf_name((ah->hw_version.analog5GhzRev
+						  & AR_RADIO_SREV_MAJOR)),
+				 ah->hw_version.phyRev);
 	}
 
 	hw_name[used] = '\0';

@@ -522,22 +522,22 @@ static int ath9k_dump_mci_btcoex(struct ath_softc *sc, u8 *buf, u32 size)
 	ATH_DUMP_BTCOEX("Concurrent Tx", btcoex_hw->mci.concur_tx);
 	ATH_DUMP_BTCOEX("Concurrent RSSI cnt", btcoex->rssi_count);
 
-	len += snprintf(buf + len, size - len, "BT Weights: ");
+	len += scnprintf(buf + len, size - len, "BT Weights: ");
 	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
-		len += snprintf(buf + len, size - len, "%08x ",
-				btcoex_hw->bt_weight[i]);
-	len += snprintf(buf + len, size - len, "\n");
-	len += snprintf(buf + len, size - len, "WLAN Weights: ");
+		len += scnprintf(buf + len, size - len, "%08x ",
+				 btcoex_hw->bt_weight[i]);
+	len += scnprintf(buf + len, size - len, "\n");
+	len += scnprintf(buf + len, size - len, "WLAN Weights: ");
 	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
-		len += snprintf(buf + len, size - len, "%08x ",
-				btcoex_hw->wlan_weight[i]);
-	len += snprintf(buf + len, size - len, "\n");
-	len += snprintf(buf + len, size - len, "Tx Priorities: ");
+		len += scnprintf(buf + len, size - len, "%08x ",
+				 btcoex_hw->wlan_weight[i]);
+	len += scnprintf(buf + len, size - len, "\n");
+	len += scnprintf(buf + len, size - len, "Tx Priorities: ");
 	for (i = 0; i < ATH_BTCOEX_STOMP_MAX; i++)
-		len += snprintf(buf + len, size - len, "%08x ",
+		len += scnprintf(buf + len, size - len, "%08x ",
 				btcoex_hw->tx_prio[i]);
 
-	len += snprintf(buf + len, size - len, "\n");
+	len += scnprintf(buf + len, size - len, "\n");
 
 	return len;
 }

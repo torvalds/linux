@@ -547,6 +547,26 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_CUS217)
 		ath_info(common, "CUS217 card detected\n");
 
+	if (sc->driver_data & ATH9K_PCI_CUS252)
+		ath_info(common, "CUS252 card detected\n");
+
+	if (sc->driver_data & ATH9K_PCI_AR9565_1ANT)
+		ath_info(common, "WB335 1-ANT card detected\n");
+
+	if (sc->driver_data & ATH9K_PCI_AR9565_2ANT)
+		ath_info(common, "WB335 2-ANT card detected\n");
+
+	/*
+	 * Some WB335 cards do not support antenna diversity. Since
+	 * we use a hardcoded value for AR9565 instead of using the
+	 * EEPROM/OTP data, remove the combining feature from
+	 * the HW capabilities bitmap.
+	 */
+	if (sc->driver_data & (ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_AR9565_2ANT)) {
+		if (!(sc->driver_data & ATH9K_PCI_BT_ANT_DIV))
+			pCap->hw_caps &= ~ATH9K_HW_CAP_ANT_DIV_COMB;
+	}
+
 	if (sc->driver_data & ATH9K_PCI_BT_ANT_DIV) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
 		ath_info(common, "Set BT/WLAN RX diversity capability\n");

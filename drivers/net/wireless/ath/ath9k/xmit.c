@@ -2326,7 +2326,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	ath_dbg(common, XMIT, "TX complete: skb: %p\n", skb);
 
 	if (sc->sc_ah->caldata)
-		sc->sc_ah->caldata->paprd_packet_sent = true;
+		set_bit(PAPRD_PACKET_SENT, &sc->sc_ah->caldata->cal_flags);
 
 	if (!(tx_flags & ATH_TX_ERROR))
 		/* Frame was ACKed */

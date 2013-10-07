@@ -627,11 +627,10 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 	 * MAC addr only will fail.
 	 */
 	val = REG_READ(ah, AR_PCU_MISC_MODE2) & (~AR_ADHOC_MCAST_KEYID_ENABLE);
-	REG_WRITE(ah, AR_PCU_MISC_MODE2,
-		  val | AR_AGG_WEP_ENABLE_FIX | AR_AGG_WEP_ENABLE);
-
-	REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
-		    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+	val |= AR_AGG_WEP_ENABLE_FIX |
+	       AR_AGG_WEP_ENABLE |
+	       AR_PCU_MISC_MODE2_CFP_IGNORE;
+	REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		REG_WRITE(ah, AR_GLB_SWREG_DISCONT_MODE,
@@ -1375,15 +1374,19 @@ static void ar9003_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 				  AR_PHY_ANT_FAST_DIV_BIAS_S;
 
 	if (AR_SREV_9330_11(ah)) {
+		antconf->lna1_lna2_switch_delta = -1;
 		antconf->lna1_lna2_delta = -9;
 		antconf->div_group = 1;
 	} else if (AR_SREV_9485(ah)) {
+		antconf->lna1_lna2_switch_delta = -1;
 		antconf->lna1_lna2_delta = -9;
 		antconf->div_group = 2;
 	} else if (AR_SREV_9565(ah)) {
-		antconf->lna1_lna2_delta = -3;
+		antconf->lna1_lna2_switch_delta = 3;
+		antconf->lna1_lna2_delta = -9;
 		antconf->div_group = 3;
 	} else {
+		antconf->lna1_lna2_switch_delta = -1;
 		antconf->lna1_lna2_delta = -3;
 		antconf->div_group = 0;
 	}
@@ -1489,17 +1492,24 @@ static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 	} else if (AR_SREV_9565(ah)) {
 		if (enable) {
 			REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+				    AR_ANT_DIV_ENABLE);
+			REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
 				    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-			if (ah->curchan && IS_CHAN_2GHZ(ah->curchan))
-				REG_SET_BIT(ah, AR_PHY_RESTART,
-					    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
+			REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
+				    AR_FAST_DIV_ENABLE);
+			REG_SET_BIT(ah, AR_PHY_RESTART,
+				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
 			REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
 				    AR_BTCOEX_WL_LNADIV_FORCE_ON);
 		} else {
-			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+				    AR_ANT_DIV_ENABLE);
 			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
 				    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-			REG_CLR_BIT(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_CCK_DETECT,
+				    AR_FAST_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_RESTART,
+				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
 			REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
 				    AR_BTCOEX_WL_LNADIV_FORCE_ON);
 

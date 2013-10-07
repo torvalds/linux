@@ -34,19 +34,13 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
+#include "sdio_chip.h"
 #include "dhd_dbg.h"
 #include "dhd_bus.h"
 
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
 
 #define DMA_ALIGN_MASK	0x03
-
-#define SDIO_DEVICE_ID_BROADCOM_43143	43143
-#define SDIO_DEVICE_ID_BROADCOM_43241	0x4324
-#define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
-#define SDIO_DEVICE_ID_BROADCOM_4330	0x4330
-#define SDIO_DEVICE_ID_BROADCOM_4334	0x4334
-#define SDIO_DEVICE_ID_BROADCOM_4335	0x4335
 
 #define SDIO_FUNC1_BLOCKSIZE		64
 #define SDIO_FUNC2_BLOCKSIZE		512
@@ -58,7 +52,8 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4330)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4334)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4335)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM,
+		     SDIO_DEVICE_ID_BROADCOM_4335_4339)},
 	{ /* end: all zeroes */ },
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
@@ -466,7 +461,7 @@ static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 {
 	brcmf_dbg(SDIO, "Enter\n");
 
-	brcmfmac_sdio_pdata = pdev->dev.platform_data;
+	brcmfmac_sdio_pdata = dev_get_platdata(&pdev->dev);
 
 	if (brcmfmac_sdio_pdata->power_on)
 		brcmfmac_sdio_pdata->power_on();

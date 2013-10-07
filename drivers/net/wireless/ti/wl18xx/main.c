@@ -623,6 +623,18 @@ static const int wl18xx_rtable[REG_TABLE_LEN] = {
 	[REG_RAW_FW_STATUS_ADDR]	= WL18XX_FW_STATUS_ADDR,
 };
 
+static const struct wl18xx_clk_cfg wl18xx_clk_table_coex[NUM_CLOCK_CONFIGS] = {
+	[CLOCK_CONFIG_16_2_M]	= { 8,  121, 0, 0, false },
+	[CLOCK_CONFIG_16_368_M]	= { 8,  120, 0, 0, false },
+	[CLOCK_CONFIG_16_8_M]	= { 8,  117, 0, 0, false },
+	[CLOCK_CONFIG_19_2_M]	= { 10, 128, 0, 0, false },
+	[CLOCK_CONFIG_26_M]	= { 11, 104, 0, 0, false },
+	[CLOCK_CONFIG_32_736_M]	= { 8,  120, 0, 0, false },
+	[CLOCK_CONFIG_33_6_M]	= { 8,  117, 0, 0, false },
+	[CLOCK_CONFIG_38_468_M]	= { 10, 128, 0, 0, false },
+	[CLOCK_CONFIG_52_M]	= { 11, 104, 0, 0, false },
+};
+
 static const struct wl18xx_clk_cfg wl18xx_clk_table[NUM_CLOCK_CONFIGS] = {
 	[CLOCK_CONFIG_16_2_M]	= { 7,  104,  801, 4,  true },
 	[CLOCK_CONFIG_16_368_M]	= { 9,  132, 3751, 4,  true },
@@ -704,6 +716,23 @@ static int wl18xx_set_clk(struct wl1271 *wl)
 		     wl18xx_clk_table[clk_freq].p, wl18xx_clk_table[clk_freq].q,
 		     wl18xx_clk_table[clk_freq].swallow ? "swallow" : "spit");
 
+	/* coex PLL configuration */
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_N,
+				   wl18xx_clk_table_coex[clk_freq].n);
+	if (ret < 0)
+		goto out;
+
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_M,
+				   wl18xx_clk_table_coex[clk_freq].m);
+	if (ret < 0)
+		goto out;
+
+	/* bypass the swallowing logic */
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_SWALLOW_EN,
+				   PLLSH_COEX_PLL_SWALLOW_EN_VAL1);
+	if (ret < 0)
+		goto out;
+
 	ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_N,
 				   wl18xx_clk_table[clk_freq].n);
 	if (ret < 0)
@@ -744,6 +773,30 @@ static int wl18xx_set_clk(struct wl1271 *wl)
 		ret = wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_SWALLOW_EN,
 					   PLLSH_WCS_PLL_SWALLOW_EN_VAL2);
 	}
+
+	/* choose WCS PLL */
+	ret = wl18xx_top_reg_write(wl, PLLSH_WL_PLL_SEL,
+				   PLLSH_WL_PLL_SEL_WCS_PLL);
+	if (ret < 0)
+		goto out;
+
+	/* enable both PLLs */
+	ret = wl18xx_top_reg_write(wl, PLLSH_WL_PLL_EN, PLLSH_WL_PLL_EN_VAL1);
+	if (ret < 0)
+		goto out;
+
+	udelay(1000);
+
+	/* disable coex PLL */
+	ret = wl18xx_top_reg_write(wl, PLLSH_WL_PLL_EN, PLLSH_WL_PLL_EN_VAL2);
+	if (ret < 0)
+		goto out;
+
+	/* reset the swallowing logic */
+	ret = wl18xx_top_reg_write(wl, PLLSH_COEX_PLL_SWALLOW_EN,
+				   PLLSH_COEX_PLL_SWALLOW_EN_VAL2);
+	if (ret < 0)
+		goto out;
 
 out:
 	return ret;
@@ -1175,15 +1228,47 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 	}
 }
 
+static const char *wl18xx_rdl_name(enum wl18xx_rdl_num rdl_num)
+{
+	switch (rdl_num) {
+	case RDL_1_HP:
+		return "183xH";
+	case RDL_2_SP:
+		return "183x or 180x";
+	case RDL_3_HP:
+		return "187xH";
+	case RDL_4_SP:
+		return "187x";
+	case RDL_5_SP:
+		return "RDL11 - Not Supported";
+	case RDL_6_SP:
+		return "180xD";
+	case RDL_7_SP:
+		return "RDL13 - Not Supported (1893Q)";
+	case RDL_8_SP:
+		return "18xxQ";
+	case RDL_NONE:
+		return "UNTRIMMED";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 {
 	u32 fuse;
-	s8 rom = 0, metal = 0, pg_ver = 0, rdl_ver = 0;
+	s8 rom = 0, metal = 0, pg_ver = 0, rdl_ver = 0, package_type = 0;
 	int ret;
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
 	if (ret < 0)
 		goto out;
+
+	ret = wlcore_read32(wl, WL18XX_REG_FUSE_DATA_2_3, &fuse);
+	if (ret < 0)
+		goto out;
+
+	package_type = (fuse >> WL18XX_PACKAGE_TYPE_OFFSET) & 1;
 
 	ret = wlcore_read32(wl, WL18XX_REG_FUSE_DATA_1_3, &fuse);
 	if (ret < 0)
@@ -1192,7 +1277,7 @@ static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 	pg_ver = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
 	rom = (fuse & WL18XX_ROM_VER_MASK) >> WL18XX_ROM_VER_OFFSET;
 
-	if (rom <= 0xE)
+	if ((rom <= 0xE) && (package_type == WL18XX_PACKAGE_TYPE_WSP))
 		metal = (fuse & WL18XX_METAL_VER_MASK) >>
 			WL18XX_METAL_VER_OFFSET;
 	else
@@ -1204,11 +1289,9 @@ static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 		goto out;
 
 	rdl_ver = (fuse & WL18XX_RDL_VER_MASK) >> WL18XX_RDL_VER_OFFSET;
-	if (rdl_ver > RDL_MAX)
-		rdl_ver = RDL_NONE;
 
-	wl1271_info("wl18xx HW: RDL %d, %s, PG %x.%x (ROM %x)",
-		    rdl_ver, rdl_names[rdl_ver], pg_ver, metal, rom);
+	wl1271_info("wl18xx HW: %s, PG %d.%d (ROM 0x%x)",
+		    wl18xx_rdl_name(rdl_ver), pg_ver, metal, rom);
 
 	if (ver)
 		*ver = pg_ver;

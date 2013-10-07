@@ -119,7 +119,7 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 			ath_dbg(common, CALIBRATE,
 				"NFmid[%d] (%d) > MAX (%d), %s\n",
 				i, h[i].privNF, limit->max,
-				(cal->nfcal_interference ?
+				(test_bit(NFCAL_INTF, &cal->cal_flags) ?
 				 "not corrected (due to interference)" :
 				 "correcting to MAX"));
 
@@ -130,7 +130,7 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 			 * we bypass this limit here in order to better deal
 			 * with our environment.
 			 */
-			if (!cal->nfcal_interference)
+			if (!test_bit(NFCAL_INTF, &cal->cal_flags))
 				h[i].privNF = limit->max;
 		}
 	}
@@ -141,7 +141,7 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 	 * Re-enable the enforcement of the NF maximum again.
 	 */
 	if (!high_nf_mid)
-		cal->nfcal_interference = false;
+		clear_bit(NFCAL_INTF, &cal->cal_flags);
 }
 
 static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,
@@ -220,7 +220,7 @@ EXPORT_SYMBOL(ath9k_hw_reset_calvalid);
 void ath9k_hw_start_nfcal(struct ath_hw *ah, bool update)
 {
 	if (ah->caldata)
-		ah->caldata->nfcal_pending = true;
+		set_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
 
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
 		    AR_PHY_AGC_CONTROL_ENABLE_NF);
@@ -391,7 +391,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	h = caldata->nfCalHist;
-	caldata->nfcal_pending = false;
+	clear_bit(NFCAL_PENDING, &caldata->cal_flags);
 	ath9k_hw_update_nfcal_hist_buffer(ah, caldata, nfarray);
 	chan->noisefloor = h[0].privNF;
 	ah->noise = ath9k_hw_getchan_noise(ah, chan);
@@ -437,12 +437,12 @@ void ath9k_hw_bstuck_nfcal(struct ath_hw *ah)
 	 * the baseband update the internal NF value itself, similar to
 	 * what is being done after a full reset.
 	 */
-	if (!caldata->nfcal_pending)
+	if (!test_bit(NFCAL_PENDING, &caldata->cal_flags))
 		ath9k_hw_start_nfcal(ah, true);
 	else if (!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF))
 		ath9k_hw_getnf(ah, ah->curchan);
 
-	caldata->nfcal_interference = true;
+	set_bit(NFCAL_INTF, &caldata->cal_flags);
 }
 EXPORT_SYMBOL(ath9k_hw_bstuck_nfcal);
 

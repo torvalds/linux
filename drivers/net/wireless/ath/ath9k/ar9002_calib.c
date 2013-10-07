@@ -671,7 +671,7 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 
 	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
 	if (ah->caldata)
-		nfcal_pending = ah->caldata->nfcal_pending;
+		nfcal_pending = test_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
 
 	if (currCal && !nfcal &&
 	    (currCal->calState == CAL_RUNNING ||
@@ -861,7 +861,7 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	ar9002_hw_pa_cal(ah, true);
 
 	if (ah->caldata)
-		ah->caldata->nfcal_pending = true;
+		set_bit(NFCAL_PENDING, &ah->caldata->cal_flags);
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 

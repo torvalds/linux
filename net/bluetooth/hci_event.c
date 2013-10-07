@@ -297,6 +297,11 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		goto done;
 	}
 
+	/* We need to ensure that we set this back on if someone changed
+	 * the scan mode through a raw HCI socket.
+	 */
+	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+
 	old_pscan = test_and_clear_bit(HCI_PSCAN, &hdev->flags);
 	old_iscan = test_and_clear_bit(HCI_ISCAN, &hdev->flags);
 
@@ -994,20 +999,20 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 		return;
 
 	if (!status) {
-		if (sent->le)
+		if (sent->le) {
 			hdev->features[1][0] |= LMP_HOST_LE;
-		else
+			set_bit(HCI_LE_ENABLED, &hdev->dev_flags);
+		} else {
 			hdev->features[1][0] &= ~LMP_HOST_LE;
+			clear_bit(HCI_LE_ENABLED, &hdev->dev_flags);
+			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+		}
 
 		if (sent->simul)
 			hdev->features[1][0] |= LMP_HOST_LE_BREDR;
 		else
 			hdev->features[1][0] &= ~LMP_HOST_LE_BREDR;
 	}
-
-	if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
-	    !test_bit(HCI_INIT, &hdev->flags))
-		mgmt_le_enable_complete(hdev, sent->le, status);
 }
 
 static void hci_cc_write_remote_amp_assoc(struct hci_dev *hdev,

@@ -334,6 +334,8 @@ void ath9k_beacon_tasklet(unsigned long data)
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
 		sc->beacon.bmisscnt++;
 
+		ath9k_hw_check_nav(ah);
+
 		if (!ath9k_hw_check_alive(ah))
 			ieee80211_queue_work(sc->hw, &sc->hw_check_work);
 
