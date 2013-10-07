@@ -42,7 +42,9 @@
 #include <linux/highmem.h>
 
 #include "book3s.h"
-#include "trace.h"
+
+#define CREATE_TRACE_POINTS
+#include "trace_pr.h"
 
 /* #define EXIT_DEBUG */
 /* #define DEBUG_EXT */

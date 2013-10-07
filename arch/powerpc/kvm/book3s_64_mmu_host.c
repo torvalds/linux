@@ -27,7 +27,7 @@
 #include <asm/machdep.h>
 #include <asm/mmu_context.h>
 #include <asm/hw_irq.h>
-#include "trace.h"
+#include "trace_pr.h"
 
 #define PTE_SIZE 12
 
