@@ -541,13 +541,13 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 /*
  * Free any memory in @free but not in @dont.
  */
-static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
+static void kvm_free_physmem_slot(struct kvm *kvm, struct kvm_memory_slot *free,
 				  struct kvm_memory_slot *dont)
 {
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		kvm_destroy_dirty_bitmap(free);
 
-	kvm_arch_free_memslot(free, dont);
+	kvm_arch_free_memslot(kvm, free, dont);
 
 	free->npages = 0;
 }
@@ -558,7 +558,7 @@ void kvm_free_physmem(struct kvm *kvm)
 	struct kvm_memory_slot *memslot;
 
 	kvm_for_each_memslot(memslot, slots)
-		kvm_free_physmem_slot(memslot, NULL);
+		kvm_free_physmem_slot(kvm, memslot, NULL);
 
 	kfree(kvm->memslots);
 }
@@ -822,7 +822,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (change == KVM_MR_CREATE) {
 		new.userspace_addr = mem->userspace_addr;
 
-		if (kvm_arch_create_memslot(&new, npages))
+		if (kvm_arch_create_memslot(kvm, &new, npages))
 			goto out_free;
 	}
 
@@ -898,7 +898,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	kvm_arch_commit_memory_region(kvm, mem, &old, change);
 
-	kvm_free_physmem_slot(&old, &new);
+	kvm_free_physmem_slot(kvm, &old, &new);
 	kfree(old_memslots);
 
 	return 0;
@@ -906,7 +906,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 out_slots:
 	kfree(slots);
 out_free:
-	kvm_free_physmem_slot(&new, &old);
+	kvm_free_physmem_slot(kvm, &new, &old);
 out:
 	return r;
 }
