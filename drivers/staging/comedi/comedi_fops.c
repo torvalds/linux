@@ -543,7 +543,7 @@ void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 {
 	s->private = kzalloc(size, GFP_KERNEL);
 	if (s->private)
-		comedi_set_subdevice_runflags(s, ~0, SRF_FREE_SPRIV);
+		s->runflags |= SRF_FREE_SPRIV;
 	return s->private;
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_spriv);
@@ -1475,7 +1475,8 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & TRIG_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
-	comedi_set_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
+	comedi_set_subdevice_runflags(s, SRF_USER | SRF_ERROR | SRF_RUNNING,
+				      SRF_USER | SRF_RUNNING);
 
 	/* set s->busy _after_ setting SRF_RUNNING flag to avoid race with
 	 * comedi_read() or comedi_write() */
