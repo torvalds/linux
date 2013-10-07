@@ -89,7 +89,10 @@ static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl)
 		if (hdev->dev_type == HCI_AMP) {
 			cl[i].id = hdev->id;
 			cl[i].type = hdev->amp_type;
-			cl[i].status = hdev->amp_status;
+			if (test_bit(HCI_UP, &hdev->flags))
+				cl[i].status = hdev->amp_status;
+			else
+				cl[i].status = AMP_STATUS_POWERED_DOWN;
 			i++;
 		}
 	}
