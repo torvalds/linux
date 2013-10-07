@@ -161,7 +161,7 @@
 							reg = <0x58>;
 						};
 
-						cfg_s2f_usr0_clk: cfg_s2f_usr0_clk {
+						cfg_h2f_usr0_clk: cfg_h2f_usr0_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&main_pll>;
@@ -212,7 +212,7 @@
 							reg = <0x98>;
 						};
 
-						s2f_usr1_clk: s2f_usr1_clk {
+						h2f_usr1_clk: h2f_usr1_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&periph_pll>;
@@ -249,7 +249,7 @@
 							reg = <0xD0>;
 						};
 
-						s2f_usr2_clk: s2f_usr2_clk {
+						h2f_usr2_clk: h2f_usr2_clk {
 							#clock-cells = <0>;
 							compatible = "altr,socfpga-perip-clk";
 							clocks = <&sdram_pll>;
@@ -349,14 +349,14 @@
 				cfg_clk: cfg_clk {
 					#clock-cells = <0>;
 					compatible = "altr,socfpga-gate-clk";
-					clocks = <&cfg_s2f_usr0_clk>;
+					clocks = <&cfg_h2f_usr0_clk>;
 					clk-gate = <0x60 8>;
 					};
 
-				s2f_user0_clk: s2f_user0_clk {
+				h2f_user0_clk: h2f_user0_clk {
 					#clock-cells = <0>;
 					compatible = "altr,socfpga-gate-clk";
-					clocks = <&cfg_s2f_usr0_clk>;
+					clocks = <&cfg_h2f_usr0_clk>;
 					clk-gate = <0x60 9>;
 					};
 
@@ -414,10 +414,10 @@
 					div-reg = <0xa8 0 24>;
 					};
 
-				s2f_user1_clk: s2f_user1_clk {
+				h2f_user1_clk: h2f_user1_clk {
 					#clock-cells = <0>;
 					compatible = "altr,socfpga-gate-clk";
-					clocks = <&s2f_usr1_clk>;
+					clocks = <&h2f_usr1_clk>;
 					clk-gate = <0xa0 7>;
 					};
 
