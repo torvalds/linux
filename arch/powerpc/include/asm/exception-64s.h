@@ -198,6 +198,17 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	cmpwi	r10,0;							\
 	bne	do_kvm_##n
 
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+/*
+ * If hv is possible, interrupts come into to the hv version
+ * of the kvmppc_interrupt code, which then jumps to the PR handler,
+ * kvmppc_interrupt_pr, if the guest is a PR guest.
+ */
+#define kvmppc_interrupt kvmppc_interrupt_hv
+#else
+#define kvmppc_interrupt kvmppc_interrupt_pr
+#endif
+
 #define __KVM_HANDLER(area, h, n)					\
 do_kvm_##n:								\
 	BEGIN_FTR_SECTION_NESTED(947)					\

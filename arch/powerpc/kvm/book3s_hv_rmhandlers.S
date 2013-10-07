@@ -742,8 +742,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 /*
  * We come here from the first-level interrupt handlers.
  */
-	.globl	kvmppc_interrupt
-kvmppc_interrupt:
+	.globl	kvmppc_interrupt_hv
+kvmppc_interrupt_hv:
 	/*
 	 * Register contents:
 	 * R12		= interrupt vector
@@ -757,6 +757,11 @@ kvmppc_interrupt:
 	lbz	r9, HSTATE_IN_GUEST(r13)
 	cmpwi	r9, KVM_GUEST_MODE_HOST_HV
 	beq	kvmppc_bad_host_intr
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+	cmpwi	r9, KVM_GUEST_MODE_GUEST
+	ld	r9, HSTATE_HOST_R2(r13)
+	beq	kvmppc_interrupt_pr
+#endif
 	/* We're now back in the host but in guest MMU context */
 	li	r9, KVM_GUEST_MODE_HOST_HV
 	stb	r9, HSTATE_IN_GUEST(r13)
