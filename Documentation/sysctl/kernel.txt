@@ -375,7 +375,8 @@ feature should be disabled. Otherwise, if the system overhead from the
 feature is too high then the rate the kernel samples for NUMA hinting
 faults may be controlled by the numa_balancing_scan_period_min_ms,
 numa_balancing_scan_delay_ms, numa_balancing_scan_period_reset,
-numa_balancing_scan_period_max_ms and numa_balancing_scan_size_mb sysctls.
+numa_balancing_scan_period_max_ms, numa_balancing_scan_size_mb and
+numa_balancing_settle_count sysctls.
 
 ==============================================================
 
@@ -419,6 +420,11 @@ scanned for a given scan.
 
 numa_balancing_scan_period_reset is a blunt instrument that controls how
 often a tasks scan delay is reset to detect sudden changes in task behaviour.
+
+numa_balancing_settle_count is how many scan periods must complete before
+the schedule balancer stops pushing the task towards a preferred node. This
+gives the scheduler a chance to place the task on an alternative node if the
+preferred node is overloaded.
 
 ==============================================================
 
