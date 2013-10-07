@@ -35,6 +35,31 @@ struct pwm_bl_data {
 	void			(*exit)(struct device *);
 };
 
+static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness,
+				   int max)
+{
+	int duty_cycle, err;
+
+	if (pb->levels) {
+		duty_cycle = pb->levels[brightness];
+		max = pb->levels[max];
+	} else {
+		duty_cycle = brightness;
+	}
+
+	duty_cycle = (duty_cycle * (pb->period - pb->lth_brightness) / max) +
+		     pb->lth_brightness;
+
+	pwm_config(pb->pwm, duty_cycle, pb->period);
+	pwm_enable(pb->pwm);
+}
+
+static void pwm_backlight_power_off(struct pwm_bl_data *pb)
+{
+	pwm_config(pb->pwm, 0, pb->period);
+	pwm_disable(pb->pwm);
+}
+
 static int pwm_backlight_update_status(struct backlight_device *bl)
 {
 	struct pwm_bl_data *pb = bl_get_data(bl);
@@ -49,24 +74,10 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
 
-	if (brightness == 0) {
-		pwm_config(pb->pwm, 0, pb->period);
-		pwm_disable(pb->pwm);
-	} else {
-		int duty_cycle;
-
-		if (pb->levels) {
-			duty_cycle = pb->levels[brightness];
-			max = pb->levels[max];
-		} else {
-			duty_cycle = brightness;
-		}
-
-		duty_cycle = pb->lth_brightness +
-		     (duty_cycle * (pb->period - pb->lth_brightness) / max);
-		pwm_config(pb->pwm, duty_cycle, pb->period);
-		pwm_enable(pb->pwm);
-	}
+	if (brightness > 0)
+		pwm_backlight_power_on(pb, brightness, max);
+	else
+		pwm_backlight_power_off(pb);
 
 	if (pb->notify_after)
 		pb->notify_after(pb->dev, brightness);
@@ -267,8 +278,7 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 
 	backlight_device_unregister(bl);
-	pwm_config(pb->pwm, 0, pb->period);
-	pwm_disable(pb->pwm);
+	pwm_backlight_power_off(pb);
 
 	if (pb->exit)
 		pb->exit(&pdev->dev);
@@ -285,8 +295,7 @@ static int pwm_backlight_suspend(struct device *dev)
 	if (pb->notify)
 		pb->notify(pb->dev, 0);
 
-	pwm_config(pb->pwm, 0, pb->period);
-	pwm_disable(pb->pwm);
+	pwm_backlight_power_off(pb);
 
 	if (pb->notify_after)
 		pb->notify_after(pb->dev, 0);
