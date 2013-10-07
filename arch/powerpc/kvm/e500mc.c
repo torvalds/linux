@@ -373,15 +373,19 @@ static int __init kvmppc_e500mc_init(void)
 	kvmppc_init_lpid(64);
 	kvmppc_claim_lpid(0); /* host */
 
-	r = kvm_init(&kvm_ops_e500mc, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
+	r = kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
 	if (r)
 		goto err_out;
+	kvm_ops_e500mc.owner = THIS_MODULE;
+	kvmppc_pr_ops = &kvm_ops_e500mc;
+
 err_out:
 	return r;
 }
 
 static void __exit kvmppc_e500mc_exit(void)
 {
+	kvmppc_pr_ops = NULL;
 	kvmppc_booke_exit();
 }
 

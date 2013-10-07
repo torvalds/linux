@@ -28,5 +28,7 @@ extern int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu,
 					int sprn, ulong spr_val);
 extern int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu,
 					int sprn, ulong *spr_val);
+extern int kvmppc_book3s_init_pr(void);
+extern void kvmppc_book3s_exit_pr(void);
 
 #endif

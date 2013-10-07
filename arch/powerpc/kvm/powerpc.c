@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/module.h>
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
@@ -39,7 +40,11 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-struct kvmppc_ops *kvmppc_ops;
+struct kvmppc_ops *kvmppc_hv_ops;
+EXPORT_SYMBOL_GPL(kvmppc_hv_ops);
+struct kvmppc_ops *kvmppc_pr_ops;
+EXPORT_SYMBOL_GPL(kvmppc_pr_ops);
+
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
@@ -195,7 +200,7 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 		goto out;
 
 	/* HV KVM can only do PAPR mode for now */
-	if (!vcpu->arch.papr_enabled && kvmppc_ops->is_hv_enabled)
+	if (!vcpu->arch.papr_enabled && vcpu->kvm->arch.kvm_ops->is_hv_enabled)
 		goto out;
 
 #ifdef CONFIG_KVM_BOOKE_HV
@@ -271,10 +276,35 @@ void kvm_arch_check_processor_compat(void *rtn)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	if (type)
-		return -EINVAL;
+	struct kvmppc_ops *kvm_ops = NULL;
+	/*
+	 * if we have both HV and PR enabled, default is HV
+	 */
+	if (type == 0) {
+		if (kvmppc_hv_ops)
+			kvm_ops = kvmppc_hv_ops;
+		else
+			kvm_ops = kvmppc_pr_ops;
+		if (!kvm_ops)
+			goto err_out;
+	} else	if (type == KVM_VM_PPC_HV) {
+		if (!kvmppc_hv_ops)
+			goto err_out;
+		kvm_ops = kvmppc_hv_ops;
+	} else if (type == KVM_VM_PPC_PR) {
+		if (!kvmppc_pr_ops)
+			goto err_out;
+		kvm_ops = kvmppc_pr_ops;
+	} else
+		goto err_out;
 
+	if (kvm_ops->owner && !try_module_get(kvm_ops->owner))
+		return -ENOENT;
+
+	kvm->arch.kvm_ops = kvm_ops;
 	return kvmppc_core_init_vm(kvm);
+err_out:
+	return -EINVAL;
 }
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
@@ -294,6 +324,9 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvmppc_core_destroy_vm(kvm);
 
 	mutex_unlock(&kvm->lock);
+
+	/* drop the module reference */
+	module_put(kvm->arch.kvm_ops->owner);
 }
 
 void kvm_arch_sync_events(struct kvm *kvm)
@@ -303,6 +336,10 @@ void kvm_arch_sync_events(struct kvm *kvm)
 int kvm_dev_ioctl_check_extension(long ext)
 {
 	int r;
+	/* FIXME!!
+	 * Should some of this be vm ioctl ? is it possible now ?
+	 */
+	int hv_enabled = kvmppc_hv_ops ? 1 : 0;
 
 	switch (ext) {
 #ifdef CONFIG_BOOKE
@@ -329,7 +366,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SW_TLB:
 #endif
 		/* We support this only for PR */
-		r = !kvmppc_ops->is_hv_enabled;
+		r = !hv_enabled;
 		break;
 #ifdef CONFIG_KVM_MMIO
 	case KVM_CAP_COALESCED_MMIO:
@@ -354,13 +391,13 @@ int kvm_dev_ioctl_check_extension(long ext)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
-		if (kvmppc_ops->is_hv_enabled)
+		if (hv_enabled)
 			r = threads_per_core;
 		else
 			r = 0;
 		break;
 	case KVM_CAP_PPC_RMA:
-		r = kvmppc_ops->is_hv_enabled;
+		r = hv_enabled;
 		/* PPC970 requires an RMA */
 		if (r && cpu_has_feature(CPU_FTR_ARCH_201))
 			r = 2;
@@ -368,7 +405,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #endif
 	case KVM_CAP_SYNC_MMU:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-		if (kvmppc_ops->is_hv_enabled)
+		if (hv_enabled)
 			r = cpu_has_feature(CPU_FTR_ARCH_206) ? 1 : 0;
 		else
 			r = 0;
@@ -380,7 +417,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_HTAB_FD:
-		r = kvmppc_ops->is_hv_enabled;
+		r = hv_enabled;
 		break;
 #endif
 	case KVM_CAP_NR_VCPUS:
@@ -390,7 +427,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		 * will have secondary threads "offline"), and for other KVM
 		 * implementations just count online CPUs.
 		 */
-		if (kvmppc_ops->is_hv_enabled)
+		if (hv_enabled)
 			r = num_present_cpus();
 		else
 			r = num_online_cpus();
@@ -1039,9 +1076,10 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 	case KVM_PPC_GET_SMMU_INFO: {
 		struct kvm_ppc_smmu_info info;
+		struct kvm *kvm = filp->private_data;
 
 		memset(&info, 0, sizeof(info));
-		r = kvmppc_ops->get_smmu_info(kvm, &info);
+		r = kvm->arch.kvm_ops->get_smmu_info(kvm, &info);
 		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
 			r = -EFAULT;
 		break;
@@ -1052,9 +1090,10 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_rtas_define_token(kvm, argp);
 		break;
 	}
-	default:
-		r = kvmppc_ops->arch_vm_ioctl(filp, ioctl, arg);
-
+	default: {
+		struct kvm *kvm = filp->private_data;
+		r = kvm->arch.kvm_ops->arch_vm_ioctl(filp, ioctl, arg);
+	}
 #else /* CONFIG_PPC_BOOK3S_64 */
 	default:
 		r = -ENOTTY;
@@ -1104,15 +1143,10 @@ EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
 
 int kvm_arch_init(void *opaque)
 {
-	if (kvmppc_ops) {
-		printk(KERN_ERR "kvm: already loaded the other module\n");
-		return -EEXIST;
-	}
-	kvmppc_ops = (struct kvmppc_ops *)opaque;
 	return 0;
 }
 
 void kvm_arch_exit(void)
 {
-	kvmppc_ops = NULL;
+
 }

@@ -213,16 +213,19 @@ static int __init kvmppc_44x_init(void)
 	if (r)
 		goto err_out;
 
-	r = kvm_init(&kvm_ops_44x, sizeof(struct kvmppc_vcpu_44x),
-		     0, THIS_MODULE);
+	r = kvm_init(NULL, sizeof(struct kvmppc_vcpu_44x), 0, THIS_MODULE);
 	if (r)
 		goto err_out;
+	kvm_ops_44x.owner = THIS_MODULE;
+	kvmppc_pr_ops = &kvm_ops_44x;
+
 err_out:
 	return r;
 }
 
 static void __exit kvmppc_44x_exit(void)
 {
+	kvmppc_pr_ops = NULL;
 	kvmppc_booke_exit();
 }
 

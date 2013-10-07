@@ -1525,7 +1525,7 @@ static long kvm_arch_vm_ioctl_pr(struct file *filp,
 	return -ENOTTY;
 }
 
-static struct kvmppc_ops kvmppc_pr_ops = {
+static struct kvmppc_ops kvm_ops_pr = {
 	.is_hv_enabled = false,
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_pr,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_pr,
@@ -1552,7 +1552,6 @@ static struct kvmppc_ops kvmppc_pr_ops = {
 	.create_memslot = kvmppc_core_create_memslot_pr,
 	.init_vm = kvmppc_core_init_vm_pr,
 	.destroy_vm = kvmppc_core_destroy_vm_pr,
-	.check_processor_compat = kvmppc_core_check_processor_compat_pr,
 	.get_smmu_info = kvm_vm_ioctl_get_smmu_info_pr,
 	.emulate_op = kvmppc_core_emulate_op_pr,
 	.emulate_mtspr = kvmppc_core_emulate_mtspr_pr,
@@ -1561,27 +1560,35 @@ static struct kvmppc_ops kvmppc_pr_ops = {
 	.arch_vm_ioctl  = kvm_arch_vm_ioctl_pr,
 };
 
-static int kvmppc_book3s_init_pr(void)
+
+int kvmppc_book3s_init_pr(void)
 {
 	int r;
 
-	r = kvm_init(&kvmppc_pr_ops, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
-
-	if (r)
+	r = kvmppc_core_check_processor_compat_pr();
+	if (r < 0)
 		return r;
 
-	r = kvmppc_mmu_hpte_sysinit();
+	kvm_ops_pr.owner = THIS_MODULE;
+	kvmppc_pr_ops = &kvm_ops_pr;
 
+	r = kvmppc_mmu_hpte_sysinit();
 	return r;
 }
 
-static void kvmppc_book3s_exit_pr(void)
+void kvmppc_book3s_exit_pr(void)
 {
+	kvmppc_pr_ops = NULL;
 	kvmppc_mmu_hpte_sysexit();
-	kvm_exit();
 }
+
+/*
+ * We only support separate modules for book3s 64
+ */
+#ifdef CONFIG_PPC_BOOK3S_64
 
 module_init(kvmppc_book3s_init_pr);
 module_exit(kvmppc_book3s_exit_pr);
 
 MODULE_LICENSE("GPL");
+#endif

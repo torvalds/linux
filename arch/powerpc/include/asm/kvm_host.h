@@ -270,6 +270,7 @@ struct kvm_arch {
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_xics *xics;
 #endif
+	struct kvmppc_ops *kvm_ops;
 };
 
 /*

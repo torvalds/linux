@@ -34,6 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 
+#include "book3s.h"
 #include "trace.h"
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
@@ -71,7 +72,7 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 {
-	if (!kvmppc_ops->is_hv_enabled)
+	if (!vcpu->kvm->arch.kvm_ops->is_hv_enabled)
 		return to_book3s(vcpu)->hior;
 	return 0;
 }
@@ -79,7 +80,7 @@ static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 			unsigned long pending_now, unsigned long old_pending)
 {
-	if (kvmppc_ops->is_hv_enabled)
+	if (vcpu->kvm->arch.kvm_ops->is_hv_enabled)
 		return;
 	if (pending_now)
 		vcpu->arch.shared->int_pending = 1;
@@ -93,7 +94,7 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 	ulong crit_r1;
 	bool crit;
 
-	if (kvmppc_ops->is_hv_enabled)
+	if (vcpu->kvm->arch.kvm_ops->is_hv_enabled)
 		return false;
 
 	crit_raw = vcpu->arch.shared->critical;
@@ -477,13 +478,13 @@ void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	return kvmppc_ops->get_sregs(vcpu, sregs);
+	return vcpu->kvm->arch.kvm_ops->get_sregs(vcpu, sregs);
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	return kvmppc_ops->set_sregs(vcpu, sregs);
+	return vcpu->kvm->arch.kvm_ops->set_sregs(vcpu, sregs);
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
@@ -562,7 +563,7 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 	if (size > sizeof(val))
 		return -EINVAL;
 
-	r = kvmppc_ops->get_one_reg(vcpu, reg->id, &val);
+	r = vcpu->kvm->arch.kvm_ops->get_one_reg(vcpu, reg->id, &val);
 	if (r == -EINVAL) {
 		r = 0;
 		switch (reg->id) {
@@ -641,7 +642,7 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 	if (copy_from_user(&val, (char __user *)(unsigned long)reg->addr, size))
 		return -EFAULT;
 
-	r = kvmppc_ops->set_one_reg(vcpu, reg->id, &val);
+	r = vcpu->kvm->arch.kvm_ops->set_one_reg(vcpu, reg->id, &val);
 	if (r == -EINVAL) {
 		r = 0;
 		switch (reg->id) {
@@ -702,23 +703,23 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	kvmppc_ops->vcpu_load(vcpu, cpu);
+	vcpu->kvm->arch.kvm_ops->vcpu_load(vcpu, cpu);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	kvmppc_ops->vcpu_put(vcpu);
+	vcpu->kvm->arch.kvm_ops->vcpu_put(vcpu);
 }
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 {
-	kvmppc_ops->set_msr(vcpu, msr);
+	vcpu->kvm->arch.kvm_ops->set_msr(vcpu, msr);
 }
 EXPORT_SYMBOL_GPL(kvmppc_set_msr);
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
-	return kvmppc_ops->vcpu_run(kvm_run, vcpu);
+	return vcpu->kvm->arch.kvm_ops->vcpu_run(kvm_run, vcpu);
 }
 
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
@@ -743,84 +744,84 @@ void kvmppc_decrementer_func(unsigned long data)
 
 struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 {
-	return kvmppc_ops->vcpu_create(kvm, id);
+	return kvm->arch.kvm_ops->vcpu_create(kvm, id);
 }
 
 void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
-	kvmppc_ops->vcpu_free(vcpu);
+	vcpu->kvm->arch.kvm_ops->vcpu_free(vcpu);
 }
 
 int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
-	return kvmppc_ops->check_requests(vcpu);
+	return vcpu->kvm->arch.kvm_ops->check_requests(vcpu);
 }
 
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
-	return kvmppc_ops->get_dirty_log(kvm, log);
+	return kvm->arch.kvm_ops->get_dirty_log(kvm, log);
 }
 
 void kvmppc_core_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
 			      struct kvm_memory_slot *dont)
 {
-	kvmppc_ops->free_memslot(free, dont);
+	kvm->arch.kvm_ops->free_memslot(free, dont);
 }
 
 int kvmppc_core_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 			       unsigned long npages)
 {
-	return kvmppc_ops->create_memslot(slot, npages);
+	return kvm->arch.kvm_ops->create_memslot(slot, npages);
 }
 
 void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
-	kvmppc_ops->flush_memslot(kvm, memslot);
+	kvm->arch.kvm_ops->flush_memslot(kvm, memslot);
 }
 
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot *memslot,
 				struct kvm_userspace_memory_region *mem)
 {
-	return kvmppc_ops->prepare_memory_region(kvm, memslot, mem);
+	return kvm->arch.kvm_ops->prepare_memory_region(kvm, memslot, mem);
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
 				const struct kvm_memory_slot *old)
 {
-	kvmppc_ops->commit_memory_region(kvm, mem, old);
+	kvm->arch.kvm_ops->commit_memory_region(kvm, mem, old);
 }
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 {
-	return kvmppc_ops->unmap_hva(kvm, hva);
+	return kvm->arch.kvm_ops->unmap_hva(kvm, hva);
 }
 EXPORT_SYMBOL_GPL(kvm_unmap_hva);
 
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 {
-	return kvmppc_ops->unmap_hva_range(kvm, start, end);
+	return kvm->arch.kvm_ops->unmap_hva_range(kvm, start, end);
 }
 
 int kvm_age_hva(struct kvm *kvm, unsigned long hva)
 {
-	return kvmppc_ops->age_hva(kvm, hva);
+	return kvm->arch.kvm_ops->age_hva(kvm, hva);
 }
 
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 {
-	return kvmppc_ops->test_age_hva(kvm, hva);
+	return kvm->arch.kvm_ops->test_age_hva(kvm, hva);
 }
 
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
-	kvmppc_ops->set_spte_hva(kvm, hva, pte);
+	kvm->arch.kvm_ops->set_spte_hva(kvm, hva, pte);
 }
 
 void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
 {
-	kvmppc_ops->mmu_destroy(vcpu);
+	vcpu->kvm->arch.kvm_ops->mmu_destroy(vcpu);
 }
 
 int kvmppc_core_init_vm(struct kvm *kvm)
@@ -831,12 +832,12 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	INIT_LIST_HEAD(&kvm->arch.rtas_tokens);
 #endif
 
-	return kvmppc_ops->init_vm(kvm);
+	return kvm->arch.kvm_ops->init_vm(kvm);
 }
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
-	kvmppc_ops->destroy_vm(kvm);
+	kvm->arch.kvm_ops->destroy_vm(kvm);
 
 #ifdef CONFIG_PPC64
 	kvmppc_rtas_tokens_free(kvm);
@@ -846,5 +847,35 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 
 int kvmppc_core_check_processor_compat(void)
 {
-	return kvmppc_ops->check_processor_compat();
+	/*
+	 * We always return 0 for book3s. We check
+	 * for compatability while loading the HV
+	 * or PR module
+	 */
+	return 0;
 }
+
+static int kvmppc_book3s_init(void)
+{
+	int r;
+
+	r = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
+	if (r)
+		return r;
+#ifdef CONFIG_KVM_BOOK3S_32
+	r = kvmppc_book3s_init_pr();
+#endif
+	return r;
+
+}
+
+static void kvmppc_book3s_exit(void)
+{
+#ifdef CONFIG_KVM_BOOK3S_32
+	kvmppc_book3s_exit_pr();
+#endif
+	kvm_exit();
+}
+
+module_init(kvmppc_book3s_init);
+module_exit(kvmppc_book3s_exit);

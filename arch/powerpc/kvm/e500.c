@@ -555,13 +555,19 @@ static int __init kvmppc_e500_init(void)
 	flush_icache_range(kvmppc_booke_handlers, kvmppc_booke_handlers +
 			   ivor[max_ivor] + handler_len);
 
-	r = kvm_init(&kvm_ops_e500, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
+	r = kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
+	if (r)
+		goto err_out;
+	kvm_ops_e500.owner = THIS_MODULE;
+	kvmppc_pr_ops = &kvm_ops_e500;
+
 err_out:
 	return r;
 }
 
 static void __exit kvmppc_e500_exit(void)
 {
+	kvmppc_pr_ops = NULL;
 	kvmppc_booke_exit();
 }
 

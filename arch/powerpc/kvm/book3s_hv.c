@@ -2159,7 +2159,7 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 	return r;
 }
 
-static struct kvmppc_ops kvmppc_hv_ops = {
+static struct kvmppc_ops kvm_ops_hv = {
 	.is_hv_enabled = true,
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
@@ -2186,7 +2186,6 @@ static struct kvmppc_ops kvmppc_hv_ops = {
 	.create_memslot = kvmppc_core_create_memslot_hv,
 	.init_vm =  kvmppc_core_init_vm_hv,
 	.destroy_vm = kvmppc_core_destroy_vm_hv,
-	.check_processor_compat = kvmppc_core_check_processor_compat_hv,
 	.get_smmu_info = kvm_vm_ioctl_get_smmu_info_hv,
 	.emulate_op = kvmppc_core_emulate_op_hv,
 	.emulate_mtspr = kvmppc_core_emulate_mtspr_hv,
@@ -2198,20 +2197,23 @@ static struct kvmppc_ops kvmppc_hv_ops = {
 static int kvmppc_book3s_init_hv(void)
 {
 	int r;
-
-	r = kvm_init(&kvmppc_hv_ops, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
-
-	if (r)
+	/*
+	 * FIXME!! Do we need to check on all cpus ?
+	 */
+	r = kvmppc_core_check_processor_compat_hv();
+	if (r < 0)
 		return r;
 
-	r = kvmppc_mmu_hv_init();
+	kvm_ops_hv.owner = THIS_MODULE;
+	kvmppc_hv_ops = &kvm_ops_hv;
 
+	r = kvmppc_mmu_hv_init();
 	return r;
 }
 
 static void kvmppc_book3s_exit_hv(void)
 {
-	kvm_exit();
+	kvmppc_hv_ops = NULL;
 }
 
 module_init(kvmppc_book3s_init_hv);
