@@ -18,8 +18,7 @@
 
 #include "drm.h"
 #include "gem.h"
-
-#define GR2D_NUM_REGS 0x4d
+#include "gr2d.h"
 
 struct gr2d {
 	struct tegra_drm_client client;
@@ -259,8 +258,19 @@ static const struct of_device_id gr2d_match[] = {
 };
 
 static const u32 gr2d_addr_regs[] = {
-	0x1a, 0x1b, 0x26, 0x2b, 0x2c, 0x2d, 0x31, 0x32,
-	0x48, 0x49, 0x4a, 0x4b, 0x4c
+	GR2D_UA_BASE_ADDR,
+	GR2D_VA_BASE_ADDR,
+	GR2D_PAT_BASE_ADDR,
+	GR2D_DSTA_BASE_ADDR,
+	GR2D_DSTB_BASE_ADDR,
+	GR2D_DSTC_BASE_ADDR,
+	GR2D_SRCA_BASE_ADDR,
+	GR2D_SRCB_BASE_ADDR,
+	GR2D_SRC_BASE_ADDR_SB,
+	GR2D_DSTA_BASE_ADDR_SB,
+	GR2D_DSTB_BASE_ADDR_SB,
+	GR2D_UA_BASE_ADDR_SB,
+	GR2D_VA_BASE_ADDR_SB,
 };
 
 static int gr2d_probe(struct platform_device *pdev)
