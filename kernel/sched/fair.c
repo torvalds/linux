@@ -893,11 +893,17 @@ struct numa_group {
 
 	spinlock_t lock; /* nr_tasks, tasks */
 	int nr_tasks;
+	pid_t gid;
 	struct list_head task_list;
 
 	struct rcu_head rcu;
 	atomic_long_t faults[0];
 };
+
+pid_t task_numa_group_id(struct task_struct *p)
+{
+	return p->numa_group ? p->numa_group->gid : 0;
+}
 
 static inline int task_faults_idx(int nid, int priv)
 {
@@ -1265,6 +1271,7 @@ static void task_numa_group(struct task_struct *p, int cpupid)
 		atomic_set(&grp->refcount, 1);
 		spin_lock_init(&grp->lock);
 		INIT_LIST_HEAD(&grp->task_list);
+		grp->gid = p->pid;
 
 		for (i = 0; i < 2*nr_node_ids; i++)
 			atomic_long_set(&grp->faults[i], p->numa_faults[i]);
