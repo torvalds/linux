@@ -5262,6 +5262,8 @@ static int pin_down_extent(struct btrfs_root *root,
 
 	set_extent_dirty(root->fs_info->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
+	if (reserved)
+		trace_btrfs_reserved_extent_free(root, bytenr, num_bytes);
 	return 0;
 }
 
@@ -5965,6 +5967,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 
 		btrfs_add_free_space(cache, buf->start, buf->len);
 		btrfs_update_reserved_bytes(cache, buf->len, RESERVE_FREE);
+		trace_btrfs_reserved_extent_free(root, buf->start, buf->len);
 		pin = 0;
 	}
 out:
@@ -6592,8 +6595,6 @@ again:
 		}
 	}
 
-	trace_btrfs_reserved_extent_alloc(root, ins->objectid, ins->offset);
-
 	return ret;
 }
 
@@ -6705,6 +6706,7 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 			ins->objectid, ins->offset);
 		BUG();
 	}
+	trace_btrfs_reserved_extent_alloc(root, ins->objectid, ins->offset);
 	return ret;
 }
 
@@ -6777,6 +6779,8 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 			ins->objectid, ins->offset);
 		BUG();
 	}
+
+	trace_btrfs_reserved_extent_alloc(root, ins->objectid, root->leafsize);
 	return ret;
 }
 
