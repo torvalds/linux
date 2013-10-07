@@ -107,6 +107,7 @@ enum wa_seg_status {
 };
 
 static void wa_xfer_delayed_run(struct wa_rpipe *);
+static int __wa_xfer_delayed_run(struct wa_rpipe *rpipe, int *dto_waiting);
 
 /*
  * Life cycle governed by 'struct urb' (the refcount of the struct is
@@ -201,6 +202,59 @@ static void wa_xfer_get(struct wa_xfer *xfer)
 static void wa_xfer_put(struct wa_xfer *xfer)
 {
 	kref_put(&xfer->refcnt, wa_xfer_destroy);
+}
+
+/*
+ * Try to get exclusive access to the DTO endpoint resource.  Return true
+ * if successful.
+ */
+static inline int __wa_dto_try_get(struct wahc *wa)
+{
+	return (test_and_set_bit(0, &wa->dto_in_use) == 0);
+}
+
+/* Release the DTO endpoint resource. */
+static inline void __wa_dto_put(struct wahc *wa)
+{
+	clear_bit_unlock(0, &wa->dto_in_use);
+}
+
+/* Service RPIPEs that are waiting on the DTO resource. */
+static void wa_check_for_delayed_rpipes(struct wahc *wa)
+{
+	unsigned long flags;
+	int dto_waiting = 0;
+	struct wa_rpipe *rpipe;
+
+	spin_lock_irqsave(&wa->rpipe_lock, flags);
+	while (!list_empty(&wa->rpipe_delayed_list) && !dto_waiting) {
+		rpipe = list_first_entry(&wa->rpipe_delayed_list,
+				struct wa_rpipe, list_node);
+		__wa_xfer_delayed_run(rpipe, &dto_waiting);
+		/* remove this RPIPE from the list if it is not waiting. */
+		if (!dto_waiting) {
+			pr_debug("%s: RPIPE %d serviced and removed from delayed list.\n",
+				__func__,
+				le16_to_cpu(rpipe->descr.wRPipeIndex));
+			list_del_init(&rpipe->list_node);
+		}
+	}
+	spin_unlock_irqrestore(&wa->rpipe_lock, flags);
+}
+
+/* add this RPIPE to the end of the delayed RPIPE list. */
+static void wa_add_delayed_rpipe(struct wahc *wa, struct wa_rpipe *rpipe)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wa->rpipe_lock, flags);
+	/* add rpipe to the list if it is not already on it. */
+	if (list_empty(&rpipe->list_node)) {
+		pr_debug("%s: adding RPIPE %d to the delayed list.\n",
+			__func__, le16_to_cpu(rpipe->descr.wRPipeIndex));
+		list_add_tail(&rpipe->list_node, &wa->rpipe_delayed_list);
+	}
+	spin_unlock_irqrestore(&wa->rpipe_lock, flags);
 }
 
 /*
@@ -1099,9 +1153,13 @@ error_setup_sizes:
  * rpipe->seg_lock is held!
  */
 static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
-			   struct wa_seg *seg)
+			   struct wa_seg *seg, int *dto_done)
 {
 	int result;
+
+	/* default to done unless we encounter a multi-frame isoc segment. */
+	*dto_done = 1;
+
 	/* submit the transfer request. */
 	result = usb_submit_urb(&seg->tr_urb, GFP_ATOMIC);
 	if (result < 0) {
@@ -1142,28 +1200,34 @@ error_seg_submit:
 }
 
 /*
- * Execute more queued request segments until the maximum concurrent allowed
+ * Execute more queued request segments until the maximum concurrent allowed.
+ * Return true if the DTO resource was acquired and released.
  *
  * The ugly unlock/lock sequence on the error path is needed as the
  * xfer->lock normally nests the seg_lock and not viceversa.
- *
  */
-static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
+static int __wa_xfer_delayed_run(struct wa_rpipe *rpipe, int *dto_waiting)
 {
-	int result;
+	int result, dto_acquired = 0, dto_done = 0;
 	struct device *dev = &rpipe->wa->usb_iface->dev;
 	struct wa_seg *seg;
 	struct wa_xfer *xfer;
 	unsigned long flags;
 
+	*dto_waiting = 0;
+
 	spin_lock_irqsave(&rpipe->seg_lock, flags);
 	while (atomic_read(&rpipe->segs_available) > 0
-	      && !list_empty(&rpipe->seg_list)) {
+	      && !list_empty(&rpipe->seg_list)
+	      && (dto_acquired = __wa_dto_try_get(rpipe->wa))) {
 		seg = list_first_entry(&(rpipe->seg_list), struct wa_seg,
 				 list_node);
 		list_del(&seg->list_node);
 		xfer = seg->xfer;
-		result = __wa_seg_submit(rpipe, xfer, seg);
+		result = __wa_seg_submit(rpipe, xfer, seg, &dto_done);
+		/* release the dto resource if this RPIPE is done with it. */
+		if (dto_done)
+			__wa_dto_put(rpipe->wa);
 		dev_dbg(dev, "xfer %p ID %08X#%u submitted from delayed [%d segments available] %d\n",
 			xfer, wa_xfer_id(xfer), seg->index,
 			atomic_read(&rpipe->segs_available), result);
@@ -1176,7 +1240,37 @@ static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
 			spin_lock_irqsave(&rpipe->seg_lock, flags);
 		}
 	}
+	/*
+	 * Mark this RPIPE as waiting if dto was not acquired, there are
+	 * delayed segs and no active transfers to wake us up later.
+	 */
+	if (!dto_acquired && !list_empty(&rpipe->seg_list)
+		&& (atomic_read(&rpipe->segs_available) ==
+			le16_to_cpu(rpipe->descr.wRequests)))
+		*dto_waiting = 1;
+
 	spin_unlock_irqrestore(&rpipe->seg_lock, flags);
+
+	return dto_done;
+}
+
+static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
+{
+	int dto_waiting;
+	int dto_done = __wa_xfer_delayed_run(rpipe, &dto_waiting);
+
+	/*
+	 * If this RPIPE is waiting on the DTO resource, add it to the tail of
+	 * the waiting list.
+	 * Otherwise, if the WA DTO resource was acquired and released by
+	 *  __wa_xfer_delayed_run, another RPIPE may have attempted to acquire
+	 * DTO and failed during that time.  Check the delayed list and process
+	 * any waiters.  Start searching from the next RPIPE index.
+	 */
+	if (dto_waiting)
+		wa_add_delayed_rpipe(rpipe->wa, rpipe);
+	else if (dto_done)
+		wa_check_for_delayed_rpipes(rpipe->wa);
 }
 
 /*
@@ -1188,7 +1282,7 @@ static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
  */
 static int __wa_xfer_submit(struct wa_xfer *xfer)
 {
-	int result;
+	int result, dto_acquired = 0, dto_done = 0, dto_waiting = 0;
 	struct wahc *wa = xfer->wa;
 	struct device *dev = &wa->usb_iface->dev;
 	unsigned cnt;
@@ -1207,26 +1301,56 @@ static int __wa_xfer_submit(struct wa_xfer *xfer)
 	result = 0;
 	spin_lock_irqsave(&rpipe->seg_lock, flags);
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
+		int delay_seg = 1;
+
 		available = atomic_read(&rpipe->segs_available);
 		empty = list_empty(&rpipe->seg_list);
 		seg = xfer->seg[cnt];
 		dev_dbg(dev, "xfer %p ID 0x%08X#%u: available %u empty %u (%s)\n",
 			xfer, wa_xfer_id(xfer), cnt, available, empty,
 			available == 0 || !empty ? "delayed" : "submitted");
-		if (available == 0 || !empty) {
+		if (available && empty) {
+			/*
+			 * Only attempt to acquire DTO if we have a segment
+			 * to send.
+			 */
+			dto_acquired = __wa_dto_try_get(rpipe->wa);
+			if (dto_acquired) {
+				delay_seg = 0;
+				result = __wa_seg_submit(rpipe, xfer, seg,
+							&dto_done);
+				if (dto_done)
+					__wa_dto_put(rpipe->wa);
+
+				if (result < 0) {
+					__wa_xfer_abort(xfer);
+					goto error_seg_submit;
+				}
+			}
+		}
+
+		if (delay_seg) {
 			seg->status = WA_SEG_DELAYED;
 			list_add_tail(&seg->list_node, &rpipe->seg_list);
-		} else {
-			result = __wa_seg_submit(rpipe, xfer, seg);
-			if (result < 0) {
-				__wa_xfer_abort(xfer);
-				goto error_seg_submit;
-			}
 		}
 		xfer->segs_submitted++;
 	}
 error_seg_submit:
+	/*
+	 * Mark this RPIPE as waiting if dto was not acquired, there are
+	 * delayed segs and no active transfers to wake us up later.
+	 */
+	if (!dto_acquired && !list_empty(&rpipe->seg_list)
+		&& (atomic_read(&rpipe->segs_available) ==
+			le16_to_cpu(rpipe->descr.wRequests)))
+		dto_waiting = 1;
 	spin_unlock_irqrestore(&rpipe->seg_lock, flags);
+
+	if (dto_waiting)
+		wa_add_delayed_rpipe(rpipe->wa, rpipe);
+	else if (dto_done)
+		wa_check_for_delayed_rpipes(rpipe->wa);
+
 	return result;
 }
 

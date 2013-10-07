@@ -143,17 +143,18 @@ static void rpipe_init(struct wa_rpipe *rpipe)
 	kref_init(&rpipe->refcnt);
 	spin_lock_init(&rpipe->seg_lock);
 	INIT_LIST_HEAD(&rpipe->seg_list);
+	INIT_LIST_HEAD(&rpipe->list_node);
 }
 
 static unsigned rpipe_get_idx(struct wahc *wa, unsigned rpipe_idx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wa->rpipe_bm_lock, flags);
+	spin_lock_irqsave(&wa->rpipe_lock, flags);
 	rpipe_idx = find_next_zero_bit(wa->rpipe_bm, wa->rpipes, rpipe_idx);
 	if (rpipe_idx < wa->rpipes)
 		set_bit(rpipe_idx, wa->rpipe_bm);
-	spin_unlock_irqrestore(&wa->rpipe_bm_lock, flags);
+	spin_unlock_irqrestore(&wa->rpipe_lock, flags);
 
 	return rpipe_idx;
 }
@@ -162,9 +163,9 @@ static void rpipe_put_idx(struct wahc *wa, unsigned rpipe_idx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wa->rpipe_bm_lock, flags);
+	spin_lock_irqsave(&wa->rpipe_lock, flags);
 	clear_bit(rpipe_idx, wa->rpipe_bm);
-	spin_unlock_irqrestore(&wa->rpipe_bm_lock, flags);
+	spin_unlock_irqrestore(&wa->rpipe_lock, flags);
 }
 
 void rpipe_destroy(struct kref *_rpipe)
