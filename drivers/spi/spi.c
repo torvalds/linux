@@ -39,6 +39,9 @@
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/spi.h>
+
 static void spidev_release(struct device *dev)
 {
 	struct spi_device	*spi = to_spi_device(dev);
@@ -557,6 +560,7 @@ static void spi_pump_messages(struct kthread_work *work)
 			pm_runtime_mark_last_busy(master->dev.parent);
 			pm_runtime_put_autosuspend(master->dev.parent);
 		}
+		trace_spi_master_idle(master);
 		return;
 	}
 
@@ -585,6 +589,9 @@ static void spi_pump_messages(struct kthread_work *work)
 		}
 	}
 
+	if (!was_busy)
+		trace_spi_master_busy(master);
+
 	if (!was_busy && master->prepare_transfer_hardware) {
 		ret = master->prepare_transfer_hardware(master);
 		if (ret) {
@@ -596,6 +603,8 @@ static void spi_pump_messages(struct kthread_work *work)
 			return;
 		}
 	}
+
+	trace_spi_message_start(master->cur_msg);
 
 	ret = master->transfer_one_message(master, master->cur_msg);
 	if (ret) {
@@ -689,6 +698,8 @@ void spi_finalize_current_message(struct spi_master *master)
 	mesg->state = NULL;
 	if (mesg->complete)
 		mesg->complete(mesg->context);
+
+	trace_spi_message_done(mesg);
 }
 EXPORT_SYMBOL_GPL(spi_finalize_current_message);
 
@@ -1421,6 +1432,10 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	struct spi_master *master = spi->master;
 	struct spi_transfer *xfer;
 
+	message->spi = spi;
+
+	trace_spi_message_submit(message);
+
 	if (list_empty(&message->transfers))
 		return -EINVAL;
 	if (!message->complete)
@@ -1520,7 +1535,6 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 		}
 	}
 
-	message->spi = spi;
 	message->status = -EINPROGRESS;
 	return master->transfer(spi, message);
 }
