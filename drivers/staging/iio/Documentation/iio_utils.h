@@ -502,7 +502,7 @@ inline int find_type_by_name(const char *name, const char *type)
 
 inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 {
-	int ret;
+	int ret = 0;
 	FILE *sysfsfp;
 	int test;
 	char *temp = malloc(strlen(basedir) + strlen(filename) + 2);
