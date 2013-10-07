@@ -1356,6 +1356,7 @@ struct task_struct {
 	 * The values remain static for the duration of a PTE scan
 	 */
 	unsigned long *numa_faults;
+	unsigned long total_numa_faults;
 
 	/*
 	 * numa_faults_buffer records faults per node during the current
