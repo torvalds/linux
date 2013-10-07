@@ -963,7 +963,7 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			       bool *was_attached)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_DRV_ATTACH_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_DRV_ATTACH_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_DRV_ATTACH_EXT_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -979,6 +979,22 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN) {
 		rc = -EIO;
 		goto fail;
+	}
+
+	/* We currently assume we have control of the external link
+	 * and are completely trusted by firmware.  Abort probing
+	 * if that's not true for this function.
+	 */
+	if (driver_operating &&
+	    outlen >= MC_CMD_DRV_ATTACH_EXT_OUT_LEN &&
+	    (MCDI_DWORD(outbuf, DRV_ATTACH_EXT_OUT_FUNC_FLAGS) &
+	     (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL |
+	      1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED)) !=
+	    (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL |
+	     1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED)) {
+		netif_err(efx, probe, efx->net_dev,
+			  "This driver version only supports one function per port\n");
+		return -ENODEV;
 	}
 
 	if (was_attached != NULL)
