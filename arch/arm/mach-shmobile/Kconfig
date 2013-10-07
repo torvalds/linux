@@ -101,6 +101,12 @@ config ARCH_R8A7790
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
+config ARCH_R8A7791
+	bool "R-Car M2 (R8A77910)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
+
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -162,6 +168,8 @@ config MACH_BOCKW
 	select RENESAS_INTC_IRQPIN
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
+	select SND_SOC_AK4554 if SND_SIMPLE_CARD
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 
 config MACH_BOCKW_REFERENCE
 	bool "BOCK-W  - Reference Device Tree Implementation"
@@ -212,6 +220,11 @@ config MACH_LAGER_REFERENCE
 	   of not supporting a number of devices.
 
 	   This is intended to aid developers
+
+config MACH_KOELSCH
+	bool "Koelsch board"
+	depends on ARCH_R8A7791
+	select USE_OF
 
 config MACH_KZM9D
 	bool "KZM9D board"

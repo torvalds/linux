@@ -15,6 +15,7 @@ obj-$(CONFIG_ARCH_R8A7740)	+= setup-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7778)	+= setup-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= setup-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= setup-r8a7790.o
+obj-$(CONFIG_ARCH_R8A7791)	+= setup-r8a7791.o
 obj-$(CONFIG_ARCH_EMEV2)	+= setup-emev2.o
 
 # Clock objects
@@ -27,6 +28,7 @@ obj-$(CONFIG_ARCH_R8A7740)	+= clock-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= clock-r8a7790.o
+obj-$(CONFIG_ARCH_R8A7791)	+= clock-r8a7791.o
 obj-$(CONFIG_ARCH_EMEV2)	+= clock-emev2.o
 endif
 
@@ -59,6 +61,7 @@ obj-$(CONFIG_MACH_LAGER)	+= board-lager.o
 obj-$(CONFIG_MACH_LAGER_REFERENCE)	+= board-lager-reference.o
 obj-$(CONFIG_MACH_ARMADILLO800EVA)	+= board-armadillo800eva.o
 obj-$(CONFIG_MACH_ARMADILLO800EVA_REFERENCE)	+= board-armadillo800eva-reference.o
+obj-$(CONFIG_MACH_KOELSCH)	+= board-koelsch.o
 obj-$(CONFIG_MACH_KZM9D)	+= board-kzm9d.o
 obj-$(CONFIG_MACH_KZM9D_REFERENCE)	+= board-kzm9d-reference.o
 obj-$(CONFIG_MACH_KZM9G)	+= board-kzm9g.o

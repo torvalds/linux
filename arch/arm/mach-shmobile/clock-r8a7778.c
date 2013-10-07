@@ -69,6 +69,15 @@ static struct clk extal_clk = {
 	.mapping = &cpg_mapping,
 };
 
+static struct clk audio_clk_a = {
+};
+
+static struct clk audio_clk_b = {
+};
+
+static struct clk audio_clk_c = {
+};
+
 /*
  * clock ratio of these clock will be updated
  * on r8a7778_clock_init()
@@ -100,18 +109,23 @@ static struct clk *main_clks[] = {
 	&p_clk,
 	&g_clk,
 	&z_clk,
+	&audio_clk_a,
+	&audio_clk_b,
+	&audio_clk_c,
 };
 
 enum {
 	MSTP331,
 	MSTP323, MSTP322, MSTP321,
+	MSTP311, MSTP310,
+	MSTP309, MSTP308, MSTP307,
 	MSTP114,
 	MSTP110, MSTP109,
 	MSTP100,
 	MSTP030,
 	MSTP029, MSTP028, MSTP027, MSTP026, MSTP025, MSTP024, MSTP023, MSTP022, MSTP021,
-	MSTP016, MSTP015,
-	MSTP007,
+	MSTP016, MSTP015, MSTP012, MSTP011, MSTP010,
+	MSTP009, MSTP008, MSTP007,
 	MSTP_NR };
 
 static struct clk mstp_clks[MSTP_NR] = {
@@ -119,6 +133,11 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP323] = SH_CLK_MSTP32(&p_clk, MSTPCR3, 23, 0), /* SDHI0 */
 	[MSTP322] = SH_CLK_MSTP32(&p_clk, MSTPCR3, 22, 0), /* SDHI1 */
 	[MSTP321] = SH_CLK_MSTP32(&p_clk, MSTPCR3, 21, 0), /* SDHI2 */
+	[MSTP311] = SH_CLK_MSTP32(&p_clk, MSTPCR3, 11, 0), /* SSI4 */
+	[MSTP310] = SH_CLK_MSTP32(&p_clk, MSTPCR3, 10, 0), /* SSI5 */
+	[MSTP309] = SH_CLK_MSTP32(&p_clk, MSTPCR3,  9, 0), /* SSI6 */
+	[MSTP308] = SH_CLK_MSTP32(&p_clk, MSTPCR3,  8, 0), /* SSI7 */
+	[MSTP307] = SH_CLK_MSTP32(&p_clk, MSTPCR3,  7, 0), /* SSI8 */
 	[MSTP114] = SH_CLK_MSTP32(&p_clk, MSTPCR1, 14, 0), /* Ether */
 	[MSTP110] = SH_CLK_MSTP32(&s_clk, MSTPCR1, 10, 0), /* VIN0 */
 	[MSTP109] = SH_CLK_MSTP32(&s_clk, MSTPCR1,  9, 0), /* VIN1 */
@@ -135,11 +154,20 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP021] = SH_CLK_MSTP32(&p_clk, MSTPCR0, 21, 0), /* SCIF5 */
 	[MSTP016] = SH_CLK_MSTP32(&p_clk, MSTPCR0, 16, 0), /* TMU0 */
 	[MSTP015] = SH_CLK_MSTP32(&p_clk, MSTPCR0, 15, 0), /* TMU1 */
+	[MSTP012] = SH_CLK_MSTP32(&p_clk, MSTPCR0, 12, 0), /* SSI0 */
+	[MSTP011] = SH_CLK_MSTP32(&p_clk, MSTPCR0, 11, 0), /* SSI1 */
+	[MSTP010] = SH_CLK_MSTP32(&p_clk, MSTPCR0, 10, 0), /* SSI2 */
+	[MSTP009] = SH_CLK_MSTP32(&p_clk, MSTPCR0,  9, 0), /* SSI3 */
+	[MSTP008] = SH_CLK_MSTP32(&p_clk, MSTPCR0,  8, 0), /* SRU */
 	[MSTP007] = SH_CLK_MSTP32(&p_clk, MSTPCR0,  7, 0), /* HSPI */
 };
 
 static struct clk_lookup lookups[] = {
 	/* main */
+	CLKDEV_CON_ID("audio_clk_a",	&audio_clk_a),
+	CLKDEV_CON_ID("audio_clk_b",	&audio_clk_b),
+	CLKDEV_CON_ID("audio_clk_c",	&audio_clk_c),
+	CLKDEV_CON_ID("audio_clk_internal",	&s1_clk),
 	CLKDEV_CON_ID("shyway_clk",	&s_clk),
 	CLKDEV_CON_ID("peripheral_clk",	&p_clk),
 
@@ -153,6 +181,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("r8a7778-vin.1", &mstp_clks[MSTP109]), /* VIN1 */
 	CLKDEV_DEV_ID("ehci-platform", &mstp_clks[MSTP100]), /* USB EHCI port0/1 */
 	CLKDEV_DEV_ID("ohci-platform", &mstp_clks[MSTP100]), /* USB OHCI port0/1 */
+	CLKDEV_DEV_ID("renesas_usbhs", &mstp_clks[MSTP100]), /* USB FUNC */
 	CLKDEV_DEV_ID("i2c-rcar.0", &mstp_clks[MSTP030]), /* I2C0 */
 	CLKDEV_DEV_ID("i2c-rcar.1", &mstp_clks[MSTP029]), /* I2C1 */
 	CLKDEV_DEV_ID("i2c-rcar.2", &mstp_clks[MSTP028]), /* I2C2 */
@@ -168,6 +197,17 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-hspi.0", &mstp_clks[MSTP007]), /* HSPI0 */
 	CLKDEV_DEV_ID("sh-hspi.1", &mstp_clks[MSTP007]), /* HSPI1 */
 	CLKDEV_DEV_ID("sh-hspi.2", &mstp_clks[MSTP007]), /* HSPI2 */
+	CLKDEV_DEV_ID("rcar_sound", &mstp_clks[MSTP008]), /* SRU */
+
+	CLKDEV_ICK_ID("ssi.0", "rcar_sound", &mstp_clks[MSTP012]),
+	CLKDEV_ICK_ID("ssi.1", "rcar_sound", &mstp_clks[MSTP011]),
+	CLKDEV_ICK_ID("ssi.2", "rcar_sound", &mstp_clks[MSTP010]),
+	CLKDEV_ICK_ID("ssi.3", "rcar_sound", &mstp_clks[MSTP009]),
+	CLKDEV_ICK_ID("ssi.4", "rcar_sound", &mstp_clks[MSTP311]),
+	CLKDEV_ICK_ID("ssi.5", "rcar_sound", &mstp_clks[MSTP310]),
+	CLKDEV_ICK_ID("ssi.6", "rcar_sound", &mstp_clks[MSTP309]),
+	CLKDEV_ICK_ID("ssi.7", "rcar_sound", &mstp_clks[MSTP308]),
+	CLKDEV_ICK_ID("ssi.8", "rcar_sound", &mstp_clks[MSTP307]),
 };
 
 void __init r8a7778_clock_init(void)
