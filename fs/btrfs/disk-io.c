@@ -4046,8 +4046,6 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	btrfs_destroy_ordered_operations(cur_trans, root);
 
 	btrfs_destroy_delayed_refs(cur_trans, root);
-	btrfs_block_rsv_release(root, &root->fs_info->trans_block_rsv,
-				cur_trans->dirty_pages.dirty_bytes);
 
 	cur_trans->state = TRANS_STATE_COMMIT_START;
 	wake_up(&root->fs_info->transaction_blocked_wait);
