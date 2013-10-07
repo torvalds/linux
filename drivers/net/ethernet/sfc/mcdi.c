@@ -867,8 +867,8 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_mcdi_sensor_event(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SCHEDERR:
-		netif_info(efx, hw, efx->net_dev,
-			   "MC Scheduler error address=0x%x\n", data);
+		netif_dbg(efx, hw, efx->net_dev,
+			  "MC Scheduler alert (0x%x)\n", data);
 		break;
 	case MCDI_EVENT_CODE_REBOOT:
 	case MCDI_EVENT_CODE_MC_REBOOT:
