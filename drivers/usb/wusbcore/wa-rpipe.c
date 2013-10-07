@@ -480,7 +480,7 @@ error:
  */
 int wa_rpipes_create(struct wahc *wa)
 {
-	wa->rpipes = wa->wa_descr->wNumRPipes;
+	wa->rpipes = le16_to_cpu(wa->wa_descr->wNumRPipes);
 	wa->rpipe_bm = kzalloc(BITS_TO_LONGS(wa->rpipes)*sizeof(unsigned long),
 			       GFP_KERNEL);
 	if (wa->rpipe_bm == NULL)

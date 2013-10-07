@@ -279,11 +279,11 @@ struct wa_xfer_result {
 struct usb_wa_descriptor {
 	u8	bLength;
 	u8	bDescriptorType;
-	u16	bcdWAVersion;
+	__le16	bcdWAVersion;
 	u8	bNumPorts;		/* don't use!! */
 	u8	bmAttributes;		/* Reserved == 0 */
-	u16	wNumRPipes;
-	u16	wRPipeMaxBlock;
+	__le16	wNumRPipes;
+	__le16	wRPipeMaxBlock;
 	u8	bRPipeBlockSize;
 	u8	bPwrOn2PwrGood;
 	u8	bNumMMCIEs;

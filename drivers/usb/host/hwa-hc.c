@@ -570,14 +570,10 @@ found:
 		goto error;
 	}
 	wa->wa_descr = wa_descr = (struct usb_wa_descriptor *) hdr;
-	/* Make LE fields CPU order */
-	wa_descr->bcdWAVersion = le16_to_cpu(wa_descr->bcdWAVersion);
-	wa_descr->wNumRPipes = le16_to_cpu(wa_descr->wNumRPipes);
-	wa_descr->wRPipeMaxBlock = le16_to_cpu(wa_descr->wRPipeMaxBlock);
-	if (wa_descr->bcdWAVersion > 0x0100)
+	if (le16_to_cpu(wa_descr->bcdWAVersion) > 0x0100)
 		dev_warn(dev, "Wire Adapter v%d.%d newer than groked v1.0\n",
-			 wa_descr->bcdWAVersion & 0xff00 >> 8,
-			 wa_descr->bcdWAVersion & 0x00ff);
+			 le16_to_cpu(wa_descr->bcdWAVersion) & 0xff00 >> 8,
+			 le16_to_cpu(wa_descr->bcdWAVersion) & 0x00ff);
 	result = 0;
 error:
 	return result;
