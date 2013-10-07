@@ -199,7 +199,7 @@
 		gpmc,cycle2cycle-diffcsen;
 
 		interrupt-parent = <&gpio6>;
-		interrupts = <16 8>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
 		vmmc-supply = <&vddvario>;
 		vmmc_aux-supply = <&vdd33a>;
 		reg-io-width = <4>;
