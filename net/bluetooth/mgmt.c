@@ -3782,24 +3782,24 @@ done:
 	return err;
 }
 
-int mgmt_index_added(struct hci_dev *hdev)
+void mgmt_index_added(struct hci_dev *hdev)
 {
 	if (hdev->dev_type != HCI_BREDR)
-		return -ENOTSUPP;
+		return;
 
-	return mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
+	mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
 }
 
-int mgmt_index_removed(struct hci_dev *hdev)
+void mgmt_index_removed(struct hci_dev *hdev)
 {
 	u8 status = MGMT_STATUS_INVALID_INDEX;
 
 	if (hdev->dev_type != HCI_BREDR)
-		return -ENOTSUPP;
+		return;
 
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 
-	return mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
+	mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
 }
 
 static void set_bredr_scan(struct hci_request *req)
