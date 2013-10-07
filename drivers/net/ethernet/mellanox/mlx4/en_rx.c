@@ -135,9 +135,10 @@ static void mlx4_en_free_frag(struct mlx4_en_priv *priv,
 			      int i)
 {
 	const struct mlx4_en_frag_info *frag_info = &priv->frag_info[i];
+	u32 next_frag_end = frags[i].page_offset + 2 * frag_info->frag_stride;
 
-	if (frags[i].page_offset + frag_info->frag_stride >
-	    frags[i].page_size)
+
+	if (next_frag_end > frags[i].page_size)
 		dma_unmap_page(priv->ddev, frags[i].dma, frags[i].page_size,
 			       PCI_DMA_FROMDEVICE);
 
