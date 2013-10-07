@@ -307,6 +307,12 @@ static void amp_init(struct hci_request *req)
 	/* Read Local Version */
 	hci_req_add(req, HCI_OP_READ_LOCAL_VERSION, 0, NULL);
 
+	/* Read Local Supported Commands */
+	hci_req_add(req, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
+
+	/* Read Local Supported Features */
+	hci_req_add(req, HCI_OP_READ_LOCAL_FEATURES, 0, NULL);
+
 	/* Read Local AMP Info */
 	hci_req_add(req, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
 
