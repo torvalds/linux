@@ -180,6 +180,7 @@ union kvmppc_one_reg {
 };
 
 struct kvmppc_ops {
+	bool is_hv_enabled;
 	int (*get_sregs)(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 	int (*set_sregs)(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 	int (*get_one_reg)(struct kvm_vcpu *vcpu, u64 id,
@@ -309,10 +310,10 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 
 static inline u32 kvmppc_get_xics_latch(void)
 {
-	u32 xirr = get_paca()->kvm_hstate.saved_xirr;
+	u32 xirr;
 
+	xirr = get_paca()->kvm_hstate.saved_xirr;
 	get_paca()->kvm_hstate.saved_xirr = 0;
-
 	return xirr;
 }
 

@@ -818,7 +818,7 @@ int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 	}
 
 	/* Check for real mode returning too hard */
-	if (xics->real_mode)
+	if (xics->real_mode && kvmppc_ops->is_hv_enabled)
 		return kvmppc_xics_rm_complete(vcpu, req);
 
 	switch (req) {
