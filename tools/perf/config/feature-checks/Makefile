@@ -8,6 +8,7 @@ FILES=					\
 	test-bionic			\
 	test-libelf			\
 	test-glibc			\
+	test-dwarf			\
 	test-libnuma
 
 CC := $(CC) -MD
@@ -41,6 +42,9 @@ test-libelf:
 
 test-glibc:
 	$(BUILD)
+
+test-dwarf:
+	$(BUILD) -ldw
 
 test-libnuma:
 	$(BUILD) -lnuma
