@@ -506,6 +506,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 		return -EIO;
 
 	/* If this is a key frame, add extra header */
+	vb->v4l2_buf.flags &= ~(V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
 	if (!vop_type(vh)) {
 		skip = solo_enc->vop_len;
 		vb->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
