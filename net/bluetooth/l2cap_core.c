@@ -1202,6 +1202,9 @@ static void l2cap_le_flowctl_start(struct l2cap_chan *chan)
 	chan->sdu_len = 0;
 
 	skb_queue_head_init(&chan->tx_q);
+
+	if (!chan->tx_credits)
+		chan->ops->suspend(chan);
 }
 
 static void l2cap_chan_ready(struct l2cap_chan *chan)
