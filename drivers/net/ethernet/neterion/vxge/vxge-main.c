@@ -2072,6 +2072,10 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 				vdev->config.tx_steering_type;
 			vpath->fifo.ndev = vdev->ndev;
 			vpath->fifo.pdev = vdev->pdev;
+
+			u64_stats_init(&vpath->fifo.stats.syncp);
+			u64_stats_init(&vpath->ring.stats.syncp);
+
 			if (vdev->config.tx_steering_type)
 				vpath->fifo.txq =
 					netdev_get_tx_queue(vdev->ndev, i);

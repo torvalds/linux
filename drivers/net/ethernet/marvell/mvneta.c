@@ -2792,6 +2792,9 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp = netdev_priv(dev);
 
+	u64_stats_init(&pp->tx_stats.syncp);
+	u64_stats_init(&pp->rx_stats.syncp);
+
 	pp->weight = MVNETA_RX_POLL_WEIGHT;
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;

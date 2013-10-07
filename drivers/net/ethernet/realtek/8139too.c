@@ -791,6 +791,9 @@ static struct net_device *rtl8139_init_board(struct pci_dev *pdev)
 
 	pci_set_master (pdev);
 
+	u64_stats_init(&tp->rx_stats.syncp);
+	u64_stats_init(&tp->tx_stats.syncp);
+
 retry:
 	/* PIO bar register comes first. */
 	bar = !use_io;

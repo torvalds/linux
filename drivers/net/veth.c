@@ -230,9 +230,17 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 
 static int veth_dev_init(struct net_device *dev)
 {
+	int i;
+
 	dev->vstats = alloc_percpu(struct pcpu_vstats);
 	if (!dev->vstats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_vstats *veth_stats;
+		veth_stats = per_cpu_ptr(dev->vstats, i);
+		u64_stats_init(&veth_stats->syncp);
+	}
 
 	return 0;
 }
