@@ -41,28 +41,6 @@
 			status = "okay";
 		};
 
-		i2c@80004000 {
-			tc3589x@42 {
-				compatible = "tc3589x";
-				reg = <0x42>;
-				interrupt-parent = <&gpio6>;
-				interrupts = <25 IRQ_TYPE_EDGE_RISING>;
-
-				interrupt-controller;
-				#interrupt-cells = <2>;
-
-				tc3589x_gpio: tc3589x_gpio {
-					compatible = "tc3589x-gpio";
-					interrupts = <0 IRQ_TYPE_EDGE_RISING>;
-
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					gpio-controller;
-					#gpio-cells = <2>;
-				};
-			};
-		};
-
 		i2c@80128000 {
 			lp5521@33 {
 				compatible = "national,lp5521";
@@ -72,6 +50,7 @@
 				chan0 {
 					led-cur = /bits/ 8 <0x2f>;
 					max-cur = /bits/ 8 <0x5f>;
+					linux,default-trigger = "heartbeat";
 				};
 				chan1 {
 					led-cur = /bits/ 8 <0x2f>;
@@ -102,7 +81,7 @@
 			};
 			bh1780@29 {
 				compatible = "rohm,bh1780gli";
-				reg = <0x33>;
+				reg = <0x29>;
 			};
 		};
 
@@ -168,6 +147,10 @@
 
 		prcmu@80157000 {
 			ab8500 {
+				ab8500-gpio {
+					compatible = "stericsson,ab8500-gpio";
+				};
+
 				ab8500-regulators {
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
 						regulator-name = "V-DISPLAY";

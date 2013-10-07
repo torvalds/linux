@@ -7,17 +7,14 @@
  *
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the HREF+ prior to the v60 variant.
  */
 
-/dts-v1/;
 #include "ste-dbx5x0.dtsi"
 #include "ste-href.dtsi"
-#include "ste-stuib.dtsi"
 
 / {
-	model = "ST-Ericsson HREF (pre-v60) platform with Device Tree";
-	compatible = "st-ericsson,mop500", "st-ericsson,u8500";
-
 	gpio_keys {
 		button@1 {
 			gpios = <&tc3589x_gpio 7 0x4>;
@@ -25,24 +22,30 @@
 	};
 
 	soc {
-		prcmu@80157000 {
-			ab8500@5 {
-				ab8500-gpio {
-					compatible = "stericsson,ab8500-gpio";
-				};
-			};
-		};
-
 		i2c@80004000 {
 			tps61052@33 {
 				compatible = "tps61052";
 				reg = <0x33>;
 			};
-		};
 
-		i2c@80110000 {
-			bu21013_tp@5c {
-				reset-gpio = <&tc3589x_gpio 13 0x4>;
+			tc3589x@42 {
+				compatible = "tc3589x";
+				reg = <0x42>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				tc3589x_gpio: tc3589x_gpio {
+					compatible = "tc3589x-gpio";
+					interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
 			};
 		};
 

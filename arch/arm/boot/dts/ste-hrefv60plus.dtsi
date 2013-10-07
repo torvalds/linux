@@ -9,10 +9,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/dts-v1/;
 #include "ste-dbx5x0.dtsi"
 #include "ste-href.dtsi"
-#include "ste-stuib.dtsi"
 
 / {
 	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
@@ -20,17 +18,11 @@
 
 	gpio_keys {
 		button@1 {
-			gpios = <&gpio6 25 0x4>;
+			gpios = <&gpio5 25 0x4>;
 		};
 	};
 
 	soc {
-		i2c@80110000 {
-			bu21013_tp@0x5c {
-				reset-gpio = <&gpio4 15 0x4>;
-			};
-		};
-
 		// External Micro SD slot
 		sdi0_per1@80126000 {
 			arm,primecell-periphid = <0x10480180>;
@@ -40,7 +32,7 @@
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 
-			cd-gpios  = <&tc3589x_gpio 3 0x4>;
+			cd-gpios  = <&gpio2 31 0x4>; // 95
 
 			status = "okay";
 		};
