@@ -547,6 +547,8 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_port_complete : purb->status(%d) != 0\n", purb->status));
 
 		DBG_88E("###=> usb_read_port_complete => urb status(%d)\n", purb->status);
+		skb_put(precvbuf->pskb, purb->actual_length);
+		precvbuf->pskb = NULL;
 
 		if (rtw_inc_and_chk_continual_urb_error(adapter_to_dvobj(adapt)))
 			adapt->bSurpriseRemoved = true;
