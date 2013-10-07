@@ -457,7 +457,7 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
 		goto err;
 
@@ -484,8 +484,6 @@ static int omap1_spi100k_remove(struct platform_device *pdev)
 		return status;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	spi_unregister_master(master);
 
 	return 0;
 }

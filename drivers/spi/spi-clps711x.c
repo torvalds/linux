@@ -230,7 +230,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 		goto clk_out;
 	}
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (!ret) {
 		dev_info(&pdev->dev,
 			 "SPI bus driver initialized. Master clock %u Hz\n",
@@ -247,7 +247,6 @@ err_out:
 			gpio_free(hw->chipselect[i]);
 
 	spi_master_put(master);
-	kfree(master);
 
 	return ret;
 }
@@ -261,9 +260,6 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 	for (i = 0; i < master->num_chipselect; i++)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
-
-	spi_unregister_master(master);
-	kfree(master);
 
 	return 0;
 }

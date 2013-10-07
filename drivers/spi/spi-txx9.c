@@ -406,7 +406,7 @@ static int txx9spi_probe(struct platform_device *dev)
 	master->num_chipselect = (u16)UINT_MAX; /* any GPIO numbers */
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&dev->dev, master);
 	if (ret)
 		goto exit;
 	return 0;
@@ -428,11 +428,9 @@ static int txx9spi_remove(struct platform_device *dev)
 	struct spi_master *master = spi_master_get(platform_get_drvdata(dev));
 	struct txx9spi *c = spi_master_get_devdata(master);
 
-	spi_unregister_master(master);
 	destroy_workqueue(c->workqueue);
 	clk_disable(c->clk);
 	clk_put(c->clk);
-	spi_master_put(master);
 	return 0;
 }
 
