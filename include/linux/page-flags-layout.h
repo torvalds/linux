@@ -39,9 +39,9 @@
  * lookup is necessary.
  *
  * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE |             ... | FLAGS |
- *      " plus space for last_nidpid: |       NODE     | ZONE | LAST_NIDPID ... | FLAGS |
+ *      " plus space for last_cpupid: |       NODE     | ZONE | LAST_CPUPID ... | FLAGS |
  * classic sparse with space for node:| SECTION | NODE | ZONE |             ... | FLAGS |
- *      " plus space for last_nidpid: | SECTION | NODE | ZONE | LAST_NIDPID ... | FLAGS |
+ *      " plus space for last_cpupid: | SECTION | NODE | ZONE | LAST_CPUPID ... | FLAGS |
  * classic sparse no space for node:  | SECTION |     ZONE    | ... | FLAGS |
  */
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
@@ -65,18 +65,18 @@
 #define LAST__PID_SHIFT 8
 #define LAST__PID_MASK  ((1 << LAST__PID_SHIFT)-1)
 
-#define LAST__NID_SHIFT NODES_SHIFT
-#define LAST__NID_MASK  ((1 << LAST__NID_SHIFT)-1)
+#define LAST__CPU_SHIFT NR_CPUS_BITS
+#define LAST__CPU_MASK  ((1 << LAST__CPU_SHIFT)-1)
 
-#define LAST_NIDPID_SHIFT (LAST__PID_SHIFT+LAST__NID_SHIFT)
+#define LAST_CPUPID_SHIFT (LAST__PID_SHIFT+LAST__CPU_SHIFT)
 #else
-#define LAST_NIDPID_SHIFT 0
+#define LAST_CPUPID_SHIFT 0
 #endif
 
-#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_NIDPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
-#define LAST_NIDPID_WIDTH LAST_NIDPID_SHIFT
+#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+#define LAST_CPUPID_WIDTH LAST_CPUPID_SHIFT
 #else
-#define LAST_NIDPID_WIDTH 0
+#define LAST_CPUPID_WIDTH 0
 #endif
 
 /*
@@ -87,8 +87,8 @@
 #define NODE_NOT_IN_PAGE_FLAGS
 #endif
 
-#if defined(CONFIG_NUMA_BALANCING) && LAST_NIDPID_WIDTH == 0
-#define LAST_NIDPID_NOT_IN_PAGE_FLAGS
+#if defined(CONFIG_NUMA_BALANCING) && LAST_CPUPID_WIDTH == 0
+#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
 #endif
 
 #endif /* _LINUX_PAGE_FLAGS_LAYOUT */

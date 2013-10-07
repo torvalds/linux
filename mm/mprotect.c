@@ -37,14 +37,14 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, unsigned long end, pgprot_t newprot,
-		int dirty_accountable, int prot_numa, bool *ret_all_same_nidpid)
+		int dirty_accountable, int prot_numa, bool *ret_all_same_cpupid)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *pte, oldpte;
 	spinlock_t *ptl;
 	unsigned long pages = 0;
-	bool all_same_nidpid = true;
-	int last_nid = -1;
+	bool all_same_cpupid = true;
+	int last_cpu = -1;
 	int last_pid = -1;
 
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
@@ -64,17 +64,17 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 				page = vm_normal_page(vma, addr, oldpte);
 				if (page) {
-					int nidpid = page_nidpid_last(page);
-					int this_nid = nidpid_to_nid(nidpid);
-					int this_pid = nidpid_to_pid(nidpid);
+					int cpupid = page_cpupid_last(page);
+					int this_cpu = cpupid_to_cpu(cpupid);
+					int this_pid = cpupid_to_pid(cpupid);
 
-					if (last_nid == -1)
-						last_nid = this_nid;
+					if (last_cpu == -1)
+						last_cpu = this_cpu;
 					if (last_pid == -1)
 						last_pid = this_pid;
-					if (last_nid != this_nid ||
+					if (last_cpu != this_cpu ||
 					    last_pid != this_pid) {
-						all_same_nidpid = false;
+						all_same_cpupid = false;
 					}
 
 					if (!pte_numa(oldpte)) {
@@ -115,7 +115,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	arch_leave_lazy_mmu_mode();
 	pte_unmap_unlock(pte - 1, ptl);
 
-	*ret_all_same_nidpid = all_same_nidpid;
+	*ret_all_same_cpupid = all_same_cpupid;
 	return pages;
 }
 
@@ -142,7 +142,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 	pmd_t *pmd;
 	unsigned long next;
 	unsigned long pages = 0;
-	bool all_same_nidpid;
+	bool all_same_cpupid;
 
 	pmd = pmd_offset(pud, addr);
 	do {
@@ -168,7 +168,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
 		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
-				 dirty_accountable, prot_numa, &all_same_nidpid);
+				 dirty_accountable, prot_numa, &all_same_cpupid);
 		pages += this_pages;
 
 		/*
@@ -177,7 +177,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 		 * node. This allows a regular PMD to be handled as one fault
 		 * and effectively batches the taking of the PTL
 		 */
-		if (prot_numa && this_pages && all_same_nidpid)
+		if (prot_numa && this_pages && all_same_cpupid)
 			change_pmd_protnuma(vma->vm_mm, addr, pmd);
 	} while (pmd++, addr = next, addr != end);
 

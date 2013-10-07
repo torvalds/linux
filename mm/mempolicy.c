@@ -2324,6 +2324,8 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 	struct zone *zone;
 	int curnid = page_to_nid(page);
 	unsigned long pgoff;
+	int thiscpu = raw_smp_processor_id();
+	int thisnid = cpu_to_node(thiscpu);
 	int polnid = -1;
 	int ret = -1;
 
@@ -2372,11 +2374,11 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 
 	/* Migrate the page towards the node whose CPU is referencing it */
 	if (pol->flags & MPOL_F_MORON) {
-		int last_nidpid;
-		int this_nidpid;
+		int last_cpupid;
+		int this_cpupid;
 
-		polnid = numa_node_id();
-		this_nidpid = nid_pid_to_nidpid(polnid, current->pid);
+		polnid = thisnid;
+		this_cpupid = cpu_pid_to_cpupid(thiscpu, current->pid);
 
 		/*
 		 * Multi-stage node selection is used in conjunction
@@ -2399,8 +2401,8 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 * it less likely we act on an unlikely task<->page
 		 * relation.
 		 */
-		last_nidpid = page_nidpid_xchg_last(page, this_nidpid);
-		if (!nidpid_pid_unset(last_nidpid) && nidpid_to_nid(last_nidpid) != polnid)
+		last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
+		if (!cpupid_pid_unset(last_cpupid) && cpupid_to_nid(last_cpupid) != thisnid)
 			goto out;
 
 #ifdef CONFIG_NUMA_BALANCING
@@ -2410,7 +2412,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 * This way a short and temporary process migration will
 		 * not cause excessive memory migration.
 		 */
-		if (polnid != current->numa_preferred_nid &&
+		if (thisnid != current->numa_preferred_nid &&
 				!current->numa_migrate_seq)
 			goto out;
 #endif

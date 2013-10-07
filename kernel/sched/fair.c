@@ -1210,7 +1210,7 @@ static void task_numa_placement(struct task_struct *p)
 /*
  * Got a PROT_NONE fault for a page on @node.
  */
-void task_numa_fault(int last_nidpid, int node, int pages, bool migrated)
+void task_numa_fault(int last_cpupid, int node, int pages, bool migrated)
 {
 	struct task_struct *p = current;
 	int priv;
@@ -1226,8 +1226,8 @@ void task_numa_fault(int last_nidpid, int node, int pages, bool migrated)
 	 * First accesses are treated as private, otherwise consider accesses
 	 * to be private if the accessing pid has not changed
 	 */
-	if (!nidpid_pid_unset(last_nidpid))
-		priv = ((p->pid & LAST__PID_MASK) == nidpid_to_pid(last_nidpid));
+	if (!cpupid_pid_unset(last_cpupid))
+		priv = ((p->pid & LAST__PID_MASK) == cpupid_to_pid(last_cpupid));
 	else
 		priv = 1;
 
