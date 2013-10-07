@@ -19,9 +19,6 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 
-/* The current code can have up to 256 pages for virtio */
-#define VIRTIODESCSPACE (256ul * 4096ul)
-
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
 /* declare vfacilities extern */
