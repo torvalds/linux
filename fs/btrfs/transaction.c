@@ -1600,15 +1600,19 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	int ret;
 
 	ret = btrfs_run_delayed_items(trans, root);
-	if (ret)
-		return ret;
-
 	/*
 	 * running the delayed items may have added new refs. account
 	 * them now so that they hinder processing of more delayed refs
 	 * as little as possible.
 	 */
-	btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
+	if (ret) {
+		btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
+		return ret;
+	}
+
+	ret = btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
+	if (ret)
+		return ret;
 
 	/*
 	 * rename don't use btrfs_join_transaction, so, once we
