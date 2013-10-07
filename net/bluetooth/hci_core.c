@@ -319,6 +319,9 @@ static void amp_init(struct hci_request *req)
 	/* Read Data Blk size */
 	hci_req_add(req, HCI_OP_READ_DATA_BLOCK_SIZE, 0, NULL);
 
+	/* Read Flow Control Mode */
+	hci_req_add(req, HCI_OP_READ_FLOW_CONTROL_MODE, 0, NULL);
+
 	/* Read Location Data */
 	hci_req_add(req, HCI_OP_READ_LOCATION_DATA, 0, NULL);
 }
