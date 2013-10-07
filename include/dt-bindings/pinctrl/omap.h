@@ -23,7 +23,7 @@
 #define PULL_UP			(1 << 4)
 #define ALTELECTRICALSEL	(1 << 5)
 
-/* 34xx specific mux bit defines */
+/* omap3/4/5 specific mux bit defines */
 #define INPUT_EN		(1 << 8)
 #define OFF_EN			(1 << 9)
 #define OFFOUT_EN		(1 << 10)
@@ -31,8 +31,6 @@
 #define OFF_PULL_EN		(1 << 12)
 #define OFF_PULL_UP		(1 << 13)
 #define WAKEUP_EN		(1 << 14)
-
-/* 44xx specific mux bit defines */
 #define WAKEUP_EVENT		(1 << 15)
 
 /* Active pin states */

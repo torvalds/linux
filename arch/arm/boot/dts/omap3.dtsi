@@ -108,7 +108,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0x7f1f>;
+			pinctrl-single,function-mask = <0xff1f>;
 		};
 
 		omap3_pmx_wkup: pinmux@0x48002a00 {
@@ -117,7 +117,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0x7f1f>;
+			pinctrl-single,function-mask = <0xff1f>;
 		};
 
 		gpio1: gpio@48310000 {
