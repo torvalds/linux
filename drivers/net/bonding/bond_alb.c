@@ -1699,6 +1699,23 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 
 	ASSERT_RTNL();
 
+	/* in TLB mode, the slave might flip down/up with the old dev_addr,
+	 * and thus filter bond->dev_addr's packets, so force bond's mac
+	 */
+	if (bond->params.mode == BOND_MODE_TLB) {
+		struct sockaddr sa;
+		u8 tmp_addr[ETH_ALEN];
+
+		memcpy(tmp_addr, new_slave->dev->dev_addr, ETH_ALEN);
+
+		memcpy(sa.sa_data, bond->dev->dev_addr, bond->dev->addr_len);
+		sa.sa_family = bond->dev->type;
+		/* we don't care if it can't change its mac, best effort */
+		dev_set_mac_address(new_slave->dev, &sa);
+
+		memcpy(new_slave->dev->dev_addr, tmp_addr, ETH_ALEN);
+	}
+
 	/* curr_active_slave must be set before calling alb_swap_mac_addr */
 	if (swap_slave) {
 		/* swap mac address */
