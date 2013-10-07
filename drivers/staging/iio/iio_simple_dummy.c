@@ -57,6 +57,20 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
 	{ 733, 13, 0x9 }, /* 733.000013 */
 };
 
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+
+/*
+ * simple event - triggered when value rises above
+ * a threshold
+ */
+static const struct iio_event_spec iio_dummy_event = {
+	.type = IIO_EV_TYPE_THRESH,
+	.dir = IIO_EV_DIR_RISING,
+	.mask_separate = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_ENABLE),
+};
+
+#endif
+
 /*
  * iio_dummy_channels - Description of available channels
  *
@@ -104,12 +118,8 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 			.shift = 0, /* zero shift */
 		},
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
-		/*
-		 * simple event - triggered when value rises above
-		 * a threshold
-		 */
-		.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH,
-					 IIO_EV_DIR_RISING),
+		.event_spec = &iio_dummy_event,
+		.num_event_specs = 1,
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 	},
 	/* Differential ADC channel in_voltage1-voltage2_raw etc*/
@@ -360,10 +370,10 @@ static const struct iio_info iio_dummy_info = {
 	.read_raw = &iio_dummy_read_raw,
 	.write_raw = &iio_dummy_write_raw,
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
-	.read_event_config = &iio_simple_dummy_read_event_config,
-	.write_event_config = &iio_simple_dummy_write_event_config,
-	.read_event_value = &iio_simple_dummy_read_event_value,
-	.write_event_value = &iio_simple_dummy_write_event_value,
+	.read_event_config_new = &iio_simple_dummy_read_event_config,
+	.write_event_config_new = &iio_simple_dummy_write_event_config,
+	.read_event_value_new = &iio_simple_dummy_read_event_value,
+	.write_event_value_new = &iio_simple_dummy_write_event_value,
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 };
 
