@@ -2717,8 +2717,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		mutex_unlock(&fs_info->scrub_lock);
 		wake_up(&fs_info->scrub_pause_wait);
 
-		dev_replace->cursor_left = dev_replace->cursor_right;
-		dev_replace->item_needs_writeback = 1;
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;
@@ -2731,6 +2729,9 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			ret = -ENOMEM;
 			break;
 		}
+
+		dev_replace->cursor_left = dev_replace->cursor_right;
+		dev_replace->item_needs_writeback = 1;
 
 		key.offset = found_key.offset + length;
 		btrfs_release_path(path);
