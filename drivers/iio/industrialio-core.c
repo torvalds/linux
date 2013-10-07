@@ -794,11 +794,22 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 	return attrcount;
 }
 
-static void iio_device_remove_and_free_read_attr(struct iio_dev *indio_dev,
-						 struct iio_dev_attr *p)
+/**
+ * iio_free_chan_devattr_list() - Free a list of IIO device attributes
+ * @attr_list: List of IIO device attributes
+ *
+ * This function frees the memory allocated for each of the IIO device
+ * attributes in the list. Note: if you want to reuse the list after calling
+ * this function you have to reinitialize it using INIT_LIST_HEAD().
+ */
+void iio_free_chan_devattr_list(struct list_head *attr_list)
 {
-	kfree(p->dev_attr.attr.name);
-	kfree(p);
+	struct iio_dev_attr *p, *n;
+
+	list_for_each_entry_safe(p, n, attr_list, l) {
+		kfree(p->dev_attr.attr.name);
+		kfree(p);
+	}
 }
 
 static ssize_t iio_show_dev_name(struct device *dev,
@@ -814,7 +825,7 @@ static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
 static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 {
 	int i, ret = 0, attrcount, attrn, attrcount_orig = 0;
-	struct iio_dev_attr *p, *n;
+	struct iio_dev_attr *p;
 	struct attribute **attr;
 
 	/* First count elements in any existing group */
@@ -867,11 +878,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	return 0;
 
 error_clear_attrs:
-	list_for_each_entry_safe(p, n,
-				 &indio_dev->channel_attr_list, l) {
-		list_del(&p->l);
-		iio_device_remove_and_free_read_attr(indio_dev, p);
-	}
+	iio_free_chan_devattr_list(&indio_dev->channel_attr_list);
 
 	return ret;
 }
@@ -879,12 +886,7 @@ error_clear_attrs:
 static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 {
 
-	struct iio_dev_attr *p, *n;
-
-	list_for_each_entry_safe(p, n, &indio_dev->channel_attr_list, l) {
-		list_del(&p->l);
-		iio_device_remove_and_free_read_attr(indio_dev, p);
-	}
+	iio_free_chan_devattr_list(&indio_dev->channel_attr_list);
 	kfree(indio_dev->chan_attr_group.attrs);
 }
 

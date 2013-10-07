@@ -274,23 +274,6 @@ error_ret:
 	return ret;
 }
 
-static void iio_buffer_remove_and_free_scan_dev_attr(struct iio_dev *indio_dev,
-						     struct iio_dev_attr *p)
-{
-	kfree(p->dev_attr.attr.name);
-	kfree(p);
-}
-
-static void __iio_buffer_attr_cleanup(struct iio_dev *indio_dev)
-{
-	struct iio_dev_attr *p, *n;
-	struct iio_buffer *buffer = indio_dev->buffer;
-
-	list_for_each_entry_safe(p, n,
-				 &buffer->scan_el_dev_attr_list, l)
-		iio_buffer_remove_and_free_scan_dev_attr(indio_dev, p);
-}
-
 static const char * const iio_scan_elements_group_name = "scan_elements";
 
 int iio_buffer_register(struct iio_dev *indio_dev,
@@ -367,7 +350,7 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 error_free_scan_mask:
 	kfree(buffer->scan_mask);
 error_cleanup_dynamic:
-	__iio_buffer_attr_cleanup(indio_dev);
+	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
 
 	return ret;
 }
@@ -377,7 +360,7 @@ void iio_buffer_unregister(struct iio_dev *indio_dev)
 {
 	kfree(indio_dev->buffer->scan_mask);
 	kfree(indio_dev->buffer->scan_el_group.attrs);
-	__iio_buffer_attr_cleanup(indio_dev);
+	iio_free_chan_devattr_list(&indio_dev->buffer->scan_el_dev_attr_list);
 }
 EXPORT_SYMBOL(iio_buffer_unregister);
 

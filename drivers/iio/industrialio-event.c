@@ -350,17 +350,6 @@ error_ret:
 	return ret;
 }
 
-static inline void __iio_remove_event_config_attrs(struct iio_dev *indio_dev)
-{
-	struct iio_dev_attr *p, *n;
-	list_for_each_entry_safe(p, n,
-				 &indio_dev->event_interface->
-				 dev_attr_list, l) {
-		kfree(p->dev_attr.attr.name);
-		kfree(p);
-	}
-}
-
 static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 {
 	int j, ret, attrcount = 0;
@@ -452,7 +441,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 	return 0;
 
 error_free_setup_event_lines:
-	__iio_remove_event_config_attrs(indio_dev);
+	iio_free_chan_devattr_list(&indio_dev->event_interface->dev_attr_list);
 	kfree(indio_dev->event_interface);
 error_ret:
 
@@ -477,7 +466,7 @@ void iio_device_unregister_eventset(struct iio_dev *indio_dev)
 {
 	if (indio_dev->event_interface == NULL)
 		return;
-	__iio_remove_event_config_attrs(indio_dev);
+	iio_free_chan_devattr_list(&indio_dev->event_interface->dev_attr_list);
 	kfree(indio_dev->event_interface->group.attrs);
 	kfree(indio_dev->event_interface);
 }
