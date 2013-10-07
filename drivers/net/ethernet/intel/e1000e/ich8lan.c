@@ -1371,7 +1371,10 @@ static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index)
 		return;
 	}
 
-	if (index < hw->mac.rar_entry_count) {
+	/* RAR[1-6] are owned by manageability.  Skip those and program the
+	 * next address into the SHRA register array.
+	 */
+	if (index < (u32)(hw->mac.rar_entry_count - 6)) {
 		s32 ret_val;
 
 		ret_val = e1000_acquire_swflag_ich8lan(hw);
@@ -1962,8 +1965,8 @@ void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 	if (ret_val)
 		goto release;
 
-	/* Copy both RAL/H (rar_entry_count) and SHRAL/H (+4) to PHY */
-	for (i = 0; i < (hw->mac.rar_entry_count + 4); i++) {
+	/* Copy both RAL/H (rar_entry_count) and SHRAL/H to PHY */
+	for (i = 0; i < (hw->mac.rar_entry_count); i++) {
 		mac_reg = er32(RAL(i));
 		hw->phy.ops.write_reg_page(hw, BM_RAR_L(i),
 					   (u16)(mac_reg & 0xFFFF));
@@ -2007,10 +2010,10 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		return ret_val;
 
 	if (enable) {
-		/* Write Rx addresses (rar_entry_count for RAL/H, +4 for
+		/* Write Rx addresses (rar_entry_count for RAL/H, and
 		 * SHRAL/H) and initial CRC values to the MAC
 		 */
-		for (i = 0; i < (hw->mac.rar_entry_count + 4); i++) {
+		for (i = 0; i < hw->mac.rar_entry_count; i++) {
 			u8 mac_addr[ETH_ALEN] = { 0 };
 			u32 addr_high, addr_low;
 

@@ -624,7 +624,7 @@ static void eem_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_free_all_descriptors(f);
 }
 
-struct usb_function *eem_alloc(struct usb_function_instance *fi)
+static struct usb_function *eem_alloc(struct usb_function_instance *fi)
 {
 	struct f_eem	*eem;
 	struct f_eem_opts *opts;

@@ -778,7 +778,7 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 		return error;
 	}
 
-	if (mac[i] == NULL || mac_pton(mac[i], card->atmdev->esi)) {
+	if (mac[i] == NULL || !mac_pton(mac[i], card->atmdev->esi)) {
 		nicstar_read_eprom(card->membase, NICSTAR_EPROM_MAC_ADDR_OFFSET,
 				   card->atmdev->esi, 6);
 		if (memcmp(card->atmdev->esi, "\x00\x00\x00\x00\x00\x00", 6) ==

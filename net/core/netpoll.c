@@ -550,7 +550,7 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 		return;
 
 	proto = ntohs(eth_hdr(skb)->h_proto);
-	if (proto == ETH_P_IP) {
+	if (proto == ETH_P_ARP) {
 		struct arphdr *arp;
 		unsigned char *arp_ptr;
 		/* No arp on this interface */
@@ -1284,15 +1284,14 @@ EXPORT_SYMBOL_GPL(__netpoll_free_async);
 
 void netpoll_cleanup(struct netpoll *np)
 {
-	if (!np->dev)
-		return;
-
 	rtnl_lock();
+	if (!np->dev)
+		goto out;
 	__netpoll_cleanup(np);
-	rtnl_unlock();
-
 	dev_put(np->dev);
 	np->dev = NULL;
+out:
+	rtnl_unlock();
 }
 EXPORT_SYMBOL(netpoll_cleanup);
 

@@ -99,12 +99,13 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 		if (is_drm_iommu_supported(dev)) {
 			unsigned int nr_pages = buffer->size >> PAGE_SHIFT;
 
-			buffer->kvaddr = vmap(buffer->pages, nr_pages, VM_MAP,
+			buffer->kvaddr = (void __iomem *) vmap(buffer->pages,
+					nr_pages, VM_MAP,
 					pgprot_writecombine(PAGE_KERNEL));
 		} else {
 			phys_addr_t dma_addr = buffer->dma_addr;
 			if (dma_addr)
-				buffer->kvaddr = phys_to_virt(dma_addr);
+				buffer->kvaddr = (void __iomem *)phys_to_virt(dma_addr);
 			else
 				buffer->kvaddr = (void __iomem *)NULL;
 		}

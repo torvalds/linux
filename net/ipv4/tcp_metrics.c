@@ -502,7 +502,9 @@ reset:
 	 * ACKs, wait for troubles.
 	 */
 	if (crtt > tp->srtt) {
-		inet_csk(sk)->icsk_rto = crtt + max(crtt >> 2, tcp_rto_min(sk));
+		/* Set RTO like tcp_rtt_estimator(), but from cached RTT. */
+		crtt >>= 3;
+		inet_csk(sk)->icsk_rto = crtt + max(2 * crtt, tcp_rto_min(sk));
 	} else if (tp->srtt == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from
 		 * 3WHS. This is most likely due to retransmission,

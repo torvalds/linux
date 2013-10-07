@@ -361,7 +361,7 @@ config CMDLINE_OVERRIDE
 
 config VMALLOC_RESERVE
 	hex
-	default 0x1000000
+	default 0x2000000
 
 config HARDWALL
 	bool "Hardwall support to allow access to user dynamic network"
