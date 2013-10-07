@@ -53,6 +53,10 @@ config NFT_CHAIN_NAT_IPV4
 	depends on NF_NAT_IPV4 && NFT_NAT
 	tristate "IPv4 nf_tables nat chain support"
 
+config NF_TABLES_ARP
+	depends on NF_TABLES
+	tristate "ARP nf_tables support"
+
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
 	default m if NETFILTER_ADVANCED=n
