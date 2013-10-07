@@ -65,6 +65,7 @@ enum iio_event_type {
 enum iio_event_info {
 	IIO_EV_INFO_ENABLE,
 	IIO_EV_INFO_VALUE,
+	IIO_EV_INFO_HYSTERESIS,
 };
 
 enum iio_event_direction {

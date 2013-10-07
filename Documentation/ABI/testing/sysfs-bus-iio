@@ -537,6 +537,62 @@ Description:
 		value is in raw device units or in processed units (as _raw
 		and _input do on sysfs direct channel read attributes).
 
+What:		/sys/.../events/in_accel_x_thresh_rising_hysteresis
+What:		/sys/.../events/in_accel_x_thresh_falling_hysteresis
+What:		/sys/.../events/in_accel_x_thresh_either_hysteresis
+What:		/sys/.../events/in_accel_y_thresh_rising_hysteresis
+What:		/sys/.../events/in_accel_y_thresh_falling_hysteresis
+What:		/sys/.../events/in_accel_y_thresh_either_hysteresis
+What:		/sys/.../events/in_accel_z_thresh_rising_hysteresis
+What:		/sys/.../events/in_accel_z_thresh_falling_hysteresis
+What:		/sys/.../events/in_accel_z_thresh_either_hysteresis
+What:		/sys/.../events/in_anglvel_x_thresh_rising_hysteresis
+What:		/sys/.../events/in_anglvel_x_thresh_falling_hysteresis
+What:		/sys/.../events/in_anglvel_x_thresh_either_hysteresis
+What:		/sys/.../events/in_anglvel_y_thresh_rising_hysteresis
+What:		/sys/.../events/in_anglvel_y_thresh_falling_hysteresis
+What:		/sys/.../events/in_anglvel_y_thresh_either_hysteresis
+What:		/sys/.../events/in_anglvel_z_thresh_rising_hysteresis
+What:		/sys/.../events/in_anglvel_z_thresh_falling_hysteresis
+What:		/sys/.../events/in_anglvel_z_thresh_either_hysteresis
+What:		/sys/.../events/in_magn_x_thresh_rising_hysteresis
+What:		/sys/.../events/in_magn_x_thresh_falling_hysteresis
+What:		/sys/.../events/in_magn_x_thresh_either_hysteresis
+What:		/sys/.../events/in_magn_y_thresh_rising_hysteresis
+What:		/sys/.../events/in_magn_y_thresh_falling_hysteresis
+What:		/sys/.../events/in_magn_y_thresh_either_hysteresis
+What:		/sys/.../events/in_magn_z_thresh_rising_hysteresis
+What:		/sys/.../events/in_magn_z_thresh_falling_hysteresis
+What:		/sys/.../events/in_magn_z_thresh_either_hysteresis
+What:		/sys/.../events/in_voltageY_thresh_rising_hysteresis
+What:		/sys/.../events/in_voltageY_thresh_falling_hysteresis
+What:		/sys/.../events/in_voltageY_thresh_either_hysteresis
+What:		/sys/.../events/in_tempY_thresh_rising_hysteresis
+What:		/sys/.../events/in_tempY_thresh_falling_hysteresis
+What:		/sys/.../events/in_tempY_thresh_either_hysteresis
+What:		/sys/.../events/in_illuminance0_thresh_falling_hysteresis
+what:		/sys/.../events/in_illuminance0_thresh_rising_hysteresis
+what:		/sys/.../events/in_illuminance0_thresh_either_hysteresis
+what:		/sys/.../events/in_proximity0_thresh_falling_hysteresis
+what:		/sys/.../events/in_proximity0_thresh_rising_hysteresis
+what:		/sys/.../events/in_proximity0_thresh_either_hysteresis
+KernelVersion:	3.13
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the hysteresis of threshold that the device is comparing
+		against for the events enabled by
+		<type>Y[_name]_thresh[_(rising|falling)]_hysteresis.
+		If separate attributes exist for the two directions, but
+		direction is not specified for this attribute, then a single
+		hysteresis value applies to both directions.
+		For falling events the hysteresis is added to the _value attribute for
+		this event to get the upper threshold for when the event goes back to
+		normal, for rising events the hysteresis is subtracted from the _value
+		attribute. E.g. if in_voltage0_raw_thresh_rising_value is set to 1200
+		and in_voltage0_raw_thresh_rising_hysteresis is set to 50. The event
+		will get activated once in_voltage0_raw goes above 1200 and will become
+		deactived again once the value falls below 1150.
+
 What:		/sys/.../events/in_accel_x_raw_roc_rising_value
 What:		/sys/.../events/in_accel_x_raw_roc_falling_value
 What:		/sys/.../events/in_accel_y_raw_roc_rising_value
