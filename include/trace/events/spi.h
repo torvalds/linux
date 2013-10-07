@@ -80,12 +80,32 @@ DEFINE_EVENT(spi_message, spi_message_start,
 
 );
 
-DEFINE_EVENT(spi_message, spi_message_done,
+TRACE_EVENT(spi_message_done,
 
 	TP_PROTO(struct spi_message *msg),
 
-	TP_ARGS(msg)
+	TP_ARGS(msg),
 
+	TP_STRUCT__entry(
+		__field(        int,            bus_num         )
+		__field(        int,            chip_select     )
+		__field(        struct spi_message *,   msg     )
+		__field(        unsigned,       frame           )
+		__field(        unsigned,       actual          )
+	),
+
+	TP_fast_assign(
+		__entry->bus_num = msg->spi->master->bus_num;
+		__entry->chip_select = msg->spi->chip_select;
+		__entry->msg = msg;
+		__entry->frame = msg->frame_length;
+		__entry->actual = msg->actual_length;
+	),
+
+        TP_printk("spi%d.%d %p len=%u/%u", (int)__entry->bus_num,
+		  (int)__entry->chip_select,
+		  (struct spi_message *)__entry->msg,
+                  (unsigned)__entry->actual, (unsigned)__entry->frame)
 );
 
 #endif /* _TRACE_POWER_H */
