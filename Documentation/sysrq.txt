@@ -11,11 +11,9 @@ regardless of whatever else it is doing, unless it is completely locked up.
 You need to say "yes" to 'Magic SysRq key (CONFIG_MAGIC_SYSRQ)' when
 configuring the kernel. When running a kernel with SysRq compiled in,
 /proc/sys/kernel/sysrq controls the functions allowed to be invoked via
-the SysRq key. By default the file contains 1 which means that every
-possible SysRq request is allowed (in older versions SysRq was disabled
-by default, and you were required to specifically enable it at run-time
-but this is not the case any more). Here is the list of possible values
-in /proc/sys/kernel/sysrq:
+the SysRq key. The default value in this file is set by the
+CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE config symbol, which itself defaults
+to 1. Here is the list of possible values in /proc/sys/kernel/sysrq:
    0 - disable sysrq completely
    1 - enable all functions of sysrq
   >1 - bitmask of allowed sysrq functions (see below for detailed function
@@ -32,8 +30,9 @@ in /proc/sys/kernel/sysrq:
 You can set the value in the file by the following command:
     echo "number" >/proc/sys/kernel/sysrq
 
-The number may be written either as decimal or as hexadecimal with the
-0x prefix.
+The number may be written here either as decimal or as hexadecimal
+with the 0x prefix. CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE must always be
+written in hexadecimal.
 
 Note that the value of /proc/sys/kernel/sysrq influences only the invocation
 via a keyboard. Invocation of any operation via /proc/sysrq-trigger is always
