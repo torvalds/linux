@@ -911,11 +911,8 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	}
 
 	list_id = p[0];
-	if (list_id != 0x00) {
-		pr_err("XCOPY with non zero list_id: 0x%02x\n", list_id);
-		goto out;
-	}
-	list_id_usage = (p[1] & 0x18);
+	list_id_usage = (p[1] & 0x18) >> 3;
+
 	/*
 	 * Determine TARGET DESCRIPTOR LIST LENGTH + SEGMENT DESCRIPTOR LIST LENGTH
 	 */
