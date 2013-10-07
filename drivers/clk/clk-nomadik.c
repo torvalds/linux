@@ -86,7 +86,7 @@ static const struct of_device_id nomadik_src_match[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static void nomadik_src_init(void)
+static void __init nomadik_src_init(void)
 {
 	struct device_node *np;
 	u32 val;
