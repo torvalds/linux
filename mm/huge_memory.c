@@ -1304,24 +1304,25 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	target_nid = mpol_misplaced(page, vma, haddr);
 	if (target_nid == -1) {
 		/* If the page was locked, there are no parallel migrations */
-		if (page_locked) {
-			unlock_page(page);
+		if (page_locked)
 			goto clear_pmdnuma;
-		}
 
-		/* Otherwise wait for potential migrations and retry fault */
+		/*
+		 * Otherwise wait for potential migrations and retry. We do
+		 * relock and check_same as the page may no longer be mapped.
+		 * As the fault is being retried, do not account for it.
+		 */
 		spin_unlock(&mm->page_table_lock);
 		wait_on_page_locked(page);
+		page_nid = -1;
 		goto out;
 	}
 
 	/* Page is misplaced, serialise migrations and parallel THP splits */
 	get_page(page);
 	spin_unlock(&mm->page_table_lock);
-	if (!page_locked) {
+	if (!page_locked)
 		lock_page(page);
-		page_locked = true;
-	}
 	anon_vma = page_lock_anon_vma_read(page);
 
 	/* Confirm the PMD did not change while page_table_lock was released */
@@ -1329,32 +1330,28 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(!pmd_same(pmd, *pmdp))) {
 		unlock_page(page);
 		put_page(page);
+		page_nid = -1;
 		goto out_unlock;
 	}
 
-	/* Migrate the THP to the requested node */
+	/*
+	 * Migrate the THP to the requested node, returns with page unlocked
+	 * and pmd_numa cleared.
+	 */
 	spin_unlock(&mm->page_table_lock);
 	migrated = migrate_misplaced_transhuge_page(mm, vma,
 				pmdp, pmd, addr, page, target_nid);
 	if (migrated)
 		page_nid = target_nid;
-	else
-		goto check_same;
 
 	goto out;
-
-check_same:
-	spin_lock(&mm->page_table_lock);
-	if (unlikely(!pmd_same(pmd, *pmdp))) {
-		/* Someone else took our fault */
-		page_nid = -1;
-		goto out_unlock;
-	}
 clear_pmdnuma:
+	BUG_ON(!PageLocked(page));
 	pmd = pmd_mknonnuma(pmd);
 	set_pmd_at(mm, haddr, pmdp, pmd);
 	VM_BUG_ON(pmd_numa(*pmdp));
 	update_mmu_cache_pmd(vma, addr, pmdp);
+	unlock_page(page);
 out_unlock:
 	spin_unlock(&mm->page_table_lock);
 
