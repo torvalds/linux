@@ -2234,8 +2234,12 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 
-	if (trans->aborted)
+	if (trans->aborted) {
+		if (insert_reserved)
+			btrfs_pin_extent(root, node->bytenr,
+					 node->num_bytes, 1);
 		return 0;
+	}
 
 	if (btrfs_delayed_ref_is_head(node)) {
 		struct btrfs_delayed_ref_head *head;
@@ -2411,6 +2415,14 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 				btrfs_free_delayed_extent_op(extent_op);
 
 				if (ret) {
+					/*
+					 * Need to reset must_insert_reserved if
+					 * there was an error so the abort stuff
+					 * can cleanup the reserved space
+					 * properly.
+					 */
+					if (must_insert_reserved)
+						locked_ref->must_insert_reserved = 1;
 					btrfs_debug(fs_info, "run_delayed_extent_op returned %d", ret);
 					spin_lock(&delayed_refs->lock);
 					btrfs_delayed_ref_unlock(locked_ref);
@@ -6731,13 +6743,18 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 		size += sizeof(*block_info);
 
 	path = btrfs_alloc_path();
-	if (!path)
+	if (!path) {
+		btrfs_free_and_pin_reserved_extent(root, ins->objectid,
+						   root->leafsize);
 		return -ENOMEM;
+	}
 
 	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_item(trans, fs_info->extent_root, path,
 				      ins, size);
 	if (ret) {
+		btrfs_free_and_pin_reserved_extent(root, ins->objectid,
+						   root->leafsize);
 		btrfs_free_path(path);
 		return ret;
 	}
