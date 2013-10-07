@@ -304,7 +304,7 @@ static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault_dar;
 }
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 
 static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 {
@@ -339,7 +339,7 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 
 	return crit;
 }
-#else /* CONFIG_KVM_BOOK3S_PR */
+#else /* CONFIG_KVM_BOOK3S_PR_POSSIBLE */
 
 static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 {

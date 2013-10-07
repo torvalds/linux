@@ -244,7 +244,7 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 #define KVMTEST_PR(n)			__KVMTEST(n)
 #define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
 #define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)

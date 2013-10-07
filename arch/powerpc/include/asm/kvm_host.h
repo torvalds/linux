@@ -257,7 +257,7 @@ struct kvm_arch {
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	int hpt_cma_alloc;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	struct mutex hpt_mutex;
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64

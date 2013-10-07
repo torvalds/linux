@@ -425,7 +425,7 @@ data_access_check_stab:
 	mfspr	r9,SPRN_DSISR
 	srdi	r10,r10,60
 	rlwimi	r10,r9,16,0x20
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	lbz	r9,HSTATE_IN_GUEST(r13)
 	rlwimi	r10,r9,8,0x300
 #endif

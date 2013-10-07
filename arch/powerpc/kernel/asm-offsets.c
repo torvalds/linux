@@ -533,7 +533,7 @@ int main(void)
 	DEFINE(VCPU_SLB_SIZE, sizeof(struct kvmppc_slb));
 
 #ifdef CONFIG_PPC_BOOK3S_64
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	DEFINE(PACA_SVCPU, offsetof(struct paca_struct, shadow_vcpu));
 # define SVCPU_FIELD(x, f)	DEFINE(x, offsetof(struct paca_struct, shadow_vcpu.f))
 #else

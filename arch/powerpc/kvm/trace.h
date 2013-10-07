@@ -94,7 +94,7 @@ TRACE_EVENT(kvm_exit,
 		__field(	unsigned long,	pc		)
 		__field(	unsigned long,	msr		)
 		__field(	unsigned long,	dar		)
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 		__field(	unsigned long,	srr1		)
 #endif
 		__field(	unsigned long,	last_inst	)
@@ -105,7 +105,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->pc		= kvmppc_get_pc(vcpu);
 		__entry->dar		= kvmppc_get_fault_dar(vcpu);
 		__entry->msr		= vcpu->arch.shared->msr;
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 		__entry->srr1		= vcpu->arch.shadow_srr1;
 #endif
 		__entry->last_inst	= vcpu->arch.last_inst;
@@ -115,7 +115,7 @@ TRACE_EVENT(kvm_exit,
 		" | pc=0x%lx"
 		" | msr=0x%lx"
 		" | dar=0x%lx"
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 		" | srr1=0x%lx"
 #endif
 		" | last_inst=0x%lx"
@@ -124,7 +124,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->pc,
 		__entry->msr,
 		__entry->dar,
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 		__entry->srr1,
 #endif
 		__entry->last_inst
@@ -236,7 +236,7 @@ TRACE_EVENT(kvm_check_requests,
  *                         Book3S trace points                           *
  *************************************************************************/
 
-#ifdef CONFIG_KVM_BOOK3S_PR
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 
 TRACE_EVENT(kvm_book3s_reenter,
 	TP_PROTO(int r, struct kvm_vcpu *vcpu),
