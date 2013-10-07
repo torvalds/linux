@@ -154,6 +154,18 @@ config TEGRA20_APB_DMA
 	  This DMA controller transfers data from memory to peripheral fifo
 	  or vice versa. It does not support memory to memory data transfer.
 
+config S3C24XX_DMAC
+	tristate "Samsung S3C24XX DMA support"
+	depends on ARCH_S3C24XX && !S3C24XX_DMA
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the Samsung S3C24XX DMA controller driver. The
+	  DMA controller is having multiple DMA channels which can be
+	  configured for different peripherals like audio, UART, SPI.
+	  The DMA controller can transfer data from memory to peripheral,
+	  periphal to memory, periphal to periphal and memory to memory.
+
 source "drivers/dma/sh/Kconfig"
 
 config COH901318
