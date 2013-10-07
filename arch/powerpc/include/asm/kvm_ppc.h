@@ -260,7 +260,7 @@ void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 
 struct openpic;
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 extern void kvm_cma_reserve(void) __init;
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {

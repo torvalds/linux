@@ -199,8 +199,6 @@ static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 	return vcpu->arch.book3s;
 }
 
-extern void kvm_return_point(void);
-
 /* Also add subarch specific defines */
 
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER

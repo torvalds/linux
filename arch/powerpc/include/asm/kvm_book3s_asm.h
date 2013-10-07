@@ -83,7 +83,7 @@ struct kvmppc_host_state {
 	u8 restore_hid5;
 	u8 napping;
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;

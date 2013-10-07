@@ -224,15 +224,15 @@ struct revmap_entry {
 #define KVMPPC_GOT_PAGE		0x80
 
 struct kvm_arch_memory_slot {
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	unsigned long *rmap;
 	unsigned long *slot_phys;
-#endif /* CONFIG_KVM_BOOK3S_64_HV */
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 };
 
 struct kvm_arch {
 	unsigned int lpid;
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
 	unsigned int host_lpid;
@@ -256,7 +256,7 @@ struct kvm_arch {
 	cpumask_t need_tlb_flush;
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	int hpt_cma_alloc;
-#endif /* CONFIG_KVM_BOOK3S_64_HV */
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	struct mutex hpt_mutex;
 #endif
@@ -592,7 +592,7 @@ struct kvm_vcpu_arch {
 	struct kvmppc_icp *icp; /* XICS presentation controller */
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	struct kvm_vcpu_arch_shared shregs;
 
 	unsigned long pgfault_addr;
