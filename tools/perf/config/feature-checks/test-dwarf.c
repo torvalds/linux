@@ -5,5 +5,6 @@
 int main(void)
 {
 	Dwarf *dbg = dwarf_begin(0, DWARF_C_READ);
+
 	return (long)dbg;
 }

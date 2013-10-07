@@ -4,5 +4,6 @@
 int main(void)
 {
 	numa_available();
+
 	return 0;
 }
