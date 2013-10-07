@@ -443,6 +443,8 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
  */
 void migrate_page_copy(struct page *newpage, struct page *page)
 {
+	int cpupid;
+
 	if (PageHuge(page) || PageTransHuge(page))
 		copy_huge_page(newpage, page);
 	else
@@ -478,6 +480,13 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 		else
 			__set_page_dirty_nobuffers(newpage);
  	}
+
+	/*
+	 * Copy NUMA information to the new page, to prevent over-eager
+	 * future migrations of this same page.
+	 */
+	cpupid = page_cpupid_xchg_last(page, -1);
+	page_cpupid_xchg_last(newpage, cpupid);
 
 	mlock_migrate_page(newpage, page);
 	ksm_migrate_page(newpage, page);
