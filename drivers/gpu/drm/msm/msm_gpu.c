@@ -29,13 +29,14 @@
 static void bs_init(struct msm_gpu *gpu, struct platform_device *pdev)
 {
 	struct drm_device *dev = gpu->dev;
-	struct kgsl_device_platform_data *pdata = pdev->dev.platform_data;
+	struct kgsl_device_platform_data *pdata;
 
 	if (!pdev) {
 		dev_err(dev->dev, "could not find dtv pdata\n");
 		return;
 	}
 
+	pdata = pdev->dev.platform_data;
 	if (pdata->bus_scale_table) {
 		gpu->bsc = msm_bus_scale_register_client(pdata->bus_scale_table);
 		DBG("bus scale client: %08x", gpu->bsc);
@@ -230,6 +231,8 @@ static void hangcheck_timer_reset(struct msm_gpu *gpu)
 static void hangcheck_handler(unsigned long data)
 {
 	struct msm_gpu *gpu = (struct msm_gpu *)data;
+	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	uint32_t fence = gpu->funcs->last_fence(gpu);
 
 	if (fence != gpu->hangcheck_fence) {
@@ -237,14 +240,22 @@ static void hangcheck_handler(unsigned long data)
 		gpu->hangcheck_fence = fence;
 	} else if (fence < gpu->submitted_fence) {
 		/* no progress and not done.. hung! */
-		struct msm_drm_private *priv = gpu->dev->dev_private;
 		gpu->hangcheck_fence = fence;
+		dev_err(dev->dev, "%s: hangcheck detected gpu lockup!\n",
+				gpu->name);
+		dev_err(dev->dev, "%s:     completed fence: %u\n",
+				gpu->name, fence);
+		dev_err(dev->dev, "%s:     submitted fence: %u\n",
+				gpu->name, gpu->submitted_fence);
 		queue_work(priv->wq, &gpu->recover_work);
 	}
 
 	/* if still more pending work, reset the hangcheck timer: */
 	if (gpu->submitted_fence > gpu->hangcheck_fence)
 		hangcheck_timer_reset(gpu);
+
+	/* workaround for missing irq: */
+	queue_work(priv->wq, &gpu->retire_work);
 }
 
 /*
@@ -265,7 +276,8 @@ static void retire_worker(struct work_struct *work)
 		obj = list_first_entry(&gpu->active_list,
 				struct msm_gem_object, mm_list);
 
-		if (obj->fence <= fence) {
+		if ((obj->read_fence <= fence) &&
+				(obj->write_fence <= fence)) {
 			/* move to inactive: */
 			msm_gem_move_to_inactive(&obj->base);
 			msm_gem_put_iova(&obj->base, gpu->id);
@@ -321,7 +333,11 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 					submit->gpu->id, &iova);
 		}
 
-		msm_gem_move_to_active(&msm_obj->base, gpu, submit->fence);
+		if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
+			msm_gem_move_to_active(&msm_obj->base, gpu, false, submit->fence);
+
+		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
+			msm_gem_move_to_active(&msm_obj->base, gpu, true, submit->fence);
 	}
 	hangcheck_timer_reset(gpu);
 	mutex_unlock(&dev->struct_mutex);

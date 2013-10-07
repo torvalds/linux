@@ -225,7 +225,7 @@ static void butterfly_attach(struct parport *p)
 	master->bus_num = 42;
 	master->num_chipselect = 2;
 
-	pp->bitbang.master = spi_master_get(master);
+	pp->bitbang.master = master;
 	pp->bitbang.chipselect = butterfly_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = butterfly_txrx_word_mode0;
 

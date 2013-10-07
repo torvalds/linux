@@ -531,6 +531,9 @@ static int flush_sample_queue(struct perf_session *s,
 		return 0;
 
 	list_for_each_entry_safe(iter, tmp, head, list) {
+		if (session_done())
+			return 0;
+
 		if (iter->timestamp > limit)
 			break;
 
@@ -1160,7 +1163,6 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 	}
 }
 
-#define session_done()	(*(volatile int *)(&session_done))
 volatile int session_done;
 
 static int __perf_session__process_pipe_events(struct perf_session *self,
@@ -1372,10 +1374,13 @@ more:
 				    "Processing events...");
 	}
 
+	err = 0;
+	if (session_done())
+		goto out_err;
+
 	if (file_pos < file_size)
 		goto more;
 
-	err = 0;
 	/* do the final flush for ordered samples */
 	session->ordered_samples.next_flush = ULLONG_MAX;
 	err = flush_sample_queue(session, tool);

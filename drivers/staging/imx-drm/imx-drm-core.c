@@ -41,7 +41,6 @@ struct imx_drm_device {
 	struct list_head			encoder_list;
 	struct list_head			connector_list;
 	struct mutex				mutex;
-	int					references;
 	int					pipes;
 	struct drm_fbdev_cma			*fbhelper;
 };
@@ -241,8 +240,6 @@ struct drm_device *imx_drm_device_get(void)
 		}
 	}
 
-	imxdrm->references++;
-
 	return imxdrm->drm;
 
 unwind_crtc:
@@ -279,8 +276,6 @@ void imx_drm_device_put(void)
 
 	list_for_each_entry(enc, &imxdrm->encoder_list, list)
 		module_put(enc->owner);
-
-	imxdrm->references--;
 
 	mutex_unlock(&imxdrm->mutex);
 }
@@ -485,7 +480,7 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 
 	mutex_lock(&imxdrm->mutex);
 
-	if (imxdrm->references) {
+	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
 	}
@@ -564,7 +559,7 @@ int imx_drm_add_encoder(struct drm_encoder *encoder,
 
 	mutex_lock(&imxdrm->mutex);
 
-	if (imxdrm->references) {
+	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
 	}
@@ -709,7 +704,7 @@ int imx_drm_add_connector(struct drm_connector *connector,
 
 	mutex_lock(&imxdrm->mutex);
 
-	if (imxdrm->references) {
+	if (imxdrm->drm->open_count) {
 		ret = -EBUSY;
 		goto err_busy;
 	}

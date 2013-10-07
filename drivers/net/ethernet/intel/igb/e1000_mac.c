@@ -712,6 +712,7 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw)
 static s32 igb_set_default_fc(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
+	u16 lan_offset;
 	u16 nvm_data;
 
 	/* Read and store word 0x0F of the EEPROM. This word contains bits
@@ -722,7 +723,14 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
+	if (hw->mac.type == e1000_i350) {
+		lan_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
+		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG
+					   + lan_offset, 1, &nvm_data);
+	 } else {
+		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG,
+					   1, &nvm_data);
+	 }
 
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");

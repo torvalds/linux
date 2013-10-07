@@ -796,7 +796,8 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 			fs_devices->rotating = 1;
 
 		fs_devices->open_devices++;
-		if (device->writeable && !device->is_tgtdev_for_dev_replace) {
+		if (device->writeable &&
+		    device->devid != BTRFS_DEV_REPLACE_DEVID) {
 			fs_devices->rw_devices++;
 			list_add(&device->dev_alloc_list,
 				 &fs_devices->alloc_list);
@@ -911,9 +912,9 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	if (disk_super->label[0]) {
 		if (disk_super->label[BTRFS_LABEL_SIZE - 1])
 			disk_super->label[BTRFS_LABEL_SIZE - 1] = '\0';
-		printk(KERN_INFO "device label %s ", disk_super->label);
+		printk(KERN_INFO "btrfs: device label %s ", disk_super->label);
 	} else {
-		printk(KERN_INFO "device fsid %pU ", disk_super->fsid);
+		printk(KERN_INFO "btrfs: device fsid %pU ", disk_super->fsid);
 	}
 
 	printk(KERN_CONT "devid %llu transid %llu %s\n", devid, transid, path);
@@ -1715,6 +1716,7 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 				 struct btrfs_device *srcdev)
 {
 	WARN_ON(!mutex_is_locked(&fs_info->fs_devices->device_list_mutex));
+
 	list_del_rcu(&srcdev->dev_list);
 	list_del_rcu(&srcdev->dev_alloc_list);
 	fs_info->fs_devices->num_devices--;
@@ -1724,8 +1726,12 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 	}
 	if (srcdev->can_discard)
 		fs_info->fs_devices->num_can_discard--;
-	if (srcdev->bdev)
+	if (srcdev->bdev) {
 		fs_info->fs_devices->open_devices--;
+
+		/* zero out the old super */
+		btrfs_scratch_superblock(srcdev);
+	}
 
 	call_rcu(&srcdev->rcu, free_device);
 }

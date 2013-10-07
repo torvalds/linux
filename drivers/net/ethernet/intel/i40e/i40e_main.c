@@ -101,10 +101,10 @@ int i40e_allocate_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem,
 	mem->size = ALIGN(size, alignment);
 	mem->va = dma_zalloc_coherent(&pf->pdev->dev, mem->size,
 				      &mem->pa, GFP_KERNEL);
-	if (mem->va)
-		return 0;
+	if (!mem->va)
+		return -ENOMEM;
 
-	return -ENOMEM;
+	return 0;
 }
 
 /**
@@ -136,10 +136,10 @@ int i40e_allocate_virt_mem_d(struct i40e_hw *hw, struct i40e_virt_mem *mem,
 	mem->size = size;
 	mem->va = kzalloc(size, GFP_KERNEL);
 
-	if (mem->va)
-		return 0;
+	if (!mem->va)
+		return -ENOMEM;
 
-	return -ENOMEM;
+	return 0;
 }
 
 /**
@@ -174,8 +174,7 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 			 u16 needed, u16 id)
 {
 	int ret = -ENOMEM;
-	int i = 0;
-	int j = 0;
+	int i, j;
 
 	if (!pile || needed == 0 || id >= I40E_PILE_VALID_BIT) {
 		dev_info(&pf->pdev->dev,
@@ -186,7 +185,7 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 
 	/* start the linear search with an imperfect hint */
 	i = pile->search_hint;
-	while (i < pile->num_entries && ret < 0) {
+	while (i < pile->num_entries) {
 		/* skip already allocated entries */
 		if (pile->list[i] & I40E_PILE_VALID_BIT) {
 			i++;
@@ -205,6 +204,7 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 				pile->list[i+j] = id | I40E_PILE_VALID_BIT;
 			ret = i;
 			pile->search_hint = i + j;
+			break;
 		} else {
 			/* not enough, so skip over it and continue looking */
 			i += j;
@@ -1388,7 +1388,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	bool add_happened = false;
 	int filter_list_len = 0;
 	u32 changed_flags = 0;
-	i40e_status ret = 0;
+	i40e_status aq_ret = 0;
 	struct i40e_pf *pf;
 	int num_add = 0;
 	int num_del = 0;
@@ -1449,28 +1449,28 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 			/* flush a full buffer */
 			if (num_del == filter_list_len) {
-				ret = i40e_aq_remove_macvlan(&pf->hw,
+				aq_ret = i40e_aq_remove_macvlan(&pf->hw,
 					    vsi->seid, del_list, num_del,
 					    NULL);
 				num_del = 0;
 				memset(del_list, 0, sizeof(*del_list));
 
-				if (ret)
+				if (aq_ret)
 					dev_info(&pf->pdev->dev,
 						 "ignoring delete macvlan error, err %d, aq_err %d while flushing a full buffer\n",
-						 ret,
+						 aq_ret,
 						 pf->hw.aq.asq_last_status);
 			}
 		}
 		if (num_del) {
-			ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid,
+			aq_ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid,
 						     del_list, num_del, NULL);
 			num_del = 0;
 
-			if (ret)
+			if (aq_ret)
 				dev_info(&pf->pdev->dev,
 					 "ignoring delete macvlan error, err %d, aq_err %d\n",
-					 ret, pf->hw.aq.asq_last_status);
+					 aq_ret, pf->hw.aq.asq_last_status);
 		}
 
 		kfree(del_list);
@@ -1515,32 +1515,30 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 			/* flush a full buffer */
 			if (num_add == filter_list_len) {
-				ret = i40e_aq_add_macvlan(&pf->hw,
-							  vsi->seid,
-							  add_list,
-							  num_add,
-							  NULL);
+				aq_ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
+							     add_list, num_add,
+							     NULL);
 				num_add = 0;
 
-				if (ret)
+				if (aq_ret)
 					break;
 				memset(add_list, 0, sizeof(*add_list));
 			}
 		}
 		if (num_add) {
-			ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
-						  add_list, num_add, NULL);
+			aq_ret = i40e_aq_add_macvlan(&pf->hw, vsi->seid,
+						     add_list, num_add, NULL);
 			num_add = 0;
 		}
 		kfree(add_list);
 		add_list = NULL;
 
-		if (add_happened && (!ret)) {
+		if (add_happened && (!aq_ret)) {
 			/* do nothing */;
-		} else if (add_happened && (ret)) {
+		} else if (add_happened && (aq_ret)) {
 			dev_info(&pf->pdev->dev,
 				 "add filter failed, err %d, aq_err %d\n",
-				 ret, pf->hw.aq.asq_last_status);
+				 aq_ret, pf->hw.aq.asq_last_status);
 			if ((pf->hw.aq.asq_last_status == I40E_AQ_RC_ENOSPC) &&
 			    !test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
 				      &vsi->state)) {
@@ -1556,28 +1554,27 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	if (changed_flags & IFF_ALLMULTI) {
 		bool cur_multipromisc;
 		cur_multipromisc = !!(vsi->current_netdev_flags & IFF_ALLMULTI);
-		ret = i40e_aq_set_vsi_multicast_promiscuous(&vsi->back->hw,
-							    vsi->seid,
-							    cur_multipromisc,
-							    NULL);
-		if (ret)
+		aq_ret = i40e_aq_set_vsi_multicast_promiscuous(&vsi->back->hw,
+							       vsi->seid,
+							       cur_multipromisc,
+							       NULL);
+		if (aq_ret)
 			dev_info(&pf->pdev->dev,
 				 "set multi promisc failed, err %d, aq_err %d\n",
-				 ret, pf->hw.aq.asq_last_status);
+				 aq_ret, pf->hw.aq.asq_last_status);
 	}
 	if ((changed_flags & IFF_PROMISC) || promisc_forced_on) {
 		bool cur_promisc;
 		cur_promisc = (!!(vsi->current_netdev_flags & IFF_PROMISC) ||
 			       test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
 					&vsi->state));
-		ret = i40e_aq_set_vsi_unicast_promiscuous(&vsi->back->hw,
-							  vsi->seid,
-							  cur_promisc,
-							  NULL);
-		if (ret)
+		aq_ret = i40e_aq_set_vsi_unicast_promiscuous(&vsi->back->hw,
+							     vsi->seid,
+							     cur_promisc, NULL);
+		if (aq_ret)
 			dev_info(&pf->pdev->dev,
 				 "set uni promisc failed, err %d, aq_err %d\n",
-				 ret, pf->hw.aq.asq_last_status);
+				 aq_ret, pf->hw.aq.asq_last_status);
 	}
 
 	clear_bit(__I40E_CONFIG_BUSY, &vsi->state);
@@ -1790,6 +1787,8 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
  * i40e_vsi_kill_vlan - Remove vsi membership for given vlan
  * @vsi: the vsi being configured
  * @vid: vlan id to be removed (0 = untagged only , -1 = any)
+ *
+ * Return: 0 on success or negative otherwise
  **/
 int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 {
@@ -1863,37 +1862,39 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
  * i40e_vlan_rx_add_vid - Add a vlan id filter to HW offload
  * @netdev: network interface to be adjusted
  * @vid: vlan id to be added
+ *
+ * net_device_ops implementation for adding vlan ids
  **/
 static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 				__always_unused __be16 proto, u16 vid)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
-	int ret;
+	int ret = 0;
 
 	if (vid > 4095)
-		return 0;
+		return -EINVAL;
 
-	netdev_info(vsi->netdev, "adding %pM vid=%d\n",
-		    netdev->dev_addr, vid);
+	netdev_info(netdev, "adding %pM vid=%d\n", netdev->dev_addr, vid);
+
 	/* If the network stack called us with vid = 0, we should
 	 * indicate to i40e_vsi_add_vlan() that we want to receive
 	 * any traffic (i.e. with any vlan tag, or untagged)
 	 */
 	ret = i40e_vsi_add_vlan(vsi, vid ? vid : I40E_VLAN_ANY);
 
-	if (!ret) {
-		if (vid < VLAN_N_VID)
-			set_bit(vid, vsi->active_vlans);
-	}
+	if (!ret && (vid < VLAN_N_VID))
+		set_bit(vid, vsi->active_vlans);
 
-	return 0;
+	return ret;
 }
 
 /**
  * i40e_vlan_rx_kill_vid - Remove a vlan id filter from HW offload
  * @netdev: network interface to be adjusted
  * @vid: vlan id to be removed
+ *
+ * net_device_ops implementation for adding vlan ids
  **/
 static int i40e_vlan_rx_kill_vid(struct net_device *netdev,
 				 __always_unused __be16 proto, u16 vid)
@@ -1901,15 +1902,16 @@ static int i40e_vlan_rx_kill_vid(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 
-	netdev_info(vsi->netdev, "removing %pM vid=%d\n",
-		    netdev->dev_addr, vid);
+	netdev_info(netdev, "removing %pM vid=%d\n", netdev->dev_addr, vid);
+
 	/* return code is ignored as there is nothing a user
 	 * can do about failure to remove and a log message was
-	 * already printed from another function
+	 * already printed from the other function
 	 */
 	i40e_vsi_kill_vlan(vsi, vid);
 
 	clear_bit(vid, vsi->active_vlans);
+
 	return 0;
 }
 
@@ -1936,10 +1938,10 @@ static void i40e_restore_vlan(struct i40e_vsi *vsi)
  * @vsi: the vsi being adjusted
  * @vid: the vlan id to set as a PVID
  **/
-i40e_status i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
+int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
 {
 	struct i40e_vsi_context ctxt;
-	i40e_status ret;
+	i40e_status aq_ret;
 
 	vsi->info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_VLAN_VALID);
 	vsi->info.pvid = cpu_to_le16(vid);
@@ -1948,14 +1950,15 @@ i40e_status i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
 
 	ctxt.seid = vsi->seid;
 	memcpy(&ctxt.info, &vsi->info, sizeof(vsi->info));
-	ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
-	if (ret) {
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
 		dev_info(&vsi->back->pdev->dev,
 			 "%s: update vsi failed, aq_err=%d\n",
 			 __func__, vsi->back->hw.aq.asq_last_status);
+		return -ENOENT;
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -3326,7 +3329,8 @@ static void i40e_pf_unquiesce_all_vsi(struct i40e_pf *pf)
  **/
 static u8 i40e_dcb_get_num_tc(struct i40e_dcbx_config *dcbcfg)
 {
-	int num_tc = 0, i;
+	u8 num_tc = 0;
+	int i;
 
 	/* Scan the ETS Config Priority Table to find
 	 * traffic class enabled for a given priority
@@ -3341,9 +3345,7 @@ static u8 i40e_dcb_get_num_tc(struct i40e_dcbx_config *dcbcfg)
 	/* Traffic class index starts from zero so
 	 * increment to return the actual count
 	 */
-	num_tc++;
-
-	return num_tc;
+	return num_tc + 1;
 }
 
 /**
@@ -3451,28 +3453,27 @@ static int i40e_vsi_get_bw_info(struct i40e_vsi *vsi)
 	struct i40e_aqc_query_vsi_bw_config_resp bw_config = {0};
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
+	i40e_status aq_ret;
 	u32 tc_bw_max;
-	int ret;
 	int i;
 
 	/* Get the VSI level BW configuration */
-	ret = i40e_aq_query_vsi_bw_config(hw, vsi->seid, &bw_config, NULL);
-	if (ret) {
+	aq_ret = i40e_aq_query_vsi_bw_config(hw, vsi->seid, &bw_config, NULL);
+	if (aq_ret) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't get pf vsi bw config, err %d, aq_err %d\n",
-			 ret, pf->hw.aq.asq_last_status);
-		return ret;
+			 aq_ret, pf->hw.aq.asq_last_status);
+		return -EINVAL;
 	}
 
 	/* Get the VSI level BW configuration per TC */
-	ret = i40e_aq_query_vsi_ets_sla_config(hw, vsi->seid,
-					       &bw_ets_config,
-					       NULL);
-	if (ret) {
+	aq_ret = i40e_aq_query_vsi_ets_sla_config(hw, vsi->seid, &bw_ets_config,
+					          NULL);
+	if (aq_ret) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't get pf vsi ets bw config, err %d, aq_err %d\n",
-			 ret, pf->hw.aq.asq_last_status);
-		return ret;
+			 aq_ret, pf->hw.aq.asq_last_status);
+		return -EINVAL;
 	}
 
 	if (bw_config.tc_valid_bits != bw_ets_config.tc_valid_bits) {
@@ -3494,7 +3495,8 @@ static int i40e_vsi_get_bw_info(struct i40e_vsi *vsi)
 		/* 3 bits out of 4 for each TC */
 		vsi->bw_ets_max_quanta[i] = (u8)((tc_bw_max >> (i*4)) & 0x7);
 	}
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -3505,30 +3507,30 @@ static int i40e_vsi_get_bw_info(struct i40e_vsi *vsi)
  *
  * Returns 0 on success, negative value on failure
  **/
-static int i40e_vsi_configure_bw_alloc(struct i40e_vsi *vsi,
-				       u8 enabled_tc,
+static int i40e_vsi_configure_bw_alloc(struct i40e_vsi *vsi, u8 enabled_tc,
 				       u8 *bw_share)
 {
 	struct i40e_aqc_configure_vsi_tc_bw_data bw_data;
-	int i, ret = 0;
+	i40e_status aq_ret;
+	int i;
 
 	bw_data.tc_valid_bits = enabled_tc;
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
 		bw_data.tc_bw_credits[i] = bw_share[i];
 
-	ret = i40e_aq_config_vsi_tc_bw(&vsi->back->hw, vsi->seid,
-				       &bw_data, NULL);
-	if (ret) {
+	aq_ret = i40e_aq_config_vsi_tc_bw(&vsi->back->hw, vsi->seid, &bw_data,
+					  NULL);
+	if (aq_ret) {
 		dev_info(&vsi->back->pdev->dev,
 			 "%s: AQ command Config VSI BW allocation per TC failed = %d\n",
 			 __func__, vsi->back->hw.aq.asq_last_status);
-		return ret;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
 		vsi->info.qs_handle[i] = bw_data.qs_handles[i];
 
-	return ret;
+	return 0;
 }
 
 /**

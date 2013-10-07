@@ -60,6 +60,8 @@ enum {
 	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
+#define MCC_ADDL_STS_INSUFFICIENT_RESOURCES	0x16
+
 #define CQE_STATUS_COMPL_MASK		0xFFFF
 #define CQE_STATUS_COMPL_SHIFT		0	/* bits 0 - 15 */
 #define CQE_STATUS_EXTD_MASK		0xFFFF
@@ -1791,7 +1793,7 @@ struct be_nic_res_desc {
 	u8 acpi_params;
 	u8 wol_param;
 	u16 rsvd7;
-	u32 rsvd8[3];
+	u32 rsvd8[7];
 } __packed;
 
 struct be_cmd_req_get_func_config {

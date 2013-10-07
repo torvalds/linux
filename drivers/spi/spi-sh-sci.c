@@ -133,7 +133,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	sp->info = dev_get_platdata(&dev->dev);
 
 	/* setup spi bitbang adaptor */
-	sp->bitbang.master = spi_master_get(master);
+	sp->bitbang.master = master;
 	sp->bitbang.master->bus_num = sp->info->bus_num;
 	sp->bitbang.master->num_chipselect = sp->info->num_chipselect;
 	sp->bitbang.chipselect = sh_sci_spi_chipselect;

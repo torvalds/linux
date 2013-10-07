@@ -450,7 +450,7 @@ static int dspi_probe(struct platform_device *pdev)
 
 	dspi = spi_master_get_devdata(master);
 	dspi->pdev = pdev;
-	dspi->bitbang.master = spi_master_get(master);
+	dspi->bitbang.master = master;
 	dspi->bitbang.chipselect = dspi_chipselect;
 	dspi->bitbang.setup_transfer = dspi_setup_transfer;
 	dspi->bitbang.txrx_bufs = dspi_txrx_transfer;
