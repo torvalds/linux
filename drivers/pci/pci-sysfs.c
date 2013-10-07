@@ -42,7 +42,8 @@ field##_show(struct device *dev, struct device_attribute *attr, char *buf)				\
 									\
 	pdev = to_pci_dev (dev);					\
 	return sprintf (buf, format_string, pdev->field);		\
-}
+}									\
+static DEVICE_ATTR_RO(field)
 
 pci_config_attr(vendor, "0x%04x\n");
 pci_config_attr(device, "0x%04x\n");
@@ -73,6 +74,7 @@ static ssize_t broken_parity_status_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(broken_parity_status);
 
 static ssize_t local_cpus_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -91,7 +93,7 @@ static ssize_t local_cpus_show(struct device *dev,
 	buf[len] = '\0';
 	return len;
 }
-
+static DEVICE_ATTR_RO(local_cpus);
 
 static ssize_t local_cpulist_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -110,6 +112,7 @@ static ssize_t local_cpulist_show(struct device *dev,
 	buf[len] = '\0';
 	return len;
 }
+static DEVICE_ATTR_RO(local_cpulist);
 
 /*
  * PCI Bus Class Devices
@@ -170,6 +173,7 @@ resource_show(struct device * dev, struct device_attribute *attr, char * buf)
 	}
 	return (str - buf);
 }
+static DEVICE_ATTR_RO(resource);
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -181,10 +185,11 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
 		       (u8)(pci_dev->class));
 }
+static DEVICE_ATTR_RO(modalias);
 
-static ssize_t is_enabled_store(struct device *dev,
-				struct device_attribute *attr, const char *buf,
-				size_t count)
+static ssize_t enabled_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	unsigned long val;
@@ -208,14 +213,15 @@ static ssize_t is_enabled_store(struct device *dev,
 	return result < 0 ? result : count;
 }
 
-static ssize_t is_enabled_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t enabled_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 
 	pdev = to_pci_dev (dev);
 	return sprintf (buf, "%u\n", atomic_read(&pdev->enable_cnt));
 }
+static DEVICE_ATTR_RW(enabled);
 
 #ifdef CONFIG_NUMA
 static ssize_t
@@ -223,6 +229,7 @@ numa_node_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf (buf, "%d\n", dev->numa_node);
 }
+static DEVICE_ATTR_RO(numa_node);
 #endif
 
 static ssize_t
@@ -232,6 +239,7 @@ dma_mask_bits_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	return sprintf (buf, "%d\n", fls64(pdev->dma_mask));
 }
+static DEVICE_ATTR_RO(dma_mask_bits);
 
 static ssize_t
 consistent_dma_mask_bits_show(struct device *dev, struct device_attribute *attr,
@@ -239,6 +247,7 @@ consistent_dma_mask_bits_show(struct device *dev, struct device_attribute *attr,
 {
 	return sprintf (buf, "%d\n", fls64(dev->coherent_dma_mask));
 }
+static DEVICE_ATTR_RO(consistent_dma_mask_bits);
 
 static ssize_t
 msi_bus_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -283,6 +292,7 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(msi_bus);
 
 static DEFINE_MUTEX(pci_remove_rescan_mutex);
 static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
@@ -414,6 +424,7 @@ static ssize_t d3cold_allowed_show(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	return sprintf (buf, "%u\n", pdev->d3cold_allowed);
 }
+static DEVICE_ATTR_RW(d3cold_allowed);
 #endif
 
 #ifdef CONFIG_PCI_IOV
@@ -499,30 +510,38 @@ static struct device_attribute sriov_numvfs_attr =
 		       sriov_numvfs_show, sriov_numvfs_store);
 #endif /* CONFIG_PCI_IOV */
 
-struct device_attribute pci_dev_attrs[] = {
-	__ATTR_RO(resource),
-	__ATTR_RO(vendor),
-	__ATTR_RO(device),
-	__ATTR_RO(subsystem_vendor),
-	__ATTR_RO(subsystem_device),
-	__ATTR_RO(class),
-	__ATTR_RO(irq),
-	__ATTR_RO(local_cpus),
-	__ATTR_RO(local_cpulist),
-	__ATTR_RO(modalias),
+struct attribute *pci_dev_attrs[] = {
+	&dev_attr_resource.attr,
+	&dev_attr_vendor.attr,
+	&dev_attr_device.attr,
+	&dev_attr_subsystem_vendor.attr,
+	&dev_attr_subsystem_device.attr,
+	&dev_attr_class.attr,
+	&dev_attr_irq.attr,
+	&dev_attr_local_cpus.attr,
+	&dev_attr_local_cpulist.attr,
+	&dev_attr_modalias.attr,
 #ifdef CONFIG_NUMA
-	__ATTR_RO(numa_node),
+	&dev_attr_numa_node.attr,
 #endif
-	__ATTR_RO(dma_mask_bits),
-	__ATTR_RO(consistent_dma_mask_bits),
-	__ATTR(enable, 0600, is_enabled_show, is_enabled_store),
-	__ATTR(broken_parity_status,(S_IRUGO|S_IWUSR),
-		broken_parity_status_show,broken_parity_status_store),
-	__ATTR(msi_bus, 0644, msi_bus_show, msi_bus_store),
+	&dev_attr_dma_mask_bits.attr,
+	&dev_attr_consistent_dma_mask_bits.attr,
+	&dev_attr_enabled.attr,
+	&dev_attr_broken_parity_status.attr,
+	&dev_attr_msi_bus.attr,
 #if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
-	__ATTR(d3cold_allowed, 0644, d3cold_allowed_show, d3cold_allowed_store),
+	&dev_attr_d3cold_allowed.attr,
 #endif
-	__ATTR_NULL,
+	NULL,
+};
+
+static const struct attribute_group pci_dev_group = {
+	.attrs = pci_dev_attrs,
+};
+
+const struct attribute_group *pci_dev_groups[] = {
+	&pci_dev_group,
+	NULL,
 };
 
 static struct attribute *pcibus_attrs[] = {
