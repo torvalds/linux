@@ -2183,28 +2183,34 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 
 		if (!input_available_p(tty, 0)) {
 			if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
-				retval = -EIO;
-				break;
-			}
-			if (tty_hung_up_p(file))
-				break;
-			if (!timeout)
-				break;
-			if (file->f_flags & O_NONBLOCK) {
-				retval = -EAGAIN;
-				break;
-			}
-			if (signal_pending(current)) {
-				retval = -ERESTARTSYS;
-				break;
-			}
-			n_tty_set_room(tty);
-			up_read(&tty->termios_rwsem);
+				up_read(&tty->termios_rwsem);
+				tty_flush_to_ldisc(tty);
+				down_read(&tty->termios_rwsem);
+				if (!input_available_p(tty, 0)) {
+					retval = -EIO;
+					break;
+				}
+			} else {
+				if (tty_hung_up_p(file))
+					break;
+				if (!timeout)
+					break;
+				if (file->f_flags & O_NONBLOCK) {
+					retval = -EAGAIN;
+					break;
+				}
+				if (signal_pending(current)) {
+					retval = -ERESTARTSYS;
+					break;
+				}
+				n_tty_set_room(tty);
+				up_read(&tty->termios_rwsem);
 
-			timeout = schedule_timeout(timeout);
+				timeout = schedule_timeout(timeout);
 
-			down_read(&tty->termios_rwsem);
-			continue;
+				down_read(&tty->termios_rwsem);
+				continue;
+			}
 		}
 		__set_current_state(TASK_RUNNING);
 

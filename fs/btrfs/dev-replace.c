@@ -535,10 +535,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 
 	btrfs_rm_dev_replace_srcdev(fs_info, src_device);
-	if (src_device->bdev) {
-		/* zero out the old super */
-		btrfs_scratch_superblock(src_device);
-	}
+
 	/*
 	 * this is again a consistent state where no dev_replace procedure
 	 * is running, the target device is part of the filesystem, the

@@ -39,6 +39,7 @@ static struct snapshot_data {
 	char frozen;
 	char ready;
 	char platform_support;
+	bool free_bitmaps;
 } snapshot_state;
 
 atomic_t snapshot_device_available = ATOMIC_INIT(1);
@@ -82,6 +83,10 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		data->swap = -1;
 		data->mode = O_WRONLY;
 		error = pm_notifier_call_chain(PM_RESTORE_PREPARE);
+		if (!error) {
+			error = create_basic_memory_bitmaps();
+			data->free_bitmaps = !error;
+		}
 		if (error)
 			pm_notifier_call_chain(PM_POST_RESTORE);
 	}
@@ -111,6 +116,8 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 		pm_restore_gfp_mask();
 		free_basic_memory_bitmaps();
 		thaw_processes();
+	} else if (data->free_bitmaps) {
+		free_basic_memory_bitmaps();
 	}
 	pm_notifier_call_chain(data->mode == O_RDONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
@@ -231,6 +238,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		pm_restore_gfp_mask();
 		free_basic_memory_bitmaps();
+		data->free_bitmaps = false;
 		thaw_processes();
 		data->frozen = 0;
 		break;

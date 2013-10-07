@@ -701,8 +701,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 
 	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
 	if (cmd_details) {
-		memcpy(details, cmd_details,
-		       sizeof(struct i40e_asq_cmd_details));
+		*details = *cmd_details;
 
 		/* If the cmd_details are defined copy the cookie.  The
 		 * cpu_to_le32 is not needed here because the data is ignored
@@ -760,7 +759,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	desc_on_ring = I40E_ADMINQ_DESC(hw->aq.asq, hw->aq.asq.next_to_use);
 
 	/* if the desc is available copy the temp desc to the right place */
-	memcpy(desc_on_ring, desc, sizeof(struct i40e_aq_desc));
+	*desc_on_ring = *desc;
 
 	/* if buff is not NULL assume indirect command */
 	if (buff != NULL) {
@@ -807,7 +806,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 
 	/* if ready, copy the desc back to temp */
 	if (i40e_asq_done(hw)) {
-		memcpy(desc, desc_on_ring, sizeof(struct i40e_aq_desc));
+		*desc = *desc_on_ring;
 		if (buff != NULL)
 			memcpy(buff, dma_buff->va, buff_size);
 		retval = le16_to_cpu(desc->retval);

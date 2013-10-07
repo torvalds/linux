@@ -2256,6 +2256,8 @@ static int ffs_func_bind(struct usb_configuration *c,
 				   data->raw_descs + ret,
 				   (sizeof data->raw_descs) - ret,
 				   __ffs_func_bind_do_descs, func);
+		if (unlikely(ret < 0))
+			goto error;
 	}
 
 	/*
