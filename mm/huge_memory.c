@@ -1484,14 +1484,12 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			struct page *page = pmd_page(*pmd);
 
 			/*
-			 * Only check non-shared pages. Do not trap faults
-			 * against the zero page. The read-only data is likely
-			 * to be read-cached on the local CPU cache and it is
-			 * less useful to know about local vs remote hits on
-			 * the zero page.
+			 * Do not trap faults against the zero page. The
+			 * read-only data is likely to be read-cached on the
+			 * local CPU cache and it is less useful to know about
+			 * local vs remote hits on the zero page.
 			 */
-			if (page_mapcount(page) == 1 &&
-			    !is_huge_zero_page(page) &&
+			if (!is_huge_zero_page(page) &&
 			    !pmd_numa(*pmd)) {
 				entry = pmdp_get_and_clear(mm, addr, pmd);
 				entry = pmd_mknuma(entry);
