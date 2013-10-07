@@ -75,8 +75,9 @@ static int chd_dec_disable_int(struct crystalhd_adp *adp)
 	return 0;
 }
 
-struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp,
-					 bool isr)
+static struct
+crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp,
+					   bool isr)
 {
 	unsigned long flags = 0;
 	struct crystalhd_ioctl_data *temp;
@@ -96,8 +97,8 @@ struct crystalhd_ioctl_data *chd_dec_alloc_iodata(struct crystalhd_adp *adp,
 	return temp;
 }
 
-void chd_dec_free_iodata(struct crystalhd_adp *adp,
-			 struct crystalhd_ioctl_data *iodata, bool isr)
+static void chd_dec_free_iodata(struct crystalhd_adp *adp,
+				struct crystalhd_ioctl_data *iodata, bool isr)
 {
 	unsigned long flags = 0;
 
@@ -627,7 +628,7 @@ err:
 }
 
 #ifdef CONFIG_PM
-int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct crystalhd_adp *adp;
 	struct crystalhd_ioctl_data *temp;
@@ -661,7 +662,7 @@ int chd_dec_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-int chd_dec_pci_resume(struct pci_dev *pdev)
+static int chd_dec_pci_resume(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *adp;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
