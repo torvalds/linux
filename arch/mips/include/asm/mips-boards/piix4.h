@@ -1,6 +1,7 @@
 /*
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Technologies Ltd.
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -19,6 +20,28 @@
  */
 #ifndef __ASM_MIPS_BOARDS_PIIX4_H
 #define __ASM_MIPS_BOARDS_PIIX4_H
+
+/* PIRQX Route Control */
+#define PIIX4_FUNC0_PIRQRC			0x60
+#define   PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_DISABLE	(1 << 7)
+#define   PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MASK		0xf
+#define   PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MAX		16
+/* Top Of Memory */
+#define PIIX4_FUNC0_TOM				0x69
+#define   PIIX4_FUNC0_TOM_TOP_OF_MEMORY_MASK		0xf0
+/* Deterministic Latency Control */
+#define PIIX4_FUNC0_DLC				0x82
+#define   PIIX4_FUNC0_DLC_USBPR_EN			(1 << 2)
+#define   PIIX4_FUNC0_DLC_PASSIVE_RELEASE_EN		(1 << 1)
+#define   PIIX4_FUNC0_DLC_DELAYED_TRANSACTION_EN	(1 << 0)
+
+/* IDE Timing */
+#define PIIX4_FUNC1_IDETIM_PRIMARY_LO		0x40
+#define PIIX4_FUNC1_IDETIM_PRIMARY_HI		0x41
+#define   PIIX4_FUNC1_IDETIM_PRIMARY_HI_IDE_DECODE_EN	(1 << 7)
+#define PIIX4_FUNC1_IDETIM_SECONDARY_LO		0x42
+#define PIIX4_FUNC1_IDETIM_SECONDARY_HI		0x43
+#define   PIIX4_FUNC1_IDETIM_SECONDARY_HI_IDE_DECODE_EN	(1 << 7)
 
 /************************************************************************
  *  IO register offsets
