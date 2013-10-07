@@ -1052,11 +1052,12 @@ e_inval:
  * destination in skb->cb[] before dst drop.
  * This way, receiver doesnt make cache line misses to read rtable.
  */
-void ipv4_pktinfo_prepare(struct sk_buff *skb)
+void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
 
-	if (skb_rtable(skb)) {
+	if ((inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO) &&
+	    skb_rtable(skb)) {
 		pktinfo->ipi_ifindex = inet_iif(skb);
 		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
 	} else {

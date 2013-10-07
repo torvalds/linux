@@ -459,7 +459,7 @@ int ip_options_rcv_srr(struct sk_buff *skb);
  *	Functions provided by ip_sockglue.c
  */
 
-void ipv4_pktinfo_prepare(struct sk_buff *skb);
+void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb);
 void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb);
 int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc);
 int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
