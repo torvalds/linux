@@ -946,6 +946,12 @@ void task_numa_work(struct callback_head *work)
 		return;
 
 	/*
+	 * Delay this task enough that another task of this mm will likely win
+	 * the next time around.
+	 */
+	p->node_stamp += 2 * TICK_NSEC;
+
+	/*
 	 * Do not set pte_numa if the current running node is rate-limited.
 	 * This loses statistics on the fault but if we are unwilling to
 	 * migrate to this node, it is less likely we can do useful work
@@ -1026,7 +1032,7 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
 	if (now - curr->node_stamp > period) {
 		if (!curr->node_stamp)
 			curr->numa_scan_period = sysctl_numa_balancing_scan_period_min;
-		curr->node_stamp = now;
+		curr->node_stamp += period;
 
 		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
 			init_task_work(work, task_numa_work); /* TODO: move this into sched_fork() */
