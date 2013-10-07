@@ -1241,6 +1241,12 @@ static int task_numa_migrate(struct task_struct *p)
 
 	sched_setnuma(p, env.dst_nid);
 
+	/*
+	 * Reset the scan period if the task is being rescheduled on an
+	 * alternative node to recheck if the tasks is now properly placed.
+	 */
+	p->numa_scan_period = task_scan_min(p);
+
 	if (env.best_task == NULL) {
 		int ret = migrate_task_to(p, env.best_cpu);
 		return ret;
@@ -1276,10 +1282,86 @@ static void numa_migrate_preferred(struct task_struct *p)
 		p->numa_migrate_retry = jiffies + HZ*5;
 }
 
+/*
+ * When adapting the scan rate, the period is divided into NUMA_PERIOD_SLOTS
+ * increments. The more local the fault statistics are, the higher the scan
+ * period will be for the next scan window. If local/remote ratio is below
+ * NUMA_PERIOD_THRESHOLD (where range of ratio is 1..NUMA_PERIOD_SLOTS) the
+ * scan period will decrease
+ */
+#define NUMA_PERIOD_SLOTS 10
+#define NUMA_PERIOD_THRESHOLD 3
+
+/*
+ * Increase the scan period (slow down scanning) if the majority of
+ * our memory is already on our local node, or if the majority of
+ * the page accesses are shared with other processes.
+ * Otherwise, decrease the scan period.
+ */
+static void update_task_scan_period(struct task_struct *p,
+			unsigned long shared, unsigned long private)
+{
+	unsigned int period_slot;
+	int ratio;
+	int diff;
+
+	unsigned long remote = p->numa_faults_locality[0];
+	unsigned long local = p->numa_faults_locality[1];
+
+	/*
+	 * If there were no record hinting faults then either the task is
+	 * completely idle or all activity is areas that are not of interest
+	 * to automatic numa balancing. Scan slower
+	 */
+	if (local + shared == 0) {
+		p->numa_scan_period = min(p->numa_scan_period_max,
+			p->numa_scan_period << 1);
+
+		p->mm->numa_next_scan = jiffies +
+			msecs_to_jiffies(p->numa_scan_period);
+
+		return;
+	}
+
+	/*
+	 * Prepare to scale scan period relative to the current period.
+	 *	 == NUMA_PERIOD_THRESHOLD scan period stays the same
+	 *       <  NUMA_PERIOD_THRESHOLD scan period decreases (scan faster)
+	 *	 >= NUMA_PERIOD_THRESHOLD scan period increases (scan slower)
+	 */
+	period_slot = DIV_ROUND_UP(p->numa_scan_period, NUMA_PERIOD_SLOTS);
+	ratio = (local * NUMA_PERIOD_SLOTS) / (local + remote);
+	if (ratio >= NUMA_PERIOD_THRESHOLD) {
+		int slot = ratio - NUMA_PERIOD_THRESHOLD;
+		if (!slot)
+			slot = 1;
+		diff = slot * period_slot;
+	} else {
+		diff = -(NUMA_PERIOD_THRESHOLD - ratio) * period_slot;
+
+		/*
+		 * Scale scan rate increases based on sharing. There is an
+		 * inverse relationship between the degree of sharing and
+		 * the adjustment made to the scanning period. Broadly
+		 * speaking the intent is that there is little point
+		 * scanning faster if shared accesses dominate as it may
+		 * simply bounce migrations uselessly
+		 */
+		period_slot = DIV_ROUND_UP(diff, NUMA_PERIOD_SLOTS);
+		ratio = DIV_ROUND_UP(private * NUMA_PERIOD_SLOTS, (private + shared));
+		diff = (diff * ratio) / NUMA_PERIOD_SLOTS;
+	}
+
+	p->numa_scan_period = clamp(p->numa_scan_period + diff,
+			task_scan_min(p), task_scan_max(p));
+	memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
+}
+
 static void task_numa_placement(struct task_struct *p)
 {
 	int seq, nid, max_nid = -1, max_group_nid = -1;
 	unsigned long max_faults = 0, max_group_faults = 0;
+	unsigned long fault_types[2] = { 0, 0 };
 	spinlock_t *group_lock = NULL;
 
 	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
@@ -1309,6 +1391,7 @@ static void task_numa_placement(struct task_struct *p)
 			/* Decay existing window, copy faults since last scan */
 			p->numa_faults[i] >>= 1;
 			p->numa_faults[i] += p->numa_faults_buffer[i];
+			fault_types[priv] += p->numa_faults_buffer[i];
 			p->numa_faults_buffer[i] = 0;
 
 			faults += p->numa_faults[i];
@@ -1332,6 +1415,8 @@ static void task_numa_placement(struct task_struct *p)
 			max_group_nid = nid;
 		}
 	}
+
+	update_task_scan_period(p, fault_types[0], fault_types[1]);
 
 	if (p->numa_group) {
 		/*
@@ -1538,6 +1623,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 		BUG_ON(p->numa_faults_buffer);
 		p->numa_faults_buffer = p->numa_faults + (2 * nr_node_ids);
 		p->total_numa_faults = 0;
+		memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
 	}
 
 	/*
@@ -1552,19 +1638,6 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 			task_numa_group(p, last_cpupid, flags, &priv);
 	}
 
-	/*
-	 * If pages are properly placed (did not migrate) then scan slower.
-	 * This is reset periodically in case of phase changes
-	 */
-	if (!migrated) {
-		/* Initialise if necessary */
-		if (!p->numa_scan_period_max)
-			p->numa_scan_period_max = task_scan_max(p);
-
-		p->numa_scan_period = min(p->numa_scan_period_max,
-			p->numa_scan_period + 10);
-	}
-
 	task_numa_placement(p);
 
 	/* Retry task to preferred node migration if it previously failed */
@@ -1575,6 +1648,7 @@ void task_numa_fault(int last_cpupid, int node, int pages, int flags)
 		p->numa_pages_migrated += pages;
 
 	p->numa_faults_buffer[task_faults_idx(node, priv)] += pages;
+	p->numa_faults_locality[!!(flags & TNF_FAULT_LOCAL)] += pages;
 }
 
 static void reset_ptenuma_scan(struct task_struct *p)
@@ -1701,18 +1775,6 @@ void task_numa_work(struct callback_head *work)
 	}
 
 out:
-	/*
-	 * If the whole process was scanned without updates then no NUMA
-	 * hinting faults are being recorded and scan rate should be lower.
-	 */
-	if (mm->numa_scan_offset == 0 && !nr_pte_updates) {
-		p->numa_scan_period = min(p->numa_scan_period_max,
-			p->numa_scan_period << 1);
-
-		next_scan = now + msecs_to_jiffies(p->numa_scan_period);
-		mm->numa_next_scan = next_scan;
-	}
-
 	/*
 	 * It is possible to reach the end of the VMA list but the last few
 	 * VMAs are not guaranteed to the vma_migratable. If they are not, we
