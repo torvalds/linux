@@ -75,8 +75,8 @@ struct mdp4_platform_config {
 
 struct mdp4_format {
 	struct msm_format base;
-	enum mpd4_bpc bpc_r, bpc_g, bpc_b;
-	enum mpd4_bpc_alpha bpc_a;
+	enum mdp4_bpc bpc_r, bpc_g, bpc_b;
+	enum mdp4_bpc_alpha bpc_a;
 	uint8_t unpack[4];
 	bool alpha_enable, unpack_tight;
 	uint8_t cpp, unpack_count;
@@ -93,7 +93,7 @@ static inline u32 mdp4_read(struct mdp4_kms *mdp4_kms, u32 reg)
 	return msm_readl(mdp4_kms->mmio + reg);
 }
 
-static inline uint32_t pipe2flush(enum mpd4_pipe pipe)
+static inline uint32_t pipe2flush(enum mdp4_pipe pipe)
 {
 	switch (pipe) {
 	case VG1:      return MDP4_OVERLAY_FLUSH_VG1;
@@ -158,9 +158,9 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
 		uint32_t src_w, uint32_t src_h);
-enum mpd4_pipe mdp4_plane_pipe(struct drm_plane *plane);
+enum mdp4_pipe mdp4_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp4_plane_init(struct drm_device *dev,
-		enum mpd4_pipe pipe_id, bool private_plane);
+		enum mdp4_pipe pipe_id, bool private_plane);
 
 uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc);
 void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc);

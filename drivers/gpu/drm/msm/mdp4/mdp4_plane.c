@@ -22,7 +22,7 @@ struct mdp4_plane {
 	struct drm_plane base;
 	const char *name;
 
-	enum mpd4_pipe pipe;
+	enum mdp4_pipe pipe;
 
 	uint32_t nformats;
 	uint32_t formats[32];
@@ -101,7 +101,7 @@ void mdp4_plane_set_scanout(struct drm_plane *plane,
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
-	enum mpd4_pipe pipe = mdp4_plane->pipe;
+	enum mdp4_pipe pipe = mdp4_plane->pipe;
 	uint32_t iova;
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_STRIDE_A(pipe),
@@ -129,7 +129,7 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
-	enum mpd4_pipe pipe = mdp4_plane->pipe;
+	enum mdp4_pipe pipe = mdp4_plane->pipe;
 	const struct mdp4_format *format;
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
@@ -202,7 +202,7 @@ static const char *pipe_names[] = {
 		"VG3", "VG4",
 };
 
-enum mpd4_pipe mdp4_plane_pipe(struct drm_plane *plane)
+enum mdp4_pipe mdp4_plane_pipe(struct drm_plane *plane)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	return mdp4_plane->pipe;
@@ -210,7 +210,7 @@ enum mpd4_pipe mdp4_plane_pipe(struct drm_plane *plane)
 
 /* initialize plane */
 struct drm_plane *mdp4_plane_init(struct drm_device *dev,
-		enum mpd4_pipe pipe_id, bool private_plane)
+		enum mdp4_pipe pipe_id, bool private_plane)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane = NULL;
