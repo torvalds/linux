@@ -896,9 +896,17 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
+	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
+	if (!xop) {
+		pr_err("Unable to allocate xcopy_op\n");
+		return TCM_OUT_OF_RESOURCES;
+	}
+	xop->xop_se_cmd = se_cmd;
+
 	p = transport_kmap_data_sg(se_cmd);
 	if (!p) {
 		pr_err("transport_kmap_data_sg() failed in target_do_xcopy\n");
+		kfree(xop);
 		return TCM_OUT_OF_RESOURCES;
 	}
 
@@ -919,13 +927,6 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		pr_err("XCOPY with non zero inline data length\n");
 		goto out;
 	}
-
-	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
-	if (!xop) {
-		pr_err("Unable to allocate xcopy_op\n");
-		goto out;
-	}
-	xop->xop_se_cmd = se_cmd;
 
 	pr_debug("Processing XCOPY with list_id: 0x%02x list_id_usage: 0x%02x"
 		" tdll: %hu sdll: %u inline_dl: %u\n", list_id, list_id_usage,
@@ -957,7 +958,7 @@ out:
 	if (p)
 		transport_kunmap_data_sg(se_cmd);
 	kfree(xop);
-	return TCM_INVALID_CDB_FIELD;
+	return TCM_INVALID_PARAMETER_LIST;
 }
 
 static sense_reason_t target_rcr_operating_parameters(struct se_cmd *se_cmd)
