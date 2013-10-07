@@ -902,7 +902,14 @@ void task_numa_fault(int node, int pages, bool migrated)
 	if (!numabalancing_enabled)
 		return;
 
-	/* FIXME: Allocate task-specific structure for placement policy here */
+	/* Allocate buffer to track faults on a per-node basis */
+	if (unlikely(!p->numa_faults)) {
+		int size = sizeof(*p->numa_faults) * nr_node_ids;
+
+		p->numa_faults = kzalloc(size, GFP_KERNEL|__GFP_NOWARN);
+		if (!p->numa_faults)
+			return;
+	}
 
 	/*
 	 * If pages are properly placed (did not migrate) then scan slower.
@@ -918,6 +925,8 @@ void task_numa_fault(int node, int pages, bool migrated)
 	}
 
 	task_numa_placement(p);
+
+	p->numa_faults[node] += pages;
 }
 
 static void reset_ptenuma_scan(struct task_struct *p)
