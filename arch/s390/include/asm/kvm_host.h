@@ -16,6 +16,7 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
+#include <linux/kvm.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
 
@@ -168,18 +169,6 @@ struct kvm_vcpu_stat {
 	u32 diagnose_9c;
 };
 
-struct kvm_s390_io_info {
-	__u16        subchannel_id;            /* 0x0b8 */
-	__u16        subchannel_nr;            /* 0x0ba */
-	__u32        io_int_parm;              /* 0x0bc */
-	__u32        io_int_word;              /* 0x0c0 */
-};
-
-struct kvm_s390_ext_info {
-	__u32 ext_params;
-	__u64 ext_params2;
-};
-
 #define PGM_OPERATION            0x01
 #define PGM_PRIVILEGED_OP	 0x02
 #define PGM_EXECUTE              0x03
@@ -187,27 +176,6 @@ struct kvm_s390_ext_info {
 #define PGM_ADDRESSING           0x05
 #define PGM_SPECIFICATION        0x06
 #define PGM_DATA                 0x07
-
-struct kvm_s390_pgm_info {
-	__u16 code;
-};
-
-struct kvm_s390_prefix_info {
-	__u32 address;
-};
-
-struct kvm_s390_extcall_info {
-	__u16 code;
-};
-
-struct kvm_s390_emerg_info {
-	__u16 code;
-};
-
-struct kvm_s390_mchk_info {
-	__u64 cr14;
-	__u64 mcic;
-};
 
 struct kvm_s390_interrupt_info {
 	struct list_head list;
