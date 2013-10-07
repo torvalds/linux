@@ -43,7 +43,9 @@ enum {
 	Opt_disable_roll_forward,
 	Opt_discard,
 	Opt_noheap,
+	Opt_user_xattr,
 	Opt_nouser_xattr,
+	Opt_acl,
 	Opt_noacl,
 	Opt_active_logs,
 	Opt_disable_ext_identify,
@@ -56,7 +58,9 @@ static match_table_t f2fs_tokens = {
 	{Opt_disable_roll_forward, "disable_roll_forward"},
 	{Opt_discard, "discard"},
 	{Opt_noheap, "no_heap"},
+	{Opt_user_xattr, "user_xattr"},
 	{Opt_nouser_xattr, "nouser_xattr"},
+	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
 	{Opt_active_logs, "active_logs=%u"},
 	{Opt_disable_ext_identify, "disable_ext_identify"},
@@ -237,6 +241,9 @@ static int parse_options(struct super_block *sb, char *options)
 			set_opt(sbi, NOHEAP);
 			break;
 #ifdef CONFIG_F2FS_FS_XATTR
+		case Opt_user_xattr:
+			set_opt(sbi, XATTR_USER);
+			break;
 		case Opt_nouser_xattr:
 			clear_opt(sbi, XATTR_USER);
 			break;
@@ -244,6 +251,10 @@ static int parse_options(struct super_block *sb, char *options)
 			set_opt(sbi, INLINE_XATTR);
 			break;
 #else
+		case Opt_user_xattr:
+			f2fs_msg(sb, KERN_INFO,
+				"user_xattr options not supported");
+			break;
 		case Opt_nouser_xattr:
 			f2fs_msg(sb, KERN_INFO,
 				"nouser_xattr options not supported");
@@ -254,10 +265,16 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
+		case Opt_acl:
+			set_opt(sbi, POSIX_ACL);
+			break;
 		case Opt_noacl:
 			clear_opt(sbi, POSIX_ACL);
 			break;
 #else
+		case Opt_acl:
+			f2fs_msg(sb, KERN_INFO, "acl options not supported");
+			break;
 		case Opt_noacl:
 			f2fs_msg(sb, KERN_INFO, "noacl options not supported");
 			break;
