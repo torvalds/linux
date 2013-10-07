@@ -4056,9 +4056,9 @@ int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
 			  NULL);
 }
 
-int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-			  u8 addr_type, u32 flags, u8 *name, u8 name_len,
-			  u8 *dev_class)
+void mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+			   u8 addr_type, u32 flags, u8 *name, u8 name_len,
+			   u8 *dev_class)
 {
 	char buf[512];
 	struct mgmt_ev_device_connected *ev = (void *) buf;
@@ -4079,8 +4079,8 @@ int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	ev->eir_len = cpu_to_le16(eir_len);
 
-	return mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, buf,
-			  sizeof(*ev) + eir_len, NULL);
+	mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, buf,
+		    sizeof(*ev) + eir_len, NULL);
 }
 
 static void disconnect_rsp(struct pending_cmd *cmd, void *data)
