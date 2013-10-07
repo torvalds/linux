@@ -10,6 +10,10 @@ Required properties:
 - reg: physical base address of the mixer and length of memory mapped
 	region.
 - interrupts: interrupt number to the cpu.
+- clocks: list of clock IDs from SoC clock driver.
+	a) mixer: Gate of Mixer IP bus clock.
+	b) sclk_hdmi: HDMI Special clock, one of the two possible inputs of
+               mixer mux.
 
 Example:
 
