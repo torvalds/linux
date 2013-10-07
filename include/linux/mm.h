@@ -691,6 +691,12 @@ static inline bool cpupid_cpu_unset(int cpupid)
 	return cpupid_to_cpu(cpupid) == (-1 & LAST__CPU_MASK);
 }
 
+static inline bool __cpupid_match_pid(pid_t task_pid, int cpupid)
+{
+	return (task_pid & LAST__PID_MASK) == cpupid_to_pid(cpupid);
+}
+
+#define cpupid_match_pid(task, cpupid) __cpupid_match_pid(task->pid, cpupid)
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
 static inline int page_cpupid_xchg_last(struct page *page, int cpupid)
 {
@@ -759,6 +765,11 @@ static inline bool cpupid_pid_unset(int cpupid)
 
 static inline void page_cpupid_reset_last(struct page *page)
 {
+}
+
+static inline bool cpupid_match_pid(struct task_struct *task, int cpupid)
+{
+	return false;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
