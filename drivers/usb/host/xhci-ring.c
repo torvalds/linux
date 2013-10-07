@@ -178,7 +178,7 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 			if (ring->type == TYPE_EVENT &&
 					last_trb_on_last_seg(xhci, ring,
 						ring->deq_seg, ring->dequeue)) {
-				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+				ring->cycle_state ^= 1;
 			}
 			ring->deq_seg = ring->deq_seg->next;
 			ring->dequeue = ring->deq_seg->trbs;
