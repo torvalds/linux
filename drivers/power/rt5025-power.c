@@ -24,6 +24,8 @@
 #include <linux/power/rt5025-power.h>
 #include <linux/delay.h>
 
+static struct platform_device *dev_ptr;
+
 
 static enum power_supply_property rt5025_adap_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
@@ -34,8 +36,7 @@ static char *rt5025_supply_list[] = {
 };
 
 
-#if 0
-static int rt5025_set_charging_current_switch (struct i2c_client *i2c, int onoff)
+int rt5025_set_charging_current_switch (struct i2c_client *i2c, int onoff)
 {
 	int ret;
 	if (onoff)
@@ -44,8 +45,9 @@ static int rt5025_set_charging_current_switch (struct i2c_client *i2c, int onoff
 		ret = rt5025_clr_bits(i2c, RT5025_REG_CHGCTL7, RT5025_CHGCEN_MASK);
 	return ret;
 }
+EXPORT_SYMBOL(rt5025_set_charging_current_switch);
 
-static int rt5025_set_charging_buck(struct i2c_client *i2c, int onoff)
+int rt5025_set_charging_buck(struct i2c_client *i2c, int onoff)
 {
 	int ret;
 	if (onoff)
@@ -54,7 +56,27 @@ static int rt5025_set_charging_buck(struct i2c_client *i2c, int onoff)
 		ret = rt5025_clr_bits(i2c, RT5025_REG_CHGCTL2, RT5025_CHGBUCKEN_MASK);
 	return ret;
 }
-#endif
+EXPORT_SYMBOL(rt5025_set_charging_buck);
+
+int rt5025_ext_set_charging_buck(int onoff)
+{
+	struct rt5025_power_info *pi = platform_get_drvdata(dev_ptr);
+	int ret;
+	if (onoff)
+	{
+		pi->otg_en = 0;
+		ret = rt5025_set_bits(pi->i2c, RT5025_REG_CHGCTL2, RT5025_CHGBUCKEN_MASK);
+		msleep(100);
+	}
+	else
+	{
+		pi->otg_en = 1;
+		ret = rt5025_clr_bits(pi->i2c, RT5025_REG_CHGCTL2, RT5025_CHGBUCKEN_MASK);
+		msleep(100);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rt5025_ext_set_charging_buck);
 
 static int rt5025_set_charging_current(struct i2c_client *i2c, int cur_value)
 {
@@ -98,14 +120,15 @@ static int rt5025_chgstat_changed(struct rt5025_power_info *info, unsigned new_v
 			#if 1
 			if (info->chip->battery_info)
 			{
-				if (info->chg_term == 0)
+				if (info->chg_term <= 1)
 					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_CHARGING);
-				else if (info->chg_term > 0)
+				else if (info->chg_term == 2)
 				{
 					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_FULL);
-					info->chg_term = 0;
+					//info->chg_term = 0;
 				}
-				
+				else if (info->chg_term > 2)
+					;
 			}
 			#else
 			if (info->event_callback)
@@ -151,13 +174,15 @@ static int rt5025_chgstat_changed(struct rt5025_power_info *info, unsigned new_v
 			#if 1
 			if (info->chip->battery_info)
 			{
-				if (info->chg_term == 0)
+				if (info->chg_term <= 1)
 					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_CHARGING);
-				else if (info->chg_term > 1)
+				else if (info->chg_term == 2)
 				{
 					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_FULL);
-					info->chg_term = 0;
+					//info->chg_term = 0;
 				}
+				else if (info->chg_term > 2)
+					;
 			}
 			#else
 			if (info->event_callback)
@@ -190,7 +215,7 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 	old_usbval = info->usb_online;
 	old_chgval = info->chg_stat;
 
-	mdelay(10);
+	mdelay(50);
 	
 	ret = rt5025_reg_read(info->i2c, RT5025_REG_CHGSTAT);
 	if (ret<0)
@@ -199,6 +224,7 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 		return ret;
 	}
 	chgstatval = ret;
+	RTINFO("chgstat = 0x%02x\n", chgstatval);
 
 	new_acval = (chgstatval&RT5025_CHG_ACONLINE)>>RT5025_CHG_ACSHIFT;
 	if (old_acval != new_acval)
@@ -386,6 +412,7 @@ static int __devinit rt5025_power_probe(struct platform_device *pdev)
 	#endif
 
 	platform_set_drvdata(pdev, pi);
+	dev_ptr = pdev;
 
 	pi->ac.name = "rt5025-dc";
 	pi->ac.type = POWER_SUPPLY_TYPE_MAINS;
@@ -409,6 +436,8 @@ static int __devinit rt5025_power_probe(struct platform_device *pdev)
 
 	rt5025_init_charger(pi, pdata->power_data);
 	chip->power_info = pi;
+
+	pr_info("rt5025-power driver is successfully loaded\n");
 
 	return ret;
 out_usb:
@@ -456,6 +485,7 @@ static int __devexit rt5025_power_remove(struct platform_device *pdev)
 	power_supply_unregister(&pi->ac);
 	chip->power_info = NULL;
 	kfree(pi);
+	RTINFO("\n");
 
 	return 0;
 }
@@ -476,7 +506,7 @@ static int __init rt5025_power_init(void)
 {
 	return platform_driver_register(&rt5025_power_driver);
 }
-late_initcall_sync(rt5025_power_init);
+fs_initcall_sync(rt5025_power_init);
 
 static void __exit rt5025_power_exit(void)
 {

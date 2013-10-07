@@ -956,6 +956,7 @@ static void rt5025_get_soc(struct rt5025_battery_info *bi)
 #endif
   }
 #if RT5025_CSV
+	RTINFO("soc=%d, permille=%d, rm=%d, fcc=%d, smooth_flag=%d\n", bi->soc,bi->permille,bi->rm,bi->fcc,bi->smooth_flag);
  // pr_info("%d,%d,%d,%d,%d", bi->soc,bi->permille,bi->rm,bi->fcc,bi->smooth_flag);
 #else  
 	RTINFO("soc=%d, permille=%d, rm=%d, fcc=%d, smooth_flag=%d\n", bi->soc,bi->permille,bi->rm,bi->fcc,bi->smooth_flag);

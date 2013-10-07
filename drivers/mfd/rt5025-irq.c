@@ -16,6 +16,8 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/wakelock.h>
+#include <linux/delay.h>
 
 #include <linux/gpio.h>
 #include <linux/irq.h>
@@ -32,8 +34,10 @@ struct rt5025_irq_info {
 	struct workqueue_struct *wq;
 	struct rt5025_event_callback *event_cb;
 	struct delayed_work delayed_work;
+	struct wake_lock irq_wake_lock;
 	int intr_pin;
 	int irq;
+	int suspend;
 };
 
 static void rt5025_work_func(struct work_struct *work)
@@ -41,7 +45,15 @@ static void rt5025_work_func(struct work_struct *work)
 	struct delayed_work *delayed_work = (struct delayed_work *)container_of(work, struct delayed_work, work);
 	struct rt5025_irq_info *ii = (struct rt5025_irq_info *)container_of(delayed_work, struct rt5025_irq_info, delayed_work);
 	unsigned char irq_stat[6] = {0};
+	unsigned char irq_enable[6] = {0};
 	uint32_t chg_event = 0, pwr_event = 0;
+
+	//Add this to prevent i2c xfer before i2c chip is in suspend mode
+	if (ii->suspend)
+	{
+		queue_delayed_work(ii->wq, &ii->delayed_work, msecs_to_jiffies(1));
+		return;
+	}
 
 	#ifdef CONFIG_POWER_RT5025
 	if (!ii->chip->power_info || !ii->chip->jeita_info || !ii->chip->battery_info)
@@ -55,6 +67,21 @@ static void rt5025_work_func(struct work_struct *work)
 	if (rt5025_reg_block_read(ii->i2c, RT5025_REG_IRQEN1, 10, irq_stat) >= 0)
 	{
 	#endif
+		/* backup the irq enable bit */
+		irq_enable[0] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN1);
+		irq_enable[1] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN2);
+		irq_enable[2] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN3);
+		irq_enable[3] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN4);
+		irq_enable[4] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN5);
+		irq_enable[5] = rt5025_reg_read(ii->i2c, RT5025_REG_GAUGEIRQEN);
+		/* disable all irq enable bit first */
+		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]&RT5025_ADAPIRQ_MASK);
+		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, 0x00);
+		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN3, 0x00);
+		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN4, 0x00);
+		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN5, 0x00);
+		rt5025_reg_write(ii->i2c, RT5025_REG_GAUGEIRQEN, 0x00);
+		/* read irq status bit */
 		irq_stat[0] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS1);
 		irq_stat[1] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS2);
 		irq_stat[2] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS3);
@@ -68,11 +95,38 @@ static void rt5025_work_func(struct work_struct *work)
 		chg_event = irq_stat[0]<<16 | irq_stat[1]<<8 | irq_stat[2];
 		pwr_event = irq_stat[3]<<8 | irq_stat[4];
 		#ifdef CONFIG_POWER_RT5025
-		if (chg_event & CHARGER_DETECT_MASK)
+		if ((chg_event & CHARGER_DETECT_MASK) && ii->chip->power_info->otg_en == 0)
 		{
 			if (chg_event & CHG_EVENT_CHTERMI)
+			{
 				ii->chip->power_info->chg_term++;
-			rt5025_power_charge_detect(ii->chip->power_info);
+				if (ii->chip->power_info->chg_term > 3)
+					ii->chip->power_info->chg_term = 4;
+			}
+
+			if (chg_event & CHG_EVENT_CHRCHGI)
+				ii->chip->power_info->chg_term = 0;
+
+			if (chg_event & (CHG_EVENT_CHSLPI_INAC | CHG_EVENT_CHSLPI_INUSB))
+			{
+				ii->chip->power_info->chg_term = 0;
+			}
+
+			if (chg_event & (CHG_EVENT_INAC_PLUGIN | CHG_EVENT_INUSB_PLUGIN))
+			{
+				rt5025_set_charging_buck(ii->i2c, 0);
+				mdelay(50);
+				rt5025_set_charging_buck(ii->i2c, 1);
+				mdelay(100);
+				rt5025_set_charging_buck(ii->i2c, 0);
+				mdelay(50);
+				rt5025_set_charging_buck(ii->i2c, 1);
+				mdelay(200);
+			}
+
+			if (ii->chip->power_info->chg_term <= 3)
+				rt5025_power_charge_detect(ii->chip->power_info);
+
 		}
 		#endif /* CONFIG_POWER_RT5025 */
 		if (ii->event_cb)
@@ -96,6 +150,15 @@ static void rt5025_work_func(struct work_struct *work)
 		rt5025_gauge_irq_handler(ii->chip->battery_info, irq_stat[5] & RT5025_FLG_VOLT);
 	#endif /* CONFIG_POWER_RT5025 */
 
+	/* restore all irq enable bit */
+	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]);
+	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]);
+	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN3, irq_enable[2]);
+	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN4, irq_enable[3]);
+	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN5, irq_enable[4]);
+	if (rt5025_reg_read(ii->i2c, RT5025_REG_GAUGEIRQEN) == 0)
+		rt5025_reg_write(ii->i2c, RT5025_REG_GAUGEIRQEN, irq_enable[5]);
+
 	//enable_irq(ii->irq);
 }
 
@@ -104,6 +167,7 @@ static irqreturn_t rt5025_interrupt(int irqno, void *param)
 	struct rt5025_irq_info *ii = (struct rt5025_irq_info *)param;
 
 	//disable_irq_nosync(ii->irq);
+	wake_lock_timeout(&ii->irq_wake_lock, 1*HZ);
 	queue_delayed_work(ii->wq, &ii->delayed_work, 0);
 	return IRQ_HANDLED;
 }
@@ -193,11 +257,13 @@ static int __devinit rt5025_irq_probe(struct platform_device *pdev)
 	ii->irq = chip->irq;//gpio_to_irq(pdata->intr_pin);
 	if (pdata->cb)
 		ii->event_cb = pdata->cb;
+	wake_lock_init(&ii->irq_wake_lock, WAKE_LOCK_SUSPEND, "rt_irq_wake");
 
 	rt5025_irq_reg_init(ii, pdata->irq_data);
 	rt5025_interrupt_init(ii);
 
 	platform_set_drvdata(pdev, ii);
+	RTINFO("\n");
 	return 0;
 }
 
@@ -205,8 +271,11 @@ static int __devexit rt5025_irq_remove(struct platform_device *pdev)
 {
 	struct rt5025_irq_info *ii = platform_get_drvdata(pdev);
 
+	wake_lock_destroy(&ii->irq_wake_lock);
 	rt5025_interrupt_deinit(ii);
 	platform_set_drvdata(pdev, NULL);
+	kfree(ii);
+	RTINFO("\n");
 	return 0;
 }
 
@@ -222,6 +291,25 @@ static void rt5025_irq_shutdown(struct platform_device *pdev)
 		cancel_delayed_work_sync(&ii->delayed_work);
 		flush_workqueue(ii->wq);
 	}
+	RTINFO("\n");
+}
+
+static int rt5025_irq_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct rt5025_irq_info *ii = platform_get_drvdata(pdev);
+
+	RTINFO("\n");
+	ii->suspend = 1;
+	return 0;
+}
+
+static int rt5025_irq_resume(struct platform_device *pdev)
+{
+	struct rt5025_irq_info *ii = platform_get_drvdata(pdev);
+
+	RTINFO("\n");
+	ii->suspend = 0;
+	return 0;
 }
 
 static struct platform_driver rt5025_irq_driver = 
@@ -233,6 +321,8 @@ static struct platform_driver rt5025_irq_driver =
 	.probe = rt5025_irq_probe,
 	.remove = __devexit_p(rt5025_irq_remove),
 	.shutdown = rt5025_irq_shutdown,
+	.suspend = rt5025_irq_suspend,
+	.resume = rt5025_irq_resume,
 };
 
 static int __init rt5025_irq_init(void)

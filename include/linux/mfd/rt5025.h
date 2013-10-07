@@ -17,7 +17,7 @@
 #include <linux/android_alarm.h>
 
 #define RT5025_DEVICE_NAME "RT5025"
-#define RT5025_DRV_VER	   "1.0.2_R"
+#define RT5025_DRV_VER	   "1.0.4_R"
 
 enum {
 	RT5025_RSTDELAY1_100MS,
@@ -422,6 +422,7 @@ struct rt5025_power_info {
 	struct delayed_work usb_detect_work;
 	int usb_cnt;
 	int chg_term;
+	int otg_en;
 	unsigned		ac_online:1;
 	unsigned		usb_online:1;
 	unsigned		chg_stat:3;
@@ -612,6 +613,7 @@ struct rt5025_platform_data {
 	int (*pre_init)(struct rt5025_chip *rt5025_chip);
 	/** Called after subdevices are set up */
 	int (*post_init)(void);
+	int (*set_otg_enable)(int);
 	int intr_pin;
 };
 
@@ -620,6 +622,9 @@ extern void rt5025_power_off(void);
 #endif /* CONFIG_MFD_RT5025_MISC */
 
 #ifdef CONFIG_POWER_RT5025
+extern int rt5025_ext_set_charging_buck(int);
+extern int rt5025_set_charging_buck(struct i2c_client *, int);
+extern int rt5025_set_charging_current_switch(struct i2c_client *, int);
 extern void rt5025_gauge_set_status(struct rt5025_battery_info *, int);
 extern void rt5025_gauge_set_online(struct rt5025_battery_info *, bool);
 extern void rt5025_gauge_irq_handler(struct rt5025_battery_info *, u8);

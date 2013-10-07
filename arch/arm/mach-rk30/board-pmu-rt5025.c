@@ -82,6 +82,16 @@ static int rt5025_post_init(void)
 	
 	return 0;
 }
+
+ int rt5025_set_otg_enable(int enable)
+{
+	if (enable)
+		rt5025_ext_set_charging_buck(0);
+	else
+		rt5025_ext_set_charging_buck(1);
+	return 0;
+}
+
 static struct regulator_consumer_supply rt5025_dcdc1_supply[] = {
 	{
 		.supply = "rt5025-dcdc1",
