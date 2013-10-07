@@ -375,7 +375,8 @@ feature should be disabled. Otherwise, if the system overhead from the
 feature is too high then the rate the kernel samples for NUMA hinting
 faults may be controlled by the numa_balancing_scan_period_min_ms,
 numa_balancing_scan_delay_ms, numa_balancing_scan_period_max_ms,
-numa_balancing_scan_size_mb and numa_balancing_settle_count sysctls.
+numa_balancing_scan_size_mb, numa_balancing_settle_count sysctls and
+numa_balancing_migrate_deferred.
 
 ==============================================================
 
@@ -420,6 +421,13 @@ numa_balancing_settle_count is how many scan periods must complete before
 the schedule balancer stops pushing the task towards a preferred node. This
 gives the scheduler a chance to place the task on an alternative node if the
 preferred node is overloaded.
+
+numa_balancing_migrate_deferred is how many page migrations get skipped
+unconditionally, after a page migration is skipped because a page is shared
+with other tasks. This reduces page migration overhead, and determines
+how much stronger the "move task near its memory" policy scheduler becomes,
+versus the "move memory near its task" memory management policy, for workloads
+with shared memory.
 
 ==============================================================
 

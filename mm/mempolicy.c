@@ -2301,6 +2301,35 @@ static void sp_free(struct sp_node *n)
 	kmem_cache_free(sn_cache, n);
 }
 
+#ifdef CONFIG_NUMA_BALANCING
+static bool numa_migrate_deferred(struct task_struct *p, int last_cpupid)
+{
+	/* Never defer a private fault */
+	if (cpupid_match_pid(p, last_cpupid))
+		return false;
+
+	if (p->numa_migrate_deferred) {
+		p->numa_migrate_deferred--;
+		return true;
+	}
+	return false;
+}
+
+static inline void defer_numa_migrate(struct task_struct *p)
+{
+	p->numa_migrate_deferred = sysctl_numa_balancing_migrate_deferred;
+}
+#else
+static inline bool numa_migrate_deferred(struct task_struct *p, int last_cpupid)
+{
+	return false;
+}
+
+static inline void defer_numa_migrate(struct task_struct *p)
+{
+}
+#endif /* CONFIG_NUMA_BALANCING */
+
 /**
  * mpol_misplaced - check whether current page node is valid in policy
  *
@@ -2402,7 +2431,24 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 * relation.
 		 */
 		last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
-		if (!cpupid_pid_unset(last_cpupid) && cpupid_to_nid(last_cpupid) != thisnid)
+		if (!cpupid_pid_unset(last_cpupid) && cpupid_to_nid(last_cpupid) != thisnid) {
+
+			/* See sysctl_numa_balancing_migrate_deferred comment */
+			if (!cpupid_match_pid(current, last_cpupid))
+				defer_numa_migrate(current);
+
+			goto out;
+		}
+
+		/*
+		 * The quadratic filter above reduces extraneous migration
+		 * of shared pages somewhat. This code reduces it even more,
+		 * reducing the overhead of page migrations of shared pages.
+		 * This makes workloads with shared pages rely more on
+		 * "move task near its memory", and less on "move memory
+		 * towards its task", which is exactly what we want.
+		 */
+		if (numa_migrate_deferred(current, last_cpupid))
 			goto out;
 	}
 

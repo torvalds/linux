@@ -833,6 +833,14 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
 /* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
 unsigned int sysctl_numa_balancing_scan_delay = 1000;
 
+/*
+ * After skipping a page migration on a shared page, skip N more numa page
+ * migrations unconditionally. This reduces the number of NUMA migrations
+ * in shared memory workloads, and has the effect of pulling tasks towards
+ * where their memory lives, over pulling the memory towards the task.
+ */
+unsigned int sysctl_numa_balancing_migrate_deferred = 16;
+
 static unsigned int task_nr_scan_windows(struct task_struct *p)
 {
 	unsigned long rss = 0;
