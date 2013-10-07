@@ -478,7 +478,6 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 		return ret;
 	irq_set_lockdep_class(irq, &gpio_lock_class);
 	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
-	irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID);
 #else
