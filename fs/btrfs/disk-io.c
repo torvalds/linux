@@ -3637,11 +3637,11 @@ int close_ctree(struct btrfs_root *root)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	btrfs_free_block_groups(fs_info);
-
 	btrfs_stop_all_workers(fs_info);
 
 	del_fs_roots(fs_info);
+
+	btrfs_free_block_groups(fs_info);
 
 	free_root_pointers(fs_info, 1);
 
