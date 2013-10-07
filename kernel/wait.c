@@ -92,6 +92,30 @@ prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
 }
 EXPORT_SYMBOL(prepare_to_wait_exclusive);
 
+long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
+{
+	unsigned long flags;
+
+	if (signal_pending_state(state, current))
+		return -ERESTARTSYS;
+
+	wait->private = current;
+	wait->func = autoremove_wake_function;
+
+	spin_lock_irqsave(&q->lock, flags);
+	if (list_empty(&wait->task_list)) {
+		if (wait->flags & WQ_FLAG_EXCLUSIVE)
+			__add_wait_queue_tail(q, wait);
+		else
+			__add_wait_queue(q, wait);
+	}
+	set_current_state(state);
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(prepare_to_wait_event);
+
 /**
  * finish_wait - clean up after waiting in a queue
  * @q: waitqueue waited on

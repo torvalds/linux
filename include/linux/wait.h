@@ -187,27 +187,30 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 	__cond || !__ret;						\
 })
 
-#define ___wait_signal_pending(state)					\
-	((state == TASK_INTERRUPTIBLE && signal_pending(current)) ||	\
-	 (state == TASK_KILLABLE && fatal_signal_pending(current)))
+#define ___wait_is_interruptible(state)					\
+	(!__builtin_constant_p(state) ||				\
+		state == TASK_INTERRUPTIBLE || state == TASK_KILLABLE)	\
 
 #define ___wait_event(wq, condition, state, exclusive, ret, cmd)	\
 ({									\
 	__label__ __out;						\
-	DEFINE_WAIT(__wait);						\
+	wait_queue_t __wait;						\
 	long __ret = ret;						\
 									\
+	INIT_LIST_HEAD(&__wait.task_list);				\
+	if (exclusive)							\
+		__wait.flags = WQ_FLAG_EXCLUSIVE;			\
+	else								\
+		__wait.flags = 0;					\
+									\
 	for (;;) {							\
-		if (exclusive)						\
-			prepare_to_wait_exclusive(&wq, &__wait, state); \
-		else							\
-			prepare_to_wait(&wq, &__wait, state);		\
+		long __int = prepare_to_wait_event(&wq, &__wait, state);\
 									\
 		if (condition)						\
 			break;						\
 									\
-		if (___wait_signal_pending(state)) {			\
-			__ret = -ERESTARTSYS;				\
+		if (___wait_is_interruptible(state) && __int) {		\
+			__ret = __int;					\
 			if (exclusive) {				\
 				abort_exclusive_wait(&wq, &__wait,	\
 						     state, NULL);	\
@@ -791,6 +794,7 @@ extern long interruptible_sleep_on_timeout(wait_queue_head_t *q, signed long tim
  */
 void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state);
+long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
 void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, unsigned int mode, void *key);
 int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
