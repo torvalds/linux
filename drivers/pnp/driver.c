@@ -246,7 +246,7 @@ struct bus_type pnp_bus_type = {
 	.remove  = pnp_device_remove,
 	.shutdown = pnp_device_shutdown,
 	.pm	 = &pnp_bus_dev_pm_ops,
-	.dev_attrs = pnp_interface_attrs,
+	.dev_groups = pnp_dev_groups,
 };
 
 int pnp_register_driver(struct pnp_driver *drv)
