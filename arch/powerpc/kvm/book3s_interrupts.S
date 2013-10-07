@@ -121,9 +121,6 @@ kvm_start_lightweight:
  *
  */
 
-.global kvmppc_handler_highmem
-kvmppc_handler_highmem:
-
 	/*
 	 * Register usage at this point:
 	 *
