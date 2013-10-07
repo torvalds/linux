@@ -2404,18 +2404,6 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
 		if (!cpupid_pid_unset(last_cpupid) && cpupid_to_nid(last_cpupid) != thisnid)
 			goto out;
-
-#ifdef CONFIG_NUMA_BALANCING
-		/*
-		 * If the scheduler has just moved us away from our
-		 * preferred node, do not bother migrating pages yet.
-		 * This way a short and temporary process migration will
-		 * not cause excessive memory migration.
-		 */
-		if (thisnid != current->numa_preferred_nid &&
-				!current->numa_migrate_seq)
-			goto out;
-#endif
 	}
 
 	if (curnid != polnid)

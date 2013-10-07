@@ -1261,16 +1261,8 @@ static void numa_migrate_preferred(struct task_struct *p)
 {
 	/* Success if task is already running on preferred CPU */
 	p->numa_migrate_retry = 0;
-	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid) {
-		/*
-		 * If migration is temporarily disabled due to a task migration
-		 * then re-enable it now as the task is running on its
-		 * preferred node and memory should migrate locally
-		 */
-		if (!p->numa_migrate_seq)
-			p->numa_migrate_seq++;
+	if (cpu_to_node(task_cpu(p)) == p->numa_preferred_nid)
 		return;
-	}
 
 	/* This task has no NUMA fault statistics yet */
 	if (unlikely(p->numa_preferred_nid == -1))
@@ -1367,7 +1359,6 @@ static void task_numa_placement(struct task_struct *p)
 	if (p->numa_scan_seq == seq)
 		return;
 	p->numa_scan_seq = seq;
-	p->numa_migrate_seq++;
 	p->numa_scan_period_max = task_scan_max(p);
 
 	/* If the task is part of a group prevent parallel updates to group stats */
@@ -4730,20 +4721,6 @@ static void move_task(struct task_struct *p, struct lb_env *env)
 	set_task_cpu(p, env->dst_cpu);
 	activate_task(env->dst_rq, p, 0);
 	check_preempt_curr(env->dst_rq, p, 0);
-#ifdef CONFIG_NUMA_BALANCING
-	if (p->numa_preferred_nid != -1) {
-		int src_nid = cpu_to_node(env->src_cpu);
-		int dst_nid = cpu_to_node(env->dst_cpu);
-
-		/*
-		 * If the load balancer has moved the task then limit
-		 * migrations from taking place in the short term in
-		 * case this is a short-lived migration.
-		 */
-		if (src_nid != dst_nid && dst_nid != p->numa_preferred_nid)
-			p->numa_migrate_seq = 0;
-	}
-#endif
 }
 
 /*
