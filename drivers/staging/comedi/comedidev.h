@@ -57,8 +57,6 @@ struct comedi_subdevice {
 	unsigned int maxdata;	/* if maxdata==0, use list */
 	const unsigned int *maxdata_list;	/* list is channel specific */
 
-	unsigned int settling_time_0;
-
 	const struct comedi_lrange *range_table;
 	const struct comedi_lrange *const *range_table_list;
 
