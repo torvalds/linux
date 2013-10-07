@@ -1526,7 +1526,6 @@ static long kvm_arch_vm_ioctl_pr(struct file *filp,
 }
 
 static struct kvmppc_ops kvm_ops_pr = {
-	.is_hv_enabled = false,
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_pr,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_pr,
 	.get_one_reg = kvmppc_get_one_reg_pr,

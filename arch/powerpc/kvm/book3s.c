@@ -72,7 +72,7 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->kvm->arch.kvm_ops->is_hv_enabled)
+	if (!is_kvmppc_hv_enabled(vcpu->kvm))
 		return to_book3s(vcpu)->hior;
 	return 0;
 }
@@ -80,7 +80,7 @@ static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 			unsigned long pending_now, unsigned long old_pending)
 {
-	if (vcpu->kvm->arch.kvm_ops->is_hv_enabled)
+	if (is_kvmppc_hv_enabled(vcpu->kvm))
 		return;
 	if (pending_now)
 		vcpu->arch.shared->int_pending = 1;
@@ -94,7 +94,7 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 	ulong crit_r1;
 	bool crit;
 
-	if (vcpu->kvm->arch.kvm_ops->is_hv_enabled)
+	if (is_kvmppc_hv_enabled(vcpu->kvm))
 		return false;
 
 	crit_raw = vcpu->arch.shared->critical;

@@ -2160,7 +2160,6 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 }
 
 static struct kvmppc_ops kvm_ops_hv = {
-	.is_hv_enabled = true,
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
 	.get_one_reg = kvmppc_get_one_reg_hv,

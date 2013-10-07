@@ -200,7 +200,7 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 		goto out;
 
 	/* HV KVM can only do PAPR mode for now */
-	if (!vcpu->arch.papr_enabled && vcpu->kvm->arch.kvm_ops->is_hv_enabled)
+	if (!vcpu->arch.papr_enabled && is_kvmppc_hv_enabled(vcpu->kvm))
 		goto out;
 
 #ifdef CONFIG_KVM_BOOKE_HV
