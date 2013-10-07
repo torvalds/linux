@@ -27,6 +27,25 @@
 	};
 
 	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+
+		pcie-controller {
+			status = "okay";
+
+			/* Connected to Marvell SATA controller */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/* Connected to FL1009 USB 3.0 controller */
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+		};
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <200000000>;
@@ -55,6 +74,11 @@
 
 				backup_led_pin: backup-led-pin {
 					marvell,pins = "mpp56";
+					marvell,function = "gpio";
+				};
+
+				poweroff: poweroff {
+					marvell,pins = "mpp8";
 					marvell,function = "gpio";
 				};
 			};
@@ -87,22 +111,6 @@
 					fan_gear_mode = <0>;
 					fan_startv = <1>;
 					pwm_polarity = <0>;
-				};
-			};
-
-			pcie-controller {
-				status = "okay";
-
-				/* Connected to Marvell SATA controller */
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
-				};
-
-				/* Connected to FL1009 USB 3.0 controller */
-				pcie@2,0 {
-					/* Port 1, Lane 0 */
-					status = "okay";
 				};
 			};
 		};
@@ -160,7 +168,7 @@
 		button@1 {
 			label = "Power Button";
 			linux,code = <116>;     /* KEY_POWER */
-			gpios = <&gpio1 30 1>;
+			gpios = <&gpio1 30 0>;
 		};
 
 		button@2 {
@@ -174,6 +182,13 @@
 			linux,code = <133>;     /* KEY_COPY */
 			gpios = <&gpio1 26 1>;
 		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 8 1>;
 	};
 
 };
