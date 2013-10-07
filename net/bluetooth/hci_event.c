@@ -1296,9 +1296,11 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 		goto unlock;
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
-		struct hci_cp_auth_requested cp;
-		cp.handle = __cpu_to_le16(conn->handle);
-		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+		struct hci_cp_auth_requested auth_cp;
+
+		auth_cp.handle = __cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
+			     sizeof(auth_cp), &auth_cp);
 	}
 
 unlock:
@@ -3660,8 +3662,8 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	skb_pull(skb, HCI_EVENT_HDR_SIZE);
 
 	if (hdev->sent_cmd && bt_cb(hdev->sent_cmd)->req.event == event) {
-		struct hci_command_hdr *hdr = (void *) hdev->sent_cmd->data;
-		u16 opcode = __le16_to_cpu(hdr->opcode);
+		struct hci_command_hdr *cmd_hdr = (void *) hdev->sent_cmd->data;
+		u16 opcode = __le16_to_cpu(cmd_hdr->opcode);
 
 		hci_req_cmd_complete(hdev, opcode, 0);
 	}
