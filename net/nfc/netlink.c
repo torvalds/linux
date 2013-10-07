@@ -1284,7 +1284,7 @@ struct se_io_ctx {
 	u32 se_idx;
 };
 
-void se_io_cb(void *context, u8 *apdu, size_t apdu_len, int err)
+static void se_io_cb(void *context, u8 *apdu, size_t apdu_len, int err)
 {
 	struct se_io_ctx *ctx = context;
 	struct sk_buff *msg;
