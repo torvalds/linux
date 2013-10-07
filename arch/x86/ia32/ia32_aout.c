@@ -133,14 +133,6 @@ static void set_brk(unsigned long start, unsigned long end)
 
 #include <linux/coredump.h>
 
-#define DUMP_WRITE(addr, nr)			     \
-	if (!dump_write(cprm->file, (void *)(addr), (nr))) \
-		goto end_coredump;
-
-#define DUMP_SEEK(offset)		\
-	if (!dump_seek(cprm->file, offset))	\
-		goto end_coredump;
-
 #define START_DATA(u)	(u.u_tsize << PAGE_SHIFT)
 #define START_STACK(u)	(u.start_stack)
 
@@ -192,22 +184,26 @@ static int aout_core_dump(struct coredump_params *cprm)
 
 	set_fs(KERNEL_DS);
 	/* struct user */
-	DUMP_WRITE(&dump, sizeof(dump));
+	if (!dump_emit(cprm, &dump, sizeof(dump)))
+		goto end_coredump;
 	/* Now dump all of the user data.  Include malloced stuff as well */
-	DUMP_SEEK(PAGE_SIZE - sizeof(dump));
+	if (!dump_seek(cprm->file, PAGE_SIZE - sizeof(dump)))
+		goto end_coredump;
 	/* now we start writing out the user space info */
 	set_fs(USER_DS);
 	/* Dump the data area */
 	if (dump.u_dsize != 0) {
 		dump_start = START_DATA(dump);
 		dump_size = dump.u_dsize << PAGE_SHIFT;
-		DUMP_WRITE(dump_start, dump_size);
+		if (!dump_emit(cprm, (void *)dump_start, dump_size))
+			goto end_coredump;
 	}
 	/* Now prepare to dump the stack area */
 	if (dump.u_ssize != 0) {
 		dump_start = START_STACK(dump);
 		dump_size = dump.u_ssize << PAGE_SHIFT;
-		DUMP_WRITE(dump_start, dump_size);
+		if (!dump_emit(cprm, (void *)dump_start, dump_size))
+			goto end_coredump;
 	}
 end_coredump:
 	set_fs(fs);
