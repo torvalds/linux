@@ -1112,16 +1112,13 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			/*
 			 * USB3 protocol ports will automatically transition
 			 * to Enabled state when detect an USB3.0 device attach.
-			 * Do not disable USB3 protocol ports.
+			 * Do not disable USB3 protocol ports, just pretend
+			 * power was lost
 			 */
-			if (!hub_is_superspeed(hdev)) {
+			portstatus &= ~USB_PORT_STAT_ENABLE;
+			if (!hub_is_superspeed(hdev))
 				usb_clear_port_feature(hdev, port1,
 						   USB_PORT_FEAT_ENABLE);
-				portstatus &= ~USB_PORT_STAT_ENABLE;
-			} else {
-				/* Pretend that power was lost for USB3 devs */
-				portstatus &= ~USB_PORT_STAT_ENABLE;
-			}
 		}
 
 		/* Clear status-change flags; we'll debounce later */
