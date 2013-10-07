@@ -306,6 +306,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 						EDMA_SLOT_ANY);
 			if (echan->slot[i] < 0) {
 				dev_err(dev, "Failed to allocate slot\n");
+				kfree(edesc);
 				return NULL;
 			}
 		}
