@@ -273,6 +273,11 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Satellite P305D"),
 		},
 	},
+
+	/*
+	 * The following machines have broken backlight support when reporting
+	 * the Windows 2012 OSI, so disable it until their support is fixed.
+	 */
 	{
 	.callback = dmi_disable_osi_win8,
 	.ident = "ASUS Zenbook Prime UX31A",
