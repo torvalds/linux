@@ -259,12 +259,14 @@ static int ad799x_read_event_config(struct iio_dev *indio_dev,
 	return 1;
 }
 
-static const u8 ad799x_threshold_addresses[][2] = {
-	{ AD7998_DATALOW_CH1_REG, AD7998_DATAHIGH_CH1_REG },
-	{ AD7998_DATALOW_CH2_REG, AD7998_DATAHIGH_CH2_REG },
-	{ AD7998_DATALOW_CH3_REG, AD7998_DATAHIGH_CH3_REG },
-	{ AD7998_DATALOW_CH4_REG, AD7998_DATAHIGH_CH4_REG },
-};
+static int ad799x_threshold_reg(const struct iio_chan_spec *chan,
+					enum iio_event_direction dir)
+{
+	if (dir == IIO_EV_DIR_FALLING)
+		return AD7998_DATALOW_REG(chan->channel);
+	else
+		return AD7998_DATAHIGH_REG(chan->channel);
+}
 
 static int ad799x_write_event_value(struct iio_dev *indio_dev,
 				    const struct iio_chan_spec *chan,
@@ -275,13 +277,9 @@ static int ad799x_write_event_value(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad799x_state *st = iio_priv(indio_dev);
-	int direction = dir == IIO_EV_DIR_FALLING;
-	int number = chan->channel;
 
 	mutex_lock(&indio_dev->mlock);
-	ret = ad799x_i2c_write16(st,
-				 ad799x_threshold_addresses[number][direction],
-				 val);
+	ret = ad799x_i2c_write16(st, ad799x_threshold_reg(chan, dir), val);
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
@@ -296,14 +294,10 @@ static int ad799x_read_event_value(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad799x_state *st = iio_priv(indio_dev);
-	int direction = dir == IIO_EV_DIR_FALLING;
-	int number = chan->channel;
 	u16 valin;
 
 	mutex_lock(&indio_dev->mlock);
-	ret = ad799x_i2c_read16(st,
-				ad799x_threshold_addresses[number][direction],
-				&valin);
+	ret = ad799x_i2c_read16(st, ad799x_threshold_reg(chan, dir), &valin);
 	mutex_unlock(&indio_dev->mlock);
 	if (ret < 0)
 		return ret;
@@ -391,25 +385,25 @@ static IIO_DEVICE_ATTR(in_voltage0_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
-		       AD7998_HYST_CH1_REG);
+		       AD7998_HYST_REG(0));
 
 static IIO_DEVICE_ATTR(in_voltage1_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
-		       AD7998_HYST_CH2_REG);
+		       AD7998_HYST_REG(1));
 
 static IIO_DEVICE_ATTR(in_voltage2_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
-		       AD7998_HYST_CH3_REG);
+		       AD7998_HYST_REG(2));
 
 static IIO_DEVICE_ATTR(in_voltage3_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
-		       AD7998_HYST_CH4_REG);
+		       AD7998_HYST_REG(3));
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      ad799x_read_frequency,
