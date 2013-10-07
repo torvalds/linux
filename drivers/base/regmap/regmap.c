@@ -42,15 +42,6 @@ static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 static int _regmap_bus_raw_write(void *context, unsigned int reg,
 				 unsigned int val);
 
-static void async_cleanup(struct work_struct *work)
-{
-	struct regmap_async *async = container_of(work, struct regmap_async,
-						  cleanup);
-
-	kfree(async->work_buf);
-	kfree(async);
-}
-
 bool regmap_reg_in_ranges(unsigned int reg,
 			  const struct regmap_range *ranges,
 			  unsigned int nranges)
@@ -465,6 +456,7 @@ struct regmap *regmap_init(struct device *dev,
 
 	spin_lock_init(&map->async_lock);
 	INIT_LIST_HEAD(&map->async_list);
+	INIT_LIST_HEAD(&map->async_free);
 	init_waitqueue_head(&map->async_waitq);
 
 	if (config->read_flag_mask || config->write_flag_mask) {
@@ -942,12 +934,22 @@ EXPORT_SYMBOL_GPL(regmap_reinit_cache);
  */
 void regmap_exit(struct regmap *map)
 {
+	struct regmap_async *async;
+
 	regcache_exit(map);
 	regmap_debugfs_exit(map);
 	regmap_range_exit(map);
 	if (map->bus && map->bus->free_context)
 		map->bus->free_context(map->bus_context);
 	kfree(map->work_buf);
+	while (!list_empty(&map->async_free)) {
+		async = list_first_entry_or_null(&map->async_free,
+						 struct regmap_async,
+						 list);
+		list_del(&async->list);
+		kfree(async->work_buf);
+		kfree(async);
+	}
 	kfree(map);
 }
 EXPORT_SYMBOL_GPL(regmap_exit);
@@ -1115,20 +1117,31 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	u8[0] |= map->write_flag_mask;
 
 	if (async && map->bus->async_write) {
-		struct regmap_async *async = map->bus->async_alloc();
-		if (!async)
-			return -ENOMEM;
+		struct regmap_async *async;
 
 		trace_regmap_async_write_start(map->dev, reg, val_len);
 
-		async->work_buf = kzalloc(map->format.buf_size,
-					  GFP_KERNEL | GFP_DMA);
-		if (!async->work_buf) {
-			kfree(async);
-			return -ENOMEM;
+		spin_lock_irqsave(&map->async_lock, flags);
+		async = list_first_entry_or_null(&map->async_free,
+						 struct regmap_async,
+						 list);
+		if (async)
+			list_del(&async->list);
+		spin_unlock_irqrestore(&map->async_lock, flags);
+
+		if (!async) {
+			async = map->bus->async_alloc();
+			if (!async)
+				return -ENOMEM;
+
+			async->work_buf = kzalloc(map->format.buf_size,
+						  GFP_KERNEL | GFP_DMA);
+			if (!async->work_buf) {
+				kfree(async);
+				return -ENOMEM;
+			}
 		}
 
-		INIT_WORK(&async->cleanup, async_cleanup);
 		async->map = map;
 
 		/* If the caller supplied the value we can use it safely. */
@@ -1152,11 +1165,8 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 				ret);
 
 			spin_lock_irqsave(&map->async_lock, flags);
-			list_del(&async->list);
+			list_move(&async->list, &map->async_free);
 			spin_unlock_irqrestore(&map->async_lock, flags);
-
-			kfree(async->work_buf);
-			kfree(async);
 		}
 
 		return ret;
@@ -1820,16 +1830,13 @@ void regmap_async_complete_cb(struct regmap_async *async, int ret)
 	trace_regmap_async_io_complete(map->dev);
 
 	spin_lock(&map->async_lock);
-
-	list_del(&async->list);
+	list_move(&async->list, &map->async_free);
 	wake = list_empty(&map->async_list);
 
 	if (ret != 0)
 		map->async_ret = ret;
 
 	spin_unlock(&map->async_lock);
-
-	schedule_work(&async->cleanup);
 
 	if (wake)
 		wake_up(&map->async_waitq);

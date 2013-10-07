@@ -44,7 +44,6 @@ struct regmap_format {
 
 struct regmap_async {
 	struct list_head list;
-	struct work_struct cleanup;
 	struct regmap *map;
 	void *work_buf;
 };
@@ -67,6 +66,7 @@ struct regmap {
 	spinlock_t async_lock;
 	wait_queue_head_t async_waitq;
 	struct list_head async_list;
+	struct list_head async_free;
 	int async_ret;
 
 #ifdef CONFIG_DEBUG_FS
