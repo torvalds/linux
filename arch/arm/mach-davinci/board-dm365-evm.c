@@ -743,6 +743,12 @@ static struct spi_board_info dm365_evm_spi_info[] __initconst = {
 
 static __init void dm365_evm_init(void)
 {
+	int ret;
+
+	ret = dm365_gpio_register();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
+
 	evm_init_i2c();
 	davinci_serial_init(dm365_serial_device);
 

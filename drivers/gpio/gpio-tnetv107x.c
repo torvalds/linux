@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-davinci.h>
 
 #include <mach/common.h>
 #include <mach/tnetv107x.h>

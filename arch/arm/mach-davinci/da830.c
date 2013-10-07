@@ -11,6 +11,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/clk.h>
+#include <linux/platform_data/gpio-davinci.h>
 
 #include <asm/mach/map.h>
 
@@ -20,7 +21,6 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -1151,6 +1151,16 @@ static struct davinci_id da830_ids[] = {
 	},
 };
 
+static struct davinci_gpio_platform_data da830_gpio_platform_data = {
+	.ngpio = 128,
+	.intc_irq_num = DA830_N_CP_INTC_IRQ,
+};
+
+int __init da830_register_gpio(void)
+{
+	return da8xx_register_gpio(&da830_gpio_platform_data);
+}
+
 static struct davinci_timer_instance da830_timer_instance[2] = {
 	{
 		.base		= DA8XX_TIMER64P0_BASE,
@@ -1196,10 +1206,6 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.intc_irq_prios		= da830_default_priorities,
 	.intc_irq_num		= DA830_N_CP_INTC_IRQ,
 	.timer_info		= &da830_timer_info,
-	.gpio_type		= GPIO_TYPE_DAVINCI,
-	.gpio_base		= DA8XX_GPIO_BASE,
-	.gpio_num		= 128,
-	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.emac_pdata		= &da8xx_emac_pdata,
 };
 
