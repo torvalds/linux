@@ -24,7 +24,8 @@
 #include <drm/drm.h>
 #include <drm/drmP.h>
 
-#define TEGRA_BO_TILED (1 << 0)
+#define TEGRA_BO_TILED     (1 << 0)
+#define TEGRA_BO_BOTTOM_UP (1 << 1)
 
 struct tegra_bo {
 	struct drm_gem_object gem;

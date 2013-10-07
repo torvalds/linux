@@ -132,6 +132,9 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
 		bo->flags |= TEGRA_BO_TILED;
 
+	if (flags & DRM_TEGRA_GEM_CREATE_BOTTOM_UP)
+		bo->flags |= TEGRA_BO_BOTTOM_UP;
+
 	return bo;
 
 err_mmap:

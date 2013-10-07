@@ -19,7 +19,8 @@
 
 #include <drm/drm.h>
 
-#define DRM_TEGRA_GEM_CREATE_TILED (1 << 0)
+#define DRM_TEGRA_GEM_CREATE_TILED     (1 << 0)
+#define DRM_TEGRA_GEM_CREATE_BOTTOM_UP (1 << 1)
 
 struct drm_tegra_gem_create {
 	__u64 size;

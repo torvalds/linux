@@ -47,6 +47,7 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	window.dst.h = crtc_h;
 	window.format = tegra_dc_format(fb->pixel_format);
 	window.bits_per_pixel = fb->bits_per_pixel;
+	window.bottom_up = tegra_fb_is_bottom_up(fb);
 	window.tiled = tegra_fb_is_tiled(fb);
 
 	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
@@ -147,6 +148,7 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 {
 	unsigned int format = tegra_dc_format(fb->pixel_format);
 	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
+	unsigned int h_offset = 0, v_offset = 0;
 	unsigned long value;
 
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -167,6 +169,22 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	}
 
 	tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+
+	/* make sure bottom-up buffers are properly displayed */
+	if (tegra_fb_is_bottom_up(fb)) {
+		value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
+		value |= INVERT_V;
+		tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
+
+		v_offset += fb->height - 1;
+	} else {
+		value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
+		value &= ~INVERT_V;
+		tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
+	}
+
+	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
+	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
 	value = GENERAL_UPDATE | WIN_A_UPDATE;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
@@ -517,6 +535,9 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 		tegra_dc_writel(dc, window->stride[0], DC_WIN_LINE_STRIDE);
 	}
 
+	if (window->bottom_up)
+		v_offset += window->src.h - 1;
+
 	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
 	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
@@ -547,6 +568,9 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	} else if (window->bits_per_pixel < 24) {
 		value |= COLOR_EXPAND;
 	}
+
+	if (window->bottom_up)
+		value |= INVERT_V;
 
 	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 

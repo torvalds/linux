@@ -302,6 +302,7 @@
 #define DC_WIN_CSC_KVB				0x618
 
 #define DC_WIN_WIN_OPTIONS			0x700
+#define INVERT_V     (1 <<  2)
 #define COLOR_EXPAND (1 <<  6)
 #define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)

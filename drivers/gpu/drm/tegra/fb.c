@@ -34,6 +34,16 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 	return fb->planes[index];
 }
 
+bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
+{
+	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+
+	if (fb->planes[0]->flags & TEGRA_BO_BOTTOM_UP)
+		return true;
+
+	return false;
+}
+
 bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer)
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
