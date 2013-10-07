@@ -476,15 +476,9 @@ static int dspi_probe(struct platform_device *pdev)
 	master->bus_num = bus_num;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get platform resource\n");
-		ret = -EINVAL;
-		goto out_master_put;
-	}
-
 	dspi->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!dspi->base) {
-		ret = -EINVAL;
+	if (IS_ERR(dspi->base)) {
+		ret = PTR_ERR(dspi->base);
 		goto out_master_put;
 	}
 
