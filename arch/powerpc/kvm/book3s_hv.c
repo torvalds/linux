@@ -52,6 +52,7 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
+#include <linux/module.h>
 
 #include "book3s.h"
 
@@ -2215,3 +2216,4 @@ static void kvmppc_book3s_exit_hv(void)
 
 module_init(kvmppc_book3s_init_hv);
 module_exit(kvmppc_book3s_exit_hv);
+MODULE_LICENSE("GPL");

@@ -187,6 +187,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 		++kvm->stat.remote_tlb_flush;
 	cmpxchg(&kvm->tlbs_dirty, dirty_count, 0);
 }
+EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);
 
 void kvm_reload_remote_mmus(struct kvm *kvm)
 {
@@ -965,6 +966,7 @@ int kvm_get_dirty_log(struct kvm *kvm,
 out:
 	return r;
 }
+EXPORT_SYMBOL_GPL(kvm_get_dirty_log);
 
 bool kvm_largepages_enabled(void)
 {
@@ -1653,6 +1655,7 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 	memslot = gfn_to_memslot(kvm, gfn);
 	mark_page_dirty_in_slot(kvm, memslot, gfn);
 }
+EXPORT_SYMBOL_GPL(mark_page_dirty);
 
 /*
  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
@@ -1678,6 +1681,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 
 	finish_wait(&vcpu->wq, &wait);
 }
+EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
 #ifndef CONFIG_S390
 /*

@@ -126,6 +126,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 	return r;
 }
+EXPORT_SYMBOL_GPL(kvmppc_prepare_to_enter);
 
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 {
@@ -179,6 +180,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 
 	return r;
 }
+EXPORT_SYMBOL_GPL(kvmppc_kvm_pv);
 
 int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 {
@@ -207,6 +209,7 @@ out:
 	vcpu->arch.sane = r;
 	return r ? 0 : -EINVAL;
 }
+EXPORT_SYMBOL_GPL(kvmppc_sanity_check);
 
 int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
@@ -241,6 +244,7 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	return r;
 }
+EXPORT_SYMBOL_GPL(kvmppc_emulate_mmio);
 
 int kvm_arch_hardware_enable(void *garbage)
 {
@@ -665,6 +669,7 @@ int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	return EMULATE_DO_MMIO;
 }
+EXPORT_SYMBOL_GPL(kvmppc_handle_load);
 
 /* Same as above, but sign extends */
 int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -726,6 +731,7 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	return EMULATE_DO_MMIO;
 }
+EXPORT_SYMBOL_GPL(kvmppc_handle_store);
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
@@ -1074,22 +1080,26 @@ long kvmppc_alloc_lpid(void)
 
 	return lpid;
 }
+EXPORT_SYMBOL_GPL(kvmppc_alloc_lpid);
 
 void kvmppc_claim_lpid(long lpid)
 {
 	set_bit(lpid, lpid_inuse);
 }
+EXPORT_SYMBOL_GPL(kvmppc_claim_lpid);
 
 void kvmppc_free_lpid(long lpid)
 {
 	clear_bit(lpid, lpid_inuse);
 }
+EXPORT_SYMBOL_GPL(kvmppc_free_lpid);
 
 void kvmppc_init_lpid(unsigned long nr_lpids_param)
 {
 	nr_lpids = min_t(unsigned long, KVMPPC_NR_LPIDS, nr_lpids_param);
 	memset(lpid_inuse, 0, sizeof(lpid_inuse));
 }
+EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
 
 int kvm_arch_init(void *opaque)
 {

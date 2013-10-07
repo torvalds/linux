@@ -172,7 +172,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.mmu.tlbie(vcpu, addr, large);
 			break;
 		}
-#ifdef CONFIG_KVM_BOOK3S_64_PR
+#ifdef CONFIG_PPC_BOOK3S_64
 		case OP_31_XOP_FAKE_SC1:
 		{
 			/* SC 1 papr hypercalls */

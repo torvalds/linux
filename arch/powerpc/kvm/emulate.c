@@ -483,3 +483,4 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	return emulated;
 }
+EXPORT_SYMBOL_GPL(kvmppc_emulate_instruction);

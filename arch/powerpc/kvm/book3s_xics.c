@@ -840,6 +840,7 @@ int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(kvmppc_xics_hcall);
 
 
 /* -- Initialisation code etc. -- */

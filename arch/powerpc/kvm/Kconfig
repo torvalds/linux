@@ -73,7 +73,7 @@ config KVM_BOOK3S_64
 	  If unsure, say N.
 
 config KVM_BOOK3S_64_HV
-	bool "KVM support for POWER7 and PPC970 using hypervisor mode in host"
+	tristate "KVM support for POWER7 and PPC970 using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
 	select KVM_BOOK3S_HV_POSSIBLE
 	select MMU_NOTIFIER
@@ -94,8 +94,8 @@ config KVM_BOOK3S_64_HV
 	  If unsure, say N.
 
 config KVM_BOOK3S_64_PR
-	bool "KVM support without using hypervisor mode in host"
-	depends on KVM_BOOK3S_64 && !KVM_BOOK3S_64_HV
+	tristate "KVM support without using hypervisor mode in host"
+	depends on KVM_BOOK3S_64
 	select KVM_BOOK3S_PR_POSSIBLE
 	---help---
 	  Support running guest kernels in virtual machines on processors
