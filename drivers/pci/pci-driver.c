@@ -135,6 +135,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		return retval;
 	return count;
 }
+static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
 
 /**
  * store_remove_id - remove a PCI device ID from this driver
@@ -180,12 +181,14 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 		return retval;
 	return count;
 }
+static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
-static struct driver_attribute pci_drv_attrs[] = {
-	__ATTR(new_id, S_IWUSR, NULL, store_new_id),
-	__ATTR(remove_id, S_IWUSR, NULL, store_remove_id),
-	__ATTR_NULL,
+static struct attribute *pci_drv_attrs[] = {
+	&driver_attr_new_id.attr,
+	&driver_attr_remove_id.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(pci_drv);
 
 /**
  * pci_match_id - See if a pci device matches a given pci_id table
@@ -1318,7 +1321,7 @@ struct bus_type pci_bus_type = {
 	.shutdown	= pci_device_shutdown,
 	.dev_attrs	= pci_dev_attrs,
 	.bus_groups	= pci_bus_groups,
-	.drv_attrs	= pci_drv_attrs,
+	.drv_groups	= pci_drv_groups,
 	.pm		= PCI_PM_OPS_PTR,
 };
 
