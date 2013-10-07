@@ -318,6 +318,9 @@ static void amp_init(struct hci_request *req)
 
 	/* Read Data Blk size */
 	hci_req_add(req, HCI_OP_READ_DATA_BLOCK_SIZE, 0, NULL);
+
+	/* Read Location Data */
+	hci_req_add(req, HCI_OP_READ_LOCATION_DATA, 0, NULL);
 }
 
 static void hci_init1_req(struct hci_request *req, unsigned long opt)
