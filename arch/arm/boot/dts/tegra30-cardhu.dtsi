@@ -294,9 +294,10 @@
 			};
 		};
 
-		nct1008 {
+		temperature-sensor@4c {
 			compatible = "onnn,nct1008";
 			reg = <0x4c>;
+			vcc-supply = <&sys_3v3_reg>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_LEVEL_LOW>;
 		};
