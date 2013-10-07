@@ -146,7 +146,6 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 			  long mask)
 {
 	struct spear_adc_info *info = iio_priv(indio_dev);
-	u32 scale_mv;
 	u32 status;
 
 	switch (mask) {
