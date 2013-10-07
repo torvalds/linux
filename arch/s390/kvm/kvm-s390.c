@@ -157,6 +157,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_S390_CSS_SUPPORT:
 	case KVM_CAP_IOEVENTFD:
+	case KVM_CAP_DEVICE_CTRL:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:

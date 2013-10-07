@@ -16,6 +16,20 @@
 
 #define __KVM_S390
 
+/* Device control API: s390-specific devices */
+#define KVM_DEV_FLIC_GET_ALL_IRQS	1
+#define KVM_DEV_FLIC_ENQUEUE		2
+#define KVM_DEV_FLIC_CLEAR_IRQS		3
+/*
+ * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
+ * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.
+ * There are also sclp and machine checks. This gives us
+ * sizeof(kvm_s390_irq)*(4*65536+8+64*64+1+1) = 72 * 266250 = 19170000
+ * Lets round up to 8192 pages.
+ */
+
+#define KVM_S390_FLIC_MAX_BUFFER	0x2000000
+
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
 	/* general purpose regs for s390 */

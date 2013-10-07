@@ -243,6 +243,7 @@ struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
+	struct kvm_device *flic;
 	struct gmap *gmap;
 	int css_support;
 };
