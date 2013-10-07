@@ -2348,9 +2348,11 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 
 	/* Migrate the page towards the node whose CPU is referencing it */
 	if (pol->flags & MPOL_F_MORON) {
-		int last_nid;
+		int last_nidpid;
+		int this_nidpid;
 
 		polnid = numa_node_id();
+		this_nidpid = nid_pid_to_nidpid(polnid, current->pid);
 
 		/*
 		 * Multi-stage node selection is used in conjunction
@@ -2373,8 +2375,8 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 * it less likely we act on an unlikely task<->page
 		 * relation.
 		 */
-		last_nid = page_nid_xchg_last(page, polnid);
-		if (last_nid != polnid)
+		last_nidpid = page_nidpid_xchg_last(page, this_nidpid);
+		if (!nidpid_pid_unset(last_nidpid) && nidpid_to_nid(last_nidpid) != polnid)
 			goto out;
 	}
 
