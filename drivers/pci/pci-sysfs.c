@@ -302,10 +302,20 @@ static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 	}
 	return count;
 }
+static BUS_ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, bus_rescan_store);
 
-struct bus_attribute pci_bus_attrs[] = {
-	__ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, bus_rescan_store),
-	__ATTR_NULL
+struct attribute *pci_bus_attrs[] = {
+	&bus_attr_rescan.attr,
+	NULL,
+};
+
+static const struct attribute_group pci_bus_group = {
+	.attrs = pci_bus_attrs,
+};
+
+const struct attribute_group *pci_bus_groups[] = {
+	&pci_bus_group,
+	NULL,
 };
 
 static ssize_t
