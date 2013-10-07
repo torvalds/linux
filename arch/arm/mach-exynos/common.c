@@ -26,8 +26,6 @@
 #include <linux/export.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
-#include <linux/clocksource.h>
-#include <linux/clk-provider.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/irqchip/chained_irq.h>
 
@@ -365,12 +363,6 @@ static void __init exynos5_map_io(void)
 
 	if (soc_is_exynos5250())
 		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
-}
-
-void __init exynos_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
 }
 
 struct bus_type exynos_subsys = {

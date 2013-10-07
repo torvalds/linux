@@ -25,8 +25,6 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <linux/platform_data/clk-nomadik.h>
-#include <linux/clocksource.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
@@ -111,39 +109,6 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 	writel(1, srcbase + 0x18);
 }
 
-/* Initial value for SRC control register: all timers use MXTAL/8 source */
-#define SRC_CR_INIT_MASK	0x00007fff
-#define SRC_CR_INIT_VAL		0x2aaa8000
-
-static void __init cpu8815_timer_init_of(void)
-{
-	struct device_node *mtu;
-	void __iomem *base;
-	int irq;
-	u32 src_cr;
-
-	/* We need this to be up now */
-	nomadik_clk_init();
-
-	mtu = of_find_node_by_path("/mtu@101e2000");
-	if (!mtu)
-		return;
-	base = of_iomap(mtu, 0);
-	if (WARN_ON(!base))
-		return;
-	irq = irq_of_parse_and_map(mtu, 0);
-
-	pr_info("Remapped MTU @ %p, irq: %d\n", base, irq);
-
-	/* Configure timer sources in "system reset controller" ctrl reg */
-	src_cr = readl(base);
-	src_cr &= SRC_CR_INIT_MASK;
-	src_cr |= SRC_CR_INIT_VAL;
-	writel(src_cr, base);
-
-	clocksource_of_init();
-}
-
 /*
  * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
  * to simply request an IRQ passed as a resource. So the GPIO pin needs
@@ -226,7 +191,6 @@ static const char * cpu8815_board_compat[] = {
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
 	.map_io		= cpu8815_map_io,
-	.init_time	= cpu8815_timer_init_of,
 	.init_machine	= cpu8815_init_of,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,

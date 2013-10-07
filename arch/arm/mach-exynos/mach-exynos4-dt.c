@@ -16,7 +16,6 @@
 #include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <linux/memblock.h>
-#include <linux/clocksource.h>
 
 #include <asm/mach/arch.h>
 #include <plat/mfc.h>
@@ -54,7 +53,6 @@ DT_MACHINE_START(EXYNOS4210_DT, "Samsung Exynos4 (Flattened Device Tree)")
 	.init_early	= exynos_firmware_init,
 	.init_machine	= exynos4_dt_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= exynos_init_time,
 	.dt_compat	= exynos4_dt_compat,
 	.restart        = exynos4_restart,
 	.reserve	= exynos4_reserve,
