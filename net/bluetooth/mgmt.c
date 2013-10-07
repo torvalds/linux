@@ -4585,7 +4585,7 @@ void mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, sizeof(*ev) + eir_len, NULL);
 }
 
-int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
+void mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 {
 	struct mgmt_ev_discovering ev;
 	struct pending_cmd *cmd;
@@ -4609,7 +4609,7 @@ int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 	ev.type = hdev->discovery.type;
 	ev.discovering = discovering;
 
-	return mgmt_event(MGMT_EV_DISCOVERING, hdev, &ev, sizeof(ev), NULL);
+	mgmt_event(MGMT_EV_DISCOVERING, hdev, &ev, sizeof(ev), NULL);
 }
 
 int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
