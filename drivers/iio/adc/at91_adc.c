@@ -43,6 +43,7 @@ struct at91_adc_caps {
 	/* startup time calculate function */
 	u32 (*calc_startup_ticks)(u8 startup_time, u32 adc_clk_khz);
 
+	u8	num_channels;
 	struct at91_adc_reg_desc registers;
 };
 
@@ -496,13 +497,6 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	}
 	st->channels_mask = prop;
 
-	if (of_property_read_u32(node, "atmel,adc-num-channels", &prop)) {
-		dev_err(&idev->dev, "Missing adc-num-channels property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->num_channels = prop;
-
 	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
 
 	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
@@ -528,6 +522,7 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 		goto error_ret;
 
 	st->registers = &st->caps->registers;
+	st->num_channels = st->caps->num_channels;
 	st->trigger_number = of_get_child_count(node);
 	st->trigger_list = devm_kzalloc(&idev->dev, st->trigger_number *
 					sizeof(struct at91_adc_trigger),
@@ -773,6 +768,7 @@ static int at91_adc_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static struct at91_adc_caps at91sam9260_caps = {
 	.calc_startup_ticks = calc_startup_ticks_9260,
+	.num_channels = 4,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -785,6 +781,7 @@ static struct at91_adc_caps at91sam9260_caps = {
 
 static struct at91_adc_caps at91sam9g45_caps = {
 	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
+	.num_channels = 8,
 	.registers = {
 		.channel_base = AT91_ADC_CHR(0),
 		.drdy_mask = AT91_ADC_DRDY,
@@ -797,6 +794,7 @@ static struct at91_adc_caps at91sam9g45_caps = {
 
 static struct at91_adc_caps at91sam9x5_caps = {
 	.calc_startup_ticks = calc_startup_ticks_9x5,
+	.num_channels = 12,
 	.registers = {
 		.channel_base = AT91_ADC_CDR0_9X5,
 		.drdy_mask = AT91_ADC_SR_DRDY_9X5,
