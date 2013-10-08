@@ -631,7 +631,6 @@
 struct bufferDMA {
 	dma_addr_t PhysicalBase;
 	void *LogicalBase;
-	uint32_t DMAHandle;
 };
 
 #endif
