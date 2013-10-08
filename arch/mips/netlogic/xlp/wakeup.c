@@ -58,10 +58,12 @@ static int xlp_wakeup_core(uint64_t sysbase, int node, int core)
 
 	coremask = (1 << core);
 
-	/* Enable CPU clock */
-	value = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL);
-	value &= ~coremask;
-	nlm_write_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL, value);
+	/* Enable CPU clock in case of 8xx/3xx */
+	if (!cpu_is_xlpii()) {
+		value = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL);
+		value &= ~coremask;
+		nlm_write_sys_reg(sysbase, SYS_CORE_DFS_DIS_CTRL, value);
+	}
 
 	/* Remove CPU Reset */
 	value = nlm_read_sys_reg(sysbase, SYS_CPU_RESET);

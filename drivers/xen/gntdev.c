@@ -272,19 +272,12 @@ static int map_grant_pages(struct grant_map *map)
 		 * with find_grant_ptes.
 		 */
 		for (i = 0; i < map->count; i++) {
-			unsigned level;
 			unsigned long address = (unsigned long)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
-			pte_t *ptep;
-			u64 pte_maddr = 0;
 			BUG_ON(PageHighMem(map->pages[i]));
 
-			ptep = lookup_address(address, &level);
-			pte_maddr = arbitrary_virt_to_machine(ptep).maddr;
-			gnttab_set_map_op(&map->kmap_ops[i], pte_maddr,
-				map->flags |
-				GNTMAP_host_map |
-				GNTMAP_contains_pte,
+			gnttab_set_map_op(&map->kmap_ops[i], address,
+				map->flags | GNTMAP_host_map,
 				map->grants[i].ref,
 				map->grants[i].domid);
 		}

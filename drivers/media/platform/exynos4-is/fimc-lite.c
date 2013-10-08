@@ -90,7 +90,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.name		= "RAW10 (GRBG)",
 		.fourcc		= V4L2_PIX_FMT_SGRBG10,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.depth		= { 10 },
+		.depth		= { 16 },
 		.color		= FIMC_FMT_RAW10,
 		.memplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_SGRBG10_1X10,
@@ -99,7 +99,7 @@ static const struct fimc_fmt fimc_lite_formats[] = {
 		.name		= "RAW12 (GRBG)",
 		.fourcc		= V4L2_PIX_FMT_SGRBG12,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.depth		= { 12 },
+		.depth		= { 16 },
 		.color		= FIMC_FMT_RAW12,
 		.memplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_SGRBG12_1X12,
@@ -1504,16 +1504,17 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
+	if (!dev->of_node)
+		return -ENODEV;
+
 	fimc = devm_kzalloc(dev, sizeof(*fimc), GFP_KERNEL);
 	if (!fimc)
 		return -ENOMEM;
 
-	if (dev->of_node) {
-		of_id = of_match_node(flite_of_match, dev->of_node);
-		if (of_id)
-			drv_data = (struct flite_drvdata *)of_id->data;
-		fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
-	}
+	of_id = of_match_node(flite_of_match, dev->of_node);
+	if (of_id)
+		drv_data = (struct flite_drvdata *)of_id->data;
+	fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
 
 	if (!drv_data || fimc->index >= drv_data->num_instances ||
 						fimc->index < 0) {

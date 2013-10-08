@@ -131,7 +131,7 @@ typedef struct drm_r128_buf_priv {
 	drm_r128_freelist_t *list_entry;
 } drm_r128_buf_priv_t;
 
-extern struct drm_ioctl_desc r128_ioctls[];
+extern const struct drm_ioctl_desc r128_ioctls[];
 extern int r128_max_ioctl;
 
 				/* r128_cce.c */

@@ -16,6 +16,20 @@
  *
  * Atomically decrements @v and calls <fail_fn> if the result is negative.
  */
+#ifdef CC_HAVE_ASM_GOTO
+static inline void __mutex_fastpath_lock(atomic_t *v,
+					 void (*fail_fn)(atomic_t *))
+{
+	asm volatile goto(LOCK_PREFIX "   decl %0\n"
+			  "   jns %l[exit]\n"
+			  : : "m" (v->counter)
+			  : "memory", "cc"
+			  : exit);
+	fail_fn(v);
+exit:
+	return;
+}
+#else
 #define __mutex_fastpath_lock(v, fail_fn)			\
 do {								\
 	unsigned long dummy;					\
@@ -32,6 +46,7 @@ do {								\
 		     : "rax", "rsi", "rdx", "rcx",		\
 		       "r8", "r9", "r10", "r11", "memory");	\
 } while (0)
+#endif
 
 /**
  *  __mutex_fastpath_lock_retval - try to take the lock by moving the count
@@ -56,6 +71,20 @@ static inline int __mutex_fastpath_lock_retval(atomic_t *count)
  *
  * Atomically increments @v and calls <fail_fn> if the result is nonpositive.
  */
+#ifdef CC_HAVE_ASM_GOTO
+static inline void __mutex_fastpath_unlock(atomic_t *v,
+					   void (*fail_fn)(atomic_t *))
+{
+	asm volatile goto(LOCK_PREFIX "   incl %0\n"
+			  "   jg %l[exit]\n"
+			  : : "m" (v->counter)
+			  : "memory", "cc"
+			  : exit);
+	fail_fn(v);
+exit:
+	return;
+}
+#else
 #define __mutex_fastpath_unlock(v, fail_fn)			\
 do {								\
 	unsigned long dummy;					\
@@ -72,6 +101,7 @@ do {								\
 		     : "rax", "rsi", "rdx", "rcx",		\
 		       "r8", "r9", "r10", "r11", "memory");	\
 } while (0)
+#endif
 
 #define __mutex_slowpath_needs_to_unlock()	1
 

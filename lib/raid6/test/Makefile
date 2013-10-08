@@ -22,18 +22,33 @@ ifeq ($(ARCH),x86_64)
         IS_X86 = yes
 endif
 
+ifeq ($(ARCH),arm)
+        CFLAGS += -I../../../arch/arm/include -mfpu=neon
+        HAS_NEON = yes
+endif
+ifeq ($(ARCH),arm64)
+        CFLAGS += -I../../../arch/arm64/include
+        HAS_NEON = yes
+endif
+
 ifeq ($(IS_X86),yes)
         OBJS   += mmx.o sse1.o sse2.o avx2.o recov_ssse3.o recov_avx2.o
         CFLAGS += $(shell echo "vpbroadcastb %xmm0, %ymm1" |	\
                     gcc -c -x assembler - >&/dev/null &&	\
                     rm ./-.o && echo -DCONFIG_AS_AVX2=1)
+else ifeq ($(HAS_NEON),yes)
+        OBJS   += neon.o neon1.o neon2.o neon4.o neon8.o
+        CFLAGS += -DCONFIG_KERNEL_MODE_NEON=1
 else
-        HAS_ALTIVEC := $(shell echo -e '\#include <altivec.h>\nvector int a;' |\
+        HAS_ALTIVEC := $(shell printf '\#include <altivec.h>\nvector int a;\n' |\
                          gcc -c -x c - >&/dev/null && \
                          rm ./-.o && echo yes)
         ifeq ($(HAS_ALTIVEC),yes)
                 OBJS += altivec1.o altivec2.o altivec4.o altivec8.o
         endif
+endif
+ifeq ($(ARCH),tilegx)
+OBJS += tilegx8.o
 endif
 
 .c.o:
@@ -54,6 +69,18 @@ raid6.a: $(OBJS)
 
 raid6test: test.c raid6.a
 	$(CC) $(CFLAGS) -o raid6test $^
+
+neon1.c: neon.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=1 < neon.uc > $@
+
+neon2.c: neon.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=2 < neon.uc > $@
+
+neon4.c: neon.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=4 < neon.uc > $@
+
+neon8.c: neon.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=8 < neon.uc > $@
 
 altivec1.c: altivec.uc ../unroll.awk
 	$(AWK) ../unroll.awk -vN=1 < altivec.uc > $@
@@ -85,11 +112,15 @@ int16.c: int.uc ../unroll.awk
 int32.c: int.uc ../unroll.awk
 	$(AWK) ../unroll.awk -vN=32 < int.uc > $@
 
+tilegx8.c: tilegx.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=8 < tilegx.uc > $@
+
 tables.c: mktables
 	./mktables > tables.c
 
 clean:
-	rm -f *.o *.a mktables mktables.c *.uc int*.c altivec*.c tables.c raid6test
+	rm -f *.o *.a mktables mktables.c *.uc int*.c altivec*.c neon*.c tables.c raid6test
+	rm -f tilegx*.c
 
 spotless: clean
 	rm -f *~

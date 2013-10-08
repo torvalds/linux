@@ -20,50 +20,12 @@
 #include <linux/atomic.h>
 #include <arch/chip.h>
 
-/* See <asm/atomic_32.h> */
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-
-/*
- * A block of memory containing locks for atomic ops. Each instance of this
- * struct will be homed on a different CPU.
- */
-struct atomic_locks_on_cpu {
-	int lock[ATOMIC_HASH_L2_SIZE];
-} __attribute__((aligned(ATOMIC_HASH_L2_SIZE * 4)));
-
-static DEFINE_PER_CPU(struct atomic_locks_on_cpu, atomic_lock_pool);
-
-/* The locks we'll use until __init_atomic_per_cpu is called. */
-static struct atomic_locks_on_cpu __initdata initial_atomic_locks;
-
-/* Hash into this vector to get a pointer to lock for the given atomic. */
-struct atomic_locks_on_cpu *atomic_lock_ptr[ATOMIC_HASH_L1_SIZE]
-	__write_once = {
-	[0 ... ATOMIC_HASH_L1_SIZE-1] (&initial_atomic_locks)
-};
-
-#else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
-
 /* This page is remapped on startup to be hash-for-home. */
 int atomic_locks[PAGE_SIZE / sizeof(int)] __page_aligned_bss;
-
-#endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 int *__atomic_hashed_lock(volatile void *v)
 {
 	/* NOTE: this code must match "sys_cmpxchg" in kernel/intvec_32.S */
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	unsigned long i =
-		(unsigned long) v & ((PAGE_SIZE-1) & -sizeof(long long));
-	unsigned long n = __insn_crc32_32(0, i);
-
-	/* Grab high bits for L1 index. */
-	unsigned long l1_index = n >> ((sizeof(n) * 8) - ATOMIC_HASH_L1_SHIFT);
-	/* Grab low bits for L2 index. */
-	unsigned long l2_index = n & (ATOMIC_HASH_L2_SIZE - 1);
-
-	return &atomic_lock_ptr[l1_index]->lock[l2_index];
-#else
 	/*
 	 * Use bits [3, 3 + ATOMIC_HASH_SHIFT) as the lock index.
 	 * Using mm works here because atomic_locks is page aligned.
@@ -72,26 +34,13 @@ int *__atomic_hashed_lock(volatile void *v)
 				      (unsigned long)atomic_locks,
 				      2, (ATOMIC_HASH_SHIFT + 2) - 1);
 	return (int *)ptr;
-#endif
 }
 
 #ifdef CONFIG_SMP
 /* Return whether the passed pointer is a valid atomic lock pointer. */
 static int is_atomic_lock(int *p)
 {
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	int i;
-	for (i = 0; i < ATOMIC_HASH_L1_SIZE; ++i) {
-
-		if (p >= &atomic_lock_ptr[i]->lock[0] &&
-		    p < &atomic_lock_ptr[i]->lock[ATOMIC_HASH_L2_SIZE]) {
-			return 1;
-		}
-	}
-	return 0;
-#else
 	return p >= &atomic_locks[0] && p < &atomic_locks[ATOMIC_HASH_SIZE];
-#endif
 }
 
 void __atomic_fault_unlock(int *irqlock_word)
@@ -110,33 +59,32 @@ static inline int *__atomic_setup(volatile void *v)
 	return __atomic_hashed_lock(v);
 }
 
-int _atomic_xchg(atomic_t *v, int n)
+int _atomic_xchg(int *v, int n)
 {
-	return __atomic_xchg(&v->counter, __atomic_setup(v), n).val;
+	return __atomic_xchg(v, __atomic_setup(v), n).val;
 }
 EXPORT_SYMBOL(_atomic_xchg);
 
-int _atomic_xchg_add(atomic_t *v, int i)
+int _atomic_xchg_add(int *v, int i)
 {
-	return __atomic_xchg_add(&v->counter, __atomic_setup(v), i).val;
+	return __atomic_xchg_add(v, __atomic_setup(v), i).val;
 }
 EXPORT_SYMBOL(_atomic_xchg_add);
 
-int _atomic_xchg_add_unless(atomic_t *v, int a, int u)
+int _atomic_xchg_add_unless(int *v, int a, int u)
 {
 	/*
 	 * Note: argument order is switched here since it is easier
 	 * to use the first argument consistently as the "old value"
 	 * in the assembly, as is done for _atomic_cmpxchg().
 	 */
-	return __atomic_xchg_add_unless(&v->counter, __atomic_setup(v), u, a)
-		.val;
+	return __atomic_xchg_add_unless(v, __atomic_setup(v), u, a).val;
 }
 EXPORT_SYMBOL(_atomic_xchg_add_unless);
 
-int _atomic_cmpxchg(atomic_t *v, int o, int n)
+int _atomic_cmpxchg(int *v, int o, int n)
 {
-	return __atomic_cmpxchg(&v->counter, __atomic_setup(v), o, n).val;
+	return __atomic_cmpxchg(v, __atomic_setup(v), o, n).val;
 }
 EXPORT_SYMBOL(_atomic_cmpxchg);
 
@@ -159,33 +107,32 @@ unsigned long _atomic_xor(volatile unsigned long *p, unsigned long mask)
 EXPORT_SYMBOL(_atomic_xor);
 
 
-u64 _atomic64_xchg(atomic64_t *v, u64 n)
+u64 _atomic64_xchg(u64 *v, u64 n)
 {
-	return __atomic64_xchg(&v->counter, __atomic_setup(v), n);
+	return __atomic64_xchg(v, __atomic_setup(v), n);
 }
 EXPORT_SYMBOL(_atomic64_xchg);
 
-u64 _atomic64_xchg_add(atomic64_t *v, u64 i)
+u64 _atomic64_xchg_add(u64 *v, u64 i)
 {
-	return __atomic64_xchg_add(&v->counter, __atomic_setup(v), i);
+	return __atomic64_xchg_add(v, __atomic_setup(v), i);
 }
 EXPORT_SYMBOL(_atomic64_xchg_add);
 
-u64 _atomic64_xchg_add_unless(atomic64_t *v, u64 a, u64 u)
+u64 _atomic64_xchg_add_unless(u64 *v, u64 a, u64 u)
 {
 	/*
 	 * Note: argument order is switched here since it is easier
 	 * to use the first argument consistently as the "old value"
 	 * in the assembly, as is done for _atomic_cmpxchg().
 	 */
-	return __atomic64_xchg_add_unless(&v->counter, __atomic_setup(v),
-					  u, a);
+	return __atomic64_xchg_add_unless(v, __atomic_setup(v), u, a);
 }
 EXPORT_SYMBOL(_atomic64_xchg_add_unless);
 
-u64 _atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
+u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n)
 {
-	return __atomic64_cmpxchg(&v->counter, __atomic_setup(v), o, n);
+	return __atomic64_cmpxchg(v, __atomic_setup(v), o, n);
 }
 EXPORT_SYMBOL(_atomic64_cmpxchg);
 
@@ -208,54 +155,8 @@ struct __get_user __atomic_bad_address(int __user *addr)
 }
 
 
-#if CHIP_HAS_CBOX_HOME_MAP()
-static int __init noatomichash(char *str)
-{
-	pr_warning("noatomichash is deprecated.\n");
-	return 1;
-}
-__setup("noatomichash", noatomichash);
-#endif
-
 void __init __init_atomic_per_cpu(void)
 {
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-
-	unsigned int i;
-	int actual_cpu;
-
-	/*
-	 * Before this is called from setup, we just have one lock for
-	 * all atomic objects/operations.  Here we replace the
-	 * elements of atomic_lock_ptr so that they point at per_cpu
-	 * integers.  This seemingly over-complex approach stems from
-	 * the fact that DEFINE_PER_CPU defines an entry for each cpu
-	 * in the grid, not each cpu from 0..ATOMIC_HASH_SIZE-1.  But
-	 * for efficient hashing of atomics to their locks we want a
-	 * compile time constant power of 2 for the size of this
-	 * table, so we use ATOMIC_HASH_SIZE.
-	 *
-	 * Here we populate atomic_lock_ptr from the per cpu
-	 * atomic_lock_pool, interspersing by actual cpu so that
-	 * subsequent elements are homed on consecutive cpus.
-	 */
-
-	actual_cpu = cpumask_first(cpu_possible_mask);
-
-	for (i = 0; i < ATOMIC_HASH_L1_SIZE; ++i) {
-		/*
-		 * Preincrement to slightly bias against using cpu 0,
-		 * which has plenty of stuff homed on it already.
-		 */
-		actual_cpu = cpumask_next(actual_cpu, cpu_possible_mask);
-		if (actual_cpu >= nr_cpu_ids)
-			actual_cpu = cpumask_first(cpu_possible_mask);
-
-		atomic_lock_ptr[i] = &per_cpu(atomic_lock_pool, actual_cpu);
-	}
-
-#else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
-
 	/* Validate power-of-two and "bigger than cpus" assumption */
 	BUILD_BUG_ON(ATOMIC_HASH_SIZE & (ATOMIC_HASH_SIZE-1));
 	BUG_ON(ATOMIC_HASH_SIZE < nr_cpu_ids);
@@ -279,6 +180,4 @@ void __init __init_atomic_per_cpu(void)
 	 * That should not produce more indices than ATOMIC_HASH_SIZE.
 	 */
 	BUILD_BUG_ON((PAGE_SIZE >> 3) > ATOMIC_HASH_SIZE);
-
-#endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 }

@@ -440,6 +440,10 @@ tcp_syncookies - BOOLEAN
 	SYN flood warnings in logs not being really flooded, your server
 	is seriously misconfigured.
 
+	If you want to test which effects syncookies have to your
+	network connections you can set this knob to 2 to enable
+	unconditionally generation of syncookies.
+
 tcp_fastopen - INTEGER
 	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
 	in the opening SYN packet. To use this feature, the client application
@@ -478,6 +482,15 @@ tcp_syn_retries - INTEGER
 tcp_timestamps - BOOLEAN
 	Enable timestamps as defined in RFC1323.
 
+tcp_min_tso_segs - INTEGER
+	Minimal number of segments per TSO frame.
+	Since linux-3.12, TCP does an automatic sizing of TSO frames,
+	depending on flow rate, instead of filling 64Kbytes packets.
+	For specific usages, it's possible to force TCP to build big
+	TSO frames. Note that TCP stack might split too big TSO packets
+	if available window is too small.
+	Default: 2
+
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
 	can be consumed by a single TSO frame.
@@ -515,6 +528,19 @@ tcp_wmem - vector of 3 INTEGERs: min, default, max
 	automatic tuning of that socket's send buffer size, in which case
 	this value is ignored.
 	Default: between 64K and 4MB, depending on RAM size.
+
+tcp_notsent_lowat - UNSIGNED INTEGER
+	A TCP socket can control the amount of unsent bytes in its write queue,
+	thanks to TCP_NOTSENT_LOWAT socket option. poll()/select()/epoll()
+	reports POLLOUT events if the amount of unsent bytes is below a per
+	socket value, and if the write queue is not full. sendmsg() will
+	also not add new buffers if the limit is hit.
+
+	This global variable controls the amount of unsent data for
+	sockets not using TCP_NOTSENT_LOWAT. For these sockets, a change
+	to the global variable has immediate effect.
+
+	Default: UINT_MAX (0xFFFFFFFF)
 
 tcp_workaround_signed_windows - BOOLEAN
 	If set, assume no receipt of a window scaling option means the
@@ -1022,7 +1048,15 @@ disable_policy - BOOLEAN
 disable_xfrm - BOOLEAN
 	Disable IPSEC encryption on this interface, whatever the policy
 
+igmpv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv1 or IGMPv2 report retransmit will take place.
+	Default: 10000 (10 seconds)
 
+igmpv3_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv3 report retransmit will take place.
+	Default: 1000 (1 seconds)
 
 tag - INTEGER
 	Allows you to write a number, which can be used as required.
@@ -1313,6 +1347,27 @@ ndisc_notify - BOOLEAN
 	0 - (default): do nothing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
+
+mldv1_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv1 report retransmit will take place.
+	Default: 10000 (10 seconds)
+
+mldv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv2 report retransmit will take place.
+	Default: 1000 (1 second)
+
+force_mld_version - INTEGER
+	0 - (default) No enforcement of a MLD version, MLDv1 fallback allowed
+	1 - Enforce to use MLD version 1
+	2 - Enforce to use MLD version 2
+
+suppress_frag_ndisc - INTEGER
+	Control RFC 6980 (Security Implications of IPv6 Fragmentation
+	with IPv6 Neighbor Discovery) behavior:
+	1 - (default) discard fragmented neighbor discovery packets
+	0 - allow fragmented neighbor discovery packets
 
 icmp/*:
 ratelimit - INTEGER

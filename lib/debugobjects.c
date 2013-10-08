@@ -381,19 +381,21 @@ void debug_object_init_on_stack(void *addr, struct debug_obj_descr *descr)
  * debug_object_activate - debug checks when an object is activated
  * @addr:	address of the object
  * @descr:	pointer to an object specific debug description structure
+ * Returns 0 for success, -EINVAL for check failed.
  */
-void debug_object_activate(void *addr, struct debug_obj_descr *descr)
+int debug_object_activate(void *addr, struct debug_obj_descr *descr)
 {
 	enum debug_obj_state state;
 	struct debug_bucket *db;
 	struct debug_obj *obj;
 	unsigned long flags;
+	int ret;
 	struct debug_obj o = { .object = addr,
 			       .state = ODEBUG_STATE_NOTAVAILABLE,
 			       .descr = descr };
 
 	if (!debug_objects_enabled)
-		return;
+		return 0;
 
 	db = get_bucket((unsigned long) addr);
 
@@ -405,23 +407,26 @@ void debug_object_activate(void *addr, struct debug_obj_descr *descr)
 		case ODEBUG_STATE_INIT:
 		case ODEBUG_STATE_INACTIVE:
 			obj->state = ODEBUG_STATE_ACTIVE;
+			ret = 0;
 			break;
 
 		case ODEBUG_STATE_ACTIVE:
 			debug_print_object(obj, "activate");
 			state = obj->state;
 			raw_spin_unlock_irqrestore(&db->lock, flags);
-			debug_object_fixup(descr->fixup_activate, addr, state);
-			return;
+			ret = debug_object_fixup(descr->fixup_activate, addr, state);
+			return ret ? -EINVAL : 0;
 
 		case ODEBUG_STATE_DESTROYED:
 			debug_print_object(obj, "activate");
+			ret = -EINVAL;
 			break;
 		default:
+			ret = 0;
 			break;
 		}
 		raw_spin_unlock_irqrestore(&db->lock, flags);
-		return;
+		return ret;
 	}
 
 	raw_spin_unlock_irqrestore(&db->lock, flags);
@@ -431,8 +436,11 @@ void debug_object_activate(void *addr, struct debug_obj_descr *descr)
 	 * true or not.
 	 */
 	if (debug_object_fixup(descr->fixup_activate, addr,
-			   ODEBUG_STATE_NOTAVAILABLE))
+			   ODEBUG_STATE_NOTAVAILABLE)) {
 		debug_print_object(&o, "activate");
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /**

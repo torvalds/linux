@@ -241,7 +241,7 @@ int hwspinlock_example2(void)
      locks).
      Should be called from a process context (this function might sleep).
      Returns the address of hwspinlock on success, or NULL on error (e.g.
-     if the hwspinlock is sill in use).
+     if the hwspinlock is still in use).
 
 5. Important structs
 

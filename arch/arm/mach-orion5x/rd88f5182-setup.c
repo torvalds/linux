@@ -264,11 +264,14 @@ static void __init rd88f5182_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	mvebu_mbus_add_window("devbus-boot", RD88F5182_NOR_BOOT_BASE,
-			      RD88F5182_NOR_BOOT_SIZE);
-
-	mvebu_mbus_add_window("devbus-cs1", RD88F5182_NOR_BASE,
-			      RD88F5182_NOR_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    RD88F5182_NOR_BOOT_BASE,
+				    RD88F5182_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_TARGET(1),
+				    ORION_MBUS_DEVBUS_ATTR(1),
+				    RD88F5182_NOR_BASE,
+				    RD88F5182_NOR_SIZE);
 	platform_device_register(&rd88f5182_nor_flash);
 	platform_device_register(&rd88f5182_gpio_leds);
 

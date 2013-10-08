@@ -324,10 +324,8 @@ exynos_drm_encoder_create(struct drm_device *dev,
 		return NULL;
 
 	exynos_encoder = kzalloc(sizeof(*exynos_encoder), GFP_KERNEL);
-	if (!exynos_encoder) {
-		DRM_ERROR("failed to allocate encoder\n");
+	if (!exynos_encoder)
 		return NULL;
-	}
 
 	exynos_encoder->dpms = DRM_MODE_DPMS_OFF;
 	exynos_encoder->manager = manager;

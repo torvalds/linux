@@ -596,27 +596,6 @@ void drm_mode_set_name(struct drm_display_mode *mode)
 EXPORT_SYMBOL(drm_mode_set_name);
 
 /**
- * drm_mode_list_concat - move modes from one list to another
- * @head: source list
- * @new: dst list
- *
- * LOCKING:
- * Caller must ensure both lists are locked.
- *
- * Move all the modes from @head to @new.
- */
-void drm_mode_list_concat(struct list_head *head, struct list_head *new)
-{
-
-	struct list_head *entry, *tmp;
-
-	list_for_each_safe(entry, tmp, head) {
-		list_move_tail(entry, new);
-	}
-}
-EXPORT_SYMBOL(drm_mode_list_concat);
-
-/**
  * drm_mode_width - get the width of a mode
  * @mode: mode
  *
@@ -921,43 +900,6 @@ void drm_mode_validate_size(struct drm_device *dev,
 	}
 }
 EXPORT_SYMBOL(drm_mode_validate_size);
-
-/**
- * drm_mode_validate_clocks - validate modes against clock limits
- * @dev: DRM device
- * @mode_list: list of modes to check
- * @min: minimum clock rate array
- * @max: maximum clock rate array
- * @n_ranges: number of clock ranges (size of arrays)
- *
- * LOCKING:
- * Caller must hold a lock protecting @mode_list.
- *
- * Some code may need to check a mode list against the clock limits of the
- * device in question.  This function walks the mode list, testing to make
- * sure each mode falls within a given range (defined by @min and @max
- * arrays) and sets @mode->status as needed.
- */
-void drm_mode_validate_clocks(struct drm_device *dev,
-			      struct list_head *mode_list,
-			      int *min, int *max, int n_ranges)
-{
-	struct drm_display_mode *mode;
-	int i;
-
-	list_for_each_entry(mode, mode_list, head) {
-		bool good = false;
-		for (i = 0; i < n_ranges; i++) {
-			if (mode->clock >= min[i] && mode->clock <= max[i]) {
-				good = true;
-				break;
-			}
-		}
-		if (!good)
-			mode->status = MODE_CLOCK_RANGE;
-	}
-}
-EXPORT_SYMBOL(drm_mode_validate_clocks);
 
 /**
  * drm_mode_prune_invalid - remove invalid modes from mode list

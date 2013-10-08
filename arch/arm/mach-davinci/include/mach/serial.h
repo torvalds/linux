@@ -37,13 +37,9 @@
 #define UART_DM646X_SCR_TX_WATERMARK	0x08
 
 #ifndef __ASSEMBLY__
-struct davinci_uart_config {
-	/* Bit field of UARTs present; bit 0 --> UART0 */
-	unsigned int enabled_uarts;
-};
+#include <linux/platform_device.h>
 
-extern int davinci_serial_init(struct davinci_uart_config *);
-extern int davinci_serial_setup_clk(unsigned instance, unsigned int *rate);
+extern int davinci_serial_init(struct platform_device *);
 #endif
 
 #endif /* __ASM_ARCH_SERIAL_H */

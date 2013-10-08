@@ -33,5 +33,6 @@ void pch_gbe_phy_power_up(struct pch_gbe_hw *hw);
 void pch_gbe_phy_power_down(struct pch_gbe_hw *hw);
 void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw);
 void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw);
+int pch_gbe_phy_disable_hibernate(struct pch_gbe_hw *hw);
 
 #endif /* _PCH_GBE_PHY_H_ */

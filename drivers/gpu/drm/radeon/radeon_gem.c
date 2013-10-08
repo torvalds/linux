@@ -570,13 +570,6 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-int radeon_mode_dumb_destroy(struct drm_file *file_priv,
-			     struct drm_device *dev,
-			     uint32_t handle)
-{
-	return drm_gem_handle_delete(file_priv, handle);
-}
-
 #if defined(CONFIG_DEBUG_FS)
 static int radeon_debugfs_gem_info(struct seq_file *m, void *data)
 {

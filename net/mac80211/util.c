@@ -107,7 +107,8 @@ void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 }
 
 int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
-			     int rate, int erp, int short_preamble)
+			     int rate, int erp, int short_preamble,
+			     int shift)
 {
 	int dur;
 
@@ -118,6 +119,9 @@ int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 	 *
 	 * rate is in 100 kbps, so divident is multiplied by 10 in the
 	 * DIV_ROUND_UP() operations.
+	 *
+	 * shift may be 2 for 5 MHz channels or 1 for 10 MHz channels, and
+	 * is assumed to be 0 otherwise.
 	 */
 
 	if (band == IEEE80211_BAND_5GHZ || erp) {
@@ -130,13 +134,23 @@ int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 		 * TXTIME = T_PREAMBLE + T_SIGNAL + T_SYM x N_SYM + Signal Ext
 		 *
 		 * T_SYM = 4 usec
-		 * 802.11a - 17.5.2: aSIFSTime = 16 usec
+		 * 802.11a - 18.5.2: aSIFSTime = 16 usec
 		 * 802.11g - 19.8.4: aSIFSTime = 10 usec +
 		 *	signal ext = 6 usec
 		 */
 		dur = 16; /* SIFS + signal ext */
-		dur += 16; /* 17.3.2.3: T_PREAMBLE = 16 usec */
-		dur += 4; /* 17.3.2.3: T_SIGNAL = 4 usec */
+		dur += 16; /* IEEE 802.11-2012 18.3.2.4: T_PREAMBLE = 16 usec */
+		dur += 4; /* IEEE 802.11-2012 18.3.2.4: T_SIGNAL = 4 usec */
+
+		/* IEEE 802.11-2012 18.3.2.4: all values above are:
+		 *  * times 4 for 5 MHz
+		 *  * times 2 for 10 MHz
+		 */
+		dur *= 1 << shift;
+
+		/* rates should already consider the channel bandwidth,
+		 * don't apply divisor again.
+		 */
 		dur += 4 * DIV_ROUND_UP((16 + 8 * (len + 4) + 6) * 10,
 					4 * rate); /* T_SYM x N_SYM */
 	} else {
@@ -168,7 +182,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 {
 	struct ieee80211_sub_if_data *sdata;
 	u16 dur;
-	int erp;
+	int erp, shift = 0;
 	bool short_preamble = false;
 
 	erp = 0;
@@ -177,10 +191,11 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 		short_preamble = sdata->vif.bss_conf.use_short_preamble;
 		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
+		shift = ieee80211_vif_get_shift(vif);
 	}
 
 	dur = ieee80211_frame_duration(band, frame_len, rate->bitrate, erp,
-				       short_preamble);
+				       short_preamble, shift);
 
 	return cpu_to_le16(dur);
 }
@@ -194,7 +209,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	struct ieee80211_rate *rate;
 	struct ieee80211_sub_if_data *sdata;
 	bool short_preamble;
-	int erp;
+	int erp, shift = 0, bitrate;
 	u16 dur;
 	struct ieee80211_supported_band *sband;
 
@@ -210,17 +225,20 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 		short_preamble = sdata->vif.bss_conf.use_short_preamble;
 		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
+		shift = ieee80211_vif_get_shift(vif);
 	}
 
+	bitrate = DIV_ROUND_UP(rate->bitrate, 1 << shift);
+
 	/* CTS duration */
-	dur = ieee80211_frame_duration(sband->band, 10, rate->bitrate,
-				       erp, short_preamble);
+	dur = ieee80211_frame_duration(sband->band, 10, bitrate,
+				       erp, short_preamble, shift);
 	/* Data frame duration */
-	dur += ieee80211_frame_duration(sband->band, frame_len, rate->bitrate,
-					erp, short_preamble);
+	dur += ieee80211_frame_duration(sband->band, frame_len, bitrate,
+					erp, short_preamble, shift);
 	/* ACK duration */
-	dur += ieee80211_frame_duration(sband->band, 10, rate->bitrate,
-					erp, short_preamble);
+	dur += ieee80211_frame_duration(sband->band, 10, bitrate,
+					erp, short_preamble, shift);
 
 	return cpu_to_le16(dur);
 }
@@ -235,7 +253,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	struct ieee80211_rate *rate;
 	struct ieee80211_sub_if_data *sdata;
 	bool short_preamble;
-	int erp;
+	int erp, shift = 0, bitrate;
 	u16 dur;
 	struct ieee80211_supported_band *sband;
 
@@ -250,15 +268,18 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 		short_preamble = sdata->vif.bss_conf.use_short_preamble;
 		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
+		shift = ieee80211_vif_get_shift(vif);
 	}
 
+	bitrate = DIV_ROUND_UP(rate->bitrate, 1 << shift);
+
 	/* Data frame duration */
-	dur = ieee80211_frame_duration(sband->band, frame_len, rate->bitrate,
-				       erp, short_preamble);
+	dur = ieee80211_frame_duration(sband->band, frame_len, bitrate,
+				       erp, short_preamble, shift);
 	if (!(frame_txctl->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		/* ACK duration */
-		dur += ieee80211_frame_duration(sband->band, 10, rate->bitrate,
-						erp, short_preamble);
+		dur += ieee80211_frame_duration(sband->band, 10, bitrate,
+						erp, short_preamble, shift);
 	}
 
 	return cpu_to_le16(dur);
@@ -1052,32 +1073,6 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
-				  const size_t supp_rates_len,
-				  const u8 *supp_rates)
-{
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	int i, have_higher_than_11mbit = 0;
-
-	/* cf. IEEE 802.11 9.2.12 */
-	for (i = 0; i < supp_rates_len; i++)
-		if ((supp_rates[i] & 0x7f) * 5 > 110)
-			have_higher_than_11mbit = 1;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-
-	if (chanctx_conf &&
-	    chanctx_conf->def.chan->band == IEEE80211_BAND_2GHZ &&
-	    have_higher_than_11mbit)
-		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
-	else
-		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
-	rcu_read_unlock();
-
-	ieee80211_set_wmm_default(sdata, true);
-}
-
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *da,
@@ -1162,7 +1157,7 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     size_t buffer_len, const u8 *ie, size_t ie_len,
 			     enum ieee80211_band band, u32 rate_mask,
-			     u8 channel)
+			     struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_supported_band *sband;
 	u8 *pos = buffer, *end = buffer + buffer_len;
@@ -1171,16 +1166,26 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	u8 rates[32];
 	int num_rates;
 	int ext_rates_len;
+	int shift;
+	u32 rate_flags;
 
 	sband = local->hw.wiphy->bands[band];
 	if (WARN_ON_ONCE(!sband))
 		return 0;
 
+	rate_flags = ieee80211_chandef_rate_flags(chandef);
+	shift = ieee80211_chandef_get_shift(chandef);
+
 	num_rates = 0;
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if ((BIT(i) & rate_mask) == 0)
 			continue; /* skip rate */
-		rates[num_rates++] = (u8) (sband->bitrates[i].bitrate / 5);
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+
+		rates[num_rates++] =
+			(u8) DIV_ROUND_UP(sband->bitrates[i].bitrate,
+					  (1 << shift) * 5);
 	}
 
 	supp_rates_len = min_t(int, num_rates, 8);
@@ -1220,12 +1225,13 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 		pos += ext_rates_len;
 	}
 
-	if (channel && sband->band == IEEE80211_BAND_2GHZ) {
+	if (chandef->chan && sband->band == IEEE80211_BAND_2GHZ) {
 		if (end - pos < 3)
 			goto out_err;
 		*pos++ = WLAN_EID_DS_PARAMS;
 		*pos++ = 1;
-		*pos++ = channel;
+		*pos++ = ieee80211_frequency_to_channel(
+				chandef->chan->center_freq);
 	}
 
 	/* insert custom IEs that go before HT */
@@ -1290,9 +1296,9 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  bool directed)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct cfg80211_chan_def chandef;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 chan_no;
 	int ies_len;
 
 	/*
@@ -1300,10 +1306,11 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	 * in order to maximize the chance that we get a response.  Some
 	 * badly-behaved APs don't respond when this parameter is included.
 	 */
+	chandef.width = sdata->vif.bss_conf.chandef.width;
 	if (directed)
-		chan_no = 0;
+		chandef.chan = NULL;
 	else
-		chan_no = ieee80211_frequency_to_channel(chan->center_freq);
+		chandef.chan = chan;
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len, 100 + ie_len);
@@ -1313,7 +1320,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	ies_len = ieee80211_build_preq_ies(local, skb_tail_pointer(skb),
 					   skb_tailroom(skb),
 					   ie, ie_len, chan->band,
-					   ratemask, chan_no);
+					   ratemask, &chandef);
 	skb_put(skb, ies_len);
 
 	if (dst) {
@@ -1347,16 +1354,19 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	}
 }
 
-u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
+u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band, u32 *basic_rates)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *bitrates;
 	size_t num_rates;
-	u32 supp_rates;
-	int i, j;
-	sband = local->hw.wiphy->bands[band];
+	u32 supp_rates, rate_flags;
+	int i, j, shift;
+	sband = sdata->local->hw.wiphy->bands[band];
+
+	rate_flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
+	shift = ieee80211_vif_get_shift(&sdata->vif);
 
 	if (WARN_ON(!sband))
 		return 1;
@@ -1381,7 +1391,15 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			continue;
 
 		for (j = 0; j < num_rates; j++) {
-			if (bitrates[j].bitrate == own_rate) {
+			int brate;
+			if ((rate_flags & sband->bitrates[j].flags)
+			    != rate_flags)
+				continue;
+
+			brate = DIV_ROUND_UP(sband->bitrates[j].bitrate,
+					     1 << shift);
+
+			if (brate == own_rate) {
 				supp_rates |= BIT(j);
 				if (basic_rates && is_basic)
 					*basic_rates |= BIT(j);
@@ -1435,8 +1453,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		local->resuming = true;
 
 	if (local->wowlan) {
-		local->wowlan = false;
 		res = drv_resume(local);
+		local->wowlan = false;
 		if (res < 0) {
 			local->resuming = false;
 			return res;
@@ -2004,18 +2022,56 @@ void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
 	cfg80211_chandef_create(chandef, control_chan, channel_type);
 }
 
+int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
+			     const struct ieee80211_supported_band *sband,
+			     const u8 *srates, int srates_len, u32 *rates)
+{
+	u32 rate_flags = ieee80211_chandef_rate_flags(chandef);
+	int shift = ieee80211_chandef_get_shift(chandef);
+	struct ieee80211_rate *br;
+	int brate, rate, i, j, count = 0;
+
+	*rates = 0;
+
+	for (i = 0; i < srates_len; i++) {
+		rate = srates[i] & 0x7f;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			br = &sband->bitrates[j];
+			if ((rate_flags & br->flags) != rate_flags)
+				continue;
+
+			brate = DIV_ROUND_UP(br->bitrate, (1 << shift) * 5);
+			if (brate == rate) {
+				*rates |= BIT(j);
+				count++;
+				break;
+			}
+		}
+	}
+	return count;
+}
+
 int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 			    struct sk_buff *skb, bool need_basic,
 			    enum ieee80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	int rate;
+	int rate, shift;
 	u8 i, rates, *pos;
 	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
+	u32 rate_flags;
 
+	shift = ieee80211_vif_get_shift(&sdata->vif);
+	rate_flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
 	sband = local->hw.wiphy->bands[band];
-	rates = sband->n_bitrates;
+	rates = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+		rates++;
+	}
 	if (rates > 8)
 		rates = 8;
 
@@ -2027,10 +2083,15 @@ int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 	*pos++ = rates;
 	for (i = 0; i < rates; i++) {
 		u8 basic = 0;
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+
 		if (need_basic && basic_rates & BIT(i))
 			basic = 0x80;
 		rate = sband->bitrates[i].bitrate;
-		*pos++ = basic | (u8) (rate / 5);
+		rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+				    5 * (1 << shift));
+		*pos++ = basic | (u8) rate;
 	}
 
 	return 0;
@@ -2042,12 +2103,22 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	int rate;
+	int rate, skip, shift;
 	u8 i, exrates, *pos;
 	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
+	u32 rate_flags;
+
+	rate_flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
+	shift = ieee80211_vif_get_shift(&sdata->vif);
 
 	sband = local->hw.wiphy->bands[band];
-	exrates = sband->n_bitrates;
+	exrates = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+		exrates++;
+	}
+
 	if (exrates > 8)
 		exrates -= 8;
 	else
@@ -2060,12 +2131,19 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 		pos = skb_put(skb, exrates + 2);
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = exrates;
+		skip = 0;
 		for (i = 8; i < sband->n_bitrates; i++) {
 			u8 basic = 0;
+			if ((rate_flags & sband->bitrates[i].flags)
+			    != rate_flags)
+				continue;
+			if (skip++ < 8)
+				continue;
 			if (need_basic && basic_rates & BIT(i))
 				basic = 0x80;
-			rate = sband->bitrates[i].bitrate;
-			*pos++ = basic | (u8) (rate / 5);
+			rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+					    5 * (1 << shift));
+			*pos++ = basic | (u8) rate;
 		}
 	}
 	return 0;
@@ -2149,9 +2227,17 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
 	} else {
 		struct ieee80211_supported_band *sband;
+		int shift = 0;
+		int bitrate;
+
+		if (status->flag & RX_FLAG_10MHZ)
+			shift = 1;
+		if (status->flag & RX_FLAG_5MHZ)
+			shift = 2;
 
 		sband = local->hw.wiphy->bands[status->band];
-		ri.legacy = sband->bitrates[status->rate_idx].bitrate;
+		bitrate = sband->bitrates[status->rate_idx].bitrate;
+		ri.legacy = DIV_ROUND_UP(bitrate, (1 << shift));
 	}
 
 	rate = cfg80211_calculate_bitrate(&ri);

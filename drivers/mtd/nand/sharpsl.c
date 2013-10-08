@@ -112,7 +112,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	struct resource *r;
 	int err = 0;
 	struct sharpsl_nand *sharpsl;
-	struct sharpsl_nand_platform_data *data = pdev->dev.platform_data;
+	struct sharpsl_nand_platform_data *data = dev_get_platdata(&pdev->dev);
 
 	if (!data) {
 		dev_err(&pdev->dev, "no platform data!\n");
@@ -194,7 +194,6 @@ err_add:
 	nand_release(&sharpsl->mtd);
 
 err_scan:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(sharpsl->io);
 err_ioremap:
 err_get_res:
@@ -211,8 +210,6 @@ static int sharpsl_nand_remove(struct platform_device *pdev)
 
 	/* Release resources, unregister device */
 	nand_release(&sharpsl->mtd);
-
-	platform_set_drvdata(pdev, NULL);
 
 	iounmap(sharpsl->io);
 

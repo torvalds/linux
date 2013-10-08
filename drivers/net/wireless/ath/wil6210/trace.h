@@ -37,36 +37,40 @@ static inline void trace_ ## name(proto) {}
 #endif /* !CONFIG_WIL6210_TRACING || defined(__CHECKER__) */
 
 DECLARE_EVENT_CLASS(wil6210_wmi,
-	TP_PROTO(u16 id, void *buf, u16 buf_len),
+	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
 
-	TP_ARGS(id, buf, buf_len),
+	TP_ARGS(wmi, buf, buf_len),
 
 	TP_STRUCT__entry(
+		__field(u8, mid)
 		__field(u16, id)
+		__field(u32, timestamp)
 		__field(u16, buf_len)
 		__dynamic_array(u8, buf, buf_len)
 	),
 
 	TP_fast_assign(
-		__entry->id = id;
+		__entry->mid = wmi->mid;
+		__entry->id = le16_to_cpu(wmi->id);
+		__entry->timestamp = le32_to_cpu(wmi->timestamp);
 		__entry->buf_len = buf_len;
 		memcpy(__get_dynamic_array(buf), buf, buf_len);
 	),
 
 	TP_printk(
-		"id 0x%04x len %d",
-		__entry->id, __entry->buf_len
+		"MID %d id 0x%04x len %d timestamp %d",
+		__entry->mid, __entry->id, __entry->buf_len, __entry->timestamp
 	)
 );
 
 DEFINE_EVENT(wil6210_wmi, wil6210_wmi_cmd,
-	TP_PROTO(u16 id, void *buf, u16 buf_len),
-	TP_ARGS(id, buf, buf_len)
+	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_ARGS(wmi, buf, buf_len)
 );
 
 DEFINE_EVENT(wil6210_wmi, wil6210_wmi_event,
-	TP_PROTO(u16 id, void *buf, u16 buf_len),
-	TP_ARGS(id, buf, buf_len)
+	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_ARGS(wmi, buf, buf_len)
 );
 
 #define WIL6210_MSG_MAX (200)

@@ -87,7 +87,7 @@ Unless otherwise specified, all options default to off.
 
   device=<devicepath>
 	Specify a device during mount so that ioctls on the control device
-	can be avoided.  Especialy useful when trying to mount a multi-device
+	can be avoided.  Especially useful when trying to mount a multi-device
 	setup as root.  May be specified multiple times for multiple devices.
 
   discard

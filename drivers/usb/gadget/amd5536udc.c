@@ -1122,7 +1122,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 			goto finished;
 		}
 		if (ep->dma) {
-			retval = prep_dma(ep, req, gfp);
+			retval = prep_dma(ep, req, GFP_ATOMIC);
 			if (retval != 0)
 				goto finished;
 			/* write desc pointer to enable DMA */
@@ -1190,7 +1190,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 		 * for PPB modes, because of chain creation reasons
 		 */
 		if (ep->in) {
-			retval = prep_dma(ep, req, gfp);
+			retval = prep_dma(ep, req, GFP_ATOMIC);
 			if (retval != 0)
 				goto finished;
 		}

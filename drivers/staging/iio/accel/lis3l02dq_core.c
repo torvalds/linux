@@ -668,11 +668,9 @@ static int lis3l02dq_probe(struct spi_device *spi)
 	struct lis3l02dq_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_device_alloc(sizeof *st);
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
@@ -690,7 +688,7 @@ static int lis3l02dq_probe(struct spi_device *spi)
 
 	ret = lis3l02dq_configure_buffer(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	ret = iio_buffer_register(indio_dev,
 				  lis3l02dq_channels,
@@ -736,9 +734,6 @@ error_uninitialize_buffer:
 	iio_buffer_unregister(indio_dev);
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -785,8 +780,6 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	lis3l02dq_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

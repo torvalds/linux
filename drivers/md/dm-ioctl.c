@@ -877,7 +877,7 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 	unsigned change_uuid = (param->flags & DM_UUID_FLAG) ? 1 : 0;
 
 	if (new_data < param->data ||
-	    invalid_str(new_data, (void *) param + param_size) ||
+	    invalid_str(new_data, (void *) param + param_size) || !*new_data ||
 	    strlen(new_data) > (change_uuid ? DM_UUID_LEN - 1 : DM_NAME_LEN - 1)) {
 		DMWARN("Invalid new mapped device name or uuid string supplied.");
 		return -EINVAL;
@@ -1262,44 +1262,37 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 
 	r = dm_table_create(&t, get_mode(param), param->target_count, md);
 	if (r)
-		goto out;
+		goto err;
 
+	/* Protect md->type and md->queue against concurrent table loads. */
+	dm_lock_md_type(md);
 	r = populate_table(t, param, param_size);
-	if (r) {
-		dm_table_destroy(t);
-		goto out;
-	}
+	if (r)
+		goto err_unlock_md_type;
 
 	immutable_target_type = dm_get_immutable_target_type(md);
 	if (immutable_target_type &&
 	    (immutable_target_type != dm_table_get_immutable_target_type(t))) {
 		DMWARN("can't replace immutable target type %s",
 		       immutable_target_type->name);
-		dm_table_destroy(t);
 		r = -EINVAL;
-		goto out;
+		goto err_unlock_md_type;
 	}
 
-	/* Protect md->type and md->queue against concurrent table loads. */
-	dm_lock_md_type(md);
 	if (dm_get_md_type(md) == DM_TYPE_NONE)
 		/* Initial table load: acquire type of table. */
 		dm_set_md_type(md, dm_table_get_type(t));
 	else if (dm_get_md_type(md) != dm_table_get_type(t)) {
 		DMWARN("can't change device type after initial table load.");
-		dm_table_destroy(t);
-		dm_unlock_md_type(md);
 		r = -EINVAL;
-		goto out;
+		goto err_unlock_md_type;
 	}
 
 	/* setup md->queue to reflect md's type (may block) */
 	r = dm_setup_md_queue(md);
 	if (r) {
 		DMWARN("unable to set up device queue for new table.");
-		dm_table_destroy(t);
-		dm_unlock_md_type(md);
-		goto out;
+		goto err_unlock_md_type;
 	}
 	dm_unlock_md_type(md);
 
@@ -1309,9 +1302,8 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (!hc || hc->md != md) {
 		DMWARN("device has been removed from the dev hash table.");
 		up_write(&_hash_lock);
-		dm_table_destroy(t);
 		r = -ENXIO;
-		goto out;
+		goto err_destroy_table;
 	}
 
 	if (hc->new_map)
@@ -1322,12 +1314,20 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	param->flags |= DM_INACTIVE_PRESENT_FLAG;
 	__dev_status(md, param);
 
-out:
 	if (old_map) {
 		dm_sync_table(md);
 		dm_table_destroy(old_map);
 	}
 
+	dm_put(md);
+
+	return 0;
+
+err_unlock_md_type:
+	dm_unlock_md_type(md);
+err_destroy_table:
+	dm_table_destroy(t);
+err:
 	dm_put(md);
 
 	return r;
@@ -1455,20 +1455,26 @@ static int table_status(struct dm_ioctl *param, size_t param_size)
 	return 0;
 }
 
-static bool buffer_test_overflow(char *result, unsigned maxlen)
-{
-	return !maxlen || strlen(result) + 1 >= maxlen;
-}
-
 /*
- * Process device-mapper dependent messages.
+ * Process device-mapper dependent messages.  Messages prefixed with '@'
+ * are processed by the DM core.  All others are delivered to the target.
  * Returns a number <= 1 if message was processed by device mapper.
  * Returns 2 if message should be delivered to the target.
  */
 static int message_for_md(struct mapped_device *md, unsigned argc, char **argv,
 			  char *result, unsigned maxlen)
 {
-	return 2;
+	int r;
+
+	if (**argv != '@')
+		return 2; /* no '@' prefix, deliver to target */
+
+	r = dm_stats_message(md, argc, argv, result, maxlen);
+	if (r < 2)
+		return r;
+
+	DMERR("Unsupported message sent to DM core: %s", argv[0]);
+	return -EINVAL;
 }
 
 /*
@@ -1542,7 +1548,7 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 
 	if (r == 1) {
 		param->flags |= DM_DATA_OUT_FLAG;
-		if (buffer_test_overflow(result, maxlen))
+		if (dm_message_test_buffer_overflow(result, maxlen))
 			param->flags |= DM_BUFFER_FULL_FLAG;
 		else
 			param->data_size = param->data_start + strlen(result) + 1;

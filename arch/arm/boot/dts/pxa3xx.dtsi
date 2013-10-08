@@ -28,5 +28,16 @@
 			marvell,intc-priority;
 			marvell,intc-nr-irqs = <56>;
 		};
+
+		gpio: gpio@40e00000 {
+			compatible = "intel,pxa3xx-gpio";
+			reg = <0x40e00000 0x10000>;
+			interrupt-names = "gpio0", "gpio1", "gpio_mux";
+			interrupts = <8 9 10>;
+			gpio-controller;
+			#gpio-cells = <0x2>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
+		};
 	};
 };

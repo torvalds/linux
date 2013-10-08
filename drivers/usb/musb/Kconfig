@@ -71,7 +71,6 @@ config USB_MUSB_DA8XX
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
-	depends on GENERIC_HARDIRQS
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
@@ -83,6 +82,8 @@ config USB_MUSB_AM35X
 
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
+	select USB_MUSB_AM335X_CHILD
+	depends on OF_IRQ
 
 config USB_MUSB_BLACKFIN
 	tristate "Blackfin"
@@ -92,6 +93,9 @@ config USB_MUSB_UX500
 	tristate "U8500 and U5500"
 
 endchoice
+
+config USB_MUSB_AM335X_CHILD
+	tristate
 
 choice
 	prompt 'MUSB DMA mode'
@@ -124,6 +128,10 @@ config USB_TI_CPPI_DMA
 	depends on USB_MUSB_DAVINCI
 	help
 	  Enable DMA transfers when TI CPPI DMA is available.
+
+config USB_TI_CPPI41_DMA
+	bool 'TI CPPI 4.1 (AM335x)'
+	depends on ARCH_OMAP
 
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'

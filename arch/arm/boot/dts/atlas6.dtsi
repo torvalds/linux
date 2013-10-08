@@ -181,6 +181,8 @@
 				interrupts = <17>;
 				fifosize = <128>;
 				clocks = <&clks 13>;
+				sirf,uart-dma-rx-channel = <21>;
+				sirf,uart-dma-tx-channel = <2>;
 			};
 
 			uart1: uart@b0060000 {
@@ -199,6 +201,8 @@
 				interrupts = <19>;
 				fifosize = <128>;
 				clocks = <&clks 15>;
+				sirf,uart-dma-rx-channel = <6>;
+				sirf,uart-dma-tx-channel = <7>;
 			};
 
 			usp0: usp@b0080000 {
@@ -206,7 +210,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0080000 0x10000>;
 				interrupts = <20>;
+				fifosize = <128>;
 				clocks = <&clks 28>;
+				sirf,usp-dma-rx-channel = <17>;
+				sirf,usp-dma-tx-channel = <18>;
 			};
 
 			usp1: usp@b0090000 {
@@ -214,7 +221,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0090000 0x10000>;
 				interrupts = <21>;
+				fifosize = <128>;
 				clocks = <&clks 29>;
+				sirf,usp-dma-rx-channel = <14>;
+				sirf,usp-dma-tx-channel = <15>;
 			};
 
 			dmac0: dma-controller@b00b0000 {
@@ -237,6 +247,8 @@
 				compatible = "sirf,prima2-vip";
 				reg = <0xb00C0000 0x10000>;
 				clocks = <&clks 31>;
+				interrupts = <14>;
+				sirf,vip-dma-rx-channel = <16>;
 			};
 
 			spi0: spi@b00d0000 {
@@ -327,6 +339,12 @@
 					uart {
 						sirf,pins = "uart0grp";
 						sirf,function = "uart0";
+					};
+				};
+				uart0_noflow_pins_a: uart0@1 {
+					uart {
+						sirf,pins = "uart0_nostreamctrlgrp";
+						sirf,function = "uart0_nostreamctrl";
 					};
 				};
 				uart1_pins_a: uart1@0 {

@@ -40,9 +40,9 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/module.h>
+#include <linux/delay.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
-#include <linux/slab.h>
 
 #define DRIVER_NAME "unioxx5"
 #define UNIOXX5_SIZE 0x10

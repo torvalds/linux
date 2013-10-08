@@ -30,6 +30,7 @@
  *    Analog Input, Analog Output, Digital I/O
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -185,38 +186,30 @@ static int me_dio_insn_config(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct me_private_data *dev_private = dev->private;
-	unsigned int mask = 1 << CR_CHAN(insn->chanspec);
-	unsigned int bits;
-	unsigned int port;
+	struct me_private_data *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	if (mask & 0x0000ffff) {
-		bits = 0x0000ffff;
-		port = ENABLE_PORT_A;
-	} else {
-		bits = 0xffff0000;
-		port = ENABLE_PORT_B;
-	}
+	if (chan < 16)
+		mask = 0x0000ffff;
+	else
+		mask = 0xffff0000;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		dev_private->control_2 &= ~port;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		dev_private->control_2 |= port;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
-	/* Update the port configuration */
-	writew(dev_private->control_2, dev_private->me_regbase + ME_CONTROL_2);
+	if (s->io_bits & 0x0000ffff)
+		devpriv->control_2 |= ENABLE_PORT_A;
+	else
+		devpriv->control_2 &= ~ENABLE_PORT_A;
+	if (s->io_bits & 0xffff0000)
+		devpriv->control_2 |= ENABLE_PORT_B;
+	else
+		devpriv->control_2 &= ~ENABLE_PORT_B;
+
+	writew(devpriv->control_2, devpriv->me_regbase + ME_CONTROL_2);
 
 	return insn->n;
 }
@@ -490,10 +483,9 @@ static int me_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
+	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
 		return -ENOMEM;
-	dev->private = dev_private;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

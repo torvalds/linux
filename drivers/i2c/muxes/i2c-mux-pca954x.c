@@ -185,7 +185,7 @@ static int pca954x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
-	struct pca954x_platform_data *pdata = client->dev.platform_data;
+	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
 	int num, force, class;
 	struct pca954x *data;
 	int ret = -ENODEV;

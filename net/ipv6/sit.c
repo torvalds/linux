@@ -566,6 +566,70 @@ static inline bool is_spoofed_6rd(struct ip_tunnel *tunnel, const __be32 v4addr,
 	return false;
 }
 
+/* Checks if an address matches an address on the tunnel interface.
+ * Used to detect the NAT of proto 41 packets and let them pass spoofing test.
+ * Long story:
+ * This function is called after we considered the packet as spoofed
+ * in is_spoofed_6rd.
+ * We may have a router that is doing NAT for proto 41 packets
+ * for an internal station. Destination a.a.a.a/PREFIX:bbbb:bbbb
+ * will be translated to n.n.n.n/PREFIX:bbbb:bbbb. And is_spoofed_6rd
+ * function will return true, dropping the packet.
+ * But, we can still check if is spoofed against the IP
+ * addresses associated with the interface.
+ */
+static bool only_dnatted(const struct ip_tunnel *tunnel,
+	const struct in6_addr *v6dst)
+{
+	int prefix_len;
+
+#ifdef CONFIG_IPV6_SIT_6RD
+	prefix_len = tunnel->ip6rd.prefixlen + 32
+		- tunnel->ip6rd.relay_prefixlen;
+#else
+	prefix_len = 48;
+#endif
+	return ipv6_chk_custom_prefix(v6dst, prefix_len, tunnel->dev);
+}
+
+/* Returns true if a packet is spoofed */
+static bool packet_is_spoofed(struct sk_buff *skb,
+			      const struct iphdr *iph,
+			      struct ip_tunnel *tunnel)
+{
+	const struct ipv6hdr *ipv6h;
+
+	if (tunnel->dev->priv_flags & IFF_ISATAP) {
+		if (!isatap_chksrc(skb, iph, tunnel))
+			return true;
+
+		return false;
+	}
+
+	if (tunnel->dev->flags & IFF_POINTOPOINT)
+		return false;
+
+	ipv6h = ipv6_hdr(skb);
+
+	if (unlikely(is_spoofed_6rd(tunnel, iph->saddr, &ipv6h->saddr))) {
+		net_warn_ratelimited("Src spoofed %pI4/%pI6c -> %pI4/%pI6c\n",
+				     &iph->saddr, &ipv6h->saddr,
+				     &iph->daddr, &ipv6h->daddr);
+		return true;
+	}
+
+	if (likely(!is_spoofed_6rd(tunnel, iph->daddr, &ipv6h->daddr)))
+		return false;
+
+	if (only_dnatted(tunnel, &ipv6h->daddr))
+		return false;
+
+	net_warn_ratelimited("Dst spoofed %pI4/%pI6c -> %pI4/%pI6c\n",
+			     &iph->saddr, &ipv6h->saddr,
+			     &iph->daddr, &ipv6h->daddr);
+	return true;
+}
+
 static int ipip6_rcv(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -581,29 +645,17 @@ static int ipip6_rcv(struct sk_buff *skb)
 		    tunnel->parms.iph.protocol != 0)
 			goto out;
 
-		secpath_reset(skb);
 		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
-		skb->pkt_type = PACKET_HOST;
 
-		if (tunnel->dev->priv_flags & IFF_ISATAP) {
-			if (!isatap_chksrc(skb, iph, tunnel)) {
-				tunnel->dev->stats.rx_errors++;
-				goto out;
-			}
-		} else if (!(tunnel->dev->flags&IFF_POINTOPOINT)) {
-			if (is_spoofed_6rd(tunnel, iph->saddr,
-					   &ipv6_hdr(skb)->saddr) ||
-			    is_spoofed_6rd(tunnel, iph->daddr,
-					   &ipv6_hdr(skb)->daddr)) {
-				tunnel->dev->stats.rx_errors++;
-				goto out;
-			}
+		if (packet_is_spoofed(skb, iph, tunnel)) {
+			tunnel->dev->stats.rx_errors++;
+			goto out;
 		}
 
-		__skb_tunnel_rx(skb, tunnel->dev);
+		__skb_tunnel_rx(skb, tunnel->dev, tunnel->net);
 
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
@@ -621,8 +673,6 @@ static int ipip6_rcv(struct sk_buff *skb)
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 
-		if (tunnel->net != dev_net(tunnel->dev))
-			skb_scrub_packet(skb);
 		netif_rx(skb);
 
 		return 0;
@@ -752,7 +802,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
-			net_dbg_ratelimited("sit: nexthop == NULL\n");
+			net_dbg_ratelimited("nexthop == NULL\n");
 			goto tx_error;
 		}
 
@@ -781,7 +831,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
-			net_dbg_ratelimited("sit: nexthop == NULL\n");
+			net_dbg_ratelimited("nexthop == NULL\n");
 			goto tx_error;
 		}
 
@@ -858,9 +908,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			tunnel->err_count = 0;
 	}
 
-	if (tunnel->net != dev_net(dev))
-		skb_scrub_packet(skb);
-
 	/*
 	 * Okay, now see if we can stuff it in the buffer as-is.
 	 */
@@ -891,8 +938,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		skb->encapsulation = 1;
 	}
 
-	err = iptunnel_xmit(dev_net(dev), rt, skb, fl4.saddr, fl4.daddr,
-			    IPPROTO_IPV6, tos, ttl, df);
+	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
+			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 	return NETDEV_TX_OK;
 
@@ -1592,7 +1639,7 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 				/* If dev is in the same netns, it has already
 				 * been added to the list by the previous loop.
 				 */
-				if (dev_net(t->dev) != net)
+				if (!net_eq(dev_net(t->dev), net))
 					unregister_netdevice_queue(t->dev,
 								   head);
 				t = rtnl_dereference(t->next);
@@ -1619,6 +1666,7 @@ static int __net_init sit_init_net(struct net *net)
 		goto err_alloc_dev;
 	}
 	dev_net_set(sitn->fb_tunnel_dev, net);
+	sitn->fb_tunnel_dev->rtnl_link_ops = &sit_link_ops;
 	/* FB netdevice is special: we have one, and only one per netns.
 	 * Allowing to move it to another netns is clearly unsafe.
 	 */
@@ -1653,7 +1701,6 @@ static void __net_exit sit_exit_net(struct net *net)
 
 	rtnl_lock();
 	sit_destroy_tunnels(sitn, &list);
-	unregister_netdevice_queue(sitn->fb_tunnel_dev, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }

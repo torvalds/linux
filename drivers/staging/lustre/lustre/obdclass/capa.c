@@ -42,12 +42,12 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <asm/unistd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/crypto.h>
 
 #include <obd_class.h>
 #include <lustre_debug.h>
@@ -76,6 +76,12 @@ EXPORT_SYMBOL(capa_cachep);
 EXPORT_SYMBOL(capa_list);
 EXPORT_SYMBOL(capa_lock);
 EXPORT_SYMBOL(capa_count);
+
+static inline
+unsigned int ll_crypto_tfm_alg_min_keysize(struct crypto_blkcipher *tfm)
+{
+	return crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher.min_keysize;
+}
 
 struct hlist_head *init_capa_hash(void)
 {
@@ -235,9 +241,26 @@ struct obd_capa *capa_lookup(struct hlist_head *hash, struct lustre_capa *capa,
 }
 EXPORT_SYMBOL(capa_lookup);
 
+static inline int ll_crypto_hmac(struct crypto_hash *tfm,
+				 u8 *key, unsigned int *keylen,
+				 struct scatterlist *sg,
+				 unsigned int size, u8 *result)
+{
+	struct hash_desc desc;
+	int	      rv;
+	desc.tfm   = tfm;
+	desc.flags = 0;
+	rv = crypto_hash_setkey(desc.tfm, key, *keylen);
+	if (rv) {
+		CERROR("failed to hash setkey: %d\n", rv);
+		return rv;
+	}
+	return crypto_hash_digest(&desc, sg, size, result);
+}
+
 int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 {
-	struct ll_crypto_hash *tfm;
+	struct crypto_hash *tfm;
 	struct capa_hmac_alg  *alg;
 	int keylen;
 	struct scatterlist sl;
@@ -249,7 +272,7 @@ int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 
 	alg = &capa_hmac_algs[capa_alg(capa)];
 
-	tfm = ll_crypto_alloc_hash(alg->ha_name, 0, 0);
+	tfm = crypto_alloc_hash(alg->ha_name, 0, 0);
 	if (!tfm) {
 		CERROR("crypto_alloc_tfm failed, check whether your kernel"
 		       "has crypto support!\n");
@@ -262,7 +285,7 @@ int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 		    (unsigned long)(capa) % PAGE_CACHE_SIZE);
 
 	ll_crypto_hmac(tfm, key, &keylen, &sl, sl.length, hmac);
-	ll_crypto_free_hash(tfm);
+	crypto_free_hash(tfm);
 
 	return 0;
 }
@@ -270,21 +293,20 @@ EXPORT_SYMBOL(capa_hmac);
 
 int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 {
-	struct ll_crypto_cipher *tfm;
+	struct crypto_blkcipher *tfm;
 	struct scatterlist sd;
 	struct scatterlist ss;
 	struct blkcipher_desc desc;
 	unsigned int min;
 	int rc;
 	char alg[CRYPTO_MAX_ALG_NAME+1] = "aes";
-	ENTRY;
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
-		RETURN(PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
@@ -293,7 +315,7 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 		GOTO(out, rc = -EINVAL);
 	}
 
-	rc = ll_crypto_blkcipher_setkey(tfm, key, min);
+	rc = crypto_blkcipher_setkey(tfm, key, min);
 	if (rc) {
 		CERROR("failed to setting key for aes\n");
 		GOTO(out, rc);
@@ -307,37 +329,34 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	desc.tfm   = tfm;
 	desc.info  = NULL;
 	desc.flags = 0;
-	rc = ll_crypto_blkcipher_encrypt(&desc, &sd, &ss, 16);
+	rc = crypto_blkcipher_encrypt(&desc, &sd, &ss, 16);
 	if (rc) {
 		CERROR("failed to encrypt for aes\n");
 		GOTO(out, rc);
 	}
 
-	EXIT;
-
 out:
-	ll_crypto_free_blkcipher(tfm);
+	crypto_free_blkcipher(tfm);
 	return rc;
 }
 EXPORT_SYMBOL(capa_encrypt_id);
 
 int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 {
-	struct ll_crypto_cipher *tfm;
+	struct crypto_blkcipher *tfm;
 	struct scatterlist sd;
 	struct scatterlist ss;
 	struct blkcipher_desc desc;
 	unsigned int min;
 	int rc;
 	char alg[CRYPTO_MAX_ALG_NAME+1] = "aes";
-	ENTRY;
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
-		RETURN(PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
@@ -346,7 +365,7 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 		GOTO(out, rc = -EINVAL);
 	}
 
-	rc = ll_crypto_blkcipher_setkey(tfm, key, min);
+	rc = crypto_blkcipher_setkey(tfm, key, min);
 	if (rc) {
 		CERROR("failed to setting key for aes\n");
 		GOTO(out, rc);
@@ -361,16 +380,14 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	desc.tfm   = tfm;
 	desc.info  = NULL;
 	desc.flags = 0;
-	rc = ll_crypto_blkcipher_decrypt(&desc, &sd, &ss, 16);
+	rc = crypto_blkcipher_decrypt(&desc, &sd, &ss, 16);
 	if (rc) {
 		CERROR("failed to decrypt for aes\n");
 		GOTO(out, rc);
 	}
 
-	EXIT;
-
 out:
-	ll_crypto_free_blkcipher(tfm);
+	crypto_free_blkcipher(tfm);
 	return rc;
 }
 EXPORT_SYMBOL(capa_decrypt_id);

@@ -45,7 +45,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include <lustre_lite.h>
 #include <lustre_ha.h>
@@ -124,22 +123,22 @@ static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 	struct hlist_head *head;
 	struct ll_remote_perm *lrp;
 	int found = 0, rc;
-	ENTRY;
 
 	if (!lli->lli_remote_perms)
-		RETURN(-ENOENT);
+		return -ENOENT;
 
-	head = lli->lli_remote_perms + remote_perm_hashfunc(current_uid());
+	head = lli->lli_remote_perms +
+		remote_perm_hashfunc(from_kuid(&init_user_ns, current_uid()));
 
 	spin_lock(&lli->lli_lock);
 	hlist_for_each_entry(lrp, head, lrp_list) {
-		if (lrp->lrp_uid != current_uid())
+		if (lrp->lrp_uid != from_kuid(&init_user_ns, current_uid()))
 			continue;
-		if (lrp->lrp_gid != current_gid())
+		if (lrp->lrp_gid != from_kgid(&init_user_ns, current_gid()))
 			continue;
-		if (lrp->lrp_fsuid != current_fsuid())
+		if (lrp->lrp_fsuid != from_kuid(&init_user_ns, current_fsuid()))
 			continue;
-		if (lrp->lrp_fsgid != current_fsgid())
+		if (lrp->lrp_fsgid != from_kgid(&init_user_ns, current_fsgid()))
 			continue;
 		found = 1;
 		break;
@@ -163,7 +162,6 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_remote_perm *lrp = NULL, *tmp = NULL;
 	struct hlist_head *head, *perm_hash = NULL;
-	ENTRY;
 
 	LASSERT(ll_i2sbi(inode)->ll_flags & LL_SBI_RMT_CLIENT);
 
@@ -178,7 +176,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 		       perm->rp_uid, perm->rp_gid, perm->rp_fsuid,
 		       perm->rp_fsgid, current->uid, current->gid,
 		       current->fsuid, current->fsgid);
-		RETURN(-EAGAIN);
+		return -EAGAIN;
 	}
 #endif
 
@@ -186,7 +184,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 		perm_hash = alloc_rmtperm_hash();
 		if (perm_hash == NULL) {
 			CERROR("alloc lli_remote_perms failed!\n");
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 	}
 
@@ -220,7 +218,7 @@ again:
 		lrp = alloc_ll_remote_perm();
 		if (!lrp) {
 			CERROR("alloc memory for ll_remote_perm failed!\n");
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		spin_lock(&lli->lli_lock);
 		goto again;
@@ -241,7 +239,7 @@ again:
 	       lrp, lrp->lrp_uid, lrp->lrp_gid, lrp->lrp_fsuid, lrp->lrp_fsgid,
 	       lrp->lrp_access_perm);
 
-	RETURN(0);
+	return 0;
 }
 
 int lustre_check_remote_perm(struct inode *inode, int mask)
@@ -253,7 +251,6 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 	struct obd_capa *oc;
 	cfs_time_t save;
 	int i = 0, rc;
-	ENTRY;
 
 	do {
 		save = lli->lli_rmtperm_time;
@@ -304,7 +301,7 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 		req = NULL;
 	} while (1);
 	ptlrpc_req_finished(req);
-	RETURN(rc);
+	return rc;
 }
 
 #if 0  /* NB: remote perms can't be freed in ll_mdc_blocking_ast of UPDATE lock,

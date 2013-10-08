@@ -142,12 +142,14 @@ static struct cpumask cpu_started;
  */
 static void start_secondary(void)
 {
-	int cpuid = smp_processor_id();
+	int cpuid;
+
+	preempt_disable();
+
+	cpuid = smp_processor_id();
 
 	/* Set our thread pointer appropriately. */
 	set_my_cpu_offset(__per_cpu_offset[cpuid]);
-
-	preempt_disable();
 
 	/*
 	 * In large machines even this will slow us down, since we

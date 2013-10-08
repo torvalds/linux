@@ -558,3 +558,75 @@ void __fscache_cookie_put(struct fscache_cookie *cookie)
 
 	_leave("");
 }
+
+/*
+ * check the consistency between the netfs inode and the backing cache
+ *
+ * NOTE: it only serves no-index type
+ */
+int __fscache_check_consistency(struct fscache_cookie *cookie)
+{
+	struct fscache_operation *op;
+	struct fscache_object *object;
+	int ret;
+
+	_enter("%p,", cookie);
+
+	ASSERTCMP(cookie->def->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
+
+	if (fscache_wait_for_deferred_lookup(cookie) < 0)
+		return -ERESTARTSYS;
+
+	if (hlist_empty(&cookie->backing_objects))
+		return 0;
+
+	op = kzalloc(sizeof(*op), GFP_NOIO | __GFP_NOMEMALLOC | __GFP_NORETRY);
+	if (!op)
+		return -ENOMEM;
+
+	fscache_operation_init(op, NULL, NULL);
+	op->flags = FSCACHE_OP_MYTHREAD |
+		(1 << FSCACHE_OP_WAITING) |
+		(1 << FSCACHE_OP_UNUSE_COOKIE);
+
+	spin_lock(&cookie->lock);
+
+	if (hlist_empty(&cookie->backing_objects))
+		goto inconsistent;
+	object = hlist_entry(cookie->backing_objects.first,
+			     struct fscache_object, cookie_link);
+	if (test_bit(FSCACHE_IOERROR, &object->cache->flags))
+		goto inconsistent;
+
+	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
+
+	atomic_inc(&cookie->n_active);
+	if (fscache_submit_op(object, op) < 0)
+		goto submit_failed;
+
+	/* the work queue now carries its own ref on the object */
+	spin_unlock(&cookie->lock);
+
+	ret = fscache_wait_for_operation_activation(object, op,
+						    NULL, NULL, NULL);
+	if (ret == 0) {
+		/* ask the cache to honour the operation */
+		ret = object->cache->ops->check_consistency(op);
+		fscache_op_complete(op, false);
+	} else if (ret == -ENOBUFS) {
+		ret = 0;
+	}
+
+	fscache_put_operation(op);
+	_leave(" = %d", ret);
+	return ret;
+
+submit_failed:
+	atomic_dec(&cookie->n_active);
+inconsistent:
+	spin_unlock(&cookie->lock);
+	kfree(op);
+	_leave(" = -ESTALE");
+	return -ESTALE;
+}
+EXPORT_SYMBOL(__fscache_check_consistency);

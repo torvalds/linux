@@ -34,7 +34,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"4.6.62.0u"
+#define DRV_VER			"4.9.134.0u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -88,6 +88,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_MIN_MTU		256
 
 #define BE_NUM_VLANS_SUPPORTED	64
+#define BE_UMC_NUM_VLANS_SUPPORTED	15
 #define BE_MAX_EQD		96u
 #define	BE_MAX_TX_FRAG_COUNT	30
 
@@ -99,14 +100,18 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MCC_Q_LEN		128	/* total size not to exceed 8 pages */
 #define MCC_CQ_LEN		256
 
-#define BE3_MAX_RSS_QS		8
 #define BE2_MAX_RSS_QS		4
-#define MAX_RSS_QS		BE3_MAX_RSS_QS
-#define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
+#define BE3_MAX_RSS_QS		16
+#define BE3_MAX_TX_QS		16
+#define BE3_MAX_EVT_QS		16
 
-#define MAX_TX_QS		8
+#define MAX_RX_QS		32
+#define MAX_EVT_QS		32
+#define MAX_TX_QS		32
+
 #define MAX_ROCE_EQS		5
-#define MAX_MSIX_VECTORS	(MAX_RSS_QS + MAX_ROCE_EQS) /* RSS qs + RoCE */
+#define MAX_MSIX_VECTORS	32
+#define MIN_MSIX_VECTORS	1
 #define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
@@ -189,6 +194,7 @@ struct be_eq_obj {
 	u32 cur_eqd;		/* in usecs */
 
 	u8 idx;			/* array index */
+	u8 msix_idx;
 	u16 tx_budget;
 	u16 spurious_intr;
 	struct napi_struct napi;
@@ -328,6 +334,7 @@ enum vf_state {
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
+#define BE_FLAGS_VLAN_PROMISC			(1 << 4)
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
 #define BE_UC_PMAC_COUNT		30
 #define BE_VF_UC_PMAC_COUNT		2
@@ -352,6 +359,18 @@ struct phy_info {
 	u32 supported;
 };
 
+struct be_resources {
+	u16 max_vfs;		/* Total VFs "really" supported by FW/HW */
+	u16 max_mcast_mac;
+	u16 max_tx_qs;
+	u16 max_rss_qs;
+	u16 max_rx_qs;
+	u16 max_uc_mac;		/* Max UC MACs programmable */
+	u16 max_vlans;		/* Number of vlans supported */
+	u16 max_evt_qs;
+	u32 if_cap_flags;
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -369,18 +388,19 @@ struct be_adapter {
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
-	u32 num_msix_vec;
-	u32 num_evt_qs;
-	struct be_eq_obj eq_obj[MAX_MSIX_VECTORS];
+	u16 cfg_num_qs;		/* configured via set-channels */
+	u16 num_evt_qs;
+	u16 num_msix_vec;
+	struct be_eq_obj eq_obj[MAX_EVT_QS];
 	struct msix_entry msix_entries[MAX_MSIX_VECTORS];
 	bool isr_registered;
 
 	/* TX Rings */
-	u32 num_tx_qs;
+	u16 num_tx_qs;
 	struct be_tx_obj tx_obj[MAX_TX_QS];
 
 	/* Rx rings */
-	u32 num_rx_qs;
+	u16 num_rx_qs;
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
@@ -430,8 +450,8 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion flash_compl;
 
-	u32 num_vfs;		/* Number of VFs provisioned by PF driver */
-	u32 dev_num_vfs;	/* Number of VFs supported by HW */
+	struct be_resources res;	/* resources available for the func */
+	u16 num_vfs;			/* Number of VFs provisioned by PF */
 	u8 virtfn;
 	struct be_vf_cfg *vf_cfg;
 	bool be3_native;
@@ -446,21 +466,13 @@ struct be_adapter {
 	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
-	u16 max_mcast_mac;
-	u16 max_tx_queues;
-	u16 max_rss_queues;
-	u16 max_rx_queues;
-	u16 max_pmac_cnt;
-	u16 max_vlans;
-	u16 max_event_queues;
-	u32 if_cap_flags;
 	u8 pf_number;
 	u64 rss_flags;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
-#define	sriov_want(adapter)		(adapter->dev_num_vfs && num_vfs && \
+#define sriov_want(adapter)             (be_max_vfs(adapter) && num_vfs && \
 					 be_physfn(adapter))
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
@@ -468,6 +480,26 @@ struct be_adapter {
 
 #define ON				1
 #define OFF				0
+
+#define be_max_vlans(adapter)		(adapter->res.max_vlans)
+#define be_max_uc(adapter)		(adapter->res.max_uc_mac)
+#define be_max_mc(adapter)		(adapter->res.max_mcast_mac)
+#define be_max_vfs(adapter)		(adapter->res.max_vfs)
+#define be_max_rss(adapter)		(adapter->res.max_rss_qs)
+#define be_max_txqs(adapter)		(adapter->res.max_tx_qs)
+#define be_max_prio_txqs(adapter)	(adapter->res.max_prio_tx_qs)
+#define be_max_rxqs(adapter)		(adapter->res.max_rx_qs)
+#define be_max_eqs(adapter)		(adapter->res.max_evt_qs)
+#define be_if_cap_flags(adapter)	(adapter->res.if_cap_flags)
+
+static inline u16 be_max_qs(struct be_adapter *adapter)
+{
+	/* If no RSS, need atleast the one def RXQ */
+	u16 num = max_t(u16, be_max_rss(adapter), 1);
+
+	num = min(num, be_max_eqs(adapter));
+	return min_t(u16, num, num_online_cpus());
+}
 
 #define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
 				 adapter->pdev->device == OC_DEVICE_ID4)
@@ -672,6 +704,8 @@ extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
 extern bool be_pause_supported(struct be_adapter *adapter);
 extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+int be_update_queues(struct be_adapter *adapter);
+int be_poll(struct napi_struct *napi, int budget);
 
 /*
  * internal function to initialize-cleanup roce device.

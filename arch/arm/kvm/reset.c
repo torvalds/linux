@@ -40,7 +40,7 @@ static struct kvm_regs a15_regs_reset = {
 };
 
 static const struct kvm_irq_level a15_vtimer_irq = {
-	.irq = 27,
+	{ .irq = 27 },
 	.level = 1,
 };
 
@@ -58,14 +58,14 @@ static const struct kvm_irq_level a15_vtimer_irq = {
  */
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct kvm_regs *cpu_reset;
+	struct kvm_regs *reset_regs;
 	const struct kvm_irq_level *cpu_vtimer_irq;
 
 	switch (vcpu->arch.target) {
 	case KVM_ARM_TARGET_CORTEX_A15:
 		if (vcpu->vcpu_id > a15_max_cpu_idx)
 			return -EINVAL;
-		cpu_reset = &a15_regs_reset;
+		reset_regs = &a15_regs_reset;
 		vcpu->arch.midr = read_cpuid_id();
 		cpu_vtimer_irq = &a15_vtimer_irq;
 		break;
@@ -74,7 +74,7 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	/* Reset core registers */
-	memcpy(&vcpu->arch.regs, cpu_reset, sizeof(vcpu->arch.regs));
+	memcpy(&vcpu->arch.regs, reset_regs, sizeof(vcpu->arch.regs));
 
 	/* Reset CP15 registers */
 	kvm_reset_coprocs(vcpu);

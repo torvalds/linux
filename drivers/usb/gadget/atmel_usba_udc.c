@@ -1772,6 +1772,7 @@ out:
 static int atmel_usba_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
+	int ret;
 	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
 	unsigned long flags;
 
@@ -1781,8 +1782,14 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 	udc->driver = driver;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	clk_enable(udc->pclk);
-	clk_enable(udc->hclk);
+	ret = clk_prepare_enable(udc->pclk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(udc->hclk);
+	if (ret) {
+		clk_disable_unprepare(udc->pclk);
+		return ret;
+	}
 
 	DBG(DBG_GADGET, "registered driver `%s'\n", driver->driver.name);
 
@@ -1822,8 +1829,8 @@ static int atmel_usba_stop(struct usb_gadget *gadget,
 
 	udc->driver = NULL;
 
-	clk_disable(udc->hclk);
-	clk_disable(udc->pclk);
+	clk_disable_unprepare(udc->hclk);
+	clk_disable_unprepare(udc->pclk);
 
 	DBG(DBG_GADGET, "unregistered driver `%s'\n", driver->driver.name);
 
@@ -1922,7 +1929,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 						 struct usba_udc *udc)
 {
-	struct usba_platform_data *pdata = pdev->dev.platform_data;
+	struct usba_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usba_ep *eps;
 	int i;
 
@@ -2022,10 +2029,14 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, udc);
 
 	/* Make sure we start from a clean slate */
-	clk_enable(pclk);
+	ret = clk_prepare_enable(pclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to enable pclk, aborting.\n");
+		goto err_clk_enable;
+	}
 	toggle_bias(0);
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
-	clk_disable(pclk);
+	clk_disable_unprepare(pclk);
 
 	if (pdev->dev.of_node)
 		udc->usba_ep = atmel_udc_of_init(pdev, udc);
@@ -2081,6 +2092,7 @@ err_add_udc:
 	free_irq(irq, udc);
 err_request_irq:
 err_alloc_ep:
+err_clk_enable:
 	iounmap(udc->fifo);
 err_map_fifo:
 	iounmap(udc->regs);

@@ -47,6 +47,8 @@
 #include <net/udp.h>
 #include <net/tcp.h>
 
+#include <trace/events/sunrpc.h>
+
 #include "sunrpc.h"
 
 static void xs_close(struct rpc_xprt *xprt);
@@ -665,8 +667,10 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct socket *sock = transport->sock;
 
-	if (sock != NULL)
+	if (sock != NULL) {
 		kernel_sock_shutdown(sock, SHUT_WR);
+		trace_rpc_socket_shutdown(xprt, sock);
+	}
 }
 
 /**
@@ -811,6 +815,7 @@ static void xs_reset_transport(struct sock_xprt *transport)
 
 	sk->sk_no_check = 0;
 
+	trace_rpc_socket_close(&transport->xprt, sock);
 	sock_release(sock);
 }
 
@@ -1492,6 +1497,7 @@ static void xs_tcp_state_change(struct sock *sk)
 			sock_flag(sk, SOCK_ZAPPED),
 			sk->sk_shutdown);
 
+	trace_rpc_socket_state_change(xprt, sk->sk_socket);
 	switch (sk->sk_state) {
 	case TCP_ESTABLISHED:
 		spin_lock(&xprt->transport_lock);
@@ -1602,7 +1608,7 @@ static void xs_tcp_write_space(struct sock *sk)
 	read_lock_bh(&sk->sk_callback_lock);
 
 	/* from net/core/stream.c:sk_stream_write_space */
-	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk))
+	if (sk_stream_is_writeable(sk))
 		xs_write_space(sk);
 
 	read_unlock_bh(&sk->sk_callback_lock);
@@ -1896,6 +1902,7 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 			xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
 
 	status = xs_local_finish_connecting(xprt, sock);
+	trace_rpc_socket_connect(xprt, sock, status);
 	switch (status) {
 	case 0:
 		dprintk("RPC:       xprt %p connected to %s\n",
@@ -2039,6 +2046,7 @@ static void xs_udp_setup_socket(struct work_struct *work)
 			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	xs_udp_finish_connecting(xprt, sock);
+	trace_rpc_socket_connect(xprt, sock, 0);
 	status = 0;
 out:
 	xprt_clear_connecting(xprt);
@@ -2064,6 +2072,8 @@ static void xs_abort_connection(struct sock_xprt *transport)
 	memset(&any, 0, sizeof(any));
 	any.sa_family = AF_UNSPEC;
 	result = kernel_connect(transport->sock, &any, sizeof(any), 0);
+	trace_rpc_socket_reset_connection(&transport->xprt,
+			transport->sock, result);
 	if (!result)
 		xs_sock_reset_connection_flags(&transport->xprt);
 	dprintk("RPC:       AF_UNSPEC connect return code %d\n", result);
@@ -2194,6 +2204,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	status = xs_tcp_finish_connecting(xprt, sock);
+	trace_rpc_socket_connect(xprt, sock, status);
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);

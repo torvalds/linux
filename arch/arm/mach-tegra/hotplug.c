@@ -37,24 +37,13 @@ int tegra_cpu_kill(unsigned cpu)
 void __ref tegra_cpu_die(unsigned int cpu)
 {
 	/* Clean L1 data cache */
-	tegra_disable_clean_inv_dcache();
+	tegra_disable_clean_inv_dcache(TEGRA_FLUSH_CACHE_LOUIS);
 
 	/* Shut down the current CPU. */
 	tegra_hotplug_shutdown();
 
 	/* Should never return here. */
 	BUG();
-}
-
-int tegra_cpu_disable(unsigned int cpu)
-{
-	switch (tegra_chip_id) {
-	case TEGRA20:
-	case TEGRA30:
-		return cpu == 0 ? -EPERM : 0;
-	default:
-		return 0;
-	}
 }
 
 void __init tegra_hotplug_init(void)

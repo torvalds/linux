@@ -68,7 +68,8 @@ struct s3c24xx_uart_port {
 /* register access controls */
 
 #define portaddr(port, reg) ((port)->membase + (reg))
-#define portaddrl(port, reg) ((unsigned long *)((port)->membase + (reg)))
+#define portaddrl(port, reg) \
+	((unsigned long *)(unsigned long)((port)->membase + (reg)))
 
 #define rd_regb(port, reg) (__raw_readb(portaddr(port, reg)))
 #define rd_regl(port, reg) (__raw_readl(portaddr(port, reg)))

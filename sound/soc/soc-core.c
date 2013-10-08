@@ -30,9 +30,12 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <sound/ac97_codec.h>
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -46,8 +49,6 @@
 #include <trace/events/asoc.h>
 
 #define NAME_SIZE	32
-
-static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
 
 #ifdef CONFIG_DEBUG_FS
 struct dentry *snd_soc_debugfs_root;
@@ -68,6 +69,16 @@ static LIST_HEAD(component_list);
 static int pmdown_time = 5000;
 module_param(pmdown_time, int, 0);
 MODULE_PARM_DESC(pmdown_time, "DAPM stream powerdown time (msecs)");
+
+struct snd_ac97_reset_cfg {
+	struct pinctrl *pctl;
+	struct pinctrl_state *pstate_reset;
+	struct pinctrl_state *pstate_warm_reset;
+	struct pinctrl_state *pstate_run;
+	int gpio_sdata;
+	int gpio_sync;
+	int gpio_reset;
+};
 
 /* returns the minimum number of bytes needed to represent
  * a particular given value */
@@ -192,7 +203,7 @@ static ssize_t pmdown_time_set(struct device *dev,
 	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 	int ret;
 
-	ret = strict_strtol(buf, 10, &rtd->pmdown_time);
+	ret = kstrtol(buf, 10, &rtd->pmdown_time);
 	if (ret)
 		return ret;
 
@@ -237,6 +248,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 	char *start = buf;
 	unsigned long reg, value;
 	struct snd_soc_codec *codec = file->private_data;
+	int ret;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -248,8 +260,9 @@ static ssize_t codec_reg_write_file(struct file *file,
 	reg = simple_strtoul(start, &start, 16);
 	while (*start == ' ')
 		start++;
-	if (strict_strtoul(start, 16, &value))
-		return -EINVAL;
+	ret = kstrtoul(start, 16, &value);
+	if (ret)
+		return ret;
 
 	/* Userspace has been fiddling around behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
@@ -529,6 +542,15 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	return 0;
 }
 #endif
+
+static void codec2codec_close_delayed_work(struct work_struct *work)
+{
+	/* Currently nothing to do for c2c links
+	 * Since c2c links are internal nodes in the DAPM graph and
+	 * don't interface with the outside world or application layer
+	 * we don't have to do any special handling on close.
+	 */
+}
 
 #ifdef CONFIG_PM_SLEEP
 /* powers down audio subsystem for suspend */
@@ -1223,9 +1245,6 @@ static int soc_post_component_init(struct snd_soc_card *card,
 	}
 	rtd->card = card;
 
-	/* Make sure all DAPM widgets are instantiated */
-	snd_soc_dapm_new_widgets(&codec->dapm);
-
 	/* machine controls, routes and widgets are not prefixed */
 	temp = codec->name_prefix;
 	codec->name_prefix = NULL;
@@ -1361,7 +1380,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 				return -ENODEV;
 
 			list_add(&cpu_dai->dapm.list, &card->dapm_list);
-			snd_soc_dapm_new_dai_widgets(&cpu_dai->dapm, cpu_dai);
 		}
 
 		if (cpu_dai->driver->probe) {
@@ -1428,6 +1446,9 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 				return ret;
 			}
 		} else {
+			INIT_DELAYED_WORK(&rtd->delayed_work,
+						codec2codec_close_delayed_work);
+
 			/* link the DAI widgets */
 			play_w = codec_dai->playback_widget;
 			capture_w = cpu_dai->capture_widget;
@@ -1718,8 +1739,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
 
-	snd_soc_dapm_new_widgets(&card->dapm);
-
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];
 		dai_fmt = dai_link->dai_fmt;
@@ -1798,11 +1817,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		}
 	}
 
-	snd_soc_dapm_new_widgets(&card->dapm);
-
 	if (card->fully_routed)
 		list_for_each_entry(codec, &card->codec_dev_list, card_list)
 			snd_soc_dapm_auto_nc_codec_pins(codec);
+
+	snd_soc_dapm_new_widgets(card);
 
 	ret = snd_card_register(card->snd_card);
 	if (ret < 0) {
@@ -2080,6 +2099,117 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
+static struct snd_ac97_reset_cfg snd_ac97_rst_cfg;
+
+static void snd_soc_ac97_warm_reset(struct snd_ac97 *ac97)
+{
+	struct pinctrl *pctl = snd_ac97_rst_cfg.pctl;
+
+	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_warm_reset);
+
+	gpio_direction_output(snd_ac97_rst_cfg.gpio_sync, 1);
+
+	udelay(10);
+
+	gpio_direction_output(snd_ac97_rst_cfg.gpio_sync, 0);
+
+	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_run);
+	msleep(2);
+}
+
+static void snd_soc_ac97_reset(struct snd_ac97 *ac97)
+{
+	struct pinctrl *pctl = snd_ac97_rst_cfg.pctl;
+
+	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_reset);
+
+	gpio_direction_output(snd_ac97_rst_cfg.gpio_sync, 0);
+	gpio_direction_output(snd_ac97_rst_cfg.gpio_sdata, 0);
+	gpio_direction_output(snd_ac97_rst_cfg.gpio_reset, 0);
+
+	udelay(10);
+
+	gpio_direction_output(snd_ac97_rst_cfg.gpio_reset, 1);
+
+	pinctrl_select_state(pctl, snd_ac97_rst_cfg.pstate_run);
+	msleep(2);
+}
+
+static int snd_soc_ac97_parse_pinctl(struct device *dev,
+		struct snd_ac97_reset_cfg *cfg)
+{
+	struct pinctrl *p;
+	struct pinctrl_state *state;
+	int gpio;
+	int ret;
+
+	p = devm_pinctrl_get(dev);
+	if (IS_ERR(p)) {
+		dev_err(dev, "Failed to get pinctrl\n");
+		return PTR_RET(p);
+	}
+	cfg->pctl = p;
+
+	state = pinctrl_lookup_state(p, "ac97-reset");
+	if (IS_ERR(state)) {
+		dev_err(dev, "Can't find pinctrl state ac97-reset\n");
+		return PTR_RET(state);
+	}
+	cfg->pstate_reset = state;
+
+	state = pinctrl_lookup_state(p, "ac97-warm-reset");
+	if (IS_ERR(state)) {
+		dev_err(dev, "Can't find pinctrl state ac97-warm-reset\n");
+		return PTR_RET(state);
+	}
+	cfg->pstate_warm_reset = state;
+
+	state = pinctrl_lookup_state(p, "ac97-running");
+	if (IS_ERR(state)) {
+		dev_err(dev, "Can't find pinctrl state ac97-running\n");
+		return PTR_RET(state);
+	}
+	cfg->pstate_run = state;
+
+	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 0);
+	if (gpio < 0) {
+		dev_err(dev, "Can't find ac97-sync gpio\n");
+		return gpio;
+	}
+	ret = devm_gpio_request(dev, gpio, "AC97 link sync");
+	if (ret) {
+		dev_err(dev, "Failed requesting ac97-sync gpio\n");
+		return ret;
+	}
+	cfg->gpio_sync = gpio;
+
+	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 1);
+	if (gpio < 0) {
+		dev_err(dev, "Can't find ac97-sdata gpio %d\n", gpio);
+		return gpio;
+	}
+	ret = devm_gpio_request(dev, gpio, "AC97 link sdata");
+	if (ret) {
+		dev_err(dev, "Failed requesting ac97-sdata gpio\n");
+		return ret;
+	}
+	cfg->gpio_sdata = gpio;
+
+	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 2);
+	if (gpio < 0) {
+		dev_err(dev, "Can't find ac97-reset gpio\n");
+		return gpio;
+	}
+	ret = devm_gpio_request(dev, gpio, "AC97 link reset");
+	if (ret) {
+		dev_err(dev, "Failed requesting ac97-reset gpio\n");
+		return ret;
+	}
+	cfg->gpio_reset = gpio;
+
+	return 0;
+}
+
 struct snd_ac97_bus_ops *soc_ac97_ops;
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
@@ -2096,6 +2226,35 @@ int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_set_ac97_ops);
+
+/**
+ * snd_soc_set_ac97_ops_of_reset - Set ac97 ops with generic ac97 reset functions
+ *
+ * This function sets the reset and warm_reset properties of ops and parses
+ * the device node of pdev to get pinctrl states and gpio numbers to use.
+ */
+int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
+		struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct snd_ac97_reset_cfg cfg;
+	int ret;
+
+	ret = snd_soc_ac97_parse_pinctl(dev, &cfg);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_set_ac97_ops(ops);
+	if (ret)
+		return ret;
+
+	ops->warm_reset = snd_soc_ac97_warm_reset;
+	ops->reset = snd_soc_ac97_reset;
+
+	snd_ac97_rst_cfg = cfg;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_set_ac97_ops_of_reset);
 
 /**
  * snd_soc_free_ac97_codec - free AC97 codec device
@@ -2298,6 +2457,22 @@ static int snd_soc_add_controls(struct snd_card *card, struct device *dev,
 
 	return 0;
 }
+
+struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
+					       const char *name)
+{
+	struct snd_card *card = soc_card->snd_card;
+	struct snd_kcontrol *kctl;
+
+	if (unlikely(!name))
+		return NULL;
+
+	list_for_each_entry(kctl, &card->controls, list)
+		if (!strncmp(kctl->id.name, name, sizeof(kctl->id.name)))
+			return kctl;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
 
 /**
  * snd_soc_add_codec_controls - add an array of controls to a codec.
@@ -2539,59 +2714,6 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	return snd_soc_update_bits_locked(codec, e->reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_value_enum_double);
-
-/**
- * snd_soc_info_enum_ext - external enumerated single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about an external enumerated
- * single mixer.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = e->max;
-
-	if (uinfo->value.enumerated.item > e->max - 1)
-		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_enum_ext);
-
-/**
- * snd_soc_info_volsw_ext - external single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about a single external mixer control.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_volsw_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	int max = kcontrol->private_value;
-
-	if (max == 1 && !strstr(kcontrol->id.name, " Volume"))
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_volsw_ext);
 
 /**
  * snd_soc_info_volsw - single mixer info callback

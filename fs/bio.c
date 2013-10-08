@@ -917,8 +917,8 @@ void bio_copy_data(struct bio *dst, struct bio *src)
 		src_p = kmap_atomic(src_bv->bv_page);
 		dst_p = kmap_atomic(dst_bv->bv_page);
 
-		memcpy(dst_p + dst_bv->bv_offset,
-		       src_p + src_bv->bv_offset,
+		memcpy(dst_p + dst_offset,
+		       src_p + src_offset,
 		       bytes);
 
 		kunmap_atomic(dst_p);
@@ -1956,7 +1956,7 @@ int bio_associate_current(struct bio *bio)
 
 	/* associate blkcg if exists */
 	rcu_read_lock();
-	css = task_subsys_state(current, blkio_subsys_id);
+	css = task_css(current, blkio_subsys_id);
 	if (css && css_tryget(css))
 		bio->bi_css = css;
 	rcu_read_unlock();

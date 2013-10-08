@@ -25,7 +25,6 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include <sound/soc-dapm.h>
-#include <asm/mach-types.h>
 
 #include "../codecs/sgtl5000.h"
 #include "mxs-saif.h"
@@ -51,18 +50,27 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Sgtl5000 sysclk should be >= 8MHz and <= 27M */
-	if (mclk < 8000000 || mclk > 27000000)
+	if (mclk < 8000000 || mclk > 27000000) {
+		dev_err(codec_dai->dev, "Invalid mclk frequency: %u.%03uMHz\n",
+			mclk / 1000000, mclk / 1000 % 1000);
 		return -EINVAL;
+	}
 
 	/* Set SGTL5000's SYSCLK (provided by SAIF MCLK) */
 	ret = snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, mclk, 0);
-	if (ret)
+	if (ret) {
+		dev_err(codec_dai->dev, "Failed to set sysclk to %u.%03uMHz\n",
+			mclk / 1000000, mclk / 1000 % 1000);
 		return ret;
+	}
 
 	/* The SAIF MCLK should be the same as SGTL5000_SYSCLK */
 	ret = snd_soc_dai_set_sysclk(cpu_dai, MXS_SAIF_MCLK, mclk, 0);
-	if (ret)
+	if (ret) {
+		dev_err(cpu_dai->dev, "Failed to set sysclk to %u.%03uMHz\n",
+			mclk / 1000000, mclk / 1000 % 1000);
 		return ret;
+	}
 
 	/* set codec to slave mode */
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
@@ -70,13 +78,19 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
-	if (ret)
+	if (ret) {
+		dev_err(codec_dai->dev, "Failed to set dai format to %08x\n",
+			dai_format);
 		return ret;
+	}
 
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
-	if (ret)
+	if (ret) {
+		dev_err(cpu_dai->dev, "Failed to set dai format to %08x\n",
+			dai_format);
 		return ret;
+	}
 
 	return 0;
 }
@@ -91,11 +105,13 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.stream_name	= "HiFi Playback",
 		.codec_dai_name	= "sgtl5000",
 		.ops		= &mxs_sgtl5000_hifi_ops,
+		.playback_only	= true,
 	}, {
 		.name		= "HiFi Rx",
 		.stream_name	= "HiFi Capture",
 		.codec_dai_name	= "sgtl5000",
 		.ops		= &mxs_sgtl5000_hifi_ops,
+		.capture_only	= true,
 	},
 };
 
@@ -154,8 +170,10 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 	 * should be >= 8MHz and <= 27M.
 	 */
 	ret = mxs_saif_get_mclk(0, 44100 * 256, 44100);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get mclk\n");
 		return ret;
+	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);

@@ -156,19 +156,19 @@ bit 0 (V4L2_DV_VSYNC_POS_POL) is for vertical sync polarity and bit 1 (V4L2_DV_H
 	    <entry>__u32</entry>
 	    <entry><structfield>il_vfrontporch</structfield></entry>
 	    <entry>Vertical front porch in lines for the even field (aka field 2) of
-	    interlaced field formats.</entry>
+	    interlaced field formats. Must be 0 for progressive formats.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>il_vsync</structfield></entry>
 	    <entry>Vertical sync length in lines for the even field (aka field 2) of
-	    interlaced field formats.</entry>
+	    interlaced field formats. Must be 0 for progressive formats.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>il_vbackporch</structfield></entry>
 	    <entry>Vertical back porch in lines for the even field (aka field 2) of
-	    interlaced field formats.</entry>
+	    interlaced field formats. Must be 0 for progressive formats.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-dnskw.dtsi"
+#include "kirkwood-dnskw.dtsi"
 
 / {
 	model = "D-Link DNS-325 NAS (Rev A1)";

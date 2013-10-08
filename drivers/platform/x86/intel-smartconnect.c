@@ -74,17 +74,6 @@ static struct acpi_driver smartconnect_driver = {
 	},
 };
 
-static int smartconnect_init(void)
-{
-	return acpi_bus_register_driver(&smartconnect_driver);
-}
-
-static void smartconnect_exit(void)
-{
-	acpi_bus_unregister_driver(&smartconnect_driver);
-}
-
-module_init(smartconnect_init);
-module_exit(smartconnect_exit);
+module_acpi_driver(smartconnect_driver);
 
 MODULE_DEVICE_TABLE(acpi, smartconnect_ids);

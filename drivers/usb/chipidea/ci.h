@@ -132,6 +132,9 @@ struct hw_bank {
  * @transceiver: pointer to USB PHY, if any
  * @hcd: pointer to usb_hcd for ehci host driver
  * @debugfs: root dentry for this controller in debugfs
+ * @id_event: indicates there is an id event, and handled at ci_otg_work
+ * @b_sess_valid_event: indicates there is a vbus event, and handled
+ * at ci_otg_work
  */
 struct ci_hdrc {
 	struct device			*dev;
@@ -168,6 +171,8 @@ struct ci_hdrc {
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
 	struct dentry			*debugfs;
+	bool				id_event;
+	bool				b_sess_valid_event;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci_hdrc *ci)
@@ -302,5 +307,8 @@ int hw_device_reset(struct ci_hdrc *ci, u32 mode);
 int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 
 u8 hw_port_test_get(struct ci_hdrc *ci);
+
+int hw_wait_reg(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask,
+				u32 value, unsigned int timeout_ms);
 
 #endif	/* __DRIVERS_USB_CHIPIDEA_CI_H */

@@ -35,6 +35,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 
+#include <media/rc-core.h>
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
@@ -467,6 +468,12 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		goto error;
 	}
 
+	if (ir->d.rdev) {
+		retval = rc_open(ir->d.rdev);
+		if (retval)
+			goto error;
+	}
+
 	cdev = ir->cdev;
 	if (try_module_get(cdev->owner)) {
 		ir->open++;
@@ -510,6 +517,9 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 	dev_dbg(ir->d.dev, LOGHEAD "close called\n", ir->d.name, ir->d.minor);
 
 	WARN_ON(mutex_lock_killable(&lirc_dev_lock));
+
+	if (ir->d.rdev)
+		rc_close(ir->d.rdev);
 
 	ir->open--;
 	if (ir->attached) {

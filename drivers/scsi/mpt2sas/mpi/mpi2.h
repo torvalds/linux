@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2012 LSI Corporation.
+ *  Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *           Name:  mpi2.h
@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.27
+ *  mpi2.h Version:  02.00.28
  *
  *  Version History
  *  ---------------
@@ -77,6 +77,7 @@
  *                      Added Hard Reset delay timings.
  *  07-10-12  02.00.26  Bumped MPI2_HEADER_VERSION_UNIT.
  *  07-26-12  02.00.27  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-27-12  02.00.28  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -102,7 +103,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x1B)
+#define MPI2_HEADER_VERSION_UNIT            (0x1C)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)

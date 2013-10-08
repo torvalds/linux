@@ -29,7 +29,7 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 	if (!(ha->fw_dump_reading || ha->mctp_dump_reading))
 		return 0;
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_P3P_TYPE(ha)) {
 		if (off < ha->md_template_size) {
 			rval = memory_read_from_buffer(buf, count,
 			    &off, ha->md_tmplt_hdr, ha->md_template_size);
@@ -71,7 +71,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		ql_log(ql_log_info, vha, 0x705d,
 		    "Firmware dump cleared on (%ld).\n", vha->host_no);
 
-		if (IS_QLA82XX(vha->hw)) {
+		if (IS_P3P_TYPE(ha)) {
 			qla82xx_md_free(vha);
 			qla82xx_md_prep(vha);
 		}
@@ -95,11 +95,15 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);
+		} else if (IS_QLA8044(ha)) {
+			qla8044_idc_lock(ha);
+			qla82xx_set_reset_owner(vha);
+			qla8044_idc_unlock(ha);
 		} else
 			qla2x00_system_error(vha);
 		break;
 	case 4:
-		if (IS_QLA82XX(ha)) {
+		if (IS_P3P_TYPE(ha)) {
 			if (ha->md_tmplt_hdr)
 				ql_dbg(ql_dbg_user, vha, 0x705b,
 				    "MiniDump supported with this firmware.\n");
@@ -109,7 +113,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		}
 		break;
 	case 5:
-		if (IS_QLA82XX(ha))
+		if (IS_P3P_TYPE(ha))
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 	case 6:
@@ -586,7 +590,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	int type;
 	uint32_t idc_control;
-
+	uint8_t *tmp_data = NULL;
 	if (off != 0)
 		return -EINVAL;
 
@@ -597,14 +601,23 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		    "Issuing ISP reset.\n");
 
 		scsi_block_requests(vha->host);
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		if (IS_QLA82XX(ha)) {
 			ha->flags.isp82xx_no_md_cap = 1;
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);
+		} else if (IS_QLA8044(ha)) {
+			qla8044_idc_lock(ha);
+			idc_control = qla8044_rd_reg(ha,
+			    QLA8044_IDC_DRV_CTRL);
+			qla8044_wr_reg(ha, QLA8044_IDC_DRV_CTRL,
+			    (idc_control | GRACEFUL_RESET_BIT1));
+			qla82xx_set_reset_owner(vha);
+			qla8044_idc_unlock(ha);
+		} else {
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
 		}
-		qla2xxx_wake_dpc(vha);
 		qla2x00_wait_for_chip_reset(vha);
 		scsi_unblock_requests(vha->host);
 		break;
@@ -640,7 +653,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 			break;
 		}
 	case 0x2025e:
-		if (!IS_QLA82XX(ha) || vha != base_vha) {
+		if (!IS_P3P_TYPE(ha) || vha != base_vha) {
 			ql_log(ql_log_info, vha, 0x7071,
 			    "FCoE ctx reset no supported.\n");
 			return -EPERM;
@@ -674,7 +687,19 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		__qla83xx_set_idc_control(vha, idc_control);
 		qla83xx_idc_unlock(vha, 0);
 		break;
+	case 0x20261:
+		ql_dbg(ql_dbg_user, vha, 0x70e0,
+		    "Updating cache versions without reset ");
 
+		tmp_data = vmalloc(256);
+		if (!tmp_data) {
+			ql_log(ql_log_warn, vha, 0x70e1,
+			    "Unable to allocate memory for VPD information update.\n");
+			return -ENOMEM;
+		}
+		ha->isp_ops->get_flash_version(vha, tmp_data);
+		vfree(tmp_data);
+		break;
 	}
 	return count;
 }
@@ -1212,7 +1237,7 @@ qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha) && !IS_QLA8044(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",
@@ -1265,10 +1290,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 	if (!IS_CNA_CAPABLE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
-	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-	    vha->fcoe_vn_port_mac[5], vha->fcoe_vn_port_mac[4],
-	    vha->fcoe_vn_port_mac[3], vha->fcoe_vn_port_mac[2],
-	    vha->fcoe_vn_port_mac[1], vha->fcoe_vn_port_mac[0]);
+	return snprintf(buf, PAGE_SIZE, "%pMR\n", vha->fcoe_vn_port_mac);
 }
 
 static ssize_t
@@ -1286,12 +1308,6 @@ qla2x00_thermal_temp_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	uint16_t temp = 0;
-
-	if (!vha->hw->thermal_support) {
-		ql_log(ql_log_warn, vha, 0x70db,
-		    "Thermal not supported by this card.\n");
-		goto done;
-	}
 
 	if (qla2x00_reset_active(vha)) {
 		ql_log(ql_log_warn, vha, 0x70dc, "ISP reset active.\n");
@@ -1725,16 +1741,36 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 		pfc_host_stat->lip_count = stats->lip_cnt;
 		pfc_host_stat->tx_frames = stats->tx_frames;
 		pfc_host_stat->rx_frames = stats->rx_frames;
-		pfc_host_stat->dumped_frames = stats->dumped_frames;
+		pfc_host_stat->dumped_frames = stats->discarded_frames;
 		pfc_host_stat->nos_count = stats->nos_rcvd;
+		pfc_host_stat->error_frames =
+			stats->dropped_frames + stats->discarded_frames;
+		pfc_host_stat->rx_words = vha->qla_stats.input_bytes;
+		pfc_host_stat->tx_words = vha->qla_stats.output_bytes;
 	}
+	pfc_host_stat->fcp_control_requests = vha->qla_stats.control_requests;
+	pfc_host_stat->fcp_input_requests = vha->qla_stats.input_requests;
+	pfc_host_stat->fcp_output_requests = vha->qla_stats.output_requests;
 	pfc_host_stat->fcp_input_megabytes = vha->qla_stats.input_bytes >> 20;
 	pfc_host_stat->fcp_output_megabytes = vha->qla_stats.output_bytes >> 20;
+	pfc_host_stat->seconds_since_last_reset =
+		get_jiffies_64() - vha->qla_stats.jiffies_at_last_reset;
+	do_div(pfc_host_stat->seconds_since_last_reset, HZ);
 
 done_free:
         dma_pool_free(ha->s_dma_pool, stats, stats_dma);
 done:
 	return pfc_host_stat;
+}
+
+static void
+qla2x00_reset_host_stats(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *vha = shost_priv(shost);
+
+	memset(&vha->fc_host_stat, 0, sizeof(vha->fc_host_stat));
+
+	vha->qla_stats.jiffies_at_last_reset = get_jiffies_64();
 }
 
 static void
@@ -2043,6 +2079,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.dev_loss_tmo_callbk = qla2x00_dev_loss_tmo_callbk,
 	.terminate_rport_io = qla2x00_terminate_rport_io,
 	.get_fc_host_stats = qla2x00_get_fc_host_stats,
+	.reset_fc_host_stats = qla2x00_reset_host_stats,
 
 	.vport_create = qla24xx_vport_create,
 	.vport_disable = qla24xx_vport_disable,
@@ -2089,6 +2126,8 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 	.dev_loss_tmo_callbk = qla2x00_dev_loss_tmo_callbk,
 	.terminate_rport_io = qla2x00_terminate_rport_io,
 	.get_fc_host_stats = qla2x00_get_fc_host_stats,
+	.reset_fc_host_stats = qla2x00_reset_host_stats,
+
 	.bsg_request = qla24xx_bsg_request,
 	.bsg_timeout = qla24xx_bsg_timeout,
 };

@@ -54,7 +54,6 @@ extern struct mutex ptlrpcd_mutex;
 __init int ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
-	ENTRY;
 
 	lustre_assert_wire_constants();
 #if RS_DEBUG
@@ -67,11 +66,11 @@ __init int ptlrpc_init(void)
 
 	rc = req_layout_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = ptlrpc_hr_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	cleanup_phase = 1;
 
@@ -110,7 +109,7 @@ __init int ptlrpc_init(void)
 	rc = tgt_mod_init();
 	if (rc)
 		GOTO(cleanup, rc);
-	RETURN(0);
+	return 0;
 
 cleanup:
 	switch(cleanup_phase) {
@@ -150,5 +149,7 @@ static void __exit ptlrpc_exit(void)
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Request Processor and Lock Management");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("1.0.0");
 
-cfs_module(ptlrpc, "1.0.0", ptlrpc_init, ptlrpc_exit);
+module_init(ptlrpc_init);
+module_exit(ptlrpc_exit);

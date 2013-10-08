@@ -56,7 +56,7 @@ config ATH9K_AHB
 
 config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
-	depends on ATH9K
+	depends on ATH9K && DEBUG_FS
 	select MAC80211_DEBUGFS
 	select RELAY
 	---help---
@@ -95,6 +95,16 @@ config ATH9K_LEGACY_RATE_CONTROL
 	  Note that even if this option is selected, "ath9k_rate_control"
 	  has to be passed to mac80211 using the module parameter,
 	  ieee80211_default_rc_algo.
+
+config ATH9K_RFKILL
+	bool "Atheros ath9k rfkill support" if EXPERT
+	depends on ATH9K
+	depends on RFKILL=y || RFKILL=ATH9K
+	default y
+	help
+	  Say Y to have ath9k poll the RF-Kill GPIO every couple of
+	  seconds. Turn off to save power, but enable it if you have
+	  a platform that can toggle the RF-Kill GPIO.
 
 config ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"

@@ -40,13 +40,9 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
-#include <linux/version.h>
 #include <asm/uaccess.h>
 
 #include <linux/fs.h>
-#include <linux/stat.h>
-#include <asm/uaccess.h>
-#include <linux/mm.h>
 #include <linux/pagemap.h>
 
 #define DEBUG_SUBSYSTEM S_LLITE
@@ -74,7 +70,6 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 			       size_t count)
 {
 	struct vm_area_struct *vma, *ret = NULL;
-	ENTRY;
 
 	/* mmap_sem must have been held by caller. */
 	LASSERT(!down_write_trylock(&mm->mmap_sem));
@@ -87,7 +82,7 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 			break;
 		}
 	}
-	RETURN(ret);
+	return ret;
 }
 
 /**
@@ -107,16 +102,16 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 			       struct cl_env_nest *nest,
 			       pgoff_t index, unsigned long *ra_flags)
 {
-	struct file       *file  = vma->vm_file;
-	struct inode      *inode = file->f_dentry->d_inode;
-	struct cl_io      *io;
-	struct cl_fault_io *fio;
-	struct lu_env     *env;
-	ENTRY;
+	struct file	       *file = vma->vm_file;
+	struct inode	       *inode = file->f_dentry->d_inode;
+	struct cl_io	       *io;
+	struct cl_fault_io     *fio;
+	struct lu_env	       *env;
+	int			rc;
 
 	*env_ret = NULL;
 	if (ll_file_nolock(file))
-		RETURN(ERR_PTR(-EOPNOTSUPP));
+		return ERR_PTR(-EOPNOTSUPP);
 
 	/*
 	 * page fault can be called when lustre IO is
@@ -127,7 +122,7 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 	 */
 	env = cl_env_nested_get(nest);
 	if (IS_ERR(env))
-		 RETURN(ERR_PTR(-EINVAL));
+		 return ERR_PTR(-EINVAL);
 
 	*env_ret = env;
 
@@ -152,17 +147,22 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 	CDEBUG(D_MMAP, "vm_flags: %lx (%lu %d)\n", vma->vm_flags,
 	       fio->ft_index, fio->ft_executable);
 
-	if (cl_io_init(env, io, CIT_FAULT, io->ci_obj) == 0) {
+	rc = cl_io_init(env, io, CIT_FAULT, io->ci_obj);
+	if (rc == 0) {
 		struct ccc_io *cio = ccc_env_io(env);
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		LASSERT(cio->cui_cl.cis_io == io);
 
-		/* mmap lock must be MANDATORY
-		 * it has to cache pages. */
+		/* mmap lock must be MANDATORY it has to cache
+		 * pages. */
 		io->ci_lockreq = CILR_MANDATORY;
-
-		cio->cui_fd  = fd;
+		cio->cui_fd = fd;
+	} else {
+		LASSERT(rc < 0);
+		cl_io_fini(env, io);
+		cl_env_nested_put(nest, env);
+		io = ERR_PTR(rc);
 	}
 
 	return io;
@@ -180,7 +180,6 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	sigset_t	     set;
 	struct inode	     *inode;
 	struct ll_inode_info     *lli;
-	ENTRY;
 
 	LASSERT(vmpage != NULL);
 
@@ -190,7 +189,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 
 	result = io->ci_result;
 	if (result < 0)
-		GOTO(out, result);
+		GOTO(out_io, result);
 
 	io->u.ci_fault.ft_mkwrite = 1;
 	io->u.ci_fault.ft_writable = 1;
@@ -250,16 +249,15 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			spin_unlock(&lli->lli_lock);
 		}
 	}
-	EXIT;
 
-out:
+out_io:
 	cl_io_fini(env, io);
 	cl_env_nested_put(&nest, env);
-
+out:
 	CDEBUG(D_MMAP, "%s mkwrite with %d\n", current->comm, result);
-
 	LASSERT(ergo(result == 0, PageLocked(vmpage)));
-	return(result);
+
+	return result;
 }
 
 
@@ -304,11 +302,10 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct cl_env_nest       nest;
 	int		      result;
 	int		      fault_ret = 0;
-	ENTRY;
 
 	io = ll_fault_io_init(vma, &env,  &nest, vmf->pgoff, &ra_flags);
 	if (IS_ERR(io))
-		RETURN(to_fault_error(PTR_ERR(io)));
+		return to_fault_error(PTR_ERR(io));
 
 	result = io->ci_result;
 	if (result == 0) {
@@ -335,7 +332,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	CDEBUG(D_MMAP, "%s fault %d/%d\n",
 	       current->comm, fault_ret, result);
-	RETURN(fault_ret);
+	return fault_ret;
 }
 
 static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -431,11 +428,9 @@ static void ll_vm_open(struct vm_area_struct * vma)
 	struct inode *inode    = vma->vm_file->f_dentry->d_inode;
 	struct ccc_object *vob = cl_inode2ccc(inode);
 
-	ENTRY;
 	LASSERT(vma->vm_file);
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
 	atomic_inc(&vob->cob_mmap_cnt);
-	EXIT;
 }
 
 /**
@@ -446,11 +441,9 @@ static void ll_vm_close(struct vm_area_struct *vma)
 	struct inode      *inode = vma->vm_file->f_dentry->d_inode;
 	struct ccc_object *vob   = cl_inode2ccc(inode);
 
-	ENTRY;
 	LASSERT(vma->vm_file);
 	atomic_dec(&vob->cob_mmap_cnt);
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
-	EXIT;
 }
 
 
@@ -466,7 +459,6 @@ static inline unsigned long file_to_user(struct vm_area_struct *vma, __u64 byte)
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 {
 	int rc = -ENOENT;
-	ENTRY;
 
 	LASSERTF(last > first, "last "LPU64" first "LPU64"\n", last, first);
 	if (mapping_mapped(mapping)) {
@@ -475,7 +467,7 @@ int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 				    last - first + 1, 0);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 static struct vm_operations_struct ll_file_vm_ops = {
@@ -489,10 +481,9 @@ int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	int rc;
-	ENTRY;
 
 	if (ll_file_nolock(file))
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_MAP, 1);
 	rc = generic_file_mmap(file, vma);
@@ -503,5 +494,5 @@ int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
 		rc = ll_glimpse_size(inode);
 	}
 
-	RETURN(rc);
+	return rc;
 }

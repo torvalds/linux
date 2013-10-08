@@ -171,10 +171,10 @@ ret_from_intr:
 	mov	(REG_EPSW,fp),d0	# need to deliver signals before
 					# returning to userspace
 	and	EPSW_nSL,d0
-	beq	resume_kernel		# returning to supervisor mode
+	bne	resume_userspace	# returning to userspace
 
 #ifdef CONFIG_PREEMPT
-ENTRY(resume_kernel)
+resume_kernel:
 	LOCAL_IRQ_DISABLE
 	mov	(TI_preempt_count,a2),d0	# non-zero preempt_count ?
 	cmp	0,d0
@@ -189,6 +189,8 @@ need_resched:
 	bne	restore_all
 	call	preempt_schedule_irq[],0
 	jmp	need_resched
+#else
+	jmp	resume_kernel
 #endif
 
 

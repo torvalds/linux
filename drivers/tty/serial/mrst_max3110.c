@@ -713,7 +713,7 @@ static void serial_m3110_enable_ms(struct uart_port *port)
 {
 }
 
-struct uart_ops serial_m3110_ops = {
+static struct uart_ops serial_m3110_ops = {
 	.tx_empty	= serial_m3110_tx_empty,
 	.set_mctrl	= serial_m3110_set_mctrl,
 	.get_mctrl	= serial_m3110_get_mctrl,
@@ -844,7 +844,7 @@ static int serial_m3110_probe(struct spi_device *spi)
 	pmax = max;
 
 	/* Give membase a psudo value to pass serial_core's check */
-	max->port.membase = (void *)0xff110000;
+	max->port.membase = (unsigned char __iomem *)0xff110000;
 	uart_add_one_port(&serial_m3110_reg, &max->port);
 
 	return 0;

@@ -203,9 +203,6 @@ int cirrus_gem_create(struct drm_device *dev,
 int cirrus_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		       struct drm_mode_create_dumb *args);
-int cirrus_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-			uint32_t handle);
 
 int cirrus_framebuffer_init(struct drm_device *dev,
 			   struct cirrus_framebuffer *gfb,

@@ -197,7 +197,8 @@ static int omap_control_usb_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	struct device_node *np = pdev->dev.of_node;
-	struct omap_control_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct omap_control_usb_platform_data *pdata =
+			dev_get_platdata(&pdev->dev);
 
 	control_usb = devm_kzalloc(&pdev->dev, sizeof(*control_usb),
 		GFP_KERNEL);

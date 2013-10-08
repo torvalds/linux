@@ -76,8 +76,6 @@ struct irq_desc {
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
-#ifdef CONFIG_GENERIC_HARDIRQS
-
 static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
 {
 	return &desc->irq_data;
@@ -172,7 +170,6 @@ __irq_set_preflow_handler(unsigned int irq, irq_preflow_handler_t handler)
 	desc = irq_to_desc(irq);
 	desc->preflow_handler = handler;
 }
-#endif
 #endif
 
 #endif

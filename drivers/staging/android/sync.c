@@ -697,7 +697,7 @@ static long sync_fence_ioctl_wait(struct sync_fence *fence, unsigned long arg)
 
 static long sync_fence_ioctl_merge(struct sync_fence *fence, unsigned long arg)
 {
-	int fd = get_unused_fd();
+	int fd = get_unused_fd_flags(O_CLOEXEC);
 	int err;
 	struct sync_fence *fence2, *fence3;
 	struct sync_merge_data data;

@@ -32,88 +32,6 @@
 #include <linux/slab.h>
 #include "cifs_spnego.h"
 
-/*
- * Checks if this is the first smb session to be reconnected after
- * the socket has been reestablished (so we know whether to use vc 0).
- * Called while holding the cifs_tcp_ses_lock, so do not block
- */
-static bool is_first_ses_reconnect(struct cifs_ses *ses)
-{
-	struct list_head *tmp;
-	struct cifs_ses *tmp_ses;
-
-	list_for_each(tmp, &ses->server->smb_ses_list) {
-		tmp_ses = list_entry(tmp, struct cifs_ses,
-				     smb_ses_list);
-		if (tmp_ses->need_reconnect == false)
-			return false;
-	}
-	/* could not find a session that was already connected,
-	   this must be the first one we are reconnecting */
-	return true;
-}
-
-/*
- *	vc number 0 is treated specially by some servers, and should be the
- *      first one we request.  After that we can use vcnumbers up to maxvcs,
- *	one for each smb session (some Windows versions set maxvcs incorrectly
- *	so maxvc=1 can be ignored).  If we have too many vcs, we can reuse
- *	any vc but zero (some servers reset the connection on vcnum zero)
- *
- */
-static __le16 get_next_vcnum(struct cifs_ses *ses)
-{
-	__u16 vcnum = 0;
-	struct list_head *tmp;
-	struct cifs_ses *tmp_ses;
-	__u16 max_vcs = ses->server->max_vcs;
-	__u16 i;
-	int free_vc_found = 0;
-
-	/* Quoting the MS-SMB specification: "Windows-based SMB servers set this
-	field to one but do not enforce this limit, which allows an SMB client
-	to establish more virtual circuits than allowed by this value ... but
-	other server implementations can enforce this limit." */
-	if (max_vcs < 2)
-		max_vcs = 0xFFFF;
-
-	spin_lock(&cifs_tcp_ses_lock);
-	if ((ses->need_reconnect) && is_first_ses_reconnect(ses))
-			goto get_vc_num_exit;  /* vcnum will be zero */
-	for (i = ses->server->srv_count - 1; i < max_vcs; i++) {
-		if (i == 0) /* this is the only connection, use vc 0 */
-			break;
-
-		free_vc_found = 1;
-
-		list_for_each(tmp, &ses->server->smb_ses_list) {
-			tmp_ses = list_entry(tmp, struct cifs_ses,
-					     smb_ses_list);
-			if (tmp_ses->vcnum == i) {
-				free_vc_found = 0;
-				break; /* found duplicate, try next vcnum */
-			}
-		}
-		if (free_vc_found)
-			break; /* we found a vcnumber that will work - use it */
-	}
-
-	if (i == 0)
-		vcnum = 0; /* for most common case, ie if one smb session, use
-			      vc zero.  Also for case when no free vcnum, zero
-			      is safest to send (some clients only send zero) */
-	else if (free_vc_found == 0)
-		vcnum = 1;  /* we can not reuse vc=0 safely, since some servers
-				reset all uids on that, but 1 is ok. */
-	else
-		vcnum = i;
-	ses->vcnum = vcnum;
-get_vc_num_exit:
-	spin_unlock(&cifs_tcp_ses_lock);
-
-	return cpu_to_le16(vcnum);
-}
-
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 {
 	__u32 capabilities = 0;
@@ -128,7 +46,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4,
 					USHRT_MAX));
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
-	pSMB->req.VcNumber = get_next_vcnum(ses);
+	pSMB->req.VcNumber = __constant_cpu_to_le16(1);
 
 	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
 
@@ -226,7 +144,7 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 		*(bcc_ptr+1) = 0;
 	} else {
 		bytes_ret = cifs_strtoUTF16((__le16 *) bcc_ptr, ses->user_name,
-					    MAX_USERNAME_SIZE, nls_cp);
+					    CIFS_MAX_USERNAME_LEN, nls_cp);
 	}
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
@@ -246,8 +164,8 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	/* BB what about null user mounts - check that we do this BB */
 	/* copy user */
 	if (ses->user_name != NULL) {
-		strncpy(bcc_ptr, ses->user_name, MAX_USERNAME_SIZE);
-		bcc_ptr += strnlen(ses->user_name, MAX_USERNAME_SIZE);
+		strncpy(bcc_ptr, ses->user_name, CIFS_MAX_USERNAME_LEN);
+		bcc_ptr += strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
 	}
 	/* else null user mount */
 	*bcc_ptr = 0;
@@ -428,7 +346,8 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-		if (!ses->server->session_estab)
+		if (!ses->server->session_estab ||
+				ses->ntlmssp->sesskey_per_smbsess)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
@@ -466,7 +385,8 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-		if (!ses->server->session_estab)
+		if (!ses->server->session_estab ||
+				ses->ntlmssp->sesskey_per_smbsess)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
@@ -501,7 +421,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	} else {
 		int len;
 		len = cifs_strtoUTF16((__le16 *)tmp, ses->domainName,
-				      MAX_USERNAME_SIZE, nls_cp);
+				      CIFS_MAX_USERNAME_LEN, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->DomainName.Length = cpu_to_le16(len);
@@ -517,7 +437,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	} else {
 		int len;
 		len = cifs_strtoUTF16((__le16 *)tmp, ses->user_name,
-				      MAX_USERNAME_SIZE, nls_cp);
+				      CIFS_MAX_USERNAME_LEN, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->UserName.Length = cpu_to_le16(len);
@@ -629,7 +549,8 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	type = select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
 	if (type == Unspecified) {
-		cifs_dbg(VFS, "Unable to select appropriate authentication method!");
+		cifs_dbg(VFS,
+			"Unable to select appropriate authentication method!");
 		return -EINVAL;
 	}
 
@@ -640,6 +561,8 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
 		if (!ses->ntlmssp)
 			return -ENOMEM;
+		ses->ntlmssp->sesskey_per_smbsess = false;
+
 	}
 
 ssetup_ntlmssp_authenticate:
@@ -815,8 +738,9 @@ ssetup_ntlmssp_authenticate:
 		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
-			cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory",
-					msg->sesskey_len);
+			cifs_dbg(VFS,
+				"Kerberos can't allocate (%u bytes) memory",
+				msg->sesskey_len);
 			rc = -ENOMEM;
 			goto ssetup_exit;
 		}
@@ -1004,6 +928,38 @@ ssetup_exit:
 	/* if ntlmssp, and negotiate succeeded, proceed to authenticate phase */
 	if ((phase == NtLmChallenge) && (rc == 0))
 		goto ssetup_ntlmssp_authenticate;
+
+	if (!rc) {
+		mutex_lock(&ses->server->srv_mutex);
+		if (!ses->server->session_estab) {
+			if (ses->server->sign) {
+				ses->server->session_key.response =
+					kmemdup(ses->auth_key.response,
+					ses->auth_key.len, GFP_KERNEL);
+				if (!ses->server->session_key.response) {
+					rc = -ENOMEM;
+					mutex_unlock(&ses->server->srv_mutex);
+					goto keycp_exit;
+				}
+				ses->server->session_key.len =
+							ses->auth_key.len;
+			}
+			ses->server->sequence_number = 0x2;
+			ses->server->session_estab = true;
+		}
+		mutex_unlock(&ses->server->srv_mutex);
+
+		cifs_dbg(FYI, "CIFS session established successfully\n");
+		spin_lock(&GlobalMid_Lock);
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
+	}
+
+keycp_exit:
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+	kfree(ses->ntlmssp);
 
 	return rc;
 }

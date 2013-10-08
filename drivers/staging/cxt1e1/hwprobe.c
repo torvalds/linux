@@ -31,12 +31,6 @@
 #include "sbeproc.h"
 #endif
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
 extern int  cxt1e1_log_level;
 extern int  error_flag;
 extern int  drvr_state;
@@ -221,7 +215,7 @@ cleanup_devs (void)
 }
 
 
-STATIC int  __init
+static int  __init
 c4_hdw_init (struct pci_dev *pdev, int found)
 {
     hdw_info_t *hi;

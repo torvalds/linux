@@ -208,7 +208,7 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 		goto out;
 	}
 
-	rc = strict_strtoul(buf, 16, &i);
+	rc = kstrtoul(buf, 16, &i);
 	if (rc) {
 		rc = -EINVAL;
 		goto out;

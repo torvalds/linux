@@ -91,6 +91,7 @@
 struct wusbhc;
 struct wahc;
 extern void wa_urb_enqueue_run(struct work_struct *ws);
+extern void wa_process_errored_transfers_run(struct work_struct *ws);
 
 /**
  * RPipe instance
@@ -190,8 +191,14 @@ struct wahc {
 
 	struct list_head xfer_list;
 	struct list_head xfer_delayed_list;
+	struct list_head xfer_errored_list;
+	/*
+	 * lock for the above xfer lists.  Can be taken while a xfer->lock is
+	 * held but not in the reverse order.
+	 */
 	spinlock_t xfer_list_lock;
-	struct work_struct xfer_work;
+	struct work_struct xfer_enqueue_work;
+	struct work_struct xfer_error_work;
 	atomic_t xfer_id_count;
 };
 
@@ -244,8 +251,10 @@ static inline void wa_init(struct wahc *wa)
 	edc_init(&wa->dti_edc);
 	INIT_LIST_HEAD(&wa->xfer_list);
 	INIT_LIST_HEAD(&wa->xfer_delayed_list);
+	INIT_LIST_HEAD(&wa->xfer_errored_list);
 	spin_lock_init(&wa->xfer_list_lock);
-	INIT_WORK(&wa->xfer_work, wa_urb_enqueue_run);
+	INIT_WORK(&wa->xfer_enqueue_work, wa_urb_enqueue_run);
+	INIT_WORK(&wa->xfer_error_work, wa_process_errored_transfers_run);
 	atomic_set(&wa->xfer_id_count, 1);
 }
 
@@ -269,6 +278,8 @@ static inline void rpipe_put(struct wa_rpipe *rpipe)
 
 }
 extern void rpipe_ep_disable(struct wahc *, struct usb_host_endpoint *);
+extern void rpipe_clear_feature_stalled(struct wahc *,
+			struct usb_host_endpoint *);
 extern int wa_rpipes_create(struct wahc *);
 extern void wa_rpipes_destroy(struct wahc *);
 static inline void rpipe_avail_dec(struct wa_rpipe *rpipe)

@@ -571,7 +571,9 @@ static void tegra_uart_rx_dma_complete(void *args)
 
 	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
+		spin_unlock_irqrestore(&u->lock, flags);
 		tty_flip_buffer_push(port);
+		spin_lock_irqsave(&u->lock, flags);
 		tty_kref_put(tty);
 	}
 	tegra_uart_start_rx_dma(tup);
@@ -583,11 +585,13 @@ static void tegra_uart_rx_dma_complete(void *args)
 	spin_unlock_irqrestore(&u->lock, flags);
 }
 
-static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup)
+static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup,
+		unsigned long *flags)
 {
 	struct dma_tx_state state;
 	struct tty_struct *tty = tty_port_tty_get(&tup->uport.state->port);
 	struct tty_port *port = &tup->uport.state->port;
+	struct uart_port *u = &tup->uport;
 	int count;
 
 	/* Deactivate flow control to stop sender */
@@ -604,7 +608,9 @@ static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup)
 
 	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
+		spin_unlock_irqrestore(&u->lock, *flags);
 		tty_flip_buffer_push(port);
+		spin_lock_irqsave(&u->lock, *flags);
 		tty_kref_put(tty);
 	}
 	tegra_uart_start_rx_dma(tup);
@@ -671,7 +677,7 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 		iir = tegra_uart_read(tup, UART_IIR);
 		if (iir & UART_IIR_NO_INT) {
 			if (is_rx_int) {
-				tegra_uart_handle_rx_dma(tup);
+				tegra_uart_handle_rx_dma(tup, &flags);
 				if (tup->rx_in_progress) {
 					ier = tup->ier_shadow;
 					ier |= (UART_IER_RLSI | UART_IER_RTOIE |
@@ -726,7 +732,7 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 static void tegra_uart_stop_rx(struct uart_port *u)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
-	struct tty_struct *tty = tty_port_tty_get(&tup->uport.state->port);
+	struct tty_struct *tty;
 	struct tty_port *port = &u->state->port;
 	struct dma_tx_state state;
 	unsigned long ier;
@@ -737,6 +743,8 @@ static void tegra_uart_stop_rx(struct uart_port *u)
 
 	if (!tup->rx_in_progress)
 		return;
+
+	tty = tty_port_tty_get(&tup->uport.state->port);
 
 	tegra_uart_wait_sym_time(tup, 1); /* wait a character interval */
 
@@ -1206,7 +1214,7 @@ static struct uart_driver tegra_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "tegra_hsuart",
 	.dev_name	= "ttyTHS",
-	.cons		= 0,
+	.cons		= NULL,
 	.nr		= TEGRA_UART_MAXIMUM,
 };
 
@@ -1237,13 +1245,13 @@ static int tegra_uart_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
-struct tegra_uart_chip_data tegra20_uart_chip_data = {
+static struct tegra_uart_chip_data tegra20_uart_chip_data = {
 	.tx_fifo_full_status		= false,
 	.allow_txfifo_reset_fifo_mode	= true,
 	.support_clk_src_div		= false,
 };
 
-struct tegra_uart_chip_data tegra30_uart_chip_data = {
+static struct tegra_uart_chip_data tegra30_uart_chip_data = {
 	.tx_fifo_full_status		= true,
 	.allow_txfifo_reset_fifo_mode	= false,
 	.support_clk_src_div		= true,

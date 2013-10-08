@@ -14,6 +14,7 @@
 #include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 
 #include "common.h"
 
@@ -29,8 +30,6 @@ static const char * const msm8960_dt_match[] __initconst = {
 
 DT_MACHINE_START(MSM8960_DT, "Qualcomm MSM (Flattened Device Tree)")
 	.smp = smp_ops(msm_smp_ops),
-	.map_io = msm_map_msm8960_io,
-	.init_time	= msm_dt_timer_init,
 	.init_machine = msm_dt_init,
 	.dt_compat = msm8960_dt_match,
 MACHINE_END

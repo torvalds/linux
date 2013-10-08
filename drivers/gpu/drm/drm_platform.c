@@ -28,7 +28,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 
-/**
+/*
  * Register.
  *
  * \param platdev - Platform device struture
@@ -39,8 +39,8 @@
  * Try and register, if we fail to register, backout previous work.
  */
 
-int drm_get_platform_dev(struct platform_device *platdev,
-			 struct drm_driver *driver)
+static int drm_get_platform_dev(struct platform_device *platdev,
+				struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -67,6 +67,12 @@ int drm_get_platform_dev(struct platform_device *platdev,
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
 			goto err_g1;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
+		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
+		if (ret)
+			goto err_g11;
 	}
 
 	ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY);
@@ -100,6 +106,9 @@ int drm_get_platform_dev(struct platform_device *platdev,
 err_g3:
 	drm_put_minor(&dev->primary);
 err_g2:
+	if (dev->render)
+		drm_put_minor(&dev->render);
+err_g11:
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
 err_g1:
@@ -107,7 +116,6 @@ err_g1:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_platform_dev);
 
 static int drm_platform_get_irq(struct drm_device *dev)
 {

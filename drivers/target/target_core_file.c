@@ -3,7 +3,7 @@
  *
  * This file contains the Storage Engine <-> FILEIO transport specific functions
  *
- * (c) Copyright 2005-2012 RisingTide Systems LLC.
+ * (c) Copyright 2005-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -547,11 +547,9 @@ fd_execute_unmap(struct se_cmd *cmd)
 }
 
 static sense_reason_t
-fd_execute_rw(struct se_cmd *cmd)
+fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+	      enum dma_data_direction data_direction)
 {
-	struct scatterlist *sgl = cmd->t_data_sg;
-	u32 sgl_nents = cmd->t_data_nents;
-	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	int ret = 0;
 
@@ -635,10 +633,10 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-			ret = strict_strtoull(arg_p, 0, &fd_dev->fd_dev_size);
+			ret = kstrtoull(arg_p, 0, &fd_dev->fd_dev_size);
 			kfree(arg_p);
 			if (ret < 0) {
-				pr_err("strict_strtoull() failed for"
+				pr_err("kstrtoull() failed for"
 						" fd_dev_size=\n");
 				goto out;
 			}

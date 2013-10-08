@@ -26,7 +26,7 @@
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};
 
-	soc@01c20000 {
+	soc@01c00000 {
 		emac: ethernet@01c0b000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&emac_pins_a>;
@@ -76,12 +76,12 @@
 		pinctrl-0 = <&led_pins_cubieboard>;
 
 		blue {
-			label = "cubieboard::blue";
+			label = "cubieboard:blue:usr";
 			gpios = <&pio 7 21 0>; /* LED1 */
 		};
 
 		green {
-			label = "cubieboard::green";
+			label = "cubieboard:green:usr";
 			gpios = <&pio 7 20 0>; /* LED2 */
 			linux,default-trigger = "heartbeat";
 		};

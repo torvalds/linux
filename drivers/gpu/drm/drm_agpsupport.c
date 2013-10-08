@@ -424,6 +424,57 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 }
 
 /**
+ * drm_agp_clear - Clear AGP resource list
+ * @dev: DRM device
+ *
+ * Iterate over all AGP resources and remove them. But keep the AGP head
+ * intact so it can still be used. It is safe to call this if AGP is disabled or
+ * was already removed.
+ *
+ * If DRIVER_MODESET is active, nothing is done to protect the modesetting
+ * resources from getting destroyed. Drivers are responsible of cleaning them up
+ * during device shutdown.
+ */
+void drm_agp_clear(struct drm_device *dev)
+{
+	struct drm_agp_mem *entry, *tempe;
+
+	if (!drm_core_has_AGP(dev) || !dev->agp)
+		return;
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	list_for_each_entry_safe(entry, tempe, &dev->agp->memory, head) {
+		if (entry->bound)
+			drm_unbind_agp(entry->memory);
+		drm_free_agp(entry->memory, entry->pages);
+		kfree(entry);
+	}
+	INIT_LIST_HEAD(&dev->agp->memory);
+
+	if (dev->agp->acquired)
+		drm_agp_release(dev);
+
+	dev->agp->acquired = 0;
+	dev->agp->enabled = 0;
+}
+
+/**
+ * drm_agp_destroy - Destroy AGP head
+ * @dev: DRM device
+ *
+ * Destroy resources that were previously allocated via drm_agp_initp. Caller
+ * must ensure to clean up all AGP resources before calling this. See
+ * drm_agp_clear().
+ *
+ * Call this to destroy AGP heads allocated via drm_agp_init().
+ */
+void drm_agp_destroy(struct drm_agp_head *agp)
+{
+	kfree(agp);
+}
+
+/**
  * Binds a collection of pages into AGP memory at the given offset, returning
  * the AGP memory structure containing them.
  *

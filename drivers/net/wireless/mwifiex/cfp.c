@@ -404,11 +404,43 @@ mwifiex_is_rate_auto(struct mwifiex_private *priv)
 		return false;
 }
 
-/*
- * This function gets the supported data rates.
- *
- * The function works in both Ad-Hoc and infra mode by printing the
- * band and returning the data rates.
+/* This function gets the supported data rates from bitmask inside
+ * cfg80211_scan_request.
+ */
+u32 mwifiex_get_rates_from_cfg80211(struct mwifiex_private *priv,
+				    u8 *rates, u8 radio_type)
+{
+	struct wiphy *wiphy = priv->adapter->wiphy;
+	struct cfg80211_scan_request *request = priv->scan_request;
+	u32 num_rates, rate_mask;
+	struct ieee80211_supported_band *sband;
+	int i;
+
+	if (radio_type) {
+		sband = wiphy->bands[IEEE80211_BAND_5GHZ];
+		if (WARN_ON_ONCE(!sband))
+			return 0;
+		rate_mask = request->rates[IEEE80211_BAND_5GHZ];
+	} else {
+		sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+		if (WARN_ON_ONCE(!sband))
+			return 0;
+		rate_mask = request->rates[IEEE80211_BAND_2GHZ];
+	}
+
+	num_rates = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((BIT(i) & rate_mask) == 0)
+			continue; /* skip rate */
+		rates[num_rates++] = (u8)(sband->bitrates[i].bitrate / 5);
+	}
+
+	return num_rates;
+}
+
+/* This function gets the supported data rates. The function works in
+ * both Ad-Hoc and infra mode by printing the band and returning the
+ * data rates.
  */
 u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 {

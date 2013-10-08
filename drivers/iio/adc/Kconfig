@@ -1,6 +1,8 @@
 #
 # ADC drivers
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Analog to digital converters"
 
 config AD_SIGMA_DELTA
@@ -30,17 +32,20 @@ config AD7298
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7298.
 
-config AD7923
-	tristate "Analog Devices AD7923 and similar ADCs driver"
+config AD7476
+	tristate "Analog Devices AD7476 and similar 1-channel ADCs driver"
 	depends on SPI
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for Analog Devices
-	  AD7904, AD7914, AD7923, AD7924 4 Channel ADCs.
+	  Say yes here to build support for Analog Devices AD7273, AD7274, AD7276,
+	  AD7277, AD7278, AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468,
+	  AD7495, AD7910, AD7920, AD7920 SPI analog to digital converters (ADC).
+
+	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ad7923.
+	  module will be called ad7476.
 
 config AD7791
 	tristate "Analog Devices AD7791 ADC driver"
@@ -66,21 +71,6 @@ config AD7793
 	  To compile this driver as a module, choose M here: the
 	  module will be called AD7793.
 
-config AD7476
-	tristate "Analog Devices AD7476 and similar 1-channel ADCs driver"
-	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to build support for Analog Devices AD7273, AD7274, AD7276,
-	  AD7277, AD7278, AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468,
-	  AD7495, AD7910, AD7920, AD7920 SPI analog to digital converters (ADC).
-
-	  If unsure, say N (but it's safe to say "Y").
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7476.
-
 config AD7887
 	tristate "Analog Devices AD7887 ADC driver"
 	depends on SPI
@@ -93,6 +83,18 @@ config AD7887
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7887.
+
+config AD7923
+	tristate "Analog Devices AD7923 and similar ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7904, AD7914, AD7923, AD7924 4 Channel ADCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7923.
 
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
@@ -143,6 +145,15 @@ config MCP320X
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp320x.
 
+config NAU7802
+	tristate "Nuvoton NAU7802 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Nuvoton NAU7802 ADC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nau7802.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C021/027"
 	depends on I2C
@@ -154,11 +165,25 @@ config TI_ADC081C
 	  called ti-adc081c.
 
 config TI_AM335X_ADC
-	tristate "TI's ADC driver"
+	tristate "TI's AM335X ADC driver"
 	depends on MFD_TI_AM335X_TSCADC
 	help
 	  Say yes here to build support for Texas Instruments ADC
 	  driver which is also a MFD client.
+
+config TWL6030_GPADC
+	tristate "TWL6030 GPADC (General Purpose A/D Converter) Support"
+	depends on TWL4030_CORE
+	default n
+	help
+	  Say yes here if you want support for the TWL6030/TWL6032 General
+	  Purpose A/D Converter. This will add support for battery type
+	  detection, battery voltage and temperature measurement, die
+	  temperature measurement, system supply voltage, audio accessory,
+	  USB ID detection.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called twl6030-gpadc.
 
 config VIPERBOARD_ADC
 	tristate "Viperboard ADC support"

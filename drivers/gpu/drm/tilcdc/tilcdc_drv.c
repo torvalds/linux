@@ -497,7 +497,6 @@ static const struct file_operations fops = {
 #endif
 	.poll               = drm_poll,
 	.read               = drm_read,
-	.fasync             = drm_fasync,
 	.llseek             = no_llseek,
 	.mmap               = drm_gem_cma_mmap,
 };
@@ -519,7 +518,7 @@ static struct drm_driver tilcdc_driver = {
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
 	.dumb_map_offset    = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy       = drm_gem_cma_dumb_destroy,
+	.dumb_destroy       = drm_gem_dumb_destroy,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = tilcdc_debugfs_init,
 	.debugfs_cleanup    = tilcdc_debugfs_cleanup,

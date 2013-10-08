@@ -93,6 +93,15 @@
 			regulator-max-microvolt = <3200000>;
 			regulator-always-on;
 		};
+
+		reg_usb_vbus: usb_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio7 8 0>;
+			enable-active-high;
+		};
 	};
 
 	sound {
@@ -145,6 +154,7 @@
 				MX53_PAD_EIM_DA12__GPIO3_12       0x80000000
 				MX53_PAD_EIM_DA13__GPIO3_13       0x80000000
 				MX53_PAD_PATA_DA_0__GPIO7_6       0x80000000
+				MX53_PAD_PATA_DA_2__GPIO7_8	  0x80000000
 				MX53_PAD_GPIO_16__GPIO7_11        0x80000000
 			>;
 		};
@@ -297,8 +307,14 @@
 	status = "okay";
 };
 
+&vpu {
+	status = "okay";
+};
+
 &usbh1 {
-       status = "okay";
+	vbus-supply = <&reg_usb_vbus>;
+	phy_type = "utmi";
+	status = "okay";
 };
 
 &usbotg {

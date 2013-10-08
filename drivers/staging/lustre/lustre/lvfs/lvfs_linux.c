@@ -40,16 +40,12 @@
 
 #define DEBUG_SUBSYSTEM S_FILTER
 
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <asm/unistd.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
-#include <linux/version.h>
 #include <linux/libcfs/libcfs.h>
-#include <lustre_fsfilt.h>
-#include <obd.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/lustre_compat25.h>
@@ -207,7 +203,6 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 {
 	struct dentry *dchild_old, *dchild_new;
 	int err = 0;
-	ENTRY;
 
 	ASSERT_KERNEL_CTXT("kernel doing rename outside kernel context\n");
 	CDEBUG(D_INODE, "renaming file %.*s to %.*s\n",
@@ -215,7 +210,7 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 
 	dchild_old = ll_lookup_one_len(oldname, dir, strlen(oldname));
 	if (IS_ERR(dchild_old))
-		RETURN(PTR_ERR(dchild_old));
+		return PTR_ERR(dchild_old);
 
 	if (!dchild_old->d_inode)
 		GOTO(put_old, err = -ENOENT);
@@ -230,7 +225,7 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 	dput(dchild_new);
 put_old:
 	dput(dchild_old);
-	RETURN(err);
+	return err;
 }
 EXPORT_SYMBOL(lustre_rename);
 
@@ -242,7 +237,7 @@ struct l_file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct l_dentry *de,
 		.dentry = de,
 		.mnt = ctxt->pwdmnt,
 	};
-	return ll_dentry_open(&path, flags, current_cred());
+	return dentry_open(&path, flags, current_cred());
 }
 EXPORT_SYMBOL(l_dentry_open);
 
@@ -255,7 +250,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 	__s64 ret = 0;
 
 	if (lc == NULL || header == NULL)
-		RETURN(0);
+		return 0;
 
 	switch (field) {
 		case LPROCFS_FIELDS_FLAGS_CONFIG:
@@ -285,7 +280,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 			break;
 	};
 
-	RETURN(ret);
+	return ret;
 }
 EXPORT_SYMBOL(lprocfs_read_helper);
 #endif /* LPROCFS */

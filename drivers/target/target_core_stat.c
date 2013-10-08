@@ -4,7 +4,7 @@
  * Modern ConfigFS group context specific statistics based on original
  * target_core_mib.c code
  *
- * (c) Copyright 2006-2012 RisingTide Systems LLC.
+ * (c) Copyright 2006-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
  *

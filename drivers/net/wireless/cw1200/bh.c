@@ -465,8 +465,8 @@ static int cw1200_bh(void *arg)
 				(rx || tx || term || suspend || priv->bh_error);
 			}), status);
 
-		pr_debug("[BH] - rx: %d, tx: %d, term: %d, suspend: %d, status: %ld\n",
-			 rx, tx, term, suspend, status);
+		pr_debug("[BH] - rx: %d, tx: %d, term: %d, bh_err: %d, suspend: %d, status: %ld\n",
+			 rx, tx, term, suspend, priv->bh_error, status);
 
 		/* Did an error occur? */
 		if ((status < 0 && status != -ERESTARTSYS) ||

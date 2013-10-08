@@ -160,7 +160,8 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 
 	count = of_property_count_strings(np, "dma-names");
 	if (count < 0) {
-		pr_err("%s: dma-names property missing or empty\n", __func__);
+		pr_err("%s: dma-names property of node '%s' missing or empty\n",
+			__func__, np->full_name);
 		return NULL;
 	}
 

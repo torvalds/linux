@@ -172,7 +172,7 @@ MODULE_DEVICE_TABLE(of, tps65090_of_match);
 static int tps65090_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	struct tps65090_platform_data *pdata = client->dev.platform_data;
+	struct tps65090_platform_data *pdata = dev_get_platdata(&client->dev);
 	int irq_base = 0;
 	struct tps65090 *tps65090;
 	int ret;

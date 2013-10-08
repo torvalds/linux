@@ -712,6 +712,7 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw)
 static s32 igb_set_default_fc(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
+	u16 lan_offset;
 	u16 nvm_data;
 
 	/* Read and store word 0x0F of the EEPROM. This word contains bits
@@ -722,7 +723,14 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
+	if (hw->mac.type == e1000_i350) {
+		lan_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
+		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG
+					   + lan_offset, 1, &nvm_data);
+	 } else {
+		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG,
+					   1, &nvm_data);
+	 }
 
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
@@ -1169,17 +1177,6 @@ s32 igb_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
 	} else {
 		*duplex = HALF_DUPLEX;
 		hw_dbg("Half Duplex\n");
-	}
-
-	/* Check if it is an I354 2.5Gb backplane connection. */
-	if (hw->mac.type == e1000_i354) {
-		if ((status & E1000_STATUS_2P5_SKU) &&
-		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
-			*speed = SPEED_2500;
-			*duplex = FULL_DUPLEX;
-			hw_dbg("2500 Mbs, ");
-			hw_dbg("Full Duplex\n");
-		}
 	}
 
 	return 0;

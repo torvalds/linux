@@ -34,7 +34,7 @@ Clients have to specify the DMA requests with phandles in a list.
 Required properties:
 - dmas: List of one or more DMA request specifiers. One DMA request specifier
     consists of a phandle to the DMA controller followed by the integer
-    specifiying the request line.
+    specifying the request line.
 - dma-names: List of string identifiers for the DMA requests. For the correct
     names, have a look at the specific client driver.
 

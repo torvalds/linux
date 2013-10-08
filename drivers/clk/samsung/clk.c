@@ -307,14 +307,12 @@ void __init samsung_clk_of_register_fixed_ext(
 unsigned long _get_rate(const char *clk_name)
 {
 	struct clk *clk;
-	unsigned long rate;
 
-	clk = clk_get(NULL, clk_name);
-	if (IS_ERR(clk)) {
+	clk = __clk_lookup(clk_name);
+	if (!clk) {
 		pr_err("%s: could not find clock %s\n", __func__, clk_name);
 		return 0;
 	}
-	rate = clk_get_rate(clk);
-	clk_put(clk);
-	return rate;
+
+	return clk_get_rate(clk);
 }

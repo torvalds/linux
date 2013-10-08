@@ -146,9 +146,9 @@
  *   a0:	trashed, original value saved on stack (PT_AREG0)
  *   a1:	a1
  *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
+ *   a3:	a3
  *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
+ *   excsave_1:	dispatch table
  *
  *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
@@ -171,7 +171,6 @@ ENTRY(fast_unaligned)
 	s32i	a8, a2, PT_AREG8
 
 	rsr	a0, depc
-	xsr	a3, excsave1
 	s32i	a0, a2, PT_AREG2
 	s32i	a3, a2, PT_AREG3
 

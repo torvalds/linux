@@ -480,15 +480,12 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 	dmic->dma_data.filter_data = "up_link";
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	if (!res) {
-		dev_err(dmic->dev, "invalid memory resource\n");
-		ret = -ENODEV;
+	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dmic->io_base)) {
+		ret = PTR_ERR(dmic->io_base);
 		goto err_put_clk;
 	}
 
-	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dmic->io_base))
-		return PTR_ERR(dmic->io_base);
 
 	ret = snd_soc_register_component(&pdev->dev, &omap_dmic_component,
 					 &omap_dmic_dai, 1);

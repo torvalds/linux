@@ -59,25 +59,19 @@ static int w1_strong_pullup = 1;
 module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 
 
-static ssize_t w1_therm_read(struct device *device,
+static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf);
 
-static struct device_attribute w1_therm_attr =
-	__ATTR(w1_slave, S_IRUGO, w1_therm_read, NULL);
+static DEVICE_ATTR_RO(w1_slave);
 
-static int w1_therm_add_slave(struct w1_slave *sl)
-{
-	return device_create_file(&sl->dev, &w1_therm_attr);
-}
-
-static void w1_therm_remove_slave(struct w1_slave *sl)
-{
-	device_remove_file(&sl->dev, &w1_therm_attr);
-}
+static struct attribute *w1_therm_attrs[] = {
+	&dev_attr_w1_slave.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(w1_therm);
 
 static struct w1_family_ops w1_therm_fops = {
-	.add_slave	= w1_therm_add_slave,
-	.remove_slave	= w1_therm_remove_slave,
+	.groups		= w1_therm_groups,
 };
 
 static struct w1_family w1_therm_family_DS18S20 = {
@@ -178,7 +172,7 @@ static inline int w1_convert_temp(u8 rom[9], u8 fid)
 }
 
 
-static ssize_t w1_therm_read(struct device *device,
+static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);

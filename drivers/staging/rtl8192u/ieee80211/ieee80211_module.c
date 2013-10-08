@@ -268,7 +268,8 @@ static const struct file_operations fops = {
 	.open = open_debug_level,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.write = write_debug_level
+	.write = write_debug_level,
+	.release = single_release,
 };
 
 int __init ieee80211_debug_init(void)

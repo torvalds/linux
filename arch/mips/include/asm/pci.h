@@ -83,6 +83,18 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	enum pci_mmap_state mmap_state, int write_combine);
 
+#define HAVE_ARCH_PCI_RESOURCE_TO_USER
+
+static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
+		const struct resource *rsrc, resource_size_t *start,
+		resource_size_t *end)
+{
+	phys_t size = resource_size(rsrc);
+
+	*start = fixup_bigphys_addr(rsrc->start, size);
+	*end = rsrc->start + size;
+}
+
 /*
  * Dynamic DMA mapping stuff.
  * MIPS has everything mapped statically.
@@ -135,11 +147,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;
 }
-
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-/* MSI arch hook for OCTEON */
-#define arch_setup_msi_irqs arch_setup_msi_irqs
-#endif
 
 extern char * (*pcibios_plat_setup)(char *str);
 

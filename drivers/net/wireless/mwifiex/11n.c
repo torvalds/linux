@@ -292,6 +292,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 	struct mwifiex_ie_types_extcap *ext_cap;
 	int ret_len = 0;
 	struct ieee80211_supported_band *sband;
+	struct ieee_types_header *hdr;
 	u8 radio_type;
 
 	if (!buffer || !*buffer)
@@ -388,17 +389,24 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 	}
 
 	if (bss_desc->bcn_ext_cap) {
+		hdr = (void *)bss_desc->bcn_ext_cap;
 		ext_cap = (struct mwifiex_ie_types_extcap *) *buffer;
 		memset(ext_cap, 0, sizeof(struct mwifiex_ie_types_extcap));
 		ext_cap->header.type = cpu_to_le16(WLAN_EID_EXT_CAPABILITY);
-		ext_cap->header.len = cpu_to_le16(sizeof(ext_cap->ext_cap));
+		ext_cap->header.len = cpu_to_le16(hdr->len);
 
-		memcpy((u8 *)ext_cap + sizeof(struct mwifiex_ie_types_header),
+		memcpy((u8 *)ext_cap->ext_capab,
 		       bss_desc->bcn_ext_cap + sizeof(struct ieee_types_header),
 		       le16_to_cpu(ext_cap->header.len));
 
-		*buffer += sizeof(struct mwifiex_ie_types_extcap);
-		ret_len += sizeof(struct mwifiex_ie_types_extcap);
+		if (hdr->len > 3 &&
+		    ext_cap->ext_capab[3] & WLAN_EXT_CAPA4_INTERWORKING_ENABLED)
+			priv->hs2_enabled = true;
+		else
+			priv->hs2_enabled = false;
+
+		*buffer += sizeof(struct mwifiex_ie_types_extcap) + hdr->len;
+		ret_len += sizeof(struct mwifiex_ie_types_extcap) + hdr->len;
 	}
 
 	return ret_len;

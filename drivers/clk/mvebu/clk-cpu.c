@@ -119,7 +119,7 @@ void __init of_cpu_clk_setup(struct device_node *node)
 
 	cpuclk = kzalloc(ncpus * sizeof(*cpuclk), GFP_KERNEL);
 	if (WARN_ON(!cpuclk))
-		return;
+		goto cpuclk_out;
 
 	clks = kzalloc(ncpus * sizeof(*clks), GFP_KERNEL);
 	if (WARN_ON(!clks))
@@ -170,6 +170,8 @@ bail_out:
 		kfree(cpuclk[ncpus].clk_name);
 clks_out:
 	kfree(cpuclk);
+cpuclk_out:
+	iounmap(clock_complex_base);
 }
 
 CLK_OF_DECLARE(armada_xp_cpu_clock, "marvell,armada-xp-cpu-clock",

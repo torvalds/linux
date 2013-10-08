@@ -69,6 +69,23 @@
 #define	XFS_DIR3_FREE_MAGIC	0x58444633	/* XDF3: free index blocks */
 
 /*
+ * Dirents in version 3 directories have a file type field. Additions to this
+ * list are an on-disk format change, requiring feature bits. Valid values
+ * are as follows:
+ */
+#define XFS_DIR3_FT_UNKNOWN		0
+#define XFS_DIR3_FT_REG_FILE		1
+#define XFS_DIR3_FT_DIR			2
+#define XFS_DIR3_FT_CHRDEV		3
+#define XFS_DIR3_FT_BLKDEV		4
+#define XFS_DIR3_FT_FIFO		5
+#define XFS_DIR3_FT_SOCK		6
+#define XFS_DIR3_FT_SYMLINK		7
+#define XFS_DIR3_FT_WHT			8
+
+#define XFS_DIR3_FT_MAX			9
+
+/*
  * Byte offset in data block and shortform entry.
  */
 typedef	__uint16_t	xfs_dir2_data_off_t;
@@ -138,6 +155,9 @@ typedef struct xfs_dir2_sf_entry {
 	xfs_dir2_sf_off_t	offset;		/* saved offset */
 	__u8			name[];		/* name, variable size */
 	/*
+	 * A single byte containing the file type field follows the inode
+	 * number for version 3 directory entries.
+	 *
 	 * A xfs_dir2_ino8_t or xfs_dir2_ino4_t follows here, at a
 	 * variable offset after the name.
 	 */
@@ -162,16 +182,6 @@ xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
 	put_unaligned_be16(off, &sfep->offset.i);
 }
 
-static inline int
-xfs_dir2_sf_entsize(struct xfs_dir2_sf_hdr *hdr, int len)
-{
-	return sizeof(struct xfs_dir2_sf_entry) +	/* namelen + offset */
-		len +					/* name */
-		(hdr->i8count ?				/* ino */
-		 sizeof(xfs_dir2_ino8_t) :
-		 sizeof(xfs_dir2_ino4_t));
-}
-
 static inline struct xfs_dir2_sf_entry *
 xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
 {
@@ -179,14 +189,78 @@ xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
 		((char *)hdr + xfs_dir2_sf_hdr_size(hdr->i8count));
 }
 
-static inline struct xfs_dir2_sf_entry *
-xfs_dir2_sf_nextentry(struct xfs_dir2_sf_hdr *hdr,
-		struct xfs_dir2_sf_entry *sfep)
+static inline int
+xfs_dir3_sf_entsize(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_sf_hdr	*hdr,
+	int			len)
 {
-	return (struct xfs_dir2_sf_entry *)
-		((char *)sfep + xfs_dir2_sf_entsize(hdr, sfep->namelen));
+	int count = sizeof(struct xfs_dir2_sf_entry); 	/* namelen + offset */
+
+	count += len;					/* name */
+	count += hdr->i8count ? sizeof(xfs_dir2_ino8_t) :
+				sizeof(xfs_dir2_ino4_t); /* ino # */
+	if (xfs_sb_version_hasftype(&mp->m_sb))
+		count += sizeof(__uint8_t);		/* file type */
+	return count;
 }
 
+static inline struct xfs_dir2_sf_entry *
+xfs_dir3_sf_nextentry(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_sf_hdr	*hdr,
+	struct xfs_dir2_sf_entry *sfep)
+{
+	return (struct xfs_dir2_sf_entry *)
+		((char *)sfep + xfs_dir3_sf_entsize(mp, hdr, sfep->namelen));
+}
+
+/*
+ * in dir3 shortform directories, the file type field is stored at a variable
+ * offset after the inode number. Because it's only a single byte, endian
+ * conversion is not necessary.
+ */
+static inline __uint8_t *
+xfs_dir3_sfe_ftypep(
+	struct xfs_dir2_sf_hdr	*hdr,
+	struct xfs_dir2_sf_entry *sfep)
+{
+	return (__uint8_t *)&sfep->name[sfep->namelen];
+}
+
+static inline __uint8_t
+xfs_dir3_sfe_get_ftype(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_sf_hdr	*hdr,
+	struct xfs_dir2_sf_entry *sfep)
+{
+	__uint8_t	*ftp;
+
+	if (!xfs_sb_version_hasftype(&mp->m_sb))
+		return XFS_DIR3_FT_UNKNOWN;
+
+	ftp = xfs_dir3_sfe_ftypep(hdr, sfep);
+	if (*ftp >= XFS_DIR3_FT_MAX)
+		return XFS_DIR3_FT_UNKNOWN;
+	return *ftp;
+}
+
+static inline void
+xfs_dir3_sfe_put_ftype(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_sf_hdr	*hdr,
+	struct xfs_dir2_sf_entry *sfep,
+	__uint8_t		ftype)
+{
+	__uint8_t	*ftp;
+
+	ASSERT(ftype < XFS_DIR3_FT_MAX);
+
+	if (!xfs_sb_version_hasftype(&mp->m_sb))
+		return;
+	ftp = xfs_dir3_sfe_ftypep(hdr, sfep);
+	*ftp = ftype;
+}
 
 /*
  * Data block structures.
@@ -286,12 +360,18 @@ xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
  * Active entry in a data block.
  *
  * Aligned to 8 bytes.  After the variable length name field there is a
- * 2 byte tag field, which can be accessed using xfs_dir2_data_entry_tag_p.
+ * 2 byte tag field, which can be accessed using xfs_dir3_data_entry_tag_p.
+ *
+ * For dir3 structures, there is file type field between the name and the tag.
+ * This can only be manipulated by helper functions. It is packed hard against
+ * the end of the name so any padding for rounding is between the file type and
+ * the tag.
  */
 typedef struct xfs_dir2_data_entry {
 	__be64			inumber;	/* inode number */
 	__u8			namelen;	/* name length */
 	__u8			name[];		/* name bytes, no null */
+     /* __u8			filetype; */	/* type of inode we point to */
      /*	__be16                  tag; */		/* starting offset of us */
 } xfs_dir2_data_entry_t;
 
@@ -311,20 +391,67 @@ typedef struct xfs_dir2_data_unused {
 /*
  * Size of a data entry.
  */
-static inline int xfs_dir2_data_entsize(int n)
+static inline int
+__xfs_dir3_data_entsize(
+	bool	ftype,
+	int	n)
 {
-	return (int)roundup(offsetof(struct xfs_dir2_data_entry, name[0]) + n +
-		 (uint)sizeof(xfs_dir2_data_off_t), XFS_DIR2_DATA_ALIGN);
+	int	size = offsetof(struct xfs_dir2_data_entry, name[0]);
+
+	size += n;
+	size += sizeof(xfs_dir2_data_off_t);
+	if (ftype)
+		size += sizeof(__uint8_t);
+	return roundup(size, XFS_DIR2_DATA_ALIGN);
+}
+static inline int
+xfs_dir3_data_entsize(
+	struct xfs_mount	*mp,
+	int			n)
+{
+	bool ftype = xfs_sb_version_hasftype(&mp->m_sb) ? true : false;
+	return __xfs_dir3_data_entsize(ftype, n);
+}
+
+static inline __uint8_t
+xfs_dir3_dirent_get_ftype(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_entry *dep)
+{
+	if (xfs_sb_version_hasftype(&mp->m_sb)) {
+		__uint8_t	type = dep->name[dep->namelen];
+
+		ASSERT(type < XFS_DIR3_FT_MAX);
+		if (type < XFS_DIR3_FT_MAX)
+			return type;
+
+	}
+	return XFS_DIR3_FT_UNKNOWN;
+}
+
+static inline void
+xfs_dir3_dirent_put_ftype(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_entry *dep,
+	__uint8_t		type)
+{
+	ASSERT(type < XFS_DIR3_FT_MAX);
+	ASSERT(dep->namelen != 0);
+
+	if (xfs_sb_version_hasftype(&mp->m_sb))
+		dep->name[dep->namelen] = type;
 }
 
 /*
  * Pointer to an entry's tag word.
  */
 static inline __be16 *
-xfs_dir2_data_entry_tag_p(struct xfs_dir2_data_entry *dep)
+xfs_dir3_data_entry_tag_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_entry *dep)
 {
 	return (__be16 *)((char *)dep +
-		xfs_dir2_data_entsize(dep->namelen) - sizeof(__be16));
+		xfs_dir3_data_entsize(mp, dep->namelen) - sizeof(__be16));
 }
 
 /*
@@ -370,59 +497,58 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 /*
  * Offsets of . and .. in data space (always block 0)
  *
- * The macros are used for shortform directories as they have no headers to read
- * the magic number out of. Shortform directories need to know the size of the
- * data block header because the sfe embeds the block offset of the entry into
- * it so that it doesn't change when format conversion occurs. Bad Things Happen
- * if we don't follow this rule.
+ * XXX: there is scope for significant optimisation of the logic here. Right
+ * now we are checking for "dir3 format" over and over again. Ideally we should
+ * only do it once for each operation.
  */
-#define	XFS_DIR3_DATA_DOT_OFFSET(mp)	\
-	xfs_dir3_data_hdr_size(xfs_sb_version_hascrc(&(mp)->m_sb))
-#define	XFS_DIR3_DATA_DOTDOT_OFFSET(mp)	\
-	(XFS_DIR3_DATA_DOT_OFFSET(mp) + xfs_dir2_data_entsize(1))
-#define	XFS_DIR3_DATA_FIRST_OFFSET(mp)		\
-	(XFS_DIR3_DATA_DOTDOT_OFFSET(mp) + xfs_dir2_data_entsize(2))
-
 static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_dot_offset(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dot_offset(struct xfs_mount *mp)
 {
-	return xfs_dir3_data_entry_offset(hdr);
+	return xfs_dir3_data_hdr_size(xfs_sb_version_hascrc(&mp->m_sb));
 }
 
 static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_dotdot_offset(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dotdot_offset(struct xfs_mount *mp)
 {
-	return xfs_dir3_data_dot_offset(hdr) + xfs_dir2_data_entsize(1);
+	return xfs_dir3_data_dot_offset(mp) +
+		xfs_dir3_data_entsize(mp, 1);
 }
 
 static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_first_offset(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_first_offset(struct xfs_mount *mp)
 {
-	return xfs_dir3_data_dotdot_offset(hdr) + xfs_dir2_data_entsize(2);
+	return xfs_dir3_data_dotdot_offset(mp) +
+		xfs_dir3_data_entsize(mp, 2);
 }
 
 /*
  * location of . and .. in data space (always block 0)
  */
 static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_dot_entry_p(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dot_entry_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dot_offset(hdr));
+		((char *)hdr + xfs_dir3_data_dot_offset(mp));
 }
 
 static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_dotdot_entry_p(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dotdot_entry_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dotdot_offset(hdr));
+		((char *)hdr + xfs_dir3_data_dotdot_offset(mp));
 }
 
 static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_first_entry_p(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_first_entry_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_first_offset(hdr));
+		((char *)hdr + xfs_dir3_data_first_offset(mp));
 }
 
 /*
@@ -518,6 +644,9 @@ struct xfs_dir3_leaf {
 };
 
 #define XFS_DIR3_LEAF_CRC_OFF  offsetof(struct xfs_dir3_leaf_hdr, info.crc)
+
+extern void xfs_dir3_leaf_hdr_from_disk(struct xfs_dir3_icleaf_hdr *to,
+					struct xfs_dir2_leaf *from);
 
 static inline int
 xfs_dir3_leaf_hdr_size(struct xfs_dir2_leaf *lp)

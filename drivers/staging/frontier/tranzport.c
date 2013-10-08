@@ -177,24 +177,24 @@ static void usb_tranzport_abort_transfers(struct usb_tranzport *dev)
 }
 
 #define show_int(value)	\
-	static ssize_t show_##value(struct device *dev,	\
+	static ssize_t value##_show(struct device *dev,	\
 			      struct device_attribute *attr, char *buf)	\
 	{	\
 		struct usb_interface *intf = to_usb_interface(dev);	\
 		struct usb_tranzport *t = usb_get_intfdata(intf);	\
 		return sprintf(buf, "%d\n", t->value);	\
 	}	\
-	static DEVICE_ATTR(value, S_IRUGO, show_##value, NULL);
+	static DEVICE_ATTR_RO(value)
 
 #define show_set_int(value)	\
-	static ssize_t show_##value(struct device *dev,	\
+	static ssize_t value##_show(struct device *dev,	\
 			      struct device_attribute *attr, char *buf)	\
 	{	\
 		struct usb_interface *intf = to_usb_interface(dev);	\
 		struct usb_tranzport *t = usb_get_intfdata(intf);	\
 		return sprintf(buf, "%d\n", t->value);	\
 	}	\
-	static ssize_t set_##value(struct device *dev,	\
+	static ssize_t value##_store(struct device *dev,	\
 			     struct device_attribute *attr,		\
 			     const char *buf, size_t count)		\
 	{	\
@@ -206,7 +206,7 @@ static void usb_tranzport_abort_transfers(struct usb_tranzport *dev)
 		t->value = temp;	\
 		return count;	\
 	}	\
-	static DEVICE_ATTR(value, S_IWUSR | S_IRUGO, show_##value, set_##value);
+	static DEVICE_ATTR_RW(value)
 
 show_int(enable);
 show_int(offline);

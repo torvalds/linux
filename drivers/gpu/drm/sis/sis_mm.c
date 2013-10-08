@@ -109,7 +109,8 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	if (pool == AGP_TYPE) {
 		retval = drm_mm_insert_node(&dev_priv->agp_mm,
 					    &item->mm_node,
-					    mem->size, 0);
+					    mem->size, 0,
+					    DRM_MM_SEARCH_DEFAULT);
 		offset = item->mm_node.start;
 	} else {
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
@@ -121,7 +122,8 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 #else
 		retval = drm_mm_insert_node(&dev_priv->vram_mm,
 					    &item->mm_node,
-					    mem->size, 0);
+					    mem->size, 0,
+					    DRM_MM_SEARCH_DEFAULT);
 		offset = item->mm_node.start;
 #endif
 	}
@@ -348,7 +350,7 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	return;
 }
 
-struct drm_ioctl_desc sis_ioctls[] = {
+const struct drm_ioctl_desc sis_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SIS_FB_FREE, sis_drm_free, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),

@@ -483,10 +483,21 @@ fail:
 #ifdef CONFIG_SPI_MASTER
 static struct of_device_id mcp23s08_spi_of_match[] = {
 	{
-		.compatible = "mcp,mcp23s08", .data = (void *) MCP_TYPE_S08,
+		.compatible = "microchip,mcp23s08",
+		.data = (void *) MCP_TYPE_S08,
 	},
 	{
-		.compatible = "mcp,mcp23s17", .data = (void *) MCP_TYPE_S17,
+		.compatible = "microchip,mcp23s17",
+		.data = (void *) MCP_TYPE_S17,
+	},
+/* NOTE: The use of the mcp prefix is deprecated and will be removed. */
+	{
+		.compatible = "mcp,mcp23s08",
+		.data = (void *) MCP_TYPE_S08,
+	},
+	{
+		.compatible = "mcp,mcp23s17",
+		.data = (void *) MCP_TYPE_S17,
 	},
 	{ },
 };
@@ -496,10 +507,21 @@ MODULE_DEVICE_TABLE(of, mcp23s08_spi_of_match);
 #if IS_ENABLED(CONFIG_I2C)
 static struct of_device_id mcp23s08_i2c_of_match[] = {
 	{
-		.compatible = "mcp,mcp23008", .data = (void *) MCP_TYPE_008,
+		.compatible = "microchip,mcp23008",
+		.data = (void *) MCP_TYPE_008,
 	},
 	{
-		.compatible = "mcp,mcp23017", .data = (void *) MCP_TYPE_017,
+		.compatible = "microchip,mcp23017",
+		.data = (void *) MCP_TYPE_017,
+	},
+/* NOTE: The use of the mcp prefix is deprecated and will be removed. */
+	{
+		.compatible = "mcp,mcp23008",
+		.data = (void *) MCP_TYPE_008,
+	},
+	{
+		.compatible = "mcp,mcp23017",
+		.data = (void *) MCP_TYPE_017,
 	},
 	{ },
 };
@@ -520,14 +542,13 @@ static int mcp230xx_probe(struct i2c_client *client,
 
 	match = of_match_device(of_match_ptr(mcp23s08_i2c_of_match),
 					&client->dev);
-	if (match) {
+	pdata = dev_get_platdata(&client->dev);
+	if (match || !pdata) {
 		base = -1;
 		pullups = 0;
 	} else {
-		pdata = client->dev.platform_data;
-		if (!pdata || !gpio_is_valid(pdata->base)) {
-			dev_dbg(&client->dev,
-					"invalid or missing platform data\n");
+		if (!gpio_is_valid(pdata->base)) {
+			dev_dbg(&client->dev, "invalid platform data\n");
 			return -EINVAL;
 		}
 		base = pdata->base;
@@ -621,10 +642,15 @@ static int mcp23s08_probe(struct spi_device *spi)
 	if (match) {
 		type = (int)match->data;
 		status = of_property_read_u32(spi->dev.of_node,
-				"mcp,spi-present-mask", &spi_present_mask);
+			    "microchip,spi-present-mask", &spi_present_mask);
 		if (status) {
-			dev_err(&spi->dev, "DT has no spi-present-mask\n");
-			return -ENODEV;
+			status = of_property_read_u32(spi->dev.of_node,
+				    "mcp,spi-present-mask", &spi_present_mask);
+			if (status) {
+				dev_err(&spi->dev,
+					"DT has no spi-present-mask\n");
+				return -ENODEV;
+			}
 		}
 		if ((spi_present_mask <= 0) || (spi_present_mask >= 256)) {
 			dev_err(&spi->dev, "invalid spi-present-mask\n");
@@ -635,7 +661,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 			pullups[addr] = 0;
 	} else {
 		type = spi_get_device_id(spi)->driver_data;
-		pdata = spi->dev.platform_data;
+		pdata = dev_get_platdata(&spi->dev);
 		if (!pdata || !gpio_is_valid(pdata->base)) {
 			dev_dbg(&spi->dev,
 					"invalid or missing platform data\n");

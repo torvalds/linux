@@ -494,7 +494,7 @@ failed:
 static int da903x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct da903x_platform_data *pdata = client->dev.platform_data;
+	struct da903x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct da903x_chip *chip;
 	unsigned int tmp;
 	int ret;

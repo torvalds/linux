@@ -169,7 +169,6 @@ int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 {
 	struct ccc_device  *vdv;
 	int rc;
-	ENTRY;
 
 	vdv = lu2ccc_dev(d);
 	vdv->cdv_next = lu2cl_dev(next);
@@ -182,7 +181,7 @@ int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 		lu_device_get(next);
 		lu_ref_add(&next->ld_reference, "lu-stack", &lu_site_init);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 struct lu_device *ccc_device_fini(const struct lu_env *env,
@@ -201,11 +200,10 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	struct lu_device  *lud;
 	struct cl_site    *site;
 	int rc;
-	ENTRY;
 
 	OBD_ALLOC_PTR(vdv);
 	if (vdv == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	lud = &vdv->cdv_cl.cd_lu_dev;
 	cl_device_init(&vdv->cdv_cl, t);
@@ -228,7 +226,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 		ccc_device_free(env, lud);
 		lud = ERR_PTR(rc);
 	}
-	RETURN(lud);
+	return lud;
 }
 
 struct lu_device *ccc_device_free(const struct lu_env *env,
@@ -418,7 +416,6 @@ int ccc_object_glimpse(const struct lu_env *env,
 {
 	struct inode *inode = ccc_object_inode(obj);
 
-	ENTRY;
 	lvb->lvb_mtime = cl_inode_mtime(inode);
 	lvb->lvb_atime = cl_inode_atime(inode);
 	lvb->lvb_ctime = cl_inode_ctime(inode);
@@ -429,7 +426,7 @@ int ccc_object_glimpse(const struct lu_env *env,
 	 */
 	if (lvb->lvb_size > 0 && lvb->lvb_blocks == 0)
 		lvb->lvb_blocks = dirty_cnt(inode);
-	RETURN(0);
+	return 0;
 }
 
 
@@ -479,8 +476,6 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 
 	int result;
 
-	ENTRY;
-
 	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
 	    io->ci_type == CIT_FAULT) {
 		if (cio->cui_fd->fd_flags & LL_FILE_GROUP_LOCKED)
@@ -495,7 +490,7 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 		}
 	} else
 		result = 0;
-	RETURN(result);
+	return result;
 }
 
 int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice)
@@ -559,9 +554,8 @@ int ccc_transient_page_prep(const struct lu_env *env,
 				   const struct cl_page_slice *slice,
 				   struct cl_io *unused)
 {
-	ENTRY;
 	/* transient page should always be sent. */
-	RETURN(0);
+	return 0;
 }
 
 /*****************************************************************************
@@ -623,7 +617,6 @@ int ccc_lock_fits_into(const struct lu_env *env,
 	const struct ccc_io	*cio   = ccc_env_io(env);
 	int			 result;
 
-	ENTRY;
 	/*
 	 * Work around DLM peculiarity: it assumes that glimpse
 	 * (LDLM_FL_HAS_INTENT) lock is always LCK_PR, and returns reads lock
@@ -642,7 +635,7 @@ int ccc_lock_fits_into(const struct lu_env *env,
 		result = lock->cll_state >= CLS_ENQUEUED;
 	else
 		result = 1;
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -655,7 +648,6 @@ void ccc_lock_state(const struct lu_env *env,
 		    enum cl_lock_state state)
 {
 	struct cl_lock *lock = slice->cls_lock;
-	ENTRY;
 
 	/*
 	 * Refresh inode attributes when the lock is moving into CLS_HELD
@@ -682,7 +674,6 @@ void ccc_lock_state(const struct lu_env *env,
 		    lock->cll_descr.cld_end == CL_PAGE_EOF)
 			cl_merge_lvb(env, inode);
 	}
-	EXIT;
 }
 
 /*****************************************************************************
@@ -707,7 +698,6 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	struct cl_object       *obj   = io->ci_obj;
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "lock: %d [%lu, %lu]\n", mode, start, end);
 
@@ -725,7 +715,7 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	descr->cld_enq_flags = enqflags;
 
 	cl_io_lock_add(env, io, &cio->cui_link);
-	RETURN(0);
+	return 0;
 }
 
 void ccc_io_update_iov(const struct lu_env *env,
@@ -986,11 +976,9 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
 	int	    result;
 	int	    refcheck;
 
-	ENTRY;
-
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
-		RETURN(PTR_ERR(env));
+		return PTR_ERR(env);
 
 	io = ccc_env_thread_io(env);
 	io->ci_obj = cl_i2info(inode)->lli_clob;
@@ -1019,7 +1007,7 @@ again:
 	if (unlikely(io->ci_need_restart))
 		goto again;
 	cl_env_put(env, &refcheck);
-	RETURN(result);
+	return result;
 }
 
 /*****************************************************************************
@@ -1166,7 +1154,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 			 * locked by I_NEW bit.
 			 */
 			lli->lli_clob = clob;
-			lli->lli_has_smd = md->lsm != NULL;
+			lli->lli_has_smd = lsm_has_objects(md->lsm);
 			lu_object_ref_add(&clob->co_lu, "inode", inode);
 		} else
 			result = PTR_ERR(clob);
@@ -1284,9 +1272,9 @@ __u16 ll_dirent_type_get(struct lu_dirent *ent)
 __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32)
 {
 	if (BITS_PER_LONG == 32 || api32)
-		RETURN(fid_flatten32(fid));
+		return fid_flatten32(fid);
 	else
-		RETURN(fid_flatten(fid));
+		return fid_flatten(fid);
 }
 
 /**
@@ -1295,15 +1283,14 @@ __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32)
 __u32 cl_fid_build_gen(const struct lu_fid *fid)
 {
 	__u32 gen;
-	ENTRY;
 
 	if (fid_is_igif(fid)) {
 		gen = lu_igif_gen(fid);
-		RETURN(gen);
+		return gen;
 	}
 
 	gen = (fid_flatten(fid) >> 32);
-	RETURN(gen);
+	return gen;
 }
 
 /* lsm is unreliable after hsm implementation as layout can be changed at

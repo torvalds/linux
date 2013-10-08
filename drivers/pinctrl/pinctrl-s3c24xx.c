@@ -549,7 +549,7 @@ static int s3c24xx_eint_init(struct samsung_pinctrl_drv_data *d)
 		irq = bank->eint_offset;
 		mask = bank->eint_mask;
 		for (pin = 0; mask; ++pin, mask >>= 1) {
-			if (irq > NUM_EINT)
+			if (irq >= NUM_EINT)
 				break;
 			if (!(mask & 1))
 				continue;

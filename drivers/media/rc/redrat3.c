@@ -47,6 +47,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/device.h>
+#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -186,6 +187,13 @@ struct redrat3_dev {
 	struct rc_dev *rc;
 	struct device *dev;
 
+	/* led control */
+	struct led_classdev led;
+	atomic_t flash;
+	struct usb_ctrlrequest flash_control;
+	struct urb *flash_urb;
+	u8 flash_in_buf;
+
 	/* save off the usb device pointer */
 	struct usb_device *udev;
 
@@ -206,8 +214,6 @@ struct redrat3_dev {
 	struct timer_list rx_timeout;
 	u32 hw_timeout;
 
-	/* is the detector enabled*/
-	bool det_enabled;
 	/* Is the device currently transmitting?*/
 	bool transmitting;
 
@@ -472,30 +478,9 @@ static int redrat3_enable_detector(struct redrat3_dev *rr3)
 		return -EIO;
 	}
 
-	rr3->det_enabled = true;
 	redrat3_issue_async(rr3);
 
 	return 0;
-}
-
-/* Disables the rr3 long range detector */
-static void redrat3_disable_detector(struct redrat3_dev *rr3)
-{
-	struct device *dev = rr3->dev;
-	u8 ret;
-
-	rr3_ftr(dev, "Entering %s\n", __func__);
-
-	ret = redrat3_send_cmd(RR3_RC_DET_DISABLE, rr3);
-	if (ret != 0)
-		dev_err(dev, "%s: failure!\n", __func__);
-
-	ret = redrat3_send_cmd(RR3_RC_DET_STATUS, rr3);
-	if (ret != 0)
-		dev_warn(dev, "%s: detector status: %d, should be 0\n",
-			 __func__, ret);
-
-	rr3->det_enabled = false;
 }
 
 static inline void redrat3_delete(struct redrat3_dev *rr3,
@@ -503,9 +488,9 @@ static inline void redrat3_delete(struct redrat3_dev *rr3,
 {
 	rr3_ftr(rr3->dev, "%s cleaning up\n", __func__);
 	usb_kill_urb(rr3->read_urb);
-
+	usb_kill_urb(rr3->flash_urb);
 	usb_free_urb(rr3->read_urb);
-
+	usb_free_urb(rr3->flash_urb);
 	usb_free_coherent(udev, le16_to_cpu(rr3->ep_in->wMaxPacketSize),
 			  rr3->bulk_in_buf, rr3->dma_in);
 
@@ -686,7 +671,8 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 		goto out;
 	}
 
-	if (rr3->bytes_read < be16_to_cpu(rr3->irdata.header.length))
+	if (rr3->bytes_read < be16_to_cpu(rr3->irdata.header.length) +
+						sizeof(struct redrat3_header))
 		/* we're still accumulating data */
 		return 0;
 
@@ -785,10 +771,10 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 		return -EAGAIN;
 	}
 
-	count = min_t(unsigned, count, RR3_MAX_SIG_SIZE - RR3_TX_TRAILER_LEN);
+	if (count > RR3_MAX_SIG_SIZE - RR3_TX_TRAILER_LEN)
+		return -EINVAL;
 
 	/* rr3 will disable rc detector on transmit */
-	rr3->det_enabled = false;
 	rr3->transmitting = true;
 
 	sample_lens = kzalloc(sizeof(int) * RR3_DRIVER_MAXLENS, GFP_KERNEL);
@@ -825,8 +811,8 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 						&irdata->lens[curlencheck]);
 				curlencheck++;
 			} else {
-				count = i - 1;
-				break;
+				ret = -EINVAL;
+				goto out;
 			}
 		}
 		irdata->sigdata[i] = lencheck;
@@ -868,9 +854,46 @@ out:
 
 	rr3->transmitting = false;
 	/* rr3 re-enables rc detector because it was enabled before */
-	rr3->det_enabled = true;
 
 	return ret;
+}
+
+static void redrat3_brightness_set(struct led_classdev *led_dev, enum
+						led_brightness brightness)
+{
+	struct redrat3_dev *rr3 = container_of(led_dev, struct redrat3_dev,
+									led);
+
+	if (brightness != LED_OFF && atomic_cmpxchg(&rr3->flash, 0, 1) == 0) {
+		int ret = usb_submit_urb(rr3->flash_urb, GFP_ATOMIC);
+		if (ret != 0) {
+			dev_dbg(rr3->dev, "%s: unexpected ret of %d\n",
+				__func__, ret);
+			atomic_set(&rr3->flash, 0);
+		}
+	}
+}
+
+static void redrat3_led_complete(struct urb *urb)
+{
+	struct redrat3_dev *rr3 = urb->context;
+
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		usb_unlink_urb(urb);
+		return;
+	case -EPIPE:
+	default:
+		dev_dbg(rr3->dev, "Error: urb status = %d\n", urb->status);
+		break;
+	}
+
+	rr3->led.brightness = LED_OFF;
+	atomic_dec(&rr3->flash);
 }
 
 static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
@@ -1016,10 +1039,35 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	/* default.. will get overridden by any sends with a freq defined */
 	rr3->carrier = 38000;
 
+	/* led control */
+	rr3->led.name = "redrat3:red:feedback";
+	rr3->led.default_trigger = "rc-feedback";
+	rr3->led.brightness_set = redrat3_brightness_set;
+	retval = led_classdev_register(&intf->dev, &rr3->led);
+	if (retval)
+		goto error;
+
+	atomic_set(&rr3->flash, 0);
+	rr3->flash_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!rr3->flash_urb) {
+		retval = -ENOMEM;
+		goto led_free_error;
+	}
+
+	/* setup packet is 'c0 b9 0000 0000 0001' */
+	rr3->flash_control.bRequestType = 0xc0;
+	rr3->flash_control.bRequest = RR3_BLINK_LED;
+	rr3->flash_control.wLength = cpu_to_le16(1);
+
+	usb_fill_control_urb(rr3->flash_urb, udev, usb_rcvctrlpipe(udev, 0),
+			(unsigned char *)&rr3->flash_control,
+			&rr3->flash_in_buf, sizeof(rr3->flash_in_buf),
+			redrat3_led_complete, rr3);
+
 	rr3->rc = redrat3_init_rc_dev(rr3);
 	if (!rr3->rc) {
 		retval = -ENOMEM;
-		goto error;
+		goto led_free_error;
 	}
 	setup_timer(&rr3->rx_timeout, redrat3_rx_timeout, (unsigned long)rr3);
 
@@ -1029,6 +1077,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	rr3_ftr(dev, "Exiting %s\n", __func__);
 	return 0;
 
+led_free_error:
+	led_classdev_unregister(&rr3->led);
 error:
 	redrat3_delete(rr3, rr3->udev);
 
@@ -1048,10 +1098,9 @@ static void redrat3_dev_disconnect(struct usb_interface *intf)
 	if (!rr3)
 		return;
 
-	redrat3_disable_detector(rr3);
-
 	usb_set_intfdata(intf, NULL);
 	rc_unregister_device(rr3->rc);
+	led_classdev_unregister(&rr3->led);
 	del_timer_sync(&rr3->rx_timeout);
 	redrat3_delete(rr3, udev);
 
@@ -1062,7 +1111,9 @@ static int redrat3_dev_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
 	rr3_ftr(rr3->dev, "suspend\n");
+	led_classdev_suspend(&rr3->led);
 	usb_kill_urb(rr3->read_urb);
+	usb_kill_urb(rr3->flash_urb);
 	return 0;
 }
 
@@ -1072,6 +1123,7 @@ static int redrat3_dev_resume(struct usb_interface *intf)
 	rr3_ftr(rr3->dev, "resume\n");
 	if (usb_submit_urb(rr3->read_urb, GFP_ATOMIC))
 		return -EIO;
+	led_classdev_resume(&rr3->led);
 	return 0;
 }
 

@@ -100,7 +100,7 @@ static const struct ehci_driver_overrides ehci_omap_overrides __initdata = {
 static int ehci_hcd_omap_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usbhs_omap_platform_data *pdata = dev->platform_data;
+	struct usbhs_omap_platform_data *pdata = dev_get_platdata(dev);
 	struct resource	*res;
 	struct usb_hcd	*hcd;
 	void __iomem *regs;
@@ -119,7 +119,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	/* For DT boot, get platform data from parent. i.e. usbhshost */
 	if (dev->of_node) {
-		pdata = dev->parent->platform_data;
+		pdata = dev_get_platdata(dev->parent);
 		dev->platform_data = pdata;
 	}
 
@@ -278,14 +278,6 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void ehci_hcd_omap_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&pdev->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
 static const struct of_device_id omap_ehci_dt_ids[] = {
 	{ .compatible = "ti,ehci-omap" },
 	{ }
@@ -296,7 +288,7 @@ MODULE_DEVICE_TABLE(of, omap_ehci_dt_ids);
 static struct platform_driver ehci_hcd_omap_driver = {
 	.probe			= ehci_hcd_omap_probe,
 	.remove			= ehci_hcd_omap_remove,
-	.shutdown		= ehci_hcd_omap_shutdown,
+	.shutdown		= usb_hcd_platform_shutdown,
 	/*.suspend		= ehci_hcd_omap_suspend, */
 	/*.resume		= ehci_hcd_omap_resume, */
 	.driver = {

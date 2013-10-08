@@ -59,6 +59,9 @@ clock which they consume.
   sclk_spi0		154
   sclk_spi1		155
   sclk_spi2		156
+  div_i2s1		157
+  div_i2s2		158
+  sclk_hdmiphy		159
 
 
    [Peripheral Clock Gates]
@@ -154,7 +157,16 @@ clock which they consume.
   dsim0			341
   dp			342
   mixer			343
-  hdmi			345
+  hdmi			344
+  g2d			345
+
+
+   [Clock Muxes]
+
+  Clock			ID
+  ----------------------------
+  mout_hdmi		1024
+
 
 Example 1: An example of a clock controller node is listed below.
 

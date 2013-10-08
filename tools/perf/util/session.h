@@ -37,10 +37,15 @@ struct perf_session {
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
-	char			*cwd;
 	struct ordered_samples	ordered_samples;
 	char			filename[1];
 };
+
+#define PRINT_IP_OPT_IP		(1<<0)
+#define PRINT_IP_OPT_SYM		(1<<1)
+#define PRINT_IP_OPT_DSO		(1<<2)
+#define PRINT_IP_OPT_SYMOFFSET	(1<<3)
+#define PRINT_IP_OPT_ONELINE	(1<<4)
 
 struct perf_tool;
 
@@ -56,6 +61,11 @@ int __perf_session__process_events(struct perf_session *self,
 				   struct perf_tool *tool);
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_tool *tool);
+
+int perf_session_queue_event(struct perf_session *s, union perf_event *event,
+			     struct perf_sample *sample, u64 file_offset);
+
+void perf_tool__fill_defaults(struct perf_tool *tool);
 
 int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
 				    struct thread *thread,
@@ -99,7 +109,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			  struct perf_sample *sample, struct machine *machine,
-			  int print_sym, int print_dso, int print_symoffset);
+			  unsigned int print_opts, unsigned int stack_depth);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);
@@ -114,4 +124,8 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 
 #define perf_session__set_tracepoints_handlers(session, array) \
 	__perf_session__set_tracepoints_handlers(session, array, ARRAY_SIZE(array))
+
+extern volatile int session_done;
+
+#define session_done()	(*(volatile int *)(&session_done))
 #endif /* __PERF_SESSION_H */

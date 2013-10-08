@@ -4703,6 +4703,14 @@ bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print)
 	attn.sig[3] = REG_RD(bp,
 		MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 +
 			     port*4);
+	/* Since MCP attentions can't be disabled inside the block, we need to
+	 * read AEU registers to see whether they're currently disabled
+	 */
+	attn.sig[3] &= ((REG_RD(bp,
+				!port ? MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0
+				      : MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0) &
+			 MISC_AEU_ENABLE_MCP_PRTY_BITS) |
+			~MISC_AEU_ENABLE_MCP_PRTY_BITS);
 
 	if (!CHIP_IS_E1x(bp))
 		attn.sig[4] = REG_RD(bp,
@@ -5447,26 +5455,24 @@ static void bnx2x_timer(unsigned long data)
 	if (IS_PF(bp) &&
 	    !BP_NOMCP(bp)) {
 		int mb_idx = BP_FW_MB_IDX(bp);
-		u32 drv_pulse;
-		u32 mcp_pulse;
+		u16 drv_pulse;
+		u16 mcp_pulse;
 
 		++bp->fw_drv_pulse_wr_seq;
 		bp->fw_drv_pulse_wr_seq &= DRV_PULSE_SEQ_MASK;
-		/* TBD - add SYSTEM_TIME */
 		drv_pulse = bp->fw_drv_pulse_wr_seq;
 		bnx2x_drv_pulse(bp);
 
 		mcp_pulse = (SHMEM_RD(bp, func_mb[mb_idx].mcp_pulse_mb) &
 			     MCP_PULSE_SEQ_MASK);
 		/* The delta between driver pulse and mcp response
-		 * should be 1 (before mcp response) or 0 (after mcp response)
+		 * should not get too big. If the MFW is more than 5 pulses
+		 * behind, we should worry about it enough to generate an error
+		 * log.
 		 */
-		if ((drv_pulse != mcp_pulse) &&
-		    (drv_pulse != ((mcp_pulse + 1) & MCP_PULSE_SEQ_MASK))) {
-			/* someone lost a heartbeat... */
-			BNX2X_ERR("drv_pulse (0x%x) != mcp_pulse (0x%x)\n",
+		if (((drv_pulse - mcp_pulse) & MCP_PULSE_SEQ_MASK) > 5)
+			BNX2X_ERR("MFW seems hanged: drv_pulse (0x%x) != mcp_pulse (0x%x)\n",
 				  drv_pulse, mcp_pulse);
-		}
 	}
 
 	if (bp->state == BNX2X_STATE_OPEN)
@@ -6893,7 +6899,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		bnx2x_init_block(bp, BLOCK_TM, PHASE_COMMON);
 
 	bnx2x_init_block(bp, BLOCK_DORQ, PHASE_COMMON);
-	REG_WR(bp, DORQ_REG_DPM_CID_OFST, BNX2X_DB_SHIFT);
+
 	if (!CHIP_REV_IS_SLOW(bp))
 		/* enable hw interrupt from doorbell Q */
 		REG_WR(bp, DORQ_REG_DORQ_INT_MASK, 0);
@@ -7645,6 +7651,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_TM, init_phase);
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
+	REG_WR(bp, DORQ_REG_MODE_ACT, 1); /* no dpm */
 
 	bnx2x_iov_init_dq(bp);
 
@@ -8063,7 +8070,10 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 
 int bnx2x_setup_leading(struct bnx2x *bp)
 {
-	return bnx2x_setup_queue(bp, &bp->fp[0], 1);
+	if (IS_PF(bp))
+		return bnx2x_setup_queue(bp, &bp->fp[0], true);
+	else /* VF */
+		return bnx2x_vfpf_setup_q(bp, &bp->fp[0], true);
 }
 
 /**
@@ -8077,8 +8087,10 @@ int bnx2x_set_int_mode(struct bnx2x *bp)
 {
 	int rc = 0;
 
-	if (IS_VF(bp) && int_mode != BNX2X_INT_MODE_MSIX)
+	if (IS_VF(bp) && int_mode != BNX2X_INT_MODE_MSIX) {
+		BNX2X_ERR("VF not loaded since interrupt mode not msix\n");
 		return -EINVAL;
+	}
 
 	switch (int_mode) {
 	case BNX2X_INT_MODE_MSIX:
@@ -8646,6 +8658,7 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 	else if (bp->wol) {
 		u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		u8 *mac_addr = bp->dev->dev_addr;
+		struct pci_dev *pdev = bp->pdev;
 		u32 val;
 		u16 pmc;
 
@@ -8662,9 +8675,9 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry + 4, val);
 
 		/* Enable the PME and clear the status */
-		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmc);
+		pci_read_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, &pmc);
 		pmc |= PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS;
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, pmc);
+		pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, pmc);
 
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_EN;
 
@@ -9647,11 +9660,9 @@ sp_rtnl_not_reset:
 		}
 	}
 
-	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
-			       &bp->sp_rtnl_state)) {
-		DP(BNX2X_MSG_SP,
-		   "sending set storm rx mode vf pf channel message from rtnl sp-task\n");
-		bnx2x_vfpf_storm_rx_mode(bp);
+	if (test_and_clear_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state)) {
+		DP(BNX2X_MSG_SP, "Handling Rx Mode setting\n");
+		bnx2x_set_rx_mode_inner(bp);
 	}
 
 	if (test_and_clear_bit(BNX2X_SP_RTNL_HYPERVISOR_VLAN,
@@ -9960,8 +9971,6 @@ static int bnx2x_prev_mark_path(struct bnx2x *bp, bool after_undi)
 
 static int bnx2x_do_flr(struct bnx2x *bp)
 {
-	int i;
-	u16 status;
 	struct pci_dev *dev = bp->pdev;
 
 	if (CHIP_IS_E1x(bp)) {
@@ -9976,20 +9985,8 @@ static int bnx2x_do_flr(struct bnx2x *bp)
 		return -EINVAL;
 	}
 
-	/* Wait for Transaction Pending bit clean */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
-
-		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
-	}
-
-	dev_err(&dev->dev,
-		"transaction is not cleared; proceeding with reset anyway\n");
-
-clear:
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
 
 	BNX2X_DEV_INFO("Initiating FLR\n");
 	bnx2x_fw_command(bp, DRV_MSG_CODE_INITIATE_FLR, 0);
@@ -10409,7 +10406,7 @@ static void bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		break;
 	}
 
-	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
+	pci_read_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_PMC, &pmc);
 	bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
 
 	BNX2X_DEV_INFO("%sWoL capable\n",
@@ -11663,9 +11660,11 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	 * second status block for the L2 queue, and a third status block for
 	 * CNIC if supported.
 	 */
-	if (CNIC_SUPPORT(bp))
+	if (IS_VF(bp))
+		bp->min_msix_vec_cnt = 1;
+	else if (CNIC_SUPPORT(bp))
 		bp->min_msix_vec_cnt = 3;
-	else
+	else /* PF w/o cnic */
 		bp->min_msix_vec_cnt = 2;
 	BNX2X_DEV_INFO("bp->min_msix_vec_cnt %d", bp->min_msix_vec_cnt);
 
@@ -11882,34 +11881,48 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 void bnx2x_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u32 rx_mode = BNX2X_RX_MODE_NORMAL;
 
 	if (bp->state != BNX2X_STATE_OPEN) {
 		DP(NETIF_MSG_IFUP, "state is %x, returning\n", bp->state);
 		return;
+	} else {
+		/* Schedule an SP task to handle rest of change */
+		DP(NETIF_MSG_IFUP, "Scheduling an Rx mode change\n");
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
 	}
+}
+
+void bnx2x_set_rx_mode_inner(struct bnx2x *bp)
+{
+	u32 rx_mode = BNX2X_RX_MODE_NORMAL;
 
 	DP(NETIF_MSG_IFUP, "dev->flags = %x\n", bp->dev->flags);
 
-	if (dev->flags & IFF_PROMISC)
+	netif_addr_lock_bh(bp->dev);
+
+	if (bp->dev->flags & IFF_PROMISC) {
 		rx_mode = BNX2X_RX_MODE_PROMISC;
-	else if ((dev->flags & IFF_ALLMULTI) ||
-		 ((netdev_mc_count(dev) > BNX2X_MAX_MULTICAST) &&
-		  CHIP_IS_E1(bp)))
+	} else if ((bp->dev->flags & IFF_ALLMULTI) ||
+		   ((netdev_mc_count(bp->dev) > BNX2X_MAX_MULTICAST) &&
+		    CHIP_IS_E1(bp))) {
 		rx_mode = BNX2X_RX_MODE_ALLMULTI;
-	else {
+	} else {
 		if (IS_PF(bp)) {
 			/* some multicasts */
 			if (bnx2x_set_mc_list(bp) < 0)
 				rx_mode = BNX2X_RX_MODE_ALLMULTI;
 
+			/* release bh lock, as bnx2x_set_uc_list might sleep */
+			netif_addr_unlock_bh(bp->dev);
 			if (bnx2x_set_uc_list(bp) < 0)
 				rx_mode = BNX2X_RX_MODE_PROMISC;
+			netif_addr_lock_bh(bp->dev);
 		} else {
 			/* configuring mcast to a vf involves sleeping (when we
-			 * wait for the pf's response). Since this function is
-			 * called from non sleepable context we must schedule
-			 * a work item for this purpose
+			 * wait for the pf's response).
 			 */
 			smp_mb__before_clear_bit();
 			set_bit(BNX2X_SP_RTNL_VFPF_MCAST,
@@ -11927,22 +11940,20 @@ void bnx2x_set_rx_mode(struct net_device *dev)
 	/* Schedule the rx_mode command */
 	if (test_bit(BNX2X_FILTER_RX_MODE_PENDING, &bp->sp_state)) {
 		set_bit(BNX2X_FILTER_RX_MODE_SCHED, &bp->sp_state);
+		netif_addr_unlock_bh(bp->dev);
 		return;
 	}
 
 	if (IS_PF(bp)) {
 		bnx2x_set_storm_rx_mode(bp);
+		netif_addr_unlock_bh(bp->dev);
 	} else {
-		/* configuring rx mode to storms in a vf involves sleeping (when
-		 * we wait for the pf's response). Since this function is
-		 * called from non sleepable context we must schedule
-		 * a work item for this purpose
+		/* VF will need to request the PF to make this change, and so
+		 * the VF needs to release the bottom-half lock prior to the
+		 * request (as it will likely require sleep on the VF side)
 		 */
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
-			&bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+		netif_addr_unlock_bh(bp->dev);
+		bnx2x_vfpf_storm_rx_mode(bp);
 	}
 }
 
@@ -12137,8 +12148,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	}
 
 	if (IS_PF(bp)) {
-		bp->pm_cap = pdev->pm_cap;
-		if (bp->pm_cap == 0) {
+		if (!pdev->pm_cap) {
 			dev_err(&bp->pdev->dev,
 				"Cannot find power management capability, aborting\n");
 			rc = -EIO;
@@ -12564,19 +12574,16 @@ static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
  * @dev:	pci device
  *
  */
-static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
-				     int cnic_cnt, bool is_vf)
+static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev, int cnic_cnt)
 {
-	int pos, index;
+	int index;
 	u16 control = 0;
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
 
 	/*
 	 * If MSI-X is not supported - return number of SBs needed to support
 	 * one fast path queue: one FP queue + SB for CNIC
 	 */
-	if (!pos) {
+	if (!pdev->msix_cap) {
 		dev_info(&pdev->dev, "no msix capability found\n");
 		return 1 + cnic_cnt;
 	}
@@ -12589,11 +12596,11 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
 	 * without the default SB.
 	 * For VFs there is no default SB, then we return (index+1).
 	 */
-	pci_read_config_word(pdev, pos  + PCI_MSI_FLAGS, &control);
+	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSI_FLAGS, &control);
 
 	index = control & PCI_MSIX_FLAGS_QSIZE;
 
-	return is_vf ? index + 1 : index;
+	return index;
 }
 
 static int set_max_cos_est(int chip_id)
@@ -12673,10 +12680,13 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	is_vf = set_is_vf(ent->driver_data);
 	cnic_cnt = is_vf ? 0 : 1;
 
-	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev, cnic_cnt, is_vf);
+	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev, cnic_cnt);
+
+	/* add another SB for VF as it has no default SB */
+	max_non_def_sbs += is_vf ? 1 : 0;
 
 	/* Maximum number of RSS queues: one IGU SB goes to CNIC */
-	rss_count = is_vf ? 1 : max_non_def_sbs - cnic_cnt;
+	rss_count = max_non_def_sbs - cnic_cnt;
 
 	if (rss_count < 1)
 		return -EINVAL;
@@ -13627,6 +13637,10 @@ void bnx2x_setup_cnic_info(struct bnx2x *bp)
 	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
 	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
+
+	DP(NETIF_MSG_IFUP, "BNX2X_1st_NON_L2_ETH_CID(bp) %x, cp->starting_cid %x, cp->fcoe_init_cid %x, cp->iscsi_l2_cid %x\n",
+	   BNX2X_1st_NON_L2_ETH_CID(bp), cp->starting_cid, cp->fcoe_init_cid,
+	   cp->iscsi_l2_cid);
 
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;

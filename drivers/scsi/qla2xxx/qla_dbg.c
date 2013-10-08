@@ -11,9 +11,12 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x014f       | 0x4b,0xba,0xfa |
- * | Mailbox commands             |       0x117a       | 0x111a-0x111b  |
+ * | Module Init and Probe        |       0x0159       | 0x4b,0xba,0xfa |
+ * | Mailbox commands             |       0x1181       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
+ * |                              |                    | 0x1018-0x1019  |
+ * |                              |                    | 0x1115-0x1116  |
+ * |                              |                    | 0x10ca		|
  * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
  * |                              |                    | 0x2011-0x2012, |
  * |                              |                    | 0x2016         |
@@ -24,11 +27,12 @@
  * |                              |                    | 0x3036,0x3038  |
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4022       | 0x4002,0x4013  |
- * | Async Events                 |       0x5081       | 0x502b-0x502f  |
+ * | Async Events                 |       0x5087       | 0x502b-0x502f  |
  * |                              |                    | 0x5047,0x5052  |
- * |                              |                    | 0x5040,0x5075  |
- * | Timer Routines               |       0x6011       |                |
- * | User Space Interactions      |       0x70dd       | 0x7018,0x702e, |
+ * |                              |                    | 0x5084,0x5075	|
+ * |                              |                    | 0x503d,0x5044  |
+ * | Timer Routines               |       0x6012       |                |
+ * | User Space Interactions      |       0x70e1       | 0x7018,0x702e, |
  * |                              |                    | 0x7020,0x7024, |
  * |                              |                    | 0x7039,0x7045, |
  * |                              |                    | 0x7073-0x7075, |
@@ -36,17 +40,28 @@
  * |                              |                    | 0x70a5,0x70a6, |
  * |                              |                    | 0x70a8,0x70ab, |
  * |                              |                    | 0x70ad-0x70ae, |
- * |                              |                    | 0x70d1-0x70da, |
+ * |                              |                    | 0x70d1-0x70db, |
  * |                              |                    | 0x7047,0x703b	|
- * | Task Management              |       0x803c       | 0x8025-0x8026  |
+ * |                              |                    | 0x70de-0x70df, |
+ * | Task Management              |       0x803d       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb086       | 0xb002,0xb024  |
+ * | ISP82XX Specific             |       0xb14c       | 0xb002,0xb024  |
+ * |                              |                    | 0xb09e,0xb0ae  |
+ * |                              |                    | 0xb0e0-0xb0ef  |
+ * |                              |                    | 0xb085,0xb0dc  |
+ * |                              |                    | 0xb107,0xb108  |
+ * |                              |                    | 0xb111,0xb11e  |
+ * |                              |                    | 0xb12c,0xb12d  |
+ * |                              |                    | 0xb13a,0xb142  |
+ * |                              |                    | 0xb13c-0xb140  |
+ * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
- * | Target Mode		  |	  0xe070       |		|
- * | Target Mode Management	  |	  0xf072       |		|
+ * | Target Mode		  |	  0xe070       | 0xe021		|
+ * | Target Mode Management	  |	  0xf072       | 0xf002-0xf003	|
+ * |                              |                    | 0xf046-0xf049  |
  * | Target Mode Task Management  |	  0x1000b      |		|
  * ----------------------------------------------------------------------
  */
@@ -519,7 +534,7 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	uint32_t cnt, que_idx;
 	uint8_t que_cnt;
 	struct qla2xxx_mq_chain *mq = ptr;
-	struct device_reg_25xxmq __iomem *reg;
+	device_reg_t __iomem *reg;
 
 	if (!ha->mqenable || IS_QLA83XX(ha))
 		return ptr;
@@ -533,13 +548,16 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 		ha->max_req_queues : ha->max_rsp_queues;
 	mq->count = htonl(que_cnt);
 	for (cnt = 0; cnt < que_cnt; cnt++) {
-		reg = (struct device_reg_25xxmq __iomem *)
-			(ha->mqiobase + cnt * QLA_QUE_PAGE);
+		reg = ISP_QUE_REG(ha, cnt);
 		que_idx = cnt * 4;
-		mq->qregs[que_idx] = htonl(RD_REG_DWORD(&reg->req_q_in));
-		mq->qregs[que_idx+1] = htonl(RD_REG_DWORD(&reg->req_q_out));
-		mq->qregs[que_idx+2] = htonl(RD_REG_DWORD(&reg->rsp_q_in));
-		mq->qregs[que_idx+3] = htonl(RD_REG_DWORD(&reg->rsp_q_out));
+		mq->qregs[que_idx] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.req_q_in));
+		mq->qregs[que_idx+1] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.req_q_out));
+		mq->qregs[que_idx+2] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.rsp_q_in));
+		mq->qregs[que_idx+3] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.rsp_q_out));
 	}
 
 	return ptr + sizeof(struct qla2xxx_mq_chain);
@@ -941,7 +959,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		return;
 
 	risc_address = ext_mem_cnt = 0;
@@ -2530,7 +2548,7 @@ ql_dump_regs(uint32_t level, scsi_qla_host_t *vha, int32_t id)
 	if (!ql_mask_match(level))
 		return;
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		mbx_reg = &reg82->mailbox_in[0];
 	else if (IS_FWI2_CAPABLE(ha))
 		mbx_reg = &reg24->mailbox0;

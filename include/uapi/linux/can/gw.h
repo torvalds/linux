@@ -45,6 +45,7 @@ enum {
 	CGW_DST_IF,	/* ifindex of destination network interface */
 	CGW_FILTER,	/* specify struct can_filter on source CAN device */
 	CGW_DELETED,	/* number of deleted CAN frames (see max_hops param) */
+	CGW_LIM_HOPS,	/* limit the number of hops of this specific rule */
 	__CGW_MAX
 };
 
@@ -116,12 +117,18 @@ enum {
  * Sets a CAN receive filter for the gateway job specified by the
  * struct can_filter described in include/linux/can.h
  *
- * CGW_MOD_XXX (length 17 bytes):
+ * CGW_MOD_(AND|OR|XOR|SET) (length 17 bytes):
  * Specifies a modification that's done to a received CAN frame before it is
  * send out to the destination interface.
  *
  * <struct can_frame> data used as operator
  * <u8> affected CAN frame elements
+ *
+ * CGW_LIM_HOPS (length 1 byte):
+ * Limit the number of hops of this specific rule. Usually the received CAN
+ * frame can be processed as much as 'max_hops' times (which is given at module
+ * load time of the can-gw module). This value is used to reduce the number of
+ * possible hops for this gateway rule to a value smaller then max_hops.
  *
  * CGW_CS_XOR (length 4 bytes):
  * Set a simple XOR checksum starting with an initial value into

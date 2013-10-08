@@ -31,7 +31,7 @@ config PPS_CLIENT_PARPORT
 
 config PPS_CLIENT_GPIO
 	tristate "PPS client using GPIO"
-	depends on PPS && GENERIC_HARDIRQS
+	depends on PPS
 	help
 	  If you say yes here you get support for a PPS source using
 	  GPIO. To be useful you must also register a platform device

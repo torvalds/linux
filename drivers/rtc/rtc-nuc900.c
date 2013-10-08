@@ -99,7 +99,7 @@ static int *check_rtc_access_enable(struct nuc900_rtc *nuc900_rtc)
 	if (!timeout)
 		return ERR_PTR(-EPERM);
 
-	return 0;
+	return NULL;
 }
 
 static int nuc900_rtc_bcd2bin(unsigned int timereg,

@@ -66,7 +66,7 @@ do {							\
 #define IBM_HARDWARE_ID1 "IBM37D0"
 #define IBM_HARDWARE_ID2 "IBM37D4"
 
-#define hpslot_to_sun(A) (((struct slot *)((A)->private))->acpi_slot->sun)
+#define hpslot_to_sun(A) (((struct slot *)((A)->private))->sun)
 
 /* union apci_descriptor - allows access to the
  * various device descriptors that are embedded in the
@@ -270,7 +270,6 @@ static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 
 	if (subevent == 0x80) {
 		dbg("%s: generationg bus event\n", __func__);
-		acpi_bus_generate_proc_event(note->device, note->event, detail);
 		acpi_bus_generate_netlink_event(note->device->pnp.device_class,
 						  dev_name(&note->device->dev),
 						  note->event, detail);

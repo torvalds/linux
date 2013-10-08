@@ -224,6 +224,18 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
 
+static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			vlv_gpu_freq(dev_priv->mem_freq,
+				     dev_priv->rps.rpe_delay));
+}
+
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
@@ -366,6 +378,7 @@ static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
 static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
 static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
 
+static DEVICE_ATTR(vlv_rpe_freq_mhz, S_IRUGO, vlv_rpe_freq_mhz_show, NULL);
 
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf);
 static DEVICE_ATTR(gt_RP0_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
@@ -409,6 +422,79 @@ static const struct attribute *gen6_attrs[] = {
 	NULL,
 };
 
+static const struct attribute *vlv_attrs[] = {
+	&dev_attr_gt_cur_freq_mhz.attr,
+	&dev_attr_gt_max_freq_mhz.attr,
+	&dev_attr_gt_min_freq_mhz.attr,
+	&dev_attr_vlv_rpe_freq_mhz.attr,
+	NULL,
+};
+
+static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *attr, char *buf,
+				loff_t off, size_t count)
+{
+
+	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct i915_error_state_file_priv error_priv;
+	struct drm_i915_error_state_buf error_str;
+	ssize_t ret_count = 0;
+	int ret;
+
+	memset(&error_priv, 0, sizeof(error_priv));
+
+	ret = i915_error_state_buf_init(&error_str, count, off);
+	if (ret)
+		return ret;
+
+	error_priv.dev = dev;
+	i915_error_state_get(dev, &error_priv);
+
+	ret = i915_error_state_to_str(&error_str, &error_priv);
+	if (ret)
+		goto out;
+
+	ret_count = count < error_str.bytes ? count : error_str.bytes;
+
+	memcpy(buf, error_str.buf, ret_count);
+out:
+	i915_error_state_put(&error_priv);
+	i915_error_state_buf_release(&error_str);
+
+	return ret ?: ret_count;
+}
+
+static ssize_t error_state_write(struct file *file, struct kobject *kobj,
+				 struct bin_attribute *attr, char *buf,
+				 loff_t off, size_t count)
+{
+	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	int ret;
+
+	DRM_DEBUG_DRIVER("Resetting error state\n");
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	i915_destroy_error_state(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+}
+
+static struct bin_attribute error_state_attr = {
+	.attr.name = "error",
+	.attr.mode = S_IRUSR | S_IWUSR,
+	.size = 0,
+	.read = error_state_read,
+	.write = error_state_write,
+};
+
 void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
@@ -427,16 +513,27 @@ void i915_setup_sysfs(struct drm_device *dev)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6) {
+	ret = 0;
+	if (IS_VALLEYVIEW(dev))
+		ret = sysfs_create_files(&dev->primary->kdev.kobj, vlv_attrs);
+	else if (INTEL_INFO(dev)->gen >= 6)
 		ret = sysfs_create_files(&dev->primary->kdev.kobj, gen6_attrs);
-		if (ret)
-			DRM_ERROR("gen6 sysfs setup failed\n");
-	}
+	if (ret)
+		DRM_ERROR("RPS sysfs setup failed\n");
+
+	ret = sysfs_create_bin_file(&dev->primary->kdev.kobj,
+				    &error_state_attr);
+	if (ret)
+		DRM_ERROR("error_state sysfs setup failed\n");
 }
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
-	sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
+	sysfs_remove_bin_file(&dev->primary->kdev.kobj, &error_state_attr);
+	if (IS_VALLEYVIEW(dev))
+		sysfs_remove_files(&dev->primary->kdev.kobj, vlv_attrs);
+	else
+		sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);

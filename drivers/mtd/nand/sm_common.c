@@ -42,7 +42,7 @@ static int sm_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_oob_ops ops;
 	struct sm_oob oob;
-	int ret, error = 0;
+	int ret;
 
 	memset(&oob, -1, SM_OOB_SIZE);
 	oob.block_status = 0x0F;
@@ -61,11 +61,10 @@ static int sm_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		printk(KERN_NOTICE
 			"sm_common: can't mark sector at %i as bad\n",
 								(int)ofs);
-		error = -EIO;
-	} else
-		mtd->ecc_stats.badblocks++;
+		return -EIO;
+	}
 
-	return error;
+	return 0;
 }
 
 static struct nand_flash_dev nand_smartmedia_flash_ids[] = {

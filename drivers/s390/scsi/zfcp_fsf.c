@@ -770,7 +770,8 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
-	req = zfcp_fsf_req_create(qdio, FSF_QTCB_UNSOLICITED_STATUS, 0,
+	req = zfcp_fsf_req_create(qdio, FSF_QTCB_UNSOLICITED_STATUS,
+				  SBAL_SFLAGS0_TYPE_STATUS,
 				  adapter->pool.status_read_req);
 	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
@@ -2386,13 +2387,4 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 		if (likely(sbale->eflags & SBAL_EFLAGS_LAST_ENTRY))
 			break;
 	}
-}
-
-struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *qdio,
-				      struct qdio_buffer *sbal)
-{
-	struct qdio_buffer_element *sbale = &sbal->element[0];
-	u64 req_id = (unsigned long) sbale->addr;
-
-	return zfcp_reqlist_find(qdio->adapter->req_list, req_id);
 }

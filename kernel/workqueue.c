@@ -16,9 +16,10 @@
  *
  * This is the generic async execution mechanism.  Work items as are
  * executed in process context.  The worker pool is shared and
- * automatically managed.  There is one worker pool for each CPU and
- * one extra for works which are better served by workers which are
- * not bound to any specific CPU.
+ * automatically managed.  There are two worker pools for each CPU (one for
+ * normal work items and the other for high priority ones) and some extra
+ * pools for workqueues which are not bound to any specific CPU - the
+ * number of these backing pools is dynamic.
  *
  * Please read Documentation/workqueue.txt for details.
  */
@@ -540,6 +541,8 @@ static int worker_pool_assign_id(struct worker_pool *pool)
  * This must be called either with pwq_lock held or sched RCU read locked.
  * If the pwq needs to be used beyond the locking in effect, the caller is
  * responsible for guaranteeing that the pwq stays online.
+ *
+ * Return: The unbound pool_workqueue for @node.
  */
 static struct pool_workqueue *unbound_pwq_by_node(struct workqueue_struct *wq,
 						  int node)
@@ -638,8 +641,6 @@ static struct pool_workqueue *get_work_pwq(struct work_struct *work)
  * get_work_pool - return the worker_pool a given work was associated with
  * @work: the work item of interest
  *
- * Return the worker_pool @work was last associated with.  %NULL if none.
- *
  * Pools are created and destroyed under wq_pool_mutex, and allows read
  * access under sched-RCU read lock.  As such, this function should be
  * called under wq_pool_mutex or with preemption disabled.
@@ -648,6 +649,8 @@ static struct pool_workqueue *get_work_pwq(struct work_struct *work)
  * mentioned locking is in effect.  If the returned pool needs to be used
  * beyond the critical section, the caller is responsible for ensuring the
  * returned pool is and stays online.
+ *
+ * Return: The worker_pool @work was last associated with.  %NULL if none.
  */
 static struct worker_pool *get_work_pool(struct work_struct *work)
 {
@@ -671,7 +674,7 @@ static struct worker_pool *get_work_pool(struct work_struct *work)
  * get_work_pool_id - return the worker pool ID a given work is associated with
  * @work: the work item of interest
  *
- * Return the worker_pool ID @work was last associated with.
+ * Return: The worker_pool ID @work was last associated with.
  * %WORK_OFFQ_POOL_NONE if none.
  */
 static int get_work_pool_id(struct work_struct *work)
@@ -830,7 +833,7 @@ void wq_worker_waking_up(struct task_struct *task, int cpu)
  * CONTEXT:
  * spin_lock_irq(rq->lock)
  *
- * RETURNS:
+ * Return:
  * Worker task on @cpu to wake up, %NULL if none.
  */
 struct task_struct *wq_worker_sleeping(struct task_struct *task, int cpu)
@@ -965,8 +968,8 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
  * CONTEXT:
  * spin_lock_irq(pool->lock).
  *
- * RETURNS:
- * Pointer to worker which is executing @work if found, NULL
+ * Return:
+ * Pointer to worker which is executing @work if found, %NULL
  * otherwise.
  */
 static struct worker *find_worker_executing_work(struct worker_pool *pool,
@@ -1154,14 +1157,16 @@ out_put:
  * @flags: place to store irq state
  *
  * Try to grab PENDING bit of @work.  This function can handle @work in any
- * stable state - idle, on timer or on worklist.  Return values are
+ * stable state - idle, on timer or on worklist.
  *
+ * Return:
  *  1		if @work was pending and we successfully stole PENDING
  *  0		if @work was idle and we claimed PENDING
  *  -EAGAIN	if PENDING couldn't be grabbed at the moment, safe to busy-retry
  *  -ENOENT	if someone else is canceling @work, this state may persist
  *		for arbitrarily long
  *
+ * Note:
  * On >= 0 return, the caller owns @work's PENDING bit.  To avoid getting
  * interrupted while holding PENDING and @work off queue, irq must be
  * disabled on entry.  This, combined with delayed_work->timer being
@@ -1403,10 +1408,10 @@ retry:
  * @wq: workqueue to use
  * @work: work to queue
  *
- * Returns %false if @work was already on a queue, %true otherwise.
- *
  * We queue the work to a specific CPU, the caller must ensure it
  * can't go away.
+ *
+ * Return: %false if @work was already on a queue, %true otherwise.
  */
 bool queue_work_on(int cpu, struct workqueue_struct *wq,
 		   struct work_struct *work)
@@ -1476,7 +1481,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
  * @dwork: work to queue
  * @delay: number of jiffies to wait before queueing
  *
- * Returns %false if @work was already on a queue, %true otherwise.  If
+ * Return: %false if @work was already on a queue, %true otherwise.  If
  * @delay is zero and @dwork is idle, it will be scheduled for immediate
  * execution.
  */
@@ -1512,7 +1517,7 @@ EXPORT_SYMBOL(queue_delayed_work_on);
  * zero, @work is guaranteed to be scheduled immediately regardless of its
  * current state.
  *
- * Returns %false if @dwork was idle and queued, %true if @dwork was
+ * Return: %false if @dwork was idle and queued, %true if @dwork was
  * pending and its timer was modified.
  *
  * This function is safe to call from any context including IRQ handler.
@@ -1627,7 +1632,7 @@ static void worker_leave_idle(struct worker *worker)
  * Might sleep.  Called without any lock but returns with pool->lock
  * held.
  *
- * RETURNS:
+ * Return:
  * %true if the associated pool is online (@worker is successfully
  * bound), %false if offline.
  */
@@ -1688,7 +1693,7 @@ static struct worker *alloc_worker(void)
  * CONTEXT:
  * Might sleep.  Does GFP_KERNEL allocations.
  *
- * RETURNS:
+ * Return:
  * Pointer to the newly created worker.
  */
 static struct worker *create_worker(struct worker_pool *pool)
@@ -1788,6 +1793,8 @@ static void start_worker(struct worker *worker)
  * @pool: the target pool
  *
  * Grab the managership of @pool and create and start a new worker for it.
+ *
+ * Return: 0 on success. A negative error code otherwise.
  */
 static int create_and_start_worker(struct worker_pool *pool)
 {
@@ -1932,7 +1939,7 @@ static void pool_mayday_timeout(unsigned long __pool)
  * multiple times.  Does GFP_KERNEL allocations.  Called only from
  * manager.
  *
- * RETURNS:
+ * Return:
  * %false if no action was taken and pool->lock stayed locked, %true
  * otherwise.
  */
@@ -1989,7 +1996,7 @@ restart:
  * spin_lock_irq(pool->lock) which may be released and regrabbed
  * multiple times.  Called only from manager.
  *
- * RETURNS:
+ * Return:
  * %false if no action was taken and pool->lock stayed locked, %true
  * otherwise.
  */
@@ -2032,9 +2039,12 @@ static bool maybe_destroy_workers(struct worker_pool *pool)
  * spin_lock_irq(pool->lock) which may be released and regrabbed
  * multiple times.  Does GFP_KERNEL allocations.
  *
- * RETURNS:
- * spin_lock_irq(pool->lock) which may be released and regrabbed
- * multiple times.  Does GFP_KERNEL allocations.
+ * Return:
+ * %false if the pool don't need management and the caller can safely start
+ * processing works, %true indicates that the function released pool->lock
+ * and reacquired it to perform some management function and that the
+ * conditions that the caller verified while holding the lock before
+ * calling the function might no longer be true.
  */
 static bool manage_workers(struct worker *worker)
 {
@@ -2255,6 +2265,8 @@ static void process_scheduled_works(struct worker *worker)
  * work items regardless of their specific target workqueue.  The only
  * exception is work items which belong to workqueues with a rescuer which
  * will be explained in rescuer_thread().
+ *
+ * Return: 0
  */
 static int worker_thread(void *__worker)
 {
@@ -2353,6 +2365,8 @@ sleep:
  * those works so that forward progress can be guaranteed.
  *
  * This should happen rarely.
+ *
+ * Return: 0
  */
 static int rescuer_thread(void *__rescuer)
 {
@@ -2525,7 +2539,7 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
  * CONTEXT:
  * mutex_lock(wq->mutex).
  *
- * RETURNS:
+ * Return:
  * %true if @flush_color >= 0 and there's something to flush.  %false
  * otherwise.
  */
@@ -2846,7 +2860,7 @@ static bool __flush_work(struct work_struct *work)
  * Wait until @work has finished execution.  @work is guaranteed to be idle
  * on return if it hasn't been requeued since flush started.
  *
- * RETURNS:
+ * Return:
  * %true if flush_work() waited for the work to finish execution,
  * %false if it was already idle.
  */
@@ -2898,7 +2912,7 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
  * The caller must ensure that the workqueue on which @work was last
  * queued can't be destroyed before this function returns.
  *
- * RETURNS:
+ * Return:
  * %true if @work was pending, %false otherwise.
  */
 bool cancel_work_sync(struct work_struct *work)
@@ -2915,7 +2929,7 @@ EXPORT_SYMBOL_GPL(cancel_work_sync);
  * immediate execution.  Like flush_work(), this function only
  * considers the last queueing instance of @dwork.
  *
- * RETURNS:
+ * Return:
  * %true if flush_work() waited for the work to finish execution,
  * %false if it was already idle.
  */
@@ -2933,11 +2947,15 @@ EXPORT_SYMBOL(flush_delayed_work);
  * cancel_delayed_work - cancel a delayed work
  * @dwork: delayed_work to cancel
  *
- * Kill off a pending delayed_work.  Returns %true if @dwork was pending
- * and canceled; %false if wasn't pending.  Note that the work callback
- * function may still be running on return, unless it returns %true and the
- * work doesn't re-arm itself.  Explicitly flush or use
- * cancel_delayed_work_sync() to wait on it.
+ * Kill off a pending delayed_work.
+ *
+ * Return: %true if @dwork was pending and canceled; %false if it wasn't
+ * pending.
+ *
+ * Note:
+ * The work callback function may still be running on return, unless
+ * it returns %true and the work doesn't re-arm itself.  Explicitly flush or
+ * use cancel_delayed_work_sync() to wait on it.
  *
  * This function is safe to call from any context including IRQ handler.
  */
@@ -2966,7 +2984,7 @@ EXPORT_SYMBOL(cancel_delayed_work);
  *
  * This is cancel_work_sync() for delayed works.
  *
- * RETURNS:
+ * Return:
  * %true if @dwork was pending, %false otherwise.
  */
 bool cancel_delayed_work_sync(struct delayed_work *dwork)
@@ -2983,7 +3001,7 @@ EXPORT_SYMBOL(cancel_delayed_work_sync);
  * system workqueue and blocks until all CPUs have completed.
  * schedule_on_each_cpu() is very slow.
  *
- * RETURNS:
+ * Return:
  * 0 on success, -errno on failure.
  */
 int schedule_on_each_cpu(work_func_t func)
@@ -3051,7 +3069,7 @@ EXPORT_SYMBOL(flush_scheduled_work);
  * Executes the function immediately if process context is available,
  * otherwise schedules the function for delayed execution.
  *
- * Returns:	0 - function was executed
+ * Return:	0 - function was executed
  *		1 - function was scheduled for execution
  */
 int execute_in_process_context(work_func_t fn, struct execute_work *ew)
@@ -3095,25 +3113,26 @@ static struct workqueue_struct *dev_to_wq(struct device *dev)
 	return wq_dev->wq;
 }
 
-static ssize_t wq_per_cpu_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t per_cpu_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", (bool)!(wq->flags & WQ_UNBOUND));
 }
+static DEVICE_ATTR_RO(per_cpu);
 
-static ssize_t wq_max_active_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t max_active_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", wq->saved_max_active);
 }
 
-static ssize_t wq_max_active_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t max_active_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 	int val;
@@ -3124,12 +3143,14 @@ static ssize_t wq_max_active_store(struct device *dev,
 	workqueue_set_max_active(wq, val);
 	return count;
 }
+static DEVICE_ATTR_RW(max_active);
 
-static struct device_attribute wq_sysfs_attrs[] = {
-	__ATTR(per_cpu, 0444, wq_per_cpu_show, NULL),
-	__ATTR(max_active, 0644, wq_max_active_show, wq_max_active_store),
-	__ATTR_NULL,
+static struct attribute *wq_sysfs_attrs[] = {
+	&dev_attr_per_cpu.attr,
+	&dev_attr_max_active.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(wq_sysfs);
 
 static ssize_t wq_pool_ids_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -3279,7 +3300,7 @@ static struct device_attribute wq_sysfs_unbound_attrs[] = {
 
 static struct bus_type wq_subsys = {
 	.name				= "workqueue",
-	.dev_attrs			= wq_sysfs_attrs,
+	.dev_groups			= wq_sysfs_groups,
 };
 
 static int __init wq_sysfs_init(void)
@@ -3308,7 +3329,7 @@ static void wq_device_release(struct device *dev)
  * apply_workqueue_attrs() may race against userland updating the
  * attributes.
  *
- * Returns 0 on success, -errno on failure.
+ * Return: 0 on success, -errno on failure.
  */
 int workqueue_sysfs_register(struct workqueue_struct *wq)
 {
@@ -3401,7 +3422,9 @@ void free_workqueue_attrs(struct workqueue_attrs *attrs)
  * @gfp_mask: allocation mask to use
  *
  * Allocate a new workqueue_attrs, initialize with default settings and
- * return it.  Returns NULL on failure.
+ * return it.
+ *
+ * Return: The allocated new workqueue_attr on success. %NULL on failure.
  */
 struct workqueue_attrs *alloc_workqueue_attrs(gfp_t gfp_mask)
 {
@@ -3460,7 +3483,8 @@ static bool wqattrs_equal(const struct workqueue_attrs *a,
  * @pool: worker_pool to initialize
  *
  * Initiailize a newly zalloc'd @pool.  It also allocates @pool->attrs.
- * Returns 0 on success, -errno on failure.  Even on failure, all fields
+ *
+ * Return: 0 on success, -errno on failure.  Even on failure, all fields
  * inside @pool proper are initialized and put_unbound_pool() can be called
  * on @pool safely to release it.
  */
@@ -3567,9 +3591,12 @@ static void put_unbound_pool(struct worker_pool *pool)
  * Obtain a worker_pool which has the same attributes as @attrs, bump the
  * reference count and return it.  If there already is a matching
  * worker_pool, it will be used; otherwise, this function attempts to
- * create a new one.  On failure, returns NULL.
+ * create a new one.
  *
  * Should be called with wq_pool_mutex held.
+ *
+ * Return: On success, a worker_pool with the same attributes as @attrs.
+ * On failure, %NULL.
  */
 static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 {
@@ -3805,9 +3832,7 @@ static void free_unbound_pwq(struct pool_workqueue *pwq)
  *
  * Calculate the cpumask a workqueue with @attrs should use on @node.  If
  * @cpu_going_down is >= 0, that cpu is considered offline during
- * calculation.  The result is stored in @cpumask.  This function returns
- * %true if the resulting @cpumask is different from @attrs->cpumask,
- * %false if equal.
+ * calculation.  The result is stored in @cpumask.
  *
  * If NUMA affinity is not enabled, @attrs->cpumask is always used.  If
  * enabled and @node has online CPUs requested by @attrs, the returned
@@ -3816,6 +3841,9 @@ static void free_unbound_pwq(struct pool_workqueue *pwq)
  *
  * The caller is responsible for ensuring that the cpumask of @node stays
  * stable.
+ *
+ * Return: %true if the resulting @cpumask is different from @attrs->cpumask,
+ * %false if equal.
  */
 static bool wq_calc_node_cpumask(const struct workqueue_attrs *attrs, int node,
 				 int cpu_going_down, cpumask_t *cpumask)
@@ -3869,8 +3897,9 @@ static struct pool_workqueue *numa_pwq_tbl_install(struct workqueue_struct *wq,
  * items finish.  Note that a work item which repeatedly requeues itself
  * back-to-back will stay on its current pwq.
  *
- * Performs GFP_KERNEL allocations.  Returns 0 on success and -errno on
- * failure.
+ * Performs GFP_KERNEL allocations.
+ *
+ * Return: 0 on success and -errno on failure.
  */
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs)
@@ -4338,6 +4367,8 @@ EXPORT_SYMBOL_GPL(workqueue_set_max_active);
  *
  * Determine whether %current is a workqueue rescuer.  Can be used from
  * work functions to determine whether it's being run off the rescuer task.
+ *
+ * Return: %true if %current is a workqueue rescuer. %false otherwise.
  */
 bool current_is_workqueue_rescuer(void)
 {
@@ -4361,7 +4392,7 @@ bool current_is_workqueue_rescuer(void)
  * workqueue being congested on one CPU doesn't mean the workqueue is also
  * contested on other CPUs / NUMA nodes.
  *
- * RETURNS:
+ * Return:
  * %true if congested, %false otherwise.
  */
 bool workqueue_congested(int cpu, struct workqueue_struct *wq)
@@ -4394,7 +4425,7 @@ EXPORT_SYMBOL_GPL(workqueue_congested);
  * synchronization around this function and the test result is
  * unreliable and only useful as advisory hints or for debugging.
  *
- * RETURNS:
+ * Return:
  * OR'd bitmask of WORK_BUSY_* bits.
  */
 unsigned int work_busy(struct work_struct *work)
@@ -4772,9 +4803,10 @@ static void work_for_cpu_fn(struct work_struct *work)
  * @fn: the function to run
  * @arg: the function arg
  *
- * This will return the value @fn returns.
  * It is up to the caller to ensure that the cpu doesn't go offline.
  * The caller must not hold any locks which would prevent @fn from completing.
+ *
+ * Return: The value @fn returns.
  */
 long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 {
@@ -4846,7 +4878,7 @@ void freeze_workqueues_begin(void)
  * CONTEXT:
  * Grabs and releases wq_pool_mutex.
  *
- * RETURNS:
+ * Return:
  * %true if some freezable workqueues are still busy.  %false if freezing
  * is complete.
  */

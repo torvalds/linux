@@ -123,7 +123,7 @@ static struct platform_pwm_backlight_data hmt_backlight_data = {
 static struct platform_device hmt_backlight_device = {
 	.name		= "pwm-backlight",
 	.dev		= {
-		.parent	= &s3c_device_timer[1].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &hmt_backlight_data,
 	},
 };
@@ -239,7 +239,7 @@ static struct platform_device *hmt_devices[] __initdata = {
 	&s3c_device_nand,
 	&s3c_device_fb,
 	&s3c_device_ohci,
-	&s3c_device_timer[1],
+	&samsung_device_pwm,
 	&hmt_backlight_device,
 	&hmt_leds_device,
 };

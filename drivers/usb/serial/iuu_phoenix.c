@@ -1130,7 +1130,7 @@ static int iuu_vcc_set(struct usb_serial_port *port, unsigned int vcc)
  * Sysfs Attributes
  */
 
-static ssize_t show_vcc_mode(struct device *dev,
+static ssize_t vcc_mode_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -1139,7 +1139,7 @@ static ssize_t show_vcc_mode(struct device *dev,
 	return sprintf(buf, "%d\n", priv->vcc);
 }
 
-static ssize_t store_vcc_mode(struct device *dev,
+static ssize_t vcc_mode_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -1163,9 +1163,7 @@ static ssize_t store_vcc_mode(struct device *dev,
 fail_store_vcc_mode:
 	return count;
 }
-
-static DEVICE_ATTR(vcc_mode, S_IRUSR | S_IWUSR, show_vcc_mode,
-	store_vcc_mode);
+static DEVICE_ATTR_RW(vcc_mode);
 
 static int iuu_create_sysfs_attrs(struct usb_serial_port *port)
 {

@@ -194,11 +194,11 @@ config LEDS_LP3944
 	  module will be called leds-lp3944.
 
 config LEDS_LP55XX_COMMON
-	tristate "Common Driver for TI/National LP5521, LP5523/55231 and LP5562"
-	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562
+	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
+	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
 	select FW_LOADER
 	help
-	  This option supports common operations for LP5521 and LP5523/55231
+	  This option supports common operations for LP5521/5523/55231/5562/8501
 	  devices.
 
 config LEDS_LP5521
@@ -231,6 +231,18 @@ config LEDS_LP5562
 	  It is 4 channels chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
+
+config LEDS_LP8501
+	tristate "LED Support for TI LP8501 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	select LEDS_LP55XX_COMMON
+	help
+	  If you say yes here you get support for TI LP8501 LED driver.
+	  It is 9 channel chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
+	  It is similar as LP5523, but output power selection is available.
+	  And register layout and engine program schemes are different.
 
 config LEDS_LP8788
 	tristate "LED support for the TI LP8788 PMIC"
@@ -279,13 +291,14 @@ config LEDS_PCA955X
 	  LED driver chips accessed via the I2C bus.  Supported
 	  devices include PCA9550, PCA9551, PCA9552, and PCA9553.
 
-config LEDS_PCA9633
-	tristate "LED support for PCA9633 I2C chip"
+config LEDS_PCA963X
+	tristate "LED support for PCA963x I2C chip"
 	depends on LEDS_CLASS
 	depends on I2C
 	help
-	  This option enables support for LEDs connected to the PCA9633
-	  LED driver chip accessed via the I2C bus.
+	  This option enables support for LEDs connected to the PCA963x
+	  LED driver chip accessed via the I2C bus. Supported
+	  devices include PCA9633 and PCA9634
 
 config LEDS_WM831X_STATUS
 	tristate "LED support for status LEDs on WM831x PMICs"
@@ -398,10 +411,7 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || \
-		   MACH_NETSPACE_MAX_V2 || MACH_D2NET_V2 || \
-		   MACH_NETSPACE_V2_DT || MACH_INETSPACE_V2_DT || \
-		   MACH_NETSPACE_MAX_V2_DT || MACH_NETSPACE_MINI_V2_DT
+	depends on ARCH_KIRKWOOD
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the
@@ -410,8 +420,8 @@ config LEDS_NS2
 
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
-	depends on MACH_NET2BIG_V2 || MACH_NET5BIG_V2
 	depends on LEDS_CLASS
+	depends on ARCH_KIRKWOOD
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
@@ -428,18 +438,6 @@ config LEDS_ASIC3
 	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
 	  cannot be used. This driver supports hardware blinking with an on+off
 	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
-
-config LEDS_RENESAS_TPU
-	bool "LED support for Renesas TPU"
-	depends on LEDS_CLASS=y && HAVE_CLK && GPIOLIB
-	help
-	  This option enables build of the LED TPU platform driver,
-	  suitable to drive any TPU channel on newer Renesas SoCs.
-	  The driver controls the GPIO pin connected to the LED via
-	  the GPIO framework and expects the LED to be connected to
-	  a pin that can be driven in both GPIO mode and using TPU
-	  pin function. The latter to support brightness control.
-	  Brightness control is supported but hardware blinking is not.
 
 config LEDS_TCA6507
 	tristate "LED Support for TCA6507 I2C chip"

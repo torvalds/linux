@@ -23,6 +23,7 @@
 #include <linux/of.h>
 
 #include "dw_mmc.h"
+#include "dw_mmc-pltfm.h"
 
 static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
 {

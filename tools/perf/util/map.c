@@ -48,7 +48,8 @@ void map__init(struct map *map, enum map_type type,
 }
 
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
-		     u64 pgoff, u32 pid, char *filename,
+		     u64 pgoff, u32 pid, u32 d_maj, u32 d_min, u64 ino,
+		     u64 ino_gen, char *filename,
 		     enum map_type type)
 {
 	struct map *map = malloc(sizeof(*map));
@@ -61,6 +62,11 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		anon = is_anon_memory(filename);
 		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
+
+		map->maj = d_maj;
+		map->min = d_min;
+		map->ino = ino;
+		map->ino_generation = ino_gen;
 
 		if (anon) {
 			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", pid);
@@ -182,12 +188,6 @@ int map__load(struct map *map, symbol_filter_t filter)
 #endif
 		return -1;
 	}
-	/*
-	 * Only applies to the kernel, as its symtabs aren't relative like the
-	 * module ones.
-	 */
-	if (map->dso->kernel)
-		map__reloc_vmlinux(map);
 
 	return 0;
 }
@@ -254,14 +254,18 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 
 /*
  * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
- * map->dso->adjust_symbols==1 for ET_EXEC-like cases.
+ * map->dso->adjust_symbols==1 for ET_EXEC-like cases except ET_REL which is
+ * relative to section start.
  */
 u64 map__rip_2objdump(struct map *map, u64 rip)
 {
-	u64 addr = map->dso->adjust_symbols ?
-			map->unmap_ip(map, rip) :	/* RIP -> IP */
-			rip;
-	return addr;
+	if (!map->dso->adjust_symbols)
+		return rip;
+
+	if (map->dso->rel)
+		return rip - map->pgoff;
+
+	return map->unmap_ip(map, rip);
 }
 
 void map_groups__init(struct map_groups *mg)
@@ -513,35 +517,6 @@ int map_groups__clone(struct map_groups *mg,
 	return 0;
 }
 
-static u64 map__reloc_map_ip(struct map *map, u64 ip)
-{
-	return ip + (s64)map->pgoff;
-}
-
-static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
-{
-	return ip - (s64)map->pgoff;
-}
-
-void map__reloc_vmlinux(struct map *map)
-{
-	struct kmap *kmap = map__kmap(map);
-	s64 reloc;
-
-	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
-		return;
-
-	reloc = (kmap->ref_reloc_sym->unrelocated_addr -
-		 kmap->ref_reloc_sym->addr);
-
-	if (!reloc)
-		return;
-
-	map->map_ip   = map__reloc_map_ip;
-	map->unmap_ip = map__reloc_unmap_ip;
-	map->pgoff    = reloc;
-}
-
 void maps__insert(struct rb_root *maps, struct map *map)
 {
 	struct rb_node **p = &maps->rb_node;
@@ -584,5 +559,23 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 			return m;
 	}
 
+	return NULL;
+}
+
+struct map *maps__first(struct rb_root *maps)
+{
+	struct rb_node *first = rb_first(maps);
+
+	if (first)
+		return rb_entry(first, struct map, rb_node);
+	return NULL;
+}
+
+struct map *maps__next(struct map *map)
+{
+	struct rb_node *next = rb_next(&map->rb_node);
+
+	if (next)
+		return rb_entry(next, struct map, rb_node);
 	return NULL;
 }

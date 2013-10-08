@@ -330,7 +330,7 @@ static int __init ptp_init(void)
 		goto no_region;
 	}
 
-	ptp_class->dev_attrs = ptp_dev_attrs;
+	ptp_class->dev_groups = ptp_groups;
 	pr_info("PTP clock support registered\n");
 	return 0;
 

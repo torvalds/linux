@@ -496,7 +496,7 @@ struct lu_object {
 	/**
 	 * Link to the device, for debugging.
 	 */
-	struct lu_ref_link		*lo_dev_ref;
+	struct lu_ref_link                 lo_dev_ref;
 };
 
 enum lu_object_header_flags {
@@ -663,6 +663,11 @@ lu_site_bkt_from_fid(struct lu_site *site, struct lu_fid *fid)
 
 	cfs_hash_bd_get(site->ls_obj_hash, fid, &bd);
 	return cfs_hash_bd_extra_get(site->ls_obj_hash, &bd);
+}
+
+static inline struct seq_server_site *lu_site2seq(const struct lu_site *s)
+{
+	return s->ld_seq_site;
 }
 
 /** \name ctors
@@ -868,11 +873,19 @@ static inline __u32 lu_object_attr(const struct lu_object *o)
 	return o->lo_header->loh_attr;
 }
 
-static inline struct lu_ref_link *lu_object_ref_add(struct lu_object *o,
-						    const char *scope,
-						    const void *source)
+static inline void lu_object_ref_add(struct lu_object *o,
+				     const char *scope,
+				     const void *source)
 {
-	return lu_ref_add(&o->lo_header->loh_reference, scope, source);
+	lu_ref_add(&o->lo_header->loh_reference, scope, source);
+}
+
+static inline void lu_object_ref_add_at(struct lu_object *o,
+					struct lu_ref_link *link,
+					const char *scope,
+					const void *source)
+{
+	lu_ref_add_at(&o->lo_header->loh_reference, link, scope, source);
 }
 
 static inline void lu_object_ref_del(struct lu_object *o,
@@ -1118,7 +1131,7 @@ struct lu_context_key {
 	/**
 	 * Internal implementation detail: module for this key.
 	 */
-	module_t *lct_owner;
+	struct module *lct_owner;
 	/**
 	 * References to this key. For debugging.
 	 */

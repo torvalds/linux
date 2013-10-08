@@ -195,13 +195,12 @@ by the completion handler.
 
 The handler is of the following type:
 
-	typedef void (*usb_complete_t)(struct urb *, struct pt_regs *)
+	typedef void (*usb_complete_t)(struct urb *)
 
-I.e., it gets the URB that caused the completion call, plus the
-register values at the time of the corresponding interrupt (if any).
-In the completion handler, you should have a look at urb->status to
-detect any USB errors. Since the context parameter is included in the URB,
-you can pass information to the completion handler. 
+I.e., it gets the URB that caused the completion call. In the completion
+handler, you should have a look at urb->status to detect any USB errors.
+Since the context parameter is included in the URB, you can pass
+information to the completion handler.
 
 Note that even when an error (or unlink) is reported, data may have been
 transferred.  That's because USB transfers are packetized; it might take
@@ -210,12 +209,12 @@ have transferred successfully before the completion was called.
 
 
 NOTE:  ***** WARNING *****
-NEVER SLEEP IN A COMPLETION HANDLER.  These are normally called
-during hardware interrupt processing.  If you can, defer substantial
-work to a tasklet (bottom half) to keep system latencies low.  You'll
-probably need to use spinlocks to protect data structures you manipulate
-in completion handlers.
+NEVER SLEEP IN A COMPLETION HANDLER.  These are often called in atomic
+context.
 
+In the current kernel, completion handlers run with local interrupts
+disabled, but in the future this will be changed, so don't assume that
+local IRQs are always disabled inside completion handlers.
 
 1.8. How to do isochronous (ISO) transfers?
 

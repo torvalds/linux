@@ -207,7 +207,7 @@ static int drm_gem_one_name_info(int id, void *ptr, void *data)
 
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
-		   atomic_read(&obj->handle_count),
+		   obj->handle_count,
 		   atomic_read(&obj->refcount.refcount));
 	return 0;
 }
@@ -218,7 +218,11 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 
 	seq_printf(m, "  name     size handles refcount\n");
+
+	mutex_lock(&dev->object_name_lock);
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
+	mutex_unlock(&dev->object_name_lock);
+
 	return 0;
 }
 

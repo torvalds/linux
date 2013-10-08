@@ -18,15 +18,53 @@
 #include "util/util.h"
 
 #include <stdlib.h>
+#include <math.h>
 
-static char const *input_old = "perf.data.old",
-		  *input_new = "perf.data";
-static char	  diff__default_sort_order[] = "dso,symbol";
-static bool  force;
+/* Diff command specific HPP columns. */
+enum {
+	PERF_HPP_DIFF__BASELINE,
+	PERF_HPP_DIFF__PERIOD,
+	PERF_HPP_DIFF__PERIOD_BASELINE,
+	PERF_HPP_DIFF__DELTA,
+	PERF_HPP_DIFF__RATIO,
+	PERF_HPP_DIFF__WEIGHTED_DIFF,
+	PERF_HPP_DIFF__FORMULA,
+
+	PERF_HPP_DIFF__MAX_INDEX
+};
+
+struct diff_hpp_fmt {
+	struct perf_hpp_fmt	 fmt;
+	int			 idx;
+	char			*header;
+	int			 header_width;
+};
+
+struct data__file {
+	struct perf_session	*session;
+	const char		*file;
+	int			 idx;
+	struct hists		*hists;
+	struct diff_hpp_fmt	 fmt[PERF_HPP_DIFF__MAX_INDEX];
+};
+
+static struct data__file *data__files;
+static int data__files_cnt;
+
+#define data__for_each_file_start(i, d, s)	\
+	for (i = s, d = &data__files[s];	\
+	     i < data__files_cnt;		\
+	     i++, d = &data__files[i])
+
+#define data__for_each_file(i, d) data__for_each_file_start(i, d, 0)
+#define data__for_each_file_new(i, d) data__for_each_file_start(i, d, 1)
+
+static char diff__default_sort_order[] = "dso,symbol";
+static bool force;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
-static bool sort_compute;
+static unsigned int sort_compute;
 
 static s64 compute_wdiff_w1;
 static s64 compute_wdiff_w2;
@@ -45,6 +83,47 @@ const char *compute_names[COMPUTE_MAX] = {
 };
 
 static int compute;
+
+static int compute_2_hpp[COMPUTE_MAX] = {
+	[COMPUTE_DELTA]		= PERF_HPP_DIFF__DELTA,
+	[COMPUTE_RATIO]		= PERF_HPP_DIFF__RATIO,
+	[COMPUTE_WEIGHTED_DIFF]	= PERF_HPP_DIFF__WEIGHTED_DIFF,
+};
+
+#define MAX_COL_WIDTH 70
+
+static struct header_column {
+	const char *name;
+	int width;
+} columns[PERF_HPP_DIFF__MAX_INDEX] = {
+	[PERF_HPP_DIFF__BASELINE] = {
+		.name  = "Baseline",
+	},
+	[PERF_HPP_DIFF__PERIOD] = {
+		.name  = "Period",
+		.width = 14,
+	},
+	[PERF_HPP_DIFF__PERIOD_BASELINE] = {
+		.name  = "Base period",
+		.width = 14,
+	},
+	[PERF_HPP_DIFF__DELTA] = {
+		.name  = "Delta",
+		.width = 7,
+	},
+	[PERF_HPP_DIFF__RATIO] = {
+		.name  = "Ratio",
+		.width = 14,
+	},
+	[PERF_HPP_DIFF__WEIGHTED_DIFF] = {
+		.name  = "Weighted diff",
+		.width = 14,
+	},
+	[PERF_HPP_DIFF__FORMULA] = {
+		.name  = "Formula",
+		.width = MAX_COL_WIDTH,
+	}
+};
 
 static int setup_compute_opt_wdiff(char *opt)
 {
@@ -109,13 +188,6 @@ static int setup_compute(const struct option *opt, const char *str,
 		return 0;
 	}
 
-	if (*str == '+') {
-		sort_compute = true;
-		cstr = (char *) ++str;
-		if (!*str)
-			return 0;
-	}
-
 	option = strchr(str, ':');
 	if (option) {
 		unsigned len = option++ - str;
@@ -145,42 +217,42 @@ static int setup_compute(const struct option *opt, const char *str,
 	return -EINVAL;
 }
 
-double perf_diff__period_percent(struct hist_entry *he, u64 period)
+static double period_percent(struct hist_entry *he, u64 period)
 {
 	u64 total = he->hists->stats.total_period;
 	return (period * 100.0) / total;
 }
 
-double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair)
+static double compute_delta(struct hist_entry *he, struct hist_entry *pair)
 {
-	double new_percent = perf_diff__period_percent(he, he->stat.period);
-	double old_percent = perf_diff__period_percent(pair, pair->stat.period);
+	double old_percent = period_percent(he, he->stat.period);
+	double new_percent = period_percent(pair, pair->stat.period);
 
-	he->diff.period_ratio_delta = new_percent - old_percent;
-	he->diff.computed = true;
-	return he->diff.period_ratio_delta;
+	pair->diff.period_ratio_delta = new_percent - old_percent;
+	pair->diff.computed = true;
+	return pair->diff.period_ratio_delta;
 }
 
-double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair)
+static double compute_ratio(struct hist_entry *he, struct hist_entry *pair)
 {
-	double new_period = he->stat.period;
-	double old_period = pair->stat.period;
+	double old_period = he->stat.period ?: 1;
+	double new_period = pair->stat.period;
 
-	he->diff.computed = true;
-	he->diff.period_ratio = new_period / old_period;
-	return he->diff.period_ratio;
+	pair->diff.computed = true;
+	pair->diff.period_ratio = new_period / old_period;
+	return pair->diff.period_ratio;
 }
 
-s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
+static s64 compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
 {
-	u64 new_period = he->stat.period;
-	u64 old_period = pair->stat.period;
+	u64 old_period = he->stat.period;
+	u64 new_period = pair->stat.period;
 
-	he->diff.computed = true;
-	he->diff.wdiff = new_period * compute_wdiff_w2 -
-			 old_period * compute_wdiff_w1;
+	pair->diff.computed = true;
+	pair->diff.wdiff = new_period * compute_wdiff_w2 -
+			   old_period * compute_wdiff_w1;
 
-	return he->diff.wdiff;
+	return pair->diff.wdiff;
 }
 
 static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
@@ -189,15 +261,15 @@ static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
 	return scnprintf(buf, size,
 			 "(%" PRIu64 " * 100 / %" PRIu64 ") - "
 			 "(%" PRIu64 " * 100 / %" PRIu64 ")",
-			  he->stat.period, he->hists->stats.total_period,
-			  pair->stat.period, pair->hists->stats.total_period);
+			  pair->stat.period, pair->hists->stats.total_period,
+			  he->stat.period, he->hists->stats.total_period);
 }
 
 static int formula_ratio(struct hist_entry *he, struct hist_entry *pair,
 			 char *buf, size_t size)
 {
-	double new_period = he->stat.period;
-	double old_period = pair->stat.period;
+	double old_period = he->stat.period;
+	double new_period = pair->stat.period;
 
 	return scnprintf(buf, size, "%.0F / %.0F", new_period, old_period);
 }
@@ -205,16 +277,16 @@ static int formula_ratio(struct hist_entry *he, struct hist_entry *pair,
 static int formula_wdiff(struct hist_entry *he, struct hist_entry *pair,
 			 char *buf, size_t size)
 {
-	u64 new_period = he->stat.period;
-	u64 old_period = pair->stat.period;
+	u64 old_period = he->stat.period;
+	u64 new_period = pair->stat.period;
 
 	return scnprintf(buf, size,
 		  "(%" PRIu64 " * " "%" PRId64 ") - (%" PRIu64 " * " "%" PRId64 ")",
 		  new_period, compute_wdiff_w2, old_period, compute_wdiff_w1);
 }
 
-int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
-		       char *buf, size_t size)
+static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
+			   char *buf, size_t size)
 {
 	switch (compute) {
 	case COMPUTE_DELTA:
@@ -247,7 +319,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 {
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -299,6 +371,29 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 	}
 }
 
+static struct hist_entry*
+get_pair_data(struct hist_entry *he, struct data__file *d)
+{
+	if (hist_entry__has_pairs(he)) {
+		struct hist_entry *pair;
+
+		list_for_each_entry(pair, &he->pairs.head, pairs.node)
+			if (pair->hists == d->hists)
+				return pair;
+	}
+
+	return NULL;
+}
+
+static struct hist_entry*
+get_pair_fmt(struct hist_entry *he, struct diff_hpp_fmt *dfmt)
+{
+	void *ptr = dfmt - dfmt->idx;
+	struct data__file *d = container_of(ptr, struct data__file, fmt);
+
+	return get_pair_data(he, d);
+}
+
 static void hists__baseline_only(struct hists *hists)
 {
 	struct rb_root *root;
@@ -333,22 +428,24 @@ static void hists__precompute(struct hists *hists)
 
 	next = rb_first(root);
 	while (next != NULL) {
-		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
-		struct hist_entry *pair = hist_entry__next_pair(he);
+		struct hist_entry *he, *pair;
 
+		he   = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&he->rb_node_in);
+
+		pair = get_pair_data(he, &data__files[sort_compute]);
 		if (!pair)
 			continue;
 
 		switch (compute) {
 		case COMPUTE_DELTA:
-			perf_diff__compute_delta(he, pair);
+			compute_delta(he, pair);
 			break;
 		case COMPUTE_RATIO:
-			perf_diff__compute_ratio(he, pair);
+			compute_ratio(he, pair);
 			break;
 		case COMPUTE_WEIGHTED_DIFF:
-			perf_diff__compute_wdiff(he, pair);
+			compute_wdiff(he, pair);
 			break;
 		default:
 			BUG_ON(1);
@@ -367,7 +464,7 @@ static int64_t cmp_doubles(double l, double r)
 }
 
 static int64_t
-hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
+__hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 			int c)
 {
 	switch (c) {
@@ -397,6 +494,36 @@ hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 	}
 
 	return 0;
+}
+
+static int64_t
+hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
+			int c)
+{
+	bool pairs_left  = hist_entry__has_pairs(left);
+	bool pairs_right = hist_entry__has_pairs(right);
+	struct hist_entry *p_right, *p_left;
+
+	if (!pairs_left && !pairs_right)
+		return 0;
+
+	if (!pairs_left || !pairs_right)
+		return pairs_left ? -1 : 1;
+
+	p_left  = get_pair_data(left,  &data__files[sort_compute]);
+	p_right = get_pair_data(right, &data__files[sort_compute]);
+
+	if (!p_left && !p_right)
+		return 0;
+
+	if (!p_left || !p_right)
+		return p_left ? -1 : 1;
+
+	/*
+	 * We have 2 entries of same kind, let's
+	 * make the data comparison.
+	 */
+	return __hist_entry__cmp_compute(p_left, p_right, c);
 }
 
 static void insert_hist_entry_by_compute(struct rb_root *root,
@@ -448,75 +575,121 @@ static void hists__compute_resort(struct hists *hists)
 	}
 }
 
-static void hists__process(struct hists *old, struct hists *new)
+static void hists__process(struct hists *hists)
 {
-	hists__match(new, old);
-
 	if (show_baseline_only)
-		hists__baseline_only(new);
-	else
-		hists__link(new, old);
+		hists__baseline_only(hists);
 
 	if (sort_compute) {
-		hists__precompute(new);
-		hists__compute_resort(new);
+		hists__precompute(hists);
+		hists__compute_resort(hists);
 	} else {
-		hists__output_resort(new);
+		hists__output_resort(hists);
 	}
 
-	hists__fprintf(new, true, 0, 0, 0, stdout);
+	hists__fprintf(hists, true, 0, 0, 0, stdout);
+}
+
+static void data__fprintf(void)
+{
+	struct data__file *d;
+	int i;
+
+	fprintf(stdout, "# Data files:\n");
+
+	data__for_each_file(i, d)
+		fprintf(stdout, "#  [%d] %s %s\n",
+			d->idx, d->file,
+			!d->idx ? "(Baseline)" : "");
+
+	fprintf(stdout, "#\n");
+}
+
+static void data_process(void)
+{
+	struct perf_evlist *evlist_base = data__files[0].session->evlist;
+	struct perf_evsel *evsel_base;
+	bool first = true;
+
+	list_for_each_entry(evsel_base, &evlist_base->entries, node) {
+		struct data__file *d;
+		int i;
+
+		data__for_each_file_new(i, d) {
+			struct perf_evlist *evlist = d->session->evlist;
+			struct perf_evsel *evsel;
+
+			evsel = evsel_match(evsel_base, evlist);
+			if (!evsel)
+				continue;
+
+			d->hists = &evsel->hists;
+
+			hists__match(&evsel_base->hists, &evsel->hists);
+
+			if (!show_baseline_only)
+				hists__link(&evsel_base->hists,
+					    &evsel->hists);
+		}
+
+		fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
+			perf_evsel__name(evsel_base));
+
+		first = false;
+
+		if (verbose || data__files_cnt > 2)
+			data__fprintf();
+
+		hists__process(&evsel_base->hists);
+	}
+}
+
+static void data__free(struct data__file *d)
+{
+	int col;
+
+	for (col = 0; col < PERF_HPP_DIFF__MAX_INDEX; col++) {
+		struct diff_hpp_fmt *fmt = &d->fmt[col];
+
+		free(fmt->header);
+	}
 }
 
 static int __cmd_diff(void)
 {
-	int ret, i;
-#define older (session[0])
-#define newer (session[1])
-	struct perf_session *session[2];
-	struct perf_evlist *evlist_new, *evlist_old;
-	struct perf_evsel *evsel;
-	bool first = true;
+	struct data__file *d;
+	int ret = -EINVAL, i;
 
-	older = perf_session__new(input_old, O_RDONLY, force, false,
-				  &tool);
-	newer = perf_session__new(input_new, O_RDONLY, force, false,
-				  &tool);
-	if (session[0] == NULL || session[1] == NULL)
-		return -ENOMEM;
-
-	for (i = 0; i < 2; ++i) {
-		ret = perf_session__process_events(session[i], &tool);
-		if (ret)
+	data__for_each_file(i, d) {
+		d->session = perf_session__new(d->file, O_RDONLY, force,
+					       false, &tool);
+		if (!d->session) {
+			pr_err("Failed to open %s\n", d->file);
+			ret = -ENOMEM;
 			goto out_delete;
+		}
+
+		ret = perf_session__process_events(d->session, &tool);
+		if (ret) {
+			pr_err("Failed to process %s\n", d->file);
+			goto out_delete;
+		}
+
+		perf_evlist__collapse_resort(d->session->evlist);
 	}
 
-	evlist_old = older->evlist;
-	evlist_new = newer->evlist;
+	data_process();
 
-	perf_evlist__collapse_resort(evlist_old);
-	perf_evlist__collapse_resort(evlist_new);
+ out_delete:
+	data__for_each_file(i, d) {
+		if (d->session)
+			perf_session__delete(d->session);
 
-	list_for_each_entry(evsel, &evlist_new->entries, node) {
-		struct perf_evsel *evsel_old;
-
-		evsel_old = evsel_match(evsel, evlist_old);
-		if (!evsel_old)
-			continue;
-
-		fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
-			perf_evsel__name(evsel));
-
-		first = false;
-
-		hists__process(&evsel_old->hists, &evsel->hists);
+		data__free(d);
 	}
 
-out_delete:
-	for (i = 0; i < 2; ++i)
-		perf_session__delete(session[i]);
+	free(data__files);
 	return ret;
-#undef older
-#undef newer
 }
 
 static const char * const diff_usage[] = {
@@ -555,59 +728,308 @@ static const struct option options[] = {
 		   "columns '.' is reserved."),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
+	OPT_UINTEGER('o', "order", &sort_compute, "Specify compute sorting."),
 	OPT_END()
 };
 
-static void ui_init(void)
+static double baseline_percent(struct hist_entry *he)
 {
-	/*
-	 * Display baseline/delta/ratio
-	 * formula/periods columns.
-	 */
-	perf_hpp__column_enable(PERF_HPP__BASELINE);
+	struct hists *hists = he->hists;
+	return 100.0 * he->stat.period / hists->stats.total_period;
+}
 
-	switch (compute) {
-	case COMPUTE_DELTA:
-		perf_hpp__column_enable(PERF_HPP__DELTA);
+static int hpp__color_baseline(struct perf_hpp_fmt *fmt,
+			       struct perf_hpp *hpp, struct hist_entry *he)
+{
+	struct diff_hpp_fmt *dfmt =
+		container_of(fmt, struct diff_hpp_fmt, fmt);
+	double percent = baseline_percent(he);
+	char pfmt[20] = " ";
+
+	if (!he->dummy) {
+		scnprintf(pfmt, 20, "%%%d.2f%%%%", dfmt->header_width - 1);
+		return percent_color_snprintf(hpp->buf, hpp->size,
+					      pfmt, percent);
+	} else
+		return scnprintf(hpp->buf, hpp->size, "%*s",
+				 dfmt->header_width, pfmt);
+}
+
+static int hpp__entry_baseline(struct hist_entry *he, char *buf, size_t size)
+{
+	double percent = baseline_percent(he);
+	const char *fmt = symbol_conf.field_sep ? "%.2f" : "%6.2f%%";
+	int ret = 0;
+
+	if (!he->dummy)
+		ret = scnprintf(buf, size, fmt, percent);
+
+	return ret;
+}
+
+static void
+hpp__entry_unpair(struct hist_entry *he, int idx, char *buf, size_t size)
+{
+	switch (idx) {
+	case PERF_HPP_DIFF__PERIOD_BASELINE:
+		scnprintf(buf, size, "%" PRIu64, he->stat.period);
 		break;
-	case COMPUTE_RATIO:
-		perf_hpp__column_enable(PERF_HPP__RATIO);
+
+	default:
 		break;
-	case COMPUTE_WEIGHTED_DIFF:
-		perf_hpp__column_enable(PERF_HPP__WEIGHTED_DIFF);
+	}
+}
+
+static void
+hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
+		int idx, char *buf, size_t size)
+{
+	double diff;
+	double ratio;
+	s64 wdiff;
+
+	switch (idx) {
+	case PERF_HPP_DIFF__DELTA:
+		if (pair->diff.computed)
+			diff = pair->diff.period_ratio_delta;
+		else
+			diff = compute_delta(he, pair);
+
+		if (fabs(diff) >= 0.01)
+			scnprintf(buf, size, "%+4.2F%%", diff);
 		break;
+
+	case PERF_HPP_DIFF__RATIO:
+		/* No point for ratio number if we are dummy.. */
+		if (he->dummy)
+			break;
+
+		if (pair->diff.computed)
+			ratio = pair->diff.period_ratio;
+		else
+			ratio = compute_ratio(he, pair);
+
+		if (ratio > 0.0)
+			scnprintf(buf, size, "%14.6F", ratio);
+		break;
+
+	case PERF_HPP_DIFF__WEIGHTED_DIFF:
+		/* No point for wdiff number if we are dummy.. */
+		if (he->dummy)
+			break;
+
+		if (pair->diff.computed)
+			wdiff = pair->diff.wdiff;
+		else
+			wdiff = compute_wdiff(he, pair);
+
+		if (wdiff != 0)
+			scnprintf(buf, size, "%14ld", wdiff);
+		break;
+
+	case PERF_HPP_DIFF__FORMULA:
+		formula_fprintf(he, pair, buf, size);
+		break;
+
+	case PERF_HPP_DIFF__PERIOD:
+		scnprintf(buf, size, "%" PRIu64, pair->stat.period);
+		break;
+
 	default:
 		BUG_ON(1);
 	};
+}
 
-	if (show_formula)
-		perf_hpp__column_enable(PERF_HPP__FORMULA);
+static void
+__hpp__entry_global(struct hist_entry *he, struct diff_hpp_fmt *dfmt,
+		    char *buf, size_t size)
+{
+	struct hist_entry *pair = get_pair_fmt(he, dfmt);
+	int idx = dfmt->idx;
 
-	if (show_period) {
-		perf_hpp__column_enable(PERF_HPP__PERIOD);
-		perf_hpp__column_enable(PERF_HPP__PERIOD_BASELINE);
+	/* baseline is special */
+	if (idx == PERF_HPP_DIFF__BASELINE)
+		hpp__entry_baseline(he, buf, size);
+	else {
+		if (pair)
+			hpp__entry_pair(he, pair, idx, buf, size);
+		else
+			hpp__entry_unpair(he, idx, buf, size);
 	}
+}
+
+static int hpp__entry_global(struct perf_hpp_fmt *_fmt, struct perf_hpp *hpp,
+			     struct hist_entry *he)
+{
+	struct diff_hpp_fmt *dfmt =
+		container_of(_fmt, struct diff_hpp_fmt, fmt);
+	char buf[MAX_COL_WIDTH] = " ";
+
+	__hpp__entry_global(he, dfmt, buf, MAX_COL_WIDTH);
+
+	if (symbol_conf.field_sep)
+		return scnprintf(hpp->buf, hpp->size, "%s", buf);
+	else
+		return scnprintf(hpp->buf, hpp->size, "%*s",
+				 dfmt->header_width, buf);
+}
+
+static int hpp__header(struct perf_hpp_fmt *fmt,
+		       struct perf_hpp *hpp)
+{
+	struct diff_hpp_fmt *dfmt =
+		container_of(fmt, struct diff_hpp_fmt, fmt);
+
+	BUG_ON(!dfmt->header);
+	return scnprintf(hpp->buf, hpp->size, dfmt->header);
+}
+
+static int hpp__width(struct perf_hpp_fmt *fmt,
+		      struct perf_hpp *hpp __maybe_unused)
+{
+	struct diff_hpp_fmt *dfmt =
+		container_of(fmt, struct diff_hpp_fmt, fmt);
+
+	BUG_ON(dfmt->header_width <= 0);
+	return dfmt->header_width;
+}
+
+static void init_header(struct data__file *d, struct diff_hpp_fmt *dfmt)
+{
+#define MAX_HEADER_NAME 100
+	char buf_indent[MAX_HEADER_NAME];
+	char buf[MAX_HEADER_NAME];
+	const char *header = NULL;
+	int width = 0;
+
+	BUG_ON(dfmt->idx >= PERF_HPP_DIFF__MAX_INDEX);
+	header = columns[dfmt->idx].name;
+	width  = columns[dfmt->idx].width;
+
+	/* Only our defined HPP fmts should appear here. */
+	BUG_ON(!header);
+
+	if (data__files_cnt > 2)
+		scnprintf(buf, MAX_HEADER_NAME, "%s/%d", header, d->idx);
+
+#define NAME (data__files_cnt > 2 ? buf : header)
+	dfmt->header_width = width;
+	width = (int) strlen(NAME);
+	if (dfmt->header_width < width)
+		dfmt->header_width = width;
+
+	scnprintf(buf_indent, MAX_HEADER_NAME, "%*s",
+		  dfmt->header_width, NAME);
+
+	dfmt->header = strdup(buf_indent);
+#undef MAX_HEADER_NAME
+#undef NAME
+}
+
+static void data__hpp_register(struct data__file *d, int idx)
+{
+	struct diff_hpp_fmt *dfmt = &d->fmt[idx];
+	struct perf_hpp_fmt *fmt = &dfmt->fmt;
+
+	dfmt->idx = idx;
+
+	fmt->header = hpp__header;
+	fmt->width  = hpp__width;
+	fmt->entry  = hpp__entry_global;
+
+	/* TODO more colors */
+	if (idx == PERF_HPP_DIFF__BASELINE)
+		fmt->color = hpp__color_baseline;
+
+	init_header(d, dfmt);
+	perf_hpp__column_register(fmt);
+}
+
+static void ui_init(void)
+{
+	struct data__file *d;
+	int i;
+
+	data__for_each_file(i, d) {
+
+		/*
+		 * Baseline or compute realted columns:
+		 *
+		 *   PERF_HPP_DIFF__BASELINE
+		 *   PERF_HPP_DIFF__DELTA
+		 *   PERF_HPP_DIFF__RATIO
+		 *   PERF_HPP_DIFF__WEIGHTED_DIFF
+		 */
+		data__hpp_register(d, i ? compute_2_hpp[compute] :
+					  PERF_HPP_DIFF__BASELINE);
+
+		/*
+		 * And the rest:
+		 *
+		 * PERF_HPP_DIFF__FORMULA
+		 * PERF_HPP_DIFF__PERIOD
+		 * PERF_HPP_DIFF__PERIOD_BASELINE
+		 */
+		if (show_formula && i)
+			data__hpp_register(d, PERF_HPP_DIFF__FORMULA);
+
+		if (show_period)
+			data__hpp_register(d, i ? PERF_HPP_DIFF__PERIOD :
+						  PERF_HPP_DIFF__PERIOD_BASELINE);
+	}
+}
+
+static int data_init(int argc, const char **argv)
+{
+	struct data__file *d;
+	static const char *defaults[] = {
+		"perf.data.old",
+		"perf.data",
+	};
+	bool use_default = true;
+	int i;
+
+	data__files_cnt = 2;
+
+	if (argc) {
+		if (argc == 1)
+			defaults[1] = argv[0];
+		else {
+			data__files_cnt = argc;
+			use_default = false;
+		}
+	} else if (symbol_conf.default_guest_vmlinux_name ||
+		   symbol_conf.default_guest_kallsyms) {
+		defaults[0] = "perf.data.host";
+		defaults[1] = "perf.data.guest";
+	}
+
+	if (sort_compute >= (unsigned int) data__files_cnt) {
+		pr_err("Order option out of limit.\n");
+		return -EINVAL;
+	}
+
+	data__files = zalloc(sizeof(*data__files) * data__files_cnt);
+	if (!data__files)
+		return -ENOMEM;
+
+	data__for_each_file(i, d) {
+		d->file = use_default ? defaults[i] : argv[i];
+		d->idx  = i;
+	}
+
+	return 0;
 }
 
 int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	sort_order = diff__default_sort_order;
 	argc = parse_options(argc, argv, options, diff_usage, 0);
-	if (argc) {
-		if (argc > 2)
-			usage_with_options(diff_usage, options);
-		if (argc == 2) {
-			input_old = argv[0];
-			input_new = argv[1];
-		} else
-			input_new = argv[0];
-	} else if (symbol_conf.default_guest_vmlinux_name ||
-		   symbol_conf.default_guest_kallsyms) {
-		input_old = "perf.data.host";
-		input_new = "perf.data.guest";
-	}
 
 	if (symbol__init() < 0)
+		return -1;
+
+	if (data_init(argc, argv) < 0)
 		return -1;
 
 	ui_init();

@@ -45,6 +45,7 @@ zero volts).
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <asm/div64.h>
@@ -379,10 +380,9 @@ static int waveform_attach(struct comedi_device *dev,
 	int i;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* set default amplitude and period */
 	if (amplitude <= 0)

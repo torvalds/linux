@@ -150,7 +150,7 @@ static struct s3c2410_nand_info *to_nand_info(struct platform_device *dev)
 
 static struct s3c2410_platform_nand *to_nand_plat(struct platform_device *dev)
 {
-	return dev->dev.platform_data;
+	return dev_get_platdata(&dev->dev);
 }
 
 static inline int allow_clk_suspend(struct s3c2410_nand_info *info)
@@ -696,8 +696,6 @@ s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
 static int s3c24xx_nand_remove(struct platform_device *pdev)
 {
 	struct s3c2410_nand_info *info = to_nand_info(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (info == NULL)
 		return 0;

@@ -21,7 +21,7 @@ def main():
 	evsel = perf.evsel(task = 1, comm = 1, mmap = 0,
 			   wakeup_events = 1, watermark = 1,
 			   sample_id_all = 1,
-			   sample_type = perf.SAMPLE_PERIOD | perf.SAMPLE_TID | perf.SAMPLE_CPU | perf.SAMPLE_TID)
+			   sample_type = perf.SAMPLE_PERIOD | perf.SAMPLE_TID | perf.SAMPLE_CPU)
 	evsel.open(cpus = cpus, threads = threads);
 	evlist = perf.evlist(cpus, threads)
 	evlist.add(evsel)

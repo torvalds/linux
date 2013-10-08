@@ -237,6 +237,12 @@ MEM
   devm_kzalloc()
   devm_kfree()
 
+IIO
+  devm_iio_device_alloc()
+  devm_iio_device_free()
+  devm_iio_trigger_alloc()
+  devm_iio_trigger_free()
+
 IO region
   devm_request_region()
   devm_request_mem_region()
@@ -293,3 +299,6 @@ PWM
 PHY
   devm_usb_get_phy()
   devm_usb_put_phy()
+
+SLAVE DMA ENGINE
+  devm_acpi_dma_controller_register()

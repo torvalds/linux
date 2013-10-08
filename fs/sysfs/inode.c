@@ -10,7 +10,7 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#undef DEBUG 
+#undef DEBUG
 
 #include <linux/pagemap.h>
 #include <linux/namei.h>
@@ -36,7 +36,7 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 
-static const struct inode_operations sysfs_inode_operations ={
+static const struct inode_operations sysfs_inode_operations = {
 	.permission	= sysfs_permission,
 	.setattr	= sysfs_setattr,
 	.getattr	= sysfs_getattr,
@@ -67,7 +67,7 @@ static struct sysfs_inode_attrs *sysfs_init_inode_attrs(struct sysfs_dirent *sd)
 	return attrs;
 }
 
-int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr * iattr)
+int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr)
 {
 	struct sysfs_inode_attrs *sd_attrs;
 	struct iattr *iattrs;
@@ -128,7 +128,8 @@ out:
 	return error;
 }
 
-static int sysfs_sd_setsecdata(struct sysfs_dirent *sd, void **secdata, u32 *secdata_len)
+static int sysfs_sd_setsecdata(struct sysfs_dirent *sd, void **secdata,
+			       u32 *secdata_len)
 {
 	struct sysfs_inode_attrs *iattrs;
 	void *old_secdata;
@@ -186,13 +187,13 @@ out:
 	return error;
 }
 
-static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
+static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
 {
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 }
 
-static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
+static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 {
 	inode->i_uid = iattr->ia_uid;
 	inode->i_gid = iattr->ia_gid;
@@ -220,7 +221,8 @@ static void sysfs_refresh_inode(struct sysfs_dirent *sd, struct inode *inode)
 		set_nlink(inode, sd->s_dir.subdirs + 2);
 }
 
-int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		  struct kstat *stat)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	struct inode *inode = dentry->d_inode;
@@ -285,7 +287,7 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
  *	RETURNS:
  *	Pointer to allocated inode on success, NULL on failure.
  */
-struct inode * sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd)
+struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd)
 {
 	struct inode *inode;
 
@@ -312,7 +314,8 @@ void sysfs_evict_inode(struct inode *inode)
 	sysfs_put(sd);
 }
 
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const char *name)
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns,
+			  const char *name)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;

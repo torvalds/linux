@@ -832,7 +832,8 @@ static int f75375_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct f75375_data *data;
-	struct f75375s_platform_data *f75375s_pdata = client->dev.platform_data;
+	struct f75375s_platform_data *f75375s_pdata =
+			dev_get_platdata(&client->dev);
 	int err;
 
 	if (!i2c_check_functionality(client->adapter,

@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2010 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -23,7 +23,6 @@ extern void efx_remove_tx_queue(struct efx_tx_queue *tx_queue);
 extern void efx_init_tx_queue(struct efx_tx_queue *tx_queue);
 extern void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
 extern void efx_fini_tx_queue(struct efx_tx_queue *tx_queue);
-extern void efx_release_tx_buffers(struct efx_tx_queue *tx_queue);
 extern netdev_tx_t
 efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t
@@ -69,27 +68,99 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 #define EFX_TXQ_MIN_ENT(efx)	(2 * efx_tx_max_skb_descs(efx))
 
 /* Filters */
-extern int efx_probe_filters(struct efx_nic *efx);
-extern void efx_restore_filters(struct efx_nic *efx);
-extern void efx_remove_filters(struct efx_nic *efx);
-extern void efx_filter_update_rx_scatter(struct efx_nic *efx);
-extern s32 efx_filter_insert_filter(struct efx_nic *efx,
-				    struct efx_filter_spec *spec,
-				    bool replace);
-extern int efx_filter_remove_id_safe(struct efx_nic *efx,
-				     enum efx_filter_priority priority,
-				     u32 filter_id);
-extern int efx_filter_get_filter_safe(struct efx_nic *efx,
-				      enum efx_filter_priority priority,
-				      u32 filter_id, struct efx_filter_spec *);
-extern void efx_filter_clear_rx(struct efx_nic *efx,
-				enum efx_filter_priority priority);
-extern u32 efx_filter_count_rx_used(struct efx_nic *efx,
-				    enum efx_filter_priority priority);
-extern u32 efx_filter_get_rx_id_limit(struct efx_nic *efx);
-extern s32 efx_filter_get_rx_ids(struct efx_nic *efx,
-				 enum efx_filter_priority priority,
-				 u32 *buf, u32 size);
+
+/**
+ * efx_filter_insert_filter - add or replace a filter
+ * @efx: NIC in which to insert the filter
+ * @spec: Specification for the filter
+ * @replace_equal: Flag for whether the specified filter may replace an
+ *	existing filter with equal priority
+ *
+ * On success, return the filter ID.
+ * On failure, return a negative error code.
+ *
+ * If existing filters have equal match values to the new filter spec,
+ * then the new filter might replace them or the function might fail,
+ * as follows.
+ *
+ * 1. If the existing filters have lower priority, or @replace_equal
+ *    is set and they have equal priority, replace them.
+ *
+ * 2. If the existing filters have higher priority, return -%EPERM.
+ *
+ * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does not
+ *    support delivery to multiple recipients, return -%EEXIST.
+ *
+ * This implies that filters for multiple multicast recipients must
+ * all be inserted with the same priority and @replace_equal = %false.
+ */
+static inline s32 efx_filter_insert_filter(struct efx_nic *efx,
+					   struct efx_filter_spec *spec,
+					   bool replace_equal)
+{
+	return efx->type->filter_insert(efx, spec, replace_equal);
+}
+
+/**
+ * efx_filter_remove_id_safe - remove a filter by ID, carefully
+ * @efx: NIC from which to remove the filter
+ * @priority: Priority of filter, as passed to @efx_filter_insert_filter
+ * @filter_id: ID of filter, as returned by @efx_filter_insert_filter
+ *
+ * This function will range-check @filter_id, so it is safe to call
+ * with a value passed from userland.
+ */
+static inline int efx_filter_remove_id_safe(struct efx_nic *efx,
+					    enum efx_filter_priority priority,
+					    u32 filter_id)
+{
+	return efx->type->filter_remove_safe(efx, priority, filter_id);
+}
+
+/**
+ * efx_filter_get_filter_safe - retrieve a filter by ID, carefully
+ * @efx: NIC from which to remove the filter
+ * @priority: Priority of filter, as passed to @efx_filter_insert_filter
+ * @filter_id: ID of filter, as returned by @efx_filter_insert_filter
+ * @spec: Buffer in which to store filter specification
+ *
+ * This function will range-check @filter_id, so it is safe to call
+ * with a value passed from userland.
+ */
+static inline int
+efx_filter_get_filter_safe(struct efx_nic *efx,
+			   enum efx_filter_priority priority,
+			   u32 filter_id, struct efx_filter_spec *spec)
+{
+	return efx->type->filter_get_safe(efx, priority, filter_id, spec);
+}
+
+/**
+ * efx_farch_filter_clear_rx - remove RX filters by priority
+ * @efx: NIC from which to remove the filters
+ * @priority: Maximum priority to remove
+ */
+static inline void efx_filter_clear_rx(struct efx_nic *efx,
+				       enum efx_filter_priority priority)
+{
+	return efx->type->filter_clear_rx(efx, priority);
+}
+
+static inline u32 efx_filter_count_rx_used(struct efx_nic *efx,
+					   enum efx_filter_priority priority)
+{
+	return efx->type->filter_count_rx_used(efx, priority);
+}
+static inline u32 efx_filter_get_rx_id_limit(struct efx_nic *efx)
+{
+	return efx->type->filter_get_rx_id_limit(efx);
+}
+static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
+					enum efx_filter_priority priority,
+					u32 *buf, u32 size)
+{
+	return efx->type->filter_get_rx_ids(efx, priority, buf, size);
+}
 #ifdef CONFIG_RFS_ACCEL
 extern int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 			  u16 rxq_index, u32 flow_id);
@@ -105,11 +176,11 @@ static inline void efx_filter_rfs_expire(struct efx_channel *channel)
 static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
 #define efx_filter_rfs_enabled() 0
 #endif
+extern bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
 
 /* Channels */
 extern int efx_channel_dummy_op_int(struct efx_channel *channel);
 extern void efx_channel_dummy_op_void(struct efx_channel *channel);
-extern void efx_process_channel_now(struct efx_channel *channel);
 extern int
 efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);
 
@@ -141,7 +212,12 @@ extern void efx_port_dummy_op_void(struct efx_nic *efx);
 
 /* MTD */
 #ifdef CONFIG_SFC_MTD
-extern int efx_mtd_probe(struct efx_nic *efx);
+extern int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
+		       size_t n_parts, size_t sizeof_part);
+static inline int efx_mtd_probe(struct efx_nic *efx)
+{
+	return efx->type->mtd_probe(efx);
+}
 extern void efx_mtd_rename(struct efx_nic *efx);
 extern void efx_mtd_remove(struct efx_nic *efx);
 #else
@@ -155,7 +231,6 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 	netif_vdbg(channel->efx, intr, channel->efx->net_dev,
 		   "channel %d scheduling NAPI poll on CPU%d\n",
 		   channel->channel, raw_smp_processor_id());
-	channel->work_pending = true;
 
 	napi_schedule(&channel->napi_str);
 }

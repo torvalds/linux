@@ -57,7 +57,7 @@
 
 extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
-extern void __init read_decode_cache_bcr(void);
+extern void read_decode_cache_bcr(void);
 
 #endif	/* !__ASSEMBLY__ */
 

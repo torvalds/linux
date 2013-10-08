@@ -362,13 +362,13 @@ struct mwifiex_ds_misc_subsc_evt {
 	struct subsc_evt_cfg bcn_h_rssi_cfg;
 };
 
-#define MAX_BYTESEQ		6	/* non-adjustable */
-#define MWIFIEX_MAX_FILTERS	10
+#define MWIFIEX_MEF_MAX_BYTESEQ		6	/* non-adjustable */
+#define MWIFIEX_MEF_MAX_FILTERS		10
 
 struct mwifiex_mef_filter {
 	u16 repeat;
 	u16 offset;
-	s8 byte_seq[MAX_BYTESEQ + 1];
+	s8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
 	u8 filt_type;
 	u8 filt_action;
 };
@@ -376,7 +376,7 @@ struct mwifiex_mef_filter {
 struct mwifiex_mef_entry {
 	u8 mode;
 	u8 action;
-	struct mwifiex_mef_filter filter[MWIFIEX_MAX_FILTERS];
+	struct mwifiex_mef_filter filter[MWIFIEX_MEF_MAX_FILTERS];
 };
 
 struct mwifiex_ds_mef_cfg {
@@ -395,6 +395,41 @@ struct mwifiex_ds_mef_cfg {
 enum {
 	MWIFIEX_FUNC_INIT = 1,
 	MWIFIEX_FUNC_SHUTDOWN,
+};
+
+enum COALESCE_OPERATION {
+	RECV_FILTER_MATCH_TYPE_EQ = 0x80,
+	RECV_FILTER_MATCH_TYPE_NE,
+};
+
+enum COALESCE_PACKET_TYPE {
+	PACKET_TYPE_UNICAST = 1,
+	PACKET_TYPE_MULTICAST = 2,
+	PACKET_TYPE_BROADCAST = 3
+};
+
+#define MWIFIEX_COALESCE_MAX_RULES	8
+#define MWIFIEX_COALESCE_MAX_BYTESEQ	4	/* non-adjustable */
+#define MWIFIEX_COALESCE_MAX_FILTERS	4
+#define MWIFIEX_MAX_COALESCING_DELAY	100     /* in msecs */
+
+struct filt_field_param {
+	u8 operation;
+	u8 operand_len;
+	u16 offset;
+	u8 operand_byte_stream[MWIFIEX_COALESCE_MAX_BYTESEQ];
+};
+
+struct mwifiex_coalesce_rule {
+	u16 max_coalescing_delay;
+	u8 num_of_fields;
+	u8 pkt_type;
+	struct filt_field_param params[MWIFIEX_COALESCE_MAX_FILTERS];
+};
+
+struct mwifiex_ds_coalesce_cfg {
+	u16 num_of_rules;
+	struct mwifiex_coalesce_rule rule[MWIFIEX_COALESCE_MAX_RULES];
 };
 
 #endif /* !_MWIFIEX_IOCTL_H_ */

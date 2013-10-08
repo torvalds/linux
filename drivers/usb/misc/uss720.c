@@ -75,7 +75,7 @@ struct uss720_async_request {
 	struct list_head asynclist;
 	struct completion compl;
 	struct urb *urb;
-	struct usb_ctrlrequest dr;
+	struct usb_ctrlrequest *dr;
 	__u8 reg[7];
 };
 
@@ -98,6 +98,7 @@ static void destroy_async(struct kref *kref)
 
 	if (likely(rq->urb))
 		usb_free_urb(rq->urb);
+	kfree(rq->dr);
 	spin_lock_irqsave(&priv->asynclock, flags);
 	list_del_init(&rq->asynclist);
 	spin_unlock_irqrestore(&priv->asynclock, flags);
@@ -120,7 +121,7 @@ static void async_complete(struct urb *urb)
 	if (status) {
 		dev_err(&urb->dev->dev, "async_complete: urb error %d\n",
 			status);
-	} else if (rq->dr.bRequest == 3) {
+	} else if (rq->dr->bRequest == 3) {
 		memcpy(priv->reg, rq->reg, sizeof(priv->reg));
 #if 0
 		dev_dbg(&priv->usbdev->dev,
@@ -152,7 +153,7 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 	usbdev = priv->usbdev;
 	if (!usbdev)
 		return NULL;
-	rq = kmalloc(sizeof(struct uss720_async_request), mem_flags);
+	rq = kzalloc(sizeof(struct uss720_async_request), mem_flags);
 	if (!rq) {
 		dev_err(&usbdev->dev, "submit_async_request out of memory\n");
 		return NULL;
@@ -168,13 +169,18 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 		dev_err(&usbdev->dev, "submit_async_request out of memory\n");
 		return NULL;
 	}
-	rq->dr.bRequestType = requesttype;
-	rq->dr.bRequest = request;
-	rq->dr.wValue = cpu_to_le16(value);
-	rq->dr.wIndex = cpu_to_le16(index);
-	rq->dr.wLength = cpu_to_le16((request == 3) ? sizeof(rq->reg) : 0);
+	rq->dr = kmalloc(sizeof(*rq->dr), mem_flags);
+	if (!rq->dr) {
+		kref_put(&rq->ref_count, destroy_async);
+		return NULL;
+	}
+	rq->dr->bRequestType = requesttype;
+	rq->dr->bRequest = request;
+	rq->dr->wValue = cpu_to_le16(value);
+	rq->dr->wIndex = cpu_to_le16(index);
+	rq->dr->wLength = cpu_to_le16((request == 3) ? sizeof(rq->reg) : 0);
 	usb_fill_control_urb(rq->urb, usbdev, (requesttype & 0x80) ? usb_rcvctrlpipe(usbdev, 0) : usb_sndctrlpipe(usbdev, 0),
-			     (unsigned char *)&rq->dr,
+			     (unsigned char *)rq->dr,
 			     (request == 3) ? rq->reg : NULL, (request == 3) ? sizeof(rq->reg) : 0, async_complete, rq);
 	/* rq->urb->transfer_flags |= URB_ASYNC_UNLINK; */
 	spin_lock_irqsave(&priv->asynclock, flags);

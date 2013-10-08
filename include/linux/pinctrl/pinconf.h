@@ -47,13 +47,15 @@ struct pinconf_ops {
 			       unsigned long *config);
 	int (*pin_config_set) (struct pinctrl_dev *pctldev,
 			       unsigned pin,
-			       unsigned long config);
+			       unsigned long *configs,
+			       unsigned num_configs);
 	int (*pin_config_group_get) (struct pinctrl_dev *pctldev,
 				     unsigned selector,
 				     unsigned long *config);
 	int (*pin_config_group_set) (struct pinctrl_dev *pctldev,
 				     unsigned selector,
-				     unsigned long config);
+				     unsigned long *configs,
+				     unsigned num_configs);
 	int (*pin_config_dbg_parse_modify) (struct pinctrl_dev *pctldev,
 					   const char *arg,
 					   unsigned long *config);

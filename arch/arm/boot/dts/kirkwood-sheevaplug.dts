@@ -8,7 +8,7 @@
 
 /dts-v1/;
 
-/include/ "kirkwood-sheevaplug-common.dtsi"
+#include "kirkwood-sheevaplug-common.dtsi"
 
 / {
 	model = "Globalscale Technologies SheevaPlug";

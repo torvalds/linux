@@ -335,57 +335,101 @@ s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 }
 
 /**
- *  igb_read_nvm_i211 - Read NVM wrapper function for I211
+ *  igb_read_invm_word_i210 - Reads OTP
+ *  @hw: pointer to the HW structure
+ *  @address: the word address (aka eeprom offset) to read
+ *  @data: pointer to the data read
+ *
+ *  Reads 16-bit words from the OTP. Return error when the word is not
+ *  stored in OTP.
+ **/
+static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
+{
+	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
+	u32 invm_dword;
+	u16 i;
+	u8 record_type, word_address;
+
+	for (i = 0; i < E1000_INVM_SIZE; i++) {
+		invm_dword = rd32(E1000_INVM_DATA_REG(i));
+		/* Get record type */
+		record_type = INVM_DWORD_TO_RECORD_TYPE(invm_dword);
+		if (record_type == E1000_INVM_UNINITIALIZED_STRUCTURE)
+			break;
+		if (record_type == E1000_INVM_CSR_AUTOLOAD_STRUCTURE)
+			i += E1000_INVM_CSR_AUTOLOAD_DATA_SIZE_IN_DWORDS;
+		if (record_type == E1000_INVM_RSA_KEY_SHA256_STRUCTURE)
+			i += E1000_INVM_RSA_KEY_SHA256_DATA_SIZE_IN_DWORDS;
+		if (record_type == E1000_INVM_WORD_AUTOLOAD_STRUCTURE) {
+			word_address = INVM_DWORD_TO_WORD_ADDRESS(invm_dword);
+			if (word_address == address) {
+				*data = INVM_DWORD_TO_WORD_DATA(invm_dword);
+				hw_dbg("Read INVM Word 0x%02x = %x",
+					  address, *data);
+				status = E1000_SUCCESS;
+				break;
+			}
+		}
+	}
+	if (status != E1000_SUCCESS)
+		hw_dbg("Requested word 0x%02x not found in OTP\n", address);
+	return status;
+}
+
+/**
+ * igb_read_invm_i210 - Read invm wrapper function for I210/I211
  *  @hw: pointer to the HW structure
  *  @words: number of words to read
  *  @data: pointer to the data read
  *
  *  Wrapper function to return data formerly found in the NVM.
  **/
-s32 igb_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
-			       u16 *data)
+static s32 igb_read_invm_i210(struct e1000_hw *hw, u16 offset,
+				u16 words __always_unused, u16 *data)
 {
 	s32 ret_val = E1000_SUCCESS;
 
 	/* Only the MAC addr is required to be present in the iNVM */
 	switch (offset) {
 	case NVM_MAC_ADDR:
-		ret_val = igb_read_invm_i211(hw, offset, &data[0]);
-		ret_val |= igb_read_invm_i211(hw, offset+1, &data[1]);
-		ret_val |= igb_read_invm_i211(hw, offset+2, &data[2]);
+		ret_val = igb_read_invm_word_i210(hw, (u8)offset, &data[0]);
+		ret_val |= igb_read_invm_word_i210(hw, (u8)offset+1,
+						     &data[1]);
+		ret_val |= igb_read_invm_word_i210(hw, (u8)offset+2,
+						     &data[2]);
 		if (ret_val != E1000_SUCCESS)
 			hw_dbg("MAC Addr not found in iNVM\n");
 		break;
 	case NVM_INIT_CTRL_2:
-		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
 		if (ret_val != E1000_SUCCESS) {
 			*data = NVM_INIT_CTRL_2_DEFAULT_I211;
 			ret_val = E1000_SUCCESS;
 		}
 		break;
 	case NVM_INIT_CTRL_4:
-		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
 		if (ret_val != E1000_SUCCESS) {
 			*data = NVM_INIT_CTRL_4_DEFAULT_I211;
 			ret_val = E1000_SUCCESS;
 		}
 		break;
 	case NVM_LED_1_CFG:
-		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
 		if (ret_val != E1000_SUCCESS) {
 			*data = NVM_LED_1_CFG_DEFAULT_I211;
 			ret_val = E1000_SUCCESS;
 		}
 		break;
 	case NVM_LED_0_2_CFG:
-		igb_read_invm_i211(hw, offset, data);
+		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
 		if (ret_val != E1000_SUCCESS) {
 			*data = NVM_LED_0_2_CFG_DEFAULT_I211;
 			ret_val = E1000_SUCCESS;
 		}
 		break;
 	case NVM_ID_LED_SETTINGS:
-		ret_val = igb_read_invm_i211(hw, (u8)offset, data);
+		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
 		if (ret_val != E1000_SUCCESS) {
 			*data = ID_LED_RESERVED_FFFF;
 			ret_val = E1000_SUCCESS;
@@ -408,48 +452,6 @@ s32 igb_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
 		break;
 	}
 	return ret_val;
-}
-
-/**
- *  igb_read_invm_i211 - Reads OTP
- *  @hw: pointer to the HW structure
- *  @address: the word address (aka eeprom offset) to read
- *  @data: pointer to the data read
- *
- *  Reads 16-bit words from the OTP. Return error when the word is not
- *  stored in OTP.
- **/
-s32 igb_read_invm_i211(struct e1000_hw *hw, u16 address, u16 *data)
-{
-	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
-	u32 invm_dword;
-	u16 i;
-	u8 record_type, word_address;
-
-	for (i = 0; i < E1000_INVM_SIZE; i++) {
-		invm_dword = rd32(E1000_INVM_DATA_REG(i));
-		/* Get record type */
-		record_type = INVM_DWORD_TO_RECORD_TYPE(invm_dword);
-		if (record_type == E1000_INVM_UNINITIALIZED_STRUCTURE)
-			break;
-		if (record_type == E1000_INVM_CSR_AUTOLOAD_STRUCTURE)
-			i += E1000_INVM_CSR_AUTOLOAD_DATA_SIZE_IN_DWORDS;
-		if (record_type == E1000_INVM_RSA_KEY_SHA256_STRUCTURE)
-			i += E1000_INVM_RSA_KEY_SHA256_DATA_SIZE_IN_DWORDS;
-		if (record_type == E1000_INVM_WORD_AUTOLOAD_STRUCTURE) {
-			word_address = INVM_DWORD_TO_WORD_ADDRESS(invm_dword);
-			if (word_address == (u8)address) {
-				*data = INVM_DWORD_TO_WORD_DATA(invm_dword);
-				hw_dbg("Read INVM Word 0x%02x = %x",
-					  address, *data);
-				status = E1000_SUCCESS;
-				break;
-			}
-		}
-	}
-	if (status != E1000_SUCCESS)
-		hw_dbg("Requested word 0x%02x not found in OTP\n", address);
-	return status;
 }
 
 /**
@@ -661,6 +663,23 @@ static s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_get_flash_presence_i210 - Check if flash device is detected.
+ *  @hw: pointer to the HW structure
+ *
+ **/
+bool igb_get_flash_presence_i210(struct e1000_hw *hw)
+{
+	u32 eec = 0;
+	bool ret_val = false;
+
+	eec = rd32(E1000_EECD);
+	if (eec & E1000_EECD_FLASH_DETECTED_I210)
+		ret_val = true;
+
+	return ret_val;
+}
+
+/**
  *  igb_update_flash_i210 - Commit EEPROM to the flash
  *  @hw: pointer to the HW structure
  *
@@ -785,4 +804,34 @@ s32 igb_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 *data)
 s32 igb_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data)
 {
 	return __igb_access_xmdio_reg(hw, addr, dev_addr, &data, false);
+}
+
+/**
+ *  igb_init_nvm_params_i210 - Init NVM func ptrs.
+ *  @hw: pointer to the HW structure
+ **/
+s32 igb_init_nvm_params_i210(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	struct e1000_nvm_info *nvm = &hw->nvm;
+
+	nvm->ops.acquire = igb_acquire_nvm_i210;
+	nvm->ops.release = igb_release_nvm_i210;
+	nvm->ops.valid_led_default = igb_valid_led_default_i210;
+
+	/* NVM Function Pointers */
+	if (igb_get_flash_presence_i210(hw)) {
+		hw->nvm.type = e1000_nvm_flash_hw;
+		nvm->ops.read    = igb_read_nvm_srrd_i210;
+		nvm->ops.write   = igb_write_nvm_srwr_i210;
+		nvm->ops.validate = igb_validate_nvm_checksum_i210;
+		nvm->ops.update   = igb_update_nvm_checksum_i210;
+	} else {
+		hw->nvm.type = e1000_nvm_invm;
+		nvm->ops.read     = igb_read_invm_i210;
+		nvm->ops.write    = NULL;
+		nvm->ops.validate = NULL;
+		nvm->ops.update   = NULL;
+	}
+	return ret_val;
 }

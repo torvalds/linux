@@ -75,55 +75,53 @@ static void build_instantiation_desc(u32 *desc)
 			 OP_ALG_RNG4_SK);
 }
 
-struct instantiate_result {
-	struct completion completion;
-	int err;
-};
-
-static void rng4_init_done(struct device *dev, u32 *desc, u32 err,
-			   void *context)
+static int instantiate_rng(struct device *ctrldev)
 {
-	struct instantiate_result *instantiation = context;
-
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(dev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
-
-	instantiation->err = err;
-	complete(&instantiation->completion);
-}
-
-static int instantiate_rng(struct device *jrdev)
-{
-	struct instantiate_result instantiation;
-
-	dma_addr_t desc_dma;
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctrldev);
+	struct caam_full __iomem *topregs;
+	unsigned int timeout = 100000;
 	u32 *desc;
-	int ret;
+	int i, ret = 0;
 
 	desc = kmalloc(CAAM_CMD_SZ * 6, GFP_KERNEL | GFP_DMA);
 	if (!desc) {
-		dev_err(jrdev, "cannot allocate RNG init descriptor memory\n");
+		dev_err(ctrldev, "can't allocate RNG init descriptor memory\n");
 		return -ENOMEM;
 	}
-
 	build_instantiation_desc(desc);
-	desc_dma = dma_map_single(jrdev, desc, desc_bytes(desc), DMA_TO_DEVICE);
-	init_completion(&instantiation.completion);
-	ret = caam_jr_enqueue(jrdev, desc, rng4_init_done, &instantiation);
-	if (!ret) {
-		wait_for_completion_interruptible(&instantiation.completion);
-		ret = instantiation.err;
-		if (ret)
-			dev_err(jrdev, "unable to instantiate RNG\n");
+
+	/* Set the bit to request direct access to DECO0 */
+	topregs = (struct caam_full __iomem *)ctrlpriv->ctrl;
+	setbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
+
+	while (!(rd_reg32(&topregs->ctrl.deco_rq) & DECORR_DEN0) &&
+								 --timeout)
+		cpu_relax();
+
+	if (!timeout) {
+		dev_err(ctrldev, "failed to acquire DECO 0\n");
+		ret = -EIO;
+		goto out;
 	}
 
-	dma_unmap_single(jrdev, desc_dma, desc_bytes(desc), DMA_TO_DEVICE);
+	for (i = 0; i < desc_len(desc); i++)
+		topregs->deco.descbuf[i] = *(desc + i);
 
+	wr_reg32(&topregs->deco.jr_ctl_hi, DECO_JQCR_WHL | DECO_JQCR_FOUR);
+
+	timeout = 10000000;
+	while ((rd_reg32(&topregs->deco.desc_dbg) & DECO_DBG_VALID) &&
+								 --timeout)
+		cpu_relax();
+
+	if (!timeout) {
+		dev_err(ctrldev, "failed to instantiate RNG\n");
+		ret = -EIO;
+	}
+
+	clrbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
+out:
 	kfree(desc);
-
 	return ret;
 }
 
@@ -303,7 +301,7 @@ static int caam_probe(struct platform_device *pdev)
 	if ((cha_vid & CHA_ID_RNG_MASK) >> CHA_ID_RNG_SHIFT >= 4 &&
 	    !(rd_reg32(&topregs->ctrl.r4tst[0].rdsta) & RDSTA_IF0)) {
 		kick_trng(pdev);
-		ret = instantiate_rng(ctrlpriv->jrdev[0]);
+		ret = instantiate_rng(dev);
 		if (ret) {
 			caam_remove(pdev);
 			return ret;
@@ -314,9 +312,6 @@ static int caam_probe(struct platform_device *pdev)
 	}
 
 	/* NOTE: RTIC detection ought to go here, around Si time */
-
-	/* Initialize queue allocator lock */
-	spin_lock_init(&ctrlpriv->jr_alloc_lock);
 
 	caam_id = rd_reg64(&topregs->ctrl.perfmon.caam_id);
 

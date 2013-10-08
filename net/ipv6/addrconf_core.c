@@ -6,6 +6,7 @@
 #include <linux/export.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
+#include <net/ip.h>
 
 #define IPV6_ADDR_SCOPE_TYPE(scope)	((scope) << 16)
 
@@ -98,3 +99,52 @@ int inet6addr_notifier_call_chain(unsigned long val, void *v)
 	return atomic_notifier_call_chain(&inet6addr_chain, val, v);
 }
 EXPORT_SYMBOL(inet6addr_notifier_call_chain);
+
+const struct ipv6_stub *ipv6_stub __read_mostly;
+EXPORT_SYMBOL_GPL(ipv6_stub);
+
+/* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
+const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
+EXPORT_SYMBOL(in6addr_loopback);
+const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
+EXPORT_SYMBOL(in6addr_any);
+const struct in6_addr in6addr_linklocal_allnodes = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
+EXPORT_SYMBOL(in6addr_linklocal_allnodes);
+const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+EXPORT_SYMBOL(in6addr_linklocal_allrouters);
+const struct in6_addr in6addr_interfacelocal_allnodes = IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
+EXPORT_SYMBOL(in6addr_interfacelocal_allnodes);
+const struct in6_addr in6addr_interfacelocal_allrouters = IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT;
+EXPORT_SYMBOL(in6addr_interfacelocal_allrouters);
+const struct in6_addr in6addr_sitelocal_allrouters = IN6ADDR_SITELOCAL_ALLROUTERS_INIT;
+EXPORT_SYMBOL(in6addr_sitelocal_allrouters);
+
+static void snmp6_free_dev(struct inet6_dev *idev)
+{
+	kfree(idev->stats.icmpv6msgdev);
+	kfree(idev->stats.icmpv6dev);
+	snmp_mib_free((void __percpu **)idev->stats.ipv6);
+}
+
+/* Nobody refers to this device, we may destroy it. */
+
+void in6_dev_finish_destroy(struct inet6_dev *idev)
+{
+	struct net_device *dev = idev->dev;
+
+	WARN_ON(!list_empty(&idev->addr_list));
+	WARN_ON(idev->mc_list != NULL);
+	WARN_ON(timer_pending(&idev->rs_timer));
+
+#ifdef NET_REFCNT_DEBUG
+	pr_debug("%s: %s\n", __func__, dev ? dev->name : "NIL");
+#endif
+	dev_put(dev);
+	if (!idev->dead) {
+		pr_warn("Freeing alive inet6 device %p\n", idev);
+		return;
+	}
+	snmp6_free_dev(idev);
+	kfree_rcu(idev, rcu);
+}
+EXPORT_SYMBOL(in6_dev_finish_destroy);

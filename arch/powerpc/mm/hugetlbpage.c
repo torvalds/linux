@@ -86,6 +86,11 @@ int pgd_huge(pgd_t pgd)
 	 */
 	return ((pgd_val(pgd) & 0x3) != 0x0);
 }
+
+int pmd_huge_support(void)
+{
+	return 1;
+}
 #else
 int pmd_huge(pmd_t pmd)
 {
@@ -98,6 +103,11 @@ int pud_huge(pud_t pud)
 }
 
 int pgd_huge(pgd_t pgd)
+{
+	return 0;
+}
+
+int pmd_huge_support(void)
 {
 	return 0;
 }

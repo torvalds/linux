@@ -136,13 +136,13 @@ int cfs_crypto_hash_digest(unsigned char alg,
 /* cfs crypto hash descriptor */
 struct cfs_crypto_hash_desc;
 
-/**     Allocate and initialize desriptor for hash algorithm.
+/**     Allocate and initialize descriptor for hash algorithm.
  *      @param alg	    algorithm id
  *      @param key	    initial value for algorithm, if it is NULL,
  *			    default initial value should be used.
  *      @param key_len	len of initial value
  *      @returns	      pointer to descriptor of hash instance
- *      @retval ERR_PTR(error) when errors occured.
+ *      @retval ERR_PTR(error) when errors occurred.
  */
 struct cfs_crypto_hash_desc*
 	cfs_crypto_hash_init(unsigned char alg,
@@ -175,7 +175,7 @@ int cfs_crypto_hash_update(struct cfs_crypto_hash_desc *desc, const void *buf,
  *     @param desc	      hash descriptor
  *     @param hash	      buffer pointer to store hash digest
  *     @param hash_len	  pointer to hash buffer size, if NULL
- *			      destory hash descriptor
+ *			      destroy hash descriptor
  *     @returns		 status of operation
  *     @retval -ENOSPC	  if hash is NULL, or *hash_len less than
  *			      digest size
@@ -195,7 +195,7 @@ int cfs_crypto_register(void);
 void cfs_crypto_unregister(void);
 
 /**     Return hash speed in Mbytes per second for valid hash algorithm
- *      identifier. If test was unsuccessfull -1 would be return.
+ *      identifier. If test was unsuccessful -1 would be returned.
  */
 int cfs_crypto_hash_speed(unsigned char hash_alg);
 #endif

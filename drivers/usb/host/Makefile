@@ -4,6 +4,9 @@
 
 ccflags-$(CONFIG_USB_DEBUG) := -DDEBUG
 
+# tell define_trace.h where to find the xhci trace header
+CFLAGS_xhci-trace.o := -I$(src)
+
 isp1760-y := isp1760-hcd.o isp1760-if.o
 
 fhci-y := fhci-hcd.o fhci-hub.o fhci-q.o
@@ -13,6 +16,7 @@ fhci-$(CONFIG_FHCI_DEBUG) += fhci-dbg.o
 
 xhci-hcd-y := xhci.o xhci-mem.o
 xhci-hcd-y += xhci-ring.o xhci-hub.o xhci-dbg.o
+xhci-hcd-y += xhci-trace.o
 xhci-hcd-$(CONFIG_PCI)	+= xhci-pci.o
 
 ifneq ($(CONFIG_USB_XHCI_PLATFORM), )
@@ -58,3 +62,4 @@ obj-$(CONFIG_USB_OCTEON2_COMMON) += octeon2-common.o
 obj-$(CONFIG_USB_HCD_BCMA)	+= bcma-hcd.o
 obj-$(CONFIG_USB_HCD_SSB)	+= ssb-hcd.o
 obj-$(CONFIG_USB_FUSBH200_HCD)	+= fusbh200-hcd.o
+obj-$(CONFIG_USB_FOTG210_HCD)	+= fotg210-hcd.o

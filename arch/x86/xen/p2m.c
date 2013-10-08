@@ -161,6 +161,7 @@
 #include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/balloon.h>
 #include <xen/grant_table.h>
 
 #include "multicalls.h"
@@ -878,7 +879,6 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
-	int ret = 0;
 
 	pfn = page_to_pfn(page);
 	if (!PageHighMem(page)) {
@@ -925,8 +925,8 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 	 * frontend pages while they are being shared with the backend,
 	 * because mfn_to_pfn (that ends up being called by GUPF) will
 	 * return the backend pfn rather than the frontend pfn. */
-	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
-	if (ret == 0 && get_phys_to_machine(pfn) == mfn)
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == mfn)
 		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
 
 	return 0;
@@ -941,7 +941,6 @@ int m2p_remove_override(struct page *page,
 	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
-	int ret = 0;
 
 	pfn = page_to_pfn(page);
 	mfn = get_phys_to_machine(pfn);
@@ -967,7 +966,10 @@ int m2p_remove_override(struct page *page,
 	if (kmap_op != NULL) {
 		if (!PageHighMem(page)) {
 			struct multicall_space mcs;
-			struct gnttab_unmap_grant_ref *unmap_op;
+			struct gnttab_unmap_and_replace *unmap_op;
+			struct page *scratch_page = get_balloon_scratch_page();
+			unsigned long scratch_page_address = (unsigned long)
+				__va(page_to_pfn(scratch_page) << PAGE_SHIFT);
 
 			/*
 			 * It might be that we queued all the m2p grant table
@@ -986,25 +988,31 @@ int m2p_remove_override(struct page *page,
 				printk(KERN_WARNING "m2p_remove_override: "
 						"pfn %lx mfn %lx, failed to modify kernel mappings",
 						pfn, mfn);
+				put_balloon_scratch_page();
 				return -1;
 			}
 
-			mcs = xen_mc_entry(
-					sizeof(struct gnttab_unmap_grant_ref));
+			xen_mc_batch();
+
+			mcs = __xen_mc_entry(
+					sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
 			unmap_op->host_addr = kmap_op->host_addr;
+			unmap_op->new_addr = scratch_page_address;
 			unmap_op->handle = kmap_op->handle;
-			unmap_op->dev_bus_addr = 0;
 
 			MULTI_grant_table_op(mcs.mc,
-					GNTTABOP_unmap_grant_ref, unmap_op, 1);
+					GNTTABOP_unmap_and_replace, unmap_op, 1);
+
+			mcs = __xen_mc_entry(0);
+			MULTI_update_va_mapping(mcs.mc, scratch_page_address,
+					pfn_pte(page_to_pfn(scratch_page),
+					PAGE_KERNEL_RO), 0);
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 
-			set_pte_at(&init_mm, address, ptep,
-					pfn_pte(pfn, PAGE_KERNEL));
-			__flush_tlb_single(address);
 			kmap_op->host_addr = 0;
+			put_balloon_scratch_page();
 		}
 	}
 
@@ -1019,8 +1027,8 @@ int m2p_remove_override(struct page *page,
 	 * the original pfn causes mfn_to_pfn(mfn) to return the frontend
 	 * pfn again. */
 	mfn &= ~FOREIGN_FRAME_BIT;
-	ret = __get_user(pfn, &machine_to_phys_mapping[mfn]);
-	if (ret == 0 && get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
 			m2p_find_override(mfn) == NULL)
 		set_phys_to_machine(pfn, mfn);
 

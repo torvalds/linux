@@ -1358,6 +1358,4 @@ void __init s5pc100_register_clocks(void)
 		s3c_disable_clocks(clk_cdev[ptr], 1);
 
 	s3c24xx_register_clock(&dummy_apb_pclk);
-
-	s3c_pwmclk_init();
 }

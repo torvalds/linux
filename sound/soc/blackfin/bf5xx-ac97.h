@@ -9,7 +9,6 @@
 #ifndef _BF5XX_AC97_H
 #define _BF5XX_AC97_H
 
-extern struct snd_ac97 *ac97;
 /* Frame format in memory, only support stereo currently */
 struct ac97_frame {
 	u16 ac97_tag;		/* slot 0 */

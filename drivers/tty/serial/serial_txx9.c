@@ -1097,7 +1097,7 @@ static void serial_txx9_unregister_port(int line)
  */
 static int serial_txx9_probe(struct platform_device *dev)
 {
-	struct uart_port *p = dev->dev.platform_data;
+	struct uart_port *p = dev_get_platdata(&dev->dev);
 	struct uart_port port;
 	int ret, i;
 

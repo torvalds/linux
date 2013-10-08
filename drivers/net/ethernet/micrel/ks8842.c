@@ -705,7 +705,8 @@ static void ks8842_rx_frame(struct net_device *netdev,
 	ks8842_enable_bits(adapter, 0, 1 << 12, REG_QRFCR);
 }
 
-void ks8842_handle_rx(struct net_device *netdev, struct ks8842_adapter *adapter)
+static void ks8842_handle_rx(struct net_device *netdev,
+	struct ks8842_adapter *adapter)
 {
 	u16 rx_data = ks8842_read16(adapter, 16, REG_RXMIR) & 0x1fff;
 	netdev_dbg(netdev, "%s Entry - rx_data: %d\n", __func__, rx_data);
@@ -715,7 +716,8 @@ void ks8842_handle_rx(struct net_device *netdev, struct ks8842_adapter *adapter)
 	}
 }
 
-void ks8842_handle_tx(struct net_device *netdev, struct ks8842_adapter *adapter)
+static void ks8842_handle_tx(struct net_device *netdev,
+	struct ks8842_adapter *adapter)
 {
 	u16 sr = ks8842_read16(adapter, 16, REG_TXSR);
 	netdev_dbg(netdev, "%s - entry, sr: %x\n", __func__, sr);
@@ -724,7 +726,7 @@ void ks8842_handle_tx(struct net_device *netdev, struct ks8842_adapter *adapter)
 		netif_wake_queue(netdev);
 }
 
-void ks8842_handle_rx_overrun(struct net_device *netdev,
+static void ks8842_handle_rx_overrun(struct net_device *netdev,
 	struct ks8842_adapter *adapter)
 {
 	netdev_dbg(netdev, "%s: entry\n", __func__);
@@ -732,7 +734,7 @@ void ks8842_handle_rx_overrun(struct net_device *netdev,
 	netdev->stats.rx_fifo_errors++;
 }
 
-void ks8842_tasklet(unsigned long arg)
+static void ks8842_tasklet(unsigned long arg)
 {
 	struct net_device *netdev = (struct net_device *)arg;
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
@@ -1146,7 +1148,7 @@ static int ks8842_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
-	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
+	struct ks8842_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u16 id;
 	unsigned i;
 

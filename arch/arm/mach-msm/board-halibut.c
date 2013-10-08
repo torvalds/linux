@@ -29,7 +29,6 @@
 #include <asm/setup.h>
 
 #include <mach/irqs.h>
-#include <mach/board.h>
 #include <mach/msm_iomap.h>
 
 #include <linux/mtd/nand.h>

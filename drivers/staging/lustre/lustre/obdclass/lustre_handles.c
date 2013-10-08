@@ -65,7 +65,6 @@ void class_handle_hash(struct portals_handle *h,
 		       struct portals_handle_ops *ops)
 {
 	struct handle_bucket *bucket;
-	ENTRY;
 
 	LASSERT(h != NULL);
 	LASSERT(list_empty(&h->h_link));
@@ -100,7 +99,6 @@ void class_handle_hash(struct portals_handle *h,
 
 	CDEBUG(D_INFO, "added object %p with handle "LPX64" to hash\n",
 	       h, h->h_cookie);
-	EXIT;
 }
 EXPORT_SYMBOL(class_handle_hash);
 
@@ -139,7 +137,6 @@ EXPORT_SYMBOL(class_handle_unhash);
 void class_handle_hash_back(struct portals_handle *h)
 {
 	struct handle_bucket *bucket;
-	ENTRY;
 
 	bucket = handle_hash + (h->h_cookie & HANDLE_HASH_MASK);
 
@@ -147,8 +144,6 @@ void class_handle_hash_back(struct portals_handle *h)
 	list_add_rcu(&h->h_link, &bucket->head);
 	h->h_in = 1;
 	spin_unlock(&bucket->lock);
-
-	EXIT;
 }
 EXPORT_SYMBOL(class_handle_hash_back);
 
@@ -157,7 +152,6 @@ void *class_handle2object(__u64 cookie)
 	struct handle_bucket *bucket;
 	struct portals_handle *h;
 	void *retval = NULL;
-	ENTRY;
 
 	LASSERT(handle_hash != NULL);
 
@@ -180,7 +174,7 @@ void *class_handle2object(__u64 cookie)
 	}
 	rcu_read_unlock();
 
-	RETURN(retval);
+	return retval;
 }
 EXPORT_SYMBOL(class_handle2object);
 

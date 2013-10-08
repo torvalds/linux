@@ -75,23 +75,6 @@ static inline void copy_to_user_page(struct vm_area_struct *vma,
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy((dst), (src), (len))
 
-/*
- * Invalidate a VA range; pads to L2 cacheline boundaries.
- *
- * Note that on TILE64, __inv_buffer() actually flushes modified
- * cache lines in addition to invalidating them, i.e., it's the
- * same as __finv_buffer().
- */
-static inline void __inv_buffer(void *buffer, size_t size)
-{
-	char *next = (char *)((long)buffer & -L2_CACHE_BYTES);
-	char *finish = (char *)L2_CACHE_ALIGN((long)buffer + size);
-	while (next < finish) {
-		__insn_inv(next);
-		next += CHIP_INV_STRIDE();
-	}
-}
-
 /* Flush a VA range; pads to L2 cacheline boundaries. */
 static inline void __flush_buffer(void *buffer, size_t size)
 {
@@ -115,13 +98,6 @@ static inline void __finv_buffer(void *buffer, size_t size)
 }
 
 
-/* Invalidate a VA range and wait for it to be complete. */
-static inline void inv_buffer(void *buffer, size_t size)
-{
-	__inv_buffer(buffer, size);
-	mb();
-}
-
 /*
  * Flush a locally-homecached VA range and wait for the evicted
  * cachelines to hit memory.
@@ -141,6 +117,26 @@ static inline void finv_buffer_local(void *buffer, size_t size)
 	__finv_buffer(buffer, size);
 	mb_incoherent();
 }
+
+#ifdef __tilepro__
+/* Invalidate a VA range; pads to L2 cacheline boundaries. */
+static inline void __inv_buffer(void *buffer, size_t size)
+{
+	char *next = (char *)((long)buffer & -L2_CACHE_BYTES);
+	char *finish = (char *)L2_CACHE_ALIGN((long)buffer + size);
+	while (next < finish) {
+		__insn_inv(next);
+		next += CHIP_INV_STRIDE();
+	}
+}
+
+/* Invalidate a VA range and wait for it to be complete. */
+static inline void inv_buffer(void *buffer, size_t size)
+{
+	__inv_buffer(buffer, size);
+	mb();
+}
+#endif
 
 /*
  * Flush and invalidate a VA range that is homed remotely, waiting

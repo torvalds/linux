@@ -146,6 +146,16 @@ config GPIO_MM_LANTIQ
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
 
+config GPIO_F7188X
+	tristate "F71882FG and F71889F GPIO support"
+	depends on X86
+	help
+	  This option enables support for GPIOs found on Fintek Super-I/O
+	  chips F71882FG and F71889F.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called f7188x-gpio.
+
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
@@ -192,6 +202,14 @@ config GPIO_MXS
 	depends on ARCH_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
+
+config GPIO_OCTEON
+	tristate "Cavium OCTEON GPIO"
+	depends on GPIOLIB && CAVIUM_OCTEON_SOC
+	default y
+	help
+	  Say yes here to support the on-chip GPIO lines on the OCTEON
+	  family of SOCs.
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
@@ -242,6 +260,21 @@ config GPIO_TS5500
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
+config GPIO_TZ1090
+	bool "Toumaz Xenif TZ1090 GPIO support"
+	depends on SOC_TZ1090
+	select GENERIC_IRQ_CHIP
+	default y
+	help
+	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
+
+config GPIO_TZ1090_PDC
+	bool "Toumaz Xenif TZ1090 PDC GPIO support"
+	depends on SOC_TZ1090
+	default y
+	help
+	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
@@ -289,7 +322,7 @@ config GPIO_ICH
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on PCI && GENERIC_HARDIRQS
+	depends on PCI
 	select MFD_CORE
 	select MFD_VX855
 	help
@@ -363,7 +396,7 @@ config GPIO_MAX732X
 
 config GPIO_MAX732X_IRQ
 	bool "Interrupt controller support for MAX732x"
-	depends on GPIO_MAX732X=y && GENERIC_HARDIRQS
+	depends on GPIO_MAX732X=y
 	help
 	  Say yes here to enable the max732x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
@@ -628,7 +661,7 @@ config GPIO_TIMBERDALE
 
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
-	depends on PCI && GENERIC_HARDIRQS
+	depends on PCI
 	select MFD_CORE
 	select MFD_RDC321X
 	help
@@ -675,6 +708,18 @@ config GPIO_UCB1400
 	help
 	  This enables support for the Philips UCB1400 GPIO pins.
 	  The UCB1400 is an AC97 audio codec.
+
+comment "LPC GPIO expanders:"
+
+config GPIO_KEMPLD
+	tristate "Kontron ETX / COMexpress GPIO"
+	depends on MFD_KEMPLD
+	help
+	  This enables support for the PLD GPIO interface on some Kontron ETX
+	  and COMexpress (ETXexpress) modules.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-kempld.
 
 comment "MODULbus GPIO expanders:"
 

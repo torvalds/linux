@@ -48,6 +48,7 @@
 #define CPU0CC_CPUDIV		0x0001
 
 /* Activation Status Register */
+#define ACTS_ASC0_ACT	0x00001000
 #define ACTS_ASC1_ACT	0x00000800
 #define ACTS_I2C_ACT	0x00004000
 #define ACTS_P0		0x00010000
@@ -108,6 +109,7 @@ static void sysctl_deactivate(struct clk *clk)
 static int sysctl_clken(struct clk *clk)
 {
 	sysctl_w32(clk->module, clk->bits, SYSCTL_CLKEN);
+	sysctl_w32(clk->module, clk->bits, SYSCTL_ACT);
 	sysctl_wait(clk, clk->bits, SYSCTL_CLKS);
 	return 0;
 }
@@ -256,6 +258,7 @@ void __init ltq_soc_init(void)
 	clkdev_add_sys("1e800400.pad", SYSCTL_SYS1, ACTS_PADCTRL1);
 	clkdev_add_sys("1e800500.pad", SYSCTL_SYS1, ACTS_PADCTRL3);
 	clkdev_add_sys("1e800600.pad", SYSCTL_SYS1, ACTS_PADCTRL4);
-	clkdev_add_sys("1e100C00.serial", SYSCTL_SYS1, ACTS_ASC1_ACT);
+	clkdev_add_sys("1e100b00.serial", SYSCTL_SYS1, ACTS_ASC1_ACT);
+	clkdev_add_sys("1e100c00.serial", SYSCTL_SYS1, ACTS_ASC0_ACT);
 	clkdev_add_sys("1e200000.i2c", SYSCTL_SYS1, ACTS_I2C_ACT);
 }

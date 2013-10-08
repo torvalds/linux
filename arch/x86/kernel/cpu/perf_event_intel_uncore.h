@@ -12,6 +12,15 @@
 #define UNCORE_PMC_IDX_FIXED		UNCORE_PMC_IDX_MAX_GENERIC
 #define UNCORE_PMC_IDX_MAX		(UNCORE_PMC_IDX_FIXED + 1)
 
+#define UNCORE_PCI_DEV_DATA(type, idx)	((type << 8) | idx)
+#define UNCORE_PCI_DEV_TYPE(data)	((data >> 8) & 0xff)
+#define UNCORE_PCI_DEV_IDX(data)	(data & 0xff)
+#define UNCORE_EXTRA_PCI_DEV		0xff
+#define UNCORE_EXTRA_PCI_DEV_MAX	2
+
+/* support up to 8 sockets */
+#define UNCORE_SOCKET_MAX		8
+
 #define UNCORE_EVENT_CONSTRAINT(c, n) EVENT_CONSTRAINT(c, n, 0xff)
 
 /* SNB event control */
@@ -108,6 +117,7 @@
 				(SNBEP_PMON_CTL_EV_SEL_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK | \
 				 SNBEP_PMON_CTL_EDGE_DET | \
+				 SNBEP_PMON_CTL_EV_SEL_EXT | \
 				 SNBEP_PMON_CTL_INVERT | \
 				 SNBEP_PCU_MSR_PMON_CTL_TRESH_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT | \

@@ -50,14 +50,16 @@ other parameters detailed later):
    which are dirty, and extra hints for use by the policy object.
    This information could be put on the cache device, but having it
    separate allows the volume manager to configure it differently,
-   e.g. as a mirror for extra robustness.
+   e.g. as a mirror for extra robustness.  This metadata device may only
+   be used by a single cache device.
 
 Fixed block size
 ----------------
 
 The origin is divided up into blocks of a fixed size.  This block size
 is configurable when you first create the cache.  Typically we've been
-using block sizes of 256k - 1024k.
+using block sizes of 256KB - 1024KB.  The block size must be between 64
+(32KB) and 2097152 (1GB) and a multiple of 64 (32KB).
 
 Having a fixed block size simplifies the target a lot.  But it is
 something of a compromise.  For instance, a small part of a block may be

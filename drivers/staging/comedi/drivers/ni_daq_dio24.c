@@ -31,6 +31,7 @@ This is just a wrapper around the 8255.o driver to properly handle
 the PCMCIA interface.
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <pcmcia/cistpl.h>

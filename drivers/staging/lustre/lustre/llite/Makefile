@@ -1,5 +1,5 @@
 obj-$(CONFIG_LUSTRE_FS) += lustre.o
-obj-$(CONFIG_LUSTRE_FS) += llite_lloop.o
+obj-$(CONFIG_LUSTRE_LLITE_LLOOP) += llite_lloop.o
 lustre-y := dcache.o dir.o file.o llite_close.o llite_lib.o llite_nfs.o \
 	    rw.o lproc_llite.o namei.o symlink.o llite_mmap.o \
 	    xattr.o remote_perm.o llite_rmtacl.o llite_capa.o \

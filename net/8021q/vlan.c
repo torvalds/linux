@@ -210,6 +210,7 @@ out_vid_del:
 static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 {
 	struct net_device *new_dev;
+	struct vlan_dev_priv *vlan;
 	struct net *net = dev_net(real_dev);
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
 	char name[IFNAMSIZ];
@@ -260,11 +261,12 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	new_dev->mtu = real_dev->mtu;
 	new_dev->priv_flags |= (real_dev->priv_flags & IFF_UNICAST_FLT);
 
-	vlan_dev_priv(new_dev)->vlan_proto = htons(ETH_P_8021Q);
-	vlan_dev_priv(new_dev)->vlan_id = vlan_id;
-	vlan_dev_priv(new_dev)->real_dev = real_dev;
-	vlan_dev_priv(new_dev)->dent = NULL;
-	vlan_dev_priv(new_dev)->flags = VLAN_FLAG_REORDER_HDR;
+	vlan = vlan_dev_priv(new_dev);
+	vlan->vlan_proto = htons(ETH_P_8021Q);
+	vlan->vlan_id = vlan_id;
+	vlan->real_dev = real_dev;
+	vlan->dent = NULL;
+	vlan->flags = VLAN_FLAG_REORDER_HDR;
 
 	new_dev->rtnl_link_ops = &vlan_link_ops;
 	err = register_vlan_dev(new_dev);
@@ -459,6 +461,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 
 	case NETDEV_NOTIFY_PEERS:
 	case NETDEV_BONDING_FAILOVER:
+	case NETDEV_RESEND_IGMP:
 		/* Propagate to vlan devices */
 		vlan_group_for_each_dev(grp, i, vlandev)
 			call_netdevice_notifiers(event, vlandev);

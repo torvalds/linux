@@ -73,11 +73,6 @@ struct iio_const_attr {
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 
 /* Generic attributes of onetype or another */
-/**
- * IIO_DEV_ATTR_RESET: resets the device
- **/
-#define IIO_DEV_ATTR_RESET(_store)			\
-	IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, _store, 0)
 
 /**
  * IIO_DEV_ATTR_SAMP_FREQ - sets any internal clock frequency

@@ -18,8 +18,6 @@
 #ifndef __XFS_FILESTREAM_H__
 #define __XFS_FILESTREAM_H__
 
-#ifdef __KERNEL__
-
 struct xfs_mount;
 struct xfs_inode;
 struct xfs_perag;
@@ -68,7 +66,5 @@ xfs_inode_is_filestream(
 		xfs_iflags_test(ip, XFS_IFILESTREAM) ||
 		(ip->i_d.di_flags & XFS_DIFLAG_FILESTREAM);
 }
-
-#endif /* __KERNEL__ */
 
 #endif /* __XFS_FILESTREAM_H__ */

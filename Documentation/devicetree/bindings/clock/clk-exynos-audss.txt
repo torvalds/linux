@@ -2,7 +2,7 @@
 
 The Samsung Audio Subsystem clock controller generates and supplies clocks
 to Audio Subsystem block available in the S5PV210 and Exynos SoCs. The clock
-binding described here is applicable to all SoC's in Exynos family.
+binding described here is applicable to all SoCs in Exynos family.
 
 Required Properties:
 

@@ -614,7 +614,6 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	return 0;
 
 fail:
-	brcmf_txcomplete(dev, skb, false);
 	return ret;
 }
 
@@ -1540,7 +1539,7 @@ void brcmf_usb_exit(void)
 	brcmf_release_fw(&fw_image_list);
 }
 
-void brcmf_usb_init(void)
+void brcmf_usb_register(void)
 {
 	brcmf_dbg(USB, "Enter\n");
 	INIT_LIST_HEAD(&fw_image_list);

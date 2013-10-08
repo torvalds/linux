@@ -66,8 +66,10 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
 	get_slb_shadow()->save_area[entry].esid = 0;
-	get_slb_shadow()->save_area[entry].vsid = mk_vsid_data(ea, ssize, flags);
-	get_slb_shadow()->save_area[entry].esid = mk_esid_data(ea, ssize, entry);
+	get_slb_shadow()->save_area[entry].vsid =
+				cpu_to_be64(mk_vsid_data(ea, ssize, flags));
+	get_slb_shadow()->save_area[entry].esid =
+				cpu_to_be64(mk_esid_data(ea, ssize, entry));
 }
 
 static inline void slb_shadow_clear(unsigned long entry)
@@ -112,7 +114,8 @@ static void __slb_flush_and_rebolt(void)
 	} else {
 		/* Update stack entry; others don't change */
 		slb_shadow_update(get_paca()->kstack, mmu_kernel_ssize, lflags, 2);
-		ksp_vsid_data = get_slb_shadow()->save_area[2].vsid;
+		ksp_vsid_data =
+			be64_to_cpu(get_slb_shadow()->save_area[2].vsid);
 	}
 
 	/* We need to do this all in asm, so we're sure we don't touch

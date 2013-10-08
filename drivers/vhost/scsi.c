@@ -1,12 +1,12 @@
 /*******************************************************************************
  * Vhost kernel TCM fabric driver for virtio SCSI initiators
  *
- * (C) Copyright 2010-2012 RisingTide Systems LLC.
+ * (C) Copyright 2010-2013 Datera, Inc.
  * (C) Copyright 2010-2012 IBM Corp.
  *
  * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
  *
- * Authors: Nicholas A. Bellinger <nab@risingtidesystems.com>
+ * Authors: Nicholas A. Bellinger <nab@daterainc.com>
  *          Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -48,12 +48,16 @@
 #include <linux/virtio_scsi.h>
 #include <linux/llist.h>
 #include <linux/bitmap.h>
+#include <linux/percpu_ida.h>
 
 #include "vhost.h"
 
 #define TCM_VHOST_VERSION  "v0.1"
 #define TCM_VHOST_NAMELEN 256
 #define TCM_VHOST_MAX_CDB_SIZE 32
+#define TCM_VHOST_DEFAULT_TAGS 256
+#define TCM_VHOST_PREALLOC_SGLS 2048
+#define TCM_VHOST_PREALLOC_PAGES 2048
 
 struct vhost_scsi_inflight {
 	/* Wait for the flush operation to finish */
@@ -79,6 +83,7 @@ struct tcm_vhost_cmd {
 	u32 tvc_lun;
 	/* Pointer to the SGL formatted memory from virtio-scsi */
 	struct scatterlist *tvc_sgl;
+	struct page **tvc_upages;
 	/* Pointer to response */
 	struct virtio_scsi_cmd_resp __user *tvc_resp;
 	/* Pointer to vhost_scsi for our device */
@@ -450,17 +455,16 @@ static void tcm_vhost_release_cmd(struct se_cmd *se_cmd)
 {
 	struct tcm_vhost_cmd *tv_cmd = container_of(se_cmd,
 				struct tcm_vhost_cmd, tvc_se_cmd);
+	struct se_session *se_sess = se_cmd->se_sess;
 
 	if (tv_cmd->tvc_sgl_count) {
 		u32 i;
 		for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
 			put_page(sg_page(&tv_cmd->tvc_sgl[i]));
-
-		kfree(tv_cmd->tvc_sgl);
-        }
+	}
 
 	tcm_vhost_put_inflight(tv_cmd->inflight);
-	kfree(tv_cmd);
+	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
 static int tcm_vhost_shutdown_session(struct se_session *se_sess)
@@ -704,7 +708,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 }
 
 static struct tcm_vhost_cmd *
-vhost_scsi_allocate_cmd(struct vhost_virtqueue *vq,
+vhost_scsi_get_tag(struct vhost_virtqueue *vq,
 			struct tcm_vhost_tpg *tpg,
 			struct virtio_scsi_cmd_req *v_req,
 			u32 exp_data_len,
@@ -712,18 +716,32 @@ vhost_scsi_allocate_cmd(struct vhost_virtqueue *vq,
 {
 	struct tcm_vhost_cmd *cmd;
 	struct tcm_vhost_nexus *tv_nexus;
+	struct se_session *se_sess;
+	struct scatterlist *sg;
+	struct page **pages;
+	int tag;
 
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
 		pr_err("Unable to locate active struct tcm_vhost_nexus\n");
 		return ERR_PTR(-EIO);
 	}
+	se_sess = tv_nexus->tvn_se_sess;
 
-	cmd = kzalloc(sizeof(struct tcm_vhost_cmd), GFP_ATOMIC);
-	if (!cmd) {
-		pr_err("Unable to allocate struct tcm_vhost_cmd\n");
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	if (tag < 0) {
+		pr_err("Unable to obtain tag for tcm_vhost_cmd\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	cmd = &((struct tcm_vhost_cmd *)se_sess->sess_cmd_map)[tag];
+	sg = cmd->tvc_sgl;
+	pages = cmd->tvc_upages;
+	memset(cmd, 0, sizeof(struct tcm_vhost_cmd));
+
+	cmd->tvc_sgl = sg;
+	cmd->tvc_upages = pages;
+	cmd->tvc_se_cmd.map_tag = tag;
 	cmd->tvc_tag = v_req->tag;
 	cmd->tvc_task_attr = v_req->task_attr;
 	cmd->tvc_exp_data_len = exp_data_len;
@@ -740,7 +758,8 @@ vhost_scsi_allocate_cmd(struct vhost_virtqueue *vq,
  * Returns the number of scatterlist entries used or -errno on error.
  */
 static int
-vhost_scsi_map_to_sgl(struct scatterlist *sgl,
+vhost_scsi_map_to_sgl(struct tcm_vhost_cmd *tv_cmd,
+		      struct scatterlist *sgl,
 		      unsigned int sgl_count,
 		      struct iovec *iov,
 		      int write)
@@ -752,13 +771,25 @@ vhost_scsi_map_to_sgl(struct scatterlist *sgl,
 	struct page **pages;
 	int ret, i;
 
+	if (sgl_count > TCM_VHOST_PREALLOC_SGLS) {
+		pr_err("vhost_scsi_map_to_sgl() psgl_count: %u greater than"
+		       " preallocated TCM_VHOST_PREALLOC_SGLS: %u\n",
+			sgl_count, TCM_VHOST_PREALLOC_SGLS);
+		return -ENOBUFS;
+	}
+
 	pages_nr = iov_num_pages(iov);
 	if (pages_nr > sgl_count)
 		return -ENOBUFS;
 
-	pages = kmalloc(pages_nr * sizeof(struct page *), GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
+	if (pages_nr > TCM_VHOST_PREALLOC_PAGES) {
+		pr_err("vhost_scsi_map_to_sgl() pages_nr: %u greater than"
+		       " preallocated TCM_VHOST_PREALLOC_PAGES: %u\n",
+			pages_nr, TCM_VHOST_PREALLOC_PAGES);
+		return -ENOBUFS;
+	}
+
+	pages = tv_cmd->tvc_upages;
 
 	ret = get_user_pages_fast((unsigned long)ptr, pages_nr, write, pages);
 	/* No pages were pinned */
@@ -783,7 +814,6 @@ vhost_scsi_map_to_sgl(struct scatterlist *sgl,
 	}
 
 out:
-	kfree(pages);
 	return ret;
 }
 
@@ -807,24 +837,20 @@ vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *cmd,
 
 	/* TODO overflow checking */
 
-	sg = kmalloc(sizeof(cmd->tvc_sgl[0]) * sgl_count, GFP_ATOMIC);
-	if (!sg)
-		return -ENOMEM;
-	pr_debug("%s sg %p sgl_count %u is_err %d\n", __func__,
-	       sg, sgl_count, !sg);
+	sg = cmd->tvc_sgl;
+	pr_debug("%s sg %p sgl_count %u\n", __func__, sg, sgl_count);
 	sg_init_table(sg, sgl_count);
 
-	cmd->tvc_sgl = sg;
 	cmd->tvc_sgl_count = sgl_count;
 
 	pr_debug("Mapping %u iovecs for %u pages\n", niov, sgl_count);
 	for (i = 0; i < niov; i++) {
-		ret = vhost_scsi_map_to_sgl(sg, sgl_count, &iov[i], write);
+		ret = vhost_scsi_map_to_sgl(cmd, sg, sgl_count, &iov[i],
+					    write);
 		if (ret < 0) {
 			for (i = 0; i < cmd->tvc_sgl_count; i++)
 				put_page(sg_page(&cmd->tvc_sgl[i]));
-			kfree(cmd->tvc_sgl);
-			cmd->tvc_sgl = NULL;
+
 			cmd->tvc_sgl_count = 0;
 			return ret;
 		}
@@ -989,10 +1015,10 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		for (i = 0; i < data_num; i++)
 			exp_data_len += vq->iov[data_first + i].iov_len;
 
-		cmd = vhost_scsi_allocate_cmd(vq, tpg, &v_req,
-					exp_data_len, data_direction);
+		cmd = vhost_scsi_get_tag(vq, tpg, &v_req,
+					 exp_data_len, data_direction);
 		if (IS_ERR(cmd)) {
-			vq_err(vq, "vhost_scsi_allocate_cmd failed %ld\n",
+			vq_err(vq, "vhost_scsi_get_tag failed %ld\n",
 					PTR_ERR(cmd));
 			goto err_cmd;
 		}
@@ -1352,21 +1378,30 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 	return 0;
 }
 
+static void vhost_scsi_free(struct vhost_scsi *vs)
+{
+	if (is_vmalloc_addr(vs))
+		vfree(vs);
+	else
+		kfree(vs);
+}
+
 static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
-	int r, i;
+	int r = -ENOMEM, i;
 
-	vs = kzalloc(sizeof(*vs), GFP_KERNEL);
-	if (!vs)
-		return -ENOMEM;
+	vs = kzalloc(sizeof(*vs), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	if (!vs) {
+		vs = vzalloc(sizeof(*vs));
+		if (!vs)
+			goto err_vs;
+	}
 
 	vqs = kmalloc(VHOST_SCSI_MAX_VQ * sizeof(*vqs), GFP_KERNEL);
-	if (!vqs) {
-		kfree(vs);
-		return -ENOMEM;
-	}
+	if (!vqs)
+		goto err_vqs;
 
 	vhost_work_init(&vs->vs_completion_work, vhost_scsi_complete_cmd_work);
 	vhost_work_init(&vs->vs_event_work, tcm_vhost_evt_work);
@@ -1386,14 +1421,18 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 
 	tcm_vhost_init_inflight(vs, NULL);
 
-	if (r < 0) {
-		kfree(vqs);
-		kfree(vs);
-		return r;
-	}
+	if (r < 0)
+		goto err_init;
 
 	f->private_data = vs;
 	return 0;
+
+err_init:
+	kfree(vqs);
+err_vqs:
+	vhost_scsi_free(vs);
+err_vs:
+	return r;
 }
 
 static int vhost_scsi_release(struct inode *inode, struct file *f)
@@ -1410,7 +1449,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	/* Jobs can re-queue themselves in evt kick handler. Do extra flush. */
 	vhost_scsi_flush(vs);
 	kfree(vs->dev.vqs);
-	kfree(vs);
+	vhost_scsi_free(vs);
 	return 0;
 }
 
@@ -1654,11 +1693,31 @@ static void tcm_vhost_drop_nodeacl(struct se_node_acl *se_acl)
 	kfree(nacl);
 }
 
+static void tcm_vhost_free_cmd_map_res(struct tcm_vhost_nexus *nexus,
+				       struct se_session *se_sess)
+{
+	struct tcm_vhost_cmd *tv_cmd;
+	unsigned int i;
+
+	if (!se_sess->sess_cmd_map)
+		return;
+
+	for (i = 0; i < TCM_VHOST_DEFAULT_TAGS; i++) {
+		tv_cmd = &((struct tcm_vhost_cmd *)se_sess->sess_cmd_map)[i];
+
+		kfree(tv_cmd->tvc_sgl);
+		kfree(tv_cmd->tvc_upages);
+	}
+}
+
 static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 				const char *name)
 {
 	struct se_portal_group *se_tpg;
+	struct se_session *se_sess;
 	struct tcm_vhost_nexus *tv_nexus;
+	struct tcm_vhost_cmd *tv_cmd;
+	unsigned int i;
 
 	mutex_lock(&tpg->tv_tpg_mutex);
 	if (tpg->tpg_nexus) {
@@ -1675,13 +1734,36 @@ static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 		return -ENOMEM;
 	}
 	/*
-	 *  Initialize the struct se_session pointer
+	 *  Initialize the struct se_session pointer and setup tagpool
+	 *  for struct tcm_vhost_cmd descriptors
 	 */
-	tv_nexus->tvn_se_sess = transport_init_session();
+	tv_nexus->tvn_se_sess = transport_init_session_tags(
+					TCM_VHOST_DEFAULT_TAGS,
+					sizeof(struct tcm_vhost_cmd));
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		kfree(tv_nexus);
 		return -ENOMEM;
+	}
+	se_sess = tv_nexus->tvn_se_sess;
+	for (i = 0; i < TCM_VHOST_DEFAULT_TAGS; i++) {
+		tv_cmd = &((struct tcm_vhost_cmd *)se_sess->sess_cmd_map)[i];
+
+		tv_cmd->tvc_sgl = kzalloc(sizeof(struct scatterlist) *
+					TCM_VHOST_PREALLOC_SGLS, GFP_KERNEL);
+		if (!tv_cmd->tvc_sgl) {
+			mutex_unlock(&tpg->tv_tpg_mutex);
+			pr_err("Unable to allocate tv_cmd->tvc_sgl\n");
+			goto out;
+		}
+
+		tv_cmd->tvc_upages = kzalloc(sizeof(struct page *) *
+					TCM_VHOST_PREALLOC_PAGES, GFP_KERNEL);
+		if (!tv_cmd->tvc_upages) {
+			mutex_unlock(&tpg->tv_tpg_mutex);
+			pr_err("Unable to allocate tv_cmd->tvc_upages\n");
+			goto out;
+		}
 	}
 	/*
 	 * Since we are running in 'demo mode' this call with generate a
@@ -1694,9 +1776,7 @@ static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		pr_debug("core_tpg_check_initiator_node_acl() failed"
 				" for %s\n", name);
-		transport_free_session(tv_nexus->tvn_se_sess);
-		kfree(tv_nexus);
-		return -ENOMEM;
+		goto out;
 	}
 	/*
 	 * Now register the TCM vhost virtual I_T Nexus as active with the
@@ -1708,6 +1788,12 @@ static int tcm_vhost_make_nexus(struct tcm_vhost_tpg *tpg,
 
 	mutex_unlock(&tpg->tv_tpg_mutex);
 	return 0;
+
+out:
+	tcm_vhost_free_cmd_map_res(tv_nexus, se_sess);
+	transport_free_session(se_sess);
+	kfree(tv_nexus);
+	return -ENOMEM;
 }
 
 static int tcm_vhost_drop_nexus(struct tcm_vhost_tpg *tpg)
@@ -1747,6 +1833,8 @@ static int tcm_vhost_drop_nexus(struct tcm_vhost_tpg *tpg)
 	pr_debug("TCM_vhost_ConfigFS: Removing I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", tcm_vhost_dump_proto_id(tpg->tport),
 		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+
+	tcm_vhost_free_cmd_map_res(tv_nexus, se_sess);
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vhost Target Port
 	 */

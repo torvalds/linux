@@ -94,7 +94,6 @@
 #define AUDIO_DAC_CFS_DLY_B		(1 << 10)
 
 struct mc13783_priv {
-	struct snd_soc_codec codec;
 	struct mc13xxx *mc13xxx;
 
 	enum mc13783_ssi_port adc_ssi_port;
@@ -125,6 +124,10 @@ static int mc13783_write(struct snd_soc_codec *codec,
 	mc13xxx_lock(priv->mc13xxx);
 
 	ret = mc13xxx_reg_write(priv->mc13xxx, reg, value);
+
+	/* include errata fix for spi audio problems */
+	if (reg == MC13783_AUDIO_CODEC || reg == MC13783_AUDIO_DAC)
+		ret = mc13xxx_reg_write(priv->mc13xxx, reg, value);
 
 	mc13xxx_unlock(priv->mc13xxx);
 

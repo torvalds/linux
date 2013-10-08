@@ -149,7 +149,7 @@ static u32 *vgic_bytemap_get_reg(struct vgic_bytemap *x, int cpuid, u32 offset)
 {
 	offset >>= 2;
 	BUG_ON(offset > (VGIC_NR_IRQS / 4));
-	if (offset < 4)
+	if (offset < 8)
 		return x->percpu[cpuid] + offset;
 	else
 		return x->shared + offset - 8;
@@ -432,19 +432,13 @@ static bool handle_mmio_priority_reg(struct kvm_vcpu *vcpu,
 static u32 vgic_get_target_reg(struct kvm *kvm, int irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
-	struct kvm_vcpu *vcpu;
-	int i, c;
-	unsigned long *bmap;
+	int i;
 	u32 val = 0;
 
 	irq -= VGIC_NR_PRIVATE_IRQS;
 
-	kvm_for_each_vcpu(c, vcpu, kvm) {
-		bmap = vgic_bitmap_get_shared_map(&dist->irq_spi_target[c]);
-		for (i = 0; i < GICD_IRQS_PER_ITARGETSR; i++)
-			if (test_bit(irq + i, bmap))
-				val |= 1 << (c + i * 8);
-	}
+	for (i = 0; i < GICD_IRQS_PER_ITARGETSR; i++)
+		val |= 1 << (dist->irq_spi_cpu[irq + i] + i * 8);
 
 	return val;
 }
@@ -547,8 +541,12 @@ static bool handle_mmio_cfg_reg(struct kvm_vcpu *vcpu,
 				struct kvm_exit_mmio *mmio, phys_addr_t offset)
 {
 	u32 val;
-	u32 *reg = vgic_bitmap_get_reg(&vcpu->kvm->arch.vgic.irq_cfg,
-				       vcpu->vcpu_id, offset >> 1);
+	u32 *reg;
+
+	offset >>= 1;
+	reg = vgic_bitmap_get_reg(&vcpu->kvm->arch.vgic.irq_cfg,
+				  vcpu->vcpu_id, offset);
+
 	if (offset & 2)
 		val = *reg >> 16;
 	else

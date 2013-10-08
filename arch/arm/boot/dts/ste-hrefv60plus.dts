@@ -1,0 +1,210 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "ste-dbx5x0.dtsi"
+#include "ste-href.dtsi"
+#include "ste-stuib.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
+	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+
+	gpio_keys {
+		button@1 {
+			gpios = <&gpio6 25 0x4>;
+		};
+	};
+
+	soc {
+		i2c@80110000 {
+			bu21013_tp@0x5c {
+				reset-gpio = <&gpio4 15 0x4>;
+			};
+		};
+
+		// External Micro SD slot
+		sdi0_per1@80126000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			mmc-cap-sd-highspeed;
+			mmc-cap-mmc-highspeed;
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+
+			cd-gpios  = <&tc3589x_gpio 3 0x4>;
+
+			status = "okay";
+		};
+
+		// WLAN SDIO channel
+		sdi1_per2@80118000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+
+			status = "okay";
+		};
+
+		// PoP:ed eMMC
+		sdi2_per3@80005000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <8>;
+			mmc-cap-mmc-highspeed;
+
+			status = "okay";
+		};
+
+		// On-board eMMC
+		sdi4_per2@80114000 {
+			arm,primecell-periphid = <0x10480180>;
+		        max-frequency = <100000000>;
+			bus-width = <8>;
+			mmc-cap-mmc-highspeed;
+			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+
+			status = "okay";
+		};
+
+		prcmu@80157000 {
+			db8500-prcmu-regulators {
+				db8500_vape_reg: db8500_vape {
+					regulator-name = "db8500-vape";
+				};
+
+				db8500_varm_reg: db8500_varm {
+					regulator-name = "db8500-varm";
+				};
+
+				db8500_vmodem_reg: db8500_vmodem {
+					regulator-name = "db8500-vmodem";
+				};
+
+				db8500_vpll_reg: db8500_vpll {
+					regulator-name = "db8500-vpll";
+				};
+
+				db8500_vsmps1_reg: db8500_vsmps1 {
+					regulator-name = "db8500-vsmps1";
+				};
+
+				db8500_vsmps2_reg: db8500_vsmps2 {
+					regulator-name = "db8500-vsmps2";
+				};
+
+				db8500_vsmps3_reg: db8500_vsmps3 {
+					regulator-name = "db8500-vsmps3";
+				};
+
+				db8500_vrf1_reg: db8500_vrf1 {
+					regulator-name = "db8500-vrf1";
+				};
+
+				db8500_sva_mmdsp_reg: db8500_sva_mmdsp {
+					regulator-name = "db8500-sva-mmdsp";
+				};
+
+				db8500_sva_mmdsp_ret_reg: db8500_sva_mmdsp_ret {
+					regulator-name = "db8500-sva-mmdsp-ret";
+				};
+
+				db8500_sva_pipe_reg: db8500_sva_pipe {
+					regulator-name = "db8500_sva_pipe";
+				};
+
+				db8500_sia_mmdsp_reg: db8500_sia_mmdsp {
+					regulator-name = "db8500_sia_mmdsp";
+				};
+
+				db8500_sia_mmdsp_ret_reg: db8500_sia_mmdsp_ret {
+					regulator-name = "db8500-sia-mmdsp-ret";
+				};
+
+				db8500_sia_pipe_reg: db8500_sia_pipe {
+					regulator-name = "db8500-sia-pipe";
+				};
+
+				db8500_sga_reg: db8500_sga {
+					regulator-name = "db8500-sga";
+				};
+
+				db8500_b2r2_mcde_reg: db8500_b2r2_mcde {
+					regulator-name = "db8500-b2r2-mcde";
+				};
+
+				db8500_esram12_reg: db8500_esram12 {
+					regulator-name = "db8500-esram12";
+				};
+
+				db8500_esram12_ret_reg: db8500_esram12_ret {
+					regulator-name = "db8500-esram12-ret";
+				};
+
+				db8500_esram34_reg: db8500_esram34 {
+					regulator-name = "db8500-esram34";
+				};
+
+				db8500_esram34_ret_reg: db8500_esram34_ret {
+					regulator-name = "db8500-esram34-ret";
+				};
+			};
+
+			ab8500 {
+				ab8500-regulators {
+					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
+						regulator-name = "V-DISPLAY";
+					};
+
+					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
+						regulator-name = "V-eMMC1";
+					};
+
+					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
+						regulator-name = "V-MMC-SD";
+					};
+
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
+						regulator-name = "V-INTCORE";
+					};
+
+					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
+						regulator-name = "V-TVOUT";
+					};
+
+					ab8500_ldo_usb_reg: ab8500_ldo_usb {
+						regulator-name = "dummy";
+					};
+
+					ab8500_ldo_audio_reg: ab8500_ldo_audio {
+						regulator-name = "V-AUD";
+					};
+
+					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
+						regulator-name = "V-AMIC1";
+					};
+
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
+						regulator-name = "V-AMIC2";
+					};
+
+					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
+						regulator-name = "V-DMIC";
+					};
+
+					ab8500_ldo_ana_reg: ab8500_ldo_ana {
+						regulator-name = "V-CSI/DSI";
+					};
+				};
+			};
+		};
+	};
+};

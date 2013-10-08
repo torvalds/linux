@@ -4,6 +4,7 @@
 #include <linux/reboot.h>
 
 extern void pxa168_timer_init(void);
+extern void __init icu_init_irq(void);
 extern void __init pxa168_init_irq(void);
 extern void pxa168_restart(enum reboot_mode, const char *);
 extern void pxa168_clear_keypad_wakeup(void);

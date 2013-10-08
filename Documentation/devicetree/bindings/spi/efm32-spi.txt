@@ -1,0 +1,34 @@
+* Energy Micro EFM32 SPI
+
+Required properties:
+- #address-cells: see spi-bus.txt
+- #size-cells: see spi-bus.txt
+- compatible: should be "efm32,spi"
+- reg: Offset and length of the register set for the controller
+- interrupts: pair specifying rx and tx irq
+- clocks: phandle to the spi clock
+- cs-gpios: see spi-bus.txt
+- location: Value to write to the ROUTE register's LOCATION bitfield to configure the pinmux for the device, see datasheet for values.
+
+Example:
+
+spi1: spi@0x4000c400 { /* USART1 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "efm32,spi";
+	reg = <0x4000c400 0x400>;
+	interrupts = <15 16>;
+	clocks = <&cmu 20>;
+	cs-gpios = <&gpio 51 1>; // D3
+	location = <1>;
+	status = "ok";
+
+	ks8851@0 {
+		compatible = "ks8851";
+		spi-max-frequency = <6000000>;
+		reg = <0>;
+		interrupt-parent = <&boardfpga>;
+		interrupts = <4>;
+		status = "ok";
+	};
+};

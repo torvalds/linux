@@ -22,6 +22,8 @@ config IWLWIFI
 		Intel Wireless WiFi Link 6150BGN 2 Adapter
 		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
 		Intel 2000 Series Wi-Fi Adapters
+		Intel 7260 Wi-Fi Adapter
+		Intel 3160 Wi-Fi Adapter
 
 
 	  This driver uses the kernel's mac80211 subsystem.
@@ -46,17 +48,16 @@ config IWLDVM
 	depends on IWLWIFI
 	default IWLWIFI
 	help
-	  This is the driver supporting the DVM firmware which is
-	  currently the only firmware available for existing devices.
+	  This is the driver that supports the DVM firmware which is
+	  used by most existing devices (with the exception of 7260
+	  and 3160).
 
 config IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
 	depends on IWLWIFI
 	help
-	  This is the driver supporting the MVM firmware which is
-	  currently only available for 7000 series devices.
-
-	  Say yes if you have such a device.
+	  This is the driver that supports the MVM firmware which is
+	  currently only available for 7260 and 3160 devices.
 
 # don't call it _MODULE -- will confuse Kconfig/fixdep/...
 config IWLWIFI_OPMODE_MODULAR
@@ -127,20 +128,3 @@ config IWLWIFI_DEVICE_TRACING
 	  If unsure, say Y so we can help you better when problems
 	  occur.
 endmenu
-
-config IWLWIFI_P2P
-	def_bool y
-	bool "iwlwifi experimental P2P support"
-	depends on IWLWIFI
-	help
-	  This option enables experimental P2P support for some devices
-	  based on microcode support. Since P2P support is still under
-	  development, this option may even enable it for some devices
-	  now that turn out to not support it in the future due to
-	  microcode restrictions.
-
-	  To determine if your microcode supports the experimental P2P
-	  offered by this option, check if the driver advertises AP
-	  support when it is loaded.
-
-	  Say Y only if you want to experiment with P2P.

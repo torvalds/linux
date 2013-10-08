@@ -59,7 +59,7 @@ static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
 	unsigned long state;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &state);
+	retval = kstrtoul(buf, 10, &state);
 	if (retval)
 		return retval;
 
@@ -75,6 +75,8 @@ static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(mode_key, 0660,
+		   arvo_sysfs_show_mode_key, arvo_sysfs_set_mode_key);
 
 static ssize_t arvo_sysfs_show_key_mask(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -107,7 +109,7 @@ static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
 	unsigned long key_mask;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &key_mask);
+	retval = kstrtoul(buf, 10, &key_mask);
 	if (retval)
 		return retval;
 
@@ -123,6 +125,8 @@ static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(key_mask, 0660,
+		   arvo_sysfs_show_key_mask, arvo_sysfs_set_key_mask);
 
 /* retval is 1-5 on success, < 0 on error */
 static int arvo_get_actual_profile(struct usb_device *usb_dev)
@@ -159,7 +163,7 @@ static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
 	unsigned long profile;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &profile);
+	retval = kstrtoul(buf, 10, &profile);
 	if (retval)
 		return retval;
 
@@ -179,6 +183,9 @@ static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
 	mutex_unlock(&arvo->arvo_lock);
 	return retval;
 }
+static DEVICE_ATTR(actual_profile, 0660,
+		   arvo_sysfs_show_actual_profile,
+		   arvo_sysfs_set_actual_profile);
 
 static ssize_t arvo_sysfs_write(struct file *fp,
 		struct kobject *kobj, void const *buf,
@@ -230,6 +237,8 @@ static ssize_t arvo_sysfs_write_button(struct file *fp,
 	return arvo_sysfs_write(fp, kobj, buf, off, count,
 			sizeof(struct arvo_button), ARVO_COMMAND_BUTTON);
 }
+static BIN_ATTR(button, 0220, NULL, arvo_sysfs_write_button,
+		sizeof(struct arvo_button));
 
 static ssize_t arvo_sysfs_read_info(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
@@ -238,31 +247,30 @@ static ssize_t arvo_sysfs_read_info(struct file *fp,
 	return arvo_sysfs_read(fp, kobj, buf, off, count,
 			sizeof(struct arvo_info), ARVO_COMMAND_INFO);
 }
+static BIN_ATTR(info, 0440, arvo_sysfs_read_info, NULL,
+		sizeof(struct arvo_info));
 
-
-static struct device_attribute arvo_attributes[] = {
-	__ATTR(mode_key, 0660,
-			arvo_sysfs_show_mode_key, arvo_sysfs_set_mode_key),
-	__ATTR(key_mask, 0660,
-			arvo_sysfs_show_key_mask, arvo_sysfs_set_key_mask),
-	__ATTR(actual_profile, 0660,
-			arvo_sysfs_show_actual_profile,
-			arvo_sysfs_set_actual_profile),
-	__ATTR_NULL
+static struct attribute *arvo_attrs[] = {
+	&dev_attr_mode_key.attr,
+	&dev_attr_key_mask.attr,
+	&dev_attr_actual_profile.attr,
+	NULL,
 };
 
-static struct bin_attribute arvo_bin_attributes[] = {
-	{
-		.attr = { .name = "button", .mode = 0220 },
-		.size = sizeof(struct arvo_button),
-		.write = arvo_sysfs_write_button
-	},
-	{
-		.attr = { .name = "info", .mode = 0440 },
-		.size = sizeof(struct arvo_info),
-		.read = arvo_sysfs_read_info
-	},
-	__ATTR_NULL
+static struct bin_attribute *arvo_bin_attributes[] = {
+	&bin_attr_button,
+	&bin_attr_info,
+	NULL,
+};
+
+static const struct attribute_group arvo_group = {
+	.attrs = arvo_attrs,
+	.bin_attrs = arvo_bin_attributes,
+};
+
+static const struct attribute_group *arvo_groups[] = {
+	&arvo_group,
+	NULL,
 };
 
 static int arvo_init_arvo_device_struct(struct usb_device *usb_dev,
@@ -430,8 +438,7 @@ static int __init arvo_init(void)
 	arvo_class = class_create(THIS_MODULE, "arvo");
 	if (IS_ERR(arvo_class))
 		return PTR_ERR(arvo_class);
-	arvo_class->dev_attrs = arvo_attributes;
-	arvo_class->dev_bin_attrs = arvo_bin_attributes;
+	arvo_class->dev_groups = arvo_groups;
 
 	retval = hid_register_driver(&arvo_driver);
 	if (retval)

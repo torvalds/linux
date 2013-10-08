@@ -103,7 +103,7 @@ static int fwe_run(struct fmc_device *fmc, const struct firmware *fw, char *s)
  * difficult to know in advance when probing the first card if others
  * are there.
  */
-int fwe_probe(struct fmc_device *fmc)
+static int fwe_probe(struct fmc_device *fmc)
 {
 	int err, index = 0;
 	const struct firmware *fw;
@@ -144,7 +144,7 @@ int fwe_probe(struct fmc_device *fmc)
 	return 0;
 }
 
-int fwe_remove(struct fmc_device *fmc)
+static int fwe_remove(struct fmc_device *fmc)
 {
 	return 0;
 }

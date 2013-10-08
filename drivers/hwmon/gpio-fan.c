@@ -495,7 +495,7 @@ static int gpio_fan_probe(struct platform_device *pdev)
 {
 	int err;
 	struct gpio_fan_data *fan_data;
-	struct gpio_fan_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_fan_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 #ifdef CONFIG_OF_GPIO
 	if (!pdata) {

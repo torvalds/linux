@@ -76,13 +76,21 @@ static inline void map_dma_buffer(struct musb_request *request,
 		return;
 
 	if (request->request.dma == DMA_ADDR_INVALID) {
-		request->request.dma = dma_map_single(
+		dma_addr_t dma_addr;
+		int ret;
+
+		dma_addr = dma_map_single(
 				musb->controller,
 				request->request.buf,
 				request->request.length,
 				request->tx
 					? DMA_TO_DEVICE
 					: DMA_FROM_DEVICE);
+		ret = dma_mapping_error(musb->controller, dma_addr);
+		if (ret)
+			return;
+
+		request->request.dma = dma_addr;
 		request->map_state = MUSB_MAPPED;
 	} else {
 		dma_sync_single_for_device(musb->controller,
@@ -357,47 +365,49 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			}
 		}
 
-#elif defined(CONFIG_USB_TI_CPPI_DMA)
-		/* program endpoint CSR first, then setup DMA */
-		csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
-		csr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_DMAMODE |
-		       MUSB_TXCSR_MODE;
-		musb_writew(epio, MUSB_TXCSR,
-			(MUSB_TXCSR_P_WZC_BITS & ~MUSB_TXCSR_P_UNDERRUN)
-				| csr);
-
-		/* ensure writebuffer is empty */
-		csr = musb_readw(epio, MUSB_TXCSR);
-
-		/* NOTE host side sets DMAENAB later than this; both are
-		 * OK since the transfer dma glue (between CPPI and Mentor
-		 * fifos) just tells CPPI it could start.  Data only moves
-		 * to the USB TX fifo when both fifos are ready.
-		 */
-
-		/* "mode" is irrelevant here; handle terminating ZLPs like
-		 * PIO does, since the hardware RNDIS mode seems unreliable
-		 * except for the last-packet-is-already-short case.
-		 */
-		use_dma = use_dma && c->channel_program(
-				musb_ep->dma, musb_ep->packet_sz,
-				0,
-				request->dma + request->actual,
-				request_size);
-		if (!use_dma) {
-			c->channel_release(musb_ep->dma);
-			musb_ep->dma = NULL;
-			csr &= ~MUSB_TXCSR_DMAENAB;
-			musb_writew(epio, MUSB_TXCSR, csr);
-			/* invariant: prequest->buf is non-null */
-		}
-#elif defined(CONFIG_USB_TUSB_OMAP_DMA)
-		use_dma = use_dma && c->channel_program(
-				musb_ep->dma, musb_ep->packet_sz,
-				request->zero,
-				request->dma + request->actual,
-				request_size);
 #endif
+		if (is_cppi_enabled()) {
+			/* program endpoint CSR first, then setup DMA */
+			csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
+			csr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_DMAMODE |
+				MUSB_TXCSR_MODE;
+			musb_writew(epio, MUSB_TXCSR, (MUSB_TXCSR_P_WZC_BITS &
+						~MUSB_TXCSR_P_UNDERRUN) | csr);
+
+			/* ensure writebuffer is empty */
+			csr = musb_readw(epio, MUSB_TXCSR);
+
+			/*
+			 * NOTE host side sets DMAENAB later than this; both are
+			 * OK since the transfer dma glue (between CPPI and
+			 * Mentor fifos) just tells CPPI it could start. Data
+			 * only moves to the USB TX fifo when both fifos are
+			 * ready.
+			 */
+			/*
+			 * "mode" is irrelevant here; handle terminating ZLPs
+			 * like PIO does, since the hardware RNDIS mode seems
+			 * unreliable except for the
+			 * last-packet-is-already-short case.
+			 */
+			use_dma = use_dma && c->channel_program(
+					musb_ep->dma, musb_ep->packet_sz,
+					0,
+					request->dma + request->actual,
+					request_size);
+			if (!use_dma) {
+				c->channel_release(musb_ep->dma);
+				musb_ep->dma = NULL;
+				csr &= ~MUSB_TXCSR_DMAENAB;
+				musb_writew(epio, MUSB_TXCSR, csr);
+				/* invariant: prequest->buf is non-null */
+			}
+		} else if (tusb_dma_omap())
+			use_dma = use_dma && c->channel_program(
+					musb_ep->dma, musb_ep->packet_sz,
+					request->zero,
+					request->dma + request->actual,
+					request_size);
 	}
 #endif
 
@@ -1266,7 +1276,8 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 		dev_dbg(musb->controller, "req %p queued to %s while ep %s\n",
 				req, ep->name, "disabled");
 		status = -ESHUTDOWN;
-		goto cleanup;
+		unmap_dma_buffer(request, musb);
+		goto unlock;
 	}
 
 	/* add request to the list */
@@ -1276,7 +1287,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	if (!musb_ep->busy && &request->list == musb_ep->req_list.next)
 		musb_ep_restart(musb, request);
 
-cleanup:
+unlock:
 	spin_unlock_irqrestore(&musb->lock, lockflags);
 	return status;
 }
@@ -1779,6 +1790,10 @@ int musb_gadget_setup(struct musb *musb)
 	musb->g.max_speed = USB_SPEED_HIGH;
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
+	MUSB_DEV_MODE(musb);
+	musb->xceiv->otg->default_a = 0;
+	musb->xceiv->state = OTG_STATE_B_IDLE;
+
 	/* this "gadget" abstracts/virtualizes the controller */
 	musb->g.name = musb_driver_name;
 	musb->g.is_otg = 1;
@@ -1801,6 +1816,8 @@ err:
 
 void musb_gadget_cleanup(struct musb *musb)
 {
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return;
 	usb_del_gadget_udc(&musb->g);
 }
 
@@ -1836,7 +1853,6 @@ static int musb_gadget_start(struct usb_gadget *g,
 	musb->gadget_driver = driver;
 
 	spin_lock_irqsave(&musb->lock, flags);
-	musb->is_active = 1;
 
 	otg_set_peripheral(otg, &musb->g);
 	musb->xceiv->state = OTG_STATE_B_IDLE;
@@ -1926,7 +1942,8 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	stop_activity(musb, driver);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
 
-	dev_dbg(musb->controller, "unregistering driver %s\n", driver->function);
+	dev_dbg(musb->controller, "unregistering driver %s\n",
+				  driver ? driver->function : "(removed)");
 
 	musb->is_active = 0;
 	musb->gadget_driver = NULL;

@@ -597,7 +597,7 @@ endmenu # "Memory Debugging"
 
 config DEBUG_SHIRQ
 	bool "Debug shared IRQ handlers"
-	depends on DEBUG_KERNEL && GENERIC_HARDIRQS
+	depends on DEBUG_KERNEL
 	help
 	  Enable this to generate a spurious interrupt as soon as a shared
 	  interrupt handler is registered, and just before one is deregistered.
@@ -908,7 +908,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE
+	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -980,6 +980,25 @@ config DEBUG_KOBJECT
 	help
 	  If you say Y here, some extra kobject debugging messages will be sent
 	  to the syslog. 
+
+config DEBUG_KOBJECT_RELEASE
+	bool "kobject release debugging"
+	depends on DEBUG_KERNEL
+	help
+	  kobjects are reference counted objects.  This means that their
+	  last reference count put is not predictable, and the kobject can
+	  live on past the point at which a driver decides to drop it's
+	  initial reference to the kobject gained on allocation.  An
+	  example of this would be a struct device which has just been
+	  unregistered.
+
+	  However, some buggy drivers assume that after such an operation,
+	  the memory backing the kobject can be immediately freed.  This
+	  goes completely against the principles of a refcounted object.
+
+	  If you say Y here, the kernel will delay the release of kobjects
+	  on the last reference count to improve the visibility of this
+	  kind of kobject release bug.
 
 config HAVE_DEBUG_BUGVERBOSE
 	bool
@@ -1347,7 +1366,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
@@ -1357,7 +1376,7 @@ config LATENCYTOP
 	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND && !ARC
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE
@@ -1442,7 +1461,7 @@ config BACKTRACE_SELF_TEST
 
 config RBTREE_TEST
 	tristate "Red-Black tree test"
-	depends on m && DEBUG_KERNEL
+	depends on DEBUG_KERNEL
 	help
 	  A benchmark measuring the performance of the rbtree library.
 	  Also includes rbtree invariant checks.

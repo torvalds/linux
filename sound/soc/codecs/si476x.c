@@ -102,6 +102,16 @@ static int si476x_codec_write(struct snd_soc_codec *codec,
 	return err;
 }
 
+static const struct snd_soc_dapm_widget si476x_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("LOUT"),
+SND_SOC_DAPM_OUTPUT("ROUT"),
+};
+
+static const struct snd_soc_dapm_route si476x_dapm_routes[] = {
+	{ "Capture", NULL, "LOUT" },
+	{ "Capture", NULL, "ROUT" },
+};
+
 static int si476x_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 				    unsigned int fmt)
 {
@@ -260,6 +270,10 @@ static struct snd_soc_codec_driver soc_codec_dev_si476x = {
 	.probe  = si476x_codec_probe,
 	.read   = si476x_codec_read,
 	.write  = si476x_codec_write,
+	.dapm_widgets = si476x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
+	.dapm_routes = si476x_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(si476x_dapm_routes),
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)

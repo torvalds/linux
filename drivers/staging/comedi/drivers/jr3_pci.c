@@ -38,6 +38,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
@@ -638,10 +639,9 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	init_timer(&devpriv->timer);
 	switch (pcidev->device) {

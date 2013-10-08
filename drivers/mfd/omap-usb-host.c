@@ -114,7 +114,7 @@ struct usbhs_hcd_omap {
 };
 /*-------------------------------------------------------------------------*/
 
-const char usbhs_driver_name[] = USBHS_DRIVER_NAME;
+static const char usbhs_driver_name[] = USBHS_DRIVER_NAME;
 static u64 usbhs_dmamask = DMA_BIT_MASK(32);
 
 /*-------------------------------------------------------------------------*/
@@ -232,7 +232,7 @@ err_end:
 static int omap_usbhs_alloc_children(struct platform_device *pdev)
 {
 	struct device				*dev = &pdev->dev;
-	struct usbhs_omap_platform_data		*pdata = dev->platform_data;
+	struct usbhs_omap_platform_data		*pdata = dev_get_platdata(dev);
 	struct platform_device			*ehci;
 	struct platform_device			*ohci;
 	struct resource				*res;
@@ -571,7 +571,7 @@ static struct of_device_id usbhs_child_match_table[] = {
 static int usbhs_omap_probe(struct platform_device *pdev)
 {
 	struct device			*dev =  &pdev->dev;
-	struct usbhs_omap_platform_data	*pdata = dev->platform_data;
+	struct usbhs_omap_platform_data	*pdata = dev_get_platdata(dev);
 	struct usbhs_hcd_omap		*omap;
 	struct resource			*res;
 	int				ret = 0;

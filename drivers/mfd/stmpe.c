@@ -1106,7 +1106,8 @@ static int stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
-void stmpe_of_probe(struct stmpe_platform_data *pdata, struct device_node *np)
+static void stmpe_of_probe(struct stmpe_platform_data *pdata,
+			   struct device_node *np)
 {
 	struct device_node *child;
 

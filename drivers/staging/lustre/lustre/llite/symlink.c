@@ -37,7 +37,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/stat.h>
-#include <linux/version.h>
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include <lustre_lite.h>
@@ -51,7 +50,6 @@ static int ll_readlink_internal(struct inode *inode,
 	int rc, symlen = i_size_read(inode) + 1;
 	struct mdt_body *body;
 	struct md_op_data *op_data;
-	ENTRY;
 
 	*request = NULL;
 
@@ -65,13 +63,13 @@ static int ll_readlink_internal(struct inode *inode,
 		CDEBUG(D_INODE, "using cached symlink %s%.*s, len = %d\n",
 		       print_limit < symlen ? "..." : "", print_limit,
 		       (*symname) + symlen - print_limit, symlen);
-		RETURN(0);
+		return 0;
 	}
 
 	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, symlen,
 				     LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
-		RETURN(PTR_ERR(op_data));
+		return PTR_ERR(op_data);
 
 	op_data->op_valid = OBD_MD_LINKNAME;
 	rc = md_getattr(sbi->ll_md_exp, op_data, request);
@@ -111,10 +109,10 @@ static int ll_readlink_internal(struct inode *inode,
 		memcpy(lli->lli_symlink_name, *symname, symlen);
 		*symname = lli->lli_symlink_name;
 	}
-	RETURN(0);
+	return 0;
 
 failed:
-	RETURN (rc);
+	return rc;
 }
 
 static int ll_readlink(struct dentry *dentry, char *buffer, int buflen)
@@ -123,7 +121,6 @@ static int ll_readlink(struct dentry *dentry, char *buffer, int buflen)
 	struct ptlrpc_request *request;
 	char *symname;
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 
@@ -136,7 +133,7 @@ static int ll_readlink(struct dentry *dentry, char *buffer, int buflen)
  out:
 	ptlrpc_req_finished(request);
 	ll_inode_size_unlock(inode);
-	RETURN(rc);
+	return rc;
 }
 
 static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -145,7 +142,6 @@ static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct ptlrpc_request *request = NULL;
 	int rc;
 	char *symname;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 	/* Limit the recursive symlink depth to 5 instead of default
@@ -170,7 +166,7 @@ static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 	/* symname may contain a pointer to the request message buffer,
 	 * we delay request releasing until ll_put_link then.
 	 */
-	RETURN(request);
+	return request;
 }
 
 static void ll_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)

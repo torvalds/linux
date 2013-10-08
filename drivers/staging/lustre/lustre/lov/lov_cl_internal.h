@@ -162,10 +162,9 @@ struct lov_device {
  * Layout type.
  */
 enum lov_layout_type {
-	/** empty file without body */
-	LLT_EMPTY,
-	/** striped file */
-	LLT_RAID0,
+	LLT_EMPTY,	/** empty file without body (mknod + truncate) */
+	LLT_RAID0,	/** striped file */
+	LLT_RELEASED,	/** file with no objects (data in HSM) */
 	LLT_NR
 };
 
@@ -255,12 +254,14 @@ struct lov_object {
 		} raid0;
 		struct lov_layout_state_empty {
 		} empty;
+		struct lov_layout_state_released {
+		} released;
 	} u;
 	/**
 	 * Thread that acquired lov_object::lo_type_guard in an exclusive
 	 * mode.
 	 */
-	task_t	    *lo_owner;
+	struct task_struct	*lo_owner;
 };
 
 /**
@@ -581,6 +582,8 @@ int   lov_lock_init_empty (const struct lu_env *env, struct cl_object *obj,
 int   lov_io_init_raid0   (const struct lu_env *env, struct cl_object *obj,
 			   struct cl_io *io);
 int   lov_io_init_empty   (const struct lu_env *env, struct cl_object *obj,
+			   struct cl_io *io);
+int   lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 			   struct cl_io *io);
 void  lov_lock_unlink     (const struct lu_env *env, struct lov_lock_link *link,
 			   struct lovsub_lock *sub);

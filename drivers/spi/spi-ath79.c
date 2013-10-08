@@ -221,7 +221,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	sp = spi_master_get_devdata(master);
 	platform_set_drvdata(pdev, sp);
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->setup = ath79_spi_setup;

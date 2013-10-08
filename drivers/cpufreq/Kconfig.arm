@@ -17,43 +17,55 @@ config ARM_DT_BL_CPUFREQ
 	  big.LITTLE platform. This gets frequency tables from DT.
 
 config ARM_EXYNOS_CPUFREQ
-	bool "SAMSUNG EXYNOS SoCs"
-	depends on ARCH_EXYNOS
+	bool
 	select CPU_FREQ_TABLE
-	default y
-	help
-	  This adds the CPUFreq driver common part for Samsung
-	  EXYNOS SoCs.
-
-	  If in doubt, say N.
 
 config ARM_EXYNOS4210_CPUFREQ
-	def_bool CPU_EXYNOS4210
+	bool "SAMSUNG EXYNOS4210"
+	depends on CPU_EXYNOS4210
+	default y
+	select ARM_EXYNOS_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS4210
 	  SoC (S5PV310 or S5PC210).
 
+	  If in doubt, say N.
+
 config ARM_EXYNOS4X12_CPUFREQ
-	def_bool (SOC_EXYNOS4212 || SOC_EXYNOS4412)
+	bool "SAMSUNG EXYNOS4x12"
+	depends on (SOC_EXYNOS4212 || SOC_EXYNOS4412)
+	default y
+	select ARM_EXYNOS_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS4X12
 	  SoC (EXYNOS4212 or EXYNOS4412).
 
+	  If in doubt, say N.
+
 config ARM_EXYNOS5250_CPUFREQ
-	def_bool SOC_EXYNOS5250
+	bool "SAMSUNG EXYNOS5250"
+	depends on SOC_EXYNOS5250
+	default y
+	select ARM_EXYNOS_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5250
 	  SoC.
 
+	  If in doubt, say N.
+
 config ARM_EXYNOS5440_CPUFREQ
-	def_bool SOC_EXYNOS5440
+	bool "SAMSUNG EXYNOS5440"
+	depends on SOC_EXYNOS5440
 	depends on HAVE_CLK && PM_OPP && OF
+	default y
 	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5440
 	  SoC. The nature of exynos5440 clock controller is
 	  different than previous exynos controllers so not using
 	  the common exynos framework.
+
+	  If in doubt, say N.
 
 config ARM_HIGHBANK_CPUFREQ
 	tristate "Calxeda Highbank-based"

@@ -362,7 +362,7 @@ void smp_yield_cpu(int cpu)
  * Send cpus emergency shutdown signal. This gives the cpus the
  * opportunity to complete outstanding interrupts.
  */
-void smp_emergency_stop(cpumask_t *cpumask)
+static void smp_emergency_stop(cpumask_t *cpumask)
 {
 	u64 end;
 	int cpu;

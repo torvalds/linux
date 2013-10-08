@@ -167,8 +167,8 @@ group and can access them as follows:
 	int container, group, device, i;
 	struct vfio_group_status group_status =
 					{ .argsz = sizeof(group_status) };
-	struct vfio_iommu_x86_info iommu_info = { .argsz = sizeof(iommu_info) };
-	struct vfio_iommu_x86_dma_map dma_map = { .argsz = sizeof(dma_map) };
+	struct vfio_iommu_type1_info iommu_info = { .argsz = sizeof(iommu_info) };
+	struct vfio_iommu_type1_dma_map dma_map = { .argsz = sizeof(dma_map) };
 	struct vfio_device_info device_info = { .argsz = sizeof(device_info) };
 
 	/* Create a new container */
@@ -193,7 +193,7 @@ group and can access them as follows:
 	ioctl(group, VFIO_GROUP_SET_CONTAINER, &container);
 
 	/* Enable the IOMMU model we want */
-	ioctl(container, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU)
+	ioctl(container, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU);
 
 	/* Get addition IOMMU info */
 	ioctl(container, VFIO_IOMMU_GET_INFO, &iommu_info);
@@ -229,7 +229,7 @@ group and can access them as follows:
 
 		irq.index = i;
 
-		ioctl(device, VFIO_DEVICE_GET_IRQ_INFO, &reg);
+		ioctl(device, VFIO_DEVICE_GET_IRQ_INFO, &irq);
 
 		/* Setup IRQs... eventfds, VFIO_DEVICE_SET_IRQS */
 	}

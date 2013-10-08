@@ -1,6 +1,6 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2010-2011 Solarflare Communications Inc.
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2010-2012 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -15,7 +15,7 @@
 #include "mcdi.h"
 #include "filter.h"
 #include "mcdi_pcol.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "vfdi.h"
 
 /* Number of longs required to track all the VIs in a VF */
@@ -197,8 +197,8 @@ static unsigned abs_index(struct efx_vf *vf, unsigned index)
 static int efx_sriov_cmd(struct efx_nic *efx, bool enable,
 			 unsigned *vi_scale_out, unsigned *vf_total_out)
 {
-	u8 inbuf[MC_CMD_SRIOV_IN_LEN];
-	u8 outbuf[MC_CMD_SRIOV_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SRIOV_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_SRIOV_OUT_LEN);
 	unsigned vi_scale, vf_total;
 	size_t outlen;
 	int rc;
@@ -240,64 +240,55 @@ static void efx_sriov_usrev(struct efx_nic *efx, bool enabled)
 static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			    unsigned int count)
 {
-	u8 *inbuf, *record;
-	unsigned int used;
-	u32 from_rid, from_hi, from_lo;
+	MCDI_DECLARE_BUF(inbuf, MCDI_CTL_SDU_LEN_MAX_V1);
+	MCDI_DECLARE_STRUCT_PTR(record);
+	unsigned int index, used;
+	u64 from_addr;
+	u32 from_rid;
 	int rc;
 
 	mb();	/* Finish writing source/reading dest before DMA starts */
 
-	used = MC_CMD_MEMCPY_IN_LEN(count);
-	if (WARN_ON(used > MCDI_CTL_SDU_LEN_MAX))
+	if (WARN_ON(count > MC_CMD_MEMCPY_IN_RECORD_MAXNUM))
 		return -ENOBUFS;
+	used = MC_CMD_MEMCPY_IN_LEN(count);
 
-	/* Allocate room for the largest request */
-	inbuf = kzalloc(MCDI_CTL_SDU_LEN_MAX, GFP_KERNEL);
-	if (inbuf == NULL)
-		return -ENOMEM;
-
-	record = inbuf;
-	MCDI_SET_DWORD(record, MEMCPY_IN_RECORD, count);
-	while (count-- > 0) {
+	for (index = 0; index < count; index++) {
+		record = MCDI_ARRAY_STRUCT_PTR(inbuf, MEMCPY_IN_RECORD, index);
+		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_NUM_RECORDS,
+			       count);
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_RID,
 			       req->to_rid);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR_LO,
-			       (u32)req->to_addr);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR_HI,
-			       (u32)(req->to_addr >> 32));
+		MCDI_SET_QWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR,
+			       req->to_addr);
 		if (req->from_buf == NULL) {
 			from_rid = req->from_rid;
-			from_lo = (u32)req->from_addr;
-			from_hi = (u32)(req->from_addr >> 32);
+			from_addr = req->from_addr;
 		} else {
-			if (WARN_ON(used + req->length > MCDI_CTL_SDU_LEN_MAX)) {
+			if (WARN_ON(used + req->length >
+				    MCDI_CTL_SDU_LEN_MAX_V1)) {
 				rc = -ENOBUFS;
 				goto out;
 			}
 
 			from_rid = MC_CMD_MEMCPY_RECORD_TYPEDEF_RID_INLINE;
-			from_lo = used;
-			from_hi = 0;
-			memcpy(inbuf + used, req->from_buf, req->length);
+			from_addr = used;
+			memcpy(_MCDI_PTR(inbuf, used), req->from_buf,
+			       req->length);
 			used += req->length;
 		}
 
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_RID, from_rid);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_ADDR_LO,
-			       from_lo);
-		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_ADDR_HI,
-			       from_hi);
+		MCDI_SET_QWORD(record, MEMCPY_RECORD_TYPEDEF_FROM_ADDR,
+			       from_addr);
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_LENGTH,
 			       req->length);
 
 		++req;
-		record += MC_CMD_MEMCPY_IN_RECORD_LEN;
 	}
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MEMCPY, inbuf, used, NULL, 0, NULL);
 out:
-	kfree(inbuf);
-
 	mb();	/* Don't write source/read dest before DMA is complete */
 
 	return rc;
@@ -473,8 +464,9 @@ static void __efx_sriov_push_vf_status(struct efx_vf *vf)
 			     VFDI_EV_SEQ, (vf->msg_seqno & 0xff),
 			     VFDI_EV_TYPE, VFDI_EV_TYPE_STATUS);
 	++vf->msg_seqno;
-	efx_generate_event(efx, EFX_VI_BASE + vf->index * efx_vf_size(efx),
-			      &event);
+	efx_farch_generate_event(efx,
+				 EFX_VI_BASE + vf->index * efx_vf_size(efx),
+				 &event);
 }
 
 static void efx_sriov_bufs(struct efx_nic *efx, unsigned offset,
@@ -684,15 +676,11 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 	unsigned vf_offset = EFX_VI_BASE + vf->index * efx_vf_size(efx);
 	unsigned timeout = HZ;
 	unsigned index, rxqs_count;
-	__le32 *rxqs;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_FLUSH_RX_QUEUES_IN_LENMAX);
 	int rc;
 
 	BUILD_BUG_ON(VF_MAX_RX_QUEUES >
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
-
-	rxqs = kmalloc(count * sizeof(*rxqs), GFP_KERNEL);
-	if (rxqs == NULL)
-		return VFDI_RC_ENOMEM;
 
 	rtnl_lock();
 	siena_prepare_flush(efx);
@@ -708,14 +696,19 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 					     vf_offset + index);
 			efx_writeo(efx, &reg, FR_AZ_TX_FLUSH_DESCQ);
 		}
-		if (test_bit(index, vf->rxq_mask))
-			rxqs[rxqs_count++] = cpu_to_le32(vf_offset + index);
+		if (test_bit(index, vf->rxq_mask)) {
+			MCDI_SET_ARRAY_DWORD(
+				inbuf, FLUSH_RX_QUEUES_IN_QID_OFST,
+				rxqs_count, vf_offset + index);
+			rxqs_count++;
+		}
 	}
 
 	atomic_set(&vf->rxq_retry_count, 0);
 	while (timeout && (vf->rxq_count || vf->txq_count)) {
-		rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, (u8 *)rxqs,
-				  rxqs_count * sizeof(*rxqs), NULL, 0, NULL);
+		rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
+				  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(rxqs_count),
+				  NULL, 0, NULL);
 		WARN_ON(rc < 0);
 
 		timeout = wait_event_timeout(vf->flush_waitq,
@@ -725,8 +718,10 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 		for (index = 0; index < count; ++index) {
 			if (test_and_clear_bit(index, vf->rxq_retry_mask)) {
 				atomic_dec(&vf->rxq_retry_count);
-				rxqs[rxqs_count++] =
-					cpu_to_le32(vf_offset + index);
+				MCDI_SET_ARRAY_DWORD(
+					inbuf, FLUSH_RX_QUEUES_IN_QID_OFST,
+					rxqs_count, vf_offset + index);
+				rxqs_count++;
 			}
 		}
 	}
@@ -749,7 +744,6 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 	}
 	efx_sriov_bufs(efx, vf->buftbl_base, NULL,
 		       EFX_VF_BUFTBL_PER_VI * efx_vf_size(efx));
-	kfree(rxqs);
 	efx_vfdi_flush_clear(vf);
 
 	vf->evq0_count = 0;
@@ -1004,7 +998,7 @@ static void efx_sriov_reset_vf_work(struct work_struct *work)
 	struct efx_nic *efx = vf->efx;
 	struct efx_buffer buf;
 
-	if (!efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE)) {
+	if (!efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO)) {
 		efx_sriov_reset_vf(vf, &buf);
 		efx_nic_free_buffer(efx, &buf);
 	}
@@ -1248,7 +1242,8 @@ static int efx_sriov_vfs_init(struct efx_nic *efx)
 			 pci_domain_nr(pci_dev->bus), pci_dev->bus->number,
 			 PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-		rc = efx_nic_alloc_buffer(efx, &vf->buf, EFX_PAGE_SIZE);
+		rc = efx_nic_alloc_buffer(efx, &vf->buf, EFX_PAGE_SIZE,
+					  GFP_KERNEL);
 		if (rc)
 			goto fail;
 
@@ -1280,7 +1275,8 @@ int efx_sriov_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_cmd;
 
-	rc = efx_nic_alloc_buffer(efx, &efx->vfdi_status, sizeof(*vfdi_status));
+	rc = efx_nic_alloc_buffer(efx, &efx->vfdi_status, sizeof(*vfdi_status),
+				  GFP_KERNEL);
 	if (rc)
 		goto fail_status;
 	vfdi_status = efx->vfdi_status.addr;
@@ -1535,7 +1531,7 @@ void efx_sriov_reset(struct efx_nic *efx)
 	efx_sriov_usrev(efx, true);
 	(void)efx_sriov_cmd(efx, true, NULL, NULL);
 
-	if (efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE))
+	if (efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO))
 		return;
 
 	for (vf_i = 0; vf_i < efx->vf_init_count; ++vf_i) {

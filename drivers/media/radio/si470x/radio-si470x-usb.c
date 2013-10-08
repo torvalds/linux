@@ -142,8 +142,6 @@ MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
 /**************************************************************************
  * Software/Hardware Versions from Scratch Page
  **************************************************************************/
-#define RADIO_SW_VERSION_NOT_BOOTLOADABLE	6
-#define RADIO_SW_VERSION			1
 #define RADIO_HW_VERSION			1
 
 
@@ -682,15 +680,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	}
 	dev_info(&intf->dev, "software version %d, hardware version %d\n",
 			radio->software_version, radio->hardware_version);
-	if (radio->software_version < RADIO_SW_VERSION) {
-		dev_warn(&intf->dev,
-			"This driver is known to work with "
-			"software version %hu,\n", RADIO_SW_VERSION);
-		dev_warn(&intf->dev,
-			"but the device has software version %hu.\n",
-			radio->software_version);
-		version_warning = 1;
-	}
 	if (radio->hardware_version < RADIO_HW_VERSION) {
 		dev_warn(&intf->dev,
 			"This driver is known to work with "

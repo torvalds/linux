@@ -244,6 +244,7 @@ STAC9227/9228/9229/927x
   5stack-no-fp	D965 5stack without front panel
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
+  dell-bios-amic Fixes with Dell BIOS setup including analog mic
   volknob	Fixes with volume-knob widget 0x24
   auto		BIOS setup (default)
 
@@ -293,6 +294,12 @@ Cirrus Logic CS4206/4207
 ========================
   mbp55		MacBook Pro 5,5
   imac27	IMac 27 Inch
+  auto		BIOS setup (default)
+
+Cirrus Logic CS4208
+===================
+  mba6		MacBook Air 6,1 and 6,2
+  gpio0		Enable GPIO 0 amp
   auto		BIOS setup (default)
 
 VIA VT17xx/VT18xx/VT20xx

@@ -99,7 +99,8 @@ enum ip_conntrack_events {
 	IPCT_PROTOINFO,		/* protocol information has changed */
 	IPCT_HELPER,		/* new helper has been set */
 	IPCT_MARK,		/* new mark has been set */
-	IPCT_NATSEQADJ,		/* NAT is doing sequence adjustment */
+	IPCT_SEQADJ,		/* sequence adjustment has changed */
+	IPCT_NATSEQADJ = IPCT_SEQADJ,
 	IPCT_SECMARK,		/* new security mark has been set */
 	IPCT_LABEL,		/* new connlabel has been set */
 };

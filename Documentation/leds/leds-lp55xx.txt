@@ -1,11 +1,11 @@
-LP5521/LP5523/LP55231 Common Driver
-===================================
+LP5521/LP5523/LP55231/LP5562/LP8501 Common Driver
+=================================================
 
 Authors: Milo(Woogyom) Kim <milo.kim@ti.com>
 
 Description
 -----------
-LP5521, LP5523/55231 and LP5562 have common features as below.
+LP5521, LP5523/55231, LP5562 and LP8501 have common features as below.
 
   Register access via the I2C
   Device initialization/deinitialization
@@ -108,6 +108,30 @@ echo 1 > /sys/bus/i2c/devices/xxxx/run_engine
 As soon as 'loading' is set to 0, registered callback is called.
 Inside the callback, the selected engine is loaded and memory is updated.
 To run programmed pattern, 'run_engine' attribute should be enabled.
+
+The pattern sqeuence of LP8501 is same as LP5523.
+However pattern data is specific.
+Ex 1) Engine 1 is used
+echo 1 > /sys/bus/i2c/devices/xxxx/select_engine
+echo 1 > /sys/class/firmware/lp8501/loading
+echo "9d0140ff7e0040007e00a001c000" > /sys/class/firmware/lp8501/data
+echo 0 > /sys/class/firmware/lp8501/loading
+echo 1 > /sys/bus/i2c/devices/xxxx/run_engine
+
+Ex 2) Engine 2 and 3 are used at the same time
+echo 2 > /sys/bus/i2c/devices/xxxx/select_engine
+sleep 1
+echo 1 > /sys/class/firmware/lp8501/loading
+echo "9d0140ff7e0040007e00a001c000" > /sys/class/firmware/lp8501/data
+echo 0 > /sys/class/firmware/lp8501/loading
+sleep 1
+echo 3 > /sys/bus/i2c/devices/xxxx/select_engine
+sleep 1
+echo 1 > /sys/class/firmware/lp8501/loading
+echo "9d0340ff7e0040007e00a001c000" > /sys/class/firmware/lp8501/data
+echo 0 > /sys/class/firmware/lp8501/loading
+sleep 1
+echo 1 > /sys/class/leds/d1/device/run_engine
 
 ( 'run_engine' and 'firmware_cb' )
 The sequence of running the program data is common.

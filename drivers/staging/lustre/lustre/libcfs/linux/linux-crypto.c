@@ -274,6 +274,8 @@ static int adler32;
 
 int cfs_crypto_register(void)
 {
+	request_module("crc32c");
+
 	adler32 = cfs_crypto_adler32_register();
 
 	/* check all algorithms and do performance test */

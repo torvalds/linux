@@ -184,11 +184,12 @@ static inline int max8998_i2c_get_driver_data(struct i2c_client *i2c,
 static int max8998_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct max8998_platform_data *pdata = i2c->dev.platform_data;
+	struct max8998_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct max8998_dev *max8998;
 	int ret = 0;
 
-	max8998 = kzalloc(sizeof(struct max8998_dev), GFP_KERNEL);
+	max8998 = devm_kzalloc(&i2c->dev, sizeof(struct max8998_dev),
+				GFP_KERNEL);
 	if (max8998 == NULL)
 		return -ENOMEM;
 
@@ -246,7 +247,6 @@ err:
 	mfd_remove_devices(max8998->dev);
 	max8998_irq_exit(max8998);
 	i2c_unregister_device(max8998->rtc);
-	kfree(max8998);
 	return ret;
 }
 
@@ -257,7 +257,6 @@ static int max8998_i2c_remove(struct i2c_client *i2c)
 	mfd_remove_devices(max8998->dev);
 	max8998_irq_exit(max8998);
 	i2c_unregister_device(max8998->rtc);
-	kfree(max8998);
 
 	return 0;
 }

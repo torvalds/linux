@@ -54,6 +54,7 @@ static int get_dir_index_using_offset(struct super_block *sb,
 {
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
 	int err, i, index, length = 0;
+	unsigned int size;
 	struct squashfs_dir_index dir_index;
 
 	TRACE("Entered get_dir_index_using_offset, i_count %d, f_pos %lld\n",
@@ -81,8 +82,14 @@ static int get_dir_index_using_offset(struct super_block *sb,
 			 */
 			break;
 
+		size = le32_to_cpu(dir_index.size) + 1;
+
+		/* size should never be larger than SQUASHFS_NAME_LEN */
+		if (size > SQUASHFS_NAME_LEN)
+			break;
+
 		err = squashfs_read_metadata(sb, NULL, &index_start,
-				&index_offset, le32_to_cpu(dir_index.size) + 1);
+				&index_offset, size);
 		if (err < 0)
 			break;
 
@@ -105,9 +112,8 @@ static int squashfs_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
 	u64 block = squashfs_i(inode)->start + msblk->directory_table;
-	int offset = squashfs_i(inode)->offset, length, dir_count, size,
-				type, err;
-	unsigned int inode_number;
+	int offset = squashfs_i(inode)->offset, length, err;
+	unsigned int inode_number, dir_count, size, type;
 	struct squashfs_dir_header dirh;
 	struct squashfs_dir_entry *dire;
 
@@ -199,6 +205,9 @@ static int squashfs_readdir(struct file *file, struct dir_context *ctx)
 			inode_number = le32_to_cpu(dirh.inode_number) +
 				((short) le16_to_cpu(dire->inode_number));
 			type = le16_to_cpu(dire->type);
+
+			if (type > SQUASHFS_MAX_DIR_TYPE)
+				goto failed_read;
 
 			if (!dir_emit(ctx, dire->name, size,
 					inode_number,

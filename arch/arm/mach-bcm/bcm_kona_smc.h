@@ -64,7 +64,7 @@
 #define SSAPI_BRCM_START_VC_CORE	0x0E000008
 
 #ifndef	__ASSEMBLY__
-extern void bcm_kona_smc_init(void);
+extern int __init bcm_kona_smc_init(void);
 
 extern unsigned bcm_kona_smc(unsigned service_id,
 			     unsigned arg0,

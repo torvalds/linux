@@ -27,8 +27,8 @@
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir2.h"
 #include "xfs_dir2_format.h"
+#include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
@@ -399,7 +399,7 @@ xfs_da3_split(
 	struct xfs_da_intnode	*node;
 	struct xfs_buf		*bp;
 	int			max;
-	int			action;
+	int			action = 0;
 	int			error;
 	int			i;
 
@@ -635,6 +635,7 @@ xfs_da3_root_split(
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
 
 	bp->b_ops = blk1->bp->b_ops;
+	xfs_trans_buf_copy_type(bp, blk1->bp);
 	blk1->bp = bp;
 	blk1->blkno = blkno;
 
@@ -1223,6 +1224,7 @@ xfs_da3_node_toosmall(
 	/* start with smaller blk num */
 	forward = nodehdr.forw < nodehdr.back;
 	for (i = 0; i < 2; forward = !forward, i++) {
+		struct xfs_da3_icnode_hdr thdr;
 		if (forward)
 			blkno = nodehdr.forw;
 		else
@@ -1235,10 +1237,10 @@ xfs_da3_node_toosmall(
 			return(error);
 
 		node = bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
+		xfs_da3_node_hdr_from_disk(&thdr, node);
 		xfs_trans_brelse(state->args->trans, bp);
 
-		if (count - nodehdr.count >= 0)
+		if (count - thdr.count >= 0)
 			break;	/* fits with at least 25% to spare */
 	}
 	if (i >= 2) {
@@ -2454,9 +2456,9 @@ static int
 xfs_buf_map_from_irec(
 	struct xfs_mount	*mp,
 	struct xfs_buf_map	**mapp,
-	unsigned int		*nmaps,
+	int			*nmaps,
 	struct xfs_bmbt_irec	*irecs,
-	unsigned int		nirecs)
+	int			nirecs)
 {
 	struct xfs_buf_map	*map;
 	int			i;

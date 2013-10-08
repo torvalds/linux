@@ -42,7 +42,6 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <asm/mach-types.h>
-#include <asm/mach/arch.h>
 
 #include "setup.h"
 #include "devices.h"
@@ -325,20 +324,18 @@ static struct lp55xx_platform_data __initdata lp5521_sec_data = {
        .clock_mode     = LP55XX_CLOCK_EXT,
 };
 
+/* I2C0 devices only available on the first HREF/MOP500 */
 static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("tc3589x", 0x42),
 		.irq		= NOMADIK_GPIO_TO_IRQ(217),
 		.platform_data  = &mop500_tc35892_data,
 	},
-	/* I2C0 devices only available prior to HREFv60 */
 	{
 		I2C_BOARD_INFO("tps61052", 0x33),
 		.platform_data  = &mop500_tps61052_data,
 	},
 };
-
-#define NUM_PRE_V60_I2C0_DEVICES 1
 
 static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 	{
@@ -356,6 +353,17 @@ static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 		I2C_BOARD_INFO("bh1780", 0x29),
 	},
 };
+
+static int __init mop500_i2c_board_init(void)
+{
+	if (machine_is_u8500())
+		mop500_uib_i2c_add(0, mop500_i2c0_devices,
+				   ARRAY_SIZE(mop500_i2c0_devices));
+	mop500_uib_i2c_add(2, mop500_i2c2_devices,
+			   ARRAY_SIZE(mop500_i2c2_devices));
+	return 0;
+}
+device_initcall(mop500_i2c_board_init);
 
 static void __init mop500_i2c_init(struct device *parent)
 {
@@ -565,7 +573,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
-	int i2c0_devs;
 	int i;
 
 	platform_device_register(&db8500_prcmu_device);
@@ -588,18 +595,12 @@ static void __init mop500_init_machine(void)
 	mop500_spi_init(parent);
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
-
 	u8500_cryp1_hash1_init(parent);
-
-	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
-
-	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
-	i2c_register_board_info(2, mop500_i2c2_devices,
-				ARRAY_SIZE(mop500_i2c2_devices));
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
+
 
 static void __init snowball_init_machine(void)
 {
@@ -635,7 +636,6 @@ static void __init snowball_init_machine(void)
 static void __init hrefv60_init_machine(void)
 {
 	struct device *parent = NULL;
-	int i2c0_devs;
 	int i;
 
 	platform_device_register(&db8500_prcmu_device);
@@ -664,14 +664,6 @@ static void __init hrefv60_init_machine(void)
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
 
-	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
-
-	i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
-
-	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
-	i2c_register_board_info(2, mop500_i2c2_devices,
-				ARRAY_SIZE(mop500_i2c2_devices));
-
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
@@ -686,6 +678,7 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
@@ -695,6 +688,7 @@ MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
 	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
@@ -705,6 +699,7 @@ MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.init_time	= ux500_timer_init,
 	.init_machine	= hrefv60_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
@@ -716,4 +711,5 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.init_time	= ux500_timer_init,
 	.init_machine	= snowball_init_machine,
 	.init_late	= NULL,
+	.restart        = ux500_restart,
 MACHINE_END

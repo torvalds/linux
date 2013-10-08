@@ -230,7 +230,7 @@ static int refresh_class_device_list(void)
 
 	sysfs_close_list(cname_list);
 
-	/* seach under /sys/block */
+	/* search under /sys/block */
 	ret = search_class_for_usbip_device(SYSFS_BLOCK_NAME);
 	if (ret < 0)
 		return -1;

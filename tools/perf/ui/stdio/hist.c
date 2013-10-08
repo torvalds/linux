@@ -308,10 +308,51 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
 }
 
-static int hist_entry__fprintf(struct hist_entry *he, size_t size,
-			       struct hists *hists, FILE *fp)
+static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {
-	char bf[512];
+	hpp->buf  += inc;
+	hpp->size -= inc;
+}
+
+static int hist_entry__period_snprintf(struct perf_hpp *hpp,
+				       struct hist_entry *he,
+				       bool color)
+{
+	const char *sep = symbol_conf.field_sep;
+	struct perf_hpp_fmt *fmt;
+	char *start = hpp->buf;
+	int ret;
+	bool first = true;
+
+	if (symbol_conf.exclude_other && !he->parent)
+		return 0;
+
+	perf_hpp__for_each_format(fmt) {
+		/*
+		 * If there's no field_sep, we still need
+		 * to display initial '  '.
+		 */
+		if (!sep || !first) {
+			ret = scnprintf(hpp->buf, hpp->size, "%s", sep ?: "  ");
+			advance_hpp(hpp, ret);
+		} else
+			first = false;
+
+		if (color && fmt->color)
+			ret = fmt->color(fmt, hpp, he);
+		else
+			ret = fmt->entry(fmt, hpp, he);
+
+		advance_hpp(hpp, ret);
+	}
+
+	return hpp->buf - start;
+}
+
+static int hist_entry__fprintf(struct hist_entry *he, size_t size,
+			       struct hists *hists,
+			       char *bf, size_t bfsz, FILE *fp)
+{
 	int ret;
 	struct perf_hpp hpp = {
 		.buf		= bf,
@@ -319,8 +360,8 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	};
 	bool color = !symbol_conf.field_sep;
 
-	if (size == 0 || size > sizeof(bf))
-		size = hpp.size = sizeof(bf);
+	if (size == 0 || size > bfsz)
+		size = hpp.size = bfsz;
 
 	ret = hist_entry__period_snprintf(&hpp, he, color);
 	hist_entry__sort_snprintf(he, bf + ret, size - ret, hists);
@@ -351,6 +392,8 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		.ptr	= hists_to_evsel(hists),
 	};
 	bool first = true;
+	size_t linesz;
+	char *line = NULL;
 
 	init_rem_hits();
 
@@ -365,7 +408,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		else
 			first = false;
 
-		fmt->header(&dummy_hpp);
+		fmt->header(fmt, &dummy_hpp);
 		fprintf(fp, "%s", bf);
 	}
 
@@ -410,7 +453,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		else
 			first = false;
 
-		width = fmt->width(&dummy_hpp);
+		width = fmt->width(fmt, &dummy_hpp);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
@@ -438,6 +481,13 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		goto out;
 
 print_entries:
+	linesz = hists__sort_list_width(hists) + 3 + 1;
+	line = malloc(linesz);
+	if (line == NULL) {
+		ret = -1;
+		goto out;
+	}
+
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		float percent = h->stat.period * 100.0 /
@@ -449,10 +499,10 @@ print_entries:
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, hists, fp);
+		ret += hist_entry__fprintf(h, max_cols, hists, line, linesz, fp);
 
 		if (max_rows && ++nr_rows >= max_rows)
-			goto out;
+			break;
 
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
@@ -460,6 +510,8 @@ print_entries:
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}
+
+	free(line);
 out:
 	free(rem_sq_bracket);
 

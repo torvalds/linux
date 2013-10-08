@@ -13,6 +13,7 @@ SYNOPSIS
 	{top|record|report|diff|buildid-list}
 'perf kvm' [--host] [--guest] [--guestkallsyms=<path> --guestmodules=<path>
 	| --guestvmlinux=<path>] {top|record|report|diff|buildid-list|stat}
+'perf kvm stat [record|report|live] [<options>]
 
 DESCRIPTION
 -----------
@@ -50,6 +51,10 @@ There are a couple of variants of perf kvm:
   'perf kvm stat report' reports statistical data which includes events
   handled time, samples, and so on.
 
+  'perf kvm stat live' reports statistical data in a live mode (similar to
+  record + report but with statistical data updated live at a given display
+  rate).
+
 OPTIONS
 -------
 -i::
@@ -85,13 +90,50 @@ STAT REPORT OPTIONS
 --vcpu=<value>::
        analyze events which occures on this vcpu. (default: all vcpus)
 
---events=<value>::
-       events to be analyzed. Possible values: vmexit, mmio, ioport.
+--event=<value>::
+       event to be analyzed. Possible values: vmexit, mmio, ioport.
        (default: vmexit)
 -k::
 --key=<value>::
        Sorting key. Possible values: sample (default, sort by samples
        number), time (sort by average time).
+-p::
+--pid=::
+    Analyze events only for given process ID(s) (comma separated list).
+
+STAT LIVE OPTIONS
+-----------------
+-d::
+--display::
+        Time in seconds between display updates
+
+-m::
+--mmap-pages=::
+    Number of mmap data pages. Must be a power of two.
+
+-a::
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-p::
+--pid=::
+    Analyze events only for given process ID(s) (comma separated list).
+
+--vcpu=<value>::
+       analyze events which occures on this vcpu. (default: all vcpus)
+
+
+--event=<value>::
+       event to be analyzed. Possible values: vmexit, mmio, ioport.
+       (default: vmexit)
+
+-k::
+--key=<value>::
+       Sorting key. Possible values: sample (default, sort by samples
+       number), time (sort by average time).
+
+--duration=<value>::
+       Show events other than HLT that take longer than duration usecs.
 
 SEE ALSO
 --------

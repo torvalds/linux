@@ -191,7 +191,7 @@ static void start_hnp(struct ohci_hcd *ohci)
 static int ohci_omap_init(struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
-	struct omap_usb_config	*config = hcd->self.controller->platform_data;
+	struct omap_usb_config	*config = dev_get_platdata(hcd->self.controller);
 	int			need_transceiver = (config->otg != 0);
 	int			ret;
 
@@ -427,7 +427,7 @@ ohci_omap_start (struct usb_hcd *hcd)
 
 	if (!host_enabled)
 		return 0;
-	config = hcd->self.controller->platform_data;
+	config = dev_get_platdata(hcd->self.controller);
 	if (config->otg || config->rwc) {
 		ohci->hc_control = OHCI_CTRL_RWC;
 		writel(OHCI_CTRL_RWC, &ohci->regs->control);

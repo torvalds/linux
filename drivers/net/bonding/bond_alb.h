@@ -36,14 +36,15 @@ struct slave;
 					 * Used for division - never set
 					 * to zero !!!
 					 */
-#define BOND_ALB_LP_INTERVAL	    1	/* In seconds, periodic send of
-					 * learning packets to the switch
-					 */
+#define BOND_ALB_DEFAULT_LP_INTERVAL 1
+#define BOND_ALB_LP_INTERVAL(bond) (bond->params.lp_interval)	/* In seconds, periodic send of
+								 * learning packets to the switch
+								 */
 
 #define BOND_TLB_REBALANCE_TICKS (BOND_TLB_REBALANCE_INTERVAL \
 				  * ALB_TIMER_TICKS_PER_SEC)
 
-#define BOND_ALB_LP_TICKS (BOND_ALB_LP_INTERVAL \
+#define BOND_ALB_LP_TICKS(bond) (BOND_ALB_LP_INTERVAL(bond) \
 			   * ALB_TIMER_TICKS_PER_SEC)
 
 #define TLB_HASH_TABLE_SIZE 256	/* The size of the clients hash table.
@@ -53,7 +54,6 @@ struct slave;
 
 
 #define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
 
 /* rlb defs */
 #define RLB_HASH_TABLE_SIZE	256
@@ -126,7 +126,6 @@ struct rlb_client_info {
 	u8  assigned;		/* checking whether this entry is assigned */
 	u8  ntt;		/* flag - need to transmit client info */
 	struct slave *slave;	/* the slave assigned to this client */
-	u8 tag;			/* flag - need to tag skb */
 	unsigned short vlan_id;	/* VLAN tag associated with IP address */
 };
 
@@ -170,7 +169,6 @@ struct alb_bond_info {
 						 * rx traffic should be
 						 * rebalanced
 						 */
-	struct vlan_entry	*current_alb_vlan;
 };
 
 int bond_alb_initialize(struct bonding *bond, int rlb_enabled);

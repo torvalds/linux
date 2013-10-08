@@ -190,52 +190,81 @@ static inline void cm_t35_init_nand(void) {}
 #define CM_T35_LCD_BL_GPIO 58
 #define CM_T35_DVI_EN_GPIO 54
 
-static struct panel_generic_dpi_data lcd_panel = {
-	.name			= "toppoly_tdo35s",
-	.num_gpios		= 1,
-	.gpios			= {
-		CM_T35_LCD_BL_GPIO,
-	},
+static const struct display_timing cm_t35_lcd_videomode = {
+	.pixelclock	= { 0, 26000000, 0 },
+
+	.hactive = { 0, 480, 0 },
+	.hfront_porch = { 0, 104, 0 },
+	.hback_porch = { 0, 8, 0 },
+	.hsync_len = { 0, 8, 0 },
+
+	.vactive = { 0, 640, 0 },
+	.vfront_porch = { 0, 4, 0 },
+	.vback_porch = { 0, 2, 0 },
+	.vsync_len = { 0, 2, 0 },
+
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE,
 };
 
-static struct omap_dss_device cm_t35_lcd_device = {
-	.name			= "lcd",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "generic_dpi_panel",
-	.data			= &lcd_panel,
-	.phy.dpi.data_lines	= 18,
+static struct panel_dpi_platform_data cm_t35_lcd_pdata = {
+	.name                   = "lcd",
+	.source                 = "dpi.0",
+
+	.data_lines		= 18,
+
+	.display_timing		= &cm_t35_lcd_videomode,
+
+	.enable_gpio		= -1,
+	.backlight_gpio		= CM_T35_LCD_BL_GPIO,
 };
 
-static struct tfp410_platform_data dvi_panel = {
-	.power_down_gpio	= CM_T35_DVI_EN_GPIO,
-	.i2c_bus_num		= -1,
+static struct platform_device cm_t35_lcd_device = {
+	.name                   = "panel-dpi",
+	.id                     = 0,
+	.dev.platform_data      = &cm_t35_lcd_pdata,
 };
 
-static struct omap_dss_device cm_t35_dvi_device = {
-	.name			= "dvi",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "tfp410",
-	.data			= &dvi_panel,
-	.phy.dpi.data_lines	= 24,
+static struct connector_dvi_platform_data cm_t35_dvi_connector_pdata = {
+	.name                   = "dvi",
+	.source                 = "tfp410.0",
+	.i2c_bus_num            = -1,
 };
 
-static struct omap_dss_device cm_t35_tv_device = {
-	.name			= "tv",
-	.driver_name		= "venc",
-	.type			= OMAP_DISPLAY_TYPE_VENC,
-	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+static struct platform_device cm_t35_dvi_connector_device = {
+	.name                   = "connector-dvi",
+	.id                     = 0,
+	.dev.platform_data      = &cm_t35_dvi_connector_pdata,
 };
 
-static struct omap_dss_device *cm_t35_dss_devices[] = {
-	&cm_t35_lcd_device,
-	&cm_t35_dvi_device,
-	&cm_t35_tv_device,
+static struct encoder_tfp410_platform_data cm_t35_tfp410_pdata = {
+	.name                   = "tfp410.0",
+	.source                 = "dpi.0",
+	.data_lines             = 24,
+	.power_down_gpio        = CM_T35_DVI_EN_GPIO,
+};
+
+static struct platform_device cm_t35_tfp410_device = {
+	.name                   = "tfp410",
+	.id                     = 0,
+	.dev.platform_data      = &cm_t35_tfp410_pdata,
+};
+
+static struct connector_atv_platform_data cm_t35_tv_pdata = {
+	.name = "tv",
+	.source = "venc.0",
+	.connector_type = OMAP_DSS_VENC_TYPE_SVIDEO,
+	.invert_polarity = false,
+};
+
+static struct platform_device cm_t35_tv_connector_device = {
+	.name                   = "connector-analog-tv",
+	.id                     = 0,
+	.dev.platform_data      = &cm_t35_tv_pdata,
 };
 
 static struct omap_dss_board_info cm_t35_dss_data = {
-	.num_devices	= ARRAY_SIZE(cm_t35_dss_devices),
-	.devices	= cm_t35_dss_devices,
-	.default_device	= &cm_t35_dvi_device,
+	.default_display_name = "dvi",
 };
 
 static struct omap2_mcspi_device_config tdo24m_mcspi_config = {
@@ -280,6 +309,11 @@ static void __init cm_t35_init_display(void)
 		pr_err("CM-T35: failed to register DSS device\n");
 		gpio_free(CM_T35_LCD_EN_GPIO);
 	}
+
+	platform_device_register(&cm_t35_tfp410_device);
+	platform_device_register(&cm_t35_dvi_connector_device);
+	platform_device_register(&cm_t35_lcd_device);
+	platform_device_register(&cm_t35_tv_connector_device);
 }
 
 static struct regulator_consumer_supply cm_t35_vmmc1_supply[] = {

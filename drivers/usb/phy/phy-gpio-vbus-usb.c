@@ -101,7 +101,7 @@ static void gpio_vbus_work(struct work_struct *work)
 {
 	struct gpio_vbus_data *gpio_vbus =
 		container_of(work, struct gpio_vbus_data, work.work);
-	struct gpio_vbus_mach_info *pdata = gpio_vbus->dev->platform_data;
+	struct gpio_vbus_mach_info *pdata = dev_get_platdata(gpio_vbus->dev);
 	int gpio, status, vbus;
 
 	if (!gpio_vbus->phy.otg->gadget)
@@ -155,7 +155,7 @@ static void gpio_vbus_work(struct work_struct *work)
 static irqreturn_t gpio_vbus_irq(int irq, void *data)
 {
 	struct platform_device *pdev = data;
-	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
+	struct gpio_vbus_mach_info *pdata = dev_get_platdata(&pdev->dev);
 	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
 	struct usb_otg *otg = gpio_vbus->phy.otg;
 
@@ -182,7 +182,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 
 	gpio_vbus = container_of(otg->phy, struct gpio_vbus_data, phy);
 	pdev = to_platform_device(gpio_vbus->dev);
-	pdata = gpio_vbus->dev->platform_data;
+	pdata = dev_get_platdata(gpio_vbus->dev);
 	gpio = pdata->gpio_pullup;
 
 	if (!gadget) {
@@ -241,9 +241,9 @@ static int gpio_vbus_set_suspend(struct usb_phy *phy, int suspend)
 
 /* platform driver interface */
 
-static int __init gpio_vbus_probe(struct platform_device *pdev)
+static int gpio_vbus_probe(struct platform_device *pdev)
 {
-	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
+	struct gpio_vbus_mach_info *pdata = dev_get_platdata(&pdev->dev);
 	struct gpio_vbus_data *gpio_vbus;
 	struct resource *res;
 	int err, gpio, irq;
@@ -349,10 +349,10 @@ err_gpio:
 	return err;
 }
 
-static int __exit gpio_vbus_remove(struct platform_device *pdev)
+static int gpio_vbus_remove(struct platform_device *pdev)
 {
 	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
-	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
+	struct gpio_vbus_mach_info *pdata = dev_get_platdata(&pdev->dev);
 	int gpio = pdata->gpio_vbus;
 
 	device_init_wakeup(&pdev->dev, 0);
@@ -398,8 +398,6 @@ static const struct dev_pm_ops gpio_vbus_dev_pm_ops = {
 };
 #endif
 
-/* NOTE:  the gpio-vbus device may *NOT* be hotplugged */
-
 MODULE_ALIAS("platform:gpio-vbus");
 
 static struct platform_driver gpio_vbus_driver = {
@@ -410,10 +408,11 @@ static struct platform_driver gpio_vbus_driver = {
 		.pm = &gpio_vbus_dev_pm_ops,
 #endif
 	},
-	.remove  = __exit_p(gpio_vbus_remove),
+	.probe		= gpio_vbus_probe,
+	.remove		= gpio_vbus_remove,
 };
 
-module_platform_driver_probe(gpio_vbus_driver, gpio_vbus_probe);
+module_platform_driver(gpio_vbus_driver);
 
 MODULE_DESCRIPTION("simple GPIO controlled OTG transceiver driver");
 MODULE_AUTHOR("Philipp Zabel");

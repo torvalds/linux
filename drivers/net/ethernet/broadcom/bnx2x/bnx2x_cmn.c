@@ -490,10 +490,10 @@ static void bnx2x_set_gro_params(struct sk_buff *skb, u16 parsing_flags,
 	NAPI_GRO_CB(skb)->count = num_of_coalesced_segs;
 }
 
-static int bnx2x_alloc_rx_sge(struct bnx2x *bp,
-			      struct bnx2x_fastpath *fp, u16 index)
+static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
+			      u16 index, gfp_t gfp_mask)
 {
-	struct page *page = alloc_pages(GFP_ATOMIC, PAGES_PER_SGE_SHIFT);
+	struct page *page = alloc_pages(gfp_mask, PAGES_PER_SGE_SHIFT);
 	struct sw_rx_page *sw_buf = &fp->rx_page_ring[index];
 	struct eth_rx_sge *sge = &fp->rx_sge_ring[index];
 	dma_addr_t mapping;
@@ -572,7 +572,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		/* If we fail to allocate a substitute page, we simply stop
 		   where we are and drop the whole packet */
-		err = bnx2x_alloc_rx_sge(bp, fp, sge_idx);
+		err = bnx2x_alloc_rx_sge(bp, fp, sge_idx, GFP_ATOMIC);
 		if (unlikely(err)) {
 			bnx2x_fp_qstats(bp, fp)->rx_skb_alloc_failed++;
 			return err;
@@ -616,12 +616,17 @@ static void bnx2x_frag_free(const struct bnx2x_fastpath *fp, void *data)
 		kfree(data);
 }
 
-static void *bnx2x_frag_alloc(const struct bnx2x_fastpath *fp)
+static void *bnx2x_frag_alloc(const struct bnx2x_fastpath *fp, gfp_t gfp_mask)
 {
-	if (fp->rx_frag_size)
-		return netdev_alloc_frag(fp->rx_frag_size);
+	if (fp->rx_frag_size) {
+		/* GFP_KERNEL allocations are used only during initialization */
+		if (unlikely(gfp_mask & __GFP_WAIT))
+			return (void *)__get_free_page(gfp_mask);
 
-	return kmalloc(fp->rx_buf_size + NET_SKB_PAD, GFP_ATOMIC);
+		return netdev_alloc_frag(fp->rx_frag_size);
+	}
+
+	return kmalloc(fp->rx_buf_size + NET_SKB_PAD, gfp_mask);
 }
 
 #ifdef CONFIG_INET
@@ -701,7 +706,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		goto drop;
 
 	/* Try to allocate the new data */
-	new_data = bnx2x_frag_alloc(fp);
+	new_data = bnx2x_frag_alloc(fp, GFP_ATOMIC);
 	/* Unmap skb in the pool anyway, as we are going to change
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
@@ -752,15 +757,15 @@ drop:
 	bnx2x_fp_stats(bp, fp)->eth_q_stats.rx_skb_alloc_failed++;
 }
 
-static int bnx2x_alloc_rx_data(struct bnx2x *bp,
-			       struct bnx2x_fastpath *fp, u16 index)
+static int bnx2x_alloc_rx_data(struct bnx2x *bp, struct bnx2x_fastpath *fp,
+			       u16 index, gfp_t gfp_mask)
 {
 	u8 *data;
 	struct sw_rx_bd *rx_buf = &fp->rx_buf_ring[index];
 	struct eth_rx_bd *rx_bd = &fp->rx_desc_ring[index];
 	dma_addr_t mapping;
 
-	data = bnx2x_frag_alloc(fp);
+	data = bnx2x_frag_alloc(fp, gfp_mask);
 	if (unlikely(data == NULL))
 		return -ENOMEM;
 
@@ -953,7 +958,8 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			memcpy(skb->data, data + pad, len);
 			bnx2x_reuse_rx_data(fp, bd_cons, bd_prod);
 		} else {
-			if (likely(bnx2x_alloc_rx_data(bp, fp, bd_prod) == 0)) {
+			if (likely(bnx2x_alloc_rx_data(bp, fp, bd_prod,
+						       GFP_ATOMIC) == 0)) {
 				dma_unmap_single(&bp->pdev->dev,
 						 dma_unmap_addr(rx_buf, mapping),
 						 fp->rx_buf_size,
@@ -1313,7 +1319,8 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 				struct sw_rx_bd *first_buf =
 					&tpa_info->first_buf;
 
-				first_buf->data = bnx2x_frag_alloc(fp);
+				first_buf->data =
+					bnx2x_frag_alloc(fp, GFP_KERNEL);
 				if (!first_buf->data) {
 					BNX2X_ERR("Failed to allocate TPA skb pool for queue[%d] - disabling TPA on this queue!\n",
 						  j);
@@ -1335,7 +1342,8 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 			for (i = 0, ring_prod = 0;
 			     i < MAX_RX_SGE_CNT*NUM_RX_SGE_PAGES; i++) {
 
-				if (bnx2x_alloc_rx_sge(bp, fp, ring_prod) < 0) {
+				if (bnx2x_alloc_rx_sge(bp, fp, ring_prod,
+						       GFP_KERNEL) < 0) {
 					BNX2X_ERR("was only able to allocate %d rx sges\n",
 						  i);
 					BNX2X_ERR("disabling TPA for queue[%d]\n",
@@ -1948,7 +1956,7 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 	}
 }
 
-static int bnx2x_init_rss_pf(struct bnx2x *bp)
+static int bnx2x_init_rss(struct bnx2x *bp)
 {
 	int i;
 	u8 num_eth_queues = BNX2X_NUM_ETH_QUEUES(bp);
@@ -1972,8 +1980,8 @@ static int bnx2x_init_rss_pf(struct bnx2x *bp)
 	return bnx2x_config_rss_eth(bp, bp->port.pmf || !CHIP_IS_E1x(bp));
 }
 
-int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
-			bool config_hash)
+int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
+	      bool config_hash, bool enable)
 {
 	struct bnx2x_config_rss_params params = {NULL};
 
@@ -1988,17 +1996,21 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 
 	__set_bit(RAMROD_COMP_WAIT, &params.ramrod_flags);
 
-	__set_bit(BNX2X_RSS_MODE_REGULAR, &params.rss_flags);
+	if (enable) {
+		__set_bit(BNX2X_RSS_MODE_REGULAR, &params.rss_flags);
 
-	/* RSS configuration */
-	__set_bit(BNX2X_RSS_IPV4, &params.rss_flags);
-	__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
-	__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
-	__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
-	if (rss_obj->udp_rss_v4)
-		__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
-	if (rss_obj->udp_rss_v6)
-		__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
+		/* RSS configuration */
+		__set_bit(BNX2X_RSS_IPV4, &params.rss_flags);
+		__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
+		__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
+		__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
+		if (rss_obj->udp_rss_v4)
+			__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
+		if (rss_obj->udp_rss_v6)
+			__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
+	} else {
+		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
+	}
 
 	/* Hash bits */
 	params.rss_result_mask = MULTI_MASK;
@@ -2007,11 +2019,14 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 
 	if (config_hash) {
 		/* RSS keys */
-		prandom_bytes(params.rss_key, sizeof(params.rss_key));
+		prandom_bytes(params.rss_key, T_ETH_RSS_KEY * 4);
 		__set_bit(BNX2X_RSS_SET_SRCH, &params.rss_flags);
 	}
 
-	return bnx2x_config_rss(bp, &params);
+	if (IS_PF(bp))
+		return bnx2x_config_rss(bp, &params);
+	else
+		return bnx2x_vfpf_config_rss(bp, &params);
 }
 
 static int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
@@ -2066,7 +2081,11 @@ void bnx2x_squeeze_objects(struct bnx2x *bp)
 	rparam.mcast_obj = &bp->mcast_obj;
 	__set_bit(RAMROD_DRV_CLR_ONLY, &rparam.ramrod_flags);
 
-	/* Add a DEL command... */
+	/* Add a DEL command... - Since we're doing a driver cleanup only,
+	 * we take a lock surrounding both the initial send and the CONTs,
+	 * as we don't want a true completion to disrupt us in the middle.
+	 */
+	netif_addr_lock_bh(bp->dev);
 	rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_DEL);
 	if (rc < 0)
 		BNX2X_ERR("Failed to add a new DEL command to a multi-cast object: %d\n",
@@ -2078,11 +2097,13 @@ void bnx2x_squeeze_objects(struct bnx2x *bp)
 		if (rc < 0) {
 			BNX2X_ERR("Failed to clean multi-cast object: %d\n",
 				  rc);
+			netif_addr_unlock_bh(bp->dev);
 			return;
 		}
 
 		rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_CONT);
 	}
+	netif_addr_unlock_bh(bp->dev);
 }
 
 #ifndef BNX2X_STOP_ON_ERROR
@@ -2438,9 +2459,7 @@ int bnx2x_load_cnic(struct bnx2x *bp)
 	}
 
 	/* Initialize Rx filter. */
-	netif_addr_lock_bh(bp->dev);
-	bnx2x_set_rx_mode(bp->dev);
-	netif_addr_unlock_bh(bp->dev);
+	bnx2x_set_rx_mode_inner(bp);
 
 	/* re-read iscsi info */
 	bnx2x_get_iscsi_info(bp);
@@ -2462,8 +2481,7 @@ load_error_cnic2:
 load_error_cnic1:
 	bnx2x_napi_disable_cnic(bp);
 	/* Update the number of queues without the cnic queues */
-	rc = bnx2x_set_real_num_queues(bp, 0);
-	if (rc)
+	if (bnx2x_set_real_num_queues(bp, 0))
 		BNX2X_ERR("Unable to set real_num_queues not including cnic\n");
 load_error_cnic0:
 	BNX2X_ERR("CNIC-related load failed\n");
@@ -2647,38 +2665,32 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 		/* initialize FW coalescing state machines in RAM */
 		bnx2x_update_coalesce(bp);
+	}
 
-		/* setup the leading queue */
-		rc = bnx2x_setup_leading(bp);
+	/* setup the leading queue */
+	rc = bnx2x_setup_leading(bp);
+	if (rc) {
+		BNX2X_ERR("Setup leading failed!\n");
+		LOAD_ERROR_EXIT(bp, load_error3);
+	}
+
+	/* set up the rest of the queues */
+	for_each_nondefault_eth_queue(bp, i) {
+		if (IS_PF(bp))
+			rc = bnx2x_setup_queue(bp, &bp->fp[i], false);
+		else /* VF */
+			rc = bnx2x_vfpf_setup_q(bp, &bp->fp[i], false);
 		if (rc) {
-			BNX2X_ERR("Setup leading failed!\n");
+			BNX2X_ERR("Queue %d setup failed\n", i);
 			LOAD_ERROR_EXIT(bp, load_error3);
 		}
+	}
 
-		/* set up the rest of the queues */
-		for_each_nondefault_eth_queue(bp, i) {
-			rc = bnx2x_setup_queue(bp, &bp->fp[i], 0);
-			if (rc) {
-				BNX2X_ERR("Queue setup failed\n");
-				LOAD_ERROR_EXIT(bp, load_error3);
-			}
-		}
-
-		/* setup rss */
-		rc = bnx2x_init_rss_pf(bp);
-		if (rc) {
-			BNX2X_ERR("PF RSS init failed\n");
-			LOAD_ERROR_EXIT(bp, load_error3);
-		}
-
-	} else { /* vf */
-		for_each_eth_queue(bp, i) {
-			rc = bnx2x_vfpf_setup_q(bp, i);
-			if (rc) {
-				BNX2X_ERR("Queue setup failed\n");
-				LOAD_ERROR_EXIT(bp, load_error3);
-			}
-		}
+	/* setup rss */
+	rc = bnx2x_init_rss(bp);
+	if (rc) {
+		BNX2X_ERR("PF RSS init failed\n");
+		LOAD_ERROR_EXIT(bp, load_error3);
 	}
 
 	/* Now when Clients are configured we are ready to work */
@@ -2710,9 +2722,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Start fast path */
 
 	/* Initialize Rx filter. */
-	netif_addr_lock_bh(bp->dev);
-	bnx2x_set_rx_mode(bp->dev);
-	netif_addr_unlock_bh(bp->dev);
+	bnx2x_set_rx_mode_inner(bp);
 
 	/* Start the Tx */
 	switch (load_mode) {
@@ -2997,16 +3007,16 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 	u16 pmcsr;
 
 	/* If there is no power capability, silently succeed */
-	if (!bp->pm_cap) {
+	if (!bp->pdev->pm_cap) {
 		BNX2X_DEV_INFO("No power capability. Breaking.\n");
 		return 0;
 	}
 
-	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmcsr);
+	pci_read_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_CTRL, &pmcsr);
 
 	switch (state) {
 	case PCI_D0:
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL,
+		pci_write_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_CTRL,
 				      ((pmcsr & ~PCI_PM_CTRL_STATE_MASK) |
 				       PCI_PM_CTRL_PME_STATUS));
 
@@ -3030,7 +3040,7 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 		if (bp->wol)
 			pmcsr |= PCI_PM_CTRL_PME_ENABLE;
 
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL,
+		pci_write_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_CTRL,
 				      pmcsr);
 
 		/* No more memory access after this point until
@@ -4218,7 +4228,7 @@ static int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 	 * fp->eth_q_stats.rx_skb_alloc_failed = 0
 	 */
 	for (i = 0; i < rx_ring_size; i++) {
-		if (bnx2x_alloc_rx_data(bp, fp, ring_prod) < 0) {
+		if (bnx2x_alloc_rx_data(bp, fp, ring_prod, GFP_KERNEL) < 0) {
 			failure_cnt++;
 			continue;
 		}
@@ -4789,6 +4799,11 @@ int bnx2x_resume(struct pci_dev *pdev)
 void bnx2x_set_ctx_validation(struct bnx2x *bp, struct eth_context *cxt,
 			      u32 cid)
 {
+	if (!cxt) {
+		BNX2X_ERR("bad context pointer %p\n", cxt);
+		return;
+	}
+
 	/* ustorm cxt validation */
 	cxt->ustorm_ag_context.cdu_usage =
 		CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, cid),

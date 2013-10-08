@@ -218,7 +218,7 @@ static int tps_65023_probe(struct i2c_client *client,
 	 * init_data points to array of regulator_init structures
 	 * coming from the board-evm file.
 	 */
-	init_data = client->dev.platform_data;
+	init_data = dev_get_platdata(&client->dev);
 	if (!init_data)
 		return -EIO;
 

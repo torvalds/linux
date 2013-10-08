@@ -125,10 +125,13 @@ struct wa_seg {
 	u8 xfer_extra[];		/* xtra space for xfer_hdr_ctl */
 };
 
-static void wa_seg_init(struct wa_seg *seg)
+static inline void wa_seg_init(struct wa_seg *seg)
 {
-	/* usb_init_urb() repeats a lot of work, so we do it here */
-	kref_init(&seg->urb.kref);
+	usb_init_urb(&seg->urb);
+
+	/* set the remaining memory to 0. */
+	memset(((void *)seg) + sizeof(seg->urb), 0,
+		sizeof(*seg) - sizeof(seg->urb));
 }
 
 /*
@@ -166,8 +169,8 @@ static inline void wa_xfer_init(struct wa_xfer *xfer)
 /*
  * Destroy a transfer structure
  *
- * Note that the xfer->seg[index] thingies follow the URB life cycle,
- * so we need to put them, not free them.
+ * Note that freeing xfer->seg[cnt]->urb will free the containing
+ * xfer->seg[cnt] memory that was allocated by __wa_xfer_setup_segs.
  */
 static void wa_xfer_destroy(struct kref *_xfer)
 {
@@ -175,9 +178,8 @@ static void wa_xfer_destroy(struct kref *_xfer)
 	if (xfer->seg) {
 		unsigned cnt;
 		for (cnt = 0; cnt < xfer->segs; cnt++) {
-			if (xfer->is_inbound)
-				usb_put_urb(xfer->seg[cnt]->dto_urb);
-			usb_put_urb(&xfer->seg[cnt]->urb);
+			usb_free_urb(xfer->seg[cnt]->dto_urb);
+			usb_free_urb(&xfer->seg[cnt]->urb);
 		}
 	}
 	kfree(xfer);
@@ -732,9 +734,9 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	buf_itr = 0;
 	buf_size = xfer->urb->transfer_buffer_length;
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
-		seg = xfer->seg[cnt] = kzalloc(alloc_size, GFP_ATOMIC);
+		seg = xfer->seg[cnt] = kmalloc(alloc_size, GFP_ATOMIC);
 		if (seg == NULL)
-			goto error_seg_kzalloc;
+			goto error_seg_kmalloc;
 		wa_seg_init(seg);
 		seg->xfer = xfer;
 		seg->index = cnt;
@@ -804,15 +806,17 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	return 0;
 
 error_sg_alloc:
-	kfree(seg->dto_urb);
+	usb_free_urb(xfer->seg[cnt]->dto_urb);
 error_dto_alloc:
 	kfree(xfer->seg[cnt]);
 	cnt--;
-error_seg_kzalloc:
+error_seg_kmalloc:
 	/* use the fact that cnt is left at were it failed */
 	for (; cnt >= 0; cnt--) {
-		if (xfer->seg[cnt] && xfer->is_inbound == 0)
+		if (xfer->seg[cnt] && xfer->is_inbound == 0) {
 			usb_free_urb(xfer->seg[cnt]->dto_urb);
+			kfree(xfer->seg[cnt]->dto_urb->sg);
+		}
 		kfree(xfer->seg[cnt]);
 	}
 error_segs_kzalloc:
@@ -928,7 +932,7 @@ static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
 	spin_lock_irqsave(&rpipe->seg_lock, flags);
 	while (atomic_read(&rpipe->segs_available) > 0
 	      && !list_empty(&rpipe->seg_list)) {
-		seg = list_entry(rpipe->seg_list.next, struct wa_seg,
+		seg = list_first_entry(&(rpipe->seg_list), struct wa_seg,
 				 list_node);
 		list_del(&seg->list_node);
 		xfer = seg->xfer;
@@ -1093,32 +1097,80 @@ error_xfer_submit:
  *
  * We need to be careful here, as dequeue() could be called in the
  * middle.  That's why we do the whole thing under the
- * wa->xfer_list_lock. If dequeue() jumps in, it first locks urb->lock
+ * wa->xfer_list_lock. If dequeue() jumps in, it first locks xfer->lock
  * and then checks the list -- so as we would be acquiring in inverse
- * order, we just drop the lock once we have the xfer and reacquire it
- * later.
+ * order, we move the delayed list to a separate list while locked and then
+ * submit them without the list lock held.
  */
 void wa_urb_enqueue_run(struct work_struct *ws)
 {
-	struct wahc *wa = container_of(ws, struct wahc, xfer_work);
+	struct wahc *wa = container_of(ws, struct wahc, xfer_enqueue_work);
 	struct wa_xfer *xfer, *next;
 	struct urb *urb;
+	LIST_HEAD(tmp_list);
 
+	/* Create a copy of the wa->xfer_delayed_list while holding the lock */
 	spin_lock_irq(&wa->xfer_list_lock);
-	list_for_each_entry_safe(xfer, next, &wa->xfer_delayed_list,
-				 list_node) {
+	list_cut_position(&tmp_list, &wa->xfer_delayed_list,
+			wa->xfer_delayed_list.prev);
+	spin_unlock_irq(&wa->xfer_list_lock);
+
+	/*
+	 * enqueue from temp list without list lock held since wa_urb_enqueue_b
+	 * can take xfer->lock as well as lock mutexes.
+	 */
+	list_for_each_entry_safe(xfer, next, &tmp_list, list_node) {
 		list_del_init(&xfer->list_node);
-		spin_unlock_irq(&wa->xfer_list_lock);
 
 		urb = xfer->urb;
 		wa_urb_enqueue_b(xfer);
 		usb_put_urb(urb);	/* taken when queuing */
-
-		spin_lock_irq(&wa->xfer_list_lock);
 	}
-	spin_unlock_irq(&wa->xfer_list_lock);
 }
 EXPORT_SYMBOL_GPL(wa_urb_enqueue_run);
+
+/*
+ * Process the errored transfers on the Wire Adapter outside of interrupt.
+ */
+void wa_process_errored_transfers_run(struct work_struct *ws)
+{
+	struct wahc *wa = container_of(ws, struct wahc, xfer_error_work);
+	struct wa_xfer *xfer, *next;
+	LIST_HEAD(tmp_list);
+
+	pr_info("%s: Run delayed STALL processing.\n", __func__);
+
+	/* Create a copy of the wa->xfer_errored_list while holding the lock */
+	spin_lock_irq(&wa->xfer_list_lock);
+	list_cut_position(&tmp_list, &wa->xfer_errored_list,
+			wa->xfer_errored_list.prev);
+	spin_unlock_irq(&wa->xfer_list_lock);
+
+	/*
+	 * run rpipe_clear_feature_stalled from temp list without list lock
+	 * held.
+	 */
+	list_for_each_entry_safe(xfer, next, &tmp_list, list_node) {
+		struct usb_host_endpoint *ep;
+		unsigned long flags;
+		struct wa_rpipe *rpipe;
+
+		spin_lock_irqsave(&xfer->lock, flags);
+		ep = xfer->ep;
+		rpipe = ep->hcpriv;
+		spin_unlock_irqrestore(&xfer->lock, flags);
+
+		/* clear RPIPE feature stalled without holding a lock. */
+		rpipe_clear_feature_stalled(wa, ep);
+
+		/* complete the xfer. This removes it from the tmp list. */
+		wa_xfer_completion(xfer);
+
+		/* check for work. */
+		wa_xfer_delayed_run(rpipe);
+	}
+}
+EXPORT_SYMBOL_GPL(wa_process_errored_transfers_run);
 
 /*
  * Submit a transfer to the Wire Adapter in a delayed way
@@ -1175,7 +1227,7 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 		spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
 		list_add_tail(&xfer->list_node, &wa->xfer_delayed_list);
 		spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
-		queue_work(wusbd, &wa->xfer_work);
+		queue_work(wusbd, &wa->xfer_enqueue_work);
 	} else {
 		wa_urb_enqueue_b(xfer);
 	}
@@ -1217,7 +1269,8 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 
 	xfer = urb->hcpriv;
 	if (xfer == NULL) {
-		/* NOthing setup yet enqueue will see urb->status !=
+		/*
+		 * Nothing setup yet enqueue will see urb->status !=
 		 * -EINPROGRESS (by hcd layer) and bail out with
 		 * error, no need to do completion
 		 */
@@ -1361,7 +1414,7 @@ static int wa_xfer_status_to_errno(u8 status)
  *
  * inbound transfers: need to schedule a DTI read
  *
- * FIXME: this functio needs to be broken up in parts
+ * FIXME: this function needs to be broken up in parts
  */
 static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
 {
@@ -1483,17 +1536,37 @@ error_submit_buf_in:
 	seg->result = result;
 	kfree(wa->buf_in_urb->sg);
 error_sg_alloc:
+	__wa_xfer_abort(xfer);
 error_complete:
 	seg->status = WA_SEG_ERROR;
 	xfer->segs_done++;
 	rpipe_ready = rpipe_avail_inc(rpipe);
-	__wa_xfer_abort(xfer);
 	done = __wa_xfer_is_done(xfer);
-	spin_unlock_irqrestore(&xfer->lock, flags);
-	if (done)
-		wa_xfer_completion(xfer);
-	if (rpipe_ready)
-		wa_xfer_delayed_run(rpipe);
+	/*
+	 * queue work item to clear STALL for control endpoints.
+	 * Otherwise, let endpoint_reset take care of it.
+	 */
+	if (((usb_status & 0x3f) == WA_XFER_STATUS_HALTED) &&
+		usb_endpoint_xfer_control(&xfer->ep->desc) &&
+		done) {
+
+		dev_info(dev, "Control EP stall.  Queue delayed work.\n");
+		spin_lock_irq(&wa->xfer_list_lock);
+		/* remove xfer from xfer_list. */
+		list_del(&xfer->list_node);
+		/* add xfer to xfer_errored_list. */
+		list_add_tail(&xfer->list_node, &wa->xfer_errored_list);
+		spin_unlock_irq(&wa->xfer_list_lock);
+		spin_unlock_irqrestore(&xfer->lock, flags);
+		queue_work(wusbd, &wa->xfer_error_work);
+	} else {
+		spin_unlock_irqrestore(&xfer->lock, flags);
+		if (done)
+			wa_xfer_completion(xfer);
+		if (rpipe_ready)
+			wa_xfer_delayed_run(rpipe);
+	}
+
 	return;
 
 error_bad_seg:

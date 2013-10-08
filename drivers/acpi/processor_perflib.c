@@ -164,17 +164,12 @@ static void acpi_processor_ppc_ost(acpi_handle handle, int status)
 		{.type = ACPI_TYPE_INTEGER,},
 	};
 	struct acpi_object_list arg_list = {2, params};
-	acpi_handle temp;
 
-	params[0].integer.value = ACPI_PROCESSOR_NOTIFY_PERFORMANCE;
-	params[1].integer.value =  status;
-
-	/* when there is no _OST , skip it */
-	if (ACPI_FAILURE(acpi_get_handle(handle, "_OST", &temp)))
-		return;
-
-	acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
-	return;
+	if (acpi_has_method(handle, "_OST")) {
+		params[0].integer.value = ACPI_PROCESSOR_NOTIFY_PERFORMANCE;
+		params[1].integer.value =  status;
+		acpi_evaluate_object(handle, "_OST", &arg_list, NULL);
+	}
 }
 
 int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
@@ -468,14 +463,11 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 int acpi_processor_get_performance_info(struct acpi_processor *pr)
 {
 	int result = 0;
-	acpi_status status = AE_OK;
-	acpi_handle handle = NULL;
 
 	if (!pr || !pr->performance || !pr->handle)
 		return -EINVAL;
 
-	status = acpi_get_handle(pr->handle, "_PCT", &handle);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_has_method(pr->handle, "_PCT")) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "ACPI-based processor performance control unavailable\n"));
 		return -ENODEV;
@@ -501,7 +493,7 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	 */
  update_bios:
 #ifdef CONFIG_X86
-	if (ACPI_SUCCESS(acpi_get_handle(pr->handle, "_PPC", &handle))){
+	if (acpi_has_method(pr->handle, "_PPC")) {
 		if(boot_cpu_has(X86_FEATURE_EST))
 			printk(KERN_WARNING FW_BUG "BIOS needs update for CPU "
 			       "frequency support\n");

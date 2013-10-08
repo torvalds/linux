@@ -564,8 +564,12 @@ static void rspi_work(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&rspi->lock, flags);
-	while (!list_empty(&rspi->queue)) {
+	while (1) {
+		spin_lock_irqsave(&rspi->lock, flags);
+		if (list_empty(&rspi->queue)) {
+			spin_unlock_irqrestore(&rspi->lock, flags);
+			break;
+		}
 		mesg = list_entry(rspi->queue.next, struct spi_message, queue);
 		list_del_init(&mesg->queue);
 		spin_unlock_irqrestore(&rspi->lock, flags);
@@ -595,8 +599,6 @@ static void rspi_work(struct work_struct *work)
 
 		mesg->status = 0;
 		mesg->complete(mesg->context);
-
-		spin_lock_irqsave(&rspi->lock, flags);
 	}
 
 	return;
@@ -664,12 +666,13 @@ static irqreturn_t rspi_irq(int irq, void *_sr)
 static int rspi_request_dma(struct rspi_data *rspi,
 				      struct platform_device *pdev)
 {
-	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
+	struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dma_cap_mask_t mask;
 	struct dma_slave_config cfg;
 	int ret;
 
-	if (!rspi_pd)
+	if (!res || !rspi_pd)
 		return 0;	/* The driver assumes no error. */
 
 	rspi->dma_width_16bit = rspi_pd->dma_width_16bit;
@@ -683,6 +686,8 @@ static int rspi_request_dma(struct rspi_data *rspi,
 		if (rspi->chan_rx) {
 			cfg.slave_id = rspi_pd->dma_rx_id;
 			cfg.direction = DMA_DEV_TO_MEM;
+			cfg.dst_addr = 0;
+			cfg.src_addr = res->start + RSPI_SPDR;
 			ret = dmaengine_slave_config(rspi->chan_rx, &cfg);
 			if (!ret)
 				dev_info(&pdev->dev, "Use DMA when rx.\n");
@@ -698,6 +703,8 @@ static int rspi_request_dma(struct rspi_data *rspi,
 		if (rspi->chan_tx) {
 			cfg.slave_id = rspi_pd->dma_tx_id;
 			cfg.direction = DMA_MEM_TO_DEV;
+			cfg.dst_addr = res->start + RSPI_SPDR;
+			cfg.src_addr = 0;
 			ret = dmaengine_slave_config(rspi->chan_tx, &cfg);
 			if (!ret)
 				dev_info(&pdev->dev, "Use DMA when tx\n");
@@ -719,7 +726,7 @@ static void rspi_release_dma(struct rspi_data *rspi)
 
 static int rspi_remove(struct platform_device *pdev)
 {
-	struct rspi_data *rspi = platform_get_drvdata(pdev);
+	struct rspi_data *rspi = spi_master_get(platform_get_drvdata(pdev));
 
 	spi_unregister_master(rspi->master);
 	rspi_release_dma(rspi);

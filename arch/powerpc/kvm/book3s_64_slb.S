@@ -17,6 +17,10 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
+#ifdef __LITTLE_ENDIAN__
+#error Need to fix SLB shadow accesses in little endian mode
+#endif
+
 #define SHADOW_SLB_ESID(num)	(SLBSHADOW_SAVEAREA + (num * 0x10))
 #define SHADOW_SLB_VSID(num)	(SLBSHADOW_SAVEAREA + (num * 0x10) + 0x8)
 #define UNBOLT_SLB_ENTRY(num) \

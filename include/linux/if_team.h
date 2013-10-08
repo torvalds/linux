@@ -10,9 +10,9 @@
 #ifndef _LINUX_IF_TEAM_H_
 #define _LINUX_IF_TEAM_H_
 
-
 #include <linux/netpoll.h>
 #include <net/sch_generic.h>
+#include <linux/types.h>
 #include <uapi/linux/if_team.h>
 
 struct team_pcpu_stats {
@@ -194,6 +194,18 @@ struct team {
 	bool user_carrier_enabled;
 	bool queue_override_enabled;
 	struct list_head *qom_lists; /* array of queue override mapping lists */
+	struct {
+		unsigned int count;
+		unsigned int interval; /* in ms */
+		atomic_t count_pending;
+		struct delayed_work dw;
+	} notify_peers;
+	struct {
+		unsigned int count;
+		unsigned int interval; /* in ms */
+		atomic_t count_pending;
+		struct delayed_work dw;
+	} mcast_rejoin;
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
 

@@ -27,6 +27,7 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 	case Q_SYNC:
 	case Q_GETINFO:
 	case Q_XGETQSTAT:
+	case Q_XGETQSTATV:
 	case Q_XQUOTASYNC:
 		break;
 	/* allow to query information for dquots we "own" */
@@ -217,6 +218,31 @@ static int quota_getxstate(struct super_block *sb, void __user *addr)
 	return ret;
 }
 
+static int quota_getxstatev(struct super_block *sb, void __user *addr)
+{
+	struct fs_quota_statv fqs;
+	int ret;
+
+	if (!sb->s_qcop->get_xstatev)
+		return -ENOSYS;
+
+	memset(&fqs, 0, sizeof(fqs));
+	if (copy_from_user(&fqs, addr, 1)) /* Just read qs_version */
+		return -EFAULT;
+
+	/* If this kernel doesn't support user specified version, fail */
+	switch (fqs.qs_version) {
+	case FS_QSTATV_VERSION1:
+		break;
+	default:
+		return -EINVAL;
+	}
+	ret = sb->s_qcop->get_xstatev(sb, &fqs);
+	if (!ret && copy_to_user(addr, &fqs, sizeof(fqs)))
+		return -EFAULT;
+	return ret;
+}
+
 static int quota_setxquota(struct super_block *sb, int type, qid_t id,
 			   void __user *addr)
 {
@@ -293,6 +319,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 		return quota_setxstate(sb, cmd, addr);
 	case Q_XGETQSTAT:
 		return quota_getxstate(sb, addr);
+	case Q_XGETQSTATV:
+		return quota_getxstatev(sb, addr);
 	case Q_XSETQLIM:
 		return quota_setxquota(sb, type, id, addr);
 	case Q_XGETQUOTA:
@@ -317,6 +345,7 @@ static int quotactl_cmd_write(int cmd)
 	case Q_GETINFO:
 	case Q_SYNC:
 	case Q_XGETQSTAT:
+	case Q_XGETQSTATV:
 	case Q_XGETQUOTA:
 	case Q_XQUOTASYNC:
 		return 0;

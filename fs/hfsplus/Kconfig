@@ -11,3 +11,21 @@ config HFSPLUS_FS
 	  MacOS 8. It includes all Mac specific filesystem data such as
 	  data forks and creator codes, but it also has several UNIX
 	  style features such as file ownership and permissions.
+
+config HFSPLUS_FS_POSIX_ACL
+	bool "HFS+ POSIX Access Control Lists"
+	depends on HFSPLUS_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  It needs to understand that POSIX ACLs are treated only under
+	  Linux. POSIX ACLs doesn't mean something under Mac OS X.
+	  Mac OS X beginning with version 10.4 ("Tiger") support NFSv4 ACLs,
+	  which are part of the NFSv4 standard.
+
+	  If you don't know what Access Control Lists are, say N

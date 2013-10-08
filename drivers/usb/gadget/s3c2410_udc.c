@@ -1809,7 +1809,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&udc->lock);
-	udc_info = pdev->dev.platform_data;
+	udc_info = dev_get_platdata(&pdev->dev);
 
 	rsrc_start = S3C2410_PA_USBDEV;
 	rsrc_len   = S3C24XX_SZ_USBDEV;
