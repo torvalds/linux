@@ -82,6 +82,9 @@ static int target_xcopy_locate_se_dev_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	mutex_lock(&g_device_mutex);
 	list_for_each_entry(se_dev, &g_device_list, g_dev_node) {
 
+		if (!se_dev->dev_attrib.emulate_3pc)
+			continue;
+
 		memset(&tmp_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
 		target_xcopy_gen_naa_ieee(se_dev, &tmp_dev_wwn[0]);
 
@@ -884,11 +887,17 @@ out:
 
 sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 {
+	struct se_device *dev = se_cmd->se_dev;
 	struct xcopy_op *xop = NULL;
 	unsigned char *p = NULL, *seg_desc;
 	unsigned int list_id, list_id_usage, sdll, inline_dl, sa;
 	int rc;
 	unsigned short tdll;
+
+	if (!dev->dev_attrib.emulate_3pc) {
+		pr_err("EXTENDED_COPY operation explicitly disabled\n");
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
 
 	sa = se_cmd->t_task_cdb[1] & 0x1f;
 	if (sa != 0x00) {
