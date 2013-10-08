@@ -211,7 +211,6 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_release(mtd);
 
 out:
-	dev_set_drvdata(&ofdev->dev, NULL);
 	iounmap(host->io_base);
 	kfree(host);
 	return res;
@@ -227,7 +226,6 @@ static int socrates_nand_remove(struct platform_device *ofdev)
 
 	nand_release(mtd);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	iounmap(host->io_base);
 	kfree(host);
 
