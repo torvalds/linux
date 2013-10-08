@@ -191,14 +191,14 @@ static void btmtk_usb_cap_init(struct btmtk_usb_data *data)
 		ret = request_firmware(&firmware, MT7650_FIRMWARE, &udev->dev);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
-				BT_ERR("Firmware file \"%s\" not found \n",
+				BT_ERR("Firmware file \"%s\" not found\n",
 						MT7650_FIRMWARE);
 			} else {
-				BT_ERR("Firmware file \"%s\" request failed (err=%d) \n",
+				BT_ERR("Firmware file \"%s\" request failed (err=%d)\n",
 					MT7650_FIRMWARE, ret);
 			}
 		} else {
-			BT_DBG("Firmware file \"%s\" Found \n",
+			BT_DBG("Firmware file \"%s\" Found\n",
 					MT7650_FIRMWARE);
 			/* load firmware here */
 			data->firmware = firmware;
