@@ -29,11 +29,17 @@ config DRM_USB
 config DRM_KMS_HELPER
 	tristate
 	depends on DRM
+	help
+	  CRTC helpers for KMS drivers.
+
+config DRM_KMS_FB_HELPER
+	bool
+	depends on DRM_KMS_HELPER
 	select FB
 	select FRAMEBUFFER_CONSOLE if !EXPERT
 	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
 	help
-	  FB and CRTC helpers for KMS drivers.
+	  FBDEV helpers for KMS drivers.
 
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
@@ -64,6 +70,7 @@ config DRM_GEM_CMA_HELPER
 config DRM_KMS_CMA_HELPER
 	bool
 	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_FB_HELPER
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -96,6 +103,7 @@ config DRM_RADEON
 	select FB_CFB_IMAGEBLIT
 	select FW_LOADER
         select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
@@ -130,6 +138,7 @@ config DRM_I915
 	select SHMEM
 	select TMPFS
 	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
