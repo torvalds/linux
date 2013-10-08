@@ -2199,7 +2199,7 @@ fec_probe(struct platform_device *pdev)
 			goto failed_irq;
 		}
 		ret = devm_request_irq(&pdev->dev, irq, fec_enet_interrupt,
-				       IRQF_DISABLED, pdev->name, ndev);
+				       0, pdev->name, ndev);
 		if (ret)
 			goto failed_irq;
 	}

@@ -349,7 +349,16 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
-	cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+	/*
+	 * Only set SCF_COMPARE_AND_WRITE_POST to force a response fall-through
+	 * within target_complete_ok_work() if the command was successfully
+	 * sent to the backend driver.
+	 */
+	spin_lock_irq(&cmd->t_state_lock);
+	if ((cmd->transport_state & CMD_T_SENT) && !cmd->scsi_status)
+		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
+	spin_unlock_irq(&cmd->t_state_lock);
+
 	/*
 	 * Unlock ->caw_sem originally obtained during sbc_compare_and_write()
 	 * before the original READ I/O submission.
@@ -363,7 +372,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *write_sg = NULL, *sg;
-	unsigned char *buf, *addr;
+	unsigned char *buf = NULL, *addr;
 	struct sg_mapping_iter m;
 	unsigned int offset = 0, len;
 	unsigned int nlbas = cmd->t_task_nolb;
@@ -378,6 +387,15 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 	 */
 	if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
 		return TCM_NO_SENSE;
+	/*
+	 * Immediately exit + release dev->caw_sem if command has already
+	 * been failed with a non-zero SCSI status.
+	 */
+	if (cmd->scsi_status) {
+		pr_err("compare_and_write_callback: non zero scsi_status:"
+			" 0x%02x\n", cmd->scsi_status);
+		goto out;
+	}
 
 	buf = kzalloc(cmd->data_length, GFP_KERNEL);
 	if (!buf) {
@@ -508,6 +526,12 @@ sbc_compare_and_write(struct se_cmd *cmd)
 		cmd->transport_complete_callback = NULL;
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
+	/*
+	 * Reset cmd->data_length to individual block_size in order to not
+	 * confuse backend drivers that depend on this value matching the
+	 * size of the I/O being submitted.
+	 */
+	cmd->data_length = cmd->t_task_nolb * dev->dev_attrib.block_size;
 
 	ret = cmd->execute_rw(cmd, cmd->t_bidi_data_sg, cmd->t_bidi_data_nents,
 			      DMA_FROM_DEVICE);

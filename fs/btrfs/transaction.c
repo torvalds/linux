@@ -1603,7 +1603,7 @@ static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
 	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
-		btrfs_wait_all_ordered_extents(fs_info, 1);
+		btrfs_wait_all_ordered_extents(fs_info);
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
@@ -1838,11 +1838,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	assert_qgroups_uptodate(trans);
 	update_super_roots(root);
 
-	if (!root->fs_info->log_root_recovering) {
-		btrfs_set_super_log_root(root->fs_info->super_copy, 0);
-		btrfs_set_super_log_root_level(root->fs_info->super_copy, 0);
-	}
-
+	btrfs_set_super_log_root(root->fs_info->super_copy, 0);
+	btrfs_set_super_log_root_level(root->fs_info->super_copy, 0);
 	memcpy(root->fs_info->super_for_commit, root->fs_info->super_copy,
 	       sizeof(*root->fs_info->super_copy));
 

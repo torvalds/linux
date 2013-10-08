@@ -1252,8 +1252,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 {
 	struct gendisk *disk;
 
-	disk = kmalloc_node(sizeof(struct gendisk),
-				GFP_KERNEL | __GFP_ZERO, node_id);
+	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (disk) {
 		if (!init_part_stats(&disk->part0)) {
 			kfree(disk);

@@ -1319,8 +1319,6 @@ int sumo_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->enable_dpm)
 		sumo_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
-	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
-
 	return 0;
 }
 

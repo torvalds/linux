@@ -18,8 +18,6 @@
 #include "msm_drv.h"
 #include "msm_gpu.h"
 
-#include <mach/iommu.h>
-
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -62,6 +60,8 @@ int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
 	int i, ret;
 
 	for (i = 0; i < cnt; i++) {
+		/* TODO maybe some day msm iommu won't require this hack: */
+		struct device *msm_iommu_get_ctx(const char *ctx_name);
 		struct device *ctx = msm_iommu_get_ctx(names[i]);
 		if (!ctx)
 			continue;
@@ -199,7 +199,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * imx drm driver on iMX5
 		 */
 		dev_err(dev->dev, "failed to load kms\n");
-		ret = PTR_ERR(priv->kms);
+		ret = PTR_ERR(kms);
 		goto fail;
 	}
 
@@ -499,25 +499,41 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 		struct timespec *timeout)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
-	unsigned long start_jiffies = jiffies;
-	unsigned long remaining_jiffies;
 	int ret;
 
-	if (time_after(start_jiffies, timeout_jiffies))
-		remaining_jiffies = 0;
-	else
-		remaining_jiffies = timeout_jiffies - start_jiffies;
+	if (!priv->gpu)
+		return 0;
 
-	ret = wait_event_interruptible_timeout(priv->fence_event,
-			priv->completed_fence >= fence,
-			remaining_jiffies);
-	if (ret == 0) {
-		DBG("timeout waiting for fence: %u (completed: %u)",
-				fence, priv->completed_fence);
-		ret = -ETIMEDOUT;
-	} else if (ret != -ERESTARTSYS) {
-		ret = 0;
+	if (fence > priv->gpu->submitted_fence) {
+		DRM_ERROR("waiting on invalid fence: %u (of %u)\n",
+				fence, priv->gpu->submitted_fence);
+		return -EINVAL;
+	}
+
+	if (!timeout) {
+		/* no-wait: */
+		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
+	} else {
+		unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
+		unsigned long start_jiffies = jiffies;
+		unsigned long remaining_jiffies;
+
+		if (time_after(start_jiffies, timeout_jiffies))
+			remaining_jiffies = 0;
+		else
+			remaining_jiffies = timeout_jiffies - start_jiffies;
+
+		ret = wait_event_interruptible_timeout(priv->fence_event,
+				fence_completed(dev, fence),
+				remaining_jiffies);
+
+		if (ret == 0) {
+			DBG("timeout waiting for fence: %u (completed: %u)",
+					fence, priv->completed_fence);
+			ret = -ETIMEDOUT;
+		} else if (ret != -ERESTARTSYS) {
+			ret = 0;
+		}
 	}
 
 	return ret;
@@ -681,7 +697,7 @@ static struct drm_driver msm_driver = {
 	.gem_vm_ops         = &vm_ops,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
-	.dumb_destroy       = msm_gem_dumb_destroy,
+	.dumb_destroy       = drm_gem_dumb_destroy,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,

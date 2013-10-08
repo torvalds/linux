@@ -119,9 +119,9 @@ xfs_dir2_sf_getdents(
 	 * mp->m_dirdatablk.
 	 */
 	dot_offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					     XFS_DIR3_DATA_DOT_OFFSET(mp));
+					     xfs_dir3_data_dot_offset(mp));
 	dotdot_offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-						XFS_DIR3_DATA_DOTDOT_OFFSET(mp));
+						xfs_dir3_data_dotdot_offset(mp));
 
 	/*
 	 * Put . entry unless we're starting past it.

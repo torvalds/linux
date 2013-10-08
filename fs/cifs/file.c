@@ -3254,6 +3254,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	/*
 	 * Reads as many pages as possible from fscache. Returns -ENOBUFS
 	 * immediately if the cookie is negative
+	 *
+	 * After this point, every page in the list might have PG_fscache set,
+	 * so we will need to clean that up off of every page we don't use.
 	 */
 	rc = cifs_readpages_from_fscache(mapping->host, mapping, page_list,
 					 &num_pages);
@@ -3376,6 +3379,11 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		kref_put(&rdata->refcount, cifs_readdata_release);
 	}
 
+	/* Any pages that have been shown to fscache but didn't get added to
+	 * the pagecache must be uncached before they get returned to the
+	 * allocator.
+	 */
+	cifs_fscache_readpages_cancel(mapping->host, page_list);
 	return rc;
 }
 

@@ -3135,6 +3135,7 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 {
 	struct cnic_dev *dev = (struct cnic_dev *) data;
 	struct cnic_local *cp = dev->cnic_priv;
+	struct bnx2x *bp = netdev_priv(dev->netdev);
 	u32 status_idx, new_status_idx;
 
 	if (unlikely(!test_bit(CNIC_F_CNIC_UP, &dev->flags)))
@@ -3146,7 +3147,7 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 		CNIC_WR16(dev, cp->kcq1.io_addr,
 			  cp->kcq1.sw_prod_idx + MAX_KCQ_IDX);
 
-		if (cp->ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE) {
+		if (!CNIC_SUPPORTS_FCOE(bp)) {
 			cp->arm_int(dev, status_idx);
 			break;
 		}
@@ -5217,7 +5218,8 @@ static void cnic_init_rings(struct cnic_dev *dev)
 				"iSCSI CLIENT_SETUP did not complete\n");
 		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 		cnic_ring_ctl(dev, cid, cli, 1);
-		*cid_ptr = cid;
+		*cid_ptr = cid >> 4;
+		*(cid_ptr + 1) = cid * bp->db_size;
 	}
 }
 

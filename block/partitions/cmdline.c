@@ -2,15 +2,15 @@
  * Copyright (C) 2013 HUAWEI
  * Author: Cai Zhiyong <caizhiyong@huawei.com>
  *
- * Read block device partition table from command line.
- * The partition used for fixed block device (eMMC) embedded device.
- * It is no MBR, save storage space. Bootloader can be easily accessed
+ * Read block device partition table from the command line.
+ * Typically used for fixed block (eMMC) embedded devices.
+ * It has no MBR, so saves storage space. Bootloader can be easily accessed
  * by absolute address of data on the block device.
  * Users can easily change the partition.
  *
  * The format for the command line is just like mtdparts.
  *
- * Verbose config please reference "Documentation/block/cmdline-partition.txt"
+ * For further information, see "Documentation/block/cmdline-partition.txt"
  *
  */
 

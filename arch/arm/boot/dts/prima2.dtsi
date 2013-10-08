@@ -171,7 +171,8 @@
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0xb0000000 0xb0000000 0x180000>;
+			ranges = <0xb0000000 0xb0000000 0x180000>,
+			       <0x56000000 0x56000000 0x1b00000>;
 
 			timer@b0020000 {
 				compatible = "sirf,prima2-tick";
@@ -196,25 +197,32 @@
 			uart0: uart@b0050000 {
 				cell-index = <0>;
 				compatible = "sirf,prima2-uart";
-				reg = <0xb0050000 0x10000>;
+				reg = <0xb0050000 0x1000>;
 				interrupts = <17>;
+				fifosize = <128>;
 				clocks = <&clks 13>;
+				sirf,uart-dma-rx-channel = <21>;
+				sirf,uart-dma-tx-channel = <2>;
 			};
 
 			uart1: uart@b0060000 {
 				cell-index = <1>;
 				compatible = "sirf,prima2-uart";
-				reg = <0xb0060000 0x10000>;
+				reg = <0xb0060000 0x1000>;
 				interrupts = <18>;
+				fifosize = <32>;
 				clocks = <&clks 14>;
 			};
 
 			uart2: uart@b0070000 {
 				cell-index = <2>;
 				compatible = "sirf,prima2-uart";
-				reg = <0xb0070000 0x10000>;
+				reg = <0xb0070000 0x1000>;
 				interrupts = <19>;
+				fifosize = <128>;
 				clocks = <&clks 15>;
+				sirf,uart-dma-rx-channel = <6>;
+				sirf,uart-dma-tx-channel = <7>;
 			};
 
 			usp0: usp@b0080000 {
@@ -222,7 +230,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0080000 0x10000>;
 				interrupts = <20>;
+				fifosize = <128>;
 				clocks = <&clks 28>;
+				sirf,usp-dma-rx-channel = <17>;
+				sirf,usp-dma-tx-channel = <18>;
 			};
 
 			usp1: usp@b0090000 {
@@ -230,7 +241,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0090000 0x10000>;
 				interrupts = <21>;
+				fifosize = <128>;
 				clocks = <&clks 29>;
+				sirf,usp-dma-rx-channel = <14>;
+				sirf,usp-dma-tx-channel = <15>;
 			};
 
 			usp2: usp@b00a0000 {
@@ -238,7 +252,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb00a0000 0x10000>;
 				interrupts = <22>;
+				fifosize = <128>;
 				clocks = <&clks 30>;
+				sirf,usp-dma-rx-channel = <10>;
+				sirf,usp-dma-tx-channel = <11>;
 			};
 
 			dmac0: dma-controller@b00b0000 {
@@ -261,6 +278,8 @@
 				compatible = "sirf,prima2-vip";
 				reg = <0xb00C0000 0x10000>;
 				clocks = <&clks 31>;
+				interrupts = <14>;
+				sirf,vip-dma-rx-channel = <16>;
 			};
 
 			spi0: spi@b00d0000 {

@@ -4703,6 +4703,14 @@ bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print)
 	attn.sig[3] = REG_RD(bp,
 		MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 +
 			     port*4);
+	/* Since MCP attentions can't be disabled inside the block, we need to
+	 * read AEU registers to see whether they're currently disabled
+	 */
+	attn.sig[3] &= ((REG_RD(bp,
+				!port ? MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0
+				      : MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0) &
+			 MISC_AEU_ENABLE_MCP_PRTY_BITS) |
+			~MISC_AEU_ENABLE_MCP_PRTY_BITS);
 
 	if (!CHIP_IS_E1x(bp))
 		attn.sig[4] = REG_RD(bp,
@@ -5447,26 +5455,24 @@ static void bnx2x_timer(unsigned long data)
 	if (IS_PF(bp) &&
 	    !BP_NOMCP(bp)) {
 		int mb_idx = BP_FW_MB_IDX(bp);
-		u32 drv_pulse;
-		u32 mcp_pulse;
+		u16 drv_pulse;
+		u16 mcp_pulse;
 
 		++bp->fw_drv_pulse_wr_seq;
 		bp->fw_drv_pulse_wr_seq &= DRV_PULSE_SEQ_MASK;
-		/* TBD - add SYSTEM_TIME */
 		drv_pulse = bp->fw_drv_pulse_wr_seq;
 		bnx2x_drv_pulse(bp);
 
 		mcp_pulse = (SHMEM_RD(bp, func_mb[mb_idx].mcp_pulse_mb) &
 			     MCP_PULSE_SEQ_MASK);
 		/* The delta between driver pulse and mcp response
-		 * should be 1 (before mcp response) or 0 (after mcp response)
+		 * should not get too big. If the MFW is more than 5 pulses
+		 * behind, we should worry about it enough to generate an error
+		 * log.
 		 */
-		if ((drv_pulse != mcp_pulse) &&
-		    (drv_pulse != ((mcp_pulse + 1) & MCP_PULSE_SEQ_MASK))) {
-			/* someone lost a heartbeat... */
-			BNX2X_ERR("drv_pulse (0x%x) != mcp_pulse (0x%x)\n",
+		if (((drv_pulse - mcp_pulse) & MCP_PULSE_SEQ_MASK) > 5)
+			BNX2X_ERR("MFW seems hanged: drv_pulse (0x%x) != mcp_pulse (0x%x)\n",
 				  drv_pulse, mcp_pulse);
-		}
 	}
 
 	if (bp->state == BNX2X_STATE_OPEN)
@@ -8652,6 +8658,7 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 	else if (bp->wol) {
 		u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		u8 *mac_addr = bp->dev->dev_addr;
+		struct pci_dev *pdev = bp->pdev;
 		u32 val;
 		u16 pmc;
 
@@ -8668,9 +8675,9 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry + 4, val);
 
 		/* Enable the PME and clear the status */
-		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmc);
+		pci_read_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, &pmc);
 		pmc |= PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS;
-		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, pmc);
+		pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, pmc);
 
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_EN;
 
@@ -10399,7 +10406,7 @@ static void bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		break;
 	}
 
-	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
+	pci_read_config_word(bp->pdev, bp->pdev->pm_cap + PCI_PM_PMC, &pmc);
 	bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
 
 	BNX2X_DEV_INFO("%sWoL capable\n",
@@ -12141,8 +12148,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	}
 
 	if (IS_PF(bp)) {
-		bp->pm_cap = pdev->pm_cap;
-		if (bp->pm_cap == 0) {
+		if (!pdev->pm_cap) {
 			dev_err(&bp->pdev->dev,
 				"Cannot find power management capability, aborting\n");
 			rc = -EIO;
@@ -13631,6 +13637,10 @@ void bnx2x_setup_cnic_info(struct bnx2x *bp)
 	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
 	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
+
+	DP(NETIF_MSG_IFUP, "BNX2X_1st_NON_L2_ETH_CID(bp) %x, cp->starting_cid %x, cp->fcoe_init_cid %x, cp->iscsi_l2_cid %x\n",
+	   BNX2X_1st_NON_L2_ETH_CID(bp), cp->starting_cid, cp->fcoe_init_cid,
+	   cp->iscsi_l2_cid);
 
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;

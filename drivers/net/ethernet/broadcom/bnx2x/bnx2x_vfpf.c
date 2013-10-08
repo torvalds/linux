@@ -1765,28 +1765,28 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		switch (mbx->first_tlv.tl.type) {
 		case CHANNEL_TLV_ACQUIRE:
 			bnx2x_vf_mbx_acquire(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_INIT:
 			bnx2x_vf_mbx_init_vf(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_SETUP_Q:
 			bnx2x_vf_mbx_setup_q(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_SET_Q_FILTERS:
 			bnx2x_vf_mbx_set_q_filters(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_TEARDOWN_Q:
 			bnx2x_vf_mbx_teardown_q(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_CLOSE:
 			bnx2x_vf_mbx_close_vf(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_RELEASE:
 			bnx2x_vf_mbx_release_vf(bp, vf, mbx);
-			break;
+			return;
 		case CHANNEL_TLV_UPDATE_RSS:
 			bnx2x_vf_mbx_update_rss(bp, vf, mbx);
-			break;
+			return;
 		}
 
 	} else {
@@ -1802,26 +1802,24 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		for (i = 0; i < 20; i++)
 			DP_CONT(BNX2X_MSG_IOV, "%x ",
 				mbx->msg->req.tlv_buf_size.tlv_buffer[i]);
+	}
 
-		/* test whether we can respond to the VF (do we have an address
-		 * for it?)
+	/* can we respond to VF (do we have an address for it?) */
+	if (vf->state == VF_ACQUIRED || vf->state == VF_ENABLED) {
+		/* mbx_resp uses the op_rc of the VF */
+		vf->op_rc = PFVF_STATUS_NOT_SUPPORTED;
+
+		/* notify the VF that we do not support this request */
+		bnx2x_vf_mbx_resp(bp, vf);
+	} else {
+		/* can't send a response since this VF is unknown to us
+		 * just ack the FW to release the mailbox and unlock
+		 * the channel.
 		 */
-		if (vf->state == VF_ACQUIRED || vf->state == VF_ENABLED) {
-			/* mbx_resp uses the op_rc of the VF */
-			vf->op_rc = PFVF_STATUS_NOT_SUPPORTED;
-
-			/* notify the VF that we do not support this request */
-			bnx2x_vf_mbx_resp(bp, vf);
-		} else {
-			/* can't send a response since this VF is unknown to us
-			 * just ack the FW to release the mailbox and unlock
-			 * the channel.
-			 */
-			storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
-			mmiowb();
-			bnx2x_unlock_vf_pf_channel(bp, vf,
-						   mbx->first_tlv.tl.type);
-		}
+		storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
+		/* Firmware ack should be written before unlocking channel */
+		mmiowb();
+		bnx2x_unlock_vf_pf_channel(bp, vf, mbx->first_tlv.tl.type);
 	}
 }
 

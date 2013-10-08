@@ -276,7 +276,7 @@ static struct platform_device mtx1_pci_host = {
 	.resource	= alchemy_pci_host_res,
 };
 
-static struct __initdata platform_device * mtx1_devs[] = {
+static struct platform_device *mtx1_devs[] __initdata = {
 	&mtx1_pci_host,
 	&mtx1_gpio_leds,
 	&mtx1_wdt,

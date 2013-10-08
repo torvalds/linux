@@ -20,8 +20,6 @@ static int hwpoison_inject(void *data, u64 val)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!hwpoison_filter_enable)
-		goto inject;
 	if (!pfn_valid(pfn))
 		return -ENXIO;
 
@@ -32,6 +30,9 @@ static int hwpoison_inject(void *data, u64 val)
 	 */
 	if (!get_page_unless_zero(hpage))
 		return 0;
+
+	if (!hwpoison_filter_enable)
+		goto inject;
 
 	if (!PageLRU(p) && !PageHuge(p))
 		shake_page(p, 0);

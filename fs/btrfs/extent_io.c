@@ -145,7 +145,15 @@ int __init extent_io_init(void)
 				     offsetof(struct btrfs_io_bio, bio));
 	if (!btrfs_bioset)
 		goto free_buffer_cache;
+
+	if (bioset_integrity_create(btrfs_bioset, BIO_POOL_SIZE))
+		goto free_bioset;
+
 	return 0;
+
+free_bioset:
+	bioset_free(btrfs_bioset);
+	btrfs_bioset = NULL;
 
 free_buffer_cache:
 	kmem_cache_destroy(extent_buffer_cache);
@@ -1481,10 +1489,12 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 		*end = state->end;
 		cur_start = state->end + 1;
 		node = rb_next(node);
-		if (!node)
-			break;
 		total_bytes += state->end - state->start + 1;
-		if (total_bytes >= max_bytes)
+		if (total_bytes >= max_bytes) {
+			*end = *start + max_bytes - 1;
+			break;
+		}
+		if (!node)
 			break;
 	}
 out:
@@ -1612,7 +1622,7 @@ again:
 		*start = delalloc_start;
 		*end = delalloc_end;
 		free_extent_state(cached_state);
-		return found;
+		return 0;
 	}
 
 	/*

@@ -1,9 +1,9 @@
-Embedded device command line partition
+Embedded device command line partition parsing
 =====================================================================
 
-Read block device partition table from command line.
-The partition used for fixed block device (eMMC) embedded device.
-It is no MBR, save storage space. Bootloader can be easily accessed
+Support for reading the block device partition table from the command line.
+It is typically used for fixed block (eMMC) embedded devices.
+It has no MBR, so saves storage space. Bootloader can be easily accessed
 by absolute address of data on the block device.
 Users can easily change the partition.
 
