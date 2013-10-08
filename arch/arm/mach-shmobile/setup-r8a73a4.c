@@ -275,7 +275,7 @@ static const struct sh_dmae_pdata dma_pdata = {
 
 static struct resource dma_resources[] = {
 	DEFINE_RES_MEM(0xe6700020, 0x89e0),
-	DEFINE_RES_IRQ_NAMED(gic_spi(220), "error_irq"),
+	DEFINE_RES_IRQ(gic_spi(220)),
 	{
 		/* IRQ for channels 0-19 */
 		.start  = gic_spi(200),
