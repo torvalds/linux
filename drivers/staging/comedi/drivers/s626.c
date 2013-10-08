@@ -71,6 +71,11 @@
 #include "comedi_fc.h"
 #include "s626.h"
 
+struct buffer_dma {
+	dma_addr_t physical_base;
+	void *logical_base;
+};
+
 struct s626_private {
 	void __iomem *mmio;
 	uint8_t ai_cmd_running;		/* ai_cmd is running */

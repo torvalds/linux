@@ -614,9 +614,4 @@
 #define STDMSK_CLKMULT		(3 << STDBIT_CLKMULT)
 #define STDMSK_CLKENAB		(1 << STDBIT_CLKENAB)
 
-struct buffer_dma {
-	dma_addr_t physical_base;
-	void *logical_base;
-};
-
 #endif
