@@ -1636,23 +1636,22 @@ static int ci_udc_start(struct usb_gadget *gadget,
 	retval = usb_ep_enable(&ci->ep0in->ep);
 	if (retval)
 		return retval;
-	spin_lock_irqsave(&ci->lock, flags);
 
 	ci->driver = driver;
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->vbus_active) {
+		spin_lock_irqsave(&ci->lock, flags);
 		hw_device_reset(ci, USBMODE_CM_DC);
 	} else {
 		pm_runtime_put_sync(&ci->gadget.dev);
-		goto done;
+		return retval;
 	}
 
 	retval = hw_device_state(ci, ci->ep0out->qh.dma);
+	spin_unlock_irqrestore(&ci->lock, flags);
 	if (retval)
 		pm_runtime_put_sync(&ci->gadget.dev);
 
- done:
-	spin_unlock_irqrestore(&ci->lock, flags);
 	return retval;
 }
 
