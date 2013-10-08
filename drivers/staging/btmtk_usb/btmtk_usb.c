@@ -249,9 +249,8 @@ static u16 checksume16(u8 *pData, int len)
 	if (len)
 		sum += *((u8 *)pData);
 
-	while (sum >> 16) {
+	while (sum >> 16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
-	}
 
 	return ~sum;
 }
@@ -270,9 +269,8 @@ static int btmtk_usb_chk_crc(struct btmtk_usb_data *data, u32 checksum_len)
 			DEVICE_VENDOR_REQUEST_IN, 0x20, 0x00, data->io_buf,
 			8, CONTROL_TIMEOUT_JIFFIES);
 
-	if (ret < 0) {
+	if (ret < 0)
 		BT_ERR("%s error(%d)\n", __func__, ret);
-	}
 
 	return ret;
 }
@@ -690,9 +688,8 @@ loadfw_protect:
 			/* U2M_PDMA descriptor */
 			btmtk_usb_io_write32(data, 0x230, cur_len);
 
-			while ((sent_len % 4) != 0) {
+			while ((sent_len % 4) != 0)
 				sent_len++;
-			}
 
 			/* U2M_PDMA length */
 			btmtk_usb_io_write32(data, 0x234, sent_len << 16);
@@ -945,9 +942,8 @@ static void btmtk_usb_bulk_in_complete(struct urb *urb)
 	BT_DBG("%s:%s urb %p status %d count %d", __func__, hdev->name,
 					urb, urb->status, urb->actual_length);
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
+	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return;
-	}
 
 	if (urb->status == 0) {
 		hdev->stat.byte_rx += urb->actual_length;
