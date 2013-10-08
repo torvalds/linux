@@ -192,6 +192,8 @@ static int efx_mcdi_errno(unsigned int mcdi_err)
 	TRANSLATE_ERROR(EALREADY);
 	TRANSLATE_ERROR(ENOSPC);
 #undef TRANSLATE_ERROR
+	case MC_CMD_ERR_ENOTSUP:
+		return -EOPNOTSUPP;
 	case MC_CMD_ERR_ALLOC_FAIL:
 		return -ENOBUFS;
 	case MC_CMD_ERR_MAC_EXIST:
