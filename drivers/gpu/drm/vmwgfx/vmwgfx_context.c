@@ -32,6 +32,7 @@
 struct vmw_user_context {
 	struct ttm_base_object base;
 	struct vmw_resource res;
+	struct vmw_ctx_binding_state cbs;
 };
 
 
@@ -52,7 +53,7 @@ static int vmw_gb_context_destroy(struct vmw_resource *res);
 static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi);
 static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi);
 static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi);
-
+static void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs);
 static uint64_t vmw_user_context_size;
 
 static const struct vmw_user_resource_conv user_context_conv = {
@@ -139,6 +140,8 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 			       void (*res_free) (struct vmw_resource *res))
 {
 	int ret;
+	struct vmw_user_context *uctx =
+		container_of(res, struct vmw_user_context, res);
 
 	ret = vmw_resource_init(dev_priv, res, true,
 				res_free, &vmw_gb_context_func);
@@ -151,6 +154,9 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 			kfree(res);
 		return ret;
 	}
+
+	memset(&uctx->cbs, 0, sizeof(uctx->cbs));
+	INIT_LIST_HEAD(&uctx->cbs.list);
 
 	vmw_resource_activate(res, vmw_hw_context_destroy);
 	return 0;
@@ -304,6 +310,8 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct ttm_buffer_object *bo = val_buf->bo;
 	struct vmw_fence_obj *fence;
+	struct vmw_user_context *uctx =
+		container_of(res, struct vmw_user_context, res);
 
 	struct {
 		SVGA3dCmdHeader header;
@@ -319,12 +327,16 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
+	mutex_lock(&dev_priv->binding_mutex);
+	vmw_context_binding_state_kill(&uctx->cbs);
+
 	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
 
 	cmd = vmw_fifo_reserve(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for context "
 			  "unbinding.\n");
+		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 
@@ -342,6 +354,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	cmd2->body.mobid = SVGA3D_INVALID_ID;
 
 	vmw_fifo_commit(dev_priv, submit_size);
+	mutex_unlock(&dev_priv->binding_mutex);
 
 	/*
 	 * Create a fence object and fence the backup buffer.
@@ -365,6 +378,10 @@ static int vmw_gb_context_destroy(struct vmw_resource *res)
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDestroyGBContext body;
 	} *cmd;
+	struct vmw_user_context *uctx =
+		container_of(res, struct vmw_user_context, res);
+
+	BUG_ON(!list_empty(&uctx->cbs.list));
 
 	if (likely(res->id == -1))
 		return 0;
@@ -620,6 +637,8 @@ static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi)
 static void vmw_context_binding_drop(struct vmw_ctx_binding *cb)
 {
 	list_del(&cb->ctx_list);
+	if (!list_empty(&cb->res_list))
+		list_del(&cb->res_list);
 	cb->bi.ctx = NULL;
 }
 
@@ -674,8 +693,46 @@ int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
 
 	loc->bi = *bi;
 	list_add_tail(&loc->ctx_list, &cbs->list);
+	INIT_LIST_HEAD(&loc->res_list);
 
 	return 0;
+}
+
+/**
+ * vmw_context_binding_transfer: Transfer a context binding tracking entry.
+ *
+ * @cbs: Pointer to the persistent context binding state tracker.
+ * @bi: Information about the binding to track.
+ *
+ */
+static void vmw_context_binding_transfer(struct vmw_ctx_binding_state *cbs,
+					 const struct vmw_ctx_bindinfo *bi)
+{
+	struct vmw_ctx_binding *loc;
+
+	switch (bi->bt) {
+	case vmw_ctx_binding_rt:
+		loc = &cbs->render_targets[bi->i1.rt_type];
+		break;
+	case vmw_ctx_binding_tex:
+		loc = &cbs->texture_units[bi->i1.texture_stage];
+		break;
+	case vmw_ctx_binding_shader:
+		loc = &cbs->shaders[bi->i1.shader_type];
+		break;
+	default:
+		BUG();
+	}
+
+	if (loc->bi.ctx != NULL)
+		vmw_context_binding_drop(loc);
+
+	loc->bi = *bi;
+	list_add_tail(&loc->ctx_list, &cbs->list);
+	if (bi->res != NULL)
+		list_add_tail(&loc->res_list, &bi->res->binding_head);
+	else
+		INIT_LIST_HEAD(&loc->res_list);
 }
 
 /**
@@ -702,11 +759,47 @@ void vmw_context_binding_kill(struct vmw_ctx_binding *cb)
  * Emits commands to scrub all bindings associated with the
  * context binding state tracker. Then re-initializes the whole structure.
  */
-void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs)
+static void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs)
 {
 	struct vmw_ctx_binding *entry, *next;
 
-	list_for_each_entry_safe(entry, next, &cbs->list, ctx_list) {
+	list_for_each_entry_safe(entry, next, &cbs->list, ctx_list)
 		vmw_context_binding_kill(entry);
-	}
+}
+
+/**
+ * vmw_context_binding_res_list_kill - Kill all bindings on a
+ * resource binding list
+ *
+ * @head: list head of resource binding list
+ *
+ * Kills all bindings associated with a specific resource. Typically
+ * called before the resource is destroyed.
+ */
+void vmw_context_binding_res_list_kill(struct list_head *head)
+{
+	struct vmw_ctx_binding *entry, *next;
+
+	list_for_each_entry_safe(entry, next, head, res_list)
+		vmw_context_binding_kill(entry);
+}
+
+/**
+ * vmw_context_binding_state_transfer - Commit staged binding info
+ *
+ * @ctx: Pointer to context to commit the staged binding info to.
+ * @from: Staged binding info built during execbuf.
+ *
+ * Transfers binding info from a temporary structure to the persistent
+ * structure in the context. This can be done once commands
+ */
+void vmw_context_binding_state_transfer(struct vmw_resource *ctx,
+					struct vmw_ctx_binding_state *from)
+{
+	struct vmw_user_context *uctx =
+		container_of(ctx, struct vmw_user_context, res);
+	struct vmw_ctx_binding *entry, *next;
+
+	list_for_each_entry_safe(entry, next, &from->list, ctx_list)
+		vmw_context_binding_transfer(&uctx->cbs, &entry->bi);
 }

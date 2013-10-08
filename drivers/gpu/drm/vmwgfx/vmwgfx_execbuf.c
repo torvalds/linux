@@ -109,8 +109,13 @@ static void vmw_resource_list_unreserve(struct list_head *list,
 		struct vmw_dma_buffer *new_backup =
 			backoff ? NULL : val->new_backup;
 
+		/*
+		 * Transfer staged context bindings to the
+		 * persistent context binding tracker.
+		 */
 		if (unlikely(val->staged_bindings)) {
-			vmw_context_binding_state_kill(val->staged_bindings);
+			vmw_context_binding_state_transfer
+				(val->res, val->staged_bindings);
 			kfree(val->staged_bindings);
 			val->staged_bindings = NULL;
 		}
@@ -508,6 +513,7 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 		SVGA3dCmdSetRenderTarget body;
 	} *cmd;
 	struct vmw_resource_val_node *ctx_node;
+	struct vmw_resource_val_node *res_node;
 	int ret;
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
@@ -520,7 +526,7 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				user_surface_converter,
-				&cmd->body.target.sid, NULL);
+				&cmd->body.target.sid, &res_node);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -528,6 +534,7 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 		struct vmw_ctx_bindinfo bi;
 
 		bi.ctx = ctx_node->res;
+		bi.res = res_node ? res_node->res : NULL;
 		bi.bt = vmw_ctx_binding_rt;
 		bi.i1.rt_type = cmd->body.type;
 		return vmw_context_binding_add(ctx_node->staged_bindings, &bi);
@@ -1195,6 +1202,7 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 	SVGA3dTextureState *cur_state = (SVGA3dTextureState *)
 		((unsigned long) header + sizeof(struct vmw_tex_state_cmd));
 	struct vmw_resource_val_node *ctx_node;
+	struct vmw_resource_val_node *res_node;
 	int ret;
 
 	cmd = container_of(header, struct vmw_tex_state_cmd,
@@ -1212,7 +1220,7 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 					user_surface_converter,
-					&cur_state->value, NULL);
+					&cur_state->value, &res_node);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -1220,6 +1228,7 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 			struct vmw_ctx_bindinfo bi;
 
 			bi.ctx = ctx_node->res;
+			bi.res = res_node ? res_node->res : NULL;
 			bi.bt = vmw_ctx_binding_tex;
 			bi.i1.texture_stage = cur_state->stage;
 			vmw_context_binding_add(ctx_node->staged_bindings,
@@ -1499,14 +1508,16 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 
 	if (dev_priv->has_mob) {
 		struct vmw_ctx_bindinfo bi;
+		struct vmw_resource_val_node *res_node;
 
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_shader,
 					user_shader_converter,
-					&cmd->body.shid, NULL);
+					&cmd->body.shid, &res_node);
 		if (unlikely(ret != 0))
 			return ret;
 
 		bi.ctx = ctx_node->res;
+		bi.res = res_node ? res_node->res : NULL;
 		bi.bt = vmw_ctx_binding_shader;
 		bi.i1.shader_type = cmd->body.type;
 		return vmw_context_binding_add(ctx_node->staged_bindings, &bi);
@@ -2208,11 +2219,17 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 			goto out_err;
 	}
 
+	ret = mutex_lock_interruptible(&dev_priv->binding_mutex);
+	if (unlikely(ret != 0)) {
+		ret = -ERESTARTSYS;
+		goto out_err;
+	}
+
 	cmd = vmw_fifo_reserve(dev_priv, command_size);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving fifo space for commands.\n");
 		ret = -ENOMEM;
-		goto out_err;
+		goto out_unlock_binding;
 	}
 
 	vmw_apply_relocations(sw_context);
@@ -2237,6 +2254,8 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 		DRM_ERROR("Fence submission error. Syncing.\n");
 
 	vmw_resource_list_unreserve(&sw_context->resource_list, false);
+	mutex_unlock(&dev_priv->binding_mutex);
+
 	ttm_eu_fence_buffer_objects(&ticket, &sw_context->validate_nodes,
 				    (void *) fence);
 
@@ -2267,6 +2286,8 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 	return 0;
 
+out_unlock_binding:
+	mutex_unlock(&dev_priv->binding_mutex);
 out_err:
 	vmw_resource_relocations_free(&sw_context->res_relocations);
 	vmw_free_relocations(sw_context);

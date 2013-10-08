@@ -112,6 +112,7 @@ struct vmw_resource {
 	const struct vmw_res_func *func;
 	struct list_head lru_head; /* Protected by the resource lock */
 	struct list_head mob_head; /* Protected by @backup reserved */
+	struct list_head binding_head; /* Protected by binding_mutex */
 	void (*res_free) (struct vmw_resource *res);
 	void (*hw_destroy) (struct vmw_resource *res);
 };
@@ -260,11 +261,13 @@ enum vmw_ctx_binding_type {
  *
  * @ctx: Pointer to the context structure. NULL means the binding is not
  * active.
+ * @res: Non ref-counted pointer to the bound resource.
  * @bt: The binding type.
  * @i1: Union of information needed to unbind.
  */
 struct vmw_ctx_bindinfo {
 	struct vmw_resource *ctx;
+	struct vmw_resource *res;
 	enum vmw_ctx_binding_type bt;
 	union {
 		SVGA3dShaderType shader_type;
@@ -278,10 +281,12 @@ struct vmw_ctx_bindinfo {
  *                        - suitable for tracking in a context
  *
  * @ctx_list: List head for context.
+ * @res_list: List head for bound resource.
  * @bi: Binding info
  */
 struct vmw_ctx_binding {
 	struct list_head ctx_list;
+	struct list_head res_list;
 	struct vmw_ctx_bindinfo bi;
 };
 
@@ -450,6 +455,7 @@ struct vmw_private {
 
 	struct vmw_sw_context ctx;
 	struct mutex cmdbuf_mutex;
+	struct mutex binding_mutex;
 
 	/**
 	 * Operating mode.
@@ -940,7 +946,10 @@ extern int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
 				   const struct vmw_ctx_bindinfo *ci);
-extern void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs);
+extern void
+vmw_context_binding_state_transfer(struct vmw_resource *res,
+				   struct vmw_ctx_binding_state *cbs);
+extern void vmw_context_binding_res_list_kill(struct list_head *head);
 
 /*
  * Surface management - vmwgfx_surface.c

@@ -215,6 +215,7 @@ int vmw_resource_init(struct vmw_private *dev_priv, struct vmw_resource *res,
 	res->func = func;
 	INIT_LIST_HEAD(&res->lru_head);
 	INIT_LIST_HEAD(&res->mob_head);
+	INIT_LIST_HEAD(&res->binding_head);
 	res->id = -1;
 	res->backup = NULL;
 	res->backup_offset = 0;

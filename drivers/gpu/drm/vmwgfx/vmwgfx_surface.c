@@ -1100,6 +1100,9 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	if (likely(res->id == -1))
 		return 0;
 
+	mutex_lock(&dev_priv->binding_mutex);
+	vmw_context_binding_res_list_kill(&res->binding_head);
+
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
@@ -1111,6 +1114,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.sid = res->id;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	mutex_unlock(&dev_priv->binding_mutex);
 	vmw_resource_release_id(res);
 	vmw_3d_resource_dec(dev_priv, false);
 

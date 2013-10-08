@@ -612,6 +612,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->hw_mutex);
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
+	mutex_init(&dev_priv->binding_mutex);
 	rwlock_init(&dev_priv->resource_lock);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
