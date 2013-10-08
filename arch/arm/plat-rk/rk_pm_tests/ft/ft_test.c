@@ -49,9 +49,9 @@ REVISION 0.01
 #include <linux/kthread.h>
 #include <linux/clk.h>
 #include <linux/suspend.h>
-
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include "ft_pwm.h"
 
 
 #if 0
@@ -75,6 +75,9 @@ REVISION 0.01
 #define ft_printk_info(fmt, arg...) {while(0);}
 #endif
 
+#define FT_PWM	0
+
+int pwm_volt[5] = {900000, 1250000, 1350000, 0, 0};
 
 #define MHZ (1000*1000)
 #define TST_SETUPS (4)
@@ -138,7 +141,7 @@ const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*3,5*4,0,0};
 
 #elif defined(CONFIG_ARCH_RK3026)
 
-const static unsigned long arm_setups_rate[4] = {312 * MHZ, 816 * MHZ, 0, 0};
+const static unsigned long arm_setups_rate[4] = {312 * MHZ, 816 * MHZ, 1008 * MHZ, 0};
 const static unsigned long l1_tst_cnt[TST_SETUPS]={5 * 10, 5 * 10, 0, 0};
 const static unsigned long l2_cpy_cnt[TST_SETUPS]={5 * 3, 5 * 4, 0, 0};
 
@@ -510,6 +513,10 @@ void ft_cpu_test_type0(int steps)
 	ft_printk_dbg("test typ0 step%d cpu=%d start\n",steps,cpu);	
 	//arm rate init
 	ft_cpu_l1_test(l1_tst_cnt[steps]);
+#if FT_PWM
+	ft_pwm_set_voltage("arm", pwm_volt[0]);
+	mdelay(5);
+#endif
 	per_cpu(cpu_tst_flags, cpu)&=~setup_l1_bits[steps];
 
 	//temp=ft_test_cpus_l2(l2_test_buf[cpu],sizeof(char)*BUF_SIZE,20);
@@ -534,8 +541,9 @@ int ft_cpu_test_type0_check(int steps,const char *str)
 	for (cpu = 0; cpu < NR_CPUS; cpu++)
 	{
 		ret|=per_cpu(cpu_tst_flags, cpu);
-		ft_printk_dbg("setup%d,cpu%d flags=%x(%x)\n",steps,cpu,per_cpu(cpu_tst_flags, cpu)&setup_bits_msk[steps],
-						per_cpu(cpu_tst_flags, cpu));
+		ft_printk_dbg("setup%d,cpu%d flags=%x(%x)\n",
+				steps, cpu, per_cpu(cpu_tst_flags, cpu) & setup_bits_msk[steps],
+				per_cpu(cpu_tst_flags, cpu));
 	}
 	
 	ret&=setup_bits_msk[steps];// test setup1
@@ -607,24 +615,27 @@ int ft_cpu_test_type1_check(int steps,const char *str)
 		if(arm_setups_rate[steps]<rate)
 			clk_set_rate(arm_clk,arm_setups_rate[steps]);
 		
-
-		#ifdef ENABLE_FT_TEST_GPIO
+#if FT_PWM
+		ft_pwm_set_voltage("arm", pwm_volt[steps]);
+		mdelay(5);
+#else
+#ifdef ENABLE_FT_TEST_GPIO
 		// send msg to ctr board to up the volt
 		gpio_request(FT_CLIENT_READY_PIN, "client ready");
 		gpio_request(FT_CLIENT_IDLE_PIN, "client idle");
 
 		gpio_direction_output(FT_CLIENT_READY_PIN, GPIO_HIGH);
 		gpio_direction_input(FT_CLIENT_IDLE_PIN);
-		
+
 		// waiting for volt upping ok 
 		if((steps%2))
 			while( 0 == gpio_get_value(FT_CLIENT_IDLE_PIN));
 		else
 			while( 1 == gpio_get_value(FT_CLIENT_IDLE_PIN));
-			
-		gpio_set_value(FT_CLIENT_READY_PIN, GPIO_LOW);    
-		#endif
 
+		gpio_set_value(FT_CLIENT_READY_PIN, GPIO_LOW);
+#endif
+#endif
 
 		if(arm_setups_rate[steps]>=rate)
 			clk_set_rate(arm_clk,arm_setups_rate[steps]);
@@ -640,8 +651,9 @@ int ft_cpu_test_type1_check(int steps,const char *str)
 		for (cpu = 0; cpu < NR_CPUS; cpu++)
 		{
 			ret|=per_cpu(cpu_tst_flags, cpu);
-			ft_printk_dbg("setup%d,cpu%d flags=%x(%x)\n",steps,cpu,per_cpu(cpu_tst_flags, cpu)&setup_bits_msk[steps],
-						per_cpu(cpu_tst_flags, cpu));
+			ft_printk_dbg("setup%d,cpu%d flags=%x(%x)\n",
+					steps, cpu, per_cpu(cpu_tst_flags, cpu) & setup_bits_msk[steps],
+					per_cpu(cpu_tst_flags, cpu));
 		}
 	
 		ret&=setup_bits_msk[steps];// test setup2
@@ -692,6 +704,7 @@ static int __init rk_ft_tests_init(void)
 	char *buf;
 	arm_clk=clk_get(NULL, "cpu");
 	
+	ft_pwm_init();
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		l2_test_mbuf[cpu]=NULL;
 		buf = kmalloc(BUF_SIZE_M, GFP_KERNEL);
