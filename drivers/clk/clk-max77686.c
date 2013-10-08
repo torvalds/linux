@@ -157,11 +157,9 @@ static int max77686_clk_probe(struct platform_device *pdev)
 			case MAX77686_CLK_AP:
 				dev_err(&pdev->dev, "Fail to register CLK_AP\n");
 				goto err_clk_ap;
-				break;
 			case MAX77686_CLK_CP:
 				dev_err(&pdev->dev, "Fail to register CLK_CP\n");
 				goto err_clk_cp;
-				break;
 			case MAX77686_CLK_PMIC:
 				dev_err(&pdev->dev, "Fail to register CLK_PMIC\n");
 				goto err_clk_pmic;
