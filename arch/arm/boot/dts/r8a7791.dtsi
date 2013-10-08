@@ -71,4 +71,10 @@
 			      <0 16 4>,
 			      <0 17 4>;
 	};
+
+	pfc: pfc@e6060000 {
+		compatible = "renesas,pfc-r8a7791";
+		reg = <0 0xe6060000 0 0x250>;
+		#gpio-range-cells = <3>;
+	};
 };
