@@ -145,15 +145,16 @@ struct s626_enc_info {
 };
 
 /* Counter overflow/index event flag masks for RDMISC2. */
-#define INDXMASK(C)	(1 << (((C) > 2) ? ((C) * 2 - 1) : ((C) * 2 +  4)))
-#define OVERMASK(C)	(1 << (((C) > 2) ? ((C) * 2 + 5) : ((C) * 2 + 10)))
-#define EVBITS(C)	{ 0, OVERMASK(C), INDXMASK(C), \
-			  OVERMASK(C) | INDXMASK(C) }
+#define S626_INDXMASK(C) (1 << (((C) > 2) ? ((C) * 2 - 1) : ((C) * 2 +  4)))
+#define S626_OVERMASK(C) (1 << (((C) > 2) ? ((C) * 2 + 5) : ((C) * 2 + 10)))
+#define S626_EVBITS(C)	{ 0, S626_OVERMASK(C), S626_INDXMASK(C), \
+			  S626_OVERMASK(C) | S626_INDXMASK(C) }
 
 /*
  * Translation table to map IntSrc into equivalent RDMISC2 event flag  bits.
  * static const uint16_t s626_event_bits[][4] =
- *     { EVBITS(0), EVBITS(1), EVBITS(2), EVBITS(3), EVBITS(4), EVBITS(5) };
+ *     { S626_EVBITS(0), S626_EVBITS(1), S626_EVBITS(2), S626_EVBITS(3),
+ *       S626_EVBITS(4), S626_EVBITS(5) };
  */
 
 /*
@@ -190,10 +191,10 @@ static bool s626_mc_test(struct comedi_device *dev,
 	return (val & cmd) ? true : false;
 }
 
-#define BUGFIX_STREG(REGADRS)   (REGADRS - 4)
+#define S626_BUGFIX_STREG(REGADRS)   ((REGADRS) - 4)
 
 /* Write a time slot control record to TSL2. */
-#define VECTPORT(VECTNUM)		(P_TSL2 + ((VECTNUM) << 2))
+#define S626_VECTPORT(VECTNUM)		(P_TSL2 + ((VECTNUM) << 2))
 
 static const struct comedi_lrange s626_range_table = {
 	2, {
@@ -341,10 +342,6 @@ static uint8_t s626_i2c_read(struct comedi_device *dev, uint8_t addr)
 
 /* ***********  DAC FUNCTIONS *********** */
 
-/* Slot 0 base settings. */
-#define VECT0	(XSD2 | RSD3 | SIB_A2)
-/* Slot 0 always shifts in  0xFF and store it to  FB_BUFFER2. */
-
 /* TrimDac LogicalChan-to-PhysicalChan mapping table. */
 static const uint8_t s626_trimchan[] = { 10, 9, 8, 3, 2, 7, 6, 1, 0, 5, 4 };
 
@@ -417,7 +414,7 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * will be shifted in and stored in FB_BUFFER2 for end-of-slot-list
 	 * detection.
 	 */
-	writel(XSD2 | RSD3 | SIB_A2, devpriv->mmio + VECTPORT(0));
+	writel(XSD2 | RSD3 | SIB_A2, devpriv->mmio + S626_VECTPORT(0));
 
 	/*
 	 * Wait for slot 1 to execute to ensure that the Packet will be
@@ -437,7 +434,7 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * buffer register.
 	 */
 	writel(XSD2 | XFIFO_2 | RSD2 | SIB_A2 | EOS,
-	       devpriv->mmio + VECTPORT(0));
+	       devpriv->mmio + S626_VECTPORT(0));
 
 	/* WAIT FOR THE TRANSACTION TO FINISH ----------------------- */
 
@@ -479,7 +476,7 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
 	 * In order to do this, we reprogram slot 0 so that it will shift in
 	 * SD3, which is driven only by a pull-up resistor.
 	 */
-	writel(RSD3 | SIB_A2 | EOS, devpriv->mmio + VECTPORT(0));
+	writel(RSD3 | SIB_A2 | EOS, devpriv->mmio + S626_VECTPORT(0));
 
 	/*
 	 * Wait for slot 0 to execute, at which time the TSL is setup for
@@ -530,13 +527,13 @@ static void s626_set_dac(struct comedi_device *dev, uint16_t chan,
 	/* Choose DAC chip select to be asserted */
 	ws_image = (chan & 2) ? WS1 : WS2;
 	/* Slot 2: Transmit high data byte to target DAC */
-	writel(XSD2 | XFIFO_1 | ws_image, devpriv->mmio + VECTPORT(2));
+	writel(XSD2 | XFIFO_1 | ws_image, devpriv->mmio + S626_VECTPORT(2));
 	/* Slot 3: Transmit low data byte to target DAC */
-	writel(XSD2 | XFIFO_0 | ws_image, devpriv->mmio + VECTPORT(3));
+	writel(XSD2 | XFIFO_0 | ws_image, devpriv->mmio + S626_VECTPORT(3));
 	/* Slot 4: Transmit to non-existent TrimDac channel to keep clock */
-	writel(XSD2 | XFIFO_3 | WS3, devpriv->mmio + VECTPORT(4));
+	writel(XSD2 | XFIFO_3 | WS3, devpriv->mmio + S626_VECTPORT(4));
 	/* Slot 5: running after writing target DAC's low data byte */
-	writel(XSD2 | XFIFO_2 | WS3 | EOS, devpriv->mmio + VECTPORT(5));
+	writel(XSD2 | XFIFO_2 | WS3 | EOS, devpriv->mmio + S626_VECTPORT(5));
 
 	/*
 	 * Construct and transmit target DAC's serial packet:
@@ -577,13 +574,13 @@ static void s626_write_trim_dac(struct comedi_device *dev, uint8_t logical_chan,
 	 */
 
 	/* Slot 2: Send high uint8_t to target TrimDac */
-	writel(XSD2 | XFIFO_1 | WS3, devpriv->mmio + VECTPORT(2));
+	writel(XSD2 | XFIFO_1 | WS3, devpriv->mmio + S626_VECTPORT(2));
 	/* Slot 3: Send low uint8_t to target TrimDac */
-	writel(XSD2 | XFIFO_0 | WS3, devpriv->mmio + VECTPORT(3));
+	writel(XSD2 | XFIFO_0 | WS3, devpriv->mmio + S626_VECTPORT(3));
 	/* Slot 4: Send NOP high uint8_t to DAC0 to keep clock running */
-	writel(XSD2 | XFIFO_3 | WS1, devpriv->mmio + VECTPORT(4));
+	writel(XSD2 | XFIFO_3 | WS1, devpriv->mmio + S626_VECTPORT(4));
 	/* Slot 5: Send NOP low  uint8_t to DAC0 */
-	writel(XSD2 | XFIFO_2 | WS1 | EOS, devpriv->mmio + VECTPORT(5));
+	writel(XSD2 | XFIFO_2 | WS1 | EOS, devpriv->mmio + S626_VECTPORT(5));
 
 	/*
 	 * Construct and transmit target DAC's serial packet:
@@ -1230,7 +1227,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_cra			= LP_CR0A,
 		.my_crb			= LP_CR0B,
 		.my_latch_lsw		= LP_CNTR0ALSW,
-		.my_event_bits		= EVBITS(0),
+		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
@@ -1245,7 +1242,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_cra			= LP_CR1A,
 		.my_crb			= LP_CR1B,
 		.my_latch_lsw		= LP_CNTR1ALSW,
-		.my_event_bits		= EVBITS(1),
+		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
@@ -1260,7 +1257,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_cra			= LP_CR2A,
 		.my_crb			= LP_CR2B,
 		.my_latch_lsw		= LP_CNTR2ALSW,
-		.my_event_bits		= EVBITS(2),
+		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
@@ -1275,7 +1272,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_cra			= LP_CR0A,
 		.my_crb			= LP_CR0B,
 		.my_latch_lsw		= LP_CNTR0BLSW,
-		.my_event_bits		= EVBITS(3),
+		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
@@ -1290,7 +1287,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_cra			= LP_CR1A,
 		.my_crb			= LP_CR1B,
 		.my_latch_lsw		= LP_CNTR1BLSW,
-		.my_event_bits		= EVBITS(4),
+		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
@@ -1305,7 +1302,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_cra			= LP_CR2A,
 		.my_crb			= LP_CR2B,
 		.my_latch_lsw		= LP_CNTR2BLSW,
-		.my_event_bits		= EVBITS(5),
+		.my_event_bits		= S626_EVBITS(5),
 	},
 };
 
@@ -1746,7 +1743,7 @@ static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 		*rps++ = RPS_PAUSE | RPS_GPIO2;	/* Wait for ADC done. */
 
 		/* Transfer ADC data from FB BUFFER 1 register to DMA buffer. */
-		*rps++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
+		*rps++ = RPS_STREG | (S626_BUGFIX_STREG(P_FB_BUFFER1) >> 2);
 		*rps++ = (uint32_t)devpriv->ana_buf.physical_base +
 			 (devpriv->adc_items << 2);
 
@@ -1789,7 +1786,7 @@ static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 	*rps++ = RPS_PAUSE | RPS_GPIO2;	/* Wait for ADC done. */
 
 	/* Transfer final ADC data from FB BUFFER 1 register to DMA buffer. */
-	*rps++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
+	*rps++ = RPS_STREG | (S626_BUGFIX_STREG(P_FB_BUFFER1) >> 2);
 	*rps++ = (uint32_t)devpriv->ana_buf.physical_base +
 		 (devpriv->adc_items << 2);
 
@@ -2211,14 +2208,14 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_EXT)
 		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 39);
 
-#define MAX_SPEED	200000	/* in nanoseconds */
-#define MIN_SPEED	2000000000	/* in nanoseconds */
+#define S626_MAX_SPEED	200000	/* in nanoseconds */
+#define S626_MIN_SPEED	2000000000	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED);
+						 S626_MAX_SPEED);
 		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						 MIN_SPEED);
+						 S626_MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
@@ -2226,8 +2223,10 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 		/* err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9); */
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, MAX_SPEED);
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, MIN_SPEED);
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 S626_MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
+						 S626_MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* see above */
@@ -2704,7 +2703,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2 */
-	writel(XSD2 | RSD3 | SIB_A2 | EOS, devpriv->mmio + VECTPORT(0));
+	writel(XSD2 | RSD3 | SIB_A2 | EOS, devpriv->mmio + S626_VECTPORT(0));
 
 	/*
 	 * Initialize slot 1, which is constant.  Slot 1 causes a
@@ -2716,7 +2715,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Slot 1: Fetch DWORD from Audio2's output FIFO */
-	writel(LF_A2, devpriv->mmio + VECTPORT(1));
+	writel(LF_A2, devpriv->mmio + S626_VECTPORT(1));
 
 	/* Start DAC's audio interface (TSL2) running */
 	writel(ACON1_DACSTART, devpriv->mmio + P_ACON1);
