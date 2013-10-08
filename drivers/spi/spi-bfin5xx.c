@@ -1464,12 +1464,13 @@ static struct platform_driver bfin_spi_driver = {
 		.owner	= THIS_MODULE,
 		.pm	= BFIN_SPI_PM_OPS,
 	},
+	.probe		= bfin_spi_probe,
 	.remove		= bfin_spi_remove,
 };
 
 static int __init bfin_spi_init(void)
 {
-	return platform_driver_probe(&bfin_spi_driver, bfin_spi_probe);
+	return platform_driver_register(&bfin_spi_driver);
 }
 subsys_initcall(bfin_spi_init);
 
