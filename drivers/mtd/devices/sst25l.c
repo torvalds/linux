@@ -404,7 +404,6 @@ static int sst25l_probe(struct spi_device *spi)
 					data ? data->nr_parts : 0);
 	if (ret) {
 		kfree(flash);
-		spi_set_drvdata(spi, NULL);
 		return -ENODEV;
 	}
 
