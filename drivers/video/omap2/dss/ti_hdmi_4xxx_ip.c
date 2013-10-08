@@ -37,9 +37,6 @@
 #include "dss.h"
 #include "dss_features.h"
 
-#define HDMI_IRQ_LINK_CONNECT		(1 << 25)
-#define HDMI_IRQ_LINK_DISCONNECT	(1 << 26)
-
 static inline void hdmi_write_reg(void __iomem *base_addr,
 				const u16 idx, u32 val)
 {
@@ -70,11 +67,6 @@ static inline int hdmi_wait_for_bit_change(void __iomem *base_addr,
 	return val;
 }
 
-static inline void __iomem *hdmi_phy_base(struct hdmi_ip_data *ip_data)
-{
-	return ip_data->wp.base + ip_data->phy_offset;
-}
-
 static inline void __iomem *hdmi_av_base(struct hdmi_ip_data *ip_data)
 {
 	return ip_data->wp.base + ip_data->core_av_offset;
@@ -83,94 +75,6 @@ static inline void __iomem *hdmi_av_base(struct hdmi_ip_data *ip_data)
 static inline void __iomem *hdmi_core_sys_base(struct hdmi_ip_data *ip_data)
 {
 	return ip_data->wp.base + ip_data->core_sys_offset;
-}
-
-static irqreturn_t hdmi_irq_handler(int irq, void *data)
-{
-	struct hdmi_ip_data *ip_data = data;
-	u32 irqstatus;
-
-	irqstatus = hdmi_wp_get_irqstatus(&ip_data->wp);
-	hdmi_wp_set_irqstatus(&ip_data->wp, irqstatus);
-
-	if ((irqstatus & HDMI_IRQ_LINK_CONNECT) &&
-			irqstatus & HDMI_IRQ_LINK_DISCONNECT) {
-		/*
-		 * If we get both connect and disconnect interrupts at the same
-		 * time, turn off the PHY, clear interrupts, and restart, which
-		 * raises connect interrupt if a cable is connected, or nothing
-		 * if cable is not connected.
-		 */
-		hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_OFF);
-
-		hdmi_wp_set_irqstatus(&ip_data->wp, HDMI_IRQ_LINK_CONNECT |
-				HDMI_IRQ_LINK_DISCONNECT);
-
-		hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_LDOON);
-	} else if (irqstatus & HDMI_IRQ_LINK_CONNECT) {
-		hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_TXON);
-	} else if (irqstatus & HDMI_IRQ_LINK_DISCONNECT) {
-		hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_LDOON);
-	}
-
-	return IRQ_HANDLED;
-}
-
-int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
-{
-	u16 r = 0;
-	u32 irqstatus;
-	void __iomem *phy_base = hdmi_phy_base(ip_data);
-
-	hdmi_wp_clear_irqenable(&ip_data->wp, 0xffffffff);
-
-	irqstatus = hdmi_wp_get_irqstatus(&ip_data->wp);
-	hdmi_wp_set_irqstatus(&ip_data->wp, irqstatus);
-
-	r = hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_LDOON);
-	if (r)
-		return r;
-
-	/*
-	 * Read address 0 in order to get the SCP reset done completed
-	 * Dummy access performed to make sure reset is done
-	 */
-	hdmi_read_reg(phy_base, HDMI_TXPHY_TX_CTRL);
-
-	/*
-	 * Write to phy address 0 to configure the clock
-	 * use HFBITCLK write HDMI_TXPHY_TX_CONTROL_FREQOUT field
-	 */
-	REG_FLD_MOD(phy_base, HDMI_TXPHY_TX_CTRL, 0x1, 31, 30);
-
-	/* Write to phy address 1 to start HDMI line (TXVALID and TMDSCLKEN) */
-	hdmi_write_reg(phy_base, HDMI_TXPHY_DIGITAL_CTRL, 0xF0000000);
-
-	/* Setup max LDO voltage */
-	REG_FLD_MOD(phy_base, HDMI_TXPHY_POWER_CTRL, 0xB, 3, 0);
-
-	/* Write to phy address 3 to change the polarity control */
-	REG_FLD_MOD(phy_base, HDMI_TXPHY_PAD_CFG_CTRL, 0x1, 27, 27);
-
-	r = request_threaded_irq(ip_data->irq, NULL, hdmi_irq_handler,
-				 IRQF_ONESHOT, "OMAP HDMI", ip_data);
-	if (r) {
-		DSSERR("HDMI IRQ request failed\n");
-		hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_OFF);
-		return r;
-	}
-
-	hdmi_wp_set_irqenable(&ip_data->wp,
-		HDMI_IRQ_LINK_CONNECT | HDMI_IRQ_LINK_DISCONNECT);
-
-	return 0;
-}
-
-void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data)
-{
-	free_irq(ip_data->irq, ip_data);
-
-	hdmi_wp_set_phy_pwr(&ip_data->wp, HDMI_PHYPWRCMD_OFF);
 }
 
 static int hdmi_core_ddc_init(struct hdmi_ip_data *ip_data)
@@ -524,8 +428,6 @@ static void hdmi_core_av_packet_config(struct hdmi_ip_data *ip_data,
 		(repeat_cfg.generic_pkt_repeat));
 }
 
-
-
 void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 {
 	/* HDMI */
@@ -767,17 +669,6 @@ void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
 		DUMPCOREAV2(i, HDMI_CORE_AV_GEN2_DBYTE);
 
 	DUMPCOREAV(HDMI_CORE_AV_CEC_ADDR_ID);
-}
-
-void ti_hdmi_4xxx_phy_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
-{
-#define DUMPPHY(r) seq_printf(s, "%-35s %08x\n", #r,\
-		hdmi_read_reg(hdmi_phy_base(ip_data), r))
-
-	DUMPPHY(HDMI_TXPHY_TX_CTRL);
-	DUMPPHY(HDMI_TXPHY_DIGITAL_CTRL);
-	DUMPPHY(HDMI_TXPHY_POWER_CTRL);
-	DUMPPHY(HDMI_TXPHY_PAD_CFG_CTRL);
 }
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)

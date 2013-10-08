@@ -42,7 +42,6 @@
 
 #define HDMI_CORE_SYS		0x400
 #define HDMI_CORE_AV		0x900
-#define HDMI_PHY		0x300
 
 /* HDMI EDID Length move this */
 #define HDMI_EDID_MAX_LENGTH			256
@@ -487,7 +486,8 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 		goto err_pll_enable;
 	}
 
-	r = hdmi.ip_data.ops->phy_enable(&hdmi.ip_data);
+	r = hdmi_phy_enable(&hdmi.ip_data.phy, &hdmi.ip_data.wp,
+		&hdmi.ip_data.cfg);
 	if (r) {
 		DSSDBG("Failed to start PHY\n");
 		goto err_phy_enable;
@@ -514,7 +514,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 err_mgr_enable:
 	hdmi_wp_video_stop(&hdmi.ip_data.wp);
 err_vid_enable:
-	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
+	hdmi_phy_disable(&hdmi.ip_data.phy, &hdmi.ip_data.wp);
 err_phy_enable:
 	hdmi_pll_disable(&hdmi.ip_data.pll, &hdmi.ip_data.wp);
 err_pll_enable:
@@ -529,7 +529,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 	dss_mgr_disable(mgr);
 
 	hdmi_wp_video_stop(&hdmi.ip_data.wp);
-	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
+	hdmi_phy_disable(&hdmi.ip_data.phy, &hdmi.ip_data.wp);
 	hdmi_pll_disable(&hdmi.ip_data.pll, &hdmi.ip_data.wp);
 
 	hdmi_power_off_core(dssdev);
@@ -593,7 +593,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 
 	hdmi_wp_dump(&hdmi.ip_data.wp, s);
 	hdmi_pll_dump(&hdmi.ip_data.pll, s);
-	hdmi.ip_data.ops->dump_phy(&hdmi.ip_data, s);
+	hdmi_phy_dump(&hdmi.ip_data.phy, s);
 	hdmi.ip_data.ops->dump_core(&hdmi.ip_data, s);
 
 	hdmi_runtime_put();
@@ -1049,11 +1049,9 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	hdmi.ip_data.irq = platform_get_irq(pdev, 0);
-	if (hdmi.ip_data.irq < 0) {
-		DSSERR("platform_get_irq failed\n");
-		return -ENODEV;
-	}
+	r = hdmi_phy_init(pdev, &hdmi.ip_data.phy);
+	if (r)
+		return r;
 
 	r = hdmi_get_clocks(pdev);
 	if (r) {
@@ -1065,7 +1063,6 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	hdmi.ip_data.core_sys_offset = HDMI_CORE_SYS;
 	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
-	hdmi.ip_data.phy_offset = HDMI_PHY;
 
 	hdmi_init_output(pdev);
 
