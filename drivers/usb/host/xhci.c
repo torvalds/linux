@@ -3571,11 +3571,6 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 
-	if (udev->usb2_hw_lpm_enabled) {
-		xhci_set_usb2_hardware_lpm(hcd, udev, 0);
-		udev->usb2_hw_lpm_enabled = 0;
-	}
-
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* Don't disable the slot if the host controller is dead. */
 	state = xhci_readl(xhci, &xhci->op_regs->status);
