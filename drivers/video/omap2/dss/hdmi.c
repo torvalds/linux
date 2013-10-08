@@ -37,11 +37,9 @@
 #include <video/omapdss.h>
 
 #include "ti_hdmi.h"
+#include "ti_hdmi_4xxx_ip.h"
 #include "dss.h"
 #include "dss_features.h"
-
-#define HDMI_CORE_SYS		0x400
-#define HDMI_CORE_AV		0x900
 
 /* HDMI EDID Length move this */
 #define HDMI_EDID_MAX_LENGTH			256
@@ -493,7 +491,8 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 		goto err_phy_enable;
 	}
 
-	hdmi.ip_data.ops->video_configure(&hdmi.ip_data);
+	hdmi4_configure(&hdmi.ip_data.core, &hdmi.ip_data.wp,
+		&hdmi.ip_data.cfg);
 
 	/* bypass TV gamma table */
 	dispc_enable_gamma_table(0);
@@ -594,7 +593,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 	hdmi_wp_dump(&hdmi.ip_data.wp, s);
 	hdmi_pll_dump(&hdmi.ip_data.pll, s);
 	hdmi_phy_dump(&hdmi.ip_data.phy, s);
-	hdmi.ip_data.ops->dump_core(&hdmi.ip_data, s);
+	hdmi4_core_dump(&hdmi.ip_data.core, s);
 
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
@@ -609,7 +608,7 @@ static int read_edid(u8 *buf, int len)
 	r = hdmi_runtime_get();
 	BUG_ON(r);
 
-	r = hdmi.ip_data.ops->read_edid(&hdmi.ip_data, buf, len);
+	r = hdmi4_read_edid(&hdmi.ip_data.core,  buf, len);
 
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
@@ -813,7 +812,6 @@ static bool hdmi_mode_has_audio(void)
 	else
 		return false;
 }
-
 #endif
 
 static int hdmi_connect(struct omap_dss_device *dssdev,
@@ -821,8 +819,6 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 {
 	struct omap_overlay_manager *mgr;
 	int r;
-
-	dss_init_hdmi_ip_ops(&hdmi.ip_data, omapdss_get_version());
 
 	r = hdmi_init_regulator();
 	if (r)
@@ -914,12 +910,12 @@ static void hdmi_audio_disable(struct omap_dss_device *dssdev)
 
 static int hdmi_audio_start(struct omap_dss_device *dssdev)
 {
-	return hdmi.ip_data.ops->audio_start(&hdmi.ip_data);
+	return hdmi4_audio_start(&hdmi.ip_data.core, &hdmi.ip_data.wp);
 }
 
 static void hdmi_audio_stop(struct omap_dss_device *dssdev)
 {
-	hdmi.ip_data.ops->audio_stop(&hdmi.ip_data);
+	hdmi4_audio_stop(&hdmi.ip_data.core, &hdmi.ip_data.wp);
 }
 
 static bool hdmi_audio_supported(struct omap_dss_device *dssdev)
@@ -946,7 +942,7 @@ static int hdmi_audio_config(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	r = hdmi.ip_data.ops->audio_config(&hdmi.ip_data, audio);
+	r = hdmi4_audio_config(&hdmi.ip_data.core, &hdmi.ip_data.wp, audio);
 	if (r)
 		goto err;
 
@@ -1053,6 +1049,10 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
+	r = hdmi4_core_init(pdev, &hdmi.ip_data.core);
+	if (r)
+		return r;
+
 	r = hdmi_get_clocks(pdev);
 	if (r) {
 		DSSERR("can't get clocks\n");
@@ -1060,9 +1060,6 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-
-	hdmi.ip_data.core_sys_offset = HDMI_CORE_SYS;
-	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
 
 	hdmi_init_output(pdev);
 

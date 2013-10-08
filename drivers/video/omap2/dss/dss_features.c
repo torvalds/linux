@@ -789,39 +789,6 @@ static const struct omap_dss_features omap5_dss_features = {
 	.burst_size_unit = 16,
 };
 
-#if defined(CONFIG_OMAP4_DSS_HDMI)
-/* HDMI OMAP4 Functions*/
-static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
-
-	.video_configure	=	ti_hdmi_4xxx_basic_configure,
-	.read_edid		=	ti_hdmi_4xxx_read_edid,
-	.dump_core		=	ti_hdmi_4xxx_core_dump,
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-	.audio_start		=       ti_hdmi_4xxx_audio_start,
-	.audio_stop		=       ti_hdmi_4xxx_audio_stop,
-	.audio_config		=	ti_hdmi_4xxx_audio_config,
-	.audio_get_dma_port	=	ti_hdmi_4xxx_audio_get_dma_port,
-#endif
-
-};
-
-void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data,
-		enum omapdss_version version)
-{
-	switch (version) {
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		ip_data->ops = &omap4_hdmi_functions;
-		break;
-	default:
-		ip_data->ops = NULL;
-	}
-
-	WARN_ON(ip_data->ops == NULL);
-}
-#endif
-
 /* Functions returning values related to a DSS feature */
 int dss_feat_get_num_mgrs(void)
 {

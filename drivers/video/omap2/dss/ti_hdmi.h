@@ -145,27 +145,6 @@ struct hdmi_audio_dma {
 	u16				fifo_threshold;
 };
 
-struct ti_hdmi_ip_ops {
-
-	void (*video_configure)(struct hdmi_ip_data *ip_data);
-
-	int (*read_edid)(struct hdmi_ip_data *ip_data, u8 *edid, int len);
-
-	void (*dump_core)(struct hdmi_ip_data *ip_data, struct seq_file *s);
-
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-	int (*audio_start)(struct hdmi_ip_data *ip_data);
-
-	void (*audio_stop)(struct hdmi_ip_data *ip_data);
-
-	int (*audio_config)(struct hdmi_ip_data *ip_data,
-		struct omap_dss_audio *audio);
-
-	int (*audio_get_dma_port)(u32 *offset, u32 *size);
-#endif
-
-};
-
 /*
  * Refer to section 8.2 in HDMI 1.3 specification for
  * details about infoframe databytes
@@ -223,17 +202,19 @@ struct hdmi_phy_data {
 	int irq;
 };
 
+struct hdmi_core_data {
+	void __iomem *base;
+
+	struct hdmi_core_infoframe_avi avi_cfg;
+};
+
 struct hdmi_ip_data {
 	struct hdmi_wp_data	wp;
 	struct hdmi_pll_data	pll;
 	struct hdmi_phy_data	phy;
+	struct hdmi_core_data	core;
 
-	unsigned long	core_sys_offset;
-	unsigned long	core_av_offset;
-
-	const struct ti_hdmi_ip_ops *ops;
 	struct hdmi_config cfg;
-	struct hdmi_core_infoframe_avi avi_cfg;
 
 	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
 	struct mutex lock;
@@ -273,9 +254,6 @@ void hdmi_phy_disable(struct hdmi_phy_data *phy, struct hdmi_wp_data *wp);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
 
-int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data, u8 *edid, int len);
-void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts);
 int hdmi_wp_audio_enable(struct hdmi_wp_data *wp, bool enable);
@@ -284,10 +262,5 @@ void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
 		struct hdmi_audio_format *aud_fmt);
 void hdmi_wp_audio_config_dma(struct hdmi_wp_data *wp,
 		struct hdmi_audio_dma *aud_dma);
-int ti_hdmi_4xxx_audio_start(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_audio_stop(struct hdmi_ip_data *ip_data);
-int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
-		struct omap_dss_audio *audio);
-int ti_hdmi_4xxx_audio_get_dma_port(u32 *offset, u32 *size);
 #endif
 #endif

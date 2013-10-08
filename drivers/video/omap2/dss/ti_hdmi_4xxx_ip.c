@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
@@ -36,6 +37,8 @@
 #include "ti_hdmi_4xxx_ip.h"
 #include "dss.h"
 #include "dss_features.h"
+
+#define HDMI_CORE_AV		0x500
 
 static inline void hdmi_write_reg(void __iomem *base_addr,
 				const u16 idx, u32 val)
@@ -67,19 +70,14 @@ static inline int hdmi_wait_for_bit_change(void __iomem *base_addr,
 	return val;
 }
 
-static inline void __iomem *hdmi_av_base(struct hdmi_ip_data *ip_data)
+static inline void __iomem *hdmi_av_base(struct hdmi_core_data *core)
 {
-	return ip_data->wp.base + ip_data->core_av_offset;
+	return core->base + HDMI_CORE_AV;
 }
 
-static inline void __iomem *hdmi_core_sys_base(struct hdmi_ip_data *ip_data)
+static int hdmi_core_ddc_init(struct hdmi_core_data *core)
 {
-	return ip_data->wp.base + ip_data->core_sys_offset;
-}
-
-static int hdmi_core_ddc_init(struct hdmi_ip_data *ip_data)
-{
-	void __iomem *base = hdmi_core_sys_base(ip_data);
+	void __iomem *base = core->base;
 
 	/* Turn on CLK for DDC */
 	REG_FLD_MOD(base, HDMI_CORE_AV_DPD, 0x7, 2, 0);
@@ -119,10 +117,10 @@ static int hdmi_core_ddc_init(struct hdmi_ip_data *ip_data)
 	return 0;
 }
 
-static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
+static int hdmi_core_ddc_edid(struct hdmi_core_data *core,
 		u8 *pedid, int ext)
 {
-	void __iomem *base = hdmi_core_sys_base(ip_data);
+	void __iomem *base = core->base;
 	u32 i;
 	char checksum;
 	u32 offset = 0;
@@ -201,26 +199,25 @@ static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
 	return 0;
 }
 
-int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
-				u8 *edid, int len)
+int hdmi4_read_edid(struct hdmi_core_data *core, u8 *edid, int len)
 {
 	int r, l;
 
 	if (len < 128)
 		return -EINVAL;
 
-	r = hdmi_core_ddc_init(ip_data);
+	r = hdmi_core_ddc_init(core);
 	if (r)
 		return r;
 
-	r = hdmi_core_ddc_edid(ip_data, edid, 0);
+	r = hdmi_core_ddc_edid(core, edid, 0);
 	if (r)
 		return r;
 
 	l = 128;
 
 	if (len >= 128 * 2 && edid[0x7e] > 0) {
-		r = hdmi_core_ddc_edid(ip_data, edid + 0x80, 1);
+		r = hdmi_core_ddc_edid(core, edid + 0x80, 1);
 		if (r)
 			return r;
 		l += 128;
@@ -273,30 +270,31 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
 	repeat_cfg->generic_pkt_repeat = 0;
 }
 
-static void hdmi_core_powerdown_disable(struct hdmi_ip_data *ip_data)
+static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
 {
 	pr_debug("Enter hdmi_core_powerdown_disable\n");
-	REG_FLD_MOD(hdmi_core_sys_base(ip_data), HDMI_CORE_SYS_SYS_CTRL1, 0x0, 0, 0);
+	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x0, 0, 0);
 }
 
-static void hdmi_core_swreset_release(struct hdmi_ip_data *ip_data)
+static void hdmi_core_swreset_release(struct hdmi_core_data *core)
 {
 	pr_debug("Enter hdmi_core_swreset_release\n");
-	REG_FLD_MOD(hdmi_core_sys_base(ip_data), HDMI_CORE_SYS_SRST, 0x0, 0, 0);
+	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SRST, 0x0, 0, 0);
 }
 
-static void hdmi_core_swreset_assert(struct hdmi_ip_data *ip_data)
+static void hdmi_core_swreset_assert(struct hdmi_core_data *core)
 {
 	pr_debug("Enter hdmi_core_swreset_assert\n");
-	REG_FLD_MOD(hdmi_core_sys_base(ip_data), HDMI_CORE_SYS_SRST, 0x1, 0, 0);
+	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SRST, 0x1, 0, 0);
 }
 
 /* HDMI_CORE_VIDEO_CONFIG */
-static void hdmi_core_video_config(struct hdmi_ip_data *ip_data,
+static void hdmi_core_video_config(struct hdmi_core_data *core,
 				struct hdmi_core_video_config *cfg)
 {
 	u32 r = 0;
-	void __iomem *core_sys_base = hdmi_core_sys_base(ip_data);
+	void __iomem *core_sys_base = core->base;
+	void __iomem *core_av_base = hdmi_av_base(core);
 
 	/* sys_ctrl1 default configuration not tunable */
 	r = hdmi_read_reg(core_sys_base, HDMI_CORE_SYS_SYS_CTRL1);
@@ -323,23 +321,23 @@ static void hdmi_core_video_config(struct hdmi_ip_data *ip_data,
 	hdmi_write_reg(core_sys_base, HDMI_CORE_SYS_VID_MODE, r);
 
 	/* HDMI_Ctrl */
-	r = hdmi_read_reg(hdmi_av_base(ip_data), HDMI_CORE_AV_HDMI_CTRL);
+	r = hdmi_read_reg(core_av_base, HDMI_CORE_AV_HDMI_CTRL);
 	r = FLD_MOD(r, cfg->deep_color_pkt, 6, 6);
 	r = FLD_MOD(r, cfg->pkt_mode, 5, 3);
 	r = FLD_MOD(r, cfg->hdmi_dvi, 0, 0);
-	hdmi_write_reg(hdmi_av_base(ip_data), HDMI_CORE_AV_HDMI_CTRL, r);
+	hdmi_write_reg(core_av_base, HDMI_CORE_AV_HDMI_CTRL, r);
 
 	/* TMDS_CTRL */
 	REG_FLD_MOD(core_sys_base,
 			HDMI_CORE_SYS_TMDS_CTRL, cfg->tclk_sel_clkmult, 6, 5);
 }
 
-static void hdmi_core_aux_infoframe_avi_config(struct hdmi_ip_data *ip_data)
+static void hdmi_core_aux_infoframe_avi_config(struct hdmi_core_data *core)
 {
 	u32 val;
 	char sum = 0, checksum = 0;
-	void __iomem *av_base = hdmi_av_base(ip_data);
-	struct hdmi_core_infoframe_avi info_avi = ip_data->avi_cfg;
+	void __iomem *av_base = hdmi_av_base(core);
+	struct hdmi_core_infoframe_avi info_avi = core->avi_cfg;
 
 	sum += 0x82 + 0x002 + 0x00D;
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AVI_TYPE, 0x082);
@@ -410,64 +408,64 @@ static void hdmi_core_aux_infoframe_avi_config(struct hdmi_ip_data *ip_data)
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AVI_CHSUM, checksum);
 }
 
-static void hdmi_core_av_packet_config(struct hdmi_ip_data *ip_data,
+static void hdmi_core_av_packet_config(struct hdmi_core_data *core,
 		struct hdmi_core_packet_enable_repeat repeat_cfg)
 {
 	/* enable/repeat the infoframe */
-	hdmi_write_reg(hdmi_av_base(ip_data), HDMI_CORE_AV_PB_CTRL1,
+	hdmi_write_reg(hdmi_av_base(core), HDMI_CORE_AV_PB_CTRL1,
 		(repeat_cfg.audio_pkt << 5) |
 		(repeat_cfg.audio_pkt_repeat << 4) |
 		(repeat_cfg.avi_infoframe << 1) |
 		(repeat_cfg.avi_infoframe_repeat));
 
 	/* enable/repeat the packet */
-	hdmi_write_reg(hdmi_av_base(ip_data), HDMI_CORE_AV_PB_CTRL2,
+	hdmi_write_reg(hdmi_av_base(core), HDMI_CORE_AV_PB_CTRL2,
 		(repeat_cfg.gen_cntrl_pkt << 3) |
 		(repeat_cfg.gen_cntrl_pkt_repeat << 2) |
 		(repeat_cfg.generic_pkt << 1) |
 		(repeat_cfg.generic_pkt_repeat));
 }
 
-void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
+void hdmi4_configure(struct hdmi_core_data *core,
+	struct hdmi_wp_data *wp, struct hdmi_config *cfg)
 {
 	/* HDMI */
 	struct omap_video_timings video_timing;
 	struct hdmi_video_format video_format;
 	/* HDMI core */
-	struct hdmi_core_infoframe_avi *avi_cfg = &ip_data->avi_cfg;
+	struct hdmi_core_infoframe_avi *avi_cfg = &core->avi_cfg;
 	struct hdmi_core_video_config v_core_cfg;
 	struct hdmi_core_packet_enable_repeat repeat_cfg;
-	struct hdmi_config *cfg = &ip_data->cfg;
 
 	hdmi_core_init(&v_core_cfg, avi_cfg, &repeat_cfg);
 
 	hdmi_wp_init_vid_fmt_timings(&video_format, &video_timing, cfg);
 
-	hdmi_wp_video_config_timing(&ip_data->wp, &video_timing);
+	hdmi_wp_video_config_timing(wp, &video_timing);
 
 	/* video config */
 	video_format.packing_mode = HDMI_PACK_24b_RGB_YUV444_YUV422;
 
-	hdmi_wp_video_config_format(&ip_data->wp, &video_format);
+	hdmi_wp_video_config_format(wp, &video_format);
 
-	hdmi_wp_video_config_interface(&ip_data->wp, &video_timing);
+	hdmi_wp_video_config_interface(wp, &video_timing);
 
 	/*
 	 * configure core video part
 	 * set software reset in the core
 	 */
-	hdmi_core_swreset_assert(ip_data);
+	hdmi_core_swreset_assert(core);
 
 	/* power down off */
-	hdmi_core_powerdown_disable(ip_data);
+	hdmi_core_powerdown_disable(core);
 
 	v_core_cfg.pkt_mode = HDMI_PACKETMODE24BITPERPIXEL;
 	v_core_cfg.hdmi_dvi = cfg->cm.mode;
 
-	hdmi_core_video_config(ip_data, &v_core_cfg);
+	hdmi_core_video_config(core, &v_core_cfg);
 
 	/* release software reset in the core */
-	hdmi_core_swreset_release(ip_data);
+	hdmi_core_swreset_release(core);
 
 	/*
 	 * configure packet
@@ -492,7 +490,7 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	avi_cfg->db10_11_pixel_eofleft = 0;
 	avi_cfg->db12_13_pixel_sofright = 0;
 
-	hdmi_core_aux_infoframe_avi_config(ip_data);
+	hdmi_core_aux_infoframe_avi_config(core);
 
 	/* enable/repeat the infoframe */
 	repeat_cfg.avi_infoframe = HDMI_PACKETENABLE;
@@ -500,21 +498,21 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	/* wakeup */
 	repeat_cfg.audio_pkt = HDMI_PACKETENABLE;
 	repeat_cfg.audio_pkt_repeat = HDMI_PACKETREPEATON;
-	hdmi_core_av_packet_config(ip_data, repeat_cfg);
+	hdmi_core_av_packet_config(core, repeat_cfg);
 }
 
-void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
+void hdmi4_core_dump(struct hdmi_core_data *core, struct seq_file *s)
 {
 	int i;
 
 #define CORE_REG(i, name) name(i)
 #define DUMPCORE(r) seq_printf(s, "%-35s %08x\n", #r,\
-		hdmi_read_reg(hdmi_core_sys_base(ip_data), r))
+		hdmi_read_reg(core->base, r))
 #define DUMPCOREAV(r) seq_printf(s, "%-35s %08x\n", #r,\
-		hdmi_read_reg(hdmi_av_base(ip_data), r))
+		hdmi_read_reg(hdmi_av_base(core), r))
 #define DUMPCOREAV2(i, r) seq_printf(s, "%s[%d]%*s %08x\n", #r, i, \
 		(i < 10) ? 32 - (int)strlen(#r) : 31 - (int)strlen(#r), " ", \
-		hdmi_read_reg(hdmi_av_base(ip_data), CORE_REG(i, r)))
+		hdmi_read_reg(hdmi_av_base(core), CORE_REG(i, r)))
 
 	DUMPCORE(HDMI_CORE_SYS_VND_IDL);
 	DUMPCORE(HDMI_CORE_SYS_DEV_IDL);
@@ -672,11 +670,11 @@ void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
 }
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-static void ti_hdmi_4xxx_core_audio_config(struct hdmi_ip_data *ip_data,
+static void hdmi_core_audio_config(struct hdmi_core_data *core,
 					struct hdmi_core_audio_config *cfg)
 {
 	u32 r;
-	void __iomem *av_base = hdmi_av_base(ip_data);
+	void __iomem *av_base = hdmi_av_base(core);
 
 	/*
 	 * Parameters for generation of Audio Clock Recovery packets
@@ -771,11 +769,11 @@ static void ti_hdmi_4xxx_core_audio_config(struct hdmi_ip_data *ip_data,
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_SWAP_I2S, 1, 5, 5);
 }
 
-static void ti_hdmi_4xxx_core_audio_infoframe_cfg(struct hdmi_ip_data *ip_data,
+static void hdmi_core_audio_infoframe_cfg(struct hdmi_core_data *core,
 		struct snd_cea_861_aud_if *info_aud)
 {
 	u8 sum = 0, checksum = 0;
-	void __iomem *av_base = hdmi_av_base(ip_data);
+	void __iomem *av_base = hdmi_av_base(core);
 
 	/*
 	 * Set audio info frame type, version and length as
@@ -821,20 +819,20 @@ static void ti_hdmi_4xxx_core_audio_infoframe_cfg(struct hdmi_ip_data *ip_data,
 	 */
 }
 
-int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
+int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 		struct omap_dss_audio *audio)
 {
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
-	struct hdmi_core_audio_config core;
+	struct hdmi_core_audio_config acore;
 	int err, n, cts, channel_count;
 	unsigned int fs_nr;
 	bool word_length_16b = false;
 
-	if (!audio || !audio->iec || !audio->cea || !ip_data)
+	if (!audio || !audio->iec || !audio->cea || !core)
 		return -EINVAL;
 
-	core.iec60958_cfg = audio->iec;
+	acore.iec60958_cfg = audio->iec;
 	/*
 	 * In the IEC-60958 status word, check if the audio sample word length
 	 * is 16-bit as several optimizations can be performed in such case.
@@ -845,22 +843,22 @@ int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
 
 	/* I2S configuration. See Phillips' specification */
 	if (word_length_16b)
-		core.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_LEFT;
+		acore.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_LEFT;
 	else
-		core.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_RIGHT;
+		acore.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_RIGHT;
 	/*
 	 * The I2S input word length is twice the lenght given in the IEC-60958
 	 * status word. If the word size is greater than
 	 * 20 bits, increment by one.
 	 */
-	core.i2s_cfg.in_length_bits = audio->iec->status[4]
+	acore.i2s_cfg.in_length_bits = audio->iec->status[4]
 		& IEC958_AES4_CON_WORDLEN;
 	if (audio->iec->status[4] & IEC958_AES4_CON_MAX_WORDLEN_24)
-		core.i2s_cfg.in_length_bits++;
-	core.i2s_cfg.sck_edge_mode = HDMI_AUDIO_I2S_SCK_EDGE_RISING;
-	core.i2s_cfg.vbit = HDMI_AUDIO_I2S_VBIT_FOR_PCM;
-	core.i2s_cfg.direction = HDMI_AUDIO_I2S_MSB_SHIFTED_FIRST;
-	core.i2s_cfg.shift = HDMI_AUDIO_I2S_FIRST_BIT_SHIFT;
+		acore.i2s_cfg.in_length_bits++;
+	acore.i2s_cfg.sck_edge_mode = HDMI_AUDIO_I2S_SCK_EDGE_RISING;
+	acore.i2s_cfg.vbit = HDMI_AUDIO_I2S_VBIT_FOR_PCM;
+	acore.i2s_cfg.direction = HDMI_AUDIO_I2S_MSB_SHIFTED_FIRST;
+	acore.i2s_cfg.shift = HDMI_AUDIO_I2S_FIRST_BIT_SHIFT;
 
 	/* convert sample frequency to a number */
 	switch (audio->iec->status[3] & IEC958_AES3_CON_FS) {
@@ -892,20 +890,20 @@ int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
 	err = hdmi_compute_acr(fs_nr, &n, &cts);
 
 	/* Audio clock regeneration settings */
-	core.n = n;
-	core.cts = cts;
+	acore.n = n;
+	acore.cts = cts;
 	if (dss_has_feature(FEAT_HDMI_CTS_SWMODE)) {
-		core.aud_par_busclk = 0;
-		core.cts_mode = HDMI_AUDIO_CTS_MODE_SW;
-		core.use_mclk = dss_has_feature(FEAT_HDMI_AUDIO_USE_MCLK);
+		acore.aud_par_busclk = 0;
+		acore.cts_mode = HDMI_AUDIO_CTS_MODE_SW;
+		acore.use_mclk = dss_has_feature(FEAT_HDMI_AUDIO_USE_MCLK);
 	} else {
-		core.aud_par_busclk = (((128 * 31) - 1) << 8);
-		core.cts_mode = HDMI_AUDIO_CTS_MODE_HW;
-		core.use_mclk = true;
+		acore.aud_par_busclk = (((128 * 31) - 1) << 8);
+		acore.cts_mode = HDMI_AUDIO_CTS_MODE_HW;
+		acore.use_mclk = true;
 	}
 
-	if (core.use_mclk)
-		core.mclk_mode = HDMI_AUDIO_MCLK_128FS;
+	if (acore.use_mclk)
+		acore.mclk_mode = HDMI_AUDIO_MCLK_128FS;
 
 	/* Audio channels settings */
 	channel_count = (audio->cea->db1_ct_cc &
@@ -943,25 +941,25 @@ int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
 	 */
 	if (channel_count == 2) {
 		audio_format.stereo_channels = HDMI_AUDIO_STEREO_ONECHANNEL;
-		core.i2s_cfg.active_sds = HDMI_AUDIO_I2S_SD0_EN;
-		core.layout = HDMI_AUDIO_LAYOUT_2CH;
+		acore.i2s_cfg.active_sds = HDMI_AUDIO_I2S_SD0_EN;
+		acore.layout = HDMI_AUDIO_LAYOUT_2CH;
 	} else {
 		audio_format.stereo_channels = HDMI_AUDIO_STEREO_FOURCHANNELS;
-		core.i2s_cfg.active_sds = HDMI_AUDIO_I2S_SD0_EN |
+		acore.i2s_cfg.active_sds = HDMI_AUDIO_I2S_SD0_EN |
 				HDMI_AUDIO_I2S_SD1_EN | HDMI_AUDIO_I2S_SD2_EN |
 				HDMI_AUDIO_I2S_SD3_EN;
-		core.layout = HDMI_AUDIO_LAYOUT_8CH;
+		acore.layout = HDMI_AUDIO_LAYOUT_8CH;
 	}
 
-	core.en_spdif = false;
+	acore.en_spdif = false;
 	/* use sample frequency from channel status word */
-	core.fs_override = true;
+	acore.fs_override = true;
 	/* enable ACR packets */
-	core.en_acr_pkt = true;
+	acore.en_acr_pkt = true;
 	/* disable direct streaming digital audio */
-	core.en_dsd_audio = false;
+	acore.en_dsd_audio = false;
 	/* use parallel audio interface */
-	core.en_parallel_aud_input = true;
+	acore.en_parallel_aud_input = true;
 
 	/* DMA settings */
 	if (word_length_16b)
@@ -988,37 +986,37 @@ int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
 	audio_format.en_sig_blk_strt_end = HDMI_AUDIO_BLOCK_SIG_STARTEND_ON;
 
 	/* configure DMA and audio FIFO format*/
-	hdmi_wp_audio_config_dma(&ip_data->wp, &audio_dma);
-	hdmi_wp_audio_config_format(&ip_data->wp, &audio_format);
+	hdmi_wp_audio_config_dma(wp, &audio_dma);
+	hdmi_wp_audio_config_format(wp, &audio_format);
 
 	/* configure the core*/
-	ti_hdmi_4xxx_core_audio_config(ip_data, &core);
+	hdmi_core_audio_config(core, &acore);
 
 	/* configure CEA 861 audio infoframe*/
-	ti_hdmi_4xxx_core_audio_infoframe_cfg(ip_data, audio->cea);
+	hdmi_core_audio_infoframe_cfg(core, audio->cea);
 
 	return 0;
 }
 
-int ti_hdmi_4xxx_audio_start(struct hdmi_ip_data *ip_data)
+int hdmi4_audio_start(struct hdmi_core_data *core, struct hdmi_wp_data *wp)
 {
-	REG_FLD_MOD(hdmi_av_base(ip_data),
+	REG_FLD_MOD(hdmi_av_base(core),
 		    HDMI_CORE_AV_AUD_MODE, true, 0, 0);
 
-	hdmi_wp_audio_core_req_enable(&ip_data->wp, true);
+	hdmi_wp_audio_core_req_enable(wp, true);
 
 	return 0;
 }
 
-void ti_hdmi_4xxx_audio_stop(struct hdmi_ip_data *ip_data)
+void hdmi4_audio_stop(struct hdmi_core_data *core, struct hdmi_wp_data *wp)
 {
-	REG_FLD_MOD(hdmi_av_base(ip_data),
+	REG_FLD_MOD(hdmi_av_base(core),
 		    HDMI_CORE_AV_AUD_MODE, false, 0, 0);
 
-	hdmi_wp_audio_core_req_enable(&ip_data->wp, false);
+	hdmi_wp_audio_core_req_enable(wp, false);
 }
 
-int ti_hdmi_4xxx_audio_get_dma_port(u32 *offset, u32 *size)
+int hdmi4_audio_get_dma_port(u32 *offset, u32 *size)
 {
 	if (!offset || !size)
 		return -EINVAL;
@@ -1028,3 +1026,40 @@ int ti_hdmi_4xxx_audio_get_dma_port(u32 *offset, u32 *size)
 }
 
 #endif
+
+#define CORE_OFFSET		0x400
+#define CORE_SIZE		0xc00
+
+int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
+{
+	struct resource *res;
+	struct resource temp_res;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi_core");
+	if (!res) {
+		DSSDBG("can't get CORE mem resource by name\n");
+		/*
+		 * if hwmod/DT doesn't have the memory resource information
+		 * split into HDMI sub blocks by name, we try again by getting
+		 * the platform's first resource. this code will be removed when
+		 * the driver can get the mem resources by name
+		 */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			DSSERR("can't get CORE mem resource\n");
+			return -EINVAL;
+		}
+
+		temp_res.start = res->start + CORE_OFFSET;
+		temp_res.end = temp_res.start + CORE_SIZE - 1;
+		res = &temp_res;
+	}
+
+	core->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!core->base) {
+		DSSERR("can't ioremap CORE\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
