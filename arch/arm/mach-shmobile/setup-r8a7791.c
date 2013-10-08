@@ -31,6 +31,19 @@
 #include <mach/rcar-gen2.h>
 #include <asm/mach/arch.h>
 
+static const struct resource pfc_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6060000, 0x250),
+};
+
+#define r8a7791_register_pfc()						\
+	platform_device_register_simple("pfc-r8a7791", -1, pfc_resources, \
+					ARRAY_SIZE(pfc_resources))
+
+void __init r8a7791_pinmux_init(void)
+{
+	r8a7791_register_pfc();
+}
+
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\
 	.type		= scif_type,				\
 	.mapbase	= baseaddr,				\
