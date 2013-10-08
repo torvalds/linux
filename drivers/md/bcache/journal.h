@@ -140,7 +140,8 @@ struct journal {
 	spinlock_t		lock;
 	/* used when waiting because the journal was full */
 	struct closure_waitlist	wait;
-	struct closure_with_timer io;
+	struct closure		io;
+	struct delayed_work	work;
 
 	/* Number of blocks free in the bucket(s) we're currently writing to */
 	unsigned		blocks_free;

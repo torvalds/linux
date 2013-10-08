@@ -554,32 +554,26 @@ static void journal_write_endio(struct bio *bio, int error)
 	struct journal_write *w = bio->bi_private;
 
 	cache_set_err_on(error, w->c, "journal io error");
-	closure_put(&w->c->journal.io.cl);
+	closure_put(&w->c->journal.io);
 }
 
 static void journal_write(struct closure *);
 
 static void journal_write_done(struct closure *cl)
 {
-	struct journal *j = container_of(cl, struct journal, io.cl);
-	struct cache_set *c = container_of(j, struct cache_set, journal);
-
+	struct journal *j = container_of(cl, struct journal, io);
 	struct journal_write *w = (j->cur == j->w)
 		? &j->w[1]
 		: &j->w[0];
 
 	__closure_wake_up(&w->wait);
-
-	if (c->journal_delay_ms)
-		closure_delay(&j->io, msecs_to_jiffies(c->journal_delay_ms));
-
-	continue_at(cl, journal_write, system_wq);
+	continue_at_nobarrier(cl, journal_write, system_wq);
 }
 
 static void journal_write_unlocked(struct closure *cl)
 	__releases(c->journal.lock)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, journal.io.cl);
+	struct cache_set *c = container_of(cl, struct cache_set, journal.io);
 	struct cache *ca;
 	struct journal_write *w = c->journal.cur;
 	struct bkey *k = &c->journal.key;
@@ -660,7 +654,7 @@ static void journal_write_unlocked(struct closure *cl)
 
 static void journal_write(struct closure *cl)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, journal.io.cl);
+	struct cache_set *c = container_of(cl, struct cache_set, journal.io);
 
 	spin_lock(&c->journal.lock);
 	journal_write_unlocked(cl);
@@ -669,7 +663,10 @@ static void journal_write(struct closure *cl)
 static void __journal_try_write(struct cache_set *c, bool noflush)
 	__releases(c->journal.lock)
 {
-	struct closure *cl = &c->journal.io.cl;
+	struct closure *cl = &c->journal.io;
+	struct journal_write *w = c->journal.cur;
+
+	w->need_write = true;
 
 	if (!closure_trylock(cl, &c->cl))
 		spin_unlock(&c->journal.lock);
@@ -688,16 +685,22 @@ void bch_journal_meta(struct cache_set *c, struct closure *cl)
 
 	if (CACHE_SYNC(&c->sb)) {
 		spin_lock(&c->journal.lock);
-
 		w = c->journal.cur;
-		w->need_write = true;
 
 		if (cl)
 			BUG_ON(!closure_wait(&w->wait, cl));
 
-		closure_flush(&c->journal.io);
 		__journal_try_write(c, true);
 	}
+}
+
+static void journal_write_work(struct work_struct *work)
+{
+	struct cache_set *c = container_of(to_delayed_work(work),
+					   struct cache_set,
+					   journal.work);
+	spin_lock(&c->journal.lock);
+	journal_try_write(c);
 }
 
 /*
@@ -739,7 +742,6 @@ void bch_journal(struct closure *cl)
 	}
 
 	w = c->journal.cur;
-	w->need_write = true;
 	b = __set_blocks(w->data, w->data->keys + n, c);
 
 	if (b * c->sb.block_size > PAGE_SECTORS << JSET_BITS ||
@@ -755,8 +757,6 @@ void bch_journal(struct closure *cl)
 
 		BUG_ON(!closure_wait(&w->wait, cl));
 
-		closure_flush(&c->journal.io);
-
 		journal_try_write(c);
 		continue_at(cl, bch_journal, bcache_wq);
 	}
@@ -768,11 +768,15 @@ void bch_journal(struct closure *cl)
 	atomic_inc(op->journal);
 
 	if (op->flush_journal) {
-		closure_flush(&c->journal.io);
 		closure_wait(&w->wait, cl->parent);
+		journal_try_write(c);
+	} else if (!w->need_write) {
+		schedule_delayed_work(&c->journal.work,
+				      msecs_to_jiffies(c->journal_delay_ms));
+		spin_unlock(&c->journal.lock);
+	} else {
+		spin_unlock(&c->journal.lock);
 	}
-
-	journal_try_write(c);
 out:
 	bch_btree_insert_async(cl);
 }
@@ -790,6 +794,7 @@ int bch_journal_alloc(struct cache_set *c)
 
 	closure_init_unlocked(&j->io);
 	spin_lock_init(&j->lock);
+	INIT_DELAYED_WORK(&j->work, journal_write_work);
 
 	c->journal_delay_ms = 100;
 
