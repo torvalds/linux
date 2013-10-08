@@ -44,7 +44,7 @@ CFS_MODULE_PARM(config_on_load, "i", int, 0444,
 static struct mutex lnet_config_mutex;
 
 int
-lnet_configure (void *arg)
+lnet_configure(void *arg)
 {
 	/* 'arg' only there so I can be passed to cfs_create_thread() */
 	int    rc = 0;
@@ -64,7 +64,7 @@ lnet_configure (void *arg)
 }
 
 int
-lnet_unconfigure (void)
+lnet_unconfigure(void)
 {
 	int   refcount;
 
@@ -124,7 +124,7 @@ init_lnet(void)
 	}
 
 	rc = libcfs_register_ioctl(&lnet_ioctl_handler);
-	LASSERT (rc == 0);
+	LASSERT(rc == 0);
 
 	if (config_on_load) {
 		/* Have to schedule a separate thread to avoid deadlocking
@@ -141,7 +141,7 @@ fini_lnet(void)
 	int rc;
 
 	rc = libcfs_deregister_ioctl(&lnet_ioctl_handler);
-	LASSERT (rc == 0);
+	LASSERT(rc == 0);
 
 	LNetFini();
 }
