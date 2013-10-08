@@ -50,33 +50,6 @@ static ssize_t do_coredump_read(int num, struct spu_context *ctx, void *buffer,
 	return ++ret; /* count trailing NULL */
 }
 
-/*
- * These are the only things you should do on a core-file: use only these
- * functions to write out all the necessary info.
- */
-static int spufs_dump_write(struct coredump_params *cprm, const void *addr, int nr)
-{
-	if (!dump_emit(cprm, addr, nr))
-		return -EIO;
-	return 0;
-}
-
-static int spufs_dump_align(struct coredump_params *cprm, char *buf, loff_t new_off)
-{
-	int rc, size;
-
-	size = min((loff_t)PAGE_SIZE, new_off - cprm->written);
-	memset(buf, 0, size);
-
-	rc = 0;
-	while (rc == 0 && new_off > cprm->written) {
-		size = min((loff_t)PAGE_SIZE, new_off - cprm->written);
-		rc = spufs_dump_write(cprm, buf, size);
-	}
-
-	return rc;
-}
-
 static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
 {
 	int i, sz, total = 0;
@@ -159,7 +132,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 				  struct coredump_params *cprm, int dfd)
 {
 	loff_t pos = 0;
-	int sz, rc, nread, total = 0;
+	int sz, rc, total = 0;
 	const int bufsz = PAGE_SIZE;
 	char *name;
 	char fullname[80], *buf;
@@ -177,38 +150,36 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	en.n_descsz = sz;
 	en.n_type = NT_SPU;
 
-	rc = spufs_dump_write(cprm, &en, sizeof(en));
-	if (rc)
-		goto out;
+	if (!dump_emit(cprm, &en, sizeof(en)))
+		goto Eio;
 
-	rc = spufs_dump_write(cprm, fullname, en.n_namesz);
-	if (rc)
-		goto out;
+	if (!dump_emit(cprm, fullname, en.n_namesz))
+		goto Eio;
 
-	rc = spufs_dump_align(cprm, buf, roundup(cprm->written, 4));
-	if (rc)
-		goto out;
+	if (!dump_skip(cprm, roundup(cprm->written, 4) - cprm->written))
+		goto Eio;
 
 	do {
-		nread = do_coredump_read(i, ctx, buf, bufsz, &pos);
-		if (nread > 0) {
-			rc = spufs_dump_write(cprm, buf, nread);
-			if (rc)
-				goto out;
-			total += nread;
+		rc = do_coredump_read(i, ctx, buf, bufsz, &pos);
+		if (rc > 0) {
+			if (!dump_emit(cprm, buf, rc))
+				goto Eio;
+			total += rc;
 		}
-	} while (nread == bufsz && total < sz);
+	} while (rc == bufsz && total < sz);
 
-	if (nread < 0) {
-		rc = nread;
+	if (rc < 0)
 		goto out;
-	}
 
-	rc = spufs_dump_align(cprm, buf, roundup(cprm->written - total + sz, 4));
-
+	if (!dump_skip(cprm,
+		       roundup(cprm->written - total + sz, 4) - cprm->written))
+		goto Eio;
 out:
 	free_page((unsigned long)buf);
 	return rc;
+Eio:
+	free_page((unsigned long)buf);
+	return -EIO;
 }
 
 int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
