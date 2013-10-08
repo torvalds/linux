@@ -132,3 +132,11 @@
 		reg = <0>;
 	};
 };
+
+&audio1 {
+	status = "okay";
+	clocks = <&gate_clk 13>, <&si5351 2>;
+	clock-names = "internal", "extclk";
+	pinctrl-0 = <&pmx_audio1_i2s1_spdifo &pmx_audio1_extclk>;
+	pinctrl-names = "default";
+};

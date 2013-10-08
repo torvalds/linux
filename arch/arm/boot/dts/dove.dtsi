@@ -297,6 +297,11 @@
 					marvell,function = "gpio";
 				};
 
+				pmx_audio1_extclk: pmx-audio1-extclk {
+					marvell,pins = "mpp13";
+					marvell,function = "audio1";
+				};
+
 				pmx_gpio_14: pmx-gpio-14 {
 					marvell,pins = "mpp14";
 					marvell,function = "gpio";
@@ -370,6 +375,11 @@
 				pmx_audio1_gpio: pmx-audio1-gpio {
 					marvell,pins = "mpp_audio1";
 					marvell,function = "gpio";
+				};
+
+				pmx_audio1_i2s1_spdifo: pmx-audio1-i2s1-spdifo {
+					marvell,pins = "mpp_audio1";
+					marvell,function = "i2s1/spdifo";
 				};
 
 				pmx_spi0: pmx-spi0 {
