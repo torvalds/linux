@@ -3264,7 +3264,13 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data, u1
 	val = !!cp->val;
 	enabled = test_bit(HCI_ADVERTISING, &hdev->dev_flags);
 
-	if (!hdev_is_powered(hdev) || val == enabled) {
+	/* The following conditions are ones which mean that we should
+	 * not do any HCI communication but directly send a mgmt
+	 * response to user space (after toggling the flag if
+	 * necessary).
+	 */
+	if (!hdev_is_powered(hdev) || val == enabled ||
+	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECTED)) {
 		bool changed = false;
 
 		if (val != test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
