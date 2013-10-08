@@ -1,3 +1,4 @@
+#include <dt-bindings/clock/tegra124-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -28,6 +29,13 @@
 			     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_TIMER>;
+	};
+
+	tegra_car: clock@60006000 {
+		compatible = "nvidia,tegra124-car";
+		reg = <0x60006000 0x1000>;
+		#clock-cells = <1>;
 	};
 
 	gpio: gpio@6000d000 {
@@ -60,6 +68,7 @@
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_UARTA>;
 		status = "disabled";
 	};
 
@@ -68,6 +77,7 @@
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_UARTB>;
 		status = "disabled";
 	};
 
@@ -76,6 +86,7 @@
 		reg = <0x70006200 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_UARTC>;
 		status = "disabled";
 	};
 
@@ -84,6 +95,7 @@
 		reg = <0x70006300 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_UARTD>;
 		status = "disabled";
 	};
 
@@ -92,6 +104,7 @@
 		reg = <0x70006400 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_UARTE>;
 		status = "disabled";
 	};
 
@@ -99,11 +112,14 @@
 		compatible = "nvidia,tegra124-rtc", "nvidia,tegra20-rtc";
 		reg = <0x7000e000 0x100>;
 		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_RTC>;
 	};
 
 	pmc@7000e400 {
 		compatible = "nvidia,tegra124-pmc";
 		reg = <0x7000e400 0x400>;
+		clocks = <&tegra_car TEGRA124_CLK_PCLK>, <&clk32k_in>;
+		clock-names = "pclk", "clk32k_in";
 	};
 
 	cpus {
