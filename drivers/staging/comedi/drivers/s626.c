@@ -84,9 +84,9 @@ struct s626_private {
 	uint16_t CounterIntEnabs;	/* counter interrupt enable mask
 					 * for MISC2 register */
 	uint8_t AdcItems;		/* number of items in ADC poll list */
-	struct bufferDMA RPSBuf;	/* DMA buffer used to hold ADC (RPS1)
+	struct buffer_dma RPSBuf;	/* DMA buffer used to hold ADC (RPS1)
 					 * program */
-	struct bufferDMA ANABuf;	/* DMA buffer used to receive ADC data
+	struct buffer_dma ANABuf;	/* DMA buffer used to receive ADC data
 					 * and hold DAC data */
 	uint32_t *pDacWBuf;		/* pointer to logical adrs of DMA buffer
 					 * used to hold DAC data */
@@ -857,7 +857,7 @@ static bool handle_eos_interrupt(struct comedi_device *dev)
 	 * first uint16_t in the buffer because it contains junk data
 	 * from the final ADC of the previous poll list scan.
 	 */
-	int32_t *readaddr = (int32_t *)devpriv->ANABuf.LogicalBase + 1;
+	int32_t *readaddr = (int32_t *)devpriv->ANABuf.logical_base + 1;
 	bool finished = false;
 	int i;
 
@@ -964,10 +964,10 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 	/* Set starting logical address to write RPS commands. */
-	pRPS = (uint32_t *)devpriv->RPSBuf.LogicalBase;
+	pRPS = (uint32_t *)devpriv->RPSBuf.logical_base;
 
 	/* Initialize RPS instruction pointer */
-	writel((uint32_t)devpriv->RPSBuf.PhysicalBase,
+	writel((uint32_t)devpriv->RPSBuf.physical_base,
 	       devpriv->mmio + P_RPSADDR1);
 
 	/* Construct RPS program in RPSBuf DMA buffer */
@@ -1047,9 +1047,9 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 		 * instruction prefetch pipeline.
 		 */
 		JmpAdrs =
-			(uint32_t)devpriv->RPSBuf.PhysicalBase +
+			(uint32_t)devpriv->RPSBuf.physical_base +
 			(uint32_t)((unsigned long)pRPS -
-				   (unsigned long)devpriv->RPSBuf.LogicalBase);
+				   (unsigned long)devpriv->RPSBuf.logical_base);
 		for (i = 0; i < (10 * RPSCLK_PER_US / 2); i++) {
 			JmpAdrs += 8;	/* Repeat to implement time delay: */
 			*pRPS++ = RPS_JUMP; /* Jump to next RPS instruction. */
@@ -1079,7 +1079,7 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 		/* Transfer ADC data from FB BUFFER 1 register to DMA buffer. */
 		*pRPS++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
-		*pRPS++ = (uint32_t)devpriv->ANABuf.PhysicalBase +
+		*pRPS++ = (uint32_t)devpriv->ANABuf.physical_base +
 			  (devpriv->AdcItems << 2);
 
 		/*
@@ -1122,7 +1122,7 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 	/* Transfer final ADC data from FB BUFFER 1 register to DMA buffer. */
 	*pRPS++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
-	*pRPS++ = (uint32_t)devpriv->ANABuf.PhysicalBase +
+	*pRPS++ = (uint32_t)devpriv->ANABuf.physical_base +
 		  (devpriv->AdcItems << 2);
 
 	/* Indicate ADC scan loop is finished. */
@@ -1135,7 +1135,7 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 	/* Restart RPS program at its beginning. */
 	*pRPS++ = RPS_JUMP;	/* Branch to start of RPS program. */
-	*pRPS++ = (uint32_t)devpriv->RPSBuf.PhysicalBase;
+	*pRPS++ = (uint32_t)devpriv->RPSBuf.physical_base;
 
 	/* End of RPS program build */
 }
@@ -1162,7 +1162,7 @@ static int s626_ai_rinsn(struct comedi_device *dev,
 	 * first uint16_t in the buffer because it contains junk data from
 	 * the final ADC of the previous poll list scan.
 	 */
-	readaddr = (uint32_t *)devpriv->ANABuf.LogicalBase + 1;
+	readaddr = (uint32_t *)devpriv->ANABuf.logical_base + 1;
 
 	/*
 	 * Convert ADC data to 16-bit integer values and
@@ -1789,7 +1789,7 @@ static void WriteMISC2(struct comedi_device *dev, uint16_t NewImage)
 	DEBIwrite(dev, LP_MISC1, MISC1_WDISABLE); /* Disable writes to MISC2. */
 }
 
-static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
+static void CloseDMAB(struct comedi_device *dev, struct buffer_dma *pdma,
 		      size_t bsize)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -1800,12 +1800,12 @@ static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 		return;
 
 	/* find the matching allocation from the board struct */
-	vbptr = pdma->LogicalBase;
-	vpptr = pdma->PhysicalBase;
+	vbptr = pdma->logical_base;
+	vpptr = pdma->physical_base;
 	if (vbptr) {
 		pci_free_consistent(pcidev, bsize, vbptr, vpptr);
-		pdma->LogicalBase = NULL;
-		pdma->PhysicalBase = 0;
+		pdma->logical_base = NULL;
+		pdma->physical_base = 0;
 	}
 }
 
@@ -2470,14 +2470,14 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 	if (!addr)
 		return -ENOMEM;
-	devpriv->ANABuf.LogicalBase = addr;
-	devpriv->ANABuf.PhysicalBase = appdma;
+	devpriv->ANABuf.logical_base = addr;
+	devpriv->ANABuf.physical_base = appdma;
 
 	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 	if (!addr)
 		return -ENOMEM;
-	devpriv->RPSBuf.LogicalBase = addr;
-	devpriv->RPSBuf.PhysicalBase = appdma;
+	devpriv->RPSBuf.logical_base = addr;
+	devpriv->RPSBuf.physical_base = appdma;
 
 	return 0;
 }
@@ -2557,7 +2557,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Physical start of RPS program */
-	writel((uint32_t)devpriv->RPSBuf.PhysicalBase,
+	writel((uint32_t)devpriv->RPSBuf.physical_base,
 	       devpriv->mmio + P_RPSADDR1);
 	/* RPS program performs no explicit mem writes */
 	writel(0, devpriv->mmio + P_RPSPAGE1);
@@ -2625,7 +2625,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * single DWORD will be transferred each time a DMA transfer is
 	 * enabled.
 	 */
-	pPhysBuf = devpriv->ANABuf.PhysicalBase +
+	pPhysBuf = devpriv->ANABuf.physical_base +
 		   (DAC_WDMABUF_OS * sizeof(uint32_t));
 	writel((uint32_t)pPhysBuf, devpriv->mmio + P_BASEA2_OUT);
 	writel((uint32_t)(pPhysBuf + sizeof(uint32_t)),
@@ -2635,7 +2635,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * Cache Audio2's output DMA buffer logical address.  This is
 	 * where DAC data is buffered for A2 output DMA transfers.
 	 */
-	devpriv->pDacWBuf = (uint32_t *)devpriv->ANABuf.LogicalBase +
+	devpriv->pDacWBuf = (uint32_t *)devpriv->ANABuf.logical_base +
 			    DAC_WDMABUF_OS;
 
 	/*
