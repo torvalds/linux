@@ -254,7 +254,7 @@ static unsigned int si470x_get_step(struct si470x_device *radio)
 	/* 2:  50 kHz */
 	default:
 		return 50 * 16;
-	};
+	}
 }
 
 

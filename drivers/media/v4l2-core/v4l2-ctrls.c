@@ -583,7 +583,7 @@ const s64 const *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
 	default:
 		*len = 0;
 		return NULL;
-	};
+	}
 }
 EXPORT_SYMBOL(v4l2_ctrl_get_int_menu);
 
