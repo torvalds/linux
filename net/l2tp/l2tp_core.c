@@ -115,6 +115,11 @@ struct l2tp_net {
 static void l2tp_session_set_header_len(struct l2tp_session *session, int version);
 static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel);
 
+static inline struct l2tp_tunnel *l2tp_tunnel(struct sock *sk)
+{
+	return sk->sk_user_data;
+}
+
 static inline struct l2tp_net *l2tp_pernet(struct net *net)
 {
 	BUG_ON(!net);
@@ -499,7 +504,6 @@ out:
 static inline int l2tp_verify_udp_checksum(struct sock *sk,
 					   struct sk_buff *skb)
 {
-	struct l2tp_tunnel *tunnel = (struct l2tp_tunnel *)sk->sk_user_data;
 	struct udphdr *uh = udp_hdr(skb);
 	u16 ulen = ntohs(uh->len);
 	__wsum psum;
@@ -508,7 +512,7 @@ static inline int l2tp_verify_udp_checksum(struct sock *sk,
 		return 0;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == PF_INET6 && !tunnel->v4mapped) {
+	if (sk->sk_family == PF_INET6 && !l2tp_tunnel(sk)->v4mapped) {
 		if (!uh->check) {
 			LIMIT_NETDEBUG(KERN_INFO "L2TP: IPv6: checksum is 0\n");
 			return 1;
@@ -1248,10 +1252,9 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
  */
 static void l2tp_tunnel_destruct(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel;
+	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
 	struct l2tp_net *pn;
 
-	tunnel = sk->sk_user_data;
 	if (tunnel == NULL)
 		goto end;
 
@@ -1619,7 +1622,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	}
 
 	/* Check if this socket has already been prepped */
-	tunnel = (struct l2tp_tunnel *)sk->sk_user_data;
+	tunnel = l2tp_tunnel(sk);
 	if (tunnel != NULL) {
 		/* This socket has already been prepped */
 		err = -EBUSY;
