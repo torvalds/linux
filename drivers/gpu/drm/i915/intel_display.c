@@ -10106,14 +10106,14 @@ intel_user_framebuffer_create(struct drm_device *dev,
 }
 
 #ifndef CONFIG_DRM_I915_FBDEV
-static inline void intel_fb_output_poll_changed(struct drm_device *dev)
+static inline void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 }
 #endif
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
-	.output_poll_changed = intel_fb_output_poll_changed,
+	.output_poll_changed = intel_fbdev_output_poll_changed,
 };
 
 /* Set up chip specific display functions */
