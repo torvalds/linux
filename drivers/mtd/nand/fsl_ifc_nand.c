@@ -905,7 +905,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 		iounmap(priv->vbase);
 
 	ifc_nand_ctrl->chips[priv->bank] = NULL;
-	dev_set_drvdata(priv->dev, NULL);
 
 	return 0;
 }
