@@ -213,9 +213,14 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid)
 
 static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 {
-	u16 cid = L2CAP_CID_DYN_START;
+	u16 cid, dyn_end;
 
-	for (; cid < L2CAP_CID_DYN_END; cid++) {
+	if (conn->hcon->type == LE_LINK)
+		dyn_end = L2CAP_CID_LE_DYN_END;
+	else
+		dyn_end = L2CAP_CID_DYN_END;
+
+	for (cid = L2CAP_CID_DYN_START; cid < dyn_end; cid++) {
 		if (!__l2cap_get_chan_by_scid(conn, cid))
 			return cid;
 	}

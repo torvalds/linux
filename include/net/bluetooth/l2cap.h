@@ -252,6 +252,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_CID_SMP		0x0006
 #define L2CAP_CID_DYN_START	0x0040
 #define L2CAP_CID_DYN_END	0xffff
+#define L2CAP_CID_LE_DYN_END	0x007f
 
 /* connect/create channel results */
 #define L2CAP_CR_SUCCESS	0x0000
