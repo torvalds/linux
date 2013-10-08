@@ -71,7 +71,7 @@
 #include "comedi_fc.h"
 #include "s626.h"
 
-struct buffer_dma {
+struct s626_buffer_dma {
 	dma_addr_t physical_base;
 	void *logical_base;
 };
@@ -89,9 +89,9 @@ struct s626_private {
 	uint16_t counter_int_enabs;	/* counter interrupt enable mask
 					 * for MISC2 register */
 	uint8_t adc_items;		/* number of items in ADC poll list */
-	struct buffer_dma rps_buf;	/* DMA buffer used to hold ADC (RPS1)
+	struct s626_buffer_dma rps_buf;	/* DMA buffer used to hold ADC (RPS1)
 					 * program */
-	struct buffer_dma ana_buf;	/* DMA buffer used to receive ADC data
+	struct s626_buffer_dma ana_buf;	/* DMA buffer used to receive ADC data
 					 * and hold DAC data */
 	uint32_t *dac_wbuf;		/* pointer to logical adrs of DMA buffer
 					 * used to hold DAC data */
@@ -2449,7 +2449,7 @@ static void write_misc2(struct comedi_device *dev, uint16_t new_image)
 	debi_write(dev, LP_MISC1, MISC1_WDISABLE); /* Disable writes to MISC2 */
 }
 
-static void close_dma_b(struct comedi_device *dev, struct buffer_dma *pdma,
+static void close_dma_b(struct comedi_device *dev, struct s626_buffer_dma *pdma,
 			size_t bsize)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
