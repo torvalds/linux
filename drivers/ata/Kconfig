@@ -85,6 +85,7 @@ config SATA_AHCI_PLATFORM
 
 config SW_SATA_AHCI_PLATFORM
 	tristate "SoftWinner Platform AHCI SATA support"
+	depends on ARCH_SUN4I || ARCH_SUN7I
 	help
 	  This option enables support for SoftWinner Platform AHCI Serial ATA
 	  controllers.

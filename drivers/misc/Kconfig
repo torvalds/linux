@@ -87,6 +87,7 @@ config ATMEL_PWM
 
 config SUNXI_PWM 
 	tristate "Sunxi PWM Driver (pwm-sunxi)" 
+	depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
 	help 
 	  Say Y here if you want Hardware PWM Support 
  
