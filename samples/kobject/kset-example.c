@@ -262,6 +262,7 @@ baz_error:
 bar_error:
 	destroy_foo_obj(foo_obj);
 foo_error:
+	kset_unregister(example_kset);
 	return -EINVAL;
 }
 
