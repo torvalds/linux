@@ -84,7 +84,11 @@ static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	trace_kvm_wfi(*vcpu_pc(vcpu));
-	kvm_vcpu_block(vcpu);
+	if (kvm_vcpu_get_hsr(vcpu) & HSR_WFI_IS_WFE)
+		kvm_vcpu_on_spin(vcpu);
+	else
+		kvm_vcpu_block(vcpu);
+
 	return 1;
 }
 
