@@ -1912,9 +1912,6 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 
 	sport->devdata = of_id->data;
 
-	if (of_device_is_stdout_path(np))
-		add_preferred_console(imx_reg.cons->name, sport->port.line, 0);
-
 	return 0;
 }
 #else
