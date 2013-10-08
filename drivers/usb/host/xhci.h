@@ -383,6 +383,7 @@ struct xhci_op_regs {
 #define	PORT_RWE		(1 << 3)
 #define	PORT_HIRD(p)		(((p) & 0xf) << 4)
 #define	PORT_HIRD_MASK		(0xf << 4)
+#define	PORT_L1DS_MASK		(0xff << 8)
 #define	PORT_L1DS(p)		(((p) & 0xff) << 8)
 #define	PORT_HLE		(1 << 16)
 
