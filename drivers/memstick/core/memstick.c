@@ -153,24 +153,24 @@ static ssize_t name##_show(struct device *dev, struct device_attribute *attr, \
 	struct memstick_dev *card = container_of(dev, struct memstick_dev,    \
 						 dev);                        \
 	return sprintf(buf, format, card->id.name);                           \
-}
+}                                                                             \
+static DEVICE_ATTR_RO(name);
 
 MEMSTICK_ATTR(type, "%02X");
 MEMSTICK_ATTR(category, "%02X");
 MEMSTICK_ATTR(class, "%02X");
 
-#define MEMSTICK_ATTR_RO(name) __ATTR(name, S_IRUGO, name##_show, NULL)
-
-static struct device_attribute memstick_dev_attrs[] = {
-	MEMSTICK_ATTR_RO(type),
-	MEMSTICK_ATTR_RO(category),
-	MEMSTICK_ATTR_RO(class),
-	__ATTR_NULL
+static struct attribute *memstick_dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_category.attr,
+	&dev_attr_class.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(memstick_dev);
 
 static struct bus_type memstick_bus_type = {
 	.name           = "memstick",
-	.dev_attrs      = memstick_dev_attrs,
+	.dev_groups	= memstick_dev_groups,
 	.match          = memstick_bus_match,
 	.uevent         = memstick_uevent,
 	.probe          = memstick_device_probe,
