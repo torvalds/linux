@@ -1550,6 +1550,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_uncore_early_sanitize(dev);
 
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_detect_pch(dev);
+
+	intel_uncore_init(dev);
+
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
 		goto out_regs;
@@ -1607,12 +1612,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
-	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(dev);
-
 	intel_irq_init(dev);
 	intel_pm_init(dev);
-	intel_uncore_init(dev);
 	intel_uncore_sanitize(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
@@ -1698,6 +1699,7 @@ out_gtt:
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
 	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
 out_regs:
+	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
