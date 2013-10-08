@@ -168,7 +168,7 @@ static const struct sh_mmcif_plat_data mmcif0_pdata __initconst = {
 };
 
 static const struct resource mmcif0_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xee200000, 0x100, "MMCIF0"),
+	DEFINE_RES_MEM(0xee200000, 0x100),
 	DEFINE_RES_IRQ(gic_spi(169)),
 };
 
