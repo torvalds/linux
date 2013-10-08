@@ -26,7 +26,7 @@
 
 #include "gdm_mux.h"
 
-struct workqueue_struct *mux_rx_wq;
+static struct workqueue_struct *mux_rx_wq;
 
 static u16 packet_type[TTY_MAX_COUNT] = {0xF011, 0xF010};
 
@@ -51,7 +51,7 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-int packet_type_to_index(u16 packetType)
+static int packet_type_to_index(u16 packetType)
 {
 	int i;
 

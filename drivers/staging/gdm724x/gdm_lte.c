@@ -110,7 +110,7 @@ static int gdm_lte_rx(struct sk_buff *skb, struct nic *nic, int nic_type)
 	return 0;
 }
 
-int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
+static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 {
 	struct nic *nic = netdev_priv(skb_in->dev);
 	struct sk_buff *skb_out;
@@ -186,7 +186,7 @@ int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 	return 0;
 }
 
-int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
+static int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 {
 	unsigned short *w = ptr;
 	int sum = 0;
@@ -226,7 +226,7 @@ int icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 	return sum;
 }
 
-int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
+static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 {
 	struct nic *nic = netdev_priv(skb_in->dev);
 	struct sk_buff *skb_out;
