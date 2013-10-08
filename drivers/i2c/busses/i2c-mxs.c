@@ -780,12 +780,13 @@ static struct platform_driver mxs_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
+	.probe = mxs_i2c_probe,
 	.remove = mxs_i2c_remove,
 };
 
 static int __init mxs_i2c_init(void)
 {
-	return platform_driver_probe(&mxs_i2c_driver, mxs_i2c_probe);
+	return platform_driver_register(&mxs_i2c_driver);
 }
 subsys_initcall(mxs_i2c_init);
 
