@@ -316,7 +316,7 @@ static struct platform_device tmu01_device = {
 };
 
 static struct resource i2c0_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xe6820000, 0x426, "IIC0"),
+	[0] = DEFINE_RES_MEM(0xe6820000, 0x426),
 	[1] = {
 		.start	= gic_spi(167),
 		.end	= gic_spi(170),
@@ -325,7 +325,7 @@ static struct resource i2c0_resources[] = {
 };
 
 static struct resource i2c1_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xe6822000, 0x426, "IIC1"),
+	[0] = DEFINE_RES_MEM(0xe6822000, 0x426),
 	[1] = {
 		.start	= gic_spi(51),
 		.end	= gic_spi(54),
@@ -334,7 +334,7 @@ static struct resource i2c1_resources[] = {
 };
 
 static struct resource i2c2_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xe6824000, 0x426, "IIC2"),
+	[0] = DEFINE_RES_MEM(0xe6824000, 0x426),
 	[1] = {
 		.start	= gic_spi(171),
 		.end	= gic_spi(174),
@@ -343,7 +343,7 @@ static struct resource i2c2_resources[] = {
 };
 
 static struct resource i2c3_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xe6826000, 0x426, "IIC3"),
+	[0] = DEFINE_RES_MEM(0xe6826000, 0x426),
 	[1] = {
 		.start	= gic_spi(183),
 		.end	= gic_spi(186),
@@ -352,7 +352,7 @@ static struct resource i2c3_resources[] = {
 };
 
 static struct resource i2c4_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xe6828000, 0x426, "IIC4"),
+	[0] = DEFINE_RES_MEM(0xe6828000, 0x426),
 	[1] = {
 		.start	= gic_spi(187),
 		.end	= gic_spi(190),
