@@ -1,63 +1,63 @@
 /*
-  comedi/drivers/s626.c
-  Sensoray s626 Comedi driver
-
-  COMEDI - Linux Control and Measurement Device Interface
-  Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-  Based on Sensoray Model 626 Linux driver Version 0.2
-  Copyright (C) 2002-2004 Sensoray Co., Inc.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-*/
+ * comedi/drivers/s626.c
+ * Sensoray s626 Comedi driver
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * Based on Sensoray Model 626 Linux driver Version 0.2
+ * Copyright (C) 2002-2004 Sensoray Co., Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-Driver: s626
-Description: Sensoray 626 driver
-Devices: [Sensoray] 626 (s626)
-Authors: Gianluca Palli <gpalli@deis.unibo.it>,
-Updated: Fri, 15 Feb 2008 10:28:42 +0000
-Status: experimental
+ * Driver: s626
+ * Description: Sensoray 626 driver
+ * Devices: [Sensoray] 626 (s626)
+ * Authors: Gianluca Palli <gpalli@deis.unibo.it>,
+ * Updated: Fri, 15 Feb 2008 10:28:42 +0000
+ * Status: experimental
 
-Configuration options: not applicable, uses PCI auto config
+ * Configuration options: not applicable, uses PCI auto config
 
-INSN_CONFIG instructions:
-  analog input:
-   none
-
-  analog output:
-   none
-
-  digital channel:
-   s626 has 3 dio subdevices (2,3 and 4) each with 16 i/o channels
-   supported configuration options:
-   INSN_CONFIG_DIO_QUERY
-   COMEDI_INPUT
-   COMEDI_OUTPUT
-
-  encoder:
-   Every channel must be configured before reading.
-
-   Example code
-
-   insn.insn=INSN_CONFIG;   //configuration instruction
-   insn.n=1;                //number of operation (must be 1)
-   insn.data=&initialvalue; //initial value loaded into encoder
-				//during configuration
-   insn.subdev=5;           //encoder subdevice
-   insn.chanspec=CR_PACK(encoder_channel,0,AREF_OTHER); //encoder_channel
-							//to configure
-
-   comedi_do_insn(cf,&insn); //executing configuration
-*/
+ * INSN_CONFIG instructions:
+ *   analog input:
+ *    none
+ *
+ *   analog output:
+ *    none
+ *
+ *   digital channel:
+ *    s626 has 3 dio subdevices (2,3 and 4) each with 16 i/o channels
+ *    supported configuration options:
+ *    INSN_CONFIG_DIO_QUERY
+ *    COMEDI_INPUT
+ *    COMEDI_OUTPUT
+ *
+ *   encoder:
+ *    Every channel must be configured before reading.
+ *
+ *   Example code
+ *
+ *    insn.insn=INSN_CONFIG;   //configuration instruction
+ *    insn.n=1;                //number of operation (must be 1)
+ *    insn.data=&initialvalue; //initial value loaded into encoder
+ *                             //during configuration
+ *    insn.subdev=5;           //encoder subdevice
+ *    insn.chanspec=CR_PACK(encoder_channel,0,AREF_OTHER); //encoder_channel
+ *                                                         //to configure
+ *
+ *    comedi_do_insn(cf,&insn); //executing configuration
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
