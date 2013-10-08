@@ -101,6 +101,12 @@ config ARCH_R8A7790
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
+config ARCH_R8A7791
+	bool "R-Car M2 (R8A77910)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
+
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
