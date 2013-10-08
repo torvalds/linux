@@ -155,7 +155,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 
 	host->io_base = of_iomap(ofdev->dev.of_node, 0);
 	if (host->io_base == NULL) {
-		printk(KERN_ERR "socrates_nand: ioremap failed\n");
+		dev_err(&ofdev->dev, "ioremap failed\n");
 		return -EIO;
 	}
 
