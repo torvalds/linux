@@ -372,7 +372,9 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
-	write_checkpoint(sbi, true);
+	/* We don't need to do checkpoint when it's clean */
+	if (sbi->s_dirty && get_pages(sbi, F2FS_DIRTY_NODES))
+		write_checkpoint(sbi, true);
 
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
