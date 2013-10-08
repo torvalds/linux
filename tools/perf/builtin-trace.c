@@ -44,6 +44,7 @@ struct syscall_arg {
 };
 
 struct strarray {
+	int	    offset;
 	int	    nr_entries;
 	const char **entries;
 };
@@ -53,14 +54,20 @@ struct strarray {
 	.entries = array, \
 }
 
+#define DEFINE_STRARRAY_OFFSET(array, off) struct strarray strarray__##array = { \
+	.offset	    = off, \
+	.nr_entries = ARRAY_SIZE(array), \
+	.entries = array, \
+}
+
 static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
 					      struct syscall_arg *arg)
 {
-	int idx = arg->val;
 	struct strarray *sa = arg->parm;
+	int idx = arg->val - sa->offset;
 
 	if (idx < 0 || idx >= sa->nr_entries)
-		return scnprintf(bf, size, "%d", idx);
+		return scnprintf(bf, size, "%d", arg->val);
 
 	return scnprintf(bf, size, "%s", sa->entries[idx]);
 }
@@ -288,8 +295,8 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
 
-static const char *epoll_ctl_ops[] = { [1] = "ADD", "DEL", "MOD", };
-static DEFINE_STRARRAY(epoll_ctl_ops);
+static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
+static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
 
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
 static DEFINE_STRARRAY(itimers);
