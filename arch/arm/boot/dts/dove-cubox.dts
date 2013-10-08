@@ -99,18 +99,12 @@
 			silabs,pll-master;
 		};
 
-		clkout1 {
-			reg = <1>;
+		clkout2 {
+			reg = <2>;
 			silabs,drive-strength = <8>;
 			silabs,multisynth-source = <1>;
 			silabs,clock-source = <0>;
 			silabs,pll-master;
-		};
-
-		clkout2 {
-			reg = <2>;
-			silabs,multisynth-source = <1>;
-			silabs,clock-source = <0>;
 		};
 	};
 };
