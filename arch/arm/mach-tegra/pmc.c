@@ -288,6 +288,7 @@ void tegra_pmc_suspend_init(void)
 #endif
 
 static const struct of_device_id matches[] __initconst = {
+	{ .compatible = "nvidia,tegra124-pmc" },
 	{ .compatible = "nvidia,tegra114-pmc" },
 	{ .compatible = "nvidia,tegra30-pmc" },
 	{ .compatible = "nvidia,tegra20-pmc" },
