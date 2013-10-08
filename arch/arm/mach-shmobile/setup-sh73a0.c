@@ -722,7 +722,7 @@ static struct platform_device pmu_device = {
 
 /* an IPMMU module for ICB */
 static struct resource ipmmu_resources[] = {
-	DEFINE_RES_MEM_NAMED(0xfe951000, 0x100, "IPMMU"),
+	DEFINE_RES_MEM(0xfe951000, 0x100),
 };
 
 static const char * const ipmmu_dev_names[] = {
