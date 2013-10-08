@@ -39,6 +39,7 @@
 #include <asm/break.h>
 #include <asm/cop2.h>
 #include <asm/cpu.h>
+#include <asm/cpu-type.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
@@ -622,7 +623,7 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 		regs->regs[rt] = read_c0_count();
 		return 0;
 	case 3:		/* Count register resolution */
-		switch (current_cpu_data.cputype) {
+		switch (current_cpu_type()) {
 		case CPU_20KC:
 		case CPU_25KF:
 			regs->regs[rt] = 1;

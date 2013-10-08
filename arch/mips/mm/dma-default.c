@@ -18,6 +18,7 @@
 #include <linux/highmem.h>
 
 #include <asm/cache.h>
+#include <asm/cpu-type.h>
 #include <asm/io.h>
 
 #include <dma-coherence.h>

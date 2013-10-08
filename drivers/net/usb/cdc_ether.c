@@ -33,7 +33,7 @@
 #include <linux/usb/usbnet.h>
 
 
-#if defined(CONFIG_USB_NET_RNDIS_HOST) || defined(CONFIG_USB_NET_RNDIS_HOST_MODULE)
+#if IS_ENABLED(CONFIG_USB_NET_RNDIS_HOST)
 
 static int is_rndis(struct usb_interface_descriptor *desc)
 {
@@ -69,8 +69,7 @@ static const u8 mbm_guid[16] = {
 	0xa6, 0x07, 0xc0, 0xff, 0xcb, 0x7e, 0x39, 0x2a,
 };
 
-/*
- * probes control interface, claims data interface, collects the bulk
+/* probes control interface, claims data interface, collects the bulk
  * endpoints, activates data interface (if needed), maybe sets MTU.
  * all pure cdc, except for certain firmware workarounds, and knowing
  * that rndis uses one different rule.
@@ -88,7 +87,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_cdc_mdlm_desc	*desc = NULL;
 	struct usb_cdc_mdlm_detail_desc *detail = NULL;
 
-	if (sizeof dev->data < sizeof *info)
+	if (sizeof(dev->data) < sizeof(*info))
 		return -EDOM;
 
 	/* expect strict spec conformance for the descriptors, but
@@ -126,10 +125,10 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		 is_activesync(&intf->cur_altsetting->desc) ||
 		 is_wireless_rndis(&intf->cur_altsetting->desc));
 
-	memset(info, 0, sizeof *info);
+	memset(info, 0, sizeof(*info));
 	info->control = intf;
 	while (len > 3) {
-		if (buf [1] != USB_DT_CS_INTERFACE)
+		if (buf[1] != USB_DT_CS_INTERFACE)
 			goto next_desc;
 
 		/* use bDescriptorSubType to identify the CDC descriptors.
@@ -139,14 +138,14 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		 * in favor of a complicated OID-based RPC scheme doing what
 		 * CDC Ethernet achieves with a simple descriptor.
 		 */
-		switch (buf [2]) {
+		switch (buf[2]) {
 		case USB_CDC_HEADER_TYPE:
 			if (info->header) {
 				dev_dbg(&intf->dev, "extra CDC header\n");
 				goto bad_desc;
 			}
 			info->header = (void *) buf;
-			if (info->header->bLength != sizeof *info->header) {
+			if (info->header->bLength != sizeof(*info->header)) {
 				dev_dbg(&intf->dev, "CDC header len %u\n",
 					info->header->bLength);
 				goto bad_desc;
@@ -175,7 +174,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto bad_desc;
 			}
 			info->u = (void *) buf;
-			if (info->u->bLength != sizeof *info->u) {
+			if (info->u->bLength != sizeof(*info->u)) {
 				dev_dbg(&intf->dev, "CDC union len %u\n",
 					info->u->bLength);
 				goto bad_desc;
@@ -233,7 +232,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto bad_desc;
 			}
 			info->ether = (void *) buf;
-			if (info->ether->bLength != sizeof *info->ether) {
+			if (info->ether->bLength != sizeof(*info->ether)) {
 				dev_dbg(&intf->dev, "CDC ether len %u\n",
 					info->ether->bLength);
 				goto bad_desc;
@@ -274,8 +273,8 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 			break;
 		}
 next_desc:
-		len -= buf [0];	/* bLength */
-		buf += buf [0];
+		len -= buf[0];	/* bLength */
+		buf += buf[0];
 	}
 
 	/* Microsoft ActiveSync based and some regular RNDIS devices lack the
@@ -379,9 +378,7 @@ void usbnet_cdc_unbind(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usbnet_cdc_unbind);
 
-/*-------------------------------------------------------------------------
- *
- * Communications Device Class, Ethernet Control model
+/* Communications Device Class, Ethernet Control model
  *
  * Takes two interfaces.  The DATA interface is inactive till an altsetting
  * is selected.  Configuration data includes class descriptors.  There's
@@ -389,8 +386,7 @@ EXPORT_SYMBOL_GPL(usbnet_cdc_unbind);
  *
  * This should interop with whatever the 2.4 "CDCEther.c" driver
  * (by Brad Hards) talked with, with more functionality.
- *
- *-------------------------------------------------------------------------*/
+ */
 
 static void dumpspeed(struct usbnet *dev, __le32 *speeds)
 {
@@ -404,7 +400,7 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 {
 	struct usb_cdc_notification	*event;
 
-	if (urb->actual_length < sizeof *event)
+	if (urb->actual_length < sizeof(*event))
 		return;
 
 	/* SPEED_CHANGE can get split into two 8-byte packets */
@@ -423,7 +419,7 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 	case USB_CDC_NOTIFY_SPEED_CHANGE:	/* tx/rx rates */
 		netif_dbg(dev, timer, dev->net, "CDC: speed change (len %d)\n",
 			  urb->actual_length);
-		if (urb->actual_length != (sizeof *event + 8))
+		if (urb->actual_length != (sizeof(*event) + 8))
 			set_bit(EVENT_STS_SPLIT, &dev->flags);
 		else
 			dumpspeed(dev, (__le32 *) &event[1]);
@@ -469,7 +465,6 @@ EXPORT_SYMBOL_GPL(usbnet_cdc_bind);
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
-	// .check_connect = cdc_check_connect,
 	.bind =		usbnet_cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
@@ -493,9 +488,8 @@ static const struct driver_info wwan_info = {
 #define DELL_VENDOR_ID		0x413C
 #define REALTEK_VENDOR_ID	0x0bda
 
-static const struct usb_device_id	products [] = {
-/*
- * BLACKLIST !!
+static const struct usb_device_id	products[] = {
+/* BLACKLIST !!
  *
  * First blacklist any products that are egregiously nonconformant
  * with the CDC Ethernet specs.  Minor braindamage we cope with; when
@@ -542,7 +536,7 @@ static const struct usb_device_id	products [] = {
 	.driver_info		= 0,
 }, {
 	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
-	          | USB_DEVICE_ID_MATCH_DEVICE,
+			  | USB_DEVICE_ID_MATCH_DEVICE,
 	.idVendor		= 0x04DD,
 	.idProduct		= 0x8007,	/* C-700 */
 	ZAURUS_MASTER_INTERFACE,
@@ -659,8 +653,7 @@ static const struct usb_device_id	products [] = {
 	.driver_info = 0,
 },
 
-/*
- * WHITELIST!!!
+/* WHITELIST!!!
  *
  * CDC Ether uses two interfaces, not necessarily consecutive.
  * We match the main interface, ignoring the optional device
@@ -672,59 +665,39 @@ static const struct usb_device_id	products [] = {
  */
 {
 	/* ZTE (Vodafone) K3805-Z */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_PRODUCT
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = ZTE_VENDOR_ID,
-	.idProduct		= 0x1003,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1003, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K3806-Z */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_PRODUCT
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = ZTE_VENDOR_ID,
-	.idProduct		= 0x1015,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1015, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K4510-Z */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_PRODUCT
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = ZTE_VENDOR_ID,
-	.idProduct		= 0x1173,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1173, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K3770-Z */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_PRODUCT
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = ZTE_VENDOR_ID,
-	.idProduct		= 0x1177,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1177, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K3772-Z */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_PRODUCT
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = ZTE_VENDOR_ID,
-	.idProduct		= 0x1181,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1181, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&wwan_info,
+}, {
+	/* Telit modules */
+	USB_VENDOR_AND_INTERFACE_INFO(0x1bc7, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = (kernel_ulong_t) &wwan_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),
@@ -736,15 +709,11 @@ static const struct usb_device_id	products [] = {
 
 }, {
 	/* Various Huawei modems with a network port like the UMG1831 */
-	.match_flags    =   USB_DEVICE_ID_MATCH_VENDOR
-		 | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor               = HUAWEI_VENDOR_ID,
-	.bInterfaceClass	= USB_CLASS_COMM,
-	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
-	.bInterfaceProtocol	= 255,
+	USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET, 255),
 	.driver_info = (unsigned long)&wwan_info,
 },
-	{ },		// END
+	{ },		/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);
 

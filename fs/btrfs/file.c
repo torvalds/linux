@@ -1859,8 +1859,8 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	ret = btrfs_log_dentry_safe(trans, root, dentry);
 	if (ret < 0) {
-		mutex_unlock(&inode->i_mutex);
-		goto out;
+		/* Fallthrough and commit/free transaction. */
+		ret = 1;
 	}
 
 	/* we've logged all the items and now have a consistent

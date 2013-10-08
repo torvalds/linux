@@ -63,7 +63,8 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 			return -ENOMEM;
 		}
 
-		buf->kvaddr = dma_alloc_attrs(dev->dev, buf->size,
+		buf->kvaddr = (void __iomem *)dma_alloc_attrs(dev->dev,
+					buf->size,
 					&buf->dma_addr, GFP_KERNEL,
 					&buf->dma_attrs);
 		if (!buf->kvaddr) {
@@ -90,9 +91,9 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 	}
 
 	buf->sgt = drm_prime_pages_to_sg(buf->pages, nr_pages);
-	if (!buf->sgt) {
+	if (IS_ERR(buf->sgt)) {
 		DRM_ERROR("failed to get sg table.\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(buf->sgt);
 		goto err_free_attrs;
 	}
 

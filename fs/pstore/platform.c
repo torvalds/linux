@@ -168,7 +168,7 @@ static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
 	int err, ret;
 
 	ret = -EIO;
-	err = zlib_inflateInit(&stream);
+	err = zlib_inflateInit2(&stream, WINDOW_BITS);
 	if (err != Z_OK)
 		goto error;
 
@@ -195,8 +195,29 @@ error:
 static void allocate_buf_for_compression(void)
 {
 	size_t size;
+	size_t cmpr;
 
-	big_oops_buf_sz = (psinfo->bufsize * 100) / 45;
+	switch (psinfo->bufsize) {
+	/* buffer range for efivars */
+	case 1000 ... 2000:
+		cmpr = 56;
+		break;
+	case 2001 ... 3000:
+		cmpr = 54;
+		break;
+	case 3001 ... 3999:
+		cmpr = 52;
+		break;
+	/* buffer range for nvram, erst */
+	case 4000 ... 10000:
+		cmpr = 45;
+		break;
+	default:
+		cmpr = 60;
+		break;
+	}
+
+	big_oops_buf_sz = (psinfo->bufsize * 100) / cmpr;
 	big_oops_buf = kmalloc(big_oops_buf_sz, GFP_KERNEL);
 	if (big_oops_buf) {
 		size = max(zlib_deflate_workspacesize(WINDOW_BITS, MEM_LEVEL),
@@ -295,10 +316,6 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 				compressed = true;
 				total_len = zipped_len;
 			} else {
-				pr_err("pstore: compression failed for Part %d"
-					" returned %d\n", part, zipped_len);
-				pr_err("pstore: Capture uncompressed"
-					" oops/panic report of Part %d\n", part);
 				compressed = false;
 				total_len = copy_kmsg_to_buffer(hsize, len);
 			}

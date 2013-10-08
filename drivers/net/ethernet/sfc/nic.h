@@ -400,6 +400,8 @@ enum {
  * @rx_rss_context: Firmware handle for our RSS context
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
+ * @must_check_datapath_caps: Flag: @datapath_caps needs to be revalidated
+ *	after MC reboot
  * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of
  *	%MC_CMD_GET_CAPABILITIES response)
  */
@@ -413,6 +415,7 @@ struct efx_ef10_nic_data {
 	u32 rx_rss_context;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
+	bool must_check_datapath_caps;
 	u32 datapath_caps;
 };
 
