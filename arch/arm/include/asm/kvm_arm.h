@@ -67,7 +67,7 @@
  */
 #define HCR_GUEST_MASK (HCR_TSC | HCR_TSW | HCR_TWI | HCR_VM | HCR_BSU_IS | \
 			HCR_FB | HCR_TAC | HCR_AMO | HCR_IMO | HCR_FMO | \
-			HCR_SWIO | HCR_TIDCP)
+			HCR_TWE | HCR_SWIO | HCR_TIDCP)
 #define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
 
 /* System Control Register (SCTLR) bits */
@@ -207,6 +207,8 @@
 #define HSR_EC_IABT_HYP	(0x21)
 #define HSR_EC_DABT	(0x24)
 #define HSR_EC_DABT_HYP	(0x25)
+
+#define HSR_WFI_IS_WFE		(1U << 0)
 
 #define HSR_HVC_IMM_MASK	((1UL << 16) - 1)
 
