@@ -507,7 +507,7 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 
 		len -= ie_len;
 		data += ie_len;
-	};
+	}
 
 	if (!ar->firmware_data || !ar->firmware_len) {
 		ath10k_warn("No ATH10K_FW_IE_FW_IMAGE found from %s, skipping\n",
