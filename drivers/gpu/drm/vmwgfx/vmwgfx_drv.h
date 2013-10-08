@@ -245,6 +245,67 @@ struct vmw_piter {
 	struct page *(*page)(struct vmw_piter *);
 };
 
+/*
+ * enum vmw_ctx_binding_type - abstract resource to context binding types
+ */
+enum vmw_ctx_binding_type {
+	vmw_ctx_binding_shader,
+	vmw_ctx_binding_rt,
+	vmw_ctx_binding_tex,
+	vmw_ctx_binding_max
+};
+
+/**
+ * struct vmw_ctx_bindinfo - structure representing a single context binding
+ *
+ * @ctx: Pointer to the context structure. NULL means the binding is not
+ * active.
+ * @bt: The binding type.
+ * @i1: Union of information needed to unbind.
+ */
+struct vmw_ctx_bindinfo {
+	struct vmw_resource *ctx;
+	enum vmw_ctx_binding_type bt;
+	union {
+		SVGA3dShaderType shader_type;
+		SVGA3dRenderTargetType rt_type;
+		uint32 texture_stage;
+	} i1;
+};
+
+/**
+ * struct vmw_ctx_binding - structure representing a single context binding
+ *                        - suitable for tracking in a context
+ *
+ * @ctx_list: List head for context.
+ * @bi: Binding info
+ */
+struct vmw_ctx_binding {
+	struct list_head ctx_list;
+	struct vmw_ctx_bindinfo bi;
+};
+
+
+/**
+ * struct vmw_ctx_binding_state - context binding state
+ *
+ * @list: linked list of individual bindings.
+ * @render_targets: Render target bindings.
+ * @texture_units: Texture units/samplers bindings.
+ * @shaders: Shader bindings.
+ *
+ * Note that this structure also provides storage space for the individual
+ * struct vmw_ctx_binding objects, so that no dynamic allocation is needed
+ * for individual bindings.
+ *
+ */
+struct vmw_ctx_binding_state {
+	struct list_head list;
+	struct vmw_ctx_binding render_targets[SVGA3D_RT_MAX];
+	struct vmw_ctx_binding texture_units[SVGA3D_NUM_TEXTURE_UNITS];
+	struct vmw_ctx_binding shaders[SVGA3D_SHADERTYPE_MAX];
+};
+
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
@@ -266,6 +327,7 @@ struct vmw_sw_context{
 	struct vmw_resource *last_query_ctx;
 	bool needs_post_query_barrier;
 	struct vmw_resource *error_resource;
+	struct vmw_ctx_binding_state staged_bindings;
 };
 
 struct vmw_legacy_display;
@@ -876,6 +938,9 @@ extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 extern int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
+extern int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
+				   const struct vmw_ctx_bindinfo *ci);
+extern void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs);
 
 /*
  * Surface management - vmwgfx_surface.c

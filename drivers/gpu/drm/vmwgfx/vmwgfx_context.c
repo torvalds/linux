@@ -34,6 +34,10 @@ struct vmw_user_context {
 	struct vmw_resource res;
 };
 
+
+
+typedef int (*vmw_scrub_func)(struct vmw_ctx_bindinfo *);
+
 static void vmw_user_context_free(struct vmw_resource *res);
 static struct vmw_resource *
 vmw_user_context_base_to_res(struct ttm_base_object *base);
@@ -45,6 +49,9 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 				 bool readback,
 				 struct ttm_validate_buffer *val_buf);
 static int vmw_gb_context_destroy(struct vmw_resource *res);
+static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi);
+static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi);
+static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi);
 
 static uint64_t vmw_user_context_size;
 
@@ -81,6 +88,11 @@ static const struct vmw_res_func vmw_gb_context_func = {
 	.bind = vmw_gb_context_bind,
 	.unbind = vmw_gb_context_unbind
 };
+
+static const vmw_scrub_func vmw_scrub_funcs[vmw_ctx_binding_max] = {
+	[vmw_ctx_binding_shader] = vmw_context_scrub_shader,
+	[vmw_ctx_binding_rt] = vmw_context_scrub_render_target,
+	[vmw_ctx_binding_tex] = vmw_context_scrub_texture };
 
 /**
  * Context management:
@@ -493,4 +505,208 @@ out_unlock:
 	ttm_read_unlock(&vmaster->lock);
 	return ret;
 
+}
+
+/**
+ * vmw_context_scrub_shader - scrub a shader binding from a context.
+ *
+ * @bi: single binding information.
+ */
+static int vmw_context_scrub_shader(struct vmw_ctx_bindinfo *bi)
+{
+	struct vmw_private *dev_priv = bi->ctx->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdSetShader body;
+	} *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for shader "
+			  "unbinding.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_SET_SHADER;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = bi->ctx->id;
+	cmd->body.type = bi->i1.shader_type;
+	cmd->body.shid = SVGA3D_INVALID_ID;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+/**
+ * vmw_context_scrub_render_target - scrub a render target binding
+ * from a context.
+ *
+ * @bi: single binding information.
+ */
+static int vmw_context_scrub_render_target(struct vmw_ctx_bindinfo *bi)
+{
+	struct vmw_private *dev_priv = bi->ctx->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdSetRenderTarget body;
+	} *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for render target "
+			  "unbinding.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_SETRENDERTARGET;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = bi->ctx->id;
+	cmd->body.type = bi->i1.rt_type;
+	cmd->body.target.sid = SVGA3D_INVALID_ID;
+	cmd->body.target.face = 0;
+	cmd->body.target.mipmap = 0;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+/**
+ * vmw_context_scrub_texture - scrub a texture binding from a context.
+ *
+ * @bi: single binding information.
+ *
+ * TODO: Possibly complement this function with a function that takes
+ * a list of texture bindings and combines them to a single command.
+ */
+static int vmw_context_scrub_texture(struct vmw_ctx_bindinfo *bi)
+{
+	struct vmw_private *dev_priv = bi->ctx->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		struct {
+			SVGA3dCmdSetTextureState c;
+			SVGA3dTextureState s1;
+		} body;
+	} *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for texture "
+			  "unbinding.\n");
+		return -ENOMEM;
+	}
+
+
+	cmd->header.id = SVGA_3D_CMD_SETTEXTURESTATE;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.c.cid = bi->ctx->id;
+	cmd->body.s1.stage = bi->i1.texture_stage;
+	cmd->body.s1.name = SVGA3D_TS_BIND_TEXTURE;
+	cmd->body.s1.value = (uint32) SVGA3D_INVALID_ID;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+/**
+ * vmw_context_binding_drop: Stop tracking a context binding
+ *
+ * @cb: Pointer to binding tracker storage.
+ *
+ * Stops tracking a context binding, and re-initializes its storage.
+ * Typically used when the context binding is replaced with a binding to
+ * another (or the same, for that matter) resource.
+ */
+static void vmw_context_binding_drop(struct vmw_ctx_binding *cb)
+{
+	list_del(&cb->ctx_list);
+	cb->bi.ctx = NULL;
+}
+
+/**
+ * vmw_context_binding_add: Start tracking a context binding
+ *
+ * @cbs: Pointer to the context binding state tracker.
+ * @bi: Information about the binding to track.
+ *
+ * Performs basic checks on the binding to make sure arguments are within
+ * bounds and then starts tracking the binding in the context binding
+ * state structure @cbs.
+ */
+int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
+			    const struct vmw_ctx_bindinfo *bi)
+{
+	struct vmw_ctx_binding *loc;
+
+	switch (bi->bt) {
+	case vmw_ctx_binding_rt:
+		if (unlikely((unsigned)bi->i1.rt_type >= SVGA3D_RT_MAX)) {
+			DRM_ERROR("Illegal render target type %u.\n",
+				  (unsigned) bi->i1.rt_type);
+			return -EINVAL;
+		}
+		loc = &cbs->render_targets[bi->i1.rt_type];
+		break;
+	case vmw_ctx_binding_tex:
+		if (unlikely((unsigned)bi->i1.texture_stage >=
+			     SVGA3D_NUM_TEXTURE_UNITS)) {
+			DRM_ERROR("Illegal texture/sampler unit %u.\n",
+				  (unsigned) bi->i1.texture_stage);
+			return -EINVAL;
+		}
+		loc = &cbs->texture_units[bi->i1.texture_stage];
+		break;
+	case vmw_ctx_binding_shader:
+		if (unlikely((unsigned)bi->i1.shader_type >=
+			     SVGA3D_SHADERTYPE_MAX)) {
+			DRM_ERROR("Illegal shader type %u.\n",
+				  (unsigned) bi->i1.shader_type);
+			return -EINVAL;
+		}
+		loc = &cbs->shaders[bi->i1.shader_type];
+		break;
+	default:
+		BUG();
+	}
+
+	if (loc->bi.ctx != NULL)
+		vmw_context_binding_drop(loc);
+
+	loc->bi = *bi;
+	list_add_tail(&loc->ctx_list, &cbs->list);
+
+	return 0;
+}
+
+/**
+ * vmw_context_binding_kill - Kill a binding on the device
+ * and stop tracking it.
+ *
+ * @cb: Pointer to binding tracker storage.
+ *
+ * Emits FIFO commands to scrub a binding represented by @cb.
+ * Then stops tracking the binding and re-initializes its storage.
+ */
+void vmw_context_binding_kill(struct vmw_ctx_binding *cb)
+{
+	(void) vmw_scrub_funcs[cb->bi.bt](&cb->bi);
+	vmw_context_binding_drop(cb);
+}
+
+/**
+ * vmw_context_binding_state_kill - Kill all bindings associated with a
+ * struct vmw_ctx_binding state structure, and re-initialize the structure.
+ *
+ * @cbs: Pointer to the context binding state tracker.
+ *
+ * Emits commands to scrub all bindings associated with the
+ * context binding state tracker. Then re-initializes the whole structure.
+ */
+void vmw_context_binding_state_kill(struct vmw_ctx_binding_state *cbs)
+{
+	struct vmw_ctx_binding *entry, *next;
+
+	list_for_each_entry_safe(entry, next, &cbs->list, ctx_list) {
+		vmw_context_binding_kill(entry);
+	}
 }

@@ -54,6 +54,8 @@ struct vmw_resource_relocation {
  * @res: Ref-counted pointer to the resource.
  * @switch_backup: Boolean whether to switch backup buffer on unreserve.
  * @new_backup: Refcounted pointer to the new backup buffer.
+ * @staged_bindings: If @res is a context, tracks bindings set up during
+ * the command batch. Otherwise NULL.
  * @new_backup_offset: New backup buffer offset if @new_backup is non-NUll.
  * @first_usage: Set to true the first time the resource is referenced in
  * the command stream.
@@ -65,6 +67,7 @@ struct vmw_resource_val_node {
 	struct drm_hash_item hash;
 	struct vmw_resource *res;
 	struct vmw_dma_buffer *new_backup;
+	struct vmw_ctx_binding_state *staged_bindings;
 	unsigned long new_backup_offset;
 	bool first_usage;
 	bool no_buffer_needed;
@@ -106,6 +109,11 @@ static void vmw_resource_list_unreserve(struct list_head *list,
 		struct vmw_dma_buffer *new_backup =
 			backoff ? NULL : val->new_backup;
 
+		if (unlikely(val->staged_bindings)) {
+			vmw_context_binding_state_kill(val->staged_bindings);
+			kfree(val->staged_bindings);
+			val->staged_bindings = NULL;
+		}
 		vmw_resource_unreserve(res, new_backup,
 			val->new_backup_offset);
 		vmw_dmabuf_unreference(&val->new_backup);
@@ -389,8 +397,15 @@ static int vmw_cmd_res_check(struct vmw_private *dev_priv,
 	struct vmw_resource_val_node *node;
 	int ret;
 
-	if (*id == SVGA3D_INVALID_ID)
+	if (*id == SVGA3D_INVALID_ID) {
+		if (p_val)
+			*p_val = NULL;
+		if (res_type == vmw_res_context) {
+			DRM_ERROR("Illegal context invalid id.\n");
+			return -EINVAL;
+		}
 		return 0;
+	}
 
 	/*
 	 * Fastpath in case of repeated commands referencing the same
@@ -438,6 +453,18 @@ static int vmw_cmd_res_check(struct vmw_private *dev_priv,
 	rcache->node = node;
 	if (p_val)
 		*p_val = node;
+
+	if (node->first_usage && res_type == vmw_res_context) {
+		node->staged_bindings =
+			kzalloc(sizeof(*node->staged_bindings), GFP_KERNEL);
+		if (node->staged_bindings == NULL) {
+			DRM_ERROR("Failed to allocate context binding "
+				  "information.\n");
+			goto out_no_reloc;
+		}
+		INIT_LIST_HEAD(&node->staged_bindings->list);
+	}
+
 	vmw_resource_unreference(&res);
 	return 0;
 
@@ -480,17 +507,33 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSetRenderTarget body;
 	} *cmd;
+	struct vmw_resource_val_node *ctx_node;
 	int ret;
 
-	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	cmd = container_of(header, struct vmw_sid_cmd, header);
+
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
+				user_context_converter, &cmd->body.cid,
+				&ctx_node);
 	if (unlikely(ret != 0))
 		return ret;
 
-	cmd = container_of(header, struct vmw_sid_cmd, header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				user_surface_converter,
 				&cmd->body.target.sid, NULL);
-	return ret;
+	if (unlikely(ret != 0))
+		return ret;
+
+	if (dev_priv->has_mob) {
+		struct vmw_ctx_bindinfo bi;
+
+		bi.ctx = ctx_node->res;
+		bi.bt = vmw_ctx_binding_rt;
+		bi.i1.rt_type = cmd->body.type;
+		return vmw_context_binding_add(ctx_node->staged_bindings, &bi);
+	}
+
+	return 0;
 }
 
 static int vmw_cmd_surface_copy_check(struct vmw_private *dev_priv,
@@ -1145,15 +1188,21 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 	struct vmw_tex_state_cmd {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSetTextureState state;
-	};
+	} *cmd;
 
 	SVGA3dTextureState *last_state = (SVGA3dTextureState *)
 	  ((unsigned long) header + header->size + sizeof(header));
 	SVGA3dTextureState *cur_state = (SVGA3dTextureState *)
 		((unsigned long) header + sizeof(struct vmw_tex_state_cmd));
+	struct vmw_resource_val_node *ctx_node;
 	int ret;
 
-	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	cmd = container_of(header, struct vmw_tex_state_cmd,
+			   header);
+
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
+				user_context_converter, &cmd->state.cid,
+				&ctx_node);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1166,6 +1215,16 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 					&cur_state->value, NULL);
 		if (unlikely(ret != 0))
 			return ret;
+
+		if (dev_priv->has_mob) {
+			struct vmw_ctx_bindinfo bi;
+
+			bi.ctx = ctx_node->res;
+			bi.bt = vmw_ctx_binding_tex;
+			bi.i1.texture_stage = cur_state->stage;
+			vmw_context_binding_add(ctx_node->staged_bindings,
+						&bi);
+		}
 	}
 
 	return 0;
@@ -1426,20 +1485,32 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSetShader body;
 	} *cmd;
+	struct vmw_resource_val_node *ctx_node;
 	int ret;
 
 	cmd = container_of(header, struct vmw_set_shader_cmd,
 			   header);
 
-	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
+				user_context_converter, &cmd->body.cid,
+				&ctx_node);
 	if (unlikely(ret != 0))
 		return ret;
 
+	if (dev_priv->has_mob) {
+		struct vmw_ctx_bindinfo bi;
 
-	if (dev_priv->has_mob)
-		return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_shader,
-					 user_shader_converter,
-					 &cmd->body.shid, NULL);
+		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_shader,
+					user_shader_converter,
+					&cmd->body.shid, NULL);
+		if (unlikely(ret != 0))
+			return ret;
+
+		bi.ctx = ctx_node->res;
+		bi.bt = vmw_ctx_binding_shader;
+		bi.i1.shader_type = cmd->body.type;
+		return vmw_context_binding_add(ctx_node->staged_bindings, &bi);
+	}
 
 	return 0;
 }
@@ -1820,6 +1891,8 @@ static void vmw_resource_list_unreference(struct list_head *list)
 	list_for_each_entry_safe(val, val_next, list, head) {
 		list_del_init(&val->head);
 		vmw_resource_unreference(&val->res);
+		if (unlikely(val->staged_bindings))
+			kfree(val->staged_bindings);
 		kfree(val);
 	}
 }
