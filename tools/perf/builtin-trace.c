@@ -60,16 +60,23 @@ struct strarray {
 	.entries = array, \
 }
 
-static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
-					      struct syscall_arg *arg)
+static size_t __syscall_arg__scnprintf_strarray(char *bf, size_t size,
+						const char *intfmt,
+					        struct syscall_arg *arg)
 {
 	struct strarray *sa = arg->parm;
 	int idx = arg->val - sa->offset;
 
 	if (idx < 0 || idx >= sa->nr_entries)
-		return scnprintf(bf, size, "%d", arg->val);
+		return scnprintf(bf, size, intfmt, arg->val);
 
 	return scnprintf(bf, size, "%s", sa->entries[idx]);
+}
+
+static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
+					      struct syscall_arg *arg)
+{
+	return __syscall_arg__scnprintf_strarray(bf, size, "%d", arg);
 }
 
 #define SCA_STRARRAY syscall_arg__scnprintf_strarray
