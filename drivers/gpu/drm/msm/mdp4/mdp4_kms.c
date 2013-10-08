@@ -196,6 +196,23 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	 * for more than just RGB1->DMA_E->DTV->HDMI
 	 */
 
+	/* construct non-private planes: */
+	plane = mdp4_plane_init(dev, VG1, false);
+	if (IS_ERR(plane)) {
+		dev_err(dev->dev, "failed to construct plane for VG1\n");
+		ret = PTR_ERR(plane);
+		goto fail;
+	}
+	priv->planes[priv->num_planes++] = plane;
+
+	plane = mdp4_plane_init(dev, VG2, false);
+	if (IS_ERR(plane)) {
+		dev_err(dev->dev, "failed to construct plane for VG2\n");
+		ret = PTR_ERR(plane);
+		goto fail;
+	}
+	priv->planes[priv->num_planes++] = plane;
+
 	/* the CRTCs get constructed with a private plane: */
 	plane = mdp4_plane_init(dev, RGB1, true);
 	if (IS_ERR(plane)) {

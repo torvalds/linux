@@ -26,6 +26,7 @@ struct mdp4_crtc {
 	struct drm_crtc base;
 	char name[8];
 	struct drm_plane *plane;
+	struct drm_plane *planes[8];
 	int id;
 	int ovlp;
 	enum mdp4_dma dma;
@@ -115,9 +116,15 @@ static void crtc_flush(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	uint32_t flush = 0;
+	uint32_t i, flush = 0;
 
-	flush |= pipe2flush(mdp4_plane_pipe(mdp4_crtc->plane));
+	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
+		struct drm_plane *plane = mdp4_crtc->planes[i];
+		if (plane) {
+			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+			flush |= pipe2flush(pipe_id);
+		}
+	}
 	flush |= ovlp2flush(mdp4_crtc->ovlp);
 
 	DBG("%s: flush=%08x", mdp4_crtc->name, flush);
@@ -205,67 +212,69 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
 	int i, ovlp = mdp4_crtc->ovlp;
 	uint32_t mixer_cfg = 0;
+	static const enum mdp4_mixer_stage_id stages[] = {
+			STAGE_BASE, STAGE0, STAGE1, STAGE2, STAGE3,
+	};
+	/* statically (for now) map planes to mixer stage (z-order): */
+	static const int idxs[] = {
+			[VG1]  = 1,
+			[VG2]  = 2,
+			[RGB1] = 0,
+			[RGB2] = 0,
+			[RGB3] = 0,
+			[VG3]  = 3,
+			[VG4]  = 4,
 
-	/*
-	 * This probably would also need to be triggered by any attached
-	 * plane when it changes.. for now since we are only using a single
-	 * private plane, the configuration is hard-coded:
-	 */
+	};
+	bool alpha[4]= { false, false, false, false };
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_LOW0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_LOW1(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH1(ovlp), 0);
 
+	/* TODO single register for all CRTCs, so this won't work properly
+	 * when multiple CRTCs are active..
+	 */
+	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
+		struct drm_plane *plane = mdp4_crtc->planes[i];
+		if (plane) {
+			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+			int idx = idxs[pipe_id];
+			if (idx > 0) {
+				const struct mdp4_format *format =
+					to_mdp4_format(msm_framebuffer_format(plane->fb));
+				alpha[idx-1] = format->alpha_enable;
+			}
+			mixer_cfg |= mixercfg(mdp4_crtc->mixer, pipe_id, stages[idx]);
+		}
+	}
+
+	/* this shouldn't happen.. and seems to cause underflow: */
+	WARN_ON(!mixer_cfg);
+
 	for (i = 0; i < 4; i++) {
-		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_FG_ALPHA(ovlp, i), 0);
-		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_BG_ALPHA(ovlp, i), 0);
-		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_OP(ovlp, i),
-				MDP4_OVLP_STAGE_OP_FG_ALPHA(FG_CONST) |
-				MDP4_OVLP_STAGE_OP_BG_ALPHA(BG_CONST));
-		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_CO3(ovlp, i), 0);
+		uint32_t op;
+
+		if (alpha[i]) {
+			op = MDP4_OVLP_STAGE_OP_FG_ALPHA(FG_PIXEL) |
+					MDP4_OVLP_STAGE_OP_BG_ALPHA(FG_PIXEL) |
+					MDP4_OVLP_STAGE_OP_BG_INV_ALPHA;
+		} else {
+			op = MDP4_OVLP_STAGE_OP_FG_ALPHA(FG_CONST) |
+					MDP4_OVLP_STAGE_OP_BG_ALPHA(BG_CONST);
+		}
+
+		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_FG_ALPHA(ovlp, i), 0xff);
+		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_BG_ALPHA(ovlp, i), 0x00);
+		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_OP(ovlp, i), op);
+		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_CO3(ovlp, i), 1);
 		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_TRANSP_LOW0(ovlp, i), 0);
 		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_TRANSP_LOW1(ovlp, i), 0);
 		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_TRANSP_HIGH0(ovlp, i), 0);
 		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_TRANSP_HIGH1(ovlp, i), 0);
 	}
 
-	/* TODO single register for all CRTCs, so this won't work properly
-	 * when multiple CRTCs are active..
-	 */
-	switch (mdp4_plane_pipe(mdp4_crtc->plane)) {
-	case VG1:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE0(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE0_MIXER1);
-		break;
-	case VG2:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE1(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE1_MIXER1);
-		break;
-	case RGB1:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE2(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE2_MIXER1);
-		break;
-	case RGB2:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE3(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE3_MIXER1);
-		break;
-	case RGB3:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE4(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE4_MIXER1);
-		break;
-	case VG3:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE5(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE5_MIXER1);
-		break;
-	case VG4:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE6(STAGE_BASE) |
-			COND(mdp4_crtc->mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE6_MIXER1);
-		break;
-	default:
-		WARN_ON("invalid pipe");
-		break;
-	}
 	mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG, mixer_cfg);
 }
 
@@ -622,6 +631,32 @@ void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf)
 	mdp4_write(mdp4_kms, REG_MDP4_DISP_INTF_SEL, intf_sel);
 }
 
+static void set_attach(struct drm_crtc *crtc, enum mdp4_pipe pipe_id,
+		struct drm_plane *plane)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+
+	BUG_ON(pipe_id >= ARRAY_SIZE(mdp4_crtc->planes));
+
+	if (mdp4_crtc->planes[pipe_id] == plane)
+		return;
+
+	mdp4_crtc->planes[pipe_id] = plane;
+	blend_setup(crtc);
+	if (mdp4_crtc->enabled && (plane != mdp4_crtc->plane))
+		crtc_flush(crtc);
+}
+
+void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane)
+{
+	set_attach(crtc, mdp4_plane_pipe(plane), plane);
+}
+
+void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane)
+{
+	set_attach(crtc, mdp4_plane_pipe(plane), NULL);
+}
+
 static const char *dma_names[] = {
 		"DMA_P", "DMA_S", "DMA_E",
 };
@@ -644,7 +679,6 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	crtc = &mdp4_crtc->base;
 
 	mdp4_crtc->plane = plane;
-	mdp4_crtc->plane->crtc = crtc;
 
 	mdp4_crtc->ovlp = ovlp_id;
 	mdp4_crtc->dma = dma_id;

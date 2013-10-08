@@ -77,6 +77,9 @@ struct msm_drm_private {
 	unsigned int num_iommus;
 	struct iommu_domain *iommus[NUM_DOMAINS];
 
+	unsigned int num_planes;
+	struct drm_plane *planes[8];
+
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
 
