@@ -490,36 +490,6 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	return 0;
 }
 
-static int i8xx_do_reset(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (IS_I85X(dev))
-		return -ENODEV;
-
-	I915_WRITE(D_STATE, I915_READ(D_STATE) | DSTATE_GFX_RESET_I830);
-	POSTING_READ(D_STATE);
-
-	if (IS_I830(dev) || IS_845G(dev)) {
-		I915_WRITE(DEBUG_RESET_I830,
-			   DEBUG_RESET_DISPLAY |
-			   DEBUG_RESET_RENDER |
-			   DEBUG_RESET_FULL);
-		POSTING_READ(DEBUG_RESET_I830);
-		msleep(1);
-
-		I915_WRITE(DEBUG_RESET_I830, 0);
-		POSTING_READ(DEBUG_RESET_I830);
-	}
-
-	msleep(1);
-
-	I915_WRITE(D_STATE, I915_READ(D_STATE) & ~DSTATE_GFX_RESET_I830);
-	POSTING_READ(D_STATE);
-
-	return 0;
-}
-
 static int i965_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
@@ -621,7 +591,6 @@ int intel_gpu_reset(struct drm_device *dev)
 	case 6: return gen6_do_reset(dev);
 	case 5: return ironlake_do_reset(dev);
 	case 4: return i965_do_reset(dev);
-	case 2: return i8xx_do_reset(dev);
 	default: return -ENODEV;
 	}
 }
