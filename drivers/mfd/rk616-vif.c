@@ -737,7 +737,10 @@ static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enabl
 {
 	u32 val = 0;
 	int ret = 0;
-	val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
+
+	if(screen->type != SCREEN_RGB) //if RGB screen , not invert D_CLK
+		val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
+	
 	if((screen->face != OUT_P888) && enable)  //enable frc dither if the screen is not 24bit
 		val |= FRC_DITHER_EN | (FRC_DITHER_EN << 16);
 		//val |= (FRC_DITHER_EN << 16);
