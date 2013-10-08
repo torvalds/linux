@@ -545,6 +545,7 @@ static int cci_pmu_init(struct arm_pmu *cci_pmu, struct platform_device *pdev)
 
 	cci_pmu->plat_device = pdev;
 	cci_pmu->num_events = pmu_get_max_counters();
+	cpumask_setall(&cci_pmu->valid_cpus);
 
 	return armpmu_register(cci_pmu, -1);
 }
