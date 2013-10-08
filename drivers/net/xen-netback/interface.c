@@ -326,6 +326,9 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	}
 
 	netdev_dbg(dev, "Successfully created xenvif\n");
+
+	__module_get(THIS_MODULE);
+
 	return vif;
 }
 
@@ -413,12 +416,6 @@ void xenvif_carrier_off(struct xenvif *vif)
 
 void xenvif_disconnect(struct xenvif *vif)
 {
-	/* Disconnect funtion might get called by generic framework
-	 * even before vif connects, so we need to check if we really
-	 * need to do a module_put.
-	 */
-	int need_module_put = 0;
-
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
 
@@ -432,18 +429,16 @@ void xenvif_disconnect(struct xenvif *vif)
 			unbind_from_irqhandler(vif->tx_irq, vif);
 			unbind_from_irqhandler(vif->rx_irq, vif);
 		}
-		/* vif->irq is valid, we had a module_get in
-		 * xenvif_connect.
-		 */
-		need_module_put = 1;
 	}
 
-	unregister_netdev(vif->dev);
-
 	xen_netbk_unmap_frontend_rings(vif);
+}
+
+void xenvif_free(struct xenvif *vif)
+{
+	unregister_netdev(vif->dev);
 
 	free_netdev(vif->dev);
 
-	if (need_module_put)
-		module_put(THIS_MODULE);
+	module_put(THIS_MODULE);
 }
