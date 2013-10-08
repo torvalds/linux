@@ -294,9 +294,31 @@ struct ring_buffer;
  */
 struct perf_event {
 #ifdef CONFIG_PERF_EVENTS
-	struct list_head		group_entry;
+	/*
+	 * entry onto perf_event_context::event_list;
+	 *   modifications require ctx->lock
+	 *   RCU safe iterations.
+	 */
 	struct list_head		event_entry;
+
+	/*
+	 * XXX: group_entry and sibling_list should be mutually exclusive;
+	 * either you're a sibling on a group, or you're the group leader.
+	 * Rework the code to always use the same list element.
+	 *
+	 * Locked for modification by both ctx->mutex and ctx->lock; holding
+	 * either sufficies for read.
+	 */
+	struct list_head		group_entry;
 	struct list_head		sibling_list;
+
+	/*
+	 * We need storage to track the entries in perf_pmu_migrate_context; we
+	 * cannot use the event_entry because of RCU and we want to keep the
+	 * group in tact which avoids us using the other two entries.
+	 */
+	struct list_head		migrate_entry;
+
 	struct hlist_node		hlist_entry;
 	int				nr_siblings;
 	int				group_flags;
