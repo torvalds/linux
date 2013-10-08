@@ -1392,8 +1392,8 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int tick;
 
 	if (devpriv->ai_cmd_running) {
-		printk(KERN_ERR "s626_ai_cmd: Another ai_cmd is running %d\n",
-		       dev->minor);
+		dev_err(dev->class_dev,
+			"s626_ai_cmd: Another ai_cmd is running\n");
 		return -EBUSY;
 	}
 	/* disable interrupt */
