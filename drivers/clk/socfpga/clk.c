@@ -290,7 +290,7 @@ static void __init socfpga_gate_clk_init(struct device_node *node,
 		socfpga_clk->shift = div_reg[1];
 		socfpga_clk->width = div_reg[2];
 	} else {
-		socfpga_clk->div_reg = 0;
+		socfpga_clk->div_reg = NULL;
 	}
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
