@@ -180,7 +180,7 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	regulators = of_find_node_by_name(np, "regulators");
+	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return ERR_PTR(-ENODEV);
