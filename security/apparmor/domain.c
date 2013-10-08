@@ -75,7 +75,7 @@ static int may_change_ptraced_domain(struct task_struct *task,
 	if (!tracer || unconfined(tracerp))
 		goto out;
 
-	error = aa_may_ptrace(tracer, tracerp, to_profile, PTRACE_MODE_ATTACH);
+	error = aa_may_ptrace(tracerp, to_profile, PTRACE_MODE_ATTACH);
 
 out:
 	rcu_read_unlock();
