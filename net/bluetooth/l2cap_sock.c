@@ -53,6 +53,32 @@ bool l2cap_is_socket(struct socket *sock)
 }
 EXPORT_SYMBOL(l2cap_is_socket);
 
+static int l2cap_validate_bredr_psm(u16 psm)
+{
+	/* PSM must be odd and lsb of upper byte must be 0 */
+	if ((psm & 0x0101) != 0x0001)
+		return -EINVAL;
+
+	/* Restrict usage of well-known PSMs */
+	if (psm < 0x1001 && !capable(CAP_NET_BIND_SERVICE))
+		return -EACCES;
+
+	return 0;
+}
+
+static int l2cap_validate_le_psm(u16 psm)
+{
+	/* Valid LE_PSM ranges are defined only until 0x00ff */
+	if (psm > 0x00ff)
+		return -EINVAL;
+
+	/* Restrict fixed, SIG assigned PSM values to CAP_NET_BIND_SERVICE */
+	if (psm <= 0x007f && !capable(CAP_NET_BIND_SERVICE))
+		return -EACCES;
+
+	return 0;
+}
+
 static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 {
 	struct sock *sk = sock->sk;
@@ -94,17 +120,13 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (la.l2_psm) {
 		__u16 psm = __le16_to_cpu(la.l2_psm);
 
-		/* PSM must be odd and lsb of upper byte must be 0 */
-		if ((psm & 0x0101) != 0x0001) {
-			err = -EINVAL;
-			goto done;
-		}
+		if (la.l2_bdaddr_type == BDADDR_BREDR)
+			err = l2cap_validate_bredr_psm(psm);
+		else
+			err = l2cap_validate_le_psm(psm);
 
-		/* Restrict usage of well-known PSMs */
-		if (psm < 0x1001 && !capable(CAP_NET_BIND_SERVICE)) {
-			err = -EACCES;
+		if (err)
 			goto done;
-		}
 	}
 
 	if (la.l2_cid)

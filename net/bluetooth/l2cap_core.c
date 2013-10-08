@@ -1861,6 +1861,18 @@ static struct l2cap_chan *l2cap_global_chan_by_psm(int state, __le16 psm,
 	return c1;
 }
 
+static bool is_valid_psm(u16 psm, u8 dst_type)
+{
+	if (!psm)
+		return false;
+
+	if (bdaddr_type_is_le(dst_type))
+		return (psm < 0x00ff);
+
+	/* PSM must be odd and lsb of upper byte must be 0 */
+	return ((psm & 0x0101) == 0x0001);
+}
+
 int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		       bdaddr_t *dst, u8 dst_type)
 {
@@ -1881,8 +1893,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	l2cap_chan_lock(chan);
 
-	/* PSM must be odd and lsb of upper byte must be 0 */
-	if ((__le16_to_cpu(psm) & 0x0101) != 0x0001 && !cid &&
+	if (!is_valid_psm(__le16_to_cpu(psm), dst_type) && !cid &&
 	    chan->chan_type != L2CAP_CHAN_RAW) {
 		err = -EINVAL;
 		goto done;
