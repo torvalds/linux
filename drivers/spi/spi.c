@@ -58,11 +58,13 @@ modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 
 	return sprintf(buf, "%s%s\n", SPI_MODULE_PREFIX, spi->modalias);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute spi_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *spi_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(spi_dev);
 
 /* modalias support makes "modprobe $MODALIAS" new-style hotplug work,
  * and the sysfs version makes coldplug work too.
@@ -229,7 +231,7 @@ static const struct dev_pm_ops spi_pm = {
 
 struct bus_type spi_bus_type = {
 	.name		= "spi",
-	.dev_attrs	= spi_dev_attrs,
+	.dev_groups	= spi_dev_groups,
 	.match		= spi_match_device,
 	.uevent		= spi_uevent,
 	.pm		= &spi_pm,
