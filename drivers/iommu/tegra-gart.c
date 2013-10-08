@@ -411,7 +411,7 @@ static int tegra_gart_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const struct dev_pm_ops tegra_gart_pm_ops = {
+static const struct dev_pm_ops tegra_gart_pm_ops = {
 	.suspend	= tegra_gart_suspend,
 	.resume		= tegra_gart_resume,
 };
