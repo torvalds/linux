@@ -1772,6 +1772,10 @@ static void xfrm_policy_queue_process(unsigned long arg)
 
 	spin_lock(&pq->hold_queue.lock);
 	skb = skb_peek(&pq->hold_queue);
+	if (!skb) {
+		spin_unlock(&pq->hold_queue.lock);
+		goto out;
+	}
 	dst = skb_dst(skb);
 	sk = skb->sk;
 	xfrm_decode_session(skb, &fl, dst->ops->family);
