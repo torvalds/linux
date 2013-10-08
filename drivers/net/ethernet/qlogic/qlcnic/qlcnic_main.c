@@ -2257,7 +2257,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = qlcnic_alloc_adapter_resources(adapter);
 	if (err)
-		goto err_out_free_netdev;
+		goto err_out_free_wq;
 
 	adapter->dev_rst_time = jiffies;
 	adapter->ahw->revision_id = pdev->revision;
@@ -2395,6 +2395,9 @@ err_out_disable_msi:
 
 err_out_free_hw:
 	qlcnic_free_adapter_resources(adapter);
+
+err_out_free_wq:
+	destroy_workqueue(adapter->qlcnic_wq);
 
 err_out_free_netdev:
 	free_netdev(netdev);
