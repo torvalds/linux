@@ -982,7 +982,7 @@ static struct tps65910_board *tps65910_parse_dt_reg_data(
 	}
 
 	np = of_node_get(pdev->dev.parent->of_node);
-	regulators = of_find_node_by_name(np, "regulators");
+	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return NULL;
