@@ -228,14 +228,14 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	if (!de)
 		goto fail;
 
+	f2fs_lock_op(sbi);
 	err = acquire_orphan_inode(sbi);
 	if (err) {
+		f2fs_unlock_op(sbi);
 		kunmap(page);
 		f2fs_put_page(page, 0);
 		goto fail;
 	}
-
-	f2fs_lock_op(sbi);
 	f2fs_delete_entry(de, page, inode);
 	f2fs_unlock_op(sbi);
 
