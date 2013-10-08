@@ -541,7 +541,7 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	ret = init_usb(mux_dev);
 	if (ret)
-		goto err_free_tty;
+		goto err_free_usb;
 
 	tty_dev->priv_dev = (void *)mux_dev;
 	tty_dev->send_func = gdm_mux_send;
@@ -565,8 +565,8 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 err_unregister_tty:
 	unregister_lte_tty_device(tty_dev);
+err_free_usb:
 	release_usb(mux_dev);
-err_free_tty:
 	kfree(tty_dev);
 err_free_mux:
 	kfree(mux_dev);
