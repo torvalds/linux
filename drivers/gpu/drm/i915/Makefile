@@ -53,7 +53,7 @@ i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 
 i915-$(CONFIG_ACPI)	+= intel_acpi.o
 
-i915-$(CONFIG_DRM_I915_FBDEV) += intel_fb.o
+i915-$(CONFIG_DRM_I915_FBDEV) += intel_fbdev.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o
 

@@ -1862,7 +1862,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 		return;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_fb_restore_mode(dev);
+		intel_fbdev_restore_mode(dev);
 		vga_switcheroo_process_delayed_switch();
 		return;
 	}
