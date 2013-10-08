@@ -23,6 +23,13 @@ Optional properties:
 		       resolution will be used.
   - atmel,adc-sleep-mode: Boolean to enable sleep mode when no conversion
   - atmel,adc-sample-hold-time: Sample and Hold Time in microseconds
+  - atmel,adc-ts-wires: Number of touch screen wires. Should be 4 or 5. If this
+                        value is set, then adc driver will enable touch screen
+                        support.
+    NOTE: when adc touch screen enabled, the adc hardware trigger will be
+          disabled. Since touch screen will occupied the trigger register.
+  - atmel,adc-ts-pressure-threshold: a pressure threshold for touchscreen. It
+                                     make touch detect more precision.
  
 Optional trigger Nodes:
   - Required properties:
