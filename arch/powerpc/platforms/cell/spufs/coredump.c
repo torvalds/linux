@@ -156,7 +156,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	if (!dump_emit(cprm, fullname, en.n_namesz))
 		goto Eio;
 
-	if (!dump_skip(cprm, roundup(cprm->written, 4) - cprm->written))
+	if (!dump_align(cprm, 4))
 		goto Eio;
 
 	do {

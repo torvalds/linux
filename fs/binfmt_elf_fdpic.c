@@ -1267,12 +1267,6 @@ static int notesize(struct memelfnote *en)
 
 /* #define DEBUG */
 
-static int alignfile(struct coredump_params *cprm)
-{
-	static const char buf[4] = { 0, };
-	return dump_emit(cprm, buf, roundup(cprm->written, 4) - cprm->written);
-}
-
 static int writenote(struct memelfnote *men, struct coredump_params *cprm)
 {
 	struct elf_note en;
@@ -1281,8 +1275,8 @@ static int writenote(struct memelfnote *men, struct coredump_params *cprm)
 	en.n_type = men->type;
 
 	return dump_emit(cprm, &en, sizeof(en)) &&
-		dump_emit(cprm, men->name, en.n_namesz) && alignfile(cprm) &&
-		dump_emit(cprm, men->data, men->datasz) && alignfile(cprm);
+		dump_emit(cprm, men->name, en.n_namesz) && dump_align(cprm, 4) &&
+		dump_emit(cprm, men->data, men->datasz) && dump_align(cprm, 4);
 }
 
 static inline void fill_elf_fdpic_header(struct elfhdr *elf, int segs)
