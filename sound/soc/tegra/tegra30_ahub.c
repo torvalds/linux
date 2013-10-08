@@ -346,7 +346,7 @@ static bool tegra30_ahub_apbif_wr_rd_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		break;
-	};
+	}
 
 	if (REG_IN_ARRAY(reg, CHANNEL_CTRL) ||
 	    REG_IN_ARRAY(reg, CHANNEL_CLEAR) ||
@@ -381,7 +381,7 @@ static bool tegra30_ahub_apbif_volatile_reg(struct device *dev,
 		return true;
 	default:
 		break;
-	};
+	}
 
 	if (REG_IN_ARRAY(reg, CHANNEL_CLEAR) ||
 	    REG_IN_ARRAY(reg, CHANNEL_STATUS) ||

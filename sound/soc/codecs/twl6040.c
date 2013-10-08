@@ -246,7 +246,7 @@ static bool twl6040_is_path_unmuted(struct snd_soc_codec *codec,
 		return priv->dl2_unmuted;
 	default:
 		return 1;
-	};
+	}
 }
 
 /*
@@ -1100,7 +1100,7 @@ static void twl6040_mute_path(struct snd_soc_codec *codec, enum twl6040_dai_id i
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static int twl6040_digital_mute(struct snd_soc_dai *dai, int mute)

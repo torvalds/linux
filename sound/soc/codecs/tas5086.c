@@ -429,7 +429,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	default:
 		dev_err(codec->dev, "Invalid bit width\n");
 		return -EINVAL;
-	};
+	}
 
 	ret = regmap_write(priv->regmap, TAS5086_SERIAL_DATA_IF, val);
 	if (ret < 0)
