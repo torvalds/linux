@@ -469,7 +469,7 @@ static void leo_wid_put(struct fb_info *info, struct fb_wid_list *wl)
 
 		default:
 			continue;
-		};
+		}
 		sbus_writel(0x5800 + j, &lx_krn->krn_type);
 		sbus_writel(wi->wi_values[0], &lx_krn->krn_value);
 	}

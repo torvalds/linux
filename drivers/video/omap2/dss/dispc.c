@@ -2918,7 +2918,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		break;
 	default:
 		BUG();
-	};
+	}
 
 	l = dispc_read_reg(DISPC_POL_FREQ(channel));
 	l |= FLD_VAL(onoff, 17, 17);

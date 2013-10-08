@@ -186,7 +186,7 @@ int sbusfb_ioctl_helper(unsigned long cmd, unsigned long arg,
 	}
 	default:
 		return -EINVAL;
-	};
+	}
 }
 EXPORT_SYMBOL(sbusfb_ioctl_helper);
 

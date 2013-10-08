@@ -232,7 +232,7 @@ tcx_blank(int blank, struct fb_info *info)
 
 	case FB_BLANK_POWERDOWN: /* Poweroff */
 		break;
-	};
+	}
 
 	sbus_writel(val, &thc->thc_misc);
 
@@ -434,7 +434,7 @@ static int tcx_probe(struct platform_device *op)
 		default:
 			j = i;
 			break;
-		};
+		}
 		par->mmap_map[i].poff = op->resource[j].start;
 	}
 

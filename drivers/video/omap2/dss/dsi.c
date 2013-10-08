@@ -4066,7 +4066,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		default:
 			r = -EINVAL;
 			goto err_pix_fmt;
-		};
+		}
 
 		dsi_if_enable(dsidev, false);
 		dsi_vc_enable(dsidev, channel, false);
