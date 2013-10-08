@@ -102,7 +102,7 @@ lolnd_startup(lnet_ni_t *ni)
 	LASSERT(!lolnd_instanced);
 	lolnd_instanced = 1;
 
-	return (0);
+	return 0;
 }
 
 lnd_t the_lolnd = {
