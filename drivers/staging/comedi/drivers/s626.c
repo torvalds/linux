@@ -81,18 +81,18 @@ struct s626_private {
 	int ai_convert_count;		/* conversion counter */
 	unsigned int ai_convert_timer;	/* time between conversion in
 					 * units of the timer */
-	uint16_t CounterIntEnabs;	/* counter interrupt enable mask
+	uint16_t counter_int_enabs;	/* counter interrupt enable mask
 					 * for MISC2 register */
-	uint8_t AdcItems;		/* number of items in ADC poll list */
-	struct buffer_dma RPSBuf;	/* DMA buffer used to hold ADC (RPS1)
+	uint8_t adc_items;		/* number of items in ADC poll list */
+	struct buffer_dma rps_buf;	/* DMA buffer used to hold ADC (RPS1)
 					 * program */
-	struct buffer_dma ANABuf;	/* DMA buffer used to receive ADC data
+	struct buffer_dma ana_buf;	/* DMA buffer used to receive ADC data
 					 * and hold DAC data */
-	uint32_t *pDacWBuf;		/* pointer to logical adrs of DMA buffer
+	uint32_t *dac_wbuf;		/* pointer to logical adrs of DMA buffer
 					 * used to hold DAC data */
-	uint16_t Dacpol;		/* image of DAC polarity register */
-	uint8_t TrimSetpoint[12];	/* images of TrimDAC setpoints */
-	uint32_t I2CAdrs;		/* I2C device address for onboard EEPROM
+	uint16_t dacpol;		/* image of DAC polarity register */
+	uint8_t trim_setpoint[12];	/* images of TrimDAC setpoints */
+	uint32_t i2c_adrs;		/* I2C device address for onboard EEPROM
 					 * (board rev dependent) */
 	unsigned int ao_readback[S626_DAC_CHANNELS];
 };
@@ -304,7 +304,7 @@ static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr)
 	 *  Byte1 = EEPROM internal target address.
 	 *  Byte0 = Not sent.
 	 */
-	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, devpriv->I2CAdrs) |
+	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, devpriv->i2c_adrs) |
 			      I2C_B1(I2C_ATTRSTOP, addr) |
 			      I2C_B0(I2C_ATTRNOP, 0)))
 		/* Abort function and declare error if handshake failed. */
@@ -316,7 +316,7 @@ static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr)
 	 *  Byte1 receives uint8_t from EEPROM.
 	 *  Byte0 = Not sent.
 	 */
-	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, (devpriv->I2CAdrs | 1)) |
+	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, (devpriv->i2c_adrs | 1)) |
 			      I2C_B1(I2C_ATTRSTOP, 0) |
 			      I2C_B0(I2C_ATTRNOP, 0)))
 		/* Abort function and declare error if handshake failed. */
@@ -342,7 +342,7 @@ static uint8_t trimadrs[] = {
 /*
  * Private helper function: Transmit serial data to DAC via Audio
  * channel 2.  Assumes: (1) TSL2 slot records initialized, and (2)
- * Dacpol contains valid target image.
+ * dacpol contains valid target image.
  */
 static void SendDAC(struct comedi_device *dev, uint32_t val)
 {
@@ -360,13 +360,13 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * trailing edge of WS1/WS3 (which turns off the signals), thus
 	 * causing the signals to be inactive during the DAC write.
 	 */
-	DEBIwrite(dev, LP_DACPOL, devpriv->Dacpol);
+	DEBIwrite(dev, LP_DACPOL, devpriv->dacpol);
 
 	/* TRANSFER OUTPUT DWORD VALUE INTO A2'S OUTPUT FIFO ---------------- */
 
 	/* Copy DAC setpoint value to DAC's output DMA buffer. */
-	/* writel(val, devpriv->mmio + (uint32_t)devpriv->pDacWBuf); */
-	*devpriv->pDacWBuf = val;
+	/* writel(val, devpriv->mmio + (uint32_t)devpriv->dac_wbuf); */
+	*devpriv->dac_wbuf = val;
 
 	/*
 	 * Enable the output DMA transfer. This will cause the DMAC to copy
@@ -492,9 +492,9 @@ static void SetDAC(struct comedi_device *dev, uint16_t chan, short dacdata)
 	signmask = 1 << chan;
 	if (dacdata < 0) {
 		dacdata = -dacdata;
-		devpriv->Dacpol |= signmask;
+		devpriv->dacpol |= signmask;
 	} else {
-		devpriv->Dacpol &= ~signmask;
+		devpriv->dacpol &= ~signmask;
 	}
 
 	/* Limit DAC setpoint value to valid range. */
@@ -550,7 +550,7 @@ static void WriteTrimDAC(struct comedi_device *dev, uint8_t LogicalChan,
 	 * Save the new setpoint in case the application needs to read it back
 	 * later.
 	 */
-	devpriv->TrimSetpoint[LogicalChan] = (uint8_t)DacData;
+	devpriv->trim_setpoint[LogicalChan] = (uint8_t)DacData;
 
 	/* Map logical channel number to physical channel number. */
 	chan = trimchan[LogicalChan];
@@ -857,7 +857,7 @@ static bool handle_eos_interrupt(struct comedi_device *dev)
 	 * first uint16_t in the buffer because it contains junk data
 	 * from the final ADC of the previous poll list scan.
 	 */
-	int32_t *readaddr = (int32_t *)devpriv->ANABuf.logical_base + 1;
+	int32_t *readaddr = (int32_t *)devpriv->ana_buf.logical_base + 1;
 	bool finished = false;
 	int i;
 
@@ -964,13 +964,13 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 	/* Set starting logical address to write RPS commands. */
-	pRPS = (uint32_t *)devpriv->RPSBuf.logical_base;
+	pRPS = (uint32_t *)devpriv->rps_buf.logical_base;
 
 	/* Initialize RPS instruction pointer */
-	writel((uint32_t)devpriv->RPSBuf.physical_base,
+	writel((uint32_t)devpriv->rps_buf.physical_base,
 	       devpriv->mmio + P_RPSADDR1);
 
-	/* Construct RPS program in RPSBuf DMA buffer */
+	/* Construct RPS program in rps_buf DMA buffer */
 	if (cmd != NULL && cmd->scan_begin_src != TRIG_FOLLOW) {
 		/* Wait for Start trigger. */
 		*pRPS++ = RPS_PAUSE | RPS_SIGADC;
@@ -1001,8 +1001,8 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	 * for loop to limit the slot count to 16 in case the application
 	 * forgot to set the EOPL flag in the final slot.
 	 */
-	for (devpriv->AdcItems = 0; devpriv->AdcItems < 16;
-	     devpriv->AdcItems++) {
+	for (devpriv->adc_items = 0; devpriv->adc_items < 16;
+	     devpriv->adc_items++) {
 		/*
 		 * Convert application's poll list item to private board class
 		 * format.  Each app poll list item is an uint8_t with form
@@ -1047,9 +1047,10 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 		 * instruction prefetch pipeline.
 		 */
 		JmpAdrs =
-			(uint32_t)devpriv->RPSBuf.physical_base +
+			(uint32_t)devpriv->rps_buf.physical_base +
 			(uint32_t)((unsigned long)pRPS -
-				   (unsigned long)devpriv->RPSBuf.logical_base);
+				   (unsigned long)devpriv->
+						  rps_buf.logical_base);
 		for (i = 0; i < (10 * RPSCLK_PER_US / 2); i++) {
 			JmpAdrs += 8;	/* Repeat to implement time delay: */
 			*pRPS++ = RPS_JUMP; /* Jump to next RPS instruction. */
@@ -1079,15 +1080,15 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 		/* Transfer ADC data from FB BUFFER 1 register to DMA buffer. */
 		*pRPS++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
-		*pRPS++ = (uint32_t)devpriv->ANABuf.physical_base +
-			  (devpriv->AdcItems << 2);
+		*pRPS++ = (uint32_t)devpriv->ana_buf.physical_base +
+			  (devpriv->adc_items << 2);
 
 		/*
 		 * If this slot's EndOfPollList flag is set, all channels have
 		 * now been processed.
 		 */
 		if (*ppl++ & EOPL) {
-			devpriv->AdcItems++; /* Adjust poll list item count. */
+			devpriv->adc_items++; /* Adjust poll list item count. */
 			break;	/* Exit poll list processing loop. */
 		}
 	}
@@ -1122,8 +1123,8 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 	/* Transfer final ADC data from FB BUFFER 1 register to DMA buffer. */
 	*pRPS++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
-	*pRPS++ = (uint32_t)devpriv->ANABuf.physical_base +
-		  (devpriv->AdcItems << 2);
+	*pRPS++ = (uint32_t)devpriv->ana_buf.physical_base +
+		  (devpriv->adc_items << 2);
 
 	/* Indicate ADC scan loop is finished. */
 	/* Signal ReadADC() that scan is done. */
@@ -1135,7 +1136,7 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 	/* Restart RPS program at its beginning. */
 	*pRPS++ = RPS_JUMP;	/* Branch to start of RPS program. */
-	*pRPS++ = (uint32_t)devpriv->RPSBuf.physical_base;
+	*pRPS++ = (uint32_t)devpriv->rps_buf.physical_base;
 
 	/* End of RPS program build */
 }
@@ -1162,13 +1163,13 @@ static int s626_ai_rinsn(struct comedi_device *dev,
 	 * first uint16_t in the buffer because it contains junk data from
 	 * the final ADC of the previous poll list scan.
 	 */
-	readaddr = (uint32_t *)devpriv->ANABuf.logical_base + 1;
+	readaddr = (uint32_t *)devpriv->ana_buf.logical_base + 1;
 
 	/*
 	 * Convert ADC data to 16-bit integer values and
 	 * copy to application buffer.
 	 */
-	for (i = 0; i < devpriv->AdcItems; i++) {
+	for (i = 0; i < devpriv->adc_items; i++) {
 		*data = s626_ai_reg_to_uint(*readaddr++);
 		data++;
 	}
@@ -2022,7 +2023,7 @@ static void SetMode_A(struct comedi_device *dev, struct enc_private *k,
 	 * enable mask to indicate the counter interrupt is disabled.
 	 */
 	if (DisableIntSrc)
-		devpriv->CounterIntEnabs &= ~k->MyEventBits[3];
+		devpriv->counter_int_enabs &= ~k->MyEventBits[3];
 
 	/*
 	 * While retaining CounterB and LatchSrc configurations, program the
@@ -2109,7 +2110,7 @@ static void SetMode_B(struct comedi_device *dev, struct enc_private *k,
 	 * enable mask to indicate the counter interrupt is disabled.
 	 */
 	if (DisableIntSrc)
-		devpriv->CounterIntEnabs &= ~k->MyEventBits[3];
+		devpriv->counter_int_enabs &= ~k->MyEventBits[3];
 
 	/*
 	 * While retaining CounterA and LatchSrc configurations, program the
@@ -2202,8 +2203,8 @@ static void SetIntSrc_A(struct comedi_device *dev, struct enc_private *k,
 		    IntSource << CRABIT_INTSRC_A);
 
 	/* Update MISC2 interrupt enable mask. */
-	devpriv->CounterIntEnabs =
-	    (devpriv->CounterIntEnabs & ~k->
+	devpriv->counter_int_enabs =
+	    (devpriv->counter_int_enabs & ~k->
 	     MyEventBits[3]) | k->MyEventBits[IntSource];
 }
 
@@ -2226,8 +2227,8 @@ static void SetIntSrc_B(struct comedi_device *dev, struct enc_private *k,
 			     (IntSource << CRBBIT_INTSRC_B)));
 
 	/* Update MISC2 interrupt enable mask. */
-	devpriv->CounterIntEnabs =
-		(devpriv->CounterIntEnabs & ~k->MyEventBits[3]) |
+	devpriv->counter_int_enabs =
+		(devpriv->counter_int_enabs & ~k->MyEventBits[3]) |
 		k->MyEventBits[IntSource];
 }
 
@@ -2470,14 +2471,14 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 	if (!addr)
 		return -ENOMEM;
-	devpriv->ANABuf.logical_base = addr;
-	devpriv->ANABuf.physical_base = appdma;
+	devpriv->ana_buf.logical_base = addr;
+	devpriv->ana_buf.physical_base = appdma;
 
 	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 	if (!addr)
 		return -ENOMEM;
-	devpriv->RPSBuf.logical_base = addr;
-	devpriv->RPSBuf.physical_base = appdma;
+	devpriv->rps_buf.logical_base = addr;
+	devpriv->rps_buf.physical_base = appdma;
 
 	return 0;
 }
@@ -2510,7 +2511,7 @@ static void s626_initialize(struct comedi_device *dev)
 	writel(GPIO_BASE | GPIO1_HI, devpriv->mmio + P_GPIO);
 
 	/* I2C device address for onboard eeprom (revb) */
-	devpriv->I2CAdrs = 0xA0;
+	devpriv->i2c_adrs = 0xA0;
 
 	/*
 	 * Issue an I2C ABORT command to halt any I2C
@@ -2557,7 +2558,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Physical start of RPS program */
-	writel((uint32_t)devpriv->RPSBuf.physical_base,
+	writel((uint32_t)devpriv->rps_buf.physical_base,
 	       devpriv->mmio + P_RPSADDR1);
 	/* RPS program performs no explicit mem writes */
 	writel(0, devpriv->mmio + P_RPSPAGE1);
@@ -2625,7 +2626,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * single DWORD will be transferred each time a DMA transfer is
 	 * enabled.
 	 */
-	pPhysBuf = devpriv->ANABuf.physical_base +
+	pPhysBuf = devpriv->ana_buf.physical_base +
 		   (DAC_WDMABUF_OS * sizeof(uint32_t));
 	writel((uint32_t)pPhysBuf, devpriv->mmio + P_BASEA2_OUT);
 	writel((uint32_t)(pPhysBuf + sizeof(uint32_t)),
@@ -2635,7 +2636,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * Cache Audio2's output DMA buffer logical address.  This is
 	 * where DAC data is buffered for A2 output DMA transfers.
 	 */
-	devpriv->pDacWBuf = (uint32_t *)devpriv->ANABuf.logical_base +
+	devpriv->dac_wbuf = (uint32_t *)devpriv->ana_buf.logical_base +
 			    DAC_WDMABUF_OS;
 
 	/*
@@ -2863,8 +2864,8 @@ static void s626_detach(struct comedi_device *dev)
 			writel(MC1_SHUTDOWN, devpriv->mmio + P_MC1);
 			writel(ACON1_BASE, devpriv->mmio + P_ACON1);
 
-			CloseDMAB(dev, &devpriv->RPSBuf, DMABUF_SIZE);
-			CloseDMAB(dev, &devpriv->ANABuf, DMABUF_SIZE);
+			CloseDMAB(dev, &devpriv->rps_buf, DMABUF_SIZE);
+			CloseDMAB(dev, &devpriv->ana_buf, DMABUF_SIZE);
 		}
 
 		if (dev->irq)
