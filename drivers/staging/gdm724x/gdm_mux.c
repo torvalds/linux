@@ -96,12 +96,12 @@ static struct mux_rx *alloc_mux_rx(void)
 {
 	struct mux_rx *r = NULL;
 
-	r = kzalloc(sizeof(struct mux_rx), GFP_ATOMIC);
+	r = kzalloc(sizeof(struct mux_rx), GFP_KERNEL);
 	if (!r)
 		return NULL;
 
-	r->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_ATOMIC);
+	r->urb = usb_alloc_urb(0, GFP_KERNEL);
+	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_KERNEL);
 	if (!r->urb || !r->buf) {
 		usb_free_urb(r->urb);
 		kfree(r->buf);
