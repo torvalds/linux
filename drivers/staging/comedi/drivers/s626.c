@@ -309,7 +309,7 @@ static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr)
 	 *  Byte1 = EEPROM internal target address.
 	 *  Byte0 = Not sent.
 	 */
-	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, I2CW) |
+	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, devpriv->I2CAdrs) |
 			      I2C_B1(I2C_ATTRSTOP, addr) |
 			      I2C_B0(I2C_ATTRNOP, 0)))
 		/* Abort function and declare error if handshake failed. */
@@ -321,7 +321,7 @@ static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr)
 	 *  Byte1 receives uint8_t from EEPROM.
 	 *  Byte0 = Not sent.
 	 */
-	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, I2CR) |
+	if (I2Chandshake(dev, I2C_B2(I2C_ATTRSTART, (devpriv->I2CAdrs | 1)) |
 			      I2C_B1(I2C_ATTRSTOP, 0) |
 			      I2C_B0(I2C_ATTRNOP, 0)))
 		/* Abort function and declare error if handshake failed. */

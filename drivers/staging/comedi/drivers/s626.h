@@ -384,12 +384,6 @@
 #define I2C_ATTRSTOP		0x1	/* I2C attribute STOP. */
 #define I2C_ATTRNOP		0x0	/* I2C attribute NOP. */
 
-/* I2C read command  | EEPROM address. */
-#define I2CR			(devpriv->I2CAdrs | 1)
-
-/* I2C write command | EEPROM address. */
-#define I2CW			(devpriv->I2CAdrs)
-
 /* Code macros used for constructing I2C command bytes. */
 #define I2C_B2(ATTR, VAL)	(((ATTR) << 6) | ((VAL) << 24))
 #define I2C_B1(ATTR, VAL)	(((ATTR) << 4) | ((VAL) << 16))
