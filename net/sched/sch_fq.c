@@ -472,20 +472,16 @@ begin:
 	if (f->credit > 0 || !q->rate_enable)
 		goto out;
 
-	if (skb->sk && skb->sk->sk_state != TCP_TIME_WAIT) {
-		rate = skb->sk->sk_pacing_rate ?: q->flow_default_rate;
+	rate = q->flow_max_rate;
+	if (skb->sk && skb->sk->sk_state != TCP_TIME_WAIT)
+		rate = min(skb->sk->sk_pacing_rate, rate);
 
-		rate = min(rate, q->flow_max_rate);
-	} else {
-		rate = q->flow_max_rate;
-		if (rate == ~0U)
-			goto out;
-	}
-	if (rate) {
+	if (rate != ~0U) {
 		u32 plen = max(qdisc_pkt_len(skb), q->quantum);
 		u64 len = (u64)plen * NSEC_PER_SEC;
 
-		do_div(len, rate);
+		if (likely(rate))
+			do_div(len, rate);
 		/* Since socket rate can change later,
 		 * clamp the delay to 125 ms.
 		 * TODO: maybe segment the too big skb, as in commit
@@ -735,12 +731,14 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 
+	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore,
+	 * do not bother giving its value
+	 */
 	if (nla_put_u32(skb, TCA_FQ_PLIMIT, sch->limit) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_PLIMIT, q->flow_plimit) ||
 	    nla_put_u32(skb, TCA_FQ_QUANTUM, q->quantum) ||
 	    nla_put_u32(skb, TCA_FQ_INITIAL_QUANTUM, q->initial_quantum) ||
 	    nla_put_u32(skb, TCA_FQ_RATE_ENABLE, q->rate_enable) ||
-	    nla_put_u32(skb, TCA_FQ_FLOW_DEFAULT_RATE, q->flow_default_rate) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_MAX_RATE, q->flow_max_rate) ||
 	    nla_put_u32(skb, TCA_FQ_BUCKETS_LOG, q->fq_trees_log))
 		goto nla_put_failure;
