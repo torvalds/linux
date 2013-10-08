@@ -183,11 +183,6 @@ static bool s626_mc_test(struct comedi_device *dev,
 /* Write a time slot control record to TSL2. */
 #define VECTPORT(VECTNUM)		(P_TSL2 + ((VECTNUM) << 2))
 
-/* Code macros used for constructing I2C command bytes. */
-#define I2C_B2(ATTR, VAL)	(((ATTR) << 6) | ((VAL) << 24))
-#define I2C_B1(ATTR, VAL)	(((ATTR) << 4) | ((VAL) << 16))
-#define I2C_B0(ATTR, VAL)	(((ATTR) << 2) | ((VAL) <<  8))
-
 static const struct comedi_lrange s626_range_table = {
 	2, {
 		BIP_RANGE(5),
