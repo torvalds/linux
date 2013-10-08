@@ -252,7 +252,7 @@ static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	struct iio_buffer *buf;
 	struct iio_hw_buffer *ring;
 
-	ring = kzalloc(sizeof *ring, GFP_KERNEL);
+	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		return NULL;
 
