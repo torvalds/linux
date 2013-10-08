@@ -155,13 +155,7 @@ struct ti_hdmi_ip_ops {
 
 	int (*read_edid)(struct hdmi_ip_data *ip_data, u8 *edid, int len);
 
-	int (*pll_enable)(struct hdmi_ip_data *ip_data);
-
-	void (*pll_disable)(struct hdmi_ip_data *ip_data);
-
 	void (*dump_core)(struct hdmi_ip_data *ip_data, struct seq_file *s);
-
-	void (*dump_pll)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
 	void (*dump_phy)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
@@ -223,17 +217,22 @@ struct hdmi_wp_data {
 	void __iomem *base;
 };
 
+struct hdmi_pll_data {
+	void __iomem *base;
+
+	struct hdmi_pll_info info;
+};
+
 struct hdmi_ip_data {
 	struct hdmi_wp_data	wp;
+	struct hdmi_pll_data	pll;
 
 	unsigned long	core_sys_offset;
 	unsigned long	core_av_offset;
-	unsigned long	pll_offset;
 	unsigned long	phy_offset;
 	int		irq;
 	const struct ti_hdmi_ip_ops *ops;
 	struct hdmi_config cfg;
-	struct hdmi_pll_info pll_data;
 	struct hdmi_core_infoframe_avi avi_cfg;
 
 	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
@@ -260,13 +259,17 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 		struct omap_video_timings *timings, struct hdmi_config *param);
 int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
 
+/* HDMI PLL funcs */
+int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
+void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
+void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
+void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy);
+int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll);
+
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data, u8 *edid, int len);
-int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_pll_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_phy_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)

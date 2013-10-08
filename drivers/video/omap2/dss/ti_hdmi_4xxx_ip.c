@@ -75,11 +75,6 @@ static inline void __iomem *hdmi_phy_base(struct hdmi_ip_data *ip_data)
 	return ip_data->wp.base + ip_data->phy_offset;
 }
 
-static inline void __iomem *hdmi_pll_base(struct hdmi_ip_data *ip_data)
-{
-	return ip_data->wp.base + ip_data->pll_offset;
-}
-
 static inline void __iomem *hdmi_av_base(struct hdmi_ip_data *ip_data)
 {
 	return ip_data->wp.base + ip_data->core_av_offset;
@@ -88,117 +83,6 @@ static inline void __iomem *hdmi_av_base(struct hdmi_ip_data *ip_data)
 static inline void __iomem *hdmi_core_sys_base(struct hdmi_ip_data *ip_data)
 {
 	return ip_data->wp.base + ip_data->core_sys_offset;
-}
-
-
-static int hdmi_pll_init(struct hdmi_ip_data *ip_data)
-{
-	u32 r;
-	void __iomem *pll_base = hdmi_pll_base(ip_data);
-	struct hdmi_pll_info *fmt = &ip_data->pll_data;
-
-	/* PLL start always use manual mode */
-	REG_FLD_MOD(pll_base, PLLCTRL_PLL_CONTROL, 0x0, 0, 0);
-
-	r = hdmi_read_reg(pll_base, PLLCTRL_CFG1);
-	r = FLD_MOD(r, fmt->regm, 20, 9); /* CFG1_PLL_REGM */
-	r = FLD_MOD(r, fmt->regn - 1, 8, 1);  /* CFG1_PLL_REGN */
-
-	hdmi_write_reg(pll_base, PLLCTRL_CFG1, r);
-
-	r = hdmi_read_reg(pll_base, PLLCTRL_CFG2);
-
-	r = FLD_MOD(r, 0x0, 12, 12); /* PLL_HIGHFREQ divide by 2 */
-	r = FLD_MOD(r, 0x1, 13, 13); /* PLL_REFEN */
-	r = FLD_MOD(r, 0x0, 14, 14); /* PHY_CLKINEN de-assert during locking */
-	r = FLD_MOD(r, fmt->refsel, 22, 21); /* REFSEL */
-
-	if (fmt->dcofreq) {
-		/* divider programming for frequency beyond 1000Mhz */
-		REG_FLD_MOD(pll_base, PLLCTRL_CFG3, fmt->regsd, 17, 10);
-		r = FLD_MOD(r, 0x4, 3, 1); /* 1000MHz and 2000MHz */
-	} else {
-		r = FLD_MOD(r, 0x2, 3, 1); /* 500MHz and 1000MHz */
-	}
-
-	hdmi_write_reg(pll_base, PLLCTRL_CFG2, r);
-
-	r = hdmi_read_reg(pll_base, PLLCTRL_CFG4);
-	r = FLD_MOD(r, fmt->regm2, 24, 18);
-	r = FLD_MOD(r, fmt->regmf, 17, 0);
-
-	hdmi_write_reg(pll_base, PLLCTRL_CFG4, r);
-
-	/* go now */
-	REG_FLD_MOD(pll_base, PLLCTRL_PLL_GO, 0x1, 0, 0);
-
-	/* wait for bit change */
-	if (hdmi_wait_for_bit_change(pll_base, PLLCTRL_PLL_GO,
-							0, 0, 1) != 1) {
-		pr_err("PLL GO bit not set\n");
-		return -ETIMEDOUT;
-	}
-
-	/* Wait till the lock bit is set in PLL status */
-	if (hdmi_wait_for_bit_change(pll_base,
-				PLLCTRL_PLL_STATUS, 1, 1, 1) != 1) {
-		pr_err("cannot lock PLL\n");
-		pr_err("CFG1 0x%x\n",
-			hdmi_read_reg(pll_base, PLLCTRL_CFG1));
-		pr_err("CFG2 0x%x\n",
-			hdmi_read_reg(pll_base, PLLCTRL_CFG2));
-		pr_err("CFG4 0x%x\n",
-			hdmi_read_reg(pll_base, PLLCTRL_CFG4));
-		return -ETIMEDOUT;
-	}
-
-	pr_debug("PLL locked!\n");
-
-	return 0;
-}
-
-
-static int hdmi_pll_reset(struct hdmi_ip_data *ip_data)
-{
-	/* SYSRESET  controlled by power FSM */
-	REG_FLD_MOD(hdmi_pll_base(ip_data), PLLCTRL_PLL_CONTROL, 0x0, 3, 3);
-
-	/* READ 0x0 reset is in progress */
-	if (hdmi_wait_for_bit_change(hdmi_pll_base(ip_data),
-				PLLCTRL_PLL_STATUS, 0, 0, 1) != 1) {
-		pr_err("Failed to sysreset PLL\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data)
-{
-	u16 r = 0;
-
-	r = hdmi_wp_set_pll_pwr(&ip_data->wp, HDMI_PLLPWRCMD_ALLOFF);
-	if (r)
-		return r;
-
-	r = hdmi_wp_set_pll_pwr(&ip_data->wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
-	if (r)
-		return r;
-
-	r = hdmi_pll_reset(ip_data);
-	if (r)
-		return r;
-
-	r = hdmi_pll_init(ip_data);
-	if (r)
-		return r;
-
-	return 0;
-}
-
-void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data)
-{
-	hdmi_wp_set_pll_pwr(&ip_data->wp, HDMI_PLLPWRCMD_ALLOFF);
 }
 
 static irqreturn_t hdmi_irq_handler(int irq, void *data)
@@ -715,22 +599,6 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	repeat_cfg.audio_pkt = HDMI_PACKETENABLE;
 	repeat_cfg.audio_pkt_repeat = HDMI_PACKETREPEATON;
 	hdmi_core_av_packet_config(ip_data, repeat_cfg);
-}
-
-void ti_hdmi_4xxx_pll_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
-{
-#define DUMPPLL(r) seq_printf(s, "%-35s %08x\n", #r,\
-		hdmi_read_reg(hdmi_pll_base(ip_data), r))
-
-	DUMPPLL(PLLCTRL_PLL_CONTROL);
-	DUMPPLL(PLLCTRL_PLL_STATUS);
-	DUMPPLL(PLLCTRL_PLL_GO);
-	DUMPPLL(PLLCTRL_CFG1);
-	DUMPPLL(PLLCTRL_CFG2);
-	DUMPPLL(PLLCTRL_CFG3);
-	DUMPPLL(PLLCTRL_SSC_CFG1);
-	DUMPPLL(PLLCTRL_SSC_CFG2);
-	DUMPPLL(PLLCTRL_CFG4);
 }
 
 void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)

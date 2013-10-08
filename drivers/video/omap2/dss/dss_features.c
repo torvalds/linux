@@ -797,10 +797,7 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 	.phy_enable		=	ti_hdmi_4xxx_phy_enable,
 	.phy_disable		=	ti_hdmi_4xxx_phy_disable,
 	.read_edid		=	ti_hdmi_4xxx_read_edid,
-	.pll_enable		=	ti_hdmi_4xxx_pll_enable,
-	.pll_disable		=	ti_hdmi_4xxx_pll_disable,
 	.dump_core		=	ti_hdmi_4xxx_core_dump,
-	.dump_pll		=	ti_hdmi_4xxx_pll_dump,
 	.dump_phy		=	ti_hdmi_4xxx_phy_dump,
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 	.audio_start		=       ti_hdmi_4xxx_audio_start,

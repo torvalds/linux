@@ -42,7 +42,6 @@
 
 #define HDMI_CORE_SYS		0x400
 #define HDMI_CORE_AV		0x900
-#define HDMI_PLLCTRL		0x200
 #define HDMI_PHY		0x300
 
 /* HDMI EDID Length move this */
@@ -52,9 +51,6 @@
 #define EDID_DESCRIPTOR_BLOCK1_ADDRESS		0x80
 #define EDID_SIZE_BLOCK0_TIMING_DESCRIPTOR	4
 #define EDID_SIZE_BLOCK1_TIMING_DESCRIPTOR	4
-
-#define HDMI_DEFAULT_REGN 16
-#define HDMI_DEFAULT_REGM2 1
 
 static struct {
 	struct mutex lock;
@@ -428,52 +424,6 @@ end:	return cm;
 
 }
 
-static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
-		struct hdmi_pll_info *pi)
-{
-	unsigned long clkin, refclk;
-	u32 mf;
-
-	clkin = clk_get_rate(hdmi.sys_clk) / 10000;
-	/*
-	 * Input clock is predivided by N + 1
-	 * out put of which is reference clk
-	 */
-
-	pi->regn = HDMI_DEFAULT_REGN;
-
-	refclk = clkin / pi->regn;
-
-	pi->regm2 = HDMI_DEFAULT_REGM2;
-
-	/*
-	 * multiplier is pixel_clk/ref_clk
-	 * Multiplying by 100 to avoid fractional part removal
-	 */
-	pi->regm = phy * pi->regm2 / refclk;
-
-	/*
-	 * fractional multiplier is remainder of the difference between
-	 * multiplier and actual phy(required pixel clock thus should be
-	 * multiplied by 2^18(262144) divided by the reference clock
-	 */
-	mf = (phy - pi->regm / pi->regm2 * refclk) * 262144;
-	pi->regmf = pi->regm2 * mf / refclk;
-
-	/*
-	 * Dcofreq should be set to 1 if required pixel clock
-	 * is greater than 1000MHz
-	 */
-	pi->dcofreq = phy > 1000 * 100;
-	pi->regsd = ((pi->regm * clkin / 10) / (pi->regn * 250) + 5) / 10;
-
-	/* Set the reference clock to sysclk reference */
-	pi->refsel = HDMI_REFSEL_SYSCLK;
-
-	DSSDBG("M = %d Mf = %d\n", pi->regm, pi->regmf);
-	DSSDBG("range = %d sd = %d\n", pi->dcofreq, pi->regsd);
-}
-
 static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 {
 	int r;
@@ -526,12 +476,12 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	phy = p->pixel_clock;
 
-	hdmi_compute_pll(dssdev, phy, &hdmi.ip_data.pll_data);
+	hdmi_pll_compute(&hdmi.ip_data.pll, clk_get_rate(hdmi.sys_clk), phy);
 
 	hdmi_wp_video_stop(&hdmi.ip_data.wp);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
-	r = hdmi.ip_data.ops->pll_enable(&hdmi.ip_data);
+	r = hdmi_pll_enable(&hdmi.ip_data.pll, &hdmi.ip_data.wp);
 	if (r) {
 		DSSDBG("Failed to lock PLL\n");
 		goto err_pll_enable;
@@ -566,7 +516,7 @@ err_mgr_enable:
 err_vid_enable:
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 err_phy_enable:
-	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
+	hdmi_pll_disable(&hdmi.ip_data.pll, &hdmi.ip_data.wp);
 err_pll_enable:
 	hdmi_power_off_core(dssdev);
 	return -EIO;
@@ -580,7 +530,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 
 	hdmi_wp_video_stop(&hdmi.ip_data.wp);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
-	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
+	hdmi_pll_disable(&hdmi.ip_data.pll, &hdmi.ip_data.wp);
 
 	hdmi_power_off_core(dssdev);
 }
@@ -642,7 +592,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 	}
 
 	hdmi_wp_dump(&hdmi.ip_data.wp, s);
-	hdmi.ip_data.ops->dump_pll(&hdmi.ip_data, s);
+	hdmi_pll_dump(&hdmi.ip_data.pll, s);
 	hdmi.ip_data.ops->dump_phy(&hdmi.ip_data, s);
 	hdmi.ip_data.ops->dump_core(&hdmi.ip_data, s);
 
@@ -1095,6 +1045,10 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
+	r = hdmi_pll_init(pdev, &hdmi.ip_data.pll);
+	if (r)
+		return r;
+
 	hdmi.ip_data.irq = platform_get_irq(pdev, 0);
 	if (hdmi.ip_data.irq < 0) {
 		DSSERR("platform_get_irq failed\n");
@@ -1111,7 +1065,6 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	hdmi.ip_data.core_sys_offset = HDMI_CORE_SYS;
 	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
-	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
 	hdmi.ip_data.phy_offset = HDMI_PHY;
 
 	hdmi_init_output(pdev);
