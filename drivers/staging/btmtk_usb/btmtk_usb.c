@@ -1514,7 +1514,7 @@ static void btmtk_usb_work(struct work_struct *work)
 		__set_isoc_interface(hdev, 0);
 
 		if (test_and_clear_bit(BTUSB_DID_ISO_RESUME, &data->flags))
-			 usb_autopm_put_interface(data->isoc ?
+			usb_autopm_put_interface(data->isoc ?
 					 data->isoc : data->intf);
 	}
 }
