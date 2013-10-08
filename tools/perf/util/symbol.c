@@ -500,6 +500,64 @@ out_failure:
 	return -1;
 }
 
+int modules__parse(const char *filename, void *arg,
+		   int (*process_module)(void *arg, const char *name,
+					 u64 start))
+{
+	char *line = NULL;
+	size_t n;
+	FILE *file;
+	int err = 0;
+
+	file = fopen(filename, "r");
+	if (file == NULL)
+		return -1;
+
+	while (1) {
+		char name[PATH_MAX];
+		u64 start;
+		char *sep;
+		ssize_t line_len;
+
+		line_len = getline(&line, &n, file);
+		if (line_len < 0) {
+			if (feof(file))
+				break;
+			err = -1;
+			goto out;
+		}
+
+		if (!line) {
+			err = -1;
+			goto out;
+		}
+
+		line[--line_len] = '\0'; /* \n */
+
+		sep = strrchr(line, 'x');
+		if (sep == NULL)
+			continue;
+
+		hex2u64(sep + 1, &start);
+
+		sep = strchr(line, ' ');
+		if (sep == NULL)
+			continue;
+
+		*sep = '\0';
+
+		scnprintf(name, sizeof(name), "[%s]", line);
+
+		err = process_module(arg, name, start);
+		if (err)
+			break;
+	}
+out:
+	free(line);
+	fclose(file);
+	return err;
+}
+
 struct process_kallsyms_args {
 	struct map *map;
 	struct dso *dso;
