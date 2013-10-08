@@ -203,6 +203,7 @@ static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
 		fcf_dev = fcoe_fcf_device_add(ctlr_dev, temp);
 		if (unlikely(!fcf_dev)) {
 			rc = -ENOMEM;
+			mutex_unlock(&ctlr_dev->lock);
 			goto out;
 		}
 
