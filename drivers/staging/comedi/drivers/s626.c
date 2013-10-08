@@ -339,10 +339,10 @@ static uint8_t i2c_read(struct comedi_device *dev, uint8_t addr)
 /* Slot 0 always shifts in  0xFF and store it to  FB_BUFFER2. */
 
 /* TrimDac LogicalChan-to-PhysicalChan mapping table. */
-static uint8_t trimchan[] = { 10, 9, 8, 3, 2, 7, 6, 1, 0, 5, 4 };
+static const uint8_t trimchan[] = { 10, 9, 8, 3, 2, 7, 6, 1, 0, 5, 4 };
 
 /* TrimDac LogicalChan-to-EepromAdrs mapping table. */
-static uint8_t trimadrs[] = {
+static const uint8_t trimadrs[] = {
 	0x40, 0x41, 0x42, 0x50, 0x51, 0x52, 0x53, 0x60, 0x61, 0x62, 0x63
 };
 
