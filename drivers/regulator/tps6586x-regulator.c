@@ -298,7 +298,7 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	struct tps6586x_platform_data *pdata;
 	int err;
 
-	regs = of_find_node_by_name(np, "regulators");
+	regs = of_get_child_by_name(np, "regulators");
 	if (!regs) {
 		dev_err(&pdev->dev, "regulator node not found\n");
 		return NULL;
