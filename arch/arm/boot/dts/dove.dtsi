@@ -573,6 +573,24 @@
 					phy-handle = <&ethphy>;
 				};
 			};
+
+			audio0: audio-controller@b0000 {
+				compatible = "marvell,dove-audio";
+				reg = <0xb0000 0x2210>;
+				interrupts = <19>, <20>;
+				clocks = <&gate_clk 12>;
+				clock-names = "internal";
+				status = "disabled";
+			};
+
+			audio1: audio-controller@b4000 {
+				compatible = "marvell,dove-audio";
+				reg = <0xb4000 0x2210>;
+				interrupts = <21>, <22>;
+				clocks = <&gate_clk 13>;
+				clock-names = "internal";
+				status = "disabled";
+			};
 		};
 	};
 };
