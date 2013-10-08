@@ -178,7 +178,7 @@ static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
 		rc = -EBUSY;
 		goto done;
-	};
+	}
 
 	/* All PCI host controllers are required to disable IRQ generation
 	 * at the source, so we must turn off PIRQ.

@@ -402,7 +402,7 @@ struct debug_buffer {
 		case QH_LOW_SPEED:  tmp = 'l'; break; \
 		case QH_HIGH_SPEED: tmp = 'h'; break; \
 		default: tmp = '?'; break; \
-		}; tmp; })
+		} tmp; })
 
 static inline char token_mark(struct fusbh200_hcd *fusbh200, __hc32 token)
 {

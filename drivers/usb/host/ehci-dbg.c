@@ -379,7 +379,7 @@ struct debug_buffer {
 		case QH_LOW_SPEED:  tmp = 'l'; break; \
 		case QH_HIGH_SPEED: tmp = 'h'; break; \
 		default: tmp = '?'; break; \
-		}; tmp; })
+		} tmp; })
 
 static inline char token_mark(struct ehci_hcd *ehci, __hc32 token)
 {

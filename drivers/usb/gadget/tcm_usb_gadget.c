@@ -472,7 +472,7 @@ static int usbg_bot_setup(struct usb_function *f,
 		bot_enqueue_cmd_cbw(fu);
 		return 0;
 		break;
-	};
+	}
 	return -ENOTSUPP;
 }
 
@@ -617,7 +617,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 	default:
 		BUG();
-	};
+	}
 	return;
 
 cleanup:

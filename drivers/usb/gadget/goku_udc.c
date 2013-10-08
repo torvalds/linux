@@ -1165,7 +1165,7 @@ static int udc_proc_read(struct seq_file *m, void *v)
 				s = "invalid"; break;
 			default:
 				s = "?"; break;
-			}; s; }),
+			} s; }),
 			(tmp & EPxSTATUS_TOGGLE) ? "data1" : "data0",
 			(tmp & EPxSTATUS_SUSPEND) ? " suspend" : "",
 			(tmp & EPxSTATUS_FIFO_DISABLE) ? " disable" : "",

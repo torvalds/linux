@@ -443,7 +443,7 @@ static int get_musb_port_mode(struct device *dev)
 	case USB_DR_MODE_OTG:
 	default:
 		return MUSB_PORT_MODE_DUAL_ROLE;
-	};
+	}
 }
 
 static int dsps_create_musb_pdev(struct dsps_glue *glue,

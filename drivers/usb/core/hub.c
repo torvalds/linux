@@ -438,7 +438,7 @@ static void set_port_led(
 			case HUB_LED_OFF: s = "off"; break;
 			case HUB_LED_AUTO: s = "auto"; break;
 			default: s = "??"; break;
-			}; s; }),
+			} s; }),
 			status);
 }
 

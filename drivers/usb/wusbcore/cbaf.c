@@ -208,9 +208,9 @@ static int cbaf_check(struct cbaf *cbaf)
 				ar_name = "ASSOCIATE";
 				ar_assoc = 1;
 				break;
-			};
+			}
 			break;
-		};
+		}
 
 		dev_dbg(dev, "Association request #%02u: 0x%04x/%04x "
 			 "(%zu bytes): %s\n",
