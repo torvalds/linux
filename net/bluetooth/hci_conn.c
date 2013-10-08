@@ -594,32 +594,47 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (test_bit(HCI_ADVERTISING, &hdev->flags))
 		return ERR_PTR(-ENOTSUPP);
 
+	/* Some devices send ATT messages as soon as the physical link is
+	 * established. To be able to handle these ATT messages, the user-
+	 * space first establishes the connection and then starts the pairing
+	 * process.
+	 *
+	 * So if a hci_conn object already exists for the following connection
+	 * attempt, we simply update pending_sec_level and auth_type fields
+	 * and return the object found.
+	 */
 	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
-	if (!conn) {
-		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-		if (conn)
-			return ERR_PTR(-EBUSY);
-
-		conn = hci_conn_add(hdev, LE_LINK, dst);
-		if (!conn)
-			return ERR_PTR(-ENOMEM);
-
-		conn->dst_type = bdaddr_to_le(dst_type);
-		conn->state = BT_CONNECT;
-		conn->out = true;
-		conn->link_mode |= HCI_LM_MASTER;
-		conn->sec_level = BT_SECURITY_LOW;
-
-		err = hci_create_le_conn(conn);
-		if (err)
-			return ERR_PTR(err);
+	if (conn) {
+		conn->pending_sec_level = sec_level;
+		conn->auth_type = auth_type;
+		goto done;
 	}
 
+	/* Since the controller supports only one LE connection attempt at a
+	 * time, we return -EBUSY if there is any connection attempt running.
+	 */
+	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+	if (conn)
+		return ERR_PTR(-EBUSY);
+
+	conn = hci_conn_add(hdev, LE_LINK, dst);
+	if (!conn)
+		return ERR_PTR(-ENOMEM);
+
+	conn->dst_type = bdaddr_to_le(dst_type);
+	conn->state = BT_CONNECT;
+	conn->out = true;
+	conn->link_mode |= HCI_LM_MASTER;
+	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
 	conn->auth_type = auth_type;
 
-	hci_conn_hold(conn);
+	err = hci_create_le_conn(conn);
+	if (err)
+		return ERR_PTR(err);
 
+done:
+	hci_conn_hold(conn);
 	return conn;
 }
 
