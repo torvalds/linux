@@ -145,7 +145,7 @@ struct enc_private {
 
 /*
  * Translation table to map IntSrc into equivalent RDMISC2 event flag  bits.
- * static const uint16_t EventBits[][4] =
+ * static const uint16_t event_bits[][4] =
  *     { EVBITS(0), EVBITS(1), EVBITS(2), EVBITS(3), EVBITS(4), EVBITS(5) };
  */
 
@@ -486,7 +486,7 @@ static void set_dac(struct comedi_device *dev, uint16_t chan, short dacdata)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t signmask;
-	uint32_t WSImage;
+	uint32_t ws_image;
 	uint32_t val;
 
 	/*
@@ -516,11 +516,11 @@ static void set_dac(struct comedi_device *dev, uint16_t chan, short dacdata)
 	 */
 
 	/* Choose DAC chip select to be asserted */
-	WSImage = (chan & 2) ? WS1 : WS2;
+	ws_image = (chan & 2) ? WS1 : WS2;
 	/* Slot 2: Transmit high data byte to target DAC */
-	writel(XSD2 | XFIFO_1 | WSImage, devpriv->mmio + VECTPORT(2));
+	writel(XSD2 | XFIFO_1 | ws_image, devpriv->mmio + VECTPORT(2));
 	/* Slot 3: Transmit low data byte to target DAC */
-	writel(XSD2 | XFIFO_0 | WSImage, devpriv->mmio + VECTPORT(3));
+	writel(XSD2 | XFIFO_0 | ws_image, devpriv->mmio + VECTPORT(3));
 	/* Slot 4: Transmit to non-existent TrimDac channel to keep clock */
 	writel(XSD2 | XFIFO_3 | WS3, devpriv->mmio + VECTPORT(4));
 	/* Slot 5: running after writing target DAC's low data byte */
@@ -543,8 +543,8 @@ static void set_dac(struct comedi_device *dev, uint16_t chan, short dacdata)
 	send_dac(dev, val);
 }
 
-static void write_trim_dac(struct comedi_device *dev, uint8_t LogicalChan,
-			   uint8_t DacData)
+static void write_trim_dac(struct comedi_device *dev, uint8_t logical_chan,
+			   uint8_t dac_data)
 {
 	struct s626_private *devpriv = dev->private;
 	uint32_t chan;
@@ -553,10 +553,10 @@ static void write_trim_dac(struct comedi_device *dev, uint8_t LogicalChan,
 	 * Save the new setpoint in case the application needs to read it back
 	 * later.
 	 */
-	devpriv->trim_setpoint[LogicalChan] = (uint8_t)DacData;
+	devpriv->trim_setpoint[logical_chan] = (uint8_t)dac_data;
 
 	/* Map logical channel number to physical channel number. */
-	chan = trimchan[LogicalChan];
+	chan = trimchan[logical_chan];
 
 	/*
 	 * Set up TSL2 records for TrimDac write operation.  All slots shift
@@ -586,7 +586,7 @@ static void write_trim_dac(struct comedi_device *dev, uint8_t LogicalChan,
 	 * Address the DAC channel within the trimdac device.
 	 * Include DAC setpoint data.
 	 */
-	send_dac(dev, (chan << 8) | DacData);
+	send_dac(dev, (chan << 8) | dac_data);
 }
 
 static void load_trim_dacs(struct comedi_device *dev)
@@ -956,18 +956,18 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 static void reset_adc(struct comedi_device *dev, uint8_t *ppl)
 {
 	struct s626_private *devpriv = dev->private;
-	uint32_t *pRPS;
-	uint32_t JmpAdrs;
+	uint32_t *rps;
+	uint32_t jmp_adrs;
 	uint16_t i;
 	uint16_t n;
-	uint32_t LocalPPL;
+	uint32_t local_ppl;
 	struct comedi_cmd *cmd = &dev->subdevices->async->cmd;
 
 	/* Stop RPS program in case it is currently running */
 	s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 	/* Set starting logical address to write RPS commands. */
-	pRPS = (uint32_t *)devpriv->rps_buf.logical_base;
+	rps = (uint32_t *)devpriv->rps_buf.logical_base;
 
 	/* Initialize RPS instruction pointer */
 	writel((uint32_t)devpriv->rps_buf.physical_base,
@@ -976,8 +976,8 @@ static void reset_adc(struct comedi_device *dev, uint8_t *ppl)
 	/* Construct RPS program in rps_buf DMA buffer */
 	if (cmd != NULL && cmd->scan_begin_src != TRIG_FOLLOW) {
 		/* Wait for Start trigger. */
-		*pRPS++ = RPS_PAUSE | RPS_SIGADC;
-		*pRPS++ = RPS_CLRSIGNAL | RPS_SIGADC;
+		*rps++ = RPS_PAUSE | RPS_SIGADC;
+		*rps++ = RPS_CLRSIGNAL | RPS_SIGADC;
 	}
 
 	/*
@@ -989,15 +989,15 @@ static void reset_adc(struct comedi_device *dev, uint8_t *ppl)
 	 * the previously programmed value.
 	 */
 	/* Write DEBI Write command and address to shadow RAM. */
-	*pRPS++ = RPS_LDREG | (P_DEBICMD >> 2);
-	*pRPS++ = DEBI_CMD_WRWORD | LP_GSEL;
-	*pRPS++ = RPS_LDREG | (P_DEBIAD >> 2);
+	*rps++ = RPS_LDREG | (P_DEBICMD >> 2);
+	*rps++ = DEBI_CMD_WRWORD | LP_GSEL;
+	*rps++ = RPS_LDREG | (P_DEBIAD >> 2);
 	/* Write DEBI immediate data  to shadow RAM: */
-	*pRPS++ = GSEL_BIPOLAR5V;	/* arbitrary immediate data  value. */
-	*pRPS++ = RPS_CLRSIGNAL | RPS_DEBI;
+	*rps++ = GSEL_BIPOLAR5V;	/* arbitrary immediate data  value. */
+	*rps++ = RPS_CLRSIGNAL | RPS_DEBI;
 	/* Reset "shadow RAM  uploaded" flag. */
-	*pRPS++ = RPS_UPLOAD | RPS_DEBI;	/* Invoke shadow RAM upload. */
-	*pRPS++ = RPS_PAUSE | RPS_DEBI;	/* Wait for shadow upload to finish. */
+	*rps++ = RPS_UPLOAD | RPS_DEBI;	/* Invoke shadow RAM upload. */
+	*rps++ = RPS_PAUSE | RPS_DEBI;	/* Wait for shadow upload to finish. */
 
 	/*
 	 * Digitize all slots in the poll list. This is implemented as a
@@ -1012,35 +1012,35 @@ static void reset_adc(struct comedi_device *dev, uint8_t *ppl)
 		 * (EOPL,x,x,RANGE,CHAN<3:0>), where RANGE code indicates 0 =
 		 * +-10V, 1 = +-5V, and EOPL = End of Poll List marker.
 		 */
-		LocalPPL = (*ppl << 8) | (*ppl & 0x10 ? GSEL_BIPOLAR5V :
-					  GSEL_BIPOLAR10V);
+		local_ppl = (*ppl << 8) | (*ppl & 0x10 ? GSEL_BIPOLAR5V :
+					   GSEL_BIPOLAR10V);
 
 		/* Switch ADC analog gain. */
 		/* Write DEBI command and address to shadow RAM. */
-		*pRPS++ = RPS_LDREG | (P_DEBICMD >> 2);
-		*pRPS++ = DEBI_CMD_WRWORD | LP_GSEL;
+		*rps++ = RPS_LDREG | (P_DEBICMD >> 2);
+		*rps++ = DEBI_CMD_WRWORD | LP_GSEL;
 		/* Write DEBI immediate data to shadow RAM. */
-		*pRPS++ = RPS_LDREG | (P_DEBIAD >> 2);
-		*pRPS++ = LocalPPL;
+		*rps++ = RPS_LDREG | (P_DEBIAD >> 2);
+		*rps++ = local_ppl;
 		/* Reset "shadow RAM uploaded" flag. */
-		*pRPS++ = RPS_CLRSIGNAL | RPS_DEBI;
+		*rps++ = RPS_CLRSIGNAL | RPS_DEBI;
 		/* Invoke shadow RAM upload. */
-		*pRPS++ = RPS_UPLOAD | RPS_DEBI;
+		*rps++ = RPS_UPLOAD | RPS_DEBI;
 		/* Wait for shadow upload to finish. */
-		*pRPS++ = RPS_PAUSE | RPS_DEBI;
+		*rps++ = RPS_PAUSE | RPS_DEBI;
 		/* Select ADC analog input channel. */
-		*pRPS++ = RPS_LDREG | (P_DEBICMD >> 2);
+		*rps++ = RPS_LDREG | (P_DEBICMD >> 2);
 		/* Write DEBI command and address to shadow RAM. */
-		*pRPS++ = DEBI_CMD_WRWORD | LP_ISEL;
-		*pRPS++ = RPS_LDREG | (P_DEBIAD >> 2);
+		*rps++ = DEBI_CMD_WRWORD | LP_ISEL;
+		*rps++ = RPS_LDREG | (P_DEBIAD >> 2);
 		/* Write DEBI immediate data to shadow RAM. */
-		*pRPS++ = LocalPPL;
+		*rps++ = local_ppl;
 		/* Reset "shadow RAM uploaded" flag. */
-		*pRPS++ = RPS_CLRSIGNAL | RPS_DEBI;
+		*rps++ = RPS_CLRSIGNAL | RPS_DEBI;
 		/* Invoke shadow RAM upload. */
-		*pRPS++ = RPS_UPLOAD | RPS_DEBI;
+		*rps++ = RPS_UPLOAD | RPS_DEBI;
 		/* Wait for shadow upload to finish. */
-		*pRPS++ = RPS_PAUSE | RPS_DEBI;
+		*rps++ = RPS_PAUSE | RPS_DEBI;
 
 		/*
 		 * Delay at least 10 microseconds for analog input settling.
@@ -1049,42 +1049,42 @@ static void reset_adc(struct comedi_device *dev, uint8_t *ppl)
 		 * possible with NOPs because each RPS_JUMP flushes the RPS'
 		 * instruction prefetch pipeline.
 		 */
-		JmpAdrs =
+		jmp_adrs =
 			(uint32_t)devpriv->rps_buf.physical_base +
-			(uint32_t)((unsigned long)pRPS -
+			(uint32_t)((unsigned long)rps -
 				   (unsigned long)devpriv->
 						  rps_buf.logical_base);
 		for (i = 0; i < (10 * RPSCLK_PER_US / 2); i++) {
-			JmpAdrs += 8;	/* Repeat to implement time delay: */
-			*pRPS++ = RPS_JUMP; /* Jump to next RPS instruction. */
-			*pRPS++ = JmpAdrs;
+			jmp_adrs += 8;	/* Repeat to implement time delay: */
+			*rps++ = RPS_JUMP; /* Jump to next RPS instruction. */
+			*rps++ = jmp_adrs;
 		}
 
 		if (cmd != NULL && cmd->convert_src != TRIG_NOW) {
 			/* Wait for Start trigger. */
-			*pRPS++ = RPS_PAUSE | RPS_SIGADC;
-			*pRPS++ = RPS_CLRSIGNAL | RPS_SIGADC;
+			*rps++ = RPS_PAUSE | RPS_SIGADC;
+			*rps++ = RPS_CLRSIGNAL | RPS_SIGADC;
 		}
 		/* Start ADC by pulsing GPIO1. */
 		/* Begin ADC Start pulse. */
-		*pRPS++ = RPS_LDREG | (P_GPIO >> 2);
-		*pRPS++ = GPIO_BASE | GPIO1_LO;
-		*pRPS++ = RPS_NOP;
+		*rps++ = RPS_LDREG | (P_GPIO >> 2);
+		*rps++ = GPIO_BASE | GPIO1_LO;
+		*rps++ = RPS_NOP;
 		/* VERSION 2.03 CHANGE: STRETCH OUT ADC START PULSE. */
 		/* End ADC Start pulse. */
-		*pRPS++ = RPS_LDREG | (P_GPIO >> 2);
-		*pRPS++ = GPIO_BASE | GPIO1_HI;
+		*rps++ = RPS_LDREG | (P_GPIO >> 2);
+		*rps++ = GPIO_BASE | GPIO1_HI;
 		/*
 		 * Wait for ADC to complete (GPIO2 is asserted high when ADC not
 		 * busy) and for data from previous conversion to shift into FB
 		 * BUFFER 1 register.
 		 */
-		*pRPS++ = RPS_PAUSE | RPS_GPIO2;	/* Wait for ADC done. */
+		*rps++ = RPS_PAUSE | RPS_GPIO2;	/* Wait for ADC done. */
 
 		/* Transfer ADC data from FB BUFFER 1 register to DMA buffer. */
-		*pRPS++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
-		*pRPS++ = (uint32_t)devpriv->ana_buf.physical_base +
-			  (devpriv->adc_items << 2);
+		*rps++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
+		*rps++ = (uint32_t)devpriv->ana_buf.physical_base +
+			 (devpriv->adc_items << 2);
 
 		/*
 		 * If this slot's EndOfPollList flag is set, all channels have
@@ -1105,41 +1105,41 @@ static void reset_adc(struct comedi_device *dev, uint8_t *ppl)
 	 * is sometimes set to the previous conversion's data value.
 	 */
 	for (n = 0; n < (2 * RPSCLK_PER_US); n++)
-		*pRPS++ = RPS_NOP;
+		*rps++ = RPS_NOP;
 
 	/*
 	 * Start a dummy conversion to cause the data from the last
 	 * conversion of interest to be shifted in.
 	 */
-	*pRPS++ = RPS_LDREG | (P_GPIO >> 2);	/* Begin ADC Start pulse. */
-	*pRPS++ = GPIO_BASE | GPIO1_LO;
-	*pRPS++ = RPS_NOP;
+	*rps++ = RPS_LDREG | (P_GPIO >> 2);	/* Begin ADC Start pulse. */
+	*rps++ = GPIO_BASE | GPIO1_LO;
+	*rps++ = RPS_NOP;
 	/* VERSION 2.03 CHANGE: STRETCH OUT ADC START PULSE. */
-	*pRPS++ = RPS_LDREG | (P_GPIO >> 2);	/* End ADC Start pulse. */
-	*pRPS++ = GPIO_BASE | GPIO1_HI;
+	*rps++ = RPS_LDREG | (P_GPIO >> 2);	/* End ADC Start pulse. */
+	*rps++ = GPIO_BASE | GPIO1_HI;
 
 	/*
 	 * Wait for the data from the last conversion of interest to arrive
 	 * in FB BUFFER 1 register.
 	 */
-	*pRPS++ = RPS_PAUSE | RPS_GPIO2;	/* Wait for ADC done. */
+	*rps++ = RPS_PAUSE | RPS_GPIO2;	/* Wait for ADC done. */
 
 	/* Transfer final ADC data from FB BUFFER 1 register to DMA buffer. */
-	*pRPS++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
-	*pRPS++ = (uint32_t)devpriv->ana_buf.physical_base +
-		  (devpriv->adc_items << 2);
+	*rps++ = RPS_STREG | (BUGFIX_STREG(P_FB_BUFFER1) >> 2);
+	*rps++ = (uint32_t)devpriv->ana_buf.physical_base +
+		 (devpriv->adc_items << 2);
 
 	/* Indicate ADC scan loop is finished. */
 	/* Signal ReadADC() that scan is done. */
-	/* *pRPS++= RPS_CLRSIGNAL | RPS_SIGADC; */
+	/* *rps++= RPS_CLRSIGNAL | RPS_SIGADC; */
 
 	/* invoke interrupt */
 	if (devpriv->ai_cmd_running == 1)
-		*pRPS++ = RPS_IRQ;
+		*rps++ = RPS_IRQ;
 
 	/* Restart RPS program at its beginning. */
-	*pRPS++ = RPS_JUMP;	/* Branch to start of RPS program. */
-	*pRPS++ = (uint32_t)devpriv->rps_buf.physical_base;
+	*rps++ = RPS_JUMP;	/* Branch to start of RPS program. */
+	*rps++ = (uint32_t)devpriv->rps_buf.physical_base;
 
 	/* End of RPS program build */
 }
@@ -1188,8 +1188,8 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 	uint16_t chan = CR_CHAN(insn->chanspec);
 	uint16_t range = CR_RANGE(insn->chanspec);
-	uint16_t AdcSpec = 0;
-	uint32_t GpioImage;
+	uint16_t adc_spec = 0;
+	uint32_t gpio_image;
 	int tmp;
 	int n;
 
@@ -1198,29 +1198,29 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	 *  appropriate for register programming.
 	 */
 	if (range == 0)
-		AdcSpec = (chan << 8) | (GSEL_BIPOLAR5V);
+		adc_spec = (chan << 8) | (GSEL_BIPOLAR5V);
 	else
-		AdcSpec = (chan << 8) | (GSEL_BIPOLAR10V);
+		adc_spec = (chan << 8) | (GSEL_BIPOLAR10V);
 
 	/* Switch ADC analog gain. */
-	debi_write(dev, LP_GSEL, AdcSpec);	/* Set gain. */
+	debi_write(dev, LP_GSEL, adc_spec);	/* Set gain. */
 
 	/* Select ADC analog input channel. */
-	debi_write(dev, LP_ISEL, AdcSpec);	/* Select channel. */
+	debi_write(dev, LP_ISEL, adc_spec);	/* Select channel. */
 
 	for (n = 0; n < insn->n; n++) {
 		/* Delay 10 microseconds for analog input settling. */
 		udelay(10);
 
 		/* Start ADC by pulsing GPIO1 low */
-		GpioImage = readl(devpriv->mmio + P_GPIO);
+		gpio_image = readl(devpriv->mmio + P_GPIO);
 		/* Assert ADC Start command */
-		writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+		writel(gpio_image & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 		/* and stretch it out */
-		writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
-		writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+		writel(gpio_image & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+		writel(gpio_image & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 		/* Negate ADC Start command */
-		writel(GpioImage | GPIO1_HI, devpriv->mmio + P_GPIO);
+		writel(gpio_image | GPIO1_HI, devpriv->mmio + P_GPIO);
 
 		/*
 		 * Wait for ADC to complete (GPIO2 is asserted high when
@@ -1254,14 +1254,14 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	 * Start a dummy conversion to cause the data from the
 	 * previous conversion to be shifted in.
 	 */
-	GpioImage = readl(devpriv->mmio + P_GPIO);
+	gpio_image = readl(devpriv->mmio + P_GPIO);
 	/* Assert ADC Start command */
-	writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+	writel(gpio_image & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 	/* and stretch it out */
-	writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
-	writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+	writel(gpio_image & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+	writel(gpio_image & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 	/* Negate ADC Start command */
-	writel(GpioImage | GPIO1_HI, devpriv->mmio + P_GPIO);
+	writel(gpio_image | GPIO1_HI, devpriv->mmio + P_GPIO);
 
 	/* Wait for the data to arrive in FB BUFFER 1 register. */
 
@@ -1343,7 +1343,7 @@ static int s626_ns_to_timer(int *nanosec, int round_mode)
 static void s626_timer_load(struct comedi_device *dev, struct enc_private *k,
 			    int tick)
 {
-	uint16_t Setup =
+	uint16_t setup =
 		(LOADSRC_INDX << BF_LOADSRC) |	/* Preload upon index. */
 		(INDXSRC_SOFT << BF_INDXSRC) |	/* Disable hardware index. */
 		(CLKSRC_TIMER << BF_CLKSRC) |	/* Operating mode is Timer. */
@@ -1351,10 +1351,10 @@ static void s626_timer_load(struct comedi_device *dev, struct enc_private *k,
 		(CNTDIR_DOWN << BF_CLKPOL) |	/* Count direction is Down. */
 		(CLKMULT_1X << BF_CLKMULT) |	/* Clock multiplier is 1x. */
 		(CLKENAB_INDEX << BF_CLKENAB);
-	uint16_t valueSrclatch = LATCHSRC_A_INDXA;
+	uint16_t value_latchsrc = LATCHSRC_A_INDXA;
 	/* uint16_t enab = CLKENAB_ALWAYS; */
 
-	k->set_mode(dev, k, Setup, FALSE);
+	k->set_mode(dev, k, setup, FALSE);
 
 	/* Set the preload register */
 	preload(dev, k, tick);
@@ -1372,7 +1372,7 @@ static void s626_timer_load(struct comedi_device *dev, struct enc_private *k,
 	/* set interrupt on overflow */
 	k->set_int_src(dev, k, INTSRC_OVER);
 
-	set_latch_source(dev, k, valueSrclatch);
+	set_latch_source(dev, k, value_latchsrc);
 	/* k->set_enable(dev, k, (uint16_t)(enab != 0)); */
 }
 
@@ -1729,25 +1729,25 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	uint16_t Setup =
+	uint16_t setup =
 		(LOADSRC_INDX << BF_LOADSRC) |	/* Preload upon index. */
 		(INDXSRC_SOFT << BF_INDXSRC) |	/* Disable hardware index. */
 		(CLKSRC_COUNTER << BF_CLKSRC) |	/* Operating mode is Counter. */
 		(CLKPOL_POS << BF_CLKPOL) |	/* Active high clock. */
 		(CLKMULT_1X << BF_CLKMULT) |	/* Clock multiplier is 1x. */
 		(CLKENAB_INDEX << BF_CLKENAB);
-	/* uint16_t DisableIntSrc = TRUE; */
+	/* uint16_t disable_int_src = TRUE; */
 	/* uint32_t Preloadvalue;              //Counter initial value */
-	uint16_t valueSrclatch = LATCHSRC_AB_READ;
+	uint16_t value_latchsrc = LATCHSRC_AB_READ;
 	uint16_t enab = CLKENAB_ALWAYS;
 	struct enc_private *k = &encpriv[CR_CHAN(insn->chanspec)];
 
 	/* (data==NULL) ? (Preloadvalue=0) : (Preloadvalue=data[0]); */
 
-	k->set_mode(dev, k, Setup, TRUE);
+	k->set_mode(dev, k, setup, TRUE);
 	preload(dev, k, data[0]);
 	k->pulse_index(dev, k);
-	set_latch_source(dev, k, valueSrclatch);
+	set_latch_source(dev, k, value_latchsrc);
 	k->set_enable(dev, k, (enab != 0));
 
 	return insn->n;
@@ -1786,10 +1786,10 @@ static int s626_enc_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-static void write_misc2(struct comedi_device *dev, uint16_t NewImage)
+static void write_misc2(struct comedi_device *dev, uint16_t new_image)
 {
 	debi_write(dev, LP_MISC1, MISC1_WENABLE); /* Enable writes to MISC2. */
-	debi_write(dev, LP_WRMISC2, NewImage);	/* Write new image to MISC2. */
+	debi_write(dev, LP_WRMISC2, new_image);	/* Write new image to MISC2. */
 	debi_write(dev, LP_MISC1, MISC1_WDISABLE); /* Disable writes to MISC2 */
 }
 
@@ -1958,7 +1958,7 @@ static uint16_t get_mode_b(struct comedi_device *dev, struct enc_private *k)
  * ClkPol, ClkEnab, IndexSrc, IndexPol, LoadSrc.
  */
 static void set_mode_a(struct comedi_device *dev, struct enc_private *k,
-		       uint16_t setup, uint16_t DisableIntSrc)
+		       uint16_t setup, uint16_t disable_int_src)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t cra;
@@ -1976,8 +1976,8 @@ static void set_mode_a(struct comedi_device *dev, struct enc_private *k,
 	/* Clock enable is passed through. */
 	crb |= (setup & STDMSK_CLKENAB) << (CRBBIT_CLKENAB_A - STDBIT_CLKENAB);
 
-	/* Force IntSrc to Disabled if DisableIntSrc is asserted. */
-	if (!DisableIntSrc)
+	/* Force IntSrc to Disabled if disable_int_src is asserted. */
+	if (!disable_int_src)
 		cra |= ((setup & STDMSK_INTSRC) >> (STDBIT_INTSRC -
 						    CRABIT_INTSRC_A));
 
@@ -2024,7 +2024,7 @@ static void set_mode_a(struct comedi_device *dev, struct enc_private *k,
 	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
 	 * enable mask to indicate the counter interrupt is disabled.
 	 */
-	if (DisableIntSrc)
+	if (disable_int_src)
 		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
 
 	/*
@@ -2036,7 +2036,7 @@ static void set_mode_a(struct comedi_device *dev, struct enc_private *k,
 }
 
 static void set_mode_b(struct comedi_device *dev, struct enc_private *k,
-		       uint16_t setup, uint16_t DisableIntSrc)
+		       uint16_t setup, uint16_t disable_int_src)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t cra;
@@ -2054,8 +2054,8 @@ static void set_mode_b(struct comedi_device *dev, struct enc_private *k,
 	/* Preload trigger source is passed through. */
 	crb |= (setup & STDMSK_LOADSRC) >> (STDBIT_LOADSRC - CRBBIT_LOADSRC_B);
 
-	/* Force IntSrc to Disabled if DisableIntSrc is asserted. */
-	if (!DisableIntSrc)
+	/* Force IntSrc to Disabled if disable_int_src is asserted. */
+	if (!disable_int_src)
 		crb |= (setup & STDMSK_INTSRC) >>
 		       (STDBIT_INTSRC - CRBBIT_INTSRC_B);
 
@@ -2110,7 +2110,7 @@ static void set_mode_b(struct comedi_device *dev, struct enc_private *k,
 	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
 	 * enable mask to indicate the counter interrupt is disabled.
 	 */
-	if (DisableIntSrc)
+	if (disable_int_src)
 		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
 
 	/*
@@ -2163,17 +2163,17 @@ static uint16_t get_latch_source(struct comedi_device *dev,
  * 2=OverflowA (B counters only), 3=disabled.
  */
 static void set_load_trig_a(struct comedi_device *dev, struct enc_private *k,
-			    uint16_t Trig)
+			    uint16_t trig)
 {
 	debi_replace(dev, k->my_cra, ~CRAMSK_LOADSRC_A,
-		     Trig << CRABIT_LOADSRC_A);
+		     trig << CRABIT_LOADSRC_A);
 }
 
 static void set_load_trig_b(struct comedi_device *dev, struct enc_private *k,
-			    uint16_t Trig)
+			    uint16_t trig)
 {
 	debi_replace(dev, k->my_crb, ~(CRBMSK_LOADSRC_B | CRBMSK_INTCTRL),
-		     Trig << CRBBIT_LOADSRC_B);
+		     trig << CRBBIT_LOADSRC_B);
 }
 
 static uint16_t get_load_trig_a(struct comedi_device *dev,
@@ -2190,11 +2190,11 @@ static uint16_t get_load_trig_b(struct comedi_device *dev,
 
 /*
  * Return/set counter interrupt source and clear any captured
- * index/overflow events.  IntSource: 0=Disabled, 1=OverflowOnly,
+ * index/overflow events.  int_source: 0=Disabled, 1=OverflowOnly,
  * 2=IndexOnly, 3=IndexAndOverflow.
  */
 static void set_int_src_a(struct comedi_device *dev, struct enc_private *k,
-			  uint16_t IntSource)
+			  uint16_t int_source)
 {
 	struct s626_private *devpriv = dev->private;
 
@@ -2204,16 +2204,16 @@ static void set_int_src_a(struct comedi_device *dev, struct enc_private *k,
 
 	/* Program counter interrupt source. */
 	debi_replace(dev, k->my_cra, ~CRAMSK_INTSRC_A,
-		     IntSource << CRABIT_INTSRC_A);
+		     int_source << CRABIT_INTSRC_A);
 
 	/* Update MISC2 interrupt enable mask. */
 	devpriv->counter_int_enabs =
 	    (devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
-	    k->my_event_bits[IntSource];
+	    k->my_event_bits[int_source];
 }
 
 static void set_int_src_b(struct comedi_device *dev, struct enc_private *k,
-			  uint16_t IntSource)
+			  uint16_t int_source)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t crb;
@@ -2228,12 +2228,12 @@ static void set_int_src_b(struct comedi_device *dev, struct enc_private *k,
 	/* Program counter interrupt source. */
 	debi_write(dev, k->my_crb,
 		   (uint16_t)((crb & ~CRBMSK_INTSRC_B) |
-			      (IntSource << CRBBIT_INTSRC_B)));
+			      (int_source << CRBBIT_INTSRC_B)));
 
 	/* Update MISC2 interrupt enable mask. */
 	devpriv->counter_int_enabs =
 		(devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
-		k->my_event_bits[IntSource];
+		k->my_event_bits[int_source];
 }
 
 static uint16_t get_int_src_a(struct comedi_device *dev, struct enc_private *k)
@@ -2444,7 +2444,7 @@ static void counters_init(struct comedi_device *dev)
 {
 	int chan;
 	struct enc_private *k;
-	uint16_t Setup =
+	uint16_t setup =
 		(LOADSRC_INDX << BF_LOADSRC) |	/* Preload upon index. */
 		(INDXSRC_SOFT << BF_INDXSRC) |	/* Disable hardware index. */
 		(CLKSRC_COUNTER << BF_CLKSRC) |	/* Operating mode is counter. */
@@ -2458,7 +2458,7 @@ static void counters_init(struct comedi_device *dev)
 	 */
 	for (chan = 0; chan < S626_ENCODER_CHANNELS; chan++) {
 		k = &encpriv[chan];
-		k->set_mode(dev, k, Setup, TRUE);
+		k->set_mode(dev, k, setup, TRUE);
 		k->set_int_src(dev, k, 0);
 		k->reset_cap_flags(dev, k);
 		k->set_enable(dev, k, CLKENAB_ALWAYS);
@@ -2490,7 +2490,7 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 static void s626_initialize(struct comedi_device *dev)
 {
 	struct s626_private *devpriv = dev->private;
-	dma_addr_t pPhysBuf;
+	dma_addr_t phys_buf;
 	uint16_t chan;
 	int i;
 
@@ -2580,19 +2580,19 @@ static void s626_initialize(struct comedi_device *dev)
 	 * a defined state after a PCI reset.
 	 */
 	{
-		uint8_t PollList;
-		uint16_t AdcData;
-		uint16_t StartVal;
+		uint8_t poll_list;
+		uint16_t adc_data;
+		uint16_t start_val;
 		uint16_t index;
 		unsigned int data[16];
 
 		/* Create a simple polling list for analog input channel 0 */
-		PollList = EOPL;
-		reset_adc(dev, &PollList);
+		poll_list = EOPL;
+		reset_adc(dev, &poll_list);
 
 		/* Get initial ADC value */
 		s626_ai_rinsn(dev, dev->subdevices, NULL, data);
-		StartVal = data[0];
+		start_val = data[0];
 
 		/*
 		 * VERSION 2.01 CHANGE: TIMEOUT ADDED TO PREVENT HANGED
@@ -2606,8 +2606,8 @@ static void s626_initialize(struct comedi_device *dev)
 		 */
 		for (index = 0; index < 500; index++) {
 			s626_ai_rinsn(dev, dev->subdevices, NULL, data);
-			AdcData = data[0];
-			if (AdcData != StartVal)
+			adc_data = data[0];
+			if (adc_data != start_val)
 				break;
 		}
 	}
@@ -2630,10 +2630,10 @@ static void s626_initialize(struct comedi_device *dev)
 	 * single DWORD will be transferred each time a DMA transfer is
 	 * enabled.
 	 */
-	pPhysBuf = devpriv->ana_buf.physical_base +
+	phys_buf = devpriv->ana_buf.physical_base +
 		   (DAC_WDMABUF_OS * sizeof(uint32_t));
-	writel((uint32_t)pPhysBuf, devpriv->mmio + P_BASEA2_OUT);
-	writel((uint32_t)(pPhysBuf + sizeof(uint32_t)),
+	writel((uint32_t)phys_buf, devpriv->mmio + P_BASEA2_OUT);
+	writel((uint32_t)(phys_buf + sizeof(uint32_t)),
 	       devpriv->mmio + P_PROTA2_OUT);
 
 	/*
