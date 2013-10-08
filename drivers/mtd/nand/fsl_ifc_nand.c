@@ -1079,25 +1079,7 @@ static struct platform_driver fsl_ifc_nand_driver = {
 	.remove      = fsl_ifc_nand_remove,
 };
 
-static int __init fsl_ifc_nand_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&fsl_ifc_nand_driver);
-	if (ret)
-		printk(KERN_ERR "fsl-ifc: Failed to register platform"
-				"driver\n");
-
-	return ret;
-}
-
-static void __exit fsl_ifc_nand_exit(void)
-{
-	platform_driver_unregister(&fsl_ifc_nand_driver);
-}
-
-module_init(fsl_ifc_nand_init);
-module_exit(fsl_ifc_nand_exit);
+module_platform_driver(fsl_ifc_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale");
