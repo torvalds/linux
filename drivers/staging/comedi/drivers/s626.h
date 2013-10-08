@@ -22,14 +22,6 @@
 #ifndef S626_H_INCLUDED
 #define S626_H_INCLUDED
 
-#if !defined(TRUE)
-#define TRUE    (1)
-#endif
-
-#if !defined(FALSE)
-#define FALSE   (0)
-#endif
-
 #define S626_SIZE		0x200
 #define DMABUF_SIZE		4096	/* 4k pages */
 

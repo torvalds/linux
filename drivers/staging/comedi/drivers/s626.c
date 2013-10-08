@@ -1098,7 +1098,7 @@ static void set_clk_mult(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKMULT) |
-			    (value << STDBIT_CLKMULT)), FALSE);
+			    (value << STDBIT_CLKMULT)), false);
 }
 
 static uint16_t get_clk_mult(struct comedi_device *dev,
@@ -1114,7 +1114,7 @@ static void set_clk_pol(struct comedi_device *dev,
 			const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKPOL) |
-			    (value << STDBIT_CLKPOL)), FALSE);
+			    (value << STDBIT_CLKPOL)), false);
 }
 
 static uint16_t get_clk_pol(struct comedi_device *dev,
@@ -1130,7 +1130,7 @@ static void set_clk_src(struct comedi_device *dev,
 			const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKSRC) |
-			    (value << STDBIT_CLKSRC)), FALSE);
+			    (value << STDBIT_CLKSRC)), false);
 }
 
 static uint16_t get_clk_src(struct comedi_device *dev,
@@ -1146,7 +1146,7 @@ static void set_index_pol(struct comedi_device *dev,
 			  const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_INDXPOL) |
-			    ((value != 0) << STDBIT_INDXPOL)), FALSE);
+			    ((value != 0) << STDBIT_INDXPOL)), false);
 }
 
 static uint16_t get_index_pol(struct comedi_device *dev,
@@ -1162,7 +1162,7 @@ static void set_index_src(struct comedi_device *dev,
 			  const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_INDXSRC) |
-			    ((value != 0) << STDBIT_INDXSRC)), FALSE);
+			    ((value != 0) << STDBIT_INDXSRC)), false);
 }
 
 static uint16_t get_index_src(struct comedi_device *dev,
@@ -2000,7 +2000,7 @@ static void s626_timer_load(struct comedi_device *dev,
 	uint16_t value_latchsrc = LATCHSRC_A_INDXA;
 	/* uint16_t enab = CLKENAB_ALWAYS; */
 
-	k->set_mode(dev, k, setup, FALSE);
+	k->set_mode(dev, k, setup, false);
 
 	/* Set the preload register */
 	preload(dev, k, tick);
@@ -2382,7 +2382,7 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 		(CLKPOL_POS << BF_CLKPOL) |	/* Active high clock. */
 		(CLKMULT_1X << BF_CLKMULT) |	/* Clock multiplier is 1x. */
 		(CLKENAB_INDEX << BF_CLKENAB);
-	/* uint16_t disable_int_src = TRUE; */
+	/* uint16_t disable_int_src = true; */
 	/* uint32_t Preloadvalue;              //Counter initial value */
 	uint16_t value_latchsrc = LATCHSRC_AB_READ;
 	uint16_t enab = CLKENAB_ALWAYS;
@@ -2391,7 +2391,7 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 
 	/* (data==NULL) ? (Preloadvalue=0) : (Preloadvalue=data[0]); */
 
-	k->set_mode(dev, k, setup, TRUE);
+	k->set_mode(dev, k, setup, true);
 	preload(dev, k, data[0]);
 	k->pulse_index(dev, k);
 	set_latch_source(dev, k, value_latchsrc);
@@ -2480,7 +2480,7 @@ static void counters_init(struct comedi_device *dev)
 	 */
 	for (chan = 0; chan < S626_ENCODER_CHANNELS; chan++) {
 		k = &s626_enc_chan_info[chan];
-		k->set_mode(dev, k, setup, TRUE);
+		k->set_mode(dev, k, setup, true);
 		k->set_int_src(dev, k, 0);
 		k->reset_cap_flags(dev, k);
 		k->set_enable(dev, k, CLKENAB_ALWAYS);
