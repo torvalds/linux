@@ -173,11 +173,16 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
 	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
 	I915_READ(dvo_reg);
+	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
+					 &crtc->config.requested_mode,
+					 &crtc->config.adjusted_mode);
+
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
 
@@ -186,6 +191,7 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	struct drm_crtc *crtc;
+	struct intel_crtc_config *config;
 
 	/* dvo supports only 2 dpms states. */
 	if (mode != DRM_MODE_DPMS_ON)
@@ -206,9 +212,15 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 	/* We call connector dpms manually below in case pipe dpms doesn't
 	 * change due to cloning. */
 	if (mode == DRM_MODE_DPMS_ON) {
+		config = &to_intel_crtc(crtc)->config;
+
 		intel_dvo->base.connectors_active = true;
 
 		intel_crtc_update_dpms(crtc);
+
+		intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
+						 &config->requested_mode,
+						 &config->adjusted_mode);
 
 		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 	} else {
@@ -295,10 +307,6 @@ static void intel_dvo_mode_set(struct intel_encoder *encoder)
 		dvo_srcdim_reg = DVOC_SRCDIM;
 		break;
 	}
-
-	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
-					 &crtc->config.requested_mode,
-					 adjusted_mode);
 
 	/* Save the data order, since I don't know what it should be set to. */
 	dvo_val = I915_READ(dvo_reg) &
