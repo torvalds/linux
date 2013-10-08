@@ -273,7 +273,7 @@ static struct sh_timer_config tmu00_platform_data = {
 };
 
 static struct resource tmu00_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xfff60008, 0xc, "TMU00"),
+	[0] = DEFINE_RES_MEM(0xfff60008, 0xc),
 	[1] = {
 		.start	= intcs_evt2irq(0x0e80), /* TMU0_TUNI00 */
 		.flags	= IORESOURCE_IRQ,
@@ -298,7 +298,7 @@ static struct sh_timer_config tmu01_platform_data = {
 };
 
 static struct resource tmu01_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(0xfff60014, 0xc, "TMU00"),
+	[0] = DEFINE_RES_MEM(0xfff60014, 0xc),
 	[1] = {
 		.start	= intcs_evt2irq(0x0ea0), /* TMU0_TUNI01 */
 		.flags	= IORESOURCE_IRQ,
