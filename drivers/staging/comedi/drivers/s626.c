@@ -651,6 +651,148 @@ static void preload(struct comedi_device *dev, const struct s626_enc_info *k,
 	debi_write(dev, k->my_latch_lsw + 2, value >> 16);
 }
 
+/* ******  PRIVATE COUNTER FUNCTIONS ****** */
+
+/*
+ * Reset a counter's index and overflow event capture flags.
+ */
+static void reset_cap_flags_a(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	debi_replace(dev, k->my_crb, ~CRBMSK_INTCTRL,
+		     CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
+}
+
+static void reset_cap_flags_b(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	debi_replace(dev, k->my_crb, ~CRBMSK_INTCTRL,
+		     CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B);
+}
+
+/*
+ * Return counter setup in a format (COUNTER_SETUP) that is consistent
+ * for both A and B counters.
+ */
+static uint16_t get_mode_a(struct comedi_device *dev,
+			   const struct s626_enc_info *k)
+{
+	uint16_t cra;
+	uint16_t crb;
+	uint16_t setup;
+
+	/* Fetch CRA and CRB register images. */
+	cra = debi_read(dev, k->my_cra);
+	crb = debi_read(dev, k->my_crb);
+
+	/*
+	 * Populate the standardized counter setup bit fields.
+	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
+	 */
+	setup = (cra & STDMSK_LOADSRC) |	/* LoadSrc  = LoadSrcA. */
+		((crb << (STDBIT_LATCHSRC - CRBBIT_LATCHSRC)) &
+		 STDMSK_LATCHSRC) |		/* LatchSrc = LatchSrcA. */
+		((cra << (STDBIT_INTSRC - CRABIT_INTSRC_A)) &
+		 STDMSK_INTSRC) |		/* IntSrc   = IntSrcA. */
+		((cra << (STDBIT_INDXSRC - (CRABIT_INDXSRC_A + 1))) &
+		 STDMSK_INDXSRC) |		/* IndxSrc  = IndxSrcA<1>. */
+		((cra >> (CRABIT_INDXPOL_A - STDBIT_INDXPOL)) &
+		 STDMSK_INDXPOL) |		/* IndxPol  = IndxPolA. */
+		((crb >> (CRBBIT_CLKENAB_A - STDBIT_CLKENAB)) &
+		 STDMSK_CLKENAB);		/* ClkEnab  = ClkEnabA. */
+
+	/* Adjust mode-dependent parameters. */
+	if (cra & (2 << CRABIT_CLKSRC_A)) {
+		/* Timer mode (ClkSrcA<1> == 1): */
+		/* Indicate Timer mode. */
+		setup |= CLKSRC_TIMER << STDBIT_CLKSRC;
+		/* Set ClkPol to indicate count direction (ClkSrcA<0>). */
+		setup |= (cra << (STDBIT_CLKPOL - CRABIT_CLKSRC_A)) &
+			 STDMSK_CLKPOL;
+		/* ClkMult must be 1x in Timer mode. */
+		setup |= MULT_X1 << STDBIT_CLKMULT;
+	} else {
+		/* Counter mode (ClkSrcA<1> == 0): */
+		/* Indicate Counter mode. */
+		setup |= CLKSRC_COUNTER << STDBIT_CLKSRC;
+		/* Pass through ClkPol. */
+		setup |= (cra >> (CRABIT_CLKPOL_A - STDBIT_CLKPOL)) &
+			 STDMSK_CLKPOL;
+		/* Force ClkMult to 1x if not legal, else pass through. */
+		if ((cra & CRAMSK_CLKMULT_A) == (MULT_X0 << CRABIT_CLKMULT_A))
+			setup |= MULT_X1 << STDBIT_CLKMULT;
+		else
+			setup |= (cra >> (CRABIT_CLKMULT_A - STDBIT_CLKMULT)) &
+				 STDMSK_CLKMULT;
+	}
+
+	/* Return adjusted counter setup. */
+	return setup;
+}
+
+static uint16_t get_mode_b(struct comedi_device *dev,
+			   const struct s626_enc_info *k)
+{
+	uint16_t cra;
+	uint16_t crb;
+	uint16_t setup;
+
+	/* Fetch CRA and CRB register images. */
+	cra = debi_read(dev, k->my_cra);
+	crb = debi_read(dev, k->my_crb);
+
+	/*
+	 * Populate the standardized counter setup bit fields.
+	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
+	 */
+	setup = ((crb << (STDBIT_INTSRC - CRBBIT_INTSRC_B)) &
+		 STDMSK_INTSRC) |		/* IntSrc   = IntSrcB. */
+		((crb << (STDBIT_LATCHSRC - CRBBIT_LATCHSRC)) &
+		 STDMSK_LATCHSRC) |		/* LatchSrc = LatchSrcB. */
+		((crb << (STDBIT_LOADSRC - CRBBIT_LOADSRC_B)) &
+		 STDMSK_LOADSRC) |		/* LoadSrc  = LoadSrcB. */
+		((crb << (STDBIT_INDXPOL - CRBBIT_INDXPOL_B)) &
+		 STDMSK_INDXPOL) |		/* IndxPol  = IndxPolB. */
+		((crb >> (CRBBIT_CLKENAB_B - STDBIT_CLKENAB)) &
+		 STDMSK_CLKENAB) |		/* ClkEnab  = ClkEnabB. */
+		((cra >> ((CRABIT_INDXSRC_B + 1) - STDBIT_INDXSRC)) &
+		 STDMSK_INDXSRC);		/* IndxSrc  = IndxSrcB<1>. */
+
+	/* Adjust mode-dependent parameters. */
+	if ((crb & CRBMSK_CLKMULT_B) == (MULT_X0 << CRBBIT_CLKMULT_B)) {
+		/* Extender mode (ClkMultB == MULT_X0): */
+		/* Indicate Extender mode. */
+		setup |= CLKSRC_EXTENDER << STDBIT_CLKSRC;
+		/* Indicate multiplier is 1x. */
+		setup |= MULT_X1 << STDBIT_CLKMULT;
+		/* Set ClkPol equal to Timer count direction (ClkSrcB<0>). */
+		setup |= (cra >> (CRABIT_CLKSRC_B - STDBIT_CLKPOL)) &
+			 STDMSK_CLKPOL;
+	} else if (cra & (2 << CRABIT_CLKSRC_B)) {
+		/* Timer mode (ClkSrcB<1> == 1): */
+		/* Indicate Timer mode. */
+		setup |= CLKSRC_TIMER << STDBIT_CLKSRC;
+		/* Indicate multiplier is 1x. */
+		setup |= MULT_X1 << STDBIT_CLKMULT;
+		/* Set ClkPol equal to Timer count direction (ClkSrcB<0>). */
+		setup |= (cra >> (CRABIT_CLKSRC_B - STDBIT_CLKPOL)) &
+			 STDMSK_CLKPOL;
+	} else {
+		/* If Counter mode (ClkSrcB<1> == 0): */
+		/* Indicate Timer mode. */
+		setup |= CLKSRC_COUNTER << STDBIT_CLKSRC;
+		/* Clock multiplier is passed through. */
+		setup |= (crb >> (CRBBIT_CLKMULT_B - STDBIT_CLKMULT)) &
+			 STDMSK_CLKMULT;
+		/* Clock polarity is passed through. */
+		setup |= (crb << (STDBIT_CLKPOL - CRBBIT_CLKPOL_B)) &
+			 STDMSK_CLKPOL;
+	}
+
+	/* Return adjusted counter setup. */
+	return setup;
+}
+
 static unsigned int s626_ai_reg_to_uint(int data)
 {
 	unsigned int tempdata;
@@ -1820,148 +1962,6 @@ static void close_dma_b(struct comedi_device *dev, struct buffer_dma *pdma,
 		pdma->logical_base = NULL;
 		pdma->physical_base = 0;
 	}
-}
-
-/* ******  PRIVATE COUNTER FUNCTIONS ****** */
-
-/*
- * Reset a counter's index and overflow event capture flags.
- */
-static void reset_cap_flags_a(struct comedi_device *dev,
-			      const struct s626_enc_info *k)
-{
-	debi_replace(dev, k->my_crb, ~CRBMSK_INTCTRL,
-		     CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
-}
-
-static void reset_cap_flags_b(struct comedi_device *dev,
-			      const struct s626_enc_info *k)
-{
-	debi_replace(dev, k->my_crb, ~CRBMSK_INTCTRL,
-		     CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B);
-}
-
-/*
- * Return counter setup in a format (COUNTER_SETUP) that is consistent
- * for both A and B counters.
- */
-static uint16_t get_mode_a(struct comedi_device *dev,
-			   const struct s626_enc_info *k)
-{
-	uint16_t cra;
-	uint16_t crb;
-	uint16_t setup;
-
-	/* Fetch CRA and CRB register images. */
-	cra = debi_read(dev, k->my_cra);
-	crb = debi_read(dev, k->my_crb);
-
-	/*
-	 * Populate the standardized counter setup bit fields.
-	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
-	 */
-	setup = (cra & STDMSK_LOADSRC) |	/* LoadSrc  = LoadSrcA. */
-		((crb << (STDBIT_LATCHSRC - CRBBIT_LATCHSRC)) &
-		 STDMSK_LATCHSRC) |		/* LatchSrc = LatchSrcA. */
-		((cra << (STDBIT_INTSRC - CRABIT_INTSRC_A)) &
-		 STDMSK_INTSRC) |		/* IntSrc   = IntSrcA. */
-		((cra << (STDBIT_INDXSRC - (CRABIT_INDXSRC_A + 1))) &
-		 STDMSK_INDXSRC) |		/* IndxSrc  = IndxSrcA<1>. */
-		((cra >> (CRABIT_INDXPOL_A - STDBIT_INDXPOL)) &
-		 STDMSK_INDXPOL) |		/* IndxPol  = IndxPolA. */
-		((crb >> (CRBBIT_CLKENAB_A - STDBIT_CLKENAB)) &
-		 STDMSK_CLKENAB);		/* ClkEnab  = ClkEnabA. */
-
-	/* Adjust mode-dependent parameters. */
-	if (cra & (2 << CRABIT_CLKSRC_A)) {
-		/* Timer mode (ClkSrcA<1> == 1): */
-		/* Indicate Timer mode. */
-		setup |= CLKSRC_TIMER << STDBIT_CLKSRC;
-		/* Set ClkPol to indicate count direction (ClkSrcA<0>). */
-		setup |= (cra << (STDBIT_CLKPOL - CRABIT_CLKSRC_A)) &
-			 STDMSK_CLKPOL;
-		/* ClkMult must be 1x in Timer mode. */
-		setup |= MULT_X1 << STDBIT_CLKMULT;
-	} else {
-		/* Counter mode (ClkSrcA<1> == 0): */
-		/* Indicate Counter mode. */
-		setup |= CLKSRC_COUNTER << STDBIT_CLKSRC;
-		/* Pass through ClkPol. */
-		setup |= (cra >> (CRABIT_CLKPOL_A - STDBIT_CLKPOL)) &
-			 STDMSK_CLKPOL;
-		/* Force ClkMult to 1x if not legal, else pass through. */
-		if ((cra & CRAMSK_CLKMULT_A) == (MULT_X0 << CRABIT_CLKMULT_A))
-			setup |= MULT_X1 << STDBIT_CLKMULT;
-		else
-			setup |= (cra >> (CRABIT_CLKMULT_A - STDBIT_CLKMULT)) &
-				 STDMSK_CLKMULT;
-	}
-
-	/* Return adjusted counter setup. */
-	return setup;
-}
-
-static uint16_t get_mode_b(struct comedi_device *dev,
-			   const struct s626_enc_info *k)
-{
-	uint16_t cra;
-	uint16_t crb;
-	uint16_t setup;
-
-	/* Fetch CRA and CRB register images. */
-	cra = debi_read(dev, k->my_cra);
-	crb = debi_read(dev, k->my_crb);
-
-	/*
-	 * Populate the standardized counter setup bit fields.
-	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
-	 */
-	setup = ((crb << (STDBIT_INTSRC - CRBBIT_INTSRC_B)) &
-		 STDMSK_INTSRC) |		/* IntSrc   = IntSrcB. */
-		((crb << (STDBIT_LATCHSRC - CRBBIT_LATCHSRC)) &
-		 STDMSK_LATCHSRC) |		/* LatchSrc = LatchSrcB. */
-		((crb << (STDBIT_LOADSRC - CRBBIT_LOADSRC_B)) &
-		 STDMSK_LOADSRC) |		/* LoadSrc  = LoadSrcB. */
-		((crb << (STDBIT_INDXPOL - CRBBIT_INDXPOL_B)) &
-		 STDMSK_INDXPOL) |		/* IndxPol  = IndxPolB. */
-		((crb >> (CRBBIT_CLKENAB_B - STDBIT_CLKENAB)) &
-		 STDMSK_CLKENAB) |		/* ClkEnab  = ClkEnabB. */
-		((cra >> ((CRABIT_INDXSRC_B + 1) - STDBIT_INDXSRC)) &
-		 STDMSK_INDXSRC);		/* IndxSrc  = IndxSrcB<1>. */
-
-	/* Adjust mode-dependent parameters. */
-	if ((crb & CRBMSK_CLKMULT_B) == (MULT_X0 << CRBBIT_CLKMULT_B)) {
-		/* Extender mode (ClkMultB == MULT_X0): */
-		/* Indicate Extender mode. */
-		setup |= CLKSRC_EXTENDER << STDBIT_CLKSRC;
-		/* Indicate multiplier is 1x. */
-		setup |= MULT_X1 << STDBIT_CLKMULT;
-		/* Set ClkPol equal to Timer count direction (ClkSrcB<0>). */
-		setup |= (cra >> (CRABIT_CLKSRC_B - STDBIT_CLKPOL)) &
-			 STDMSK_CLKPOL;
-	} else if (cra & (2 << CRABIT_CLKSRC_B)) {
-		/* Timer mode (ClkSrcB<1> == 1): */
-		/* Indicate Timer mode. */
-		setup |= CLKSRC_TIMER << STDBIT_CLKSRC;
-		/* Indicate multiplier is 1x. */
-		setup |= MULT_X1 << STDBIT_CLKMULT;
-		/* Set ClkPol equal to Timer count direction (ClkSrcB<0>). */
-		setup |= (cra >> (CRABIT_CLKSRC_B - STDBIT_CLKPOL)) &
-			 STDMSK_CLKPOL;
-	} else {
-		/* If Counter mode (ClkSrcB<1> == 0): */
-		/* Indicate Timer mode. */
-		setup |= CLKSRC_COUNTER << STDBIT_CLKSRC;
-		/* Clock multiplier is passed through. */
-		setup |= (crb >> (CRBBIT_CLKMULT_B - STDBIT_CLKMULT)) &
-			 STDMSK_CLKMULT;
-		/* Clock polarity is passed through. */
-		setup |= (crb << (STDBIT_CLKPOL - CRBBIT_CLKPOL_B)) &
-			 STDMSK_CLKPOL;
-	}
-
-	/* Return adjusted counter setup. */
-	return setup;
 }
 
 /*
