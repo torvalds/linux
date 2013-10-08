@@ -2936,32 +2936,30 @@ EXPORT_SYMBOL_GPL(skb_segment);
 
 int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
-	struct sk_buff *p = *head;
-	struct sk_buff *nskb;
-	struct skb_shared_info *skbinfo = skb_shinfo(skb);
-	struct skb_shared_info *pinfo = skb_shinfo(p);
-	unsigned int headroom;
-	unsigned int len = skb_gro_len(skb);
+	struct skb_shared_info *pinfo, *skbinfo = skb_shinfo(skb);
 	unsigned int offset = skb_gro_offset(skb);
 	unsigned int headlen = skb_headlen(skb);
+	struct sk_buff *nskb, *lp, *p = *head;
+	unsigned int len = skb_gro_len(skb);
 	unsigned int delta_truesize;
+	unsigned int headroom;
 
-	if (p->len + len >= 65536)
+	if (unlikely(p->len + len >= 65536))
 		return -E2BIG;
 
-	if (pinfo->frag_list)
-		goto merge;
-	else if (headlen <= offset) {
+	lp = NAPI_GRO_CB(p)->last ?: p;
+	pinfo = skb_shinfo(lp);
+
+	if (headlen <= offset) {
 		skb_frag_t *frag;
 		skb_frag_t *frag2;
 		int i = skbinfo->nr_frags;
 		int nr_frags = pinfo->nr_frags + i;
 
-		offset -= headlen;
-
 		if (nr_frags > MAX_SKB_FRAGS)
-			return -E2BIG;
+			goto merge;
 
+		offset -= headlen;
 		pinfo->nr_frags = nr_frags;
 		skbinfo->nr_frags = 0;
 
@@ -2992,7 +2990,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		unsigned int first_offset;
 
 		if (nr_frags + 1 + skbinfo->nr_frags > MAX_SKB_FRAGS)
-			return -E2BIG;
+			goto merge;
 
 		first_offset = skb->data -
 			       (unsigned char *)page_address(page) +
@@ -3010,7 +3008,10 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		delta_truesize = skb->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));
 		NAPI_GRO_CB(skb)->free = NAPI_GRO_FREE_STOLEN_HEAD;
 		goto done;
-	} else if (skb_gro_len(p) != pinfo->gso_size)
+	}
+	if (pinfo->frag_list)
+		goto merge;
+	if (skb_gro_len(p) != pinfo->gso_size)
 		return -E2BIG;
 
 	headroom = skb_headroom(p);
@@ -3062,16 +3063,24 @@ merge:
 
 	__skb_pull(skb, offset);
 
-	NAPI_GRO_CB(p)->last->next = skb;
+	if (!NAPI_GRO_CB(p)->last)
+		skb_shinfo(p)->frag_list = skb;
+	else
+		NAPI_GRO_CB(p)->last->next = skb;
 	NAPI_GRO_CB(p)->last = skb;
 	skb_header_release(skb);
+	lp = p;
 
 done:
 	NAPI_GRO_CB(p)->count++;
 	p->data_len += len;
 	p->truesize += delta_truesize;
 	p->len += len;
-
+	if (lp != p) {
+		lp->data_len += len;
+		lp->truesize += delta_truesize;
+		lp->len += len;
+	}
 	NAPI_GRO_CB(skb)->same_flow = 1;
 	return 0;
 }
