@@ -1032,6 +1032,173 @@ static uint16_t get_load_trig_b(struct comedi_device *dev,
 	return (debi_read(dev, k->my_crb) >> CRBBIT_LOADSRC_B) & 3;
 }
 
+/*
+ * Return/set counter interrupt source and clear any captured
+ * index/overflow events.  int_source: 0=Disabled, 1=OverflowOnly,
+ * 2=IndexOnly, 3=IndexAndOverflow.
+ */
+static void set_int_src_a(struct comedi_device *dev,
+			  const struct s626_enc_info *k, uint16_t int_source)
+{
+	struct s626_private *devpriv = dev->private;
+
+	/* Reset any pending counter overflow or index captures. */
+	debi_replace(dev, k->my_crb, ~CRBMSK_INTCTRL,
+		     CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
+
+	/* Program counter interrupt source. */
+	debi_replace(dev, k->my_cra, ~CRAMSK_INTSRC_A,
+		     int_source << CRABIT_INTSRC_A);
+
+	/* Update MISC2 interrupt enable mask. */
+	devpriv->counter_int_enabs =
+	    (devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
+	    k->my_event_bits[int_source];
+}
+
+static void set_int_src_b(struct comedi_device *dev,
+			  const struct s626_enc_info *k, uint16_t int_source)
+{
+	struct s626_private *devpriv = dev->private;
+	uint16_t crb;
+
+	/* Cache writeable CRB register image. */
+	crb = debi_read(dev, k->my_crb) & ~CRBMSK_INTCTRL;
+
+	/* Reset any pending counter overflow or index captures. */
+	debi_write(dev, k->my_crb,
+		   (uint16_t)(crb | CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B));
+
+	/* Program counter interrupt source. */
+	debi_write(dev, k->my_crb,
+		   (uint16_t)((crb & ~CRBMSK_INTSRC_B) |
+			      (int_source << CRBBIT_INTSRC_B)));
+
+	/* Update MISC2 interrupt enable mask. */
+	devpriv->counter_int_enabs =
+		(devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
+		k->my_event_bits[int_source];
+}
+
+static uint16_t get_int_src_a(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_cra) >> CRABIT_INTSRC_A) & 3;
+}
+
+static uint16_t get_int_src_b(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_crb) >> CRBBIT_INTSRC_B) & 3;
+}
+
+#ifdef unused
+/*
+ * Return/set the clock multiplier.
+ */
+static void set_clk_mult(struct comedi_device *dev,
+			 const struct s626_enc_info *k, uint16_t value)
+{
+	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKMULT) |
+			    (value << STDBIT_CLKMULT)), FALSE);
+}
+
+static uint16_t get_clk_mult(struct comedi_device *dev,
+			     const struct s626_enc_info *k)
+{
+	return (k->get_mode(dev, k) >> STDBIT_CLKMULT) & 3;
+}
+
+/*
+ * Return/set the clock polarity.
+ */
+static void set_clk_pol(struct comedi_device *dev,
+			const struct s626_enc_info *k, uint16_t value)
+{
+	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKPOL) |
+			    (value << STDBIT_CLKPOL)), FALSE);
+}
+
+static uint16_t get_clk_pol(struct comedi_device *dev,
+			    const struct s626_enc_info *k)
+{
+	return (k->get_mode(dev, k) >> STDBIT_CLKPOL) & 1;
+}
+
+/*
+ * Return/set the clock source.
+ */
+static void set_clk_src(struct comedi_device *dev,
+			const struct s626_enc_info *k, uint16_t value)
+{
+	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKSRC) |
+			    (value << STDBIT_CLKSRC)), FALSE);
+}
+
+static uint16_t get_clk_src(struct comedi_device *dev,
+			    const struct s626_enc_info *k)
+{
+	return (k->get_mode(dev, k) >> STDBIT_CLKSRC) & 3;
+}
+
+/*
+ * Return/set the index polarity.
+ */
+static void set_index_pol(struct comedi_device *dev,
+			  const struct s626_enc_info *k, uint16_t value)
+{
+	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_INDXPOL) |
+			    ((value != 0) << STDBIT_INDXPOL)), FALSE);
+}
+
+static uint16_t get_index_pol(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	return (k->get_mode(dev, k) >> STDBIT_INDXPOL) & 1;
+}
+
+/*
+ * Return/set the index source.
+ */
+static void set_index_src(struct comedi_device *dev,
+			  const struct s626_enc_info *k, uint16_t value)
+{
+	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_INDXSRC) |
+			    ((value != 0) << STDBIT_INDXSRC)), FALSE);
+}
+
+static uint16_t get_index_src(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	return (k->get_mode(dev, k) >> STDBIT_INDXSRC) & 1;
+}
+#endif
+
+/*
+ * Generate an index pulse.
+ */
+static void pulse_index_a(struct comedi_device *dev,
+			  const struct s626_enc_info *k)
+{
+	uint16_t cra;
+
+	cra = debi_read(dev, k->my_cra);
+	/* Pulse index. */
+	debi_write(dev, k->my_cra, (cra ^ CRAMSK_INDXPOL_A));
+	debi_write(dev, k->my_cra, cra);
+}
+
+static void pulse_index_b(struct comedi_device *dev,
+			  const struct s626_enc_info *k)
+{
+	uint16_t crb;
+
+	crb = debi_read(dev, k->my_crb) & ~CRBMSK_INTCTRL;
+	/* Pulse index. */
+	debi_write(dev, k->my_crb, (crb ^ CRBMSK_INDXPOL_B));
+	debi_write(dev, k->my_crb, crb);
+}
+
 static unsigned int s626_ai_reg_to_uint(int data)
 {
 	unsigned int tempdata;
@@ -2201,173 +2368,6 @@ static void close_dma_b(struct comedi_device *dev, struct buffer_dma *pdma,
 		pdma->logical_base = NULL;
 		pdma->physical_base = 0;
 	}
-}
-
-/*
- * Return/set counter interrupt source and clear any captured
- * index/overflow events.  int_source: 0=Disabled, 1=OverflowOnly,
- * 2=IndexOnly, 3=IndexAndOverflow.
- */
-static void set_int_src_a(struct comedi_device *dev,
-			  const struct s626_enc_info *k, uint16_t int_source)
-{
-	struct s626_private *devpriv = dev->private;
-
-	/* Reset any pending counter overflow or index captures. */
-	debi_replace(dev, k->my_crb, ~CRBMSK_INTCTRL,
-		     CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
-
-	/* Program counter interrupt source. */
-	debi_replace(dev, k->my_cra, ~CRAMSK_INTSRC_A,
-		     int_source << CRABIT_INTSRC_A);
-
-	/* Update MISC2 interrupt enable mask. */
-	devpriv->counter_int_enabs =
-	    (devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
-	    k->my_event_bits[int_source];
-}
-
-static void set_int_src_b(struct comedi_device *dev,
-			  const struct s626_enc_info *k, uint16_t int_source)
-{
-	struct s626_private *devpriv = dev->private;
-	uint16_t crb;
-
-	/* Cache writeable CRB register image. */
-	crb = debi_read(dev, k->my_crb) & ~CRBMSK_INTCTRL;
-
-	/* Reset any pending counter overflow or index captures. */
-	debi_write(dev, k->my_crb,
-		   (uint16_t)(crb | CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B));
-
-	/* Program counter interrupt source. */
-	debi_write(dev, k->my_crb,
-		   (uint16_t)((crb & ~CRBMSK_INTSRC_B) |
-			      (int_source << CRBBIT_INTSRC_B)));
-
-	/* Update MISC2 interrupt enable mask. */
-	devpriv->counter_int_enabs =
-		(devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
-		k->my_event_bits[int_source];
-}
-
-static uint16_t get_int_src_a(struct comedi_device *dev,
-			      const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_cra) >> CRABIT_INTSRC_A) & 3;
-}
-
-static uint16_t get_int_src_b(struct comedi_device *dev,
-			      const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_crb) >> CRBBIT_INTSRC_B) & 3;
-}
-
-#ifdef unused
-/*
- * Return/set the clock multiplier.
- */
-static void set_clk_mult(struct comedi_device *dev,
-			 const struct s626_enc_info *k, uint16_t value)
-{
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKMULT) |
-			    (value << STDBIT_CLKMULT)), FALSE);
-}
-
-static uint16_t get_clk_mult(struct comedi_device *dev,
-			     const struct s626_enc_info *k)
-{
-	return (k->get_mode(dev, k) >> STDBIT_CLKMULT) & 3;
-}
-
-/*
- * Return/set the clock polarity.
- */
-static void set_clk_pol(struct comedi_device *dev,
-			const struct s626_enc_info *k, uint16_t value)
-{
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKPOL) |
-			    (value << STDBIT_CLKPOL)), FALSE);
-}
-
-static uint16_t get_clk_pol(struct comedi_device *dev,
-			    const struct s626_enc_info *k)
-{
-	return (k->get_mode(dev, k) >> STDBIT_CLKPOL) & 1;
-}
-
-/*
- * Return/set the clock source.
- */
-static void set_clk_src(struct comedi_device *dev,
-			const struct s626_enc_info *k, uint16_t value)
-{
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_CLKSRC) |
-			    (value << STDBIT_CLKSRC)), FALSE);
-}
-
-static uint16_t get_clk_src(struct comedi_device *dev,
-			    const struct s626_enc_info *k)
-{
-	return (k->get_mode(dev, k) >> STDBIT_CLKSRC) & 3;
-}
-
-/*
- * Return/set the index polarity.
- */
-static void set_index_pol(struct comedi_device *dev,
-			  const struct s626_enc_info *k, uint16_t value)
-{
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_INDXPOL) |
-			    ((value != 0) << STDBIT_INDXPOL)), FALSE);
-}
-
-static uint16_t get_index_pol(struct comedi_device *dev,
-			      const struct s626_enc_info *k)
-{
-	return (k->get_mode(dev, k) >> STDBIT_INDXPOL) & 1;
-}
-
-/*
- * Return/set the index source.
- */
-static void set_index_src(struct comedi_device *dev,
-			  const struct s626_enc_info *k, uint16_t value)
-{
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~STDMSK_INDXSRC) |
-			    ((value != 0) << STDBIT_INDXSRC)), FALSE);
-}
-
-static uint16_t get_index_src(struct comedi_device *dev,
-			      const struct s626_enc_info *k)
-{
-	return (k->get_mode(dev, k) >> STDBIT_INDXSRC) & 1;
-}
-#endif
-
-/*
- * Generate an index pulse.
- */
-static void pulse_index_a(struct comedi_device *dev,
-			  const struct s626_enc_info *k)
-{
-	uint16_t cra;
-
-	cra = debi_read(dev, k->my_cra);
-	/* Pulse index. */
-	debi_write(dev, k->my_cra, (cra ^ CRAMSK_INDXPOL_A));
-	debi_write(dev, k->my_cra, cra);
-}
-
-static void pulse_index_b(struct comedi_device *dev,
-			  const struct s626_enc_info *k)
-{
-	uint16_t crb;
-
-	crb = debi_read(dev, k->my_crb) & ~CRBMSK_INTCTRL;
-	/* Pulse index. */
-	debi_write(dev, k->my_crb, (crb ^ CRBMSK_INDXPOL_B));
-	debi_write(dev, k->my_crb, crb);
 }
 
 static const struct s626_enc_info s626_enc_chan_info[] = {
