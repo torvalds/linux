@@ -1958,12 +1958,11 @@ static uint16_t get_mode_b(struct comedi_device *dev, struct enc_private *k)
  * ClkPol, ClkEnab, IndexSrc, IndexPol, LoadSrc.
  */
 static void set_mode_a(struct comedi_device *dev, struct enc_private *k,
-		       uint16_t Setup, uint16_t DisableIntSrc)
+		       uint16_t setup, uint16_t DisableIntSrc)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t cra;
 	uint16_t crb;
-	uint16_t setup = Setup;	/*  Cache the Standard Setup. */
 
 	/* Initialize CRA and CRB images. */
 	/* Preload trigger is passed through. */
@@ -2037,12 +2036,11 @@ static void set_mode_a(struct comedi_device *dev, struct enc_private *k,
 }
 
 static void set_mode_b(struct comedi_device *dev, struct enc_private *k,
-		       uint16_t Setup, uint16_t DisableIntSrc)
+		       uint16_t setup, uint16_t DisableIntSrc)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t cra;
 	uint16_t crb;
-	uint16_t setup = Setup;	/* Cache the Standard Setup. */
 
 	/* Initialize CRA and CRB images. */
 	/* IndexSrc field is restricted to ENC_X or IndxPol. */
