@@ -6816,6 +6816,14 @@ L:	linux-hexagon@vger.kernel.org
 S:	Supported
 F:	arch/hexagon/
 
+QUALCOMM WCN36XX WIRELESS DRIVER
+M:	Eugene Krasnikov <k.eugene.e@gmail.com>
+L:	wcn36xx@lists.infradead.org
+W:	http://wireless.kernel.org/en/users/Drivers/wcn36xx
+T:	git git://github.com/KrasnikovEugene/wcn36xx.git
+S:	Supported
+F:	drivers/net/wireless/ath/wcn36xx/
+
 QUICKCAM PARALLEL PORT WEBCAMS
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
