@@ -237,8 +237,8 @@ struct mlx4_en_tx_desc {
 struct mlx4_en_rx_alloc {
 	struct page	*page;
 	dma_addr_t	dma;
-	u32		offset;
-	u32		size;
+	u32		page_offset;
+	u32		page_size;
 };
 
 struct mlx4_en_tx_ring {
