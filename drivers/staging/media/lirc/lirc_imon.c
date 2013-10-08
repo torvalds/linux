@@ -619,8 +619,9 @@ static void imon_incoming_packet(struct imon_context *context,
 		return;
 
 	if (len != 8) {
-		dev_warn(dev, "imon %s: invalid incoming packet "
-			 "size (len = %d, intf%d)\n", __func__, len, intf);
+		dev_warn(dev,
+		 "imon %s: invalid incoming packet size (len = %d, intf%d)\n",
+				__func__, len, intf);
 		return;
 	}
 
@@ -878,8 +879,8 @@ static int imon_probe(struct usb_interface *interface,
 		alloc_status = 7;
 		goto unlock;
 	} else
-		dev_info(dev, "Registered iMON driver "
-			 "(lirc minor: %d)\n", lirc_minor);
+		dev_info(dev, "Registered iMON driver (lirc minor: %d)\n",
+				lirc_minor);
 
 	/* Needed while unregistering! */
 	driver->minor = lirc_minor;
@@ -923,14 +924,16 @@ static int imon_probe(struct usb_interface *interface,
 
 		if (usb_register_dev(interface, &imon_class)) {
 			/* Not a fatal error, so ignore */
-			dev_info(dev, "%s: could not get a minor number for "
-				 "display\n", __func__);
+			dev_info(dev,
+			       "%s: could not get a minor number for display\n"
+						__func__);
 		}
 	}
 
-	dev_info(dev, "iMON device (%04x:%04x, intf%d) on "
-		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
-		 usbdev->bus->busnum, usbdev->devnum);
+	dev_info(dev,
+		"iMON device (%04x:%04x, intf%d) on usb<%d:%d> initialized\n",
+			vendor, product, ifnum, usbdev->bus->busnum,
+					usbdev->devnum);
 
 unlock:
 	mutex_unlock(&context->ctx_lock);
