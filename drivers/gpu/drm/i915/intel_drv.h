@@ -801,6 +801,8 @@ void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
+void gen6_rps_idle(struct drm_i915_private *dev_priv);
+void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
 
@@ -823,8 +825,5 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
-
-void gen6_rps_idle(struct drm_i915_private *dev_priv);
-void gen6_rps_boost(struct drm_i915_private *dev_priv);
 
 #endif /* __INTEL_DRV_H__ */
