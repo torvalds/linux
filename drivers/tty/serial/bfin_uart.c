@@ -680,7 +680,7 @@ static int bfin_serial_startup(struct uart_port *port)
 		default:
 			uart_dma_ch_rx = uart_dma_ch_tx = 0;
 			break;
-		};
+		}
 
 		if (uart_dma_ch_rx &&
 			request_dma(uart_dma_ch_rx, "BFIN_UART_RX") < 0) {
@@ -765,7 +765,7 @@ static void bfin_serial_shutdown(struct uart_port *port)
 		break;
 	default:
 		break;
-	};
+	}
 #endif
 	free_irq(uart->rx_irq, uart);
 	free_irq(uart->tx_irq, uart);

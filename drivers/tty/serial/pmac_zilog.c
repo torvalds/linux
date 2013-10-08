@@ -1072,7 +1072,7 @@ static void pmz_convert_to_zs(struct uart_pmac_port *uap, unsigned int cflag,
 		uap->curregs[5] |= Tx8;
 		uap->parity_mask = 0xff;
 		break;
-	};
+	}
 	uap->curregs[4] &= ~(SB_MASK);
 	if (cflag & CSTOPB)
 		uap->curregs[4] |= SB2;
