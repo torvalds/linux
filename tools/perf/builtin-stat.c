@@ -534,6 +534,7 @@ static int __run_perf_stat(int argc, const char **argv)
 			perror("failed to prepare workload");
 			return -1;
 		}
+		child_pid = evsel_list->workload.pid;
 	}
 
 	if (group)
