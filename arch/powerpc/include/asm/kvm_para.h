@@ -48,73 +48,6 @@ static inline int kvm_para_available(void)
 
 #endif
 
-static inline long kvm_hypercall0_1(unsigned int nr, unsigned long *r2)
-{
-	unsigned long in[8];
-	unsigned long out[8];
-	unsigned long r;
-
-	r = epapr_hypercall(in, out, KVM_HCALL_TOKEN(nr));
-	*r2 = out[0];
-
-	return r;
-}
-
-static inline long kvm_hypercall0(unsigned int nr)
-{
-	unsigned long in[8];
-	unsigned long out[8];
-
-	return epapr_hypercall(in, out, KVM_HCALL_TOKEN(nr));
-}
-
-static inline long kvm_hypercall1(unsigned int nr, unsigned long p1)
-{
-	unsigned long in[8];
-	unsigned long out[8];
-
-	in[0] = p1;
-	return epapr_hypercall(in, out, KVM_HCALL_TOKEN(nr));
-}
-
-static inline long kvm_hypercall2(unsigned int nr, unsigned long p1,
-				  unsigned long p2)
-{
-	unsigned long in[8];
-	unsigned long out[8];
-
-	in[0] = p1;
-	in[1] = p2;
-	return epapr_hypercall(in, out, KVM_HCALL_TOKEN(nr));
-}
-
-static inline long kvm_hypercall3(unsigned int nr, unsigned long p1,
-				  unsigned long p2, unsigned long p3)
-{
-	unsigned long in[8];
-	unsigned long out[8];
-
-	in[0] = p1;
-	in[1] = p2;
-	in[2] = p3;
-	return epapr_hypercall(in, out, KVM_HCALL_TOKEN(nr));
-}
-
-static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
-				  unsigned long p2, unsigned long p3,
-				  unsigned long p4)
-{
-	unsigned long in[8];
-	unsigned long out[8];
-
-	in[0] = p1;
-	in[1] = p2;
-	in[2] = p3;
-	in[3] = p4;
-	return epapr_hypercall(in, out, KVM_HCALL_TOKEN(nr));
-}
-
-
 static inline unsigned int kvm_arch_para_features(void)
 {
 	unsigned long r;
@@ -122,7 +55,7 @@ static inline unsigned int kvm_arch_para_features(void)
 	if (!kvm_para_available())
 		return 0;
 
-	if(kvm_hypercall0_1(KVM_HC_FEATURES, &r))
+	if(epapr_hypercall0_1(KVM_HCALL_TOKEN(KVM_HC_FEATURES), &r))
 		return 0;
 
 	return r;
