@@ -14,6 +14,7 @@ config DRM_MSM
 config DRM_MSM_FBDEV
 	bool "Enable legacy fbdev support for MSM modesetting driver"
 	depends on DRM_MSM
+	select DRM_KMS_FB_HELPER
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
