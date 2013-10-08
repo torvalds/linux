@@ -373,34 +373,34 @@ static ssize_t serio_show_modalias(struct device *dev, struct device_attribute *
 			serio->id.type, serio->id.proto, serio->id.id, serio->id.extra);
 }
 
-static ssize_t serio_show_id_type(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.type);
 }
 
-static ssize_t serio_show_id_proto(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t proto_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.proto);
 }
 
-static ssize_t serio_show_id_id(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.id);
 }
 
-static ssize_t serio_show_id_extra(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t extra_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.extra);
 }
 
-static DEVICE_ATTR(type, S_IRUGO, serio_show_id_type, NULL);
-static DEVICE_ATTR(proto, S_IRUGO, serio_show_id_proto, NULL);
-static DEVICE_ATTR(id, S_IRUGO, serio_show_id_id, NULL);
-static DEVICE_ATTR(extra, S_IRUGO, serio_show_id_extra, NULL);
+static DEVICE_ATTR_RO(type);
+static DEVICE_ATTR_RO(proto);
+static DEVICE_ATTR_RO(id);
+static DEVICE_ATTR_RO(extra);
 
 static struct attribute *serio_device_id_attrs[] = {
 	&dev_attr_type.attr,
