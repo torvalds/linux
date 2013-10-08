@@ -23,8 +23,6 @@
 
 #include <linux/platform_device.h>
 
-struct hdmi_ip_data;
-
 enum hdmi_pll_pwr {
 	HDMI_PLLPWRCMD_ALLOFF = 0,
 	HDMI_PLLPWRCMD_PLLONLY = 1,
@@ -206,18 +204,6 @@ struct hdmi_core_data {
 	void __iomem *base;
 
 	struct hdmi_core_infoframe_avi avi_cfg;
-};
-
-struct hdmi_ip_data {
-	struct hdmi_wp_data	wp;
-	struct hdmi_pll_data	pll;
-	struct hdmi_phy_data	phy;
-	struct hdmi_core_data	core;
-
-	struct hdmi_config cfg;
-
-	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
-	struct mutex lock;
 };
 
 /* HDMI wrapper funcs */
