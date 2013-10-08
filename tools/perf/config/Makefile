@@ -180,21 +180,21 @@ endif
 #
 # Print the result of the feature test:
 #
-feature_print = $(eval $(feature_print_code))
+feature_print = $(eval $(feature_print_code)) $(info $(MSG))
+
 define feature_print_code
   ifeq ($(feature-$(1)), 1)
     MSG = $(shell printf '...%30s: [ \033[32mon\033[m  ]' $(1))
   else
     MSG = $(shell printf '...%30s: [ \033[31mOFF\033[m ]' $(1))
   endif
-  $(info $(MSG))
 endef
 
 #
 # Only print out our features if we rebuilt the testcases or if a test failed:
 #
 ifeq ($(test-all-failed), 1)
-  $(foreach feat,$(CORE_FEATURE_TESTS) DUMMY,$(call feature_print,$(feat)))
+  $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_print,$(feat)))
   $(info )
 endif
 
