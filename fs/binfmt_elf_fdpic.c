@@ -1509,7 +1509,7 @@ static bool elf_fdpic_dump_segments(struct coredump_params *cprm)
 				kunmap(page);
 				page_cache_release(page);
 			} else {
-				res = dump_seek(file, PAGE_SIZE);
+				res = dump_skip(cprm, PAGE_SIZE);
 			}
 			if (!res)
 				return false;
@@ -1547,11 +1547,10 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	int has_dumped = 0;
 	mm_segment_t fs;
 	int segs;
-	size_t size = 0;
 	int i;
 	struct vm_area_struct *vma;
 	struct elfhdr *elf = NULL;
-	loff_t offset = 0, dataoff, foffset;
+	loff_t offset = 0, dataoff;
 	int numnote;
 	struct memelfnote *notes = NULL;
 	struct elf_prstatus *prstatus = NULL;	/* NT_PRSTATUS */
@@ -1682,7 +1681,6 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	offset += sizeof(*elf);				/* Elf header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
-	foffset = offset;
 
 	/* Write notes phdr entry */
 	{
@@ -1751,8 +1749,6 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!elf_core_write_extra_phdrs(cprm, offset))
 		goto end_coredump;
 
-	size = cprm->written;
-	cprm->written = foffset;
  	/* write out the notes section */
 	for (i = 0; i < numnote; i++)
 		if (!writenote(notes + i, cprm))
@@ -1768,10 +1764,9 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 				goto end_coredump;
 	}
 
-	if (!dump_seek(cprm->file, dataoff - cprm->written))
+	if (!dump_skip(cprm, dataoff - cprm->written))
 		goto end_coredump;
 
-	cprm->written = size;
 	if (!elf_fdpic_dump_segments(cprm))
 		goto end_coredump;
 

@@ -187,7 +187,7 @@ static int aout_core_dump(struct coredump_params *cprm)
 	if (!dump_emit(cprm, &dump, sizeof(dump)))
 		goto end_coredump;
 	/* Now dump all of the user data.  Include malloced stuff as well */
-	if (!dump_seek(cprm->file, PAGE_SIZE - sizeof(dump)))
+	if (!dump_skip(cprm, PAGE_SIZE - sizeof(dump)))
 		goto end_coredump;
 	/* now we start writing out the user space info */
 	set_fs(USER_DS);

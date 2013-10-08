@@ -685,14 +685,6 @@ fail:
  * do on a core-file: use only these functions to write out all the
  * necessary info.
  */
-int dump_write(struct file *file, const void *addr, int nr)
-{
-	return !dump_interrupted() &&
-		access_ok(VERIFY_READ, addr, nr) &&
-		file->f_op->write(file, addr, nr, &file->f_pos) == nr;
-}
-EXPORT_SYMBOL(dump_write);
-
 int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 {
 	struct file *file = cprm->file;
@@ -714,32 +706,25 @@ int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 }
 EXPORT_SYMBOL(dump_emit);
 
-int dump_seek(struct file *file, loff_t off)
+int dump_skip(struct coredump_params *cprm, size_t nr)
 {
-	int ret = 1;
-
+	static char zeroes[PAGE_SIZE];
+	struct file *file = cprm->file;
 	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+		if (cprm->written + nr > cprm->limit)
+			return 0;
 		if (dump_interrupted() ||
-		    file->f_op->llseek(file, off, SEEK_CUR) < 0)
+		    file->f_op->llseek(file, nr, SEEK_CUR) < 0)
 			return 0;
+		cprm->written += nr;
+		return 1;
 	} else {
-		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
-
-		if (!buf)
-			return 0;
-		while (off > 0) {
-			unsigned long n = off;
-
-			if (n > PAGE_SIZE)
-				n = PAGE_SIZE;
-			if (!dump_write(file, buf, n)) {
-				ret = 0;
-				break;
-			}
-			off -= n;
+		while (nr > PAGE_SIZE) {
+			if (!dump_emit(cprm, zeroes, PAGE_SIZE))
+				return 0;
+			nr -= PAGE_SIZE;
 		}
-		free_page((unsigned long)buf);
+		return dump_emit(cprm, zeroes, nr);
 	}
-	return ret;
 }
-EXPORT_SYMBOL(dump_seek);
+EXPORT_SYMBOL(dump_skip);
