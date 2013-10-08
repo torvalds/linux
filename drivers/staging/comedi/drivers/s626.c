@@ -161,6 +161,7 @@ static void s626_mc_enable(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 	unsigned int val = (cmd << 16) | cmd;
 
+	mmiowb();
 	writel(val, devpriv->mmio + reg);
 }
 
@@ -170,6 +171,7 @@ static void s626_mc_disable(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 
 	writel(cmd << 16 , devpriv->mmio + reg);
+	mmiowb();
 }
 
 static bool s626_mc_test(struct comedi_device *dev,
