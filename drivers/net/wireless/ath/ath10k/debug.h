@@ -46,6 +46,7 @@ extern __printf(1, 2) int ath10k_warn(const char *fmt, ...);
 int ath10k_debug_start(struct ath10k *ar);
 void ath10k_debug_stop(struct ath10k *ar);
 int ath10k_debug_create(struct ath10k *ar);
+void ath10k_debug_destroy(struct ath10k *ar);
 void ath10k_debug_read_service_map(struct ath10k *ar,
 				   void *service_map,
 				   size_t map_size);
@@ -65,6 +66,10 @@ static inline void ath10k_debug_stop(struct ath10k *ar)
 static inline int ath10k_debug_create(struct ath10k *ar)
 {
 	return 0;
+}
+
+static inline void ath10k_debug_destroy(struct ath10k *ar)
+{
 }
 
 static inline void ath10k_debug_read_service_map(struct ath10k *ar,

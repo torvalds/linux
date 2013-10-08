@@ -737,6 +737,8 @@ EXPORT_SYMBOL(ath10k_core_create);
 
 void ath10k_core_destroy(struct ath10k *ar)
 {
+	ath10k_debug_destroy(ar);
+
 	flush_workqueue(ar->workqueue);
 	destroy_workqueue(ar->workqueue);
 
@@ -747,6 +749,8 @@ EXPORT_SYMBOL(ath10k_core_destroy);
 int ath10k_core_start(struct ath10k *ar)
 {
 	int status;
+
+	lockdep_assert_held(&ar->conf_mutex);
 
 	ath10k_bmi_start(ar);
 
@@ -836,6 +840,8 @@ EXPORT_SYMBOL(ath10k_core_start);
 
 void ath10k_core_stop(struct ath10k *ar)
 {
+	lockdep_assert_held(&ar->conf_mutex);
+
 	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
 	ath10k_htt_detach(&ar->htt);
@@ -883,15 +889,21 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		return ret;
 	}
 
+	mutex_lock(&ar->conf_mutex);
+
 	ret = ath10k_core_start(ar);
 	if (ret) {
 		ath10k_err("could not init core (%d)\n", ret);
 		ath10k_core_free_firmware_files(ar);
 		ath10k_hif_power_down(ar);
+		mutex_unlock(&ar->conf_mutex);
 		return ret;
 	}
 
 	ath10k_core_stop(ar);
+
+	mutex_unlock(&ar->conf_mutex);
+
 	ath10k_hif_power_down(ar);
 	return 0;
 }
