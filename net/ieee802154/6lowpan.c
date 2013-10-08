@@ -1372,6 +1372,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	real_dev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev)
 		return -ENODEV;
+	if (real_dev->type != ARPHRD_IEEE802154)
+		return -EINVAL;
 
 	lowpan_dev_info(dev)->real_dev = real_dev;
 	lowpan_dev_info(dev)->fragment_tag = 0;
@@ -1385,6 +1387,9 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	}
 
 	entry->ldev = dev;
+
+	/* Set the lowpan harware address to the wpan hardware address. */
+	memcpy(dev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
 	INIT_LIST_HEAD(&entry->list);
