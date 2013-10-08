@@ -4914,10 +4914,8 @@ again:
 		 * If it is too old, old, skip to the next one.
 		 */
 		while (slot < nritems) {
-			u64 blockptr;
 			u64 gen;
 
-			blockptr = btrfs_node_blockptr(cur, slot);
 			gen = btrfs_node_ptr_generation(cur, slot);
 			if (gen < min_trans) {
 				slot++;
