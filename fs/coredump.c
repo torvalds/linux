@@ -696,13 +696,20 @@ EXPORT_SYMBOL(dump_write);
 int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 {
 	struct file *file = cprm->file;
-	if (dump_interrupted() || !access_ok(VERIFY_READ, addr, nr))
-		return 0;
+	loff_t pos = file->f_pos;
+	ssize_t n;
 	if (cprm->written + nr > cprm->limit)
 		return 0;
-	if (file->f_op->write(file, addr, nr, &file->f_pos) != nr)
-		return 0;
-	cprm->written += nr;
+	while (nr) {
+		if (dump_interrupted())
+			return 0;
+		n = vfs_write(file, addr, nr, &pos);
+		if (n <= 0)
+			return 0;
+		file->f_pos = pos;
+		cprm->written += n;
+		nr -= n;
+	}
 	return 1;
 }
 EXPORT_SYMBOL(dump_emit);
