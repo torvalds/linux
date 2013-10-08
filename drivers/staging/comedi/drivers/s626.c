@@ -74,7 +74,7 @@
 struct s626_private {
 	void __iomem *mmio;
 	uint8_t ai_cmd_running;		/* ai_cmd is running */
-	uint8_t ai_continous;		/* continuous acquisition */
+	uint8_t ai_continuous;		/* continuous acquisition */
 	int ai_sample_count;		/* number of samples to acquire */
 	unsigned int ai_sample_timer;	/* time between samples in
 					 * units of the timer */
@@ -885,7 +885,7 @@ static bool handle_eos_interrupt(struct comedi_device *dev)
 	/* end of scan occurs */
 	async->events |= COMEDI_CB_EOS;
 
-	if (!devpriv->ai_continous)
+	if (!devpriv->ai_continuous)
 		devpriv->ai_sample_count--;
 	if (devpriv->ai_sample_count <= 0) {
 		devpriv->ai_cmd_running = 0;
@@ -1469,11 +1469,11 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_COUNT:
 		/* data arrives as one packet */
 		devpriv->ai_sample_count = cmd->stop_arg;
-		devpriv->ai_continous = 0;
+		devpriv->ai_continuous = 0;
 		break;
 	case TRIG_NONE:
 		/* continuous acquisition */
-		devpriv->ai_continous = 1;
+		devpriv->ai_continuous = 1;
 		devpriv->ai_sample_count = 1;
 		break;
 	}
