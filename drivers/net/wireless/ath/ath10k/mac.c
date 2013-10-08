@@ -1033,13 +1033,26 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 				    struct wmi_peer_assoc_complete_arg *arg)
 {
 	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	u8 ampdu_factor;
 
 	if (!vht_cap->vht_supported)
 		return;
 
 	arg->peer_flags |= WMI_PEER_VHT;
-
 	arg->peer_vht_caps = vht_cap->cap;
+
+
+	ampdu_factor = (vht_cap->cap &
+			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK) >>
+		       IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
+
+	/* Workaround: Some Netgear/Linksys 11ac APs set Rx A-MPDU factor to
+	 * zero in VHT IE. Using it would result in degraded throughput.
+	 * arg->peer_max_mpdu at this point contains HT max_mpdu so keep
+	 * it if VHT max_mpdu is smaller. */
+	arg->peer_max_mpdu = max(arg->peer_max_mpdu,
+				 (1U << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+					ampdu_factor)) - 1);
 
 	if (sta->bandwidth == IEEE80211_STA_RX_BW_80)
 		arg->peer_flags |= WMI_PEER_80MHZ;
