@@ -25,6 +25,7 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/dma-rcar-hpbdma.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
@@ -97,7 +98,7 @@ static struct resource irqpin0_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_spi(30)), /* IRQ3 */
 };
 
-void __init r8a7779_init_irq_extpin(int irlm)
+void __init r8a7779_init_irq_extpin_dt(int irlm)
 {
 	void __iomem *icr0 = ioremap_nocache(0xfe780000, PAGE_SIZE);
 	u32 tmp;
@@ -115,7 +116,11 @@ void __init r8a7779_init_irq_extpin(int irlm)
 	tmp |= (1 << 21); /* LVLMODE = 1 */
 	iowrite32(tmp, icr0);
 	iounmap(icr0);
+}
 
+void __init r8a7779_init_irq_extpin(int irlm)
+{
+	r8a7779_init_irq_extpin_dt(irlm);
 	if (irlm)
 		platform_device_register_resndata(
 			&platform_bus, "renesas_intc_irqpin", -1,
@@ -632,6 +637,158 @@ static struct platform_device_info *vin_info_table[] __initdata = {
 	&vin3_info,
 };
 
+/* HPB-DMA */
+
+/* Asynchronous mode register bits */
+#define HPB_DMAE_ASYNCMDR_ASMD43_MASK		BIT(23)	/* MMC1 */
+#define HPB_DMAE_ASYNCMDR_ASMD43_SINGLE		BIT(23)	/* MMC1 */
+#define HPB_DMAE_ASYNCMDR_ASMD43_MULTI		0	/* MMC1 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD43_MASK		BIT(22)	/* MMC1 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD43_BURST	BIT(22)	/* MMC1 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD43_NBURST	0	/* MMC1 */
+#define HPB_DMAE_ASYNCMDR_ASMD24_MASK		BIT(21)	/* MMC0 */
+#define HPB_DMAE_ASYNCMDR_ASMD24_SINGLE		BIT(21)	/* MMC0 */
+#define HPB_DMAE_ASYNCMDR_ASMD24_MULTI		0	/* MMC0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD24_MASK		BIT(20)	/* MMC0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD24_BURST	BIT(20)	/* MMC0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD24_NBURST	0	/* MMC0 */
+#define HPB_DMAE_ASYNCMDR_ASMD41_MASK		BIT(19)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD41_SINGLE		BIT(19)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD41_MULTI		0	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD41_MASK		BIT(18)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD41_BURST	BIT(18)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD41_NBURST	0	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD40_MASK		BIT(17)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD40_SINGLE		BIT(17)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD40_MULTI		0	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD40_MASK		BIT(16)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD40_BURST	BIT(16)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD40_NBURST	0	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD39_MASK		BIT(15)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD39_SINGLE		BIT(15)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD39_MULTI		0	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD39_MASK		BIT(14)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD39_BURST	BIT(14)	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD39_NBURST	0	/* SDHI3 */
+#define HPB_DMAE_ASYNCMDR_ASMD27_MASK		BIT(13)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD27_SINGLE		BIT(13)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD27_MULTI		0	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD27_MASK		BIT(12)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD27_BURST	BIT(12)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD27_NBURST	0	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD26_MASK		BIT(11)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD26_SINGLE		BIT(11)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD26_MULTI		0	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD26_MASK		BIT(10)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD26_BURST	BIT(10)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD26_NBURST	0	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD25_MASK		BIT(9)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD25_SINGLE		BIT(9)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD25_MULTI		0	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD25_MASK		BIT(8)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD25_BURST	BIT(8)	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD25_NBURST	0	/* SDHI2 */
+#define HPB_DMAE_ASYNCMDR_ASMD23_MASK		BIT(7)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD23_SINGLE		BIT(7)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD23_MULTI		0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD23_MASK		BIT(6)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD23_BURST	BIT(6)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD23_NBURST	0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MASK		BIT(5)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_SINGLE		BIT(5)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MULTI		0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD22_MASK		BIT(4)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD22_BURST	BIT(4)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD22_NBURST	0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MASK		BIT(3)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_SINGLE		BIT(3)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MULTI		0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD21_MASK		BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD21_BURST	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD21_NBURST	0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD20_MASK		BIT(1)	/* SDHI1 */
+#define HPB_DMAE_ASYNCMDR_ASMD20_SINGLE		BIT(1)	/* SDHI1 */
+#define HPB_DMAE_ASYNCMDR_ASMD20_MULTI		0	/* SDHI1 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD20_MASK		BIT(0)	/* SDHI1 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD20_BURST	BIT(0)	/* SDHI1 */
+#define HPB_DMAE_ASYNCMDR_ASBTMD20_NBURST	0	/* SDHI1 */
+
+static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
+	{
+		.id	= HPBDMA_SLAVE_SDHI0_TX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DMDL |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD21_SINGLE |
+			  HPB_DMAE_ASYNCMDR_ASBTMD21_NBURST,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD21_MASK |
+			  HPB_DMAE_ASYNCMDR_ASBTMD21_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 21,
+	}, {
+		.id	= HPBDMA_SLAVE_SDHI0_RX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SMDL |
+			  HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD22_SINGLE |
+			  HPB_DMAE_ASYNCMDR_ASBTMD22_NBURST,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD22_MASK |
+			  HPB_DMAE_ASYNCMDR_ASBTMD22_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 22,
+	},
+};
+
+static const struct hpb_dmae_channel hpb_dmae_channels[] = {
+	HPB_DMAE_CHANNEL(0x93, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
+	HPB_DMAE_CHANNEL(0x93, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
+};
+
+static struct hpb_dmae_pdata dma_platform_data __initdata = {
+	.slaves			= hpb_dmae_slaves,
+	.num_slaves		= ARRAY_SIZE(hpb_dmae_slaves),
+	.channels		= hpb_dmae_channels,
+	.num_channels		= ARRAY_SIZE(hpb_dmae_channels),
+	.ts_shift		= {
+		[XMIT_SZ_8BIT]	= 0,
+		[XMIT_SZ_16BIT]	= 1,
+		[XMIT_SZ_32BIT]	= 2,
+	},
+	.num_hw_channels	= 44,
+};
+
+static struct resource hpb_dmae_resources[] __initdata = {
+	/* Channel registers */
+	DEFINE_RES_MEM(0xffc08000, 0x1000),
+	/* Common registers */
+	DEFINE_RES_MEM(0xffc09000, 0x170),
+	/* Asynchronous reset registers */
+	DEFINE_RES_MEM(0xffc00300, 4),
+	/* Asynchronous mode registers */
+	DEFINE_RES_MEM(0xffc00400, 4),
+	/* IRQ for DMA channels */
+	DEFINE_RES_NAMED(gic_iid(0x8e), 12, NULL, IORESOURCE_IRQ),
+};
+
+static void __init r8a7779_register_hpb_dmae(void)
+{
+	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
+					  hpb_dmae_resources,
+					  ARRAY_SIZE(hpb_dmae_resources),
+					  &dma_platform_data,
+					  sizeof(dma_platform_data));
+}
+
 static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -665,6 +822,7 @@ void __init r8a7779_add_standard_devices(void)
 			    ARRAY_SIZE(r8a7779_devices_dt));
 	platform_add_devices(r8a7779_standard_devices,
 			    ARRAY_SIZE(r8a7779_standard_devices));
+	r8a7779_register_hpb_dmae();
 }
 
 void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)

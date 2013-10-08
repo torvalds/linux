@@ -15,8 +15,10 @@ obj-$(CONFIG_ARCH_R8A7740)	+= setup-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7778)	+= setup-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= setup-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= setup-r8a7790.o
-obj-$(CONFIG_ARCH_R8A7791)	+= setup-r8a7791.o
+obj-$(CONFIG_ARCH_R8A7790)	+= setup-r8a7790.o setup-rcar-gen2.o
+obj-$(CONFIG_ARCH_R8A7791)	+= setup-r8a7791.o setup-rcar-gen2.o
 obj-$(CONFIG_ARCH_EMEV2)	+= setup-emev2.o
+obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
 
 # Clock objects
 ifndef CONFIG_COMMON_CLK
@@ -30,12 +32,15 @@ obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= clock-r8a7790.o
 obj-$(CONFIG_ARCH_R8A7791)	+= clock-r8a7791.o
 obj-$(CONFIG_ARCH_EMEV2)	+= clock-emev2.o
+obj-$(CONFIG_ARCH_R7S72100)	+= clock-r7s72100.o
 endif
 
 # SMP objects
 smp-y				:= platsmp.o headsmp.o
 smp-$(CONFIG_ARCH_SH73A0)	+= smp-sh73a0.o headsmp-scu.o platsmp-scu.o
 smp-$(CONFIG_ARCH_R8A7779)	+= smp-r8a7779.o headsmp-scu.o platsmp-scu.o
+smp-$(CONFIG_ARCH_R8A7790)	+= smp-r8a7790.o platsmp-apmu.o
+smp-$(CONFIG_ARCH_R8A7791)	+= smp-r8a7791.o platsmp-apmu.o
 smp-$(CONFIG_ARCH_EMEV2)	+= smp-emev2.o headsmp-scu.o platsmp-scu.o
 
 # IRQ objects
