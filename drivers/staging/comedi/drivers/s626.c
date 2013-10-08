@@ -71,11 +71,6 @@
 #include "comedi_fc.h"
 #include "s626.h"
 
-#define PCI_VENDOR_ID_S626 0x1131
-#define PCI_DEVICE_ID_S626 0x7146
-#define PCI_SUBVENDOR_ID_S626 0x6000
-#define PCI_SUBDEVICE_ID_S626 0x0272
-
 struct s626_private {
 	void __iomem *mmio;
 	uint8_t ai_cmd_running;		/* ai_cmd is running */
@@ -2904,8 +2899,8 @@ static int s626_pci_probe(struct pci_dev *dev,
  * Philips SAA7146 media/dvb based cards.
  */
 static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{ PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
-	  PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0, },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146,
+			 0x6000, 0x0272) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, s626_pci_table);
