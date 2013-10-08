@@ -122,7 +122,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	up.port.dev = &pdev->dev;
 	up.port.private_data = priv;
 
-	clk_enable(priv->sclk);
+	clk_prepare_enable(priv->sclk);
 	up.port.uartclk = clk_get_rate(priv->sclk);
 
 	up.port.iotype = UPIO_MEM32;
@@ -134,7 +134,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "unable to register 8250 port\n");
-		clk_disable(priv->sclk);
+		clk_disable_unprepare(priv->sclk);
 		return ret;
 	}
 
@@ -148,7 +148,7 @@ static int serial8250_em_remove(struct platform_device *pdev)
 	struct serial8250_em_priv *priv = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(priv->line);
-	clk_disable(priv->sclk);
+	clk_disable_unprepare(priv->sclk);
 	return 0;
 }
 
