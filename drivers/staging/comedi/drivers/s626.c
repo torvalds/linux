@@ -793,6 +793,245 @@ static uint16_t get_mode_b(struct comedi_device *dev,
 	return setup;
 }
 
+/*
+ * Set the operating mode for the specified counter.  The setup
+ * parameter is treated as a COUNTER_SETUP data type.  The following
+ * parameters are programmable (all other parms are ignored): ClkMult,
+ * ClkPol, ClkEnab, IndexSrc, IndexPol, LoadSrc.
+ */
+static void set_mode_a(struct comedi_device *dev, const struct s626_enc_info *k,
+		       uint16_t setup, uint16_t disable_int_src)
+{
+	struct s626_private *devpriv = dev->private;
+	uint16_t cra;
+	uint16_t crb;
+
+	/* Initialize CRA and CRB images. */
+	/* Preload trigger is passed through. */
+	cra = setup & CRAMSK_LOADSRC_A;
+	/* IndexSrc is restricted to ENC_X or IndxPol. */
+	cra |= ((setup & STDMSK_INDXSRC) >>
+		(STDBIT_INDXSRC - (CRABIT_INDXSRC_A + 1)));
+
+	/* Reset any pending CounterA event captures. */
+	crb = CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A;
+	/* Clock enable is passed through. */
+	crb |= (setup & STDMSK_CLKENAB) << (CRBBIT_CLKENAB_A - STDBIT_CLKENAB);
+
+	/* Force IntSrc to Disabled if disable_int_src is asserted. */
+	if (!disable_int_src)
+		cra |= ((setup & STDMSK_INTSRC) >> (STDBIT_INTSRC -
+						    CRABIT_INTSRC_A));
+
+	/* Populate all mode-dependent attributes of CRA & CRB images. */
+	switch ((setup & STDMSK_CLKSRC) >> STDBIT_CLKSRC) {
+	case CLKSRC_EXTENDER:	/* Extender Mode: Force to Timer mode
+				 * (Extender valid only for B counters). */
+		/* Fall through to case CLKSRC_TIMER: */
+	case CLKSRC_TIMER:	/* Timer Mode: */
+		/* ClkSrcA<1> selects system clock */
+		cra |= 2 << CRABIT_CLKSRC_A;
+		/* Count direction (ClkSrcA<0>) obtained from ClkPol. */
+		cra |= (setup & STDMSK_CLKPOL) >>
+		       (STDBIT_CLKPOL - CRABIT_CLKSRC_A);
+		/* ClkPolA behaves as always-on clock enable. */
+		cra |= 1 << CRABIT_CLKPOL_A;
+		/* ClkMult must be 1x. */
+		cra |= MULT_X1 << CRABIT_CLKMULT_A;
+		break;
+	default:		/* Counter Mode: */
+		/* Select ENC_C and ENC_D as clock/direction inputs. */
+		cra |= CLKSRC_COUNTER;
+		/* Clock polarity is passed through. */
+		cra |= (setup & STDMSK_CLKPOL) <<
+		       (CRABIT_CLKPOL_A - STDBIT_CLKPOL);
+		/* Force multiplier to x1 if not legal, else pass through. */
+		if ((setup & STDMSK_CLKMULT) == (MULT_X0 << STDBIT_CLKMULT))
+			cra |= MULT_X1 << CRABIT_CLKMULT_A;
+		else
+			cra |= (setup & STDMSK_CLKMULT) <<
+			       (CRABIT_CLKMULT_A - STDBIT_CLKMULT);
+		break;
+	}
+
+	/*
+	 * Force positive index polarity if IndxSrc is software-driven only,
+	 * otherwise pass it through.
+	 */
+	if (~setup & STDMSK_INDXSRC)
+		cra |= (setup & STDMSK_INDXPOL) <<
+		       (CRABIT_INDXPOL_A - STDBIT_INDXPOL);
+
+	/*
+	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
+	 * enable mask to indicate the counter interrupt is disabled.
+	 */
+	if (disable_int_src)
+		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
+
+	/*
+	 * While retaining CounterB and LatchSrc configurations, program the
+	 * new counter operating mode.
+	 */
+	debi_replace(dev, k->my_cra, CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B, cra);
+	debi_replace(dev, k->my_crb, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A), crb);
+}
+
+static void set_mode_b(struct comedi_device *dev, const struct s626_enc_info *k,
+		       uint16_t setup, uint16_t disable_int_src)
+{
+	struct s626_private *devpriv = dev->private;
+	uint16_t cra;
+	uint16_t crb;
+
+	/* Initialize CRA and CRB images. */
+	/* IndexSrc field is restricted to ENC_X or IndxPol. */
+	cra = (setup & STDMSK_INDXSRC) <<
+	      (CRABIT_INDXSRC_B + 1 - STDBIT_INDXSRC);
+
+	/* Reset event captures and disable interrupts. */
+	crb = CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B;
+	/* Clock enable is passed through. */
+	crb |= (setup & STDMSK_CLKENAB) << (CRBBIT_CLKENAB_B - STDBIT_CLKENAB);
+	/* Preload trigger source is passed through. */
+	crb |= (setup & STDMSK_LOADSRC) >> (STDBIT_LOADSRC - CRBBIT_LOADSRC_B);
+
+	/* Force IntSrc to Disabled if disable_int_src is asserted. */
+	if (!disable_int_src)
+		crb |= (setup & STDMSK_INTSRC) >>
+		       (STDBIT_INTSRC - CRBBIT_INTSRC_B);
+
+	/* Populate all mode-dependent attributes of CRA & CRB images. */
+	switch ((setup & STDMSK_CLKSRC) >> STDBIT_CLKSRC) {
+	case CLKSRC_TIMER:	/* Timer Mode: */
+		/* ClkSrcB<1> selects system clock */
+		cra |= 2 << CRABIT_CLKSRC_B;
+		/* with direction (ClkSrcB<0>) obtained from ClkPol. */
+		cra |= (setup & STDMSK_CLKPOL) <<
+		       (CRABIT_CLKSRC_B - STDBIT_CLKPOL);
+		/* ClkPolB behaves as always-on clock enable. */
+		crb |= 1 << CRBBIT_CLKPOL_B;
+		/* ClkMultB must be 1x. */
+		crb |= MULT_X1 << CRBBIT_CLKMULT_B;
+		break;
+	case CLKSRC_EXTENDER:	/* Extender Mode: */
+		/* ClkSrcB source is OverflowA (same as "timer") */
+		cra |= 2 << CRABIT_CLKSRC_B;
+		/* with direction obtained from ClkPol. */
+		cra |= (setup & STDMSK_CLKPOL) <<
+		       (CRABIT_CLKSRC_B - STDBIT_CLKPOL);
+		/* ClkPolB controls IndexB -- always set to active. */
+		crb |= 1 << CRBBIT_CLKPOL_B;
+		/* ClkMultB selects OverflowA as the clock source. */
+		crb |= MULT_X0 << CRBBIT_CLKMULT_B;
+		break;
+	default:		/* Counter Mode: */
+		/* Select ENC_C and ENC_D as clock/direction inputs. */
+		cra |= CLKSRC_COUNTER << CRABIT_CLKSRC_B;
+		/* ClkPol is passed through. */
+		crb |= (setup & STDMSK_CLKPOL) >>
+		       (STDBIT_CLKPOL - CRBBIT_CLKPOL_B);
+		/* Force ClkMult to x1 if not legal, otherwise pass through. */
+		if ((setup & STDMSK_CLKMULT) == (MULT_X0 << STDBIT_CLKMULT))
+			crb |= MULT_X1 << CRBBIT_CLKMULT_B;
+		else
+			crb |= (setup & STDMSK_CLKMULT) <<
+			       (CRBBIT_CLKMULT_B - STDBIT_CLKMULT);
+		break;
+	}
+
+	/*
+	 * Force positive index polarity if IndxSrc is software-driven only,
+	 * otherwise pass it through.
+	 */
+	if (~setup & STDMSK_INDXSRC)
+		crb |= (setup & STDMSK_INDXPOL) >>
+		       (STDBIT_INDXPOL - CRBBIT_INDXPOL_B);
+
+	/*
+	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
+	 * enable mask to indicate the counter interrupt is disabled.
+	 */
+	if (disable_int_src)
+		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
+
+	/*
+	 * While retaining CounterA and LatchSrc configurations, program the
+	 * new counter operating mode.
+	 */
+	debi_replace(dev, k->my_cra, ~(CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B),
+		     cra);
+	debi_replace(dev, k->my_crb, CRBMSK_CLKENAB_A | CRBMSK_LATCHSRC, crb);
+}
+
+/*
+ * Return/set a counter's enable.  enab: 0=always enabled, 1=enabled by index.
+ */
+static void set_enable_a(struct comedi_device *dev,
+			 const struct s626_enc_info *k, uint16_t enab)
+{
+	debi_replace(dev, k->my_crb, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A),
+		     enab << CRBBIT_CLKENAB_A);
+}
+
+static void set_enable_b(struct comedi_device *dev,
+			 const struct s626_enc_info *k, uint16_t enab)
+{
+	debi_replace(dev, k->my_crb, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_B),
+		     enab << CRBBIT_CLKENAB_B);
+}
+
+static uint16_t get_enable_a(struct comedi_device *dev,
+			     const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_crb) >> CRBBIT_CLKENAB_A) & 1;
+}
+
+static uint16_t get_enable_b(struct comedi_device *dev,
+			     const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_crb) >> CRBBIT_CLKENAB_B) & 1;
+}
+
+#ifdef unused
+static uint16_t get_latch_source(struct comedi_device *dev,
+				 const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_crb) >> CRBBIT_LATCHSRC) & 3;
+}
+#endif
+
+/*
+ * Return/set the event that will trigger transfer of the preload
+ * register into the counter.  0=ThisCntr_Index, 1=ThisCntr_Overflow,
+ * 2=OverflowA (B counters only), 3=disabled.
+ */
+static void set_load_trig_a(struct comedi_device *dev,
+			    const struct s626_enc_info *k, uint16_t trig)
+{
+	debi_replace(dev, k->my_cra, ~CRAMSK_LOADSRC_A,
+		     trig << CRABIT_LOADSRC_A);
+}
+
+static void set_load_trig_b(struct comedi_device *dev,
+			    const struct s626_enc_info *k, uint16_t trig)
+{
+	debi_replace(dev, k->my_crb, ~(CRBMSK_LOADSRC_B | CRBMSK_INTCTRL),
+		     trig << CRBBIT_LOADSRC_B);
+}
+
+static uint16_t get_load_trig_a(struct comedi_device *dev,
+				const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_cra) >> CRABIT_LOADSRC_A) & 3;
+}
+
+static uint16_t get_load_trig_b(struct comedi_device *dev,
+				const struct s626_enc_info *k)
+{
+	return (debi_read(dev, k->my_crb) >> CRBBIT_LOADSRC_B) & 3;
+}
+
 static unsigned int s626_ai_reg_to_uint(int data)
 {
 	unsigned int tempdata;
@@ -1962,245 +2201,6 @@ static void close_dma_b(struct comedi_device *dev, struct buffer_dma *pdma,
 		pdma->logical_base = NULL;
 		pdma->physical_base = 0;
 	}
-}
-
-/*
- * Set the operating mode for the specified counter.  The setup
- * parameter is treated as a COUNTER_SETUP data type.  The following
- * parameters are programmable (all other parms are ignored): ClkMult,
- * ClkPol, ClkEnab, IndexSrc, IndexPol, LoadSrc.
- */
-static void set_mode_a(struct comedi_device *dev, const struct s626_enc_info *k,
-		       uint16_t setup, uint16_t disable_int_src)
-{
-	struct s626_private *devpriv = dev->private;
-	uint16_t cra;
-	uint16_t crb;
-
-	/* Initialize CRA and CRB images. */
-	/* Preload trigger is passed through. */
-	cra = setup & CRAMSK_LOADSRC_A;
-	/* IndexSrc is restricted to ENC_X or IndxPol. */
-	cra |= ((setup & STDMSK_INDXSRC) >>
-		(STDBIT_INDXSRC - (CRABIT_INDXSRC_A + 1)));
-
-	/* Reset any pending CounterA event captures. */
-	crb = CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A;
-	/* Clock enable is passed through. */
-	crb |= (setup & STDMSK_CLKENAB) << (CRBBIT_CLKENAB_A - STDBIT_CLKENAB);
-
-	/* Force IntSrc to Disabled if disable_int_src is asserted. */
-	if (!disable_int_src)
-		cra |= ((setup & STDMSK_INTSRC) >> (STDBIT_INTSRC -
-						    CRABIT_INTSRC_A));
-
-	/* Populate all mode-dependent attributes of CRA & CRB images. */
-	switch ((setup & STDMSK_CLKSRC) >> STDBIT_CLKSRC) {
-	case CLKSRC_EXTENDER:	/* Extender Mode: Force to Timer mode
-				 * (Extender valid only for B counters). */
-		/* Fall through to case CLKSRC_TIMER: */
-	case CLKSRC_TIMER:	/* Timer Mode: */
-		/* ClkSrcA<1> selects system clock */
-		cra |= 2 << CRABIT_CLKSRC_A;
-		/* Count direction (ClkSrcA<0>) obtained from ClkPol. */
-		cra |= (setup & STDMSK_CLKPOL) >>
-		       (STDBIT_CLKPOL - CRABIT_CLKSRC_A);
-		/* ClkPolA behaves as always-on clock enable. */
-		cra |= 1 << CRABIT_CLKPOL_A;
-		/* ClkMult must be 1x. */
-		cra |= MULT_X1 << CRABIT_CLKMULT_A;
-		break;
-	default:		/* Counter Mode: */
-		/* Select ENC_C and ENC_D as clock/direction inputs. */
-		cra |= CLKSRC_COUNTER;
-		/* Clock polarity is passed through. */
-		cra |= (setup & STDMSK_CLKPOL) <<
-		       (CRABIT_CLKPOL_A - STDBIT_CLKPOL);
-		/* Force multiplier to x1 if not legal, else pass through. */
-		if ((setup & STDMSK_CLKMULT) == (MULT_X0 << STDBIT_CLKMULT))
-			cra |= MULT_X1 << CRABIT_CLKMULT_A;
-		else
-			cra |= (setup & STDMSK_CLKMULT) <<
-			       (CRABIT_CLKMULT_A - STDBIT_CLKMULT);
-		break;
-	}
-
-	/*
-	 * Force positive index polarity if IndxSrc is software-driven only,
-	 * otherwise pass it through.
-	 */
-	if (~setup & STDMSK_INDXSRC)
-		cra |= (setup & STDMSK_INDXPOL) <<
-		       (CRABIT_INDXPOL_A - STDBIT_INDXPOL);
-
-	/*
-	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
-	 * enable mask to indicate the counter interrupt is disabled.
-	 */
-	if (disable_int_src)
-		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
-
-	/*
-	 * While retaining CounterB and LatchSrc configurations, program the
-	 * new counter operating mode.
-	 */
-	debi_replace(dev, k->my_cra, CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B, cra);
-	debi_replace(dev, k->my_crb, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A), crb);
-}
-
-static void set_mode_b(struct comedi_device *dev, const struct s626_enc_info *k,
-		       uint16_t setup, uint16_t disable_int_src)
-{
-	struct s626_private *devpriv = dev->private;
-	uint16_t cra;
-	uint16_t crb;
-
-	/* Initialize CRA and CRB images. */
-	/* IndexSrc field is restricted to ENC_X or IndxPol. */
-	cra = (setup & STDMSK_INDXSRC) <<
-	      (CRABIT_INDXSRC_B + 1 - STDBIT_INDXSRC);
-
-	/* Reset event captures and disable interrupts. */
-	crb = CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B;
-	/* Clock enable is passed through. */
-	crb |= (setup & STDMSK_CLKENAB) << (CRBBIT_CLKENAB_B - STDBIT_CLKENAB);
-	/* Preload trigger source is passed through. */
-	crb |= (setup & STDMSK_LOADSRC) >> (STDBIT_LOADSRC - CRBBIT_LOADSRC_B);
-
-	/* Force IntSrc to Disabled if disable_int_src is asserted. */
-	if (!disable_int_src)
-		crb |= (setup & STDMSK_INTSRC) >>
-		       (STDBIT_INTSRC - CRBBIT_INTSRC_B);
-
-	/* Populate all mode-dependent attributes of CRA & CRB images. */
-	switch ((setup & STDMSK_CLKSRC) >> STDBIT_CLKSRC) {
-	case CLKSRC_TIMER:	/* Timer Mode: */
-		/* ClkSrcB<1> selects system clock */
-		cra |= 2 << CRABIT_CLKSRC_B;
-		/* with direction (ClkSrcB<0>) obtained from ClkPol. */
-		cra |= (setup & STDMSK_CLKPOL) <<
-		       (CRABIT_CLKSRC_B - STDBIT_CLKPOL);
-		/* ClkPolB behaves as always-on clock enable. */
-		crb |= 1 << CRBBIT_CLKPOL_B;
-		/* ClkMultB must be 1x. */
-		crb |= MULT_X1 << CRBBIT_CLKMULT_B;
-		break;
-	case CLKSRC_EXTENDER:	/* Extender Mode: */
-		/* ClkSrcB source is OverflowA (same as "timer") */
-		cra |= 2 << CRABIT_CLKSRC_B;
-		/* with direction obtained from ClkPol. */
-		cra |= (setup & STDMSK_CLKPOL) <<
-		       (CRABIT_CLKSRC_B - STDBIT_CLKPOL);
-		/* ClkPolB controls IndexB -- always set to active. */
-		crb |= 1 << CRBBIT_CLKPOL_B;
-		/* ClkMultB selects OverflowA as the clock source. */
-		crb |= MULT_X0 << CRBBIT_CLKMULT_B;
-		break;
-	default:		/* Counter Mode: */
-		/* Select ENC_C and ENC_D as clock/direction inputs. */
-		cra |= CLKSRC_COUNTER << CRABIT_CLKSRC_B;
-		/* ClkPol is passed through. */
-		crb |= (setup & STDMSK_CLKPOL) >>
-		       (STDBIT_CLKPOL - CRBBIT_CLKPOL_B);
-		/* Force ClkMult to x1 if not legal, otherwise pass through. */
-		if ((setup & STDMSK_CLKMULT) == (MULT_X0 << STDBIT_CLKMULT))
-			crb |= MULT_X1 << CRBBIT_CLKMULT_B;
-		else
-			crb |= (setup & STDMSK_CLKMULT) <<
-			       (CRBBIT_CLKMULT_B - STDBIT_CLKMULT);
-		break;
-	}
-
-	/*
-	 * Force positive index polarity if IndxSrc is software-driven only,
-	 * otherwise pass it through.
-	 */
-	if (~setup & STDMSK_INDXSRC)
-		crb |= (setup & STDMSK_INDXPOL) >>
-		       (STDBIT_INDXPOL - CRBBIT_INDXPOL_B);
-
-	/*
-	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
-	 * enable mask to indicate the counter interrupt is disabled.
-	 */
-	if (disable_int_src)
-		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
-
-	/*
-	 * While retaining CounterA and LatchSrc configurations, program the
-	 * new counter operating mode.
-	 */
-	debi_replace(dev, k->my_cra, ~(CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B),
-		     cra);
-	debi_replace(dev, k->my_crb, CRBMSK_CLKENAB_A | CRBMSK_LATCHSRC, crb);
-}
-
-/*
- * Return/set a counter's enable.  enab: 0=always enabled, 1=enabled by index.
- */
-static void set_enable_a(struct comedi_device *dev,
-			 const struct s626_enc_info *k, uint16_t enab)
-{
-	debi_replace(dev, k->my_crb, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A),
-		     enab << CRBBIT_CLKENAB_A);
-}
-
-static void set_enable_b(struct comedi_device *dev, const
-			 struct s626_enc_info *k, uint16_t enab)
-{
-	debi_replace(dev, k->my_crb, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_B),
-		     enab << CRBBIT_CLKENAB_B);
-}
-
-static uint16_t get_enable_a(struct comedi_device *dev,
-			     const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_crb) >> CRBBIT_CLKENAB_A) & 1;
-}
-
-static uint16_t get_enable_b(struct comedi_device *dev,
-			     const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_crb) >> CRBBIT_CLKENAB_B) & 1;
-}
-
-#ifdef unused
-static uint16_t get_latch_source(struct comedi_device *dev,
-				 const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_crb) >> CRBBIT_LATCHSRC) & 3;
-}
-#endif
-
-/*
- * Return/set the event that will trigger transfer of the preload
- * register into the counter.  0=ThisCntr_Index, 1=ThisCntr_Overflow,
- * 2=OverflowA (B counters only), 3=disabled.
- */
-static void set_load_trig_a(struct comedi_device *dev,
-			    const struct s626_enc_info *k, uint16_t trig)
-{
-	debi_replace(dev, k->my_cra, ~CRAMSK_LOADSRC_A,
-		     trig << CRABIT_LOADSRC_A);
-}
-
-static void set_load_trig_b(struct comedi_device *dev,
-			    const struct s626_enc_info *k, uint16_t trig)
-{
-	debi_replace(dev, k->my_crb, ~(CRBMSK_LOADSRC_B | CRBMSK_INTCTRL),
-		     trig << CRBBIT_LOADSRC_B);
-}
-
-static uint16_t get_load_trig_a(struct comedi_device *dev,
-				const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_cra) >> CRABIT_LOADSRC_A) & 3;
-}
-
-static uint16_t get_load_trig_b(struct comedi_device *dev,
-				const struct s626_enc_info *k)
-{
-	return (debi_read(dev, k->my_crb) >> CRBBIT_LOADSRC_B) & 3;
 }
 
 /*
