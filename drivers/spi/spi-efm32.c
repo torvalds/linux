@@ -280,10 +280,6 @@ static irqreturn_t efm32_spi_txirq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const struct efm32_spi_pdata efm32_spi_pdata_default = {
-	.location = 1,
-};
-
 static u32 efm32_spi_get_configured_location(struct efm32_spi_ddata *ddata)
 {
 	u32 reg = efm32_spi_read32(ddata, REG_ROUTE);
@@ -387,7 +383,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (resource_size(res) < 60) {
+	if (resource_size(res) < 0x60) {
 		ret = -EINVAL;
 		dev_err(&pdev->dev, "memory resource too small\n");
 		goto err;
