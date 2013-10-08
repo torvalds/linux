@@ -247,7 +247,7 @@ static void adi_gpio_ack_irq(struct irq_data *d)
 	unsigned pintbit = hwirq_to_pintbit(port, d->hwirq);
 
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (readl(&regs->invert_set) & pintbit)
@@ -258,7 +258,7 @@ static void adi_gpio_ack_irq(struct irq_data *d)
 
 	writel(pintbit, &regs->request);
 
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -270,7 +270,7 @@ static void adi_gpio_mask_ack_irq(struct irq_data *d)
 	unsigned pintbit = hwirq_to_pintbit(port, d->hwirq);
 
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (readl(&regs->invert_set) & pintbit)
@@ -282,7 +282,7 @@ static void adi_gpio_mask_ack_irq(struct irq_data *d)
 	writel(pintbit, &regs->request);
 	writel(pintbit, &regs->mask_clear);
 
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -293,11 +293,11 @@ static void adi_gpio_mask_irq(struct irq_data *d)
 	struct gpio_pint_regs *regs = port->pint->regs;
 
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	writel(hwirq_to_pintbit(port, d->hwirq), &regs->mask_clear);
 
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -308,11 +308,11 @@ static void adi_gpio_unmask_irq(struct irq_data *d)
 	struct gpio_pint_regs *regs = port->pint->regs;
 
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	writel(hwirq_to_pintbit(port, d->hwirq), &regs->mask_set);
 
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -320,15 +320,17 @@ static unsigned int adi_gpio_irq_startup(struct irq_data *d)
 {
 	unsigned long flags;
 	struct gpio_port *port = irq_data_get_irq_chip_data(d);
-	struct gpio_pint_regs *regs = port->pint->regs;
+	struct gpio_pint_regs *regs;
 
 	if (!port) {
-		dev_err(port->dev, "GPIO IRQ %d :Not exist\n", d->irq);
+		pr_err("GPIO IRQ %d :Not exist\n", d->irq);
 		return -ENODEV;
 	}
 
+	regs = port->pint->regs;
+
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	port_setup(port, d->hwirq, true);
 	writew(BIT(d->hwirq), &port->regs->dir_clear);
@@ -336,7 +338,7 @@ static unsigned int adi_gpio_irq_startup(struct irq_data *d)
 
 	writel(hwirq_to_pintbit(port, d->hwirq), &regs->mask_set);
 
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return 0;
@@ -349,11 +351,11 @@ static void adi_gpio_irq_shutdown(struct irq_data *d)
 	struct gpio_pint_regs *regs = port->pint->regs;
 
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	writel(hwirq_to_pintbit(port, d->hwirq), &regs->mask_clear);
 
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -361,21 +363,23 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	unsigned long flags;
 	struct gpio_port *port = irq_data_get_irq_chip_data(d);
-	struct gpio_pint_regs *pint_regs = port->pint->regs;
+	struct gpio_pint_regs *pint_regs;
 	unsigned pintmask;
 	unsigned int irq = d->irq;
 	int ret = 0;
 	char buf[16];
 
 	if (!port) {
-		dev_err(port->dev, "GPIO IRQ %d :Not exist\n", irq);
+		pr_err("GPIO IRQ %d :Not exist\n", d->irq);
 		return -ENODEV;
 	}
+
+	pint_regs = port->pint->regs;
 
 	pintmask = hwirq_to_pintbit(port, d->hwirq);
 
 	spin_lock_irqsave(&port->lock, flags);
-	spin_lock_irqsave(&port->pint->lock, flags);
+	spin_lock(&port->pint->lock);
 
 	/* In case of interrupt autodetect, set irq type to edge sensitive. */
 	if (type == IRQ_TYPE_PROBE)
@@ -416,7 +420,7 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 	}
 
 out:
-	spin_unlock_irqrestore(&port->pint->lock, flags);
+	spin_unlock(&port->pint->lock);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return ret;
