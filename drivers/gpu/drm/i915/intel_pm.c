@@ -2383,9 +2383,9 @@ static void ilk_compute_wm_maximums(struct drm_device *dev,
 	max->fbc = ilk_fbc_wm_max();
 }
 
-static bool ilk_check_wm(int level,
-			 const struct hsw_wm_maximums *max,
-			 struct intel_wm_level *result)
+static bool ilk_validate_wm_level(int level,
+				  const struct hsw_wm_maximums *max,
+				  struct intel_wm_level *result)
 {
 	bool ret;
 
@@ -2635,7 +2635,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 	pipe_wm->linetime = hsw_compute_linetime_wm(dev, crtc);
 
 	/* At least LP0 must be valid */
-	return ilk_check_wm(0, &max, &pipe_wm->wm[0]);
+	return ilk_validate_wm_level(0, &max, &pipe_wm->wm[0]);
 }
 
 /*
@@ -2680,7 +2680,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 
 		ilk_merge_wm_level(dev, level, wm);
 
-		if (!ilk_check_wm(level, max, wm))
+		if (!ilk_validate_wm_level(level, max, wm))
 			break;
 
 		/*
