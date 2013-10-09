@@ -74,6 +74,11 @@ static void __init hsmmc2_internal_input_clk(void)
 	reg |= OMAP2_MMCSDIO2ADPCLKISEL;
 	omap_ctrl_writel(reg, OMAP343X_CONTROL_DEVCONF1);
 }
+
+static void __init omap3_igep0020_legacy_init(void)
+{
+	omap3_igep2_display_init_of();
+}
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -103,6 +108,7 @@ static struct pdata_init pdata_quirks[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP3
 	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
+	{ "isee,omap3-igep0020", omap3_igep0020_legacy_init, },
 #endif
 #ifdef CONFIG_ARCH_OMAP4
 	{ "ti,omap4-sdp", omap4_sdp_legacy_init, },
