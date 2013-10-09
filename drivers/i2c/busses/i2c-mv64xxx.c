@@ -234,9 +234,9 @@ static int mv64xxx_i2c_offload_msg(struct mv64xxx_i2c_data *drv_data)
 		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_WR |
 		    (msg->len - 1) << MV64XXX_I2C_BRIDGE_CONTROL_TX_SIZE_SHIFT;
 
-		writel_relaxed(data_reg_lo,
+		writel(data_reg_lo,
 			drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_LO);
-		writel_relaxed(data_reg_hi,
+		writel(data_reg_hi,
 			drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_HI);
 
 	} else {
@@ -697,6 +697,7 @@ static const struct of_device_id mv64xxx_i2c_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, mv64xxx_i2c_of_match_table);
 
 #ifdef CONFIG_OF
+#ifdef CONFIG_HAVE_CLK
 static int
 mv64xxx_calc_freq(const int tclk, const int n, const int m)
 {
@@ -726,16 +727,12 @@ mv64xxx_find_baud_factors(const u32 req_freq, const u32 tclk, u32 *best_n,
 		return false;
 	return true;
 }
+#endif /* CONFIG_HAVE_CLK */
 
 static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
-	const struct of_device_id *device;
-	struct device_node *np = dev->of_node;
-	u32 bus_freq, tclk;
-	int rc = 0;
-
 	/* CLK is mandatory when using DT to describe the i2c bus. We
 	 * need to know tclk in order to calculate bus clock
 	 * factors.
@@ -744,6 +741,11 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 	/* Have OF but no CLK */
 	return -ENODEV;
 #else
+	const struct of_device_id *device;
+	struct device_node *np = dev->of_node;
+	u32 bus_freq, tclk;
+	int rc = 0;
+
 	if (IS_ERR(drv_data->clk)) {
 		rc = -ENODEV;
 		goto out;

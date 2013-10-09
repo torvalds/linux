@@ -285,7 +285,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 
 
 /* remove one skb from head of flow queue */
-static struct sk_buff *fq_dequeue_head(struct fq_flow *flow)
+static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
 {
 	struct sk_buff *skb = flow->head;
 
@@ -293,6 +293,8 @@ static struct sk_buff *fq_dequeue_head(struct fq_flow *flow)
 		flow->head = skb->next;
 		skb->next = NULL;
 		flow->qlen--;
+		sch->qstats.backlog -= qdisc_pkt_len(skb);
+		sch->q.qlen--;
 	}
 	return skb;
 }
@@ -418,8 +420,9 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
+	u32 rate;
 
-	skb = fq_dequeue_head(&q->internal);
+	skb = fq_dequeue_head(sch, &q->internal);
 	if (skb)
 		goto out;
 	fq_check_throttled(q, now);
@@ -449,7 +452,7 @@ begin:
 		goto begin;
 	}
 
-	skb = fq_dequeue_head(f);
+	skb = fq_dequeue_head(sch, f);
 	if (!skb) {
 		head->first = f->next;
 		/* force a pass through old_flows to prevent starvation */
@@ -466,43 +469,74 @@ begin:
 	f->time_next_packet = now;
 	f->credit -= qdisc_pkt_len(skb);
 
-	if (f->credit <= 0 &&
-	    q->rate_enable &&
-	    skb->sk && skb->sk->sk_state != TCP_TIME_WAIT) {
-		u32 rate = skb->sk->sk_pacing_rate ?: q->flow_default_rate;
+	if (f->credit > 0 || !q->rate_enable)
+		goto out;
+
+	if (skb->sk && skb->sk->sk_state != TCP_TIME_WAIT) {
+		rate = skb->sk->sk_pacing_rate ?: q->flow_default_rate;
 
 		rate = min(rate, q->flow_max_rate);
-		if (rate) {
-			u64 len = (u64)qdisc_pkt_len(skb) * NSEC_PER_SEC;
+	} else {
+		rate = q->flow_max_rate;
+		if (rate == ~0U)
+			goto out;
+	}
+	if (rate) {
+		u32 plen = max(qdisc_pkt_len(skb), q->quantum);
+		u64 len = (u64)plen * NSEC_PER_SEC;
 
-			do_div(len, rate);
-			/* Since socket rate can change later,
-			 * clamp the delay to 125 ms.
-			 * TODO: maybe segment the too big skb, as in commit
-			 * e43ac79a4bc ("sch_tbf: segment too big GSO packets")
-			 */
-			if (unlikely(len > 125 * NSEC_PER_MSEC)) {
-				len = 125 * NSEC_PER_MSEC;
-				q->stat_pkts_too_long++;
-			}
-
-			f->time_next_packet = now + len;
+		do_div(len, rate);
+		/* Since socket rate can change later,
+		 * clamp the delay to 125 ms.
+		 * TODO: maybe segment the too big skb, as in commit
+		 * e43ac79a4bc ("sch_tbf: segment too big GSO packets")
+		 */
+		if (unlikely(len > 125 * NSEC_PER_MSEC)) {
+			len = 125 * NSEC_PER_MSEC;
+			q->stat_pkts_too_long++;
 		}
+
+		f->time_next_packet = now + len;
 	}
 out:
-	sch->qstats.backlog -= qdisc_pkt_len(skb);
 	qdisc_bstats_update(sch, skb);
-	sch->q.qlen--;
 	qdisc_unthrottled(sch);
 	return skb;
 }
 
 static void fq_reset(struct Qdisc *sch)
 {
+	struct fq_sched_data *q = qdisc_priv(sch);
+	struct rb_root *root;
 	struct sk_buff *skb;
+	struct rb_node *p;
+	struct fq_flow *f;
+	unsigned int idx;
 
-	while ((skb = fq_dequeue(sch)) != NULL)
+	while ((skb = fq_dequeue_head(sch, &q->internal)) != NULL)
 		kfree_skb(skb);
+
+	if (!q->fq_root)
+		return;
+
+	for (idx = 0; idx < (1U << q->fq_trees_log); idx++) {
+		root = &q->fq_root[idx];
+		while ((p = rb_first(root)) != NULL) {
+			f = container_of(p, struct fq_flow, fq_node);
+			rb_erase(p, root);
+
+			while ((skb = fq_dequeue_head(sch, f)) != NULL)
+				kfree_skb(skb);
+
+			kmem_cache_free(fq_flow_cachep, f);
+		}
+	}
+	q->new_flows.first	= NULL;
+	q->old_flows.first	= NULL;
+	q->delayed		= RB_ROOT;
+	q->flows		= 0;
+	q->inactive_flows	= 0;
+	q->throttled_flows	= 0;
 }
 
 static void fq_rehash(struct fq_sched_data *q,
@@ -645,6 +679,8 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = fq_dequeue(sch);
 
+		if (!skb)
+			break;
 		kfree_skb(skb);
 		drop_count++;
 	}
@@ -657,21 +693,9 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 static void fq_destroy(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	struct rb_root *root;
-	struct rb_node *p;
-	unsigned int idx;
 
-	if (q->fq_root) {
-		for (idx = 0; idx < (1U << q->fq_trees_log); idx++) {
-			root = &q->fq_root[idx];
-			while ((p = rb_first(root)) != NULL) {
-				rb_erase(p, root);
-				kmem_cache_free(fq_flow_cachep,
-						container_of(p, struct fq_flow, fq_node));
-			}
-		}
-		kfree(q->fq_root);
-	}
+	fq_reset(sch);
+	kfree(q->fq_root);
 	qdisc_watchdog_cancel(&q->watchdog);
 }
 

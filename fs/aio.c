@@ -167,10 +167,25 @@ static int __init aio_setup(void)
 }
 __initcall(aio_setup);
 
+static void put_aio_ring_file(struct kioctx *ctx)
+{
+	struct file *aio_ring_file = ctx->aio_ring_file;
+	if (aio_ring_file) {
+		truncate_setsize(aio_ring_file->f_inode, 0);
+
+		/* Prevent further access to the kioctx from migratepages */
+		spin_lock(&aio_ring_file->f_inode->i_mapping->private_lock);
+		aio_ring_file->f_inode->i_mapping->private_data = NULL;
+		ctx->aio_ring_file = NULL;
+		spin_unlock(&aio_ring_file->f_inode->i_mapping->private_lock);
+
+		fput(aio_ring_file);
+	}
+}
+
 static void aio_free_ring(struct kioctx *ctx)
 {
 	int i;
-	struct file *aio_ring_file = ctx->aio_ring_file;
 
 	for (i = 0; i < ctx->nr_pages; i++) {
 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
@@ -178,14 +193,10 @@ static void aio_free_ring(struct kioctx *ctx)
 		put_page(ctx->ring_pages[i]);
 	}
 
+	put_aio_ring_file(ctx);
+
 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
 		kfree(ctx->ring_pages);
-
-	if (aio_ring_file) {
-		truncate_setsize(aio_ring_file->f_inode, 0);
-		fput(aio_ring_file);
-		ctx->aio_ring_file = NULL;
-	}
 }
 
 static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
@@ -207,9 +218,8 @@ static int aio_set_page_dirty(struct page *page)
 static int aio_migratepage(struct address_space *mapping, struct page *new,
 			struct page *old, enum migrate_mode mode)
 {
-	struct kioctx *ctx = mapping->private_data;
+	struct kioctx *ctx;
 	unsigned long flags;
-	unsigned idx = old->index;
 	int rc;
 
 	/* Writeback must be complete */
@@ -224,10 +234,23 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 
 	get_page(new);
 
-	spin_lock_irqsave(&ctx->completion_lock, flags);
-	migrate_page_copy(new, old);
-	ctx->ring_pages[idx] = new;
-	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	/* We can potentially race against kioctx teardown here.  Use the
+	 * address_space's private data lock to protect the mapping's
+	 * private_data.
+	 */
+	spin_lock(&mapping->private_lock);
+	ctx = mapping->private_data;
+	if (ctx) {
+		pgoff_t idx;
+		spin_lock_irqsave(&ctx->completion_lock, flags);
+		migrate_page_copy(new, old);
+		idx = old->index;
+		if (idx < (pgoff_t)ctx->nr_pages)
+			ctx->ring_pages[idx] = new;
+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	} else
+		rc = -EBUSY;
+	spin_unlock(&mapping->private_lock);
 
 	return rc;
 }
@@ -617,8 +640,7 @@ out_freepcpu:
 out_freeref:
 	free_percpu(ctx->users.pcpu_count);
 out_freectx:
-	if (ctx->aio_ring_file)
-		fput(ctx->aio_ring_file);
+	put_aio_ring_file(ctx);
 	kmem_cache_free(kioctx_cachep, ctx);
 	pr_debug("error allocating ioctx %d\n", err);
 	return ERR_PTR(err);

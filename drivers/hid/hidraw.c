@@ -308,18 +308,25 @@ static int hidraw_fasync(int fd, struct file *file, int on)
 static void drop_ref(struct hidraw *hidraw, int exists_bit)
 {
 	if (exists_bit) {
-		hid_hw_close(hidraw->hid);
 		hidraw->exist = 0;
-		if (hidraw->open)
+		if (hidraw->open) {
+			hid_hw_close(hidraw->hid);
 			wake_up_interruptible(&hidraw->wait);
+		}
 	} else {
 		--hidraw->open;
 	}
-
-	if (!hidraw->open && !hidraw->exist) {
-		device_destroy(hidraw_class, MKDEV(hidraw_major, hidraw->minor));
-		hidraw_table[hidraw->minor] = NULL;
-		kfree(hidraw);
+	if (!hidraw->open) {
+		if (!hidraw->exist) {
+			device_destroy(hidraw_class,
+					MKDEV(hidraw_major, hidraw->minor));
+			hidraw_table[hidraw->minor] = NULL;
+			kfree(hidraw);
+		} else {
+			/* close device for last reader */
+			hid_hw_power(hidraw->hid, PM_HINT_NORMAL);
+			hid_hw_close(hidraw->hid);
+		}
 	}
 }
 

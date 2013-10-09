@@ -229,13 +229,13 @@ static ssize_t koneplus_sysfs_read_profilex_buttons(struct file *fp,
 
 #define PROFILE_ATTR(number)						\
 static struct bin_attribute bin_attr_profile##number##_settings = {	\
-	.attr = { .name = "profile##number##_settings", .mode = 0440 },	\
+	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = KONEPLUS_SIZE_PROFILE_SETTINGS,				\
 	.read = koneplus_sysfs_read_profilex_settings,			\
 	.private = &profile_numbers[number-1],				\
 };									\
 static struct bin_attribute bin_attr_profile##number##_buttons = {	\
-	.attr = { .name = "profile##number##_buttons", .mode = 0440 },	\
+	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = KONEPLUS_SIZE_PROFILE_BUTTONS,				\
 	.read = koneplus_sysfs_read_profilex_buttons,			\
 	.private = &profile_numbers[number-1],				\
