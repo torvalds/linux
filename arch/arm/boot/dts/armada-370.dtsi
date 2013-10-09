@@ -44,6 +44,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
+			msi-parent = <&mpic>;
 			bus-range = <0x00 0xff>;
 
 			ranges =
@@ -216,6 +217,14 @@
 					dmacap,xor;
 					dmacap,memset;
 				};
+			};
+
+			i2c0: i2c@11000 {
+				reg = <0x11000 0x20>;
+			};
+
+			i2c1: i2c@11100 {
+				reg = <0x11100 0x20>;
 			};
 
 			usb@50000 {
