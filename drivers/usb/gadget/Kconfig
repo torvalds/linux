@@ -525,9 +525,6 @@ config USB_F_SUBSET
 config USB_F_RNDIS
 	tristate
 
-config USB_U_MS
-	tristate
-
 config USB_F_MASS_STORAGE
 	tristate
 
@@ -671,7 +668,6 @@ config USB_CONFIGFS_PHONET
 config USB_CONFIGFS_MASS_STORAGE
 	boolean "Mass storage"
 	depends on USB_CONFIGFS
-	select USB_U_MS
 	select USB_F_MASS_STORAGE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
@@ -895,7 +891,6 @@ config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
-	select USB_U_MS
 	select USB_F_MASS_STORAGE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
@@ -1020,7 +1015,6 @@ config USB_G_ACM_MS
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_F_ACM
-	select USB_U_MS
 	select USB_F_MASS_STORAGE
 	help
 	  This driver provides two functions in one configuration:
@@ -1037,7 +1031,6 @@ config USB_G_MULTI
 	select USB_U_SERIAL
 	select USB_U_ETHER
 	select USB_F_ACM
-	select USB_U_MS
 	select USB_F_MASS_STORAGE
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS

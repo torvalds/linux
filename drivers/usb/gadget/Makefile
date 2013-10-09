@@ -60,9 +60,7 @@ usb_f_ecm_subset-y		:= f_subset.o
 obj-$(CONFIG_USB_F_SUBSET)	+= usb_f_ecm_subset.o
 usb_f_rndis-y			:= f_rndis.o
 obj-$(CONFIG_USB_F_RNDIS)	+= usb_f_rndis.o
-u_ms-y				:= storage_common.o
-obj-$(CONFIG_USB_U_MS)		+= u_ms.o
-usb_f_mass_storage-y		:= f_mass_storage.o
+usb_f_mass_storage-y		:= f_mass_storage.o storage_common.o
 obj-$(CONFIG_USB_F_MASS_STORAGE)+= usb_f_mass_storage.o
 
 #
