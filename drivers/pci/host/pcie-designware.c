@@ -67,7 +67,7 @@
 
 static struct hw_pci dw_pci;
 
-unsigned long global_io_offset;
+static unsigned long global_io_offset;
 
 static inline struct pcie_port *sys_to_pcie(struct pci_sys_data *sys)
 {
@@ -118,8 +118,8 @@ static inline void dw_pcie_writel_rc(struct pcie_port *pp, u32 val, u32 reg)
 		writel(val, pp->dbi_base + reg);
 }
 
-int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
-				u32 *val)
+static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
+			       u32 *val)
 {
 	int ret;
 
@@ -131,8 +131,8 @@ int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	return ret;
 }
 
-int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
-				u32 val)
+static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
+			       u32 val)
 {
 	int ret;
 
@@ -667,7 +667,7 @@ static struct pci_ops dw_pcie_ops = {
 	.write = dw_pcie_wr_conf,
 };
 
-int dw_pcie_setup(int nr, struct pci_sys_data *sys)
+static int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct pcie_port *pp;
 
@@ -690,7 +690,7 @@ int dw_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
+static struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	struct pci_bus *bus;
 	struct pcie_port *pp = sys_to_pcie(sys);
@@ -707,7 +707,7 @@ struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	return bus;
 }
 
-int dw_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int dw_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct pcie_port *pp = sys_to_pcie(dev->bus->sysdata);
 
