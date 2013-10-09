@@ -1021,6 +1021,7 @@ config USB_G_ACM_MS
 	select USB_U_SERIAL
 	select USB_F_ACM
 	select USB_U_MS
+	select USB_F_MASS_STORAGE
 	help
 	  This driver provides two functions in one configuration:
 	  a mass storage, and a CDC ACM (serial port) link.
