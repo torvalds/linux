@@ -869,7 +869,8 @@ static struct clk_hw_omap dpll4_m4x2_ck_hw = {
 	.clkdm_name	= "dpll4_clkdm",
 };
 
-DEFINE_STRUCT_CLK(dpll4_m4x2_ck, dpll4_m4x2_ck_parent_names, dpll4_m5x2_ck_ops);
+DEFINE_STRUCT_CLK_FLAGS(dpll4_m4x2_ck, dpll4_m4x2_ck_parent_names,
+		dpll4_m5x2_ck_ops, CLK_SET_RATE_PARENT);
 
 static struct clk dpll4_m4x2_ck_3630 = {
 	.name		= "dpll4_m4x2_ck",
@@ -877,6 +878,7 @@ static struct clk dpll4_m4x2_ck_3630 = {
 	.parent_names	= dpll4_m4x2_ck_parent_names,
 	.num_parents	= ARRAY_SIZE(dpll4_m4x2_ck_parent_names),
 	.ops		= &dpll4_m5x2_ck_3630_ops,
+	.flags		= CLK_SET_RATE_PARENT,
 };
 
 DEFINE_CLK_DIVIDER(dpll4_m6_ck, "dpll4_ck", &dpll4_ck, 0x0,
@@ -968,8 +970,9 @@ static struct clk_hw_omap dss1_alwon_fck_3430es1_hw = {
 	.clkdm_name	= "dss_clkdm",
 };
 
-DEFINE_STRUCT_CLK(dss1_alwon_fck_3430es1, dss1_alwon_fck_3430es1_parent_names,
-		  aes2_ick_ops);
+DEFINE_STRUCT_CLK_FLAGS(dss1_alwon_fck_3430es1,
+		dss1_alwon_fck_3430es1_parent_names, aes2_ick_ops,
+		CLK_SET_RATE_PARENT);
 
 static struct clk dss1_alwon_fck_3430es2;
 
@@ -983,8 +986,9 @@ static struct clk_hw_omap dss1_alwon_fck_3430es2_hw = {
 	.clkdm_name	= "dss_clkdm",
 };
 
-DEFINE_STRUCT_CLK(dss1_alwon_fck_3430es2, dss1_alwon_fck_3430es1_parent_names,
-		  aes2_ick_ops);
+DEFINE_STRUCT_CLK_FLAGS(dss1_alwon_fck_3430es2,
+		dss1_alwon_fck_3430es1_parent_names, aes2_ick_ops,
+		CLK_SET_RATE_PARENT);
 
 static struct clk dss2_alwon_fck;
 
