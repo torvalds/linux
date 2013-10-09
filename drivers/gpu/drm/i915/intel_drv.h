@@ -713,14 +713,36 @@ bool intel_dsi_init(struct drm_device *dev);
 void intel_dvo_init(struct drm_device *dev);
 
 
-/* intel_fb.c */
-int intel_fbdev_init(struct drm_device *dev);
-void intel_fbdev_initial_config(struct drm_device *dev);
-void intel_fbdev_fini(struct drm_device *dev);
-void intel_fbdev_set_suspend(struct drm_device *dev, int state);
-void intel_fb_output_poll_changed(struct drm_device *dev);
-void intel_fb_restore_mode(struct drm_device *dev);
+/* legacy fbdev emulation in intel_fb.c */
+#ifdef CONFIG_DRM_I915_FBDEV
+extern int intel_fbdev_init(struct drm_device *dev);
+extern void intel_fbdev_initial_config(struct drm_device *dev);
+extern void intel_fbdev_fini(struct drm_device *dev);
+extern void intel_fbdev_set_suspend(struct drm_device *dev, int state);
+extern void intel_fb_output_poll_changed(struct drm_device *dev);
+extern void intel_fb_restore_mode(struct drm_device *dev);
+#else
+static inline int intel_fbdev_init(struct drm_device *dev)
+{
+	return 0;
+}
 
+static inline void intel_fbdev_initial_config(struct drm_device *dev)
+{
+}
+
+static inline void intel_fbdev_fini(struct drm_device *dev)
+{
+}
+
+static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state)
+{
+}
+
+static inline void intel_fb_restore_mode(struct drm_device *dev)
+{
+}
+#endif
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);

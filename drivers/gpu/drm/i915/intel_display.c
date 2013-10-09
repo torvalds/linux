@@ -7335,6 +7335,7 @@ static struct drm_framebuffer *
 mode_fits_in_fbdev(struct drm_device *dev,
 		   struct drm_display_mode *mode)
 {
+#ifdef CONFIG_DRM_I915_FBDEV
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct drm_framebuffer *fb;
@@ -7355,6 +7356,9 @@ mode_fits_in_fbdev(struct drm_device *dev,
 		return NULL;
 
 	return fb;
+#else
+	return NULL;
+#endif
 }
 
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
@@ -10100,6 +10104,12 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 	return intel_framebuffer_create(dev, mode_cmd, obj);
 }
+
+#ifndef CONFIG_DRM_I915_FBDEV
+static inline void intel_fb_output_poll_changed(struct drm_device *dev)
+{
+}
+#endif
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,

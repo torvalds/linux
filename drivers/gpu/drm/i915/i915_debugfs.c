@@ -1403,12 +1403,12 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_fbdev *ifbdev;
+	struct intel_fbdev *ifbdev = NULL;
 	struct intel_framebuffer *fb;
-	int ret;
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+#ifdef CONFIG_DRM_I915_FBDEV
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
 		return ret;
 
@@ -1424,6 +1424,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	describe_obj(m, fb->obj);
 	seq_putc(m, '\n');
 	mutex_unlock(&dev->mode_config.mutex);
+#endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
