@@ -63,6 +63,7 @@ struct regmap {
 	void *bus_context;
 	const char *name;
 
+	bool async;
 	spinlock_t async_lock;
 	wait_queue_head_t async_waitq;
 	struct list_head async_list;
@@ -218,7 +219,7 @@ bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 
 int _regmap_raw_write(struct regmap *map, unsigned int reg,
-		      const void *val, size_t val_len, bool async);
+		      const void *val, size_t val_len);
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 
