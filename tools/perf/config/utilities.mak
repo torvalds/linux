@@ -181,6 +181,7 @@ _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
 
 ifneq ($(findstring $(MAKEFLAGS),s),s)
   ifneq ($(V),1)
-    QUIET_CLEAN      = @printf '  CLEAN %s\n' $(1);
+    QUIET_CLEAN		= @printf '  CLEAN    %s\n' $1;
+    QUIET_INSTALL	= @printf '  INSTALL  %s\n' $1;
   endif
 endif
