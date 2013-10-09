@@ -371,7 +371,8 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 
 	oops_enter();
 
-	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs), SIGSEGV) == NOTIFY_STOP)
+	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs),
+		       SIGSEGV) == NOTIFY_STOP)
 		sig = 0;
 
 	console_verbose();
@@ -462,8 +463,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 	printk(KERN_ALERT "%s bus error, epc == %0*lx, ra == %0*lx\n",
 	       data ? "Data" : "Instruction",
 	       field, regs->cp0_epc, field, regs->regs[31]);
-	if (notify_die(DIE_OOPS, "bus error", regs, 0, regs_to_trapnr(regs), SIGBUS)
-	    == NOTIFY_STOP)
+	if (notify_die(DIE_OOPS, "bus error", regs, 0, regs_to_trapnr(regs),
+		       SIGBUS) == NOTIFY_STOP)
 		goto out;
 
 	die_if_kernel("Oops", regs);
@@ -732,8 +733,8 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 	siginfo_t info = {0};
 
 	prev_state = exception_enter();
-	if (notify_die(DIE_FP, "FP exception", regs, 0, regs_to_trapnr(regs), SIGFPE)
-	    == NOTIFY_STOP)
+	if (notify_die(DIE_FP, "FP exception", regs, 0, regs_to_trapnr(regs),
+		       SIGFPE) == NOTIFY_STOP)
 		goto out;
 	die_if_kernel("FP exception in kernel code", regs);
 
@@ -803,7 +804,8 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		return;
 #endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
-	if (notify_die(DIE_TRAP, str, regs, code, regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
+	if (notify_die(DIE_TRAP, str, regs, code, regs_to_trapnr(regs),
+		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
 	/*
@@ -897,12 +899,14 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	 */
 	switch (bcode) {
 	case BRK_KPROBE_BP:
-		if (notify_die(DIE_BREAK, "debug", regs, bcode, regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
+		if (notify_die(DIE_BREAK, "debug", regs, bcode,
+			       regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
 	case BRK_KPROBE_SSTEPBP:
-		if (notify_die(DIE_SSTEPBP, "single_step", regs, bcode, regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
+		if (notify_die(DIE_SSTEPBP, "single_step", regs, bcode,
+			       regs_to_trapnr(regs), SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
@@ -966,8 +970,8 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	int status = -1;
 
 	prev_state = exception_enter();
-	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs), SIGILL)
-	    == NOTIFY_STOP)
+	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs),
+		       SIGILL) == NOTIFY_STOP)
 		goto out;
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
