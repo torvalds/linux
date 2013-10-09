@@ -66,12 +66,14 @@ static inline void __tcp_v6_send_check(struct sk_buff *skb,
 	}
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static inline void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 
 	__tcp_v6_send_check(skb, &np->saddr, &sk->sk_v6_daddr);
 }
+#endif
 
 int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh, int proto);
 #endif

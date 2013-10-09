@@ -415,10 +415,12 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		 (int)sk->sk_bound_dev_if);
 
 	err = 0;
-	if ((sk->sk_family == AF_INET && isk->inet_rcv_saddr) ||
-	    (sk->sk_family == AF_INET6 &&
-	     !ipv6_addr_any(&sk->sk_v6_rcv_saddr)))
+	if (sk->sk_family == AF_INET && isk->inet_rcv_saddr)
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6 && !ipv6_addr_any(&sk->sk_v6_rcv_saddr))
+		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
+#endif
 
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;

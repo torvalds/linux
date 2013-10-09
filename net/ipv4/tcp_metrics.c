@@ -251,10 +251,12 @@ static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock 
 		addr.addr.a4 = tw->tw_daddr;
 		hash = (__force unsigned int) addr.addr.a4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		*(struct in6_addr *)addr.addr.a6 = tw->tw_v6_daddr;
 		hash = ipv6_addr_hash(&tw->tw_v6_daddr);
 		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -286,10 +288,12 @@ static struct tcp_metrics_block *tcp_get_metrics(struct sock *sk,
 		addr.addr.a4 = inet_sk(sk)->inet_daddr;
 		hash = (__force unsigned int) addr.addr.a4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		*(struct in6_addr *)addr.addr.a6 = sk->sk_v6_daddr;
 		hash = ipv6_addr_hash(&sk->sk_v6_daddr);
 		break;
+#endif
 	default:
 		return NULL;
 	}
