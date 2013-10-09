@@ -77,6 +77,10 @@ struct iss_reg {
 	u32 val;
 };
 
+/*
+ * struct iss_device - ISS device structure.
+ * @crashed: Bitmask of crashed entities (indexed by entity ID)
+ */
 struct iss_device {
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
@@ -93,6 +97,7 @@ struct iss_device {
 	u64 raw_dmamask;
 
 	struct mutex iss_mutex;	/* For handling ref_count field */
+	bool crashed;
 	int has_context;
 	int ref_count;
 

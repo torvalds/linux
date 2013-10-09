@@ -573,11 +573,21 @@ static int iss_pipeline_link_notify(struct media_link *link, u32 flags,
 static int iss_pipeline_enable(struct iss_pipeline *pipe,
 			       enum iss_pipeline_stream_state mode)
 {
+	struct iss_device *iss = pipe->output->iss;
 	struct media_entity *entity;
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
 	unsigned long flags;
 	int ret;
+
+	/* If one of the entities in the pipeline has crashed it will not work
+	 * properly. Refuse to start streaming in that case. This check must be
+	 * performed before the loop below to avoid starting entities if the
+	 * pipeline won't start anyway (those entities would then likely fail to
+	 * stop, making the problem worse).
+	 */
+	if (pipe->entities & iss->crashed)
+		return -EIO;
 
 	spin_lock_irqsave(&pipe->lock, flags);
 	pipe->state &= ~(ISS_PIPELINE_IDLE_INPUT | ISS_PIPELINE_IDLE_OUTPUT);
@@ -617,6 +627,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
  */
 static int iss_pipeline_disable(struct iss_pipeline *pipe)
 {
+	struct iss_device *iss = pipe->output->iss;
 	struct media_entity *entity;
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
@@ -641,6 +652,11 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe)
 		if (ret < 0) {
 			dev_dbg(iss->dev, "%s: module stop timeout.\n",
 				subdev->name);
+			/* If the entity failed to stopped, assume it has
+			 * crashed. Mark it as such, the ISS will be reset when
+			 * applications will release it.
+			 */
+			iss->crashed |= 1U << subdev->entity.id;
 			failure = -ETIMEDOUT;
 		}
 	}
@@ -715,6 +731,7 @@ static int iss_reset(struct iss_device *iss)
 		usleep_range(10, 10);
 	}
 
+	iss->crashed = 0;
 	return 0;
 }
 
@@ -1058,6 +1075,13 @@ void omap4iss_put(struct iss_device *iss)
 	BUG_ON(iss->ref_count == 0);
 	if (--iss->ref_count == 0) {
 		iss_disable_interrupts(iss);
+		/* Reset the ISS if an entity has failed to stop. This is the
+		 * only way to recover from such conditions, although it would
+		 * be worth investigating whether resetting the ISP only can't
+		 * fix the problem in some cases.
+		 */
+		if (iss->crashed)
+			iss_reset(iss);
 		iss_disable_clocks(iss);
 	}
 	mutex_unlock(&iss->iss_mutex);

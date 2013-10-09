@@ -772,6 +772,8 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
 	struct iss_video *video = video_drvdata(file);
+	struct media_entity_graph graph;
+	struct media_entity *entity;
 	enum iss_pipeline_state state;
 	struct iss_pipeline *pipe;
 	struct iss_video *far_end;
@@ -791,6 +793,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	pipe->external = NULL;
 	pipe->external_rate = 0;
 	pipe->external_bpp = 0;
+	pipe->entities = 0;
 
 	if (video->iss->pdata->set_constraints)
 		video->iss->pdata->set_constraints(video->iss, true);
@@ -798,6 +801,11 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	ret = media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
 	if (ret < 0)
 		goto err_media_entity_pipeline_start;
+
+	entity = &video->video.entity;
+	media_entity_graph_walk_start(&graph, entity);
+	while ((entity = media_entity_graph_walk_next(&graph)))
+		pipe->entities |= 1 << entity->id;
 
 	/* Verify that the currently configured format matches the output of
 	 * the connected subdev.
