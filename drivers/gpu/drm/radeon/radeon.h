@@ -973,12 +973,8 @@ struct radeon_cs_reloc {
 struct radeon_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
-	int			kpage_idx[2];
-	uint32_t		*kpage[2];
 	uint32_t		*kdata;
 	void __user		*user_ptr;
-	int			last_copied_page;
-	int			last_page_index;
 };
 
 struct radeon_cs_parser {
@@ -1013,8 +1009,15 @@ struct radeon_cs_parser {
 	struct ww_acquire_ctx	ticket;
 };
 
-extern int radeon_cs_finish_pages(struct radeon_cs_parser *p);
-extern u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx);
+static inline u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
+{
+	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
+
+	if (ibc->kdata)
+		return ibc->kdata[idx];
+	return p->ib.ptr[idx];
+}
+
 
 struct radeon_cs_packet {
 	unsigned	idx;
