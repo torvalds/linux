@@ -107,6 +107,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 	memset(fl4, 0, sizeof(struct flowi4));
 	fl4->flowi4_mark = skb->mark;
+	fl4->flowi4_oif = skb_dst(skb)->dev->ifindex;
 
 	if (!ip_is_fragment(iph)) {
 		switch (iph->protocol) {
