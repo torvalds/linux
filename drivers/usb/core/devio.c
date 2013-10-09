@@ -778,6 +778,79 @@ static struct usb_host_endpoint *ep_to_host_endpoint(struct usb_device *dev,
 		return dev->ep_out[ep & USB_ENDPOINT_NUMBER_MASK];
 }
 
+static int parse_usbdevfs_streams(struct dev_state *ps,
+				  struct usbdevfs_streams __user *streams,
+				  unsigned int *num_streams_ret,
+				  unsigned int *num_eps_ret,
+				  struct usb_host_endpoint ***eps_ret,
+				  struct usb_interface **intf_ret)
+{
+	unsigned int i, num_streams, num_eps;
+	struct usb_host_endpoint **eps;
+	struct usb_interface *intf = NULL;
+	unsigned char ep;
+	int ifnum, ret;
+
+	if (get_user(num_streams, &streams->num_streams) ||
+	    get_user(num_eps, &streams->num_eps))
+		return -EFAULT;
+
+	if (num_eps < 1 || num_eps > USB_MAXENDPOINTS)
+		return -EINVAL;
+
+	/* The XHCI controller allows max 2 ^ 16 streams */
+	if (num_streams_ret && (num_streams < 2 || num_streams > 65536))
+		return -EINVAL;
+
+	eps = kmalloc(num_eps * sizeof(*eps), GFP_KERNEL);
+	if (!eps)
+		return -ENOMEM;
+
+	for (i = 0; i < num_eps; i++) {
+		if (get_user(ep, &streams->eps[i])) {
+			ret = -EFAULT;
+			goto error;
+		}
+		eps[i] = ep_to_host_endpoint(ps->dev, ep);
+		if (!eps[i]) {
+			ret = -EINVAL;
+			goto error;
+		}
+
+		/* usb_alloc/free_streams operate on an usb_interface */
+		ifnum = findintfep(ps->dev, ep);
+		if (ifnum < 0) {
+			ret = ifnum;
+			goto error;
+		}
+
+		if (i == 0) {
+			ret = checkintf(ps, ifnum);
+			if (ret < 0)
+				goto error;
+			intf = usb_ifnum_to_if(ps->dev, ifnum);
+		} else {
+			/* Verify all eps belong to the same interface */
+			if (ifnum != intf->altsetting->desc.bInterfaceNumber) {
+				ret = -EINVAL;
+				goto error;
+			}
+		}
+	}
+
+	if (num_streams_ret)
+		*num_streams_ret = num_streams;
+	*num_eps_ret = num_eps;
+	*eps_ret = eps;
+	*intf_ret = intf;
+
+	return 0;
+
+error:
+	kfree(eps);
+	return ret;
+}
+
 static int match_devt(struct device *dev, void *data)
 {
 	return dev->devt == (dev_t) (unsigned long) data;
@@ -2009,6 +2082,45 @@ static int proc_disconnect_claim(struct dev_state *ps, void __user *arg)
 	return claimintf(ps, dc.interface);
 }
 
+static int proc_alloc_streams(struct dev_state *ps, void __user *arg)
+{
+	unsigned num_streams, num_eps;
+	struct usb_host_endpoint **eps;
+	struct usb_interface *intf;
+	int r;
+
+	r = parse_usbdevfs_streams(ps, arg, &num_streams, &num_eps,
+				   &eps, &intf);
+	if (r)
+		return r;
+
+	destroy_async_on_interface(ps,
+				   intf->altsetting[0].desc.bInterfaceNumber);
+
+	r = usb_alloc_streams(intf, eps, num_eps, num_streams, GFP_KERNEL);
+	kfree(eps);
+	return r;
+}
+
+static int proc_free_streams(struct dev_state *ps, void __user *arg)
+{
+	unsigned num_eps;
+	struct usb_host_endpoint **eps;
+	struct usb_interface *intf;
+	int r;
+
+	r = parse_usbdevfs_streams(ps, arg, NULL, &num_eps, &eps, &intf);
+	if (r)
+		return r;
+
+	destroy_async_on_interface(ps,
+				   intf->altsetting[0].desc.bInterfaceNumber);
+
+	r = usb_free_streams(intf, eps, num_eps, GFP_KERNEL);
+	kfree(eps);
+	return r;
+}
+
 /*
  * NOTE:  All requests here that have interface numbers as parameters
  * are assuming that somehow the configuration has been prevented from
@@ -2184,6 +2296,12 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case USBDEVFS_DISCONNECT_CLAIM:
 		ret = proc_disconnect_claim(ps, p);
+		break;
+	case USBDEVFS_ALLOC_STREAMS:
+		ret = proc_alloc_streams(ps, p);
+		break;
+	case USBDEVFS_FREE_STREAMS:
+		ret = proc_free_streams(ps, p);
 		break;
 	}
 	usb_unlock_device(dev);
