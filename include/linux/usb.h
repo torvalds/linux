@@ -1214,6 +1214,7 @@ struct usb_anchor {
 
 static inline void init_usb_anchor(struct usb_anchor *anchor)
 {
+	memset(anchor, 0, sizeof(*anchor));
 	INIT_LIST_HEAD(&anchor->urb_list);
 	init_waitqueue_head(&anchor->wait);
 	spin_lock_init(&anchor->lock);
