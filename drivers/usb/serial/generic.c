@@ -123,12 +123,14 @@ int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
 /**
  * usb_serial_generic_write_start - start writing buffered data
  * @port: usb-serial port
+ * @mem_flags: flags to use for memory allocations
  *
  * Serialised using USB_SERIAL_WRITE_BUSY flag.
  *
  * Return: Zero on success or if busy, otherwise a negative errno value.
  */
-static int usb_serial_generic_write_start(struct usb_serial_port *port)
+static int usb_serial_generic_write_start(struct usb_serial_port *port,
+							gfp_t mem_flags)
 {
 	struct urb *urb;
 	int count, result;
@@ -159,7 +161,7 @@ retry:
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	clear_bit(i, &port->write_urbs_free);
-	result = usb_submit_urb(urb, GFP_ATOMIC);
+	result = usb_submit_urb(urb, mem_flags);
 	if (result) {
 		dev_err_console(port, "%s - error submitting urb: %d\n",
 						__func__, result);
@@ -172,10 +174,10 @@ retry:
 		return result;
 	}
 	/*
-	 * Try sending off another urb, unless in irq context (in which case
-	 * there will be no free urb).
+	 * Try sending off another urb, unless called from completion handler
+	 * (in which case there will be no free urb or no data).
 	 */
-	if (!in_irq())
+	if (mem_flags != GFP_ATOMIC)
 		goto retry;
 
 	clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
@@ -205,7 +207,7 @@ int usb_serial_generic_write(struct tty_struct *tty,
 		return 0;
 
 	count = kfifo_in_locked(&port->write_fifo, buf, count, &port->lock);
-	result = usb_serial_generic_write_start(port);
+	result = usb_serial_generic_write_start(port, GFP_KERNEL);
 	if (result)
 		return result;
 
@@ -409,7 +411,7 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 		kfifo_reset_out(&port->write_fifo);
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
-		usb_serial_generic_write_start(port);
+		usb_serial_generic_write_start(port, GFP_ATOMIC);
 	}
 
 	usb_serial_port_softint(port);
@@ -598,7 +600,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 		}
 
 		if (port->bulk_out_size) {
-			r = usb_serial_generic_write_start(port);
+			r = usb_serial_generic_write_start(port, GFP_NOIO);
 			if (r < 0)
 				c++;
 		}
