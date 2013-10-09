@@ -3251,11 +3251,11 @@
 
 /* define the Watermark register on Ironlake */
 #define WM0_PIPEA_ILK		0x45100
-#define  WM0_PIPE_PLANE_MASK	(0x7f<<16)
+#define  WM0_PIPE_PLANE_MASK	(0xffff<<16)
 #define  WM0_PIPE_PLANE_SHIFT	16
-#define  WM0_PIPE_SPRITE_MASK	(0x3f<<8)
+#define  WM0_PIPE_SPRITE_MASK	(0xff<<8)
 #define  WM0_PIPE_SPRITE_SHIFT	8
-#define  WM0_PIPE_CURSOR_MASK	(0x1f)
+#define  WM0_PIPE_CURSOR_MASK	(0xff)
 
 #define WM0_PIPEB_ILK		0x45104
 #define WM0_PIPEC_IVB		0x45200
@@ -3265,9 +3265,9 @@
 #define  WM1_LP_LATENCY_MASK	(0x7f<<24)
 #define  WM1_LP_FBC_MASK	(0xf<<20)
 #define  WM1_LP_FBC_SHIFT	20
-#define  WM1_LP_SR_MASK		(0x1ff<<8)
+#define  WM1_LP_SR_MASK		(0x7ff<<8)
 #define  WM1_LP_SR_SHIFT	8
-#define  WM1_LP_CURSOR_MASK	(0x3f)
+#define  WM1_LP_CURSOR_MASK	(0xff)
 #define WM2_LP_ILK		0x4510c
 #define  WM2_LP_EN		(1<<31)
 #define WM3_LP_ILK		0x45110
