@@ -291,11 +291,6 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	do_exit(SIGSEGV);
 }
 
-int syscall_ipi(int (*syscall) (struct pt_regs *), struct pt_regs *regs)
-{
-	return syscall(regs);
-}
-
 /* gdb uses break 4,8 */
 #define GDB_BREAK_INSN 0x10004
 static void handle_gdb_break(struct pt_regs *regs, int wot)
