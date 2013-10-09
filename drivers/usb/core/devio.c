@@ -769,6 +769,15 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 	return ret;
 }
 
+static struct usb_host_endpoint *ep_to_host_endpoint(struct usb_device *dev,
+						     unsigned char ep)
+{
+	if (ep & USB_ENDPOINT_DIR_MASK)
+		return dev->ep_in[ep & USB_ENDPOINT_NUMBER_MASK];
+	else
+		return dev->ep_out[ep & USB_ENDPOINT_NUMBER_MASK];
+}
+
 static int match_devt(struct device *dev, void *data)
 {
 	return dev->devt == (dev_t) (unsigned long) data;
@@ -1230,15 +1239,10 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		if (ret)
 			return ret;
 	}
-	if ((uurb->endpoint & USB_ENDPOINT_DIR_MASK) != 0) {
-		is_in = 1;
-		ep = ps->dev->ep_in[uurb->endpoint & USB_ENDPOINT_NUMBER_MASK];
-	} else {
-		is_in = 0;
-		ep = ps->dev->ep_out[uurb->endpoint & USB_ENDPOINT_NUMBER_MASK];
-	}
+	ep = ep_to_host_endpoint(ps->dev, uurb->endpoint);
 	if (!ep)
 		return -ENOENT;
+	is_in = (uurb->endpoint & USB_ENDPOINT_DIR_MASK) != 0;
 
 	u = 0;
 	switch(uurb->type) {
