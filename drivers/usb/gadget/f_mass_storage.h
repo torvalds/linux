@@ -1,6 +1,7 @@
 #ifndef USB_F_MASS_STORAGE_H
 #define USB_F_MASS_STORAGE_H
 
+#include <linux/usb/composite.h>
 #include "storage_common.h"
 
 struct fsg_module_parameters {
@@ -70,6 +71,12 @@ struct fsg_operations {
 	int (*thread_exits)(struct fsg_common *common);
 };
 
+struct fsg_opts {
+	struct fsg_common *common;
+	struct usb_function_instance func_inst;
+	bool no_configfs; /* for legacy gadgets */
+};
+
 struct fsg_lun_config {
 	const char *filename;
 	char ro;
@@ -94,6 +101,12 @@ struct fsg_config {
 	unsigned int		fsg_num_buffers;
 };
 
+static inline struct fsg_opts *
+fsg_opts_from_func_inst(const struct usb_function_instance *fi)
+{
+	return container_of(fi, struct fsg_opts, func_inst);
+}
+
 void fsg_common_get(struct fsg_common *common);
 
 void fsg_common_put(struct fsg_common *common);
@@ -105,6 +118,8 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 void fsg_common_set_sysfs(struct fsg_common *common, bool sysfs);
 
 int fsg_common_set_num_buffers(struct fsg_common *common, unsigned int n);
+
+void fsg_common_free_buffers(struct fsg_common *common);
 
 int fsg_common_set_cdev(struct fsg_common *common,
 			struct usb_composite_dev *cdev, bool can_stall);

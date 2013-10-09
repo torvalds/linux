@@ -213,6 +213,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/freezer.h>
+#include <linux/module.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -225,6 +226,13 @@
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
 #define FSG_DRIVER_VERSION	"2009/09/11"
+
+/* to avoid a lot of #ifndef-#endif in the temporary compatibility layer */
+#ifndef USB_FMS_INCLUDED
+#define EXPORT_SYMBOL_GPL_IF_MODULE(m) EXPORT_SYMBOL_GPL(m);
+#else
+#define EXPORT_SYMBOL_GPL_IF_MODULE(m)
+#endif
 
 static const char fsg_string_interface[] = "Mass Storage";
 
@@ -2627,11 +2635,13 @@ void fsg_common_get(struct fsg_common *common)
 {
 	kref_get(&common->ref);
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_get);
 
 void fsg_common_put(struct fsg_common *common)
 {
 	kref_put(&common->ref, fsg_common_release);
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_put);
 
 /* check if fsg_num_buffers is within a valid range */
 static inline int fsg_num_buffers_validate(unsigned int fsg_num_buffers)
@@ -2643,7 +2653,7 @@ static inline int fsg_num_buffers_validate(unsigned int fsg_num_buffers)
 	return -EINVAL;
 }
 
-static struct fsg_common *fsg_common_setup(struct fsg_common *common)
+static struct fsg_common *fsg_common_setup(struct fsg_common *common, bool zero)
 {
 	if (!common) {
 		common = kzalloc(sizeof(*common), GFP_KERNEL);
@@ -2651,7 +2661,8 @@ static struct fsg_common *fsg_common_setup(struct fsg_common *common)
 			return ERR_PTR(-ENOMEM);
 		common->free_storage_on_release = 1;
 	} else {
-		memset(common, 0, sizeof(*common));
+		if (zero)
+			memset(common, 0, sizeof(*common));
 		common->free_storage_on_release = 0;
 	}
 	init_rwsem(&common->filesem);
@@ -2668,6 +2679,7 @@ void fsg_common_set_sysfs(struct fsg_common *common, bool sysfs)
 {
 	common->sysfs = sysfs;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_sysfs);
 
 static void _fsg_common_free_buffers(struct fsg_buffhd *buffhds, unsigned n)
 {
@@ -2723,6 +2735,7 @@ error_release:
 
 	return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_num_buffers);
 
 static inline void fsg_common_remove_sysfs(struct fsg_lun *lun)
 {
@@ -2761,6 +2774,7 @@ void fsg_common_remove_lun(struct fsg_lun *lun, bool sysfs)
 	fsg_lun_close(lun);
 	kfree(lun);
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_remove_lun);
 
 static void _fsg_common_remove_luns(struct fsg_common *common, int n)
 {
@@ -2772,6 +2786,7 @@ static void _fsg_common_remove_luns(struct fsg_common *common, int n)
 			common->luns[i] = NULL;
 		}
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_remove_luns);
 
 void fsg_common_remove_luns(struct fsg_common *common)
 {
@@ -2784,6 +2799,7 @@ void fsg_common_free_luns(struct fsg_common *common)
 	kfree(common->luns);
 	common->luns = NULL;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_free_luns);
 
 int fsg_common_set_nluns(struct fsg_common *common, int nluns)
 {
@@ -2809,6 +2825,14 @@ int fsg_common_set_nluns(struct fsg_common *common, int nluns)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_nluns);
+
+void fsg_common_free_buffers(struct fsg_common *common)
+{
+	_fsg_common_free_buffers(common->buffhds, common->fsg_num_buffers);
+	common->buffhds = NULL;
+}
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_free_buffers);
 
 int fsg_common_set_cdev(struct fsg_common *common,
 			 struct usb_composite_dev *cdev, bool can_stall)
@@ -2836,6 +2860,7 @@ int fsg_common_set_cdev(struct fsg_common *common,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_cdev);
 
 static inline int fsg_common_add_sysfs(struct fsg_common *common,
 				       struct fsg_lun *lun)
@@ -2958,6 +2983,7 @@ error_sysfs:
 	kfree(lun);
 	return rc;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_create_lun);
 
 int fsg_common_create_luns(struct fsg_common *common, struct fsg_config *cfg)
 {
@@ -2979,6 +3005,7 @@ fail:
 	_fsg_common_remove_luns(common, i);
 	return rc;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_create_luns);
 
 void fsg_common_set_inquiry_string(struct fsg_common *common, const char *vn,
 				   const char *pn)
@@ -2995,6 +3022,7 @@ void fsg_common_set_inquiry_string(struct fsg_common *common, const char *vn,
 		     : "File-Stor Gadget"),
 		 i);
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_inquiry_string);
 
 int fsg_common_run_thread(struct fsg_common *common)
 {
@@ -3013,6 +3041,7 @@ int fsg_common_run_thread(struct fsg_common *common)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_run_thread);
 
 struct fsg_common *fsg_common_init(struct fsg_common *common,
 				   struct usb_composite_dev *cdev,
@@ -3020,7 +3049,7 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 {
 	int rc;
 
-	common = fsg_common_setup(common);
+	common = fsg_common_setup(common, !!common);
 	if (IS_ERR(common))
 		return common;
 	fsg_common_set_sysfs(common, true);
@@ -3066,6 +3095,7 @@ error_release:
 	fsg_common_release(&common->ref);
 	return ERR_PTR(rc);
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_init);
 
 static void fsg_common_release(struct kref *ref)
 {
@@ -3105,24 +3135,6 @@ static void fsg_common_release(struct kref *ref)
 
 /*-------------------------------------------------------------------------*/
 
-static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct fsg_dev		*fsg = fsg_from_func(f);
-	struct fsg_common	*common = fsg->common;
-
-	DBG(fsg, "unbind\n");
-	if (fsg->common->fsg == fsg) {
-		fsg->common->new_fsg = NULL;
-		raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
-		/* FIXME: make interruptible or killable somehow? */
-		wait_event(common->fsg_wait, common->fsg != fsg);
-	}
-
-	fsg_common_put(common);
-	usb_free_all_descriptors(&fsg->function);
-	kfree(fsg);
-}
-
 static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct fsg_dev		*fsg = fsg_from_func(f);
@@ -3131,6 +3143,21 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_ep		*ep;
 	unsigned		max_burst;
 	int			ret;
+
+#ifndef USB_FMS_INCLUDED
+	struct fsg_opts		*opts;
+	opts = fsg_opts_from_func_inst(f->fi);
+	if (!opts->no_configfs) {
+		ret = fsg_common_set_cdev(fsg->common, c->cdev,
+					  fsg->common->can_stall);
+		if (ret)
+			return ret;
+		fsg_common_set_inquiry_string(fsg->common, 0, 0);
+		ret = fsg_common_run_thread(fsg->common);
+		if (ret)
+			return ret;
+	}
+#endif
 
 	fsg->gadget = gadget;
 
@@ -3183,7 +3210,31 @@ autoconf_fail:
 	return -ENOTSUPP;
 }
 
-/****************************** ADD FUNCTION ******************************/
+/****************************** ALLOCATE FUNCTION *************************/
+
+static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
+{
+	struct fsg_dev		*fsg = fsg_from_func(f);
+	struct fsg_common	*common = fsg->common;
+
+	DBG(fsg, "unbind\n");
+	if (fsg->common->fsg == fsg) {
+		fsg->common->new_fsg = NULL;
+		raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
+		/* FIXME: make interruptible or killable somehow? */
+		wait_event(common->fsg_wait, common->fsg != fsg);
+	}
+
+#ifdef USB_FMS_INCLUDED
+	fsg_common_put(common);
+#endif
+	usb_free_all_descriptors(&fsg->function);
+#ifdef USB_FMS_INCLUDED
+	kfree(fsg);
+#endif
+}
+
+#ifdef USB_FMS_INCLUDED
 
 static int fsg_bind_config(struct usb_composite_dev *cdev,
 			   struct usb_configuration *c,
@@ -3220,6 +3271,88 @@ static int fsg_bind_config(struct usb_composite_dev *cdev,
 	return rc;
 }
 
+#else
+
+static void fsg_free_inst(struct usb_function_instance *fi)
+{
+	struct fsg_opts *opts;
+
+	opts = fsg_opts_from_func_inst(fi);
+	fsg_common_put(opts->common);
+	kfree(opts);
+}
+
+static struct usb_function_instance *fsg_alloc_inst(void)
+{
+	struct fsg_opts *opts;
+	int rc;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return ERR_PTR(-ENOMEM);
+	opts->func_inst.free_func_inst = fsg_free_inst;
+	opts->common = fsg_common_setup(opts->common, false);
+	if (IS_ERR(opts->common)) {
+		rc = PTR_ERR(opts->common);
+		goto release_opts;
+	}
+	rc = fsg_common_set_nluns(opts->common, FSG_MAX_LUNS);
+	if (rc)
+		goto release_opts;
+
+	rc = fsg_common_set_num_buffers(opts->common,
+					CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS);
+	if (rc)
+		goto release_luns;
+
+	pr_info(FSG_DRIVER_DESC ", version: " FSG_DRIVER_VERSION "\n");
+
+	return &opts->func_inst;
+
+release_luns:
+	kfree(opts->common->luns);
+release_opts:
+	kfree(opts);
+	return ERR_PTR(rc);
+}
+
+static void fsg_free(struct usb_function *f)
+{
+	struct fsg_dev *fsg;
+
+	fsg = container_of(f, struct fsg_dev, function);
+
+	kfree(fsg);
+}
+
+static struct usb_function *fsg_alloc(struct usb_function_instance *fi)
+{
+	struct fsg_opts *opts = fsg_opts_from_func_inst(fi);
+	struct fsg_common *common = opts->common;
+	struct fsg_dev *fsg;
+
+	fsg = kzalloc(sizeof(*fsg), GFP_KERNEL);
+	if (unlikely(!fsg))
+		return ERR_PTR(-ENOMEM);
+
+	fsg->function.name	= FSG_DRIVER_DESC;
+	fsg->function.bind	= fsg_bind;
+	fsg->function.unbind	= fsg_unbind;
+	fsg->function.setup	= fsg_setup;
+	fsg->function.set_alt	= fsg_set_alt;
+	fsg->function.disable	= fsg_disable;
+	fsg->function.free_func	= fsg_free;
+
+	fsg->common               = common;
+
+	return &fsg->function;
+}
+
+DECLARE_USB_FUNCTION_INIT(mass_storage, fsg_alloc_inst, fsg_alloc);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Michal Nazarewicz");
+
+#endif
 
 /************************* Module parameters *************************/
 
@@ -3256,4 +3389,5 @@ void fsg_config_from_params(struct fsg_config *cfg,
 	cfg->can_stall = params->stall;
 	cfg->fsg_num_buffers = fsg_num_buffers;
 }
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_config_from_params);
 

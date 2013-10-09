@@ -528,6 +528,9 @@ config USB_F_RNDIS
 config USB_U_MS
 	tristate
 
+config USB_F_MASS_STORAGE
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
