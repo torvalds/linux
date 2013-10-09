@@ -409,6 +409,12 @@ static inline void soc_widget_unlock(struct snd_soc_dapm_widget *w)
 		mutex_unlock(&w->platform->mutex);
 }
 
+static void soc_dapm_async_complete(struct snd_soc_dapm_context *dapm)
+{
+	if (dapm->codec && dapm->codec->using_regmap)
+		regmap_async_complete(dapm->codec->control_data);
+}
+
 static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
 	unsigned short reg, unsigned int mask, unsigned int value)
 {
@@ -417,8 +423,9 @@ static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
 	int ret;
 
 	if (w->codec && w->codec->using_regmap) {
-		ret = regmap_update_bits_check(w->codec->control_data,
-					       reg, mask, value, &change);
+		ret = regmap_update_bits_check_async(w->codec->control_data,
+						     reg, mask, value,
+						     &change);
 		if (ret != 0)
 			return ret;
 	} else {
@@ -1201,6 +1208,8 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 {
 	int ret;
 
+	soc_dapm_async_complete(w->dapm);
+
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		if (w->on_val & SND_SOC_DAPM_REGULATOR_BYPASS) {
 			ret = regulator_allow_bypass(w->regulator, false);
@@ -1233,6 +1242,8 @@ int dapm_clock_event(struct snd_soc_dapm_widget *w,
 {
 	if (!w->clk)
 		return -EIO;
+
+	soc_dapm_async_complete(w->dapm);
 
 #ifdef CONFIG_HAVE_CLK
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -1426,6 +1437,7 @@ static void dapm_seq_check_event(struct snd_soc_card *card,
 	if (w->event && (w->event_flags & event)) {
 		pop_dbg(w->dapm->dev, card->pop_time, "pop test : %s %s\n",
 			w->name, ev_name);
+		soc_dapm_async_complete(w->dapm);
 		trace_snd_soc_dapm_widget_event_start(w, event);
 		ret = w->event(w, NULL, event);
 		trace_snd_soc_dapm_widget_event_done(w, event);
@@ -1498,6 +1510,7 @@ static void dapm_seq_run(struct snd_soc_card *card,
 	struct list_head *list, int event, bool power_up)
 {
 	struct snd_soc_dapm_widget *w, *n;
+	struct snd_soc_dapm_context *d;
 	LIST_HEAD(pending);
 	int cur_sort = -1;
 	int cur_subseq = -1;
@@ -1527,6 +1540,9 @@ static void dapm_seq_run(struct snd_soc_card *card,
 								       i,
 								       cur_subseq);
 			}
+
+			if (cur_dapm && w->dapm != cur_dapm)
+				soc_dapm_async_complete(cur_dapm);
 
 			INIT_LIST_HEAD(&pending);
 			cur_sort = -1;
@@ -1585,6 +1601,10 @@ static void dapm_seq_run(struct snd_soc_card *card,
 			if (sort[i] == cur_sort)
 				cur_dapm->seq_notifier(cur_dapm,
 						       i, cur_subseq);
+	}
+
+	list_for_each_entry(d, &card->dapm_list, list) {
+		soc_dapm_async_complete(d);
 	}
 }
 
