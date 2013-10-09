@@ -25,12 +25,27 @@
 
 int btrfs_test_free_space_cache(void);
 int btrfs_test_extent_buffer_operations(void);
+int btrfs_test_extent_io(void);
+int btrfs_init_test_fs(void);
+void btrfs_destroy_test_fs(void);
+struct inode *btrfs_new_test_inode(void);
 #else
 static inline int btrfs_test_free_space_cache(void)
 {
 	return 0;
 }
 static inline int btrfs_test_extent_buffer_operations(void)
+{
+	return 0;
+}
+static inline int btrfs_init_test_fs(void)
+{
+	return 0;
+}
+static inline void btrfs_destroy_test_fs(void)
+{
+}
+static inline int btrfs_test_extent_io(void)
 {
 	return 0;
 }

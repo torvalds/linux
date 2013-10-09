@@ -1791,10 +1791,20 @@ static int btrfs_run_sanity_tests(void)
 {
 	int ret;
 
-	ret = btrfs_test_free_space_cache();
+	ret = btrfs_init_test_fs();
 	if (ret)
 		return ret;
-	return btrfs_test_extent_buffer_operations();
+
+	ret = btrfs_test_free_space_cache();
+	if (ret)
+		goto out;
+	ret = btrfs_test_extent_buffer_operations();
+	if (ret)
+		goto out;
+	ret = btrfs_test_extent_io();
+out:
+	btrfs_destroy_test_fs();
+	return ret;
 }
 
 static int __init init_btrfs_fs(void)

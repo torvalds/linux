@@ -1598,11 +1598,10 @@ done:
  *
  * 1 is returned if we find something, 0 if nothing was in the tree
  */
-static noinline u64 find_lock_delalloc_range(struct inode *inode,
-					     struct extent_io_tree *tree,
-					     struct page *locked_page,
-					     u64 *start, u64 *end,
-					     u64 max_bytes)
+STATIC u64 find_lock_delalloc_range(struct inode *inode,
+				    struct extent_io_tree *tree,
+				    struct page *locked_page, u64 *start,
+				    u64 *end, u64 max_bytes)
 {
 	u64 delalloc_start;
 	u64 delalloc_end;
