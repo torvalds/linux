@@ -10706,6 +10706,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 								 &crtc->config);
 
 		crtc->base.enabled = crtc->active;
+		crtc->primary_disabled = !crtc->active;
 
 		DRM_DEBUG_KMS("[CRTC:%d] hw state readout: %s\n",
 			      crtc->base.base.id,
