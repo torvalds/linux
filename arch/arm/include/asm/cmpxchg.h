@@ -270,10 +270,12 @@ static inline unsigned long long __cmpxchg64_mb(unsigned long long *ptr,
 					(unsigned long long)(o),	\
 					(unsigned long long)(n)))
 
-#define cmpxchg64_local(ptr, o, n)					\
+#define cmpxchg64_relaxed(ptr, o, n)					\
 	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
 					(unsigned long long)(o),	\
 					(unsigned long long)(n)))
+
+#define cmpxchg64_local(ptr, o, n)	cmpxchg64_relaxed((ptr), (o), (n))
 
 #endif	/* __LINUX_ARM_ARCH__ >= 6 */
 
