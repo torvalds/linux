@@ -491,6 +491,7 @@ EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
 
 /**
  * srcu_barrier - Wait until all in-flight call_srcu() callbacks complete.
+ * @sp: srcu_struct on which to wait for in-flight callbacks.
  */
 void srcu_barrier(struct srcu_struct *sp)
 {
