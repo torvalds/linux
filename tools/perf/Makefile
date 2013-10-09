@@ -34,7 +34,7 @@ endif
 # Only pass canonical directory names as the output directory:
 #
 ifneq ($(O),)
-  FULL_O := $(shell readlink -f $(O))
+  FULL_O := $(shell readlink -f $(O) || echo $(O))
 endif
 
 define print_msg
