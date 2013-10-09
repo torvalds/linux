@@ -39,7 +39,6 @@ module_param(assume_endura, int, 0644);
 MODULE_PARM_DESC(assume_endura, "when probing fails, "
 				"hardware is a Pelco Endura");
 
-/* #define GO7007_USB_DEBUG */
 /* #define GO7007_I2C_DEBUG */ /* for debugging the EZ-USB I2C adapter */
 
 #define	HPI_STATUS_ADDR	0xFFF4
@@ -664,9 +663,7 @@ static int go7007_usb_interface_reset(struct go7007 *go)
 
 	if (usb->board->flags & GO7007_USB_EZUSB) {
 		/* Reset buffer in EZ-USB */
-#ifdef GO7007_USB_DEBUG
 		pr_debug("resetting EZ-USB buffers\n");
-#endif
 		if (go7007_usb_vendor_request(go, 0x10, 0, 0, NULL, 0, 0) < 0 ||
 		    go7007_usb_vendor_request(go, 0x10, 0, 0, NULL, 0, 0) < 0)
 			return -1;
@@ -695,9 +692,7 @@ static int go7007_usb_ezusb_write_interrupt(struct go7007 *go,
 	u16 status_reg = 0;
 	int timeout = 500;
 
-#ifdef GO7007_USB_DEBUG
 	pr_debug("WriteInterrupt: %04x %04x\n", addr, data);
-#endif
 
 	for (i = 0; i < 100; ++i) {
 		r = usb_control_msg(usb->usbdev,
@@ -744,9 +739,7 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 	int r;
 	int timeout = 500;
 
-#ifdef GO7007_USB_DEBUG
 	pr_debug("WriteInterrupt: %04x %04x\n", addr, data);
-#endif
 
 	go->usb_buf[0] = data & 0xff;
 	go->usb_buf[1] = data >> 8;
@@ -785,10 +778,8 @@ static void go7007_usb_readinterrupt_complete(struct urb *urb)
 		go->interrupt_available = 1;
 		go->interrupt_data = __le16_to_cpu(regs[0]);
 		go->interrupt_value = __le16_to_cpu(regs[1]);
-#ifdef GO7007_USB_DEBUG
 		pr_debug("ReadInterrupt: %04x %04x\n",
 				go->interrupt_value, go->interrupt_data);
-#endif
 	}
 
 	wake_up(&go->interrupt_waitq);
@@ -911,9 +902,7 @@ static int go7007_usb_send_firmware(struct go7007 *go, u8 *data, int len)
 	int transferred, pipe;
 	int timeout = 500;
 
-#ifdef GO7007_USB_DEBUG
 	pr_debug("DownloadBuffer sending %d bytes\n", len);
-#endif
 
 	if (usb->board->flags & GO7007_USB_EZUSB)
 		pipe = usb_sndbulkpipe(usb->usbdev, 2);
