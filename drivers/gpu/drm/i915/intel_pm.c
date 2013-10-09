@@ -2705,6 +2705,12 @@ static void ilk_wm_merge(struct drm_device *dev,
 	}
 }
 
+static int ilk_wm_lp_to_level(int wm_lp, const struct intel_pipe_wm *pipe_wm)
+{
+	/* LP1,LP2,LP3 levels are either 1,2,3 or 1,3,4 */
+	return wm_lp + (wm_lp >= 2 && pipe_wm->wm[4].enable);
+}
+
 static void hsw_compute_wm_results(struct drm_device *dev,
 				   const struct intel_pipe_wm *merged,
 				   struct hsw_wm_values *results)
@@ -2718,7 +2724,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
 		const struct intel_wm_level *r;
 
-		level = wm_lp + (wm_lp >= 2 && merged->wm[4].enable);
+		level = ilk_wm_lp_to_level(wm_lp, merged);
 
 		r = &merged->wm[level];
 		if (!r->enable)
