@@ -400,8 +400,9 @@ static int usb_unbind_interface(struct device *dev)
 {
 	struct usb_driver *driver = to_usb_driver(dev->driver);
 	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_host_endpoint *ep, **eps = NULL;
 	struct usb_device *udev;
-	int error, r, lpm_disable_error;
+	int i, j, error, r, lpm_disable_error;
 
 	intf->condition = USB_INTERFACE_UNBINDING;
 
@@ -424,6 +425,26 @@ static int usb_unbind_interface(struct device *dev)
 
 	driver->disconnect(intf);
 	usb_cancel_queued_reset(intf);
+
+	/* Free streams */
+	for (i = 0, j = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
+		ep = &intf->cur_altsetting->endpoint[i];
+		if (ep->streams == 0)
+			continue;
+		if (j == 0) {
+			eps = kmalloc(USB_MAXENDPOINTS * sizeof(void *),
+				      GFP_KERNEL);
+			if (!eps) {
+				dev_warn(dev, "oom, leaking streams\n");
+				break;
+			}
+		}
+		eps[j++] = ep;
+	}
+	if (j) {
+		usb_free_streams(intf, eps, j, GFP_KERNEL);
+		kfree(eps);
+	}
 
 	/* Reset other interface state.
 	 * We cannot do a Set-Interface if the device is suspended or
