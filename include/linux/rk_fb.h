@@ -187,6 +187,7 @@ struct rk_fb_vsync {
 	wait_queue_head_t	wait;
 	ktime_t			timestamp;
 	bool			active;
+	bool                    irq_stop;
 	int			irq_refcount;
 	struct mutex		irq_lock;
 	struct task_struct	*thread;

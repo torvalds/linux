@@ -1121,7 +1121,7 @@ static int rk_fb_wait_for_vsync_thread(void *data)
 		ktime_t timestamp = dev_drv->vsync_info.timestamp;
 		int ret = wait_event_interruptible(dev_drv->vsync_info.wait,
 			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp) &&
-			dev_drv->vsync_info.active);
+			dev_drv->vsync_info.active || dev_drv->vsync_info.irq_stop);
 
 		if (!ret) {
 			sysfs_notify(&fbi->dev->kobj, NULL, "vsync");
@@ -1808,6 +1808,11 @@ int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv)
 		return -ENOENT;
 	}
 
+	if(fb_inf->lcdc_dev_drv[i]->vsync_info.thread){
+		fb_inf->lcdc_dev_drv[i]->vsync_info.irq_stop = 1;
+		kthread_stop(fb_inf->lcdc_dev_drv[i]->vsync_info.thread);
+	}
+
 	for(i = 0; i < fb_num; i++)
 	{
 		kfree(dev_drv->layer_par[i]);
@@ -1912,8 +1917,6 @@ static void rk_fb_shutdown(struct platform_device *pdev)
 		if (!inf->lcdc_dev_drv[i])
 			continue;
 
-		if(inf->lcdc_dev_drv[i]->vsync_info.thread)
-			kthread_stop(inf->lcdc_dev_drv[i]->vsync_info.thread);
 	}
 //	kfree(fb_inf);
 //	platform_set_drvdata(pdev, NULL);
