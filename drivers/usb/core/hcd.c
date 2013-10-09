@@ -1652,6 +1652,7 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 static void __usb_hcd_giveback_urb(struct urb *urb)
 {
 	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
+	struct usb_anchor *anchor = urb->anchor;
 	int status = urb->unlinked;
 	unsigned long flags;
 
@@ -1663,6 +1664,7 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 
 	unmap_urb_for_dma(hcd, urb);
 	usbmon_urb_complete(&hcd->self, urb, status);
+	usb_anchor_suspend_wakeups(anchor);
 	usb_unanchor_urb(urb);
 
 	/* pass ownership to the completion handler */
@@ -1682,6 +1684,7 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	urb->complete(urb);
 	local_irq_restore(flags);
 
+	usb_anchor_resume_wakeups(anchor);
 	atomic_dec(&urb->use_count);
 	if (unlikely(atomic_read(&urb->reject)))
 		wake_up(&usb_kill_urb_queue);
