@@ -50,7 +50,7 @@ struct pcie_port {
 	u32			lanes;
 	struct pcie_host_ops	*ops;
 	int			msi_irq;
-	int			msi_irq_start;
+	struct irq_domain	*irq_domain;
 	unsigned long		msi_data;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_IRQS);
 };
