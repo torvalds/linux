@@ -947,6 +947,9 @@ static void gfar_detect_errata(struct gfar_private *priv)
 	unsigned int mod = (svr >> 16) & 0xfff6; /* w/o E suffix */
 	unsigned int rev = svr & 0xffff;
 
+	/* no plans to fix */
+	priv->errata |= GFAR_ERRATA_A002;
+
 	/* MPC8313 Rev 2.0 and higher; All MPC837x */
 	if ((pvr == 0x80850010 && mod == 0x80b0 && rev >= 0x0020) ||
 	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
@@ -956,11 +959,6 @@ static void gfar_detect_errata(struct gfar_private *priv)
 	if ((pvr == 0x80850010 && mod == 0x80b0) ||
 	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
 		priv->errata |= GFAR_ERRATA_76;
-
-	/* MPC8313 and MPC837x all rev */
-	if ((pvr == 0x80850010 && mod == 0x80b0) ||
-	    (pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
-		priv->errata |= GFAR_ERRATA_A002;
 
 	/* MPC8313 Rev < 2.0, MPC8548 rev 2.0 */
 	if ((pvr == 0x80850010 && mod == 0x80b0 && rev < 0x0020) ||
@@ -1599,7 +1597,7 @@ static int __gfar_is_rx_idle(struct gfar_private *priv)
 	/* Normaly TSEC should not hang on GRS commands, so we should
 	 * actually wait for IEVENT_GRSC flag.
 	 */
-	if (likely(!gfar_has_errata(priv, GFAR_ERRATA_A002)))
+	if (!gfar_has_errata(priv, GFAR_ERRATA_A002))
 		return 0;
 
 	/* Read the eTSEC register at offset 0xD1C. If bits 7-14 are
