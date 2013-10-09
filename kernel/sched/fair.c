@@ -1493,28 +1493,28 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 	tsk = ACCESS_ONCE(cpu_rq(cpu)->curr);
 
 	if (!cpupid_match_pid(tsk, cpupid))
-		goto unlock;
+		goto no_join;
 
 	grp = rcu_dereference(tsk->numa_group);
 	if (!grp)
-		goto unlock;
+		goto no_join;
 
 	my_grp = p->numa_group;
 	if (grp == my_grp)
-		goto unlock;
+		goto no_join;
 
 	/*
 	 * Only join the other group if its bigger; if we're the bigger group,
 	 * the other task will join us.
 	 */
 	if (my_grp->nr_tasks > grp->nr_tasks)
-		goto unlock;
+		goto no_join;
 
 	/*
 	 * Tie-break on the grp address.
 	 */
 	if (my_grp->nr_tasks == grp->nr_tasks && my_grp > grp)
-		goto unlock;
+		goto no_join;
 
 	/* Always join threads in the same process. */
 	if (tsk->mm == current->mm)
@@ -1528,9 +1528,8 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 	*priv = !join;
 
 	if (join && !get_numa_group(grp))
-		join = false;
+		goto no_join;
 
-unlock:
 	rcu_read_unlock();
 
 	if (!join)
@@ -1555,6 +1554,11 @@ unlock:
 	rcu_assign_pointer(p->numa_group, grp);
 
 	put_numa_group(my_grp);
+	return;
+
+no_join:
+	rcu_read_unlock();
+	return;
 }
 
 void task_numa_free(struct task_struct *p)
