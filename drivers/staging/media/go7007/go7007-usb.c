@@ -1109,7 +1109,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_lifeview_lr192;
 		break;
 	case GO7007_BOARDID_SENSORAY_2250:
-		printk(KERN_INFO "Sensoray 2250 found\n");
+		pr_info("Sensoray 2250 found\n");
 		name = "Sensoray 2250/2251";
 		board = &board_sensoray_2250;
 		break;
