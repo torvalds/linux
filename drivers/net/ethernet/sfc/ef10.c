@@ -444,6 +444,18 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
 	EF10_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	EF10_DMA_STAT(rx_nodesc_drops, RX_NODESC_DROPS),
+	EF10_DMA_STAT(rx_pm_trunc_bb_overflow, PM_TRUNC_BB_OVERFLOW),
+	EF10_DMA_STAT(rx_pm_discard_bb_overflow, PM_DISCARD_BB_OVERFLOW),
+	EF10_DMA_STAT(rx_pm_trunc_vfifo_full, PM_TRUNC_VFIFO_FULL),
+	EF10_DMA_STAT(rx_pm_discard_vfifo_full, PM_DISCARD_VFIFO_FULL),
+	EF10_DMA_STAT(rx_pm_trunc_qbb, PM_TRUNC_QBB),
+	EF10_DMA_STAT(rx_pm_discard_qbb, PM_DISCARD_QBB),
+	EF10_DMA_STAT(rx_pm_discard_mapping, PM_DISCARD_MAPPING),
+	EF10_DMA_STAT(rx_dp_q_disabled_packets, RXDP_Q_DISABLED_PKTS),
+	EF10_DMA_STAT(rx_dp_di_dropped_packets, RXDP_DI_DROPPED_PKTS),
+	EF10_DMA_STAT(rx_dp_streaming_packets, RXDP_STREAMING_PKTS),
+	EF10_DMA_STAT(rx_dp_emerg_fetch, RXDP_EMERGENCY_FETCH_CONDITIONS),
+	EF10_DMA_STAT(rx_dp_emerg_wait, RXDP_EMERGENCY_WAIT_CONDITIONS),
 };
 
 #define HUNT_COMMON_STAT_MASK ((1ULL << EF10_STAT_tx_bytes) |		\
@@ -498,43 +510,71 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 #define HUNT_40G_EXTRA_STAT_MASK ((1ULL << EF10_STAT_rx_align_error) |	\
 				  (1ULL << EF10_STAT_rx_length_error))
 
-#if BITS_PER_LONG == 64
-#define STAT_MASK_BITMAP(bits) (bits)
-#else
-#define STAT_MASK_BITMAP(bits) (bits) & 0xffffffff, (bits) >> 32
-#endif
+/* These statistics are only provided if the firmware supports the
+ * capability PM_AND_RXDP_COUNTERS.
+ */
+#define HUNT_PM_AND_RXDP_STAT_MASK (					\
+	(1ULL << EF10_STAT_rx_pm_trunc_bb_overflow) |			\
+	(1ULL << EF10_STAT_rx_pm_discard_bb_overflow) |			\
+	(1ULL << EF10_STAT_rx_pm_trunc_vfifo_full) |			\
+	(1ULL << EF10_STAT_rx_pm_discard_vfifo_full) |			\
+	(1ULL << EF10_STAT_rx_pm_trunc_qbb) |				\
+	(1ULL << EF10_STAT_rx_pm_discard_qbb) |				\
+	(1ULL << EF10_STAT_rx_pm_discard_mapping) |			\
+	(1ULL << EF10_STAT_rx_dp_q_disabled_packets) |			\
+	(1ULL << EF10_STAT_rx_dp_di_dropped_packets) |			\
+	(1ULL << EF10_STAT_rx_dp_streaming_packets) |			\
+	(1ULL << EF10_STAT_rx_dp_emerg_fetch) |				\
+	(1ULL << EF10_STAT_rx_dp_emerg_wait))
 
-static const unsigned long *efx_ef10_stat_mask(struct efx_nic *efx)
+static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 {
-	static const unsigned long hunt_40g_stat_mask[] = {
-		STAT_MASK_BITMAP(HUNT_COMMON_STAT_MASK |
-				 HUNT_40G_EXTRA_STAT_MASK)
-	};
-	static const unsigned long hunt_10g_only_stat_mask[] = {
-		STAT_MASK_BITMAP(HUNT_COMMON_STAT_MASK |
-				 HUNT_10G_ONLY_STAT_MASK)
-	};
+	u64 raw_mask = HUNT_COMMON_STAT_MASK;
 	u32 port_caps = efx_mcdi_phy_get_caps(efx);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
 	if (port_caps & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
-		return hunt_40g_stat_mask;
+		raw_mask |= HUNT_40G_EXTRA_STAT_MASK;
 	else
-		return hunt_10g_only_stat_mask;
+		raw_mask |= HUNT_10G_ONLY_STAT_MASK;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_PM_AND_RXDP_COUNTERS_LBN))
+		raw_mask |= HUNT_PM_AND_RXDP_STAT_MASK;
+
+	return raw_mask;
+}
+
+static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
+{
+	u64 raw_mask = efx_ef10_raw_stat_mask(efx);
+
+#if BITS_PER_LONG == 64
+	mask[0] = raw_mask;
+#else
+	mask[0] = raw_mask & 0xffffffff;
+	mask[1] = raw_mask >> 32;
+#endif
 }
 
 static size_t efx_ef10_describe_stats(struct efx_nic *efx, u8 *names)
 {
+	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
+
+	efx_ef10_get_stat_mask(efx, mask);
 	return efx_nic_describe_stats(efx_ef10_stat_desc, EF10_STAT_COUNT,
-				      efx_ef10_stat_mask(efx), names);
+				      mask, names);
 }
 
 static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	const unsigned long *stats_mask = efx_ef10_stat_mask(efx);
+	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
 	__le64 generation_start, generation_end;
 	u64 *stats = nic_data->stats;
 	__le64 *dma_stats;
+
+	efx_ef10_get_stat_mask(efx, mask);
 
 	dma_stats = efx->stats_buffer.addr;
 	nic_data = efx->nic_data;
@@ -543,8 +583,9 @@ static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
-	efx_nic_update_stats(efx_ef10_stat_desc, EF10_STAT_COUNT, stats_mask,
+	efx_nic_update_stats(efx_ef10_stat_desc, EF10_STAT_COUNT, mask,
 			     stats, efx->stats_buffer.addr, false);
+	rmb();
 	generation_start = dma_stats[MC_CMD_MAC_GENERATION_START];
 	if (generation_end != generation_start)
 		return -EAGAIN;
@@ -563,11 +604,13 @@ static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 static size_t efx_ef10_update_stats(struct efx_nic *efx, u64 *full_stats,
 				    struct rtnl_link_stats64 *core_stats)
 {
-	const unsigned long *mask = efx_ef10_stat_mask(efx);
+	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	u64 *stats = nic_data->stats;
 	size_t stats_count = 0, index;
 	int retry;
+
+	efx_ef10_get_stat_mask(efx, mask);
 
 	/* If we're unlucky enough to read statistics during the DMA, wait
 	 * up to 10ms for it to finish (typically takes <500us)
