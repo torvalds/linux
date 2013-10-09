@@ -2458,53 +2458,6 @@ static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 	result->enable = true;
 }
 
-static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
-			      int level, const struct hsw_wm_maximums *max,
-			      const struct hsw_pipe_wm_parameters *params,
-			      struct intel_wm_level *result)
-{
-	enum pipe pipe;
-	struct intel_wm_level res[3];
-
-	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++)
-		ilk_compute_wm_level(dev_priv, level, &params[pipe], &res[pipe]);
-
-	result->pri_val = max3(res[0].pri_val, res[1].pri_val, res[2].pri_val);
-	result->spr_val = max3(res[0].spr_val, res[1].spr_val, res[2].spr_val);
-	result->cur_val = max3(res[0].cur_val, res[1].cur_val, res[2].cur_val);
-	result->fbc_val = max3(res[0].fbc_val, res[1].fbc_val, res[2].fbc_val);
-	result->enable = true;
-
-	return ilk_check_wm(level, max, result);
-}
-
-
-static uint32_t hsw_compute_wm_pipe(struct drm_device *dev,
-				    const struct hsw_pipe_wm_parameters *params)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_wm_config config = {
-		.num_pipes_active = 1,
-		.sprites_enabled = params->spr.enabled,
-		.sprites_scaled = params->spr.scaled,
-	};
-	struct hsw_wm_maximums max;
-	struct intel_wm_level res;
-
-	if (!params->active)
-		return 0;
-
-	ilk_wm_max(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
-
-	ilk_compute_wm_level(dev_priv, 0, params, &res);
-
-	ilk_check_wm(0, &max, &res);
-
-	return (res.pri_val << WM0_PIPE_PLANE_SHIFT) |
-	       (res.spr_val << WM0_PIPE_SPRITE_SHIFT) |
-	       res.cur_val;
-}
-
 static uint32_t
 hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 {
@@ -2687,44 +2640,123 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		*lp_max_5_6 = *lp_max_1_2;
 }
 
+/* Compute new watermarks for the pipe */
+static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
+				  const struct hsw_pipe_wm_parameters *params,
+				  struct intel_pipe_wm *pipe_wm)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int level, max_level = ilk_wm_max_level(dev);
+	/* LP0 watermark maximums depend on this pipe alone */
+	struct intel_wm_config config = {
+		.num_pipes_active = 1,
+		.sprites_enabled = params->spr.enabled,
+		.sprites_scaled = params->spr.scaled,
+	};
+	struct hsw_wm_maximums max;
+
+	memset(pipe_wm, 0, sizeof(*pipe_wm));
+
+	/* LP0 watermarks always use 1/2 DDB partitioning */
+	ilk_wm_max(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
+
+	for (level = 0; level <= max_level; level++)
+		ilk_compute_wm_level(dev_priv, level, params,
+				     &pipe_wm->wm[level]);
+
+	pipe_wm->linetime = hsw_compute_linetime_wm(dev, crtc);
+
+	/* At least LP0 must be valid */
+	return ilk_check_wm(0, &max, &pipe_wm->wm[0]);
+}
+
+/*
+ * Merge the watermarks from all active pipes for a specific level.
+ */
+static void ilk_merge_wm_level(struct drm_device *dev,
+			       int level,
+			       struct intel_wm_level *ret_wm)
+{
+	const struct intel_crtc *intel_crtc;
+
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
+		const struct intel_wm_level *wm =
+			&intel_crtc->wm.active.wm[level];
+
+		if (!wm->enable)
+			return;
+
+		ret_wm->pri_val = max(ret_wm->pri_val, wm->pri_val);
+		ret_wm->spr_val = max(ret_wm->spr_val, wm->spr_val);
+		ret_wm->cur_val = max(ret_wm->cur_val, wm->cur_val);
+		ret_wm->fbc_val = max(ret_wm->fbc_val, wm->fbc_val);
+	}
+
+	ret_wm->enable = true;
+}
+
+/*
+ * Merge all low power watermarks for all active pipes.
+ */
+static void ilk_wm_merge(struct drm_device *dev,
+			 const struct hsw_wm_maximums *max,
+			 struct intel_pipe_wm *merged)
+{
+	int level, max_level = ilk_wm_max_level(dev);
+
+	merged->fbc_wm_enabled = true;
+
+	/* merge each WM1+ level */
+	for (level = 1; level <= max_level; level++) {
+		struct intel_wm_level *wm = &merged->wm[level];
+
+		ilk_merge_wm_level(dev, level, wm);
+
+		if (!ilk_check_wm(level, max, wm))
+			break;
+
+		/*
+		 * The spec says it is preferred to disable
+		 * FBC WMs instead of disabling a WM level.
+		 */
+		if (wm->fbc_val > max->fbc) {
+			merged->fbc_wm_enabled = false;
+			wm->fbc_val = 0;
+		}
+	}
+}
+
 static void hsw_compute_wm_results(struct drm_device *dev,
 				   const struct hsw_pipe_wm_parameters *params,
 				   const struct hsw_wm_maximums *lp_maximums,
 				   struct hsw_wm_values *results)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct intel_wm_level lp_results[4] = {};
-	enum pipe pipe;
-	int level, max_level, wm_lp;
+	struct intel_crtc *intel_crtc;
+	int level, wm_lp;
+	struct intel_pipe_wm merged = {};
 
-	for (level = 1; level <= 4; level++)
-		if (!hsw_compute_lp_wm(dev_priv, level,
-				       lp_maximums, params,
-				       &lp_results[level - 1]))
-			break;
-	max_level = level - 1;
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
+		intel_compute_pipe_wm(&intel_crtc->base,
+				      &params[intel_crtc->pipe],
+				      &intel_crtc->wm.active);
+
+	ilk_wm_merge(dev, lp_maximums, &merged);
 
 	memset(results, 0, sizeof(*results));
 
-	/* The spec says it is preferred to disable FBC WMs instead of disabling
-	 * a WM level. */
-	results->enable_fbc_wm = true;
-	for (level = 1; level <= max_level; level++) {
-		if (lp_results[level - 1].fbc_val > lp_maximums->fbc) {
-			results->enable_fbc_wm = false;
-			lp_results[level - 1].fbc_val = 0;
-		}
-	}
+	results->enable_fbc_wm = merged.fbc_wm_enabled;
 
+	/* LP1+ register values */
 	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
 		const struct intel_wm_level *r;
 
-		level = (max_level == 4 && wm_lp > 1) ? wm_lp + 1 : wm_lp;
-		if (level > max_level)
+		level = wm_lp + (wm_lp >= 2 && merged.wm[4].enable);
+
+		r = &merged.wm[level];
+		if (!r->enable)
 			break;
 
-		r = &lp_results[level - 1];
 		results->wm_lp[wm_lp - 1] = HSW_WM_LP_VAL(level * 2,
 							  r->fbc_val,
 							  r->pri_val,
@@ -2732,13 +2764,21 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 		results->wm_lp_spr[wm_lp - 1] = r->spr_val;
 	}
 
-	for_each_pipe(pipe)
-		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev,
-							     &params[pipe]);
+	/* LP0 register values */
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) {
+		enum pipe pipe = intel_crtc->pipe;
+		const struct intel_wm_level *r =
+			&intel_crtc->wm.active.wm[0];
 
-	for_each_pipe(pipe) {
-		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-		results->wm_linetime[pipe] = hsw_compute_linetime_wm(dev, crtc);
+		if (WARN_ON(!r->enable))
+			continue;
+
+		results->wm_linetime[pipe] = intel_crtc->wm.active.linetime;
+
+		results->wm_pipe[pipe] =
+			(r->pri_val << WM0_PIPE_PLANE_SHIFT) |
+			(r->spr_val << WM0_PIPE_SPRITE_SHIFT) |
+			r->cur_val;
 	}
 }
 
