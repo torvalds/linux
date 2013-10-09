@@ -169,11 +169,20 @@ acpi_extract_package(union acpi_object *package,
 	/*
 	 * Validate output buffer.
 	 */
-	if (buffer->length < size_required) {
+	if (buffer->length == ACPI_ALLOCATE_BUFFER) {
+		buffer->pointer = ACPI_ALLOCATE(size_required);
+		if (!buffer->pointer)
+			return AE_NO_MEMORY;
 		buffer->length = size_required;
-		return AE_BUFFER_OVERFLOW;
-	} else if (buffer->length != size_required || !buffer->pointer) {
-		return AE_BAD_PARAMETER;
+		memset(buffer->pointer, 0, size_required);
+	} else {
+		if (buffer->length < size_required) {
+			buffer->length = size_required;
+			return AE_BUFFER_OVERFLOW;
+		} else if (buffer->length != size_required ||
+			   !buffer->pointer) {
+			return AE_BAD_PARAMETER;
+		}
 	}
 
 	head = buffer->pointer;
