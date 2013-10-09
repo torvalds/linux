@@ -205,7 +205,7 @@ static void line6_midi_input_trigger(struct snd_rawmidi_substream *substream,
 	if (up)
 		line6->line6midi->substream_receive = substream;
 	else
-		line6->line6midi->substream_receive = 0;
+		line6->line6midi->substream_receive = NULL;
 }
 
 static struct snd_rawmidi_ops line6_midi_output_ops = {
