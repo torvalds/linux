@@ -197,7 +197,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	if (addr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	cc = 0;
-	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->run->s.regs.crs[6], 0);
+	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->arch.sie_block->gcr[6], 0);
 	if (!inti)
 		goto no_interrupt;
 	cc = 1;
