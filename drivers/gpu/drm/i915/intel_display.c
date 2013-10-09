@@ -7285,14 +7285,21 @@ intel_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto err;
+
 	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(&obj->base);
-		kfree(intel_fb);
-		return ERR_PTR(ret);
-	}
+	mutex_unlock(&dev->struct_mutex);
+	if (ret)
+		goto err;
 
 	return &intel_fb->base;
+err:
+	drm_gem_object_unreference_unlocked(&obj->base);
+	kfree(intel_fb);
+
+	return ERR_PTR(ret);
 }
 
 static u32
@@ -9988,6 +9995,8 @@ int intel_framebuffer_init(struct drm_device *dev,
 {
 	int pitch_limit;
 	int ret;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	if (obj->tiling_mode == I915_TILING_Y) {
 		DRM_DEBUG("hardware does not support tiling Y\n");
