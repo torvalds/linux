@@ -2421,8 +2421,6 @@ static bool ilk_check_wm(int level,
 		result->enable = true;
 	}
 
-	DRM_DEBUG_KMS("WM%d: %sabled\n", level, result->enable ? "en" : "dis");
-
 	return ret;
 }
 
