@@ -126,6 +126,7 @@ xen_swiotlb_fixup(void *buf, size_t size, unsigned long nslabs)
 {
 	int i, rc;
 	int dma_bits;
+	dma_addr_t dma_handle;
 
 	dma_bits = get_order(IO_TLB_SEGSIZE << IO_TLB_SHIFT) + PAGE_SHIFT;
 
@@ -137,7 +138,7 @@ xen_swiotlb_fixup(void *buf, size_t size, unsigned long nslabs)
 			rc = xen_create_contiguous_region(
 				(unsigned long)buf + (i << IO_TLB_SHIFT),
 				get_order(slabs << IO_TLB_SHIFT),
-				dma_bits);
+				dma_bits, &dma_handle);
 		} while (rc && dma_bits++ < max_dma_bits);
 		if (rc)
 			return rc;
@@ -294,11 +295,10 @@ xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 		*dma_handle = dev_addr;
 	else {
 		if (xen_create_contiguous_region(vstart, order,
-						 fls64(dma_mask)) != 0) {
+						 fls64(dma_mask), dma_handle) != 0) {
 			free_pages(vstart, order);
 			return NULL;
 		}
-		*dma_handle = virt_to_machine(ret).maddr;
 	}
 	memset(ret, 0, size);
 	return ret;

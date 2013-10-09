@@ -2329,7 +2329,8 @@ static int xen_exchange_memory(unsigned long extents_in, unsigned int order_in,
 }
 
 int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
-				 unsigned int address_bits)
+				 unsigned int address_bits,
+				 dma_addr_t *dma_handle)
 {
 	unsigned long *in_frames = discontig_frames, out_frame;
 	unsigned long  flags;
@@ -2368,6 +2369,7 @@ int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
 
 	spin_unlock_irqrestore(&xen_reservation_lock, flags);
 
+	*dma_handle = virt_to_machine(vstart).maddr;
 	return success ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(xen_create_contiguous_region);
