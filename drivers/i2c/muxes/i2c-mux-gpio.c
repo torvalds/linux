@@ -79,7 +79,7 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 	adapter = of_find_i2c_adapter_by_node(adapter_np);
 	if (!adapter) {
 		dev_err(&pdev->dev, "Cannot find parent bus\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 	mux->data.parent = i2c_adapter_id(adapter);
 	put_device(&adapter->dev);
@@ -181,7 +181,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	if (!parent) {
 		dev_err(&pdev->dev, "Parent adapter (%d) not found\n",
 			mux->data.parent);
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	mux->parent = parent;
