@@ -939,23 +939,7 @@ static struct spi_driver spinand_driver = {
 	.remove		= spinand_remove,
 };
 
-/*
- * Device driver registration
- */
-static int __init spinand_init(void)
-{
-	return spi_register_driver(&spinand_driver);
-}
-
-/*
- * unregister Device driver.
- */
-static void __exit spinand_exit(void)
-{
-	spi_unregister_driver(&spinand_driver);
-}
-module_init(spinand_init);
-module_exit(spinand_exit);
+module_spi_driver(spinand_driver);
 
 MODULE_DESCRIPTION("SPI NAND driver for Micron");
 MODULE_AUTHOR("Henry Pan <hspan@micron.com>, Kamlakant Patel <kamlakant.patel@broadcom.com>");
