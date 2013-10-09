@@ -387,8 +387,14 @@ static int pwm_backlight_resume(struct device *dev)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(pwm_backlight_pm_ops, pwm_backlight_suspend,
-			 pwm_backlight_resume);
+static const struct dev_pm_ops pwm_backlight_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend = pwm_backlight_suspend,
+	.resume = pwm_backlight_resume,
+	.poweroff = pwm_backlight_suspend,
+	.restore = pwm_backlight_resume,
+#endif
+};
 
 static struct platform_driver pwm_backlight_driver = {
 	.driver		= {
