@@ -93,6 +93,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --comm::
         Show process COMM right beside its ID, on by default, disable with --no-comm.
 
+--summary::
+	Show a summary of syscalls by thread with min, max, and average times (in
+    msec) and relative stddev.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script[1]
