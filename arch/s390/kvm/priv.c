@@ -638,7 +638,6 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t b9_handlers[256] = {
 	[0x8d] = handle_epsw,
-	[0x9c] = handle_io_inst,
 	[0xaf] = handle_pfmf,
 };
 
@@ -731,7 +730,6 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 static const intercept_handler_t eb_handlers[256] = {
 	[0x2f] = handle_lctlg,
-	[0x8a] = handle_io_inst,
 };
 
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)
