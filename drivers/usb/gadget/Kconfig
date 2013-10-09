@@ -668,6 +668,17 @@ config USB_CONFIGFS_PHONET
 	help
 	  The Phonet protocol implementation for USB device.
 
+config USB_CONFIGFS_MASS_STORAGE
+	boolean "Mass storage"
+	depends on USB_CONFIGFS
+	select USB_U_MS
+	select USB_F_MASS_STORAGE
+	help
+	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
+	  As its storage repository it can use a regular file or a block
+	  device (in much the same way as the "loop" device driver),
+	  specified as a module parameter or sysfs option.
+
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE

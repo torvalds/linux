@@ -220,6 +220,7 @@
 #include <linux/usb/composite.h>
 
 #include "gadget_chips.h"
+#include "configfs.h"
 
 
 /*------------------------------------------------------------------------*/
@@ -3295,6 +3296,342 @@ static int fsg_bind_config(struct usb_composite_dev *cdev,
 
 #else
 
+static inline struct fsg_lun_opts *to_fsg_lun_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct fsg_lun_opts, group);
+}
+
+static inline struct fsg_opts *to_fsg_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct fsg_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(fsg_lun_opts);
+CONFIGFS_ATTR_OPS(fsg_lun_opts);
+
+static void fsg_lun_attr_release(struct config_item *item)
+{
+	struct fsg_lun_opts *lun_opts;
+
+	lun_opts = to_fsg_lun_opts(item);
+	kfree(lun_opts);
+}
+
+static struct configfs_item_operations fsg_lun_item_ops = {
+	.release	= fsg_lun_attr_release,
+	.show_attribute = fsg_lun_opts_attr_show,
+	.store_attribute = fsg_lun_opts_attr_store,
+};
+
+static ssize_t fsg_lun_opts_file_show(struct fsg_lun_opts *opts, char *page)
+{
+	struct fsg_opts *fsg_opts;
+
+	fsg_opts = to_fsg_opts(opts->group.cg_item.ci_parent);
+
+	return fsg_show_file(opts->lun, &fsg_opts->common->filesem, page);
+}
+
+static ssize_t fsg_lun_opts_file_store(struct fsg_lun_opts *opts,
+				       const char *page, size_t len)
+{
+	struct fsg_opts *fsg_opts;
+
+	fsg_opts = to_fsg_opts(opts->group.cg_item.ci_parent);
+
+	return fsg_store_file(opts->lun, &fsg_opts->common->filesem, page, len);
+}
+
+static struct fsg_lun_opts_attribute fsg_lun_opts_file =
+	__CONFIGFS_ATTR(file, S_IRUGO | S_IWUSR, fsg_lun_opts_file_show,
+			fsg_lun_opts_file_store);
+
+static ssize_t fsg_lun_opts_ro_show(struct fsg_lun_opts *opts, char *page)
+{
+	return fsg_show_ro(opts->lun, page);
+}
+
+static ssize_t fsg_lun_opts_ro_store(struct fsg_lun_opts *opts,
+				       const char *page, size_t len)
+{
+	struct fsg_opts *fsg_opts;
+
+	fsg_opts = to_fsg_opts(opts->group.cg_item.ci_parent);
+
+	return fsg_store_ro(opts->lun, &fsg_opts->common->filesem, page, len);
+}
+
+static struct fsg_lun_opts_attribute fsg_lun_opts_ro =
+	__CONFIGFS_ATTR(ro, S_IRUGO | S_IWUSR, fsg_lun_opts_ro_show,
+			fsg_lun_opts_ro_store);
+
+static ssize_t fsg_lun_opts_removable_show(struct fsg_lun_opts *opts,
+					   char *page)
+{
+	return fsg_show_removable(opts->lun, page);
+}
+
+static ssize_t fsg_lun_opts_removable_store(struct fsg_lun_opts *opts,
+				       const char *page, size_t len)
+{
+	return fsg_store_removable(opts->lun, page, len);
+}
+
+static struct fsg_lun_opts_attribute fsg_lun_opts_removable =
+	__CONFIGFS_ATTR(removable, S_IRUGO | S_IWUSR,
+			fsg_lun_opts_removable_show,
+			fsg_lun_opts_removable_store);
+
+static ssize_t fsg_lun_opts_cdrom_show(struct fsg_lun_opts *opts, char *page)
+{
+	return fsg_show_cdrom(opts->lun, page);
+}
+
+static ssize_t fsg_lun_opts_cdrom_store(struct fsg_lun_opts *opts,
+				       const char *page, size_t len)
+{
+	return fsg_store_cdrom(opts->lun, page, len);
+}
+
+static struct fsg_lun_opts_attribute fsg_lun_opts_cdrom =
+	__CONFIGFS_ATTR(cdrom, S_IRUGO | S_IWUSR, fsg_lun_opts_cdrom_show,
+			fsg_lun_opts_cdrom_store);
+
+static ssize_t fsg_lun_opts_nofua_show(struct fsg_lun_opts *opts, char *page)
+{
+	return fsg_show_nofua(opts->lun, page);
+}
+
+static ssize_t fsg_lun_opts_nofua_store(struct fsg_lun_opts *opts,
+				       const char *page, size_t len)
+{
+	return fsg_store_nofua(opts->lun, page, len);
+}
+
+static struct fsg_lun_opts_attribute fsg_lun_opts_nofua =
+	__CONFIGFS_ATTR(nofua, S_IRUGO | S_IWUSR, fsg_lun_opts_nofua_show,
+			fsg_lun_opts_nofua_store);
+
+static struct configfs_attribute *fsg_lun_attrs[] = {
+	&fsg_lun_opts_file.attr,
+	&fsg_lun_opts_ro.attr,
+	&fsg_lun_opts_removable.attr,
+	&fsg_lun_opts_cdrom.attr,
+	&fsg_lun_opts_nofua.attr,
+	NULL,
+};
+
+static struct config_item_type fsg_lun_type = {
+	.ct_item_ops	= &fsg_lun_item_ops,
+	.ct_attrs	= fsg_lun_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+#define MAX_NAME_LEN	40
+
+static struct config_group *fsg_lun_make(struct config_group *group,
+					 const char *name)
+{
+	struct fsg_lun_opts *opts;
+	struct fsg_opts *fsg_opts;
+	struct fsg_lun_config config;
+	char *num_str;
+	u8 num;
+	int ret;
+
+	num_str = strchr(name, '.');
+	if (!num_str) {
+		pr_err("Unable to locate . in LUN.NUMBER\n");
+		return ERR_PTR(-EINVAL);
+	}
+	num_str++;
+
+	ret = kstrtou8(num_str, 0, &num);
+	if (ret)
+		return ERR_PTR(ret);
+
+	fsg_opts = to_fsg_opts(&group->cg_item);
+	if (num >= FSG_MAX_LUNS)
+		return ERR_PTR(-ENODEV);
+	mutex_lock(&fsg_opts->lock);
+	if (fsg_opts->refcnt || fsg_opts->common->luns[num]) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	memset(&config, 0, sizeof(config));
+	config.removable = true;
+
+
+	ret = fsg_common_create_lun(fsg_opts->common, &config, num, name,
+				    (const char **)&group->cg_item.ci_name);
+	if (ret) {
+		kfree(opts);
+		goto out;
+	}
+	opts->lun = fsg_opts->common->luns[num];
+	opts->lun_id = num;
+	mutex_unlock(&fsg_opts->lock);
+
+	config_group_init_type_name(&opts->group, name, &fsg_lun_type);
+
+	return &opts->group;
+out:
+	mutex_unlock(&fsg_opts->lock);
+	return ERR_PTR(ret);
+}
+
+static void fsg_lun_drop(struct config_group *group, struct config_item *item)
+{
+	struct fsg_lun_opts *lun_opts;
+	struct fsg_opts *fsg_opts;
+
+	lun_opts = to_fsg_lun_opts(item);
+	fsg_opts = to_fsg_opts(&group->cg_item);
+
+	mutex_lock(&fsg_opts->lock);
+	if (fsg_opts->refcnt) {
+		struct config_item *gadget;
+
+		gadget = group->cg_item.ci_parent->ci_parent;
+		unregister_gadget_item(gadget);
+	}
+
+	fsg_common_remove_lun(lun_opts->lun, fsg_opts->common->sysfs);
+	fsg_opts->common->luns[lun_opts->lun_id] = NULL;
+	lun_opts->lun_id = 0;
+	mutex_unlock(&fsg_opts->lock);
+
+	config_item_put(item);
+}
+
+CONFIGFS_ATTR_STRUCT(fsg_opts);
+CONFIGFS_ATTR_OPS(fsg_opts);
+
+static void fsg_attr_release(struct config_item *item)
+{
+	struct fsg_opts *opts = to_fsg_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations fsg_item_ops = {
+	.release	= fsg_attr_release,
+	.show_attribute = fsg_opts_attr_show,
+	.store_attribute = fsg_opts_attr_store,
+};
+
+static ssize_t fsg_opts_stall_show(struct fsg_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->common->can_stall);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t fsg_opts_stall_store(struct fsg_opts *opts, const char *page,
+				    size_t len)
+{
+	int ret;
+	u8 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	opts->common->can_stall = num != 0;
+	ret = len;
+
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct fsg_opts_attribute fsg_opts_stall =
+	__CONFIGFS_ATTR(stall, S_IRUGO | S_IWUSR, fsg_opts_stall_show,
+			fsg_opts_stall_store);
+
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+static ssize_t fsg_opts_num_buffers_show(struct fsg_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->common->fsg_num_buffers);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t fsg_opts_num_buffers_store(struct fsg_opts *opts,
+					  const char *page, size_t len)
+{
+	int ret;
+	u8 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	ret = fsg_num_buffers_validate(num);
+	if (ret)
+		goto end;
+
+	fsg_common_set_num_buffers(opts->common, num);
+	ret = len;
+
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct fsg_opts_attribute fsg_opts_num_buffers =
+	__CONFIGFS_ATTR(num_buffers, S_IRUGO | S_IWUSR,
+			fsg_opts_num_buffers_show,
+			fsg_opts_num_buffers_store);
+
+#endif
+
+static struct configfs_attribute *fsg_attrs[] = {
+	&fsg_opts_stall.attr,
+#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+	&fsg_opts_num_buffers.attr,
+#endif
+	NULL,
+};
+
+static struct configfs_group_operations fsg_group_ops = {
+	.make_group	= fsg_lun_make,
+	.drop_item	= fsg_lun_drop,
+};
+
+static struct config_item_type fsg_func_type = {
+	.ct_item_ops	= &fsg_item_ops,
+	.ct_group_ops	= &fsg_group_ops,
+	.ct_attrs	= fsg_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void fsg_free_inst(struct usb_function_instance *fi)
 {
 	struct fsg_opts *opts;
@@ -3307,11 +3644,13 @@ static void fsg_free_inst(struct usb_function_instance *fi)
 static struct usb_function_instance *fsg_alloc_inst(void)
 {
 	struct fsg_opts *opts;
+	struct fsg_lun_config config;
 	int rc;
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = fsg_free_inst;
 	opts->common = fsg_common_setup(opts->common, false);
 	if (IS_ERR(opts->common)) {
@@ -3329,6 +3668,18 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 
 	pr_info(FSG_DRIVER_DESC ", version: " FSG_DRIVER_VERSION "\n");
 
+	memset(&config, 0, sizeof(config));
+	config.removable = true;
+	rc = fsg_common_create_lun(opts->common, &config, 0, "lun.0",
+			(const char **)&opts->func_inst.group.cg_item.ci_name);
+	opts->lun0.lun = opts->common->luns[0];
+	opts->lun0.lun_id = 0;
+	config_group_init_type_name(&opts->lun0.group, "lun.0", &fsg_lun_type);
+	opts->default_groups[0] = &opts->lun0.group;
+	opts->func_inst.group.default_groups = opts->default_groups;
+
+	config_group_init_type_name(&opts->func_inst.group, "", &fsg_func_type);
+
 	return &opts->func_inst;
 
 release_luns:
@@ -3341,8 +3692,14 @@ release_opts:
 static void fsg_free(struct usb_function *f)
 {
 	struct fsg_dev *fsg;
+	struct fsg_opts *opts;
 
 	fsg = container_of(f, struct fsg_dev, function);
+	opts = container_of(f->fi, struct fsg_opts, func_inst);
+
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
 
 	kfree(fsg);
 }
@@ -3357,6 +3714,9 @@ static struct usb_function *fsg_alloc(struct usb_function_instance *fi)
 	if (unlikely(!fsg))
 		return ERR_PTR(-ENOMEM);
 
+	mutex_lock(&opts->lock);
+	opts->refcnt++;
+	mutex_unlock(&opts->lock);
 	fsg->function.name	= FSG_DRIVER_DESC;
 	fsg->function.bind	= fsg_bind;
 	fsg->function.unbind	= fsg_unbind;

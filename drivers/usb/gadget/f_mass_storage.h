@@ -71,10 +71,27 @@ struct fsg_operations {
 	int (*thread_exits)(struct fsg_common *common);
 };
 
+struct fsg_lun_opts {
+	struct config_group group;
+	struct fsg_lun *lun;
+	int lun_id;
+};
+
 struct fsg_opts {
 	struct fsg_common *common;
 	struct usb_function_instance func_inst;
+	struct fsg_lun_opts lun0;
+	struct config_group *default_groups[2];
 	bool no_configfs; /* for legacy gadgets */
+
+	/*
+	 * Read/write access to configfs attributes is handled by configfs.
+	 *
+	 * This is to protect the data from concurrent access by read/write
+	 * and create symlink/remove symlink.
+	 */
+	struct mutex			lock;
+	int				refcnt;
 };
 
 struct fsg_lun_config {
