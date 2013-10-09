@@ -77,7 +77,7 @@ static const int nvm_to_read[] = {
 
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
-#define IWL_MAX_NVM_SECTION_SIZE 6000
+#define IWL_MAX_NVM_SECTION_SIZE 7000
 
 #define NVM_WRITE_OPCODE 1
 #define NVM_READ_OPCODE 0
