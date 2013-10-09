@@ -433,3 +433,7 @@
 &aes {
 	status = "okay";
 };
+
+&gpio0 {
+	ti,no-reset-on-init;
+};
