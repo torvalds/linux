@@ -11,6 +11,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef _PCIE_DESIGNWARE_H
+#define _PCIE_DESIGNWARE_H
+
 struct pcie_port_info {
 	u32		cfg0_size;
 	u32		cfg1_size;
@@ -77,3 +80,5 @@ int dw_pcie_host_init(struct pcie_port *pp);
 int dw_pcie_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys);
 int dw_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+
+#endif /* _PCIE_DESIGNWARE_H */
