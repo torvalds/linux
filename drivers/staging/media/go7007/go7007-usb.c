@@ -36,8 +36,8 @@
 
 static unsigned int assume_endura;
 module_param(assume_endura, int, 0644);
-MODULE_PARM_DESC(assume_endura, "when probing fails, "
-				"hardware is a Pelco Endura");
+MODULE_PARM_DESC(assume_endura,
+			"when probing fails, hardware is a Pelco Endura");
 
 /* #define GO7007_I2C_DEBUG */ /* for debugging the EZ-USB I2C adapter */
 
@@ -979,9 +979,8 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 				!(msgs[i].flags & I2C_M_RD) &&
 				(msgs[i + 1].flags & I2C_M_RD)) {
 #ifdef GO7007_I2C_DEBUG
-			pr_debug("i2c write/read %d/%d "
-					"bytes on %02x\n", msgs[i].len,
-					msgs[i + 1].len, msgs[i].addr);
+			pr_debug("i2c write/read %d/%d bytes on %02x\n",
+				msgs[i].len, msgs[i + 1].len, msgs[i].addr);
 #endif
 			buf[0] = 0x01;
 			buf[1] = msgs[i].len + 1;
@@ -991,9 +990,8 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 			buf[buf_len++] = msgs[++i].len;
 		} else if (msgs[i].flags & I2C_M_RD) {
 #ifdef GO7007_I2C_DEBUG
-			pr_debug("i2c read %d "
-					"bytes on %02x\n", msgs[i].len,
-					msgs[i].addr);
+			pr_debug("i2c read %d bytes on %02x\n",
+					msgs[i].len, msgs[i].addr);
 #endif
 			buf[0] = 0x01;
 			buf[1] = 1;
@@ -1002,9 +1000,8 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 			buf_len = 4;
 		} else {
 #ifdef GO7007_I2C_DEBUG
-			pr_debug("i2c write %d "
-					"bytes on %02x\n", msgs[i].len,
-					msgs[i].addr);
+			pr_debug("i2c write %d bytes on %02x\n",
+					msgs[i].len, msgs[i].addr);
 #endif
 			buf[0] = 0x00;
 			buf[1] = msgs[i].len + 1;
@@ -1102,8 +1099,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_px_tv402u;
 		break;
 	case GO7007_BOARDID_LIFEVIEW_LR192:
-		pr_err("The Lifeview TV Walker Ultra "
-				"is not supported.  Sorry!\n");
+		pr_err("The Lifeview TV Walker Ultra is not supported. Sorry!\n");
 		return -ENODEV;
 		name = "Lifeview TV Walker Ultra";
 		board = &board_lifeview_lr192;
@@ -1253,8 +1249,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 					sizeof(go->name));
 			break;
 		default:
-			pr_debug("unable to detect "
-						"tuner type!\n");
+			pr_debug("unable to detect tuner type!\n");
 			break;
 		}
 		/* Configure tuner mode selection inputs connected
@@ -1270,11 +1265,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	 * a USB1.1 port.  There will be silent corruption of the stream. */
 	if ((board->flags & GO7007_USB_EZUSB) &&
 			usbdev->speed != USB_SPEED_HIGH)
-		pr_err("*** WARNING ***  This device "
-				"must be connected to a USB 2.0 port!  "
-				"Attempting to capture video through a USB 1.1 "
-				"port will result in stream corruption, even "
-				"at low bitrates!\n");
+		pr_err("*** WARNING ***  This device must be connected to a USB 2.0 port! Attempting to capture video through a USB 1.1 port will result in stream corruption, even at low bitrates!\n");
 
 	/* Allocate the URBs and buffers for receiving the video stream */
 	if (board->flags & GO7007_USB_EZUSB) {
