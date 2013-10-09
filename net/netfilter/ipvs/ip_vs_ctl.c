@@ -704,7 +704,7 @@ static void ip_vs_dest_free(struct ip_vs_dest *dest)
 	__ip_vs_dst_cache_reset(dest);
 	__ip_vs_svc_put(svc, false);
 	free_percpu(dest->stats.cpustats);
-	kfree(dest);
+	ip_vs_dest_put_and_free(dest);
 }
 
 /*
@@ -3820,10 +3820,6 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	/* Some dest can be in grace period even before cleanup, we have to
-	 * defer ip_vs_trash_cleanup until ip_vs_dest_wait_readers is called.
-	 */
-	rcu_barrier();
 	ip_vs_trash_cleanup(net);
 	ip_vs_stop_estimator(net, &ipvs->tot_stats);
 	ip_vs_control_net_cleanup_sysctl(net);

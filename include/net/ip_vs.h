@@ -1442,6 +1442,12 @@ static inline void ip_vs_dest_put(struct ip_vs_dest *dest)
 	atomic_dec(&dest->refcnt);
 }
 
+static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
+{
+	if (atomic_dec_return(&dest->refcnt) < 0)
+		kfree(dest);
+}
+
 /*
  *      IPVS sync daemon data and function prototypes
  *      (from ip_vs_sync.c)

@@ -136,7 +136,7 @@ static void ip_vs_lblc_rcu_free(struct rcu_head *head)
 						   struct ip_vs_lblc_entry,
 						   rcu_head);
 
-	ip_vs_dest_put(en->dest);
+	ip_vs_dest_put_and_free(en->dest);
 	kfree(en);
 }
 
