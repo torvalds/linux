@@ -457,7 +457,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out_rel_clk;
 
 	master->dev.of_node = pdev->dev.of_node;
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
 		goto out_rel_clk;
 
@@ -482,8 +482,6 @@ static int orion_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(spi->clk);
 	clk_put(spi->clk);
-
-	spi_unregister_master(master);
 
 	return 0;
 }

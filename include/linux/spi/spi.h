@@ -434,6 +434,8 @@ extern struct spi_master *
 spi_alloc_master(struct device *host, unsigned size);
 
 extern int spi_register_master(struct spi_master *master);
+extern int devm_spi_register_master(struct device *dev,
+				    struct spi_master *master);
 extern void spi_unregister_master(struct spi_master *master);
 
 extern struct spi_master *spi_busnum_to_master(u16 busnum);

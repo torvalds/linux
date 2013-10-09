@@ -303,7 +303,7 @@ static int hspi_probe(struct platform_device *pdev)
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
 	master->auto_runtime_pm = true;
 	master->transfer_one_message		= hspi_transfer_one_message;
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
 		goto error1;
@@ -328,7 +328,6 @@ static int hspi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_put(hspi->clk);
-	spi_unregister_master(hspi->master);
 
 	return 0;
 }
