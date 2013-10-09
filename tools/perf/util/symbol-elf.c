@@ -1018,6 +1018,235 @@ int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
 	return err;
 }
 
+static int copy_bytes(int from, off_t from_offs, int to, off_t to_offs, u64 len)
+{
+	ssize_t r;
+	size_t n;
+	int err = -1;
+	char *buf = malloc(page_size);
+
+	if (buf == NULL)
+		return -1;
+
+	if (lseek(to, to_offs, SEEK_SET) != to_offs)
+		goto out;
+
+	if (lseek(from, from_offs, SEEK_SET) != from_offs)
+		goto out;
+
+	while (len) {
+		n = page_size;
+		if (len < n)
+			n = len;
+		/* Use read because mmap won't work on proc files */
+		r = read(from, buf, n);
+		if (r < 0)
+			goto out;
+		if (!r)
+			break;
+		n = r;
+		r = write(to, buf, n);
+		if (r < 0)
+			goto out;
+		if ((size_t)r != n)
+			goto out;
+		len -= n;
+	}
+
+	err = 0;
+out:
+	free(buf);
+	return err;
+}
+
+struct kcore {
+	int fd;
+	int elfclass;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+};
+
+static int kcore__open(struct kcore *kcore, const char *filename)
+{
+	GElf_Ehdr *ehdr;
+
+	kcore->fd = open(filename, O_RDONLY);
+	if (kcore->fd == -1)
+		return -1;
+
+	kcore->elf = elf_begin(kcore->fd, ELF_C_READ, NULL);
+	if (!kcore->elf)
+		goto out_close;
+
+	kcore->elfclass = gelf_getclass(kcore->elf);
+	if (kcore->elfclass == ELFCLASSNONE)
+		goto out_end;
+
+	ehdr = gelf_getehdr(kcore->elf, &kcore->ehdr);
+	if (!ehdr)
+		goto out_end;
+
+	return 0;
+
+out_end:
+	elf_end(kcore->elf);
+out_close:
+	close(kcore->fd);
+	return -1;
+}
+
+static int kcore__init(struct kcore *kcore, char *filename, int elfclass,
+		       bool temp)
+{
+	GElf_Ehdr *ehdr;
+
+	kcore->elfclass = elfclass;
+
+	if (temp)
+		kcore->fd = mkstemp(filename);
+	else
+		kcore->fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0400);
+	if (kcore->fd == -1)
+		return -1;
+
+	kcore->elf = elf_begin(kcore->fd, ELF_C_WRITE, NULL);
+	if (!kcore->elf)
+		goto out_close;
+
+	if (!gelf_newehdr(kcore->elf, elfclass))
+		goto out_end;
+
+	ehdr = gelf_getehdr(kcore->elf, &kcore->ehdr);
+	if (!ehdr)
+		goto out_end;
+
+	return 0;
+
+out_end:
+	elf_end(kcore->elf);
+out_close:
+	close(kcore->fd);
+	unlink(filename);
+	return -1;
+}
+
+static void kcore__close(struct kcore *kcore)
+{
+	elf_end(kcore->elf);
+	close(kcore->fd);
+}
+
+static int kcore__copy_hdr(struct kcore *from, struct kcore *to, size_t count)
+{
+	GElf_Ehdr *ehdr = &to->ehdr;
+	GElf_Ehdr *kehdr = &from->ehdr;
+
+	memcpy(ehdr->e_ident, kehdr->e_ident, EI_NIDENT);
+	ehdr->e_type      = kehdr->e_type;
+	ehdr->e_machine   = kehdr->e_machine;
+	ehdr->e_version   = kehdr->e_version;
+	ehdr->e_entry     = 0;
+	ehdr->e_shoff     = 0;
+	ehdr->e_flags     = kehdr->e_flags;
+	ehdr->e_phnum     = count;
+	ehdr->e_shentsize = 0;
+	ehdr->e_shnum     = 0;
+	ehdr->e_shstrndx  = 0;
+
+	if (from->elfclass == ELFCLASS32) {
+		ehdr->e_phoff     = sizeof(Elf32_Ehdr);
+		ehdr->e_ehsize    = sizeof(Elf32_Ehdr);
+		ehdr->e_phentsize = sizeof(Elf32_Phdr);
+	} else {
+		ehdr->e_phoff     = sizeof(Elf64_Ehdr);
+		ehdr->e_ehsize    = sizeof(Elf64_Ehdr);
+		ehdr->e_phentsize = sizeof(Elf64_Phdr);
+	}
+
+	if (!gelf_update_ehdr(to->elf, ehdr))
+		return -1;
+
+	if (!gelf_newphdr(to->elf, count))
+		return -1;
+
+	return 0;
+}
+
+static int kcore__add_phdr(struct kcore *kcore, int idx, off_t offset,
+			   u64 addr, u64 len)
+{
+	GElf_Phdr gphdr;
+	GElf_Phdr *phdr;
+
+	phdr = gelf_getphdr(kcore->elf, idx, &gphdr);
+	if (!phdr)
+		return -1;
+
+	phdr->p_type	= PT_LOAD;
+	phdr->p_flags	= PF_R | PF_W | PF_X;
+	phdr->p_offset	= offset;
+	phdr->p_vaddr	= addr;
+	phdr->p_paddr	= 0;
+	phdr->p_filesz	= len;
+	phdr->p_memsz	= len;
+	phdr->p_align	= page_size;
+
+	if (!gelf_update_phdr(kcore->elf, idx, phdr))
+		return -1;
+
+	return 0;
+}
+
+static off_t kcore__write(struct kcore *kcore)
+{
+	return elf_update(kcore->elf, ELF_C_WRITE);
+}
+
+int kcore_extract__create(struct kcore_extract *kce)
+{
+	struct kcore kcore;
+	struct kcore extract;
+	size_t count = 1;
+	int idx = 0, err = -1;
+	off_t offset = page_size, sz;
+
+	if (kcore__open(&kcore, kce->kcore_filename))
+		return -1;
+
+	strcpy(kce->extract_filename, PERF_KCORE_EXTRACT);
+	if (kcore__init(&extract, kce->extract_filename, kcore.elfclass, true))
+		goto out_kcore_close;
+
+	if (kcore__copy_hdr(&kcore, &extract, count))
+		goto out_extract_close;
+
+	if (kcore__add_phdr(&extract, idx, offset, kce->addr, kce->len))
+		goto out_extract_close;
+
+	sz = kcore__write(&extract);
+	if (sz < 0 || sz > offset)
+		goto out_extract_close;
+
+	if (copy_bytes(kcore.fd, kce->offs, extract.fd, offset, kce->len))
+		goto out_extract_close;
+
+	err = 0;
+
+out_extract_close:
+	kcore__close(&extract);
+	if (err)
+		unlink(kce->extract_filename);
+out_kcore_close:
+	kcore__close(&kcore);
+
+	return err;
+}
+
+void kcore_extract__delete(struct kcore_extract *kce)
+{
+	unlink(kce->extract_filename);
+}
+
 void symbol__elf_init(void)
 {
 	elf_version(EV_CURRENT);

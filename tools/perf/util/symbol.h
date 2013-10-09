@@ -256,4 +256,18 @@ typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);
 int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
 		    bool *is_64_bit);
 
+#define PERF_KCORE_EXTRACT "/tmp/perf-kcore-XXXXXX"
+
+struct kcore_extract {
+	char *kcore_filename;
+	u64 addr;
+	u64 offs;
+	u64 len;
+	char extract_filename[sizeof(PERF_KCORE_EXTRACT)];
+	int fd;
+};
+
+int kcore_extract__create(struct kcore_extract *kce);
+void kcore_extract__delete(struct kcore_extract *kce);
+
 #endif /* __PERF_SYMBOL */

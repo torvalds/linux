@@ -879,6 +879,8 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	FILE *file;
 	int err = 0;
 	char symfs_filename[PATH_MAX];
+	struct kcore_extract kce;
+	bool delete_extract = false;
 
 	if (filename) {
 		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
@@ -940,6 +942,23 @@ fallback:
 	pr_debug("annotating [%p] %30s : [%p] %30s\n",
 		 dso, dso->long_name, sym, sym->name);
 
+	if (dso__is_kcore(dso)) {
+		kce.kcore_filename = symfs_filename;
+		kce.addr = map__rip_2objdump(map, sym->start);
+		kce.offs = sym->start;
+		kce.len = sym->end + 1 - sym->start;
+		if (!kcore_extract__create(&kce)) {
+			delete_extract = true;
+			strlcpy(symfs_filename, kce.extract_filename,
+				sizeof(symfs_filename));
+			if (free_filename) {
+				free(filename);
+				free_filename = false;
+			}
+			filename = symfs_filename;
+		}
+	}
+
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
@@ -972,6 +991,8 @@ fallback:
 
 	pclose(file);
 out_free_filename:
+	if (delete_extract)
+		kcore_extract__delete(&kce);
 	if (free_filename)
 		free(filename);
 	return err;
