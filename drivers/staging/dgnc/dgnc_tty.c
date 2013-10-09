@@ -520,7 +520,7 @@ void dgnc_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int
 		/*
 		 *  Loop while data remains.
 		 */
-		while (nbuf > 0 && ch->ch_sniff_buf != 0) {
+		while (nbuf > 0 && ch->ch_sniff_buf) {
 			/*
 			 *  Determine the amount of available space left in the
 			 *  buffer.  If there's none, wait until some appears.
