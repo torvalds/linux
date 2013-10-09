@@ -129,7 +129,7 @@ int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
  *
  * Return: Zero on success or if busy, otherwise a negative errno value.
  */
-static int usb_serial_generic_write_start(struct usb_serial_port *port,
+int usb_serial_generic_write_start(struct usb_serial_port *port,
 							gfp_t mem_flags)
 {
 	struct urb *urb;
@@ -184,6 +184,7 @@ retry:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_write_start);
 
 /**
  * usb_serial_generic_write - generic write function
