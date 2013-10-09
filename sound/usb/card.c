@@ -751,15 +751,4 @@ static struct usb_driver usb_audio_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init snd_usb_audio_init(void)
-{
-	return usb_register(&usb_audio_driver);
-}
-
-static void __exit snd_usb_audio_cleanup(void)
-{
-	usb_deregister(&usb_audio_driver);
-}
-
-module_init(snd_usb_audio_init);
-module_exit(snd_usb_audio_cleanup);
+module_usb_driver(usb_audio_driver);
