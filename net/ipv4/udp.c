@@ -1847,7 +1847,7 @@ begin:
 		if (count != 1 ||
 		    unlikely(!atomic_inc_not_zero_hint(&result->sk_refcnt, 2)))
 			result = NULL;
-		else if (unlikely(!__udp_is_mcast_sock(net, sk,
+		else if (unlikely(!__udp_is_mcast_sock(net, result,
 						       loc_port, loc_addr,
 						       rmt_port, rmt_addr,
 						       dif, hnum))) {
