@@ -41,7 +41,8 @@ enum calibration_mode {
 
 enum soc_type {
 	SOC_ARCH_EXYNOS4210 = 1,
-	SOC_ARCH_EXYNOS,
+	SOC_ARCH_EXYNOS4412,
+	SOC_ARCH_EXYNOS5250,
 	SOC_ARCH_EXYNOS5440,
 };
 

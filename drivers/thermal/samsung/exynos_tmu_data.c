@@ -90,8 +90,8 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 };
 #endif
 
-#if defined(CONFIG_SOC_EXYNOS5250) || defined(CONFIG_SOC_EXYNOS4412)
-static const struct exynos_tmu_registers exynos5250_tmu_registers = {
+#if defined(CONFIG_SOC_EXYNOS4412) || defined(CONFIG_SOC_EXYNOS5250)
+static const struct exynos_tmu_registers exynos4412_tmu_registers = {
 	.triminfo_data = EXYNOS_TMU_REG_TRIMINFO,
 	.triminfo_25_shift = EXYNOS_TRIMINFO_25_SHIFT,
 	.triminfo_85_shift = EXYNOS_TRIMINFO_85_SHIFT,
@@ -128,7 +128,7 @@ static const struct exynos_tmu_registers exynos5250_tmu_registers = {
 	.emul_time_mask = EXYNOS_EMUL_TIME_MASK,
 };
 
-#define EXYNOS5250_TMU_DATA \
+#define EXYNOS4412_TMU_DATA \
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 85, \
 	.trigger_levels[1] = 103, \
@@ -162,15 +162,31 @@ static const struct exynos_tmu_registers exynos5250_tmu_registers = {
 		.temp_level = 103, \
 	}, \
 	.freq_tab_count = 2, \
-	.type = SOC_ARCH_EXYNOS, \
-	.registers = &exynos5250_tmu_registers, \
+	.registers = &exynos4412_tmu_registers, \
 	.features = (TMU_SUPPORT_EMULATION | TMU_SUPPORT_TRIM_RELOAD | \
 			TMU_SUPPORT_FALLING_TRIP | TMU_SUPPORT_READY_STATUS | \
 			TMU_SUPPORT_EMUL_TIME)
+#endif
 
+#if defined(CONFIG_SOC_EXYNOS4412)
+struct exynos_tmu_init_data const exynos4412_default_tmu_data = {
+	.tmu_data = {
+		{
+			EXYNOS4412_TMU_DATA,
+			.type = SOC_ARCH_EXYNOS4412,
+		},
+	},
+	.tmu_count = 1,
+};
+#endif
+
+#if defined(CONFIG_SOC_EXYNOS5250)
 struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 	.tmu_data = {
-		{ EXYNOS5250_TMU_DATA },
+		{
+			EXYNOS4412_TMU_DATA,
+			.type = SOC_ARCH_EXYNOS5250,
+		},
 	},
 	.tmu_count = 1,
 };
