@@ -798,6 +798,178 @@ bool symbol__restricted_filename(const char *filename,
 	return restricted;
 }
 
+struct module_info {
+	struct rb_node rb_node;
+	char *name;
+	u64 start;
+};
+
+static void add_module(struct module_info *mi, struct rb_root *modules)
+{
+	struct rb_node **p = &modules->rb_node;
+	struct rb_node *parent = NULL;
+	struct module_info *m;
+
+	while (*p != NULL) {
+		parent = *p;
+		m = rb_entry(parent, struct module_info, rb_node);
+		if (strcmp(mi->name, m->name) < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&mi->rb_node, parent, p);
+	rb_insert_color(&mi->rb_node, modules);
+}
+
+static void delete_modules(struct rb_root *modules)
+{
+	struct module_info *mi;
+	struct rb_node *next = rb_first(modules);
+
+	while (next) {
+		mi = rb_entry(next, struct module_info, rb_node);
+		next = rb_next(&mi->rb_node);
+		rb_erase(&mi->rb_node, modules);
+		free(mi->name);
+		free(mi);
+	}
+}
+
+static struct module_info *find_module(const char *name,
+				       struct rb_root *modules)
+{
+	struct rb_node *n = modules->rb_node;
+
+	while (n) {
+		struct module_info *m;
+		int cmp;
+
+		m = rb_entry(n, struct module_info, rb_node);
+		cmp = strcmp(name, m->name);
+		if (cmp < 0)
+			n = n->rb_left;
+		else if (cmp > 0)
+			n = n->rb_right;
+		else
+			return m;
+	}
+
+	return NULL;
+}
+
+static int __read_proc_modules(void *arg, const char *name, u64 start)
+{
+	struct rb_root *modules = arg;
+	struct module_info *mi;
+
+	mi = zalloc(sizeof(struct module_info));
+	if (!mi)
+		return -ENOMEM;
+
+	mi->name = strdup(name);
+	mi->start = start;
+
+	if (!mi->name) {
+		free(mi);
+		return -ENOMEM;
+	}
+
+	add_module(mi, modules);
+
+	return 0;
+}
+
+static int read_proc_modules(const char *filename, struct rb_root *modules)
+{
+	if (symbol__restricted_filename(filename, "/proc/modules"))
+		return -1;
+
+	if (modules__parse(filename, modules, __read_proc_modules)) {
+		delete_modules(modules);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int do_validate_kcore_modules(const char *filename, struct map *map,
+				  struct map_groups *kmaps)
+{
+	struct rb_root modules = RB_ROOT;
+	struct map *old_map;
+	int err;
+
+	err = read_proc_modules(filename, &modules);
+	if (err)
+		return err;
+
+	old_map = map_groups__first(kmaps, map->type);
+	while (old_map) {
+		struct map *next = map_groups__next(old_map);
+		struct module_info *mi;
+
+		if (old_map == map || old_map->start == map->start) {
+			/* The kernel map */
+			old_map = next;
+			continue;
+		}
+
+		/* Module must be in memory at the same address */
+		mi = find_module(old_map->dso->short_name, &modules);
+		if (!mi || mi->start != old_map->start) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		old_map = next;
+	}
+out:
+	delete_modules(&modules);
+	return err;
+}
+
+/*
+ * If kallsyms is referenced by name then we look for filename in the same
+ * directory.
+ */
+static bool filename_from_kallsyms_filename(char *filename,
+					    const char *base_name,
+					    const char *kallsyms_filename)
+{
+	char *name;
+
+	strcpy(filename, kallsyms_filename);
+	name = strrchr(filename, '/');
+	if (!name)
+		return false;
+
+	name += 1;
+
+	if (!strcmp(name, "kallsyms")) {
+		strcpy(name, base_name);
+		return true;
+	}
+
+	return false;
+}
+
+static int validate_kcore_modules(const char *kallsyms_filename,
+				  struct map *map)
+{
+	struct map_groups *kmaps = map__kmap(map)->kmaps;
+	char modules_filename[PATH_MAX];
+
+	if (!filename_from_kallsyms_filename(modules_filename, "modules",
+					     kallsyms_filename))
+		return -EINVAL;
+
+	if (do_validate_kcore_modules(modules_filename, map, kmaps))
+		return -EINVAL;
+
+	return 0;
+}
+
 struct kcore_mapfn_data {
 	struct dso *dso;
 	enum map_type type;
@@ -821,28 +993,6 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 	return 0;
 }
 
-/*
- * If kallsyms is referenced by name then we look for kcore in the same
- * directory.
- */
-static bool kcore_filename_from_kallsyms_filename(char *kcore_filename,
-						  const char *kallsyms_filename)
-{
-	char *name;
-
-	strcpy(kcore_filename, kallsyms_filename);
-	name = strrchr(kcore_filename, '/');
-	if (!name)
-		return false;
-
-	if (!strcmp(name, "/kallsyms")) {
-		strcpy(name, "/kcore");
-		return true;
-	}
-
-	return false;
-}
-
 static int dso__load_kcore(struct dso *dso, struct map *map,
 			   const char *kallsyms_filename)
 {
@@ -859,8 +1009,12 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	if (map != machine->vmlinux_maps[map->type])
 		return -EINVAL;
 
-	if (!kcore_filename_from_kallsyms_filename(kcore_filename,
-						   kallsyms_filename))
+	if (!filename_from_kallsyms_filename(kcore_filename, "kcore",
+					     kallsyms_filename))
+		return -EINVAL;
+
+	/* All modules must be present at their original addresses */
+	if (validate_kcore_modules(kallsyms_filename, map))
 		return -EINVAL;
 
 	md.dso = dso;
