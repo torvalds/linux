@@ -17,7 +17,6 @@
 	};
 
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 
@@ -98,36 +97,6 @@
 			status = "okay";
 		};
 
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x180000>;
-				read-only;
-			};
-
-			partition@180000 {
-				label = "u-boot-env";
-				reg = <0x180000 0x20000>;
-			};
-
-			partition@200000 {
-				label = "uImage";
-				reg = <0x0200000 0x600000>;
-			};
-
-			partition@800000 {
-				label = "minirootfs";
-				reg = <0x0800000 0x1000000>;
-			};
-
-			partition@1800000 {
-				label = "jffs2";
-				reg = <0x1800000 0x6800000>;
-			};
-		};
-
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
@@ -206,6 +175,36 @@
                         gpio = <&gpio1 14 0>;
                 };
         };
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x180000>;
+		read-only;
+	};
+
+	partition@180000 {
+		label = "u-boot-env";
+		reg = <0x180000 0x20000>;
+	};
+
+	partition@200000 {
+		label = "uImage";
+		reg = <0x0200000 0x600000>;
+	};
+
+	partition@800000 {
+		label = "minirootfs";
+		reg = <0x0800000 0x1000000>;
+	};
+
+	partition@1800000 {
+		label = "jffs2";
+		reg = <0x1800000 0x6800000>;
+	};
 };
 
 &mdio {

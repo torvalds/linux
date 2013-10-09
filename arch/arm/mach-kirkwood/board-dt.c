@@ -92,7 +92,6 @@ static void __init kirkwood_dt_init(void)
 	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
 	BUG_ON(mvebu_mbus_dt_init());
-	kirkwood_setup_wins();
 
 	kirkwood_l2_init();
 

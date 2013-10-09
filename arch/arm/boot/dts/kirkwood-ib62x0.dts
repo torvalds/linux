@@ -5,7 +5,7 @@
 
 / {
 	model = "RaidSonic ICY BOX IB-NAS62x0 (Rev B)";
-	compatible = "raidsonic,ib-nas6210-b", "raidsonic,ib-nas6220-b", "raidsonic,ib-nas6210", "raidsonic,ib-nas6220", "raidsonic,ib-nas62x0",  "marvell,kirkwood-88f6281", "marvell,kirkwood";
+	compatible = "raidsonic,ib-nas6210-b", "raidsonic,ib-nas6220-b", "raidsonic,ib-nas6210", "raidsonic,ib-nas6220", "raidsonic,ib-nas62x0", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";
@@ -43,6 +43,7 @@
 				marvell,function = "gpio";
 			};
 		};
+
 		serial@12000 {
 			status = "okay";
 		};
@@ -50,28 +51,6 @@
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
-		};
-
-		nand@3000000 {
-			status = "okay";
-			pinctrl-0 = <&pmx_nand>;
-			pinctrl-names = "default";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x0100000 0x600000>;
-			};
-
-			partition@700000 {
-				label = "root";
-				reg = <0x0700000 0xf900000>;
-			};
-
 		};
 	};
 
@@ -93,6 +72,7 @@
 			gpios = <&gpio0 28 1>;
 		};
 	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-0 = <&pmx_led_os_red &pmx_led_os_green
@@ -113,13 +93,39 @@
 			gpios = <&gpio0 27 0>;
 		};
 	};
+
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
 		pinctrl-0 = <&pmx_power_off>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 24 0>;
 	};
+};
 
+&nand {
+	status = "okay";
+	pinctrl-0 = <&pmx_nand>;
+	pinctrl-names = "default";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0xe0000>;
+	};
+
+	partition@e0000 {
+		label = "u-boot environment";
+		reg = <0xe0000 0x100000>;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x600000>;
+	};
+
+	partition@700000 {
+		label = "root";
+		reg = <0x0700000 0xf900000>;
+	};
 
 };
 
@@ -134,6 +140,7 @@
 
 &eth0 {
 	status = "okay";
+
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
