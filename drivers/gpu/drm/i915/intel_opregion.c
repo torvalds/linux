@@ -258,7 +258,9 @@ static int swsci(struct drm_device *dev, u32 function, u32 parm, u32 *parm_out)
 	/* Driver sleep timeout in ms. */
 	dslp = ioread32(&swsci->dslp);
 	if (!dslp) {
-		dslp = 2;
+		/* The spec says 2ms should be the default, but it's too small
+		 * for some machines. */
+		dslp = 50;
 	} else if (dslp > 500) {
 		/* Hey bios, trust must be earned. */
 		WARN_ONCE(1, "excessive driver sleep timeout (DSPL) %u\n", dslp);
