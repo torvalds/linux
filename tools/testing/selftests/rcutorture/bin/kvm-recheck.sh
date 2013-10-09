@@ -4,7 +4,7 @@
 # check the build and console output for errors.  Given a directory
 # containing results directories, this recursively checks them all.
 #
-# Usage: sh kvm-recheck.sh configdir resdir ...
+# Usage: sh kvm-recheck.sh resdir ...
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
-configdir=${1}
-shift
 for rd in "$@"
 do
 	dirs=`find $rd -name Make.defconfig.out -print | sort | sed -e 's,/[^/]*$,,' | sort -u`
@@ -34,7 +32,7 @@ do
 	do
 		configfile=`echo $i | sed -e 's/^.*\///'`
 		echo $i
-		configcheck.sh $i/.config $configdir/$configfile
+		configcheck.sh $i/.config $i/ConfigFragment
 		parse-build.sh $i/Make.out $configfile
 		parse-rcutorture.sh $i/console.log $configfile
 		parse-console.sh $i/console.log $configfile
