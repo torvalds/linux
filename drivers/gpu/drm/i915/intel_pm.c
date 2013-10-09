@@ -2584,29 +2584,19 @@ static void intel_setup_wm_latency(struct drm_device *dev)
 	intel_print_wm_latency(dev, "Cursor", dev_priv->wm.cur_latency);
 }
 
-static void hsw_compute_wm_parameters(struct drm_device *dev,
-				      struct hsw_pipe_wm_parameters *params,
+static void hsw_compute_wm_parameters(struct drm_crtc *crtc,
+				      struct hsw_pipe_wm_parameters *p,
 				      struct hsw_wm_maximums *lp_max_1_2,
 				      struct hsw_wm_maximums *lp_max_5_6)
 {
-	struct drm_crtc *crtc;
-	struct drm_plane *plane;
-	enum pipe pipe;
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	struct intel_wm_config config = {};
+	struct drm_plane *plane;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		struct hsw_pipe_wm_parameters *p;
-
-		pipe = intel_crtc->pipe;
-		p = &params[pipe];
-
-		p->active = intel_crtc_active(crtc);
-		if (!p->active)
-			continue;
-
-		config.num_pipes_active++;
-
+	p->active = intel_crtc_active(crtc);
+	if (p->active) {
 		p->pipe_htotal = intel_crtc->config.adjusted_mode.htotal;
 		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
 		p->pri.bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
@@ -2618,17 +2608,17 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		p->cur.enabled = true;
 	}
 
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		config.num_pipes_active += intel_crtc_active(crtc);
+
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
-		struct hsw_pipe_wm_parameters *p;
 
-		pipe = intel_plane->pipe;
-		p = &params[pipe];
+		if (intel_plane->pipe == pipe)
+			p->spr = intel_plane->wm;
 
-		p->spr = intel_plane->wm;
-
-		config.sprites_enabled |= p->spr.enabled;
-		config.sprites_scaled |= p->spr.scaled;
+		config.sprites_enabled |= intel_plane->wm.enabled;
+		config.sprites_scaled |= intel_plane->wm.scaled;
 	}
 
 	ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_1_2, lp_max_1_2);
@@ -2655,8 +2645,6 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 		.sprites_scaled = params->spr.scaled,
 	};
 	struct hsw_wm_maximums max;
-
-	memset(pipe_wm, 0, sizeof(*pipe_wm));
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_wm_max(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
@@ -2728,18 +2716,12 @@ static void ilk_wm_merge(struct drm_device *dev,
 }
 
 static void hsw_compute_wm_results(struct drm_device *dev,
-				   const struct hsw_pipe_wm_parameters *params,
 				   const struct hsw_wm_maximums *lp_maximums,
 				   struct hsw_wm_values *results)
 {
 	struct intel_crtc *intel_crtc;
 	int level, wm_lp;
 	struct intel_pipe_wm merged = {};
-
-	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
-		intel_compute_pipe_wm(&intel_crtc->base,
-				      &params[intel_crtc->pipe],
-				      &intel_crtc->wm.active);
 
 	ilk_wm_merge(dev, lp_maximums, &merged);
 
@@ -2907,20 +2889,27 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 
 static void haswell_update_wm(struct drm_crtc *crtc)
 {
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
-	struct hsw_pipe_wm_parameters params[3];
+	struct hsw_pipe_wm_parameters params = {};
 	struct hsw_wm_values results_1_2, results_5_6, *best_results;
 	enum intel_ddb_partitioning partitioning;
+	struct intel_pipe_wm pipe_wm = {};
 
-	hsw_compute_wm_parameters(dev, params, &lp_max_1_2, &lp_max_5_6);
+	hsw_compute_wm_parameters(crtc, &params, &lp_max_1_2, &lp_max_5_6);
 
-	hsw_compute_wm_results(dev, params,
-			       &lp_max_1_2, &results_1_2);
+	intel_compute_pipe_wm(crtc, &params, &pipe_wm);
+
+	if (!memcmp(&intel_crtc->wm.active, &pipe_wm, sizeof(pipe_wm)))
+		return;
+
+	intel_crtc->wm.active = pipe_wm;
+
+	hsw_compute_wm_results(dev, &lp_max_1_2, &results_1_2);
 	if (lp_max_1_2.pri != lp_max_5_6.pri) {
-		hsw_compute_wm_results(dev, params,
-				       &lp_max_5_6, &results_5_6);
+		hsw_compute_wm_results(dev, &lp_max_5_6, &results_5_6);
 		best_results = hsw_find_best_result(&results_1_2, &results_5_6);
 	} else {
 		best_results = &results_1_2;
