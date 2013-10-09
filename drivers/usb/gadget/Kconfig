@@ -1038,6 +1038,7 @@ config USB_G_MULTI
 	select USB_U_ETHER
 	select USB_F_ACM
 	select USB_U_MS
+	select USB_F_MASS_STORAGE
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
