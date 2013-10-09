@@ -573,6 +573,12 @@ struct tegra_clk {
 	bool			present;
 };
 
+struct tegra_devclk {
+	int		dt_id;
+	char		*dev_id;
+	char		*con_id;
+};
+
 void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 		struct clk *clks[], int clk_max);
 
@@ -585,6 +591,7 @@ struct clk **tegra_clk_init(int num, int periph_banks);
 struct clk **tegra_lookup_dt_id(int clk_id, struct tegra_clk *tegra_clk);
 
 void tegra_add_of_provider(struct device_node *np);
+void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra114_clock_tune_cpu_trimmers_high(void);
 void tegra114_clock_tune_cpu_trimmers_low(void);

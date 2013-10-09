@@ -212,6 +212,15 @@ void __init tegra_add_of_provider(struct device_node *np)
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 }
 
+void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
+{
+	int i;
+
+	for (i = 0; i < num; i++, dev_clks++)
+		clk_register_clkdev(clks[dev_clks->dt_id], dev_clks->con_id,
+				dev_clks->dev_id);
+}
+
 struct clk ** __init tegra_lookup_dt_id(int clk_id,
 					struct tegra_clk *tegra_clk)
 {
