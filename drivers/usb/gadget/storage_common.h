@@ -181,6 +181,11 @@ static inline u32 get_unaligned_be24(u8 *buf)
 	return 0xffffff & (u32) get_unaligned_be32(buf - 1);
 }
 
+static inline struct fsg_lun *fsg_lun_from_dev(struct device *dev)
+{
+	return container_of(dev, struct fsg_lun, dev);
+}
+
 enum {
 	FSG_STRING_INTERFACE
 };
@@ -205,18 +210,14 @@ void fsg_lun_close(struct fsg_lun *curlun);
 int fsg_lun_open(struct fsg_lun *curlun, const char *filename);
 int fsg_lun_fsync_sub(struct fsg_lun *curlun);
 void store_cdrom_address(u8 *dest, int msf, u32 addr);
-ssize_t fsg_show_ro(struct device *dev, struct device_attribute *attr,
-		    char *buf);
-ssize_t fsg_show_nofua(struct device *dev, struct device_attribute *attr,
-		       char *buf);
-ssize_t fsg_show_file(struct device *dev, struct device_attribute *attr,
+ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf);
+ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf);
+ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf);
-ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
+ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		     const char *buf, size_t count);
-ssize_t fsg_store_nofua(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count);
-ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
+ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count);
+ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		       const char *buf, size_t count);
 
 #endif /* USB_STORAGE_COMMON_H */

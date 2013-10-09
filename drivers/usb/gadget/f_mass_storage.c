@@ -2581,37 +2581,52 @@ static int fsg_main_thread(void *common_)
 
 static ssize_t ro_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return fsg_show_ro(dev, attr, buf);
+	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+
+	return fsg_show_ro(curlun, buf);
 }
 
 static ssize_t nofua_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	return fsg_show_nofua(dev, attr, buf);
+	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+
+	return fsg_show_nofua(curlun, buf);
 }
 
 static ssize_t file_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	return fsg_show_file(dev, attr, buf);
+	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
+
+	return fsg_show_file(curlun, filesem, buf);
 }
 
 static ssize_t ro_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	return fsg_store_ro(dev, attr, buf, count);
+	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
+
+	return fsg_store_ro(curlun, filesem, buf, count);
 }
 
 static ssize_t nofua_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	return fsg_store_nofua(dev, attr, buf, count);
+	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+
+	return fsg_store_nofua(curlun, buf, count);
 }
 
 static ssize_t file_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
-	return fsg_store_file(dev, attr, buf, count);
+	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
+	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
+
+	return fsg_store_file(curlun, filesem, buf, count);
 }
 
 static DEVICE_ATTR_RW(ro);
