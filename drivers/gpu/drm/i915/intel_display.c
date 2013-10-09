@@ -1921,10 +1921,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		alignment = 0;
 		break;
 	case I915_TILING_Y:
-		/* Despite that we check this in framebuffer_init userspace can
-		 * screw us over and change the tiling after the fact. Only
-		 * pinned buffers can't change their tiling. */
-		DRM_DEBUG_DRIVER("Y tiled not allowed for scan out buffers\n");
+		WARN(1, "Y tiled bo slipped through, driver bug!\n");
 		return -EINVAL;
 	default:
 		BUG();
@@ -9962,6 +9959,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 void intel_framebuffer_fini(struct intel_framebuffer *fb)
 {
 	drm_framebuffer_cleanup(&fb->base);
+	WARN_ON(!fb->obj->framebuffer_references--);
 	drm_gem_object_unreference_unlocked(&fb->obj->base);
 }
 
@@ -10088,6 +10086,7 @@ int intel_framebuffer_init(struct drm_device *dev,
 
 	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
 	intel_fb->obj = obj;
+	intel_fb->obj->framebuffer_references++;
 
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {

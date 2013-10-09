@@ -1597,6 +1597,9 @@ struct drm_i915_gem_object {
 	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
 
+	/** References from framebuffers, locks out tiling changes. */
+	unsigned long framebuffer_references;
+
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
