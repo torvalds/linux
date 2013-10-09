@@ -1401,6 +1401,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	spin_lock_init(&trans_pcie->reg_lock);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 
+	err = pci_enable_device(pdev);
+	if (err)
+		goto out_no_pci;
+
 	if (!cfg->base_params->pcie_l1_allowed) {
 		/*
 		 * W/A - seems to solve weird behavior. We need to remove this
@@ -1411,10 +1415,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_L1 |
 				       PCIE_LINK_STATE_CLKPM);
 	}
-
-	err = pci_enable_device(pdev);
-	if (err)
-		goto out_no_pci;
 
 	pci_set_master(pdev);
 
