@@ -35,6 +35,20 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
 
 /**
+ * batadv_nc_init - one-time initialization for network coding
+ */
+int __init batadv_nc_init(void)
+{
+	int ret;
+
+	/* Register our packet type */
+	ret = batadv_recv_handler_register(BATADV_CODED,
+					   batadv_nc_recv_coded_packet);
+
+	return ret;
+}
+
+/**
  * batadv_nc_start_timer - initialise the nc periodic worker
  * @bat_priv: the bat priv with all the soft interface information
  */
@@ -45,10 +59,10 @@ static void batadv_nc_start_timer(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_nc_init - initialise coding hash table and start house keeping
+ * batadv_nc_mesh_init - initialise coding hash table and start house keeping
  * @bat_priv: the bat priv with all the soft interface information
  */
-int batadv_nc_init(struct batadv_priv *bat_priv)
+int batadv_nc_mesh_init(struct batadv_priv *bat_priv)
 {
 	bat_priv->nc.timestamp_fwd_flush = jiffies;
 	bat_priv->nc.timestamp_sniffed_purge = jiffies;
@@ -69,11 +83,6 @@ int batadv_nc_init(struct batadv_priv *bat_priv)
 
 	batadv_hash_set_lock_class(bat_priv->nc.coding_hash,
 				   &batadv_nc_decoding_hash_lock_class_key);
-
-	/* Register our packet type */
-	if (batadv_recv_handler_register(BATADV_CODED,
-					 batadv_nc_recv_coded_packet) < 0)
-		goto err;
 
 	INIT_DELAYED_WORK(&bat_priv->nc.work, batadv_nc_worker);
 	batadv_nc_start_timer(bat_priv);
@@ -1721,12 +1730,11 @@ free_nc_packet:
 }
 
 /**
- * batadv_nc_free - clean up network coding memory
+ * batadv_nc_mesh_free - clean up network coding memory
  * @bat_priv: the bat priv with all the soft interface information
  */
-void batadv_nc_free(struct batadv_priv *bat_priv)
+void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 {
-	batadv_recv_handler_unregister(BATADV_CODED);
 	cancel_delayed_work_sync(&bat_priv->nc.work);
 
 	batadv_nc_purge_paths(bat_priv, bat_priv->nc.coding_hash, NULL);

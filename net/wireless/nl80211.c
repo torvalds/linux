@@ -2421,7 +2421,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		change = true;
 	}
 
-	if (flags && (*flags & NL80211_MNTR_FLAG_ACTIVE) &&
+	if (flags && (*flags & MONITOR_FLAG_ACTIVE) &&
 	    !(rdev->wiphy.features & NL80211_FEATURE_ACTIVE_MONITOR))
 		return -EOPNOTSUPP;
 
@@ -2483,7 +2483,7 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
 				  &flags);
 
-	if (!err && (flags & NL80211_MNTR_FLAG_ACTIVE) &&
+	if (!err && (flags & MONITOR_FLAG_ACTIVE) &&
 	    !(rdev->wiphy.features & NL80211_FEATURE_ACTIVE_MONITOR))
 		return -EOPNOTSUPP;
 

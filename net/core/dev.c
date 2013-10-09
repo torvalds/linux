@@ -1916,7 +1916,8 @@ static struct xps_map *expand_xps_map(struct xps_map *map,
 	return new_map;
 }
 
-int netif_set_xps_queue(struct net_device *dev, struct cpumask *mask, u16 index)
+int netif_set_xps_queue(struct net_device *dev, const struct cpumask *mask,
+			u16 index)
 {
 	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL;
 	struct xps_map *map, *new_map;

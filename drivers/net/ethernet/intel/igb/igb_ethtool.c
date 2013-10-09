@@ -2657,6 +2657,8 @@ static int igb_set_eee(struct net_device *netdev,
 	    (hw->phy.media_type != e1000_media_type_copper))
 		return -EOPNOTSUPP;
 
+	memset(&eee_curr, 0, sizeof(struct ethtool_eee));
+
 	ret_val = igb_get_eee(netdev, &eee_curr);
 	if (ret_val)
 		return ret_val;

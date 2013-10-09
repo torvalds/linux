@@ -1766,8 +1766,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->mac_control = prop;
 
-	if (!of_property_read_u32(node, "dual_emac", &prop))
-		data->dual_emac = prop;
+	if (of_property_read_bool(node, "dual_emac"))
+		data->dual_emac = 1;
 
 	/*
 	 * Populate all the child nodes here...
@@ -1777,7 +1777,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (ret)
 		pr_warn("Doesn't have any child node\n");
 
-	for_each_node_by_name(slave_node, "slave") {
+	for_each_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
 		u32 phyid;
@@ -1785,6 +1785,10 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		const __be32 *parp;
 		struct device_node *mdio_node;
 		struct platform_device *mdio;
+
+		/* This is no slave child node, continue */
+		if (strcmp(slave_node->name, "slave"))
+			continue;
 
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
