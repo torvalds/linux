@@ -321,7 +321,7 @@ struct intel_crtc {
 	 */
 	bool active;
 	bool eld_vld;
-	bool primary_disabled; /* is the crtc obscured by a plane? */
+	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;

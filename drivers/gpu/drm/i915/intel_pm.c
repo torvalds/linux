@@ -475,7 +475,7 @@ void intel_update_fbc(struct drm_device *dev)
 	 */
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
 		if (intel_crtc_active(tmp_crtc) &&
-		    !to_intel_crtc(tmp_crtc)->primary_disabled) {
+		    to_intel_crtc(tmp_crtc)->primary_enabled) {
 			if (crtc) {
 				if (set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES))
 					DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
