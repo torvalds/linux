@@ -359,6 +359,17 @@ ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 }
 EXPORT_SYMBOL(fsg_show_file);
 
+ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf)
+{
+	return sprintf(buf, "%u\n", curlun->cdrom);
+}
+EXPORT_SYMBOL(fsg_show_cdrom);
+
+ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf)
+{
+	return sprintf(buf, "%u\n", curlun->removable);
+}
+EXPORT_SYMBOL(fsg_show_removable);
 
 ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		     const char *buf, size_t count)
@@ -438,5 +449,36 @@ ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 	return (rc < 0 ? rc : count);
 }
 EXPORT_SYMBOL(fsg_store_file);
+
+ssize_t fsg_store_cdrom(struct fsg_lun *curlun, const char *buf, size_t count)
+{
+	unsigned	cdrom;
+	int		ret;
+
+	ret = kstrtouint(buf, 2, &cdrom);
+	if (ret)
+		return ret;
+
+	curlun->cdrom = cdrom;
+
+	return count;
+}
+EXPORT_SYMBOL(fsg_store_cdrom);
+
+ssize_t fsg_store_removable(struct fsg_lun *curlun, const char *buf,
+			    size_t count)
+{
+	unsigned	removable;
+	int		ret;
+
+	ret = kstrtouint(buf, 2, &removable);
+	if (ret)
+		return ret;
+
+	curlun->removable = removable;
+
+	return count;
+}
+EXPORT_SYMBOL(fsg_store_removable);
 
 MODULE_LICENSE("GPL");
