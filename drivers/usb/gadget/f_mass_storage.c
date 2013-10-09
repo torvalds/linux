@@ -2837,16 +2837,154 @@ int fsg_common_set_cdev(struct fsg_common *common,
 	return 0;
 }
 
+static inline int fsg_common_add_sysfs(struct fsg_common *common,
+				       struct fsg_lun *lun)
+{
+	int rc;
+
+	rc = device_register(&lun->dev);
+	if (rc) {
+		put_device(&lun->dev);
+		return rc;
+	}
+
+	rc = device_create_file(&lun->dev,
+				lun->cdrom
+			      ? &dev_attr_ro_cdrom
+			      : &dev_attr_ro);
+	if (rc)
+		goto error;
+	rc = device_create_file(&lun->dev,
+				lun->removable
+			      ? &dev_attr_file
+			      : &dev_attr_file_nonremovable);
+	if (rc)
+		goto error;
+	rc = device_create_file(&lun->dev, &dev_attr_nofua);
+	if (rc)
+		goto error;
+
+	return 0;
+
+error:
+	/* removing nonexistent files is a no-op */
+	fsg_common_remove_sysfs(lun);
+	device_unregister(&lun->dev);
+	return rc;
+}
+
+int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
+			  unsigned int id, const char *name,
+			  const char **name_pfx)
+{
+	struct fsg_lun *lun;
+	char *pathbuf, *p;
+	int rc = -ENOMEM;
+
+	if (!common->nluns || !common->luns)
+		return -ENODEV;
+
+	if (common->luns[id])
+		return -EBUSY;
+
+	if (!cfg->filename && !cfg->removable) {
+		pr_err("no file given for LUN%d\n", id);
+		return -EINVAL;
+	}
+
+	lun = kzalloc(sizeof(*lun), GFP_KERNEL);
+	if (!lun)
+		return -ENOMEM;
+
+	lun->name_pfx = name_pfx;
+
+	lun->cdrom = !!cfg->cdrom;
+	lun->ro = cfg->cdrom || cfg->ro;
+	lun->initially_ro = lun->ro;
+	lun->removable = !!cfg->removable;
+
+	if (!common->sysfs) {
+		/* we DON'T own the name!*/
+		lun->name = name;
+	} else {
+		lun->dev.release = fsg_lun_release;
+		lun->dev.parent = &common->gadget->dev;
+		dev_set_drvdata(&lun->dev, &common->filesem);
+		dev_set_name(&lun->dev, name);
+		lun->name = dev_name(&lun->dev);
+
+		rc = fsg_common_add_sysfs(common, lun);
+		if (rc) {
+			pr_info("failed to register LUN%d: %d\n", id, rc);
+			goto error_sysfs;
+		}
+	}
+
+	common->luns[id] = lun;
+
+	if (cfg->filename) {
+		rc = fsg_lun_open(lun, cfg->filename);
+		if (rc)
+			goto error_lun;
+	}
+
+	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+	p = "(no medium)";
+	if (fsg_lun_is_open(lun)) {
+		p = "(error)";
+		if (pathbuf) {
+			p = d_path(&lun->filp->f_path, pathbuf, PATH_MAX);
+			if (IS_ERR(p))
+				p = "(error)";
+		}
+	}
+	pr_info("LUN: %s%s%sfile: %s\n",
+	      lun->removable ? "removable " : "",
+	      lun->ro ? "read only " : "",
+	      lun->cdrom ? "CD-ROM " : "",
+	      p);
+	kfree(pathbuf);
+
+	return 0;
+
+error_lun:
+	if (common->sysfs) {
+		fsg_common_remove_sysfs(lun);
+		device_unregister(&lun->dev);
+	}
+	fsg_lun_close(lun);
+	common->luns[id] = NULL;
+error_sysfs:
+	kfree(lun);
+	return rc;
+}
+
+int fsg_common_create_luns(struct fsg_common *common, struct fsg_config *cfg)
+{
+	char buf[8]; /* enough for 100000000 different numbers, decimal */
+	int i, rc;
+
+	for (i = 0; i < common->nluns; ++i) {
+		snprintf(buf, sizeof(buf), "lun%d", i);
+		rc = fsg_common_create_lun(common, &cfg->luns[i], i, buf, NULL);
+		if (rc)
+			goto fail;
+	}
+
+	pr_info("Number of LUNs=%d\n", common->nluns);
+
+	return 0;
+
+fail:
+	_fsg_common_remove_luns(common, i);
+	return rc;
+}
+
 struct fsg_common *fsg_common_init(struct fsg_common *common,
 				   struct usb_composite_dev *cdev,
 				   struct fsg_config *cfg)
 {
-	struct usb_gadget *gadget = cdev->gadget;
-	struct fsg_lun **curlun_it;
-	struct fsg_lun_config *lcfg;
-	int nluns, i, rc;
-	char *pathbuf;
-
+	int i, rc;
 
 	common = fsg_common_setup(common);
 	if (IS_ERR(common))
@@ -2870,66 +3008,10 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	rc = fsg_common_set_nluns(common, cfg->nluns);
 	if (rc)
 		goto error_release;
-	curlun_it = common->luns;
-	nluns = cfg->nluns;
-	for (i = 0, lcfg = cfg->luns; i < nluns; ++i, ++curlun_it, ++lcfg) {
-		struct fsg_lun *curlun;
 
-		curlun = kzalloc(sizeof(*curlun), GFP_KERNEL);
-		if (!curlun) {
-			rc = -ENOMEM;
-			common->nluns = i;
-			goto error_release;
-		}
-		*curlun_it = curlun;
-
-		curlun->cdrom = !!lcfg->cdrom;
-		curlun->ro = lcfg->cdrom || lcfg->ro;
-		curlun->initially_ro = curlun->ro;
-		curlun->removable = lcfg->removable;
-		curlun->dev.release = fsg_lun_release;
-		curlun->dev.parent = &gadget->dev;
-		/* curlun->dev.driver = &fsg_driver.driver; XXX */
-		dev_set_drvdata(&curlun->dev, &common->filesem);
-		dev_set_name(&curlun->dev, "lun%d", i);
-		curlun->name = dev_name(&curlun->dev);
-
-		rc = device_register(&curlun->dev);
-		if (rc) {
-			INFO(common, "failed to register LUN%d: %d\n", i, rc);
-			common->nluns = i;
-			put_device(&curlun->dev);
-			kfree(curlun);
-			goto error_release;
-		}
-
-		rc = device_create_file(&curlun->dev,
-					curlun->cdrom
-				      ? &dev_attr_ro_cdrom
-				      : &dev_attr_ro);
-		if (rc)
-			goto error_luns;
-		rc = device_create_file(&curlun->dev,
-					curlun->removable
-				      ? &dev_attr_file
-				      : &dev_attr_file_nonremovable);
-		if (rc)
-			goto error_luns;
-		rc = device_create_file(&curlun->dev, &dev_attr_nofua);
-		if (rc)
-			goto error_luns;
-
-		if (lcfg->filename) {
-			rc = fsg_lun_open(curlun, lcfg->filename);
-			if (rc)
-				goto error_luns;
-		} else if (!curlun->removable) {
-			ERROR(common, "no file given for LUN%d\n", i);
-			rc = -EINVAL;
-			goto error_luns;
-		}
-	}
-
+	rc = fsg_common_create_luns(common, cfg);
+	if (rc)
+		goto error_release;
 
 	/* Prepare inquiryString */
 	i = get_default_bcdDevice();
@@ -2940,7 +3022,6 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 				     ? "File-CD Gadget"
 				     : "File-Stor Gadget"),
 		 i);
-
 
 	/* Tell the thread to start working */
 	common->thread_task =
@@ -2954,37 +3035,12 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	INFO(common, FSG_DRIVER_DESC ", version: " FSG_DRIVER_VERSION "\n");
 	INFO(common, "Number of LUNs=%d\n", common->nluns);
 
-	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
-	for (i = 0, nluns = common->nluns, curlun_it = common->luns;
-	     i < nluns;
-	     ++curlun_it, ++i) {
-		struct fsg_lun *curlun = *curlun_it;
-		char *p = "(no medium)";
-		if (fsg_lun_is_open(curlun)) {
-			p = "(error)";
-			if (pathbuf) {
-				p = d_path(&curlun->filp->f_path,
-					   pathbuf, PATH_MAX);
-				if (IS_ERR(p))
-					p = "(error)";
-			}
-		}
-		LINFO(curlun, "LUN: %s%s%sfile: %s\n",
-		      curlun->removable ? "removable " : "",
-		      curlun->ro ? "read only " : "",
-		      curlun->cdrom ? "CD-ROM " : "",
-		      p);
-	}
-	kfree(pathbuf);
-
 	DBG(common, "I/O thread pid: %d\n", task_pid_nr(common->thread_task));
 
 	wake_up_process(common->thread_task);
 
 	return common;
 
-error_luns:
-	common->nluns = i + 1;
 error_release:
 	common->state = FSG_STATE_TERMINATED;	/* The thread is dead */
 	/* Call fsg_common_release() directly, ref might be not initialised. */
