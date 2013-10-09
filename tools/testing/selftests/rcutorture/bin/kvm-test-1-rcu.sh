@@ -131,15 +131,17 @@ qemu_args="$qemu_args `identify_qemu_args "$QEMU" "$builddir/console.log"`"
 # Generate qemu -append arguments
 qemu_append="`identify_qemu_append "$QEMU"`"
 
+# Pull in Kconfig-fragment boot parameters
+boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
 # Generate CPU-hotplug boot parameters
 boot_args="`rcutorture_param_onoff "$boot_args" $builddir/.config`"
 # Generate rcu_barrier() boot parameter
 boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
-# Pull in Kconfig-fragment boot parameters
-boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
+# Pull in standard rcutorture boot arguments
+boot_args="$boot_args rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1"
 
-echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args\" > $resdir/qemu-cmd
-$QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "$qemu_append rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1 $boot_args" &
+echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
+$QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "$qemu_append $boot_args" &
 qemu_pid=$!
 commandcompleted=0
 echo Monitoring qemu job at pid $qemu_pid
