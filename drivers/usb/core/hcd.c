@@ -2078,8 +2078,7 @@ EXPORT_SYMBOL_GPL(usb_alloc_streams);
  * Reverts a group of bulk endpoints back to not using stream IDs.
  * Can fail if we are given bad arguments, or HCD is broken.
  *
- * Return: On success, the number of allocated streams. On failure, a negative
- * error code.
+ * Return: 0 on success. On failure, a negative error code.
  */
 int usb_free_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
