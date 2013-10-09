@@ -2586,13 +2586,11 @@ static void intel_setup_wm_latency(struct drm_device *dev)
 
 static void hsw_compute_wm_parameters(struct drm_crtc *crtc,
 				      struct hsw_pipe_wm_parameters *p,
-				      struct hsw_wm_maximums *lp_max_1_2,
-				      struct hsw_wm_maximums *lp_max_5_6)
+				      struct intel_wm_config *config)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	struct intel_wm_config config = {};
 	struct drm_plane *plane;
 
 	p->active = intel_crtc_active(crtc);
@@ -2609,7 +2607,7 @@ static void hsw_compute_wm_parameters(struct drm_crtc *crtc,
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		config.num_pipes_active += intel_crtc_active(crtc);
+		config->num_pipes_active += intel_crtc_active(crtc);
 
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -2617,17 +2615,9 @@ static void hsw_compute_wm_parameters(struct drm_crtc *crtc,
 		if (intel_plane->pipe == pipe)
 			p->spr = intel_plane->wm;
 
-		config.sprites_enabled |= intel_plane->wm.enabled;
-		config.sprites_scaled |= intel_plane->wm.scaled;
+		config->sprites_enabled |= intel_plane->wm.enabled;
+		config->sprites_scaled |= intel_plane->wm.scaled;
 	}
-
-	ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_1_2, lp_max_1_2);
-
-	/* 5/6 split only in single pipe config on IVB+ */
-	if (INTEL_INFO(dev)->gen >= 7 && config.num_pipes_active <= 1)
-		ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_5_6, lp_max_5_6);
-	else
-		*lp_max_5_6 = *lp_max_1_2;
 }
 
 /* Compute new watermarks for the pipe */
@@ -2889,14 +2879,15 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
+	struct hsw_wm_maximums max;
 	struct hsw_pipe_wm_parameters params = {};
 	struct hsw_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 	struct intel_pipe_wm pipe_wm = {};
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
+	struct intel_wm_config config = {};
 
-	hsw_compute_wm_parameters(crtc, &params, &lp_max_1_2, &lp_max_5_6);
+	hsw_compute_wm_parameters(crtc, &params, &config);
 
 	intel_compute_pipe_wm(crtc, &params, &pipe_wm);
 
@@ -2905,10 +2896,14 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 
 	intel_crtc->wm.active = pipe_wm;
 
-	ilk_wm_merge(dev, &lp_max_1_2, &lp_wm_1_2);
-	ilk_wm_merge(dev, &lp_max_5_6, &lp_wm_5_6);
+	ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_wm_merge(dev, &max, &lp_wm_1_2);
 
-	if (lp_max_1_2.pri != lp_max_5_6.pri) {
+	/* 5/6 split only in single pipe config on IVB+ */
+	if (INTEL_INFO(dev)->gen >= 7 && config.num_pipes_active <= 1) {
+		ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
+		ilk_wm_merge(dev, &max, &lp_wm_5_6);
+
 		best_lp_wm = hsw_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
 		best_lp_wm = &lp_wm_1_2;
