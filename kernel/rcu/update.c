@@ -53,6 +53,12 @@
 
 #include "rcu.h"
 
+MODULE_ALIAS("rcupdate");
+#ifdef MODULE_PARAM_PREFIX
+#undef MODULE_PARAM_PREFIX
+#endif
+#define MODULE_PARAM_PREFIX "rcupdate."
+
 module_param(rcu_expedited, int, 0);
 
 #ifdef CONFIG_PREEMPT_RCU

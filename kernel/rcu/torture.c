@@ -52,6 +52,12 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@freedesktop.org>");
 
+MODULE_ALIAS("rcutorture");
+#ifdef MODULE_PARAM_PREFIX
+#undef MODULE_PARAM_PREFIX
+#endif
+#define MODULE_PARAM_PREFIX "rcutorture."
+
 static int fqs_duration;
 module_param(fqs_duration, int, 0444);
 MODULE_PARM_DESC(fqs_duration, "Duration of fqs bursts (us), 0 to disable");
