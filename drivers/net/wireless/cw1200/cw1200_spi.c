@@ -237,7 +237,9 @@ static irqreturn_t cw1200_spi_irq_handler(int irq, void *dev_id)
 	struct hwbus_priv *self = dev_id;
 
 	if (self->core) {
+		cw1200_spi_lock(self);
 		cw1200_irq_handler(self->core);
+		cw1200_spi_unlock(self);
 		return IRQ_HANDLED;
 	} else {
 		return IRQ_NONE;
