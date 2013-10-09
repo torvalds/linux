@@ -2827,6 +2827,13 @@ int fsg_common_set_nluns(struct fsg_common *common, int nluns)
 }
 EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_nluns);
 
+void fsg_common_set_ops(struct fsg_common *common,
+			const struct fsg_operations *ops)
+{
+	common->ops = ops;
+}
+EXPORT_SYMBOL_GPL_IF_MODULE(fsg_common_set_ops);
+
 void fsg_common_free_buffers(struct fsg_common *common)
 {
 	_fsg_common_free_buffers(common->buffhds, common->fsg_num_buffers);

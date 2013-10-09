@@ -132,6 +132,9 @@ void fsg_common_free_luns(struct fsg_common *common);
 
 int fsg_common_set_nluns(struct fsg_common *common, int nluns);
 
+void fsg_common_set_ops(struct fsg_common *common,
+			const struct fsg_operations *ops);
+
 int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 			  unsigned int id, const char *name,
 			  const char **name_pfx);
