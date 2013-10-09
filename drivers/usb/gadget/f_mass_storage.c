@@ -299,6 +299,7 @@ struct fsg_common {
 	unsigned int		short_packet_received:1;
 	unsigned int		bad_lun_okay:1;
 	unsigned int		running:1;
+	unsigned int		sysfs:1;
 
 	int			thread_wakeup_needed;
 	struct completion	thread_notifier;
@@ -2642,6 +2643,11 @@ static inline int fsg_num_buffers_validate(unsigned int fsg_num_buffers)
 	return -EINVAL;
 }
 
+void fsg_common_set_sysfs(struct fsg_common *common, bool sysfs)
+{
+	common->sysfs = sysfs;
+}
+
 static void _fsg_common_free_buffers(struct fsg_buffhd *buffhds, unsigned n)
 {
 	if (buffhds) {
@@ -2652,6 +2658,34 @@ static void _fsg_common_free_buffers(struct fsg_buffhd *buffhds, unsigned n)
 		}
 		kfree(buffhds);
 	}
+}
+
+static inline void fsg_common_remove_sysfs(struct fsg_lun *lun)
+{
+	device_remove_file(&lun->dev, &dev_attr_nofua);
+	/*
+	 * device_remove_file() =>
+	 *
+	 * here the attr (e.g. dev_attr_ro) is only used to be passed to:
+	 *
+	 *	sysfs_remove_file() =>
+	 *
+	 *	here e.g. both dev_attr_ro_cdrom and dev_attr_ro are in
+	 *	the same namespace and
+	 *	from here only attr->name is passed to:
+	 *
+	 *		sysfs_hash_and_remove()
+	 *
+	 *		attr->name is the same for dev_attr_ro_cdrom and
+	 *		dev_attr_ro
+	 *		attr->name is the same for dev_attr_file and
+	 *		dev_attr_file_nonremovable
+	 *
+	 * so we don't differentiate between removing e.g. dev_attr_ro_cdrom
+	 * and dev_attr_ro
+	 */
+	device_remove_file(&lun->dev, &dev_attr_ro);
+	device_remove_file(&lun->dev, &dev_attr_file);
 }
 
 struct fsg_common *fsg_common_init(struct fsg_common *common,
@@ -2687,6 +2721,8 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 		memset(common, 0, sizeof *common);
 		common->free_storage_on_release = 0;
 	}
+	fsg_common_set_sysfs(common, true);
+	common->state = FSG_STATE_IDLE;
 
 	common->fsg_num_buffers = cfg->fsg_num_buffers;
 	common->buffhds = kcalloc(common->fsg_num_buffers,
@@ -2746,6 +2782,7 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 		/* curlun->dev.driver = &fsg_driver.driver; XXX */
 		dev_set_drvdata(&curlun->dev, &common->filesem);
 		dev_set_name(&curlun->dev, "lun%d", i);
+		curlun->name = dev_name(&curlun->dev);
 
 		rc = device_register(&curlun->dev);
 		if (rc) {
@@ -2892,17 +2929,11 @@ static void fsg_common_release(struct kref *ref)
 			struct fsg_lun *lun = *lun_it;
 			if (!lun)
 				continue;
-			device_remove_file(&lun->dev, &dev_attr_nofua);
-			device_remove_file(&lun->dev,
-					   lun->cdrom
-					 ? &dev_attr_ro_cdrom
-					 : &dev_attr_ro);
-			device_remove_file(&lun->dev,
-					   lun->removable
-					 ? &dev_attr_file
-					 : &dev_attr_file_nonremovable);
+			if (common->sysfs)
+				fsg_common_remove_sysfs(lun);
 			fsg_lun_close(lun);
-			device_unregister(&lun->dev);
+			if (common->sysfs)
+				device_unregister(&lun->dev);
 			kfree(lun);
 		}
 

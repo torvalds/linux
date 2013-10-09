@@ -17,10 +17,20 @@
 #define VLDBG(lun, fmt, args...) do { } while (0)
 #endif /* VERBOSE_DEBUG */
 
-#define LDBG(lun, fmt, args...)   dev_dbg(&(lun)->dev, fmt, ## args)
-#define LERROR(lun, fmt, args...) dev_err(&(lun)->dev, fmt, ## args)
-#define LWARN(lun, fmt, args...)  dev_warn(&(lun)->dev, fmt, ## args)
-#define LINFO(lun, fmt, args...)  dev_info(&(lun)->dev, fmt, ## args)
+#define _LMSG(func, lun, fmt, args...)					\
+	do {								\
+		if ((lun)->name_pfx && *(lun)->name_pfx)		\
+			func("%s/%s: " fmt, *(lun)->name_pfx,		\
+				 (lun)->name, ## args);			\
+		else							\
+			func("%s: " fmt, (lun)->name, ## args);		\
+	} while (0)
+
+#define LDBG(lun, fmt, args...)		_LMSG(pr_debug, lun, fmt, ## args)
+#define LERROR(lun, fmt, args...)	_LMSG(pr_err, lun, fmt, ## args)
+#define LWARN(lun, fmt, args...)	_LMSG(pr_warn, lun, fmt, ## args)
+#define LINFO(lun, fmt, args...)	_LMSG(pr_info, lun, fmt, ## args)
+
 
 #ifdef DUMP_MSGS
 
@@ -100,6 +110,8 @@ struct fsg_lun {
 						       of bound block device */
 	unsigned int	blksize; /* logical block size of bound block device */
 	struct device	dev;
+	const char	*name;		/* "lun.name" */
+	const char	**name_pfx;	/* "function.name" */
 };
 
 static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
