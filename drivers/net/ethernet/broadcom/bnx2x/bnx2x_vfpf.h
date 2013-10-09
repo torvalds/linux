@@ -188,6 +188,12 @@ struct pfvf_acquire_resp_tlv {
 	} resc;
 };
 
+struct vfpf_port_phys_id_resp_tlv {
+	struct channel_tlv tl;
+	u8 id[ETH_ALEN];
+	u8 padding[2];
+};
+
 #define VFPF_INIT_FLG_STATS_COALESCE	(1 << 0) /* when set the VFs queues
 						  * stats will be coalesced on
 						  * the leading RSS queue
@@ -398,6 +404,7 @@ enum channel_tlvs {
 	CHANNEL_TLV_PF_SET_MAC,
 	CHANNEL_TLV_PF_SET_VLAN,
 	CHANNEL_TLV_UPDATE_RSS,
+	CHANNEL_TLV_PHYS_PORT_ID,
 	CHANNEL_TLV_MAX
 };
 

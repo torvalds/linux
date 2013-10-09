@@ -1546,6 +1546,7 @@ struct bnx2x {
 #define IS_VF_FLAG			(1 << 22)
 #define INTERRUPTS_ENABLED_FLAG		(1 << 23)
 #define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
+#define HAS_PHYS_PORT_ID		(1 << 25)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 
@@ -1876,6 +1877,8 @@ struct bnx2x {
 	u32 dump_preset_idx;
 	bool					stats_started;
 	struct semaphore			stats_sema;
+
+	u8					phys_port_id[ETH_ALEN];
 };
 
 /* Tx queues may be less or equal to Rx queues */

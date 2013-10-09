@@ -11149,6 +11149,14 @@ static void bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 			bnx2x_get_cnic_mac_hwinfo(bp);
 	}
 
+	if (!BP_NOMCP(bp)) {
+		/* Read physical port identifier from shmem */
+		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_upper);
+		val = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_lower);
+		bnx2x_set_mac_buf(bp->phys_port_id, val, val2);
+		bp->flags |= HAS_PHYS_PORT_ID;
+	}
+
 	memcpy(bp->link_params.mac_addr, bp->dev->dev_addr, ETH_ALEN);
 
 	if (!bnx2x_is_valid_ether_addr(bp, bp->dev->dev_addr))
@@ -12044,6 +12052,20 @@ static int bnx2x_validate_addr(struct net_device *dev)
 	return 0;
 }
 
+static int bnx2x_get_phys_port_id(struct net_device *netdev,
+				  struct netdev_phys_port_id *ppid)
+{
+	struct bnx2x *bp = netdev_priv(netdev);
+
+	if (!(bp->flags & HAS_PHYS_PORT_ID))
+		return -EOPNOTSUPP;
+
+	ppid->id_len = sizeof(bp->phys_port_id);
+	memcpy(ppid->id, bp->phys_port_id, ppid->id_len);
+
+	return 0;
+}
+
 static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_open		= bnx2x_open,
 	.ndo_stop		= bnx2x_close,
@@ -12073,6 +12095,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= bnx2x_low_latency_recv,
 #endif
+	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)
