@@ -2358,17 +2358,27 @@ qfsinf_exit:
 
 int
 SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
-	      u64 persistent_fid, u64 volatile_fid)
+	      u64 persistent_fid, u64 volatile_fid, int level)
 {
 	struct smb2_query_info_rsp *rsp = NULL;
 	struct kvec iov;
 	int rc = 0;
-	int resp_buftype;
+	int resp_buftype, max_len, min_len;
 	struct cifs_ses *ses = tcon->ses;
 	unsigned int rsp_len, offset;
 
-	rc = build_qfs_info_req(&iov, tcon, SMB_QUERY_FS_ATTRIBUTE_INFO,
-				sizeof(FILE_SYSTEM_ATTRIBUTE_INFO),
+	if (level == FS_DEVICE_INFORMATION) {
+		max_len = sizeof(FILE_SYSTEM_DEVICE_INFO);
+		min_len = sizeof(FILE_SYSTEM_DEVICE_INFO);
+	} else if (level == FS_ATTRIBUTE_INFORMATION) {
+		max_len = sizeof(FILE_SYSTEM_ATTRIBUTE_INFO);
+		min_len = MIN_FS_ATTR_INFO_SIZE;
+	} else {
+		cifs_dbg(FYI, "Invalid qfsinfo level %d", level);
+		return -EINVAL;
+	}
+
+	rc = build_qfs_info_req(&iov, tcon, level, max_len,
 				persistent_fid, volatile_fid);
 	if (rc)
 		return rc;
@@ -2382,12 +2392,17 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rsp_len = le32_to_cpu(rsp->OutputBufferLength);
 	offset = le16_to_cpu(rsp->OutputBufferOffset);
-	rc = validate_buf(offset, rsp_len, &rsp->hdr, MIN_FS_ATTR_INFO_SIZE);
-	if (!rc) {
+	rc = validate_buf(offset, rsp_len, &rsp->hdr, min_len);
+	if (rc)
+		goto qfsattr_exit;
+
+	if (level == FS_ATTRIBUTE_INFORMATION)
 		memcpy(&tcon->fsAttrInfo, 4 /* RFC1001 len */ + offset
 			+ (char *)&rsp->hdr, min_t(unsigned int,
-			rsp_len, sizeof(FILE_SYSTEM_ATTRIBUTE_INFO)));
-	}
+			rsp_len, max_len));
+	else if (level == FS_DEVICE_INFORMATION)
+		memcpy(&tcon->fsDevInfo, 4 /* RFC1001 len */ + offset
+			+ (char *)&rsp->hdr, sizeof(FILE_SYSTEM_DEVICE_INFO));
 
 qfsattr_exit:
 	free_rsp_buf(resp_buftype, iov.iov_base);

@@ -229,7 +229,10 @@ smb2_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	if (rc)
 		return;
 
-	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+			FS_ATTRIBUTE_INFORMATION);
+	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+			FS_DEVICE_INFORMATION);
 	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	return;
 }
