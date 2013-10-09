@@ -92,10 +92,14 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	: "memory");
 }
 
+static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return lock.owner == lock.next;
+}
+
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
-	arch_spinlock_t lockval = ACCESS_ONCE(*lock);
-	return lockval.owner != lockval.next;
+	return !arch_spin_value_unlocked(ACCESS_ONCE(*lock));
 }
 
 static inline int arch_spin_is_contended(arch_spinlock_t *lock)
