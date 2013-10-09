@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
 
 #include "u_serial.h"
 #if defined USB_ETH_RNDIS
@@ -44,8 +45,7 @@ MODULE_LICENSE("GPL");
 #define USB_FMS_INCLUDED
 #include "f_mass_storage.c"
 
-#define USBF_ECM_INCLUDED
-#include "f_ecm.c"
+#include "u_ecm.h"
 #ifdef USB_ETH_RNDIS
 #  define USB_FRNDIS_INCLUDED
 #  include "f_rndis.c"
@@ -151,14 +151,14 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 
 static struct fsg_common fsg_common;
 
-static u8 host_mac[ETH_ALEN];
-
 static struct usb_function_instance *fi_acm;
 static struct eth_dev *the_dev;
 
 /********** RNDIS **********/
 
 #ifdef USB_ETH_RNDIS
+static u8 host_mac[ETH_ALEN];
+
 static struct usb_function *f_acm_rndis;
 
 static __init int rndis_do_config(struct usb_configuration *c)
@@ -220,7 +220,9 @@ static __ref int rndis_config_register(struct usb_composite_dev *cdev)
 /********** CDC ECM **********/
 
 #ifdef CONFIG_USB_G_MULTI_CDC
+static struct usb_function_instance *fi_ecm;
 static struct usb_function *f_acm_multi;
+static struct usb_function *f_ecm;
 
 static __init int cdc_do_config(struct usb_configuration *c)
 {
@@ -231,14 +233,20 @@ static __init int cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	ret = ecm_bind_config(c, host_mac, the_dev);
+	f_ecm = usb_get_function(fi_ecm);
+	if (IS_ERR(f_ecm))
+		return PTR_ERR(f_ecm);
+
+	ret = usb_add_function(c, f_ecm);
 	if (ret < 0)
-		return ret;
+		goto err_func_ecm;
 
 	/* implicit port_num is zero */
 	f_acm_multi = usb_get_function(fi_acm);
-	if (IS_ERR(f_acm_multi))
-		return PTR_ERR(f_acm_multi);
+	if (IS_ERR(f_acm_multi)) {
+		ret = PTR_ERR(f_acm_multi);
+		goto err_func_acm;
+	}
 
 	ret = usb_add_function(c, f_acm_multi);
 	if (ret)
@@ -253,6 +261,10 @@ err_fsg:
 	usb_remove_function(c, f_acm_multi);
 err_conf:
 	usb_put_function(f_acm_multi);
+err_func_acm:
+	usb_remove_function(c, f_ecm);
+err_func_ecm:
+	usb_put_function(f_ecm);
 	return ret;
 }
 
@@ -285,6 +297,9 @@ static __ref int cdc_config_register(struct usb_composite_dev *cdev)
 static int __ref multi_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
+#ifdef CONFIG_USB_G_MULTI_CDC
+	struct f_ecm_opts *ecm_opts;
+#endif
 	int status;
 
 	if (!can_support_ecm(cdev->gadget)) {
@@ -293,11 +308,39 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_USB_G_MULTI_CDC
+	fi_ecm = usb_get_function_instance("ecm");
+	if (IS_ERR(fi_ecm))
+		return PTR_ERR(fi_ecm);
+
+	ecm_opts = container_of(fi_ecm, struct f_ecm_opts, func_inst);
+
+	gether_set_qmult(ecm_opts->net, qmult);
+	if (!gether_set_host_addr(ecm_opts->net, host_addr))
+		pr_info("using host ethernet address: %s", host_addr);
+	if (!gether_set_dev_addr(ecm_opts->net, dev_addr))
+		pr_info("using self ethernet address: %s", dev_addr);
+
+	the_dev = netdev_priv(ecm_opts->net);
+
+#elif defined USB_ETH_RNDIS
+
 	/* set up network link layer */
 	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
 			       qmult);
 	if (IS_ERR(the_dev))
 		return PTR_ERR(the_dev);
+#endif
+
+#if (defined CONFIG_USB_G_MULTI_CDC && defined USB_ETH_RNDIS)
+	gether_set_gadget(ecm_opts->net, cdev->gadget);
+	status = gether_register_netdev(ecm_opts->net);
+	if (status)
+		goto fail0;
+	ecm_opts->bound = true;
+
+	gether_get_host_addr_u8(ecm_opts->net, host_mac);
+#endif
 
 	/* set up serial link layer */
 	fi_acm = usb_get_function_instance("acm");
@@ -345,7 +388,11 @@ fail2:
 fail1:
 	usb_put_function_instance(fi_acm);
 fail0:
+#ifdef CONFIG_USB_G_MULTI_CDC
+	usb_put_function_instance(fi_ecm);
+#else
 	gether_cleanup(the_dev);
+#endif
 	return status;
 }
 
@@ -358,7 +405,12 @@ static int __exit multi_unbind(struct usb_composite_dev *cdev)
 	usb_put_function(f_acm_rndis);
 #endif
 	usb_put_function_instance(fi_acm);
+#ifdef CONFIG_USB_G_MULTI_CDC
+	usb_put_function(f_ecm);
+	usb_put_function_instance(fi_ecm);
+#else
 	gether_cleanup(the_dev);
+#endif
 	return 0;
 }
 

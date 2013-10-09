@@ -1070,6 +1070,7 @@ config USB_G_MULTI_CDC
 	bool "CDC Ethernet + CDC Serial + Storage configuration"
 	depends on USB_G_MULTI
 	default n
+	select USB_F_ECM
 	help
 	  This option enables a configuration with CDC Ethernet (ECM), CDC
 	  Serial and Mass Storage functions available in the Multifunction
