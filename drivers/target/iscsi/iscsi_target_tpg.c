@@ -237,7 +237,7 @@ int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_gro
 	if (iscsi_create_default_params(&tpg->param_list) < 0)
 		goto err_out;
 
-	ISCSI_TPG_ATTRIB(tpg)->tpg = tpg;
+	tpg->tpg_attrib.tpg = tpg;
 
 	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state	= TPG_STATE_INACTIVE;
@@ -330,7 +330,7 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 		return -EINVAL;
 	}
 
-	if (ISCSI_TPG_ATTRIB(tpg)->authentication) {
+	if (tpg->tpg_attrib.authentication) {
 		if (!strcmp(param->value, NONE)) {
 			ret = iscsi_update_param_value(param, CHAP);
 			if (ret)
