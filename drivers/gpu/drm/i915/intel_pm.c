@@ -2213,7 +2213,6 @@ struct intel_wm_config {
 	unsigned int num_pipes_active;
 	bool sprites_enabled;
 	bool sprites_scaled;
-	bool fbc_wm_enabled;
 };
 
 /*
