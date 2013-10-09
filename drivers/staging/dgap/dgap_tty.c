@@ -595,7 +595,7 @@ static void dgap_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *b
 		/*
 		 *  Loop while data remains.
 		 */
-		while (nbuf > 0 && ch->ch_sniff_buf != 0) {
+		while (nbuf > 0 && ch->ch_sniff_buf) {
 			/*
 			 *  Determine the amount of available space left in the
 			 *  buffer.  If there's none, wait until some appears.
@@ -1107,9 +1107,10 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 		MAJOR(tty_devnum(tty)), MINOR(tty_devnum(tty)), un, brd->name));
 
 	/*
-	 * Error if channel info pointer is 0.
+	 * Error if channel info pointer is NULL.
 	 */
-	if ((bs = ch->ch_bs) == 0) {
+	bs = ch->ch_bs;
+	if (!bs) {
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(brd->bd_lock, lock_flags);
 		DPR_OPEN(("%d BS is 0!\n", __LINE__));
