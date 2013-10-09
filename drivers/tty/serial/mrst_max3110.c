@@ -61,6 +61,7 @@ struct uart_max3110 {
 	struct task_struct *main_thread;
 	struct task_struct *read_thread;
 	struct mutex thread_mutex;
+	struct mutex io_mutex;
 
 	u32 baud;
 	u16 cur_conf;
@@ -90,6 +91,7 @@ static int max3110_write_then_read(struct uart_max3110 *max,
 	struct spi_transfer	x;
 	int ret;
 
+	mutex_lock(&max->io_mutex);
 	spi_message_init(&message);
 	memset(&x, 0, sizeof x);
 	x.len = len;
@@ -104,6 +106,7 @@ static int max3110_write_then_read(struct uart_max3110 *max,
 
 	/* Do the i/o */
 	ret = spi_sync(spi, &message);
+	mutex_unlock(&max->io_mutex);
 	return ret;
 }
 
@@ -805,6 +808,7 @@ static int serial_m3110_probe(struct spi_device *spi)
 	max->irq = (u16)spi->irq;
 
 	mutex_init(&max->thread_mutex);
+	mutex_init(&max->io_mutex);
 
 	max->word_7bits = 0;
 	max->parity = 0;
