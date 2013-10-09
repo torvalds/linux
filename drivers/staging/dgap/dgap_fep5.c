@@ -1229,29 +1229,24 @@ int dgap_param(struct tty_struct *tty)
 	uchar	mval;
 	uchar	hflow;
 
-	if (!tty || tty->magic != TTY_MAGIC) {
+	if (!tty || tty->magic != TTY_MAGIC)
 		return (-ENXIO);
-	}
 
 	un = (struct un_t *) tty->driver_data;
-	if (!un || un->magic != DGAP_UNIT_MAGIC) {
+	if (!un || un->magic != DGAP_UNIT_MAGIC)
 		return (-ENXIO);
-	}
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC) {
+	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return (-ENXIO);
-	}
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGAP_BOARD_MAGIC) {
+	if (!bd || bd->magic != DGAP_BOARD_MAGIC)
 		return (-ENXIO);
-	}
 
         bs = ch->ch_bs;
-	if (bs == 0) {
+	if (bs == 0)
 		return (-ENXIO);
-	}
 
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
 		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
