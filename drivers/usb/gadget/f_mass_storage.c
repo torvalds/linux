@@ -2681,6 +2681,49 @@ static void _fsg_common_free_buffers(struct fsg_buffhd *buffhds, unsigned n)
 	}
 }
 
+int fsg_common_set_num_buffers(struct fsg_common *common, unsigned int n)
+{
+	struct fsg_buffhd *bh, *buffhds;
+	int i, rc;
+
+	rc = fsg_num_buffers_validate(n);
+	if (rc != 0)
+		return rc;
+
+	buffhds = kcalloc(n, sizeof(*buffhds), GFP_KERNEL);
+	if (!buffhds)
+		return -ENOMEM;
+
+	/* Data buffers cyclic list */
+	bh = buffhds;
+	i = n;
+	goto buffhds_first_it;
+	do {
+		bh->next = bh + 1;
+		++bh;
+buffhds_first_it:
+		bh->buf = kmalloc(FSG_BUFLEN, GFP_KERNEL);
+		if (unlikely(!bh->buf))
+			goto error_release;
+	} while (--i);
+	bh->next = buffhds;
+
+	_fsg_common_free_buffers(common->buffhds, common->fsg_num_buffers);
+	common->fsg_num_buffers = n;
+	common->buffhds = buffhds;
+
+	return 0;
+
+error_release:
+	/*
+	 * "buf"s pointed to by heads after n - i are NULL
+	 * so releasing them won't hurt
+	 */
+	_fsg_common_free_buffers(buffhds, n);
+
+	return -ENOMEM;
+}
+
 static inline void fsg_common_remove_sysfs(struct fsg_lun *lun)
 {
 	device_remove_file(&lun->dev, &dev_attr_nofua);
@@ -2714,16 +2757,11 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 				   struct fsg_config *cfg)
 {
 	struct usb_gadget *gadget = cdev->gadget;
-	struct fsg_buffhd *bh;
 	struct fsg_lun **curlun_it;
 	struct fsg_lun_config *lcfg;
 	struct usb_string *us;
 	int nluns, i, rc;
 	char *pathbuf;
-
-	rc = fsg_num_buffers_validate(cfg->fsg_num_buffers);
-	if (rc != 0)
-		return ERR_PTR(rc);
 
 	/* Find out how many LUNs there should be */
 	nluns = cfg->nluns;
@@ -2738,15 +2776,12 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	fsg_common_set_sysfs(common, true);
 	common->state = FSG_STATE_IDLE;
 
-	common->fsg_num_buffers = cfg->fsg_num_buffers;
-	common->buffhds = kcalloc(common->fsg_num_buffers,
-				  sizeof *(common->buffhds), GFP_KERNEL);
-	if (!common->buffhds) {
+	rc = fsg_common_set_num_buffers(common, cfg->fsg_num_buffers);
+	if (rc) {
 		if (common->free_storage_on_release)
 			kfree(common);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(rc);
 	}
-
 	common->ops = cfg->ops;
 	common->private_data = cfg->private_data;
 
@@ -2833,21 +2868,6 @@ struct fsg_common *fsg_common_init(struct fsg_common *common,
 	}
 	common->nluns = nluns;
 
-	/* Data buffers cyclic list */
-	bh = common->buffhds;
-	i = common->fsg_num_buffers;
-	goto buffhds_first_it;
-	do {
-		bh->next = bh + 1;
-		++bh;
-buffhds_first_it:
-		bh->buf = kmalloc(FSG_BUFLEN, GFP_KERNEL);
-		if (unlikely(!bh->buf)) {
-			rc = -ENOMEM;
-			goto error_release;
-		}
-	} while (--i);
-	bh->next = common->buffhds;
 
 	/* Prepare inquiryString */
 	i = get_default_bcdDevice();
