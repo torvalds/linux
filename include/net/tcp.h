@@ -1109,8 +1109,8 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->wscale_ok = rx_opt->wscale_ok;
 	ireq->acked = 0;
 	ireq->ecn_ok = 0;
-	ireq->rmt_port = tcp_hdr(skb)->source;
-	ireq->loc_port = tcp_hdr(skb)->dest;
+	ireq->ir_rmt_port = tcp_hdr(skb)->source;
+	ireq->ir_loc_port = tcp_hdr(skb)->dest;
 }
 
 void tcp_enter_memory_pressure(struct sock *sk);

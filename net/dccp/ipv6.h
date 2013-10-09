@@ -25,7 +25,6 @@ struct dccp6_sock {
 
 struct dccp6_request_sock {
 	struct dccp_request_sock  dccp;
-	struct inet6_request_sock inet6;
 };
 
 struct dccp6_timewait_sock {

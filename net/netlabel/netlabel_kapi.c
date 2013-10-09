@@ -817,7 +817,7 @@ int netlbl_req_setattr(struct request_sock *req,
 	switch (req->rsk_ops->family) {
 	case AF_INET:
 		entry = netlbl_domhsh_getentry_af4(secattr->domain,
-						   inet_rsk(req)->rmt_addr);
+						   inet_rsk(req)->ir_rmt_addr);
 		if (entry == NULL) {
 			ret_val = -ENOENT;
 			goto req_setattr_return;

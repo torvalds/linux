@@ -679,12 +679,12 @@ static inline void inet_diag_req_addrs(const struct sock *sk,
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6) {
 		if (req->rsk_ops->family == AF_INET6) {
-			entry->saddr = inet6_rsk(req)->loc_addr.s6_addr32;
-			entry->daddr = inet6_rsk(req)->rmt_addr.s6_addr32;
+			entry->saddr = ireq->ir_v6_loc_addr.s6_addr32;
+			entry->daddr = ireq->ir_v6_rmt_addr.s6_addr32;
 		} else if (req->rsk_ops->family == AF_INET) {
-			ipv6_addr_set_v4mapped(ireq->loc_addr,
+			ipv6_addr_set_v4mapped(ireq->ir_loc_addr,
 					       &entry->saddr_storage);
-			ipv6_addr_set_v4mapped(ireq->rmt_addr,
+			ipv6_addr_set_v4mapped(ireq->ir_rmt_addr,
 					       &entry->daddr_storage);
 			entry->saddr = entry->saddr_storage.s6_addr32;
 			entry->daddr = entry->daddr_storage.s6_addr32;
@@ -692,8 +692,8 @@ static inline void inet_diag_req_addrs(const struct sock *sk,
 	} else
 #endif
 	{
-		entry->saddr = &ireq->loc_addr;
-		entry->daddr = &ireq->rmt_addr;
+		entry->saddr = &ireq->ir_loc_addr;
+		entry->daddr = &ireq->ir_rmt_addr;
 	}
 }
 
@@ -728,9 +728,9 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 		tmo = 0;
 
 	r->id.idiag_sport = inet->inet_sport;
-	r->id.idiag_dport = ireq->rmt_port;
-	r->id.idiag_src[0] = ireq->loc_addr;
-	r->id.idiag_dst[0] = ireq->rmt_addr;
+	r->id.idiag_dport = ireq->ir_rmt_port;
+	r->id.idiag_src[0] = ireq->ir_loc_addr;
+	r->id.idiag_dst[0] = ireq->ir_rmt_addr;
 	r->idiag_expires = jiffies_to_msecs(tmo);
 	r->idiag_rqueue = 0;
 	r->idiag_wqueue = 0;
@@ -789,13 +789,13 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 			if (reqnum < s_reqnum)
 				continue;
-			if (r->id.idiag_dport != ireq->rmt_port &&
+			if (r->id.idiag_dport != ireq->ir_rmt_port &&
 			    r->id.idiag_dport)
 				continue;
 
 			if (bc) {
 				inet_diag_req_addrs(sk, req, &entry);
-				entry.dport = ntohs(ireq->rmt_port);
+				entry.dport = ntohs(ireq->ir_rmt_port);
 
 				if (!inet_diag_bc_run(bc, &entry))
 					continue;

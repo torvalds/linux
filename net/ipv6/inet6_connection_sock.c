@@ -70,20 +70,20 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 				      struct flowi6 *fl6,
 				      const struct request_sock *req)
 {
-	struct inet6_request_sock *treq = inet6_rsk(req);
+	struct inet_request_sock *ireq = inet_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *final_p, final;
 	struct dst_entry *dst;
 
 	memset(fl6, 0, sizeof(*fl6));
 	fl6->flowi6_proto = IPPROTO_TCP;
-	fl6->daddr = treq->rmt_addr;
+	fl6->daddr = ireq->ir_v6_rmt_addr;
 	final_p = fl6_update_dst(fl6, np->opt, &final);
-	fl6->saddr = treq->loc_addr;
-	fl6->flowi6_oif = treq->iif;
+	fl6->saddr = ireq->ir_v6_loc_addr;
+	fl6->flowi6_oif = ireq->ir_iif;
 	fl6->flowi6_mark = sk->sk_mark;
-	fl6->fl6_dport = inet_rsk(req)->rmt_port;
-	fl6->fl6_sport = inet_rsk(req)->loc_port;
+	fl6->fl6_dport = ireq->ir_rmt_port;
+	fl6->fl6_sport = ireq->ir_loc_port;
 	security_req_classify_flow(req, flowi6_to_flowi(fl6));
 
 	dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
@@ -129,13 +129,13 @@ struct request_sock *inet6_csk_search_req(const struct sock *sk,
 						     lopt->nr_table_entries)];
 	     (req = *prev) != NULL;
 	     prev = &req->dl_next) {
-		const struct inet6_request_sock *treq = inet6_rsk(req);
+		const struct inet_request_sock *ireq = inet_rsk(req);
 
-		if (inet_rsk(req)->rmt_port == rport &&
+		if (ireq->ir_rmt_port == rport &&
 		    req->rsk_ops->family == AF_INET6 &&
-		    ipv6_addr_equal(&treq->rmt_addr, raddr) &&
-		    ipv6_addr_equal(&treq->loc_addr, laddr) &&
-		    (!treq->iif || treq->iif == iif)) {
+		    ipv6_addr_equal(&ireq->ir_v6_rmt_addr, raddr) &&
+		    ipv6_addr_equal(&ireq->ir_v6_loc_addr, laddr) &&
+		    (!ireq->ir_iif || ireq->ir_iif == iif)) {
 			WARN_ON(req->sk != NULL);
 			*prevp = prev;
 			return req;
@@ -153,8 +153,8 @@ void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	const u32 h = inet6_synq_hash(&inet6_rsk(req)->rmt_addr,
-				      inet_rsk(req)->rmt_port,
+	const u32 h = inet6_synq_hash(&inet_rsk(req)->ir_v6_rmt_addr,
+				      inet_rsk(req)->ir_rmt_port,
 				      lopt->hash_rnd, lopt->nr_table_entries);
 
 	reqsk_queue_hash_req(&icsk->icsk_accept_queue, h, req, timeout);
