@@ -233,10 +233,15 @@ put_node:
 	of_node_put(np);
 }
 
-static void __init imx6q_opp_init(struct device *cpu_dev)
+static void __init imx6q_opp_init(void)
 {
 	struct device_node *np;
+	struct device *cpu_dev = get_cpu_device(0);
 
+	if (!cpu_dev) {
+		pr_warn("failed to get cpu0 device\n");
+		return;
+	}
 	np = of_node_get(cpu_dev->of_node);
 	if (!np) {
 		pr_warn("failed to find cpu0 node\n");
@@ -268,7 +273,7 @@ static void __init imx6q_init_late(void)
 		imx6q_cpuidle_init();
 
 	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
-		imx6q_opp_init(&imx6q_cpufreq_pdev.dev);
+		imx6q_opp_init();
 		platform_device_register(&imx6q_cpufreq_pdev);
 	}
 }

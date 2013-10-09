@@ -3,15 +3,14 @@
  *	  various MIPS cpu types.
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
- * Copyright (C) 2004  Maciej W. Rozycki
+ * Copyright (C) 2004, 2013  Maciej W. Rozycki
  */
 #ifndef _ASM_CPU_H
 #define _ASM_CPU_H
 
-/* Assigned Company values for bits 23:16 of the PRId Register
-   (CP0 register 15, select 0).	 As of the MIPS32 and MIPS64 specs from
-   MTI, the PRId register is defined in this (backwards compatible)
-   way:
+/*
+   As of the MIPS32 and MIPS64 specs from MTI, the PRId register (CP0
+   register 15, select 0) is defined in this (backwards compatible) way:
 
   +----------------+----------------+----------------+----------------+
   | Company Options| Company ID	    | Processor ID   | Revision	      |
@@ -22,6 +21,14 @@
    that bits 16-23 have been 0 for all MIPS processors before the MIPS32/64
    spec.
 */
+
+#define PRID_OPT_MASK		0xff000000
+
+/*
+ * Assigned Company values for bits 23:16 of the PRId register.
+ */
+
+#define PRID_COMP_MASK		0xff0000
 
 #define PRID_COMP_LEGACY	0x000000
 #define PRID_COMP_MIPS		0x010000
@@ -38,10 +45,17 @@
 #define PRID_COMP_INGENIC	0xd00000
 
 /*
- * Assigned values for the product ID register.	 In order to detect a
- * certain CPU type exactly eventually additional registers may need to
- * be examined.	 These are valid when 23:16 == PRID_COMP_LEGACY
+ * Assigned Processor ID (implementation) values for bits 15:8 of the PRId
+ * register.  In order to detect a certain CPU type exactly eventually
+ * additional registers may need to be examined.
  */
+
+#define PRID_IMP_MASK		0xff00
+
+/*
+ * These are valid when 23:16 == PRID_COMP_LEGACY
+ */
+
 #define PRID_IMP_R2000		0x0100
 #define PRID_IMP_AU1_REV1	0x0100
 #define PRID_IMP_AU1_REV2	0x0200
@@ -182,10 +196,14 @@
 #define PRID_IMP_NETLOGIC_XLP2XX	0x1200
 
 /*
- * Definitions for 7:0 on legacy processors
+ * Particular Revision values for bits 7:0 of the PRId register.
  */
 
 #define PRID_REV_MASK		0x00ff
+
+/*
+ * Definitions for 7:0 on legacy processors
+ */
 
 #define PRID_REV_TX4927		0x0022
 #define PRID_REV_TX4937		0x0030
@@ -226,6 +244,8 @@
  * +---------------------------------+----------------+----------------+
  *  31				   16 15	     8 7	      0
  */
+
+#define FPIR_IMP_MASK		0xff00
 
 #define FPIR_IMP_NONE		0x0000
 

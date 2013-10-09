@@ -68,9 +68,9 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	spin_lock_irq(q->queue_lock);
 
 	if (unlikely(blk_queue_dying(q))) {
+		rq->cmd_flags |= REQ_QUIET; 
 		rq->errors = -ENXIO;
-		if (rq->end_io)
-			rq->end_io(rq, rq->errors);
+		__blk_end_request_all(rq, rq->errors);
 		spin_unlock_irq(q->queue_lock);
 		return;
 	}

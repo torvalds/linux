@@ -79,7 +79,7 @@ static struct usb_dpll_params *omap_usb3_get_dpll_params(unsigned long rate)
 			return &dpll_map[i].params;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static int omap_usb3_suspend(struct usb_phy *x, int suspend)

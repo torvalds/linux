@@ -254,11 +254,11 @@ int parse_args(const char *doing,
 
 
 STANDARD_PARAM_DEF(byte, unsigned char, "%hhu", unsigned long, kstrtoul);
-STANDARD_PARAM_DEF(short, short, "%hi", long, kstrtoul);
+STANDARD_PARAM_DEF(short, short, "%hi", long, kstrtol);
 STANDARD_PARAM_DEF(ushort, unsigned short, "%hu", unsigned long, kstrtoul);
-STANDARD_PARAM_DEF(int, int, "%i", long, kstrtoul);
+STANDARD_PARAM_DEF(int, int, "%i", long, kstrtol);
 STANDARD_PARAM_DEF(uint, unsigned int, "%u", unsigned long, kstrtoul);
-STANDARD_PARAM_DEF(long, long, "%li", long, kstrtoul);
+STANDARD_PARAM_DEF(long, long, "%li", long, kstrtol);
 STANDARD_PARAM_DEF(ulong, unsigned long, "%lu", unsigned long, kstrtoul);
 
 int param_set_charp(const char *val, const struct kernel_param *kp)

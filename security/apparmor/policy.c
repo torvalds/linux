@@ -563,7 +563,8 @@ void __init aa_free_root_ns(void)
 static void free_replacedby(struct aa_replacedby *r)
 {
 	if (r) {
-		aa_put_profile(rcu_dereference(r->profile));
+		/* r->profile will not be updated any more as r is dead */
+		aa_put_profile(rcu_dereference_protected(r->profile, true));
 		kzfree(r);
 	}
 }
