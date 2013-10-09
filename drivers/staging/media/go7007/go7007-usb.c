@@ -1227,7 +1227,8 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	/* Probe the tuner model on the TV402U */
 	if (go->board_id == GO7007_BOARDID_PX_TV402U) {
 		/* Board strapping indicates tuner model */
-		if (go7007_usb_vendor_request(go, 0x41, 0, 0, go->usb_buf, 3, 1) < 0) {
+		if (go7007_usb_vendor_request(go, 0x41, 0, 0, go->usb_buf, 3,
+					1) < 0) {
 			pr_err("GPIO read failed!\n");
 			goto allocfail;
 		}
