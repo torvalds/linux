@@ -202,6 +202,8 @@ static inline void usb_set_intfdata(struct usb_interface *intf, void *data)
 struct usb_interface *usb_get_intf(struct usb_interface *intf);
 void usb_put_intf(struct usb_interface *intf);
 
+/* Hard limit */
+#define USB_MAXENDPOINTS	30
 /* this maximum is arbitrary */
 #define USB_MAXINTERFACES	32
 #define USB_MAXIADS		(USB_MAXINTERFACES/2)
