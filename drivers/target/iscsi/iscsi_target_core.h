@@ -830,10 +830,6 @@ struct iscsi_portal_group {
 	struct list_head	tpg_list;
 } ____cacheline_aligned;
 
-#define ISCSI_TPG_C(c)		((struct iscsi_portal_group *)(c)->tpg)
-#define ISCSI_TPG_LUN(c, l)  ((iscsi_tpg_list_t *)(c)->tpg->tpg_lun_list_t[l])
-#define ISCSI_TPG_S(s)		((struct iscsi_portal_group *)(s)->tpg)
-
 struct iscsi_wwn_stat_grps {
 	struct config_group	iscsi_stat_group;
 	struct config_group	iscsi_instance_group;

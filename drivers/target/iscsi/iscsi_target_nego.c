@@ -789,7 +789,7 @@ static int iscsi_target_handle_csg_zero(
 		return -1;
 
 	if (!iscsi_check_negotiated_keys(conn->param_list)) {
-		if (ISCSI_TPG_C(conn)->tpg_attrib.authentication &&
+		if (conn->tpg->tpg_attrib.authentication &&
 		    !strncmp(param->value, NONE, 4)) {
 			pr_err("Initiator sent AuthMethod=None but"
 				" Target is enforcing iSCSI Authentication,"
@@ -799,7 +799,7 @@ static int iscsi_target_handle_csg_zero(
 			return -1;
 		}
 
-		if (ISCSI_TPG_C(conn)->tpg_attrib.authentication &&
+		if (conn->tpg->tpg_attrib.authentication &&
 		    !login->auth_complete)
 			return 0;
 
@@ -862,7 +862,7 @@ static int iscsi_target_handle_csg_one(struct iscsi_conn *conn, struct iscsi_log
 	}
 
 	if (!login->auth_complete &&
-	     ISCSI_TPG_C(conn)->tpg_attrib.authentication) {
+	     conn->tpg->tpg_attrib.authentication) {
 		pr_err("Initiator is requesting CSG: 1, has not been"
 			 " successfully authenticated, and the Target is"
 			" enforcing iSCSI Authentication, login failed.\n");
