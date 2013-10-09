@@ -2722,8 +2722,6 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	struct intel_crtc *intel_crtc;
 	int level, wm_lp;
 
-	memset(results, 0, sizeof(*results));
-
 	results->enable_fbc_wm = merged->fbc_wm_enabled;
 
 	/* LP1+ register values */
@@ -2763,24 +2761,26 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 
 /* Find the result with the highest level enabled. Check for enable_fbc_wm in
  * case both are at the same level. Prefer r1 in case they're the same. */
-static struct hsw_wm_values *hsw_find_best_result(struct hsw_wm_values *r1,
-						  struct hsw_wm_values *r2)
+static struct intel_pipe_wm *hsw_find_best_result(struct drm_device *dev,
+						  struct intel_pipe_wm *r1,
+						  struct intel_pipe_wm *r2)
 {
-	int i, val_r1 = 0, val_r2 = 0;
+	int level, max_level = ilk_wm_max_level(dev);
+	int level1 = 0, level2 = 0;
 
-	for (i = 0; i < 3; i++) {
-		if (r1->wm_lp[i] & WM3_LP_EN)
-			val_r1 = r1->wm_lp[i] & WM1_LP_LATENCY_MASK;
-		if (r2->wm_lp[i] & WM3_LP_EN)
-			val_r2 = r2->wm_lp[i] & WM1_LP_LATENCY_MASK;
+	for (level = 1; level <= max_level; level++) {
+		if (r1->wm[level].enable)
+			level1 = level;
+		if (r2->wm[level].enable)
+			level2 = level;
 	}
 
-	if (val_r1 == val_r2) {
-		if (r2->enable_fbc_wm && !r1->enable_fbc_wm)
+	if (level1 == level2) {
+		if (r2->fbc_wm_enabled && !r1->fbc_wm_enabled)
 			return r2;
 		else
 			return r1;
-	} else if (val_r1 > val_r2) {
+	} else if (level1 > level2) {
 		return r1;
 	} else {
 		return r2;
@@ -2891,10 +2891,10 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params = {};
-	struct hsw_wm_values results_1_2, results_5_6, *best_results;
+	struct hsw_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 	struct intel_pipe_wm pipe_wm = {};
-	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {};
+	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 
 	hsw_compute_wm_parameters(crtc, &params, &lp_max_1_2, &lp_max_5_6);
 
@@ -2908,18 +2908,18 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 	ilk_wm_merge(dev, &lp_max_1_2, &lp_wm_1_2);
 	ilk_wm_merge(dev, &lp_max_5_6, &lp_wm_5_6);
 
-	hsw_compute_wm_results(dev, &lp_wm_1_2, &results_1_2);
 	if (lp_max_1_2.pri != lp_max_5_6.pri) {
-		hsw_compute_wm_results(dev, &lp_wm_5_6, &results_5_6);
-		best_results = hsw_find_best_result(&results_1_2, &results_5_6);
+		best_lp_wm = hsw_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
-		best_results = &results_1_2;
+		best_lp_wm = &lp_wm_1_2;
 	}
 
-	partitioning = (best_results == &results_1_2) ?
+	hsw_compute_wm_results(dev, best_lp_wm, &results);
+
+	partitioning = (best_lp_wm == &lp_wm_1_2) ?
 		       INTEL_DDB_PART_1_2 : INTEL_DDB_PART_5_6;
 
-	hsw_write_wm_values(dev_priv, best_results, partitioning);
+	hsw_write_wm_values(dev_priv, &results, partitioning);
 }
 
 static void haswell_update_sprite_wm(struct drm_plane *plane,
