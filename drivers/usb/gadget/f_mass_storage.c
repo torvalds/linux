@@ -2642,6 +2642,18 @@ static inline int fsg_num_buffers_validate(unsigned int fsg_num_buffers)
 	return -EINVAL;
 }
 
+static void _fsg_common_free_buffers(struct fsg_buffhd *buffhds, unsigned n)
+{
+	if (buffhds) {
+		struct fsg_buffhd *bh = buffhds;
+		while (n--) {
+			kfree(bh->buf);
+			++bh;
+		}
+		kfree(buffhds);
+	}
+}
+
 struct fsg_common *fsg_common_init(struct fsg_common *common,
 				   struct usb_composite_dev *cdev,
 				   struct fsg_config *cfg)
@@ -2897,15 +2909,7 @@ static void fsg_common_release(struct kref *ref)
 		kfree(common->luns);
 	}
 
-	{
-		struct fsg_buffhd *bh = common->buffhds;
-		unsigned i = common->fsg_num_buffers;
-		do {
-			kfree(bh->buf);
-		} while (++bh, --i);
-	}
-
-	kfree(common->buffhds);
+	_fsg_common_free_buffers(common->buffhds, common->fsg_num_buffers);
 	if (common->free_storage_on_release)
 		kfree(common);
 }
