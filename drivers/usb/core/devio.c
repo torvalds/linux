@@ -1209,6 +1209,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	unsigned int u, totlen, isofrmlen;
 	int i, ret, is_in, num_sgs = 0, ifnum = -1;
 	int number_of_packets = 0;
+	unsigned int stream_id = 0;
 	void *buf;
 
 	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP |
@@ -1294,6 +1295,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		num_sgs = DIV_ROUND_UP(uurb->buffer_length, USB_SG_SIZE);
 		if (num_sgs == 1 || num_sgs > ps->dev->bus->sg_tablesize)
 			num_sgs = 0;
+		if (ep->streams)
+			stream_id = uurb->stream_id;
 		break;
 
 	case USBDEVFS_URB_TYPE_INTERRUPT:
@@ -1444,6 +1447,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	dr = NULL;
 	as->urb->start_frame = uurb->start_frame;
 	as->urb->number_of_packets = number_of_packets;
+	as->urb->stream_id = stream_id;
 	if (uurb->type == USBDEVFS_URB_TYPE_ISO ||
 			ps->dev->speed == USB_SPEED_HIGH)
 		as->urb->interval = 1 << min(15, ep->desc.bInterval - 1);
