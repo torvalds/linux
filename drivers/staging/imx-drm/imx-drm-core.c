@@ -110,18 +110,12 @@ int imx_drm_crtc_panel_format_pins(struct drm_crtc *crtc, u32 encoder_type,
 	struct imx_drm_crtc *imx_crtc;
 	struct imx_drm_crtc_helper_funcs *helper;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list)
 		if (imx_crtc->crtc == crtc)
 			goto found;
 
-	mutex_unlock(&imxdrm->mutex);
-
 	return -EINVAL;
 found:
-	mutex_unlock(&imxdrm->mutex);
-
 	helper = &imx_crtc->imx_drm_helper_funcs;
 	if (helper->set_interface_pix_fmt)
 		return helper->set_interface_pix_fmt(crtc,
@@ -647,20 +641,14 @@ int imx_drm_encoder_get_mux_id(struct imx_drm_encoder *imx_drm_encoder,
 	struct imx_drm_crtc *imx_crtc;
 	int i = 0;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list) {
 		if (imx_crtc->crtc == crtc)
 			goto found;
 		i++;
 	}
 
-	mutex_unlock(&imxdrm->mutex);
-
 	return -EINVAL;
 found:
-	mutex_unlock(&imxdrm->mutex);
-
 	return i;
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_get_mux_id);
