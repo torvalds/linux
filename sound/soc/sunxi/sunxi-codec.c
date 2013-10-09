@@ -510,15 +510,31 @@ static const struct snd_kcontrol_new sunxia_dac[] = {
 };
 
 static const struct snd_kcontrol_new codec_adc_controls[] = {
+	CODEC_SINGLE("Master Capture Mute",SUNXI_ADC_ACTL,4,1,0),
+	CODEC_SINGLE("Right Capture Mute",SUNXI_ADC_ACTL,31,1,0),
+	CODEC_SINGLE("Left Capture Mute",SUNXI_ADC_ACTL,30,1,0),
 	CODEC_SINGLE("Capture Volume",SUNXI_ADC_ACTL,20,7,0),//录音音量
+	CODEC_SINGLE("Line Volume",SUNXI_ADC_ACTL,13,7,0),
 	CODEC_SINGLE("MicL Volume",SUNXI_ADC_ACTL,25,3,0),//mic左音量
 	CODEC_SINGLE("MicR Volume",SUNXI_ADC_ACTL,23,3,0),//mic右音量
+	CODEC_SINGLE("Mic2 Boost",SUNXI_ADC_ACTL,29,1,0),
+	CODEC_SINGLE("Mic1 Boost",SUNXI_ADC_ACTL,28,1,0),
+	CODEC_SINGLE("Mic Power",SUNXI_ADC_ACTL,27,1,0),
 	CODEC_SINGLE("ADC Input Mux",SUNXI_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
 static const struct snd_kcontrol_new sun7i_dac_ctls[] = {
 	/*SUNXI_DAC_ACTL = 0x10,PAVOL*/
 	CODEC_SINGLE("Master Playback Volume", SUNXI_DAC_ACTL, 0, 0x3f, 0),
+	CODEC_SINGLE("Playback Switch", SUNXI_DAC_ACTL,6,1,0),//全局输出开关
+	CODEC_SINGLE("FmL Switch",SUNXI_DAC_ACTL,17,1,0),//Fm左开关
+	CODEC_SINGLE("FmR Switch",SUNXI_DAC_ACTL,16,1,0),//Fm右开关
+	CODEC_SINGLE("LineL Switch",SUNXI_DAC_ACTL,19,1,0),//Line左开关
+	CODEC_SINGLE("LineR Switch",SUNXI_DAC_ACTL,18,1,0),//Line右开关
+	CODEC_SINGLE("Ldac Left Mixer",SUNXI_DAC_ACTL,15,1,0),
+	CODEC_SINGLE("Rdac Right Mixer",SUNXI_DAC_ACTL,14,1,0),
+	CODEC_SINGLE("Ldac Right Mixer",SUNXI_DAC_ACTL,13,1,0),
+	CODEC_SINGLE("Mic Input Mux",SUNXI_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
 	CODEC_SINGLE("MIC output volume", SUNXI_DAC_ACTL, 20, 7, 0),
 	/*	FM Input to output mixer Gain Control
 	 * 	From -4.5db to 6db,1.5db/step,default is 0db
@@ -533,6 +549,9 @@ static const struct snd_kcontrol_new sun7i_dac_ctls[] = {
 };
 
 static const struct snd_kcontrol_new sun7i_adc_ctls[] = {
+	CODEC_SINGLE("Master Capture Mute",SUNXI_ADC_ACTL,4,1,0),
+	CODEC_SINGLE("Right Capture Mute",SUNXI_ADC_ACTL,31,1,0),
+	CODEC_SINGLE("Left Capture Mute",SUNXI_ADC_ACTL,30,1,0),
 	CODEC_SINGLE("LINEIN APM Volume", SUNXI_MIC_CRT, 13, 0x7, 0),
 	/* ADC Input Gain Control, capture volume
 	 * 000:-4.5db,001:-3db,010:-1.5db,011:0db,100:1.5db,101:3db,110:4.5db,111:6db
@@ -542,6 +561,12 @@ static const struct snd_kcontrol_new sun7i_adc_ctls[] = {
 	 *	MIC2 pre-amplifier Gain Control
 	 *	00:0db,01:35db,10:38db,11:41db
 	 */
+	CODEC_SINGLE("MicL Volume",SUNXI_ADC_ACTL,25,3,0),//mic左音量
+	CODEC_SINGLE("MicR Volume",SUNXI_ADC_ACTL,23,3,0),//mic右音量
+	CODEC_SINGLE("Mic2 Boost",SUNXI_ADC_ACTL,29,1,0),
+	CODEC_SINGLE("Mic1 Boost",SUNXI_ADC_ACTL,28,1,0),
+	CODEC_SINGLE("Mic Power",SUNXI_ADC_ACTL,27,1,0),
+	CODEC_SINGLE("ADC Input Mux",SUNXI_ADC_ACTL,17,7,0),//ADC输入静音
 	CODEC_SINGLE("Mic2 gain Volume", SUNXI_MIC_CRT, 26, 7, 0),
 	/*
 	 *	MIC1 pre-amplifier Gain Control
