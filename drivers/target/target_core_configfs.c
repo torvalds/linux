@@ -177,16 +177,16 @@ static struct config_group *target_core_register_fabric(
 	 * struct target_fabric_configfs *tf will contain a usage reference.
 	 */
 	pr_debug("Target_Core_ConfigFS: REGISTER tfc_wwn_cit -> %p\n",
-			&TF_CIT_TMPL(tf)->tfc_wwn_cit);
+			&tf->tf_cit_tmpl.tfc_wwn_cit);
 
 	tf->tf_group.default_groups = tf->tf_default_groups;
 	tf->tf_group.default_groups[0] = &tf->tf_disc_group;
 	tf->tf_group.default_groups[1] = NULL;
 
 	config_group_init_type_name(&tf->tf_group, name,
-			&TF_CIT_TMPL(tf)->tfc_wwn_cit);
+			&tf->tf_cit_tmpl.tfc_wwn_cit);
 	config_group_init_type_name(&tf->tf_disc_group, "discovery_auth",
-			&TF_CIT_TMPL(tf)->tfc_discovery_cit);
+			&tf->tf_cit_tmpl.tfc_discovery_cit);
 
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
 			" %s\n", tf->tf_group.cg_item.ci_name);
