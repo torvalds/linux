@@ -1368,8 +1368,10 @@ typedef struct drm_i915_private {
 
 	struct drm_i915_gem_object *vlv_pctx;
 
+#ifdef CONFIG_DRM_I915_FBDEV
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
+#endif
 
 	/*
 	 * The console may be contended at resume, but we don't
