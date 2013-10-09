@@ -106,6 +106,9 @@ void fsg_common_set_sysfs(struct fsg_common *common, bool sysfs);
 
 int fsg_common_set_num_buffers(struct fsg_common *common, unsigned int n);
 
+int fsg_common_set_cdev(struct fsg_common *common,
+			struct usb_composite_dev *cdev, bool can_stall);
+
 void fsg_common_remove_lun(struct fsg_lun *lun, bool sysfs);
 
 void fsg_common_remove_luns(struct fsg_common *common);
