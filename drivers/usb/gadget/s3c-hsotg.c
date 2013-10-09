@@ -1705,14 +1705,13 @@ static void s3c_hsotg_set_ep_maxpacket(struct s3c_hsotg *hsotg,
 		mpsval = s3c_hsotg_ep0_mps(mps);
 		if (mpsval > 3)
 			goto bad_mps;
+		hs_ep->ep.maxpacket = mps;
 	} else {
-		if (mps >= DxEPCTL_MPS_LIMIT+1)
+		mpsval = mps & DxEPCTL_MPS_MASK;
+		if (mpsval > 1024)
 			goto bad_mps;
-
-		mpsval = mps;
+		hs_ep->ep.maxpacket = mpsval;
 	}
-
-	hs_ep->ep.maxpacket = mps;
 
 	/*
 	 * update both the in and out endpoint controldir_ registers, even
@@ -2579,7 +2578,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	epctrl |= DxEPCTL_SNAK;
 
 	/* update the endpoint state */
-	hs_ep->ep.maxpacket = mps;
+	s3c_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps);
 
 	/* default, set to non-periodic */
 	hs_ep->periodic = 0;
