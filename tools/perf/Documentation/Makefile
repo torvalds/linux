@@ -246,15 +246,17 @@ $(OUTPUT)cmd-list.made: cmd-list.perl ../command-list.txt $(MAN1_TXT)
 	$(PERL_PATH) ./cmd-list.perl ../command-list.txt $(QUIET_STDERR) && \
 	date >$@
 
+CLEAN_FILES =									\
+	$(MAN_XML) $(addsuffix +,$(MAN_XML))					\
+	$(MAN_HTML) $(addsuffix +,$(MAN_HTML))					\
+	$(DOC_HTML) $(DOC_MAN1) $(DOC_MAN5) $(DOC_MAN7)				\
+	$(OUTPUT)*.texi $(OUTPUT)*.texi+ $(OUTPUT)*.texi++			\
+	$(OUTPUT)perf.info $(OUTPUT)perfman.info				\
+	$(OUTPUT)howto-index.txt $(OUTPUT)howto/*.html $(OUTPUT)doc.dep		\
+	$(OUTPUT)technical/api-*.html $(OUTPUT)technical/api-index.txt		\
+	$(cmds_txt) $(OUTPUT)*.made
 clean:
-	$(RM) $(MAN_XML) $(addsuffix +,$(MAN_XML))
-	$(RM) $(MAN_HTML) $(addsuffix +,$(MAN_HTML))
-	$(RM) $(DOC_HTML) $(DOC_MAN1) $(DOC_MAN5) $(DOC_MAN7)
-	$(RM) $(OUTPUT)*.texi $(OUTPUT)*.texi+ $(OUTPUT)*.texi++
-	$(RM) $(OUTPUT)perf.info $(OUTPUT)perfman.info
-	$(RM) $(OUTPUT)howto-index.txt $(OUTPUT)howto/*.html $(OUTPUT)doc.dep
-	$(RM) $(OUTPUT)technical/api-*.html $(OUTPUT)technical/api-index.txt
-	$(RM) $(cmds_txt) $(OUTPUT)*.made
+	$(call QUIET_CLEAN, Documentation) $(RM) $(CLEAN_FILES)
 
 $(MAN_HTML): $(OUTPUT)%.html : %.txt
 	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
