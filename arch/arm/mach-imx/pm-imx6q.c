@@ -67,10 +67,7 @@ void imx6q_set_chicken_bit(void)
 static void imx6q_enable_rbc(bool enable)
 {
 	u32 val;
-	static bool last_rbc_mode;
 
-	if (last_rbc_mode == enable)
-		return;
 	/*
 	 * need to mask all interrupts in GPC before
 	 * operating RBC configurations
@@ -98,17 +95,11 @@ static void imx6q_enable_rbc(bool enable)
 
 	/* restore GPC interrupt mask settings */
 	imx_gpc_restore_all();
-
-	last_rbc_mode = enable;
 }
 
 static void imx6q_enable_wb(bool enable)
 {
 	u32 val;
-	static bool last_wb_mode;
-
-	if (last_wb_mode == enable)
-		return;
 
 	/* configure well bias enable bit */
 	val = readl_relaxed(ccm_base + CLPCR);
@@ -121,8 +112,6 @@ static void imx6q_enable_wb(bool enable)
 	val &= ~BM_CCR_WB_COUNT;
 	val |= enable ? BM_CCR_WB_COUNT : 0;
 	writel_relaxed(val, ccm_base + CCR);
-
-	last_wb_mode = enable;
 }
 
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
@@ -132,8 +121,6 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 	val &= ~BM_CLPCR_LPM;
 	switch (mode) {
 	case WAIT_CLOCKED:
-		imx6q_enable_wb(false);
-		imx6q_enable_rbc(false);
 		break;
 	case WAIT_UNCLOCKED:
 		val |= 0x1 << BP_CLPCR_LPM;
@@ -152,8 +139,6 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
-		imx6q_enable_wb(true);
-		imx6q_enable_rbc(true);
 		break;
 	default:
 		return -EINVAL;
@@ -175,6 +160,8 @@ static int imx6q_pm_enter(suspend_state_t state)
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		imx6q_set_lpm(STOP_POWER_OFF);
+		imx6q_enable_wb(true);
+		imx6q_enable_rbc(true);
 		imx_gpc_pre_suspend();
 		imx_anatop_pre_suspend();
 		imx_set_cpu_jump(0, v7_cpu_resume);
@@ -183,6 +170,8 @@ static int imx6q_pm_enter(suspend_state_t state)
 		imx_smp_prepare();
 		imx_anatop_post_resume();
 		imx_gpc_post_resume();
+		imx6q_enable_rbc(false);
+		imx6q_enable_wb(false);
 		imx6q_set_lpm(WAIT_CLOCKED);
 		break;
 	default:
