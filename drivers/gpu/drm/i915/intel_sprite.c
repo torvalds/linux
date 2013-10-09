@@ -521,10 +521,10 @@ intel_enable_primary(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int reg = DSPCNTR(intel_crtc->plane);
 
-	if (!intel_crtc->primary_disabled)
+	if (intel_crtc->primary_enabled)
 		return;
 
-	intel_crtc->primary_disabled = false;
+	intel_crtc->primary_enabled = true;
 
 	I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
@@ -553,10 +553,10 @@ intel_disable_primary(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int reg = DSPCNTR(intel_crtc->plane);
 
-	if (intel_crtc->primary_disabled)
+	if (!intel_crtc->primary_enabled)
 		return;
 
-	intel_crtc->primary_disabled = true;
+	intel_crtc->primary_enabled = false;
 
 	mutex_lock(&dev->struct_mutex);
 	if (dev_priv->fbc.plane == intel_crtc->plane)
