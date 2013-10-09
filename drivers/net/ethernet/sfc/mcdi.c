@@ -630,6 +630,16 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 		rc = efx_mcdi_await_completion(efx);
 
 	if (rc != 0) {
+		netif_err(efx, hw, efx->net_dev,
+			  "MC command 0x%x inlen %d mode %d timed out\n",
+			  cmd, (int)inlen, mcdi->mode);
+
+		if (mcdi->mode == MCDI_MODE_EVENTS && efx_mcdi_poll_once(efx)) {
+			netif_err(efx, hw, efx->net_dev,
+				  "MCDI request was completed without an event\n");
+			rc = 0;
+		}
+
 		/* Close the race with efx_mcdi_ev_cpl() executing just too late
 		 * and completing a request we've just cancelled, by ensuring
 		 * that the seqno check therein fails.
@@ -638,11 +648,9 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 		++mcdi->seqno;
 		++mcdi->credits;
 		spin_unlock_bh(&mcdi->iface_lock);
+	}
 
-		netif_err(efx, hw, efx->net_dev,
-			  "MC command 0x%x inlen %d mode %d timed out\n",
-			  cmd, (int)inlen, mcdi->mode);
-	} else {
+	if (rc == 0) {
 		size_t hdr_len, data_len;
 
 		/* At the very least we need a memory barrier here to ensure
