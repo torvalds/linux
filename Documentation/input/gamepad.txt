@@ -122,12 +122,14 @@ D-Pad:
       BTN_DPAD_*
     Analog buttons are reported as:
       ABS_HAT0X and ABS_HAT0Y
+      (for ABS values negative is left/up, positive is right/down)
 
 Analog-Sticks:
   The left analog-stick is reported as ABS_X, ABS_Y. The right analog stick is
   reported as ABS_RX, ABS_RY. Zero, one or two sticks may be present.
   If analog-sticks provide digital buttons, they are mapped accordingly as
   BTN_THUMBL (first/left) and BTN_THUMBR (second/right).
+    (for ABS values negative is left/up, positive is right/down)
 
 Triggers:
   Trigger buttons can be available as digital or analog buttons or both. User-
@@ -138,6 +140,7 @@ Triggers:
   ABS_HAT2X (right/ZR) and BTN_TL2 or ABS_HAT2Y (left/ZL).
   If only one trigger-button combination is present (upper+lower), they are
   reported as "right" triggers (BTN_TR/ABS_HAT1X).
+    (ABS trigger values start at 0, pressure is reported as positive values)
 
 Menu-Pad:
   Menu buttons are always digital and are mapped according to their location
