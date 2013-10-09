@@ -1143,6 +1143,9 @@ static int proc_setintf(struct dev_state *ps, void __user *arg)
 		return -EFAULT;
 	if ((ret = checkintf(ps, setintf.interface)))
 		return ret;
+
+	destroy_async_on_interface(ps, setintf.interface);
+
 	return usb_set_interface(ps->dev, setintf.interface,
 			setintf.altsetting);
 }
