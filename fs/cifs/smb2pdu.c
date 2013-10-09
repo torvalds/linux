@@ -2339,7 +2339,7 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SendReceive2(xid, ses, &iov, 1, &resp_buftype, 0);
 	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
-		goto qinf_exit;
+		goto qfsinf_exit;
 	}
 	rsp = (struct smb2_query_info_rsp *)iov.iov_base;
 
@@ -2351,7 +2351,45 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (!rc)
 		copy_fs_info_to_kstatfs(info, fsdata);
 
-qinf_exit:
+qfsinf_exit:
+	free_rsp_buf(resp_buftype, iov.iov_base);
+	return rc;
+}
+
+int
+SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
+	      u64 persistent_fid, u64 volatile_fid)
+{
+	struct smb2_query_info_rsp *rsp = NULL;
+	struct kvec iov;
+	int rc = 0;
+	int resp_buftype;
+	struct cifs_ses *ses = tcon->ses;
+	unsigned int rsp_len, offset;
+
+	rc = build_qfs_info_req(&iov, tcon, SMB_QUERY_FS_ATTRIBUTE_INFO,
+				sizeof(FILE_SYSTEM_ATTRIBUTE_INFO),
+				persistent_fid, volatile_fid);
+	if (rc)
+		return rc;
+
+	rc = SendReceive2(xid, ses, &iov, 1, &resp_buftype, 0);
+	if (rc) {
+		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
+		goto qfsattr_exit;
+	}
+	rsp = (struct smb2_query_info_rsp *)iov.iov_base;
+
+	rsp_len = le32_to_cpu(rsp->OutputBufferLength);
+	offset = le16_to_cpu(rsp->OutputBufferOffset);
+	rc = validate_buf(offset, rsp_len, &rsp->hdr, MIN_FS_ATTR_INFO_SIZE);
+	if (!rc) {
+		memcpy(&tcon->fsAttrInfo, 4 /* RFC1001 len */ + offset
+			+ (char *)&rsp->hdr, min_t(unsigned int,
+			rsp_len, sizeof(FILE_SYSTEM_ATTRIBUTE_INFO)));
+	}
+
+qfsattr_exit:
 	free_rsp_buf(resp_buftype, iov.iov_base);
 	return rc;
 }

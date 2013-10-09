@@ -209,6 +209,31 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	return rsize;
 }
 
+static void
+smb2_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
+{
+	int rc;
+	__le16 srch_path = 0; /* Null - open root of share */
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+	if (rc)
+		return;
+
+	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	return;
+}
+
 static int
 smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_sb_info *cifs_sb, const char *full_path)
@@ -873,6 +898,7 @@ struct smb_version_operations smb20_operations = {
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
 	.tree_disconnect = SMB2_tdis,
+	.qfs_tcon = smb2_qfs_tcon,
 	.is_path_accessible = smb2_is_path_accessible,
 	.can_echo = smb2_can_echo,
 	.echo = SMB2_echo,
@@ -945,6 +971,7 @@ struct smb_version_operations smb21_operations = {
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
 	.tree_disconnect = SMB2_tdis,
+	.qfs_tcon = smb2_qfs_tcon,
 	.is_path_accessible = smb2_is_path_accessible,
 	.can_echo = smb2_can_echo,
 	.echo = SMB2_echo,
@@ -1018,6 +1045,7 @@ struct smb_version_operations smb30_operations = {
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
 	.tree_disconnect = SMB2_tdis,
+	.qfs_tcon = smb2_qfs_tcon,
 	.is_path_accessible = smb2_is_path_accessible,
 	.can_echo = smb2_can_echo,
 	.echo = SMB2_echo,
