@@ -2200,14 +2200,6 @@ struct hsw_wm_maximums {
 	uint16_t fbc;
 };
 
-struct hsw_wm_values {
-	uint32_t wm_pipe[3];
-	uint32_t wm_lp[3];
-	uint32_t wm_lp_spr[3];
-	uint32_t wm_linetime[3];
-	bool enable_fbc_wm;
-};
-
 /* used in computing the new watermarks state */
 struct intel_wm_config {
 	unsigned int num_pipes_active;
@@ -2712,12 +2704,14 @@ static int ilk_wm_lp_to_level(int wm_lp, const struct intel_pipe_wm *pipe_wm)
 
 static void hsw_compute_wm_results(struct drm_device *dev,
 				   const struct intel_pipe_wm *merged,
+				   enum intel_ddb_partitioning partitioning,
 				   struct hsw_wm_values *results)
 {
 	struct intel_crtc *intel_crtc;
 	int level, wm_lp;
 
 	results->enable_fbc_wm = merged->fbc_wm_enabled;
+	results->partitioning = partitioning;
 
 	/* LP1+ register values */
 	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
@@ -2787,13 +2781,10 @@ static struct intel_pipe_wm *hsw_find_best_result(struct drm_device *dev,
  * causes WMs to be re-evaluated, expending some power.
  */
 static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
-				struct hsw_wm_values *results,
-				enum intel_ddb_partitioning partitioning)
+				struct hsw_wm_values *results)
 {
 	struct hsw_wm_values previous;
 	uint32_t val;
-	enum intel_ddb_partitioning prev_partitioning;
-	bool prev_enable_fbc_wm;
 
 	previous.wm_pipe[0] = I915_READ(WM0_PIPEA_ILK);
 	previous.wm_pipe[1] = I915_READ(WM0_PIPEB_ILK);
@@ -2808,21 +2799,12 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	previous.wm_linetime[1] = I915_READ(PIPE_WM_LINETIME(PIPE_B));
 	previous.wm_linetime[2] = I915_READ(PIPE_WM_LINETIME(PIPE_C));
 
-	prev_partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
+	previous.partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
 				INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
 
-	prev_enable_fbc_wm = !(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
+	previous.enable_fbc_wm = !(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
 
-	if (memcmp(results->wm_pipe, previous.wm_pipe,
-		   sizeof(results->wm_pipe)) == 0 &&
-	    memcmp(results->wm_lp, previous.wm_lp,
-		   sizeof(results->wm_lp)) == 0 &&
-	    memcmp(results->wm_lp_spr, previous.wm_lp_spr,
-		   sizeof(results->wm_lp_spr)) == 0 &&
-	    memcmp(results->wm_linetime, previous.wm_linetime,
-		   sizeof(results->wm_linetime)) == 0 &&
-	    partitioning == prev_partitioning &&
-	    results->enable_fbc_wm == prev_enable_fbc_wm)
+	if (memcmp(results, &previous, sizeof(*results)) == 0)
 		return;
 
 	if (previous.wm_lp[2] != 0)
@@ -2846,16 +2828,16 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	if (previous.wm_linetime[2] != results->wm_linetime[2])
 		I915_WRITE(PIPE_WM_LINETIME(PIPE_C), results->wm_linetime[2]);
 
-	if (prev_partitioning != partitioning) {
+	if (previous.partitioning != results->partitioning) {
 		val = I915_READ(WM_MISC);
-		if (partitioning == INTEL_DDB_PART_1_2)
+		if (results->partitioning == INTEL_DDB_PART_1_2)
 			val &= ~WM_MISC_DATA_PARTITION_5_6;
 		else
 			val |= WM_MISC_DATA_PARTITION_5_6;
 		I915_WRITE(WM_MISC, val);
 	}
 
-	if (prev_enable_fbc_wm != results->enable_fbc_wm) {
+	if (previous.enable_fbc_wm != results->enable_fbc_wm) {
 		val = I915_READ(DISP_ARB_CTL);
 		if (results->enable_fbc_wm)
 			val &= ~DISP_FBC_WM_DIS;
@@ -2877,6 +2859,8 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(WM2_LP_ILK, results->wm_lp[1]);
 	if (results->wm_lp[2] != 0)
 		I915_WRITE(WM3_LP_ILK, results->wm_lp[2]);
+
+	dev_priv->wm.hw = *results;
 }
 
 static void haswell_update_wm(struct drm_crtc *crtc)
@@ -2914,12 +2898,12 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 		best_lp_wm = &lp_wm_1_2;
 	}
 
-	hsw_compute_wm_results(dev, best_lp_wm, &results);
-
 	partitioning = (best_lp_wm == &lp_wm_1_2) ?
 		       INTEL_DDB_PART_1_2 : INTEL_DDB_PART_5_6;
 
-	hsw_write_wm_values(dev_priv, &results, partitioning);
+	hsw_compute_wm_results(dev, best_lp_wm, partitioning, &results);
+
+	hsw_write_wm_values(dev_priv, &results);
 }
 
 static void haswell_update_sprite_wm(struct drm_plane *plane,
