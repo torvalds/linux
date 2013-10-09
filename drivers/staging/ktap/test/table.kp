@@ -1,0 +1,71 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+### table testing ###
+x = {}
+x[1] = "1"
+if (x[1] != "1") {
+	failed()
+}
+
+x[1] = 22222222222222222222222222222222222222222
+if (x[1] != 22222222222222222222222222222222222222222) {
+	failed()
+}
+
+x[1] = "jovi"
+if (x[1] != "jovi") {
+	failed()
+}
+
+x[11111111111111111111111111111111] = "jovi"
+if (x[11111111111111111111111111111111] != "jovi") {
+	failed()
+}
+
+x["jovi"] = 1
+if (x["jovi"] != 1) {
+	failed()
+}
+
+x["long string....................................."] = 1
+if (x["long string....................................."] != 1) {
+	failed()
+}
+
+# issue: subx must declare firstly, otherwise kernel will oops
+subx = {}
+subx["test"] = "this is test"
+x["test"] = subx
+if (x["test"]["test"] != "this is test") {
+	failed()
+}
+
+tbl = {}
+i = 1
+while (i < 100000) {
+	tbl[i] = i	
+	i = i + 1
+}
+
+i = 1
+while (i < 100000) {
+	if (tbl[i] != i) {
+		failed()
+	}
+	i = i + 1
+}
+
+#### table initization
+days = {"Sunday", "Monday", "Tuesday", "Wednesday",
+	"Thursday", "Friday", "Saturday"}
+
+if (days[2] != "Monday") {
+	failed()
+}
+
+

@@ -1,0 +1,25 @@
+#!/usr/bin/env ktap
+
+#this script output each average consumimg time of each hardirq
+s = aggr_table()
+map = {}
+
+trace irq:irq_handler_entry {
+	map[cpu()] = gettimeofday_us()
+}
+
+trace irq:irq_handler_exit {
+	local entry_time = map[cpu()]
+	if (entry_time == nil) {
+		return;
+	}
+
+	s[arg1] = avg(gettimeofday_us() - entry_time)
+	map[cpu()] = nil
+}
+
+trace_end {
+	print("hardirq average executing time (us)")
+	histogram(s)
+}
+

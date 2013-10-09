@@ -1,0 +1,56 @@
+#! /usr/bin/env ktap
+
+# Based on systemtap traceio.stp
+
+#this script is broken, fix it soon.
+
+reads = aggr_table()
+writes = aggr_table()
+total_io = aggr_table()
+
+trace syscalls:sys_exit_read {
+	reads[execname()] = sum(arg2)
+	total_io[execname()] = sum(arg2)
+}
+
+trace syscalls:sys_exit_write {
+	writes[execname()] = sum(arg2)
+	total_io[execname()] = sum(arg2)
+}
+
+function humanread_digit(bytes) {
+	if (bytes > 1024*1024*1024) {
+		return bytes/1024/1024/1024
+	} elseif (bytes > 1024*1024) {
+		return bytes/1024/1024
+	} elseif (bytes > 1024) {
+		return bytes/1024
+	} else {
+		return bytes
+	}
+}
+
+function humanread_x(bytes) {
+	if (bytes > 1024*1024*1024) {
+		return " GiB"
+	} elseif (bytes > 1024*1024) {
+		return " MiB"
+	} elseif (bytes > 1024) {
+		return " KiB"
+	} else {
+		return "   B"
+	}
+}
+
+tick-1s {
+	ansi.clear_screen()
+	for (exec, count in pairs(total_io)) {
+		local readnum = reads[exec]
+		local writenum = writes[exec]
+		printf("%15s r: %12d%s w: %12d%s\n", exec,
+			humanread_digit(readnum), humanread_x(readnum),
+			humanread_digit(writenum), humanread_x(writenum))
+	}
+	printf("\n")
+}
+

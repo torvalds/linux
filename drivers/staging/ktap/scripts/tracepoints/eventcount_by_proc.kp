@@ -1,0 +1,59 @@
+#!/usr/bin/env ktap
+
+# showing all tracepoints in histogram style
+
+s = aggr_table()
+
+trace *:* {
+	s[execname()] = count()
+}
+
+trace_end {
+	histogram(s)
+}
+
+print("Press Control-C to stop.")
+
+#Results:
+#^C
+#                          value ------------- Distribution ------------- count
+#                       swapper/0 |@@@@@@@@@@@@                           354378
+#                       swapper/1 |@@@@@@@@@@                             284984
+#                              ps |@@@@                                   115697
+#                        ksmtuned |@@@                                    95857
+#                          iscsid |@@                                     80008
+#                             awk |@                                      30354
+#                      irqbalance |                                       16530
+#                       rcu_sched |                                       15892
+#                        sendmail |                                       14463
+#                     kworker/0:1 |                                       10540
+#                    kworker/u4:2 |                                       9250
+#                     kworker/1:2 |                                       7943
+#                           sleep |                                       7555
+#                           crond |                                       3911
+#                     ksoftirqd/0 |                                       3817
+#                            sshd |                                       2849
+#                 systemd-journal |                                       2209
+#                     migration/1 |                                       1601
+#                     migration/0 |                                       1350
+#                        dhclient |                                       1343
+#                 nm-dhcp-client. |                                       1208
+#                     ksoftirqd/1 |                                       1064
+#                      watchdog/1 |                                       966
+#                      watchdog/0 |                                       964
+#                      khugepaged |                                       776
+#                     dbus-daemon |                                       611
+#                         rpcbind |                                       607
+#                           gdbus |                                       529
+#                  NetworkManager |                                       399
+#                     jbd2/dm-1-8 |                                       378
+#                   modem-manager |                                       184
+#                  abrt-watch-log |                                       157
+#                         polkitd |                                       156
+#                   rs:main Q:Reg |                                       153
+#                    avahi-daemon |                                       151
+#                        rsyslogd |                                       102
+#                         systemd |                                       96
+#                    kworker/0:1H |                                       45
+#                          smartd |                                       30
+

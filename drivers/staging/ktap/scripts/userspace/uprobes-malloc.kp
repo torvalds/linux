@@ -1,0 +1,9 @@
+#!/usr/bin/env ktap
+
+trace probe:/lib/libc.so.6:0x000773c0 {
+	print("entry:", execname(), argevent)
+}
+
+trace probe:/lib/libc.so.6:0x000773c0%return {
+	print("exit:", execname(), argevent)
+}

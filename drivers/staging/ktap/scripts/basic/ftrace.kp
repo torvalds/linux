@@ -1,0 +1,6 @@
+#!/usr/bin/env ktap
+
+trace ftrace:function /ip==mutex*/ {
+	print(cpu(), pid(), execname(), argevent)
+}
+

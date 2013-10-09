@@ -1,0 +1,30 @@
+#!/usr/bin/env ktap
+
+count1 = 0
+trace kmem:kmalloc {
+	count1 = count1 + 1
+}
+
+count2 = 0
+trace kmem:kfree {
+	count2 = count2 + 1
+}
+
+count3 = 0
+trace kmem:mm_page_alloc {
+	count3 = count3 + 1
+}
+
+count4 = 0
+trace kmem:mm_page_free {
+	count4 = count4 + 1
+}
+
+trace_end {
+	print("\n")
+	print("kmem:kmalloc:\t", count1)
+	print("kmem:kfree:\t", count2)
+	print("kmem:mm_page_alloc:", count3)
+	print("kmem:mm_page_free:", count4)
+	print("trace ending\n")
+}

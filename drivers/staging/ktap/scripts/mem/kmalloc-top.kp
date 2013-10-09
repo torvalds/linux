@@ -1,0 +1,17 @@
+#!/usr/bin/env ktap
+
+kmalloc_stack = {}
+
+trace kmem:kmalloc {
+	kmalloc_stack[backtrace()] += 1
+}
+
+tick-60s {
+	for (k, v in pairs(kmalloc_stack)) {
+		print(k)
+		printf("%d\n\n", v)
+	}
+
+	exit()
+}
+

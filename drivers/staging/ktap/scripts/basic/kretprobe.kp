@@ -1,0 +1,6 @@
+#!/usr/bin/env ktap
+
+trace probe:vfs_read%return fd=$retval {
+	print(execname(), argevent);
+}
+

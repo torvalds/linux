@@ -1,0 +1,24 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#-----------------------------------------#
+
+if (false) {
+	failed()
+}
+
+if (nil) {
+	failed()
+}
+
+# ktap only think false and nil is "real false", number 0 is true
+# it's same as lua
+# Might change it in future, to make similar with C
+if (0) {
+	#failed()
+}
+

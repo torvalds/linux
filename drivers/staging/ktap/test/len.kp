@@ -1,0 +1,25 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#-----------------------------------------#
+
+a = "123456789"
+
+if (len(a) != 9) {
+	failed()
+}
+
+b = {}
+b[0] = 0
+b[1] = 1
+b["keys"] = "values"
+
+if (len(b) != 3) {
+	failed()
+}
+
+

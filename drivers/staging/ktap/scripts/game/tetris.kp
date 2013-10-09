@@ -1,0 +1,328 @@
+#!/usr/bin/env ktap
+ 
+#
+# Tetris KTAP Script
+#
+# Copyright (C) 2013/OCT/05 Tadaki SAKAI
+#
+# based on stapgames (Systemtap Game Collection)
+#   https://github.com/mhiramat/stapgames/blob/master/games/tetris.stp
+#
+#   - Requirements
+#     Kernel Configuration: CONFIG_KPROBE_EVENT=y
+#                           CONFIG_EVENT_TRACING=y
+#                           CONFIG_PERF_EVENTS=y
+#                           CONFIG_DEBUG_FS=y
+#     CPU Architecture : x86_64
+#
+#   - Setup
+#     $ sudo mount -t debugfs none /sys/kernel/debug/
+#
+#     $ git clone https://github.com/ktap/ktap
+#     $ cd ktap
+#     $ make 2>&1 | tee ../make.log
+#     $ sudo make load
+#     $ sudo sh -c 'echo 50000 > /sys/module/ktapvm/parameters/max_exec_count'
+#
+#   - Run Tetris
+#     $ sudo ./ktap scripts/game/tetris.kp
+#
+ 
+ 
+#
+# utils
+#
+ 
+function rand(max) {
+	r = gettimeofday_us()
+	if (r < 0) {
+		r = r * -1
+	}
+	return r % max
+}
+ 
+color_table = {}
+color_table["Black"]	= 40
+color_table["Red"]	= 41
+color_table["Green"]	= 42
+color_table["Yellow"]	= 43
+color_table["Blue"]	= 44
+color_table["Purple"]	= 45
+color_table["Cyan"]	= 46
+color_table["White"]	= 47
+ 
+function get_color_number(txt) {
+	return color_table[txt]
+}
+ 
+color_table_text = {}
+color_table_text[40] = "Black"
+color_table_text[41] = "Red"
+color_table_text[42] = "Green"
+color_table_text[43] = "Yellow"
+color_table_text[44] = "Blue"
+color_table_text[45] = "Purple"
+color_table_text[46] = "Cyan"
+color_table_text[47] = "White"
+ 
+function get_color_text(num) {
+	return color_table_text[num]
+}
+
+function update_display() {
+	for (i = 0, 239, 1) {
+		if ((i % 12 - 11) != 0) {
+			tmp = ""
+		} else {
+			tmp = "\n"
+		}
+
+		if (display_buffer[240 + i] == back_text) {
+			printf("%s%s", back_text, tmp)
+		} else {
+			ctext = display_buffer[240 + i]
+			ansi.set_color2(get_color_number(ctext), 
+					get_color_number(ctext))
+			printf("  %s", tmp)
+			ansi.reset_color()
+		}
+
+		# clear the display buffer
+		display_buffer[240 + i] = display_buffer[i]
+	}
+
+	printf("%d\n",point)
+}
+
+ 
+#
+# global value
+#
+ 
+key_code = 0
+point = 0
+block_number = 0
+height = 0
+height_update = 0
+ 
+destination_position = {}
+back_text = {}
+block_color = {}
+display_buffer = {}
+ 
+block_data0 = {}
+block_data1 = {}
+block_data2 = {}
+block_data3 = {}
+block_data4 = {}
+block_data5 = {}
+block_data6 = {}
+block_table = {}
+ 
+#
+# Initialize
+#
+ 
+# Create blocks
+# block is represented by the position from the center.
+# Every block has "L" part in the center except for a bar.
+block_data0[0] = -11 # non-"L" part for each block
+block_data1[0] = -24
+block_data2[0] = 2
+block_data3[0] = 13
+block_data4[0] = -13
+block_data5[0] = -1
+block_data6[0] = 2
+	
+block_table[0] = block_data0
+block_table[1] = block_data1
+block_table[2] = block_data2
+block_table[3] = block_data3
+block_table[4] = block_data4
+block_table[5] = block_data5
+block_table[6] = block_data6
+ 
+for (i = 0, len(block_table) - 1, 1) {
+	# common "L" part
+	block_table[i][1] = 0
+	block_table[i][2] = 1
+	block_table[i][3] = -12
+}
+ 
+block_table[6][3] = -1 # bar is not common
+# Position: 1 row has 12 columns, 
+# and (x, y) is represented by h = x + y * 12.p
+height = 17 # First block position (center)
+
+for (i = 0, 240, 1) {
+	# Wall and Floor (sentinel)
+	if (((i % 12) < 2) || (i > 228)) {
+		block_color = "White"
+		tmp = block_color
+	} else {
+		back_text = "  "
+		tmp = back_text
+	}
+	display_buffer[i - 1] = tmp
+	display_buffer[240 + i - 1] = tmp
+}
+
+block_number = rand(len(color_table) - 1)
+block_color = get_color_text(block_number + 40)
+
+ansi.clear_screen()
+ 
+ 
+#
+# Key Input
+#
+ 
+trace probe:kbd_event handle=%di event_type=%si event_code=%dx value=%cx {
+	# Only can run it in x86_64
+	#
+	# Register follow x86_64 call conversion:
+	#
+	# x86_64:
+	#	%rcx	4 argument
+	#	%rdx	3 argument
+	#	%rsi	2 argument
+	#	%rdi	1 argument
+ 
+	local event_code = arg4
+	local value = arg5
+ 
+	if (value != 0) {
+		if ((event_code - 4) != 0) {
+			key_code = event_code
+		}
+	}
+}
+ 
+ 
+#
+# timer
+#
+ 
+tick-200ms {
+	ansi.clear_screen()
+ 
+	f = 0 # move/rotate flag
+ 
+	if (key_code != 0) { # if key is pressed
+		if(key_code != 103) { #move left or right
+			# d: movement direction
+			if ((key_code - 105) != 0) {
+				if ((key_code - 106) != 0) {
+					d = 0
+				} else {
+					d = 1
+				}
+			} else {
+				d = -1
+			}
+ 
+			for (i = 0, 3, 1) { # check if the block can be moved
+				# destination is free
+				if (display_buffer[height +
+					block_table[block_number][i] + d] 
+				    != back_text) {
+					f = 1
+				}
+			}
+			# move if destinations of every block are free
+			if (f == 0) {
+				height = height + d
+			} 
+		} else { # rotate
+			for (i = 0, 3, 1) { # check if block can be rotated
+				# each block position
+				p = block_table[block_number][i]
+ 
+				# destination x pos(p/12 rounded)
+				v = (p * 2 + 252) / 24 - 10
+				w = p - v * 12 # destination y pos
+ 
+				# destination position
+				destination_position[i] = w * 12 - v
+ 
+				# check if desetination is free
+				if (display_buffer[height +
+				    destination_position[i]] != back_text) {
+					f = 1
+				}
+			}
+ 
+			if (f == 0) {
+				# rotate if destinations of every block
+				# are free
+				for (i = 0, 3, 1) {
+					block_table[block_number][i] = 
+						destination_position[i] 
+				}
+			}
+		}
+	}
+	key_code = 0 # clear the input key
+ 
+	f = 0
+	for (i = 0, 3, 1) { # drop 1 row
+		# check if destination is free
+		p = height + block_table[block_number][i]
+		if (display_buffer[12 + p] != back_text) {
+			f = 1
+		}
+ 
+		# copy the moving block to display buffer
+		display_buffer[240 + p] = block_color
+	}
+
+	if ((f == 1) && (height == 17)) {
+		update_display()
+		exit() # exit if there are block at initial position
+	}
+ 
+	height_update = !height_update
+	if (height_update != 0) {
+		if(f != 0) { # the block can't drop anymore
+			for (i = 0, 3, 1) {
+				# fix the block
+				display_buffer[height + 
+				  block_table[block_number][i]] = block_color 
+			}
+			# determin the next block
+			block_number = rand(len(color_table) - 1)
+ 
+			block_color = get_color_text(block_number + 40)
+ 
+			height = 17 # make the block to initial position
+		} else {
+			height = height + 12 # drop the block 1 row
+		}
+	}
+ 
+	k = 1
+	for (i = 18, 0, -1) { #check if line is filled
+		# search for filled line
+		j = 10
+		while ((j > 0) && 
+		       (display_buffer[i * 12 + j] != back_text)) {
+			j = j - 1
+		}
+ 
+		if (j == 0) { # filled!
+			# add a point: 1 line - 1 point, ..., tetris - 10points
+			point = point + k
+			k = k + 1
+ 
+			# drop every upper block
+			j = (i + 1) * 12
+			i = i + 1
+			while (j > 2 * 12) {
+				j = j - 1
+				display_buffer[j] = display_buffer[j - 12] 
+			}
+		}
+	}
+ 
+	update_display()
+}

@@ -1,0 +1,20 @@
+#!/usr/bin/env ktap
+
+ansi.clear_screen()
+
+ansi.set_color(32)
+printf("this line should be Green color\n")
+
+ansi.set_color(31)
+printf("this line should be Red color\n")
+
+ansi.set_color2(34, 43)
+printf("this line should be Blue color, with Yellow background\n")
+
+ansi.reset_color()
+ansi.set_color3(34, 46, 4)
+printf("this line should be Blue color, with Cyan background, underline single attribute\n")
+
+ansi.reset_color()
+ansi.new_line()
+

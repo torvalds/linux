@@ -1,0 +1,14 @@
+#! /usr/bin/env ktap
+
+#this script is broken, fix it soon.
+s = {}
+
+trace syscalls:sys_enter_* {
+	s[argname] += 1
+}
+
+tick-5s {
+	ansi.clear_screen()
+	histogram(s)
+	delete(s)
+}

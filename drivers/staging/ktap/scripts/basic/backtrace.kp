@@ -1,0 +1,6 @@
+#!/usr/bin/env ktap
+
+trace sched:sched_switch {
+	print_backtrace()
+}
+

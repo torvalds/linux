@@ -1,0 +1,57 @@
+#!/usr/bin/env ktap
+
+#Demo for thread-local variable
+#
+#Note this kind of function time tracing already handled concurrent issue,
+#but not aware on the recursion problem, user need to aware this limitation,
+#so don't use this script to trace function which could be called recursive.
+
+self = {}
+count_max = 0
+count_min = 0
+count_num = 0
+total_time = 0
+
+printf("measure time(us) of function vfs_read\n");
+
+trace probe:vfs_read {
+	if (execname() == "ktap") {
+		return
+	}
+
+	self[tid()] = gettimeofday_us()
+}
+
+trace probe:vfs_read%return {
+	if (execname() == "ktap") {
+		return
+	}
+
+	if (self[tid()] == nil) {
+		return
+	}
+
+	local durtion = gettimeofday_us() - self[tid()]
+	if (durtion > count_max) {
+		count_max = durtion
+	}
+	local min = count_min
+	if (min == 0 || durtion < min) {
+		count_min = durtion
+	}
+
+	count_num = count_num + 1
+	total_time = total_time + durtion
+
+	self[tid()] = nil
+}
+
+trace_end {
+	printf("avg\tmax\tmin\n");
+	printf("-------------------\n")
+
+	printf("%d\t%d\t%d\n", total_time/count_num,
+		count_max, count_min)
+}
+
+

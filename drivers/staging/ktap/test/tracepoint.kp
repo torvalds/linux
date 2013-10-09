@@ -1,0 +1,22 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#----------------------------------------#
+
+n = 0
+
+trace sched:* {
+	n = n + 1
+}
+
+tick-1s {
+	if (n == 0) {
+		failed()
+	}
+	exit()
+}
+

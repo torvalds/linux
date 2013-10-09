@@ -1,0 +1,21 @@
+config KTAP
+	tristate "a programable dynamic tracing tool for Linux"
+	depends on PERF_EVENTS && EVENT_TRACING
+	default n
+	help
+	  ktap is a new script-based dynamic tracing tool for Linux,
+	  it uses a scripting language and lets users trace the
+	  Linux kernel dynamically. ktap is designed to give
+	  operational insights with interoperability that allow
+	  users to tune, troubleshoot and extend kernel and application.
+	  It's similar with Linux Systemtap and Solaris Dtrace.
+
+	  ktap have different design principles from Linux mainstream
+	  dynamic tracing language in that it's based on bytecode,
+	  so it doesn't depend upon GCC, doesn't require compiling
+	  kernel module for each script, safe to use in production
+	  environment, fulfilling the embedded ecosystem's tracing needs.
+
+	  See ktap tutorial for more information:
+	      http://www.ktap.org/doc/tutorial.html
+

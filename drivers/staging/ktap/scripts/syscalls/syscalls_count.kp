@@ -1,0 +1,56 @@
+#!/usr/bin/env ktap
+
+s = aggr_table()
+
+trace syscalls:sys_enter_* {
+	s[argname] = count()
+}
+
+trace_end {
+	histogram(s)
+}
+
+print("Press Control-C to stop.")
+
+#Result:
+#
+#[root@jovi ktap]# ./ktap scripts/syscalls_histogram.kp
+#^C
+#                          value ------------- Distribution ------------- count
+#        sys_enter_rt_sigprocmask |@@@@@@                                 326
+#                  sys_enter_read |@@@@@                                  287
+#                 sys_enter_close |@@@@                                   236
+#                  sys_enter_open |@@@@                                   222
+#                sys_enter_stat64 |@@                                     132
+#                sys_enter_select |@@                                     123
+#          sys_enter_rt_sigaction |@@                                     107
+#                  sys_enter_poll |@                                      72
+#                 sys_enter_write |@                                      70
+#            sys_enter_mmap_pgoff |@                                      58
+#               sys_enter_fstat64 |                                       41
+#             sys_enter_nanosleep |                                       23
+#                sys_enter_access |                                       20
+#              sys_enter_mprotect |                                       18
+#               sys_enter_geteuid |                                       17
+#               sys_enter_getegid |                                       16
+#                sys_enter_getuid |                                       16
+#                sys_enter_getgid |                                       16
+#                   sys_enter_brk |                                       15
+#               sys_enter_waitpid |                                       11
+#                  sys_enter_time |                                       10
+#                 sys_enter_ioctl |                                       9
+#                sys_enter_munmap |                                       9
+#               sys_enter_fcntl64 |                                       7
+#                  sys_enter_dup2 |                                       7
+#                 sys_enter_clone |                                       6
+#            sys_enter_exit_group |                                       6
+#                sys_enter_execve |                                       4
+#                  sys_enter_pipe |                                       3
+#          sys_enter_gettimeofday |                                       3
+#              sys_enter_getdents |                                       2
+#             sys_enter_getgroups |                                       2
+#              sys_enter_statfs64 |                                       2
+#                 sys_enter_lseek |                                       2
+#                sys_enter_openat |                                       1
+#              sys_enter_newuname |                                       1
+

@@ -1,0 +1,24 @@
+#!/usr/bin/env ktap
+
+s = aggr_table()
+
+trace syscalls:sys_enter_* {
+	s[execname()] = count()
+}
+
+trace_end {
+	histogram(s)
+}
+
+print("Press Control-C to stop.")
+
+#Result:
+#
+#[root@jovi ktap]# ./ktap scripts/syscalls_histogram2.kp
+#^C
+#                          value ------------- Distribution ------------- count
+#                            sshd |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      196
+#                          iscsid |@@@@                                   24
+#                        sendmail |@                                      9
+
+

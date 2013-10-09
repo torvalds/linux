@@ -1,0 +1,28 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#---------------------------------------#
+
+n1 = 0
+n2 = 0
+
+tick-1s {
+	n1 = n1 + 1
+}
+
+tick-1s {
+	n2 = n2 + 1
+}
+
+tick-4s {
+	if (n1 == 0 || n2 == 0) {
+		failed()
+	}
+	exit()
+}
+
+

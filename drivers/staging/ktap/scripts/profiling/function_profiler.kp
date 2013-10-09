@@ -1,0 +1,41 @@
+#!/usr/bin/env ktap
+
+#kernel function profile
+#You can use this script to know what function is called frequently,
+#without enable CONFIG_FUNCTION_PROFILER in kernel.
+
+s = aggr_table()
+
+trace ftrace:function {
+	s[arg1] = count()
+}
+
+trace_end {
+	histogram(s)
+}
+
+#sample output
+#^C
+#                          value ------------- Distribution ------------- count
+#               sub_preempt_count | @@@@@                                  34904
+#               add_preempt_count | @@@@@                                  33435
+#              nsecs_to_jiffies64 | @@@                                    19919
+# irqtime_account_process_tick... | @                                      9970
+#               account_idle_time | @                                      9880
+#                  _raw_spin_lock |                                        5100
+#                _raw_spin_unlock |                                        5021
+#     _raw_spin_unlock_irqrestore |                                        4235
+#          _raw_spin_lock_irqsave |                                        4232
+#                 __rcu_read_lock |                                        3373
+#               __rcu_read_unlock |                                        3373
+#                  lookup_address |                                        2392
+#             pfn_range_is_mapped |                                        2384
+#      update_cfs_rq_blocked_load |                                        1983
+#                        idle_cpu |                                        1808
+#                       ktime_get |                                        1394
+#            _raw_spin_unlock_irq |                                        1270
+#              _raw_spin_lock_irq |                                        1091
+#                     update_curr |                                        950
+#             irqtime_account_irq |                                        950
+#                             ... |
+#

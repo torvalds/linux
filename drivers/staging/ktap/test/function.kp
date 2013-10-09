@@ -1,0 +1,88 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+### basic function call ###
+function f1(a, b) {
+	return a + b
+}
+
+if (f1(2, 3) != 5) {
+	failed();
+}
+
+### return string ###
+function f2() {
+	return "function return"
+}
+
+if (f2() != "function return") {
+	failed();
+}
+
+### mutli-value return ###
+function f3(a, b) {
+	return a+b, a-b;
+}
+
+c, d = f3(2, 3);
+if(c != 5 || d != -1) {
+	failed();
+}
+
+
+### closure testing ### 
+function f4() {
+	f5 = function(a, b) {
+		return a * b
+	}
+	return f5
+}
+
+local f = f4()
+if (f(9, 9) != 81) {
+	failed();
+}
+
+### closure with lexcial variable ### 
+# issue: variable cannot be local
+i = 1
+function f6() {
+	i = 5
+	f7 = function(a, b) {
+		return a * b + i
+	}
+	return f7
+}
+
+f = f6()
+if (f(9, 9) != 81 + i) {
+	failed();
+}
+
+i = 6
+if (f(9, 9) != 81 + i) {
+	failed();
+}
+
+### tail call
+### stack should not overflow in tail call mechanism
+a = 0
+function f8(i) {
+	if (i == 1000000) {
+		a = 1000000
+		return
+	}
+	# must add return here, otherwise stack overflow
+	return f8(i+1)
+}
+
+f8(0)
+if (a != 1000000) {
+	failed();
+}
+
+

@@ -1,0 +1,25 @@
+#!/usr/bin/env ktap
+
+#this script output each average consumimg time of each softirq line
+s = aggr_table()
+map = {}
+
+trace irq:softirq_entry {
+	map[cpu()] = gettimeofday_us()
+}
+
+trace irq:softirq_exit {
+	local entry_time = map[cpu()]
+	if (entry_time == nil) {
+		return;
+	}
+
+	s[arg1] = avg(gettimeofday_us() - entry_time)
+	map[cpu()] = nil
+}
+
+trace_end {
+	print("softirq average executing time (us)")
+	histogram(s)
+}
+

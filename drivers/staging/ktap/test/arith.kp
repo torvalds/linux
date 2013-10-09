@@ -1,0 +1,27 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#-----------------------------------------#
+
+a = 4
+b = 5
+
+if ((a + b) != 9) {
+	failed()
+}
+
+if ((a - b) != -1) {
+	failed()
+}
+
+if ((a % b) != 4) {
+	failed()
+}
+
+if ((a / b) != 0) {
+	failed()
+}

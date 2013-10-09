@@ -1,0 +1,14 @@
+#!/usr/bin/env ktap
+
+n = 0
+trace probe:__schedule%return {
+	n = n + 1
+}
+
+tick-1s {
+	if (n == 0) {
+		printf("failed\n");
+	}
+	exit()
+}
+

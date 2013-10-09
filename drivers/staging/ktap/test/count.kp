@@ -1,0 +1,20 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#---------------------------------------#
+
+t = {}
+
+t["key"] += 1
+if (t["key"] != 1) {
+	failed()
+}
+
+t["key"] += 1
+if (t["key"] != 2) {
+	failed()
+}

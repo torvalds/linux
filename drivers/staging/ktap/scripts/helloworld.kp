@@ -1,0 +1,3 @@
+#!/usr/bin/env ktap
+
+print("Hello World! I am ktap")

@@ -1,0 +1,24 @@
+#!/usr/bin/env ktap
+
+soft_disabled = 1
+this_cpu = 0
+
+trace syscalls:sys_enter_open {
+	print(argevent)
+	soft_disabled = 0
+	this_cpu = cpu()
+}
+
+trace *:* {
+	if (soft_disabled == 0 && cpu() == this_cpu) {
+		print(argevent)
+	}
+}
+
+trace syscalls:sys_exit_open {
+	print(argevent)
+	if (cpu() == this_cpu) {
+		exit()
+	}
+}
+

@@ -1,0 +1,40 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+### basic while-loop testing
+a = 1
+while (a < 1000) {
+	a = a + 1
+}
+
+if (a != 1000) {
+	failed()
+}
+
+### break testing
+### Note that ktap don't have continue keyword
+a = 1
+while (a < 1000) {
+	if (a == 10) {
+		break
+	}
+	a = a + 1
+}
+
+if (a != 10) {
+	failed()
+}
+
+### for-loop testing
+b=0
+for (c = 0, 1000, 1) {
+	b = b + 1
+}
+
+if (b != 1001) {
+	failed()
+}
