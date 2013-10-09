@@ -2009,7 +2009,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 	priv->oldaddr = NULL;
 	if (priv->pp_rxskb) {
 		kfree(priv->pp_rxskb);
-		priv->pp_rxskb = 0;
+		priv->pp_rxskb = NULL;
 	}
 }
 #else
