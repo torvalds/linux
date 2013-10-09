@@ -2371,11 +2371,11 @@ static unsigned int ilk_fbc_wm_max(void)
 	return 15;
 }
 
-static void ilk_wm_max(struct drm_device *dev,
-		       int level,
-		       const struct intel_wm_config *config,
-		       enum intel_ddb_partitioning ddb_partitioning,
-		       struct hsw_wm_maximums *max)
+static void ilk_compute_wm_maximums(struct drm_device *dev,
+				    int level,
+				    const struct intel_wm_config *config,
+				    enum intel_ddb_partitioning ddb_partitioning,
+				    struct hsw_wm_maximums *max)
 {
 	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
 	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
@@ -2626,7 +2626,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 	struct hsw_wm_maximums max;
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
-	ilk_wm_max(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
 
 	for (level = 0; level <= max_level; level++)
 		ilk_compute_wm_level(dev_priv, level, params,
@@ -2927,12 +2927,12 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 
 	intel_crtc->wm.active = pipe_wm;
 
-	ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
 	ilk_wm_merge(dev, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
 	if (INTEL_INFO(dev)->gen >= 7 && config.num_pipes_active == 1) {
-		ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
+		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
 		ilk_wm_merge(dev, &max, &lp_wm_5_6);
 
 		best_lp_wm = hsw_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
