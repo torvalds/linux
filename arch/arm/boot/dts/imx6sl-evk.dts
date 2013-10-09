@@ -89,8 +89,10 @@
 };
 
 &usdhc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1_1>;
+	pinctrl-1 = <&pinctrl_usdhc1_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_1_200mhz>;
 	bus-width = <8>;
 	cd-gpios = <&gpio4 7 0>;
 	wp-gpios = <&gpio4 6 0>;
@@ -98,16 +100,20 @@
 };
 
 &usdhc2 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2_1>;
+	pinctrl-1 = <&pinctrl_usdhc2_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc2_1_200mhz>;
 	cd-gpios = <&gpio5 0 0>;
 	wp-gpios = <&gpio4 29 0>;
 	status = "okay";
 };
 
 &usdhc3 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc3_1>;
+	pinctrl-1 = <&pinctrl_usdhc3_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_1_200mhz>;
 	cd-gpios = <&gpio3 22 0>;
 	status = "okay";
 };
