@@ -3391,6 +3391,8 @@ static void __init rcu_init_geometry(void)
 	if (rcu_fanout_leaf == CONFIG_RCU_FANOUT_LEAF &&
 	    nr_cpu_ids == NR_CPUS)
 		return;
+	pr_info("RCU: Adjusting geometry for rcu_fanout_leaf=%d, nr_cpu_ids=%d\n",
+		rcu_fanout_leaf, nr_cpu_ids);
 
 	/*
 	 * Compute number of nodes that can be handled an rcu_node tree
