@@ -15,10 +15,10 @@
  *
  */
 
-#include "dev.h"
-#include "debug.h"
-#include "cdma.h"
-#include "channel.h"
+#include "../dev.h"
+#include "../debug.h"
+#include "../cdma.h"
+#include "../channel.h"
 
 #define HOST1X_DEBUG_MAX_PAGE_OFFSET 102400
 

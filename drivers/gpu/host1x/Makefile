@@ -1,5 +1,3 @@
-ccflags-y = -Idrivers/gpu/host1x
-
 host1x-y = \
 	bus.o \
 	syncpt.o \

@@ -21,10 +21,10 @@
 
 #include <trace/events/host1x.h>
 
-#include "channel.h"
-#include "dev.h"
-#include "intr.h"
-#include "job.h"
+#include "../channel.h"
+#include "../dev.h"
+#include "../intr.h"
+#include "../job.h"
 
 #define HOST1X_CHANNEL_SIZE 16384
 #define TRACE_MAX_LENGTH 128U
