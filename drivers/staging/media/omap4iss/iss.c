@@ -614,6 +614,8 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe)
 	struct media_entity *entity;
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
+	int failure = 0;
+	int ret;
 
 	entity = &pipe->output->video.entity;
 	while (1) {
@@ -629,10 +631,15 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe)
 		entity = pad->entity;
 		subdev = media_entity_to_v4l2_subdev(entity);
 
-		v4l2_subdev_call(subdev, video, s_stream, 0);
+		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
+		if (ret < 0) {
+			dev_dbg(iss->dev, "%s: module stop timeout.\n",
+				subdev->name);
+			failure = -ETIMEDOUT;
+		}
 	}
 
-	return 0;
+	return failure;
 }
 
 /*

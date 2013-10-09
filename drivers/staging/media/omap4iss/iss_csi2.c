@@ -1056,6 +1056,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 	struct iss_device *iss = csi2->iss;
 	struct iss_pipeline *pipe = to_iss_pipeline(&csi2->subdev.entity);
 	struct iss_video *video_out = &csi2->video_out;
+	int ret = 0;
 
 	if (csi2->state == ISS_PIPELINE_STREAM_STOPPED) {
 		if (enable == ISS_PIPELINE_STREAM_STOPPED)
@@ -1069,8 +1070,6 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 
 	switch (enable) {
 	case ISS_PIPELINE_STREAM_CONTINUOUS: {
-		int ret;
-
 		ret = omap4iss_csiphy_config(iss, sd);
 		if (ret < 0)
 			return ret;
@@ -1102,8 +1101,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 			return 0;
 		if (omap4iss_module_sync_idle(&sd->entity, &csi2->wait,
 					      &csi2->stopping))
-			dev_dbg(iss->dev, "%s: module stop timeout.\n",
-				sd->name);
+			ret = -ETIMEDOUT;
 		csi2_ctx_enable(csi2, 0, 0);
 		csi2_if_enable(csi2, 0);
 		csi2_irq_ctx_set(csi2, 0);
@@ -1117,7 +1115,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	csi2->state = enable;
-	return 0;
+	return ret;
 }
 
 /* subdev video operations */

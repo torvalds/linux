@@ -166,8 +166,7 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
 			return 0;
 		if (omap4iss_module_sync_idle(&sd->entity, &ipipe->wait,
 					      &ipipe->stopping))
-			dev_dbg(iss->dev, "%s: module stop timeout.\n",
-				sd->name);
+			ret = -ETIMEDOUT;
 
 		ipipe_enable(ipipe, 0);
 		omap4iss_isp_disable_interrupts(iss);
