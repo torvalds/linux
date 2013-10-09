@@ -1245,7 +1245,7 @@ int dgap_param(struct tty_struct *tty)
 		return -ENXIO;
 
         bs = ch->ch_bs;
-	if (bs == 0)
+	if (!bs)
 		return -ENXIO;
 
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
