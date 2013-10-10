@@ -14,6 +14,8 @@
 #include <linux/of_platform.h>
 #include <linux/wl12xx.h>
 
+#include <linux/platform_data/pinctrl-single.h>
+
 #include "common.h"
 #include "common-board-devices.h"
 #include "dss-common.h"
@@ -105,7 +107,23 @@ static void __init omap5_uevm_legacy_init(void)
 }
 #endif
 
+static struct pcs_pdata pcs_pdata;
+
+void omap_pcs_legacy_init(int irq, void (*rearm)(void))
+{
+	pcs_pdata.irq = irq;
+	pcs_pdata.rearm = rearm;
+}
+
 struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
+#ifdef CONFIG_ARCH_OMAP3
+	OF_DEV_AUXDATA("ti,omap3-padconf", 0x48002030, "48002030.pinmux", &pcs_pdata),
+	OF_DEV_AUXDATA("ti,omap3-padconf", 0x48002a00, "48002a00.pinmux", &pcs_pdata),
+#endif
+#ifdef CONFIG_ARCH_OMAP4
+	OF_DEV_AUXDATA("ti,omap4-padconf", 0x4a100040, "4a100040.pinmux", &pcs_pdata),
+	OF_DEV_AUXDATA("ti,omap4-padconf", 0x4a31e040, "4a31e040.pinmux", &pcs_pdata),
+#endif
 	{ /* sentinel */ },
 };
 
