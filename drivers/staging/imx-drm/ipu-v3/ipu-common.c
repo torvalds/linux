@@ -324,6 +324,14 @@ static const struct ipu_rgb def_rgb_16 = {
 	.bits_per_pixel = 16,
 };
 
+static const struct ipu_rgb def_bgr_16 = {
+	.red	= { .offset =  0, .length = 5, },
+	.green	= { .offset =  5, .length = 6, },
+	.blue	= { .offset = 11, .length = 5, },
+	.transp = { .offset =  0, .length = 0, },
+	.bits_per_pixel = 16,
+};
+
 #define Y_OFFSET(pix, x, y)	((x) + pix->width * (y))
 #define U_OFFSET(pix, x, y)	((pix->width * pix->height) + \
 					(pix->width * (y) / 4) + (x) / 2)
@@ -373,6 +381,9 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 drm_fourcc)
 		break;
 	case DRM_FORMAT_RGB565:
 		ipu_cpmem_set_format_rgb(cpmem, &def_rgb_16);
+		break;
+	case DRM_FORMAT_BGR565:
+		ipu_cpmem_set_format_rgb(cpmem, &def_bgr_16);
 		break;
 	default:
 		return -EINVAL;
