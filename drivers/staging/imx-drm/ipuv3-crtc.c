@@ -223,6 +223,10 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 		v4l2_fmt = V4L2_PIX_FMT_RGB24;
 		bpp = 24;
 		break;
+	case DRM_FORMAT_BGR888:
+		v4l2_fmt = V4L2_PIX_FMT_BGR24;
+		bpp = 24;
+		break;
 	default:
 		dev_err(ipu_crtc->dev, "unsupported pixel format 0x%08x\n",
 				fb->pixel_format);
