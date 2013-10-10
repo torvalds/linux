@@ -1296,8 +1296,8 @@ void rtl8185b_rx_enable(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		DMESG("NIC in promisc mode");
 
-	if (priv->ieee80211->iw_mode == IW_MODE_MONITOR || \
-	   dev->flags & IFF_PROMISC) {
+	if (priv->ieee80211->iw_mode == IW_MODE_MONITOR || dev->flags &
+	    IFF_PROMISC) {
 		priv->ReceiveConfig = priv->ReceiveConfig & (~RCR_APM);
 		priv->ReceiveConfig = priv->ReceiveConfig | RCR_AAP;
 	}
