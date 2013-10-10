@@ -287,7 +287,6 @@ struct hci_dev {
 	int (*setup)(struct hci_dev *hdev);
 	int (*send)(struct sk_buff *skb);
 	void (*notify)(struct hci_dev *hdev, unsigned int evt);
-	int (*ioctl)(struct hci_dev *hdev, unsigned int cmd, unsigned long arg);
 };
 
 #define HCI_PHY_HANDLE(handle)	(handle & 0xff)

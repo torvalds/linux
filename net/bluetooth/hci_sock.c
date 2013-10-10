@@ -553,10 +553,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 		return hci_sock_blacklist_del(hdev, (void __user *) arg);
 	}
 
-	if (hdev->ioctl)
-		return hdev->ioctl(hdev, cmd, arg);
-
-	return -EINVAL;
+	return -ENOIOCTLCMD;
 }
 
 static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
