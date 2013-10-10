@@ -240,15 +240,27 @@ EXPORT_SYMBOL_GPL(spi_bus_type);
 static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	struct spi_device		*spi = to_spi_device(dev);
+	int ret;
 
-	return sdrv->probe(to_spi_device(dev));
+	acpi_dev_pm_attach(&spi->dev, true);
+	ret = sdrv->probe(spi);
+	if (ret)
+		acpi_dev_pm_detach(&spi->dev, true);
+
+	return ret;
 }
 
 static int spi_drv_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	struct spi_device		*spi = to_spi_device(dev);
+	int ret;
 
-	return sdrv->remove(to_spi_device(dev));
+	ret = sdrv->remove(spi);
+	acpi_dev_pm_detach(&spi->dev, true);
+
+	return ret;
 }
 
 static void spi_drv_shutdown(struct device *dev)
@@ -1025,8 +1037,10 @@ static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 		return AE_OK;
 	}
 
+	adev->power.flags.ignore_parent = true;
 	strlcpy(spi->modalias, dev_name(&adev->dev), sizeof(spi->modalias));
 	if (spi_add_device(spi)) {
+		adev->power.flags.ignore_parent = false;
 		dev_err(&master->dev, "failed to add SPI device %s from ACPI\n",
 			dev_name(&adev->dev));
 		spi_dev_put(spi);
