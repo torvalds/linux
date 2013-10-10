@@ -1,17 +1,17 @@
 #ifndef R819XUSB_CMDPKT_H
 #define R819XUSB_CMDPKT_H
 /* Different command packet have dedicated message length and definition. */
-#define		CMPK_RX_TX_FB_SIZE					sizeof(cmpk_txfb_t)		//20
-#define		CMPK_TX_SET_CONFIG_SIZE				sizeof(cmpk_set_cfg_t)	//16
-#define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(cmpk_set_cfg_t)	//16
-#define		CMPK_RX_TX_STS_SIZE					sizeof(cmpk_tx_status_t)//
-#define		CMPK_RX_DBG_MSG_SIZE			sizeof(cmpk_rx_dbginfo_t)//
-#define		CMPK_TX_RAHIS_SIZE			sizeof(cmpk_tx_rahis_t)
+#define		CMPK_RX_TX_FB_SIZE		sizeof(cmpk_txfb_t)	//20
+#define		CMPK_TX_SET_CONFIG_SIZE		sizeof(cmpk_set_cfg_t)	//16
+#define		CMPK_BOTH_QUERY_CONFIG_SIZE	sizeof(cmpk_set_cfg_t)	//16
+#define		CMPK_RX_TX_STS_SIZE		sizeof(cmpk_tx_status_t)//
+#define		CMPK_RX_DBG_MSG_SIZE		sizeof(cmpk_rx_dbginfo_t)//
+#define		CMPK_TX_RAHIS_SIZE		sizeof(cmpk_tx_rahis_t)
 
 /* 2008/05/08 amy For USB constant. */
-#define ISR_TxBcnOk					BIT27			// Transmit Beacon OK
-#define ISR_TxBcnErr				BIT26			// Transmit Beacon Error
-#define ISR_BcnTimerIntr			BIT13			// Beacon Timer Interrupt
+#define ISR_TxBcnOk		BIT27		// Transmit Beacon OK
+#define ISR_TxBcnErr		BIT26		// Transmit Beacon Error
+#define ISR_BcnTimerIntr	BIT13		// Beacon Timer Interrupt
 
 
 /* Define element ID of command packet. */
@@ -55,12 +55,12 @@ typedef struct tag_cmd_pkt_tx_feedback {
 } cmpk_txfb_t;
 
 /* 2. RX side: Interrupt status packet. It includes Beacon State,
-	  Beacon Timer Interrupt and other useful informations in MAC ISR Reg. */
+ * Beacon Timer Interrupt and other useful informations in MAC ISR Reg. */
 typedef struct tag_cmd_pkt_interrupt_status {
 	u8	element_id;			/* Command packet type. */
 	u8	length;				/* Command packet length. */
 	u16	reserve;
-	u32	interrupt_status;				/* Interrupt Status. */
+	u32	interrupt_status;		/* Interrupt Status. */
 } cmpk_intr_sta_t;
 
 
@@ -192,8 +192,10 @@ typedef enum _rt_status{
 	RT_STATUS_RESOURCE
 } rt_status, *prt_status;
 
-extern  u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats);
-extern rt_status SendTxCommandPacket( struct net_device *dev, void *pData, u32 DataLen);
+extern  u32 cmpk_message_handle_rx(struct net_device *dev,
+		struct ieee80211_rx_stats *pstats);
+extern rt_status SendTxCommandPacket( struct net_device *dev,
+		void *pData, u32 DataLen);
 
 
 #endif
