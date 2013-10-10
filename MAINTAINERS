@@ -256,21 +256,21 @@ F:	drivers/pci/*/*/*acpi*
 ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
+W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/acpi/fan.c
 
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
+W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/acpi/*thermal*
 
 ACPI VIDEO DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
+W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/acpi/video.c
 
@@ -4339,7 +4339,7 @@ F:	drivers/video/i810/
 INTEL MENLOW THERMAL DRIVER
 M:	Sujith Thomas <sujith.thomas@intel.com>
 L:	platform-driver-x86@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
+W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/platform/x86/intel_menlow.c
 
