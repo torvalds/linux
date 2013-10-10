@@ -693,12 +693,6 @@ static int bluecard_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static int bluecard_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
-
 
 /* ======================== Card services HCI interaction ======================== */
 
@@ -734,11 +728,10 @@ static int bluecard_open(bluecard_info_t *info)
 	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
-	hdev->open     = bluecard_hci_open;
-	hdev->close    = bluecard_hci_close;
-	hdev->flush    = bluecard_hci_flush;
-	hdev->send     = bluecard_hci_send_frame;
-	hdev->ioctl    = bluecard_hci_ioctl;
+	hdev->open  = bluecard_hci_open;
+	hdev->close = bluecard_hci_close;
+	hdev->flush = bluecard_hci_flush;
+	hdev->send  = bluecard_hci_send_frame;
 
 	id = inb(iobase + 0x30);
 
