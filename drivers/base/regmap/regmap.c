@@ -1157,18 +1157,23 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		/* If the caller supplied the value we can use it safely. */
 		memcpy(async->work_buf, map->work_buf, map->format.pad_bytes +
 		       map->format.reg_bytes + map->format.val_bytes);
-		if (val == work_val)
-			val = async->work_buf + map->format.pad_bytes +
-				map->format.reg_bytes;
 
 		spin_lock_irqsave(&map->async_lock, flags);
 		list_add_tail(&async->list, &map->async_list);
 		spin_unlock_irqrestore(&map->async_lock, flags);
 
-		ret = map->bus->async_write(map->bus_context, async->work_buf,
-					    map->format.reg_bytes +
-					    map->format.pad_bytes,
-					    val, val_len, async);
+		if (val != work_val)
+			ret = map->bus->async_write(map->bus_context,
+						    async->work_buf,
+						    map->format.reg_bytes +
+						    map->format.pad_bytes,
+						    val, val_len, async);
+		else
+			ret = map->bus->async_write(map->bus_context,
+						    async->work_buf,
+						    map->format.reg_bytes +
+						    map->format.pad_bytes +
+						    val_len, NULL, 0, async);
 
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to schedule write: %d\n",
