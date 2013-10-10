@@ -141,6 +141,11 @@ boot_args="`rcutorture_param_n_barrier_cbs "$boot_args"`"
 boot_args="$boot_args rcutorture.stat_interval=15 rcutorture.shutdown_secs=$seconds rcutorture.rcutorture_runnable=1"
 
 echo $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
+if test -n "$RCU_BUILDONLY"
+then
+	echo Build-only run specified, boot/test omitted.
+	exit 0
+fi
 $QEMU $qemu_args -m 512 -kernel $builddir/arch/x86/boot/bzImage -append "$qemu_append $boot_args" &
 qemu_pid=$!
 commandcompleted=0

@@ -41,6 +41,7 @@ kversion=""
 usage () {
 	echo "Usage: $scriptname optional arguments:"
 	echo "       --builddir absolute-pathname"
+	echo "       --buildonly"
 	echo "       --configs \"config-file list\""
 	echo "       --datestamp string"
 	echo "       --duration minutes"
@@ -82,6 +83,9 @@ do
 		builddir=$2
 		gotbuilddir=1
 		shift
+		;;
+	--buildonly)
+		RCU_BUILDONLY=1; export RCU_BUILDONLY
 		;;
 	--configs)
 		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]*$' '^--'
