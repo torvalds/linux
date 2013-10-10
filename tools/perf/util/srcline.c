@@ -223,8 +223,8 @@ out:
 
 char *get_srcline(struct dso *dso, unsigned long addr)
 {
-	char *file;
-	unsigned line;
+	char *file = NULL;
+	unsigned line = 0;
 	char *srcline;
 	char *dso_name = dso->long_name;
 	size_t size;
