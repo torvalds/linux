@@ -1134,6 +1134,9 @@ static void acpi_i2c_register_devices(struct i2c_adapter *adap)
 	acpi_handle handle;
 	acpi_status status;
 
+	if (!adap->dev.parent)
+		return;
+
 	handle = ACPI_HANDLE(adap->dev.parent);
 	if (!handle)
 		return;
