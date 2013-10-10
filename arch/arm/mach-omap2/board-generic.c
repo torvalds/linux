@@ -35,10 +35,7 @@ static struct of_device_id omap_dt_match_table[] __initdata = {
 
 static void __init omap_generic_init(void)
 {
-	omap_sdrc_init(NULL, NULL);
-
-	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
-	pdata_quirks_init();
+	pdata_quirks_init(omap_dt_match_table);
 }
 
 #ifdef CONFIG_SOC_OMAP2420

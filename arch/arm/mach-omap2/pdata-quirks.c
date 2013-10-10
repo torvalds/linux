@@ -11,6 +11,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of_platform.h>
 #include <linux/wl12xx.h>
 
 #include "common.h"
@@ -104,6 +105,10 @@ static void __init omap5_uevm_legacy_init(void)
 }
 #endif
 
+struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
+	{ /* sentinel */ },
+};
+
 static struct pdata_init pdata_quirks[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP3
 	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
@@ -120,9 +125,13 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ /* sentinel */ },
 };
 
-void __init pdata_quirks_init(void)
+void __init pdata_quirks_init(struct of_device_id *omap_dt_match_table)
 {
 	struct pdata_init *quirks = pdata_quirks;
+
+	omap_sdrc_init(NULL, NULL);
+	of_platform_populate(NULL, omap_dt_match_table,
+			     omap_auxdata_lookup, NULL);
 
 	while (quirks->compatible) {
 		if (of_machine_is_compatible(quirks->compatible)) {
