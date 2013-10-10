@@ -2493,7 +2493,7 @@ error_device_descriptor:
 	usb_autosuspend_device(usb_dev);
 error_autoresume:
 out_authorized:
-	usb_unlock_device(usb_dev);	// complements locktree
+	usb_unlock_device(usb_dev);	/* complements locktree */
 	return result;
 }
 
@@ -3215,7 +3215,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	if (status == 0 && !port_is_suspended(hub, portstatus))
 		goto SuspendCleared;
 
-	// dev_dbg(hub->intfdev, "resume port %d\n", port1);
+	/* dev_dbg(hub->intfdev, "resume port %d\n", port1); */
 
 	set_bit(port1, hub->busy_bits);
 
