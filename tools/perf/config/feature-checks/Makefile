@@ -136,7 +136,7 @@ test-on-exit:
 test-backtrace:
 	$(BUILD)
 
--include *.d */*.d
+-include *.d
 
 ###############################
 
