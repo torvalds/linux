@@ -3439,7 +3439,8 @@ struct els_request64_wqe {
 #define els_req64_hopcnt_SHIFT      24
 #define els_req64_hopcnt_MASK       0x000000ff
 #define els_req64_hopcnt_WORD       word13
-	uint32_t reserved[2];
+	uint32_t word14;
+	uint32_t max_response_payload_len;
 };
 
 struct xmit_els_rsp64_wqe {
@@ -3554,7 +3555,8 @@ struct gen_req64_wqe {
 	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl; /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
-	uint32_t rsvd_12_15[4];
+	uint32_t rsvd_12_14[3];
+	uint32_t max_response_payload_len;
 };
 
 struct create_xri_wqe {
