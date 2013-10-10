@@ -2328,13 +2328,14 @@ static int xen_exchange_memory(unsigned long extents_in, unsigned int order_in,
 	return success;
 }
 
-int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
+int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				 unsigned int address_bits,
 				 dma_addr_t *dma_handle)
 {
 	unsigned long *in_frames = discontig_frames, out_frame;
 	unsigned long  flags;
 	int            success;
+	unsigned long vstart = (unsigned long)phys_to_virt(pstart);
 
 	/*
 	 * Currently an auto-translated guest will not perform I/O, nor will
@@ -2374,11 +2375,12 @@ int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
 }
 EXPORT_SYMBOL_GPL(xen_create_contiguous_region);
 
-void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order)
+void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
 {
 	unsigned long *out_frames = discontig_frames, in_frame;
 	unsigned long  flags;
 	int success;
+	unsigned long vstart;
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return;
@@ -2386,6 +2388,7 @@ void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order)
 	if (unlikely(order > MAX_CONTIG_ORDER))
 		return;
 
+	vstart = (unsigned long)phys_to_virt(pstart);
 	memset((void *) vstart, 0, PAGE_SIZE << order);
 
 	spin_lock_irqsave(&xen_reservation_lock, flags);
