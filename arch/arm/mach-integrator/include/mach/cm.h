@@ -1,6 +1,7 @@
 /*
- * update the core module control register.
+ * access the core module control register.
  */
+u32 cm_get(void);
 void cm_control(u32, u32);
 
 #define CM_CTRL	__io_address(INTEGRATOR_HDR_CTRL)

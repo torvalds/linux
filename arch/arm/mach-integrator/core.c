@@ -94,6 +94,14 @@ int __init integrator_init(bool is_cp)
 static DEFINE_RAW_SPINLOCK(cm_lock);
 
 /**
+ * cm_get - get the value from the CM_CTRL register
+ */
+u32 cm_get(void)
+{
+	return readl(cm_base + INTEGRATOR_HDR_CTRL_OFFSET);
+}
+
+/**
  * cm_control - update the CM_CTRL register.
  * @mask: bits to change
  * @set: bits to set
