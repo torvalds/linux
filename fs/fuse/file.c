@@ -401,6 +401,21 @@ static int fuse_wait_on_page_writeback(struct inode *inode, pgoff_t index)
 	return 0;
 }
 
+/*
+ * Wait for all pending writepages on the inode to finish.
+ *
+ * This is currently done by blocking further writes with FUSE_NOWRITE
+ * and waiting for all sent writes to complete.
+ *
+ * This must be called under i_mutex, otherwise the FUSE_NOWRITE usage
+ * could conflict with truncation.
+ */
+static void fuse_sync_writes(struct inode *inode)
+{
+	fuse_set_nowrite(inode);
+	fuse_release_nowrite(inode);
+}
+
 static int fuse_flush(struct file *file, fl_owner_t id)
 {
 	struct inode *inode = file_inode(file);
@@ -415,6 +430,14 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 
 	if (fc->no_flush)
 		return 0;
+
+	err = filemap_write_and_wait(file->f_mapping);
+	if (err)
+		return err;
+
+	mutex_lock(&inode->i_mutex);
+	fuse_sync_writes(inode);
+	mutex_unlock(&inode->i_mutex);
 
 	req = fuse_get_req_nofail_nopages(fc, file);
 	memset(&inarg, 0, sizeof(inarg));
@@ -434,21 +457,6 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 		err = 0;
 	}
 	return err;
-}
-
-/*
- * Wait for all pending writepages on the inode to finish.
- *
- * This is currently done by blocking further writes with FUSE_NOWRITE
- * and waiting for all sent writes to complete.
- *
- * This must be called under i_mutex, otherwise the FUSE_NOWRITE usage
- * could conflict with truncation.
- */
-static void fuse_sync_writes(struct inode *inode)
-{
-	fuse_set_nowrite(inode);
-	fuse_release_nowrite(inode);
 }
 
 int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
