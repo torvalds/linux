@@ -411,7 +411,7 @@ static int xilinxfb_release(struct device *dev)
  * OF bus binding
  */
 
-static int xilinxfb_of_probe(struct platform_device *op)
+static int xilinxfb_of_probe(struct platform_device *pdev)
 {
 	const u32 *prop;
 	u32 tft_access = 0;
@@ -425,7 +425,7 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	/* Allocate the driver data region */
 	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata) {
-		dev_err(&op->dev, "Couldn't allocate device private record\n");
+		dev_err(&pdev->dev, "Couldn't allocate device private record\n");
 		return -ENOMEM;
 	}
 
@@ -433,7 +433,7 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	 * To check whether the core is connected directly to DCR or BUS
 	 * interface and initialize the tft_access accordingly.
 	 */
-	of_property_read_u32(op->dev.of_node, "xlnx,dcr-splb-slave-if",
+	of_property_read_u32(pdev->dev.of_node, "xlnx,dcr-splb-slave-if",
 			     &tft_access);
 
 	/*
@@ -457,29 +457,29 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	}
 #endif
 
-	prop = of_get_property(op->dev.of_node, "phys-size", &size);
+	prop = of_get_property(pdev->dev.of_node, "phys-size", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
 		pdata.screen_width_mm = prop[0];
 		pdata.screen_height_mm = prop[1];
 	}
 
-	prop = of_get_property(op->dev.of_node, "resolution", &size);
+	prop = of_get_property(pdev->dev.of_node, "resolution", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
 		pdata.xres = prop[0];
 		pdata.yres = prop[1];
 	}
 
-	prop = of_get_property(op->dev.of_node, "virtual-resolution", &size);
+	prop = of_get_property(pdev->dev.of_node, "virtual-resolution", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
 		pdata.xvirt = prop[0];
 		pdata.yvirt = prop[1];
 	}
 
-	if (of_find_property(op->dev.of_node, "rotate-display", NULL))
+	if (of_find_property(pdev->dev.of_node, "rotate-display", NULL))
 		pdata.rotate_screen = 1;
 
-	dev_set_drvdata(&op->dev, drvdata);
-	return xilinxfb_assign(op, drvdata, &pdata);
+	dev_set_drvdata(&pdev->dev, drvdata);
+	return xilinxfb_assign(pdev, drvdata, &pdata);
 }
 
 static int xilinxfb_of_remove(struct platform_device *op)
