@@ -155,6 +155,7 @@ static struct platform_driver sndspdif_codec_driver = {
 	.remove = __devexit_p(sndspdif_codec_remove),
 };
 
+static u32 spd_gpio_hdle;
 static int __init sndspdif_codec_init(void)
 {
 	int ret, spdif_used = 0;
@@ -162,6 +163,12 @@ static int __init sndspdif_codec_init(void)
 	ret = script_parser_fetch("spdif_para", "spdif_used", &spdif_used, 1);
 	if (ret != 0 || !spdif_used)
 		return -ENODEV;
+
+	spd_gpio_hdle = gpio_request_ex("spdif_para", "spdif_dout");
+	if (0 == spd_gpio_hdle) {
+		pr_err("try to request spdif_para gpio failed\n");
+		return -1;
+	}
 
 	ret = platform_device_register(&sndspdif_codec_device);
 	if (ret < 0)
@@ -179,6 +186,7 @@ module_init(sndspdif_codec_init);
 
 static void __exit sndspdif_codec_exit(void)
 {
+	gpio_release(spd_gpio_hdle, 2);
 	platform_driver_unregister(&sndspdif_codec_driver);
 	platform_device_unregister(&sndspdif_codec_device);
 }
