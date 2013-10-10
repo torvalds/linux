@@ -398,7 +398,8 @@ static DEVICE_ATTR_RW(autosuspend);
 static const char on_string[] = "on";
 static const char auto_string[] = "auto";
 
-static void warn_level(void) {
+static void warn_level(void)
+{
 	static int level_warned;
 
 	if (!level_warned) {
@@ -652,7 +653,7 @@ static ssize_t authorized_store(struct device *dev,
 		result = usb_deauthorize_device(usb_dev);
 	else
 		result = usb_authorize_device(usb_dev);
-	return result < 0? result : size;
+	return result < 0 ? result : size;
 }
 static DEVICE_ATTR_IGNORE_LOCKDEP(authorized, S_IRUGO | S_IWUSR,
 				  authorized_show, authorized_store);
