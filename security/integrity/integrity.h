@@ -89,7 +89,7 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 #ifdef CONFIG_INTEGRITY_SIGNATURE
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
-					const char *digest, int digestlen);
+			    const char *digest, int digestlen);
 
 #else
 

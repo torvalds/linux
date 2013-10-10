@@ -28,7 +28,7 @@ static const char *keyring_name[INTEGRITY_KEYRING_MAX] = {
 };
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
-					const char *digest, int digestlen)
+			    const char *digest, int digestlen)
 {
 	if (id >= INTEGRITY_KEYRING_MAX)
 		return -EINVAL;

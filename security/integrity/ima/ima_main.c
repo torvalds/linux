@@ -244,9 +244,9 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 int ima_bprm_check(struct linux_binprm *bprm)
 {
 	return process_measurement(bprm->file,
-				 (strcmp(bprm->filename, bprm->interp) == 0) ?
-				 bprm->filename : bprm->interp,
-				 MAY_EXEC, BPRM_CHECK);
+				   (strcmp(bprm->filename, bprm->interp) == 0) ?
+				   bprm->filename : bprm->interp,
+				   MAY_EXEC, BPRM_CHECK);
 }
 
 /**
@@ -263,8 +263,8 @@ int ima_file_check(struct file *file, int mask)
 {
 	ima_rdwr_violation_check(file);
 	return process_measurement(file, NULL,
-				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
-				 FILE_CHECK);
+				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
+				   FILE_CHECK);
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 

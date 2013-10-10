@@ -55,7 +55,7 @@ static int ima_fix_xattr(struct dentry *dentry,
 enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 					   int func)
 {
-	switch(func) {
+	switch (func) {
 	case MMAP_CHECK:
 		return iint->ima_mmap_status;
 	case BPRM_CHECK:
@@ -71,7 +71,7 @@ enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 static void ima_set_cache_status(struct integrity_iint_cache *iint,
 				 int func, enum integrity_status status)
 {
-	switch(func) {
+	switch (func) {
 	case MMAP_CHECK:
 		iint->ima_mmap_status = status;
 		break;
@@ -90,7 +90,7 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 
 static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
 {
-	switch(func) {
+	switch (func) {
 	case MMAP_CHECK:
 		iint->flags |= (IMA_MMAP_APPRAISED | IMA_APPRAISED);
 		break;
