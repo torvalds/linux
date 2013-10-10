@@ -1048,6 +1048,11 @@ int hci_inquiry(void __user *arg)
 		goto done;
 	}
 
+	if (hdev->dev_type != HCI_BREDR) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+
 	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
 		err = -EOPNOTSUPP;
 		goto done;
@@ -1530,6 +1535,11 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 		err = -EBUSY;
+		goto done;
+	}
+
+	if (hdev->dev_type != HCI_BREDR) {
+		err = -EOPNOTSUPP;
 		goto done;
 	}
 
