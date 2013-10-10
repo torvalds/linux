@@ -45,7 +45,6 @@ static inline void *load_real_addr(void *addr)
 static int copy_from_realmem(void *dest, void *src, size_t count)
 {
 	unsigned long size;
-	int rc;
 
 	if (!count)
 		return 0;
