@@ -234,8 +234,6 @@ enum cvmx_usb_initialize_flags {
 /**
  * enum cvmx_usb_pipe_flags - internal flags for a pipe.
  *
- * @__CVMX_USB_PIPE_FLAGS_OPEN:	     Used internally to determine if a pipe is
- *				     open. Do not use.
  * @__CVMX_USB_PIPE_FLAGS_SCHEDULED: Used internally to determine if a pipe is
  *				     actively using hardware. Do not use.
  * @__CVMX_USB_PIPE_FLAGS_NEED_PING: Used internally to determine if a high
@@ -243,7 +241,6 @@ enum cvmx_usb_initialize_flags {
  *				     use.
  */
 enum cvmx_usb_pipe_flags {
-	__CVMX_USB_PIPE_FLAGS_OPEN	= 1 << 16,
 	__CVMX_USB_PIPE_FLAGS_SCHEDULED	= 1 << 17,
 	__CVMX_USB_PIPE_FLAGS_NEED_PING	= 1 << 18,
 };
@@ -253,9 +250,6 @@ enum cvmx_usb_pipe_flags {
 
 /* Maximum number of times to retry failed transactions */
 #define MAX_RETRIES		3
-
-/* Maximum number of pipes that can be open at once */
-#define MAX_PIPES		32
 
 /* Maximum number of hardware channels supported by the USB block */
 #define MAX_CHANNELS		8
@@ -429,7 +423,6 @@ struct cvmx_usb_tx_fifo {
  * pipe:		   Storage for pipes.
  * indent:		   Used by debug output to indent functions.
  * port_status:		   Last port status used for change notification.
- * free_pipes:		   List of all pipes that are currently closed.
  * idle_pipes:		   List of open pipes that have no transactions.
  * active_pipes:	   Active pipes indexed by transfer type.
  * frame_number:	   Increments every SOF interrupt for time keeping.
@@ -441,10 +434,8 @@ struct cvmx_usb_state {
 	int idle_hardware_channels;
 	union cvmx_usbcx_hprt usbcx_hprt;
 	struct cvmx_usb_pipe *pipe_for_channel[MAX_CHANNELS];
-	struct cvmx_usb_pipe pipe[MAX_PIPES];
 	int indent;
 	struct cvmx_usb_port_status port_status;
-	struct cvmx_usb_pipe_list free_pipes;
 	struct cvmx_usb_pipe_list idle_pipes;
 	struct cvmx_usb_pipe_list active_pipes[4];
 	uint64_t frame_number;
@@ -736,13 +727,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	usb->init_flags = flags;
 
 	/* Initialize the USB state structure */
-	{
-		int i;
-		usb->index = usb_port_number;
-
-		for (i = 0; i < MAX_PIPES; i++)
-			__cvmx_usb_append_pipe(&usb->free_pipes, usb->pipe + i);
-	}
+	usb->index = usb_port_number;
 
 	/*
 	 * Power On Reset and PHY Initialization
@@ -1273,12 +1258,9 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 	if (unlikely((hub_port < 0) || (hub_port > MAX_USB_HUB_PORT)))
 		return NULL;
 
-	/* Find a free pipe */
-	pipe = usb->free_pipes.head;
+	pipe = kzalloc(sizeof(*pipe), GFP_ATOMIC);
 	if (!pipe)
 		return NULL;
-	__cvmx_usb_remove_pipe(&usb->free_pipes, pipe);
-	pipe->flags = __CVMX_USB_PIPE_FLAGS_OPEN;
 	if ((device_speed == CVMX_USB_SPEED_HIGH) &&
 		(transfer_dir == CVMX_USB_DIRECTION_OUT) &&
 		(transfer_type == CVMX_USB_TRANSFER_BULK))
@@ -2237,9 +2219,6 @@ static struct cvmx_usb_transaction *__cvmx_usb_submit_transaction(struct cvmx_us
 {
 	struct cvmx_usb_transaction *transaction;
 
-	/* Fail if the pipe isn't open */
-	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-		return NULL;
 	if (unlikely(pipe->transfer_type != type))
 		return NULL;
 
@@ -2409,10 +2388,6 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 			   struct cvmx_usb_pipe *pipe,
 			   struct cvmx_usb_transaction *transaction)
 {
-	/* Fail if the pipe isn't open */
-	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-		return -EINVAL;
-
 	/*
 	 * If the transaction is the HEAD of the queue and scheduled. We need to
 	 * treat it special
@@ -2453,10 +2428,6 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
 			       struct cvmx_usb_pipe *pipe)
 {
-	/* Fail if the pipe isn't open */
-	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-		return -EINVAL;
-
 	/* Simply loop through and attempt to cancel each transaction */
 	while (pipe->head) {
 		int result = cvmx_usb_cancel(usb, pipe, pipe->head);
@@ -2479,17 +2450,12 @@ static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
 static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb,
 			       struct cvmx_usb_pipe *pipe)
 {
-	/* Fail if the pipe isn't open */
-	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-		return -EINVAL;
-
 	/* Fail if the pipe has pending transactions */
 	if (unlikely(pipe->head))
 		return -EBUSY;
 
-	pipe->flags = 0;
 	__cvmx_usb_remove_pipe(&usb->idle_pipes, pipe);
-	__cvmx_usb_append_pipe(&usb->free_pipes, pipe);
+	kfree(pipe);
 
 	return 0;
 }
