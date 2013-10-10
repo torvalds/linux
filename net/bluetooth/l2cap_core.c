@@ -6798,9 +6798,13 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		conn->rx_len -= skb->len;
 
 		if (!conn->rx_len) {
-			/* Complete frame received */
-			l2cap_recv_frame(conn, conn->rx_skb);
+			/* Complete frame received. l2cap_recv_frame
+			 * takes ownership of the skb so set the global
+			 * rx_skb pointer to NULL first.
+			 */
+			struct sk_buff *rx_skb = conn->rx_skb;
 			conn->rx_skb = NULL;
+			l2cap_recv_frame(conn, rx_skb);
 		}
 		break;
 	}
