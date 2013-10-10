@@ -132,8 +132,7 @@ CORE_FEATURE_TESTS =			\
 	libunwind			\
 	on-exit				\
 	stackprotector			\
-	stackprotector-all		\
-	volatile-register-var
+	stackprotector-all
 
 #
 # So here we detect whether test-all was rebuilt, to be able
@@ -201,10 +200,6 @@ endif
 
 ifeq ($(feature-stackprotector), 1)
   CFLAGS += -Wstack-protector
-endif
-
-ifeq ($(feature-volatile-register-var), 1)
-  CFLAGS += -Wvolatile-register-var
 endif
 
 ifeq ($(DEBUG),0)
