@@ -306,8 +306,7 @@ enum cvmx_usb_stage {
  *				 regardless of type. These are linked together
  *				 to form a list of pending requests for a pipe.
  *
- * @prev:		Transaction before this one in the pipe.
- * @next:		Transaction after this one in the pipe.
+ * @node:		List node for transactions in the pipe.
  * @type:		Type of transaction, duplicated of the pipe.
  * @flags:		State flags for this transaction.
  * @buffer:		User's physical buffer address to read/write.
@@ -323,8 +322,7 @@ enum cvmx_usb_stage {
  * @urb:		URB.
  */
 struct cvmx_usb_transaction {
-	struct cvmx_usb_transaction *prev;
-	struct cvmx_usb_transaction *next;
+	struct list_head node;
 	enum cvmx_usb_transfer type;
 	uint64_t buffer;
 	int buffer_length;
@@ -347,8 +345,7 @@ struct cvmx_usb_transaction {
  *
  * @node:		List node for pipe list
  * @next:		Pipe after this one in the list
- * @head:		The first pending transaction
- * @tail:		The last pending transaction
+ * @transactions:	List of pending transactions
  * @interval:		For periodic pipes, the interval between packets in
  *			frames
  * @next_tx_frame:	The next frame this pipe is allowed to transmit on
@@ -370,8 +367,7 @@ struct cvmx_usb_transaction {
  */
 struct cvmx_usb_pipe {
 	struct list_head node;
-	struct cvmx_usb_transaction *head;
-	struct cvmx_usb_transaction *tail;
+	struct list_head transactions;
 	uint64_t interval;
 	uint64_t next_tx_frame;
 	enum cvmx_usb_pipe_flags flags;
@@ -1219,6 +1215,8 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 	pipe->max_packet = max_packet;
 	pipe->transfer_type = transfer_type;
 	pipe->transfer_dir = transfer_dir;
+	INIT_LIST_HEAD(&pipe->transactions);
+
 	/*
 	 * All pipes use interval to rate limit NAK processing. Force an
 	 * interval if one wasn't supplied
@@ -1444,7 +1442,9 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 					     int channel,
 					     struct cvmx_usb_pipe *pipe)
 {
-	struct cvmx_usb_transaction *transaction = pipe->head;
+	struct cvmx_usb_transaction *transaction =
+		list_first_entry(&pipe->transactions, typeof(*transaction),
+				 node);
 	union cvmx_usb_control_header *header =
 		cvmx_phys_to_ptr(transaction->control_header);
 	int bytes_to_transfer = transaction->buffer_length - transaction->actual_bytes;
@@ -1573,7 +1573,9 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
 				     int channel,
 				     struct cvmx_usb_pipe *pipe)
 {
-	struct cvmx_usb_transaction *transaction = pipe->head;
+	struct cvmx_usb_transaction *transaction =
+		list_first_entry(&pipe->transactions, typeof(*transaction),
+				 node);
 
 	/* Make sure all writes to the DMA region get flushed */
 	CVMX_SYNCW;
@@ -1872,12 +1874,14 @@ static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_state *u
 	struct cvmx_usb_pipe *pipe;
 
 	list_for_each_entry(pipe, list, node) {
-		if (!(pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED) && pipe->head &&
+		struct cvmx_usb_transaction *t =
+			list_first_entry(&pipe->transactions, typeof(*t), node);
+		if (!(pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED) && t &&
 			(pipe->next_tx_frame <= current_frame) &&
 			((pipe->split_sc_frame == -1) || ((((int)current_frame - (int)pipe->split_sc_frame) & 0x7f) < 0x40)) &&
-			(!usb->active_split || (usb->active_split == pipe->head))) {
+			(!usb->active_split || (usb->active_split == t))) {
 			CVMX_PREFETCH(pipe, 128);
-			CVMX_PREFETCH(pipe->head, 0);
+			CVMX_PREFETCH(t, 0);
 			return pipe;
 		}
 	}
@@ -2104,15 +2108,8 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 	}
 
 	/* Remove the transaction from the pipe list */
-	if (transaction->next)
-		transaction->next->prev = transaction->prev;
-	else
-		pipe->tail = transaction->prev;
-	if (transaction->prev)
-		transaction->prev->next = transaction->next;
-	else
-		pipe->head = transaction->next;
-	if (!pipe->head)
+	list_del(&transaction->node);
+	if (list_empty(&pipe->transactions))
 		list_move_tail(&pipe->node, &usb->idle_pipes);
 	octeon_usb_urb_complete_callback(usb, complete_code, pipe,
 					 transaction,
@@ -2180,24 +2177,19 @@ static struct cvmx_usb_transaction *__cvmx_usb_submit_transaction(struct cvmx_us
 	else
 		transaction->stage = CVMX_USB_STAGE_NON_CONTROL;
 
-	transaction->next = NULL;
-	if (pipe->tail) {
-		transaction->prev = pipe->tail;
-		transaction->prev->next = transaction;
+	if (!list_empty(&pipe->transactions)) {
+		list_add_tail(&transaction->node, &pipe->transactions);
 	} else {
-		if (pipe->next_tx_frame < usb->frame_number)
-			pipe->next_tx_frame = usb->frame_number + pipe->interval -
-				(usb->frame_number - pipe->next_tx_frame) % pipe->interval;
-		transaction->prev = NULL;
-		pipe->head = transaction;
+		list_add_tail(&transaction->node, &pipe->transactions);
 		list_move_tail(&pipe->node,
 			       &usb->active_pipes[pipe->transfer_type]);
-	}
-	pipe->tail = transaction;
 
-	/* We may need to schedule the pipe if this was the head of the pipe */
-	if (!transaction->prev)
+		/*
+		 * We may need to schedule the pipe if this was the head of the
+		 * pipe.
+		 */
 		__cvmx_usb_schedule(usb, 0);
+	}
 
 	return transaction;
 }
@@ -2332,8 +2324,8 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 	 * If the transaction is the HEAD of the queue and scheduled. We need to
 	 * treat it special
 	 */
-	if ((pipe->head == transaction) &&
-		(pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED)) {
+	if (list_first_entry(&pipe->transactions, typeof(*transaction), node) ==
+	    transaction && (pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED)) {
 		union cvmx_usbcx_hccharx usbc_hcchar;
 
 		usb->pipe_for_channel[pipe->channel] = NULL;
@@ -2368,9 +2360,11 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 static int cvmx_usb_cancel_all(struct cvmx_usb_state *usb,
 			       struct cvmx_usb_pipe *pipe)
 {
+	struct cvmx_usb_transaction *transaction, *next;
+
 	/* Simply loop through and attempt to cancel each transaction */
-	while (pipe->head) {
-		int result = cvmx_usb_cancel(usb, pipe, pipe->head);
+	list_for_each_entry_safe(transaction, next, &pipe->transactions, node) {
+		int result = cvmx_usb_cancel(usb, pipe, transaction);
 		if (unlikely(result != 0))
 			return result;
 	}
@@ -2391,7 +2385,7 @@ static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb,
 			       struct cvmx_usb_pipe *pipe)
 {
 	/* Fail if the pipe has pending transactions */
-	if (unlikely(pipe->head))
+	if (!list_empty(&pipe->transactions))
 		return -EBUSY;
 
 	list_del(&pipe->node);
@@ -2499,7 +2493,8 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	CVMX_PREFETCH(pipe, 128);
 	if (!pipe)
 		return 0;
-	transaction = pipe->head;
+	transaction = list_first_entry(&pipe->transactions, typeof(*transaction),
+				       node);
 	CVMX_PREFETCH(transaction, 0);
 
 	/*
