@@ -171,7 +171,8 @@ static void gdm_tty_send_complete(void *arg)
 	tty_port_tty_wakeup(&gdm->port);
 }
 
-static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf, int len)
+static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
+			 int len)
 {
 	struct gdm *gdm = tty->driver_data;
 	int remain = len;
@@ -185,7 +186,8 @@ static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf, int l
 		return 0;
 
 	while (1) {
-		sending_len = remain > MUX_TX_MAX_SIZE ? MUX_TX_MAX_SIZE : remain;
+		sending_len = remain > MUX_TX_MAX_SIZE ? MUX_TX_MAX_SIZE :
+							 remain;
 		gdm_tty_send(gdm,
 			     (void *)(buf+sent_len),
 			     sending_len,
@@ -247,7 +249,8 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 		gdm->minor = j;
 		gdm->tty_dev = tty_dev;
 
-		tty_port_register_device(&gdm->port, gdm_driver[i], gdm->minor, device);
+		tty_port_register_device(&gdm->port, gdm_driver[i],
+					 gdm->minor, device);
 	}
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
@@ -309,7 +312,8 @@ int register_lte_tty_driver(void)
 		tty_driver->major = GDM_TTY_MAJOR;
 		tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 		tty_driver->subtype = SERIAL_TYPE_NORMAL;
-		tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+		tty_driver->flags = TTY_DRIVER_REAL_RAW |
+					TTY_DRIVER_DYNAMIC_DEV;
 		tty_driver->init_termios = tty_std_termios;
 		tty_driver->init_termios.c_cflag = B9600 | CS8 | HUPCL | CLOCAL;
 		tty_driver->init_termios.c_lflag = ISIG | ICANON | IEXTEN;
