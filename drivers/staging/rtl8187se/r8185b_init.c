@@ -135,7 +135,7 @@ static void PlatformIOWrite2Byte(struct net_device *dev, u32 offset, u16 data)
 static void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 {
 	if (offset == PhyAddr) {
-	/* For Base Band configuration. */
+		/* For Base Band configuration. */
 		unsigned char	cmdByte;
 		unsigned long	dataBytes;
 		unsigned char	idx;
@@ -155,7 +155,7 @@ static void PlatformIOWrite4Byte(struct net_device *dev, u32 offset, u32 data)
 		/* NdisAcquireSpinLock( &(pDevice->IoSpinLock) ); */
 
 		for (idx = 0; idx < 30; idx++) {
-		/* Make sure command bit is clear before access it. */
+			/* Make sure command bit is clear before access it. */
 			u1bTmp = PlatformIORead1Byte(dev, PhyAddr);
 			if ((u1bTmp & BIT7) == 0)
 				break;
