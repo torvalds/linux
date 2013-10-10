@@ -470,6 +470,10 @@ else
   endif
 endif
 
+ifeq ($(feature-libbfd), 1)
+  EXTLIBS += -lbfd
+endif
+
 ifdef NO_DEMANGLE
   CFLAGS += -DNO_DEMANGLE
 else
@@ -477,9 +481,7 @@ else
     EXTLIBS += -liberty
     CFLAGS += -DHAVE_CPLUS_DEMANGLE_SUPPORT
   else
-    ifeq ($(feature-libbfd), 1)
-      EXTLIBS += -lbfd
-    else
+    ifneq ($(feature-libbfd), 1)
       $(feature_check,liberty)
       ifeq ($(feature-liberty), 1)
         EXTLIBS += -lbfd -liberty
@@ -502,6 +504,10 @@ else
   endif
 endif
 
+ifneq ($(filter -lbfd,$(EXTLIBS)),)
+  CFLAGS += -DHAVE_LIBBFD_SUPPORT
+endif
+
 ifndef NO_ON_EXIT
   ifeq ($(feature-on-exit), 1)
     CFLAGS += -DHAVE_ON_EXIT_SUPPORT
@@ -522,10 +528,6 @@ ifndef NO_LIBNUMA
     CFLAGS += -DHAVE_LIBNUMA_SUPPORT
     EXTLIBS += -lnuma
   endif
-endif
-
-ifndef ($(filter -lbfd,$(EXTLIBS)),)
-  CFLAGS += -DHAVE_LIBBFD_SUPPORT
 endif
 
 # Among the variables below, these:
