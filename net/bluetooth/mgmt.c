@@ -3286,7 +3286,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * necessary).
 	 */
 	if (!hdev_is_powered(hdev) || val == enabled ||
-	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECTED)) {
+	    hci_conn_num(hdev, LE_LINK) > 0) {
 		bool changed = false;
 
 		if (val != test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
@@ -4683,7 +4683,7 @@ void mgmt_reenable_advertising(struct hci_dev *hdev)
 {
 	struct hci_request req;
 
-	if (hdev->conn_hash.le_num)
+	if (hci_conn_num(hdev, LE_LINK) > 0)
 		return;
 
 	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags))
