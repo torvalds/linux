@@ -417,8 +417,7 @@ load_patch_protect:
 	/* loading rom patch */
 	while (1) {
 		s32 sent_len_max = UPLOAD_PATCH_UNIT - PATCH_HEADER_SIZE;
-		sent_len = (patch_len - cur_len) >= sent_len_max ?
-			sent_len_max : (patch_len - cur_len);
+		sent_len = min_t(s32, (patch_len - cur_len), sent_len_max);
 
 		BT_DBG("patch_len = %d\n", patch_len);
 		BT_DBG("cur_len = %d\n", cur_len);
@@ -673,8 +672,7 @@ loadfw_protect:
 
 	/* Loading ILM */
 	while (1) {
-		sent_len = (ilm_len - cur_len) >= 14336 ? 14336 :
-			(ilm_len - cur_len);
+		sent_len = min_t(s32, (ilm_len - cur_len), 14336);
 
 		if (sent_len > 0) {
 			packet_header &= ~(0xffffffff);
@@ -732,8 +730,7 @@ loadfw_protect:
 
 	/* Loading DLM */
 	while (1) {
-		sent_len = (dlm_len - cur_len) >= 14336 ? 14336 :
-			(dlm_len - cur_len);
+		sent_len = min_t(s32, (dlm_len - cur_len), 14336);
 
 		if (sent_len <= 0)
 			break;
