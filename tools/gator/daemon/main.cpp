@@ -19,6 +19,8 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include "Child.h"
 #include "SessionData.h"
 #include "OlySocket.h"
@@ -32,7 +34,7 @@ extern Child* child;
 static int shutdownFilesystem();
 static pthread_mutex_t numSessions_mutex;
 static int numSessions = 0;
-static OlySocket* socket = NULL;
+static OlySocket* sock = NULL;
 static bool driverRunningAtStart = false;
 static bool driverMountedAtStart = false;
 
@@ -41,11 +43,13 @@ struct cmdline_t {
 	char* module;
 };
 
+#define DEFAULT_PORT 8080
+
 void cleanUp() {
 	if (shutdownFilesystem() == -1) {
 		logg->logMessage("Error shutting down gator filesystem");
 	}
-	delete socket;
+	delete sock;
 	delete util;
 	delete logg;
 }
@@ -97,6 +101,92 @@ static void child_exit(int signum) {
 		numSessions--;
 		pthread_mutex_unlock(&numSessions_mutex);
 		logg->logMessage("Child process %d exited with status %d", pid, status);
+	}
+}
+
+static int udpPort(int port) {
+	int s;
+	struct sockaddr_in sockaddr;
+	int on;
+
+	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (s == -1) {
+		logg->logError(__FILE__, __LINE__, "socket failed");
+		handleException();
+	}
+
+	on = 1;
+	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on)) != 0) {
+		logg->logError(__FILE__, __LINE__, "setsockopt failed");
+		handleException();
+	}
+
+	memset((void*)&sockaddr, 0, sizeof(sockaddr));
+	sockaddr.sin_family = AF_INET;
+	sockaddr.sin_port = htons(port);
+	sockaddr.sin_addr.s_addr = INADDR_ANY;
+	if (bind(s, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
+		logg->logError(__FILE__, __LINE__, "socket failed");
+		handleException();
+	}
+
+	return s;
+}
+
+#define UDP_ANS_PORT 30000
+#define UDP_REQ_PORT 30001
+
+typedef struct {
+	char rviHeader[8];
+	uint32_t messageID;
+	uint8_t ethernetAddress[8];
+	uint32_t ethernetType;
+	uint32_t dhcp;
+	char dhcpName[40];
+	uint32_t ipAddress;
+	uint32_t defaultGateway;
+	uint32_t subnetMask;
+	uint32_t activeConnections; 
+} RVIConfigureInfo;
+
+static const char DST_REQ[] = { 'D', 'S', 'T', '_', 'R', 'E', 'Q', ' ', 0, 0, 0, 0x64 };
+
+static void* answerThread(void* pVoid) {
+	const struct cmdline_t * const cmdline = (struct cmdline_t *)pVoid;
+	RVIConfigureInfo dstAns;
+	int req = udpPort(UDP_REQ_PORT);
+	int ans = udpPort(UDP_ANS_PORT);
+
+	// Format the answer buffer
+	memset(&dstAns, 0, sizeof(dstAns));
+	memcpy(dstAns.rviHeader, "STR_ANS ", sizeof(dstAns.rviHeader));
+	if (gethostname(dstAns.dhcpName, sizeof(dstAns.dhcpName) - 1) != 0) {
+		logg->logError(__FILE__, __LINE__, "gethostname failed");
+		handleException();
+	}
+	// Subvert the defaultGateway field for the port number
+	if (cmdline->port != DEFAULT_PORT) {
+		dstAns.defaultGateway = cmdline->port;
+	}
+	// Subvert the subnetMask field for the protocol version
+	dstAns.subnetMask = PROTOCOL_VERSION;
+
+	for (;;) {
+		char buf[128];
+		struct sockaddr_in sockaddr;
+		socklen_t addrlen;
+		int read;
+		addrlen = sizeof(sockaddr);
+		read = recvfrom(req, &buf, sizeof(buf), 0, (struct sockaddr *)&sockaddr, &addrlen);
+		if (read < 0) {
+			logg->logError(__FILE__, __LINE__, "recvfrom failed");
+			handleException();
+		} else if ((read == 12) && (memcmp(buf, DST_REQ, sizeof(DST_REQ)) == 0)) {
+			if (sendto(ans, &dstAns, sizeof(dstAns), 0, (struct sockaddr *)&sockaddr, addrlen) != sizeof(dstAns)) {
+				logg->logError(__FILE__, __LINE__, "sendto failed");
+				handleException();
+			}
+		}
 	}
 }
 
@@ -222,14 +312,14 @@ static int shutdownFilesystem() {
 
 static struct cmdline_t parseCommandLine(int argc, char** argv) {
 	struct cmdline_t cmdline;
-	cmdline.port = 8080;
+	cmdline.port = DEFAULT_PORT;
 	cmdline.module = NULL;
 	char version_string[256]; // arbitrary length to hold the version information
 	int c;
 
 	// build the version string
 	if (PROTOCOL_VERSION < PROTOCOL_DEV) {
-		snprintf(version_string, sizeof(version_string), "Streamline gatord version %d (DS-5 v5.%d)", PROTOCOL_VERSION, PROTOCOL_VERSION + 1);
+		snprintf(version_string, sizeof(version_string), "Streamline gatord version %d (DS-5 v5.%d)", PROTOCOL_VERSION, PROTOCOL_VERSION);
 	} else {
 		snprintf(version_string, sizeof(version_string), "Streamline gatord development version %d", PROTOCOL_VERSION);
 	}
@@ -277,7 +367,7 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 	}
 
 	// Error checking
-	if (cmdline.port != 8080 && gSessionData->mSessionXMLPath != NULL) {
+	if (cmdline.port != DEFAULT_PORT && gSessionData->mSessionXMLPath != NULL) {
 		logg->logError(__FILE__, __LINE__, "Only a port or a session xml can be specified, not both");
 		handleException();
 	}
@@ -339,11 +429,16 @@ int main(int argc, char** argv, char* envp[]) {
 		child->run();
 		delete child;
 	} else {
-		socket = new OlySocket(cmdline.port, true);
+		pthread_t answerThreadID;
+		if (pthread_create(&answerThreadID, NULL, answerThread, &cmdline)) {
+			logg->logError(__FILE__, __LINE__, "Failed to create answer thread");
+			handleException();
+		}
+		sock = new OlySocket(cmdline.port, true);
 		// Forever loop, can be exited via a signal or exception
 		while (1) {
 			logg->logMessage("Waiting on connection...");
-			socket->acceptConnection();
+			sock->acceptConnection();
 
 			int pid = fork();
 			if (pid < 0) {
@@ -351,14 +446,14 @@ int main(int argc, char** argv, char* envp[]) {
 				logg->logError(__FILE__, __LINE__, "Fork process failed. Please power cycle the target device if this error persists.");
 			} else if (pid == 0) {
 				// Child
-				socket->closeServerSocket();
-				child = new Child(socket, numSessions + 1);
+				sock->closeServerSocket();
+				child = new Child(sock, numSessions + 1);
 				child->run();
 				delete child;
 				exit(0);
 			} else {
 				// Parent
-				socket->closeSocket();
+				sock->closeSocket();
 
 				pthread_mutex_lock(&numSessions_mutex);
 				numSessions++;

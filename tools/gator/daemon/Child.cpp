@@ -55,6 +55,9 @@ void handleException() {
 				child->socket->receiveNBytes(&discard, 1);
 			}
 
+			// Ensure all data is flushed
+			child->socket->shutdownConnection();
+
 			// this indirectly calls close socket which will ensure the data has been sent
 			delete sender;
 		}

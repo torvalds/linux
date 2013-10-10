@@ -19,7 +19,11 @@
 	/* Add another character so the length isn't 0x0a bytes */ \
 	"5"
 
-static void marshal_summary(long long timestamp, long long uptime, const char * uname)
+#ifdef MALI_SUPPORT
+#include "gator_events_mali_common.h"
+#endif
+
+static void marshal_summary(long long timestamp, long long uptime, long long monotonic_delta, const char * uname)
 {
 	unsigned long flags;
 	int cpu = 0;
@@ -28,11 +32,23 @@ static void marshal_summary(long long timestamp, long long uptime, const char * 
 	gator_buffer_write_string(cpu, SUMMARY_BUF, NEWLINE_CANARY);
 	gator_buffer_write_packed_int64(cpu, SUMMARY_BUF, timestamp);
 	gator_buffer_write_packed_int64(cpu, SUMMARY_BUF, uptime);
+	gator_buffer_write_packed_int64(cpu, SUMMARY_BUF, monotonic_delta);
 	gator_buffer_write_string(cpu, SUMMARY_BUF, "uname");
 	gator_buffer_write_string(cpu, SUMMARY_BUF, uname);
 #if GATOR_IKS_SUPPORT
 	gator_buffer_write_string(cpu, SUMMARY_BUF, "iks");
 	gator_buffer_write_string(cpu, SUMMARY_BUF, "");
+#endif
+	// Let Streamline know which GPU is used so that it can label the GPU Activity appropriately. This is a temporary fix, to be improved in a future release.
+#ifdef MALI_SUPPORT
+	gator_buffer_write_string(cpu, SUMMARY_BUF, "mali_type");
+#if (MALI_SUPPORT == MALI_4xx)
+	gator_buffer_write_string(cpu, SUMMARY_BUF, "4xx");
+#elif (MALI_SUPPORT == MALI_T6xx)
+	gator_buffer_write_string(cpu, SUMMARY_BUF, "6xx");
+#else
+	gator_buffer_write_string(cpu, SUMMARY_BUF, "unknown");
+#endif
 #endif
 	gator_buffer_write_string(cpu, SUMMARY_BUF, "");
 	// Commit the buffer now so it can be one of the first frames read by Streamline
@@ -73,23 +89,23 @@ static void marshal_thread_name(int pid, char *name)
 	local_irq_restore(flags);
 }
 
-static bool marshal_backtrace_header(int exec_cookie, int tgid, int pid, int inKernel)
+static bool marshal_backtrace_header(int exec_cookie, int tgid, int pid, int inKernel, u64 time)
 {
 	int cpu = get_physical_cpu();
-	u64 time = gator_get_time();
-	if (buffer_check_space(cpu, BACKTRACE_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32 + gator_backtrace_depth * 2 * MAXSIZE_PACK32)) {
-		gator_buffer_write_packed_int64(cpu, BACKTRACE_BUF, time);
-		gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, exec_cookie);
-		gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, tgid);
-		gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, pid);
-		gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, inKernel);
-		return true;
+	if (!buffer_check_space(cpu, BACKTRACE_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32 + gator_backtrace_depth * 2 * MAXSIZE_PACK32)) {
+		// Check and commit; commit is set to occur once buffer is 3/4 full
+		buffer_check(cpu, BACKTRACE_BUF, time);
+
+		return false;
 	}
 
-	// Check and commit; commit is set to occur once buffer is 3/4 full
-	buffer_check(cpu, BACKTRACE_BUF, time);
+	gator_buffer_write_packed_int64(cpu, BACKTRACE_BUF, time);
+	gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, exec_cookie);
+	gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, tgid);
+	gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, pid);
+	gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, inKernel);
 
-	return false;
+	return true;
 }
 
 static void marshal_backtrace(unsigned long address, int cookie)
@@ -99,13 +115,13 @@ static void marshal_backtrace(unsigned long address, int cookie)
 	gator_buffer_write_packed_int64(cpu, BACKTRACE_BUF, address);
 }
 
-static void marshal_backtrace_footer(void)
+static void marshal_backtrace_footer(u64 time)
 {
 	int cpu = get_physical_cpu();
 	gator_buffer_write_packed_int(cpu, BACKTRACE_BUF, MESSAGE_END_BACKTRACE);
 
 	// Check and commit; commit is set to occur once buffer is 3/4 full
-	buffer_check(cpu, BACKTRACE_BUF, gator_get_time());
+	buffer_check(cpu, BACKTRACE_BUF, time);
 }
 
 static bool marshal_event_header(u64 time)
@@ -239,6 +255,28 @@ static void marshal_sched_gpu_stop(int unit, int core)
 	local_irq_restore(flags);
 }
 
+static void marshal_sched_trace_start(int tgid, int pid, int cookie)
+{
+	unsigned long cpu = get_physical_cpu(), flags;
+	u64 time;
+
+	if (!per_cpu(gator_buffer, cpu)[SCHED_TRACE_BUF])
+		return;
+
+	local_irq_save(flags);
+	time = gator_get_time();
+	if (buffer_check_space(cpu, SCHED_TRACE_BUF, MAXSIZE_PACK64 + 5 * MAXSIZE_PACK32)) {
+		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, MESSAGE_SCHED_START);
+		gator_buffer_write_packed_int64(cpu, SCHED_TRACE_BUF, time);
+		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, tgid);
+		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, pid);
+		gator_buffer_write_packed_int(cpu, SCHED_TRACE_BUF, cookie);
+	}
+	// Check and commit; commit is set to occur once buffer is 3/4 full
+	buffer_check(cpu, SCHED_TRACE_BUF, time);
+	local_irq_restore(flags);
+}
+
 static void marshal_sched_trace_switch(int tgid, int pid, int cookie, int state)
 {
 	unsigned long cpu = get_physical_cpu(), flags;
@@ -357,17 +395,19 @@ static void marshal_frame(int cpu, int buftype)
 }
 
 #if defined(__arm__) || defined(__aarch64__)
-static void marshal_core_name(const int cpuid, const char *name)
+static void marshal_core_name(const int core, const int cpuid, const char *name)
 {
 	int cpu = get_physical_cpu();
 	unsigned long flags;
 	local_irq_save(flags);
 	if (buffer_check_space(cpu, NAME_BUF, MAXSIZE_PACK32 + MAXSIZE_CORE_NAME)) {
 		gator_buffer_write_packed_int(cpu, NAME_BUF, HRTIMER_CORE_NAME);
+		gator_buffer_write_packed_int(cpu, NAME_BUF, core);
 		gator_buffer_write_packed_int(cpu, NAME_BUF, cpuid);
 		gator_buffer_write_string(cpu, NAME_BUF, name);
 	}
-	buffer_check(cpu, NAME_BUF, gator_get_time());
+	// Commit core names now so that they can show up in live
+	gator_commit_buffer(cpu, NAME_BUF, gator_get_time());
 	local_irq_restore(flags);
 }
 #endif

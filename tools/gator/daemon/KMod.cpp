@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "Collector.h"
+#include "ConfigurationXML.h"
 #include "Counter.h"
 #include "Logging.h"
 
@@ -73,7 +74,8 @@ void KMod::setupCounter(Counter &counter) {
 		}
 		counter.setCount(count);
 	} else if (counter.getCount() > 0) {
-		logg->logError(__FILE__, __LINE__, "Event Based Sampling is only supported with kernel versions 3.0.0 and higher with CONFIG_PERF_EVENTS=y, and CONFIG_HW_PERF_EVENTS=y\n");
+		ConfigurationXML::remove();
+		logg->logError(__FILE__, __LINE__, "Event Based Sampling is only supported with kernel versions 3.0.0 and higher with CONFIG_PERF_EVENTS=y, and CONFIG_HW_PERF_EVENTS=y. The invalid configuration.xml has been removed.\n");
 		handleException();
 	}
 }

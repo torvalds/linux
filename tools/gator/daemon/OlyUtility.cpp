@@ -83,7 +83,7 @@ int OlyUtility::getApplicationFullPath(char* fullpath, int sizeOfPath) {
   }
 
   fullpath[length] = 0;
-  fullpath = getPathPart(fullpath);
+  getPathPart(fullpath);
 
   return 0;
 }
@@ -171,7 +171,7 @@ int OlyUtility::appendToDisk(const char* path, const char* data) {
  */
 #define TRANSFER_SIZE 1024
 int OlyUtility::copyFile(const char* srcFile, const char* dstFile) {
-  char* buffer = (char*)malloc(TRANSFER_SIZE);
+  char buffer[TRANSFER_SIZE];
   FILE * f_src = fopen(srcFile,"rb");
   if (!f_src) {
     return 0;
@@ -197,7 +197,6 @@ int OlyUtility::copyFile(const char* srcFile, const char* dstFile) {
   }
   fclose(f_src);
   fclose(f_dst);
-  free(buffer);
   return 1;
 }
 

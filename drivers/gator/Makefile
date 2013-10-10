@@ -21,10 +21,13 @@ gator-y +=	gator_events_mali_t6xx.o \
 		gator_events_mali_t6xx_hw.o
 include $(M)/mali_t6xx.mk
 else
-gator-y +=	gator_events_mali_400.o
+gator-y +=	gator_events_mali_4xx.o
 endif
 gator-y +=	gator_events_mali_common.o
 EXTRA_CFLAGS +=	-DMALI_SUPPORT=$(GATOR_WITH_MALI_SUPPORT)
+ifneq ($(GATOR_MALI_INTERFACE_STYLE),)
+EXTRA_CFLAGS += -DGATOR_MALI_INTERFACE_STYLE=$(GATOR_MALI_INTERFACE_STYLE)
+endif
 endif
 
 # GATOR_TEST controls whether to include (=1) or exclude (=0) test code. 
@@ -33,8 +36,11 @@ EXTRA_CFLAGS +=	-DGATOR_TEST=$(GATOR_TEST)
 
 gator-$(CONFIG_ARM) +=	gator_events_armv6.o \
 			gator_events_armv7.o \
+			gator_events_ccn-504.o \
 			gator_events_l2c-310.o \
 			gator_events_scorpion.o
+
+gator-$(CONFIG_ARM64) +=	gator_events_ccn-504.o
 
 $(obj)/gator_main.o: gator_events.h
 

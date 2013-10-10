@@ -13,8 +13,6 @@
 #include <stdint.h>
 #include <semaphore.h>
 
-#define GATOR_LIVE
-
 class Sender;
 
 class Buffer {
@@ -56,10 +54,7 @@ private:
 	bool available;
 	bool done;
 	char *const buf;
-#ifdef GATOR_LIVE
 	uint64_t commitTime;
-#endif
-
 	sem_t *const readerSem;
 };
 

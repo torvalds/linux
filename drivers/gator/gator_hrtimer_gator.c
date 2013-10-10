@@ -13,6 +13,7 @@
 
 void (*callback)(void);
 DEFINE_PER_CPU(struct hrtimer, percpu_hrtimer);
+DEFINE_PER_CPU(ktime_t, hrtimer_expire);
 DEFINE_PER_CPU(int, hrtimer_is_active);
 static ktime_t profiling_interval;
 static void gator_hrtimer_online(void);
@@ -20,7 +21,9 @@ static void gator_hrtimer_offline(void);
 
 static enum hrtimer_restart gator_hrtimer_notify(struct hrtimer *hrtimer)
 {
-	hrtimer_forward_now(hrtimer, profiling_interval);
+	int cpu = get_logical_cpu();
+	hrtimer_forward(hrtimer, per_cpu(hrtimer_expire, cpu), profiling_interval);
+	per_cpu(hrtimer_expire, cpu) = ktime_add(per_cpu(hrtimer_expire, cpu), profiling_interval);
 	(*callback)();
 	return HRTIMER_RESTART;
 }
@@ -34,12 +37,13 @@ static void gator_hrtimer_online(void)
 		return;
 
 	per_cpu(hrtimer_is_active, cpu) = 1;
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	hrtimer->function = gator_hrtimer_notify;
 #ifdef CONFIG_PREEMPT_RT_BASE
 	hrtimer->irqsafe = 1;
 #endif
-	hrtimer_start(hrtimer, profiling_interval, HRTIMER_MODE_REL_PINNED);
+	per_cpu(hrtimer_expire, cpu) = ktime_add(hrtimer->base->get_time(), profiling_interval);
+	hrtimer_start(hrtimer, per_cpu(hrtimer_expire, cpu), HRTIMER_MODE_ABS_PINNED);
 }
 
 static void gator_hrtimer_offline(void)

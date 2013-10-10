@@ -5,14 +5,14 @@
     <event counter="ARM_Mali-T6xx_IRQ_ACTIVE" title="Mali Job Manager Cycles" name="IRQ cycles" description="Number of cycles the GPU had a pending interrupt"/>
     <event counter="ARM_Mali-T6xx_JS0_ACTIVE" title="Mali Job Manager Cycles" name="JS0 cycles" description="Number of cycles JS0 (fragment) was active"/>
     <event counter="ARM_Mali-T6xx_JS1_ACTIVE" title="Mali Job Manager Cycles" name="JS1 cycles" description="Number of cycles JS1 (vertex/tiler/compute) was active"/>
-    <event counter="ARM_Mali-T6xx_JS2_ACTIVE" title="Mali Job Manager Cycles" name="JS2 cycles" description="Number of cycles JS2 (compute) was active"/>
+    <event counter="ARM_Mali-T6xx_JS2_ACTIVE" title="Mali Job Manager Cycles" name="JS2 cycles" description="Number of cycles JS2 (vertex/compute) was active"/>
 
     <event counter="ARM_Mali-T6xx_JS0_JOBS" title="Mali Job Manager Work" name="JS0 jobs" description="Number of Jobs (fragment) completed in JS0"/>
     <event counter="ARM_Mali-T6xx_JS0_TASKS" title="Mali Job Manager Work" name="JS0 tasks" description="Number of Tasks completed in JS0"/>
     <event counter="ARM_Mali-T6xx_JS1_JOBS" title="Mali Job Manager Work" name="JS1 jobs" description="Number of Jobs (vertex/tiler/compute) completed in JS1"/>
     <event counter="ARM_Mali-T6xx_JS1_TASKS" title="Mali Job Manager Work" name="JS1 tasks" description="Number of Tasks completed in JS1"/>
     <event counter="ARM_Mali-T6xx_JS2_TASKS" title="Mali Job Manager Work" name="JS2 tasks" description="Number of Tasks completed in JS2"/>
-    <event counter="ARM_Mali-T6xx_JS2_JOBS" title="Mali Job Manager Work" name="JS2 jobs" description="Number of Jobs (compute) completed in JS2"/>
+    <event counter="ARM_Mali-T6xx_JS2_JOBS" title="Mali Job Manager Work" name="JS2 jobs" description="Number of Jobs (vertex/compute) completed in JS2"/>
 
   </category>
 

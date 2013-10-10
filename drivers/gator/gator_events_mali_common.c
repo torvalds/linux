@@ -20,8 +20,8 @@ extern const char *gator_mali_get_mali_name(void)
 	switch (id) {
 	case MALI_T6xx:
 		return "Mali-T6xx";
-	case MALI_400:
-		return "Mali-400";
+	case MALI_4xx:
+		return "Mali-4xx";
 	default:
 		pr_debug("gator: Mali-T6xx: unknown Mali ID (%d)\n", id);
 		return "Mali-Unknown";

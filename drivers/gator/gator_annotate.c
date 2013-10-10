@@ -39,14 +39,17 @@ static int annotate_copy(struct file *file, char const __user *buf, size_t count
 static ssize_t annotate_write(struct file *file, char const __user *buf, size_t count_orig, loff_t *offset)
 {
 	int pid, cpu, header_size, available, contiguous, length1, length2, size, count = count_orig & 0x7fffffff;
+	bool interrupt_context;
 
 	if (*offset) {
 		return -EINVAL;
 	}
 
-	// Annotations are not supported in interrupt context
-	if (in_interrupt()) {
-		printk(KERN_WARNING "gator: Annotations are not supported in interrupt context\n");
+	interrupt_context = in_interrupt();
+	// Annotations are not supported in interrupt context, but may work if you comment out the the next four lines of code.
+	//   By doing so, annotations in interrupt context can result in deadlocks and lost data.
+	if (interrupt_context) {
+		printk(KERN_WARNING "gator: Annotations are not supported in interrupt context. Edit gator_annotate.c in the gator driver to enable annotations in interrupt context.\n");
 		return -EINVAL;
 	}
 
@@ -77,7 +80,19 @@ static ssize_t annotate_write(struct file *file, char const __user *buf, size_t 
 	if (size <= 0) {
 		// Buffer is full, wait until space is available
 		spin_unlock(&annotate_lock);
+
+		// Drop the annotation as blocking is not allowed in interrupt context
+		if (interrupt_context) {
+			return -EINVAL;
+		}
+
 		wait_event_interruptible(gator_annotate_wait, buffer_bytes_available(cpu, ANNOTATE_BUF) > header_size || !collect_annotations);
+
+		// Check to see if a signal is pending
+		if (signal_pending(current)) {
+			return -EINTR;
+		}
+
 		goto retry;
 	}
 

@@ -20,8 +20,6 @@
 #define GATOR_CPU_FREQ_SUPPORT  (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)) && defined(CONFIG_CPU_FREQ)
 #define GATOR_IKS_SUPPORT       defined(CONFIG_BL_SWITCHER)
 
-#define GATOR_LIVE 1
-
 // cpu ids
 #define ARM1136     0xb36
 #define ARM1156     0xb56
@@ -31,6 +29,7 @@
 #define CORTEX_A7   0xc07
 #define CORTEX_A8   0xc08
 #define CORTEX_A9   0xc09
+#define CORTEX_A12  0xc0d
 #define CORTEX_A15  0xc0f
 #define SCORPION    0x00f
 #define SCORPIONMP  0x02d
@@ -46,9 +45,14 @@
 
 struct gator_cpu {
 	const int cpuid;
+	// Human readable name
 	const char core_name[MAXSIZE_CORE_NAME];
+	// Perf PMU name
 	const char * const pmu_name;
+	// gatorfs event name
 	const char * const pmnc_name;
+	// compatible from Documentation/devicetree/bindings/arm/cpus.txt
+	const char * const dt_name;
 	const int pmnc_counters;
 };
 

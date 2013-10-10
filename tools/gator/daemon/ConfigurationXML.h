@@ -14,6 +14,8 @@
 class ConfigurationXML {
 public:
 	static void getDefaultConfigurationXml(const char * & xml, unsigned int & len);
+	static void getPath(char* path);
+	static void remove();
 
 	ConfigurationXML();
 	~ConfigurationXML();

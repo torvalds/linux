@@ -14,11 +14,7 @@
 
 #define mask (size - 1)
 
-Buffer::Buffer (const int32_t core, const int32_t buftype, const int size, sem_t *const readerSem) : core(core), buftype(buftype), size(size), readPos(0), writePos(0), commitPos(0), available(true), done(false), buf(new char[size]),
-#ifdef GATOR_LIVE
-		commitTime(gSessionData->mLiveRate),
-#endif
-		readerSem(readerSem) {
+Buffer::Buffer (const int32_t core, const int32_t buftype, const int size, sem_t *const readerSem) : core(core), buftype(buftype), size(size), readPos(0), writePos(0), commitPos(0), available(true), done(false), buf(new char[size]), commitTime(gSessionData->mLiveRate), readerSem(readerSem) {
 	if ((size & mask) != 0) {
 		logg->logError(__FILE__, __LINE__, "Buffer size is not a power of 2");
 		handleException();
@@ -110,13 +106,11 @@ void Buffer::commit (const uint64_t time) {
 	logg->logMessage("Committing data readPos: %i writePos: %i commitPos: %i", readPos, writePos, commitPos);
 	commitPos = writePos;
 
-#ifdef GATOR_LIVE
 	if (gSessionData->mLiveRate > 0) {
 		while (time > commitTime) {
 			commitTime += gSessionData->mLiveRate;
 		}
 	}
-#endif
 
 	if (!done) {
 		frame();
@@ -131,11 +125,7 @@ void Buffer::check (const uint64_t time) {
 	if (filled < 0) {
 		filled += size;
 	}
-	if (filled >= ((size * 3) / 4)
-#ifdef GATOR_LIVE
-			|| (gSessionData->mLiveRate > 0 && time >= commitTime)
-#endif
-			) {
+	if (filled >= ((size * 3) / 4) || (gSessionData->mLiveRate > 0 && time >= commitTime)) {
 		commit(time);
 	}
 }

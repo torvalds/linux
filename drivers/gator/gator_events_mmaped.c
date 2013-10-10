@@ -13,9 +13,9 @@
  *
  * <counter_set name="mmaped_cnt" count="3"/>
  * <category name="mmaped" counter_set="mmaped_cnt" per_cpu="no">
- *   <event event="0x0" title="Simulated" name="Sine" display="maximum" average_selection="yes" description="Sort-of-sine"/>
- *   <event event="0x1" title="Simulated" name="Triangle" display="maximum" average_selection="yes" description="Triangular wave"/>
- *   <event event="0x2" title="Simulated" name="PWM" display="maximum" average_selection="yes" description="PWM Signal"/>
+ *   <event event="0x0" title="Simulated1" name="Sine" display="maximum" average_selection="yes" description="Sort-of-sine"/>
+ *   <event event="0x1" title="Simulated2" name="Triangle" display="maximum" average_selection="yes" description="Triangular wave"/>
+ *   <event event="0x2" title="Simulated3" name="PWM" display="maximum" average_selection="yes" description="PWM Signal"/>
  * </category>
  */
 
