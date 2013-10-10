@@ -368,10 +368,6 @@ static struct drm_crtc_helper_funcs ipu_helper_funcs = {
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)
 {
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	enable_irq(ipu_crtc->irq);
-
 	return 0;
 }
 
@@ -379,7 +375,8 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	disable_irq(ipu_crtc->irq);
+	ipu_crtc->page_flip_event = NULL;
+	ipu_crtc->newfb = NULL;
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
@@ -501,8 +498,6 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
 		goto err_put_resources;
 	}
-
-	disable_irq(ipu_crtc->irq);
 
 	return 0;
 
