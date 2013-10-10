@@ -15098,6 +15098,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	uint16_t max_rpi, rpi_limit;
 	uint16_t rpi_remaining, lrpi = 0;
 	struct lpfc_rpi_hdr *rpi_hdr;
+	unsigned long iflag;
 
 	max_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
 	rpi_limit = phba->sli4_hba.next_rpi;
@@ -15106,7 +15107,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	 * Fetch the next logical rpi.  Because this index is logical,
 	 * the  driver starts at 0 each time.
 	 */
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflag);
 	rpi = find_next_zero_bit(phba->sli4_hba.rpi_bmask, rpi_limit, 0);
 	if (rpi >= rpi_limit)
 		rpi = LPFC_RPI_ALLOC_ERROR;
@@ -15122,7 +15123,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	 */
 	if ((rpi == LPFC_RPI_ALLOC_ERROR) &&
 	    (phba->sli4_hba.rpi_count >= max_rpi)) {
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return rpi;
 	}
 
@@ -15131,7 +15132,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	 * extents.
 	 */
 	if (!phba->sli4_hba.rpi_hdrs_in_use) {
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return rpi;
 	}
 
@@ -15142,7 +15143,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	 * how many are supported max by the device.
 	 */
 	rpi_remaining = phba->sli4_hba.next_rpi - phba->sli4_hba.rpi_count;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
 	if (rpi_remaining < LPFC_RPI_LOW_WATER_MARK) {
 		rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
 		if (!rpi_hdr) {
