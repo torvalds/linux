@@ -2697,7 +2697,7 @@ int hci_unregister_cb(struct hci_cb *cb)
 }
 EXPORT_SYMBOL(hci_unregister_cb);
 
-static int hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	BT_DBG("%s type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
@@ -2717,7 +2717,8 @@ static int hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	skb->dev = (void *) hdev;
 
-	return hdev->send(skb);
+	if (hdev->send(skb) < 0)
+		BT_ERR("%s sending frame failed", hdev->name);
 }
 
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
