@@ -358,12 +358,13 @@ u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id)
 }
 
 /*
- * Check if page is under writeback
+ * Check if any page in a range is under writeback
  *
  * This is currently done by walking the list of writepage requests
  * for the inode, which can be pretty inefficient.
  */
-static bool fuse_page_is_writeback(struct inode *inode, pgoff_t index)
+static bool fuse_range_is_writeback(struct inode *inode, pgoff_t idx_from,
+				   pgoff_t idx_to)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
@@ -376,8 +377,8 @@ static bool fuse_page_is_writeback(struct inode *inode, pgoff_t index)
 
 		BUG_ON(req->inode != inode);
 		curr_index = req->misc.write.in.offset >> PAGE_CACHE_SHIFT;
-		if (curr_index <= index &&
-		    index < curr_index + req->num_pages) {
+		if (idx_from < curr_index + req->num_pages &&
+		    curr_index <= idx_to) {
 			found = true;
 			break;
 		}
@@ -385,6 +386,11 @@ static bool fuse_page_is_writeback(struct inode *inode, pgoff_t index)
 	spin_unlock(&fc->lock);
 
 	return found;
+}
+
+static inline bool fuse_page_is_writeback(struct inode *inode, pgoff_t index)
+{
+	return fuse_range_is_writeback(inode, index, index);
 }
 
 /*
@@ -1364,13 +1370,18 @@ static inline int fuse_iter_npages(const struct iov_iter *ii_p)
 
 ssize_t fuse_direct_io(struct fuse_io_priv *io, const struct iovec *iov,
 		       unsigned long nr_segs, size_t count, loff_t *ppos,
-		       int write)
+		       int flags)
 {
+	int write = flags & FUSE_DIO_WRITE;
+	int cuse = flags & FUSE_DIO_CUSE;
 	struct file *file = io->file;
+	struct inode *inode = file->f_mapping->host;
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 	size_t nmax = write ? fc->max_write : fc->max_read;
 	loff_t pos = *ppos;
+	pgoff_t idx_from = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t idx_to = (pos + count - 1) >> PAGE_CACHE_SHIFT;
 	ssize_t res = 0;
 	struct fuse_req *req;
 	struct iov_iter ii;
@@ -1383,6 +1394,14 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, const struct iovec *iov,
 		req = fuse_get_req(fc, fuse_iter_npages(&ii));
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+
+	if (!cuse && fuse_range_is_writeback(inode, idx_from, idx_to)) {
+		if (!write)
+			mutex_lock(&inode->i_mutex);
+		fuse_sync_writes(inode);
+		if (!write)
+			mutex_unlock(&inode->i_mutex);
+	}
 
 	while (count) {
 		size_t nres;
@@ -1472,7 +1491,8 @@ static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
 
 	res = generic_write_checks(file, ppos, &count, 0);
 	if (!res)
-		res = fuse_direct_io(io, iov, nr_segs, count, ppos, 1);
+		res = fuse_direct_io(io, iov, nr_segs, count, ppos,
+				     FUSE_DIO_WRITE);
 
 	fuse_invalidate_attr(inode);
 
