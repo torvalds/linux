@@ -33,13 +33,6 @@
 
 #define DRIVER_DESC		"i.MX IPUv3 Graphics"
 
-struct ipu_framebuffer {
-	struct drm_framebuffer	base;
-	void			*virt;
-	dma_addr_t		phys;
-	size_t			len;
-};
-
 struct ipu_crtc {
 	struct device		*dev;
 	struct drm_crtc		base;
