@@ -54,8 +54,8 @@ struct scom_controller {
 	scom_map_t (*map)(struct device_node *ctrl_dev, u64 reg, u64 count);
 	void (*unmap)(scom_map_t map);
 
-	int (*read)(scom_map_t map, u32 reg, u64 *value);
-	int (*write)(scom_map_t map, u32 reg, u64 value);
+	int (*read)(scom_map_t map, u64 reg, u64 *value);
+	int (*write)(scom_map_t map, u64 reg, u64 value);
 };
 
 extern const struct scom_controller *scom_controller;
@@ -137,7 +137,7 @@ static inline void scom_unmap(scom_map_t map)
  *
  * Returns 0 (success) or a negative error code
  */
-static inline int scom_read(scom_map_t map, u32 reg, u64 *value)
+static inline int scom_read(scom_map_t map, u64 reg, u64 *value)
 {
 	int rc;
 
@@ -155,7 +155,7 @@ static inline int scom_read(scom_map_t map, u32 reg, u64 *value)
  *
  * Returns 0 (success) or a negative error code
  */
-static inline int scom_write(scom_map_t map, u32 reg, u64 value)
+static inline int scom_write(scom_map_t map, u64 reg, u64 value)
 {
 	return scom_controller->write(map, reg, value);
 }

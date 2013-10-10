@@ -50,7 +50,7 @@ static void wsp_scom_unmap(scom_map_t map)
 	iounmap((void *)map);
 }
 
-static int wsp_scom_read(scom_map_t map, u32 reg, u64 *value)
+static int wsp_scom_read(scom_map_t map, u64 reg, u64 *value)
 {
 	u64 __iomem *addr = (u64 __iomem *)map;
 
@@ -59,7 +59,7 @@ static int wsp_scom_read(scom_map_t map, u32 reg, u64 *value)
 	return 0;
 }
 
-static int wsp_scom_write(scom_map_t map, u32 reg, u64 value)
+static int wsp_scom_write(scom_map_t map, u64 reg, u64 value)
 {
 	u64 __iomem *addr = (u64 __iomem *)map;
 

@@ -27,7 +27,7 @@
  */
 struct opal_scom_map {
 	uint32_t chip;
-	uint32_t addr;
+	uint64_t addr;
 };
 
 static scom_map_t opal_scom_map(struct device_node *dev, u64 reg, u64 count)
@@ -71,7 +71,7 @@ static int opal_xscom_err_xlate(int64_t rc)
 	}
 }
 
-static int opal_scom_read(scom_map_t map, u32 reg, u64 *value)
+static int opal_scom_read(scom_map_t map, u64 reg, u64 *value)
 {
 	struct opal_scom_map *m = map;
 	int64_t rc;
@@ -80,7 +80,7 @@ static int opal_scom_read(scom_map_t map, u32 reg, u64 *value)
 	return opal_xscom_err_xlate(rc);
 }
 
-static int opal_scom_write(scom_map_t map, u32 reg, u64 value)
+static int opal_scom_write(scom_map_t map, u64 reg, u64 value)
 {
 	struct opal_scom_map *m = map;
 	int64_t rc;
