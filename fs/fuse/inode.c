@@ -197,6 +197,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
+	bool is_wb = fc->writeback_cache;
 	loff_t oldsize;
 	struct timespec old_mtime;
 
@@ -211,10 +212,16 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	fuse_change_attributes_common(inode, attr, attr_valid);
 
 	oldsize = inode->i_size;
-	i_size_write(inode, attr->size);
+	/*
+	 * In case of writeback_cache enabled, the cached writes beyond EOF
+	 * extend local i_size without keeping userspace server in sync. So,
+	 * attr->size coming from server can be stale. We cannot trust it.
+	 */
+	if (!is_wb || !S_ISREG(inode->i_mode))
+		i_size_write(inode, attr->size);
 	spin_unlock(&fc->lock);
 
-	if (S_ISREG(inode->i_mode)) {
+	if (!is_wb && S_ISREG(inode->i_mode)) {
 		bool inval = false;
 
 		if (oldsize != attr->size) {
