@@ -1485,8 +1485,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	info = (struct intel_device_info *) flags;
 
 	/* Refuse to load on gen6+ without kms enabled. */
-	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
+	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET)) {
+		DRM_INFO("Your hardware requires kernel modesetting (KMS)\n");
+		DRM_INFO("See CONFIG_DRM_I915_KMS, nomodeset, and i915.modeset parameters\n");
 		return -ENODEV;
+	}
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
