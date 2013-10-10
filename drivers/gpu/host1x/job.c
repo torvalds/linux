@@ -281,7 +281,7 @@ struct host1x_firewall {
 	unsigned int num_relocs;
 	struct host1x_reloc *reloc;
 
-	struct host1x_bo *cmdbuf_id;
+	struct host1x_bo *cmdbuf;
 	unsigned int offset;
 
 	u32 words;
@@ -304,7 +304,7 @@ static int check_mask(struct host1x_firewall *fw)
 			if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
 				if (!fw->num_relocs)
 					return -EINVAL;
-				if (!check_reloc(fw->reloc, fw->cmdbuf_id,
+				if (!check_reloc(fw->reloc, fw->cmdbuf,
 						 fw->offset))
 					return -EINVAL;
 				fw->reloc++;
@@ -332,7 +332,7 @@ static int check_incr(struct host1x_firewall *fw)
 		if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
 			if (!fw->num_relocs)
 				return -EINVAL;
-			if (!check_reloc(fw->reloc, fw->cmdbuf_id, fw->offset))
+			if (!check_reloc(fw->reloc, fw->cmdbuf, fw->offset))
 				return -EINVAL;
 			fw->reloc++;
 			fw->num_relocs--;
@@ -358,7 +358,7 @@ static int check_nonincr(struct host1x_firewall *fw)
 		if (is_addr_reg) {
 			if (!fw->num_relocs)
 				return -EINVAL;
-			if (!check_reloc(fw->reloc, fw->cmdbuf_id, fw->offset))
+			if (!check_reloc(fw->reloc, fw->cmdbuf, fw->offset))
 				return -EINVAL;
 			fw->reloc++;
 			fw->num_relocs--;
@@ -381,7 +381,7 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 		return 0;
 
 	fw->words = g->words;
-	fw->cmdbuf_id = g->bo;
+	fw->cmdbuf = g->bo;
 	fw->offset = 0;
 
 	while (fw->words && !err) {
