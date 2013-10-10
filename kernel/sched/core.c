@@ -1049,6 +1049,8 @@ static int migrate_swap_stop(void *data)
 	src_rq = cpu_rq(arg->src_cpu);
 	dst_rq = cpu_rq(arg->dst_cpu);
 
+	double_raw_lock(&arg->src_task->pi_lock,
+			&arg->dst_task->pi_lock);
 	double_rq_lock(src_rq, dst_rq);
 	if (task_cpu(arg->dst_task) != arg->dst_cpu)
 		goto unlock;
@@ -1069,6 +1071,8 @@ static int migrate_swap_stop(void *data)
 
 unlock:
 	double_rq_unlock(src_rq, dst_rq);
+	raw_spin_unlock(&arg->dst_task->pi_lock);
+	raw_spin_unlock(&arg->src_task->pi_lock);
 
 	return ret;
 }
