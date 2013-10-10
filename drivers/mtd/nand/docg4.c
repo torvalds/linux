@@ -44,6 +44,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/bch.h>
 #include <linux/bitrev.h>
+#include <linux/jiffies.h>
 
 /*
  * In "reliable mode" consecutive 2k pages are used in parallel (in some
@@ -269,7 +270,7 @@ static int poll_status(struct docg4_priv *doc)
 	 */
 
 	uint16_t flash_status;
-	unsigned int timeo;
+	unsigned long timeo;
 	void __iomem *docptr = doc->virtadr;
 
 	dev_dbg(doc->dev, "%s...\n", __func__);
@@ -277,21 +278,17 @@ static int poll_status(struct docg4_priv *doc)
 	/* hardware quirk requires reading twice initially */
 	flash_status = readw(docptr + DOC_FLASHCONTROL);
 
-	timeo = 1000;
+	timeo = jiffies + msecs_to_jiffies(200); /* generous timeout */
 	do {
 		cpu_relax();
 		flash_status = readb(docptr + DOC_FLASHCONTROL);
-	} while (!(flash_status & DOC_CTRL_FLASHREADY) && --timeo);
+	} while (!(flash_status & DOC_CTRL_FLASHREADY) &&
+		 time_before(jiffies, timeo));
 
-
-	if (!timeo) {
+	if (unlikely(!(flash_status & DOC_CTRL_FLASHREADY))) {
 		dev_err(doc->dev, "%s: timed out!\n", __func__);
 		return NAND_STATUS_FAIL;
 	}
-
-	if (unlikely(timeo < 50))
-		dev_warn(doc->dev, "%s: nearly timed out; %d remaining\n",
-			 __func__, timeo);
 
 	return 0;
 }
