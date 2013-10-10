@@ -278,6 +278,15 @@ static void __init xen_smp_prepare_boot_cpu(void)
 		   old memory can be recycled */
 		make_lowmem_page_readwrite(xen_initial_gdt);
 
+#ifdef CONFIG_X86_32
+		/*
+		 * Xen starts us with XEN_FLAT_RING1_DS, but linux code
+		 * expects __USER_DS
+		 */
+		loadsegment(ds, __USER_DS);
+		loadsegment(es, __USER_DS);
+#endif
+
 		xen_filter_cpu_maps();
 		xen_setup_vcpu_info_placement();
 	}
