@@ -45,7 +45,7 @@ test-stackprotector-all:
 	$(BUILD) -Werror -fstack-protector-all
 
 test-stackprotector:
-	$(BUILD) -Werror -fstack-protector
+	$(BUILD) -Werror -fstack-protector -Wstack-protector
 
 test-fortify-source:
 	$(BUILD) -O2 -Werror -D_FORTIFY_SOURCE=2
