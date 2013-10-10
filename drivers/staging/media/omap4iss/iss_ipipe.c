@@ -116,8 +116,6 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 	/* IPIPE_PAD_SOURCE_VP */
 	format = &ipipe->formats[IPIPE_PAD_SOURCE_VP];
 	/* Do nothing? */
-
-	omap4iss_isp_enable_interrupts(iss);
 }
 
 /* -----------------------------------------------------------------------------
@@ -169,7 +167,6 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
 			ret = -ETIMEDOUT;
 
 		ipipe_enable(ipipe, 0);
-		omap4iss_isp_disable_interrupts(iss);
 		omap4iss_isp_subclk_disable(iss, OMAP4_ISS_ISP_SUBCLK_IPIPE);
 		break;
 	}

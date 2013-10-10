@@ -213,8 +213,6 @@ cont_raw:
 
 	/* IPIPEIF_PAD_SOURCE_VP */
 	/* Do nothing? */
-
-	omap4iss_isp_enable_interrupts(iss);
 }
 
 /* -----------------------------------------------------------------------------
@@ -368,7 +366,6 @@ static int ipipeif_set_stream(struct v4l2_subdev *sd, int enable)
 		if (ipipeif->output & IPIPEIF_OUTPUT_MEMORY)
 			ipipeif_write_enable(ipipeif, 0);
 		ipipeif_enable(ipipeif, 0);
-		omap4iss_isp_disable_interrupts(iss);
 		omap4iss_isp_subclk_disable(iss, IPIPEIF_DRV_SUBCLK_MASK);
 		iss_video_dmaqueue_flags_clr(video_out);
 		break;

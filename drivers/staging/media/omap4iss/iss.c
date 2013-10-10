@@ -67,33 +67,10 @@ void omap4iss_flush(struct iss_device *iss)
 }
 
 /*
- * iss_enable_interrupts - Enable ISS interrupts.
- * @iss: OMAP4 ISS device
- */
-static void iss_enable_interrupts(struct iss_device *iss)
-{
-	static const u32 hl_irq = ISS_HL_IRQ_CSIA | ISS_HL_IRQ_CSIB | ISS_HL_IRQ_ISP(0);
-
-	/* Enable HL interrupts */
-	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQSTATUS(5), hl_irq);
-	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQENABLE_SET(5), hl_irq);
-
-}
-
-/*
- * iss_disable_interrupts - Disable ISS interrupts.
- * @iss: OMAP4 ISS device
- */
-static void iss_disable_interrupts(struct iss_device *iss)
-{
-	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQENABLE_CLR(5), -1);
-}
-
-/*
  * iss_isp_enable_interrupts - Enable ISS ISP interrupts.
  * @iss: OMAP4 ISS device
  */
-void omap4iss_isp_enable_interrupts(struct iss_device *iss)
+static void omap4iss_isp_enable_interrupts(struct iss_device *iss)
 {
 	static const u32 isp_irq = ISP5_IRQ_OCP_ERR |
 				   ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR |
@@ -111,9 +88,38 @@ void omap4iss_isp_enable_interrupts(struct iss_device *iss)
  * iss_isp_disable_interrupts - Disable ISS interrupts.
  * @iss: OMAP4 ISS device
  */
-void omap4iss_isp_disable_interrupts(struct iss_device *iss)
+static void omap4iss_isp_disable_interrupts(struct iss_device *iss)
 {
-	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_IRQENABLE_CLR(0), -1);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_IRQENABLE_CLR(0), ~0);
+}
+
+/*
+ * iss_enable_interrupts - Enable ISS interrupts.
+ * @iss: OMAP4 ISS device
+ */
+static void iss_enable_interrupts(struct iss_device *iss)
+{
+	static const u32 hl_irq = ISS_HL_IRQ_CSIA | ISS_HL_IRQ_CSIB
+				| ISS_HL_IRQ_ISP(0);
+
+	/* Enable HL interrupts */
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQSTATUS(5), hl_irq);
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQENABLE_SET(5), hl_irq);
+
+	if (iss->regs[OMAP4_ISS_MEM_ISP_SYS1])
+		omap4iss_isp_enable_interrupts(iss);
+}
+
+/*
+ * iss_disable_interrupts - Disable ISS interrupts.
+ * @iss: OMAP4 ISS device
+ */
+static void iss_disable_interrupts(struct iss_device *iss)
+{
+	if (iss->regs[OMAP4_ISS_MEM_ISP_SYS1])
+		omap4iss_isp_disable_interrupts(iss);
+
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQENABLE_CLR(5), ~0);
 }
 
 int omap4iss_get_external_info(struct iss_pipeline *pipe,

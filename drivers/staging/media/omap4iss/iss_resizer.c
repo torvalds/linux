@@ -256,8 +256,6 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	} else {
 		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_420, 0);
 	}
-
-	omap4iss_isp_enable_interrupts(iss);
 }
 
 /* -----------------------------------------------------------------------------
@@ -419,7 +417,6 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 			ret = -ETIMEDOUT;
 
 		resizer_enable(resizer, 0);
-		omap4iss_isp_disable_interrupts(iss);
 		iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SYSCONFIG,
 			    RSZ_SYSCONFIG_RSZA_CLK_EN);
 		iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_GCK_SDR,
