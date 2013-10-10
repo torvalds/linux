@@ -291,25 +291,37 @@ struct host1x_firewall {
 	u32 count;
 };
 
+static int check_register(struct host1x_firewall *fw, unsigned long offset)
+{
+	if (fw->job->is_addr_reg(fw->dev, fw->class, offset)) {
+		if (!fw->num_relocs)
+			return -EINVAL;
+
+		if (!check_reloc(fw->reloc, fw->cmdbuf, fw->offset))
+			return -EINVAL;
+
+		fw->num_relocs--;
+		fw->reloc++;
+	}
+
+	return 0;
+}
+
 static int check_mask(struct host1x_firewall *fw)
 {
 	u32 mask = fw->mask;
 	u32 reg = fw->reg;
+	int ret;
 
 	while (mask) {
 		if (fw->words == 0)
 			return -EINVAL;
 
 		if (mask & 1) {
-			if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
-				if (!fw->num_relocs)
-					return -EINVAL;
-				if (!check_reloc(fw->reloc, fw->cmdbuf,
-						 fw->offset))
-					return -EINVAL;
-				fw->reloc++;
-				fw->num_relocs--;
-			}
+			ret = check_register(fw, reg);
+			if (ret < 0)
+				return ret;
+
 			fw->words--;
 			fw->offset++;
 		}
@@ -324,19 +336,16 @@ static int check_incr(struct host1x_firewall *fw)
 {
 	u32 count = fw->count;
 	u32 reg = fw->reg;
+	int ret;
 
 	while (count) {
 		if (fw->words == 0)
 			return -EINVAL;
 
-		if (fw->job->is_addr_reg(fw->dev, fw->class, reg)) {
-			if (!fw->num_relocs)
-				return -EINVAL;
-			if (!check_reloc(fw->reloc, fw->cmdbuf, fw->offset))
-				return -EINVAL;
-			fw->reloc++;
-			fw->num_relocs--;
-		}
+		ret = check_register(fw, reg);
+		if (ret < 0)
+			return ret;
+
 		reg++;
 		fw->words--;
 		fw->offset++;
@@ -348,21 +357,17 @@ static int check_incr(struct host1x_firewall *fw)
 
 static int check_nonincr(struct host1x_firewall *fw)
 {
-	int is_addr_reg = fw->job->is_addr_reg(fw->dev, fw->class, fw->reg);
 	u32 count = fw->count;
+	int ret;
 
 	while (count) {
 		if (fw->words == 0)
 			return -EINVAL;
 
-		if (is_addr_reg) {
-			if (!fw->num_relocs)
-				return -EINVAL;
-			if (!check_reloc(fw->reloc, fw->cmdbuf, fw->offset))
-				return -EINVAL;
-			fw->reloc++;
-			fw->num_relocs--;
-		}
+		ret = check_register(fw, fw->reg);
+		if (ret < 0)
+			return ret;
+
 		fw->words--;
 		fw->offset++;
 		count--;
