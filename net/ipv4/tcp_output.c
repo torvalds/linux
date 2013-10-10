@@ -850,14 +850,14 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	BUG_ON(!skb || !tcp_skb_pcount(skb));
 
-	/* If congestion control is doing timestamping, we must
-	 * take such a timestamp before we potentially clone/copy.
-	 */
-	if (icsk->icsk_ca_ops->flags & TCP_CONG_RTT_STAMP)
-		__net_timestamp(skb);
-
-	if (likely(clone_it)) {
+	if (clone_it) {
 		const struct sk_buff *fclone = skb + 1;
+
+		/* If congestion control is doing timestamping, we must
+		 * take such a timestamp before we potentially clone/copy.
+		 */
+		if (icsk->icsk_ca_ops->flags & TCP_CONG_RTT_STAMP)
+			__net_timestamp(skb);
 
 		if (unlikely(skb->fclone == SKB_FCLONE_ORIG &&
 			     fclone->fclone == SKB_FCLONE_CLONE))
