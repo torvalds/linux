@@ -260,10 +260,9 @@ static int xilinxfb_assign(struct platform_device *pdev,
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		drvdata->regs = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(drvdata->regs)) {
-			rc = PTR_ERR(drvdata->regs);
-			goto err_region;
-		}
+		if (IS_ERR(drvdata->regs))
+			return PTR_ERR(drvdata->regs);
+
 		drvdata->regs_phys = res->start;
 	}
 
@@ -279,11 +278,7 @@ static int xilinxfb_assign(struct platform_device *pdev,
 
 	if (!drvdata->fb_virt) {
 		dev_err(dev, "Could not allocate frame buffer memory\n");
-		rc = -ENOMEM;
-		if (drvdata->flags & BUS_ACCESS_FLAG)
-			goto err_fbmem;
-		else
-			goto err_region;
+		return -ENOMEM;
 	}
 
 	/* Clear (turn to black) the framebuffer */
@@ -363,11 +358,6 @@ err_cmap:
 	/* Turn off the display */
 	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
-err_fbmem:
-	if (drvdata->flags & BUS_ACCESS_FLAG)
-		devm_iounmap(dev, drvdata->regs);
-
-err_region:
 	return rc;
 }
 
@@ -392,11 +382,9 @@ static int xilinxfb_release(struct device *dev)
 	/* Turn off the display */
 	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
-	/* Release the resources, as allocated based on interface */
-	if (drvdata->flags & BUS_ACCESS_FLAG)
-		devm_iounmap(dev, drvdata->regs);
 #ifdef CONFIG_PPC_DCR
-	else
+	/* Release the resources, as allocated based on interface */
+	if (!(drvdata->flags & BUS_ACCESS_FLAG))
 		dcr_unmap(drvdata->dcr_host, drvdata->dcr_len);
 #endif
 
