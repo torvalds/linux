@@ -2036,17 +2036,14 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 	urb->actual_length = bytes_transferred;
 	urb->hcpriv = NULL;
 
-	if (!list_empty(&urb->urb_list)) {
+	if (!list_empty(&urb->urb_list))
 		/*
 		 * It is on the dequeue_list, but we are going to call
 		 * usb_hcd_giveback_urb(), so we must clear it from
 		 * the list.  We got to it before the
 		 * octeon_usb_urb_dequeue_work() tasklet did.
 		 */
-		list_del(&urb->urb_list);
-		/* No longer on the dequeue_list. */
-		INIT_LIST_HEAD(&urb->urb_list);
-	}
+		list_del_init(&urb->urb_list);
 
 	/* For Isochronous transactions we need to update the URB packet status
 	   list from data in our private copy */
@@ -3233,9 +3230,7 @@ static void octeon_usb_urb_dequeue_work(unsigned long arg)
 
 	while (!list_empty(&priv->dequeue_list)) {
 		struct urb *urb = container_of(priv->dequeue_list.next, struct urb, urb_list);
-		list_del(&urb->urb_list);
-		/* not enqueued on dequeue_list */
-		INIT_LIST_HEAD(&urb->urb_list);
+		list_del_init(&urb->urb_list);
 		cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
 	}
 
