@@ -267,7 +267,7 @@ typedef struct _RT_HIGH_THROUGHPUT {
 
 	/* For Bandwidth Switching */
 	u8			bSwBwInProgress;
-	CHNLOP			ChnlOp; /* software switching channel in progress. */
+	CHNLOP			ChnlOp; /* sw switching channel in progress. */
 	u8			SwBwStep;
 	struct timer_list	SwBwTimer;
 
