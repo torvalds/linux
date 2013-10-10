@@ -2319,7 +2319,7 @@ retry:
 		d_tmpfile(dentry, inode);
 		err = ext4_orphan_add(handle, inode);
 		if (err)
-			goto err_drop_inode;
+			goto err_unlock_inode;
 		mark_inode_dirty(inode);
 		unlock_new_inode(inode);
 	}
@@ -2328,10 +2328,9 @@ retry:
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
 	return err;
-err_drop_inode:
+err_unlock_inode:
 	ext4_journal_stop(handle);
 	unlock_new_inode(inode);
-	iput(inode);
 	return err;
 }
 
