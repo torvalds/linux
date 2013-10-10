@@ -3442,22 +3442,26 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->rps.hw_lock);
-	if (dev_priv->info->is_valleyview)
-		valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
-	else
-		gen6_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
-	dev_priv->rps.last_adj = 0;
+	if (dev_priv->rps.enabled) {
+		if (dev_priv->info->is_valleyview)
+			valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
+		else
+			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_delay);
+		dev_priv->rps.last_adj = 0;
+	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->rps.hw_lock);
-	if (dev_priv->info->is_valleyview)
-		valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
-	else
-		gen6_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
-	dev_priv->rps.last_adj = 0;
+	if (dev_priv->rps.enabled) {
+		if (dev_priv->info->is_valleyview)
+			valleyview_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
+		else
+			gen6_set_rps(dev_priv->dev, dev_priv->rps.max_delay);
+		dev_priv->rps.last_adj = 0;
+	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
@@ -4716,6 +4720,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 			valleyview_disable_rps(dev);
 		else
 			gen6_disable_rps(dev);
+		dev_priv->rps.enabled = false;
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	}
 }
@@ -4735,6 +4740,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 		gen6_enable_rps(dev);
 		gen6_update_ring_freq(dev);
 	}
+	dev_priv->rps.enabled = true;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 

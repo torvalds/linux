@@ -862,6 +862,7 @@ struct intel_gen6_power_mgmt {
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
+	bool enabled;
 	struct delayed_work delayed_resume_work;
 
 	/*
