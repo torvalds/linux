@@ -264,7 +264,7 @@ static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 }
 
 static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
-		       unsigned int offset)
+			unsigned int offset)
 {
 	offset *= sizeof(u32);
 
