@@ -280,7 +280,6 @@ endif # NO_LIBELF
 
 ifndef NO_LIBELF
   CFLAGS += -DHAVE_LIBELF_SUPPORT
-  FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
 
   ifeq ($(feature-libelf-mmap), 1)
     CFLAGS += -DHAVE_LIBELF_MMAP_SUPPORT
@@ -303,13 +302,6 @@ ifndef NO_LIBELF
       EXTLIBS += -lelf -ldw
     endif # PERF_HAVE_DWARF_REGS
   endif # NO_DWARF
-endif # NO_LIBELF
-
-ifndef NO_LIBELF
-  CFLAGS += -DHAVE_LIBELF_SUPPORT
-  ifeq ($(feature-libelf-mmap), 1)
-    CFLAGS += -DHAVE_LIBELF_MMAP_SUPPORT
-  endif
 endif # NO_LIBELF
 
 # There's only x86 (both 32 and 64) support for CFI unwind so far
