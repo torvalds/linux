@@ -100,6 +100,7 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 	if (IS_ERR(phy)) {
 		/* Fallback to pdata */
 		if (!pdata) {
+			usb_put_hcd(hcd);
 			dev_warn(&pdev->dev, "no platform data or transceiver defined\n");
 			return -EPROBE_DEFER;
 		} else {
