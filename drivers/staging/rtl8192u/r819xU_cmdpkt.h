@@ -165,15 +165,15 @@ typedef struct tag_tx_rate_history {
 
 typedef enum tag_command_packet_directories
 {
-    RX_TX_FEEDBACK = 0,
-    RX_INTERRUPT_STATUS		= 1,
-    TX_SET_CONFIG				= 2,
-    BOTH_QUERY_CONFIG			= 3,
-    RX_TX_STATUS				= 4,
-    RX_DBGINFO_FEEDBACK		= 5,
-    RX_TX_PER_PKT_FEEDBACK		= 6,
-    RX_TX_RATE_HISTORY		= 7,
-    RX_CMD_ELE_MAX
+	RX_TX_FEEDBACK = 0,
+	RX_INTERRUPT_STATUS		= 1,
+	TX_SET_CONFIG				= 2,
+	BOTH_QUERY_CONFIG			= 3,
+	RX_TX_STATUS				= 4,
+	RX_DBGINFO_FEEDBACK		= 5,
+	RX_TX_PER_PKT_FEEDBACK		= 6,
+	RX_TX_RATE_HISTORY		= 7,
+	RX_CMD_ELE_MAX
 } cmpk_element_e;
 
 typedef enum _rt_status{
