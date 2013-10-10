@@ -842,7 +842,7 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 	int irq, ret;
 
 	/* Remap the Integrator system controller */
-	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
+	ap_syscon_base = devm_ioremap(&pdev->dev, INTEGRATOR_SC_BASE, 0x100);
 	if (!ap_syscon_base) {
 		dev_err(&pdev->dev, "unable to remap the AP syscon for PCIv3\n");
 		return -ENODEV;
