@@ -2,31 +2,25 @@
 #define _R819XU_HTTYPE_H_
 
 
-//------------------------------------------------------------
-// The HT Capability element is present in beacons, association request,
-//	reassociation request and probe response frames
-//------------------------------------------------------------
+/*----------------------------------------------------------------------
+ * The HT Capability element is present in beacons, association request,
+ * reassociation request and probe response frames
+ *----------------------------------------------------------------------*/
 
-//
-// Operation mode value
-//
+/* Operation mode value */
 #define HT_OPMODE_NO_PROTECT		0
 #define HT_OPMODE_OPTIONAL		1
 #define HT_OPMODE_40MHZ_PROTECT	2
 #define HT_OPMODE_MIXED			3
 
-//
-// MIMO Power Save Settings
-//
+/* MIMO Power Save Settings */
 #define MIMO_PS_STATIC				0
 #define MIMO_PS_DYNAMIC			1
 #define MIMO_PS_NOLIMIT			3
 
 
-//
-//	There should be 128 bits to cover all of the MCS rates. However, since
-//	8190 does not support too much rates, one integer is quite enough.
-//
+/* There should be 128 bits to cover all of the MCS rates. However, since
+ * 8190 does not support too much rates, one integer is quite enough. */
 
 #define sHTCLng	4
 
@@ -53,21 +47,17 @@ typedef enum _HT_MCS_RATE {
 	HT_MCS13 = 0x00002000,
 	HT_MCS14 = 0x00004000,
 	HT_MCS15 = 0x00008000,
-	// Do not define MCS32 here although 8190 support MCS32
+	/* Do not define MCS32 here although 8190 support MCS32 */
 } HT_MCS_RATE,*PHT_MCS_RATE;
 
-//
-// Represent Channel Width in HT Capabilities
-//
+/* Represent Channel Width in HT Capabilities */
 typedef enum _HT_CHANNEL_WIDTH {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
 } HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
 
-//
-// Represent Extension Channel Offset in HT Capabilities
-// This is available only in 40Mhz mode.
-//
+/* Represent Extension Channel Offset in HT Capabilities
+ * This is available only in 40Mhz mode. */
 typedef enum _HT_EXTCHNL_OFFSET {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
@@ -76,13 +66,13 @@ typedef enum _HT_EXTCHNL_OFFSET {
 } HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
 
 typedef enum _CHNLOP {
-	CHNLOP_NONE = 0, // No Action now
-	CHNLOP_SCAN = 1, // Scan in progress
-	CHNLOP_SWBW = 2, // Bandwidth switching in progress
-	CHNLOP_SWCHNL = 3, // Software Channel switching in progress
+	CHNLOP_NONE = 0,	/* No Action now */
+	CHNLOP_SCAN = 1,	/* Scan in progress */
+	CHNLOP_SWBW = 2,	/* Bandwidth switching in progress */
+	CHNLOP_SWCHNL = 3,	/* Software Channel switching in progress */
 } CHNLOP, *PCHNLOP;
 
-// Determine if the Channel Operation is in progress
+/* Determine if the Channel Operation is in progress */
 #define CHHLOP_IN_PROGRESS(_pHTInfo)	\
 		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? TRUE : FALSE
 
@@ -101,7 +91,7 @@ typedef enum _HT_ACTION {
 } HT_ACTION, *PHT_ACTION;
 
 
-/* 2007/06/07 MH Define sub-carrier mode for 40MHZ. */
+/* Define sub-carrier mode for 40MHZ. */
 typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier {
 	SC_MODE_DUPLICATE = 0,
 	SC_MODE_LOWER = 1,
@@ -111,7 +101,7 @@ typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier {
 
 typedef	struct _HT_CAPABILITY_ELE {
 
-	//HT capability info
+	/* HT capability info */
 	u8	AdvCoding:1;
 	u8	ChlWidth:1;
 	u8	MimoPwrSave:2;
@@ -127,30 +117,30 @@ typedef	struct _HT_CAPABILITY_ELE {
 	u8	Rsvd1:1;
 	u8	LSigTxopProtect:1;
 
-	//MAC HT parameters info
+	/* MAC HT parameters info */
 	u8	MaxRxAMPDUFactor:2;
 	u8	MPDUDensity:3;
 	u8	Rsvd2:3;
 
-	//Supported MCS set
+	/* Supported MCS set */
 	u8	MCS[16];
 
 
-	//Extended HT Capability Info
+	/* Extended HT Capability Info */
 	u16	ExtHTCapInfo;
 
-	//TXBF Capabilities
+	/* TXBF Capabilities */
 	u8	TxBFCap[4];
 
-	//Antenna Selection Capabilities
+	/* Antenna Selection Capabilities */
 	u8	ASCap;
 
 } __packed HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
 
-//------------------------------------------------------------
-// The HT Information element is present in beacons
-// Only AP is required to include this element
-//------------------------------------------------------------
+/*------------------------------------------------------------
+ * The HT Information element is present in beacons
+ * Only AP is required to include this element
+ *------------------------------------------------------------*/
 
 typedef struct _HT_INFORMATION_ELE {
 	u8	ControlChl;
@@ -179,10 +169,8 @@ typedef struct _HT_INFORMATION_ELE {
 	u8	BasicMSC[16];
 } __packed HT_INFORMATION_ELE, *PHT_INFORMATION_ELE;
 
-//
-// MIMO Power Save control field.
-// This is appear in MIMO Power Save Action Frame
-//
+/* MIMO Power Save control field.
+ * This is appear in MIMO Power Save Action Frame */
 typedef struct _MIMOPS_CTRL {
 	u8	MimoPsEnable:1;
 	u8	MimoPsMode:1;
@@ -200,63 +188,66 @@ typedef enum _HT_AGGRE_MODE_E {
 	HT_AGG_FORCE_DISABLE = 2,
 } HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
-//------------------------------------------------------------
-//  The Data structure is used to keep HT related variables when card is
-//  configured as non-AP STA mode.  **Note**  Current_xxx should be set
-//	to default value in HTInitializeHTInfo()
-//------------------------------------------------------------
+/*----------------------------------------------------------------------------
+ *  The Data structure is used to keep HT related variables when card is
+ *  configured as non-AP STA mode.
+ *  **Note** Current_xxx should be set to default value in HTInitializeHTInfo()
+ *----------------------------------------------------------------------------*/
 
 typedef struct _RT_HIGH_THROUGHPUT {
-//	DECLARE_RT_OBJECT(_RT_HIGH_THROUGHPUT);
 	u8				bEnableHT;
 	u8				bCurrentHTSupport;
+	/* Tx 40MHz channel capability */
+	u8				bRegBW40MHz;
+	u8				bCurBW40MHz;
+	/* Tx Short GI for 40Mhz */
+	u8				bRegShortGI40MHz;
+	u8				bCurShortGI40MHz;
+	/* Tx Short GI for 20MHz */
+	u8				bRegShortGI20MHz;
+	u8				bCurShortGI20MHz;
+	/* Tx CCK rate capability */
+	u8				bRegSuppCCK;
+	u8				bCurSuppCCK;
 
-	u8				bRegBW40MHz;				// Tx 40MHz channel capability
-	u8				bCurBW40MHz;				// Tx 40MHz channel capability
-
-	u8				bRegShortGI40MHz;			// Tx Short GI for 40Mhz
-	u8				bCurShortGI40MHz;			// Tx Short GI for 40MHz
-
-	u8				bRegShortGI20MHz;			// Tx Short GI for 20MHz
-	u8				bCurShortGI20MHz;			// Tx Short GI for 20MHz
-
-	u8				bRegSuppCCK;				// Tx CCK rate capability
-	u8				bCurSuppCCK;				// Tx CCK rate capability
-
-	// 802.11n spec version for "peer"
+	/* 802.11n spec version for "peer" */
 	HT_SPEC_VER			ePeerHTSpecVer;
 
 
-	// HT related information for "Self"
-	HT_CAPABILITY_ELE	SelfHTCap;					// This is HT cap element sent to peer STA, which also indicate HT Rx capabilities.
-	HT_INFORMATION_ELE	SelfHTInfo;					// This is HT info element sent to peer STA, which also indicate HT Rx capabilities.
+	/* HT related information for "Self" */
+	/* This is HT cap element sent to peer STA, which also indicate
+	 * HT Rx capabilities. */
+	HT_CAPABILITY_ELE	SelfHTCap;
+	HT_INFORMATION_ELE	SelfHTInfo;
 
-	// HT related information for "Peer"
+	/* HT related information for "Peer" */
 	u8				PeerHTCapBuf[32];
 	u8				PeerHTInfoBuf[32];
 
 
-	// A-MSDU related
-	u8				bAMSDU_Support;			// This indicates Tx A-MSDU capability
-	u16				nAMSDU_MaxSize;			// This indicates Tx A-MSDU capability
-	u8				bCurrent_AMSDU_Support;	// This indicates Tx A-MSDU capability
-	u16				nCurrent_AMSDU_MaxSize;	// This indicates Tx A-MSDU capability
+	/* A-MSDU related */
+	/* This indicates Tx A-MSDU capability */
+	u8				bAMSDU_Support;
+	u16				nAMSDU_MaxSize;
+	u8				bCurrent_AMSDU_Support;
+	u16				nCurrent_AMSDU_MaxSize;
 
 
-	// AMPDU  related <2006.08.10 Emily>
-	u8				bAMPDUEnable;				// This indicate Tx A-MPDU capability
-	u8				bCurrentAMPDUEnable;		// This indicate Tx A-MPDU capability
-	u8				AMPDU_Factor;				// This indicate Tx A-MPDU capability
-	u8				CurrentAMPDUFactor;		// This indicate Tx A-MPDU capability
-	u8				MPDU_Density;				// This indicate Tx A-MPDU capability
-	u8				CurrentMPDUDensity;			// This indicate Tx A-MPDU capability
+	/* A-MPDU related */
+	/* This indicate Tx A-MPDU capability */
+	u8				bAMPDUEnable;
+	u8				bCurrentAMPDUEnable;
+	u8				AMPDU_Factor;
+	u8				CurrentAMPDUFactor;
+	u8				MPDU_Density;
+	u8				CurrentMPDUDensity;
 
-	// Forced A-MPDU enable
+	/* Forced A-MPDU enable */
 	HT_AGGRE_MODE_E	ForcedAMPDUMode;
 	u8				ForcedAMPDUFactor;
 	u8				ForcedMPDUDensity;
 
-	// Forced A-MSDU enable
+	/* Forced A-MSDU enable */
 	HT_AGGRE_MODE_E	ForcedAMSDUMode;
 	u16				ForcedAMSDUMaxSize;
 
@@ -264,29 +255,28 @@ typedef struct _RT_HIGH_THROUGHPUT {
 
 	u8				CurrentOpMode;
 
-	// MIMO PS related
+	/* MIMO PS related */
 	u8				SelfMimoPs;
 	u8				PeerMimoPs;
 
-	// 40MHz Channel Offset settings.
+	/* 40MHz Channel Offset settings. */
 	HT_EXTCHNL_OFFSET	CurSTAExtChnlOffset;
-	u8				bCurTxBW40MHz;	// If we use 40 MHz to Tx
+	u8				bCurTxBW40MHz;	/* If we use 40 MHz to Tx */
 	u8				PeerBandwidth;
 
-	// For Bandwidth Switching
+	/* For Bandwidth Switching */
 	u8				bSwBwInProgress;
-	CHNLOP				ChnlOp; // software switching channel in progress. By Bruce, 2008-02-15.
+	CHNLOP				ChnlOp; /* software switching channel in progress. */
 	u8				SwBwStep;
-	//RT_TIMER			SwBwTimer;
 	struct timer_list		SwBwTimer;
 
-	// For Realtek proprietary A-MPDU factor for aggregation
+	/* For Realtek proprietary A-MPDU factor for aggregation */
 	u8				bRegRT2RTAggregation;
 	u8				bCurrentRT2RTAggregation;
 	u8				bCurrentRT2RTLongSlotTime;
 	u8				szRT2RTAggBuffer[10];
 
-	// Rx Reorder control
+	/* Rx Reorder control */
 	u8				bRegRxReorderEnable;
 	u8				bCurRxReorderEnable;
 	u8				RxReorderWinSize;
@@ -303,18 +293,18 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u8				UsbRxFwAggrTimeout;
 #endif
 
-	// Add for Broadcom(Linksys) IOT. Joseph
+	/* Add for Broadcom(Linksys) IOT. */
 	u8				bIsPeerBcm;
 
-	// For IOT issue.
+	/* For IOT issue. */
 	u32					IOTAction;
 } RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
 
 
-//------------------------------------------------------------
-// The Data structure is used to keep HT related variable for "each Sta"
-// when card is configured as "AP mode"
-//------------------------------------------------------------
+/*----------------------------------------------------------------------
+ * The Data structure is used to keep HT related variable for "each Sta"
+ * when card is configured as "AP mode"
+ *----------------------------------------------------------------------*/
 
 typedef struct _RT_HTINFO_STA_ENTRY {
 	u8			bEnableHT;
@@ -341,24 +331,22 @@ typedef struct _RT_HTINFO_STA_ENTRY {
 
 
 
-//------------------------------------------------------------
-// The Data structure is used to keep HT related variable for "each AP"
-// when card is configured as "STA mode"
-//------------------------------------------------------------
+/*---------------------------------------------------------------------
+ * The Data structure is used to keep HT related variable for "each AP"
+ * when card is configured as "STA mode"
+ *---------------------------------------------------------------------*/
 
 typedef struct _BSS_HT {
 
 	u8				bdSupportHT;
 
-	// HT related elements
+	/* HT related elements */
 	u8					bdHTCapBuf[32];
 	u16					bdHTCapLen;
 	u8					bdHTInfoBuf[32];
 	u16					bdHTInfoLen;
 
 	HT_SPEC_VER				bdHTSpecVer;
-	//HT_CAPABILITY_ELE			bdHTCapEle;
-	//HT_INFORMATION_ELE		bdHTInfoEle;
 
 	u8					bdRT2RTAggregation;
 	u8					bdRT2RTLongSlotTime;
@@ -387,4 +375,4 @@ typedef struct _FALSE_ALARM_STATISTICS {
 
 
 
-#endif //__INC_HTTYPE_H
+#endif
