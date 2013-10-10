@@ -610,6 +610,9 @@ rehash:
 		break;
 
 	default:
+		/* If we have an existing entry, update it's expire timer */
+		mod_timer(&mp->timer,
+			  jiffies + br->multicast_membership_interval);
 		goto out;
 	}
 
@@ -679,8 +682,12 @@ static int br_multicast_add_group(struct net_bridge *br,
 	for (pp = &mp->ports;
 	     (p = mlock_dereference(*pp, br)) != NULL;
 	     pp = &p->next) {
-		if (p->port == port)
+		if (p->port == port) {
+			/* We already have a portgroup, update the timer.  */
+			mod_timer(&p->timer,
+				  jiffies + br->multicast_membership_interval);
 			goto out;
+		}
 		if ((unsigned long)p->port < (unsigned long)port)
 			break;
 	}
