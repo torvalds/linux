@@ -27,6 +27,15 @@ extern void nft_bitwise_module_exit(void);
 extern int nft_byteorder_module_init(void);
 extern void nft_byteorder_module_exit(void);
 
+struct nft_payload {
+	enum nft_payload_bases	base:8;
+	u8			offset;
+	u8			len;
+	enum nft_registers	dreg:8;
+};
+
+extern const struct nft_expr_ops nft_payload_fast_ops;
+
 extern int nft_payload_module_init(void);
 extern void nft_payload_module_exit(void);
 

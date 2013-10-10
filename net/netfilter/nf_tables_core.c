@@ -32,6 +32,34 @@ static void nft_cmp_fast_eval(const struct nft_expr *expr,
 	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
 }
 
+static bool nft_payload_fast_eval(const struct nft_expr *expr,
+				  struct nft_data data[NFT_REG_MAX + 1],
+				  const struct nft_pktinfo *pkt)
+{
+	const struct nft_payload *priv = nft_expr_priv(expr);
+	const struct sk_buff *skb = pkt->skb;
+	struct nft_data *dest = &data[priv->dreg];
+	unsigned char *ptr;
+
+	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
+		ptr = skb_network_header(skb);
+	else
+		ptr = skb_transport_header(skb);
+
+	ptr += priv->offset;
+
+	if (unlikely(ptr + priv->len >= skb_tail_pointer(skb)))
+		return false;
+
+	if (priv->len == 2)
+		*(u16 *)dest->data = *(u16 *)ptr;
+	else if (priv->len == 4)
+		*(u32 *)dest->data = *(u32 *)ptr;
+	else
+		*(u8 *)dest->data = *(u8 *)ptr;
+	return true;
+}
+
 unsigned int nft_do_chain(const struct nf_hook_ops *ops,
 			  struct sk_buff *skb,
 			  const struct net_device *in,
@@ -62,7 +90,8 @@ next_rule:
 		nft_rule_for_each_expr(expr, last, rule) {
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, data);
-			else
+			else if (expr->ops != &nft_payload_fast_ops ||
+				 !nft_payload_fast_eval(expr, data, &pkt))
 				expr->ops->eval(expr, data, &pkt);
 
 			if (data[NFT_REG_VERDICT].verdict != NFT_CONTINUE)
