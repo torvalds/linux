@@ -3931,6 +3931,11 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	if (obj->user_pin_count == ULONG_MAX) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (obj->user_pin_count == 0) {
 		ret = i915_gem_obj_ggtt_pin(obj, args->alignment, true, false);
 		if (ret)

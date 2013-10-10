@@ -1604,7 +1604,7 @@ struct drm_i915_gem_object {
 	unsigned long *bit_17;
 
 	/** User space pin count and filp owning the pin */
-	uint32_t user_pin_count;
+	unsigned long user_pin_count;
 	struct drm_file *pin_filp;
 
 	/** for phy allocated objects */
