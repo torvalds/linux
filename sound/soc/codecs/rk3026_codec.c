@@ -34,11 +34,15 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
 
-#if 0
-#define	DBG(x...)	printk(x)
-#else
-#define	DBG(x...)
-#endif
+static int debug;
+module_param(debug, int, S_IRUGO|S_IWUSR);
+
+#define dbg_codec(level, fmt, arg...) do {			\
+	if (debug >= level) 					\
+	printk(fmt , ## arg); } while (0)
+
+#define	DBG(fmt,...)	dbg_codec(1,fmt,## __VA_ARGS__)
+
 
 /* volume setting
  *  0: -39dB
@@ -351,7 +355,7 @@ static unsigned int rk3026_codec_read(struct snd_soc_codec *codec, unsigned int 
 	}
 
 	value = readl_relaxed(rk3026_priv->regbase+reg);
-	DBG("%s : reg = 0x%x, val= 0x%x\n", __func__, reg, value);
+	dbg_codec(2,"%s : reg = 0x%x, val= 0x%x\n", __func__, reg, value);
 
 	return value;
 }
@@ -376,7 +380,7 @@ static int rk3026_codec_write(struct snd_soc_codec *codec, unsigned int reg, uns
 		rk3026_write_reg_cache(codec, reg, value);
 	}
 		
-	DBG("%s : reg = 0x%x, val = 0x%x, new_value=%d\n", __func__, reg, value,new_value);
+	dbg_codec(2,"%s : reg = 0x%x, val = 0x%x, new_value=%d\n", __func__, reg, value,new_value);
 	return 0;
 }
 
