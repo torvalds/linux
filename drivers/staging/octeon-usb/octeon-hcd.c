@@ -345,7 +345,7 @@ struct cvmx_usb_transaction {
  *			  and some USB device. It contains a list of pending
  *			  request to the device.
  *
- * @prev:		Pipe before this one in the list
+ * @node:		List node for pipe list
  * @next:		Pipe after this one in the list
  * @head:		The first pending transaction
  * @tail:		The last pending transaction
@@ -369,8 +369,7 @@ struct cvmx_usb_transaction {
  *			complete should be sent on
  */
 struct cvmx_usb_pipe {
-	struct cvmx_usb_pipe *prev;
-	struct cvmx_usb_pipe *next;
+	struct list_head node;
 	struct cvmx_usb_transaction *head;
 	struct cvmx_usb_transaction *tail;
 	uint64_t interval;
@@ -388,17 +387,6 @@ struct cvmx_usb_pipe {
 	uint8_t pid_toggle;
 	uint8_t channel;
 	int8_t split_sc_frame;
-};
-
-/**
- * struct cvmx_usb_pipe_list
- *
- * @head: Head of the list, or NULL if empty.
- * @tail: Tail if the list, or NULL if empty.
- */
-struct cvmx_usb_pipe_list {
-	struct cvmx_usb_pipe *head;
-	struct cvmx_usb_pipe *tail;
 };
 
 struct cvmx_usb_tx_fifo {
@@ -436,8 +424,8 @@ struct cvmx_usb_state {
 	struct cvmx_usb_pipe *pipe_for_channel[MAX_CHANNELS];
 	int indent;
 	struct cvmx_usb_port_status port_status;
-	struct cvmx_usb_pipe_list idle_pipes;
-	struct cvmx_usb_pipe_list active_pipes[4];
+	struct list_head idle_pipes;
+	struct list_head active_pipes[4];
 	uint64_t frame_number;
 	struct cvmx_usb_transaction *active_split;
 	struct cvmx_usb_tx_fifo periodic;
@@ -630,50 +618,6 @@ static int cvmx_usb_get_num_ports(void)
 }
 
 /**
- * Add a pipe to the tail of a list
- * @list:   List to add pipe to
- * @pipe:   Pipe to add
- */
-static inline void __cvmx_usb_append_pipe(struct cvmx_usb_pipe_list *list, struct cvmx_usb_pipe *pipe)
-{
-	pipe->next = NULL;
-	pipe->prev = list->tail;
-	if (list->tail)
-		list->tail->next = pipe;
-	else
-		list->head = pipe;
-	list->tail = pipe;
-}
-
-
-/**
- * Remove a pipe from a list
- * @list:   List to remove pipe from
- * @pipe:   Pipe to remove
- */
-static inline void __cvmx_usb_remove_pipe(struct cvmx_usb_pipe_list *list, struct cvmx_usb_pipe *pipe)
-{
-	if (list->head == pipe) {
-		list->head = pipe->next;
-		pipe->next = NULL;
-		if (list->head)
-			list->head->prev = NULL;
-		else
-			list->tail = NULL;
-	} else if (list->tail == pipe) {
-		list->tail = pipe->prev;
-		list->tail->next = NULL;
-		pipe->prev = NULL;
-	} else {
-		pipe->prev->next = pipe->next;
-		pipe->next->prev = pipe->prev;
-		pipe->prev = NULL;
-		pipe->next = NULL;
-	}
-}
-
-
-/**
  * Initialize a USB port for use. This must be called before any
  * other access to the Octeon USB port is made. The port starts
  * off in the disabled state.
@@ -693,6 +637,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
 	enum cvmx_usb_initialize_flags flags = 0;
+	int i;
 
 	/* At first allow 0-1 for the usb port number */
 	if ((usb_port_number < 0) || (usb_port_number > 1))
@@ -728,6 +673,9 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 
 	/* Initialize the USB state structure */
 	usb->index = usb_port_number;
+	INIT_LIST_HEAD(&usb->idle_pipes);
+	for (i = 0; i < ARRAY_SIZE(usb->active_pipes); i++)
+		INIT_LIST_HEAD(&usb->active_pipes[i]);
 
 	/*
 	 * Power On Reset and PHY Initialization
@@ -1003,11 +951,11 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 
 	/* Make sure all pipes are closed */
-	if (usb->idle_pipes.head ||
-		usb->active_pipes[CVMX_USB_TRANSFER_ISOCHRONOUS].head ||
-		usb->active_pipes[CVMX_USB_TRANSFER_INTERRUPT].head ||
-		usb->active_pipes[CVMX_USB_TRANSFER_CONTROL].head ||
-		usb->active_pipes[CVMX_USB_TRANSFER_BULK].head)
+	if (!list_empty(&usb->idle_pipes) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_ISOCHRONOUS]) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_INTERRUPT]) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_CONTROL]) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_BULK]))
 		return -EBUSY;
 
 	/* Disable the clocks and put them in power on reset */
@@ -1290,7 +1238,7 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 	pipe->hub_port = hub_port;
 	pipe->pid_toggle = 0;
 	pipe->split_sc_frame = -1;
-	__cvmx_usb_append_pipe(&usb->idle_pipes, pipe);
+	list_add_tail(&pipe->node, &usb->idle_pipes);
 
 	/*
 	 * We don't need to tell the hardware about this pipe yet since
@@ -1919,10 +1867,11 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
  *
  * Returns: Pipe or NULL if none are ready
  */
-static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_state *usb, struct cvmx_usb_pipe_list *list, uint64_t current_frame)
+static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_state *usb, struct list_head *list, uint64_t current_frame)
 {
-	struct cvmx_usb_pipe *pipe = list->head;
-	while (pipe) {
+	struct cvmx_usb_pipe *pipe;
+
+	list_for_each_entry(pipe, list, node) {
 		if (!(pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED) && pipe->head &&
 			(pipe->next_tx_frame <= current_frame) &&
 			((pipe->split_sc_frame == -1) || ((((int)current_frame - (int)pipe->split_sc_frame) & 0x7f) < 0x40)) &&
@@ -1931,7 +1880,6 @@ static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(struct cvmx_usb_state *u
 			CVMX_PREFETCH(pipe->head, 0);
 			return pipe;
 		}
-		pipe = pipe->next;
 	}
 	return NULL;
 }
@@ -1998,13 +1946,11 @@ done:
 	 */
 	need_sof = 0;
 	for (ttype = CVMX_USB_TRANSFER_CONTROL; ttype <= CVMX_USB_TRANSFER_INTERRUPT; ttype++) {
-		pipe = usb->active_pipes[ttype].head;
-		while (pipe) {
+		list_for_each_entry(pipe, &usb->active_pipes[ttype], node) {
 			if (pipe->next_tx_frame > usb->frame_number) {
 				need_sof = 1;
 				break;
 			}
-			pipe = pipe->next;
 		}
 	}
 	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index), union cvmx_usbcx_gintmsk, sofmsk, need_sof);
@@ -2166,11 +2112,8 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 		transaction->prev->next = transaction->next;
 	else
 		pipe->head = transaction->next;
-	if (!pipe->head) {
-		__cvmx_usb_remove_pipe(usb->active_pipes + pipe->transfer_type, pipe);
-		__cvmx_usb_append_pipe(&usb->idle_pipes, pipe);
-
-	}
+	if (!pipe->head)
+		list_move_tail(&pipe->node, &usb->idle_pipes);
 	octeon_usb_urb_complete_callback(usb, complete_code, pipe,
 					 transaction,
 					 transaction->actual_bytes,
@@ -2247,8 +2190,8 @@ static struct cvmx_usb_transaction *__cvmx_usb_submit_transaction(struct cvmx_us
 				(usb->frame_number - pipe->next_tx_frame) % pipe->interval;
 		transaction->prev = NULL;
 		pipe->head = transaction;
-		__cvmx_usb_remove_pipe(&usb->idle_pipes, pipe);
-		__cvmx_usb_append_pipe(usb->active_pipes + pipe->transfer_type, pipe);
+		list_move_tail(&pipe->node,
+			       &usb->active_pipes[pipe->transfer_type]);
 	}
 	pipe->tail = transaction;
 
@@ -2451,7 +2394,7 @@ static int cvmx_usb_close_pipe(struct cvmx_usb_state *usb,
 	if (unlikely(pipe->head))
 		return -EBUSY;
 
-	__cvmx_usb_remove_pipe(&usb->idle_pipes, pipe);
+	list_del(&pipe->node);
 	kfree(pipe);
 
 	return 0;
