@@ -129,7 +129,6 @@
 
 #define LCD_NUM_BUFFERS	2
 
-#define WSI_TIMEOUT	50
 #define PALETTE_SIZE	256
 
 #define	CLK_MIN_DIV	2
