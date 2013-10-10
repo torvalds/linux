@@ -28,7 +28,8 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
-#include <net/bluetooth/smp.h>
+
+#include "smp.h"
 
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 

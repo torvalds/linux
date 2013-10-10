@@ -30,7 +30,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
-#include <net/bluetooth/smp.h>
+
+#include "smp.h"
 
 #define MGMT_VERSION	1
 #define MGMT_REVISION	4

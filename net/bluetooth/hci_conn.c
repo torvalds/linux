@@ -28,8 +28,8 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/smp.h>
 
+#include "smp.h"
 #include "a2mp.h"
 
 struct sco_param {
