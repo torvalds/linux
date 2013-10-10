@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/acpi_gpio.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
 
@@ -2260,6 +2261,12 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 }
 #endif
 
+static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
+					unsigned int idx, unsigned long *flags)
+{
+	return acpi_get_gpiod_by_index(dev, idx, NULL);
+}
+
 static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 				    unsigned int idx, unsigned long *flags)
 {
@@ -2361,6 +2368,9 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node) {
 		dev_dbg(dev, "using device tree for GPIO lookup\n");
 		desc = of_find_gpio(dev, con_id, idx, &flags);
+	} else if (IS_ENABLED(CONFIG_ACPI) && dev && ACPI_HANDLE(dev)) {
+		dev_dbg(dev, "using ACPI for GPIO lookup\n");
+		desc = acpi_find_gpio(dev, con_id, idx, &flags);
 	} else {
 		dev_dbg(dev, "using lookup tables for GPIO lookup");
 		desc = gpiod_find(dev, con_id, idx, &flags);
