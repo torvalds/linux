@@ -2029,6 +2029,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	bypass = map->cache_bypass;
 
 	map->cache_bypass = true;
+	map->async = true;
 
 	/* Write out first; it's useful to apply even if we fail later. */
 	for (i = 0; i < num_regs; i++) {
@@ -2052,9 +2053,12 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	}
 
 out:
+	map->async = false;
 	map->cache_bypass = bypass;
 
 	map->unlock(map->lock_arg);
+
+	regmap_async_complete(map);
 
 	return ret;
 }
