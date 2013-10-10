@@ -102,7 +102,7 @@ static int genregs_set(struct task_struct *target,
 	REG_IGNORE_ONE(pad2);
 	REG_IN_CHUNK(callee, efa, cregs);	/* callee_regs[r25..r13] */
 	REG_IGNORE_ONE(efa);			/* efa update invalid */
-	REG_IN_ONE(stop_pc, &ptregs->ret);	/* stop_pc: PC update */
+	REG_IGNORE_ONE(stop_pc);			/* PC updated via @ret */
 
 	return ret;
 }
