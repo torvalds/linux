@@ -842,10 +842,10 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 			usbn_clk_ctl.cn31xx.p_xenbn = 0;
 		} else if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN50XX))
 			/* From CN56XX,CN50XX manual */
-			usbn_clk_ctl.cn56xx.p_rtype = 2;
+			usbn_clk_ctl.s.p_rtype = 2;
 		else
 			/* From CN52XX manual */
-			usbn_clk_ctl.cn52xx.p_rtype = 1;
+			usbn_clk_ctl.s.p_rtype = 1;
 
 		switch (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK) {
 		case CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ:
@@ -869,10 +869,10 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 			usbn_clk_ctl.cn31xx.p_xenbn = 1;
 		} else if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN50XX))
 			/* From CN56XX,CN50XX manual */
-			usbn_clk_ctl.cn56xx.p_rtype = 0;
+			usbn_clk_ctl.s.p_rtype = 0;
 		else
 			/* From CN52XX manual */
-			usbn_clk_ctl.cn52xx.p_rtype = 0;
+			usbn_clk_ctl.s.p_rtype = 0;
 
 		usbn_clk_ctl.s.p_c_sel = 0;
 	}

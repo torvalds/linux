@@ -93,6 +93,16 @@ union cvmx_usbnx_clk_ctl {
 	 *	suspend.
 	 *	The value of this field must be set while POR is
 	 *	active.
+	 * @p_rtype: PHY reference clock type (CN50XX/CN52XX/CN56XX only)
+	 *	'0' The USB-PHY uses a 12MHz crystal as a clock
+	 *	source at the USB_XO and USB_XI pins
+	 *	'1' Reserved
+	 *	'2' The USB_PHY uses 12/24/48MHz 2.5V board clock
+	 *	at the USB_XO pin. USB_XI should be tied to
+	 *	ground in this case.
+	 *	'3' Reserved
+	 *	(bit 14 was P_XENBN on 3xxx)
+	 *	(bit 15 was P_RCLK on 3xxx)
 	 * @p_com_on: '0' Force USB-PHY XO Bias, Bandgap and PLL to
 	 *	remain powered in Suspend Mode.
 	 *	'1' The USB-PHY XO Bias, Bandgap and PLL are
@@ -147,7 +157,7 @@ union cvmx_usbnx_clk_ctl {
 		uint64_t divide2	: 2;
 		uint64_t hclk_rst	: 1;
 		uint64_t p_x_on		: 1;
-		uint64_t reserved_14_15	: 2;
+		uint64_t p_rtype	: 2;
 		uint64_t p_com_on	: 1;
 		uint64_t p_c_sel	: 2;
 		uint64_t cdiv_byp	: 1;
@@ -243,99 +253,6 @@ union cvmx_usbnx_clk_ctl {
 		uint64_t divide		: 3;
 	} cn30xx;
 	struct cvmx_usbnx_clk_ctl_cn30xx cn31xx;
-	/**
-	 * struct cvmx_usbnx_clk_ctl_cn50xx
-	 * @divide2: The 'hclk' used by the USB subsystem is derived
-	 *	from the eclk.
-	 *	Also see the field DIVIDE. DIVIDE2<1> must currently
-	 *	be zero because it is not implemented, so the maximum
-	 *	ratio of eclk/hclk is currently 16.
-	 *	The actual divide number for hclk is:
-	 *	(DIVIDE2 + 1) * (DIVIDE + 1)
-	 * @hclk_rst: When this field is '0' the HCLK-DIVIDER used to
-	 *	generate the hclk in the USB Subsystem is held
-	 *	in reset. This bit must be set to '0' before
-	 *	changing the value os DIVIDE in this register.
-	 *	The reset to the HCLK_DIVIDERis also asserted
-	 *	when core reset is asserted.
-	 * @p_rtype: PHY reference clock type
-	 *	'0' The USB-PHY uses a 12MHz crystal as a clock
-	 *	source at the USB_XO and USB_XI pins
-	 *	'1' Reserved
-	 *	'2' The USB_PHY uses 12/24/48MHz 2.5V board clock
-	 *	at the USB_XO pin. USB_XI should be tied to
-	 *	ground in this case.
-	 *	'3' Reserved
-	 *	(bit 14 was P_XENBN on 3xxx)
-	 *	(bit 15 was P_RCLK on 3xxx)
-	 * @p_com_on: '0' Force USB-PHY XO Bias, Bandgap and PLL to
-	 *	remain powered in Suspend Mode.
-	 *	'1' The USB-PHY XO Bias, Bandgap and PLL are
-	 *	powered down in suspend mode.
-	 *	The value of this field must be set while POR is
-	 *	active.
-	 * @p_c_sel: Phy clock speed select.
-	 *	Selects the reference clock / crystal frequency.
-	 *	'11': Reserved
-	 *	'10': 48 MHz (reserved when a crystal is used)
-	 *	'01': 24 MHz (reserved when a crystal is used)
-	 *	'00': 12 MHz
-	 *	The value of this field must be set while POR is
-	 *	active.
-	 *	NOTE: if a crystal is used as a reference clock,
-	 *	this field must be set to 12 MHz.
-	 * @cdiv_byp: Used to enable the bypass input to the USB_CLK_DIV.
-	 * @sd_mode: Scaledown mode for the USBC. Control timing events
-	 *	in the USBC, for normal operation this must be '0'.
-	 * @s_bist: Starts bist on the hclk memories, during the '0'
-	 *	to '1' transition.
-	 * @por: Power On Reset for the PHY.
-	 *	Resets all the PHYS registers and state machines.
-	 * @enable: When '1' allows the generation of the hclk. When
-	 *	'0' the hclk will not be generated. SEE DIVIDE
-	 *	field of this register.
-	 * @prst: When this field is '0' the reset associated with
-	 *	the phy_clk functionality in the USB Subsystem is
-	 *	help in reset. This bit should not be set to '1'
-	 *	until the time it takes 6 clocks (hclk or phy_clk,
-	 *	whichever is slower) has passed. Under normal
-	 *	operation once this bit is set to '1' it should not
-	 *	be set to '0'.
-	 * @hrst: When this field is '0' the reset associated with
-	 *	the hclk functioanlity in the USB Subsystem is
-	 *	held in reset.This bit should not be set to '1'
-	 *	until 12ms after phy_clk is stable. Under normal
-	 *	operation, once this bit is set to '1' it should
-	 *	not be set to '0'.
-	 * @divide: The frequency of 'hclk' used by the USB subsystem
-	 *	is the eclk frequency divided by the value of
-	 *	(DIVIDE2 + 1) * (DIVIDE + 1), also see the field
-	 *	DIVIDE2 of this register.
-	 *	The hclk frequency should be less than 125Mhz.
-	 *	After writing a value to this field the SW should
-	 *	read the field for the value written.
-	 *	The ENABLE field of this register should not be set
-	 *	until AFTER this field is set and then read.
-	 */
-	struct cvmx_usbnx_clk_ctl_cn50xx {
-		uint64_t reserved_20_63	: 44;
-		uint64_t divide2	: 2;
-		uint64_t hclk_rst	: 1;
-		uint64_t reserved_16_16 : 1;
-		uint64_t p_rtype	: 2;
-		uint64_t p_com_on	: 1;
-		uint64_t p_c_sel	: 2;
-		uint64_t cdiv_byp	: 1;
-		uint64_t sd_mode	: 2;
-		uint64_t s_bist		: 1;
-		uint64_t por		: 1;
-		uint64_t enable		: 1;
-		uint64_t prst		: 1;
-		uint64_t hrst		: 1;
-		uint64_t divide		: 3;
-	} cn50xx;
-	struct cvmx_usbnx_clk_ctl_cn50xx cn52xx;
-	struct cvmx_usbnx_clk_ctl_cn50xx cn56xx;
 };
 
 /**
