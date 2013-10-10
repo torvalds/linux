@@ -6,6 +6,7 @@
 
 #include <linux/pfn.h>
 #include <linux/types.h>
+#include <linux/dma-mapping.h>
 
 #include <xen/xen.h>
 #include <xen/interface/grant_table.h>

@@ -16,4 +16,6 @@ static inline enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
 	return PARAVIRT_LAZY_NONE;
 }
 
+extern struct dma_map_ops *xen_dma_ops;
+
 #endif /* _ASM_ARM_XEN_HYPERVISOR_H */
