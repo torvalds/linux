@@ -458,12 +458,6 @@ static int btuart_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static int btuart_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
-
 
 /* ======================== Card services HCI interaction ======================== */
 
@@ -495,11 +489,10 @@ static int btuart_open(btuart_info_t *info)
 	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
-	hdev->open     = btuart_hci_open;
-	hdev->close    = btuart_hci_close;
-	hdev->flush    = btuart_hci_flush;
-	hdev->send     = btuart_hci_send_frame;
-	hdev->ioctl    = btuart_hci_ioctl;
+	hdev->open  = btuart_hci_open;
+	hdev->close = btuart_hci_close;
+	hdev->flush = btuart_hci_flush;
+	hdev->send  = btuart_hci_send_frame;
 
 	spin_lock_irqsave(&(info->lock), flags);
 
