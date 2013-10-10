@@ -762,3 +762,81 @@ done:
 	return ret;
 }
 EXPORT_SYMBOL(adf_device_detach);
+
+/**
+ * adf_interface_simple_buffer_alloc - allocate a simple buffer
+ *
+ * @intf: target interface
+ * @w: width in pixels
+ * @h: height in pixels
+ * @format: format fourcc
+ * @dma_buf: returns the allocated buffer
+ * @offset: returns the byte offset of the allocated buffer's first pixel
+ * @pitch: returns the allocated buffer's pitch
+ *
+ * See &struct adf_simple_buffer_alloc for a description of simple buffers and
+ * their limitations.
+ *
+ * Returns 0 on success or -errno on failure.
+ */
+int adf_interface_simple_buffer_alloc(struct adf_interface *intf, u16 w, u16 h,
+		u32 format, struct dma_buf **dma_buf, u32 *offset, u32 *pitch)
+{
+	if (!intf->ops || !intf->ops->alloc_simple_buffer)
+		return -EOPNOTSUPP;
+
+	if (!adf_format_is_rgb(format))
+		return -EINVAL;
+
+	return intf->ops->alloc_simple_buffer(intf, w, h, format, dma_buf,
+			offset, pitch);
+}
+EXPORT_SYMBOL(adf_interface_simple_buffer_alloc);
+
+/**
+ * adf_interface_simple_post - flip to a single buffer
+ *
+ * @intf: interface targeted by the flip
+ * @buf: buffer to display
+ *
+ * adf_interface_simple_post() can be used generically for simple display
+ * configurations, since the client does not need to provide any driver-private
+ * configuration data.
+ *
+ * adf_interface_simple_post() has the same copying semantics as
+ * adf_device_post().
+ *
+ * On success, returns a sync fence which signals when the buffer is removed
+ * from the screen.  On failure, returns ERR_PTR(-errno).
+ */
+struct sync_fence *adf_interface_simple_post(struct adf_interface *intf,
+		struct adf_buffer *buf)
+{
+	size_t custom_data_size = 0;
+	void *custom_data = NULL;
+	struct sync_fence *ret;
+
+	if (intf->ops && intf->ops->describe_simple_post) {
+		int err;
+
+		custom_data = kzalloc(ADF_MAX_CUSTOM_DATA_SIZE, GFP_KERNEL);
+		if (!custom_data) {
+			ret = ERR_PTR(-ENOMEM);
+			goto done;
+		}
+
+		err = intf->ops->describe_simple_post(intf, buf, custom_data,
+				&custom_data_size);
+		if (err < 0) {
+			ret = ERR_PTR(err);
+			goto done;
+		}
+	}
+
+	ret = adf_device_post(adf_interface_parent(intf), &intf, 1, buf, 1,
+			custom_data, custom_data_size);
+done:
+	kfree(custom_data);
+	return ret;
+}
+EXPORT_SYMBOL(adf_interface_simple_post);
