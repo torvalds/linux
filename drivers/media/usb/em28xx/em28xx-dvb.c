@@ -427,7 +427,7 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0x65},
 		{EM2874_R80_GPIO_P0_CTRL,	0xfb,	0xff,	0x32},
 		{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0xb8},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x01},
@@ -442,7 +442,7 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xcf,	0xff,	0x0b},
 		{EM2874_R80_GPIO_P0_CTRL,	0xef,	0xff,	0x65},
 
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 
 	struct {
@@ -494,13 +494,13 @@ static void terratec_h5_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq terratec_h5_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct {
 		unsigned char r[4];
@@ -550,12 +550,12 @@ static void terratec_htc_stick_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq terratec_htc_stick_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xf6,	0xff,	50},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 
 	/*
@@ -597,13 +597,13 @@ static void terratec_htc_usb_xs_init(struct em28xx *dev)
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb2,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xb6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 	struct em28xx_reg_seq terratec_htc_usb_xs_end[] = {
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	100},
 		{EM2874_R80_GPIO_P0_CTRL,	0xa6,	0xff,	50},
 		{EM2874_R80_GPIO_P0_CTRL,	0xe6,	0xff,	100},
-		{ -1,                   -1,     -1,     -1},
+		{	-1,			-1,	-1,	-1},
 	};
 
 	/*
