@@ -91,25 +91,6 @@ static void gr2d_close_channel(struct tegra_drm_context *context)
 	host1x_channel_put(context->channel);
 }
 
-static struct host1x_bo *host1x_bo_lookup(struct drm_device *drm,
-					  struct drm_file *file,
-					  u32 handle)
-{
-	struct drm_gem_object *gem;
-	struct tegra_bo *bo;
-
-	gem = drm_gem_object_lookup(drm, file, handle);
-	if (!gem)
-		return NULL;
-
-	mutex_lock(&drm->struct_mutex);
-	drm_gem_object_unreference(gem);
-	mutex_unlock(&drm->struct_mutex);
-
-	bo = to_tegra_bo(gem);
-	return &bo->base;
-}
-
 static int gr2d_is_addr_reg(struct device *dev, u32 class, u32 offset)
 {
 	struct gr2d *gr2d = dev_get_drvdata(dev);
@@ -135,120 +116,11 @@ static int gr2d_is_addr_reg(struct device *dev, u32 class, u32 offset)
 	return 0;
 }
 
-static int gr2d_submit(struct tegra_drm_context *context,
-		       struct drm_tegra_submit *args, struct drm_device *drm,
-		       struct drm_file *file)
-{
-	unsigned int num_cmdbufs = args->num_cmdbufs;
-	unsigned int num_relocs = args->num_relocs;
-	unsigned int num_waitchks = args->num_waitchks;
-	struct drm_tegra_cmdbuf __user *cmdbufs =
-		(void * __user)(uintptr_t)args->cmdbufs;
-	struct drm_tegra_reloc __user *relocs =
-		(void * __user)(uintptr_t)args->relocs;
-	struct drm_tegra_waitchk __user *waitchks =
-		(void * __user)(uintptr_t)args->waitchks;
-	struct drm_tegra_syncpt syncpt;
-	struct host1x_job *job;
-	int err;
-
-	/* We don't yet support other than one syncpt_incr struct per submit */
-	if (args->num_syncpts != 1)
-		return -EINVAL;
-
-	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
-			       args->num_relocs, args->num_waitchks);
-	if (!job)
-		return -ENOMEM;
-
-	job->num_relocs = args->num_relocs;
-	job->num_waitchk = args->num_waitchks;
-	job->client = (u32)args->context;
-	job->class = context->client->base.class;
-	job->serialize = true;
-
-	while (num_cmdbufs) {
-		struct drm_tegra_cmdbuf cmdbuf;
-		struct host1x_bo *bo;
-
-		err = copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf));
-		if (err)
-			goto fail;
-
-		bo = host1x_bo_lookup(drm, file, cmdbuf.handle);
-		if (!bo) {
-			err = -ENOENT;
-			goto fail;
-		}
-
-		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset);
-		num_cmdbufs--;
-		cmdbufs++;
-	}
-
-	err = copy_from_user(job->relocarray, relocs,
-			     sizeof(*relocs) * num_relocs);
-	if (err)
-		goto fail;
-
-	while (num_relocs--) {
-		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
-		struct host1x_bo *cmdbuf, *target;
-
-		cmdbuf = host1x_bo_lookup(drm, file, (u32)reloc->cmdbuf);
-		target = host1x_bo_lookup(drm, file, (u32)reloc->target);
-
-		reloc->cmdbuf = cmdbuf;
-		reloc->target = target;
-
-		if (!reloc->target || !reloc->cmdbuf) {
-			err = -ENOENT;
-			goto fail;
-		}
-	}
-
-	err = copy_from_user(job->waitchk, waitchks,
-			     sizeof(*waitchks) * num_waitchks);
-	if (err)
-		goto fail;
-
-	err = copy_from_user(&syncpt, (void * __user)(uintptr_t)args->syncpts,
-			     sizeof(syncpt));
-	if (err)
-		goto fail;
-
-	job->syncpt_id = syncpt.id;
-	job->syncpt_incrs = syncpt.incrs;
-	job->timeout = 10000;
-	job->is_addr_reg = gr2d_is_addr_reg;
-
-	if (args->timeout && args->timeout < 10000)
-		job->timeout = args->timeout;
-
-	err = host1x_job_pin(job, context->client->base.dev);
-	if (err)
-		goto fail;
-
-	err = host1x_job_submit(job);
-	if (err)
-		goto fail_submit;
-
-	args->fence = job->syncpt_end;
-
-	host1x_job_put(job);
-	return 0;
-
-fail_submit:
-	host1x_job_unpin(job);
-fail:
-	host1x_job_put(job);
-	return err;
-}
-
 static const struct tegra_drm_client_ops gr2d_ops = {
 	.open_channel = gr2d_open_channel,
 	.close_channel = gr2d_close_channel,
-	.submit = gr2d_submit,
+	.is_addr_reg = gr2d_is_addr_reg,
+	.submit = tegra_drm_submit,
 };
 
 static const struct of_device_id gr2d_match[] = {
