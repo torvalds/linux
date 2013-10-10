@@ -640,6 +640,22 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	if (of_get_property(pmic_np, "s5m8767,pmic-buck2-ramp-enable", NULL))
+		pdata->buck2_ramp_enable = true;
+
+	if (of_get_property(pmic_np, "s5m8767,pmic-buck3-ramp-enable", NULL))
+		pdata->buck3_ramp_enable = true;
+
+	if (of_get_property(pmic_np, "s5m8767,pmic-buck4-ramp-enable", NULL))
+		pdata->buck4_ramp_enable = true;
+
+	if (pdata->buck2_ramp_enable || pdata->buck3_ramp_enable
+			|| pdata->buck4_ramp_enable) {
+		if (of_property_read_u32(pmic_np, "s5m8767,pmic-buck-ramp-delay",
+				&pdata->buck_ramp_delay))
+			pdata->buck_ramp_delay = 0;
+	}
+
 	return 0;
 }
 #else
