@@ -4,6 +4,7 @@ config MAC80211
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_AES
+	select CRYPTO_CCM
 	select CRC32
 	select AVERAGE
 	---help---
