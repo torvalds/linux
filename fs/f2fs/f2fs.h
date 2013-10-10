@@ -18,8 +18,6 @@
 #include <linux/crc32.h>
 #include <linux/magic.h>
 #include <linux/kobject.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
 
 /*
  * For mount options
@@ -360,7 +358,6 @@ struct f2fs_sb_info {
 	struct inode *meta_inode;		/* cache meta blocks */
 	struct mutex cp_mutex;			/* checkpoint procedure lock */
 	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
-	wait_queue_head_t cp_wait;		/* checkpoint wait queue */
 	struct mutex node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
 	int por_doing;				/* recovery is doing or not */
@@ -516,13 +513,6 @@ static inline void clear_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
 
 static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
 {
-	/*
-	 * If the checkpoint thread is waiting for cp_rwsem, add cuurent task
-	 * into wait list to avoid the checkpoint thread starvation
-	 */
-	while (!list_empty(&sbi->cp_rwsem.wait_list))
-		wait_event_interruptible(sbi->cp_wait,
-				list_empty(&sbi->cp_rwsem.wait_list));
 	down_read(&sbi->cp_rwsem);
 }
 
@@ -539,9 +529,6 @@ static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
 static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
 {
 	up_write(&sbi->cp_rwsem);
-
-	/* wake up all tasks blocked by checkpoint */
-	wake_up_all(&sbi->cp_wait);
 }
 
 /*
