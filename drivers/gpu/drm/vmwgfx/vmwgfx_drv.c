@@ -281,36 +281,44 @@ static void vmw_print_capabilities(uint32_t capabilities)
 		DRM_INFO("  Guest Backed Resources.\n");
 }
 
-
 /**
- * vmw_execbuf_prepare_dummy_query - Initialize a query result structure at
- * the start of a buffer object.
+ * vmw_dummy_query_bo_create - create a bo to hold a dummy query result
  *
- * @dev_priv: The device private structure.
+ * @dev_priv: A device private structure.
  *
- * This function will idle the buffer using an uninterruptible wait, then
- * map the first page and initialize a pending occlusion query result structure,
- * Finally it will unmap the buffer.
+ * This function creates a small buffer object that holds the query
+ * result for dummy queries emitted as query barriers.
+ * The function will then map the first page and initialize a pending
+ * occlusion query result structure, Finally it will unmap the buffer.
+ * No interruptible waits are done within this function.
  *
- * TODO: Since we're only mapping a single page, we should optimize the map
- * to use kmap_atomic / iomap_atomic.
+ * Returns an error if bo creation or initialization fails.
  */
-static void vmw_dummy_query_bo_prepare(struct vmw_private *dev_priv)
+static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 {
+	int ret;
+	struct ttm_buffer_object *bo;
 	struct ttm_bo_kmap_obj map;
 	volatile SVGA3dQueryResult *result;
 	bool dummy;
-	int ret;
-	struct ttm_bo_device *bdev = &dev_priv->bdev;
-	struct ttm_buffer_object *bo = dev_priv->dummy_query_bo;
 
-	ttm_bo_reserve(bo, false, false, false, 0);
-	spin_lock(&bdev->fence_lock);
-	ret = ttm_bo_wait(bo, false, false, false);
-	spin_unlock(&bdev->fence_lock);
+	/*
+	 * Create the bo as pinned, so that a tryreserve will
+	 * immediately succeed. This is because we're the only
+	 * user of the bo currently.
+	 */
+	ret = ttm_bo_create(&dev_priv->bdev,
+			    PAGE_SIZE,
+			    ttm_bo_type_device,
+			    &vmw_sys_ne_placement,
+			    0, false, NULL,
+			    &bo);
+
 	if (unlikely(ret != 0))
-		(void) vmw_fallback_wait(dev_priv, false, true, 0, false,
-					 10*HZ);
+		return ret;
+
+	ret = ttm_bo_reserve(bo, false, true, false, 0);
+	BUG_ON(ret != 0);
 
 	ret = ttm_bo_kmap(bo, 0, 1, &map);
 	if (likely(ret == 0)) {
@@ -319,33 +327,18 @@ static void vmw_dummy_query_bo_prepare(struct vmw_private *dev_priv)
 		result->state = SVGA3D_QUERYSTATE_PENDING;
 		result->result32 = 0xff;
 		ttm_bo_kunmap(&map);
-	} else
-		DRM_ERROR("Dummy query buffer map failed.\n");
+	}
+	vmw_bo_pin(bo, false);
 	ttm_bo_unreserve(bo);
+
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Dummy query buffer map failed.\n");
+		ttm_bo_unref(&bo);
+	} else
+		dev_priv->dummy_query_bo = bo;
+
+	return ret;
 }
-
-
-/**
- * vmw_dummy_query_bo_create - create a bo to hold a dummy query result
- *
- * @dev_priv: A device private structure.
- *
- * This function creates a small buffer object that holds the query
- * result for dummy queries emitted as query barriers.
- * No interruptible waits are done within this function.
- *
- * Returns an error if bo creation fails.
- */
-static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
-{
-	return ttm_bo_create(&dev_priv->bdev,
-			     PAGE_SIZE,
-			     ttm_bo_type_device,
-			     &vmw_vram_sys_placement,
-			     0, false, NULL,
-			     &dev_priv->dummy_query_bo);
-}
-
 
 static int vmw_request_device(struct vmw_private *dev_priv)
 {
@@ -368,7 +361,6 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 	ret = vmw_dummy_query_bo_create(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_query_bo;
-	vmw_dummy_query_bo_prepare(dev_priv);
 
 	return 0;
 
