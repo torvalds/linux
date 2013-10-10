@@ -97,13 +97,24 @@ enum nft_hook_attributes {
 #define NFTA_HOOK_MAX		(__NFTA_HOOK_MAX - 1)
 
 /**
+ * enum nft_table_flags - nf_tables table flags
+ *
+ * @NFT_TABLE_F_DORMANT: this table is not active
+ */
+enum nft_table_flags {
+	NFT_TABLE_F_DORMANT	= 0x1,
+};
+
+/**
  * enum nft_table_attributes - nf_tables table netlink attributes
  *
  * @NFTA_TABLE_NAME: name of the table (NLA_STRING)
+ * @NFTA_TABLE_FLAGS: bitmask of enum nft_table_flags (NLA_U32)
  */
 enum nft_table_attributes {
 	NFTA_TABLE_UNSPEC,
 	NFTA_TABLE_NAME,
+	NFTA_TABLE_FLAGS,
 	__NFTA_TABLE_MAX
 };
 #define NFTA_TABLE_MAX		(__NFTA_TABLE_MAX - 1)
