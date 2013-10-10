@@ -16,7 +16,7 @@ Description:
 
 What:           /sys/class/net/<mesh_iface>/mesh/bonding
 Date:           June 2010
-Contact:        Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
+Contact:        Simon Wunderlich <sw@simonwunderlich.de>
 Description:
                 Indicates whether the data traffic going through the
                 mesh will be sent using multiple interfaces at the
@@ -24,7 +24,7 @@ Description:
 
 What:           /sys/class/net/<mesh_iface>/mesh/bridge_loop_avoidance
 Date:           November 2011
-Contact:        Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
+Contact:        Simon Wunderlich <sw@simonwunderlich.de>
 Description:
                 Indicates whether the bridge loop avoidance feature
                 is enabled. This feature detects and avoids loops
