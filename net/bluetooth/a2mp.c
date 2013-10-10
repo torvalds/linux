@@ -15,8 +15,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
-#include <net/bluetooth/a2mp.h>
 
+#include "a2mp.h"
 #include "amp.h"
 
 /* Global AMP Manager list */

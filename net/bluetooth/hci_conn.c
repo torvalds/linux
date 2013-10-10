@@ -28,8 +28,9 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/a2mp.h>
 #include <net/bluetooth/smp.h>
+
+#include "a2mp.h"
 
 struct sco_param {
 	u16 pkt_type;

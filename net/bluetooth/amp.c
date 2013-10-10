@@ -14,9 +14,9 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>
 #include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/a2mp.h>
 #include <crypto/hash.h>
 
+#include "a2mp.h"
 #include "amp.h"
 
 /* Remote AMP Controllers interface */
