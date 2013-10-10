@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2012 Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -56,42 +57,30 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nft_base_chain nf_chain_route_output __read_mostly = {
-	.chain	= {
-		.name		= "OUTPUT",
-		.rules		= LIST_HEAD_INIT(nf_chain_route_output.chain.rules),
-		.flags		= NFT_BASE_CHAIN | NFT_CHAIN_BUILTIN,
+static struct nf_chain_type nft_chain_route_ipv4 = {
+	.family		= NFPROTO_IPV4,
+	.name		= "route",
+	.type		= NFT_CHAIN_T_ROUTE,
+	.hook_mask	= (1 << NF_INET_LOCAL_OUT),
+	.fn		= {
+		[NF_INET_LOCAL_OUT]	= nf_route_table_hook,
 	},
-	.ops	= {
-		.hook		= nf_route_table_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_OUT,
-		.priority	= NF_IP_PRI_MANGLE,
-		.priv		= &nf_chain_route_output.chain,
-	},
+	.me		= THIS_MODULE,
 };
 
-static struct nft_table nf_table_route_ipv4 __read_mostly = {
-	.name	= "route",
-	.chains	= LIST_HEAD_INIT(nf_table_route_ipv4.chains),
-};
-
-static int __init nf_table_route_init(void)
+static int __init nft_chain_route_init(void)
 {
-	list_add_tail(&nf_chain_route_output.chain.list,
-		      &nf_table_route_ipv4.chains);
-	return nft_register_table(&nf_table_route_ipv4, NFPROTO_IPV4);
+	return nft_register_chain_type(&nft_chain_route_ipv4);
 }
 
-static void __exit nf_table_route_exit(void)
+static void __exit nft_chain_route_exit(void)
 {
-	nft_unregister_table(&nf_table_route_ipv4, NFPROTO_IPV4);
+	nft_unregister_chain_type(&nft_chain_route_ipv4);
 }
 
-module_init(nf_table_route_init);
-module_exit(nf_table_route_exit);
+module_init(nft_chain_route_init);
+module_exit(nft_chain_route_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_TABLE(AF_INET, "route");
+MODULE_ALIAS_NFT_CHAIN(AF_INET, "route");

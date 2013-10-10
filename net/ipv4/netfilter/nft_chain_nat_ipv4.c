@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2012 Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -167,7 +168,7 @@ static struct nft_expr_type nft_nat_type __read_mostly = {
 };
 
 /*
- * NAT table
+ * NAT chains
  */
 
 static unsigned int nf_nat_fn(const struct nf_hook_ops *ops,
@@ -301,115 +302,52 @@ static unsigned int nf_nat_output(const struct nf_hook_ops *ops,
 	return ret;
 }
 
-static struct nft_base_chain nf_chain_nat_prerouting __read_mostly = {
-	.chain	= {
-		.name		= "PREROUTING",
-		.rules		= LIST_HEAD_INIT(nf_chain_nat_prerouting.chain.rules),
-		.flags		= NFT_BASE_CHAIN | NFT_CHAIN_BUILTIN,
+struct nf_chain_type nft_chain_nat_ipv4 = {
+	.family		= NFPROTO_IPV4,
+	.name		= "nat",
+	.type		= NFT_CHAIN_T_NAT,
+	.hook_mask	= (1 << NF_INET_PRE_ROUTING) |
+			  (1 << NF_INET_POST_ROUTING) |
+			  (1 << NF_INET_LOCAL_OUT) |
+			  (1 << NF_INET_LOCAL_IN),
+	.fn		= {
+		[NF_INET_PRE_ROUTING]	= nf_nat_prerouting,
+		[NF_INET_POST_ROUTING]	= nf_nat_postrouting,
+		[NF_INET_LOCAL_OUT]	= nf_nat_output,
+		[NF_INET_LOCAL_IN]	= nf_nat_fn,
 	},
-	.ops	= {
-		.hook		= nf_nat_prerouting,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_PRE_ROUTING,
-		.priority	= NF_IP_PRI_NAT_DST,
-		.priv		= &nf_chain_nat_prerouting.chain,
-	},
+	.me		= THIS_MODULE,
 };
 
-static struct nft_base_chain nf_chain_nat_postrouting __read_mostly = {
-	.chain	= {
-		.name		= "POSTROUTING",
-		.rules		= LIST_HEAD_INIT(nf_chain_nat_postrouting.chain.rules),
-		.flags		= NFT_BASE_CHAIN | NFT_CHAIN_BUILTIN,
-	},
-	.ops	= {
-		.hook		= nf_nat_postrouting,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_POST_ROUTING,
-		.priority	= NF_IP_PRI_NAT_SRC,
-		.priv		= &nf_chain_nat_postrouting.chain,
-	},
-};
-
-static struct nft_base_chain nf_chain_nat_output __read_mostly = {
-	.chain	= {
-		.name		= "OUTPUT",
-		.rules		= LIST_HEAD_INIT(nf_chain_nat_output.chain.rules),
-		.flags		= NFT_BASE_CHAIN | NFT_CHAIN_BUILTIN,
-	},
-	.ops	= {
-		.hook		= nf_nat_output,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_OUT,
-		.priority	= NF_IP_PRI_NAT_DST,
-		.priv		= &nf_chain_nat_output.chain,
-	},
-};
-
-static struct nft_base_chain nf_chain_nat_input __read_mostly = {
-	.chain	= {
-		.name		= "INPUT",
-		.rules		= LIST_HEAD_INIT(nf_chain_nat_input.chain.rules),
-		.flags		= NFT_BASE_CHAIN | NFT_CHAIN_BUILTIN,
-	},
-	.ops	= {
-		.hook		= nf_nat_fn,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP_PRI_NAT_SRC,
-		.priv		= &nf_chain_nat_input.chain,
-	},
-};
-
-
-static struct nft_table nf_table_nat_ipv4 __read_mostly = {
-	.name	= "nat",
-	.chains	= LIST_HEAD_INIT(nf_table_nat_ipv4.chains),
-};
-
-static int __init nf_table_nat_init(void)
+static int __init nft_chain_nat_init(void)
 {
 	int err;
 
-	list_add_tail(&nf_chain_nat_prerouting.chain.list,
-		      &nf_table_nat_ipv4.chains);
-	list_add_tail(&nf_chain_nat_postrouting.chain.list,
-		      &nf_table_nat_ipv4.chains);
-	list_add_tail(&nf_chain_nat_output.chain.list,
-		      &nf_table_nat_ipv4.chains);
-	list_add_tail(&nf_chain_nat_input.chain.list,
-		      &nf_table_nat_ipv4.chains);
-
-	err = nft_register_table(&nf_table_nat_ipv4, NFPROTO_IPV4);
+	err = nft_register_chain_type(&nft_chain_nat_ipv4);
 	if (err < 0)
-		goto err1;
+		return err;
 
 	err = nft_register_expr(&nft_nat_type);
 	if (err < 0)
-		goto err2;
+		goto err;
 
 	return 0;
 
-err2:
-	nft_unregister_table(&nf_table_nat_ipv4, NFPROTO_IPV4);
-err1:
+err:
+	nft_unregister_chain_type(&nft_chain_nat_ipv4);
 	return err;
 }
 
-static void __exit nf_table_nat_exit(void)
+static void __exit nft_chain_nat_exit(void)
 {
 	nft_unregister_expr(&nft_nat_type);
-	nft_unregister_table(&nf_table_nat_ipv4, AF_INET);
+	nft_unregister_chain_type(&nft_chain_nat_ipv4);
 }
 
-module_init(nf_table_nat_init);
-module_exit(nf_table_nat_exit);
+module_init(nft_chain_nat_init);
+module_exit(nft_chain_nat_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_TABLE(AF_INET, "nat");
+MODULE_ALIAS_NFT_CHAIN(AF_INET, "nat");
 MODULE_ALIAS_NFT_EXPR("nat");

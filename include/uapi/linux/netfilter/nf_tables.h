@@ -115,6 +115,7 @@ enum nft_table_attributes {
  * @NFTA_CHAIN_HANDLE: numeric handle of the chain (NLA_U64)
  * @NFTA_CHAIN_NAME: name of the chain (NLA_STRING)
  * @NFTA_CHAIN_HOOK: hook specification for basechains (NLA_NESTED: nft_hook_attributes)
+ * @NFTA_CHAIN_TYPE: type name of the string (NLA_NUL_STRING)
  */
 enum nft_chain_attributes {
 	NFTA_CHAIN_UNSPEC,
@@ -122,6 +123,7 @@ enum nft_chain_attributes {
 	NFTA_CHAIN_HANDLE,
 	NFTA_CHAIN_NAME,
 	NFTA_CHAIN_HOOK,
+	NFTA_CHAIN_TYPE,
 	__NFTA_CHAIN_MAX
 };
 #define NFTA_CHAIN_MAX		(__NFTA_CHAIN_MAX - 1)

@@ -29,9 +29,9 @@ config NF_TABLES_IPV6
 	depends on NF_TABLES
 	tristate "IPv6 nf_tables support"
 
-config NF_TABLE_ROUTE_IPV6
+config NFT_CHAIN_ROUTE_IPV6
 	depends on NF_TABLES_IPV6
-	tristate "IPv6 nf_tables route table support"
+	tristate "IPv6 nf_tables route chain support"
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"

@@ -336,7 +336,6 @@ static inline struct nft_expr *nft_expr_last(const struct nft_rule *rule)
 
 enum nft_chain_flags {
 	NFT_BASE_CHAIN			= 0x1,
-	NFT_CHAIN_BUILTIN		= 0x2,
 };
 
 /**
@@ -362,14 +361,23 @@ struct nft_chain {
 	char				name[NFT_CHAIN_MAXNAMELEN];
 };
 
+enum nft_chain_type {
+	NFT_CHAIN_T_DEFAULT = 0,
+	NFT_CHAIN_T_ROUTE,
+	NFT_CHAIN_T_NAT,
+	NFT_CHAIN_T_MAX
+};
+
 /**
  *	struct nft_base_chain - nf_tables base chain
  *
  *	@ops: netfilter hook ops
+ *	@type: chain type
  *	@chain: the chain
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops;
+	enum nft_chain_type		type;
 	struct nft_chain		chain;
 };
 
@@ -383,10 +391,6 @@ extern unsigned int nft_do_chain(const struct nf_hook_ops *ops,
 				 const struct net_device *in,
 				 const struct net_device *out,
 				 int (*okfn)(struct sk_buff *));
-
-enum nft_table_flags {
-	NFT_TABLE_BUILTIN		= 0x1,
-};
 
 /**
  *	struct nft_table - nf_tables table
@@ -431,8 +435,17 @@ struct nft_af_info {
 extern int nft_register_afinfo(struct nft_af_info *);
 extern void nft_unregister_afinfo(struct nft_af_info *);
 
-extern int nft_register_table(struct nft_table *, int family);
-extern void nft_unregister_table(struct nft_table *, int family);
+struct nf_chain_type {
+	unsigned int		hook_mask;
+	const char		*name;
+	enum nft_chain_type	type;
+	nf_hookfn		*fn[NF_MAX_HOOKS];
+	struct module		*me;
+	int			family;
+};
+
+extern int nft_register_chain_type(struct nf_chain_type *);
+extern void nft_unregister_chain_type(struct nf_chain_type *);
 
 extern int nft_register_expr(struct nft_expr_type *);
 extern void nft_unregister_expr(struct nft_expr_type *);
@@ -440,8 +453,8 @@ extern void nft_unregister_expr(struct nft_expr_type *);
 #define MODULE_ALIAS_NFT_FAMILY(family)	\
 	MODULE_ALIAS("nft-afinfo-" __stringify(family))
 
-#define MODULE_ALIAS_NFT_TABLE(family, name) \
-	MODULE_ALIAS("nft-table-" __stringify(family) "-" name)
+#define MODULE_ALIAS_NFT_CHAIN(family, name) \
+	MODULE_ALIAS("nft-chain-" __stringify(family) "-" name)
 
 #define MODULE_ALIAS_NFT_EXPR(name) \
 	MODULE_ALIAS("nft-expr-" name)

@@ -44,13 +44,13 @@ config NFT_REJECT_IPV4
 	depends on NF_TABLES_IPV4
 	tristate "nf_tables IPv4 reject support"
 
-config NF_TABLE_ROUTE_IPV4
+config NFT_CHAIN_ROUTE_IPV4
 	depends on NF_TABLES_IPV4
-	tristate "IPv4 nf_tables route table support"
+	tristate "IPv4 nf_tables route chain support"
 
-config NF_TABLE_NAT_IPV4
+config NFT_CHAIN_NAT_IPV4
 	depends on NF_TABLES_IPV4
-	tristate "IPv4 nf_tables nat table support"
+	tristate "IPv4 nf_tables nat chain support"
 
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
