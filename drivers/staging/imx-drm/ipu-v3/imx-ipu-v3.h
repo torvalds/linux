@@ -283,7 +283,7 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 		int width);
 
 int ipu_cpmem_set_format_rgb(struct ipu_ch_param __iomem *,
-		struct ipu_rgb *rgb);
+		const struct ipu_rgb *rgb);
 
 static inline void ipu_cpmem_interlaced_scan(struct ipu_ch_param *p,
 		int stride)

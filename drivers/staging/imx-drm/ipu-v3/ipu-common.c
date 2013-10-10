@@ -139,7 +139,7 @@ u32 ipu_ch_param_read_field(struct ipu_ch_param __iomem *base, u32 wbs)
 EXPORT_SYMBOL_GPL(ipu_ch_param_read_field);
 
 int ipu_cpmem_set_format_rgb(struct ipu_ch_param __iomem *p,
-		struct ipu_rgb *rgb)
+		const struct ipu_rgb *rgb)
 {
 	int bpp = 0, npb = 0, ro, go, bo, to;
 
@@ -282,7 +282,7 @@ void ipu_cpmem_set_yuv_planar(struct ipu_ch_param __iomem *p, u32 pixel_format,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar);
 
-static struct ipu_rgb def_rgb_32 = {
+static const struct ipu_rgb def_rgb_32 = {
 	.red	= { .offset = 16, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
 	.blue	= { .offset =  0, .length = 8, },
@@ -290,7 +290,7 @@ static struct ipu_rgb def_rgb_32 = {
 	.bits_per_pixel = 32,
 };
 
-static struct ipu_rgb def_bgr_32 = {
+static const struct ipu_rgb def_bgr_32 = {
 	.red	= { .offset = 16, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
 	.blue	= { .offset =  0, .length = 8, },
@@ -298,7 +298,7 @@ static struct ipu_rgb def_bgr_32 = {
 	.bits_per_pixel = 32,
 };
 
-static struct ipu_rgb def_rgb_24 = {
+static const struct ipu_rgb def_rgb_24 = {
 	.red	= { .offset =  0, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
 	.blue	= { .offset = 16, .length = 8, },
@@ -306,7 +306,7 @@ static struct ipu_rgb def_rgb_24 = {
 	.bits_per_pixel = 24,
 };
 
-static struct ipu_rgb def_bgr_24 = {
+static const struct ipu_rgb def_bgr_24 = {
 	.red	= { .offset = 16, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
 	.blue	= { .offset =  0, .length = 8, },
@@ -314,7 +314,7 @@ static struct ipu_rgb def_bgr_24 = {
 	.bits_per_pixel = 24,
 };
 
-static struct ipu_rgb def_rgb_16 = {
+static const struct ipu_rgb def_rgb_16 = {
 	.red	= { .offset = 11, .length = 5, },
 	.green	= { .offset =  5, .length = 6, },
 	.blue	= { .offset =  0, .length = 5, },
