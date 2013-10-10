@@ -1154,14 +1154,6 @@ typedef enum {
 	NIC_8192E = 3,
 } nic_t;
 
-
-#ifdef JOHN_HWSEC
-struct ssid_thread {
-	struct net_device *dev;
-	u8 name[IW_ESSID_MAX_SIZE + 1];
-};
-#endif
-
 bool init_firmware(struct net_device *dev);
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);

@@ -1609,13 +1609,6 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 #else
 	idx_pipe = 0x04;
 #endif
-#ifdef JOHN_DUMP_TXDESC
-	int i;
-	printk("<Tx descriptor>--rate %x---", rate);
-	for (i = 0; i < 8; i++)
-		printk("%8x ", tx[i]);
-	printk("\n");
-#endif
 	usb_fill_bulk_urb(tx_urb, priv->udev, usb_sndbulkpipe(priv->udev, idx_pipe),
 			  skb->data, skb->len, rtl8192_tx_isr, skb);
 
@@ -3859,15 +3852,6 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				}
 			}
 		}
-#ifdef JOHN_HWSEC_DEBUG
-		//john's test 0711
-		printk("@@ wrq->u pointer = ");
-		for (i = 0; i < wrq->u.data.length; i++) {
-			if (i%10 == 0) printk("\n");
-			printk("%8x|", ((u32 *)wrq->u.data.pointer)[i]);
-		}
-		printk("\n");
-#endif /*JOHN_HWSEC_DEBUG*/
 		ret = ieee80211_wpa_supplicant_ioctl(priv->ieee80211, &wrq->u.data);
 		break;
 
