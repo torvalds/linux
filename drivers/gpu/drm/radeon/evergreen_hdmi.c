@@ -35,6 +35,8 @@
 extern void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder);
 extern void dce6_afmt_write_sad_regs(struct drm_encoder *encoder);
 extern void dce6_afmt_select_pin(struct drm_encoder *encoder);
+extern void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
+					   struct drm_display_mode *mode);
 
 /*
  * update the N and CTS parameters for a given pixel clock rate
@@ -361,6 +363,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	if (ASIC_IS_DCE6(rdev)) {
 		dce6_afmt_select_pin(encoder);
 		dce6_afmt_write_sad_regs(encoder);
+		dce6_afmt_write_latency_fields(encoder, mode);
 	} else {
 		evergreen_hdmi_write_sad_regs(encoder);
 		dce4_afmt_write_latency_fields(encoder, mode);
