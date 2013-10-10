@@ -163,8 +163,7 @@ typedef struct tag_tx_rate_history {
 
 } __attribute__((packed)) cmpk_tx_rahis_t;
 
-typedef enum tag_command_packet_directories
-{
+typedef enum tag_command_packet_directories {
 	RX_TX_FEEDBACK			= 0,
 	RX_INTERRUPT_STATUS		= 1,
 	TX_SET_CONFIG			= 2,
@@ -176,7 +175,7 @@ typedef enum tag_command_packet_directories
 	RX_CMD_ELE_MAX
 } cmpk_element_e;
 
-typedef enum _rt_status{
+typedef enum _rt_status {
 	RT_STATUS_SUCCESS,
 	RT_STATUS_FAILURE,
 	RT_STATUS_PENDING,
