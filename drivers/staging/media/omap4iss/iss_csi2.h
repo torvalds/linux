@@ -131,6 +131,8 @@ struct iss_csi2_device {
 	/* memory resources, as defined in enum iss_mem_resources */
 	unsigned int regs1;
 	unsigned int regs2;
+	/* ISP subclock, as defined in enum iss_isp_subclk_resource */
+	unsigned int subclk;
 
 	u32 output; /* output to IPIPEIF, memory or both? */
 	bool dpcm_decompress;

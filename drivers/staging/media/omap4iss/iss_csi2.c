@@ -1062,10 +1062,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 		if (enable == ISS_PIPELINE_STREAM_STOPPED)
 			return 0;
 
-		if (csi2 == &iss->csi2a)
-			omap4iss_subclk_enable(iss, OMAP4_ISS_SUBCLK_CSI2_A);
-		else if (csi2 == &iss->csi2b)
-			omap4iss_subclk_enable(iss, OMAP4_ISS_SUBCLK_CSI2_B);
+		omap4iss_subclk_enable(iss, csi2->subclk);
 	}
 
 	switch (enable) {
@@ -1106,10 +1103,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 		csi2_if_enable(csi2, 0);
 		csi2_irq_ctx_set(csi2, 0);
 		omap4iss_csiphy_release(csi2->phy);
-		if (csi2 == &iss->csi2a)
-			omap4iss_subclk_disable(iss, OMAP4_ISS_SUBCLK_CSI2_A);
-		else if (csi2 == &iss->csi2b)
-			omap4iss_subclk_disable(iss, OMAP4_ISS_SUBCLK_CSI2_B);
+		omap4iss_subclk_disable(iss, csi2->subclk);
 		iss_video_dmaqueue_flags_clr(video_out);
 		break;
 	}
@@ -1311,6 +1305,7 @@ int omap4iss_csi2_init(struct iss_device *iss)
 	csi2a->available = 1;
 	csi2a->regs1 = OMAP4_ISS_MEM_CSI2_A_REGS1;
 	csi2a->phy = &iss->csiphy1;
+	csi2a->subclk = OMAP4_ISS_SUBCLK_CSI2_A;
 	csi2a->state = ISS_PIPELINE_STREAM_STOPPED;
 	init_waitqueue_head(&csi2a->wait);
 
@@ -1322,6 +1317,7 @@ int omap4iss_csi2_init(struct iss_device *iss)
 	csi2b->available = 1;
 	csi2b->regs1 = OMAP4_ISS_MEM_CSI2_B_REGS1;
 	csi2b->phy = &iss->csiphy2;
+	csi2b->subclk = OMAP4_ISS_SUBCLK_CSI2_B;
 	csi2b->state = ISS_PIPELINE_STREAM_STOPPED;
 	init_waitqueue_head(&csi2b->wait);
 
