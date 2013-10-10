@@ -152,6 +152,50 @@ struct adf_post_config {
 #define ADF_MAX_INTERFACES (PAGE_SIZE / sizeof(__u32))
 
 /**
+ * struct adf_simple_buffer_allocate - request to allocate a "simple" buffer
+ *
+ * @w: width of buffer in pixels (input)
+ * @h: height of buffer in pixels (input)
+ * @format: DRM-style fourcc (input)
+ *
+ * @fd: dma_buf fd (output)
+ * @offset: location of first pixel, in bytes (output)
+ * @pitch: length of a scanline including padding, in bytes (output)
+ *
+ * Simple buffers are analogous to DRM's "dumb" buffers.  They have a single
+ * plane of linear RGB data which can be allocated and scanned out without
+ * any driver-private ioctls or data.
+ *
+ * @format must be a standard RGB format defined in drm_fourcc.h.
+ *
+ * ADF clients must NOT assume that an interface can scan out a simple buffer
+ * allocated by a different ADF interface, even if the two interfaces belong to
+ * the same ADF device.
+ */
+struct adf_simple_buffer_alloc {
+	__u16 w;
+	__u16 h;
+	__u32 format;
+
+	__s64 fd;
+	__u32 offset;
+	__u32 pitch;
+};
+
+/**
+ * struct adf_simple_post_config - request to flip to a single buffer without
+ * driver-private data
+ *
+ * @buf: description of buffer displayed (input)
+ * @complete_fence: sync_fence fd which will clear when this buffer has left the
+ * screen (output)
+ */
+struct adf_simple_post_config {
+	struct adf_buffer_config buf;
+	__s64 complete_fence;
+};
+
+/**
  * struct adf_attachment_config - description of attachment between an overlay
  * engine and an interface
  *
@@ -248,6 +292,8 @@ struct adf_overlay_engine_data {
 #define ADF_GET_INTERFACE_DATA	_IOR('D', 5, struct adf_interface_data)
 #define ADF_GET_OVERLAY_ENGINE_DATA \
 				_IOR('D', 6, struct adf_overlay_engine_data)
+#define ADF_SIMPLE_POST_CONFIG	_IOW('D', 7, struct adf_simple_post_config)
+#define ADF_SIMPLE_BUFFER_ALLOC	_IOW('D', 8, struct adf_simple_buffer_alloc)
 #define ADF_ATTACH		_IOW('D', 9, struct adf_attachment_config)
 #define ADF_DETACH		_IOW('D', 10, struct adf_attachment_config)
 
