@@ -1479,7 +1479,7 @@ static void rk3066b_lcdc_shutdown(struct platform_device *pdev)
 		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
 
 	rk3066b_lcdc_deinit(lcdc_dev);
-	rk_fb_unregister(&(lcdc_dev->driver));
+	//rk_fb_unregister(&(lcdc_dev->driver));
 	
 	/*iounmap(lcdc_dev->reg_vir_base);
 	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
