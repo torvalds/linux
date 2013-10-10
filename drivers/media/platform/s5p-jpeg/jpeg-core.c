@@ -1301,8 +1301,8 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto vb2_allocator_rollback;
 	}
-	strlcpy(jpeg->vfd_encoder->name, S5P_JPEG_M2M_NAME,
-		sizeof(jpeg->vfd_encoder->name));
+	snprintf(jpeg->vfd_encoder->name, sizeof(jpeg->vfd_encoder->name),
+				"%s-enc", S5P_JPEG_M2M_NAME);
 	jpeg->vfd_encoder->fops		= &s5p_jpeg_fops;
 	jpeg->vfd_encoder->ioctl_ops	= &s5p_jpeg_ioctl_ops;
 	jpeg->vfd_encoder->minor	= -1;
@@ -1329,8 +1329,8 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto enc_vdev_register_rollback;
 	}
-	strlcpy(jpeg->vfd_decoder->name, S5P_JPEG_M2M_NAME,
-		sizeof(jpeg->vfd_decoder->name));
+	snprintf(jpeg->vfd_decoder->name, sizeof(jpeg->vfd_decoder->name),
+				"%s-dec", S5P_JPEG_M2M_NAME);
 	jpeg->vfd_decoder->fops		= &s5p_jpeg_fops;
 	jpeg->vfd_decoder->ioctl_ops	= &s5p_jpeg_ioctl_ops;
 	jpeg->vfd_decoder->minor	= -1;
