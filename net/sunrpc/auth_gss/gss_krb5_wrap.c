@@ -576,8 +576,8 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	buf->head[0].iov_len -= GSS_KRB5_TOK_HDR_LEN + headskip;
 	buf->len -= GSS_KRB5_TOK_HDR_LEN + headskip;
 
-	/* Trim off the checksum blob */
-	xdr_buf_trim(buf, GSS_KRB5_TOK_HDR_LEN + tailskip);
+	/* Trim off the trailing "extra count" and checksum blob */
+	xdr_buf_trim(buf, ec + GSS_KRB5_TOK_HDR_LEN + tailskip);
 	return GSS_S_COMPLETE;
 }
 
