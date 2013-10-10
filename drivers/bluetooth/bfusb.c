@@ -544,11 +544,6 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	return 0;
 }
 
-static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
 static int bfusb_load_firmware(struct bfusb_data *data,
 			       const unsigned char *firmware, int count)
 {
@@ -699,11 +694,10 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hci_set_drvdata(hdev, data);
 	SET_HCIDEV_DEV(hdev, &intf->dev);
 
-	hdev->open     = bfusb_open;
-	hdev->close    = bfusb_close;
-	hdev->flush    = bfusb_flush;
-	hdev->send     = bfusb_send_frame;
-	hdev->ioctl    = bfusb_ioctl;
+	hdev->open  = bfusb_open;
+	hdev->close = bfusb_close;
+	hdev->flush = bfusb_flush;
+	hdev->send  = bfusb_send_frame;
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
