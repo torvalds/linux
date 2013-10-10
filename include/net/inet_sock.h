@@ -72,7 +72,7 @@ struct inet_request_sock {
 	struct request_sock	req;
 #define ir_loc_addr		req.__req_common.skc_rcv_saddr
 #define ir_rmt_addr		req.__req_common.skc_daddr
-#define ir_loc_port		req.__req_common.skc_num
+#define ir_num			req.__req_common.skc_num
 #define ir_rmt_port		req.__req_common.skc_dport
 #define ir_v6_rmt_addr		req.__req_common.skc_v6_daddr
 #define ir_v6_loc_addr		req.__req_common.skc_v6_rcv_saddr

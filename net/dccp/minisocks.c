@@ -266,10 +266,10 @@ int dccp_reqsk_init(struct request_sock *req,
 {
 	struct dccp_request_sock *dreq = dccp_rsk(req);
 
-	inet_rsk(req)->ir_rmt_port	  = dccp_hdr(skb)->dccph_sport;
-	inet_rsk(req)->ir_loc_port	  = dccp_hdr(skb)->dccph_dport;
-	inet_rsk(req)->acked	  = 0;
-	dreq->dreq_timestamp_echo = 0;
+	inet_rsk(req)->ir_rmt_port = dccp_hdr(skb)->dccph_sport;
+	inet_rsk(req)->ir_num	   = ntohs(dccp_hdr(skb)->dccph_dport);
+	inet_rsk(req)->acked	   = 0;
+	dreq->dreq_timestamp_echo  = 0;
 
 	/* inherit feature negotiation options from listening socket */
 	return dccp_feat_clone_list(&dp->dccps_featneg, &dreq->dreq_featneg);

@@ -231,7 +231,7 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req)
 	fl6.flowlabel = 0;
 	fl6.flowi6_oif = ireq->ir_iif;
 	fl6.fl6_dport = ireq->ir_rmt_port;
-	fl6.fl6_sport = ireq->ir_loc_port;
+	fl6.fl6_sport = htons(ireq->ir_num);
 	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
 
 
@@ -509,7 +509,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		fl6.saddr = ireq->ir_v6_loc_addr;
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 		fl6.fl6_dport = ireq->ir_rmt_port;
-		fl6.fl6_sport = ireq->ir_loc_port;
+		fl6.fl6_sport = htons(ireq->ir_num);
 		security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
 		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
