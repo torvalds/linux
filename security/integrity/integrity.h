@@ -74,6 +74,7 @@ struct ima_digest_data {
  * signature format v2 - for using with asymmetric keys
  */
 struct signature_v2_hdr {
+	uint8_t type;		/* xattr type */
 	uint8_t version;	/* signature format version */
 	uint8_t	hash_algo;	/* Digest algorithm [enum pkey_hash_algo] */
 	uint32_t keyid;		/* IMA key identifier - not X509/PGP specific */

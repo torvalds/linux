@@ -205,7 +205,7 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 	case EVM_IMA_XATTR_DIGSIG:
 		iint->flags |= IMA_DIGSIG;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_IMA,
-					     xattr_value->digest, rc - 1,
+					     (const char *)xattr_value, rc,
 					     iint->ima_hash.digest,
 					     iint->ima_hash.length);
 		if (rc == -EOPNOTSUPP) {
