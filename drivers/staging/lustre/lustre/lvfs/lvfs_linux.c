@@ -282,7 +282,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return ret;
 }

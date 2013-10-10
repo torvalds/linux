@@ -696,7 +696,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 	if (val != 0x00100000) {
 		dev_err(&pdev->dev, "configuration register default value indicates this is not a TVEv2\n");
 		return -ENODEV;
-	};
+	}
 
 	/* disable cable detection for VGA mode */
 	ret = regmap_write(tve->regmap, TVE_CD_CONT_REG, 0);

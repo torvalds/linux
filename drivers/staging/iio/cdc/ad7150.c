@@ -300,7 +300,7 @@ static int ad7150_read_event_value(struct iio_dev *indio_dev,
 
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int ad7150_write_event_value(struct iio_dev *indio_dev,

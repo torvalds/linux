@@ -290,7 +290,7 @@ static int ad7291_read_event_value(struct iio_dev *indio_dev,
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int ad7291_write_event_value(struct iio_dev *indio_dev,
