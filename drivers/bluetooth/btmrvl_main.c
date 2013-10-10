@@ -356,12 +356,6 @@ static void btmrvl_free_adapter(struct btmrvl_private *priv)
 	priv->adapter = NULL;
 }
 
-static int btmrvl_ioctl(struct hci_dev *hdev,
-				unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
 static int btmrvl_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
@@ -650,12 +644,11 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	priv->btmrvl_dev.hcidev = hdev;
 	hci_set_drvdata(hdev, priv);
 
-	hdev->bus = HCI_SDIO;
-	hdev->open = btmrvl_open;
+	hdev->bus   = HCI_SDIO;
+	hdev->open  = btmrvl_open;
 	hdev->close = btmrvl_close;
 	hdev->flush = btmrvl_flush;
-	hdev->send = btmrvl_send_frame;
-	hdev->ioctl = btmrvl_ioctl;
+	hdev->send  = btmrvl_send_frame;
 	hdev->setup = btmrvl_setup;
 
 	hdev->dev_type = priv->btmrvl_dev.dev_type;
