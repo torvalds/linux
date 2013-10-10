@@ -45,6 +45,34 @@ static struct nft_af_info nft_af_ipv6 __read_mostly = {
 	},
 };
 
+static int nf_tables_ipv6_init_net(struct net *net)
+{
+	net->nft.ipv6 = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
+	if (net->nft.ipv6 == NULL)
+		return -ENOMEM;
+
+	memcpy(net->nft.ipv6, &nft_af_ipv6, sizeof(nft_af_ipv6));
+
+	if (nft_register_afinfo(net, net->nft.ipv6) < 0)
+		goto err;
+
+	return 0;
+err:
+	kfree(net->nft.ipv6);
+	return -ENOMEM;
+}
+
+static void nf_tables_ipv6_exit_net(struct net *net)
+{
+	nft_unregister_afinfo(net->nft.ipv6);
+	kfree(net->nft.ipv6);
+}
+
+static struct pernet_operations nf_tables_ipv6_net_ops = {
+	.init	= nf_tables_ipv6_init_net,
+	.exit	= nf_tables_ipv6_exit_net,
+};
+
 static unsigned int
 nft_do_chain_ipv6(const struct nf_hook_ops *ops,
 		  struct sk_buff *skb,
@@ -82,11 +110,12 @@ static struct nf_chain_type filter_ipv6 = {
 static int __init nf_tables_ipv6_init(void)
 {
 	nft_register_chain_type(&filter_ipv6);
-	return nft_register_afinfo(&nft_af_ipv6);
+	return register_pernet_subsys(&nf_tables_ipv6_net_ops);
 }
+
 static void __exit nf_tables_ipv6_exit(void)
 {
-	nft_unregister_afinfo(&nft_af_ipv6);
+	unregister_pernet_subsys(&nf_tables_ipv6_net_ops);
 	nft_unregister_chain_type(&filter_ipv6);
 }
 

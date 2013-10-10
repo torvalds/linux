@@ -68,6 +68,7 @@ static inline void nft_data_debug(const struct nft_data *data)
 /**
  *	struct nft_ctx - nf_tables rule/set context
  *
+ *	@net: net namespace
  * 	@skb: netlink skb
  * 	@nlh: netlink message header
  * 	@afi: address family info
@@ -76,6 +77,7 @@ static inline void nft_data_debug(const struct nft_data *data)
  *	@nla: netlink attributes
  */
 struct nft_ctx {
+	struct net			*net;
 	const struct sk_buff		*skb;
 	const struct nlmsghdr		*nlh;
 	const struct nft_af_info	*afi;
@@ -462,7 +464,7 @@ struct nft_af_info {
 	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 
-extern int nft_register_afinfo(struct nft_af_info *);
+extern int nft_register_afinfo(struct net *, struct nft_af_info *);
 extern void nft_unregister_afinfo(struct nft_af_info *);
 
 struct nf_chain_type {
