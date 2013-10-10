@@ -124,7 +124,7 @@ typedef struct tag_tx_stats_feedback {
 	u16	reserve3_23;
 	u8	reserve3_1;
 	u8	rate;
-} __attribute__((packed)) cmpk_tx_status_t;
+} __packed cmpk_tx_status_t;
 
 /* 6. Debug feedback message. */
 /* Define RX debug message  */
@@ -161,7 +161,7 @@ typedef struct tag_tx_rate_history {
 	 */
 	u16	ht_mcs[4][16];
 
-} __attribute__((packed)) cmpk_tx_rahis_t;
+} __packed cmpk_tx_rahis_t;
 
 typedef enum tag_command_packet_directories {
 	RX_TX_FEEDBACK			= 0,

@@ -145,7 +145,7 @@ typedef	struct _HT_CAPABILITY_ELE{
 	//Antenna Selection Capabilities
 	u8	ASCap;
 
-}__attribute__((packed)) HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
+}__packed HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
 
 //------------------------------------------------------------
 // The HT Information element is present in beacons
@@ -177,7 +177,7 @@ typedef struct _HT_INFORMATION_ELE{
 	u8	Rsvd4:4;
 
 	u8	BasicMSC[16];
-}__attribute__((packed)) HT_INFORMATION_ELE, *PHT_INFORMATION_ELE;
+}__packed HT_INFORMATION_ELE, *PHT_INFORMATION_ELE;
 
 //
 // MIMO Power Save control field.

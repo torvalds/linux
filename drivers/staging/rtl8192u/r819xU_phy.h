@@ -23,7 +23,7 @@ typedef struct _SwChnlCmd {
 	u32		Para1;
 	u32		Para2;
 	u32		msDelay;
-} __attribute__ ((packed)) SwChnlCmd;
+} __packed SwChnlCmd;
 
 extern u32 rtl819XMACPHY_Array_PG[];
 extern u32 rtl819XPHY_REG_1T2RArray[];
