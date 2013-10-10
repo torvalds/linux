@@ -68,6 +68,11 @@ struct imx_drm_connector {
 	struct module				*owner;
 };
 
+int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
+{
+	return crtc->pipe;
+}
+
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;

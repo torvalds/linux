@@ -981,7 +981,7 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dc = 5,
 			.dp = IPU_DP_FLOW_SYNC_BG,
 			.dma[0] = IPUV3_CHANNEL_MEM_BG_SYNC,
-			.dma[1] = -EINVAL,
+			.dma[1] = IPUV3_CHANNEL_MEM_FG_SYNC,
 		},
 		.name = "imx-ipuv3-crtc",
 	}, {
