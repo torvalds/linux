@@ -10,11 +10,11 @@
 /* Operation mode value */
 #define HT_OPMODE_NO_PROTECT		0
 #define HT_OPMODE_OPTIONAL		1
-#define HT_OPMODE_40MHZ_PROTECT	2
+#define HT_OPMODE_40MHZ_PROTECT		2
 #define HT_OPMODE_MIXED			3
 
 /* MIMO Power Save Settings */
-#define MIMO_PS_STATIC				0
+#define MIMO_PS_STATIC			0
 #define MIMO_PS_DYNAMIC			1
 #define MIMO_PS_NOLIMIT			3
 
@@ -22,12 +22,12 @@
 /* There should be 128 bits to cover all of the MCS rates. However, since
  * 8190 does not support too much rates, one integer is quite enough. */
 
-#define sHTCLng	4
+#define sHTCLng				4
 
 
-#define HT_SUPPORTED_MCS_1SS_BITMAP					0x000000ff
-#define HT_SUPPORTED_MCS_2SS_BITMAP					0x0000ff00
-#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
+#define HT_SUPPORTED_MCS_1SS_BITMAP	0x000000ff
+#define HT_SUPPORTED_MCS_2SS_BITMAP	0x0000ff00
+#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP	HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
 
 
 typedef enum _HT_MCS_RATE {
@@ -41,18 +41,18 @@ typedef enum _HT_MCS_RATE {
 	HT_MCS7   = 0x00000080,
 	HT_MCS8   = 0x00000100,
 	HT_MCS9   = 0x00000200,
-	HT_MCS10 = 0x00000400,
-	HT_MCS11 = 0x00000800,
-	HT_MCS12 = 0x00001000,
-	HT_MCS13 = 0x00002000,
-	HT_MCS14 = 0x00004000,
-	HT_MCS15 = 0x00008000,
+	HT_MCS10  = 0x00000400,
+	HT_MCS11  = 0x00000800,
+	HT_MCS12  = 0x00001000,
+	HT_MCS13  = 0x00002000,
+	HT_MCS14  = 0x00004000,
+	HT_MCS15  = 0x00008000,
 	/* Do not define MCS32 here although 8190 support MCS32 */
 } HT_MCS_RATE,*PHT_MCS_RATE;
 
 /* Represent Channel Width in HT Capabilities */
 typedef enum _HT_CHANNEL_WIDTH {
-	HT_CHANNEL_WIDTH_20 = 0,
+	HT_CHANNEL_WIDTH_20    = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
 } HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
 
@@ -60,15 +60,15 @@ typedef enum _HT_CHANNEL_WIDTH {
  * This is available only in 40Mhz mode. */
 typedef enum _HT_EXTCHNL_OFFSET {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
-	HT_EXTCHNL_OFFSET_UPPER = 1,
+	HT_EXTCHNL_OFFSET_UPPER  = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
-	HT_EXTCHNL_OFFSET_LOWER = 3,
+	HT_EXTCHNL_OFFSET_LOWER  = 3,
 } HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
 
 typedef enum _CHNLOP {
-	CHNLOP_NONE = 0,	/* No Action now */
-	CHNLOP_SCAN = 1,	/* Scan in progress */
-	CHNLOP_SWBW = 2,	/* Bandwidth switching in progress */
+	CHNLOP_NONE   = 0,	/* No Action now */
+	CHNLOP_SCAN   = 1,	/* Scan in progress */
+	CHNLOP_SWBW   = 2,	/* Bandwidth switching in progress */
 	CHNLOP_SWCHNL = 3,	/* Software Channel switching in progress */
 } CHNLOP, *PCHNLOP;
 
@@ -80,12 +80,12 @@ typedef enum _CHNLOP {
 typedef enum _HT_ACTION {
 	ACT_RECOMMAND_WIDTH		= 0,
 	ACT_MIMO_PWR_SAVE		= 1,
-	ACT_PSMP					= 2,
+	ACT_PSMP			= 2,
 	ACT_SET_PCO_PHASE		= 3,
-	ACT_MIMO_CHL_MEASURE	= 4,
-	ACT_RECIPROCITY_CORRECT	= 5,
+	ACT_MIMO_CHL_MEASURE		= 4,
+	ACT_RECIPROCITY_CORRECT		= 5,
 	ACT_MIMO_CSI_MATRICS		= 6,
-	ACT_MIMO_NOCOMPR_STEER	= 7,
+	ACT_MIMO_NOCOMPR_STEER		= 7,
 	ACT_MIMO_COMPR_STEER		= 8,
 	ACT_ANTENNA_SELECT		= 9,
 } HT_ACTION, *PHT_ACTION;
@@ -94,8 +94,8 @@ typedef enum _HT_ACTION {
 /* Define sub-carrier mode for 40MHZ. */
 typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier {
 	SC_MODE_DUPLICATE = 0,
-	SC_MODE_LOWER = 1,
-	SC_MODE_UPPER = 2,
+	SC_MODE_LOWER     = 1,
+	SC_MODE_UPPER     = 2,
 	SC_MODE_FULL40MHZ = 3,
 } HT_BW40_SC_E;
 
@@ -195,23 +195,23 @@ typedef enum _HT_AGGRE_MODE_E {
  *----------------------------------------------------------------------------*/
 
 typedef struct _RT_HIGH_THROUGHPUT {
-	u8				bEnableHT;
-	u8				bCurrentHTSupport;
+	u8			bEnableHT;
+	u8			bCurrentHTSupport;
 	/* Tx 40MHz channel capability */
-	u8				bRegBW40MHz;
-	u8				bCurBW40MHz;
+	u8			bRegBW40MHz;
+	u8			bCurBW40MHz;
 	/* Tx Short GI for 40Mhz */
-	u8				bRegShortGI40MHz;
-	u8				bCurShortGI40MHz;
+	u8			bRegShortGI40MHz;
+	u8			bCurShortGI40MHz;
 	/* Tx Short GI for 20MHz */
-	u8				bRegShortGI20MHz;
-	u8				bCurShortGI20MHz;
+	u8			bRegShortGI20MHz;
+	u8			bCurShortGI20MHz;
 	/* Tx CCK rate capability */
-	u8				bRegSuppCCK;
-	u8				bCurSuppCCK;
+	u8			bRegSuppCCK;
+	u8			bCurSuppCCK;
 
 	/* 802.11n spec version for "peer" */
-	HT_SPEC_VER			ePeerHTSpecVer;
+	HT_SPEC_VER		ePeerHTSpecVer;
 
 
 	/* HT related information for "Self" */
@@ -221,83 +221,83 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	HT_INFORMATION_ELE	SelfHTInfo;
 
 	/* HT related information for "Peer" */
-	u8				PeerHTCapBuf[32];
-	u8				PeerHTInfoBuf[32];
+	u8			PeerHTCapBuf[32];
+	u8			PeerHTInfoBuf[32];
 
 
 	/* A-MSDU related */
 	/* This indicates Tx A-MSDU capability */
-	u8				bAMSDU_Support;
-	u16				nAMSDU_MaxSize;
-	u8				bCurrent_AMSDU_Support;
-	u16				nCurrent_AMSDU_MaxSize;
+	u8			bAMSDU_Support;
+	u16			nAMSDU_MaxSize;
+	u8			bCurrent_AMSDU_Support;
+	u16			nCurrent_AMSDU_MaxSize;
 
 
 	/* A-MPDU related */
 	/* This indicate Tx A-MPDU capability */
-	u8				bAMPDUEnable;
-	u8				bCurrentAMPDUEnable;
-	u8				AMPDU_Factor;
-	u8				CurrentAMPDUFactor;
-	u8				MPDU_Density;
-	u8				CurrentMPDUDensity;
+	u8			bAMPDUEnable;
+	u8			bCurrentAMPDUEnable;
+	u8			AMPDU_Factor;
+	u8			CurrentAMPDUFactor;
+	u8			MPDU_Density;
+	u8			CurrentMPDUDensity;
 
 	/* Forced A-MPDU enable */
-	HT_AGGRE_MODE_E	ForcedAMPDUMode;
-	u8				ForcedAMPDUFactor;
-	u8				ForcedMPDUDensity;
+	HT_AGGRE_MODE_E		ForcedAMPDUMode;
+	u8			ForcedAMPDUFactor;
+	u8			ForcedMPDUDensity;
 
 	/* Forced A-MSDU enable */
-	HT_AGGRE_MODE_E	ForcedAMSDUMode;
-	u16				ForcedAMSDUMaxSize;
+	HT_AGGRE_MODE_E		ForcedAMSDUMode;
+	u16			ForcedAMSDUMaxSize;
 
-	u8				bForcedShortGI;
+	u8			bForcedShortGI;
 
-	u8				CurrentOpMode;
+	u8			CurrentOpMode;
 
 	/* MIMO PS related */
-	u8				SelfMimoPs;
-	u8				PeerMimoPs;
+	u8			SelfMimoPs;
+	u8			PeerMimoPs;
 
 	/* 40MHz Channel Offset settings. */
 	HT_EXTCHNL_OFFSET	CurSTAExtChnlOffset;
-	u8				bCurTxBW40MHz;	/* If we use 40 MHz to Tx */
-	u8				PeerBandwidth;
+	u8			bCurTxBW40MHz;	/* If we use 40 MHz to Tx */
+	u8			PeerBandwidth;
 
 	/* For Bandwidth Switching */
-	u8				bSwBwInProgress;
-	CHNLOP				ChnlOp; /* software switching channel in progress. */
-	u8				SwBwStep;
-	struct timer_list		SwBwTimer;
+	u8			bSwBwInProgress;
+	CHNLOP			ChnlOp; /* software switching channel in progress. */
+	u8			SwBwStep;
+	struct timer_list	SwBwTimer;
 
 	/* For Realtek proprietary A-MPDU factor for aggregation */
-	u8				bRegRT2RTAggregation;
-	u8				bCurrentRT2RTAggregation;
-	u8				bCurrentRT2RTLongSlotTime;
-	u8				szRT2RTAggBuffer[10];
+	u8			bRegRT2RTAggregation;
+	u8			bCurrentRT2RTAggregation;
+	u8			bCurrentRT2RTLongSlotTime;
+	u8			szRT2RTAggBuffer[10];
 
 	/* Rx Reorder control */
-	u8				bRegRxReorderEnable;
-	u8				bCurRxReorderEnable;
-	u8				RxReorderWinSize;
-	u8				RxReorderPendingTime;
-	u16				RxReorderDropCounter;
+	u8			bRegRxReorderEnable;
+	u8			bCurRxReorderEnable;
+	u8			RxReorderWinSize;
+	u8			RxReorderPendingTime;
+	u16			RxReorderDropCounter;
 
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	u8				UsbTxAggrNum;
+	u8			UsbTxAggrNum;
 #endif
 #ifdef USB_RX_AGGREGATION_SUPPORT
-	u8				UsbRxFwAggrEn;
-	u8				UsbRxFwAggrPageNum;
-	u8				UsbRxFwAggrPacketNum;
-	u8				UsbRxFwAggrTimeout;
+	u8			UsbRxFwAggrEn;
+	u8			UsbRxFwAggrPageNum;
+	u8			UsbRxFwAggrPacketNum;
+	u8			UsbRxFwAggrTimeout;
 #endif
 
 	/* Add for Broadcom(Linksys) IOT. */
-	u8				bIsPeerBcm;
+	u8			bIsPeerBcm;
 
 	/* For IOT issue. */
-	u32					IOTAction;
+	u32			IOTAction;
 } RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
 
 
@@ -341,15 +341,15 @@ typedef struct _BSS_HT {
 	u8				bdSupportHT;
 
 	/* HT related elements */
-	u8					bdHTCapBuf[32];
-	u16					bdHTCapLen;
-	u8					bdHTInfoBuf[32];
-	u16					bdHTInfoLen;
+	u8				bdHTCapBuf[32];
+	u16				bdHTCapLen;
+	u8				bdHTInfoBuf[32];
+	u16				bdHTInfoLen;
 
-	HT_SPEC_VER				bdHTSpecVer;
+	HT_SPEC_VER			bdHTSpecVer;
 
-	u8					bdRT2RTAggregation;
-	u8					bdRT2RTLongSlotTime;
+	u8				bdRT2RTAggregation;
+	u8				bdRT2RTLongSlotTime;
 } BSS_HT, *PBSS_HT;
 
 typedef struct _MIMO_RSSI {
@@ -363,12 +363,12 @@ typedef struct _MIMO_RSSI {
 
 typedef struct _MIMO_EVM {
 	u32	EVM1;
-	u32    EVM2;
+	u32	EVM2;
 } MIMO_EVM, *PMIMO_EVM;
 
 typedef struct _FALSE_ALARM_STATISTICS {
 	u32	Cnt_Parity_Fail;
-	u32    Cnt_Rate_Illegal;
+	u32	Cnt_Rate_Illegal;
 	u32	Cnt_Crc8_fail;
 	u32	Cnt_all;
 } FALSE_ALARM_STATISTICS, *PFALSE_ALARM_STATISTICS;
