@@ -3589,7 +3589,12 @@ static void si_program_display_gap(struct radeon_device *rdev)
 		WREG32(DCCG_DISP_SLOW_SELECT_REG, tmp);
 	}
 
-	si_notify_smc_display_change(rdev, rdev->pm.dpm.new_active_crtc_count > 0);
+	/* Setting this to false forces the performance state to low if the crtcs are disabled.
+	 * This can be a problem on PowerXpress systems or if you want to use the card
+	 * for offscreen rendering or compute if there are no crtcs enabled.  Set it to
+	 * true for now so that performance scales even if the displays are off.
+	 */
+	si_notify_smc_display_change(rdev, true /*rdev->pm.dpm.new_active_crtc_count > 0*/);
 }
 
 static void si_enable_spread_spectrum(struct radeon_device *rdev, bool enable)
