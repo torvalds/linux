@@ -257,9 +257,6 @@ enum cvmx_usb_pipe_flags {
 /* Maximum number of pipes that can be open at once */
 #define MAX_PIPES		32
 
-/* Maximum number of outstanding transactions across all pipes */
-#define MAX_TRANSACTIONS	256
-
 /* Maximum number of hardware channels supported by the USB block */
 #define MAX_CHANNELS		8
 
@@ -283,10 +280,6 @@ enum cvmx_usb_pipe_flags {
  * each transfer. The field is 10 bits wide
  */
 #define MAX_TRANSFER_PACKETS	((1<<10)-1)
-
-enum cvmx_usb_transaction_flags {
-	__CVMX_USB_TRANSACTION_FLAGS_IN_USE = 1<<16,
-};
 
 enum {
 	USB_CLOCK_TYPE_REF_12,
@@ -339,7 +332,6 @@ struct cvmx_usb_transaction {
 	struct cvmx_usb_transaction *prev;
 	struct cvmx_usb_transaction *next;
 	enum cvmx_usb_transfer type;
-	enum cvmx_usb_transaction_flags flags;
 	uint64_t buffer;
 	int buffer_length;
 	uint64_t control_header;
@@ -434,10 +426,7 @@ struct cvmx_usb_tx_fifo {
  * usbcx_hprt:		   Stored port status so we don't need to read a CSR to
  *			   determine splits.
  * pipe_for_channel:	   Map channels to pipes.
- * free_transaction_head:  List of free transactions head.
- * free_transaction_tail:  List of free transactions tail.
  * pipe:		   Storage for pipes.
- * transaction:		   Storage for transactions.
  * indent:		   Used by debug output to indent functions.
  * port_status:		   Last port status used for change notification.
  * free_pipes:		   List of all pipes that are currently closed.
@@ -452,10 +441,7 @@ struct cvmx_usb_state {
 	int idle_hardware_channels;
 	union cvmx_usbcx_hprt usbcx_hprt;
 	struct cvmx_usb_pipe *pipe_for_channel[MAX_CHANNELS];
-	struct cvmx_usb_transaction *free_transaction_head;
-	struct cvmx_usb_transaction *free_transaction_tail;
 	struct cvmx_usb_pipe pipe[MAX_PIPES];
-	struct cvmx_usb_transaction transaction[MAX_TRANSACTIONS];
 	int indent;
 	struct cvmx_usb_port_status port_status;
 	struct cvmx_usb_pipe_list free_pipes;
@@ -652,54 +638,6 @@ static int cvmx_usb_get_num_ports(void)
 	return arch_ports;
 }
 
-
-/**
- * Allocate a usb transaction for use
- *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
- *
- * Returns: Transaction or NULL
- */
-static inline struct cvmx_usb_transaction *__cvmx_usb_alloc_transaction(struct cvmx_usb_state *usb)
-{
-	struct cvmx_usb_transaction *t;
-	t = usb->free_transaction_head;
-	if (t) {
-		usb->free_transaction_head = t->next;
-		if (!usb->free_transaction_head)
-			usb->free_transaction_tail = NULL;
-	}
-	if (t) {
-		memset(t, 0, sizeof(*t));
-		t->flags = __CVMX_USB_TRANSACTION_FLAGS_IN_USE;
-	}
-	return t;
-}
-
-
-/**
- * Free a usb transaction
- *
- * @usb:	 USB device state populated by
- *		 cvmx_usb_initialize().
- * @transaction:
- *		 Transaction to free
- */
-static inline void __cvmx_usb_free_transaction(struct cvmx_usb_state *usb,
-					       struct cvmx_usb_transaction *transaction)
-{
-	transaction->flags = 0;
-	transaction->prev = NULL;
-	transaction->next = NULL;
-	if (usb->free_transaction_tail)
-		usb->free_transaction_tail->next = transaction;
-	else
-		usb->free_transaction_head = transaction;
-	usb->free_transaction_tail = transaction;
-}
-
-
 /**
  * Add a pipe to the tail of a list
  * @list:   List to add pipe to
@@ -802,11 +740,6 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 		int i;
 		usb->index = usb_port_number;
 
-		/* Initialize the transaction double linked list */
-		usb->free_transaction_head = NULL;
-		usb->free_transaction_tail = NULL;
-		for (i = 0; i < MAX_TRANSACTIONS; i++)
-			__cvmx_usb_free_transaction(usb, usb->transaction + i);
 		for (i = 0; i < MAX_PIPES; i++)
 			__cvmx_usb_append_pipe(&usb->free_pipes, usb->pipe + i);
 	}
@@ -2263,7 +2196,7 @@ static void __cvmx_usb_perform_complete(struct cvmx_usb_state *usb,
 					 transaction,
 					 transaction->actual_bytes,
 					 transaction->urb);
-	__cvmx_usb_free_transaction(usb, transaction);
+	kfree(transaction);
 done:
 	return;
 }
@@ -2310,7 +2243,7 @@ static struct cvmx_usb_transaction *__cvmx_usb_submit_transaction(struct cvmx_us
 	if (unlikely(pipe->transfer_type != type))
 		return NULL;
 
-	transaction = __cvmx_usb_alloc_transaction(usb);
+	transaction = kzalloc(sizeof(*transaction), GFP_ATOMIC);
 	if (unlikely(!transaction))
 		return NULL;
 
@@ -2478,10 +2411,6 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 {
 	/* Fail if the pipe isn't open */
 	if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-		return -EINVAL;
-
-	/* Fail if this transaction already completed */
-	if (unlikely((transaction->flags & __CVMX_USB_TRANSACTION_FLAGS_IN_USE) == 0))
 		return -EINVAL;
 
 	/*
