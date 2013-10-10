@@ -156,7 +156,7 @@ static ssize_t sysfs_bin_read(struct file *file, char __user *userbuf,
 	struct sysfs_open_file *of = sysfs_of(file);
 	struct bin_attribute *battr = of->sd->s_bin_attr.bin_attr;
 	struct kobject *kobj = of->sd->s_parent->s_dir.kobj;
-	int size = file_inode(file)->i_size;
+	loff_t size = file_inode(file)->i_size;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
 	loff_t offs = *off;
 	char *buf;
