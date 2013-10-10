@@ -658,7 +658,7 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 		break;
 	case ICMP_REDIRECT:
 		ipv4_sk_redirect(skb, sk);
-		break;
+		goto out;
 	}
 
 	/*

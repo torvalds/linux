@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
  *
- * Arthur:  Pritesh Raithatha <praithatha@nvidia.com>
+ * Author:  Pritesh Raithatha <praithatha@nvidia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -2763,7 +2763,6 @@ static struct platform_driver tegra114_pinctrl_driver = {
 };
 module_platform_driver(tegra114_pinctrl_driver);
 
-MODULE_ALIAS("platform:tegra114-pinctrl");
 MODULE_AUTHOR("Pritesh Raithatha <praithatha@nvidia.com>");
-MODULE_DESCRIPTION("NVIDIA Tegra114 pincontrol driver");
+MODULE_DESCRIPTION("NVIDIA Tegra114 pinctrl driver");
 MODULE_LICENSE("GPL v2");

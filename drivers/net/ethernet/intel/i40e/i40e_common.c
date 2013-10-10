@@ -507,7 +507,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 
 	/* save link status information */
 	if (link)
-		memcpy(link, hw_link_info, sizeof(struct i40e_link_status));
+		*link = *hw_link_info;
 
 	/* flag cleared so helper functions don't call AQ again */
 	hw->phy.get_link_info = false;

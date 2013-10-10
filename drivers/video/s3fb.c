@@ -1336,14 +1336,7 @@ static int s3_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			(info->var.bits_per_pixel * info->var.xres_virtual);
 	if (info->var.yres_virtual < info->var.yres) {
 		dev_err(info->device, "virtual vertical size smaller than real\n");
-		goto err_find_mode;
-	}
-
-	/* maximize virtual vertical size for fast scrolling */
-	info->var.yres_virtual = info->fix.smem_len * 8 /
-			(info->var.bits_per_pixel * info->var.xres_virtual);
-	if (info->var.yres_virtual < info->var.yres) {
-		dev_err(info->device, "virtual vertical size smaller than real\n");
+		rc = -EINVAL;
 		goto err_find_mode;
 	}
 

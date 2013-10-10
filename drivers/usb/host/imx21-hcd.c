@@ -824,13 +824,13 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 			i = DIV_ROUND_UP(wrap_frame(
 					cur_frame - urb->start_frame),
 					urb->interval);
-			if (urb->transfer_flags & URB_ISO_ASAP) {
+
+			/* Treat underruns as if URB_ISO_ASAP was set */
+			if ((urb->transfer_flags & URB_ISO_ASAP) ||
+					i >= urb->number_of_packets) {
 				urb->start_frame = wrap_frame(urb->start_frame
 						+ i * urb->interval);
 				i = 0;
-			} else if (i >= urb->number_of_packets) {
-				ret = -EXDEV;
-				goto alloc_dmem_failed;
 			}
 		}
 	}

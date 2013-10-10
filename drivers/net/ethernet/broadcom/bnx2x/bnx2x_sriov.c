@@ -1819,7 +1819,7 @@ bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 		fid = GET_FIELD((val), IGU_REG_MAPPING_MEMORY_FID);
 		if (fid & IGU_FID_ENCODE_IS_PF)
 			current_pf = fid & IGU_FID_PF_NUM_MASK;
-		else if (current_pf == BP_ABS_FUNC(bp))
+		else if (current_pf == BP_FUNC(bp))
 			bnx2x_vf_set_igu_info(bp, sb_id,
 					      (fid & IGU_FID_VF_NUM_MASK));
 		DP(BNX2X_MSG_IOV, "%s[%d], igu_sb_id=%d, msix=%d\n",
@@ -3180,6 +3180,7 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		/* set local queue arrays */
 		vf->vfqs = &bp->vfdb->vfqs[qcount];
 		qcount += vf_sb_count(vf);
+		bnx2x_iov_static_resc(bp, vf);
 	}
 
 	/* prepare msix vectors in VF configuration space */
@@ -3187,6 +3188,8 @@ int bnx2x_enable_sriov(struct bnx2x *bp)
 		bnx2x_pretend_func(bp, HW_VF_HANDLE(bp, vf_idx));
 		REG_WR(bp, PCICFG_OFFSET + GRC_CONFIG_REG_VF_MSIX_CONTROL,
 		       num_vf_queues);
+		DP(BNX2X_MSG_IOV, "set msix vec num in VF %d cfg space to %d\n",
+		   vf_idx, num_vf_queues);
 	}
 	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
