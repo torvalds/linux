@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -78,25 +78,31 @@ static int nft_counter_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static struct nft_expr_ops nft_counter_ops __read_mostly = {
-	.name		= "counter",
+static struct nft_expr_type nft_counter_type;
+static const struct nft_expr_ops nft_counter_ops = {
+	.type		= &nft_counter_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_counter)),
-	.policy		= nft_counter_policy,
-	.maxattr	= NFTA_COUNTER_MAX,
-	.owner		= THIS_MODULE,
 	.eval		= nft_counter_eval,
 	.init		= nft_counter_init,
 	.dump		= nft_counter_dump,
 };
 
+static struct nft_expr_type nft_counter_type __read_mostly = {
+	.name		= "counter",
+	.ops		= &nft_counter_ops,
+	.policy		= nft_counter_policy,
+	.maxattr	= NFTA_COUNTER_MAX,
+	.owner		= THIS_MODULE,
+};
+
 static int __init nft_counter_module_init(void)
 {
-	return nft_register_expr(&nft_counter_ops);
+	return nft_register_expr(&nft_counter_type);
 }
 
 static void __exit nft_counter_module_exit(void)
 {
-	nft_unregister_expr(&nft_counter_ops);
+	nft_unregister_expr(&nft_counter_type);
 }
 
 module_init(nft_counter_module_init);

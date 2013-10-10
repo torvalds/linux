@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -145,23 +145,29 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_byteorder_ops __read_mostly = {
-	.name		= "byteorder",
+static struct nft_expr_type nft_byteorder_type;
+static const struct nft_expr_ops nft_byteorder_ops = {
+	.type		= &nft_byteorder_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_byteorder)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_byteorder_eval,
 	.init		= nft_byteorder_init,
 	.dump		= nft_byteorder_dump,
+};
+
+static struct nft_expr_type nft_byteorder_type __read_mostly = {
+	.name		= "byteorder",
+	.ops		= &nft_byteorder_ops,
 	.policy		= nft_byteorder_policy,
 	.maxattr	= NFTA_BYTEORDER_MAX,
+	.owner		= THIS_MODULE,
 };
 
 int __init nft_byteorder_module_init(void)
 {
-	return nft_register_expr(&nft_byteorder_ops);
+	return nft_register_expr(&nft_byteorder_type);
 }
 
 void nft_byteorder_module_exit(void)
 {
-	nft_unregister_expr(&nft_byteorder_ops);
+	nft_unregister_expr(&nft_byteorder_type);
 }

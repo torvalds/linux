@@ -840,64 +840,64 @@ static void nft_ctx_init(struct nft_ctx *ctx,
  */
 
 /**
- *	nft_register_expr - register nf_tables expr operations
- *	@ops: expr operations
+ *	nft_register_expr - register nf_tables expr type
+ *	@ops: expr type
  *
- *	Registers the expr operations for use with nf_tables. Returns zero on
+ *	Registers the expr type for use with nf_tables. Returns zero on
  *	success or a negative errno code otherwise.
  */
-int nft_register_expr(struct nft_expr_ops *ops)
+int nft_register_expr(struct nft_expr_type *type)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_add_tail(&ops->list, &nf_tables_expressions);
+	list_add_tail(&type->list, &nf_tables_expressions);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_register_expr);
 
 /**
- *	nft_unregister_expr - unregister nf_tables expr operations
- *	@ops: expr operations
+ *	nft_unregister_expr - unregister nf_tables expr type
+ *	@ops: expr type
  *
- * 	Unregisters the expr operations for use with nf_tables.
+ * 	Unregisters the expr typefor use with nf_tables.
  */
-void nft_unregister_expr(struct nft_expr_ops *ops)
+void nft_unregister_expr(struct nft_expr_type *type)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_del(&ops->list);
+	list_del(&type->list);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
 EXPORT_SYMBOL_GPL(nft_unregister_expr);
 
-static const struct nft_expr_ops *__nft_expr_ops_get(struct nlattr *nla)
+static const struct nft_expr_type *__nft_expr_type_get(struct nlattr *nla)
 {
-	const struct nft_expr_ops *ops;
+	const struct nft_expr_type *type;
 
-	list_for_each_entry(ops, &nf_tables_expressions, list) {
-		if (!nla_strcmp(nla, ops->name))
-			return ops;
+	list_for_each_entry(type, &nf_tables_expressions, list) {
+		if (!nla_strcmp(nla, type->name))
+			return type;
 	}
 	return NULL;
 }
 
-static const struct nft_expr_ops *nft_expr_ops_get(struct nlattr *nla)
+static const struct nft_expr_type *nft_expr_type_get(struct nlattr *nla)
 {
-	const struct nft_expr_ops *ops;
+	const struct nft_expr_type *type;
 
 	if (nla == NULL)
 		return ERR_PTR(-EINVAL);
 
-	ops = __nft_expr_ops_get(nla);
-	if (ops != NULL && try_module_get(ops->owner))
-		return ops;
+	type = __nft_expr_type_get(nla);
+	if (type != NULL && try_module_get(type->owner))
+		return type;
 
 #ifdef CONFIG_MODULES
-	if (ops == NULL) {
+	if (type == NULL) {
 		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 		request_module("nft-expr-%.*s",
 			       nla_len(nla), (char *)nla_data(nla));
 		nfnl_lock(NFNL_SUBSYS_NFTABLES);
-		if (__nft_expr_ops_get(nla))
+		if (__nft_expr_type_get(nla))
 			return ERR_PTR(-EAGAIN);
 	}
 #endif
@@ -912,7 +912,7 @@ static const struct nla_policy nft_expr_policy[NFTA_EXPR_MAX + 1] = {
 static int nf_tables_fill_expr_info(struct sk_buff *skb,
 				    const struct nft_expr *expr)
 {
-	if (nla_put_string(skb, NFTA_EXPR_NAME, expr->ops->name))
+	if (nla_put_string(skb, NFTA_EXPR_NAME, expr->ops->type->name))
 		goto nla_put_failure;
 
 	if (expr->ops->dump) {
@@ -932,28 +932,52 @@ nla_put_failure:
 
 struct nft_expr_info {
 	const struct nft_expr_ops	*ops;
-	struct nlattr			*tb[NFTA_EXPR_MAX + 1];
+	struct nlattr			*tb[NFT_EXPR_MAXATTR + 1];
 };
 
 static int nf_tables_expr_parse(const struct nlattr *nla,
 				struct nft_expr_info *info)
 {
+	const struct nft_expr_type *type;
 	const struct nft_expr_ops *ops;
+	struct nlattr *tb[NFTA_EXPR_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(info->tb, NFTA_EXPR_MAX, nla, nft_expr_policy);
+	err = nla_parse_nested(tb, NFTA_EXPR_MAX, nla, nft_expr_policy);
 	if (err < 0)
 		return err;
 
-	ops = nft_expr_ops_get(info->tb[NFTA_EXPR_NAME]);
-	if (IS_ERR(ops))
-		return PTR_ERR(ops);
+	type = nft_expr_type_get(tb[NFTA_EXPR_NAME]);
+	if (IS_ERR(type))
+		return PTR_ERR(type);
+
+	if (tb[NFTA_EXPR_DATA]) {
+		err = nla_parse_nested(info->tb, type->maxattr,
+				       tb[NFTA_EXPR_DATA], type->policy);
+		if (err < 0)
+			goto err1;
+	} else
+		memset(info->tb, 0, sizeof(info->tb[0]) * (type->maxattr + 1));
+
+	if (type->select_ops != NULL) {
+		ops = type->select_ops((const struct nlattr * const *)info->tb);
+		if (IS_ERR(ops)) {
+			err = PTR_ERR(ops);
+			goto err1;
+		}
+	} else
+		ops = type->ops;
+
 	info->ops = ops;
 	return 0;
+
+err1:
+	module_put(type->owner);
+	return err;
 }
 
 static int nf_tables_newexpr(const struct nft_ctx *ctx,
-			     struct nft_expr_info *info,
+			     const struct nft_expr_info *info,
 			     struct nft_expr *expr)
 {
 	const struct nft_expr_ops *ops = info->ops;
@@ -961,23 +985,11 @@ static int nf_tables_newexpr(const struct nft_ctx *ctx,
 
 	expr->ops = ops;
 	if (ops->init) {
-		struct nlattr *ma[ops->maxattr + 1];
-
-		if (info->tb[NFTA_EXPR_DATA]) {
-			err = nla_parse_nested(ma, ops->maxattr,
-					       info->tb[NFTA_EXPR_DATA],
-					       ops->policy);
-			if (err < 0)
-				goto err1;
-		} else
-			memset(ma, 0, sizeof(ma[0]) * (ops->maxattr + 1));
-
-		err = ops->init(ctx, expr, (const struct nlattr **)ma);
+		err = ops->init(ctx, expr, (const struct nlattr **)info->tb);
 		if (err < 0)
 			goto err1;
 	}
 
-	info->ops = NULL;
 	return 0;
 
 err1:
@@ -989,7 +1001,7 @@ static void nf_tables_expr_destroy(struct nft_expr *expr)
 {
 	if (expr->ops->destroy)
 		expr->ops->destroy(expr);
-	module_put(expr->ops->owner);
+	module_put(expr->ops->type->owner);
 }
 
 /*
@@ -1313,6 +1325,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 		err = nf_tables_newexpr(&ctx, &info[i], expr);
 		if (err < 0)
 			goto err2;
+		info[i].ops = NULL;
 		expr = nft_expr_next(expr);
 	}
 
@@ -1341,7 +1354,7 @@ err2:
 err1:
 	for (i = 0; i < n; i++) {
 		if (info[i].ops != NULL)
-			module_put(info[i].ops->owner);
+			module_put(info[i].ops->type->owner);
 	}
 	return err;
 }

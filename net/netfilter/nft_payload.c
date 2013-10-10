@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -115,23 +115,29 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_payload_ops __read_mostly = {
-	.name		= "payload",
+static struct nft_expr_type nft_payload_type;
+static const struct nft_expr_ops nft_payload_ops = {
+	.type		= &nft_payload_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_payload)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_payload_eval,
 	.init		= nft_payload_init,
 	.dump		= nft_payload_dump,
+};
+
+static struct nft_expr_type nft_payload_type __read_mostly = {
+	.name		= "payload",
+	.ops		= &nft_payload_ops,
 	.policy		= nft_payload_policy,
 	.maxattr	= NFTA_PAYLOAD_MAX,
+	.owner		= THIS_MODULE,
 };
 
 int __init nft_payload_module_init(void)
 {
-	return nft_register_expr(&nft_payload_ops);
+	return nft_register_expr(&nft_payload_type);
 }
 
 void nft_payload_module_exit(void)
 {
-	nft_unregister_expr(&nft_payload_ops);
+	nft_unregister_expr(&nft_payload_type);
 }

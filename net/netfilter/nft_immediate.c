@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -100,25 +100,31 @@ static const struct nft_data *nft_immediate_get_verdict(const struct nft_expr *e
 		return NULL;
 }
 
-static struct nft_expr_ops nft_imm_ops __read_mostly = {
-	.name		= "immediate",
+static struct nft_expr_type nft_imm_type;
+static const struct nft_expr_ops nft_imm_ops = {
+	.type		= &nft_imm_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_immediate_expr)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_immediate_eval,
 	.init		= nft_immediate_init,
 	.destroy	= nft_immediate_destroy,
 	.dump		= nft_immediate_dump,
 	.get_verdict	= nft_immediate_get_verdict,
+};
+
+static struct nft_expr_type nft_imm_type __read_mostly = {
+	.name		= "immediate",
+	.ops		= &nft_imm_ops,
 	.policy		= nft_immediate_policy,
 	.maxattr	= NFTA_IMMEDIATE_MAX,
+	.owner		= THIS_MODULE,
 };
 
 int __init nft_immediate_module_init(void)
 {
-	return nft_register_expr(&nft_imm_ops);
+	return nft_register_expr(&nft_imm_type);
 }
 
 void nft_immediate_module_exit(void)
 {
-	nft_unregister_expr(&nft_imm_ops);
+	nft_unregister_expr(&nft_imm_type);
 }

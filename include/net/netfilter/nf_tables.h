@@ -222,25 +222,45 @@ extern int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
 extern void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
 				 struct nft_set_binding *binding);
 
+
 /**
- *	struct nft_expr_ops - nf_tables expression operations
+ *	struct nft_expr_type - nf_tables expression type
  *
- *	@eval: Expression evaluation function
- *	@init: initialization function
- *	@destroy: destruction function
- *	@dump: function to dump parameters
+ *	@select_ops: function to select nft_expr_ops
+ *	@ops: default ops, used when no select_ops functions is present
  *	@list: used internally
  *	@name: Identifier
  *	@owner: module reference
  *	@policy: netlink attribute policy
  *	@maxattr: highest netlink attribute number
+ */
+struct nft_expr_type {
+	const struct nft_expr_ops	*(*select_ops)(const struct nlattr * const tb[]);
+	const struct nft_expr_ops	*ops;
+	struct list_head		list;
+	const char			*name;
+	struct module			*owner;
+	const struct nla_policy		*policy;
+	unsigned int			maxattr;
+};
+
+/**
+ *	struct nft_expr_ops - nf_tables expression operations
+ *
+ *	@eval: Expression evaluation function
  *	@size: full expression size, including private data size
+ *	@init: initialization function
+ *	@destroy: destruction function
+ *	@dump: function to dump parameters
+ *	@type: expression type
  */
 struct nft_expr;
 struct nft_expr_ops {
 	void				(*eval)(const struct nft_expr *expr,
 						struct nft_data data[NFT_REG_MAX + 1],
 						const struct nft_pktinfo *pkt);
+	unsigned int			size;
+
 	int				(*init)(const struct nft_ctx *ctx,
 						const struct nft_expr *expr,
 						const struct nlattr * const tb[]);
@@ -248,14 +268,10 @@ struct nft_expr_ops {
 	int				(*dump)(struct sk_buff *skb,
 						const struct nft_expr *expr);
 	const struct nft_data *		(*get_verdict)(const struct nft_expr *expr);
-	struct list_head		list;
-	const char			*name;
-	struct module			*owner;
-	const struct nla_policy		*policy;
-	unsigned int			maxattr;
-	unsigned int			size;
+	const struct nft_expr_type	*type;
 };
 
+#define NFT_EXPR_MAXATTR		16
 #define NFT_EXPR_SIZE(size)		(sizeof(struct nft_expr) + \
 					 ALIGN(size, __alignof__(struct nft_expr)))
 
@@ -418,8 +434,8 @@ extern void nft_unregister_afinfo(struct nft_af_info *);
 extern int nft_register_table(struct nft_table *, int family);
 extern void nft_unregister_table(struct nft_table *, int family);
 
-extern int nft_register_expr(struct nft_expr_ops *);
-extern void nft_unregister_expr(struct nft_expr_ops *);
+extern int nft_register_expr(struct nft_expr_type *);
+extern void nft_unregister_expr(struct nft_expr_type *);
 
 #define MODULE_ALIAS_NFT_FAMILY(family)	\
 	MODULE_ALIAS("nft-afinfo-" __stringify(family))

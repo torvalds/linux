@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,7 +33,7 @@ static const struct nla_policy nft_template_policy[NFTA_TEMPLATE_MAX + 1] = {
 
 static int nft_template_init(const struct nft_ctx *ctx,
 			   const struct nft_expr *expr,
-			   const struct nlattr *tb[])
+			   const struct nlattr * const tb[])
 {
 	struct nft_template *priv = nft_expr_priv(expr);
 
@@ -58,26 +58,32 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops template_ops __read_mostly = {
-	.name		= "template",
+static struct nft_expr_type nft_template_type;
+static const struct nft_expr_ops nft_template_ops = {
+	.type		= &nft_template_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_template)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_template_eval,
 	.init		= nft_template_init,
 	.destroy	= nft_template_destroy,
 	.dump		= nft_template_dump,
+};
+
+static struct nft_expr_type nft_template_type __read_mostly = {
+	.name		= "template",
+	.ops		= &nft_template_ops,
 	.policy		= nft_template_policy,
 	.maxattr	= NFTA_TEMPLATE_MAX,
+	.owner		= THIS_MODULE,
 };
 
 static int __init nft_template_module_init(void)
 {
-	return nft_register_expr(&template_ops);
+	return nft_register_expr(&nft_template_type);
 }
 
 static void __exit nft_template_module_exit(void)
 {
-	nft_unregister_expr(&template_ops);
+	nft_unregister_expr(&nft_template_type);
 }
 
 module_init(nft_template_module_init);

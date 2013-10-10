@@ -112,24 +112,30 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_lookup_ops __read_mostly = {
-	.name		= "lookup",
+static struct nft_expr_type nft_lookup_type;
+static const struct nft_expr_ops nft_lookup_ops = {
+	.type		= &nft_lookup_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_lookup)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_lookup_eval,
 	.init		= nft_lookup_init,
 	.destroy	= nft_lookup_destroy,
 	.dump		= nft_lookup_dump,
+};
+
+static struct nft_expr_type nft_lookup_type __read_mostly = {
+	.name		= "lookup",
+	.ops		= &nft_lookup_ops,
 	.policy		= nft_lookup_policy,
 	.maxattr	= NFTA_LOOKUP_MAX,
+	.owner		= THIS_MODULE,
 };
 
 int __init nft_lookup_module_init(void)
 {
-	return nft_register_expr(&nft_lookup_ops);
+	return nft_register_expr(&nft_lookup_type);
 }
 
 void nft_lookup_module_exit(void)
 {
-	nft_unregister_expr(&nft_lookup_ops);
+	nft_unregister_expr(&nft_lookup_type);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -84,25 +84,31 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_limit_ops __read_mostly = {
-	.name		= "limit",
+static struct nft_expr_type nft_limit_type;
+static const struct nft_expr_ops nft_limit_ops = {
+	.type		= &nft_limit_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_limit)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_limit_eval,
 	.init		= nft_limit_init,
 	.dump		= nft_limit_dump,
+};
+
+static struct nft_expr_type nft_limit_type __read_mostly = {
+	.name		= "limit",
+	.ops		= &nft_limit_ops,
 	.policy		= nft_limit_policy,
 	.maxattr	= NFTA_LIMIT_MAX,
+	.owner		= THIS_MODULE,
 };
 
 static int __init nft_limit_module_init(void)
 {
-	return nft_register_expr(&nft_limit_ops);
+	return nft_register_expr(&nft_limit_type);
 }
 
 static void __exit nft_limit_module_exit(void)
 {
-	nft_unregister_expr(&nft_limit_ops);
+	nft_unregister_expr(&nft_limit_type);
 }
 
 module_init(nft_limit_module_init);

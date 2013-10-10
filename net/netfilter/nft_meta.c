@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -193,25 +193,31 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_meta_ops __read_mostly = {
-	.name		= "meta",
+static struct nft_expr_type nft_meta_type;
+static const struct nft_expr_ops nft_meta_ops = {
+	.type		= &nft_meta_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_meta_eval,
 	.init		= nft_meta_init,
 	.dump		= nft_meta_dump,
+};
+
+static struct nft_expr_type nft_meta_type __read_mostly = {
+	.name		= "meta",
+	.ops		= &nft_meta_ops,
 	.policy		= nft_meta_policy,
 	.maxattr	= NFTA_META_MAX,
+	.owner		= THIS_MODULE,
 };
 
 static int __init nft_meta_module_init(void)
 {
-	return nft_register_expr(&nft_meta_ops);
+	return nft_register_expr(&nft_meta_type);
 }
 
 static void __exit nft_meta_module_exit(void)
 {
-	nft_unregister_expr(&nft_meta_ops);
+	nft_unregister_expr(&nft_meta_type);
 }
 
 module_init(nft_meta_module_init);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -88,25 +88,31 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops reject_ops __read_mostly = {
-	.name		= "reject",
+static struct nft_expr_type nft_reject_type;
+static const struct nft_expr_ops nft_reject_ops = {
+	.type		= &nft_reject_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_reject)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_reject_eval,
 	.init		= nft_reject_init,
 	.dump		= nft_reject_dump,
+};
+
+static struct nft_expr_type nft_reject_type __read_mostly = {
+	.name		= "reject",
+	.ops		= &nft_reject_ops,
 	.policy		= nft_reject_policy,
 	.maxattr	= NFTA_REJECT_MAX,
+	.owner		= THIS_MODULE,
 };
 
 static int __init nft_reject_module_init(void)
 {
-	return nft_register_expr(&reject_ops);
+	return nft_register_expr(&nft_reject_type);
 }
 
 static void __exit nft_reject_module_exit(void)
 {
-	nft_unregister_expr(&reject_ops);
+	nft_unregister_expr(&nft_reject_type);
 }
 
 module_init(nft_reject_module_init);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -110,26 +110,32 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_log_ops __read_mostly = {
-	.name		= "log",
+static struct nft_expr_type nft_log_type;
+static const struct nft_expr_ops nft_log_ops = {
+	.type		= &nft_log_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_log)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_log_eval,
 	.init		= nft_log_init,
 	.destroy	= nft_log_destroy,
 	.dump		= nft_log_dump,
+};
+
+static struct nft_expr_type nft_log_type __read_mostly = {
+	.name		= "log",
+	.ops		= &nft_log_ops,
 	.policy		= nft_log_policy,
 	.maxattr	= NFTA_LOG_MAX,
+	.owner		= THIS_MODULE,
 };
 
 static int __init nft_log_module_init(void)
 {
-	return nft_register_expr(&nft_log_ops);
+	return nft_register_expr(&nft_log_type);
 }
 
 static void __exit nft_log_module_exit(void)
 {
-	nft_unregister_expr(&nft_log_ops);
+	nft_unregister_expr(&nft_log_type);
 }
 
 module_init(nft_log_module_init);

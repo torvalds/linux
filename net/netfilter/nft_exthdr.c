@@ -98,25 +98,31 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops exthdr_ops __read_mostly = {
-	.name		= "exthdr",
+static struct nft_expr_type nft_exthdr_type;
+static const struct nft_expr_ops nft_exthdr_ops = {
+	.type		= &nft_exthdr_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_exthdr)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_exthdr_eval,
 	.init		= nft_exthdr_init,
 	.dump		= nft_exthdr_dump,
+};
+
+static struct nft_expr_type nft_exthdr_type __read_mostly = {
+	.name		= "exthdr",
+	.ops		= &nft_exthdr_ops,
 	.policy		= nft_exthdr_policy,
 	.maxattr	= NFTA_EXTHDR_MAX,
+	.owner		= THIS_MODULE,
 };
 
 static int __init nft_exthdr_module_init(void)
 {
-	return nft_register_expr(&exthdr_ops);
+	return nft_register_expr(&nft_exthdr_type);
 }
 
 static void __exit nft_exthdr_module_exit(void)
 {
-	nft_unregister_expr(&exthdr_ops);
+	nft_unregister_expr(&nft_exthdr_type);
 }
 
 module_init(nft_exthdr_module_init);

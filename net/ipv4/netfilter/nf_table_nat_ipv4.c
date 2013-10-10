@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -149,15 +149,21 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_ops nft_nat_ops __read_mostly = {
-	.name		= "nat",
+static struct nft_expr_type nft_nat_type;
+static const struct nft_expr_ops nft_nat_ops = {
+	.type		= &nft_nat_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_nat)),
-	.owner		= THIS_MODULE,
 	.eval		= nft_nat_eval,
 	.init		= nft_nat_init,
 	.dump		= nft_nat_dump,
+};
+
+static struct nft_expr_type nft_nat_type __read_mostly = {
+	.name		= "nat",
+	.ops		= &nft_nat_ops,
 	.policy		= nft_nat_policy,
 	.maxattr	= NFTA_NAT_MAX,
+	.owner		= THIS_MODULE,
 };
 
 /*
@@ -382,7 +388,7 @@ static int __init nf_table_nat_init(void)
 	if (err < 0)
 		goto err1;
 
-	err = nft_register_expr(&nft_nat_ops);
+	err = nft_register_expr(&nft_nat_type);
 	if (err < 0)
 		goto err2;
 
@@ -396,7 +402,7 @@ err1:
 
 static void __exit nf_table_nat_exit(void)
 {
-	nft_unregister_expr(&nft_nat_ops);
+	nft_unregister_expr(&nft_nat_type);
 	nft_unregister_table(&nf_table_nat_ipv4, AF_INET);
 }
 
