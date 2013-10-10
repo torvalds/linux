@@ -299,6 +299,16 @@ struct adf_device {
  * @blank: change the display's DPMS state.  Return 0 on success or error
  *	code (<0) on failure.
  *
+ * @alloc_simple_buffer: allocate a buffer with the specified @w, @h, and
+ *	@format.  @format will be a standard RGB format (i.e.,
+ *	adf_format_is_rgb(@format) == true).  Return 0 on success or error code
+ *	(<0) on failure.  On success, return the buffer, offset, and pitch in
+ *	@dma_buf, @offset, and @pitch respectively.
+ * @describe_simple_post: provide driver-private data needed to post a single
+ *	buffer @buf.  Copy up to ADF_MAX_CUSTOM_DATA_SIZE bytes into @data
+ *	(allocated by ADF) and return the number of bytes in @size.  Return 0 on
+ *	success or error code (<0) on failure.
+ *
  * @modeset: change the interface's mode.  @mode is not necessarily part of the
  *	modelist passed to adf_hotplug_notify_connected(); the driver may
  *	accept or reject custom modes at its discretion.  Return 0 on success or
@@ -316,6 +326,14 @@ struct adf_interface_ops {
 
 	/* optional */
 	int (*blank)(struct adf_interface *intf, u8 state);
+
+	/* optional */
+	int (*alloc_simple_buffer)(struct adf_interface *intf,
+			u16 w, u16 h, u32 format,
+			struct dma_buf **dma_buf, u32 *offset, u32 *pitch);
+	/* optional */
+	int (*describe_simple_post)(struct adf_interface *intf,
+			struct adf_buffer *fb, void *data, size_t *size);
 
 	/* optional */
 	int (*modeset)(struct adf_interface *intf,

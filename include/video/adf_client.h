@@ -28,6 +28,10 @@ int adf_interface_set_mode(struct adf_interface *intf,
 		struct drm_mode_modeinfo *mode);
 int adf_interface_get_screen_size(struct adf_interface *intf, u16 *width,
 		u16 *height);
+int adf_interface_simple_buffer_alloc(struct adf_interface *intf, u16 w, u16 h,
+		u32 format, struct dma_buf **dma_buf, u32 *offset, u32 *pitch);
+struct sync_fence *adf_interface_simple_post(struct adf_interface *intf,
+		struct adf_buffer *buf);
 
 bool adf_overlay_engine_supports_format(struct adf_overlay_engine *eng,
 		u32 format);
