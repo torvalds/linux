@@ -374,27 +374,27 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 	struct task_struct *p = timer->it.cpu.task;
 	int ret = 0;
 
-	if (likely(p != NULL)) {
-		read_lock(&tasklist_lock);
-		if (unlikely(p->sighand == NULL)) {
-			/*
-			 * We raced with the reaping of the task.
-			 * The deletion should have cleared us off the list.
-			 */
-			BUG_ON(!list_empty(&timer->it.cpu.entry));
-		} else {
-			spin_lock(&p->sighand->siglock);
-			if (timer->it.cpu.firing)
-				ret = TIMER_RETRY;
-			else
-				list_del(&timer->it.cpu.entry);
-			spin_unlock(&p->sighand->siglock);
-		}
-		read_unlock(&tasklist_lock);
+	WARN_ON_ONCE(p == NULL);
 
-		if (!ret)
-			put_task_struct(p);
+	read_lock(&tasklist_lock);
+	if (unlikely(p->sighand == NULL)) {
+		/*
+		 * We raced with the reaping of the task.
+		 * The deletion should have cleared us off the list.
+		 */
+		BUG_ON(!list_empty(&timer->it.cpu.entry));
+	} else {
+		spin_lock(&p->sighand->siglock);
+		if (timer->it.cpu.firing)
+			ret = TIMER_RETRY;
+		else
+			list_del(&timer->it.cpu.entry);
+		spin_unlock(&p->sighand->siglock);
 	}
+	read_unlock(&tasklist_lock);
+
+	if (!ret)
+		put_task_struct(p);
 
 	return ret;
 }
@@ -622,12 +622,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	unsigned long long old_expires, new_expires, old_incr, val;
 	int ret;
 
-	if (unlikely(p == NULL)) {
-		/*
-		 * Timer refers to a dead task's clock.
-		 */
-		return -ESRCH;
-	}
+	WARN_ON_ONCE(p == NULL);
 
 	new_expires = timespec_to_sample(timer->it_clock, &new->it_value);
 
@@ -770,6 +765,8 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 	unsigned long long now;
 	struct task_struct *p = timer->it.cpu.task;
 
+	WARN_ON_ONCE(p == NULL);
+
 	/*
 	 * Easy part: convert the reload time.
 	 */
@@ -778,18 +775,6 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 
 	if (timer->it.cpu.expires == 0) {	/* Timer not armed at all.  */
 		itp->it_value.tv_sec = itp->it_value.tv_nsec = 0;
-		return;
-	}
-
-	if (unlikely(p == NULL)) {
-		WARN_ON_ONCE(CPUCLOCK_PERTHREAD(timer->it_clock));
-		/*
-		 * This task already died and the timer will never fire.
-		 * In this case, expires is actually the dead value.
-		 */
-	dead:
-		sample_to_timespec(timer->it_clock, timer->it.cpu.expires,
-				   &itp->it_value);
 		return;
 	}
 
@@ -807,8 +792,9 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 			 * Call the timer disarmed, nothing else to do.
 			 */
 			timer->it.cpu.expires = 0;
+			sample_to_timespec(timer->it_clock, timer->it.cpu.expires,
+					   &itp->it_value);
 			read_unlock(&tasklist_lock);
-			goto dead;
 		} else {
 			cpu_timer_sample_group(timer->it_clock, p, &now);
 		}
@@ -1029,13 +1015,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	struct task_struct *p = timer->it.cpu.task;
 	unsigned long long now;
 
-	if (unlikely(p == NULL)) {
-		WARN_ON_ONCE(CPUCLOCK_PERTHREAD(timer->it_clock));
-		/*
-		 * The task was cleaned up already, no future firings.
-		 */
-		goto out;
-	}
+	WARN_ON_ONCE(p == NULL);
 
 	/*
 	 * Fetch the current sample and update the timer's expiry time.
