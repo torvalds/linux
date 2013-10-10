@@ -66,6 +66,13 @@ static void omap4_secondary_init(unsigned int cpu)
 							4, 0, 0, 0, 0, 0);
 
 	/*
+	 * Configure the CNTFRQ register for the secondary cpu's which
+	 * indicates the frequency of the cpu local timers.
+	 */
+	if (soc_is_omap54xx() || soc_is_dra7xx())
+		set_cntfreq();
+
+	/*
 	 * Synchronise with the boot thread.
 	 */
 	spin_lock(&boot_lock);

@@ -55,6 +55,7 @@
 #include "soc.h"
 #include "common.h"
 #include "powerdomain.h"
+#include "omap-secure.h"
 
 #define REALTIME_COUNTER_BASE				0x48243200
 #define INCREMENTER_NUMERATOR_OFFSET			0x10
@@ -65,6 +66,12 @@
 
 static struct omap_dm_timer clkev;
 static struct clock_event_device clockevent_gpt;
+static unsigned long arch_timer_freq;
+
+void set_cntfreq(void)
+{
+	omap_smc1(OMAP5_DRA7_MON_SET_CNTFRQ_INDEX, arch_timer_freq);
+}
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
@@ -545,6 +552,9 @@ static void __init realtime_counter_init(void)
 			NUMERATOR_DENUMERATOR_MASK;
 	reg |= den;
 	__raw_writel(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
+
+	arch_timer_freq = (rate / den) * num;
+	set_cntfreq();
 
 	iounmap(base);
 }
