@@ -66,8 +66,7 @@
 #include <asm/octeon/cvmx-sysinfo.h>
 #include <asm/octeon/cvmx-helper-board.h>
 
-#include "cvmx-usbcx-defs.h"
-#include "cvmx-usbnx-defs.h"
+#include "octeon-hcd.h"
 
 /**
  * enum cvmx_usb_speed - the possible USB device speeds
