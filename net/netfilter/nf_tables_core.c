@@ -20,6 +20,18 @@
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
 
+static void nft_cmp_fast_eval(const struct nft_expr *expr,
+			      struct nft_data data[NFT_REG_MAX + 1])
+{
+	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
+	u32 mask;
+
+	mask = ~0U >> (sizeof(priv->data) * BITS_PER_BYTE - priv->len);
+	if ((data[priv->sreg].data[0] & mask) == priv->data)
+		return;
+	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+}
+
 unsigned int nft_do_chain(const struct nf_hook_ops *ops,
 			  struct sk_buff *skb,
 			  const struct net_device *in,
@@ -48,7 +60,11 @@ next_rule:
 	data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
 	list_for_each_entry_continue_rcu(rule, &chain->rules, list) {
 		nft_rule_for_each_expr(expr, last, rule) {
-			expr->ops->eval(expr, data, &pkt);
+			if (expr->ops == &nft_cmp_fast_ops)
+				nft_cmp_fast_eval(expr, data);
+			else
+				expr->ops->eval(expr, data, &pkt);
+
 			if (data[NFT_REG_VERDICT].verdict != NFT_CONTINUE)
 				break;
 		}

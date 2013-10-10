@@ -7,6 +7,14 @@ extern void nf_tables_core_module_exit(void);
 extern int nft_immediate_module_init(void);
 extern void nft_immediate_module_exit(void);
 
+struct nft_cmp_fast_expr {
+	u32			data;
+	enum nft_registers	sreg:8;
+	u8			len;
+};
+
+extern const struct nft_expr_ops nft_cmp_fast_ops;
+
 extern int nft_cmp_module_init(void);
 extern void nft_cmp_module_exit(void);
 
