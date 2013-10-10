@@ -253,6 +253,8 @@ static int acpi_find_gpio(struct acpi_resource *ares, void *data)
 					      agpio->pin_table[0]);
 		lookup->info.gpioint =
 			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
+		lookup->info.active_low =
+			agpio->polarity == ACPI_ACTIVE_LOW;
 	}
 
 	return 1;

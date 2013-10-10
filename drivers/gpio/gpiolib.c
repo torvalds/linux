@@ -2264,7 +2264,17 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 					unsigned int idx, unsigned long *flags)
 {
-	return acpi_get_gpiod_by_index(dev, idx, NULL);
+	struct acpi_gpio_info info;
+	struct gpio_desc *desc;
+
+	desc = acpi_get_gpiod_by_index(dev, idx, &info);
+	if (IS_ERR(desc))
+		return desc;
+
+	if (info.gpioint && info.active_low)
+		*flags |= GPIOF_ACTIVE_LOW;
+
+	return desc;
 }
 
 static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
