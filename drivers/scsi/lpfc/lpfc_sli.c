@@ -10196,6 +10196,11 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 		if (iocb_completed) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 					"0331 IOCB wake signaled\n");
+			/* Note: we are not indicating if the IOCB has a success
+			 * status or not - that's for the caller to check.
+			 * IOCB_SUCCESS means just that the command was sent and
+			 * completed. Not that it completed successfully.
+			 * */
 		} else if (timeleft == 0) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"0338 IOCB wait timeout error - no "
