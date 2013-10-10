@@ -47,6 +47,7 @@
 #define DFP_RDESC_ORIG_SIZE	97
 #define FV_RDESC_ORIG_SIZE	130
 #define MOMO_RDESC_ORIG_SIZE	87
+#define MOMO2_RDESC_ORIG_SIZE	87
 
 /* Fixed report descriptors for Logitech Driving Force (and Pro)
  * wheel controllers
@@ -284,6 +285,54 @@ static __u8 momo_rdesc_fixed[] = {
 0xC0                /*  End Collection                      */
 };
 
+static __u8 momo2_rdesc_fixed[] = {
+0x05, 0x01,         /*  Usage Page (Desktop),               */
+0x09, 0x04,         /*  Usage (Joystik),                    */
+0xA1, 0x01,         /*  Collection (Application),           */
+0xA1, 0x02,         /*      Collection (Logical),           */
+0x95, 0x01,         /*          Report Count (1),           */
+0x75, 0x0A,         /*          Report Size (10),           */
+0x15, 0x00,         /*          Logical Minimum (0),        */
+0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),     */
+0x35, 0x00,         /*          Physical Minimum (0),       */
+0x46, 0xFF, 0x03,   /*          Physical Maximum (1023),    */
+0x09, 0x30,         /*          Usage (X),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x95, 0x0A,         /*          Report Count (10),          */
+0x75, 0x01,         /*          Report Size (1),            */
+0x25, 0x01,         /*          Logical Maximum (1),        */
+0x45, 0x01,         /*          Physical Maximum (1),       */
+0x05, 0x09,         /*          Usage Page (Button),        */
+0x19, 0x01,         /*          Usage Minimum (01h),        */
+0x29, 0x0A,         /*          Usage Maximum (0Ah),        */
+0x81, 0x02,         /*          Input (Variable),           */
+0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
+0x09, 0x00,         /*          Usage (00h),                */
+0x95, 0x04,         /*          Report Count (4),           */
+0x81, 0x02,         /*          Input (Variable),           */
+0x95, 0x01,         /*          Report Count (1),           */
+0x75, 0x08,         /*          Report Size (8),            */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),     */
+0x09, 0x01,         /*          Usage (01h),                */
+0x81, 0x02,         /*          Input (Variable),           */
+0x05, 0x01,         /*          Usage Page (Desktop),       */
+0x09, 0x31,         /*          Usage (Y),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x09, 0x32,         /*          Usage (Z),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x06, 0x00, 0xFF,   /*          Usage Page (FF00h),         */
+0x09, 0x00,         /*          Usage (00h),                */
+0x81, 0x02,         /*          Input (Variable),           */
+0xC0,               /*      End Collection,                 */
+0xA1, 0x02,         /*      Collection (Logical),           */
+0x09, 0x02,         /*          Usage (02h),                */
+0x95, 0x07,         /*          Report Count (7),           */
+0x91, 0x02,         /*          Output (Variable),          */
+0xC0,               /*      End Collection,                 */
+0xC0                /*  End Collection                      */
+};
+
 /*
  * Certain Logitech keyboards send in report #3 keys which are far
  * above the logical maximum described in descriptor. This extends
@@ -340,6 +389,15 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 				"fixing up Logitech Momo Force (Red) report descriptor\n");
 			rdesc = momo_rdesc_fixed;
 			*rsize = sizeof(momo_rdesc_fixed);
+		}
+		break;
+
+	case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
+		if (*rsize == MOMO2_RDESC_ORIG_SIZE) {
+			hid_info(hdev,
+				"fixing up Logitech Momo Racing Force (Black) report descriptor\n");
+			rdesc = momo2_rdesc_fixed;
+			*rsize = sizeof(momo2_rdesc_fixed);
 		}
 		break;
 
