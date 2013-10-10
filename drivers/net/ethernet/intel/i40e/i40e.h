@@ -347,9 +347,9 @@ struct i40e_vsi {
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 
-	/* These are arrays of rings, allocated at run-time */
-	struct i40e_ring *rx_rings;
-	struct i40e_ring *tx_rings;
+	/* These are containers of ring pointers, allocated at run-time */
+	struct i40e_ring **rx_rings;
+	struct i40e_ring **tx_rings;
 
 	u16 work_limit;
 	/* high bit set means dynamic, use accessor routines to read/write.
@@ -366,7 +366,7 @@ struct i40e_vsi {
 	u8  dtype;
 
 	/* List of q_vectors allocated to this VSI */
-	struct i40e_q_vector *q_vectors;
+	struct i40e_q_vector **q_vectors;
 	int num_q_vectors;
 	int base_vector;
 
@@ -422,8 +422,9 @@ struct i40e_q_vector {
 
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
-	char name[IFNAMSIZ + 9];
 	cpumask_t affinity_mask;
+	struct rcu_head rcu;	/* to avoid race with update stats on free */
+	char name[IFNAMSIZ + 9];
 } ____cacheline_internodealigned_in_smp;
 
 /* lan device */

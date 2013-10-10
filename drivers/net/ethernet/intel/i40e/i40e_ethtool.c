@@ -399,8 +399,8 @@ static void i40e_get_ringparam(struct net_device *netdev,
 	ring->tx_max_pending = I40E_MAX_NUM_DESCRIPTORS;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
-	ring->rx_pending = vsi->rx_rings[0].count;
-	ring->tx_pending = vsi->tx_rings[0].count;
+	ring->rx_pending = vsi->rx_rings[0]->count;
+	ring->tx_pending = vsi->tx_rings[0]->count;
 	ring->rx_mini_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
@@ -429,8 +429,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	new_rx_count = ALIGN(new_rx_count, I40E_REQ_DESCRIPTOR_MULTIPLE);
 
 	/* if nothing to do return success */
-	if ((new_tx_count == vsi->tx_rings[0].count) &&
-	    (new_rx_count == vsi->rx_rings[0].count))
+	if ((new_tx_count == vsi->tx_rings[0]->count) &&
+	    (new_rx_count == vsi->rx_rings[0]->count))
 		return 0;
 
 	while (test_and_set_bit(__I40E_CONFIG_BUSY, &pf->state))
@@ -439,8 +439,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	if (!netif_running(vsi->netdev)) {
 		/* simple case - set for the next time the netdev is started */
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			vsi->tx_rings[i].count = new_tx_count;
-			vsi->rx_rings[i].count = new_rx_count;
+			vsi->tx_rings[i]->count = new_tx_count;
+			vsi->rx_rings[i]->count = new_rx_count;
 		}
 		goto done;
 	}
@@ -451,10 +451,10 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	 */
 
 	/* alloc updated Tx resources */
-	if (new_tx_count != vsi->tx_rings[0].count) {
+	if (new_tx_count != vsi->tx_rings[0]->count) {
 		netdev_info(netdev,
 			    "Changing Tx descriptor count from %d to %d.\n",
-			    vsi->tx_rings[0].count, new_tx_count);
+			    vsi->tx_rings[0]->count, new_tx_count);
 		tx_rings = kcalloc(vsi->alloc_queue_pairs,
 				   sizeof(struct i40e_ring), GFP_KERNEL);
 		if (!tx_rings) {
@@ -464,7 +464,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			/* clone ring and setup updated count */
-			tx_rings[i] = vsi->tx_rings[i];
+			tx_rings[i] = *vsi->tx_rings[i];
 			tx_rings[i].count = new_tx_count;
 			err = i40e_setup_tx_descriptors(&tx_rings[i]);
 			if (err) {
@@ -481,10 +481,10 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	}
 
 	/* alloc updated Rx resources */
-	if (new_rx_count != vsi->rx_rings[0].count) {
+	if (new_rx_count != vsi->rx_rings[0]->count) {
 		netdev_info(netdev,
 			    "Changing Rx descriptor count from %d to %d\n",
-			    vsi->rx_rings[0].count, new_rx_count);
+			    vsi->rx_rings[0]->count, new_rx_count);
 		rx_rings = kcalloc(vsi->alloc_queue_pairs,
 				   sizeof(struct i40e_ring), GFP_KERNEL);
 		if (!rx_rings) {
@@ -494,7 +494,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			/* clone ring and setup updated count */
-			rx_rings[i] = vsi->rx_rings[i];
+			rx_rings[i] = *vsi->rx_rings[i];
 			rx_rings[i].count = new_rx_count;
 			err = i40e_setup_rx_descriptors(&rx_rings[i]);
 			if (err) {
@@ -517,8 +517,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 
 	if (tx_rings) {
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			i40e_free_tx_resources(&vsi->tx_rings[i]);
-			vsi->tx_rings[i] = tx_rings[i];
+			i40e_free_tx_resources(vsi->tx_rings[i]);
+			*vsi->tx_rings[i] = tx_rings[i];
 		}
 		kfree(tx_rings);
 		tx_rings = NULL;
@@ -526,8 +526,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 
 	if (rx_rings) {
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			i40e_free_rx_resources(&vsi->rx_rings[i]);
-			vsi->rx_rings[i] = rx_rings[i];
+			i40e_free_rx_resources(vsi->rx_rings[i]);
+			*vsi->rx_rings[i] = rx_rings[i];
 		}
 		kfree(rx_rings);
 		rx_rings = NULL;
@@ -579,6 +579,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	char *p;
 	int j;
 	struct rtnl_link_stats64 *net_stats = i40e_get_vsi_stats_struct(vsi);
+	unsigned int start;
 
 	i40e_update_stats(vsi);
 
@@ -587,14 +588,30 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (i40e_gstrings_net_stats[j].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
-	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		data[i++] = vsi->tx_rings[j].tx_stats.packets;
-		data[i++] = vsi->tx_rings[j].tx_stats.bytes;
+	rcu_read_lock();
+	for (j = 0; j < vsi->num_queue_pairs; j++, i += 4) {
+		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
+		struct i40e_ring *rx_ring;
+
+		if (!tx_ring)
+			continue;
+
+		/* process Tx ring statistics */
+		do {
+			start = u64_stats_fetch_begin_bh(&tx_ring->syncp);
+			data[i] = tx_ring->stats.packets;
+			data[i + 1] = tx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&tx_ring->syncp, start));
+
+		/* Rx ring is the 2nd half of the queue pair */
+		rx_ring = &tx_ring[1];
+		do {
+			start = u64_stats_fetch_begin_bh(&rx_ring->syncp);
+			data[i + 2] = rx_ring->stats.packets;
+			data[i + 3] = rx_ring->stats.bytes;
+		} while (u64_stats_fetch_retry_bh(&rx_ring->syncp, start));
 	}
-	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		data[i++] = vsi->rx_rings[j].rx_stats.packets;
-		data[i++] = vsi->rx_rings[j].rx_stats.bytes;
-	}
+	rcu_read_unlock();
 	if (vsi == pf->vsi[pf->lan_vsi]) {
 		for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
 			p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
@@ -641,8 +658,6 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "tx-%u.tx_bytes", i);
 			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.rx_packets", i);
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.rx_bytes", i);
@@ -910,8 +925,8 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	}
 
 	vector = vsi->base_vector;
-	q_vector = vsi->q_vectors;
-	for (i = 0; i < vsi->num_q_vectors; i++, vector++, q_vector++) {
+	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+		q_vector = vsi->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(0, vector - 1), q_vector->rx.itr);
 		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);
