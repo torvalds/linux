@@ -214,6 +214,19 @@ config USB_RCAR_PHY
 	  To compile this driver as a module, choose M here: the
 	  module will be called phy-rcar-usb.
 
+config USB_RCAR_GEN2_PHY
+	tristate "Renesas R-Car Gen2 USB PHY support"
+	depends on ARCH_R8A7790 || ARCH_R8A7791 || COMPILE_TEST
+	select USB_PHY
+	help
+	  Say Y here to add support for the Renesas R-Car Gen2 USB PHY driver.
+	  It is typically used to control internal USB PHY for USBHS,
+	  and to configure shared USB channels 0 and 2.
+	  This driver supports R8A7790 and R8A7791.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phy-rcar-gen2-usb.
+
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
 	depends on ARM
