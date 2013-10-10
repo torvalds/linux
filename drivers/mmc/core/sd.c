@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -1067,10 +1068,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 	}
 }
 
-/*
- * Suspend callback from host.
- */
-static int mmc_sd_suspend(struct mmc_host *host)
+static int _mmc_sd_suspend(struct mmc_host *host)
 {
 	int err = 0;
 
@@ -1096,12 +1094,26 @@ out:
 }
 
 /*
- * Resume callback from host.
- *
+ * Callback for suspend
+ */
+static int mmc_sd_suspend(struct mmc_host *host)
+{
+	int err;
+
+	err = _mmc_sd_suspend(host);
+	if (!err) {
+		pm_runtime_disable(&host->card->dev);
+		pm_runtime_set_suspended(&host->card->dev);
+	}
+
+	return err;
+}
+
+/*
  * This function tries to determine if the same card is still present
  * and, if so, restore all state to it.
  */
-static int mmc_sd_resume(struct mmc_host *host)
+static int _mmc_sd_resume(struct mmc_host *host)
 {
 	int err = 0;
 
@@ -1123,6 +1135,21 @@ out:
 }
 
 /*
+ * Callback for resume
+ */
+static int mmc_sd_resume(struct mmc_host *host)
+{
+	int err;
+
+	err = _mmc_sd_resume(host);
+	pm_runtime_set_active(&host->card->dev);
+	pm_runtime_mark_last_busy(&host->card->dev);
+	pm_runtime_enable(&host->card->dev);
+
+	return err;
+}
+
+/*
  * Callback for runtime_suspend.
  */
 static int mmc_sd_runtime_suspend(struct mmc_host *host)
@@ -1132,7 +1159,7 @@ static int mmc_sd_runtime_suspend(struct mmc_host *host)
 	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
 		return 0;
 
-	err = mmc_sd_suspend(host);
+	err = _mmc_sd_suspend(host);
 	if (err)
 		pr_err("%s: error %d doing aggessive suspend\n",
 			mmc_hostname(host), err);
@@ -1150,7 +1177,7 @@ static int mmc_sd_runtime_resume(struct mmc_host *host)
 	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
 		return 0;
 
-	err = mmc_sd_resume(host);
+	err = _mmc_sd_resume(host);
 	if (err)
 		pr_err("%s: error %d doing aggessive resume\n",
 			mmc_hostname(host), err);
