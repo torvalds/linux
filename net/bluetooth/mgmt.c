@@ -1290,7 +1290,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
-	u8 val, status;
+	u8 status;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
@@ -1308,8 +1308,6 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 				  MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
-
-	val = !!cp->val;
 
 	if (!hdev_is_powered(hdev)) {
 		bool changed = false;
@@ -1335,7 +1333,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) == val) {
+	if (!!cp->val == test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_SSP, hdev);
 		goto failed;
 	}
@@ -1346,7 +1344,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	err = hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, sizeof(val), &val);
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &cp->val);
 	if (err < 0) {
 		mgmt_pending_remove(cmd);
 		goto failed;
