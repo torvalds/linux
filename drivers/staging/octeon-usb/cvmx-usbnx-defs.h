@@ -93,16 +93,23 @@ union cvmx_usbnx_clk_ctl {
 	 *	suspend.
 	 *	The value of this field must be set while POR is
 	 *	active.
-	 * @p_rtype: PHY reference clock type (CN50XX/CN52XX/CN56XX only)
-	 *	'0' The USB-PHY uses a 12MHz crystal as a clock
-	 *	source at the USB_XO and USB_XI pins
-	 *	'1' Reserved
-	 *	'2' The USB_PHY uses 12/24/48MHz 2.5V board clock
-	 *	at the USB_XO pin. USB_XI should be tied to
-	 *	ground in this case.
-	 *	'3' Reserved
-	 *	(bit 14 was P_XENBN on 3xxx)
-	 *	(bit 15 was P_RCLK on 3xxx)
+	 * @p_rtype: PHY reference clock type
+	 *	On CN50XX/CN52XX/CN56XX the values are:
+	 *		'0' The USB-PHY uses a 12MHz crystal as a clock source
+	 *		    at the USB_XO and USB_XI pins.
+	 *		'1' Reserved.
+	 *		'2' The USB_PHY uses 12/24/48MHz 2.5V board clock at the
+	 *		    USB_XO pin. USB_XI should be tied to ground in this
+	 *		    case.
+	 *		'3' Reserved.
+	 *	On CN3xxx bits 14 and 15 are p_xenbn and p_rclk and values are:
+	 *		'0' Reserved.
+	 *		'1' Reserved.
+	 *		'2' The PHY PLL uses the XO block output as a reference.
+	 *		    The XO block uses an external clock supplied on the
+	 *		    XO pin. USB_XI should be tied to ground for this
+	 *		    usage.
+	 *		'3' The XO block uses the clock from a crystal.
 	 * @p_com_on: '0' Force USB-PHY XO Bias, Bandgap and PLL to
 	 *	remain powered in Suspend Mode.
 	 *	'1' The USB-PHY XO Bias, Bandgap and PLL are
@@ -169,90 +176,6 @@ union cvmx_usbnx_clk_ctl {
 		uint64_t hrst		: 1;
 		uint64_t divide		: 3;
 	} s;
-	/**
-	 * struct cvmx_usbnx_clk_ctl_cn30xx
-	 * @hclk_rst: When this field is '0' the HCLK-DIVIDER used to
-	 *	generate the hclk in the USB Subsystem is held
-	 *	in reset. This bit must be set to '0' before
-	 *	changing the value os DIVIDE in this register.
-	 *	The reset to the HCLK_DIVIDERis also asserted
-	 *	when core reset is asserted.
-	 * @p_x_on: Force USB-PHY on during suspend.
-	 *	'1' USB-PHY XO block is powered-down during
-	 *	suspend.
-	 *	'0' USB-PHY XO block is powered-up during
-	 *	suspend.
-	 *	The value of this field must be set while POR is
-	 *	active.
-	 * @p_rclk: Phy refrence clock enable.
-	 *	'1' The PHY PLL uses the XO block output as a
-	 *	reference.
-	 *	'0' Reserved.
-	 * @p_xenbn: Phy external clock enable.
-	 *	'1' The XO block uses the clock from a crystal.
-	 *	'0' The XO block uses an external clock supplied
-	 *	on the XO pin. USB_XI should be tied to
-	 *	ground for this usage.
-	 * @p_com_on: '0' Force USB-PHY XO Bias, Bandgap and PLL to
-	 *	remain powered in Suspend Mode.
-	 *	'1' The USB-PHY XO Bias, Bandgap and PLL are
-	 *	powered down in suspend mode.
-	 *	The value of this field must be set while POR is
-	 *	active.
-	 * @p_c_sel: Phy clock speed select.
-	 *	Selects the reference clock / crystal frequency.
-	 *	'11': Reserved
-	 *	'10': 48 MHz
-	 *	'01': 24 MHz
-	 *	'00': 12 MHz
-	 *	The value of this field must be set while POR is
-	 *	active.
-	 * @cdiv_byp: Used to enable the bypass input to the USB_CLK_DIV.
-	 * @sd_mode: Scaledown mode for the USBC. Control timing events
-	 *	in the USBC, for normal operation this must be '0'.
-	 * @s_bist: Starts bist on the hclk memories, during the '0'
-	 *	to '1' transition.
-	 * @por: Power On Reset for the PHY.
-	 *	Resets all the PHYS registers and state machines.
-	 * @enable: When '1' allows the generation of the hclk. When
-	 *	'0' the hclk will not be generated.
-	 * @prst: When this field is '0' the reset associated with
-	 *	the phy_clk functionality in the USB Subsystem is
-	 *	help in reset. This bit should not be set to '1'
-	 *	until the time it takes 6 clocks (hclk or phy_clk,
-	 *	whichever is slower) has passed. Under normal
-	 *	operation once this bit is set to '1' it should not
-	 *	be set to '0'.
-	 * @hrst: When this field is '0' the reset associated with
-	 *	the hclk functioanlity in the USB Subsystem is
-	 *	held in reset.This bit should not be set to '1'
-	 *	until 12ms after phy_clk is stable. Under normal
-	 *	operation, once this bit is set to '1' it should
-	 *	not be set to '0'.
-	 * @divide: The 'hclk' used by the USB subsystem is derived
-	 *	from the eclk. The eclk will be divided by the
-	 *	value of this field +1 to determine the hclk
-	 *	frequency. (Also see HRST of this register).
-	 *	The hclk frequency must be less than 125 MHz.
-	 */
-	struct cvmx_usbnx_clk_ctl_cn30xx {
-		uint64_t reserved_18_63	: 46;
-		uint64_t hclk_rst	: 1;
-		uint64_t p_x_on		: 1;
-		uint64_t p_rclk		: 1;
-		uint64_t p_xenbn	: 1;
-		uint64_t p_com_on	: 1;
-		uint64_t p_c_sel	: 2;
-		uint64_t cdiv_byp	: 1;
-		uint64_t sd_mode	: 2;
-		uint64_t s_bist		: 1;
-		uint64_t por		: 1;
-		uint64_t enable		: 1;
-		uint64_t prst		: 1;
-		uint64_t hrst		: 1;
-		uint64_t divide		: 3;
-	} cn30xx;
-	struct cvmx_usbnx_clk_ctl_cn30xx cn31xx;
 };
 
 /**

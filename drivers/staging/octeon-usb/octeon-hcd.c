@@ -836,13 +836,11 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 		 * source at USB_XO. USB_XI should be tied to GND.
 		 * Most Octeon evaluation boards require this setting
 		 */
-		if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
-			/* From CN31XX,CN30XX manual */
-			usbn_clk_ctl.cn31xx.p_rclk  = 1;
-			usbn_clk_ctl.cn31xx.p_xenbn = 0;
-		} else if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN50XX))
-			/* From CN56XX,CN50XX manual */
-			usbn_clk_ctl.s.p_rtype = 2;
+		if (OCTEON_IS_MODEL(OCTEON_CN3XXX) ||
+		    OCTEON_IS_MODEL(OCTEON_CN56XX) ||
+		    OCTEON_IS_MODEL(OCTEON_CN50XX))
+			/* From CN56XX,CN50XX,CN31XX,CN30XX manuals */
+			usbn_clk_ctl.s.p_rtype = 2; /* p_rclk=1 & p_xenbn=0 */
 		else
 			/* From CN52XX manual */
 			usbn_clk_ctl.s.p_rtype = 1;
@@ -863,15 +861,11 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 		 * The USB port uses a 12MHz crystal as clock source
 		 * at USB_XO and USB_XI
 		 */
-		if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
+		if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
 			/* From CN31XX,CN30XX manual */
-			usbn_clk_ctl.cn31xx.p_rclk  = 1;
-			usbn_clk_ctl.cn31xx.p_xenbn = 1;
-		} else if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN50XX))
-			/* From CN56XX,CN50XX manual */
-			usbn_clk_ctl.s.p_rtype = 0;
+			usbn_clk_ctl.s.p_rtype = 3; /* p_rclk=1 & p_xenbn=1 */
 		else
-			/* From CN52XX manual */
+			/* From CN56XX,CN52XX,CN50XX manuals. */
 			usbn_clk_ctl.s.p_rtype = 0;
 
 		usbn_clk_ctl.s.p_c_sel = 0;
