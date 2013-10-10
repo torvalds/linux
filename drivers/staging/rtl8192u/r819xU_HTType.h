@@ -27,7 +27,8 @@
 
 #define HT_SUPPORTED_MCS_1SS_BITMAP	0x000000ff
 #define HT_SUPPORTED_MCS_2SS_BITMAP	0x0000ff00
-#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP	HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
+#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP	\
+		(HT_MCS_1SS_BITMAP | HT_MCS_1SS_2SS_BITMAP)
 
 
 typedef enum _HT_MCS_RATE {
@@ -74,7 +75,7 @@ typedef enum _CHNLOP {
 
 /* Determine if the Channel Operation is in progress */
 #define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? TRUE : FALSE
+		(((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? TRUE : FALSE)
 
 
 typedef enum _HT_ACTION {
