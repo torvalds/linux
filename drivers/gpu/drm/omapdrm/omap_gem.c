@@ -1274,11 +1274,6 @@ unlock:
 	return ret;
 }
 
-int omap_gem_init_object(struct drm_gem_object *obj)
-{
-	return -EINVAL;          /* unused */
-}
-
 /* don't call directly.. called from GEM core when it is time to actually
  * free the object..
  */

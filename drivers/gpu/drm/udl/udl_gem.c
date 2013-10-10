@@ -107,13 +107,6 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 }
 
-int udl_gem_init_object(struct drm_gem_object *obj)
-{
-	BUG();
-
-	return 0;
-}
-
 static int udl_gem_get_pages(struct udl_gem_object *obj, gfp_t gfpmask)
 {
 	struct page **pages;

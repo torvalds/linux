@@ -127,7 +127,7 @@ static inline bool
 nv_two_heads(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	const int impl = dev->pci_device & 0x0ff0;
+	const int impl = dev->pdev->device & 0x0ff0;
 
 	if (nv_device(drm->device)->card_type >= NV_10 && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
@@ -139,14 +139,14 @@ nv_two_heads(struct drm_device *dev)
 static inline bool
 nv_gf4_disp_arch(struct drm_device *dev)
 {
-	return nv_two_heads(dev) && (dev->pci_device & 0x0ff0) != 0x0110;
+	return nv_two_heads(dev) && (dev->pdev->device & 0x0ff0) != 0x0110;
 }
 
 static inline bool
 nv_two_reg_pll(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	const int impl = dev->pci_device & 0x0ff0;
+	const int impl = dev->pdev->device & 0x0ff0;
 
 	if (impl == 0x0310 || impl == 0x0340 || nv_device(drm->device)->card_type >= NV_40)
 		return true;

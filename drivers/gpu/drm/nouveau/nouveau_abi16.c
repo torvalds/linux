@@ -130,7 +130,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	if (chan->ntfy) {
 		nouveau_bo_vma_del(chan->ntfy, &chan->ntfy_vma);
 		nouveau_bo_unpin(chan->ntfy);
-		drm_gem_object_unreference_unlocked(chan->ntfy->gem);
+		drm_gem_object_unreference_unlocked(&chan->ntfy->gem);
 	}
 
 	if (chan->heap.block_size)
@@ -178,10 +178,10 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = device->chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		getparam->value = dev->pci_vendor;
+		getparam->value = dev->pdev->vendor;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		getparam->value = dev->pci_device;
+		getparam->value = dev->pdev->device;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
 		if (drm_pci_device_is_agp(dev))
@@ -320,7 +320,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 			goto done;
 	}
 
-	ret = drm_gem_handle_create(file_priv, chan->ntfy->gem,
+	ret = drm_gem_handle_create(file_priv, &chan->ntfy->gem,
 				    &init->notifier_handle);
 	if (ret)
 		goto done;

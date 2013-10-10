@@ -44,10 +44,10 @@ enum {
 	CHIP_MFLD_0130 = 3,		/* Medfield */
 };
 
-#define IS_PSB(dev) (((dev)->pci_device & 0xfffe) == 0x8108)
-#define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
-#define IS_MFLD(dev) (((dev)->pci_device & 0xfff8) == 0x0130)
-#define IS_CDV(dev) (((dev)->pci_device & 0xfff0) == 0x0be0)
+#define IS_PSB(dev) (((dev)->pdev->device & 0xfffe) == 0x8108)
+#define IS_MRST(dev) (((dev)->pdev->device & 0xfffc) == 0x4100)
+#define IS_MFLD(dev) (((dev)->pdev->device & 0xfff8) == 0x0130)
+#define IS_CDV(dev) (((dev)->pdev->device & 0xfff0) == 0x0be0)
 
 /*
  * Driver definitions
@@ -837,7 +837,6 @@ extern const struct drm_connector_helper_funcs
 extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
 
 /* gem.c */
-extern int psb_gem_init_object(struct drm_gem_object *obj);
 extern void psb_gem_free_object(struct drm_gem_object *obj);
 extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);

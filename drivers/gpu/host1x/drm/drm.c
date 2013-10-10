@@ -264,7 +264,7 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	 * core, so we need to set this manually in order to allow the
 	 * DRM_IOCTL_WAIT_VBLANK to operate correctly.
 	 */
-	drm->irq_enabled = 1;
+	drm->irq_enabled = true;
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)

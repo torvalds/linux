@@ -191,7 +191,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
-		*value = dev->pci_device;
+		*value = dev->pdev->device;
 		break;
 	case RADEON_INFO_NUM_GB_PIPES:
 		*value = rdev->num_gb_pipes;

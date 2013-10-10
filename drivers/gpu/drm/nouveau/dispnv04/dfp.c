@@ -490,8 +490,8 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 	/* BIOS scripts usually take care of the backlight, thanks
 	 * Apple for your consistency.
 	 */
-	if (dev->pci_device == 0x0174 || dev->pci_device == 0x0179 ||
-	    dev->pci_device == 0x0189 || dev->pci_device == 0x0329) {
+	if (dev->pdev->device == 0x0174 || dev->pdev->device == 0x0179 ||
+	    dev->pdev->device == 0x0189 || dev->pdev->device == 0x0329) {
 		if (mode == DRM_MODE_DPMS_ON) {
 			nv_mask(device, NV_PBUS_DEBUG_DUALHEAD_CTL, 0, 1 << 31);
 			nv_mask(device, NV_PCRTC_GPIO_EXT, 3, 1);

@@ -931,7 +931,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = READ_BREADCRUMB(dev_priv);
 		break;
 	case I915_PARAM_CHIPSET_ID:
-		value = dev->pci_device;
+		value = dev->pdev->device;
 		break;
 	case I915_PARAM_HAS_GEM:
 		value = 1;
@@ -1333,7 +1333,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
-	dev->vblank_disable_allowed = 1;
+	dev->vblank_disable_allowed = true;
 	if (INTEL_INFO(dev)->num_pipes == 0) {
 		intel_display_power_put(dev, POWER_DOMAIN_VGA);
 		return 0;
@@ -1479,13 +1479,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Refuse to load on gen6+ without kms enabled. */
 	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
-
-	/* i915 has 4 more counters */
-	dev->counters += 4;
-	dev->types[6] = _DRM_STAT_IRQ;
-	dev->types[7] = _DRM_STAT_PRIMARY;
-	dev->types[8] = _DRM_STAT_SECONDARY;
-	dev->types[9] = _DRM_STAT_DMA;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)

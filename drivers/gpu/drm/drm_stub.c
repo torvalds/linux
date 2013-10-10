@@ -254,70 +254,6 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int drm_fill_in_dev(struct drm_device *dev,
-			   const struct pci_device_id *ent,
-			   struct drm_driver *driver)
-{
-	int retcode;
-
-	INIT_LIST_HEAD(&dev->filelist);
-	INIT_LIST_HEAD(&dev->ctxlist);
-	INIT_LIST_HEAD(&dev->vmalist);
-	INIT_LIST_HEAD(&dev->maplist);
-	INIT_LIST_HEAD(&dev->vblank_event_list);
-
-	spin_lock_init(&dev->count_lock);
-	spin_lock_init(&dev->event_lock);
-	mutex_init(&dev->struct_mutex);
-	mutex_init(&dev->ctxlist_mutex);
-
-	if (drm_ht_create(&dev->map_hash, 12)) {
-		return -ENOMEM;
-	}
-
-	/* the DRM has 6 basic counters */
-	dev->counters = 6;
-	dev->types[0] = _DRM_STAT_LOCK;
-	dev->types[1] = _DRM_STAT_OPENS;
-	dev->types[2] = _DRM_STAT_CLOSES;
-	dev->types[3] = _DRM_STAT_IOCTLS;
-	dev->types[4] = _DRM_STAT_LOCKS;
-	dev->types[5] = _DRM_STAT_UNLOCKS;
-
-	dev->driver = driver;
-
-	if (dev->driver->bus->agp_init) {
-		retcode = dev->driver->bus->agp_init(dev);
-		if (retcode)
-			goto error_out_unreg;
-	}
-
-
-
-	retcode = drm_ctxbitmap_init(dev);
-	if (retcode) {
-		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
-		goto error_out_unreg;
-	}
-
-	if (driver->driver_features & DRIVER_GEM) {
-		retcode = drm_gem_init(dev);
-		if (retcode) {
-			DRM_ERROR("Cannot initialize graphics execution "
-				  "manager (GEM)\n");
-			goto error_out_unreg;
-		}
-	}
-
-	return 0;
-
-      error_out_unreg:
-	drm_lastclose(dev);
-	return retcode;
-}
-EXPORT_SYMBOL(drm_fill_in_dev);
-
-
 /**
  * Get a secondary minor number.
  *
@@ -427,47 +363,15 @@ static void drm_unplug_minor(struct drm_minor *minor)
  */
 void drm_put_dev(struct drm_device *dev)
 {
-	struct drm_driver *driver;
-	struct drm_map_list *r_list, *list_temp;
-
 	DRM_DEBUG("\n");
 
 	if (!dev) {
 		DRM_ERROR("cleanup called no dev\n");
 		return;
 	}
-	driver = dev->driver;
 
-	drm_lastclose(dev);
-
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
-
-	if (dev->driver->bus->agp_destroy)
-		dev->driver->bus->agp_destroy(dev);
-
-	drm_vblank_cleanup(dev);
-
-	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_rmmap(dev, r_list->map);
-	drm_ht_remove(&dev->map_hash);
-
-	drm_ctxbitmap_cleanup(dev);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_put_minor(&dev->control);
-
-	if (dev->render)
-		drm_put_minor(&dev->render);
-
-	if (driver->driver_features & DRIVER_GEM)
-		drm_gem_destroy(dev);
-
-	drm_put_minor(&dev->primary);
-
-	list_del(&dev->driver_item);
-	kfree(dev->devname);
-	kfree(dev);
+	drm_dev_unregister(dev);
+	drm_dev_free(dev);
 }
 EXPORT_SYMBOL(drm_put_dev);
 
@@ -490,3 +394,206 @@ void drm_unplug_dev(struct drm_device *dev)
 	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_unplug_dev);
+
+/**
+ * drm_dev_alloc - Allocate new drm device
+ * @driver: DRM driver to allocate device for
+ * @parent: Parent device object
+ *
+ * Allocate and initialize a new DRM device. No device registration is done.
+ * Call drm_dev_register() to advertice the device to user space and register it
+ * with other core subsystems.
+ *
+ * RETURNS:
+ * Pointer to new DRM device, or NULL if out of memory.
+ */
+struct drm_device *drm_dev_alloc(struct drm_driver *driver,
+				 struct device *parent)
+{
+	struct drm_device *dev;
+	int ret;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	dev->dev = parent;
+	dev->driver = driver;
+
+	INIT_LIST_HEAD(&dev->filelist);
+	INIT_LIST_HEAD(&dev->ctxlist);
+	INIT_LIST_HEAD(&dev->vmalist);
+	INIT_LIST_HEAD(&dev->maplist);
+	INIT_LIST_HEAD(&dev->vblank_event_list);
+
+	spin_lock_init(&dev->count_lock);
+	spin_lock_init(&dev->event_lock);
+	mutex_init(&dev->struct_mutex);
+	mutex_init(&dev->ctxlist_mutex);
+
+	if (drm_ht_create(&dev->map_hash, 12))
+		goto err_free;
+
+	ret = drm_ctxbitmap_init(dev);
+	if (ret) {
+		DRM_ERROR("Cannot allocate memory for context bitmap.\n");
+		goto err_ht;
+	}
+
+	if (driver->driver_features & DRIVER_GEM) {
+		ret = drm_gem_init(dev);
+		if (ret) {
+			DRM_ERROR("Cannot initialize graphics execution manager (GEM)\n");
+			goto err_ctxbitmap;
+		}
+	}
+
+	return dev;
+
+err_ctxbitmap:
+	drm_ctxbitmap_cleanup(dev);
+err_ht:
+	drm_ht_remove(&dev->map_hash);
+err_free:
+	kfree(dev);
+	return NULL;
+}
+EXPORT_SYMBOL(drm_dev_alloc);
+
+/**
+ * drm_dev_free - Free DRM device
+ * @dev: DRM device to free
+ *
+ * Free a DRM device that has previously been allocated via drm_dev_alloc().
+ * You must not use kfree() instead or you will leak memory.
+ *
+ * This must not be called once the device got registered. Use drm_put_dev()
+ * instead, which then calls drm_dev_free().
+ */
+void drm_dev_free(struct drm_device *dev)
+{
+	if (dev->driver->driver_features & DRIVER_GEM)
+		drm_gem_destroy(dev);
+
+	drm_ctxbitmap_cleanup(dev);
+	drm_ht_remove(&dev->map_hash);
+
+	kfree(dev->devname);
+	kfree(dev);
+}
+EXPORT_SYMBOL(drm_dev_free);
+
+/**
+ * drm_dev_register - Register DRM device
+ * @dev: Device to register
+ *
+ * Register the DRM device @dev with the system, advertise device to user-space
+ * and start normal device operation. @dev must be allocated via drm_dev_alloc()
+ * previously.
+ *
+ * Never call this twice on any device!
+ *
+ * RETURNS:
+ * 0 on success, negative error code on failure.
+ */
+int drm_dev_register(struct drm_device *dev, unsigned long flags)
+{
+	int ret;
+
+	mutex_lock(&drm_global_mutex);
+
+	if (dev->driver->bus->agp_init) {
+		ret = dev->driver->bus->agp_init(dev);
+		if (ret)
+			goto out_unlock;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
+		if (ret)
+			goto err_agp;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_RENDER) && drm_rnodes) {
+		ret = drm_get_minor(dev, &dev->render, DRM_MINOR_RENDER);
+		if (ret)
+			goto err_control_node;
+	}
+
+	ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY);
+	if (ret)
+		goto err_render_node;
+
+	if (dev->driver->load) {
+		ret = dev->driver->load(dev, flags);
+		if (ret)
+			goto err_primary_node;
+	}
+
+	/* setup grouping for legacy outputs */
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_mode_group_init_legacy_group(dev,
+				&dev->primary->mode_group);
+		if (ret)
+			goto err_unload;
+	}
+
+	list_add_tail(&dev->driver_item, &dev->driver->device_list);
+
+	ret = 0;
+	goto out_unlock;
+
+err_unload:
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+err_primary_node:
+	drm_put_minor(&dev->primary);
+err_render_node:
+	if (dev->render)
+		drm_put_minor(&dev->render);
+err_control_node:
+	if (dev->control)
+		drm_put_minor(&dev->control);
+err_agp:
+	if (dev->driver->bus->agp_destroy)
+		dev->driver->bus->agp_destroy(dev);
+out_unlock:
+	mutex_unlock(&drm_global_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(drm_dev_register);
+
+/**
+ * drm_dev_unregister - Unregister DRM device
+ * @dev: Device to unregister
+ *
+ * Unregister the DRM device from the system. This does the reverse of
+ * drm_dev_register() but does not deallocate the device. The caller must call
+ * drm_dev_free() to free all resources.
+ */
+void drm_dev_unregister(struct drm_device *dev)
+{
+	struct drm_map_list *r_list, *list_temp;
+
+	drm_lastclose(dev);
+
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+
+	if (dev->driver->bus->agp_destroy)
+		dev->driver->bus->agp_destroy(dev);
+
+	drm_vblank_cleanup(dev);
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
+		drm_rmmap(dev, r_list->map);
+
+	if (dev->control)
+		drm_put_minor(&dev->control);
+	if (dev->render)
+		drm_put_minor(&dev->render);
+	drm_put_minor(&dev->primary);
+
+	list_del(&dev->driver_item);
+}
+EXPORT_SYMBOL(drm_dev_unregister);

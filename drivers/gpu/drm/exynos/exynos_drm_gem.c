@@ -630,11 +630,6 @@ void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
 	dma_unmap_sg(drm_dev->dev, sgt->sgl, sgt->nents, dir);
 }
 
-int exynos_drm_gem_init_object(struct drm_gem_object *obj)
-{
-	return 0;
-}
-
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
