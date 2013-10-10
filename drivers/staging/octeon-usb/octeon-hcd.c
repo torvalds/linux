@@ -3223,13 +3223,14 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 
 static void octeon_usb_urb_dequeue_work(unsigned long arg)
 {
+	struct urb *urb;
+	struct urb *next;
 	unsigned long flags;
 	struct octeon_hcd *priv = (struct octeon_hcd *)arg;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	while (!list_empty(&priv->dequeue_list)) {
-		struct urb *urb = container_of(priv->dequeue_list.next, struct urb, urb_list);
+	list_for_each_entry_safe(urb, next, &priv->dequeue_list, urb_list) {
 		list_del_init(&urb->urb_list);
 		cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
 	}
