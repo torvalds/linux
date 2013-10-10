@@ -153,6 +153,7 @@ enum nft_chain_attributes {
  * @NFTA_RULE_HANDLE: numeric handle of the rule (NLA_U64)
  * @NFTA_RULE_EXPRESSIONS: list of expressions (NLA_NESTED: nft_expr_attributes)
  * @NFTA_RULE_COMPAT: compatibility specifications of the rule (NLA_NESTED: nft_rule_compat_attributes)
+ * @NFTA_RULE_POSITION: numeric handle of the previous rule (NLA_U64)
  */
 enum nft_rule_attributes {
 	NFTA_RULE_UNSPEC,
@@ -161,6 +162,7 @@ enum nft_rule_attributes {
 	NFTA_RULE_HANDLE,
 	NFTA_RULE_EXPRESSIONS,
 	NFTA_RULE_COMPAT,
+	NFTA_RULE_POSITION,
 	__NFTA_RULE_MAX
 };
 #define NFTA_RULE_MAX		(__NFTA_RULE_MAX - 1)
