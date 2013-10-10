@@ -455,12 +455,6 @@ static int bt3c_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static int bt3c_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
-{
-	return -ENOIOCTLCMD;
-}
-
-
 
 /* ======================== Card services HCI interaction ======================== */
 
@@ -577,11 +571,10 @@ static int bt3c_open(bt3c_info_t *info)
 	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
-	hdev->open     = bt3c_hci_open;
-	hdev->close    = bt3c_hci_close;
-	hdev->flush    = bt3c_hci_flush;
-	hdev->send     = bt3c_hci_send_frame;
-	hdev->ioctl    = bt3c_hci_ioctl;
+	hdev->open  = bt3c_hci_open;
+	hdev->close = bt3c_hci_close;
+	hdev->flush = bt3c_hci_flush;
+	hdev->send  = bt3c_hci_send_frame;
 
 	/* Load firmware */
 	err = request_firmware(&firmware, "BT3CPCC.bin", &info->p_dev->dev);
