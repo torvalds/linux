@@ -392,6 +392,7 @@ enum nft_chain_flags {
  *	@list: used internally
  *	@rcu_head: used internally
  *	@net: net namespace that this chain belongs to
+ *	@table: table that this chain belongs to
  *	@handle: chain handle
  *	@flags: bitmask of enum nft_chain_flags
  *	@use: number of jump references to this chain
@@ -403,6 +404,7 @@ struct nft_chain {
 	struct list_head		list;
 	struct rcu_head			rcu_head;
 	struct net			*net;
+	struct nft_table		*table;
 	u64				handle;
 	u8				flags;
 	u16				use;
