@@ -226,7 +226,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), hw);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't request IRQ\n");
-		clk_put(hw->spi_clk);
 		goto clk_out;
 	}
 
@@ -247,7 +246,6 @@ err_out:
 			gpio_free(hw->chipselect[i]);
 
 	spi_master_put(master);
-	kfree(master);
 
 	return ret;
 }
@@ -263,7 +261,6 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 			gpio_free(hw->chipselect[i]);
 
 	spi_unregister_master(master);
-	kfree(master);
 
 	return 0;
 }
