@@ -1988,6 +1988,7 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 	if (tmp & RING_WAIT) {
 		DRM_ERROR("Kicking stuck wait on %s\n",
 			  ring->name);
+		i915_handle_error(dev, false);
 		I915_WRITE_CTL(ring, tmp);
 		return HANGCHECK_KICK;
 	}
@@ -1999,6 +2000,7 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 		case 1:
 			DRM_ERROR("Kicking stuck semaphore on %s\n",
 				  ring->name);
+			i915_handle_error(dev, false);
 			I915_WRITE_CTL(ring, tmp);
 			return HANGCHECK_KICK;
 		case 0:
