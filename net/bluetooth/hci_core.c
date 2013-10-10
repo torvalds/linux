@@ -2699,11 +2699,6 @@ EXPORT_SYMBOL(hci_unregister_cb);
 
 static int hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	if (!hdev) {
-		kfree_skb(skb);
-		return -ENODEV;
-	}
-
 	BT_DBG("%s type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
 	/* Time stamp */
