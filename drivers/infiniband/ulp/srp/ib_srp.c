@@ -534,6 +534,11 @@ static void srp_remove_target(struct srp_target_port *target)
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
 	srp_free_req_data(target);
+
+	spin_lock(&target->srp_host->target_lock);
+	list_del(&target->list);
+	spin_unlock(&target->srp_host->target_lock);
+
 	scsi_host_put(target->scsi_host);
 }
 
@@ -545,10 +550,6 @@ static void srp_remove_work(struct work_struct *work)
 	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
 
 	srp_remove_target(target);
-
-	spin_lock(&target->srp_host->target_lock);
-	list_del(&target->list);
-	spin_unlock(&target->srp_host->target_lock);
 }
 
 static void srp_rport_delete(struct srp_rport *rport)
