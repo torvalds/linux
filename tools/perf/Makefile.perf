@@ -600,11 +600,11 @@ ifneq ($(OUTPUT),)
 %.o: $(OUTPUT)%.o
 	@echo "    # Redirected target $@ => $(OUTPUT)$@"
 util/%.o: $(OUTPUT)util/%.o
-	@echo "    # Redirected target $@ => $(OUTPUT)util/$@"
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
 bench/%.o: $(OUTPUT)bench/%.o
-	@echo "    # Redirected target $@ => $(OUTPUT)bench/$@"
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
 tests/%.o: $(OUTPUT)tests/%.o
-	@echo "    # Redirected target $@ => $(OUTPUT)tests/$@"
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
 endif
 
 # These two need to be here so that when O= is not used they take precedence
