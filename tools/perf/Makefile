@@ -37,12 +37,25 @@ ifneq ($(O),)
   FULL_O := $(shell readlink -f $(O) || echo $(O))
 endif
 
+#
+# Only accept the 'DEBUG' variable from the command line:
+#
+ifeq ("$(origin DEBUG)", "command line")
+  ifeq ($(DEBUG),)
+    override DEBUG = 0
+  else
+    SET_DEBUG = "DEBUG=$(DEBUG)"
+  endif
+else
+  override DEBUG = 0
+endif
+
 define print_msg
   @printf '  BUILD:   Doing '\''make \033[33m-j'$(JOBS)'\033[m'\'' parallel build\n'
 endef
 
 define make
-  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) O=$(FULL_O) $@
+  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) O=$(FULL_O) $(SET_DEBUG) $@
 endef
 
 #

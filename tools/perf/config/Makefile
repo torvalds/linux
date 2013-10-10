@@ -66,10 +66,7 @@ ifneq ($(WERROR),0)
   CFLAGS += -Werror
 endif
 
-ifeq ("$(origin DEBUG)", "command line")
-  PERF_DEBUG = $(DEBUG)
-endif
-ifndef PERF_DEBUG
+ifeq ($(DEBUG),0)
   CFLAGS += -O6
 endif
 
@@ -210,7 +207,7 @@ ifeq ($(feature-volatile-register-var), 1)
   CFLAGS += -Wvolatile-register-var
 endif
 
-ifndef PERF_DEBUG
+ifeq ($(DEBUG),0)
   ifeq ($(feature-fortify-source), 1)
     CFLAGS += -D_FORTIFY_SOURCE=2
   endif
