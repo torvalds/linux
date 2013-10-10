@@ -470,6 +470,11 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
+static const struct of_device_id ap_syscon_match[] = {
+	{ .compatible = "arm,integrator-ap-syscon"},
+	{ },
+};
+
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
@@ -486,7 +491,8 @@ static void __init ap_init_of(void)
 	root = of_find_node_by_path("/");
 	if (!root)
 		return;
-	syscon = of_find_node_by_path("/syscon");
+
+	syscon = of_find_matching_node(root, ap_syscon_match);
 	if (!syscon)
 		return;
 

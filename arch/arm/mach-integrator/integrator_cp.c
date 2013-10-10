@@ -286,6 +286,11 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
+static const struct of_device_id intcp_syscon_match[] = {
+	{ .compatible = "arm,integrator-cp-syscon"},
+	{ },
+};
+
 static void __init intcp_init_of(void)
 {
 	struct device_node *root;
@@ -300,7 +305,8 @@ static void __init intcp_init_of(void)
 	root = of_find_node_by_path("/");
 	if (!root)
 		return;
-	cpcon = of_find_node_by_path("/cpcon");
+
+	cpcon = of_find_matching_node(root, intcp_syscon_match);
 	if (!cpcon)
 		return;
 
