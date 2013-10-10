@@ -38,7 +38,8 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/smp.h>
 #include <net/bluetooth/a2mp.h>
-#include <net/bluetooth/amp.h>
+
+#include "amp.h"
 
 bool disable_ertm;
 
