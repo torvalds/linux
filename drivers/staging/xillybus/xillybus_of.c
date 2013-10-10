@@ -198,15 +198,4 @@ static struct platform_driver xillybus_platform_driver = {
 	},
 };
 
-static int __init xillybus_of_init(void)
-{
-	return platform_driver_register(&xillybus_platform_driver);
-}
-
-static void __exit xillybus_of_exit(void)
-{
-	platform_driver_unregister(&xillybus_platform_driver);
-}
-
-module_init(xillybus_of_init);
-module_exit(xillybus_of_exit);
+module_platform_driver(xillybus_platform_driver);
