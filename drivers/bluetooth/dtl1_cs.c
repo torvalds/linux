@@ -256,9 +256,8 @@ static void dtl1_receive(dtl1_info_t *info)
 				case 0x83:
 				case 0x84:
 					/* send frame to the HCI layer */
-					info->rx_skb->dev = (void *) info->hdev;
 					bt_cb(info->rx_skb)->pkt_type &= 0x0f;
-					hci_recv_frame(info->rx_skb);
+					hci_recv_frame(info->hdev, info->rx_skb);
 					break;
 				default:
 					/* unknown packet */

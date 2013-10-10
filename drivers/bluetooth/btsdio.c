@@ -157,10 +157,9 @@ static int btsdio_rx_packet(struct btsdio_data *data)
 
 	data->hdev->stat.byte_rx += len;
 
-	skb->dev = (void *) data->hdev;
 	bt_cb(skb)->pkt_type = hdr[3];
 
-	err = hci_recv_frame(skb);
+	err = hci_recv_frame(data->hdev, skb);
 	if (err < 0)
 		return err;
 

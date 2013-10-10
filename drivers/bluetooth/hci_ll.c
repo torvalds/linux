@@ -346,14 +346,14 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ll_check_data_len(struct ll_struct *ll, int len)
+static inline int ll_check_data_len(struct hci_dev *hdev, struct ll_struct *ll, int len)
 {
 	int room = skb_tailroom(ll->rx_skb);
 
 	BT_DBG("len %d room %d", len, room);
 
 	if (!len) {
-		hci_recv_frame(ll->rx_skb);
+		hci_recv_frame(hdev, ll->rx_skb);
 	} else if (len > room) {
 		BT_ERR("Data length is too large");
 		kfree_skb(ll->rx_skb);
@@ -395,7 +395,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			switch (ll->rx_state) {
 			case HCILL_W4_DATA:
 				BT_DBG("Complete data");
-				hci_recv_frame(ll->rx_skb);
+				hci_recv_frame(hu->hdev, ll->rx_skb);
 
 				ll->rx_state = HCILL_W4_PACKET_TYPE;
 				ll->rx_skb = NULL;
@@ -406,7 +406,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_DBG("Event header: evt 0x%2.2x plen %d", eh->evt, eh->plen);
 
-				ll_check_data_len(ll, eh->plen);
+				ll_check_data_len(hu->hdev, ll, eh->plen);
 				continue;
 
 			case HCILL_W4_ACL_HDR:
@@ -415,7 +415,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_DBG("ACL header: dlen %d", dlen);
 
-				ll_check_data_len(ll, dlen);
+				ll_check_data_len(hu->hdev, ll, dlen);
 				continue;
 
 			case HCILL_W4_SCO_HDR:
@@ -423,7 +423,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_DBG("SCO header: dlen %d", sh->dlen);
 
-				ll_check_data_len(ll, sh->dlen);
+				ll_check_data_len(hu->hdev, ll, sh->dlen);
 				continue;
 			}
 		}
@@ -494,7 +494,6 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			return -ENOMEM;
 		}
 
-		ll->rx_skb->dev = (void *) hu->hdev;
 		bt_cb(ll->rx_skb)->pkt_type = type;
 	}
 

@@ -129,8 +129,6 @@ static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 				return -ENOMEM;
 			}
 
-			skb->dev = (void *) hdev;
-
 			data->rx_skb[queue] = skb;
 
 			scb = (void *) skb->cb;
@@ -155,7 +153,7 @@ static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 			data->rx_skb[queue] = NULL;
 
 			bt_cb(skb)->pkt_type = scb->type;
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 		}
 
 		count -= len; buf += len;

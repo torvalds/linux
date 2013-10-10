@@ -179,10 +179,9 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 			return -ENODEV;
 		}
 
-		skb->dev = (void *) data->hdev;
 		bt_cb(skb)->pkt_type = pkt_type;
 
-		ret = hci_recv_frame(skb);
+		ret = hci_recv_frame(data->hdev, skb);
 		break;
 
 	case HCI_VENDOR_PKT:

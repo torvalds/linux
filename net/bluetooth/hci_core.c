@@ -2485,9 +2485,8 @@ int hci_resume_dev(struct hci_dev *hdev)
 EXPORT_SYMBOL(hci_resume_dev);
 
 /* Receive frame from HCI drivers */
-int hci_recv_frame(struct sk_buff *skb)
+int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	if (!hdev || (!test_bit(HCI_UP, &hdev->flags)
 		      && !test_bit(HCI_INIT, &hdev->flags))) {
 		kfree_skb(skb);
@@ -2546,7 +2545,6 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 		scb->expect = hlen;
 		scb->pkt_type = type;
 
-		skb->dev = (void *) hdev;
 		hdev->reassembly[index] = skb;
 	}
 
@@ -2606,7 +2604,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 			/* Complete frame */
 
 			bt_cb(skb)->pkt_type = type;
-			hci_recv_frame(skb);
+			hci_recv_frame(hdev, skb);
 
 			hdev->reassembly[index] = NULL;
 			return remain;

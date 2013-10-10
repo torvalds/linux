@@ -108,10 +108,8 @@ static long st_receive(void *priv_data, struct sk_buff *skb)
 		return -EFAULT;
 	}
 
-	skb->dev = (void *) lhst->hdev;
-
 	/* Forward skb to HCI core layer */
-	err = hci_recv_frame(skb);
+	err = hci_recv_frame(lhst->hdev, skb);
 	if (err < 0) {
 		BT_ERR("Unable to push skb to HCI core(%d)", err);
 		return err;

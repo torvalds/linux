@@ -340,7 +340,7 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 		/* Remove Three-wire header */
 		skb_pull(h5->rx_skb, 4);
 
-		hci_recv_frame(h5->rx_skb);
+		hci_recv_frame(hu->hdev, h5->rx_skb);
 		h5->rx_skb = NULL;
 
 		break;
