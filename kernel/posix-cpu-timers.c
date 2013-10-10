@@ -788,7 +788,6 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 {
 	unsigned long long now;
 	struct task_struct *p = timer->it.cpu.task;
-	int clear_dead;
 
 	/*
 	 * Easy part: convert the reload time.
@@ -802,6 +801,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 	}
 
 	if (unlikely(p == NULL)) {
+		WARN_ON_ONCE(CPUCLOCK_PERTHREAD(timer->it_clock));
 		/*
 		 * This task already died and the timer will never fire.
 		 * In this case, expires is actually the dead value.
@@ -817,7 +817,6 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
 		cpu_clock_sample(timer->it_clock, p, &now);
-		clear_dead = p->exit_state;
 	} else {
 		read_lock(&tasklist_lock);
 		if (unlikely(p->sighand == NULL)) {
@@ -833,20 +832,18 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 			goto dead;
 		} else {
 			cpu_timer_sample_group(timer->it_clock, p, &now);
-			clear_dead = (unlikely(p->exit_state) &&
-				      thread_group_empty(p));
+			if (unlikely(p->exit_state) && thread_group_empty(p)) {
+				read_unlock(&tasklist_lock);
+				/*
+				 * We've noticed that the thread is dead, but
+				 * not yet reaped.  Take this opportunity to
+				 * drop our task ref.
+				 */
+				clear_dead_task(timer, now);
+				goto dead;
+			}
 		}
 		read_unlock(&tasklist_lock);
-	}
-
-	if (unlikely(clear_dead)) {
-		/*
-		 * We've noticed that the thread is dead, but
-		 * not yet reaped.  Take this opportunity to
-		 * drop our task ref.
-		 */
-		clear_dead_task(timer, now);
-		goto dead;
 	}
 
 	if (now < timer->it.cpu.expires) {
@@ -1063,11 +1060,13 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	struct task_struct *p = timer->it.cpu.task;
 	unsigned long long now;
 
-	if (unlikely(p == NULL))
+	if (unlikely(p == NULL)) {
+		WARN_ON_ONCE(CPUCLOCK_PERTHREAD(timer->it_clock));
 		/*
 		 * The task was cleaned up already, no future firings.
 		 */
 		goto out;
+	}
 
 	/*
 	 * Fetch the current sample and update the timer's expiry time.
@@ -1075,10 +1074,9 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
 		cpu_clock_sample(timer->it_clock, p, &now);
 		bump_cpu_timer(timer, now);
-		if (unlikely(p->exit_state)) {
-			clear_dead_task(timer, now);
+		if (unlikely(p->exit_state))
 			goto out;
-		}
+
 		read_lock(&tasklist_lock); /* arm_timer needs it.  */
 		spin_lock(&p->sighand->siglock);
 	} else {
