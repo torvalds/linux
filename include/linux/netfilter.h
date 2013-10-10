@@ -42,7 +42,8 @@ int netfilter_init(void);
 
 struct sk_buff;
 
-typedef unsigned int nf_hookfn(unsigned int hooknum,
+struct nf_hook_ops;
+typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
 			       struct sk_buff *skb,
 			       const struct net_device *in,
 			       const struct net_device *out,
