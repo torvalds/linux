@@ -102,6 +102,7 @@ static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
 	if (ipu_crtc->dp)
 		ipu_dp_disable_channel(ipu_crtc->dp);
 	ipu_dc_disable_channel(ipu_crtc->dc);
+	ipu_idmac_wait_busy(ipu_crtc->ipu_ch, 50);
 	ipu_idmac_disable_channel(ipu_crtc->ipu_ch);
 	ipu_dmfc_disable_channel(ipu_crtc->dmfc);
 	ipu_di_disable(ipu_crtc->di);

@@ -97,6 +97,7 @@ void ipu_idmac_put(struct ipuv3_channel *);
 
 int ipu_idmac_enable_channel(struct ipuv3_channel *channel);
 int ipu_idmac_disable_channel(struct ipuv3_channel *channel);
+int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms);
 
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 		bool doublebuffer);
