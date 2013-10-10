@@ -174,20 +174,6 @@ static struct platform_device_info hci##_info __initdata = {	\
 USB_PLATFORM_INFO(ehci);
 USB_PLATFORM_INFO(ohci);
 
-/* Ether */
-static struct resource ether_resources[] __initdata = {
-	DEFINE_RES_MEM(0xfde00000, 0x400),
-	DEFINE_RES_IRQ(gic_iid(0x89)),
-};
-
-void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  pdata, sizeof(*pdata));
-}
-
 /* PFC/GPIO */
 static struct resource pfc_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfffc0000, 0x118),
@@ -272,47 +258,13 @@ static struct resource hspi_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x75)),
 };
 
-void __init r8a7778_register_hspi(int id)
+static void __init r8a7778_register_hspi(int id)
 {
 	BUG_ON(id < 0 || id > 2);
 
 	platform_device_register_simple(
 		"sh-hspi", id,
 		hspi_resources + (2 * id), 2);
-}
-
-/* VIN */
-#define R8A7778_VIN(idx)						\
-static struct resource vin##idx##_resources[] __initdata = {		\
-	DEFINE_RES_MEM(0xffc50000 + 0x1000 * (idx), 0x1000),		\
-	DEFINE_RES_IRQ(gic_iid(0x5a)),					\
-};									\
-									\
-static struct platform_device_info vin##idx##_info __initdata = {	\
-	.parent		= &platform_bus,				\
-	.name		= "r8a7778-vin",				\
-	.id		= idx,						\
-	.res		= vin##idx##_resources,				\
-	.num_res	= ARRAY_SIZE(vin##idx##_resources),		\
-	.dma_mask	= DMA_BIT_MASK(32),				\
-}
-
-R8A7778_VIN(0);
-R8A7778_VIN(1);
-
-static struct platform_device_info *vin_info_table[] __initdata = {
-	&vin0_info,
-	&vin1_info,
-};
-
-void __init r8a7778_add_vin_device(int id, struct rcar_vin_platform_data *pdata)
-{
-	BUG_ON(id < 0 || id > 1);
-
-	vin_info_table[id]->data = pdata;
-	vin_info_table[id]->size_data = sizeof(*pdata);
-
-	platform_device_register_full(vin_info_table[id]);
 }
 
 void __init r8a7778_add_dt_devices(void)
