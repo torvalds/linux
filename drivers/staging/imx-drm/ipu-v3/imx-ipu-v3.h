@@ -303,6 +303,7 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat);
 int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 		struct ipu_image *image);
 
+enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc);
 enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat);
 
 static inline void ipu_cpmem_set_burstsize(struct ipu_ch_param __iomem *p,

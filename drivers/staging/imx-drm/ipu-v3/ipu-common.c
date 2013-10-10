@@ -30,6 +30,8 @@
 #include <linux/irqdomain.h>
 #include <linux/of_device.h>
 
+#include <drm/drm_fourcc.h>
+
 #include "imx-ipu-v3.h"
 #include "ipu-prv.h"
 
@@ -291,25 +293,25 @@ static const struct ipu_rgb def_rgb_32 = {
 };
 
 static const struct ipu_rgb def_bgr_32 = {
-	.red	= { .offset = 16, .length = 8, },
+	.red	= { .offset =  0, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
-	.blue	= { .offset =  0, .length = 8, },
+	.blue	= { .offset = 16, .length = 8, },
 	.transp = { .offset = 24, .length = 8, },
 	.bits_per_pixel = 32,
 };
 
 static const struct ipu_rgb def_rgb_24 = {
-	.red	= { .offset =  0, .length = 8, },
+	.red	= { .offset = 16, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
-	.blue	= { .offset = 16, .length = 8, },
+	.blue	= { .offset =  0, .length = 8, },
 	.transp = { .offset =  0, .length = 0, },
 	.bits_per_pixel = 24,
 };
 
 static const struct ipu_rgb def_bgr_24 = {
-	.red	= { .offset = 16, .length = 8, },
+	.red	= { .offset =  0, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
-	.blue	= { .offset =  0, .length = 8, },
+	.blue	= { .offset = 16, .length = 8, },
 	.transp = { .offset =  0, .length = 0, },
 	.bits_per_pixel = 24,
 };
@@ -329,17 +331,17 @@ static const struct ipu_rgb def_rgb_16 = {
 					(pix->width * pix->height / 4) + \
 					(pix->width * (y) / 4) + (x) / 2)
 
-int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat)
+int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 drm_fourcc)
 {
-	switch (pixelformat) {
-	case V4L2_PIX_FMT_YUV420:
-	case V4L2_PIX_FMT_YVU420:
+	switch (drm_fourcc) {
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
 		/* pix format */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_PFS, 2);
 		/* burst size */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_NPB, 63);
 		break;
-	case V4L2_PIX_FMT_UYVY:
+	case DRM_FORMAT_UYVY:
 		/* bits/pixel */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_BPP, 3);
 		/* pix format */
@@ -347,7 +349,7 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat)
 		/* burst size */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_NPB, 31);
 		break;
-	case V4L2_PIX_FMT_YUYV:
+	case DRM_FORMAT_YUYV:
 		/* bits/pixel */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_BPP, 3);
 		/* pix format */
@@ -355,20 +357,22 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat)
 		/* burst size */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_NPB, 31);
 		break;
-	case V4L2_PIX_FMT_RGB32:
-		ipu_cpmem_set_format_rgb(cpmem, &def_rgb_32);
-		break;
-	case V4L2_PIX_FMT_RGB565:
-		ipu_cpmem_set_format_rgb(cpmem, &def_rgb_16);
-		break;
-	case V4L2_PIX_FMT_BGR32:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_XBGR8888:
 		ipu_cpmem_set_format_rgb(cpmem, &def_bgr_32);
 		break;
-	case V4L2_PIX_FMT_RGB24:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XRGB8888:
+		ipu_cpmem_set_format_rgb(cpmem, &def_rgb_32);
+		break;
+	case DRM_FORMAT_BGR888:
+		ipu_cpmem_set_format_rgb(cpmem, &def_bgr_24);
+		break;
+	case DRM_FORMAT_RGB888:
 		ipu_cpmem_set_format_rgb(cpmem, &def_rgb_24);
 		break;
-	case V4L2_PIX_FMT_BGR24:
-		ipu_cpmem_set_format_rgb(cpmem, &def_bgr_24);
+	case DRM_FORMAT_RGB565:
+		ipu_cpmem_set_format_rgb(cpmem, &def_rgb_16);
 		break;
 	default:
 		return -EINVAL;
@@ -377,6 +381,79 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_fmt);
+
+/*
+ * The V4L2 spec defines packed RGB formats in memory byte order, which from
+ * point of view of the IPU corresponds to little-endian words with the first
+ * component in the least significant bits.
+ * The DRM pixel formats and IPU internal representation are ordered the other
+ * way around, with the first named component ordered at the most significant
+ * bits. Further, V4L2 formats are not well defined:
+ *     http://linuxtv.org/downloads/v4l-dvb-apis/packed-rgb.html
+ * We choose the interpretation which matches GStreamer behavior.
+ */
+static int v4l2_pix_fmt_to_drm_fourcc(u32 pixelformat)
+{
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_RGB565:
+		/*
+		 * Here we choose the 'corrected' interpretation of RGBP, a
+		 * little-endian 16-bit word with the red component at the most
+		 * significant bits:
+		 * g[2:0]b[4:0] r[4:0]g[5:3] <=> [16:0] R:G:B
+		 */
+		return DRM_FORMAT_RGB565;
+	case V4L2_PIX_FMT_BGR24:
+		/* B G R <=> [24:0] R:G:B */
+		return DRM_FORMAT_RGB888;
+	case V4L2_PIX_FMT_RGB24:
+		/* R G B <=> [24:0] B:G:R */
+		return DRM_FORMAT_BGR888;
+	case V4L2_PIX_FMT_BGR32:
+		/* B G R A <=> [32:0] A:B:G:R */
+		return DRM_FORMAT_XRGB8888;
+	case V4L2_PIX_FMT_RGB32:
+		/* R G B A <=> [32:0] A:B:G:R */
+		return DRM_FORMAT_XBGR8888;
+	case V4L2_PIX_FMT_UYVY:
+		return DRM_FORMAT_UYVY;
+	case V4L2_PIX_FMT_YUYV:
+		return DRM_FORMAT_YUYV;
+	case V4L2_PIX_FMT_YUV420:
+		return DRM_FORMAT_YUV420;
+	case V4L2_PIX_FMT_YVU420:
+		return DRM_FORMAT_YVU420;
+	}
+
+	return -EINVAL;
+}
+
+enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
+{
+	switch (drm_fourcc) {
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+		return IPUV3_COLORSPACE_RGB;
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+		return IPUV3_COLORSPACE_YUV;
+	default:
+		return IPUV3_COLORSPACE_UNKNOWN;
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_drm_fourcc_to_colorspace);
 
 int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 		struct ipu_image *image)
@@ -392,7 +469,7 @@ int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 			image->rect.height);
 	ipu_cpmem_set_stride(cpmem, pix->bytesperline);
 
-	ipu_cpmem_set_fmt(cpmem, pix->pixelformat);
+	ipu_cpmem_set_fmt(cpmem, v4l2_pix_fmt_to_drm_fourcc(pix->pixelformat));
 
 	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
