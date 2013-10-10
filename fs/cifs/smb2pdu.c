@@ -2373,8 +2373,11 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 	} else if (level == FS_ATTRIBUTE_INFORMATION) {
 		max_len = sizeof(FILE_SYSTEM_ATTRIBUTE_INFO);
 		min_len = MIN_FS_ATTR_INFO_SIZE;
+	} else if (level == FS_SECTOR_SIZE_INFORMATION) {
+		max_len = sizeof(struct smb3_fs_ss_info);
+		min_len = sizeof(struct smb3_fs_ss_info);
 	} else {
-		cifs_dbg(FYI, "Invalid qfsinfo level %d", level);
+		cifs_dbg(FYI, "Invalid qfsinfo level %d\n", level);
 		return -EINVAL;
 	}
 
@@ -2403,6 +2406,13 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 	else if (level == FS_DEVICE_INFORMATION)
 		memcpy(&tcon->fsDevInfo, 4 /* RFC1001 len */ + offset
 			+ (char *)&rsp->hdr, sizeof(FILE_SYSTEM_DEVICE_INFO));
+	else if (level == FS_SECTOR_SIZE_INFORMATION) {
+		struct smb3_fs_ss_info *ss_info = (struct smb3_fs_ss_info *)
+			(4 /* RFC1001 len */ + offset + (char *)&rsp->hdr);
+		tcon->ss_flags = le32_to_cpu(ss_info->Flags);
+		tcon->perf_sector_size =
+			le32_to_cpu(ss_info->PhysicalBytesPerSectorForPerf);
+	}
 
 qfsattr_exit:
 	free_rsp_buf(resp_buftype, iov.iov_base);

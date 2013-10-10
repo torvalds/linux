@@ -210,6 +210,36 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 }
 
 static void
+smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
+{
+	int rc;
+	__le16 srch_path = 0; /* Null - open root of share */
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+	if (rc)
+		return;
+
+	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+			FS_ATTRIBUTE_INFORMATION);
+	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+			FS_DEVICE_INFORMATION);
+	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+			FS_SECTOR_SIZE_INFORMATION); /* SMB3 specific */
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	return;
+}
+
+static void
 smb2_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 {
 	int rc;
@@ -332,7 +362,19 @@ smb2_dump_share_caps(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " ASYMMETRIC,");
 	if (tcon->capabilities == 0)
 		seq_puts(m, " None");
+	if (tcon->ss_flags & SSINFO_FLAGS_ALIGNED_DEVICE)
+		seq_puts(m, " Aligned,");
+	if (tcon->ss_flags & SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE)
+		seq_puts(m, " Partition Aligned,");
+	if (tcon->ss_flags & SSINFO_FLAGS_NO_SEEK_PENALTY)
+		seq_puts(m, " SSD,");
+	if (tcon->ss_flags & SSINFO_FLAGS_TRIM_ENABLED)
+		seq_puts(m, " TRIM-support,");
+
 	seq_printf(m, "\tShare Flags: 0x%x", tcon->share_flags);
+	if (tcon->perf_sector_size)
+		seq_printf(m, "\tOptimal sector size: 0x%x",
+			   tcon->perf_sector_size);
 }
 
 static void
@@ -1048,7 +1090,7 @@ struct smb_version_operations smb30_operations = {
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
 	.tree_disconnect = SMB2_tdis,
-	.qfs_tcon = smb2_qfs_tcon,
+	.qfs_tcon = smb3_qfs_tcon,
 	.is_path_accessible = smb2_is_path_accessible,
 	.can_echo = smb2_can_echo,
 	.echo = SMB2_echo,
