@@ -8232,8 +8232,10 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		command_type = FCP_COMMAND_DATA_OUT;
 		/* word3 iocb=iotag wqe=payload_offset_len */
 		/* Add the FCP_CMD and FCP_RSP sizes to get the offset */
-		wqe->fcp_iwrite.payload_offset_len =
-			xmit_len + sizeof(struct fcp_rsp);
+		bf_set(payload_offset_len, &wqe->fcp_iwrite,
+		       xmit_len + sizeof(struct fcp_rsp));
+		bf_set(cmd_buff_len, &wqe->fcp_iwrite,
+		       0);
 		/* word4 iocb=parameter wqe=total_xfer_length memcpy */
 		/* word5 iocb=initial_xfer_len wqe=initial_xfer_len memcpy */
 		bf_set(wqe_erp, &wqe->fcp_iwrite.wqe_com,
@@ -8251,8 +8253,10 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	case CMD_FCP_IREAD64_CR:
 		/* word3 iocb=iotag wqe=payload_offset_len */
 		/* Add the FCP_CMD and FCP_RSP sizes to get the offset */
-		wqe->fcp_iread.payload_offset_len =
-			xmit_len + sizeof(struct fcp_rsp);
+		bf_set(payload_offset_len, &wqe->fcp_iread,
+		       xmit_len + sizeof(struct fcp_rsp));
+		bf_set(cmd_buff_len, &wqe->fcp_iread,
+		       0);
 		/* word4 iocb=parameter wqe=total_xfer_length memcpy */
 		/* word5 iocb=initial_xfer_len wqe=initial_xfer_len memcpy */
 		bf_set(wqe_erp, &wqe->fcp_iread.wqe_com,
@@ -8268,8 +8272,13 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_dbde, &wqe->fcp_iread.wqe_com, 1);
 		break;
 	case CMD_FCP_ICMND64_CR:
+		/* word3 iocb=iotag wqe=payload_offset_len */
+		/* Add the FCP_CMD and FCP_RSP sizes to get the offset */
+		bf_set(payload_offset_len, &wqe->fcp_icmd,
+		       xmit_len + sizeof(struct fcp_rsp));
+		bf_set(cmd_buff_len, &wqe->fcp_icmd,
+		       0);
 		/* word3 iocb=IO_TAG wqe=reserved */
-		wqe->fcp_icmd.rsrvd3 = 0;
 		bf_set(wqe_pu, &wqe->fcp_icmd.wqe_com, 0);
 		/* Always open the exchange */
 		bf_set(wqe_xc, &wqe->fcp_icmd.wqe_com, 0);
