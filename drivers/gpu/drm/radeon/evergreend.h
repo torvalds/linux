@@ -750,6 +750,44 @@
  * bit6 = 192 kHz
  */
 
+#define AZ_CHANNEL_COUNT_CONTROL                          0x5fe4
+#       define HBR_CHANNEL_COUNT(x)                       (((x) & 0x7) << 0)
+#       define COMPRESSED_CHANNEL_COUNT(x)                (((x) & 0x7) << 4)
+/* HBR_CHANNEL_COUNT, COMPRESSED_CHANNEL_COUNT
+ * 0   = use stream header
+ * 1-7 = channel count - 1
+ */
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_LIPSYNC         0x5fe8
+#       define VIDEO_LIPSYNC(x)                           (((x) & 0xff) << 0)
+#       define AUDIO_LIPSYNC(x)                           (((x) & 0xff) << 8)
+/* VIDEO_LIPSYNC, AUDIO_LIPSYNC
+ * 0   = invalid
+ * x   = legal delay value
+ * 255 = sync not supported
+ */
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_HBR             0x5fec
+#       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
+
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_ASSOCIATION0 0x5ff4
+#       define DISPLAY0_TYPE(x)                           (((x) & 0x3) << 0)
+#       define DISPLAY_TYPE_NONE                   0
+#       define DISPLAY_TYPE_HDMI                   1
+#       define DISPLAY_TYPE_DP                     2
+#       define DISPLAY0_ID(x)                             (((x) & 0x3f) << 2)
+#       define DISPLAY1_TYPE(x)                           (((x) & 0x3) << 8)
+#       define DISPLAY1_ID(x)                             (((x) & 0x3f) << 10)
+#       define DISPLAY2_TYPE(x)                           (((x) & 0x3) << 16)
+#       define DISPLAY2_ID(x)                             (((x) & 0x3f) << 18)
+#       define DISPLAY3_TYPE(x)                           (((x) & 0x3) << 24)
+#       define DISPLAY3_ID(x)                             (((x) & 0x3f) << 26)
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_ASSOCIATION1 0x5ff8
+#       define DISPLAY4_TYPE(x)                           (((x) & 0x3) << 0)
+#       define DISPLAY4_ID(x)                             (((x) & 0x3f) << 2)
+#       define DISPLAY5_TYPE(x)                           (((x) & 0x3) << 8)
+#       define DISPLAY5_ID(x)                             (((x) & 0x3f) << 10)
+#define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_AV_NUMBER       0x5ffc
+#       define NUMBER_OF_DISPLAY_ID(x)                    (((x) & 0x7) << 0)
+
 #define AZ_HOT_PLUG_CONTROL                               0x5e78
 #       define AZ_FORCE_CODEC_WAKE                        (1 << 0)
 #       define PIN0_JACK_DETECTION_ENABLE                 (1 << 4)

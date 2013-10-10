@@ -58,6 +58,42 @@ static void evergreen_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t cloc
 	WREG32(HDMI_ACR_48_1 + offset, acr.n_48khz);
 }
 
+static void dce4_afmt_write_latency_fields(struct drm_encoder *encoder,
+					   struct drm_display_mode *mode)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = NULL;
+	u32 tmp = 0;
+
+	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return;
+	}
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		if (connector->latency_present[1])
+			tmp = VIDEO_LIPSYNC(connector->video_latency[1]) |
+				AUDIO_LIPSYNC(connector->audio_latency[1]);
+		else
+			tmp = VIDEO_LIPSYNC(255) | AUDIO_LIPSYNC(255);
+	} else {
+		if (connector->latency_present[0])
+			tmp = VIDEO_LIPSYNC(connector->video_latency[0]) |
+				AUDIO_LIPSYNC(connector->audio_latency[0]);
+		else
+			tmp = VIDEO_LIPSYNC(255) | AUDIO_LIPSYNC(255);
+	}
+	WREG32(AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_LIPSYNC, tmp);
+}
+
 static void dce4_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
@@ -327,6 +363,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 		dce6_afmt_write_sad_regs(encoder);
 	} else {
 		evergreen_hdmi_write_sad_regs(encoder);
+		dce4_afmt_write_latency_fields(encoder, mode);
 	}
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
