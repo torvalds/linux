@@ -450,6 +450,12 @@ config NFT_LIMIT
 	depends on NF_TABLES
 	tristate "Netfilter nf_tables limit module"
 
+config NFT_NAT
+	depends on NF_TABLES
+	depends on NF_CONNTRACK
+	depends on NF_NAT
+	tristate "Netfilter nf_tables nat module"
+
 config NFT_COMPAT
 	depends on NF_TABLES
 	depends on NETFILTER_XTABLES

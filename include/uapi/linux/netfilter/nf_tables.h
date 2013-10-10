@@ -695,18 +695,20 @@ enum nft_nat_types {
  * enum nft_nat_attributes - nf_tables nat expression netlink attributes
  *
  * @NFTA_NAT_TYPE: NAT type (NLA_U32: nft_nat_types)
- * @NFTA_NAT_ADDR_MIN: source register of address range start (NLA_U32: nft_registers)
- * @NFTA_NAT_ADDR_MAX: source register of address range end (NLA_U32: nft_registers)
- * @NFTA_NAT_PROTO_MIN: source register of proto range start (NLA_U32: nft_registers)
- * @NFTA_NAT_PROTO_MAX: source register of proto range end (NLA_U32: nft_registers)
+ * @NFTA_NAT_FAMILY: NAT family (NLA_U32)
+ * @NFTA_NAT_REG_ADDR_MIN: source register of address range start (NLA_U32: nft_registers)
+ * @NFTA_NAT_REG_ADDR_MAX: source register of address range end (NLA_U32: nft_registers)
+ * @NFTA_NAT_REG_PROTO_MIN: source register of proto range start (NLA_U32: nft_registers)
+ * @NFTA_NAT_REG_PROTO_MAX: source register of proto range end (NLA_U32: nft_registers)
  */
 enum nft_nat_attributes {
 	NFTA_NAT_UNSPEC,
 	NFTA_NAT_TYPE,
-	NFTA_NAT_ADDR_MIN,
-	NFTA_NAT_ADDR_MAX,
-	NFTA_NAT_PROTO_MIN,
-	NFTA_NAT_PROTO_MAX,
+	NFTA_NAT_FAMILY,
+	NFTA_NAT_REG_ADDR_MIN,
+	NFTA_NAT_REG_ADDR_MAX,
+	NFTA_NAT_REG_PROTO_MIN,
+	NFTA_NAT_REG_PROTO_MAX,
 	__NFTA_NAT_MAX
 };
 #define NFTA_NAT_MAX		(__NFTA_NAT_MAX - 1)
