@@ -368,8 +368,6 @@ err_fbmem:
 		devm_iounmap(dev, drvdata->regs);
 
 err_region:
-	kfree(drvdata);
-
 	return rc;
 }
 
@@ -402,8 +400,6 @@ static int xilinxfb_release(struct device *dev)
 		dcr_unmap(drvdata->dcr_host, drvdata->dcr_len);
 #endif
 
-	kfree(drvdata);
-
 	return 0;
 }
 
@@ -423,11 +419,9 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	pdata = xilinx_fb_default_pdata;
 
 	/* Allocate the driver data region */
-	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
-	if (!drvdata) {
-		dev_err(&pdev->dev, "Couldn't allocate device private record\n");
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
 		return -ENOMEM;
-	}
 
 	/*
 	 * To check whether the core is connected directly to DCR or BUS
@@ -451,7 +445,6 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 		drvdata->dcr_host = dcr_map(op->dev.of_node, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
 			dev_err(&op->dev, "invalid DCR address\n");
-			kfree(drvdata);
 			return -ENODEV;
 		}
 	}
