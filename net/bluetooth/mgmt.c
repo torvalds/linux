@@ -3255,7 +3255,8 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status)
 		sock_put(match.sk);
 }
 
-static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
+static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
+			   u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
