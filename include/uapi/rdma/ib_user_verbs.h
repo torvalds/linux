@@ -87,8 +87,10 @@ enum {
 	IB_USER_VERBS_CMD_CLOSE_XRCD,
 	IB_USER_VERBS_CMD_CREATE_XSRQ,
 	IB_USER_VERBS_CMD_OPEN_QP,
+#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
 	IB_USER_VERBS_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
 	IB_USER_VERBS_CMD_DESTROY_FLOW
+#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 };
 
 /*
@@ -126,6 +128,7 @@ struct ib_uverbs_cmd_hdr {
 	__u16 out_words;
 };
 
+#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
 struct ib_uverbs_cmd_hdr_ex {
 	__u32 command;
 	__u16 in_words;
@@ -134,6 +137,7 @@ struct ib_uverbs_cmd_hdr_ex {
 	__u16 provider_out_words;
 	__u32 cmd_hdr_reserved;
 };
+#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 struct ib_uverbs_get_context {
 	__u64 response;
@@ -696,6 +700,7 @@ struct ib_uverbs_detach_mcast {
 	__u64 driver_data[0];
 };
 
+#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
 struct ib_kern_eth_filter {
 	__u8  dst_mac[6];
 	__u8  src_mac[6];
@@ -780,6 +785,7 @@ struct ib_uverbs_destroy_flow  {
 	__u32 comp_mask;
 	__u32 flow_handle;
 };
+#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 struct ib_uverbs_create_srq {
 	__u64 response;
