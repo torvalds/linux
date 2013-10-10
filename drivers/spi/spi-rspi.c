@@ -198,6 +198,11 @@ static u16 rspi_read16(struct rspi_data *rspi, u16 offset)
 /* optional functions */
 struct spi_ops {
 	int (*set_config_register)(struct rspi_data *rspi, int access_size);
+	int (*send_pio)(struct rspi_data *rspi, struct spi_message *mesg,
+			struct spi_transfer *t);
+	int (*receive_pio)(struct rspi_data *rspi, struct spi_message *mesg,
+			   struct spi_transfer *t);
+
 };
 
 /*
@@ -348,6 +353,43 @@ static int rspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
 
 	return 0;
 }
+
+static int qspi_send_pio(struct rspi_data *rspi, struct spi_message *mesg,
+			 struct spi_transfer *t)
+{
+	int remain = t->len;
+	u8 *data;
+
+	rspi_write8(rspi, SPBFCR_TXRST, QSPI_SPBFCR);
+	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
+
+	data = (u8 *)t->tx_buf;
+	while (remain > 0) {
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: tx empty timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		rspi_write8(rspi, *data++, RSPI_SPDR);
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: receive timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		rspi_read8(rspi, RSPI_SPDR);
+
+		remain--;
+	}
+
+	/* Waiting for the last transmition */
+	rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE);
+
+	return 0;
+}
+
+#define send_pio(spi, mesg, t) spi->ops->send_pio(spi, mesg, t)
 
 static void rspi_dma_complete(void *arg)
 {
@@ -514,6 +556,51 @@ static int rspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
 	return 0;
 }
 
+static void qspi_receive_init(struct rspi_data *rspi)
+{
+	unsigned char spsr;
+
+	spsr = rspi_read8(rspi, RSPI_SPSR);
+	if (spsr & SPSR_SPRF)
+		rspi_read8(rspi, RSPI_SPDR);   /* dummy read */
+	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, QSPI_SPBFCR);
+	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
+}
+
+static int qspi_receive_pio(struct rspi_data *rspi, struct spi_message *mesg,
+			    struct spi_transfer *t)
+{
+	int remain = t->len;
+	u8 *data;
+
+	qspi_receive_init(rspi);
+
+	data = (u8 *)t->rx_buf;
+	while (remain > 0) {
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPTEF, SPCR_SPTIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: tx empty timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		/* dummy write for generate clock */
+		rspi_write8(rspi, 0x00, RSPI_SPDR);
+
+		if (rspi_wait_for_interrupt(rspi, SPSR_SPRF, SPCR_SPRIE) < 0) {
+			dev_err(&rspi->master->dev,
+				"%s: receive timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+		/* SPDR allows 8, 16 or 32-bit access */
+		*data++ = rspi_read8(rspi, RSPI_SPDR);
+		remain--;
+	}
+
+	return 0;
+}
+
+#define receive_pio(spi, mesg, t) spi->ops->receive_pio(spi, mesg, t)
+
 static int rspi_receive_dma(struct rspi_data *rspi, struct spi_transfer *t)
 {
 	struct scatterlist sg, sg_dummy;
@@ -653,7 +740,7 @@ static void rspi_work(struct work_struct *work)
 				if (rspi_is_dma(rspi, t))
 					ret = rspi_send_dma(rspi, t);
 				else
-					ret = rspi_send_pio(rspi, mesg, t);
+					ret = send_pio(rspi, mesg, t);
 				if (ret < 0)
 					goto error;
 			}
@@ -661,7 +748,7 @@ static void rspi_work(struct work_struct *work)
 				if (rspi_is_dma(rspi, t))
 					ret = rspi_receive_dma(rspi, t);
 				else
-					ret = rspi_receive_pio(rspi, mesg, t);
+					ret = receive_pio(rspi, mesg, t);
 				if (ret < 0)
 					goto error;
 			}
@@ -918,10 +1005,14 @@ error1:
 
 static struct spi_ops rspi_ops = {
 	.set_config_register =		rspi_set_config_register,
+	.send_pio =			rspi_send_pio,
+	.receive_pio =			rspi_receive_pio,
 };
 
 static struct spi_ops qspi_ops = {
 	.set_config_register =		qspi_set_config_register,
+	.send_pio =			qspi_send_pio,
+	.receive_pio =			qspi_receive_pio,
 };
 
 static struct platform_device_id spi_driver_ids[] = {
