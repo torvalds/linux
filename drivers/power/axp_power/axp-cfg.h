@@ -23,6 +23,8 @@
 #ifndef __LINUX_AXP_CFG_H_
 #define __LINUX_AXP_CFG_H_
 
+#include <mach/irqs.h>
+
 #define	AXP18_ADDR			0x2C >> 1
 #define AXP19_ADDR			0x68 >> 1
 #define AXP20_ADDR			0x68 >> 1
@@ -30,7 +32,7 @@
 #define	AXP19_I2CBUS		0
 #define	AXP20_I2CBUS		0
 #define BATRDC				200 //initial rdc
-#define AXP20_IRQNO     0
+#define AXP20_IRQNO			SW_INT_IRQNO_ENMI
 
 
 #define	LDO1SET				0  //0: LDO1SET connect AGND, 1: LDO1SET connect AIPS, for axp189 LDOSET bonding to AGND
