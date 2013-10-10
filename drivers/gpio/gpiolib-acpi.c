@@ -194,6 +194,44 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 }
 EXPORT_SYMBOL(acpi_gpiochip_request_interrupts);
 
+/**
+ * acpi_gpiochip_free_interrupts() - Free GPIO _EVT ACPI event interrupts.
+ * @chip:      gpio chip
+ *
+ * Free interrupts associated with the _EVT method for the given GPIO chip.
+ *
+ * The remaining ACPI event interrupts associated with the chip are freed
+ * automatically.
+ */
+void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
+{
+	acpi_handle handle;
+	acpi_status status;
+	struct list_head *evt_pins;
+	struct acpi_gpio_evt_pin *evt_pin, *ep;
+
+	if (!chip->dev || !chip->to_irq)
+		return;
+
+	handle = ACPI_HANDLE(chip->dev);
+	if (!handle)
+		return;
+
+	status = acpi_get_data(handle, acpi_gpio_evt_dh, (void **)&evt_pins);
+	if (ACPI_FAILURE(status))
+		return;
+
+	list_for_each_entry_safe_reverse(evt_pin, ep, evt_pins, node) {
+		devm_free_irq(chip->dev, evt_pin->irq, evt_pin);
+		list_del(&evt_pin->node);
+		kfree(evt_pin);
+	}
+
+	acpi_detach_data(handle, acpi_gpio_evt_dh);
+	kfree(evt_pins);
+}
+EXPORT_SYMBOL(acpi_gpiochip_free_interrupts);
+
 struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
 	int index;
@@ -271,41 +309,3 @@ int acpi_get_gpio_by_index(struct device *dev, int index,
 	return lookup.gpio;
 }
 EXPORT_SYMBOL_GPL(acpi_get_gpio_by_index);
-
-/**
- * acpi_gpiochip_free_interrupts() - Free GPIO _EVT ACPI event interrupts.
- * @chip:      gpio chip
- *
- * Free interrupts associated with the _EVT method for the given GPIO chip.
- *
- * The remaining ACPI event interrupts associated with the chip are freed
- * automatically.
- */
-void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
-{
-	acpi_handle handle;
-	acpi_status status;
-	struct list_head *evt_pins;
-	struct acpi_gpio_evt_pin *evt_pin, *ep;
-
-	if (!chip->dev || !chip->to_irq)
-		return;
-
-	handle = ACPI_HANDLE(chip->dev);
-	if (!handle)
-		return;
-
-	status = acpi_get_data(handle, acpi_gpio_evt_dh, (void **)&evt_pins);
-	if (ACPI_FAILURE(status))
-		return;
-
-	list_for_each_entry_safe_reverse(evt_pin, ep, evt_pins, node) {
-		devm_free_irq(chip->dev, evt_pin->irq, evt_pin);
-		list_del(&evt_pin->node);
-		kfree(evt_pin);
-	}
-
-	acpi_detach_data(handle, acpi_gpio_evt_dh);
-	kfree(evt_pins);
-}
-EXPORT_SYMBOL(acpi_gpiochip_free_interrupts);
