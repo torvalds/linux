@@ -20,7 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/usb-ehci-s5p.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/samsung_usb_phy.h>
 #include <linux/usb.h>
@@ -47,10 +46,7 @@ struct s5p_ehci_hcd {
 	struct clk *clk;
 	struct usb_phy *phy;
 	struct usb_otg *otg;
-	struct s5p_ehci_platdata *pdata;
 };
-
-static struct s5p_ehci_platdata empty_platdata;
 
 #define to_s5p_ehci(hcd)      (struct s5p_ehci_hcd *)(hcd_to_ehci(hcd)->priv)
 
@@ -75,7 +71,6 @@ static void s5p_setup_vbus_gpio(struct platform_device *pdev)
 
 static int s5p_ehci_probe(struct platform_device *pdev)
 {
-	struct s5p_ehci_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct s5p_ehci_hcd *s5p_ehci;
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
@@ -105,21 +100,14 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 	s5p_ehci = to_s5p_ehci(hcd);
 
 	if (of_device_is_compatible(pdev->dev.of_node,
-					"samsung,exynos5440-ehci")) {
-		s5p_ehci->pdata = &empty_platdata;
+					"samsung,exynos5440-ehci"))
 		goto skip_phy;
-	}
 
 	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(phy)) {
-		/* Fallback to pdata */
-		if (!pdata) {
-			usb_put_hcd(hcd);
-			dev_warn(&pdev->dev, "no platform data or transceiver defined\n");
-			return -EPROBE_DEFER;
-		} else {
-			s5p_ehci->pdata = pdata;
-		}
+		usb_put_hcd(hcd);
+		dev_warn(&pdev->dev, "no platform data or transceiver defined\n");
+		return -EPROBE_DEFER;
 	} else {
 		s5p_ehci->phy = phy;
 		s5p_ehci->otg = phy->otg;
@@ -167,8 +155,6 @@ skip_phy:
 
 	if (s5p_ehci->phy)
 		usb_phy_init(s5p_ehci->phy);
-	else if (s5p_ehci->pdata->phy_init)
-		s5p_ehci->pdata->phy_init(pdev, USB_PHY_TYPE_HOST);
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
@@ -189,8 +175,6 @@ skip_phy:
 fail_add_hcd:
 	if (s5p_ehci->phy)
 		usb_phy_shutdown(s5p_ehci->phy);
-	else if (s5p_ehci->pdata->phy_exit)
-		s5p_ehci->pdata->phy_exit(pdev, USB_PHY_TYPE_HOST);
 fail_io:
 	clk_disable_unprepare(s5p_ehci->clk);
 fail_clk:
@@ -210,8 +194,6 @@ static int s5p_ehci_remove(struct platform_device *pdev)
 
 	if (s5p_ehci->phy)
 		usb_phy_shutdown(s5p_ehci->phy);
-	else if (s5p_ehci->pdata->phy_exit)
-		s5p_ehci->pdata->phy_exit(pdev, USB_PHY_TYPE_HOST);
 
 	clk_disable_unprepare(s5p_ehci->clk);
 
@@ -225,7 +207,6 @@ static int s5p_ehci_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct s5p_ehci_hcd *s5p_ehci = to_s5p_ehci(hcd);
-	struct platform_device *pdev = to_platform_device(dev);
 
 	bool do_wakeup = device_may_wakeup(dev);
 	int rc;
@@ -237,8 +218,6 @@ static int s5p_ehci_suspend(struct device *dev)
 
 	if (s5p_ehci->phy)
 		usb_phy_shutdown(s5p_ehci->phy);
-	else if (s5p_ehci->pdata->phy_exit)
-		s5p_ehci->pdata->phy_exit(pdev, USB_PHY_TYPE_HOST);
 
 	clk_disable_unprepare(s5p_ehci->clk);
 
@@ -249,7 +228,6 @@ static int s5p_ehci_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct  s5p_ehci_hcd *s5p_ehci = to_s5p_ehci(hcd);
-	struct platform_device *pdev = to_platform_device(dev);
 
 	clk_prepare_enable(s5p_ehci->clk);
 
@@ -258,8 +236,6 @@ static int s5p_ehci_resume(struct device *dev)
 
 	if (s5p_ehci->phy)
 		usb_phy_init(s5p_ehci->phy);
-	else if (s5p_ehci->pdata->phy_init)
-		s5p_ehci->pdata->phy_init(pdev, USB_PHY_TYPE_HOST);
 
 	/* DMA burst Enable */
 	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));
