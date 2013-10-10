@@ -27,7 +27,7 @@
 static const struct file_operations *usb_minors[MAX_USB_MINORS];
 static DECLARE_RWSEM(minor_rwsem);
 
-static int usb_open(struct inode * inode, struct file * file)
+static int usb_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	const struct file_operations *c;
