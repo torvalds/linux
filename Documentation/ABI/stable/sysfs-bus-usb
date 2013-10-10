@@ -37,8 +37,8 @@ Description:
 		that the USB device has been connected to the machine.  This
 		file is read-only.
 Users:
-		PowerTOP <power@bughost.org>
-		http://www.lesswatts.org/projects/powertop/
+		PowerTOP <powertop@lists.01.org>
+		https://01.org/powertop/
 
 What:		/sys/bus/usb/device/.../power/active_duration
 Date:		January 2008
@@ -57,8 +57,8 @@ Description:
 		will give an integer percentage.  Note that this does not
 		account for counter wrap.
 Users:
-		PowerTOP <power@bughost.org>
-		http://www.lesswatts.org/projects/powertop/
+		PowerTOP <powertop@lists.01.org>
+		https://01.org/powertop/
 
 What:		/sys/bus/usb/devices/<busnum>-<port[.port]>...:<config num>-<interface num>/supports_autosuspend
 Date:		January 2008
