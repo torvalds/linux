@@ -52,7 +52,7 @@ typedef struct tag_cmd_pkt_tx_feedback {
 	// DWORD 5
 	u16	reserve3;			/* */
 	u16	duration;			/* */
-}cmpk_txfb_t;
+} cmpk_txfb_t;
 
 /* 2. RX side: Interrupt status packet. It includes Beacon State,
 	  Beacon Timer Interrupt and other useful informations in MAC ISR Reg. */
@@ -61,7 +61,7 @@ typedef struct tag_cmd_pkt_interrupt_status {
 	u8	length;				/* Command packet length. */
 	u16	reserve;
 	u32	interrupt_status;				/* Interrupt Status. */
-}cmpk_intr_sta_t;
+} cmpk_intr_sta_t;
 
 
 /* 3. TX side: Set configuration packet. */
@@ -79,7 +79,7 @@ typedef struct tag_cmd_pkt_set_configuration {
 	u8	cfg_offset;			/* Configuration info. */
 	u32	value;				/* */
 	u32	mask;				/* */
-}cmpk_set_cfg_t;
+} cmpk_set_cfg_t;
 
 /* 4. Both side : TX/RX query configuraton packet. The query structure is the
       same as set configuration. */
@@ -122,7 +122,7 @@ typedef struct tag_tx_stats_feedback { // PJ quick rxcmd 09042007
 	u16	reserve3_23;
 	u8	reserve3_1;
 	u8	rate;
-}__attribute__((packed)) cmpk_tx_status_t;
+} __attribute__((packed)) cmpk_tx_status_t;
 
 /* 6. Debug feedback message. */
 /* 2007/10/23 MH Define RX debug message  */
@@ -136,7 +136,7 @@ typedef struct tag_rx_debug_message_feedback {
 	// DW 1-??
 	// Variable debug message.
 
-}cmpk_rx_dbginfo_t;
+} cmpk_rx_dbginfo_t;
 
 /* 2008/03/20 MH Define transmit rate history. For big endian format. */
 typedef struct tag_tx_rate_history {
@@ -170,7 +170,7 @@ typedef struct tag_tx_rate_history {
 	// DW 31-38	BW=1 SG=1
 	u16	ht_mcs[4][16];
 
-}__attribute__((packed)) cmpk_tx_rahis_t;
+} __attribute__((packed)) cmpk_tx_rahis_t;
 
 typedef enum tag_command_packet_directories
 {
@@ -183,14 +183,14 @@ typedef enum tag_command_packet_directories
     RX_TX_PER_PKT_FEEDBACK		= 6,
     RX_TX_RATE_HISTORY		= 7,
     RX_CMD_ELE_MAX
-}cmpk_element_e;
+} cmpk_element_e;
 
 typedef enum _rt_status{
 	RT_STATUS_SUCCESS,
 	RT_STATUS_FAILURE,
 	RT_STATUS_PENDING,
 	RT_STATUS_RESOURCE
-}rt_status,*prt_status;
+} rt_status, *prt_status;
 
 extern  u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats);
 extern rt_status SendTxCommandPacket( struct net_device *dev, void *pData, u32 DataLen);
