@@ -350,9 +350,8 @@ static int bpa10x_flush(struct hci_dev *hdev)
 	return 0;
 }
 
-static int bpa10x_send_frame(struct sk_buff *skb)
+static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
@@ -363,6 +362,8 @@ static int bpa10x_send_frame(struct sk_buff *skb)
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
+
+	skb->dev = (void *) hdev;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)

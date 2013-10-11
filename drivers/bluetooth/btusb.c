@@ -716,9 +716,8 @@ static int btusb_flush(struct hci_dev *hdev)
 	return 0;
 }
 
-static int btusb_send_frame(struct sk_buff *skb)
+static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
@@ -729,6 +728,8 @@ static int btusb_send_frame(struct sk_buff *skb)
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
+
+	skb->dev = (void *) hdev;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:

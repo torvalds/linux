@@ -81,9 +81,8 @@ static int vhci_flush(struct hci_dev *hdev)
 	return 0;
 }
 
-static int vhci_send_frame(struct sk_buff *skb)
+static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev* hdev = (struct hci_dev *) skb->dev;
 	struct vhci_data *data;
 
 	if (!hdev) {

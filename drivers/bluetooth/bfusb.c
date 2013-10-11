@@ -464,9 +464,8 @@ static int bfusb_close(struct hci_dev *hdev)
 	return 0;
 }
 
-static int bfusb_send_frame(struct sk_buff *skb)
+static int bfusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct bfusb_data *data;
 	struct sk_buff *nskb;
 	unsigned char buf[3];

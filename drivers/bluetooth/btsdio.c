@@ -254,9 +254,8 @@ static int btsdio_flush(struct hci_dev *hdev)
 	return 0;
 }
 
-static int btsdio_send_frame(struct sk_buff *skb)
+static int btsdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);

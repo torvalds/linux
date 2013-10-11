@@ -110,7 +110,6 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	/* prepare packet */
 	hcill_packet = (struct hcill_cmd *) skb_put(skb, 1);
 	hcill_packet->cmd = cmd;
-	skb->dev = (void *) hu->hdev;
 
 	/* send packet */
 	skb_queue_tail(&ll->txq, skb);

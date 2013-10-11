@@ -415,10 +415,9 @@ static int bt3c_hci_close(struct hci_dev *hdev)
 }
 
 
-static int bt3c_hci_send_frame(struct sk_buff *skb)
+static int bt3c_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	bt3c_info_t *info;
-	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
 	unsigned long flags;
 
 	if (!hdev) {

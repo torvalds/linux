@@ -382,10 +382,9 @@ static int dtl1_hci_close(struct hci_dev *hdev)
 }
 
 
-static int dtl1_hci_send_frame(struct sk_buff *skb)
+static int dtl1_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	dtl1_info_t *info;
-	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
 	struct sk_buff *s;
 	nsh_t nsh;
 

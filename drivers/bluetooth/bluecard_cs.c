@@ -658,10 +658,9 @@ static int bluecard_hci_close(struct hci_dev *hdev)
 }
 
 
-static int bluecard_hci_send_frame(struct sk_buff *skb)
+static int bluecard_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	bluecard_info_t *info;
-	struct hci_dev *hdev = (struct hci_dev *)(skb->dev);
 
 	if (!hdev) {
 		BT_ERR("Frame for unknown HCI device (hdev=NULL)");

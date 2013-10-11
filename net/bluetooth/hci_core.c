@@ -2713,9 +2713,7 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
 
-	skb->dev = (void *) hdev;
-
-	if (hdev->send(skb) < 0)
+	if (hdev->send(hdev, skb) < 0)
 		BT_ERR("%s sending frame failed", hdev->name);
 }
 
