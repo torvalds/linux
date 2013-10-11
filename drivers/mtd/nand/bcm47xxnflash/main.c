@@ -85,22 +85,4 @@ static struct platform_driver bcm47xxnflash_driver = {
 	},
 };
 
-static int __init bcm47xxnflash_init(void)
-{
-	int err;
-
-	err = platform_driver_register(&bcm47xxnflash_driver);
-	if (err)
-		pr_err("Failed to register bcm47xx nand flash driver: %d\n",
-		       err);
-
-	return err;
-}
-
-static void __exit bcm47xxnflash_exit(void)
-{
-	platform_driver_unregister(&bcm47xxnflash_driver);
-}
-
-module_init(bcm47xxnflash_init);
-module_exit(bcm47xxnflash_exit);
+module_platform_driver(bcm47xxnflash_driver);
