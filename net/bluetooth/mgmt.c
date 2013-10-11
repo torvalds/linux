@@ -363,9 +363,6 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	settings |= MGMT_SETTING_POWERED;
 	settings |= MGMT_SETTING_PAIRABLE;
 
-	if (lmp_ssp_capable(hdev))
-		settings |= MGMT_SETTING_SSP;
-
 	if (lmp_bredr_capable(hdev)) {
 		settings |= MGMT_SETTING_CONNECTABLE;
 		if (hdev->hci_ver >= BLUETOOTH_VER_1_2)
@@ -373,7 +370,11 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		settings |= MGMT_SETTING_DISCOVERABLE;
 		settings |= MGMT_SETTING_BREDR;
 		settings |= MGMT_SETTING_LINK_SECURITY;
-		settings |= MGMT_SETTING_HS;
+
+		if (lmp_ssp_capable(hdev)) {
+			settings |= MGMT_SETTING_SSP;
+			settings |= MGMT_SETTING_HS;
+		}
 	}
 
 	if (lmp_le_capable(hdev)) {
