@@ -229,6 +229,11 @@ out_free_pmc:
 }
 
 static const struct of_device_id pmc_clk_ids[] __initdata = {
+	/* Main clock */
+	{
+		.compatible = "atmel,at91rm9200-clk-main",
+		.data = of_at91rm9200_clk_main_setup,
+	},
 	{ /*sentinel*/ }
 };
 
