@@ -294,8 +294,7 @@ void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 		return;
 	}
 
-	if ((chan->chanmode == CHANNEL_A_HT40PLUS) ||
-	    (chan->chanmode == CHANNEL_G_HT40PLUS)) {
+	if (IS_CHAN_HT40PLUS(chan)) {
 		centers->synth_center =
 			chan->channel + HT40_CHANNEL_CENTER_SHIFT;
 		extoff = 1;
@@ -1510,9 +1509,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	int r;
 
 	if (pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) {
-		u32 cur = ah->curchan->channelFlags & (CHANNEL_2GHZ | CHANNEL_5GHZ);
-		u32 new = chan->channelFlags & (CHANNEL_2GHZ | CHANNEL_5GHZ);
-		band_switch = (cur != new);
+		band_switch = IS_CHAN_5GHZ(ah->curchan) != IS_CHAN_5GHZ(chan);
 		mode_diff = (chan->chanmode != ah->curchan->chanmode);
 	}
 

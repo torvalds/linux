@@ -463,6 +463,8 @@ struct ath9k_channel {
 			  ((_c)->chanmode == CHANNEL_G_HT40PLUS) ||	\
 			  ((_c)->chanmode == CHANNEL_G_HT40MINUS))
 #define IS_CHAN_HT(_c) (IS_CHAN_HT20((_c)) || IS_CHAN_HT40((_c)))
+#define IS_CHAN_HT40PLUS(_c) ((_c)->chanmode & CHANNEL_HT40PLUS)
+#define IS_CHAN_HT40MINUS(_c) ((_c)->chanmode & CHANNEL_HT40MINUS)
 
 enum ath9k_power_mode {
 	ATH9K_PM_AWAKE = 0,

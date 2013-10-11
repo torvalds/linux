@@ -666,8 +666,7 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 	if (IS_CHAN_HT40(chan)) {
 		phymode |= AR_PHY_FC_DYN2040_EN;
 
-		if ((chan->chanmode == CHANNEL_A_HT40PLUS) ||
-		    (chan->chanmode == CHANNEL_G_HT40PLUS))
+		if (IS_CHAN_HT40PLUS(chan))
 			phymode |= AR_PHY_FC_DYN2040_PRI_CH;
 
 	}
@@ -691,31 +690,12 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	int i, regWrites = 0;
 	u32 modesIndex, freqIndex;
 
-	switch (chan->chanmode) {
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-		modesIndex = 1;
+	if (IS_CHAN_5GHZ(chan)) {
 		freqIndex = 1;
-		break;
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
-		modesIndex = 2;
-		freqIndex = 1;
-		break;
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_B:
-		modesIndex = 4;
+		modesIndex = IS_CHAN_HT40(chan) ? 2 : 1;
+	} else {
 		freqIndex = 2;
-		break;
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		modesIndex = 3;
-		freqIndex = 2;
-		break;
-
-	default:
-		return -EINVAL;
+		modesIndex = IS_CHAN_HT40(chan) ? 3 : 4;
 	}
 
 	/*
@@ -1218,12 +1198,11 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 
 	iniDef = &aniState->iniDef;
 
-	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz/0x%x\n",
+	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz\n",
 		ah->hw_version.macVersion,
 		ah->hw_version.macRev,
 		ah->opmode,
-		chan->channel,
-		chan->channelFlags);
+		chan->channel);
 
 	val = REG_READ(ah, AR_PHY_SFCORR);
 	iniDef->m1Thresh = MS(val, AR_PHY_SFCORR_M1_THRESH);

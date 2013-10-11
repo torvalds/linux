@@ -24,30 +24,10 @@
 static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 					      struct ath9k_channel *ichan)
 {
-	enum htc_phymode mode;
+	if (IS_CHAN_5GHZ(ichan))
+		return HTC_MODE_11NA;
 
-	mode = -EINVAL;
-
-	switch (ichan->chanmode) {
-	case CHANNEL_G:
-	case CHANNEL_G_HT20:
-	case CHANNEL_G_HT40PLUS:
-	case CHANNEL_G_HT40MINUS:
-		mode = HTC_MODE_11NG;
-		break;
-	case CHANNEL_A:
-	case CHANNEL_A_HT20:
-	case CHANNEL_A_HT40PLUS:
-	case CHANNEL_A_HT40MINUS:
-		mode = HTC_MODE_11NA;
-		break;
-	default:
-		break;
-	}
-
-	WARN_ON(mode < 0);
-
-	return mode;
+	return HTC_MODE_11NG;
 }
 
 bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
