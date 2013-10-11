@@ -521,7 +521,7 @@ static void dma_tx_work(struct work_struct *w)
 	unsigned long flags;
 	int ret;
 
-	status = chan->device->device_tx_status(chan, (dma_cookie_t)0, NULL);
+	status = dmaengine_tx_status(chan, (dma_cookie_t)0, NULL);
 	if (DMA_IN_PROGRESS == status)
 		return;
 
@@ -926,7 +926,7 @@ static void dma_rx_callback(void *data)
 	/* unmap it first */
 	dma_unmap_sg(sport->port.dev, sgl, 1, DMA_FROM_DEVICE);
 
-	status = chan->device->device_tx_status(chan, (dma_cookie_t)0, &state);
+	status = dmaengine_tx_status(chan, (dma_cookie_t)0, &state);
 	count = RX_BUF_SIZE - state.residue;
 	dev_dbg(sport->port.dev, "We get %d bytes.\n", count);
 
