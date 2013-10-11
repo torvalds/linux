@@ -68,7 +68,7 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scif2_pins &scif4_pins &sdhi0_pins>;
+	pinctrl-0 = <&scif2_pins &scif4_pins>;
 	pinctrl-names = "default";
 
 	lan0_pins: lan0 {
@@ -97,4 +97,13 @@
 				 "sdhi0_wp";
 		renesas,function = "sdhi0";
 	};
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&fixedregulator3v3>;
+	bus-width = <4>;
+	status = "okay";
 };
