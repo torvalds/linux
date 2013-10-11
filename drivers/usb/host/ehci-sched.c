@@ -761,7 +761,7 @@ static int check_intr_schedule (
 		unsigned i;
 
 		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
-		for (i=uframe+1; i<8 && i<uframe+4; i++)
+		for (i = uframe+2; i < 8 && i <= uframe+4; i++)
 			if (!check_period (ehci, frame, i,
 						qh->period, qh->c_usecs))
 				goto done;
