@@ -315,6 +315,13 @@ static const struct of_device_id pmc_clk_ids[] __initdata = {
 		.data = of_at91sam9n12_clk_usb_setup,
 	},
 #endif
+	/* SMD clock */
+#if defined(CONFIG_HAVE_AT91_SMD)
+	{
+		.compatible = "atmel,at91sam9x5-clk-smd",
+		.data = of_at91sam9x5_clk_smd_setup,
+	},
+#endif
 	{ /*sentinel*/ }
 };
 

@@ -39,6 +39,9 @@ config AT91_SAM9G45_RESET
 config AT91_SAM9_TIME
 	bool
 
+config HAVE_AT91_SMD
+	bool
+
 config SOC_AT91SAM9
 	bool
 	select AT91_SAM9_TIME
@@ -85,6 +88,7 @@ config SOC_SAMA5D3
 	select HAVE_AT91_DBGU1
 	select AT91_USE_OLD_CLK
 	select HAVE_AT91_UTMI
+	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
@@ -157,6 +161,7 @@ config SOC_AT91SAM9X5
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
 	select HAVE_AT91_UTMI
+	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
