@@ -46,6 +46,9 @@
 #include <asm/virt.h>
 #include <asm/mach/arch.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/arm-ipi.h>
+
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
@@ -604,6 +607,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 	if (ipinr < NR_IPI)
 		__inc_irq_stat(cpu, ipi_irqs[ipinr]);
 
+	trace_arm_ipi_entry(ipinr);
 	switch (ipinr) {
 	case IPI_WAKEUP:
 		break;
@@ -643,6 +647,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		       cpu, ipinr);
 		break;
 	}
+	trace_arm_ipi_exit(ipinr);
 	set_irq_regs(old_regs);
 }
 
