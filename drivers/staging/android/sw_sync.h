@@ -21,6 +21,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/kconfig.h>
 #include "sync.h"
 
 struct sw_sync_timeline {
@@ -35,10 +36,27 @@ struct sw_sync_pt {
 	u32			value;
 };
 
+#if IS_ENABLED(CONFIG_SW_SYNC)
 struct sw_sync_timeline *sw_sync_timeline_create(const char *name);
 void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc);
 
 struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value);
+#else
+static inline struct sw_sync_timeline *sw_sync_timeline_create(const char *name)
+{
+	return NULL;
+}
+
+static inline void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc)
+{
+}
+
+static inline struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj,
+		u32 value)
+{
+	return NULL;
+}
+#endif /* IS_ENABLED(CONFIG_SW_SYNC) */
 
 #endif /* __KERNEL __ */
 
