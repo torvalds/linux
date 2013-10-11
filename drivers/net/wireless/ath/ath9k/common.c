@@ -52,8 +52,8 @@ EXPORT_SYMBOL(ath9k_cmn_get_hw_crypto_keytype);
 /*
  * Update internal channel flags.
  */
-void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
-			       struct cfg80211_chan_def *chandef)
+static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+				      struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_channel *chan = chandef->chan;
 	u16 flags = 0;
@@ -88,25 +88,25 @@ void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
 
 	ichan->channelFlags = flags;
 }
-EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
 
 /*
  * Get the internal channel reference.
  */
-struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
-					       struct ath_hw *ah)
+struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
+					    struct ath_hw *ah,
+					    struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	struct ieee80211_channel *curchan = chandef->chan;
 	struct ath9k_channel *channel;
 	u8 chan_idx;
 
 	chan_idx = curchan->hw_value;
 	channel = &ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, &hw->conf.chandef);
+	ath9k_cmn_update_ichannel(channel, chandef);
 
 	return channel;
 }
-EXPORT_SYMBOL(ath9k_cmn_get_curchannel);
+EXPORT_SYMBOL(ath9k_cmn_get_channel);
 
 int ath9k_cmn_count_streams(unsigned int chainmask, int max)
 {

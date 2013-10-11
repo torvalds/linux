@@ -601,7 +601,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	init_channel = ath9k_cmn_get_curchannel(hw, ah);
+	init_channel = ath9k_cmn_get_channel(hw, ah, &hw->conf.chandef);
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(ah, false);
@@ -804,7 +804,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	}
 
 	if (!ah->curchan)
-		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
+		ah->curchan = ath9k_cmn_get_channel(hw, ah, &hw->conf.chandef);
 
 	ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	ath9k_hw_phy_disable(ah);
@@ -1224,8 +1224,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		ath_update_survey_stats(sc);
 		spin_unlock_irqrestore(&common->cc_lock, flags);
 
-		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
-					  &conf->chandef);
+		ath9k_cmn_get_channel(hw, ah, &conf->chandef);
 
 		/*
 		 * If the operating channel changes, change the survey in-use flags
