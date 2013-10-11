@@ -487,27 +487,27 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 
 	ek = elf_kind(elf);
 	if (ek != ELF_K_ELF)
-		goto out_close;
+		goto out_elf_end;
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
 		pr_err("%s: cannot get elf header.\n", __func__);
-		goto out_close;
+		goto out_elf_end;
 	}
 
 	sec = elf_section_by_name(elf, &ehdr, &shdr,
 				  ".gnu_debuglink", NULL);
 	if (sec == NULL)
-		goto out_close;
+		goto out_elf_end;
 
 	data = elf_getdata(sec, NULL);
 	if (data == NULL)
-		goto out_close;
+		goto out_elf_end;
 
 	/* the start of this section is a zero-terminated string */
 	strncpy(debuglink, data->d_buf, size);
 
+out_elf_end:
 	elf_end(elf);
-
 out_close:
 	close(fd);
 out:
