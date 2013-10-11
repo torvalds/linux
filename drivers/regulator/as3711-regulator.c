@@ -117,26 +117,23 @@ static struct regulator_ops as3711_dldo_ops = {
 };
 
 static const struct regulator_linear_range as3711_sd_ranges[] = {
-	{ .min_uV = 612500, .max_uV = 1400000,
-	  .min_sel = 0x1, .max_sel = 0x40, .uV_step = 12500 },
-	{ .min_uV = 1425000, .max_uV = 2600000,
-	  .min_sel = 0x41, .max_sel = 0x70, .uV_step = 25000 },
-	{ .min_uV = 2650000, .max_uV = 3350000,
-	  .min_sel = 0x71, .max_sel = 0x7f, .uV_step = 50000 },
+	{ .min_uV = 612500, .min_sel = 0x1, .max_sel = 0x40, .uV_step = 12500 },
+	{ .min_uV = 1425000, .min_sel = 0x41, .max_sel = 0x70,
+	  .uV_step = 25000 },
+	{ .min_uV = 2650000, .min_sel = 0x71, .max_sel = 0x7f,
+	  .uV_step = 50000 },
 };
 
 static const struct regulator_linear_range as3711_aldo_ranges[] = {
-	{ .min_uV = 1200000, .max_uV = 1950000,
-	  .min_sel = 0, .max_sel = 0xf, .uV_step = 50000 },
-	{ .min_uV = 1800000, .max_uV = 3300000,
-	  .min_sel = 0x10, .max_sel = 0x1f, .uV_step = 100000 },
+	{ .min_uV = 1200000, .min_sel = 0, .max_sel = 0xf, .uV_step = 50000 },
+	{ .min_uV = 1800000, .min_sel = 0x10, .max_sel = 0x1f,
+	  .uV_step = 100000 },
 };
 
 static const struct regulator_linear_range as3711_dldo_ranges[] = {
-	{ .min_uV = 900000, .max_uV = 1700000,
-	  .min_sel = 0, .max_sel = 0x10, .uV_step = 50000 },
-	{ .min_uV = 1750000, .max_uV = 3300000,
-	  .min_sel = 0x20, .max_sel = 0x3f, .uV_step = 50000 },
+	{ .min_uV = 900000, .min_sel = 0, .max_sel = 0x10, .uV_step = 50000 },
+	{ .min_uV = 1750000, .min_sel = 0x20, .max_sel = 0x3f,
+	  .uV_step = 50000 },
 };
 
 #define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _vshift, _min_uV, _max_uV, _sfx)	\

@@ -441,7 +441,6 @@ static struct regulator_ops as3722_ldo3_extcntrl_ops = {
 		.max_sel = _max_sel,					\
 		.uV_step = _step_uV,					\
 		.min_uV = _min_uV,					\
-		.max_uV = _min_uV + (_max_sel - _min_sel) * _step_uV,	\
 	}
 
 static const struct regulator_linear_range as3722_ldo_ranges[] = {

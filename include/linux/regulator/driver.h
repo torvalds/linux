@@ -46,14 +46,12 @@ enum regulator_status {
  * regulator_list_linear_range().
  *
  * @min_uV:  Lowest voltage in range
- * @max_uV:  Highest voltage in range
  * @min_sel: Lowest selector for range
  * @max_sel: Highest selector for range
  * @uV_step: Step size
  */
 struct regulator_linear_range {
 	unsigned int min_uV;
-	unsigned int max_uV;
 	unsigned int min_sel;
 	unsigned int max_sel;
 	unsigned int uV_step;

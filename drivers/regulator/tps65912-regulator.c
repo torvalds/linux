@@ -119,12 +119,9 @@ struct tps65912_reg {
 };
 
 static const struct regulator_linear_range tps65912_ldo_ranges[] = {
-	{ .min_uV = 800000, .max_uV = 1600000, .min_sel =  0, .max_sel = 32,
-	  .uV_step = 25000 },
-	{ .min_uV = 1650000, .max_uV = 3000000, .min_sel = 33, .max_sel = 60,
-	  .uV_step = 50000 },
-	{ .min_uV = 3100000, .max_uV = 3300000, .min_sel = 61, .max_sel = 63,
-	  .uV_step = 100000 },
+	{ .min_uV = 800000, .min_sel =  0, .max_sel = 32, .uV_step = 25000 },
+	{ .min_uV = 1650000, .min_sel = 33, .max_sel = 60, .uV_step = 50000 },
+	{ .min_uV = 3100000, .min_sel = 61, .max_sel = 63, .uV_step = 100000 },
 };
 
 static int tps65912_get_range(struct tps65912_reg *pmic, int id)

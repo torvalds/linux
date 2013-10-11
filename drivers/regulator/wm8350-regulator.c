@@ -543,10 +543,8 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 }
 
 static const struct regulator_linear_range wm8350_ldo_ranges[] = {
-	{ .min_uV =  900000, .max_uV = 1650000, .min_sel =  0, .max_sel = 15,
-	  .uV_step =  50000 },
-	{ .min_uV = 1800000, .max_uV = 3300000, .min_sel = 16, .max_sel = 31,
-	  .uV_step = 100000 },
+	{ .min_uV =  900000, .min_sel =  0, .max_sel = 15, .uV_step =  50000 },
+	{ .min_uV = 1800000, .min_sel = 16, .max_sel = 31, .uV_step = 100000 },
 };
 
 static int wm8350_ldo_set_suspend_voltage(struct regulator_dev *rdev, int uV)

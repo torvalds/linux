@@ -284,9 +284,13 @@ int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 	}
 
 	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
-		range = &rdev->desc->linear_ranges[i];
+		int linear_max_uV;
 
-		if (!(min_uV <= range->max_uV && max_uV >= range->min_uV))
+		range = &rdev->desc->linear_ranges[i];
+		linear_max_uV = range->min_uV +
+			(range->max_sel - range->min_sel) * range->uV_step;
+
+		if (!(min_uV <= linear_max_uV && max_uV >= range->min_uV))
 			continue;
 
 		if (min_uV <= range->min_uV)

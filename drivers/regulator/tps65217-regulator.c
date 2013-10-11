@@ -52,25 +52,17 @@ static const unsigned int LDO1_VSEL_table[] = {
 };
 
 static const struct regulator_linear_range tps65217_uv1_ranges[] = {
-	{ .min_uV = 900000, .max_uV = 1500000, .min_sel =  0, .max_sel = 24,
-	  .uV_step = 25000 },
-	{ .min_uV = 1550000, .max_uV = 1800000, .min_sel = 25, .max_sel = 30,
-	  .uV_step = 50000 },
-	{ .min_uV = 1850000, .max_uV = 2900000, .min_sel = 31, .max_sel = 52,
-	  .uV_step = 50000 },
-	{ .min_uV = 3000000, .max_uV = 3200000, .min_sel = 53, .max_sel = 55,
-	  .uV_step = 100000 },
-	{ .min_uV = 3300000, .max_uV = 3300000, .min_sel = 56, .max_sel = 62,
-	  .uV_step = 0 },
+	{ .min_uV = 900000, .min_sel =  0, .max_sel = 24, .uV_step = 25000 },
+	{ .min_uV = 1550000, .min_sel = 25, .max_sel = 30, .uV_step = 50000 },
+	{ .min_uV = 1850000, .min_sel = 31, .max_sel = 52, .uV_step = 50000 },
+	{ .min_uV = 3000000, .min_sel = 53, .max_sel = 55, .uV_step = 100000 },
+	{ .min_uV = 3300000, .min_sel = 56, .max_sel = 62, .uV_step = 0 },
 };
 
 static const struct regulator_linear_range tps65217_uv2_ranges[] = {
-	{ .min_uV = 1500000, .max_uV = 1900000, .min_sel =  0, .max_sel = 8,
-	  .uV_step = 50000 },
-	{ .min_uV = 2000000, .max_uV = 2400000, .min_sel = 9, .max_sel = 13,
-	  .uV_step = 100000 },
-	{ .min_uV = 2450000, .max_uV = 3300000, .min_sel = 14, .max_sel = 31,
-	  .uV_step = 50000 },
+	{ .min_uV = 1500000, .min_sel =  0, .max_sel = 8, .uV_step = 50000 },
+	{ .min_uV = 2000000, .min_sel = 9, .max_sel = 13, .uV_step = 100000 },
+	{ .min_uV = 2450000, .min_sel = 14, .max_sel = 31, .uV_step = 50000 },
 };
 
 static int tps65217_pmic_enable(struct regulator_dev *dev)
