@@ -524,7 +524,7 @@ static irqreturn_t bfin_spi_dma_irq_handler(int irq, void *dev_id)
 	timeout = jiffies + HZ;
 	while (!(bfin_read(&drv_data->regs->stat) & BIT_STAT_SPIF))
 		if (!time_before(jiffies, timeout)) {
-			dev_warn(&drv_data->pdev->dev, "timeout waiting for SPIF");
+			dev_warn(&drv_data->pdev->dev, "timeout waiting for SPIF\n");
 			break;
 		} else
 			cpu_relax();
@@ -1052,7 +1052,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 		if (!(spi->mode & SPI_CPHA))
 			dev_warn(&spi->dev, "Warning: SPI CPHA not set:"
 				" Slave Select not under software control!\n"
-				" See Documentation/blackfin/bfin-spi-notes.txt");
+				" See Documentation/blackfin/bfin-spi-notes.txt\n");
 
 		chip->flag = (1 << spi->chip_select) << 8;
 	} else
