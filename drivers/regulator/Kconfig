@@ -133,6 +133,14 @@ config REGULATOR_AS3711
 	  This driver provides support for the voltage regulators on the
 	  AS3711 PMIC
 
+config REGULATOR_AS3722
+	tristate "AMS AS3722 PMIC Regulators"
+	depends on MFD_AS3722
+	help
+	  This driver provides support for the voltage regulators on the
+	  AS3722 PMIC. This will enable support for all the software
+	  controllable DCDC/LDO regulators.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
