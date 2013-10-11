@@ -118,7 +118,6 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	uint32_t gw_divisor;
 	uint8_t max_tq = 0;
-	int down, up;
 	uint8_t tq_avg;
 	struct batadv_orig_node *orig_node;
 
@@ -142,10 +141,9 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
 		case 1: /* fast connection */
-			batadv_gw_bandwidth_to_kbit(orig_node->gw_flags,
-						    &down, &up);
-
-			tmp_gw_factor = tq_avg * tq_avg * down * 100 * 100;
+			tmp_gw_factor = tq_avg * tq_avg;
+			tmp_gw_factor *= gw_node->bandwidth_down;
+			tmp_gw_factor *= 100 * 100;
 			tmp_gw_factor /= gw_divisor;
 
 			if ((tmp_gw_factor > max_gw_factor) ||
@@ -258,16 +256,22 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 				    NULL);
 	} else if ((!curr_gw) && (next_gw)) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Adding route to gateway %pM (gw_flags: %i, tq: %i)\n",
+			   "Adding route to gateway %pM (bandwidth: %u.%u/%u.%u MBit, tq: %i)\n",
 			   next_gw->orig_node->orig,
-			   next_gw->orig_node->gw_flags, router->tq_avg);
+			   next_gw->bandwidth_down / 10,
+			   next_gw->bandwidth_down % 10,
+			   next_gw->bandwidth_up / 10,
+			   next_gw->bandwidth_up % 10, router->tq_avg);
 		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_ADD,
 				    gw_addr);
 	} else {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Changing route to gateway %pM (gw_flags: %i, tq: %i)\n",
+			   "Changing route to gateway %pM (bandwidth: %u.%u/%u.%u MBit, tq: %i)\n",
 			   next_gw->orig_node->orig,
-			   next_gw->orig_node->gw_flags, router->tq_avg);
+			   next_gw->bandwidth_down / 10,
+			   next_gw->bandwidth_down % 10,
+			   next_gw->bandwidth_up / 10,
+			   next_gw->bandwidth_up % 10, router->tq_avg);
 		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_CHANGE,
 				    gw_addr);
 	}
@@ -337,12 +341,20 @@ out:
 	return;
 }
 
+/**
+ * batadv_gw_node_add - add gateway node to list of available gateways
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: originator announcing gateway capabilities
+ * @gateway: announced bandwidth information
+ */
 static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 			       struct batadv_orig_node *orig_node,
-			       uint8_t new_gwflags)
+			       struct batadv_tvlv_gateway_data *gateway)
 {
 	struct batadv_gw_node *gw_node;
-	int down, up;
+
+	if (gateway->bandwidth_down == 0)
+		return;
 
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
 	if (!gw_node)
@@ -356,73 +368,116 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.list);
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 
-	batadv_gw_bandwidth_to_kbit(new_gwflags, &down, &up);
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Found new gateway %pM -> gw_class: %i - %i%s/%i%s\n",
-		   orig_node->orig, new_gwflags,
-		   (down > 2048 ? down / 1024 : down),
-		   (down > 2048 ? "MBit" : "KBit"),
-		   (up > 2048 ? up / 1024 : up),
-		   (up > 2048 ? "MBit" : "KBit"));
+		   "Found new gateway %pM -> gw bandwidth: %u.%u/%u.%u MBit\n",
+		   orig_node->orig,
+		   ntohl(gateway->bandwidth_down) / 10,
+		   ntohl(gateway->bandwidth_down) % 10,
+		   ntohl(gateway->bandwidth_up) / 10,
+		   ntohl(gateway->bandwidth_up) % 10);
 }
 
-void batadv_gw_node_update(struct batadv_priv *bat_priv,
-			   struct batadv_orig_node *orig_node,
-			   uint8_t new_gwflags)
+/**
+ * batadv_gw_node_get - retrieve gateway node from list of available gateways
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: originator announcing gateway capabilities
+ *
+ * Returns gateway node if found or NULL otherwise.
+ */
+static struct batadv_gw_node *
+batadv_gw_node_get(struct batadv_priv *bat_priv,
+		   struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *gw_node, *curr_gw;
-
-	/* Note: We don't need a NULL check here, since curr_gw never gets
-	 * dereferenced. If curr_gw is NULL we also should not exit as we may
-	 * have this gateway in our list (duplication check!) even though we
-	 * have no currently selected gateway.
-	 */
-	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
+	struct batadv_gw_node *gw_node_tmp, *gw_node = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
-		if (gw_node->orig_node != orig_node)
+	hlist_for_each_entry_rcu(gw_node_tmp, &bat_priv->gw.list, list) {
+		if (gw_node_tmp->orig_node != orig_node)
 			continue;
 
-		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Gateway class of originator %pM changed from %i to %i\n",
-			   orig_node->orig, gw_node->orig_node->gw_flags,
-			   new_gwflags);
+		if (gw_node_tmp->deleted)
+			continue;
 
-		gw_node->deleted = 0;
+		if (!atomic_inc_not_zero(&gw_node_tmp->refcount))
+			continue;
 
-		if (new_gwflags == BATADV_NO_FLAGS) {
-			gw_node->deleted = jiffies;
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-				   "Gateway %pM removed from gateway list\n",
-				   orig_node->orig);
-
-			if (gw_node == curr_gw)
-				goto deselect;
-		}
-
-		goto unlock;
+		gw_node = gw_node_tmp;
+		break;
 	}
-
-	if (new_gwflags == BATADV_NO_FLAGS)
-		goto unlock;
-
-	batadv_gw_node_add(bat_priv, orig_node, new_gwflags);
-	goto unlock;
-
-deselect:
-	batadv_gw_deselect(bat_priv);
-unlock:
 	rcu_read_unlock();
 
+	return gw_node;
+}
+
+/**
+ * batadv_gw_node_update - update list of available gateways with changed
+ *  bandwidth information
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: originator announcing gateway capabilities
+ * @gateway: announced bandwidth information
+ */
+void batadv_gw_node_update(struct batadv_priv *bat_priv,
+			   struct batadv_orig_node *orig_node,
+			   struct batadv_tvlv_gateway_data *gateway)
+{
+	struct batadv_gw_node *gw_node, *curr_gw = NULL;
+
+	gw_node = batadv_gw_node_get(bat_priv, orig_node);
+	if (!gw_node) {
+		batadv_gw_node_add(bat_priv, orig_node, gateway);
+		goto out;
+	}
+
+	if ((gw_node->bandwidth_down == ntohl(gateway->bandwidth_down)) &&
+	    (gw_node->bandwidth_up == ntohl(gateway->bandwidth_up)))
+		goto out;
+
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+		   "Gateway bandwidth of originator %pM changed from %u.%u/%u.%u MBit to %u.%u/%u.%u MBit\n",
+		   orig_node->orig,
+		   gw_node->bandwidth_down / 10,
+		   gw_node->bandwidth_down % 10,
+		   gw_node->bandwidth_up / 10,
+		   gw_node->bandwidth_up % 10,
+		   ntohl(gateway->bandwidth_down) / 10,
+		   ntohl(gateway->bandwidth_down) % 10,
+		   ntohl(gateway->bandwidth_up) / 10,
+		   ntohl(gateway->bandwidth_up) % 10);
+
+	gw_node->bandwidth_down = ntohl(gateway->bandwidth_down);
+	gw_node->bandwidth_up = ntohl(gateway->bandwidth_up);
+
+	gw_node->deleted = 0;
+	if (ntohl(gateway->bandwidth_down) == 0) {
+		gw_node->deleted = jiffies;
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "Gateway %pM removed from gateway list\n",
+			   orig_node->orig);
+
+		/* Note: We don't need a NULL check here, since curr_gw never
+		 * gets dereferenced.
+		 */
+		curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
+		if (gw_node == curr_gw)
+			batadv_gw_deselect(bat_priv);
+	}
+
+out:
 	if (curr_gw)
 		batadv_gw_node_free_ref(curr_gw);
+	if (gw_node)
+		batadv_gw_node_free_ref(gw_node);
 }
 
 void batadv_gw_node_delete(struct batadv_priv *bat_priv,
 			   struct batadv_orig_node *orig_node)
 {
-	batadv_gw_node_update(bat_priv, orig_node, 0);
+	struct batadv_tvlv_gateway_data gateway;
+
+	gateway.bandwidth_down = 0;
+	gateway.bandwidth_up = 0;
+
+	batadv_gw_node_update(bat_priv, orig_node, &gateway);
 }
 
 void batadv_gw_node_purge(struct batadv_priv *bat_priv)
@@ -467,9 +522,7 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 {
 	struct batadv_gw_node *curr_gw;
 	struct batadv_neigh_node *router;
-	int down, up, ret = -1;
-
-	batadv_gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
+	int ret = -1;
 
 	router = batadv_orig_node_get_router(gw_node->orig_node);
 	if (!router)
@@ -477,16 +530,15 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	ret = seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %3i - %i%s/%i%s\n",
+	ret = seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %u.%u/%u.%u MBit\n",
 			 (curr_gw == gw_node ? "=>" : "  "),
 			 gw_node->orig_node->orig,
 			 router->tq_avg, router->addr,
 			 router->if_incoming->net_dev->name,
-			 gw_node->orig_node->gw_flags,
-			 (down > 2048 ? down / 1024 : down),
-			 (down > 2048 ? "MBit" : "KBit"),
-			 (up > 2048 ? up / 1024 : up),
-			 (up > 2048 ? "MBit" : "KBit"));
+			 gw_node->bandwidth_down / 10,
+			 gw_node->bandwidth_down % 10,
+			 gw_node->bandwidth_up / 10,
+			 gw_node->bandwidth_up % 10);
 
 	batadv_neigh_node_free_ref(router);
 	if (curr_gw)
@@ -508,7 +560,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 
 	seq_printf(seq,
-		   "      %-12s (%s/%i) %17s [%10s]: gw_class ... [B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
+		   "      %-12s (%s/%i) %17s [%10s]: advertised uplink bandwidth ... [B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
 		   "Gateway", "#", BATADV_TQ_MAX_VALUE, "Nexthop", "outgoingIF",
 		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
@@ -675,7 +727,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 {
 	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	struct batadv_orig_node *orig_dst_node = NULL;
-	struct batadv_gw_node *curr_gw = NULL;
+	struct batadv_gw_node *gw_node = NULL, *curr_gw = NULL;
 	struct ethhdr *ethhdr;
 	bool ret, out_of_range = false;
 	unsigned int header_len = 0;
@@ -691,7 +743,8 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	if (!orig_dst_node)
 		goto out;
 
-	if (!orig_dst_node->gw_flags)
+	gw_node = batadv_gw_node_get(bat_priv, orig_dst_node);
+	if (!gw_node->bandwidth_down == 0)
 		goto out;
 
 	ret = batadv_is_type_dhcprequest(skb, header_len);
@@ -742,6 +795,8 @@ out:
 		batadv_orig_node_free_ref(orig_dst_node);
 	if (curr_gw)
 		batadv_gw_node_free_ref(curr_gw);
+	if (gw_node)
+		batadv_gw_node_free_ref(gw_node);
 	if (neigh_old)
 		batadv_neigh_node_free_ref(neigh_old);
 	if (neigh_curr)

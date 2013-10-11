@@ -86,8 +86,6 @@
 /* numbers of originator to contact for any PUT/GET DHT operation */
 #define BATADV_DAT_CANDIDATES_NUM 3
 
-#define BATADV_VIS_INTERVAL 5000	/* 5 seconds */
-
 /* how much worse secondary interfaces may be to be considered as bonding
  * candidates
  */
@@ -325,5 +323,40 @@ static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
  * The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
  */
 #define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
+
+void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
+				    uint8_t type, uint8_t version,
+				    void *tvlv_value, uint16_t tvlv_value_len);
+uint16_t batadv_tvlv_container_ogm_append(struct batadv_priv *bat_priv,
+					  unsigned char **packet_buff,
+					  int *packet_buff_len,
+					  int packet_min_len);
+void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
+			     struct batadv_ogm_packet *batadv_ogm_packet,
+			     struct batadv_orig_node *orig_node);
+void batadv_tvlv_container_unregister(struct batadv_priv *bat_priv,
+				      uint8_t type, uint8_t version);
+
+void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
+				  void (*optr)(struct batadv_priv *bat_priv,
+					       struct batadv_orig_node *orig,
+					       uint8_t flags,
+					       void *tvlv_value,
+					       uint16_t tvlv_value_len),
+				  int (*uptr)(struct batadv_priv *bat_priv,
+					      uint8_t *src, uint8_t *dst,
+					      void *tvlv_value,
+					      uint16_t tvlv_value_len),
+				  uint8_t type, uint8_t version, uint8_t flags);
+void batadv_tvlv_handler_unregister(struct batadv_priv *bat_priv,
+				    uint8_t type, uint8_t version);
+int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
+				   bool ogm_source,
+				   struct batadv_orig_node *orig_node,
+				   uint8_t *src, uint8_t *dst,
+				   void *tvlv_buff, uint16_t tvlv_buff_len);
+void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
+			      uint8_t *dst, uint8_t type, uint8_t version,
+			      void *tvlv_value, uint16_t tvlv_value_len);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

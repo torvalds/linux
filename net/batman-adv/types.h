@@ -99,8 +99,7 @@ struct batadv_hard_iface {
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @batman_seqno_reset: time when the batman seqno window was reset
- * @gw_flags: flags related to gateway class
- * @flags: for now only VIS_SERVER flag
+ * @capabilities: announced capabilities of this originator
  * @last_ttvn: last seen translation table version number
  * @tt_crc: CRC of the translation table
  * @tt_buff: last tt changeset this node received from the orig node
@@ -147,10 +146,9 @@ struct batadv_orig_node {
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
-	uint8_t gw_flags;
-	uint8_t flags;
+	uint8_t capabilities;
 	atomic_t last_ttvn;
-	uint16_t tt_crc;
+	uint32_t tt_crc;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff & tt_buff_len */
@@ -186,9 +184,21 @@ struct batadv_orig_node {
 };
 
 /**
+ * enum batadv_orig_capabilities - orig node capabilities
+ * @BATADV_ORIG_CAPA_HAS_DAT: orig node has distributed arp table enabled
+ * @BATADV_ORIG_CAPA_HAS_NC: orig node has network coding enabled
+ */
+enum batadv_orig_capabilities {
+	BATADV_ORIG_CAPA_HAS_DAT = BIT(0),
+	BATADV_ORIG_CAPA_HAS_NC = BIT(1),
+};
+
+/**
  * struct batadv_gw_node - structure for orig nodes announcing gw capabilities
  * @list: list node for batadv_priv_gw::list
  * @orig_node: pointer to corresponding orig node
+ * @bandwidth_down: advertised uplink download bandwidth
+ * @bandwidth_up: advertised uplink upload bandwidth
  * @deleted: this struct is scheduled for deletion
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
@@ -196,6 +206,8 @@ struct batadv_orig_node {
 struct batadv_gw_node {
 	struct hlist_node list;
 	struct batadv_orig_node *orig_node;
+	uint32_t bandwidth_down;
+	uint32_t bandwidth_up;
 	unsigned long deleted;
 	atomic_t refcount;
 	struct rcu_head rcu;
@@ -363,7 +375,7 @@ struct batadv_priv_tt {
 	spinlock_t req_list_lock; /* protects req_list */
 	spinlock_t roam_list_lock; /* protects roam_list */
 	atomic_t local_entry_num;
-	uint16_t local_crc;
+	uint32_t local_crc;
 	unsigned char *last_changeset;
 	int16_t last_changeset_len;
 	/* protects last_changeset & last_changeset_len */
@@ -420,31 +432,31 @@ struct batadv_priv_debug_log {
  * @list: list of available gateway nodes
  * @list_lock: lock protecting gw_list & curr_gw
  * @curr_gw: pointer to currently selected gateway node
+ * @bandwidth_down: advertised uplink download bandwidth (if gw_mode server)
+ * @bandwidth_up: advertised uplink upload bandwidth (if gw_mode server)
  * @reselect: bool indicating a gateway re-selection is in progress
  */
 struct batadv_priv_gw {
 	struct hlist_head list;
 	spinlock_t list_lock; /* protects gw_list & curr_gw */
 	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	atomic_t bandwidth_down;
+	atomic_t bandwidth_up;
 	atomic_t reselect;
 };
 
 /**
- * struct batadv_priv_vis - per mesh interface vis data
- * @send_list: list of batadv_vis_info packets to sent
- * @hash: hash table containing vis data from other nodes in the network
- * @hash_lock: lock protecting the hash table
- * @list_lock: lock protecting my_info::recv_list
- * @work: work queue callback item for vis packet sending
- * @my_info: holds this node's vis data sent on a regular basis
+ * struct batadv_priv_tvlv - per mesh interface tvlv data
+ * @container_list: list of registered tvlv containers to be sent with each OGM
+ * @handler_list: list of the various tvlv content handlers
+ * @container_list_lock: protects tvlv container list access
+ * @handler_list_lock: protects handler list access
  */
-struct batadv_priv_vis {
-	struct list_head send_list;
-	struct batadv_hashtable *hash;
-	spinlock_t hash_lock; /* protects hash */
-	spinlock_t list_lock; /* protects my_info::recv_list */
-	struct delayed_work work;
-	struct batadv_vis_info *my_info;
+struct batadv_priv_tvlv {
+	struct hlist_head container_list;
+	struct hlist_head handler_list;
+	spinlock_t container_list_lock; /* protects container_list */
+	spinlock_t handler_list_lock; /* protects handler_list */
 };
 
 /**
@@ -504,10 +516,8 @@ struct batadv_priv_nc {
  *  enabled
  * @distributed_arp_table: bool indicating whether distributed ARP table is
  *  enabled
- * @vis_mode: vis operation: client or server (see batadv_vis_packettype)
  * @gw_mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @gw_sel_class: gateway selection class (applies if gw_mode client)
- * @gw_bandwidth: gateway announced bandwidth (applies if gw_mode server)
  * @orig_interval: OGM broadcast interval in milliseconds
  * @hop_penalty: penalty which will be applied to an OGM's tq-field on every hop
  * @log_level: configured log level (see batadv_dbg_level)
@@ -531,7 +541,7 @@ struct batadv_priv_nc {
  * @debug_log: holding debug logging relevant data
  * @gw: gateway data
  * @tt: translation table data
- * @vis: vis data
+ * @tvlv: type-version-length-value data
  * @dat: distributed arp table data
  * @network_coding: bool indicating whether network coding is enabled
  * @batadv_priv_nc: network coding data
@@ -551,10 +561,8 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_DAT
 	atomic_t distributed_arp_table;
 #endif
-	atomic_t vis_mode;
 	atomic_t gw_mode;
 	atomic_t gw_sel_class;
-	atomic_t gw_bandwidth;
 	atomic_t orig_interval;
 	atomic_t hop_penalty;
 #ifdef CONFIG_BATMAN_ADV_DEBUG
@@ -583,7 +591,7 @@ struct batadv_priv {
 #endif
 	struct batadv_priv_gw gw;
 	struct batadv_priv_tt tt;
-	struct batadv_priv_vis vis;
+	struct batadv_priv_tvlv tvlv;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
 #endif
@@ -740,7 +748,7 @@ struct batadv_tt_orig_list_entry {
  */
 struct batadv_tt_change_node {
 	struct list_head list;
-	struct batadv_tt_change change;
+	struct batadv_tvlv_tt_change change;
 };
 
 /**
@@ -878,66 +886,6 @@ struct batadv_frag_packet_list_entry {
 };
 
 /**
- * struct batadv_vis_info - local data for vis information
- * @first_seen: timestamp used for purging stale vis info entries
- * @recv_list: List of server-neighbors we have received this packet from. This
- *  packet should not be re-forward to them again. List elements are struct
- *  batadv_vis_recvlist_node
- * @send_list: list of packets to be forwarded
- * @refcount: number of contexts the object is used
- * @hash_entry: hlist node for batadv_priv_vis::hash
- * @bat_priv: pointer to soft_iface this orig node belongs to
- * @skb_packet: contains the vis packet
- */
-struct batadv_vis_info {
-	unsigned long first_seen;
-	struct list_head recv_list;
-	struct list_head send_list;
-	struct kref refcount;
-	struct hlist_node hash_entry;
-	struct batadv_priv *bat_priv;
-	struct sk_buff *skb_packet;
-} __packed;
-
-/**
- * struct batadv_vis_info_entry - contains link information for vis
- * @src: source MAC of the link, all zero for local TT entry
- * @dst: destination MAC of the link, client mac address for local TT entry
- * @quality: transmission quality of the link, or 0 for local TT entry
- */
-struct batadv_vis_info_entry {
-	uint8_t  src[ETH_ALEN];
-	uint8_t  dest[ETH_ALEN];
-	uint8_t  quality;
-} __packed;
-
-/**
- * struct batadv_vis_recvlist_node - list entry for batadv_vis_info::recv_list
- * @list: list node for batadv_vis_info::recv_list
- * @mac: MAC address of the originator from where the vis_info was received
- */
-struct batadv_vis_recvlist_node {
-	struct list_head list;
-	uint8_t mac[ETH_ALEN];
-};
-
-/**
- * struct batadv_vis_if_list_entry - auxiliary data for vis data generation
- * @addr: MAC address of the interface
- * @primary: true if this interface is the primary interface
- * @list: list node the interface list
- *
- * While scanning for vis-entries of a particular vis-originator
- * this list collects its interfaces to create a subgraph/cluster
- * out of them later
- */
-struct batadv_vis_if_list_entry {
-	uint8_t addr[ETH_ALEN];
-	bool primary;
-	struct hlist_node list;
-};
-
-/**
  * struct batadv_algo_ops - mesh algorithm callbacks
  * @list: list node for the batadv_algo_list
  * @name: name of the algorithm
@@ -990,6 +938,62 @@ struct batadv_dat_entry {
 struct batadv_dat_candidate {
 	int type;
 	struct batadv_orig_node *orig_node;
+};
+
+/**
+ * struct batadv_tvlv_container - container for tvlv appended to OGMs
+ * @list: hlist node for batadv_priv_tvlv::container_list
+ * @tvlv_hdr: tvlv header information needed to construct the tvlv
+ * @value_len: length of the buffer following this struct which contains
+ *  the actual tvlv payload
+ * @refcount: number of contexts the object is used
+ */
+struct batadv_tvlv_container {
+	struct hlist_node list;
+	struct batadv_tvlv_hdr tvlv_hdr;
+	atomic_t refcount;
+};
+
+/**
+ * struct batadv_tvlv_handler - handler for specific tvlv type and version
+ * @list: hlist node for batadv_priv_tvlv::handler_list
+ * @ogm_handler: handler callback which is given the tvlv payload to process on
+ *  incoming OGM packets
+ * @unicast_handler: handler callback which is given the tvlv payload to process
+ *  on incoming unicast tvlv packets
+ * @type: tvlv type this handler feels responsible for
+ * @version: tvlv version this handler feels responsible for
+ * @flags: tvlv handler flags
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in an RCU-safe manner
+ */
+struct batadv_tvlv_handler {
+	struct hlist_node list;
+	void (*ogm_handler)(struct batadv_priv *bat_priv,
+			    struct batadv_orig_node *orig,
+			    uint8_t flags,
+			    void *tvlv_value, uint16_t tvlv_value_len);
+	int (*unicast_handler)(struct batadv_priv *bat_priv,
+			       uint8_t *src, uint8_t *dst,
+			       void *tvlv_value, uint16_t tvlv_value_len);
+	uint8_t type;
+	uint8_t version;
+	uint8_t flags;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
+ * enum batadv_tvlv_handler_flags - tvlv handler flags definitions
+ * @BATADV_TVLV_HANDLER_OGM_CIFNOTFND: tvlv ogm processing function will call
+ *  this handler even if its type was not found (with no data)
+ * @BATADV_TVLV_HANDLER_OGM_CALLED: interval tvlv handling flag - the API marks
+ *  a handler as being called, so it won't be called if the
+ *  BATADV_TVLV_HANDLER_OGM_CIFNOTFND flag was set
+ */
+enum batadv_tvlv_handler_flags {
+	BATADV_TVLV_HANDLER_OGM_CIFNOTFND = BIT(1),
+	BATADV_TVLV_HANDLER_OGM_CALLED = BIT(2),
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

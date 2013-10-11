@@ -419,6 +419,10 @@ static bool batadv_is_orig_node_eligible(struct batadv_dat_candidate *res,
 	bool ret = false;
 	int j;
 
+	/* check if orig node candidate is running DAT */
+	if (!(candidate->capabilities & BATADV_ORIG_CAPA_HAS_DAT))
+		goto out;
+
 	/* Check if this node has already been selected... */
 	for (j = 0; j < select; j++)
 		if (res[j].orig_node == candidate)
@@ -626,6 +630,59 @@ out:
 }
 
 /**
+ * batadv_dat_tvlv_container_update - update the dat tvlv container after dat
+ *  setting change
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+static void batadv_dat_tvlv_container_update(struct batadv_priv *bat_priv)
+{
+	char dat_mode;
+
+	dat_mode = atomic_read(&bat_priv->distributed_arp_table);
+
+	switch (dat_mode) {
+	case 0:
+		batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_DAT, 1);
+		break;
+	case 1:
+		batadv_tvlv_container_register(bat_priv, BATADV_TVLV_DAT, 1,
+					       NULL, 0);
+		break;
+	}
+}
+
+/**
+ * batadv_dat_status_update - update the dat tvlv container after dat
+ *  setting change
+ * @net_dev: the soft interface net device
+ */
+void batadv_dat_status_update(struct net_device *net_dev)
+{
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	batadv_dat_tvlv_container_update(bat_priv);
+}
+
+/**
+ * batadv_gw_tvlv_ogm_handler_v1 - process incoming dat tvlv container
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node of the ogm
+ * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
+ * @tvlv_value: tvlv buffer containing the gateway data
+ * @tvlv_value_len: tvlv buffer length
+ */
+static void batadv_dat_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
+					   struct batadv_orig_node *orig,
+					   uint8_t flags,
+					   void *tvlv_value,
+					   uint16_t tvlv_value_len)
+{
+	if (flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND)
+		orig->capabilities &= ~BATADV_ORIG_CAPA_HAS_DAT;
+	else
+		orig->capabilities |= BATADV_ORIG_CAPA_HAS_DAT;
+}
+
+/**
  * batadv_dat_hash_free - free the local DAT hash table
  * @bat_priv: the bat priv with all the soft interface information
  */
@@ -657,6 +714,10 @@ int batadv_dat_init(struct batadv_priv *bat_priv)
 
 	batadv_dat_start_timer(bat_priv);
 
+	batadv_tvlv_handler_register(bat_priv, batadv_dat_tvlv_ogm_handler_v1,
+				     NULL, BATADV_TVLV_DAT, 1,
+				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
+	batadv_dat_tvlv_container_update(bat_priv);
 	return 0;
 }
 
@@ -666,6 +727,9 @@ int batadv_dat_init(struct batadv_priv *bat_priv)
  */
 void batadv_dat_free(struct batadv_priv *bat_priv)
 {
+	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_DAT, 1);
+	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_DAT, 1);
+
 	cancel_delayed_work_sync(&bat_priv->dat.work);
 
 	batadv_dat_hash_free(bat_priv);

@@ -388,9 +388,7 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 		hlist_for_each_entry_safe(orig_node, node_tmp,
 					  head, hash_entry) {
 			if (batadv_purge_orig_node(bat_priv, orig_node)) {
-				if (orig_node->gw_flags)
-					batadv_gw_node_delete(bat_priv,
-							      orig_node);
+				batadv_gw_node_delete(bat_priv, orig_node);
 				hlist_del_rcu(&orig_node->hash_entry);
 				batadv_orig_node_free_ref(orig_node);
 				continue;

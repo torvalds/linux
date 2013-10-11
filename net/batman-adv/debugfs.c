@@ -28,7 +28,6 @@
 #include "gateway_common.h"
 #include "gateway_client.h"
 #include "soft-interface.h"
-#include "vis.h"
 #include "icmp_socket.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
@@ -300,12 +299,6 @@ static int batadv_transtable_local_open(struct inode *inode, struct file *file)
 	return single_open(file, batadv_tt_local_seq_print_text, net_dev);
 }
 
-static int batadv_vis_data_open(struct inode *inode, struct file *file)
-{
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, batadv_vis_seq_print_text, net_dev);
-}
-
 struct batadv_debuginfo {
 	struct attribute attr;
 	const struct file_operations fops;
@@ -356,7 +349,6 @@ static BATADV_DEBUGINFO(dat_cache, S_IRUGO, batadv_dat_cache_open);
 #endif
 static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
 			batadv_transtable_local_open);
-static BATADV_DEBUGINFO(vis_data, S_IRUGO, batadv_vis_data_open);
 #ifdef CONFIG_BATMAN_ADV_NC
 static BATADV_DEBUGINFO(nc_nodes, S_IRUGO, batadv_nc_nodes_open);
 #endif
@@ -373,7 +365,6 @@ static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_dat_cache,
 #endif
 	&batadv_debuginfo_transtable_local,
-	&batadv_debuginfo_vis_data,
 #ifdef CONFIG_BATMAN_ADV_NC
 	&batadv_debuginfo_nc_nodes,
 #endif

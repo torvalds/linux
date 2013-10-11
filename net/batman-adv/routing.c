@@ -25,7 +25,6 @@
 #include "icmp_socket.h"
 #include "translation-table.h"
 #include "originator.h"
-#include "vis.h"
 #include "unicast.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
@@ -557,126 +556,6 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 	return 0;
 }
 
-int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
-{
-	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	struct batadv_tt_query_packet *tt_query;
-	uint16_t tt_size;
-	int hdr_size = sizeof(*tt_query);
-	char tt_flag;
-	size_t packet_size;
-
-	if (batadv_check_unicast_packet(bat_priv, skb, hdr_size) < 0)
-		return NET_RX_DROP;
-
-	/* I could need to modify it */
-	if (skb_cow(skb, sizeof(struct batadv_tt_query_packet)) < 0)
-		goto out;
-
-	tt_query = (struct batadv_tt_query_packet *)skb->data;
-
-	switch (tt_query->flags & BATADV_TT_QUERY_TYPE_MASK) {
-	case BATADV_TT_REQUEST:
-		batadv_inc_counter(bat_priv, BATADV_CNT_TT_REQUEST_RX);
-
-		/* If we cannot provide an answer the tt_request is
-		 * forwarded
-		 */
-		if (!batadv_send_tt_response(bat_priv, tt_query)) {
-			if (tt_query->flags & BATADV_TT_FULL_TABLE)
-				tt_flag = 'F';
-			else
-				tt_flag = '.';
-
-			batadv_dbg(BATADV_DBG_TT, bat_priv,
-				   "Routing TT_REQUEST to %pM [%c]\n",
-				   tt_query->dst,
-				   tt_flag);
-			return batadv_route_unicast_packet(skb, recv_if);
-		}
-		break;
-	case BATADV_TT_RESPONSE:
-		batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_RX);
-
-		if (batadv_is_my_mac(bat_priv, tt_query->dst)) {
-			/* packet needs to be linearized to access the TT
-			 * changes
-			 */
-			if (skb_linearize(skb) < 0)
-				goto out;
-			/* skb_linearize() possibly changed skb->data */
-			tt_query = (struct batadv_tt_query_packet *)skb->data;
-
-			tt_size = batadv_tt_len(ntohs(tt_query->tt_data));
-
-			/* Ensure we have all the claimed data */
-			packet_size = sizeof(struct batadv_tt_query_packet);
-			packet_size += tt_size;
-			if (unlikely(skb_headlen(skb) < packet_size))
-				goto out;
-
-			batadv_handle_tt_response(bat_priv, tt_query);
-		} else {
-			if (tt_query->flags & BATADV_TT_FULL_TABLE)
-				tt_flag =  'F';
-			else
-				tt_flag = '.';
-			batadv_dbg(BATADV_DBG_TT, bat_priv,
-				   "Routing TT_RESPONSE to %pM [%c]\n",
-				   tt_query->dst,
-				   tt_flag);
-			return batadv_route_unicast_packet(skb, recv_if);
-		}
-		break;
-	}
-
-out:
-	/* returning NET_RX_DROP will make the caller function kfree the skb */
-	return NET_RX_DROP;
-}
-
-int batadv_recv_roam_adv(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
-{
-	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	struct batadv_roam_adv_packet *roam_adv_packet;
-	struct batadv_orig_node *orig_node;
-
-	if (batadv_check_unicast_packet(bat_priv, skb,
-					sizeof(*roam_adv_packet)) < 0)
-		goto out;
-
-	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_RX);
-
-	roam_adv_packet = (struct batadv_roam_adv_packet *)skb->data;
-
-	if (!batadv_is_my_mac(bat_priv, roam_adv_packet->dst))
-		return batadv_route_unicast_packet(skb, recv_if);
-
-	/* check if it is a backbone gateway. we don't accept
-	 * roaming advertisement from it, as it has the same
-	 * entries as we have.
-	 */
-	if (batadv_bla_is_backbone_gw_orig(bat_priv, roam_adv_packet->src))
-		goto out;
-
-	orig_node = batadv_orig_hash_find(bat_priv, roam_adv_packet->src);
-	if (!orig_node)
-		goto out;
-
-	batadv_dbg(BATADV_DBG_TT, bat_priv,
-		   "Received ROAMING_ADV from %pM (client %pM)\n",
-		   roam_adv_packet->src, roam_adv_packet->client);
-
-	batadv_tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
-			     BATADV_TT_CLIENT_ROAM,
-			     atomic_read(&orig_node->last_ttvn) + 1);
-
-	batadv_orig_node_free_ref(orig_node);
-out:
-	/* returning NET_RX_DROP will make the caller function kfree the skb */
-	return NET_RX_DROP;
-}
-
 /* find a suitable router for this originator, and use
  * bonding if possible. increases the found neighbors
  * refcount.
@@ -1032,6 +911,34 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	return 1;
 }
 
+/**
+ * batadv_recv_unhandled_unicast_packet - receive and process packets which
+ *	are in the unicast number space but not yet known to the implementation
+ * @skb: unicast tvlv packet to process
+ * @recv_if: pointer to interface this packet was received on
+ *
+ * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * otherwise.
+ */
+int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
+					 struct batadv_hard_iface *recv_if)
+{
+	struct batadv_unicast_packet *unicast_packet;
+	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	int check, hdr_size = sizeof(*unicast_packet);
+
+	check = batadv_check_unicast_packet(bat_priv, skb, hdr_size);
+	if (check < 0)
+		return NET_RX_DROP;
+
+	/* we don't know about this type, drop it. */
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	if (batadv_is_my_mac(bat_priv, unicast_packet->dest))
+		return NET_RX_DROP;
+
+	return batadv_route_unicast_packet(skb, recv_if);
+}
+
 int batadv_recv_unicast_packet(struct sk_buff *skb,
 			       struct batadv_hard_iface *recv_if)
 {
@@ -1139,6 +1046,54 @@ rx_success:
 	return batadv_route_unicast_packet(skb, recv_if);
 }
 
+/**
+ * batadv_recv_unicast_tvlv - receive and process unicast tvlv packets
+ * @skb: unicast tvlv packet to process
+ * @recv_if: pointer to interface this packet was received on
+ * @dst_addr: the payload destination
+ *
+ * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * otherwise.
+ */
+int batadv_recv_unicast_tvlv(struct sk_buff *skb,
+			     struct batadv_hard_iface *recv_if)
+{
+	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;
+	unsigned char *tvlv_buff;
+	uint16_t tvlv_buff_len;
+	int hdr_size = sizeof(*unicast_tvlv_packet);
+	int ret = NET_RX_DROP;
+
+	if (batadv_check_unicast_packet(bat_priv, skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	/* the header is likely to be modified while forwarding */
+	if (skb_cow(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	/* packet needs to be linearized to access the tvlv content */
+	if (skb_linearize(skb) < 0)
+		return NET_RX_DROP;
+
+	unicast_tvlv_packet = (struct batadv_unicast_tvlv_packet *)skb->data;
+
+	tvlv_buff = (unsigned char *)(skb->data + hdr_size);
+	tvlv_buff_len = ntohs(unicast_tvlv_packet->tvlv_len);
+
+	if (tvlv_buff_len > skb->len - hdr_size)
+		return NET_RX_DROP;
+
+	ret = batadv_tvlv_containers_process(bat_priv, false, NULL,
+					     unicast_tvlv_packet->src,
+					     unicast_tvlv_packet->dst,
+					     tvlv_buff, tvlv_buff_len);
+
+	if (ret != NET_RX_SUCCESS)
+		ret = batadv_route_unicast_packet(skb, recv_if);
+
+	return ret;
+}
 
 int batadv_recv_bcast_packet(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if)
@@ -1239,54 +1194,4 @@ out:
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
 	return ret;
-}
-
-int batadv_recv_vis_packet(struct sk_buff *skb,
-			   struct batadv_hard_iface *recv_if)
-{
-	struct batadv_vis_packet *vis_packet;
-	struct ethhdr *ethhdr;
-	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	int hdr_size = sizeof(*vis_packet);
-
-	/* keep skb linear */
-	if (skb_linearize(skb) < 0)
-		return NET_RX_DROP;
-
-	if (unlikely(!pskb_may_pull(skb, hdr_size)))
-		return NET_RX_DROP;
-
-	vis_packet = (struct batadv_vis_packet *)skb->data;
-	ethhdr = eth_hdr(skb);
-
-	/* not for me */
-	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest))
-		return NET_RX_DROP;
-
-	/* ignore own packets */
-	if (batadv_is_my_mac(bat_priv, vis_packet->vis_orig))
-		return NET_RX_DROP;
-
-	if (batadv_is_my_mac(bat_priv, vis_packet->sender_orig))
-		return NET_RX_DROP;
-
-	switch (vis_packet->vis_type) {
-	case BATADV_VIS_TYPE_SERVER_SYNC:
-		batadv_receive_server_sync_packet(bat_priv, vis_packet,
-						  skb_headlen(skb));
-		break;
-
-	case BATADV_VIS_TYPE_CLIENT_UPDATE:
-		batadv_receive_client_update_packet(bat_priv, vis_packet,
-						    skb_headlen(skb));
-		break;
-
-	default:	/* ignore unknown packet */
-		break;
-	}
-
-	/* We take a copy of the data in the packet, so we should
-	 * always free the skbuf.
-	 */
-	return NET_RX_DROP;
 }
