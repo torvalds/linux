@@ -148,18 +148,18 @@ make_space=y
 
 case "$platform" in
 pseries)
-    platformo=$object/of.o
+    platformo="$object/of.o $object/epapr.o"
     link_address='0x4000000'
     ;;
 maple)
-    platformo=$object/of.o
+    platformo="$object/of.o $object/epapr.o"
     link_address='0x400000'
     ;;
 pmac|chrp)
-    platformo=$object/of.o
+    platformo="$object/of.o $object/epapr.o"
     ;;
 coff)
-    platformo="$object/crt0.o $object/of.o"
+    platformo="$object/crt0.o $object/of.o $object/epapr.o"
     lds=$object/zImage.coff.lds
     link_address='0x500000'
     pie=
@@ -253,6 +253,7 @@ treeboot-iss4xx-mpic)
     platformo="$object/treeboot-iss4xx.o"
     ;;
 epapr)
+    platformo="$object/epapr.o $object/epapr-wrapper.o"
     link_address='0x20000000'
     pie=-pie
     ;;

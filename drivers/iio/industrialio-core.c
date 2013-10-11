@@ -852,7 +852,6 @@ static void iio_dev_release(struct device *device)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
-	iio_device_unregister_debugfs(indio_dev);
 
 	ida_simple_remove(&iio_ida, indio_dev->id);
 	kfree(indio_dev);
@@ -1087,6 +1086,7 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 
 	if (indio_dev->chrdev.dev)
 		cdev_del(&indio_dev->chrdev);
+	iio_device_unregister_debugfs(indio_dev);
 
 	iio_disable_all_buffers(indio_dev);
 

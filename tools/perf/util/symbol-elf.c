@@ -8,6 +8,22 @@
 #include "symbol.h"
 #include "debug.h"
 
+#ifndef HAVE_ELF_GETPHDRNUM
+static int elf_getphdrnum(Elf *elf, size_t *dst)
+{
+	GElf_Ehdr gehdr;
+	GElf_Ehdr *ehdr;
+
+	ehdr = gelf_getehdr(elf, &gehdr);
+	if (!ehdr)
+		return -1;
+
+	*dst = ehdr->e_phnum;
+
+	return 0;
+}
+#endif
+
 #ifndef NT_GNU_BUILD_ID
 #define NT_GNU_BUILD_ID 3
 #endif

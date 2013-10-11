@@ -19,8 +19,6 @@
 #define DM_MSG_PREFIX "io"
 
 #define DM_IO_MAX_REGIONS	BITS_PER_LONG
-#define MIN_IOS		16
-#define MIN_BIOS	16
 
 struct dm_io_client {
 	mempool_t *pool;
@@ -50,16 +48,17 @@ static struct kmem_cache *_dm_io_cache;
 struct dm_io_client *dm_io_client_create(void)
 {
 	struct dm_io_client *client;
+	unsigned min_ios = dm_get_reserved_bio_based_ios();
 
 	client = kmalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
-	client->pool = mempool_create_slab_pool(MIN_IOS, _dm_io_cache);
+	client->pool = mempool_create_slab_pool(min_ios, _dm_io_cache);
 	if (!client->pool)
 		goto bad;
 
-	client->bios = bioset_create(MIN_BIOS, 0);
+	client->bios = bioset_create(min_ios, 0);
 	if (!client->bios)
 		goto bad;
 
