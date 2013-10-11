@@ -369,7 +369,7 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		struct hists *hists = &evsel->hists;
 
-		hists__collapse_resort(hists);
+		hists__collapse_resort(hists, NULL);
 	}
 }
 

@@ -286,7 +286,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 		return;
 	}
 
-	hists__collapse_resort(&top->sym_evsel->hists);
+	hists__collapse_resort(&top->sym_evsel->hists, NULL);
 	hists__output_resort(&top->sym_evsel->hists);
 	hists__decay_entries(&top->sym_evsel->hists,
 			     top->hide_user_symbols,
@@ -552,7 +552,7 @@ static void perf_top__sort_new_samples(void *arg)
 	if (t->evlist->selected != NULL)
 		t->sym_evsel = t->evlist->selected;
 
-	hists__collapse_resort(&t->sym_evsel->hists);
+	hists__collapse_resort(&t->sym_evsel->hists, NULL);
 	hists__output_resort(&t->sym_evsel->hists);
 	hists__decay_entries(&t->sym_evsel->hists,
 			     t->hide_user_symbols,

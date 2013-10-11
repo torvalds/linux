@@ -467,7 +467,7 @@ int test__hists_link(void)
 		goto out;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
-		hists__collapse_resort(&evsel->hists);
+		hists__collapse_resort(&evsel->hists, NULL);
 
 		if (verbose > 2)
 			print_hists(&evsel->hists);

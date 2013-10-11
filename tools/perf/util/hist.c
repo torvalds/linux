@@ -399,6 +399,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 	if (!he)
 		return NULL;
 
+	hists->nr_entries++;
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
 out:
@@ -604,7 +605,7 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_symbol(hists, he);
 }
 
-void hists__collapse_resort(struct hists *hists)
+void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -631,6 +632,8 @@ void hists__collapse_resort(struct hists *hists)
 			 */
 			hists__apply_filters(hists, n);
 		}
+		if (prog)
+			ui_progress__update(prog, 1);
 	}
 }
 
