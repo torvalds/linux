@@ -6709,6 +6709,7 @@ static int hmp_active_task_migration_cpu_stop(void *data)
 	rcu_read_unlock();
 	double_unlock_balance(busiest_rq, target_rq);
 out_unlock:
+	put_task_struct(p);
 	busiest_rq->active_balance = 0;
 	raw_spin_unlock_irq(&busiest_rq->lock);
 	return 0;
@@ -6782,6 +6783,7 @@ static int hmp_idle_pull_cpu_stop(void *data)
 	rcu_read_unlock();
 	double_unlock_balance(busiest_rq, target_rq);
 out_unlock:
+	put_task_struct(p);
 	busiest_rq->active_balance = 0;
 	raw_spin_unlock_irq(&busiest_rq->lock);
 	return 0;
@@ -6827,6 +6829,7 @@ static void hmp_force_up_migration(int this_cpu)
 		p = task_of(curr);
 		if (hmp_up_migration(cpu, &target_cpu, curr)) {
 			if (!target->active_balance) {
+				get_task_struct(p);
 				target->active_balance = 1;
 				target->push_cpu = target_cpu;
 				target->migrate_task = p;
@@ -6842,8 +6845,10 @@ static void hmp_force_up_migration(int this_cpu)
 			 * require extensive book keeping.
 			 */
 			curr = hmp_get_lightest_task(orig, 1);
+			p = task_of(curr);
 			target->push_cpu = hmp_offload_down(cpu, curr);
 			if (target->push_cpu < NR_CPUS) {
+				get_task_struct(p);
 				target->active_balance = 1;
 				target->migrate_task = p;
 				force = 1;
@@ -6922,6 +6927,7 @@ static unsigned int hmp_idle_pull(int this_cpu)
 	/* now we have a candidate */
 	raw_spin_lock_irqsave(&target->lock, flags);
 	if (!target->active_balance && task_rq(p) == target) {
+		get_task_struct(p);
 		target->active_balance = 1;
 		target->push_cpu = this_cpu;
 		target->migrate_task = p;
