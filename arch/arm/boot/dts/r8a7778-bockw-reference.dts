@@ -51,10 +51,6 @@
 		vdd33a-supply = <&fixedregulator3v3>;
 	};
 
-	mmc_pins: mmc {
-		renesas,groups = "mmc_data8", "mmc_ctrl";
-		renesas,function = "mmc";
-	};
 };
 
 &mmcif {
@@ -78,5 +74,10 @@
 	scif0_pins: scif0 {
 		renesas,groups = "scif0_data_a", "scif0_ctrl";
 		renesas,function = "scif0";
+	};
+
+	mmc_pins: mmc {
+		renesas,groups = "mmc_data8", "mmc_ctrl";
+		renesas,function = "mmc";
 	};
 };
