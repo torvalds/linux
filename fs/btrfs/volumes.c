@@ -2042,6 +2042,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	device->in_fs_metadata = 1;
 	device->is_tgtdev_for_dev_replace = 0;
 	device->mode = FMODE_EXCL;
+	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, 4096);
 
 	if (seeding_dev) {
@@ -2209,6 +2210,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	device->in_fs_metadata = 1;
 	device->is_tgtdev_for_dev_replace = 1;
 	device->mode = FMODE_EXCL;
+	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, 4096);
 	device->fs_devices = fs_info->fs_devices;
 	list_add(&device->dev_list, &fs_info->fs_devices->devices);
