@@ -3374,6 +3374,43 @@ static int set_static_address(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
+static int set_scan_params(struct sock *sk, struct hci_dev *hdev,
+			   void *data, u16 len)
+{
+	struct mgmt_cp_set_scan_params *cp = data;
+	__u16 interval, window;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
+	interval = __le16_to_cpu(cp->interval);
+
+	if (interval < 0x0004 || interval > 0x4000)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	window = __le16_to_cpu(cp->window);
+
+	if (window < 0x0004 || window > 0x4000)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	hdev->le_scan_interval = interval;
+	hdev->le_scan_window = window;
+
+	err = cmd_complete(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS, 0, NULL, 0);
+
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static void fast_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
@@ -3710,6 +3747,7 @@ static const struct mgmt_handler {
 	{ set_advertising,        false, MGMT_SETTING_SIZE },
 	{ set_bredr,              false, MGMT_SETTING_SIZE },
 	{ set_static_address,     false, MGMT_SET_STATIC_ADDRESS_SIZE },
+	{ set_scan_params,        false, MGMT_SET_SCAN_PARAMS_SIZE },
 };
 
 
