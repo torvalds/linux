@@ -290,6 +290,19 @@ config HW_RANDOM_PSERIES
 
 	  If unsure, say Y.
 
+config HW_RANDOM_POWERNV
+	tristate "PowerNV Random Number Generator support"
+	depends on HW_RANDOM && PPC_POWERNV
+	default HW_RANDOM
+	---help---
+	  This is the driver for Random Number Generator hardware found
+	  in POWER7+ and above machines for PowerNV platform.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called powernv-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_EXYNOS
 	tristate "EXYNOS HW random number generator support"
 	depends on HW_RANDOM && HAS_IOMEM && HAVE_CLK
