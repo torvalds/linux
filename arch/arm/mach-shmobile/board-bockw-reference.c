@@ -19,7 +19,6 @@
  */
 
 #include <linux/of_platform.h>
-#include <linux/pinctrl/machine.h>
 #include <mach/common.h>
 #include <mach/r8a7778.h>
 #include <asm/mach/arch.h>
