@@ -31,29 +31,30 @@ nouveau_mc_intr(int irq, void *arg)
 	struct nouveau_mc *pmc = arg;
 	const struct nouveau_mc_intr *map = pmc->intr_map;
 	struct nouveau_subdev *unit;
-	u32 stat, intr;
+	u32 intr, stat;
 
-	intr = stat = nv_rd32(pmc, 0x000100);
-	if (intr == 0xffffffff)
-		return IRQ_NONE;
-	while (stat && map->stat) {
-		if (stat & map->stat) {
-			unit = nouveau_subdev(pmc, map->unit);
-			if (unit && unit->intr)
-				unit->intr(unit);
-			intr &= ~map->stat;
+	intr = nv_rd32(pmc, 0x000100);
+	if (intr == 0xffffffff) /* likely fallen off the bus */
+		intr = 0x00000000;
+
+	if ((stat = intr) != 0) {
+		while (map->stat) {
+			if (intr & map->stat) {
+				unit = nouveau_subdev(pmc, map->unit);
+				if (unit && unit->intr)
+					unit->intr(unit);
+				stat &= ~map->stat;
+			}
+			map++;
 		}
-		map++;
+
+		if (pmc->use_msi)
+			nv_wr08(pmc, 0x088068, 0xff);
+		if (stat)
+			nv_error(pmc, "unknown intr 0x%08x\n", stat);
 	}
 
-	if (pmc->use_msi)
-		nv_wr08(pmc, 0x088068, 0xff);
-
-	if (intr) {
-		nv_error(pmc, "unknown intr 0x%08x\n", stat);
-	}
-
-	return stat ? IRQ_HANDLED : IRQ_NONE;
+	return intr ? IRQ_HANDLED : IRQ_NONE;
 }
 
 int
