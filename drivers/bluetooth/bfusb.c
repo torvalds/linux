@@ -42,7 +42,7 @@
 
 static struct usb_driver bfusb_driver;
 
-static struct usb_device_id bfusb_table[] = {
+static const struct usb_device_id bfusb_table[] = {
 	/* AVM BlueFRITZ! USB */
 	{ USB_DEVICE(0x057c, 0x2200) },
 
