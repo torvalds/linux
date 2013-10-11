@@ -61,7 +61,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 * at least 8 bytes bytes available in headroom for IV/EIV
 	 * and 8 bytes for ICV data as tailroon.
 	 */
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev)) {
 		head_size += 8;
 		tail_size += 8;
 	}

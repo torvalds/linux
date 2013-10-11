@@ -353,7 +353,7 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 * do not support link tuning at all, while other devices can disable
 	 * the feature from the EEPROM.
 	 */
-	if (test_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_link_tuning(rt2x00dev))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev, qual, link->count);
 
 	/*
@@ -493,7 +493,7 @@ static void rt2x00link_vcocal(struct work_struct *work)
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)
 {
 	INIT_DELAYED_WORK(&rt2x00dev->link.agc_work, rt2x00link_agc);
-	if (test_bit(CAPABILITY_VCO_RECALIBRATION, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_vco_recalibration(rt2x00dev))
 		INIT_DELAYED_WORK(&rt2x00dev->link.vco_work, rt2x00link_vcocal);
 	INIT_DELAYED_WORK(&rt2x00dev->link.watchdog_work, rt2x00link_watchdog);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00link_tuner);
