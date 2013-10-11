@@ -569,4 +569,15 @@ int omap3_ctrl_save_padconf(void)
 	return 0;
 }
 
+/**
+ * omap3_ctrl_set_iva_bootmode_idle - sets the IVA2 bootmode to idle
+ *
+ * Sets the bootmode for IVA2 to idle. This is needed by the PM code to
+ * force disable IVA2 so that it does not prevent any low-power states.
+ */
+void omap3_ctrl_set_iva_bootmode_idle(void)
+{
+	omap_ctrl_writel(OMAP3_IVA2_BOOTMOD_IDLE,
+			 OMAP343X_CONTROL_IVA2_BOOTMOD);
+}
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
