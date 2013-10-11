@@ -357,16 +357,9 @@ static void btmrvl_free_adapter(struct btmrvl_private *priv)
 
 static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct btmrvl_private *priv = NULL;
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
 	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device");
-		return -ENODEV;
-	}
-
-	priv = hci_get_drvdata(hdev);
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
 		BT_ERR("Failed testing HCI_RUNING, flags=%lx", hdev->flags);
