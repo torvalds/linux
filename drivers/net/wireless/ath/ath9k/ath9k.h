@@ -64,7 +64,6 @@ struct ath_node;
 
 struct ath_config {
 	u16 txpowlimit;
-	u8 cabqReadytime;
 };
 
 /*************************/
