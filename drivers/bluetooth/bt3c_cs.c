@@ -417,15 +417,8 @@ static int bt3c_hci_close(struct hci_dev *hdev)
 
 static int bt3c_hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	bt3c_info_t *info;
+	bt3c_info_t *info = hci_get_drvdata(hdev);
 	unsigned long flags;
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
-
-	info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
