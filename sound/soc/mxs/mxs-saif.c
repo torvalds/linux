@@ -503,6 +503,9 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (saif->state == MXS_SAIF_STATE_RUNNING)
+			return 0;
+
 		dev_dbg(cpu_dai->dev, "start\n");
 
 		clk_enable(master_saif->clk);
@@ -543,6 +546,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		master_saif->ongoing = 1;
+		saif->state = MXS_SAIF_STATE_RUNNING;
 
 		dev_dbg(saif->dev, "CTRL 0x%x STAT 0x%x\n",
 			__raw_readl(saif->base + SAIF_CTRL),
@@ -555,6 +559,9 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (saif->state == MXS_SAIF_STATE_STOPPED)
+			return 0;
+
 		dev_dbg(cpu_dai->dev, "stop\n");
 
 		/* wait a while for the current sample to complete */
@@ -575,6 +582,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		master_saif->ongoing = 0;
+		saif->state = MXS_SAIF_STATE_STOPPED;
 
 		break;
 	default:
