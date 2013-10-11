@@ -8,7 +8,7 @@ Description:
 
 What:           /sys/class/net/<mesh_iface>/mesh/ap_isolation
 Date:           May 2011
-Contact:        Antonio Quartulli <ordex@autistici.org>
+Contact:        Antonio Quartulli <antonio@meshcoding.com>
 Description:
                 Indicates whether the data traffic going from a
                 wireless client to another wireless client will be
