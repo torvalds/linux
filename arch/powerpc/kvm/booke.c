@@ -656,9 +656,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret, s;
 #ifdef CONFIG_PPC_FPU
-	unsigned int fpscr;
+	struct thread_fp_state fp;
 	int fpexc_mode;
-	u64 fpr[32];
 #endif
 
 	if (!vcpu->arch.sane) {
@@ -677,13 +676,13 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #ifdef CONFIG_PPC_FPU
 	/* Save userspace FPU state in stack */
 	enable_kernel_fp();
-	memcpy(fpr, current->thread.fpr, sizeof(current->thread.fpr));
-	fpscr = current->thread.fpscr.val;
+	fp = current->thread.fp_state;
 	fpexc_mode = current->thread.fpexc_mode;
 
 	/* Restore guest FPU state to thread */
-	memcpy(current->thread.fpr, vcpu->arch.fpr, sizeof(vcpu->arch.fpr));
-	current->thread.fpscr.val = vcpu->arch.fpscr;
+	memcpy(current->thread.fp_state.fpr, vcpu->arch.fpr,
+	       sizeof(vcpu->arch.fpr));
+	current->thread.fp_state.fpscr = vcpu->arch.fpscr;
 
 	/*
 	 * Since we can't trap on MSR_FP in GS-mode, we consider the guest
@@ -709,12 +708,12 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	vcpu->fpu_active = 0;
 
 	/* Save guest FPU state from thread */
-	memcpy(vcpu->arch.fpr, current->thread.fpr, sizeof(vcpu->arch.fpr));
-	vcpu->arch.fpscr = current->thread.fpscr.val;
+	memcpy(vcpu->arch.fpr, current->thread.fp_state.fpr,
+	       sizeof(vcpu->arch.fpr));
+	vcpu->arch.fpscr = current->thread.fp_state.fpscr;
 
 	/* Restore userspace FPU state from stack */
-	memcpy(current->thread.fpr, fpr, sizeof(current->thread.fpr));
-	current->thread.fpscr.val = fpscr;
+	current->thread.fp_state = fp;
 	current->thread.fpexc_mode = fpexc_mode;
 #endif
 

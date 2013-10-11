@@ -52,6 +52,7 @@ struct pnv_ioda_pe {
 	int			tce32_seg;
 	int			tce32_segcount;
 	struct iommu_table	tce32_table;
+	phys_addr_t		tce_inval_reg_phys;
 
 	/* XXX TODO: Add support for additional 64-bit iommus */
 
@@ -193,6 +194,6 @@ extern void pnv_pci_init_p5ioc2_hub(struct device_node *np);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
-					__be64 *startp, __be64 *endp);
+					__be64 *startp, __be64 *endp, bool rm);
 
 #endif /* __POWERNV_PCI_H */

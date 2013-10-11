@@ -1008,6 +1008,11 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.ptrace_bps[0] = NULL;
 #endif
 
+	p->thread.fp_save_area = NULL;
+#ifdef CONFIG_ALTIVEC
+	p->thread.vr_save_area = NULL;
+#endif
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (mmu_has_feature(MMU_FTR_SLB)) {
 		unsigned long sp_vsid;
@@ -1113,12 +1118,12 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
 #endif
-	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
-	current->thread.fpscr.val = 0;
+	memset(&current->thread.fp_state, 0, sizeof(current->thread.fp_state));
+	current->thread.fp_save_area = NULL;
 #ifdef CONFIG_ALTIVEC
-	memset(current->thread.vr, 0, sizeof(current->thread.vr));
-	memset(&current->thread.vscr, 0, sizeof(current->thread.vscr));
-	current->thread.vscr.u[3] = 0x00010000; /* Java mode disabled */
+	memset(&current->thread.vr_state, 0, sizeof(current->thread.vr_state));
+	current->thread.vr_state.vscr.u[3] = 0x00010000; /* Java mode disabled */
+	current->thread.vr_save_area = NULL;
 	current->thread.vrsave = 0;
 	current->thread.used_vr = 0;
 #endif /* CONFIG_ALTIVEC */
