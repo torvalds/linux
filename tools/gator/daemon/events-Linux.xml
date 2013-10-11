@@ -11,7 +11,7 @@
     <event counter="Linux_meminfo_bufferram" title="Memory" name="Buffer" display="maximum" units="B" average_selection="yes" description="Memory used by OS disk buffers"/>
     <event counter="Linux_power_cpu_freq" title="Clock" name="Frequency" per_cpu="yes" display="maximum" units="Hz" series_composition="overlay" average_selection="yes" average_cores="yes" description="Frequency setting of the CPU"/>
     <event counter="Linux_power_cpu_idle" title="Idle" name="State" per_cpu="yes" display="maximum" average_selection="yes" description="CPU Idle State + 1, set the Sample Rate to None to prevent the hrtimer from interrupting the system"/>
-    <event counter="Linux_cpu_wait_contention" title="CPU Contention" name="Wait" per_cpu="no" display="maximum" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" description="Thread waiting on contended resource"/>
-    <event counter="Linux_cpu_wait_io" title="CPU I/O" name="Wait" per_cpu="no" display="maximum" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" description="Thread waiting on I/O resource"/>
+    <event counter="Linux_cpu_wait_contention" title="CPU Contention" name="Wait" per_cpu="no" display="average" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" description="Thread waiting on contended resource"/>
+    <event counter="Linux_cpu_wait_io" title="CPU I/O" name="Wait" per_cpu="no" display="average" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" description="Thread waiting on I/O resource"/>
   </category>
 

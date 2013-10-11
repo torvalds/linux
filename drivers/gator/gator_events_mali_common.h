@@ -19,7 +19,7 @@
 #include <asm/io.h>
 
 /* Device codes for each known GPU */
-#define MALI_400     (0x0b07)
+#define MALI_4xx     (0x0b07)
 #define MALI_T6xx    (0x0056)
 
 /* Ensure that MALI_SUPPORT has been defined to something. */
@@ -40,9 +40,9 @@ typedef struct {
 } mali_counter;
 
 /*
- * Mali-400
+ * Mali-4xx
  */
-typedef void mali_profiling_set_event_type(unsigned int, unsigned int);
+typedef int mali_profiling_set_event_type(unsigned int, int);
 typedef void mali_osk_fb_control_set_type(unsigned int, unsigned int);
 typedef void mali_profiling_control_type(unsigned int, unsigned int);
 typedef void mali_profiling_get_counters_type(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
@@ -50,13 +50,13 @@ typedef void mali_profiling_get_counters_type(unsigned int *, unsigned int *, un
 /*
  * Driver entry points for functions called directly by gator.
  */
-extern void _mali_profiling_set_event(unsigned int, unsigned int);
+extern int _mali_profiling_set_event(unsigned int, int);
 extern void _mali_osk_fb_control_set(unsigned int, unsigned int);
 extern void _mali_profiling_control(unsigned int, unsigned int);
 extern void _mali_profiling_get_counters(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 
 /**
- * Returns a name which identifies the GPU type (eg Mali-400, Mali-T6xx).
+ * Returns a name which identifies the GPU type (eg Mali-4xx, Mali-T6xx).
  *
  * @return The name as a constant string.
  */

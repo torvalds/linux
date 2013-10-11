@@ -16,17 +16,34 @@
 
 static bool map_cpuids;
 static int mpidr_cpuids[NR_CPUS];
+static const struct gator_cpu * mpidr_cpus[NR_CPUS];
 static int __lcpu_to_pcpu[NR_CPUS];
+
+static const struct gator_cpu *gator_find_cpu_by_dt_name(const char *const name)
+{
+	int i;
+
+	for (i = 0; gator_cpus[i].cpuid != 0; ++i) {
+		const struct gator_cpu *const gator_cpu = &gator_cpus[i];
+		if (gator_cpu->dt_name != NULL && strcmp(gator_cpu->dt_name, name) == 0) {
+			return gator_cpu;
+		}
+	}
+
+	return NULL;
+}
 
 static void calc_first_cluster_size(void)
 {
 	int len;
 	const u32 *val;
+	const char *compatible;
 	struct device_node *cn = NULL;
 	int mpidr_cpuids_count = 0;
 
 	// Zero is a valid cpuid, so initialize the array to 0xff's
 	memset(&mpidr_cpuids, 0xff, sizeof(mpidr_cpuids));
+	memset(&mpidr_cpus, 0, sizeof(mpidr_cpus));
 
 	while ((cn = of_find_node_by_type(cn, "cpu"))) {
 		BUG_ON(mpidr_cpuids_count >= NR_CPUS);
@@ -36,8 +53,14 @@ static void calc_first_cluster_size(void)
 			pr_err("%s missing reg property\n", cn->full_name);
 			continue;
 		}
+		compatible = of_get_property(cn, "compatible", NULL);
+		if (compatible == NULL) {
+			pr_err("%s missing compatible property\n", cn->full_name);
+			continue;
+		}
 
 		mpidr_cpuids[mpidr_cpuids_count] = be32_to_cpup(val);
+		mpidr_cpus[mpidr_cpuids_count] = gator_find_cpu_by_dt_name(compatible);
 		++mpidr_cpuids_count;
 	}
 
@@ -120,6 +143,17 @@ GATOR_DEFINE_PROBE(cpu_migrate_current, TP_PROTO(u64 timestamp, u32 cpu_hwid))
 	gator_update_cpu_mapping(cpu_hwid);
 }
 
+static void gator_send_iks_core_names(void)
+{
+	int cpu;
+	// Send the cpu names
+	for (cpu = 0; cpu < nr_cpu_ids; ++cpu) {
+		if (mpidr_cpus[cpu] != NULL) {
+			gator_send_core_name(cpu, mpidr_cpus[cpu]->cpuid, mpidr_cpus[cpu]);
+		}
+	}
+}
+
 static int gator_migrate_start(void)
 {
 	int retval = 0;
@@ -154,6 +188,7 @@ static void gator_migrate_stop(void)
 #else
 
 #define calc_first_cluster_size()
+#define gator_send_iks_core_names()
 #define gator_migrate_start() 0
 #define gator_migrate_stop()
 

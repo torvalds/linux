@@ -10,9 +10,6 @@
 #include <trace/events/sched.h>
 #include "gator.h"
 
-#define SCHED_SWITCH			1
-#define SCHED_PROCESS_EXIT		2
-
 #define TASK_MAP_ENTRIES		1024	/* must be power of 2 */
 #define TASK_MAX_COLLISIONS		2
 
@@ -92,14 +89,12 @@ void emit_pid_name(struct task_struct *task)
 	}
 }
 
-static void collect_counters(void)
+static void collect_counters(u64 time)
 {
 	int *buffer, len, cpu = get_physical_cpu();
 	long long *buffer64;
 	struct gator_interface *gi;
-	u64 time;
 
-	time = gator_get_time();
 	if (marshal_event_header(time)) {
 		list_for_each_entry(gi, &gator_events, list) {
 			if (gi->read) {
@@ -113,49 +108,19 @@ static void collect_counters(void)
 		// Only check after writing all counters so that time and corresponding counters appear in the same frame
 		buffer_check(cpu, BLOCK_COUNTER_BUF, time);
 
-#if GATOR_LIVE
 		// Commit buffers on timeout
 		if (gator_live_rate > 0 && time >= per_cpu(gator_buffer_commit_time, cpu)) {
 			static const int buftypes[] = { COUNTER_BUF, BLOCK_COUNTER_BUF, SCHED_TRACE_BUF };
 			int i;
-			for (i = 0; i < sizeof(buftypes)/sizeof(buftypes[0]); ++i) {
+			for (i = 0; i < ARRAY_SIZE(buftypes); ++i) {
 				gator_commit_buffer(cpu, buftypes[i], time);
 			}
+			// Try to preemptively flush the annotate buffer to reduce the chance of the buffer being full
+			if (on_primary_core() && spin_trylock(&annotate_lock)) {
+				gator_commit_buffer(0, ANNOTATE_BUF, time);
+				spin_unlock(&annotate_lock);
+			}
 		}
-#endif
-	}
-}
-
-static void probe_sched_write(int type, struct task_struct *task, struct task_struct *old_task)
-{
-	int cookie = 0, state = 0;
-	int cpu = get_physical_cpu();
-	int tgid = task->tgid;
-	int pid = task->pid;
-
-	if (type == SCHED_SWITCH) {
-		// do as much work as possible before disabling interrupts
-		cookie = get_exec_cookie(cpu, task);
-		emit_pid_name(task);
-		if (old_task->state == TASK_RUNNING) {
-			state = STATE_CONTENTION;
-		} else if (old_task->in_iowait) {
-			state = STATE_WAIT_ON_IO;
-		} else {
-			state = STATE_WAIT_ON_OTHER;
-		}
-
-		per_cpu(collecting, cpu) = 1;
-		collect_counters();
-		per_cpu(collecting, cpu) = 0;
-	}
-
-	// marshal_sched_trace() disables interrupts as the free may trigger while switch is writing to the buffer; disabling preemption is not sufficient
-	// is disable interrupts necessary now that exit is used instead of free?
-	if (type == SCHED_SWITCH) {
-		marshal_sched_trace_switch(tgid, pid, cookie, state);
-	} else {
-		marshal_sched_trace_exit(tgid, pid);
 	}
 }
 
@@ -165,18 +130,48 @@ static void trace_sched_insert_idle(void)
 	marshal_sched_trace_switch(0, 0, 0, 0);
 }
 
+GATOR_DEFINE_PROBE(sched_process_fork, TP_PROTO(struct task_struct *parent, struct task_struct *child))
+{
+	int cookie;
+	int cpu = get_physical_cpu();
+
+	cookie = get_exec_cookie(cpu, child);
+	emit_pid_name(child);
+
+	marshal_sched_trace_start(child->tgid, child->pid, cookie);
+}
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
 GATOR_DEFINE_PROBE(sched_switch, TP_PROTO(struct rq *rq, struct task_struct *prev, struct task_struct *next))
 #else
 GATOR_DEFINE_PROBE(sched_switch, TP_PROTO(struct task_struct *prev, struct task_struct *next))
 #endif
 {
-	probe_sched_write(SCHED_SWITCH, next, prev);
+	int cookie;
+	int state;
+	int cpu = get_physical_cpu();
+
+	// do as much work as possible before disabling interrupts
+	cookie = get_exec_cookie(cpu, next);
+	emit_pid_name(next);
+	if (prev->state == TASK_RUNNING) {
+		state = STATE_CONTENTION;
+	} else if (prev->in_iowait) {
+		state = STATE_WAIT_ON_IO;
+	} else {
+		state = STATE_WAIT_ON_OTHER;
+	}
+
+	per_cpu(collecting, cpu) = 1;
+	collect_counters(gator_get_time());
+	per_cpu(collecting, cpu) = 0;
+
+	marshal_sched_trace_switch(next->tgid, next->pid, cookie, state);
 }
 
-GATOR_DEFINE_PROBE(sched_process_exit, TP_PROTO(struct task_struct *p))
+GATOR_DEFINE_PROBE(sched_process_free, TP_PROTO(struct task_struct *p))
 {
-	probe_sched_write(SCHED_PROCESS_EXIT, p, 0);
+	marshal_sched_trace_exit(p->tgid, p->pid);
 }
 
 static void do_nothing(void *info)
@@ -188,10 +183,12 @@ static void do_nothing(void *info)
 static int register_scheduler_tracepoints(void)
 {
 	// register tracepoints
+	if (GATOR_REGISTER_TRACE(sched_process_fork))
+		goto fail_sched_process_fork;
 	if (GATOR_REGISTER_TRACE(sched_switch))
 		goto fail_sched_switch;
-	if (GATOR_REGISTER_TRACE(sched_process_exit))
-		goto fail_sched_process_exit;
+	if (GATOR_REGISTER_TRACE(sched_process_free))
+		goto fail_sched_process_free;
 	pr_debug("gator: registered tracepoints\n");
 
 	// Now that the scheduler tracepoint is registered, force a context switch
@@ -201,9 +198,11 @@ static int register_scheduler_tracepoints(void)
 	return 0;
 
 	// unregister tracepoints on error
-fail_sched_process_exit:
+fail_sched_process_free:
 	GATOR_UNREGISTER_TRACE(sched_switch);
 fail_sched_switch:
+	GATOR_UNREGISTER_TRACE(sched_process_fork);
+fail_sched_process_fork:
 	pr_err("gator: tracepoints failed to activate, please verify that tracepoints are enabled in the linux kernel\n");
 
 	return -1;
@@ -231,8 +230,9 @@ void gator_trace_sched_offline(void)
 
 static void unregister_scheduler_tracepoints(void)
 {
+	GATOR_UNREGISTER_TRACE(sched_process_fork);
 	GATOR_UNREGISTER_TRACE(sched_switch);
-	GATOR_UNREGISTER_TRACE(sched_process_exit);
+	GATOR_UNREGISTER_TRACE(sched_process_free);
 	pr_debug("gator: unregistered tracepoints\n");
 }
 

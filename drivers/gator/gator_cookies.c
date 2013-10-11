@@ -240,13 +240,13 @@ static inline uint32_t get_cookie(int cpu, struct task_struct *task, const char 
 
 	if (strcmp(text, "app_process") == 0) {
 		if (!translate_app_process(&text, cpu, task, from_wq))
-			return INVALID_COOKIE;
+			return UNRESOLVED_COOKIE;
 	}
 
 	// Can be called from interrupt handler or from work queue or from scheduler trace
 	local_irq_save(flags);
 
-	cookie = INVALID_COOKIE;
+	cookie = UNRESOLVED_COOKIE;
 	if (marshal_cookie_header(text)) {
 		cookie = per_cpu(cookie_next_key, cpu) += nr_cpu_ids;
 		cookiemap_add(key, cookie);
@@ -272,7 +272,7 @@ static int get_exec_cookie(int cpu, struct task_struct *task)
 		return get_cookie(cpu, task, text, false);
 	}
 
-	return INVALID_COOKIE;
+	return UNRESOLVED_COOKIE;
 }
 
 static unsigned long get_address_cookie(int cpu, struct task_struct *task, unsigned long addr, off_t *offset)
@@ -302,7 +302,7 @@ static unsigned long get_address_cookie(int cpu, struct task_struct *task, unsig
 	}
 
 	if (!vma)
-		cookie = INVALID_COOKIE;
+		cookie = UNRESOLVED_COOKIE;
 
 	return cookie;
 }

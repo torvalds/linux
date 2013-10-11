@@ -93,8 +93,13 @@ void Sender::writeData(const char* data, int length, int type) {
 		logg->logMessage("Sending data with length %d", length);
 		if (type != RESPONSE_APC_DATA) {
 			// type and length already added by the Collector for apc data
-			mDataSocket->send((char*)&type, 1);
-			mDataSocket->send((char*)&length, sizeof(length));
+			unsigned char header[5];
+			header[0] = type;
+			header[1] = (length >> 0) & 0xff;
+			header[2] = (length >> 8) & 0xff;
+			header[3] = (length >> 16) & 0xff;
+			header[4] = (length >> 24) & 0xff;
+			mDataSocket->send((char*)&header, sizeof(header));
 		}
 
 		// 100Kbits/sec * alarmDuration sec / 8 bits/byte

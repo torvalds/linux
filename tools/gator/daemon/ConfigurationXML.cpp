@@ -27,14 +27,7 @@ ConfigurationXML::ConfigurationXML() {
 	
 	char path[PATH_MAX];
 
-	if (gSessionData->mConfigurationXMLPath) {
-		strncpy(path, gSessionData->mConfigurationXMLPath, PATH_MAX);
-	} else {
-		if (util->getApplicationFullPath(path, PATH_MAX) != 0) {
-			logg->logMessage("Unable to determine the full path of gatord, the cwd will be used");
-		}
-		strncat(path, "configuration.xml", PATH_MAX - strlen(path) - 1);
-	}
+	getPath(path);
 	mConfigurationXML = util->readFromDisk(path);
 
 	for (int retryCount = 0; retryCount < 2; ++retryCount) {
@@ -48,12 +41,7 @@ ConfigurationXML::ConfigurationXML() {
 
 		int ret = parse(mConfigurationXML);
 		if (ret == 1) {
-			// remove configuration.xml on disk to use the default
-			if (remove(path) != 0) {
-				logg->logError(__FILE__, __LINE__, "Invalid configuration.xml file detected and unable to delete it. To resolve, delete configuration.xml on disk");
-				handleException();
-			}
-			logg->logMessage("Invalid configuration.xml file detected and removed");
+			remove();
 
 			// Free the current configuration and reload
 			free((void*)mConfigurationXML);
@@ -196,4 +184,26 @@ void ConfigurationXML::getDefaultConfigurationXml(const char * & xml, unsigned i
 #include "configuration_xml.h" // defines and initializes char configuration_xml[] and int configuration_xml_len
 	xml = (const char *)configuration_xml;
 	len = configuration_xml_len;
+}
+
+void ConfigurationXML::getPath(char* path) {
+	if (gSessionData->mConfigurationXMLPath) {
+		strncpy(path, gSessionData->mConfigurationXMLPath, PATH_MAX);
+	} else {
+		if (util->getApplicationFullPath(path, PATH_MAX) != 0) {
+			logg->logMessage("Unable to determine the full path of gatord, the cwd will be used");
+		}
+		strncat(path, "configuration.xml", PATH_MAX - strlen(path) - 1);
+	}
+}
+
+void ConfigurationXML::remove() {
+	char path[PATH_MAX];
+	getPath(path);
+
+	if (::remove(path) != 0) {
+		logg->logError(__FILE__, __LINE__, "Invalid configuration.xml file detected and unable to delete it. To resolve, delete configuration.xml on disk");
+		handleException();
+	}
+	logg->logMessage("Invalid configuration.xml file detected and removed");
 }

@@ -43,6 +43,14 @@ mxml_node_t* CapturedXML::getTree(bool includeTime) {
 	mxmlElementSetAttrf(target, "cores", "%d", gSessionData->mCores);
 	mxmlElementSetAttrf(target, "cpuid", "0x%x", gSessionData->mCpuId);
 
+	if (!gSessionData->mOneShot && (gSessionData->mSampleRate > 0)) {
+		mxmlElementSetAttr(target, "supports_live", "yes");
+	}
+
+	if (gSessionData->mLocalCapture) {
+		mxmlElementSetAttr(target, "local_capture", "yes");
+	}
+
 	mxml_node_t *counters = NULL;
 	for (x = 0; x < MAX_PERFORMANCE_COUNTERS; x++) {
 		const Counter & counter = gSessionData->mCounters[x];

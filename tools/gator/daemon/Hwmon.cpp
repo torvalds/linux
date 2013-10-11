@@ -73,7 +73,7 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, int key, const sensors_chip_name 
 
 	len = snprintf(NULL, 0, "hwmon_%s_%d", chip_name, feature->number) + 1;
 	name = new char[len];
-	len = snprintf(name, len, "hwmon_%s_%d", chip_name, feature->number);
+	snprintf(name, len, "hwmon_%s_%d", chip_name, feature->number);
 
 	delete [] chip_name;
 

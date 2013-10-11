@@ -8,11 +8,11 @@
  */
 
 /*
- * Header contains common definitions for the Mali-400 processors.
+ * Header contains common definitions for the Mali-4xx processors.
  */
-#if !defined(GATOR_EVENTS_MALI_400_H)
-#define GATOR_EVENTS_MALI_400_H
+#if !defined(GATOR_EVENTS_MALI_4xx_H)
+#define GATOR_EVENTS_MALI_4xx_H
 
 extern void gator_events_mali_log_dvfs_event(unsigned int d0, unsigned int d1);
 
-#endif /* GATOR_EVENTS_MALI_400_H */
+#endif /* GATOR_EVENTS_MALI_4xx_H */

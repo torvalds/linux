@@ -255,12 +255,7 @@ void StreamlineSetup::sendCounters() {
 void StreamlineSetup::writeConfiguration(char* xml) {
 	char path[PATH_MAX];
 
-	if (gSessionData->mConfigurationXMLPath) {
-		strncpy(path, gSessionData->mConfigurationXMLPath, PATH_MAX);
-	} else {
-		util->getApplicationFullPath(path, PATH_MAX);
-		strncat(path, "configuration.xml", PATH_MAX - strlen(path) - 1);
-	}
+	ConfigurationXML::getPath(path);
 
 	if (util->writeToDisk(path, xml) < 0) {
 		logg->logError(__FILE__, __LINE__, "Error writing %s\nPlease verify write permissions to this path.", path);
