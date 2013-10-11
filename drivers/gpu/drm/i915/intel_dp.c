@@ -737,7 +737,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	strncpy(intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = &intel_connector->base.kdev;
+	intel_dp->adapter.dev.parent = intel_connector->base.kdev;
 
 	ironlake_edp_panel_vdd_on(intel_dp);
 	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);

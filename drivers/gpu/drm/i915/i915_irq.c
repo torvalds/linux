@@ -942,7 +942,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 		parity_event[4] = kasprintf(GFP_KERNEL, "SLICE=%d", slice);
 		parity_event[5] = NULL;
 
-		kobject_uevent_env(&dev_priv->dev->primary->kdev.kobj,
+		kobject_uevent_env(&dev_priv->dev->primary->kdev->kobj,
 				   KOBJ_CHANGE, parity_event);
 
 		DRM_DEBUG("Parity error: Slice = %d, Row = %d, Bank = %d, Sub bank = %d.\n",
@@ -1539,7 +1539,7 @@ static void i915_error_work_func(struct work_struct *work)
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
 	int ret;
 
-	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, error_event);
 
 	/*
 	 * Note that there's only one work item which does gpu resets, so we
@@ -1553,7 +1553,7 @@ static void i915_error_work_func(struct work_struct *work)
 	 */
 	if (i915_reset_in_progress(error) && !i915_terminally_wedged(error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
-		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE,
+		kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
 				   reset_event);
 
 		/*
@@ -1580,7 +1580,7 @@ static void i915_error_work_func(struct work_struct *work)
 			smp_mb__before_atomic_inc();
 			atomic_inc(&dev_priv->gpu_error.reset_counter);
 
-			kobject_uevent_env(&dev->primary->kdev.kobj,
+			kobject_uevent_env(&dev->primary->kdev->kobj,
 					   KOBJ_CHANGE, reset_done_event);
 		} else {
 			atomic_set(&error->reset_counter, I915_WEDGED);

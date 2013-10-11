@@ -722,7 +722,7 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	}
 	dev_priv->backlight.device =
 		backlight_device_register("intel_backlight",
-					  &connector->kdev, dev,
+					  connector->kdev, dev,
 					  &intel_panel_bl_ops, &props);
 
 	if (IS_ERR(dev_priv->backlight.device)) {

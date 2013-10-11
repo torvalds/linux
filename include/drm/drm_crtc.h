@@ -595,7 +595,7 @@ enum drm_connector_force {
  */
 struct drm_connector {
 	struct drm_device *dev;
-	struct device kdev;
+	struct device *kdev;
 	struct device_attribute *attr;
 	struct list_head head;
 

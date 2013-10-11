@@ -32,7 +32,7 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-#define dev_to_drm_minor(d) container_of((d), struct drm_minor, kdev)
+#define dev_to_drm_minor(d) dev_get_drvdata((d))
 
 #ifdef CONFIG_PM
 static u32 calc_residency(struct drm_device *dev, const u32 reg)
@@ -75,7 +75,7 @@ show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = dev_to_drm_minor(kdev);
+	struct drm_minor *dminor = dev_get_drvdata(kdev);
 	u32 rc6_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6_residency);
 }
@@ -543,19 +543,19 @@ void i915_setup_sysfs(struct drm_device *dev)
 
 #ifdef CONFIG_PM
 	if (INTEL_INFO(dev)->gen >= 6) {
-		ret = sysfs_merge_group(&dev->primary->kdev.kobj,
+		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
 					&rc6_attr_group);
 		if (ret)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
 #endif
 	if (HAS_L3_DPF(dev)) {
-		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
+		ret = device_create_bin_file(dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
 
 		if (NUM_L3_SLICES(dev) > 1) {
-			ret = device_create_bin_file(&dev->primary->kdev,
+			ret = device_create_bin_file(dev->primary->kdev,
 						     &dpf_attrs_1);
 			if (ret)
 				DRM_ERROR("l3 parity slice 1 setup failed\n");
@@ -564,13 +564,13 @@ void i915_setup_sysfs(struct drm_device *dev)
 
 	ret = 0;
 	if (IS_VALLEYVIEW(dev))
-		ret = sysfs_create_files(&dev->primary->kdev.kobj, vlv_attrs);
+		ret = sysfs_create_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else if (INTEL_INFO(dev)->gen >= 6)
-		ret = sysfs_create_files(&dev->primary->kdev.kobj, gen6_attrs);
+		ret = sysfs_create_files(&dev->primary->kdev->kobj, gen6_attrs);
 	if (ret)
 		DRM_ERROR("RPS sysfs setup failed\n");
 
-	ret = sysfs_create_bin_file(&dev->primary->kdev.kobj,
+	ret = sysfs_create_bin_file(&dev->primary->kdev->kobj,
 				    &error_state_attr);
 	if (ret)
 		DRM_ERROR("error_state sysfs setup failed\n");
@@ -578,14 +578,14 @@ void i915_setup_sysfs(struct drm_device *dev)
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
-	sysfs_remove_bin_file(&dev->primary->kdev.kobj, &error_state_attr);
+	sysfs_remove_bin_file(&dev->primary->kdev->kobj, &error_state_attr);
 	if (IS_VALLEYVIEW(dev))
-		sysfs_remove_files(&dev->primary->kdev.kobj, vlv_attrs);
+		sysfs_remove_files(&dev->primary->kdev->kobj, vlv_attrs);
 	else
-		sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
-	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs_1);
-	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
+		sysfs_remove_files(&dev->primary->kdev->kobj, gen6_attrs);
+	device_remove_bin_file(dev->primary->kdev,  &dpf_attrs_1);
+	device_remove_bin_file(dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM
-	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
+	sysfs_unmerge_group(&dev->primary->kdev->kobj, &rc6_attr_group);
 #endif
 }

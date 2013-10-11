@@ -1046,7 +1046,7 @@ struct drm_minor {
 	int index;			/**< Minor device number */
 	int type;                       /**< Control or render */
 	dev_t device;			/**< Device number for mknod */
-	struct device kdev;		/**< Linux device */
+	struct device *kdev;		/**< Linux device */
 	struct drm_device *dev;
 
 	struct dentry *debugfs_root;
