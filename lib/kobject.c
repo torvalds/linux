@@ -592,7 +592,7 @@ static void kobject_release(struct kref *kref)
 {
 	struct kobject *kobj = container_of(kref, struct kobject, kref);
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
-	pr_debug("kobject: '%s' (%p): %s, parent %p (delayed)\n",
+	pr_info("kobject: '%s' (%p): %s, parent %p (delayed)\n",
 		 kobject_name(kobj), kobj, __func__, kobj->parent);
 	INIT_DELAYED_WORK(&kobj->release, kobject_delayed_cleanup);
 	schedule_delayed_work(&kobj->release, HZ);

@@ -522,8 +522,10 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	psc_num = master->bus_num;
 	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
 	clk = devm_clk_get(dev, clk_name);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
 		goto free_irq;
+	}
 	ret = clk_prepare_enable(clk);
 	if (ret)
 		goto free_irq;

@@ -133,13 +133,15 @@ struct wiimote_state {
 	__u8 *cmd_read_buf;
 	__u8 cmd_read_size;
 
-	/* calibration data */
+	/* calibration/cache data */
 	__u16 calib_bboard[4][3];
+	__u8 cache_rumble;
 };
 
 struct wiimote_data {
 	struct hid_device *hdev;
 	struct input_dev *input;
+	struct work_struct rumble_worker;
 	struct led_classdev *leds[4];
 	struct input_dev *accel;
 	struct input_dev *ir;

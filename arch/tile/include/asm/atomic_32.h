@@ -80,7 +80,7 @@ static inline void atomic_set(atomic_t *v, int n)
 /* A 64bit atomic type */
 
 typedef struct {
-	u64 __aligned(8) counter;
+	long long counter;
 } atomic64_t;
 
 #define ATOMIC64_INIT(val) { (val) }
@@ -91,14 +91,14 @@ typedef struct {
  *
  * Atomically reads the value of @v.
  */
-static inline u64 atomic64_read(const atomic64_t *v)
+static inline long long atomic64_read(const atomic64_t *v)
 {
 	/*
 	 * Requires an atomic op to read both 32-bit parts consistently.
 	 * Casting away const is safe since the atomic support routines
 	 * do not write to memory if the value has not been modified.
 	 */
-	return _atomic64_xchg_add((u64 *)&v->counter, 0);
+	return _atomic64_xchg_add((long long *)&v->counter, 0);
 }
 
 /**
@@ -108,7 +108,7 @@ static inline u64 atomic64_read(const atomic64_t *v)
  *
  * Atomically adds @i to @v.
  */
-static inline void atomic64_add(u64 i, atomic64_t *v)
+static inline void atomic64_add(long long i, atomic64_t *v)
 {
 	_atomic64_xchg_add(&v->counter, i);
 }
@@ -120,7 +120,7 @@ static inline void atomic64_add(u64 i, atomic64_t *v)
  *
  * Atomically adds @i to @v and returns @i + @v
  */
-static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
+static inline long long atomic64_add_return(long long i, atomic64_t *v)
 {
 	smp_mb();  /* barrier for proper semantics */
 	return _atomic64_xchg_add(&v->counter, i) + i;
@@ -135,7 +135,8 @@ static inline u64 atomic64_add_return(u64 i, atomic64_t *v)
  * Atomically adds @a to @v, so long as @v was not already @u.
  * Returns non-zero if @v was not @u, and zero otherwise.
  */
-static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
+static inline long long atomic64_add_unless(atomic64_t *v, long long a,
+					long long u)
 {
 	smp_mb();  /* barrier for proper semantics */
 	return _atomic64_xchg_add_unless(&v->counter, a, u) != u;
@@ -151,7 +152,7 @@ static inline u64 atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
  * atomic64_set() can't be just a raw store, since it would be lost if it
  * fell between the load and store of one of the other atomic ops.
  */
-static inline void atomic64_set(atomic64_t *v, u64 n)
+static inline void atomic64_set(atomic64_t *v, long long n)
 {
 	_atomic64_xchg(&v->counter, n);
 }
@@ -236,11 +237,13 @@ extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
 extern struct __get_user __atomic_or(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_andn(volatile int *p, int *lock, int n);
 extern struct __get_user __atomic_xor(volatile int *p, int *lock, int n);
-extern u64 __atomic64_cmpxchg(volatile u64 *p, int *lock, u64 o, u64 n);
-extern u64 __atomic64_xchg(volatile u64 *p, int *lock, u64 n);
-extern u64 __atomic64_xchg_add(volatile u64 *p, int *lock, u64 n);
-extern u64 __atomic64_xchg_add_unless(volatile u64 *p,
-				      int *lock, u64 o, u64 n);
+extern long long __atomic64_cmpxchg(volatile long long *p, int *lock,
+					long long o, long long n);
+extern long long __atomic64_xchg(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_xchg_add(volatile long long *p, int *lock,
+					long long n);
+extern long long __atomic64_xchg_add_unless(volatile long long *p,
+					int *lock, long long o, long long n);
 
 /* Return failure from the atomic wrappers. */
 struct __get_user __atomic_bad_address(int __user *addr);
