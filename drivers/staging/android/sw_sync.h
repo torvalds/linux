@@ -21,6 +21,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/kconfig.h>
 #include "sync.h"
 
 struct sw_sync_timeline {
