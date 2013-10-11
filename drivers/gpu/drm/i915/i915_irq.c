@@ -592,7 +592,7 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	return I915_READ(reg);
 }
 
-static bool g4x_pipe_in_vblank(struct drm_device *dev, enum pipe pipe)
+static bool intel_pipe_in_vblank(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t status;
@@ -603,7 +603,13 @@ static bool g4x_pipe_in_vblank(struct drm_device *dev, enum pipe pipe)
 			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 
 		return I915_READ(VLV_ISR) & status;
-	} else if (IS_G4X(dev)) {
+	} else if (IS_GEN2(dev)) {
+		status = pipe == PIPE_A ?
+			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
+			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+		return I915_READ16(ISR) & status;
+	} else if (INTEL_INFO(dev)->gen < 5) {
 		status = pipe == PIPE_A ?
 			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
 			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
@@ -658,11 +664,14 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 
 	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
 
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	if (IS_GEN2(dev) || IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
-		position = I915_READ(PIPEDSL(pipe)) & 0x1fff;
+		if (IS_GEN2(dev))
+			position = I915_READ(PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
+		else
+			position = I915_READ(PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
 		/*
 		 * The scanline counter increments at the leading edge
@@ -671,7 +680,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		 * to get a more accurate picture whether we're in vblank
 		 * or not.
 		 */
-		in_vbl = g4x_pipe_in_vblank(dev, pipe);
+		in_vbl = intel_pipe_in_vblank(dev, pipe);
 		if ((in_vbl && position == vbl_start - 1) ||
 		    (!in_vbl && position == vbl_end - 1))
 			position = (position + 1) % vtotal;
@@ -701,7 +710,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	else
 		position += vtotal - vbl_end;
 
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	if (IS_GEN2(dev) || IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		*vpos = position;
 		*hpos = 0;
 	} else {
