@@ -813,7 +813,7 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	frame = qh->start;
 
 	/* reuse the previous schedule slots, if we can */
-	if (frame < qh->period) {
+	if (frame != NO_FRAME) {
 		uframe = ffs(hc32_to_cpup(ehci, &hw->hw_info2) & QH_SMASK);
 		status = check_intr_schedule (ehci, frame, --uframe,
 				qh, &c_mask);
@@ -969,7 +969,7 @@ iso_stream_alloc (gfp_t mem_flags)
 	if (likely (stream != NULL)) {
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
-		stream->next_uframe = -1;
+		stream->next_uframe = NO_FRAME;
 	}
 	return stream;
 }
@@ -1236,7 +1236,7 @@ itd_urb_transaction (
 
 		memset (itd, 0, sizeof *itd);
 		itd->itd_dma = itd_dma;
-		itd->frame = 9999;		/* an invalid value */
+		itd->frame = NO_FRAME;
 		list_add (&itd->itd_list, &sched->td_list);
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -1967,7 +1967,7 @@ sitd_urb_transaction (
 
 		memset (sitd, 0, sizeof *sitd);
 		sitd->sitd_dma = sitd_dma;
-		sitd->frame = 9999;		/* an invalid value */
+		sitd->frame = NO_FRAME;
 		list_add (&sitd->sitd_list, &iso_sched->td_list);
 	}
 

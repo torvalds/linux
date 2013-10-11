@@ -54,6 +54,8 @@ struct ehci_stats {
 	unsigned long		unlink;
 };
 
+#define NO_FRAME	29999			/* frame not assigned yet */
+
 /* ehci_hcd->lock guards shared data against other CPUs:
  *   ehci_hcd:	async, unlink, periodic (and shadow), ...
  *   usb_host_endpoint: hcpriv
@@ -405,7 +407,6 @@ struct ehci_qh {
 	u16			tt_usecs;	/* tt downstream bandwidth */
 	unsigned short		period;		/* polling interval */
 	unsigned short		start;		/* where polling starts */
-#define NO_FRAME ((unsigned short)~0)			/* pick new start */
 
 	struct usb_device	*dev;		/* access to TT */
 	unsigned		is_out:1;	/* bulk or intr OUT */
@@ -454,7 +455,7 @@ struct ehci_iso_stream {
 	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
-	int			next_uframe;
+	unsigned		next_uframe;
 	__hc32			splits;
 
 	/* the rest is derived from the endpoint descriptor,
