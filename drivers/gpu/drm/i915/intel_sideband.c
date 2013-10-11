@@ -25,7 +25,10 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
-/* IOSF sideband */
+/*
+ * IOSF sideband, see VLV2_SidebandMsg_HAS.docx and
+ * VLV_VLV2_PUNIT_HAS_0.8.docx
+ */
 static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 			   u32 port, u32 opcode, u32 addr, u32 *val)
 {
