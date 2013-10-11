@@ -22,11 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
-
-struct nvc0_mc_priv {
-	struct nouveau_mc base;
-};
+#include "nv04.h"
 
 static const struct nouveau_mc_intr
 nvc0_mc_intr[] = {
@@ -49,29 +45,14 @@ nvc0_mc_intr[] = {
 	{},
 };
 
-static int
-nvc0_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nvc0_mc_priv *priv;
-	int ret;
-
-	ret = nouveau_mc_create(parent, engine, oclass, nvc0_mc_intr, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-struct nouveau_oclass
-nvc0_mc_oclass = {
-	.handle = NV_SUBDEV(MC, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_mc_ctor,
+struct nouveau_oclass *
+nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0xc0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_mc_ctor,
 		.dtor = _nouveau_mc_dtor,
 		.init = nv50_mc_init,
 		.fini = _nouveau_mc_fini,
 	},
-};
+	.intr = nvc0_mc_intr,
+}.base;
