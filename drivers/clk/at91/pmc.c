@@ -278,6 +278,21 @@ static const struct of_device_id pmc_clk_ids[] __initdata = {
 		.compatible = "atmel,at91sam9x5-clk-peripheral",
 		.data = of_at91sam9x5_clk_periph_setup,
 	},
+	/* Programmable clocks */
+#if defined(CONFIG_AT91_PROGRAMMABLE_CLOCKS)
+	{
+		.compatible = "atmel,at91rm9200-clk-programmable",
+		.data = of_at91rm9200_clk_prog_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9g45-clk-programmable",
+		.data = of_at91sam9g45_clk_prog_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-programmable",
+		.data = of_at91sam9x5_clk_prog_setup,
+	},
+#endif
 	{ /*sentinel*/ }
 };
 
