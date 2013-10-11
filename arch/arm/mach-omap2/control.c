@@ -46,17 +46,7 @@ struct omap3_scratchpad {
 struct omap3_scratchpad_prcm_block {
 	u32 prm_clksrc_ctrl;
 	u32 prm_clksel;
-	u32 cm_clksel_core;
-	u32 cm_clksel_wkup;
-	u32 cm_clken_pll;
-	u32 cm_autoidle_pll;
-	u32 cm_clksel1_pll;
-	u32 cm_clksel2_pll;
-	u32 cm_clksel3_pll;
-	u32 cm_clken_pll_mpu;
-	u32 cm_autoidle_pll_mpu;
-	u32 cm_clksel1_pll_mpu;
-	u32 cm_clksel2_pll_mpu;
+	u32 cm_contents[11];
 	u32 prcm_block_size;
 };
 
@@ -347,34 +337,9 @@ void omap3_save_scratchpad_contents(void)
 	prcm_block_contents.prm_clksel =
 		omap2_prm_read_mod_reg(OMAP3430_CCR_MOD,
 				       OMAP3_PRM_CLKSEL_OFFSET);
-	prcm_block_contents.cm_clksel_core =
-			omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL);
-	prcm_block_contents.cm_clksel_wkup =
-			omap2_cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
-	prcm_block_contents.cm_clken_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-	/*
-	 * As per erratum i671, ROM code does not respect the PER DPLL
-	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
-	 * Then,  in anycase, clear these bits to avoid extra latencies.
-	 */
-	prcm_block_contents.cm_autoidle_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE) &
-			~OMAP3430_AUTO_PERIPH_DPLL_MASK;
-	prcm_block_contents.cm_clksel1_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL1_PLL);
-	prcm_block_contents.cm_clksel2_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL2_PLL);
-	prcm_block_contents.cm_clksel3_pll =
-			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL3);
-	prcm_block_contents.cm_clken_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKEN_PLL);
-	prcm_block_contents.cm_autoidle_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_AUTOIDLE_PLL);
-	prcm_block_contents.cm_clksel1_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL);
-	prcm_block_contents.cm_clksel2_pll_mpu =
-			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL2_PLL);
+
+	omap3_cm_save_scratchpad_contents(prcm_block_contents.cm_contents);
+
 	prcm_block_contents.prcm_block_size = 0x0;
 
 	/* Populate the SDRC block contents */
