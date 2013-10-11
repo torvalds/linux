@@ -190,10 +190,7 @@ EXPORT_SYMBOL(ath9k_hw_wait);
 void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 			  int hw_delay)
 {
-	if (IS_CHAN_B(chan))
-		hw_delay = (4 * hw_delay) / 22;
-	else
-		hw_delay /= 10;
+	hw_delay /= 10;
 
 	if (IS_CHAN_HALF_RATE(chan))
 		hw_delay *= 2;
@@ -1159,9 +1156,7 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan)
 {
 	u32 ctl = ath_regd_get_band_ctl(reg, chan->chan->band);
 
-	if (IS_CHAN_B(chan))
-		ctl |= CTL_11B;
-	else if (IS_CHAN_G(chan))
+	if (IS_CHAN_G(chan))
 		ctl |= CTL_11G;
 	else
 		ctl |= CTL_11A;

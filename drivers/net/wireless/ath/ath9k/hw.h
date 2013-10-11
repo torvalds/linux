@@ -455,7 +455,6 @@ struct ath9k_channel {
 	 ((_ah)->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK))
 
 /* These macros check chanmode and not channelFlags */
-#define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)
 #define IS_CHAN_HT20(_c) (((_c)->chanmode == CHANNEL_A_HT20) ||	\
 			  ((_c)->chanmode == CHANNEL_G_HT20))
 #define IS_CHAN_HT40(_c) (((_c)->chanmode == CHANNEL_A_HT40PLUS) ||	\

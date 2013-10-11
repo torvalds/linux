@@ -808,8 +808,10 @@ static void ar9003_hw_set_rfmode(struct ath_hw *ah,
 	if (chan == NULL)
 		return;
 
-	rfMode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan))
-		? AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
+	if (IS_CHAN_2GHZ(chan))
+		rfMode |= AR_PHY_MODE_DYNAMIC;
+	else
+		rfMode |= AR_PHY_MODE_OFDM;
 
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
