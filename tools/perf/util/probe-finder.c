@@ -1357,10 +1357,10 @@ int debuginfo__find_probe_point(struct debuginfo *self, unsigned long addr,
 			goto post;
 		}
 
+		fname = dwarf_decl_file(&spdie);
 		if (addr == (unsigned long)baseaddr) {
 			/* Function entry - Relative line number is 0 */
 			lineno = baseline;
-			fname = dwarf_decl_file(&spdie);
 			goto post;
 		}
 
