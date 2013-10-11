@@ -1,0 +1,41 @@
+
+/ {
+	testcase-data {
+		interrupts {
+			#address-cells = <0>;
+			test_intc0: intc0 {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+			};
+
+			test_intc1: intc1 {
+				interrupt-controller;
+				#interrupt-cells = <3>;
+			};
+
+			test_intc2: intc2 {
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			test_intmap0: intmap0 {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				interrupt-map = <1 &test_intc0 9>,
+						<2 &test_intc1 10 11 12>,
+						<3 &test_intc2 13 14>,
+						<4 &test_intc2 15 16>;
+			};
+
+			interrupts0 {
+				interrupt-parent = <&test_intc0>;
+				interrupts = <1>, <2>, <3>, <4>;
+			};
+
+			interrupts1 {
+				interrupt-parent = <&test_intmap0>;
+				interrupts = <1>, <2>, <3>, <4>;
+			};
+		};
+	};
+};
