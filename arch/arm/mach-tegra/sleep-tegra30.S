@@ -408,8 +408,12 @@ _pll_m_c_x_done:
 	cmp	r10, #TEGRA30
 	movweq	r0, #:lower16:TEGRA_EMC_BASE	@ r0 reserved for emc base
 	movteq	r0, #:upper16:TEGRA_EMC_BASE
-	movwne	r0, #:lower16:TEGRA_EMC0_BASE
-	movtne	r0, #:upper16:TEGRA_EMC0_BASE
+	cmp	r10, #TEGRA114
+	movweq	r0, #:lower16:TEGRA_EMC0_BASE
+	movteq	r0, #:upper16:TEGRA_EMC0_BASE
+	cmp	r10, #TEGRA124
+	movweq	r0, #:lower16:TEGRA124_EMC_BASE
+	movteq	r0, #:upper16:TEGRA124_EMC_BASE
 
 exit_self_refresh:
 	ldr	r1, [r5, #0xC]		@ restore EMC_XM2VTTGENPADCTRL
@@ -556,6 +560,17 @@ tegra114_sdram_pad_address:
 	.word	TEGRA_EMC1_BASE + EMC_XM2VTTGENPADCTRL2			@0x30
 tegra114_sdram_pad_adress_end:
 
+tegra124_sdram_pad_address:
+	.word	TEGRA124_EMC_BASE + EMC_CFG				@0x0
+	.word	TEGRA124_EMC_BASE + EMC_ZCAL_INTERVAL			@0x4
+	.word	TEGRA124_EMC_BASE + EMC_AUTO_CAL_INTERVAL		@0x8
+	.word	TEGRA124_EMC_BASE + EMC_XM2VTTGENPADCTRL		@0xc
+	.word	TEGRA124_EMC_BASE + EMC_XM2VTTGENPADCTRL2		@0x10
+	.word	TEGRA_PMC_BASE + PMC_IO_DPD_STATUS			@0x14
+	.word	TEGRA_CLK_RESET_BASE + CLK_RESET_CLK_SOURCE_MSELECT	@0x18
+	.word	TEGRA_CLK_RESET_BASE + CLK_RESET_SCLK_BURST		@0x1c
+tegra124_sdram_pad_address_end:
+
 tegra30_sdram_pad_size:
 	.word	tegra30_sdram_pad_address_end - tegra30_sdram_pad_address
 
@@ -700,8 +715,13 @@ tegra30_sdram_self_refresh:
 	cmp	r10, #TEGRA30
 	adreq	r2, tegra30_sdram_pad_address
 	ldreq	r3, tegra30_sdram_pad_size
-	adrne	r2, tegra114_sdram_pad_address
-	ldrne	r3, tegra114_sdram_pad_size
+	cmp	r10, #TEGRA114
+	adreq	r2, tegra114_sdram_pad_address
+	ldreq	r3, tegra114_sdram_pad_size
+	cmp	r10, #TEGRA124
+	adreq	r2, tegra124_sdram_pad_address
+	ldreq	r3, tegra30_sdram_pad_size
+
 	mov	r9, #0
 
 padsave:
@@ -719,7 +739,10 @@ padsave_done:
 
 	cmp	r10, #TEGRA30
 	ldreq	r0, =TEGRA_EMC_BASE	@ r0 reserved for emc base addr
-	ldrne	r0, =TEGRA_EMC0_BASE
+	cmp	r10, #TEGRA114
+	ldreq	r0, =TEGRA_EMC0_BASE
+	cmp	r10, #TEGRA124
+	ldreq	r0, =TEGRA124_EMC_BASE
 
 enter_self_refresh:
 	cmp	r10, #TEGRA30
