@@ -363,6 +363,9 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
 {
+	if ((id < 0) || (id >= rsnd_dai_nr(priv)))
+		return NULL;
+
 	return priv->rdai + id;
 }
 
