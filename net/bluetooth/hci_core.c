@@ -353,6 +353,8 @@ static void hci_init1_req(struct hci_request *req, unsigned long opt)
 
 static void bredr_setup(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
+
 	__le16 param;
 	__u8 flt_type;
 
@@ -376,8 +378,10 @@ static void bredr_setup(struct hci_request *req)
 	param = __constant_cpu_to_le16(0x7d00);
 	hci_req_add(req, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
 
-	/* Read page scan parameters */
-	if (req->hdev->hci_ver > BLUETOOTH_VER_1_1) {
+	/* AVM Berlin (31), aka "BlueFRITZ!", reports version 1.2,
+	 * but it does not support page scan related HCI commands.
+	 */
+	if (hdev->manufacturer != 31 && hdev->hci_ver > BLUETOOTH_VER_1_1) {
 		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
 		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_TYPE, 0, NULL);
 	}
