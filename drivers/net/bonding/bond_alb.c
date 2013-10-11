@@ -1472,7 +1472,7 @@ void bond_alb_monitor(struct work_struct *work)
 	bond_info->lp_counter++;
 
 	/* send learning packets */
-	if (bond_info->lp_counter >= BOND_ALB_LP_TICKS) {
+	if (bond_info->lp_counter >= BOND_ALB_LP_TICKS(bond)) {
 		/* change of curr_active_slave involves swapping of mac addresses.
 		 * in order to avoid this swapping from happening while
 		 * sending the learning packets, the curr_slave_lock must be held for

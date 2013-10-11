@@ -168,6 +168,7 @@ enum brcmf_fws_skb_state {
 /**
  * struct brcmf_skbuff_cb - control buffer associated with skbuff.
  *
+ * @bus_flags: 2 bytes reserved for bus specific parameters
  * @if_flags: holds interface index and packet related flags.
  * @htod: host to device packet identifier (used in PKTTAG tlv).
  * @state: transmit state of the packet.
@@ -177,6 +178,7 @@ enum brcmf_fws_skb_state {
  * provides 48 bytes of storage so this structure should not exceed that.
  */
 struct brcmf_skbuff_cb {
+	u16 bus_flags;
 	u16 if_flags;
 	u32 htod;
 	enum brcmf_fws_skb_state state;

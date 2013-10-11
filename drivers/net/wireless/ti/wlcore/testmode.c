@@ -297,7 +297,8 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 		ret = wl1271_plt_stop(wl);
 		break;
 	case PLT_ON:
-		ret = wl1271_plt_start(wl, PLT_ON);
+	case PLT_CHIP_AWAKE:
+		ret = wl1271_plt_start(wl, val);
 		break;
 	case PLT_FEM_DETECT:
 		ret = wl1271_tm_detect_fem(wl, tb);
@@ -361,6 +362,7 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct wl1271 *wl = hw->priv;
 	struct nlattr *tb[WL1271_TM_ATTR_MAX + 1];
+	u32 nla_cmd;
 	int err;
 
 	err = nla_parse(tb, WL1271_TM_ATTR_MAX, data, len, wl1271_tm_policy);
@@ -370,7 +372,14 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!tb[WL1271_TM_ATTR_CMD_ID])
 		return -EINVAL;
 
-	switch (nla_get_u32(tb[WL1271_TM_ATTR_CMD_ID])) {
+	nla_cmd = nla_get_u32(tb[WL1271_TM_ATTR_CMD_ID]);
+
+	/* Only SET_PLT_MODE is allowed in case of mode PLT_CHIP_AWAKE */
+	if (wl->plt_mode == PLT_CHIP_AWAKE &&
+	    nla_cmd != WL1271_TM_CMD_SET_PLT_MODE)
+		return -EOPNOTSUPP;
+
+	switch (nla_cmd) {
 	case WL1271_TM_CMD_TEST:
 		return wl1271_tm_cmd_test(wl, tb);
 	case WL1271_TM_CMD_INTERROGATE:

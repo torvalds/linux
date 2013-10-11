@@ -626,11 +626,10 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 		if (AR_SREV_9287_11_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
+		val |= AR_PCU_MISC_MODE2_CFP_IGNORE;
+
 		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 	}
-
-	REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
-		    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		return;

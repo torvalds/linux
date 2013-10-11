@@ -52,11 +52,9 @@
  * memory allocation code).  The vmalloc code puts in an internal
  * guard page between each allocation.
  */
-#define _VMALLOC_END	HUGE_VMAP_BASE
+#define _VMALLOC_END	MEM_SV_START
 #define VMALLOC_END	_VMALLOC_END
 #define VMALLOC_START	_VMALLOC_START
-
-#define HUGE_VMAP_END	(HUGE_VMAP_BASE + PGDIR_SIZE)
 
 #ifndef __ASSEMBLY__
 

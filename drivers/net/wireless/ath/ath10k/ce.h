@@ -27,7 +27,6 @@
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
-#define CE_SENDLIST_ITEMS_MAX	12
 #define CE_SEND_FLAG_GATHER	0x00010000
 
 /*
@@ -36,15 +35,8 @@
  * how to use copy engines.
  */
 
-struct ce_state;
+struct ath10k_ce_pipe;
 
-
-/* Copy Engine operational state */
-enum ce_op_state {
-	CE_UNUSED,
-	CE_PAUSED,
-	CE_RUNNING,
-};
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
@@ -57,8 +49,7 @@ struct ce_desc {
 	__le16 flags; /* %CE_DESC_FLAGS_ */
 };
 
-/* Copy Engine Ring internal state */
-struct ce_ring_state {
+struct ath10k_ce_ring {
 	/* Number of entries in this ring; must be power of 2 */
 	unsigned int nentries;
 	unsigned int nentries_mask;
@@ -116,49 +107,20 @@ struct ce_ring_state {
 	void **per_transfer_context;
 };
 
-/* Copy Engine internal state */
-struct ce_state {
+struct ath10k_ce_pipe {
 	struct ath10k *ar;
 	unsigned int id;
 
 	unsigned int attr_flags;
 
 	u32 ctrl_addr;
-	enum ce_op_state state;
 
-	void (*send_cb) (struct ce_state *ce_state,
-			 void *per_transfer_send_context,
-			 u32 buffer,
-			 unsigned int nbytes,
-			 unsigned int transfer_id);
-	void (*recv_cb) (struct ce_state *ce_state,
-			 void *per_transfer_recv_context,
-			 u32 buffer,
-			 unsigned int nbytes,
-			 unsigned int transfer_id,
-			 unsigned int flags);
+	void (*send_cb)(struct ath10k_ce_pipe *);
+	void (*recv_cb)(struct ath10k_ce_pipe *);
 
 	unsigned int src_sz_max;
-	struct ce_ring_state *src_ring;
-	struct ce_ring_state *dest_ring;
-};
-
-struct ce_sendlist_item {
-	/* e.g. buffer or desc list */
-	dma_addr_t data;
-	union {
-		/* simple buffer */
-		unsigned int nbytes;
-		/* Rx descriptor list */
-		unsigned int ndesc;
-	} u;
-	/* externally-specified flags; OR-ed with internal flags */
-	u32 flags;
-};
-
-struct ce_sendlist {
-	unsigned int num_items;
-	struct ce_sendlist_item item[CE_SENDLIST_ITEMS_MAX];
+	struct ath10k_ce_ring *src_ring;
+	struct ath10k_ce_ring *dest_ring;
 };
 
 /* Copy Engine settable attributes */
@@ -182,7 +144,7 @@ struct ce_attr;
  *
  * Implementation note: pushes 1 buffer to Source ring
  */
-int ath10k_ce_send(struct ce_state *ce_state,
+int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_send_context,
 		   u32 buffer,
 		   unsigned int nbytes,
@@ -190,20 +152,9 @@ int ath10k_ce_send(struct ce_state *ce_state,
 		   unsigned int transfer_id,
 		   unsigned int flags);
 
-void ath10k_ce_send_cb_register(struct ce_state *ce_state,
-				void (*send_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id),
+void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
+				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts);
-
-/* Append a simple buffer (address/length) to a sendlist. */
-void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist,
-				u32 buffer,
-				unsigned int nbytes,
-				/* OR-ed with internal flags */
-				u32 flags);
 
 /*
  * Queue a "sendlist" of buffers to be sent using gather to a single
@@ -215,11 +166,11 @@ void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist,
  *
  * Implemenation note: Pushes multiple buffers with Gather to Source ring.
  */
-int ath10k_ce_sendlist_send(struct ce_state *ce_state,
-			    void *per_transfer_send_context,
-			    struct ce_sendlist *sendlist,
-			    /* 14 bits */
-			    unsigned int transfer_id);
+int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
+			    void *per_transfer_context,
+			    unsigned int transfer_id,
+			    u32 paddr, unsigned int nbytes,
+			    u32 flags);
 
 /*==================Recv=======================*/
 
@@ -233,17 +184,12 @@ int ath10k_ce_sendlist_send(struct ce_state *ce_state,
  *
  * Implemenation note: Pushes a buffer to Dest ring.
  */
-int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
+int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       void *per_transfer_recv_context,
 			       u32 buffer);
 
-void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
-				void (*recv_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id,
-						 unsigned int flags));
+void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
+				void (*recv_cb)(struct ath10k_ce_pipe *));
 
 /* recv flags */
 /* Data is byte-swapped */
@@ -253,7 +199,7 @@ void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
  * Supply data for the next completed unprocessed receive descriptor.
  * Pops buffer from Dest ring.
  */
-int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
+int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
 				  u32 *bufferp,
 				  unsigned int *nbytesp,
@@ -263,7 +209,7 @@ int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
  * Supply data for the next completed unprocessed send descriptor.
  * Pops 1 completed send buffer from Source ring.
  */
-int ath10k_ce_completed_send_next(struct ce_state *ce_state,
+int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 			   void **per_transfer_contextp,
 			   u32 *bufferp,
 			   unsigned int *nbytesp,
@@ -272,7 +218,7 @@ int ath10k_ce_completed_send_next(struct ce_state *ce_state,
 /*==================CE Engine Initialization=======================*/
 
 /* Initialize an instance of a CE */
-struct ce_state *ath10k_ce_init(struct ath10k *ar,
+struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 				unsigned int ce_id,
 				const struct ce_attr *attr);
 
@@ -282,7 +228,7 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
  * receive buffers.  Target DMA must be stopped before using
  * this API.
  */
-int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
+int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp);
 
@@ -291,13 +237,13 @@ int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
  * pending sends.  Target DMA must be stopped before using
  * this API.
  */
-int ath10k_ce_cancel_send_next(struct ce_state *ce_state,
+int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp);
 
-void ath10k_ce_deinit(struct ce_state *ce_state);
+void ath10k_ce_deinit(struct ath10k_ce_pipe *ce_state);
 
 /*==================CE Interrupt Handlers====================*/
 void ath10k_ce_per_engine_service_any(struct ath10k *ar);
@@ -322,9 +268,6 @@ struct ce_attr {
 	/* CE_ATTR_* values */
 	unsigned int flags;
 
-	/* currently not in use */
-	unsigned int priority;
-
 	/* #entries in source ring - Must be a power of 2 */
 	unsigned int src_nentries;
 
@@ -336,20 +279,7 @@ struct ce_attr {
 
 	/* #entries in destination ring - Must be a power of 2 */
 	unsigned int dest_nentries;
-
-	/* Future use */
-	void *reserved;
 };
-
-/*
- * When using sendlist_send to transfer multiple buffer fragments, the
- * transfer context of each fragment, except last one, will be filled
- * with CE_SENDLIST_ITEM_CTXT. ce_completed_send will return success for
- * each fragment done with send and the transfer context would be
- * CE_SENDLIST_ITEM_CTXT. Upper layer could use this to identify the
- * status of a send completion.
- */
-#define CE_SENDLIST_ITEM_CTXT	((void *)0xcecebeef)
 
 #define SR_BA_ADDRESS		0x0000
 #define SR_SIZE_ADDRESS		0x0004

@@ -368,7 +368,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (adt == IPSET_TEST || !tb[IPSET_ATTR_IP_TO]) {
 		e.ip = htonl(ip & ip_set_hostmask(e.cidr));
 		ret = adtfn(set, &e, &ext, &ext, flags);
-		return ip_set_enomatch(ret, flags, adt) ? 1 :
+		return ip_set_enomatch(ret, flags, adt, set) ? -ret :
 		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -634,7 +634,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	ret = adtfn(set, &e, &ext, &ext, flags);
 
-	return ip_set_enomatch(ret, flags, adt) ? 1 :
+	return ip_set_enomatch(ret, flags, adt, set) ? -ret :
 	       ip_set_eexist(ret, flags) ? 0 : ret;
 }
 

@@ -1762,6 +1762,7 @@ static struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UX(0x2001, 0x3a00),	/* Dlink / DWLAG132 */
 	AR5523_DEVICE_UG(0x2001, 0x3a02),	/* Dlink / DWLG132 */
 	AR5523_DEVICE_UX(0x2001, 0x3a04),	/* Dlink / DWLAG122 */
+	AR5523_DEVICE_UG(0x07d1, 0x3a07),	/* D-Link / WUA-2340 rev A1 */
 	AR5523_DEVICE_UG(0x1690, 0x0712),	/* Gigaset / AR5523 */
 	AR5523_DEVICE_UG(0x1690, 0x0710),	/* Gigaset / SMCWUSBTG */
 	AR5523_DEVICE_UG(0x129b, 0x160c),	/* Gigaset / USB stick 108

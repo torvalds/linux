@@ -27,6 +27,26 @@ TRACE_EVENT(radeon_bo_create,
 	    TP_printk("bo=%p, pages=%u", __entry->bo, __entry->pages)
 );
 
+TRACE_EVENT(radeon_cs,
+	    TP_PROTO(struct radeon_cs_parser *p),
+	    TP_ARGS(p),
+	    TP_STRUCT__entry(
+			     __field(u32, ring)
+			     __field(u32, dw)
+			     __field(u32, fences)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->ring = p->ring;
+			   __entry->dw = p->chunks[p->chunk_ib_idx].length_dw;
+			   __entry->fences = radeon_fence_count_emitted(
+				p->rdev, p->ring);
+			   ),
+	    TP_printk("ring=%u, dw=%u, fences=%u",
+		      __entry->ring, __entry->dw,
+		      __entry->fences)
+);
+
 DECLARE_EVENT_CLASS(radeon_fence_request,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
@@ -47,13 +67,6 @@ DECLARE_EVENT_CLASS(radeon_fence_request,
 );
 
 DEFINE_EVENT(radeon_fence_request, radeon_fence_emit,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
-
-DEFINE_EVENT(radeon_fence_request, radeon_fence_retire,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
 

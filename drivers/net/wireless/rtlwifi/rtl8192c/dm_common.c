@@ -541,29 +541,6 @@ EXPORT_SYMBOL(rtl92c_dm_write_dig);
 
 static void rtl92c_dm_pwdb_monitor(struct ieee80211_hw *hw)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	long tmpentry_max_pwdb = 0, tmpentry_min_pwdb = 0xff;
-
-	u8 h2c_parameter[3] = { 0 };
-
-	return;
-
-	if (tmpentry_max_pwdb != 0) {
-		rtlpriv->dm.entry_max_undec_sm_pwdb = tmpentry_max_pwdb;
-	} else {
-		rtlpriv->dm.entry_max_undec_sm_pwdb = 0;
-	}
-
-	if (tmpentry_min_pwdb != 0xff) {
-		rtlpriv->dm.entry_min_undec_sm_pwdb = tmpentry_min_pwdb;
-	} else {
-		rtlpriv->dm.entry_min_undec_sm_pwdb = 0;
-	}
-
-	h2c_parameter[2] = (u8) (rtlpriv->dm.undec_sm_pwdb & 0xFF);
-	h2c_parameter[0] = 0;
-
-	rtl92c_fill_h2c_cmd(hw, H2C_RSSI_REPORT, 3, h2c_parameter);
 }
 
 void rtl92c_dm_init_edca_turbo(struct ieee80211_hw *hw)
@@ -673,7 +650,7 @@ static void rtl92c_dm_txpower_tracking_callback_thermalmeter(struct ieee80211_hw
 	s8 cck_index = 0;
 	int i;
 	bool is2t = IS_92C_SERIAL(rtlhal->version);
-	s8 txpwr_level[2] = {0, 0};
+	s8 txpwr_level[3] = {0, 0, 0};
 	u8 ofdm_min_index = 6, rf;
 
 	rtlpriv->dm.txpower_trackinginit = true;

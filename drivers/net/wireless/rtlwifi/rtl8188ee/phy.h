@@ -217,8 +217,6 @@ extern void rtl88e_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
 extern void rtl88e_phy_get_txpower_level(struct ieee80211_hw *hw,
 					 long *powerlevel);
 extern void rtl88e_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
-extern void rtl88e_phy_scan_operation_backup(struct ieee80211_hw *hw,
-					     u8 operation);
 extern void rtl88e_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
 extern void rtl88e_phy_set_bw_mode(struct ieee80211_hw *hw,
 				   enum nl80211_channel_type ch_type);

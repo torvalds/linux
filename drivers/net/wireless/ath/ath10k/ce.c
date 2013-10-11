@@ -76,36 +76,7 @@ static inline void ath10k_ce_src_ring_write_index_set(struct ath10k *ar,
 						      u32 ce_ctrl_addr,
 						      unsigned int n)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	void __iomem *indicator_addr;
-
-	if (!test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features)) {
-		ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
-		return;
-	}
-
-	/* workaround for QCA988x_1.0 HW CE */
-	indicator_addr = ar_pci->mem + ce_ctrl_addr + DST_WATERMARK_ADDRESS;
-
-	if (ce_ctrl_addr == ath10k_ce_base_address(CDC_WAR_DATA_CE)) {
-		iowrite32((CDC_WAR_MAGIC_STR | n), indicator_addr);
-	} else {
-		unsigned long irq_flags;
-		local_irq_save(irq_flags);
-		iowrite32(1, indicator_addr);
-
-		/*
-		 * PCIE write waits for ACK in IPQ8K, there is no
-		 * need to read back value.
-		 */
-		(void)ioread32(indicator_addr);
-		(void)ioread32(indicator_addr); /* conservative */
-
-		ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
-
-		iowrite32(0, indicator_addr);
-		local_irq_restore(irq_flags);
-	}
+	ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
 }
 
 static inline u32 ath10k_ce_src_ring_write_index_get(struct ath10k *ar,
@@ -285,7 +256,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
  * ath10k_ce_sendlist_send.
  * The caller takes responsibility for any needed locking.
  */
-static int ath10k_ce_send_nolock(struct ce_state *ce_state,
+static int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 				 void *per_transfer_context,
 				 u32 buffer,
 				 unsigned int nbytes,
@@ -293,7 +264,7 @@ static int ath10k_ce_send_nolock(struct ce_state *ce_state,
 				 unsigned int flags)
 {
 	struct ath10k *ar = ce_state->ar;
-	struct ce_ring_state *src_ring = ce_state->src_ring;
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	struct ce_desc *desc, *sdesc;
 	unsigned int nentries_mask = src_ring->nentries_mask;
 	unsigned int sw_index = src_ring->sw_index;
@@ -306,7 +277,9 @@ static int ath10k_ce_send_nolock(struct ce_state *ce_state,
 		ath10k_warn("%s: send more we can (nbytes: %d, max: %d)\n",
 			    __func__, nbytes, ce_state->src_sz_max);
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return ret;
 
 	if (unlikely(CE_RING_DELTA(nentries_mask,
 				   write_index, sw_index - 1) <= 0)) {
@@ -346,7 +319,7 @@ exit:
 	return ret;
 }
 
-int ath10k_ce_send(struct ce_state *ce_state,
+int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_context,
 		   u32 buffer,
 		   unsigned int nbytes,
@@ -365,33 +338,19 @@ int ath10k_ce_send(struct ce_state *ce_state,
 	return ret;
 }
 
-void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist, u32 buffer,
-				unsigned int nbytes, u32 flags)
-{
-	unsigned int num_items = sendlist->num_items;
-	struct ce_sendlist_item *item;
-
-	item = &sendlist->item[num_items];
-	item->data = buffer;
-	item->u.nbytes = nbytes;
-	item->flags = flags;
-	sendlist->num_items++;
-}
-
-int ath10k_ce_sendlist_send(struct ce_state *ce_state,
+int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
 			    void *per_transfer_context,
-			    struct ce_sendlist *sendlist,
-			    unsigned int transfer_id)
+			    unsigned int transfer_id,
+			    u32 paddr, unsigned int nbytes,
+			    u32 flags)
 {
-	struct ce_ring_state *src_ring = ce_state->src_ring;
-	struct ce_sendlist_item *item;
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned int nentries_mask = src_ring->nentries_mask;
-	unsigned int num_items = sendlist->num_items;
 	unsigned int sw_index;
 	unsigned int write_index;
-	int i, delta, ret = -ENOMEM;
+	int delta, ret = -ENOMEM;
 
 	spin_lock_bh(&ar_pci->ce_lock);
 
@@ -400,30 +359,12 @@ int ath10k_ce_sendlist_send(struct ce_state *ce_state,
 
 	delta = CE_RING_DELTA(nentries_mask, write_index, sw_index - 1);
 
-	if (delta >= num_items) {
-		/*
-		 * Handle all but the last item uniformly.
-		 */
-		for (i = 0; i < num_items - 1; i++) {
-			item = &sendlist->item[i];
-			ret = ath10k_ce_send_nolock(ce_state,
-						    CE_SENDLIST_ITEM_CTXT,
-						    (u32) item->data,
-						    item->u.nbytes, transfer_id,
-						    item->flags |
-						    CE_SEND_FLAG_GATHER);
-			if (ret)
-				ath10k_warn("CE send failed for item: %d\n", i);
-		}
-		/*
-		 * Provide valid context pointer for final item.
-		 */
-		item = &sendlist->item[i];
+	if (delta >= 1) {
 		ret = ath10k_ce_send_nolock(ce_state, per_transfer_context,
-					    (u32) item->data, item->u.nbytes,
-					    transfer_id, item->flags);
+					    paddr, nbytes,
+					    transfer_id, flags);
 		if (ret)
-			ath10k_warn("CE send failed for last item: %d\n", i);
+			ath10k_warn("CE send failed: %d\n", ret);
 	}
 
 	spin_unlock_bh(&ar_pci->ce_lock);
@@ -431,11 +372,11 @@ int ath10k_ce_sendlist_send(struct ce_state *ce_state,
 	return ret;
 }
 
-int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
+int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       void *per_recv_context,
 			       u32 buffer)
 {
-	struct ce_ring_state *dest_ring = ce_state->dest_ring;
+	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -448,7 +389,9 @@ int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
 	write_index = dest_ring->write_index;
 	sw_index = dest_ring->sw_index;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		goto out;
 
 	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) > 0) {
 		struct ce_desc *base = dest_ring->base_addr_owner_space;
@@ -470,6 +413,8 @@ int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
 		ret = -EIO;
 	}
 	ath10k_pci_sleep(ar);
+
+out:
 	spin_unlock_bh(&ar_pci->ce_lock);
 
 	return ret;
@@ -479,14 +424,14 @@ int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
  * Guts of ath10k_ce_completed_recv_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int ath10k_ce_completed_recv_next_nolock(struct ce_state *ce_state,
+static int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 						void **per_transfer_contextp,
 						u32 *bufferp,
 						unsigned int *nbytesp,
 						unsigned int *transfer_idp,
 						unsigned int *flagsp)
 {
-	struct ce_ring_state *dest_ring = ce_state->dest_ring;
+	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	unsigned int nentries_mask = dest_ring->nentries_mask;
 	unsigned int sw_index = dest_ring->sw_index;
 
@@ -535,7 +480,7 @@ static int ath10k_ce_completed_recv_next_nolock(struct ce_state *ce_state,
 	return 0;
 }
 
-int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
+int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
 				  u32 *bufferp,
 				  unsigned int *nbytesp,
@@ -556,11 +501,11 @@ int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
 	return ret;
 }
 
-int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
+int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp)
 {
-	struct ce_ring_state *dest_ring;
+	struct ath10k_ce_ring *dest_ring;
 	unsigned int nentries_mask;
 	unsigned int sw_index;
 	unsigned int write_index;
@@ -612,19 +557,20 @@ int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
  * Guts of ath10k_ce_completed_send_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int ath10k_ce_completed_send_next_nolock(struct ce_state *ce_state,
+static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 						void **per_transfer_contextp,
 						u32 *bufferp,
 						unsigned int *nbytesp,
 						unsigned int *transfer_idp)
 {
-	struct ce_ring_state *src_ring = ce_state->src_ring;
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
 	unsigned int nentries_mask = src_ring->nentries_mask;
 	unsigned int sw_index = src_ring->sw_index;
+	struct ce_desc *sdesc, *sbase;
 	unsigned int read_index;
-	int ret = -EIO;
+	int ret;
 
 	if (src_ring->hw_index == sw_index) {
 		/*
@@ -634,48 +580,54 @@ static int ath10k_ce_completed_send_next_nolock(struct ce_state *ce_state,
 		 * the SW has really caught up to the HW, or if the cached
 		 * value of the HW index has become stale.
 		 */
-		ath10k_pci_wake(ar);
+
+		ret = ath10k_pci_wake(ar);
+		if (ret)
+			return ret;
+
 		src_ring->hw_index =
 			ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
 		src_ring->hw_index &= nentries_mask;
+
 		ath10k_pci_sleep(ar);
 	}
+
 	read_index = src_ring->hw_index;
 
-	if ((read_index != sw_index) && (read_index != 0xffffffff)) {
-		struct ce_desc *sbase = src_ring->shadow_base;
-		struct ce_desc *sdesc = CE_SRC_RING_TO_DESC(sbase, sw_index);
+	if ((read_index == sw_index) || (read_index == 0xffffffff))
+		return -EIO;
 
-		/* Return data from completed source descriptor */
-		*bufferp = __le32_to_cpu(sdesc->addr);
-		*nbytesp = __le16_to_cpu(sdesc->nbytes);
-		*transfer_idp = MS(__le16_to_cpu(sdesc->flags),
-						CE_DESC_FLAGS_META_DATA);
+	sbase = src_ring->shadow_base;
+	sdesc = CE_SRC_RING_TO_DESC(sbase, sw_index);
 
-		if (per_transfer_contextp)
-			*per_transfer_contextp =
-				src_ring->per_transfer_context[sw_index];
+	/* Return data from completed source descriptor */
+	*bufferp = __le32_to_cpu(sdesc->addr);
+	*nbytesp = __le16_to_cpu(sdesc->nbytes);
+	*transfer_idp = MS(__le16_to_cpu(sdesc->flags),
+			   CE_DESC_FLAGS_META_DATA);
 
-		/* sanity */
-		src_ring->per_transfer_context[sw_index] = NULL;
+	if (per_transfer_contextp)
+		*per_transfer_contextp =
+			src_ring->per_transfer_context[sw_index];
 
-		/* Update sw_index */
-		sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
-		src_ring->sw_index = sw_index;
-		ret = 0;
-	}
+	/* sanity */
+	src_ring->per_transfer_context[sw_index] = NULL;
 
-	return ret;
+	/* Update sw_index */
+	sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
+	src_ring->sw_index = sw_index;
+
+	return 0;
 }
 
 /* NB: Modeled after ath10k_ce_completed_send_next */
-int ath10k_ce_cancel_send_next(struct ce_state *ce_state,
+int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp)
 {
-	struct ce_ring_state *src_ring;
+	struct ath10k_ce_ring *src_ring;
 	unsigned int nentries_mask;
 	unsigned int sw_index;
 	unsigned int write_index;
@@ -727,7 +679,7 @@ int ath10k_ce_cancel_send_next(struct ce_state *ce_state,
 	return ret;
 }
 
-int ath10k_ce_completed_send_next(struct ce_state *ce_state,
+int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
 				  u32 *bufferp,
 				  unsigned int *nbytesp,
@@ -756,53 +708,29 @@ int ath10k_ce_completed_send_next(struct ce_state *ce_state,
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = ar_pci->ce_id_to_state[ce_id];
+	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ce_state->ctrl_addr;
-	void *transfer_context;
-	u32 buf;
-	unsigned int nbytes;
-	unsigned int id;
-	unsigned int flags;
+	int ret;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
+
 	spin_lock_bh(&ar_pci->ce_lock);
 
 	/* Clear the copy-complete interrupts that will be handled here. */
 	ath10k_ce_engine_int_status_clear(ar, ctrl_addr,
 					  HOST_IS_COPY_COMPLETE_MASK);
 
-	if (ce_state->recv_cb) {
-		/*
-		 * Pop completed recv buffers and call the registered
-		 * recv callback for each
-		 */
-		while (ath10k_ce_completed_recv_next_nolock(ce_state,
-							    &transfer_context,
-							    &buf, &nbytes,
-							    &id, &flags) == 0) {
-			spin_unlock_bh(&ar_pci->ce_lock);
-			ce_state->recv_cb(ce_state, transfer_context, buf,
-					  nbytes, id, flags);
-			spin_lock_bh(&ar_pci->ce_lock);
-		}
-	}
+	spin_unlock_bh(&ar_pci->ce_lock);
 
-	if (ce_state->send_cb) {
-		/*
-		 * Pop completed send buffers and call the registered
-		 * send callback for each
-		 */
-		while (ath10k_ce_completed_send_next_nolock(ce_state,
-							    &transfer_context,
-							    &buf,
-							    &nbytes,
-							    &id) == 0) {
-			spin_unlock_bh(&ar_pci->ce_lock);
-			ce_state->send_cb(ce_state, transfer_context,
-					  buf, nbytes, id);
-			spin_lock_bh(&ar_pci->ce_lock);
-		}
-	}
+	if (ce_state->recv_cb)
+		ce_state->recv_cb(ce_state);
+
+	if (ce_state->send_cb)
+		ce_state->send_cb(ce_state);
+
+	spin_lock_bh(&ar_pci->ce_lock);
 
 	/*
 	 * Misc CE interrupts are not being handled, but still need
@@ -823,10 +751,13 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int ce_id;
+	int ce_id, ret;
 	u32 intr_summary;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
+
 	intr_summary = CE_INTERRUPT_SUMMARY(ar);
 
 	for (ce_id = 0; intr_summary && (ce_id < ar_pci->ce_count); ce_id++) {
@@ -849,13 +780,16 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
  *
  * Called with ce_lock held.
  */
-static void ath10k_ce_per_engine_handler_adjust(struct ce_state *ce_state,
+static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 						int disable_copy_compl_intr)
 {
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
+	int ret;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
 
 	if ((!disable_copy_compl_intr) &&
 	    (ce_state->send_cb || ce_state->recv_cb))
@@ -871,11 +805,14 @@ static void ath10k_ce_per_engine_handler_adjust(struct ce_state *ce_state,
 void ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int ce_id;
+	int ce_id, ret;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
+
 	for (ce_id = 0; ce_id < ar_pci->ce_count; ce_id++) {
-		struct ce_state *ce_state = ar_pci->ce_id_to_state[ce_id];
+		struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 		u32 ctrl_addr = ce_state->ctrl_addr;
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
@@ -883,12 +820,8 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 	ath10k_pci_sleep(ar);
 }
 
-void ath10k_ce_send_cb_register(struct ce_state *ce_state,
-				void (*send_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id),
+void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
+				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts)
 {
 	struct ath10k *ar = ce_state->ar;
@@ -900,13 +833,8 @@ void ath10k_ce_send_cb_register(struct ce_state *ce_state,
 	spin_unlock_bh(&ar_pci->ce_lock);
 }
 
-void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
-				void (*recv_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id,
-						 unsigned int flags))
+void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
+				void (*recv_cb)(struct ath10k_ce_pipe *))
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -919,11 +847,11 @@ void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
 
 static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				   unsigned int ce_id,
-				   struct ce_state *ce_state,
+				   struct ath10k_ce_pipe *ce_state,
 				   const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_ring_state *src_ring;
+	struct ath10k_ce_ring *src_ring;
 	unsigned int nentries = attr->src_nentries;
 	unsigned int ce_nbytes;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
@@ -937,19 +865,18 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 		return 0;
 	}
 
-	ce_nbytes = sizeof(struct ce_ring_state) + (nentries * sizeof(void *));
+	ce_nbytes = sizeof(struct ath10k_ce_ring) + (nentries * sizeof(void *));
 	ptr = kzalloc(ce_nbytes, GFP_KERNEL);
 	if (ptr == NULL)
 		return -ENOMEM;
 
-	ce_state->src_ring = (struct ce_ring_state *)ptr;
+	ce_state->src_ring = (struct ath10k_ce_ring *)ptr;
 	src_ring = ce_state->src_ring;
 
-	ptr += sizeof(struct ce_ring_state);
+	ptr += sizeof(struct ath10k_ce_ring);
 	src_ring->nentries = nentries;
 	src_ring->nentries_mask = nentries - 1;
 
-	ath10k_pci_wake(ar);
 	src_ring->sw_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
 	src_ring->sw_index &= src_ring->nentries_mask;
 	src_ring->hw_index = src_ring->sw_index;
@@ -957,7 +884,6 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	src_ring->write_index =
 		ath10k_ce_src_ring_write_index_get(ar, ctrl_addr);
 	src_ring->write_index &= src_ring->nentries_mask;
-	ath10k_pci_sleep(ar);
 
 	src_ring->per_transfer_context = (void **)ptr;
 
@@ -970,6 +896,12 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				     (nentries * sizeof(struct ce_desc) +
 				      CE_DESC_RING_ALIGN),
 				     &base_addr);
+	if (!src_ring->base_addr_owner_space_unaligned) {
+		kfree(ce_state->src_ring);
+		ce_state->src_ring = NULL;
+		return -ENOMEM;
+	}
+
 	src_ring->base_addr_ce_space_unaligned = base_addr;
 
 	src_ring->base_addr_owner_space = PTR_ALIGN(
@@ -986,12 +918,21 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	src_ring->shadow_base_unaligned =
 		kmalloc((nentries * sizeof(struct ce_desc) +
 			 CE_DESC_RING_ALIGN), GFP_KERNEL);
+	if (!src_ring->shadow_base_unaligned) {
+		pci_free_consistent(ar_pci->pdev,
+				    (nentries * sizeof(struct ce_desc) +
+				     CE_DESC_RING_ALIGN),
+				    src_ring->base_addr_owner_space,
+				    src_ring->base_addr_ce_space);
+		kfree(ce_state->src_ring);
+		ce_state->src_ring = NULL;
+		return -ENOMEM;
+	}
 
 	src_ring->shadow_base = PTR_ALIGN(
 			src_ring->shadow_base_unaligned,
 			CE_DESC_RING_ALIGN);
 
-	ath10k_pci_wake(ar);
 	ath10k_ce_src_ring_base_addr_set(ar, ctrl_addr,
 					 src_ring->base_addr_ce_space);
 	ath10k_ce_src_ring_size_set(ar, ctrl_addr, nentries);
@@ -999,18 +940,21 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	ath10k_ce_src_ring_byte_swap_set(ar, ctrl_addr, 0);
 	ath10k_ce_src_ring_lowmark_set(ar, ctrl_addr, 0);
 	ath10k_ce_src_ring_highmark_set(ar, ctrl_addr, nentries);
-	ath10k_pci_sleep(ar);
+
+	ath10k_dbg(ATH10K_DBG_BOOT,
+		   "boot ce src ring id %d entries %d base_addr %p\n",
+		   ce_id, nentries, src_ring->base_addr_owner_space);
 
 	return 0;
 }
 
 static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 				    unsigned int ce_id,
-				    struct ce_state *ce_state,
+				    struct ath10k_ce_pipe *ce_state,
 				    const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_ring_state *dest_ring;
+	struct ath10k_ce_ring *dest_ring;
 	unsigned int nentries = attr->dest_nentries;
 	unsigned int ce_nbytes;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
@@ -1024,25 +968,23 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 		return 0;
 	}
 
-	ce_nbytes = sizeof(struct ce_ring_state) + (nentries * sizeof(void *));
+	ce_nbytes = sizeof(struct ath10k_ce_ring) + (nentries * sizeof(void *));
 	ptr = kzalloc(ce_nbytes, GFP_KERNEL);
 	if (ptr == NULL)
 		return -ENOMEM;
 
-	ce_state->dest_ring = (struct ce_ring_state *)ptr;
+	ce_state->dest_ring = (struct ath10k_ce_ring *)ptr;
 	dest_ring = ce_state->dest_ring;
 
-	ptr += sizeof(struct ce_ring_state);
+	ptr += sizeof(struct ath10k_ce_ring);
 	dest_ring->nentries = nentries;
 	dest_ring->nentries_mask = nentries - 1;
 
-	ath10k_pci_wake(ar);
 	dest_ring->sw_index = ath10k_ce_dest_ring_read_index_get(ar, ctrl_addr);
 	dest_ring->sw_index &= dest_ring->nentries_mask;
 	dest_ring->write_index =
 		ath10k_ce_dest_ring_write_index_get(ar, ctrl_addr);
 	dest_ring->write_index &= dest_ring->nentries_mask;
-	ath10k_pci_sleep(ar);
 
 	dest_ring->per_transfer_context = (void **)ptr;
 
@@ -1055,6 +997,12 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 				     (nentries * sizeof(struct ce_desc) +
 				      CE_DESC_RING_ALIGN),
 				     &base_addr);
+	if (!dest_ring->base_addr_owner_space_unaligned) {
+		kfree(ce_state->dest_ring);
+		ce_state->dest_ring = NULL;
+		return -ENOMEM;
+	}
+
 	dest_ring->base_addr_ce_space_unaligned = base_addr;
 
 	/*
@@ -1071,44 +1019,35 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 			dest_ring->base_addr_ce_space_unaligned,
 			CE_DESC_RING_ALIGN);
 
-	ath10k_pci_wake(ar);
 	ath10k_ce_dest_ring_base_addr_set(ar, ctrl_addr,
 					  dest_ring->base_addr_ce_space);
 	ath10k_ce_dest_ring_size_set(ar, ctrl_addr, nentries);
 	ath10k_ce_dest_ring_byte_swap_set(ar, ctrl_addr, 0);
 	ath10k_ce_dest_ring_lowmark_set(ar, ctrl_addr, 0);
 	ath10k_ce_dest_ring_highmark_set(ar, ctrl_addr, nentries);
-	ath10k_pci_sleep(ar);
+
+	ath10k_dbg(ATH10K_DBG_BOOT,
+		   "boot ce dest ring id %d entries %d base_addr %p\n",
+		   ce_id, nentries, dest_ring->base_addr_owner_space);
 
 	return 0;
 }
 
-static struct ce_state *ath10k_ce_init_state(struct ath10k *ar,
+static struct ath10k_ce_pipe *ath10k_ce_init_state(struct ath10k *ar,
 					     unsigned int ce_id,
 					     const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = NULL;
+	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 
 	spin_lock_bh(&ar_pci->ce_lock);
 
-	if (!ar_pci->ce_id_to_state[ce_id]) {
-		ce_state = kzalloc(sizeof(*ce_state), GFP_ATOMIC);
-		if (ce_state == NULL) {
-			spin_unlock_bh(&ar_pci->ce_lock);
-			return NULL;
-		}
-
-		ar_pci->ce_id_to_state[ce_id] = ce_state;
-		ce_state->ar = ar;
-		ce_state->id = ce_id;
-		ce_state->ctrl_addr = ctrl_addr;
-		ce_state->state = CE_RUNNING;
-		/* Save attribute flags */
-		ce_state->attr_flags = attr->flags;
-		ce_state->src_sz_max = attr->src_sz_max;
-	}
+	ce_state->ar = ar;
+	ce_state->id = ce_id;
+	ce_state->ctrl_addr = ctrl_addr;
+	ce_state->attr_flags = attr->flags;
+	ce_state->src_sz_max = attr->src_sz_max;
 
 	spin_unlock_bh(&ar_pci->ce_lock);
 
@@ -1122,12 +1061,17 @@ static struct ce_state *ath10k_ce_init_state(struct ath10k *ar,
  * initialization. It may be that only one side or the other is
  * initialized by software/firmware.
  */
-struct ce_state *ath10k_ce_init(struct ath10k *ar,
+struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 				unsigned int ce_id,
 				const struct ce_attr *attr)
 {
-	struct ce_state *ce_state;
+	struct ath10k_ce_pipe *ce_state;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
+	int ret;
+
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return NULL;
 
 	ce_state = ath10k_ce_init_state(ar, ce_id, attr);
 	if (!ce_state) {
@@ -1136,39 +1080,37 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
 	}
 
 	if (attr->src_nentries) {
-		if (ath10k_ce_init_src_ring(ar, ce_id, ce_state, attr)) {
-			ath10k_err("Failed to initialize CE src ring for ID: %d\n",
-				   ce_id);
+		ret = ath10k_ce_init_src_ring(ar, ce_id, ce_state, attr);
+		if (ret) {
+			ath10k_err("Failed to initialize CE src ring for ID: %d (%d)\n",
+				   ce_id, ret);
 			ath10k_ce_deinit(ce_state);
 			return NULL;
 		}
 	}
 
 	if (attr->dest_nentries) {
-		if (ath10k_ce_init_dest_ring(ar, ce_id, ce_state, attr)) {
-			ath10k_err("Failed to initialize CE dest ring for ID: %d\n",
-				   ce_id);
+		ret = ath10k_ce_init_dest_ring(ar, ce_id, ce_state, attr);
+		if (ret) {
+			ath10k_err("Failed to initialize CE dest ring for ID: %d (%d)\n",
+				   ce_id, ret);
 			ath10k_ce_deinit(ce_state);
 			return NULL;
 		}
 	}
 
 	/* Enable CE error interrupts */
-	ath10k_pci_wake(ar);
 	ath10k_ce_error_intr_enable(ar, ctrl_addr);
+
 	ath10k_pci_sleep(ar);
 
 	return ce_state;
 }
 
-void ath10k_ce_deinit(struct ce_state *ce_state)
+void ath10k_ce_deinit(struct ath10k_ce_pipe *ce_state)
 {
-	unsigned int ce_id = ce_state->id;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	ce_state->state = CE_UNUSED;
-	ar_pci->ce_id_to_state[ce_id] = NULL;
 
 	if (ce_state->src_ring) {
 		kfree(ce_state->src_ring->shadow_base_unaligned);
@@ -1190,5 +1132,7 @@ void ath10k_ce_deinit(struct ce_state *ce_state)
 				    ce_state->dest_ring->base_addr_ce_space);
 		kfree(ce_state->dest_ring);
 	}
-	kfree(ce_state);
+
+	ce_state->src_ring = NULL;
+	ce_state->dest_ring = NULL;
 }

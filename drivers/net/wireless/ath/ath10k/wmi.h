@@ -508,6 +508,48 @@ enum wmi_phy_mode {
 	MODE_MAX        = 14
 };
 
+static inline const char *ath10k_wmi_phymode_str(enum wmi_phy_mode mode)
+{
+	switch (mode) {
+	case MODE_11A:
+		return "11a";
+	case MODE_11G:
+		return "11g";
+	case MODE_11B:
+		return "11b";
+	case MODE_11GONLY:
+		return "11gonly";
+	case MODE_11NA_HT20:
+		return "11na-ht20";
+	case MODE_11NG_HT20:
+		return "11ng-ht20";
+	case MODE_11NA_HT40:
+		return "11na-ht40";
+	case MODE_11NG_HT40:
+		return "11ng-ht40";
+	case MODE_11AC_VHT20:
+		return "11ac-vht20";
+	case MODE_11AC_VHT40:
+		return "11ac-vht40";
+	case MODE_11AC_VHT80:
+		return "11ac-vht80";
+	case MODE_11AC_VHT20_2G:
+		return "11ac-vht20-2g";
+	case MODE_11AC_VHT40_2G:
+		return "11ac-vht40-2g";
+	case MODE_11AC_VHT80_2G:
+		return "11ac-vht80-2g";
+	case MODE_UNKNOWN:
+		/* skip */
+		break;
+
+		/* no default handler to allow compiler to check that the
+		 * enum is fully handled */
+	};
+
+	return "<unknown>";
+}
+
 #define WMI_CHAN_LIST_TAG	0x1
 #define WMI_SSID_LIST_TAG	0x2
 #define WMI_BSSID_LIST_TAG	0x3
@@ -762,14 +804,6 @@ struct wmi_service_ready_event {
 	__le32 num_mem_reqs;
 	struct wlan_host_mem_req mem_reqs[1];
 } __packed;
-
-/*
- * status consists of  upper 16 bits fo int status and lower 16 bits of
- * module ID that retuned status
- */
-#define WLAN_INIT_STATUS_SUCCESS   0x0
-#define WLAN_GET_INIT_STATUS_REASON(status)    ((status) & 0xffff)
-#define WLAN_GET_INIT_STATUS_MODULE_ID(status) (((status) >> 16) & 0xffff)
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
 #define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
@@ -1268,7 +1302,7 @@ struct wmi_scan_event {
  * good idea to pass all the fields in the RX status
  * descriptor up to the host.
  */
-struct wmi_mgmt_rx_hdr {
+struct wmi_mgmt_rx_hdr_v1 {
 	__le32 channel;
 	__le32 snr;
 	__le32 rate;
@@ -1277,8 +1311,18 @@ struct wmi_mgmt_rx_hdr {
 	__le32 status; /* %WMI_RX_STATUS_ */
 } __packed;
 
-struct wmi_mgmt_rx_event {
-	struct wmi_mgmt_rx_hdr hdr;
+struct wmi_mgmt_rx_hdr_v2 {
+	struct wmi_mgmt_rx_hdr_v1 v1;
+	__le32 rssi_ctl[4];
+} __packed;
+
+struct wmi_mgmt_rx_event_v1 {
+	struct wmi_mgmt_rx_hdr_v1 hdr;
+	u8 buf[0];
+} __packed;
+
+struct wmi_mgmt_rx_event_v2 {
+	struct wmi_mgmt_rx_hdr_v2 hdr;
 	u8 buf[0];
 } __packed;
 
@@ -3000,7 +3044,6 @@ struct wmi_force_fw_hang_cmd {
 
 #define WMI_MAX_EVENT 0x1000
 /* Maximum number of pending TXed WMI packets */
-#define WMI_MAX_PENDING_TX_COUNT 128
 #define WMI_SKB_HEADROOM sizeof(struct wmi_cmd_hdr)
 
 /* By default disable power save for IBSS */
@@ -3013,7 +3056,6 @@ int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
-void ath10k_wmi_flush_tx(struct ath10k *ar);
 
 int ath10k_wmi_connect_htc_service(struct ath10k *ar);
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
@@ -3066,7 +3108,8 @@ int ath10k_wmi_set_ap_ps_param(struct ath10k *ar, u32 vdev_id, const u8 *mac,
 			       enum wmi_ap_ps_peer_param param_id, u32 value);
 int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 			      const struct wmi_scan_chan_list_arg *arg);
-int ath10k_wmi_beacon_send(struct ath10k *ar, const struct wmi_bcn_tx_arg *arg);
+int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
+				  const struct wmi_bcn_tx_arg *arg);
 int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
 			const struct wmi_pdev_set_wmm_params_arg *arg);
 int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);

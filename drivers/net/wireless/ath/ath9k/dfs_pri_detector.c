@@ -392,7 +392,7 @@ static struct pri_sequence *pri_detector_add_pulse(struct pri_detector *de,
 
 	if (!pseq_handler_create_sequences(de, ts, max_updated_seq)) {
 		pri_detector_reset(de, ts);
-		return false;
+		return NULL;
 	}
 
 	ps = pseq_handler_check_detection(de);

@@ -52,6 +52,8 @@
 #define AR9300_PAPRD_SCALE_2		0x70000000
 #define AR9300_PAPRD_SCALE_2_S		28
 
+#define AR9300_EEP_ANTDIV_CONTROL_DEFAULT_VALUE 0xc9
+
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
  * schemes. In open loop power control, it is not really needed, but for

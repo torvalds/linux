@@ -25,11 +25,11 @@
 struct ath_dfs_pool_stats global_dfs_pool_stats = { 0 };
 
 #define ATH9K_DFS_STAT(s, p) \
-	len += snprintf(buf + len, size - len, "%28s : %10u\n", s, \
-			sc->debug.stats.dfs_stats.p);
+	len += scnprintf(buf + len, size - len, "%28s : %10u\n", s, \
+			 sc->debug.stats.dfs_stats.p);
 #define ATH9K_DFS_POOL_STAT(s, p) \
-	len += snprintf(buf + len, size - len, "%28s : %10u\n", s, \
-			global_dfs_pool_stats.p);
+	len += scnprintf(buf + len, size - len, "%28s : %10u\n", s, \
+			 global_dfs_pool_stats.p);
 
 static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -44,12 +44,12 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += snprintf(buf + len, size - len, "DFS support for "
-			"macVersion = 0x%x, macRev = 0x%x: %s\n",
-			hw_ver->macVersion, hw_ver->macRev,
-			(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_DFS) ?
+	len += scnprintf(buf + len, size - len, "DFS support for "
+			 "macVersion = 0x%x, macRev = 0x%x: %s\n",
+			 hw_ver->macVersion, hw_ver->macRev,
+			 (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_DFS) ?
 					"enabled" : "disabled");
-	len += snprintf(buf + len, size - len, "Pulse detector statistics:\n");
+	len += scnprintf(buf + len, size - len, "Pulse detector statistics:\n");
 	ATH9K_DFS_STAT("pulse events reported   ", pulses_total);
 	ATH9K_DFS_STAT("invalid pulse events    ", pulses_no_dfs);
 	ATH9K_DFS_STAT("DFS pulses detected     ", pulses_detected);
@@ -59,11 +59,12 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 	ATH9K_DFS_STAT("Primary channel pulses  ", pri_phy_errors);
 	ATH9K_DFS_STAT("Secondary channel pulses", ext_phy_errors);
 	ATH9K_DFS_STAT("Dual channel pulses     ", dc_phy_errors);
-	len += snprintf(buf + len, size - len, "Radar detector statistics "
-			"(current DFS region: %d)\n", sc->dfs_detector->region);
+	len += scnprintf(buf + len, size - len, "Radar detector statistics "
+			 "(current DFS region: %d)\n",
+			 sc->dfs_detector->region);
 	ATH9K_DFS_STAT("Pulse events processed  ", pulses_processed);
 	ATH9K_DFS_STAT("Radars detected         ", radar_detected);
-	len += snprintf(buf + len, size - len, "Global Pool statistics:\n");
+	len += scnprintf(buf + len, size - len, "Global Pool statistics:\n");
 	ATH9K_DFS_POOL_STAT("Pool references         ", pool_reference);
 	ATH9K_DFS_POOL_STAT("Pulses allocated        ", pulse_allocated);
 	ATH9K_DFS_POOL_STAT("Pulses alloc error      ", pulse_alloc_error);

@@ -23,30 +23,6 @@
 #include "wmi.h"
 #include "mac.h"
 
-void ath10k_wmi_flush_tx(struct ath10k *ar)
-{
-	int ret;
-
-	lockdep_assert_held(&ar->conf_mutex);
-
-	if (ar->state == ATH10K_STATE_WEDGED) {
-		ath10k_warn("wmi flush skipped - device is wedged anyway\n");
-		return;
-	}
-
-	ret = wait_event_timeout(ar->wmi.wq,
-				 atomic_read(&ar->wmi.pending_tx_count) == 0,
-				 5*HZ);
-	if (atomic_read(&ar->wmi.pending_tx_count) == 0)
-		return;
-
-	if (ret == 0)
-		ret = -ETIMEDOUT;
-
-	if (ret < 0)
-		ath10k_warn("wmi flush failed (%d)\n", ret);
-}
-
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
 	int ret;
@@ -85,18 +61,14 @@ static struct sk_buff *ath10k_wmi_alloc_skb(u32 len)
 static void ath10k_wmi_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 {
 	dev_kfree_skb(skb);
-
-	if (atomic_sub_return(1, &ar->wmi.pending_tx_count) == 0)
-		wake_up(&ar->wmi.wq);
 }
 
-/* WMI command API */
-static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
-			       enum wmi_cmd_id cmd_id)
+static int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
+				      enum wmi_cmd_id cmd_id)
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
 	struct wmi_cmd_hdr *cmd_hdr;
-	int status;
+	int ret;
 	u32 cmd = 0;
 
 	if (skb_push(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
@@ -107,25 +79,87 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 	cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
 	cmd_hdr->cmd_id = __cpu_to_le32(cmd);
 
-	if (atomic_add_return(1, &ar->wmi.pending_tx_count) >
-	    WMI_MAX_PENDING_TX_COUNT) {
-		/* avoid using up memory when FW hangs */
-		atomic_dec(&ar->wmi.pending_tx_count);
-		return -EBUSY;
-	}
-
 	memset(skb_cb, 0, sizeof(*skb_cb));
+	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
+	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len, ret);
 
-	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len);
-
-	status = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
-	if (status) {
-		dev_kfree_skb_any(skb);
-		atomic_dec(&ar->wmi.pending_tx_count);
-		return status;
-	}
+	if (ret)
+		goto err_pull;
 
 	return 0;
+
+err_pull:
+	skb_pull(skb, sizeof(struct wmi_cmd_hdr));
+	return ret;
+}
+
+static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
+{
+	struct wmi_bcn_tx_arg arg = {0};
+	int ret;
+
+	lockdep_assert_held(&arvif->ar->data_lock);
+
+	if (arvif->beacon == NULL)
+		return;
+
+	arg.vdev_id = arvif->vdev_id;
+	arg.tx_rate = 0;
+	arg.tx_power = 0;
+	arg.bcn = arvif->beacon->data;
+	arg.bcn_len = arvif->beacon->len;
+
+	ret = ath10k_wmi_beacon_send_nowait(arvif->ar, &arg);
+	if (ret)
+		return;
+
+	dev_kfree_skb_any(arvif->beacon);
+	arvif->beacon = NULL;
+}
+
+static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+
+	ath10k_wmi_tx_beacon_nowait(arvif);
+}
+
+static void ath10k_wmi_tx_beacons_nowait(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->data_lock);
+	ieee80211_iterate_active_interfaces_atomic(ar->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath10k_wmi_tx_beacons_iter,
+						   NULL);
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar)
+{
+	/* try to send pending beacons first. they take priority */
+	ath10k_wmi_tx_beacons_nowait(ar);
+
+	wake_up(&ar->wmi.tx_credits_wq);
+}
+
+static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
+			       enum wmi_cmd_id cmd_id)
+{
+	int ret = -EINVAL;
+
+	wait_event_timeout(ar->wmi.tx_credits_wq, ({
+		/* try to send pending beacons first. they take priority */
+		ath10k_wmi_tx_beacons_nowait(ar);
+
+		ret = ath10k_wmi_cmd_send_nowait(ar, skb, cmd_id);
+		(ret != -EAGAIN);
+	}), 3*HZ);
+
+	if (ret)
+		dev_kfree_skb_any(skb);
+
+	return ret;
 }
 
 static int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
@@ -315,7 +349,9 @@ static inline u8 get_rate_idx(u32 rate, enum ieee80211_band band)
 
 static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 {
-	struct wmi_mgmt_rx_event *event = (struct wmi_mgmt_rx_event *)skb->data;
+	struct wmi_mgmt_rx_event_v1 *ev_v1;
+	struct wmi_mgmt_rx_event_v2 *ev_v2;
+	struct wmi_mgmt_rx_hdr_v1 *ev_hdr;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr;
 	u32 rx_status;
@@ -325,13 +361,24 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	u32 rate;
 	u32 buf_len;
 	u16 fc;
+	int pull_len;
 
-	channel   = __le32_to_cpu(event->hdr.channel);
-	buf_len   = __le32_to_cpu(event->hdr.buf_len);
-	rx_status = __le32_to_cpu(event->hdr.status);
-	snr       = __le32_to_cpu(event->hdr.snr);
-	phy_mode  = __le32_to_cpu(event->hdr.phy_mode);
-	rate	  = __le32_to_cpu(event->hdr.rate);
+	if (test_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features)) {
+		ev_v2 = (struct wmi_mgmt_rx_event_v2 *)skb->data;
+		ev_hdr = &ev_v2->hdr.v1;
+		pull_len = sizeof(*ev_v2);
+	} else {
+		ev_v1 = (struct wmi_mgmt_rx_event_v1 *)skb->data;
+		ev_hdr = &ev_v1->hdr;
+		pull_len = sizeof(*ev_v1);
+	}
+
+	channel   = __le32_to_cpu(ev_hdr->channel);
+	buf_len   = __le32_to_cpu(ev_hdr->buf_len);
+	rx_status = __le32_to_cpu(ev_hdr->status);
+	snr       = __le32_to_cpu(ev_hdr->snr);
+	phy_mode  = __le32_to_cpu(ev_hdr->phy_mode);
+	rate	  = __le32_to_cpu(ev_hdr->rate);
 
 	memset(status, 0, sizeof(*status));
 
@@ -358,7 +405,7 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	status->signal = snr + ATH10K_DEFAULT_NOISE_FLOOR;
 	status->rate_idx = get_rate_idx(rate, status->band);
 
-	skb_pull(skb, sizeof(event->hdr));
+	skb_pull(skb, pull_len);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
@@ -734,10 +781,8 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	int i = -1;
 	struct wmi_bcn_info *bcn_info;
 	struct ath10k_vif *arvif;
-	struct wmi_bcn_tx_arg arg;
 	struct sk_buff *bcn;
 	int vdev_id = 0;
-	int ret;
 
 	ath10k_dbg(ATH10K_DBG_MGMT, "WMI_HOST_SWBA_EVENTID\n");
 
@@ -794,17 +839,17 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_update_tim(ar, arvif, bcn, bcn_info);
 		ath10k_wmi_update_noa(ar, arvif, bcn, bcn_info);
 
-		arg.vdev_id = arvif->vdev_id;
-		arg.tx_rate = 0;
-		arg.tx_power = 0;
-		arg.bcn = bcn->data;
-		arg.bcn_len = bcn->len;
+		spin_lock_bh(&ar->data_lock);
+		if (arvif->beacon) {
+			ath10k_warn("SWBA overrun on vdev %d\n",
+				    arvif->vdev_id);
+			dev_kfree_skb_any(arvif->beacon);
+		}
 
-		ret = ath10k_wmi_beacon_send(ar, &arg);
-		if (ret)
-			ath10k_warn("could not send beacon (%d)\n", ret);
+		arvif->beacon = bcn;
 
-		dev_kfree_skb_any(bcn);
+		ath10k_wmi_tx_beacon_nowait(arvif);
+		spin_unlock_bh(&ar->data_lock);
 	}
 }
 
@@ -943,6 +988,9 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	ar->phy_capability = __le32_to_cpu(ev->phy_capability);
 	ar->num_rf_chains = __le32_to_cpu(ev->num_rf_chains);
 
+	if (ar->fw_version_build > 636)
+		set_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features);
+
 	if (ar->num_rf_chains > WMI_MAX_SPATIAL_STREAM) {
 		ath10k_warn("hardware advertises support for more spatial streams than it should (%d > %d)\n",
 			    ar->num_rf_chains, WMI_MAX_SPATIAL_STREAM);
@@ -1007,7 +1055,7 @@ static int ath10k_wmi_ready_event_rx(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
-static void ath10k_wmi_event_process(struct ath10k *ar, struct sk_buff *skb)
+static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
 	enum wmi_event_id id;
@@ -1126,64 +1174,18 @@ static void ath10k_wmi_event_process(struct ath10k *ar, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 
-static void ath10k_wmi_event_work(struct work_struct *work)
-{
-	struct ath10k *ar = container_of(work, struct ath10k,
-					 wmi.wmi_event_work);
-	struct sk_buff *skb;
-
-	for (;;) {
-		skb = skb_dequeue(&ar->wmi.wmi_event_list);
-		if (!skb)
-			break;
-
-		ath10k_wmi_event_process(ar, skb);
-	}
-}
-
-static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
-{
-	struct wmi_cmd_hdr *cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
-	enum wmi_event_id event_id;
-
-	event_id = MS(__le32_to_cpu(cmd_hdr->cmd_id), WMI_CMD_HDR_CMD_ID);
-
-	/* some events require to be handled ASAP
-	 * thus can't be defered to a worker thread */
-	switch (event_id) {
-	case WMI_HOST_SWBA_EVENTID:
-	case WMI_MGMT_RX_EVENTID:
-		ath10k_wmi_event_process(ar, skb);
-		return;
-	default:
-		break;
-	}
-
-	skb_queue_tail(&ar->wmi.wmi_event_list, skb);
-	queue_work(ar->workqueue, &ar->wmi.wmi_event_work);
-}
-
 /* WMI Initialization functions */
 int ath10k_wmi_attach(struct ath10k *ar)
 {
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
-	init_waitqueue_head(&ar->wmi.wq);
-
-	skb_queue_head_init(&ar->wmi.wmi_event_list);
-	INIT_WORK(&ar->wmi.wmi_event_work, ath10k_wmi_event_work);
+	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	return 0;
 }
 
 void ath10k_wmi_detach(struct ath10k *ar)
 {
-	/* HTC should've drained the packets already */
-	if (WARN_ON(atomic_read(&ar->wmi.pending_tx_count) > 0))
-		ath10k_warn("there are still pending packets\n");
-
-	cancel_work_sync(&ar->wmi.wmi_event_work);
-	skb_queue_purge(&ar->wmi.wmi_event_list);
 }
 
 int ath10k_wmi_connect_htc_service(struct ath10k *ar)
@@ -1198,6 +1200,7 @@ int ath10k_wmi_connect_htc_service(struct ath10k *ar)
 	/* these fields are the same for all service endpoints */
 	conn_req.ep_ops.ep_tx_complete = ath10k_wmi_htc_tx_complete;
 	conn_req.ep_ops.ep_rx_complete = ath10k_wmi_process_rx;
+	conn_req.ep_ops.ep_tx_credits = ath10k_wmi_op_ep_tx_credits;
 
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_WMI_CONTROL;
@@ -2108,7 +2111,8 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 	return ath10k_wmi_cmd_send(ar, skb, WMI_PEER_ASSOC_CMDID);
 }
 
-int ath10k_wmi_beacon_send(struct ath10k *ar, const struct wmi_bcn_tx_arg *arg)
+int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
+				  const struct wmi_bcn_tx_arg *arg)
 {
 	struct wmi_bcn_tx_cmd *cmd;
 	struct sk_buff *skb;
@@ -2124,7 +2128,7 @@ int ath10k_wmi_beacon_send(struct ath10k *ar, const struct wmi_bcn_tx_arg *arg)
 	cmd->hdr.bcn_len  = __cpu_to_le32(arg->bcn_len);
 	memcpy(cmd->bcn, arg->bcn, arg->bcn_len);
 
-	return ath10k_wmi_cmd_send(ar, skb, WMI_BCN_TX_CMDID);
+	return ath10k_wmi_cmd_send_nowait(ar, skb, WMI_BCN_TX_CMDID);
 }
 
 static void ath10k_wmi_pdev_set_wmm_param(struct wmi_wmm_params *params,

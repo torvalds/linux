@@ -328,6 +328,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 	return cfg80211_get_chans_dfs_required(wiphy, chandef->center_freq2,
 					       width);
 }
+EXPORT_SYMBOL(cfg80211_chandef_dfs_required);
 
 static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 					u32 center_freq, u32 bandwidth,

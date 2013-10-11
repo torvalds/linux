@@ -1172,6 +1172,12 @@ static struct drm_prop_enum_list radeon_underscan_enum_list[] =
 	{ UNDERSCAN_AUTO, "auto" },
 };
 
+static struct drm_prop_enum_list radeon_audio_enum_list[] =
+{	{ RADEON_AUDIO_DISABLE, "off" },
+	{ RADEON_AUDIO_ENABLE, "on" },
+	{ RADEON_AUDIO_AUTO, "auto" },
+};
+
 static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int sz;
@@ -1221,6 +1227,12 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 					"underscan vborder", 0, 128);
 	if (!rdev->mode_info.underscan_vborder_property)
 		return -ENOMEM;
+
+	sz = ARRAY_SIZE(radeon_audio_enum_list);
+	rdev->mode_info.audio_property =
+		drm_property_create_enum(rdev->ddev, 0,
+					 "audio",
+					 radeon_audio_enum_list, sz);
 
 	return 0;
 }

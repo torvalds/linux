@@ -43,6 +43,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include <asm/cpu.h>
+
 /* cpu pipeline flush */
 void static inline au_sync(void)
 {
@@ -140,7 +142,7 @@ static inline int au1xxx_cpu_needs_config_od(void)
 
 static inline int alchemy_get_cputype(void)
 {
-	switch (read_c0_prid() & 0xffff0000) {
+	switch (read_c0_prid() & (PRID_OPT_MASK | PRID_COMP_MASK)) {
 	case 0x00030000:
 		return ALCHEMY_CPU_AU1000;
 		break;

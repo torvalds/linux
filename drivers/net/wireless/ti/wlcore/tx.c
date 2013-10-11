@@ -86,19 +86,34 @@ void wl1271_free_tx_id(struct wl1271 *wl, int id)
 EXPORT_SYMBOL(wl1271_free_tx_id);
 
 static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
+						 struct wl12xx_vif *wlvif,
 						 struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *)(skb->data +
+				       sizeof(struct wl1271_tx_hw_descr));
+	if (!ieee80211_is_auth(hdr->frame_control))
+		return;
 
 	/*
 	 * add the station to the known list before transmitting the
 	 * authentication response. this way it won't get de-authed by FW
 	 * when transmitting too soon.
 	 */
-	hdr = (struct ieee80211_hdr *)(skb->data +
-				       sizeof(struct wl1271_tx_hw_descr));
-	if (ieee80211_is_auth(hdr->frame_control))
-		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
+	wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
+
+	/*
+	 * ROC for 1 second on the AP channel for completing the connection.
+	 * Note the ROC will be continued by the update_sta_state callbacks
+	 * once the station reaches the associated state.
+	 */
+	wlcore_update_inconn_sta(wl, wlvif, NULL, true);
+	wlvif->pending_auth_reply_time = jiffies;
+	cancel_delayed_work(&wlvif->pending_auth_complete_work);
+	ieee80211_queue_delayed_work(wl->hw,
+				&wlvif->pending_auth_complete_work,
+				msecs_to_jiffies(WLCORE_PEND_AUTH_ROC_TIMEOUT));
 }
 
 static void wl1271_tx_regulate_link(struct wl1271 *wl,
@@ -386,7 +401,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		is_wep = (cipher == WLAN_CIPHER_SUITE_WEP40) ||
 			 (cipher == WLAN_CIPHER_SUITE_WEP104);
 
-		if (WARN_ON(is_wep && wlvif->default_key != idx)) {
+		if (WARN_ON(is_wep && wlvif && wlvif->default_key != idx)) {
 			ret = wl1271_set_default_wep_key(wl, wlvif, idx);
 			if (ret < 0)
 				return ret;
@@ -404,7 +419,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	wl1271_tx_fill_hdr(wl, wlvif, skb, extra, info, hlid);
 
 	if (!is_dummy && wlvif && wlvif->bss_type == BSS_TYPE_AP_BSS) {
-		wl1271_tx_ap_update_inconnection_sta(wl, skb);
+		wl1271_tx_ap_update_inconnection_sta(wl, wlvif, skb);
 		wl1271_tx_regulate_link(wl, wlvif, hlid);
 	}
 

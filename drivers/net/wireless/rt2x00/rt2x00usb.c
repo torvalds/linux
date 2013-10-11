@@ -523,7 +523,9 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	rt2x00_warn(queue->rt2x00dev, "TX queue %d DMA timed out, invoke forced forced reset\n",
 		    queue->qid);
 
+	rt2x00queue_stop_queue(queue);
 	rt2x00queue_flush_queue(queue, true);
+	rt2x00queue_start_queue(queue);
 }
 
 static int rt2x00usb_dma_timeout(struct data_queue *queue)

@@ -57,8 +57,7 @@ bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 		ocf = hci_opcode_ocf(opcode);
 		ogf = hci_opcode_ogf(opcode);
 
-		if (ocf == BT_CMD_MODULE_CFG_REQ &&
-					priv->btmrvl_dev.sendcmdflag) {
+		if (priv->btmrvl_dev.sendcmdflag) {
 			priv->btmrvl_dev.sendcmdflag = false;
 			priv->adapter->cmd_complete = true;
 			wake_up_interruptible(&priv->adapter->cmd_wait_q);
@@ -116,7 +115,6 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 			adapter->hs_state = HS_ACTIVATED;
 			if (adapter->psmode)
 				adapter->ps_state = PS_SLEEP;
-			wake_up_interruptible(&adapter->cmd_wait_q);
 			BT_DBG("HS ACTIVATED!");
 		} else {
 			BT_DBG("HS Enable failed");
@@ -168,22 +166,24 @@ exit:
 }
 EXPORT_SYMBOL_GPL(btmrvl_process_event);
 
-int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
+static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 cmd_no,
+				const void *param, u8 len)
 {
 	struct sk_buff *skb;
-	struct btmrvl_cmd *cmd;
-	int ret = 0;
+	struct hci_command_hdr *hdr;
 
-	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
+	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
 		return -ENOMEM;
 	}
 
-	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_MODULE_CFG_REQ));
-	cmd->length = 1;
-	cmd->data[0] = subcmd;
+	hdr = (struct hci_command_hdr *)skb_put(skb, HCI_COMMAND_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(hci_opcode_pack(OGF, cmd_no));
+	hdr->plen = len;
+
+	if (len)
+		memcpy(skb_put(skb, len), param, len);
 
 	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
@@ -194,19 +194,23 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 
 	priv->adapter->cmd_complete = false;
 
-	BT_DBG("Queue module cfg Command");
-
 	wake_up_interruptible(&priv->main_thread.wait_q);
 
 	if (!wait_event_interruptible_timeout(priv->adapter->cmd_wait_q,
 				priv->adapter->cmd_complete,
-				msecs_to_jiffies(WAIT_UNTIL_CMD_RESP))) {
-		ret = -ETIMEDOUT;
-		BT_ERR("module_cfg_cmd(%x): timeout: %d",
-					subcmd, priv->btmrvl_dev.sendcmdflag);
-	}
+				msecs_to_jiffies(WAIT_UNTIL_CMD_RESP)))
+		return -ETIMEDOUT;
 
-	BT_DBG("module cfg Command done");
+	return 0;
+}
+
+int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
+{
+	int ret;
+
+	ret = btmrvl_send_sync_cmd(priv, BT_CMD_MODULE_CFG_REQ, &subcmd, 1);
+	if (ret)
+		BT_ERR("module_cfg_cmd(%x) failed\n", subcmd);
 
 	return ret;
 }
@@ -214,61 +218,36 @@ EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
 
 int btmrvl_send_hscfg_cmd(struct btmrvl_private *priv)
 {
-	struct sk_buff *skb;
-	struct btmrvl_cmd *cmd;
+	int ret;
+	u8 param[2];
 
-	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-	if (!skb) {
-		BT_ERR("No free skb");
-		return -ENOMEM;
-	}
+	param[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
+	param[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
 
-	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF,
-						   BT_CMD_HOST_SLEEP_CONFIG));
-	cmd->length = 2;
-	cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
-	cmd->data[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
+	BT_DBG("Sending HSCFG Command, gpio=0x%x, gap=0x%x",
+	       param[0], param[1]);
 
-	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+	ret = btmrvl_send_sync_cmd(priv, BT_CMD_HOST_SLEEP_CONFIG, param, 2);
+	if (ret)
+		BT_ERR("HSCFG command failed\n");
 
-	skb->dev = (void *) priv->btmrvl_dev.hcidev;
-	skb_queue_head(&priv->adapter->tx_queue, skb);
-
-	BT_DBG("Queue HSCFG Command, gpio=0x%x, gap=0x%x", cmd->data[0],
-	       cmd->data[1]);
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_hscfg_cmd);
 
 int btmrvl_enable_ps(struct btmrvl_private *priv)
 {
-	struct sk_buff *skb;
-	struct btmrvl_cmd *cmd;
-
-	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-	if (skb == NULL) {
-		BT_ERR("No free skb");
-		return -ENOMEM;
-	}
-
-	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF,
-					BT_CMD_AUTO_SLEEP_MODE));
-	cmd->length = 1;
+	int ret;
+	u8 param;
 
 	if (priv->btmrvl_dev.psmode)
-		cmd->data[0] = BT_PS_ENABLE;
+		param = BT_PS_ENABLE;
 	else
-		cmd->data[0] = BT_PS_DISABLE;
+		param = BT_PS_DISABLE;
 
-	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
-
-	skb->dev = (void *) priv->btmrvl_dev.hcidev;
-	skb_queue_head(&priv->adapter->tx_queue, skb);
-
-	BT_DBG("Queue PSMODE Command:%d", cmd->data[0]);
+	ret = btmrvl_send_sync_cmd(priv, BT_CMD_AUTO_SLEEP_MODE, &param, 1);
+	if (ret)
+		BT_ERR("PSMODE command failed\n");
 
 	return 0;
 }
@@ -276,37 +255,11 @@ EXPORT_SYMBOL_GPL(btmrvl_enable_ps);
 
 int btmrvl_enable_hs(struct btmrvl_private *priv)
 {
-	struct sk_buff *skb;
-	struct btmrvl_cmd *cmd;
-	int ret = 0;
+	int ret;
 
-	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-	if (skb == NULL) {
-		BT_ERR("No free skb");
-		return -ENOMEM;
-	}
-
-	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_ENABLE));
-	cmd->length = 0;
-
-	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
-
-	skb->dev = (void *) priv->btmrvl_dev.hcidev;
-	skb_queue_head(&priv->adapter->tx_queue, skb);
-
-	BT_DBG("Queue hs enable Command");
-
-	wake_up_interruptible(&priv->main_thread.wait_q);
-
-	if (!wait_event_interruptible_timeout(priv->adapter->cmd_wait_q,
-			priv->adapter->hs_state,
-			msecs_to_jiffies(WAIT_UNTIL_HS_STATE_CHANGED))) {
-		ret = -ETIMEDOUT;
-		BT_ERR("timeout: %d, %d,%d", priv->adapter->hs_state,
-						priv->adapter->ps_state,
-						priv->adapter->wakeup_tries);
-	}
+	ret = btmrvl_send_sync_cmd(priv, BT_CMD_HOST_SLEEP_ENABLE, NULL, 0);
+	if (ret)
+		BT_ERR("Host sleep enable command failed\n");
 
 	return ret;
 }
@@ -480,6 +433,137 @@ static int btmrvl_open(struct hci_dev *hdev)
 }
 
 /*
+ * This function parses provided calibration data input. It should contain
+ * hex bytes separated by space or new line character. Here is an example.
+ * 00 1C 01 37 FF FF FF FF 02 04 7F 01
+ * CE BA 00 00 00 2D C6 C0 00 00 00 00
+ * 00 F0 00 00
+ */
+static int btmrvl_parse_cal_cfg(const u8 *src, u32 len, u8 *dst, u32 dst_size)
+{
+	const u8 *s = src;
+	u8 *d = dst;
+	int ret;
+	u8 tmp[3];
+
+	tmp[2] = '\0';
+	while ((s - src) <= len - 2) {
+		if (isspace(*s)) {
+			s++;
+			continue;
+		}
+
+		if (isxdigit(*s)) {
+			if ((d - dst) >= dst_size) {
+				BT_ERR("calibration data file too big!!!");
+				return -EINVAL;
+			}
+
+			memcpy(tmp, s, 2);
+
+			ret = kstrtou8(tmp, 16, d++);
+			if (ret < 0)
+				return ret;
+
+			s += 2;
+		} else {
+			return -EINVAL;
+		}
+	}
+	if (d == dst)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int btmrvl_load_cal_data(struct btmrvl_private *priv,
+				u8 *config_data)
+{
+	int i, ret;
+	u8 data[BT_CMD_DATA_SIZE];
+
+	data[0] = 0x00;
+	data[1] = 0x00;
+	data[2] = 0x00;
+	data[3] = BT_CMD_DATA_SIZE - 4;
+
+	/* Swap cal-data bytes. Each four bytes are swapped. Considering 4
+	 * byte SDIO header offset, mapping of input and output bytes will be
+	 * {3, 2, 1, 0} -> {0+4, 1+4, 2+4, 3+4},
+	 * {7, 6, 5, 4} -> {4+4, 5+4, 6+4, 7+4} */
+	for (i = 4; i < BT_CMD_DATA_SIZE; i++)
+		data[i] = config_data[(i / 4) * 8 - 1 - i];
+
+	print_hex_dump_bytes("Calibration data: ",
+			     DUMP_PREFIX_OFFSET, data, BT_CMD_DATA_SIZE);
+
+	ret = btmrvl_send_sync_cmd(priv, BT_CMD_LOAD_CONFIG_DATA, data,
+				   BT_CMD_DATA_SIZE);
+	if (ret)
+		BT_ERR("Failed to download caibration data\n");
+
+	return 0;
+}
+
+static int
+btmrvl_process_cal_cfg(struct btmrvl_private *priv, u8 *data, u32 size)
+{
+	u8 cal_data[BT_CAL_DATA_SIZE];
+	int ret;
+
+	ret = btmrvl_parse_cal_cfg(data, size, cal_data, sizeof(cal_data));
+	if (ret)
+		return ret;
+
+	ret = btmrvl_load_cal_data(priv, cal_data);
+	if (ret) {
+		BT_ERR("Fail to load calibrate data");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int btmrvl_cal_data_config(struct btmrvl_private *priv)
+{
+	const struct firmware *cfg;
+	int ret;
+	const char *cal_data = priv->btmrvl_dev.cal_data;
+
+	if (!cal_data)
+		return 0;
+
+	ret = request_firmware(&cfg, cal_data, priv->btmrvl_dev.dev);
+	if (ret < 0) {
+		BT_DBG("Failed to get %s file, skipping cal data download",
+		       cal_data);
+		return 0;
+	}
+
+	ret = btmrvl_process_cal_cfg(priv, (u8 *)cfg->data, cfg->size);
+	release_firmware(cfg);
+	return ret;
+}
+
+static int btmrvl_setup(struct hci_dev *hdev)
+{
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
+
+	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+
+	if (btmrvl_cal_data_config(priv))
+		BT_ERR("Set cal data failed");
+
+	priv->btmrvl_dev.psmode = 1;
+	btmrvl_enable_ps(priv);
+
+	priv->btmrvl_dev.gpio_gap = 0xffff;
+	btmrvl_send_hscfg_cmd(priv);
+
+	return 0;
+}
+
+/*
  * This function handles the event generated by firmware, rx data
  * received from firmware, and tx data sent from kernel.
  */
@@ -572,8 +656,7 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	hdev->flush = btmrvl_flush;
 	hdev->send = btmrvl_send_frame;
 	hdev->ioctl = btmrvl_ioctl;
-
-	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+	hdev->setup = btmrvl_setup;
 
 	hdev->dev_type = priv->btmrvl_dev.dev_type;
 
