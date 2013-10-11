@@ -42,7 +42,6 @@
 
 static const char hcd_name[] = "ehci-msm";
 static struct hc_driver __read_mostly msm_hc_driver;
-static struct usb_phy *phy;
 
 static int ehci_msm_reset(struct usb_hcd *hcd)
 {
@@ -70,6 +69,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res;
+	struct usb_phy *phy;
 	int ret;
 
 	dev_dbg(&pdev->dev, "ehci_msm proble\n");
@@ -121,6 +121,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 		goto put_hcd;
 	}
 
+	hcd->phy = phy;
 	device_init_wakeup(&pdev->dev, 1);
 	/*
 	 * OTG device parent of HCD takes care of putting
@@ -147,7 +148,7 @@ static int ehci_msm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
-	otg_set_host(phy->otg, NULL);
+	otg_set_host(hcd->phy->otg, NULL);
 
 	/* FIXME: need to call usb_remove_hcd() here? */
 
