@@ -3348,17 +3348,17 @@
  *  } while (high1 != high2);
  *  frame = (high1 << 8) | low1;
  */
-#define _PIPEAFRAMEHIGH          (dev_priv->info->display_mmio_offset + 0x70040)
+#define _PIPEAFRAMEHIGH          0x70040
 #define   PIPE_FRAME_HIGH_MASK    0x0000ffff
 #define   PIPE_FRAME_HIGH_SHIFT   0
-#define _PIPEAFRAMEPIXEL         (dev_priv->info->display_mmio_offset + 0x70044)
+#define _PIPEAFRAMEPIXEL         0x70044
 #define   PIPE_FRAME_LOW_MASK     0xff000000
 #define   PIPE_FRAME_LOW_SHIFT    24
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
 /* GM45+ just has to be different */
-#define _PIPEA_FRMCOUNT_GM45	0x70040
-#define _PIPEA_FLIPCOUNT_GM45	0x70044
+#define _PIPEA_FRMCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x70040)
+#define _PIPEA_FLIPCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x70044)
 #define PIPE_FRMCOUNT_GM45(pipe) _PIPE(pipe, _PIPEA_FRMCOUNT_GM45, _PIPEB_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
@@ -3489,10 +3489,10 @@
 #define _PIPEBDSL		(dev_priv->info->display_mmio_offset + 0x71000)
 #define _PIPEBCONF		(dev_priv->info->display_mmio_offset + 0x71008)
 #define _PIPEBSTAT		(dev_priv->info->display_mmio_offset + 0x71024)
-#define _PIPEBFRAMEHIGH		(dev_priv->info->display_mmio_offset + 0x71040)
-#define _PIPEBFRAMEPIXEL	(dev_priv->info->display_mmio_offset + 0x71044)
-#define _PIPEB_FRMCOUNT_GM45	0x71040
-#define _PIPEB_FLIPCOUNT_GM45	0x71044
+#define _PIPEBFRAMEHIGH		0x71040
+#define _PIPEBFRAMEPIXEL	0x71044
+#define _PIPEB_FRMCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x71040)
+#define _PIPEB_FLIPCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x71044)
 
 
 /* Display B control */
