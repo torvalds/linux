@@ -271,12 +271,22 @@ static int posix_cpu_clock_get_task(struct task_struct *tsk,
 		if (same_thread_group(tsk, current))
 			err = cpu_clock_sample(which_clock, tsk, &rtn);
 	} else {
-		read_lock(&tasklist_lock);
+		unsigned long flags;
+		struct sighand_struct *sighand;
 
-		if (tsk->sighand && (tsk == current || thread_group_leader(tsk)))
+		/*
+		 * while_each_thread() is not yet entirely RCU safe,
+		 * keep locking the group while sampling process
+		 * clock for now.
+		 */
+		sighand = lock_task_sighand(tsk, &flags);
+		if (!sighand)
+			return err;
+
+		if (tsk == current || thread_group_leader(tsk))
 			err = cpu_clock_sample_group(which_clock, tsk, &rtn);
 
-		read_unlock(&tasklist_lock);
+		unlock_task_sighand(tsk, &flags);
 	}
 
 	if (!err)
