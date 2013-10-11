@@ -599,7 +599,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
-	u32 position;
+	int position;
 	int vbl_start, vbl_end, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
@@ -621,13 +621,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
-		position = I915_READ(PIPEDSL(pipe));
-
-		/* Decode into vertical scanout position. Don't have
-		 * horizontal scanout position.
-		 */
-		*vpos = position & 0x1fff;
-		*hpos = 0;
+		position = I915_READ(PIPEDSL(pipe)) & 0x1fff;
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
@@ -635,15 +629,32 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		 */
 		position = (I915_READ(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
+		/* convert to pixel counts */
+		vbl_start *= htotal;
+		vbl_end *= htotal;
+		vtotal *= htotal;
+	}
+
+	in_vbl = position >= vbl_start && position < vbl_end;
+
+	/*
+	 * While in vblank, position will be negative
+	 * counting up towards 0 at vbl_end. And outside
+	 * vblank, position will be positive counting
+	 * up since vbl_end.
+	 */
+	if (position >= vbl_start)
+		position -= vbl_end;
+	else
+		position += vtotal - vbl_end;
+
+	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+		*vpos = position;
+		*hpos = 0;
+	} else {
 		*vpos = position / htotal;
 		*hpos = position - (*vpos * htotal);
 	}
-
-	in_vbl = *vpos >= vbl_start && *vpos < vbl_end;
-
-	/* Inside "upper part" of vblank area? Apply corrective offset: */
-	if (in_vbl && (*vpos >= vbl_start))
-		*vpos = *vpos - vtotal;
 
 	/* In vblank? */
 	if (in_vbl)
