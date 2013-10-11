@@ -75,6 +75,7 @@
 
 #include "../mach-rk30/board-rk3168-ds1006h-camera.c"
 #include <plat/key.h>
+#include <linux/scaler-core.h>
 
 static struct rk29_keys_button key_button[] = {
 	{
@@ -505,8 +506,8 @@ static int rk_fb_io_enable(void)
 	return 0;
 }
 
-#if defined(CONFIG_LCDC0_RK3188)
-struct rk29fb_info lcdc0_screen_info = {
+#if defined(CONFIG_LCDC1_RK3188)
+struct rk29fb_info lcdc1_screen_info = {
 	.prop           = EXTEND,       //extend display device
        .lcd_info  = NULL,
        .set_screen_info = hdmi_init_lcdc,
@@ -514,8 +515,8 @@ struct rk29fb_info lcdc0_screen_info = {
 };
 #endif
 
-#if defined(CONFIG_LCDC1_RK3188)
-struct rk29fb_info lcdc1_screen_info = {
+#if defined(CONFIG_LCDC0_RK3188)
+struct rk29fb_info lcdc0_screen_info = {
 	.prop	   = PRMRY,		//primary display device
 	.io_init   = rk_fb_io_init,
 	.io_disable = rk_fb_io_disable,
@@ -1748,7 +1749,50 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 #include "../mach-rk30/board-pmu-tps65910.c"
 #endif
 
+#if defined(CONFIG_SCALER_TEST) 
+//the fisrt port is default 
+struct scaler_output_port tst_oports[] ={
+	{
+		.led_gpio = INVALID_GPIO,
+		.type = SCALER_OUT_VGA,
+	},
+};
+
+//the fisrt port is default 
+struct scaler_input_port tst_iports[] = {
+	{
+		//RK
+		.led_gpio = RK30_PIN0_PD4,
+		.type = SCALER_IN_VGA,
+	},
+	{
+		//pc
+		.led_gpio = RK30_PIN0_PD5,
+		.type = SCALER_IN_VGA,
+	},
+};
+
+struct scaler_platform_data test_data = {
+	.func_type = SCALER_FUNC_SWITCH,
+
+	.iports = tst_iports,
+	.iport_size = ARRAY_SIZE(tst_iports),
+	.oports = tst_oports,
+	.oport_size = ARRAY_SIZE(tst_oports),
+
+	.power_gpio = RK30_PIN2_PD7,
+};
+#endif
+
 static struct i2c_board_info __initdata i2c1_info[] = {
+#if defined(CONFIG_SCALER_TEST) 
+	{
+		.type	        = "aswitch",
+		.addr           = 0x57,
+		.flags	        = 0,
+		.platform_data = &test_data,
+	},
+#endif
 #if defined (CONFIG_REGULATOR_ACT8846)
 	{
 		.type    		= "act8846",
@@ -1871,6 +1915,13 @@ void  rk30_pwm_resume_voltage_set(void)
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
+#if defined(CONFIG_SCALER_DEVICE) 
+	{
+		.type	        = "vga_i2c",
+		.addr           = 0x50,
+		.flags	        = 0,
+	},
+#endif
 #if defined (CONFIG_CT36X_TS)
 	{
 		.type	       = CT36X_NAME,

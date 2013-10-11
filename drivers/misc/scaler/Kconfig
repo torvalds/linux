@@ -1,0 +1,11 @@
+#
+# all auto modem control drivers configuration
+#
+
+menuconfig SCALER_DEVICE
+	bool "Scaler Device Support"
+	default n	
+
+if SCALER_DEVICE
+source "drivers/misc/scaler/chips/Kconfig"
+endif
