@@ -31,7 +31,7 @@ nouveau_mc_intr(int irq, void *arg)
 	struct nouveau_mc *pmc = arg;
 	const struct nouveau_mc_intr *map = pmc->intr_map;
 	struct nouveau_subdev *unit;
-	u32 intr, stat;
+	u32 intr;
 
 	nv_wr32(pmc, 0x000140, 0x00000000);
 	nv_rd32(pmc, 0x000140);
@@ -40,7 +40,11 @@ nouveau_mc_intr(int irq, void *arg)
 	if (intr == 0xffffffff) /* likely fallen off the bus */
 		intr = 0x00000000;
 
-	if ((stat = intr) != 0) {
+	if (pmc->use_msi)
+		nv_wr08(pmc, 0x088068, 0xff);
+
+	if (intr) {
+		u32 stat = nv_rd32(pmc, 0x000100);
 		while (map->stat) {
 			if (intr & map->stat) {
 				unit = nouveau_subdev(pmc, map->unit);
@@ -51,8 +55,6 @@ nouveau_mc_intr(int irq, void *arg)
 			map++;
 		}
 
-		if (pmc->use_msi)
-			nv_wr08(pmc, 0x088068, 0xff);
 		if (stat)
 			nv_error(pmc, "unknown intr 0x%08x\n", stat);
 	}
