@@ -336,18 +336,26 @@
 				compatible = "atmel,at91sam9g46-sha";
 				reg = <0xf8034000 0x100>;
 				interrupts = <42 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(17)>;
+				dma-names = "tx";
 			};
 
 			aes@f8038000 {
 				compatible = "atmel,at91sam9g46-aes";
 				reg = <0xf8038000 0x100>;
 				interrupts = <43 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(18)>,
+				       <&dma1 2 AT91_DMA_CFG_PER_ID(19)>;
+				dma-names = "tx", "rx";
 			};
 
 			tdes@f803c000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xf803c000 0x100>;
 				interrupts = <44 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(20)>,
+				       <&dma1 2 AT91_DMA_CFG_PER_ID(21)>;
+				dma-names = "tx", "rx";
 			};
 
 			dma0: dma-controller@ffffe600 {
