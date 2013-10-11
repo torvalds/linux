@@ -1842,6 +1842,8 @@ static int musb_gadget_start(struct usb_gadget *g,
 	musb->xceiv->state = OTG_STATE_B_IDLE;
 	spin_unlock_irqrestore(&musb->lock, flags);
 
+	musb_start(musb);
+
 	/* REVISIT:  funcall to other code, which also
 	 * handles power budgeting ... this way also
 	 * ensures HdrcStart is indirectly called.
