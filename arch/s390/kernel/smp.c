@@ -533,9 +533,6 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
 
-struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
-EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
-
 static void __init smp_get_save_area(int cpu, u16 address)
 {
 	void *lc = pcpu_devices[0].lowcore;
@@ -546,15 +543,9 @@ static void __init smp_get_save_area(int cpu, u16 address)
 	if (!OLDMEM_BASE && (address == boot_cpu_address ||
 			     ipl_info.type != IPL_TYPE_FCP_DUMP))
 		return;
-	if (cpu >= NR_CPUS) {
-		pr_warning("CPU %i exceeds the maximum %i and is excluded "
-			   "from the dump\n", cpu, NR_CPUS - 1);
-		return;
-	}
-	save_area = kmalloc(sizeof(struct save_area), GFP_KERNEL);
+	save_area = dump_save_area_create(cpu);
 	if (!save_area)
 		panic("could not allocate memory for save area\n");
-	zfcpdump_save_areas[cpu] = save_area;
 #ifdef CONFIG_CRASH_DUMP
 	if (address == boot_cpu_address) {
 		/* Copy the registers of the boot cpu. */
