@@ -37,7 +37,7 @@
 
 #define VERSION "0.10"
 
-static struct usb_device_id bpa10x_table[] = {
+static const struct usb_device_id bpa10x_table[] = {
 	/* Tektronix BPA 100/105 (Digianswer) */
 	{ USB_DEVICE(0x08fd, 0x0002) },
 
