@@ -72,7 +72,16 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 		return -ENODEV;
 
 	release_addr = __va(cpu_release_addr[cpu]);
-	release_addr[0] = (void *)__pa(secondary_holding_pen);
+
+	/*
+	 * We write the release address as LE regardless of the native
+	 * endianess of the kernel. Therefore, any boot-loaders that
+	 * read this address need to convert this address to the
+	 * boot-loader's endianess before jumping. This is mandated by
+	 * the boot protocol.
+	 */
+	release_addr[0] = (void *) cpu_to_le64(__pa(secondary_holding_pen));
+
 	__flush_dcache_area(release_addr, sizeof(release_addr[0]));
 
 	/*
