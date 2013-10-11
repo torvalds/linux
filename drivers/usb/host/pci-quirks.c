@@ -799,7 +799,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	 * switchable ports.
 	 */
 	pci_write_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
-			cpu_to_le32(ports_available));
+			ports_available);
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
 			&ports_available);
@@ -821,7 +821,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	 * host.
 	 */
 	pci_write_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
-			cpu_to_le32(ports_available));
+			ports_available);
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 			&ports_available);
