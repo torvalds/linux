@@ -1578,6 +1578,18 @@ config HMP_FREQUENCY_INVARIANT_SCALE
 	  migration strategy to interact more predictably with CPUFreq's
 	  asynchronous compute capacity changes.
 
+config SCHED_HMP_LITTLE_PACKING
+	bool "Small task packing for HMP"
+	depends on SCHED_HMP
+	default n
+	help
+	  Allows the HMP Scheduler to pack small tasks into CPUs in the
+	  smallest HMP domain.
+	  Controlled by two sysfs files in sys/kernel/hmp.
+	  packing_enable: 1 to enable, 0 to disable packing. Default 1.
+	  packing_limit: runqueue load ratio where a RQ is considered
+	    to be full. Default is NICE_0_LOAD * 9/8.
+
 config HAVE_ARM_SCU
 	bool
 	help
