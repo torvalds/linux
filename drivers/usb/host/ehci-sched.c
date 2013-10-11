@@ -1286,6 +1286,10 @@ sitd_slot_ok (
 
 	mask = stream->raw_mask << (uframe & 7);
 
+	/* for OUT, don't wrap SSPLIT into H-microframe 7 */
+	if (((stream->raw_mask & 0xff) << (uframe & 7)) >= (1 << 7))
+		return 0;
+
 	/* for IN, don't wrap CSPLIT into the next frame */
 	if (mask & ~0xffff)
 		return 0;
