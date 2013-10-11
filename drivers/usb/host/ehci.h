@@ -62,10 +62,16 @@ struct ehci_per_sched {
 	struct usb_device	*udev;		/* access to the TT */
 	struct usb_host_endpoint *ep;
 	u16			tt_usecs;	/* time on the FS/LS bus */
+	u16			cs_mask;	/* C-mask and S-mask bytes */
 	u16			period;		/* actual period in frames */
 	u16			phase;		/* actual phase, frame part */
+	u8			bw_phase;	/* same, for bandwidth
+						   reservation */
 	u8			phase_uf;	/* uframe part of the phase */
 	u8			usecs, c_usecs;	/* times on the HS bus */
+	u8			bw_uperiod;	/* period in microframes, for
+						   bandwidth reservation */
+	u8			bw_period;	/* same, in frames */
 };
 #define NO_FRAME	29999			/* frame not assigned yet */
 
@@ -244,6 +250,12 @@ struct ehci_hcd {			/* one per controller */
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	struct dentry		*debug_dir;
 #endif
+
+	/* bandwidth usage */
+#define EHCI_BANDWIDTH_SIZE	64
+#define EHCI_BANDWIDTH_FRAMES	(EHCI_BANDWIDTH_SIZE >> 3)
+	u8			bandwidth[EHCI_BANDWIDTH_SIZE];
+						/* us allocated per uframe */
 
 	/* platform-specific data -- must come last */
 	unsigned long		priv[0] __aligned(sizeof(s64));
@@ -469,7 +481,6 @@ struct ehci_iso_stream {
 	 */
 	u16			uperiod;	/* period in uframes */
 	u16			maxp;
-	u16			raw_mask;
 	unsigned		bandwidth;
 
 	/* This is used to initialize iTD's hw_bufp fields */

@@ -797,6 +797,8 @@ qh_make (
 	 * For control/bulk requests, the HC or TT handles these.
 	 */
 	if (type == PIPE_INTERRUPT) {
+		unsigned	tmp;
+
 		qh->ps.usecs = NS_TO_US(usb_calc_bus_time(USB_SPEED_HIGH,
 				is_input, 0,
 				hb_mult(maxp) * max_packet(maxp)));
@@ -816,6 +818,14 @@ qh_make (
 				urb->interval = ehci->periodic_size << 3;
 			}
 			qh->ps.period = urb->interval >> 3;
+
+			/* period for bandwidth allocation */
+			tmp = min_t(unsigned, EHCI_BANDWIDTH_SIZE,
+					1 << (urb->ep->desc.bInterval - 1));
+
+			/* Allow urb->interval to override */
+			qh->ps.bw_uperiod = min_t(unsigned, tmp, urb->interval);
+			qh->ps.bw_period = qh->ps.bw_uperiod >> 3;
 		} else {
 			int		think_time;
 
@@ -839,6 +849,15 @@ qh_make (
 			if (urb->interval > ehci->periodic_size)
 				urb->interval = ehci->periodic_size;
 			qh->ps.period = urb->interval;
+
+			/* period for bandwidth allocation */
+			tmp = min_t(unsigned, EHCI_BANDWIDTH_FRAMES,
+					urb->ep->desc.bInterval);
+			tmp = rounddown_pow_of_two(tmp);
+
+			/* Allow urb->interval to override */
+			qh->ps.bw_period = min_t(unsigned, tmp, urb->interval);
+			qh->ps.bw_uperiod = qh->ps.bw_period << 3;
 		}
 	}
 

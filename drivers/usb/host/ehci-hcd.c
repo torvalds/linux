@@ -956,6 +956,7 @@ rescan:
 			goto idle_timeout;
 
 		/* BUG_ON(!list_empty(&stream->free_list)); */
+		reserve_release_iso_bandwidth(ehci, stream, -1);
 		kfree(stream);
 		goto done;
 	}
@@ -982,6 +983,8 @@ idle_timeout:
 		if (qh->clearing_tt)
 			goto idle_timeout;
 		if (list_empty (&qh->qtd_list)) {
+			if (qh->ps.bw_uperiod)
+				reserve_release_intr_bandwidth(ehci, qh, -1);
 			qh_destroy(ehci, qh);
 			break;
 		}

@@ -334,6 +334,7 @@ static inline void remove_debug_files (struct ehci_hcd *bus) { }
 /* troubleshooting help: expose state in debugfs */
 
 static int debug_async_open(struct inode *, struct file *);
+static int debug_bandwidth_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
 
@@ -343,6 +344,13 @@ static int debug_close(struct inode *, struct file *);
 static const struct file_operations debug_async_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_async_open,
+	.read		= debug_output,
+	.release	= debug_close,
+	.llseek		= default_llseek,
+};
+static const struct file_operations debug_bandwidth_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_bandwidth_open,
 	.read		= debug_output,
 	.release	= debug_close,
 	.llseek		= default_llseek,
@@ -523,6 +531,41 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
 	return strlen(buf->output_buf);
+}
+
+static ssize_t fill_bandwidth_buffer(struct debug_buffer *buf)
+{
+	struct ehci_hcd		*ehci;
+	unsigned		temp, size;
+	char			*next;
+	unsigned		i;
+	u8			*bw;
+
+	ehci = hcd_to_ehci(bus_to_hcd(buf->bus));
+	next = buf->output_buf;
+	size = buf->alloc_size;
+
+	*next = 0;
+
+	spin_lock_irq(&ehci->lock);
+
+	/* Dump the HS bandwidth table */
+	temp = scnprintf(next, size,
+			"HS bandwidth allocation (us per microframe)\n");
+	size -= temp;
+	next += temp;
+	for (i = 0; i < EHCI_BANDWIDTH_SIZE; i += 8) {
+		bw = &ehci->bandwidth[i];
+		temp = scnprintf(next, size,
+				"%2u: %4u%4u%4u%4u%4u%4u%4u%4u\n",
+				i, bw[0], bw[1], bw[2], bw[3],
+					bw[4], bw[5], bw[6], bw[7]);
+		size -= temp;
+		next += temp;
+	}
+	spin_unlock_irq(&ehci->lock);
+
+	return next - buf->output_buf;
 }
 
 #define DBG_SCHED_LIMIT 64
@@ -919,9 +962,18 @@ static int debug_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
+
 static int debug_async_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
+
+	return file->private_data ? 0 : -ENOMEM;
+}
+
+static int debug_bandwidth_open(struct inode *inode, struct file *file)
+{
+	file->private_data = alloc_buffer(inode->i_private,
+			fill_bandwidth_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
@@ -956,6 +1008,10 @@ static inline void create_debug_files (struct ehci_hcd *ehci)
 
 	if (!debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
 						&debug_async_fops))
+		goto file_error;
+
+	if (!debugfs_create_file("bandwidth", S_IRUGO, ehci->debug_dir, bus,
+						&debug_bandwidth_fops))
 		goto file_error;
 
 	if (!debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,

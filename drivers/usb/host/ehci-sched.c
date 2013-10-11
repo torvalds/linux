@@ -106,75 +106,53 @@ static void periodic_unlink (struct ehci_hcd *ehci, unsigned frame, void *ptr)
 		*hw_p = ehci->dummy->qh_dma;
 }
 
-/* how many of the uframe's 125 usecs are allocated? */
-static unsigned short
-periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
+static void bandwidth_dbg(struct ehci_hcd *ehci, int sign, char *type,
+		struct ehci_per_sched *ps)
 {
-	__hc32			*hw_p = &ehci->periodic [frame];
-	union ehci_shadow	*q = &ehci->pshadow [frame];
-	unsigned		usecs = 0;
-	struct ehci_qh_hw	*hw;
+	dev_dbg(&ps->udev->dev,
+			"ep %02x: %s %s @ %u+%u (%u.%u+%u) [%u/%u us] mask %04x\n",
+			ps->ep->desc.bEndpointAddress,
+			(sign >= 0 ? "reserve" : "release"), type,
+			(ps->bw_phase << 3) + ps->phase_uf, ps->bw_uperiod,
+			ps->phase, ps->phase_uf, ps->period,
+			ps->usecs, ps->c_usecs, ps->cs_mask);
+}
 
-	while (q->ptr) {
-		switch (hc32_to_cpu(ehci, Q_NEXT_TYPE(ehci, *hw_p))) {
-		case Q_TYPE_QH:
-			hw = q->qh->hw;
-			/* is it in the S-mask? */
-			if (hw->hw_info2 & cpu_to_hc32(ehci, 1 << uframe))
-				usecs += q->qh->ps.usecs;
-			/* ... or C-mask? */
-			if (hw->hw_info2 & cpu_to_hc32(ehci,
-					1 << (8 + uframe)))
-				usecs += q->qh->ps.c_usecs;
-			hw_p = &hw->hw_next;
-			q = &q->qh->qh_next;
-			break;
-		// case Q_TYPE_FSTN:
-		default:
-			/* for "save place" FSTNs, count the relevant INTR
-			 * bandwidth from the previous frame
-			 */
-			if (q->fstn->hw_prev != EHCI_LIST_END(ehci)) {
-				ehci_dbg (ehci, "ignoring FSTN cost ...\n");
-			}
-			hw_p = &q->fstn->hw_next;
-			q = &q->fstn->fstn_next;
-			break;
-		case Q_TYPE_ITD:
-			if (q->itd->hw_transaction[uframe])
-				usecs += q->itd->stream->ps.usecs;
-			hw_p = &q->itd->hw_next;
-			q = &q->itd->itd_next;
-			break;
-		case Q_TYPE_SITD:
-			/* is it in the S-mask?  (count SPLIT, DATA) */
-			if (q->sitd->hw_uframe & cpu_to_hc32(ehci,
-					1 << uframe)) {
-				if (q->sitd->hw_fullspeed_ep &
-						cpu_to_hc32(ehci, 1<<31))
-					usecs += q->sitd->stream->ps.usecs;
-				else	/* worst case for OUT start-split */
-					usecs += HS_USECS_ISO (188);
-			}
+static void reserve_release_intr_bandwidth(struct ehci_hcd *ehci,
+		struct ehci_qh *qh, int sign)
+{
+	unsigned		start_uf;
+	unsigned		i, j, m;
+	int			usecs = qh->ps.usecs;
+	int			c_usecs = qh->ps.c_usecs;
 
-			/* ... C-mask?  (count CSPLIT, DATA) */
-			if (q->sitd->hw_uframe &
-					cpu_to_hc32(ehci, 1 << (8 + uframe))) {
-				/* worst case for IN complete-split */
-				usecs += q->sitd->stream->ps.c_usecs;
-			}
+	if (qh->ps.phase == NO_FRAME)	/* Bandwidth wasn't reserved */
+		return;
+	start_uf = qh->ps.bw_phase << 3;
 
-			hw_p = &q->sitd->hw_next;
-			q = &q->sitd->sitd_next;
-			break;
+	bandwidth_dbg(ehci, sign, "intr", &qh->ps);
+
+	if (sign < 0) {		/* Release bandwidth */
+		usecs = -usecs;
+		c_usecs = -c_usecs;
+	}
+
+	/* Entire transaction (high speed) or start-split (full/low speed) */
+	for (i = start_uf + qh->ps.phase_uf; i < EHCI_BANDWIDTH_SIZE;
+			i += qh->ps.bw_uperiod)
+		ehci->bandwidth[i] += usecs;
+
+	/* Complete-split (full/low speed) */
+	if (qh->ps.c_usecs) {
+		/* NOTE: adjustments needed for FSTN */
+		for (i = start_uf; i < EHCI_BANDWIDTH_SIZE;
+				i += qh->ps.bw_uperiod) {
+			for ((j = 2, m = 1 << (j+8)); j < 8; (++j, m <<= 1)) {
+				if (qh->ps.cs_mask & m)
+					ehci->bandwidth[i+j] += c_usecs;
+			}
 		}
 	}
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
-	if (usecs > ehci->uframe_periodic_max)
-		ehci_err (ehci, "uframe %d sched overrun: %d usecs\n",
-			frame * 8 + uframe, usecs);
-#endif
-	return usecs;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -524,8 +502,8 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->exception = 0;
 
 	/* update per-qh bandwidth for debugfs */
-	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->ps.period
-		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.period)
+	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->ps.bw_period
+		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.bw_period)
 		: (qh->ps.usecs * 8);
 
 	list_add(&qh->intr_node, &ehci->intr_qh_list);
@@ -562,8 +540,8 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		periodic_unlink (ehci, i, qh);
 
 	/* update per-qh bandwidth for debugfs */
-	ehci_to_hcd(ehci)->self.bandwidth_allocated -= qh->ps.period
-		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.period)
+	ehci_to_hcd(ehci)->self.bandwidth_allocated -= qh->ps.bw_period
+		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.bw_period)
 		: (qh->ps.usecs * 8);
 
 	dev_dbg(&qh->ps.udev->dev,
@@ -693,11 +671,9 @@ static int check_period (
 	struct ehci_hcd *ehci,
 	unsigned	frame,
 	unsigned	uframe,
-	unsigned	period,
+	unsigned	uperiod,
 	unsigned	usecs
 ) {
-	int		claimed;
-
 	/* complete split running into next frame?
 	 * given FSTN support, we could sometimes check...
 	 */
@@ -707,25 +683,10 @@ static int check_period (
 	/* convert "usecs we need" to "max already claimed" */
 	usecs = ehci->uframe_periodic_max - usecs;
 
-	/* we "know" 2 and 4 uframe intervals were rejected; so
-	 * for period 0, check _every_ microframe in the schedule.
-	 */
-	if (unlikely (period == 0)) {
-		do {
-			for (uframe = 0; uframe < 7; uframe++) {
-				claimed = periodic_usecs (ehci, frame, uframe);
-				if (claimed > usecs)
-					return 0;
-			}
-		} while ((frame += 1) < ehci->periodic_size);
-
-	/* just check the specified uframe, at that period */
-	} else {
-		do {
-			claimed = periodic_usecs (ehci, frame, uframe);
-			if (claimed > usecs)
-				return 0;
-		} while ((frame += period) < ehci->periodic_size);
+	for (uframe += frame << 3; uframe < EHCI_BANDWIDTH_SIZE;
+			uframe += uperiod) {
+		if (ehci->bandwidth[uframe] > usecs)
+			return 0;
 	}
 
 	// success!
@@ -746,7 +707,7 @@ static int check_intr_schedule (
 	if (qh->ps.c_usecs && uframe >= 6)	/* FSTN territory? */
 		goto done;
 
-	if (!check_period(ehci, frame, uframe, qh->ps.period, qh->ps.usecs))
+	if (!check_period(ehci, frame, uframe, qh->ps.bw_uperiod, qh->ps.usecs))
 		goto done;
 	if (!qh->ps.c_usecs) {
 		retval = 0;
@@ -755,21 +716,21 @@ static int check_intr_schedule (
 	}
 
 #ifdef CONFIG_USB_EHCI_TT_NEWSCHED
-	if (tt_available(ehci, qh->ps.period, qh->ps.udev, frame, uframe,
+	if (tt_available(ehci, qh->ps.bw_period, qh->ps.udev, frame, uframe,
 				qh->ps.tt_usecs)) {
 		unsigned i;
 
 		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
 		for (i = uframe+2; i < 8 && i <= uframe+4; i++)
 			if (!check_period(ehci, frame, i,
-					qh->ps.period, qh->ps.c_usecs))
+					qh->ps.bw_uperiod, qh->ps.c_usecs))
 				goto done;
 			else
 				mask |= 1 << i;
 
 		retval = 0;
 
-		*c_maskp = cpu_to_hc32(ehci, mask << 8);
+		*c_maskp = mask;
 	}
 #else
 	/* Make sure this tt's buffer is also available for CSPLITs.
@@ -780,15 +741,15 @@ static int check_intr_schedule (
 	 * one smart pass...
 	 */
 	mask = 0x03 << (uframe + qh->gap_uf);
-	*c_maskp = cpu_to_hc32(ehci, mask << 8);
+	*c_maskp = mask;
 
 	mask |= 1 << uframe;
-	if (tt_no_collision(ehci, qh->ps.period, qh->ps.udev, frame, mask)) {
+	if (tt_no_collision(ehci, qh->ps.bw_period, qh->ps.udev, frame, mask)) {
 		if (!check_period(ehci, frame, uframe + qh->gap_uf + 1,
-				qh->ps.period, qh->ps.c_usecs))
+				qh->ps.bw_uperiod, qh->ps.c_usecs))
 			goto done;
 		if (!check_period(ehci, frame, uframe + qh->gap_uf,
-				qh->ps.period, qh->ps.c_usecs))
+				qh->ps.bw_uperiod, qh->ps.c_usecs))
 			goto done;
 		retval = 0;
 	}
@@ -804,60 +765,57 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	int		status;
 	unsigned	uframe;
-	__hc32		c_mask;
-	unsigned	frame;		/* 0..(qh->period - 1), or NO_FRAME */
+	unsigned	c_mask;
 	struct ehci_qh_hw	*hw = qh->hw;
 
 	hw->hw_next = EHCI_LIST_END(ehci);
-	frame = qh->ps.phase;
 
 	/* reuse the previous schedule slots, if we can */
-	if (frame != NO_FRAME) {
-		uframe = ffs(hc32_to_cpup(ehci, &hw->hw_info2) & QH_SMASK);
-		status = check_intr_schedule (ehci, frame, --uframe,
-				qh, &c_mask);
-	} else {
-		uframe = 0;
-		c_mask = 0;
-		status = -ENOSPC;
+	if (qh->ps.phase != NO_FRAME) {
+		ehci_dbg(ehci, "reused qh %p schedule\n", qh);
+		return 0;
 	}
+
+	uframe = 0;
+	c_mask = 0;
+	status = -ENOSPC;
 
 	/* else scan the schedule to find a group of slots such that all
 	 * uframes have enough periodic bandwidth available.
 	 */
-	if (status) {
-		/* "normal" case, uframing flexible except with splits */
-		if (qh->ps.period) {
-			int		i;
+	/* "normal" case, uframing flexible except with splits */
+	if (qh->ps.bw_period) {
+		int		i;
+		unsigned	frame;
 
-			for (i = qh->ps.period; status && i > 0; --i) {
-				frame = ++ehci->random_frame % qh->ps.period;
-				for (uframe = 0; uframe < 8; uframe++) {
-					status = check_intr_schedule (ehci,
-							frame, uframe, qh,
-							&c_mask);
-					if (status == 0)
-						break;
-				}
+		for (i = qh->ps.bw_period; status && i > 0; --i) {
+			frame = ++ehci->random_frame & (qh->ps.bw_period - 1);
+			for (uframe = 0; uframe < 8; uframe++) {
+				status = check_intr_schedule(ehci,
+						frame, uframe, qh, &c_mask);
+				if (status == 0)
+					break;
 			}
-
-		/* qh->ps.period == 0 means every uframe */
-		} else {
-			frame = 0;
-			status = check_intr_schedule (ehci, 0, 0, qh, &c_mask);
 		}
-		if (status)
-			goto done;
-		qh->ps.phase = frame;
 
-		/* reset S-frame and (maybe) C-frame masks */
-		hw->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
-		hw->hw_info2 |= qh->ps.period
-			? cpu_to_hc32(ehci, 1 << uframe)
-			: cpu_to_hc32(ehci, QH_SMASK);
-		hw->hw_info2 |= c_mask;
-	} else
-		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
+	/* qh->ps.bw_period == 0 means every uframe */
+	} else {
+		status = check_intr_schedule(ehci, 0, 0, qh, &c_mask);
+	}
+	if (status)
+		goto done;
+	qh->ps.phase = (qh->ps.period ? ehci->random_frame &
+			(qh->ps.period - 1) : 0);
+	qh->ps.bw_phase = qh->ps.phase & (qh->ps.bw_period - 1);
+	qh->ps.phase_uf = uframe;
+	qh->ps.cs_mask = qh->ps.period ?
+			(c_mask << 8) | (1 << uframe) :
+			QH_SMASK;
+
+	/* reset S-frame and (maybe) C-frame masks */
+	hw->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
+	hw->hw_info2 |= cpu_to_hc32(ehci, qh->ps.cs_mask);
+	reserve_release_intr_bandwidth(ehci, qh, 1);
 
 done:
 	return status;
@@ -969,6 +927,7 @@ iso_stream_alloc (gfp_t mem_flags)
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
 		stream->next_uframe = NO_FRAME;
+		stream->ps.phase = NO_FRAME;
 	}
 	return stream;
 }
@@ -983,10 +942,10 @@ iso_stream_init (
 	static const u8 smask_out [] = { 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f };
 
 	struct usb_device	*dev = urb->dev;
-	unsigned		interval = urb->interval;
 	u32			buf1;
 	unsigned		epnum, maxp;
 	int			is_input;
+	unsigned		tmp;
 
 	/*
 	 * this might be a "high bandwidth" highspeed endpoint,
@@ -1020,9 +979,17 @@ iso_stream_init (
 		 */
 		stream->ps.usecs = HS_USECS_ISO(maxp);
 
-		stream->bandwidth = stream->ps.usecs * 8 / interval;
-		stream->uperiod = interval;
-		stream->ps.period = interval >> 3;
+		/* period for bandwidth allocation */
+		tmp = min_t(unsigned, EHCI_BANDWIDTH_SIZE,
+				1 << (urb->ep->desc.bInterval - 1));
+
+		/* Allow urb->interval to override */
+		stream->ps.bw_uperiod = min_t(unsigned, tmp, urb->interval);
+
+		stream->uperiod = urb->interval;
+		stream->ps.period = urb->interval >> 3;
+		stream->bandwidth = stream->ps.usecs * 8 /
+				stream->ps.bw_uperiod;
 
 	} else {
 		u32		addr;
@@ -1047,20 +1014,28 @@ iso_stream_init (
 			addr |= 1 << 31;
 			stream->ps.c_usecs = stream->ps.usecs;
 			stream->ps.usecs = HS_USECS_ISO(1);
-			stream->raw_mask = 1;
+			stream->ps.cs_mask = 1;
 
 			/* c-mask as specified in USB 2.0 11.18.4 3.c */
 			tmp = (1 << (hs_transfers + 2)) - 1;
-			stream->raw_mask |= tmp << (8 + 2);
+			stream->ps.cs_mask |= tmp << (8 + 2);
 		} else
-			stream->raw_mask = smask_out [hs_transfers - 1];
+			stream->ps.cs_mask = smask_out[hs_transfers - 1];
 
+		/* period for bandwidth allocation */
+		tmp = min_t(unsigned, EHCI_BANDWIDTH_FRAMES,
+				1 << (urb->ep->desc.bInterval - 1));
+
+		/* Allow urb->interval to override */
+		stream->ps.bw_period = min_t(unsigned, tmp, urb->interval);
+		stream->ps.bw_uperiod = stream->ps.bw_period << 3;
+
+		stream->ps.period = urb->interval;
+		stream->uperiod = urb->interval << 3;
 		stream->bandwidth = (stream->ps.usecs + stream->ps.c_usecs) /
-				interval;
-		stream->uperiod = interval << 3;
-		stream->ps.period = interval;
+				stream->ps.bw_period;
 
-		/* stream->splits gets created from raw_mask later */
+		/* stream->splits gets created from cs_mask later */
 		stream->address = cpu_to_hc32(ehci, addr);
 	}
 
@@ -1249,45 +1224,84 @@ itd_urb_transaction (
 
 /*-------------------------------------------------------------------------*/
 
+static void reserve_release_iso_bandwidth(struct ehci_hcd *ehci,
+		struct ehci_iso_stream *stream, int sign)
+{
+	unsigned		uframe;
+	unsigned		i, j;
+	unsigned		s_mask, c_mask, m;
+	int			usecs = stream->ps.usecs;
+	int			c_usecs = stream->ps.c_usecs;
+
+	if (stream->ps.phase == NO_FRAME)	/* Bandwidth wasn't reserved */
+		return;
+	uframe = stream->ps.bw_phase << 3;
+
+	bandwidth_dbg(ehci, sign, "iso", &stream->ps);
+
+	if (sign < 0) {		/* Release bandwidth */
+		usecs = -usecs;
+		c_usecs = -c_usecs;
+	}
+
+	if (!stream->splits) {		/* High speed */
+		for (i = uframe + stream->ps.phase_uf; i < EHCI_BANDWIDTH_SIZE;
+				i += stream->ps.bw_uperiod)
+			ehci->bandwidth[i] += usecs;
+
+	} else {			/* Full speed */
+		s_mask = stream->ps.cs_mask;
+		c_mask = s_mask >> 8;
+
+		/* NOTE: adjustment needed for frame overflow */
+		for (i = uframe; i < EHCI_BANDWIDTH_SIZE;
+				i += stream->ps.bw_uperiod) {
+			for ((j = stream->ps.phase_uf, m = 1 << j); j < 8;
+					(++j, m <<= 1)) {
+				if (s_mask & m)
+					ehci->bandwidth[i+j] += usecs;
+				else if (c_mask & m)
+					ehci->bandwidth[i+j] += c_usecs;
+			}
+		}
+	}
+}
+
 static inline int
 itd_slot_ok (
 	struct ehci_hcd		*ehci,
-	u32			mod,
-	u32			uframe,
-	u8			usecs,
-	u32			period
+	struct ehci_iso_stream	*stream,
+	unsigned		uframe
 )
 {
-	uframe %= period;
-	do {
-		/* can't commit more than uframe_periodic_max usec */
-		if (periodic_usecs (ehci, uframe >> 3, uframe & 0x7)
-				> (ehci->uframe_periodic_max - usecs))
-			return 0;
+	unsigned		usecs;
 
-		/* we know urb->interval is 2^N uframes */
-		uframe += period;
-	} while (uframe < mod);
+	/* convert "usecs we need" to "max already claimed" */
+	usecs = ehci->uframe_periodic_max - stream->ps.usecs;
+
+	for (uframe &= stream->ps.bw_uperiod - 1; uframe < EHCI_BANDWIDTH_SIZE;
+			uframe += stream->ps.bw_uperiod) {
+		if (ehci->bandwidth[uframe] > usecs)
+			return 0;
+	}
 	return 1;
 }
 
 static inline int
 sitd_slot_ok (
 	struct ehci_hcd		*ehci,
-	u32			mod,
 	struct ehci_iso_stream	*stream,
-	u32			uframe,
-	struct ehci_iso_sched	*sched,
-	u32			period_uframes
+	unsigned		uframe,
+	struct ehci_iso_sched	*sched
 )
 {
-	u32			mask, tmp;
-	u32			frame, uf;
+	unsigned		mask, tmp;
+	unsigned		frame, uf;
 
-	mask = stream->raw_mask << (uframe & 7);
+	mask = stream->ps.cs_mask << (uframe & 7);
 
 	/* for OUT, don't wrap SSPLIT into H-microframe 7 */
-	if (((stream->raw_mask & 0xff) << (uframe & 7)) >= (1 << 7))
+	if (((stream->ps.cs_mask & 0xff) << (uframe & 7)) >= (1 << 7))
 		return 0;
 
 	/* for IN, don't wrap CSPLIT into the next frame */
@@ -1295,7 +1309,7 @@ sitd_slot_ok (
 		return 0;
 
 	/* check bandwidth */
-	uframe %= period_uframes;
+	uframe &= stream->ps.bw_uperiod - 1;
 	frame = uframe >> 3;
 
 #ifdef CONFIG_USB_EHCI_TT_NEWSCHED
@@ -1303,55 +1317,49 @@ sitd_slot_ok (
 	 * tt_available scheduling guarantees 10+% for control/bulk.
 	 */
 	uf = uframe & 7;
-	if (!tt_available(ehci, period_uframes >> 3,
+	if (!tt_available(ehci, stream->ps.bw_period,
 			stream->ps.udev, frame, uf, stream->ps.tt_usecs))
 		return 0;
 #else
 	/* tt must be idle for start(s), any gap, and csplit.
 	 * assume scheduling slop leaves 10+% for control/bulk.
 	 */
-	if (!tt_no_collision(ehci, period_uframes >> 3,
+	if (!tt_no_collision(ehci, stream->ps.bw_period,
 			stream->ps.udev, frame, mask))
 		return 0;
 #endif
 
-	/* this multi-pass logic is simple, but performance may
-	 * suffer when the schedule data isn't cached.
-	 */
 	do {
-		u32		max_used;
-
-		frame = uframe >> 3;
-		uf = uframe & 7;
+		unsigned	max_used;
+		unsigned	i;
 
 		/* check starts (OUT uses more than one) */
+		uf = uframe;
 		max_used = ehci->uframe_periodic_max - stream->ps.usecs;
-		for (tmp = stream->raw_mask & 0xff; tmp; tmp >>= 1, uf++) {
-			if (periodic_usecs (ehci, frame, uf) > max_used)
+		for (tmp = stream->ps.cs_mask & 0xff; tmp; tmp >>= 1, uf++) {
+			if (ehci->bandwidth[uf] > max_used)
 				return 0;
 		}
 
 		/* for IN, check CSPLIT */
 		if (stream->ps.c_usecs) {
-			uf = uframe & 7;
 			max_used = ehci->uframe_periodic_max -
 					stream->ps.c_usecs;
-			do {
-				tmp = 1 << uf;
-				tmp <<= 8;
-				if ((stream->raw_mask & tmp) == 0)
+			uf = uframe & ~7;
+			tmp = 1 << (2+8);
+			for (i = (uframe & 7) + 2; i < 8; (++i, tmp <<= 1)) {
+				if ((stream->ps.cs_mask & tmp) == 0)
 					continue;
-				if (periodic_usecs (ehci, frame, uf)
-						> max_used)
+				if (ehci->bandwidth[uf+i] > max_used)
 					return 0;
-			} while (++uf < 8);
+			}
 		}
 
-		/* we know urb->interval is 2^N uframes */
-		uframe += period_uframes;
-	} while (uframe < mod);
+		uframe += stream->ps.bw_uperiod;
+	} while (uframe < EHCI_BANDWIDTH_SIZE);
 
-	stream->splits = cpu_to_hc32(ehci, stream->raw_mask << (uframe & 7));
+	stream->ps.cs_mask <<= uframe & 7;
+	stream->splits = cpu_to_hc32(ehci, stream->ps.cs_mask);
 	return 1;
 }
 
@@ -1382,12 +1390,10 @@ iso_stream_schedule (
 	struct ehci_iso_sched	*sched = urb->hcpriv;
 	bool			empty = list_empty(&stream->td_list);
 
-	period = urb->interval;
+	period = stream->uperiod;
 	span = sched->span;
-	if (!stream->highspeed) {
-		period <<= 3;
+	if (!stream->highspeed)
 		span <<= 3;
-	}
 
 	now = ehci_read_frame_index(ehci) & (mod - 1);
 
@@ -1404,47 +1410,55 @@ iso_stream_schedule (
 	base = ehci->last_iso_frame << 3;
 	next = (next - base) & (mod - 1);
 
-	/*
-	 * Need to schedule; when's the next (u)frame we could start?
-	 * This is bigger than ehci->i_thresh allows; scheduling itself
-	 * isn't free, the delay should handle reasonably slow cpus.  It
-	 * can also help high bandwidth if the dma and irq loads don't
-	 * jump until after the queue is primed.
-	 */
+	/* Start a new isochronous stream? */
 	if (unlikely(empty && !hcd_periodic_completion_in_progress(
 			ehci_to_hcd(ehci), urb->ep))) {
-		int done = 0;
 
-		start = (now & ~0x07) + SCHEDULING_DELAY;
+		/* Schedule the endpoint */
+		if (stream->ps.phase == NO_FRAME) {
+			int		done = 0;
 
-		/* find a uframe slot with enough bandwidth.
-		 * Early uframes are more precious because full-speed
-		 * iso IN transfers can't use late uframes,
-		 * and therefore they should be allocated last.
-		 */
-		next = start;
-		start += period;
-		do {
-			start--;
-			/* check schedule: enough space? */
-			if (stream->highspeed) {
-				if (itd_slot_ok(ehci, mod, start,
-						stream->ps.usecs, period))
-					done = 1;
-			} else {
-				if ((start % 8) >= 6)
-					continue;
-				if (sitd_slot_ok(ehci, mod, stream,
-						start, sched, period))
-					done = 1;
+			start = (now & ~0x07) + SCHEDULING_DELAY;
+
+			/* find a uframe slot with enough bandwidth.
+			 * Early uframes are more precious because full-speed
+			 * iso IN transfers can't use late uframes,
+			 * and therefore they should be allocated last.
+			 */
+			next = start;
+			start += period;
+			do {
+				start--;
+				/* check schedule: enough space? */
+				if (stream->highspeed) {
+					if (itd_slot_ok(ehci, stream, start))
+						done = 1;
+				} else {
+					if ((start % 8) >= 6)
+						continue;
+					if (sitd_slot_ok(ehci, stream, start,
+							sched))
+						done = 1;
+				}
+			} while (start > next && !done);
+
+			/* no room in the schedule */
+			if (!done) {
+				ehci_dbg(ehci, "iso sched full %p", urb);
+				status = -ENOSPC;
+				goto fail;
 			}
-		} while (start > next && !done);
+			stream->ps.phase = (start >> 3) &
+					(stream->ps.period - 1);
+			stream->ps.bw_phase = stream->ps.phase &
+					(stream->ps.bw_period - 1);
+			stream->ps.phase_uf = start & 7;
+			reserve_release_iso_bandwidth(ehci, stream, 1);
+		}
 
-		/* no room in the schedule */
-		if (!done) {
-			ehci_dbg(ehci, "iso sched full %p", urb);
-			status = -ENOSPC;
-			goto fail;
+		/* New stream is already scheduled; use the upcoming slot */
+		else {
+			start = (stream->ps.phase << 3) + stream->ps.phase_uf;
 		}
 
 		start = (start - base) & (mod - 1);
@@ -1452,7 +1466,7 @@ iso_stream_schedule (
 	}
 
 	/*
-	 * Typical case: reuse current schedule, stream is still active.
+	 * Typical case: reuse current schedule, stream may still be active.
 	 * Hopefully there are no gaps from the host falling behind
 	 * (irq delays etc).  If there are, the behavior depends on
 	 * whether URB_ISO_ASAP is set.
