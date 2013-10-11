@@ -234,6 +234,27 @@ static const struct of_device_id pmc_clk_ids[] __initdata = {
 		.compatible = "atmel,at91rm9200-clk-main",
 		.data = of_at91rm9200_clk_main_setup,
 	},
+	/* PLL clocks */
+	{
+		.compatible = "atmel,at91rm9200-clk-pll",
+		.data = of_at91rm9200_clk_pll_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9g45-clk-pll",
+		.data = of_at91sam9g45_clk_pll_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9g20-clk-pllb",
+		.data = of_at91sam9g20_clk_pllb_setup,
+	},
+	{
+		.compatible = "atmel,sama5d3-clk-pll",
+		.data = of_sama5d3_clk_pll_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-plldiv",
+		.data = of_at91sam9x5_clk_plldiv_setup,
+	},
 	{ /*sentinel*/ }
 };
 

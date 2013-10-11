@@ -61,4 +61,15 @@ int of_at91_get_clk_range(struct device_node *np, const char *propname,
 extern void __init of_at91rm9200_clk_main_setup(struct device_node *np,
 						struct at91_pmc *pmc);
 
+extern void __init of_at91rm9200_clk_pll_setup(struct device_node *np,
+					       struct at91_pmc *pmc);
+extern void __init of_at91sam9g45_clk_pll_setup(struct device_node *np,
+						struct at91_pmc *pmc);
+extern void __init of_at91sam9g20_clk_pllb_setup(struct device_node *np,
+						 struct at91_pmc *pmc);
+extern void __init of_sama5d3_clk_pll_setup(struct device_node *np,
+					    struct at91_pmc *pmc);
+extern void __init of_at91sam9x5_clk_plldiv_setup(struct device_node *np,
+						  struct at91_pmc *pmc);
+
 #endif /* __PMC_H_ */
