@@ -514,7 +514,7 @@ static const struct snd_kcontrol_new codec_adc_controls[] = {
 	CODEC_SINGLE("Right Capture Mute",SUNXI_ADC_ACTL,31,1,0),
 	CODEC_SINGLE("Left Capture Mute",SUNXI_ADC_ACTL,30,1,0),
 	CODEC_SINGLE("Capture Volume",SUNXI_ADC_ACTL,20,7,0),//录音音量
-	CODEC_SINGLE("Line Volume",SUNXI_ADC_ACTL,13,7,0),
+	CODEC_SINGLE("Line Capture Volume",SUNXI_ADC_ACTL,13,7,0),
 	CODEC_SINGLE("MicL Volume",SUNXI_ADC_ACTL,25,3,0),//mic左音量
 	CODEC_SINGLE("MicR Volume",SUNXI_ADC_ACTL,23,3,0),//mic右音量
 	CODEC_SINGLE("Mic2 Boost",SUNXI_ADC_ACTL,29,1,0),
