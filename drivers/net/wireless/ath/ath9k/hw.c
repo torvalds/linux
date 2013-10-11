@@ -1156,7 +1156,7 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan)
 {
 	u32 ctl = ath_regd_get_band_ctl(reg, chan->chan->band);
 
-	if (IS_CHAN_G(chan))
+	if (IS_CHAN_2GHZ(chan))
 		ctl |= CTL_11G;
 	else
 		ctl |= CTL_11A;
@@ -1505,7 +1505,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	if (pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) {
 		band_switch = IS_CHAN_5GHZ(ah->curchan) != IS_CHAN_5GHZ(chan);
-		mode_diff = (chan->chanmode != ah->curchan->chanmode);
+		mode_diff = (chan->channelFlags != ah->curchan->channelFlags);
 	}
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
@@ -1814,20 +1814,11 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 		goto fail;
 
 	/*
-	 * If cross-band fcc is not supoprted, bail out if
-	 * either channelFlags or chanmode differ.
-	 *
-	 * chanmode will be different if the HT operating mode
-	 * changes because of CSA.
+	 * If cross-band fcc is not supoprted, bail out if channelFlags differ.
 	 */
-	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH)) {
-		if ((chan->channelFlags & CHANNEL_ALL) !=
-		    (ah->curchan->channelFlags & CHANNEL_ALL))
-			goto fail;
-
-		if (chan->chanmode != ah->curchan->chanmode)
-			goto fail;
-	}
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) &&
+	    chan->channelFlags != ah->curchan->channelFlags)
+		goto fail;
 
 	if (!ath9k_hw_check_alive(ah))
 		goto fail;
@@ -1889,8 +1880,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ah->caldata = caldata;
 	if (caldata && (chan->channel != caldata->channel ||
-			chan->channelFlags != caldata->channelFlags ||
-			chan->chanmode != caldata->chanmode)) {
+			chan->channelFlags != caldata->channelFlags)) {
 		/* Operating channel changed, reset channel calibration data */
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
