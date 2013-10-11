@@ -1,0 +1,256 @@
+/*
+ * Copyright (c) 2013 Linaro Ltd.
+ * Copyright (c) 2013 Hisilicon Limited.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart0;
+	};
+
+	gic: interrupt-controller@fc001000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		/* gic dist base, gic cpu base */
+		reg = <0xf8a01000 0x1000>, <0xf8a00100 0x100>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		device_type = "soc";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		amba {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "arm,amba-bus";
+			ranges;
+
+			timer0: timer@f8002000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0xf8002000 0x1000>;
+				/* timer00 & timer01 */
+				interrupts = <0 24 4>;
+				clocks = <&osc24m>;
+				status = "disabled";
+			};
+
+			timer1: timer@f8a29000 {
+				/*
+				 * Only used in NORMAL state, not available ins
+				 * SLOW or DOZE state.
+				 * The rate is fixed in 24MHz.
+				 */
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0xf8a29000 0x1000>;
+				/* timer10 & timer11 */
+				interrupts = <0 25 4>;
+				clocks = <&osc24m>;
+				status = "disabled";
+			};
+
+			timer2: timer@f8a2a000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0xf8a2a000 0x1000>;
+				/* timer20 & timer21 */
+				interrupts = <0 26 4>;
+				clocks = <&osc24m>;
+				status = "disabled";
+			};
+
+			timer3: timer@f8a2b000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0xf8a2b000 0x1000>;
+				/* timer30 & timer31 */
+				interrupts = <0 27 4>;
+				clocks = <&osc24m>;
+				status = "disabled";
+			};
+
+			timer4: timer@f8a81000 {
+				compatible = "arm,sp804", "arm,primecell";
+				reg = <0xf8a81000 0x1000>;
+				/* timer30 & timer31 */
+				interrupts = <0 28 4>;
+				clocks = <&osc24m>;
+				status = "disabled";
+			};
+
+			uart0: uart@f8b00000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xf8b00000 0x1000>;
+				interrupts = <0 49 4>;
+				clocks = <&bpll_fout0_div 1>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart1: uart@f8006000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xf8006000 0x1000>;
+				interrupts = <0 50 4>;
+				clocks = <&bpll_fout0_div 1>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart2: uart@f8b02000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xf8b02000 0x1000>;
+				interrupts = <0 51 4>;
+				clocks = <&bpll_fout0_div 1>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart3: uart@f8b03000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xf8b03000 0x1000>;
+				interrupts = <0 52 4>;
+				clocks = <&bpll_fout0_div 1>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+
+			uart4: uart@f8b04000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xf8b04000 0x1000>;
+				interrupts = <0 53 4>;
+				clocks = <&bpll_fout0_div 1>;
+				clock-names = "apb_pclk";
+				status = "disabled";
+			};
+		};
+
+		clocks {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			osc24m: osc {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <24000000>;
+				clock-output-names = "osc24mhz";
+			};
+
+			bpll: bpll {
+				compatible = "hisilicon,hi3716-fixed-pll";
+				#clock-cells = <1>;
+				clocks = <&osc24m>;
+				clock-frequency = <1200000000>,
+						  <600000000>,
+						  <300000000>,
+						  <200000000>,
+						  <150000000>;
+				clock-output-names = "bpll_fout0",
+						     "bpll_fout1",
+						     "bpll_fout2",
+						     "bpll_fout3",
+						     "bpll_fout4";
+			};
+
+			bpll_fout0_div: bpll_fout0_div {/* 1200Mhz */
+				compatible = "hisilicon,hi3716-fixed-divider";
+				#clock-cells = <1>;
+				clocks = <&bpll 0>;
+				div-table = <3 14 25 50>;
+				clock-output-names = "fout0_400m", "fout0_86m",
+							"fout0_48m", "fout0_24m";
+			};
+
+			bpll_fout1_div: bpll_fout1_div {
+				compatible = "hisilicon,hi3716-fixed-divider";
+				#clock-cells = <0>;
+				clocks = <&bpll 1>;
+				div-table = <10>;
+				clock-output-names = "fout1_60m";
+			};
+
+			bpll_fout2_div: bpll_fout2_div {
+				compatible = "hisilicon,hi3716-fixed-divider";
+				#clock-cells = <0>;
+				clocks = <&bpll 2>;
+				div-table = <4>;
+				clock-output-names = "fout2_75m";
+			};
+
+			bpll_fout3_div: bpll_fout3_div {
+				compatible = "hisilicon,hi3716-fixed-divider";
+				#clock-cells = <1>;
+				clocks = <&bpll 3>;
+				div-table = <2 4 5 8>;
+				clock-output-names = "fout3_100m", "fout3_50m",
+							"fout3_40m", "fout3_25m";
+			};
+
+			clk_sfc_mux: clk_sfc_mux {
+				compatible = "hisilicon,hi3716-clk-mux";
+				#clock-cells = <0>;
+				/* clks: 24M 75M 100M 150M 200M */
+				clocks = <&osc24m>, <&bpll_fout2_div>,
+				       <&bpll_fout3_div 0>, <&bpll 4>, <&bpll 3>;
+
+				/* offset mux_shift mux_width */
+				mux-reg = <0x5c 8 3>;
+				/* mux reg value to choose clks */
+				mux-table = <0 7 6 4 5>;
+
+				clock-output-names = "sfc_mux";
+			};
+
+			clk_sfc: clk_sfc {
+				compatible = "hisilicon,hi3716-clk-gate";
+				#clock-cells = <0>;
+				clocks = <&clk_sfc_mux>;
+
+				/* offset, enable, reset */
+				gate-reg = <0x5c 0 4>;
+
+				clock-output-names = "sfc";
+			};
+		};
+
+		local_timer@f8a00600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0xf8a00600 0x20>;
+			interrupts = <1 13 0xf01>;
+		};
+
+		l2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0xf8a10000 0x100000>;
+			interrupts = <0 15 4>;
+			cache-unified;
+			cache-level = <2>;
+			hisilicon,l2cache-aux = <0x00050000 0xfff0ffff>;
+		};
+
+		sctrl@f8000000 {
+			compatible = "hisilicon,sctrl";
+			reg = <0xf8000000 0x1000>;
+			smp_reg = <0xc0>;
+			reboot_reg = <0x4>;
+		};
+
+		clkbase@f8a22000 {
+			compatible = "hisilicon,clkbase";
+			reg = <0xf8a22000 0x1000>;
+		};
+
+		cpuctrl@f8a22000 {
+			compatible = "hisilicon,cpuctrl";
+			reg = <0xf8a22000 0x2000>;
+		};
+	};
+};
