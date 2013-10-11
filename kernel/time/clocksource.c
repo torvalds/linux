@@ -909,7 +909,7 @@ sysfs_show_current_clocksources(struct device *dev,
 	return count;
 }
 
-size_t sysfs_get_uname(const char *buf, char *dst, size_t cnt)
+ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt)
 {
 	size_t ret = cnt;
 
