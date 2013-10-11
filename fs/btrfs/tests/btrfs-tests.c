@@ -24,11 +24,17 @@
 
 static struct vfsmount *test_mnt = NULL;
 
+static const struct super_operations btrfs_test_super_ops = {
+	.alloc_inode	= btrfs_alloc_inode,
+	.destroy_inode	= btrfs_test_destroy_inode,
+};
+
 static struct dentry *btrfs_test_mount(struct file_system_type *fs_type,
 				       int flags, const char *dev_name,
 				       void *data)
 {
-	return mount_pseudo(fs_type, "btrfs_test:", NULL, NULL, BTRFS_TEST_MAGIC);
+	return mount_pseudo(fs_type, "btrfs_test:", &btrfs_test_super_ops,
+			    NULL, BTRFS_TEST_MAGIC);
 }
 
 static struct file_system_type test_type = {

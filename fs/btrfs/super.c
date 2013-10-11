@@ -1802,6 +1802,9 @@ static int btrfs_run_sanity_tests(void)
 	if (ret)
 		goto out;
 	ret = btrfs_test_extent_io();
+	if (ret)
+		goto out;
+	ret = btrfs_test_inodes();
 out:
 	btrfs_destroy_test_fs();
 	return ret;
