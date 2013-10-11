@@ -25,6 +25,7 @@
 #include <asm/idle.h>
 #include <asm/irq_regs.h>
 #include <asm/i8259.h>
+#include <asm/apic.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
