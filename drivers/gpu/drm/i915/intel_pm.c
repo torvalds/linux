@@ -2776,6 +2776,66 @@ static struct intel_pipe_wm *hsw_find_best_result(struct drm_device *dev,
 	}
 }
 
+/* dirty bits used to track which watermarks need changes */
+#define WM_DIRTY_PIPE(pipe) (1 << (pipe))
+#define WM_DIRTY_LINETIME(pipe) (1 << (8 + (pipe)))
+#define WM_DIRTY_LP(wm_lp) (1 << (15 + (wm_lp)))
+#define WM_DIRTY_LP_ALL (WM_DIRTY_LP(1) | WM_DIRTY_LP(2) | WM_DIRTY_LP(3))
+#define WM_DIRTY_FBC (1 << 24)
+#define WM_DIRTY_DDB (1 << 25)
+
+static unsigned int ilk_compute_wm_dirty(struct drm_device *dev,
+					 const struct hsw_wm_values *old,
+					 const struct hsw_wm_values *new)
+{
+	unsigned int dirty = 0;
+	enum pipe pipe;
+	int wm_lp;
+
+	for_each_pipe(pipe) {
+		if (old->wm_linetime[pipe] != new->wm_linetime[pipe]) {
+			dirty |= WM_DIRTY_LINETIME(pipe);
+			/* Must disable LP1+ watermarks too */
+			dirty |= WM_DIRTY_LP_ALL;
+		}
+
+		if (old->wm_pipe[pipe] != new->wm_pipe[pipe]) {
+			dirty |= WM_DIRTY_PIPE(pipe);
+			/* Must disable LP1+ watermarks too */
+			dirty |= WM_DIRTY_LP_ALL;
+		}
+	}
+
+	if (old->enable_fbc_wm != new->enable_fbc_wm) {
+		dirty |= WM_DIRTY_FBC;
+		/* Must disable LP1+ watermarks too */
+		dirty |= WM_DIRTY_LP_ALL;
+	}
+
+	if (old->partitioning != new->partitioning) {
+		dirty |= WM_DIRTY_DDB;
+		/* Must disable LP1+ watermarks too */
+		dirty |= WM_DIRTY_LP_ALL;
+	}
+
+	/* LP1+ watermarks already deemed dirty, no need to continue */
+	if (dirty & WM_DIRTY_LP_ALL)
+		return dirty;
+
+	/* Find the lowest numbered LP1+ watermark in need of an update... */
+	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
+		if (old->wm_lp[wm_lp - 1] != new->wm_lp[wm_lp - 1] ||
+		    old->wm_lp_spr[wm_lp - 1] != new->wm_lp_spr[wm_lp - 1])
+			break;
+	}
+
+	/* ...and mark it and all higher numbered LP1+ watermarks as dirty */
+	for (; wm_lp <= 3; wm_lp++)
+		dirty |= WM_DIRTY_LP(wm_lp);
+
+	return dirty;
+}
+
 /*
  * The spec says we shouldn't write when we don't need, because every write
  * causes WMs to be re-evaluated, expending some power.
@@ -2784,6 +2844,7 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 				struct hsw_wm_values *results)
 {
 	struct hsw_wm_values previous;
+	unsigned int dirty;
 	uint32_t val;
 
 	previous.wm_pipe[0] = I915_READ(WM0_PIPEA_ILK);
@@ -2804,31 +2865,32 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 
 	previous.enable_fbc_wm = !(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
 
-	if (memcmp(results, &previous, sizeof(*results)) == 0)
+	dirty = ilk_compute_wm_dirty(dev_priv->dev, &previous, results);
+	if (!dirty)
 		return;
 
-	if (previous.wm_lp[2] != 0)
+	if (dirty & WM_DIRTY_LP(3) && previous.wm_lp[2] != 0)
 		I915_WRITE(WM3_LP_ILK, 0);
-	if (previous.wm_lp[1] != 0)
+	if (dirty & WM_DIRTY_LP(2) && previous.wm_lp[1] != 0)
 		I915_WRITE(WM2_LP_ILK, 0);
-	if (previous.wm_lp[0] != 0)
+	if (dirty & WM_DIRTY_LP(1) && previous.wm_lp[0] != 0)
 		I915_WRITE(WM1_LP_ILK, 0);
 
-	if (previous.wm_pipe[0] != results->wm_pipe[0])
+	if (dirty & WM_DIRTY_PIPE(PIPE_A))
 		I915_WRITE(WM0_PIPEA_ILK, results->wm_pipe[0]);
-	if (previous.wm_pipe[1] != results->wm_pipe[1])
+	if (dirty & WM_DIRTY_PIPE(PIPE_B))
 		I915_WRITE(WM0_PIPEB_ILK, results->wm_pipe[1]);
-	if (previous.wm_pipe[2] != results->wm_pipe[2])
+	if (dirty & WM_DIRTY_PIPE(PIPE_C))
 		I915_WRITE(WM0_PIPEC_IVB, results->wm_pipe[2]);
 
-	if (previous.wm_linetime[0] != results->wm_linetime[0])
+	if (dirty & WM_DIRTY_LINETIME(PIPE_A))
 		I915_WRITE(PIPE_WM_LINETIME(PIPE_A), results->wm_linetime[0]);
-	if (previous.wm_linetime[1] != results->wm_linetime[1])
+	if (dirty & WM_DIRTY_LINETIME(PIPE_B))
 		I915_WRITE(PIPE_WM_LINETIME(PIPE_B), results->wm_linetime[1]);
-	if (previous.wm_linetime[2] != results->wm_linetime[2])
+	if (dirty & WM_DIRTY_LINETIME(PIPE_C))
 		I915_WRITE(PIPE_WM_LINETIME(PIPE_C), results->wm_linetime[2]);
 
-	if (previous.partitioning != results->partitioning) {
+	if (dirty & WM_DIRTY_DDB) {
 		val = I915_READ(WM_MISC);
 		if (results->partitioning == INTEL_DDB_PART_1_2)
 			val &= ~WM_MISC_DATA_PARTITION_5_6;
@@ -2837,7 +2899,7 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(WM_MISC, val);
 	}
 
-	if (previous.enable_fbc_wm != results->enable_fbc_wm) {
+	if (dirty & WM_DIRTY_FBC) {
 		val = I915_READ(DISP_ARB_CTL);
 		if (results->enable_fbc_wm)
 			val &= ~DISP_FBC_WM_DIS;
@@ -2846,18 +2908,18 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(DISP_ARB_CTL, val);
 	}
 
-	if (previous.wm_lp_spr[0] != results->wm_lp_spr[0])
+	if (dirty & WM_DIRTY_LP(1) && previous.wm_lp_spr[0] != results->wm_lp_spr[0])
 		I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
-	if (previous.wm_lp_spr[1] != results->wm_lp_spr[1])
+	if (dirty & WM_DIRTY_LP(2) && previous.wm_lp_spr[1] != results->wm_lp_spr[1])
 		I915_WRITE(WM2S_LP_IVB, results->wm_lp_spr[1]);
-	if (previous.wm_lp_spr[2] != results->wm_lp_spr[2])
+	if (dirty & WM_DIRTY_LP(3) && previous.wm_lp_spr[2] != results->wm_lp_spr[2])
 		I915_WRITE(WM3S_LP_IVB, results->wm_lp_spr[2]);
 
-	if (results->wm_lp[0] != 0)
+	if (dirty & WM_DIRTY_LP(1) && results->wm_lp[0] != 0)
 		I915_WRITE(WM1_LP_ILK, results->wm_lp[0]);
-	if (results->wm_lp[1] != 0)
+	if (dirty & WM_DIRTY_LP(2) && results->wm_lp[1] != 0)
 		I915_WRITE(WM2_LP_ILK, results->wm_lp[1]);
-	if (results->wm_lp[2] != 0)
+	if (dirty & WM_DIRTY_LP(3) && results->wm_lp[2] != 0)
 		I915_WRITE(WM3_LP_ILK, results->wm_lp[2]);
 
 	dev_priv->wm.hw = *results;
