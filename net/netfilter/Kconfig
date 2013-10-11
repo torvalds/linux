@@ -430,13 +430,13 @@ config NFT_CT
 	depends on NF_CONNTRACK
 	tristate "Netfilter nf_tables conntrack module"
 
-config NFT_SET
+config NFT_RBTREE
 	depends on NF_TABLES
-	tristate "Netfilter nf_tables set module"
+	tristate "Netfilter nf_tables rbtree set module"
 
 config NFT_HASH
 	depends on NF_TABLES
-	tristate "Netfilter nf_tables hash module"
+	tristate "Netfilter nf_tables hash set module"
 
 config NFT_COUNTER
 	depends on NF_TABLES

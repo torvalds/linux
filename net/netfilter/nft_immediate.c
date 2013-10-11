@@ -90,6 +90,16 @@ nla_put_failure:
 	return -1;
 }
 
+static const struct nft_data *nft_immediate_get_verdict(const struct nft_expr *expr)
+{
+	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
+
+	if (priv->dreg == NFT_REG_VERDICT)
+		return &priv->data;
+	else
+		return NULL;
+}
+
 static struct nft_expr_ops nft_imm_ops __read_mostly = {
 	.name		= "immediate",
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_immediate_expr)),
@@ -98,6 +108,7 @@ static struct nft_expr_ops nft_imm_ops __read_mostly = {
 	.init		= nft_immediate_init,
 	.destroy	= nft_immediate_destroy,
 	.dump		= nft_immediate_dump,
+	.get_verdict	= nft_immediate_get_verdict,
 	.policy		= nft_immediate_policy,
 	.maxattr	= NFTA_IMMEDIATE_MAX,
 };

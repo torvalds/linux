@@ -6,6 +6,8 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netlink.h>
 
+#define NFT_JUMP_STACK_SIZE	16
+
 struct nft_pktinfo {
 	struct sk_buff			*skb;
 	const struct net_device		*in;
@@ -48,21 +50,20 @@ static inline void nft_data_debug(const struct nft_data *data)
 }
 
 /**
- *	struct nft_ctx - nf_tables rule context
+ *	struct nft_ctx - nf_tables rule/set context
  *
+ * 	@skb: netlink skb
+ * 	@nlh: netlink message header
  * 	@afi: address family info
  * 	@table: the table the chain is contained in
  * 	@chain: the chain the rule is contained in
  */
 struct nft_ctx {
+	const struct sk_buff		*skb;
+	const struct nlmsghdr		*nlh;
 	const struct nft_af_info	*afi;
 	const struct nft_table		*table;
 	const struct nft_chain		*chain;
-};
-
-enum nft_data_types {
-	NFT_DATA_VALUE,
-	NFT_DATA_VERDICT,
 };
 
 struct nft_data_desc {
@@ -83,12 +84,143 @@ static inline enum nft_data_types nft_dreg_to_type(enum nft_registers reg)
 	return reg == NFT_REG_VERDICT ? NFT_DATA_VERDICT : NFT_DATA_VALUE;
 }
 
+static inline enum nft_registers nft_type_to_reg(enum nft_data_types type)
+{
+	return type == NFT_DATA_VERDICT ? NFT_REG_VERDICT : NFT_REG_1;
+}
+
 extern int nft_validate_input_register(enum nft_registers reg);
 extern int nft_validate_output_register(enum nft_registers reg);
 extern int nft_validate_data_load(const struct nft_ctx *ctx,
 				  enum nft_registers reg,
 				  const struct nft_data *data,
 				  enum nft_data_types type);
+
+/**
+ *	struct nft_set_elem - generic representation of set elements
+ *
+ *	@cookie: implementation specific element cookie
+ *	@key: element key
+ *	@data: element data (maps only)
+ *	@flags: element flags (end of interval)
+ *
+ *	The cookie can be used to store a handle to the element for subsequent
+ *	removal.
+ */
+struct nft_set_elem {
+	void			*cookie;
+	struct nft_data		key;
+	struct nft_data		data;
+	u32			flags;
+};
+
+struct nft_set;
+struct nft_set_iter {
+	unsigned int	count;
+	unsigned int	skip;
+	int		err;
+	int		(*fn)(const struct nft_ctx *ctx,
+			      const struct nft_set *set,
+			      const struct nft_set_iter *iter,
+			      const struct nft_set_elem *elem);
+};
+
+/**
+ *	struct nft_set_ops - nf_tables set operations
+ *
+ *	@lookup: look up an element within the set
+ *	@insert: insert new element into set
+ *	@remove: remove element from set
+ *	@walk: iterate over all set elemeennts
+ *	@privsize: function to return size of set private data
+ *	@init: initialize private data of new set instance
+ *	@destroy: destroy private data of set instance
+ *	@list: nf_tables_set_ops list node
+ *	@owner: module reference
+ *	@features: features supported by the implementation
+ */
+struct nft_set_ops {
+	bool				(*lookup)(const struct nft_set *set,
+						  const struct nft_data *key,
+						  struct nft_data *data);
+	int				(*get)(const struct nft_set *set,
+					       struct nft_set_elem *elem);
+	int				(*insert)(const struct nft_set *set,
+						  const struct nft_set_elem *elem);
+	void				(*remove)(const struct nft_set *set,
+						  const struct nft_set_elem *elem);
+	void				(*walk)(const struct nft_ctx *ctx,
+						const struct nft_set *set,
+						struct nft_set_iter *iter);
+
+	unsigned int			(*privsize)(const struct nlattr * const nla[]);
+	int				(*init)(const struct nft_set *set,
+						const struct nlattr * const nla[]);
+	void				(*destroy)(const struct nft_set *set);
+
+	struct list_head		list;
+	struct module			*owner;
+	u32				features;
+};
+
+extern int nft_register_set(struct nft_set_ops *ops);
+extern void nft_unregister_set(struct nft_set_ops *ops);
+
+/**
+ * 	struct nft_set - nf_tables set instance
+ *
+ *	@list: table set list node
+ *	@bindings: list of set bindings
+ * 	@name: name of the set
+ * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
+ * 	@dtype: data type (verdict or numeric type defined by userspace)
+ * 	@ops: set ops
+ * 	@flags: set flags
+ * 	@klen: key length
+ * 	@dlen: data length
+ * 	@data: private set data
+ */
+struct nft_set {
+	struct list_head		list;
+	struct list_head		bindings;
+	char				name[IFNAMSIZ];
+	u32				ktype;
+	u32				dtype;
+	/* runtime data below here */
+	const struct nft_set_ops	*ops ____cacheline_aligned;
+	u16				flags;
+	u8				klen;
+	u8				dlen;
+	unsigned char			data[]
+		__attribute__((aligned(__alignof__(u64))));
+};
+
+static inline void *nft_set_priv(const struct nft_set *set)
+{
+	return (void *)set->data;
+}
+
+extern struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
+					    const struct nlattr *nla);
+
+/**
+ *	struct nft_set_binding - nf_tables set binding
+ *
+ *	@list: set bindings list node
+ *	@chain: chain containing the rule bound to the set
+ *
+ *	A set binding contains all information necessary for validation
+ *	of new elements added to a bound set.
+ */
+struct nft_set_binding {
+	struct list_head		list;
+	const struct nft_chain		*chain;
+};
+
+extern int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
+			      struct nft_set_binding *binding);
+extern void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
+				 struct nft_set_binding *binding);
 
 /**
  *	struct nft_expr_ops - nf_tables expression operations
@@ -115,7 +247,7 @@ struct nft_expr_ops {
 	void				(*destroy)(const struct nft_expr *expr);
 	int				(*dump)(struct sk_buff *skb,
 						const struct nft_expr *expr);
-
+	const struct nft_data *		(*get_verdict)(const struct nft_expr *expr);
 	struct list_head		list;
 	const char			*name;
 	struct module			*owner;
@@ -297,5 +429,8 @@ extern void nft_unregister_expr(struct nft_expr_ops *);
 
 #define MODULE_ALIAS_NFT_EXPR(name) \
 	MODULE_ALIAS("nft-expr-" name)
+
+#define MODULE_ALIAS_NFT_SET() \
+	MODULE_ALIAS("nft-set")
 
 #endif /* _NET_NF_TABLES_H */

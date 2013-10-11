@@ -44,6 +44,12 @@ enum nft_verdicts {
  * @NFT_MSG_NEWRULE: create a new rule (enum nft_rule_attributes)
  * @NFT_MSG_GETRULE: get a rule (enum nft_rule_attributes)
  * @NFT_MSG_DELRULE: delete a rule (enum nft_rule_attributes)
+ * @NFT_MSG_NEWSET: create a new set (enum nft_set_attributes)
+ * @NFT_MSG_GETSET: get a set (enum nft_set_attributes)
+ * @NFT_MSG_DELSET: delete a set (enum nft_set_attributes)
+ * @NFT_MSG_NEWSETELEM: create a new set element (enum nft_set_elem_attributes)
+ * @NFT_MSG_GETSETELEM: get a set element (enum nft_set_elem_attributes)
+ * @NFT_MSG_DELSETELEM: delete a set element (enum nft_set_elem_attributes)
  */
 enum nf_tables_msg_types {
 	NFT_MSG_NEWTABLE,
@@ -55,9 +61,20 @@ enum nf_tables_msg_types {
 	NFT_MSG_NEWRULE,
 	NFT_MSG_GETRULE,
 	NFT_MSG_DELRULE,
+	NFT_MSG_NEWSET,
+	NFT_MSG_GETSET,
+	NFT_MSG_DELSET,
+	NFT_MSG_NEWSETELEM,
+	NFT_MSG_GETSETELEM,
+	NFT_MSG_DELSETELEM,
 	NFT_MSG_MAX,
 };
 
+/**
+ * enum nft_list_attributes - nf_tables generic list netlink attributes
+ *
+ * @NFTA_LIST_ELEM: list element (NLA_NESTED)
+ */
 enum nft_list_attributes {
 	NFTA_LIST_UNPEC,
 	NFTA_LIST_ELEM,
@@ -127,6 +144,113 @@ enum nft_rule_attributes {
 };
 #define NFTA_RULE_MAX		(__NFTA_RULE_MAX - 1)
 
+/**
+ * enum nft_set_flags - nf_tables set flags
+ *
+ * @NFT_SET_ANONYMOUS: name allocation, automatic cleanup on unlink
+ * @NFT_SET_CONSTANT: set contents may not change while bound
+ * @NFT_SET_INTERVAL: set contains intervals
+ * @NFT_SET_MAP: set is used as a dictionary
+ */
+enum nft_set_flags {
+	NFT_SET_ANONYMOUS		= 0x1,
+	NFT_SET_CONSTANT		= 0x2,
+	NFT_SET_INTERVAL		= 0x4,
+	NFT_SET_MAP			= 0x8,
+};
+
+/**
+ * enum nft_set_attributes - nf_tables set netlink attributes
+ *
+ * @NFTA_SET_TABLE: table name (NLA_STRING)
+ * @NFTA_SET_NAME: set name (NLA_STRING)
+ * @NFTA_SET_FLAGS: bitmask of enum nft_set_flags (NLA_U32)
+ * @NFTA_SET_KEY_TYPE: key data type, informational purpose only (NLA_U32)
+ * @NFTA_SET_KEY_LEN: key data length (NLA_U32)
+ * @NFTA_SET_DATA_TYPE: mapping data type (NLA_U32)
+ * @NFTA_SET_DATA_LEN: mapping data length (NLA_U32)
+ */
+enum nft_set_attributes {
+	NFTA_SET_UNSPEC,
+	NFTA_SET_TABLE,
+	NFTA_SET_NAME,
+	NFTA_SET_FLAGS,
+	NFTA_SET_KEY_TYPE,
+	NFTA_SET_KEY_LEN,
+	NFTA_SET_DATA_TYPE,
+	NFTA_SET_DATA_LEN,
+	__NFTA_SET_MAX
+};
+#define NFTA_SET_MAX		(__NFTA_SET_MAX - 1)
+
+/**
+ * enum nft_set_elem_flags - nf_tables set element flags
+ *
+ * @NFT_SET_ELEM_INTERVAL_END: element ends the previous interval
+ */
+enum nft_set_elem_flags {
+	NFT_SET_ELEM_INTERVAL_END	= 0x1,
+};
+
+/**
+ * enum nft_set_elem_attributes - nf_tables set element netlink attributes
+ *
+ * @NFTA_SET_ELEM_KEY: key value (NLA_NESTED: nft_data)
+ * @NFTA_SET_ELEM_DATA: data value of mapping (NLA_NESTED: nft_data_attributes)
+ * @NFTA_SET_ELEM_FLAGS: bitmask of nft_set_elem_flags (NLA_U32)
+ */
+enum nft_set_elem_attributes {
+	NFTA_SET_ELEM_UNSPEC,
+	NFTA_SET_ELEM_KEY,
+	NFTA_SET_ELEM_DATA,
+	NFTA_SET_ELEM_FLAGS,
+	__NFTA_SET_ELEM_MAX
+};
+#define NFTA_SET_ELEM_MAX	(__NFTA_SET_ELEM_MAX - 1)
+
+/**
+ * enum nft_set_elem_list_attributes - nf_tables set element list netlink attributes
+ *
+ * @NFTA_SET_ELEM_LIST_TABLE: table of the set to be changed (NLA_STRING)
+ * @NFTA_SET_ELEM_LIST_SET: name of the set to be changed (NLA_STRING)
+ * @NFTA_SET_ELEM_LIST_ELEMENTS: list of set elements (NLA_NESTED: nft_set_elem_attributes)
+ */
+enum nft_set_elem_list_attributes {
+	NFTA_SET_ELEM_LIST_UNSPEC,
+	NFTA_SET_ELEM_LIST_TABLE,
+	NFTA_SET_ELEM_LIST_SET,
+	NFTA_SET_ELEM_LIST_ELEMENTS,
+	__NFTA_SET_ELEM_LIST_MAX
+};
+#define NFTA_SET_ELEM_LIST_MAX	(__NFTA_SET_ELEM_LIST_MAX - 1)
+
+/**
+ * enum nft_data_types - nf_tables data types
+ *
+ * @NFT_DATA_VALUE: generic data
+ * @NFT_DATA_VERDICT: netfilter verdict
+ *
+ * The type of data is usually determined by the kernel directly and is not
+ * explicitly specified by userspace. The only difference are sets, where
+ * userspace specifies the key and mapping data types.
+ *
+ * The values 0xffffff00-0xffffffff are reserved for internally used types.
+ * The remaining range can be freely used by userspace to encode types, all
+ * values are equivalent to NFT_DATA_VALUE.
+ */
+enum nft_data_types {
+	NFT_DATA_VALUE,
+	NFT_DATA_VERDICT	= 0xffffff00U,
+};
+
+#define NFT_DATA_RESERVED_MASK	0xffffff00U
+
+/**
+ * enum nft_data_attributes - nf_tables data netlink attributes
+ *
+ * @NFTA_DATA_VALUE: generic data (NLA_BINARY)
+ * @NFTA_DATA_VERDICT: nf_tables verdict (NLA_NESTED: nft_verdict_attributes)
+ */
 enum nft_data_attributes {
 	NFTA_DATA_UNSPEC,
 	NFTA_DATA_VALUE,
@@ -275,58 +399,21 @@ enum nft_cmp_attributes {
 };
 #define NFTA_CMP_MAX		(__NFTA_CMP_MAX - 1)
 
-enum nft_set_elem_flags {
-	NFT_SE_INTERVAL_END	= 0x1,
+/**
+ * enum nft_lookup_attributes - nf_tables set lookup expression netlink attributes
+ *
+ * @NFTA_LOOKUP_SET: name of the set where to look for (NLA_STRING)
+ * @NFTA_LOOKUP_SREG: source register of the data to look for (NLA_U32: nft_registers)
+ * @NFTA_LOOKUP_DREG: destination register (NLA_U32: nft_registers)
+ */
+enum nft_lookup_attributes {
+	NFTA_LOOKUP_UNSPEC,
+	NFTA_LOOKUP_SET,
+	NFTA_LOOKUP_SREG,
+	NFTA_LOOKUP_DREG,
+	__NFTA_LOOKUP_MAX
 };
-
-enum nft_set_elem_attributes {
-	NFTA_SE_UNSPEC,
-	NFTA_SE_KEY,
-	NFTA_SE_DATA,
-	NFTA_SE_FLAGS,
-	__NFTA_SE_MAX
-};
-#define NFTA_SE_MAX		(__NFTA_SE_MAX - 1)
-
-enum nft_set_flags {
-	NFT_SET_INTERVAL	= 0x1,
-	NFT_SET_MAP		= 0x2,
-};
-
-enum nft_set_attributes {
-	NFTA_SET_UNSPEC,
-	NFTA_SET_FLAGS,
-	NFTA_SET_SREG,
-	NFTA_SET_DREG,
-	NFTA_SET_KLEN,
-	NFTA_SET_DLEN,
-	NFTA_SET_ELEMENTS,
-	__NFTA_SET_MAX
-};
-#define NFTA_SET_MAX		(__NFTA_SET_MAX - 1)
-
-enum nft_hash_flags {
-	NFT_HASH_MAP		= 0x1,
-};
-
-enum nft_hash_elem_attributes {
-	NFTA_HE_UNSPEC,
-	NFTA_HE_KEY,
-	NFTA_HE_DATA,
-	__NFTA_HE_MAX
-};
-#define NFTA_HE_MAX		(__NFTA_HE_MAX - 1)
-
-enum nft_hash_attributes {
-	NFTA_HASH_UNSPEC,
-	NFTA_HASH_FLAGS,
-	NFTA_HASH_SREG,
-	NFTA_HASH_DREG,
-	NFTA_HASH_KLEN,
-	NFTA_HASH_ELEMENTS,
-	__NFTA_HASH_MAX
-};
-#define NFTA_HASH_MAX		(__NFTA_HASH_MAX - 1)
+#define NFTA_LOOKUP_MAX		(__NFTA_LOOKUP_MAX - 1)
 
 /**
  * enum nft_payload_bases - nf_tables payload expression offset bases
