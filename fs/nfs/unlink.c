@@ -493,7 +493,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	unsigned long long fileid;
 	struct dentry *sdentry;
 	struct rpc_task *task;
-	int            error = -EIO;
+	int            error = -EBUSY;
 
 	dfprintk(VFS, "NFS: silly-rename(%s/%s, ct=%d)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name,
@@ -503,7 +503,6 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	/*
 	 * We don't allow a dentry to be silly-renamed twice.
 	 */
-	error = -EBUSY;
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out;
 
