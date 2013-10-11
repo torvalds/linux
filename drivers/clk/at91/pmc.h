@@ -94,4 +94,9 @@ extern void __init of_at91sam9x5_clk_prog_setup(struct device_node *np,
 						struct at91_pmc *pmc);
 #endif
 
+#if defined(CONFIG_HAVE_AT91_UTMI)
+extern void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np,
+						struct at91_pmc *pmc);
+#endif
+
 #endif /* __PMC_H_ */

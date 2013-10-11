@@ -293,6 +293,13 @@ static const struct of_device_id pmc_clk_ids[] __initdata = {
 		.data = of_at91sam9x5_clk_prog_setup,
 	},
 #endif
+	/* UTMI clock */
+#if defined(CONFIG_HAVE_AT91_UTMI)
+	{
+		.compatible = "atmel,at91sam9x5-clk-utmi",
+		.data = of_at91sam9x5_clk_utmi_setup,
+	},
+#endif
 	{ /*sentinel*/ }
 };
 
