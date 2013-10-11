@@ -207,6 +207,14 @@ struct ath_frame_info {
 	u8 baw_tracked : 1;
 };
 
+struct ath_rxbuf {
+	struct list_head list;
+	struct sk_buff *bf_mpdu;
+	void *bf_desc;
+	dma_addr_t bf_daddr;
+	dma_addr_t bf_buf_addr;
+};
+
 struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
@@ -307,7 +315,7 @@ struct ath_rx {
 	struct ath_descdma rxdma;
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
-	struct ath_buf *buf_hold;
+	struct ath_rxbuf *buf_hold;
 	struct sk_buff *frag;
 
 	u32 ampdu_ref;

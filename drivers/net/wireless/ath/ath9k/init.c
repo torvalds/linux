@@ -347,7 +347,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 *ds;
-	struct ath_buf *bf;
 	int i, bsize, desc_len;
 
 	ath_dbg(common, CONFIG, "%s DMA: %u buffers %u desc/buf\n",
@@ -399,33 +398,68 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
 
 	/* allocate buffers */
-	bsize = sizeof(struct ath_buf) * nbuf;
-	bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
-	if (!bf)
-		return -ENOMEM;
+	if (is_tx) {
+		struct ath_buf *bf;
 
-	for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
-		bf->bf_desc = ds;
-		bf->bf_daddr = DS2PHYS(dd, ds);
+		bsize = sizeof(struct ath_buf) * nbuf;
+		bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
+		if (!bf)
+			return -ENOMEM;
 
-		if (!(sc->sc_ah->caps.hw_caps &
-		      ATH9K_HW_CAP_4KB_SPLITTRANS)) {
-			/*
-			 * Skip descriptor addresses which can cause 4KB
-			 * boundary crossing (addr + length) with a 32 dword
-			 * descriptor fetch.
-			 */
-			while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
-				BUG_ON((caddr_t) bf->bf_desc >=
-				       ((caddr_t) dd->dd_desc +
-					dd->dd_desc_len));
+		for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
+			bf->bf_desc = ds;
+			bf->bf_daddr = DS2PHYS(dd, ds);
 
-				ds += (desc_len * ndesc);
-				bf->bf_desc = ds;
-				bf->bf_daddr = DS2PHYS(dd, ds);
+			if (!(sc->sc_ah->caps.hw_caps &
+				  ATH9K_HW_CAP_4KB_SPLITTRANS)) {
+				/*
+				 * Skip descriptor addresses which can cause 4KB
+				 * boundary crossing (addr + length) with a 32 dword
+				 * descriptor fetch.
+				 */
+				while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
+					BUG_ON((caddr_t) bf->bf_desc >=
+						   ((caddr_t) dd->dd_desc +
+						dd->dd_desc_len));
+
+					ds += (desc_len * ndesc);
+					bf->bf_desc = ds;
+					bf->bf_daddr = DS2PHYS(dd, ds);
+				}
 			}
+			list_add_tail(&bf->list, head);
 		}
-		list_add_tail(&bf->list, head);
+	} else {
+		struct ath_rxbuf *bf;
+
+		bsize = sizeof(struct ath_rxbuf) * nbuf;
+		bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
+		if (!bf)
+			return -ENOMEM;
+
+		for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
+			bf->bf_desc = ds;
+			bf->bf_daddr = DS2PHYS(dd, ds);
+
+			if (!(sc->sc_ah->caps.hw_caps &
+				  ATH9K_HW_CAP_4KB_SPLITTRANS)) {
+				/*
+				 * Skip descriptor addresses which can cause 4KB
+				 * boundary crossing (addr + length) with a 32 dword
+				 * descriptor fetch.
+				 */
+				while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
+					BUG_ON((caddr_t) bf->bf_desc >=
+						   ((caddr_t) dd->dd_desc +
+						dd->dd_desc_len));
+
+					ds += (desc_len * ndesc);
+					bf->bf_desc = ds;
+					bf->bf_daddr = DS2PHYS(dd, ds);
+				}
+			}
+			list_add_tail(&bf->list, head);
+		}
 	}
 	return 0;
 }
