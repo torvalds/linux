@@ -564,9 +564,8 @@ extern void usb_ep0_reinit(struct usb_device *);
 		 * of (7/6 * 8 * bytecount) = 9.33 * bytecount */
 		/* bytecount = data payload byte count */
 
-#define NS_TO_US(ns)	((ns + 500L) / 1000L)
-			/* convert & round nanoseconds to microseconds */
-
+#define NS_TO_US(ns)	DIV_ROUND_UP(ns, 1000L)
+			/* convert nanoseconds to microseconds, rounding up */
 
 /*
  * Full/low speed bandwidth allocation constants/support.
