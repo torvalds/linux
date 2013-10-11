@@ -139,6 +139,11 @@ config ARM64_64K_PAGES
 	  look-up. AArch32 emulation is not available when this feature
 	  is enabled.
 
+config CPU_BIG_ENDIAN
+       bool "Build big-endian kernel"
+       help
+         Say Y if you plan on running a kernel in big-endian mode.
+
 config SMP
 	bool "Symmetric Multi-Processing"
 	select USE_GENERIC_SMP_HELPERS
