@@ -44,7 +44,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
 		ptr = skb_network_header(skb);
 	else
-		ptr = skb_transport_header(skb);
+		ptr = skb_network_header(skb) + pkt->xt.thoff;
 
 	ptr += priv->offset;
 
