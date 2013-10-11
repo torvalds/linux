@@ -112,14 +112,8 @@ struct boot_params *real_mode;		/* Pointer to real-mode data */
 void *memset(void *s, int c, size_t n);
 void *memcpy(void *dest, const void *src, size_t n);
 
-#ifdef CONFIG_X86_64
-#define memptr long
-#else
-#define memptr unsigned
-#endif
-
-static memptr free_mem_ptr;
-static memptr free_mem_end_ptr;
+memptr free_mem_ptr;
+memptr free_mem_end_ptr;
 
 static char *vidmem;
 static int vidport;
