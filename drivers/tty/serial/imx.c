@@ -532,7 +532,7 @@ static void dma_tx_work(struct work_struct *w)
 		return;
 	}
 
-	if (xmit->tail > xmit->head) {
+	if (xmit->tail > xmit->head && xmit->head > 0) {
 		sport->dma_tx_nents = 2;
 		sg_init_table(sgl, 2);
 		sg_set_buf(sgl, xmit->buf + xmit->tail,
