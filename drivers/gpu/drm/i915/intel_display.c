@@ -800,6 +800,25 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
+static bool pipe_dsl_stopped(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg = PIPEDSL(pipe);
+	u32 line1, line2;
+	u32 line_mask;
+
+	if (IS_GEN2(dev))
+		line_mask = DSL_LINEMASK_GEN2;
+	else
+		line_mask = DSL_LINEMASK_GEN3;
+
+	line1 = I915_READ(reg) & line_mask;
+	mdelay(5);
+	line2 = I915_READ(reg) & line_mask;
+
+	return line1 == line2;
+}
+
 /*
  * intel_wait_for_pipe_off - wait for pipe to turn off
  * @dev: drm device
@@ -831,22 +850,8 @@ void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 			     100))
 			WARN(1, "pipe_off wait timed out\n");
 	} else {
-		u32 last_line, line_mask;
-		int reg = PIPEDSL(pipe);
-		unsigned long timeout = jiffies + msecs_to_jiffies(100);
-
-		if (IS_GEN2(dev))
-			line_mask = DSL_LINEMASK_GEN2;
-		else
-			line_mask = DSL_LINEMASK_GEN3;
-
 		/* Wait for the display line to settle */
-		do {
-			last_line = I915_READ(reg) & line_mask;
-			mdelay(5);
-		} while (((I915_READ(reg) & line_mask) != last_line) &&
-			 time_after(timeout, jiffies));
-		if (time_after(jiffies, timeout))
+		if (wait_for(pipe_dsl_stopped(dev, pipe), 100))
 			WARN(1, "pipe_off wait timed out\n");
 	}
 }
