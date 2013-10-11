@@ -12,7 +12,9 @@ int  nv04_mc_ctor(struct nouveau_object *, struct nouveau_object *,
 		  struct nouveau_object **);
 
 extern const struct nouveau_mc_intr nv04_mc_intr[];
-int nv04_mc_init(struct nouveau_object *);
-int nv50_mc_init(struct nouveau_object *);
+int  nv04_mc_init(struct nouveau_object *);
+void nv40_mc_msi_rearm(struct nouveau_mc *);
+int  nv50_mc_init(struct nouveau_object *);
+extern const struct nouveau_mc_intr nvc0_mc_intr[];
 
 #endif

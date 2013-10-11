@@ -42,8 +42,8 @@ nouveau_mc_intr(int irq, void *arg)
 	if (intr == 0xffffffff) /* likely fallen off the bus */
 		intr = 0x00000000;
 
-	if (pmc->use_msi)
-		nv_wr08(pmc, 0x088068, 0xff);
+	if (pmc->use_msi && oclass->msi_rearm)
+		oclass->msi_rearm(pmc);
 
 	if (intr) {
 		u32 stat = nv_rd32(pmc, 0x000100);
@@ -97,13 +97,14 @@ _nouveau_mc_dtor(struct nouveau_object *object)
 
 int
 nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, int length, void **pobject)
+		   struct nouveau_oclass *bclass, int length, void **pobject)
 {
+	const struct nouveau_mc_oclass *oclass = (void *)bclass;
 	struct nouveau_device *device = nv_device(parent);
 	struct nouveau_mc *pmc;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "PMC",
+	ret = nouveau_subdev_create_(parent, engine, bclass, 0, "PMC",
 				     "master", length, pobject);
 	pmc = *pobject;
 	if (ret)
@@ -120,7 +121,7 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 			pmc->use_msi = pci_enable_msi(device->pdev) == 0;
 			if (pmc->use_msi) {
 				nv_info(pmc, "MSI interrupts enabled\n");
-				nv_wr08(pmc, 0x088068, 0xff);
+				oclass->msi_rearm(pmc);
 			}
 		}
 		break;

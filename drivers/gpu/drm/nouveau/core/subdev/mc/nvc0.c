@@ -24,7 +24,7 @@
 
 #include "nv04.h"
 
-static const struct nouveau_mc_intr
+const struct nouveau_mc_intr
 nvc0_mc_intr[] = {
 	{ 0x00000001, NVDEV_ENGINE_PPP },
 	{ 0x00000020, NVDEV_ENGINE_COPY0 },
@@ -45,6 +45,13 @@ nvc0_mc_intr[] = {
 	{},
 };
 
+static void
+nvc0_mc_msi_rearm(struct nouveau_mc *pmc)
+{
+	struct nv04_mc_priv *priv = (void *)pmc;
+	nv_wr32(priv, 0x088704, 0x00000000);
+}
+
 struct nouveau_oclass *
 nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0xc0),
@@ -55,4 +62,5 @@ nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
 		.fini = _nouveau_mc_fini,
 	},
 	.intr = nvc0_mc_intr,
+	.msi_rearm = nvc0_mc_msi_rearm,
 }.base;

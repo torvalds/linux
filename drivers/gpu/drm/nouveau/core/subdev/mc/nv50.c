@@ -59,4 +59,5 @@ nv50_mc_oclass = &(struct nouveau_mc_oclass) {
 		.fini = _nouveau_mc_fini,
 	},
 	.intr = nv50_mc_intr,
+	.msi_rearm = nv40_mc_msi_rearm,
 }.base;

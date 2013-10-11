@@ -9,11 +9,6 @@ struct nouveau_mc_intr {
 	u32 unit;
 };
 
-struct nouveau_mc_oclass {
-	struct nouveau_oclass base;
-	const struct nouveau_mc_intr *intr;
-};
-
 struct nouveau_mc {
 	struct nouveau_subdev base;
 	bool use_msi;
@@ -43,10 +38,18 @@ void _nouveau_mc_dtor(struct nouveau_object *);
 int  _nouveau_mc_init(struct nouveau_object *);
 int  _nouveau_mc_fini(struct nouveau_object *, bool);
 
+struct nouveau_mc_oclass {
+	struct nouveau_oclass base;
+	const struct nouveau_mc_intr *intr;
+	void (*msi_rearm)(struct nouveau_mc *);
+};
+
 extern struct nouveau_oclass *nv04_mc_oclass;
+extern struct nouveau_oclass *nv40_mc_oclass;
 extern struct nouveau_oclass *nv44_mc_oclass;
 extern struct nouveau_oclass *nv50_mc_oclass;
 extern struct nouveau_oclass *nv98_mc_oclass;
 extern struct nouveau_oclass *nvc0_mc_oclass;
+extern struct nouveau_oclass *nvc3_mc_oclass;
 
 #endif
