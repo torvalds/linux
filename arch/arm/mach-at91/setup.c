@@ -491,7 +491,8 @@ void __init at91rm9200_dt_initialize(void)
 	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
+	if (at91_boot_soc.register_clocks)
+		at91_boot_soc.register_clocks();
 
 	at91_boot_soc.init();
 }
@@ -506,7 +507,8 @@ void __init at91_dt_initialize(void)
 	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
+	if (at91_boot_soc.register_clocks)
+		at91_boot_soc.register_clocks();
 
 	if (at91_boot_soc.init)
 		at91_boot_soc.init();
