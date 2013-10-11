@@ -848,8 +848,21 @@ static const struct drm_encoder_funcs qxl_enc_funcs = {
 	.destroy = qxl_enc_destroy,
 };
 
+static int qxl_mode_create_hotplug_mode_update_property(struct qxl_device *qdev)
+{
+	if (qdev->hotplug_mode_update_property)
+		return 0;
+
+	qdev->hotplug_mode_update_property =
+		drm_property_create_range(qdev->ddev, DRM_MODE_PROP_IMMUTABLE,
+					  "hotplug_mode_update", 0, 1);
+
+	return 0;
+}
+
 static int qdev_output_init(struct drm_device *dev, int num_output)
 {
+	struct qxl_device *qdev = dev->dev_private;
 	struct qxl_output *qxl_output;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
@@ -876,6 +889,8 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	drm_encoder_helper_add(encoder, &qxl_enc_helper_funcs);
 	drm_connector_helper_add(connector, &qxl_connector_helper_funcs);
 
+	drm_object_attach_property(&connector->base,
+				   qdev->hotplug_mode_update_property, 0);
 	drm_sysfs_connector_add(connector);
 	return 0;
 }
@@ -988,6 +1003,9 @@ int qxl_modeset_init(struct qxl_device *qdev)
 	qdev->ddev->mode_config.max_height = 8192;
 
 	qdev->ddev->mode_config.fb_base = qdev->vram_base;
+
+	qxl_mode_create_hotplug_mode_update_property(qdev);
+
 	for (i = 0 ; i < qxl_num_crtc; ++i) {
 		qdev_crtc_init(qdev->ddev, i);
 		qdev_output_init(qdev->ddev, i);

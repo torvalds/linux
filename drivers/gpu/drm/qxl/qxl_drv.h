@@ -323,6 +323,8 @@ struct qxl_device {
 	struct work_struct gc_work;
 
 	struct work_struct fb_work;
+
+	struct drm_property *hotplug_mode_update_property;
 };
 
 /* forward declaration for QXL_INFO_IO */
