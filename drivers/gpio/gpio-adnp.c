@@ -325,9 +325,9 @@ static irqreturn_t adnp_irq(int irq, void *data)
 		pending &= isr & ier;
 
 		for_each_set_bit(bit, &pending, 8) {
-			unsigned int virq;
-			virq = irq_find_mapping(adnp->domain, base + bit);
-			handle_nested_irq(virq);
+			unsigned int child_irq;
+			child_irq = irq_find_mapping(adnp->domain, base + bit);
+			handle_nested_irq(child_irq);
 		}
 	}
 
