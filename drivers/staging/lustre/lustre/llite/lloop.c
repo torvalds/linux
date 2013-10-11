@@ -220,7 +220,7 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	for (bio = head; bio != NULL; bio = bio->bi_next) {
 		LASSERT(rw == bio->bi_rw);
 
-		offset = (pgoff_t)(bio->bi_sector << 9) + lo->lo_offset;
+		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
 		bio_for_each_segment(bvec, bio, i) {
 			BUG_ON(bvec->bv_offset != 0);
 			BUG_ON(bvec->bv_len != PAGE_CACHE_SIZE);
@@ -313,7 +313,8 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
 		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u \n",
-		       (unsigned long long)(*bio)->bi_sector, (*bio)->bi_size,
+		       (unsigned long long)(*bio)->bi_iter.bi_sector,
+		       (*bio)->bi_iter.bi_size,
 		       page_count, (*bio)->bi_vcnt);
 		if (page_count + (*bio)->bi_vcnt > LLOOP_MAX_SEGMENTS)
 			break;
@@ -347,7 +348,8 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 		goto err;
 
 	CDEBUG(D_INFO, "submit bio sector %llu size %u\n",
-	       (unsigned long long)old_bio->bi_sector, old_bio->bi_size);
+	       (unsigned long long)old_bio->bi_iter.bi_sector,
+	       old_bio->bi_iter.bi_size);
 
 	spin_lock_irq(&lo->lo_lock);
 	inactive = (lo->lo_state != LLOOP_BOUND);
@@ -367,7 +369,7 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 	loop_add_bio(lo, old_bio);
 	return;
 err:
-	cfs_bio_io_error(old_bio, old_bio->bi_size);
+	cfs_bio_io_error(old_bio, old_bio->bi_iter.bi_size);
 }
 
 
@@ -378,7 +380,7 @@ static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 	while (bio) {
 		struct bio *tmp = bio->bi_next;
 		bio->bi_next = NULL;
-		cfs_bio_endio(bio, bio->bi_size, ret);
+		cfs_bio_endio(bio, bio->bi_iter.bi_size, ret);
 		bio = tmp;
 	}
 }

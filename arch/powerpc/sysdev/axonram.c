@@ -113,7 +113,8 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 	unsigned int transfered;
 	unsigned short idx;
 
-	phys_mem = bank->io_addr + (bio->bi_sector << AXON_RAM_SECTOR_SHIFT);
+	phys_mem = bank->io_addr + (bio->bi_iter.bi_sector <<
+				    AXON_RAM_SECTOR_SHIFT);
 	phys_end = bank->io_addr + bank->size;
 	transfered = 0;
 	bio_for_each_segment(vec, bio, idx) {

@@ -1183,14 +1183,14 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 
 	/* Handle the easy case for the caller */
 
-	if (!offset && len == bio_src->bi_size)
+	if (!offset && len == bio_src->bi_iter.bi_size)
 		return bio_clone(bio_src, gfpmask);
 
 	if (WARN_ON_ONCE(!len))
 		return NULL;
-	if (WARN_ON_ONCE(len > bio_src->bi_size))
+	if (WARN_ON_ONCE(len > bio_src->bi_iter.bi_size))
 		return NULL;
-	if (WARN_ON_ONCE(offset > bio_src->bi_size - len))
+	if (WARN_ON_ONCE(offset > bio_src->bi_iter.bi_size - len))
 		return NULL;
 
 	/* Find first affected segment... */
@@ -1220,7 +1220,8 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 		return NULL;	/* ENOMEM */
 
 	bio->bi_bdev = bio_src->bi_bdev;
-	bio->bi_sector = bio_src->bi_sector + (offset >> SECTOR_SHIFT);
+	bio->bi_iter.bi_sector = bio_src->bi_iter.bi_sector +
+		(offset >> SECTOR_SHIFT);
 	bio->bi_rw = bio_src->bi_rw;
 	bio->bi_flags |= 1 << BIO_CLONED;
 
@@ -1239,8 +1240,7 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 	}
 
 	bio->bi_vcnt = vcnt;
-	bio->bi_size = len;
-	bio->bi_idx = 0;
+	bio->bi_iter.bi_size = len;
 
 	return bio;
 }
@@ -1271,7 +1271,7 @@ static struct bio *bio_chain_clone_range(struct bio **bio_src,
 
 	/* Build up a chain of clone bios up to the limit */
 
-	if (!bi || off >= bi->bi_size || !len)
+	if (!bi || off >= bi->bi_iter.bi_size || !len)
 		return NULL;		/* Nothing to clone */
 
 	end = &chain;
@@ -1283,7 +1283,7 @@ static struct bio *bio_chain_clone_range(struct bio **bio_src,
 			rbd_warn(NULL, "bio_chain exhausted with %u left", len);
 			goto out_err;	/* EINVAL; ran out of bio's */
 		}
-		bi_size = min_t(unsigned int, bi->bi_size - off, len);
+		bi_size = min_t(unsigned int, bi->bi_iter.bi_size - off, len);
 		bio = bio_clone_range(bi, off, bi_size, gfpmask);
 		if (!bio)
 			goto out_err;	/* ENOMEM */
@@ -1292,7 +1292,7 @@ static struct bio *bio_chain_clone_range(struct bio **bio_src,
 		end = &bio->bi_next;
 
 		off += bi_size;
-		if (off == bi->bi_size) {
+		if (off == bi->bi_iter.bi_size) {
 			bi = bi->bi_next;
 			off = 0;
 		}
@@ -2186,7 +2186,8 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 
 	if (type == OBJ_REQUEST_BIO) {
 		bio_list = data_desc;
-		rbd_assert(img_offset == bio_list->bi_sector << SECTOR_SHIFT);
+		rbd_assert(img_offset ==
+			   bio_list->bi_iter.bi_sector << SECTOR_SHIFT);
 	} else {
 		rbd_assert(type == OBJ_REQUEST_PAGES);
 		pages = data_desc;

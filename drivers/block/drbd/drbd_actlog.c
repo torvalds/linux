@@ -159,7 +159,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 
 	bio = bio_alloc_drbd(GFP_NOIO);
 	bio->bi_bdev = bdev->md_bdev;
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	err = -EIO;
 	if (bio_add_page(bio, page, size, 0) != size)
 		goto out;

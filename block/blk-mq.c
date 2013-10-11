@@ -301,7 +301,7 @@ void blk_mq_complete_request(struct request *rq, int error)
 		struct bio *next = bio->bi_next;
 
 		bio->bi_next = NULL;
-		bytes += bio->bi_size;
+		bytes += bio->bi_iter.bi_size;
 		blk_mq_bio_endio(rq, bio, error);
 		bio = next;
 	}

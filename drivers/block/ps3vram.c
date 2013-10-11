@@ -553,7 +553,7 @@ static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	int write = bio_data_dir(bio) == WRITE;
 	const char *op = write ? "write" : "read";
-	loff_t offset = bio->bi_sector << 9;
+	loff_t offset = bio->bi_iter.bi_sector << 9;
 	int error = 0;
 	struct bio_vec *bvec;
 	unsigned int i;

@@ -468,7 +468,7 @@ static struct nvme_bio_pair *nvme_bio_split(struct bio *bio, int idx,
 {
 	struct nvme_bio_pair *bp;
 
-	BUG_ON(len > bio->bi_size);
+	BUG_ON(len > bio->bi_iter.bi_size);
 	BUG_ON(idx > bio->bi_vcnt);
 
 	bp = kmalloc(sizeof(*bp), GFP_ATOMIC);
@@ -479,11 +479,11 @@ static struct nvme_bio_pair *nvme_bio_split(struct bio *bio, int idx,
 	bp->b1 = *bio;
 	bp->b2 = *bio;
 
-	bp->b1.bi_size = len;
-	bp->b2.bi_size -= len;
+	bp->b1.bi_iter.bi_size = len;
+	bp->b2.bi_iter.bi_size -= len;
 	bp->b1.bi_vcnt = idx;
-	bp->b2.bi_idx = idx;
-	bp->b2.bi_sector += len >> 9;
+	bp->b2.bi_iter.bi_idx = idx;
+	bp->b2.bi_iter.bi_sector += len >> 9;
 
 	if (offset) {
 		bp->bv1 = kmalloc(bio->bi_max_vecs * sizeof(struct bio_vec),
@@ -552,11 +552,12 @@ static int nvme_map_bio(struct nvme_queue *nvmeq, struct nvme_iod *iod,
 {
 	struct bio_vec *bvec, *bvprv = NULL;
 	struct scatterlist *sg = NULL;
-	int i, length = 0, nsegs = 0, split_len = bio->bi_size;
+	int i, length = 0, nsegs = 0, split_len = bio->bi_iter.bi_size;
 
 	if (nvmeq->dev->stripe_size)
 		split_len = nvmeq->dev->stripe_size -
-			((bio->bi_sector << 9) & (nvmeq->dev->stripe_size - 1));
+			((bio->bi_iter.bi_sector << 9) &
+			 (nvmeq->dev->stripe_size - 1));
 
 	sg_init_table(iod->sg, psegs);
 	bio_for_each_segment(bvec, bio, i) {
@@ -584,7 +585,7 @@ static int nvme_map_bio(struct nvme_queue *nvmeq, struct nvme_iod *iod,
 	if (dma_map_sg(nvmeq->q_dmadev, iod->sg, iod->nents, dma_dir) == 0)
 		return -ENOMEM;
 
-	BUG_ON(length != bio->bi_size);
+	BUG_ON(length != bio->bi_iter.bi_size);
 	return length;
 }
 
@@ -608,8 +609,8 @@ static int nvme_submit_discard(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	iod->npages = 0;
 
 	range->cattr = cpu_to_le32(0);
-	range->nlb = cpu_to_le32(bio->bi_size >> ns->lba_shift);
-	range->slba = cpu_to_le64(nvme_block_nr(ns, bio->bi_sector));
+	range->nlb = cpu_to_le32(bio->bi_iter.bi_size >> ns->lba_shift);
+	range->slba = cpu_to_le64(nvme_block_nr(ns, bio->bi_iter.bi_sector));
 
 	memset(cmnd, 0, sizeof(*cmnd));
 	cmnd->dsm.opcode = nvme_cmd_dsm;
@@ -674,7 +675,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	}
 
 	result = -ENOMEM;
-	iod = nvme_alloc_iod(psegs, bio->bi_size, GFP_ATOMIC);
+	iod = nvme_alloc_iod(psegs, bio->bi_iter.bi_size, GFP_ATOMIC);
 	if (!iod)
 		goto nomem;
 	iod->private = bio;
@@ -723,7 +724,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
 	length = nvme_setup_prps(nvmeq->dev, &cmnd->common, iod, length,
 								GFP_ATOMIC);
-	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, bio->bi_sector));
+	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, bio->bi_iter.bi_sector));
 	cmnd->rw.length = cpu_to_le16((length >> ns->lba_shift) - 1);
 	cmnd->rw.control = cpu_to_le16(control);
 	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);

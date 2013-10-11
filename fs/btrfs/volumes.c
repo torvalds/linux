@@ -5411,7 +5411,7 @@ static int bio_size_ok(struct block_device *bdev, struct bio *bio,
 	if (!q->merge_bvec_fn)
 		return 1;
 
-	bvm.bi_size = bio->bi_size - prev->bv_len;
+	bvm.bi_size = bio->bi_iter.bi_size - prev->bv_len;
 	if (q->merge_bvec_fn(q, &bvm, prev) < prev->bv_len)
 		return 0;
 	return 1;
@@ -5426,7 +5426,7 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
 	bio->bi_private = bbio;
 	btrfs_io_bio(bio)->stripe_index = dev_nr;
 	bio->bi_end_io = btrfs_end_bio;
-	bio->bi_sector = physical >> 9;
+	bio->bi_iter.bi_sector = physical >> 9;
 #ifdef DEBUG
 	{
 		struct rcu_string *name;
@@ -5464,7 +5464,7 @@ again:
 	while (bvec <= (first_bio->bi_io_vec + first_bio->bi_vcnt - 1)) {
 		if (bio_add_page(bio, bvec->bv_page, bvec->bv_len,
 				 bvec->bv_offset) < bvec->bv_len) {
-			u64 len = bio->bi_size;
+			u64 len = bio->bi_iter.bi_size;
 
 			atomic_inc(&bbio->stripes_pending);
 			submit_stripe_bio(root, bbio, bio, physical, dev_nr,
@@ -5486,7 +5486,7 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
 		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
-		bio->bi_sector = logical >> 9;
+		bio->bi_iter.bi_sector = logical >> 9;
 		kfree(bbio);
 		bio_endio(bio, -EIO);
 	}
@@ -5497,7 +5497,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 {
 	struct btrfs_device *dev;
 	struct bio *first_bio = bio;
-	u64 logical = (u64)bio->bi_sector << 9;
+	u64 logical = (u64)bio->bi_iter.bi_sector << 9;
 	u64 length = 0;
 	u64 map_length;
 	u64 *raid_map = NULL;
@@ -5506,7 +5506,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	int total_devs = 1;
 	struct btrfs_bio *bbio = NULL;
 
-	length = bio->bi_size;
+	length = bio->bi_iter.bi_size;
 	map_length = length;
 
 	ret = __btrfs_map_block(root->fs_info, rw, logical, &map_length, &bbio,

@@ -40,10 +40,10 @@ static inline void dm_bio_record(struct dm_bio_details *bd, struct bio *bio)
 {
 	unsigned i;
 
-	bd->bi_sector = bio->bi_sector;
+	bd->bi_sector = bio->bi_iter.bi_sector;
 	bd->bi_bdev = bio->bi_bdev;
-	bd->bi_size = bio->bi_size;
-	bd->bi_idx = bio->bi_idx;
+	bd->bi_size = bio->bi_iter.bi_size;
+	bd->bi_idx = bio->bi_iter.bi_idx;
 	bd->bi_flags = bio->bi_flags;
 
 	for (i = 0; i < bio->bi_vcnt; i++) {
@@ -56,10 +56,10 @@ static inline void dm_bio_restore(struct dm_bio_details *bd, struct bio *bio)
 {
 	unsigned i;
 
-	bio->bi_sector = bd->bi_sector;
+	bio->bi_iter.bi_sector = bd->bi_sector;
 	bio->bi_bdev = bd->bi_bdev;
-	bio->bi_size = bd->bi_size;
-	bio->bi_idx = bd->bi_idx;
+	bio->bi_iter.bi_size = bd->bi_size;
+	bio->bi_iter.bi_idx = bd->bi_idx;
 	bio->bi_flags = bd->bi_flags;
 
 	for (i = 0; i < bio->bi_vcnt; i++) {

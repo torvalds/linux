@@ -682,7 +682,7 @@ retry:
 
 		bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
 		sbi->bio[type] = f2fs_bio_alloc(bdev, bio_blocks);
-		sbi->bio[type]->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
+		sbi->bio[type]->bi_iter.bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
 		sbi->bio[type]->bi_private = priv;
 		/*
 		 * The end_io will be assigned at the sumbission phase.

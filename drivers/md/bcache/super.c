@@ -233,9 +233,9 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 	struct cache_sb *out = page_address(bio->bi_io_vec[0].bv_page);
 	unsigned i;
 
-	bio->bi_sector	= SB_SECTOR;
-	bio->bi_rw	= REQ_SYNC|REQ_META;
-	bio->bi_size	= SB_SIZE;
+	bio->bi_iter.bi_sector	= SB_SECTOR;
+	bio->bi_rw		= REQ_SYNC|REQ_META;
+	bio->bi_iter.bi_size	= SB_SIZE;
 	bch_bio_map(bio, NULL);
 
 	out->offset		= cpu_to_le64(sb->offset);
@@ -347,7 +347,7 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 		struct bio *bio = bch_bbio_alloc(c);
 
 		bio->bi_rw	= REQ_SYNC|REQ_META|rw;
-		bio->bi_size	= KEY_SIZE(k) << 9;
+		bio->bi_iter.bi_size = KEY_SIZE(k) << 9;
 
 		bio->bi_end_io	= uuid_endio;
 		bio->bi_private = cl;
@@ -503,10 +503,10 @@ static void prio_io(struct cache *ca, uint64_t bucket, unsigned long rw)
 
 	closure_init_stack(cl);
 
-	bio->bi_sector	= bucket * ca->sb.bucket_size;
-	bio->bi_bdev	= ca->bdev;
-	bio->bi_rw	= REQ_SYNC|REQ_META|rw;
-	bio->bi_size	= bucket_bytes(ca);
+	bio->bi_iter.bi_sector	= bucket * ca->sb.bucket_size;
+	bio->bi_bdev		= ca->bdev;
+	bio->bi_rw		= REQ_SYNC|REQ_META|rw;
+	bio->bi_iter.bi_size	= bucket_bytes(ca);
 
 	bio->bi_end_io	= prio_endio;
 	bio->bi_private = ca;

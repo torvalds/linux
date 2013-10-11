@@ -616,8 +616,8 @@ TRACE_EVENT(f2fs_do_submit_bio,
 		__entry->dev		= sb->s_dev;
 		__entry->btype		= btype;
 		__entry->sync		= sync;
-		__entry->sector		= bio->bi_sector;
-		__entry->size		= bio->bi_size;
+		__entry->sector		= bio->bi_iter.bi_sector;
+		__entry->size		= bio->bi_iter.bi_size;
 	),
 
 	TP_printk("dev = (%d,%d), type = %s, io = %s, sector = %lld, size = %u",
