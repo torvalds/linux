@@ -494,6 +494,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
 	struct mxs_saif *master_saif;
 	u32 delay;
+	int ret;
 
 	master_saif = mxs_saif_get_master(saif);
 	if (!master_saif)
@@ -508,20 +509,31 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		dev_dbg(cpu_dai->dev, "start\n");
 
-		clk_enable(master_saif->clk);
-		if (!master_saif->mclk_in_use)
-			__raw_writel(BM_SAIF_CTRL_RUN,
-				master_saif->base + SAIF_CTRL + MXS_SET_ADDR);
+		ret = clk_enable(master_saif->clk);
+		if (ret) {
+			dev_err(saif->dev, "Failed to enable master clock\n");
+			return ret;
+		}
 
 		/*
 		 * If the saif's master is not himself, we also need to enable
 		 * itself clk for its internal basic logic to work.
 		 */
 		if (saif != master_saif) {
-			clk_enable(saif->clk);
+			ret = clk_enable(saif->clk);
+			if (ret) {
+				dev_err(saif->dev, "Failed to enable master clock\n");
+				clk_disable(master_saif->clk);
+				return ret;
+			}
+
 			__raw_writel(BM_SAIF_CTRL_RUN,
 				saif->base + SAIF_CTRL + MXS_SET_ADDR);
 		}
+
+		if (!master_saif->mclk_in_use)
+			__raw_writel(BM_SAIF_CTRL_RUN,
+				master_saif->base + SAIF_CTRL + MXS_SET_ADDR);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/*
