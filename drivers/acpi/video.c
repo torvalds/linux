@@ -88,6 +88,13 @@ module_param(allow_duplicates, bool, 0644);
 static bool use_bios_initial_backlight = 1;
 module_param(use_bios_initial_backlight, bool, 0644);
 
+/*
+ * For Windows 8 systems: if set ture and the GPU driver has
+ * registered a backlight interface, skip registering ACPI video's.
+ */
+static bool use_native_backlight = false;
+module_param(use_native_backlight, bool, 0644);
+
 static int register_count;
 static struct mutex video_list_lock;
 static struct list_head video_bus_head;
@@ -231,6 +238,14 @@ static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
 static int acpi_video_switch_brightness(struct acpi_video_device *device,
 					 int event);
+
+static bool acpi_video_verify_backlight_support(void)
+{
+	if (acpi_osi_is_win8() && use_native_backlight &&
+	    backlight_device_registered(BACKLIGHT_RAW))
+		return false;
+	return acpi_video_backlight_support();
+}
 
 /* backlight device sysfs support */
 static int acpi_video_get_brightness(struct backlight_device *bd)
@@ -1256,8 +1271,8 @@ acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 	unsigned long long level_current, level_next;
 	int result = -EINVAL;
 
-	/* no warning message if acpi_backlight=vendor is used */
-	if (!acpi_video_backlight_support())
+	/* no warning message if acpi_backlight=vendor or a quirk is used */
+	if (!acpi_video_verify_backlight_support())
 		return 0;
 
 	if (!device->brightness)
@@ -1386,13 +1401,13 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 static int acpi_video_bus_start_devices(struct acpi_video_bus *video)
 {
 	return acpi_video_bus_DOS(video, 0,
-				  acpi_video_backlight_quirks() ? 1 : 0);
+				  acpi_osi_is_win8() ? 1 : 0);
 }
 
 static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 {
 	return acpi_video_bus_DOS(video, 0,
-				  acpi_video_backlight_quirks() ? 0 : 1);
+				  acpi_osi_is_win8() ? 0 : 1);
 }
 
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
@@ -1558,7 +1573,7 @@ acpi_video_bus_match(acpi_handle handle, u32 level, void *context,
 
 static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 {
-	if (acpi_video_backlight_support()) {
+	if (acpi_video_verify_backlight_support()) {
 		struct backlight_properties props;
 		struct pci_dev *pdev;
 		acpi_handle acpi_parent;

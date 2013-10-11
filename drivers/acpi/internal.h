@@ -169,9 +169,7 @@ int acpi_create_platform_device(struct acpi_device *adev,
 					Video
   -------------------------------------------------------------------------- */
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
-bool acpi_video_backlight_quirks(void);
-#else
-static inline bool acpi_video_backlight_quirks(void) { return false; }
+bool acpi_osi_is_win8(void);
 #endif
 
 #endif /* _ACPI_INTERNAL_H_ */
