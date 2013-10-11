@@ -33,6 +33,9 @@ nouveau_mc_intr(int irq, void *arg)
 	struct nouveau_subdev *unit;
 	u32 intr, stat;
 
+	nv_wr32(pmc, 0x000140, 0x00000000);
+	nv_rd32(pmc, 0x000140);
+
 	intr = nv_rd32(pmc, 0x000100);
 	if (intr == 0xffffffff) /* likely fallen off the bus */
 		intr = 0x00000000;
@@ -54,6 +57,7 @@ nouveau_mc_intr(int irq, void *arg)
 			nv_error(pmc, "unknown intr 0x%08x\n", stat);
 	}
 
+	nv_wr32(pmc, 0x000140, 0x00000001);
 	return intr ? IRQ_HANDLED : IRQ_NONE;
 }
 
