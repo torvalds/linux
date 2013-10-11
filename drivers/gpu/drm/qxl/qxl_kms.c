@@ -248,9 +248,13 @@ int qxl_device_init(struct qxl_device *qdev,
 	qdev->surfaces_mem_slot = setup_slot(qdev, 1,
 		(unsigned long)qdev->surfaceram_base,
 		(unsigned long)qdev->surfaceram_base + qdev->surfaceram_size);
-	DRM_INFO("main mem slot %d [%lx,%x)\n",
-		qdev->main_mem_slot,
-		(unsigned long)qdev->vram_base, qdev->rom->ram_header_offset);
+	DRM_INFO("main mem slot %d [%lx,%x]\n",
+		 qdev->main_mem_slot,
+		 (unsigned long)qdev->vram_base, qdev->rom->ram_header_offset);
+	DRM_INFO("surface mem slot %d [%lx,%lx]\n",
+		 qdev->surfaces_mem_slot,
+		 (unsigned long)qdev->surfaceram_base,
+		 (unsigned long)qdev->surfaceram_size);
 
 
 	qdev->gc_queue = create_singlethread_workqueue("qxl_gc");
