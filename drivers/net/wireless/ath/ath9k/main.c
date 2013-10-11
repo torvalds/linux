@@ -897,7 +897,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath_dbg(common, CONFIG, "Driver halt\n");
 }
 
-bool ath9k_uses_beacons(int type)
+static bool ath9k_uses_beacons(int type)
 {
 	switch (type) {
 	case NL80211_IFTYPE_AP:
