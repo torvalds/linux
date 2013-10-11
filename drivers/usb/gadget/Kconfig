@@ -58,6 +58,20 @@ config USB_GADGET_DEBUG
 	   trying to track down.  Never enable these messages for a
 	   production build.
 
+config USB_GADGET_VERBOSE
+	bool "Verbose debugging Messages (DEVELOPMENT)"
+	depends on USB_GADGET_DEBUG
+	help
+	   Many controller and gadget drivers will print verbose debugging
+	   messages if you use this option to ask for those messages.
+
+	   Avoid enabling these messages, even if you're actively
+	   debugging such a driver.  Many drivers will emit so many
+	   messages that the driver timings are affected, which will
+	   either create new failure modes or remove the one you're
+	   trying to track down.  Never enable these messages for a
+	   production build.
+
 config USB_GADGET_DEBUG_FILES
 	boolean "Debugging information files (DEVELOPMENT)"
 	depends on PROC_FS

@@ -1,7 +1,8 @@
 #
 # USB peripheral controller drivers
 #
-ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
+ccflags-$(CONFIG_USB_GADGET_DEBUG)	:= -DDEBUG
+ccflags-$(CONFIG_USB_GADGET_VERBOSE)	+= -DVERBOSE_DEBUG
 
 obj-$(CONFIG_USB_GADGET)	+= udc-core.o
 obj-$(CONFIG_USB_LIBCOMPOSITE)	+= libcomposite.o
