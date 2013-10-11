@@ -82,6 +82,16 @@ static void __init omap3_igep0020_legacy_init(void)
 {
 	omap3_igep2_display_init_of();
 }
+
+static void __init omap3_evm_legacy_init(void)
+{
+	legacy_init_wl12xx(WL12XX_REFCLOCK_38, 0, 149);
+}
+
+static void __init omap3_zoom_legacy_init(void)
+{
+	legacy_init_wl12xx(WL12XX_REFCLOCK_26, 0, 162);
+}
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -132,6 +142,8 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "nokia,omap3-n9", hsmmc2_internal_input_clk, },
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
 	{ "isee,omap3-igep0020", omap3_igep0020_legacy_init, },
+	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
+	{ "ti,omap3-zoom3", omap3_zoom_legacy_init, },
 #endif
 #ifdef CONFIG_ARCH_OMAP4
 	{ "ti,omap4-sdp", omap4_sdp_legacy_init, },
