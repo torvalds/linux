@@ -3680,7 +3680,7 @@ unsigned int hmp_next_down_threshold = 4096;
 static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_entity *se);
 static unsigned int hmp_down_migration(int cpu, struct sched_entity *se);
 static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
-						int *min_cpu);
+						int *min_cpu, struct cpumask *affinity);
 
 /* Check if cpu is in fastest hmp_domain */
 static inline unsigned int hmp_cpu_is_fastest(int cpu)
@@ -3720,22 +3720,23 @@ static inline struct hmp_domain *hmp_faster_domain(int cpu)
 
 /*
  * Selects a cpu in previous (faster) hmp_domain
- * Note that cpumask_any_and() returns the first cpu in the cpumask
  */
 static inline unsigned int hmp_select_faster_cpu(struct task_struct *tsk,
 							int cpu)
 {
 	int lowest_cpu=NR_CPUS;
-	__always_unused int lowest_ratio = hmp_domain_min_load(hmp_faster_domain(cpu), &lowest_cpu);
-	/*
-	 * If the lowest-loaded CPU in the domain is allowed by the task affinity
-	 * select that one, otherwise select one which is allowed
-	 */
-	if(lowest_cpu != NR_CPUS && cpumask_test_cpu(lowest_cpu,tsk_cpus_allowed(tsk)))
-		return lowest_cpu;
+	__always_unused int lowest_ratio;
+	struct hmp_domain *hmp;
+
+	if (hmp_cpu_is_fastest(cpu))
+		hmp = hmp_cpu_domain(cpu);
 	else
-		return cpumask_any_and(&hmp_faster_domain(cpu)->cpus,
-				tsk_cpus_allowed(tsk));
+		hmp = hmp_faster_domain(cpu);
+
+	lowest_ratio = hmp_domain_min_load(hmp, &lowest_cpu,
+			tsk_cpus_allowed(tsk));
+
+	return lowest_cpu;
 }
 
 /*
@@ -3754,16 +3755,10 @@ static inline unsigned int hmp_select_slower_cpu(struct task_struct *tsk,
 	else
 		hmp = hmp_slower_domain(cpu);
 
-	lowest_ratio = hmp_domain_min_load(hmp, &lowest_cpu);
-	/*
-	 * If the lowest-loaded CPU in the domain is allowed by the task affinity
-	 * select that one, otherwise select one which is allowed
-	 */
-	if(lowest_cpu != NR_CPUS && cpumask_test_cpu(lowest_cpu,tsk_cpus_allowed(tsk)))
-		return lowest_cpu;
-	else
-		return cpumask_any_and(&hmp_slower_domain(cpu)->cpus,
-				tsk_cpus_allowed(tsk));
+	lowest_ratio = hmp_domain_min_load(hmp, &lowest_cpu,
+			tsk_cpus_allowed(tsk));
+
+	return lowest_cpu;
 }
 
 static inline void hmp_next_up_delay(struct sched_entity *se, int cpu)
@@ -3949,9 +3944,24 @@ static int hmp_attr_init(void)
 }
 late_initcall(hmp_attr_init);
 #endif /* CONFIG_HMP_VARIABLE_SCALE */
-
+/*
+ * return the load of the lowest-loaded CPU in a given HMP domain
+ * min_cpu optionally points to an int to receive the CPU.
+ * affinity optionally points to a cpumask containing the
+ * CPUs to be considered. note:
+ *   + min_cpu = NR_CPUS only if no CPUs are in the set of
+ *     affinity && hmp_domain cpus
+ *   + min_cpu will always otherwise equal one of the CPUs in
+ *     the hmp domain
+ *   + when more than one CPU has the same load, the one which
+ *     is least-recently-disturbed by an HMP migration will be
+ *     selected
+ *   + if all CPUs are equally loaded or idle and the times are
+ *     all the same, the first in the set will be used
+ *   + if affinity is not set, cpu_online_mask is used
+ */
 static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
-						int *min_cpu)
+						int *min_cpu, struct cpumask *affinity)
 {
 	int cpu;
 	int min_cpu_runnable_temp = NR_CPUS;
@@ -3960,8 +3970,15 @@ static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 	unsigned long min_runnable_load = INT_MAX;
 	unsigned long contrib;
 	struct sched_avg *avg;
+	struct cpumask temp_cpumask;
+	/*
+	 * only look at CPUs allowed if specified,
+	 * otherwise look at all online CPUs in the
+	 * right HMP domain
+	 */
+	cpumask_and(&temp_cpumask, &hmpd->cpus, affinity ? affinity : cpu_online_mask);
 
-	for_each_cpu_mask(cpu, hmpd->cpus) {
+	for_each_cpu_mask(cpu, temp_cpumask) {
 		avg = &cpu_rq(cpu)->avg;
 		/* used for both up and down migration */
 		curr_last_migration = avg->hmp_last_up_migration ?
@@ -4023,7 +4040,7 @@ static inline unsigned int hmp_offload_down(int cpu, struct sched_entity *se)
 		return NR_CPUS;
 
 	/* Is there an idle CPU in the current domain */
-	min_usage = hmp_domain_min_load(hmp_cpu_domain(cpu), NULL);
+	min_usage = hmp_domain_min_load(hmp_cpu_domain(cpu), NULL, NULL);
 	if (min_usage == 0) {
 		trace_sched_hmp_offload_abort(cpu, min_usage, "load");
 		return NR_CPUS;
@@ -4045,17 +4062,14 @@ static inline unsigned int hmp_offload_down(int cpu, struct sched_entity *se)
 	}
 
 	/* Does the slower domain have any idle CPUs? */
-	min_usage = hmp_domain_min_load(hmp_slower_domain(cpu), &dest_cpu);
-	if (min_usage > 0) {
-		trace_sched_hmp_offload_abort(cpu, min_usage, "slowdomain");
-		return NR_CPUS;
-	}
+	min_usage = hmp_domain_min_load(hmp_slower_domain(cpu), &dest_cpu,
+			tsk_cpus_allowed(task_of(se)));
 
-	if (cpumask_test_cpu(dest_cpu, &hmp_slower_domain(cpu)->cpus)) {
+	if (min_usage == 0) {
 		trace_sched_hmp_offload_succeed(cpu, dest_cpu);
 		return dest_cpu;
-	}
-
+	} else
+		trace_sched_hmp_offload_abort(cpu,min_usage,"slowdomain");
 	return NR_CPUS;
 }
 #endif /* CONFIG_SCHED_HMP */
@@ -4087,30 +4101,13 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 #ifdef CONFIG_SCHED_HMP
 	/* always put non-kernel forking tasks on a big domain */
 	if (p->mm && (sd_flag & SD_BALANCE_FORK)) {
-		if(hmp_cpu_is_fastest(prev_cpu)) {
-			struct hmp_domain *hmpdom = list_entry(&hmp_cpu_domain(prev_cpu)->hmp_domains, struct hmp_domain, hmp_domains);
-			__always_unused int lowest_ratio = hmp_domain_min_load(hmpdom, &new_cpu);
-			if (new_cpu != NR_CPUS &&
-				cpumask_test_cpu(new_cpu,
-						tsk_cpus_allowed(p))) {
-				hmp_next_up_delay(&p->se, new_cpu);
-				return new_cpu;
-			} else {
-				new_cpu = cpumask_any_and(
-						&hmp_faster_domain(cpu)->cpus,
-						tsk_cpus_allowed(p));
-				if (new_cpu < nr_cpu_ids) {
-					hmp_next_up_delay(&p->se, new_cpu);
-					return new_cpu;
-				}
-			}
-		} else {
-			new_cpu = hmp_select_faster_cpu(p, prev_cpu);
-			if (new_cpu != NR_CPUS) {
-				hmp_next_up_delay(&p->se, new_cpu);
-				return new_cpu;
-			}
+		new_cpu = hmp_select_faster_cpu(p, prev_cpu);
+		if (new_cpu != NR_CPUS) {
+			hmp_next_up_delay(&p->se, new_cpu);
+			return new_cpu;
 		}
+		/* failed to perform HMP fork balance, use normal balance */
+		new_cpu = cpu;
 	}
 #endif
 
@@ -4189,6 +4186,8 @@ unlock:
 	rcu_read_unlock();
 
 #ifdef CONFIG_SCHED_HMP
+	prev_cpu = task_cpu(p);
+
 	if (hmp_up_migration(prev_cpu, &new_cpu, &p->se)) {
 		hmp_next_up_delay(&p->se, new_cpu);
 		trace_sched_hmp_migrate(p, new_cpu, HMP_MIGRATE_WAKEUP);
@@ -6500,10 +6499,8 @@ static void nohz_idle_balance(int this_cpu, enum cpu_idle_type idle) { }
 static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_entity *se)
 {
 	struct task_struct *p = task_of(se);
+	int temp_target_cpu;
 	u64 now;
-
-	if (target_cpu)
-		*target_cpu = NR_CPUS;
 
 	if (hmp_cpu_is_fastest(cpu))
 		return 0;
@@ -6527,13 +6524,12 @@ static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_enti
 	 * idle CPU or 1023 for any partly-busy one.
 	 * Be explicit about requirement for an idle CPU.
 	 */
-	if (hmp_domain_min_load(hmp_faster_domain(cpu), target_cpu) != 0)
-		return 0;
-
-	if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
-			tsk_cpus_allowed(p)))
+	if (hmp_domain_min_load(hmp_faster_domain(cpu), &temp_target_cpu,
+			tsk_cpus_allowed(p)) == 0 && temp_target_cpu != NR_CPUS) {
+		if(target_cpu)
+			*target_cpu = temp_target_cpu;
 		return 1;
-
+	}
 	return 0;
 }
 
