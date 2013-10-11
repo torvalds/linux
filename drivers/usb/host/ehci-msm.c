@@ -108,10 +108,14 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	 * powering up VBUS, mapping of registers address space and power
 	 * management.
 	 */
-	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+	if (pdev->dev.of_node)
+		phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
+	else
+		phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
+
 	if (IS_ERR(phy)) {
 		dev_err(&pdev->dev, "unable to find transceiver\n");
-		ret = -ENODEV;
+		ret = -EPROBE_DEFER;
 		goto put_hcd;
 	}
 
@@ -187,12 +191,19 @@ static const struct dev_pm_ops ehci_msm_dev_pm_ops = {
 	.resume          = ehci_msm_pm_resume,
 };
 
+static struct of_device_id msm_ehci_dt_match[] = {
+	{ .compatible = "qcom,ehci-host", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, msm_ehci_dt_match);
+
 static struct platform_driver ehci_msm_driver = {
 	.probe	= ehci_msm_probe,
 	.remove	= ehci_msm_remove,
 	.driver = {
 		   .name = "msm_hsusb_host",
 		   .pm = &ehci_msm_dev_pm_ops,
+		   .of_match_table = msm_ehci_dt_match,
 	},
 };
 
