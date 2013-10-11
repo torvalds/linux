@@ -47,7 +47,7 @@ nouveau_mc_intr(int irq, void *arg)
 	}
 
 	if (pmc->use_msi)
-		nv_wr08(pmc->base.base.parent, 0x00088068, 0xff);
+		nv_wr08(pmc, 0x088068, 0xff);
 
 	if (intr) {
 		nv_error(pmc, "unknown intr 0x%08x\n", stat);
@@ -115,7 +115,7 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 			pmc->use_msi = pci_enable_msi(device->pdev) == 0;
 			if (pmc->use_msi) {
 				nv_info(pmc, "MSI interrupts enabled\n");
-				nv_wr08(device, 0x00088068, 0xff);
+				nv_wr08(pmc, 0x088068, 0xff);
 			}
 		}
 		break;
