@@ -562,8 +562,8 @@ static int hci_create_le_conn(struct hci_conn *conn)
 	hci_req_init(&req, hdev);
 
 	memset(&cp, 0, sizeof(cp));
-	cp.scan_interval = __constant_cpu_to_le16(0x0060);
-	cp.scan_window = __constant_cpu_to_le16(0x0030);
+	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
+	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
 	if (bacmp(&hdev->bdaddr, BDADDR_ANY))

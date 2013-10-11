@@ -2273,6 +2273,9 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
 
+	hdev->le_scan_interval = 0x0060;
+	hdev->le_scan_window = 0x0030;
+
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
 
