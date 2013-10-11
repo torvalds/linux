@@ -80,4 +80,9 @@ extern void __init of_at91sam9x5_clk_master_setup(struct device_node *np,
 extern void __init of_at91rm9200_clk_sys_setup(struct device_node *np,
 					       struct at91_pmc *pmc);
 
+extern void __init of_at91rm9200_clk_periph_setup(struct device_node *np,
+						  struct at91_pmc *pmc);
+extern void __init of_at91sam9x5_clk_periph_setup(struct device_node *np,
+						  struct at91_pmc *pmc);
+
 #endif /* __PMC_H_ */
