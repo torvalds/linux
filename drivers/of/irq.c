@@ -101,9 +101,9 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
 
-	pr_debug("of_irq_parse_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
-		 of_node_full_name(out_irq->np), out_irq->args[0], out_irq->args[1],
-		 out_irq->args_count);
+#ifdef DEBUG
+	of_print_phandle_args("of_irq_parse_raw: ", out_irq);
+#endif
 
 	ipar = of_node_get(out_irq->np);
 
