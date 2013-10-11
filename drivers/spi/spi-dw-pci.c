@@ -40,7 +40,7 @@ static int spi_pci_probe(struct pci_dev *pdev,
 	int pci_bar = 0;
 	int ret;
 
-	printk(KERN_INFO "DW: found PCI SPI controller(ID: %04x:%04x)\n",
+	dev_info(&pdev->dev, "found PCI SPI controller(ID: %04x:%04x)\n",
 		pdev->vendor, pdev->device);
 
 	ret = pci_enable_device(pdev);
