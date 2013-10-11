@@ -1491,8 +1491,6 @@ sitd_slot_ok (
  * given EHCI_TUNE_FLS and the slop).  Or, write a smarter scheduler!
  */
 
-#define SCHEDULING_DELAY	40	/* microframes */
-
 static int
 iso_stream_schedule (
 	struct ehci_hcd		*ehci,
@@ -1506,26 +1504,12 @@ iso_stream_schedule (
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
 	bool			empty = list_empty(&stream->td_list);
+	bool			new_stream = false;
 
 	period = stream->uperiod;
 	span = sched->span;
 	if (!stream->highspeed)
 		span <<= 3;
-
-	now = ehci_read_frame_index(ehci) & (mod - 1);
-
-	/* Take the isochronous scheduling threshold into account */
-	if (ehci->i_thresh)
-		next = now + ehci->i_thresh;	/* uframe cache */
-	else
-		next = (now + 2 + 7) & ~0x07;	/* full frame cache */
-
-	/*
-	 * Use ehci->last_iso_frame as the base.  There can't be any
-	 * TDs scheduled for earlier than that.
-	 */
-	base = ehci->last_iso_frame << 3;
-	next = (next - base) & (mod - 1);
 
 	/* Start a new isochronous stream? */
 	if (unlikely(empty && !hcd_periodic_completion_in_progress(
@@ -1542,7 +1526,7 @@ iso_stream_schedule (
 			}
 			compute_tt_budget(ehci->tt_budget, tt);
 
-			start = (now & ~0x07) + SCHEDULING_DELAY;
+			start = ((-(++ehci->random_frame)) << 3) & (period - 1);
 
 			/* find a uframe slot with enough bandwidth.
 			 * Early uframes are more precious because full-speed
@@ -1585,9 +1569,28 @@ iso_stream_schedule (
 			start = (stream->ps.phase << 3) + stream->ps.phase_uf;
 		}
 
-		start = (start - base) & (mod - 1);
-		goto use_start;
+		stream->next_uframe = start;
+		new_stream = true;
 	}
+
+	now = ehci_read_frame_index(ehci) & (mod - 1);
+
+	/* Take the isochronous scheduling threshold into account */
+	if (ehci->i_thresh)
+		next = now + ehci->i_thresh;	/* uframe cache */
+	else
+		next = (now + 2 + 7) & ~0x07;	/* full frame cache */
+
+	/*
+	 * Use ehci->last_iso_frame as the base.  There can't be any
+	 * TDs scheduled for earlier than that.
+	 */
+	base = ehci->last_iso_frame << 3;
+	next = (next - base) & (mod - 1);
+	start = (stream->next_uframe - base) & (mod - 1);
+
+	if (unlikely(new_stream))
+		goto do_ASAP;
 
 	/*
 	 * Typical case: reuse current schedule, stream may still be active.
@@ -1595,7 +1598,6 @@ iso_stream_schedule (
 	 * (irq delays etc).  If there are, the behavior depends on
 	 * whether URB_ISO_ASAP is set.
 	 */
-	start = (stream->next_uframe - base) & (mod - 1);
 	now2 = (now - base) & (mod - 1);
 
 	/* Is the schedule already full? */
