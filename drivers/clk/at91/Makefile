@@ -3,4 +3,4 @@
 #
 
 obj-y += pmc.o
-obj-y += clk-main.o clk-pll.o clk-plldiv.o
+obj-y += clk-main.o clk-pll.o clk-plldiv.o clk-master.o

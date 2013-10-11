@@ -80,6 +80,8 @@ static int clk_pll_prepare(struct clk_hw *hw)
 	struct clk_pll *pll = to_clk_pll(hw);
 	struct at91_pmc *pmc = pll->pmc;
 	const struct clk_pll_layout *layout = pll->layout;
+	const struct clk_pll_characteristics *characteristics =
+							pll->characteristics;
 	u8 id = pll->id;
 	u32 mask = PLL_STATUS_MASK(id);
 	int offset = PLL_REG(id);
@@ -269,18 +271,10 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
-	struct at91_pmc *pmc = pll->pmc;
-	const struct clk_pll_layout *layout = pll->layout;
-	const struct clk_pll_characteristics *characteristics =
-						pll->characteristics;
-	u8 id = pll->id;
-	int offset = PLL_REG(id);
 	long ret;
 	u32 div;
 	u32 mul;
 	u32 index;
-	u32 tmp;
-	u8 out = 0;
 
 	ret = clk_pll_get_best_div_mul(pll, rate, parent_rate,
 				       &div, &mul, &index);

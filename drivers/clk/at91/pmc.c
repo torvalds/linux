@@ -255,6 +255,15 @@ static const struct of_device_id pmc_clk_ids[] __initdata = {
 		.compatible = "atmel,at91sam9x5-clk-plldiv",
 		.data = of_at91sam9x5_clk_plldiv_setup,
 	},
+	/* Master clock */
+	{
+		.compatible = "atmel,at91rm9200-clk-master",
+		.data = of_at91rm9200_clk_master_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-master",
+		.data = of_at91sam9x5_clk_master_setup,
+	},
 	{ /*sentinel*/ }
 };
 
