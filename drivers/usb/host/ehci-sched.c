@@ -1055,7 +1055,7 @@ iso_stream_init (
 		} else
 			stream->raw_mask = smask_out [hs_transfers - 1];
 		bandwidth = stream->usecs + stream->c_usecs;
-		bandwidth /= interval << 3;
+		bandwidth /= interval;
 
 		/* stream->splits gets created from raw_mask later */
 		stream->address = cpu_to_hc32(ehci, addr);
