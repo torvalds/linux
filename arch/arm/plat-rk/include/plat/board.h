@@ -379,7 +379,10 @@ struct codec_platform_data {
 	int hp_pin ;
 };
 
-
+struct ac_usb_switch_platform_data {
+	int usb_switch_pin;
+	int pc_state_pin ;
+};
 struct ct360_platform_data {
 	u16		model;
 	u16		x_max;

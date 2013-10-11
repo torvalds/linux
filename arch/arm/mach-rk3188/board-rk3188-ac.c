@@ -85,6 +85,7 @@ static struct rk29_keys_button key_button[] = {
 		.active_low = PRESS_LEV_LOW,
 		.wakeup	= 1,
 	},
+/*	
 	{
 		.desc	= "esc",
 		.code	= KEY_BACK,
@@ -92,6 +93,19 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
+	*/
+	{
+                .desc   = "mode_switch",
+                .code   = KEY_MODE_SWITCH,
+                //.desc   = "vol+",
+                //.code   = KEY_VOLUMEUP,
+                
+                .adc_value      = 1,
+                .gpio = INVALID_GPIO,
+                .active_low = PRESS_LEV_LOW,
+               .wakeup = 1
+        },
+	
 };
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
@@ -1329,6 +1343,19 @@ static struct platform_device device_tcc_bt = {
 };
 #endif
 
+#if defined(CONFIG_AC_USB_SWITCH)
+static struct ac_usb_switch_platform_data  ac_usb_switch_platdata= {
+	.usb_switch_pin = RK30_PIN3_PB2,
+	.pc_state_pin = INVALID_GPIO,
+};
+static struct platform_device device_ac_usb_switch = {
+	.name   = "ac_usb_switch",
+    	.id     = -1,
+    	.dev    = {
+       	.platform_data = &ac_usb_switch_platdata,
+    	},
+};
+#endif
 
 static struct platform_device *devices[] __initdata = {
 
@@ -1364,6 +1391,9 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_TCC_BT_DEV
         &device_tcc_bt,
+#endif
+#if defined(CONFIG_AC_USB_SWITCH)
+	&device_ac_usb_switch,
 #endif
 };
 

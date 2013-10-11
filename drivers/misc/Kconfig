@@ -562,6 +562,9 @@ config TCC_BT_DEV
 	default n
 	help
 	  If you say Y here, you can contorl the power of the BT H/W Module
+config AC_USB_SWITCH
+	bool "for androidComputer external usb devices switch"
+	default n
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
