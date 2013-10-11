@@ -518,6 +518,12 @@ i915_pipe_enabled(struct drm_device *dev, int pipe)
 	}
 }
 
+static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
+{
+	/* Gen2 doesn't have a hardware frame counter */
+	return 0;
+}
+
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
@@ -3245,7 +3251,10 @@ void intel_irq_init(struct drm_device *dev)
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	if (IS_GEN2(dev)) {
+		dev->max_vblank_count = 0;
+		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
+	} else if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	} else {
