@@ -399,8 +399,7 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 	return ret;
 }
 
-static void cleanup_timers_list(struct list_head *head,
-				unsigned long long curr)
+static void cleanup_timers_list(struct list_head *head)
 {
 	struct cpu_timer_list *timer, *next;
 
@@ -414,16 +413,11 @@ static void cleanup_timers_list(struct list_head *head,
  * time for later timer_gettime calls to return.
  * This must be called with the siglock held.
  */
-static void cleanup_timers(struct list_head *head,
-			   cputime_t utime, cputime_t stime,
-			   unsigned long long sum_exec_runtime)
+static void cleanup_timers(struct list_head *head)
 {
-
-	cputime_t ptime = utime + stime;
-
-	cleanup_timers_list(head, cputime_to_expires(ptime));
-	cleanup_timers_list(++head, cputime_to_expires(utime));
-	cleanup_timers_list(++head, sum_exec_runtime);
+	cleanup_timers_list(head);
+	cleanup_timers_list(++head);
+	cleanup_timers_list(++head);
 }
 
 /*
@@ -433,24 +427,14 @@ static void cleanup_timers(struct list_head *head,
  */
 void posix_cpu_timers_exit(struct task_struct *tsk)
 {
-	cputime_t utime, stime;
-
 	add_device_randomness((const void*) &tsk->se.sum_exec_runtime,
 						sizeof(unsigned long long));
-	task_cputime(tsk, &utime, &stime);
-	cleanup_timers(tsk->cpu_timers,
-		       utime, stime, tsk->se.sum_exec_runtime);
+	cleanup_timers(tsk->cpu_timers);
 
 }
 void posix_cpu_timers_exit_group(struct task_struct *tsk)
 {
-	struct signal_struct *const sig = tsk->signal;
-	cputime_t utime, stime;
-
-	task_cputime(tsk, &utime, &stime);
-	cleanup_timers(tsk->signal->cpu_timers,
-		       utime + sig->utime, stime + sig->stime,
-		       tsk->se.sum_exec_runtime + sig->sum_sched_runtime);
+	cleanup_timers(tsk->signal->cpu_timers);
 }
 
 static inline int expires_gt(cputime_t expires, cputime_t new_exp)
