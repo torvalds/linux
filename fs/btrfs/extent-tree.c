@@ -1979,7 +1979,6 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_item *item;
 	u64 refs;
 	int ret;
-	int err = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1992,13 +1991,8 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 					   path, bytenr, num_bytes, parent,
 					   root_objectid, owner, offset,
 					   refs_to_add, extent_op);
-	if (ret == 0)
+	if (ret != -EAGAIN)
 		goto out;
-
-	if (ret != -EAGAIN) {
-		err = ret;
-		goto out;
-	}
 
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
@@ -2021,7 +2015,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, root, ret);
 out:
 	btrfs_free_path(path);
-	return err;
+	return ret;
 }
 
 static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
