@@ -2676,7 +2676,6 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	/* enable the endpoint interrupt */
 	s3c_hsotg_ctrl_epint(hsotg, index, dir_in, 1);
 
-out:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return ret;
 }
