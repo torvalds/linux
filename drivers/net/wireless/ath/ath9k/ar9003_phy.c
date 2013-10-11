@@ -564,7 +564,7 @@ static void ar9003_hw_set_channel_regs(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_GEN_CTRL, phymode);
 
 	/* Configure MAC for 20/40 operation */
-	ath9k_hw_set11nmac2040(ah);
+	ath9k_hw_set11nmac2040(ah, chan);
 
 	/* global transmit timeout (25 TUs default)*/
 	REG_WRITE(ah, AR_GTXTO, 25 << AR_GTXTO_TIMEOUT_LIMIT_S);

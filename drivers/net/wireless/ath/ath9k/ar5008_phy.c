@@ -672,7 +672,7 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 	}
 	REG_WRITE(ah, AR_PHY_TURBO, phymode);
 
-	ath9k_hw_set11nmac2040(ah);
+	ath9k_hw_set11nmac2040(ah, chan);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 

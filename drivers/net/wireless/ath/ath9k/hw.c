@@ -130,29 +130,29 @@ void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause)
 
 static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_channel *chan = ah->curchan;
 	unsigned int clockrate;
 
 	/* AR9287 v1.3+ uses async FIFO and runs the MAC at 117 MHz */
 	if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah))
 		clockrate = 117;
-	else if (!ah->curchan) /* should really check for CCK instead */
+	else if (!chan) /* should really check for CCK instead */
 		clockrate = ATH9K_CLOCK_RATE_CCK;
-	else if (conf->chandef.chan->band == IEEE80211_BAND_2GHZ)
+	else if (IS_CHAN_2GHZ(chan))
 		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
 	else if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
 		clockrate = ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
 	else
 		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
 
-	if (conf_is_ht40(conf))
+	if (IS_CHAN_HT40(chan))
 		clockrate *= 2;
 
 	if (ah->curchan) {
-		if (IS_CHAN_HALF_RATE(ah->curchan))
+		if (IS_CHAN_HALF_RATE(chan))
 			clockrate /= 2;
-		if (IS_CHAN_QUARTER_RATE(ah->curchan))
+		if (IS_CHAN_QUARTER_RATE(chan))
 			clockrate /= 4;
 	}
 
@@ -1038,7 +1038,6 @@ static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 void ath9k_hw_init_global_settings(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_conf *conf = &common->hw->conf;
 	const struct ath9k_channel *chan = ah->curchan;
 	int acktimeout, ctstimeout, ack_offset = 0;
 	int slottime;
@@ -1113,8 +1112,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	 * BA frames in some implementations, but it has been found to fix ACK
 	 * timeout issues in other cases as well.
 	 */
-	if (conf->chandef.chan &&
-	    conf->chandef.chan->band == IEEE80211_BAND_2GHZ &&
+	if (IS_CHAN_2GHZ(chan) &&
 	    !IS_CHAN_HALF_RATE(chan) && !IS_CHAN_QUARTER_RATE(chan)) {
 		acktimeout += 64 - sifstime - ah->slottime;
 		ctstimeout += 48 - sifstime - ah->slottime;
@@ -2946,12 +2944,11 @@ void ath9k_hw_set_tsfadjust(struct ath_hw *ah, bool set)
 }
 EXPORT_SYMBOL(ath9k_hw_set_tsfadjust);
 
-void ath9k_hw_set11nmac2040(struct ath_hw *ah)
+void ath9k_hw_set11nmac2040(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	u32 macmode;
 
-	if (conf_is_ht40(conf) && !ah->config.cwm_ignore_extcca)
+	if (IS_CHAN_HT40(chan) && !ah->config.cwm_ignore_extcca)
 		macmode = AR_2040_JOINED_RX_CLEAR;
 	else
 		macmode = 0;
