@@ -1169,6 +1169,93 @@ static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
 }
 
+/* Helpers for capability flags */
+
+static inline bool
+rt2x00_has_cap_flag(struct rt2x00_dev *rt2x00dev,
+		    enum rt2x00_capability_flags cap_flag)
+{
+	return test_bit(cap_flag, &rt2x00dev->cap_flags);
+}
+
+static inline bool
+rt2x00_has_cap_hw_crypto(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_HW_CRYPTO);
+}
+
+static inline bool
+rt2x00_has_cap_power_limit(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_POWER_LIMIT);
+}
+
+static inline bool
+rt2x00_has_cap_control_filters(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_CONTROL_FILTERS);
+}
+
+static inline bool
+rt2x00_has_cap_control_filter_pspoll(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_CONTROL_FILTER_PSPOLL);
+}
+
+static inline bool
+rt2x00_has_cap_pre_tbtt_interrupt(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_PRE_TBTT_INTERRUPT);
+}
+
+static inline bool
+rt2x00_has_cap_link_tuning(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_LINK_TUNING);
+}
+
+static inline bool
+rt2x00_has_cap_frame_type(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_FRAME_TYPE);
+}
+
+static inline bool
+rt2x00_has_cap_rf_sequence(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_RF_SEQUENCE);
+}
+
+static inline bool
+rt2x00_has_cap_external_lna_a(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_A);
+}
+
+static inline bool
+rt2x00_has_cap_external_lna_bg(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_BG);
+}
+
+static inline bool
+rt2x00_has_cap_double_antenna(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_DOUBLE_ANTENNA);
+}
+
+static inline bool
+rt2x00_has_cap_bt_coexist(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_BT_COEXIST);
+}
+
+static inline bool
+rt2x00_has_cap_vco_recalibration(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_VCO_RECALIBRATION);
+}
+
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @entry: Pointer to &struct queue_entry
