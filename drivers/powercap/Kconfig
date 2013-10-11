@@ -1,0 +1,19 @@
+#
+# Generic power capping sysfs interface configuration
+#
+
+menuconfig POWERCAP
+	bool "Generic powercap sysfs driver"
+	help
+	  The power capping sysfs interface allows kernel subsystems to expose power
+	  capping settings to user space in a consistent way.  Usually, it consists
+	  of multiple control types that determine which settings may be exposed and
+	  power zones representing parts of the system that can be subject to power
+	  capping.
+
+	  If you want this code to be compiled in, say Y here.
+
+if POWERCAP
+# Client driver configurations go here.
+
+endif
