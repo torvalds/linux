@@ -78,6 +78,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_ADVERTISING,
 	MGMT_OP_SET_BREDR,
 	MGMT_OP_SET_STATIC_ADDRESS,
+	MGMT_OP_SET_SCAN_PARAMS,
 };
 
 static const u16 mgmt_events[] = {
