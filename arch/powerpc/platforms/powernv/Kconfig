@@ -9,6 +9,7 @@ config PPC_POWERNV
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550
+	select ARCH_RANDOM
 	default y
 
 config POWERNV_MSI

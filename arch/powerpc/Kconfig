@@ -1012,6 +1012,9 @@ config PHYSICAL_START
 	default "0x00000000"
 endif
 
+config	ARCH_RANDOM
+	def_bool n
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"

@@ -263,6 +263,10 @@ struct machdep_calls {
 	ssize_t (*cpu_probe)(const char *, size_t);
 	ssize_t (*cpu_release)(const char *, size_t);
 #endif
+
+#ifdef CONFIG_ARCH_RANDOM
+	int (*get_random_long)(unsigned long *v);
+#endif
 };
 
 extern void e500_idle(void);
