@@ -103,7 +103,7 @@
  *	rsnd_platform functions
  */
 #define rsnd_platform_call(priv, dai, func, param...)	\
-	(!(priv->info->func) ? -ENODEV :		\
+	(!(priv->info->func) ? 0 :		\
 	 priv->info->func(param))
 
 
