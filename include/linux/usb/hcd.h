@@ -506,6 +506,7 @@ struct usb_tt {
 	struct usb_device	*hub;	/* upstream highspeed hub */
 	int			multi;	/* true means one TT per port */
 	unsigned		think_time;	/* think time in ns */
+	void			*hcpriv;	/* HCD private data */
 
 	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
 	spinlock_t		lock;
