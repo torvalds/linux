@@ -80,6 +80,14 @@
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
 	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+		status = "okay";
+	};
 };
 
 &audmux {
@@ -202,6 +210,12 @@
 			};
 		};
 	};
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_1>;
+	status = "okay";
 };
 
 &ssi2 {
