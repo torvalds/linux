@@ -573,8 +573,8 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 			write_SSTO(0, reg);
 		write_SSSR_CS(drv_data, drv_data->clear_sr);
 
-		dev_err(&drv_data->pdev->dev, "bad message state "
-			"in interrupt handler\n");
+		dev_err(&drv_data->pdev->dev,
+			"bad message state in interrupt handler\n");
 
 		/* Never fail */
 		return IRQ_HANDLED;
@@ -651,8 +651,8 @@ static void pump_transfers(unsigned long data)
 		if (message->is_dma_mapped
 				|| transfer->rx_dma || transfer->tx_dma) {
 			dev_err(&drv_data->pdev->dev,
-				"pump_transfers: mapped transfer length "
-				"of %u is greater than %d\n",
+				"pump_transfers: mapped transfer length of "
+				"%u is greater than %d\n",
 				transfer->len, MAX_DMA_LEN);
 			message->status = -EINVAL;
 			giveback(drv_data);
@@ -660,11 +660,10 @@ static void pump_transfers(unsigned long data)
 		}
 
 		/* warn ... we force this to PIO mode */
-		if (printk_ratelimit())
-			dev_warn(&message->spi->dev, "pump_transfers: "
-				"DMA disabled for transfer length %ld "
-				"greater than %d\n",
-				(long)drv_data->len, MAX_DMA_LEN);
+		dev_warn_ratelimited(&message->spi->dev,
+				     "pump_transfers: DMA disabled for transfer length %ld "
+				     "greater than %d\n",
+				     (long)drv_data->len, MAX_DMA_LEN);
 	}
 
 	/* Setup the transfer state based on the type of transfer */
@@ -726,11 +725,8 @@ static void pump_transfers(unsigned long data)
 							message->spi,
 							bits, &dma_burst,
 							&dma_thresh))
-				if (printk_ratelimit())
-					dev_warn(&message->spi->dev,
-						"pump_transfers: "
-						"DMA burst size reduced to "
-						"match bits_per_word\n");
+				dev_warn_ratelimited(&message->spi->dev,
+						     "pump_transfers: DMA burst size reduced to match bits_per_word\n");
 		}
 
 		cr0 = clk_div
@@ -854,8 +850,8 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 	if (gpio_is_valid(chip_info->gpio_cs)) {
 		err = gpio_request(chip_info->gpio_cs, "SPI_CS");
 		if (err) {
-			dev_err(&spi->dev, "failed to request chip select "
-					"GPIO%d\n", chip_info->gpio_cs);
+			dev_err(&spi->dev, "failed to request chip select GPIO%d\n",
+				chip_info->gpio_cs);
 			return err;
 		}
 
@@ -899,8 +895,8 @@ static int setup(struct spi_device *spi)
 
 		if (drv_data->ssp_type == CE4100_SSP) {
 			if (spi->chip_select > 4) {
-				dev_err(&spi->dev, "failed setup: "
-				"cs number must not be > 4.\n");
+				dev_err(&spi->dev,
+					"failed setup: cs number must not be > 4.\n");
 				kfree(chip);
 				return -EINVAL;
 			}
@@ -956,8 +952,8 @@ static int setup(struct spi_device *spi)
 						spi->bits_per_word,
 						&chip->dma_burst_size,
 						&chip->dma_threshold)) {
-			dev_warn(&spi->dev, "in setup: DMA burst size reduced "
-					"to match bits_per_word\n");
+			dev_warn(&spi->dev,
+				 "in setup: DMA burst size reduced to match bits_per_word\n");
 		}
 	}
 
