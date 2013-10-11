@@ -81,7 +81,6 @@
 		compatible = "nvidia,tegra124-rtc", "nvidia,tegra20-rtc";
 		reg = <0x7000e000 0x100>;
 		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 	};
 
 	pmc@7000e400 {
