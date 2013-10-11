@@ -428,9 +428,10 @@ static void bcm_kona_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	while ((sta = readl(reg_base + GPIO_INT_STATUS(bank_id)) &
 		    (~(readl(reg_base + GPIO_INT_MASK(bank_id)))))) {
 		for_each_set_bit(bit, &sta, 32) {
-			int gpio = GPIO_PER_BANK * bank_id + bit;
-			int virq = irq_find_mapping(bank->kona_gpio->irq_domain,
-						    gpio);
+			int hwirq = GPIO_PER_BANK * bank_id + bit;
+			int child_irq =
+				irq_find_mapping(bank->kona_gpio->irq_domain,
+						 hwirq);
 			/*
 			 * Clear interrupt before handler is called so we don't
 			 * miss any interrupt occurred during executing them.
@@ -438,7 +439,7 @@ static void bcm_kona_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			writel(readl(reg_base + GPIO_INT_STATUS(bank_id)) |
 			       BIT(bit), reg_base + GPIO_INT_STATUS(bank_id));
 			/* Invoke interrupt handler */
-			generic_handle_irq(virq);
+			generic_handle_irq(child_irq);
 		}
 	}
 
@@ -487,10 +488,10 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static void bcm_kona_gpio_irq_unmap(struct irq_domain *d, unsigned int virq)
+static void bcm_kona_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
-	irq_set_chip_and_handler(virq, NULL, NULL);
-	irq_set_chip_data(virq, NULL);
+	irq_set_chip_and_handler(irq, NULL, NULL);
+	irq_set_chip_data(irq, NULL);
 }
 
 static struct irq_domain_ops bcm_kona_irq_ops = {
