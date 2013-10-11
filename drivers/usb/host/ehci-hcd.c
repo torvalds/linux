@@ -1029,7 +1029,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			 * while the QH is active.  Unlink it now;
 			 * re-linking will call qh_refresh().
 			 */
-			usb_settoggle(qh->dev, epnum, is_out, 0);
+			usb_settoggle(qh->ps.udev, epnum, is_out, 0);
 			qh->exception = 1;
 			if (eptype == USB_ENDPOINT_XFER_BULK)
 				start_unlink_async(ehci, qh);

@@ -121,11 +121,11 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 			hw = q->qh->hw;
 			/* is it in the S-mask? */
 			if (hw->hw_info2 & cpu_to_hc32(ehci, 1 << uframe))
-				usecs += q->qh->usecs;
+				usecs += q->qh->ps.usecs;
 			/* ... or C-mask? */
 			if (hw->hw_info2 & cpu_to_hc32(ehci,
 					1 << (8 + uframe)))
-				usecs += q->qh->c_usecs;
+				usecs += q->qh->ps.c_usecs;
 			hw_p = &hw->hw_next;
 			q = &q->qh->qh_next;
 			break;
@@ -142,7 +142,7 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 			break;
 		case Q_TYPE_ITD:
 			if (q->itd->hw_transaction[uframe])
-				usecs += q->itd->stream->usecs;
+				usecs += q->itd->stream->ps.usecs;
 			hw_p = &q->itd->hw_next;
 			q = &q->itd->itd_next;
 			break;
@@ -152,7 +152,7 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 					1 << uframe)) {
 				if (q->sitd->hw_fullspeed_ep &
 						cpu_to_hc32(ehci, 1<<31))
-					usecs += q->sitd->stream->usecs;
+					usecs += q->sitd->stream->ps.usecs;
 				else	/* worst case for OUT start-split */
 					usecs += HS_USECS_ISO (188);
 			}
@@ -161,7 +161,7 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 			if (q->sitd->hw_uframe &
 					cpu_to_hc32(ehci, 1 << (8 + uframe))) {
 				/* worst case for IN complete-split */
-				usecs += q->sitd->stream->c_usecs;
+				usecs += q->sitd->stream->ps.c_usecs;
 			}
 
 			hw_p = &q->sitd->hw_next;
@@ -258,9 +258,9 @@ periodic_tt_usecs (
 			q = &q->itd->itd_next;
 			continue;
 		case Q_TYPE_QH:
-			if (same_tt(dev, q->qh->dev)) {
+			if (same_tt(dev, q->qh->ps.udev)) {
 				uf = tt_start_uframe(ehci, q->qh->hw->hw_info2);
-				tt_usecs[uf] += q->qh->tt_usecs;
+				tt_usecs[uf] += q->qh->ps.tt_usecs;
 			}
 			hw_p = &q->qh->hw->hw_next;
 			q = &q->qh->qh_next;
@@ -268,7 +268,7 @@ periodic_tt_usecs (
 		case Q_TYPE_SITD:
 			if (same_tt(dev, q->sitd->urb->dev)) {
 				uf = tt_start_uframe(ehci, q->sitd->hw_uframe);
-				tt_usecs[uf] += q->sitd->stream->tt_usecs;
+				tt_usecs[uf] += q->sitd->stream->ps.tt_usecs;
 			}
 			hw_p = &q->sitd->hw_next;
 			q = &q->sitd->sitd_next;
@@ -391,7 +391,7 @@ static int tt_no_collision (
 				continue;
 			case Q_TYPE_QH:
 				hw = here.qh->hw;
-				if (same_tt (dev, here.qh->dev)) {
+				if (same_tt(dev, here.qh->ps.udev)) {
 					u32		mask;
 
 					mask = hc32_to_cpu(ehci,
@@ -471,19 +471,19 @@ static void disable_periodic(struct ehci_hcd *ehci)
 static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	unsigned	i;
-	unsigned	period = qh->period;
+	unsigned	period = qh->ps.period;
 
-	dev_dbg (&qh->dev->dev,
+	dev_dbg(&qh->ps.udev->dev,
 		"link qh%d-%04x/%p start %d [%d/%d us]\n",
 		period, hc32_to_cpup(ehci, &qh->hw->hw_info2)
 			& (QH_CMASK | QH_SMASK),
-		qh, qh->start, qh->usecs, qh->c_usecs);
+		qh, qh->ps.phase, qh->ps.usecs, qh->ps.c_usecs);
 
 	/* high bandwidth, or otherwise every microframe */
 	if (period == 0)
 		period = 1;
 
-	for (i = qh->start; i < ehci->periodic_size; i += period) {
+	for (i = qh->ps.phase; i < ehci->periodic_size; i += period) {
 		union ehci_shadow	*prev = &ehci->pshadow[i];
 		__hc32			*hw_p = &ehci->periodic[i];
 		union ehci_shadow	here = *prev;
@@ -503,7 +503,7 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		 * enables sharing interior tree nodes
 		 */
 		while (here.ptr && qh != here.qh) {
-			if (qh->period > here.qh->period)
+			if (qh->ps.period > here.qh->ps.period)
 				break;
 			prev = &here.qh->qh_next;
 			hw_p = &here.qh->hw->hw_next;
@@ -523,10 +523,10 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->xacterrs = 0;
 	qh->exception = 0;
 
-	/* update per-qh bandwidth for usbfs */
-	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->period
-		? ((qh->usecs + qh->c_usecs) / qh->period)
-		: (qh->usecs * 8);
+	/* update per-qh bandwidth for debugfs */
+	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->ps.period
+		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.period)
+		: (qh->ps.usecs * 8);
 
 	list_add(&qh->intr_node, &ehci->intr_qh_list);
 
@@ -556,22 +556,21 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 */
 
 	/* high bandwidth, or otherwise part of every microframe */
-	if ((period = qh->period) == 0)
-		period = 1;
+	period = qh->ps.period ? : 1;
 
-	for (i = qh->start; i < ehci->periodic_size; i += period)
+	for (i = qh->ps.phase; i < ehci->periodic_size; i += period)
 		periodic_unlink (ehci, i, qh);
 
-	/* update per-qh bandwidth for usbfs */
-	ehci_to_hcd(ehci)->self.bandwidth_allocated -= qh->period
-		? ((qh->usecs + qh->c_usecs) / qh->period)
-		: (qh->usecs * 8);
+	/* update per-qh bandwidth for debugfs */
+	ehci_to_hcd(ehci)->self.bandwidth_allocated -= qh->ps.period
+		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.period)
+		: (qh->ps.usecs * 8);
 
-	dev_dbg (&qh->dev->dev,
+	dev_dbg(&qh->ps.udev->dev,
 		"unlink qh%d-%04x/%p start %d [%d/%d us]\n",
-		qh->period,
+		qh->ps.period,
 		hc32_to_cpup(ehci, &qh->hw->hw_info2) & (QH_CMASK | QH_SMASK),
-		qh, qh->start, qh->usecs, qh->c_usecs);
+		qh, qh->ps.phase, qh->ps.usecs, qh->ps.c_usecs);
 
 	/* qh->qh_next still "live" to HC */
 	qh->qh_state = QH_STATE_UNLINK;
@@ -744,26 +743,26 @@ static int check_intr_schedule (
 	int		retval = -ENOSPC;
 	u8		mask = 0;
 
-	if (qh->c_usecs && uframe >= 6)		/* FSTN territory? */
+	if (qh->ps.c_usecs && uframe >= 6)	/* FSTN territory? */
 		goto done;
 
-	if (!check_period (ehci, frame, uframe, qh->period, qh->usecs))
+	if (!check_period(ehci, frame, uframe, qh->ps.period, qh->ps.usecs))
 		goto done;
-	if (!qh->c_usecs) {
+	if (!qh->ps.c_usecs) {
 		retval = 0;
 		*c_maskp = 0;
 		goto done;
 	}
 
 #ifdef CONFIG_USB_EHCI_TT_NEWSCHED
-	if (tt_available (ehci, qh->period, qh->dev, frame, uframe,
-				qh->tt_usecs)) {
+	if (tt_available(ehci, qh->ps.period, qh->ps.udev, frame, uframe,
+				qh->ps.tt_usecs)) {
 		unsigned i;
 
 		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
 		for (i = uframe+2; i < 8 && i <= uframe+4; i++)
-			if (!check_period (ehci, frame, i,
-						qh->period, qh->c_usecs))
+			if (!check_period(ehci, frame, i,
+					qh->ps.period, qh->ps.c_usecs))
 				goto done;
 			else
 				mask |= 1 << i;
@@ -784,12 +783,12 @@ static int check_intr_schedule (
 	*c_maskp = cpu_to_hc32(ehci, mask << 8);
 
 	mask |= 1 << uframe;
-	if (tt_no_collision (ehci, qh->period, qh->dev, frame, mask)) {
-		if (!check_period (ehci, frame, uframe + qh->gap_uf + 1,
-					qh->period, qh->c_usecs))
+	if (tt_no_collision(ehci, qh->ps.period, qh->ps.udev, frame, mask)) {
+		if (!check_period(ehci, frame, uframe + qh->gap_uf + 1,
+				qh->ps.period, qh->ps.c_usecs))
 			goto done;
-		if (!check_period (ehci, frame, uframe + qh->gap_uf,
-					qh->period, qh->c_usecs))
+		if (!check_period(ehci, frame, uframe + qh->gap_uf,
+				qh->ps.period, qh->ps.c_usecs))
 			goto done;
 		retval = 0;
 	}
@@ -810,7 +809,7 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	struct ehci_qh_hw	*hw = qh->hw;
 
 	hw->hw_next = EHCI_LIST_END(ehci);
-	frame = qh->start;
+	frame = qh->ps.phase;
 
 	/* reuse the previous schedule slots, if we can */
 	if (frame != NO_FRAME) {
@@ -828,11 +827,11 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 */
 	if (status) {
 		/* "normal" case, uframing flexible except with splits */
-		if (qh->period) {
+		if (qh->ps.period) {
 			int		i;
 
-			for (i = qh->period; status && i > 0; --i) {
-				frame = ++ehci->random_frame % qh->period;
+			for (i = qh->ps.period; status && i > 0; --i) {
+				frame = ++ehci->random_frame % qh->ps.period;
 				for (uframe = 0; uframe < 8; uframe++) {
 					status = check_intr_schedule (ehci,
 							frame, uframe, qh,
@@ -842,18 +841,18 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 				}
 			}
 
-		/* qh->period == 0 means every uframe */
+		/* qh->ps.period == 0 means every uframe */
 		} else {
 			frame = 0;
 			status = check_intr_schedule (ehci, 0, 0, qh, &c_mask);
 		}
 		if (status)
 			goto done;
-		qh->start = frame;
+		qh->ps.phase = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
 		hw->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
-		hw->hw_info2 |= qh->period
+		hw->hw_info2 |= qh->ps.period
 			? cpu_to_hc32(ehci, 1 << uframe)
 			: cpu_to_hc32(ehci, QH_SMASK);
 		hw->hw_info2 |= c_mask;
@@ -978,25 +977,24 @@ static void
 iso_stream_init (
 	struct ehci_hcd		*ehci,
 	struct ehci_iso_stream	*stream,
-	struct usb_device	*dev,
-	int			pipe,
-	unsigned		interval
+	struct urb		*urb
 )
 {
 	static const u8 smask_out [] = { 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f };
 
+	struct usb_device	*dev = urb->dev;
+	unsigned		interval = urb->interval;
 	u32			buf1;
 	unsigned		epnum, maxp;
 	int			is_input;
-	long			bandwidth;
 
 	/*
 	 * this might be a "high bandwidth" highspeed endpoint,
 	 * as encoded in the ep descriptor's wMaxPacket field
 	 */
-	epnum = usb_pipeendpoint (pipe);
-	is_input = usb_pipein (pipe) ? USB_DIR_IN : 0;
-	maxp = usb_maxpacket(dev, pipe, !is_input);
+	epnum = usb_pipeendpoint(urb->pipe);
+	is_input = usb_pipein(urb->pipe) ? USB_DIR_IN : 0;
+	maxp = usb_endpoint_maxp(&urb->ep->desc);
 	if (is_input) {
 		buf1 = (1 << 11);
 	} else {
@@ -1020,9 +1018,11 @@ iso_stream_init (
 		/* usbfs wants to report the average usecs per frame tied up
 		 * when transfers on this endpoint are scheduled ...
 		 */
-		stream->usecs = HS_USECS_ISO (maxp);
-		bandwidth = stream->usecs * 8;
-		bandwidth /= interval;
+		stream->ps.usecs = HS_USECS_ISO(maxp);
+
+		stream->bandwidth = stream->ps.usecs * 8 / interval;
+		stream->uperiod = interval;
+		stream->ps.period = interval >> 3;
 
 	} else {
 		u32		addr;
@@ -1036,17 +1036,17 @@ iso_stream_init (
 			addr |= dev->tt->hub->devnum << 16;
 		addr |= epnum << 8;
 		addr |= dev->devnum;
-		stream->usecs = HS_USECS_ISO (maxp);
+		stream->ps.usecs = HS_USECS_ISO(maxp);
 		think_time = dev->tt ? dev->tt->think_time : 0;
-		stream->tt_usecs = NS_TO_US (think_time + usb_calc_bus_time (
+		stream->ps.tt_usecs = NS_TO_US(think_time + usb_calc_bus_time(
 				dev->speed, is_input, 1, maxp));
 		hs_transfers = max (1u, (maxp + 187) / 188);
 		if (is_input) {
 			u32	tmp;
 
 			addr |= 1 << 31;
-			stream->c_usecs = stream->usecs;
-			stream->usecs = HS_USECS_ISO (1);
+			stream->ps.c_usecs = stream->ps.usecs;
+			stream->ps.usecs = HS_USECS_ISO(1);
 			stream->raw_mask = 1;
 
 			/* c-mask as specified in USB 2.0 11.18.4 3.c */
@@ -1054,18 +1054,20 @@ iso_stream_init (
 			stream->raw_mask |= tmp << (8 + 2);
 		} else
 			stream->raw_mask = smask_out [hs_transfers - 1];
-		bandwidth = stream->usecs + stream->c_usecs;
-		bandwidth /= interval;
+
+		stream->bandwidth = (stream->ps.usecs + stream->ps.c_usecs) /
+				interval;
+		stream->uperiod = interval << 3;
+		stream->ps.period = interval;
 
 		/* stream->splits gets created from raw_mask later */
 		stream->address = cpu_to_hc32(ehci, addr);
 	}
-	stream->bandwidth = bandwidth;
 
-	stream->udev = dev;
+	stream->ps.udev = dev;
+	stream->ps.ep = urb->ep;
 
 	stream->bEndpointAddress = is_input | epnum;
-	stream->interval = interval;
 	stream->maxp = maxp;
 }
 
@@ -1090,9 +1092,7 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 		stream = iso_stream_alloc(GFP_ATOMIC);
 		if (likely (stream != NULL)) {
 			ep->hcpriv = stream;
-			stream->ep = ep;
-			iso_stream_init(ehci, stream, urb->dev, urb->pipe,
-					urb->interval);
+			iso_stream_init(ehci, stream, urb);
 		}
 
 	/* if dev->ep [epnum] is a QH, hw is set */
@@ -1137,7 +1137,7 @@ itd_sched_init(
 	dma_addr_t	dma = urb->transfer_dma;
 
 	/* how many uframes are needed for these transfers */
-	iso_sched->span = urb->number_of_packets * stream->interval;
+	iso_sched->span = urb->number_of_packets * stream->uperiod;
 
 	/* figure out per-uframe itd fields that we'll need later
 	 * when we fit new itds into the schedule.
@@ -1304,14 +1304,14 @@ sitd_slot_ok (
 	 */
 	uf = uframe & 7;
 	if (!tt_available(ehci, period_uframes >> 3,
-			stream->udev, frame, uf, stream->tt_usecs))
+			stream->ps.udev, frame, uf, stream->ps.tt_usecs))
 		return 0;
 #else
 	/* tt must be idle for start(s), any gap, and csplit.
 	 * assume scheduling slop leaves 10+% for control/bulk.
 	 */
 	if (!tt_no_collision(ehci, period_uframes >> 3,
-			stream->udev, frame, mask))
+			stream->ps.udev, frame, mask))
 		return 0;
 #endif
 
@@ -1325,16 +1325,17 @@ sitd_slot_ok (
 		uf = uframe & 7;
 
 		/* check starts (OUT uses more than one) */
-		max_used = ehci->uframe_periodic_max - stream->usecs;
+		max_used = ehci->uframe_periodic_max - stream->ps.usecs;
 		for (tmp = stream->raw_mask & 0xff; tmp; tmp >>= 1, uf++) {
 			if (periodic_usecs (ehci, frame, uf) > max_used)
 				return 0;
 		}
 
 		/* for IN, check CSPLIT */
-		if (stream->c_usecs) {
+		if (stream->ps.c_usecs) {
 			uf = uframe & 7;
-			max_used = ehci->uframe_periodic_max - stream->c_usecs;
+			max_used = ehci->uframe_periodic_max -
+					stream->ps.c_usecs;
 			do {
 				tmp = 1 << uf;
 				tmp <<= 8;
@@ -1428,7 +1429,7 @@ iso_stream_schedule (
 			/* check schedule: enough space? */
 			if (stream->highspeed) {
 				if (itd_slot_ok(ehci, mod, start,
-						stream->usecs, period))
+						stream->ps.usecs, period))
 					done = 1;
 			} else {
 				if ((start % 8) >= 6)
@@ -1668,7 +1669,7 @@ static void itd_link_urb(
 
 		itd_patch(ehci, itd, iso_sched, packet, uframe);
 
-		next_uframe += stream->interval;
+		next_uframe += stream->uperiod;
 		next_uframe &= mod - 1;
 		packet++;
 
@@ -1808,9 +1809,9 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 		ehci_dbg (ehci, "can't get iso stream\n");
 		return -ENOMEM;
 	}
-	if (unlikely (urb->interval != stream->interval)) {
+	if (unlikely(urb->interval != stream->uperiod)) {
 		ehci_dbg (ehci, "can't change iso interval %d --> %d\n",
-			stream->interval, urb->interval);
+			stream->uperiod, urb->interval);
 		goto done;
 	}
 
@@ -1875,7 +1876,7 @@ sitd_sched_init(
 	dma_addr_t	dma = urb->transfer_dma;
 
 	/* how many frames are needed for these transfers */
-	iso_sched->span = urb->number_of_packets * stream->interval;
+	iso_sched->span = urb->number_of_packets * stream->ps.period;
 
 	/* figure out per-frame sitd fields that we'll need later
 	 * when we fit new sitds into the schedule.
@@ -2069,7 +2070,7 @@ static void sitd_link_urb(
 		sitd_link(ehci, (next_uframe >> 3) & (ehci->periodic_size - 1),
 				sitd);
 
-		next_uframe += stream->interval << 3;
+		next_uframe += stream->uperiod;
 	}
 	stream->next_uframe = next_uframe & (mod - 1);
 
@@ -2188,9 +2189,9 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 		ehci_dbg (ehci, "can't get iso stream\n");
 		return -ENOMEM;
 	}
-	if (urb->interval != stream->interval) {
+	if (urb->interval != stream->ps.period) {
 		ehci_dbg (ehci, "can't change iso interval %d --> %d\n",
-			stream->interval, urb->interval);
+			stream->ps.period, urb->interval);
 		goto done;
 	}
 

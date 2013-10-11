@@ -54,6 +54,19 @@ struct ehci_stats {
 	unsigned long		unlink;
 };
 
+/*
+ * Scheduling and budgeting information for periodic transfers, for both
+ * high-speed devices and full/low-speed devices lying behind a TT.
+ */
+struct ehci_per_sched {
+	struct usb_device	*udev;		/* access to the TT */
+	struct usb_host_endpoint *ep;
+	u16			tt_usecs;	/* time on the FS/LS bus */
+	u16			period;		/* actual period in frames */
+	u16			phase;		/* actual phase, frame part */
+	u8			phase_uf;	/* uframe part of the phase */
+	u8			usecs, c_usecs;	/* times on the HS bus */
+};
 #define NO_FRAME	29999			/* frame not assigned yet */
 
 /* ehci_hcd->lock guards shared data against other CPUs:
@@ -387,6 +400,7 @@ struct ehci_qh {
 	struct list_head	intr_node;	/* list of intr QHs */
 	struct ehci_qtd		*dummy;
 	struct list_head	unlink_node;
+	struct ehci_per_sched	ps;		/* scheduling info */
 
 	unsigned		unlink_cycle;
 
@@ -400,15 +414,8 @@ struct ehci_qh {
 	u8			xacterrs;	/* XactErr retry counter */
 #define	QH_XACTERR_MAX		32		/* XactErr retry limit */
 
-	/* periodic schedule info */
-	u8			usecs;		/* intr bandwidth */
 	u8			gap_uf;		/* uframes split/csplit gap */
-	u8			c_usecs;	/* ... split completion bw */
-	u16			tt_usecs;	/* tt downstream bandwidth */
-	unsigned short		period;		/* polling interval */
-	unsigned short		start;		/* where polling starts */
 
-	struct usb_device	*dev;		/* access to TT */
 	unsigned		is_out:1;	/* bulk or intr OUT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
 	unsigned		dequeue_during_giveback:1;
@@ -451,20 +458,16 @@ struct ehci_iso_stream {
 	u8			highspeed;
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
-	struct usb_device	*udev;
-	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
+	struct ehci_per_sched	ps;		/* scheduling info */
 	unsigned		next_uframe;
 	__hc32			splits;
 
 	/* the rest is derived from the endpoint descriptor,
-	 * trusting urb->interval == f(epdesc->bInterval) and
 	 * including the extra info for hw_bufp[0..2]
 	 */
-	u8			usecs, c_usecs;
-	u16			interval;
-	u16			tt_usecs;
+	u16			uperiod;	/* period in uframes */
 	u16			maxp;
 	u16			raw_mask;
 	unsigned		bandwidth;
