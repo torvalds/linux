@@ -336,12 +336,9 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_s
 		err = 0;
 
 out:
-	if (sk) {
-		if (sk->sk_state == TCP_TIME_WAIT)
-			inet_twsk_put((struct inet_timewait_sock *)sk);
-		else
-			sock_put(sk);
-	}
+	if (sk)
+		sock_gen_put(sk);
+
 out_nosk:
 	return err;
 }
