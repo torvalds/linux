@@ -296,7 +296,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	/* Wait for last stop endpoint command to finish */
 	timeleft = wait_for_completion_interruptible_timeout(
 			cmd->completion,
-			USB_CTRL_SET_TIMEOUT);
+			XHCI_CMD_DEFAULT_TIMEOUT);
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
 				timeleft == 0 ? "Timeout" : "Signal");
