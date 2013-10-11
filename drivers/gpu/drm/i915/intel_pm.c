@@ -2931,7 +2931,8 @@ static void haswell_update_wm(struct drm_crtc *crtc)
 	ilk_wm_merge(dev, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
-	if (INTEL_INFO(dev)->gen >= 7 && config.num_pipes_active == 1) {
+	if (INTEL_INFO(dev)->gen >= 7 &&
+	    config.num_pipes_active == 1 && config.sprites_enabled) {
 		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
 		ilk_wm_merge(dev, &max, &lp_wm_5_6);
 
