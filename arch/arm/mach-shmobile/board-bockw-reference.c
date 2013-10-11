@@ -32,7 +32,7 @@
 #define COMCTLR	0x101c
 static void __init bockw_init(void)
 {
-	static void __iomem *fpga;
+	void __iomem *fpga;
 
 	r8a7778_clock_init();
 	r8a7778_init_irq_extpin_dt(1);
@@ -50,6 +50,8 @@ static void __init bockw_init(void)
 		u16 val = ioread16(fpga + IRQ0MR);
 		val &= ~(1 << 4); /* enable SMSC911x */
 		iowrite16(val, fpga + IRQ0MR);
+
+		iounmap(fpga);
 	}
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
