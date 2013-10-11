@@ -83,17 +83,10 @@ static int vhci_flush(struct hci_dev *hdev)
 
 static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct vhci_data *data;
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device (hdev=NULL)");
-		return -ENODEV;
-	}
+	struct vhci_data *data = hci_get_drvdata(hdev);
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
-
-	data = hci_get_drvdata(hdev);
 
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&data->readq, skb);
