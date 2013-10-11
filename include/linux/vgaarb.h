@@ -65,15 +65,8 @@ struct pci_dev;
  *     out of the arbitration process (and can be safe to take
  *     interrupts at any time.
  */
-#if defined(CONFIG_VGA_ARB)
 extern void vga_set_legacy_decoding(struct pci_dev *pdev,
 				    unsigned int decodes);
-#else
-static inline void vga_set_legacy_decoding(struct pci_dev *pdev,
-					   unsigned int decodes)
-{
-}
-#endif
 
 /**
  *     vga_get         - acquire & locks VGA resources

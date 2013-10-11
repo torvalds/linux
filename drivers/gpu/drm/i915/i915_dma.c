@@ -1290,12 +1290,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	if (!HAS_PCH_SPLIT(dev)) {
-		ret = vga_client_register(dev->pdev, dev, NULL,
-					  i915_vga_set_decode);
-		if (ret && ret != -ENODEV)
-			goto out;
-	}
+	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
+	if (ret && ret != -ENODEV)
+		goto out;
 
 	intel_register_dsm_handler();
 
