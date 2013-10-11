@@ -77,6 +77,8 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
+static void cik_fini_pg(struct radeon_device *rdev);
+static void cik_fini_cg(struct radeon_device *rdev);
 static void cik_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					  bool enable);
 
@@ -4184,6 +4186,10 @@ static void cik_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
 	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+
+	/* disable CG/PG */
+	cik_fini_pg(rdev);
+	cik_fini_cg(rdev);
 
 	/* stop the rlc */
 	cik_rlc_stop(rdev);
