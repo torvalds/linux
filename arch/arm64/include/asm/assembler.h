@@ -115,3 +115,15 @@ lr	.req	x30		// link register
 	.align	7
 	b	\label
 	.endm
+/*
+ * Define a macro that constructs a 64-bit value by concatenating two
+ * 32-bit registers. Note that on big endian systems the order of the
+ * registers is swapped.
+ */
+#ifndef CONFIG_CPU_BIG_ENDIAN
+	.macro	regs_to_64, rd, lbits, hbits
+#else
+	.macro	regs_to_64, rd, hbits, lbits
+#endif
+	orr	\rd, \lbits, \hbits, lsl #32
+	.endm
