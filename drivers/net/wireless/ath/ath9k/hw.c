@@ -1544,9 +1544,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	ath9k_hw_set_clockrate(ah);
 	ath9k_hw_apply_txpower(ah, chan, false);
 
-	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
-		ath9k_hw_set_delta_slope(ah, chan);
-
+	ath9k_hw_set_delta_slope(ah, chan);
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 
 	if (band_switch || ini_reloaded)
@@ -1981,9 +1979,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_mfp(ah);
 
-	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
-		ath9k_hw_set_delta_slope(ah, chan);
-
+	ath9k_hw_set_delta_slope(ah, chan);
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
 
