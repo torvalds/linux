@@ -435,17 +435,9 @@ static struct regulator_ops as3722_ldo3_extcntrl_ops = {
 	.get_current_limit = as3722_ldo3_get_current_limit,
 };
 
-#define regulator_lin_range(_min_sel, _max_sel, _min_uV, _step_uV)	\
-	{								\
-		.min_sel = _min_sel,					\
-		.max_sel = _max_sel,					\
-		.uV_step = _step_uV,					\
-		.min_uV = _min_uV,					\
-	}
-
 static const struct regulator_linear_range as3722_ldo_ranges[] = {
-	regulator_lin_range(0x01, 0x24,  825000, 25000),
-	regulator_lin_range(0x40, 0x7F, 1725000, 25000),
+	REGULATOR_LINEAR_RANGE(825000, 0x01, 0x24, 25000),
+	REGULATOR_LINEAR_RANGE(1725000, 0x40, 0x7F, 25000),
 };
 
 static struct regulator_ops as3722_ldo_ops = {
@@ -604,9 +596,9 @@ static int as3722_sd016_set_current_limit(struct regulator_dev *rdev,
 }
 
 static const struct regulator_linear_range as3722_sd2345_ranges[] = {
-	regulator_lin_range(0x01, 0x40,  612500, 12500),
-	regulator_lin_range(0x41, 0x70, 1425000, 25000),
-	regulator_lin_range(0x71, 0x7F, 2650000, 50000),
+	REGULATOR_LINEAR_RANGE(612500, 0x01, 0x40, 12500),
+	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
+	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7F, 50000),
 };
 
 static struct regulator_ops as3722_sd016_ops = {

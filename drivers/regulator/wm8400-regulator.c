@@ -20,8 +20,8 @@
 #include <linux/mfd/wm8400-private.h>
 
 static const struct regulator_linear_range wm8400_ldo_ranges[] = {
-	{ .min_uV =  900000, .min_sel = 0, .max_sel = 14, .uV_step =  50000 },
-	{ .min_uV = 1700000, .min_sel = 15, .max_sel = 31, .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(900000, 0, 14, 50000),
+	REGULATOR_LINEAR_RANGE(1700000, 15, 31, 100000),
 };
 
 static struct regulator_ops wm8400_ldo_ops = {

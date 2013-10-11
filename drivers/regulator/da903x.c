@@ -253,8 +253,8 @@ static int da9034_set_dvc_voltage_sel(struct regulator_dev *rdev,
 }
 
 static const struct regulator_linear_range da9034_ldo12_ranges[] = {
-	{ .min_uV = 1700000, .min_sel =  0, .max_sel = 7, .uV_step =  50000 },
-	{ .min_uV = 2700000, .min_sel =  8, .max_sel = 15, .uV_step =  50000 },
+	REGULATOR_LINEAR_RANGE(1700000, 0, 7, 50000),
+	REGULATOR_LINEAR_RANGE(2700000, 8, 15, 50000),
 };
 
 static struct regulator_ops da903x_regulator_ldo_ops = {

@@ -63,8 +63,8 @@ static irqreturn_t wm831x_ldo_uv_irq(int irq, void *data)
  */
 
 static const struct regulator_linear_range wm831x_gp_ldo_ranges[] = {
-	{ .min_uV =  900000, .min_sel =  0, .max_sel = 14, .uV_step =  50000 },
-	{ .min_uV = 1700000, .min_sel = 15, .max_sel = 31, .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(900000, 0, 14, 50000),
+	REGULATOR_LINEAR_RANGE(1700000, 15, 31, 100000),
 };
 
 static int wm831x_gp_ldo_set_suspend_voltage(struct regulator_dev *rdev,
@@ -330,8 +330,8 @@ static struct platform_driver wm831x_gp_ldo_driver = {
  */
 
 static const struct regulator_linear_range wm831x_aldo_ranges[] = {
-	{ .min_uV = 1000000, .min_sel =  0, .max_sel = 12, .uV_step =  50000 },
-	{ .min_uV = 1700000, .min_sel = 13, .max_sel = 31, .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(1000000, 0, 12, 50000),
+	REGULATOR_LINEAR_RANGE(1700000, 13, 31, 100000),
 };
 
 static int wm831x_aldo_set_suspend_voltage(struct regulator_dev *rdev,
