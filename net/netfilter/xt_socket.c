@@ -35,15 +35,6 @@
 #include <net/netfilter/nf_conntrack.h>
 #endif
 
-static void
-xt_socket_put_sk(struct sock *sk)
-{
-	if (sk->sk_state == TCP_TIME_WAIT)
-		inet_twsk_put(inet_twsk(sk));
-	else
-		sock_put(sk);
-}
-
 static int
 extract_icmp4_fields(const struct sk_buff *skb,
 		    u8 *protocol,
@@ -216,7 +207,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 					inet_twsk(sk)->tw_transparent));
 
 		if (sk != skb->sk)
-			xt_socket_put_sk(sk);
+			sock_gen_put(sk);
 
 		if (wildcard || !transparent)
 			sk = NULL;
@@ -381,7 +372,7 @@ socket_mt6_v1_v2(const struct sk_buff *skb, struct xt_action_param *par)
 					inet_twsk(sk)->tw_transparent));
 
 		if (sk != skb->sk)
-			xt_socket_put_sk(sk);
+			sock_gen_put(sk);
 
 		if (wildcard || !transparent)
 			sk = NULL;
