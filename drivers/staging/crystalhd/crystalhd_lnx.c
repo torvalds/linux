@@ -157,7 +157,7 @@ static int chd_dec_fetch_cdata(struct crystalhd_adp *adp,
 	if (rc) {
 		BCMLOG_ERR("failed to pull add_cdata sz:%x ua_off:%x\n",
 			   io->add_cdata_sz, (unsigned int)ua_off);
-		kfree(io->add_cdata);
+		vfree(io->add_cdata);
 		io->add_cdata = NULL;
 		return -ENODATA;
 	}
