@@ -1490,10 +1490,8 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 		cur_start = state->end + 1;
 		node = rb_next(node);
 		total_bytes += state->end - state->start + 1;
-		if (total_bytes >= max_bytes) {
-			*end = *start + max_bytes - 1;
+		if (total_bytes >= max_bytes)
 			break;
-		}
 		if (!node)
 			break;
 	}
@@ -1635,10 +1633,9 @@ again:
 
 	/*
 	 * make sure to limit the number of pages we try to lock down
-	 * if we're looping.
 	 */
-	if (delalloc_end + 1 - delalloc_start > max_bytes && loops)
-		delalloc_end = delalloc_start + PAGE_CACHE_SIZE - 1;
+	if (delalloc_end + 1 - delalloc_start > max_bytes)
+		delalloc_end = delalloc_start + max_bytes - 1;
 
 	/* step two, lock all the pages after the page that has start */
 	ret = lock_delalloc_pages(inode, locked_page,
@@ -1649,8 +1646,7 @@ again:
 		 */
 		free_extent_state(cached_state);
 		if (!loops) {
-			unsigned long offset = (*start) & (PAGE_CACHE_SIZE - 1);
-			max_bytes = PAGE_CACHE_SIZE - offset;
+			max_bytes = PAGE_CACHE_SIZE;
 			loops = 1;
 			goto again;
 		} else {

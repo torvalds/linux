@@ -588,7 +588,7 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 	else
 		key.offset = (u64)-1;
 
-	return btrfs_read_fs_root_no_name(fs_info, &key);
+	return btrfs_get_fs_root(fs_info, &key, false);
 }
 
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
