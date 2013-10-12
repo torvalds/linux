@@ -677,7 +677,8 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 
 static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 {
-	if (chan->chan_type == L2CAP_CHAN_RAW) {
+	switch (chan->chan_type) {
+	case L2CAP_CHAN_RAW:
 		switch (chan->sec_level) {
 		case BT_SECURITY_HIGH:
 			return HCI_AT_DEDICATED_BONDING_MITM;
@@ -686,15 +687,19 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 		default:
 			return HCI_AT_NO_BONDING;
 		}
-	} else if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_SDP)) {
-		if (chan->sec_level == BT_SECURITY_LOW)
-			chan->sec_level = BT_SECURITY_SDP;
+		break;
+	case L2CAP_CHAN_CONN_ORIENTED:
+		if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_SDP)) {
+			if (chan->sec_level == BT_SECURITY_LOW)
+				chan->sec_level = BT_SECURITY_SDP;
 
-		if (chan->sec_level == BT_SECURITY_HIGH)
-			return HCI_AT_NO_BONDING_MITM;
-		else
-			return HCI_AT_NO_BONDING;
-	} else {
+			if (chan->sec_level == BT_SECURITY_HIGH)
+				return HCI_AT_NO_BONDING_MITM;
+			else
+				return HCI_AT_NO_BONDING;
+		}
+		/* fall through */
+	default:
 		switch (chan->sec_level) {
 		case BT_SECURITY_HIGH:
 			return HCI_AT_GENERAL_BONDING_MITM;
@@ -703,6 +708,7 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 		default:
 			return HCI_AT_NO_BONDING;
 		}
+		break;
 	}
 }
 
