@@ -1201,9 +1201,8 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 			break;
 		}		/* End Switch */
 
-		if (status != STATUS_SUCCESS) {
+		if (status != STATUS_SUCCESS)
 			break;
-		}
 
 /****
       // Check if Card is present
