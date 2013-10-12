@@ -2283,7 +2283,8 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan,
 	int err, count, hlen = L2CAP_HDR_SIZE + L2CAP_PSMLEN_SIZE;
 	struct l2cap_hdr *lh;
 
-	BT_DBG("chan %p len %zu priority %u", chan, len, priority);
+	BT_DBG("chan %p psm 0x%2.2x len %zu priority %u", chan,
+	       __le16_to_cpu(chan->psm), len, priority);
 
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
@@ -2298,7 +2299,7 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan,
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
 	lh->cid = cpu_to_le16(chan->dcid);
 	lh->len = cpu_to_le16(len + L2CAP_PSMLEN_SIZE);
-	put_unaligned(chan->psm, skb_put(skb, L2CAP_PSMLEN_SIZE));
+	put_unaligned(chan->psm, (__le16 *) skb_put(skb, L2CAP_PSMLEN_SIZE));
 
 	err = l2cap_skbuff_fromiovec(chan, msg, len, count, skb);
 	if (unlikely(err < 0)) {
