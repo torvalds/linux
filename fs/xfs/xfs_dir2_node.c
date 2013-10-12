@@ -1101,7 +1101,7 @@ xfs_dir2_leafn_rebalance(
 		state->inleaf = 1;
 		blk2->index = 0;
 		xfs_alert(args->dp->i_mount,
-	"%s: picked the wrong leaf? reverting original leaf: blk1->index %d\n",
+	"%s: picked the wrong leaf? reverting original leaf: blk1->index %d",
 			__func__, blk1->index);
 	}
 }

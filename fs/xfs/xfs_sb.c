@@ -249,13 +249,13 @@ xfs_mount_validate_sb(
 	if (xfs_sb_version_has_pquotino(sbp)) {
 		if (sbp->sb_qflags & (XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD)) {
 			xfs_notice(mp,
-			   "Version 5 of Super block has XFS_OQUOTA bits.\n");
+			   "Version 5 of Super block has XFS_OQUOTA bits.");
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 	} else if (sbp->sb_qflags & (XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD |
 				XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD)) {
 			xfs_notice(mp,
-"Superblock earlier than Version 5 has XFS_[PQ]UOTA_{ENFD|CHKD} bits.\n");
+"Superblock earlier than Version 5 has XFS_[PQ]UOTA_{ENFD|CHKD} bits.");
 			return XFS_ERROR(EFSCORRUPTED);
 	}
 

@@ -110,7 +110,7 @@ xfs_alert_fsblock_zero(
 	xfs_alert_tag(ip->i_mount, XFS_PTAG_FSBLOCK_ZERO,
 			"Access to block zero in inode %llu "
 			"start_block: %llx start_off: %llx "
-			"blkcnt: %llx extent-state: %x\n",
+			"blkcnt: %llx extent-state: %x",
 		(unsigned long long)ip->i_ino,
 		(unsigned long long)imap->br_startblock,
 		(unsigned long long)imap->br_startoff,

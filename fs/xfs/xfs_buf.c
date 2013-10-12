@@ -590,7 +590,7 @@ found:
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
 			xfs_warn(target->bt_mount,
-				"%s: failed to map pages\n", __func__);
+				"%s: failed to map pagesn", __func__);
 			xfs_buf_relse(bp);
 			return NULL;
 		}
@@ -809,7 +809,7 @@ xfs_buf_get_uncached(
 	error = _xfs_buf_map_pages(bp, 0);
 	if (unlikely(error)) {
 		xfs_warn(target->bt_mount,
-			"%s: failed to map pages\n", __func__);
+			"%s: failed to map pages", __func__);
 		goto fail_free_mem;
 	}
 
@@ -1618,7 +1618,7 @@ xfs_setsize_buftarg_flags(
 		bdevname(btp->bt_bdev, name);
 
 		xfs_warn(btp->bt_mount,
-			"Cannot set_blocksize to %u on device %s\n",
+			"Cannot set_blocksize to %u on device %s",
 			sectorsize, name);
 		return EINVAL;
 	}
