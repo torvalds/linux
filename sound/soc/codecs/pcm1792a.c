@@ -188,7 +188,7 @@ MODULE_DEVICE_TABLE(of, pcm1792a_of_match);
 static const struct regmap_config pcm1792a_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.max_register		= 24,
+	.max_register		= 23,
 	.reg_defaults		= pcm1792a_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(pcm1792a_reg_defaults),
 	.writeable_reg		= pcm1792a_writeable_reg,
