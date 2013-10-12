@@ -160,6 +160,11 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #ifdef CONFIG_PPC_STD_MMU_64
 	new_paca->slb_shadow_ptr = init_slb_shadow(cpu);
 #endif /* CONFIG_PPC_STD_MMU_64 */
+
+#ifdef CONFIG_PPC_BOOK3E
+	/* For now -- if we have threads this will be adjusted later */
+	new_paca->tcd_ptr = &new_paca->tcd;
+#endif
 }
 
 /* Put the paca pointer into r13 and SPRG_PACA */

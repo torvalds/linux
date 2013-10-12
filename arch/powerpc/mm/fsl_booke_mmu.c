@@ -52,6 +52,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
+#include <asm/paca.h>
 
 #include "mmu_decl.h"
 
@@ -190,6 +191,12 @@ static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 		phys += cam_sz;
 	}
 	tlbcam_index = i;
+
+#ifdef CONFIG_PPC64
+	get_paca()->tcd.esel_next = i;
+	get_paca()->tcd.esel_max = mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY;
+	get_paca()->tcd.esel_first = i;
+#endif
 
 	return amount_mapped;
 }

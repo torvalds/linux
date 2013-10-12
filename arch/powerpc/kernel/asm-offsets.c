@@ -203,6 +203,15 @@ int main(void)
 	DEFINE(PACA_MC_STACK, offsetof(struct paca_struct, mc_kstack));
 	DEFINE(PACA_CRIT_STACK, offsetof(struct paca_struct, crit_kstack));
 	DEFINE(PACA_DBG_STACK, offsetof(struct paca_struct, dbg_kstack));
+	DEFINE(PACA_TCD_PTR, offsetof(struct paca_struct, tcd_ptr));
+
+	DEFINE(TCD_ESEL_NEXT,
+		offsetof(struct tlb_core_data, esel_next));
+	DEFINE(TCD_ESEL_MAX,
+		offsetof(struct tlb_core_data, esel_max));
+	DEFINE(TCD_ESEL_FIRST,
+		offsetof(struct tlb_core_data, esel_first));
+	DEFINE(TCD_LOCK, offsetof(struct tlb_core_data, lock));
 #endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PPC_STD_MMU_64
