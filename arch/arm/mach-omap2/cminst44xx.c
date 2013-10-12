@@ -483,3 +483,12 @@ struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_clk_enable	= omap4_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
 };
+
+struct clkdm_ops am43xx_clkdm_operations = {
+	.clkdm_sleep		= omap4_clkdm_sleep,
+	.clkdm_wakeup		= omap4_clkdm_wakeup,
+	.clkdm_allow_idle	= omap4_clkdm_allow_idle,
+	.clkdm_deny_idle	= omap4_clkdm_deny_idle,
+	.clkdm_clk_enable	= omap4_clkdm_clk_enable,
+	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
+};
