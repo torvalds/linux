@@ -132,7 +132,7 @@ struct clockdomain {
 	u8 _flags;
 	const u8 dep_bit;
 	const u8 prcm_partition;
-	const s16 cm_inst;
+	const u16 cm_inst;
 	const u16 clkdm_offs;
 	struct clkdm_dep *wkdep_srcs;
 	struct clkdm_dep *sleepdep_srcs;
