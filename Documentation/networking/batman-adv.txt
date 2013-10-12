@@ -199,5 +199,5 @@ Mailing-list:   b.a.t.m.a.n@open-mesh.org (optional  subscription
 
 You can also contact the Authors:
 
-Marek  Lindner  <lindner_marek@yahoo.de>
+Marek  Lindner  <mareklindner@neomailbox.ch>
 Simon  Wunderlich  <sw@simonwunderlich.de>

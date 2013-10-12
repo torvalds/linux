@@ -1,7 +1,7 @@
 
 What:           /sys/class/net/<mesh_iface>/mesh/aggregated_ogms
 Date:           May 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Indicates whether the batman protocol messages of the
                 mesh <mesh_iface> shall be aggregated or not.
@@ -41,21 +41,21 @@ Description:
 
 What:           /sys/class/net/<mesh_iface>/mesh/gw_bandwidth
 Date:           October 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Defines the bandwidth which is propagated by this
                 node if gw_mode was set to 'server'.
 
 What:           /sys/class/net/<mesh_iface>/mesh/gw_mode
 Date:           October 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Defines the state of the gateway features. Can be
                 either 'off', 'client' or 'server'.
 
 What:           /sys/class/net/<mesh_iface>/mesh/gw_sel_class
 Date:           October 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Defines the selection criteria this node will use
                 to choose a gateway if gw_mode was set to 'client'.
@@ -77,14 +77,14 @@ Description:
 
 What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
 Date:           May 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Defines the interval in milliseconds in which batman
                 sends its protocol messages.
 
 What:           /sys/class/net/<mesh_iface>/mesh/routing_algo
 Date:           Dec 2011
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Contact:        Marek Lindner <mareklindner@neomailbox.ch>
 Description:
                 Defines the routing procotol this mesh instance
                 uses to find the optimal paths through the mesh.
