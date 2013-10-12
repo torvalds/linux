@@ -106,6 +106,103 @@ static void periodic_unlink (struct ehci_hcd *ehci, unsigned frame, void *ptr)
 		*hw_p = ehci->dummy->qh_dma;
 }
 
+/*-------------------------------------------------------------------------*/
+
+/* Bandwidth and TT management */
+
+/* Find the TT data structure for this device; create it if necessary */
+static struct ehci_tt *find_tt(struct usb_device *udev)
+{
+	struct usb_tt		*utt = udev->tt;
+	struct ehci_tt		*tt, **tt_index, **ptt;
+	unsigned		port;
+	bool			allocated_index = false;
+
+	if (!utt)
+		return NULL;		/* Not below a TT */
+
+	/*
+	 * Find/create our data structure.
+	 * For hubs with a single TT, we get it directly.
+	 * For hubs with multiple TTs, there's an extra level of pointers.
+	 */
+	tt_index = NULL;
+	if (utt->multi) {
+		tt_index = utt->hcpriv;
+		if (!tt_index) {		/* Create the index array */
+			tt_index = kzalloc(utt->hub->maxchild *
+					sizeof(*tt_index), GFP_ATOMIC);
+			if (!tt_index)
+				return ERR_PTR(-ENOMEM);
+			utt->hcpriv = tt_index;
+			allocated_index = true;
+		}
+		port = udev->ttport - 1;
+		ptt = &tt_index[port];
+	} else {
+		port = 0;
+		ptt = (struct ehci_tt **) &utt->hcpriv;
+	}
+
+	tt = *ptt;
+	if (!tt) {				/* Create the ehci_tt */
+		struct ehci_hcd		*ehci =
+				hcd_to_ehci(bus_to_hcd(udev->bus));
+
+		tt = kzalloc(sizeof(*tt), GFP_ATOMIC);
+		if (!tt) {
+			if (allocated_index) {
+				utt->hcpriv = NULL;
+				kfree(tt_index);
+			}
+			return ERR_PTR(-ENOMEM);
+		}
+		list_add_tail(&tt->tt_list, &ehci->tt_list);
+		INIT_LIST_HEAD(&tt->ps_list);
+		tt->usb_tt = utt;
+		tt->tt_port = port;
+		*ptt = tt;
+	}
+
+	return tt;
+}
+
+/* Release the TT above udev, if it's not in use */
+static void drop_tt(struct usb_device *udev)
+{
+	struct usb_tt		*utt = udev->tt;
+	struct ehci_tt		*tt, **tt_index, **ptt;
+	int			cnt, i;
+
+	if (!utt || !utt->hcpriv)
+		return;		/* Not below a TT, or never allocated */
+
+	cnt = 0;
+	if (utt->multi) {
+		tt_index = utt->hcpriv;
+		ptt = &tt_index[udev->ttport - 1];
+
+		/* How many entries are left in tt_index? */
+		for (i = 0; i < utt->hub->maxchild; ++i)
+			cnt += !!tt_index[i];
+	} else {
+		tt_index = NULL;
+		ptt = (struct ehci_tt **) &utt->hcpriv;
+	}
+
+	tt = *ptt;
+	if (!tt || !list_empty(&tt->ps_list))
+		return;		/* never allocated, or still in use */
+
+	list_del(&tt->tt_list);
+	*ptt = NULL;
+	kfree(tt);
+	if (cnt == 1) {
+		utt->hcpriv = NULL;
+		kfree(tt_index);
+	}
+}
+
 static void bandwidth_dbg(struct ehci_hcd *ehci, int sign, char *type,
 		struct ehci_per_sched *ps)
 {
@@ -125,6 +222,8 @@ static void reserve_release_intr_bandwidth(struct ehci_hcd *ehci,
 	unsigned		i, j, m;
 	int			usecs = qh->ps.usecs;
 	int			c_usecs = qh->ps.c_usecs;
+	int			tt_usecs = qh->ps.tt_usecs;
+	struct ehci_tt		*tt;
 
 	if (qh->ps.phase == NO_FRAME)	/* Bandwidth wasn't reserved */
 		return;
@@ -135,6 +234,7 @@ static void reserve_release_intr_bandwidth(struct ehci_hcd *ehci,
 	if (sign < 0) {		/* Release bandwidth */
 		usecs = -usecs;
 		c_usecs = -c_usecs;
+		tt_usecs = -tt_usecs;
 	}
 
 	/* Entire transaction (high speed) or start-split (full/low speed) */
@@ -153,11 +253,60 @@ static void reserve_release_intr_bandwidth(struct ehci_hcd *ehci,
 			}
 		}
 	}
+
+	/* FS/LS bus bandwidth */
+	if (tt_usecs) {
+		tt = find_tt(qh->ps.udev);
+		if (sign > 0)
+			list_add_tail(&qh->ps.ps_list, &tt->ps_list);
+		else
+			list_del(&qh->ps.ps_list);
+
+		for (i = start_uf >> 3; i < EHCI_BANDWIDTH_FRAMES;
+				i += qh->ps.bw_period)
+			tt->bandwidth[i] += tt_usecs;
+	}
 }
 
 /*-------------------------------------------------------------------------*/
 
-static int same_tt (struct usb_device *dev1, struct usb_device *dev2)
+static void compute_tt_budget(u8 budget_table[EHCI_BANDWIDTH_SIZE],
+		struct ehci_tt *tt)
+{
+	struct ehci_per_sched	*ps;
+	unsigned		uframe, uf, x;
+	u8			*budget_line;
+
+	if (!tt)
+		return;
+	memset(budget_table, 0, EHCI_BANDWIDTH_SIZE);
+
+	/* Add up the contributions from all the endpoints using this TT */
+	list_for_each_entry(ps, &tt->ps_list, ps_list) {
+		for (uframe = ps->bw_phase << 3; uframe < EHCI_BANDWIDTH_SIZE;
+				uframe += ps->bw_uperiod) {
+			budget_line = &budget_table[uframe];
+			x = ps->tt_usecs;
+
+			/* propagate the time forward */
+			for (uf = ps->phase_uf; uf < 8; ++uf) {
+				x += budget_line[uf];
+
+				/* Each microframe lasts 125 us */
+				if (x <= 125) {
+					budget_line[uf] = x;
+					break;
+				} else {
+					budget_line[uf] = 125;
+					x -= 125;
+				}
+			}
+		}
+	}
+}
+
+static int __maybe_unused same_tt(struct usb_device *dev1,
+		struct usb_device *dev2)
 {
 	if (!dev1->tt || !dev2->tt)
 		return 0;
@@ -205,68 +354,6 @@ static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
 	}
 }
 
-/* How many of the tt's periodic downstream 1000 usecs are allocated?
- *
- * While this measures the bandwidth in terms of usecs/uframe,
- * the low/fullspeed bus has no notion of uframes, so any particular
- * low/fullspeed transfer can "carry over" from one uframe to the next,
- * since the TT just performs downstream transfers in sequence.
- *
- * For example two separate 100 usec transfers can start in the same uframe,
- * and the second one would "carry over" 75 usecs into the next uframe.
- */
-static void
-periodic_tt_usecs (
-	struct ehci_hcd *ehci,
-	struct usb_device *dev,
-	unsigned frame,
-	unsigned short tt_usecs[8]
-)
-{
-	__hc32			*hw_p = &ehci->periodic [frame];
-	union ehci_shadow	*q = &ehci->pshadow [frame];
-	unsigned char		uf;
-
-	memset(tt_usecs, 0, 16);
-
-	while (q->ptr) {
-		switch (hc32_to_cpu(ehci, Q_NEXT_TYPE(ehci, *hw_p))) {
-		case Q_TYPE_ITD:
-			hw_p = &q->itd->hw_next;
-			q = &q->itd->itd_next;
-			continue;
-		case Q_TYPE_QH:
-			if (same_tt(dev, q->qh->ps.udev)) {
-				uf = tt_start_uframe(ehci, q->qh->hw->hw_info2);
-				tt_usecs[uf] += q->qh->ps.tt_usecs;
-			}
-			hw_p = &q->qh->hw->hw_next;
-			q = &q->qh->qh_next;
-			continue;
-		case Q_TYPE_SITD:
-			if (same_tt(dev, q->sitd->urb->dev)) {
-				uf = tt_start_uframe(ehci, q->sitd->hw_uframe);
-				tt_usecs[uf] += q->sitd->stream->ps.tt_usecs;
-			}
-			hw_p = &q->sitd->hw_next;
-			q = &q->sitd->sitd_next;
-			continue;
-		// case Q_TYPE_FSTN:
-		default:
-			ehci_dbg(ehci, "ignoring periodic frame %d FSTN\n",
-					frame);
-			hw_p = &q->fstn->hw_next;
-			q = &q->fstn->fstn_next;
-		}
-	}
-
-	carryover_tt_bandwidth(tt_usecs);
-
-	if (max_tt_usecs[7] < tt_usecs[7])
-		ehci_err(ehci, "frame %d tt sched overrun: %d usecs\n",
-			frame, tt_usecs[7] - max_tt_usecs[7]);
-}
-
 /*
  * Return true if the device's tt's downstream bus is available for a
  * periodic transfer of the specified length (usecs), starting at the
@@ -290,20 +377,29 @@ periodic_tt_usecs (
  */
 static int tt_available (
 	struct ehci_hcd		*ehci,
-	unsigned		period,
-	struct usb_device	*dev,
+	struct ehci_per_sched	*ps,
+	struct ehci_tt		*tt,
 	unsigned		frame,
-	unsigned		uframe,
-	u16			usecs
+	unsigned		uframe
 )
 {
+	unsigned		period = ps->bw_period;
+	unsigned		usecs = ps->tt_usecs;
+
 	if ((period == 0) || (uframe >= 7))	/* error */
 		return 0;
 
-	for (; frame < ehci->periodic_size; frame += period) {
-		unsigned short tt_usecs[8];
+	for (frame &= period - 1; frame < EHCI_BANDWIDTH_FRAMES;
+			frame += period) {
+		unsigned	i, uf;
+		unsigned short	tt_usecs[8];
 
-		periodic_tt_usecs (ehci, dev, frame, tt_usecs);
+		if (tt->bandwidth[frame] + usecs > 900)
+			return 0;
+
+		uf = frame << 3;
+		for (i = 0; i < 8; (++i, ++uf))
+			tt_usecs[i] = ehci->tt_budget[uf];
 
 		if (max_tt_usecs[uframe] <= tt_usecs[uframe])
 			return 0;
@@ -315,7 +411,7 @@ static int tt_available (
 		 */
 		if (125 < usecs) {
 			int ufs = (usecs / 125);
-			int i;
+
 			for (i = uframe; i < (uframe + ufs) && i < 8; i++)
 				if (0 < tt_usecs[i])
 					return 0;
@@ -697,8 +793,9 @@ static int check_intr_schedule (
 	struct ehci_hcd		*ehci,
 	unsigned		frame,
 	unsigned		uframe,
-	const struct ehci_qh	*qh,
-	__hc32			*c_maskp
+	struct ehci_qh		*qh,
+	__hc32			*c_maskp,
+	struct ehci_tt		*tt
 )
 {
 	int		retval = -ENOSPC;
@@ -716,8 +813,7 @@ static int check_intr_schedule (
 	}
 
 #ifdef CONFIG_USB_EHCI_TT_NEWSCHED
-	if (tt_available(ehci, qh->ps.bw_period, qh->ps.udev, frame, uframe,
-				qh->ps.tt_usecs)) {
+	if (tt_available(ehci, &qh->ps, tt, frame, uframe)) {
 		unsigned i;
 
 		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
@@ -763,10 +859,11 @@ done:
  */
 static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	int		status;
+	int		status = 0;
 	unsigned	uframe;
 	unsigned	c_mask;
 	struct ehci_qh_hw	*hw = qh->hw;
+	struct ehci_tt		*tt;
 
 	hw->hw_next = EHCI_LIST_END(ehci);
 
@@ -778,7 +875,12 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	uframe = 0;
 	c_mask = 0;
-	status = -ENOSPC;
+	tt = find_tt(qh->ps.udev);
+	if (IS_ERR(tt)) {
+		status = PTR_ERR(tt);
+		goto done;
+	}
+	compute_tt_budget(ehci->tt_budget, tt);
 
 	/* else scan the schedule to find a group of slots such that all
 	 * uframes have enough periodic bandwidth available.
@@ -788,22 +890,24 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		int		i;
 		unsigned	frame;
 
-		for (i = qh->ps.bw_period; status && i > 0; --i) {
+		for (i = qh->ps.bw_period; i > 0; --i) {
 			frame = ++ehci->random_frame & (qh->ps.bw_period - 1);
 			for (uframe = 0; uframe < 8; uframe++) {
 				status = check_intr_schedule(ehci,
-						frame, uframe, qh, &c_mask);
+						frame, uframe, qh, &c_mask, tt);
 				if (status == 0)
-					break;
+					goto got_it;
 			}
 		}
 
 	/* qh->ps.bw_period == 0 means every uframe */
 	} else {
-		status = check_intr_schedule(ehci, 0, 0, qh, &c_mask);
+		status = check_intr_schedule(ehci, 0, 0, qh, &c_mask, tt);
 	}
 	if (status)
 		goto done;
+
+ got_it:
 	qh->ps.phase = (qh->ps.period ? ehci->random_frame &
 			(qh->ps.period - 1) : 0);
 	qh->ps.bw_phase = qh->ps.phase & (qh->ps.bw_period - 1);
@@ -1232,6 +1336,8 @@ static void reserve_release_iso_bandwidth(struct ehci_hcd *ehci,
 	unsigned		s_mask, c_mask, m;
 	int			usecs = stream->ps.usecs;
 	int			c_usecs = stream->ps.c_usecs;
+	int			tt_usecs = stream->ps.tt_usecs;
+	struct ehci_tt		*tt;
 
 	if (stream->ps.phase == NO_FRAME)	/* Bandwidth wasn't reserved */
 		return;
@@ -1242,6 +1348,7 @@ static void reserve_release_iso_bandwidth(struct ehci_hcd *ehci,
 	if (sign < 0) {		/* Release bandwidth */
 		usecs = -usecs;
 		c_usecs = -c_usecs;
+		tt_usecs = -tt_usecs;
 	}
 
 	if (!stream->splits) {		/* High speed */
@@ -1264,6 +1371,16 @@ static void reserve_release_iso_bandwidth(struct ehci_hcd *ehci,
 					ehci->bandwidth[i+j] += c_usecs;
 			}
 		}
+
+		tt = find_tt(stream->ps.udev);
+		if (sign > 0)
+			list_add_tail(&stream->ps.ps_list, &tt->ps_list);
+		else
+			list_del(&stream->ps.ps_list);
+
+		for (i = uframe >> 3; i < EHCI_BANDWIDTH_FRAMES;
+				i += stream->ps.bw_period)
+			tt->bandwidth[i] += tt_usecs;
 	}
 }
 
@@ -1292,7 +1409,8 @@ sitd_slot_ok (
 	struct ehci_hcd		*ehci,
 	struct ehci_iso_stream	*stream,
 	unsigned		uframe,
-	struct ehci_iso_sched	*sched
+	struct ehci_iso_sched	*sched,
+	struct ehci_tt		*tt
 )
 {
 	unsigned		mask, tmp;
@@ -1317,8 +1435,7 @@ sitd_slot_ok (
 	 * tt_available scheduling guarantees 10+% for control/bulk.
 	 */
 	uf = uframe & 7;
-	if (!tt_available(ehci, stream->ps.bw_period,
-			stream->ps.udev, frame, uf, stream->ps.tt_usecs))
+	if (!tt_available(ehci, &stream->ps, tt, frame, uf))
 		return 0;
 #else
 	/* tt must be idle for start(s), any gap, and csplit.
@@ -1417,6 +1534,13 @@ iso_stream_schedule (
 		/* Schedule the endpoint */
 		if (stream->ps.phase == NO_FRAME) {
 			int		done = 0;
+			struct ehci_tt	*tt = find_tt(stream->ps.udev);
+
+			if (IS_ERR(tt)) {
+				status = PTR_ERR(tt);
+				goto fail;
+			}
+			compute_tt_budget(ehci->tt_budget, tt);
 
 			start = (now & ~0x07) + SCHEDULING_DELAY;
 
@@ -1437,7 +1561,7 @@ iso_stream_schedule (
 					if ((start % 8) >= 6)
 						continue;
 					if (sitd_slot_ok(ehci, stream, start,
-							sched))
+							sched, tt))
 						done = 1;
 				}
 			} while (start > next && !done);

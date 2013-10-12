@@ -110,6 +110,9 @@ MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 #include "ehci.h"
 #include "pci-quirks.h"
 
+static void compute_tt_budget(u8 budget_table[EHCI_BANDWIDTH_SIZE],
+		struct ehci_tt *tt);
+
 /*
  * The MosChip MCS9990 controller updates its microframe counter
  * a little before the frame counter, and occasionally we will read
@@ -484,6 +487,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&ehci->intr_qh_list);
 	INIT_LIST_HEAD(&ehci->cached_itd_list);
 	INIT_LIST_HEAD(&ehci->cached_sitd_list);
+	INIT_LIST_HEAD(&ehci->tt_list);
 
 	if (HCC_PGM_FRAMELISTLEN(hcc_params)) {
 		/* periodic schedule size can be smaller than default */
@@ -1051,6 +1055,19 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
+/* Device addition and removal */
+
+static void ehci_remove_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+
+	spin_lock_irq(&ehci->lock);
+	drop_tt(udev);
+	spin_unlock_irq(&ehci->lock);
+}
+
+/*-------------------------------------------------------------------------*/
+
 #ifdef	CONFIG_PM
 
 /* suspend/resume, section 4.3 */
@@ -1194,6 +1211,11 @@ static const struct hc_driver ehci_hc_driver = {
 	.bus_resume =		ehci_bus_resume,
 	.relinquish_port =	ehci_relinquish_port,
 	.port_handed_over =	ehci_port_handed_over,
+
+	/*
+	 * device support
+	 */
+	.free_dev =		ehci_remove_device,
 };
 
 void ehci_init_driver(struct hc_driver *drv,

@@ -536,10 +536,14 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 static ssize_t fill_bandwidth_buffer(struct debug_buffer *buf)
 {
 	struct ehci_hcd		*ehci;
+	struct ehci_tt		*tt;
+	struct ehci_per_sched	*ps;
 	unsigned		temp, size;
 	char			*next;
 	unsigned		i;
 	u8			*bw;
+	u16			*bf;
+	u8			budget[EHCI_BANDWIDTH_SIZE];
 
 	ehci = hcd_to_ehci(bus_to_hcd(buf->bus));
 	next = buf->output_buf;
@@ -562,6 +566,50 @@ static ssize_t fill_bandwidth_buffer(struct debug_buffer *buf)
 					bw[4], bw[5], bw[6], bw[7]);
 		size -= temp;
 		next += temp;
+	}
+
+	/* Dump all the FS/LS tables */
+	list_for_each_entry(tt, &ehci->tt_list, tt_list) {
+		temp = scnprintf(next, size,
+				"\nTT %s port %d  FS/LS bandwidth allocation (us per frame)\n",
+				dev_name(&tt->usb_tt->hub->dev),
+				tt->tt_port + !!tt->usb_tt->multi);
+		size -= temp;
+		next += temp;
+
+		bf = tt->bandwidth;
+		temp = scnprintf(next, size,
+				"  %5u%5u%5u%5u%5u%5u%5u%5u\n",
+				bf[0], bf[1], bf[2], bf[3],
+					bf[4], bf[5], bf[6], bf[7]);
+		size -= temp;
+		next += temp;
+
+		temp = scnprintf(next, size,
+				"FS/LS budget (us per microframe)\n");
+		size -= temp;
+		next += temp;
+		compute_tt_budget(budget, tt);
+		for (i = 0; i < EHCI_BANDWIDTH_SIZE; i += 8) {
+			bw = &budget[i];
+			temp = scnprintf(next, size,
+					"%2u: %4u%4u%4u%4u%4u%4u%4u%4u\n",
+					i, bw[0], bw[1], bw[2], bw[3],
+						bw[4], bw[5], bw[6], bw[7]);
+			size -= temp;
+			next += temp;
+		}
+		list_for_each_entry(ps, &tt->ps_list, ps_list) {
+			temp = scnprintf(next, size,
+					"%s ep %02x:  %4u @ %2u.%u+%u mask %04x\n",
+					dev_name(&ps->udev->dev),
+					ps->ep->desc.bEndpointAddress,
+					ps->tt_usecs,
+					ps->bw_phase, ps->phase_uf,
+					ps->bw_period, ps->cs_mask);
+			size -= temp;
+			next += temp;
+		}
 	}
 	spin_unlock_irq(&ehci->lock);
 

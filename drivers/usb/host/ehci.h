@@ -61,6 +61,7 @@ struct ehci_stats {
 struct ehci_per_sched {
 	struct usb_device	*udev;		/* access to the TT */
 	struct usb_host_endpoint *ep;
+	struct list_head	ps_list;	/* node on ehci_tt's ps_list */
 	u16			tt_usecs;	/* time on the FS/LS bus */
 	u16			cs_mask;	/* C-mask and S-mask bytes */
 	u16			period;		/* actual period in frames */
@@ -256,6 +257,9 @@ struct ehci_hcd {			/* one per controller */
 #define EHCI_BANDWIDTH_FRAMES	(EHCI_BANDWIDTH_SIZE >> 3)
 	u8			bandwidth[EHCI_BANDWIDTH_SIZE];
 						/* us allocated per uframe */
+	u8			tt_budget[EHCI_BANDWIDTH_SIZE];
+						/* us budgeted per uframe */
+	struct list_head	tt_list;
 
 	/* platform-specific data -- must come last */
 	unsigned long		priv[0] __aligned(sizeof(s64));
@@ -592,6 +596,35 @@ struct ehci_fstn {
 	dma_addr_t		fstn_dma;
 	union ehci_shadow	fstn_next;	/* ptr to periodic q entry */
 } __attribute__ ((aligned (32)));
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * USB-2.0 Specification Sections 11.14 and 11.18
+ * Scheduling and budgeting split transactions using TTs
+ *
+ * A hub can have a single TT for all its ports, or multiple TTs (one for each
+ * port).  The bandwidth and budgeting information for the full/low-speed bus
+ * below each TT is self-contained and independent of the other TTs or the
+ * high-speed bus.
+ *
+ * "Bandwidth" refers to the number of microseconds on the FS/LS bus allocated
+ * to an interrupt or isochronous endpoint for each frame.  "Budget" refers to
+ * the best-case estimate of the number of full-speed bytes allocated to an
+ * endpoint for each microframe within an allocated frame.
+ *
+ * Removal of an endpoint invalidates a TT's budget.  Instead of trying to
+ * keep an up-to-date record, we recompute the budget when it is needed.
+ */
+
+struct ehci_tt {
+	u16			bandwidth[EHCI_BANDWIDTH_FRAMES];
+
+	struct list_head	tt_list;	/* List of all ehci_tt's */
+	struct list_head	ps_list;	/* Items using this TT */
+	struct usb_tt		*usb_tt;
+	int			tt_port;	/* TT port number */
+};
 
 /*-------------------------------------------------------------------------*/
 
