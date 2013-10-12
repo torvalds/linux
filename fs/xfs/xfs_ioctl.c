@@ -670,7 +670,9 @@ xfs_ioc_space(
 	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
+	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 	error = xfs_change_file_space(ip, cmd, bf, filp->f_pos, attr_flags);
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	mnt_drop_write_file(filp);
 	return -error;
 }
