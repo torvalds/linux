@@ -1036,7 +1036,7 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 						status =
 						    fix_ft1000_write_dpram32
 						    (ft1000dev, dpram++,
-						     (u8 *) & templong);
+						     (u8 *) &templong);
 
 					}
 					break;
