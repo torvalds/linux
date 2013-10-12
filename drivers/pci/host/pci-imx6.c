@@ -439,7 +439,6 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 
 	pp->dbi_base = devm_ioremap_resource(&pdev->dev, dbi_base);
 	if (IS_ERR(pp->dbi_base)) {
-		dev_err(&pdev->dev, "unable to remap dbi_base\n");
 		ret = PTR_ERR(pp->dbi_base);
 		goto err;
 	}
