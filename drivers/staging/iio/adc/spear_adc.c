@@ -318,7 +318,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	info->adc_base_spear3xx =
-		(struct adc_regs_spear3xx *)info->adc_base_spear6xx;
+		(struct adc_regs_spear3xx __iomem *)info->adc_base_spear6xx;
 
 	info->clk = clk_get(dev, NULL);
 	if (IS_ERR(info->clk)) {
