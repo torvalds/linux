@@ -156,7 +156,7 @@ int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *
 int register_scaler_chip(struct scaler_chip_dev *chip);
 int unregister_scaler_chip(struct scaler_chip_dev *chip);
 
-#define SCALER_IOCTL_MAGIC 's'
+#define SCALER_IOCTL_MAGIC 'a'
 #define SCALER_IOCTL_POWER _IOW(SCALER_IOCTL_MAGIC, 0x00, char)
 #define SCALER_IOCTL_GET_CUR_INPUT _IOR(SCALER_IOCTL_MAGIC, 0x01, int)
 #define SCALER_IOCTL_SET_CUR_INPUT _IOW(SCALER_IOCTL_MAGIC, 0x02, int)

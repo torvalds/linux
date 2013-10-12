@@ -66,6 +66,7 @@ obj-$(CONFIG_LCD_RK3028_86V)   += lcd_E242868_rk3028_86v.o
 obj-$(CONFIG_LCD_MQ0801D)    += lcd_mq0801d.o
 obj-$(CONFIG_LCD_LD089WU1_MIPI)   += lcd_LD089WU1_mipi.o
 obj-$(CONFIG_LCD_B080XAN02_MIPI)   += lcd_B080XAN02_mipi.o
+obj-$(CONFIG_LCD_ANDROIDCOMPUTER)   += lcd_androidcomputer.o
 
 
 quiet_cmd_gen = GEN     $@

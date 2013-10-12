@@ -440,7 +440,6 @@ struct input_keymap_entry {
 
 #define KEY_WIMAX		246
 #define KEY_RFKILL		247	/* Key that controls all radios */
-#define KEY_MODE_SWITCH		248	/* Key that controls all radios */
 
 /* Code 255 is reserved for special needs of AT keyboard driver */
 

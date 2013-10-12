@@ -20,8 +20,8 @@
 #else
 #define DBG(x...)
 #endif
-#define PC_DISPLAY_MODE 1 
-#define ANDROID_DISPLAY_MODE   2
+#define PC_DISPLAY_MODE 2
+#define ANDROID_DISPLAY_MODE   1
 
 #define USB_SWITCH_IOCTL_BASE 'u'
 #define USB_SWITCH_IOCTL_SET_USB_SWITCH_MODE		_IOW(USB_SWITCH_IOCTL_BASE, 0x01, int)

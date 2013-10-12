@@ -96,7 +96,7 @@ static struct rk29_keys_button key_button[] = {
 	*/
 	{
                 .desc   = "mode_switch",
-                .code   = KEY_MODE_SWITCH,
+                .code   = 248,
                 //.desc   = "vol+",
                 //.code   = KEY_VOLUMEUP,
                 
