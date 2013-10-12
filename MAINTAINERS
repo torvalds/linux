@@ -4749,7 +4749,7 @@ F:	Documentation/hwmon/k8temp
 F:	drivers/hwmon/k8temp.c
 
 KTAP
-M:	zhangwei(Jovi) <jovi.zhangwei@gmail.com>
+M:	Jovi Zhangwei <jovi.zhangwei@gmail.com>
 W:	http://www.ktap.org
 L:	ktap@freelists.org
 S:	Maintained
