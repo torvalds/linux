@@ -690,7 +690,8 @@ static int metronomefb_probe(struct platform_device *dev)
 		goto err_csum_table;
 	}
 
-	if (board->setup_irq(info))
+	retval = board->setup_irq(info);
+	if (retval)
 		goto err_csum_table;
 
 	retval = metronome_init_regs(par);
