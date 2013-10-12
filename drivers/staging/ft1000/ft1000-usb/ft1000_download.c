@@ -123,7 +123,7 @@ struct dsp_image_info {
 // Notes:
 //
 //---------------------------------------------------------------------------
-static u32 check_usb_db (struct ft1000_usb *ft1000dev)
+static u32 check_usb_db(struct ft1000_usb *ft1000dev)
 {
 	int loopcnt;
 	u16 temp;
