@@ -237,6 +237,7 @@ struct l2cap_conn_rsp {
 /* protocol/service multiplexer (PSM) */
 #define L2CAP_PSM_SDP		0x0001
 #define L2CAP_PSM_RFCOMM	0x0003
+#define L2CAP_PSM_3DSP		0x0021
 
 /* channel indentifier */
 #define L2CAP_CID_SIGNALING	0x0001

@@ -688,6 +688,16 @@ static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 			return HCI_AT_NO_BONDING;
 		}
 		break;
+	case L2CAP_CHAN_CONN_LESS:
+		if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_3DSP)) {
+			if (chan->sec_level == BT_SECURITY_LOW)
+				chan->sec_level = BT_SECURITY_SDP;
+		}
+		if (chan->sec_level == BT_SECURITY_HIGH)
+			return HCI_AT_NO_BONDING_MITM;
+		else
+			return HCI_AT_NO_BONDING;
+		break;
 	case L2CAP_CHAN_CONN_ORIENTED:
 		if (chan->psm == __constant_cpu_to_le16(L2CAP_PSM_SDP)) {
 			if (chan->sec_level == BT_SECURITY_LOW)
