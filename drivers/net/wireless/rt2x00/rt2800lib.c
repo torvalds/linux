@@ -6475,7 +6475,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 28, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 29, 0x10);
 
-	rt2800_rfcsr_write(rt2x00dev, 30, 0x00);
+	rt2800_rfcsr_write(rt2x00dev, 30, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 31, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 32, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 33, 0x00);
@@ -6513,7 +6513,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
 	rt2800_rfcsr_write(rt2x00dev, 57, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 58, 0x7f);
-	rt2800_rfcsr_write(rt2x00dev, 59, 0x63);
+	rt2800_rfcsr_write(rt2x00dev, 59, 0x8f);
 
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
@@ -6533,7 +6533,6 @@ static void rt2800_init_rfcsr_5392(struct rt2x00_dev *rt2x00dev)
 	rt2800_rf_init_calibration(rt2x00dev, 2);
 
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x17);
-	rt2800_rfcsr_write(rt2x00dev, 2, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x88);
 	rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 6, 0xe0);
