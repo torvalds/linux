@@ -536,6 +536,7 @@ static int dspi_remove(struct platform_device *pdev)
 
 	/* Disconnect from the SPI framework */
 	spi_bitbang_stop(&dspi->bitbang);
+	clk_disable_unprepare(dspi->clk);
 	spi_master_put(dspi->bitbang.master);
 
 	return 0;
