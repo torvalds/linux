@@ -1174,8 +1174,10 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	mutex_unlock(&delayed_node->mutex);
 
 	path = btrfs_alloc_path();
-	if (!path)
+	if (!path) {
+		btrfs_release_delayed_node(delayed_node);
 		return -ENOMEM;
+	}
 	path->leave_spinning = 1;
 
 	block_rsv = trans->block_rsv;
