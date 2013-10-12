@@ -111,18 +111,7 @@ struct dsp_image_info {
 };
 
 
-//---------------------------------------------------------------------------
-// Function:    check_usb_db
-//
-// Parameters:  struct ft1000_usb  - device structure
-//
-// Returns:     0 - success
-//
-// Description: This function checks if the doorbell register is cleared
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* checks if the doorbell register is cleared */
 static u32 check_usb_db(struct ft1000_usb *ft1000dev)
 {
 	int loopcnt;
