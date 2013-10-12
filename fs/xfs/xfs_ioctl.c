@@ -661,9 +661,6 @@ xfs_ioc_space(
 	if (!S_ISREG(inode->i_mode))
 		return -XFS_ERROR(EINVAL);
 
-	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		attr_flags |= XFS_ATTR_NONBLOCK;
-
 	if (filp->f_flags & O_DSYNC)
 		attr_flags |= XFS_ATTR_SYNC;
 
