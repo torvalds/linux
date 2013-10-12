@@ -123,9 +123,9 @@ config ACPI_BUTTON
 	default y
 	help
 	  This driver handles events on the power, sleep, and lid buttons.
-	  A daemon reads /proc/acpi/event and perform user-defined actions
-	  such as shutting down the system.  This is necessary for
-	  software-controlled poweroff.
+	  A daemon reads events from input devices or via netlink and
+	  performs user-defined actions such as shutting down the system.
+	  This is necessary for software-controlled poweroff.
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
