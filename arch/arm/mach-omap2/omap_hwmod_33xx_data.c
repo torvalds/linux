@@ -637,6 +637,7 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 
 int __init am33xx_hwmod_init(void)
 {
+	omap_hwmod_am33xx_reg();
 	omap_hwmod_init();
 	return omap_hwmod_register_links(am33xx_hwmod_ocp_ifs);
 }
