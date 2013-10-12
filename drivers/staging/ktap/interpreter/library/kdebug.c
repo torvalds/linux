@@ -23,7 +23,6 @@
 #include <linux/ctype.h>
 #include <linux/version.h>
 #include <linux/ftrace_event.h>
-#include <asm/syscall.h> //syscall_set_return_value defined here
 #include "../../include/ktap.h"
 
 static void ktap_call_probe_closure(ktap_state *mainthread, ktap_closure *cl,
