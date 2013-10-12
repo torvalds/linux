@@ -1137,7 +1137,7 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 			if (pseudo_header->checksum ==
 			    hdr_checksum(pseudo_header)) {
 				if (pseudo_header->portdest !=
-				    0x80 /* Dsp OAM */ ) {
+				    0x80 /* Dsp OAM */) {
 					state = STATE_DONE_PROV;
 					break;
 				}
