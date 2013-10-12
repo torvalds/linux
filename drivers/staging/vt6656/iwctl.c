@@ -1815,7 +1815,6 @@ static const iw_handler iwctl_handler[] = {
 	IW_HANDLER(SIOCGIWPOWER, iwctl_giwpower),
 	IW_HANDLER(SIOCSIWGENIE, iwctl_siwgenie),
 	IW_HANDLER(SIOCGIWGENIE, iwctl_giwgenie),
-	IW_HANDLER(SIOCSIWMLME, iwctl_siwmlme),
 	IW_HANDLER(SIOCSIWAUTH, iwctl_siwauth),
 	IW_HANDLER(SIOCGIWAUTH, iwctl_giwauth),
 	IW_HANDLER(SIOCSIWENCODEEXT, iwctl_siwencodeext),
