@@ -805,44 +805,64 @@ out:
 
 STATIC long
 xfs_file_fallocate(
-	struct file	*file,
-	int		mode,
-	loff_t		offset,
-	loff_t		len)
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len)
 {
-	struct inode	*inode = file_inode(file);
-	long		error;
-	loff_t		new_size = 0;
-	xfs_flock64_t	bf;
-	xfs_inode_t	*ip = XFS_I(inode);
-	int		cmd = XFS_IOC_RESVSP;
-	int		attr_flags = 0;
+	struct inode		*inode = file_inode(file);
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_trans	*tp;
+	long			error;
+	loff_t			new_size = 0;
 
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
 		return -EOPNOTSUPP;
 
-	bf.l_whence = 0;
-	bf.l_start = offset;
-	bf.l_len = len;
-
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	if (mode & FALLOC_FL_PUNCH_HOLE) {
+		error = xfs_free_file_space(ip, offset, len);
+		if (error)
+			goto out_unlock;
+	} else {
+		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+		    offset + len > i_size_read(inode)) {
+			new_size = offset + len;
+			error = -inode_newsize_ok(inode, new_size);
+			if (error)
+				goto out_unlock;
+		}
 
-	if (mode & FALLOC_FL_PUNCH_HOLE)
-		cmd = XFS_IOC_UNRESVSP;
-
-	/* check the new inode size is valid before allocating */
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-	    offset + len > i_size_read(inode)) {
-		new_size = offset + len;
-		error = inode_newsize_ok(inode, new_size);
+		error = xfs_alloc_file_space(ip, offset, len,
+					     XFS_BMAPI_PREALLOC);
 		if (error)
 			goto out_unlock;
 	}
 
-	if (file->f_flags & O_DSYNC)
-		attr_flags |= XFS_ATTR_SYNC;
+	tp = xfs_trans_alloc(ip->i_mount, XFS_TRANS_WRITEID);
+	error = xfs_trans_reserve(tp, &M_RES(ip->i_mount)->tr_writeid, 0, 0);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		goto out_unlock;
+	}
 
-	error = -xfs_change_file_space(ip, cmd, &bf, 0, attr_flags);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	ip->i_d.di_mode &= ~S_ISUID;
+	if (ip->i_d.di_mode & S_IXGRP)
+		ip->i_d.di_mode &= ~S_ISGID;
+
+	if (!(mode & FALLOC_FL_PUNCH_HOLE))
+		ip->i_d.di_flags |= XFS_DIFLAG_PREALLOC;
+
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	if (file->f_flags & O_DSYNC)
+		xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp, 0);
 	if (error)
 		goto out_unlock;
 
@@ -852,12 +872,12 @@ xfs_file_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = -xfs_setattr_size(ip, &iattr);
+		error = xfs_setattr_size(ip, &iattr);
 	}
 
 out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-	return error;
+	return -error;
 }
 
 
