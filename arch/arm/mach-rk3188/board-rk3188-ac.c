@@ -1115,6 +1115,7 @@ struct platform_device pwm_regulator_device[1] = {
 #define PHY_PWR_EN_GPIO  INVALID_GPIO
 #define PHY_PWR_EN_IOMUX GPIO3_D2 
 #define PHY_PWR_EN_VALUE GPIO_HIGH
+#define RMII_EXT_CLK
 #include "../mach-rk30/board-rk31-sdk-vmac.c"
 #endif
 

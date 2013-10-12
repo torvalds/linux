@@ -274,6 +274,7 @@ struct rk29_vmac_platform_data {
 	int (*rmii_io_deinit)(void);
 	int (*rmii_power_control)(int enable);
         int(*rmii_speed_switch)(int speed);
+        int(*rmii_extclk_sel)(void);
 };
 /* adc battery */
 #define LCDC_ON 0x0001

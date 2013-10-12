@@ -1,3 +1,4 @@
+static rmii_extclk_sel = 0;
 static int rk30_vmac_register_set(void)
 {
 	//config rk30 vmac as rmii
@@ -83,10 +84,19 @@ static int rk29_vmac_speed_switch(int speed)
 	}
 }
 
+static int rk30_rmii_extclk_sel(void)
+{
+#ifdef RMII_EXT_CLK
+    rmii_extclk_sel = 1; //0:select internal divider clock, 1:select external input clock
+#endif 
+    return rmii_extclk_sel; 
+}
+
 struct rk29_vmac_platform_data board_vmac_data = {
 	.vmac_register_set = rk30_vmac_register_set,
 	.rmii_io_init = rk30_rmii_io_init,
 	.rmii_io_deinit = rk30_rmii_io_deinit,
 	.rmii_power_control = rk30_rmii_power_control,
 	.rmii_speed_switch = rk29_vmac_speed_switch,
+   .rmii_extclk_sel = rk30_rmii_extclk_sel,
 };
