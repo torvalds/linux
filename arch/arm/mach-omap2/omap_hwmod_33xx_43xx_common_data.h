@@ -158,5 +158,6 @@ extern struct omap_gpio_dev_attr gpio_dev_attr;
 extern struct omap2_mcspi_dev_attr mcspi_attrib;
 
 void omap_hwmod_am33xx_reg(void);
+void omap_hwmod_am43xx_reg(void);
 
 #endif
