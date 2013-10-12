@@ -1143,7 +1143,7 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 				}
 				pseudo_header_len = ntohs(pseudo_header->length);	/* Byte length for PROV records */
 
-				// Get buffer for provisioning data
+				/* Get buffer for provisioning data */
 				pbuffer =
 				    kmalloc((pseudo_header_len +
 					     sizeof(struct pseudo_hdr)),
