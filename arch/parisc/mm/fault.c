@@ -142,6 +142,12 @@ int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fix;
 
+	/* If we only stored 32bit addresses in the exception table we can drop
+	 * out if we faulted on a 64bit address. */
+	if ((sizeof(regs->iaoq[0]) > sizeof(fix->insn))
+		&& (regs->iaoq[0] >> 32))
+			return 0;
+
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
 		struct exception_data *d;
