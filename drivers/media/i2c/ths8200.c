@@ -46,13 +46,17 @@ struct ths8200_state {
 
 static const struct v4l2_dv_timings_cap ths8200_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
-	.bt = {
-		.max_width = 1920,
-		.max_height = 1080,
-		.min_pixelclock = 25000000,
-		.max_pixelclock = 148500000,
-		.standards = V4L2_DV_BT_STD_CEA861,
-		.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE,
+	/* Allow gcc 4.5.4 to build this */
+	.reserved = { },
+	{
+		.bt = {
+			.max_width = 1920,
+			.max_height = 1080,
+			.min_pixelclock = 25000000,
+			.max_pixelclock = 148500000,
+			.standards = V4L2_DV_BT_STD_CEA861,
+			.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE,
+		},
 	},
 };
 
