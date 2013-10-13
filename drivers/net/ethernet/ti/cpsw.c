@@ -1169,9 +1169,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		}
 	}
 
+	napi_enable(&priv->napi);
 	cpdma_ctlr_start(priv->dma);
 	cpsw_intr_enable(priv);
-	napi_enable(&priv->napi);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
