@@ -35,6 +35,7 @@
 #include <linux/kdebug.h>	/* notifier mechanism */
 #include "../../mm/internal.h"	/* munlock_vma_page */
 #include <linux/percpu-rwsem.h>
+#include <linux/task_work.h>
 
 #include <linux/uprobes.h>
 
@@ -1400,6 +1401,17 @@ static void uprobe_warn(struct task_struct *t, const char *msg)
 			current->comm, current->pid, msg);
 }
 
+static void dup_xol_work(struct callback_head *work)
+{
+	kfree(work);
+
+	if (current->flags & PF_EXITING)
+		return;
+
+	if (!__create_xol_area(current->utask->vaddr))
+		uprobe_warn(current, "dup xol area");
+}
+
 /*
  * Called in context of a new clone/fork from copy_process.
  */
@@ -1407,6 +1419,8 @@ void uprobe_copy_process(struct task_struct *t)
 {
 	struct uprobe_task *utask = current->utask;
 	struct mm_struct *mm = current->mm;
+	struct callback_head *work;
+	struct xol_area *area;
 
 	t->utask = NULL;
 
@@ -1415,6 +1429,20 @@ void uprobe_copy_process(struct task_struct *t)
 
 	if (dup_utask(t, utask))
 		return uprobe_warn(t, "dup ret instances");
+
+	/* The task can fork() after dup_xol_work() fails */
+	area = mm->uprobes_state.xol_area;
+	if (!area)
+		return uprobe_warn(t, "dup xol area");
+
+	/* TODO: move it into the union in uprobe_task */
+	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	if (!work)
+		return uprobe_warn(t, "dup xol area");
+
+	utask->vaddr = area->vaddr;
+	init_task_work(work, dup_xol_work);
+	task_work_add(t, work, true);
 }
 
 /*
