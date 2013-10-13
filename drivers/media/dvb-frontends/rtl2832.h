@@ -51,7 +51,7 @@ struct rtl2832_config {
 };
 
 #if IS_ENABLED(CONFIG_DVB_RTL2832)
-extern struct dvb_frontend *rtl2832_attach(
+struct dvb_frontend *rtl2832_attach(
 	const struct rtl2832_config *cfg,
 	struct i2c_adapter *i2c
 );

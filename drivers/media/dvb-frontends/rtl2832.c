@@ -24,11 +24,6 @@
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
-
-int rtl2832_debug;
-module_param_named(debug, rtl2832_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
-
 #define REG_MASK(b) (BIT(b + 1) - 1)
 
 static const struct rtl2832_reg_entry registers[] = {
@@ -189,8 +184,9 @@ static int rtl2832_wr(struct rtl2832_priv *priv, u8 reg, u8 *val, int len)
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
+		dev_warn(&priv->i2c->dev,
+				"%s: i2c wr failed=%d reg=%02x len=%d\n",
+				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -218,8 +214,9 @@ static int rtl2832_rd(struct rtl2832_priv *priv, u8 reg, u8 *val, int len)
 	if (ret == 2) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
+		dev_warn(&priv->i2c->dev,
+				"%s: i2c rd failed=%d reg=%02x len=%d\n",
+				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -417,7 +414,7 @@ static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
 
 	ret = rtl2832_wr_demod_reg(priv, DVBT_PSET_IFFREQ, pset_iffreq);
 
-	return (ret);
+	return ret;
 }
 
 static int rtl2832_init(struct dvb_frontend *fe)
@@ -516,7 +513,8 @@ static int rtl2832_init(struct dvb_frontend *fe)
 
 	/*
 	 * r820t NIM code does a software reset here at the demod -
-	 * may not be needed, as there's already a software reset at set_params()
+	 * may not be needed, as there's already a software reset at
+	 * set_params()
 	 */
 #if 1
 	/* soft reset */
@@ -593,9 +591,9 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	};
 
 
-	dev_dbg(&priv->i2c->dev, "%s: frequency=%d bandwidth_hz=%d " \
-			"inversion=%d\n", __func__, c->frequency,
-			c->bandwidth_hz, c->inversion);
+	dev_dbg(&priv->i2c->dev,
+			"%s: frequency=%d bandwidth_hz=%d inversion=%d\n",
+			__func__, c->frequency, c->bandwidth_hz, c->inversion);
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
