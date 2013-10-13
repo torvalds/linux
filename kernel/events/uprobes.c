@@ -1345,14 +1345,6 @@ void uprobe_free_utask(struct task_struct *t)
 }
 
 /*
- * Called in context of a new clone/fork from copy_process.
- */
-void uprobe_copy_process(struct task_struct *t)
-{
-	t->utask = NULL;
-}
-
-/*
  * Allocate a uprobe_task object for the task if if necessary.
  * Called when the thread hits a breakpoint.
  *
@@ -1365,6 +1357,14 @@ static struct uprobe_task *get_utask(void)
 	if (!current->utask)
 		current->utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
 	return current->utask;
+}
+
+/*
+ * Called in context of a new clone/fork from copy_process.
+ */
+void uprobe_copy_process(struct task_struct *t)
+{
+	t->utask = NULL;
 }
 
 /*
