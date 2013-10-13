@@ -1084,7 +1084,7 @@ static int mv_probe(struct platform_device *pdev)
 		goto err_unmap_sram;
 	}
 
-	ret = request_irq(irq, crypto_int, IRQF_DISABLED, dev_name(&pdev->dev),
+	ret = request_irq(irq, crypto_int, 0, dev_name(&pdev->dev),
 			cp);
 	if (ret)
 		goto err_thread;
