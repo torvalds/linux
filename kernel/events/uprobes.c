@@ -1104,11 +1104,14 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	if (mm->uprobes_state.xol_area)
 		goto fail;
 
-	/* Try to map as high as possible, this is only a hint. */
-	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE, PAGE_SIZE, 0, 0);
-	if (area->vaddr & ~PAGE_MASK) {
-		ret = area->vaddr;
-		goto fail;
+	if (!area->vaddr) {
+		/* Try to map as high as possible, this is only a hint. */
+		area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
+						PAGE_SIZE, 0, 0);
+		if (area->vaddr & ~PAGE_MASK) {
+			ret = area->vaddr;
+			goto fail;
+		}
 	}
 
 	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
@@ -1124,13 +1127,13 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	return ret;
 }
 
-static struct xol_area *__create_xol_area(void)
+static struct xol_area *__create_xol_area(unsigned long vaddr)
 {
 	struct mm_struct *mm = current->mm;
 	uprobe_opcode_t insn = UPROBE_SWBP_INSN;
 	struct xol_area *area;
 
-	area = kzalloc(sizeof(*area), GFP_KERNEL);
+	area = kmalloc(sizeof(*area), GFP_KERNEL);
 	if (unlikely(!area))
 		goto out;
 
@@ -1142,6 +1145,7 @@ static struct xol_area *__create_xol_area(void)
 	if (!area->page)
 		goto free_bitmap;
 
+	area->vaddr = vaddr;
 	init_waitqueue_head(&area->wq);
 	/* Reserve the 1st slot for get_trampoline_vaddr() */
 	set_bit(0, area->bitmap);
@@ -1172,7 +1176,7 @@ static struct xol_area *get_xol_area(void)
 	struct xol_area *area;
 
 	if (!mm->uprobes_state.xol_area)
-		__create_xol_area();
+		__create_xol_area(0);
 
 	area = mm->uprobes_state.xol_area;
 	smp_read_barrier_depends();	/* pairs with wmb in xol_add_vma() */
