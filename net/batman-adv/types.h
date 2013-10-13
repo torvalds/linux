@@ -36,6 +36,12 @@
 #endif /* CONFIG_BATMAN_ADV_DAT */
 
 /**
+ * BATADV_TT_REMOTE_MASK - bitmask selecting the flags that are sent over the
+ *  wire only
+ */
+#define BATADV_TT_REMOTE_MASK	0x00FF
+
+/**
  * struct batadv_hard_iface_bat_iv - per hard interface B.A.T.M.A.N. IV data
  * @ogm_buff: buffer holding the OGM packet
  * @ogm_buff_len: length of the OGM packet buffer
