@@ -5206,7 +5206,7 @@ static inline void init_sd_lb_stats(struct sd_lb_stats *sds)
 /**
  * get_sd_load_idx - Obtain the load index for a given sched domain.
  * @sd: The sched_domain whose load_idx is to be obtained.
- * @idle: The Idle status of the CPU for whose sd load_icx is obtained.
+ * @idle: The idle status of the CPU for whose sd load_idx is obtained.
  *
  * Return: The load index.
  */
@@ -5412,7 +5412,7 @@ fix_small_capacity(struct sched_domain *sd, struct sched_group *group)
  * moving tasks due to affinity constraints.
  *
  * When this is so detected; this group becomes a candidate for busiest; see
- * update_sd_pick_busiest(). And calculcate_imbalance() and
+ * update_sd_pick_busiest(). And calculate_imbalance() and
  * find_busiest_group() avoid some of the usual balance conditions to allow it
  * to create an effective group imbalance.
  *
