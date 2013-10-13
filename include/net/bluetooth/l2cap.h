@@ -559,9 +559,6 @@ struct l2cap_conn {
 	struct hci_conn		*hcon;
 	struct hci_chan		*hchan;
 
-	bdaddr_t		*dst;
-	bdaddr_t		*src;
-
 	unsigned int		mtu;
 
 	__u32			feat_mask;
