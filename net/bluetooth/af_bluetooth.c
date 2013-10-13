@@ -617,15 +617,13 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 		struct bt_sock *bt = bt_sk(sk);
 
 		seq_printf(seq,
-			   "%pK %-6d %-6u %-6u %-6u %-6lu %pMR %pMR %-6lu",
+			   "%pK %-6d %-6u %-6u %-6u %-6lu %-6lu",
 			   sk,
 			   atomic_read(&sk->sk_refcnt),
 			   sk_rmem_alloc_get(sk),
 			   sk_wmem_alloc_get(sk),
 			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
 			   sock_i_ino(sk),
-			   &bt->src,
-			   &bt->dst,
 			   bt->parent? sock_i_ino(bt->parent): 0LU);
 
 		if (l->custom_seq_show) {

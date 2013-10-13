@@ -218,8 +218,6 @@ void baswap(bdaddr_t *dst, bdaddr_t *src);
 
 struct bt_sock {
 	struct sock sk;
-	bdaddr_t    src;
-	bdaddr_t    dst;
 	struct list_head accept_q;
 	struct sock *parent;
 	unsigned long flags;
