@@ -300,6 +300,8 @@ struct rfcomm_conninfo {
 
 struct rfcomm_pinfo {
 	struct bt_sock bt;
+	bdaddr_t src;
+	bdaddr_t dst;
 	struct rfcomm_dlc   *dlc;
 	u8     channel;
 	u8     sec_level;
