@@ -92,9 +92,6 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 	hcon->sco_data = conn;
 	conn->hcon = hcon;
 
-	conn->src = &hdev->bdaddr;
-	conn->dst = &hcon->dst;
-
 	if (hdev->sco_mtu > 0)
 		conn->mtu = hdev->sco_mtu;
 	else
@@ -156,16 +153,14 @@ static int sco_chan_add(struct sco_conn *conn, struct sock *sk,
 
 static int sco_connect(struct sock *sk)
 {
-	bdaddr_t *src = &bt_sk(sk)->src;
-	bdaddr_t *dst = &bt_sk(sk)->dst;
 	struct sco_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev  *hdev;
 	int err, type;
 
-	BT_DBG("%pMR -> %pMR", src, dst);
+	BT_DBG("%pMR -> %pMR", &bt_sk(sk)->src, &bt_sk(sk)->dst);
 
-	hdev = hci_get_route(dst, src);
+	hdev = hci_get_route(&bt_sk(sk)->dst, &bt_sk(sk)->src);
 	if (!hdev)
 		return -EHOSTUNREACH;
 
@@ -182,7 +177,8 @@ static int sco_connect(struct sock *sk)
 		goto done;
 	}
 
-	hcon = hci_connect_sco(hdev, type, dst, sco_pi(sk)->setting);
+	hcon = hci_connect_sco(hdev, type, &bt_sk(sk)->dst,
+			       sco_pi(sk)->setting);
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
 		goto done;
@@ -196,7 +192,7 @@ static int sco_connect(struct sock *sk)
 	}
 
 	/* Update source addr of the socket */
-	bacpy(src, conn->src);
+	bacpy(&bt_sk(sk)->src, &hcon->src);
 
 	err = sco_chan_add(conn, sk, NULL);
 	if (err)
@@ -999,7 +995,7 @@ static void sco_conn_ready(struct sco_conn *conn)
 	} else {
 		sco_conn_lock(conn);
 
-		parent = sco_get_sock_listen(conn->src);
+		parent = sco_get_sock_listen(&conn->hcon->src);
 		if (!parent) {
 			sco_conn_unlock(conn);
 			return;
@@ -1017,8 +1013,8 @@ static void sco_conn_ready(struct sco_conn *conn)
 
 		sco_sock_init(sk, parent);
 
-		bacpy(&bt_sk(sk)->src, conn->src);
-		bacpy(&bt_sk(sk)->dst, conn->dst);
+		bacpy(&bt_sk(sk)->src, &conn->hcon->src);
+		bacpy(&bt_sk(sk)->dst, &conn->hcon->dst);
 
 		hci_conn_hold(conn->hcon);
 		__sco_chan_add(conn, sk, parent);
