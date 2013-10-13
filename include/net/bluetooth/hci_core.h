@@ -300,6 +300,7 @@ struct hci_conn {
 
 	bdaddr_t	dst;
 	__u8		dst_type;
+	bdaddr_t	src;
 	__u8		src_type;
 	__u16		handle;
 	__u16		state;
