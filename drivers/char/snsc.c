@@ -108,8 +108,7 @@ scdrv_open(struct inode *inode, struct file *file)
 	/* hook this subchannel up to the system controller interrupt */
 	mutex_lock(&scdrv_mutex);
 	rv = request_irq(SGI_UART_VECTOR, scdrv_interrupt,
-			 IRQF_SHARED | IRQF_DISABLED,
-			 SYSCTL_BASENAME, sd);
+			 IRQF_SHARED, SYSCTL_BASENAME, sd);
 	if (rv) {
 		ia64_sn_irtr_close(sd->sd_nasid, sd->sd_subch);
 		kfree(sd);
