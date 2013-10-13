@@ -834,7 +834,7 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* get irq */
 	err = request_irq(chip->pci->irq, cx8801_irq,
-			  IRQF_SHARED | IRQF_DISABLED, chip->core->name, chip);
+			  IRQF_SHARED, chip->core->name, chip);
 	if (err < 0) {
 		dprintk(0, "%s: can't get IRQ %d\n",
 		       chip->core->name, chip->pci->irq);
