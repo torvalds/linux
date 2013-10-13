@@ -107,7 +107,9 @@ const struct nft_expr_ops nft_payload_fast_ops = {
 	.dump		= nft_payload_dump,
 };
 
-static const struct nft_expr_ops *nft_payload_select_ops(const struct nlattr * const tb[])
+static const struct nft_expr_ops *
+nft_payload_select_ops(const struct nft_ctx *ctx,
+		       const struct nlattr * const tb[])
 {
 	enum nft_payload_bases base;
 	unsigned int offset, len;

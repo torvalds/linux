@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netlink.h>
 
@@ -15,7 +16,22 @@ struct nft_pktinfo {
 	u8				hooknum;
 	u8				nhoff;
 	u8				thoff;
+	/* for x_tables compatibility */
+	struct xt_action_param		xt;
 };
+
+static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
+				   const struct nf_hook_ops *ops,
+				   struct sk_buff *skb,
+				   const struct net_device *in,
+				   const struct net_device *out)
+{
+	pkt->skb = skb;
+	pkt->in = pkt->xt.in = in;
+	pkt->out = pkt->xt.out = out;
+	pkt->hooknum = pkt->xt.hooknum = ops->hooknum;
+	pkt->xt.family = ops->pf;
+}
 
 struct nft_data {
 	union {
@@ -57,6 +73,7 @@ static inline void nft_data_debug(const struct nft_data *data)
  * 	@afi: address family info
  * 	@table: the table the chain is contained in
  * 	@chain: the chain the rule is contained in
+ *	@nla: netlink attributes
  */
 struct nft_ctx {
 	const struct sk_buff		*skb;
@@ -64,6 +81,7 @@ struct nft_ctx {
 	const struct nft_af_info	*afi;
 	const struct nft_table		*table;
 	const struct nft_chain		*chain;
+	const struct nlattr * const 	*nla;
 };
 
 struct nft_data_desc {
@@ -235,7 +253,8 @@ extern void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@maxattr: highest netlink attribute number
  */
 struct nft_expr_type {
-	const struct nft_expr_ops	*(*select_ops)(const struct nlattr * const tb[]);
+	const struct nft_expr_ops	*(*select_ops)(const struct nft_ctx *,
+						       const struct nlattr * const tb[]);
 	const struct nft_expr_ops	*ops;
 	struct list_head		list;
 	const char			*name;
@@ -253,6 +272,8 @@ struct nft_expr_type {
  *	@destroy: destruction function
  *	@dump: function to dump parameters
  *	@type: expression type
+ *	@validate: validate expression, called during loop detection
+ *	@data: extra data to attach to this expression operation
  */
 struct nft_expr;
 struct nft_expr_ops {
@@ -267,8 +288,11 @@ struct nft_expr_ops {
 	void				(*destroy)(const struct nft_expr *expr);
 	int				(*dump)(struct sk_buff *skb,
 						const struct nft_expr *expr);
-	const struct nft_data *		(*get_verdict)(const struct nft_expr *expr);
+	int				(*validate)(const struct nft_ctx *ctx,
+						    const struct nft_expr *expr,
+						    const struct nft_data **data);
 	const struct nft_expr_type	*type;
+	void				*data;
 };
 
 #define NFT_EXPR_MAXATTR		16
@@ -368,16 +392,25 @@ enum nft_chain_type {
 	NFT_CHAIN_T_MAX
 };
 
+struct nft_stats {
+	u64 bytes;
+	u64 pkts;
+};
+
 /**
  *	struct nft_base_chain - nf_tables base chain
  *
  *	@ops: netfilter hook ops
  *	@type: chain type
+ *	@policy: default policy
+ *	@stats: per-cpu chain stats
  *	@chain: the chain
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops;
 	enum nft_chain_type		type;
+	u8				policy;
+	struct nft_stats __percpu	*stats;
 	struct nft_chain		chain;
 };
 
@@ -386,11 +419,8 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 	return container_of(chain, struct nft_base_chain, chain);
 }
 
-extern unsigned int nft_do_chain(const struct nf_hook_ops *ops,
-				 struct sk_buff *skb,
-				 const struct net_device *in,
-				 const struct net_device *out,
-				 int (*okfn)(struct sk_buff *));
+extern unsigned int nft_do_chain_pktinfo(struct nft_pktinfo *pkt,
+					 const struct nf_hook_ops *ops);
 
 /**
  *	struct nft_table - nf_tables table

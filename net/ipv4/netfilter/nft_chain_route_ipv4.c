@@ -17,6 +17,7 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_ipv4.h>
 #include <net/route.h>
 #include <net/ip.h>
 
@@ -27,6 +28,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 					int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
+	struct nft_pktinfo pkt;
 	u32 mark;
 	__be32 saddr, daddr;
 	u_int8_t tos;
@@ -37,13 +39,15 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
+	nft_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
+
 	mark = skb->mark;
 	iph = ip_hdr(skb);
 	saddr = iph->saddr;
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = nft_do_chain(ops, skb, in, out, okfn);
+	ret = nft_do_chain_pktinfo(&pkt, ops);
 	if (ret != NF_DROP && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);
 

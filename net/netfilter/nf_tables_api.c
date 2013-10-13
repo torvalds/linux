@@ -438,13 +438,42 @@ static const struct nla_policy nft_chain_policy[NFTA_CHAIN_MAX + 1] = {
 	[NFTA_CHAIN_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
 	[NFTA_CHAIN_HOOK]	= { .type = NLA_NESTED },
+	[NFTA_CHAIN_POLICY]	= { .type = NLA_U32 },
 	[NFTA_CHAIN_TYPE]	= { .type = NLA_NUL_STRING },
+	[NFTA_CHAIN_COUNTERS]	= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy nft_hook_policy[NFTA_HOOK_MAX + 1] = {
 	[NFTA_HOOK_HOOKNUM]	= { .type = NLA_U32 },
 	[NFTA_HOOK_PRIORITY]	= { .type = NLA_U32 },
 };
+
+static int nft_dump_stats(struct sk_buff *skb, struct nft_stats __percpu *stats)
+{
+	struct nft_stats *cpu_stats, total;
+	struct nlattr *nest;
+	int cpu;
+
+	memset(&total, 0, sizeof(total));
+	for_each_possible_cpu(cpu) {
+		cpu_stats = per_cpu_ptr(stats, cpu);
+		total.pkts += cpu_stats->pkts;
+		total.bytes += cpu_stats->bytes;
+	}
+	nest = nla_nest_start(skb, NFTA_CHAIN_COUNTERS);
+	if (nest == NULL)
+		goto nla_put_failure;
+
+	if (nla_put_be64(skb, NFTA_COUNTER_PACKETS, cpu_to_be64(total.pkts)) ||
+	    nla_put_be64(skb, NFTA_COUNTER_BYTES, cpu_to_be64(total.bytes)))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+nla_put_failure:
+	return -ENOSPC;
+}
 
 static int nf_tables_fill_chain_info(struct sk_buff *skb, u32 portid, u32 seq,
 				     int event, u32 flags, int family,
@@ -472,8 +501,11 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, u32 portid, u32 seq,
 		goto nla_put_failure;
 
 	if (chain->flags & NFT_BASE_CHAIN) {
-		const struct nf_hook_ops *ops = &nft_base_chain(chain)->ops;
-		struct nlattr *nest = nla_nest_start(skb, NFTA_CHAIN_HOOK);
+		const struct nft_base_chain *basechain = nft_base_chain(chain);
+		const struct nf_hook_ops *ops = &basechain->ops;
+		struct nlattr *nest;
+
+		nest = nla_nest_start(skb, NFTA_CHAIN_HOOK);
 		if (nest == NULL)
 			goto nla_put_failure;
 		if (nla_put_be32(skb, NFTA_HOOK_HOOKNUM, htonl(ops->hooknum)))
@@ -482,10 +514,20 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, u32 portid, u32 seq,
 			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 
+		if (nla_put_be32(skb, NFTA_CHAIN_POLICY,
+				 htonl(basechain->policy)))
+			goto nla_put_failure;
+
 		if (nla_put_string(skb, NFTA_CHAIN_TYPE,
 			chain_type[ops->pf][nft_base_chain(chain)->type]->name))
 				goto nla_put_failure;
+
+		if (nft_dump_stats(skb, nft_base_chain(chain)->stats))
+			goto nla_put_failure;
 	}
+
+	if (nla_put_be32(skb, NFTA_CHAIN_USE, htonl(chain->use)))
+		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
 
@@ -617,6 +659,67 @@ err:
 	return err;
 }
 
+static int
+nf_tables_chain_policy(struct nft_base_chain *chain, const struct nlattr *attr)
+{
+	switch (ntohl(nla_get_be32(attr))) {
+	case NF_DROP:
+		chain->policy = NF_DROP;
+		break;
+	case NF_ACCEPT:
+		chain->policy = NF_ACCEPT;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static const struct nla_policy nft_counter_policy[NFTA_COUNTER_MAX + 1] = {
+	[NFTA_COUNTER_PACKETS]	= { .type = NLA_U64 },
+	[NFTA_COUNTER_BYTES]	= { .type = NLA_U64 },
+};
+
+static int
+nf_tables_counters(struct nft_base_chain *chain, const struct nlattr *attr)
+{
+	struct nlattr *tb[NFTA_COUNTER_MAX+1];
+	struct nft_stats __percpu *newstats;
+	struct nft_stats *stats;
+	int err;
+
+	err = nla_parse_nested(tb, NFTA_COUNTER_MAX, attr, nft_counter_policy);
+	if (err < 0)
+		return err;
+
+	if (!tb[NFTA_COUNTER_BYTES] || !tb[NFTA_COUNTER_PACKETS])
+		return -EINVAL;
+
+	newstats = alloc_percpu(struct nft_stats);
+	if (newstats == NULL)
+		return -ENOMEM;
+
+	/* Restore old counters on this cpu, no problem. Per-cpu statistics
+	 * are not exposed to userspace.
+	 */
+	stats = this_cpu_ptr(newstats);
+	stats->bytes = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_BYTES]));
+	stats->pkts = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_PACKETS]));
+
+	if (chain->stats) {
+		/* nfnl_lock is held, add some nfnl function for this, later */
+		struct nft_stats __percpu *oldstats =
+			rcu_dereference_protected(chain->stats, 1);
+
+		rcu_assign_pointer(chain->stats, newstats);
+		synchronize_rcu();
+		free_percpu(oldstats);
+	} else
+		rcu_assign_pointer(chain->stats, newstats);
+
+	return 0;
+}
+
 static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
 			      const struct nlattr * const nla[])
@@ -626,7 +729,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 	const struct nft_af_info *afi;
 	struct nft_table *table;
 	struct nft_chain *chain;
-	struct nft_base_chain *basechain;
+	struct nft_base_chain *basechain = NULL;
 	struct nlattr *ha[NFTA_HOOK_MAX + 1];
 	int family = nfmsg->nfgen_family;
 	u64 handle = 0;
@@ -672,6 +775,26 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		if (nla[NFTA_CHAIN_HANDLE] && name &&
 		    !IS_ERR(nf_tables_chain_lookup(table, nla[NFTA_CHAIN_NAME])))
 			return -EEXIST;
+
+		if (nla[NFTA_CHAIN_POLICY]) {
+			if (!(chain->flags & NFT_BASE_CHAIN))
+				return -EOPNOTSUPP;
+
+			err = nf_tables_chain_policy(nft_base_chain(chain),
+						     nla[NFTA_CHAIN_POLICY]);
+			if (err < 0)
+				return err;
+		}
+
+		if (nla[NFTA_CHAIN_COUNTERS]) {
+			if (!(chain->flags & NFT_BASE_CHAIN))
+				return -EOPNOTSUPP;
+
+			err = nf_tables_counters(nft_base_chain(chain),
+						 nla[NFTA_CHAIN_COUNTERS]);
+			if (err < 0)
+				return err;
+		}
 
 		if (nla[NFTA_CHAIN_HANDLE] && name)
 			nla_strlcpy(chain->name, name, NFT_CHAIN_MAXNAMELEN);
@@ -727,6 +850,36 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			ops->hook = afi->hooks[ops->hooknum];
 
 		chain->flags |= NFT_BASE_CHAIN;
+
+		if (nla[NFTA_CHAIN_POLICY]) {
+			err = nf_tables_chain_policy(basechain,
+						     nla[NFTA_CHAIN_POLICY]);
+			if (err < 0) {
+				free_percpu(basechain->stats);
+				kfree(basechain);
+				return err;
+			}
+		} else
+			basechain->policy = NF_ACCEPT;
+
+		if (nla[NFTA_CHAIN_COUNTERS]) {
+			err = nf_tables_counters(basechain,
+						 nla[NFTA_CHAIN_COUNTERS]);
+			if (err < 0) {
+				free_percpu(basechain->stats);
+				kfree(basechain);
+				return err;
+			}
+		} else {
+			struct nft_stats __percpu *newstats;
+
+			newstats = alloc_percpu(struct nft_stats);
+			if (newstats == NULL)
+				return -ENOMEM;
+
+			rcu_assign_pointer(nft_base_chain(chain)->stats,
+					   newstats);
+		}
 	} else {
 		chain = kzalloc(sizeof(*chain), GFP_KERNEL);
 		if (chain == NULL)
@@ -739,6 +892,15 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 	list_add_tail(&chain->list, &table->chains);
 	table->use++;
+
+	if (chain->flags & NFT_BASE_CHAIN) {
+		err = nf_register_hook(&nft_base_chain(chain)->ops);
+		if (err < 0) {
+			free_percpu(basechain->stats);
+			kfree(basechain);
+			return err;
+		}
+	}
 notify:
 	nf_tables_chain_notify(skb, nlh, table, chain, NFT_MSG_NEWCHAIN,
 			       family);
@@ -751,9 +913,10 @@ static void nf_tables_rcu_chain_destroy(struct rcu_head *head)
 
 	BUG_ON(chain->use > 0);
 
-	if (chain->flags & NFT_BASE_CHAIN)
+	if (chain->flags & NFT_BASE_CHAIN) {
+		free_percpu(nft_base_chain(chain)->stats);
 		kfree(nft_base_chain(chain));
-	else
+	} else
 		kfree(chain);
 }
 
@@ -801,13 +964,15 @@ static void nft_ctx_init(struct nft_ctx *ctx,
 			 const struct nlmsghdr *nlh,
 			 const struct nft_af_info *afi,
 			 const struct nft_table *table,
-			 const struct nft_chain *chain)
+			 const struct nft_chain *chain,
+			 const struct nlattr * const *nla)
 {
 	ctx->skb   = skb;
 	ctx->nlh   = nlh;
 	ctx->afi   = afi;
 	ctx->table = table;
 	ctx->chain = chain;
+	ctx->nla   = nla;
 }
 
 /*
@@ -910,7 +1075,8 @@ struct nft_expr_info {
 	struct nlattr			*tb[NFT_EXPR_MAXATTR + 1];
 };
 
-static int nf_tables_expr_parse(const struct nlattr *nla,
+static int nf_tables_expr_parse(const struct nft_ctx *ctx,
+				const struct nlattr *nla,
 				struct nft_expr_info *info)
 {
 	const struct nft_expr_type *type;
@@ -935,7 +1101,8 @@ static int nf_tables_expr_parse(const struct nlattr *nla,
 		memset(info->tb, 0, sizeof(info->tb[0]) * (type->maxattr + 1));
 
 	if (type->select_ops != NULL) {
-		ops = type->select_ops((const struct nlattr * const *)info->tb);
+		ops = type->select_ops(ctx,
+				       (const struct nlattr * const *)info->tb);
 		if (IS_ERR(ops)) {
 			err = PTR_ERR(ops);
 			goto err1;
@@ -1012,6 +1179,7 @@ static const struct nla_policy nft_rule_policy[NFTA_RULE_MAX + 1] = {
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
 	[NFTA_RULE_HANDLE]	= { .type = NLA_U64 },
 	[NFTA_RULE_EXPRESSIONS]	= { .type = NLA_NESTED },
+	[NFTA_RULE_COMPAT]	= { .type = NLA_NESTED },
 };
 
 static int nf_tables_fill_rule_info(struct sk_buff *skb, u32 portid, u32 seq,
@@ -1269,6 +1437,8 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 		handle = nf_tables_alloc_handle(table);
 	}
 
+	nft_ctx_init(&ctx, skb, nlh, afi, table, chain, nla);
+
 	n = 0;
 	size = 0;
 	if (nla[NFTA_RULE_EXPRESSIONS]) {
@@ -1278,7 +1448,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 				goto err1;
 			if (n == NFT_RULE_MAXEXPRS)
 				goto err1;
-			err = nf_tables_expr_parse(tmp, &info[n]);
+			err = nf_tables_expr_parse(&ctx, tmp, &info[n]);
 			if (err < 0)
 				goto err1;
 			size += info[n].ops->size;
@@ -1294,7 +1464,6 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 	rule->handle = handle;
 	rule->dlen   = size;
 
-	nft_ctx_init(&ctx, skb, nlh, afi, table, chain);
 	expr = nft_expr_first(rule);
 	for (i = 0; i < n; i++) {
 		err = nf_tables_newexpr(&ctx, &info[i], expr);
@@ -1302,13 +1471,6 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			goto err2;
 		info[i].ops = NULL;
 		expr = nft_expr_next(expr);
-	}
-
-	/* Register hook when first rule is inserted into a base chain */
-	if (list_empty(&chain->rules) && chain->flags & NFT_BASE_CHAIN) {
-		err = nf_register_hook(&nft_base_chain(chain)->ops);
-		if (err < 0)
-			goto err2;
 	}
 
 	if (nlh->nlmsg_flags & NLM_F_REPLACE) {
@@ -1378,10 +1540,6 @@ static int nf_tables_delrule(struct sock *nlsk, struct sk_buff *skb,
 			nf_tables_rule_destroy(rule);
 		}
 	}
-
-	/* Unregister hook when last rule from base chain is deleted */
-	if (list_empty(&chain->rules) && chain->flags & NFT_BASE_CHAIN)
-		nf_unregister_hook(&nft_base_chain(chain)->ops);
 
 	return 0;
 }
@@ -1470,7 +1628,7 @@ static int nft_ctx_init_from_setattr(struct nft_ctx *ctx,
 			return PTR_ERR(table);
 	}
 
-	nft_ctx_init(ctx, skb, nlh, afi, table, NULL);
+	nft_ctx_init(ctx, skb, nlh, afi, table, NULL, nla);
 	return 0;
 }
 
@@ -1799,7 +1957,7 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	if (IS_ERR(table))
 		return PTR_ERR(table);
 
-	nft_ctx_init(&ctx, skb, nlh, afi, table, NULL);
+	nft_ctx_init(&ctx, skb, nlh, afi, table, NULL, nla);
 
 	set = nf_tables_set_lookup(table, nla[NFTA_SET_NAME]);
 	if (IS_ERR(set)) {
@@ -1987,7 +2145,7 @@ static int nft_ctx_init_from_elemattr(struct nft_ctx *ctx,
 	if (IS_ERR(table))
 		return PTR_ERR(table);
 
-	nft_ctx_init(ctx, skb, nlh, afi, table, NULL);
+	nft_ctx_init(ctx, skb, nlh, afi, table, NULL, nla);
 	return 0;
 }
 
@@ -2435,23 +2593,27 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 {
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
-	const struct nft_data *data;
 	const struct nft_set *set;
 	struct nft_set_binding *binding;
 	struct nft_set_iter iter;
-	int err;
 
 	if (ctx->chain == chain)
 		return -ELOOP;
 
 	list_for_each_entry(rule, &chain->rules, list) {
 		nft_rule_for_each_expr(expr, last, rule) {
-			if (!expr->ops->get_verdict)
+			const struct nft_data *data = NULL;
+			int err;
+
+			if (!expr->ops->validate)
 				continue;
 
-			data = expr->ops->get_verdict(expr);
+			err = expr->ops->validate(ctx, expr, &data);
+			if (err < 0)
+				return err;
+
 			if (data == NULL)
-				break;
+				continue;
 
 			switch (data->verdict) {
 			case NFT_JUMP:

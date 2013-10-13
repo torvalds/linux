@@ -23,6 +23,7 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_ipv4.h>
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/ip.h>
 
@@ -181,6 +182,7 @@ static unsigned int nf_nat_fn(const struct nf_hook_ops *ops,
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	struct nf_conn_nat *nat;
 	enum nf_nat_manip_type maniptype = HOOK2MANIP(ops->hooknum);
+	struct nft_pktinfo pkt;
 	unsigned int ret;
 
 	if (ct == NULL || nf_ct_is_untracked(ct))
@@ -213,7 +215,9 @@ static unsigned int nf_nat_fn(const struct nf_hook_ops *ops,
 		if (nf_nat_initialized(ct, maniptype))
 			break;
 
-		ret = nft_do_chain(ops, skb, in, out, okfn);
+		nft_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
+
+		ret = nft_do_chain_pktinfo(&pkt, ops);
 		if (ret != NF_ACCEPT)
 			return ret;
 		if (!nf_nat_initialized(ct, maniptype)) {

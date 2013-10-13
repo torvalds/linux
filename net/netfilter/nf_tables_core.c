@@ -60,27 +60,34 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 	return true;
 }
 
-unsigned int nft_do_chain(const struct nf_hook_ops *ops,
-			  struct sk_buff *skb,
-			  const struct net_device *in,
-			  const struct net_device *out,
-			  int (*okfn)(struct sk_buff *))
+struct nft_jumpstack {
+	const struct nft_chain	*chain;
+	const struct nft_rule	*rule;
+};
+
+static inline void
+nft_chain_stats(const struct nft_chain *this, const struct nft_pktinfo *pkt,
+		struct nft_jumpstack *jumpstack, unsigned int stackptr)
+{
+	struct nft_stats __percpu *stats;
+	const struct nft_chain *chain = stackptr ? jumpstack[0].chain : this;
+
+	rcu_read_lock_bh();
+	stats = rcu_dereference(nft_base_chain(chain)->stats);
+	__this_cpu_inc(stats->pkts);
+	__this_cpu_add(stats->bytes, pkt->skb->len);
+	rcu_read_unlock_bh();
+}
+
+unsigned int
+nft_do_chain_pktinfo(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 {
 	const struct nft_chain *chain = ops->priv;
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
 	struct nft_data data[NFT_REG_MAX + 1];
-	const struct nft_pktinfo pkt = {
-		.skb		= skb,
-		.in		= in,
-		.out		= out,
-		.hooknum	= ops->hooknum,
-	};
 	unsigned int stackptr = 0;
-	struct {
-		const struct nft_chain	*chain;
-		const struct nft_rule	*rule;
-	} jumpstack[NFT_JUMP_STACK_SIZE];
+	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
 
 do_chain:
 	rule = list_entry(&chain->rules, struct nft_rule, list);
@@ -91,8 +98,8 @@ next_rule:
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, data);
 			else if (expr->ops != &nft_payload_fast_ops ||
-				 !nft_payload_fast_eval(expr, data, &pkt))
-				expr->ops->eval(expr, data, &pkt);
+				 !nft_payload_fast_eval(expr, data, pkt))
+				expr->ops->eval(expr, data, pkt);
 
 			if (data[NFT_REG_VERDICT].verdict != NFT_CONTINUE)
 				break;
@@ -135,10 +142,11 @@ next_rule:
 		rule  = jumpstack[stackptr].rule;
 		goto next_rule;
 	}
+	nft_chain_stats(chain, pkt, jumpstack, stackptr);
 
-	return NF_ACCEPT;
+	return nft_base_chain(chain)->policy;
 }
-EXPORT_SYMBOL_GPL(nft_do_chain);
+EXPORT_SYMBOL_GPL(nft_do_chain_pktinfo);
 
 int __init nf_tables_core_module_init(void)
 {

@@ -162,7 +162,8 @@ const struct nft_expr_ops nft_cmp_fast_ops = {
 	.dump		= nft_cmp_fast_dump,
 };
 
-static const struct nft_expr_ops *nft_cmp_select_ops(const struct nlattr * const tb[])
+static const struct nft_expr_ops *
+nft_cmp_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 {
 	struct nft_data_desc desc;
 	struct nft_data data;

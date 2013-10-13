@@ -19,6 +19,7 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_ipv6.h>
 #include <net/route.h>
 
 static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
@@ -28,9 +29,14 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 					int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
+	struct nft_pktinfo pkt;
 	struct in6_addr saddr, daddr;
 	u_int8_t hop_limit;
 	u32 mark, flowlabel;
+
+	/* malformed packet, drop it */
+	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, in, out) < 0)
+		return NF_DROP;
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority */
 	memcpy(&saddr, &ipv6_hdr(skb)->saddr, sizeof(saddr));
@@ -41,7 +47,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u32 *)ipv6_hdr(skb));
 
-	ret = nft_do_chain(ops, skb, in, out, okfn);
+	ret = nft_do_chain_pktinfo(&pkt, ops);
 	if (ret != NF_DROP && ret != NF_QUEUE &&
 	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
 	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||

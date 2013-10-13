@@ -115,7 +115,10 @@ enum nft_table_attributes {
  * @NFTA_CHAIN_HANDLE: numeric handle of the chain (NLA_U64)
  * @NFTA_CHAIN_NAME: name of the chain (NLA_STRING)
  * @NFTA_CHAIN_HOOK: hook specification for basechains (NLA_NESTED: nft_hook_attributes)
+ * @NFTA_CHAIN_POLICY: numeric policy of the chain (NLA_U32)
+ * @NFTA_CHAIN_USE: number of references to this chain (NLA_U32)
  * @NFTA_CHAIN_TYPE: type name of the string (NLA_NUL_STRING)
+ * @NFTA_CHAIN_COUNTERS: counter specification of the chain (NLA_NESTED: nft_counter_attributes)
  */
 enum nft_chain_attributes {
 	NFTA_CHAIN_UNSPEC,
@@ -123,7 +126,10 @@ enum nft_chain_attributes {
 	NFTA_CHAIN_HANDLE,
 	NFTA_CHAIN_NAME,
 	NFTA_CHAIN_HOOK,
+	NFTA_CHAIN_POLICY,
+	NFTA_CHAIN_USE,
 	NFTA_CHAIN_TYPE,
+	NFTA_CHAIN_COUNTERS,
 	__NFTA_CHAIN_MAX
 };
 #define NFTA_CHAIN_MAX		(__NFTA_CHAIN_MAX - 1)
@@ -135,6 +141,7 @@ enum nft_chain_attributes {
  * @NFTA_RULE_CHAIN: name of the chain containing the rule (NLA_STRING)
  * @NFTA_RULE_HANDLE: numeric handle of the rule (NLA_U64)
  * @NFTA_RULE_EXPRESSIONS: list of expressions (NLA_NESTED: nft_expr_attributes)
+ * @NFTA_RULE_COMPAT: compatibility specifications of the rule (NLA_NESTED: nft_rule_compat_attributes)
  */
 enum nft_rule_attributes {
 	NFTA_RULE_UNSPEC,
@@ -142,9 +149,34 @@ enum nft_rule_attributes {
 	NFTA_RULE_CHAIN,
 	NFTA_RULE_HANDLE,
 	NFTA_RULE_EXPRESSIONS,
+	NFTA_RULE_COMPAT,
 	__NFTA_RULE_MAX
 };
 #define NFTA_RULE_MAX		(__NFTA_RULE_MAX - 1)
+
+/**
+ * enum nft_rule_compat_flags - nf_tables rule compat flags
+ *
+ * @NFT_RULE_COMPAT_F_INV: invert the check result
+ */
+enum nft_rule_compat_flags {
+	NFT_RULE_COMPAT_F_INV	= (1 << 1),
+	NFT_RULE_COMPAT_F_MASK	= NFT_RULE_COMPAT_F_INV,
+};
+
+/**
+ * enum nft_rule_compat_attributes - nf_tables rule compat attributes
+ *
+ * @NFTA_RULE_COMPAT_PROTO: numerice value of handled protocol (NLA_U32)
+ * @NFTA_RULE_COMPAT_FLAGS: bitmask of enum nft_rule_compat_flags (NLA_U32)
+ */
+enum nft_rule_compat_attributes {
+	NFTA_RULE_COMPAT_UNSPEC,
+	NFTA_RULE_COMPAT_PROTO,
+	NFTA_RULE_COMPAT_FLAGS,
+	__NFTA_RULE_COMPAT_MAX
+};
+#define NFTA_RULE_COMPAT_MAX	(__NFTA_RULE_COMPAT_MAX - 1)
 
 /**
  * enum nft_set_flags - nf_tables set flags
