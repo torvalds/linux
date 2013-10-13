@@ -387,13 +387,13 @@ static void confirm_work(struct work_struct *work)
 	smp->tfm = tfm;
 
 	if (conn->hcon->out)
-		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp, 0,
-			     &conn->hcon->src, conn->hcon->dst_type,
-			     &conn->hcon->dst, res);
+		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp,
+			     conn->hcon->src_type, &conn->hcon->src,
+			     conn->hcon->dst_type, &conn->hcon->dst, res);
 	else
 		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp,
-			     conn->hcon->dst_type, &conn->hcon->dst, 0,
-			     &conn->hcon->src, res);
+			     conn->hcon->dst_type, &conn->hcon->dst,
+			     conn->hcon->src_type, &conn->hcon->src, res);
 	if (ret) {
 		reason = SMP_UNSPECIFIED;
 		goto error;
@@ -427,11 +427,13 @@ static void random_work(struct work_struct *work)
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
 	if (hcon->out)
-		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp, 0,
-			     &hcon->src, hcon->dst_type, &hcon->dst, res);
+		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp,
+			     hcon->src_type, &hcon->src,
+			     hcon->dst_type, &hcon->dst, res);
 	else
 		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp,
-			     hcon->dst_type, &hcon->dst, 0, &hcon->src, res);
+			     hcon->dst_type, &hcon->dst,
+			     hcon->src_type, &hcon->src, res);
 	if (ret) {
 		reason = SMP_UNSPECIFIED;
 		goto error;
