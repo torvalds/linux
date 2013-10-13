@@ -3678,15 +3678,19 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_ltk_info *key = &cp->keys[i];
-		u8 type;
+		u8 type, addr_type;
+
+		if (key->addr.type == BDADDR_LE_PUBLIC)
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			addr_type = ADDR_LE_DEV_RANDOM;
 
 		if (key->master)
 			type = HCI_SMP_LTK;
 		else
 			type = HCI_SMP_LTK_SLAVE;
 
-		hci_add_ltk(hdev, &key->addr.bdaddr,
-			    bdaddr_to_le(key->addr.type),
+		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type,
 			    type, 0, key->authenticated, key->val,
 			    key->enc_size, key->ediv, key->rand);
 	}

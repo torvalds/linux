@@ -3695,15 +3695,3 @@ static void hci_cmd_work(struct work_struct *work)
 		}
 	}
 }
-
-u8 bdaddr_to_le(u8 bdaddr_type)
-{
-	switch (bdaddr_type) {
-	case BDADDR_LE_PUBLIC:
-		return ADDR_LE_DEV_PUBLIC;
-
-	default:
-		/* Fallback to LE Random address type */
-		return ADDR_LE_DEV_RANDOM;
-	}
-}

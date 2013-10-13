@@ -622,7 +622,10 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
-	conn->dst_type = bdaddr_to_le(dst_type);
+	if (dst_type == BDADDR_LE_PUBLIC)
+		conn->dst_type = ADDR_LE_DEV_PUBLIC;
+	else
+		conn->dst_type = ADDR_LE_DEV_RANDOM;
 	conn->state = BT_CONNECT;
 	conn->out = true;
 	conn->link_mode |= HCI_LM_MASTER;
