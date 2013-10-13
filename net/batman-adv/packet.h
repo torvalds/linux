@@ -110,12 +110,13 @@ enum batadv_tt_data_flags {
 
 /* BATADV_TT_CLIENT flags.
  * Flags from BIT(0) to BIT(7) are sent on the wire, while flags from BIT(8) to
- * BIT(15) are used for local computation only
+ * BIT(15) are used for local computation only.
+ * Flags from BIT(4) to BIT(7) are kept in sync with the rest of the network.
  */
 enum batadv_tt_client_flags {
 	BATADV_TT_CLIENT_DEL     = BIT(0),
 	BATADV_TT_CLIENT_ROAM    = BIT(1),
-	BATADV_TT_CLIENT_WIFI    = BIT(2),
+	BATADV_TT_CLIENT_WIFI    = BIT(4),
 	BATADV_TT_CLIENT_NOPURGE = BIT(8),
 	BATADV_TT_CLIENT_NEW     = BIT(9),
 	BATADV_TT_CLIENT_PENDING = BIT(10),
