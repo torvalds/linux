@@ -324,7 +324,7 @@ static int mmp_tdma_alloc_chan_resources(struct dma_chan *chan)
 
 	if (tdmac->irq) {
 		ret = devm_request_irq(tdmac->dev, tdmac->irq,
-			mmp_tdma_chan_handler, IRQF_DISABLED, "tdma", tdmac);
+			mmp_tdma_chan_handler, 0, "tdma", tdmac);
 		if (ret)
 			return ret;
 	}
@@ -559,7 +559,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	if (irq_num != chan_num) {
 		irq = platform_get_irq(pdev, 0);
 		ret = devm_request_irq(&pdev->dev, irq,
-			mmp_tdma_int_handler, IRQF_DISABLED, "tdma", tdev);
+			mmp_tdma_int_handler, 0, "tdma", tdev);
 		if (ret)
 			return ret;
 	}
