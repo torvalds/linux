@@ -71,7 +71,14 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
 			GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
 	buf = kzalloc(BCM47XXPART_BYTES_TO_READ, GFP_KERNEL);
+	if (!buf) {
+		kfree(parts);
+		return -ENOMEM;
+	}
 
 	/* Parse block by block looking for magics */
 	for (offset = 0; offset <= master->size - blocksize;
