@@ -14,6 +14,6 @@ extern struct cpu_features cpu;
 extern u32 cpu_vendor[3];
 
 int has_eflag(unsigned long mask);
-void get_flags(void);
+void get_cpuflags(void);
 
 #endif

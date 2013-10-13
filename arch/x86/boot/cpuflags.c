@@ -65,7 +65,7 @@ static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
 	);
 }
 
-void get_flags(void)
+void get_cpuflags(void)
 {
 	u32 max_intel_level, max_amd_level;
 	u32 tfms;

@@ -4,7 +4,7 @@
 
 bool has_cpuflag(int flag)
 {
-	get_flags();
+	get_cpuflags();
 
 	return test_bit(flag, cpu.flags);
 }

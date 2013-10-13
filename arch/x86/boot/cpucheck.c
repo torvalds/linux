@@ -68,7 +68,7 @@ static int is_transmeta(void)
 }
 
 /* Returns a bitmask of which words we have error bits in */
-static int check_flags(void)
+static int check_cpuflags(void)
 {
 	u32 err;
 	int i;
@@ -101,8 +101,8 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 	if (has_eflag(X86_EFLAGS_AC))
 		cpu.level = 4;
 
-	get_flags();
-	err = check_flags();
+	get_cpuflags();
+	err = check_cpuflags();
 
 	if (test_bit(X86_FEATURE_LM, cpu.flags))
 		cpu.level = 64;
@@ -121,8 +121,8 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 		eax &= ~(1 << 15);
 		asm("wrmsr" : : "a" (eax), "d" (edx), "c" (ecx));
 
-		get_flags();	/* Make sure it really did something */
-		err = check_flags();
+		get_cpuflags();	/* Make sure it really did something */
+		err = check_cpuflags();
 	} else if (err == 0x01 &&
 		   !(err_flags[0] & ~(1 << X86_FEATURE_CX8)) &&
 		   is_centaur() && cpu.model >= 6) {
@@ -137,7 +137,7 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 		asm("wrmsr" : : "a" (eax), "d" (edx), "c" (ecx));
 
 		set_bit(X86_FEATURE_CX8, cpu.flags);
-		err = check_flags();
+		err = check_cpuflags();
 	} else if (err == 0x01 && is_transmeta()) {
 		/* Transmeta might have masked feature bits in word 0 */
 
@@ -152,7 +152,7 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 		    : : "ecx", "ebx");
 		asm("wrmsr" : : "a" (eax), "d" (edx), "c" (ecx));
 
-		err = check_flags();
+		err = check_cpuflags();
 	}
 
 	if (err_flags_ptr)
