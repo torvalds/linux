@@ -221,6 +221,7 @@ struct bt_sock {
 	struct list_head accept_q;
 	struct sock *parent;
 	unsigned long flags;
+	void (*skb_msg_name)(struct sk_buff *, void *, int *);
 };
 
 enum {
