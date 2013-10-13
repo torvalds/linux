@@ -444,6 +444,8 @@ struct l2cap_chan {
 
 	__u8		state;
 
+	bdaddr_t	dst;
+	bdaddr_t	src;
 	__le16		psm;
 	__u16		dcid;
 	__u16		scid;
