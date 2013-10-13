@@ -891,7 +891,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 #endif
 
 #ifdef CONFIG_PPC64
-int copy_siginfo_to_user32(struct compat_siginfo __user *d, siginfo_t *s)
+int copy_siginfo_to_user32(struct compat_siginfo __user *d, const siginfo_t *s)
 {
 	int err;
 

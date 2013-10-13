@@ -49,7 +49,7 @@ typedef struct
 	__u32 gprs_high[NUM_GPRS];
 } rt_sigframe32;
 
-int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
+int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 {
 	int err;
 
