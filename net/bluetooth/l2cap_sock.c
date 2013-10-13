@@ -113,6 +113,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	}
 
 	bacpy(&chan->src, &la.l2_bdaddr);
+	chan->src_type = la.l2_bdaddr_type;
 
 	chan->state = BT_BOUND;
 	sk->sk_state = BT_BOUND;
@@ -276,10 +277,12 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr,
 		la->l2_psm = chan->psm;
 		bacpy(&la->l2_bdaddr, &chan->dst);
 		la->l2_cid = cpu_to_le16(chan->dcid);
+		la->l2_bdaddr_type = chan->dst_type;
 	} else {
 		la->l2_psm = chan->sport;
 		bacpy(&la->l2_bdaddr, &chan->src);
 		la->l2_cid = cpu_to_le16(chan->scid);
+		la->l2_bdaddr_type = chan->src_type;
 	}
 
 	return 0;

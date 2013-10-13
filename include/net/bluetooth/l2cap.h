@@ -445,8 +445,11 @@ struct l2cap_chan {
 	__u8		state;
 
 	bdaddr_t	dst;
+	__u8		dst_type;
 	bdaddr_t	src;
+	__u8		src_type;
 	__le16		psm;
+	__le16		sport;
 	__u16		dcid;
 	__u16		scid;
 
@@ -456,8 +459,6 @@ struct l2cap_chan {
 	__u8		mode;
 	__u8		chan_type;
 	__u8		chan_policy;
-
-	__le16		sport;
 
 	__u8		sec_level;
 
