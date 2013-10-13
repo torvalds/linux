@@ -125,8 +125,11 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
  *
  * Returns true if the net device is a 802.11 wireless device, false otherwise.
  */
-static bool batadv_is_wifi_netdev(struct net_device *net_device)
+bool batadv_is_wifi_netdev(struct net_device *net_device)
 {
+	if (!net_device)
+		return false;
+
 #ifdef CONFIG_WIRELESS_EXT
 	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
 	 * check for wireless_handlers != NULL
@@ -140,34 +143,6 @@ static bool batadv_is_wifi_netdev(struct net_device *net_device)
 		return true;
 
 	return false;
-}
-
-/**
- * batadv_is_wifi_iface - check if the given interface represented by ifindex
- *  is a wifi interface
- * @ifindex: interface index to check
- *
- * Returns true if the interface represented by ifindex is a 802.11 wireless
- * device, false otherwise.
- */
-bool batadv_is_wifi_iface(int ifindex)
-{
-	struct net_device *net_device = NULL;
-	bool ret = false;
-
-	if (ifindex == BATADV_NULL_IFINDEX)
-		goto out;
-
-	net_device = dev_get_by_index(&init_net, ifindex);
-	if (!net_device)
-		goto out;
-
-	ret = batadv_is_wifi_netdev(net_device);
-
-out:
-	if (net_device)
-		dev_put(net_device);
-	return ret;
 }
 
 static struct batadv_hard_iface *
