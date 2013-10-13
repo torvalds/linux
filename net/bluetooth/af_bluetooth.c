@@ -30,7 +30,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <linux/proc_fs.h>
 
-#define VERSION "2.16"
+#define VERSION "2.17"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
