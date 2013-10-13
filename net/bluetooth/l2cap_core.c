@@ -1381,8 +1381,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	/* Check if we have socket listening on cid */
 	pchan = l2cap_global_chan_by_scid(BT_LISTEN, L2CAP_CID_ATT,
-					  &conn->hcon->hdev->bdaddr,
-					  &conn->hcon->dst);
+					  &conn->hcon->src, &conn->hcon->dst);
 	if (!pchan)
 		return;
 
@@ -1400,7 +1399,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	chan->dcid = L2CAP_CID_ATT;
 
-	bacpy(&bt_sk(chan->sk)->src, &conn->hcon->hdev->bdaddr);
+	bacpy(&bt_sk(chan->sk)->src, &conn->hcon->src);
 	bacpy(&bt_sk(chan->sk)->dst, &conn->hcon->dst);
 
 	__l2cap_chan_add(conn, chan);
@@ -3759,8 +3758,7 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 	BT_DBG("psm 0x%2.2x scid 0x%4.4x", __le16_to_cpu(psm), scid);
 
 	/* Check if we have socket listening on psm */
-	pchan = l2cap_global_chan_by_psm(BT_LISTEN, psm,
-					 &conn->hcon->hdev->bdaddr,
+	pchan = l2cap_global_chan_by_psm(BT_LISTEN, psm, &conn->hcon->src,
 					 &conn->hcon->dst);
 	if (!pchan) {
 		result = L2CAP_CR_BAD_PSM;
@@ -3799,7 +3797,7 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 	 */
 	conn->hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
 
-	bacpy(&bt_sk(sk)->src, &conn->hcon->hdev->bdaddr);
+	bacpy(&bt_sk(sk)->src, &conn->hcon->src);
 	bacpy(&bt_sk(sk)->dst, &conn->hcon->dst);
 	chan->psm  = psm;
 	chan->dcid = scid;
@@ -4923,7 +4921,7 @@ static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
 	 */
 	if ((__chan_is_moving(chan) ||
 	     chan->move_role != L2CAP_MOVE_ROLE_NONE) &&
-	    bacmp(&conn->hcon->hdev->bdaddr, &conn->hcon->dst) > 0) {
+	    bacmp(&conn->hcon->src, &conn->hcon->dst) > 0) {
 		result = L2CAP_MR_COLLISION;
 		goto send_move_response;
 	}
@@ -6438,7 +6436,7 @@ static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 	if (hcon->type != ACL_LINK)
 		goto drop;
 
-	chan = l2cap_global_chan_by_psm(0, psm, &conn->hcon->hdev->bdaddr,
+	chan = l2cap_global_chan_by_psm(0, psm, &conn->hcon->src,
 					&conn->hcon->dst);
 	if (!chan)
 		goto drop;
@@ -6468,8 +6466,7 @@ static void l2cap_att_channel(struct l2cap_conn *conn,
 		goto drop;
 
 	chan = l2cap_global_chan_by_scid(BT_CONNECTED, L2CAP_CID_ATT,
-					 &conn->hcon->hdev->bdaddr,
-					 &conn->hcon->dst);
+					 &conn->hcon->src, &conn->hcon->dst);
 	if (!chan)
 		goto drop;
 
