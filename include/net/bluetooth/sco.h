@@ -69,6 +69,8 @@ struct sco_conn {
 
 struct sco_pinfo {
 	struct bt_sock	bt;
+	bdaddr_t	src;
+	bdaddr_t	dst;
 	__u32		flags;
 	__u16		setting;
 	struct sco_conn	*conn;
