@@ -2694,7 +2694,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	err = devm_request_irq(&pdev->dev, irq, dma_irq_handler, IRQF_DISABLED,
+	err = devm_request_irq(&pdev->dev, irq, dma_irq_handler, 0,
 			       "coh901318", base);
 	if (err)
 		return err;
