@@ -284,6 +284,8 @@ struct bt_skb_cb {
 	__u8 force_active;
 	struct l2cap_ctrl control;
 	struct hci_req_ctrl req;
+	bdaddr_t bdaddr;
+	__le16 psm;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 

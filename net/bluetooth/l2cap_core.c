@@ -6459,6 +6459,10 @@ static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 	if (chan->imtu < skb->len)
 		goto drop;
 
+	/* Store remote BD_ADDR and PSM for msg_name */
+	bacpy(&bt_cb(skb)->bdaddr, &conn->hcon->dst);
+	bt_cb(skb)->psm = psm;
+
 	if (!chan->ops->recv(chan, skb))
 		return;
 

@@ -1137,6 +1137,19 @@ static void l2cap_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_write_queue);
 }
 
+static void l2cap_skb_msg_name(struct sk_buff *skb, void *msg_name,
+			       int *msg_namelen)
+{
+	struct sockaddr_l2 *la = (struct sockaddr_l2 *) msg_name;
+
+	memset(la, 0, sizeof(struct sockaddr_l2));
+	la->l2_family = AF_BLUETOOTH;
+	la->l2_psm = bt_cb(skb)->psm;
+	bacpy(&la->l2_bdaddr, &bt_cb(skb)->bdaddr);
+
+	*msg_namelen = sizeof(struct sockaddr_l2);
+}
+
 static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 {
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
@@ -1163,13 +1176,13 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 
 		security_sk_clone(parent, sk);
 	} else {
-
 		switch (sk->sk_type) {
 		case SOCK_RAW:
 			chan->chan_type = L2CAP_CHAN_RAW;
 			break;
 		case SOCK_DGRAM:
 			chan->chan_type = L2CAP_CHAN_CONN_LESS;
+			bt_sk(sk)->skb_msg_name = l2cap_skb_msg_name;
 			break;
 		case SOCK_SEQPACKET:
 		case SOCK_STREAM:
