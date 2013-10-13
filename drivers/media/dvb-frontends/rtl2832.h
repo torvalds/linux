@@ -38,13 +38,6 @@ struct rtl2832_config {
 	u32 xtal;
 
 	/*
-	 * IFs for all used modes.
-	 * Hz
-	 * 4570000, 4571429, 36000000, 36125000, 36166667, 44000000
-	 */
-	u32 if_dvbt;
-
-	/*
 	 * tuner
 	 * XXX: This must be keep sync with dvb_usb_rtl28xxu demod driver.
 	 */

@@ -514,12 +514,6 @@ static int rtl2832_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (!fe->ops.tuner_ops.get_if_frequency) {
-		ret = rtl2832_set_if(fe, priv->cfg.if_dvbt);
-		if (ret)
-			goto err;
-	}
-
 	/*
 	 * r820t NIM code does a software reset here at the demod -
 	 * may not be needed, as there's already a software reset at set_params()
