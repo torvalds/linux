@@ -169,7 +169,7 @@ static void cvm_oct_periodic_worker(struct work_struct *work)
 	if (!atomic_read(&cvm_oct_poll_queue_stopping))
 		queue_delayed_work(cvm_oct_poll_queue,
 						&priv->port_periodic_work, HZ);
- }
+}
 
 static void cvm_oct_configure_common_hw(void)
 {
