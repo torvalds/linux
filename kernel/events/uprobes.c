@@ -1096,16 +1096,14 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 }
 
 /* Slot allocation for XOL */
-static int xol_add_vma(struct xol_area *area)
+static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 {
-	struct mm_struct *mm = current->mm;
 	int ret = -EALREADY;
 
 	down_write(&mm->mmap_sem);
 	if (mm->uprobes_state.xol_area)
 		goto fail;
 
-	ret = -ENOMEM;
 	/* Try to map as high as possible, this is only a hint. */
 	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE, PAGE_SIZE, 0, 0);
 	if (area->vaddr & ~PAGE_MASK) {
@@ -1120,28 +1118,17 @@ static int xol_add_vma(struct xol_area *area)
 
 	smp_wmb();	/* pairs with get_xol_area() */
 	mm->uprobes_state.xol_area = area;
-	ret = 0;
  fail:
 	up_write(&mm->mmap_sem);
 
 	return ret;
 }
 
-/*
- * get_xol_area - Allocate process's xol_area if necessary.
- * This area will be used for storing instructions for execution out of line.
- *
- * Returns the allocated area or NULL.
- */
-static struct xol_area *get_xol_area(void)
+static struct xol_area *__create_xol_area(void)
 {
 	struct mm_struct *mm = current->mm;
-	struct xol_area *area;
 	uprobe_opcode_t insn = UPROBE_SWBP_INSN;
-
-	area = mm->uprobes_state.xol_area;
-	if (area)
-		goto ret;
+	struct xol_area *area;
 
 	area = kzalloc(sizeof(*area), GFP_KERNEL);
 	if (unlikely(!area))
@@ -1155,13 +1142,13 @@ static struct xol_area *get_xol_area(void)
 	if (!area->page)
 		goto free_bitmap;
 
-	/* allocate first slot of task's xol_area for the return probes */
-	set_bit(0, area->bitmap);
-	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
-	atomic_set(&area->slot_count, 1);
 	init_waitqueue_head(&area->wq);
+	/* Reserve the 1st slot for get_trampoline_vaddr() */
+	set_bit(0, area->bitmap);
+	atomic_set(&area->slot_count, 1);
+	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
 
-	if (!xol_add_vma(area))
+	if (!xol_add_vma(mm, area))
 		return area;
 
 	__free_page(area->page);
@@ -1170,9 +1157,25 @@ static struct xol_area *get_xol_area(void)
  free_area:
 	kfree(area);
  out:
+	return NULL;
+}
+
+/*
+ * get_xol_area - Allocate process's xol_area if necessary.
+ * This area will be used for storing instructions for execution out of line.
+ *
+ * Returns the allocated area or NULL.
+ */
+static struct xol_area *get_xol_area(void)
+{
+	struct mm_struct *mm = current->mm;
+	struct xol_area *area;
+
+	if (!mm->uprobes_state.xol_area)
+		__create_xol_area();
+
 	area = mm->uprobes_state.xol_area;
- ret:
-	smp_read_barrier_depends();     /* pairs with wmb in xol_add_vma() */
+	smp_read_barrier_depends();	/* pairs with wmb in xol_add_vma() */
 	return area;
 }
 
