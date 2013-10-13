@@ -98,6 +98,7 @@ struct media_entity_desc {
 
 #define MEDIA_PAD_FL_SINK		(1 << 0)
 #define MEDIA_PAD_FL_SOURCE		(1 << 1)
+#define MEDIA_PAD_FL_MUST_CONNECT	(1 << 2)
 
 struct media_pad_desc {
 	__u32 entity;		/* entity ID */
