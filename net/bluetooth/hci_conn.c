@@ -566,10 +566,7 @@ static int hci_create_le_conn(struct hci_conn *conn)
 	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
-	if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-		cp.own_address_type = ADDR_LE_DEV_PUBLIC;
-	else
-		cp.own_address_type = ADDR_LE_DEV_RANDOM;
+	cp.own_address_type = conn->src_type;
 	cp.conn_interval_min = __constant_cpu_to_le16(0x0028);
 	cp.conn_interval_max = __constant_cpu_to_le16(0x0038);
 	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
@@ -626,6 +623,12 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		conn->dst_type = ADDR_LE_DEV_PUBLIC;
 	else
 		conn->dst_type = ADDR_LE_DEV_RANDOM;
+
+	if (bacmp(&hdev->bdaddr, BDADDR_ANY))
+		conn->src_type = ADDR_LE_DEV_PUBLIC;
+	else
+		conn->src_type = ADDR_LE_DEV_RANDOM;
+
 	conn->state = BT_CONNECT;
 	conn->out = true;
 	conn->link_mode |= HCI_LM_MASTER;
