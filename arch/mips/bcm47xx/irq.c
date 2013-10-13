@@ -28,7 +28,7 @@
 #include <asm/irq_cpu.h>
 #include <bcm47xx.h>
 
-void plat_irq_dispatch(void)
+asmlinkage void plat_irq_dispatch(void)
 {
 	u32 cause;
 
