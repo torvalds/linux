@@ -29,9 +29,6 @@
 
 #include <asm/div64.h>
 
-#define MTD_CHAR_MAJOR 90
-#define MTD_BLOCK_MAJOR 31
-
 #define MTD_ERASE_PENDING	0x01
 #define MTD_ERASING		0x02
 #define MTD_ERASE_SUSPEND	0x04

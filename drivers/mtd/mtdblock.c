@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/blktrans.h>
 #include <linux/mutex.h>
+#include <linux/major.h>
 
 
 struct mtdblk_dev {
