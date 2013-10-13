@@ -574,6 +574,8 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		intel_pipe_to_cpu_transcoder(dev_priv, pipe);
 	unsigned long flags;
 
+	DRM_DEBUG_KMS("pipe=%d\n", pipe);
+
 	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
 	if (dev_priv->backlight.level == 0) {
@@ -680,6 +682,8 @@ intel_panel_detect(struct drm_device *dev)
 static int intel_panel_update_status(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
+	DRM_DEBUG_KMS("updating intel_backlight, brightness=%d/%d\n",
+		      bd->props.brightness, bd->props.max_brightness);
 	intel_panel_set_backlight(dev, bd->props.brightness,
 				  bd->props.max_brightness);
 	return 0;

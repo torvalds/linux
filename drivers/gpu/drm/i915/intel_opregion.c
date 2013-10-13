@@ -407,6 +407,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (bclp > 255)
 		return ASLC_BACKLIGHT_FAILED;
 
+	DRM_DEBUG_KMS("updating opregion backlight %d/255\n", bclp);
 	intel_panel_set_backlight(dev, bclp, 255);
 	iowrite32(DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID, &asle->cblv);
 
