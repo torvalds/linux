@@ -17,8 +17,8 @@
  * 02110-1301, USA
  */
 
-#ifndef _NET_BATMAN_ADV_ARP_H_
-#define _NET_BATMAN_ADV_ARP_H_
+#ifndef _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
+#define _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 
@@ -169,4 +169,4 @@ static inline void batadv_dat_inc_counter(struct batadv_priv *bat_priv,
 
 #endif /* CONFIG_BATMAN_ADV_DAT */
 
-#endif /* _NET_BATMAN_ADV_ARP_H_ */
+#endif /* _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_ */
