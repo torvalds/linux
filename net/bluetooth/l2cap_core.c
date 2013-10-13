@@ -1756,17 +1756,16 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		       bdaddr_t *dst, u8 dst_type)
 {
 	struct sock *sk = chan->sk;
-	bdaddr_t *src = &bt_sk(sk)->src;
 	struct l2cap_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
 	__u8 auth_type;
 	int err;
 
-	BT_DBG("%pMR -> %pMR (type %u) psm 0x%2.2x", src, dst,
+	BT_DBG("%pMR -> %pMR (type %u) psm 0x%2.2x", &bt_sk(sk)->src, dst,
 	       dst_type, __le16_to_cpu(psm));
 
-	hdev = hci_get_route(dst, src);
+	hdev = hci_get_route(dst, &bt_sk(sk)->src);
 	if (!hdev)
 		return -EHOSTUNREACH;
 
@@ -1858,7 +1857,9 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	}
 
 	/* Update source addr of the socket */
-	bacpy(src, &hdev->bdaddr);
+	lock_sock(sk);
+	bacpy(&bt_sk(sk)->src, &hcon->src);
+	release_sock(sk);
 
 	l2cap_chan_unlock(chan);
 	l2cap_chan_add(conn, chan);
