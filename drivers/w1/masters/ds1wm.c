@@ -498,7 +498,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_FALLING);
 
 	ret = devm_request_irq(&pdev->dev, ds1wm_data->irq, ds1wm_isr,
-			IRQF_DISABLED | IRQF_SHARED, "ds1wm", ds1wm_data);
+			IRQF_SHARED, "ds1wm", ds1wm_data);
 	if (ret)
 		return ret;
 
