@@ -1366,12 +1366,55 @@ static struct uprobe_task *get_utask(void)
 	return current->utask;
 }
 
+static int dup_utask(struct task_struct *t, struct uprobe_task *o_utask)
+{
+	struct uprobe_task *n_utask;
+	struct return_instance **p, *o, *n;
+
+	n_utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
+	if (!n_utask)
+		return -ENOMEM;
+	t->utask = n_utask;
+
+	p = &n_utask->return_instances;
+	for (o = o_utask->return_instances; o; o = o->next) {
+		n = kmalloc(sizeof(struct return_instance), GFP_KERNEL);
+		if (!n)
+			return -ENOMEM;
+
+		*n = *o;
+		atomic_inc(&n->uprobe->ref);
+		n->next = NULL;
+
+		*p = n;
+		p = &n->next;
+		n_utask->depth++;
+	}
+
+	return 0;
+}
+
+static void uprobe_warn(struct task_struct *t, const char *msg)
+{
+	pr_warn("uprobe: %s:%d failed to %s\n",
+			current->comm, current->pid, msg);
+}
+
 /*
  * Called in context of a new clone/fork from copy_process.
  */
 void uprobe_copy_process(struct task_struct *t)
 {
+	struct uprobe_task *utask = current->utask;
+	struct mm_struct *mm = current->mm;
+
 	t->utask = NULL;
+
+	if (mm == t->mm || !utask || !utask->return_instances)
+		return;
+
+	if (dup_utask(t, utask))
+		return uprobe_warn(t, "dup ret instances");
 }
 
 /*
