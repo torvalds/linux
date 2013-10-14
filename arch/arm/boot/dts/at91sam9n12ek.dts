@@ -41,6 +41,11 @@
 			i2c0: i2c@f8010000 {
 				status = "okay";
 
+				wm8904: codec@1a {
+					compatible = "wm8904";
+					reg = <0x1a>;
+				};
+
 				qt1070: keyboard@1b {
 					compatible = "qt1070";
 					reg = <0x1b>;
