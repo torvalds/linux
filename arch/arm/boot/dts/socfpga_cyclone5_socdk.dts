@@ -15,15 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/dts-v1/;
-/include/ "socfpga.dtsi"
+/include/ "socfpga_cyclone5.dtsi"
 
 / {
-	model = "Altera SOCFPGA Cyclone V";
+	model = "Altera SOCFPGA Cyclone V SoC Development Kit";
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
-		bootargs = "console=ttyS0,57600";
+		bootargs = "console=ttyS0,115200";
 	};
 
 	memory {
@@ -37,49 +36,5 @@
 		 * to be added to the gmac1 device tree blob.
 		 */
 		ethernet0 = &gmac1;
-	};
-
-	soc {
-		clkmgr@ffd04000 {
-			clocks {
-				osc1 {
-					clock-frequency = <25000000>;
-				};
-			};
-		};
-
-		ethernet@ff702000 {
-			phy-mode = "rgmii";
-			phy-addr = <0xffffffff>; /* probe for phy addr */
-			status = "okay";
-		};
-
-		timer0@ffc08000 {
-			clock-frequency = <100000000>;
-		};
-
-		timer1@ffc09000 {
-			clock-frequency = <100000000>;
-		};
-
-		timer2@ffd00000 {
-			clock-frequency = <25000000>;
-		};
-
-		timer3@ffd01000 {
-			clock-frequency = <25000000>;
-		};
-
-		serial0@ffc02000 {
-			clock-frequency = <100000000>;
-		};
-
-		serial1@ffc03000 {
-			clock-frequency = <100000000>;
-		};
-
-		sysmgr@ffd08000 {
-			cpu1-start-addr = <0xffd080c4>;
-		};
 	};
 };
