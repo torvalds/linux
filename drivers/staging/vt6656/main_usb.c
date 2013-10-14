@@ -710,7 +710,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pDevice->pControlURB) {
 		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR"Failed to alloc control urb\n");
-		goto err_nomem;
+		goto err_netdev;
 	}
 
 	pDevice->tx_80211 = device_dma0_tx_80211;
