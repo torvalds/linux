@@ -70,21 +70,20 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	save_fp_regs(&current->thread.fp_regs);
 	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
 	       sizeof(s390_fp_regs));
-	return __copy_to_user(sregs, &user_sregs, sizeof(_sigregs));
+	if (__copy_to_user(sregs, &user_sregs, sizeof(_sigregs)))
+		return -EFAULT;
+	return 0;
 }
 
-/* Returns positive number on error */
 static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
-	int err;
 	_sigregs user_sregs;
 
 	/* Alwys make any pending restarted system call return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-	err = __copy_from_user(&user_sregs, sregs, sizeof(_sigregs));
-	if (err)
-		return err;
+	if (__copy_from_user(&user_sregs, sregs, sizeof(_sigregs)))
+		return -EFAULT;
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
 		(user_sregs.regs.psw.mask & PSW_MASK_USER);
