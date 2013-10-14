@@ -137,7 +137,7 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 			rate /= 16;
 
 		/* CLKCx calculation */
-		rate /= (((idiv_clk & 0x1F) + 1) * 2) ;
+		rate /= (((idiv_clk & 0x1F) + 1) * 2);
 
 		/* save best settings */
 		tmp = abs(target_rate - rate);
