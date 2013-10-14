@@ -886,8 +886,10 @@ static void issue_copy_real(struct dm_cache_migration *mg)
 		r = dm_kcopyd_copy(cache->copier, &o_region, 1, &c_region, 0, copy_complete, mg);
 	}
 
-	if (r < 0)
+	if (r < 0) {
+		DMERR_LIMIT("issuing migration failed");
 		migration_failure(mg);
+	}
 }
 
 static void avoid_copy(struct dm_cache_migration *mg)
