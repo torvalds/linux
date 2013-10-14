@@ -615,7 +615,7 @@ raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 
 	if (rp->state != RAW3270_STATE_RESET)
 		return;
-	if (rq && rq->rc) {
+	if (rq->rc) {
 		/* Reset command failed. */
 		rp->state = RAW3270_STATE_INIT;
 	} else if (0 && MACHINE_IS_VM) {
