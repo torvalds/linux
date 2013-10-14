@@ -168,17 +168,15 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 		cfg.ena_gpio = config->gpio;
 	cfg.ena_gpio_invert = !config->enable_high;
 	if (config->enabled_at_boot) {
-		if (config->enable_high) {
+		if (config->enable_high)
 			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
-		} else {
+		else
 			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
-		}
 	} else {
-		if (config->enable_high) {
+		if (config->enable_high)
 			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
-		} else {
+		else
 			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
-		}
 	}
 	if (config->gpio_is_open_drain)
 		cfg.ena_gpio_flags |= GPIOF_OPEN_DRAIN;
