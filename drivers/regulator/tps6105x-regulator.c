@@ -137,7 +137,7 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 	/* This instance is not set for regulator mode so bail out */
 	if (pdata->mode != TPS6105X_MODE_VOLTAGE) {
 		dev_info(&pdev->dev,
-			 "chip not in voltage mode mode, exit probe \n");
+			"chip not in voltage mode mode, exit probe\n");
 		return 0;
 	}
 
