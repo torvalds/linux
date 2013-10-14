@@ -247,6 +247,9 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 
 	info->control.rates[0].idx = 0;
 	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+
 		if (!rate_supported(sta, sband->band, i))
 			continue;
 
