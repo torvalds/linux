@@ -38,6 +38,6 @@ extern void xfs_setup_inode(struct xfs_inode *);
 
 extern int xfs_setattr_nonsize(struct xfs_inode *ip, struct iattr *vap,
 			       int flags);
-extern int xfs_setattr_size(struct xfs_inode *ip, struct iattr *vap, int flags);
+extern int xfs_setattr_size(struct xfs_inode *ip, struct iattr *vap);
 
 #endif /* __XFS_IOPS_H__ */

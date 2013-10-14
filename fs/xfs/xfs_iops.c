@@ -709,8 +709,7 @@ out_dqrele:
 int
 xfs_setattr_size(
 	struct xfs_inode	*ip,
-	struct iattr		*iattr,
-	int			flags)
+	struct iattr		*iattr)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
@@ -733,14 +732,10 @@ xfs_setattr_size(
 	if (error)
 		return XFS_ERROR(error);
 
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));
 	ASSERT((mask & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 			ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
-
-	if (!(flags & XFS_ATTR_NOLOCK)) {
-		lock_flags |= XFS_IOLOCK_EXCL;
-		xfs_ilock(ip, lock_flags);
-	}
 
 	oldsize = inode->i_size;
 	newsize = iattr->ia_size;
@@ -750,12 +745,11 @@ xfs_setattr_size(
 	 */
 	if (newsize == 0 && oldsize == 0 && ip->i_d.di_nextents == 0) {
 		if (!(mask & (ATTR_CTIME|ATTR_MTIME)))
-			goto out_unlock;
+			return 0;
 
 		/*
 		 * Use the regular setattr path to update the timestamps.
 		 */
-		xfs_iunlock(ip, lock_flags);
 		iattr->ia_valid &= ~ATTR_SIZE;
 		return xfs_setattr_nonsize(ip, iattr, 0);
 	}
@@ -765,7 +759,7 @@ xfs_setattr_size(
 	 */
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
-		goto out_unlock;
+		return error;
 
 	/*
 	 * Now we can make the changes.  Before we join the inode to the
@@ -783,7 +777,7 @@ xfs_setattr_size(
 		 */
 		error = xfs_zero_eof(ip, newsize, oldsize);
 		if (error)
-			goto out_unlock;
+			return error;
 	}
 
 	/*
@@ -802,7 +796,7 @@ xfs_setattr_size(
 		error = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
-			goto out_unlock;
+			return error;
 	}
 
 	/*
@@ -812,7 +806,7 @@ xfs_setattr_size(
 
 	error = -block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
 	if (error)
-		goto out_unlock;
+		return error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
@@ -916,12 +910,21 @@ out_trans_cancel:
 
 STATIC int
 xfs_vn_setattr(
-	struct dentry	*dentry,
-	struct iattr	*iattr)
+	struct dentry		*dentry,
+	struct iattr		*iattr)
 {
-	if (iattr->ia_valid & ATTR_SIZE)
-		return -xfs_setattr_size(XFS_I(dentry->d_inode), iattr, 0);
-	return -xfs_setattr_nonsize(XFS_I(dentry->d_inode), iattr, 0);
+	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
+	int			error;
+
+	if (iattr->ia_valid & ATTR_SIZE) {
+		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		error = xfs_setattr_size(ip, iattr);
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	} else {
+		error = xfs_setattr_nonsize(ip, iattr, 0);
+	}
+
+	return -error;
 }
 
 STATIC int
