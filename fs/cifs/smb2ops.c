@@ -209,6 +209,32 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	return rsize;
 }
 
+#ifdef CONFIG_CIFS_STATS2
+static int
+SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
+{
+	int rc;
+	unsigned int ret_data_len = 0;
+	struct network_interface_info_ioctl_rsp *out_buf;
+
+	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+			FSCTL_QUERY_NETWORK_INTERFACE_INFO, true /* is_fsctl */,
+			NULL /* no data input */, 0 /* no data input */,
+			(char **)&out_buf, &ret_data_len);
+
+	if ((rc == 0)  && (ret_data_len > 0)) {
+		/* Dump info on first interface */
+		cifs_dbg(FYI, "Adapter Capability 0x%x\t",
+			le32_to_cpu(out_buf->Capability));
+		cifs_dbg(FYI, "Link Speed %lld\n",
+			le64_to_cpu(out_buf->LinkSpeed));
+	} else
+		cifs_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
+
+	return rc;
+}
+#endif /* STATS2 */
+
 static void
 smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 {
@@ -228,6 +254,10 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
 	if (rc)
 		return;
+
+#ifdef CONFIG_CIFS_STATS2
+	SMB3_request_interfaces(xid, tcon);
+#endif /* STATS2 */
 
 	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
 			FS_ATTRIBUTE_INFORMATION);
