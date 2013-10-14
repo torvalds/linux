@@ -177,7 +177,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 			| 0x08,
 			TXx9_SPCR0);
 
-	list_for_each_entry (t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 		const void *txbuf = t->tx_buf;
 		void *rxbuf = t->rx_buf;
 		u32 data;
@@ -308,7 +308,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	m->actual_length = 0;
 
 	/* check each transfer's parameters */
-	list_for_each_entry (t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 		u32 speed_hz = t->speed_hz ? : spi->max_speed_hz;
 		u8 bits_per_word = t->bits_per_word;
 
