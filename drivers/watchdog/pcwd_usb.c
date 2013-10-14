@@ -235,12 +235,16 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 		unsigned char cmd, unsigned char *msb, unsigned char *lsb)
 {
 	int got_response, count;
-	unsigned char buf[6];
+	unsigned char *buf;
 
 	/* We will not send any commands if the USB PCWD device does
 	 * not exist */
 	if ((!usb_pcwd) || (!usb_pcwd->exists))
 		return -1;
+
+	buf = kmalloc(6, GFP_KERNEL);
+	if (buf == NULL)
+		return 0;
 
 	/* The USB PC Watchdog uses a 6 byte report format.
 	 * The board currently uses only 3 of the six bytes of the report. */
@@ -276,6 +280,8 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 		*msb = usb_pcwd->cmd_data_msb;
 		*lsb = usb_pcwd->cmd_data_lsb;
 	}
+
+	kfree(buf);
 
 	return got_response;
 }
