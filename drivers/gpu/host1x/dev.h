@@ -27,6 +27,7 @@
 #include "job.h"
 
 struct host1x_syncpt;
+struct host1x_syncpt_base;
 struct host1x_channel;
 struct host1x_cdma;
 struct host1x_job;
@@ -102,6 +103,7 @@ struct host1x {
 
 	void __iomem *regs;
 	struct host1x_syncpt *syncpt;
+	struct host1x_syncpt_base *bases;
 	struct device *dev;
 	struct clk *clk;
 

@@ -125,7 +125,9 @@ static inline void host1x_bo_kunmap(struct host1x_bo *bo,
  */
 
 #define HOST1X_SYNCPT_CLIENT_MANAGED	(1 << 0)
+#define HOST1X_SYNCPT_HAS_BASE		(1 << 1)
 
+struct host1x_syncpt_base;
 struct host1x_syncpt;
 struct host1x;
 
@@ -139,6 +141,9 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
 					    unsigned long flags);
 void host1x_syncpt_free(struct host1x_syncpt *sp);
+
+struct host1x_syncpt_base *host1x_syncpt_get_base(struct host1x_syncpt *sp);
+u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base);
 
 /*
  * host1x channel

@@ -30,6 +30,29 @@
 #define SYNCPT_CHECK_PERIOD (2 * HZ)
 #define MAX_STUCK_CHECK_COUNT 15
 
+static struct host1x_syncpt_base *
+host1x_syncpt_base_request(struct host1x *host)
+{
+	struct host1x_syncpt_base *bases = host->bases;
+	unsigned int i;
+
+	for (i = 0; i < host->info->nb_bases; i++)
+		if (!bases[i].requested)
+			break;
+
+	if (i >= host->info->nb_bases)
+		return NULL;
+
+	bases[i].requested = true;
+	return &bases[i];
+}
+
+static void host1x_syncpt_base_free(struct host1x_syncpt_base *base)
+{
+	if (base)
+		base->requested = false;
+}
+
 static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 						 struct device *dev,
 						 unsigned long flags)
@@ -43,6 +66,12 @@ static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 
 	if (i >= host->info->nb_pts)
 		return NULL;
+
+	if (flags & HOST1X_SYNCPT_HAS_BASE) {
+		sp->base = host1x_syncpt_base_request(host);
+		if (!sp->base)
+			return NULL;
+	}
 
 	name = kasprintf(GFP_KERNEL, "%02d-%s", sp->id,
 			dev ? dev_name(dev) : NULL);
@@ -307,20 +336,30 @@ int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
 
 int host1x_syncpt_init(struct host1x *host)
 {
+	struct host1x_syncpt_base *bases;
 	struct host1x_syncpt *syncpt;
 	int i;
 
 	syncpt = devm_kzalloc(host->dev, sizeof(*syncpt) * host->info->nb_pts,
-		GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!syncpt)
 		return -ENOMEM;
 
-	for (i = 0; i < host->info->nb_pts; ++i) {
+	bases = devm_kzalloc(host->dev, sizeof(*bases) * host->info->nb_bases,
+			     GFP_KERNEL);
+	if (!bases)
+		return -ENOMEM;
+
+	for (i = 0; i < host->info->nb_pts; i++) {
 		syncpt[i].id = i;
 		syncpt[i].host = host;
 	}
 
+	for (i = 0; i < host->info->nb_bases; i++)
+		bases[i].id = i;
+
 	host->syncpt = syncpt;
+	host->bases = bases;
 
 	host1x_syncpt_restore(host);
 
@@ -344,7 +383,9 @@ void host1x_syncpt_free(struct host1x_syncpt *sp)
 	if (!sp)
 		return;
 
+	host1x_syncpt_base_free(sp->base);
 	kfree(sp->name);
+	sp->base = NULL;
 	sp->dev = NULL;
 	sp->name = NULL;
 	sp->client_managed = false;
@@ -397,4 +438,14 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, u32 id)
 	if (host->info->nb_pts < id)
 		return NULL;
 	return host->syncpt + id;
+}
+
+struct host1x_syncpt_base *host1x_syncpt_get_base(struct host1x_syncpt *sp)
+{
+	return sp ? sp->base : NULL;
+}
+
+u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base)
+{
+	return base->id;
 }

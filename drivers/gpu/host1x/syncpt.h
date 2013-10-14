@@ -31,6 +31,11 @@ struct host1x;
 /* Reserved for replacing an expired wait with a NOP */
 #define HOST1X_SYNCPT_RESERVED			0
 
+struct host1x_syncpt_base {
+	unsigned int id;
+	bool requested;
+};
+
 struct host1x_syncpt {
 	int id;
 	atomic_t min_val;
@@ -40,6 +45,7 @@ struct host1x_syncpt {
 	bool client_managed;
 	struct host1x *host;
 	struct device *dev;
+	struct host1x_syncpt_base *base;
 
 	/* interrupt data */
 	struct host1x_syncpt_intr intr;
