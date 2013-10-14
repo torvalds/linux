@@ -5211,10 +5211,10 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	clock.p1 = (mdiv >> DPIO_P1_SHIFT) & 7;
 	clock.p2 = (mdiv >> DPIO_P2_SHIFT) & 0x1f;
 
-	clock.vco = refclk * clock.m1 * clock.m2 / clock.n;
-	clock.dot = 2 * clock.vco / (clock.p1 * clock.p2);
+	vlv_clock(refclk, &clock);
 
-	pipe_config->port_clock = clock.dot / 10;
+	/* clock.dot is the fast clock */
+	pipe_config->port_clock = clock.dot / 5;
 }
 
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
