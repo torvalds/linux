@@ -145,8 +145,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
     /* Enable 8 out of 10 validation */
 	 /* t1RBOC enable(BOC:BitOriented Code) */
 	pci_write_32((u_int32_t *) &comet->t1_rboc_ena, 0x00);
-	if (isT1mode)
-	{
+	if (isT1mode) {
 		/* IBCD cfg: aka Inband Code Detection ** loopback code length set to */
 		/* 6 bit down, 5 bit up (assert) */
 		pci_write_32((u_int32_t *) &comet->ibcd_cfg, 0x04);
