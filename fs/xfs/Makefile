@@ -104,7 +104,11 @@ xfs-$(CONFIG_XFS_QUOTA)		+= xfs_dquot.o \
 				   xfs_qm_bhv.o \
 				   xfs_qm.o \
 				   xfs_quotaops.o
-xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
+
+# xfs_rtbitmap is shared with libxfs
+xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o \
+				   xfs_rtbitmap.o
+
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
 xfs-$(CONFIG_PROC_FS)		+= xfs_stats.o
 xfs-$(CONFIG_SYSCTL)		+= xfs_sysctl.o
