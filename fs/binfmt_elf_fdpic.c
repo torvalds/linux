@@ -1561,6 +1561,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	struct elf_shdr *shdr4extnum = NULL;
 	Elf_Half e_phnum;
 	elf_addr_t e_shoff;
+	struct core_thread *ct;
+	struct elf_thread_status *tmp;
 
 	/*
 	 * We no longer stop all VM operations.
@@ -1596,28 +1598,23 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 		goto cleanup;
 #endif
 
-	if (cprm->siginfo->si_signo) {
-		struct core_thread *ct;
+	for (ct = current->mm->core_state->dumper.next;
+					ct; ct = ct->next) {
+		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+		if (!tmp)
+			goto cleanup;
+
+		tmp->thread = ct->task;
+		list_add(&tmp->list, &thread_list);
+	}
+
+	list_for_each(t, &thread_list) {
 		struct elf_thread_status *tmp;
+		int sz;
 
-		for (ct = current->mm->core_state->dumper.next;
-						ct; ct = ct->next) {
-			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
-			if (!tmp)
-				goto cleanup;
-
-			tmp->thread = ct->task;
-			list_add(&tmp->list, &thread_list);
-		}
-
-		list_for_each(t, &thread_list) {
-			struct elf_thread_status *tmp;
-			int sz;
-
-			tmp = list_entry(t, struct elf_thread_status, list);
-			sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
-			thread_status_size += sz;
-		}
+		tmp = list_entry(t, struct elf_thread_status, list);
+		sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
+		thread_status_size += sz;
 	}
 
 	/* now collect the dump for the current */

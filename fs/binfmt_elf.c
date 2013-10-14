@@ -1833,31 +1833,28 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 			  const siginfo_t *siginfo, struct pt_regs *regs)
 {
 	struct list_head *t;
+	struct core_thread *ct;
+	struct elf_thread_status *ets;
 
 	if (!elf_note_info_init(info))
 		return 0;
 
-	if (siginfo->si_signo) {
-		struct core_thread *ct;
-		struct elf_thread_status *ets;
+	for (ct = current->mm->core_state->dumper.next;
+					ct; ct = ct->next) {
+		ets = kzalloc(sizeof(*ets), GFP_KERNEL);
+		if (!ets)
+			return 0;
 
-		for (ct = current->mm->core_state->dumper.next;
-						ct; ct = ct->next) {
-			ets = kzalloc(sizeof(*ets), GFP_KERNEL);
-			if (!ets)
-				return 0;
+		ets->thread = ct->task;
+		list_add(&ets->list, &info->thread_list);
+	}
 
-			ets->thread = ct->task;
-			list_add(&ets->list, &info->thread_list);
-		}
+	list_for_each(t, &info->thread_list) {
+		int sz;
 
-		list_for_each(t, &info->thread_list) {
-			int sz;
-
-			ets = list_entry(t, struct elf_thread_status, list);
-			sz = elf_dump_thread_status(siginfo->si_signo, ets);
-			info->thread_status_size += sz;
-		}
+		ets = list_entry(t, struct elf_thread_status, list);
+		sz = elf_dump_thread_status(siginfo->si_signo, ets);
+		info->thread_status_size += sz;
 	}
 	/* now collect the dump for the current */
 	memset(info->prstatus, 0, sizeof(*info->prstatus));
