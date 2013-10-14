@@ -22,6 +22,19 @@
 #include <linux/nl80211.h>
 
 /**
+ * struct ath_dfs_pool_stats - DFS Statistics for global pools
+ */
+struct ath_dfs_pool_stats {
+	u32 pool_reference;
+	u32 pulse_allocated;
+	u32 pulse_alloc_error;
+	u32 pulse_used;
+	u32 pseq_allocated;
+	u32 pseq_alloc_error;
+	u32 pseq_used;
+};
+
+/**
  * struct pulse_event - describing pulses reported by PHY
  * @ts: pulse time stamp in us
  * @freq: channel frequency in MHz
@@ -77,6 +90,7 @@ struct dfs_pattern_detector {
 	bool (*add_pulse)(struct dfs_pattern_detector *dpd,
 			  struct pulse_event *pe);
 
+	struct ath_dfs_pool_stats (*get_stats)(struct dfs_pattern_detector *dpd);
 	enum nl80211_dfs_regions region;
 	u8 num_radar_types;
 	u64 last_pulse_ts;

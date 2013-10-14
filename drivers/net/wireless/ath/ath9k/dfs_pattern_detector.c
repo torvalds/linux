@@ -253,6 +253,12 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 	return false;
 }
 
+static struct ath_dfs_pool_stats
+dpd_get_stats(struct dfs_pattern_detector *dpd)
+{
+	return global_dfs_pool_stats;
+}
+
 static bool dpd_set_domain(struct dfs_pattern_detector *dpd,
 			   enum nl80211_dfs_regions region)
 {
@@ -283,6 +289,7 @@ static struct dfs_pattern_detector default_dpd = {
 	.exit		= dpd_exit,
 	.set_dfs_domain	= dpd_set_domain,
 	.add_pulse	= dpd_add_pulse,
+	.get_stats	= dpd_get_stats,
 	.region		= NL80211_DFS_UNSET,
 };
 
