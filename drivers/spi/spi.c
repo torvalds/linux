@@ -325,7 +325,7 @@ struct spi_device *spi_alloc_device(struct spi_master *master)
 	if (!spi_master_get(master))
 		return NULL;
 
-	spi = kzalloc(sizeof *spi, GFP_KERNEL);
+	spi = kzalloc(sizeof(*spi), GFP_KERNEL);
 	if (!spi) {
 		dev_err(dev, "cannot alloc spi_device\n");
 		spi_master_put(master);
@@ -1093,7 +1093,7 @@ struct spi_master *spi_alloc_master(struct device *dev, unsigned size)
 	if (!dev)
 		return NULL;
 
-	master = kzalloc(size + sizeof *master, GFP_KERNEL);
+	master = kzalloc(size + sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return NULL;
 
@@ -1118,7 +1118,7 @@ static int of_spi_register_master(struct spi_master *master)
 		return 0;
 
 	nb = of_gpio_named_count(np, "cs-gpios");
-	master->num_chipselect = max(nb, (int)master->num_chipselect);
+	master->num_chipselect = max_t(int, nb, master->num_chipselect);
 
 	/* Return error only for an incorrectly formed cs-gpios property */
 	if (nb == 0 || nb == -ENOENT)
@@ -1398,8 +1398,7 @@ int spi_setup(struct spi_device *spi)
 	if (spi->master->setup)
 		status = spi->master->setup(spi);
 
-	dev_dbg(&spi->dev, "setup mode %d, %s%s%s%s"
-				"%u bits/w, %u Hz max --> %d\n",
+	dev_dbg(&spi->dev, "setup mode %d, %s%s%s%s%u bits/w, %u Hz max --> %d\n",
 			(int) (spi->mode & (SPI_CPOL | SPI_CPHA)),
 			(spi->mode & SPI_CS_HIGH) ? "cs_high, " : "",
 			(spi->mode & SPI_LSB_FIRST) ? "lsb, " : "",
@@ -1758,7 +1757,7 @@ int spi_bus_unlock(struct spi_master *master)
 EXPORT_SYMBOL_GPL(spi_bus_unlock);
 
 /* portable code must never pass more than 32 bytes */
-#define	SPI_BUFSIZ	max(32,SMP_CACHE_BYTES)
+#define	SPI_BUFSIZ	max(32, SMP_CACHE_BYTES)
 
 static u8	*buf;
 
@@ -1807,7 +1806,7 @@ int spi_write_then_read(struct spi_device *spi,
 	}
 
 	spi_message_init(&message);
-	memset(x, 0, sizeof x);
+	memset(x, 0, sizeof(x));
 	if (n_tx) {
 		x[0].len = n_tx;
 		spi_message_add_tail(&x[0], &message);
