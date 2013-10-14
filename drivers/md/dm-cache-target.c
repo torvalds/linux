@@ -1234,15 +1234,17 @@ static int need_commit_due_to_time(struct cache *cache)
 
 static int commit_if_needed(struct cache *cache)
 {
-	if (dm_cache_changed_this_transaction(cache->cmd) &&
-	    (cache->commit_requested || need_commit_due_to_time(cache))) {
+	int r = 0;
+
+	if ((cache->commit_requested || need_commit_due_to_time(cache)) &&
+	    dm_cache_changed_this_transaction(cache->cmd)) {
 		atomic_inc(&cache->stats.commit_count);
-		cache->last_commit_jiffies = jiffies;
 		cache->commit_requested = false;
-		return dm_cache_commit(cache->cmd, false);
+		r = dm_cache_commit(cache->cmd, false);
+		cache->last_commit_jiffies = jiffies;
 	}
 
-	return 0;
+	return r;
 }
 
 static void process_deferred_bios(struct cache *cache)
