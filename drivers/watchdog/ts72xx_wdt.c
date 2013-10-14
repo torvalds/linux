@@ -192,7 +192,7 @@ static int ts72xx_wdt_open(struct inode *inode, struct file *file)
 		dev_err(&wdt->pdev->dev,
 			"failed to convert timeout (%d) to register value\n",
 			timeout);
-		return -EINVAL;
+		return regval;
 	}
 
 	if (mutex_lock_interruptible(&wdt->lock))
