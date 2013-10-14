@@ -1075,6 +1075,8 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
+	struct mgmt_mode *cp;
+	bool changed;
 
 	BT_DBG("status 0x%02x", status);
 
@@ -1084,7 +1086,16 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 	if (!cmd)
 		goto unlock;
 
+	cp = cmd->param;
+	if (cp->val)
+		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+	else
+		changed = test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+
 	send_settings_rsp(cmd->sk, MGMT_OP_SET_CONNECTABLE, hdev);
+
+	if (changed)
+		new_settings(hdev, cmd->sk);
 
 	mgmt_pending_remove(cmd);
 
@@ -4053,9 +4064,15 @@ int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 
 int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 {
-	struct pending_cmd *cmd;
 	bool changed = false;
 	int err = 0;
+
+	/* Nothing needed here if there's a pending command since that
+	 * commands request completion callback takes care of everything
+	 * necessary.
+	 */
+	if (mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev))
+		return 0;
 
 	if (connectable) {
 		if (!test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags))
@@ -4065,10 +4082,8 @@ int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 			changed = true;
 	}
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
-
 	if (changed)
-		err = new_settings(hdev, cmd ? cmd->sk : NULL);
+		err = new_settings(hdev, NULL);
 
 	return err;
 }
