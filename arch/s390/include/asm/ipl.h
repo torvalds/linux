@@ -87,7 +87,6 @@ struct ipl_parameter_block {
  */
 extern u32 ipl_flags;
 extern u32 dump_prefix_page;
-extern unsigned int zfcpdump_prefix_array[];
 
 struct dump_save_areas {
 	struct save_area **areas;
