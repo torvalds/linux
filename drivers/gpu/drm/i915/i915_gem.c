@@ -2406,6 +2406,8 @@ void i915_gem_reset(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i)
 		i915_gem_reset_ring_lists(dev_priv, ring);
 
+	i915_gem_cleanup_ringbuffer(dev);
+
 	i915_gem_restore_fences(dev);
 }
 

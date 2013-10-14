@@ -744,30 +744,17 @@ int i915_reset(struct drm_device *dev)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 			!dev_priv->ums.mm_suspended) {
-		struct intel_ring_buffer *ring;
-		int i;
-
+		bool hw_contexts_disabled = dev_priv->hw_contexts_disabled;
 		dev_priv->ums.mm_suspended = 0;
 
-		i915_gem_init_swizzling(dev);
-
-		for_each_ring(ring, dev_priv, i)
-			ring->init(ring);
-
-		i915_gem_context_init(dev);
-		if (dev_priv->mm.aliasing_ppgtt) {
-			ret = dev_priv->mm.aliasing_ppgtt->enable(dev);
-			if (ret)
-				i915_gem_cleanup_aliasing_ppgtt(dev);
-		}
-
-		/*
-		 * It would make sense to re-init all the other hw state, at
-		 * least the rps/rc6/emon init done within modeset_init_hw. For
-		 * some unknown reason, this blows up my ilk, so don't.
-		 */
-
+		ret = i915_gem_init_hw(dev);
+		if (!hw_contexts_disabled && dev_priv->hw_contexts_disabled)
+			DRM_ERROR("HW contexts didn't survive reset\n");
 		mutex_unlock(&dev->struct_mutex);
+		if (ret) {
+			DRM_ERROR("Failed hw init on reset %d\n", ret);
+			return ret;
+		}
 
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
