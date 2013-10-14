@@ -1144,30 +1144,29 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (!!cp->val == test_bit(HCI_PSCAN, &hdev->flags)) {
-		err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE, hdev);
-		goto failed;
-	}
-
 	cmd = mgmt_pending_add(sk, MGMT_OP_SET_CONNECTABLE, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
 
-	if (cp->val) {
-		scan = SCAN_PAGE;
-	} else {
-		scan = 0;
-
-		if (test_bit(HCI_ISCAN, &hdev->flags) &&
-		    hdev->discov_timeout > 0)
-			cancel_delayed_work(&hdev->discov_off);
-	}
-
 	hci_req_init(&req, hdev);
 
-	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	    cp->val != test_bit(HCI_PSCAN, &hdev->flags)) {
+
+		if (cp->val) {
+			scan = SCAN_PAGE;
+		} else {
+			scan = 0;
+
+			if (test_bit(HCI_ISCAN, &hdev->flags) &&
+					hdev->discov_timeout > 0)
+				cancel_delayed_work(&hdev->discov_off);
+		}
+
+		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	}
 
 	/* If we're going from non-connectable to connectable or
 	 * vice-versa when fast connectable is enabled ensure that fast
@@ -1179,8 +1178,13 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		write_fast_connectable(&req, false);
 
 	err = hci_req_run(&req, set_connectable_complete);
-	if (err < 0)
+	if (err < 0) {
 		mgmt_pending_remove(cmd);
+		if (err == -ENODATA)
+			err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE,
+						hdev);
+		goto failed;
+	}
 
 failed:
 	hci_dev_unlock(hdev);
