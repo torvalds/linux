@@ -46,7 +46,7 @@
 #include "nouveau_gem.h"
 #include "nouveau_agp.h"
 #include "nouveau_vga.h"
-#include "nouveau_pm.h"
+#include "nouveau_hwmon.h"
 #include "nouveau_acpi.h"
 #include "nouveau_bios.h"
 #include "nouveau_ioctl.h"
@@ -384,8 +384,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 			goto fail_dispinit;
 	}
 
-	nouveau_pm_init(dev);
-
+	nouveau_hwmon_init(dev);
 	nouveau_accel_init(drm);
 	nouveau_fbcon_init(dev);
 
@@ -421,8 +420,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	pm_runtime_get_sync(dev->dev);
 	nouveau_fbcon_fini(dev);
 	nouveau_accel_fini(drm);
-
-	nouveau_pm_fini(dev);
+	nouveau_hwmon_fini(dev);
 
 	if (dev->mode_config.num_crtc)
 		nouveau_display_fini(dev);
@@ -562,7 +560,6 @@ nouveau_do_resume(struct drm_device *dev)
 	}
 
 	nouveau_run_vbios_init(dev);
-	nouveau_pm_resume(dev);
 
 	if (dev->mode_config.num_crtc) {
 		NV_INFO(drm, "resuming display...\n");

@@ -129,7 +129,7 @@ struct nouveau_drm {
 	struct backlight_device *backlight;
 
 	/* power management */
-	struct nouveau_pm *pm;
+	struct nouveau_hwmon *hwmon;
 
 	/* display power reference */
 	bool have_disp_power_ref;
