@@ -1204,7 +1204,6 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000D1B, 0xFFFF },    /* R3355  - IRQ2 Status 4 Mask */
 	{ 0x00000D1C, 0xFFFF },    /* R3356  - IRQ2 Status 5 Mask */
 	{ 0x00000D1F, 0x0000 },    /* R3359  - IRQ2 Control */
-	{ 0x00000D50, 0x0000 },    /* R3408  - AOD wkup and trig */
 	{ 0x00000D53, 0xFFFF },    /* R3411  - AOD IRQ Mask IRQ1 */
 	{ 0x00000D54, 0xFFFF },    /* R3412  - AOD IRQ Mask IRQ2 */
 	{ 0x00000D56, 0x0000 },    /* R3414  - Jack detect debounce */
@@ -2363,8 +2362,10 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_RAW_STATUS_7:
 	case ARIZONA_INTERRUPT_RAW_STATUS_8:
 	case ARIZONA_IRQ_PIN_STATUS:
+	case ARIZONA_AOD_WKUP_AND_TRIG:
 	case ARIZONA_AOD_IRQ1:
 	case ARIZONA_AOD_IRQ2:
+	case ARIZONA_AOD_IRQ_RAW_STATUS:
 	case ARIZONA_FX_CTRL2:
 	case ARIZONA_ASRC_STATUS:
 	case ARIZONA_DSP_STATUS:
