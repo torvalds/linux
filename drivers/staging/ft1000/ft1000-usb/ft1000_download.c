@@ -201,20 +201,7 @@ static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 	return HANDSHAKE_TIMEOUT_VALUE;
 }
 
-//---------------------------------------------------------------------------
-// Function:    put_handshake
-//
-// Parameters:  struct ft1000_usb  - device structure
-//              u16 handshake_value - handshake to be written
-//
-// Returns:     none
-//
-// Description: This function write the handshake value to the handshake location
-//              in DPRAM
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* write the handshake value to the handshake location */
 static void put_handshake(struct ft1000_usb *ft1000dev,u16 handshake_value)
 {
 	u32 tempx;
