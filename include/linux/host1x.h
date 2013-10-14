@@ -19,7 +19,7 @@
 #ifndef __LINUX_HOST1X_H
 #define __LINUX_HOST1X_H
 
-#include <linux/kref.h>
+#include <linux/device.h>
 #include <linux/types.h>
 
 enum host1x_class {
@@ -37,6 +37,7 @@ struct host1x_client_ops {
 
 struct host1x_client {
 	struct list_head list;
+	struct device *parent;
 	struct device *dev;
 
 	const struct host1x_client_ops *ops;
@@ -229,5 +230,47 @@ struct host1x_job *host1x_job_get(struct host1x_job *job);
 void host1x_job_put(struct host1x_job *job);
 int host1x_job_pin(struct host1x_job *job, struct device *dev);
 void host1x_job_unpin(struct host1x_job *job);
+
+/*
+ * subdevice probe infrastructure
+ */
+
+struct host1x_device;
+
+struct host1x_driver {
+	const struct of_device_id *subdevs;
+	struct list_head list;
+	const char *name;
+
+	int (*probe)(struct host1x_device *device);
+	int (*remove)(struct host1x_device *device);
+};
+
+int host1x_driver_register(struct host1x_driver *driver);
+void host1x_driver_unregister(struct host1x_driver *driver);
+
+struct host1x_device {
+	struct host1x_driver *driver;
+	struct list_head list;
+	struct device dev;
+
+	struct mutex subdevs_lock;
+	struct list_head subdevs;
+	struct list_head active;
+
+	struct mutex clients_lock;
+	struct list_head clients;
+};
+
+static inline struct host1x_device *to_host1x_device(struct device *dev)
+{
+	return container_of(dev, struct host1x_device, dev);
+}
+
+int host1x_device_init(struct host1x_device *device);
+int host1x_device_exit(struct host1x_device *device);
+
+int host1x_client_register(struct host1x_client *client);
+int host1x_client_unregister(struct host1x_client *client);
 
 #endif

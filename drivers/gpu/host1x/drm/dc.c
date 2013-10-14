@@ -11,7 +11,6 @@
 #include <linux/clk/tegra.h>
 #include <linux/debugfs.h>
 
-#include "host1x_client.h"
 #include "dc.h"
 #include "drm.h"
 #include "gem.h"
@@ -1040,28 +1039,28 @@ static int tegra_dc_debugfs_exit(struct tegra_dc *dc)
 
 static int tegra_dc_init(struct host1x_client *client)
 {
-	struct tegra_drm_client *drm = to_tegra_drm_client(client);
-	struct tegra_dc *dc = tegra_drm_client_to_dc(drm);
+	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	struct tegra_dc *dc = host1x_client_to_dc(client);
 	int err;
 
-	dc->pipe = drm->drm->mode_config.num_crtc;
+	dc->pipe = tegra->drm->mode_config.num_crtc;
 
-	drm_crtc_init(drm->drm, &dc->base, &tegra_crtc_funcs);
+	drm_crtc_init(tegra->drm, &dc->base, &tegra_crtc_funcs);
 	drm_mode_crtc_set_gamma_size(&dc->base, 256);
 	drm_crtc_helper_add(&dc->base, &tegra_crtc_helper_funcs);
 
-	err = tegra_dc_rgb_init(drm->drm, dc);
+	err = tegra_dc_rgb_init(tegra->drm, dc);
 	if (err < 0 && err != -ENODEV) {
 		dev_err(dc->dev, "failed to initialize RGB output: %d\n", err);
 		return err;
 	}
 
-	err = tegra_dc_add_planes(drm->drm, dc);
+	err = tegra_dc_add_planes(tegra->drm, dc);
 	if (err < 0)
 		return err;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_dc_debugfs_init(dc, drm->drm->primary);
+		err = tegra_dc_debugfs_init(dc, tegra->drm->primary);
 		if (err < 0)
 			dev_err(dc->dev, "debugfs setup failed: %d\n", err);
 	}
@@ -1079,8 +1078,7 @@ static int tegra_dc_init(struct host1x_client *client)
 
 static int tegra_dc_exit(struct host1x_client *client)
 {
-	struct tegra_drm_client *drm = to_tegra_drm_client(client);
-	struct tegra_dc *dc = tegra_drm_client_to_dc(drm);
+	struct tegra_dc *dc = host1x_client_to_dc(client);
 	int err;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
@@ -1107,7 +1105,6 @@ static const struct host1x_client_ops dc_client_ops = {
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct resource *regs;
 	struct tegra_dc *dc;
 	int err;
@@ -1141,9 +1138,9 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	INIT_LIST_HEAD(&dc->client.base.list);
-	dc->client.base.ops = &dc_client_ops;
-	dc->client.base.dev = &pdev->dev;
+	INIT_LIST_HEAD(&dc->client.list);
+	dc->client.ops = &dc_client_ops;
+	dc->client.dev = &pdev->dev;
 
 	err = tegra_dc_rgb_probe(dc);
 	if (err < 0 && err != -ENODEV) {
@@ -1151,7 +1148,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = host1x_register_client(tegra, &dc->client.base);
+	err = host1x_client_register(&dc->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
@@ -1165,11 +1162,10 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 static int tegra_dc_remove(struct platform_device *pdev)
 {
-	struct tegra_drm *tegra = host1x_get_drm_data(pdev->dev.parent);
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
 
-	err = host1x_unregister_client(tegra, &dc->client.base);
+	err = host1x_client_unregister(&dc->client);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
 			err);

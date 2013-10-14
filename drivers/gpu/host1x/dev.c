@@ -27,24 +27,12 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/host1x.h>
 
+#include "bus.h"
 #include "dev.h"
 #include "intr.h"
 #include "channel.h"
 #include "debug.h"
 #include "hw/host1x01.h"
-#include "host1x_client.h"
-
-void host1x_set_drm_data(struct device *dev, void *data)
-{
-	struct host1x *host1x = dev_get_drvdata(dev);
-	host1x->drm_data = data;
-}
-
-void *host1x_get_drm_data(struct device *dev)
-{
-	struct host1x *host1x = dev_get_drvdata(dev);
-	return host1x ? host1x->drm_data : NULL;
-}
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -114,6 +102,9 @@ static int host1x_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
+	mutex_init(&host->devices_lock);
+	INIT_LIST_HEAD(&host->devices);
+	INIT_LIST_HEAD(&host->list);
 	host->dev = &pdev->dev;
 	host->info = id->data;
 
@@ -163,10 +154,14 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host1x_debug_init(host);
 
-	tegra_drm_alloc(pdev);
+	err = host1x_register(host);
+	if (err < 0)
+		goto fail_deinit_intr;
 
 	return 0;
 
+fail_deinit_intr:
+	host1x_intr_deinit(host);
 fail_deinit_syncpt:
 	host1x_syncpt_deinit(host);
 	return err;
@@ -176,6 +171,7 @@ static int host1x_remove(struct platform_device *pdev)
 {
 	struct host1x *host = platform_get_drvdata(pdev);
 
+	host1x_unregister(host);
 	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
 	clk_disable_unprepare(host->clk);
@@ -196,46 +192,24 @@ static int __init tegra_host1x_init(void)
 {
 	int err;
 
-	err = platform_driver_register(&tegra_host1x_driver);
+	err = host1x_bus_init();
 	if (err < 0)
 		return err;
 
-#ifdef CONFIG_DRM_TEGRA
-	err = platform_driver_register(&tegra_dc_driver);
-	if (err < 0)
-		goto unregister_host1x;
-
-	err = platform_driver_register(&tegra_hdmi_driver);
-	if (err < 0)
-		goto unregister_dc;
-
-	err = platform_driver_register(&tegra_gr2d_driver);
-	if (err < 0)
-		goto unregister_hdmi;
-#endif
+	err = platform_driver_register(&tegra_host1x_driver);
+	if (err < 0) {
+		host1x_bus_exit();
+		return err;
+	}
 
 	return 0;
-
-#ifdef CONFIG_DRM_TEGRA
-unregister_hdmi:
-	platform_driver_unregister(&tegra_hdmi_driver);
-unregister_dc:
-	platform_driver_unregister(&tegra_dc_driver);
-unregister_host1x:
-	platform_driver_unregister(&tegra_host1x_driver);
-	return err;
-#endif
 }
 module_init(tegra_host1x_init);
 
 static void __exit tegra_host1x_exit(void)
 {
-#ifdef CONFIG_DRM_TEGRA
-	platform_driver_unregister(&tegra_gr2d_driver);
-	platform_driver_unregister(&tegra_hdmi_driver);
-	platform_driver_unregister(&tegra_dc_driver);
-#endif
 	platform_driver_unregister(&tegra_host1x_driver);
+	host1x_bus_exit();
 }
 module_exit(tegra_host1x_exit);
 

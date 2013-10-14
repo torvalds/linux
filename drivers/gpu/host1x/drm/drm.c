@@ -7,7 +7,8 @@
  * published by the Free Software Foundation.
  */
 
-#include "host1x_client.h"
+#include <linux/host1x.h>
+
 #include "drm.h"
 #include "gem.h"
 
@@ -22,239 +23,25 @@ struct tegra_drm_file {
 	struct list_head contexts;
 };
 
-struct host1x_subdev {
-	struct host1x_client *client;
-	struct device_node *np;
-	struct list_head list;
-};
-
-static int host1x_subdev_add(struct tegra_drm *tegra, struct device_node *np)
+static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 {
-	struct host1x_subdev *subdev;
-
-	subdev = kzalloc(sizeof(*subdev), GFP_KERNEL);
-	if (!subdev)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&subdev->list);
-	subdev->np = of_node_get(np);
-
-	list_add_tail(&subdev->list, &tegra->subdevs);
-
-	return 0;
-}
-
-static int host1x_subdev_register(struct tegra_drm *tegra,
-				  struct host1x_subdev *subdev,
-				  struct host1x_client *client)
-{
-	mutex_lock(&tegra->subdevs_lock);
-	list_del_init(&subdev->list);
-	list_add_tail(&subdev->list, &tegra->active);
-	subdev->client = client;
-	mutex_unlock(&tegra->subdevs_lock);
-
-	return 0;
-}
-
-static int host1x_subdev_unregister(struct tegra_drm *tegra,
-				    struct host1x_subdev *subdev)
-{
-	mutex_lock(&tegra->subdevs_lock);
-	list_del_init(&subdev->list);
-	mutex_unlock(&tegra->subdevs_lock);
-
-	of_node_put(subdev->np);
-	kfree(subdev);
-
-	return 0;
-}
-
-static int tegra_parse_dt(struct tegra_drm *tegra)
-{
-	static const char * const compat[] = {
-		"nvidia,tegra20-dc",
-		"nvidia,tegra20-hdmi",
-		"nvidia,tegra20-gr2d",
-		"nvidia,tegra30-dc",
-		"nvidia,tegra30-hdmi",
-		"nvidia,tegra30-gr2d",
-	};
-	unsigned int i;
-	int err;
-
-	for (i = 0; i < ARRAY_SIZE(compat); i++) {
-		struct device_node *np;
-
-		for_each_child_of_node(tegra->dev->of_node, np) {
-			if (of_device_is_compatible(np, compat[i]) &&
-			    of_device_is_available(np)) {
-				err = host1x_subdev_add(tegra, np);
-				if (err < 0)
-					return err;
-			}
-		}
-	}
-
-	return 0;
-}
-
-int tegra_drm_alloc(struct platform_device *pdev)
-{
+	struct host1x_device *device = to_host1x_device(drm->dev);
 	struct tegra_drm *tegra;
 	int err;
 
-	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
+	tegra = kzalloc(sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
 		return -ENOMEM;
 
-	mutex_init(&tegra->subdevs_lock);
-	INIT_LIST_HEAD(&tegra->subdevs);
-	INIT_LIST_HEAD(&tegra->active);
+	dev_set_drvdata(drm->dev, tegra);
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
-	tegra->dev = &pdev->dev;
-
-	err = tegra_parse_dt(tegra);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to parse DT: %d\n", err);
-		return err;
-	}
-
-	host1x_set_drm_data(&pdev->dev, tegra);
-
-	return 0;
-}
-
-int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm)
-{
-	struct host1x_client *client;
-	int err;
-
-	mutex_lock(&tegra->clients_lock);
-
-	list_for_each_entry(client, &tegra->clients, list) {
-		struct tegra_drm_client *tdc = to_tegra_drm_client(client);
-
-		/* associate client with DRM device */
-		tdc->drm = drm;
-
-		if (client->ops && client->ops->init) {
-			err = client->ops->init(client);
-			if (err < 0) {
-				dev_err(tegra->dev,
-					"DRM setup failed for %s: %d\n",
-					dev_name(client->dev), err);
-				mutex_unlock(&tegra->clients_lock);
-				return err;
-			}
-		}
-	}
-
-	mutex_unlock(&tegra->clients_lock);
-
-	return 0;
-}
-
-int tegra_drm_exit(struct tegra_drm *tegra)
-{
-	struct host1x_client *client;
-	struct platform_device *pdev;
-	int err;
-
-	if (!tegra->drm)
-		return 0;
-
-	mutex_lock(&tegra->clients_lock);
-
-	list_for_each_entry_reverse(client, &tegra->clients, list) {
-		if (client->ops && client->ops->exit) {
-			err = client->ops->exit(client);
-			if (err < 0) {
-				dev_err(tegra->dev,
-					"DRM cleanup failed for %s: %d\n",
-					dev_name(client->dev), err);
-				mutex_unlock(&tegra->clients_lock);
-				return err;
-			}
-		}
-	}
-
-	mutex_unlock(&tegra->clients_lock);
-
-	pdev = to_platform_device(tegra->dev);
-	drm_platform_exit(&tegra_drm_driver, pdev);
-	tegra->drm = NULL;
-
-	return 0;
-}
-
-int host1x_register_client(struct tegra_drm *tegra,
-			   struct host1x_client *client)
-{
-	struct host1x_subdev *subdev, *tmp;
-	int err;
-
-	mutex_lock(&tegra->clients_lock);
-	list_add_tail(&client->list, &tegra->clients);
-	mutex_unlock(&tegra->clients_lock);
-
-	list_for_each_entry_safe(subdev, tmp, &tegra->subdevs, list)
-		if (subdev->np == client->dev->of_node)
-			host1x_subdev_register(tegra, subdev, client);
-
-	if (list_empty(&tegra->subdevs)) {
-		struct platform_device *pdev = to_platform_device(tegra->dev);
-
-		err = drm_platform_init(&tegra_drm_driver, pdev);
-		if (err < 0) {
-			dev_err(tegra->dev, "drm_platform_init(): %d\n", err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-int host1x_unregister_client(struct tegra_drm *tegra,
-			     struct host1x_client *client)
-{
-	struct host1x_subdev *subdev, *tmp;
-	int err;
-
-	list_for_each_entry_safe(subdev, tmp, &tegra->active, list) {
-		if (subdev->client == client) {
-			err = tegra_drm_exit(tegra);
-			if (err < 0) {
-				dev_err(tegra->dev, "tegra_drm_exit(): %d\n",
-					err);
-				return err;
-			}
-
-			host1x_subdev_unregister(tegra, subdev);
-			break;
-		}
-	}
-
-	mutex_lock(&tegra->clients_lock);
-	list_del_init(&client->list);
-	mutex_unlock(&tegra->clients_lock);
-
-	return 0;
-}
-
-static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
-{
-	struct tegra_drm *tegra;
-	int err;
-
-	tegra = host1x_get_drm_data(drm->dev);
 	drm->dev_private = tegra;
 	tegra->drm = drm;
 
 	drm_mode_config_init(drm);
 
-	err = tegra_drm_init(tegra, drm);
+	err = host1x_device_init(device);
 	if (err < 0)
 		return err;
 
@@ -280,8 +67,15 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 static int tegra_drm_unload(struct drm_device *drm)
 {
+	struct host1x_device *device = to_host1x_device(drm->dev);
+	int err;
+
 	drm_kms_helper_poll_fini(drm);
 	tegra_drm_fb_exit(drm);
+
+	err = host1x_device_exit(device);
+	if (err < 0)
+		return err;
 
 	drm_mode_config_cleanup(drm);
 
@@ -370,10 +164,11 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 static int tegra_syncpt_read(struct drm_device *drm, void *data,
 			     struct drm_file *file)
 {
+	struct host1x *host = dev_get_drvdata(drm->dev->parent);
 	struct drm_tegra_syncpt_read *args = data;
-	struct host1x *host = dev_get_drvdata(drm->dev);
-	struct host1x_syncpt *sp = host1x_syncpt_get(host, args->id);
+	struct host1x_syncpt *sp;
 
+	sp = host1x_syncpt_get(host, args->id);
 	if (!sp)
 		return -EINVAL;
 
@@ -384,10 +179,11 @@ static int tegra_syncpt_read(struct drm_device *drm, void *data,
 static int tegra_syncpt_incr(struct drm_device *drm, void *data,
 			     struct drm_file *file)
 {
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct drm_tegra_syncpt_incr *args = data;
-	struct host1x *host = dev_get_drvdata(drm->dev);
-	struct host1x_syncpt *sp = host1x_syncpt_get(host, args->id);
+	struct host1x_syncpt *sp;
 
+	sp = host1x_syncpt_get(host1x, args->id);
 	if (!sp)
 		return -EINVAL;
 
@@ -397,10 +193,11 @@ static int tegra_syncpt_incr(struct drm_device *drm, void *data,
 static int tegra_syncpt_wait(struct drm_device *drm, void *data,
 			     struct drm_file *file)
 {
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct drm_tegra_syncpt_wait *args = data;
-	struct host1x *host = dev_get_drvdata(drm->dev);
-	struct host1x_syncpt *sp = host1x_syncpt_get(host, args->id);
+	struct host1x_syncpt *sp;
 
+	sp = host1x_syncpt_get(host1x, args->id);
 	if (!sp)
 		return -EINVAL;
 
@@ -422,7 +219,7 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 	if (!context)
 		return -ENOMEM;
 
-	list_for_each_entry(client, &tegra->clients, base.list)
+	list_for_each_entry(client, &tegra->clients, list)
 		if (client->base.class == args->client) {
 			err = client->ops->open_channel(client, context);
 			if (err)
@@ -441,8 +238,8 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 static int tegra_close_channel(struct drm_device *drm, void *data,
 			       struct drm_file *file)
 {
-	struct drm_tegra_close_channel *args = data;
 	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_close_channel *args = data;
 	struct tegra_drm_context *context;
 
 	context = tegra_drm_get_context(args->context);
@@ -652,3 +449,97 @@ struct drm_driver tegra_drm_driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
+
+int tegra_drm_register_client(struct tegra_drm *tegra,
+			      struct tegra_drm_client *client)
+{
+	mutex_lock(&tegra->clients_lock);
+	list_add_tail(&client->list, &tegra->clients);
+	mutex_unlock(&tegra->clients_lock);
+
+	return 0;
+}
+
+int tegra_drm_unregister_client(struct tegra_drm *tegra,
+				struct tegra_drm_client *client)
+{
+	mutex_lock(&tegra->clients_lock);
+	list_del_init(&client->list);
+	mutex_unlock(&tegra->clients_lock);
+
+	return 0;
+}
+
+static int host1x_drm_probe(struct host1x_device *device)
+{
+	return drm_host1x_init(&tegra_drm_driver, device);
+}
+
+static int host1x_drm_remove(struct host1x_device *device)
+{
+	drm_host1x_exit(&tegra_drm_driver, device);
+
+	return 0;
+}
+
+static const struct of_device_id host1x_drm_subdevs[] = {
+	{ .compatible = "nvidia,tegra20-dc", },
+	{ .compatible = "nvidia,tegra20-hdmi", },
+	{ .compatible = "nvidia,tegra20-gr2d", },
+	{ .compatible = "nvidia,tegra30-dc", },
+	{ .compatible = "nvidia,tegra30-hdmi", },
+	{ .compatible = "nvidia,tegra30-gr2d", },
+	{ /* sentinel */ }
+};
+
+static struct host1x_driver host1x_drm_driver = {
+	.name = "drm",
+	.probe = host1x_drm_probe,
+	.remove = host1x_drm_remove,
+	.subdevs = host1x_drm_subdevs,
+};
+
+static int __init host1x_drm_init(void)
+{
+	int err;
+
+	err = host1x_driver_register(&host1x_drm_driver);
+	if (err < 0)
+		return err;
+
+	err = platform_driver_register(&tegra_dc_driver);
+	if (err < 0)
+		goto unregister_host1x;
+
+	err = platform_driver_register(&tegra_hdmi_driver);
+	if (err < 0)
+		goto unregister_dc;
+
+	err = platform_driver_register(&tegra_gr2d_driver);
+	if (err < 0)
+		goto unregister_hdmi;
+
+	return 0;
+
+unregister_hdmi:
+	platform_driver_unregister(&tegra_hdmi_driver);
+unregister_dc:
+	platform_driver_unregister(&tegra_dc_driver);
+unregister_host1x:
+	host1x_driver_unregister(&host1x_drm_driver);
+	return err;
+}
+module_init(host1x_drm_init);
+
+static void __exit host1x_drm_exit(void)
+{
+	platform_driver_unregister(&tegra_gr2d_driver);
+	platform_driver_unregister(&tegra_hdmi_driver);
+	platform_driver_unregister(&tegra_dc_driver);
+	host1x_driver_unregister(&host1x_drm_driver);
+}
+module_exit(host1x_drm_exit);
+
+MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
+MODULE_DESCRIPTION("NVIDIA Tegra DRM driver");
+MODULE_LICENSE("GPL v2");

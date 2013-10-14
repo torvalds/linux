@@ -32,11 +32,6 @@ struct tegra_fbdev {
 
 struct tegra_drm {
 	struct drm_device *drm;
-	struct device *dev;
-
-	struct mutex subdevs_lock;
-	struct list_head subdevs;
-	struct list_head active;
 
 	struct mutex clients_lock;
 	struct list_head clients;
@@ -63,29 +58,29 @@ struct tegra_drm_client_ops {
 
 struct tegra_drm_client {
 	struct host1x_client base;
-	struct drm_device *drm;
+	struct list_head list;
 
 	const struct tegra_drm_client_ops *ops;
 };
 
 static inline struct tegra_drm_client *
-to_tegra_drm_client(struct host1x_client *client)
+host1x_to_drm_client(struct host1x_client *client)
 {
 	return container_of(client, struct tegra_drm_client, base);
 }
 
+extern int tegra_drm_register_client(struct tegra_drm *tegra,
+				     struct tegra_drm_client *client);
+extern int tegra_drm_unregister_client(struct tegra_drm *tegra,
+				       struct tegra_drm_client *client);
+
 extern int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 extern int tegra_drm_exit(struct tegra_drm *tegra);
-
-extern int host1x_register_client(struct tegra_drm *tegra,
-				  struct host1x_client *client);
-extern int host1x_unregister_client(struct tegra_drm *tegra,
-				    struct host1x_client *client);
 
 struct tegra_output;
 
 struct tegra_dc {
-	struct tegra_drm_client client;
+	struct host1x_client client;
 	struct device *dev;
 	spinlock_t lock;
 
@@ -109,7 +104,7 @@ struct tegra_dc {
 };
 
 static inline struct tegra_dc *
-tegra_drm_client_to_dc(struct tegra_drm_client *client)
+host1x_client_to_dc(struct host1x_client *client)
 {
 	return container_of(client, struct tegra_dc, client);
 }
@@ -235,6 +230,10 @@ static inline int tegra_output_check_mode(struct tegra_output *output,
 	return output ? -ENOSYS : -EINVAL;
 }
 
+/* from bus.c */
+int drm_host1x_init(struct drm_driver *driver, struct host1x_device *device);
+void drm_host1x_exit(struct drm_driver *driver, struct host1x_device *device);
+
 /* from rgb.c */
 extern int tegra_dc_rgb_probe(struct tegra_dc *dc);
 extern int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc);
@@ -252,6 +251,8 @@ extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
 extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 
-extern struct drm_driver tegra_drm_driver;
+extern struct platform_driver tegra_dc_driver;
+extern struct platform_driver tegra_hdmi_driver;
+extern struct platform_driver tegra_gr2d_driver;
 
 #endif /* HOST1X_DRM_H */
