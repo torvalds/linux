@@ -418,6 +418,21 @@ static void hci_cc_write_voice_setting(struct hci_dev *hdev,
 		hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
 }
 
+static void hci_cc_read_num_supported_iac(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_read_num_supported_iac *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->num_iac = rp->num_iac;
+
+	BT_DBG("%s num iac %d", hdev->name, hdev->num_iac);
+}
+
 static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -2133,6 +2148,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_WRITE_VOICE_SETTING:
 		hci_cc_write_voice_setting(hdev, skb);
+		break;
+
+	case HCI_OP_READ_NUM_SUPPORTED_IAC:
+		hci_cc_read_num_supported_iac(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_SSP_MODE:

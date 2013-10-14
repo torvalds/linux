@@ -370,6 +370,9 @@ static void bredr_setup(struct hci_request *req)
 	/* Read Voice Setting */
 	hci_req_add(req, HCI_OP_READ_VOICE_SETTING, 0, NULL);
 
+	/* Read Number of Supported IAC */
+	hci_req_add(req, HCI_OP_READ_NUM_SUPPORTED_IAC, 0, NULL);
+
 	/* Clear Event Filters */
 	flt_type = HCI_FLT_CLEAR_ALL;
 	hci_req_add(req, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
@@ -2271,7 +2274,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
-	hdev->io_capability = 0x03; /* No Input No Output */
+	hdev->num_iac = 0x01;		/* One IAC support is mandatory */
+	hdev->io_capability = 0x03;	/* No Input No Output */
 	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 
