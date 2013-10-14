@@ -711,11 +711,8 @@ struct vnt_private {
 	/* One second callback */
 	struct delayed_work second_callback_work;
 
-	struct timer_list sTimerTxData;
-	unsigned long nTxDataTimeCout;
-	int fTxDataInSleep;
-	int IsTxDataTrigger;
-
+	u8 tx_data_time_out;
+	bool tx_trigger;
 	int fWPA_Authened; /*is WPA/WPA-PSK or WPA2/WPA2-PSK authen?? */
 	u8 byReAssocCount;
 	u8 byLinkWaitCount;

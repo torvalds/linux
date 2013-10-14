@@ -213,14 +213,6 @@ void vMgrObjectInit(struct vnt_private *pDevice)
     pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
     BSSvClearBSSList((void *) pDevice, false);
 
-    init_timer(&pDevice->sTimerTxData);
-    pDevice->sTimerTxData.data = (unsigned long)pDevice;
-    pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
-    pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
-    pDevice->fTxDataInSleep = false;
-    pDevice->IsTxDataTrigger = false;
-    pDevice->nTxDataTimeCout = 0;
-
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
     pDevice->uCmdDequeueIdx = 0;
     pDevice->uCmdEnqueueIdx = 0;

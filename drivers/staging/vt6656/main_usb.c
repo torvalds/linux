@@ -1081,8 +1081,6 @@ static int device_close(struct net_device *dev)
 	cancel_delayed_work_sync(&pDevice->run_command_work);
 	cancel_delayed_work_sync(&pDevice->second_callback_work);
 
-    del_timer(&pDevice->sTimerTxData);
-
     if (pDevice->bDiversityRegCtlON) {
         del_timer(&pDevice->TimerSQ3Tmax1);
         del_timer(&pDevice->TimerSQ3Tmax2);

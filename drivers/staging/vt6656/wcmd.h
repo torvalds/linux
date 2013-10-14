@@ -107,6 +107,4 @@ int bScheduleCommand(struct vnt_private *, CMD_CODE eCommand, u8 *pbyItem0);
 
 void vRunCommand(struct work_struct *work);
 
-void BSSvSecondTxData(struct vnt_private *);
-
 #endif /* __WCMD_H__ */

@@ -257,10 +257,8 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 	if (pDevice->bLinkPass == false)
 		return false;
 
-	if ((pDevice->bEnablePSMode == false) &&
-		(pDevice->fTxDataInSleep == false)) {
-			return false;
-	}
+	if (pDevice->bEnablePSMode == false && pDevice->tx_trigger == false)
+		return false;
 
 	memset(pMgmt->pbyPSPacketPool, 0, sizeof(struct vnt_tx_mgmt)
 		+ WLAN_NULLDATA_FR_MAXLEN);

@@ -656,8 +656,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Write %d bytes\n",(int)ulBufLen);
         pDevice->ulBulkOutBytesWrite += ulBufLen;
         pDevice->ulBulkOutContCRCError = 0;
-	pDevice->nTxDataTimeCout = 0;
-
     } else {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK Out failed %d\n", status);
         pDevice->ulBulkOutError++;

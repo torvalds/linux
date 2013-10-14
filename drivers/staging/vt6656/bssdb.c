@@ -57,6 +57,7 @@
 #include "control.h"
 #include "rndis.h"
 #include "iowpa.h"
+#include "power.h"
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
@@ -1124,10 +1125,22 @@ else {
         }
     }
 
-    if (pDevice->bLinkPass == true) {
-        if (netif_queue_stopped(pDevice->dev))
-            netif_wake_queue(pDevice->dev);
-    }
+	if (pDevice->bLinkPass == true) {
+		if (pMgmt->eAuthenMode < WMAC_AUTH_WPA ||
+			pDevice->fWPA_Authened == true) {
+			if (++pDevice->tx_data_time_out > 40) {
+				pDevice->tx_trigger = true;
+
+				PSbSendNullPacket(pDevice);
+
+				pDevice->tx_trigger = false;
+				pDevice->tx_data_time_out = 0;
+			}
+		}
+
+		if (netif_queue_stopped(pDevice->dev))
+			netif_wake_queue(pDevice->dev);
+	}
 
     spin_unlock_irq(&pDevice->lock);
 
