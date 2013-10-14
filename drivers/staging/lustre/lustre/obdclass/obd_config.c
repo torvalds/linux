@@ -417,7 +417,7 @@ int class_attach(struct lustre_cfg *lcfg)
 
 	/* do the attach */
 	if (OBP(obd, attach)) {
-		rc = OBP(obd,attach)(obd, sizeof *lcfg, lcfg);
+		rc = OBP(obd, attach)(obd, sizeof(*lcfg), lcfg);
 		if (rc)
 			GOTO(out, rc = -EINVAL);
 	}
@@ -900,7 +900,7 @@ void class_del_profile(const char *prof)
 		OBD_FREE(lprof->lp_dt, strlen(lprof->lp_dt) + 1);
 		if (lprof->lp_md)
 			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
-		OBD_FREE(lprof, sizeof *lprof);
+		OBD_FREE(lprof, sizeof(*lprof));
 	}
 }
 EXPORT_SYMBOL(class_del_profile);
@@ -916,7 +916,7 @@ void class_del_profiles(void)
 		OBD_FREE(lprof->lp_dt, strlen(lprof->lp_dt) + 1);
 		if (lprof->lp_md)
 			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
-		OBD_FREE(lprof, sizeof *lprof);
+		OBD_FREE(lprof, sizeof(*lprof));
 	}
 }
 EXPORT_SYMBOL(class_del_profiles);

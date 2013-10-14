@@ -286,7 +286,7 @@ static void lov_emerg_free(struct lov_device_emerg **emrg, int nr)
 			OBD_FREE_PTR(em);
 		}
 	}
-	OBD_FREE(emrg, nr * sizeof emrg[0]);
+	OBD_FREE(emrg, nr * sizeof(emrg[0]));
 }
 
 static struct lu_device *lov_device_free(const struct lu_env *env,
@@ -297,7 +297,7 @@ static struct lu_device *lov_device_free(const struct lu_env *env,
 
 	cl_device_fini(lu2cl_dev(d));
 	if (ld->ld_target != NULL)
-		OBD_FREE(ld->ld_target, nr * sizeof ld->ld_target[0]);
+		OBD_FREE(ld->ld_target, nr * sizeof(ld->ld_target[0]));
 	if (ld->ld_emrg != NULL)
 		lov_emerg_free(ld->ld_emrg, nr);
 	OBD_FREE_PTR(ld);
@@ -321,7 +321,7 @@ static struct lov_device_emerg **lov_emerg_alloc(int nr)
 	int i;
 	int result;
 
-	OBD_ALLOC(emerg, nr * sizeof emerg[0]);
+	OBD_ALLOC(emerg, nr * sizeof(emerg[0]));
 	if (emerg == NULL)
 		return ERR_PTR(-ENOMEM);
 	for (result = i = 0; i < nr && result == 0; i++) {
@@ -361,7 +361,7 @@ static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
 	if (sub_size < tgt_size) {
 		struct lovsub_device    **newd;
 		struct lov_device_emerg **emerg;
-		const size_t	      sz   = sizeof newd[0];
+		const size_t	      sz   = sizeof(newd[0]);
 
 		emerg = lov_emerg_alloc(tgt_size);
 		if (IS_ERR(emerg))

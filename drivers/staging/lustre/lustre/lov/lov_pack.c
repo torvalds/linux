@@ -630,7 +630,7 @@ int lov_getstripe(struct obd_export *exp, struct lov_stripe_md *lsm,
 	/* FIXME: Bug 1185 - copy fields properly when structs change */
 	/* struct lov_user_md_v3 and struct lov_mds_md_v3 must be the same */
 	CLASSERT(sizeof(lum) == sizeof(struct lov_mds_md_v3));
-	CLASSERT(sizeof lum.lmm_objects[0] == sizeof lmmk->lmm_objects[0]);
+	CLASSERT(sizeof(lum.lmm_objects[0]) == sizeof(lmmk->lmm_objects[0]));
 
 	if ((cpu_to_le32(LOV_MAGIC) != LOV_MAGIC) &&
 	    ((lmmk->lmm_magic == cpu_to_le32(LOV_MAGIC_V1)) ||

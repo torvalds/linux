@@ -245,7 +245,7 @@ int lov_update_enqueue_set(struct lov_request *req, __u32 mode, int rc)
 	osc_update_enqueue(lov_lockhp, loi, oi->oi_flags,
 			   &req->rq_oi.oi_md->lsm_oinfo[0]->loi_lvb, mode, rc);
 	if (rc == ELDLM_LOCK_ABORTED && (oi->oi_flags & LDLM_FL_HAS_INTENT))
-		memset(lov_lockhp, 0, sizeof *lov_lockhp);
+		memset(lov_lockhp, 0, sizeof(*lov_lockhp));
 	rc = lov_update_enqueue_lov(set->set_exp, lov_lockhp, loi, oi->oi_flags,
 				    req->rq_idx, &oi->oi_md->lsm_oi, rc);
 	lov_stripe_unlock(oi->oi_md);
@@ -343,7 +343,7 @@ static struct lov_lock_handles *lov_llh_new(struct lov_stripe_md *lsm)
 {
 	struct lov_lock_handles *llh;
 
-	OBD_ALLOC(llh, sizeof *llh +
+	OBD_ALLOC(llh, sizeof(*llh) +
 		  sizeof(*llh->llh_handles) * lsm->lsm_stripe_count);
 	if (llh == NULL)
 		return NULL;

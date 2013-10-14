@@ -817,7 +817,7 @@ struct ptlrpc_request_set *ptlrpc_prep_set(void)
 {
 	struct ptlrpc_request_set *set;
 
-	OBD_ALLOC(set, sizeof *set);
+	OBD_ALLOC(set, sizeof(*set));
 	if (!set)
 		return NULL;
 	atomic_set(&set->set_refcount, 1);
@@ -2690,7 +2690,7 @@ int ptlrpc_replay_req(struct ptlrpc_request *req)
 
 	LASSERT (sizeof (*aa) <= sizeof (req->rq_async_args));
 	aa = ptlrpc_req_async_args(req);
-	memset(aa, 0, sizeof *aa);
+	memset(aa, 0, sizeof(*aa));
 
 	/* Prepare request to be resent with ptlrpcd */
 	aa->praa_old_state = req->rq_send_state;

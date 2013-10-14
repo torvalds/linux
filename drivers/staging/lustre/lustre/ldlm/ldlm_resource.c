@@ -1115,7 +1115,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 		lu_ref_fini(&res->lr_reference);
 		/* We have taken lr_lvb_mutex. Drop it. */
 		mutex_unlock(&res->lr_lvb_mutex);
-		OBD_SLAB_FREE(res, ldlm_resource_slab, sizeof *res);
+		OBD_SLAB_FREE(res, ldlm_resource_slab, sizeof(*res));
 
 		res = hlist_entry(hnode, struct ldlm_resource, lr_hash);
 		/* Synchronize with regard to resource creation. */
@@ -1226,7 +1226,7 @@ int ldlm_resource_putref(struct ldlm_resource *res)
 		cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 1);
 		if (ns->ns_lvbo && ns->ns_lvbo->lvbo_free)
 			ns->ns_lvbo->lvbo_free(res);
-		OBD_SLAB_FREE(res, ldlm_resource_slab, sizeof *res);
+		OBD_SLAB_FREE(res, ldlm_resource_slab, sizeof(*res));
 		return 1;
 	}
 	return 0;
@@ -1256,7 +1256,7 @@ int ldlm_resource_putref_locked(struct ldlm_resource *res)
 		 */
 		if (ns->ns_lvbo && ns->ns_lvbo->lvbo_free)
 			ns->ns_lvbo->lvbo_free(res);
-		OBD_SLAB_FREE(res, ldlm_resource_slab, sizeof *res);
+		OBD_SLAB_FREE(res, ldlm_resource_slab, sizeof(*res));
 
 		cfs_hash_bd_lock(ns->ns_rs_hash, &bd, 1);
 		return 1;

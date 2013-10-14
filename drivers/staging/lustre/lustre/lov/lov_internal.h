@@ -124,7 +124,7 @@ static inline void lov_llh_put(struct lov_lock_handles *llh)
 		if (atomic_read(&llh->llh_refcount))
 			return;
 
-		OBD_FREE_RCU(llh, sizeof *llh +
+		OBD_FREE_RCU(llh, sizeof(*llh) +
 			     sizeof(*llh->llh_handles) * llh->llh_stripe_count,
 			     &llh->llh_handle);
 	}

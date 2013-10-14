@@ -980,7 +980,7 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 	int bits;
 	int i;
 
-	memset(s, 0, sizeof *s);
+	memset(s, 0, sizeof(*s));
 	bits = lu_htable_order();
 	snprintf(name, 16, "lu_site_%s", top->ld_type->ldt_name);
 	for (bits = min(max(LU_SITE_BITS_MIN, bits), LU_SITE_BITS_MAX);
@@ -1110,7 +1110,7 @@ int lu_device_init(struct lu_device *d, struct lu_device_type *t)
 {
 	if (t->ldt_device_nr++ == 0 && t->ldt_ops->ldto_start != NULL)
 		t->ldt_ops->ldto_start(t);
-	memset(d, 0, sizeof *d);
+	memset(d, 0, sizeof(*d));
 	atomic_set(&d->ld_ref, 0);
 	d->ld_type = t;
 	lu_ref_init(&d->ld_reference);
@@ -1206,7 +1206,7 @@ EXPORT_SYMBOL(lu_object_add);
  */
 int lu_object_header_init(struct lu_object_header *h)
 {
-	memset(h, 0, sizeof *h);
+	memset(h, 0, sizeof(*h));
 	atomic_set(&h->loh_ref, 1);
 	INIT_HLIST_NODE(&h->loh_hash);
 	INIT_LIST_HEAD(&h->loh_lru);
@@ -1525,7 +1525,7 @@ static void keys_fini(struct lu_context *ctx)
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i)
 		key_fini(ctx, i);
 
-	OBD_FREE(ctx->lc_value, ARRAY_SIZE(lu_keys) * sizeof ctx->lc_value[0]);
+	OBD_FREE(ctx->lc_value, ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
 	ctx->lc_value = NULL;
 }
 
@@ -1574,7 +1574,8 @@ static int keys_fill(struct lu_context *ctx)
 
 static int keys_init(struct lu_context *ctx)
 {
-	OBD_ALLOC(ctx->lc_value, ARRAY_SIZE(lu_keys) * sizeof ctx->lc_value[0]);
+	OBD_ALLOC(ctx->lc_value,
+		  ARRAY_SIZE(lu_keys) * sizeof(ctx->lc_value[0]));
 	if (likely(ctx->lc_value != NULL))
 		return keys_fill(ctx);
 
@@ -1588,7 +1589,7 @@ int lu_context_init(struct lu_context *ctx, __u32 tags)
 {
 	int	rc;
 
-	memset(ctx, 0, sizeof *ctx);
+	memset(ctx, 0, sizeof(*ctx));
 	ctx->lc_state = LCS_INITIALIZED;
 	ctx->lc_tags = tags;
 	if (tags & LCT_REMEMBER) {

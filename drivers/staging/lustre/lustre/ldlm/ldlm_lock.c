@@ -529,7 +529,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 		lock_res_nested(oldres, LRT_NEW);
 	}
 	LASSERT(memcmp(new_resid, &oldres->lr_name,
-		       sizeof oldres->lr_name) != 0);
+		       sizeof(oldres->lr_name)) != 0);
 	lock->l_resource = newres;
 	unlock_res(oldres);
 	unlock_res_and_lock(lock);

@@ -177,7 +177,7 @@ static inline int lov_stripe_md_cmp(struct lov_stripe_md *m1,
 	 * ->lsm_wire contains padding, but it should be zeroed out during
 	 * allocation.
 	 */
-	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof m1->lsm_wire);
+	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof(m1->lsm_wire));
 }
 
 static inline int lov_lum_lsm_cmp(struct lov_user_md *lum,

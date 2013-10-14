@@ -313,7 +313,7 @@ static int lov_lock_sub_init(const struct lu_env *env,
 			nr++;
 	}
 	LASSERT(nr > 0);
-	OBD_ALLOC_LARGE(lck->lls_sub, nr * sizeof lck->lls_sub[0]);
+	OBD_ALLOC_LARGE(lck->lls_sub, nr * sizeof(lck->lls_sub[0]));
 	if (lck->lls_sub == NULL)
 		return -ENOMEM;
 
@@ -474,7 +474,7 @@ static void lov_lock_fini(const struct lu_env *env,
 			 */
 			LASSERT(lck->lls_sub[i].sub_lock == NULL);
 		OBD_FREE_LARGE(lck->lls_sub,
-			       lck->lls_nr * sizeof lck->lls_sub[0]);
+			       lck->lls_nr * sizeof(lck->lls_sub[0]));
 	}
 	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
 }
