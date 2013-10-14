@@ -61,6 +61,27 @@ enum Cx_OUTPUT_SEL{
     Cx_OUTPUT_SEL_DPORT2,
 };
 
+enum {
+	OFF,
+	RCV,
+	SPK_PATH,
+	HP_PATH,
+	HP_NO_MIC,
+	BT,
+	SPK_HP,
+	RING_SPK,
+	RING_HP,
+	RING_HP_NO_MIC,
+	RING_SPK_HP,
+};
+
+enum {
+	MIC_OFF,
+	Main_Mic,
+	Hands_Free_Mic,
+	BT_Sco_Mic,
+};
+
 #define CX2070X_I2C_DRIVER_NAME	"cx2070x-i2c"
 #define CX2070X_SPI_DRIVER_NAME	"cx2070x-spi"
 #define CX2070X_FIRMWARE_FILENAME "cnxt/cx2070x.fw"

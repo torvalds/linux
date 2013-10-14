@@ -216,6 +216,8 @@ struct cx2070x_priv
     enum Cx_INPUT_SEL input_sel;
     enum Cx_OUTPUT_SEL output_sel;
 	unsigned int mute;
+    long int playback_path;
+	long int capture_path;
 };
 
 #define get_cx2070x_priv(_codec_) ((struct cx2070x_priv *)snd_soc_codec_get_drvdata(codec))
@@ -434,6 +436,7 @@ static int NOINLINE cx2070x_real_write(struct snd_soc_codec *codec, unsigned int
         msg[0].addr  = client->addr;
         msg[0].flags = client->flags & I2C_M_TEN;
         msg[0].buf   = &data[0];
+        msg[0].scl_rate = 200 * 1000;
         data[0]=(u8)(ri->addr>>8);
         data[1]=(u8)(ri->addr>>0);
         switch(ri->type&REG_WIDTH_MASK)
@@ -489,11 +492,13 @@ static int NOINLINE cx2070x_real_read(struct snd_soc_codec *codec, unsigned int 
     msg[0].flags = client->flags & I2C_M_TEN;
     msg[0].len   = 2;
     msg[0].buf   = &data[0];
+    msg[0].scl_rate = 200 * 1000;
 
     msg[1].addr  = client->addr;
     msg[1].flags = (client->flags & I2C_M_TEN) | I2C_M_RD;
     msg[1].len   = ((ri->type&REG_WIDTH_MASK)==REG_WIDTH_W)?2:1;
     msg[1].buf   = &data[2];
+    msg[1].scl_rate = 200 * 1000;
 
     if (i2c_transfer(adap,msg,2)!=2)
         return -EIO;
@@ -710,6 +715,180 @@ static const struct snd_kcontrol_new cx2070x_snd_controls[]=
     SOC_SINGLE(  "AEC Switch",				DSP_PROCESSING_ENABLE_1,			0, 0x01, 0),
     SOC_ENUM_EXT("Master Playback Switch", output_select_enum[0], output_select_event_get, output_select_event_set),
 };
+
+//For tiny alsa playback/capture/voice call path
+static const char *cx2070x_playback_path_mode[] = {"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT", "SPK_HP", //0-6
+		"RING_SPK", "RING_HP", "RING_HP_NO_MIC", "RING_SPK_HP"};//7-10
+
+static const char *cx2070x_capture_path_mode[] = {"MIC OFF", "Main Mic", "Hands Free Mic", "BT Sco Mic"};
+
+static const SOC_ENUM_SINGLE_DECL(cx2070x_playback_path_type, 0, 0, cx2070x_playback_path_mode);
+
+static const SOC_ENUM_SINGLE_DECL(cx2070x_capture_path_type, 0, 0, cx2070x_capture_path_mode);
+
+
+static int cx2070x_playback_path_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+    struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct cx2070x_priv  *cx2070x = get_cx2070x_priv(codec);
+
+	if (!cx2070x) {
+		printk("%s : cx2070x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	printk("%s : playback_path %ld\n",__func__,ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = cx2070x->playback_path;
+
+	return 0;
+}
+
+static int cx2070x_playback_path_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+    struct cx2070x_priv  *cx2070x = get_cx2070x_priv(codec);
+	long int pre_path;
+
+	if (!cx2070x) {
+		printk("%s : cx2070x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (cx2070x->playback_path == ucontrol->value.integer.value[0]){
+		printk("%s : playback_path is not changed!\n",__func__);
+		return 0;
+	}
+
+	pre_path = cx2070x->playback_path;
+	cx2070x->playback_path = ucontrol->value.integer.value[0];
+
+	printk("%s : set playback_path %ld, pre_path %ld\n", __func__,
+		cx2070x->playback_path, pre_path);
+
+	switch (cx2070x->playback_path) {
+	case OFF:
+		if (pre_path != OFF) {
+            cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,(cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC) & ~(1 << 3));
+        }			
+		break;
+	case RCV:
+		break;
+	case SPK_PATH:
+	case RING_SPK:
+        printk("%s : >>>>>>>>>>>>>>>PUT SPK_PATH\n",__func__);
+		if (pre_path == OFF) {
+			cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC | DSP_INIT_STREAM_3);
+        }
+		break;
+	case HP_PATH:
+	case HP_NO_MIC:
+	case RING_HP:
+	case RING_HP_NO_MIC:
+		if (pre_path == OFF) {
+			cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC | DSP_INIT_STREAM_3);
+        }
+		break;
+	case BT:
+		break;
+	case SPK_HP:
+	case RING_SPK_HP:
+	    if (pre_path == OFF) {
+			cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC | DSP_INIT_STREAM_3);
+        }
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cx2070x_capture_path_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+    struct cx2070x_priv  *cx2070x = get_cx2070x_priv(codec);
+
+	if (!cx2070x) {
+		printk("%s : cx2070x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	printk("%s : capture_path %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+
+	ucontrol->value.integer.value[0] = cx2070x->capture_path;
+
+	return 0;
+}
+
+static int cx2070x_capture_path_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+    struct cx2070x_priv  *cx2070x = get_cx2070x_priv(codec);
+	long int pre_path;
+
+	if (!cx2070x) {
+		printk("%s : cx2070x_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (cx2070x->capture_path == ucontrol->value.integer.value[0]){
+		printk("%s : capture_path is not changed!\n", __func__);
+		return 0;
+	}
+
+	pre_path = cx2070x->capture_path;
+	cx2070x->capture_path = ucontrol->value.integer.value[0];
+
+	printk("%s : set capture_path %ld, pre_path %ld\n", __func__,
+		cx2070x->capture_path, pre_path);
+
+	switch (cx2070x->capture_path) {
+	case MIC_OFF:
+		if (pre_path != MIC_OFF) {
+            cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,(cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC) & ~(DSP_INIT_STREAM_5));
+        }
+		break;
+	case Main_Mic:
+    printk("%s : >>>>>>>>>>>>>>>PUT MAIN_MIC_PATH\n",__func__);
+        if (pre_path == MIC_OFF) {
+            cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC | DSP_INIT_STREAM_5);
+        }
+		break;
+	case Hands_Free_Mic:
+		if (pre_path == MIC_OFF) {
+            cx2070x_real_read(codec,DSP_INIT);
+            cx2070x_write(codec,DSP_INIT,cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC | DSP_INIT_STREAM_5);
+        }
+		break;
+	case BT_Sco_Mic:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new cx2070x_snd_path_controls[] = {
+	SOC_ENUM_EXT("Playback Path", cx2070x_playback_path_type,
+		cx2070x_playback_path_get, cx2070x_playback_path_put),
+
+	SOC_ENUM_EXT("Capture MIC Path", cx2070x_capture_path_type,
+		cx2070x_capture_path_get, cx2070x_capture_path_put),
+};
+
 
 // add non dapm controls
 static int cx2070x_add_controls(struct snd_soc_codec *codec)
@@ -1116,12 +1295,13 @@ static int cx2070x_hw_params(struct snd_pcm_substream *substream, struct snd_pcm
     /*params for port2 by showy.zhang*/
     cx2070x_real_write(codec,STREAM5_RATE,s5);
     cx2070x_real_write(codec,STREAM3_RATE,s3);// cause by incorrect parameter
-
+#if 0
+    cx2070x_real_read(codec,DSP_INIT);
     dsp=cx2070x_read_reg_cache(codec,DSP_INIT);
-
+    printk(">>>>>>>>>>>> dsp = %0x", dsp);
     if ((err=cx2070x_dsp_init(codec,dsp|DSP_INIT_NEWC))<0)
         return err;
-
+#endif
     return 0;
 }
 
@@ -1130,20 +1310,25 @@ static int cx2070x_mute(struct snd_soc_dai *dai, int mute)
     struct snd_soc_codec *codec = dai->codec;
 
     ERROR("%lu: %s(%d) called\n",jiffies,__func__,mute);
-
+#if 0
     cx2070x_real_write(codec,VOLUME_MUTE,mute?VOLUME_MUTE_ALL:b_00000000);
 
-/*
     if( mute)
     {
-        cx2070x_real_write(codec,DSP_POWER,0xe0); // deep sleep mode
-        cx2070x_dsp_init(codec,DSP_INIT_STREAM_OFF);
+//          cx2070x_real_write(codec,DSP_POWER,0xe0); // deep sleep mode
+//          cx2070x_dsp_init(codec,DSP_INIT_STREAM_OFF);
+        /*mute I2S output*/
+        cx2070x_real_read(codec,DSP_INIT);
+        cx2070x_write(codec,DSP_INIT,(cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC) & ~(1 << 3));
     }
     else
     {
-        cx2070x_dsp_init(codec,DSP_INIT_NEWC | 0xff);
+        /*unmute I2S output*/
+        cx2070x_real_read(codec,DSP_INIT);
+        cx2070x_write(codec,DSP_INIT,cx2070x_read_reg_cache(codec,DSP_INIT)| DSP_INIT_NEWC | DSP_INIT_STREAM_3);
+        //cx2070x_dsp_init(codec,DSP_INIT_NEWC | 0xff);
     }
-*/
+#endif
     return 0;
 }
 
@@ -1591,8 +1776,10 @@ static int NOINLINE cx2070x_init(struct snd_soc_codec* codec)
     cx2070x_apply_firmware_patch(codec);
 #endif
 
-    cx2070x_add_controls(codec);
-    cx2070x_add_widgets(codec);
+    //cx2070x_add_controls(codec);
+    //cx2070x_add_widgets(codec);
+    snd_soc_add_controls(codec, cx2070x_snd_path_controls,
+				ARRAY_SIZE(cx2070x_snd_path_controls));
 
     //snd_soc_dapm_nc_pin(&codec->dapm, "LINE IN");
     //snd_soc_dapm_nc_pin( &codec->dapm, "LINE OUT");
@@ -1635,6 +1822,9 @@ static int NOINLINE cx2070x_init(struct snd_soc_codec* codec)
 #if defined(CONFIG_SND_CXLIFEGUARD)
     cxdbg_dev_init(codec);
 #endif 
+
+    cx2070x_real_write(codec, USB_LOCAL_VOLUME, 0x42);
+
     if( ret == 0)
     {
         printk(KERN_INFO "CX2070X: codec is ready.\n");
