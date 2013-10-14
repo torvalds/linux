@@ -462,10 +462,17 @@ static int at25_remove(struct spi_device *spi)
 
 /*-------------------------------------------------------------------------*/
 
+static const struct of_device_id at25_of_match[] = {
+	{ .compatible = "atmel,at25", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, at25_of_match);
+
 static struct spi_driver at25_driver = {
 	.driver = {
 		.name		= "at25",
 		.owner		= THIS_MODULE,
+		.of_match_table = at25_of_match,
 	},
 	.probe		= at25_probe,
 	.remove		= at25_remove,
