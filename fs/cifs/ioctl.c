@@ -37,7 +37,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
 	__u64	ExtAttrBits = 0;
-	__u64	ExtAttrMask = 0;
 	__u64   caps;
 
 	xid = get_xid();
@@ -54,6 +53,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 #ifdef CONFIG_CIFS_POSIX
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
+				__u64	ExtAttrMask = 0;
 				rc = CIFSGetExtAttr(xid, tcon,
 						    pSMBFile->fid.netfid,
 						    &ExtAttrBits, &ExtAttrMask);
