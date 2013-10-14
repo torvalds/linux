@@ -233,7 +233,6 @@
 #define DRIVE_CURRENT_LANE1(x)      (((x) & 0x3f) <<  8)
 #define DRIVE_CURRENT_LANE2(x)      (((x) & 0x3f) << 16)
 #define DRIVE_CURRENT_LANE3(x)      (((x) & 0x3f) << 24)
-#define DRIVE_CURRENT_FUSE_OVERRIDE (1 << 31)
 
 #define DRIVE_CURRENT_1_500_mA  0x00
 #define DRIVE_CURRENT_1_875_mA  0x01

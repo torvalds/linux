@@ -17,6 +17,22 @@
 #include "drm.h"
 #include "dc.h"
 
+struct tmds_config {
+	unsigned int pclk;
+	u32 pll0;
+	u32 pll1;
+	u32 pe_current;
+	u32 drive_current;
+};
+
+struct tegra_hdmi_config {
+	const struct tmds_config *tmds;
+	unsigned int num_tmds;
+
+	unsigned long fuse_override_offset;
+	unsigned long fuse_override_value;
+};
+
 struct tegra_hdmi {
 	struct host1x_client client;
 	struct tegra_output output;
@@ -30,6 +46,8 @@ struct tegra_hdmi {
 
 	struct clk *clk_parent;
 	struct clk *clk;
+
+	const struct tegra_hdmi_config *config;
 
 	unsigned int audio_source;
 	unsigned int audio_freq;
@@ -134,14 +152,6 @@ static const struct tegra_hdmi_audio_config tegra_hdmi_audio_192k[] = {
 	{  74250000, 24576,  74250, 24000 },
 	{ 148500000, 24576, 148500, 24000 },
 	{         0,     0,      0,     0 },
-};
-
-struct tmds_config {
-	unsigned int pclk;
-	u32 pll0;
-	u32 pll1;
-	u32 pe_current;
-	u32 drive_current;
 };
 
 static const struct tmds_config tegra20_tmds_config[] = {
@@ -570,8 +580,12 @@ static void tegra_hdmi_setup_tmds(struct tegra_hdmi *hdmi,
 	tegra_hdmi_writel(hdmi, tmds->pll1, HDMI_NV_PDISP_SOR_PLL1);
 	tegra_hdmi_writel(hdmi, tmds->pe_current, HDMI_NV_PDISP_PE_CURRENT);
 
-	value = tmds->drive_current | DRIVE_CURRENT_FUSE_OVERRIDE;
-	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_LANE_DRIVE_CURRENT);
+	tegra_hdmi_writel(hdmi, tmds->drive_current,
+			  HDMI_NV_PDISP_SOR_LANE_DRIVE_CURRENT);
+
+	value = tegra_hdmi_readl(hdmi, hdmi->config->fuse_override_offset);
+	value |= hdmi->config->fuse_override_value;
+	tegra_hdmi_writel(hdmi, value, hdmi->config->fuse_override_offset);
 }
 
 static int tegra_output_hdmi_enable(struct tegra_output *output)
@@ -582,8 +596,6 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 	struct device_node *node = hdmi->dev->of_node;
 	unsigned int pulse_start, div82, pclk;
-	const struct tmds_config *tmds;
-	unsigned int num_tmds;
 	unsigned long value;
 	int retries = 1000;
 	int err;
@@ -703,17 +715,9 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	tegra_hdmi_setup_stereo_infoframe(hdmi);
 
 	/* TMDS CONFIG */
-	if (of_device_is_compatible(node, "nvidia,tegra30-hdmi")) {
-		num_tmds = ARRAY_SIZE(tegra30_tmds_config);
-		tmds = tegra30_tmds_config;
-	} else {
-		num_tmds = ARRAY_SIZE(tegra20_tmds_config);
-		tmds = tegra20_tmds_config;
-	}
-
-	for (i = 0; i < num_tmds; i++) {
-		if (pclk <= tmds[i].pclk) {
-			tegra_hdmi_setup_tmds(hdmi, &tmds[i]);
+	for (i = 0; i < hdmi->config->num_tmds; i++) {
+		if (pclk <= hdmi->config->tmds[i].pclk) {
+			tegra_hdmi_setup_tmds(hdmi, &hdmi->config->tmds[i]);
 			break;
 		}
 	}
@@ -1172,16 +1176,42 @@ static const struct host1x_client_ops hdmi_client_ops = {
 	.exit = tegra_hdmi_exit,
 };
 
+static const struct tegra_hdmi_config tegra20_hdmi_config = {
+	.tmds = tegra20_tmds_config,
+	.num_tmds = ARRAY_SIZE(tegra20_tmds_config),
+	.fuse_override_offset = HDMI_NV_PDISP_SOR_LANE_DRIVE_CURRENT,
+	.fuse_override_value = 1 << 31,
+};
+
+static const struct tegra_hdmi_config tegra30_hdmi_config = {
+	.tmds = tegra30_tmds_config,
+	.num_tmds = ARRAY_SIZE(tegra30_tmds_config),
+	.fuse_override_offset = HDMI_NV_PDISP_SOR_LANE_DRIVE_CURRENT,
+	.fuse_override_value = 1 << 31,
+};
+
+static const struct of_device_id tegra_hdmi_of_match[] = {
+	{ .compatible = "nvidia,tegra30-hdmi", .data = &tegra30_hdmi_config },
+	{ .compatible = "nvidia,tegra20-hdmi", .data = &tegra20_hdmi_config },
+	{ },
+};
+
 static int tegra_hdmi_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct tegra_hdmi *hdmi;
 	struct resource *regs;
 	int err;
+
+	match = of_match_node(tegra_hdmi_of_match, pdev->dev.of_node);
+	if (!match)
+		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
+	hdmi->config = match->data;
 	hdmi->dev = &pdev->dev;
 	hdmi->audio_source = AUTO;
 	hdmi->audio_freq = 44100;
@@ -1283,12 +1313,6 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct of_device_id tegra_hdmi_of_match[] = {
-	{ .compatible = "nvidia,tegra30-hdmi", },
-	{ .compatible = "nvidia,tegra20-hdmi", },
-	{ },
-};
 
 struct platform_driver tegra_hdmi_driver = {
 	.driver = {
