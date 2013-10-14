@@ -316,6 +316,79 @@ static struct omap_hwmod am43xx_gpio5_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 };
 
+static struct omap_hwmod_class am43xx_ocp2scp_hwmod_class = {
+	.name	= "ocp2scp",
+};
+
+static struct omap_hwmod am43xx_ocp2scp0_hwmod = {
+	.name		= "ocp2scp0",
+	.class		= &am43xx_ocp2scp_hwmod_class,
+	.clkdm_name	= "l4ls_clkdm",
+	.main_clk	= "l4ls_gclk",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = AM43XX_CM_PER_USBPHYOCP2SCP0_CLKCTRL_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+static struct omap_hwmod am43xx_ocp2scp1_hwmod = {
+	.name		= "ocp2scp1",
+	.class		= &am43xx_ocp2scp_hwmod_class,
+	.clkdm_name	= "l4ls_clkdm",
+	.main_clk	= "l4ls_gclk",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs	= AM43XX_CM_PER_USBPHYOCP2SCP1_CLKCTRL_OFFSET,
+			.modulemode	= MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+static struct omap_hwmod_class_sysconfig am43xx_usb_otg_ss_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.sysc_flags	= (SYSC_HAS_DMADISABLE | SYSC_HAS_MIDLEMODE |
+				SYSC_HAS_SIDLEMODE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+				SIDLE_SMART_WKUP | MSTANDBY_FORCE |
+				MSTANDBY_NO | MSTANDBY_SMART |
+				MSTANDBY_SMART_WKUP),
+	.sysc_fields	= &omap_hwmod_sysc_type2,
+};
+
+static struct omap_hwmod_class am43xx_usb_otg_ss_hwmod_class = {
+	.name	= "usb_otg_ss",
+	.sysc	= &am43xx_usb_otg_ss_sysc,
+};
+
+static struct omap_hwmod am43xx_usb_otg_ss0_hwmod = {
+	.name		= "usb_otg_ss0",
+	.class		= &am43xx_usb_otg_ss_hwmod_class,
+	.clkdm_name	= "l3s_clkdm",
+	.main_clk	= "l3s_gclk",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs	= AM43XX_CM_PER_USB_OTG_SS0_CLKCTRL_OFFSET,
+			.modulemode	= MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+static struct omap_hwmod am43xx_usb_otg_ss1_hwmod = {
+	.name		= "usb_otg_ss1",
+	.class		= &am43xx_usb_otg_ss_hwmod_class,
+	.clkdm_name	= "l3s_clkdm",
+	.main_clk	= "l3s_gclk",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs	= AM43XX_CM_PER_USB_OTG_SS1_CLKCTRL_OFFSET,
+			.modulemode	= MODULEMODE_SWCTRL,
+		},
+	},
+};
+
 /* Interfaces */
 static struct omap_hwmod_ocp_if am43xx_l3_main__l4_hs = {
 	.master		= &am33xx_l3_main_hwmod,
@@ -520,6 +593,34 @@ static struct omap_hwmod_ocp_if am43xx_l4_ls__gpio5 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+static struct omap_hwmod_ocp_if am43xx_l4_ls__ocp2scp0 = {
+	.master		= &am33xx_l4_ls_hwmod,
+	.slave		= &am43xx_ocp2scp0_hwmod,
+	.clk		= "l4ls_gclk",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if am43xx_l4_ls__ocp2scp1 = {
+	.master		= &am33xx_l4_ls_hwmod,
+	.slave		= &am43xx_ocp2scp1_hwmod,
+	.clk		= "l4ls_gclk",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if am43xx_l3_s__usbotgss0 = {
+	.master         = &am33xx_l3_s_hwmod,
+	.slave          = &am43xx_usb_otg_ss0_hwmod,
+	.clk            = "l3s_gclk",
+	.user           = OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if am43xx_l3_s__usbotgss1 = {
+	.master         = &am33xx_l3_s_hwmod,
+	.slave          = &am43xx_usb_otg_ss1_hwmod,
+	.clk            = "l3s_gclk",
+	.user           = OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__synctimer,
 	&am43xx_l4_ls__timer8,
@@ -608,6 +709,10 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_cpgmac0__mdio,
 	&am33xx_l3_main__sha0,
 	&am33xx_l3_main__aes0,
+	&am43xx_l4_ls__ocp2scp0,
+	&am43xx_l4_ls__ocp2scp1,
+	&am43xx_l3_s__usbotgss0,
+	&am43xx_l3_s__usbotgss1,
 	NULL,
 };
 
