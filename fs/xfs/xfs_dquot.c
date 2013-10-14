@@ -293,118 +293,6 @@ xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
 }
 
-STATIC bool
-xfs_dquot_buf_verify_crc(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	int			ndquots;
-	int			i;
-
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return true;
-
-	/*
-	 * if we are in log recovery, the quota subsystem has not been
-	 * initialised so we have no quotainfo structure. In that case, we need
-	 * to manually calculate the number of dquots in the buffer.
-	 */
-	if (mp->m_quotainfo)
-		ndquots = mp->m_quotainfo->qi_dqperchunk;
-	else
-		ndquots = xfs_qm_calc_dquots_per_chunk(mp,
-					XFS_BB_TO_FSB(mp, bp->b_length));
-
-	for (i = 0; i < ndquots; i++, d++) {
-		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
-				 XFS_DQUOT_CRC_OFF))
-			return false;
-		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_uuid))
-			return false;
-	}
-	return true;
-}
-
-STATIC bool
-xfs_dquot_buf_verify(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	xfs_dqid_t		id = 0;
-	int			ndquots;
-	int			i;
-
-	/*
-	 * if we are in log recovery, the quota subsystem has not been
-	 * initialised so we have no quotainfo structure. In that case, we need
-	 * to manually calculate the number of dquots in the buffer.
-	 */
-	if (mp->m_quotainfo)
-		ndquots = mp->m_quotainfo->qi_dqperchunk;
-	else
-		ndquots = xfs_qm_calc_dquots_per_chunk(mp, bp->b_length);
-
-	/*
-	 * On the first read of the buffer, verify that each dquot is valid.
-	 * We don't know what the id of the dquot is supposed to be, just that
-	 * they should be increasing monotonically within the buffer. If the
-	 * first id is corrupt, then it will fail on the second dquot in the
-	 * buffer so corruptions could point to the wrong dquot in this case.
-	 */
-	for (i = 0; i < ndquots; i++) {
-		struct xfs_disk_dquot	*ddq;
-		int			error;
-
-		ddq = &d[i].dd_diskdq;
-
-		if (i == 0)
-			id = be32_to_cpu(ddq->d_id);
-
-		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
-				       "xfs_dquot_buf_verify");
-		if (error)
-			return false;
-	}
-	return true;
-}
-
-static void
-xfs_dquot_buf_read_verify(
-	struct xfs_buf	*bp)
-{
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-
-	if (!xfs_dquot_buf_verify_crc(mp, bp) || !xfs_dquot_buf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
-}
-
-/*
- * we don't calculate the CRC here as that is done when the dquot is flushed to
- * the buffer after the update is done. This ensures that the dquot in the
- * buffer always has an up-to-date CRC value.
- */
-void
-xfs_dquot_buf_write_verify(
-	struct xfs_buf	*bp)
-{
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-
-	if (!xfs_dquot_buf_verify(mp, bp)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-		return;
-	}
-}
-
-const struct xfs_buf_ops xfs_dquot_buf_ops = {
-	.verify_read = xfs_dquot_buf_read_verify,
-	.verify_write = xfs_dquot_buf_write_verify,
-};
-
 /*
  * Allocate a block and fill it with dquots.
  * This is called when the bmapi finds a hole.
@@ -515,6 +403,7 @@ xfs_qm_dqalloc(
 
 	return (error);
 }
+
 STATIC int
 xfs_qm_dqrepair(
 	struct xfs_mount	*mp,
@@ -548,7 +437,7 @@ xfs_qm_dqrepair(
 	/* Do the actual repair of dquots in this buffer */
 	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
 		ddq = &d[i].dd_diskdq;
-		error = xfs_qm_dqcheck(mp, ddq, firstid + i,
+		error = xfs_dqcheck(mp, ddq, firstid + i,
 				       dqp->dq_flags & XFS_DQ_ALLTYPES,
 				       XFS_QMOPT_DQREPAIR, "xfs_qm_dqrepair");
 		if (error) {
@@ -1134,7 +1023,7 @@ xfs_qm_dqflush(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
 	 */
-	error = xfs_qm_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
+	error = xfs_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
 			   XFS_QMOPT_DOWARN, "dqflush (incore copy)");
 	if (error) {
 		xfs_buf_relse(bp);
