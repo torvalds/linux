@@ -19,7 +19,7 @@
 
 #include "dfs_pattern_detector.h"
 #include "dfs_pri_detector.h"
-#include "ath9k.h"
+#include "../ath.h"
 
 /*
  * tolerated deviation of radar time stamp in usecs on both sides
@@ -143,7 +143,6 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 {
 	u32 sz, i;
 	struct channel_detector *cd;
-	struct ath_common *common = ath9k_hw_common(dpd->ah);
 
 	cd = kmalloc(sizeof(*cd), GFP_ATOMIC);
 	if (cd == NULL)
@@ -167,7 +166,7 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 	return cd;
 
 fail:
-	ath_dbg(common, DFS,
+	ath_dbg(dpd->common, DFS,
 		"failed to allocate channel_detector for freq=%d\n", freq);
 	channel_detector_exit(dpd, cd);
 	return NULL;
@@ -242,7 +241,7 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 		struct pri_detector *pd = cd->detectors[i];
 		struct pri_sequence *ps = pd->add_pulse(pd, event);
 		if (ps != NULL) {
-			ath_dbg(ath9k_hw_common(dpd->ah), DFS,
+			ath_dbg(dpd->common, DFS,
 				"DFS: radar found on freq=%d: id=%d, pri=%d, "
 				"count=%d, count_false=%d\n",
 				event->freq, pd->rs->type_id,
@@ -288,10 +287,10 @@ static struct dfs_pattern_detector default_dpd = {
 };
 
 struct dfs_pattern_detector *
-dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region)
+dfs_pattern_detector_init(struct ath_common *common,
+			  enum nl80211_dfs_regions region)
 {
 	struct dfs_pattern_detector *dpd;
-	struct ath_common *common = ath9k_hw_common(ah);
 
 	dpd = kmalloc(sizeof(*dpd), GFP_KERNEL);
 	if (dpd == NULL)
@@ -300,7 +299,7 @@ dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region)
 	*dpd = default_dpd;
 	INIT_LIST_HEAD(&dpd->channel_detectors);
 
-	dpd->ah = ah;
+	dpd->common = common;
 	if (dpd->set_dfs_domain(dpd, region))
 		return dpd;
 
