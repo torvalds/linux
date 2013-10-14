@@ -432,6 +432,26 @@ nf_nat_setup_info(struct nf_conn *ct,
 }
 EXPORT_SYMBOL(nf_nat_setup_info);
 
+unsigned int
+nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
+{
+	/* Force range to this IP; let proto decide mapping for
+	 * per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
+	 * Use reply in case it's already been mangled (eg local packet).
+	 */
+	union nf_inet_addr ip =
+		(HOOK2MANIP(hooknum) == NF_NAT_MANIP_SRC ?
+		ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3 :
+		ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3);
+	struct nf_nat_range range = {
+		.flags		= NF_NAT_RANGE_MAP_IPS,
+		.min_addr	= ip,
+		.max_addr	= ip,
+	};
+	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
+}
+EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
+
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
