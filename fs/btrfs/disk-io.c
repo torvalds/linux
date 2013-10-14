@@ -3842,6 +3842,9 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
+		if (head)
+			rb_erase(&head->href_node, &delayed_refs->href_root);
+
 		delayed_refs->num_entries--;
 		spin_unlock(&delayed_refs->lock);
 		if (head) {

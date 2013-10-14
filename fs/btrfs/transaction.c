@@ -62,7 +62,8 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 	WARN_ON(atomic_read(&transaction->use_count) == 0);
 	if (atomic_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
-		WARN_ON(transaction->delayed_refs.root.rb_node);
+		WARN_ON(!RB_EMPTY_ROOT(&transaction->delayed_refs.root));
+		WARN_ON(!RB_EMPTY_ROOT(&transaction->delayed_refs.href_root));
 		while (!list_empty(&transaction->pending_chunks)) {
 			struct extent_map *em;
 
@@ -184,6 +185,7 @@ loop:
 	cur_trans->start_time = get_seconds();
 
 	cur_trans->delayed_refs.root = RB_ROOT;
+	cur_trans->delayed_refs.href_root = RB_ROOT;
 	cur_trans->delayed_refs.num_entries = 0;
 	cur_trans->delayed_refs.num_heads_ready = 0;
 	cur_trans->delayed_refs.num_heads = 0;

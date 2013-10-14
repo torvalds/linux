@@ -2438,6 +2438,10 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
+		if (btrfs_delayed_ref_is_head(ref)) {
+			rb_erase(&locked_ref->href_node,
+				 &delayed_refs->href_root);
+		}
 		delayed_refs->num_entries--;
 		if (!btrfs_delayed_ref_is_head(ref)) {
 			/*
@@ -2640,7 +2644,7 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 {
 	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_delayed_ref_node *ref;
+	struct btrfs_delayed_ref_head *head;
 	struct list_head cluster;
 	int ret;
 	u64 delayed_start;
@@ -2770,18 +2774,18 @@ again:
 			spin_lock(&delayed_refs->lock);
 		}
 
-		node = rb_first(&delayed_refs->root);
+		node = rb_first(&delayed_refs->href_root);
 		if (!node)
 			goto out;
 		count = (unsigned long)-1;
 
 		while (node) {
-			ref = rb_entry(node, struct btrfs_delayed_ref_node,
-				       rb_node);
-			if (btrfs_delayed_ref_is_head(ref)) {
-				struct btrfs_delayed_ref_head *head;
+			head = rb_entry(node, struct btrfs_delayed_ref_head,
+					href_node);
+			if (btrfs_delayed_ref_is_head(&head->node)) {
+				struct btrfs_delayed_ref_node *ref;
 
-				head = btrfs_delayed_node_to_head(ref);
+				ref = &head->node;
 				atomic_inc(&ref->refs);
 
 				spin_unlock(&delayed_refs->lock);
@@ -2795,6 +2799,8 @@ again:
 				btrfs_put_delayed_ref(ref);
 				cond_resched();
 				goto again;
+			} else {
+				WARN_ON(1);
 			}
 			node = rb_next(node);
 		}
@@ -5956,6 +5962,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	 */
 	head->node.in_tree = 0;
 	rb_erase(&head->node.rb_node, &delayed_refs->root);
+	rb_erase(&head->href_node, &delayed_refs->href_root);
 
 	delayed_refs->num_entries--;
 

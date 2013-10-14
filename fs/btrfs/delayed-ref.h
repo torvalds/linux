@@ -83,6 +83,8 @@ struct btrfs_delayed_ref_head {
 
 	struct list_head cluster;
 
+	struct rb_node href_node;
+
 	struct btrfs_delayed_extent_op *extent_op;
 	/*
 	 * when a new extent is allocated, it is just reserved in memory
@@ -117,6 +119,9 @@ struct btrfs_delayed_data_ref {
 
 struct btrfs_delayed_ref_root {
 	struct rb_root root;
+
+	/* head ref rbtree */
+	struct rb_root href_root;
 
 	/* this spin lock protects the rbtree and the entries inside */
 	spinlock_t lock;
