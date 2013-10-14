@@ -135,7 +135,7 @@ struct inet_timewait_sock {
 				tw_transparent  : 1,
 				tw_pad		: 6,	/* 6 bits hole */
 				tw_tos		: 8,
-				tw_pad2		: 16 /* 16 bits hole */
+				tw_pad2		: 16;	/* 16 bits hole */
 	kmemcheck_bitfield_end(flags);
 	u32			tw_ttd;
 	struct inet_bind_bucket	*tw_tb;
