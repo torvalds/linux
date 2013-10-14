@@ -275,18 +275,6 @@ static void put_handshake_usb(struct ft1000_usb *ft1000dev,u16 handshake_value)
         for (i=0; i<1000; i++);
 }
 
-//---------------------------------------------------------------------------
-// Function:    get_request_type
-//
-// Parameters:  struct ft1000_usb  - device structure
-//
-// Returns:     request type - success
-//
-// Description: This function returns the request type
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
 static u16 get_request_type(struct ft1000_usb *ft1000dev)
 {
 	u16 request_type;
