@@ -276,7 +276,7 @@ static void Hook_work(struct work_struct *work)
 		DBG("old_status == headset_info->hook_status\n");
 		goto RE_ERROR;
 	}	
-	DBG("Hook_work -- level = %d  hook status is %s\n",level,headset_info->hook_status?"key up":"key down");	
+	DBG("Hook_work -- level = %d  hook status is %s\n",level,headset_info->hook_status?"key down":"key up");	
 	if(headset_info->hook_status == HOOK_DOWN)
 	{
 		if(pdata->Hook_down_type == HOOK_DOWN_HIGH)
@@ -341,7 +341,7 @@ static void headset_timer_callback(unsigned long arg)
 		headset->isMic= 0;//No microphone
 		
 	printk("headset->isMic = %d\n",headset->isMic);	
-	headset_info->cur_headset_status = headset_info->isMic ? 1:3;//BIT_HEADSET:BIT_HEADSET_NO_MIC;//
+	headset_info->cur_headset_status = headset_info->isMic ? 1:2;//BIT_HEADSET:BIT_HEADSET_NO_MIC;//
 	#if defined(CONFIG_SND_RK_SOC_RK2928) || defined(CONFIG_SND_RK29_SOC_RK610)
 	rk2928_codec_set_spk(HEADSET_IN);
 	if(headset_info->cur_headset_status == 1)
