@@ -40,6 +40,7 @@ kversion=""
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
+	echo "       --bootargs kernel-boot-arguments"
 	echo "       --builddir absolute-pathname"
 	echo "       --buildonly"
 	echo "       --configs \"config-file list\""
@@ -78,6 +79,11 @@ checkarg () {
 while test $# -gt 0
 do
 	case "$1" in
+	--bootargs)
+		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
+		RCU_BOOTARGS="$2"
+		shift
+		;;
 	--builddir)
 		checkarg --builddir "(absolute pathname)" "$#" "$2" '^/' error
 		builddir=$2
@@ -183,6 +189,6 @@ do
 	rd=$resdir/$ds/$CF
 	mkdir $rd || :
 	echo Results directory: $rd
-	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.verbose=1"
+	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.verbose=1 $RCU_BOOTARGS"
 done
 # Tracing: trace_event=rcu:rcu_nocb_grace_period,rcu:rcu_grace_period,rcu:rcu_grace_period_init,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_torture_read,rcu:rcu_invoke_callback,rcu:rcu_fqs,rcu:rcu_dyntick,rcu:rcu_unlock_preempted_task
