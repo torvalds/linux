@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,37 +22,41 @@
  * Authors: Ben Skeggs
  */
 
-#include "nv04.h"
+#include <subdev/pwr.h>
 
-static const struct nouveau_mc_intr
-nv98_mc_intr[] = {
-	{ 0x00000001, NVDEV_ENGINE_PPP },
-	{ 0x00000100, NVDEV_ENGINE_FIFO },
-	{ 0x00001000, NVDEV_ENGINE_GR },
-	{ 0x00004000, NVDEV_ENGINE_CRYPT },	/* NV84:NVA3 */
-	{ 0x00008000, NVDEV_ENGINE_BSP },
-	{ 0x00020000, NVDEV_ENGINE_VP },
-	{ 0x00040000, NVDEV_SUBDEV_PWR },	/* NVA3:NVC0 */
-	{ 0x00080000, NVDEV_SUBDEV_THERM },	/* NVA3:NVC0 */
-	{ 0x00100000, NVDEV_SUBDEV_TIMER },
-	{ 0x00200000, NVDEV_SUBDEV_GPIO },
-	{ 0x00400000, NVDEV_ENGINE_COPY0 },	/* NVA3-     */
-	{ 0x04000000, NVDEV_ENGINE_DISP },
-	{ 0x10000000, NVDEV_SUBDEV_BUS },
-	{ 0x80000000, NVDEV_ENGINE_SW },
-	{ 0x0042d101, NVDEV_SUBDEV_FB },
-	{},
+#include "fuc/nv108.fuc.h"
+
+struct nv108_pwr_priv {
+	struct nouveau_pwr base;
 };
 
-struct nouveau_oclass *
-nv98_mc_oclass = &(struct nouveau_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x98),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
-		.init = nv50_mc_init,
-		.fini = _nouveau_mc_fini,
+static int
+nv108_pwr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	       struct nouveau_oclass *oclass, void *data, u32 size,
+	       struct nouveau_object **pobject)
+{
+	struct nv108_pwr_priv *priv;
+	int ret;
+
+	ret = nouveau_pwr_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->base.code.data = nv108_pwr_code;
+	priv->base.code.size = sizeof(nv108_pwr_code);
+	priv->base.data.data = nv108_pwr_data;
+	priv->base.data.size = sizeof(nv108_pwr_data);
+	return 0;
+}
+
+struct nouveau_oclass
+nv108_pwr_oclass = {
+	.handle = NV_SUBDEV(PWR, 0x00),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv108_pwr_ctor,
+		.dtor = _nouveau_pwr_dtor,
+		.init = _nouveau_pwr_init,
+		.fini = _nouveau_pwr_fini,
 	},
-	.intr = nv98_mc_intr,
-	.msi_rearm = nv40_mc_msi_rearm,
-}.base;
+};

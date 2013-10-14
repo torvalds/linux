@@ -38,6 +38,7 @@
 #include <subdev/instmem.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
+#include <subdev/pwr.h>
 
 #include <engine/device.h>
 #include <engine/dmaobj.h>
@@ -72,6 +73,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] = &nvd0_pwr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
@@ -102,6 +104,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] = &nvd0_pwr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
@@ -132,6 +135,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] = &nvd0_pwr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
@@ -162,6 +166,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] = &nvd0_pwr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
@@ -194,6 +199,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] = &nv108_pwr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 #if 0
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
