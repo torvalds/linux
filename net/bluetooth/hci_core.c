@@ -373,6 +373,9 @@ static void bredr_setup(struct hci_request *req)
 	/* Read Number of Supported IAC */
 	hci_req_add(req, HCI_OP_READ_NUM_SUPPORTED_IAC, 0, NULL);
 
+	/* Read Current IAC LAP */
+	hci_req_add(req, HCI_OP_READ_CURRENT_IAC_LAP, 0, NULL);
+
 	/* Clear Event Filters */
 	flt_type = HCI_FLT_CLEAR_ALL;
 	hci_req_add(req, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
