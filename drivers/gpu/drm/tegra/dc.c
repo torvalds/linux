@@ -93,8 +93,11 @@ static int tegra_plane_disable(struct drm_plane *plane)
 
 static void tegra_plane_destroy(struct drm_plane *plane)
 {
+	struct tegra_plane *p = to_tegra_plane(plane);
+
 	tegra_plane_disable(plane);
 	drm_plane_cleanup(plane);
+	kfree(p);
 }
 
 static const struct drm_plane_funcs tegra_plane_funcs = {
@@ -120,7 +123,7 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	for (i = 0; i < 2; i++) {
 		struct tegra_plane *plane;
 
-		plane = devm_kzalloc(drm->dev, sizeof(*plane), GFP_KERNEL);
+		plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 		if (!plane)
 			return -ENOMEM;
 
@@ -129,8 +132,10 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 		err = drm_plane_init(drm, &plane->base, 1 << dc->pipe,
 				     &tegra_plane_funcs, plane_formats,
 				     ARRAY_SIZE(plane_formats), false);
-		if (err < 0)
+		if (err < 0) {
+			kfree(plane);
 			return err;
+		}
 	}
 
 	return 0;
@@ -251,14 +256,26 @@ static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 }
 
+static void drm_crtc_clear(struct drm_crtc *crtc)
+{
+	memset(crtc, 0, sizeof(*crtc));
+}
+
+static void tegra_dc_destroy(struct drm_crtc *crtc)
+{
+	drm_crtc_cleanup(crtc);
+	drm_crtc_clear(crtc);
+}
+
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = tegra_dc_page_flip,
 	.set_config = drm_crtc_helper_set_config,
-	.destroy = drm_crtc_cleanup,
+	.destroy = tegra_dc_destroy,
 };
 
 static void tegra_crtc_disable(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct drm_device *drm = crtc->dev;
 	struct drm_plane *plane;
 
@@ -273,6 +290,8 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 			}
 		}
 	}
+
+	drm_vblank_off(drm, dc->pipe);
 }
 
 static bool tegra_crtc_mode_fixup(struct drm_crtc *crtc,
