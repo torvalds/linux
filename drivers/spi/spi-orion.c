@@ -84,8 +84,8 @@ static int orion_spi_set_transfer_size(struct orion_spi *orion_spi, int size)
 		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CONFIG_REG,
 				  ORION_SPI_IF_8_16_BIT_MODE);
 	} else {
-		pr_debug("Bad bits per word value %d (only 8 or 16 are "
-			 "allowed).\n", size);
+		pr_debug("Bad bits per word value %d (only 8 or 16 are allowed).\n",
+			size);
 		return -EINVAL;
 	}
 
@@ -407,7 +407,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	const u32 *iprop;
 	int size;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *spi);
+	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (master == NULL) {
 		dev_dbg(&pdev->dev, "master allocation failed\n");
 		return -ENOMEM;
