@@ -492,6 +492,20 @@ void iio_disable_all_buffers(struct iio_dev *indio_dev)
 		indio_dev->setup_ops->postdisable(indio_dev);
 }
 
+static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
+	struct iio_buffer *buffer)
+{
+	unsigned int bytes;
+
+	if (!buffer->access->set_bytes_per_datum)
+		return;
+
+	bytes = iio_compute_scan_bytes(indio_dev, buffer->scan_mask,
+		buffer->scan_timestamp);
+
+	buffer->access->set_bytes_per_datum(buffer, bytes);
+}
+
 static int __iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
@@ -589,7 +603,8 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		iio_compute_scan_bytes(indio_dev,
 				       indio_dev->active_scan_mask,
 				       indio_dev->scan_timestamp);
-	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list)
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		iio_buffer_update_bytes_per_datum(indio_dev, buffer);
 		if (buffer->access->request_update) {
 			ret = buffer->access->request_update(buffer);
 			if (ret) {
@@ -598,6 +613,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 				goto error_run_postdisable;
 			}
 		}
+	}
 	if (indio_dev->info->update_scan_mode) {
 		ret = indio_dev->info
 			->update_scan_mode(indio_dev,
