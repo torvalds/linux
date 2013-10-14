@@ -514,12 +514,10 @@ xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 /*
  * Committed Item List interfaces
  */
-int
-xlog_cil_init(struct xlog *log);
-void
-xlog_cil_init_post_recovery(struct xlog *log);
-void
-xlog_cil_destroy(struct xlog *log);
+int	xlog_cil_init(struct xlog *log);
+void	xlog_cil_init_post_recovery(struct xlog *log);
+void	xlog_cil_destroy(struct xlog *log);
+bool	xlog_cil_empty(struct xlog *log);
 
 /*
  * CIL force routines

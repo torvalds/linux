@@ -711,6 +711,20 @@ xlog_cil_push_foreground(
 	xlog_cil_push(log);
 }
 
+bool
+xlog_cil_empty(
+	struct xlog	*log)
+{
+	struct xfs_cil	*cil = log->l_cilp;
+	bool		empty = false;
+
+	spin_lock(&cil->xc_push_lock);
+	if (list_empty(&cil->xc_cil))
+		empty = true;
+	spin_unlock(&cil->xc_push_lock);
+	return empty;
+}
+
 /*
  * Commit a transaction with the given vector to the Committed Item List.
  *
