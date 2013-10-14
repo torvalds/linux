@@ -786,7 +786,7 @@ static int max17042_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int max17042_suspend(struct device *dev)
 {
 	struct max17042_chip *chip = dev_get_drvdata(dev);
@@ -816,16 +816,10 @@ static int max17042_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops max17042_pm_ops = {
-	.suspend	= max17042_suspend,
-	.resume		= max17042_resume,
-};
-
-#define MAX17042_PM_OPS (&max17042_pm_ops)
-#else
-#define MAX17042_PM_OPS NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(max17042_pm_ops, max17042_suspend,
+			max17042_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id max17042_dt_match[] = {
@@ -849,7 +843,7 @@ static struct i2c_driver max17042_i2c_driver = {
 	.driver	= {
 		.name	= "max17042",
 		.of_match_table = of_match_ptr(max17042_dt_match),
-		.pm	= MAX17042_PM_OPS,
+		.pm	= &max17042_pm_ops,
 	},
 	.probe		= max17042_probe,
 	.remove		= max17042_remove,
