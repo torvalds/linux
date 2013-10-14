@@ -236,11 +236,13 @@ void drm_host1x_exit(struct drm_driver *driver, struct host1x_device *device);
 
 /* from rgb.c */
 extern int tegra_dc_rgb_probe(struct tegra_dc *dc);
+extern int tegra_dc_rgb_remove(struct tegra_dc *dc);
 extern int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc);
 extern int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 /* from output.c */
-extern int tegra_output_parse_dt(struct tegra_output *output);
+extern int tegra_output_probe(struct tegra_output *output);
+extern int tegra_output_remove(struct tegra_output *output);
 extern int tegra_output_init(struct drm_device *drm, struct tegra_output *output);
 extern int tegra_output_exit(struct tegra_output *output);
 

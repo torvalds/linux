@@ -1226,7 +1226,7 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 
 	hdmi->output.dev = &pdev->dev;
 
-	err = tegra_output_parse_dt(&hdmi->output);
+	err = tegra_output_probe(&hdmi->output);
 	if (err < 0)
 		return err;
 
@@ -1269,6 +1269,12 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
 			err);
+		return err;
+	}
+
+	err = tegra_output_remove(&hdmi->output);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to remove output: %d\n", err);
 		return err;
 	}
 

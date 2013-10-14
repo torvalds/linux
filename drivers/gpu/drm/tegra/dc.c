@@ -1191,6 +1191,12 @@ static int tegra_dc_remove(struct platform_device *pdev)
 		return err;
 	}
 
+	err = tegra_dc_rgb_remove(dc);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to remove RGB output: %d\n", err);
+		return err;
+	}
+
 	clk_disable_unprepare(dc->clk);
 
 	return 0;

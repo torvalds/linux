@@ -161,7 +161,7 @@ static irqreturn_t hpd_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int tegra_output_parse_dt(struct tegra_output *output)
+int tegra_output_probe(struct tegra_output *output)
 {
 	enum of_gpio_flags flags;
 	struct device_node *ddc;
@@ -191,14 +191,6 @@ int tegra_output_parse_dt(struct tegra_output *output)
 	output->hpd_gpio = of_get_named_gpio_flags(output->of_node,
 						   "nvidia,hpd-gpio", 0,
 						   &flags);
-
-	return 0;
-}
-
-int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
-{
-	int connector, encoder, err;
-
 	if (gpio_is_valid(output->hpd_gpio)) {
 		unsigned long flags;
 
@@ -212,7 +204,8 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 		err = gpio_to_irq(output->hpd_gpio);
 		if (err < 0) {
 			dev_err(output->dev, "gpio_to_irq(): %d\n", err);
-			goto free_hpd;
+			gpio_free(output->hpd_gpio);
+			return err;
 		}
 
 		output->hpd_irq = err;
@@ -225,11 +218,32 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 		if (err < 0) {
 			dev_err(output->dev, "failed to request IRQ#%u: %d\n",
 				output->hpd_irq, err);
-			goto free_hpd;
+			gpio_free(output->hpd_gpio);
+			return err;
 		}
 
 		output->connector.polled = DRM_CONNECTOR_POLL_HPD;
 	}
+
+	return 0;
+}
+
+int tegra_output_remove(struct tegra_output *output)
+{
+	if (gpio_is_valid(output->hpd_gpio)) {
+		free_irq(output->hpd_irq, output);
+		gpio_free(output->hpd_gpio);
+	}
+
+	if (output->ddc)
+		put_device(&output->ddc->dev);
+
+	return 0;
+}
+
+int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
+{
+	int connector, encoder;
 
 	switch (output->type) {
 	case TEGRA_OUTPUT_RGB:
@@ -261,22 +275,9 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	output->encoder.possible_crtcs = 0x3;
 
 	return 0;
-
-free_hpd:
-	gpio_free(output->hpd_gpio);
-
-	return err;
 }
 
 int tegra_output_exit(struct tegra_output *output)
 {
-	if (gpio_is_valid(output->hpd_gpio)) {
-		free_irq(output->hpd_irq, output);
-		gpio_free(output->hpd_gpio);
-	}
-
-	if (output->ddc)
-		put_device(&output->ddc->dev);
-
 	return 0;
 }
