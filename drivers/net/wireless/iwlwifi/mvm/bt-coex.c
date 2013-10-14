@@ -471,11 +471,13 @@ static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
 	if (!bt_cmd)
 		return -ENOMEM;
 	cmd.data[0] = bt_cmd;
+	bt_cmd->flags = cpu_to_le32(BT_COEX_NW);
 
 	bt_cmd->kill_ack_msk = cpu_to_le32(iwl_bt_ack_kill_msk[bt_kill_msk]);
 	bt_cmd->kill_cts_msk = cpu_to_le32(iwl_bt_cts_kill_msk[bt_kill_msk]);
-	bt_cmd->valid_bit_msk =
-		cpu_to_le32(BT_VALID_KILL_ACK | BT_VALID_KILL_CTS);
+	bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_ENABLE |
+					     BT_VALID_KILL_ACK |
+					     BT_VALID_KILL_CTS);
 
 	IWL_DEBUG_COEX(mvm, "ACK Kill msk = 0x%08x, CTS Kill msk = 0x%08x\n",
 		       iwl_bt_ack_kill_msk[bt_kill_msk],
@@ -519,8 +521,10 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	if (!bt_cmd)
 		return -ENOMEM;
 	cmd.data[0] = bt_cmd;
+	bt_cmd->flags = cpu_to_le32(BT_COEX_NW);
 
-	bt_cmd->valid_bit_msk = cpu_to_le32(BT_VALID_REDUCED_TX_POWER),
+	bt_cmd->valid_bit_msk =
+		cpu_to_le32(BT_VALID_ENABLE | BT_VALID_REDUCED_TX_POWER);
 	bt_cmd->bt_reduced_tx_power = sta_id;
 
 	if (enable)

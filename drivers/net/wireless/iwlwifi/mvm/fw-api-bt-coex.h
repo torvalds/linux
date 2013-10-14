@@ -82,6 +82,8 @@
  * @BT_USE_DEFAULTS:
  * @BT_SYNC_2_BT_DISABLE:
  * @BT_COEX_CORUNNING_TBL_EN:
+ *
+ * The COEX_MODE must be set for each command. Even if it is not changed.
  */
 enum iwl_bt_coex_flags {
 	BT_CH_PRIMARY_EN		= BIT(0),
@@ -103,6 +105,8 @@ enum iwl_bt_coex_flags {
 
 /*
  * indicates what has changed in the BT_COEX command.
+ * BT_VALID_ENABLE must be set for each command. Commands without this bit will
+ * discarded by the firmware
  */
 enum iwl_bt_coex_valid_bit_msk {
 	BT_VALID_ENABLE			= BIT(0),
