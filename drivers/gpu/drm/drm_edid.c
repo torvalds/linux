@@ -2080,7 +2080,7 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 	u8 *est = ((u8 *)timing) + 5;
 
 	for (i = 0; i < 6; i++) {
-		for (j = 7; j > 0; j--) {
+		for (j = 7; j >= 0; j--) {
 			m = (i * 8) + (7 - j);
 			if (m >= ARRAY_SIZE(est3_modes))
 				break;
