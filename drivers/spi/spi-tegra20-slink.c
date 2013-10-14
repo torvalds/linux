@@ -278,7 +278,7 @@ static unsigned tegra_slink_calculate_curr_xfer_param(
 {
 	unsigned remain_len = t->len - tspi->cur_pos;
 	unsigned max_word;
-	unsigned bits_per_word ;
+	unsigned bits_per_word;
 	unsigned max_len;
 	unsigned total_fifo_words;
 
