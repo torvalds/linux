@@ -807,6 +807,13 @@ out:
 }
 
 static int
+cifs_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile)
+{
+	return CIFSSMB_set_compression(xid, tcon, cfile->fid.netfid);
+}
+
+static int
 cifs_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		     const char *path, struct cifs_sb_info *cifs_sb,
 		     struct cifs_fid *fid, __u16 search_flags,
@@ -956,6 +963,7 @@ struct smb_version_operations smb1_operations = {
 	.set_path_size = CIFSSMBSetEOF,
 	.set_file_size = CIFSSMBSetFileSize,
 	.set_file_info = smb_set_file_info,
+	.set_compression = cifs_set_compression,
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,

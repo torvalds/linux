@@ -1352,6 +1352,35 @@ typedef struct smb_com_transaction_ioctl_req {
 	__u8 Data[1];
 } __attribute__((packed)) TRANSACT_IOCTL_REQ;
 
+typedef struct smb_com_transaction_compr_ioctl_req {
+	struct smb_hdr hdr;	/* wct = 23 */
+	__u8 MaxSetupCount;
+	__u16 Reserved;
+	__le32 TotalParameterCount;
+	__le32 TotalDataCount;
+	__le32 MaxParameterCount;
+	__le32 MaxDataCount;
+	__le32 ParameterCount;
+	__le32 ParameterOffset;
+	__le32 DataCount;
+	__le32 DataOffset;
+	__u8 SetupCount; /* four setup words follow subcommand */
+	/* SNIA spec incorrectly included spurious pad here */
+	__le16 SubCommand; /* 2 = IOCTL/FSCTL */
+	__le32 FunctionCode;
+	__u16 Fid;
+	__u8 IsFsctl;  /* 1 = File System Control 0 = device control (IOCTL) */
+	__u8 IsRootFlag; /* 1 = apply command to root of share (must be DFS) */
+	__le16 ByteCount;
+	__u8 Pad[3];
+	__le16 compression_state;  /* See below for valid flags */
+} __attribute__((packed)) TRANSACT_COMPR_IOCTL_REQ;
+
+/* compression state flags */
+#define COMPRESSION_FORMAT_NONE		0x0000
+#define COMPRESSION_FORMAT_DEFAULT	0x0001
+#define COMPRESSION_FORMAT_LZNT1	0x0002
+
 typedef struct smb_com_transaction_ioctl_rsp {
 	struct smb_hdr hdr;	/* wct = 19 */
 	__u8 Reserved[3];
