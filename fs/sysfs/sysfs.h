@@ -103,6 +103,7 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 }
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
+
 #define sysfs_dirent_init_lockdep(sd)				\
 do {								\
 	struct attribute *attr = sd->s_attr.attr;		\
@@ -112,8 +113,23 @@ do {								\
 								\
 	lockdep_init_map(&sd->dep_map, "s_active", key, 0);	\
 } while (0)
+
+/* Test for attributes that want to ignore lockdep for read-locking */
+static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
+{
+	return sysfs_type(sd) == SYSFS_KOBJ_ATTR &&
+		sd->s_attr.attr->ignore_lockdep;
+}
+
 #else
+
 #define sysfs_dirent_init_lockdep(sd) do {} while (0)
+
+static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
+{
+	return true;
+}
+
 #endif
 
 /*

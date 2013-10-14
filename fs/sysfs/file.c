@@ -76,7 +76,8 @@ static const struct sysfs_ops *sysfs_file_ops(struct sysfs_dirent *sd)
 {
 	struct kobject *kobj = sd->s_parent->s_dir.kobj;
 
-	lockdep_assert_held(sd);
+	if (!sysfs_ignore_lockdep(sd))
+		lockdep_assert_held(sd);
 	return kobj->ktype ? kobj->ktype->sysfs_ops : NULL;
 }
 

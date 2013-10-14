@@ -144,24 +144,6 @@ static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 		sd->s_parent->s_flags &= ~SYSFS_FLAG_HAS_NS;
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-
-/* Test for attributes that want to ignore lockdep for read-locking */
-static bool ignore_lockdep(struct sysfs_dirent *sd)
-{
-	return sysfs_type(sd) == SYSFS_KOBJ_ATTR &&
-			sd->s_attr.attr->ignore_lockdep;
-}
-
-#else
-
-static inline bool ignore_lockdep(struct sysfs_dirent *sd)
-{
-	return true;
-}
-
-#endif
-
 /**
  *	sysfs_get_active - get an active reference to sysfs_dirent
  *	@sd: sysfs_dirent to get an active reference to
@@ -180,7 +162,7 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 	if (!atomic_inc_unless_negative(&sd->s_active))
 		return NULL;
 
-	if (likely(!ignore_lockdep(sd)))
+	if (likely(!sysfs_ignore_lockdep(sd)))
 		rwsem_acquire_read(&sd->dep_map, 0, 1, _RET_IP_);
 	return sd;
 }
@@ -199,7 +181,7 @@ void sysfs_put_active(struct sysfs_dirent *sd)
 	if (unlikely(!sd))
 		return;
 
-	if (likely(!ignore_lockdep(sd)))
+	if (likely(!sysfs_ignore_lockdep(sd)))
 		rwsem_release(&sd->dep_map, 1, _RET_IP_);
 	v = atomic_dec_return(&sd->s_active);
 	if (likely(v != SD_DEACTIVATED_BIAS))
