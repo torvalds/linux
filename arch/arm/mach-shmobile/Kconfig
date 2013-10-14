@@ -22,16 +22,10 @@ config ARCH_EMEV2
 
 comment "SH-Mobile Board Type"
 
-config MACH_KZM9D_REFERENCE
-	bool "KZM9D board - Reference Device Tree Implementation"
+config MACH_KZM9D
+	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	---help---
-	   Use reference implementation of KZM9D board support
-	   which makes a greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 comment "SH-Mobile System Configuration"
 endif
@@ -113,6 +107,12 @@ config ARCH_EMEV2
 	select ARM_GIC
 	select CPU_V7
 
+config ARCH_R7S72100
+	bool "RZ/A1H (R7S72100)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
+
 comment "SH-Mobile Board Type"
 
 config MACH_APE6EVM
@@ -185,6 +185,11 @@ config MACH_BOCKW_REFERENCE
 
 	   This is intended to aid developers
 
+config MACH_GENMAI
+	bool "Genmai board"
+	depends on ARCH_R7S72100
+	select USE_OF
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
@@ -231,18 +236,6 @@ config MACH_KZM9D
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
-
-config MACH_KZM9D_REFERENCE
-	bool "KZM9D board - Reference Device Tree Implementation"
-	depends on ARCH_EMEV2
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
-	---help---
-	   Use reference implementation of KZM9D board support
-	   which makes a greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"

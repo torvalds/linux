@@ -40,6 +40,9 @@ shmobile_boot_fn:
 	.globl	shmobile_boot_arg
 shmobile_boot_arg:
 2:	.space	4
+	.globl	shmobile_boot_size
+shmobile_boot_size:
+	.long	. - shmobile_boot_vector
 
 /*
  * Per-CPU SMP boot function/argument selection code based on MPIDR

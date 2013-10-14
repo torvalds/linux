@@ -1,5 +1,5 @@
 /*
- * kzm9d board support - Reference DT implementation
+ * Genmai board support
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
@@ -18,31 +18,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/init.h>
-#include <linux/of_platform.h>
-#include <mach/emev2.h>
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <mach/common.h>
+#include <mach/r7s72100.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static void __init kzm9d_add_standard_devices(void)
+static void __init genmai_add_standard_devices(void)
 {
-	if (!IS_ENABLED(CONFIG_COMMON_CLK))
-		emev2_clock_init();
-
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	r7s72100_clock_init();
+	r7s72100_add_dt_devices();
 }
 
-static const char *kzm9d_boards_compat_dt[] __initdata = {
-	"renesas,kzm9d",
-	"renesas,kzm9d-reference",
+static const char * const genmai_boards_compat_dt[] __initconst = {
+	"renesas,genmai",
 	NULL,
 };
 
-DT_MACHINE_START(KZM9D_DT, "kzm9d")
-	.smp		= smp_ops(emev2_smp_ops),
-	.map_io		= emev2_map_io,
-	.init_early	= emev2_init_delay,
-	.init_machine	= kzm9d_add_standard_devices,
-	.init_late	= shmobile_init_late,
-	.dt_compat	= kzm9d_boards_compat_dt,
+DT_MACHINE_START(GENMAI_DT, "genmai")
+	.init_early	= r7s72100_init_early,
+	.init_machine	= genmai_add_standard_devices,
+	.dt_compat	= genmai_boards_compat_dt,
 MACHINE_END

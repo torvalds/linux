@@ -23,13 +23,14 @@
 #include <linux/platform_device.h>
 #include <mach/common.h>
 #include <mach/r8a7791.h>
+#include <mach/rcar-gen2.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 static void __init koelsch_add_standard_devices(void)
 {
 	r8a7791_clock_init();
-	r8a7791_add_dt_devices();
+	r8a7791_add_standard_devices();
 }
 
 static const char * const koelsch_boards_compat_dt[] __initconst = {
@@ -38,7 +39,9 @@ static const char * const koelsch_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(KOELSCH_DT, "koelsch")
+	.smp		= smp_ops(r8a7791_smp_ops),
 	.init_early	= r8a7791_init_early,
 	.init_machine	= koelsch_add_standard_devices,
+	.init_time	= rcar_gen2_timer_init,
 	.dt_compat	= koelsch_boards_compat_dt,
 MACHINE_END
