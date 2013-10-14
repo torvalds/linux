@@ -327,18 +327,6 @@ static u16 get_request_type_usb(struct ft1000_usb *ft1000dev)
 	return request_type;
 }
 
-//---------------------------------------------------------------------------
-// Function:    get_request_value
-//
-// Parameters:  struct ft1000_usb  - device structure
-//
-// Returns:     request value - success
-//
-// Description: This function returns the request value
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
 static long get_request_value(struct ft1000_usb *ft1000dev)
 {
 	u32 value;
