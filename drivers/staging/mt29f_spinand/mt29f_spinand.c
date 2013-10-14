@@ -28,9 +28,6 @@
 /*
  * OOB area specification layout:  Total 32 available free bytes.
  */
-#ifdef CONFIG_MTD_SPINAND_ONDIEECC
-static int enable_hw_ecc;
-static int enable_read_hw_ecc;
 
 static inline struct spinand_state *mtd_to_state(struct mtd_info *mtd)
 {
@@ -40,6 +37,10 @@ static inline struct spinand_state *mtd_to_state(struct mtd_info *mtd)
 
 	return state;
 }
+
+#ifdef CONFIG_MTD_SPINAND_ONDIEECC
+static int enable_hw_ecc;
+static int enable_read_hw_ecc;
 
 static struct nand_ecclayout spinand_oob_64 = {
 	.eccbytes = 24,
