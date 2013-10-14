@@ -7450,7 +7450,6 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	char *default_power2;
 	char *default_power3;
 	unsigned int i;
-	u16 eeprom;
 	u32 reg;
 
 	/*
@@ -7498,8 +7497,6 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->max_rates = 1;
 	rt2x00dev->hw->max_report_rates = 7;
 	rt2x00dev->hw->max_rate_tries = 1;
-
-	rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
 
 	/*
 	 * Initialize hw_mode information.
@@ -7566,22 +7563,21 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40;
 
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) >= 2)
+	if (rt2x00dev->default_ant.tx_chain_num >= 2)
 		spec->ht.cap |= IEEE80211_HT_CAP_TX_STBC;
 
-	spec->ht.cap |=
-	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) <<
-		IEEE80211_HT_CAP_RX_STBC_SHIFT;
+	spec->ht.cap |= rt2x00dev->default_ant.rx_chain_num <<
+			IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
 	spec->ht.ampdu_factor = 3;
 	spec->ht.ampdu_density = 4;
 	spec->ht.mcs.tx_params =
 	    IEEE80211_HT_MCS_TX_DEFINED |
 	    IEEE80211_HT_MCS_TX_RX_DIFF |
-	    ((rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) - 1) <<
-		IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
+	    ((rt2x00dev->default_ant.tx_chain_num - 1) <<
+	     IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
 
-	switch (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH)) {
+	switch (rt2x00dev->default_ant.rx_chain_num) {
 	case 3:
 		spec->ht.mcs.rx_mask[2] = 0xff;
 	case 2:
