@@ -19,7 +19,7 @@
 
 #include "dfs_pattern_detector.h"
 #include "dfs_pri_detector.h"
-#include "../ath.h"
+#include "ath.h"
 
 /*
  * tolerated deviation of radar time stamp in usecs on both sides

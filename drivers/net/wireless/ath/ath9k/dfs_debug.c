@@ -20,7 +20,7 @@
 
 #include "ath9k.h"
 #include "dfs_debug.h"
-#include "dfs_pattern_detector.h"
+#include "../dfs_pattern_detector.h"
 
 static struct ath_dfs_pool_stats dfs_pool_stats = { 0 };
 

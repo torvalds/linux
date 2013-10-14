@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include "../ath.h"
+#include "ath.h"
 #include "dfs_pattern_detector.h"
 #include "dfs_pri_detector.h"
 
