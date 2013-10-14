@@ -1076,7 +1076,7 @@ void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 	 * if this file hasn't been changed since the last transaction
 	 * commit, we can safely return without doing anything
 	 */
-	if (last_mod < root->fs_info->last_trans_committed)
+	if (last_mod <= root->fs_info->last_trans_committed)
 		return;
 
 	spin_lock(&root->fs_info->ordered_root_lock);
