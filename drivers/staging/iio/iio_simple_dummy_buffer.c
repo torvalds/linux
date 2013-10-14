@@ -99,14 +99,6 @@ done:
 
 static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
 	/*
-	 * iio_sw_buffer_preenable:
-	 * Generic function for equal sized ring elements + 64 bit timestamp
-	 * Assumes that any combination of channels can be enabled.
-	 * Typically replaced to implement restrictions on what combinations
-	 * can be captured (hardware scan modes).
-	 */
-	.preenable = &iio_sw_buffer_preenable,
-	/*
 	 * iio_triggered_buffer_postenable:
 	 * Generic function that simply attaches the pollfunc to the trigger.
 	 * Replace this to mess with hardware state before we attach the
