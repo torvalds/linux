@@ -1455,7 +1455,8 @@ struct nfs_rpc_ops {
 	struct inode * (*open_context) (struct inode *dir,
 				struct nfs_open_context *ctx,
 				int open_flags,
-				struct iattr *iattr);
+				struct iattr *iattr,
+				int *);
 	int (*have_delegation)(struct inode *, fmode_t);
 	int (*return_delegation)(struct inode *);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);

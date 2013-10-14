@@ -3426,6 +3426,9 @@ static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
 	unsigned long long u2_pel;
 	int ret;
 
+	if (udev->state != USB_STATE_CONFIGURED)
+		return 0;
+
 	/* Convert SEL and PEL stored in ns to us */
 	u1_sel = DIV_ROUND_UP(udev->u1_params.sel, 1000);
 	u1_pel = DIV_ROUND_UP(udev->u1_params.pel, 1000);

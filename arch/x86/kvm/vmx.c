@@ -5345,7 +5345,9 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * There are errata that may cause this bit to not be set:
 	 * AAK134, BY25.
 	 */
-	if (exit_qualification & INTR_INFO_UNBLOCK_NMI)
+	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
+			cpu_has_virtual_nmis() &&
+			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO, GUEST_INTR_STATE_NMI);
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
