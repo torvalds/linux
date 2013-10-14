@@ -94,6 +94,7 @@ config ARCH_OMAP2PLUS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select HAVE_CLK
+	select MACH_OMAP_GENERIC
 	select OMAP_DM_TIMER
 	select PINCTRL
 	select PROC_DEVICETREE if PROC_FS
@@ -187,16 +188,11 @@ config OMAP_PACKAGE_CUS
 config OMAP_PACKAGE_CBP
        bool
 
-comment "OMAP Board Type"
+comment "OMAP Legacy Platform Data Board Type"
 	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
-	bool "Generic OMAP2+ board"
-	depends on ARCH_OMAP2PLUS
-	default y
-	help
-	  Support for generic TI OMAP2+ boards using Flattened Device Tree.
-	  More information at Documentation/devicetree
+	bool
 
 config MACH_OMAP2_TUSB6010
 	bool
