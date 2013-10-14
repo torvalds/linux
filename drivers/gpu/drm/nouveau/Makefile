@@ -116,6 +116,7 @@ nouveau-y += core/subdev/mc/nv04.o
 nouveau-y += core/subdev/mc/nv40.o
 nouveau-y += core/subdev/mc/nv44.o
 nouveau-y += core/subdev/mc/nv50.o
+nouveau-y += core/subdev/mc/nv94.o
 nouveau-y += core/subdev/mc/nv98.o
 nouveau-y += core/subdev/mc/nvc0.o
 nouveau-y += core/subdev/mc/nvc3.o
