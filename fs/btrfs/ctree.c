@@ -4827,14 +4827,18 @@ static int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, 0);
 
-	if (key.offset > 0)
+	if (key.offset > 0) {
 		key.offset--;
-	else if (key.type > 0)
+	} else if (key.type > 0) {
 		key.type--;
-	else if (key.objectid > 0)
+		key.offset = (u64)-1;
+	} else if (key.objectid > 0) {
 		key.objectid--;
-	else
+		key.type = (u8)-1;
+		key.offset = (u64)-1;
+	} else {
 		return 1;
+	}
 
 	btrfs_release_path(path);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
