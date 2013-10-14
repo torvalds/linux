@@ -1401,8 +1401,7 @@ static int atmel_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 			asd = spi->controller_state;
 			bits = (asd->csr >> 4) & 0xf;
 			if (bits != xfer->bits_per_word - 8) {
-				dev_dbg(&spi->dev, "you can't yet change "
-					 "bits_per_word in transfers\n");
+				dev_dbg(&spi->dev, "you can't yet change bits_per_word in transfers\n");
 				return -ENOPROTOOPT;
 			}
 		}
