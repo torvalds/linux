@@ -7118,7 +7118,7 @@ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
 	int r;
 
 	if ((vcpu->arch.mmu.direct_map != work->arch.direct_map) ||
-	      is_error_page(work->page))
+	      work->wakeup_all)
 		return;
 
 	r = kvm_mmu_reload(vcpu);
@@ -7228,7 +7228,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 	struct x86_exception fault;
 
 	trace_kvm_async_pf_ready(work->arch.token, work->gva);
-	if (is_error_page(work->page))
+	if (work->wakeup_all)
 		work->arch.token = ~0; /* broadcast wakeup */
 	else
 		kvm_del_async_pf_gfn(vcpu, work->arch.gfn);

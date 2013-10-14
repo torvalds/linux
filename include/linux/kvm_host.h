@@ -175,7 +175,7 @@ struct kvm_async_pf {
 	gva_t gva;
 	unsigned long addr;
 	struct kvm_arch_async_pf arch;
-	struct page *page;
+	bool   wakeup_all;
 };
 
 void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu);
