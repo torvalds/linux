@@ -106,17 +106,7 @@ struct dfs_pattern_detector {
  * @param region: DFS domain to be used, can be NL80211_DFS_UNSET at creation
  * @return instance pointer on success, NULL otherwise
  */
-#if defined(CONFIG_ATH9K_DFS_CERTIFIED)
 extern struct dfs_pattern_detector *
 dfs_pattern_detector_init(struct ath_common *common,
 			  enum nl80211_dfs_regions region);
-#else
-static inline struct dfs_pattern_detector *
-dfs_pattern_detector_init(struct ath_common *common,
-			  enum nl80211_dfs_regions region)
-{
-	return NULL;
-}
-#endif /* CONFIG_ATH9K_DFS_CERTIFIED */
-
 #endif /* DFS_PATTERN_DETECTOR_H */
