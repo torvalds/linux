@@ -270,4 +270,7 @@ struct kcore_extract {
 int kcore_extract__create(struct kcore_extract *kce);
 void kcore_extract__delete(struct kcore_extract *kce);
 
+int kcore_copy(const char *from_dir, const char *to_dir);
+int compare_proc_modules(const char *from, const char *to);
+
 #endif /* __PERF_SYMBOL */

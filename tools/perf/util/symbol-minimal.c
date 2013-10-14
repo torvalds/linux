@@ -317,6 +317,12 @@ void kcore_extract__delete(struct kcore_extract *kce __maybe_unused)
 {
 }
 
+int kcore_copy(const char *from_dir __maybe_unused,
+	       const char *to_dir __maybe_unused)
+{
+	return -1;
+}
+
 void symbol__elf_init(void)
 {
 }
