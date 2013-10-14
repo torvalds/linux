@@ -1837,12 +1837,8 @@ static void config_intr(struct virtio_device *vdev)
 		struct port *port;
 		u16 rows, cols;
 
-		vdev->config->get(vdev,
-				  offsetof(struct virtio_console_config, cols),
-				  &cols, sizeof(u16));
-		vdev->config->get(vdev,
-				  offsetof(struct virtio_console_config, rows),
-				  &rows, sizeof(u16));
+		virtio_cread(vdev, struct virtio_console_config, cols, &cols);
+		virtio_cread(vdev, struct virtio_console_config, rows, &rows);
 
 		port = find_port_by_id(portdev, 0);
 		set_console_size(port, rows, cols);
@@ -2014,10 +2010,9 @@ static int virtcons_probe(struct virtio_device *vdev)
 
 	/* Don't test MULTIPORT at all if we're rproc: not a valid feature! */
 	if (!is_rproc_serial(vdev) &&
-	    virtio_config_val(vdev, VIRTIO_CONSOLE_F_MULTIPORT,
-				  offsetof(struct virtio_console_config,
-					   max_nr_ports),
-				  &portdev->config.max_nr_ports) == 0) {
+	    virtio_cread_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT,
+				 struct virtio_console_config, max_nr_ports,
+				 &portdev->config.max_nr_ports) == 0) {
 		multiport = true;
 	}
 

@@ -710,19 +710,15 @@ static struct scsi_host_template virtscsi_host_template_multi = {
 #define virtscsi_config_get(vdev, fld) \
 	({ \
 		typeof(((struct virtio_scsi_config *)0)->fld) __val; \
-		vdev->config->get(vdev, \
-				  offsetof(struct virtio_scsi_config, fld), \
-				  &__val, sizeof(__val)); \
+		virtio_cread(vdev, struct virtio_scsi_config, fld, &__val); \
 		__val; \
 	})
 
 #define virtscsi_config_set(vdev, fld, val) \
-	(void)({ \
+	do { \
 		typeof(((struct virtio_scsi_config *)0)->fld) __val = (val); \
-		vdev->config->set(vdev, \
-				  offsetof(struct virtio_scsi_config, fld), \
-				  &__val, sizeof(__val)); \
-	})
+		virtio_cwrite(vdev, struct virtio_scsi_config, fld, &__val); \
+	} while(0)
 
 static void __virtscsi_set_affinity(struct virtio_scsi *vscsi, bool affinity)
 {
