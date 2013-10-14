@@ -1483,7 +1483,6 @@ error_unlock:
 }
 
 static const struct iio_buffer_setup_ops gp2ap020a00f_buffer_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &gp2ap020a00f_buffer_postenable,
 	.predisable = &gp2ap020a00f_buffer_predisable,
 };
