@@ -310,13 +310,6 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N810_WIMAX
 	select OMAP_PACKAGE_ZAC
 
-config MACH_NOKIA_RM680
-	bool "Nokia N950 (RM-680) / N9 (RM-696) phones"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_NOKIA_RM696
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_RX51
 	bool "Nokia N900 (RX-51) phone"
 	depends on ARCH_OMAP3
