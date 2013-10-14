@@ -338,7 +338,7 @@ typedef struct s_comet_reg comet_t;
 
 #ifdef __KERNEL__
 extern void
-init_comet (void *, comet_t *, u_int32_t, int, u_int8_t);
+init_comet(void *, comet_t *, u_int32_t, int, u_int8_t);
 #endif
 
 #endif                          /* _INC_COMET_H_ */
