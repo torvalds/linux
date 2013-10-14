@@ -574,10 +574,6 @@ static int ad5933_ring_preenable(struct iio_dev *indio_dev)
 	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
-	ret = iio_sw_buffer_preenable(indio_dev);
-	if (ret < 0)
-		return ret;
-
 	ret = ad5933_reset(st);
 	if (ret < 0)
 		return ret;
