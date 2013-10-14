@@ -1270,13 +1270,6 @@ static void ath9k_antenna_check(struct ath_softc *sc,
 		return;
 
 	/*
-	 * All MPDUs in an aggregate will use the same LNA
-	 * as the first MPDU.
-	 */
-	if (rs->rs_isaggr && !rs->rs_firstaggr)
-		return;
-
-	/*
 	 * Change the default rx antenna if rx diversity
 	 * chooses the other antenna 3 times in a row.
 	 */

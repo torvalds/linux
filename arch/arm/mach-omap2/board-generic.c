@@ -15,13 +15,10 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
-#include <linux/clk.h>
 
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include "common-board-devices.h"
-#include "dss-common.h"
 
 #if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
 #define intc_of_init	NULL
@@ -36,40 +33,9 @@ static struct of_device_id omap_dt_match_table[] __initdata = {
 	{ }
 };
 
-/*
- * Create alias for USB host PHY clock.
- * Remove this when clock phandle can be provided via DT
- */
-static void __init legacy_init_ehci_clk(char *clkname)
-{
-	int ret;
-
-	ret = clk_add_alias("main_clk", NULL, clkname, NULL);
-	if (ret) {
-		pr_err("%s:Failed to add main_clk alias to %s :%d\n",
-						__func__, clkname, ret);
-	}
-}
-
 static void __init omap_generic_init(void)
 {
-	omap_sdrc_init(NULL, NULL);
-
-	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
-
-	/*
-	 * HACK: call display setup code for selected boards to enable omapdss.
-	 * This will be removed when omapdss supports DT.
-	 */
-	if (of_machine_is_compatible("ti,omap4-panda")) {
-		omap4_panda_display_init_of();
-		legacy_init_ehci_clk("auxclk3_ck");
-
-	}
-	else if (of_machine_is_compatible("ti,omap4-sdp"))
-		omap_4430sdp_display_init_of();
-	else if (of_machine_is_compatible("ti,omap5-uevm"))
-		legacy_init_ehci_clk("auxclk1_ck");
+	pdata_quirks_init(omap_dt_match_table);
 }
 
 #ifdef CONFIG_SOC_OMAP2420

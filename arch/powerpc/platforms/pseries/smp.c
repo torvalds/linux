@@ -233,17 +233,23 @@ static void __init smp_init_pseries(void)
 
 	alloc_bootmem_cpumask_var(&of_spin_mask);
 
-	/* Mark threads which are still spinning in hold loops. */
-	if (cpu_has_feature(CPU_FTR_SMT)) {
-		for_each_present_cpu(i) { 
-			if (cpu_thread_in_core(i) == 0)
-				cpumask_set_cpu(i, of_spin_mask);
-		}
-	} else {
-		cpumask_copy(of_spin_mask, cpu_present_mask);
-	}
+	/*
+	 * Mark threads which are still spinning in hold loops
+	 *
+	 * We know prom_init will not have started them if RTAS supports
+	 * query-cpu-stopped-state.
+	 */
+	if (rtas_token("query-cpu-stopped-state") == RTAS_UNKNOWN_SERVICE) {
+		if (cpu_has_feature(CPU_FTR_SMT)) {
+			for_each_present_cpu(i) {
+				if (cpu_thread_in_core(i) == 0)
+					cpumask_set_cpu(i, of_spin_mask);
+			}
+		} else
+			cpumask_copy(of_spin_mask, cpu_present_mask);
 
-	cpumask_clear_cpu(boot_cpuid, of_spin_mask);
+		cpumask_clear_cpu(boot_cpuid, of_spin_mask);
+	}
 
 	/* Non-lpar has additional take/give timebase */
 	if (rtas_token("freeze-time-base") != RTAS_UNKNOWN_SERVICE) {

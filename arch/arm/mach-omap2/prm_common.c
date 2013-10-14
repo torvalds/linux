@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
+#include "soc.h"
 #include "prm2xxx_3xxx.h"
 #include "prm2xxx.h"
 #include "prm3xxx.h"
@@ -320,6 +321,16 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 		irq_setup_generic_chip(gc, mask[i], 0, IRQ_NOREQUEST, 0);
 		prcm_irq_chips[i] = gc;
+	}
+
+	if (of_have_populated_dt()) {
+		int irq = omap_prcm_event_to_irq("io");
+		if (cpu_is_omap34xx())
+			omap_pcs_legacy_init(irq,
+				omap3xxx_prm_reconfigure_io_chain);
+		else
+			omap_pcs_legacy_init(irq,
+				omap44xx_prm_reconfigure_io_chain);
 	}
 
 	return 0;

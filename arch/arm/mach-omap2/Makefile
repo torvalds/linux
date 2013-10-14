@@ -233,7 +233,7 @@ obj-y					+= drm.o
 endif
 
 # Specific board support
-obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
+obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o pdata-quirks.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o
 obj-$(CONFIG_MACH_OMAP_2430SDP)		+= board-2430sdp.o
 obj-$(CONFIG_MACH_OMAP3_BEAGLE)		+= board-omap3beagle.o
