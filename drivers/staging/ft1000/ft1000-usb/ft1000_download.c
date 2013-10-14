@@ -1,12 +1,8 @@
-//=====================================================
-// CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
-//
-//
-// This file is part of Express Card USB Driver
-//
-// $Id:
-//====================================================
-// 20090926; aelias; removed compiler warnings; ubuntu 9.04; 2.6.28-15-generic
+/*
+* CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
+*
+* This file is part of Express Card USB Driver
+*/
 
 #include <linux/init.h>
 #include <linux/kernel.h>
