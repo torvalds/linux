@@ -1055,6 +1055,7 @@ static void request_write(struct cached_dev *dc, struct search *s)
 	} else {
 		trace_bcache_writeback(s->orig_bio);
 		bch_writeback_add(dc, bio_sectors(bio));
+		s->op.cache_bio = bio;
 
 		if (bio->bi_rw & REQ_FLUSH) {
 			/* Also need to send a flush to the backing device */
@@ -1067,8 +1068,6 @@ static void request_write(struct cached_dev *dc, struct search *s)
 			flush->bi_private = cl;
 
 			closure_bio_submit(flush, cl, s->d);
-		} else {
-			s->op.cache_bio = bio;
 		}
 	}
 out:
