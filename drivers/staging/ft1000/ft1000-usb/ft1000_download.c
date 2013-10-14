@@ -158,20 +158,7 @@ static u32 check_usb_db(struct ft1000_usb *ft1000dev)
 	return HANDSHAKE_MAG_TIMEOUT_VALUE;
 }
 
-//---------------------------------------------------------------------------
-// Function:    get_handshake
-//
-// Parameters:  struct ft1000_usb  - device structure
-//              u16 expected_value - the handshake value expected
-//
-// Returns:     handshakevalue - success
-//              HANDSHAKE_TIMEOUT_VALUE - failure
-//
-// Description: This function gets the handshake and compare with the expected value
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* gets the handshake and compares it with the expected value */
 static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 {
 	u16 handshake;
