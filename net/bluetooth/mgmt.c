@@ -3493,6 +3493,10 @@ static int set_scan_params(struct sock *sk, struct hci_dev *hdev,
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS,
 				  MGMT_STATUS_INVALID_PARAMS);
 
+	if (window > interval)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_SCAN_PARAMS,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
 	hdev->le_scan_interval = interval;
