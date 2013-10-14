@@ -690,8 +690,9 @@ static int max8997_set_voltage_buck(struct regulator_dev *rdev,
 	if (max8997->ignore_gpiodvs_side_effect == false)
 		return -EINVAL;
 
-	dev_warn(&rdev->dev, "MAX8997 GPIO-DVS Side Effect Warning: GPIO SET:"
-			" %d -> %d\n", max8997->buck125_gpioindex, tmp_idx);
+	dev_warn(&rdev->dev,
+		"MAX8997 GPIO-DVS Side Effect Warning: GPIO SET:  %d -> %d\n",
+		max8997->buck125_gpioindex, tmp_idx);
 
 out:
 	if (new_idx < 0 || new_val < 0)
