@@ -1853,6 +1853,7 @@ static int musb_gadget_start(struct usb_gadget *g,
 	musb->gadget_driver = driver;
 
 	spin_lock_irqsave(&musb->lock, flags);
+	musb->is_active = 1;
 
 	otg_set_peripheral(otg, &musb->g);
 	musb->xceiv->state = OTG_STATE_B_IDLE;
