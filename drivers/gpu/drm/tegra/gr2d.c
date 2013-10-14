@@ -43,7 +43,7 @@ static int gr2d_init(struct host1x_client *client)
 	if (!gr2d->channel)
 		return -ENOMEM;
 
-	client->syncpts[0] = host1x_syncpt_request(client->dev, false);
+	client->syncpts[0] = host1x_syncpt_request(client->dev, 0);
 	if (!client->syncpts[0]) {
 		host1x_channel_free(gr2d->channel);
 		return -ENOMEM;

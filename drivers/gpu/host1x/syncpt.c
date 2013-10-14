@@ -30,9 +30,9 @@
 #define SYNCPT_CHECK_PERIOD (2 * HZ)
 #define MAX_STUCK_CHECK_COUNT 15
 
-static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
-						  struct device *dev,
-						  bool client_managed)
+static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
+						 struct device *dev,
+						 unsigned long flags)
 {
 	int i;
 	struct host1x_syncpt *sp = host->syncpt;
@@ -51,7 +51,11 @@ static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 
 	sp->dev = dev;
 	sp->name = name;
-	sp->client_managed = client_managed;
+
+	if (flags & HOST1X_SYNCPT_CLIENT_MANAGED)
+		sp->client_managed = true;
+	else
+		sp->client_managed = false;
 
 	return sp;
 }
@@ -321,7 +325,7 @@ int host1x_syncpt_init(struct host1x *host)
 	host1x_syncpt_restore(host);
 
 	/* Allocate sync point to use for clearing waits for expired fences */
-	host->nop_sp = _host1x_syncpt_alloc(host, NULL, false);
+	host->nop_sp = host1x_syncpt_alloc(host, NULL, 0);
 	if (!host->nop_sp)
 		return -ENOMEM;
 
@@ -329,10 +333,10 @@ int host1x_syncpt_init(struct host1x *host)
 }
 
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
-					    bool client_managed)
+					    unsigned long flags)
 {
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	return _host1x_syncpt_alloc(host, dev, client_managed);
+	return host1x_syncpt_alloc(host, dev, flags);
 }
 
 void host1x_syncpt_free(struct host1x_syncpt *sp)
