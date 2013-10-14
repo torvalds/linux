@@ -173,6 +173,8 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
 	head = vq->free_head;
 	vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
 	vq->vring.desc[head].addr = virt_to_phys(desc);
+	/* kmemleak gives a false positive, as it's hidden by virt_to_phys */
+	kmemleak_ignore(desc);
 	vq->vring.desc[head].len = i * sizeof(struct vring_desc);
 
 	/* Update free pointer */
