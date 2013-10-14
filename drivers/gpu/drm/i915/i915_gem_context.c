@@ -220,7 +220,6 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * may not be available. To avoid this we always pin the
 	 * default context.
 	 */
-	dev_priv->ring[RCS].default_context = ctx;
 	ret = i915_gem_obj_ggtt_pin(ctx->obj, CONTEXT_ALIGN, false, false);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
@@ -232,6 +231,8 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_DRIVER("Switch failed %d\n", ret);
 		goto err_unpin;
 	}
+
+	dev_priv->ring[RCS].default_context = ctx;
 
 	DRM_DEBUG_DRIVER("Default HW context loaded\n");
 	return 0;
@@ -288,16 +289,24 @@ void i915_gem_context_fini(struct drm_device *dev)
 	 * other code, leading to spurious errors. */
 	intel_gpu_reset(dev);
 
-	i915_gem_object_unpin(dctx->obj);
-
 	/* When default context is created and switched to, base object refcount
 	 * will be 2 (+1 from object creation and +1 from do_switch()).
 	 * i915_gem_context_fini() will be called after gpu_idle() has switched
 	 * to default context. So we need to unreference the base object once
 	 * to offset the do_switch part, so that i915_gem_context_unreference()
 	 * can then free the base object correctly. */
-	drm_gem_object_unreference(&dctx->obj->base);
+	WARN_ON(!dev_priv->ring[RCS].last_context);
+	if (dev_priv->ring[RCS].last_context == dctx) {
+		/* Fake switch to NULL context */
+		WARN_ON(dctx->obj->active);
+		i915_gem_object_unpin(dctx->obj);
+		i915_gem_context_unreference(dctx);
+	}
+
+	i915_gem_object_unpin(dctx->obj);
 	i915_gem_context_unreference(dctx);
+	dev_priv->ring[RCS].default_context = NULL;
+	dev_priv->ring[RCS].last_context = NULL;
 }
 
 static int context_idr_cleanup(int id, void *p, void *data)
