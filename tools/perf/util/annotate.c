@@ -825,20 +825,16 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		dl->ops.target.offset = dl->ops.target.addr -
 					map__rip_2objdump(map, sym->start);
 
-	/*
-	 * kcore has no symbols, so add the call target name if it is on the
-	 * same map.
-	 */
+	/* kcore has no symbols, so add the call target name */
 	if (dl->ins && ins__is_call(dl->ins) && !dl->ops.target.name) {
-		struct symbol *s;
-		u64 ip = dl->ops.target.addr;
+		struct addr_map_symbol target = {
+			.map = map,
+			.addr = dl->ops.target.addr,
+		};
 
-		if (ip >= map->start && ip <= map->end) {
-			ip = map->map_ip(map, ip);
-			s = map__find_symbol(map, ip, NULL);
-			if (s && s->start == ip)
-				dl->ops.target.name = strdup(s->name);
-		}
+		if (!map_groups__find_ams(&target, NULL) &&
+		    target.sym->start == target.al_addr)
+			dl->ops.target.name = strdup(target.sym->name);
 	}
 
 	disasm__add(&notes->src->source, dl);
