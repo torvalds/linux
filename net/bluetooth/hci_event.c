@@ -924,7 +924,7 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 	}
 
-	if (!test_bit(HCI_INIT, &hdev->flags)) {
+	if (*sent && !test_bit(HCI_INIT, &hdev->flags)) {
 		struct hci_request req;
 
 		hci_req_init(&req, hdev);
