@@ -458,6 +458,15 @@ static const struct drm_display_mode drm_dmt_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
 };
 
+/*
+ * These more or less come from the DMT spec.  The 720x400 modes are
+ * inferred from historical 80x25 practice.  The 640x480@67 and 832x624@75
+ * modes are old-school Mac modes.  The EDID spec says the 1152x864@75 mode
+ * should be 1152x870, again for the Mac, but instead we use the x864 DMT
+ * mode.
+ *
+ * The DMT modes have been fact-checked; the rest are mild guesses.
+ */
 static const struct drm_display_mode edid_est_modes[] = {
 	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
 		   968, 1056, 0, 600, 601, 605, 628, 0,
