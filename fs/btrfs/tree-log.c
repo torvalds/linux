@@ -1312,6 +1312,7 @@ static int count_inode_refs(struct btrfs_root *root,
 				break;
 			path->slots[0]--;
 		}
+process_slot:
 		btrfs_item_key_to_cpu(path->nodes[0], &key,
 				      path->slots[0]);
 		if (key.objectid != ino ||
@@ -1332,6 +1333,10 @@ static int count_inode_refs(struct btrfs_root *root,
 
 		if (key.offset == 0)
 			break;
+		if (path->slots[0] > 0) {
+			path->slots[0]--;
+			goto process_slot;
+		}
 		key.offset--;
 		btrfs_release_path(path);
 	}
