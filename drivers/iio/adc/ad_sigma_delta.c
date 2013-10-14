@@ -397,7 +397,6 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 }
 
 static const struct iio_buffer_setup_ops ad_sd_buffer_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &ad_sd_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad_sd_buffer_postdisable,
