@@ -76,8 +76,11 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster);
  *
  * This must be called with interrupts disabled.
  *
- * This does not return.  Re-entry in the kernel is expected via
- * mcpm_entry_point.
+ * On success this does not return.  Re-entry in the kernel is expected
+ * via mcpm_entry_point.
+ *
+ * This will return if mcpm_platform_register() has not been called
+ * previously in which case the caller should take appropriate action.
  */
 void mcpm_cpu_power_down(void);
 
@@ -98,8 +101,11 @@ void mcpm_cpu_power_down(void);
  *
  * This must be called with interrupts disabled.
  *
- * This does not return.  Re-entry in the kernel is expected via
- * mcpm_entry_point.
+ * On success this does not return.  Re-entry in the kernel is expected
+ * via mcpm_entry_point.
+ *
+ * This will return if mcpm_platform_register() has not been called
+ * previously in which case the caller should take appropriate action.
  */
 void mcpm_cpu_suspend(u64 expected_residency);
 
