@@ -38,6 +38,10 @@
 				status = "okay";
 			};
 
+			ssc0: ssc@f0010000 {
+				status = "okay";
+			};
+
 			i2c0: i2c@f8010000 {
 				status = "okay";
 
