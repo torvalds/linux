@@ -1150,6 +1150,13 @@ F:	drivers/net/ethernet/i825xx/ether1*
 F:	drivers/net/ethernet/seeq/ether3*
 F:	drivers/scsi/arm/
 
+ARM/Rockchip SoC support
+M:	Heiko Stuebner <heiko@sntech.de>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-rockchip/
+F:	drivers/*/*rockchip*
+
 ARM/SHARK MACHINE SUPPORT
 M:	Alexander Schulz <alex@shark-linux.de>
 W:	http://www.shark-linux.de/shark.html
