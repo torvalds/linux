@@ -7501,7 +7501,6 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize hw_mode information.
 	 */
-	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
 	switch (rt2x00dev->chip.rf) {
@@ -7513,7 +7512,6 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	case RF2750:
 	case RF2850:
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
 		break;
@@ -7537,13 +7535,11 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	case RF3052:
 	case RF3053:
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals_3x);
 		spec->channels = rf_vals_3x;
 		break;
 
 	case RF5592:
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		rt2800_register_read(rt2x00dev, MAC_DEBUG_INDEX, &reg);
 		if (rt2x00_get_field32(reg, MAC_DEBUG_INDEX_XTAL)) {
 			spec->num_channels = ARRAY_SIZE(rf_vals_5592_xtal40);
@@ -7557,6 +7553,10 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	if (WARN_ON_ONCE(!spec->channels))
 		return -ENODEV;
+
+	spec->supported_bands = SUPPORT_BAND_2GHZ;
+	if (spec->num_channels > 14)
+		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 
 	/*
 	 * Initialize HT information.
