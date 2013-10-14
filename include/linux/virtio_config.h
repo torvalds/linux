@@ -96,33 +96,6 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
 	return test_bit(fbit, vdev->features);
 }
 
-/**
- * virtio_config_val - look for a feature and get a virtio config entry.
- * @vdev: the virtio device
- * @fbit: the feature bit
- * @offset: the type to search for.
- * @v: a pointer to the value to fill in.
- *
- * The return value is -ENOENT if the feature doesn't exist.  Otherwise
- * the config value is copied into whatever is pointed to by v. */
-#define virtio_config_val(vdev, fbit, offset, v) \
-	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(*v))
-
-#define virtio_config_val_len(vdev, fbit, offset, v, len) \
-	virtio_config_buf((vdev), (fbit), (offset), (v), (len))
-
-static inline int virtio_config_buf(struct virtio_device *vdev,
-				    unsigned int fbit,
-				    unsigned int offset,
-				    void *buf, unsigned len)
-{
-	if (!virtio_has_feature(vdev, fbit))
-		return -ENOENT;
-
-	vdev->config->get(vdev, offset, buf, len);
-	return 0;
-}
-
 static inline
 struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
 					vq_callback_t *c, const char *n)
