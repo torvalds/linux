@@ -1264,14 +1264,13 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
 	    cp->val != test_bit(HCI_PSCAN, &hdev->flags)) {
-
 		if (cp->val) {
 			scan = SCAN_PAGE;
 		} else {
 			scan = 0;
 
 			if (test_bit(HCI_ISCAN, &hdev->flags) &&
-					hdev->discov_timeout > 0)
+			    hdev->discov_timeout > 0)
 				cancel_delayed_work(&hdev->discov_off);
 		}
 
