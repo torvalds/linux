@@ -69,6 +69,9 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (la.l2_cid && la.l2_psm)
 		return -EINVAL;
 
+	if (!bdaddr_type_is_valid(la.l2_bdaddr_type))
+		return -EINVAL;
+
 	lock_sock(sk);
 
 	if (sk->sk_state != BT_OPEN) {
@@ -142,6 +145,9 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 	memcpy(&la, addr, len);
 
 	if (la.l2_cid && la.l2_psm)
+		return -EINVAL;
+
+	if (!bdaddr_type_is_valid(la.l2_bdaddr_type))
 		return -EINVAL;
 
 	err = l2cap_chan_connect(chan, la.l2_psm, __le16_to_cpu(la.l2_cid),
