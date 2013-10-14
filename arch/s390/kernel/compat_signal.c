@@ -99,7 +99,7 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 			break;
 		}
 	}
-	return err;
+	return err ? -EFAULT : 0;
 }
 
 int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
@@ -148,7 +148,7 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 			break;
 		}
 	}
-	return err;
+	return err ? -EFAULT : 0;
 }
 
 static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
