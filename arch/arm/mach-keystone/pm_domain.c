@@ -17,6 +17,7 @@
 #include <linux/pm_clock.h>
 #include <linux/platform_device.h>
 #include <linux/clk-provider.h>
+#include <linux/of.h>
 
 #ifdef CONFIG_PM_RUNTIME
 static int keystone_pm_runtime_suspend(struct device *dev)
@@ -60,8 +61,19 @@ static struct pm_clk_notifier_block platform_domain_notifier = {
 	.pm_domain = &keystone_pm_domain,
 };
 
+static struct of_device_id of_keystone_table[] = {
+	{.compatible = "ti,keystone"},
+	{ /* end of list */ },
+};
+
 int __init keystone_pm_runtime_init(void)
 {
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, of_keystone_table);
+	if (!np)
+		return 0;
+
 	of_clk_init(NULL);
 	pm_clk_add_notifier(&platform_bus_type, &platform_domain_notifier);
 
