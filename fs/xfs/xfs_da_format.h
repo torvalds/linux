@@ -16,8 +16,148 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef __XFS_DIR2_FORMAT_H__
-#define __XFS_DIR2_FORMAT_H__
+#ifndef __XFS_DA_FORMAT_H__
+#define __XFS_DA_FORMAT_H__
+
+/*========================================================================
+ * Directory Structure when greater than XFS_LBSIZE(mp) bytes.
+ *========================================================================*/
+
+/*
+ * This structure is common to both leaf nodes and non-leaf nodes in the Btree.
+ *
+ * It is used to manage a doubly linked list of all blocks at the same
+ * level in the Btree, and to identify which type of block this is.
+ */
+#define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
+#define XFS_ATTR_LEAF_MAGIC	0xfbee	/* magic number: attribute leaf blks */
+#define	XFS_DIR2_LEAF1_MAGIC	0xd2f1	/* magic number: v2 dirlf single blks */
+#define	XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: v2 dirlf multi blks */
+
+typedef struct xfs_da_blkinfo {
+	__be32		forw;			/* previous block in list */
+	__be32		back;			/* following block in list */
+	__be16		magic;			/* validity check on block */
+	__be16		pad;			/* unused */
+} xfs_da_blkinfo_t;
+
+/*
+ * CRC enabled directory structure types
+ *
+ * The headers change size for the additional verification information, but
+ * otherwise the tree layouts and contents are unchanged. Hence the da btree
+ * code can use the struct xfs_da_blkinfo for manipulating the tree links and
+ * magic numbers without modification for both v2 and v3 nodes.
+ */
+#define XFS_DA3_NODE_MAGIC	0x3ebe	/* magic number: non-leaf blocks */
+#define XFS_ATTR3_LEAF_MAGIC	0x3bee	/* magic number: attribute leaf blks */
+#define	XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v2 dirlf single blks */
+#define	XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v2 dirlf multi blks */
+
+struct xfs_da3_blkinfo {
+	/*
+	 * the node link manipulation code relies on the fact that the first
+	 * element of this structure is the struct xfs_da_blkinfo so it can
+	 * ignore the differences in the rest of the structures.
+	 */
+	struct xfs_da_blkinfo	hdr;
+	__be32			crc;	/* CRC of block */
+	__be64			blkno;	/* first block of the buffer */
+	__be64			lsn;	/* sequence number of last write */
+	uuid_t			uuid;	/* filesystem we belong to */
+	__be64			owner;	/* inode that owns the block */
+};
+
+/*
+ * This is the structure of the root and intermediate nodes in the Btree.
+ * The leaf nodes are defined above.
+ *
+ * Entries are not packed.
+ *
+ * Since we have duplicate keys, use a binary search but always follow
+ * all match in the block, not just the first match found.
+ */
+#define	XFS_DA_NODE_MAXDEPTH	5	/* max depth of Btree */
+
+typedef struct xfs_da_node_hdr {
+	struct xfs_da_blkinfo	info;	/* block type, links, etc. */
+	__be16			__count; /* count of active entries */
+	__be16			__level; /* level above leaves (leaf == 0) */
+} xfs_da_node_hdr_t;
+
+struct xfs_da3_node_hdr {
+	struct xfs_da3_blkinfo	info;	/* block type, links, etc. */
+	__be16			__count; /* count of active entries */
+	__be16			__level; /* level above leaves (leaf == 0) */
+	__be32			__pad32;
+};
+
+#define XFS_DA3_NODE_CRC_OFF	(offsetof(struct xfs_da3_node_hdr, info.crc))
+
+typedef struct xfs_da_node_entry {
+	__be32	hashval;	/* hash value for this descendant */
+	__be32	before;		/* Btree block before this key */
+} xfs_da_node_entry_t;
+
+typedef struct xfs_da_intnode {
+	struct xfs_da_node_hdr	hdr;
+	struct xfs_da_node_entry __btree[];
+} xfs_da_intnode_t;
+
+struct xfs_da3_intnode {
+	struct xfs_da3_node_hdr	hdr;
+	struct xfs_da_node_entry __btree[];
+};
+
+/*
+ * In-core version of the node header to abstract the differences in the v2 and
+ * v3 disk format of the headers. Callers need to convert to/from disk format as
+ * appropriate.
+ */
+struct xfs_da3_icnode_hdr {
+	__uint32_t	forw;
+	__uint32_t	back;
+	__uint16_t	magic;
+	__uint16_t	count;
+	__uint16_t	level;
+};
+
+extern void xfs_da3_node_hdr_from_disk(struct xfs_da3_icnode_hdr *to,
+				       struct xfs_da_intnode *from);
+extern void xfs_da3_node_hdr_to_disk(struct xfs_da_intnode *to,
+				     struct xfs_da3_icnode_hdr *from);
+
+static inline int
+__xfs_da3_node_hdr_size(bool v3)
+{
+	if (v3)
+		return sizeof(struct xfs_da3_node_hdr);
+	return sizeof(struct xfs_da_node_hdr);
+}
+static inline int
+xfs_da3_node_hdr_size(struct xfs_da_intnode *dap)
+{
+	bool	v3 = dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC);
+
+	return __xfs_da3_node_hdr_size(v3);
+}
+
+static inline struct xfs_da_node_entry *
+xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
+{
+	if (dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
+		struct xfs_da3_intnode *dap3 = (struct xfs_da3_intnode *)dap;
+		return dap3->__btree;
+	}
+	return dap->__btree;
+}
+
+extern void xfs_da3_intnode_from_disk(struct xfs_da3_icnode_hdr *to,
+				      struct xfs_da_intnode *from);
+extern void xfs_da3_intnode_to_disk(struct xfs_da_intnode *to,
+				    struct xfs_da3_icnode_hdr *from);
+
+#define	XFS_LBSIZE(mp)	(mp)->m_sb.sb_blocksize
 
 /*
  * Directory version 2.
@@ -961,4 +1101,262 @@ xfs_dir2_block_leaf_p(struct xfs_dir2_block_tail *btp)
 	return ((struct xfs_dir2_leaf_entry *)btp) - be32_to_cpu(btp->count);
 }
 
-#endif /* __XFS_DIR2_FORMAT_H__ */
+
+/*
+ * Attribute storage layout
+ *
+ * Attribute lists are structured around Btrees where all the data
+ * elements are in the leaf nodes.  Attribute names are hashed into an int,
+ * then that int is used as the index into the Btree.  Since the hashval
+ * of an attribute name may not be unique, we may have duplicate keys.  The
+ * internal links in the Btree are logical block offsets into the file.
+ *
+ *========================================================================
+ * Attribute structure when equal to XFS_LBSIZE(mp) bytes.
+ *========================================================================
+ *
+ * Struct leaf_entry's are packed from the top.  Name/values grow from the
+ * bottom but are not packed.  The freemap contains run-length-encoded entries
+ * for the free bytes after the leaf_entry's, but only the N largest such,
+ * smaller runs are dropped.  When the freemap doesn't show enough space
+ * for an allocation, we compact the name/value area and try again.  If we
+ * still don't have enough space, then we have to split the block.  The
+ * name/value structs (both local and remote versions) must be 32bit aligned.
+ *
+ * Since we have duplicate hash keys, for each key that matches, compare
+ * the actual name string.  The root and intermediate node search always
+ * takes the first-in-the-block key match found, so we should only have
+ * to work "forw"ard.  If none matches, continue with the "forw"ard leaf
+ * nodes until the hash key changes or the attribute name is found.
+ *
+ * We store the fact that an attribute is a ROOT/USER/SECURE attribute in
+ * the leaf_entry.  The namespaces are independent only because we also look
+ * at the namespace bit when we are looking for a matching attribute name.
+ *
+ * We also store an "incomplete" bit in the leaf_entry.  It shows that an
+ * attribute is in the middle of being created and should not be shown to
+ * the user if we crash during the time that the bit is set.  We clear the
+ * bit when we have finished setting up the attribute.  We do this because
+ * we cannot create some large attributes inside a single transaction, and we
+ * need some indication that we weren't finished if we crash in the middle.
+ */
+#define XFS_ATTR_LEAF_MAPSIZE	3	/* how many freespace slots */
+
+typedef struct xfs_attr_leaf_map {	/* RLE map of free bytes */
+	__be16	base;			  /* base of free region */
+	__be16	size;			  /* length of free region */
+} xfs_attr_leaf_map_t;
+
+typedef struct xfs_attr_leaf_hdr {	/* constant-structure header block */
+	xfs_da_blkinfo_t info;		/* block type, links, etc. */
+	__be16	count;			/* count of active leaf_entry's */
+	__be16	usedbytes;		/* num bytes of names/values stored */
+	__be16	firstused;		/* first used byte in name area */
+	__u8	holes;			/* != 0 if blk needs compaction */
+	__u8	pad1;
+	xfs_attr_leaf_map_t freemap[XFS_ATTR_LEAF_MAPSIZE];
+					/* N largest free regions */
+} xfs_attr_leaf_hdr_t;
+
+typedef struct xfs_attr_leaf_entry {	/* sorted on key, not name */
+	__be32	hashval;		/* hash value of name */
+	__be16	nameidx;		/* index into buffer of name/value */
+	__u8	flags;			/* LOCAL/ROOT/SECURE/INCOMPLETE flag */
+	__u8	pad2;			/* unused pad byte */
+} xfs_attr_leaf_entry_t;
+
+typedef struct xfs_attr_leaf_name_local {
+	__be16	valuelen;		/* number of bytes in value */
+	__u8	namelen;		/* length of name bytes */
+	__u8	nameval[1];		/* name/value bytes */
+} xfs_attr_leaf_name_local_t;
+
+typedef struct xfs_attr_leaf_name_remote {
+	__be32	valueblk;		/* block number of value bytes */
+	__be32	valuelen;		/* number of bytes in value */
+	__u8	namelen;		/* length of name bytes */
+	__u8	name[1];		/* name bytes */
+} xfs_attr_leaf_name_remote_t;
+
+typedef struct xfs_attr_leafblock {
+	xfs_attr_leaf_hdr_t	hdr;	/* constant-structure header block */
+	xfs_attr_leaf_entry_t	entries[1];	/* sorted on key, not name */
+	xfs_attr_leaf_name_local_t namelist;	/* grows from bottom of buf */
+	xfs_attr_leaf_name_remote_t valuelist;	/* grows from bottom of buf */
+} xfs_attr_leafblock_t;
+
+/*
+ * CRC enabled leaf structures. Called "version 3" structures to match the
+ * version number of the directory and dablk structures for this feature, and
+ * attr2 is already taken by the variable inode attribute fork size feature.
+ */
+struct xfs_attr3_leaf_hdr {
+	struct xfs_da3_blkinfo	info;
+	__be16			count;
+	__be16			usedbytes;
+	__be16			firstused;
+	__u8			holes;
+	__u8			pad1;
+	struct xfs_attr_leaf_map freemap[XFS_ATTR_LEAF_MAPSIZE];
+	__be32			pad2;		/* 64 bit alignment */
+};
+
+#define XFS_ATTR3_LEAF_CRC_OFF	(offsetof(struct xfs_attr3_leaf_hdr, info.crc))
+
+struct xfs_attr3_leafblock {
+	struct xfs_attr3_leaf_hdr	hdr;
+	struct xfs_attr_leaf_entry	entries[1];
+
+	/*
+	 * The rest of the block contains the following structures after the
+	 * leaf entries, growing from the bottom up. The variables are never
+	 * referenced, the locations accessed purely from helper functions.
+	 *
+	 * struct xfs_attr_leaf_name_local
+	 * struct xfs_attr_leaf_name_remote
+	 */
+};
+
+/*
+ * incore, neutral version of the attribute leaf header
+ */
+struct xfs_attr3_icleaf_hdr {
+	__uint32_t	forw;
+	__uint32_t	back;
+	__uint16_t	magic;
+	__uint16_t	count;
+	__uint16_t	usedbytes;
+	__uint16_t	firstused;
+	__u8		holes;
+	struct {
+		__uint16_t	base;
+		__uint16_t	size;
+	} freemap[XFS_ATTR_LEAF_MAPSIZE];
+};
+
+/*
+ * Flags used in the leaf_entry[i].flags field.
+ * NOTE: the INCOMPLETE bit must not collide with the flags bits specified
+ * on the system call, they are "or"ed together for various operations.
+ */
+#define	XFS_ATTR_LOCAL_BIT	0	/* attr is stored locally */
+#define	XFS_ATTR_ROOT_BIT	1	/* limit access to trusted attrs */
+#define	XFS_ATTR_SECURE_BIT	2	/* limit access to secure attrs */
+#define	XFS_ATTR_INCOMPLETE_BIT	7	/* attr in middle of create/delete */
+#define XFS_ATTR_LOCAL		(1 << XFS_ATTR_LOCAL_BIT)
+#define XFS_ATTR_ROOT		(1 << XFS_ATTR_ROOT_BIT)
+#define XFS_ATTR_SECURE		(1 << XFS_ATTR_SECURE_BIT)
+#define XFS_ATTR_INCOMPLETE	(1 << XFS_ATTR_INCOMPLETE_BIT)
+
+/*
+ * Conversion macros for converting namespace bits from argument flags
+ * to ondisk flags.
+ */
+#define XFS_ATTR_NSP_ARGS_MASK		(ATTR_ROOT | ATTR_SECURE)
+#define XFS_ATTR_NSP_ONDISK_MASK	(XFS_ATTR_ROOT | XFS_ATTR_SECURE)
+#define XFS_ATTR_NSP_ONDISK(flags)	((flags) & XFS_ATTR_NSP_ONDISK_MASK)
+#define XFS_ATTR_NSP_ARGS(flags)	((flags) & XFS_ATTR_NSP_ARGS_MASK)
+#define XFS_ATTR_NSP_ARGS_TO_ONDISK(x)	(((x) & ATTR_ROOT ? XFS_ATTR_ROOT : 0) |\
+					 ((x) & ATTR_SECURE ? XFS_ATTR_SECURE : 0))
+#define XFS_ATTR_NSP_ONDISK_TO_ARGS(x)	(((x) & XFS_ATTR_ROOT ? ATTR_ROOT : 0) |\
+					 ((x) & XFS_ATTR_SECURE ? ATTR_SECURE : 0))
+
+/*
+ * Alignment for namelist and valuelist entries (since they are mixed
+ * there can be only one alignment value)
+ */
+#define	XFS_ATTR_LEAF_NAME_ALIGN	((uint)sizeof(xfs_dablk_t))
+
+static inline int
+xfs_attr3_leaf_hdr_size(struct xfs_attr_leafblock *leafp)
+{
+	if (leafp->hdr.info.magic == cpu_to_be16(XFS_ATTR3_LEAF_MAGIC))
+		return sizeof(struct xfs_attr3_leaf_hdr);
+	return sizeof(struct xfs_attr_leaf_hdr);
+}
+
+static inline struct xfs_attr_leaf_entry *
+xfs_attr3_leaf_entryp(xfs_attr_leafblock_t *leafp)
+{
+	if (leafp->hdr.info.magic == cpu_to_be16(XFS_ATTR3_LEAF_MAGIC))
+		return &((struct xfs_attr3_leafblock *)leafp)->entries[0];
+	return &leafp->entries[0];
+}
+
+/*
+ * Cast typed pointers for "local" and "remote" name/value structs.
+ */
+static inline char *
+xfs_attr3_leaf_name(xfs_attr_leafblock_t *leafp, int idx)
+{
+	struct xfs_attr_leaf_entry *entries = xfs_attr3_leaf_entryp(leafp);
+
+	return &((char *)leafp)[be16_to_cpu(entries[idx].nameidx)];
+}
+
+static inline xfs_attr_leaf_name_remote_t *
+xfs_attr3_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx)
+{
+	return (xfs_attr_leaf_name_remote_t *)xfs_attr3_leaf_name(leafp, idx);
+}
+
+static inline xfs_attr_leaf_name_local_t *
+xfs_attr3_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
+{
+	return (xfs_attr_leaf_name_local_t *)xfs_attr3_leaf_name(leafp, idx);
+}
+
+/*
+ * Calculate total bytes used (including trailing pad for alignment) for
+ * a "local" name/value structure, a "remote" name/value structure, and
+ * a pointer which might be either.
+ */
+static inline int xfs_attr_leaf_entsize_remote(int nlen)
+{
+	return ((uint)sizeof(xfs_attr_leaf_name_remote_t) - 1 + (nlen) + \
+		XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1);
+}
+
+static inline int xfs_attr_leaf_entsize_local(int nlen, int vlen)
+{
+	return ((uint)sizeof(xfs_attr_leaf_name_local_t) - 1 + (nlen) + (vlen) +
+		XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1);
+}
+
+static inline int xfs_attr_leaf_entsize_local_max(int bsize)
+{
+	return (((bsize) >> 1) + ((bsize) >> 2));
+}
+
+
+
+/*
+ * Remote attribute block format definition
+ *
+ * There is one of these headers per filesystem block in a remote attribute.
+ * This is done to ensure there is a 1:1 mapping between the attribute value
+ * length and the number of blocks needed to store the attribute. This makes the
+ * verification of a buffer a little more complex, but greatly simplifies the
+ * allocation, reading and writing of these attributes as we don't have to guess
+ * the number of blocks needed to store the attribute data.
+ */
+#define XFS_ATTR3_RMT_MAGIC	0x5841524d	/* XARM */
+
+struct xfs_attr3_rmt_hdr {
+	__be32	rm_magic;
+	__be32	rm_offset;
+	__be32	rm_bytes;
+	__be32	rm_crc;
+	uuid_t	rm_uuid;
+	__be64	rm_owner;
+	__be64	rm_blkno;
+	__be64	rm_lsn;
+};
+
+#define XFS_ATTR3_RMT_CRC_OFF	offsetof(struct xfs_attr3_rmt_hdr, rm_crc)
+
+#define XFS_ATTR3_RMT_BUF_SPACE(mp, bufsize)	\
+	((bufsize) - (xfs_sb_version_hascrc(&(mp)->m_sb) ? \
+			sizeof(struct xfs_attr3_rmt_hdr) : 0))
+
+#endif /* __XFS_DA_FORMAT_H__ */

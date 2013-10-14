@@ -27,6 +27,7 @@
 #include "xfs_alloc.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
@@ -42,7 +43,6 @@
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_format.h"
 #include "xfs_dir2_priv.h"
 
 #include <linux/capability.h>

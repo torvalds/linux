@@ -26,6 +26,7 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_error.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
@@ -50,7 +51,6 @@
 /* Need all the magic numbers and buffer ops structures from these headers */
 #include "xfs_symlink.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_format.h"
 #include "xfs_dir2.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_attr_remote.h"
