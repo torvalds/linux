@@ -1072,6 +1072,25 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
 }
 
+static u8 get_adv_type(struct hci_dev *hdev)
+{
+	struct pending_cmd *cmd;
+	bool connectable;
+
+	/* If there's a pending mgmt command the flag will not yet have
+	 * it's final value, so check for this first.
+	 */
+	cmd = mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
+	if (cmd) {
+		struct mgmt_mode *cp = cmd->param;
+		connectable = !!cp->val;
+	} else {
+		connectable = test_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+	}
+
+	return connectable ? LE_ADV_IND : LE_ADV_NONCONN_IND;
+}
+
 static void enable_advertising(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
@@ -1081,7 +1100,7 @@ static void enable_advertising(struct hci_request *req)
 	memset(&cp, 0, sizeof(cp));
 	cp.min_interval = __constant_cpu_to_le16(0x0800);
 	cp.max_interval = __constant_cpu_to_le16(0x0800);
-	cp.type = LE_ADV_IND;
+	cp.type = get_adv_type(hdev);
 	if (bacmp(&hdev->bdaddr, BDADDR_ANY))
 		cp.own_address_type = ADDR_LE_DEV_PUBLIC;
 	else
@@ -1144,15 +1163,15 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
 	struct hci_request req;
-	u8 scan, status;
+	u8 scan;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
 
-	status = mgmt_bredr_support(hdev);
-	if (status)
+	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
+	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
-				  status);
+				  MGMT_STATUS_REJECTED);
 
 	if (cp->val != 0x00 && cp->val != 0x01)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
@@ -1222,6 +1241,12 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	 */
 	if (cp->val || test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
 		write_fast_connectable(&req, false);
+
+	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags) &&
+	    hci_conn_num(hdev, LE_LINK) == 0) {
+		disable_advertising(&req);
+		enable_advertising(&req);
+	}
 
 	err = hci_req_run(&req, set_connectable_complete);
 	if (err < 0) {
