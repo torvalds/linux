@@ -150,8 +150,8 @@ ipv6:
 	if (poff >= 0) {
 		__be32 *ports, _ports;
 
-		nhoff += poff;
-		ports = skb_header_pointer(skb, nhoff, sizeof(_ports), &_ports);
+		ports = skb_header_pointer(skb, nhoff + poff,
+					   sizeof(_ports), &_ports);
 		if (ports)
 			flow->ports = *ports;
 	}
@@ -348,7 +348,7 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 
 		if (queue_index != new_index && sk &&
 		    rcu_access_pointer(sk->sk_dst_cache))
-			sk_tx_queue_set(sk, queue_index);
+			sk_tx_queue_set(sk, new_index);
 
 		queue_index = new_index;
 	}

@@ -1767,15 +1767,17 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 	SET_ETHTOOL_OPS(dev, &vxlan_ethtool_ops);
 
-	/* create an fdb entry for default destination */
-	err = vxlan_fdb_create(vxlan, all_zeros_mac,
-			       vxlan->default_dst.remote_ip,
-			       NUD_REACHABLE|NUD_PERMANENT,
-			       NLM_F_EXCL|NLM_F_CREATE,
-			       vxlan->dst_port, vxlan->default_dst.remote_vni,
-			       vxlan->default_dst.remote_ifindex, NTF_SELF);
-	if (err)
-		return err;
+	/* create an fdb entry for a valid default destination */
+	if (vxlan->default_dst.remote_ip != htonl(INADDR_ANY)) {
+		err = vxlan_fdb_create(vxlan, all_zeros_mac,
+				       vxlan->default_dst.remote_ip,
+				       NUD_REACHABLE|NUD_PERMANENT,
+				       NLM_F_EXCL|NLM_F_CREATE,
+				       vxlan->dst_port, vxlan->default_dst.remote_vni,
+				       vxlan->default_dst.remote_ifindex, NTF_SELF);
+		if (err)
+			return err;
+	}
 
 	err = register_netdevice(dev);
 	if (err) {

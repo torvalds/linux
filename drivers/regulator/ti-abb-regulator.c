@@ -279,8 +279,12 @@ static int ti_abb_set_opp(struct regulator_dev *rdev, struct ti_abb *abb,
 	ti_abb_rmw(regs->opp_sel_mask, info->opp_sel, regs->control_reg,
 		   abb->base);
 
-	/* program LDO VBB vset override if needed */
-	if (abb->ldo_base)
+	/*
+	 * program LDO VBB vset override if needed for !bypass mode
+	 * XXX: Do not switch sequence - for !bypass, LDO override reset *must*
+	 * be performed *before* switch to bias mode else VBB glitches.
+	 */
+	if (abb->ldo_base && info->opp_sel != TI_ABB_NOMINAL_OPP)
 		ti_abb_program_ldovbb(dev, abb, info);
 
 	/* Initiate ABB ldo change */
@@ -294,6 +298,14 @@ static int ti_abb_set_opp(struct regulator_dev *rdev, struct ti_abb *abb,
 	ret = ti_abb_clear_all_txdone(dev, abb);
 	if (ret)
 		goto out;
+
+	/*
+	 * Reset LDO VBB vset override bypass mode
+	 * XXX: Do not switch sequence - for bypass, LDO override reset *must*
+	 * be performed *after* switch to bypass else VBB glitches.
+	 */
+	if (abb->ldo_base && info->opp_sel == TI_ABB_NOMINAL_OPP)
+		ti_abb_program_ldovbb(dev, abb, info);
 
 out:
 	return ret;

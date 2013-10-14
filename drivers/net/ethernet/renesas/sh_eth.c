@@ -1857,11 +1857,13 @@ static int sh_eth_open(struct net_device *ndev)
 
 	pm_runtime_get_sync(&mdp->pdev->dev);
 
+	napi_enable(&mdp->napi);
+
 	ret = request_irq(ndev->irq, sh_eth_interrupt,
 			  mdp->cd->irq_flags, ndev->name, ndev);
 	if (ret) {
 		dev_err(&ndev->dev, "Can not assign IRQ number\n");
-		return ret;
+		goto out_napi_off;
 	}
 
 	/* Descriptor set */
@@ -1879,12 +1881,12 @@ static int sh_eth_open(struct net_device *ndev)
 	if (ret)
 		goto out_free_irq;
 
-	napi_enable(&mdp->napi);
-
 	return ret;
 
 out_free_irq:
 	free_irq(ndev->irq, ndev);
+out_napi_off:
+	napi_disable(&mdp->napi);
 	pm_runtime_put_sync(&mdp->pdev->dev);
 	return ret;
 }
@@ -1976,8 +1978,6 @@ static int sh_eth_close(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	napi_disable(&mdp->napi);
-
 	netif_stop_queue(ndev);
 
 	/* Disable interrupts by clearing the interrupt mask. */
@@ -1994,6 +1994,8 @@ static int sh_eth_close(struct net_device *ndev)
 	}
 
 	free_irq(ndev->irq, ndev);
+
+	napi_disable(&mdp->napi);
 
 	/* Free all the skbuffs in the Rx queue. */
 	sh_eth_ring_free(ndev);

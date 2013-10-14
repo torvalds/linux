@@ -63,7 +63,7 @@ int iptunnel_xmit(struct net *net, struct rtable *rt,
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
 	/* Push down and install the IP header. */
-	__skb_push(skb, sizeof(struct iphdr));
+	skb_push(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
 
 	iph = ip_hdr(skb);
