@@ -330,6 +330,7 @@ static struct cpufreq_driver exynos_driver = {
 	.init		= exynos_cpufreq_cpu_init,
 	.exit		= cpufreq_generic_exit,
 	.name		= CPUFREQ_NAME,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct of_device_id exynos_cpufreq_match[] = {
