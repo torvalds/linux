@@ -2873,13 +2873,13 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 	return 0;
 }
 
-static ssize_t sdebug_delay_show(struct device_driver * ddp, char * buf)
+static ssize_t delay_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_delay);
 }
 
-static ssize_t sdebug_delay_store(struct device_driver * ddp,
-				  const char * buf, size_t count)
+static ssize_t delay_store(struct device_driver *ddp, const char *buf,
+			   size_t count)
 {
         int delay;
 	char work[20];
@@ -2892,16 +2892,15 @@ static ssize_t sdebug_delay_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(delay, S_IRUGO | S_IWUSR, sdebug_delay_show,
-	    sdebug_delay_store);
+static DRIVER_ATTR_RW(delay);
 
-static ssize_t sdebug_opts_show(struct device_driver * ddp, char * buf)
+static ssize_t opts_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "0x%x\n", scsi_debug_opts);
 }
 
-static ssize_t sdebug_opts_store(struct device_driver * ddp,
-				 const char * buf, size_t count)
+static ssize_t opts_store(struct device_driver *ddp, const char *buf,
+			  size_t count)
 {
         int opts;
 	char work[20];
@@ -2921,15 +2920,14 @@ opts_done:
 	scsi_debug_cmnd_count = 0;
 	return count;
 }
-DRIVER_ATTR(opts, S_IRUGO | S_IWUSR, sdebug_opts_show,
-	    sdebug_opts_store);
+static DRIVER_ATTR_RW(opts);
 
-static ssize_t sdebug_ptype_show(struct device_driver * ddp, char * buf)
+static ssize_t ptype_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_ptype);
 }
-static ssize_t sdebug_ptype_store(struct device_driver * ddp,
-				  const char * buf, size_t count)
+static ssize_t ptype_store(struct device_driver *ddp, const char *buf,
+			   size_t count)
 {
         int n;
 
@@ -2939,14 +2937,14 @@ static ssize_t sdebug_ptype_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(ptype, S_IRUGO | S_IWUSR, sdebug_ptype_show, sdebug_ptype_store);
+static DRIVER_ATTR_RW(ptype);
 
-static ssize_t sdebug_dsense_show(struct device_driver * ddp, char * buf)
+static ssize_t dsense_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_dsense);
 }
-static ssize_t sdebug_dsense_store(struct device_driver * ddp,
-				  const char * buf, size_t count)
+static ssize_t dsense_store(struct device_driver *ddp, const char *buf,
+			    size_t count)
 {
         int n;
 
@@ -2956,15 +2954,14 @@ static ssize_t sdebug_dsense_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(dsense, S_IRUGO | S_IWUSR, sdebug_dsense_show,
-	    sdebug_dsense_store);
+static DRIVER_ATTR_RW(dsense);
 
-static ssize_t sdebug_fake_rw_show(struct device_driver * ddp, char * buf)
+static ssize_t fake_rw_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_fake_rw);
 }
-static ssize_t sdebug_fake_rw_store(struct device_driver * ddp,
-				    const char * buf, size_t count)
+static ssize_t fake_rw_store(struct device_driver *ddp, const char *buf,
+			     size_t count)
 {
         int n;
 
@@ -2974,15 +2971,14 @@ static ssize_t sdebug_fake_rw_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(fake_rw, S_IRUGO | S_IWUSR, sdebug_fake_rw_show,
-	    sdebug_fake_rw_store);
+static DRIVER_ATTR_RW(fake_rw);
 
-static ssize_t sdebug_no_lun_0_show(struct device_driver * ddp, char * buf)
+static ssize_t no_lun_0_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_no_lun_0);
 }
-static ssize_t sdebug_no_lun_0_store(struct device_driver * ddp,
-				     const char * buf, size_t count)
+static ssize_t no_lun_0_store(struct device_driver *ddp, const char *buf,
+			      size_t count)
 {
         int n;
 
@@ -2992,15 +2988,14 @@ static ssize_t sdebug_no_lun_0_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(no_lun_0, S_IRUGO | S_IWUSR, sdebug_no_lun_0_show,
-	    sdebug_no_lun_0_store);
+static DRIVER_ATTR_RW(no_lun_0);
 
-static ssize_t sdebug_num_tgts_show(struct device_driver * ddp, char * buf)
+static ssize_t num_tgts_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_num_tgts);
 }
-static ssize_t sdebug_num_tgts_store(struct device_driver * ddp,
-				     const char * buf, size_t count)
+static ssize_t num_tgts_store(struct device_driver *ddp, const char *buf,
+			      size_t count)
 {
         int n;
 
@@ -3011,27 +3006,26 @@ static ssize_t sdebug_num_tgts_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(num_tgts, S_IRUGO | S_IWUSR, sdebug_num_tgts_show,
-	    sdebug_num_tgts_store);
+static DRIVER_ATTR_RW(num_tgts);
 
-static ssize_t sdebug_dev_size_mb_show(struct device_driver * ddp, char * buf)
+static ssize_t dev_size_mb_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_dev_size_mb);
 }
-DRIVER_ATTR(dev_size_mb, S_IRUGO, sdebug_dev_size_mb_show, NULL);
+static DRIVER_ATTR_RO(dev_size_mb);
 
-static ssize_t sdebug_num_parts_show(struct device_driver * ddp, char * buf)
+static ssize_t num_parts_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_num_parts);
 }
-DRIVER_ATTR(num_parts, S_IRUGO, sdebug_num_parts_show, NULL);
+static DRIVER_ATTR_RO(num_parts);
 
-static ssize_t sdebug_every_nth_show(struct device_driver * ddp, char * buf)
+static ssize_t every_nth_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_every_nth);
 }
-static ssize_t sdebug_every_nth_store(struct device_driver * ddp,
-				      const char * buf, size_t count)
+static ssize_t every_nth_store(struct device_driver *ddp, const char *buf,
+			       size_t count)
 {
         int nth;
 
@@ -3042,15 +3036,14 @@ static ssize_t sdebug_every_nth_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(every_nth, S_IRUGO | S_IWUSR, sdebug_every_nth_show,
-	    sdebug_every_nth_store);
+static DRIVER_ATTR_RW(every_nth);
 
-static ssize_t sdebug_max_luns_show(struct device_driver * ddp, char * buf)
+static ssize_t max_luns_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_max_luns);
 }
-static ssize_t sdebug_max_luns_store(struct device_driver * ddp,
-				     const char * buf, size_t count)
+static ssize_t max_luns_store(struct device_driver *ddp, const char *buf,
+			      size_t count)
 {
         int n;
 
@@ -3061,15 +3054,14 @@ static ssize_t sdebug_max_luns_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(max_luns, S_IRUGO | S_IWUSR, sdebug_max_luns_show,
-	    sdebug_max_luns_store);
+static DRIVER_ATTR_RW(max_luns);
 
-static ssize_t sdebug_max_queue_show(struct device_driver * ddp, char * buf)
+static ssize_t max_queue_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_max_queue);
 }
-static ssize_t sdebug_max_queue_store(struct device_driver * ddp,
-				      const char * buf, size_t count)
+static ssize_t max_queue_store(struct device_driver *ddp, const char *buf,
+			       size_t count)
 {
         int n;
 
@@ -3080,27 +3072,26 @@ static ssize_t sdebug_max_queue_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(max_queue, S_IRUGO | S_IWUSR, sdebug_max_queue_show,
-	    sdebug_max_queue_store);
+static DRIVER_ATTR_RW(max_queue);
 
-static ssize_t sdebug_no_uld_show(struct device_driver * ddp, char * buf)
+static ssize_t no_uld_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_no_uld);
 }
-DRIVER_ATTR(no_uld, S_IRUGO, sdebug_no_uld_show, NULL);
+static DRIVER_ATTR_RO(no_uld);
 
-static ssize_t sdebug_scsi_level_show(struct device_driver * ddp, char * buf)
+static ssize_t scsi_level_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_scsi_level);
 }
-DRIVER_ATTR(scsi_level, S_IRUGO, sdebug_scsi_level_show, NULL);
+static DRIVER_ATTR_RO(scsi_level);
 
-static ssize_t sdebug_virtual_gb_show(struct device_driver * ddp, char * buf)
+static ssize_t virtual_gb_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_virtual_gb);
 }
-static ssize_t sdebug_virtual_gb_store(struct device_driver * ddp,
-				       const char * buf, size_t count)
+static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
+				size_t count)
 {
         int n;
 
@@ -3113,16 +3104,15 @@ static ssize_t sdebug_virtual_gb_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(virtual_gb, S_IRUGO | S_IWUSR, sdebug_virtual_gb_show,
-	    sdebug_virtual_gb_store);
+static DRIVER_ATTR_RW(virtual_gb);
 
-static ssize_t sdebug_add_host_show(struct device_driver * ddp, char * buf)
+static ssize_t add_host_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_add_host);
 }
 
-static ssize_t sdebug_add_host_store(struct device_driver * ddp,
-				     const char * buf, size_t count)
+static ssize_t add_host_store(struct device_driver *ddp, const char *buf,
+			      size_t count)
 {
 	int delta_hosts;
 
@@ -3139,16 +3129,14 @@ static ssize_t sdebug_add_host_store(struct device_driver * ddp,
 	}
 	return count;
 }
-DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, sdebug_add_host_show,
-	    sdebug_add_host_store);
+static DRIVER_ATTR_RW(add_host);
 
-static ssize_t sdebug_vpd_use_hostno_show(struct device_driver * ddp,
-					  char * buf)
+static ssize_t vpd_use_hostno_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_vpd_use_hostno);
 }
-static ssize_t sdebug_vpd_use_hostno_store(struct device_driver * ddp,
-					   const char * buf, size_t count)
+static ssize_t vpd_use_hostno_store(struct device_driver *ddp, const char *buf,
+				    size_t count)
 {
 	int n;
 
@@ -3158,40 +3146,39 @@ static ssize_t sdebug_vpd_use_hostno_store(struct device_driver * ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(vpd_use_hostno, S_IRUGO | S_IWUSR, sdebug_vpd_use_hostno_show,
-	    sdebug_vpd_use_hostno_store);
+static DRIVER_ATTR_RW(vpd_use_hostno);
 
-static ssize_t sdebug_sector_size_show(struct device_driver * ddp, char * buf)
+static ssize_t sector_size_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%u\n", scsi_debug_sector_size);
 }
-DRIVER_ATTR(sector_size, S_IRUGO, sdebug_sector_size_show, NULL);
+static DRIVER_ATTR_RO(sector_size);
 
-static ssize_t sdebug_dix_show(struct device_driver *ddp, char *buf)
+static ssize_t dix_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_dix);
 }
-DRIVER_ATTR(dix, S_IRUGO, sdebug_dix_show, NULL);
+static DRIVER_ATTR_RO(dix);
 
-static ssize_t sdebug_dif_show(struct device_driver *ddp, char *buf)
+static ssize_t dif_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_dif);
 }
-DRIVER_ATTR(dif, S_IRUGO, sdebug_dif_show, NULL);
+static DRIVER_ATTR_RO(dif);
 
-static ssize_t sdebug_guard_show(struct device_driver *ddp, char *buf)
+static ssize_t guard_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%u\n", scsi_debug_guard);
 }
-DRIVER_ATTR(guard, S_IRUGO, sdebug_guard_show, NULL);
+static DRIVER_ATTR_RO(guard);
 
-static ssize_t sdebug_ato_show(struct device_driver *ddp, char *buf)
+static ssize_t ato_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_ato);
 }
-DRIVER_ATTR(ato, S_IRUGO, sdebug_ato_show, NULL);
+static DRIVER_ATTR_RO(ato);
 
-static ssize_t sdebug_map_show(struct device_driver *ddp, char *buf)
+static ssize_t map_show(struct device_driver *ddp, char *buf)
 {
 	ssize_t count;
 
@@ -3206,15 +3193,14 @@ static ssize_t sdebug_map_show(struct device_driver *ddp, char *buf)
 
 	return count;
 }
-DRIVER_ATTR(map, S_IRUGO, sdebug_map_show, NULL);
+static DRIVER_ATTR_RO(map);
 
-static ssize_t sdebug_removable_show(struct device_driver *ddp,
-				     char *buf)
+static ssize_t removable_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_removable ? 1 : 0);
 }
-static ssize_t sdebug_removable_store(struct device_driver *ddp,
-				      const char *buf, size_t count)
+static ssize_t removable_store(struct device_driver *ddp, const char *buf,
+			       size_t count)
 {
 	int n;
 
@@ -3224,74 +3210,43 @@ static ssize_t sdebug_removable_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(removable, S_IRUGO | S_IWUSR, sdebug_removable_show,
-	    sdebug_removable_store);
+static DRIVER_ATTR_RW(removable);
 
-
-/* Note: The following function creates attribute files in the
+/* Note: The following array creates attribute files in the
    /sys/bus/pseudo/drivers/scsi_debug directory. The advantage of these
    files (over those found in the /sys/module/scsi_debug/parameters
    directory) is that auxiliary actions can be triggered when an attribute
    is changed. For example see: sdebug_add_host_store() above.
  */
-static int do_create_driverfs_files(void)
-{
-	int ret;
 
-	ret = driver_create_file(&sdebug_driverfs_driver, &driver_attr_add_host);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_delay);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_dev_size_mb);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_dsense);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_fake_rw);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_max_queue);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_no_lun_0);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_no_uld);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_num_parts);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_num_tgts);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_ptype);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_opts);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_removable);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_scsi_level);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_virtual_gb);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_vpd_use_hostno);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_sector_size);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_dix);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_dif);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_guard);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_ato);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_map);
-	return ret;
-}
-
-static void do_remove_driverfs_files(void)
-{
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_map);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_ato);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_guard);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_dif);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_dix);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_sector_size);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_vpd_use_hostno);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_virtual_gb);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_scsi_level);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_opts);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_ptype);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_removable);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_num_tgts);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_num_parts);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_no_uld);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_no_lun_0);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_max_queue);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_fake_rw);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_dsense);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_dev_size_mb);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_delay);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_add_host);
-}
+static struct attribute *sdebug_drv_attrs[] = {
+	&driver_attr_delay.attr,
+	&driver_attr_opts.attr,
+	&driver_attr_ptype.attr,
+	&driver_attr_dsense.attr,
+	&driver_attr_fake_rw.attr,
+	&driver_attr_no_lun_0.attr,
+	&driver_attr_num_tgts.attr,
+	&driver_attr_dev_size_mb.attr,
+	&driver_attr_num_parts.attr,
+	&driver_attr_every_nth.attr,
+	&driver_attr_max_luns.attr,
+	&driver_attr_max_queue.attr,
+	&driver_attr_no_uld.attr,
+	&driver_attr_scsi_level.attr,
+	&driver_attr_virtual_gb.attr,
+	&driver_attr_add_host.attr,
+	&driver_attr_vpd_use_hostno.attr,
+	&driver_attr_sector_size.attr,
+	&driver_attr_dix.attr,
+	&driver_attr_dif.attr,
+	&driver_attr_guard.attr,
+	&driver_attr_ato.attr,
+	&driver_attr_map.attr,
+	&driver_attr_removable.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(sdebug_drv);
 
 struct device *pseudo_primary;
 
@@ -3456,12 +3411,6 @@ static int __init scsi_debug_init(void)
 			ret);
 		goto bus_unreg;
 	}
-	ret = do_create_driverfs_files();
-	if (ret < 0) {
-		printk(KERN_WARNING "scsi_debug: driver_create_file error: %d\n",
-			ret);
-		goto del_files;
-	}
 
 	init_all_queued();
 
@@ -3482,9 +3431,6 @@ static int __init scsi_debug_init(void)
 	}
 	return 0;
 
-del_files:
-	do_remove_driverfs_files();
-	driver_unregister(&sdebug_driverfs_driver);
 bus_unreg:
 	bus_unregister(&pseudo_lld_bus);
 dev_unreg:
@@ -3506,7 +3452,6 @@ static void __exit scsi_debug_exit(void)
 	stop_all_queued();
 	for (; k; k--)
 		sdebug_remove_adapter();
-	do_remove_driverfs_files();
 	driver_unregister(&sdebug_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
 	root_device_unregister(pseudo_primary);
@@ -4096,4 +4041,5 @@ static struct bus_type pseudo_lld_bus = {
 	.match = pseudo_lld_bus_match,
 	.probe = sdebug_driver_probe,
 	.remove = sdebug_driver_remove,
+	.drv_groups = sdebug_drv_groups,
 };
