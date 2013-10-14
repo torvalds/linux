@@ -310,20 +310,6 @@ config MACH_NOKIA_RX51
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP_ZOOM2
-	bool "OMAP3 Zoom2 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
-config MACH_OMAP_ZOOM3
-	bool "OMAP3630 Zoom3 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBP
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
 config MACH_CM_T35
 	bool "CompuLab CM-T35/CM-T3730 modules"
 	depends on ARCH_OMAP3
@@ -358,12 +344,6 @@ config MACH_SBC3530
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-
-config MACH_OMAP_3630SDP
-	bool "OMAP3630 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBP
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
