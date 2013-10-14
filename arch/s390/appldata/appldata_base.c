@@ -204,7 +204,7 @@ static int
 appldata_timer_handler(ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int len;
+	unsigned int len;
 	char buf[2];
 
 	if (!*lenp || *ppos) {
@@ -246,7 +246,8 @@ static int
 appldata_interval_handler(ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int len, interval;
+	unsigned int len;
+	int interval;
 	char buf[16];
 
 	if (!*lenp || *ppos) {
@@ -290,7 +291,8 @@ appldata_generic_handler(ctl_table *ctl, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;
-	int rc, len, found;
+	unsigned int len;
+	int rc, found;
 	char buf[2];
 	struct list_head *lh;
 
