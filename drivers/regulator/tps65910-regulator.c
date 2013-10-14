@@ -481,7 +481,7 @@ static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
 
 	/* multiplier 0 == 1 but 2,3 normal */
 	if (!mult)
-		mult=1;
+		mult = 1;
 
 	if (sr) {
 		/* normalise to valid range */
@@ -685,7 +685,7 @@ static int tps65910_list_voltage_dcdc(struct regulator_dev *dev,
 	case TPS65910_REG_VDD2:
 		mult = (selector / VDD1_2_NUM_VOLT_FINE) + 1;
 		volt = VDD1_2_MIN_VOLT +
-				(selector % VDD1_2_NUM_VOLT_FINE) * VDD1_2_OFFSET;
+			(selector % VDD1_2_NUM_VOLT_FINE) * VDD1_2_OFFSET;
 		break;
 	case TPS65911_REG_VDDCTRL:
 		volt = VDDCTRL_MIN_VOLT + (selector * VDDCTRL_OFFSET);
@@ -703,7 +703,7 @@ static int tps65911_list_voltage(struct regulator_dev *dev, unsigned selector)
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
 	int step_mv = 0, id = rdev_get_id(dev);
 
-	switch(id) {
+	switch (id) {
 	case TPS65911_REG_LDO1:
 	case TPS65911_REG_LDO2:
 	case TPS65911_REG_LDO4:
@@ -1074,7 +1074,7 @@ static int tps65910_probe(struct platform_device *pdev)
 	tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
 				DEVCTRL_SR_CTL_I2C_SEL_MASK);
 
-	switch(tps65910_chip_id(tps65910)) {
+	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
 		pmic->get_ctrl_reg = &tps65910_get_ctrl_register;
 		pmic->num_regulators = ARRAY_SIZE(tps65910_regs);
