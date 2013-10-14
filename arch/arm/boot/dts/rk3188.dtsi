@@ -1,0 +1,253 @@
+/*
+ * Copyright (c) 2013 MundoReader S.L.
+ * Author: Heiko Stuebner <heiko@sntech.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include "rk3xxx.dtsi"
+#include "rk3188-clocks.dtsi"
+
+/ {
+	compatible = "rockchip,rk3188";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x0>;
+		};
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x1>;
+		};
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x2>;
+		};
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x3>;
+		};
+	};
+
+	soc {
+		global-timer@1013c200 {
+			interrupts = <GIC_PPI 11 0xf04>;
+		};
+
+		local-timer@1013c600 {
+			interrupts = <GIC_PPI 13 0xf04>;
+		};
+
+		pinctrl@20008000 {
+			compatible = "rockchip,rk3188-pinctrl";
+			reg = <0x20008000 0xa0>,
+			      <0x20008164 0x1a0>;
+			reg-names = "base", "pull";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gpio0: gpio0@0x2000a000 {
+				compatible = "rockchip,rk3188-gpio-bank0";
+				reg = <0x2000a000 0x100>,
+				      <0x20004064 0x8>;
+				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk_gates8 9>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio1: gpio1@0x2003c000 {
+				compatible = "rockchip,gpio-bank";
+				reg = <0x2003c000 0x100>;
+				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk_gates8 10>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio2: gpio2@2003e000 {
+				compatible = "rockchip,gpio-bank";
+				reg = <0x2003e000 0x100>;
+				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk_gates8 11>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio3: gpio3@20080000 {
+				compatible = "rockchip,gpio-bank";
+				reg = <0x20080000 0x100>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk_gates8 12>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			pcfg_pull_up: pcfg_pull_up {
+				bias-pull-up;
+			};
+
+			pcfg_pull_down: pcfg_pull_down {
+				bias-pull-down;
+			};
+
+			pcfg_pull_none: pcfg_pull_none {
+				bias-disable;
+			};
+
+			uart0 {
+				uart0_xfer: uart0-xfer {
+					rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO1 1 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				uart0_cts: uart0-cts {
+					rockchip,pins = <RK_GPIO1 2 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				uart0_rts: uart0-rts {
+					rockchip,pins = <RK_GPIO1 3 RK_FUNC_1 &pcfg_pull_none>;
+				};
+			};
+
+			uart1 {
+				uart1_xfer: uart1-xfer {
+					rockchip,pins = <RK_GPIO1 4 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO1 5 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				uart1_cts: uart1-cts {
+					rockchip,pins = <RK_GPIO1 6 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				uart1_rts: uart1-rts {
+					rockchip,pins = <RK_GPIO1 7 RK_FUNC_1 &pcfg_pull_none>;
+				};
+			};
+
+			uart2 {
+				uart2_xfer: uart2-xfer {
+					rockchip,pins = <RK_GPIO1 8 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO1 9 RK_FUNC_1 &pcfg_pull_none>;
+				};
+				/* no rts / cts for uart2 */
+			};
+
+			uart3 {
+				uart3_xfer: uart3-xfer {
+					rockchip,pins = <RK_GPIO1 10 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO1 11 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				uart3_cts: uart3-cts {
+					rockchip,pins = <RK_GPIO1 12 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				uart3_rts: uart3-rts {
+					rockchip,pins = <RK_GPIO1 13 RK_FUNC_1 &pcfg_pull_none>;
+				};
+			};
+
+			sd0 {
+				sd0_clk: sd0-clk {
+					rockchip,pins = <RK_GPIO3 2 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd0_cmd: sd0-cmd {
+					rockchip,pins = <RK_GPIO3 3 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd0_cd: sd0-cd {
+					rockchip,pins = <RK_GPIO3 8 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd0_wp: sd0-wp {
+					rockchip,pins = <RK_GPIO3 9 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd0_pwr: sd0-pwr {
+					rockchip,pins = <RK_GPIO3 1 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd0_bus1: sd0-bus-width1 {
+					rockchip,pins = <RK_GPIO3 4 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd0_bus4: sd0-bus-width4 {
+					rockchip,pins = <RK_GPIO3 4 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO3 5 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO3 6 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO3 7 RK_FUNC_1 &pcfg_pull_none>;
+				};
+			};
+
+			sd1 {
+				sd1_clk: sd1-clk {
+					rockchip,pins = <RK_GPIO3 21 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd1_cmd: sd1-cmd {
+					rockchip,pins = <RK_GPIO3 16 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd1_cd: sd1-cd {
+					rockchip,pins = <RK_GPIO3 22 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd1_wp: sd1-wp {
+					rockchip,pins = <RK_GPIO3 23 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd1_bus1: sd1-bus-width1 {
+					rockchip,pins = <RK_GPIO3 17 RK_FUNC_1 &pcfg_pull_none>;
+				};
+
+				sd1_bus4: sd1-bus-width4 {
+					rockchip,pins = <RK_GPIO3 17 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO3 18 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO3 19 RK_FUNC_1 &pcfg_pull_none>,
+							<RK_GPIO3 20 RK_FUNC_1 &pcfg_pull_none>;
+				};
+			};
+		};
+	};
+};
