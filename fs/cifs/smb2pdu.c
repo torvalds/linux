@@ -1137,6 +1137,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	cifs_dbg(FYI, "SMB2 IOCTL\n");
 
+	*out_data = NULL;
 	/* zero out returned data len, in case of error */
 	if (plen)
 		*plen = 0;
@@ -1182,11 +1183,23 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		req->Flags = 0;
 
 	iov[0].iov_base = (char *)req;
-	/* 4 for rfc1002 length field */
-	iov[0].iov_len = get_rfc1002_length(req) + 4;
 
-	if (indatalen)
-		inc_rfc1001_len(req, indatalen);
+	/*
+	 * If no input data, the size of ioctl struct in
+	 * protocol spec still includes a 1 byte data buffer,
+	 * but if input data passed to ioctl, we do not
+	 * want to double count this, so we do not send
+	 * the dummy one byte of data in iovec[0] if sending
+	 * input data (in iovec[1]). We also must add 4 bytes
+	 * in first iovec to allow for rfc1002 length field.
+	 */
+
+	if (indatalen) {
+		iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+		inc_rfc1001_len(req, indatalen - 1);
+	} else
+		iov[0].iov_len = get_rfc1002_length(req) + 4;
+
 
 	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buftype, 0);
 	rsp = (struct smb2_ioctl_rsp *)iov[0].iov_base;
