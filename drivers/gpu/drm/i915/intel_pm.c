@@ -2843,37 +2843,19 @@ static unsigned int ilk_compute_wm_dirty(struct drm_device *dev,
 static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 				struct hsw_wm_values *results)
 {
-	struct hsw_wm_values previous;
+	struct hsw_wm_values *previous = &dev_priv->wm.hw;
 	unsigned int dirty;
 	uint32_t val;
 
-	previous.wm_pipe[0] = I915_READ(WM0_PIPEA_ILK);
-	previous.wm_pipe[1] = I915_READ(WM0_PIPEB_ILK);
-	previous.wm_pipe[2] = I915_READ(WM0_PIPEC_IVB);
-	previous.wm_lp[0] = I915_READ(WM1_LP_ILK);
-	previous.wm_lp[1] = I915_READ(WM2_LP_ILK);
-	previous.wm_lp[2] = I915_READ(WM3_LP_ILK);
-	previous.wm_lp_spr[0] = I915_READ(WM1S_LP_ILK);
-	previous.wm_lp_spr[1] = I915_READ(WM2S_LP_IVB);
-	previous.wm_lp_spr[2] = I915_READ(WM3S_LP_IVB);
-	previous.wm_linetime[0] = I915_READ(PIPE_WM_LINETIME(PIPE_A));
-	previous.wm_linetime[1] = I915_READ(PIPE_WM_LINETIME(PIPE_B));
-	previous.wm_linetime[2] = I915_READ(PIPE_WM_LINETIME(PIPE_C));
-
-	previous.partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
-				INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
-
-	previous.enable_fbc_wm = !(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
-
-	dirty = ilk_compute_wm_dirty(dev_priv->dev, &previous, results);
+	dirty = ilk_compute_wm_dirty(dev_priv->dev, previous, results);
 	if (!dirty)
 		return;
 
-	if (dirty & WM_DIRTY_LP(3) && previous.wm_lp[2] != 0)
+	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] != 0)
 		I915_WRITE(WM3_LP_ILK, 0);
-	if (dirty & WM_DIRTY_LP(2) && previous.wm_lp[1] != 0)
+	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] != 0)
 		I915_WRITE(WM2_LP_ILK, 0);
-	if (dirty & WM_DIRTY_LP(1) && previous.wm_lp[0] != 0)
+	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] != 0)
 		I915_WRITE(WM1_LP_ILK, 0);
 
 	if (dirty & WM_DIRTY_PIPE(PIPE_A))
@@ -2908,11 +2890,11 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(DISP_ARB_CTL, val);
 	}
 
-	if (dirty & WM_DIRTY_LP(1) && previous.wm_lp_spr[0] != results->wm_lp_spr[0])
+	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp_spr[0] != results->wm_lp_spr[0])
 		I915_WRITE(WM1S_LP_ILK, results->wm_lp_spr[0]);
-	if (dirty & WM_DIRTY_LP(2) && previous.wm_lp_spr[1] != results->wm_lp_spr[1])
+	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp_spr[1] != results->wm_lp_spr[1])
 		I915_WRITE(WM2S_LP_IVB, results->wm_lp_spr[1]);
-	if (dirty & WM_DIRTY_LP(3) && previous.wm_lp_spr[2] != results->wm_lp_spr[2])
+	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp_spr[2] != results->wm_lp_spr[2])
 		I915_WRITE(WM3S_LP_IVB, results->wm_lp_spr[2]);
 
 	if (dirty & WM_DIRTY_LP(1) && results->wm_lp[0] != 0)
@@ -3143,6 +3125,74 @@ static void sandybridge_update_sprite_wm(struct drm_plane *plane,
 		return;
 	}
 	I915_WRITE(WM3S_LP_IVB, sprite_wm);
+}
+
+static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct hsw_wm_values *hw = &dev_priv->wm.hw;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_pipe_wm *active = &intel_crtc->wm.active;
+	enum pipe pipe = intel_crtc->pipe;
+	static const unsigned int wm0_pipe_reg[] = {
+		[PIPE_A] = WM0_PIPEA_ILK,
+		[PIPE_B] = WM0_PIPEB_ILK,
+		[PIPE_C] = WM0_PIPEC_IVB,
+	};
+
+	hw->wm_pipe[pipe] = I915_READ(wm0_pipe_reg[pipe]);
+	hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
+
+	if (intel_crtc_active(crtc)) {
+		u32 tmp = hw->wm_pipe[pipe];
+
+		/*
+		 * For active pipes LP0 watermark is marked as
+		 * enabled, and LP1+ watermaks as disabled since
+		 * we can't really reverse compute them in case
+		 * multiple pipes are active.
+		 */
+		active->wm[0].enable = true;
+		active->wm[0].pri_val = (tmp & WM0_PIPE_PLANE_MASK) >> WM0_PIPE_PLANE_SHIFT;
+		active->wm[0].spr_val = (tmp & WM0_PIPE_SPRITE_MASK) >> WM0_PIPE_SPRITE_SHIFT;
+		active->wm[0].cur_val = tmp & WM0_PIPE_CURSOR_MASK;
+		active->linetime = hw->wm_linetime[pipe];
+	} else {
+		int level, max_level = ilk_wm_max_level(dev);
+
+		/*
+		 * For inactive pipes, all watermark levels
+		 * should be marked as enabled but zeroed,
+		 * which is what we'd compute them to.
+		 */
+		for (level = 0; level <= max_level; level++)
+			active->wm[level].enable = true;
+	}
+}
+
+void ilk_wm_get_hw_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct hsw_wm_values *hw = &dev_priv->wm.hw;
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		ilk_pipe_wm_get_hw_state(crtc);
+
+	hw->wm_lp[0] = I915_READ(WM1_LP_ILK);
+	hw->wm_lp[1] = I915_READ(WM2_LP_ILK);
+	hw->wm_lp[2] = I915_READ(WM3_LP_ILK);
+
+	hw->wm_lp_spr[0] = I915_READ(WM1S_LP_ILK);
+	hw->wm_lp_spr[1] = I915_READ(WM2S_LP_IVB);
+	hw->wm_lp_spr[2] = I915_READ(WM3S_LP_IVB);
+
+	hw->partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
+		INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
+
+	hw->enable_fbc_wm =
+		!(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
 }
 
 /**

@@ -10839,6 +10839,9 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		pll->on = false;
 	}
 
+	if (IS_HASWELL(dev))
+		ilk_wm_get_hw_state(dev);
+
 	if (force_restore) {
 		i915_redisable_vga(dev);
 
