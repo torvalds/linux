@@ -569,6 +569,13 @@ struct network_interface_info_ioctl_rsp {
 
 #define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv not to file */
 
+struct compress_ioctl {
+	__le16 CompressionState;
+} __packed;
+
+#define COMPRESSION_FORMAT_NONE		0x0000
+#define COMPRESSION_FORMAT_DEFAULT	0x0001
+#define COMPRESSION_FORMAT_LZNT1	0x0002
 struct smb2_ioctl_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 57 */
@@ -584,7 +591,7 @@ struct smb2_ioctl_req {
 	__le32 MaxOutputResponse;
 	__le32 Flags;
 	__u32  Reserved2;
-	char   Buffer[0];
+	__u8   Buffer[0];
 } __packed;
 
 struct smb2_ioctl_rsp {

@@ -278,6 +278,8 @@ struct smb_version_operations {
 	/* set attributes */
 	int (*set_file_info)(struct inode *, const char *, FILE_BASIC_INFO *,
 			     const unsigned int);
+	int (*set_compression)(const unsigned int, struct cifs_tcon *,
+			       struct cifsFileInfo *);
 	/* check if we can send an echo or nor */
 	bool (*can_echo)(struct TCP_Server_Info *);
 	/* send echo request */

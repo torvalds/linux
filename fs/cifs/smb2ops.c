@@ -446,6 +446,14 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
+smb2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile)
+{
+	return SMB2_set_compression(xid, tcon, cfile->fid.persistent_fid,
+			    cfile->fid.volatile_fid);
+}
+
+static int
 smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		     const char *path, struct cifs_sb_info *cifs_sb,
 		     struct cifs_fid *fid, __u16 search_flags,
@@ -874,6 +882,7 @@ struct smb_version_operations smb20_operations = {
 	.set_path_size = smb2_set_path_size,
 	.set_file_size = smb2_set_file_size,
 	.set_file_info = smb2_set_file_info,
+	.set_compression = smb2_set_compression,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
 	.rmdir = smb2_rmdir,
@@ -945,6 +954,7 @@ struct smb_version_operations smb21_operations = {
 	.set_path_size = smb2_set_path_size,
 	.set_file_size = smb2_set_file_size,
 	.set_file_info = smb2_set_file_info,
+	.set_compression = smb2_set_compression,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
 	.rmdir = smb2_rmdir,
@@ -1017,6 +1027,7 @@ struct smb_version_operations smb30_operations = {
 	.set_path_size = smb2_set_path_size,
 	.set_file_size = smb2_set_file_size,
 	.set_file_info = smb2_set_file_info,
+	.set_compression = smb2_set_compression,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
 	.rmdir = smb2_rmdir,
