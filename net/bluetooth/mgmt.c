@@ -1086,6 +1086,12 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 	if (!cmd)
 		goto unlock;
 
+	if (status) {
+		u8 mgmt_err = mgmt_status(status);
+		cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
+		goto remove_cmd;
+	}
+
 	cp = cmd->param;
 	if (cp->val)
 		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
@@ -1097,6 +1103,7 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 	if (changed)
 		new_settings(hdev, cmd->sk);
 
+remove_cmd:
 	mgmt_pending_remove(cmd);
 
 unlock:
