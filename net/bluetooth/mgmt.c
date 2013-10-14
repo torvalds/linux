@@ -3640,7 +3640,6 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	if (!hdev_is_powered(hdev)) {
 		if (!cp->val) {
-			clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
 			clear_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
@@ -3683,7 +3682,12 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
 
 	hci_req_init(&req, hdev);
+
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+		set_bredr_scan(&req);
+
 	hci_update_ad(&req);
+
 	err = hci_req_run(&req, set_bredr_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
