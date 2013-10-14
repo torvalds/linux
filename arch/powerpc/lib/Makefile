@@ -39,3 +39,6 @@ obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
 obj-y			+= code-patching.o
 obj-y			+= feature-fixups.o
 obj-$(CONFIG_FTR_FIXUP_SELFTEST) += feature-fixups-test.o
+
+obj-$(CONFIG_ALTIVEC)	+= xor_vmx.o
+CFLAGS_xor_vmx.o += -maltivec -mabi=altivec
