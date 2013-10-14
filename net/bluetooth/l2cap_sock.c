@@ -672,10 +672,13 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		if (opt)
+		if (opt) {
 			set_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
-		else
+			set_bit(FLAG_DEFER_SETUP, &chan->flags);
+		} else {
 			clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+			clear_bit(FLAG_DEFER_SETUP, &chan->flags);
+		}
 		break;
 
 	case BT_FLUSHABLE:
