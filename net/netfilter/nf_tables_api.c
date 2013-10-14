@@ -978,6 +978,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 	INIT_LIST_HEAD(&chain->rules);
 	chain->handle = nf_tables_alloc_handle(table);
+	chain->net = net;
 	nla_strlcpy(chain->name, name, NFT_CHAIN_MAXNAMELEN);
 
 	if (!(table->flags & NFT_TABLE_F_DORMANT) &&
@@ -1371,6 +1372,41 @@ err:
 	return err;
 }
 
+static inline bool
+nft_rule_is_active(struct net *net, const struct nft_rule *rule)
+{
+	return (rule->genmask & (1 << net->nft.gencursor)) == 0;
+}
+
+static inline int gencursor_next(struct net *net)
+{
+	return net->nft.gencursor+1 == 1 ? 1 : 0;
+}
+
+static inline int
+nft_rule_is_active_next(struct net *net, const struct nft_rule *rule)
+{
+	return (rule->genmask & (1 << gencursor_next(net))) == 0;
+}
+
+static inline void
+nft_rule_activate_next(struct net *net, struct nft_rule *rule)
+{
+	/* Now inactive, will be active in the future */
+	rule->genmask = (1 << net->nft.gencursor);
+}
+
+static inline void
+nft_rule_disactivate_next(struct net *net, struct nft_rule *rule)
+{
+	rule->genmask = (1 << gencursor_next(net));
+}
+
+static inline void nft_rule_clear(struct net *net, struct nft_rule *rule)
+{
+	rule->genmask = 0;
+}
+
 static int nf_tables_dump_rules(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
@@ -1382,6 +1418,8 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 	unsigned int idx = 0, s_idx = cb->args[0];
 	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
+	u8 genctr = ACCESS_ONCE(net->nft.genctr);
+	u8 gencursor = ACCESS_ONCE(net->nft.gencursor);
 
 	list_for_each_entry(afi, &net->nft.af_info, list) {
 		if (family != NFPROTO_UNSPEC && family != afi->family)
@@ -1390,6 +1428,8 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 		list_for_each_entry(table, &afi->tables, list) {
 			list_for_each_entry(chain, &table->chains, list) {
 				list_for_each_entry(rule, &chain->rules, list) {
+					if (!nft_rule_is_active(net, rule))
+						goto cont;
 					if (idx < s_idx)
 						goto cont;
 					if (idx > s_idx)
@@ -1408,6 +1448,10 @@ cont:
 		}
 	}
 done:
+	/* Invalidate this dump, a transition to the new generation happened */
+	if (gencursor != net->nft.gencursor || genctr != net->nft.genctr)
+		return -EBUSY;
+
 	cb->args[0] = idx;
 	return skb->len;
 }
@@ -1492,6 +1536,25 @@ static void nf_tables_rule_destroy(struct nft_rule *rule)
 
 static struct nft_expr_info *info;
 
+static struct nft_rule_trans *
+nf_tables_trans_add(struct nft_rule *rule, const struct nft_ctx *ctx)
+{
+	struct nft_rule_trans *rupd;
+
+	rupd = kmalloc(sizeof(struct nft_rule_trans), GFP_KERNEL);
+	if (rupd == NULL)
+	       return NULL;
+
+	rupd->chain = ctx->chain;
+	rupd->table = ctx->table;
+	rupd->rule = rule;
+	rupd->family = ctx->afi->family;
+	rupd->nlh = ctx->nlh;
+	list_add_tail(&rupd->list, &ctx->net->nft.commit_list);
+
+	return rupd;
+}
+
 static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			     const struct nlmsghdr *nlh,
 			     const struct nlattr * const nla[])
@@ -1502,6 +1565,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_table *table;
 	struct nft_chain *chain;
 	struct nft_rule *rule, *old_rule = NULL;
+	struct nft_rule_trans *repl = NULL;
 	struct nft_expr *expr;
 	struct nft_ctx ctx;
 	struct nlattr *tmp;
@@ -1576,6 +1640,8 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 	if (rule == NULL)
 		goto err1;
 
+	nft_rule_activate_next(net, rule);
+
 	rule->handle = handle;
 	rule->dlen   = size;
 
@@ -1589,8 +1655,18 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 	}
 
 	if (nlh->nlmsg_flags & NLM_F_REPLACE) {
-		list_replace_rcu(&old_rule->list, &rule->list);
-		nf_tables_rule_destroy(old_rule);
+		if (nft_rule_is_active_next(net, old_rule)) {
+			repl = nf_tables_trans_add(old_rule, &ctx);
+			if (repl == NULL) {
+				err = -ENOMEM;
+				goto err2;
+			}
+			nft_rule_disactivate_next(net, old_rule);
+			list_add_tail(&rule->list, &old_rule->list);
+		} else {
+			err = -ENOENT;
+			goto err2;
+		}
 	} else if (nlh->nlmsg_flags & NLM_F_APPEND)
 		if (old_rule)
 			list_add_rcu(&rule->list, &old_rule->list);
@@ -1603,11 +1679,20 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			list_add_rcu(&rule->list, &chain->rules);
 	}
 
-	nf_tables_rule_notify(skb, nlh, table, chain, rule, NFT_MSG_NEWRULE,
-			      nlh->nlmsg_flags & (NLM_F_APPEND | NLM_F_REPLACE),
-			      nfmsg->nfgen_family);
+	if (nf_tables_trans_add(rule, &ctx) == NULL) {
+		err = -ENOMEM;
+		goto err3;
+	}
 	return 0;
 
+err3:
+	list_del_rcu(&rule->list);
+	if (repl) {
+		list_del_rcu(&repl->rule->list);
+		list_del(&repl->list);
+		nft_rule_clear(net, repl->rule);
+		kfree(repl);
+	}
 err2:
 	nf_tables_rule_destroy(rule);
 err1:
@@ -1616,6 +1701,19 @@ err1:
 			module_put(info[i].ops->type->owner);
 	}
 	return err;
+}
+
+static int
+nf_tables_delrule_one(struct nft_ctx *ctx, struct nft_rule *rule)
+{
+	/* You cannot delete the same rule twice */
+	if (nft_rule_is_active_next(ctx->net, rule)) {
+		if (nf_tables_trans_add(rule, ctx) == NULL)
+			return -ENOMEM;
+		nft_rule_disactivate_next(ctx->net, rule);
+		return 0;
+	}
+	return -ENOENT;
 }
 
 static int nf_tables_delrule(struct sock *nlsk, struct sk_buff *skb,
@@ -1628,7 +1726,8 @@ static int nf_tables_delrule(struct sock *nlsk, struct sk_buff *skb,
 	const struct nft_table *table;
 	struct nft_chain *chain;
 	struct nft_rule *rule, *tmp;
-	int family = nfmsg->nfgen_family;
+	int family = nfmsg->nfgen_family, err = 0;
+	struct nft_ctx ctx;
 
 	afi = nf_tables_afinfo_lookup(net, family, false);
 	if (IS_ERR(afi))
@@ -1642,28 +1741,92 @@ static int nf_tables_delrule(struct sock *nlsk, struct sk_buff *skb,
 	if (IS_ERR(chain))
 		return PTR_ERR(chain);
 
+	nft_ctx_init(&ctx, skb, nlh, afi, table, chain, nla);
+
 	if (nla[NFTA_RULE_HANDLE]) {
 		rule = nf_tables_rule_lookup(chain, nla[NFTA_RULE_HANDLE]);
 		if (IS_ERR(rule))
 			return PTR_ERR(rule);
 
-		/* List removal must be visible before destroying expressions */
-		list_del_rcu(&rule->list);
-
-		nf_tables_rule_notify(skb, nlh, table, chain, rule,
-				      NFT_MSG_DELRULE, 0, family);
-		nf_tables_rule_destroy(rule);
+		err = nf_tables_delrule_one(&ctx, rule);
 	} else {
 		/* Remove all rules in this chain */
 		list_for_each_entry_safe(rule, tmp, &chain->rules, list) {
-			list_del_rcu(&rule->list);
-
-			nf_tables_rule_notify(skb, nlh, table, chain, rule,
-					      NFT_MSG_DELRULE, 0, family);
-			nf_tables_rule_destroy(rule);
+			err = nf_tables_delrule_one(&ctx, rule);
+			if (err < 0)
+				break;
 		}
 	}
 
+	return err;
+}
+
+static int nf_tables_commit(struct sk_buff *skb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nft_rule_trans *rupd, *tmp;
+
+	/* Bump generation counter, invalidate any dump in progress */
+	net->nft.genctr++;
+
+	/* A new generation has just started */
+	net->nft.gencursor = gencursor_next(net);
+
+	/* Make sure all packets have left the previous generation before
+	 * purging old rules.
+	 */
+	synchronize_rcu();
+
+	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
+		/* Delete this rule from the dirty list */
+		list_del(&rupd->list);
+
+		/* This rule was inactive in the past and just became active.
+		 * Clear the next bit of the genmask since its meaning has
+		 * changed, now it is the future.
+		 */
+		if (nft_rule_is_active(net, rupd->rule)) {
+			nft_rule_clear(net, rupd->rule);
+			nf_tables_rule_notify(skb, rupd->nlh, rupd->table,
+					      rupd->chain, rupd->rule,
+					      NFT_MSG_NEWRULE, 0,
+					      rupd->family);
+			kfree(rupd);
+			continue;
+		}
+
+		/* This rule is in the past, get rid of it */
+		list_del_rcu(&rupd->rule->list);
+		nf_tables_rule_notify(skb, rupd->nlh, rupd->table, rupd->chain,
+				      rupd->rule, NFT_MSG_DELRULE, 0,
+				      rupd->family);
+		nf_tables_rule_destroy(rupd->rule);
+		kfree(rupd);
+	}
+
+	return 0;
+}
+
+static int nf_tables_abort(struct sk_buff *skb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct nft_rule_trans *rupd, *tmp;
+
+	list_for_each_entry_safe(rupd, tmp, &net->nft.commit_list, list) {
+		/* Delete all rules from the dirty list */
+		list_del(&rupd->list);
+
+		if (!nft_rule_is_active_next(net, rupd->rule)) {
+			nft_rule_clear(net, rupd->rule);
+			kfree(rupd);
+			continue;
+		}
+
+		/* This rule is inactive, get rid of it */
+		list_del_rcu(&rupd->rule->list);
+		nf_tables_rule_destroy(rupd->rule);
+		kfree(rupd);
+	}
 	return 0;
 }
 
@@ -2634,7 +2797,7 @@ static const struct nfnl_callback nf_tables_cb[NFT_MSG_MAX] = {
 		.policy		= nft_chain_policy,
 	},
 	[NFT_MSG_NEWRULE] = {
-		.call		= nf_tables_newrule,
+		.call_batch	= nf_tables_newrule,
 		.attr_count	= NFTA_RULE_MAX,
 		.policy		= nft_rule_policy,
 	},
@@ -2644,7 +2807,7 @@ static const struct nfnl_callback nf_tables_cb[NFT_MSG_MAX] = {
 		.policy		= nft_rule_policy,
 	},
 	[NFT_MSG_DELRULE] = {
-		.call		= nf_tables_delrule,
+		.call_batch	= nf_tables_delrule,
 		.attr_count	= NFTA_RULE_MAX,
 		.policy		= nft_rule_policy,
 	},
@@ -2685,6 +2848,8 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.subsys_id	= NFNL_SUBSYS_NFTABLES,
 	.cb_count	= NFT_MSG_MAX,
 	.cb		= nf_tables_cb,
+	.commit		= nf_tables_commit,
+	.abort		= nf_tables_abort,
 };
 
 /*
@@ -3056,6 +3221,7 @@ EXPORT_SYMBOL_GPL(nft_data_dump);
 static int nf_tables_init_net(struct net *net)
 {
 	INIT_LIST_HEAD(&net->nft.af_info);
+	INIT_LIST_HEAD(&net->nft.commit_list);
 	return 0;
 }
 

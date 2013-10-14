@@ -323,16 +323,37 @@ static inline void *nft_expr_priv(const struct nft_expr *expr)
  *	@list: used internally
  *	@rcu_head: used internally for rcu
  *	@handle: rule handle
+ *	@genmask: generation mask
  *	@dlen: length of expression data
  *	@data: expression data
  */
 struct nft_rule {
 	struct list_head		list;
 	struct rcu_head			rcu_head;
-	u64				handle:48,
+	u64				handle:46,
+					genmask:2,
 					dlen:16;
 	unsigned char			data[]
 		__attribute__((aligned(__alignof__(struct nft_expr))));
+};
+
+/**
+ *	struct nft_rule_trans - nf_tables rule update in transaction
+ *
+ *	@list: used internally
+ *	@rule: rule that needs to be updated
+ *	@chain: chain that this rule belongs to
+ *	@table: table for which this chain applies
+ *	@nlh: netlink header of the message that contain this update
+ *	@family: family expressesed as AF_*
+ */
+struct nft_rule_trans {
+	struct list_head		list;
+	struct nft_rule			*rule;
+	const struct nft_chain		*chain;
+	const struct nft_table		*table;
+	const struct nlmsghdr		*nlh;
+	u8				family;
 };
 
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
@@ -370,6 +391,7 @@ enum nft_chain_flags {
  *	@rules: list of rules in the chain
  *	@list: used internally
  *	@rcu_head: used internally
+ *	@net: net namespace that this chain belongs to
  *	@handle: chain handle
  *	@flags: bitmask of enum nft_chain_flags
  *	@use: number of jump references to this chain
@@ -380,6 +402,7 @@ struct nft_chain {
 	struct list_head		rules;
 	struct list_head		list;
 	struct rcu_head			rcu_head;
+	struct net			*net;
 	u64				handle;
 	u8				flags;
 	u16				use;

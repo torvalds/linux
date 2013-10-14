@@ -88,12 +88,22 @@ nft_do_chain_pktinfo(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	struct nft_data data[NFT_REG_MAX + 1];
 	unsigned int stackptr = 0;
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
+	/*
+	 * Cache cursor to avoid problems in case that the cursor is updated
+	 * while traversing the ruleset.
+	 */
+	unsigned int gencursor = ACCESS_ONCE(chain->net->nft.gencursor);
 
 do_chain:
 	rule = list_entry(&chain->rules, struct nft_rule, list);
 next_rule:
 	data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
 	list_for_each_entry_continue_rcu(rule, &chain->rules, list) {
+
+		/* This rule is not active, skip. */
+		if (unlikely(rule->genmask & (1 << gencursor)))
+			continue;
+
 		nft_rule_for_each_expr(expr, last, rule) {
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, data);
