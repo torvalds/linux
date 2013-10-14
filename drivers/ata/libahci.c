@@ -778,8 +778,16 @@ static void ahci_start_port(struct ata_port *ap)
 				rc = ap->ops->transmit_led_message(ap,
 							       emp->led_state,
 							       4);
+				/*
+				 * If busy, give a breather but do not
+				 * release EH ownership by using msleep()
+				 * instead of ata_msleep().  EM Transmit
+				 * bit is busy for the whole host and
+				 * releasing ownership will cause other
+				 * ports to fail the same way.
+				 */
 				if (rc == -EBUSY)
-					ata_msleep(ap, 1);
+					msleep(1);
 				else
 					break;
 			}
