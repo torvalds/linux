@@ -382,7 +382,6 @@ error_ret:
 }
 
 static const struct iio_buffer_setup_ops lis3l02dq_buffer_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &lis3l02dq_buffer_postenable,
 	.predisable = &lis3l02dq_buffer_predisable,
 };
