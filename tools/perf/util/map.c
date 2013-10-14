@@ -371,6 +371,23 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 	return NULL;
 }
 
+int map_groups__find_ams(struct addr_map_symbol *ams, symbol_filter_t filter)
+{
+	if (ams->addr < ams->map->start || ams->addr > ams->map->end) {
+		if (ams->map->groups == NULL)
+			return -1;
+		ams->map = map_groups__find(ams->map->groups, ams->map->type,
+					    ams->addr);
+		if (ams->map == NULL)
+			return -1;
+	}
+
+	ams->al_addr = ams->map->map_ip(ams->map, ams->addr);
+	ams->sym = map__find_symbol(ams->map, ams->al_addr, filter);
+
+	return ams->sym ? 0 : -1;
+}
+
 size_t __map_groups__fprintf_maps(struct map_groups *mg,
 				  enum map_type type, int verbose, FILE *fp)
 {
