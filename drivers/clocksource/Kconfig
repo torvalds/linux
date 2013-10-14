@@ -34,6 +34,7 @@ config ORION_TIMER
 	bool
 
 config SUN4I_TIMER
+	select CLKSRC_MMIO
 	bool
 
 config VT8500_TIMER
