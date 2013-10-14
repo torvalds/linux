@@ -654,9 +654,11 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	int pos = 0;
 	char *buf;
 	int ret;
-	int bufsz = sizeof(struct mvm_statistics_rx_phy) * 20 +
-		    sizeof(struct mvm_statistics_rx_non_phy) * 10 +
-		    sizeof(struct mvm_statistics_rx_ht_phy) * 10 + 200;
+	/* 43 is the size of each data line, 33 is the size of each header */
+	size_t bufsz =
+		((sizeof(struct mvm_statistics_rx) / sizeof(__le32)) * 43) +
+		(4 * 33) + 1;
+
 	struct mvm_statistics_rx_phy *ofdm;
 	struct mvm_statistics_rx_phy *cck;
 	struct mvm_statistics_rx_non_phy *general;
@@ -751,6 +753,7 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	PRINT_STATS_LE32("beacon_energy_b", general->beacon_energy_b);
 	PRINT_STATS_LE32("beacon_energy_c", general->beacon_energy_c);
 	PRINT_STATS_LE32("num_bt_kills", general->num_bt_kills);
+	PRINT_STATS_LE32("mac_id", general->mac_id);
 	PRINT_STATS_LE32("directed_data_mpdu", general->directed_data_mpdu);
 
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
