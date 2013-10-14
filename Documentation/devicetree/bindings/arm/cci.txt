@@ -36,14 +36,18 @@ specific to ARM.
 
 	- reg
 		Usage: required
-		Value type: <prop-encoded-array>
+		Value type: Integer cells. A register entry, expressed as a pair
+			    of cells, containing base and size.
 		Definition: A standard property. Specifies base physical
 			    address of CCI control registers common to all
 			    interfaces.
 
 	- ranges:
 		Usage: required
-		Value type: <prop-encoded-array>
+		Value type: Integer cells. An array of range entries, expressed
+			    as a tuple of cells, containing child address,
+			    parent address and the size of the region in the
+			    child address space.
 		Definition: A standard property. Follow rules in the ePAPR for
 			    hierarchical bus addressing. CCI interfaces
 			    addresses refer to the parent node addressing
@@ -74,10 +78,48 @@ specific to ARM.
 
 		- reg:
 			Usage: required
-			Value type: <prop-encoded-array>
+			Value type: Integer cells. A register entry, expressed
+				    as a pair of cells, containing base and
+				    size.
 			Definition: the base address and size of the
 				    corresponding interface programming
 				    registers.
+
+	- CCI PMU node
+
+		Parent node must be CCI interconnect node.
+
+		A CCI pmu node must contain the following properties:
+
+		- compatible
+			Usage: required
+			Value type: <string>
+			Definition: must be "arm,cci-400-pmu"
+
+		- reg:
+			Usage: required
+			Value type: Integer cells. A register entry, expressed
+				    as a pair of cells, containing base and
+				    size.
+			Definition: the base address and size of the
+				    corresponding interface programming
+				    registers.
+
+		- interrupts:
+			Usage: required
+			Value type: Integer cells. Array of interrupt specifier
+				    entries, as defined in
+				    ../interrupt-controller/interrupts.txt.
+			Definition: list of counter overflow interrupts, one per
+				    counter. The interrupts must be specified
+				    starting with the cycle counter overflow
+				    interrupt, followed by counter0 overflow
+				    interrupt, counter1 overflow interrupt,...
+				    ,counterN overflow interrupt.
+
+				    The CCI PMU has an interrupt signal for each
+				    counter. The number of interrupts must be
+				    equal to the number of counters.
 
 * CCI interconnect bus masters
 
@@ -144,7 +186,7 @@ Example:
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0 0x2c090000 0 0x1000>;
-		ranges = <0x0 0x0 0x2c090000 0x6000>;
+		ranges = <0x0 0x0 0x2c090000 0x10000>;
 
 		cci_control0: slave-if@1000 {
 			compatible = "arm,cci-400-ctrl-if";
@@ -162,6 +204,16 @@ Example:
 			compatible = "arm,cci-400-ctrl-if";
 			interface-type = "ace";
 			reg = <0x5000 0x1000>;
+		};
+
+		pmu@9000 {
+			 compatible = "arm,cci-400-pmu";
+			 reg = <0x9000 0x5000>;
+			 interrupts = <0 101 4>,
+				      <0 102 4>,
+				      <0 103 4>,
+				      <0 104 4>,
+				      <0 105 4>;
 		};
 	};
 
