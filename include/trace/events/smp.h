@@ -5,11 +5,10 @@
 #define _TRACE_SMP_H
 
 #include <linux/tracepoint.h>
-typedef void (*__smp_call_func_t)(void *info);
 
 DECLARE_EVENT_CLASS(smp_call_class,
 
-	TP_PROTO(__smp_call_func_t fnc),
+	TP_PROTO(void * fnc),
 
 	TP_ARGS(fnc),
 
@@ -35,7 +34,7 @@ DECLARE_EVENT_CLASS(smp_call_class,
  */
 DEFINE_EVENT(smp_call_class, smp_call_func_entry,
 
-	TP_PROTO(__smp_call_func_t fnc),
+	TP_PROTO(void * fnc),
 
 	TP_ARGS(fnc)
 );
@@ -51,7 +50,7 @@ DEFINE_EVENT(smp_call_class, smp_call_func_entry,
  */
 DEFINE_EVENT(smp_call_class, smp_call_func_exit,
 
-	TP_PROTO(__smp_call_func_t fnc),
+	TP_PROTO(void * fnc),
 
 	TP_ARGS(fnc)
 );
@@ -67,7 +66,7 @@ DEFINE_EVENT(smp_call_class, smp_call_func_exit,
  */
 TRACE_EVENT(smp_call_func_send,
 
-	TP_PROTO(__smp_call_func_t func, int dest),
+	TP_PROTO(void * func, int dest),
 
 	TP_ARGS(func, dest),
 
