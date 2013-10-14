@@ -3182,6 +3182,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	r = radeon_ib_get(rdev, ring->idx, &ib, NULL, 256);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
+		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
@@ -3198,6 +3199,8 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+		radeon_scratch_free(rdev, scratch);
+		radeon_ib_free(rdev, &ib);
 		return r;
 	}
 	for (i = 0; i < rdev->usec_timeout; i++) {
