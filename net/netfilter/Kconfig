@@ -413,6 +413,43 @@ config NETFILTER_SYNPROXY
 
 endif # NF_CONNTRACK
 
+config NF_TABLES
+	depends on NETFILTER_NETLINK
+	tristate "Netfilter nf_tables support"
+
+config NFT_EXTHDR
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables IPv6 exthdr module"
+
+config NFT_META
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables meta module"
+
+config NFT_CT
+	depends on NF_TABLES
+	depends on NF_CONNTRACK
+	tristate "Netfilter nf_tables conntrack module"
+
+config NFT_SET
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables set module"
+
+config NFT_HASH
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables hash module"
+
+config NFT_COUNTER
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables counter module"
+
+config NFT_LOG
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables log module"
+
+config NFT_LIMIT
+	depends on NF_TABLES
+	tristate "Netfilter nf_tables limit module"
+
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
 	default m if NETFILTER_ADVANCED=n

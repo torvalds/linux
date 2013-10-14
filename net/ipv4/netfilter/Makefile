@@ -27,6 +27,11 @@ obj-$(CONFIG_NF_NAT_SNMP_BASIC) += nf_nat_snmp_basic.o
 # NAT protocols (nf_nat)
 obj-$(CONFIG_NF_NAT_PROTO_GRE) += nf_nat_proto_gre.o
 
+obj-$(CONFIG_NF_TABLES_IPV4) += nf_tables_ipv4.o
+obj-$(CONFIG_NFT_REJECT_IPV4) += nft_reject_ipv4.o
+obj-$(CONFIG_NF_TABLE_ROUTE_IPV4) += nf_table_route_ipv4.o
+obj-$(CONFIG_NF_TABLE_NAT_IPV4) += nf_table_nat_ipv4.o
+
 # generic IP tables 
 obj-$(CONFIG_IP_NF_IPTABLES) += ip_tables.o
 

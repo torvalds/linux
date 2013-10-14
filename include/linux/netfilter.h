@@ -53,12 +53,13 @@ struct nf_hook_ops {
 	struct list_head list;
 
 	/* User fills in from here down. */
-	nf_hookfn *hook;
-	struct module *owner;
-	u_int8_t pf;
-	unsigned int hooknum;
+	nf_hookfn	*hook;
+	struct module	*owner;
+	void		*priv;
+	u_int8_t	pf;
+	unsigned int	hooknum;
 	/* Hooks are ordered in ascending priority. */
-	int priority;
+	int		priority;
 };
 
 struct nf_sockopt_ops {

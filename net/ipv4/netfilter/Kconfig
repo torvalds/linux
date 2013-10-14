@@ -36,6 +36,22 @@ config NF_CONNTRACK_PROC_COMPAT
 
 	  If unsure, say Y.
 
+config NF_TABLES_IPV4
+	depends on NF_TABLES
+	tristate "IPv4 nf_tables support"
+
+config NFT_REJECT_IPV4
+	depends on NF_TABLES_IPV4
+	tristate "nf_tables IPv4 reject support"
+
+config NF_TABLE_ROUTE_IPV4
+	depends on NF_TABLES_IPV4
+	tristate "IPv4 nf_tables route table support"
+
+config NF_TABLE_NAT_IPV4
+	depends on NF_TABLES_IPV4
+	tristate "IPv4 nf_tables nat table support"
+
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
 	default m if NETFILTER_ADVANCED=n
