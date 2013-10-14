@@ -418,6 +418,34 @@ static int tegra_submit(struct drm_device *drm, void *data,
 
 	return context->client->ops->submit(context, args, drm, file);
 }
+
+static int tegra_get_syncpt_base(struct drm_device *drm, void *data,
+				 struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_get_syncpt_base *args = data;
+	struct tegra_drm_context *context;
+	struct host1x_syncpt_base *base;
+	struct host1x_syncpt *syncpt;
+
+	context = tegra_drm_get_context(args->context);
+
+	if (!tegra_drm_file_owns_context(fpriv, context))
+		return -ENODEV;
+
+	if (args->syncpt >= context->client->base.num_syncpts)
+		return -EINVAL;
+
+	syncpt = context->client->base.syncpts[args->syncpt];
+
+	base = host1x_syncpt_get_base(syncpt);
+	if (!base)
+		return -ENXIO;
+
+	args->id = host1x_syncpt_base_id(base);
+
+	return 0;
+}
 #endif
 
 static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
@@ -431,6 +459,7 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(TEGRA_CLOSE_CHANNEL, tegra_close_channel, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT, tegra_get_syncpt, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT, tegra_submit, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT_BASE, tegra_get_syncpt_base, DRM_UNLOCKED),
 #endif
 };
 
