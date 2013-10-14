@@ -3049,7 +3049,7 @@ do {								\
  * file/line information and a backtrace.
  */
 #define netdev_WARN(dev, format, args...)			\
-	WARN(1, "netdevice: %s\n" format, netdev_name(dev), ##args);
+	WARN(1, "netdevice: %s\n" format, netdev_name(dev), ##args)
 
 /* netif printk helpers, similar to netdev_printk */
 
