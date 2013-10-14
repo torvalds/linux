@@ -286,6 +286,9 @@ void vRunCommand(struct work_struct *work)
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u8 byData;
 
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
+
     if (pDevice->dwDiagRefCount != 0)
         return;
     if (pDevice->bCmdRunning != true)

@@ -1339,6 +1339,9 @@ void RXvWorkItem(struct work_struct *work)
 	int ntStatus;
 	struct vnt_rcb *pRCB = NULL;
 
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
+
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
 
@@ -1397,6 +1400,9 @@ void RXvMngWorkItem(struct work_struct *work)
 	struct vnt_rcb *pRCB = NULL;
 	struct vnt_rx_mgmt *pRxPacket;
 	int bReAllocSkb = false;
+
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Mng Thread\n");
 

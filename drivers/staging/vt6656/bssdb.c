@@ -824,6 +824,9 @@ void BSSvSecondCallBack(struct work_struct *work)
 	u32 uNonShortSlotSTACnt = 0;
 	u32 uLongPreambleSTACnt = 0;
 
+	if (pDevice->Flags & fMP_DISCONNECTED)
+		return;
+
     spin_lock_irq(&pDevice->lock);
 
     pDevice->uAssocCount = 0;
