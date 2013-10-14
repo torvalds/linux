@@ -74,13 +74,13 @@
 				green_pwr_led {
 					label = "mirabox:green:pwr";
 					gpios = <&gpio1 31 1>;
-					linux,default-trigger = "heartbeat";
+					default-state = "keep";
 				};
 
 				blue_stat_led {
 					label = "mirabox:blue:stat";
 					gpios = <&gpio2 0 1>;
-					linux,default-trigger = "cpu0";
+					default-state = "off";
 				};
 
 				green_stat_led {

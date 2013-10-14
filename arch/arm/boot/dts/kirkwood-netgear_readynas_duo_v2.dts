@@ -113,7 +113,7 @@
 		power_led {
 			label = "status:blue:power_led";
 			gpios = <&gpio0 31 1>;   /* GPIO 31 Active Low */
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 		activity_led {
 			label = "status:blue:activity_led";

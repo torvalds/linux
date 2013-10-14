@@ -82,7 +82,7 @@
 		green-os {
 			label = "ib62x0:green:os";
 			gpios = <&gpio0 25 0>;
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 		red-os {
 			label = "ib62x0:red:os";

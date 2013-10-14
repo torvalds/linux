@@ -26,7 +26,7 @@
 		blue-sata {
 			label = "ns2:blue:sata";
 			gpios = <&gpio0 30 1>;
-			linux,default-trigger = "default-on";
+			linux,default-trigger = "ide-disk";
 		};
 	};
 };
