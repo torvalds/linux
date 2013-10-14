@@ -84,6 +84,9 @@ static inline u64 identity__map_ip(struct map *map __maybe_unused, u64 ip)
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
 u64 map__rip_2objdump(struct map *map, u64 rip);
 
+/* objdump address -> memory address */
+u64 map__objdump_2mem(struct map *map, u64 ip);
+
 struct symbol;
 
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);

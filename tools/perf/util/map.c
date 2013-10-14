@@ -252,10 +252,16 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	return fprintf(fp, "%s", dsoname);
 }
 
-/*
+/**
+ * map__rip_2objdump - convert symbol start address to objdump address.
+ * @map: memory map
+ * @rip: symbol start address
+ *
  * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
  * map->dso->adjust_symbols==1 for ET_EXEC-like cases except ET_REL which is
  * relative to section start.
+ *
+ * Return: Address suitable for passing to "objdump --start-address="
  */
 u64 map__rip_2objdump(struct map *map, u64 rip)
 {
@@ -266,6 +272,29 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 		return rip - map->pgoff;
 
 	return map->unmap_ip(map, rip);
+}
+
+/**
+ * map__objdump_2mem - convert objdump address to a memory address.
+ * @map: memory map
+ * @ip: objdump address
+ *
+ * Closely related to map__rip_2objdump(), this function takes an address from
+ * objdump and converts it to a memory address.  Note this assumes that @map
+ * contains the address.  To be sure the result is valid, check it forwards
+ * e.g. map__rip_2objdump(map->map_ip(map, map__objdump_2mem(map, ip))) == ip
+ *
+ * Return: Memory address.
+ */
+u64 map__objdump_2mem(struct map *map, u64 ip)
+{
+	if (!map->dso->adjust_symbols)
+		return map->unmap_ip(map, ip);
+
+	if (map->dso->rel)
+		return map->unmap_ip(map, ip + map->pgoff);
+
+	return ip;
 }
 
 void map_groups__init(struct map_groups *mg)

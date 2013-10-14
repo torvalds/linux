@@ -445,14 +445,17 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	struct annotation *notes;
 	struct addr_map_symbol target = {
 		.map = ms->map,
-		.addr = dl->ops.target.addr,
+		.addr = map__objdump_2mem(ms->map, dl->ops.target.addr),
 	};
 	char title[SYM_TITLE_MAX_SIZE];
 
 	if (!ins__is_call(dl->ins))
 		return false;
 
-	if (map_groups__find_ams(&target, NULL)) {
+	if (map_groups__find_ams(&target, NULL) ||
+	    map__rip_2objdump(target.map, target.map->map_ip(target.map,
+							     target.addr)) !=
+	    dl->ops.target.addr) {
 		ui_helpline__puts("The called function was not found.");
 		return true;
 	}
