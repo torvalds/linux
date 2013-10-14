@@ -2715,15 +2715,10 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 	size = sizeof(tmp) +
 		tmp.dest_count * sizeof(struct btrfs_ioctl_same_extent_info);
 
-	same = kmalloc(size, GFP_NOFS);
-	if (!same) {
-		ret = -EFAULT;
-		goto out;
-	}
+	same = memdup_user((struct btrfs_ioctl_same_args __user *)argp, size);
 
-	if (copy_from_user(same,
-			   (struct btrfs_ioctl_same_args __user *)argp, size)) {
-		ret = -EFAULT;
+	if (IS_ERR(same)) {
+		ret = PTR_ERR(same);
 		goto out;
 	}
 
