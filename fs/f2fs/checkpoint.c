@@ -757,8 +757,15 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	f2fs_put_page(cp_page, 1);
 
 	/* wait for previous submitted node/meta pages writeback */
-	while (get_pages(sbi, F2FS_WRITEBACK))
-		congestion_wait(BLK_RW_ASYNC, HZ / 50);
+	sbi->cp_task = current;
+	while (get_pages(sbi, F2FS_WRITEBACK)) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (!get_pages(sbi, F2FS_WRITEBACK))
+			break;
+		io_schedule();
+	}
+	__set_current_state(TASK_RUNNING);
+	sbi->cp_task = NULL;
 
 	filemap_fdatawait_range(sbi->node_inode->i_mapping, 0, LONG_MAX);
 	filemap_fdatawait_range(sbi->meta_inode->i_mapping, 0, LONG_MAX);

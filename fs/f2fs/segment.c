@@ -597,6 +597,10 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 
 	if (p->is_sync)
 		complete(p->wait);
+
+	if (!get_pages(p->sbi, F2FS_WRITEBACK) && p->sbi->cp_task)
+		wake_up_process(p->sbi->cp_task);
+
 	kfree(p);
 	bio_put(bio);
 }

@@ -362,6 +362,7 @@ struct f2fs_sb_info {
 	struct mutex writepages;		/* mutex for writepages() */
 	int por_doing;				/* recovery is doing or not */
 	int on_build_free_nids;			/* build_free_nids is doing */
+	struct task_struct *cp_task;		/* checkpoint task */
 
 	/* for orphan inode management */
 	struct list_head orphan_inode_list;	/* orphan inode list */
