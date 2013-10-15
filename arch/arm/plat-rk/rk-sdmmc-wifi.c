@@ -246,6 +246,14 @@ struct rksdmmc_gpio_wifi_moudle  rk_platform_wifi_gpio = {
 
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+static int rk29sdk_wifi_mmc0_status(struct device *dev);
+static int rk29sdk_wifi_mmc0_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
+static int rk29sdk_wifi_mmc0_cd = 0;   /* wifi virtual 'card detect' status */
+static void (*wifi_mmc0_status_cb)(int card_present, void *dev_id);
+static void *wifi_mmc0_status_cb_devid;
+#endif
+
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
 #define PREALLOC_WLAN_SECTION_HEADER    24
@@ -322,6 +330,23 @@ err_skb_alloc:
         return -ENOMEM;
 }
 
+
+#if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+static int rk29sdk_wifi_mmc0_status(struct device *dev)
+
+{
+        return rk29sdk_wifi_mmc0_cd;
+}
+
+static int rk29sdk_wifi_mmc0_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
+{
+        if(wifi_mmc0_status_cb)
+                return -EAGAIN;
+        wifi_mmc0_status_cb = callback;
+        wifi_mmc0_status_cb_devid = dev_id;
+        return 0;
+}
+#else
 static int rk29sdk_wifi_status(struct device *dev)
 {
         return rk29sdk_wifi_cd;
@@ -335,6 +360,7 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
         wifi_status_cb_devid = dev_id;
         return 0;
 }
+#endif
 
 static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
@@ -498,6 +524,19 @@ static int rk29sdk_wifi_reset(int on)
         return 0;
 }
 
+#if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+int rk29sdk_wifi_set_carddetect(int val)
+{
+    printk("%s:%d\n", __func__, val);
+    rk29sdk_wifi_mmc0_cd = val;
+    if (wifi_mmc0_status_cb){
+            wifi_mmc0_status_cb(val, wifi_mmc0_status_cb_devid);
+    }else {
+            pr_warning("%s,in mmc0 nobody to notify\n", __func__);
+    }
+    return 0; 
+}
+#else
 int rk29sdk_wifi_set_carddetect(int val)
 {
         pr_info("%s:%d\n", __func__, val);
@@ -509,6 +548,7 @@ int rk29sdk_wifi_set_carddetect(int val)
         }
         return 0;
 }
+#endif
 EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
 #include <linux/etherdevice.h>
