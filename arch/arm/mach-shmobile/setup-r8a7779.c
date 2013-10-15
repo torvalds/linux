@@ -610,33 +610,6 @@ static struct resource ether_resources[] __initdata = {
 	},
 };
 
-#define R8A7779_VIN(idx) \
-static struct resource vin##idx##_resources[] __initdata = {		\
-	DEFINE_RES_MEM(0xffc50000 + 0x1000 * (idx), 0x1000),		\
-	DEFINE_RES_IRQ(gic_iid(0x5f + (idx))),				\
-};									\
-									\
-static struct platform_device_info vin##idx##_info __initdata = {	\
-	.parent		= &platform_bus,				\
-	.name		= "r8a7779-vin",				\
-	.id		= idx,						\
-	.res		= vin##idx##_resources,				\
-	.num_res	= ARRAY_SIZE(vin##idx##_resources),		\
-	.dma_mask	= DMA_BIT_MASK(32),				\
-}
-
-R8A7779_VIN(0);
-R8A7779_VIN(1);
-R8A7779_VIN(2);
-R8A7779_VIN(3);
-
-static struct platform_device_info *vin_info_table[] __initdata = {
-	&vin0_info,
-	&vin1_info,
-	&vin2_info,
-	&vin3_info,
-};
-
 /* HPB-DMA */
 
 /* Asynchronous mode register bits */
@@ -831,16 +804,6 @@ void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)
 					  ether_resources,
 					  ARRAY_SIZE(ether_resources),
 					  pdata, sizeof(*pdata));
-}
-
-void __init r8a7779_add_vin_device(int id, struct rcar_vin_platform_data *pdata)
-{
-	BUG_ON(id < 0 || id > 3);
-
-	vin_info_table[id]->data = pdata;
-	vin_info_table[id]->size_data = sizeof(*pdata);
-
-	platform_device_register_full(vin_info_table[id]);
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
