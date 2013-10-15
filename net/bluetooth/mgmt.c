@@ -1143,15 +1143,13 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (!!cp->val == test_bit(HCI_DISCOVERABLE, &hdev->dev_flags)) {
-		if (hdev->discov_timeout > 0) {
-			cancel_delayed_work(&hdev->discov_off);
-			hdev->discov_timeout = 0;
-		}
+		cancel_delayed_work(&hdev->discov_off);
+		hdev->discov_timeout = timeout;
 
-		if (cp->val && timeout > 0) {
-			hdev->discov_timeout = timeout;
+		if (cp->val && hdev->discov_timeout > 0) {
+			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
 			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
-				msecs_to_jiffies(hdev->discov_timeout * 1000));
+					   to);
 		}
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_DISCOVERABLE, hdev);
