@@ -1450,12 +1450,7 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 				l2cap_chan_ready(chan);
 
 		} else if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
-			struct sock *sk = chan->sk;
-			__clear_chan_timer(chan);
-			lock_sock(sk);
-			__l2cap_state_change(chan, BT_CONNECTED);
-			sk->sk_state_change(sk);
-			release_sock(sk);
+			l2cap_chan_ready(chan);
 
 		} else if (chan->state == BT_CONNECT) {
 			l2cap_do_start(chan);
