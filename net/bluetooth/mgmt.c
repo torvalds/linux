@@ -4288,6 +4288,30 @@ void mgmt_set_powered_failed(struct hci_dev *hdev, int err)
 	mgmt_pending_remove(cmd);
 }
 
+void mgmt_discoverable_timeout(struct hci_dev *hdev)
+{
+	struct hci_request req;
+	u8 scan = SCAN_PAGE;
+
+	hci_dev_lock(hdev);
+
+	/* When discoverable timeout triggers, then just make sure
+	 * the limited discoverable flag is cleared. Even in the case
+	 * of a timeout triggered from general discoverable, it is
+	 * safe to unconditionally clear the flag.
+	 */
+	clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
+	update_class(&req);
+	hci_req_run(&req, NULL);
+
+	hdev->discov_timeout = 0;
+
+	hci_dev_unlock(hdev);
+}
+
 void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 {
 	bool changed;

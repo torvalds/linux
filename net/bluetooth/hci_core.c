@@ -1705,29 +1705,12 @@ static void hci_power_off(struct work_struct *work)
 static void hci_discov_off(struct work_struct *work)
 {
 	struct hci_dev *hdev;
-	struct hci_request req;
-	u8 scan = SCAN_PAGE;
 
 	hdev = container_of(work, struct hci_dev, discov_off.work);
 
 	BT_DBG("%s", hdev->name);
 
-	hci_dev_lock(hdev);
-
-	hci_req_init(&req, hdev);
-	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
-	hci_req_run(&req, NULL);
-
-	/* When discoverable timeout triggers, then just make sure
-	 * the limited discoverable flag is cleared. Even in the case
-	 * of a timeout triggered from general discoverable, it is
-	 * safe to unconditionally clear the flag.
-	 */
-	clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-
-	hdev->discov_timeout = 0;
-
-	hci_dev_unlock(hdev);
+	mgmt_discoverable_timeout(hdev);
 }
 
 int hci_uuids_clear(struct hci_dev *hdev)
