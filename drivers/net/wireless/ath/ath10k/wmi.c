@@ -2763,7 +2763,7 @@ int ath10k_wmi_vdev_set_param(struct ath10k *ar, u32 vdev_id,
 		ath10k_dbg(ATH10K_DBG_WMI,
 			   "vdev param %d not supported by firmware\n",
 			    param_id);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
