@@ -824,6 +824,12 @@ struct hci_rp_read_num_supported_iac {
 
 #define HCI_OP_READ_CURRENT_IAC_LAP	0x0c39
 
+#define HCI_OP_WRITE_CURRENT_IAC_LAP	0x0c3a
+struct hci_cp_write_current_iac_lap {
+	__u8	num_iac;
+	__u8	iac_lap[6];
+} __packed;
+
 #define HCI_OP_WRITE_INQUIRY_MODE	0x0c45
 
 #define HCI_MAX_EIR_LENGTH		240
