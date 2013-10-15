@@ -93,6 +93,7 @@ static int btmtk_usb_io_read32(struct btmtk_usb_data *data, u32 reg, u32 *val)
 	u8 request = data->r_request;
 	struct usb_device *udev = data->udev;
 	int ret;
+	__le32 val_le;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), request,
 			DEVICE_VENDOR_REQUEST_IN, 0x0, reg, data->io_buf,
@@ -105,9 +106,9 @@ static int btmtk_usb_io_read32(struct btmtk_usb_data *data, u32 reg, u32 *val)
 		return ret;
 	}
 
-	memmove(val, data->io_buf, 4);
+	memmove(&val_le, data->io_buf, 4);
 
-	*val = le32_to_cpu(*val);
+	*val = le32_to_cpu(val_le);
 
 	if (ret > 0)
 		ret = 0;
@@ -280,6 +281,7 @@ static u16 btmtk_usb_get_crc(struct btmtk_usb_data *data)
 	int ret = 0;
 	struct usb_device *udev = data->udev;
 	u16 crc, count = 0;
+	__le16 crc_le;
 
 	BT_DBG("%s\n", __func__);
 
@@ -294,9 +296,9 @@ static u16 btmtk_usb_get_crc(struct btmtk_usb_data *data)
 			BT_ERR("%s error(%d)\n", __func__, ret);
 		}
 
-		memmove(&crc, data->io_buf, 2);
+		memmove(&crc_le, data->io_buf, 2);
 
-		crc = le16_to_cpu(crc);
+		crc = le16_to_cpu(crc_le);
 
 		if (crc != 0xFFFF)
 			break;
