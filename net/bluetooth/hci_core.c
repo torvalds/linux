@@ -685,10 +685,8 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
 
-	if (lmp_le_capable(hdev)) {
+	if (lmp_le_capable(hdev))
 		hci_set_le_support(req);
-		hci_update_ad(req);
-	}
 
 	/* Read features beyond page 1 if available */
 	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
@@ -1125,89 +1123,6 @@ int hci_inquiry(void __user *arg)
 done:
 	hci_dev_put(hdev);
 	return err;
-}
-
-static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
-{
-	u8 ad_len = 0, flags = 0;
-	size_t name_len;
-
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
-		flags |= LE_AD_GENERAL;
-
-	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
-		if (lmp_le_br_capable(hdev))
-			flags |= LE_AD_SIM_LE_BREDR_CTRL;
-		if (lmp_host_le_br_capable(hdev))
-			flags |= LE_AD_SIM_LE_BREDR_HOST;
-	} else {
-		flags |= LE_AD_NO_BREDR;
-	}
-
-	if (flags) {
-		BT_DBG("adv flags 0x%02x", flags);
-
-		ptr[0] = 2;
-		ptr[1] = EIR_FLAGS;
-		ptr[2] = flags;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID) {
-		ptr[0] = 2;
-		ptr[1] = EIR_TX_POWER;
-		ptr[2] = (u8) hdev->adv_tx_power;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	name_len = strlen(hdev->dev_name);
-	if (name_len > 0) {
-		size_t max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
-
-		if (name_len > max_len) {
-			name_len = max_len;
-			ptr[1] = EIR_NAME_SHORT;
-		} else
-			ptr[1] = EIR_NAME_COMPLETE;
-
-		ptr[0] = name_len + 1;
-
-		memcpy(ptr + 2, hdev->dev_name, name_len);
-
-		ad_len += (name_len + 2);
-		ptr += (name_len + 2);
-	}
-
-	return ad_len;
-}
-
-void hci_update_ad(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_data cp;
-	u8 len;
-
-	if (!lmp_le_capable(hdev))
-		return;
-
-	memset(&cp, 0, sizeof(cp));
-
-	len = create_ad(hdev, cp.data);
-
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
-		return;
-
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
-
-	cp.length = len;
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
 static int hci_dev_do_open(struct hci_dev *hdev)
