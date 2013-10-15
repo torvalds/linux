@@ -1172,9 +1172,9 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 	if (result < 0)
 		goto release_sq;
 
-	spin_lock(&nvmeq->q_lock);
+	spin_lock_irq(&nvmeq->q_lock);
 	nvme_init_queue(nvmeq, qid);
-	spin_unlock(&nvmeq->q_lock);
+	spin_unlock_irq(&nvmeq->q_lock);
 
 	return result;
 
@@ -1290,9 +1290,9 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	if (result)
 		return result;
 
-	spin_lock(&nvmeq->q_lock);
+	spin_lock_irq(&nvmeq->q_lock);
 	nvme_init_queue(nvmeq, 0);
-	spin_unlock(&nvmeq->q_lock);
+	spin_unlock_irq(&nvmeq->q_lock);
 	return result;
 }
 
@@ -1836,9 +1836,9 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	for (i = dev->queue_count - 1; i > nr_io_queues; i--) {
 		struct nvme_queue *nvmeq = dev->queues[i];
 
-		spin_lock(&nvmeq->q_lock);
+		spin_lock_irq(&nvmeq->q_lock);
 		nvme_cancel_ios(nvmeq, false);
-		spin_unlock(&nvmeq->q_lock);
+		spin_unlock_irq(&nvmeq->q_lock);
 
 		nvme_free_queue(nvmeq);
 		dev->queue_count--;
