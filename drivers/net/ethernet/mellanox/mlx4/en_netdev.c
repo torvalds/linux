@@ -1733,7 +1733,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 
 	/* Unregister Mac address for the port */
 	mlx4_en_put_qp(priv);
-	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN))
+	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN))
 		mdev->mac_removed[priv->port] = 1;
 
 	/* Free RX Rings */
