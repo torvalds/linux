@@ -648,7 +648,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	}
 
 	/* reduced Txpower only if BT is on, so ...*/
-	if (le32_to_cpu(data->notif->bt_activity_grading) == BT_OFF) {
+	if (!data->notif->bt_status) {
 		/* ... cancel reduced Tx power ... */
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
@@ -868,7 +868,7 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	/* No BT - reports should be disabled */
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF)
+	if (!mvm->last_bt_notif.bt_status)
 		return;
 
 	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
