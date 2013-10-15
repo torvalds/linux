@@ -2006,6 +2006,9 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
 	fi->keytype = keytype;
 	fi->framelen = framelen;
+
+	if (!rate)
+		return;
 	fi->rtscts_rate = rate->hw_value;
 	if (short_preamble)
 		fi->rtscts_rate |= rate->hw_value_short;
