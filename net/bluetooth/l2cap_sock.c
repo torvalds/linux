@@ -1072,11 +1072,15 @@ static void l2cap_sock_teardown_cb(struct l2cap_chan *chan, int err)
 	release_sock(sk);
 }
 
-static void l2cap_sock_state_change_cb(struct l2cap_chan *chan, int state)
+static void l2cap_sock_state_change_cb(struct l2cap_chan *chan, int state,
+				       int err)
 {
 	struct sock *sk = chan->data;
 
 	sk->sk_state = state;
+
+	if (err)
+		sk->sk_err = err;
 }
 
 static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,

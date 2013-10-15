@@ -229,7 +229,7 @@ static void __l2cap_state_change(struct l2cap_chan *chan, int state)
 	       state_to_string(state));
 
 	chan->state = state;
-	chan->ops->state_change(chan, state);
+	chan->ops->state_change(chan, state, 0);
 }
 
 static void l2cap_state_change(struct l2cap_chan *chan, int state)
@@ -243,9 +243,7 @@ static void l2cap_state_change(struct l2cap_chan *chan, int state)
 
 static inline void __l2cap_chan_set_err(struct l2cap_chan *chan, int err)
 {
-	struct sock *sk = chan->sk;
-
-	sk->sk_err = err;
+	chan->ops->state_change(chan, chan->state, err);
 }
 
 static inline void l2cap_chan_set_err(struct l2cap_chan *chan, int err)

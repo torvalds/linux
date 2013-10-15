@@ -672,7 +672,8 @@ static void a2mp_chan_close_cb(struct l2cap_chan *chan)
 	l2cap_chan_put(chan);
 }
 
-static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state)
+static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state,
+				      int err)
 {
 	struct amp_mgr *mgr = chan->data;
 
