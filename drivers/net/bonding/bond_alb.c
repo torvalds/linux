@@ -230,7 +230,7 @@ static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 	max_gap = LLONG_MIN;
 
 	/* Find the slave with the largest gap */
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (SLAVE_IS_OK(slave)) {
 			long long gap = compute_gap(slave);
 
@@ -388,6 +388,39 @@ static struct slave *rlb_next_rx_slave(struct bonding *bond)
 	bool found = false;
 
 	bond_for_each_slave(bond, slave, iter) {
+		if (!SLAVE_IS_OK(slave))
+			continue;
+		if (!found) {
+			if (!before || before->speed < slave->speed)
+				before = slave;
+		} else {
+			if (!rx_slave || rx_slave->speed < slave->speed)
+				rx_slave = slave;
+		}
+		if (slave == bond_info->rx_slave)
+			found = true;
+	}
+	/* we didn't find anything after the current or we have something
+	 * better before and up to the current slave
+	 */
+	if (!rx_slave || (before && rx_slave->speed < before->speed))
+		rx_slave = before;
+
+	if (rx_slave)
+		bond_info->rx_slave = rx_slave;
+
+	return rx_slave;
+}
+
+/* Caller must hold rcu_read_lock() for read */
+static struct slave *__rlb_next_rx_slave(struct bonding *bond)
+{
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct slave *before = NULL, *rx_slave = NULL, *slave;
+	struct list_head *iter;
+	bool found = false;
+
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (!SLAVE_IS_OK(slave))
 			continue;
 		if (!found) {
@@ -628,11 +661,13 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct arp_pkt *arp = arp_pkt(skb);
-	struct slave *assigned_slave;
+	struct slave *assigned_slave, *curr_active_slave;
 	struct rlb_client_info *client_info;
 	u32 hash_index = 0;
 
 	_lock_rx_hashtbl(bond);
+
+	curr_active_slave = rcu_dereference(bond->curr_active_slave);
 
 	hash_index = _simple_hash((u8 *)&arp->ip_dst, sizeof(arp->ip_dst));
 	client_info = &(bond_info->rx_hashtbl[hash_index]);
@@ -658,14 +693,14 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 			 * that the new client can be assigned to this entry.
 			 */
 			if (bond->curr_active_slave &&
-			    client_info->slave != bond->curr_active_slave) {
-				client_info->slave = bond->curr_active_slave;
+			    client_info->slave != curr_active_slave) {
+				client_info->slave = curr_active_slave;
 				rlb_update_client(client_info);
 			}
 		}
 	}
 	/* assign a new slave */
-	assigned_slave = rlb_next_rx_slave(bond);
+	assigned_slave = __rlb_next_rx_slave(bond);
 
 	if (assigned_slave) {
 		if (!(client_info->assigned &&
@@ -728,7 +763,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 	/* Don't modify or load balance ARPs that do not originate locally
 	 * (e.g.,arrive via a bridge).
 	 */
-	if (!bond_slave_has_mac(bond, arp->mac_src))
+	if (!bond_slave_has_mac_rcu(bond, arp->mac_src))
 		return NULL;
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
@@ -1343,11 +1378,6 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
 
-	/* make sure that the curr_active_slave do not change during tx
-	 */
-	read_lock(&bond->lock);
-	read_lock(&bond->curr_slave_lock);
-
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP: {
 		const struct iphdr *iph = ip_hdr(skb);
@@ -1429,12 +1459,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 
 	if (!tx_slave) {
 		/* unbalanced or unassigned, send through primary */
-		tx_slave = bond->curr_active_slave;
+		tx_slave = rcu_dereference(bond->curr_active_slave);
 		bond_info->unbalanced_load += skb->len;
 	}
 
 	if (tx_slave && SLAVE_IS_OK(tx_slave)) {
-		if (tx_slave != bond->curr_active_slave) {
+		if (tx_slave != rcu_dereference(bond->curr_active_slave)) {
 			memcpy(eth_data->h_source,
 			       tx_slave->dev->dev_addr,
 			       ETH_ALEN);
@@ -1449,8 +1479,6 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-	read_unlock(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 	if (res) {
 		/* no suitable interface, frame not sent */
 		kfree_skb(skb);
