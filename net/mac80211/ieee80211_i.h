@@ -1208,6 +1208,14 @@ struct ieee80211_ra_tid {
 	u16 tid;
 };
 
+/* this struct holds the value parsing from channel switch IE  */
+struct ieee80211_csa_ie {
+	struct cfg80211_chan_def chandef;
+	u8 mode;
+	u8 count;
+	u8 ttl;
+};
+
 /* Parsed Information Elements */
 struct ieee802_11_elems {
 	const u8 *ie_start;
@@ -1505,17 +1513,16 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  *	%IEEE80211_STA_DISABLE_HT, %IEEE80211_STA_DISABLE_VHT,
  *	%IEEE80211_STA_DISABLE_40MHZ, %IEEE80211_STA_DISABLE_80P80MHZ,
  *	%IEEE80211_STA_DISABLE_160MHZ.
- * @count: to be filled with the counter until the switch (on success only)
  * @bssid: the currently connected bssid (for reporting)
- * @mode: to be filled with CSA mode (on success only)
- * @new_chandef: to be filled with destination chandef (on success only)
+ * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
+	All of them will be filled with if success only.
  * Return: 0 on success, <0 on error and >0 if there is nothing to parse.
  */
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems, bool beacon,
 				 enum ieee80211_band current_band,
-				 u32 sta_flags, u8 *bssid, u8 *count, u8 *mode,
-				 struct cfg80211_chan_def *new_chandef);
+				 u32 sta_flags, u8 *bssid,
+				 struct ieee80211_csa_ie *csa_ie);
 
 /* Suspend/resume and hw reconfiguration */
 int ieee80211_reconfig(struct ieee80211_local *local);

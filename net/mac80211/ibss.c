@@ -836,13 +836,13 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				  bool beacon)
 {
 	struct cfg80211_csa_settings params;
+	struct ieee80211_csa_ie csa_ie;
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_chanctx *chanctx;
 	enum nl80211_channel_type ch_type;
 	int err, num_chanctx;
 	u32 sta_flags;
-	u8 mode;
 
 	if (sdata->vif.csa_active)
 		return true;
@@ -865,12 +865,10 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	memset(&params, 0, sizeof(params));
+	memset(&csa_ie, 0, sizeof(csa_ie));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems, beacon,
 					   ifibss->chandef.chan->band,
-					   sta_flags, ifibss->bssid,
-					   &params.count, &mode,
-					   &params.chandef);
-
+					   sta_flags, ifibss->bssid, &csa_ie);
 	/* can't switch to destination channel, fail */
 	if (err < 0)
 		goto disconnect;
@@ -878,6 +876,9 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	/* did not contain a CSA */
 	if (err)
 		return false;
+
+	params.count = csa_ie.count;
+	params.chandef = csa_ie.chandef;
 
 	if (ifibss->chandef.chan->band != params.chandef.chan->band)
 		goto disconnect;
@@ -965,7 +966,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		 "received channel switch announcement to go to channel %d MHz\n",
 		 params.chandef.chan->center_freq);
 
-	params.block_tx = !!mode;
+	params.block_tx = !!csa_ie.mode;
 
 	ieee80211_ibss_csa_beacon(sdata, &params);
 	sdata->csa_radar_required = params.radar_required;
