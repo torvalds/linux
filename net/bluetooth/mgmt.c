@@ -4813,13 +4813,13 @@ void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 		sock_put(match.sk);
 }
 
-int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
+void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 {
 	struct mgmt_cp_set_local_name ev;
 	struct pending_cmd *cmd;
 
 	if (status)
-		return 0;
+		return;
 
 	memset(&ev, 0, sizeof(ev));
 	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
@@ -4833,11 +4833,11 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 		 * HCI dev don't send any mgmt signals.
 		 */
 		if (mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
-			return 0;
+			return;
 	}
 
-	return mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
-			  cmd ? cmd->sk : NULL);
+	mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
+		   cmd ? cmd->sk : NULL);
 }
 
 int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
