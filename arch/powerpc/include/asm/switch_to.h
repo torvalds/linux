@@ -25,10 +25,8 @@ static inline void save_tar(struct thread_struct *prev)
 static inline void save_tar(struct thread_struct *prev) {}
 #endif
 
-extern void load_up_fpu(void);
 extern void enable_kernel_fp(void);
 extern void enable_kernel_altivec(void);
-extern void load_up_altivec(struct task_struct *);
 extern int emulate_altivec(struct pt_regs *);
 extern void __giveup_vsx(struct task_struct *);
 extern void giveup_vsx(struct task_struct *);

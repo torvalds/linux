@@ -25,9 +25,5 @@ EXPORT_SYMBOL_GPL(kvmppc_hv_entry_trampoline);
 #endif
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 EXPORT_SYMBOL_GPL(kvmppc_entry_trampoline);
-EXPORT_SYMBOL_GPL(kvmppc_load_up_fpu);
-#ifdef CONFIG_ALTIVEC
-EXPORT_SYMBOL_GPL(kvmppc_load_up_altivec);
-#endif
 #endif
 

@@ -136,7 +136,8 @@ static inline void kvmppc_load_guest_fp(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_PPC_FPU
 	if (vcpu->fpu_active && !(current->thread.regs->msr & MSR_FP)) {
-		load_up_fpu();
+		enable_kernel_fp();
+		load_fp_state(&current->thread.fp_state);
 		current->thread.regs->msr |= MSR_FP;
 	}
 #endif

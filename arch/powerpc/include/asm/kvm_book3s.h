@@ -186,9 +186,6 @@ extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);
-extern void kvmppc_load_up_fpu(void);
-extern void kvmppc_load_up_altivec(void);
-extern void kvmppc_load_up_vsx(void);
 extern u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst);
 extern ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst);
 extern int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd);
