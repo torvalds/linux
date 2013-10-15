@@ -430,53 +430,24 @@ static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
     switch (byDurType) {
 
     case RTSDUR_BB:    //RTSDuration_bb
-        uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-        uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-        break;
-
     case RTSDUR_BA:    //RTSDuration_ba
-        uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-        uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-        break;
-
-    case RTSDUR_AA:    //RTSDuration_aa
-        uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-        uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-        break;
-
-    case CTSDUR_BA:    //CTSDuration_ba
-        uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-        break;
-
     case RTSDUR_BA_F0: //RTSDuration_ba_f0
-        uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
-			byPktType, cbFrameLength, wRate, bNeedAck);
-        break;
-
-    case RTSDUR_AA_F0: //RTSDuration_aa_f0
-        uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
-			byPktType, cbFrameLength, wRate, bNeedAck);
-        break;
-
     case RTSDUR_BA_F1: //RTSDuration_ba_f1
         uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
 	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
 		byPktType, cbFrameLength, wRate, bNeedAck);
         break;
 
+    case RTSDUR_AA:
+    case RTSDUR_AA_F0:
     case RTSDUR_AA_F1: //RTSDuration_aa_f1
         uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
 	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
 				byPktType, cbFrameLength, wRate, bNeedAck);
 	break;
 
+    case CTSDUR_BA:
     case CTSDUR_BA_F0: //CTSDuration_ba_f0
-	uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
-				byPktType, cbFrameLength, wRate, bNeedAck);
-	break;
-
     case CTSDUR_BA_F1: //CTSDuration_ba_f1
 	uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
 				byPktType, cbFrameLength, wRate, bNeedAck);
