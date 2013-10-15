@@ -364,18 +364,7 @@ static void put_request_value(struct ft1000_usb *ft1000dev, long lvalue)
 
 
 
-//---------------------------------------------------------------------------
-// Function:    hdr_checksum
-//
-// Parameters:  struct pseudo_hdr *pHdr - Pseudo header pointer
-//
-// Returns:     checksum - success
-//
-// Description: This function returns the checksum of the pseudo header
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* returns the checksum of the pseudo header */
 static u16 hdr_checksum(struct pseudo_hdr *pHdr)
 {
 	u16   *usPtr = (u16 *)pHdr;
