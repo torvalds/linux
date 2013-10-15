@@ -4227,30 +4227,24 @@ void mgmt_set_powered_failed(struct hci_dev *hdev, int err)
 	mgmt_pending_remove(cmd);
 }
 
-int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
+void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 {
-	bool changed = false;
-	int err = 0;
+	bool changed;
 
 	/* Nothing needed here if there's a pending command since that
 	 * commands request completion callback takes care of everything
 	 * necessary.
 	 */
 	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev))
-		return 0;
+		return;
 
-	if (discoverable) {
-		if (!test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
-			changed = true;
-	} else {
-		if (test_and_clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
-			changed = true;
-	}
+	if (discoverable)
+		changed = !test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+	else
+		changed = test_and_clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 
 	if (changed)
-		err = new_settings(hdev, NULL);
-
-	return err;
+		new_settings(hdev, NULL);
 }
 
 int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
