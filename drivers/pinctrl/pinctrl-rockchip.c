@@ -62,6 +62,10 @@ enum rockchip_pinctrl_type {
 	RK3188,
 };
 
+enum rockchip_pin_bank_type {
+	COMMON_BANK,
+};
+
 /**
  * @reg_base: register base of the gpio bank
  * @clk: clock of the gpio bank
@@ -86,6 +90,7 @@ struct rockchip_pin_bank {
 	u8				nr_pins;
 	char				*name;
 	u8				bank_num;
+	enum rockchip_pin_bank_type	bank_type;
 	bool				valid;
 	struct device_node		*of_node;
 	struct rockchip_pinctrl		*drvdata;
@@ -668,7 +673,10 @@ static const struct pinconf_ops rockchip_pinconf_ops = {
 	.pin_config_set			= rockchip_pinconf_set,
 };
 
-static const char *gpio_compat = "rockchip,gpio-bank";
+static const struct of_device_id rockchip_bank_match[] = {
+	{ .compatible = "rockchip,gpio-bank" },
+	{},
+};
 
 static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
 						struct device_node *np)
@@ -676,7 +684,7 @@ static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
 	struct device_node *child;
 
 	for_each_child_of_node(np, child) {
-		if (of_device_is_compatible(child, gpio_compat))
+		if (of_match_node(rockchip_bank_match, child))
 			continue;
 
 		info->nfunctions++;
@@ -819,8 +827,9 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 	i = 0;
 
 	for_each_child_of_node(np, child) {
-		if (of_device_is_compatible(child, gpio_compat))
+		if (of_match_node(rockchip_bank_match, child))
 			continue;
+
 		ret = rockchip_pinctrl_parse_functions(child, info, i++);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to parse function\n");
@@ -1216,6 +1225,8 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	bank->reg_base = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(bank->reg_base))
 		return PTR_ERR(bank->reg_base);
+
+	bank->bank_type = COMMON_BANK;
 
 	bank->irq = irq_of_parse_and_map(bank->of_node, 0);
 
