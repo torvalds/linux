@@ -1949,9 +1949,6 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	u32 val;
 
-
-	return -ENODEV;
-
 	if (!IS_IVYBRIDGE(dev))
 		return -ENODEV;
 
