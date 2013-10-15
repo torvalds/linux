@@ -33,7 +33,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
 
-#include "si4713-i2c.h"
+#include "si4713.h"
 
 /* module parameters */
 static int debug;
