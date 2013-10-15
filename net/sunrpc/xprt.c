@@ -1104,11 +1104,9 @@ struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
 	for (i = 0; i < num_prealloc; i++) {
 		req = kzalloc(sizeof(struct rpc_rqst), GFP_KERNEL);
 		if (!req)
-			break;
+			goto out_free;
 		list_add(&req->rq_list, &xprt->free);
 	}
-	if (i < num_prealloc)
-		goto out_free;
 	if (max_alloc > num_prealloc)
 		xprt->max_reqs = max_alloc;
 	else
