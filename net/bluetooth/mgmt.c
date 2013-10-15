@@ -4247,30 +4247,24 @@ void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 		new_settings(hdev, NULL);
 }
 
-int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
+void mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 {
-	bool changed = false;
-	int err = 0;
+	bool changed;
 
 	/* Nothing needed here if there's a pending command since that
 	 * commands request completion callback takes care of everything
 	 * necessary.
 	 */
 	if (mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev))
-		return 0;
+		return;
 
-	if (connectable) {
-		if (!test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags))
-			changed = true;
-	} else {
-		if (test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags))
-			changed = true;
-	}
+	if (connectable)
+		changed = !test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+	else
+		changed = test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 
 	if (changed)
-		err = new_settings(hdev, NULL);
-
-	return err;
+		new_settings(hdev, NULL);
 }
 
 int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
