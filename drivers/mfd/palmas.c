@@ -403,7 +403,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	palmas->dev = &i2c->dev;
 	palmas->irq = i2c->irq;
 
-	match = of_match_device(of_match_ptr(of_palmas_match_tbl), &i2c->dev);
+	match = of_match_device(of_palmas_match_tbl, &i2c->dev);
 
 	if (!match)
 		return -ENODATA;
