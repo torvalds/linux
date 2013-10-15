@@ -122,7 +122,11 @@ static const char bt_name[] =
 #elif defined(CONFIG_MV8787)
         "mv8787"
 #elif defined(CONFIG_AP6210)
+    #if defined(CONFIG_RKWIFI_26M)
         "ap6210"
+    #else
+        "ap6210_24M"
+    #endif
 #elif defined(CONFIG_AP6330)
 		"ap6330"
 #elif defined(CONFIG_AP6476)
