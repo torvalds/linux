@@ -1,0 +1,65 @@
+  <counter_set name="ARM_Cortex-A9_cnt" count="6"/>
+  <category name="Cortex-A9" counter_set="ARM_Cortex-A9_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="ARM_Cortex-A9_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x00" title="Software" name="Increment" description="Incremented only on writes to the Software Increment Register"/>
+    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
+    <event event="0x04" title="Cache" name="Data access" description="Memory Read or Write operation that causes a cache access to at least the level of data or unified cache closest to the processor"/>
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Memory Read or Write operation that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x06" title="Instruction" name="Memory read" description="Memory-reading instruction architecturally executed"/>
+    <event event="0x07" title="Instruction" name="Memory write" description="Memory-writing instruction architecturally executed"/>
+    <event event="0x09" title="Exception" name="Taken" description="Exceptions taken"/>
+    <event event="0x0a" title="Exception" name="Return" description="Exception return architecturally executed"/>
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction that writes to the CONTEXTIDR architecturally executed"/>
+    <event event="0x0c" title="Branch" name="PC change" description="Software change of the Program Counter, except by an exception, architecturally executed"/>
+    <event event="0x0d" title="Branch" name="Immediate" description="Immediate branch architecturally executed"/>
+    <event event="0x0f" title="Memory" name="Unaligned access" description="Unaligned access architecturally executed"/>
+    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted or not predicted"/>
+    <event event="0x12" title="Branch" name="Potential prediction" description="Branch or other change in program flow that could have been predicted by the branch prediction resources of the processor"/>
+    <event event="0x40" title="Java" name="Bytecode execute" description="Counts the number of Java bytecodes being decoded, including speculative ones"/>
+    <event event="0x41" title="Java" name="SW bytecode execute" description="Counts the number of software java bytecodes being decoded, including speculative ones"/>
+    <event event="0x42" title="Jazelle" name="Backward branch execute" description="Counts the number of Jazelle taken branches being executed"/>
+    <event event="0x50" title="Cache" name="Coherency miss" description="Counts the number of coherent linefill requests performed by the Cortex-A9 processor which also miss in all the other Cortex-A9 processors, meaning that the request is sent to the external memory"/>
+    <event event="0x51" title="Cache" name="Coherency hit" description="Counts the number of coherent linefill requests performed by the Cortex-A9 processor which hit in another Cortex-A9 processor, meaning that the linefill data is fetched directly from the relevant Cortex-A9 cache"/>
+    <event event="0x60" title="Cache" name="Inst dependent stall" description="Counts the number of cycles where the processor is ready to accept new instructions, but does not receive any because of the instruction side not being able to provide any and the instruction cache is currently performing at least one linefill"/>
+    <event event="0x61" title="Cache" name="Data dependent stall" description="Counts the number of cycles where the core has some instructions that it cannot issue to any pipeline, and the Load Store unit has at least one pending linefill request, and no pending TLB requests"/>
+    <event event="0x62" title="Cache" name="TLB stall" description="Counts the number of cycles where the processor is stalled waiting for the completion of translation table walks from the main TLB"/>
+    <event event="0x63" title="Intrinsic" name="STREX pass" description="Counts the number of STREX instructions architecturally executed and passed"/>
+    <event event="0x64" title="Intrinsic" name="STREX fail" description="Counts the number of STREX instructions architecturally executed and failed"/>
+    <event event="0x65" title="Cache" name="Data eviction" description="Counts the number of eviction requests because of a linefill in the data cache"/>
+    <event event="0x66" title="Pipeline" name="Issue stage no dispatch" description="Counts the number of cycles where the issue stage does not dispatch any instruction because it is empty or cannot dispatch any instructions"/>
+    <event event="0x67" title="Pipeline" name="Issue stage empty" description="Counts the number of cycles where the issue stage is empty"/>
+    <event event="0x68" title="Instruction" name="Executed" description="Counts the number of instructions going through the Register Renaming stage. This number is an approximate number of the total number of instructions speculatively executed, and even more approximate of the total number of instructions architecturally executed"/>
+    <event event="0x69" title="Cache" name="Data linefills" description="Counts the number of linefills performed on the external AXI bus"/>
+    <event event="0x6A" title="Cache" name="Prefetch linefills" description="Counts the number of data linefills caused by prefetcher requests"/>
+    <event event="0x6B" title="Cache" name="Prefetch hits" description="Counts the number of cache hits in a line that belongs to a stream followed by the prefetcher"/>
+    <event event="0x6E" title="Core" name="Functions" description="Counts the number of procedure returns whose condition codes do not fail, excluding all returns from exception"/>
+    <event event="0x70" title="Instruction" name="Main execution unit" description="Counts the number of instructions being executed in the main execution pipeline of the processor, the multiply pipeline and arithmetic logic unit pipeline"/>
+    <event event="0x71" title="Instruction" name="Second execution unit" description="Counts the number of instructions being executed in the processor second execution pipeline (ALU)"/>
+    <event event="0x72" title="Instruction" name="Load/Store" description="Counts the number of instructions being executed in the Load/Store unit"/>
+    <event event="0x73" title="Instruction" name="Floating point" description="Counts the number of Floating-point instructions going through the Register Rename stage"/>
+    <event event="0x74" title="Instruction" name="NEON" description="Counts the number of NEON instructions going through the Register Rename stage"/>
+    <event event="0x80" title="Stalls" name="PLD" description="Counts the number of cycles where the processor is stalled because PLD slots are all full"/>
+    <event event="0x81" title="Stalls" name="Memory write" description="Counts the number of cycles when the processor is stalled and the data side is stalled too because it is full and executing writes to the external memory"/>
+    <event event="0x82" title="Stalls" name="Inst main TLB miss" description="Counts the number of stall cycles because of main TLB misses on requests issued by the instruction side"/>
+    <event event="0x83" title="Stalls" name="Data main TLB miss" description="Counts the number of stall cycles because of main TLB misses on requests issued by the data side"/>
+    <event event="0x84" title="Stalls" name="Inst micro TLB miss" description="Counts the number of stall cycles because of micro TLB misses on the instruction side"/>
+    <event event="0x85" title="Stalls" name="Data micro TLB miss" description="Counts the number of stall cycles because of micro TLB misses on the data side"/>
+    <event event="0x86" title="Stalls" name="DMB" description="Counts the number of stall cycles because of the execution of a DMB memory barrier"/>
+    <event event="0x8A" title="Clock" name="Integer core" description="Counts the number of cycles during which the integer core clock is enabled"/>
+    <event event="0x8B" title="Clock" name="Data engine" description="Counts the number of cycles during which the Data Engine clock is enabled"/>
+    <event event="0x8C" title="Clock" name="NEON" description="Counts the number of cycles when the NEON SIMD clock is enabled"/>
+    <event event="0x8D" title="Memory" name="TLB inst allocations" description="Counts the number of TLB allocations because of Instruction requests"/>
+    <event event="0x8E" title="Memory" name="TLB data allocations" description="Counts the number of TLB allocations because of Data requests"/>
+    <event event="0x90" title="Instruction" name="ISB" description="Counts the number of ISB instructions architecturally executed"/>
+    <event event="0x91" title="Instruction" name="DSB" description="Counts the number of DSB instructions architecturally executed"/>
+    <event event="0x92" title="Instruction" name="DMB" description="Counts the number of DMB instructions speculatively executed"/>
+    <event event="0x93" title="External" name="Interrupts" description="Counts the number of external interrupts executed by the processor"/>
+    <event event="0xA0" title="PLE" name="Cache line rq completed" description="Counts the number of PLE cache line requests completed"/>
+    <event event="0xA1" title="PLE" name="Cache line rq skipped" description="Counts the number of PLE cache line requests skipped"/>
+    <event event="0xA2" title="PLE" name="FIFO flush" description="Counts the number of PLE FIFO flush requests"/>
+    <event event="0xA3" title="PLE" name="Request completed" description="Counts the number of PLE FIFO flush completed"/>
+    <event event="0xA4" title="PLE" name="FIFO overflow" description="Counts the number of PLE FIFO flush overflowed"/>
+    <event event="0xA5" title="PLE" name="Request programmed" description="Counts the number of PLE FIFO flush program requests"/>
+  </category>
