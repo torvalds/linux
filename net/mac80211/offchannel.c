@@ -394,6 +394,8 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 
 		if (started)
 			ieee80211_start_next_roc(local);
+		else if (list_empty(&local->roc_list))
+			ieee80211_run_deferred_scan(local);
 	}
 
  out_unlock:

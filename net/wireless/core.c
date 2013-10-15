@@ -958,8 +958,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
 			return notifier_from_errno(-EOPNOTSUPP);
-		if (rfkill_blocked(rdev->rfkill))
-			return notifier_from_errno(-ERFKILL);
 		ret = cfg80211_can_add_interface(rdev, wdev->iftype);
 		if (ret)
 			return notifier_from_errno(ret);
