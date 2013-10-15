@@ -1775,9 +1775,9 @@ static struct clk clk_gpu_pre = {
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_GPU_PRE,
 	.recalc		= clksel_recalc_div,
-	.set_rate	= clkset_rate_freediv_autosel_parents,
-	//.set_rate	= clksel_set_rate_freediv,
-	.round_rate	= clk_freediv_round_autosel_parents_rate,
+	//.set_rate	= clkset_rate_freediv_autosel_parents,
+	.set_rate	= clksel_set_rate_freediv,
+	.round_rate	= clksel_freediv_round_rate,
 	.clksel_con	= CRU_CLKSELS_CON(34),
 	CRU_SRC_SET(0x1, 8),
 	CRU_DIV_SET(0x1f, 0, 32),
@@ -2867,7 +2867,7 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned lo
 	clk_set_rate_nolock(&aclk_vepu, 400 * MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 400 * MHZ);
 	//gpu auto sel
-	//clk_set_parent_nolock(&clk_gpu_pre, &general_pll_clk);
+	clk_set_parent_nolock(&clk_gpu_pre, &general_pll_clk);
 	clk_set_rate_nolock(&clk_gpu_pre, 133 * MHZ);
 
 	clk_set_parent_nolock(&clk_sdmmc0, &general_pll_clk);
