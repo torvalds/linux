@@ -244,7 +244,8 @@ static int adf_buffer_validate(struct adf_buffer *buf)
 {
 	struct adf_overlay_engine *eng = buf->overlay_engine;
 	struct device *dev = &eng->base.dev;
-	u8 hsub, vsub, num_planes, i;
+	struct adf_device *parent = adf_overlay_engine_parent(eng);
+	u8 hsub, vsub, num_planes, cpp[ADF_MAX_PLANES], i;
 
 	if (!adf_overlay_engine_supports_format(eng, buf->format)) {
 		char format_str[ADF_FORMAT_STR_SIZE];
@@ -253,53 +254,17 @@ static int adf_buffer_validate(struct adf_buffer *buf)
 		return -EINVAL;
 	}
 
-	if (!adf_format_is_standard(buf->format)) {
-		struct adf_device *parent = adf_overlay_engine_parent(eng);
+	if (!adf_format_is_standard(buf->format))
 		return parent->ops->validate_custom_format(parent, buf);
-	}
 
 	hsub = adf_format_horz_chroma_subsampling(buf->format);
 	vsub = adf_format_vert_chroma_subsampling(buf->format);
 	num_planes = adf_format_num_planes(buf->format);
+	for (i = 0; i < num_planes; i++)
+		cpp[i] = adf_format_plane_cpp(buf->format, i);
 
-	if (num_planes != buf->n_planes) {
-		char format_str[ADF_FORMAT_STR_SIZE];
-		adf_format_str(buf->format, format_str);
-		dev_err(dev, "%u planes expected for format %s but %u planes provided\n",
-				num_planes, format_str, buf->n_planes);
-		return -EINVAL;
-	}
-
-	if (buf->w == 0 || buf->w % hsub) {
-		dev_err(dev, "bad buffer width %u\n", buf->w);
-		return -EINVAL;
-	}
-
-	if (buf->h == 0 || buf->h % vsub) {
-		dev_err(dev, "bad buffer height %u\n", buf->h);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < num_planes; i++) {
-		u32 width = buf->w / (i != 0 ? hsub : 1);
-		u32 height = buf->h / (i != 0 ? vsub : 1);
-		u8 cpp = adf_format_plane_cpp(buf->format, i);
-
-		if (buf->pitch[i] < (u64) width * cpp) {
-			dev_err(dev, "plane %u pitch is shorter than buffer width (pitch = %u, width = %u, bpp = %u)\n",
-					i, buf->pitch[i], width, cpp * 8);
-			return -EINVAL;
-		}
-
-		if ((u64) height * buf->pitch[i] + buf->offset[i] >
-				buf->dma_bufs[i]->size) {
-			dev_err(dev, "plane %u buffer too small (height = %u, pitch = %u, offset = %u, size = %zu)\n",
-					i, height, buf->pitch[i],
-					buf->offset[i], buf->dma_bufs[i]->size);
-		}
-	}
-
-	return 0;
+	return adf_format_validate_yuv(parent, buf, num_planes, hsub, vsub,
+			cpp);
 }
 
 static int adf_buffer_map(struct adf_device *dev, struct adf_buffer *buf,

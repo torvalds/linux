@@ -1027,6 +1027,70 @@ void adf_format_str(u32 format, char buf[ADF_FORMAT_STR_SIZE])
 }
 EXPORT_SYMBOL(adf_format_str);
 
+/**
+ * adf_format_validate_yuv - validate the number and size of planes in buffers
+ * with a custom YUV format.
+ *
+ * @dev: ADF device performing the validation
+ * @buf: buffer to validate
+ * @num_planes: expected number of planes
+ * @hsub: expected horizontal chroma subsampling factor, in pixels
+ * @vsub: expected vertical chroma subsampling factor, in pixels
+ * @cpp: expected bytes per pixel for each plane (length @num_planes)
+ *
+ * adf_format_validate_yuv() is intended to be called as a helper from @dev's
+ * validate_custom_format() op.
+ *
+ * Returns 0 if @buf has the expected number of planes and each plane
+ * has sufficient size, or -EINVAL otherwise.
+ */
+int adf_format_validate_yuv(struct adf_device *dev, struct adf_buffer *buf,
+		u8 num_planes, u8 hsub, u8 vsub, u8 cpp[])
+{
+	u8 i;
+
+	if (num_planes != buf->n_planes) {
+		char format_str[ADF_FORMAT_STR_SIZE];
+		adf_format_str(buf->format, format_str);
+		dev_err(&dev->base.dev, "%u planes expected for format %s but %u planes provided\n",
+				num_planes, format_str, buf->n_planes);
+		return -EINVAL;
+	}
+
+	if (buf->w == 0 || buf->w % hsub) {
+		dev_err(&dev->base.dev, "bad buffer width %u\n", buf->w);
+		return -EINVAL;
+	}
+
+	if (buf->h == 0 || buf->h % vsub) {
+		dev_err(&dev->base.dev, "bad buffer height %u\n", buf->h);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_planes; i++) {
+		u32 width = buf->w / (i != 0 ? hsub : 1);
+		u32 height = buf->h / (i != 0 ? vsub : 1);
+		u8 cpp = adf_format_plane_cpp(buf->format, i);
+
+		if (buf->pitch[i] < (u64) width * cpp) {
+			dev_err(&dev->base.dev, "plane %u pitch is shorter than buffer width (pitch = %u, width = %u, bpp = %u)\n",
+					i, buf->pitch[i], width, cpp * 8);
+			return -EINVAL;
+		}
+
+		if ((u64) height * buf->pitch[i] + buf->offset[i] >
+				buf->dma_bufs[i]->size) {
+			dev_err(&dev->base.dev, "plane %u buffer too small (height = %u, pitch = %u, offset = %u, size = %zu)\n",
+					i, height, buf->pitch[i],
+					buf->offset[i], buf->dma_bufs[i]->size);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(adf_format_validate_yuv);
+
 void adf_modeinfo_set_name(struct drm_mode_modeinfo *mode)
 {
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
