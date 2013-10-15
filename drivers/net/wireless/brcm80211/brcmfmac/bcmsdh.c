@@ -571,7 +571,6 @@ done:
 int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 			    uint flags, struct sk_buff_head *pktq)
 {
-	uint incr_fix;
 	uint width;
 	int err = 0;
 
@@ -583,7 +582,6 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (err)
 		goto done;
 
-	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	err = brcmf_sdio_sglist_rw(sdiodev, fn, false, addr, pktq);
 
 done:
