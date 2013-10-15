@@ -107,8 +107,9 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 	u8 *pbyBufferAddr, u16 wDuration, struct ethhdr *psEthHeader,
 	int bNeedEncrypt, u16 wFragType, u32 uDMAIdx, u32 uFragIdx);
 
-static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
-	u8 *pbyIVHead, PSKeyItem pTransmitKey, u8 *pbyHdrBuf, u16 wPayloadLen,
+static void s_vFillTxKey(struct vnt_private *pDevice,
+	struct vnt_tx_fifo_head *fifo_head, u8 *pbyIVHead,
+	PSKeyItem pTransmitKey, u8 *pbyHdrBuf, u16 wPayloadLen,
 	struct vnt_mic_hdr *mic_hdr);
 
 static void s_vSWencryption(struct vnt_private *pDevice,
@@ -179,10 +180,12 @@ static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	   ETH_ALEN);
 }
 
-static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
-	u8 *pbyIVHead, PSKeyItem pTransmitKey, u8 *pbyHdrBuf,
-	u16 wPayloadLen, struct vnt_mic_hdr *mic_hdr)
+static void s_vFillTxKey(struct vnt_private *pDevice,
+	struct vnt_tx_fifo_head *fifo_head, u8 *pbyIVHead,
+	PSKeyItem pTransmitKey, u8 *pbyHdrBuf, u16 wPayloadLen,
+	struct vnt_mic_hdr *mic_hdr)
 {
+	u8 *pbyBuf = (u8 *)&fifo_head->adwTxKey[0];
 	u32 *pdwIV = (u32 *)pbyIVHead;
 	u32 *pdwExtIV = (u32 *)((u8 *)pbyIVHead + 4);
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
@@ -1171,7 +1174,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 
     if (bNeedEncryption == true) {
         //Fill TXKEY
-        s_vFillTxKey(pDevice, (u8 *)(pTxBufHead->adwTxKey), pbyIVHead, pTransmitKey,
+	s_vFillTxKey(pDevice, pTxBufHead, pbyIVHead, pTransmitKey,
 		pbyMacHdr, (u16)cbFrameBodySize, pMICHDR);
 
         if (pDevice->bEnableHostWEP) {
@@ -1591,7 +1594,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
             }
         } while(false);
         //Fill TXKEY
-        s_vFillTxKey(pDevice, (u8 *)(pTxBufHead->adwTxKey), pbyIVHead, pTransmitKey,
+	s_vFillTxKey(pDevice, pTxBufHead, pbyIVHead, pTransmitKey,
                      (u8 *)pMACHeader, (u16)cbFrameBodySize, NULL);
 
         memcpy(pMACHeader, pPacket->p80211Header, cbMacHdLen);
@@ -2034,7 +2037,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
         }
 
-        s_vFillTxKey(pDevice, (u8 *)(pTxBufHead->adwTxKey), pbyIVHead, pTransmitKey,
+	s_vFillTxKey(pDevice, pTxBufHead, pbyIVHead, pTransmitKey,
 		pbyMacHdr, (u16)cbFrameBodySize, pMICHDR);
 
         if (pDevice->bEnableHostWEP) {
