@@ -33,15 +33,17 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 	int ret = 0;
 	struct iio_kfifo *buf = iio_to_kfifo(r);
 
-	if (!buf->update_needed)
-		goto error_ret;
 	mutex_lock(&buf->user_lock);
-	kfifo_free(&buf->kf);
-	ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
+	if (buf->update_needed) {
+		kfifo_free(&buf->kf);
+		ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
 				   buf->buffer.length);
+	} else {
+		kfifo_reset_out(&buf->kf);
+	}
 	r->stufftoread = false;
 	mutex_unlock(&buf->user_lock);
-error_ret:
+
 	return ret;
 }
 
