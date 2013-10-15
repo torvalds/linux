@@ -1128,6 +1128,7 @@ static int dice_interface_check(struct fw_unit *unit)
 	int key, value, vendor = -1, model = -1, err;
 	unsigned int category, i;
 	__be32 pointers[ARRAY_SIZE(min_values)];
+	__be32 tx_data[4];
 	__be32 version;
 
 	/*
@@ -1170,6 +1171,14 @@ static int dice_interface_check(struct fw_unit *unit)
 		if (value < min_values[i] || value >= 0x40000)
 			return -ENODEV;
 	}
+
+	/* We support playback only. Let capture devices be handled by FFADO. */
+	err = snd_fw_transaction(unit, TCODE_READ_BLOCK_REQUEST,
+				 DICE_PRIVATE_SPACE +
+				 be32_to_cpu(pointers[2]) * 4,
+				 tx_data, sizeof(tx_data), 0);
+	if (err < 0 || (tx_data[0] && tx_data[3]))
+		return -ENODEV;
 
 	/*
 	 * Check that the implemented DICE driver specification major version
