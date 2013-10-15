@@ -61,15 +61,15 @@ struct ft_pwm_data {
 static struct ft_pwm_data ft_pwm[2] = {
 	{
 		.pwm_id = 0,
-		.min_uV = 820000,
+		.min_uV = 830000,
 		.max_uV = 1380000,
-		.coefficient = 560,     //56%
+		.coefficient = 550,     //(550 * 10)uV every 1% duty cycle
 		.pwm_voltage_map = pwm_voltage_map,
 	}, {
 		.pwm_id = 1,
-		.min_uV = 820000,
+		.min_uV = 830000,
 		.max_uV = 1380000,
-		.coefficient = 560,     //56%
+		.coefficient = 550,     //(550 * 10)uV every 1% duty cycle
 		.pwm_voltage_map = pwm_voltage_map,
 	},
 };
