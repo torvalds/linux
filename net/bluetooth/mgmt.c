@@ -724,6 +724,9 @@ static void update_class(struct hci_request *req)
 	cod[1] = hdev->major_class;
 	cod[2] = get_service_classes(hdev);
 
+	if (test_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags))
+		cod[1] |= 0x20;
+
 	if (memcmp(cod, hdev->dev_class, 3) == 0)
 		return;
 
