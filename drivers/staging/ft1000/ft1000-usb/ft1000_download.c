@@ -554,18 +554,7 @@ static u32 write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 	return Status;
 }
 
-//---------------------------------------------------------------------------
-//
-//  Function:   scram_dnldr
-//
-//  Synopsis:   Scramble downloader for Harley based ASIC via USB interface
-//
-//  Arguments:  pFileStart              - pointer to start of file
-//              FileLength              - file length
-//
-//  Returns:    status                  - return code
-//---------------------------------------------------------------------------
-
+/* Scramble downloader for Harley based ASIC via USB interface */
 u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32 FileLength)
 {
