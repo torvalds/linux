@@ -74,6 +74,7 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 void machines__set_symbol_filter(struct machines *machines,
 				 symbol_filter_t symbol_filter);
 
+struct machine *machine__new_host(void);
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
 void machine__delete_dead_threads(struct machine *machine);
@@ -164,5 +165,9 @@ int machines__create_guest_kernel_maps(struct machines *machines);
 void machines__destroy_kernel_maps(struct machines *machines);
 
 size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
+
+int machine__for_each_thread(struct machine *machine,
+			     int (*fn)(struct thread *thread, void *p),
+			     void *priv);
 
 #endif /* __PERF_MACHINE_H */

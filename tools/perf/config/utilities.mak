@@ -179,16 +179,9 @@ _ge_attempt = $(if $(get-executable),$(get-executable),$(_gea_warn)$(call _gea_e
 _gea_warn = $(warning The path '$(1)' is not executable.)
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
 
-# try-cc
-# Usage: option = $(call try-cc, source-to-build, cc-options, msg)
-ifneq ($(V),1)
-TRY_CC_OUTPUT= > /dev/null 2>&1
+ifneq ($(findstring $(MAKEFLAGS),s),s)
+  ifneq ($(V),1)
+    QUIET_CLEAN		= @printf '  CLEAN    %s\n' $1;
+    QUIET_INSTALL	= @printf '  INSTALL  %s\n' $1;
+  endif
 endif
-TRY_CC_MSG=echo "    CHK $(3)" 1>&2;
-
-try-cc = $(shell sh -c						  \
-	'TMP="$(OUTPUT)$(TMPOUT).$$$$";				  \
-	 $(TRY_CC_MSG)						  \
-	 echo "$(1)" |						  \
-	 $(CC) -x c - $(2) -o "$$TMP" $(TRY_CC_OUTPUT) && echo y; \
-	 rm -f "$$TMP"')

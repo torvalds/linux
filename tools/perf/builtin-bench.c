@@ -35,7 +35,7 @@ struct bench_suite {
 /* sentinel: easy for help */
 #define suite_all { "all", "Test all benchmark suites", NULL }
 
-#ifdef LIBNUMA_SUPPORT
+#ifdef HAVE_LIBNUMA_SUPPORT
 static struct bench_suite numa_suites[] = {
 	{ "mem",
 	  "Benchmark for NUMA workloads",
@@ -80,7 +80,7 @@ struct bench_subsys {
 };
 
 static struct bench_subsys subsystems[] = {
-#ifdef LIBNUMA_SUPPORT
+#ifdef HAVE_LIBNUMA_SUPPORT
 	{ "numa",
 	  "NUMA scheduling and MM behavior",
 	  numa_suites },

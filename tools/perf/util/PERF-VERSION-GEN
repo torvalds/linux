@@ -40,7 +40,7 @@ else
 	VC=unset
 fi
 test "$VN" = "$VC" || {
-	echo >&2 "PERF_VERSION = $VN"
+	echo >&2 "  PERF_VERSION = $VN"
 	echo "#define PERF_VERSION \"$VN\"" >$GVF
 }
 

@@ -308,6 +308,21 @@ int file__read_maps(int fd __maybe_unused, bool exe __maybe_unused,
 	return -1;
 }
 
+int kcore_extract__create(struct kcore_extract *kce __maybe_unused)
+{
+	return -1;
+}
+
+void kcore_extract__delete(struct kcore_extract *kce __maybe_unused)
+{
+}
+
+int kcore_copy(const char *from_dir __maybe_unused,
+	       const char *to_dir __maybe_unused)
+{
+	return -1;
+}
+
 void symbol__elf_init(void)
 {
 }

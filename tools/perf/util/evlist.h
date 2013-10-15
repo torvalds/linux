@@ -21,7 +21,7 @@ struct perf_mmap {
 	void		 *base;
 	int		 mask;
 	unsigned int	 prev;
-	union perf_event event_copy;
+	char		 event_copy[PERF_SAMPLE_MAX_SIZE];
 };
 
 struct perf_evlist {
@@ -31,7 +31,7 @@ struct perf_evlist {
 	int		 nr_groups;
 	int		 nr_fds;
 	int		 nr_mmaps;
-	int		 mmap_len;
+	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
 	u64		 combined_sample_type;
@@ -53,6 +53,7 @@ struct perf_evsel_str_handler {
 };
 
 struct perf_evlist *perf_evlist__new(void);
+struct perf_evlist *perf_evlist__new_default(void);
 void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		       struct thread_map *threads);
 void perf_evlist__exit(struct perf_evlist *evlist);
@@ -102,6 +103,10 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 				  const char *argv[], bool pipe_output,
 				  bool want_signal);
 int perf_evlist__start_workload(struct perf_evlist *evlist);
+
+int perf_evlist__parse_mmap_pages(const struct option *opt,
+				  const char *str,
+				  int unset);
 
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite);

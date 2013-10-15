@@ -1456,6 +1456,9 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			array = (void *)array + sz;
 			OVERFLOW_CHECK_u64(array);
 			data->user_stack.size = *array++;
+			if (WARN_ONCE(data->user_stack.size > sz,
+				      "user stack dump failure\n"))
+				return -EFAULT;
 		}
 	}
 

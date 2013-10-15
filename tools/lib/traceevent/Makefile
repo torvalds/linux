@@ -134,14 +134,14 @@ ifeq ($(VERBOSE),1)
   print_install =
 else
   Q = @
-  print_compile =		echo '  CC                 '$(OBJ);
-  print_app_build =		echo '  BUILD              '$(OBJ);
-  print_fpic_compile =		echo '  CC FPIC            '$(OBJ);
-  print_shared_lib_compile =	echo '  BUILD SHARED LIB   '$(OBJ);
-  print_plugin_obj_compile =	echo '  CC PLUGIN OBJ      '$(OBJ);
-  print_plugin_build =		echo '  CC PLUGI           '$(OBJ);
-  print_static_lib_build =	echo '  BUILD STATIC LIB   '$(OBJ);
-  print_install =		echo '  INSTALL     '$1'	to	$(DESTDIR_SQ)$2';
+  print_compile =		echo '  CC       '$(OBJ);
+  print_app_build =		echo '  BUILD    '$(OBJ);
+  print_fpic_compile =		echo '  CC FPIC  '$(OBJ);
+  print_shared_lib_compile =	echo '  BUILD    SHARED LIB '$(OBJ);
+  print_plugin_obj_compile =	echo '  BUILD    PLUGIN OBJ '$(OBJ);
+  print_plugin_build =		echo '  BUILD    PLUGIN     '$(OBJ);
+  print_static_lib_build =	echo '  BUILD    STATIC LIB '$(OBJ);
+  print_install =		echo '  INSTALL  '$1'	to	$(DESTDIR_SQ)$2';
 endif
 
 do_fpic_compile =					\
@@ -268,7 +268,7 @@ TRACK_CFLAGS = $(subst ','\'',$(CFLAGS)):$(ARCH):$(CROSS_COMPILE)
 TRACEEVENT-CFLAGS: force
 	@FLAGS='$(TRACK_CFLAGS)'; \
 	    if test x"$$FLAGS" != x"`cat TRACEEVENT-CFLAGS 2>/dev/null`" ; then \
-		echo 1>&2 "    * new build flags or cross compiler"; \
+		echo 1>&2 "  FLAGS:   * new build flags or cross compiler"; \
 		echo "$$FLAGS" >TRACEEVENT-CFLAGS; \
             fi
 

@@ -7,19 +7,20 @@
 char dso__symtab_origin(const struct dso *dso)
 {
 	static const char origin[] = {
-		[DSO_BINARY_TYPE__KALLSYMS]		= 'k',
-		[DSO_BINARY_TYPE__VMLINUX]		= 'v',
-		[DSO_BINARY_TYPE__JAVA_JIT]		= 'j',
-		[DSO_BINARY_TYPE__DEBUGLINK]		= 'l',
-		[DSO_BINARY_TYPE__BUILD_ID_CACHE]	= 'B',
-		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]	= 'f',
-		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]	= 'u',
-		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]	= 'b',
-		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]	= 'd',
-		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]	= 'K',
-		[DSO_BINARY_TYPE__GUEST_KALLSYMS]	= 'g',
-		[DSO_BINARY_TYPE__GUEST_KMODULE]	= 'G',
-		[DSO_BINARY_TYPE__GUEST_VMLINUX]	= 'V',
+		[DSO_BINARY_TYPE__KALLSYMS]			= 'k',
+		[DSO_BINARY_TYPE__VMLINUX]			= 'v',
+		[DSO_BINARY_TYPE__JAVA_JIT]			= 'j',
+		[DSO_BINARY_TYPE__DEBUGLINK]			= 'l',
+		[DSO_BINARY_TYPE__BUILD_ID_CACHE]		= 'B',
+		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]		= 'f',
+		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]		= 'u',
+		[DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO]	= 'o',
+		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]		= 'b',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]		= 'd',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]		= 'K',
+		[DSO_BINARY_TYPE__GUEST_KALLSYMS]		= 'g',
+		[DSO_BINARY_TYPE__GUEST_KMODULE]		= 'G',
+		[DSO_BINARY_TYPE__GUEST_VMLINUX]		= 'V',
 	};
 
 	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__NOT_FOUND)
@@ -63,6 +64,28 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 		snprintf(file, size, "%s/usr/lib/debug%s",
 			 symbol_conf.symfs, dso->long_name);
 		break;
+
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	{
+		char *last_slash;
+		size_t len;
+		size_t dir_size;
+
+		last_slash = dso->long_name + dso->long_name_len;
+		while (last_slash != dso->long_name && *last_slash != '/')
+			last_slash--;
+
+		len = scnprintf(file, size, "%s", symbol_conf.symfs);
+		dir_size = last_slash - dso->long_name + 2;
+		if (dir_size > (size - len)) {
+			ret = -1;
+			break;
+		}
+		len += scnprintf(file + len, dir_size, "%s",  dso->long_name);
+		len += scnprintf(file + len , size - len, ".debug%s",
+								last_slash);
+		break;
+	}
 
 	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
 		if (!dso->has_build_id) {
@@ -427,6 +450,7 @@ struct dso *dso__new(const char *name)
 		dso->rel = 0;
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
+		dso->has_srcline = 1;
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		INIT_LIST_HEAD(&dso->node);

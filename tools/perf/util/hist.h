@@ -187,7 +187,7 @@ struct hist_browser_timer {
 	int refresh;
 };
 
-#ifdef SLANG_SUPPORT
+#ifdef HAVE_SLANG_SUPPORT
 #include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt);
@@ -226,21 +226,6 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #define K_LEFT  -1000
 #define K_RIGHT -2000
 #define K_SWITCH_INPUT_DATA -3000
-#endif
-
-#ifdef GTK2_SUPPORT
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt);
-#else
-static inline
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
-				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt __maybe_unused)
-{
-	return 0;
-}
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);
