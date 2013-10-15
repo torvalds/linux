@@ -2166,7 +2166,7 @@ static inline u8 ieee80211_SignalStrengthTranslate(
 	return RetSS;
 }
 
-long ieee80211_translate_todbm(u8 signal_strength_index	)// 0-100 index.
+static long ieee80211_translate_todbm(u8 signal_strength_index)// 0-100 index.
 {
 	long	signal_power; // in dBm.
 
