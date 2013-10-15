@@ -110,6 +110,23 @@ TRACE_EVENT(brcmf_bdchdr,
 	TP_printk("bdc: prio=%d siglen=%d", __entry->prio, __entry->siglen)
 );
 
+TRACE_EVENT(brcmf_sdpcm_hdr,
+	TP_PROTO(bool tx, void *data),
+	TP_ARGS(tx, data),
+	TP_STRUCT__entry(
+		__field(u8, tx)
+		__field(u16, len)
+		__array(u8, hdr, 12)
+	),
+	TP_fast_assign(
+		memcpy(__entry->hdr, data, 12);
+		__entry->len = __entry->hdr[0] | (__entry->hdr[1] << 8);
+		__entry->tx = tx ? 1 : 0;
+	),
+	TP_printk("sdpcm: %s len %u, seq %d", __entry->tx ? "TX" : "RX",
+		  __entry->len, __entry->hdr[4])
+);
+
 #ifdef CONFIG_BRCM_TRACING
 
 #undef TRACE_INCLUDE_PATH

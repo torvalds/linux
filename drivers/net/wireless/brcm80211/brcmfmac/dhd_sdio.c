@@ -1147,6 +1147,8 @@ static int brcmf_sdio_hdparse(struct brcmf_sdio *bus, u8 *header,
 	u8 rx_seq, fc, tx_seq_max;
 	u32 swheader;
 
+	trace_brcmf_sdpcm_hdr(false, header);
+
 	/* hw header */
 	len = get_unaligned_le16(header);
 	checksum = get_unaligned_le16(header + sizeof(u16));
@@ -1269,6 +1271,7 @@ static void brcmf_sdio_hdpack(struct brcmf_sdio *bus, u8 *header,
 		     SDPCM_DOFFSET_MASK;
 	*(((__le32 *)header) + 1) = cpu_to_le32(sw_header);
 	*(((__le32 *)header) + 2) = 0;
+	trace_brcmf_sdpcm_hdr(true, header);
 }
 
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
