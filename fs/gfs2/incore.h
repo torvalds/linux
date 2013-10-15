@@ -21,6 +21,7 @@
 #include <linux/rbtree.h>
 #include <linux/ktime.h>
 #include <linux/percpu.h>
+#include <linux/lockref.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -321,9 +322,9 @@ struct gfs2_glock {
 	struct gfs2_sbd *gl_sbd;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
-	atomic_t gl_ref;
 
-	spinlock_t gl_spin;
+	struct lockref gl_lockref;
+#define gl_spin gl_lockref.lock
 
 	/* State fields protected by gl_spin */
 	unsigned int gl_state:2,	/* Current state */
