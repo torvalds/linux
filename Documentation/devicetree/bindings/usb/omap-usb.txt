@@ -87,6 +87,8 @@ Required properties:
 			e.g. USB3 PHY and SATA PHY on OMAP5.
  "ti,control-phy-dra7usb2" - if it has power down register like USB2 PHY on
 			DRA7 platform.
+ "ti,control-phy-am437usb2" - if it has power down register like USB2 PHY on
+			AM437 platform.
  - reg : Address and length of the register set for the device. It contains
    the address of "otghs_control" for control-phy-otghs or "power" register
    for other types.
