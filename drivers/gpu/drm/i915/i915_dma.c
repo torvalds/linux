@@ -1514,6 +1514,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->pc8.disable_count = 2; /* requirements_met + gpu_idle */
 	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
 
+	intel_display_crc_init(dev);
+
 	i915_dump_device_info(dev_priv);
 
 	/* Not all pre-production machines fall into this category, only the

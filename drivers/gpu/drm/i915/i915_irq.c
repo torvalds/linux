@@ -1221,6 +1221,8 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 
 	head = (head + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
 	atomic_set(&pipe_crc->head, head);
+
+	wake_up_interruptible(&pipe_crc->wq);
 }
 #else
 static void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}

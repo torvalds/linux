@@ -1235,6 +1235,7 @@ struct intel_pipe_crc {
 	struct intel_pipe_crc_entry *entries;
 	enum intel_pipe_crc_source source;
 	atomic_t head, tail;
+	wait_queue_head_t wq;
 };
 
 typedef struct drm_i915_private {
@@ -2233,6 +2234,11 @@ int i915_verify_lists(struct drm_device *dev);
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);
 void i915_debugfs_cleanup(struct drm_minor *minor);
+#if defined(CONFIG_DEBUG_FS)
+void intel_display_crc_init(struct drm_device *dev);
+#else
+void intel_display_crc_init(struct drm_device *dev) {}
+#endif
 
 /* i915_gpu_error.c */
 __printf(2, 3)

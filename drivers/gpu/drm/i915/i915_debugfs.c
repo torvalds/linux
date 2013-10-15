@@ -1760,37 +1760,138 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_pipe_crc(struct seq_file *m, void *data)
+struct pipe_crc_info {
+	const char *name;
+	struct drm_device *dev;
+	enum pipe pipe;
+};
+
+static int i915_pipe_crc_open(struct inode *inode, struct file *filep)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe pipe = (enum pipe)node->info_ent->data;
-	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
+	filep->private_data = inode->i_private;
+
+	return 0;
+}
+
+static int i915_pipe_crc_release(struct inode *inode, struct file *filep)
+{
+	return 0;
+}
+
+/* (6 fields, 8 chars each, space separated (5) + '\n') */
+#define PIPE_CRC_LINE_LEN	(6 * 8 + 5 + 1)
+/* account for \'0' */
+#define PIPE_CRC_BUFFER_LEN	(PIPE_CRC_LINE_LEN + 1)
+
+static int pipe_crc_data_count(struct intel_pipe_crc *pipe_crc)
+{
 	int head, tail;
 
-	if (dev_priv->pipe_crc[pipe].source == INTEL_PIPE_CRC_SOURCE_NONE) {
-		seq_puts(m, "none\n");
-		return 0;
-	}
-
-	seq_puts(m, "  frame    CRC1     CRC2     CRC3     CRC4     CRC5\n");
 	head = atomic_read(&pipe_crc->head);
 	tail = atomic_read(&pipe_crc->tail);
 
-	while (CIRC_CNT(head, tail, INTEL_PIPE_CRC_ENTRIES_NR) >= 1) {
-		struct intel_pipe_crc_entry *entry = &pipe_crc->entries[tail];
+	return CIRC_CNT(head, tail, INTEL_PIPE_CRC_ENTRIES_NR);
+}
 
-		seq_printf(m, "%8u %8x %8x %8x %8x %8x\n", entry->frame,
-			   entry->crc[0], entry->crc[1], entry->crc[2],
-			   entry->crc[3], entry->crc[4]);
+static ssize_t
+i915_pipe_crc_read(struct file *filep, char __user *user_buf, size_t count,
+		   loff_t *pos)
+{
+	struct pipe_crc_info *info = filep->private_data;
+	struct drm_device *dev = info->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[info->pipe];
+	char buf[PIPE_CRC_BUFFER_LEN];
+	int head, tail, n_entries, n;
+	ssize_t bytes_read;
+
+	/*
+	 * Don't allow user space to provide buffers not big enough to hold
+	 * a line of data.
+	 */
+	if (count < PIPE_CRC_LINE_LEN)
+		return -EINVAL;
+
+	if (pipe_crc->source == INTEL_PIPE_CRC_SOURCE_NONE)
+		return 0;
+
+	/* nothing to read */
+	while (pipe_crc_data_count(pipe_crc) == 0) {
+		if (filep->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		if (wait_event_interruptible(pipe_crc->wq,
+					     pipe_crc_data_count(pipe_crc)))
+			 return -ERESTARTSYS;
+	}
+
+	/* We now have one or more entries to read */
+	head = atomic_read(&pipe_crc->head);
+	tail = atomic_read(&pipe_crc->tail);
+	n_entries = min((size_t)CIRC_CNT(head, tail, INTEL_PIPE_CRC_ENTRIES_NR),
+			count / PIPE_CRC_LINE_LEN);
+	bytes_read = 0;
+	n = 0;
+	do {
+		struct intel_pipe_crc_entry *entry = &pipe_crc->entries[tail];
+		int ret;
+
+		bytes_read += snprintf(buf, PIPE_CRC_BUFFER_LEN,
+				       "%8u %8x %8x %8x %8x %8x\n",
+				       entry->frame, entry->crc[0],
+				       entry->crc[1], entry->crc[2],
+				       entry->crc[3], entry->crc[4]);
+
+		ret = copy_to_user(user_buf + n * PIPE_CRC_LINE_LEN,
+				   buf, PIPE_CRC_LINE_LEN);
+		if (ret == PIPE_CRC_LINE_LEN)
+			return -EFAULT;
 
 		BUILD_BUG_ON_NOT_POWER_OF_2(INTEL_PIPE_CRC_ENTRIES_NR);
 		tail = (tail + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
 		atomic_set(&pipe_crc->tail, tail);
-	}
+		n++;
+	} while (--n_entries);
 
-	return 0;
+	return bytes_read;
+}
+
+static const struct file_operations i915_pipe_crc_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_pipe_crc_open,
+	.read = i915_pipe_crc_read,
+	.release = i915_pipe_crc_release,
+};
+
+static struct pipe_crc_info i915_pipe_crc_data[I915_MAX_PIPES] = {
+	{
+		.name = "i915_pipe_A_crc",
+		.pipe = PIPE_A,
+	},
+	{
+		.name = "i915_pipe_B_crc",
+		.pipe = PIPE_B,
+	},
+	{
+		.name = "i915_pipe_C_crc",
+		.pipe = PIPE_C,
+	},
+};
+
+static int i915_pipe_crc_create(struct dentry *root, struct drm_minor *minor,
+				enum pipe pipe)
+{
+	struct drm_device *dev = minor->dev;
+	struct dentry *ent;
+	struct pipe_crc_info *info = &i915_pipe_crc_data[pipe];
+
+	info->dev = dev;
+	ent = debugfs_create_file(info->name, S_IRUGO, root, info,
+				  &i915_pipe_crc_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	return drm_add_fake_info_node(minor, ent, info);
 }
 
 static const char *pipe_crc_sources[] = {
@@ -2555,9 +2656,6 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_pc8_status", i915_pc8_status, 0},
-	{"i915_pipe_A_crc", i915_pipe_crc, 0, (void *)PIPE_A},
-	{"i915_pipe_B_crc", i915_pipe_crc, 0, (void *)PIPE_B},
-	{"i915_pipe_C_crc", i915_pipe_crc, 0, (void *)PIPE_C},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
@@ -2578,6 +2676,18 @@ static struct i915_debugfs_files {
 	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
 };
 
+void intel_display_crc_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
+		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[i];
+
+		init_waitqueue_head(&pipe_crc->wq);
+	}
+}
+
 int i915_debugfs_init(struct drm_minor *minor)
 {
 	int ret, i;
@@ -2585,6 +2695,12 @@ int i915_debugfs_init(struct drm_minor *minor)
 	ret = i915_forcewake_create(minor->debugfs_root, minor);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(i915_pipe_crc_data); i++) {
+		ret = i915_pipe_crc_create(minor->debugfs_root, minor, i);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
 		ret = i915_debugfs_create(minor->debugfs_root, minor,
@@ -2601,12 +2717,22 @@ int i915_debugfs_init(struct drm_minor *minor)
 
 void i915_debugfs_cleanup(struct drm_minor *minor)
 {
+	struct drm_device *dev = minor->dev;
 	int i;
 
 	drm_debugfs_remove_files(i915_debugfs_list,
 				 I915_DEBUGFS_ENTRIES, minor);
+
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_forcewake_fops,
 				 1, minor);
+
+	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
+		struct drm_info_list *info_list =
+			(struct drm_info_list *)&i915_pipe_crc_data[i];
+
+		drm_debugfs_remove_files(info_list, 1, minor);
+	}
+
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
 		struct drm_info_list *info_list =
 			(struct drm_info_list *) i915_debugfs_files[i].fops;
