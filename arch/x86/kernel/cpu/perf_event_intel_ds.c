@@ -12,6 +12,7 @@
 
 #define BTS_BUFFER_SIZE		(PAGE_SIZE << 4)
 #define PEBS_BUFFER_SIZE	PAGE_SIZE
+#define PEBS_FIXUP_SIZE		PAGE_SIZE
 
 /*
  * pebs_record_32 for p4 and core not supported
@@ -228,12 +229,14 @@ void fini_debug_store_on_cpu(int cpu)
 	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
 }
 
+static DEFINE_PER_CPU(void *, insn_buffer);
+
 static int alloc_pebs_buffer(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 	int node = cpu_to_node(cpu);
 	int max, thresh = 1; /* always use a single PEBS record */
-	void *buffer;
+	void *buffer, *ibuffer;
 
 	if (!x86_pmu.pebs)
 		return 0;
@@ -241,6 +244,19 @@ static int alloc_pebs_buffer(int cpu)
 	buffer = kzalloc_node(PEBS_BUFFER_SIZE, GFP_KERNEL, node);
 	if (unlikely(!buffer))
 		return -ENOMEM;
+
+	/*
+	 * HSW+ already provides us the eventing ip; no need to allocate this
+	 * buffer then.
+	 */
+	if (x86_pmu.intel_cap.pebs_format < 2) {
+		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
+		if (!ibuffer) {
+			kfree(buffer);
+			return -ENOMEM;
+		}
+		per_cpu(insn_buffer, cpu) = ibuffer;
+	}
 
 	max = PEBS_BUFFER_SIZE / x86_pmu.pebs_record_size;
 
@@ -261,6 +277,9 @@ static void release_pebs_buffer(int cpu)
 
 	if (!ds || !x86_pmu.pebs)
 		return;
+
+	kfree(per_cpu(insn_buffer, cpu));
+	per_cpu(insn_buffer, cpu) = NULL;
 
 	kfree((void *)(unsigned long)ds->pebs_buffer_base);
 	ds->pebs_buffer_base = 0;
@@ -729,6 +748,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	unsigned long old_to, to = cpuc->lbr_entries[0].to;
 	unsigned long ip = regs->ip;
 	int is_64bit = 0;
+	void *kaddr;
 
 	/*
 	 * We don't need to fixup if the PEBS assist is fault like
@@ -752,7 +772,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	 * unsigned math, either ip is before the start (impossible) or
 	 * the basic block is larger than 1 page (sanity)
 	 */
-	if ((ip - to) > PAGE_SIZE)
+	if ((ip - to) > PEBS_FIXUP_SIZE)
 		return 0;
 
 	/*
@@ -763,29 +783,33 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 		return 1;
 	}
 
+	if (!kernel_ip(ip)) {
+		int size, bytes;
+		u8 *buf = this_cpu_read(insn_buffer);
+
+		size = ip - to; /* Must fit our buffer, see above */
+		bytes = copy_from_user_nmi(buf, (void __user *)to, size);
+		if (bytes != size)
+			return 0;
+
+		kaddr = buf;
+	} else {
+		kaddr = (void *)to;
+	}
+
 	do {
 		struct insn insn;
-		u8 buf[MAX_INSN_SIZE];
-		void *kaddr;
 
 		old_to = to;
-		if (!kernel_ip(ip)) {
-			int bytes, size = MAX_INSN_SIZE;
-
-			bytes = copy_from_user_nmi(buf, (void __user *)to, size);
-			if (bytes != size)
-				return 0;
-
-			kaddr = buf;
-		} else
-			kaddr = (void *)to;
 
 #ifdef CONFIG_X86_64
 		is_64bit = kernel_ip(to) || !test_thread_flag(TIF_IA32);
 #endif
 		insn_init(&insn, kaddr, is_64bit);
 		insn_get_length(&insn);
+
 		to += insn.length;
+		kaddr += insn.length;
 	} while (to < ip);
 
 	if (to == ip) {
