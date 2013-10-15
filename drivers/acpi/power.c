@@ -936,8 +936,10 @@ void acpi_resume_power_resources(void)
 		mutex_lock(&resource->resource_lock);
 
 		result = acpi_power_get_state(resource->device.handle, &state);
-		if (result)
+		if (result) {
+			mutex_unlock(&resource->resource_lock);
 			continue;
+		}
 
 		if (state == ACPI_POWER_RESOURCE_STATE_OFF
 		    && resource->ref_count) {
