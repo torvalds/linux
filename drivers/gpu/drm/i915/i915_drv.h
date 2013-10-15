@@ -448,9 +448,6 @@ struct intel_uncore {
 	func(has_overlay) sep \
 	func(overlay_needs_physical) sep \
 	func(supports_tv) sep \
-	func(has_bsd_ring) sep \
-	func(has_blt_ring) sep \
-	func(has_vebox_ring) sep \
 	func(has_llc) sep \
 	func(has_ddi) sep \
 	func(has_fpga_dbg)
@@ -462,6 +459,7 @@ struct intel_device_info {
 	u32 display_mmio_offset;
 	u8 num_pipes:3;
 	u8 gen;
+	u8 ring_mask; /* Rings supported by the HW */
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
 };
 
@@ -1691,9 +1689,13 @@ struct drm_i915_file_private {
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
 #define IS_GEN7(dev)	(INTEL_INFO(dev)->gen == 7)
 
-#define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
-#define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
-#define HAS_VEBOX(dev)          (INTEL_INFO(dev)->has_vebox_ring)
+#define RENDER_RING		(1<<RCS)
+#define BSD_RING		(1<<VCS)
+#define BLT_RING		(1<<BCS)
+#define VEBOX_RING		(1<<VECS)
+#define HAS_BSD(dev)            (INTEL_INFO(dev)->ring_mask & BSD_RING)
+#define HAS_BLT(dev)            (INTEL_INFO(dev)->ring_mask & BLT_RING)
+#define HAS_VEBOX(dev)            (INTEL_INFO(dev)->ring_mask & VEBOX_RING)
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define HAS_WT(dev)            (IS_HASWELL(dev) && to_i915(dev)->ellc_size)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
