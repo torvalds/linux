@@ -477,6 +477,9 @@ void iio_disable_all_buffers(struct iio_dev *indio_dev)
 	indio_dev->currentmode = INDIO_DIRECT_MODE;
 	if (indio_dev->setup_ops->postdisable)
 		indio_dev->setup_ops->postdisable(indio_dev);
+
+	if (indio_dev->available_scan_masks == NULL)
+		kfree(indio_dev->active_scan_mask);
 }
 
 int iio_update_buffers(struct iio_dev *indio_dev,
