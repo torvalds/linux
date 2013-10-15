@@ -227,7 +227,8 @@ struct si4713_device {
 		struct v4l2_ctrl *tune_ant_cap;
 	};
 	struct completion work;
-	struct regulator_bulk_data supplies[SI4713_NUM_SUPPLIES];
+	unsigned supplies;
+	struct regulator_bulk_data supply_data[SI4713_NUM_SUPPLIES];
 	int gpio_reset;
 	u32 power_state;
 	u32 rds_enabled;

@@ -44,11 +44,6 @@ MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@nokia.com>");
 MODULE_DESCRIPTION("I2C driver for Si4713 FM Radio Transmitter");
 MODULE_VERSION("0.0.1");
 
-static const char *si4713_supply_names[SI4713_NUM_SUPPLIES] = {
-	"vio",
-	"vdd",
-};
-
 #define DEFAULT_RDS_PI			0x00
 #define DEFAULT_RDS_PTY			0x00
 #define DEFAULT_RDS_DEVIATION		0x00C8
@@ -368,11 +363,12 @@ static int si4713_powerup(struct si4713_device *sdev)
 	if (sdev->power_state)
 		return 0;
 
-	err = regulator_bulk_enable(ARRAY_SIZE(sdev->supplies),
-				    sdev->supplies);
-	if (err) {
-		v4l2_err(&sdev->sd, "Failed to enable supplies: %d\n", err);
-		return err;
+	if (sdev->supplies) {
+		err = regulator_bulk_enable(sdev->supplies, sdev->supply_data);
+		if (err) {
+			v4l2_err(&sdev->sd, "Failed to enable supplies: %d\n", err);
+			return err;
+		}
 	}
 	if (gpio_is_valid(sdev->gpio_reset)) {
 		udelay(50);
@@ -396,11 +392,12 @@ static int si4713_powerup(struct si4713_device *sdev)
 		if (client->irq)
 			err = si4713_write_property(sdev, SI4713_GPO_IEN,
 						SI4713_STC_INT | SI4713_CTS);
-	} else {
-		if (gpio_is_valid(sdev->gpio_reset))
-			gpio_set_value(sdev->gpio_reset, 0);
-		err = regulator_bulk_disable(ARRAY_SIZE(sdev->supplies),
-					     sdev->supplies);
+		return err;
+	}
+	if (gpio_is_valid(sdev->gpio_reset))
+		gpio_set_value(sdev->gpio_reset, 0);
+	if (sdev->supplies) {
+		err = regulator_bulk_disable(sdev->supplies, sdev->supply_data);
 		if (err)
 			v4l2_err(&sdev->sd,
 				 "Failed to disable supplies: %d\n", err);
@@ -432,11 +429,13 @@ static int si4713_powerdown(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
 		if (gpio_is_valid(sdev->gpio_reset))
 			gpio_set_value(sdev->gpio_reset, 0);
-		err = regulator_bulk_disable(ARRAY_SIZE(sdev->supplies),
-					     sdev->supplies);
-		if (err)
-			v4l2_err(&sdev->sd,
-				 "Failed to disable supplies: %d\n", err);
+		if (sdev->supplies) {
+			err = regulator_bulk_disable(sdev->supplies,
+						     sdev->supply_data);
+			if (err)
+				v4l2_err(&sdev->sd,
+					 "Failed to disable supplies: %d\n", err);
+		}
 		sdev->power_state = POWER_OFF;
 	}
 
@@ -1381,13 +1380,14 @@ static int si4713_probe(struct i2c_client *client,
 		}
 		sdev->gpio_reset = pdata->gpio_reset;
 		gpio_direction_output(sdev->gpio_reset, 0);
+		sdev->supplies = pdata->supplies;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sdev->supplies); i++)
-		sdev->supplies[i].supply = si4713_supply_names[i];
+	for (i = 0; i < sdev->supplies; i++)
+		sdev->supply_data[i].supply = pdata->supply_names[i];
 
-	rval = regulator_bulk_get(&client->dev, ARRAY_SIZE(sdev->supplies),
-				  sdev->supplies);
+	rval = regulator_bulk_get(&client->dev, sdev->supplies,
+				  sdev->supply_data);
 	if (rval) {
 		dev_err(&client->dev, "Cannot get regulators: %d\n", rval);
 		goto free_gpio;
@@ -1500,7 +1500,7 @@ free_irq:
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
 put_reg:
-	regulator_bulk_free(ARRAY_SIZE(sdev->supplies), sdev->supplies);
+	regulator_bulk_free(sdev->supplies, sdev->supply_data);
 free_gpio:
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_free(sdev->gpio_reset);
@@ -1524,7 +1524,7 @@ static int si4713_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	regulator_bulk_free(ARRAY_SIZE(sdev->supplies), sdev->supplies);
+	regulator_bulk_free(sdev->supplies, sdev->supply_data);
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_free(sdev->gpio_reset);
 	kfree(sdev);
