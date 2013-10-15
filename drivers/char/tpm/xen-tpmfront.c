@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/interface/io/tpmif.h>
 #include <xen/grant_table.h>
