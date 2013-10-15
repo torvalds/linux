@@ -321,6 +321,10 @@ config PINCTRL_XWAY
 	depends on SOC_TYPE_XWAY
 	depends on PINCTRL_LANTIQ
 
+config PINCTRL_TB10X
+	bool
+	depends on ARC_PLAT_TB10X
+
 endmenu
 
 endif
