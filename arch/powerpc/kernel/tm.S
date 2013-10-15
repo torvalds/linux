@@ -106,7 +106,7 @@ DSCR_DEFAULT:
 _GLOBAL(tm_reclaim)
 	mfcr	r6
 	mflr	r0
-	std	r6, 8(r1)
+	stw	r6, 8(r1)
 	std	r0, 16(r1)
 	std	r2, 40(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
@@ -285,7 +285,7 @@ dont_backup_fp:
 	REST_NVGPRS(r1)
 
 	addi    r1, r1, TM_FRAME_SIZE
-	ld	r4, 8(r1)
+	lwz	r4, 8(r1)
 	ld	r0, 16(r1)
 	mtcr	r4
 	mtlr	r0
@@ -310,7 +310,7 @@ dont_backup_fp:
 _GLOBAL(tm_recheckpoint)
 	mfcr	r5
 	mflr	r0
-	std	r5, 8(r1)
+	stw	r5, 8(r1)
 	std	r0, 16(r1)
 	std	r2, 40(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
@@ -444,7 +444,7 @@ restore_gprs:
 	REST_NVGPRS(r1)
 
 	addi    r1, r1, TM_FRAME_SIZE
-	ld	r4, 8(r1)
+	lwz	r4, 8(r1)
 	ld	r0, 16(r1)
 	mtcr	r4
 	mtlr	r0
