@@ -168,14 +168,15 @@ nouveau_therm_fan_mode(struct nouveau_therm *therm, int mode)
 		"automatic"
 	};
 
-	/* The default PDAEMON ucode interferes with fan management */
+	/* The default PPWR ucode on fermi interferes with fan management */
 	if ((mode >= ARRAY_SIZE(name)) ||
-	    (mode != NOUVEAU_THERM_CTRL_NONE && device->card_type >= NV_C0))
+	    (mode != NOUVEAU_THERM_CTRL_NONE && device->card_type >= NV_C0 &&
+	     !nouveau_subdev(device, NVDEV_SUBDEV_PWR)))
 		return -EINVAL;
 
 	/* do not allow automatic fan management if the thermal sensor is
 	 * not available */
-	if (priv->mode == 2 && therm->temp_get(therm) < 0)
+	if (priv->mode == NOUVEAU_THERM_CTRL_AUTO && therm->temp_get(therm) < 0)
 		return -EINVAL;
 
 	if (priv->mode == mode)
