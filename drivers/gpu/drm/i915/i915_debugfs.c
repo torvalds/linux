@@ -1820,6 +1820,12 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (pipe_crc->source && source)
 		return -EINVAL;
 
+	/* none -> real source transition */
+	if (source) {
+		atomic_set(&pipe_crc->head, 0);
+		atomic_set(&pipe_crc->tail, 0);
+	}
+
 	pipe_crc->source = source;
 
 	switch (source) {
