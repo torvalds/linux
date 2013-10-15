@@ -60,7 +60,7 @@ then
 	exit 2
 fi
 ncpus=`cpus2use.sh`
-make O=$builddir -j$ncpus > $builddir/Make.out 2>&1
+make O=$builddir -j$ncpus $RCU_KMAKE_ARG > $builddir/Make.out 2>&1
 retval=$?
 if test $retval -ne 0 || grep "rcu[^/]*": < $builddir/Make.out | egrep -q "Stop|Error|error:|warning:" || egrep -q "Stop|Error|error:" < $builddir/Make.out
 then

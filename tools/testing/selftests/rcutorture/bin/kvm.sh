@@ -34,6 +34,7 @@ dur=30
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 builddir="${KVM}/b1"
 RCU_INITRD="$KVM/initrd"; export RCU_INITRD
+RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
 resdir=""
 configs=""
 ds=`date +%Y.%m.%d-%H:%M:%S`
@@ -48,6 +49,7 @@ usage () {
 	echo "       --datestamp string"
 	echo "       --duration minutes"
 	echo "       --interactive"
+	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --kversion vN.NN"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --no-initrd"
@@ -113,6 +115,11 @@ do
 		;;
 	--interactive)
 		RCU_QEMU_INTERACTIVE=1; export RCU_QEMU_INTERACTIVE
+		;;
+	--kmake-arg)
+		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
+		RCU_KMAKE_ARG="$2"; export RCU_KMAKE_ARG
+		shift
 		;;
 	--kversion)
 		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' '^error'
