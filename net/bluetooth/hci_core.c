@@ -1789,6 +1789,7 @@ static void hci_power_off(struct work_struct *work)
 static void hci_discov_off(struct work_struct *work)
 {
 	struct hci_dev *hdev;
+	struct hci_request req;
 	u8 scan = SCAN_PAGE;
 
 	hdev = container_of(work, struct hci_dev, discov_off.work);
@@ -1797,7 +1798,9 @@ static void hci_discov_off(struct work_struct *work)
 
 	hci_dev_lock(hdev);
 
-	hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
+	hci_req_run(&req, NULL);
 
 	hdev->discov_timeout = 0;
 
