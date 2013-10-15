@@ -606,6 +606,7 @@
 		emif1: emif@4c000000 {
 			compatible	= "ti,emif-4d5";
 			ti,hwmods	= "emif1";
+			ti,no-idle-on-init;
 			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
 			reg = <0x4c000000 0x400>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
@@ -617,6 +618,7 @@
 		emif2: emif@4d000000 {
 			compatible	= "ti,emif-4d5";
 			ti,hwmods	= "emif2";
+			ti,no-idle-on-init;
 			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
 			reg = <0x4d000000 0x400>;
 			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
