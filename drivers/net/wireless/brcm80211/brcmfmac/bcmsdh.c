@@ -26,7 +26,6 @@
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
-#include <linux/mmc/host.h>
 #include <linux/platform_data/brcmfmac-sdio.h>
 
 #include <defs.h>
@@ -331,7 +330,7 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 			     bool write, u32 addr, struct sk_buff_head *pktlist)
 {
 	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
-	unsigned int max_blks, max_req_sz, orig_offset, dst_offset;
+	unsigned int max_req_sz, orig_offset, dst_offset;
 	unsigned short max_seg_cnt, seg_sz;
 	unsigned char *pkt_data, *orig_data, *dst_data;
 	struct sk_buff *pkt_next = NULL, *local_pkt_next;
@@ -341,7 +340,6 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	struct mmc_data mmc_dat;
 	struct sg_table st;
 	struct scatterlist *sgl;
-	struct mmc_host *host;
 	int ret = 0;
 
 	if (!pktlist->qlen)
@@ -398,17 +396,10 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		target_list = &local_list;
 	}
 
-	host = sdiodev->func[fn]->card->host;
 	func_blk_sz = sdiodev->func[fn]->cur_blksize;
-	/* Blocks per command is limited by host count, host transfer
-	 * size and the maximum for IO_RW_EXTENDED of 511 blocks.
-	 */
-	max_blks = min_t(unsigned int, host->max_blk_count, 511u);
-	max_req_sz = min_t(unsigned int, host->max_req_size,
-			   max_blks * func_blk_sz);
-	max_seg_cnt = min_t(unsigned short, host->max_segs,
-			    SG_MAX_SINGLE_ALLOC);
-	max_seg_cnt = min_t(unsigned short, max_seg_cnt, target_list->qlen);
+	max_req_sz = sdiodev->max_request_size;
+	max_seg_cnt = min_t(unsigned short, sdiodev->max_segment_count,
+			    target_list->qlen);
 	seg_sz = target_list->qlen;
 	pkt_offset = 0;
 	pkt_next = target_list->next;
@@ -429,8 +420,8 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		while (pkt_next != (struct sk_buff *)target_list) {
 			pkt_data = pkt_next->data + pkt_offset;
 			sg_data_sz = pkt_next->len - pkt_offset;
-			if (sg_data_sz > host->max_seg_size)
-				sg_data_sz = host->max_seg_size;
+			if (sg_data_sz > sdiodev->max_segment_size)
+				sg_data_sz = sdiodev->max_segment_size;
 			if (sg_data_sz > max_req_sz - req_sz)
 				sg_data_sz = max_req_sz - req_sz;
 
@@ -476,7 +467,7 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 			addr += req_sz;
 
 		mmc_set_data_timeout(&mmc_dat, sdiodev->func[fn]->card);
-		mmc_wait_for_req(host, &mmc_req);
+		mmc_wait_for_req(sdiodev->func[fn]->card->host, &mmc_req);
 
 		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
 		if (ret != 0) {
