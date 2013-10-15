@@ -78,13 +78,15 @@ TRACE_EVENT(brcmf_hexdump,
 	TP_ARGS(data, len),
 	TP_STRUCT__entry(
 		__field(unsigned long, len)
+		__field(unsigned long, addr)
 		__dynamic_array(u8, hdata, len)
 	),
 	TP_fast_assign(
 		__entry->len = len;
+		__entry->addr = (unsigned long)data;
 		memcpy(__get_dynamic_array(hdata), data, len);
 	),
-	TP_printk("hexdump [length=%lu]", __entry->len)
+	TP_printk("hexdump [addr=%lx, length=%lu]", __entry->addr, __entry->len)
 );
 
 TRACE_EVENT(brcmf_bdchdr,
