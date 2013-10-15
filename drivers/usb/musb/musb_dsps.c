@@ -138,7 +138,7 @@ static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
 		glue->last_timer = jiffies;
 		return;
 	}
-	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+	if (musb->port_mode != MUSB_PORT_MODE_DUAL_ROLE)
 		return;
 
 	if (!musb->g.dev.driver)
