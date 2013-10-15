@@ -149,7 +149,7 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.start_scan_cmdid = WMI_10X_START_SCAN_CMDID,
 	.stop_scan_cmdid = WMI_10X_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_10X_SCAN_CHAN_LIST_CMDID,
-	.scan_sch_prio_tbl_cmdid = WMI_CMD_UNDEFINED,
+	.scan_sch_prio_tbl_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_set_regdomain_cmdid = WMI_10X_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_10X_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_10X_PDEV_SET_PARAM_CMDID,
@@ -182,11 +182,11 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.peer_mcast_group_cmdid = WMI_10X_PEER_MCAST_GROUP_CMDID,
 	.bcn_tx_cmdid = WMI_10X_BCN_TX_CMDID,
 	.pdev_send_bcn_cmdid = WMI_10X_PDEV_SEND_BCN_CMDID,
-	.bcn_tmpl_cmdid = WMI_CMD_UNDEFINED,
+	.bcn_tmpl_cmdid = WMI_CMD_UNSUPPORTED,
 	.bcn_filter_rx_cmdid = WMI_10X_BCN_FILTER_RX_CMDID,
 	.prb_req_filter_rx_cmdid = WMI_10X_PRB_REQ_FILTER_RX_CMDID,
 	.mgmt_tx_cmdid = WMI_10X_MGMT_TX_CMDID,
-	.prb_tmpl_cmdid = WMI_CMD_UNDEFINED,
+	.prb_tmpl_cmdid = WMI_CMD_UNSUPPORTED,
 	.addba_clear_resp_cmdid = WMI_10X_ADDBA_CLEAR_RESP_CMDID,
 	.addba_send_cmdid = WMI_10X_ADDBA_SEND_CMDID,
 	.addba_status_cmdid = WMI_10X_ADDBA_STATUS_CMDID,
@@ -211,9 +211,9 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.p2p_dev_set_discoverability = WMI_10X_P2P_DEV_SET_DISCOVERABILITY,
 	.p2p_go_set_beacon_ie = WMI_10X_P2P_GO_SET_BEACON_IE,
 	.p2p_go_set_probe_resp_ie = WMI_10X_P2P_GO_SET_PROBE_RESP_IE,
-	.p2p_set_vendor_ie_data_cmdid = WMI_CMD_UNDEFINED,
-	.ap_ps_peer_param_cmdid = WMI_CMD_UNDEFINED,
-	.ap_ps_peer_uapsd_coex_cmdid = WMI_CMD_UNDEFINED,
+	.p2p_set_vendor_ie_data_cmdid = WMI_CMD_UNSUPPORTED,
+	.ap_ps_peer_param_cmdid = WMI_CMD_UNSUPPORTED,
+	.ap_ps_peer_uapsd_coex_cmdid = WMI_CMD_UNSUPPORTED,
 	.peer_rate_retry_sched_cmdid = WMI_10X_PEER_RATE_RETRY_SCHED_CMDID,
 	.wlan_profile_trigger_cmdid = WMI_10X_WLAN_PROFILE_TRIGGER_CMDID,
 	.wlan_profile_set_hist_intvl_cmdid =
@@ -242,25 +242,25 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.vdev_spectral_scan_enable_cmdid =
 				WMI_10X_VDEV_SPECTRAL_SCAN_ENABLE_CMDID,
 	.request_stats_cmdid = WMI_10X_REQUEST_STATS_CMDID,
-	.set_arp_ns_offload_cmdid = WMI_CMD_UNDEFINED,
-	.network_list_offload_config_cmdid = WMI_CMD_UNDEFINED,
-	.gtk_offload_cmdid = WMI_CMD_UNDEFINED,
-	.csa_offload_enable_cmdid = WMI_CMD_UNDEFINED,
-	.csa_offload_chanswitch_cmdid = WMI_CMD_UNDEFINED,
-	.chatter_set_mode_cmdid = WMI_CMD_UNDEFINED,
-	.peer_tid_addba_cmdid = WMI_CMD_UNDEFINED,
-	.peer_tid_delba_cmdid = WMI_CMD_UNDEFINED,
-	.sta_dtim_ps_method_cmdid = WMI_CMD_UNDEFINED,
-	.sta_uapsd_auto_trig_cmdid = WMI_CMD_UNDEFINED,
-	.sta_keepalive_cmd = WMI_CMD_UNDEFINED,
+	.set_arp_ns_offload_cmdid = WMI_CMD_UNSUPPORTED,
+	.network_list_offload_config_cmdid = WMI_CMD_UNSUPPORTED,
+	.gtk_offload_cmdid = WMI_CMD_UNSUPPORTED,
+	.csa_offload_enable_cmdid = WMI_CMD_UNSUPPORTED,
+	.csa_offload_chanswitch_cmdid = WMI_CMD_UNSUPPORTED,
+	.chatter_set_mode_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_tid_addba_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_tid_delba_cmdid = WMI_CMD_UNSUPPORTED,
+	.sta_dtim_ps_method_cmdid = WMI_CMD_UNSUPPORTED,
+	.sta_uapsd_auto_trig_cmdid = WMI_CMD_UNSUPPORTED,
+	.sta_keepalive_cmd = WMI_CMD_UNSUPPORTED,
 	.echo_cmdid = WMI_10X_ECHO_CMDID,
 	.pdev_utf_cmdid = WMI_10X_PDEV_UTF_CMDID,
 	.dbglog_cfg_cmdid = WMI_10X_DBGLOG_CFG_CMDID,
 	.pdev_qvit_cmdid = WMI_10X_PDEV_QVIT_CMDID,
-	.pdev_ftm_intg_cmdid = WMI_CMD_UNDEFINED,
-	.vdev_set_keepalive_cmdid = WMI_CMD_UNDEFINED,
-	.vdev_get_keepalive_cmdid = WMI_CMD_UNDEFINED,
-	.force_fw_hang_cmdid = WMI_CMD_UNDEFINED,
+	.pdev_ftm_intg_cmdid = WMI_CMD_UNSUPPORTED,
+	.vdev_set_keepalive_cmdid = WMI_CMD_UNSUPPORTED,
+	.vdev_get_keepalive_cmdid = WMI_CMD_UNSUPPORTED,
+	.force_fw_hang_cmdid = WMI_CMD_UNSUPPORTED,
 	.gpio_config_cmdid = WMI_10X_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_10X_GPIO_OUTPUT_CMDID,
 };
@@ -611,9 +611,9 @@ static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar)
 static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 			       u32 cmd_id)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 
-	if (cmd_id == WMI_CMD_UNDEFINED) {
+	if (cmd_id == WMI_CMD_UNSUPPORTED) {
 		ath10k_warn("wmi command %d is not supported by firmware\n",
 			    cmd_id);
 		return ret;

@@ -359,7 +359,7 @@ enum wmi_cmd_group {
 #define WMI_CMD_GRP(grp_id) (((grp_id) << 12) | 0x1)
 #define WMI_EVT_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
 
-#define WMI_CMD_UNDEFINED 0
+#define WMI_CMD_UNSUPPORTED 0
 
 /* Command IDs and command events for MAIN FW. */
 enum wmi_cmd_id {
