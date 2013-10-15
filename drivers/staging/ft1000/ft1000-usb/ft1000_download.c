@@ -517,23 +517,12 @@ static void usb_dnld_complete (struct urb *urb)
     //DEBUG("****** usb_dnld_complete\n");
 }
 
-//---------------------------------------------------------------------------
-// Function:    write_blk_fifo
-//
-// Parameters:  struct ft1000_usb  - device structure
-//              u16 **pUsFile - DSP image file pointer in u16
-//              u8  **pUcFile - DSP image file pointer in u8
-//              long   word_length - length of the buffer to be written
-//                                   to DPRAM
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function writes a block of DSP image to DPRAM
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* writes a block of DSP image to DPRAM
+ * Parameters:  struct ft1000_usb  - device structure
+ *              u16 **pUsFile - DSP image file pointer in u16
+ *              u8  **pUcFile - DSP image file pointer in u8
+ *              long word_length - length of the buffer to be written to DPRAM
+ */
 static u32 write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 			  u8 **pUcFile, long word_length)
 {
