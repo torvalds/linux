@@ -920,6 +920,82 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 			stype, mgmt, &elems, rx_status);
 }
 
+static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
+			       struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee80211_mgmt *mgmt_fwd;
+	struct sk_buff *skb;
+	struct ieee80211_local *local = sdata->local;
+	u8 *pos = mgmt->u.action.u.chan_switch.variable;
+	size_t offset_ttl;
+
+	skb = dev_alloc_skb(local->tx_headroom + len);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, local->tx_headroom);
+	mgmt_fwd = (struct ieee80211_mgmt *) skb_put(skb, len);
+
+	/* offset_ttl is based on whether the secondary channel
+	 * offset is available or not. Substract 1 from the mesh TTL
+	 * and disable the initiator flag before forwarding.
+	 */
+	offset_ttl = (len < 42) ? 7 : 10;
+	*(pos + offset_ttl) -= 1;
+	*(pos + offset_ttl + 1) &= ~WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR;
+
+	memcpy(mgmt_fwd, mgmt, len);
+	eth_broadcast_addr(mgmt_fwd->da);
+	memcpy(mgmt_fwd->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt_fwd->bssid, sdata->vif.addr, ETH_ALEN);
+
+	ieee80211_tx_skb(sdata, skb);
+	return 0;
+}
+
+static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
+			      struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee802_11_elems elems;
+	u16 pre_value;
+	bool block_tx, fwd_csa = true;
+	size_t baselen;
+	u8 *pos, ttl;
+
+	if (mgmt->u.action.u.measurement.action_code !=
+	    WLAN_ACTION_SPCT_CHL_SWITCH)
+		return;
+
+	pos = mgmt->u.action.u.chan_switch.variable;
+	baselen = offsetof(struct ieee80211_mgmt,
+			   u.action.u.chan_switch.variable);
+	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+
+	ttl = elems.mesh_chansw_params_ie->mesh_ttl;
+	if (!--ttl)
+		fwd_csa = false;
+
+	pre_value = le16_to_cpu(elems.mesh_chansw_params_ie->mesh_pre_value);
+	if (ifmsh->pre_value >= pre_value)
+		return;
+
+	ifmsh->pre_value = pre_value;
+
+	/* forward or re-broadcast the CSA frame */
+	if (fwd_csa) {
+		if (mesh_fwd_csa_frame(sdata, mgmt, len) < 0)
+			mcsa_dbg(sdata, "Failed to forward the CSA frame");
+	}
+
+	/* block the Tx only after forwarding the CSA frame if required */
+	block_tx = elems.mesh_chansw_params_ie->mesh_flags &
+		   WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT;
+	if (block_tx)
+		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+				IEEE80211_MAX_QUEUE_MAP,
+				IEEE80211_QUEUE_STOP_REASON_CSA);
+}
+
 static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_mgmt *mgmt,
 					  size_t len,
@@ -938,6 +1014,9 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 	case WLAN_CATEGORY_MESH_ACTION:
 		if (mesh_action_is_path_sel(mgmt))
 			mesh_rx_path_sel_frame(sdata, mgmt, len);
+		break;
+	case WLAN_CATEGORY_SPECTRUM_MGMT:
+		mesh_rx_csa_frame(sdata, mgmt, len);
 		break;
 	}
 }
@@ -1056,13 +1135,11 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 
 	ifmsh->accepting_plinks = true;
-	ifmsh->preq_id = 0;
-	ifmsh->sn = 0;
-	ifmsh->num_gates = 0;
 	atomic_set(&ifmsh->mpaths, 0);
 	mesh_rmc_init(sdata);
 	ifmsh->last_preq = jiffies;
 	ifmsh->next_perr = jiffies;
+	ifmsh->chsw_init = false;
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();

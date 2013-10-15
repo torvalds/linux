@@ -740,6 +740,7 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_TIMEOUT_INTERVAL:
 		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
 		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
+		case WLAN_EID_CHAN_SWITCH_PARAM:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
 		 * that if the content gets bigger it might be needed more than once
@@ -904,6 +905,14 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 				break;
 			}
 			elems->sec_chan_offs = (void *)pos;
+			break;
+		case WLAN_EID_CHAN_SWITCH_PARAM:
+			if (elen !=
+			    sizeof(*elems->mesh_chansw_params_ie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->mesh_chansw_params_ie = (void *)pos;
 			break;
 		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
 			if (!action ||

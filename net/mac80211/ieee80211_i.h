@@ -603,6 +603,9 @@ struct ieee80211_if_mesh {
 	int ps_peers_light_sleep;
 	int ps_peers_deep_sleep;
 	struct ps_data ps;
+	/* Channel Switching Support */
+	bool chsw_init;
+	u16 pre_value;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -1252,6 +1255,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_timeout_interval_ie *timeout_int;
 	const u8 *opmode_notif;
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
+	const struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
 
 	/* length of them, respectively */
 	u8 ssid_len;
