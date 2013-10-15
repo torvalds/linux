@@ -620,6 +620,7 @@ int
 brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff_head *pktq)
 {
+	struct sk_buff *skb;
 	uint width;
 	int err;
 
@@ -631,9 +632,16 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (err)
 		return err;
 
-	if (pktq->qlen == 1)
-		return brcmf_sdio_buffrw(sdiodev, fn, true, addr, pktq->next);
-	return brcmf_sdio_sglist_rw(sdiodev, fn, true, addr, pktq);
+	if (pktq->qlen == 1 || !sdiodev->sg_support)
+		skb_queue_walk(pktq, skb) {
+			err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, skb);
+			if (err)
+				break;
+		}
+	else
+		err = brcmf_sdio_sglist_rw(sdiodev, fn, true, addr, pktq);
+
+	return err;
 }
 
 int
