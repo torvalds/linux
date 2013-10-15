@@ -321,6 +321,9 @@ enum TD_STS_BIT {
 #define TD_TFP	(TD_TFP1|TD_TFP0)
 
 /* RMCR */
+enum RMCR_BIT {
+	RMCR_RNC = 0x00000001,
+};
 #define DEFAULT_RMCR_VALUE	0x00000000
 
 /* ECMR */
