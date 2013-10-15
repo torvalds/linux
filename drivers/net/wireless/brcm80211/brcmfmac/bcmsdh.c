@@ -569,8 +569,10 @@ done:
 }
 
 int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			    uint flags, struct sk_buff_head *pktq)
+			    uint flags, struct sk_buff_head *pktq, uint totlen)
 {
+	struct sk_buff *glom_skb;
+	struct sk_buff *skb;
 	uint width;
 	int err = 0;
 
@@ -582,7 +584,22 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (err)
 		goto done;
 
-	err = brcmf_sdio_sglist_rw(sdiodev, fn, false, addr, pktq);
+	if (pktq->qlen == 1)
+		err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, pktq->next);
+	else if (!sdiodev->sg_support) {
+		glom_skb = brcmu_pkt_buf_get_skb(totlen);
+		if (!glom_skb)
+			return -ENOMEM;
+		err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, glom_skb);
+		if (err)
+			goto done;
+
+		skb_queue_walk(pktq, skb) {
+			memcpy(skb->data, glom_skb->data, skb->len);
+			skb_pull(glom_skb, skb->len);
+		}
+	} else
+		err = brcmf_sdio_sglist_rw(sdiodev, fn, false, addr, pktq);
 
 done:
 	return err;

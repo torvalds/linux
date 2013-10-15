@@ -1392,7 +1392,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		sdio_claim_host(bus->sdiodev->func[1]);
 		errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
 				bus->sdiodev->sbwad,
-				SDIO_FUNC_2, F2SYNC, &bus->glom);
+				SDIO_FUNC_2, F2SYNC, &bus->glom, dlen);
 		sdio_release_host(bus->sdiodev->func[1]);
 		bus->sdcnt.f2rxdata++;
 

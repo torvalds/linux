@@ -225,7 +225,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes);
 extern int
 brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			uint flags, struct sk_buff_head *pktq);
+			uint flags, struct sk_buff_head *pktq, uint totlen);
 
 /* Flags bits */
 
