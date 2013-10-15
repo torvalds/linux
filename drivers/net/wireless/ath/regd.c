@@ -422,6 +422,7 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 		       sizeof(struct ath_regulatory));
 		break;
 	case NL80211_REGDOM_SET_BY_DRIVER:
+		break;
 	case NL80211_REGDOM_SET_BY_USER:
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
