@@ -4840,35 +4840,31 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 		   cmd ? cmd->sk : NULL);
 }
 
-int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
-					    u8 *randomizer, u8 status)
+void mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
+					     u8 *randomizer, u8 status)
 {
 	struct pending_cmd *cmd;
-	int err;
 
 	BT_DBG("%s status %u", hdev->name, status);
 
 	cmd = mgmt_pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
 	if (!cmd)
-		return -ENOENT;
+		return;
 
 	if (status) {
-		err = cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
-				 mgmt_status(status));
+		cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
+			   mgmt_status(status));
 	} else {
 		struct mgmt_rp_read_local_oob_data rp;
 
 		memcpy(rp.hash, hash, sizeof(rp.hash));
 		memcpy(rp.randomizer, randomizer, sizeof(rp.randomizer));
 
-		err = cmd_complete(cmd->sk, hdev->id,
-				   MGMT_OP_READ_LOCAL_OOB_DATA, 0, &rp,
-				   sizeof(rp));
+		cmd_complete(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
+			     0, &rp, sizeof(rp));
 	}
 
 	mgmt_pending_remove(cmd);
-
-	return err;
 }
 
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
