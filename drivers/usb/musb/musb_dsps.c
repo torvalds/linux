@@ -209,6 +209,7 @@ static void otg_timer(unsigned long _musb)
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	u8 devctl;
 	unsigned long flags;
+	int skip_session = 0;
 
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
@@ -221,10 +222,12 @@ static void otg_timer(unsigned long _musb)
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_WAIT_BCON:
-		devctl &= ~MUSB_DEVCTL_SESSION;
-		dsps_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+		dsps_writeb(musb->mregs, MUSB_DEVCTL, 0);
+		skip_session = 1;
+		/* fall */
 
-		devctl = dsps_readb(musb->mregs, MUSB_DEVCTL);
+	case OTG_STATE_A_IDLE:
+	case OTG_STATE_B_IDLE:
 		if (devctl & MUSB_DEVCTL_BDEVICE) {
 			musb->xceiv->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
@@ -232,19 +235,14 @@ static void otg_timer(unsigned long _musb)
 			musb->xceiv->state = OTG_STATE_A_IDLE;
 			MUSB_HST_MODE(musb);
 		}
+		if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
+			dsps_writeb(mregs, MUSB_DEVCTL, MUSB_DEVCTL_SESSION);
+		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
 		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
 		dsps_writel(musb->ctrl_base, wrp->coreintr_set,
 			    MUSB_INTR_VBUSERROR << wrp->usb_shift);
-		break;
-	case OTG_STATE_B_IDLE:
-		devctl = dsps_readb(mregs, MUSB_DEVCTL);
-		if (devctl & MUSB_DEVCTL_BDEVICE)
-			mod_timer(&glue->timer,
-					jiffies + wrp->poll_seconds * HZ);
-		else
-			musb->xceiv->state = OTG_STATE_A_IDLE;
 		break;
 	default:
 		break;
