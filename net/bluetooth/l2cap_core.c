@@ -4241,7 +4241,6 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn,
 	struct l2cap_disconn_rsp rsp;
 	u16 dcid, scid;
 	struct l2cap_chan *chan;
-	struct sock *sk;
 
 	if (cmd_len != sizeof(*req))
 		return -EPROTO;
@@ -4261,15 +4260,11 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn,
 
 	l2cap_chan_lock(chan);
 
-	sk = chan->sk;
-
 	rsp.dcid = cpu_to_le16(chan->scid);
 	rsp.scid = cpu_to_le16(chan->dcid);
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_DISCONN_RSP, sizeof(rsp), &rsp);
 
-	lock_sock(sk);
-	sk->sk_shutdown = SHUTDOWN_MASK;
-	release_sock(sk);
+	chan->ops->set_shutdown(chan);
 
 	l2cap_chan_hold(chan);
 	l2cap_chan_del(chan, ECONNRESET);
