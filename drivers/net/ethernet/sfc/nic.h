@@ -554,7 +554,9 @@ int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
 			      bool spoofchk);
 
 struct ethtool_ts_info;
-void efx_ptp_probe(struct efx_nic *efx);
+int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel);
+void efx_ptp_defer_probe_with_channel(struct efx_nic *efx);
+void efx_ptp_remove(struct efx_nic *efx);
 int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr);
 int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr);
 void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info);
