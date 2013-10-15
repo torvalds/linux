@@ -3014,6 +3014,7 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_chanctx *chanctx;
+	struct ieee80211_if_mesh __maybe_unused *ifmsh;
 	int err, num_chanctx;
 
 	if (!list_empty(&local->roc_list) || local->scanning)
@@ -3097,6 +3098,26 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		if (err < 0)
 			return err;
 		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		ifmsh = &sdata->u.mesh;
+
+		if (!ifmsh->mesh_id)
+			return -EINVAL;
+
+		if (params->chandef.width != sdata->vif.bss_conf.chandef.width)
+			return -EINVAL;
+
+		/* changes into another band are not supported */
+		if (sdata->vif.bss_conf.chandef.chan->band !=
+		    params->chandef.chan->band)
+			return -EINVAL;
+
+		err = ieee80211_send_action_csa(sdata, params);
+		if (err < 0)
+			return err;
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
