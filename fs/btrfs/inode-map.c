@@ -237,7 +237,7 @@ again:
 		start_caching(root);
 
 		if (objectid <= root->cache_progress ||
-		    objectid > root->highest_objectid)
+		    objectid >= root->highest_objectid)
 			__btrfs_add_free_space(ctl, objectid, 1);
 		else
 			__btrfs_add_free_space(pinned, objectid, 1);
