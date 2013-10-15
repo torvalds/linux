@@ -49,6 +49,7 @@ usage () {
 	echo "       --interactive"
 	echo "       --kversion vN.NN"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
+	echo "       --qemu-args qemu-system-..."
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
@@ -85,7 +86,7 @@ do
 		shift
 		;;
 	--builddir)
-		checkarg --builddir "(absolute pathname)" "$#" "$2" '^/' error
+		checkarg --builddir "(absolute pathname)" "$#" "$2" '^/' '^error'
 		builddir=$2
 		gotbuilddir=1
 		shift
@@ -104,7 +105,7 @@ do
 		shift
 		;;
 	--duration)
-		checkarg --duration "(minutes)" $# "$2" '^[0-9]*$' error
+		checkarg --duration "(minutes)" $# "$2" '^[0-9]*$' '^error'
 		dur=$2
 		shift
 		;;
@@ -112,13 +113,18 @@ do
 		RCU_QEMU_INTERACTIVE=1; export RCU_QEMU_INTERACTIVE
 		;;
 	--kversion)
-		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' error
+		checkarg --kversion "(kernel version)" $# "$2" '^v[0-9.]*$' '^error'
 		kversion=$2
 		shift
 		;;
 	--mac)
 		checkarg --mac "(MAC address)" $# "$2" '^\([0-9a-fA-F]\{2\}:\)\{5\}[0-9a-fA-F]\{2\}$' error
 		RCU_QEMU_MAC=$2; export RCU_QEMU_MAC
+		shift
+		;;
+	--qemu-args)
+		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
+		RCU_QEMU_ARG="$2"
 		shift
 		;;
 	--qemu-cmd)
@@ -134,7 +140,7 @@ do
 		shift
 		;;
 	--results)
-		checkarg --results "(absolute pathname)" "$#" "$2" '^/' error
+		checkarg --results "(absolute pathname)" "$#" "$2" '^/' '^error'
 		resdir=$2
 		shift
 		;;
@@ -189,6 +195,6 @@ do
 	rd=$resdir/$ds/$CF
 	mkdir $rd || :
 	echo Results directory: $rd
-	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic" "rcutorture.test_no_idle_hz=1 rcutorture.verbose=1 $RCU_BOOTARGS"
+	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic $RCU_QEMU_ARG" "rcutorture.test_no_idle_hz=1 rcutorture.verbose=1 $RCU_BOOTARGS"
 done
 # Tracing: trace_event=rcu:rcu_nocb_grace_period,rcu:rcu_grace_period,rcu:rcu_grace_period_init,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_torture_read,rcu:rcu_invoke_callback,rcu:rcu_fqs,rcu:rcu_dyntick,rcu:rcu_unlock_preempted_task
