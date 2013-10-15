@@ -1732,6 +1732,36 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_pipe_crc(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe = (enum pipe)node->info_ent->data;
+	const struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
+	int i;
+	int start;
+
+	if (!IS_IVYBRIDGE(dev)) {
+		seq_puts(m, "unsupported\n");
+		return 0;
+	}
+
+	start = atomic_read(&pipe_crc->slot) + 1;
+	seq_puts(m, " timestamp     CRC1     CRC2     CRC3     CRC4     CRC5\n");
+	for (i = 0; i < INTEL_PIPE_CRC_ENTRIES_NR; i++) {
+		const struct intel_pipe_crc_entry *entry =
+			&pipe_crc->entries[(start + i) %
+					   INTEL_PIPE_CRC_ENTRIES_NR];
+
+		seq_printf(m, "%12u %8x %8x %8x %8x %8x\n", entry->timestamp,
+			   entry->crc[0], entry->crc[1], entry->crc[2],
+			   entry->crc[3], entry->crc[4]);
+	}
+
+	return 0;
+}
+
 static int
 i915_wedged_get(void *data, u64 *val)
 {
@@ -2247,6 +2277,9 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_pc8_status", i915_pc8_status, 0},
+	{"i915_pipe_A_crc", i915_pipe_crc, 0, (void *)PIPE_A},
+	{"i915_pipe_B_crc", i915_pipe_crc, 0, (void *)PIPE_B},
+	{"i915_pipe_C_crc", i915_pipe_crc, 0, (void *)PIPE_C},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

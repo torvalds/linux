@@ -1188,6 +1188,32 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
+#if defined(CONFIG_DEBUG_FS)
+static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
+	struct intel_pipe_crc_entry *entry;
+	ktime_t now;
+	int ts, slot;
+
+	now = ktime_get();
+	ts = ktime_to_us(now);
+
+	slot = (atomic_read(&pipe_crc->slot) + 1) % INTEL_PIPE_CRC_ENTRIES_NR;
+	entry = &pipe_crc->entries[slot];
+	entry->timestamp = ts;
+	entry->crc[0] = I915_READ(PIPE_CRC_RES_1_IVB(pipe));
+	entry->crc[1] = I915_READ(PIPE_CRC_RES_2_IVB(pipe));
+	entry->crc[2] = I915_READ(PIPE_CRC_RES_3_IVB(pipe));
+	entry->crc[3] = I915_READ(PIPE_CRC_RES_4_IVB(pipe));
+	entry->crc[4] = I915_READ(PIPE_CRC_RES_5_IVB(pipe));
+	atomic_set(&dev_priv->pipe_crc[pipe].slot, slot);
+}
+#else
+static void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
+#endif
+
 /* The RPS events need forcewake, so we add them to a work queue and mask their
  * IMR bits until the work is done. Other interrupts can be processed without
  * the work queue. */
@@ -1365,6 +1391,15 @@ static void ivb_err_int_handler(struct drm_device *dev)
 	if (err_int & ERR_INT_FIFO_UNDERRUN_C)
 		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_C, false))
 			DRM_DEBUG_DRIVER("Pipe C FIFO underrun\n");
+
+	if (err_int & ERR_INT_PIPE_CRC_DONE_A)
+		ivb_pipe_crc_update(dev, PIPE_A);
+
+	if (err_int & ERR_INT_PIPE_CRC_DONE_B)
+		ivb_pipe_crc_update(dev, PIPE_B);
+
+	if (err_int & ERR_INT_PIPE_CRC_DONE_C)
+		ivb_pipe_crc_update(dev, PIPE_C);
 
 	I915_WRITE(GEN7_ERR_INT, err_int);
 }
