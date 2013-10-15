@@ -893,7 +893,7 @@ static struct platform_driver usbhs_omap_driver = {
 		.name		= (char *)usbhs_driver_name,
 		.owner		= THIS_MODULE,
 		.pm		= &usbhsomap_dev_pm_ops,
-		.of_match_table = of_match_ptr(usbhs_omap_dt_ids),
+		.of_match_table = usbhs_omap_dt_ids,
 	},
 	.remove		= usbhs_omap_remove,
 };

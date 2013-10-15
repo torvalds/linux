@@ -320,7 +320,7 @@ static struct platform_driver usbtll_omap_driver = {
 	.driver = {
 		.name		= (char *)usbtll_driver_name,
 		.owner		= THIS_MODULE,
-		.of_match_table = of_match_ptr(usbtll_omap_dt_ids),
+		.of_match_table = usbtll_omap_dt_ids,
 	},
 	.probe		= usbtll_omap_probe,
 	.remove		= usbtll_omap_remove,
