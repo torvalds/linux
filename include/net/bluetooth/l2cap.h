@@ -555,6 +555,7 @@ struct l2cap_ops {
 	void			(*ready) (struct l2cap_chan *chan);
 	void			(*defer) (struct l2cap_chan *chan);
 	void			(*resume) (struct l2cap_chan *chan);
+	long			(*get_sndtimeo) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };
@@ -793,6 +794,11 @@ static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
 
 static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
 {
+}
+
+static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
+{
+	return 0;
 }
 
 extern bool disable_ertm;
