@@ -2489,6 +2489,8 @@ static int format_check(const struct drm_mode_fb_cmd2 *r)
 	case DRM_FORMAT_YVU444:
 		return 0;
 	default:
+		DRM_DEBUG_KMS("invalid pixel format %s\n",
+			      drm_get_format_name(r->pixel_format));
 		return -EINVAL;
 	}
 }
@@ -3828,7 +3830,8 @@ void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 		*bpp = 32;
 		break;
 	default:
-		DRM_DEBUG_KMS("unsupported pixel format\n");
+		DRM_DEBUG_KMS("unsupported pixel format %s\n",
+			      drm_get_format_name(format));
 		*depth = 0;
 		*bpp = 0;
 		break;
