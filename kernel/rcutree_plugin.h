@@ -1635,16 +1635,22 @@ module_param(rcu_idle_lazy_gp_delay, int, 0644);
 extern int tick_nohz_enabled;
 
 /*
- * Try to advance callbacks for all flavors of RCU on the current CPU.
- * Afterwards, if there are any callbacks ready for immediate invocation,
- * return true.
+ * Try to advance callbacks for all flavors of RCU on the current CPU, but
+ * only if it has been awhile since the last time we did so.  Afterwards,
+ * if there are any callbacks ready for immediate invocation, return true.
  */
 static bool rcu_try_advance_all_cbs(void)
 {
 	bool cbs_ready = false;
 	struct rcu_data *rdp;
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	struct rcu_node *rnp;
 	struct rcu_state *rsp;
+
+	/* Exit early if we advanced recently. */
+	if (jiffies == rdtp->last_advance_all)
+		return 0;
+	rdtp->last_advance_all = jiffies;
 
 	for_each_rcu_flavor(rsp) {
 		rdp = this_cpu_ptr(rsp->rda);
@@ -1744,6 +1750,8 @@ static void rcu_prepare_for_idle(int cpu)
 	 */
 	if (rdtp->all_lazy &&
 	    rdtp->nonlazy_posted != rdtp->nonlazy_posted_snap) {
+		rdtp->all_lazy = false;
+		rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
 		invoke_rcu_core();
 		return;
 	}
@@ -1773,17 +1781,11 @@ static void rcu_prepare_for_idle(int cpu)
  */
 static void rcu_cleanup_after_idle(int cpu)
 {
-	struct rcu_data *rdp;
-	struct rcu_state *rsp;
 
 	if (rcu_is_nocb_cpu(cpu))
 		return;
-	rcu_try_advance_all_cbs();
-	for_each_rcu_flavor(rsp) {
-		rdp = per_cpu_ptr(rsp->rda, cpu);
-		if (cpu_has_callbacks_ready_to_invoke(rdp))
-			invoke_rcu_core();
-	}
+	if (rcu_try_advance_all_cbs())
+		invoke_rcu_core();
 }
 
 /*
