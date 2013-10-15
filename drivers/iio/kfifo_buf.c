@@ -132,7 +132,10 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 
 static void iio_kfifo_buffer_release(struct iio_buffer *buffer)
 {
-	kfree(iio_to_kfifo(buffer));
+	struct iio_kfifo *kf = iio_to_kfifo(buffer);
+
+	kfifo_free(&kf->kf);
+	kfree(kf);
 }
 
 static const struct iio_buffer_access_funcs kfifo_access_funcs = {
