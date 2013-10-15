@@ -1307,6 +1307,29 @@ static int pci_default_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
+static int pci_pericom_setup(struct serial_private *priv,
+		  const struct pciserial_board *board,
+		  struct uart_8250_port *port, int idx)
+{
+	unsigned int bar, offset = board->first_offset, maxnr;
+
+	bar = FL_GET_BASE(board->flags);
+	if (board->flags & FL_BASE_BARS)
+		bar += idx;
+	else
+		offset += idx * board->uart_offset;
+
+	maxnr = (pci_resource_len(priv->dev, bar) - board->first_offset) >>
+		(board->reg_shift + 3);
+
+	if (board->flags & FL_REGION_SZ_CAP && idx >= maxnr)
+		return 1;
+
+	port->port.uartclk = 14745600;
+
+	return setup_port(priv, port, bar, offset, board->reg_shift);
+}
+
 static int
 ce4100_serial_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
@@ -2015,6 +2038,31 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup		= pci_default_setup,
 		.exit		= pci_plx9050_exit,
 	},
+	/*
+	 * Pericom
+	 */
+	{
+		.vendor		= 0x12d8,
+		.device		= 0x7952,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_pericom_setup,
+	},
+	{
+		.vendor		= 0x12d8,
+		.device		= 0x7954,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_pericom_setup,
+	},
+	{
+		.vendor		= 0x12d8,
+		.device		= 0x7958,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_pericom_setup,
+	},
+
 	/*
 	 * PLX
 	 */
