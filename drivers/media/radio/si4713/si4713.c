@@ -831,8 +831,9 @@ static int si4713_set_rds_ps_name(struct si4713_device *sdev, char *ps_name)
 	return rval;
 }
 
-static int si4713_set_rds_radio_text(struct si4713_device *sdev, char *rt)
+static int si4713_set_rds_radio_text(struct si4713_device *sdev, const char *rt)
 {
+	static const char cr[RDS_RADIOTEXT_BLK_SIZE] = { RDS_CARRIAGE_RETURN, 0 };
 	int rval = 0, i;
 	u16 t_index = 0;
 	u8 b_index = 0, cr_inserted = 0;
@@ -856,7 +857,7 @@ static int si4713_set_rds_radio_text(struct si4713_device *sdev, char *rt)
 			for (i = 0; i < RDS_RADIOTEXT_BLK_SIZE; i++) {
 				if (!rt[t_index + i] ||
 				    rt[t_index + i] == RDS_CARRIAGE_RETURN) {
-					rt[t_index + i] = RDS_CARRIAGE_RETURN;
+					rt = cr;
 					cr_inserted = 1;
 					break;
 				}
