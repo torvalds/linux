@@ -1,0 +1,171 @@
+  <counter_set name="ARM_Cortex-A57_cnt" count="6"/>
+  <category name="Cortex-A57" counter_set="ARM_Cortex-A57_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <!-- 0x11 CPU_CYCLES - Cycle -->
+    <event counter="ARM_Cortex-A57_ccnt" event="0x11" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <!-- 0x00 SW_INCR - Instruction architecturally executed (condition check pass) - Software increment -->
+    <event event="0x00" title="Software" name="Increment" description="Incremented only on writes to the Software Increment Register"/>
+    <!-- 0x01 L1I_CACHE_REFILL - Level 1 instruction cache refill -->
+    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
+    <!-- 0x02 L1I_TLB_REFILL - Level 1 instruction TLB refill -->
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <!-- 0x03 L1D_CACHE_REFILL - Level 1 data cache refill -->
+    <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
+    <!-- 0x04 L1D_CACHE - Level 1 data cache access -->
+    <event event="0x04" title="Cache" name="Data access" description="Memory Read or Write operation that causes a cache access to at least the level of data or unified cache closest to the processor"/>
+    <!-- 0x05 L1D_TLB_REFILL - Level 1 data TLB refill -->
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Memory Read or Write operation that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <!-- 0x08 INST_RETIRED - Instruction architecturally executed -->
+    <event event="0x08" title="Instruction" name="Executed" description="Instruction architecturally executed"/>
+    <!-- 0x09 EXC_TAKEN - Exception taken -->
+    <event event="0x09" title="Exception" name="Taken" description="Exceptions taken"/>
+    <!-- 0x0A EXC_RETURN - Instruction architecturally executed (condition check pass) - Exception return -->
+    <event event="0x0a" title="Exception" name="Return" description="Exception return architecturally executed"/>
+    <!-- 0x0B CID_WRITE_RETIRED - Instruction architecturally executed (condition check pass) - Write to CONTEXTIDR -->
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction that writes to the CONTEXTIDR architecturally executed"/>
+    <!-- 0x10 BR_MIS_PRED - Mispredicted or not predicted branch speculatively executed -->
+    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted or not predicted"/>
+    <!-- 0x12 BR_PRED - Predictable branch speculatively executed -->
+    <event event="0x12" title="Branch" name="Potential prediction" description="Branch or other change in program flow that could have been predicted by the branch prediction resources of the processor"/>
+    <!-- 0x13 MEM_ACCESS - Data memory access -->
+    <event event="0x13" title="Memory" name="Memory access" description="Data memory access"/>
+    <!-- 0x14 L1I_CACHE - Level 1 instruction cache access -->
+    <event event="0x14" title="Cache" name="L1 inst access" description="Level 1 instruction cache access"/>
+    <!-- 0x15 L1D_CACHE_WB - Level 1 data cache Write-Back -->
+    <event event="0x15" title="Cache" name="L1 data write" description="Level 1 data cache Write-Back"/>
+    <!-- 0x16 L2D_CACHE - Level 2 data cache access -->
+    <event event="0x16" title="Cache" name="L2 data access" description="Level 2 data cache access"/>
+    <!-- 0x17 L2D_CACHE_REFILL - Level 2 data cache refill -->
+    <event event="0x17" title="Cache" name="L2 data refill" description="Level 2 data cache refill"/>
+    <!-- 0x18 L2D_CACHE_WB - Level 2 data cache Write-Back -->
+    <event event="0x18" title="Cache" name="L2 data write" description="Level 2 data cache Write-Back"/>
+    <!-- 0x19 BUS_ACCESS - Bus access -->
+    <event event="0x19" title="Bus" name="Access" description="Bus access"/>
+    <!-- 0x1A MEMORY_ERROR - Local memory error -->
+    <event event="0x1A" title="Memory" name="Error" description="Local memory error"/>
+    <!-- 0x1B INST_SPEC - Operation speculatively executed -->
+    <event event="0x1B" title="Instruction" name="Speculative" description="Operation speculatively executed"/>
+    <!-- 0x1C TTBR_WRITE_RETIRED - Instruction architecturally executed (condition check pass) - Write to translation table base -->
+    <event event="0x1C" title="Memory" name="Translation table" description="Instruction architecturally executed (condition check pass) - Write to translation table base"/>
+    <!-- 0x1D BUS_CYCLES - Bus cycle -->
+    <event event="0x1D" title="Bus" name="Cycle" description="Bus cycle"/>
+    <!-- 0x1E CHAIN - Odd performance counter chain mode -->
+    <event event="0x1E" title="Counter chain" name="Odd Performance" description="Odd performance counter chain mode"/>
+    <!-- 0x40 L1D_CACHE_LD - Level 1 data cache access - Read -->
+    <event event="0x40" title="Cache" name="L1 data read" description="Level 1 data cache access - Read"/>
+    <!-- 0x41 L1D_CACHE_ST - Level 1 data cache access - Write -->
+    <event event="0x41" title="Cache" name="L1 data access write" description="Level 1 data cache access - Write"/>
+    <!-- 0x42 L1D_CACHE_REFILL_LD - Level 1 data cache refill - Read -->
+    <event event="0x42" title="Cache" name="L1 data refill read" description="Level 1 data cache refill - Read"/>
+    <!-- 0x43 L1D_CACHE_REFILL_ST - Level 1 data cache refill - Write -->
+    <event event="0x43" title="Cache" name="L1 data refill write" description="Level 1 data cache refill - Write"/>
+    <!-- 0x46 L1D_CACHE_WB_VICTIM - Level 1 data cache Write-back - Victim -->
+    <event event="0x46" title="Cache" name="L1 data victim" description="Level 1 data cache Write-back - Victim"/>
+    <!-- 0x47 L1D_CACHE_WB_CLEAN - Level 1 data cache Write-back - Cleaning and coherency -->
+    <event event="0x47" title="Cache" name="L1 data clean" description="Level 1 data cache Write-back - Cleaning and coherency"/>
+    <!-- 0x48 L1D_CACHE_INVAL - Level 1 data cache invalidate -->
+    <event event="0x48" title="Cache" name="L1 data invalidate" description="Level 1 data cache invalidate"/>
+    <!-- 0x4C L1D_TLB_REFILL_LD - Level 1 data TLB refill - Read -->
+    <event event="0x4C" title="Cache" name="L1 data refill read" description="Level 1 data TLB refill - Read"/>
+    <!-- 0x4D L1D_TLB_REFILL_ST - Level 1 data TLB refill - Write -->
+    <event event="0x4D" title="Cache" name="L1 data refill write" description="Level 1 data TLB refill - Write"/>
+    <!-- 0x50 L2D_CACHE_LD - Level 2 data cache access - Read -->
+    <event event="0x50" title="Cache" name="L2 data read" description="Level 2 data cache access - Read"/>
+    <!-- 0x51 L2D_CACHE_ST - Level 2 data cache access - Write -->
+    <event event="0x51" title="Cache" name="L2 data access write" description="Level 2 data cache access - Write"/>
+    <!-- 0x52 L2D_CACHE_REFILL_LD - Level 2 data cache refill - Read -->
+    <event event="0x52" title="Cache" name="L2 data refill read" description="Level 2 data cache refill - Read"/>
+    <!-- 0x53 L2D_CACHE_REFILL_ST - Level 2 data cache refill - Write -->
+    <event event="0x53" title="Cache" name="L2 data refill write" description="Level 2 data cache refill - Write"/>
+    <!-- 0x56 L2D_CACHE_WB_VICTIM - Level 2 data cache Write-back - Victim -->
+    <event event="0x56" title="Cache" name="L2 data victim" description="Level 2 data cache Write-back - Victim"/>
+    <!-- 0x57 L2D_CACHE_WB_CLEAN - Level 2 data cache Write-back - Cleaning and coherency -->
+    <event event="0x57" title="Cache" name="L2 data clean" description="Level 2 data cache Write-back - Cleaning and coherency"/>
+    <!-- 0x58 L2D_CACHE_INVAL - Level 2 data cache invalidate -->
+    <event event="0x58" title="Cache" name="L2 data invalidate" description="Level 2 data cache invalidate"/>
+    <!-- 0x60 BUS_ACCESS_LD - Bus access - Read -->
+    <event event="0x60" title="Bus" name="Read" description="Bus access - Read"/>
+    <!-- 0x61 BUS_ACCESS_ST - Bus access - Write -->
+    <event event="0x61" title="Bus" name="Write" description="Bus access - Write"/>
+    <!-- 0x62 BUS_ACCESS_SHARED - Bus access - Normal -->
+    <event event="0x62" title="Bus" name="Access shared" description="Bus access - Normal"/>
+    <!-- 0x63 BUS_ACCESS_NOT_SHARED - Bus access - Not normal -->
+    <event event="0x63" title="Bus" name="Access not shared" description="Bus access - Not normal"/>
+    <!-- 0x64 BUS_ACCESS_NORMAL - Bus access - Normal -->
+    <event event="0x64" title="Bus" name="Access normal" description="Bus access - Normal"/>
+    <!-- 0x65 BUS_ACCESS_PERIPH - Bus access - Peripheral -->
+    <event event="0x65" title="Bus" name="Peripheral" description="Bus access - Peripheral"/>
+    <!-- 0x66 MEM_ACCESS_LD - Data memory access - Read -->
+    <event event="0x66" title="Memory" name="Read" description="Data memory access - Read"/>
+    <!-- 0x67 MEM_ACCESS_ST - Data memory access - Write -->
+    <event event="0x67" title="Memory" name="Write" description="Data memory access - Write"/>
+    <!-- 0x68 UNALIGNED_LD_SPEC - Unaligned access - Read -->
+    <event event="0x68" title="Memory" name="Unaligned Read" description="Unaligned access - Read"/>
+    <!-- 0x69 UNALIGNED_ST_SPEC - Unaligned access - Write -->
+    <event event="0x69" title="Memory" name="Unaligned Write" description="Unaligned access - Write"/>
+    <!-- 0x6A UNALIGNED_LDST_SPEC - Unaligned access -->
+    <event event="0x6A" title="Memory" name="Unaligned" description="Unaligned access"/>
+    <!-- 0x6C LDREX_SPEC - Exclusive operation speculatively executed - LDREX -->
+    <event event="0x6C" title="Intrinsic" name="LDREX" description="Exclusive operation speculatively executed - LDREX"/>
+    <!-- 0x6D STREX_PASS_SPEC - Exclusive instruction speculatively executed - STREX pass -->
+    <event event="0x6D" title="Intrinsic" name="STREX pass" description="Exclusive instruction speculatively executed - STREX pass"/>
+    <!-- 0x6E STREX_FAIL_SPEC - Exclusive operation speculatively executed - STREX fail -->
+    <event event="0x6E" title="Intrinsic" name="STREX fail" description="Exclusive operation speculatively executed - STREX fail"/>
+    <!-- 0x70 LD_SPEC - Operation speculatively executed - Load -->
+    <event event="0x70" title="Instruction" name="Load" description="Operation speculatively executed - Load"/>
+    <!-- 0x71 ST_SPEC - Operation speculatively executed - Store -->
+    <event event="0x71" title="Instruction" name="Store" description="Operation speculatively executed - Store"/>
+    <!-- 0x72 LDST_SPEC - Operation speculatively executed - Load or store -->
+    <event event="0x72" title="Instruction" name="Load/Store" description="Operation speculatively executed - Load or store"/>
+    <!-- 0x73 DP_SPEC - Operation speculatively executed - Integer data processing -->
+    <event event="0x73" title="Instruction" name="Integer" description="Operation speculatively executed - Integer data processing"/>
+    <!-- 0x74 ASE_SPEC - Operation speculatively executed - Advanced SIMD -->
+    <event event="0x74" title="Instruction" name="Advanced SIMD" description="Operation speculatively executed - Advanced SIMD"/>
+    <!-- 0x75 VFP_SPEC - Operation speculatively executed - VFP -->
+    <event event="0x75" title="Instruction" name="VFP" description="Operation speculatively executed - VFP"/>
+    <!-- 0x76 PC_WRITE_SPEC - Operation speculatively executed - Software change of the PC -->
+    <event event="0x76" title="Instruction" name="Software change" description="Operation speculatively executed - Software change of the PC"/>
+    <!-- 0x77 CRYPTO_SPEC - Operation speculatively executed, crypto data processing -->
+    <event event="0x77" title="Instruction" name="Crypto" description="Operation speculatively executed, crypto data processing"/>
+    <!-- 0x78 BR_IMMED_SPEC - Branch speculatively executed - Immediate branch -->
+    <event event="0x78" title="Instruction" name="Immediate branch" description="Branch speculatively executed - Immediate branch"/>
+    <!-- 0x79 BR_RETURN_SPEC - Branch speculatively executed - Procedure return -->
+    <event event="0x79" title="Instruction" name="Procedure return" description="Branch speculatively executed - Procedure return"/>
+    <!-- 0x7A BR_INDIRECT_SPEC - Branch speculatively executed - Indirect branch -->
+    <event event="0x7A" title="Instruction" name="Indirect branch" description="Branch speculatively executed - Indirect branch"/>
+    <!-- 0x7C ISB_SPEC - Barrier speculatively executed - ISB -->
+    <event event="0x7C" title="Instruction" name="ISB" description="Barrier speculatively executed - ISB"/>
+    <!-- 0x7D DSB_SPEC - Barrier speculatively executed - DSB -->
+    <event event="0x7D" title="Instruction" name="DSB" description="Barrier speculatively executed - DSB"/>
+    <!-- 0x7E DMB_SPEC - Barrier speculatively executed - DMB -->
+    <event event="0x7E" title="Instruction" name="DMB" description="Barrier speculatively executed - DMB"/>
+    <!-- 0x81 EXC_UNDEF - Exception taken, other synchronous -->
+    <event event="0x81" title="Exception" name="Undefined" description="Exception taken, other synchronous"/>
+    <!-- 0x82 EXC_SVC - Exception taken, Supervisor Call -->
+    <event event="0x82" title="Exception" name="Supervisor" description="Exception taken, Supervisor Call"/>
+    <!-- 0x83 EXC_PABORT - Exception taken, Instruction Abort -->
+    <event event="0x83" title="Exception" name="Instruction abort" description="Exception taken, Instruction Abort"/>
+    <!-- 0x84 EXC_DABORT - Exception taken, Data Abort or SError -->
+    <event event="0x84" title="Exception" name="Data abort" description="Exception taken, Data Abort or SError"/>
+    <!-- 0x86 EXC_IRQ - Exception taken, IRQ -->
+    <event event="0x86" title="Interrupts" name="IRQ" description="Exception taken, IRQ"/>
+    <!-- 0x87 EXC_FIQ - Exception taken, FIQ -->
+    <event event="0x87" title="Interrupts" name="FIQ" description="Exception taken, FIQ"/>
+    <!-- 0x88 EXC_SMC - Exception taken, Secure Monitor Call -->
+    <event event="0x88" title="Exception" name="Secure monitor call" description="Exception taken, Secure Monitor Call"/>
+    <!-- 0x8A EXC_HVC - Exception taken, Hypervisor Call -->
+    <event event="0x8A" title="Exception" name="Hypervisor call" description="Exception taken, Hypervisor Call"/>
+    <!-- 0x8B EXC_TRAP_PABORT - Exception taken, Instruction Abort not taken locally -->
+    <event event="0x8B" title="Exception" name="Instruction abort non-local" description="Exception taken, Instruction Abort not taken locally"/>
+    <!-- 0x8C EXC_TRAP_DABORT - Exception taken, Data Abort or SError not taken locally -->
+    <event event="0x8C" title="Exception" name="Data abort non-local" description="Exception taken, Data Abort or SError not taken locally"/>
+    <!-- 0x8D EXC_TRAP_OTHER - Exception taken - Other traps not taken locally -->
+    <event event="0x8D" title="Exception" name="Other non-local" description="Exception taken - Other traps not taken locally"/>
+    <!-- 0x8E EXC_TRAP_IRQ - Exception taken, IRQ not taken locally -->
+    <event event="0x8E" title="Exception" name="IRQ non-local" description="Exception taken, IRQ not taken locally"/>
+    <!-- 0x8F EXC_TRAP_FIQ - Exception taken, FIQ not taken locally -->
+    <event event="0x8F" title="Exception" name="FIQ non-local" description="Exception taken, FIQ not taken locally"/>
+    <!-- 0x90 RC_LD_SPEC - Release consistency instruction speculatively executed - Load Acquire -->
+    <event event="0x90" title="Release Consistency" name="Load" description="Release consistency instruction speculatively executed - Load Acquire"/>
+    <!-- 0x91 RC_ST_SPEC - Release consistency instruction speculatively executed - Store Release -->
+    <event event="0x91" title="Release Consistency" name="Store" description="Release consistency instruction speculatively executed - Store Release"/>
+  </category>

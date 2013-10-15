@@ -1,0 +1,39 @@
+  <counter_set name="ARM_ARM11_cnt" count="3"/>
+  <category name="ARM11" counter_set="ARM_ARM11_cnt" per_cpu="yes">
+    <event counter="ARM_ARM11_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x00" title="Cache" name="Inst miss" description="Instruction cache miss to a cacheable location, which requires a fetch from external memory"/>
+    <event event="0x01" title="Pipeline" name="Instruction stall" description="Stall because instruction buffer cannot deliver an instruction"/>
+    <event event="0x02" title="Pipeline" name="Data stall" description="Stall because of a data dependency"/>
+    <event event="0x03" title="Cache" name="Inst micro TLB miss" description="Instruction MicroTLB miss (unused on ARM1156)"/>
+    <event event="0x04" title="Cache" name="Data micro TLB miss" description="Data MicroTLB miss (unused on ARM1156)"/>
+    <event event="0x05" title="Branch" name="Instruction executed" description="Branch instruction executed, branch might or might not have changed program flow"/>
+    <event event="0x06" title="Branch" name="Mispredicted" description="Branch mis-predicted"/>
+    <event event="0x07" title="Instruction" name="Executed" description="Instructions executed"/>
+    <event event="0x09" title="Cache" name="Data access" description="Data cache access, not including Cache operations"/>
+    <event event="0x0a" title="Cache" name="Data all access" description="Data cache access, not including Cache Operations regardless of whether or not the location is cacheable"/>
+    <event event="0x0b" title="Cache" name="Data miss" description="Data cache miss, not including Cache Operations"/>
+    <event event="0x0c" title="Cache" name="Write-back" description="Data cache write-back"/>
+    <event event="0x0d" title="Program Counter" name="SW change" description="Software changed the PC"/>
+    <event event="0x0f" title="Cache " name="TLB miss" description="Main TLB miss (unused on ARM1156)"/>
+    <event event="0x10" title="External" name="Access" description="Explicit external data or peripheral access"/>
+    <event event="0x11" title="Cache" name="Data miss" description="Stall because of Load Store Unit request queue being full"/>
+    <event event="0x12" title="Write Buffer" name="Drains" description="The number of times the Write Buffer was drained because of a Data Synchronization Barrier command or Strongly Ordered operation"/>
+    <event event="0x13" title="Disable Interrupts" name="FIQ" description="The number of cycles which FIQ interrupts are disabled (ARM1156 only)"/>
+    <event event="0x14" title="Disable Interrupts" name="IRQ" description="The number of cycles which IRQ interrupts are disabled (ARM1156 only)"/>
+    <event event="0x20" title="ETM" name="ETMEXTOUT[0]" description="ETMEXTOUT[0] signal was asserted for a cycle"/>
+    <event event="0x21" title="ETM" name="ETMEXTOUT[1]" description="ETMEXTOUT[1] signal was asserted for a cycle"/>
+    <event event="0x22" title="ETM" name="ETMEXTOUT[0,1]" description="ETMEXTOUT[0] or ETMEXTOUT[1] was asserted"/>
+    <event event="0x23" title="Procedure" name="Calls" description="Procedure call instruction executed"/>
+    <event event="0x24" title="Procedure" name="Returns" description="Procedure return instruction executed"/>
+    <event event="0x25" title="Procedure" name="Return and predicted" description="Procedure return instruction executed and return address predicted"/>
+    <event event="0x26" title="Procedure" name="Return and mispredicted" description="Procedure return instruction executed and return address predicted incorrectly"/>
+    <event event="0x30" title="Cache" name="Inst tag or parity error" description="Instruction cache Tag or Valid RAM parity error (ARM1156 only)"/>
+    <event event="0x31" title="Cache" name="Inst parity error" description="Instruction cache RAM parity error (ARM1156 only)"/>
+    <event event="0x32" title="Cache" name="Data tag or parity error" description="Data cache Tag or Valid RAM parity error (ARM1156 only)"/>
+    <event event="0x33" title="Cache" name="Data parity error" description="Data cache RAM parity error (ARM1156 only)"/>
+    <event event="0x34" title="ITCM" name="Error" description="ITCM error (ARM1156 only)"/>
+    <event event="0x35" title="DTCM" name="Error" description="DTCM error (ARM1156 only)"/>
+    <event event="0x36" title="Procedure" name="Return address pop" description="Procedure return address popped off the return stack (ARM1156 only)"/>
+    <event event="0x37" title="Procedure" name="Return address misprediction" description="Procedure return address popped off the return stack has been incorrectly predicted by the PFU (ARM1156 only)"/>
+    <event event="0x38" title="Cache" name="Data dirty parity error" description="Data cache Dirty RAM parity error (ARM1156 only)"/>
+  </category>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurations revision="3">
+  <configuration counter="ARM_ARM11_ccnt" event="0xff"/>
+  <configuration counter="ARM_ARM11_cnt0" event="0x7"/>
+  <configuration counter="ARM_ARM11_cnt1" event="0xb"/>
+  <configuration counter="ARM_ARM11MPCore_ccnt" event="0xff"/>
+  <configuration counter="ARM_ARM11MPCore_cnt0" event="0x08"/>
+  <configuration counter="ARM_ARM11MPCore_cnt1" event="0x0b"/>
+  <configuration counter="ARM_Cortex-A5_ccnt" event="0xff"/>
+  <configuration counter="ARM_Cortex-A5_cnt0" event="0x8"/>
+  <configuration counter="ARM_Cortex-A5_cnt1" event="0x1"/>
+  <configuration counter="ARM_Cortex-A7_ccnt" event="0xff"/>
+  <configuration counter="ARM_Cortex-A7_cnt0" event="0x08"/>
+  <configuration counter="ARM_Cortex-A7_cnt1" event="0x10"/>
+  <configuration counter="ARM_Cortex-A7_cnt2" event="0x16"/>
+  <configuration counter="ARM_Cortex-A8_ccnt" event="0xff"/>
+  <configuration counter="ARM_Cortex-A8_cnt0" event="0x8"/>
+  <configuration counter="ARM_Cortex-A8_cnt1" event="0x44"/>
+  <configuration counter="ARM_Cortex-A8_cnt2" event="0x43"/>
+  <configuration counter="ARM_Cortex-A8_cnt3" event="0x10"/>
+  <configuration counter="ARM_Cortex-A9_ccnt" event="0xff"/>
+  <configuration counter="ARM_Cortex-A9_cnt0" event="0x68"/>
+  <configuration counter="ARM_Cortex-A9_cnt1" event="0x06"/>
+  <configuration counter="ARM_Cortex-A9_cnt2" event="0x07"/>
+  <configuration counter="ARM_Cortex-A9_cnt3" event="0x03"/>
+  <configuration counter="ARM_Cortex-A9_cnt4" event="0x04"/>
+  <configuration counter="ARM_Cortex-A15_ccnt" event="0xff"/>
+  <configuration counter="ARM_Cortex-A15_cnt0" event="0x8"/>
+  <configuration counter="ARM_Cortex-A15_cnt1" event="0x16"/>
+  <configuration counter="ARM_Cortex-A15_cnt2" event="0x10"/>
+  <configuration counter="ARM_Cortex-A15_cnt3" event="0x19"/>
+  <configuration counter="ARM_Cortex-A53_ccnt" event="0x11"/>
+  <configuration counter="ARM_Cortex-A53_cnt0" event="0x8"/>
+  <configuration counter="ARM_Cortex-A53_cnt1" event="0x16"/>
+  <configuration counter="ARM_Cortex-A53_cnt2" event="0x10"/>
+  <configuration counter="ARM_Cortex-A53_cnt3" event="0x19"/>
+  <configuration counter="ARM_Cortex-A57_ccnt" event="0x11"/>
+  <configuration counter="ARM_Cortex-A57_cnt0" event="0x8"/>
+  <configuration counter="ARM_Cortex-A57_cnt1" event="0x16"/>
+  <configuration counter="ARM_Cortex-A57_cnt2" event="0x10"/>
+  <configuration counter="ARM_Cortex-A57_cnt3" event="0x19"/>
+  <configuration counter="Scorpion_ccnt" event="0xff"/>
+  <configuration counter="Scorpion_cnt0" event="0x08"/>
+  <configuration counter="Scorpion_cnt1" event="0x10"/>
+  <configuration counter="ScorpionMP_ccnt" event="0xff"/>
+  <configuration counter="ScorpionMP_cnt0" event="0x08"/>
+  <configuration counter="ScorpionMP_cnt1" event="0x10"/>
+  <configuration counter="Krait_ccnt" event="0xff"/>
+  <configuration counter="Krait_cnt0" event="0x08"/>
+  <configuration counter="Krait_cnt1" event="0x10"/>
+  <configuration counter="Linux_block_rq_wr"/>
+  <configuration counter="Linux_block_rq_rd"/>
+  <configuration counter="Linux_meminfo_memused"/>
+  <configuration counter="Linux_meminfo_memfree"/>
+  <configuration counter="Linux_power_cpu_freq"/>
+  <configuration counter="L2C-310_cnt0" event="0x1"/>
+</configurations>
