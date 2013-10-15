@@ -1804,6 +1804,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 			       enum intel_pipe_crc_source source)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	u32 val;
 
 
@@ -1812,7 +1813,10 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (!IS_IVYBRIDGE(dev))
 		return -ENODEV;
 
-	dev_priv->pipe_crc[pipe].source = source;
+	if (pipe_crc->source == source)
+		return 0;
+
+	pipe_crc->source = source;
 
 	switch (source) {
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
