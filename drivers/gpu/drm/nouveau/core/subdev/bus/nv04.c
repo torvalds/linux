@@ -77,6 +77,8 @@ nv04_bus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->intr = impl->intr;
+	priv->base.hwsq_exec = impl->hwsq_exec;
+	priv->base.hwsq_size = impl->hwsq_size;
 	return 0;
 }
 

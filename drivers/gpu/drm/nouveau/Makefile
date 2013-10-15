@@ -44,6 +44,7 @@ nouveau-y += core/subdev/bios/xpio.o
 nouveau-y += core/subdev/bus/nv04.o
 nouveau-y += core/subdev/bus/nv31.o
 nouveau-y += core/subdev/bus/nv50.o
+nouveau-y += core/subdev/bus/nv94.o
 nouveau-y += core/subdev/bus/nvc0.o
 nouveau-y += core/subdev/clock/nv04.o
 nouveau-y += core/subdev/clock/nv40.o
