@@ -121,6 +121,7 @@ struct dsps_glue {
 	unsigned long last_timer;    /* last timer data for each instance */
 };
 
+static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout);
 /**
  * dsps_musb_enable - enable interrupts
  */
@@ -143,6 +144,7 @@ static void dsps_musb_enable(struct musb *musb)
 	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
 	dsps_writel(reg_base, wrp->coreintr_set,
 		    (1 << wrp->drvvbus) << wrp->usb_shift);
+	dsps_musb_try_idle(musb, 0);
 }
 
 /**
@@ -232,6 +234,9 @@ static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
 		return;
 	}
 	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return;
+
+	if (!musb->g.dev.driver)
 		return;
 
 	if (time_after(glue->last_timer, timeout) &&
