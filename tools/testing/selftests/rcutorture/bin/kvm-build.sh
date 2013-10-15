@@ -47,7 +47,7 @@ mkdir $T
 
 cat ${config_template} | grep -v CONFIG_RCU_TORTURE_TEST > $T/config
 cat << ___EOF___ >> $T/config
-CONFIG_INITRAMFS_SOURCE="$KVM/initrd"
+CONFIG_INITRAMFS_SOURCE="$RCU_INITRD"
 CONFIG_VIRTIO_PCI=y
 CONFIG_VIRTIO_CONSOLE=y
 ___EOF___

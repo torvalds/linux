@@ -31,8 +31,9 @@ scriptname=$0
 args="$*"
 
 dur=30
-KVM=`pwd`/tools/testing/selftests/rcutorture; export KVM
-builddir=${KVM}/b1
+KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
+builddir="${KVM}/b1"
+RCU_INITRD="$KVM/initrd"; export RCU_INITRD
 resdir=""
 configs=""
 ds=`date +%Y.%m.%d-%H:%M:%S`
@@ -49,6 +50,7 @@ usage () {
 	echo "       --interactive"
 	echo "       --kversion vN.NN"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
+	echo "       --no-initrd"
 	echo "       --qemu-args qemu-system-..."
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
@@ -121,6 +123,9 @@ do
 		checkarg --mac "(MAC address)" $# "$2" '^\([0-9a-fA-F]\{2\}:\)\{5\}[0-9a-fA-F]\{2\}$' error
 		RCU_QEMU_MAC=$2; export RCU_QEMU_MAC
 		shift
+		;;
+	--no-initrd)
+		RCU_INITRD=""; export RCU_INITRD
 		;;
 	--qemu-args)
 		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
