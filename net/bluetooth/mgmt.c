@@ -4737,12 +4737,11 @@ static void clear_eir(struct hci_request *req)
 	hci_req_add(req, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
 }
 
-int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
+void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
 	struct hci_request req;
 	bool changed = false;
-	int err = 0;
 
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
@@ -4750,13 +4749,12 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 		if (enable && test_and_clear_bit(HCI_SSP_ENABLED,
 						 &hdev->dev_flags)) {
 			clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
-			err = new_settings(hdev, NULL);
+			new_settings(hdev, NULL);
 		}
 
 		mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, cmd_status_rsp,
 				     &mgmt_err);
-
-		return err;
+		return;
 	}
 
 	if (enable) {
@@ -4773,7 +4771,7 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, settings_rsp, &match);
 
 	if (changed)
-		err = new_settings(hdev, match.sk);
+		new_settings(hdev, match.sk);
 
 	if (match.sk)
 		sock_put(match.sk);
@@ -4786,8 +4784,6 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 		clear_eir(&req);
 
 	hci_req_run(&req, NULL);
-
-	return err;
 }
 
 static void sk_lookup(struct pending_cmd *cmd, void *data)
