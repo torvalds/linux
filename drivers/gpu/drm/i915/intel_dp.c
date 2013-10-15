@@ -2095,7 +2095,8 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 }
 
 static void
-intel_get_adjust_train(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE])
+intel_get_adjust_train(struct intel_dp *intel_dp,
+		       const uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
 	uint8_t v = 0;
 	uint8_t p = 0;
@@ -2396,7 +2397,7 @@ intel_dp_reset_link_train(struct intel_dp *intel_dp, uint32_t *DP,
 
 static bool
 intel_dp_update_link_train(struct intel_dp *intel_dp, uint32_t *DP,
-			   uint8_t link_status[DP_LINK_STATUS_SIZE])
+			   const uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
