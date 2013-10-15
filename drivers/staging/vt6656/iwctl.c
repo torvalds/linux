@@ -400,7 +400,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 			if (pDevice->flags & DEVICE_FLAGS_OPENED)
 				pDevice->bCommit = true;
 		}
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to ad-hoc \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to ad-hoc\n");
 		break;
 	case IW_MODE_AUTO:
 	case IW_MODE_INFRA:
@@ -409,7 +409,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 			if (pDevice->flags & DEVICE_FLAGS_OPENED)
 				pDevice->bCommit = true;
 		}
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to infrastructure \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to infrastructure\n");
 		break;
 	case IW_MODE_MASTER:
 
@@ -422,7 +422,7 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 			if (pDevice->flags & DEVICE_FLAGS_OPENED)
 				pDevice->bCommit = true;
 		}
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to Access Point \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set mode to Access Point\n");
 		break;
 
 	case IW_MODE_REPEAT:
@@ -787,7 +787,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 		// Just send an empty SSID list
 		memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 		memset(pMgmt->abyDesireBSSID, 0xFF, 6);
-		PRINT_K("set essid to 'any' \n");
+		PRINT_K("set essid to 'any'\n");
 		// Unknown desired AP, so here need not associate??
 		return 0;
 	} else {
@@ -803,7 +803,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 		} else {
 			pItemSSID->len = wrq->length;
 		}
-		PRINT_K("set essid to %s \n", pItemSSID->abySSID);
+		PRINT_K("set essid to %s\n", pItemSSID->abySSID);
 
 		// mike: need clear desiredBSSID
 		if (pItemSSID->len == 0) {
@@ -860,7 +860,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 			return 0;
 		}
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set essid = %s \n", pItemSSID->abySSID);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set essid = %s\n", pItemSSID->abySSID);
 	}
 
 	if (pDevice->flags & DEVICE_FLAGS_OPENED)
@@ -893,7 +893,7 @@ int iwctl_giwessid(struct net_device *dev, struct iw_request_info *info,
 	memcpy(extra, pItemSSID->abySSID, pItemSSID->len);
 	extra[pItemSSID->len] = '\0';
 
-        wrq->length = pItemSSID->len;
+	wrq->length = pItemSSID->len;
 	wrq->flags = 1; // active
 
 	return 0;
@@ -915,7 +915,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 		0x60, 0x6C, 0x90
 	};
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWRATE \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWRATE\n");
 	if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
 		rc = -EINVAL;
 		return rc;
@@ -967,7 +967,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 			pDevice->uConnectionRate = 3;
 		} else {
 			pDevice->uConnectionRate = brate;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Fixed to Rate %d \n", pDevice->uConnectionRate);
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Fixed to Rate %d\n", pDevice->uConnectionRate);
 		}
 	} else {
 		pDevice->bFixRate = false;
@@ -1017,7 +1017,7 @@ int iwctl_giwrate(struct net_device *dev, struct iw_request_info *info,
 			if (pDevice->byBBType == BB_TYPE_11A)
 				brate = 0x6C;
 		}
-    		if (pDevice->uConnectionRate == 13)
+		if (pDevice->uConnectionRate == 13)
 			brate = abySupportedRates[pDevice->wCurrentRate];
 		wrq->value = brate * 500000;
 		// If more than one rate, set auto
@@ -1286,7 +1286,7 @@ int iwctl_giwencode(struct net_device *dev, struct iw_request_info *info,
 	if (index < 1) { // get default key
 		if (pDevice->byKeyIndex < WLAN_WEP_NKEYS)
 			index = pDevice->byKeyIndex;
-         	else
+		else
 			index = 0;
 	} else {
 		index--;
@@ -1366,14 +1366,14 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 
 	switch (wrq->flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_UNICAST_R \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_UNICAST_R\n");
 		rc = -EINVAL;
 		break;
 	case IW_POWER_ALL_R:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_ALL_R \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_ALL_R\n");
 		rc = -EINVAL;
 	case IW_POWER_ON:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_ON \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWPOWER: IW_POWER_ON\n");
 		break;
 	default:
 		rc = -EINVAL;
