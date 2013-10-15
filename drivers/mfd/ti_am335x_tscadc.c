@@ -328,7 +328,7 @@ static struct platform_driver ti_tscadc_driver = {
 		.name   = "ti_am3359-tscadc",
 		.owner	= THIS_MODULE,
 		.pm	= TSCADC_PM_OPS,
-		.of_match_table = of_match_ptr(ti_tscadc_dt_ids),
+		.of_match_table = ti_tscadc_dt_ids,
 	},
 	.probe	= ti_tscadc_probe,
 	.remove	= ti_tscadc_remove,
