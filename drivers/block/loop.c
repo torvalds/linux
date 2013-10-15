@@ -894,13 +894,6 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 
 	bio_list_init(&lo->lo_bio_list);
 
-	/*
-	 * set queue make_request_fn, and add limits based on lower level
-	 * device
-	 */
-	blk_queue_make_request(lo->lo_queue, loop_make_request);
-	lo->lo_queue->queuedata = lo;
-
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
 		blk_queue_flush(lo->lo_queue, REQ_FLUSH);
 
@@ -1618,6 +1611,8 @@ static int loop_add(struct loop_device **l, int i)
 	if (!lo)
 		goto out;
 
+	lo->lo_state = Lo_unbound;
+
 	/* allocate id, if @id >= 0, we're requesting that specific id */
 	if (i >= 0) {
 		err = idr_alloc(&loop_index_idr, lo, i, i + 1, GFP_KERNEL);
@@ -1634,6 +1629,12 @@ static int loop_add(struct loop_device **l, int i)
 	lo->lo_queue = blk_alloc_queue(GFP_KERNEL);
 	if (!lo->lo_queue)
 		goto out_free_idr;
+
+	/*
+	 * set queue make_request_fn
+	 */
+	blk_queue_make_request(lo->lo_queue, loop_make_request);
+	lo->lo_queue->queuedata = lo;
 
 	disk = lo->lo_disk = alloc_disk(1 << part_shift);
 	if (!disk)
