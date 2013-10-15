@@ -4341,8 +4341,8 @@ void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
 				     cmd_status_rsp, &mgmt_err);
 }
 
-int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
-		      bool persistent)
+void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
+		       bool persistent)
 {
 	struct mgmt_ev_new_link_key ev;
 
@@ -4355,7 +4355,7 @@ int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	memcpy(ev.key.val, key->val, HCI_LINK_KEY_SIZE);
 	ev.key.pin_len = key->pin_len;
 
-	return mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
+	mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
 int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
