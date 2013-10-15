@@ -59,6 +59,12 @@ struct mfd_cell {
 	 * pm_runtime_no_callbacks().
 	 */
 	bool			pm_runtime_no_callbacks;
+
+	/* A list of regulator supplies that should be mapped to the MFD
+	 * device rather than the child device when requested
+	 */
+	const char		**parent_supplies;
+	int			num_parent_supplies;
 };
 
 /*
