@@ -3281,7 +3281,12 @@ static ssize_t fsg_lun_opts_cdrom_show(struct fsg_lun_opts *opts, char *page)
 static ssize_t fsg_lun_opts_cdrom_store(struct fsg_lun_opts *opts,
 				       const char *page, size_t len)
 {
-	return fsg_store_cdrom(opts->lun, page, len);
+	struct fsg_opts *fsg_opts;
+
+	fsg_opts = to_fsg_opts(opts->group.cg_item.ci_parent);
+
+	return fsg_store_cdrom(opts->lun, &fsg_opts->common->filesem, page,
+			       len);
 }
 
 static struct fsg_lun_opts_attribute fsg_lun_opts_cdrom =
