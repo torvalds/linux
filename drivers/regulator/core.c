@@ -53,6 +53,7 @@ static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
+static LIST_HEAD(regulator_supply_alias_list);
 static bool has_full_constraints;
 static bool board_wants_dummy_regulator;
 
@@ -81,6 +82,19 @@ struct regulator_enable_gpio {
 	u32 enable_count;	/* a number of enabled shared GPIO */
 	u32 request_count;	/* a number of requested shared GPIO */
 	unsigned int ena_gpio_invert:1;
+};
+
+/*
+ * struct regulator_supply_alias
+ *
+ * Used to map lookups for a supply onto an alternative device.
+ */
+struct regulator_supply_alias {
+	struct list_head list;
+	struct device *src_dev;
+	const char *src_supply;
+	struct device *alias_dev;
+	const char *alias_supply;
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
@@ -1173,6 +1187,32 @@ static int _regulator_get_enable_time(struct regulator_dev *rdev)
 	return rdev->desc->ops->enable_time(rdev);
 }
 
+static struct regulator_supply_alias *regulator_find_supply_alias(
+		struct device *dev, const char *supply)
+{
+	struct regulator_supply_alias *map;
+
+	list_for_each_entry(map, &regulator_supply_alias_list, list)
+		if (map->src_dev == dev && strcmp(map->src_supply, supply) == 0)
+			return map;
+
+	return NULL;
+}
+
+static void regulator_supply_alias(struct device **dev, const char **supply)
+{
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(*dev, *supply);
+	if (map) {
+		dev_dbg(*dev, "Mapping supply %s to %s,%s\n",
+				*supply, map->alias_supply,
+				dev_name(map->alias_dev));
+		*dev = map->alias_dev;
+		*supply = map->alias_supply;
+	}
+}
+
 static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 						  const char *supply,
 						  int *ret)
@@ -1181,6 +1221,8 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	struct device_node *node;
 	struct regulator_map *map;
 	const char *devname = NULL;
+
+	regulator_supply_alias(&dev, &supply);
 
 	/* first do a dt based lookup */
 	if (dev && dev->of_node) {
@@ -1431,6 +1473,134 @@ void regulator_put(struct regulator *regulator)
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_put);
+
+/**
+ * regulator_register_supply_alias - Provide device alias for supply lookup
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: Supply name or regulator ID that should be used to lookup the
+ * supply
+ *
+ * All lookups for id on dev will instead be conducted for alias_id on
+ * alias_dev.
+ */
+int regulator_register_supply_alias(struct device *dev, const char *id,
+				    struct device *alias_dev,
+				    const char *alias_id)
+{
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(dev, id);
+	if (map)
+		return -EEXIST;
+
+	map = kzalloc(sizeof(struct regulator_supply_alias), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	map->src_dev = dev;
+	map->src_supply = id;
+	map->alias_dev = alias_dev;
+	map->alias_supply = alias_id;
+
+	list_add(&map->list, &regulator_supply_alias_list);
+
+	pr_info("Adding alias for supply %s,%s -> %s,%s\n",
+		id, dev_name(dev), alias_id, dev_name(alias_dev));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_register_supply_alias);
+
+/**
+ * regulator_unregister_supply_alias - Remove device alias
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ *
+ * Remove a lookup alias if one exists for id on dev.
+ */
+void regulator_unregister_supply_alias(struct device *dev, const char *id)
+{
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(dev, id);
+	if (map) {
+		list_del(&map->list);
+		kfree(map);
+	}
+}
+EXPORT_SYMBOL_GPL(regulator_unregister_supply_alias);
+
+/**
+ * regulator_bulk_register_supply_alias - register multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: List of supply names or regulator IDs that should be used to
+ * lookup the supply
+ * @num_id: Number of aliases to register
+ *
+ * @return 0 on success, an errno on failure.
+ *
+ * This helper function allows drivers to register several supply
+ * aliases in one operation.  If any of the aliases cannot be
+ * registered any aliases that were registered will be removed
+ * before returning to the caller.
+ */
+int regulator_bulk_register_supply_alias(struct device *dev, const char **id,
+					 struct device *alias_dev,
+					 const char **alias_id,
+					 int num_id)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < num_id; ++i) {
+		ret = regulator_register_supply_alias(dev, id[i], alias_dev,
+						      alias_id[i]);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	dev_err(dev,
+		"Failed to create supply alias %s,%s -> %s,%s\n",
+		id[i], dev_name(dev), alias_id[i], dev_name(alias_dev));
+
+	while (--i >= 0)
+		regulator_unregister_supply_alias(dev, id[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_bulk_register_supply_alias);
+
+/**
+ * regulator_bulk_unregister_supply_alias - unregister multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @num_id: Number of aliases to unregister
+ *
+ * This helper function allows drivers to unregister several supply
+ * aliases in one operation.
+ */
+void regulator_bulk_unregister_supply_alias(struct device *dev,
+					    const char **id,
+					    int num_id)
+{
+	int i;
+
+	for (i = 0; i < num_id; ++i)
+		regulator_unregister_supply_alias(dev, id[i]);
+}
+EXPORT_SYMBOL_GPL(regulator_bulk_unregister_supply_alias);
+
 
 /* Manage enable GPIO list. Same GPIO pin can be shared among regulators */
 static int regulator_ena_gpio_request(struct regulator_dev *rdev,

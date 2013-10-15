@@ -250,3 +250,166 @@ void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev)
 		WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_unregister);
+
+struct regulator_supply_alias_match {
+	struct device *dev;
+	const char *id;
+};
+
+static int devm_regulator_match_supply_alias(struct device *dev, void *res,
+					     void *data)
+{
+	struct regulator_supply_alias_match *match = res;
+	struct regulator_supply_alias_match *target = data;
+
+	return match->dev == target->dev && strcmp(match->id, target->id) == 0;
+}
+
+static void devm_regulator_destroy_supply_alias(struct device *dev, void *res)
+{
+	struct regulator_supply_alias_match *match = res;
+
+	regulator_unregister_supply_alias(match->dev, match->id);
+}
+
+/**
+ * devm_regulator_register_supply_alias - Resource managed
+ * regulator_register_supply_alias()
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: Supply name or regulator ID that should be used to lookup the
+ * supply
+ *
+ * The supply alias will automatically be unregistered when the source
+ * device is unbound.
+ */
+int devm_regulator_register_supply_alias(struct device *dev, const char *id,
+					 struct device *alias_dev,
+					 const char *alias_id)
+{
+	struct regulator_supply_alias_match *match;
+	int ret;
+
+	match = devres_alloc(devm_regulator_destroy_supply_alias,
+			   sizeof(struct regulator_supply_alias_match),
+			   GFP_KERNEL);
+	if (!match)
+		return -ENOMEM;
+
+	match->dev = dev;
+	match->id = id;
+
+	ret = regulator_register_supply_alias(dev, id, alias_dev, alias_id);
+	if (ret < 0) {
+		devres_free(match);
+		return ret;
+	}
+
+	devres_add(dev, match);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_register_supply_alias);
+
+/**
+ * devm_regulator_unregister_supply_alias - Resource managed
+ * regulator_unregister_supply_alias()
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ *
+ * Unregister an alias registered with
+ * devm_regulator_register_supply_alias(). Normally this function
+ * will not need to be called and the resource management code
+ * will ensure that the resource is freed.
+ */
+void devm_regulator_unregister_supply_alias(struct device *dev, const char *id)
+{
+	struct regulator_supply_alias_match match;
+	int rc;
+
+	match.dev = dev;
+	match.id = id;
+
+	rc = devres_release(dev, devm_regulator_destroy_supply_alias,
+			    devm_regulator_match_supply_alias, &match);
+	if (rc != 0)
+		WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_regulator_unregister_supply_alias);
+
+/**
+ * devm_regulator_bulk_register_supply_alias - Managed register
+ * multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: List of supply names or regulator IDs that should be used to
+ * lookup the supply
+ * @num_id: Number of aliases to register
+ *
+ * @return 0 on success, an errno on failure.
+ *
+ * This helper function allows drivers to register several supply
+ * aliases in one operation, the aliases will be automatically
+ * unregisters when the source device is unbound.  If any of the
+ * aliases cannot be registered any aliases that were registered
+ * will be removed before returning to the caller.
+ */
+int devm_regulator_bulk_register_supply_alias(struct device *dev,
+					      const char **id,
+					      struct device *alias_dev,
+					      const char **alias_id,
+					      int num_id)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < num_id; ++i) {
+		ret = devm_regulator_register_supply_alias(dev, id[i],
+							   alias_dev,
+							   alias_id[i]);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	dev_err(dev,
+		"Failed to create supply alias %s,%s -> %s,%s\n",
+		id[i], dev_name(dev), alias_id[i], dev_name(alias_dev));
+
+	while (--i >= 0)
+		devm_regulator_unregister_supply_alias(dev, id[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_bulk_register_supply_alias);
+
+/**
+ * devm_regulator_bulk_unregister_supply_alias - Managed unregister
+ * multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @num_id: Number of aliases to unregister
+ *
+ * Unregister aliases registered with
+ * devm_regulator_bulk_register_supply_alias(). Normally this function
+ * will not need to be called and the resource management code
+ * will ensure that the resource is freed.
+ */
+void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
+						 const char **id,
+						 int num_id)
+{
+	int i;
+
+	for (i = 0; i < num_id; ++i)
+		devm_regulator_unregister_supply_alias(dev, id[i]);
+}
+EXPORT_SYMBOL_GPL(devm_regulator_bulk_unregister_supply_alias);
