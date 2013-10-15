@@ -300,9 +300,6 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 		if (!sdata->dev)
 			continue;
 
-		if (test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
-			continue;
-
 		if (sdata->vif.cab_queue != IEEE80211_INVAL_HW_QUEUE &&
 		    local->queue_stop_reasons[sdata->vif.cab_queue] != 0)
 			continue;
