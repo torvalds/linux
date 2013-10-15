@@ -579,6 +579,9 @@ struct vnt_private {
 	u8 abyOFDMAPwrTbl[42];
 
 	u16 wCurrentRate;
+	u16 tx_rate_fb0;
+	u16 tx_rate_fb1;
+
 	u16 wRTSThreshold;
 	u16 wFragmentationThreshold;
 	u8 byShortRetryLimit;

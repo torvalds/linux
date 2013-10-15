@@ -450,55 +450,37 @@ static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
 
     case RTSDUR_BA_F0: //RTSDuration_ba_f0
         uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-        if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-        } else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-        }
+	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
+			byPktType, cbFrameLength, wRate, bNeedAck);
         break;
 
     case RTSDUR_AA_F0: //RTSDuration_aa_f0
         uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-        if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-        } else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-        }
+	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
+			byPktType, cbFrameLength, wRate, bNeedAck);
         break;
 
     case RTSDUR_BA_F1: //RTSDuration_ba_f1
         uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-        if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-        } else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-        }
+	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
+		byPktType, cbFrameLength, wRate, bNeedAck);
         break;
 
     case RTSDUR_AA_F1: //RTSDuration_aa_f1
         uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-        if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-        } else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = uCTSTime + 2*pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-        }
-        break;
+	uDurTime = uCTSTime + 2 * pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
+				byPktType, cbFrameLength, wRate, bNeedAck);
+	break;
 
     case CTSDUR_BA_F0: //CTSDuration_ba_f0
-        if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-        } else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-        }
-        break;
+	uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
+				byPktType, cbFrameLength, wRate, bNeedAck);
+	break;
 
     case CTSDUR_BA_F1: //CTSDuration_ba_f1
-        if ((byFBOption == AUTO_FB_0) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-        } else if ((byFBOption == AUTO_FB_1) && (wRate >= RATE_18M) && (wRate <=RATE_54M)) {
-            uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-        }
-        break;
+	uDurTime = pDevice->uSIFS + s_uGetTxRsvTime(pDevice,
+				byPktType, cbFrameLength, wRate, bNeedAck);
+	break;
 
     default:
         break;
@@ -648,13 +630,13 @@ static u16 vnt_rxtx_rts_g_fb_head(struct vnt_private *priv,
 
 
 	buf->wRTSDuration_ba_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F0,
-		frame_len, pkt_type, current_rate, need_ack, fb_option);
+		frame_len, pkt_type, priv->tx_rate_fb0, need_ack, fb_option);
 	buf->wRTSDuration_aa_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
-		frame_len, pkt_type, current_rate, need_ack, fb_option);
+		frame_len, pkt_type, priv->tx_rate_fb0, need_ack, fb_option);
 	buf->wRTSDuration_ba_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_BA_F1,
-		frame_len, pkt_type, current_rate, need_ack, fb_option);
+		frame_len, pkt_type, priv->tx_rate_fb1, need_ack, fb_option);
 	buf->wRTSDuration_aa_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
-		frame_len, pkt_type, current_rate, need_ack, fb_option);
+		frame_len, pkt_type, priv->tx_rate_fb1, need_ack, fb_option);
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->wDuration_aa);
 
@@ -695,10 +677,10 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
 		pkt_type, current_rate, need_ack, fb_option);
 
 	buf->wRTSDuration_f0 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F0,
-		frame_len, pkt_type, current_rate, need_ack, fb_option);
+		frame_len, pkt_type, priv->tx_rate_fb0, need_ack, fb_option);
 
 	buf->wRTSDuration_f1 = s_uGetRTSCTSDuration(priv, RTSDUR_AA_F1,
-		frame_len, pkt_type, current_rate, need_ack, fb_option);
+		frame_len, pkt_type, priv->tx_rate_fb1, need_ack, fb_option);
 
 	vnt_fill_ieee80211_rts(priv, &buf->data, eth_hdr, buf->wDuration);
 
@@ -767,12 +749,12 @@ static u16 s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 			wCurrentRate, bNeedAck, byFBOption);
 		/* Get CTSDuration_ba_f0 */
 		pBuf->wCTSDuration_ba_f0 = s_uGetRTSCTSDuration(pDevice,
-			CTSDUR_BA_F0, cbFrameLength, byPktType, wCurrentRate,
-			bNeedAck, byFBOption);
+			CTSDUR_BA_F0, cbFrameLength, byPktType,
+			pDevice->tx_rate_fb0, bNeedAck, byFBOption);
 		/* Get CTSDuration_ba_f1 */
 		pBuf->wCTSDuration_ba_f1 = s_uGetRTSCTSDuration(pDevice,
-			CTSDUR_BA_F1, cbFrameLength, byPktType, wCurrentRate,
-			bNeedAck, byFBOption);
+			CTSDUR_BA_F1, cbFrameLength, byPktType,
+			pDevice->tx_rate_fb1, bNeedAck, byFBOption);
 		/* Get CTS Frame body */
 		pBuf->data.duration = pBuf->wDuration_ba;
 		pBuf->data.frame_control = TYPE_CTL_CTS;
@@ -1076,16 +1058,27 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         pTxBufHead->wFIFOCtl |=	FIFOCTL_GRPACK;
     }
 
-    //Set Auto Fallback Ctl
-    if (wCurrentRate >= RATE_18M) {
-        if (pDevice->byAutoFBCtrl == AUTO_FB_0) {
-            pTxBufHead->wFIFOCtl |= FIFOCTL_AUTO_FB_0;
-            byFBOption = AUTO_FB_0;
-        } else if (pDevice->byAutoFBCtrl == AUTO_FB_1) {
-            pTxBufHead->wFIFOCtl |= FIFOCTL_AUTO_FB_1;
-            byFBOption = AUTO_FB_1;
-        }
-    }
+	/* Set Auto Fallback Ctl */
+	if (wCurrentRate >= RATE_18M) {
+		if (pDevice->byAutoFBCtrl == AUTO_FB_0) {
+			pTxBufHead->wFIFOCtl |= FIFOCTL_AUTO_FB_0;
+
+			pDevice->tx_rate_fb0 =
+				wFB_Opt0[FB_RATE0][wCurrentRate - RATE_18M];
+			pDevice->tx_rate_fb1 =
+				wFB_Opt0[FB_RATE1][wCurrentRate - RATE_18M];
+
+			byFBOption = AUTO_FB_0;
+		} else if (pDevice->byAutoFBCtrl == AUTO_FB_1) {
+			pTxBufHead->wFIFOCtl |= FIFOCTL_AUTO_FB_1;
+			pDevice->tx_rate_fb0 =
+				wFB_Opt1[FB_RATE0][wCurrentRate - RATE_18M];
+			pDevice->tx_rate_fb1 =
+				wFB_Opt1[FB_RATE1][wCurrentRate - RATE_18M];
+
+			byFBOption = AUTO_FB_1;
+		}
+	}
 
     if (bSoftWEP != true) {
         if ((bNeedEncryption) && (pTransmitKey != NULL))  { //WEP enabled
