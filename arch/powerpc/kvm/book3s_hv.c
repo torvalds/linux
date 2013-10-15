@@ -811,27 +811,6 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_SDAR:
 		*val = get_reg_val(id, vcpu->arch.sdar);
 		break;
-#ifdef CONFIG_VSX
-	case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
-		if (cpu_has_feature(CPU_FTR_VSX)) {
-			/* VSX => FP reg i is stored in arch.vsr[2*i] */
-			long int i = id - KVM_REG_PPC_FPR0;
-			*val = get_reg_val(id, vcpu->arch.vsr[2 * i]);
-		} else {
-			/* let generic code handle it */
-			r = -EINVAL;
-		}
-		break;
-	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31:
-		if (cpu_has_feature(CPU_FTR_VSX)) {
-			long int i = id - KVM_REG_PPC_VSR0;
-			val->vsxval[0] = vcpu->arch.vsr[2 * i];
-			val->vsxval[1] = vcpu->arch.vsr[2 * i + 1];
-		} else {
-			r = -ENXIO;
-		}
-		break;
-#endif /* CONFIG_VSX */
 	case KVM_REG_PPC_VPA_ADDR:
 		spin_lock(&vcpu->arch.vpa_update_lock);
 		*val = get_reg_val(id, vcpu->arch.vpa.next_gpa);
@@ -914,27 +893,6 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_SDAR:
 		vcpu->arch.sdar = set_reg_val(id, *val);
 		break;
-#ifdef CONFIG_VSX
-	case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
-		if (cpu_has_feature(CPU_FTR_VSX)) {
-			/* VSX => FP reg i is stored in arch.vsr[2*i] */
-			long int i = id - KVM_REG_PPC_FPR0;
-			vcpu->arch.vsr[2 * i] = set_reg_val(id, *val);
-		} else {
-			/* let generic code handle it */
-			r = -EINVAL;
-		}
-		break;
-	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31:
-		if (cpu_has_feature(CPU_FTR_VSX)) {
-			long int i = id - KVM_REG_PPC_VSR0;
-			vcpu->arch.vsr[2 * i] = val->vsxval[0];
-			vcpu->arch.vsr[2 * i + 1] = val->vsxval[1];
-		} else {
-			r = -ENXIO;
-		}
-		break;
-#endif /* CONFIG_VSX */
 	case KVM_REG_PPC_VPA_ADDR:
 		addr = set_reg_val(id, *val);
 		r = -EINVAL;

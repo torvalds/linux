@@ -545,12 +545,6 @@ static inline int get_fpr_index(int i)
 void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 {
 	struct thread_struct *t = &current->thread;
-	u64 *vcpu_fpr = vcpu->arch.fpr;
-#ifdef CONFIG_VSX
-	u64 *vcpu_vsx = vcpu->arch.vsr;
-#endif
-	u64 *thread_fpr = &t->fp_state.fpr[0][0];
-	int i;
 
 	/*
 	 * VSX instructions can access FP and vector registers, so if
@@ -575,24 +569,14 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 		 */
 		if (current->thread.regs->msr & MSR_FP)
 			giveup_fpu(current);
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
-			vcpu_fpr[i] = thread_fpr[get_fpr_index(i)];
-
-		vcpu->arch.fpscr = t->fp_state.fpscr;
-
-#ifdef CONFIG_VSX
-		if (cpu_has_feature(CPU_FTR_VSX))
-			for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr) / 2; i++)
-				vcpu_vsx[i] = thread_fpr[get_fpr_index(i) + 1];
-#endif
+		vcpu->arch.fp = t->fp_state;
 	}
 
 #ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		if (current->thread.regs->msr & MSR_VEC)
 			giveup_altivec(current);
-		memcpy(vcpu->arch.vr, t->vr_state.vr, sizeof(vcpu->arch.vr));
-		vcpu->arch.vscr = t->vr_state.vscr;
+		vcpu->arch.vr = t->vr_state;
 	}
 #endif
 
@@ -640,12 +624,6 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr)
 {
 	struct thread_struct *t = &current->thread;
-	u64 *vcpu_fpr = vcpu->arch.fpr;
-#ifdef CONFIG_VSX
-	u64 *vcpu_vsx = vcpu->arch.vsr;
-#endif
-	u64 *thread_fpr = &t->fp_state.fpr[0][0];
-	int i;
 
 	/* When we have paired singles, we emulate in software */
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE)
@@ -683,13 +661,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #endif
 
 	if (msr & MSR_FP) {
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
-			thread_fpr[get_fpr_index(i)] = vcpu_fpr[i];
-#ifdef CONFIG_VSX
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr) / 2; i++)
-			thread_fpr[get_fpr_index(i) + 1] = vcpu_vsx[i];
-#endif
-		t->fp_state.fpscr = vcpu->arch.fpscr;
+		t->fp_state = vcpu->arch.fp;
 		t->fpexc_mode = 0;
 		enable_kernel_fp();
 		load_fp_state(&t->fp_state);
@@ -697,8 +669,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 
 	if (msr & MSR_VEC) {
 #ifdef CONFIG_ALTIVEC
-		memcpy(t->vr_state.vr, vcpu->arch.vr, sizeof(vcpu->arch.vr));
-		t->vr_state.vscr = vcpu->arch.vscr;
+		t->vr_state = vcpu->arch.vr;
 		t->vrsave = -1;
 		enable_kernel_altivec();
 		load_vr_state(&t->vr_state);
@@ -1118,19 +1089,6 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_HIOR:
 		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
-#ifdef CONFIG_VSX
-	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31: {
-		long int i = id - KVM_REG_PPC_VSR0;
-
-		if (!cpu_has_feature(CPU_FTR_VSX)) {
-			r = -ENXIO;
-			break;
-		}
-		val->vsxval[0] = vcpu->arch.fpr[i];
-		val->vsxval[1] = vcpu->arch.vsr[i];
-		break;
-	}
-#endif /* CONFIG_VSX */
 	default:
 		r = -EINVAL;
 		break;
@@ -1149,19 +1107,6 @@ static int kvmppc_set_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 		to_book3s(vcpu)->hior = set_reg_val(id, *val);
 		to_book3s(vcpu)->hior_explicit = true;
 		break;
-#ifdef CONFIG_VSX
-	case KVM_REG_PPC_VSR0 ... KVM_REG_PPC_VSR31: {
-		long int i = id - KVM_REG_PPC_VSR0;
-
-		if (!cpu_has_feature(CPU_FTR_VSX)) {
-			r = -ENXIO;
-			break;
-		}
-		vcpu->arch.fpr[i] = val->vsxval[0];
-		vcpu->arch.vsr[i] = val->vsxval[1];
-		break;
-	}
-#endif /* CONFIG_VSX */
 	default:
 		r = -EINVAL;
 		break;

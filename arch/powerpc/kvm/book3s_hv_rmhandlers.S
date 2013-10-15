@@ -1889,7 +1889,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 BEGIN_FTR_SECTION
 	reg = 0
 	.rept	32
-	li	r6,reg*16+VCPU_VSRS
+	li	r6,reg*16+VCPU_FPRS
 	STXVD2X(reg,R6,R3)
 	reg = reg + 1
 	.endr
@@ -1951,7 +1951,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 BEGIN_FTR_SECTION
 	reg = 0
 	.rept	32
-	li	r7,reg*16+VCPU_VSRS
+	li	r7,reg*16+VCPU_FPRS
 	LXVD2X(reg,R7,R4)
 	reg = reg + 1
 	.endr

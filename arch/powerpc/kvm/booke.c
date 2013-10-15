@@ -707,9 +707,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	fpexc_mode = current->thread.fpexc_mode;
 
 	/* Restore guest FPU state to thread */
-	memcpy(current->thread.fp_state.fpr, vcpu->arch.fpr,
-	       sizeof(vcpu->arch.fpr));
-	current->thread.fp_state.fpscr = vcpu->arch.fpscr;
+	current->thread.fp_state = vcpu->arch.fp;
 
 	/*
 	 * Since we can't trap on MSR_FP in GS-mode, we consider the guest
@@ -745,9 +743,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	vcpu->fpu_active = 0;
 
 	/* Save guest FPU state from thread */
-	memcpy(vcpu->arch.fpr, current->thread.fp_state.fpr,
-	       sizeof(vcpu->arch.fpr));
-	vcpu->arch.fpscr = current->thread.fp_state.fpscr;
+	vcpu->arch.fp = current->thread.fp_state;
 
 	/* Restore userspace FPU state from stack */
 	current->thread.fp_state = fp;

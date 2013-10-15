@@ -410,8 +410,7 @@ struct kvm_vcpu_arch {
 
 	ulong gpr[32];
 
-	u64 fpr[32];
-	u64 fpscr;
+	struct thread_fp_state fp;
 
 #ifdef CONFIG_SPE
 	ulong evr[32];
@@ -420,12 +419,7 @@ struct kvm_vcpu_arch {
 	u64 acc;
 #endif
 #ifdef CONFIG_ALTIVEC
-	vector128 vr[32];
-	vector128 vscr;
-#endif
-
-#ifdef CONFIG_VSX
-	u64 vsr[64];
+	struct thread_vr_state vr;
 #endif
 
 #ifdef CONFIG_KVM_BOOKE_HV
@@ -618,6 +612,8 @@ struct kvm_vcpu_arch {
 	u64 busy_preempt;
 #endif
 };
+
+#define VCPU_FPR(vcpu, i)	(vcpu)->arch.fp.fpr[i][TS_FPROFFSET]
 
 /* Values for vcpu->arch.state */
 #define KVMPPC_VCPU_NOTREADY		0
