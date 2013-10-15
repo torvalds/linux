@@ -12,6 +12,7 @@
 struct iio_kfifo {
 	struct iio_buffer buffer;
 	struct kfifo kf;
+	struct mutex user_lock;
 	int update_needed;
 };
 
@@ -34,10 +35,12 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 
 	if (!buf->update_needed)
 		goto error_ret;
+	mutex_lock(&buf->user_lock);
 	kfifo_free(&buf->kf);
 	ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
 				   buf->buffer.length);
 	r->stufftoread = false;
+	mutex_unlock(&buf->user_lock);
 error_ret:
 	return ret;
 }
@@ -114,18 +117,23 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	int ret, copied;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
 
-	if (n < r->bytes_per_datum || r->bytes_per_datum == 0)
-		return -EINVAL;
+	if (mutex_lock_interruptible(&kf->user_lock))
+		return -ERESTARTSYS;
 
-	ret = kfifo_to_user(&kf->kf, buf, n, &copied);
-	if (ret < 0)
-		return ret;
+	if (!kfifo_initialized(&kf->kf) || n < kfifo_esize(&kf->kf))
+		ret = -EINVAL;
+	else
+		ret = kfifo_to_user(&kf->kf, buf, n, &copied);
 
 	if (kfifo_is_empty(&kf->kf))
 		r->stufftoread = false;
 	/* verify it is still empty to avoid race */
 	if (!kfifo_is_empty(&kf->kf))
 		r->stufftoread = true;
+
+	mutex_unlock(&kf->user_lock);
+	if (ret < 0)
+		return ret;
 
 	return copied;
 }
@@ -134,6 +142,7 @@ static void iio_kfifo_buffer_release(struct iio_buffer *buffer)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(buffer);
 
+	mutex_destroy(&kf->user_lock);
 	kfifo_free(&kf->kf);
 	kfree(kf);
 }
@@ -161,6 +170,7 @@ struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 	kf->buffer.attrs = &iio_kfifo_attribute_group;
 	kf->buffer.access = &kfifo_access_funcs;
 	kf->buffer.length = 2;
+	mutex_init(&kf->user_lock);
 	return &kf->buffer;
 }
 EXPORT_SYMBOL(iio_kfifo_allocate);
