@@ -73,4 +73,8 @@ static inline int percpu_ida_init(struct percpu_ida *pool, unsigned long nr_tags
 		IDA_DEFAULT_PCPU_BATCH_MOVE);
 }
 
+typedef int (*percpu_ida_cb)(unsigned, void *);
+int percpu_ida_for_each_free(struct percpu_ida *pool, percpu_ida_cb fn,
+	void *data);
+
 #endif /* __PERCPU_IDA_H__ */

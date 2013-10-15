@@ -327,3 +327,47 @@ err:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(__percpu_ida_init);
+
+/**
+ * percpu_ida_for_each_free - iterate free ids of a pool
+ * @pool: pool to iterate
+ * @fn: interate callback function
+ * @data: parameter for @fn
+ *
+ * Note, this doesn't guarantee to iterate all free ids restrictly. Some free
+ * ids might be missed, some might be iterated duplicated, and some might
+ * be iterated and not free soon.
+ */
+int percpu_ida_for_each_free(struct percpu_ida *pool, percpu_ida_cb fn,
+	void *data)
+{
+	unsigned long flags;
+	struct percpu_ida_cpu *remote;
+	unsigned cpu, i, err = 0;
+
+	local_irq_save(flags);
+	for_each_possible_cpu(cpu) {
+		remote = per_cpu_ptr(pool->tag_cpu, cpu);
+		spin_lock(&remote->lock);
+		for (i = 0; i < remote->nr_free; i++) {
+			err = fn(remote->freelist[i], data);
+			if (err)
+				break;
+		}
+		spin_unlock(&remote->lock);
+		if (err)
+			goto out;
+	}
+
+	spin_lock(&pool->lock);
+	for (i = 0; i < pool->nr_free; i++) {
+		err = fn(pool->freelist[i], data);
+		if (err)
+			break;
+	}
+	spin_unlock(&pool->lock);
+out:
+	local_irq_restore(flags);
+	return err;
+}
+EXPORT_SYMBOL_GPL(percpu_ida_for_each_free);
