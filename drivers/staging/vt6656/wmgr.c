@@ -81,7 +81,7 @@
 #include "control.h"
 #include "rndis.h"
 
-static int          msglevel                =MSG_LEVEL_INFO;
+static int msglevel = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
 static int ChannelExceedZoneType(struct vnt_private *, u8 byCurrChannel);
