@@ -368,8 +368,9 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 {
 	struct perf_session *self = rep->session;
 	u64 sample_type = perf_evlist__combined_sample_type(self->evlist);
+	bool is_pipe = perf_data_file__is_pipe(self->file);
 
-	if (!self->fd_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__error("Selected --sort parent, but no "
 				    "callchain data. Did you call "
@@ -392,7 +393,7 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 	}
 
 	if (sort__mode == SORT_MODE__BRANCH) {
-		if (!self->fd_pipe &&
+		if (!is_pipe &&
 		    !(sample_type & PERF_SAMPLE_BRANCH_STACK)) {
 			ui__error("Selected -b but no branch data. "
 				  "Did you call perf record without -b?\n");
@@ -488,6 +489,7 @@ static int __cmd_report(struct perf_report *rep)
 	struct map *kernel_map;
 	struct kmap *kernel_kmap;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+	struct perf_data_file *file = session->file;
 
 	signal(SIGINT, sig_handler);
 
@@ -572,7 +574,7 @@ static int __cmd_report(struct perf_report *rep)
 		return 0;
 
 	if (nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->filename);
+		ui__error("The %s file has no samples!\n", file->path);
 		return 0;
 	}
 

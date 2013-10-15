@@ -1525,7 +1525,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			return -1;
 		}
 
-		input = open(session->filename, O_RDONLY);	/* input_name */
+		input = open(file.path, O_RDONLY);	/* input_name */
 		if (input < 0) {
 			perror("failed to open file");
 			return -1;

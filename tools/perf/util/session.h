@@ -30,16 +30,13 @@ struct ordered_samples {
 
 struct perf_session {
 	struct perf_header	header;
-	unsigned long		size;
 	struct machines		machines;
 	struct perf_evlist	*evlist;
 	struct pevent		*pevent;
 	struct events_stats	stats;
-	int			fd;
-	bool			fd_pipe;
 	bool			repipe;
 	struct ordered_samples	ordered_samples;
-	const char		*filename;
+	struct perf_data_file	*file;
 };
 
 #define PRINT_IP_OPT_IP		(1<<0)

@@ -259,7 +259,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->filename);
+		ui__error("The %s file has no samples!\n", file.path);
 		goto out_delete;
 	}
 

@@ -27,6 +27,21 @@ static inline bool perf_data_file__is_write(struct perf_data_file *file)
 	return file->mode == PERF_DATA_MODE_WRITE;
 }
 
+static inline int perf_data_file__is_pipe(struct perf_data_file *file)
+{
+	return file->is_pipe;
+}
+
+static inline int perf_data_file__fd(struct perf_data_file *file)
+{
+	return file->fd;
+}
+
+static inline unsigned long perf_data_file__size(struct perf_data_file *file)
+{
+	return file->size;
+}
+
 int perf_data_file__open(struct perf_data_file *file);
 void perf_data_file__close(struct perf_data_file *file);
 

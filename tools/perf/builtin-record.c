@@ -257,7 +257,6 @@ static int process_buildids(struct perf_record *rec)
 	if (size == 0)
 		return 0;
 
-	session->fd = file->fd;
 	return __perf_session__process_events(session, rec->post_processing_offset,
 					      size - rec->post_processing_offset,
 					      size, &build_id__mark_dso_hit_ops);
