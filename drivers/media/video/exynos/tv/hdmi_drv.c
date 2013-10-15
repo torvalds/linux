@@ -340,9 +340,9 @@ int hdmi_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_TV_MAX_AUDIO_CHANNELS:
 		ctrl->value = 2; //edid_max_audio_channels(hdev);
 		break;
-	/* case V4L2_CID_TV_SOURCE_PHY_ADDR:
-		ctrl->value = edid_source_phy_addr(hdev);
-		break; */
+	 case V4L2_CID_TV_SOURCE_PHY_ADDR:
+		ctrl->value = 0; //edid_source_phy_addr(hdev);
+		break;
 	default:
 		dev_err(dev, "invalid control id\n");
 		return -EINVAL;
