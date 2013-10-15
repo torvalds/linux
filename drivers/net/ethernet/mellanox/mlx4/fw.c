@@ -1713,7 +1713,6 @@ void mlx4_opreq_action(struct work_struct *work)
 	u32 *outbox;
 	u32 modifier;
 	u16 token;
-	u16 type_m;
 	u16 type;
 	int err;
 	u32 num_qps;
@@ -1746,7 +1745,6 @@ void mlx4_opreq_action(struct work_struct *work)
 		MLX4_GET(modifier, outbox, GET_OP_REQ_MODIFIER_OFFSET);
 		MLX4_GET(token, outbox, GET_OP_REQ_TOKEN_OFFSET);
 		MLX4_GET(type, outbox, GET_OP_REQ_TYPE_OFFSET);
-		type_m = type >> 12;
 		type &= 0xfff;
 
 		switch (type) {
