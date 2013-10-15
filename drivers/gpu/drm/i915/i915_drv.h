@@ -1230,11 +1230,11 @@ struct intel_pipe_crc_entry {
 	uint32_t crc[5];
 };
 
-#define INTEL_PIPE_CRC_ENTRIES_NR	200
+#define INTEL_PIPE_CRC_ENTRIES_NR	128
 struct intel_pipe_crc {
 	struct intel_pipe_crc_entry entries[INTEL_PIPE_CRC_ENTRIES_NR];
 	enum intel_pipe_crc_source source;
-	atomic_t slot;
+	atomic_t head, tail;
 };
 
 typedef struct drm_i915_private {

@@ -30,6 +30,7 @@
 
 #include <linux/sysrq.h>
 #include <linux/slab.h>
+#include <linux/circ_buf.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -1195,20 +1196,30 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	struct intel_pipe_crc_entry *entry;
 	ktime_t now;
-	int ts, slot;
+	int ts, head, tail;
+
+	head = atomic_read(&pipe_crc->head);
+	tail = atomic_read(&pipe_crc->tail);
+
+	if (CIRC_SPACE(head, tail, INTEL_PIPE_CRC_ENTRIES_NR) < 1) {
+		DRM_ERROR("CRC buffer overflowing\n");
+		return;
+	}
+
+	entry = &pipe_crc->entries[head];
 
 	now = ktime_get();
 	ts = ktime_to_us(now);
 
-	slot = (atomic_read(&pipe_crc->slot) + 1) % INTEL_PIPE_CRC_ENTRIES_NR;
-	entry = &pipe_crc->entries[slot];
 	entry->timestamp = ts;
 	entry->crc[0] = I915_READ(PIPE_CRC_RES_1_IVB(pipe));
 	entry->crc[1] = I915_READ(PIPE_CRC_RES_2_IVB(pipe));
 	entry->crc[2] = I915_READ(PIPE_CRC_RES_3_IVB(pipe));
 	entry->crc[3] = I915_READ(PIPE_CRC_RES_4_IVB(pipe));
 	entry->crc[4] = I915_READ(PIPE_CRC_RES_5_IVB(pipe));
-	atomic_set(&dev_priv->pipe_crc[pipe].slot, slot);
+
+	head = (head + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
+	atomic_set(&pipe_crc->head, head);
 }
 #else
 static void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}

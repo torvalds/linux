@@ -27,6 +27,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
@@ -1739,25 +1740,28 @@ static int i915_pipe_crc(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = (enum pipe)node->info_ent->data;
-	const struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
-	int i;
-	int start;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
+	int head, tail;
 
 	if (dev_priv->pipe_crc[pipe].source == INTEL_PIPE_CRC_SOURCE_NONE) {
 		seq_puts(m, "none\n");
 		return 0;
 	}
 
-	start = atomic_read(&pipe_crc->slot) + 1;
 	seq_puts(m, " timestamp     CRC1     CRC2     CRC3     CRC4     CRC5\n");
-	for (i = 0; i < INTEL_PIPE_CRC_ENTRIES_NR; i++) {
-		const struct intel_pipe_crc_entry *entry =
-			&pipe_crc->entries[(start + i) %
-					   INTEL_PIPE_CRC_ENTRIES_NR];
+	head = atomic_read(&pipe_crc->head);
+	tail = atomic_read(&pipe_crc->tail);
+
+	while (CIRC_CNT(head, tail, INTEL_PIPE_CRC_ENTRIES_NR) >= 1) {
+		struct intel_pipe_crc_entry *entry = &pipe_crc->entries[tail];
 
 		seq_printf(m, "%12u %8x %8x %8x %8x %8x\n", entry->timestamp,
 			   entry->crc[0], entry->crc[1], entry->crc[2],
 			   entry->crc[3], entry->crc[4]);
+
+		BUILD_BUG_ON_NOT_POWER_OF_2(INTEL_PIPE_CRC_ENTRIES_NR);
+		tail = (tail + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
+		atomic_set(&pipe_crc->tail, tail);
 	}
 
 	return 0;
