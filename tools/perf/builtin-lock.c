@@ -15,6 +15,7 @@
 #include "util/debug.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "util/data.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
@@ -853,8 +854,12 @@ static int __cmd_report(bool display_info)
 		.comm		 = perf_event__process_comm,
 		.ordered_samples = true,
 	};
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, &eops);
+	session = perf_session__new(&file, false, &eops);
 	if (!session) {
 		pr_err("Initializing perf session failed\n");
 		return -ENOMEM;

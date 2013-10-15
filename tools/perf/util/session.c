@@ -106,11 +106,11 @@ static void perf_session__destroy_kernel_maps(struct perf_session *self)
 	machines__destroy_kernel_maps(&self->machines);
 }
 
-struct perf_session *perf_session__new(const char *filename, int mode,
-				       bool force, bool repipe,
-				       struct perf_tool *tool)
+struct perf_session *perf_session__new(struct perf_data_file *file,
+				       bool repipe, struct perf_tool *tool)
 {
 	struct perf_session *self;
+	const char *filename = file->path;
 	struct stat st;
 	size_t len;
 
@@ -134,11 +134,11 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	INIT_LIST_HEAD(&self->ordered_samples.to_free);
 	machines__init(&self->machines);
 
-	if (mode == O_RDONLY) {
-		if (perf_session__open(self, force) < 0)
+	if (perf_data_file__is_read(file)) {
+		if (perf_session__open(self, file->force) < 0)
 			goto out_delete;
 		perf_session__set_id_hdr_size(self);
-	} else if (mode == O_WRONLY) {
+	} else if (perf_data_file__is_write(file)) {
 		/*
 		 * In O_RDONLY mode this will be performed when reading the
 		 * kernel MMAP event, in perf_event__process_mmap().

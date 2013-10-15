@@ -28,6 +28,7 @@
 #include "util/hist.h"
 #include "util/session.h"
 #include "util/tool.h"
+#include "util/data.h"
 #include "arch/common.h"
 
 #include <dlfcn.h>
@@ -199,9 +200,13 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_session *session;
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
+	struct perf_data_file file = {
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = ann->force,
+	};
 
-	session = perf_session__new(input_name, O_RDONLY,
-				    ann->force, false, &ann->tool);
+	session = perf_session__new(&file, false, &ann->tool);
 	if (session == NULL)
 		return -ENOMEM;
 

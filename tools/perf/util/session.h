@@ -7,6 +7,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "thread.h"
+#include "data.h"
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
@@ -49,9 +50,8 @@ struct perf_session {
 
 struct perf_tool;
 
-struct perf_session *perf_session__new(const char *filename, int mode,
-				       bool force, bool repipe,
-				       struct perf_tool *tool);
+struct perf_session *perf_session__new(struct perf_data_file *file,
+				       bool repipe, struct perf_tool *tool);
 void perf_session__delete(struct perf_session *session);
 
 void perf_event_header__bswap(struct perf_event_header *self);

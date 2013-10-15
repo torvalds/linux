@@ -15,6 +15,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/sort.h"
+#include "util/data.h"
 #include <linux/bitmap.h>
 
 static char const		*script_name;
@@ -1115,10 +1116,14 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 	char scripts_path[MAXPATHLEN], lang_path[MAXPATHLEN];
 	DIR *scripts_dir, *lang_dir;
 	struct perf_session *session;
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 	char *temp;
 	int i = 0;
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, NULL);
+	session = perf_session__new(&file, false, NULL);
 	if (!session)
 		return -1;
 
@@ -1319,11 +1324,16 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
 	};
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
 
 	setup_scripting();
 
 	argc = parse_options(argc, argv, options, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	file.path = input_name;
 
 	if (argc > 1 && !strncmp(argv[0], "rec", strlen("rec"))) {
 		rec_script_path = get_script_path(argv[1], RECORD_SUFFIX);
@@ -1488,8 +1498,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!script_name)
 		setup_pager();
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false,
-				    &perf_script);
+	session = perf_session__new(&file, false, &perf_script);
 	if (session == NULL)
 		return -ENOMEM;
 

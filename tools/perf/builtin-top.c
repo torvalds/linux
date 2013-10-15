@@ -929,11 +929,15 @@ static int __cmd_top(struct perf_top *top)
 	struct perf_record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_WRITE,
+	};
+
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	top->session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
+	top->session = perf_session__new(&file, false, NULL);
 	if (top->session == NULL)
 		return -ENOMEM;
 

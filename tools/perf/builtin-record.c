@@ -24,6 +24,7 @@
 #include "util/symbol.h"
 #include "util/cpumap.h"
 #include "util/thread_map.h"
+#include "util/data.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -65,11 +66,10 @@ struct perf_record {
 	struct perf_tool	tool;
 	struct perf_record_opts	opts;
 	u64			bytes_written;
-	const char		*output_name;
+	struct perf_data_file	file;
 	struct perf_evlist	*evlist;
 	struct perf_session	*session;
 	const char		*progname;
-	int			output;
 	int			realtime_prio;
 	bool			no_buildid;
 	bool			no_buildid_cache;
@@ -84,8 +84,10 @@ static void advance_output(struct perf_record *rec, size_t size)
 
 static int write_output(struct perf_record *rec, void *buf, size_t size)
 {
+	struct perf_data_file *file = &rec->file;
+
 	while (size) {
-		int ret = write(rec->output, buf, size);
+		int ret = write(file->fd, buf, size);
 
 		if (ret < 0) {
 			pr_err("failed to write perf data, error: %m\n");
@@ -248,13 +250,15 @@ out:
 
 static int process_buildids(struct perf_record *rec)
 {
-	u64 size = lseek(rec->output, 0, SEEK_CUR);
+	struct perf_data_file *file  = &rec->file;
+	struct perf_session *session = rec->session;
 
+	u64 size = lseek(file->fd, 0, SEEK_CUR);
 	if (size == 0)
 		return 0;
 
-	rec->session->fd = rec->output;
-	return __perf_session__process_events(rec->session, rec->post_processing_offset,
+	session->fd = file->fd;
+	return __perf_session__process_events(session, rec->post_processing_offset,
 					      size - rec->post_processing_offset,
 					      size, &build_id__mark_dso_hit_ops);
 }
@@ -262,17 +266,18 @@ static int process_buildids(struct perf_record *rec)
 static void perf_record__exit(int status, void *arg)
 {
 	struct perf_record *rec = arg;
+	struct perf_data_file *file = &rec->file;
 
 	if (status != 0)
 		return;
 
-	if (!rec->opts.pipe_output) {
+	if (!file->is_pipe) {
 		rec->session->header.data_size += rec->bytes_written;
 
 		if (!rec->no_buildid)
 			process_buildids(rec);
 		perf_session__write_header(rec->session, rec->evlist,
-					   rec->output, true);
+					   file->fd, true);
 		perf_session__delete(rec->session);
 		perf_evlist__delete(rec->evlist);
 		symbol__exit();
@@ -342,14 +347,15 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 {
 	struct stat st;
 	int flags;
-	int err, output, feat;
+	int err, feat;
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
 	struct machine *machine;
 	struct perf_tool *tool = &rec->tool;
 	struct perf_record_opts *opts = &rec->opts;
 	struct perf_evlist *evsel_list = rec->evlist;
-	const char *output_name = rec->output_name;
+	struct perf_data_file *file = &rec->file;
+	const char *output_name = file->path;
 	struct perf_session *session;
 	bool disabled = false;
 
@@ -363,13 +369,13 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	if (!output_name) {
 		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
-			opts->pipe_output = true;
+			file->is_pipe = true;
 		else
-			rec->output_name = output_name = "perf.data";
+			file->path = output_name = "perf.data";
 	}
 	if (output_name) {
 		if (!strcmp(output_name, "-"))
-			opts->pipe_output = true;
+			file->is_pipe = true;
 		else if (!stat(output_name, &st) && st.st_size) {
 			char oldname[PATH_MAX];
 			snprintf(oldname, sizeof(oldname), "%s.old",
@@ -381,19 +387,16 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	flags = O_CREAT|O_RDWR|O_TRUNC;
 
-	if (opts->pipe_output)
-		output = STDOUT_FILENO;
+	if (file->is_pipe)
+		file->fd = STDOUT_FILENO;
 	else
-		output = open(output_name, flags, S_IRUSR | S_IWUSR);
-	if (output < 0) {
+		file->fd = open(output_name, flags, S_IRUSR | S_IWUSR);
+	if (file->fd < 0) {
 		perror("failed to create output file");
 		return -1;
 	}
 
-	rec->output = output;
-
-	session = perf_session__new(output_name, O_WRONLY,
-				    true, false, NULL);
+	session = perf_session__new(file, false, NULL);
 	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
@@ -415,7 +418,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &opts->target,
-						    argv, opts->pipe_output,
+						    argv, file->is_pipe,
 						    true);
 		if (err < 0) {
 			pr_err("Couldn't run the workload!\n");
@@ -436,13 +439,13 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	 */
 	on_exit(perf_record__exit, rec);
 
-	if (opts->pipe_output) {
-		err = perf_header__write_pipe(output);
+	if (file->is_pipe) {
+		err = perf_header__write_pipe(file->fd);
 		if (err < 0)
 			goto out_delete_session;
 	} else {
 		err = perf_session__write_header(session, evsel_list,
-						 output, false);
+						 file->fd, false);
 		if (err < 0)
 			goto out_delete_session;
 	}
@@ -455,11 +458,11 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		goto out_delete_session;
 	}
 
-	rec->post_processing_offset = lseek(output, 0, SEEK_CUR);
+	rec->post_processing_offset = lseek(file->fd, 0, SEEK_CUR);
 
 	machine = &session->machines.host;
 
-	if (opts->pipe_output) {
+	if (file->is_pipe) {
 		err = perf_event__synthesize_attrs(tool, session,
 						   process_synthesized_event);
 		if (err < 0) {
@@ -476,7 +479,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = perf_event__synthesize_tracing_data(tool, output, evsel_list,
+			err = perf_event__synthesize_tracing_data(tool, file->fd, evsel_list,
 								  process_synthesized_event);
 			if (err <= 0) {
 				pr_err("Couldn't record tracing data.\n");
@@ -845,7 +848,7 @@ const struct option record_options[] = {
 	OPT_STRING('C', "cpu", &record.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_U64('c', "count", &record.opts.user_interval, "event period to sample"),
-	OPT_STRING('o', "output", &record.output_name, "file",
+	OPT_STRING('o', "output", &record.file.path, "file",
 		    "output file name"),
 	OPT_BOOLEAN('i', "no-inherit", &record.opts.no_inherit,
 		    "child tasks do not inherit counters"),
