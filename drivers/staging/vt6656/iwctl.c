@@ -60,7 +60,7 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	pDevice->wstats.status = pDevice->eOPMode;
 	if (pDevice->scStatistic.LinkQuality > 100)
 		pDevice->scStatistic.LinkQuality = 100;
-	pDevice->wstats.qual.qual =(u8)pDevice->scStatistic.LinkQuality;
+	pDevice->wstats.qual.qual = (u8)pDevice->scStatistic.LinkQuality;
 	RFvRSSITodBm(pDevice, (u8)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
 	pDevice->wstats.qual.noise = 0;
@@ -190,7 +190,7 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 		return -EAGAIN;
 	}
 	pBSS = &(pMgmt->sBSSList[0]);
-	for (ii = 0, jj = 0; jj < MAX_BSS_NUM ; jj++) {
+	for (ii = 0, jj = 0; jj < MAX_BSS_NUM; jj++) {
 		if (current_ev >= end_buf)
 			break;
 		pBSS = &(pMgmt->sBSSList[jj]);
@@ -225,7 +225,7 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 			iwe.u.freq.m = pBSS->uChannel;
 			iwe.u.freq.e = 0;
 			iwe.u.freq.i = 0;
-			current_ev = iwe_stream_add_event(info, current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
+			current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
 			{
 				int f = (int)pBSS->uChannel - 1;
 				if (f < 0)
@@ -786,7 +786,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 	if (wrq->flags == 0) {
 		// Just send an empty SSID list
 		memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
-		memset(pMgmt->abyDesireBSSID, 0xFF,6);
+		memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 		PRINT_K("set essid to 'any' \n");
 		// Unknown desired AP, so here need not associate??
 		return 0;
@@ -798,7 +798,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 
 		memcpy(pItemSSID->abySSID, extra, wrq->length);
 		if (pItemSSID->abySSID[wrq->length] == '\0') {
-			if (wrq->length>0)
+			if (wrq->length > 0)
 				pItemSSID->len = wrq->length;
 		} else {
 			pItemSSID->len = wrq->length;
@@ -806,7 +806,7 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 		PRINT_K("set essid to %s \n", pItemSSID->abySSID);
 
 		// mike: need clear desiredBSSID
-		if (pItemSSID->len==0) {
+		if (pItemSSID->len == 0) {
 			memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 			return 0;
 		}
@@ -953,7 +953,7 @@ int iwctl_siwrate(struct net_device *dev, struct iw_request_info *info,
 	}
 	// Check that it is valid
 	// brate is index of abySupportedRates[]
-	if (brate > 13 ) {
+	if (brate > 13) {
 		rc = -EINVAL;
 		return rc;
 	}
@@ -1465,7 +1465,7 @@ int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 	case IW_AUTH_CIPHER_PAIRWISE:
 		pairwise = wrq->value;
 		PRINT_K("iwctl_siwauth:set pairwise=%d\n", pairwise);
-		if (pairwise == IW_AUTH_CIPHER_CCMP){
+		if (pairwise == IW_AUTH_CIPHER_CCMP) {
 			pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
 		} else if (pairwise == IW_AUTH_CIPHER_TKIP) {
 			pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
@@ -1490,13 +1490,13 @@ int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 		}
 		break;
 	case IW_AUTH_KEY_MGMT:
-		PRINT_K("iwctl_siwauth(wpa_version=%d):set KEY_MGMT=%d\n", wpa_version,wrq->value);
-		if (wpa_version == IW_AUTH_WPA_VERSION_WPA2){
+		PRINT_K("iwctl_siwauth(wpa_version=%d):set KEY_MGMT=%d\n", wpa_version, wrq->value);
+		if (wpa_version == IW_AUTH_WPA_VERSION_WPA2) {
 			if (wrq->value == IW_AUTH_KEY_MGMT_PSK)
 				pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK;
 			else pMgmt->eAuthenMode = WMAC_AUTH_WPA2;
 		} else if (wpa_version == IW_AUTH_WPA_VERSION_WPA) {
-			if (wrq->value == 0){
+			if (wrq->value == 0) {
 				pMgmt->eAuthenMode = WMAC_AUTH_WPANONE;
 			} else if (wrq->value == IW_AUTH_KEY_MGMT_PSK)
 				pMgmt->eAuthenMode = WMAC_AUTH_WPAPSK;
@@ -1558,17 +1558,17 @@ int iwctl_siwgenie(struct net_device *dev, struct iw_request_info *info,
 	if (pMgmt == NULL)
 		return -EFAULT;
 
-	if (wrq->length){
+	if (wrq->length) {
 		if ((wrq->length < 2) || (extra[1] + 2 != wrq->length)) {
 			ret = -EINVAL;
 			goto out;
 		}
-		if (wrq->length > MAX_WPA_IE_LEN){
+		if (wrq->length > MAX_WPA_IE_LEN) {
 			ret = -ENOMEM;
 			goto out;
 		}
 		memset(pMgmt->abyWPAIE, 0, MAX_WPA_IE_LEN);
-		if (copy_from_user(pMgmt->abyWPAIE, extra, wrq->length)){
+		if (copy_from_user(pMgmt->abyWPAIE, extra, wrq->length)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1615,7 +1615,7 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct iw_point *wrq = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext*)extra;
-	struct viawget_wpa_param *param=NULL;
+	struct viawget_wpa_param *param = NULL;
 // original member
 	wpa_alg alg_name;
 	u8 addr[6];
@@ -1658,8 +1658,8 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 		alg_name = WPA_ALG_CCMP;
 		break;
 	default:
-		PRINT_K("Unknown alg = %d\n",ext->alg);
-		ret= -ENOMEM;
+		PRINT_K("Unknown alg = %d\n", ext->alg);
+		ret = -ENOMEM;
 		goto error;
 	}
 // recover addr
@@ -1671,7 +1671,7 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 		set_tx = 1;
 // recover seq,seq_len
 	if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-		seq_len=IW_ENCODE_SEQ_MAX_SIZE;
+		seq_len = IW_ENCODE_SEQ_MAX_SIZE;
 		memcpy(seq, ext->rx_seq, seq_len);
 	}
 // recover key,key_len
@@ -1702,7 +1702,7 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 /****set if current action is Network Manager count?? */
 /****this method is so foolish,but there is no other way??? */
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
-		if (param->u.wpa_key.key_index ==0) {
+		if (param->u.wpa_key.key_index == 0) {
 			pDevice->bwextstep0 = true;
 		}
 		if ((pDevice->bwextstep0 == true) && (param->u.wpa_key.key_index == 1)) {
@@ -1761,7 +1761,7 @@ int iwctl_siwmlme(struct net_device *dev, struct iw_request_info *info,
 		ret = -EINVAL;
 		return ret;
 	}
-	switch (mlme->cmd){
+	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 	case IW_MLME_DISASSOC:
 		if (pDevice->bLinkPass == true) {
