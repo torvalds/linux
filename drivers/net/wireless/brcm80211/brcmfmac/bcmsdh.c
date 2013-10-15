@@ -315,7 +315,7 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 }
 
 /**
- * brcmf_sdio_buffrw - SDIO interface function for block data access
+ * brcmf_sdio_sglist_rw - SDIO interface function for block data access
  * @sdiodev: brcmfmac sdio device
  * @fn: SDIO function number
  * @write: direction flag
@@ -326,8 +326,9 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
  * stack for block data access. It assumes that the skb passed down by the
  * caller has already been padded and aligned.
  */
-static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
-			     bool write, u32 addr, struct sk_buff_head *pktlist)
+static int brcmf_sdio_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
+				bool write, u32 addr,
+				struct sk_buff_head *pktlist)
 {
 	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
 	unsigned int max_req_sz, orig_offset, dst_offset;
@@ -554,7 +555,7 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	skb_queue_head_init(&pkt_list);
 	skb_queue_tail(&pkt_list, pkt);
-	err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, &pkt_list);
+	err = brcmf_sdio_sglist_rw(sdiodev, fn, false, addr, &pkt_list);
 	skb_dequeue_tail(&pkt_list);
 
 done:
@@ -577,7 +578,7 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		goto done;
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
-	err = brcmf_sdio_buffrw(sdiodev, fn, false, addr, pktq);
+	err = brcmf_sdio_sglist_rw(sdiodev, fn, false, addr, pktq);
 
 done:
 	return err;
@@ -622,7 +623,7 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	brcmf_sdio_addrprep(sdiodev, width, &addr);
 
-	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, pktq);
+	err = brcmf_sdio_sglist_rw(sdiodev, fn, true, addr, pktq);
 
 	return err;
 }
@@ -673,8 +674,8 @@ brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		if (write)
 			memcpy(pkt->data, data, dsize);
 		skb_queue_tail(&pkt_list, pkt);
-		bcmerror = brcmf_sdio_buffrw(sdiodev, SDIO_FUNC_1, write,
-					     sdaddr, &pkt_list);
+		bcmerror = brcmf_sdio_sglist_rw(sdiodev, SDIO_FUNC_1, write,
+						sdaddr, &pkt_list);
 		skb_dequeue_tail(&pkt_list);
 		if (bcmerror) {
 			brcmf_err("membytes transfer failed\n");
