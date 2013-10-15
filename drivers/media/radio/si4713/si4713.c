@@ -31,7 +31,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
-#include <linux/regulator/consumer.h>
 
 #include "si4713.h"
 

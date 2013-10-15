@@ -15,6 +15,7 @@
 #ifndef SI4713_I2C_H
 #define SI4713_I2C_H
 
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
 #include <media/si4713.h>
