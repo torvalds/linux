@@ -1864,14 +1864,15 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 /*
  * Parse pipe CRC command strings:
- *   command: wsp* pipe wsp+ source wsp*
- *   pipe: (A | B | C)
+ *   command: wsp* object wsp+ name wsp+ source wsp*
+ *   object: 'pipe'
+ *   name: (A | B | C)
  *   source: (none | plane1 | plane2 | pf)
  *   wsp: (#0x20 | #0x9 | #0xA)+
  *
  * eg.:
- *  "A plane1"  ->  Start CRC computations on plane1 of pipe A
- *  "A none"    ->  Stop CRC
+ *  "pipe A plane1"  ->  Start CRC computations on plane1 of pipe A
+ *  "pipe A none"    ->  Stop CRC
  */
 static int pipe_crc_ctl_tokenize(char *buf, char *words[], int max_words)
 {
@@ -1904,6 +1905,28 @@ static int pipe_crc_ctl_tokenize(char *buf, char *words[], int max_words)
 	return n_words;
 }
 
+enum intel_pipe_crc_object {
+	PIPE_CRC_OBJECT_PIPE,
+};
+
+static const char *pipe_crc_objects[] = {
+	"pipe",
+};
+
+static int
+pipe_crc_ctl_parse_object(const char *buf, enum intel_pipe_crc_object *object)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pipe_crc_objects); i++)
+		if (!strcmp(buf, pipe_crc_objects[i])) {
+			*object = i;
+			return 0;
+		    }
+
+	return -EINVAL;
+}
+
 static int pipe_crc_ctl_parse_pipe(const char *buf, enum pipe *pipe)
 {
 	const char name = buf[0];
@@ -1932,25 +1955,32 @@ pipe_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *source)
 
 static int pipe_crc_ctl_parse(struct drm_device *dev, char *buf, size_t len)
 {
-#define MAX_WORDS 2
+#define N_WORDS 3
 	int n_words;
-	char *words[MAX_WORDS];
+	char *words[N_WORDS];
 	enum pipe pipe;
+	enum intel_pipe_crc_object object;
 	enum intel_pipe_crc_source source;
 
-	n_words = pipe_crc_ctl_tokenize(buf, words, MAX_WORDS);
-	if (n_words != 2) {
-		DRM_DEBUG_DRIVER("tokenize failed, a command is 2 words\n");
+	n_words = pipe_crc_ctl_tokenize(buf, words, N_WORDS);
+	if (n_words != N_WORDS) {
+		DRM_DEBUG_DRIVER("tokenize failed, a command is %d words\n",
+				 N_WORDS);
 		return -EINVAL;
 	}
 
-	if (pipe_crc_ctl_parse_pipe(words[0], &pipe) < 0) {
-		DRM_DEBUG_DRIVER("unknown pipe %s\n", words[0]);
+	if (pipe_crc_ctl_parse_object(words[0], &object) < 0) {
+		DRM_DEBUG_DRIVER("unknown object %s\n", words[0]);
 		return -EINVAL;
 	}
 
-	if (pipe_crc_ctl_parse_source(words[1], &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", words[1]);
+	if (pipe_crc_ctl_parse_pipe(words[1], &pipe) < 0) {
+		DRM_DEBUG_DRIVER("unknown pipe %s\n", words[1]);
+		return -EINVAL;
+	}
+
+	if (pipe_crc_ctl_parse_source(words[2], &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", words[2]);
 		return -EINVAL;
 	}
 
