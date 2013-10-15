@@ -77,4 +77,5 @@ typedef int (*percpu_ida_cb)(unsigned, void *);
 int percpu_ida_for_each_free(struct percpu_ida *pool, percpu_ida_cb fn,
 	void *data);
 
+unsigned percpu_ida_free_tags(struct percpu_ida *pool, int cpu);
 #endif /* __PERCPU_IDA_H__ */

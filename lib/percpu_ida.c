@@ -371,3 +371,20 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(percpu_ida_for_each_free);
+
+/**
+ * percpu_ida_free_tags - return free tags number of a specific cpu or global pool
+ * @pool: pool related
+ * @cpu: specific cpu or global pool if @cpu == nr_cpu_ids
+ *
+ * Note: this just returns a snapshot of free tags number.
+ */
+unsigned percpu_ida_free_tags(struct percpu_ida *pool, int cpu)
+{
+	struct percpu_ida_cpu *remote;
+	if (cpu == nr_cpu_ids)
+		return pool->nr_free;
+	remote = per_cpu_ptr(pool->tag_cpu, cpu);
+	return remote->nr_free;
+}
+EXPORT_SYMBOL_GPL(percpu_ida_free_tags);
