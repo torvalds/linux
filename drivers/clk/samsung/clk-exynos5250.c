@@ -197,6 +197,7 @@ PNAME(mout_mpll_user_p)	= { "fin_pll", "mout_mpll" };
 PNAME(mout_bpll_user_p)	= { "fin_pll", "mout_bpll" };
 PNAME(mout_aclk166_p)	= { "mout_cpll", "mout_mpll_user" };
 PNAME(mout_aclk200_p)	= { "mout_mpll_user", "mout_bpll_user" };
+PNAME(mout_aclk200_sub_p) = { "fin_pll", "div_aclk200" };
 PNAME(mout_aclk266_sub_p) = { "fin_pll", "div_aclk266" };
 PNAME(mout_hdmi_p)	= { "div_hdmi_pixel", "sclk_hdmiphy" };
 PNAME(mout_usb3_p)	= { "mout_mpll_user", "mout_cpll" };
@@ -273,6 +274,7 @@ static struct samsung_mux_clock exynos5250_mux_clks[] __initdata = {
 	MUX(none, "mout_mpll_user", mout_mpll_user_p, SRC_TOP2, 20, 1),
 	MUX(none, "mout_bpll_user", mout_bpll_user_p, SRC_TOP2, 24, 1),
 
+	MUX(none, "mout_aclk200_disp1_sub", mout_aclk200_sub_p, SRC_TOP3, 4, 1),
 	MUX(none, "mout_aclk266_gscl_sub", mout_aclk266_sub_p, SRC_TOP3, 8, 1),
 
 	MUX(none, "mout_cam_bayer", mout_group1_p, SRC_GSCL, 12, 4),
@@ -503,12 +505,12 @@ static struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 	GATE(smmu_gscl3, "smmu_gscl3", "mout_aclk266_gscl_sub",
 			GATE_IP_GSCL, 10, 0, 0),
 
-	GATE(fimd1, "fimd1", "div_aclk200", GATE_IP_DISP1, 0, 0, 0),
-	GATE(mie1, "mie1", "div_aclk200", GATE_IP_DISP1, 1, 0, 0),
-	GATE(dsim0, "dsim0", "div_aclk200", GATE_IP_DISP1, 3, 0, 0),
-	GATE(dp, "dp", "div_aclk200", GATE_IP_DISP1, 4, 0, 0),
-	GATE(mixer, "mixer", "mout_aclk200_disp1", GATE_IP_DISP1, 5, 0, 0),
-	GATE(hdmi, "hdmi", "mout_aclk200_disp1", GATE_IP_DISP1, 6, 0, 0),
+	GATE(fimd1, "fimd1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 0, 0, 0),
+	GATE(mie1, "mie1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 1, 0, 0),
+	GATE(dsim0, "dsim0", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 3, 0, 0),
+	GATE(dp, "dp", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 4, 0, 0),
+	GATE(mixer, "mixer", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 5, 0, 0),
+	GATE(hdmi, "hdmi", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 6, 0, 0),
 
 	GATE(mfc, "mfc", "div_aclk333", GATE_IP_MFC, 0, 0, 0),
 	GATE(smmu_mfcr, "smmu_mfcr", "div_aclk333", GATE_IP_MFC, 1, 0, 0),
