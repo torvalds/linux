@@ -16,73 +16,35 @@
 #include "perf_regs.h"
 #include "vdso.h"
 
-static int perf_session__open(struct perf_session *self, bool force)
+static int perf_session__open(struct perf_session *self)
 {
-	struct stat input_stat;
-
-	if (!strcmp(self->filename, "-")) {
-		self->fd_pipe = true;
-		self->fd = STDIN_FILENO;
-
+	if (self->fd_pipe) {
 		if (perf_session__read_header(self) < 0)
 			pr_err("incompatible file format (rerun with -v to learn more)");
-
 		return 0;
-	}
-
-	self->fd = open(self->filename, O_RDONLY);
-	if (self->fd < 0) {
-		int err = errno;
-
-		pr_err("failed to open %s: %s", self->filename, strerror(err));
-		if (err == ENOENT && !strcmp(self->filename, "perf.data"))
-			pr_err("  (try 'perf record' first)");
-		pr_err("\n");
-		return -errno;
-	}
-
-	if (fstat(self->fd, &input_stat) < 0)
-		goto out_close;
-
-	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
-		pr_err("file %s not owned by current user or root\n",
-		       self->filename);
-		goto out_close;
-	}
-
-	if (!input_stat.st_size) {
-		pr_info("zero-sized file (%s), nothing to do!\n",
-			self->filename);
-		goto out_close;
 	}
 
 	if (perf_session__read_header(self) < 0) {
 		pr_err("incompatible file format (rerun with -v to learn more)");
-		goto out_close;
+		return -1;
 	}
 
 	if (!perf_evlist__valid_sample_type(self->evlist)) {
 		pr_err("non matching sample_type");
-		goto out_close;
+		return -1;
 	}
 
 	if (!perf_evlist__valid_sample_id_all(self->evlist)) {
 		pr_err("non matching sample_id_all");
-		goto out_close;
+		return -1;
 	}
 
 	if (!perf_evlist__valid_read_format(self->evlist)) {
 		pr_err("non matching read_format");
-		goto out_close;
+		return -1;
 	}
 
-	self->size = input_stat.st_size;
 	return 0;
-
-out_close:
-	close(self->fd);
-	self->fd = -1;
-	return -1;
 }
 
 void perf_session__set_id_hdr_size(struct perf_session *session)
@@ -110,35 +72,35 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 				       bool repipe, struct perf_tool *tool)
 {
 	struct perf_session *self;
-	const char *filename = file->path;
-	struct stat st;
-	size_t len;
 
-	if (!filename || !strlen(filename)) {
-		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
-			filename = "-";
-		else
-			filename = "perf.data";
-	}
-
-	len = strlen(filename);
-	self = zalloc(sizeof(*self) + len);
-
-	if (self == NULL)
+	self = zalloc(sizeof(*self));
+	if (!self)
 		goto out;
 
-	memcpy(self->filename, filename, len);
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
 	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
 	INIT_LIST_HEAD(&self->ordered_samples.to_free);
 	machines__init(&self->machines);
 
-	if (perf_data_file__is_read(file)) {
-		if (perf_session__open(self, file->force) < 0)
+	if (file) {
+		if (perf_data_file__open(file))
 			goto out_delete;
-		perf_session__set_id_hdr_size(self);
-	} else if (perf_data_file__is_write(file)) {
+
+		self->fd       = file->fd;
+		self->fd_pipe  = file->is_pipe;
+		self->filename = file->path;
+		self->size     = file->size;
+
+		if (perf_data_file__is_read(file)) {
+			if (perf_session__open(self) < 0)
+				goto out_close;
+
+			perf_session__set_id_hdr_size(self);
+		}
+	}
+
+	if (!file || perf_data_file__is_write(file)) {
 		/*
 		 * In O_RDONLY mode this will be performed when reading the
 		 * kernel MMAP event, in perf_event__process_mmap().
@@ -153,10 +115,13 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 		tool->ordered_samples = false;
 	}
 
-out:
 	return self;
-out_delete:
+
+ out_close:
+	perf_data_file__close(file);
+ out_delete:
 	perf_session__delete(self);
+ out:
 	return NULL;
 }
 

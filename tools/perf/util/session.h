@@ -39,7 +39,7 @@ struct perf_session {
 	bool			fd_pipe;
 	bool			repipe;
 	struct ordered_samples	ordered_samples;
-	char			filename[1];
+	const char		*filename;
 };
 
 #define PRINT_IP_OPT_IP		(1<<0)

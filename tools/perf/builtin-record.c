@@ -345,8 +345,6 @@ out:
 
 static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 {
-	struct stat st;
-	int flags;
 	int err, feat;
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
@@ -355,7 +353,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	struct perf_record_opts *opts = &rec->opts;
 	struct perf_evlist *evsel_list = rec->evlist;
 	struct perf_data_file *file = &rec->file;
-	const char *output_name = file->path;
 	struct perf_session *session;
 	bool disabled = false;
 
@@ -366,35 +363,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
 	signal(SIGTERM, sig_handler);
-
-	if (!output_name) {
-		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
-			file->is_pipe = true;
-		else
-			file->path = output_name = "perf.data";
-	}
-	if (output_name) {
-		if (!strcmp(output_name, "-"))
-			file->is_pipe = true;
-		else if (!stat(output_name, &st) && st.st_size) {
-			char oldname[PATH_MAX];
-			snprintf(oldname, sizeof(oldname), "%s.old",
-				 output_name);
-			unlink(oldname);
-			rename(output_name, oldname);
-		}
-	}
-
-	flags = O_CREAT|O_RDWR|O_TRUNC;
-
-	if (file->is_pipe)
-		file->fd = STDOUT_FILENO;
-	else
-		file->fd = open(output_name, flags, S_IRUSR | S_IWUSR);
-	if (file->fd < 0) {
-		perror("failed to create output file");
-		return -1;
-	}
 
 	session = perf_session__new(file, false, NULL);
 	if (session == NULL) {
@@ -586,7 +554,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	fprintf(stderr,
 		"[ perf record: Captured and wrote %.3f MB %s (~%" PRIu64 " samples) ]\n",
 		(double)rec->bytes_written / 1024.0 / 1024.0,
-		output_name,
+		file->path,
 		rec->bytes_written / 24);
 
 	return 0;

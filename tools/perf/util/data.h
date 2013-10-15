@@ -13,6 +13,7 @@ struct perf_data_file {
 	int fd;
 	bool is_pipe;
 	bool force;
+	unsigned long size;
 	enum perf_data_mode mode;
 };
 
@@ -25,5 +26,8 @@ static inline bool perf_data_file__is_write(struct perf_data_file *file)
 {
 	return file->mode == PERF_DATA_MODE_WRITE;
 }
+
+int perf_data_file__open(struct perf_data_file *file);
+void perf_data_file__close(struct perf_data_file *file);
 
 #endif /* __PERF_DATA_H */
