@@ -2119,7 +2119,7 @@ int ath10k_wmi_pdev_set_param(struct ath10k *ar, u32 id, u32 value)
 
 	if (id == WMI_PDEV_PARAM_UNSUPPORTED) {
 		ath10k_warn("pdev param %d not supported by firmware\n", id);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
