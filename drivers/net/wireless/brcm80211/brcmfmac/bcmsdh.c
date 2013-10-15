@@ -332,7 +332,7 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 {
 	unsigned int req_sz, func_blk_sz, sg_cnt, sg_data_sz, pkt_offset;
 	unsigned int max_blks, max_req_sz, orig_offset, dst_offset;
-	unsigned short max_seg_sz, seg_sz;
+	unsigned short max_seg_cnt, seg_sz;
 	unsigned char *pkt_data, *orig_data, *dst_data;
 	struct sk_buff *pkt_next = NULL, *local_pkt_next;
 	struct sk_buff_head local_list, *target_list;
@@ -406,13 +406,14 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	max_blks = min_t(unsigned int, host->max_blk_count, 511u);
 	max_req_sz = min_t(unsigned int, host->max_req_size,
 			   max_blks * func_blk_sz);
-	max_seg_sz = min_t(unsigned short, host->max_segs, SG_MAX_SINGLE_ALLOC);
-	max_seg_sz = min_t(unsigned short, max_seg_sz, target_list->qlen);
+	max_seg_cnt = min_t(unsigned short, host->max_segs,
+			    SG_MAX_SINGLE_ALLOC);
+	max_seg_cnt = min_t(unsigned short, max_seg_cnt, target_list->qlen);
 	seg_sz = target_list->qlen;
 	pkt_offset = 0;
 	pkt_next = target_list->next;
 
-	if (sg_alloc_table(&st, max_seg_sz, GFP_KERNEL)) {
+	if (sg_alloc_table(&st, max_seg_cnt, GFP_KERNEL)) {
 		ret = -ENOMEM;
 		goto exit;
 	}
@@ -444,7 +445,7 @@ static int brcmf_sdio_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 				pkt_next = pkt_next->next;
 			}
 
-			if (req_sz >= max_req_sz || sg_cnt >= max_seg_sz)
+			if (req_sz >= max_req_sz || sg_cnt >= max_seg_cnt)
 				break;
 		}
 		seg_sz -= sg_cnt;
