@@ -435,6 +435,27 @@ const char *adf_event_type_str(struct adf_obj *obj, enum adf_event_type type);
 
 #define ADF_FORMAT_STR_SIZE 5
 void adf_format_str(u32 format, char buf[ADF_FORMAT_STR_SIZE]);
+int adf_format_validate_yuv(struct adf_device *dev, struct adf_buffer *buf,
+		u8 num_planes, u8 hsub, u8 vsub, u8 cpp[]);
+/**
+ * adf_format_validate_rgb - validate the number and size of planes in buffers
+ * with a custom RGB format.
+ *
+ * @dev: ADF device performing the validation
+ * @buf: buffer to validate
+ * @cpp: expected bytes per pixel
+ *
+ * adf_format_validate_rgb() is intended to be called as a helper from @dev's
+ * validate_custom_format() op.  @buf must have a single RGB plane.
+ *
+ * Returns 0 if @buf has a single plane with sufficient size, or -EINVAL
+ * otherwise.
+ */
+static inline int adf_format_validate_rgb(struct adf_device *dev,
+		struct adf_buffer *buf, u8 cpp)
+{
+	return adf_format_validate_yuv(dev, buf, 1, 1, 1, &cpp);
+}
 
 int adf_event_get(struct adf_obj *obj, enum adf_event_type type);
 int adf_event_put(struct adf_obj *obj, enum adf_event_type type);
