@@ -1195,8 +1195,7 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	struct intel_pipe_crc_entry *entry;
-	ktime_t now;
-	int ts, head, tail;
+	int head, tail;
 
 	head = atomic_read(&pipe_crc->head);
 	tail = atomic_read(&pipe_crc->tail);
@@ -1208,10 +1207,7 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 
 	entry = &pipe_crc->entries[head];
 
-	now = ktime_get();
-	ts = ktime_to_us(now);
-
-	entry->timestamp = ts;
+	entry->frame = I915_READ(PIPEFRAME(pipe));
 	entry->crc[0] = I915_READ(PIPE_CRC_RES_1_IVB(pipe));
 	entry->crc[1] = I915_READ(PIPE_CRC_RES_2_IVB(pipe));
 	entry->crc[2] = I915_READ(PIPE_CRC_RES_3_IVB(pipe));

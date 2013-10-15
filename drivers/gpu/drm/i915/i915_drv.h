@@ -1226,7 +1226,7 @@ enum intel_pipe_crc_source {
 };
 
 struct intel_pipe_crc_entry {
-	uint32_t timestamp;
+	uint32_t frame;
 	uint32_t crc[5];
 };
 

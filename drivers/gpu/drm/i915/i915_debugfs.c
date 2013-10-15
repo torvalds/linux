@@ -1748,14 +1748,14 @@ static int i915_pipe_crc(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	seq_puts(m, " timestamp     CRC1     CRC2     CRC3     CRC4     CRC5\n");
+	seq_puts(m, "  frame    CRC1     CRC2     CRC3     CRC4     CRC5\n");
 	head = atomic_read(&pipe_crc->head);
 	tail = atomic_read(&pipe_crc->tail);
 
 	while (CIRC_CNT(head, tail, INTEL_PIPE_CRC_ENTRIES_NR) >= 1) {
 		struct intel_pipe_crc_entry *entry = &pipe_crc->entries[tail];
 
-		seq_printf(m, "%12u %8x %8x %8x %8x %8x\n", entry->timestamp,
+		seq_printf(m, "%8u %8x %8x %8x %8x %8x\n", entry->frame,
 			   entry->crc[0], entry->crc[1], entry->crc[2],
 			   entry->crc[3], entry->crc[4]);
 
