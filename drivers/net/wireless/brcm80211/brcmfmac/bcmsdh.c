@@ -238,7 +238,9 @@ brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		func_num = SDIO_FUNC_1;
 		reg_size = 4;
 
-		brcmf_sdio_addrprep(sdiodev, reg_size, &addr);
+		ret = brcmf_sdio_addrprep(sdiodev, reg_size, &addr);
+		if (ret)
+			goto done;
 	}
 
 	do {
@@ -254,6 +256,7 @@ brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 						       func_num, addr, data, 4);
 	} while (ret != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
+done:
 	if (ret != 0)
 		brcmf_err("failed with %d\n", ret);
 
@@ -605,9 +608,10 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	memcpy(mypkt->data, buf, nbytes);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	brcmf_sdio_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
 
-	err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, mypkt);
+	if (!err)
+		err = brcmf_sdio_buffrw(sdiodev, fn, true, addr, mypkt);
 
 	brcmu_pkt_buf_free_skb(mypkt);
 	return err;
@@ -619,12 +623,15 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		      uint flags, struct sk_buff_head *pktq)
 {
 	uint width;
+	int err;
 
 	brcmf_dbg(SDIO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pktq->qlen);
 
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	brcmf_sdio_addrprep(sdiodev, width, &addr);
+	err = brcmf_sdio_addrprep(sdiodev, width, &addr);
+	if (err)
+		return err;
 
 	if (pktq->qlen == 1)
 		return brcmf_sdio_buffrw(sdiodev, fn, true, addr, pktq->next);
