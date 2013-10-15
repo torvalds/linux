@@ -1197,6 +1197,11 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 	struct intel_pipe_crc_entry *entry;
 	int head, tail;
 
+	if (!pipe_crc->entries) {
+		DRM_ERROR("spurious interrupt\n");
+		return;
+	}
+
 	head = atomic_read(&pipe_crc->head);
 	tail = atomic_read(&pipe_crc->tail);
 
