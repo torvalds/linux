@@ -28,6 +28,13 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 	int i;
 	bool needreset = false;
 
+
+	if (sc->tx99_state) {
+		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
+			"skip tx hung detection on tx99\n");
+		return;
+	}
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		txq = sc->tx.txq_map[i];
 
@@ -70,7 +77,7 @@ void ath_hw_check(struct work_struct *work)
 	ath9k_ps_wakeup(sc);
 	is_alive = ath9k_hw_check_alive(sc->sc_ah);
 
-	if (is_alive && !AR_SREV_9300(sc->sc_ah))
+	if ((is_alive && !AR_SREV_9300(sc->sc_ah)) || sc->tx99_state)
 		goto out;
 	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
 		ath_dbg(common, RESET,
@@ -139,6 +146,9 @@ void ath_hw_pll_work(struct work_struct *work)
 	 * uses beacons.
 	 */
 	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+		return;
+
+	if (sc->tx99_state)
 		return;
 
 	ath9k_ps_wakeup(sc);

@@ -682,6 +682,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 
 	common = ath9k_hw_common(ah);
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
+	sc->tx99_power = MAX_RATE_POWER + 1;
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -785,6 +786,7 @@ err_queues:
 	ath9k_hw_deinit(ah);
 err_hw:
 	ath9k_eeprom_release(sc);
+	dev_kfree_skb_any(sc->tx99_skb);
 	return ret;
 }
 
@@ -841,7 +843,6 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
-
 
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) },
@@ -903,17 +904,18 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 
-	hw->wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_P2P_GO) |
-		BIT(NL80211_IFTYPE_P2P_CLIENT) |
-		BIT(NL80211_IFTYPE_AP) |
-		BIT(NL80211_IFTYPE_WDS) |
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC) |
-		BIT(NL80211_IFTYPE_MESH_POINT);
-
-	hw->wiphy->iface_combinations = if_comb;
-	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	if (!config_enabled(CONFIG_ATH9K_TX99)) {
+		hw->wiphy->interface_modes =
+			BIT(NL80211_IFTYPE_P2P_GO) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_WDS) |
+			BIT(NL80211_IFTYPE_STATION) |
+			BIT(NL80211_IFTYPE_ADHOC) |
+			BIT(NL80211_IFTYPE_MESH_POINT);
+		hw->wiphy->iface_combinations = if_comb;
+		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 

@@ -375,6 +375,9 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 {
 	u32 rfilt;
 
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return 0;
+
 	rfilt = ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
 		| ATH9K_RX_FILTER_MCAST;
 

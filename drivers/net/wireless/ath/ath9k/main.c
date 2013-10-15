@@ -1047,6 +1047,14 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 
+	if (config_enabled(CONFIG_ATH9K_TX99)) {
+		if (sc->nvifs >= 1) {
+			mutex_unlock(&sc->mutex);
+			return -EOPNOTSUPP;
+		}
+		sc->tx99_vif = vif;
+	}
+
 	ath_dbg(common, CONFIG, "Attach a VIF of type: %d\n", vif->type);
 	sc->nvifs++;
 
@@ -1075,8 +1083,14 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	ath_dbg(common, CONFIG, "Change Interface\n");
 	mutex_lock(&sc->mutex);
+
+	if (config_enabled(CONFIG_ATH9K_TX99)) {
+		mutex_unlock(&sc->mutex);
+		return -EOPNOTSUPP;
+	}
+
+	ath_dbg(common, CONFIG, "Change Interface\n");
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
@@ -1107,6 +1121,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	sc->nvifs--;
+	sc->tx99_vif = NULL;
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
@@ -1128,6 +1143,9 @@ static void ath9k_enable_ps(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return;
+
 	sc->ps_enabled = true;
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
 		if ((ah->imask & ATH9K_INT_TIM_TIMER) == 0) {
@@ -1143,6 +1161,9 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return;
 
 	sc->ps_enabled = false;
 	ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
@@ -1166,6 +1187,9 @@ void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 rxfilter;
+
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
 		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
@@ -1746,6 +1770,9 @@ static int ath9k_get_survey(struct ieee80211_hw *hw, int idx,
 	unsigned long flags;
 	int pos;
 
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return -EOPNOTSUPP;
+
 	spin_lock_irqsave(&common->cc_lock, flags);
 	if (idx == 0)
 		ath_update_survey_stats(sc);
@@ -1777,6 +1804,9 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
+
+	if (config_enabled(CONFIG_ATH9K_TX99))
+		return;
 
 	mutex_lock(&sc->mutex);
 	ah->coverage_class = coverage_class;
@@ -2342,6 +2372,134 @@ static void ath9k_channel_switch_beacon(struct ieee80211_hw *hw,
 		return;
 
 	sc->csa_vif = vif;
+}
+
+static void ath9k_tx99_stop(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_drain_all_txq(sc);
+	ath_startrecv(sc);
+
+	ath9k_hw_set_interrupts(ah);
+	ath9k_hw_enable_interrupts(ah);
+
+	ieee80211_wake_queues(sc->hw);
+
+	kfree_skb(sc->tx99_skb);
+	sc->tx99_skb = NULL;
+	sc->tx99_state = false;
+
+	ath9k_hw_tx99_stop(sc->sc_ah);
+	ath_dbg(common, XMIT, "TX99 stopped\n");
+}
+
+static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
+{
+	static u8 PN9Data[] = {0xff, 0x87, 0xb8, 0x59, 0xb7, 0xa1, 0xcc, 0x24,
+			       0x57, 0x5e, 0x4b, 0x9c, 0x0e, 0xe9, 0xea, 0x50,
+			       0x2a, 0xbe, 0xb4, 0x1b, 0xb6, 0xb0, 0x5d, 0xf1,
+			       0xe6, 0x9a, 0xe3, 0x45, 0xfd, 0x2c, 0x53, 0x18,
+			       0x0c, 0xca, 0xc9, 0xfb, 0x49, 0x37, 0xe5, 0xa8,
+			       0x51, 0x3b, 0x2f, 0x61, 0xaa, 0x72, 0x18, 0x84,
+			       0x02, 0x23, 0x23, 0xab, 0x63, 0x89, 0x51, 0xb3,
+			       0xe7, 0x8b, 0x72, 0x90, 0x4c, 0xe8, 0xfb, 0xc0};
+	u32 len = 1200;
+	struct ieee80211_hw *hw = sc->hw;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_tx_info *tx_info;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_put(skb, len);
+
+	memset(skb->data, 0, len);
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA);
+	hdr->duration_id = 0;
+
+	memcpy(hdr->addr1, hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr2, hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
+
+	hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
+
+	tx_info = IEEE80211_SKB_CB(skb);
+	memset(tx_info, 0, sizeof(*tx_info));
+	tx_info->band = hw->conf.chandef.chan->band;
+	tx_info->flags = IEEE80211_TX_CTL_NO_ACK;
+	tx_info->control.vif = sc->tx99_vif;
+
+	memcpy(skb->data + sizeof(*hdr), PN9Data, sizeof(PN9Data));
+
+	return skb;
+}
+
+void ath9k_tx99_deinit(struct ath_softc *sc)
+{
+	ath_reset(sc);
+
+	ath9k_ps_wakeup(sc);
+	ath9k_tx99_stop(sc);
+	ath9k_ps_restore(sc);
+}
+
+int ath9k_tx99_init(struct ath_softc *sc)
+{
+	struct ieee80211_hw *hw = sc->hw;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_tx_control txctl;
+	int r;
+
+	if (sc->sc_flags & SC_OP_INVALID) {
+		ath_err(common,
+			"driver is in invalid state unable to use TX99");
+		return -EINVAL;
+	}
+
+	sc->tx99_skb = ath9k_build_tx99_skb(sc);
+	if (!sc->tx99_skb)
+		return -ENOMEM;
+
+	memset(&txctl, 0, sizeof(txctl));
+	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
+
+	ath_reset(sc);
+
+	ath9k_ps_wakeup(sc);
+
+	ath9k_hw_disable_interrupts(ah);
+	atomic_set(&ah->intr_ref_cnt, -1);
+	ath_drain_all_txq(sc);
+	ath_stoprecv(sc);
+
+	sc->tx99_state = true;
+
+	ieee80211_stop_queues(hw);
+
+	if (sc->tx99_power == MAX_RATE_POWER + 1)
+		sc->tx99_power = MAX_RATE_POWER;
+
+	ath9k_hw_tx99_set_txpower(ah, sc->tx99_power);
+	r = ath9k_tx99_send(sc, sc->tx99_skb, &txctl);
+	if (r) {
+		ath_dbg(common, XMIT, "Failed to xmit TX99 skb\n");
+		return r;
+	}
+
+	ath_dbg(common, XMIT, "TX99 xmit started using %d ( %ddBm)\n",
+		sc->tx99_power,
+		sc->tx99_power / 2);
+
+	/* We leave the harware awake as it will be chugging on */
+
+	return 0;
 }
 
 struct ieee80211_ops ath9k_ops = {

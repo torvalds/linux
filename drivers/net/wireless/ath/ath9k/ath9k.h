@@ -778,6 +778,11 @@ struct ath_softc {
 	enum spectral_mode spectral_mode;
 	struct ath_spec_scan spec_config;
 
+	struct ieee80211_vif *tx99_vif;
+	struct sk_buff *tx99_skb;
+	bool tx99_state;
+	s16 tx99_power;
+
 #ifdef CONFIG_PM_SLEEP
 	atomic_t wow_got_bmiss_intr;
 	atomic_t wow_sleep_proc_intr; /* in the middle of WoW sleep ? */
@@ -940,6 +945,11 @@ struct fft_sample_ht20_40 {
 
 	u8 data[SPECTRAL_HT20_40_NUM_BINS];
 } __packed;
+
+int ath9k_tx99_init(struct ath_softc *sc);
+void ath9k_tx99_deinit(struct ath_softc *sc);
+int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
+		    struct ath_tx_control *txctl);
 
 void ath9k_tasklet(unsigned long data);
 int ath_cabq_update(struct ath_softc *);
