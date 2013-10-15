@@ -1261,7 +1261,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* save FP state */
 	mr	r3, r9
-	bl	.kvmppc_save_fp
+	bl	kvmppc_save_fp
 
 	/* Increment yield count if they have a VPA */
 	ld	r8, VCPU_VPA(r9)	/* do they have a VPA? */
@@ -1691,7 +1691,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	std	r31, VCPU_GPR(R31)(r3)
 
 	/* save FP state */
-	bl	.kvmppc_save_fp
+	bl	kvmppc_save_fp
 
 	/*
 	 * Take a nap until a decrementer or external interrupt occurs,
@@ -1869,8 +1869,12 @@ kvmppc_read_intr:
 /*
  * Save away FP, VMX and VSX registers.
  * r3 = vcpu pointer
+ * N.B. r30 and r31 are volatile across this function,
+ * thus it is not callable from C.
  */
-_GLOBAL(kvmppc_save_fp)
+kvmppc_save_fp:
+	mflr	r30
+	mr	r31,r3
 	mfmsr	r5
 	ori	r8,r5,MSR_FP
 #ifdef CONFIG_ALTIVEC
@@ -1885,42 +1889,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
 	mtmsrd	r8
 	isync
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	reg = 0
-	.rept	32
-	li	r6,reg*16+VCPU_FPRS
-	STXVD2X(reg,R6,R3)
-	reg = reg + 1
-	.endr
-FTR_SECTION_ELSE
-#endif
-	reg = 0
-	.rept	32
-	stfd	reg,reg*8+VCPU_FPRS(r3)
-	reg = reg + 1
-	.endr
-#ifdef CONFIG_VSX
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_VSX)
-#endif
-	mffs	fr0
-	stfd	fr0,VCPU_FPSCR(r3)
-
+	addi	r3,r3,VCPU_FPRS
+	bl	.store_fp_state
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
-	reg = 0
-	.rept	32
-	li	r6,reg*16+VCPU_VRS
-	stvx	reg,r6,r3
-	reg = reg + 1
-	.endr
-	mfvscr	vr0
-	li	r6,VCPU_VSCR
-	stvx	vr0,r6,r3
+	addi	r3,r31,VCPU_VRS
+	bl	.store_vr_state
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	mfspr	r6,SPRN_VRSAVE
 	stw	r6,VCPU_VRSAVE(r3)
+	mtlr	r30
 	mtmsrd	r5
 	isync
 	blr
@@ -1928,9 +1907,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 /*
  * Load up FP, VMX and VSX registers
  * r4 = vcpu pointer
+ * N.B. r30 and r31 are volatile across this function,
+ * thus it is not callable from C.
  */
-	.globl	kvmppc_load_fp
 kvmppc_load_fp:
+	mflr	r30
+	mr	r31,r4
 	mfmsr	r9
 	ori	r8,r9,MSR_FP
 #ifdef CONFIG_ALTIVEC
@@ -1945,42 +1927,18 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
 	mtmsrd	r8
 	isync
-	lfd	fr0,VCPU_FPSCR(r4)
-	MTFSF_L(fr0)
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	reg = 0
-	.rept	32
-	li	r7,reg*16+VCPU_FPRS
-	LXVD2X(reg,R7,R4)
-	reg = reg + 1
-	.endr
-FTR_SECTION_ELSE
-#endif
-	reg = 0
-	.rept	32
-	lfd	reg,reg*8+VCPU_FPRS(r4)
-	reg = reg + 1
-	.endr
-#ifdef CONFIG_VSX
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_VSX)
-#endif
-
+	addi	r3,r4,VCPU_FPRS
+	bl	.load_fp_state
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
-	li	r7,VCPU_VSCR
-	lvx	vr0,r7,r4
-	mtvscr	vr0
-	reg = 0
-	.rept	32
-	li	r7,reg*16+VCPU_VRS
-	lvx	reg,r7,r4
-	reg = reg + 1
-	.endr
+	addi	r3,r31,VCPU_VRS
+	bl	.load_vr_state
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 	lwz	r7,VCPU_VRSAVE(r4)
 	mtspr	SPRN_VRSAVE,r7
+	mtlr	r30
+	mr	r4,r31
 	blr
 
 /*

@@ -426,10 +426,8 @@ int main(void)
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_VRSAVE, offsetof(struct kvm_vcpu, arch.vrsave));
 	DEFINE(VCPU_FPRS, offsetof(struct kvm_vcpu, arch.fp.fpr));
-	DEFINE(VCPU_FPSCR, offsetof(struct kvm_vcpu, arch.fp.fpscr));
 #ifdef CONFIG_ALTIVEC
 	DEFINE(VCPU_VRS, offsetof(struct kvm_vcpu, arch.vr.vr));
-	DEFINE(VCPU_VSCR, offsetof(struct kvm_vcpu, arch.vr.vscr));
 #endif
 	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
 	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
