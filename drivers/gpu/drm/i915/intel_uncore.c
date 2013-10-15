@@ -204,6 +204,18 @@ static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
+static void gen6_force_wake_work(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv), uncore.force_wake_work.work);
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	if (--dev_priv->uncore.forcewake_count == 0)
+		dev_priv->uncore.funcs.force_wake_put(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
 void intel_uncore_early_sanitize(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -215,6 +227,9 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	INIT_DELAYED_WORK(&dev_priv->uncore.force_wake_work,
+			  gen6_force_wake_work);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = vlv_force_wake_get;
@@ -261,6 +276,16 @@ void intel_uncore_init(struct drm_device *dev)
 	}
 }
 
+void intel_uncore_fini(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	flush_delayed_work(&dev_priv->uncore.force_wake_work);
+
+	/* Paranoia: make sure we have disabled everything before we exit. */
+	intel_uncore_sanitize(dev);
+}
+
 static void intel_uncore_forcewake_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -276,10 +301,26 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev)
 
 void intel_uncore_sanitize(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg_val;
+
 	intel_uncore_forcewake_reset(dev);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
+
+	/* Turn off power gate, require especially for the BIOS less system */
+	if (IS_VALLEYVIEW(dev)) {
+
+		mutex_lock(&dev_priv->rps.hw_lock);
+		reg_val = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_STATUS);
+
+		if (reg_val & (RENDER_PWRGT | MEDIA_PWRGT | DISP2D_PWRGT))
+			vlv_punit_write(dev_priv, PUNIT_REG_PWRGT_CTRL, 0x0);
+
+		mutex_unlock(&dev_priv->rps.hw_lock);
+
+	}
 }
 
 /*
@@ -306,8 +347,12 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-	if (--dev_priv->uncore.forcewake_count == 0)
-		dev_priv->uncore.funcs.force_wake_put(dev_priv);
+	if (--dev_priv->uncore.forcewake_count == 0) {
+		dev_priv->uncore.forcewake_count++;
+		mod_delayed_work(dev_priv->wq,
+				 &dev_priv->uncore.force_wake_work,
+				 1);
+	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 

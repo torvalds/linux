@@ -175,6 +175,8 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
+	trace_i915_gem_evict_vm(vm);
+
 	if (do_idle) {
 		ret = i915_gpu_idle(vm->dev);
 		if (ret)

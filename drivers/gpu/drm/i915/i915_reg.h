@@ -361,6 +361,15 @@
 #define PUNIT_OPCODE_REG_READ			6
 #define PUNIT_OPCODE_REG_WRITE			7
 
+#define PUNIT_REG_PWRGT_CTRL			0x60
+#define PUNIT_REG_PWRGT_STATUS			0x61
+#define	  PUNIT_CLK_GATE			1
+#define	  PUNIT_PWR_RESET			2
+#define	  PUNIT_PWR_GATE			3
+#define	  RENDER_PWRGT				(PUNIT_PWR_GATE << 0)
+#define	  MEDIA_PWRGT				(PUNIT_PWR_GATE << 2)
+#define	  DISP2D_PWRGT				(PUNIT_PWR_GATE << 6)
+
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
@@ -382,6 +391,8 @@
 #define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
 /* vlv2 north clock has */
+#define CCK_FUSE_REG				0x8
+#define  CCK_FUSE_HPLL_FREQ_MASK		0x3
 #define CCK_REG_DSI_PLL_FUSE			0x44
 #define CCK_REG_DSI_PLL_CONTROL			0x48
 #define  DSI_PLL_VCO_EN				(1 << 31)
@@ -428,7 +439,7 @@
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
 #define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
 #define  DPIO_SFR_BYPASS		(1<<1)
-#define  DPIO_RESET			(1<<0)
+#define  DPIO_CMNRST			(1<<0)
 
 #define _DPIO_TX3_SWING_CTL4_A		0x690
 #define _DPIO_TX3_SWING_CTL4_B		0x2a90
@@ -940,7 +951,7 @@
 
 #define GT_PARITY_ERROR(dev) \
 	(GT_RENDER_L3_PARITY_ERROR_INTERRUPT | \
-	 IS_HASWELL(dev) ? GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1 : 0)
+	 (IS_HASWELL(dev) ? GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1 : 0))
 
 /* These are all the "old" interrupts */
 #define ILK_BSD_USER_INTERRUPT				(1<<5)
@@ -1429,6 +1440,12 @@
 
 #define MI_ARB_VLV		(VLV_DISPLAY_BASE + 0x6504)
 
+#define CZCLK_CDCLK_FREQ_RATIO	(VLV_DISPLAY_BASE + 0x6508)
+#define   CDCLK_FREQ_SHIFT	4
+#define   CDCLK_FREQ_MASK	(0x1f << CDCLK_FREQ_SHIFT)
+#define   CZCLK_FREQ_MASK	0xf
+#define GMBUSFREQ_VLV		(VLV_DISPLAY_BASE + 0x6510)
+
 /*
  * Palette regs
  */
@@ -1797,6 +1814,9 @@
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 
+#define VLV_CLK_CTL2			0x101104
+#define   CLK_CTL2_CZCOUNT_30NS_SHIFT	28
+
 /*
  * Overlay regs
  */
@@ -1848,7 +1868,8 @@
 #define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
 /* HSW eDP PSR registers */
-#define EDP_PSR_CTL				0x64800
+#define EDP_PSR_BASE(dev)			0x64800
+#define EDP_PSR_CTL(dev)			(EDP_PSR_BASE(dev) + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   EDP_PSR_LINK_DISABLE			(0<<27)
 #define   EDP_PSR_LINK_STANDBY			(1<<27)
@@ -1871,16 +1892,16 @@
 #define   EDP_PSR_TP1_TIME_0us			(3<<4)
 #define   EDP_PSR_IDLE_FRAME_SHIFT		0
 
-#define EDP_PSR_AUX_CTL			0x64810
-#define EDP_PSR_AUX_DATA1		0x64814
+#define EDP_PSR_AUX_CTL(dev)			(EDP_PSR_BASE(dev) + 0x10)
+#define EDP_PSR_AUX_DATA1(dev)			(EDP_PSR_BASE(dev) + 0x14)
 #define   EDP_PSR_DPCD_COMMAND		0x80060000
-#define EDP_PSR_AUX_DATA2		0x64818
+#define EDP_PSR_AUX_DATA2(dev)			(EDP_PSR_BASE(dev) + 0x18)
 #define   EDP_PSR_DPCD_NORMAL_OPERATION	(1<<24)
-#define EDP_PSR_AUX_DATA3		0x6481c
-#define EDP_PSR_AUX_DATA4		0x64820
-#define EDP_PSR_AUX_DATA5		0x64824
+#define EDP_PSR_AUX_DATA3(dev)			(EDP_PSR_BASE(dev) + 0x1c)
+#define EDP_PSR_AUX_DATA4(dev)			(EDP_PSR_BASE(dev) + 0x20)
+#define EDP_PSR_AUX_DATA5(dev)			(EDP_PSR_BASE(dev) + 0x24)
 
-#define EDP_PSR_STATUS_CTL			0x64840
+#define EDP_PSR_STATUS_CTL(dev)			(EDP_PSR_BASE(dev) + 0x40)
 #define   EDP_PSR_STATUS_STATE_MASK		(7<<29)
 #define   EDP_PSR_STATUS_STATE_IDLE		(0<<29)
 #define   EDP_PSR_STATUS_STATE_SRDONACK		(1<<29)
@@ -1904,10 +1925,10 @@
 #define   EDP_PSR_STATUS_SENDING_TP1		(1<<4)
 #define   EDP_PSR_STATUS_IDLE_MASK		0xf
 
-#define EDP_PSR_PERF_CNT		0x64844
+#define EDP_PSR_PERF_CNT(dev)		(EDP_PSR_BASE(dev) + 0x44)
 #define   EDP_PSR_PERF_CNT_MASK		0xffffff
 
-#define EDP_PSR_DEBUG_CTL		0x64860
+#define EDP_PSR_DEBUG_CTL(dev)		(EDP_PSR_BASE(dev) + 0x60)
 #define   EDP_PSR_DEBUG_MASK_LPSP	(1<<27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
 #define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
@@ -4675,7 +4696,7 @@
 #define   GEN6_RP_UP_IDLE_MIN			(0x1<<3)
 #define   GEN6_RP_UP_BUSY_AVG			(0x2<<3)
 #define   GEN6_RP_UP_BUSY_CONT			(0x4<<3)
-#define   GEN7_RP_DOWN_IDLE_AVG			(0x2<<0)
+#define   GEN6_RP_DOWN_IDLE_AVG			(0x2<<0)
 #define   GEN6_RP_DOWN_IDLE_CONT		(0x1<<0)
 #define GEN6_RP_UP_THRESHOLD			0xA02C
 #define GEN6_RP_DOWN_THRESHOLD			0xA030
@@ -4720,6 +4741,10 @@
 						 GEN6_PM_RP_DOWN_TIMEOUT)
 
 #define GEN6_GT_GFX_RC6_LOCKED			0x138104
+#define VLV_COUNTER_CONTROL			0x138104
+#define   VLV_COUNT_RANGE_HIGH			(1<<15)
+#define   VLV_MEDIA_RC6_COUNT_EN		(1<<1)
+#define   VLV_RENDER_RC6_COUNT_EN		(1<<0)
 #define GEN6_GT_GFX_RC6				0x138108
 #define GEN6_GT_GFX_RC6p			0x13810C
 #define GEN6_GT_GFX_RC6pp			0x138110

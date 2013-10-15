@@ -42,7 +42,6 @@ static const u32 hsw_ddi_translations_dp[] = {
 	0x80C30FFF, 0x000B0000,
 	0x00FFFFFF, 0x00040006,
 	0x80D75FFF, 0x000B0000,
-	0x00FFFFFF, 0x00040006		/* HDMI parameters */
 };
 
 static const u32 hsw_ddi_translations_fdi[] = {
@@ -55,7 +54,22 @@ static const u32 hsw_ddi_translations_fdi[] = {
 	0x00C30FFF, 0x001E0000,
 	0x00FFFFFF, 0x00060006,
 	0x00D75FFF, 0x001E0000,
-	0x00FFFFFF, 0x00040006		/* HDMI parameters */
+};
+
+static const u32 hsw_ddi_translations_hdmi[] = {
+				/* Idx	NT mV diff	T mV diff	db  */
+	0x00FFFFFF, 0x0006000E, /* 0:	400		400		0   */
+	0x00E79FFF, 0x000E000C, /* 1:	400		500		2   */
+	0x00D75FFF, 0x0005000A, /* 2:	400		600		3.5 */
+	0x00FFFFFF, 0x0005000A, /* 3:	600		600		0   */
+	0x00E79FFF, 0x001D0007, /* 4:	600		750		2   */
+	0x00D75FFF, 0x000C0004, /* 5:	600		900		3.5 */
+	0x00FFFFFF, 0x00040006, /* 6:	800		800		0   */
+	0x80E79FFF, 0x00030002, /* 7:	800		1000		2   */
+	0x00FFFFFF, 0x00140005, /* 8:	850		850		0   */
+	0x00FFFFFF, 0x000C0004, /* 9:	900		900		0   */
+	0x00FFFFFF, 0x001C0003, /* 10:	950		950		0   */
+	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
 };
 
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
@@ -92,10 +106,16 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	const u32 *ddi_translations = (port == PORT_E) ?
 		hsw_ddi_translations_fdi :
 		hsw_ddi_translations_dp;
+	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
 		I915_WRITE(reg, ddi_translations[i]);
+		reg += 4;
+	}
+	/* Entry 9 is for HDMI: */
+	for (i = 0; i < 2; i++) {
+		I915_WRITE(reg, hsw_ddi_translations_hdmi[hdmi_level * 2 + i]);
 		reg += 4;
 	}
 }
@@ -1246,8 +1266,8 @@ static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
 		intel_dp_check_link_status(intel_dp);
 }
 
-static void intel_ddi_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+void intel_ddi_get_config(struct intel_encoder *encoder,
+			  struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -1333,12 +1353,23 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct drm_encoder *encoder;
 	struct intel_connector *hdmi_connector = NULL;
 	struct intel_connector *dp_connector = NULL;
+	bool init_hdmi, init_dp;
 
-	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
+	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
+		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
+	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
+	if (!init_dp && !init_hdmi) {
+		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible\n",
+			      port_name(port));
+		init_hdmi = true;
+		init_dp = true;
+	}
+
+	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
 
-	dp_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	dp_connector = kzalloc(sizeof(*dp_connector), GFP_KERNEL);
 	if (!dp_connector) {
 		kfree(intel_dig_port);
 		return;
@@ -1370,19 +1401,20 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->cloneable = false;
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
-	if (!intel_dp_init_connector(intel_dig_port, dp_connector)) {
+	if (init_dp && !intel_dp_init_connector(intel_dig_port, dp_connector)) {
 		drm_encoder_cleanup(encoder);
 		kfree(intel_dig_port);
 		kfree(dp_connector);
 		return;
 	}
 
-	if (intel_encoder->type != INTEL_OUTPUT_EDP) {
-		hdmi_connector = kzalloc(sizeof(struct intel_connector),
+	/* In theory we don't need the encoder->type check, but leave it just in
+	 * case we have some really bad VBTs... */
+	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
+		hdmi_connector = kzalloc(sizeof(*hdmi_connector),
 					 GFP_KERNEL);
-		if (!hdmi_connector) {
+		if (!hdmi_connector)
 			return;
-		}
 
 		intel_dig_port->hdmi.hdmi_reg = DDI_BUF_CTL(port);
 		intel_hdmi_init_connector(intel_dig_port, hdmi_connector);

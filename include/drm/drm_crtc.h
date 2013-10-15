@@ -108,6 +108,7 @@ enum drm_mode_status {
     MODE_ONE_HEIGHT,    /* only one height is supported */
     MODE_ONE_SIZE,      /* only one resolution is supported */
     MODE_NO_REDUCED,    /* monitor doesn't accept reduced blanking */
+    MODE_NO_STEREO,	/* stereo modes not supported */
     MODE_UNVERIFIED = -3, /* mode needs to reverified */
     MODE_BAD = -2,	/* unspecified reason */
     MODE_ERROR	= -1	/* error condition */
@@ -124,7 +125,10 @@ enum drm_mode_status {
 	.vscan = (vs), .flags = (f), \
 	.base.type = DRM_MODE_OBJECT_MODE
 
-#define CRTC_INTERLACE_HALVE_V 0x1 /* halve V values for interlacing */
+#define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
+#define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
+
+#define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
 struct drm_display_mode {
 	/* Header */
@@ -155,8 +159,7 @@ struct drm_display_mode {
 	int height_mm;
 
 	/* Actual mode we give to hw */
-	int clock_index;
-	int synth_clock;
+	int crtc_clock;		/* in KHz */
 	int crtc_hdisplay;
 	int crtc_hblank_start;
 	int crtc_hblank_end;
@@ -179,6 +182,11 @@ struct drm_display_mode {
 	int vrefresh;		/* in Hz */
 	int hsync;		/* in kHz */
 };
+
+static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
+{
+	return mode->flags & DRM_MODE_FLAG_3D_MASK;
+}
 
 enum drm_connector_status {
 	connector_status_connected = 1,
@@ -597,6 +605,7 @@ struct drm_connector {
 	int connector_type_id;
 	bool interlace_allowed;
 	bool doublescan_allowed;
+	bool stereo_allowed;
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;
@@ -976,7 +985,7 @@ extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 extern void drm_mode_set_name(struct drm_display_mode *mode);
 extern bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
-extern bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
+extern bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
 extern int drm_mode_width(const struct drm_display_mode *mode);
 extern int drm_mode_height(const struct drm_display_mode *mode);
 

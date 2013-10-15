@@ -504,7 +504,6 @@ static void intel_dsi_destroy(struct drm_connector *connector)
 
 	DRM_DEBUG_KMS("\n");
 	intel_panel_fini(&intel_connector->panel);
-	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }

@@ -416,7 +416,7 @@ void intel_detect_pch(struct drm_device *dev)
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
-				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
+				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
@@ -581,6 +581,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
 
+	intel_uncore_early_sanitize(dev);
+
 	intel_uncore_sanitize(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
@@ -589,6 +591,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		i915_gem_restore_gtt_mappings(dev);
 		mutex_unlock(&dev->struct_mutex);
 	}
+
+	intel_init_power_well(dev);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -604,8 +608,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 
 		/* We need working interrupts for modeset enabling ... */
 		drm_irq_install(dev);
-
-		intel_init_power_well(dev);
 
 		intel_modeset_init_hw(dev);
 

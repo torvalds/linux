@@ -311,6 +311,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
 	err_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
 	err_printf(m, "CCID: 0x%08x\n", error->ccid);
+	err_printf(m, "Missed interrupts: 0x%08lx\n", dev_priv->gpu_error.missed_irq_rings);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		err_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
@@ -793,7 +794,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].num_requests = count;
 		error->ring[i].requests =
-			kmalloc(count*sizeof(struct drm_i915_error_request),
+			kcalloc(count, sizeof(*error->ring[i].requests),
 				GFP_ATOMIC);
 		if (error->ring[i].requests == NULL) {
 			error->ring[i].num_requests = 0;
@@ -835,7 +836,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
 	if (i) {
-		active_bo = kmalloc(sizeof(*active_bo)*i, GFP_ATOMIC);
+		active_bo = kcalloc(i, sizeof(*active_bo), GFP_ATOMIC);
 		if (active_bo)
 			pinned_bo = active_bo + error->active_bo_count[ndx];
 	}
@@ -1012,6 +1013,7 @@ const char *i915_cache_level_str(int type)
 	case I915_CACHE_NONE: return " uncached";
 	case I915_CACHE_LLC: return " snooped or LLC";
 	case I915_CACHE_L3_LLC: return " L3+LLC";
+	case I915_CACHE_WT: return " WT";
 	default: return "";
 	}
 }
