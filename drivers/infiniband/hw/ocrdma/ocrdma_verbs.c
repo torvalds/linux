@@ -141,7 +141,7 @@ static inline void get_link_speed_and_width(struct ocrdma_dev *dev,
 		/* Unsupported */
 		*ib_speed = IB_SPEED_SDR;
 		*ib_width = IB_WIDTH_1X;
-	};
+	}
 }
 
 
@@ -2331,7 +2331,7 @@ static enum ib_wc_status ocrdma_to_ibwc_err(u16 status)
 	default:
 		ibwc_status = IB_WC_GENERAL_ERR;
 		break;
-	};
+	}
 	return ibwc_status;
 }
 
@@ -2370,7 +2370,7 @@ static void ocrdma_update_wc(struct ocrdma_qp *qp, struct ib_wc *ibwc,
 		pr_err("%s() invalid opcode received = 0x%x\n",
 		       __func__, hdr->cw & OCRDMA_WQE_OPCODE_MASK);
 		break;
-	};
+	}
 }
 
 static void ocrdma_set_cqe_status_flushed(struct ocrdma_qp *qp,
