@@ -300,7 +300,7 @@ include $(src)/dispnv04/Makefile
 nouveau-y += nv50_display.o
 
 # drm/pm
-nouveau-y += nouveau_hwmon.o
+nouveau-y += nouveau_hwmon.o nouveau_sysfs.o
 
 # other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

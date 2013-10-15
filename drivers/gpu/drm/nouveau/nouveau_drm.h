@@ -51,10 +51,11 @@ struct nouveau_drm_tile {
 };
 
 enum nouveau_drm_handle {
-	NVDRM_CLIENT = 0xffffffff,
-	NVDRM_DEVICE = 0xdddddddd,
-	NVDRM_PUSH   = 0xbbbb0000, /* |= client chid */
-	NVDRM_CHAN   = 0xcccc0000, /* |= client chid */
+	NVDRM_CLIENT  = 0xffffffff,
+	NVDRM_DEVICE  = 0xdddddddd,
+	NVDRM_CONTROL = 0xdddddddc,
+	NVDRM_PUSH    = 0xbbbb0000, /* |= client chid */
+	NVDRM_CHAN    = 0xcccc0000, /* |= client chid */
 };
 
 struct nouveau_cli {
@@ -130,6 +131,7 @@ struct nouveau_drm {
 
 	/* power management */
 	struct nouveau_hwmon *hwmon;
+	struct nouveau_sysfs *sysfs;
 
 	/* display power reference */
 	bool have_disp_power_ref;
