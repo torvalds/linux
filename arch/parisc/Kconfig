@@ -287,6 +287,9 @@ config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
+config AUDIT_ARCH
+	def_bool y
+
 config HPUX
 	bool "Support for HP-UX binaries"
 	depends on !64BIT
