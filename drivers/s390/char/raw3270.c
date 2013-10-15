@@ -618,7 +618,7 @@ raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 	if (rq->rc) {
 		/* Reset command failed. */
 		rp->state = RAW3270_STATE_INIT;
-	} else if (0 && MACHINE_IS_VM) {
+	} else if (MACHINE_IS_VM) {
 		raw3270_size_device_vm(rp);
 		raw3270_size_device_done(rp);
 	} else
