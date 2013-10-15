@@ -1232,6 +1232,7 @@ struct intel_pipe_crc_entry {
 
 #define INTEL_PIPE_CRC_ENTRIES_NR	128
 struct intel_pipe_crc {
+	atomic_t available;		/* exclusive access to the device */
 	struct intel_pipe_crc_entry *entries;
 	enum intel_pipe_crc_source source;
 	atomic_t head, tail;

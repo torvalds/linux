@@ -1768,6 +1768,15 @@ struct pipe_crc_info {
 
 static int i915_pipe_crc_open(struct inode *inode, struct file *filep)
 {
+	struct pipe_crc_info *info = inode->i_private;
+	struct drm_i915_private *dev_priv = info->dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[info->pipe];
+
+	if (!atomic_dec_and_test(&pipe_crc->available)) {
+		atomic_inc(&pipe_crc->available);
+		return -EBUSY; /* already open */
+	}
+
 	filep->private_data = inode->i_private;
 
 	return 0;
@@ -1775,6 +1784,12 @@ static int i915_pipe_crc_open(struct inode *inode, struct file *filep)
 
 static int i915_pipe_crc_release(struct inode *inode, struct file *filep)
 {
+	struct pipe_crc_info *info = inode->i_private;
+	struct drm_i915_private *dev_priv = info->dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[info->pipe];
+
+	atomic_inc(&pipe_crc->available); /* release the device */
+
 	return 0;
 }
 
@@ -2684,6 +2699,7 @@ void intel_display_crc_init(struct drm_device *dev)
 	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
 		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[i];
 
+		atomic_set(&pipe_crc->available, 1);
 		init_waitqueue_head(&pipe_crc->wq);
 	}
 }
