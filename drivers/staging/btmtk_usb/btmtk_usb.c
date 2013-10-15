@@ -566,6 +566,7 @@ static int btmtk_usb_load_fw(struct btmtk_usb_data *data)
 	void *buf;
 	u32 cur_len = 0;
 	u32 packet_header = 0;
+	__le32 packet_header_le;
 	u32 value;
 	u32 ilm_len = 0, dlm_len = 0;
 	u16 fw_ver, build_ver;
@@ -679,9 +680,9 @@ loadfw_protect:
 		if (sent_len > 0) {
 			packet_header &= ~(0xffffffff);
 			packet_header |= (sent_len << 16);
-			packet_header = cpu_to_le32(packet_header);
+			packet_header_le = cpu_to_le32(packet_header);
 
-			memmove(buf, &packet_header, 4);
+			memmove(buf, &packet_header_le, 4);
 			memmove(buf + 4, data->firmware->data + 32 + cur_len,
 					sent_len);
 
@@ -739,9 +740,9 @@ loadfw_protect:
 
 		packet_header &= ~(0xffffffff);
 		packet_header |= (sent_len << 16);
-		packet_header = cpu_to_le32(packet_header);
+		packet_header_le = cpu_to_le32(packet_header);
 
-		memmove(buf, &packet_header, 4);
+		memmove(buf, &packet_header_le, 4);
 		memmove(buf + 4,
 			data->firmware->data + 32 + ilm_len + cur_len,
 			sent_len);
