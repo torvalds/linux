@@ -1282,6 +1282,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		cancel_delayed_work(&hdev->discov_off);
 		hdev->discov_timeout = 0;
 		clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
 	}
 
 	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
@@ -1716,6 +1717,13 @@ static void hci_discov_off(struct work_struct *work)
 	hci_req_init(&req, hdev);
 	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
 	hci_req_run(&req, NULL);
+
+	/* When discoverable timeout triggers, then just make sure
+	 * the limited discoverable flag is cleared. Even in the case
+	 * of a timeout triggered from general discoverable, it is
+	 * safe to unconditionally clear the flag.
+	 */
+	clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
 
 	hdev->discov_timeout = 0;
 
