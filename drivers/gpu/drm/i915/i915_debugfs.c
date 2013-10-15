@@ -1822,6 +1822,12 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 	/* none -> real source transition */
 	if (source) {
+		pipe_crc->entries = kzalloc(sizeof(*pipe_crc->entries) *
+					    INTEL_PIPE_CRC_ENTRIES_NR,
+					    GFP_KERNEL);
+		if (!pipe_crc->entries)
+			return -ENOMEM;
+
 		atomic_set(&pipe_crc->head, 0);
 		atomic_set(&pipe_crc->tail, 0);
 	}
@@ -1846,6 +1852,12 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 	I915_WRITE(PIPE_CRC_CTL(pipe), val);
 	POSTING_READ(PIPE_CRC_CTL(pipe));
+
+	/* real source -> none transition */
+	if (source == INTEL_PIPE_CRC_SOURCE_NONE) {
+		kfree(pipe_crc->entries);
+		pipe_crc->entries = NULL;
+	}
 
 	return 0;
 }
