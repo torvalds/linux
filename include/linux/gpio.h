@@ -80,6 +80,7 @@ static inline int irq_to_gpio(unsigned int irq)
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/bug.h>
+#include <linux/pinctrl/pinctrl.h>
 
 struct device;
 struct gpio_chip;
@@ -215,6 +216,15 @@ static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		       unsigned int gpio_offset, unsigned int pin_offset,
 		       unsigned int npins)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+static inline int
+gpiochip_add_pingroup_range(struct gpio_chip *chip,
+			struct pinctrl_dev *pctldev,
+			unsigned int gpio_offset, const char *pin_group)
 {
 	WARN_ON(1);
 	return -EINVAL;

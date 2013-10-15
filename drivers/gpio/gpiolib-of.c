@@ -190,9 +190,14 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 	struct of_phandle_args pinspec;
 	struct pinctrl_dev *pctldev;
 	int index = 0, ret;
+	const char *name;
+	static const char group_names_propname[] = "gpio-ranges-group-names";
+	struct property *group_names;
 
 	if (!np)
 		return;
+
+	group_names = of_find_property(np, group_names_propname, NULL);
 
 	for (;; index++) {
 		ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3,
@@ -204,14 +209,56 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		if (!pctldev)
 			break;
 
-		ret = gpiochip_add_pin_range(chip,
-					     pinctrl_dev_get_devname(pctldev),
-					     pinspec.args[0],
-					     pinspec.args[1],
-					     pinspec.args[2]);
+		if (pinspec.args[2]) {
+			if (group_names) {
+				ret = of_property_read_string_index(np,
+						group_names_propname,
+						index, &name);
+				if (strlen(name)) {
+					pr_err("%s: Group name of numeric GPIO ranges must be the empty string.\n",
+						np->full_name);
+					break;
+				}
+			}
+			/* npins != 0: linear range */
+			ret = gpiochip_add_pin_range(chip,
+					pinctrl_dev_get_devname(pctldev),
+					pinspec.args[0],
+					pinspec.args[1],
+					pinspec.args[2]);
+			if (ret)
+				break;
+		} else {
+			/* npins == 0: special range */
+			if (pinspec.args[1]) {
+				pr_err("%s: Illegal gpio-range format.\n",
+					np->full_name);
+				break;
+			}
 
-		if (ret)
-			break;
+			if (!group_names) {
+				pr_err("%s: GPIO group range requested but no %s property.\n",
+					np->full_name, group_names_propname);
+				break;
+			}
+
+			ret = of_property_read_string_index(np,
+						group_names_propname,
+						index, &name);
+			if (ret)
+				break;
+
+			if (!strlen(name)) {
+				pr_err("%s: Group name of GPIO group range cannot be the empty string.\n",
+				np->full_name);
+				break;
+			}
+
+			ret = gpiochip_add_pingroup_range(chip, pctldev,
+						pinspec.args[0], name);
+			if (ret)
+				break;
+		}
 	}
 }
 
