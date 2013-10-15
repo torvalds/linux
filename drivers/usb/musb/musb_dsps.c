@@ -121,7 +121,43 @@ struct dsps_glue {
 	unsigned long last_timer;    /* last timer data for each instance */
 };
 
-static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout);
+static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
+{
+	struct device *dev = musb->controller;
+	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
+
+	if (timeout == 0)
+		timeout = jiffies + msecs_to_jiffies(3);
+
+	/* Never idle if active, or when VBUS timeout is not set as host */
+	if (musb->is_active || (musb->a_wait_bcon == 0 &&
+				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+		dev_dbg(musb->controller, "%s active, deleting timer\n",
+				usb_otg_state_string(musb->xceiv->state));
+		del_timer(&glue->timer);
+		glue->last_timer = jiffies;
+		return;
+	}
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return;
+
+	if (!musb->g.dev.driver)
+		return;
+
+	if (time_after(glue->last_timer, timeout) &&
+				timer_pending(&glue->timer)) {
+		dev_dbg(musb->controller,
+			"Longer idle timer already pending, ignoring...\n");
+		return;
+	}
+	glue->last_timer = timeout;
+
+	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
+		usb_otg_state_string(musb->xceiv->state),
+			jiffies_to_msecs(timeout - jiffies));
+	mod_timer(&glue->timer, timeout);
+}
+
 /**
  * dsps_musb_enable - enable interrupts
  */
@@ -214,43 +250,6 @@ static void otg_timer(unsigned long _musb)
 		break;
 	}
 	spin_unlock_irqrestore(&musb->lock, flags);
-}
-
-static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
-{
-	struct device *dev = musb->controller;
-	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
-
-	if (timeout == 0)
-		timeout = jiffies + msecs_to_jiffies(3);
-
-	/* Never idle if active, or when VBUS timeout is not set as host */
-	if (musb->is_active || (musb->a_wait_bcon == 0 &&
-				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
-		dev_dbg(musb->controller, "%s active, deleting timer\n",
-				usb_otg_state_string(musb->xceiv->state));
-		del_timer(&glue->timer);
-		glue->last_timer = jiffies;
-		return;
-	}
-	if (musb->port_mode == MUSB_PORT_MODE_HOST)
-		return;
-
-	if (!musb->g.dev.driver)
-		return;
-
-	if (time_after(glue->last_timer, timeout) &&
-				timer_pending(&glue->timer)) {
-		dev_dbg(musb->controller,
-			"Longer idle timer already pending, ignoring...\n");
-		return;
-	}
-	glue->last_timer = timeout;
-
-	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
-		usb_otg_state_string(musb->xceiv->state),
-			jiffies_to_msecs(timeout - jiffies));
-	mod_timer(&glue->timer, timeout);
 }
 
 static irqreturn_t dsps_interrupt(int irq, void *hci)
