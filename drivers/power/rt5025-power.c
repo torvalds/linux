@@ -506,7 +506,7 @@ static int __init rt5025_power_init(void)
 {
 	return platform_driver_register(&rt5025_power_driver);
 }
-fs_initcall_sync(rt5025_power_init);
+late_initcall_sync(rt5025_power_init);
 
 static void __exit rt5025_power_exit(void)
 {
