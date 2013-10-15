@@ -24,8 +24,9 @@
 #include "e4000.h"
 
 struct e4000_priv {
-	const struct e4000_config *cfg;
-	struct i2c_adapter *i2c;
+	struct i2c_client *client;
+	u32 clock;
+	struct dvb_frontend *fe;
 };
 
 struct e4000_pll {

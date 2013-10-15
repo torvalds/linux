@@ -31,7 +31,7 @@ static int e4000_wr_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = priv->cfg->i2c_addr,
+			.addr = priv->client->addr,
 			.flags = 0,
 			.len = 1 + len,
 			.buf = buf,
@@ -39,7 +39,7 @@ static int e4000_wr_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 	};
 
 	if (1 + len > sizeof(buf)) {
-		dev_warn(&priv->i2c->dev,
+		dev_warn(&priv->client->dev,
 			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
 			 KBUILD_MODNAME, reg, len);
 		return -EINVAL;
@@ -48,11 +48,11 @@ static int e4000_wr_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
 
-	ret = i2c_transfer(priv->i2c, msg, 1);
+	ret = i2c_transfer(priv->client->adapter, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev,
+		dev_warn(&priv->client->dev,
 				"%s: i2c wr failed=%d reg=%02x len=%d\n",
 				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
@@ -67,12 +67,12 @@ static int e4000_rd_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = priv->cfg->i2c_addr,
+			.addr = priv->client->addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &reg,
 		}, {
-			.addr = priv->cfg->i2c_addr,
+			.addr = priv->client->addr,
 			.flags = I2C_M_RD,
 			.len = len,
 			.buf = buf,
@@ -80,18 +80,18 @@ static int e4000_rd_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 	};
 
 	if (len > sizeof(buf)) {
-		dev_warn(&priv->i2c->dev,
+		dev_warn(&priv->client->dev,
 			 "%s: i2c rd reg=%04x: len=%d is too big!\n",
 			 KBUILD_MODNAME, reg, len);
 		return -EINVAL;
 	}
 
-	ret = i2c_transfer(priv->i2c, msg, 2);
+	ret = i2c_transfer(priv->client->adapter, msg, 2);
 	if (ret == 2) {
 		memcpy(val, buf, len);
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev,
+		dev_warn(&priv->client->dev,
 				"%s: i2c rd failed=%d reg=%02x len=%d\n",
 				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
@@ -117,7 +117,7 @@ static int e4000_init(struct dvb_frontend *fe)
 	struct e4000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -186,7 +186,7 @@ err:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -195,7 +195,7 @@ static int e4000_sleep(struct dvb_frontend *fe)
 	struct e4000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -212,7 +212,7 @@ err:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -224,7 +224,7 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	unsigned int f_vco;
 	u8 buf[5], i_data[4], q_data[4];
 
-	dev_dbg(&priv->i2c->dev,
+	dev_dbg(&priv->client->dev,
 			"%s: delivery_system=%d frequency=%d bandwidth_hz=%d\n",
 			__func__, c->delivery_system, c->frequency,
 			c->bandwidth_hz);
@@ -253,14 +253,15 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	 * or more.
 	 */
 	f_vco = c->frequency * e4000_pll_lut[i].mul;
-	sigma_delta = div_u64(0x10000ULL * (f_vco % priv->cfg->clock), priv->cfg->clock);
-	buf[0] = f_vco / priv->cfg->clock;
+	sigma_delta = div_u64(0x10000ULL * (f_vco % priv->clock), priv->clock);
+	buf[0] = f_vco / priv->clock;
 	buf[1] = (sigma_delta >> 0) & 0xff;
 	buf[2] = (sigma_delta >> 8) & 0xff;
 	buf[3] = 0x00;
 	buf[4] = e4000_pll_lut[i].div;
 
-	dev_dbg(&priv->i2c->dev, "%s: f_vco=%u pll div=%d sigma_delta=%04x\n",
+	dev_dbg(&priv->client->dev,
+			"%s: f_vco=%u pll div=%d sigma_delta=%04x\n",
 			__func__, f_vco, buf[0], sigma_delta);
 
 	ret = e4000_wr_regs(priv, 0x09, buf, 5);
@@ -369,7 +370,7 @@ err:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&priv->client->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -377,20 +378,9 @@ static int e4000_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct e4000_priv *priv = fe->tuner_priv;
 
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	dev_dbg(&priv->client->dev, "%s:\n", __func__);
 
 	*frequency = 0; /* Zero-IF */
-
-	return 0;
-}
-
-static int e4000_release(struct dvb_frontend *fe)
-{
-	struct e4000_priv *priv = fe->tuner_priv;
-
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
-
-	kfree(fe->tuner_priv);
 
 	return 0;
 }
@@ -402,8 +392,6 @@ static const struct dvb_tuner_ops e4000_tuner_ops = {
 		.frequency_max  = 862000000,
 	},
 
-	.release = e4000_release,
-
 	.init = e4000_init,
 	.sleep = e4000_sleep,
 	.set_params = e4000_set_params,
@@ -411,9 +399,11 @@ static const struct dvb_tuner_ops e4000_tuner_ops = {
 	.get_if_frequency = e4000_get_if_frequency,
 };
 
-struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, const struct e4000_config *cfg)
+static int e4000_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
 {
+	struct e4000_config *cfg = client->dev.platform_data;
+	struct dvb_frontend *fe = cfg->fe;
 	struct e4000_priv *priv;
 	int ret;
 	u8 chip_id;
@@ -424,29 +414,33 @@ struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 	priv = kzalloc(sizeof(struct e4000_priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
-		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
+		dev_err(&client->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
 		goto err;
 	}
 
-	priv->cfg = cfg;
-	priv->i2c = i2c;
+	priv->clock = cfg->clock;
+	priv->client = client;
+	priv->fe = cfg->fe;
 
 	/* check if the tuner is there */
 	ret = e4000_rd_reg(priv, 0x02, &chip_id);
 	if (ret < 0)
 		goto err;
 
-	dev_dbg(&priv->i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
+	dev_dbg(&priv->client->dev,
+			"%s: chip_id=%02x\n", __func__, chip_id);
 
-	if (chip_id != 0x40)
+	if (chip_id != 0x40) {
+		ret = -ENODEV;
 		goto err;
+	}
 
 	/* put sleep as chip seems to be in normal mode by default */
 	ret = e4000_wr_reg(priv, 0x00, 0x00);
 	if (ret < 0)
 		goto err;
 
-	dev_info(&priv->i2c->dev,
+	dev_info(&priv->client->dev,
 			"%s: Elonics E4000 successfully identified\n",
 			KBUILD_MODNAME);
 
@@ -457,16 +451,49 @@ struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	return fe;
+	i2c_set_clientdata(client, priv);
+
+	return 0;
 err:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "%s: failed=%d\n", __func__, ret);
 	kfree(priv);
-	return NULL;
+	return ret;
 }
-EXPORT_SYMBOL(e4000_attach);
+
+static int e4000_remove(struct i2c_client *client)
+{
+	struct e4000_priv *priv = i2c_get_clientdata(client);
+	struct dvb_frontend *fe = priv->fe;
+
+	dev_dbg(&client->dev, "%s:\n", __func__);
+
+	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
+	fe->tuner_priv = NULL;
+	kfree(priv);
+
+	return 0;
+}
+
+static const struct i2c_device_id e4000_id[] = {
+	{"e4000", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, e4000_id);
+
+static struct i2c_driver e4000_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "e4000",
+	},
+	.probe		= e4000_probe,
+	.remove		= e4000_remove,
+	.id_table	= e4000_id,
+};
+
+module_i2c_driver(e4000_driver);
 
 MODULE_DESCRIPTION("Elonics E4000 silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
