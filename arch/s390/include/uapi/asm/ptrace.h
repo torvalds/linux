@@ -199,6 +199,7 @@ typedef union
 typedef struct
 {
 	__u32   fpc;
+	__u32	pad;
 	freg_t  fprs[NUM_FPRS];              
 } s390_fp_regs;
 
@@ -206,7 +207,6 @@ typedef struct
 #define FPC_FLAGS_MASK          0x00F80000
 #define FPC_DXC_MASK            0x0000FF00
 #define FPC_RM_MASK             0x00000003
-#define FPC_VALID_MASK          0xF8F8FF03
 
 /* this typedef defines how a Program Status Word looks like */
 typedef struct 

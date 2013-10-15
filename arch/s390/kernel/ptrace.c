@@ -239,8 +239,7 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		tmp = *(addr_t *)((addr_t) &child->thread.fp_regs + offset);
 		if (addr == (addr_t) &dummy->regs.fp_regs.fpc)
-			tmp &= (unsigned long) FPC_VALID_MASK
-				<< (BITS_PER_LONG - 32);
+			tmp <<= BITS_PER_LONG - 32;
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -363,10 +362,10 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * floating point regs. are stored in the thread structure
 		 */
-		if (addr == (addr_t) &dummy->regs.fp_regs.fpc &&
-		    (data & ~((unsigned long) FPC_VALID_MASK
-			      << (BITS_PER_LONG - 32))) != 0)
-			return -EINVAL;
+		if (addr == (addr_t) &dummy->regs.fp_regs.fpc)
+			if ((unsigned int) data != 0 ||
+			    test_fp_ctl(data >> (BITS_PER_LONG - 32)))
+				return -EINVAL;
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		*(addr_t *)((addr_t) &child->thread.fp_regs + offset) = data;
 
@@ -696,8 +695,7 @@ static int __poke_user_compat(struct task_struct *child,
 		 * floating point regs. are stored in the thread structure 
 		 */
 		if (addr == (addr_t) &dummy32->regs.fp_regs.fpc &&
-		    (tmp & ~FPC_VALID_MASK) != 0)
-			/* Invalid floating point control. */
+		    test_fp_ctl(tmp))
 			return -EINVAL;
 	        offset = addr - (addr_t) &dummy32->regs.fp_regs;
 		*(__u32 *)((addr_t) &child->thread.fp_regs + offset) = tmp;
@@ -895,8 +893,10 @@ static int s390_fpregs_get(struct task_struct *target,
 			   const struct user_regset *regset, unsigned int pos,
 			   unsigned int count, void *kbuf, void __user *ubuf)
 {
-	if (target == current)
-		save_fp_regs(&target->thread.fp_regs);
+	if (target == current) {
+		save_fp_ctl(&target->thread.fp_regs.fpc);
+		save_fp_regs(target->thread.fp_regs.fprs);
+	}
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.fp_regs, 0, -1);
@@ -909,19 +909,21 @@ static int s390_fpregs_set(struct task_struct *target,
 {
 	int rc = 0;
 
-	if (target == current)
-		save_fp_regs(&target->thread.fp_regs);
+	if (target == current) {
+		save_fp_ctl(&target->thread.fp_regs.fpc);
+		save_fp_regs(target->thread.fp_regs.fprs);
+	}
 
 	/* If setting FPC, must validate it first. */
 	if (count > 0 && pos < offsetof(s390_fp_regs, fprs)) {
-		u32 fpc[2] = { target->thread.fp_regs.fpc, 0 };
-		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &fpc,
+		u32 ufpc[2] = { target->thread.fp_regs.fpc, 0 };
+		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ufpc,
 					0, offsetof(s390_fp_regs, fprs));
 		if (rc)
 			return rc;
-		if ((fpc[0] & ~FPC_VALID_MASK) != 0 || fpc[1] != 0)
+		if (ufpc[1] != 0 || test_fp_ctl(ufpc[0]))
 			return -EINVAL;
-		target->thread.fp_regs.fpc = fpc[0];
+		target->thread.fp_regs.fpc = ufpc[0];
 	}
 
 	if (rc == 0 && count > 0)
@@ -929,8 +931,10 @@ static int s390_fpregs_set(struct task_struct *target,
 					target->thread.fp_regs.fprs,
 					offsetof(s390_fp_regs, fprs), -1);
 
-	if (rc == 0 && target == current)
-		restore_fp_regs(&target->thread.fp_regs);
+	if (rc == 0 && target == current) {
+		restore_fp_ctl(&target->thread.fp_regs.fpc);
+		restore_fp_regs(target->thread.fp_regs.fprs);
+	}
 
 	return rc;
 }
