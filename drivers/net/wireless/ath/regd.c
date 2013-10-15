@@ -356,14 +356,48 @@ static u16 ath_regd_find_country_by_name(char *alpha2)
 	return -1;
 }
 
+static int __ath_reg_dyn_country(struct wiphy *wiphy,
+				 struct ath_regulatory *reg,
+				 struct regulatory_request *request)
+{
+	u16 country_code;
+
+	if (!ath_is_world_regd(reg))
+		return -EINVAL;
+
+	country_code = ath_regd_find_country_by_name(request->alpha2);
+	if (country_code == (u16) -1)
+		return -EINVAL;
+
+	reg->current_rd = COUNTRY_ERD_FLAG;
+	reg->current_rd |= country_code;
+
+	__ath_regd_init(reg);
+
+	ath_reg_apply_world_flags(wiphy, request->initiator, reg);
+
+	return 0;
+}
+
+static void ath_reg_dyn_country(struct wiphy *wiphy,
+				struct ath_regulatory *reg,
+				struct regulatory_request *request)
+{
+	if (__ath_reg_dyn_country(wiphy, reg, request))
+		return;
+
+	printk(KERN_DEBUG "ath: regdomain 0x%0x "
+			  "dynamically updated by %s\n",
+	       reg->current_rd,
+	       reg_initiator_name(request->initiator));
+}
+
 void ath_reg_notifier_apply(struct wiphy *wiphy,
 			    struct regulatory_request *request,
 			    struct ath_regulatory *reg)
 {
 	struct ath_common *common = container_of(reg, struct ath_common,
 						 regulatory);
-	u16 country_code;
-
 	/* We always apply this */
 	ath_reg_apply_radar_flags(wiphy);
 
@@ -391,22 +425,7 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 	case NL80211_REGDOM_SET_BY_USER:
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		if (!ath_is_world_regd(reg))
-			break;
-
-		country_code = ath_regd_find_country_by_name(request->alpha2);
-		if (country_code == (u16) -1)
-			break;
-
-		reg->current_rd = COUNTRY_ERD_FLAG;
-		reg->current_rd |= country_code;
-
-		printk(KERN_DEBUG "ath: regdomain 0x%0x updated by CountryIE\n",
-			reg->current_rd);
-		__ath_regd_init(reg);
-
-		ath_reg_apply_world_flags(wiphy, request->initiator, reg);
-
+		ath_reg_dyn_country(wiphy, reg, request);
 		break;
 	}
 }
