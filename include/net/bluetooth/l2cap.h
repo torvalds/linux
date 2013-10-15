@@ -797,6 +797,10 @@ static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
 {
 }
 
+static inline void l2cap_chan_no_resume(struct l2cap_chan *chan)
+{
+}
+
 static inline void l2cap_chan_no_set_shutdown(struct l2cap_chan *chan)
 {
 }
