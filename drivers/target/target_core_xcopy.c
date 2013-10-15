@@ -298,8 +298,8 @@ static int target_xcopy_parse_segdesc_02(struct se_cmd *se_cmd, struct xcopy_op 
 		(unsigned long long)xop->dst_lba);
 
 	if (dc != 0) {
-		xop->dbl = (desc[29] << 16) & 0xff;
-		xop->dbl |= (desc[30] << 8) & 0xff;
+		xop->dbl = (desc[29] & 0xff) << 16;
+		xop->dbl |= (desc[30] & 0xff) << 8;
 		xop->dbl |= desc[31] & 0xff;
 
 		pr_debug("XCOPY seg desc 0x02: DC=1 w/ dbl: %u\n", xop->dbl);

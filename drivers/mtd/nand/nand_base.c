@@ -2869,10 +2869,8 @@ static int nand_flash_detect_ext_param_page(struct mtd_info *mtd,
 
 	len = le16_to_cpu(p->ext_param_page_length) * 16;
 	ep = kmalloc(len, GFP_KERNEL);
-	if (!ep) {
-		ret = -ENOMEM;
-		goto ext_out;
-	}
+	if (!ep)
+		return -ENOMEM;
 
 	/* Send our own NAND_CMD_PARAM. */
 	chip->cmdfunc(mtd, NAND_CMD_PARAM, 0, -1);
@@ -2920,7 +2918,7 @@ static int nand_flash_detect_ext_param_page(struct mtd_info *mtd,
 	}
 
 	pr_info("ONFI extended param page detected.\n");
-	return 0;
+	ret = 0;
 
 ext_out:
 	kfree(ep);

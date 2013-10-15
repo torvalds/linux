@@ -201,13 +201,7 @@ static unsigned int palmas_smps_ramp_delay[4] = {0, 10000, 5000, 2500};
 #define SMPS_CTRL_MODE_ECO		0x02
 #define SMPS_CTRL_MODE_PWM		0x03
 
-/* These values are derived from the data sheet. And are the number of steps
- * where there is a voltage change, the ranges at beginning and end of register
- * max/min values where there are no change are ommitted.
- *
- * So they are basically (maxV-minV)/stepV
- */
-#define PALMAS_SMPS_NUM_VOLTAGES	117
+#define PALMAS_SMPS_NUM_VOLTAGES	122
 #define PALMAS_SMPS10_NUM_VOLTAGES	2
 #define PALMAS_LDO_NUM_VOLTAGES		50
 
@@ -979,6 +973,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			pmic->desc[id].min_uV = 900000;
 			pmic->desc[id].uV_step = 50000;
 			pmic->desc[id].linear_min_sel = 1;
+			pmic->desc[id].enable_time = 500;
 			pmic->desc[id].vsel_reg =
 					PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
 						palmas_regs_info[id].vsel_addr);
@@ -997,6 +992,11 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				pmic->desc[id].min_uV = 450000;
 				pmic->desc[id].uV_step = 25000;
 			}
+
+			/* LOD6 in vibrator mode will have enable time 2000us */
+			if (pdata && pdata->ldo6_vibrator &&
+				(id == PALMAS_REG_LDO6))
+				pmic->desc[id].enable_time = 2000;
 		} else {
 			pmic->desc[id].n_voltages = 1;
 			pmic->desc[id].ops = &palmas_ops_extreg;

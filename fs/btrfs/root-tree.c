@@ -299,11 +299,6 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			continue;
 		}
 
-		if (btrfs_root_refs(&root->root_item) == 0) {
-			btrfs_add_dead_root(root);
-			continue;
-		}
-
 		err = btrfs_init_fs_root(root);
 		if (err) {
 			btrfs_free_fs_root(root);
@@ -318,6 +313,9 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 			btrfs_free_fs_root(root);
 			break;
 		}
+
+		if (btrfs_root_refs(&root->root_item) == 0)
+			btrfs_add_dead_root(root);
 	}
 
 	btrfs_free_path(path);

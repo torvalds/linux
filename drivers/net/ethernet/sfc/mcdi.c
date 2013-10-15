@@ -27,10 +27,10 @@
 
 /* A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
- * via these mechanisms then wait 20ms for the status word to be set.
+ * via these mechanisms then wait 250ms for the status word to be set.
  */
 #define MCDI_STATUS_DELAY_US		100
-#define MCDI_STATUS_DELAY_COUNT		200
+#define MCDI_STATUS_DELAY_COUNT		2500
 #define MCDI_STATUS_SLEEP_MS						\
 	(MCDI_STATUS_DELAY_US * MCDI_STATUS_DELAY_COUNT / 1000)
 
@@ -800,9 +800,6 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 	} else {
 		int count;
 
-		/* Nobody was waiting for an MCDI request, so trigger a reset */
-		efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
-
 		/* Consume the status word since efx_mcdi_rpc_finish() won't */
 		for (count = 0; count < MCDI_STATUS_DELAY_COUNT; ++count) {
 			if (efx_mcdi_poll_reboot(efx))
@@ -810,6 +807,9 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 			udelay(MCDI_STATUS_DELAY_US);
 		}
 		mcdi->new_epoch = true;
+
+		/* Nobody was waiting for an MCDI request, so trigger a reset */
+		efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 	}
 
 	spin_unlock(&mcdi->iface_lock);

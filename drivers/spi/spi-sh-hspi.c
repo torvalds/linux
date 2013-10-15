@@ -296,6 +296,8 @@ static int hspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	master->num_chipselect	= 1;
 	master->bus_num		= pdev->id;
 	master->setup		= hspi_setup;
@@ -308,8 +310,6 @@ static int hspi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "spi_register_master error.\n");
 		goto error1;
 	}
-
-	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 

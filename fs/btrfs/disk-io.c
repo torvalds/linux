@@ -1561,8 +1561,9 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
-					      struct btrfs_key *location)
+struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
+				     struct btrfs_key *location,
+				     bool check_ref)
 {
 	struct btrfs_root *root;
 	int ret;
@@ -1586,7 +1587,7 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 again:
 	root = btrfs_lookup_fs_root(fs_info, location->objectid);
 	if (root) {
-		if (btrfs_root_refs(&root->root_item) == 0)
+		if (check_ref && btrfs_root_refs(&root->root_item) == 0)
 			return ERR_PTR(-ENOENT);
 		return root;
 	}
@@ -1595,7 +1596,7 @@ again:
 	if (IS_ERR(root))
 		return root;
 
-	if (btrfs_root_refs(&root->root_item) == 0) {
+	if (check_ref && btrfs_root_refs(&root->root_item) == 0) {
 		ret = -ENOENT;
 		goto fail;
 	}

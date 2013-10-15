@@ -1327,8 +1327,8 @@ int debuginfo__find_probe_point(struct debuginfo *self, unsigned long addr,
 				struct perf_probe_point *ppt)
 {
 	Dwarf_Die cudie, spdie, indie;
-	Dwarf_Addr _addr, baseaddr;
-	const char *fname = NULL, *func = NULL, *tmp;
+	Dwarf_Addr _addr = 0, baseaddr = 0;
+	const char *fname = NULL, *func = NULL, *basefunc = NULL, *tmp;
 	int baseline = 0, lineno = 0, ret = 0;
 
 	/* Adjust address with bias */
@@ -1349,27 +1349,36 @@ int debuginfo__find_probe_point(struct debuginfo *self, unsigned long addr,
 	/* Find a corresponding function (name, baseline and baseaddr) */
 	if (die_find_realfunc(&cudie, (Dwarf_Addr)addr, &spdie)) {
 		/* Get function entry information */
-		tmp = dwarf_diename(&spdie);
-		if (!tmp ||
+		func = basefunc = dwarf_diename(&spdie);
+		if (!func ||
 		    dwarf_entrypc(&spdie, &baseaddr) != 0 ||
-		    dwarf_decl_line(&spdie, &baseline) != 0)
+		    dwarf_decl_line(&spdie, &baseline) != 0) {
+			lineno = 0;
 			goto post;
-		func = tmp;
+		}
 
-		if (addr == (unsigned long)baseaddr)
+		if (addr == (unsigned long)baseaddr) {
 			/* Function entry - Relative line number is 0 */
 			lineno = baseline;
-		else if (die_find_inlinefunc(&spdie, (Dwarf_Addr)addr,
-					     &indie)) {
+			fname = dwarf_decl_file(&spdie);
+			goto post;
+		}
+
+		/* Track down the inline functions step by step */
+		while (die_find_top_inlinefunc(&spdie, (Dwarf_Addr)addr,
+						&indie)) {
+			/* There is an inline function */
 			if (dwarf_entrypc(&indie, &_addr) == 0 &&
-			    _addr == addr)
+			    _addr == addr) {
 				/*
 				 * addr is at an inline function entry.
 				 * In this case, lineno should be the call-site
-				 * line number.
+				 * line number. (overwrite lineinfo)
 				 */
 				lineno = die_get_call_lineno(&indie);
-			else {
+				fname = die_get_call_file(&indie);
+				break;
+			} else {
 				/*
 				 * addr is in an inline function body.
 				 * Since lineno points one of the lines
@@ -1377,19 +1386,27 @@ int debuginfo__find_probe_point(struct debuginfo *self, unsigned long addr,
 				 * be the entry line of the inline function.
 				 */
 				tmp = dwarf_diename(&indie);
-				if (tmp &&
-				    dwarf_decl_line(&spdie, &baseline) == 0)
-					func = tmp;
+				if (!tmp ||
+				    dwarf_decl_line(&indie, &baseline) != 0)
+					break;
+				func = tmp;
+				spdie = indie;
 			}
 		}
+		/* Verify the lineno and baseline are in a same file */
+		tmp = dwarf_decl_file(&spdie);
+		if (!tmp || strcmp(tmp, fname) != 0)
+			lineno = 0;
 	}
 
 post:
 	/* Make a relative line number or an offset */
 	if (lineno)
 		ppt->line = lineno - baseline;
-	else if (func)
+	else if (basefunc) {
 		ppt->offset = addr - (unsigned long)baseaddr;
+		func = basefunc;
+	}
 
 	/* Duplicate strings */
 	if (func) {

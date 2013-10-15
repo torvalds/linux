@@ -145,9 +145,11 @@ bool __init sclp_has_linemode(void)
 
 	if (sccb->header.response_code != 0x20)
 		return 0;
-	if (sccb->sclp_send_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK))
-		return 1;
-	return 0;
+	if (!(sccb->sclp_send_mask & (EVTYP_OPCMD_MASK | EVTYP_PMSGCMD_MASK)))
+		return 0;
+	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
+		return 0;
+	return 1;
 }
 
 bool __init sclp_has_vt220(void)

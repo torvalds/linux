@@ -93,6 +93,7 @@ struct hpb_dmae_chan {
 	void __iomem *base;
 	const struct hpb_dmae_slave_config *cfg;
 	char dev_id[16];		/* unique name per DMAC of channel */
+	dma_addr_t slave_addr;
 };
 
 struct hpb_dmae_device {
@@ -432,7 +433,6 @@ hpb_dmae_alloc_chan_resources(struct hpb_dmae_chan *hpb_chan,
 		hpb_chan->xfer_mode = XFER_DOUBLE;
 	} else {
 		dev_err(hpb_chan->shdma_chan.dev, "DCR setting error");
-		shdma_free_irq(&hpb_chan->shdma_chan);
 		return -EINVAL;
 	}
 
@@ -446,7 +446,8 @@ hpb_dmae_alloc_chan_resources(struct hpb_dmae_chan *hpb_chan,
 	return 0;
 }
 
-static int hpb_dmae_set_slave(struct shdma_chan *schan, int slave_id, bool try)
+static int hpb_dmae_set_slave(struct shdma_chan *schan, int slave_id,
+			      dma_addr_t slave_addr, bool try)
 {
 	struct hpb_dmae_chan *chan = to_chan(schan);
 	const struct hpb_dmae_slave_config *sc =
@@ -457,6 +458,7 @@ static int hpb_dmae_set_slave(struct shdma_chan *schan, int slave_id, bool try)
 	if (try)
 		return 0;
 	chan->cfg = sc;
+	chan->slave_addr = slave_addr ? : sc->addr;
 	return hpb_dmae_alloc_chan_resources(chan, sc);
 }
 
@@ -468,7 +470,7 @@ static dma_addr_t hpb_dmae_slave_addr(struct shdma_chan *schan)
 {
 	struct hpb_dmae_chan *chan = to_chan(schan);
 
-	return chan->cfg->addr;
+	return chan->slave_addr;
 }
 
 static struct shdma_desc *hpb_dmae_embedded_desc(void *buf, int i)
@@ -614,7 +616,6 @@ static void hpb_dmae_chan_remove(struct hpb_dmae_device *hpbdev)
 	shdma_for_each_chan(schan, &hpbdev->shdma_dev, i) {
 		BUG_ON(!schan);
 
-		shdma_free_irq(schan);
 		shdma_chan_remove(schan);
 	}
 	dma_dev->chancnt = 0;

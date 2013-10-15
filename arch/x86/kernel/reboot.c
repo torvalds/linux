@@ -326,6 +326,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E6320"),
 		},
 	},
+	{	/* Handle problems with rebooting on the Latitude E5410. */
+		.callback = set_pci_reboot,
+		.ident = "Dell Latitude E5410",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E5410"),
+		},
+	},
 	{	/* Handle problems with rebooting on the Latitude E5420. */
 		.callback = set_pci_reboot,
 		.ident = "Dell Latitude E5420",

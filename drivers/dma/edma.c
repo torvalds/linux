@@ -306,6 +306,7 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 						EDMA_SLOT_ANY);
 			if (echan->slot[i] < 0) {
 				dev_err(dev, "Failed to allocate slot\n");
+				kfree(edesc);
 				return NULL;
 			}
 		}
@@ -749,6 +750,6 @@ static void __exit edma_exit(void)
 }
 module_exit(edma_exit);
 
-MODULE_AUTHOR("Matt Porter <mporter@ti.com>");
+MODULE_AUTHOR("Matt Porter <matt.porter@linaro.org>");
 MODULE_DESCRIPTION("TI EDMA DMA engine driver");
 MODULE_LICENSE("GPL v2");

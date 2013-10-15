@@ -332,6 +332,13 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	unsigned long hva;
 	int pfnmap = 0;
 	int tsize = BOOK3E_PAGESZ_4K;
+	int ret = 0;
+	unsigned long mmu_seq;
+	struct kvm *kvm = vcpu_e500->vcpu.kvm;
+
+	/* used to check for invalidations in progress */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
 
 	/*
 	 * Translate guest physical to true physical, acquiring
@@ -449,6 +456,12 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		gvaddr &= ~((tsize_pages << PAGE_SHIFT) - 1);
 	}
 
+	spin_lock(&kvm->mmu_lock);
+	if (mmu_notifier_retry(kvm, mmu_seq)) {
+		ret = -EAGAIN;
+		goto out;
+	}
+
 	kvmppc_e500_ref_setup(ref, gtlbe, pfn);
 
 	kvmppc_e500_setup_stlbe(&vcpu_e500->vcpu, gtlbe, tsize,
@@ -457,10 +470,13 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	/* Clear i-cache for new pages */
 	kvmppc_mmu_flush_icache(pfn);
 
+out:
+	spin_unlock(&kvm->mmu_lock);
+
 	/* Drop refcount on page, so that mmu notifiers can clear it */
 	kvm_release_pfn_clean(pfn);
 
-	return 0;
+	return ret;
 }
 
 /* XXX only map the one-one case, for now use TLB0 */

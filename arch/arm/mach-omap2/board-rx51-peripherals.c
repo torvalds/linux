@@ -167,38 +167,47 @@ static struct lp55xx_led_config rx51_lp5523_led_config[] = {
 		.name		= "lp5523:kb1",
 		.chan_nr	= 0,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb2",
 		.chan_nr	= 1,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb3",
 		.chan_nr	= 2,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb4",
 		.chan_nr	= 3,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:b",
 		.chan_nr	= 4,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:g",
 		.chan_nr	= 5,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:r",
 		.chan_nr	= 6,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb5",
 		.chan_nr	= 7,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb6",
 		.chan_nr	= 8,
 		.led_current	= 50,
+		.max_current	= 100,
 	}
 };
 
