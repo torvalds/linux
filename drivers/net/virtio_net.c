@@ -1097,6 +1097,11 @@ static int virtnet_cpu_callback(struct notifier_block *nfb,
 {
 	struct virtnet_info *vi = container_of(nfb, struct virtnet_info, nb);
 
+	mutex_lock(&vi->config_lock);
+
+	if (!vi->config_enable)
+		goto done;
+
 	switch(action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
@@ -1109,6 +1114,9 @@ static int virtnet_cpu_callback(struct notifier_block *nfb,
 	default:
 		break;
 	}
+
+done:
+	mutex_unlock(&vi->config_lock);
 	return NOTIFY_OK;
 }
 
