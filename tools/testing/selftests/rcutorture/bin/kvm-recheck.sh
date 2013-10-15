@@ -31,7 +31,7 @@ do
 	for i in $dirs
 	do
 		configfile=`echo $i | sed -e 's/^.*\///'`
-		echo $i
+		echo $configfile
 		configcheck.sh $i/.config $i/ConfigFragment
 		parse-build.sh $i/Make.out $configfile
 		parse-rcutorture.sh $i/console.log $configfile
