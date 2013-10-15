@@ -351,19 +351,7 @@ static long get_request_value(struct ft1000_usb *ft1000dev)
 }
 
 
-//---------------------------------------------------------------------------
-// Function:    put_request_value
-//
-// Parameters:  struct ft1000_usb  - device structure
-//              long lvalue - value to be put into DPRAM location DWNLD_MAG1_SIZE_LOC
-//
-// Returns:     none
-//
-// Description: This function writes a value to DWNLD_MAG1_SIZE_LOC
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* writes a value to DWNLD_MAG1_SIZE_LOC */
 static void put_request_value(struct ft1000_usb *ft1000dev, long lvalue)
 {
 	u32    tempx;
