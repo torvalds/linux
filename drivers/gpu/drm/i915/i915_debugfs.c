@@ -1780,7 +1780,7 @@ static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
 	return pipe_crc_sources[source];
 }
 
-static int pipe_crc_ctl_show(struct seq_file *m, void *data)
+static int display_crc_ctl_show(struct seq_file *m, void *data)
 {
 	struct drm_device *dev = m->private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1793,11 +1793,11 @@ static int pipe_crc_ctl_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int pipe_crc_ctl_open(struct inode *inode, struct file *file)
+static int display_crc_ctl_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 
-	return single_open(file, pipe_crc_ctl_show, dev);
+	return single_open(file, display_crc_ctl_show, dev);
 }
 
 static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
@@ -1874,7 +1874,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
  *  "pipe A plane1"  ->  Start CRC computations on plane1 of pipe A
  *  "pipe A none"    ->  Stop CRC
  */
-static int pipe_crc_ctl_tokenize(char *buf, char *words[], int max_words)
+static int display_crc_ctl_tokenize(char *buf, char *words[], int max_words)
 {
 	int n_words = 0;
 
@@ -1914,20 +1914,20 @@ static const char *pipe_crc_objects[] = {
 };
 
 static int
-pipe_crc_ctl_parse_object(const char *buf, enum intel_pipe_crc_object *object)
+display_crc_ctl_parse_object(const char *buf, enum intel_pipe_crc_object *o)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pipe_crc_objects); i++)
 		if (!strcmp(buf, pipe_crc_objects[i])) {
-			*object = i;
+			*o = i;
 			return 0;
 		    }
 
 	return -EINVAL;
 }
 
-static int pipe_crc_ctl_parse_pipe(const char *buf, enum pipe *pipe)
+static int display_crc_ctl_parse_pipe(const char *buf, enum pipe *pipe)
 {
 	const char name = buf[0];
 
@@ -1940,20 +1940,20 @@ static int pipe_crc_ctl_parse_pipe(const char *buf, enum pipe *pipe)
 }
 
 static int
-pipe_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *source)
+display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pipe_crc_sources); i++)
 		if (!strcmp(buf, pipe_crc_sources[i])) {
-			*source = i;
+			*s = i;
 			return 0;
 		    }
 
 	return -EINVAL;
 }
 
-static int pipe_crc_ctl_parse(struct drm_device *dev, char *buf, size_t len)
+static int display_crc_ctl_parse(struct drm_device *dev, char *buf, size_t len)
 {
 #define N_WORDS 3
 	int n_words;
@@ -1962,24 +1962,24 @@ static int pipe_crc_ctl_parse(struct drm_device *dev, char *buf, size_t len)
 	enum intel_pipe_crc_object object;
 	enum intel_pipe_crc_source source;
 
-	n_words = pipe_crc_ctl_tokenize(buf, words, N_WORDS);
+	n_words = display_crc_ctl_tokenize(buf, words, N_WORDS);
 	if (n_words != N_WORDS) {
 		DRM_DEBUG_DRIVER("tokenize failed, a command is %d words\n",
 				 N_WORDS);
 		return -EINVAL;
 	}
 
-	if (pipe_crc_ctl_parse_object(words[0], &object) < 0) {
+	if (display_crc_ctl_parse_object(words[0], &object) < 0) {
 		DRM_DEBUG_DRIVER("unknown object %s\n", words[0]);
 		return -EINVAL;
 	}
 
-	if (pipe_crc_ctl_parse_pipe(words[1], &pipe) < 0) {
+	if (display_crc_ctl_parse_pipe(words[1], &pipe) < 0) {
 		DRM_DEBUG_DRIVER("unknown pipe %s\n", words[1]);
 		return -EINVAL;
 	}
 
-	if (pipe_crc_ctl_parse_source(words[2], &source) < 0) {
+	if (display_crc_ctl_parse_source(words[2], &source) < 0) {
 		DRM_DEBUG_DRIVER("unknown source %s\n", words[2]);
 		return -EINVAL;
 	}
@@ -1987,8 +1987,8 @@ static int pipe_crc_ctl_parse(struct drm_device *dev, char *buf, size_t len)
 	return pipe_crc_set_source(dev, pipe, source);
 }
 
-static ssize_t pipe_crc_ctl_write(struct file *file, const char __user *ubuf,
-				  size_t len, loff_t *offp)
+static ssize_t display_crc_ctl_write(struct file *file, const char __user *ubuf,
+				     size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
@@ -2014,7 +2014,7 @@ static ssize_t pipe_crc_ctl_write(struct file *file, const char __user *ubuf,
 	}
 	tmpbuf[len] = '\0';
 
-	ret = pipe_crc_ctl_parse(dev, tmpbuf, len);
+	ret = display_crc_ctl_parse(dev, tmpbuf, len);
 
 out:
 	kfree(tmpbuf);
@@ -2025,13 +2025,13 @@ out:
 	return len;
 }
 
-static const struct file_operations i915_pipe_crc_ctl_fops = {
+static const struct file_operations i915_display_crc_ctl_fops = {
 	.owner = THIS_MODULE,
-	.open = pipe_crc_ctl_open,
+	.open = display_crc_ctl_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
-	.write = pipe_crc_ctl_write
+	.write = display_crc_ctl_write
 };
 
 static int
@@ -2569,7 +2569,7 @@ static struct i915_debugfs_files {
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
-	{"i915_pipe_crc_ctl", &i915_pipe_crc_ctl_fops},
+	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
 };
 
 int i915_debugfs_init(struct drm_minor *minor)
