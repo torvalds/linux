@@ -371,9 +371,8 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 	}
 
-	if (centrino_cpu_init_table(policy)) {
+	if (centrino_cpu_init_table(policy))
 		return -ENODEV;
-	}
 
 	/* Check to see if Enhanced SpeedStep is enabled, and try to
 	   enable it if not. */
