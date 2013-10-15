@@ -241,9 +241,15 @@ static void l2cap_state_change(struct l2cap_chan *chan, int state)
 	release_sock(sk);
 }
 
-static inline void __l2cap_chan_set_err(struct l2cap_chan *chan, int err)
+static inline void l2cap_state_change_and_error(struct l2cap_chan *chan,
+						int state, int err)
 {
+	struct sock *sk = chan->sk;
+
+	lock_sock(sk);
+	chan->state = state;
 	chan->ops->state_change(chan, chan->state, err);
+	release_sock(sk);
 }
 
 static inline void l2cap_chan_set_err(struct l2cap_chan *chan, int err)
@@ -251,7 +257,7 @@ static inline void l2cap_chan_set_err(struct l2cap_chan *chan, int err)
 	struct sock *sk = chan->sk;
 
 	lock_sock(sk);
-	__l2cap_chan_set_err(chan, err);
+	chan->ops->state_change(chan, chan->state, err);
 	release_sock(sk);
 }
 
@@ -1228,7 +1234,6 @@ static inline int l2cap_mode_supported(__u8 mode, __u32 feat_mask)
 
 static void l2cap_send_disconn_req(struct l2cap_chan *chan, int err)
 {
-	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
 	struct l2cap_disconn_req req;
 
@@ -1251,10 +1256,7 @@ static void l2cap_send_disconn_req(struct l2cap_chan *chan, int err)
 	l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_DISCONN_REQ,
 		       sizeof(req), &req);
 
-	lock_sock(sk);
-	__l2cap_state_change(chan, BT_DISCONN);
-	__l2cap_chan_set_err(chan, err);
-	release_sock(sk);
+	l2cap_state_change_and_error(chan, BT_DISCONN, err);
 }
 
 /* ---- L2CAP connections ---- */
