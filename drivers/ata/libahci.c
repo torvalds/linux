@@ -89,7 +89,6 @@ static int ahci_pmp_retry_softreset(struct ata_link *link, unsigned int *class,
 static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline);
 static void ahci_postreset(struct ata_link *link, unsigned int *class);
-static void ahci_error_handler(struct ata_port *ap);
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc);
 static void ahci_dev_config(struct ata_device *dev);
 #ifdef CONFIG_PM
@@ -1982,7 +1981,7 @@ static void ahci_thaw(struct ata_port *ap)
 	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
-static void ahci_error_handler(struct ata_port *ap)
+void ahci_error_handler(struct ata_port *ap)
 {
 	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
 		/* restart engine */
@@ -1995,6 +1994,7 @@ static void ahci_error_handler(struct ata_port *ap)
 	if (!ata_dev_enabled(ap->link.device))
 		ahci_stop_engine(ap);
 }
+EXPORT_SYMBOL_GPL(ahci_error_handler);
 
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 {
