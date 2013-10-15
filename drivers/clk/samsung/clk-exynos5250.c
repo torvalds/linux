@@ -204,19 +204,27 @@ PNAME(mout_usb3_p)	= { "mout_mpll_user", "mout_cpll" };
 PNAME(mout_group1_p)	= { "fin_pll", "fin_pll", "sclk_hdmi27m",
 				"sclk_dptxphy", "sclk_uhostphy", "sclk_hdmiphy",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll" };
+				"mout_cpll", "none", "none",
+				"none", "none", "none",
+				"none" };
 PNAME(mout_audio0_p)	= { "cdclk0", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 				"sclk_uhostphy", "sclk_hdmiphy",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll" };
+				"mout_cpll", "none", "none",
+				"none", "none", "none",
+				"none" };
 PNAME(mout_audio1_p)	= { "cdclk1", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 				"sclk_uhostphy", "sclk_hdmiphy",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll" };
+				"mout_cpll", "none", "none",
+				"none", "none", "none",
+				"none" };
 PNAME(mout_audio2_p)	= { "cdclk2", "fin_pll", "sclk_hdmi27m", "sclk_dptxphy",
 				"sclk_uhostphy", "sclk_hdmiphy",
 				"mout_mpll_user", "mout_epll", "mout_vpll",
-				"mout_cpll" };
+				"mout_cpll", "none", "none",
+				"none", "none", "none",
+				"none" };
 PNAME(mout_spdif_p)	= { "sclk_audio0", "sclk_audio1", "sclk_audio2",
 				"spdif_extclk" };
 
