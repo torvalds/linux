@@ -768,24 +768,25 @@ const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(freq_reg_info);
 
-#ifdef CONFIG_CFG80211_REG_DEBUG
-static const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
+const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
 {
 	switch (initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
-		return "Set by core";
+		return "core";
 	case NL80211_REGDOM_SET_BY_USER:
-		return "Set by user";
+		return "user";
 	case NL80211_REGDOM_SET_BY_DRIVER:
-		return "Set by driver";
+		return "driver";
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		return "Set by country IE";
+		return "country IE";
 	default:
 		WARN_ON(1);
-		return "Set by bug";
+		return "bug";
 	}
 }
+EXPORT_SYMBOL(reg_initiator_name);
 
+#ifdef CONFIG_CFG80211_REG_DEBUG
 static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 				    const struct ieee80211_reg_rule *reg_rule)
 {
@@ -986,14 +987,17 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	struct regulatory_request *lr = get_last_request();
 
 	if (!lr) {
-		REG_DBG_PRINT("Ignoring regulatory request %s since last_request is not set\n",
+		REG_DBG_PRINT("Ignoring regulatory request set by %s "
+			      "since last_request is not set\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
 
 	if (initiator == NL80211_REGDOM_SET_BY_CORE &&
 	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
-		REG_DBG_PRINT("Ignoring regulatory request %s since the driver uses its own custom regulatory domain\n",
+		REG_DBG_PRINT("Ignoring regulatory request set by %s "
+			      "since the driver uses its own custom "
+			      "regulatory domain\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
@@ -1005,7 +1009,9 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	if (wiphy_strict_alpha2_regd(wiphy) && !wiphy->regd &&
 	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    !is_world_regdom(lr->alpha2)) {
-		REG_DBG_PRINT("Ignoring regulatory request %s since the driver requires its own regulatory domain to be set first\n",
+		REG_DBG_PRINT("Ignoring regulatory request set by %s "
+			      "since the driver requires its own regulatory "
+			      "domain to be set first\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
