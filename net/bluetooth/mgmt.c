@@ -4796,24 +4796,21 @@ static void sk_lookup(struct pending_cmd *cmd, void *data)
 	}
 }
 
-int mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
-				   u8 status)
+void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
+				    u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev, mgmt_status(status) };
-	int err = 0;
 
 	mgmt_pending_foreach(MGMT_OP_SET_DEV_CLASS, hdev, sk_lookup, &match);
 	mgmt_pending_foreach(MGMT_OP_ADD_UUID, hdev, sk_lookup, &match);
 	mgmt_pending_foreach(MGMT_OP_REMOVE_UUID, hdev, sk_lookup, &match);
 
 	if (!status)
-		err = mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev, dev_class,
-				 3, NULL);
+		mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev, dev_class, 3,
+			   NULL);
 
 	if (match.sk)
 		sock_put(match.sk);
-
-	return err;
 }
 
 int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
