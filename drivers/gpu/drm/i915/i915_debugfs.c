@@ -1816,6 +1816,10 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (pipe_crc->source == source)
 		return 0;
 
+	/* forbid changing the source without going back to 'none' */
+	if (pipe_crc->source && source)
+		return -EINVAL;
+
 	pipe_crc->source = source;
 
 	switch (source) {
