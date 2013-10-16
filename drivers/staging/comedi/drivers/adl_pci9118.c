@@ -352,12 +352,11 @@ struct pci9118_private {
 						 * on external start
 						 */
 	unsigned int ai_data_len;
-	short *ai_data;
-	short ao_data[2];			/* data output buffer */
+	unsigned short ao_data[2];		/* data output buffer */
 	unsigned int ai_scans;			/* number of scans to do */
 	char dma_doublebuf;			/* we can use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
-	short *dmabuf_virt[2];			/*
+	unsigned short *dmabuf_virt[2];			/*
 						 * pointers to begin of
 						 * DMA buffer
 						 */
@@ -700,7 +699,7 @@ static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 
 static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
-					  short *dma_buffer,
+					  unsigned short *dma_buffer,
 					  unsigned int num_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -724,7 +723,7 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 
 static int move_block_from_dma(struct comedi_device *dev,
 					struct comedi_subdevice *s,
-					short *dma_buffer,
+					unsigned short *dma_buffer,
 					unsigned int num_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -925,7 +924,7 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, num_samples = num_bytes / sizeof(short);
-	short *array = data;
+	unsigned short *array = data;
 
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
@@ -945,7 +944,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 					   unsigned short int_daq)
 {
 	struct pci9118_private *devpriv = dev->private;
-	register short sampl;
+	unsigned short sampl;
 
 	s->async->events = 0;
 
@@ -1613,7 +1612,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_n_scanlen = cmd->scan_end_arg;
 	devpriv->ai_chanlist = cmd->chanlist;
-	devpriv->ai_data = s->async->prealloc_buf;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
@@ -1987,8 +1985,8 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 		for (i = 0; i < 2; i++) {
 			for (pages = 4; pages >= 0; pages--) {
 				devpriv->dmabuf_virt[i] =
-				    (short *)__get_free_pages(GFP_KERNEL,
-							      pages);
+				    (unsigned short *)
+				    __get_free_pages(GFP_KERNEL, pages);
 				if (devpriv->dmabuf_virt[i])
 					break;
 			}
