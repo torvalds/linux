@@ -9,6 +9,7 @@
 
 #include "../codecs/wm8994.h"
 #include <sound/pcm_params.h>
+#include <sound/soc.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -206,6 +207,7 @@ static struct platform_driver smdk_audio_driver = {
 		.name	= "smdk-audio-wm8894",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(samsung_wm8994_of_match),
+		.pm	= &snd_soc_pm_ops,
 	},
 	.probe		= smdk_audio_probe,
 };
