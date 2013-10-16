@@ -96,7 +96,6 @@ static struct fb_videomode *rk29fb_set_default_modelist(void)
 	for(i = 0; i < ARRAY_SIZE(rk29_mode); i++)
 	{
 		mode = (struct fb_videomode *)&rk29_mode[i];	
-		//display_add_videomode(mode, modelist);
 		fb_add_videomode(mode, modelist);
 	}
 	rk29_monspec.mode = (struct fb_videomode *)&rk29_mode[3];
@@ -114,7 +113,6 @@ static struct fb_videomode *rk29fb_find_default_mode(void)
 	int i, pixclock;
 	
 	if(specs->modedb_len) {
-#if 1
 		/* Get max resolution timing */
 		modedb = &specs->modedb[0];
 		for (i = 0; i < specs->modedb_len; i++) {
@@ -125,6 +123,7 @@ static struct fb_videomode *rk29fb_find_default_mode(void)
 		}
 		// For some monitor, the max pixclock read from EDID is smaller
 		// than the clock of max resolution mode supported. We fix it.
+		
 		pixclock = PICOS2KHZ(modedb->pixclock);
 		pixclock /= 250;
 		pixclock *= 250;
@@ -133,21 +132,6 @@ static struct fb_videomode *rk29fb_find_default_mode(void)
 			pixclock = 148500000;
 		if(pixclock > specs->dclkmax)
 			specs->dclkmax = pixclock;
-#else	
-		/* get preferred timing */
-		if (specs->misc & FB_MISC_1ST_DETAIL) {
-	
-			for (i = 0; i < specs->modedb_len; i++) {
-				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
-					modedb = &specs->modedb[i];
-					break;
-				}
-			}
-		} else {
-			/* otherwise, get first mode in database */
-			modedb = &specs->modedb[0];
-		}
-#endif
 	}
 	else
 		modedb = rk29fb_set_default_modelist();
@@ -196,7 +180,7 @@ static int rk29fb_check_mode(void)
 
 	return 0;
 }
-
+#if 0
 /*
  * Probe monitor information using E-EDID.
  */
@@ -236,7 +220,7 @@ static int rk29fb_probe_screens(struct i2c_client *client)
 		return 1;
 	}
 }
-
+#endif
 static int rk29_mode2screen(struct fb_videomode *modedb, struct rk29fb_screen *screen)
 {
 	if(modedb == NULL || screen == NULL)
@@ -244,14 +228,14 @@ static int rk29_mode2screen(struct fb_videomode *modedb, struct rk29fb_screen *s
 		
 	memset(screen, 0, sizeof(struct rk29fb_screen));
 	/* screen type & face */
-    screen->type = SCREEN_HDMI;
+    screen->type = SCREEN_RGB;
     screen->face = OUT_P888;
+	//screen->lvds_format = LVDS_8BIT_1;  //lvds data format
 	
 	/* Screen size */
 	screen->x_res = modedb->xres;
     screen->y_res = modedb->yres;
-//	screen->xpos = 0;
-//    screen->ypos = 0;
+
     /* Timing */
     screen->pixclock = PICOS2KHZ(modedb->pixclock);
     screen->pixclock /= 250;
@@ -259,22 +243,24 @@ static int rk29_mode2screen(struct fb_videomode *modedb, struct rk29fb_screen *s
     screen->pixclock *= 1000;
     printk("pixclock is %d\n", screen->pixclock);
 	screen->lcdc_aclk = 500000000;
-	screen->left_margin = modedb->left_margin;
+
+	screen->left_margin = modedb->left_margin ;
 	screen->right_margin = modedb->right_margin;
 	screen->hsync_len = modedb->hsync_len;
-	screen->upper_margin = modedb->upper_margin;
+	screen->upper_margin = modedb->upper_margin ;
 	screen->lower_margin = modedb->lower_margin;
 	screen->vsync_len = modedb->vsync_len;
-
 	/* Pin polarity */
 	if(FB_SYNC_HOR_HIGH_ACT & modedb->sync)
 		screen->pin_hsync = 1;
 	else
 		screen->pin_hsync = 0;
+
 	if(FB_SYNC_VERT_HIGH_ACT & modedb->sync)
 		screen->pin_vsync = 1;
 	else
 		screen->pin_vsync = 0;	
+
 	screen->pin_den = 0;
 	screen->pin_dclk = 1;
 
@@ -290,7 +276,7 @@ static int rk29_mode2screen(struct fb_videomode *modedb, struct rk29fb_screen *s
     screen->standby = NULL;	
 	return 0;
 }
-
+#if 0
 static int rk29_set_enable(struct rk_display_device *device, int enable)
 {
 	struct rk29_monspecs *rk29_monspec = device->priv_data;
@@ -361,7 +347,6 @@ struct rk_display_ops rk29_display_ops = {
 
 static int rk29_display_probe(struct rk_display_device *device, void *devdata)
 {
-	printk("%s: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", __func__);
 	device->owner = THIS_MODULE;
 	strcpy(device->type, "VGA");
 	device->name = "vga";
@@ -376,16 +361,119 @@ static int rk29_display_probe(struct rk_display_device *device, void *devdata)
 static struct rk_display_driver display_rk29 = {
 	.probe = rk29_display_probe,
 };
+/*
+ * read edid of monitor and set screen atrrbute
+ */
+static int scaler_vga_set_screen(struct rk29fb_screen *screen)
+{
+
+	struct fb_monspecs	*spec = &rk29_monspec.monspecs;
+	struct list_head	*modelist = &rk29_monspec.modelist;
+	u8 *edid;
+	struct fb_videomode *defaultmode, *mode;
+	
+	if (rk29_monspec.i2c_client)
+		edid = rk29fb_ddc_read(rk29_monspec.i2c_client);
+	else
+		edid = NULL;
+
+	fb_destroy_modelist(modelist);
+	INIT_LIST_HEAD(modelist);
+	if(spec->modedb)
+		kfree(spec->modedb);
+	memset(spec, 0, sizeof(struct fb_monspecs));
+
+	if(edid)
+	{
+		fb_edid_to_monspecs(edid, spec);
+		kfree(edid);
+		rk29fb_check_mode();		
+		defaultmode = rk29fb_find_default_mode();
+		if(defaultmode)
+			mode = (struct fb_videomode *)fb_find_nearest_mode(defaultmode, &rk29_monspec.modelist);
+		else
+			mode = (struct fb_videomode *)&rk29_mode[3];		
+		rk29_monspec.mode = mode;
+
+		if(mode)
+		{
+			//struct rk29fb_screen screen;	
+			rk29_mode2screen(mode, screen);
+			printk("%s: %dx%d@%d<%d>\n", __func__, mode->xres, mode->yres, mode->refresh, PICOS2KHZ(mode->pixclock * 1000));
+			//printk("%s: lcdc id = %d video_source = %d\n", __func__, screen.lcdc_id, rk29_monspec.video_source);
+			//FB_Switch_Screen(&screen, 1);
+			//rk29_monspec.mode = mode;
+		}
+		return 0;
+	}
+	else
+	{
+		rk29fb_set_default_modelist();
+		return 1;
+	}
+}
+#endif
+
+static int scaler_get_screens(struct i2c_client *client)
+{
+	struct fb_monspecs	*spec = &rk29_monspec.monspecs;
+	struct list_head	*modelist = &rk29_monspec.modelist;
+	u8 *edid;
+	struct fb_videomode *defaultmode, *mode;
+	
+	if (client)
+		edid = rk29fb_ddc_read(client);
+	else
+		edid = NULL;
+
+	fb_destroy_modelist(modelist);
+	INIT_LIST_HEAD(modelist);
+	if(spec->modedb)
+		kfree(spec->modedb);
+	memset(spec, 0, sizeof(struct fb_monspecs));
+
+	if(edid)
+	{
+		fb_edid_to_monspecs(edid, spec);
+		kfree(edid);
+		rk29fb_check_mode();		
+		defaultmode = rk29fb_find_default_mode();
+		if(defaultmode)
+			mode = (struct fb_videomode *)fb_find_nearest_mode(defaultmode, &rk29_monspec.modelist);
+		else
+			mode = (struct fb_videomode *)&rk29_mode[3];		
+		rk29_monspec.mode = mode;
+
+		if(mode)
+		{
+			struct rk29fb_screen screen;	
+			rk29_mode2screen(mode, &screen);
+			printk("%s: %dx%d@%d<%ld>\n", __func__, mode->xres, mode->yres, mode->refresh, PICOS2KHZ(mode->pixclock * 1000));
+			FB_Switch_Screen(&screen, 1);
+			rk29_monspec.mode = mode;
+		}
+		return 0;
+	}
+	else
+	{
+		rk29fb_set_default_modelist();
+		return 1;
+	}
+}
+
+void set_vga_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info)
+{
+	rk29_mode2screen(&rk29_mode[3], screen);
+}
 
 static int vga_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {    
     int ret;
     //struct rkdisplay_platform_data *vga_data;
-	printk("%s: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", __func__);
     
     memset(&rk29_monspec, 0, sizeof(struct rk29_monspecs));
     rk29_monspec.i2c_client = client;
-    rk29_monspec.enable = 0;
+    rk29_monspec.enable = 1;
     
     /*if(client->dev.platform_data) {
     	vga_data = client->dev.platform_data;
@@ -410,23 +498,24 @@ static int vga_i2c_probe(struct i2c_client *client,const struct i2c_device_id *i
 		gpio_direction_output(rk29_monspec.io_enable_pin, GPIO_LOW);
     }
     INIT_LIST_HEAD(&rk29_monspec.modelist);
-    rk29_monspec.ddev = rk_display_device_register(&display_rk29, &client->dev, &rk29_monspec);
-	if(rk29_monspec.ddev == NULL)
+    //rk29_monspec.ddev = rk_display_device_register(&display_rk29, &client->dev, &rk29_monspec);
+	//if(rk29_monspec.ddev == NULL)
+	//{
+	//	printk("[%s] registor display error\n", __FUNCTION__);
+	//	return -1;
+	//}
+	//rk_display_device_enable(rk29_monspec.ddev);
+
+	if(rk29_monspec.enable)
 	{
-		printk("[%s] registor display error\n", __FUNCTION__);
-		return -1;
-	}
-	rk_display_device_enable(rk29_monspec.ddev);
-	//if(rk29_monspec.enable)
-	if(1)
-	{
+#if 0		
 		struct fb_videomode *defaultmode, *mode;
 		defaultmode = rk29fb_find_default_mode();
 		if(defaultmode)
 			mode = (struct fb_videomode *)fb_find_nearest_mode(defaultmode, &rk29_monspec.modelist);
 		else
 			mode = (struct fb_videomode *)&rk29_mode[0];
-printk("%s:  xres,yres(%d, %d)\n=============================\n\n\n", __func__, mode->xres, mode->yres);
+
 		if(mode)
 		{
 			struct rk29fb_screen screen;	
@@ -435,6 +524,9 @@ printk("%s:  xres,yres(%d, %d)\n=============================\n\n\n", __func__, 
 			FB_Switch_Screen(&screen, 1);
 			rk29_monspec.mode = mode;
 		}
+#else	
+		scaler_get_screens(rk29_monspec.i2c_client);
+#endif
 	}
 	return 0;
 }
@@ -467,7 +559,6 @@ static struct i2c_driver vga_i2c_driver  = {
 
 static int __init rk29_vga_init(void)
 {
-	printk("%s: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", __func__);
     return i2c_add_driver(&vga_i2c_driver);
 }
 
@@ -475,6 +566,12 @@ static void __exit rk29_vga_exit(void)
 {
     i2c_del_driver(&vga_i2c_driver);
 }
-
 module_init(rk29_vga_init);
 module_exit(rk29_vga_exit);
+
+
+/************  DEBUG  ***********/
+void scaler_test_read_vga_edid(void)
+{
+	scaler_get_screens(rk29_monspec.i2c_client);
+}

@@ -60,13 +60,21 @@ static ssize_t scaler_oport_store(struct device *dev,
 {
 	return 0;
 }
-
 static DEVICE_ATTR(oports, 0664, scaler_oport_show, NULL);
 
+extern void scaler_test_read_vga_edid(void);
+static ssize_t scaler_edid_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	scaler_test_read_vga_edid();
+	return 0;
+}
+static DEVICE_ATTR(edid, 0664, scaler_edid_show, NULL);
 
 static struct attribute *scaler_attributes[] = {
 	&dev_attr_iports.attr,
 	&dev_attr_cur_iport.attr,
+	&dev_attr_edid.attr,
 	&dev_attr_oports.attr,
 	NULL
 };

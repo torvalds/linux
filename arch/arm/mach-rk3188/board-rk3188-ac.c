@@ -528,6 +528,7 @@ struct rk29fb_info lcdc1_screen_info = {
 
 };
 #endif
+extern void set_vga_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
 
 #if defined(CONFIG_LCDC0_RK3188)
 struct rk29fb_info lcdc0_screen_info = {
@@ -535,7 +536,8 @@ struct rk29fb_info lcdc0_screen_info = {
 	.io_init   = rk_fb_io_init,
 	.io_disable = rk_fb_io_disable,
 	.io_enable = rk_fb_io_enable,
-	.set_screen_info = set_lcd_info,
+	//.set_screen_info = set_lcd_info,
+	.set_screen_info = set_vga_lcd_info,
 	
 };
 #endif
