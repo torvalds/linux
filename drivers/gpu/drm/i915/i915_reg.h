@@ -26,6 +26,7 @@
 #define _I915_REG_H_
 
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
+#define _PIPE_INC(pipe, base, inc) ((base) + (pipe)*(inc))
 #define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
@@ -1844,19 +1845,31 @@
 #define   PIPE_CRC_SOURCE_PRIMARY_IVB	(0 << 29)
 #define   PIPE_CRC_SOURCE_SPRITE_IVB	(1 << 29)
 #define   PIPE_CRC_SOURCE_PF_IVB	(2 << 29)
-#define _PIPE_CRC_RES_1_A_IVB	(dev_priv->info->display_mmio_offset + 0x60064)
-#define _PIPE_CRC_RES_2_A_IVB	(dev_priv->info->display_mmio_offset + 0x60068)
-#define _PIPE_CRC_RES_3_A_IVB	(dev_priv->info->display_mmio_offset + 0x6006c)
-#define _PIPE_CRC_RES_4_A_IVB	(dev_priv->info->display_mmio_offset + 0x60070)
-#define _PIPE_CRC_RES_5_A_IVB	(dev_priv->info->display_mmio_offset + 0x60074)
+#define   PIPE_CRC_SOURCE_PRIMARY_ILK	(0 << 28)
+#define   PIPE_CRC_SOURCE_SPRITE_ILK	(1 << 28)
+#define   PIPE_CRC_SOURCE_PIPE_ILK	(2 << 28)
+/* embedded DP port on the north display block, reserved on ivb */
+#define   PIPE_CRC_SOURCE_PORT_A_ILK	(4 << 28)
+#define   PIPE_CRC_SOURCE_FDI_ILK	(5 << 28) /* reserved on ivb */
+#define _PIPE_CRC_RES_1_A_IVB		0x60064
+#define _PIPE_CRC_RES_2_A_IVB		0x60068
+#define _PIPE_CRC_RES_3_A_IVB		0x6006c
+#define _PIPE_CRC_RES_4_A_IVB		0x60070
+#define _PIPE_CRC_RES_5_A_IVB		0x60074
+
+#define _PIPE_CRC_RES_RED_A_ILK		0x60060
+#define _PIPE_CRC_RES_GREEN_A_ILK	0x60064
+#define _PIPE_CRC_RES_BLUE_A_ILK	0x60068
+#define _PIPE_CRC_RES_RES1_A_ILK	0x6006c
+#define _PIPE_CRC_RES_RES2_A_ILK	0x60080
 
 /* Pipe B CRC regs */
-#define _PIPE_CRC_CTL_B		(dev_priv->info->display_mmio_offset + 0x61050)
-#define _PIPE_CRC_RES_1_B_IVB	(dev_priv->info->display_mmio_offset + 0x61064)
-#define _PIPE_CRC_RES_2_B_IVB	(dev_priv->info->display_mmio_offset + 0x61068)
-#define _PIPE_CRC_RES_3_B_IVB	(dev_priv->info->display_mmio_offset + 0x6106c)
-#define _PIPE_CRC_RES_4_B_IVB	(dev_priv->info->display_mmio_offset + 0x61070)
-#define _PIPE_CRC_RES_5_B_IVB	(dev_priv->info->display_mmio_offset + 0x61074)
+#define _PIPE_CRC_CTL_B			0x61050
+#define _PIPE_CRC_RES_1_B_IVB		0x61064
+#define _PIPE_CRC_RES_2_B_IVB		0x61068
+#define _PIPE_CRC_RES_3_B_IVB		0x6106c
+#define _PIPE_CRC_RES_4_B_IVB		0x61070
+#define _PIPE_CRC_RES_5_B_IVB		0x61074
 
 #define PIPE_CRC_CTL(pipe)	_PIPE(pipe, _PIPE_CRC_CTL_A, _PIPE_CRC_CTL_B)
 #define PIPE_CRC_RES_1_IVB(pipe)	\
@@ -1869,6 +1882,17 @@
 	_PIPE(pipe, _PIPE_CRC_RES_4_A_IVB, _PIPE_CRC_RES_4_B_IVB)
 #define PIPE_CRC_RES_5_IVB(pipe)	\
 	_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
+
+#define PIPE_CRC_RES_RED_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RED_A_ILK, 0x01000)
+#define PIPE_CRC_RES_GREEN_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_GREEN_A_ILK, 0x01000)
+#define PIPE_CRC_RES_BLUE_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_BLUE_A_ILK, 0x01000)
+#define PIPE_CRC_RES_RES1_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES1_A_ILK, 0x01000)
+#define PIPE_CRC_RES_RES2_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES2_A_ILK, 0x01000)
 
 /* Pipe A timing regs */
 #define _HTOTAL_A	(dev_priv->info->display_mmio_offset + 0x60000)
