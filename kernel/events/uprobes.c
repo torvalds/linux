@@ -1415,7 +1415,7 @@ static void dup_xol_work(struct callback_head *work)
 /*
  * Called in context of a new clone/fork from copy_process.
  */
-void uprobe_copy_process(struct task_struct *t)
+void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 {
 	struct uprobe_task *utask = current->utask;
 	struct mm_struct *mm = current->mm;
@@ -1424,7 +1424,10 @@ void uprobe_copy_process(struct task_struct *t)
 
 	t->utask = NULL;
 
-	if (mm == t->mm || !utask || !utask->return_instances)
+	if (!utask || !utask->return_instances)
+		return;
+
+	if (mm == t->mm && !(flags & CLONE_VFORK))
 		return;
 
 	if (dup_utask(t, utask))
@@ -1434,6 +1437,9 @@ void uprobe_copy_process(struct task_struct *t)
 	area = mm->uprobes_state.xol_area;
 	if (!area)
 		return uprobe_warn(t, "dup xol area");
+
+	if (mm == t->mm)
+		return;
 
 	/* TODO: move it into the union in uprobe_task */
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
