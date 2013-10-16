@@ -1228,6 +1228,15 @@ static void display_pipe_crc_update(struct drm_device *dev, enum pipe pipe,
 	wake_up_interruptible(&pipe_crc->wq);
 }
 
+static void hsw_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	display_pipe_crc_update(dev, pipe,
+				I915_READ(PIPE_CRC_RES_1_IVB(pipe)),
+				0, 0, 0, 0);
+}
+
 static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1252,6 +1261,7 @@ static void ilk_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 				I915_READ(PIPE_CRC_RES_RES2_ILK(pipe)));
 }
 #else
+static inline void hsw_pipe_crc_update(struct drm_device *dev, int pipe) {}
 static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
 static inline void ilk_pipe_crc_update(struct drm_device *dev, int pipe) {}
 #endif
@@ -1418,30 +1428,26 @@ static void ivb_err_int_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 err_int = I915_READ(GEN7_ERR_INT);
+	enum pipe pipe;
 
 	if (err_int & ERR_INT_POISON)
 		DRM_ERROR("Poison interrupt\n");
 
-	if (err_int & ERR_INT_FIFO_UNDERRUN_A)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
-			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
+	for_each_pipe(pipe) {
+		if (err_int & ERR_INT_FIFO_UNDERRUN(pipe)) {
+			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
+								  false))
+				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
+						 pipe_name(pipe));
+		}
 
-	if (err_int & ERR_INT_FIFO_UNDERRUN_B)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
-			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
-
-	if (err_int & ERR_INT_FIFO_UNDERRUN_C)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_C, false))
-			DRM_DEBUG_DRIVER("Pipe C FIFO underrun\n");
-
-	if (err_int & ERR_INT_PIPE_CRC_DONE_A)
-		ivb_pipe_crc_update(dev, PIPE_A);
-
-	if (err_int & ERR_INT_PIPE_CRC_DONE_B)
-		ivb_pipe_crc_update(dev, PIPE_B);
-
-	if (err_int & ERR_INT_PIPE_CRC_DONE_C)
-		ivb_pipe_crc_update(dev, PIPE_C);
+		if (err_int & ERR_INT_PIPE_CRC_DONE(pipe)) {
+			if (IS_IVYBRIDGE(dev))
+				ivb_pipe_crc_update(dev, pipe);
+			else
+				hsw_pipe_crc_update(dev, pipe);
+		}
+	}
 
 	I915_WRITE(GEN7_ERR_INT, err_int);
 }

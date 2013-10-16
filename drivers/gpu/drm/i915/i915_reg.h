@@ -728,6 +728,7 @@
 #define   ERR_INT_PIPE_CRC_DONE_B	(1<<5)
 #define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
 #define   ERR_INT_PIPE_CRC_DONE_A	(1<<2)
+#define   ERR_INT_PIPE_CRC_DONE(pipe)	(1<<(2 + pipe*3))
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
 #define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 

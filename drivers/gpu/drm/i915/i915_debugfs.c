@@ -1997,7 +1997,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	u32 val;
 	int ret;
 
-	if (!(IS_IVYBRIDGE(dev) || IS_GEN5(dev) || IS_GEN6(dev)))
+	if (!(INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)))
 		return -ENODEV;
 
 	if (pipe_crc->source == source)
