@@ -142,7 +142,7 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 
 	zorro_autocon = bus->devices;
 	bus->dev.parent = &pdev->dev;
-	dev_set_name(&bus->dev, "zorro");
+	dev_set_name(&bus->dev, zorro_bus_type.name);
 	error = device_register(&bus->dev);
 	if (error) {
 		pr_err("Zorro: Error registering zorro_bus\n");
@@ -180,9 +180,9 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 			dev_err(&bus->dev,
 				"Address space collision on device %s %pR\n",
 				z->name, &z->resource);
-		dev_set_name(&z->dev, "%02x", i);
 		z->dev.parent = &bus->dev;
 		z->dev.bus = &zorro_bus_type;
+		z->dev.id = i;
 	}
 
 	/* ... then register them */
