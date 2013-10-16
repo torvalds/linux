@@ -177,6 +177,12 @@ config ARCH_MEDIATEK
 	help
 	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
 
+config ARCH_QCOM
+	bool "Qualcomm Platforms"
+	select PINCTRL
+	help
+	  This enables support for the ARMv8 based Qualcomm chipsets.
+
 config ARCH_SEATTLE
 	bool "AMD Seattle SoC Family"
 	help
