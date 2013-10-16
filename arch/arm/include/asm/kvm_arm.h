@@ -57,6 +57,7 @@
  * TSC:		Trap SMC
  * TSW:		Trap cache operations by set/way
  * TWI:		Trap WFI
+ * TWE:		Trap WFE
  * TIDCP:	Trap L2CTLR/L2ECTLR
  * BSU_IS:	Upgrade barriers to the inner shareable domain
  * FB:		Force broadcast of all maintainance operations
