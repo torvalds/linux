@@ -118,9 +118,7 @@ struct icp_multi_private {
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	short *ai_data;		/*  data buffer */
-	short ao_data[4];	/*  data output buffer */
-	short di_data;		/*  Digital input data */
+	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
