@@ -6723,6 +6723,44 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
+static struct {
+	int clock;
+	u32 config;
+} hdmi_audio_clock[] = {
+	{ DIV_ROUND_UP(25200 * 1000, 1001), AUD_CONFIG_PIXEL_CLOCK_HDMI_25175 },
+	{ 25200, AUD_CONFIG_PIXEL_CLOCK_HDMI_25200 }, /* default per bspec */
+	{ 27000, AUD_CONFIG_PIXEL_CLOCK_HDMI_27000 },
+	{ 27000 * 1001 / 1000, AUD_CONFIG_PIXEL_CLOCK_HDMI_27027 },
+	{ 54000, AUD_CONFIG_PIXEL_CLOCK_HDMI_54000 },
+	{ 54000 * 1001 / 1000, AUD_CONFIG_PIXEL_CLOCK_HDMI_54054 },
+	{ DIV_ROUND_UP(74250 * 1000, 1001), AUD_CONFIG_PIXEL_CLOCK_HDMI_74176 },
+	{ 74250, AUD_CONFIG_PIXEL_CLOCK_HDMI_74250 },
+	{ DIV_ROUND_UP(148500 * 1000, 1001), AUD_CONFIG_PIXEL_CLOCK_HDMI_148352 },
+	{ 148500, AUD_CONFIG_PIXEL_CLOCK_HDMI_148500 },
+};
+
+/* get AUD_CONFIG_PIXEL_CLOCK_HDMI_* value for mode */
+static u32 audio_config_hdmi_pixel_clock(struct drm_display_mode *mode)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_audio_clock); i++) {
+		if (mode->clock == hdmi_audio_clock[i].clock)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
+		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n", mode->clock);
+		i = 1;
+	}
+
+	DRM_DEBUG_KMS("Configuring HDMI audio for pixel clock %d (0x%08x)\n",
+		      hdmi_audio_clock[i].clock,
+		      hdmi_audio_clock[i].config);
+
+	return hdmi_audio_clock[i].config;
+}
+
 static bool intel_eld_uptodate(struct drm_connector *connector,
 			       int reg_eldv, uint32_t bits_eldv,
 			       int reg_elda, uint32_t bits_elda,
@@ -6848,8 +6886,9 @@ static void haswell_write_eld(struct drm_connector *connector,
 		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
 		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
 		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
-	} else
-		I915_WRITE(aud_config, 0);
+	} else {
+		I915_WRITE(aud_config, audio_config_hdmi_pixel_clock(mode));
+	}
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
@@ -6927,8 +6966,9 @@ static void ironlake_write_eld(struct drm_connector *connector,
 		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
 		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
 		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
-	} else
-		I915_WRITE(aud_config, 0);
+	} else {
+		I915_WRITE(aud_config, audio_config_hdmi_pixel_clock(mode));
+	}
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
