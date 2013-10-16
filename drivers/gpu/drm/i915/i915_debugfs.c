@@ -1909,7 +1909,7 @@ static int i915_pipe_crc_create(struct dentry *root, struct drm_minor *minor,
 	return drm_add_fake_info_node(minor, ent, info);
 }
 
-static const char *pipe_crc_sources[] = {
+static const char * const pipe_crc_sources[] = {
 	"none",
 	"plane1",
 	"plane2",
@@ -2054,7 +2054,7 @@ enum intel_pipe_crc_object {
 	PIPE_CRC_OBJECT_PIPE,
 };
 
-static const char *pipe_crc_objects[] = {
+static const char * const pipe_crc_objects[] = {
 	"pipe",
 };
 
