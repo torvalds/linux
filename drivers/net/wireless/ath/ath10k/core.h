@@ -205,6 +205,8 @@ struct ath10k_peer {
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)
 
 struct ath10k_vif {
+	struct list_head list;
+
 	u32 vdev_id;
 	enum wmi_vdev_type vdev_type;
 	enum wmi_vdev_subtype vdev_subtype;
@@ -404,6 +406,7 @@ struct ath10k {
 	/* protects shared structure data */
 	spinlock_t data_lock;
 
+	struct list_head arvifs;
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 

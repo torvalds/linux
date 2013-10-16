@@ -824,6 +824,7 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err_disconnect_htc;
 
 	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
+	INIT_LIST_HEAD(&ar->arvifs);
 
 	return 0;
 
