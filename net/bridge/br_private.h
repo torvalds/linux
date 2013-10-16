@@ -643,9 +643,7 @@ static inline u16 br_get_pvid(const struct net_port_vlans *v)
 	 * vid wasn't set
 	 */
 	smp_rmb();
-	return (v->pvid & VLAN_TAG_PRESENT) ?
-			(v->pvid & ~VLAN_TAG_PRESENT) :
-			VLAN_N_VID;
+	return v->pvid ?: VLAN_N_VID;
 }
 
 #else
