@@ -354,7 +354,8 @@ static inline int probed_compare_swap(int *v, int cmp, int set)
 
 /* Handle probed exception */
 
-void __init do_probed_exception(struct pt_regs *regs, unsigned long exccause)
+static void __init do_probed_exception(struct pt_regs *regs,
+		unsigned long exccause)
 {
 	if (regs->pc == rcw_probe_pc) {	/* exception on s32c1i ? */
 		regs->pc += 3;		/* skip the s32c1i instruction */
@@ -366,7 +367,7 @@ void __init do_probed_exception(struct pt_regs *regs, unsigned long exccause)
 
 /* Simple test of S32C1I (soc bringup assist) */
 
-void __init check_s32c1i(void)
+static int __init check_s32c1i(void)
 {
 	int n, cause1, cause2;
 	void *handbus, *handdata, *handaddr; /* temporarily saved handlers */
@@ -421,24 +422,21 @@ void __init check_s32c1i(void)
 	trap_set_handler(EXCCAUSE_LOAD_STORE_ERROR, handbus);
 	trap_set_handler(EXCCAUSE_LOAD_STORE_DATA_ERROR, handdata);
 	trap_set_handler(EXCCAUSE_LOAD_STORE_ADDR_ERROR, handaddr);
+	return 0;
 }
 
 #else /* XCHAL_HAVE_S32C1I */
 
 /* This condition should not occur with a commercially deployed processor.
    Display reminder for early engr test or demo chips / FPGA bitstreams */
-void __init check_s32c1i(void)
+static int __init check_s32c1i(void)
 {
 	pr_warn("Processor configuration lacks atomic compare-and-swap support!\n");
+	return 0;
 }
 
 #endif /* XCHAL_HAVE_S32C1I */
-#else /* CONFIG_S32C1I_SELFTEST */
-
-void __init check_s32c1i(void)
-{
-}
-
+early_initcall(check_s32c1i);
 #endif /* CONFIG_S32C1I_SELFTEST */
 
 
@@ -446,8 +444,6 @@ void __init setup_arch(char **cmdline_p)
 {
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
-
-	check_s32c1i();
 
 	/* Reserve some memory regions */
 
