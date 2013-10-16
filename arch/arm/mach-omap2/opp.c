@@ -17,6 +17,7 @@
  * GNU General Public License for more details.
  */
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/opp.h>
 #include <linux/cpu.h>
 
@@ -39,6 +40,9 @@ int __init omap_init_opp_table(struct omap_opp_def *opp_def,
 		u32 opp_def_size)
 {
 	int i, r;
+
+	if (of_have_populated_dt())
+		return -EINVAL;
 
 	if (!opp_def || !opp_def_size) {
 		pr_err("%s: invalid params!\n", __func__);
