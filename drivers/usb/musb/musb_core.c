@@ -1810,8 +1810,6 @@ static void musb_free(struct musb *musb)
 		free_irq(musb->nIrq, musb);
 	}
 	cancel_work_sync(&musb->irq_work);
-	if (musb->dma_controller)
-		dma_controller_destroy(musb->dma_controller);
 
 	musb_host_free(musb);
 }
@@ -2035,6 +2033,9 @@ static int musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
+
+	if (musb->dma_controller)
+		dma_controller_destroy(musb->dma_controller);
 
 	musb_free(musb);
 	device_init_wakeup(dev, 0);
