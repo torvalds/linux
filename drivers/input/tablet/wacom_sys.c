@@ -1188,34 +1188,47 @@ static void wacom_wireless_work(struct work_struct *work)
 		wacom_wac1->features =
 			*((struct wacom_features *)id->driver_info);
 		wacom_wac1->features.device_type = BTN_TOOL_PEN;
+		snprintf(wacom_wac1->name, WACOM_NAME_MAX, "%s (WL) Pen",
+			 wacom_wac1->features.name);
 		error = wacom_register_input(wacom1);
 		if (error)
-			goto fail1;
+			goto fail;
 
 		/* Touch interface */
-		wacom_wac2->features =
-			*((struct wacom_features *)id->driver_info);
-		wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
-		wacom_wac2->features.device_type = BTN_TOOL_FINGER;
-		wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
-		error = wacom_register_input(wacom2);
-		if (error)
-			goto fail2;
+		if (wacom_wac1->features.touch_max) {
+			wacom_wac2->features =
+				*((struct wacom_features *)id->driver_info);
+			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
+			wacom_wac2->features.device_type = BTN_TOOL_FINGER;
+			wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
+			if (wacom_wac2->features.touch_max)
+				snprintf(wacom_wac2->name, WACOM_NAME_MAX,
+					 "%s (WL) Finger",wacom_wac2->features.name);
+			else
+				snprintf(wacom_wac2->name, WACOM_NAME_MAX,
+					 "%s (WL) Pad",wacom_wac2->features.name);
+			error = wacom_register_input(wacom2);
+			if (error)
+				goto fail;
+		}
 
 		error = wacom_initialize_battery(wacom);
 		if (error)
-			goto fail3;
+			goto fail;
 	}
 
 	return;
 
-fail3:
-	input_unregister_device(wacom_wac2->input);
-	wacom_wac2->input = NULL;
-fail2:
-	input_unregister_device(wacom_wac1->input);
-	wacom_wac1->input = NULL;
-fail1:
+fail:
+	if (wacom_wac2->input) {
+		input_unregister_device(wacom_wac2->input);
+		wacom_wac2->input = NULL;
+	}
+
+	if (wacom_wac1->input) {
+		input_unregister_device(wacom_wac1->input);
+		wacom_wac1->input = NULL;
+	}
 	return;
 }
 
@@ -1332,10 +1345,12 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		struct usb_device *other_dev;
 
 		/* Append the device type to the name */
-		strlcat(wacom_wac->name,
-			features->device_type == BTN_TOOL_PEN ?
-				" Pen" : " Finger",
-			sizeof(wacom_wac->name));
+		if (features->device_type != BTN_TOOL_FINGER)
+			strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
+		else if (features->touch_max)
+			strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
+		else
+			strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
 
 		other_dev = wacom_get_sibling(dev, features->oVid, features->oPid);
 		if (other_dev == NULL || wacom_get_usbdev_data(other_dev) == NULL)
