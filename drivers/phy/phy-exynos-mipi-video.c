@@ -93,7 +93,7 @@ static int exynos_mipi_video_phy_power_off(struct phy *phy)
 	struct video_phy_desc *phy_desc = phy_get_drvdata(phy);
 	struct exynos_mipi_video_phy *state = to_mipi_video_phy(phy_desc);
 
-	return __set_phy_state(state, phy_desc->index, 1);
+	return __set_phy_state(state, phy_desc->index, 0);
 }
 
 static struct phy *exynos_mipi_video_phy_xlate(struct device *dev,
