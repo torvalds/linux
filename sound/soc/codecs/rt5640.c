@@ -1993,7 +1993,6 @@ static int rt5640_resume(struct snd_soc_codec *codec)
 		gpio_set_value_cansleep(rt5640->pdata.ldo1_en, 1);
 		msleep(400);
 	}
-	rt5640_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
