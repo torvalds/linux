@@ -518,9 +518,17 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, mcast_task.work);
 	struct net_device *dev = priv->dev;
+	struct ib_port_attr port_attr;
 
 	if (!test_bit(IPOIB_MCAST_RUN, &priv->flags))
 		return;
+
+	if (ib_query_port(priv->ca, priv->port, &port_attr) ||
+	    port_attr.state != IB_PORT_ACTIVE) {
+		ipoib_dbg(priv, "port state is not ACTIVE (state = %d) suspending join task\n",
+			  port_attr.state);
+		return;
+	}
 
 	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid))
 		ipoib_warn(priv, "ib_query_gid() failed\n");
