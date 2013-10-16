@@ -229,7 +229,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	int low, hi;
+	unsigned char low, hi;
 	int timeout = 50;	/* wait max 50us */
 
 	while (timeout--) {
@@ -281,7 +281,8 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
    analog input dma mode 1 & 3, 816 cards
 */
 static void transfer_from_dma_buf(struct comedi_device *dev,
-				  struct comedi_subdevice *s, short *ptr,
+				  struct comedi_subdevice *s,
+				  unsigned short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
 	struct pcl816_private *devpriv = dev->private;
@@ -324,7 +325,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int len, bufptr, this_dma_buf;
 	unsigned long dma_flags;
-	short *ptr;
+	unsigned short *ptr;
 
 	disable_dma(devpriv->dma);
 	this_dma_buf = devpriv->next_dma_buf;
@@ -352,7 +353,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
-	ptr = (short *)devpriv->dmabuf[this_dma_buf];
+	ptr = (unsigned short *)devpriv->dmabuf[this_dma_buf];
 
 	len = (devpriv->hwdmasize[0] >> 1) - devpriv->ai_poll_ptr;
 	bufptr = devpriv->ai_poll_ptr;
@@ -665,7 +666,8 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	transfer_from_dma_buf(dev, s,
-			      (short *)devpriv->dmabuf[devpriv->next_dma_buf],
+			      (unsigned short *)devpriv->dmabuf[devpriv->
+								next_dma_buf],
 			      devpriv->ai_poll_ptr, top2);
 
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
