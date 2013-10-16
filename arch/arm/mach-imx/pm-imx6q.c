@@ -13,8 +13,12 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/mfd/syscon.h>
+#include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/regmap.h>
 #include <linux/suspend.h>
 #include <asm/cacheflush.h>
 #include <asm/proc-fns.h>
@@ -116,6 +120,7 @@ static void imx6q_enable_wb(bool enable)
 
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 {
+	struct irq_desc *iomuxc_irq_desc;
 	u32 val = readl_relaxed(ccm_base + CLPCR);
 
 	val &= ~BM_CLPCR_LPM;
@@ -144,7 +149,16 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		return -EINVAL;
 	}
 
+	/*
+	 * Unmask the always pending IOMUXC interrupt #32 as wakeup source to
+	 * deassert dsm_request signal, so that we can ensure dsm_request
+	 * is not asserted when we're going to write CLPCR register to set LPM.
+	 * After setting up LPM bits, we need to mask this wakeup source.
+	 */
+	iomuxc_irq_desc = irq_to_desc(32);
+	imx_gpc_irq_unmask(&iomuxc_irq_desc->irq_data);
 	writel_relaxed(val, ccm_base + CLPCR);
+	imx_gpc_irq_mask(&iomuxc_irq_desc->irq_data);
 
 	return 0;
 }
@@ -193,7 +207,19 @@ void __init imx6q_pm_set_ccm_base(void __iomem *base)
 
 void __init imx6q_pm_init(void)
 {
+	struct regmap *gpr;
+
 	WARN_ON(!ccm_base);
+
+	/*
+	 * Force IOMUXC irq pending, so that the interrupt to GPC can be
+	 * used to deassert dsm_request signal when the signal gets
+	 * asserted unexpectedly.
+	 */
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+	if (!IS_ERR(gpr))
+		regmap_update_bits(gpr, IOMUXC_GPR1, IMX6Q_GPR1_GINT,
+				   IMX6Q_GPR1_GINT);
 
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
