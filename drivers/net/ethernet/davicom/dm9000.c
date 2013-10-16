@@ -753,15 +753,20 @@ static const struct ethtool_ops dm9000_ethtool_ops = {
 static void dm9000_show_carrier(board_info_t *db,
 				unsigned carrier, unsigned nsr)
 {
+	int lpa;
 	struct net_device *ndev = db->ndev;
+	struct mii_if_info *mii = &db->mii;
 	unsigned ncr = dm9000_read_locked(db, DM9000_NCR);
 
-	if (carrier)
-		dev_info(db->dev, "%s: link up, %dMbps, %s-duplex, no LPA\n",
+	if (carrier) {
+		lpa = mii->mdio_read(mii->dev, mii->phy_id, MII_LPA);
+		dev_info(db->dev,
+			 "%s: link up, %dMbps, %s-duplex, lpa 0x%04X\n",
 			 ndev->name, (nsr & NSR_SPEED) ? 10 : 100,
-			 (ncr & NCR_FDX) ? "full" : "half");
-	else
+			 (ncr & NCR_FDX) ? "full" : "half", lpa);
+	} else {
 		dev_info(db->dev, "%s: link down\n", ndev->name);
+	}
 }
 
 static void
