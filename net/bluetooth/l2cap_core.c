@@ -5317,8 +5317,6 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 static __le16 l2cap_err_to_reason(int err)
 {
 	switch (err) {
-	case -EMSGSIZE:
-		return __constant_cpu_to_le16(L2CAP_REJ_MTU_EXCEEDED);
 	case -EINVAL:
 	case -EPROTO:
 	default:
