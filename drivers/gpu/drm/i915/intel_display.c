@@ -6557,7 +6557,7 @@ static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void haswell_modeset_global_resources(struct drm_device *dev)
+static void modeset_update_power_wells(struct drm_device *dev)
 {
 	bool enable = false;
 	struct intel_crtc *crtc;
@@ -6572,7 +6572,11 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 	}
 
 	intel_set_power_well(dev, enable);
+}
 
+static void haswell_modeset_global_resources(struct drm_device *dev)
+{
+	modeset_update_power_wells(dev);
 	hsw_update_package_c8(dev);
 }
 
