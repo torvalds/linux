@@ -626,7 +626,7 @@ static u8 create_adv_data(struct hci_dev *hdev, u8 *ptr)
 	return ad_len;
 }
 
-static void update_ad(struct hci_request *req)
+static void update_adv_data(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_adv_data cp;
@@ -1746,7 +1746,7 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status)
 		hci_dev_lock(hdev);
 
 		hci_req_init(&req, hdev);
-		update_ad(&req);
+		update_adv_data(&req);
 		update_scan_rsp_data(&req);
 		hci_req_run(&req, NULL);
 
@@ -3924,7 +3924,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto unlock;
 	}
 
-	/* We need to flip the bit already here so that update_ad
+	/* We need to flip the bit already here so that update_adv_data
 	 * generates the correct flags.
 	 */
 	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
@@ -3937,7 +3937,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	/* Since only the advertising data flags will change, there
 	 * is no need to update the scan response data.
 	 */
-	update_ad(&req);
+	update_adv_data(&req);
 
 	err = hci_req_run(&req, set_bredr_complete);
 	if (err < 0)
@@ -4251,7 +4251,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 		 * where BR/EDR was toggled during the AUTO_OFF phase.
 		 */
 		if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
-			update_ad(&req);
+			update_adv_data(&req);
 			update_scan_rsp_data(&req);
 		}
 
