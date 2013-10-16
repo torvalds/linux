@@ -428,6 +428,7 @@ enum {
 	HDA_FIXUP_ACT_PROBE,
 	HDA_FIXUP_ACT_INIT,
 	HDA_FIXUP_ACT_BUILD,
+	HDA_FIXUP_ACT_FREE,
 };
 
 int snd_hda_add_verbs(struct hda_codec *codec, const struct hda_verb *list);
