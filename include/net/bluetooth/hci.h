@@ -1063,11 +1063,6 @@ struct hci_rp_le_read_local_features {
 
 #define HCI_OP_LE_SET_RANDOM_ADDR	0x2005
 
-#define LE_ADV_IND			0x00
-#define LE_ADV_DIRECT_IND		0x01
-#define LE_ADV_SCAN_IND			0x02
-#define LE_ADV_NONCONN_IND		0x03
-
 #define HCI_OP_LE_SET_ADV_PARAM		0x2006
 struct hci_cp_le_set_adv_param {
 	__le16   min_interval;
@@ -1580,11 +1575,11 @@ struct hci_ev_le_ltk_req {
 } __packed;
 
 /* Advertising report event types */
-#define ADV_IND		0x00
-#define ADV_DIRECT_IND	0x01
-#define ADV_SCAN_IND	0x02
-#define ADV_NONCONN_IND	0x03
-#define ADV_SCAN_RSP	0x04
+#define LE_ADV_IND		0x00
+#define LE_ADV_DIRECT_IND	0x01
+#define LE_ADV_SCAN_IND		0x02
+#define LE_ADV_NONCONN_IND	0x03
+#define LE_ADV_SCAN_RSP		0x04
 
 #define ADDR_LE_DEV_PUBLIC	0x00
 #define ADDR_LE_DEV_RANDOM	0x01
