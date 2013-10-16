@@ -1098,13 +1098,13 @@ dwc_tx_status(struct dma_chan *chan,
 	enum dma_status		ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS)
+	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, dwc_get_residue(dwc));
 
 	if (dwc->paused && ret == DMA_IN_PROGRESS)
