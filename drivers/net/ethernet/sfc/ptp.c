@@ -926,6 +926,21 @@ static void efx_ptp_worker(struct work_struct *work)
 		efx_ptp_process_rx(efx, skb);
 }
 
+static const struct ptp_clock_info efx_phc_clock_info = {
+	.owner		= THIS_MODULE,
+	.name		= "sfc",
+	.max_adj	= MAX_PPB,
+	.n_alarm	= 0,
+	.n_ext_ts	= 0,
+	.n_per_out	= 0,
+	.pps		= 1,
+	.adjfreq	= efx_phc_adjfreq,
+	.adjtime	= efx_phc_adjtime,
+	.gettime	= efx_phc_gettime,
+	.settime	= efx_phc_settime,
+	.enable		= efx_phc_enable,
+};
+
 /* Initialise PTP state. */
 int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 {
@@ -964,20 +979,7 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 		list_add(&ptp->rx_evts[pos].link, &ptp->evt_free_list);
 	ptp->evt_overflow = false;
 
-	ptp->phc_clock_info.owner = THIS_MODULE;
-	strlcpy(ptp->phc_clock_info.name, "sfc",
-		sizeof(ptp->phc_clock_info.name));
-	ptp->phc_clock_info.max_adj = MAX_PPB;
-	ptp->phc_clock_info.n_alarm = 0;
-	ptp->phc_clock_info.n_ext_ts = 0;
-	ptp->phc_clock_info.n_per_out = 0;
-	ptp->phc_clock_info.pps = 1;
-	ptp->phc_clock_info.adjfreq = efx_phc_adjfreq;
-	ptp->phc_clock_info.adjtime = efx_phc_adjtime;
-	ptp->phc_clock_info.gettime = efx_phc_gettime;
-	ptp->phc_clock_info.settime = efx_phc_settime;
-	ptp->phc_clock_info.enable = efx_phc_enable;
-
+	ptp->phc_clock_info = efx_phc_clock_info;
 	ptp->phc_clock = ptp_clock_register(&ptp->phc_clock_info,
 					    &efx->pci_dev->dev);
 	if (IS_ERR(ptp->phc_clock)) {
