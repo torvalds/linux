@@ -494,7 +494,7 @@ static void s626_send_dac(struct comedi_device *dev, uint32_t val)
  * Private helper function: Write setpoint to an application DAC channel.
  */
 static void s626_set_dac(struct comedi_device *dev, uint16_t chan,
-			 short dacdata)
+			 unsigned short dacdata)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t signmask;
@@ -1329,17 +1329,9 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	},
 };
 
-static unsigned int s626_ai_reg_to_uint(int data)
+static unsigned int s626_ai_reg_to_uint(unsigned int data)
 {
-	unsigned int tempdata;
-
-	tempdata = (data >> 18);
-	if (tempdata & 0x2000)
-		tempdata &= 0x1fff;
-	else
-		tempdata += (1 << 13);
-
-	return tempdata;
+	return ((data >> 18) & 0x3fff) ^ 0x2000;
 }
 
 static int s626_dio_set_irq(struct comedi_device *dev, unsigned int chan)
@@ -1545,19 +1537,19 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 	 * first uint16_t in the buffer because it contains junk data
 	 * from the final ADC of the previous poll list scan.
 	 */
-	int32_t *readaddr = (int32_t *)devpriv->ana_buf.logical_base + 1;
+	uint32_t *readaddr = (uint32_t *)devpriv->ana_buf.logical_base + 1;
 	bool finished = false;
 	int i;
 
 	/* get the data and hand it over to comedi */
 	for (i = 0; i < cmd->chanlist_len; i++) {
-		short tempdata;
+		unsigned short tempdata;
 
 		/*
 		 * Convert ADC data to 16-bit integer values and copy
 		 * to application buffer.
 		 */
-		tempdata = s626_ai_reg_to_uint((int)*readaddr);
+		tempdata = s626_ai_reg_to_uint(*readaddr);
 		readaddr++;
 
 		/* put data into read buffer */
@@ -1881,7 +1873,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	uint16_t range = CR_RANGE(insn->chanspec);
 	uint16_t adc_spec = 0;
 	uint32_t gpio_image;
-	int tmp;
+	uint32_t tmp;
 	int n;
 
 	/*
