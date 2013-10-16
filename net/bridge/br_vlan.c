@@ -189,6 +189,8 @@ out:
 bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 			struct sk_buff *skb, u16 *vid)
 {
+	int err;
+
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
@@ -201,20 +203,31 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	if (!v)
 		return false;
 
-	if (br_vlan_get_tag(skb, vid)) {
+	err = br_vlan_get_tag(skb, vid);
+	if (!*vid) {
 		u16 pvid = br_get_pvid(v);
 
-		/* Frame did not have a tag.  See if pvid is set
-		 * on this port.  That tells us which vlan untagged
-		 * traffic belongs to.
+		/* Frame had a tag with VID 0 or did not have a tag.
+		 * See if pvid is set on this port.  That tells us which
+		 * vlan untagged or priority-tagged traffic belongs to.
 		 */
 		if (pvid == VLAN_N_VID)
 			return false;
 
-		/* PVID is set on this port.  Any untagged ingress
-		 * frame is considered to belong to this vlan.
+		/* PVID is set on this port.  Any untagged or priority-tagged
+		 * ingress frame is considered to belong to this vlan.
 		 */
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
+		if (likely(err))
+			/* Untagged Frame. */
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
+		else
+			/* Priority-tagged Frame.
+			 * At this point, We know that skb->vlan_tci had
+			 * VLAN_TAG_PRESENT bit and its VID field was 0x000.
+			 * We update only VID field and preserve PCP field.
+			 */
+			skb->vlan_tci |= pvid;
+
 		return true;
 	}
 
