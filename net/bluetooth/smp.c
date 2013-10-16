@@ -856,7 +856,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (hcon->type != LE_LINK) {
 		kfree_skb(skb);
-		return -ENOTSUPP;
+		return 0;
 	}
 
 	if (skb->len < 1) {
