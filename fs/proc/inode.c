@@ -288,7 +288,7 @@ static int proc_reg_mmap(struct file *file, struct vm_area_struct *vma)
 static unsigned long proc_reg_get_unmapped_area(struct file *file, unsigned long orig_addr, unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
-	int rv = -EIO;
+	unsigned long rv = -EIO;
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 	if (use_pde(pde)) {
 		get_unmapped_area = pde->proc_fops->get_unmapped_area;
