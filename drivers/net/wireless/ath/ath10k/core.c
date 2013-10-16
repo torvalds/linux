@@ -664,7 +664,8 @@ static void ath10k_core_restart(struct work_struct *work)
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:
-		/* this can happen if driver is being unloaded */
+		/* this can happen if driver is being unloaded
+		 * or if the crash happens during FW probing */
 		ath10k_warn("cannot restart a device that hasn't been started\n");
 		break;
 	case ATH10K_STATE_RESTARTING:
