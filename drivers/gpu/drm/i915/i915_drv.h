@@ -909,7 +909,7 @@ struct intel_ilk_power_mgmt {
 /* Power well structure for haswell */
 struct i915_power_well {
 	struct drm_device *device;
-	spinlock_t lock;
+	struct mutex lock;
 	/* power well enable/disable usage count */
 	int count;
 	int i915_request;

@@ -5626,9 +5626,9 @@ void intel_display_power_get(struct drm_device *dev,
 	if (is_always_on_power_domain(dev, domain))
 		return;
 
-	spin_lock_irq(&power_well->lock);
+	mutex_lock(&power_well->lock);
 	__intel_power_well_get(power_well);
-	spin_unlock_irq(&power_well->lock);
+	mutex_unlock(&power_well->lock);
 }
 
 void intel_display_power_put(struct drm_device *dev,
@@ -5643,9 +5643,9 @@ void intel_display_power_put(struct drm_device *dev,
 	if (is_always_on_power_domain(dev, domain))
 		return;
 
-	spin_lock_irq(&power_well->lock);
+	mutex_lock(&power_well->lock);
 	__intel_power_well_put(power_well);
-	spin_unlock_irq(&power_well->lock);
+	mutex_unlock(&power_well->lock);
 }
 
 static struct i915_power_well *hsw_pwr;
@@ -5656,9 +5656,9 @@ void i915_request_power_well(void)
 	if (WARN_ON(!hsw_pwr))
 		return;
 
-	spin_lock_irq(&hsw_pwr->lock);
+	mutex_lock(&hsw_pwr->lock);
 	__intel_power_well_get(hsw_pwr);
-	spin_unlock_irq(&hsw_pwr->lock);
+	mutex_unlock(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
 
@@ -5668,9 +5668,9 @@ void i915_release_power_well(void)
 	if (WARN_ON(!hsw_pwr))
 		return;
 
-	spin_lock_irq(&hsw_pwr->lock);
+	mutex_lock(&hsw_pwr->lock);
 	__intel_power_well_put(hsw_pwr);
-	spin_unlock_irq(&hsw_pwr->lock);
+	mutex_unlock(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
 
@@ -5681,7 +5681,7 @@ int i915_init_power_well(struct drm_device *dev)
 	hsw_pwr = &dev_priv->power_well;
 
 	hsw_pwr->device = dev;
-	spin_lock_init(&hsw_pwr->lock);
+	mutex_init(&hsw_pwr->lock);
 	hsw_pwr->count = 0;
 
 	return 0;
@@ -5703,7 +5703,7 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 	if (!i915_disable_power_well && !enable)
 		return;
 
-	spin_lock_irq(&power_well->lock);
+	mutex_lock(&power_well->lock);
 
 	/*
 	 * This function will only ever contribute one
@@ -5722,7 +5722,7 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 		__intel_power_well_put(power_well);
 
  out:
-	spin_unlock_irq(&power_well->lock);
+	mutex_unlock(&power_well->lock);
 }
 
 static void intel_resume_power_well(struct drm_device *dev)
@@ -5733,9 +5733,9 @@ static void intel_resume_power_well(struct drm_device *dev)
 	if (!HAS_POWER_WELL(dev))
 		return;
 
-	spin_lock_irq(&power_well->lock);
+	mutex_lock(&power_well->lock);
 	__intel_set_power_well(dev, power_well->count > 0);
-	spin_unlock_irq(&power_well->lock);
+	mutex_unlock(&power_well->lock);
 }
 
 /*
