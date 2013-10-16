@@ -1098,15 +1098,20 @@ static int xenvif_set_skb_gso(struct xenvif *vif,
 		return -EINVAL;
 	}
 
-	/* Currently only TCPv4 S.O. is supported. */
-	if (gso->u.gso.type != XEN_NETIF_GSO_TYPE_TCPV4) {
+	switch (gso->u.gso.type) {
+	case XEN_NETIF_GSO_TYPE_TCPV4:
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+		break;
+	case XEN_NETIF_GSO_TYPE_TCPV6:
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+		break;
+	default:
 		netdev_err(vif->dev, "Bad GSO type %d.\n", gso->u.gso.type);
 		xenvif_fatal_tx_err(vif);
 		return -EINVAL;
 	}
 
 	skb_shinfo(skb)->gso_size = gso->u.gso.size;
-	skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 
 	/* Header must be checked, and gso_segs computed. */
 	skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;

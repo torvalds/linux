@@ -105,6 +105,13 @@ static int netback_probe(struct xenbus_device *dev,
 			goto abort_transaction;
 		}
 
+		err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv6",
+				    "%d", sg);
+		if (err) {
+			message = "writing feature-gso-tcpv6";
+			goto abort_transaction;
+		}
+
 		/* We support partial checksum setup for IPv6 packets */
 		err = xenbus_printf(xbt, dev->nodename,
 				    "feature-ipv6-csum-offload",
