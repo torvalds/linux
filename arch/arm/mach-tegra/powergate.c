@@ -42,8 +42,9 @@
 
 static int tegra_num_powerdomains;
 static int tegra_num_cpu_domains;
-static u8 *tegra_cpu_domains;
-static u8 tegra30_cpu_domains[] = {
+static const u8 *tegra_cpu_domains;
+
+static const u8 tegra30_cpu_domains[] = {
 	TEGRA_POWERGATE_CPU0,
 	TEGRA_POWERGATE_CPU1,
 	TEGRA_POWERGATE_CPU2,
