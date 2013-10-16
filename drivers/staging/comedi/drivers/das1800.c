@@ -438,7 +438,8 @@ struct das1800_private {
 	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
 	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
-	short ao_update_bits;	/* remembers the last write to the 'update' dac */
+	unsigned short ao_update_bits;	/* remembers the last write to the
+					 * 'update' dac */
 };
 
 /* analog out range for 'ao' boards */
@@ -501,7 +502,7 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
-	short dpnt;
+	unsigned short dpnt;
 	int unipolar;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -1211,7 +1212,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 	int i, n;
 	int chan, range, aref, chan_range;
 	int timeout = 1000;
-	short dpnt;
+	unsigned short dpnt;
 	int conv_flags = 0;
 	unsigned long irq_flags;
 
@@ -1276,7 +1277,7 @@ static int das1800_ao_winsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 /* int range = CR_RANGE(insn->chanspec); */
 	int update_chan = thisboard->ao_n_chan - 1;
-	short output;
+	unsigned short output;
 	unsigned long irq_flags;
 
 	/*   card expects two's complement data */
