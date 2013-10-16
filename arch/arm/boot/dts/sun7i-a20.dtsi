@@ -265,6 +265,12 @@
 			reg = <0x01c20c90 0x10>;
 		};
 
+		rtc: rtc@01c20d00 {
+			compatible = "allwinner,sun7i-a20-rtc";
+			reg = <0x01c20d00 0x20>;
+			interrupts = <0 24 1>;
+		};
+
 		sid: eeprom@01c23800 {
 			compatible = "allwinner,sun7i-a20-sid";
 			reg = <0x01c23800 0x200>;
