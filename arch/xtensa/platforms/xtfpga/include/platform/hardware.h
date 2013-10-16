@@ -15,10 +15,6 @@
 #ifndef __XTENSA_XTAVNET_HARDWARE_H
 #define __XTENSA_XTAVNET_HARDWARE_H
 
-/* By default NO_IRQ is defined to 0 in Linux, but we use the
-   interrupt 0 for UART... */
-#define NO_IRQ                 -1
-
 /* Memory configuration. */
 
 #define PLATFORM_DEFAULT_MEM_START 0x00000000
