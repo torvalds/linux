@@ -34,6 +34,7 @@ extern int  __init at91_aic_of_init(struct device_node *node,
 extern int  __init at91_aic5_of_init(struct device_node *node,
 				    struct device_node *parent);
 extern void __init at91_sysirq_mask_rtc(u32 rtc_base);
+extern void __init at91_sysirq_mask_rtt(u32 rtt_base);
 
 
  /* Timer */

@@ -21,6 +21,7 @@
  */
 
 #include <linux/io.h>
+#include <mach/at91_rtt.h>
 
 #include "generic.h"
 
@@ -41,6 +42,29 @@ void __init at91_sysirq_mask_rtc(u32 rtc_base)
 		pr_info("AT91: Disabling rtc irq\n");
 		writel_relaxed(mask, base + AT91_RTC_IDR);
 		(void)readl_relaxed(base + AT91_RTC_IMR);	/* flush */
+	}
+
+	iounmap(base);
+}
+
+void __init at91_sysirq_mask_rtt(u32 rtt_base)
+{
+	void __iomem *base;
+	void __iomem *reg;
+	u32 mode;
+
+	base = ioremap(rtt_base, 16);
+	if (!base)
+		return;
+
+	reg = base + AT91_RTT_MR;
+
+	mode = readl_relaxed(reg);
+	if (mode & (AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN)) {
+		pr_info("AT91: Disabling rtt irq\n");
+		mode &= ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN);
+		writel_relaxed(mode, reg);
+		(void)readl_relaxed(reg);			/* flush */
 	}
 
 	iounmap(base);
