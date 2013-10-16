@@ -1350,6 +1350,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 				intel_prepare_page_flip(dev, pipe);
 				intel_finish_page_flip(dev, pipe);
 			}
+
+			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
+				i9xx_pipe_crc_update(dev, pipe);
 		}
 
 		/* Consume port.  Then clear IIR or we'll miss events */
@@ -2800,13 +2803,14 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
 
-		if (pipe_stats[0] & PIPE_VBLANK_INTERRUPT_STATUS &&
-		    i8xx_handle_vblank(dev, 0, iir))
-			flip_mask &= ~DISPLAY_PLANE_FLIP_PENDING(0);
+		for_each_pipe(pipe) {
+			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS &&
+			    i8xx_handle_vblank(dev, pipe, iir))
+				flip_mask &= ~DISPLAY_PLANE_FLIP_PENDING(pipe);
 
-		if (pipe_stats[1] & PIPE_VBLANK_INTERRUPT_STATUS &&
-		    i8xx_handle_vblank(dev, 1, iir))
-			flip_mask &= ~DISPLAY_PLANE_FLIP_PENDING(1);
+			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
+				i9xx_pipe_crc_update(dev, pipe);
+		}
 
 		iir = new_iir;
 	}
@@ -2999,6 +3003,9 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
 				blc_event = true;
+
+			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
+				i9xx_pipe_crc_update(dev, pipe);
 		}
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
@@ -3243,6 +3250,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
 				blc_event = true;
+
+			if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
+				i9xx_pipe_crc_update(dev, pipe);
 		}
 
 
