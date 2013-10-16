@@ -112,7 +112,7 @@ void subdev_8255_interrupt(struct comedi_device *dev,
 {
 	struct subdev_8255_private *spriv = s->private;
 	unsigned long iobase = spriv->iobase;
-	short d;
+	unsigned short d;
 
 	d = spriv->io(0, _8255_DATA, 0, iobase);
 	d |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
