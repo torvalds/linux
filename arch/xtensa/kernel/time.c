@@ -53,18 +53,12 @@ static int ccount_timer_set_next_event(unsigned long delta,
 		struct clock_event_device *dev);
 static void ccount_timer_set_mode(enum clock_event_mode mode,
 		struct clock_event_device *evt);
-static struct ccount_timer_t {
+struct ccount_timer {
 	struct clock_event_device evt;
 	int irq_enabled;
-} ccount_timer = {
-	.evt = {
-		.name		= "ccount_clockevent",
-		.features	= CLOCK_EVT_FEAT_ONESHOT,
-		.rating		= 300,
-		.set_next_event	= ccount_timer_set_next_event,
-		.set_mode	= ccount_timer_set_mode,
-	},
+	char name[24];
 };
+static DEFINE_PER_CPU(struct ccount_timer, ccount_timer);
 
 static int ccount_timer_set_next_event(unsigned long delta,
 		struct clock_event_device *dev)
@@ -85,8 +79,8 @@ static int ccount_timer_set_next_event(unsigned long delta,
 static void ccount_timer_set_mode(enum clock_event_mode mode,
 		struct clock_event_device *evt)
 {
-	struct ccount_timer_t *timer =
-		container_of(evt, struct ccount_timer_t, evt);
+	struct ccount_timer *timer =
+		container_of(evt, struct ccount_timer, evt);
 
 	/*
 	 * There is no way to disable the timer interrupt at the device level,
@@ -118,8 +112,27 @@ static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
 	.flags =	IRQF_TIMER,
 	.name =		"timer",
-	.dev_id =	&ccount_timer,
 };
+
+void local_timer_setup(unsigned cpu)
+{
+	struct ccount_timer *timer = &per_cpu(ccount_timer, cpu);
+	struct clock_event_device *clockevent = &timer->evt;
+
+	timer->irq_enabled = 1;
+	clockevent->name = timer->name;
+	snprintf(timer->name, sizeof(timer->name), "ccount_clockevent_%u", cpu);
+	clockevent->features = CLOCK_EVT_FEAT_ONESHOT;
+	clockevent->rating = 300;
+	clockevent->set_next_event = ccount_timer_set_next_event;
+	clockevent->set_mode = ccount_timer_set_mode;
+	clockevent->cpumask = cpumask_of(cpu);
+	clockevent->irq = irq_create_mapping(NULL, LINUX_TIMER_INT);
+	if (WARN(!clockevent->irq, "error: can't map timer irq"))
+		return;
+	clockevents_config_and_register(clockevent, ccount_freq,
+					0xf, 0xffffffff);
+}
 
 void __init time_init(void)
 {
@@ -132,16 +145,8 @@ void __init time_init(void)
 	ccount_freq = CONFIG_XTENSA_CPU_CLOCK*1000000UL;
 #endif
 	clocksource_register_hz(&ccount_clocksource, ccount_freq);
-
-	ccount_timer.evt.cpumask = cpumask_of(0);
-	ccount_timer.evt.irq = irq_create_mapping(NULL, LINUX_TIMER_INT);
-	if (WARN(!ccount_timer.evt.irq, "error: can't map timer irq"))
-		return;
-	clockevents_config_and_register(&ccount_timer.evt, ccount_freq, 0xf,
-			0xffffffff);
-	setup_irq(ccount_timer.evt.irq, &timer_irqaction);
-	ccount_timer.irq_enabled = 1;
-
+	local_timer_setup(0);
+	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
 	setup_sched_clock(ccount_sched_clock_read, 32, ccount_freq);
 }
 
@@ -149,10 +154,9 @@ void __init time_init(void)
  * The timer interrupt is called HZ times per second.
  */
 
-irqreturn_t timer_interrupt (int irq, void *dev_id)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	struct ccount_timer_t *timer = dev_id;
-	struct clock_event_device *evt = &timer->evt;
+	struct clock_event_device *evt = &this_cpu_ptr(&ccount_timer)->evt;
 
 	evt->event_handler(evt);
 
