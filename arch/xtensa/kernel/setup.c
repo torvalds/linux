@@ -37,6 +37,7 @@
 #endif
 
 #include <asm/bootparam.h>
+#include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/timex.h>
@@ -84,12 +85,6 @@ static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
 
 sysmem_info_t __initdata sysmem;
-
-#ifdef CONFIG_MMU
-extern void init_mmu(void);
-#else
-static inline void init_mmu(void) { }
-#endif
 
 extern int mem_reserve(unsigned long, unsigned long, int);
 extern void bootmem_init(void);
