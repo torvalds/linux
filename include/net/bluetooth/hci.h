@@ -1094,6 +1094,12 @@ struct hci_cp_le_set_adv_data {
 	__u8	data[HCI_MAX_AD_LENGTH];
 } __packed;
 
+#define HCI_OP_LE_SET_SCAN_RSP_DATA	0x2009
+struct hci_cp_le_set_scan_rsp_data {
+	__u8	length;
+	__u8	data[HCI_MAX_AD_LENGTH];
+} __packed;
+
 #define HCI_OP_LE_SET_ADV_ENABLE	0x200a
 
 #define LE_SCAN_PASSIVE			0x00
