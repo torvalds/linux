@@ -396,42 +396,6 @@ static struct device_type bt_host = {
 	.release = bt_host_release,
 };
 
-static int inquiry_cache_show(struct seq_file *f, void *p)
-{
-	struct hci_dev *hdev = f->private;
-	struct discovery_state *cache = &hdev->discovery;
-	struct inquiry_entry *e;
-
-	hci_dev_lock(hdev);
-
-	list_for_each_entry(e, &cache->all, all) {
-		struct inquiry_data *data = &e->data;
-		seq_printf(f, "%pMR %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
-			   &data->bdaddr,
-			   data->pscan_rep_mode, data->pscan_period_mode,
-			   data->pscan_mode, data->dev_class[2],
-			   data->dev_class[1], data->dev_class[0],
-			   __le16_to_cpu(data->clock_offset),
-			   data->rssi, data->ssp_mode, e->timestamp);
-	}
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-static int inquiry_cache_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, inquiry_cache_show, inode->i_private);
-}
-
-static const struct file_operations inquiry_cache_fops = {
-	.open		= inquiry_cache_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int blacklist_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
@@ -561,9 +525,6 @@ int hci_add_sysfs(struct hci_dev *hdev)
 	hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
 	if (!hdev->debugfs)
 		return 0;
-
-	debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
-			    hdev, &inquiry_cache_fops);
 
 	debugfs_create_file("blacklist", 0444, hdev->debugfs,
 			    hdev, &blacklist_fops);
