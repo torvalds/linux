@@ -105,7 +105,7 @@ TODO:
 
 struct pci1723_private {
 	unsigned char da_range[8];	/* D/A output range for each channel */
-	short ao_data[8];	/* data output buffer */
+	unsigned short ao_data[8];	/* data output buffer */
 };
 
 /*
