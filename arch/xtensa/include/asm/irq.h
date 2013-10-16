@@ -45,6 +45,7 @@ static __inline__ int irq_canonicalize(int irq)
 struct irqaction;
 struct irq_domain;
 
+void migrate_irqs(void);
 int xtensa_irq_domain_xlate(const u32 *intspec, unsigned int intsize,
 		unsigned long int_irq, unsigned long ext_irq,
 		unsigned long *out_hwirq, unsigned int *out_type);

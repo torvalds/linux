@@ -140,6 +140,15 @@ config NR_CPUS
 	range 2 32
 	default "4"
 
+config HOTPLUG_CPU
+	bool "Enable CPU hotplug support"
+	depends on SMP
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+
+	  Say N if you want to disable CPU hotplug.
+
 config MATH_EMULATION
 	bool "Math emulation"
 	help

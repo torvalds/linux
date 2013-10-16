@@ -103,7 +103,7 @@ _SetupMMU:
 
 ENDPROC(_start)
 
-	__INIT
+	__REF
 	.literal_position
 
 ENTRY(_startup)
@@ -301,6 +301,55 @@ should_never_return:
 #endif  /* CONFIG_SMP */
 
 ENDPROC(_startup)
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+ENTRY(cpu_restart)
+
+#if XCHAL_DCACHE_IS_WRITEBACK
+	___flush_invalidate_dcache_all a2 a3
+#else
+	___invalidate_dcache_all a2 a3
+#endif
+	memw
+	movi	a2, CCON	# MX External Register to Configure Cache
+	movi	a3, 0
+	wer	a3, a2
+	extw
+
+	rsr	a0, prid
+	neg	a2, a0
+	movi	a3, cpu_start_id
+	s32i	a2, a3, 0
+#if XCHAL_DCACHE_IS_WRITEBACK
+	dhwbi	a3, 0
+#endif
+1:
+	l32i	a2, a3, 0
+	dhi	a3, 0
+	bne	a2, a0, 1b
+
+	/*
+	 * Initialize WB, WS, and clear PS.EXCM (to allow loop instructions).
+	 * Set Interrupt Level just below XCHAL_DEBUGLEVEL to allow
+	 * xt-gdb to single step via DEBUG exceptions received directly
+	 * by ocd.
+	 */
+	movi	a1, 1
+	movi	a0, 0
+	wsr	a1, windowstart
+	wsr	a0, windowbase
+	rsync
+
+	movi	a1, LOCKLEVEL
+	wsr	a1, ps
+	rsync
+
+	j	_startup
+
+ENDPROC(cpu_restart)
+
+#endif  /* CONFIG_HOTPLUG_CPU */
 
 /*
  * DATA section

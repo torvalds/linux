@@ -29,6 +29,15 @@ void ipi_init(void);
 struct seq_file;
 void show_ipi_list(struct seq_file *p, int prec);
 
+#ifdef CONFIG_HOTPLUG_CPU
+
+void __cpu_die(unsigned int cpu);
+int __cpu_disable(void);
+void cpu_die(void);
+void cpu_restart(void);
+
+#endif /* CONFIG_HOTPLUG_CPU */
+
 #endif /* CONFIG_SMP */
 
 #endif	/* _XTENSA_SMP_H */

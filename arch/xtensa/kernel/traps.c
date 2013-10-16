@@ -332,7 +332,7 @@ void * __init trap_set_handler(int cause, void *handler)
 }
 
 
-static void __init trap_init_excsave(void)
+static void trap_init_excsave(void)
 {
 	unsigned long excsave1 = (unsigned long)this_cpu_ptr(exc_table);
 	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (excsave1));
@@ -384,7 +384,7 @@ void __init trap_init(void)
 }
 
 #ifdef CONFIG_SMP
-void __init secondary_trap_init(void)
+void secondary_trap_init(void)
 {
 	trap_init_excsave();
 }

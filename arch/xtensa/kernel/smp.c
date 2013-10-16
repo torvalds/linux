@@ -40,6 +40,11 @@
 # endif
 #endif
 
+static void system_invalidate_dcache_range(unsigned long start,
+		unsigned long size);
+static void system_flush_invalidate_dcache_range(unsigned long start,
+		unsigned long size);
+
 /* IPI (Inter Process Interrupt) */
 
 #define IPI_IRQ	0
@@ -106,7 +111,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 static int boot_secondary_processors = 1; /* Set with xt-gdb via .xt-gdb */
 static DECLARE_COMPLETION(cpu_running);
 
-void __init secondary_start_kernel(void)
+void secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
@@ -174,6 +179,9 @@ static void mx_cpu_stop(void *p)
 			__func__, cpu, run_stall_mask, get_er(MPSCORE));
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+unsigned long cpu_start_id __cacheline_aligned;
+#endif
 unsigned long cpu_start_ccount;
 
 static int boot_secondary(unsigned int cpu, struct task_struct *ts)
@@ -182,6 +190,11 @@ static int boot_secondary(unsigned int cpu, struct task_struct *ts)
 	unsigned long ccount;
 	int i;
 
+#ifdef CONFIG_HOTPLUG_CPU
+	cpu_start_id = cpu;
+	system_flush_invalidate_dcache_range(
+			(unsigned long)&cpu_start_id, sizeof(cpu_start_id));
+#endif
 	smp_call_function_single(0, mx_cpu_start, (void *)cpu, 1);
 
 	for (i = 0; i < 2; ++i) {
@@ -233,6 +246,85 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 
 	return ret;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * __cpu_disable runs on the processor to be shutdown.
+ */
+int __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	/*
+	 * Take this CPU offline.  Once we clear this, we can't return,
+	 * and we must not schedule until we're ready to give up the cpu.
+	 */
+	set_cpu_online(cpu, false);
+
+	/*
+	 * OK - migrate IRQs away from this CPU
+	 */
+	migrate_irqs();
+
+	/*
+	 * Flush user cache and TLB mappings, and then remove this CPU
+	 * from the vm mask set of all processes.
+	 */
+	local_flush_cache_all();
+	local_flush_tlb_all();
+	invalidate_page_directory();
+
+	clear_tasks_mm_cpumask(cpu);
+
+	return 0;
+}
+
+static void platform_cpu_kill(unsigned int cpu)
+{
+	smp_call_function_single(0, mx_cpu_stop, (void *)cpu, true);
+}
+
+/*
+ * called on the thread which is asking for a CPU to be shutdown -
+ * waits until shutdown has completed, or it is timed out.
+ */
+void __cpu_die(unsigned int cpu)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	while (time_before(jiffies, timeout)) {
+		system_invalidate_dcache_range((unsigned long)&cpu_start_id,
+				sizeof(cpu_start_id));
+		if (cpu_start_id == -cpu) {
+			platform_cpu_kill(cpu);
+			return;
+		}
+	}
+	pr_err("CPU%u: unable to kill\n", cpu);
+}
+
+void arch_cpu_idle_dead(void)
+{
+	cpu_die();
+}
+/*
+ * Called from the idle thread for the CPU which has been shutdown.
+ *
+ * Note that we disable IRQs here, but do not re-enable them
+ * before returning to the caller. This is also the behaviour
+ * of the other hotplug-cpu capable cores, so presumably coming
+ * out of idle fixes this.
+ */
+void __ref cpu_die(void)
+{
+	idle_task_exit();
+	local_irq_disable();
+	__asm__ __volatile__(
+			"	movi	a2, cpu_restart\n"
+			"	jx	a2\n");
+}
+
+#endif /* CONFIG_HOTPLUG_CPU */
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE = 0,
@@ -462,4 +554,38 @@ void flush_icache_range(unsigned long start, unsigned long end)
 		.addr2 = end,
 	};
 	on_each_cpu(ipi_flush_icache_range, &fd, 1);
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void ipi_invalidate_dcache_range(void *arg)
+{
+	struct flush_data *fd = arg;
+	__invalidate_dcache_range(fd->addr1, fd->addr2);
+}
+
+static void system_invalidate_dcache_range(unsigned long start,
+		unsigned long size)
+{
+	struct flush_data fd = {
+		.addr1 = start,
+		.addr2 = size,
+	};
+	on_each_cpu(ipi_invalidate_dcache_range, &fd, 1);
+}
+
+static void ipi_flush_invalidate_dcache_range(void *arg)
+{
+	struct flush_data *fd = arg;
+	__flush_invalidate_dcache_range(fd->addr1, fd->addr2);
+}
+
+static void system_flush_invalidate_dcache_range(unsigned long start,
+		unsigned long size)
+{
+	struct flush_data fd = {
+		.addr1 = start,
+		.addr2 = size,
+	};
+	on_each_cpu(ipi_flush_invalidate_dcache_range, &fd, 1);
 }
