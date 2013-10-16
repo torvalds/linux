@@ -26,6 +26,7 @@
 #include "generic.h"
 #include "clock.h"
 #include "sam9_smc.h"
+#include "pm.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -321,6 +322,7 @@ static void __init at91sam9263_ioremap_registers(void)
 	at91sam9_ioremap_smc(0, AT91SAM9263_BASE_SMC0);
 	at91sam9_ioremap_smc(1, AT91SAM9263_BASE_SMC1);
 	at91_ioremap_matrix(AT91SAM9263_BASE_MATRIX);
+	at91_pm_set_standby(at91sam9_sdram_standby);
 }
 
 static void __init at91sam9263_initialize(void)

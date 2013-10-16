@@ -37,3 +37,10 @@ config ARM_U8500_CPUIDLE
 	depends on ARCH_U8500
 	help
 	  Select this to enable cpuidle for ST-E u8500 processors
+
+config ARM_AT91_CPUIDLE
+	bool "Cpu Idle Driver for the AT91 processors"
+	default y
+	depends on ARCH_AT91
+	help
+	  Select this to enable cpuidle for AT91 processors
