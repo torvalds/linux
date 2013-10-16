@@ -3188,7 +3188,8 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 
 		if (hdev->auto_accept_delay > 0) {
 			int delay = msecs_to_jiffies(hdev->auto_accept_delay);
-			mod_timer(&conn->auto_accept_timer, jiffies + delay);
+			queue_delayed_work(conn->hdev->workqueue,
+					   &conn->auto_accept_work, delay);
 			goto unlock;
 		}
 

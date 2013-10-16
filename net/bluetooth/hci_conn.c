@@ -361,12 +361,12 @@ static void hci_conn_idle(unsigned long arg)
 	hci_conn_enter_sniff_mode(conn);
 }
 
-static void hci_conn_auto_accept(unsigned long arg)
+static void hci_conn_auto_accept(struct work_struct *work)
 {
-	struct hci_conn *conn = (void *) arg;
-	struct hci_dev *hdev = conn->hdev;
+	struct hci_conn *conn = container_of(work, struct hci_conn,
+					     auto_accept_work.work);
 
-	hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_REPLY, sizeof(conn->dst),
+	hci_send_cmd(conn->hdev, HCI_OP_USER_CONFIRM_REPLY, sizeof(conn->dst),
 		     &conn->dst);
 }
 
@@ -415,9 +415,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	INIT_LIST_HEAD(&conn->chan_list);
 
 	INIT_DELAYED_WORK(&conn->disc_work, hci_conn_timeout);
+	INIT_DELAYED_WORK(&conn->auto_accept_work, hci_conn_auto_accept);
 	setup_timer(&conn->idle_timer, hci_conn_idle, (unsigned long)conn);
-	setup_timer(&conn->auto_accept_timer, hci_conn_auto_accept,
-		    (unsigned long) conn);
 
 	atomic_set(&conn->refcnt, 0);
 
@@ -441,8 +440,7 @@ int hci_conn_del(struct hci_conn *conn)
 	del_timer(&conn->idle_timer);
 
 	cancel_delayed_work_sync(&conn->disc_work);
-
-	del_timer(&conn->auto_accept_timer);
+	cancel_delayed_work_sync(&conn->auto_accept_work);
 
 	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;

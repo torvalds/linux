@@ -341,8 +341,8 @@ struct hci_conn {
 	struct list_head chan_list;
 
 	struct delayed_work disc_work;
+	struct delayed_work auto_accept_work;
 	struct timer_list idle_timer;
-	struct timer_list auto_accept_timer;
 
 	struct device	dev;
 
