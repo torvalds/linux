@@ -577,15 +577,40 @@ static int connect_rings(struct backend_info *be)
 		val = 0;
 	vif->can_sg = !!val;
 
+	vif->gso_mask = 0;
+	vif->gso_prefix_mask = 0;
+
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4",
 			 "%d", &val) < 0)
 		val = 0;
-	vif->gso = !!val;
+	if (val)
+		vif->gso_mask |= GSO_BIT(TCPV4);
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4-prefix",
 			 "%d", &val) < 0)
 		val = 0;
-	vif->gso_prefix = !!val;
+	if (val)
+		vif->gso_prefix_mask |= GSO_BIT(TCPV4);
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6",
+			 "%d", &val) < 0)
+		val = 0;
+	if (val)
+		vif->gso_mask |= GSO_BIT(TCPV6);
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6-prefix",
+			 "%d", &val) < 0)
+		val = 0;
+	if (val)
+		vif->gso_prefix_mask |= GSO_BIT(TCPV6);
+
+	if (vif->gso_mask & vif->gso_prefix_mask) {
+		xenbus_dev_fatal(dev, err,
+				 "%s: gso and gso prefix flags are not "
+				 "mutually exclusive",
+				 dev->otherend);
+		return -EOPNOTSUPP;
+	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-no-csum-offload",
 			 "%d", &val) < 0)

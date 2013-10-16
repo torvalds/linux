@@ -110,6 +110,7 @@ struct xen_netif_tx_request {
 #define  XEN_NETIF_EXTRA_FLAG_MORE	(1U<<_XEN_NETIF_EXTRA_FLAG_MORE)
 
 /* GSO types */
+#define XEN_NETIF_GSO_TYPE_NONE		(0)
 #define XEN_NETIF_GSO_TYPE_TCPV4	(1)
 #define XEN_NETIF_GSO_TYPE_TCPV6	(2)
 
