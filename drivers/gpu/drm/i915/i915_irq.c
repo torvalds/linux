@@ -1190,7 +1190,10 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 }
 
 #if defined(CONFIG_DEBUG_FS)
-static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+static void display_pipe_crc_update(struct drm_device *dev, enum pipe pipe,
+				    uint32_t crc0, uint32_t crc1,
+				    uint32_t crc2, uint32_t crc3,
+				    uint32_t crc4, uint32_t frame)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
@@ -1212,17 +1215,30 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 
 	entry = &pipe_crc->entries[head];
 
-	entry->frame = I915_READ(PIPEFRAME(pipe));
-	entry->crc[0] = I915_READ(PIPE_CRC_RES_1_IVB(pipe));
-	entry->crc[1] = I915_READ(PIPE_CRC_RES_2_IVB(pipe));
-	entry->crc[2] = I915_READ(PIPE_CRC_RES_3_IVB(pipe));
-	entry->crc[3] = I915_READ(PIPE_CRC_RES_4_IVB(pipe));
-	entry->crc[4] = I915_READ(PIPE_CRC_RES_5_IVB(pipe));
+	entry->frame = frame;
+	entry->crc[0] = crc0;
+	entry->crc[1] = crc1;
+	entry->crc[2] = crc2;
+	entry->crc[3] = crc3;
+	entry->crc[4] = crc4;
 
 	head = (head + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
 	atomic_set(&pipe_crc->head, head);
 
 	wake_up_interruptible(&pipe_crc->wq);
+}
+
+static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	display_pipe_crc_update(dev, pipe,
+				I915_READ(PIPE_CRC_RES_1_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_2_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_3_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_4_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_5_IVB(pipe)),
+				I915_READ(PIPEFRAME(pipe)));
 }
 #else
 static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
