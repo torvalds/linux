@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
