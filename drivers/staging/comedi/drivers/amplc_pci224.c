@@ -373,7 +373,7 @@ struct pci224_private {
 	unsigned long state;
 	spinlock_t ao_spinlock;
 	unsigned int *ao_readback;
-	short *ao_scan_vals;
+	unsigned short *ao_scan_vals;
 	unsigned char *ao_scan_order;
 	int intr_cpuid;
 	short intr_running;
@@ -1112,7 +1112,7 @@ pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct pci224_board *thisboard = comedi_board(dev);
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	short *array = data;
+	unsigned short *array = data;
 	unsigned int length = num_bytes / sizeof(*array);
 	unsigned int offset;
 	unsigned int shift;
