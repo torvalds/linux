@@ -536,7 +536,7 @@ static u8 *create_uuid128_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 	return ptr;
 }
 
-static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
+static u8 create_adv_data(struct hci_dev *hdev, u8 *ptr)
 {
 	u8 ad_len = 0, flags = 0;
 	size_t name_len;
@@ -605,7 +605,7 @@ static void update_ad(struct hci_request *req)
 
 	memset(&cp, 0, sizeof(cp));
 
-	len = create_ad(hdev, cp.data);
+	len = create_adv_data(hdev, cp.data);
 
 	if (hdev->adv_data_len == len &&
 	    memcmp(cp.data, hdev->adv_data, len) == 0)
