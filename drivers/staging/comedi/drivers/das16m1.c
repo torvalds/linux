@@ -131,18 +131,18 @@ struct das16m1_private_struct {
 	 * needed to keep track of whether new count has been loaded into
 	 * counter yet (loaded by first sample conversion) */
 	u16 initial_hw_count;
-	short ai_buffer[FIFO_SIZE];
+	unsigned short ai_buffer[FIFO_SIZE];
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
 	unsigned long extra_iobase;
 };
 
-static inline short munge_sample(short data)
+static inline unsigned short munge_sample(unsigned short data)
 {
 	return (data >> 4) & 0xfff;
 }
 
-static void munge_sample_array(short *array, unsigned int num_elements)
+static void munge_sample_array(unsigned short *array, unsigned int num_elements)
 {
 	unsigned int i;
 
