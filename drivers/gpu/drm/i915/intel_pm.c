@@ -5517,6 +5517,23 @@ void intel_suspend_hw(struct drm_device *dev)
 		lpt_suspend_hw(dev);
 }
 
+static bool is_always_on_power_domain(struct drm_device *dev,
+				      enum intel_display_power_domain domain)
+{
+	unsigned long always_on_domains;
+
+	BUG_ON(BIT(domain) & ~POWER_DOMAIN_MASK);
+
+	if (IS_HASWELL(dev)) {
+		always_on_domains = HSW_ALWAYS_ON_POWER_DOMAINS;
+	} else {
+		WARN_ON(1);
+		return true;
+	}
+
+	return BIT(domain) & always_on_domains;
+}
+
 /**
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
@@ -5530,24 +5547,11 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	if (!HAS_POWER_WELL(dev))
 		return true;
 
-	switch (domain) {
-	case POWER_DOMAIN_PIPE_A:
-	case POWER_DOMAIN_TRANSCODER_EDP:
+	if (is_always_on_power_domain(dev, domain))
 		return true;
-	case POWER_DOMAIN_VGA:
-	case POWER_DOMAIN_PIPE_B:
-	case POWER_DOMAIN_PIPE_C:
-	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
-	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
-	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
-	case POWER_DOMAIN_TRANSCODER_A:
-	case POWER_DOMAIN_TRANSCODER_B:
-	case POWER_DOMAIN_TRANSCODER_C:
-		return I915_READ(HSW_PWR_WELL_DRIVER) ==
+
+	return I915_READ(HSW_PWR_WELL_DRIVER) ==
 		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
-	default:
-		BUG();
-	}
 }
 
 static void __intel_set_power_well(struct drm_device *dev, bool enable)
@@ -5619,26 +5623,12 @@ void intel_display_power_get(struct drm_device *dev,
 	if (!HAS_POWER_WELL(dev))
 		return;
 
-	switch (domain) {
-	case POWER_DOMAIN_PIPE_A:
-	case POWER_DOMAIN_TRANSCODER_EDP:
+	if (is_always_on_power_domain(dev, domain))
 		return;
-	case POWER_DOMAIN_VGA:
-	case POWER_DOMAIN_PIPE_B:
-	case POWER_DOMAIN_PIPE_C:
-	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
-	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
-	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
-	case POWER_DOMAIN_TRANSCODER_A:
-	case POWER_DOMAIN_TRANSCODER_B:
-	case POWER_DOMAIN_TRANSCODER_C:
-		spin_lock_irq(&power_well->lock);
-		__intel_power_well_get(power_well);
-		spin_unlock_irq(&power_well->lock);
-		return;
-	default:
-		BUG();
-	}
+
+	spin_lock_irq(&power_well->lock);
+	__intel_power_well_get(power_well);
+	spin_unlock_irq(&power_well->lock);
 }
 
 void intel_display_power_put(struct drm_device *dev,
@@ -5650,26 +5640,12 @@ void intel_display_power_put(struct drm_device *dev,
 	if (!HAS_POWER_WELL(dev))
 		return;
 
-	switch (domain) {
-	case POWER_DOMAIN_PIPE_A:
-	case POWER_DOMAIN_TRANSCODER_EDP:
+	if (is_always_on_power_domain(dev, domain))
 		return;
-	case POWER_DOMAIN_VGA:
-	case POWER_DOMAIN_PIPE_B:
-	case POWER_DOMAIN_PIPE_C:
-	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
-	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
-	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
-	case POWER_DOMAIN_TRANSCODER_A:
-	case POWER_DOMAIN_TRANSCODER_B:
-	case POWER_DOMAIN_TRANSCODER_C:
-		spin_lock_irq(&power_well->lock);
-		__intel_power_well_put(power_well);
-		spin_unlock_irq(&power_well->lock);
-		return;
-	default:
-		BUG();
-	}
+
+	spin_lock_irq(&power_well->lock);
+	__intel_power_well_put(power_well);
+	spin_unlock_irq(&power_well->lock);
 }
 
 static struct i915_power_well *hsw_pwr;
