@@ -245,17 +245,82 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
  * Called from SCSI EH process context to issue a LUN_RESET TMR
  * to struct scsi_device
  */
-static int tcm_loop_device_reset(struct scsi_cmnd *sc)
+static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
+			      struct tcm_loop_nexus *tl_nexus,
+			      int lun, enum tcm_tmreq_table tmr)
 {
 	struct se_cmd *se_cmd = NULL;
-	struct se_portal_group *se_tpg;
 	struct se_session *se_sess;
+	struct se_portal_group *se_tpg;
 	struct tcm_loop_cmd *tl_cmd = NULL;
+	struct tcm_loop_tmr *tl_tmr = NULL;
+	int ret = TMR_FUNCTION_FAILED, rc;
+
+	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_KERNEL);
+	if (!tl_cmd) {
+		pr_err("Unable to allocate memory for tl_cmd\n");
+		return ret;
+	}
+
+	tl_tmr = kzalloc(sizeof(struct tcm_loop_tmr), GFP_KERNEL);
+	if (!tl_tmr) {
+		pr_err("Unable to allocate memory for tl_tmr\n");
+		goto release;
+	}
+	init_waitqueue_head(&tl_tmr->tl_tmr_wait);
+
+	se_cmd = &tl_cmd->tl_se_cmd;
+	se_tpg = &tl_tpg->tl_se_tpg;
+	se_sess = tl_nexus->se_sess;
+	/*
+	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
+	 */
+	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
+				DMA_NONE, MSG_SIMPLE_TAG,
+				&tl_cmd->tl_sense_buf[0]);
+
+	rc = core_tmr_alloc_req(se_cmd, tl_tmr, tmr, GFP_KERNEL);
+	if (rc < 0)
+		goto release;
+
+	/*
+	 * Locate the underlying TCM struct se_lun
+	 */
+	if (transport_lookup_tmr_lun(se_cmd, lun) < 0) {
+		ret = TMR_LUN_DOES_NOT_EXIST;
+		goto release;
+	}
+	/*
+	 * Queue the TMR to TCM Core and sleep waiting for
+	 * tcm_loop_queue_tm_rsp() to wake us up.
+	 */
+	transport_generic_handle_tmr(se_cmd);
+	wait_event(tl_tmr->tl_tmr_wait, atomic_read(&tl_tmr->tmr_complete));
+	/*
+	 * The TMR LUN_RESET has completed, check the response status and
+	 * then release allocations.
+	 */
+	ret = se_cmd->se_tmr_req->response;
+release:
+	if (se_cmd)
+		transport_generic_free_cmd(se_cmd, 1);
+	else
+		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
+	kfree(tl_tmr);
+	return ret;
+}
+
+/*
+ * Called from SCSI EH process context to issue a LUN_RESET TMR
+ * to struct scsi_device
+ */
+static int tcm_loop_device_reset(struct scsi_cmnd *sc)
+{
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_nexus *tl_nexus;
-	struct tcm_loop_tmr *tl_tmr = NULL;
 	struct tcm_loop_tpg *tl_tpg;
-	int ret = FAILED, rc;
+	int ret = FAILED;
+
 	/*
 	 * Locate the tcm_loop_hba_t pointer
 	 */
@@ -269,61 +334,13 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 				" active I_T Nexus\n");
 		return FAILED;
 	}
-	se_sess = tl_nexus->se_sess;
 	/*
-	 * Locate the tl_tpg and se_tpg pointers from TargetID in sc->device->id
+	 * Locate the tl_tpg pointer from TargetID in sc->device->id
 	 */
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
-	se_tpg = &tl_tpg->tl_se_tpg;
-
-	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_KERNEL);
-	if (!tl_cmd) {
-		pr_err("Unable to allocate memory for tl_cmd\n");
-		return FAILED;
-	}
-
-	tl_tmr = kzalloc(sizeof(struct tcm_loop_tmr), GFP_KERNEL);
-	if (!tl_tmr) {
-		pr_err("Unable to allocate memory for tl_tmr\n");
-		goto release;
-	}
-	init_waitqueue_head(&tl_tmr->tl_tmr_wait);
-
-	se_cmd = &tl_cmd->tl_se_cmd;
-	/*
-	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
-	 */
-	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
-				DMA_NONE, MSG_SIMPLE_TAG,
-				&tl_cmd->tl_sense_buf[0]);
-
-	rc = core_tmr_alloc_req(se_cmd, tl_tmr, TMR_LUN_RESET, GFP_KERNEL);
-	if (rc < 0)
-		goto release;
-	/*
-	 * Locate the underlying TCM struct se_lun from sc->device->lun
-	 */
-	if (transport_lookup_tmr_lun(se_cmd, sc->device->lun) < 0)
-		goto release;
-	/*
-	 * Queue the TMR to TCM Core and sleep waiting for tcm_loop_queue_tm_rsp()
-	 * to wake us up.
-	 */
-	transport_generic_handle_tmr(se_cmd);
-	wait_event(tl_tmr->tl_tmr_wait, atomic_read(&tl_tmr->tmr_complete));
-	/*
-	 * The TMR LUN_RESET has completed, check the response status and
-	 * then release allocations.
-	 */
-	ret = (se_cmd->se_tmr_req->response == TMR_FUNCTION_COMPLETE) ?
-		SUCCESS : FAILED;
-release:
-	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 1);
-	else
-		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
-	kfree(tl_tmr);
-	return ret;
+	ret = tcm_loop_issue_tmr(tl_tpg, tl_nexus,
+				 sc->device->lun, TMR_LUN_RESET);
+	return (ret == TMR_FUNCTION_COMPLETE) ? SUCCESS : FAILED;
 }
 
 static int tcm_loop_slave_alloc(struct scsi_device *sd)

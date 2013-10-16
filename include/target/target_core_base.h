@@ -227,6 +227,7 @@ enum tcm_tmreq_table {
 
 /* fabric independent task management response values */
 enum tcm_tmrsp_table {
+	TMR_FUNCTION_FAILED		= 0,
 	TMR_FUNCTION_COMPLETE		= 1,
 	TMR_TASK_DOES_NOT_EXIST		= 2,
 	TMR_LUN_DOES_NOT_EXIST		= 3,
