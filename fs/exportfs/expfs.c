@@ -112,14 +112,10 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 	while (target_dir->d_flags & DCACHE_DISCONNECTED && noprogress++ < 10) {
 		struct dentry *pd = find_disconnected_root(target_dir);
 
+		BUG_ON(pd == mnt->mnt_sb->s_root);
+
 		if (!IS_ROOT(pd)) {
 			/* must have found a connected parent - great */
-			spin_lock(&pd->d_lock);
-			pd->d_flags &= ~DCACHE_DISCONNECTED;
-			spin_unlock(&pd->d_lock);
-			noprogress = 0;
-		} else if (pd == mnt->mnt_sb->s_root) {
-			printk(KERN_ERR "export: Eeek filesystem root is not connected, impossible\n");
 			spin_lock(&pd->d_lock);
 			pd->d_flags &= ~DCACHE_DISCONNECTED;
 			spin_unlock(&pd->d_lock);
