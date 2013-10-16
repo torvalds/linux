@@ -1838,8 +1838,13 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	pm_runtime_get_sync(musb->controller);
 
-	if (use_dma && dev->dma_mask)
+	if (use_dma && dev->dma_mask) {
 		musb->dma_controller = dma_controller_create(musb, musb->mregs);
+		if (IS_ERR(musb->dma_controller)) {
+			status = PTR_ERR(musb->dma_controller);
+			goto fail2_5;
+		}
+	}
 
 	/* be sure interrupts are disabled before connecting ISR */
 	musb_platform_disable(musb);
@@ -1932,6 +1937,7 @@ fail4:
 fail3:
 	if (musb->dma_controller)
 		dma_controller_destroy(musb->dma_controller);
+fail2_5:
 	pm_runtime_put_sync(musb->controller);
 
 fail2:
