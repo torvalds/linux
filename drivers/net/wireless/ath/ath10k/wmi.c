@@ -613,6 +613,8 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 {
 	int ret = -EOPNOTSUPP;
 
+	might_sleep();
+
 	if (cmd_id == WMI_CMD_UNSUPPORTED) {
 		ath10k_warn("wmi command %d is not supported by firmware\n",
 			    cmd_id);
