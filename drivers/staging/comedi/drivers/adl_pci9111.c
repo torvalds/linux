@@ -151,7 +151,7 @@ struct pci9111_private_data {
 	unsigned int div1;
 	unsigned int div2;
 
-	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
+	unsigned short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 };
 
 static void plx9050_interrupt_control(unsigned long io_base,
@@ -567,7 +567,7 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 			     unsigned int num_bytes,
 			     unsigned int start_chan_index)
 {
-	short *array = data;
+	unsigned short *array = data;
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
