@@ -321,7 +321,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	dev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO;
-	dev->features = dev->hw_features;
+	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	SET_ETHTOOL_OPS(dev, &xenvif_ethtool_ops);
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
