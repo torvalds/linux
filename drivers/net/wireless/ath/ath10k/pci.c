@@ -2454,8 +2454,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		return ret;
 	}
 
-	chip_id = ath10k_pci_read32(ar,
-				    RTC_SOC_BASE_ADDRESS + SOC_CHIP_ID_ADDRESS);
+	chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 
 	ath10k_do_pci_sleep(ar);
 
