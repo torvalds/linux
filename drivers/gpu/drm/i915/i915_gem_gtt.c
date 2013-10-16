@@ -58,9 +58,10 @@
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
 
 static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
@@ -79,9 +80,10 @@ static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 }
 
 static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
@@ -105,9 +107,10 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 #define BYT_PTE_SNOOPED_BY_CPU_CACHES	(1 << 2)
 
 static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	/* Mark the page as writeable.  Other platforms don't have a
@@ -122,9 +125,10 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 }
 
 static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
-				     enum i915_cache_level level)
+				     enum i915_cache_level level,
+				     bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	if (level != I915_CACHE_NONE)
@@ -134,9 +138,10 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 }
 
 static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
-				      enum i915_cache_level level)
+				      enum i915_cache_level level,
+				      bool valid)
 {
-	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
@@ -245,7 +250,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
 
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
@@ -282,7 +287,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		dma_addr_t page_addr;
 
 		page_addr = sg_page_iter_dma_address(&sg_iter);
-		pt_vaddr[act_pte] = vm->pte_encode(page_addr, cache_level);
+		pt_vaddr[act_pte] = vm->pte_encode(page_addr, cache_level, true);
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
 			act_pt++;
@@ -536,7 +541,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_page_iter_dma_address(&sg_iter);
-		iowrite32(vm->pte_encode(addr, level), &gtt_entries[i]);
+		iowrite32(vm->pte_encode(addr, level, true), &gtt_entries[i]);
 		i++;
 	}
 
@@ -548,7 +553,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	if (i != 0)
 		WARN_ON(readl(&gtt_entries[i-1]) !=
-			vm->pte_encode(addr, level));
+			vm->pte_encode(addr, level, true));
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
@@ -573,7 +578,7 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC);
+	scratch_pte = vm->pte_encode(vm->scratch.addr, I915_CACHE_LLC, true);
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);

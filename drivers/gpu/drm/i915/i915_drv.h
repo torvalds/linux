@@ -497,7 +497,8 @@ struct i915_address_space {
 
 	/* FIXME: Need a more generic return type */
 	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level);
+				     enum i915_cache_level level,
+				     bool valid); /* Create a valid PTE */
 	void (*clear_range)(struct i915_address_space *vm,
 			    unsigned int first_entry,
 			    unsigned int num_entries);
