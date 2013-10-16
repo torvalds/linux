@@ -563,7 +563,7 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 			/* Fake a 31 bit psw mask. */
 			tmp = (__u32)(regs->psw.mask >> 32);
 			tmp &= PSW32_MASK_USER | PSW32_MASK_RI;
-			tmp |= psw32_user_bits;
+			tmp |= PSW32_USER_BITS;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
 			tmp = (__u32) regs->psw.addr |
@@ -664,7 +664,7 @@ static int __poke_user_compat(struct task_struct *child,
 
 			mask |= is_ri_task(child) ? PSW32_MASK_RI : 0;
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if ((tmp & ~mask) != psw32_user_bits)
+			if ((tmp & ~mask) != PSW32_USER_BITS)
 				/* Invalid psw mask. */
 				return -EINVAL;
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |

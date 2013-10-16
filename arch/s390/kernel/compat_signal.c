@@ -158,7 +158,7 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 
 	user_sregs.regs.psw.mask = (__u32)(regs->psw.mask >> 32);
 	user_sregs.regs.psw.mask &= PSW32_MASK_USER | PSW32_MASK_RI;
-	user_sregs.regs.psw.mask |= psw32_user_bits;
+	user_sregs.regs.psw.mask |= PSW32_USER_BITS;
 	user_sregs.regs.psw.addr = (__u32) regs->psw.addr |
 		(__u32)(regs->psw.mask & PSW_MASK_BA);
 	for (i = 0; i < NUM_GPRS; i++)
