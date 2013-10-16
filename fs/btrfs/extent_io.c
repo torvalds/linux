@@ -13,7 +13,6 @@
 #include <linux/cleancache.h>
 #include "extent_io.h"
 #include "extent_map.h"
-#include "compat.h"
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "volumes.h"

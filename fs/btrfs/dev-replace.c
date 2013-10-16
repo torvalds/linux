@@ -26,7 +26,6 @@
 #include <linux/kthread.h>
 #include <linux/math64.h>
 #include <asm/div64.h>
-#include "compat.h"
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"

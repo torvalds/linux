@@ -39,7 +39,6 @@
 #include "print-tree.h"
 #include "tree-log.h"
 #include "locking.h"
-#include "compat.h"
 #include "volumes.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;

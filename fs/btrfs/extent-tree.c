@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 #include <linux/percpu_counter.h>
-#include "compat.h"
 #include "hash.h"
 #include "ctree.h"
 #include "disk-io.h"
