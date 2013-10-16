@@ -391,6 +391,7 @@ static void sdh_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		/* Disable 4 bit SDIO */
 		cfg &= ~SD4E;
 	}
+	bfin_write_SDH_CFG(cfg);
 
 	host->power_mode = ios->power_mode;
 #ifndef RSI_BLKSZ
@@ -415,7 +416,6 @@ static void sdh_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		cfg &= ~SD_CMD_OD;
 # endif
 
-
 	if (ios->power_mode != MMC_POWER_OFF)
 		cfg |= PWR_ON;
 	else
@@ -433,7 +433,6 @@ static void sdh_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		clk_ctl |= CLK_E;
 		host->clk_div = clk_div;
 		bfin_write_SDH_CLK_CTL(clk_ctl);
-
 	} else
 		sdh_stop_clock(host);
 
