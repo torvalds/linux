@@ -2627,7 +2627,7 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	}
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS)
+	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, stedma40_residue(chan));
 
 	if (d40_is_paused(d40c))
