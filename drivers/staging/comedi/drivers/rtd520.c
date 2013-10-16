@@ -602,7 +602,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
-		s16 d;
+		unsigned short d;
 		/* trigger conversion */
 		writew(0, devpriv->las0 + LAS0_ADC);
 
@@ -621,9 +621,8 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar, 0))
 			/* convert to comedi unsigned data */
-			data[n] = d + 2048;
-		else
-			data[n] = d;
+			d = comedi_offset_munge(s, d);
+		data[n] = d & s->maxdata;
 	}
 
 	/* return the number of samples read/written */
@@ -643,8 +642,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 	int ii;
 
 	for (ii = 0; ii < count; ii++) {
-		short sample;
-		s16 d;
+		unsigned short d;
 
 		if (0 == devpriv->ai_count) {	/* done */
 			d = readw(devpriv->las1 + LAS1_ADC_FIFO);
@@ -654,13 +652,12 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
-				    s->async->cur_chan)) {
+				    s->async->cur_chan))
 			/* convert to comedi unsigned data */
-			sample = d + 2048;
-		} else
-			sample = d;
+			d = comedi_offset_munge(s, d);
+		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, sample))
+		if (!comedi_buf_put(s->async, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
@@ -677,8 +674,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct rtd_private *devpriv = dev->private;
 
 	while (readl(devpriv->las0 + LAS0_ADC) & FS_ADC_NOT_EMPTY) {
-		short sample;
-		s16 d = readw(devpriv->las1 + LAS1_ADC_FIFO);
+		unsigned short d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
 		if (0 == devpriv->ai_count) {	/* done */
 			continue;	/* read rest */
@@ -686,13 +682,12 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		d = d >> 3;	/* low 3 bits are marker lines */
 		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
-				    s->async->cur_chan)) {
+				    s->async->cur_chan))
 			/* convert to comedi unsigned data */
-			sample = d + 2048;
-		} else
-			sample = d;
+			d = comedi_offset_munge(s, d);
+		d &= s->maxdata;
 
-		if (!comedi_buf_put(s->async, sample))
+		if (!comedi_buf_put(s->async, d))
 			return -1;
 
 		if (devpriv->ai_count > 0)	/* < 0, means read forever */
