@@ -143,8 +143,10 @@ static int nspire_keypad_open(struct input_dev *input)
 		return error;
 
 	error = nspire_keypad_chip_init(keypad);
-	if (error)
+	if (error) {
+		clk_disable_unprepare(keypad->clk);
 		return error;
+	}
 
 	return 0;
 }
