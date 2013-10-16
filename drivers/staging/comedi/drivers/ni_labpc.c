@@ -893,7 +893,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int labpc_drain_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	short data;
+	unsigned short data;
 	struct comedi_async *async = dev->read_subdev->async;
 	const int timeout = 10000;
 	unsigned int i;
