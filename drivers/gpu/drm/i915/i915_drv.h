@@ -2037,7 +2037,7 @@ int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
-int __must_check i915_gem_idle(struct drm_device *dev);
+int __must_check i915_gem_suspend(struct drm_device *dev);
 int __i915_add_request(struct intel_ring_buffer *ring,
 		       struct drm_file *file,
 		       struct drm_i915_gem_object *batch_obj,

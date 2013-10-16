@@ -487,9 +487,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		int error;
 
-		mutex_lock(&dev->struct_mutex);
-		error = i915_gem_idle(dev);
-		mutex_unlock(&dev->struct_mutex);
+		error = i915_gem_suspend(dev);
 		if (error) {
 			dev_err(&dev->pdev->dev,
 				"GEM idle failed, resume might fail\n");

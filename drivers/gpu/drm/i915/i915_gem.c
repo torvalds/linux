@@ -4265,17 +4265,18 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 }
 
 int
-i915_gem_idle(struct drm_device *dev)
+i915_gem_suspend(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&dev->struct_mutex);
 	if (dev_priv->ums.mm_suspended)
-		return 0;
+		goto err;
 
 	ret = i915_gpu_idle(dev);
 	if (ret)
-		return ret;
+		goto err;
 
 	i915_gem_retire_requests(dev);
 
@@ -4283,16 +4284,26 @@ i915_gem_idle(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_gem_evict_everything(dev);
 
-	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
-
 	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);
 
-	/* Cancel the retire work handler, which should be idle now. */
+	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
+	 * We need to replace this with a semaphore, or something.
+	 * And not confound ums.mm_suspended!
+	 */
+	dev_priv->ums.mm_suspended = !drm_core_check_feature(dev,
+							     DRIVER_MODESET);
+	mutex_unlock(&dev->struct_mutex);
+
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 	cancel_delayed_work_sync(&dev_priv->mm.idle_work);
 
 	return 0;
+
+err:
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice)
@@ -4545,26 +4556,12 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
 	drm_irq_uninstall(dev);
 
-	mutex_lock(&dev->struct_mutex);
-	ret =  i915_gem_idle(dev);
-
-	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
-	 * We need to replace this with a semaphore, or something.
-	 * And not confound ums.mm_suspended!
-	 */
-	if (ret != 0)
-		dev_priv->ums.mm_suspended = 1;
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	return i915_gem_suspend(dev);
 }
 
 void
@@ -4575,11 +4572,9 @@ i915_gem_lastclose(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_idle(dev);
+	ret = i915_gem_suspend(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static void
