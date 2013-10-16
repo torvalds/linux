@@ -5082,23 +5082,6 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 	}
 }
 
-static void move_pages(struct page *dst_page, struct page *src_page,
-		       unsigned long dst_off, unsigned long src_off,
-		       unsigned long len)
-{
-	char *dst_kaddr = page_address(dst_page);
-	if (dst_page == src_page) {
-		memmove(dst_kaddr + dst_off, dst_kaddr + src_off, len);
-	} else {
-		char *src_kaddr = page_address(src_page);
-		char *p = dst_kaddr + dst_off + len;
-		char *s = src_kaddr + src_off + len;
-
-		while (len--)
-			*--p = *--s;
-	}
-}
-
 static inline bool areas_overlap(unsigned long src, unsigned long dst, unsigned long len)
 {
 	unsigned long distance = (src > dst) ? src - dst : dst - src;
@@ -5209,7 +5192,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 
 		cur = min_t(unsigned long, len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);
-		move_pages(extent_buffer_page(dst, dst_i),
+		copy_pages(extent_buffer_page(dst, dst_i),
 			   extent_buffer_page(dst, src_i),
 			   dst_off_in_page - cur + 1,
 			   src_off_in_page - cur + 1, cur);
