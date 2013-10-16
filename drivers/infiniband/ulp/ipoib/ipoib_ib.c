@@ -749,10 +749,8 @@ int ipoib_ib_dev_down(struct net_device *dev, int flush)
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
 		mutex_lock(&pkey_mutex);
 		set_bit(IPOIB_PKEY_STOP, &priv->flags);
-		cancel_delayed_work(&priv->pkey_poll_task);
+		cancel_delayed_work_sync(&priv->pkey_poll_task);
 		mutex_unlock(&pkey_mutex);
-		if (flush)
-			flush_workqueue(ipoib_workqueue);
 	}
 
 	ipoib_mcast_stop_thread(dev, flush);
