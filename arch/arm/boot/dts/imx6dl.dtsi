@@ -88,3 +88,7 @@
 		crtcs = <&ipu1 0>, <&ipu1 1>;
 	};
 };
+
+&hdmi {
+	crtcs = <&ipu1 0>, <&ipu1 1>;
+}
