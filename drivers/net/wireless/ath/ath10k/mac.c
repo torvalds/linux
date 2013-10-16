@@ -2265,8 +2265,14 @@ static void ath10k_configure_filter(struct ieee80211_hw *hw,
 	*total_flags &= SUPPORTED_FILTERS;
 	ar->filter_flags = *total_flags;
 
+	/* Monitor must not be started if it wasn't created first.
+	 * Promiscuous mode may be started on a non-monitor interface - in
+	 * such case the monitor vdev is not created so starting the
+	 * monitor makes no sense. Since ath10k uses no special RX filters
+	 * (only BSS filter in STA mode) there's no need for any special
+	 * action here. */
 	if ((ar->filter_flags & FIF_PROMISC_IN_BSS) &&
-	    !ar->monitor_enabled) {
+	    !ar->monitor_enabled && ar->monitor_present) {
 		ath10k_dbg(ATH10K_DBG_MAC, "mac monitor %d start\n",
 			   ar->monitor_vdev_id);
 
@@ -2274,7 +2280,7 @@ static void ath10k_configure_filter(struct ieee80211_hw *hw,
 		if (ret)
 			ath10k_warn("Unable to start monitor mode\n");
 	} else if (!(ar->filter_flags & FIF_PROMISC_IN_BSS) &&
-		   ar->monitor_enabled) {
+		   ar->monitor_enabled && ar->monitor_present) {
 		ath10k_dbg(ATH10K_DBG_MAC, "mac monitor %d stop\n",
 			   ar->monitor_vdev_id);
 
