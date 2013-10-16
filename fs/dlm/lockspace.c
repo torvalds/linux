@@ -706,9 +706,7 @@ static int lkb_idr_is_local(int id, void *p, void *data)
 {
 	struct dlm_lkb *lkb = p;
 
-	if (!lkb->lkb_nodeid)
-		return 1;
-	return 0;
+	return lkb->lkb_nodeid == 0 && lkb->lkb_grmode != DLM_LOCK_IV;
 }
 
 static int lkb_idr_is_any(int id, void *p, void *data)
