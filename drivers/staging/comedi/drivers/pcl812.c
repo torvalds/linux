@@ -355,7 +355,6 @@ struct pcl812_private {
 	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	short *ai_data;		/*  data buffer */
 	unsigned int ai_is16b;	/*  =1 we have 16 bit card */
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
 	unsigned int dmapages[2];	/*  how many pages we have allocated */
@@ -661,7 +660,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ai_scans = cmd->stop_arg;
 		devpriv->ai_neverending = 0;
@@ -831,7 +829,8 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 ==============================================================================
 */
 static void transfer_from_dma_buf(struct comedi_device *dev,
-				  struct comedi_subdevice *s, short *ptr,
+				  struct comedi_subdevice *s,
+				  unsigned short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
 	struct pcl812_private *devpriv = dev->private;
@@ -869,9 +868,9 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long dma_flags;
 	int len, bufptr;
-	short *ptr;
+	unsigned short *ptr;
 
-	ptr = (short *)devpriv->dmabuf[devpriv->next_dma_buf];
+	ptr = (unsigned short *)devpriv->dmabuf[devpriv->next_dma_buf];
 	len = (devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) -
 	    devpriv->ai_poll_ptr;
 
