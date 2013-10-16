@@ -1082,6 +1082,11 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
+	/*
+	 * We must make sure there are no more (path) completions
+	 * that may wish to touch priv fields that are no longer valid
+	 */
+	ipoib_flush_paths(dev);
 
 	ipoib_mcast_stop_thread(dev, 1);
 	ipoib_mcast_dev_flush(dev);
