@@ -17,7 +17,9 @@
 #define wmb() mb()
 
 #ifdef CONFIG_SMP
-#error smp_* not defined
+#define smp_mb()	mb()
+#define smp_rmb()	rmb()
+#define smp_wmb()	wmb()
 #else
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()

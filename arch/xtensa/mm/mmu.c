@@ -22,7 +22,7 @@ void __init paging_init(void)
 /*
  * Flush the mmu and reset associated register to default values.
  */
-void __init init_mmu(void)
+void init_mmu(void)
 {
 #if !(XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY)
 	/*
@@ -37,7 +37,7 @@ void __init init_mmu(void)
 	set_itlbcfg_register(0);
 	set_dtlbcfg_register(0);
 #endif
-	flush_tlb_all();
+	local_flush_tlb_all();
 
 	/* Set rasid register to a known value. */
 

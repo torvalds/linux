@@ -4,7 +4,7 @@
  * Xtensa built-in interrupt controller and some generic functions copied
  * from i386.
  *
- * Copyright (C) 2002 - 2006 Tensilica, Inc.
+ * Copyright (C) 2002 - 2013 Tensilica, Inc.
  * Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  *
  *
@@ -19,10 +19,12 @@
 #include <linux/irq.h>
 #include <linux/kernel_stat.h>
 #include <linux/irqchip.h>
+#include <linux/irqchip/xtensa-mx.h>
 #include <linux/irqchip/xtensa-pic.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 
+#include <asm/mxregs.h>
 #include <asm/uaccess.h>
 #include <asm/platform.h>
 
@@ -55,6 +57,9 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
+#ifdef CONFIG_SMP
+	show_ipi_list(p, prec);
+#endif
 	seq_printf(p, "%*s: ", prec, "ERR");
 	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
 	return 0;
@@ -136,7 +141,15 @@ void __init init_IRQ(void)
 #ifdef CONFIG_OF
 	irqchip_init();
 #else
+#ifdef CONFIG_HAVE_SMP
+	xtensa_mx_init_legacy(NULL);
+#else
 	xtensa_pic_init_legacy(NULL);
+#endif
+#endif
+
+#ifdef CONFIG_SMP
+	ipi_init();
 #endif
 	variant_init_irq();
 }

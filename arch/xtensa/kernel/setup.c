@@ -21,6 +21,8 @@
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
+#include <linux/percpu.h>
+#include <linux/cpu.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
@@ -46,6 +48,7 @@
 #include <asm/setup.h>
 #include <asm/param.h>
 #include <asm/traps.h>
+#include <asm/smp.h>
 
 #include <platform/hardware.h>
 
@@ -496,6 +499,10 @@ void __init setup_arch(char **cmdline_p)
 
 	platform_setup(cmdline_p);
 
+#ifdef CONFIG_SMP
+	smp_init_cpus();
+#endif
+
 	paging_init();
 	zones_init();
 
@@ -511,6 +518,21 @@ void __init setup_arch(char **cmdline_p)
 	platform_pcibios_init();
 #endif
 }
+
+static DEFINE_PER_CPU(struct cpu, cpu_data);
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cpu *cpu = &per_cpu(cpu_data, i);
+		register_cpu(cpu, i);
+	}
+
+	return 0;
+}
+subsys_initcall(topology_init);
 
 void machine_restart(char * cmd)
 {
@@ -537,21 +559,27 @@ void machine_power_off(void)
 static int
 c_show(struct seq_file *f, void *slot)
 {
+	char buf[NR_CPUS * 5];
+
+	cpulist_scnprintf(buf, sizeof(buf), cpu_online_mask);
 	/* high-level stuff */
-	seq_printf(f,"processor\t: 0\n"
-		     "vendor_id\t: Tensilica\n"
-		     "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
-		     "core ID\t\t: " XCHAL_CORE_ID "\n"
-		     "build ID\t: 0x%x\n"
-		     "byte order\t: %s\n"
-		     "cpu MHz\t\t: %lu.%02lu\n"
-		     "bogomips\t: %lu.%02lu\n",
-		     XCHAL_BUILD_UNIQUE_ID,
-		     XCHAL_HAVE_BE ?  "big" : "little",
-		     ccount_freq/1000000,
-		     (ccount_freq/10000) % 100,
-		     loops_per_jiffy/(500000/HZ),
-		     (loops_per_jiffy/(5000/HZ)) % 100);
+	seq_printf(f, "CPU count\t: %u\n"
+		      "CPU list\t: %s\n"
+		      "vendor_id\t: Tensilica\n"
+		      "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
+		      "core ID\t\t: " XCHAL_CORE_ID "\n"
+		      "build ID\t: 0x%x\n"
+		      "byte order\t: %s\n"
+		      "cpu MHz\t\t: %lu.%02lu\n"
+		      "bogomips\t: %lu.%02lu\n",
+		      num_online_cpus(),
+		      buf,
+		      XCHAL_BUILD_UNIQUE_ID,
+		      XCHAL_HAVE_BE ?  "big" : "little",
+		      ccount_freq/1000000,
+		      (ccount_freq/10000) % 100,
+		      loops_per_jiffy/(500000/HZ),
+		      (loops_per_jiffy/(5000/HZ)) % 100);
 
 	seq_printf(f,"flags\t\t: "
 #if XCHAL_HAVE_NMI
@@ -663,7 +691,7 @@ c_show(struct seq_file *f, void *slot)
 static void *
 c_start(struct seq_file *f, loff_t *pos)
 {
-	return (void *) ((*pos == 0) ? (void *)1 : NULL);
+	return (*pos == 0) ? (void *)1 : NULL;
 }
 
 static void *
@@ -679,10 +707,10 @@ c_stop(struct seq_file *f, void *v)
 
 const struct seq_operations cpuinfo_op =
 {
-	start:  c_start,
-	next:   c_next,
-	stop:   c_stop,
-	show:   c_show
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= c_show,
 };
 
 #endif /* CONFIG_PROC_FS */

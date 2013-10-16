@@ -12,6 +12,7 @@ obj-$(CONFIG_KGDB) += xtensa-stub.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 obj-$(CONFIG_FUNCTION_TRACER) += mcount.o
+obj-$(CONFIG_SMP) += smp.o mxhead.o
 
 AFLAGS_head.o += -mtext-section-literals
 

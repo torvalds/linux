@@ -26,7 +26,7 @@
 
 /* Default assignment of LX60 devices to external interrupts. */
 
-#ifdef CONFIG_ARCH_HAS_SMP
+#ifdef CONFIG_XTENSA_MX
 #define DUART16552_INTNUM	XCHAL_EXTINT3_NUM
 #define OETH_IRQ		XCHAL_EXTINT4_NUM
 #else

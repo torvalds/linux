@@ -9,7 +9,6 @@ config XTENSA
 	select GENERIC_CLOCKEVENTS
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
-	select GENERIC_CPU_DEVICES
 	select GENERIC_SCHED_CLOCK
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
@@ -65,6 +64,9 @@ config MMU
 config VARIANT_IRQ_SWITCH
 	def_bool n
 
+config MAY_HAVE_SMP
+	def_bool n
+
 menu "Processor type and features"
 
 choice
@@ -104,6 +106,39 @@ config XTENSA_UNALIGNED_USER
 	  Say Y here to enable unaligned memory access in user space.
 
 source "kernel/Kconfig.preempt"
+
+config HAVE_SMP
+	bool "System Supports SMP (MX)"
+	depends on MAY_HAVE_SMP
+	select XTENSA_MX
+	help
+	  This option is use to indicate that the system-on-a-chip (SOC)
+	  supports Multiprocessing. Multiprocessor support implemented above
+	  the CPU core definition and currently needs to be selected manually.
+
+	  Multiprocessor support in implemented with external cache and
+	  interrupt controlers.
+
+	  The MX interrupt distributer adds Interprocessor Interrupts
+	  and causes the IRQ numbers to be increased by 4 for devices
+	  like the open cores ethernet driver and the serial interface.
+
+	  You still have to select "Enable SMP" to enable SMP on this SOC.
+
+config SMP
+	bool "Enable Symmetric multi-processing support"
+	depends on HAVE_SMP
+	select USE_GENERIC_SMP_HELPERS
+	select GENERIC_SMP_IDLE_THREAD
+	help
+	  Enabled SMP Software; allows more than one CPU/CORE
+	  to be activated during startup.
+
+config NR_CPUS
+	depends on SMP
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	default "4"
 
 config MATH_EMULATION
 	bool "Math emulation"
