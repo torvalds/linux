@@ -288,9 +288,6 @@ endif
 vmlinux.32: vmlinux
 	$(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
 
-
-#obj-$(CONFIG_KPROBES)		+= kprobes.o
-
 #
 # The 64-bit ELF tools are pretty broken so at this time we generate 64-bit
 # ELF files from 32-bit files by conversion.

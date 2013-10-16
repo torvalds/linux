@@ -1188,7 +1188,7 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct alx_priv *alx;
 	struct alx_hw *hw;
 	bool phy_configured;
-	int bars, pm_cap, err;
+	int bars, err;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
@@ -1225,17 +1225,12 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_enable_pcie_error_reporting(pdev);
 	pci_set_master(pdev);
 
-	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
-	if (pm_cap == 0) {
+	if (!pdev->pm_cap) {
 		dev_err(&pdev->dev,
 			"Can't find power management capability, aborting\n");
 		err = -EIO;
 		goto out_pci_release;
 	}
-
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err)
-		goto out_pci_release;
 
 	netdev = alloc_etherdev(sizeof(*alx));
 	if (!netdev) {

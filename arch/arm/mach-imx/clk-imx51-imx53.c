@@ -328,7 +328,7 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[ssi3_ipg_gate], NULL, "imx-ssi.2");
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx35-sdma");
-	clk_register_clkdev(clk[cpu_podf], NULL, "cpufreq-cpu0.0");
+	clk_register_clkdev(clk[cpu_podf], NULL, "cpu0");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.1");
@@ -397,7 +397,7 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx51_spdif_xtal_sel, ARRAY_SIZE(mx51_spdif_xtal_sel));
 	clk[spdif1_sel] = imx_clk_mux("spdif1_sel", MXC_CCM_CSCMR2, 2, 2,
 				spdif_sel, ARRAY_SIZE(spdif_sel));
-	clk[spdif1_pred] = imx_clk_divider("spdif1_podf", "spdif1_sel", MXC_CCM_CDCDR, 16, 3);
+	clk[spdif1_pred] = imx_clk_divider("spdif1_pred", "spdif1_sel", MXC_CCM_CDCDR, 16, 3);
 	clk[spdif1_podf] = imx_clk_divider("spdif1_podf", "spdif1_pred", MXC_CCM_CDCDR, 9, 6);
 	clk[spdif1_com_sel] = imx_clk_mux("spdif1_com_sel", MXC_CCM_CSCMR2, 5, 1,
 				mx51_spdif1_com_sel, ARRAY_SIZE(mx51_spdif1_com_sel));

@@ -143,7 +143,7 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	 * Call idle CPU cluster PM exit notifier chain
 	 * to restore GIC and wakeupgen context.
 	 */
-	if ((cx->mpu_state == PWRDM_POWER_RET) &&
+	if (dev->cpu == 0 && (cx->mpu_state == PWRDM_POWER_RET) &&
 		(cx->mpu_logic_state == PWRDM_POWER_OFF))
 		cpu_cluster_pm_exit();
 

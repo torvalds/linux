@@ -46,59 +46,59 @@
 #define GXIO_TRIO_OP_GET_MMIO_BASE     IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x8000)
 #define GXIO_TRIO_OP_CHECK_MMIO_OFFSET IORPC_OPCODE(IORPC_FORMAT_NONE_NOUSER, 0x8001)
 
-int gxio_trio_alloc_asids(gxio_trio_context_t * context, unsigned int count,
+int gxio_trio_alloc_asids(gxio_trio_context_t *context, unsigned int count,
 			  unsigned int first, unsigned int flags);
 
 
-int gxio_trio_alloc_memory_maps(gxio_trio_context_t * context,
+int gxio_trio_alloc_memory_maps(gxio_trio_context_t *context,
 				unsigned int count, unsigned int first,
 				unsigned int flags);
 
 
-int gxio_trio_alloc_scatter_queues(gxio_trio_context_t * context,
+int gxio_trio_alloc_scatter_queues(gxio_trio_context_t *context,
 				   unsigned int count, unsigned int first,
 				   unsigned int flags);
 
-int gxio_trio_alloc_pio_regions(gxio_trio_context_t * context,
+int gxio_trio_alloc_pio_regions(gxio_trio_context_t *context,
 				unsigned int count, unsigned int first,
 				unsigned int flags);
 
-int gxio_trio_init_pio_region_aux(gxio_trio_context_t * context,
+int gxio_trio_init_pio_region_aux(gxio_trio_context_t *context,
 				  unsigned int pio_region, unsigned int mac,
 				  uint32_t bus_address_hi, unsigned int flags);
 
 
-int gxio_trio_init_memory_map_mmu_aux(gxio_trio_context_t * context,
+int gxio_trio_init_memory_map_mmu_aux(gxio_trio_context_t *context,
 				      unsigned int map, unsigned long va,
 				      uint64_t size, unsigned int asid,
 				      unsigned int mac, uint64_t bus_address,
 				      unsigned int node,
 				      unsigned int order_mode);
 
-int gxio_trio_get_port_property(gxio_trio_context_t * context,
+int gxio_trio_get_port_property(gxio_trio_context_t *context,
 				struct pcie_trio_ports_property *trio_ports);
 
-int gxio_trio_config_legacy_intr(gxio_trio_context_t * context, int inter_x,
+int gxio_trio_config_legacy_intr(gxio_trio_context_t *context, int inter_x,
 				 int inter_y, int inter_ipi, int inter_event,
 				 unsigned int mac, unsigned int intx);
 
-int gxio_trio_config_msi_intr(gxio_trio_context_t * context, int inter_x,
+int gxio_trio_config_msi_intr(gxio_trio_context_t *context, int inter_x,
 			      int inter_y, int inter_ipi, int inter_event,
 			      unsigned int mac, unsigned int mem_map,
 			      uint64_t mem_map_base, uint64_t mem_map_limit,
 			      unsigned int asid);
 
 
-int gxio_trio_set_mps_mrs(gxio_trio_context_t * context, uint16_t mps,
+int gxio_trio_set_mps_mrs(gxio_trio_context_t *context, uint16_t mps,
 			  uint16_t mrs, unsigned int mac);
 
-int gxio_trio_force_rc_link_up(gxio_trio_context_t * context, unsigned int mac);
+int gxio_trio_force_rc_link_up(gxio_trio_context_t *context, unsigned int mac);
 
-int gxio_trio_force_ep_link_up(gxio_trio_context_t * context, unsigned int mac);
+int gxio_trio_force_ep_link_up(gxio_trio_context_t *context, unsigned int mac);
 
-int gxio_trio_get_mmio_base(gxio_trio_context_t * context, HV_PTE *base);
+int gxio_trio_get_mmio_base(gxio_trio_context_t *context, HV_PTE *base);
 
-int gxio_trio_check_mmio_offset(gxio_trio_context_t * context,
+int gxio_trio_check_mmio_offset(gxio_trio_context_t *context,
 				unsigned long offset, unsigned long size);
 
 #endif /* !__GXIO_TRIO_LINUX_RPC_H__ */

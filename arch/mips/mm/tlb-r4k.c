@@ -16,6 +16,7 @@
 #include <linux/module.h>
 
 #include <asm/cpu.h>
+#include <asm/cpu-type.h>
 #include <asm/bootinfo.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>

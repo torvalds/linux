@@ -1548,7 +1548,7 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 	       btrfs_file_extent_other_encoding(leaf, fi));
 
 	if (num_bytes != btrfs_file_extent_disk_num_bytes(leaf, fi)) {
-		ret = 1;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1579,7 +1579,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 	u64 end;
 	u32 nritems;
 	u32 i;
-	int ret;
+	int ret = 0;
 	int first = 1;
 	int dirty = 0;
 
@@ -1642,11 +1642,13 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 
 		ret = get_new_location(rc->data_inode, &new_bytenr,
 				       bytenr, num_bytes);
-		if (ret > 0) {
-			WARN_ON(1);
-			continue;
+		if (ret) {
+			/*
+			 * Don't have to abort since we've not changed anything
+			 * in the file extent yet.
+			 */
+			break;
 		}
-		BUG_ON(ret < 0);
 
 		btrfs_set_file_extent_disk_bytenr(leaf, fi, new_bytenr);
 		dirty = 1;
@@ -1656,18 +1658,24 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 					   num_bytes, parent,
 					   btrfs_header_owner(leaf),
 					   key.objectid, key.offset, 1);
-		BUG_ON(ret);
+		if (ret) {
+			btrfs_abort_transaction(trans, root, ret);
+			break;
+		}
 
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					parent, btrfs_header_owner(leaf),
 					key.objectid, key.offset, 1);
-		BUG_ON(ret);
+		if (ret) {
+			btrfs_abort_transaction(trans, root, ret);
+			break;
+		}
 	}
 	if (dirty)
 		btrfs_mark_buffer_dirty(leaf);
 	if (inode)
 		btrfs_add_delayed_iput(inode);
-	return 0;
+	return ret;
 }
 
 static noinline_for_stack
@@ -4238,7 +4246,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 		err = ret;
 		goto out;
 	}
-	btrfs_wait_all_ordered_extents(fs_info, 0);
+	btrfs_wait_all_ordered_extents(fs_info);
 
 	while (1) {
 		mutex_lock(&fs_info->cleaner_mutex);
@@ -4499,19 +4507,19 @@ out:
 	return ret;
 }
 
-void btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, struct extent_buffer *buf,
-			   struct extent_buffer *cow)
+int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root, struct extent_buffer *buf,
+			  struct extent_buffer *cow)
 {
 	struct reloc_control *rc;
 	struct backref_node *node;
 	int first_cow = 0;
 	int level;
-	int ret;
+	int ret = 0;
 
 	rc = root->fs_info->reloc_ctl;
 	if (!rc)
-		return;
+		return 0;
 
 	BUG_ON(rc->stage == UPDATE_DATA_PTRS &&
 	       root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID);
@@ -4547,10 +4555,9 @@ void btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 			rc->nodes_relocated += buf->len;
 	}
 
-	if (level == 0 && first_cow && rc->stage == UPDATE_DATA_PTRS) {
+	if (level == 0 && first_cow && rc->stage == UPDATE_DATA_PTRS)
 		ret = replace_file_extents(trans, rc, root, cow);
-		BUG_ON(ret);
-	}
+	return ret;
 }
 
 /*

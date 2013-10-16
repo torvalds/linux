@@ -299,7 +299,7 @@ static int ade7854_spi_probe(struct spi_device *spi)
 	if (ret)
 		iio_device_free(indio_dev);
 
-	return 0;
+	return ret;
 }
 
 static int ade7854_spi_remove(struct spi_device *spi)

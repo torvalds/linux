@@ -5339,6 +5339,17 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
+	/*
+	 * EPT violation happened while executing iret from NMI,
+	 * "blocked by NMI" bit has to be set before next VM entry.
+	 * There are errata that may cause this bit to not be set:
+	 * AAK134, BY25.
+	 */
+	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
+			cpu_has_virtual_nmis() &&
+			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
+		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO, GUEST_INTR_STATE_NMI);
+
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 	trace_kvm_page_fault(gpa, exit_qualification);
 
@@ -7766,6 +7777,10 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_write64(GUEST_PDPTR1, vmcs12->guest_pdptr1);
 		vmcs_write64(GUEST_PDPTR2, vmcs12->guest_pdptr2);
 		vmcs_write64(GUEST_PDPTR3, vmcs12->guest_pdptr3);
+		__clear_bit(VCPU_EXREG_PDPTR,
+				(unsigned long *)&vcpu->arch.regs_avail);
+		__clear_bit(VCPU_EXREG_PDPTR,
+				(unsigned long *)&vcpu->arch.regs_dirty);
 	}
 
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->guest_rsp);
