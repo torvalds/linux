@@ -1964,13 +1964,6 @@ static int ath10k_config_ps(struct ath10k *ar)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	/* During HW reconfiguration mac80211 reports all interfaces that were
-	 * running until reconfiguration was started. Since FW doesn't have any
-	 * vdevs at this point we must not iterate over this interface list.
-	 * This setting will be updated upon add_interface(). */
-	if (ar->state == ATH10K_STATE_RESTARTED)
-		return 0;
-
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		ret = ath10k_mac_vif_setup_ps(arvif);
 		if (ret) {
@@ -2888,13 +2881,6 @@ static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	struct ath10k_vif *arvif;
 	int ret = 0;
 
-	/* During HW reconfiguration mac80211 reports all interfaces that were
-	 * running until reconfiguration was started. Since FW doesn't have any
-	 * vdevs at this point we must not iterate over this interface list.
-	 * This setting will be updated upon add_interface(). */
-	if (ar->state == ATH10K_STATE_RESTARTED)
-		return 0;
-
 	mutex_lock(&ar->conf_mutex);
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		ath10k_dbg(ATH10K_DBG_MAC, "mac vdev %d rts threshold %d\n",
@@ -2917,13 +2903,6 @@ static int ath10k_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif;
 	int ret = 0;
-
-	/* During HW reconfiguration mac80211 reports all interfaces that were
-	 * running until reconfiguration was started. Since FW doesn't have any
-	 * vdevs at this point we must not iterate over this interface list.
-	 * This setting will be updated upon add_interface(). */
-	if (ar->state == ATH10K_STATE_RESTARTED)
-		return 0;
 
 	mutex_lock(&ar->conf_mutex);
 	list_for_each_entry(arvif, &ar->arvifs, list) {
