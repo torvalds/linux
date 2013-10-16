@@ -27,6 +27,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -1742,8 +1743,8 @@ static int i915_pipe_crc(struct seq_file *m, void *data)
 	int i;
 	int start;
 
-	if (!IS_IVYBRIDGE(dev)) {
-		seq_puts(m, "unsupported\n");
+	if (dev_priv->pipe_crc[pipe].source == INTEL_PIPE_CRC_SOURCE_NONE) {
+		seq_puts(m, "none\n");
 		return 0;
 	}
 
@@ -1761,6 +1762,217 @@ static int i915_pipe_crc(struct seq_file *m, void *data)
 
 	return 0;
 }
+
+static const char *pipe_crc_sources[] = {
+	"none",
+	"plane1",
+	"plane2",
+	"pf",
+};
+
+static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
+{
+	BUILD_BUG_ON(ARRAY_SIZE(pipe_crc_sources) != INTEL_PIPE_CRC_SOURCE_MAX);
+	return pipe_crc_sources[source];
+}
+
+static int pipe_crc_ctl_show(struct seq_file *m, void *data)
+{
+	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	for (i = 0; i < I915_MAX_PIPES; i++)
+		seq_printf(m, "%c %s\n", pipe_name(i),
+			   pipe_crc_source_name(dev_priv->pipe_crc[i].source));
+
+	return 0;
+}
+
+static int pipe_crc_ctl_open(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+
+	return single_open(file, pipe_crc_ctl_show, dev);
+}
+
+static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
+			       enum intel_pipe_crc_source source)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val;
+
+
+	return -ENODEV;
+
+	if (!IS_IVYBRIDGE(dev))
+		return -ENODEV;
+
+	dev_priv->pipe_crc[pipe].source = source;
+
+	switch (source) {
+	case INTEL_PIPE_CRC_SOURCE_PLANE1:
+		val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PRIMARY_IVB;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE2:
+		val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PF:
+		val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_NONE:
+	default:
+		val = 0;
+		break;
+	}
+
+	I915_WRITE(PIPE_CRC_CTL(pipe), val);
+	POSTING_READ(PIPE_CRC_CTL(pipe));
+
+	return 0;
+}
+
+/*
+ * Parse pipe CRC command strings:
+ *   command: wsp* pipe wsp+ source wsp*
+ *   pipe: (A | B | C)
+ *   source: (none | plane1 | plane2 | pf)
+ *   wsp: (#0x20 | #0x9 | #0xA)+
+ *
+ * eg.:
+ *  "A plane1"  ->  Start CRC computations on plane1 of pipe A
+ *  "A none"    ->  Stop CRC
+ */
+static int pipe_crc_ctl_tokenize(char *buf, char *words[], int max_words)
+{
+	int n_words = 0;
+
+	while (*buf) {
+		char *end;
+
+		/* skip leading white space */
+		buf = skip_spaces(buf);
+		if (!*buf)
+			break;	/* end of buffer */
+
+		/* find end of word */
+		for (end = buf; *end && !isspace(*end); end++)
+			;
+
+		if (n_words == max_words) {
+			DRM_DEBUG_DRIVER("too many words, allowed <= %d\n",
+					 max_words);
+			return -EINVAL;	/* ran out of words[] before bytes */
+		}
+
+		if (*end)
+			*end++ = '\0';
+		words[n_words++] = buf;
+		buf = end;
+	}
+
+	return n_words;
+}
+
+static int pipe_crc_ctl_parse_pipe(const char *buf, enum pipe *pipe)
+{
+	const char name = buf[0];
+
+	if (name < 'A' || name >= pipe_name(I915_MAX_PIPES))
+		return -EINVAL;
+
+	*pipe = name - 'A';
+
+	return 0;
+}
+
+static int
+pipe_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *source)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pipe_crc_sources); i++)
+		if (!strcmp(buf, pipe_crc_sources[i])) {
+			*source = i;
+			return 0;
+		    }
+
+	return -EINVAL;
+}
+
+static int pipe_crc_ctl_parse(struct drm_device *dev, char *buf, size_t len)
+{
+#define MAX_WORDS 2
+	int n_words;
+	char *words[MAX_WORDS];
+	enum pipe pipe;
+	enum intel_pipe_crc_source source;
+
+	n_words = pipe_crc_ctl_tokenize(buf, words, MAX_WORDS);
+	if (n_words != 2) {
+		DRM_DEBUG_DRIVER("tokenize failed, a command is 2 words\n");
+		return -EINVAL;
+	}
+
+	if (pipe_crc_ctl_parse_pipe(words[0], &pipe) < 0) {
+		DRM_DEBUG_DRIVER("unknown pipe %s\n", words[0]);
+		return -EINVAL;
+	}
+
+	if (pipe_crc_ctl_parse_source(words[1], &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", words[1]);
+		return -EINVAL;
+	}
+
+	return pipe_crc_set_source(dev, pipe, source);
+}
+
+static ssize_t pipe_crc_ctl_write(struct file *file, const char __user *ubuf,
+				  size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *dev = m->private;
+	char *tmpbuf;
+	int ret;
+
+	if (len == 0)
+		return 0;
+
+	if (len > PAGE_SIZE - 1) {
+		DRM_DEBUG_DRIVER("expected <%lu bytes into pipe crc control\n",
+				 PAGE_SIZE);
+		return -E2BIG;
+	}
+
+	tmpbuf = kmalloc(len + 1, GFP_KERNEL);
+	if (!tmpbuf)
+		return -ENOMEM;
+
+	if (copy_from_user(tmpbuf, ubuf, len)) {
+		ret = -EFAULT;
+		goto out;
+	}
+	tmpbuf[len] = '\0';
+
+	ret = pipe_crc_ctl_parse(dev, tmpbuf, len);
+
+out:
+	kfree(tmpbuf);
+	if (ret < 0)
+		return ret;
+
+	*offp += len;
+	return len;
+}
+
+static const struct file_operations i915_pipe_crc_ctl_fops = {
+	.owner = THIS_MODULE,
+	.open = pipe_crc_ctl_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = pipe_crc_ctl_write
+};
 
 static int
 i915_wedged_get(void *data, u64 *val)
@@ -2297,6 +2509,7 @@ static struct i915_debugfs_files {
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
+	{"i915_pipe_crc_ctl", &i915_pipe_crc_ctl_fops},
 };
 
 int i915_debugfs_init(struct drm_minor *minor)
