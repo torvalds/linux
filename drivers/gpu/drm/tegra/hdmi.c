@@ -596,7 +596,7 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 
 	err = hdmi_audio_infoframe_init(&frame);
 	if (err < 0) {
-		dev_err(hdmi->dev, "failed to initialize audio infoframe: %d\n",
+		dev_err(hdmi->dev, "failed to setup audio infoframe: %zd\n",
 			err);
 		return;
 	}
@@ -616,7 +616,7 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 	 * contain 7 bytes. Including the 3 byte header only the first 10
 	 * bytes can be programmed.
 	 */
-	tegra_hdmi_write_infopack(hdmi, buffer, min(10, err));
+	tegra_hdmi_write_infopack(hdmi, buffer, min_t(size_t, 10, err));
 
 	tegra_hdmi_writel(hdmi, INFOFRAME_CTRL_ENABLE,
 			  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
