@@ -1098,10 +1098,12 @@ static size_t trace__fprintf_tstamp(struct trace *trace, u64 tstamp, FILE *fp)
 }
 
 static bool done = false;
+static bool interrupted = false;
 
-static void sig_handler(int sig __maybe_unused)
+static void sig_handler(int sig)
 {
 	done = true;
+	interrupted = sig == SIGINT;
 }
 
 static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
@@ -1771,24 +1773,23 @@ again:
 			handler = evsel->handler.func;
 			handler(trace, evsel, &sample);
 
-			if (done)
-				goto out_unmap_evlist;
+			if (interrupted)
+				goto out_disable;
 		}
 	}
 
 	if (trace->nr_events == before) {
-		if (done)
-			goto out_unmap_evlist;
+		int timeout = done ? 100 : -1;
 
-		poll(evlist->pollfd, evlist->nr_fds, -1);
+		if (poll(evlist->pollfd, evlist->nr_fds, timeout) > 0)
+			goto again;
+	} else {
+		goto again;
 	}
 
-	if (done)
-		perf_evlist__disable(evlist);
-	else
-		goto again;
+out_disable:
+	perf_evlist__disable(evlist);
 
-out_unmap_evlist:
 	if (!err) {
 		if (trace->summary)
 			trace__fprintf_thread_summary(trace, trace->output);
