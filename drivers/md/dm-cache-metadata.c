@@ -20,7 +20,13 @@
 
 #define CACHE_SUPERBLOCK_MAGIC 06142003
 #define CACHE_SUPERBLOCK_LOCATION 0
-#define CACHE_VERSION 1
+
+/*
+ * defines a range of metadata versions that this module can handle.
+ */
+#define MIN_CACHE_VERSION 1
+#define MAX_CACHE_VERSION 1
+
 #define CACHE_METADATA_CACHE_SIZE 64
 
 /*
@@ -134,6 +140,18 @@ static void sb_prepare_for_write(struct dm_block_validator *v,
 						      SUPERBLOCK_CSUM_XOR));
 }
 
+static int check_metadata_version(struct cache_disk_superblock *disk_super)
+{
+	uint32_t metadata_version = le32_to_cpu(disk_super->version);
+	if (metadata_version < MIN_CACHE_VERSION || metadata_version > MAX_CACHE_VERSION) {
+		DMERR("Cache metadata version %u found, but only versions between %u and %u supported.",
+		      metadata_version, MIN_CACHE_VERSION, MAX_CACHE_VERSION);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int sb_check(struct dm_block_validator *v,
 		    struct dm_block *b,
 		    size_t sb_block_size)
@@ -164,7 +182,7 @@ static int sb_check(struct dm_block_validator *v,
 		return -EILSEQ;
 	}
 
-	return 0;
+	return check_metadata_version(disk_super);
 }
 
 static struct dm_block_validator sb_validator = {
@@ -270,7 +288,7 @@ static int __write_initial_superblock(struct dm_cache_metadata *cmd)
 	disk_super->flags = 0;
 	memset(disk_super->uuid, 0, sizeof(disk_super->uuid));
 	disk_super->magic = cpu_to_le64(CACHE_SUPERBLOCK_MAGIC);
-	disk_super->version = cpu_to_le32(CACHE_VERSION);
+	disk_super->version = cpu_to_le32(MAX_CACHE_VERSION);
 	memset(disk_super->policy_name, 0, sizeof(disk_super->policy_name));
 	memset(disk_super->policy_version, 0, sizeof(disk_super->policy_version));
 	disk_super->policy_hint_size = 0;
