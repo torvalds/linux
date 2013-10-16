@@ -24,6 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/acpi_gpio.h>
 
 #include <linux/rfkill-gpio.h>
 
@@ -70,6 +72,23 @@ static const struct rfkill_ops rfkill_gpio_ops = {
 	.set_block = rfkill_gpio_set_power,
 };
 
+static int rfkill_gpio_acpi_probe(struct device *dev,
+				  struct rfkill_gpio_data *rfkill)
+{
+	const struct acpi_device_id *id;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return -ENODEV;
+
+	rfkill->name = dev_name(dev);
+	rfkill->type = (unsigned)id->driver_data;
+	rfkill->reset_gpio = acpi_get_gpio_by_index(dev, 0, NULL);
+	rfkill->shutdown_gpio = acpi_get_gpio_by_index(dev, 1, NULL);
+
+	return 0;
+}
+
 static int rfkill_gpio_probe(struct platform_device *pdev)
 {
 	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
@@ -82,7 +101,11 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	if (!rfkill)
 		return -ENOMEM;
 
-	if (pdata) {
+	if (ACPI_HANDLE(&pdev->dev)) {
+		ret = rfkill_gpio_acpi_probe(&pdev->dev, rfkill);
+		if (ret)
+			return ret;
+	} else if (pdata) {
 		clk_name = pdata->power_clk_name;
 		rfkill->name = pdata->name;
 		rfkill->type = pdata->type;
@@ -170,12 +193,18 @@ static int rfkill_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct acpi_device_id rfkill_acpi_match[] = {
+	{ "BCM4752", RFKILL_TYPE_GPS },
+	{ },
+};
+
 static struct platform_driver rfkill_gpio_driver = {
 	.probe = rfkill_gpio_probe,
 	.remove = rfkill_gpio_remove,
 	.driver = {
 		.name = "rfkill_gpio",
 		.owner = THIS_MODULE,
+		.acpi_match_table = ACPI_PTR(rfkill_acpi_match),
 	},
 };
 
