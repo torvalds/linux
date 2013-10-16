@@ -314,10 +314,9 @@ struct pci1710_private {
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	short *ai_data;		/*  data buffer */
 	unsigned int ai_timer1;	/*  timers */
 	unsigned int ai_timer2;
-	short ao_data[4];	/*  data output buffer */
+	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
 					 * internal state */
 };
@@ -736,7 +735,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	int m;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
-	short sampl;
+	unsigned short sampl;
 #endif
 
 	m = inw(dev->iobase + PCI171x_STATUS);
@@ -817,7 +816,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 	int i, j;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
-	int sampl;
+	unsigned short sampl;
 #endif
 
 	j = s->async->cur_chan;
@@ -1122,7 +1121,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 
