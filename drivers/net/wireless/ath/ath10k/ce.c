@@ -1050,6 +1050,17 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 	int ret;
 
+	/*
+	 * Make sure there's enough CE ringbuffer entries for HTT TX to avoid
+	 * additional TX locking checks.
+	 *
+	 * For the lack of a better place do the check here.
+	 */
+	BUILD_BUG_ON(TARGET_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+	BUILD_BUG_ON(TARGET_10X_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+
 	ret = ath10k_pci_wake(ar);
 	if (ret)
 		return NULL;
