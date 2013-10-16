@@ -962,8 +962,8 @@ txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
-		return DMA_SUCCESS;
+	if (ret == DMA_COMPLETE)
+		return DMA_COMPLETE;
 
 	spin_lock_bh(&dc->lock);
 	txx9dmac_scan_descriptors(dc);
