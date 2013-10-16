@@ -336,6 +336,12 @@ static inline int sensor_get_full_width_height(int full_resolution, unsigned sho
             *h = 1200;
             break;
         }
+        case 0x210000:
+        {
+            *w = 1920;
+            *h = 1080;
+            break;
+        }
 
         case 0x300000:
         {

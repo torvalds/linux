@@ -111,6 +111,7 @@ struct videobuf_buffer {
 	struct rk29_vaddr		vaddr;
 #endif
 	void                    *priv;
+	unsigned int rk_code;    /* ddl@rock-chips.com: this filed must copy to struct v4l2_buffer.reserved */
 };
 
 struct videobuf_queue_ops {

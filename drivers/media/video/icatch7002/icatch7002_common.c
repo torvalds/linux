@@ -620,7 +620,7 @@ int icatch_sensor_set_auto_focus(struct i2c_client *client, int value,int *tmp_z
     }else if(value == WqCmd_af_continues)
         set_val = 3;
     else{
-
+           DEBUG_TRACE("%s:focus value is invalidate!\n",__func__);
     }
     
 	EXISP_I2C_FocusModeSet(set_val);
@@ -649,8 +649,16 @@ int icatch_sensor_set_auto_focus(struct i2c_client *client, int value,int *tmp_z
 		}
 	}
 
+    int staus_value = 0;
+    if(value == WqCmd_af_continues)
+        //staus_value = 0x10;
+        goto icatch_sensor_set_auto_focus_end;
+    else if(value == WqCmd_af_single)
+        staus_value = 0x0;
+        
+        
 	while (cnt--) {
-		if (EXISP_I2C_AFStatusGet() == 0) {
+		if (EXISP_I2C_AFStatusGet() == staus_value) {
 			 break;
 		}
 		msleep(30);
@@ -660,7 +668,9 @@ int icatch_sensor_set_auto_focus(struct i2c_client *client, int value,int *tmp_z
 
 	if (cnt <= 0) {
 		DEBUG_TRACE("%s: focus timeout %d\n",__func__, value);
-		//__dump_i2c(0x7005, 0x7005);
+		__dump_i2c(0x7200, 0x727f);
+
+		__dump_i2c(0x7005, 0x7006);
 		return 1;
 	}
 
@@ -668,7 +678,7 @@ int icatch_sensor_set_auto_focus(struct i2c_client *client, int value,int *tmp_z
 		DEBUG_TRACE("%s: focus fail %d\n",__func__, value);
 		return 1;
 	}
-
+icatch_sensor_set_auto_focus_end:
 	DEBUG_TRACE("%s: focus success %d\n\n",__func__, value);
 	return 0;
 }
@@ -1691,7 +1701,7 @@ static int sensor_hdr_exposure(struct i2c_client *client, unsigned int code)
 
 
 
- int icatch_s_fmt(struct i2c_client *client, struct v4l2_mbus_framefmt *mf)
+ int icatch_s_fmt(struct i2c_client *client, struct v4l2_mbus_framefmt *mf,bool is_capture)
 {
 	 const struct sensor_datafmt *fmt;
     struct generic_sensor*sgensor = to_generic_sensor(client);
@@ -1789,6 +1799,12 @@ static int sensor_hdr_exposure(struct i2c_client *client, unsigned int code)
 		 set_h = 1944;
 		 res_set = OUTPUT_QSXGA;
 	 }
+	 else if (((set_w <= 3264) && (set_h <= 2448)) && (supported_size & OUTPUT_QUXGA))
+	 {
+		 set_w = 3264;
+		 set_h = 2448;
+		 res_set = OUTPUT_QUXGA;
+	 }
 	 else
 	 {
 		 set_w = 1280;
@@ -1800,6 +1816,11 @@ static int sensor_hdr_exposure(struct i2c_client *client, unsigned int code)
 	 //  sensor_set_isp_output_res(client,res_set);
 	 //res will be setted
 	 sensor->isp_priv_info.curRes = res_set;
+	 if(is_capture)
+	    sensor->isp_priv_info.curPreviewCapMode = CAPTURE_MODE;
+     else
+	    sensor->isp_priv_info.curPreviewCapMode = PREVIEW_MODE;
+
 	 mf->width = set_w;
 	 mf->height = set_h;
 	 //enter capture or preview mode
@@ -1915,6 +1936,13 @@ int icatch_enum_framesizes(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsiz
 		fsize->discrete.width = 2592;
 		fsize->discrete.height = 1944;
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	}
+	else if ((sensor->isp_priv_info.supportedSize[fsize->index] & OUTPUT_QUXGA))
+	{
+	
+		fsize->discrete.width = 3264;
+		fsize->discrete.height = 2448;
+		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	} else {
 		err = -1;
 	}
@@ -1949,7 +1977,7 @@ end:
 static int icatch_set_isp_output_res(struct i2c_client *client,enum ISP_OUTPUT_RES outputSize){
     struct generic_sensor*sgensor = to_generic_sensor(client);
     struct specific_sensor*sensor = to_specific_sensor(sgensor);
-#if 0	
+#if 1	
 	u8 res_sel = 0;
 	switch(outputSize) {
 	case OUTPUT_QCIF:
@@ -1966,9 +1994,13 @@ static int icatch_set_isp_output_res(struct i2c_client *client,enum ISP_OUTPUT_R
 	case OUTPUT_SXGA:
 	case OUTPUT_UXGA:
 	case OUTPUT_1080P:
+	    res_sel = 0x02;
 	case OUTPUT_QXGA:
 	case OUTPUT_QSXGA:
-		res_sel = IMAGE_CAP_NONZSL_SINGLE;// non-zsl single
+		res_sel = 0x0A;// non-zsl single
+		break;
+	case OUTPUT_QUXGA:
+		res_sel = 0x01;// non-zsl single
 		break;
 	default:
 		DEBUG_TRACE("%s %s  isp not support this resolution!\n",sgensor->dev_name,__FUNCTION__);
@@ -1977,11 +2009,13 @@ static int icatch_set_isp_output_res(struct i2c_client *client,enum ISP_OUTPUT_R
 #endif
     int cnt = 16;
 	//preview mode set
-	if(outputSize == OUTPUT_QSXGA){
+	if((sensor->isp_priv_info.curPreviewCapMode == CAPTURE_MODE)
+	    /*(outputSize == OUTPUT_QSXGA) || (outputSize == OUTPUT_QSXGA)*/){
+	    //in capture mode , isp output full size if size have not been set.
 		if(sensor->isp_priv_info.hdr == FALSE){
 			if(IsZSL){
 					printk("IsZSL EXISP_PvSizeSet(0x0A)\n");
-					EXISP_PvSizeSet(0x0A);
+					    EXISP_PvSizeSet(res_sel);
 					//polling until AE ready
 					while (((EXISP_I2C_3AStatusGet() & 0x1) == 0) && (cnt -- > 0)) {
 						DEBUG_TRACE("%s %s  polling AE ready\n",sgensor->dev_name,__FUNCTION__);
@@ -1999,17 +2033,17 @@ static int icatch_set_isp_output_res(struct i2c_client *client,enum ISP_OUTPUT_R
 			EXISP_ImageCapSet(IMAGE_CAP_HDR);
 			sensor_interrupt_wait_clear();
 		}
-		sensor->isp_priv_info.curPreviewCapMode = CAPTURE_NONE_ZSL_MODE;
+		//sensor->isp_priv_info.curPreviewCapMode = CAPTURE_NONE_ZSL_MODE;
 	}
 	else{
-		EXISP_PvSizeSet(IMAGE_CAP_SINGLE);
+		EXISP_PvSizeSet(res_sel);
 		//polling until AE ready
 		while (((EXISP_I2C_3AStatusGet() & 0x1) == 0) && (cnt -- > 0)) {
 			DEBUG_TRACE("%s %s  polling AE ready\n",sgensor->dev_name,__FUNCTION__);
 			mdelay(50);
 		}
 		sensor_interrupt_wait_clear();
-		sensor->isp_priv_info.curPreviewCapMode = PREVIEW_MODE;
+		//sensor->isp_priv_info.curPreviewCapMode = PREVIEW_MODE;
 #if 1
 		DEBUG_TRACE("\n %s  pid = 0x%x\n", sgensor->dev_name, EXISP_I2C_VendorIdGet);
 		DEBUG_TRACE("fw version is 0x%x\n ",EXISP_I2C_FWVersionGet());

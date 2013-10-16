@@ -958,7 +958,7 @@ static void rk30_camera_request_reserve_mem(void)
         case 0x800000:
         default:
         {
-            cam_ipp_mem = 0x800000;
+            cam_ipp_mem = 0xC00000;
             cam_pmem = 0x1900000;
             break;
         }
@@ -983,7 +983,12 @@ static void rk30_camera_request_reserve_mem(void)
             cam_pmem = 0xc00000;
             break;
         }
-
+        case 0x210000:
+        {
+            cam_ipp_mem = 0xc00000;
+            cam_pmem = 0xc00000;
+            break;
+        }
         case 0x100000:
         {
             cam_ipp_mem = 0x600000;

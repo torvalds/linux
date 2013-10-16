@@ -259,6 +259,8 @@
 #define RK29_CAM_SENSOR_NT99340 nt99340  //oyyf@rock-chips.com 
 #define RK29_CAM_ISP_ICATCH7002_MI1040  icatchmi1040   
 #define RK29_CAM_ISP_ICATCH7002_OV5693  icatchov5693
+#define RK29_CAM_ISP_ICATCH7002_OV8825  icatchov8825   //zyt
+#define RK29_CAM_ISP_ICATCH7002_OV2720  icatchov2720   //zyt
 
 #define RK29_CAM_SENSOR_NAME_OV7675 "ov7675"
 #define RK29_CAM_SENSOR_NAME_OV9650 "ov9650"
@@ -298,6 +300,8 @@
 #define RK29_CAM_SENSOR_NAME_HM5065  "hm5065"
 #define RK29_CAM_ISP_NAME_ICATCH7002_MI1040 "icatchmi1040"
 #define RK29_CAM_ISP_NAME_ICATCH7002_OV5693 "icatchov5693"
+#define RK29_CAM_ISP_NAME_ICATCH7002_OV8825 "icatchov8825" //zyt
+#define RK29_CAM_ISP_NAME_ICATCH7002_OV2720 "icatchov2720" //zyt
 
 //Sensor full resolution define
 #define ov7675_FULL_RESOLUTION     0x30000            // 0.3 megapixel
@@ -362,6 +366,8 @@
 #define nt99340_FULL_RESOLUTION     0x300000           // oyyf@rock-chips.com:  3 megapixel 2048*1536
 #define icatchmi1040_FULL_RESOLUTION 0x200000
 #define icatchov5693_FULL_RESOLUTION 0x500000
+#define icatchov8825_FULL_RESOLUTION 0x800000					//zyt
+#define icatchov2720_FULL_RESOLUTION 0x210000                   //zyt
 #define end_FULL_RESOLUTION         0x00
 
 //Sensor i2c addr define
@@ -416,6 +422,8 @@
 #define hm5065_I2C_ADDR             0x3e
 #define icatchmi1040_I2C_ADDR		0x78
 #define icatchov5693_I2C_ADDR       0x78
+#define icatchov8825_I2C_ADDR       0x78  //zyt
+#define icatchov2720_I2C_ADDR       0x78  //zyt
 #define end_I2C_ADDR                INVALID_VALUE
 
 
@@ -547,6 +555,15 @@
 #define icatchov5693_PWRSEQ               (SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR,0)|\
                                     SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_HWRST,2)|\
                                     SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,1))
+                                    
+#define icatchov8825_PWRSEQ               (SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR,0)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_HWRST,2)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,1))     //zyt                                    
+                                    
+#define icatchov2720_PWRSEQ               (SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR,0)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_HWRST,2)|\
+                                    SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,1))     //zyt 
+
 #define icatchmi1040_PWRSEQ               (SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR,0)|\
                                     SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_HWRST,2)|\
                                     SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_CLKIN,1))

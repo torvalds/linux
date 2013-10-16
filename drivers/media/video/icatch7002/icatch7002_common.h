@@ -76,7 +76,7 @@ extern int icatch_load_fw(struct soc_camera_device *icd,u8 sensorid);
 int icatch_get_rearid_by_lowlevelmode(struct soc_camera_device *icd,UINT16 *rear_id);
 int icatch_get_frontid_by_lowlevelmode(struct soc_camera_device *icd,UINT16 *front_id);
 extern int icatch_sensor_init(struct i2c_client *client);
-extern int icatch_s_fmt(struct i2c_client *client, struct v4l2_mbus_framefmt *mf);
+extern int icatch_s_fmt(struct i2c_client *client, struct v4l2_mbus_framefmt *mf,bool is_capture);
 extern int icatch_s_stream(struct v4l2_subdev *sd, int enable);
 extern int sensor_set_get_control_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
                                                      struct v4l2_ext_control *ext_ctrl,bool is_set);
@@ -97,6 +97,7 @@ enum ISP_OUTPUT_RES{
 	OUTPUT_1080P		=0x0800, //1920*1080
 	OUTPUT_QXGA 		=0x1000,  // 2048*1536
 	OUTPUT_QSXGA		=0x2000, // 2592*1944
+	OUTPUT_QUXGA		=0x4000, //3264*2448
 };
 
 

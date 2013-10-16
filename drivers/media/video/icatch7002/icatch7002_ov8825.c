@@ -19,9 +19,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 /* Sensor Driver Configuration Begin */
-#define SENSOR_NAME RK29_CAM_ISP_ICATCH7002_OV5693
-#define SENSOR_V4L2_IDENT V4L2_IDENT_ICATCH7002_OV5693
-#define SENSOR_ID 0x5690
+#define SENSOR_NAME RK29_CAM_ISP_ICATCH7002_OV8825
+#define SENSOR_V4L2_IDENT V4L2_IDENT_ICATCH7002_OV8825
+#define SENSOR_ID 0x8825
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|\
 						  SOCAM_HSYNC_ACTIVE_HIGH| SOCAM_VSYNC_ACTIVE_HIGH|\
 						  SOCAM_DATA_ACTIVE_HIGH|SOCAM_DATAWIDTH_8	|SOCAM_MCLK_24MHZ)
@@ -30,7 +30,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_PREVIEW_FPS					 30000	   // 15fps 
 #define SENSOR_FULLRES_L_FPS				 15000	   // 7.5fps
 #define SENSOR_FULLRES_H_FPS				 15000	   // 7.5fps
-#define SENSOR_720P_FPS 					 0
+#define SENSOR_720P_FPS 					 30000
 #define SENSOR_1080P_FPS					 0
 
 									
@@ -92,6 +92,7 @@ static struct rk_sensor_reg sensor_preview_data[] =
 };
 /* 1280x720 */
 static struct rk_sensor_reg sensor_720p[]={
+    SensorStreamChk,
 	SensorEnd
 };
 
@@ -611,10 +612,10 @@ static void sensor_init_parameters_user(struct specific_sensor* spsensor,struct 
 	spsensor->isp_priv_info.focus_zone.dy = 768;
     spsensor->common_sensor.sensor_cb.sensor_enum_framesizes = icatch_enum_framesizes;
 
-	spsensor->isp_priv_info.outputSize = OUTPUT_QSXGA|OUTPUT_QUADVGA;
+	spsensor->isp_priv_info.outputSize = OUTPUT_QUXGA|OUTPUT_QUADVGA;
 	spsensor->isp_priv_info.supportedSizeNum = 2;
 	spsensor->isp_priv_info.supportedSize[0] = OUTPUT_QUADVGA;
-	spsensor->isp_priv_info.supportedSize[1] = OUTPUT_QSXGA;
+	spsensor->isp_priv_info.supportedSize[1] = OUTPUT_QUXGA;
 	return;
 }
 

@@ -369,6 +369,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 	b->timestamp = vb->ts;
 	b->bytesused = vb->size;
 	b->sequence  = vb->field_count >> 1;
+	b->reserved  = vb->rk_code;         /* ddl@rock-chips.com */
 }
 
 int videobuf_mmap_free(struct videobuf_queue *q)
