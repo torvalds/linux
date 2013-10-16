@@ -217,6 +217,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 		/* PVID is set on this port.  Any untagged or priority-tagged
 		 * ingress frame is considered to belong to this vlan.
 		 */
+		*vid = pvid;
 		if (likely(err))
 			/* Untagged Frame. */
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
