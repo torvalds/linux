@@ -2312,7 +2312,7 @@ Type: vm ioctl
 Parameters: struct struct kvm_vcpu_init (out)
 Returns: 0 on success; -1 on error
 Errors:
-  ENODEV:    no preferred target available for the host
+  ENODEV:    no preferred target available for the host
 
 This queries KVM for preferred CPU target type which can be emulated
 by KVM on underlying host.
