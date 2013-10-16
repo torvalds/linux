@@ -22,11 +22,6 @@ config S3C64XX_PL080
 	select AMBA_PL08X
 	select SAMSUNG_DMADEV
 
-config S3C64XX_DMA
-	bool "S3C64XX DMA using legacy S3C DMA API"
-	select S3C_DMA
-	depends on !S3C64XX_PL080
-
 config S3C64XX_SETUP_SDHCI
 	bool
 	select S3C64XX_SETUP_SDHCI_GPIO
