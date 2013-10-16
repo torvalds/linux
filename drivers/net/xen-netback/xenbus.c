@@ -105,6 +105,15 @@ static int netback_probe(struct xenbus_device *dev,
 			goto abort_transaction;
 		}
 
+		/* We support partial checksum setup for IPv6 packets */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "feature-ipv6-csum-offload",
+				    "%d", 1);
+		if (err) {
+			message = "writing feature-ipv6-csum-offload";
+			goto abort_transaction;
+		}
+
 		/* We support rx-copy path. */
 		err = xenbus_printf(xbt, dev->nodename,
 				    "feature-rx-copy", "%d", 1);
