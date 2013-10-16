@@ -124,6 +124,39 @@ enum vpdma_channel {
 	VPE_CHAN_RGB_OUT,
 };
 
+/* flags for VPDMA data descriptors */
+#define VPDMA_DATA_ODD_LINE_SKIP	(1 << 0)
+#define VPDMA_DATA_EVEN_LINE_SKIP	(1 << 1)
+#define VPDMA_DATA_FRAME_1D		(1 << 2)
+#define VPDMA_DATA_MODE_TILED		(1 << 3)
+
+/*
+ * client identifiers used for configuration descriptors
+ */
+#define CFD_MMR_CLIENT		0
+#define CFD_SC_CLIENT		4
+
+/* Address data block header format */
+struct vpdma_adb_hdr {
+	u32			offset;
+	u32			nwords;
+	u32			reserved0;
+	u32			reserved1;
+};
+
+/* helpers for creating ADB headers for config descriptors MMRs as client */
+#define ADB_ADDR(dma_buf, str, fld)	((dma_buf)->addr + offsetof(str, fld))
+#define MMR_ADB_ADDR(buf, str, fld)	ADB_ADDR(&(buf), struct str, fld)
+
+#define VPDMA_SET_MMR_ADB_HDR(buf, str, hdr, regs, offset_a)	\
+	do {							\
+		struct vpdma_adb_hdr *h;			\
+		struct str *adb = NULL;				\
+		h = MMR_ADB_ADDR(buf, str, hdr);		\
+		h->offset = (offset_a);				\
+		h->nwords = sizeof(adb->regs) >> 2;		\
+	} while (0)
+
 /* vpdma descriptor buffer allocation and management */
 int vpdma_alloc_desc_buf(struct vpdma_buf *buf, size_t size);
 void vpdma_free_desc_buf(struct vpdma_buf *buf);
@@ -135,6 +168,21 @@ int vpdma_create_desc_list(struct vpdma_desc_list *list, size_t size, int type);
 void vpdma_reset_desc_list(struct vpdma_desc_list *list);
 void vpdma_free_desc_list(struct vpdma_desc_list *list);
 int vpdma_submit_descs(struct vpdma_data *vpdma, struct vpdma_desc_list *list);
+
+/* helpers for creating vpdma descriptors */
+void vpdma_add_cfd_block(struct vpdma_desc_list *list, int client,
+		struct vpdma_buf *blk, u32 dest_offset);
+void vpdma_add_cfd_adb(struct vpdma_desc_list *list, int client,
+		struct vpdma_buf *adb);
+void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
+		enum vpdma_channel chan);
+void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
+		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
+		enum vpdma_channel chan, u32 flags);
+void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
+		int frame_height, struct v4l2_rect *c_rect,
+		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
+		enum vpdma_channel chan, int field, u32 flags);
 
 /* vpdma list interrupt management */
 void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int list_num,

@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/videodev2.h>
 
 #include "vpdma.h"
 #include "vpdma_priv.h"
@@ -414,6 +415,273 @@ int vpdma_submit_descs(struct vpdma_data *vpdma, struct vpdma_desc_list *list)
 			list_size);
 
 	return 0;
+}
+
+static void dump_cfd(struct vpdma_cfd *cfd)
+{
+	int class;
+
+	class = cfd_get_class(cfd);
+
+	pr_debug("config descriptor of payload class: %s\n",
+		class == CFD_CLS_BLOCK ? "simple block" :
+		"address data block");
+
+	if (class == CFD_CLS_BLOCK)
+		pr_debug("word0: dst_addr_offset = 0x%08x\n",
+			cfd->dest_addr_offset);
+
+	if (class == CFD_CLS_BLOCK)
+		pr_debug("word1: num_data_wrds = %d\n", cfd->block_len);
+
+	pr_debug("word2: payload_addr = 0x%08x\n", cfd->payload_addr);
+
+	pr_debug("word3: pkt_type = %d, direct = %d, class = %d, dest = %d, "
+		"payload_len = %d\n", cfd_get_pkt_type(cfd),
+		cfd_get_direct(cfd), class, cfd_get_dest(cfd),
+		cfd_get_payload_len(cfd));
+}
+
+/*
+ * append a configuration descriptor to the given descriptor list, where the
+ * payload is in the form of a simple data block specified in the descriptor
+ * header, this is used to upload scaler coefficients to the scaler module
+ */
+void vpdma_add_cfd_block(struct vpdma_desc_list *list, int client,
+		struct vpdma_buf *blk, u32 dest_offset)
+{
+	struct vpdma_cfd *cfd;
+	int len = blk->size;
+
+	WARN_ON(blk->dma_addr & VPDMA_DESC_ALIGN);
+
+	cfd = list->next;
+	WARN_ON((void *)(cfd + 1) > (list->buf.addr + list->buf.size));
+
+	cfd->dest_addr_offset = dest_offset;
+	cfd->block_len = len;
+	cfd->payload_addr = (u32) blk->dma_addr;
+	cfd->ctl_payload_len = cfd_pkt_payload_len(CFD_INDIRECT, CFD_CLS_BLOCK,
+				client, len >> 4);
+
+	list->next = cfd + 1;
+
+	dump_cfd(cfd);
+}
+
+/*
+ * append a configuration descriptor to the given descriptor list, where the
+ * payload is in the address data block format, this is used to a configure a
+ * discontiguous set of MMRs
+ */
+void vpdma_add_cfd_adb(struct vpdma_desc_list *list, int client,
+		struct vpdma_buf *adb)
+{
+	struct vpdma_cfd *cfd;
+	unsigned int len = adb->size;
+
+	WARN_ON(len & VPDMA_ADB_SIZE_ALIGN);
+	WARN_ON(adb->dma_addr & VPDMA_DESC_ALIGN);
+
+	cfd = list->next;
+	BUG_ON((void *)(cfd + 1) > (list->buf.addr + list->buf.size));
+
+	cfd->w0 = 0;
+	cfd->w1 = 0;
+	cfd->payload_addr = (u32) adb->dma_addr;
+	cfd->ctl_payload_len = cfd_pkt_payload_len(CFD_INDIRECT, CFD_CLS_ADB,
+				client, len >> 4);
+
+	list->next = cfd + 1;
+
+	dump_cfd(cfd);
+};
+
+/*
+ * control descriptor format change based on what type of control descriptor it
+ * is, we only use 'sync on channel' control descriptors for now, so assume it's
+ * that
+ */
+static void dump_ctd(struct vpdma_ctd *ctd)
+{
+	pr_debug("control descriptor\n");
+
+	pr_debug("word3: pkt_type = %d, source = %d, ctl_type = %d\n",
+		ctd_get_pkt_type(ctd), ctd_get_source(ctd), ctd_get_ctl(ctd));
+}
+
+/*
+ * append a 'sync on channel' type control descriptor to the given descriptor
+ * list, this descriptor stalls the VPDMA list till the time DMA is completed
+ * on the specified channel
+ */
+void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
+		enum vpdma_channel chan)
+{
+	struct vpdma_ctd *ctd;
+
+	ctd = list->next;
+	WARN_ON((void *)(ctd + 1) > (list->buf.addr + list->buf.size));
+
+	ctd->w0 = 0;
+	ctd->w1 = 0;
+	ctd->w2 = 0;
+	ctd->type_source_ctl = ctd_type_source_ctl(chan_info[chan].num,
+				CTD_TYPE_SYNC_ON_CHANNEL);
+
+	list->next = ctd + 1;
+
+	dump_ctd(ctd);
+}
+
+static void dump_dtd(struct vpdma_dtd *dtd)
+{
+	int dir, chan;
+
+	dir = dtd_get_dir(dtd);
+	chan = dtd_get_chan(dtd);
+
+	pr_debug("%s data transfer descriptor for channel %d\n",
+		dir == DTD_DIR_OUT ? "outbound" : "inbound", chan);
+
+	pr_debug("word0: data_type = %d, notify = %d, field = %d, 1D = %d, "
+		"even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
+		dtd_get_data_type(dtd), dtd_get_notify(dtd), dtd_get_field(dtd),
+		dtd_get_1d(dtd), dtd_get_even_line_skip(dtd),
+		dtd_get_odd_line_skip(dtd), dtd_get_line_stride(dtd));
+
+	if (dir == DTD_DIR_IN)
+		pr_debug("word1: line_length = %d, xfer_height = %d\n",
+			dtd_get_line_length(dtd), dtd_get_xfer_height(dtd));
+
+	pr_debug("word2: start_addr = 0x%08x\n", dtd->start_addr);
+
+	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, "
+		"pri = %d, next_chan = %d\n", dtd_get_pkt_type(dtd),
+		dtd_get_mode(dtd), dir, chan, dtd_get_priority(dtd),
+		dtd_get_next_chan(dtd));
+
+	if (dir == DTD_DIR_IN)
+		pr_debug("word4: frame_width = %d, frame_height = %d\n",
+			dtd_get_frame_width(dtd), dtd_get_frame_height(dtd));
+	else
+		pr_debug("word4: desc_write_addr = 0x%08x, write_desc = %d, "
+			"drp_data = %d, use_desc_reg = %d\n",
+			dtd_get_desc_write_addr(dtd), dtd_get_write_desc(dtd),
+			dtd_get_drop_data(dtd), dtd_get_use_desc(dtd));
+
+	if (dir == DTD_DIR_IN)
+		pr_debug("word5: hor_start = %d, ver_start = %d\n",
+			dtd_get_h_start(dtd), dtd_get_v_start(dtd));
+	else
+		pr_debug("word5: max_width %d, max_height %d\n",
+			dtd_get_max_width(dtd), dtd_get_max_height(dtd));
+
+	pr_debug("word6: client specfic attr0 = 0x%08x\n", dtd->client_attr0);
+	pr_debug("word7: client specfic attr1 = 0x%08x\n", dtd->client_attr1);
+}
+
+/*
+ * append an outbound data transfer descriptor to the given descriptor list,
+ * this sets up a 'client to memory' VPDMA transfer for the given VPDMA channel
+ */
+void vpdma_add_out_dtd(struct vpdma_desc_list *list, struct v4l2_rect *c_rect,
+		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
+		enum vpdma_channel chan, u32 flags)
+{
+	int priority = 0;
+	int field = 0;
+	int notify = 1;
+	int channel, next_chan;
+	int depth = fmt->depth;
+	int stride;
+	struct vpdma_dtd *dtd;
+
+	channel = next_chan = chan_info[chan].num;
+
+	if (fmt->data_type == DATA_TYPE_C420)
+		depth = 8;
+
+	stride = (depth * c_rect->width) >> 3;
+	dma_addr += (c_rect->left * depth) >> 3;
+
+	dtd = list->next;
+	WARN_ON((void *)(dtd + 1) > (list->buf.addr + list->buf.size));
+
+	dtd->type_ctl_stride = dtd_type_ctl_stride(fmt->data_type,
+					notify,
+					field,
+					!!(flags & VPDMA_DATA_FRAME_1D),
+					!!(flags & VPDMA_DATA_EVEN_LINE_SKIP),
+					!!(flags & VPDMA_DATA_ODD_LINE_SKIP),
+					stride);
+	dtd->w1 = 0;
+	dtd->start_addr = (u32) dma_addr;
+	dtd->pkt_ctl = dtd_pkt_ctl(!!(flags & VPDMA_DATA_MODE_TILED),
+				DTD_DIR_OUT, channel, priority, next_chan);
+	dtd->desc_write_addr = dtd_desc_write_addr(0, 0, 0, 0);
+	dtd->max_width_height = dtd_max_width_height(MAX_OUT_WIDTH_1920,
+					MAX_OUT_HEIGHT_1080);
+	dtd->client_attr0 = 0;
+	dtd->client_attr1 = 0;
+
+	list->next = dtd + 1;
+
+	dump_dtd(dtd);
+}
+
+/*
+ * append an inbound data transfer descriptor to the given descriptor list,
+ * this sets up a 'memory to client' VPDMA transfer for the given VPDMA channel
+ */
+void vpdma_add_in_dtd(struct vpdma_desc_list *list, int frame_width,
+		int frame_height, struct v4l2_rect *c_rect,
+		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
+		enum vpdma_channel chan, int field, u32 flags)
+{
+	int priority = 0;
+	int notify = 1;
+	int depth = fmt->depth;
+	int channel, next_chan;
+	int stride;
+	int height = c_rect->height;
+	struct vpdma_dtd *dtd;
+
+	channel = next_chan = chan_info[chan].num;
+
+	if (fmt->data_type == DATA_TYPE_C420) {
+		height >>= 1;
+		frame_height >>= 1;
+		depth = 8;
+	}
+
+	stride = (depth * c_rect->width) >> 3;
+	dma_addr += (c_rect->left * depth) >> 3;
+
+	dtd = list->next;
+	WARN_ON((void *)(dtd + 1) > (list->buf.addr + list->buf.size));
+
+	dtd->type_ctl_stride = dtd_type_ctl_stride(fmt->data_type,
+					notify,
+					field,
+					!!(flags & VPDMA_DATA_FRAME_1D),
+					!!(flags & VPDMA_DATA_EVEN_LINE_SKIP),
+					!!(flags & VPDMA_DATA_ODD_LINE_SKIP),
+					stride);
+
+	dtd->xfer_length_height = dtd_xfer_length_height(c_rect->width, height);
+	dtd->start_addr = (u32) dma_addr;
+	dtd->pkt_ctl = dtd_pkt_ctl(!!(flags & VPDMA_DATA_MODE_TILED),
+				DTD_DIR_IN, channel, priority, next_chan);
+	dtd->frame_width_height = dtd_frame_width_height(frame_width,
+					frame_height);
+	dtd->start_h_v = dtd_start_h_v(c_rect->left, c_rect->top);
+	dtd->client_attr0 = 0;
+	dtd->client_attr1 = 0;
+
+	list->next = dtd + 1;
+
+	dump_dtd(dtd);
 }
 
 /* set or clear the mask for list complete interrupt */
