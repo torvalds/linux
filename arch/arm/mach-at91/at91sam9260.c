@@ -343,6 +343,7 @@ static void __init at91sam9260_ioremap_registers(void)
 	at91sam926x_ioremap_pit(AT91SAM9260_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9260_BASE_SMC);
 	at91_ioremap_matrix(AT91SAM9260_BASE_MATRIX);
+	at91_pm_set_standby(at91sam9_sdram_standby);
 }
 
 static void __init at91sam9260_initialize(void)
@@ -352,8 +353,6 @@ static void __init at91sam9260_initialize(void)
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9260_gpio, 3);
-
-	at91_pm_set_standby(at91sam9_sdram_standby);
 }
 
 /* --------------------------------------------------------------------
