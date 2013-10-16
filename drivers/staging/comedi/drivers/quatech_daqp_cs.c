@@ -208,8 +208,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	case buffer:
 		while (!((status = inb(dev->iobase + DAQP_STATUS))
 			 & DAQP_STATUS_FIFO_EMPTY)) {
-
-			short data;
+			unsigned short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
