@@ -1074,7 +1074,7 @@ done:
 	return 0;
 }
 
-static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
+static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -1127,7 +1127,7 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
 	vlv_wait_port_ready(dev_priv, port);
 }
 
-static void intel_hdmi_pre_pll_enable(struct intel_encoder *encoder)
+static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -1163,7 +1163,7 @@ static void intel_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
-static void intel_hdmi_post_disable(struct intel_encoder *encoder)
+static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -1313,10 +1313,10 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
 	if (IS_VALLEYVIEW(dev)) {
-		intel_encoder->pre_pll_enable = intel_hdmi_pre_pll_enable;
-		intel_encoder->pre_enable = intel_hdmi_pre_enable;
+		intel_encoder->pre_pll_enable = vlv_hdmi_pre_pll_enable;
+		intel_encoder->pre_enable = vlv_hdmi_pre_enable;
 		intel_encoder->enable = vlv_enable_hdmi;
-		intel_encoder->post_disable = intel_hdmi_post_disable;
+		intel_encoder->post_disable = vlv_hdmi_post_disable;
 	} else {
 		intel_encoder->enable = intel_enable_hdmi;
 	}
