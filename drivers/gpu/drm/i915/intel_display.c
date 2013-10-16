@@ -6557,21 +6557,57 @@ static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
 	}
 }
 
+#define for_each_power_domain(domain, mask)				\
+	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
+		if ((1 << (domain)) & (mask))
+
+static unsigned long get_pipe_power_domains(struct drm_device *dev,
+					    enum pipe pipe, bool pfit_enabled)
+{
+	unsigned long mask;
+	enum transcoder transcoder;
+
+	transcoder = intel_pipe_to_cpu_transcoder(dev->dev_private, pipe);
+
+	mask = BIT(POWER_DOMAIN_PIPE(pipe));
+	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
+	if (pfit_enabled)
+		mask |= BIT(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
+
+	return mask;
+}
+
 static void modeset_update_power_wells(struct drm_device *dev)
 {
-	bool enable = false;
+	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
 	struct intel_crtc *crtc;
 
+	/*
+	 * First get all needed power domains, then put all unneeded, to avoid
+	 * any unnecessary toggling of the power wells.
+	 */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		enum intel_display_power_domain domain;
+
 		if (!crtc->base.enabled)
 			continue;
 
-		if (crtc->pipe != PIPE_A || crtc->config.pch_pfit.enabled ||
-		    crtc->config.cpu_transcoder != TRANSCODER_EDP)
-			enable = true;
+		pipe_domains[crtc->pipe] = get_pipe_power_domains(dev,
+						crtc->pipe,
+						crtc->config.pch_pfit.enabled);
+
+		for_each_power_domain(domain, pipe_domains[crtc->pipe])
+			intel_display_power_get(dev, domain);
 	}
 
-	intel_set_power_well(dev, enable);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		enum intel_display_power_domain domain;
+
+		for_each_power_domain(domain, crtc->enabled_power_domains)
+			intel_display_power_put(dev, domain);
+
+		crtc->enabled_power_domains = pipe_domains[crtc->pipe];
+	}
 }
 
 static void haswell_modeset_global_resources(struct drm_device *dev)
