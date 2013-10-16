@@ -198,9 +198,11 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		 * psw and gprs are stored on the stack
 		 */
 		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
-		if (addr == (addr_t) &dummy->regs.psw.mask)
+		if (addr == (addr_t) &dummy->regs.psw.mask) {
 			/* Return a clean psw mask. */
-			tmp = PSW_USER_BITS | (tmp & PSW_MASK_USER);
+			tmp &= PSW_MASK_USER | PSW_MASK_RI;
+			tmp |= PSW_USER_BITS;
+		}
 
 	} else if (addr < (addr_t) &dummy->regs.orig_gpr2) {
 		/*
@@ -320,11 +322,15 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * psw and gprs are stored on the stack
 		 */
-		if (addr == (addr_t) &dummy->regs.psw.mask &&
-		    ((data & ~PSW_MASK_USER) != PSW_USER_BITS ||
-		     ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))))
-			/* Invalid psw mask. */
-			return -EINVAL;
+		if (addr == (addr_t) &dummy->regs.psw.mask) {
+			unsigned long mask = PSW_MASK_USER;
+
+			mask |= is_ri_task(child) ? PSW_MASK_RI : 0;
+			if ((data & ~mask) != PSW_USER_BITS)
+				return -EINVAL;
+			if ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))
+				return -EINVAL;
+		}
 		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
@@ -556,7 +562,8 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Fake a 31 bit psw mask. */
 			tmp = (__u32)(regs->psw.mask >> 32);
-			tmp = psw32_user_bits | (tmp & PSW32_MASK_USER);
+			tmp &= PSW32_MASK_USER | PSW32_MASK_RI;
+			tmp |= psw32_user_bits;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
 			tmp = (__u32) regs->psw.addr |
@@ -653,13 +660,16 @@ static int __poke_user_compat(struct task_struct *child,
 		 * psw, gprs, acrs and orig_gpr2 are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
+			__u32 mask = PSW32_MASK_USER;
+
+			mask |= is_ri_task(child) ? PSW32_MASK_RI : 0;
 			/* Build a 64 bit psw mask from 31 bit mask. */
-			if ((tmp & ~PSW32_MASK_USER) != psw32_user_bits)
+			if ((tmp & ~mask) != psw32_user_bits)
 				/* Invalid psw mask. */
 				return -EINVAL;
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
 				(regs->psw.mask & PSW_MASK_BA) |
-				(__u64)(tmp & PSW32_MASK_USER) << 32;
+				(__u64)(tmp & mask) << 32;
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
 			regs->psw.addr = (__u64) tmp & PSW32_ADDR_INSN;

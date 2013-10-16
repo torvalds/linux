@@ -156,8 +156,9 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 	_sigregs32 user_sregs;
 	int i;
 
-	user_sregs.regs.psw.mask = psw32_user_bits |
-		((__u32)(regs->psw.mask >> 32) & PSW32_MASK_USER);
+	user_sregs.regs.psw.mask = (__u32)(regs->psw.mask >> 32);
+	user_sregs.regs.psw.mask &= PSW32_MASK_USER | PSW32_MASK_RI;
+	user_sregs.regs.psw.mask |= psw32_user_bits;
 	user_sregs.regs.psw.addr = (__u32) regs->psw.addr |
 		(__u32)(regs->psw.mask & PSW_MASK_BA);
 	for (i = 0; i < NUM_GPRS; i++)
@@ -185,6 +186,9 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	if (__copy_from_user(&user_sregs, &sregs->regs, sizeof(user_sregs)))
 		return -EFAULT;
 
+	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW32_MASK_RI))
+		return -EINVAL;
+
 	/* Loading the floating-point-control word can fail. Do that first. */
 	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
 		return -EINVAL;
@@ -192,6 +196,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
 		(__u64)(user_sregs.regs.psw.mask & PSW32_MASK_USER) << 32 |
+		(__u64)(user_sregs.regs.psw.mask & PSW32_MASK_RI) << 32 |
 		(__u64)(user_sregs.regs.psw.addr & PSW32_ADDR_AMODE);
 	/* Check for invalid user address space control. */
 	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_HOME)

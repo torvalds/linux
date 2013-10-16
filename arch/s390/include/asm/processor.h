@@ -175,6 +175,9 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)	(task_pt_regs(tsk)->psw.addr)
 #define KSTK_ESP(tsk)	(task_pt_regs(tsk)->gprs[15])
 
+/* Has task runtime instrumentation enabled ? */
+#define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
+
 static inline unsigned short stap(void)
 {
 	unsigned short cpu_address;

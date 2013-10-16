@@ -58,7 +58,7 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	/* Copy a 'clean' PSW mask to the user to avoid leaking
 	   information about whether PER is currently on.  */
 	user_sregs.regs.psw.mask = PSW_USER_BITS |
-		(regs->psw.mask & PSW_MASK_USER);
+		(regs->psw.mask & (PSW_MASK_USER | PSW_MASK_RI));
 	user_sregs.regs.psw.addr = regs->psw.addr;
 	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
@@ -86,13 +86,16 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	if (__copy_from_user(&user_sregs, sregs, sizeof(user_sregs)))
 		return -EFAULT;
 
+	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
+		return -EINVAL;
+
 	/* Loading the floating-point-control word can fail. Do that first. */
 	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
 		return -EINVAL;
 
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~PSW_MASK_USER) |
-		(user_sregs.regs.psw.mask & PSW_MASK_USER);
+		(user_sregs.regs.psw.mask & (PSW_MASK_USER | PSW_MASK_RI));
 	/* Check for invalid user address space control. */
 	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_HOME)
 		regs->psw.mask = PSW_ASC_PRIMARY |
