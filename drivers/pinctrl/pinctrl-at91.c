@@ -243,7 +243,7 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int i;
 
 	/*
-	 * first find the group of this node and check if we need create
+	 * first find the group of this node and check if we need to create
 	 * config maps for pins
 	 */
 	grp = at91_pinctrl_find_group_by_name(info, np->name);
@@ -572,7 +572,7 @@ static int at91_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 		info->functions[selector].name, info->groups[group].name);
 
 	/* first check that all the pins of the group are valid with a valid
-	 * paramter */
+	 * parameter */
 	for (i = 0; i < npins; i++) {
 		pin = &pins_conf[i];
 		ret = pin_check_config(info, info->groups[group].name, i, pin);
@@ -966,7 +966,7 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 	at91_pinctrl_child_count(info, np);
 
 	if (info->nbanks < 1) {
-		dev_err(&pdev->dev, "you need to specify atleast one gpio-controller\n");
+		dev_err(&pdev->dev, "you need to specify at least one gpio-controller\n");
 		return -EINVAL;
 	}
 
@@ -1503,7 +1503,7 @@ static int at91_gpio_of_irq_setup(struct device_node *node,
 	if (at91_gpio->pioc_idx)
 		prev = gpio_chips[at91_gpio->pioc_idx - 1];
 
-	/* The toplevel handler handles one bank of GPIOs, except
+	/* The top level handler handles one bank of GPIOs, except
 	 * on some SoC it can handles up to three...
 	 * We only set up the handler for the first of the list.
 	 */
