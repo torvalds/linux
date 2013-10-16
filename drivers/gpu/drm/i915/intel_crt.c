@@ -274,7 +274,7 @@ static void intel_crt_mode_set(struct intel_encoder *encoder)
 	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
 	u32 adpa;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (INTEL_INFO(dev)->gen >= 5)
 		adpa = ADPA_HOTPLUG_BITS;
 	else
 		adpa = 0;
