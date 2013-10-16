@@ -575,12 +575,12 @@ static void update_scan_rsp_data(struct hci_request *req)
 
 	len = create_scan_rsp_data(hdev, cp.data);
 
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
+	if (hdev->scan_rsp_data_len == len &&
+	    memcmp(cp.data, hdev->scan_rsp_data, len) == 0)
 		return;
 
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
+	memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
+	hdev->scan_rsp_data_len = len;
 
 	cp.length = len;
 
