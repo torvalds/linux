@@ -10762,11 +10762,11 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		}
 
 		encoder->connectors_active = false;
-		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe=%i\n",
+		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe %c\n",
 			      encoder->base.base.id,
 			      drm_get_encoder_name(&encoder->base),
 			      encoder->base.crtc ? "enabled" : "disabled",
-			      pipe);
+			      pipe_name(pipe));
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,

@@ -574,7 +574,7 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		intel_pipe_to_cpu_transcoder(dev_priv, pipe);
 	unsigned long flags;
 
-	DRM_DEBUG_KMS("pipe=%d\n", pipe);
+	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
 
 	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
