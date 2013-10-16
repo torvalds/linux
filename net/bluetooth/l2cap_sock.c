@@ -77,7 +77,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		if (la.l2_psm)
 			return -EINVAL;
 		/* We only allow ATT user space socket */
-		if (la.l2_cid != L2CAP_CID_ATT)
+		if (la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 	}
 
@@ -170,7 +170,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 		if (la.l2_psm)
 			return -EINVAL;
 		/* We only allow ATT user space socket */
-		if (la.l2_cid != L2CAP_CID_ATT)
+		if (la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
 			return -EINVAL;
 	}
 
