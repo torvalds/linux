@@ -2178,6 +2178,9 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
  *
  * @handle - handle for journal operations
  * @mpd - extent to map
+ * @give_up_on_write - we set this to true iff there is a fatal error and there
+ *                     is no hope of writing the data. The caller should discard
+ *                     dirty pages to avoid infinite loops.
  *
  * The function maps extent starting at mpd->lblk of length mpd->len. If it is
  * delayed, blocks are allocated, if it is unwritten, we may need to convert
