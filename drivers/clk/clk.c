@@ -1744,6 +1744,7 @@ int __clk_init(struct device *dev, struct clk *clk)
 	else
 		clk->rate = 0;
 
+	clk_debug_register(clk);
 	/*
 	 * walk the list of orphan clocks and reparent any that are children of
 	 * this clock
@@ -1773,8 +1774,6 @@ int __clk_init(struct device *dev, struct clk *clk)
 	 */
 	if (clk->ops->init)
 		clk->ops->init(clk->hw);
-
-	clk_debug_register(clk);
 
 out:
 	clk_prepare_unlock();
