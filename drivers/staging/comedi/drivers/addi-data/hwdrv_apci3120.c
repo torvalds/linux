@@ -1391,7 +1391,7 @@ static int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,
  */
 static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 						  struct comedi_subdevice *s,
-						  short *dma_buffer,
+						  unsigned short *dma_buffer,
 						  unsigned int num_samples)
 {
 	struct addi_private *devpriv = dev->private;

@@ -133,7 +133,7 @@ struct addi_private {
 	unsigned short us_UseDma;	/*  To use Dma or not */
 	unsigned char b_DmaDoubleBuffer;	/*  we can use double buffering */
 	unsigned int ui_DmaActualBuffer;	/*  which buffer is used now */
-	short *ul_DmaBufferVirtual[2];	/*  pointers to begin of DMA buffer */
+	unsigned short *ul_DmaBufferVirtual[2];	/*  pointers to DMA buffer */
 	unsigned int ul_DmaBufferHw[2];	/*  hw address of DMA buff */
 	unsigned int ui_DmaBufferSize[2];	/*  size of dma buffer in bytes */
 	unsigned int ui_DmaBufferUsesize[2];	/*  which size we may now used for transfer */
