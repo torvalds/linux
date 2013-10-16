@@ -574,7 +574,12 @@ static int connect_rings(struct backend_info *be)
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-no-csum-offload",
 			 "%d", &val) < 0)
 		val = 0;
-	vif->csum = !val;
+	vif->ip_csum = !val;
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-ipv6-csum-offload",
+			 "%d", &val) < 0)
+		val = 0;
+	vif->ipv6_csum = !!val;
 
 	/* Map the shared frame, irq etc. */
 	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref,

@@ -216,8 +216,10 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_SG;
 	if (!vif->gso && !vif->gso_prefix)
 		features &= ~NETIF_F_TSO;
-	if (!vif->csum)
+	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
+	if (!vif->ipv6_csum)
+		features &= ~NETIF_F_IPV6_CSUM;
 
 	return features;
 }
@@ -306,7 +308,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->domid  = domid;
 	vif->handle = handle;
 	vif->can_sg = 1;
-	vif->csum = 1;
+	vif->ip_csum = 1;
 	vif->dev = dev;
 
 	vif->credit_bytes = vif->remaining_credit = ~0UL;
@@ -316,7 +318,9 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->credit_timeout.expires = jiffies;
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	dev->hw_features = NETIF_F_SG |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO;
 	dev->features = dev->hw_features;
 	SET_ETHTOOL_OPS(dev, &xenvif_ethtool_ops);
 
