@@ -353,7 +353,7 @@ static enum dma_status cppi41_dma_tx_status(struct dma_chan *chan,
 
 	/* lock */
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (txstate && ret == DMA_SUCCESS)
+	if (txstate && ret == DMA_COMPLETE)
 		txstate->residue = c->residue;
 	/* unlock */
 
