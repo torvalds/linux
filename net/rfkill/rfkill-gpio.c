@@ -27,24 +27,13 @@
 
 #include <linux/rfkill-gpio.h>
 
-enum rfkill_gpio_clk_state {
-	UNSPECIFIED = 0,
-	PWR_ENABLED,
-	PWR_DISABLED
-};
-
-#define PWR_CLK_SET(_RF, _EN) \
-	((_RF)->pwr_clk_enabled = (!(_EN) ? PWR_ENABLED : PWR_DISABLED))
-#define PWR_CLK_ENABLED(_RF) ((_RF)->pwr_clk_enabled == PWR_ENABLED)
-#define PWR_CLK_DISABLED(_RF) ((_RF)->pwr_clk_enabled != PWR_ENABLED)
-
 struct rfkill_gpio_data {
 	struct rfkill_gpio_platform_data	*pdata;
 	struct rfkill				*rfkill_dev;
 	char					*reset_name;
 	char					*shutdown_name;
-	enum rfkill_gpio_clk_state		pwr_clk_enabled;
-	struct clk				*pwr_clk;
+	struct clk				*clk;
+	bool					clk_enabled;
 };
 
 static int rfkill_gpio_set_power(void *data, bool blocked)
@@ -56,19 +45,18 @@ static int rfkill_gpio_set_power(void *data, bool blocked)
 			gpio_direction_output(rfkill->pdata->shutdown_gpio, 0);
 		if (gpio_is_valid(rfkill->pdata->reset_gpio))
 			gpio_direction_output(rfkill->pdata->reset_gpio, 0);
-		if (rfkill->pwr_clk && PWR_CLK_ENABLED(rfkill))
-			clk_disable(rfkill->pwr_clk);
+		if (!IS_ERR(rfkill->clk) && rfkill->clk_enabled)
+			clk_disable(rfkill->clk);
 	} else {
-		if (rfkill->pwr_clk && PWR_CLK_DISABLED(rfkill))
-			clk_enable(rfkill->pwr_clk);
+		if (!IS_ERR(rfkill->clk) && !rfkill->clk_enabled)
+			clk_enable(rfkill->clk);
 		if (gpio_is_valid(rfkill->pdata->reset_gpio))
 			gpio_direction_output(rfkill->pdata->reset_gpio, 1);
 		if (gpio_is_valid(rfkill->pdata->shutdown_gpio))
 			gpio_direction_output(rfkill->pdata->shutdown_gpio, 1);
 	}
 
-	if (rfkill->pwr_clk)
-		PWR_CLK_SET(rfkill, blocked);
+	rfkill->clk_enabled = blocked;
 
 	return 0;
 }
@@ -123,14 +111,7 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	snprintf(rfkill->reset_name, len + 6 , "%s_reset", pdata->name);
 	snprintf(rfkill->shutdown_name, len + 9, "%s_shutdown", pdata->name);
 
-	if (pdata->power_clk_name) {
-		rfkill->pwr_clk = devm_clk_get(&pdev->dev,
-						pdata->power_clk_name);
-		if (IS_ERR(rfkill->pwr_clk)) {
-			pr_warn("%s: can't find pwr_clk.\n", __func__);
-			return PTR_ERR(rfkill->pwr_clk);
-		}
-	}
+	rfkill->clk = devm_clk_get(&pdev->dev, pdata->power_clk_name);
 
 	if (gpio_is_valid(pdata->reset_gpio)) {
 		ret = devm_gpio_request(&pdev->dev, pdata->reset_gpio,
