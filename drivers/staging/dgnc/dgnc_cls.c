@@ -33,7 +33,7 @@
 #include <linux/sched.h>	/* For jiffies, task states */
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
 #include <linux/delay.h>	/* For udelay */
-#include <asm/io.h>		/* For read[bwl]/write[bwl] */
+#include <linux/io.h>		/* For read[bwl]/write[bwl] */
 #include <linux/serial.h>	/* For struct async_serial */
 #include <linux/serial_reg.h>	/* For the various UART offsets */
 #include <linux/pci.h>
