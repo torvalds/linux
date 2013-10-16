@@ -34,6 +34,10 @@ static const struct resource pfc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
 };
 
+#define r8a7790_register_pfc()						\
+	platform_device_register_simple("pfc-r8a7790", -1, pfc_resources, \
+					ARRAY_SIZE(pfc_resources))
+
 #define R8A7790_GPIO(idx)						\
 static const struct resource r8a7790_gpio##idx##_resources[] __initconst = { \
 	DEFINE_RES_MEM(0xe6050000 + 0x1000 * (idx), 0x50),		\
@@ -65,8 +69,7 @@ R8A7790_GPIO(5);
 
 void __init r8a7790_pinmux_init(void)
 {
-	platform_device_register_simple("pfc-r8a7790", -1, pfc_resources,
-					ARRAY_SIZE(pfc_resources));
+	r8a7790_register_pfc();
 	r8a7790_register_gpio(0);
 	r8a7790_register_gpio(1);
 	r8a7790_register_gpio(2);
