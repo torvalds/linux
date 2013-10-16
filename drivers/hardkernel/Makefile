@@ -5,4 +5,4 @@ obj-$(CONFIG_ODROIDXU_IOBOARD)  += ioboard-keyled.o
 obj-$(CONFIG_ODROIDXU_IOBOARD)  += ioboard-bh1780.o
 obj-$(CONFIG_ODROIDXU_IOBOARD)  += ioboard-bmp180.o
 obj-$(CONFIG_ODROIDXU_IOBOARD)  += ioboard-adc.o
-obj-$(CONFIG_ODROIDXU_IOBOARD)  += ioboard-spi.o
+obj-$(CONFIG_ODROIDXU_IOBOARD)  += ioboard-spi.o ioboard-spi-misc.o

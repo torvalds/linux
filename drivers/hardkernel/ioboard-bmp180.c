@@ -363,6 +363,7 @@ static int bmp180_probe(struct i2c_client *client, const struct i2c_device_id *i
 	return 0;
 
 error:
+    printk("\n=================== ioboard_%s FAIL! ===================\n\n", __func__);
 	kfree(bmp180);
 	return err;
 }
