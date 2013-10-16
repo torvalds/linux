@@ -72,6 +72,15 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (!bdaddr_type_is_valid(la.l2_bdaddr_type))
 		return -EINVAL;
 
+	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
+		/* Connection oriented channels are not supported on LE */
+		if (la.l2_psm)
+			return -EINVAL;
+		/* We only allow ATT user space socket */
+		if (la.l2_cid != L2CAP_CID_ATT)
+			return -EINVAL;
+	}
+
 	lock_sock(sk);
 
 	if (sk->sk_state != BT_OPEN) {
@@ -155,6 +164,15 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 
 	if (chan->src_type != BDADDR_BREDR && la.l2_bdaddr_type == BDADDR_BREDR)
 		return -EINVAL;
+
+	if (bdaddr_type_is_le(la.l2_bdaddr_type)) {
+		/* Connection oriented channels are not supported on LE */
+		if (la.l2_psm)
+			return -EINVAL;
+		/* We only allow ATT user space socket */
+		if (la.l2_cid != L2CAP_CID_ATT)
+			return -EINVAL;
+	}
 
 	err = l2cap_chan_connect(chan, la.l2_psm, __le16_to_cpu(la.l2_cid),
 				 &la.l2_bdaddr, la.l2_bdaddr_type);
