@@ -357,15 +357,15 @@ struct cb_pcidas_private {
 	unsigned int s5933_intcsr_bits;
 	unsigned int ao_control_bits;
 	/* fifo buffers */
-	short ai_buffer[AI_BUFFER_SIZE];
-	short ao_buffer[AO_BUFFER_SIZE];
+	unsigned short ai_buffer[AI_BUFFER_SIZE];
+	unsigned short ao_buffer[AO_BUFFER_SIZE];
 	/* divisors of master clock for analog output pacing */
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
 	/* number of analog output samples remaining */
 	unsigned int ao_count;
 	/* cached values for readback */
-	int ao_value[2];
+	unsigned short ao_value[2];
 	unsigned int caldac_value[NUM_CHANNELS_8800];
 	unsigned int trimpot_value[NUM_CHANNELS_8402];
 	unsigned int dac08_value;
