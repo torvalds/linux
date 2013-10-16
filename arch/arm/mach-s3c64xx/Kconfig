@@ -17,9 +17,15 @@ config CPU_S3C6410
 	help
 	  Enable S3C6410 CPU support
 
+config S3C64XX_PL080
+	bool "S3C64XX DMA using generic PL08x driver"
+	select AMBA_PL08X
+	select SAMSUNG_DMADEV
+
 config S3C64XX_DMA
-	bool "S3C64XX DMA"
+	bool "S3C64XX DMA using legacy S3C DMA API"
 	select S3C_DMA
+	depends on !S3C64XX_PL080
 
 config S3C64XX_SETUP_SDHCI
 	bool
