@@ -1193,7 +1193,7 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 static void display_pipe_crc_update(struct drm_device *dev, enum pipe pipe,
 				    uint32_t crc0, uint32_t crc1,
 				    uint32_t crc2, uint32_t crc3,
-				    uint32_t crc4, uint32_t frame)
+				    uint32_t crc4)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
@@ -1215,7 +1215,7 @@ static void display_pipe_crc_update(struct drm_device *dev, enum pipe pipe,
 
 	entry = &pipe_crc->entries[head];
 
-	entry->frame = frame;
+	entry->frame = dev->driver->get_vblank_counter(dev, pipe);
 	entry->crc[0] = crc0;
 	entry->crc[1] = crc1;
 	entry->crc[2] = crc2;
@@ -1237,8 +1237,7 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 				I915_READ(PIPE_CRC_RES_2_IVB(pipe)),
 				I915_READ(PIPE_CRC_RES_3_IVB(pipe)),
 				I915_READ(PIPE_CRC_RES_4_IVB(pipe)),
-				I915_READ(PIPE_CRC_RES_5_IVB(pipe)),
-				I915_READ(PIPEFRAME(pipe)));
+				I915_READ(PIPE_CRC_RES_5_IVB(pipe)));
 }
 
 static void ilk_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
@@ -1250,8 +1249,7 @@ static void ilk_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 				I915_READ(PIPE_CRC_RES_GREEN_ILK(pipe)),
 				I915_READ(PIPE_CRC_RES_BLUE_ILK(pipe)),
 				I915_READ(PIPE_CRC_RES_RES1_ILK(pipe)),
-				I915_READ(PIPE_CRC_RES_RES2_ILK(pipe)),
-				I915_READ(PIPEFRAME(pipe)));
+				I915_READ(PIPE_CRC_RES_RES2_ILK(pipe)));
 }
 #else
 static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
