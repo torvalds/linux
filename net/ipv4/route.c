@@ -295,7 +295,7 @@ static int rt_cpu_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq,"%08x  %08x %08x %08x %08x %08x %08x %08x "
 		   " %08x %08x %08x %08x %08x %08x %08x %08x %08x \n",
 		   dst_entries_get_slow(&ipv4_dst_ops),
-		   st->in_hit,
+		   0, /* st->in_hit */
 		   st->in_slow_tot,
 		   st->in_slow_mc,
 		   st->in_no_route,
@@ -303,16 +303,16 @@ static int rt_cpu_seq_show(struct seq_file *seq, void *v)
 		   st->in_martian_dst,
 		   st->in_martian_src,
 
-		   st->out_hit,
+		   0, /* st->out_hit */
 		   st->out_slow_tot,
 		   st->out_slow_mc,
 
-		   st->gc_total,
-		   st->gc_ignored,
-		   st->gc_goal_miss,
-		   st->gc_dst_overflow,
-		   st->in_hlist_search,
-		   st->out_hlist_search
+		   0, /* st->gc_total */
+		   0, /* st->gc_ignored */
+		   0, /* st->gc_goal_miss */
+		   0, /* st->gc_dst_overflow */
+		   0, /* st->in_hlist_search */
+		   0  /* st->out_hlist_search */
 		);
 	return 0;
 }

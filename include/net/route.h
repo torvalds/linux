@@ -88,22 +88,14 @@ struct ip_rt_acct {
 };
 
 struct rt_cache_stat {
-        unsigned int in_hit;
         unsigned int in_slow_tot;
         unsigned int in_slow_mc;
         unsigned int in_no_route;
         unsigned int in_brd;
         unsigned int in_martian_dst;
         unsigned int in_martian_src;
-        unsigned int out_hit;
         unsigned int out_slow_tot;
         unsigned int out_slow_mc;
-        unsigned int gc_total;
-        unsigned int gc_ignored;
-        unsigned int gc_goal_miss;
-        unsigned int gc_dst_overflow;
-        unsigned int in_hlist_search;
-        unsigned int out_hlist_search;
 };
 
 extern struct ip_rt_acct __percpu *ip_rt_acct;
