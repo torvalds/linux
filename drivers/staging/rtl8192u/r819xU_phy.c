@@ -1713,7 +1713,7 @@ void InitialGain819xUsb(struct net_device *dev,	u8 Operation)
 		queue_delayed_work(priv->priv_wq, &priv->initialgain_operate_wq, 0);
 }
 
-extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
+void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work,
 						  work);

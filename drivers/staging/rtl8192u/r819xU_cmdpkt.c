@@ -494,8 +494,8 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
  *  05/06/2008		amy	Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern u32 cmpk_message_handle_rx(struct net_device *dev,
-				  struct ieee80211_rx_stats *pstats)
+u32 cmpk_message_handle_rx(struct net_device *dev,
+			   struct ieee80211_rx_stats *pstats)
 {
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
