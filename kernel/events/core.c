@@ -5136,21 +5136,19 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 		min = MINOR(dev);
 
 	} else {
-		if (arch_vma_name(mmap_event->vma)) {
-			name = strncpy(tmp, arch_vma_name(mmap_event->vma),
-				       sizeof(tmp) - 1);
+		name = arch_vma_name(vma);
+		if (name) {
+			name = strncpy(tmp, name, sizeof(tmp) - 1);
 			tmp[sizeof(tmp) - 1] = '\0';
 			goto got_name;
 		}
 
-		if (!vma->vm_mm) {
-			name = strncpy(tmp, "[vdso]", sizeof(tmp));
-			goto got_name;
-		} else if (vma->vm_start <= vma->vm_mm->start_brk &&
+		if (vma->vm_start <= vma->vm_mm->start_brk &&
 				vma->vm_end >= vma->vm_mm->brk) {
 			name = strncpy(tmp, "[heap]", sizeof(tmp));
 			goto got_name;
-		} else if (vma->vm_start <= vma->vm_mm->start_stack &&
+		}
+		if (vma->vm_start <= vma->vm_mm->start_stack &&
 				vma->vm_end >= vma->vm_mm->start_stack) {
 			name = strncpy(tmp, "[stack]", sizeof(tmp));
 			goto got_name;
