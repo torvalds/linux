@@ -1546,7 +1546,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&as->queue);
 
 	as->pdev = pdev;
-	as->regs = ioremap(regs->start, resource_size(regs));
+	as->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (!as->regs)
 		goto out_free_buffer;
 	as->phybase = regs->start;
@@ -1617,7 +1617,6 @@ out_free_dma:
 out_free_irq:
 	free_irq(irq, master);
 out_unmap_regs:
-	iounmap(as->regs);
 out_free_buffer:
 	if (!as->use_pdc)
 		tasklet_kill(&as->tasklet);
@@ -1669,7 +1668,6 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(as->clk);
 	clk_put(as->clk);
 	free_irq(as->irq, master);
-	iounmap(as->regs);
 
 	spi_unregister_master(master);
 
