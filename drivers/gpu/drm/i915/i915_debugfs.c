@@ -2040,6 +2040,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		DRM_DEBUG_DRIVER("stopping CRCs for pipe %c\n",
 				 pipe_name(pipe));
 
+		intel_wait_for_vblank(dev, pipe);
+
 		kfree(pipe_crc->entries);
 		pipe_crc->entries = NULL;
 	}
