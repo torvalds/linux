@@ -158,6 +158,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = &this_cpu_ptr(&ccount_timer)->evt;
 
+	set_linux_timer(get_linux_timer());
 	evt->event_handler(evt);
 
 	/* Allow platform to do something useful (Wdog). */
