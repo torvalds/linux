@@ -1137,26 +1137,25 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 	WARN_ON(phymode == MODE_UNKNOWN);
 }
 
-static int ath10k_peer_assoc(struct ath10k *ar,
-			     struct ath10k_vif *arvif,
-			     struct ieee80211_sta *sta,
-			     struct ieee80211_bss_conf *bss_conf)
+static int ath10k_peer_assoc_prepare(struct ath10k *ar,
+				     struct ath10k_vif *arvif,
+				     struct ieee80211_sta *sta,
+				     struct ieee80211_bss_conf *bss_conf,
+				     struct wmi_peer_assoc_complete_arg *arg)
 {
-	struct wmi_peer_assoc_complete_arg arg;
-
 	lockdep_assert_held(&ar->conf_mutex);
 
-	memset(&arg, 0, sizeof(struct wmi_peer_assoc_complete_arg));
+	memset(arg, 0, sizeof(*arg));
 
-	ath10k_peer_assoc_h_basic(ar, arvif, sta, bss_conf, &arg);
-	ath10k_peer_assoc_h_crypto(ar, arvif, &arg);
-	ath10k_peer_assoc_h_rates(ar, sta, &arg);
-	ath10k_peer_assoc_h_ht(ar, sta, &arg);
-	ath10k_peer_assoc_h_vht(ar, sta, &arg);
-	ath10k_peer_assoc_h_qos(ar, arvif, sta, bss_conf, &arg);
-	ath10k_peer_assoc_h_phymode(ar, arvif, sta, &arg);
+	ath10k_peer_assoc_h_basic(ar, arvif, sta, bss_conf, arg);
+	ath10k_peer_assoc_h_crypto(ar, arvif, arg);
+	ath10k_peer_assoc_h_rates(ar, sta, arg);
+	ath10k_peer_assoc_h_ht(ar, sta, arg);
+	ath10k_peer_assoc_h_vht(ar, sta, arg);
+	ath10k_peer_assoc_h_qos(ar, arvif, sta, bss_conf, arg);
+	ath10k_peer_assoc_h_phymode(ar, arvif, sta, arg);
 
-	return ath10k_wmi_peer_assoc(ar, &arg);
+	return 0;
 }
 
 /* can be called only in mac80211 callbacks due to `key_count` usage */
@@ -1166,6 +1165,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct wmi_peer_assoc_complete_arg peer_arg;
 	struct ieee80211_sta *ap_sta;
 	int ret;
 
@@ -1181,14 +1181,23 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 		return;
 	}
 
-	ret = ath10k_peer_assoc(ar, arvif, ap_sta, bss_conf);
+	ret = ath10k_peer_assoc_prepare(ar, arvif, ap_sta,
+					bss_conf, &peer_arg);
 	if (ret) {
-		ath10k_warn("Peer assoc failed for %pM\n", bss_conf->bssid);
+		ath10k_warn("Peer assoc prepare failed for %pM\n: %d",
+			    bss_conf->bssid, ret);
 		rcu_read_unlock();
 		return;
 	}
 
 	rcu_read_unlock();
+
+	ret = ath10k_wmi_peer_assoc(ar, &peer_arg);
+	if (ret) {
+		ath10k_warn("Peer assoc failed for %pM\n: %d",
+			    bss_conf->bssid, ret);
+		return;
+	}
 
 	ath10k_dbg(ATH10K_DBG_MAC,
 		   "mac vdev %d up (associated) bssid %pM aid %d\n",
@@ -1243,13 +1252,22 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
 				struct ieee80211_sta *sta)
 {
+	struct wmi_peer_assoc_complete_arg peer_arg;
 	int ret = 0;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ret = ath10k_peer_assoc(ar, arvif, sta, NULL);
+	ret = ath10k_peer_assoc_prepare(ar, arvif, sta, NULL, &peer_arg);
 	if (ret) {
-		ath10k_warn("WMI peer assoc failed for %pM\n", sta->addr);
+		ath10k_warn("WMI peer assoc prepare failed for %pM\n",
+			    sta->addr);
+		return ret;
+	}
+
+	ret = ath10k_wmi_peer_assoc(ar, &peer_arg);
+	if (ret) {
+		ath10k_warn("Peer assoc failed for STA %pM\n: %d",
+			    sta->addr, ret);
 		return ret;
 	}
 
