@@ -298,7 +298,7 @@ static void __init at91sam9rl_initialize(void)
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9rl_gpio, 4);
 
-	at91_pm_set_standby(at91sam9_standby);
+	at91_pm_set_standby(at91sam9_sdram_standby);
 }
 
 /* --------------------------------------------------------------------
