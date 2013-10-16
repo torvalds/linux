@@ -2211,7 +2211,7 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 	}
 
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   __cpu_to_le32(ar->wmi.num_mem_chunks));
+		   ar->wmi.num_mem_chunks);
 
 	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
 
@@ -2224,10 +2224,10 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
 
 		ath10k_dbg(ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%x\n",
+			   "wmi chunk %d len %d requested, addr 0x%llx\n",
 			   i,
-			   cmd->host_mem_chunks[i].size,
-			   cmd->host_mem_chunks[i].ptr);
+			   ar->wmi.mem_chunks[i].len,
+			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
 	}
 out:
 	memcpy(&cmd->resource_config, &config, sizeof(config));
@@ -2302,7 +2302,7 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	}
 
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi sending %d memory chunks info.\n",
-		   __cpu_to_le32(ar->wmi.num_mem_chunks));
+		   ar->wmi.num_mem_chunks);
 
 	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
 
@@ -2315,10 +2315,10 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 			__cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
 
 		ath10k_dbg(ATH10K_DBG_WMI,
-			   "wmi chunk %d len %d requested, addr 0x%x\n",
+			   "wmi chunk %d len %d requested, addr 0x%llx\n",
 			   i,
-			   cmd->host_mem_chunks[i].size,
-			   cmd->host_mem_chunks[i].ptr);
+			   ar->wmi.mem_chunks[i].len,
+			   (unsigned long long)ar->wmi.mem_chunks[i].paddr);
 	}
 out:
 	memcpy(&cmd->resource_config, &config, sizeof(config));
