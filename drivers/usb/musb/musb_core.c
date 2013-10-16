@@ -1901,6 +1901,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		if (status < 0)
 			goto fail3;
 		status = musb_gadget_setup(musb);
+		if (status)
+			musb_host_cleanup(musb);
 		break;
 	default:
 		dev_err(dev, "unsupported port mode %d\n", musb->port_mode);
@@ -1927,6 +1929,7 @@ fail5:
 
 fail4:
 	musb_gadget_cleanup(musb);
+	musb_host_cleanup(musb);
 
 fail3:
 	if (musb->dma_controller)
