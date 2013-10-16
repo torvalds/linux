@@ -965,9 +965,8 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 	ptp->evt_overflow = false;
 
 	ptp->phc_clock_info.owner = THIS_MODULE;
-	snprintf(ptp->phc_clock_info.name,
-		 sizeof(ptp->phc_clock_info.name),
-		 "%pm", efx->net_dev->perm_addr);
+	strlcpy(ptp->phc_clock_info.name, "sfc",
+		sizeof(ptp->phc_clock_info.name));
 	ptp->phc_clock_info.max_adj = MAX_PPB;
 	ptp->phc_clock_info.n_alarm = 0;
 	ptp->phc_clock_info.n_ext_ts = 0;
