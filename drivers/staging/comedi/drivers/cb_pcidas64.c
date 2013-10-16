@@ -1137,7 +1137,7 @@ struct pcidas64_private {
 	volatile short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
-	short ao_bounce_buffer[DAC_FIFO_SIZE];
+	unsigned short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
