@@ -776,36 +776,6 @@ bool RFbInit(
 }
 
 /*
- * Description: RF ShutDown function
- *
- * Parameters:
- *  In:
- *      byBBType
- *      byRFType
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-bool RFbShutDown(
-	PSDevice  pDevice
-)
-{
-	bool bResult = true;
-
-	switch (pDevice->byRFType) {
-	case RF_AIROHA7230:
-		bResult = IFRFbWriteEmbedded(pDevice->PortOffset, 0x1ABAEF00 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW);
-		break;
-	default:
-		bResult = true;
-		break;
-	}
-	return bResult;
-}
-
-/*
  * Description: Select channel
  *
  * Parameters:
