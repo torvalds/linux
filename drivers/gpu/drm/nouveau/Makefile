@@ -187,6 +187,7 @@ nouveau-y += core/engine/copy/nve0.o
 nouveau-y += core/engine/crypt/nv84.o
 nouveau-y += core/engine/crypt/nv98.o
 nouveau-y += core/engine/device/base.o
+nouveau-y += core/engine/device/ctrl.o
 nouveau-y += core/engine/device/nv04.o
 nouveau-y += core/engine/device/nv10.o
 nouveau-y += core/engine/device/nv20.o

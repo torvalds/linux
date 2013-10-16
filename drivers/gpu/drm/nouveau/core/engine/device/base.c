@@ -29,7 +29,7 @@
 
 #include <core/class.h>
 
-#include <engine/device.h>
+#include "priv.h"
 
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
@@ -121,7 +121,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 			return -ENODEV;
 	}
 
-	ret = nouveau_parent_create(parent, nv_object(device), oclass, 0, NULL,
+	ret = nouveau_parent_create(parent, nv_object(device), oclass, 0,
+				    nouveau_control_oclass,
 				    (1ULL << NVDEV_ENGINE_DMAOBJ) |
 				    (1ULL << NVDEV_ENGINE_FIFO) |
 				    (1ULL << NVDEV_ENGINE_DISP) |

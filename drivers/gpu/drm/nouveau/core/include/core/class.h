@@ -129,6 +129,46 @@ struct nv_perfctr_read {
 	u32 clk;
 };
 
+/* Device control class
+ *
+ * XXXX: NV_CONTROL
+ */
+#define NV_CONTROL_CLASS                                             0x0000fffe
+
+#define NV_CONTROL_PSTATE_INFO                                       0x00000000
+#define NV_CONTROL_PSTATE_INFO_USTATE_DISABLE                              (-1)
+#define NV_CONTROL_PSTATE_INFO_USTATE_PERFMON                              (-2)
+#define NV_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN                              (-1)
+#define NV_CONTROL_PSTATE_INFO_PSTATE_PERFMON                              (-2)
+#define NV_CONTROL_PSTATE_ATTR                                       0x00000001
+#define NV_CONTROL_PSTATE_ATTR_STATE_CURRENT                               (-1)
+#define NV_CONTROL_PSTATE_USER                                       0x00000002
+#define NV_CONTROL_PSTATE_USER_STATE_UNKNOWN                               (-1)
+#define NV_CONTROL_PSTATE_USER_STATE_PERFMON                               (-2)
+
+struct nv_control_pstate_info {
+	u32 count; /* out: number of power states */
+	s32 ustate; /* out: current target pstate index */
+	u32 pstate; /* out: current pstate index */
+};
+
+struct nv_control_pstate_attr {
+	s32 state; /*  in: index of pstate to query
+		    * out: pstate identifier
+		    */
+	u32 index; /*  in: index of attribute to query
+		    * out: index of next attribute, or 0 if no more
+		    */
+	char name[32];
+	char unit[16];
+	u32 min;
+	u32 max;
+};
+
+struct nv_control_pstate_user {
+	s32 state; /*  in: pstate identifier */
+};
+
 /* DMA FIFO channel classes
  *
  * 006b: NV03_CHANNEL_DMA
