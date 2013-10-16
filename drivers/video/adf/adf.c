@@ -676,6 +676,7 @@ int adf_interface_init(struct adf_interface *intf, struct adf_device *dev,
 	intf->idx = idx;
 	intf->flags = flags;
 	intf->ops = ops;
+	intf->dpms_state = DRM_MODE_DPMS_OFF;
 	init_waitqueue_head(&intf->vsync_wait);
 	rwlock_init(&intf->vsync_lock);
 	rwlock_init(&intf->hotplug_modelist_lock);
