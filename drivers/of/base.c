@@ -303,10 +303,8 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 	struct device_node *cpun, *cpus;
 
 	cpus = of_find_node_by_path("/cpus");
-	if (!cpus) {
-		pr_warn("Missing cpus node, bailing out\n");
+	if (!cpus)
 		return NULL;
-	}
 
 	for_each_child_of_node(cpus, cpun) {
 		if (of_node_cmp(cpun->type, "cpu"))
