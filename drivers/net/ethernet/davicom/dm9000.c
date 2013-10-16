@@ -158,18 +158,6 @@ static inline board_info_t *to_dm9000_board(struct net_device *dev)
 
 /* DM9000 network board routine ---------------------------- */
 
-static void
-dm9000_reset(board_info_t * db)
-{
-	dev_dbg(db->dev, "resetting device\n");
-
-	/* RESET device */
-	writeb(DM9000_NCR, db->io_addr);
-	udelay(200);
-	writeb(NCR_RST, db->io_data);
-	udelay(200);
-}
-
 /*
  *   Read a byte from I/O port
  */
@@ -189,6 +177,27 @@ iow(board_info_t * db, int reg, int value)
 {
 	writeb(reg, db->io_addr);
 	writeb(value, db->io_data);
+}
+
+static void
+dm9000_reset(board_info_t *db)
+{
+	dev_dbg(db->dev, "resetting device\n");
+
+	/* Reset DM9000, see DM9000 Application Notes V1.22 Jun 11, 2004 page 29
+	 * The essential point is that we have to do a double reset, and the
+	 * instruction is to set LBK into MAC internal loopback mode.
+	 */
+	iow(db, DM9000_NCR, 0x03);
+	udelay(100); /* Application note says at least 20 us */
+	if (ior(db, DM9000_NCR) & 1)
+		dev_err(db->dev, "dm9000 did not respond to first reset\n");
+
+	iow(db, DM9000_NCR, 0);
+	iow(db, DM9000_NCR, 0x03);
+	udelay(100);
+	if (ior(db, DM9000_NCR) & 1)
+		dev_err(db->dev, "dm9000 did not respond to second reset\n");
 }
 
 /* routines for sending block to chip */
