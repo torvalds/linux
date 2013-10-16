@@ -66,8 +66,7 @@ enum hmc5843_ids {
  */
 #define HMC5843_RATE_OFFSET			0x02
 #define HMC5843_RATE_DEFAULT			0x04
-#define HMC5843_RATE_BITMASK			0x1C
-#define HMC5843_RATE_NOT_USED			0x07
+#define HMC5843_RATES				7
 
 /* Device measurement configuration */
 #define HMC5843_MEAS_CONF_NORMAL		0x00
@@ -264,7 +263,7 @@ static ssize_t hmc5843_show_samp_freq_avail(struct device *dev,
 	size_t len = 0;
 	int i;
 
-	for (i = 0; i < HMC5843_RATE_NOT_USED; i++)
+	for (i = 0; i < HMC5843_RATES; i++)
 		len += scnprintf(buf + len, PAGE_SIZE - len,
 			"%d.%d ", data->variant->regval_to_samp_freq[i][0],
 			data->variant->regval_to_samp_freq[i][1]);
@@ -277,12 +276,18 @@ static ssize_t hmc5843_show_samp_freq_avail(struct device *dev,
 
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(hmc5843_show_samp_freq_avail);
 
-static s32 hmc5843_set_rate(struct hmc5843_data *data, u8 rate)
+static int hmc5843_set_samp_freq(struct hmc5843_data *data, u8 rate)
 {
-	u8 reg_val = data->meas_conf | (rate << HMC5843_RATE_OFFSET);
+	int ret;
 
-	return i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_A,
-		reg_val);
+	mutex_lock(&data->lock);
+	ret = i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_A,
+		data->meas_conf | (rate << HMC5843_RATE_OFFSET));
+	if (ret >= 0)
+		data->rate = rate;
+	mutex_unlock(&data->lock);
+
+	return ret;
 }
 
 static int hmc5843_get_samp_freq_index(struct hmc5843_data *data,
@@ -290,7 +295,7 @@ static int hmc5843_get_samp_freq_index(struct hmc5843_data *data,
 {
 	int i;
 
-	for (i = 0; i < HMC5843_RATE_NOT_USED; i++)
+	for (i = 0; i < HMC5843_RATES; i++)
 		if (val == data->variant->regval_to_samp_freq[i][0] &&
 			val2 == data->variant->regval_to_samp_freq[i][1])
 			return i;
@@ -367,13 +372,7 @@ static int hmc5843_write_raw(struct iio_dev *indio_dev,
 		if (rate < 0)
 			return -EINVAL;
 
-		mutex_lock(&data->lock);
-		ret = hmc5843_set_rate(data, rate);
-		if (ret >= 0)
-			data->rate = rate;
-		mutex_unlock(&data->lock);
-
-		return ret;
+		return hmc5843_set_samp_freq(data, rate);
 	case IIO_CHAN_INFO_SCALE:
 		range = hmc5843_get_scale_index(data, val, val2);
 		if (range < 0)
@@ -495,7 +494,7 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 static void hmc5843_init(struct hmc5843_data *data)
 {
 	hmc5843_set_meas_conf(data, HMC5843_MEAS_CONF_NORMAL);
-	hmc5843_set_rate(data, HMC5843_RATE_DEFAULT);
+	hmc5843_set_samp_freq(data, HMC5843_RATE_DEFAULT);
 	hmc5843_set_mode(data, HMC5843_MODE_CONVERSION_CONTINUOUS);
 	i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_B,
 		HMC5843_RANGE_GAIN_DEFAULT);
