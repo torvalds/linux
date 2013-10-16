@@ -1225,7 +1225,7 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 	wake_up_interruptible(&pipe_crc->wq);
 }
 #else
-static void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
+static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
 #endif
 
 /* The RPS events need forcewake, so we add them to a work queue and mask their
