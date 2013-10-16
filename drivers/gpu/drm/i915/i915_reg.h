@@ -1843,15 +1843,37 @@
 /* Pipe A CRC regs */
 #define _PIPE_CRC_CTL_A		(dev_priv->info->display_mmio_offset + 0x60050)
 #define   PIPE_CRC_ENABLE		(1 << 31)
+/* ivb+ source selection */
 #define   PIPE_CRC_SOURCE_PRIMARY_IVB	(0 << 29)
 #define   PIPE_CRC_SOURCE_SPRITE_IVB	(1 << 29)
 #define   PIPE_CRC_SOURCE_PF_IVB	(2 << 29)
+/* ilk+ source selection */
 #define   PIPE_CRC_SOURCE_PRIMARY_ILK	(0 << 28)
 #define   PIPE_CRC_SOURCE_SPRITE_ILK	(1 << 28)
 #define   PIPE_CRC_SOURCE_PIPE_ILK	(2 << 28)
 /* embedded DP port on the north display block, reserved on ivb */
 #define   PIPE_CRC_SOURCE_PORT_A_ILK	(4 << 28)
 #define   PIPE_CRC_SOURCE_FDI_ILK	(5 << 28) /* reserved on ivb */
+/* vlv source selection */
+#define   PIPE_CRC_SOURCE_PIPE_VLV	(0 << 27)
+#define   PIPE_CRC_SOURCE_HDMIB_VLV	(1 << 27)
+#define   PIPE_CRC_SOURCE_HDMIC_VLV	(2 << 27)
+/* with DP port the pipe source is invalid */
+#define   PIPE_CRC_SOURCE_DP_D_VLV	(3 << 27)
+#define   PIPE_CRC_SOURCE_DP_B_VLV	(6 << 27)
+#define   PIPE_CRC_SOURCE_DP_C_VLV	(7 << 27)
+/* gen3+ source selection */
+#define   PIPE_CRC_SOURCE_PIPE_I9XX	(0 << 28)
+#define   PIPE_CRC_SOURCE_SDVOB_I9XX	(1 << 28)
+#define   PIPE_CRC_SOURCE_SDVOC_I9XX	(2 << 28)
+/* with DP/TV port the pipe source is invalid */
+#define   PIPE_CRC_SOURCE_DP_D_G4X	(3 << 28)
+#define   PIPE_CRC_SOURCE_TV_PRE	(4 << 28)
+#define   PIPE_CRC_SOURCE_TV_POST	(5 << 28)
+#define   PIPE_CRC_SOURCE_DP_B_G4X	(6 << 28)
+#define   PIPE_CRC_SOURCE_DP_C_G4X	(7 << 28)
+/* gen2 doesn't have source selection bits */
+
 #define _PIPE_CRC_RES_1_A_IVB		0x60064
 #define _PIPE_CRC_RES_2_A_IVB		0x60068
 #define _PIPE_CRC_RES_3_A_IVB		0x6006c
