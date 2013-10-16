@@ -42,18 +42,18 @@ static int rfkill_gpio_set_power(void *data, bool blocked)
 
 	if (blocked) {
 		if (gpio_is_valid(rfkill->pdata->shutdown_gpio))
-			gpio_direction_output(rfkill->pdata->shutdown_gpio, 0);
+			gpio_set_value(rfkill->pdata->shutdown_gpio, 0);
 		if (gpio_is_valid(rfkill->pdata->reset_gpio))
-			gpio_direction_output(rfkill->pdata->reset_gpio, 0);
+			gpio_set_value(rfkill->pdata->reset_gpio, 0);
 		if (!IS_ERR(rfkill->clk) && rfkill->clk_enabled)
 			clk_disable(rfkill->clk);
 	} else {
 		if (!IS_ERR(rfkill->clk) && !rfkill->clk_enabled)
 			clk_enable(rfkill->clk);
 		if (gpio_is_valid(rfkill->pdata->reset_gpio))
-			gpio_direction_output(rfkill->pdata->reset_gpio, 1);
+			gpio_set_value(rfkill->pdata->reset_gpio, 1);
 		if (gpio_is_valid(rfkill->pdata->shutdown_gpio))
-			gpio_direction_output(rfkill->pdata->shutdown_gpio, 1);
+			gpio_set_value(rfkill->pdata->shutdown_gpio, 1);
 	}
 
 	rfkill->clk_enabled = blocked;
@@ -114,8 +114,8 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	rfkill->clk = devm_clk_get(&pdev->dev, pdata->power_clk_name);
 
 	if (gpio_is_valid(pdata->reset_gpio)) {
-		ret = devm_gpio_request(&pdev->dev, pdata->reset_gpio,
-					rfkill->reset_name);
+		ret = devm_gpio_request_one(&pdev->dev, pdata->reset_gpio,
+					    0, rfkill->reset_name);
 		if (ret) {
 			pr_warn("%s: failed to get reset gpio.\n", __func__);
 			return ret;
@@ -123,8 +123,8 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	}
 
 	if (gpio_is_valid(pdata->shutdown_gpio)) {
-		ret = devm_gpio_request(&pdev->dev, pdata->shutdown_gpio,
-					rfkill->shutdown_name);
+		ret = devm_gpio_request_one(&pdev->dev, pdata->shutdown_gpio,
+					    0, rfkill->shutdown_name);
 		if (ret) {
 			pr_warn("%s: failed to get shutdown gpio.\n", __func__);
 			return ret;
