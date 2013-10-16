@@ -891,8 +891,13 @@ dm9000_init_dm9000(struct net_device *dev)
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
 
-	dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET); /* PHY RESET */
-	dm9000_phy_write(dev, 0, MII_DM_DSPCR, DSPCR_INIT_PARAM); /* Init */
+	/* If we are dealing with DM9000B, some extra steps are required: a
+	 * manual phy reset, and setting init params.
+	 */
+	if (db->type == TYPE_DM9000B) {
+		dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET);
+		dm9000_phy_write(dev, 0, MII_DM_DSPCR, DSPCR_INIT_PARAM);
+	}
 
 	ncr = (db->flags & DM9000_PLATF_EXT_PHY) ? NCR_EXT_PHY : 0;
 
