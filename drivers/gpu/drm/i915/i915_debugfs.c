@@ -1947,6 +1947,44 @@ static int display_crc_ctl_open(struct inode *inode, struct file *file)
 	return single_open(file, display_crc_ctl_show, dev);
 }
 
+static int i9xx_pipe_crc_ctl_reg(struct drm_device *dev,
+				 enum intel_pipe_crc_source source,
+				 uint32_t *val)
+{
+	switch (source) {
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_I9XX;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_TV:
+		if (!SUPPORTS_TV(dev))
+			return -EINVAL;
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_TV_PRE;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_DP_B:
+		if (!IS_G4X(dev))
+			return -EINVAL;
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_B_G4X;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_DP_C:
+		if (!IS_G4X(dev))
+			return -EINVAL;
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_C_G4X;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_DP_D:
+		if (!IS_G4X(dev))
+			return -EINVAL;
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_D_G4X;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_NONE:
+		*val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 				uint32_t *val)
 {
@@ -2001,7 +2039,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	u32 val;
 	int ret;
 
-	if (!(INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)))
+	if (!(INTEL_INFO(dev)->gen >= 3 && !IS_VALLEYVIEW(dev)))
 		return -ENODEV;
 
 	if (pipe_crc->source == source)
@@ -2011,7 +2049,9 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (pipe_crc->source && source)
 		return -EINVAL;
 
-	if (IS_GEN5(dev) || IS_GEN6(dev))
+	if (INTEL_INFO(dev)->gen < 5)
+		ret = i9xx_pipe_crc_ctl_reg(dev, source, &val);
+	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ret = ilk_pipe_crc_ctl_reg(source, &val);
 	else
 		ret = ivb_pipe_crc_ctl_reg(source, &val);
