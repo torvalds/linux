@@ -38,7 +38,6 @@
 #include "rcu-string.h"
 #include "dev-replace.h"
 
-static u64 btrfs_get_seconds_since_1970(void);
 static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				       int scrub_ret);
 static void btrfs_dev_replace_update_device_in_mapping_tree(
@@ -296,13 +295,6 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 		dev_replace->cursor_left_last_write_of_item;
 }
 
-static u64 btrfs_get_seconds_since_1970(void)
-{
-	struct timespec t = CURRENT_TIME_SEC;
-
-	return t.tv_sec;
-}
-
 int btrfs_dev_replace_start(struct btrfs_root *root,
 			    struct btrfs_ioctl_dev_replace_args *args)
 {
@@ -390,7 +382,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	 * go to the tgtdev as well (refer to btrfs_map_block()).
 	 */
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED;
-	dev_replace->time_started = btrfs_get_seconds_since_1970();
+	dev_replace->time_started = get_seconds();
 	dev_replace->cursor_left = 0;
 	dev_replace->committed_cursor_left = 0;
 	dev_replace->cursor_left_last_write_of_item = 0;
@@ -493,7 +485,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			  : BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED;
 	dev_replace->tgtdev = NULL;
 	dev_replace->srcdev = NULL;
-	dev_replace->time_stopped = btrfs_get_seconds_since_1970();
+	dev_replace->time_stopped = get_seconds();
 	dev_replace->item_needs_writeback = 1;
 
 	if (scrub_ret) {
@@ -671,7 +663,7 @@ static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 		break;
 	}
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED;
-	dev_replace->time_stopped = btrfs_get_seconds_since_1970();
+	dev_replace->time_stopped = get_seconds();
 	dev_replace->item_needs_writeback = 1;
 	btrfs_dev_replace_unlock(dev_replace);
 	btrfs_scrub_cancel(fs_info);
@@ -706,7 +698,7 @@ void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info)
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 		dev_replace->replace_state =
 			BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
-		dev_replace->time_stopped = btrfs_get_seconds_since_1970();
+		dev_replace->time_stopped = get_seconds();
 		dev_replace->item_needs_writeback = 1;
 		pr_info("btrfs: suspending dev_replace for unmount\n");
 		break;
