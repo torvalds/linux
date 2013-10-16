@@ -6753,7 +6753,8 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 }
 
 static void g4x_write_eld(struct drm_connector *connector,
-			  struct drm_crtc *crtc)
+			  struct drm_crtc *crtc,
+			  struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
@@ -6793,7 +6794,8 @@ static void g4x_write_eld(struct drm_connector *connector,
 }
 
 static void haswell_write_eld(struct drm_connector *connector,
-				     struct drm_crtc *crtc)
+			      struct drm_crtc *crtc,
+			      struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
@@ -6880,7 +6882,8 @@ static void haswell_write_eld(struct drm_connector *connector,
 }
 
 static void ironlake_write_eld(struct drm_connector *connector,
-				     struct drm_crtc *crtc)
+			       struct drm_crtc *crtc,
+			       struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
@@ -6975,7 +6978,7 @@ void intel_write_eld(struct drm_encoder *encoder,
 	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
 
 	if (dev_priv->display.write_eld)
-		dev_priv->display.write_eld(connector, crtc);
+		dev_priv->display.write_eld(connector, crtc, mode);
 }
 
 static void i845_update_cursor(struct drm_crtc *crtc, u32 base)

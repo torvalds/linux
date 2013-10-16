@@ -379,7 +379,8 @@ struct drm_i915_display_funcs {
 	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*off)(struct drm_crtc *crtc);
 	void (*write_eld)(struct drm_connector *connector,
-			  struct drm_crtc *crtc);
+			  struct drm_crtc *crtc,
+			  struct drm_display_mode *mode);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
 	void (*init_clock_gating)(struct drm_device *dev);
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
