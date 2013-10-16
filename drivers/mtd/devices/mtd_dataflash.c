@@ -879,7 +879,7 @@ static int dataflash_probe(struct spi_device *spi)
 		break;
 	/* obsolete AT45DB1282 not (yet?) supported */
 	default:
-		pr_debug("%s: unsupported device (%x)\n", dev_name(&spi->dev),
+		dev_info(&spi->dev, "unsupported device (%x)\n",
 				status & 0x3c);
 		status = -ENODEV;
 	}
