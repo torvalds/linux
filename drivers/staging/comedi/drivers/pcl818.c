@@ -289,7 +289,6 @@ struct pcl818_private {
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	short *ai_data;		/*  data buffer */
 	unsigned int ai_timer1;	/*  timers */
 	unsigned int ai_timer2;
 	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
@@ -443,7 +442,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	int low;
+	unsigned char low;
 	int timeout = 50;	/* wait max 50us */
 
 	while (timeout--) {
@@ -505,7 +504,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, bufptr;
 	unsigned long flags;
-	short *ptr;
+	unsigned short *ptr;
 
 	disable_dma(devpriv->dma);
 	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
@@ -528,7 +527,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
-	ptr = (short *)devpriv->dmabuf[1 - devpriv->next_dma_buf];
+	ptr = (unsigned short *)devpriv->dmabuf[1 - devpriv->next_dma_buf];
 
 	len = devpriv->hwdmasize[0] >> 1;
 	bufptr = 0;
@@ -582,7 +581,8 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	int i, len, lo;
+	int i, len;
+	unsigned char lo;
 
 	outb(0, dev->iobase + PCL818_FI_INTCLR);	/*  clear fifo int request */
 
@@ -1072,7 +1072,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 
