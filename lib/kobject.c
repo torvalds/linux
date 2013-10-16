@@ -592,7 +592,7 @@ static void kobject_release(struct kref *kref)
 {
 	struct kobject *kobj = container_of(kref, struct kobject, kref);
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
-	pr_debug("kobject: '%s' (%p): %s, parent %p (delayed)\n",
+	pr_info("kobject: '%s' (%p): %s, parent %p (delayed)\n",
 		 kobject_name(kobj), kobj, __func__, kobj->parent);
 	INIT_DELAYED_WORK(&kobj->release, kobject_delayed_cleanup);
 	schedule_delayed_work(&kobj->release, HZ);
@@ -933,10 +933,7 @@ const struct kobj_ns_type_operations *kobj_ns_ops(struct kobject *kobj)
 
 bool kobj_ns_current_may_mount(enum kobj_ns_type type)
 {
-	bool may_mount = false;
-
-	if (type == KOBJ_NS_TYPE_NONE)
-		return true;
+	bool may_mount = true;
 
 	spin_lock(&kobj_ns_type_lock);
 	if ((type > KOBJ_NS_TYPE_NONE) && (type < KOBJ_NS_TYPES) &&

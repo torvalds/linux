@@ -1827,13 +1827,13 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 
 #ifdef CONFIG_88EU_P2P
 
-static int get_reg_classes_full_count(struct p2p_channels channel_list)
+static int get_reg_classes_full_count(struct p2p_channels *channel_list)
 {
 	int cnt = 0;
 	int i;
 
-	for (i = 0; i < channel_list.reg_classes; i++) {
-		cnt += channel_list.reg_class[i].channels;
+	for (i = 0; i < channel_list->reg_classes; i++) {
+		cnt += channel_list->reg_class[i].channels;
 	}
 
 	return cnt;
@@ -2065,7 +2065,7 @@ void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr)
 	/*  + number of channels in all classes */
 	len_channellist_attr = 3
 	   + (1 + 1) * (u16)(pmlmeext->channel_list.reg_classes)
-	   + get_reg_classes_full_count(pmlmeext->channel_list);
+	   + get_reg_classes_full_count(&pmlmeext->channel_list);
 
 	*(__le16 *)(p2pie + p2pielen) = cpu_to_le16(len_channellist_attr);
 	p2pielen += 2;
@@ -2437,7 +2437,7 @@ static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame
 	/*  + number of channels in all classes */
 	len_channellist_attr = 3
 	   + (1 + 1) * (u16)pmlmeext->channel_list.reg_classes
-	   + get_reg_classes_full_count(pmlmeext->channel_list);
+	   + get_reg_classes_full_count(&pmlmeext->channel_list);
 
 	*(__le16 *)(p2pie + p2pielen) = cpu_to_le16(len_channellist_attr);
 
@@ -2859,7 +2859,7 @@ void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr)
 	/*  + number of channels in all classes */
 	len_channellist_attr = 3
 	   + (1 + 1) * (u16)pmlmeext->channel_list.reg_classes
-	   + get_reg_classes_full_count(pmlmeext->channel_list);
+	   + get_reg_classes_full_count(&pmlmeext->channel_list);
 
 	*(__le16 *)(p2pie + p2pielen) = cpu_to_le16(len_channellist_attr);
 
@@ -3120,7 +3120,7 @@ void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr, u8 dialo
 		/*  + number of channels in all classes */
 		len_channellist_attr = 3
 			+ (1 + 1) * (u16)pmlmeext->channel_list.reg_classes
-			+ get_reg_classes_full_count(pmlmeext->channel_list);
+			+ get_reg_classes_full_count(&pmlmeext->channel_list);
 
 		*(__le16 *)(p2pie + p2pielen) = cpu_to_le16(len_channellist_attr);
 		p2pielen += 2;

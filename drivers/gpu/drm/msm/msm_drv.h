@@ -153,7 +153,7 @@ void *msm_gem_vaddr(struct drm_gem_object *obj);
 int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
 		struct work_struct *work);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, uint32_t fence);
+		struct msm_gpu *gpu, bool write, uint32_t fence);
 void msm_gem_move_to_inactive(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
 		struct timespec *timeout);
@@ -190,6 +190,12 @@ u32 msm_readl(const void __iomem *addr);
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
+
+static inline bool fence_completed(struct drm_device *dev, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	return priv->completed_fence >= fence;
+}
 
 static inline int align_pitch(int width, int bpp)
 {

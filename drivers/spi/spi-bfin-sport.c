@@ -592,7 +592,7 @@ bfin_sport_spi_setup(struct spi_device *spi)
 			 */
 			if (chip_info->ctl_reg || chip_info->enable_dma) {
 				ret = -EINVAL;
-				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields");
+				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields\n");
 				goto error;
 			}
 			chip->cs_chg_udelay = chip_info->cs_chg_udelay;

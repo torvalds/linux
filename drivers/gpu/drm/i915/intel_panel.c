@@ -112,6 +112,7 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 done:
 	pipe_config->pch_pfit.pos = (x << 16) | y;
 	pipe_config->pch_pfit.size = (width << 16) | height;
+	pipe_config->pch_pfit.enabled = pipe_config->pch_pfit.size != 0;
 }
 
 static void

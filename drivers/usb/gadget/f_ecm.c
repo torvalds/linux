@@ -995,7 +995,7 @@ static void ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_ep_free_request(ecm->notify, ecm->notify_req);
 }
 
-struct usb_function *ecm_alloc(struct usb_function_instance *fi)
+static struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 {
 	struct f_ecm	*ecm;
 	struct f_ecm_opts *opts;

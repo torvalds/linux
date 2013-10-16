@@ -172,8 +172,8 @@ static u16 swGetOFDMControlRate(struct vnt_private *pDevice, u16 wRateIdx)
 	if (!CARDbIsOFDMinBasicRate(pDevice)) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"swGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
-	if (wRateIdx > RATE_24M)
-		wRateIdx = RATE_24M;
+		if (wRateIdx > RATE_24M)
+			wRateIdx = RATE_24M;
 		return wRateIdx;
 	}
 

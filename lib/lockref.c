@@ -4,6 +4,22 @@
 #ifdef CONFIG_CMPXCHG_LOCKREF
 
 /*
+ * Allow weakly-ordered memory architectures to provide barrier-less
+ * cmpxchg semantics for lockref updates.
+ */
+#ifndef cmpxchg64_relaxed
+# define cmpxchg64_relaxed cmpxchg64
+#endif
+
+/*
+ * Allow architectures to override the default cpu_relax() within CMPXCHG_LOOP.
+ * This is useful for architectures with an expensive cpu_relax().
+ */
+#ifndef arch_mutex_cpu_relax
+# define arch_mutex_cpu_relax() cpu_relax()
+#endif
+
+/*
  * Note that the "cmpxchg()" reloads the "old" value for the
  * failure case.
  */
@@ -14,12 +30,13 @@
 	while (likely(arch_spin_value_unlocked(old.lock.rlock.raw_lock))) {  	\
 		struct lockref new = old, prev = old;				\
 		CODE								\
-		old.lock_count = cmpxchg(&lockref->lock_count,			\
-					 old.lock_count, new.lock_count);	\
+		old.lock_count = cmpxchg64_relaxed(&lockref->lock_count,	\
+						   old.lock_count,		\
+						   new.lock_count);		\
 		if (likely(old.lock_count == prev.lock_count)) {		\
 			SUCCESS;						\
 		}								\
-		cpu_relax();							\
+		arch_mutex_cpu_relax();						\
 	}									\
 } while (0)
 

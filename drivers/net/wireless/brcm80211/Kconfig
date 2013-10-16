@@ -28,7 +28,7 @@ config BRCMFMAC
 
 config BRCMFMAC_SDIO
 	bool "SDIO bus interface support for FullMAC driver"
-	depends on MMC
+	depends on (MMC = y || MMC = BRCMFMAC)
 	depends on BRCMFMAC
 	select FW_LOADER
 	default y
@@ -39,7 +39,7 @@ config BRCMFMAC_SDIO
 
 config BRCMFMAC_USB
 	bool "USB bus interface support for FullMAC driver"
-	depends on USB
+	depends on (USB = y || USB = BRCMFMAC)
 	depends on BRCMFMAC
 	select FW_LOADER
 	---help---

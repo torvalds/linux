@@ -255,12 +255,14 @@ static int tmp006_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int tmp006_suspend(struct device *dev)
 {
-	return tmp006_powerdown(iio_priv(dev_to_iio_dev(dev)));
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	return tmp006_powerdown(iio_priv(indio_dev));
 }
 
 static int tmp006_resume(struct device *dev)
 {
-	struct tmp006_data *data = iio_priv(dev_to_iio_dev(dev));
+	struct tmp006_data *data = iio_priv(i2c_get_clientdata(
+		to_i2c_client(dev)));
 	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
 		data->config | TMP006_CONFIG_MOD_MASK);
 }

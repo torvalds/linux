@@ -18,6 +18,7 @@
 #include <linux/highmem.h>
 
 #include <asm/cache.h>
+#include <asm/cpu-type.h>
 #include <asm/io.h>
 
 #include <dma-coherence.h>
@@ -307,12 +308,10 @@ static void mips_dma_sync_sg_for_cpu(struct device *dev,
 {
 	int i;
 
-	/* Make sure that gcc doesn't leave the empty loop body.  */
-	for (i = 0; i < nelems; i++, sg++) {
-		if (cpu_needs_post_dma_flush(dev))
+	if (cpu_needs_post_dma_flush(dev))
+		for (i = 0; i < nelems; i++, sg++)
 			__dma_sync(sg_page(sg), sg->offset, sg->length,
 				   direction);
-	}
 }
 
 static void mips_dma_sync_sg_for_device(struct device *dev,
@@ -320,12 +319,10 @@ static void mips_dma_sync_sg_for_device(struct device *dev,
 {
 	int i;
 
-	/* Make sure that gcc doesn't leave the empty loop body.  */
-	for (i = 0; i < nelems; i++, sg++) {
-		if (!plat_device_is_coherent(dev))
+	if (!plat_device_is_coherent(dev))
+		for (i = 0; i < nelems; i++, sg++)
 			__dma_sync(sg_page(sg), sg->offset, sg->length,
 				   direction);
-	}
 }
 
 int mips_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)

@@ -555,7 +555,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pll2h",			&pll2h_clk),
 
 	/* CPU clock */
-	CLKDEV_DEV_ID("cpufreq-cpu0",		&z_clk),
+	CLKDEV_DEV_ID("cpu0",			&z_clk),
 
 	/* DIV6 */
 	CLKDEV_CON_ID("zb",			&div6_clks[DIV6_ZB]),

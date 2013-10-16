@@ -3255,25 +3255,29 @@ static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 
 static void ept_load_pdptrs(struct kvm_vcpu *vcpu)
 {
+	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
+
 	if (!test_bit(VCPU_EXREG_PDPTR,
 		      (unsigned long *)&vcpu->arch.regs_dirty))
 		return;
 
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-		vmcs_write64(GUEST_PDPTR0, vcpu->arch.mmu.pdptrs[0]);
-		vmcs_write64(GUEST_PDPTR1, vcpu->arch.mmu.pdptrs[1]);
-		vmcs_write64(GUEST_PDPTR2, vcpu->arch.mmu.pdptrs[2]);
-		vmcs_write64(GUEST_PDPTR3, vcpu->arch.mmu.pdptrs[3]);
+		vmcs_write64(GUEST_PDPTR0, mmu->pdptrs[0]);
+		vmcs_write64(GUEST_PDPTR1, mmu->pdptrs[1]);
+		vmcs_write64(GUEST_PDPTR2, mmu->pdptrs[2]);
+		vmcs_write64(GUEST_PDPTR3, mmu->pdptrs[3]);
 	}
 }
 
 static void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 {
+	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
+
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-		vcpu->arch.mmu.pdptrs[0] = vmcs_read64(GUEST_PDPTR0);
-		vcpu->arch.mmu.pdptrs[1] = vmcs_read64(GUEST_PDPTR1);
-		vcpu->arch.mmu.pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
-		vcpu->arch.mmu.pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
+		mmu->pdptrs[0] = vmcs_read64(GUEST_PDPTR0);
+		mmu->pdptrs[1] = vmcs_read64(GUEST_PDPTR1);
+		mmu->pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
+		mmu->pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
 	}
 
 	__set_bit(VCPU_EXREG_PDPTR,
@@ -5338,6 +5342,17 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 		vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_VIOLATION;
 		return 0;
 	}
+
+	/*
+	 * EPT violation happened while executing iret from NMI,
+	 * "blocked by NMI" bit has to be set before next VM entry.
+	 * There are errata that may cause this bit to not be set:
+	 * AAK134, BY25.
+	 */
+	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
+			cpu_has_virtual_nmis() &&
+			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
+		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO, GUEST_INTR_STATE_NMI);
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 	trace_kvm_page_fault(gpa, exit_qualification);

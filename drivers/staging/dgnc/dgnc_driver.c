@@ -454,7 +454,7 @@ static void dgnc_cleanup_board(struct board_t *brd)
 
 		DGNC_LOCK(dgnc_global_lock, flags);
 		brd->msgbuf = NULL;
-		printk(brd->msgbuf_head);
+		printk("%s", brd->msgbuf_head);
 		kfree(brd->msgbuf_head);
 		brd->msgbuf_head = NULL;
 		DGNC_UNLOCK(dgnc_global_lock, flags);
@@ -710,7 +710,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	DPR_INIT(("dgnc_scan(%d) - printing out the msgbuf\n", i));
 	DGNC_LOCK(dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
-	printk(brd->msgbuf_head);
+	printk("%s", brd->msgbuf_head);
 	kfree(brd->msgbuf_head);
 	brd->msgbuf_head = NULL;
 	DGNC_UNLOCK(dgnc_global_lock, flags);

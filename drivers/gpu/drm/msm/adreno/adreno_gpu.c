@@ -124,6 +124,8 @@ void adreno_recover(struct msm_gpu *gpu)
 
 	/* reset completed fence seqno, just discard anything pending: */
 	adreno_gpu->memptrs->fence = gpu->submitted_fence;
+	adreno_gpu->memptrs->rptr  = 0;
+	adreno_gpu->memptrs->wptr  = 0;
 
 	gpu->funcs->pm_resume(gpu);
 	ret = gpu->funcs->hw_init(gpu);
@@ -229,7 +231,7 @@ void adreno_idle(struct msm_gpu *gpu)
 			return;
 	} while(time_before(jiffies, t));
 
-	DRM_ERROR("timeout waiting for %s to drain ringbuffer!\n", gpu->name);
+	DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
 }
@@ -256,11 +258,17 @@ void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	uint32_t freedwords;
+	unsigned long t = jiffies + ADRENO_IDLE_TIMEOUT;
 	do {
 		uint32_t size = gpu->rb->size / 4;
 		uint32_t wptr = get_wptr(gpu->rb);
 		uint32_t rptr = adreno_gpu->memptrs->rptr;
 		freedwords = (rptr + (size - 1) - wptr) % size;
+
+		if (time_after(jiffies, t)) {
+			DRM_ERROR("%s: timeout waiting for ringbuffer space\n", gpu->name);
+			break;
+		}
 	} while(freedwords < ndwords);
 }
 

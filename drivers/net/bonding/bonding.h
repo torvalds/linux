@@ -176,6 +176,7 @@ struct bond_params {
 	int tx_queues;
 	int all_slaves_active;
 	int resend_igmp;
+	int lp_interval;
 };
 
 struct bond_parm_tbl {

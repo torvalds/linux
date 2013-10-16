@@ -1392,6 +1392,9 @@ static int nfs_finish_open(struct nfs_open_context *ctx,
 {
 	int err;
 
+	if ((open_flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
+		*opened |= FILE_CREATED;
+
 	err = finish_open(file, dentry, do_open, opened);
 	if (err)
 		goto out;
@@ -1455,7 +1458,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	trace_nfs_atomic_open_enter(dir, ctx, open_flags);
 	nfs_block_sillyrename(dentry->d_parent);
-	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr);
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr, opened);
 	nfs_unblock_sillyrename(dentry->d_parent);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);

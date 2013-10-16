@@ -78,7 +78,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		}
 
 		if (submit_bo.flags & BO_INVALID_FLAGS) {
-			DBG("invalid flags: %x", submit_bo.flags);
+			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -92,7 +92,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		 */
 		obj = idr_find(&file->object_idr, submit_bo.handle);
 		if (!obj) {
-			DBG("invalid handle %u at index %u", submit_bo.handle, i);
+			DRM_ERROR("invalid handle %u at index %u\n", submit_bo.handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -100,7 +100,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		msm_obj = to_msm_bo(obj);
 
 		if (!list_empty(&msm_obj->submit_entry)) {
-			DBG("handle %u at index %u already on submit list",
+			DRM_ERROR("handle %u at index %u already on submit list\n",
 					submit_bo.handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
@@ -216,8 +216,9 @@ static int submit_bo(struct msm_gem_submit *submit, uint32_t idx,
 		struct msm_gem_object **obj, uint32_t *iova, bool *valid)
 {
 	if (idx >= submit->nr_bos) {
-		DBG("invalid buffer index: %u (out of %u)", idx, submit->nr_bos);
-		return EINVAL;
+		DRM_ERROR("invalid buffer index: %u (out of %u)\n",
+				idx, submit->nr_bos);
+		return -EINVAL;
 	}
 
 	if (obj)
@@ -239,7 +240,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	int ret;
 
 	if (offset % 4) {
-		DBG("non-aligned cmdstream buffer: %u", offset);
+		DRM_ERROR("non-aligned cmdstream buffer: %u\n", offset);
 		return -EINVAL;
 	}
 
@@ -266,7 +267,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 			return -EFAULT;
 
 		if (submit_reloc.submit_offset % 4) {
-			DBG("non-aligned reloc offset: %u",
+			DRM_ERROR("non-aligned reloc offset: %u\n",
 					submit_reloc.submit_offset);
 			return -EINVAL;
 		}
@@ -276,7 +277,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 
 		if ((off >= (obj->base.size / 4)) ||
 				(off < last_offset)) {
-			DBG("invalid offset %u at reloc %u", off, i);
+			DRM_ERROR("invalid offset %u at reloc %u\n", off, i);
 			return -EINVAL;
 		}
 
@@ -374,14 +375,15 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out;
 
 		if (submit_cmd.size % 4) {
-			DBG("non-aligned cmdstream buffer size: %u",
+			DRM_ERROR("non-aligned cmdstream buffer size: %u\n",
 					submit_cmd.size);
 			ret = -EINVAL;
 			goto out;
 		}
 
-		if (submit_cmd.size >= msm_obj->base.size) {
-			DBG("invalid cmdstream size: %u", submit_cmd.size);
+		if ((submit_cmd.size + submit_cmd.submit_offset) >=
+				msm_obj->base.size) {
+			DRM_ERROR("invalid cmdstream size: %u\n", submit_cmd.size);
 			ret = -EINVAL;
 			goto out;
 		}

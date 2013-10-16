@@ -97,7 +97,6 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address, page);
 	switch (ret) {
 	case -EAGAIN:
-		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
 		return VM_FAULT_NOPAGE;

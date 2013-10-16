@@ -157,6 +157,7 @@ static struct btrfs_lockdep_keyset {
 	{ .id = BTRFS_TREE_LOG_OBJECTID,	.name_stem = "log"	},
 	{ .id = BTRFS_TREE_RELOC_OBJECTID,	.name_stem = "treloc"	},
 	{ .id = BTRFS_DATA_RELOC_TREE_OBJECTID,	.name_stem = "dreloc"	},
+	{ .id = BTRFS_UUID_TREE_OBJECTID,	.name_stem = "uuid"	},
 	{ .id = 0,				.name_stem = "tree"	},
 };
 
@@ -1560,8 +1561,9 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
-					      struct btrfs_key *location)
+struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
+				     struct btrfs_key *location,
+				     bool check_ref)
 {
 	struct btrfs_root *root;
 	int ret;
@@ -1585,7 +1587,7 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 again:
 	root = btrfs_lookup_fs_root(fs_info, location->objectid);
 	if (root) {
-		if (btrfs_root_refs(&root->root_item) == 0)
+		if (check_ref && btrfs_root_refs(&root->root_item) == 0)
 			return ERR_PTR(-ENOENT);
 		return root;
 	}
@@ -1594,7 +1596,7 @@ again:
 	if (IS_ERR(root))
 		return root;
 
-	if (btrfs_root_refs(&root->root_item) == 0) {
+	if (check_ref && btrfs_root_refs(&root->root_item) == 0) {
 		ret = -ENOENT;
 		goto fail;
 	}
@@ -3415,6 +3417,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	if (total_errors > max_errors) {
 		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
 		       total_errors);
+		mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 		/* FUA is masked off if unsupported and can't be the reason */
 		btrfs_error(root->fs_info, -EIO,

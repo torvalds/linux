@@ -498,7 +498,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 				((u32 *)xfer->rx_buf)[elements++] = w;
 		} else {
 			int bytes_per_word = mcspi_bytes_per_word(word_len);
-			dev_err(&spi->dev, "DMA RX penultimate word empty");
+			dev_err(&spi->dev, "DMA RX penultimate word empty\n");
 			count -= (bytes_per_word << 1);
 			omap2_mcspi_set_enable(spi, 1);
 			return count;
@@ -516,7 +516,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 		else /* word_len <= 32 */
 			((u32 *)xfer->rx_buf)[elements] = w;
 	} else {
-		dev_err(&spi->dev, "DMA RX last word empty");
+		dev_err(&spi->dev, "DMA RX last word empty\n");
 		count -= mcspi_bytes_per_word(word_len);
 	}
 	omap2_mcspi_set_enable(spi, 1);

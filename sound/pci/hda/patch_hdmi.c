@@ -937,6 +937,14 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	}
 
 	/*
+	 * always configure channel mapping, it may have been changed by the
+	 * user in the meantime
+	 */
+	hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
+				   channels, per_pin->chmap,
+				   per_pin->chmap_set);
+
+	/*
 	 * sizeof(ai) is used instead of sizeof(*hdmi_ai) or
 	 * sizeof(*dp_ai) to avoid partial match/update problems when
 	 * the user switches between HDMI/DP monitors.
@@ -947,20 +955,10 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 			    "pin=%d channels=%d\n",
 			    pin_nid,
 			    channels);
-		hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
-					   channels, per_pin->chmap,
-					   per_pin->chmap_set);
 		hdmi_stop_infoframe_trans(codec, pin_nid);
 		hdmi_fill_audio_infoframe(codec, pin_nid,
 					    ai.bytes, sizeof(ai));
 		hdmi_start_infoframe_trans(codec, pin_nid);
-	} else {
-		/* For non-pcm audio switch, setup new channel mapping
-		 * accordingly */
-		if (per_pin->non_pcm != non_pcm)
-			hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca,
-						   channels, per_pin->chmap,
-						   per_pin->chmap_set);
 	}
 
 	per_pin->non_pcm = non_pcm;
@@ -1149,32 +1147,43 @@ static int hdmi_choose_cvt(struct hda_codec *codec,
 }
 
 static void haswell_config_cvts(struct hda_codec *codec,
-			int pin_id, int mux_id)
+			hda_nid_t pin_nid, int mux_idx)
 {
 	struct hdmi_spec *spec = codec->spec;
-	struct hdmi_spec_per_pin *per_pin;
-	int pin_idx, mux_idx;
-	int curr;
-	int err;
+	hda_nid_t nid, end_nid;
+	int cvt_idx, curr;
+	struct hdmi_spec_per_cvt *per_cvt;
 
-	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
-		per_pin = get_pin(spec, pin_idx);
+	/* configure all pins, including "no physical connection" ones */
+	end_nid = codec->start_nid + codec->num_nodes;
+	for (nid = codec->start_nid; nid < end_nid; nid++) {
+		unsigned int wid_caps = get_wcaps(codec, nid);
+		unsigned int wid_type = get_wcaps_type(wid_caps);
 
-		if (pin_idx == pin_id)
+		if (wid_type != AC_WID_PIN)
 			continue;
 
-		curr = snd_hda_codec_read(codec, per_pin->pin_nid, 0,
-					  AC_VERB_GET_CONNECT_SEL, 0);
+		if (nid == pin_nid)
+			continue;
 
-		/* Choose another unused converter */
-		if (curr == mux_id) {
-			err = hdmi_choose_cvt(codec, pin_idx, NULL, &mux_idx);
-			if (err < 0)
-				return;
-			snd_printdd("HDMI: choose converter %d for pin %d\n", mux_idx, pin_idx);
-			snd_hda_codec_write_cache(codec, per_pin->pin_nid, 0,
+		curr = snd_hda_codec_read(codec, nid, 0,
+					  AC_VERB_GET_CONNECT_SEL, 0);
+		if (curr != mux_idx)
+			continue;
+
+		/* choose an unassigned converter. The conveters in the
+		 * connection list are in the same order as in the codec.
+		 */
+		for (cvt_idx = 0; cvt_idx < spec->num_cvts; cvt_idx++) {
+			per_cvt = get_cvt(spec, cvt_idx);
+			if (!per_cvt->assigned) {
+				snd_printdd("choose cvt %d for pin nid %d\n",
+					cvt_idx, nid);
+				snd_hda_codec_write_cache(codec, nid, 0,
 					    AC_VERB_SET_CONNECT_SEL,
-					    mux_idx);
+					    cvt_idx);
+				break;
+			}
 		}
 	}
 }
@@ -1216,7 +1225,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 
 	/* configure unused pins to choose other converters */
 	if (is_haswell(codec))
-		haswell_config_cvts(codec, pin_idx, mux_idx);
+		haswell_config_cvts(codec, per_pin->pin_nid, mux_idx);
 
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
 

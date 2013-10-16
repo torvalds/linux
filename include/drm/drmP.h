@@ -1322,10 +1322,9 @@ extern int drm_newctx(struct drm_device *dev, void *data,
 extern int drm_rmctx(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 
-extern void drm_legacy_ctxbitmap_init(struct drm_device *dev);
-extern void drm_legacy_ctxbitmap_cleanup(struct drm_device *dev);
-extern void drm_legacy_ctxbitmap_release(struct drm_device *dev,
-					 struct drm_file *file_priv);
+extern int drm_ctxbitmap_init(struct drm_device *dev);
+extern void drm_ctxbitmap_cleanup(struct drm_device *dev);
+extern void drm_ctxbitmap_free(struct drm_device *dev, int ctx_handle);
 
 extern int drm_setsareactx(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);

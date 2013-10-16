@@ -564,7 +564,7 @@ static void vxlan_notify_add_rx_port(struct sock *sk)
 	struct net_device *dev;
 	struct net *net = sock_net(sk);
 	sa_family_t sa_family = sk->sk_family;
-	u16 port = htons(inet_sk(sk)->inet_sport);
+	__be16 port = inet_sk(sk)->inet_sport;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
@@ -581,7 +581,7 @@ static void vxlan_notify_del_rx_port(struct sock *sk)
 	struct net_device *dev;
 	struct net *net = sock_net(sk);
 	sa_family_t sa_family = sk->sk_family;
-	u16 port = htons(inet_sk(sk)->inet_sport);
+	__be16 port = inet_sk(sk)->inet_sport;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
@@ -952,8 +952,7 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 
 	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vs->hlist);
-	smp_wmb();
-	vs->sock->sk->sk_user_data = NULL;
+	rcu_assign_sk_user_data(vs->sock->sk, NULL);
 	vxlan_notify_del_rx_port(sk);
 	spin_unlock(&vn->sock_lock);
 
@@ -1048,8 +1047,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	port = inet_sk(sk)->inet_sport;
 
-	smp_read_barrier_depends();
-	vs = (struct vxlan_sock *)sk->sk_user_data;
+	vs = rcu_dereference_sk_user_data(sk);
 	if (!vs)
 		goto drop;
 
@@ -2021,7 +2019,8 @@ static struct device_type vxlan_type = {
 };
 
 /* Calls the ndo_add_vxlan_port of the caller in order to
- * supply the listening VXLAN udp ports.
+ * supply the listening VXLAN udp ports. Callers are expected
+ * to implement the ndo_add_vxlan_port.
  */
 void vxlan_get_rx_port(struct net_device *dev)
 {
@@ -2029,16 +2028,13 @@ void vxlan_get_rx_port(struct net_device *dev)
 	struct net *net = dev_net(dev);
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	sa_family_t sa_family;
-	u16 port;
-	int i;
-
-	if (!dev || !dev->netdev_ops || !dev->netdev_ops->ndo_add_vxlan_port)
-		return;
+	__be16 port;
+	unsigned int i;
 
 	spin_lock(&vn->sock_lock);
 	for (i = 0; i < PORT_HASH_SIZE; ++i) {
-		hlist_for_each_entry_rcu(vs, vs_head(net, i), hlist) {
-			port = htons(inet_sk(vs->sock->sk)->inet_sport);
+		hlist_for_each_entry_rcu(vs, &vn->sock_list[i], hlist) {
+			port = inet_sk(vs->sock->sk)->inet_sport;
 			sa_family = vs->sock->sk->sk_family;
 			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
 							    port);
@@ -2304,8 +2300,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 	atomic_set(&vs->refcnt, 1);
 	vs->rcv = rcv;
 	vs->data = data;
-	smp_wmb();
-	vs->sock->sk->sk_user_data = vs;
+	rcu_assign_sk_user_data(vs->sock->sk, vs);
 
 	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
@@ -2492,15 +2487,19 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 	SET_ETHTOOL_OPS(dev, &vxlan_ethtool_ops);
 
-	/* create an fdb entry for default destination */
-	err = vxlan_fdb_create(vxlan, all_zeros_mac,
-			       &vxlan->default_dst.remote_ip,
-			       NUD_REACHABLE|NUD_PERMANENT,
-			       NLM_F_EXCL|NLM_F_CREATE,
-			       vxlan->dst_port, vxlan->default_dst.remote_vni,
-			       vxlan->default_dst.remote_ifindex, NTF_SELF);
-	if (err)
-		return err;
+	/* create an fdb entry for a valid default destination */
+	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {
+		err = vxlan_fdb_create(vxlan, all_zeros_mac,
+				       &vxlan->default_dst.remote_ip,
+				       NUD_REACHABLE|NUD_PERMANENT,
+				       NLM_F_EXCL|NLM_F_CREATE,
+				       vxlan->dst_port,
+				       vxlan->default_dst.remote_vni,
+				       vxlan->default_dst.remote_ifindex,
+				       NTF_SELF);
+		if (err)
+			return err;
+	}
 
 	err = register_netdevice(dev);
 	if (err) {
