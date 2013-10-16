@@ -1249,21 +1249,31 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 				I915_READ(PIPE_CRC_RES_5_IVB(pipe)));
 }
 
-static void ilk_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+static void i9xx_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t res1, res2;
+
+	if (INTEL_INFO(dev)->gen >= 3)
+		res1 = I915_READ(PIPE_CRC_RES_RES1_I915(pipe));
+	else
+		res1 = 0;
+
+	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+		res2 = I915_READ(PIPE_CRC_RES_RES2_G4X(pipe));
+	else
+		res2 = 0;
 
 	display_pipe_crc_update(dev, pipe,
-				I915_READ(PIPE_CRC_RES_RED_ILK(pipe)),
-				I915_READ(PIPE_CRC_RES_GREEN_ILK(pipe)),
-				I915_READ(PIPE_CRC_RES_BLUE_ILK(pipe)),
-				I915_READ(PIPE_CRC_RES_RES1_ILK(pipe)),
-				I915_READ(PIPE_CRC_RES_RES2_ILK(pipe)));
+				I915_READ(PIPE_CRC_RES_RED(pipe)),
+				I915_READ(PIPE_CRC_RES_GREEN(pipe)),
+				I915_READ(PIPE_CRC_RES_BLUE(pipe)),
+				res1, res2);
 }
 #else
 static inline void hsw_pipe_crc_update(struct drm_device *dev, int pipe) {}
 static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
-static inline void ilk_pipe_crc_update(struct drm_device *dev, int pipe) {}
+static inline void i9xx_pipe_crc_update(struct drm_device *dev, int pipe) {}
 #endif
 
 /* The RPS events need forcewake, so we add them to a work queue and mask their
@@ -1543,10 +1553,10 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
 
 	if (de_iir & DE_PIPEA_CRC_DONE)
-		ilk_pipe_crc_update(dev, PIPE_A);
+		i9xx_pipe_crc_update(dev, PIPE_A);
 
 	if (de_iir & DE_PIPEB_CRC_DONE)
-		ilk_pipe_crc_update(dev, PIPE_B);
+		i9xx_pipe_crc_update(dev, PIPE_B);
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);

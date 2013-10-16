@@ -1858,11 +1858,11 @@
 #define _PIPE_CRC_RES_4_A_IVB		0x60070
 #define _PIPE_CRC_RES_5_A_IVB		0x60074
 
-#define _PIPE_CRC_RES_RED_A_ILK		0x60060
-#define _PIPE_CRC_RES_GREEN_A_ILK	0x60064
-#define _PIPE_CRC_RES_BLUE_A_ILK	0x60068
-#define _PIPE_CRC_RES_RES1_A_ILK	0x6006c
-#define _PIPE_CRC_RES_RES2_A_ILK	0x60080
+#define _PIPE_CRC_RES_RED_A		(dev_priv->info->display_mmio_offset + 0x60060)
+#define _PIPE_CRC_RES_GREEN_A		(dev_priv->info->display_mmio_offset + 0x60064)
+#define _PIPE_CRC_RES_BLUE_A		(dev_priv->info->display_mmio_offset + 0x60068)
+#define _PIPE_CRC_RES_RES1_A_I915	(dev_priv->info->display_mmio_offset + 0x6006c)
+#define _PIPE_CRC_RES_RES2_A_G4X	(dev_priv->info->display_mmio_offset + 0x60080)
 
 /* Pipe B CRC regs */
 #define _PIPE_CRC_CTL_B			0x61050
@@ -1884,16 +1884,16 @@
 #define PIPE_CRC_RES_5_IVB(pipe)	\
 	_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
 
-#define PIPE_CRC_RES_RED_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_RED_A_ILK, 0x01000)
-#define PIPE_CRC_RES_GREEN_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_GREEN_A_ILK, 0x01000)
-#define PIPE_CRC_RES_BLUE_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_BLUE_A_ILK, 0x01000)
-#define PIPE_CRC_RES_RES1_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_RES1_A_ILK, 0x01000)
-#define PIPE_CRC_RES_RES2_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_RES2_A_ILK, 0x01000)
+#define PIPE_CRC_RES_RED(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RED_A, 0x01000)
+#define PIPE_CRC_RES_GREEN(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_GREEN_A, 0x01000)
+#define PIPE_CRC_RES_BLUE(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_BLUE_A, 0x01000)
+#define PIPE_CRC_RES_RES1_I915(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES1_A_I915, 0x01000)
+#define PIPE_CRC_RES_RES2_G4X(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES2_A_G4X, 0x01000)
 
 /* Pipe A timing regs */
 #define _HTOTAL_A	(dev_priv->info->display_mmio_offset + 0x60000)
