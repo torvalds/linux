@@ -212,6 +212,9 @@ void do_interrupt(struct pt_regs *regs)
 		XCHAL_INTLEVEL6_MASK,
 		XCHAL_INTLEVEL7_MASK,
 	};
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	irq_enter();
 
 	for (;;) {
 		unsigned intread = get_sr(interrupt);
@@ -227,21 +230,13 @@ void do_interrupt(struct pt_regs *regs)
 		}
 
 		if (level == 0)
-			return;
+			break;
 
-		/*
-		 * Clear the interrupt before processing, in case it's
-		 *  edge-triggered or software-generated
-		 */
-		while (int_at_level) {
-			unsigned i = __ffs(int_at_level);
-			unsigned mask = 1 << i;
-
-			int_at_level ^= mask;
-			set_sr(mask, intclear);
-			do_IRQ(i, regs);
-		}
+		do_IRQ(__ffs(int_at_level), regs);
 	}
+
+	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*

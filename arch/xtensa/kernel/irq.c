@@ -30,15 +30,12 @@ atomic_t irq_err_count;
 
 asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	int irq = irq_find_mapping(NULL, hwirq);
 
 	if (hwirq >= NR_IRQS) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
 				__func__, hwirq);
 	}
-
-	irq_enter();
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 1KB free? */
@@ -54,9 +51,6 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 	}
 #endif
 	generic_handle_irq(irq);
-
-	irq_exit();
-	set_irq_regs(old_regs);
 }
 
 int arch_show_interrupts(struct seq_file *p, int prec)
