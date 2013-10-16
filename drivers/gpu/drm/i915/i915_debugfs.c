@@ -1915,6 +1915,10 @@ static const char * const pipe_crc_sources[] = {
 	"plane2",
 	"pf",
 	"pipe",
+	"TV",
+	"DP-B",
+	"DP-C",
+	"DP-D",
 };
 
 static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
@@ -1953,14 +1957,14 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 	case INTEL_PIPE_CRC_SOURCE_PLANE2:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_ILK;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_PF:
-		return -EINVAL;
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_ILK;
 		break;
-	default:
+	case INTEL_PIPE_CRC_SOURCE_NONE:
 		*val = 0;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1979,11 +1983,11 @@ static int ivb_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 	case INTEL_PIPE_CRC_SOURCE_PF:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_PIPE:
-		return -EINVAL;
-	default:
+	case INTEL_PIPE_CRC_SOURCE_NONE:
 		*val = 0;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
