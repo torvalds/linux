@@ -890,6 +890,7 @@ dm9000_init_dm9000(struct net_device *dev)
 			(dev->features & NETIF_F_RXCSUM) ? RCSR_CSUM : 0);
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
+	iow(db, DM9000_GPR, 0);
 
 	/* If we are dealing with DM9000B, some extra steps are required: a
 	 * manual phy reset, and setting init params.
