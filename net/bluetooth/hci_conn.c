@@ -317,8 +317,10 @@ static void hci_conn_timeout(struct work_struct *work)
 }
 
 /* Enter sniff mode */
-static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
+static void hci_conn_idle(struct work_struct *work)
 {
+	struct hci_conn *conn = container_of(work, struct hci_conn,
+					     idle_work.work);
 	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("hcon %p mode %d", conn, conn->mode);
@@ -350,15 +352,6 @@ static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 		cp.timeout      = __constant_cpu_to_le16(1);
 		hci_send_cmd(hdev, HCI_OP_SNIFF_MODE, sizeof(cp), &cp);
 	}
-}
-
-static void hci_conn_idle(unsigned long arg)
-{
-	struct hci_conn *conn = (void *) arg;
-
-	BT_DBG("hcon %p mode %d", conn, conn->mode);
-
-	hci_conn_enter_sniff_mode(conn);
 }
 
 static void hci_conn_auto_accept(struct work_struct *work)
@@ -416,7 +409,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 	INIT_DELAYED_WORK(&conn->disc_work, hci_conn_timeout);
 	INIT_DELAYED_WORK(&conn->auto_accept_work, hci_conn_auto_accept);
-	setup_timer(&conn->idle_timer, hci_conn_idle, (unsigned long)conn);
+	INIT_DELAYED_WORK(&conn->idle_work, hci_conn_idle);
 
 	atomic_set(&conn->refcnt, 0);
 
@@ -437,10 +430,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	BT_DBG("%s hcon %p handle %d", hdev->name, conn, conn->handle);
 
-	del_timer(&conn->idle_timer);
-
 	cancel_delayed_work_sync(&conn->disc_work);
 	cancel_delayed_work_sync(&conn->auto_accept_work);
+	cancel_delayed_work_sync(&conn->idle_work);
 
 	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;
@@ -920,8 +912,8 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 
 timer:
 	if (hdev->idle_timeout > 0)
-		mod_timer(&conn->idle_timer,
-			  jiffies + msecs_to_jiffies(hdev->idle_timeout));
+		queue_delayed_work(hdev->workqueue, &conn->idle_work,
+				   msecs_to_jiffies(hdev->idle_timeout));
 }
 
 /* Drop all connection on the device */

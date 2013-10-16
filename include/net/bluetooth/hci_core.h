@@ -342,7 +342,7 @@ struct hci_conn {
 
 	struct delayed_work disc_work;
 	struct delayed_work auto_accept_work;
-	struct timer_list idle_timer;
+	struct delayed_work idle_work;
 
 	struct device	dev;
 
@@ -651,7 +651,7 @@ static inline void hci_conn_drop(struct hci_conn *conn)
 		switch (conn->type) {
 		case ACL_LINK:
 		case LE_LINK:
-			del_timer(&conn->idle_timer);
+			cancel_delayed_work(&conn->idle_work);
 			if (conn->state == BT_CONNECTED) {
 				timeo = conn->disc_timeout;
 				if (!conn->out)
