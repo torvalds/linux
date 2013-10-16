@@ -5113,17 +5113,18 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 	if (file) {
 		struct inode *inode;
 		dev_t dev;
-		/*
-		 * d_path works from the end of the rb backwards, so we
-		 * need to add enough zero bytes after the string to handle
-		 * the 64bit alignment we do later.
-		 */
-		buf = kzalloc(PATH_MAX + sizeof(u64), GFP_KERNEL);
+
+		buf = kzalloc(PATH_MAX, GFP_KERNEL);
 		if (!buf) {
 			name = strncpy(tmp, "//enomem", sizeof(tmp));
 			goto got_name;
 		}
-		name = d_path(&file->f_path, buf, PATH_MAX);
+		/*
+		 * d_path() works from the end of the rb backwards, so we
+		 * need to add enough zero bytes after the string to handle
+		 * the 64bit alignment we do later.
+		 */
+		name = d_path(&file->f_path, buf, PATH_MAX - sizeof(u64));
 		if (IS_ERR(name)) {
 			name = strncpy(tmp, "//toolong", sizeof(tmp));
 			goto got_name;
