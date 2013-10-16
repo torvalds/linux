@@ -1240,8 +1240,22 @@ static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
 				I915_READ(PIPE_CRC_RES_5_IVB(pipe)),
 				I915_READ(PIPEFRAME(pipe)));
 }
+
+static void ilk_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	display_pipe_crc_update(dev, pipe,
+				I915_READ(PIPE_CRC_RES_RED_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_GREEN_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_BLUE_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_RES1_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_RES2_ILK(pipe)),
+				I915_READ(PIPEFRAME(pipe)));
+}
 #else
 static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
+static inline void ilk_pipe_crc_update(struct drm_device *dev, int pipe) {}
 #endif
 
 /* The RPS events need forcewake, so we add them to a work queue and mask their
@@ -1523,6 +1537,12 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_PIPEB_FIFO_UNDERRUN)
 		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
 			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
+
+	if (de_iir & DE_PIPEA_CRC_DONE)
+		ilk_pipe_crc_update(dev, PIPE_A);
+
+	if (de_iir & DE_PIPEB_CRC_DONE)
+		ilk_pipe_crc_update(dev, PIPE_B);
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
@@ -2500,8 +2520,10 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
-				DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
-				DE_PIPEA_FIFO_UNDERRUN | DE_POISON);
+				DE_AUX_CHANNEL_A |
+				DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
+				DE_PIPEB_CRC_DONE | DE_PIPEA_CRC_DONE |
+				DE_POISON);
 		extra_mask = DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT;
 	}
 

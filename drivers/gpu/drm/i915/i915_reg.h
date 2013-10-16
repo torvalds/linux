@@ -3918,12 +3918,14 @@
 #define DE_PIPEB_ODD_FIELD      (1 << 13)
 #define DE_PIPEB_LINE_COMPARE   (1 << 12)
 #define DE_PIPEB_VSYNC          (1 << 11)
+#define DE_PIPEB_CRC_DONE	(1 << 10)
 #define DE_PIPEB_FIFO_UNDERRUN  (1 << 8)
 #define DE_PIPEA_VBLANK         (1 << 7)
 #define DE_PIPEA_EVEN_FIELD     (1 << 6)
 #define DE_PIPEA_ODD_FIELD      (1 << 5)
 #define DE_PIPEA_LINE_COMPARE   (1 << 4)
 #define DE_PIPEA_VSYNC          (1 << 3)
+#define DE_PIPEA_CRC_DONE	(1 << 2)
 #define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
 
 /* More Ivybridge lolz */

@@ -1914,6 +1914,7 @@ static const char * const pipe_crc_sources[] = {
 	"plane1",
 	"plane2",
 	"pf",
+	"pipe",
 };
 
 static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
@@ -1942,14 +1943,61 @@ static int display_crc_ctl_open(struct inode *inode, struct file *file)
 	return single_open(file, display_crc_ctl_show, dev);
 }
 
+static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+				uint32_t *val)
+{
+	switch (source) {
+	case INTEL_PIPE_CRC_SOURCE_PLANE1:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PRIMARY_ILK;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE2:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_ILK;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PF:
+		return -EINVAL;
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_ILK;
+		break;
+	default:
+		*val = 0;
+		break;
+	}
+
+	return 0;
+}
+
+static int ivb_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+				uint32_t *val)
+{
+	switch (source) {
+	case INTEL_PIPE_CRC_SOURCE_PLANE1:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PRIMARY_IVB;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE2:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PF:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
+		return -EINVAL;
+	default:
+		*val = 0;
+		break;
+	}
+
+	return 0;
+}
+
 static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 			       enum intel_pipe_crc_source source)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	u32 val;
+	int ret;
 
-	if (!IS_IVYBRIDGE(dev))
+	if (!(IS_IVYBRIDGE(dev) || IS_GEN5(dev) || IS_GEN6(dev)))
 		return -ENODEV;
 
 	if (pipe_crc->source == source)
@@ -1958,6 +2006,14 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	/* forbid changing the source without going back to 'none' */
 	if (pipe_crc->source && source)
 		return -EINVAL;
+
+	if (IS_GEN5(dev) || IS_GEN6(dev))
+		ret = ilk_pipe_crc_ctl_reg(source, &val);
+	else
+		ret = ivb_pipe_crc_ctl_reg(source, &val);
+
+	if (ret != 0)
+		return ret;
 
 	/* none -> real source transition */
 	if (source) {
@@ -1975,22 +2031,6 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	}
 
 	pipe_crc->source = source;
-
-	switch (source) {
-	case INTEL_PIPE_CRC_SOURCE_PLANE1:
-		val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PRIMARY_IVB;
-		break;
-	case INTEL_PIPE_CRC_SOURCE_PLANE2:
-		val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
-		break;
-	case INTEL_PIPE_CRC_SOURCE_PF:
-		val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
-		break;
-	case INTEL_PIPE_CRC_SOURCE_NONE:
-	default:
-		val = 0;
-		break;
-	}
 
 	I915_WRITE(PIPE_CRC_CTL(pipe), val);
 	POSTING_READ(PIPE_CRC_CTL(pipe));
