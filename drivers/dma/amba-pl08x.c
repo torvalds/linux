@@ -1252,7 +1252,7 @@ static enum dma_status pl08x_dma_tx_status(struct dma_chan *chan,
 	size_t bytes = 0;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	/*
@@ -1267,7 +1267,7 @@ static enum dma_status pl08x_dma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&plchan->vc.lock, flags);
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
+	if (ret != DMA_COMPLETE) {
 		vd = vchan_find_desc(&plchan->vc, cookie);
 		if (vd) {
 			/* On the issued list, so hasn't been processed yet */
