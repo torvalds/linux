@@ -2772,7 +2772,6 @@ int i915_debugfs_init(struct drm_minor *minor)
 
 void i915_debugfs_cleanup(struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
 	int i;
 
 	drm_debugfs_remove_files(i915_debugfs_list,
@@ -2781,7 +2780,7 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_forcewake_fops,
 				 1, minor);
 
-	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
+	for (i = 0; i < ARRAY_SIZE(i915_pipe_crc_data); i++) {
 		struct drm_info_list *info_list =
 			(struct drm_info_list *)&i915_pipe_crc_data[i];
 
