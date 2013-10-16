@@ -740,7 +740,7 @@ static int dmatest_func(void *data)
 					  len, 0);
 			failed_tests++;
 			continue;
-		} else if (status != DMA_SUCCESS) {
+		} else if (status != DMA_COMPLETE) {
 			enum dmatest_error_type type = (status == DMA_ERROR) ?
 				DMATEST_ET_DMA_ERROR : DMATEST_ET_DMA_IN_PROGRESS;
 			thread_result_add(info, result, type,
