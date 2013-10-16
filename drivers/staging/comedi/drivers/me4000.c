@@ -427,7 +427,7 @@ static int xilinx_download(struct comedi_device *dev)
 static void me4000_reset(struct comedi_device *dev)
 {
 	struct me4000_info *info = dev->private;
-	unsigned long val;
+	unsigned int val;
 	int chan;
 
 	/* Make a hardware reset */
@@ -480,9 +480,9 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
 
-	unsigned long entry = 0;
-	unsigned long tmp;
-	long lval;
+	unsigned int entry = 0;
+	unsigned int tmp;
+	unsigned int lval;
 
 	if (insn->n == 0) {
 		return 0;
@@ -586,7 +586,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 static int me4000_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	unsigned long tmp;
+	unsigned int tmp;
 
 	/* Stop any running conversion */
 	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
@@ -783,7 +783,7 @@ static int ai_prepare(struct comedi_device *dev,
 		      unsigned int scan_ticks, unsigned int chan_ticks)
 {
 
-	unsigned long tmp = 0;
+	unsigned int tmp = 0;
 
 	/* Write timer arguments */
 	ai_write_timer(dev, init_ticks, scan_ticks, chan_ticks);
@@ -1108,7 +1108,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i;
 	int c = 0;
-	long lval;
+	unsigned int lval;
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -1252,7 +1252,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
-	unsigned long tmp;
+	unsigned int tmp;
 
 	if (insn->n == 0) {
 		return 0;
