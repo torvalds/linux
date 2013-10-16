@@ -583,6 +583,11 @@ void __init am33xx_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap_clk_init = am33xx_clk_init;
 }
+
+void __init am33xx_init_late(void)
+{
+	omap_common_late_init();
+}
 #endif
 
 #ifdef CONFIG_SOC_AM43XX
@@ -595,6 +600,11 @@ void __init am43xx_init_early(void)
 	omap2_set_globals_prm(AM33XX_L4_WK_IO_ADDRESS(AM43XX_PRCM_BASE));
 	omap2_set_globals_cm(AM33XX_L4_WK_IO_ADDRESS(AM43XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
+}
+
+void __init am43xx_init_late(void)
+{
+	omap_common_late_init();
 }
 #endif
 
@@ -651,6 +661,11 @@ void __init omap5_init_early(void)
 	omap54xx_hwmod_init();
 	omap_hwmod_init_postsetup();
 }
+
+void __init omap5_init_late(void)
+{
+	omap_common_late_init();
+}
 #endif
 
 #ifdef CONFIG_SOC_DRA7XX
@@ -670,6 +685,11 @@ void __init dra7xx_init_early(void)
 	dra7xx_clockdomains_init();
 	dra7xx_hwmod_init();
 	omap_hwmod_init_postsetup();
+}
+
+void __init dra7xx_init_late(void)
+{
+	omap_common_late_init();
 }
 #endif
 
