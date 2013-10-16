@@ -119,7 +119,7 @@ static int get_cluster_clk_and_freq_table(struct device *cpu_dev)
 	}
 
 	name[12] = cluster + '0';
-	clk[cluster] = clk_get_sys(name, NULL);
+	clk[cluster] = clk_get(cpu_dev, name);
 	if (!IS_ERR(clk[cluster])) {
 		dev_dbg(cpu_dev, "%s: clk: %p & freq table: %p, cluster: %d\n",
 				__func__, clk[cluster], freq_table[cluster],
