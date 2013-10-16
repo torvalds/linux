@@ -303,6 +303,20 @@ static int hmc5843_get_samp_freq_index(struct hmc5843_data *data,
 	return -EINVAL;
 }
 
+static int hmc5843_set_range_gain(struct hmc5843_data *data, u8 range)
+{
+	int ret;
+
+	mutex_lock(&data->lock);
+	ret = i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_B,
+		range << HMC5843_RANGE_GAIN_OFFSET);
+	if (ret >= 0)
+		data->range = range;
+	mutex_unlock(&data->lock);
+
+	return ret;
+}
+
 static ssize_t hmc5843_show_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -364,7 +378,7 @@ static int hmc5843_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct hmc5843_data *data = iio_priv(indio_dev);
-	int ret, rate, range;
+	int rate, range;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -378,15 +392,7 @@ static int hmc5843_write_raw(struct iio_dev *indio_dev,
 		if (range < 0)
 			return -EINVAL;
 
-		range <<= HMC5843_RANGE_GAIN_OFFSET;
-		mutex_lock(&data->lock);
-		ret = i2c_smbus_write_byte_data(data->client,
-			HMC5843_CONFIG_REG_B, range);
-		if (ret >= 0)
-			data->range = range;
-		mutex_unlock(&data->lock);
-
-		return ret;
+		return hmc5843_set_range_gain(data, range);
 	default:
 		return -EINVAL;
 	}
@@ -495,9 +501,8 @@ static void hmc5843_init(struct hmc5843_data *data)
 {
 	hmc5843_set_meas_conf(data, HMC5843_MEAS_CONF_NORMAL);
 	hmc5843_set_samp_freq(data, HMC5843_RATE_DEFAULT);
+	hmc5843_set_range_gain(data, HMC5843_RANGE_GAIN_DEFAULT);
 	hmc5843_set_mode(data, HMC5843_MODE_CONVERSION_CONTINUOUS);
-	i2c_smbus_write_byte_data(data->client, HMC5843_CONFIG_REG_B,
-		HMC5843_RANGE_GAIN_DEFAULT);
 }
 
 static const struct iio_info hmc5843_info = {
