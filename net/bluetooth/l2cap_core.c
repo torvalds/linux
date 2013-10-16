@@ -3971,6 +3971,18 @@ static void l2cap_send_efs_conf_rsp(struct l2cap_chan *chan, void *data,
 					    L2CAP_CONF_SUCCESS, flags), data);
 }
 
+static void cmd_reject_invalid_cid(struct l2cap_conn *conn, u8 ident,
+				   u16 scid, u16 dcid)
+{
+	struct l2cap_cmd_rej_cid rej;
+
+	rej.reason = __constant_cpu_to_le16(L2CAP_REJ_INVALID_CID);
+	rej.scid = __cpu_to_le16(scid);
+	rej.dcid = __cpu_to_le16(dcid);
+
+	l2cap_send_cmd(conn, ident, L2CAP_COMMAND_REJ, sizeof(rej), &rej);
+}
+
 static inline int l2cap_config_req(struct l2cap_conn *conn,
 				   struct l2cap_cmd_hdr *cmd, u16 cmd_len,
 				   u8 *data)
@@ -3990,18 +4002,14 @@ static inline int l2cap_config_req(struct l2cap_conn *conn,
 	BT_DBG("dcid 0x%4.4x flags 0x%2.2x", dcid, flags);
 
 	chan = l2cap_get_chan_by_scid(conn, dcid);
-	if (!chan)
-		return -EBADSLT;
+	if (!chan) {
+		cmd_reject_invalid_cid(conn, cmd->ident, dcid, 0);
+		return 0;
+	}
 
 	if (chan->state != BT_CONFIG && chan->state != BT_CONNECT2) {
-		struct l2cap_cmd_rej_cid rej;
-
-		rej.reason = __constant_cpu_to_le16(L2CAP_REJ_INVALID_CID);
-		rej.scid = cpu_to_le16(chan->scid);
-		rej.dcid = cpu_to_le16(chan->dcid);
-
-		l2cap_send_cmd(conn, cmd->ident, L2CAP_COMMAND_REJ,
-			       sizeof(rej), &rej);
+		cmd_reject_invalid_cid(conn, cmd->ident, chan->scid,
+				       chan->dcid);
 		goto unlock;
 	}
 
@@ -4218,7 +4226,8 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn,
 	chan = __l2cap_get_chan_by_scid(conn, dcid);
 	if (!chan) {
 		mutex_unlock(&conn->chan_lock);
-		return -EBADSLT;
+		cmd_reject_invalid_cid(conn, cmd->ident, dcid, scid);
+		return 0;
 	}
 
 	l2cap_chan_lock(chan);
@@ -4447,7 +4456,9 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 						  &conn->hcon->dst);
 		if (!hs_hcon) {
 			hci_dev_put(hdev);
-			return -EBADSLT;
+			cmd_reject_invalid_cid(conn, cmd->ident, chan->scid,
+					       chan->dcid);
+			return 0;
 		}
 
 		BT_DBG("mgr %p bredr_chan %p hs_hcon %p", mgr, chan, hs_hcon);
@@ -5306,8 +5317,6 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 static __le16 l2cap_err_to_reason(int err)
 {
 	switch (err) {
-	case -EBADSLT:
-		return __constant_cpu_to_le16(L2CAP_REJ_INVALID_CID);
 	case -EMSGSIZE:
 		return __constant_cpu_to_le16(L2CAP_REJ_MTU_EXCEEDED);
 	case -EINVAL:
