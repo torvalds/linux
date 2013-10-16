@@ -215,8 +215,10 @@ struct ath10k_vif {
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
 
+	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
-	u8 def_wep_key_index;
+	u8 def_wep_key_idx;
+	u8 def_wep_key_newidx;
 
 	u16 tx_seq_no;
 
