@@ -40,8 +40,12 @@ struct tcm_loop_nacl {
 	struct se_node_acl se_node_acl;
 };
 
+#define TCM_TRANSPORT_ONLINE 0
+#define TCM_TRANSPORT_OFFLINE 1
+
 struct tcm_loop_tpg {
 	unsigned short tl_tpgt;
+	unsigned short tl_transport_status;
 	atomic_t tl_tpg_port_count;
 	struct se_portal_group tl_se_tpg;
 	struct tcm_loop_hba *tl_hba;
