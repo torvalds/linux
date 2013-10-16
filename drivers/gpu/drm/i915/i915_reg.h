@@ -1887,14 +1887,13 @@
 #define _PIPE_CRC_RES_RES2_A_G4X	(dev_priv->info->display_mmio_offset + 0x60080)
 
 /* Pipe B CRC regs */
-#define _PIPE_CRC_CTL_B			0x61050
 #define _PIPE_CRC_RES_1_B_IVB		0x61064
 #define _PIPE_CRC_RES_2_B_IVB		0x61068
 #define _PIPE_CRC_RES_3_B_IVB		0x6106c
 #define _PIPE_CRC_RES_4_B_IVB		0x61070
 #define _PIPE_CRC_RES_5_B_IVB		0x61074
 
-#define PIPE_CRC_CTL(pipe)	_PIPE(pipe, _PIPE_CRC_CTL_A, _PIPE_CRC_CTL_B)
+#define PIPE_CRC_CTL(pipe)	_PIPE_INC(pipe, _PIPE_CRC_CTL_A, 0x01000)
 #define PIPE_CRC_RES_1_IVB(pipe)	\
 	_PIPE(pipe, _PIPE_CRC_RES_1_A_IVB, _PIPE_CRC_RES_1_B_IVB)
 #define PIPE_CRC_RES_2_IVB(pipe)	\
