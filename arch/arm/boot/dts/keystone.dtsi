@@ -208,5 +208,11 @@
 				usb-phy = <&usb_phy>, <&usb_phy>;
 			};
 		};
+
+		wdt: wdt@022f0080 {
+			compatible = "ti,keystone-wdt","ti,davinci-wdt";
+			reg = <0x022f0080 0x80>;
+			clocks = <&clkwdtimer0>;
+		};
 	};
 };
