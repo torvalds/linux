@@ -729,6 +729,7 @@ static void percpu_init(void)
  *
  * The GNU linker incorrectly associates:
  *	__init_begin
+ *	__per_cpu_load
  *
  * The "gold" linker incorrectly associates:
  *	init_per_cpu__irq_stack_union
@@ -738,6 +739,7 @@ static int is_percpu_sym(ElfW(Sym) *sym, const char *symname)
 {
 	return (sym->st_shndx == per_cpu_shndx) &&
 		strcmp(symname, "__init_begin") &&
+		strcmp(symname, "__per_cpu_load") &&
 		strncmp(symname, "init_per_cpu_", 13);
 }
 
