@@ -680,13 +680,13 @@ int cypress_init(struct psmouse *psmouse)
 	struct cytp_data *cytp;
 
 	cytp = kzalloc(sizeof(struct cytp_data), GFP_KERNEL);
-	psmouse->private = (void *)cytp;
-	if (cytp == NULL)
+	if (!cytp)
 		return -ENOMEM;
 
-	cypress_reset(psmouse);
-
+	psmouse->private = cytp;
 	psmouse->pktsize = 8;
+
+	cypress_reset(psmouse);
 
 	if (cypress_query_hardware(psmouse)) {
 		psmouse_err(psmouse, "Unable to query Trackpad hardware.\n");
