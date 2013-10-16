@@ -837,7 +837,12 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	switch (perf->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
-		/* Current speed is unknown and not detectable by IO port */
+		/*
+		 * The core will not set policy->cur, because
+		 * cpufreq_driver->get is NULL, so we need to set it here.
+		 * However, we have to guess it, because the current speed is
+		 * unknown and not detectable via IO ports.
+		 */
 		policy->cur = acpi_cpufreq_guess_freq(data, policy->cpu);
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
