@@ -836,6 +836,9 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 {
 	struct amp_mgr *mgr;
 
+	if (conn->hcon->type != ACL_LINK)
+		return NULL;
+
 	mgr = amp_mgr_create(conn, false);
 	if (!mgr) {
 		BT_ERR("Could not create AMP manager");
