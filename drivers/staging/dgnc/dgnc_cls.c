@@ -417,9 +417,8 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		isr = readb(&ch->ch_cls_uart->isr_fcr);
 
 		/* Bail if no pending interrupt on port */
-		if (isr & UART_IIR_NO_INT)  {
+		if (isr & UART_IIR_NO_INT)
 			break;
-		}
 
 		DPR_INTR(("%s:%d port: %x isr: %x\n", __FILE__, __LINE__, port, isr));
 
@@ -444,9 +443,8 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		}
 
 		/* Received Xoff signal/Special character */
-		if (isr & UART_IIR_XOFF) {
+		if (isr & UART_IIR_XOFF)
 			/* Empty */
-		}
 
 		/* CTS/RTS change of state */
 		if (isr & UART_IIR_CTSRTS) {
@@ -481,24 +479,20 @@ static void cls_param(struct tty_struct *tty)
 	struct channel_t *ch;
         struct un_t   *un;
 
-	if (!tty || tty->magic != TTY_MAGIC) {
+	if (!tty || tty->magic != TTY_MAGIC)
 		return;
-	}
 
 	un = (struct un_t *) tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC) {
+	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
-	}
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
-	}
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC) {
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-	}
 
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
 		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
@@ -1305,9 +1299,8 @@ static uint cls_get_uart_bytes_left(struct channel_t *ch)
 
 	/* Determine whether the Transmitter is empty or not */
 	if (!(lsr & UART_LSR_TEMT)) {
-		if (ch->ch_flags & CH_TX_FIFO_EMPTY) {
+		if (ch->ch_flags & CH_TX_FIFO_EMPTY)
 			tasklet_schedule(&ch->ch_bd->helper_tasklet);
-		}
 		left = 1;
 	}
 	else {
