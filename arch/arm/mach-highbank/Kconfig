@@ -10,6 +10,7 @@ config ARCH_HIGHBANK
 	select ARM_ERRATA_775420
 	select ARM_ERRATA_798181
 	select ARM_GIC
+	select ARM_PSCI
 	select ARM_TIMER_SP804
 	select CACHE_L2X0
 	select CLKDEV_LOOKUP
