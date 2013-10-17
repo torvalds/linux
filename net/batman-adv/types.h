@@ -24,13 +24,6 @@
 #include "bitarray.h"
 #include <linux/kernel.h>
 
-/**
- * Maximum overhead for the encapsulation for a payload packet
- */
-#define BATADV_HEADER_LEN \
-	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
-			sizeof(struct batadv_bcast_packet)))
-
 #ifdef CONFIG_BATMAN_ADV_DAT
 
 /* batadv_dat_addr_t is the type used for all DHT addresses. If it is changed,
@@ -60,7 +53,6 @@ struct batadv_hard_iface_bat_iv {
  * @if_num: identificator of the interface
  * @if_status: status of the interface for batman-adv
  * @net_dev: pointer to the net_device
- * @frag_seqno: last fragment sequence number sent by this interface
  * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
@@ -76,7 +68,6 @@ struct batadv_hard_iface {
 	int16_t if_num;
 	char if_status;
 	struct net_device *net_dev;
-	atomic_t frag_seqno;
 	uint8_t num_bcasts;
 	struct kobject *hardif_obj;
 	atomic_t refcount;
@@ -85,6 +76,34 @@ struct batadv_hard_iface {
 	struct rcu_head rcu;
 	struct batadv_hard_iface_bat_iv bat_iv;
 	struct work_struct cleanup_work;
+};
+
+/**
+ * struct batadv_frag_table_entry - head in the fragment buffer table
+ * @head: head of list with fragments
+ * @lock: lock to protect the list of fragments
+ * @timestamp: time (jiffie) of last received fragment
+ * @seqno: sequence number of the fragments in the list
+ * @size: accumulated size of packets in list
+ */
+struct batadv_frag_table_entry {
+	struct hlist_head head;
+	spinlock_t lock; /* protects head */
+	unsigned long timestamp;
+	uint16_t seqno;
+	uint16_t size;
+};
+
+/**
+ * struct batadv_frag_list_entry - entry in a list of fragments
+ * @list: list node information
+ * @skb: fragment
+ * @no: fragment number in the set
+ */
+struct batadv_frag_list_entry {
+	struct hlist_node list;
+	struct sk_buff *skb;
+	uint8_t no;
 };
 
 /**
@@ -116,9 +135,6 @@ struct batadv_hard_iface {
  *  last_bcast_seqno)
  * @last_bcast_seqno: last broadcast sequence number received by this host
  * @neigh_list: list of potential next hop neighbor towards this orig node
- * @frag_list: fragmentation buffer list for fragment re-assembly
- * @last_frag_packet: time when last fragmented packet from this node was
- *  received
  * @neigh_list_lock: lock protecting neigh_list, router and bonding_list
  * @hash_entry: hlist node for batadv_priv::orig_hash
  * @bat_priv: pointer to soft_iface this orig node belongs to
@@ -133,6 +149,7 @@ struct batadv_hard_iface {
  * @out_coding_list: list of nodes that can hear this orig
  * @in_coding_list_lock: protects in_coding_list
  * @out_coding_list_lock: protects out_coding_list
+ * @fragments: array with heads for fragment chains
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -159,8 +176,6 @@ struct batadv_orig_node {
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
-	struct list_head frag_list;
-	unsigned long last_frag_packet;
 	/* neigh_list_lock protects: neigh_list, router & bonding_list */
 	spinlock_t neigh_list_lock;
 	struct hlist_node hash_entry;
@@ -181,6 +196,7 @@ struct batadv_orig_node {
 	spinlock_t in_coding_list_lock; /* Protects in_coding_list */
 	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
 #endif
+	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
 };
 
 /**
@@ -277,6 +293,12 @@ struct batadv_bcast_duplist_entry {
  * @BATADV_CNT_MGMT_TX_BYTES: transmitted routing protocol traffic bytes counter
  * @BATADV_CNT_MGMT_RX: received routing protocol traffic packet counter
  * @BATADV_CNT_MGMT_RX_BYTES: received routing protocol traffic bytes counter
+ * @BATADV_CNT_FRAG_TX: transmitted fragment traffic packet counter
+ * @BATADV_CNT_FRAG_TX_BYTES: transmitted fragment traffic bytes counter
+ * @BATADV_CNT_FRAG_RX: received fragment traffic packet counter
+ * @BATADV_CNT_FRAG_RX_BYTES: received fragment traffic bytes counter
+ * @BATADV_CNT_FRAG_FWD: forwarded fragment traffic packet counter
+ * @BATADV_CNT_FRAG_FWD_BYTES: forwarded fragment traffic bytes counter
  * @BATADV_CNT_TT_REQUEST_TX: transmitted tt req traffic packet counter
  * @BATADV_CNT_TT_REQUEST_RX: received tt req traffic packet counter
  * @BATADV_CNT_TT_RESPONSE_TX: transmitted tt resp traffic packet counter
@@ -314,6 +336,12 @@ enum batadv_counters {
 	BATADV_CNT_MGMT_TX_BYTES,
 	BATADV_CNT_MGMT_RX,
 	BATADV_CNT_MGMT_RX_BYTES,
+	BATADV_CNT_FRAG_TX,
+	BATADV_CNT_FRAG_TX_BYTES,
+	BATADV_CNT_FRAG_RX,
+	BATADV_CNT_FRAG_RX_BYTES,
+	BATADV_CNT_FRAG_FWD,
+	BATADV_CNT_FRAG_FWD_BYTES,
 	BATADV_CNT_TT_REQUEST_TX,
 	BATADV_CNT_TT_REQUEST_RX,
 	BATADV_CNT_TT_RESPONSE_TX,
@@ -511,6 +539,7 @@ struct batadv_priv_nc {
  * @aggregated_ogms: bool indicating whether OGM aggregation is enabled
  * @bonding: bool indicating whether traffic bonding is enabled
  * @fragmentation: bool indicating whether traffic fragmentation is enabled
+ * @frag_seqno: incremental counter to identify chains of egress fragments
  * @ap_isolation: bool indicating whether ap isolation is enabled
  * @bridge_loop_avoidance: bool indicating whether bridge loop avoidance is
  *  enabled
@@ -554,6 +583,7 @@ struct batadv_priv {
 	atomic_t aggregated_ogms;
 	atomic_t bonding;
 	atomic_t fragmentation;
+	atomic_t frag_seqno;
 	atomic_t ap_isolation;
 #ifdef CONFIG_BATMAN_ADV_BLA
 	atomic_t bridge_loop_avoidance;
@@ -871,18 +901,6 @@ struct batadv_forw_packet {
 	uint8_t num_packets;
 	struct delayed_work delayed_work;
 	struct batadv_hard_iface *if_incoming;
-};
-
-/**
- * struct batadv_frag_packet_list_entry - storage for fragment packet
- * @list: list node for orig_node::frag_list
- * @seqno: sequence number of the fragment
- * @skb: fragment's skb buffer
- */
-struct batadv_frag_packet_list_entry {
-	struct list_head list;
-	uint16_t seqno;
-	struct sk_buff *skb;
 };
 
 /**

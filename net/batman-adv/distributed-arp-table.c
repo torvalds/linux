@@ -29,7 +29,6 @@
 #include "send.h"
 #include "types.h"
 #include "translation-table.h"
-#include "unicast.h"
 
 static void batadv_dat_purge(struct work_struct *work);
 
@@ -592,9 +591,9 @@ static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
 			goto free_orig;
 
 		tmp_skb = pskb_copy(skb, GFP_ATOMIC);
-		if (!batadv_unicast_4addr_prepare_skb(bat_priv, tmp_skb,
-						      cand[i].orig_node,
-						      packet_subtype)) {
+		if (!batadv_send_skb_prepare_unicast_4addr(bat_priv, tmp_skb,
+							   cand[i].orig_node,
+							   packet_subtype)) {
 			kfree_skb(tmp_skb);
 			goto free_neigh;
 		}
@@ -990,10 +989,10 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	 * that a node not using the 4addr packet format doesn't support it.
 	 */
 	if (hdr_size == sizeof(struct batadv_unicast_4addr_packet))
-		err = batadv_unicast_4addr_send_skb(bat_priv, skb_new,
+		err = batadv_send_skb_unicast_4addr(bat_priv, skb_new,
 						    BATADV_P_DAT_CACHE_REPLY);
 	else
-		err = batadv_unicast_send_skb(bat_priv, skb_new);
+		err = batadv_send_skb_unicast(bat_priv, skb_new);
 
 	if (!err) {
 		batadv_inc_counter(bat_priv, BATADV_CNT_DAT_CACHED_REPLY_TX);

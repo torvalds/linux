@@ -192,25 +192,25 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 		goto free_skb;
 	}
 
-	if (icmp_packet->header.packet_type != BATADV_ICMP) {
+	if (icmp_packet->icmph.header.packet_type != BATADV_ICMP) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
-	if (icmp_packet->msg_type != BATADV_ECHO_REQUEST) {
+	if (icmp_packet->icmph.msg_type != BATADV_ECHO_REQUEST) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
-	icmp_packet->uid = socket_client->index;
+	icmp_packet->icmph.uid = socket_client->index;
 
-	if (icmp_packet->header.version != BATADV_COMPAT_VERSION) {
-		icmp_packet->msg_type = BATADV_PARAMETER_PROBLEM;
-		icmp_packet->header.version = BATADV_COMPAT_VERSION;
+	if (icmp_packet->icmph.header.version != BATADV_COMPAT_VERSION) {
+		icmp_packet->icmph.msg_type = BATADV_PARAMETER_PROBLEM;
+		icmp_packet->icmph.header.version = BATADV_COMPAT_VERSION;
 		batadv_socket_add_packet(socket_client, icmp_packet,
 					 packet_len);
 		goto free_skb;
@@ -219,7 +219,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dst_unreach;
 
-	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->dst);
+	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->icmph.dst);
 	if (!orig_node)
 		goto dst_unreach;
 
@@ -233,7 +233,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	if (neigh_node->if_incoming->if_status != BATADV_IF_ACTIVE)
 		goto dst_unreach;
 
-	memcpy(icmp_packet->orig,
+	memcpy(icmp_packet->icmph.orig,
 	       primary_if->net_dev->dev_addr, ETH_ALEN);
 
 	if (packet_len == sizeof(struct batadv_icmp_packet_rr))
@@ -244,7 +244,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	goto out;
 
 dst_unreach:
-	icmp_packet->msg_type = BATADV_DESTINATION_UNREACHABLE;
+	icmp_packet->icmph.msg_type = BATADV_DESTINATION_UNREACHABLE;
 	batadv_socket_add_packet(socket_client, icmp_packet, packet_len);
 free_skb:
 	kfree_skb(skb);
@@ -318,7 +318,7 @@ static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
 	/* while waiting for the lock the socket_client could have been
 	 * deleted
 	 */
-	if (!batadv_socket_client_hash[icmp_packet->uid]) {
+	if (!batadv_socket_client_hash[icmp_packet->icmph.uid]) {
 		spin_unlock_bh(&socket_client->lock);
 		kfree(socket_packet);
 		return;
@@ -347,7 +347,7 @@ void batadv_socket_receive_packet(struct batadv_icmp_packet_rr *icmp_packet,
 {
 	struct batadv_socket_client *hash;
 
-	hash = batadv_socket_client_hash[icmp_packet->uid];
+	hash = batadv_socket_client_hash[icmp_packet->icmph.uid];
 	if (hash)
 		batadv_socket_add_packet(hash, icmp_packet, icmp_len);
 }

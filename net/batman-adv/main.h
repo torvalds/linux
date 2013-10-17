@@ -131,6 +131,15 @@ enum batadv_uev_type {
 
 #define BATADV_GW_THRESHOLD	50
 
+/* Number of fragment chains for each orig_node */
+#define BATADV_FRAG_BUFFER_COUNT 8
+/* Maximum number of fragments for one packet */
+#define BATADV_FRAG_MAX_FRAGMENTS 16
+/* Maxumim size of each fragment */
+#define BATADV_FRAG_MAX_FRAG_SIZE 1400
+/* Time to keep fragments while waiting for rest of the fragments */
+#define BATADV_FRAG_TIMEOUT 10000
+
 #define BATADV_DAT_CANDIDATE_NOT_FOUND	0
 #define BATADV_DAT_CANDIDATE_ORIG	1
 
@@ -182,6 +191,7 @@ void batadv_mesh_free(struct net_device *soft_iface);
 int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr);
 struct batadv_hard_iface *
 batadv_seq_print_text_primary_if_get(struct seq_file *seq);
+int batadv_max_header_len(void);
 void batadv_skb_set_priority(struct sk_buff *skb, int offset);
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,

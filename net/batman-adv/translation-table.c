@@ -117,25 +117,17 @@ batadv_tt_local_entry_free_ref(struct batadv_tt_local_entry *tt_local_entry)
 		kfree_rcu(tt_local_entry, common.rcu);
 }
 
-static void batadv_tt_global_entry_free_rcu(struct rcu_head *rcu)
-{
-	struct batadv_tt_common_entry *tt_common_entry;
-	struct batadv_tt_global_entry *tt_global_entry;
-
-	tt_common_entry = container_of(rcu, struct batadv_tt_common_entry, rcu);
-	tt_global_entry = container_of(tt_common_entry,
-				       struct batadv_tt_global_entry, common);
-
-	kfree(tt_global_entry);
-}
-
+/**
+ * batadv_tt_global_entry_free_ref - decrement the refcounter for a
+ *  tt_global_entry and possibly free it
+ * @tt_global_entry: the object to free
+ */
 static void
 batadv_tt_global_entry_free_ref(struct batadv_tt_global_entry *tt_global_entry)
 {
 	if (atomic_dec_and_test(&tt_global_entry->common.refcount)) {
 		batadv_tt_global_del_orig_list(tt_global_entry);
-		call_rcu(&tt_global_entry->common.rcu,
-			 batadv_tt_global_entry_free_rcu);
+		kfree_rcu(tt_global_entry, common.rcu);
 	}
 }
 
@@ -238,6 +230,17 @@ unlock:
 static int batadv_tt_len(int changes_num)
 {
 	return changes_num * sizeof(struct batadv_tvlv_tt_change);
+}
+
+/**
+ * batadv_tt_entries - compute the number of entries fitting in tt_len bytes
+ * @tt_len: available space
+ *
+ * Returns the number of entries.
+ */
+static uint16_t batadv_tt_entries(uint16_t tt_len)
+{
+	return tt_len / batadv_tt_len(1);
 }
 
 static int batadv_tt_local_init(struct batadv_priv *bat_priv)
@@ -414,7 +417,7 @@ static void batadv_tt_tvlv_container_update(struct batadv_priv *bat_priv)
 	if (tt_diff_len == 0)
 		goto container_register;
 
-	tt_diff_entries_num = tt_diff_len / batadv_tt_len(1);
+	tt_diff_entries_num = batadv_tt_entries(tt_diff_len);
 
 	spin_lock_bh(&bat_priv->tt.changes_list_lock);
 	atomic_set(&bat_priv->tt.local_changes, 0);
@@ -805,15 +808,17 @@ out:
  * If a TT local entry exists for this non-mesh client remove it.
  *
  * The caller must hold orig_node refcount.
+ *
+ * Return true if the new entry has been added, false otherwise
  */
-int batadv_tt_global_add(struct batadv_priv *bat_priv,
-			 struct batadv_orig_node *orig_node,
-			 const unsigned char *tt_addr, uint16_t flags,
-			 uint8_t ttvn)
+static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
+				 struct batadv_orig_node *orig_node,
+				 const unsigned char *tt_addr, uint16_t flags,
+				 uint8_t ttvn)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
 	struct batadv_tt_local_entry *tt_local_entry;
-	int ret = 0;
+	bool ret = false;
 	int hash_added;
 	struct batadv_tt_common_entry *common;
 	uint16_t local_flags;
@@ -914,7 +919,7 @@ add_orig_entry:
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Creating new global tt entry: %pM (via %pM)\n",
 		   common->addr, orig_node->orig);
-	ret = 1;
+	ret = true;
 
 out_remove:
 
@@ -1491,11 +1496,9 @@ static void batadv_tt_req_list_free(struct batadv_priv *bat_priv)
 
 static void batadv_tt_save_orig_buffer(struct batadv_priv *bat_priv,
 				       struct batadv_orig_node *orig_node,
-				       const unsigned char *tt_buff,
-				       uint16_t tt_num_changes)
+				       const void *tt_buff,
+				       uint16_t tt_buff_len)
 {
-	uint16_t tt_buff_len = batadv_tt_len(tt_num_changes);
-
 	/* Replace the old buffer only if I received something in the
 	 * last OGM (the OGM could carry no changes)
 	 */
@@ -1622,7 +1625,7 @@ batadv_tt_tvlv_generate(struct batadv_priv *bat_priv,
 		tt_len -= tt_len % sizeof(struct batadv_tvlv_tt_change);
 	}
 
-	tt_tot = tt_len / sizeof(struct batadv_tvlv_tt_change);
+	tt_tot = batadv_tt_entries(tt_len);
 
 	tvlv_tt_data = kzalloc(sizeof(*tvlv_tt_data) + tt_len,
 			       GFP_ATOMIC);
@@ -2032,8 +2035,8 @@ static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
 	_batadv_tt_update_changes(bat_priv, orig_node, tt_change,
 				  tt_num_changes, ttvn);
 
-	batadv_tt_save_orig_buffer(bat_priv, orig_node,
-				   (unsigned char *)tt_change, tt_num_changes);
+	batadv_tt_save_orig_buffer(bat_priv, orig_node, tt_change,
+				   batadv_tt_len(tt_num_changes));
 	atomic_set(&orig_node->last_ttvn, ttvn);
 }
 
@@ -2573,7 +2576,7 @@ static void batadv_tt_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 	tt_data = (struct batadv_tvlv_tt_data *)tvlv_value;
 	tvlv_value_len -= sizeof(*tt_data);
 
-	num_entries = tvlv_value_len / batadv_tt_len(1);
+	num_entries = batadv_tt_entries(tvlv_value_len);
 
 	batadv_tt_update_orig(bat_priv, orig,
 			      (unsigned char *)(tt_data + 1),
@@ -2608,7 +2611,7 @@ static int batadv_tt_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
 	tt_data = (struct batadv_tvlv_tt_data *)tvlv_value;
 	tvlv_value_len -= sizeof(*tt_data);
 
-	num_entries = tvlv_value_len / batadv_tt_len(1);
+	num_entries = batadv_tt_entries(tvlv_value_len);
 
 	switch (tt_data->flags & BATADV_TT_DATA_TYPE_MASK) {
 	case BATADV_TT_REQUEST:

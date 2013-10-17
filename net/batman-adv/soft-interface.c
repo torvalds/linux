@@ -34,8 +34,6 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
-#include <linux/if_ether.h>
-#include "unicast.h"
 #include "bridge_loop_avoidance.h"
 #include "network-coding.h"
 
@@ -139,6 +137,18 @@ static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+/**
+ * batadv_interface_set_rx_mode - set the rx mode of a device
+ * @dev: registered network device to modify
+ *
+ * We do not actually need to set any rx filters for the virtual batman
+ * soft interface. However a dummy handler enables a user to set static
+ * multicast listeners for instance.
+ */
+static void batadv_interface_set_rx_mode(struct net_device *dev)
+{
+}
+
 static int batadv_interface_tx(struct sk_buff *skb,
 			       struct net_device *soft_iface)
 {
@@ -147,7 +157,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
-	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
+	__be16 ethertype = htons(ETH_P_BATMAN);
 	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
 						   0x00, 0x00};
 	static const uint8_t ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
@@ -286,7 +296,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 		batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
 
-		ret = batadv_unicast_send_skb(bat_priv, skb);
+		ret = batadv_send_skb_unicast(bat_priv, skb);
 		if (ret != 0)
 			goto dropped_freed;
 	}
@@ -314,7 +324,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct vlan_ethhdr *vhdr;
 	struct batadv_header *batadv_header = (struct batadv_header *)skb->data;
 	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
-	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
+	__be16 ethertype = htons(ETH_P_BATMAN);
 	bool is_bcast;
 
 	is_bcast = (batadv_header->packet_type == BATADV_BCAST);
@@ -444,6 +454,7 @@ static void batadv_softif_destroy_finish(struct work_struct *work)
 static int batadv_softif_init_late(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv;
+	uint32_t random_seqno;
 	int ret;
 	size_t cnt_len = sizeof(uint64_t) * BATADV_CNT_NUM;
 
@@ -492,6 +503,10 @@ static int batadv_softif_init_late(struct net_device *dev)
 #endif
 	bat_priv->tt.last_changeset = NULL;
 	bat_priv->tt.last_changeset_len = 0;
+
+	/* randomize initial seqno to avoid collision */
+	get_random_bytes(&random_seqno, sizeof(random_seqno));
+	atomic_set(&bat_priv->frag_seqno, random_seqno);
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
@@ -580,6 +595,7 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_get_stats = batadv_interface_stats,
 	.ndo_set_mac_address = batadv_interface_set_mac_addr,
 	.ndo_change_mtu = batadv_interface_change_mtu,
+	.ndo_set_rx_mode = batadv_interface_set_rx_mode,
 	.ndo_start_xmit = batadv_interface_tx,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_add_slave = batadv_softif_slave_add,
@@ -623,7 +639,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 	 */
 	dev->mtu = ETH_DATA_LEN;
 	/* reserve more space in the skbuff for our header */
-	dev->hard_header_len = BATADV_HEADER_LEN;
+	dev->hard_header_len = batadv_max_header_len();
 
 	/* generate random address */
 	eth_hw_addr_random(dev);
@@ -760,6 +776,12 @@ static const struct {
 	{ "mgmt_tx_bytes" },
 	{ "mgmt_rx" },
 	{ "mgmt_rx_bytes" },
+	{ "frag_tx" },
+	{ "frag_tx_bytes" },
+	{ "frag_rx" },
+	{ "frag_rx_bytes" },
+	{ "frag_fwd" },
+	{ "frag_fwd_bytes" },
 	{ "tt_request_tx" },
 	{ "tt_request_rx" },
 	{ "tt_response_tx" },
