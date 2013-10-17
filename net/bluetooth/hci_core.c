@@ -93,6 +93,31 @@ static const struct file_operations inquiry_cache_fops = {
 	.release	= single_release,
 };
 
+static int auto_accept_delay_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	hdev->auto_accept_delay = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int auto_accept_delay_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->auto_accept_delay;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
+			auto_accept_delay_set, "%llu\n");
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result)
@@ -786,6 +811,10 @@ static int __hci_init(struct hci_dev *hdev)
 		debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
 				    hdev, &inquiry_cache_fops);
 	}
+
+	if (lmp_ssp_capable(hdev))
+		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
+				    hdev, &auto_accept_delay_fops);
 
 	return 0;
 }
