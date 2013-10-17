@@ -245,7 +245,7 @@ static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 /*
  * Initialization functions.
  */
-static bool rt2800pci_get_entry_state(struct queue_entry *entry)
+static bool rt2800mmio_get_entry_state(struct queue_entry *entry)
 {
 	struct queue_entry_priv_mmio *entry_priv = entry->priv_data;
 	u32 word;
@@ -261,7 +261,7 @@ static bool rt2800pci_get_entry_state(struct queue_entry *entry)
 	}
 }
 
-static void rt2800pci_clear_entry(struct queue_entry *entry)
+static void rt2800mmio_clear_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_mmio *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
@@ -290,7 +290,7 @@ static void rt2800pci_clear_entry(struct queue_entry *entry)
 	}
 }
 
-static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
+static int rt2800mmio_init_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_mmio *entry_priv;
 
@@ -358,7 +358,7 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 /*
  * Device state switch handlers.
  */
-static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
+static int rt2800mmio_init_registers(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 
@@ -411,7 +411,7 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/* Wait for DMA, ignore error until we initialize queues. */
 	rt2800_wait_wpdma_ready(rt2x00dev);
 
-	if (unlikely(rt2800pci_init_queues(rt2x00dev)))
+	if (unlikely(rt2800mmio_init_queues(rt2x00dev)))
 		return -EIO;
 
 	retval = rt2800_enable_radio(rt2x00dev);
@@ -553,7 +553,7 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.read_eeprom		= rt2800pci_read_eeprom,
 	.hwcrypt_disabled	= rt2800pci_hwcrypt_disabled,
 	.drv_write_firmware	= rt2800pci_write_firmware,
-	.drv_init_registers	= rt2800pci_init_registers,
+	.drv_init_registers	= rt2800mmio_init_registers,
 	.drv_get_txwi		= rt2800mmio_get_txwi,
 };
 
@@ -570,8 +570,8 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.load_firmware		= rt2800_load_firmware,
 	.initialize		= rt2x00mmio_initialize,
 	.uninitialize		= rt2x00mmio_uninitialize,
-	.get_entry_state	= rt2800pci_get_entry_state,
-	.clear_entry		= rt2800pci_clear_entry,
+	.get_entry_state	= rt2800mmio_get_entry_state,
+	.clear_entry		= rt2800mmio_clear_entry,
 	.set_device_state	= rt2800pci_set_device_state,
 	.rfkill_poll		= rt2800_rfkill_poll,
 	.link_stats		= rt2800_link_stats,
