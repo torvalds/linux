@@ -2062,6 +2062,8 @@ static inline void skb_frag_set_page(struct sk_buff *skb, int f,
 	__skb_frag_set_page(&skb_shinfo(skb)->frags[f], page);
 }
 
+bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio);
+
 /**
  * skb_frag_dma_map - maps a paged fragment via the DMA API
  * @dev: the device to map the fragment to

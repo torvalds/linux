@@ -1847,7 +1847,17 @@ EXPORT_SYMBOL(sock_alloc_send_skb);
 /* On 32bit arches, an skb frag is limited to 2^15 */
 #define SKB_FRAG_PAGE_ORDER	get_order(32768)
 
-bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
+/**
+ * skb_page_frag_refill - check that a page_frag contains enough room
+ * @sz: minimum size of the fragment we want to get
+ * @pfrag: pointer to page_frag
+ * @prio: priority for memory allocation
+ *
+ * Note: While this allocator tries to use high order pages, there is
+ * no guarantee that allocations succeed. Therefore, @sz MUST be
+ * less or equal than PAGE_SIZE.
+ */
+bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio)
 {
 	int order;
 
@@ -1856,16 +1866,16 @@ bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
 			pfrag->offset = 0;
 			return true;
 		}
-		if (pfrag->offset < pfrag->size)
+		if (pfrag->offset + sz <= pfrag->size)
 			return true;
 		put_page(pfrag->page);
 	}
 
 	/* We restrict high order allocations to users that can afford to wait */
-	order = (sk->sk_allocation & __GFP_WAIT) ? SKB_FRAG_PAGE_ORDER : 0;
+	order = (prio & __GFP_WAIT) ? SKB_FRAG_PAGE_ORDER : 0;
 
 	do {
-		gfp_t gfp = sk->sk_allocation;
+		gfp_t gfp = prio;
 
 		if (order)
 			gfp |= __GFP_COMP | __GFP_NOWARN;
@@ -1876,6 +1886,15 @@ bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
 			return true;
 		}
 	} while (--order >= 0);
+
+	return false;
+}
+EXPORT_SYMBOL(skb_page_frag_refill);
+
+bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
+{
+	if (likely(skb_page_frag_refill(32U, pfrag, sk->sk_allocation)))
+		return true;
 
 	sk_enter_memory_pressure(sk);
 	sk_stream_moderate_sndbuf(sk);
