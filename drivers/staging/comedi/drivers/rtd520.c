@@ -394,11 +394,8 @@ struct rtd_private {
 	long ai_count;		/* total transfer size (samples) */
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
-
-	unsigned char chan_is_bipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
-
+	DECLARE_BITMAP(chan_is_bipolar, RTD_MAX_CHANLIST);
 	unsigned int ao_readback[2];
-
 	unsigned fifosz;
 };
 
@@ -406,14 +403,6 @@ struct rtd_private {
 #define SEND_EOS	0x01	/* send End Of Scan events */
 #define DMA0_ACTIVE	0x02	/* DMA0 is active */
 #define DMA1_ACTIVE	0x04	/* DMA1 is active */
-
-/* Macros for accessing channel list bit array */
-#define CHAN_ARRAY_TEST(array, index) \
-	(((array)[(index)/8] >> ((index) & 0x7)) & 0x1)
-#define CHAN_ARRAY_SET(array, index) \
-	(((array)[(index)/8] |= 1 << ((index) & 0x7)))
-#define CHAN_ARRAY_CLEAR(array, index) \
-	(((array)[(index)/8] &= ~(1 << ((index) & 0x7))))
 
 /*
   Given a desired period and the clock period (both in ns),
@@ -478,17 +467,17 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
+		__set_bit(index, devpriv->chan_is_bipolar);
 	} else if (range < board->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
 		r |= ((range - board->range_bip10) & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
+		__set_bit(index, devpriv->chan_is_bipolar);
 	} else {
 		/* +10 range */
 		r |= 0x200;
 		r |= ((range - board->range_uni10) & 0x7) << 4;
-		CHAN_ARRAY_CLEAR(devpriv->chan_is_bipolar, index);
+		__clear_bit(index, devpriv->chan_is_bipolar);
 	}
 
 	switch (aref) {
@@ -619,7 +608,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1); */
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar, 0))
+		if (test_bit(0, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
 			d = comedi_offset_munge(s, d);
 		data[n] = d & s->maxdata;
@@ -651,8 +640,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
-				    s->async->cur_chan))
+		if (test_bit(s->async->cur_chan, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
@@ -681,8 +669,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
-				    s->async->cur_chan))
+		if (test_bit(s->async->cur_chan, devpriv->chan_is_bipolar))
 			/* convert to comedi unsigned data */
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
