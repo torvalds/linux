@@ -852,6 +852,21 @@ int rt2800mmio_init_registers(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_init_registers);
 
+/*
+ * Device state switch handlers.
+ */
+int rt2800mmio_enable_radio(struct rt2x00_dev *rt2x00dev)
+{
+	/* Wait for DMA, ignore error until we initialize queues. */
+	rt2800_wait_wpdma_ready(rt2x00dev);
+
+	if (unlikely(rt2800mmio_init_queues(rt2x00dev)))
+		return -EIO;
+
+	return rt2800_enable_radio(rt2x00dev);
+}
+EXPORT_SYMBOL_GPL(rt2800mmio_enable_radio);
+
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION("rt2800 MMIO library");
