@@ -125,7 +125,8 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 					2,
 					(u8 *) &(pDevice->wFirmwareVersion));
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n",
+						pDevice->wFirmwareVersion);
 	if (ntStatus != STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Invalid.\n");
 		return false;
@@ -134,7 +135,8 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"In Loader.\n");
 		return false;
 	}
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n",
+						pDevice->wFirmwareVersion);
 	if (pDevice->wFirmwareVersion < FIRMWARE_VERSION) {
 		/* branch to loader for download new firmware */
 		FIRMWAREbBrach2Sram(pDevice);
