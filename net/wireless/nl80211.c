@@ -5713,9 +5713,7 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	/* only important for AP, IBSS and mesh create IEs internally */
-	if (need_new_beacon &&
-	    (!info->attrs[NL80211_ATTR_CSA_IES] ||
-	     !info->attrs[NL80211_ATTR_CSA_C_OFF_BEACON]))
+	if (need_new_beacon && !info->attrs[NL80211_ATTR_CSA_IES])
 		return -EINVAL;
 
 	params.count = nla_get_u32(info->attrs[NL80211_ATTR_CH_SWITCH_COUNT]);
