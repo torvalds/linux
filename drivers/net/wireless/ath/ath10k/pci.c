@@ -526,15 +526,19 @@ static bool ath10k_pci_target_is_awake(struct ath10k *ar)
 	return (RTC_STATE_V_GET(val) == RTC_STATE_V_ON);
 }
 
-static void ath10k_pci_wait(struct ath10k *ar)
+static int ath10k_pci_wait(struct ath10k *ar)
 {
 	int n = 100;
 
 	while (n-- && !ath10k_pci_target_is_awake(ar))
 		msleep(10);
 
-	if (n < 0)
+	if (n < 0) {
 		ath10k_warn("Unable to wakeup target\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 int ath10k_do_pci_wake(struct ath10k *ar)
@@ -2155,7 +2159,13 @@ static int ath10k_pci_start_intr_legacy(struct ath10k *ar)
 		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
 		  PCIE_SOC_WAKE_ADDRESS);
 
-	ath10k_pci_wait(ar);
+	ret = ath10k_pci_wait(ar);
+	if (ret) {
+		ath10k_warn("Failed to enable legacy interrupt, target did not wake up: %d\n",
+			    ret);
+		free_irq(ar_pci->pdev->irq, ar);
+		return ret;
+	}
 
 	/*
 	 * A potential race occurs here: The CORE_BASE write
@@ -2218,6 +2228,10 @@ static int ath10k_pci_start_intr(struct ath10k *ar)
 	}
 
 	ret = ath10k_pci_start_intr_legacy(ar);
+	if (ret) {
+		ath10k_warn("Failed to start legacy interrupts: %d\n", ret);
+		return ret;
+	}
 
 exit:
 	ar_pci->num_msi_intrs = num;
@@ -2243,13 +2257,19 @@ static int ath10k_pci_reset_target(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int wait_limit = 300; /* 3 sec */
+	int ret;
 
 	/* Wait for Target to finish initialization before we proceed. */
 	iowrite32(PCIE_SOC_WAKE_V_MASK,
 		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
 		  PCIE_SOC_WAKE_ADDRESS);
 
-	ath10k_pci_wait(ar);
+	ret = ath10k_pci_wait(ar);
+	if (ret) {
+		ath10k_warn("Failed to reset target, target did not wake up: %d\n",
+			    ret);
+		return ret;
+	}
 
 	while (wait_limit-- &&
 	       !(ioread32(ar_pci->mem + FW_INDICATOR_ADDRESS) &
