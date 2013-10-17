@@ -5800,6 +5800,7 @@ struct nfs_release_lockowner_data {
 	struct nfs_release_lockowner_args args;
 	struct nfs4_sequence_args seq_args;
 	struct nfs4_sequence_res seq_res;
+	unsigned long timestamp;
 };
 
 static void nfs4_release_lockowner_prepare(struct rpc_task *task, void *calldata)
@@ -5807,12 +5808,27 @@ static void nfs4_release_lockowner_prepare(struct rpc_task *task, void *calldata
 	struct nfs_release_lockowner_data *data = calldata;
 	nfs40_setup_sequence(data->server,
 				&data->seq_args, &data->seq_res, task);
+	data->timestamp = jiffies;
 }
 
 static void nfs4_release_lockowner_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_release_lockowner_data *data = calldata;
+	struct nfs_server *server = data->server;
+
 	nfs40_sequence_done(task, &data->seq_res);
+
+	switch (task->tk_status) {
+	case 0:
+		renew_lease(server, data->timestamp);
+		break;
+	case -NFS4ERR_STALE_CLIENTID:
+	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_LEASE_MOVED:
+	case -NFS4ERR_DELAY:
+		if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN)
+			rpc_restart_call_prepare(task);
+	}
 }
 
 static void nfs4_release_lockowner_release(void *calldata)
