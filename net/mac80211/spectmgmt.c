@@ -74,6 +74,12 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		return 1;
 	}
 
+	/* Mesh Channel Switch Parameters Element */
+	if (elems->mesh_chansw_params_ie) {
+		csa_ie->ttl = elems->mesh_chansw_params_ie->mesh_ttl;
+		csa_ie->mode = elems->mesh_chansw_params_ie->mesh_flags;
+	}
+
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
 	new_chan = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
 	if (!new_chan || new_chan->flags & IEEE80211_CHAN_DISABLED) {
