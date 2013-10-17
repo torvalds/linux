@@ -297,6 +297,11 @@
 					marvell,function = "gpio";
 				};
 
+				pmx_audio1_extclk: pmx-audio1-extclk {
+					marvell,pins = "mpp13";
+					marvell,function = "audio1";
+				};
+
 				pmx_gpio_14: pmx-gpio-14 {
 					marvell,pins = "mpp14";
 					marvell,function = "gpio";
@@ -370,6 +375,11 @@
 				pmx_audio1_gpio: pmx-audio1-gpio {
 					marvell,pins = "mpp_audio1";
 					marvell,function = "gpio";
+				};
+
+				pmx_audio1_i2s1_spdifo: pmx-audio1-i2s1-spdifo {
+					marvell,pins = "mpp_audio1";
+					marvell,function = "i2s1/spdifo";
 				};
 
 				pmx_spi0: pmx-spi0 {
@@ -572,6 +582,24 @@
 					local-mac-address = [00 00 00 00 00 00];
 					phy-handle = <&ethphy>;
 				};
+			};
+
+			audio0: audio-controller@b0000 {
+				compatible = "marvell,dove-audio";
+				reg = <0xb0000 0x2210>;
+				interrupts = <19>, <20>;
+				clocks = <&gate_clk 12>;
+				clock-names = "internal";
+				status = "disabled";
+			};
+
+			audio1: audio-controller@b4000 {
+				compatible = "marvell,dove-audio";
+				reg = <0xb4000 0x2210>;
+				interrupts = <21>, <22>;
+				clocks = <&gate_clk 13>;
+				clock-names = "internal";
+				status = "disabled";
 			};
 		};
 	};
