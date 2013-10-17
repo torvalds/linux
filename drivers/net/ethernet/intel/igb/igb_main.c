@@ -3946,6 +3946,12 @@ static void igb_watchdog_task(struct work_struct *work)
 	}
 
 	if (link) {
+		/* Perform a reset if the media type changed. */
+		if (hw->dev_spec._82575.media_changed) {
+			hw->dev_spec._82575.media_changed = false;
+			adapter->flags |= IGB_FLAG_MEDIA_RESET;
+			igb_reset(adapter);
+		}
 		/* Cancel scheduled suspend requests. */
 		pm_runtime_resume(netdev->dev.parent);
 

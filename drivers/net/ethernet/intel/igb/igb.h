@@ -462,6 +462,7 @@ struct igb_adapter {
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
 #define IGB_FLAG_NEED_LINK_UPDATE	(1 << 9)
+#define IGB_FLAG_MEDIA_RESET		(1 << 10)
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE	20408
