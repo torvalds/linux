@@ -6072,11 +6072,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		intel_crtc->lowfreq_avail = false;
 
-	if (intel_crtc->config.has_pch_encoder) {
-		pll = intel_crtc_to_shared_dpll(intel_crtc);
-
-	}
-
 	intel_set_pipe_timings(intel_crtc);
 
 	if (intel_crtc->config.has_pch_encoder) {
