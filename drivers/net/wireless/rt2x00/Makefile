@@ -14,6 +14,7 @@ obj-$(CONFIG_RT2X00_LIB_PCI)		+= rt2x00pci.o
 obj-$(CONFIG_RT2X00_LIB_SOC)		+= rt2x00soc.o
 obj-$(CONFIG_RT2X00_LIB_USB)		+= rt2x00usb.o
 obj-$(CONFIG_RT2800_LIB)		+= rt2800lib.o
+obj-$(CONFIG_RT2800_LIB_MMIO)		+= rt2800mmio.o
 obj-$(CONFIG_RT2400PCI)			+= rt2400pci.o
 obj-$(CONFIG_RT2500PCI)			+= rt2500pci.o
 obj-$(CONFIG_RT61PCI)			+= rt61pci.o
