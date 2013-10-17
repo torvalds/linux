@@ -20,6 +20,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 
+#include "irammap.h"
 #include "fuse.h"
 #include "sleep.h"
 #include "flowctrl.h"
@@ -262,7 +263,7 @@ ENTRY(tegra30_sleep_core_finish)
 	mov32	r0, tegra30_tear_down_core
 	mov32	r1, tegra30_iram_start
 	sub	r0, r0, r1
-	mov32	r1, TEGRA_IRAM_CODE_AREA
+	mov32	r1, TEGRA_IRAM_LPx_RESUME_AREA
 	add	r0, r0, r1
 
 	mov	pc, r3
@@ -314,7 +315,7 @@ tegra30_iram_start:
  * The physical address of tegra_resume expected to be stored in
  * PMC_SCRATCH41.
  *
- * NOTE: THIS *MUST* BE RELOCATED TO TEGRA_IRAM_CODE_AREA.
+ * NOTE: THIS *MUST* BE RELOCATED TO TEGRA_IRAM_LPx_RESUME_AREA.
  */
 ENTRY(tegra30_lp1_reset)
 	/*
