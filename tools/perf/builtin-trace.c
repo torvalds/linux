@@ -1713,10 +1713,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	err = perf_evlist__open(evlist);
-	if (err < 0) {
-		fprintf(trace->output, "Couldn't create the events: %s\n", strerror(errno));
-		goto out_delete_maps;
-	}
+	if (err < 0)
+		goto out_error_open;
 
 	err = perf_evlist__mmap(evlist, UINT_MAX, false);
 	if (err < 0) {
@@ -1813,13 +1811,20 @@ out_delete_evlist:
 out:
 	trace->live = false;
 	return err;
-out_error_tp:
 {
 	char errbuf[BUFSIZ];
+
+out_error_tp:
 	perf_evlist__strerror_tp(evlist, errno, errbuf, sizeof(errbuf));
+	goto out_error;
+
+out_error_open:
+	perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+
+out_error:
 	fprintf(trace->output, "%s\n", errbuf);
-}
 	goto out_delete_evlist;
+}
 }
 
 static int trace__replay(struct trace *trace)

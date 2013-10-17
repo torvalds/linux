@@ -169,6 +169,7 @@ static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
 size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp);
 
 int perf_evlist__strerror_tp(struct perf_evlist *evlist, int err, char *buf, size_t size);
+int perf_evlist__strerror_open(struct perf_evlist *evlist, int err, char *buf, size_t size);
 
 static inline unsigned int perf_mmap__read_head(struct perf_mmap *mm)
 {
