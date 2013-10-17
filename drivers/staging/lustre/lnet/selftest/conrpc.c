@@ -330,7 +330,7 @@ lstcon_rpc_trans_check(lstcon_rpc_trans_t *trans)
 	    !list_empty(&trans->tas_olink)) /* Not an end session RPC */
 		return 1;
 
-	return (atomic_read(&trans->tas_remaining) == 0) ? 1: 0;
+	return (atomic_read(&trans->tas_remaining) == 0) ? 1 : 0;
 }
 
 int
@@ -669,7 +669,7 @@ lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	brq->bar_bid     = tsb->tsb_id;
 	brq->bar_testidx = tsb->tsb_index;
 	brq->bar_opc     = transop == LST_TRANS_TSBRUN ? SRPC_BATCH_OPC_RUN :
-			   (transop == LST_TRANS_TSBSTOP ? SRPC_BATCH_OPC_STOP:
+			   (transop == LST_TRANS_TSBSTOP ? SRPC_BATCH_OPC_STOP :
 			    SRPC_BATCH_OPC_QUERY);
 
 	if (transop != LST_TRANS_TSBRUN &&
@@ -745,7 +745,7 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 			continue;
 		}
 
-		if (i > (end >= start ? end: grp->grp_nnode))
+		if (i > (end >= start ? end : grp->grp_nnode))
 			break;
 
 		pid = lstcon_next_id((i - start), nkiov, kiov);
