@@ -108,11 +108,10 @@ int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
 					0x0000,
 					0,
 					NULL);
-	if (NdisStatus != STATUS_SUCCESS) {
+	if (NdisStatus != STATUS_SUCCESS)
 		return (false);
-	} else {
+	else
 		return (true);
-	}
 }
 
 int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
