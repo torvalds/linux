@@ -136,12 +136,13 @@
 		gr3d {
 			compatible = "nvidia,tegra30-gr3d";
 			reg = <0x54180000 0x00040000>;
-			clocks = <&tegra_car 24 &tegra_car 98>;
+			clocks = <&tegra_car TEGRA30_CLK_GR3D
+				  &tegra_car TEGRA30_CLK_GR3D2>;
 			clock-names = "3d", "3d2";
 		};
 
 		dc@54200000 {
-			compatible = "nvidia,tegra30-dc";
+			compatible = "nvidia,tegra30-dc", "nvidia,tegra20-dc";
 			reg = <0x54200000 0x00040000>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA30_CLK_DISP1>,
