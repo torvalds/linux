@@ -98,7 +98,14 @@ static void comparator_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		sysreg_write(COMPARE, 0);
 		pr_debug("%s: stop\n", evdev->name);
-		cpu_idle_poll_ctrl(false);
+		if (evdev->mode == CLOCK_EVT_MODE_ONESHOT ||
+		    evdev->mode == CLOCK_EVT_MODE_RESUME) {
+			/*
+			 * Only disable idle poll if we have forced that
+			 * in a previous call.
+			 */
+			cpu_idle_poll_ctrl(false);
+		}
 		break;
 	default:
 		BUG();

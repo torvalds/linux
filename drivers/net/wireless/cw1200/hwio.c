@@ -273,21 +273,6 @@ int __cw1200_irq_enable(struct cw1200_common *priv, int enable)
 	u16 val16;
 	int ret;
 
-	/* We need to do this hack because the SPI layer can sleep on I/O
-	   and the general path involves I/O to the device in interrupt
-	   context.
-
-	   However, the initial enable call needs to go to the hardware.
-
-	   We don't worry about shutdown because we do a full reset which
-	   clears the interrupt enabled bits.
-	*/
-	if (priv->hwbus_ops->irq_enable) {
-		ret = priv->hwbus_ops->irq_enable(priv->hwbus_priv, enable);
-		if (ret || enable < 2)
-			return ret;
-	}
-
 	if (HIF_8601_SILICON == priv->hw_type) {
 		ret = __cw1200_reg_read_32(priv, ST90TDS_CONFIG_REG_ID, &val32);
 		if (ret < 0) {

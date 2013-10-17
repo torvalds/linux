@@ -442,10 +442,10 @@ local_restart:
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 
 	add	r1, sp, #S_OFF
-	cmp	scno, #(__ARM_NR_BASE - __NR_SYSCALL_BASE)
+2:	cmp	scno, #(__ARM_NR_BASE - __NR_SYSCALL_BASE)
 	eor	r0, scno, #__NR_SYSCALL_BASE	@ put OS number back
 	bcs	arm_syscall
-2:	mov	why, #0				@ no longer a real syscall
+	mov	why, #0				@ no longer a real syscall
 	b	sys_ni_syscall			@ not private func
 
 #if defined(CONFIG_OABI_COMPAT) || !defined(CONFIG_AEABI)

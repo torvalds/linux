@@ -24,7 +24,7 @@ menuconfig ACPI
 	  are configured, ACPI is used.
 
 	  The project home page for the Linux ACPI subsystem is here:
-	  <http://www.lesswatts.org/projects/acpi/>
+	  <https://01.org/linux-acpi>
 
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
