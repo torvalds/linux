@@ -955,7 +955,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 
 	obj = drm_mode_object_find(dev, set->plane_id, DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_unlock;
 	}
 
@@ -984,7 +984,7 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 
 	obj = drm_mode_object_find(dev, get->plane_id, DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_unlock;
 	}
 

@@ -9819,7 +9819,7 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 
 	if (!drmmode_obj) {
 		DRM_ERROR("no such CRTC id\n");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	crtc = to_intel_crtc(obj_to_crtc(drmmode_obj));
