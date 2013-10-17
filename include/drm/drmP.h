@@ -1004,27 +1004,6 @@ struct drm_driver {
 #define DRM_MINOR_CONTROL 2
 #define DRM_MINOR_RENDER 3
 
-
-/**
- * debugfs node list. This structure represents a debugfs file to
- * be created by the drm core
- */
-struct drm_debugfs_list {
-	const char *name; /** file name */
-	int (*show)(struct seq_file*, void*); /** show callback */
-	u32 driver_features; /**< Required driver features for this entry */
-};
-
-/**
- * debugfs node structure. This structure represents a debugfs file.
- */
-struct drm_debugfs_node {
-	struct list_head list;
-	struct drm_minor *minor;
-	struct drm_debugfs_list *debugfs_ent;
-	struct dentry *dent;
-};
-
 /**
  * Info file list entry. This structure represents a debugfs or proc file to
  * be created by the drm core
