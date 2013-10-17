@@ -629,13 +629,13 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static __le32 *rt2800pci_get_txwi(struct queue_entry *entry)
+static __le32 *rt2800mmio_get_txwi(struct queue_entry *entry)
 {
 	return (__le32 *) entry->skb->data;
 }
 
-static void rt2800pci_write_tx_desc(struct queue_entry *entry,
-				    struct txentry_desc *txdesc)
+static void rt2800mmio_write_tx_desc(struct queue_entry *entry,
+				     struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	struct queue_entry_priv_mmio *entry_priv = entry->priv_data;
@@ -826,7 +826,7 @@ static bool rt2800pci_txdone_release_entries(struct queue_entry *entry,
 {
 	if (test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
 		rt2800_txdone_entry(entry, entry->status,
-				    rt2800pci_get_txwi(entry));
+				    rt2800mmio_get_txwi(entry));
 		return false;
 	}
 
@@ -1146,7 +1146,7 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.hwcrypt_disabled	= rt2800pci_hwcrypt_disabled,
 	.drv_write_firmware	= rt2800pci_write_firmware,
 	.drv_init_registers	= rt2800pci_init_registers,
-	.drv_get_txwi		= rt2800pci_get_txwi,
+	.drv_get_txwi		= rt2800mmio_get_txwi,
 };
 
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
@@ -1175,7 +1175,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.kick_queue		= rt2800pci_kick_queue,
 	.stop_queue		= rt2800pci_stop_queue,
 	.flush_queue		= rt2x00mmio_flush_queue,
-	.write_tx_desc		= rt2800pci_write_tx_desc,
+	.write_tx_desc		= rt2800mmio_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.clear_beacon		= rt2800_clear_beacon,
