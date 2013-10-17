@@ -1,7 +1,7 @@
 /*
  * Xilinx PS UART driver
  *
- * 2011 (c) Xilinx Inc.
+ * 2011 - 2013 (C) Xilinx Inc.
  *
  * This program is free software; you can redistribute it
  * and/or modify it under the terms of the GNU General Public
