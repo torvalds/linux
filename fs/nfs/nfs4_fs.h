@@ -208,6 +208,7 @@ struct nfs4_state_maintenance_ops {
 struct nfs4_mig_recovery_ops {
 	int (*get_locations)(struct inode *, struct nfs4_fs_locations *,
 		struct page *, struct rpc_cred *);
+	int (*fsid_present)(struct inode *, struct rpc_cred *);
 };
 
 extern const struct dentry_operations nfs4_dentry_operations;
@@ -242,6 +243,7 @@ extern int nfs4_proc_fs_locations(struct rpc_clnt *, struct inode *, const struc
 				  struct nfs4_fs_locations *, struct page *);
 extern int nfs4_proc_get_locations(struct inode *, struct nfs4_fs_locations *,
 		struct page *page, struct rpc_cred *);
+extern int nfs4_proc_fsid_present(struct inode *, struct rpc_cred *);
 extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *, struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *);
 extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);

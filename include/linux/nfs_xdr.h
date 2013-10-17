@@ -1088,6 +1088,19 @@ struct nfs4_secinfo_res {
 	struct nfs4_secinfo_flavors	*flavors;
 };
 
+struct nfs4_fsid_present_arg {
+	struct nfs4_sequence_args	seq_args;
+	const struct nfs_fh		*fh;
+	clientid4			clientid;
+	unsigned char			renew:1;
+};
+
+struct nfs4_fsid_present_res {
+	struct nfs4_sequence_res	seq_res;
+	struct nfs_fh			*fh;
+	unsigned char			renew:1;
+};
+
 #endif /* CONFIG_NFS_V4 */
 
 struct nfstime4 {
