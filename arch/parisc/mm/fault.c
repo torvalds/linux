@@ -182,6 +182,9 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
+
+	acc_type = parisc_acctyp(code, regs->iir);
+
 	if (acc_type & VM_WRITE)
 		flags |= FAULT_FLAG_WRITE;
 retry:
@@ -195,8 +198,6 @@ retry:
  */
 
 good_area:
-
-	acc_type = parisc_acctyp(code,regs->iir);
 
 	if ((vma->vm_flags & acc_type) != acc_type)
 		goto bad_area;
