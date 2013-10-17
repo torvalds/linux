@@ -15,5 +15,18 @@ menuconfig POWERCAP
 
 if POWERCAP
 # Client driver configurations go here.
+config INTEL_RAPL
+	tristate "Intel RAPL Support"
+	depends on X86
+	default n
+	---help---
+	  This enables support for the Intel Running Average Power Limit (RAPL)
+	  technology which allows power limits to be enforced and monitored on
+	  modern Intel processors (Sandy Bridge and later).
+
+	  In RAPL, the platform level settings are divided into domains for
+	  fine grained control. These domains include processor package, DRAM
+	  controller, CPU core (Power Plance 0), graphics uncore (Power Plane
+	  1), etc.
 
 endif
