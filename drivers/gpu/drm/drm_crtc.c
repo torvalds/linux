@@ -2164,7 +2164,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			if (!fb) {
 				DRM_DEBUG_KMS("Unknown FB ID%d\n",
 						crtc_req->fb_id);
-				ret = -EINVAL;
+				ret = -ENOENT;
 				goto out;
 			}
 		}
@@ -2654,7 +2654,7 @@ fail_lookup:
 	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
 
-	return -EINVAL;
+	return -ENOENT;
 }
 
 /**
@@ -2682,7 +2682,7 @@ int drm_mode_getfb(struct drm_device *dev,
 
 	fb = drm_framebuffer_lookup(dev, r->fb_id);
 	if (!fb)
-		return -EINVAL;
+		return -ENOENT;
 
 	r->height = fb->height;
 	r->width = fb->width;
@@ -2727,7 +2727,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 
 	fb = drm_framebuffer_lookup(dev, r->fb_id);
 	if (!fb)
-		return -EINVAL;
+		return -ENOENT;
 
 	num_clips = r->num_clips;
 	clips_ptr = (struct drm_clip_rect __user *)(unsigned long)r->clips_ptr;
@@ -3636,8 +3636,10 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 
 	fb = drm_framebuffer_lookup(dev, page_flip->fb_id);
-	if (!fb)
+	if (!fb) {
+		ret = -ENOENT;
 		goto out;
+	}
 
 	ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
 	if (ret)
