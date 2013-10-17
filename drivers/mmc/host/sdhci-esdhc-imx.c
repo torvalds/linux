@@ -95,22 +95,37 @@
  */
 #define ESDHC_FLAG_USDHC		BIT(3)
 
-enum imx_esdhc_type {
-	IMX25_ESDHC,
-	IMX35_ESDHC,
-	IMX51_ESDHC,
-	IMX53_ESDHC,
-	IMX6Q_USDHC,
+struct esdhc_soc_data {
+	u32 flags;
+};
+
+static struct esdhc_soc_data esdhc_imx25_data = {
+	.flags = ESDHC_FLAG_ENGCM07207,
+};
+
+static struct esdhc_soc_data esdhc_imx35_data = {
+	.flags = ESDHC_FLAG_ENGCM07207,
+};
+
+static struct esdhc_soc_data esdhc_imx51_data = {
+	.flags = 0,
+};
+
+static struct esdhc_soc_data esdhc_imx53_data = {
+	.flags = ESDHC_FLAG_MULTIBLK_NO_INT,
+};
+
+static struct esdhc_soc_data usdhc_imx6q_data = {
+	.flags = ESDHC_FLAG_USDHC,
 };
 
 struct pltfm_imx_data {
-	int flags;
 	u32 scratchpad;
-	enum imx_esdhc_type devtype;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_100mhz;
 	struct pinctrl_state *pins_200mhz;
+	const struct esdhc_soc_data *socdata;
 	struct esdhc_platform_data boarddata;
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
@@ -126,13 +141,13 @@ struct pltfm_imx_data {
 static struct platform_device_id imx_esdhc_devtype[] = {
 	{
 		.name = "sdhci-esdhc-imx25",
-		.driver_data = IMX25_ESDHC,
+		.driver_data = (kernel_ulong_t) &esdhc_imx25_data,
 	}, {
 		.name = "sdhci-esdhc-imx35",
-		.driver_data = IMX35_ESDHC,
+		.driver_data = (kernel_ulong_t) &esdhc_imx35_data,
 	}, {
 		.name = "sdhci-esdhc-imx51",
-		.driver_data = IMX51_ESDHC,
+		.driver_data = (kernel_ulong_t) &esdhc_imx51_data,
 	}, {
 		/* sentinel */
 	}
@@ -140,43 +155,33 @@ static struct platform_device_id imx_esdhc_devtype[] = {
 MODULE_DEVICE_TABLE(platform, imx_esdhc_devtype);
 
 static const struct of_device_id imx_esdhc_dt_ids[] = {
-	{ .compatible = "fsl,imx25-esdhc", .data = (void *) IMX25_ESDHC, },
-	{ .compatible = "fsl,imx35-esdhc", .data = (void *) IMX35_ESDHC, },
-	{ .compatible = "fsl,imx51-esdhc", .data = (void *) IMX51_ESDHC, },
-	{ .compatible = "fsl,imx53-esdhc", .data = (void *) IMX53_ESDHC, },
-	{ .compatible = "fsl,imx6q-usdhc", .data = (void *) IMX6Q_USDHC, },
+	{ .compatible = "fsl,imx25-esdhc", .data = &esdhc_imx25_data, },
+	{ .compatible = "fsl,imx35-esdhc", .data = &esdhc_imx35_data, },
+	{ .compatible = "fsl,imx51-esdhc", .data = &esdhc_imx51_data, },
+	{ .compatible = "fsl,imx53-esdhc", .data = &esdhc_imx53_data, },
+	{ .compatible = "fsl,imx6q-usdhc", .data = &usdhc_imx6q_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_esdhc_dt_ids);
 
 static inline int is_imx25_esdhc(struct pltfm_imx_data *data)
 {
-	return data->devtype == IMX25_ESDHC;
-}
-
-static inline int is_imx35_esdhc(struct pltfm_imx_data *data)
-{
-	return data->devtype == IMX35_ESDHC;
-}
-
-static inline int is_imx51_esdhc(struct pltfm_imx_data *data)
-{
-	return data->devtype == IMX51_ESDHC;
+	return data->socdata == &esdhc_imx25_data;
 }
 
 static inline int is_imx53_esdhc(struct pltfm_imx_data *data)
 {
-	return data->devtype == IMX53_ESDHC;
+	return data->socdata == &esdhc_imx53_data;
 }
 
 static inline int is_imx6q_usdhc(struct pltfm_imx_data *data)
 {
-	return data->devtype == IMX6Q_USDHC;
+	return data->socdata == &usdhc_imx6q_data;
 }
 
 static inline int esdhc_is_usdhc(struct pltfm_imx_data *data)
 {
-	return !!(data->flags & ESDHC_FLAG_USDHC);
+	return !!(data->socdata->flags & ESDHC_FLAG_USDHC);
 }
 
 static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, int reg)
@@ -274,7 +279,7 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 		}
 	}
 
-	if (unlikely((imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
+	if (unlikely((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
 				&& (reg == SDHCI_INT_STATUS)
 				&& (val & SDHCI_INT_DATA_END))) {
 			u32 v;
@@ -373,7 +378,7 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		writel(new_val , host->ioaddr + ESDHC_MIX_CTRL);
 		return;
 	case SDHCI_TRANSFER_MODE:
-		if ((imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
+		if ((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
 				&& (host->cmd->opcode == SD_IO_RW_EXTENDED)
 				&& (host->cmd->data->blocks > 1)
 				&& (host->cmd->data->flags & MMC_DATA_READ)) {
@@ -405,7 +410,7 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			val |= SDHCI_CMD_ABORTCMD;
 
 		if ((host->cmd->opcode == MMC_SET_BLOCK_COUNT) &&
-		    (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
+		    (imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
 			imx_data->multiblock_status = MULTIBLK_IN_PROCESS;
 
 		if (esdhc_is_usdhc(imx_data))
@@ -861,15 +866,9 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		goto free_sdhci;
 	}
 
-	imx_data->devtype = of_id ? (enum imx_esdhc_type) of_id->data :
-				    pdev->id_entry->driver_data;
+	imx_data->socdata = of_id ? of_id->data : (struct esdhc_soc_data *)
+						  pdev->id_entry->driver_data;
 	pltfm_host->priv = imx_data;
-
-	if (is_imx25_esdhc(imx_data) || is_imx35_esdhc(imx_data))
-		imx_data->flags |= ESDHC_FLAG_ENGCM07207;
-
-	if (is_imx6q_usdhc(imx_data))
-		imx_data->flags |= ESDHC_FLAG_USDHC;
 
 	imx_data->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx_data->clk_ipg)) {
@@ -911,13 +910,10 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
-	if (imx_data->flags & ESDHC_FLAG_ENGCM07207)
+	if (imx_data->socdata->flags & ESDHC_FLAG_ENGCM07207)
 		/* Fix errata ENGcm07207 present on i.MX25 and i.MX35 */
 		host->quirks |= SDHCI_QUIRK_NO_MULTIBLOCK
 			| SDHCI_QUIRK_BROKEN_ADMA;
-
-	if (is_imx53_esdhc(imx_data))
-		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
 
 	/*
 	 * The imx6q ROM code will change the default watermark level setting
