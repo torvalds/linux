@@ -145,18 +145,9 @@ static void clear_disconnected(struct dentry *dentry)
 static int
 reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 {
-	int noprogress = 0;
 	int err = -ESTALE;
 
-	/*
-	 * It is possible that a confused file system might not let us complete
-	 * the path to the root.  For example, if get_parent returns a directory
-	 * in which we cannot find a name for the child.  While this implies a
-	 * very sick filesystem we don't want it to cause knfsd to spin.  Hence
-	 * the noprogress counter.  If we go through the loop 10 times (2 is
-	 * probably enough) without getting anywhere, we just give up
-	 */
-	while (target_dir->d_flags & DCACHE_DISCONNECTED && noprogress++ < 10) {
+	while (target_dir->d_flags & DCACHE_DISCONNECTED) {
 		struct dentry *pd = find_disconnected_root(target_dir);
 
 		BUG_ON(pd == mnt->mnt_sb->s_root);
@@ -230,9 +221,7 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 			 */
 			dput(npd);
 			dput(ppd);
-			if (npd == pd)
-				noprogress = 0;
-			else
+			if (npd != pd)
 				goto out_reconnected;
 			if (IS_ROOT(pd)) {
 				/* something went wrong, we have to give up */
