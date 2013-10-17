@@ -246,6 +246,7 @@ static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
+#ifdef CONFIG_PCI
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
@@ -304,7 +305,6 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 	return retval;
 }
 
-#ifdef CONFIG_PCI
 /*
  * Device probe functions.
  */
@@ -480,6 +480,45 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
+static int rt2800soc_set_device_state(struct rt2x00_dev *rt2x00dev,
+				      enum dev_state state)
+{
+	int retval = 0;
+
+	switch (state) {
+	case STATE_RADIO_ON:
+		retval = rt2800pci_enable_radio(rt2x00dev);
+		break;
+
+	case STATE_RADIO_OFF:
+		rt2800pci_disable_radio(rt2x00dev);
+		break;
+
+	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_OFF:
+		rt2800mmio_toggle_irq(rt2x00dev, state);
+		break;
+
+	case STATE_DEEP_SLEEP:
+	case STATE_SLEEP:
+	case STATE_STANDBY:
+	case STATE_AWAKE:
+		/* These states are not supported, but don't report an error */
+		retval = 0;
+		break;
+
+	default:
+		retval = -ENOTSUPP;
+		break;
+	}
+
+	if (unlikely(retval))
+		rt2x00_err(rt2x00dev, "Device failed to enter state %d (%d)\n",
+			   state, retval);
+
+	return retval;
+}
+
 static int rt2800soc_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
@@ -578,7 +617,7 @@ static const struct rt2x00lib_ops rt2800soc_rt2x00_ops = {
 	.uninitialize		= rt2x00mmio_uninitialize,
 	.get_entry_state	= rt2800mmio_get_entry_state,
 	.clear_entry		= rt2800mmio_clear_entry,
-	.set_device_state	= rt2800pci_set_device_state,
+	.set_device_state	= rt2800soc_set_device_state,
 	.rfkill_poll		= rt2800_rfkill_poll,
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
