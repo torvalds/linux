@@ -3064,9 +3064,9 @@ static int kvm_vcpu_ioctl_x86_set_xcrs(struct kvm_vcpu *vcpu,
 
 	for (i = 0; i < guest_xcrs->nr_xcrs; i++)
 		/* Only support XCR0 currently */
-		if (guest_xcrs->xcrs[0].xcr == XCR_XFEATURE_ENABLED_MASK) {
+		if (guest_xcrs->xcrs[i].xcr == XCR_XFEATURE_ENABLED_MASK) {
 			r = __kvm_set_xcr(vcpu, XCR_XFEATURE_ENABLED_MASK,
-				guest_xcrs->xcrs[0].value);
+				guest_xcrs->xcrs[i].value);
 			break;
 		}
 	if (r)
