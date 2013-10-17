@@ -302,7 +302,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 			    struct device_node *dn)
 {
 	struct pci_dev *dev = NULL;
-	const u32 *reg;
+	const __be32 *reg;
 	int reglen, devfn;
 
 	pr_debug("  * %s\n", dn->full_name);
@@ -312,7 +312,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	reg = of_get_property(dn, "reg", &reglen);
 	if (reg == NULL || reglen < 20)
 		return NULL;
-	devfn = (reg[0] >> 8) & 0xff;
+	devfn = (of_read_number(reg, 1) >> 8) & 0xff;
 
 	/* Check if the PCI device is already there */
 	dev = pci_get_slot(bus, devfn);
