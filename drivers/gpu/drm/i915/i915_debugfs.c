@@ -1456,7 +1456,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
-		if (&fb->base == ifbdev->helper.fb)
+		if (ifbdev && &fb->base == ifbdev->helper.fb)
 			continue;
 
 		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, refcount %d, obj ",
