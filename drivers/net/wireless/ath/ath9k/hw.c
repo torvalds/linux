@@ -130,29 +130,29 @@ void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause)
 
 static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_channel *chan = ah->curchan;
 	unsigned int clockrate;
 
 	/* AR9287 v1.3+ uses async FIFO and runs the MAC at 117 MHz */
 	if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah))
 		clockrate = 117;
-	else if (!ah->curchan) /* should really check for CCK instead */
+	else if (!chan) /* should really check for CCK instead */
 		clockrate = ATH9K_CLOCK_RATE_CCK;
-	else if (conf->chandef.chan->band == IEEE80211_BAND_2GHZ)
+	else if (IS_CHAN_2GHZ(chan))
 		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
 	else if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
 		clockrate = ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
 	else
 		clockrate = ATH9K_CLOCK_RATE_5GHZ_OFDM;
 
-	if (conf_is_ht40(conf))
+	if (IS_CHAN_HT40(chan))
 		clockrate *= 2;
 
 	if (ah->curchan) {
-		if (IS_CHAN_HALF_RATE(ah->curchan))
+		if (IS_CHAN_HALF_RATE(chan))
 			clockrate /= 2;
-		if (IS_CHAN_QUARTER_RATE(ah->curchan))
+		if (IS_CHAN_QUARTER_RATE(chan))
 			clockrate /= 4;
 	}
 
@@ -190,10 +190,7 @@ EXPORT_SYMBOL(ath9k_hw_wait);
 void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 			  int hw_delay)
 {
-	if (IS_CHAN_B(chan))
-		hw_delay = (4 * hw_delay) / 22;
-	else
-		hw_delay /= 10;
+	hw_delay /= 10;
 
 	if (IS_CHAN_HALF_RATE(chan))
 		hw_delay *= 2;
@@ -294,8 +291,7 @@ void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 		return;
 	}
 
-	if ((chan->chanmode == CHANNEL_A_HT40PLUS) ||
-	    (chan->chanmode == CHANNEL_G_HT40PLUS)) {
+	if (IS_CHAN_HT40PLUS(chan)) {
 		centers->synth_center =
 			chan->channel + HT40_CHANNEL_CENTER_SHIFT;
 		extoff = 1;
@@ -1042,7 +1038,6 @@ static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 void ath9k_hw_init_global_settings(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_conf *conf = &common->hw->conf;
 	const struct ath9k_channel *chan = ah->curchan;
 	int acktimeout, ctstimeout, ack_offset = 0;
 	int slottime;
@@ -1117,8 +1112,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	 * BA frames in some implementations, but it has been found to fix ACK
 	 * timeout issues in other cases as well.
 	 */
-	if (conf->chandef.chan &&
-	    conf->chandef.chan->band == IEEE80211_BAND_2GHZ &&
+	if (IS_CHAN_2GHZ(chan) &&
 	    !IS_CHAN_HALF_RATE(chan) && !IS_CHAN_QUARTER_RATE(chan)) {
 		acktimeout += 64 - sifstime - ah->slottime;
 		ctstimeout += 48 - sifstime - ah->slottime;
@@ -1160,9 +1154,7 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan)
 {
 	u32 ctl = ath_regd_get_band_ctl(reg, chan->chan->band);
 
-	if (IS_CHAN_B(chan))
-		ctl |= CTL_11B;
-	else if (IS_CHAN_G(chan))
+	if (IS_CHAN_2GHZ(chan))
 		ctl |= CTL_11G;
 	else
 		ctl |= CTL_11A;
@@ -1510,10 +1502,8 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	int r;
 
 	if (pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) {
-		u32 cur = ah->curchan->channelFlags & (CHANNEL_2GHZ | CHANNEL_5GHZ);
-		u32 new = chan->channelFlags & (CHANNEL_2GHZ | CHANNEL_5GHZ);
-		band_switch = (cur != new);
-		mode_diff = (chan->chanmode != ah->curchan->chanmode);
+		band_switch = IS_CHAN_5GHZ(ah->curchan) != IS_CHAN_5GHZ(chan);
+		mode_diff = (chan->channelFlags != ah->curchan->channelFlags);
 	}
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
@@ -1552,9 +1542,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	ath9k_hw_set_clockrate(ah);
 	ath9k_hw_apply_txpower(ah, chan, false);
 
-	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
-		ath9k_hw_set_delta_slope(ah, chan);
-
+	ath9k_hw_set_delta_slope(ah, chan);
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 
 	if (band_switch || ini_reloaded)
@@ -1824,20 +1812,11 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 		goto fail;
 
 	/*
-	 * If cross-band fcc is not supoprted, bail out if
-	 * either channelFlags or chanmode differ.
-	 *
-	 * chanmode will be different if the HT operating mode
-	 * changes because of CSA.
+	 * If cross-band fcc is not supoprted, bail out if channelFlags differ.
 	 */
-	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH)) {
-		if ((chan->channelFlags & CHANNEL_ALL) !=
-		    (ah->curchan->channelFlags & CHANNEL_ALL))
-			goto fail;
-
-		if (chan->chanmode != ah->curchan->chanmode)
-			goto fail;
-	}
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) &&
+	    chan->channelFlags != ah->curchan->channelFlags)
+		goto fail;
 
 	if (!ath9k_hw_check_alive(ah))
 		goto fail;
@@ -1899,8 +1878,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ah->caldata = caldata;
 	if (caldata && (chan->channel != caldata->channel ||
-			chan->channelFlags != caldata->channelFlags ||
-			chan->chanmode != caldata->chanmode)) {
+			chan->channelFlags != caldata->channelFlags)) {
 		/* Operating channel changed, reset channel calibration data */
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
@@ -1989,9 +1967,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_mfp(ah);
 
-	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
-		ath9k_hw_set_delta_slope(ah, chan);
-
+	ath9k_hw_set_delta_slope(ah, chan);
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
 
@@ -2968,12 +2944,11 @@ void ath9k_hw_set_tsfadjust(struct ath_hw *ah, bool set)
 }
 EXPORT_SYMBOL(ath9k_hw_set_tsfadjust);
 
-void ath9k_hw_set11nmac2040(struct ath_hw *ah)
+void ath9k_hw_set11nmac2040(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	u32 macmode;
 
-	if (conf_is_ht40(conf) && !ah->config.cwm_ignore_extcca)
+	if (IS_CHAN_HT40(chan) && !ah->config.cwm_ignore_extcca)
 		macmode = AR_2040_JOINED_RX_CLEAR;
 	else
 		macmode = 0;

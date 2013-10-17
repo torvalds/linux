@@ -1981,7 +1981,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * EAPOL frames from the local station.
 	 */
 	if (unlikely(!ieee80211_vif_is_mesh(&sdata->vif) &&
-		     !is_multicast_ether_addr(hdr.addr1) && !authorized &&
+		     !multicast && !authorized &&
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
 		      !ether_addr_equal(sdata->vif.addr, skb->data + ETH_ALEN)))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -2357,15 +2357,31 @@ static void ieee80211_update_csa(struct ieee80211_sub_if_data *sdata,
 	struct probe_resp *resp;
 	int counter_offset_beacon = sdata->csa_counter_offset_beacon;
 	int counter_offset_presp = sdata->csa_counter_offset_presp;
+	u8 *beacon_data;
+	size_t beacon_data_len;
 
-	/* warn if the driver did not check for/react to csa completeness */
-	if (WARN_ON(((u8 *)beacon->tail)[counter_offset_beacon] == 0))
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		beacon_data = beacon->tail;
+		beacon_data_len = beacon->tail_len;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		beacon_data = beacon->head;
+		beacon_data_len = beacon->head_len;
+		break;
+	default:
+		return;
+	}
+	if (WARN_ON(counter_offset_beacon >= beacon_data_len))
 		return;
 
-	((u8 *)beacon->tail)[counter_offset_beacon]--;
+	/* warn if the driver did not check for/react to csa completeness */
+	if (WARN_ON(beacon_data[counter_offset_beacon] == 0))
+		return;
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP &&
-	    counter_offset_presp) {
+	beacon_data[counter_offset_beacon]--;
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP && counter_offset_presp) {
 		rcu_read_lock();
 		resp = rcu_dereference(sdata->u.ap.probe_resp);
 
@@ -2400,6 +2416,15 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 			goto out;
 		beacon_data = beacon->tail;
 		beacon_data_len = beacon->tail_len;
+	} else if (vif->type == NL80211_IFTYPE_ADHOC) {
+		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+
+		beacon = rcu_dereference(ifibss->presp);
+		if (!beacon)
+			goto out;
+
+		beacon_data = beacon->head;
+		beacon_data_len = beacon->head_len;
 	} else {
 		WARN_ON(1);
 		goto out;
@@ -2483,6 +2508,10 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 
 		if (!presp)
 			goto out;
+
+		if (sdata->vif.csa_active)
+			ieee80211_update_csa(sdata, presp);
+
 
 		skb = dev_alloc_skb(local->tx_headroom + presp->head_len);
 		if (!skb)
