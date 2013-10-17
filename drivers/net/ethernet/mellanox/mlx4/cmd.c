@@ -2253,7 +2253,6 @@ EXPORT_SYMBOL_GPL(mlx4_set_vf_mac);
 int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_vport_oper_state *vf_oper;
 	struct mlx4_vport_state *vf_admin;
 	int slave;
 
@@ -2269,7 +2268,6 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 		return -EINVAL;
 
 	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
-	vf_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 
 	if ((0 == vlan) && (0 == qos))
 		vf_admin->default_vlan = MLX4_VGT;
