@@ -948,13 +948,13 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 		eps[3] = usb_pipe_endpoint(udev, devinfo->data_out_pipe);
 	} else {
 		devinfo->cmd_pipe = usb_sndbulkpipe(udev,
-						eps[0]->desc.bEndpointAddress);
+					     usb_endpoint_num(&eps[0]->desc));
 		devinfo->status_pipe = usb_rcvbulkpipe(udev,
-						eps[1]->desc.bEndpointAddress);
+					     usb_endpoint_num(&eps[1]->desc));
 		devinfo->data_in_pipe = usb_rcvbulkpipe(udev,
-						eps[2]->desc.bEndpointAddress);
+					     usb_endpoint_num(&eps[2]->desc));
 		devinfo->data_out_pipe = usb_sndbulkpipe(udev,
-						eps[3]->desc.bEndpointAddress);
+					     usb_endpoint_num(&eps[3]->desc));
 	}
 
 	devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1, 3, 256,
