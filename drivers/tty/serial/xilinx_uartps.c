@@ -156,6 +156,11 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define XUARTPS_SR_TXFULL	0x00000010 /* TX FIFO full */
 #define XUARTPS_SR_RXTRIG	0x00000001 /* Rx Trigger */
 
+/* baud dividers min/max values */
+#define XUARTPS_BDIV_MIN	4
+#define XUARTPS_BDIV_MAX	255
+#define XUARTPS_CD_MAX		65535
+
 /**
  * struct xuartps - device data
  * @refclk	Reference clock
@@ -305,59 +310,94 @@ static irqreturn_t xuartps_isr(int irq, void *dev_id)
 }
 
 /**
- * xuartps_set_baud_rate - Calculate and set the baud rate
- * @port: Handle to the uart port structure
- * @baud: Baud rate to set
- *
+ * xuartps_calc_baud_divs - Calculate baud rate divisors
+ * @clk: UART module input clock
+ * @baud: Desired baud rate
+ * @rbdiv: BDIV value (return value)
+ * @rcd: CD value (return value)
+ * @div8: Value for clk_sel bit in mod (return value)
  * Returns baud rate, requested baud when possible, or actual baud when there
- *	was too much error
- **/
-static unsigned int xuartps_set_baud_rate(struct uart_port *port,
-						unsigned int baud)
+ *	was too much error, zero if no valid divisors are found.
+ *
+ * Formula to obtain baud rate is
+ *	baud_tx/rx rate = clk/CD * (BDIV + 1)
+ *	input_clk = (Uart User Defined Clock or Apb Clock)
+ *		depends on UCLKEN in MR Reg
+ *	clk = input_clk or input_clk/8;
+ *		depends on CLKS in MR reg
+ *	CD and BDIV depends on values in
+ *			baud rate generate register
+ *			baud rate clock divisor register
+ */
+static unsigned int xuartps_calc_baud_divs(unsigned int clk, unsigned int baud,
+		u32 *rbdiv, u32 *rcd, int *div8)
 {
-	unsigned int sel_clk;
-	unsigned int calc_baud = 0;
-	unsigned int brgr_val, brdiv_val;
+	u32 cd, bdiv;
+	unsigned int calc_baud;
+	unsigned int bestbaud = 0;
 	unsigned int bauderror;
+	unsigned int besterror = ~0;
 
-	/* Formula to obtain baud rate is
-	 *	baud_tx/rx rate = sel_clk/CD * (BDIV + 1)
-	 *	input_clk = (Uart User Defined Clock or Apb Clock)
-	 *		depends on UCLKEN in MR Reg
-	 *	sel_clk = input_clk or input_clk/8;
-	 *		depends on CLKS in MR reg
-	 *	CD and BDIV depends on values in
-	 *			baud rate generate register
-	 *			baud rate clock divisor register
-	 */
-	sel_clk = port->uartclk;
-	if (xuartps_readl(XUARTPS_MR_OFFSET) & XUARTPS_MR_CLKSEL)
-		sel_clk = sel_clk / 8;
+	if (baud < clk / ((XUARTPS_BDIV_MAX + 1) * XUARTPS_CD_MAX)) {
+		*div8 = 1;
+		clk /= 8;
+	} else {
+		*div8 = 0;
+	}
 
-	/* Find the best values for baud generation */
-	for (brdiv_val = 4; brdiv_val < 255; brdiv_val++) {
-
-		brgr_val = sel_clk / (baud * (brdiv_val + 1));
-		if (brgr_val < 2 || brgr_val > 65535)
+	for (bdiv = XUARTPS_BDIV_MIN; bdiv <= XUARTPS_BDIV_MAX; bdiv++) {
+		cd = DIV_ROUND_CLOSEST(clk, baud * (bdiv + 1));
+		if (cd < 1 || cd > XUARTPS_CD_MAX)
 			continue;
 
-		calc_baud = sel_clk / (brgr_val * (brdiv_val + 1));
+		calc_baud = clk / (cd * (bdiv + 1));
 
 		if (baud > calc_baud)
 			bauderror = baud - calc_baud;
 		else
 			bauderror = calc_baud - baud;
 
-		/* use the values when percent error is acceptable */
-		if (((bauderror * 100) / baud) < 3) {
-			calc_baud = baud;
-			break;
+		if (besterror > bauderror) {
+			*rbdiv = bdiv;
+			*rcd = cd;
+			bestbaud = calc_baud;
+			besterror = bauderror;
 		}
 	}
+	/* use the values when percent error is acceptable */
+	if (((besterror * 100) / baud) < 3)
+		bestbaud = baud;
 
-	/* Set the values for the new baud rate */
-	xuartps_writel(brgr_val, XUARTPS_BAUDGEN_OFFSET);
-	xuartps_writel(brdiv_val, XUARTPS_BAUDDIV_OFFSET);
+	return bestbaud;
+}
+
+/**
+ * xuartps_set_baud_rate - Calculate and set the baud rate
+ * @port: Handle to the uart port structure
+ * @baud: Baud rate to set
+ * Returns baud rate, requested baud when possible, or actual baud when there
+ *	   was too much error, zero if no valid divisors are found.
+ */
+static unsigned int xuartps_set_baud_rate(struct uart_port *port,
+		unsigned int baud)
+{
+	unsigned int calc_baud;
+	u32 cd, bdiv;
+	u32 mreg;
+	int div8;
+
+	calc_baud = xuartps_calc_baud_divs(port->uartclk, baud, &bdiv, &cd,
+			&div8);
+
+	/* Write new divisors to hardware */
+	mreg = xuartps_readl(XUARTPS_MR_OFFSET);
+	if (div8)
+		mreg |= XUARTPS_MR_CLKSEL;
+	else
+		mreg &= ~XUARTPS_MR_CLKSEL;
+	xuartps_writel(mreg, XUARTPS_MR_OFFSET);
+	xuartps_writel(cd, XUARTPS_BAUDGEN_OFFSET);
+	xuartps_writel(bdiv, XUARTPS_BAUDDIV_OFFSET);
 
 	return calc_baud;
 }
@@ -495,7 +535,7 @@ static void xuartps_set_termios(struct uart_port *port,
 				struct ktermios *termios, struct ktermios *old)
 {
 	unsigned int cval = 0;
-	unsigned int baud;
+	unsigned int baud, minbaud, maxbaud;
 	unsigned long flags;
 	unsigned int ctrl_reg, mode_reg;
 
@@ -512,8 +552,14 @@ static void xuartps_set_termios(struct uart_port *port,
 			(XUARTPS_CR_TX_DIS | XUARTPS_CR_RX_DIS),
 			XUARTPS_CR_OFFSET);
 
-	/* Min baud rate = 6bps and Max Baud Rate is 10Mbps for 100Mhz clk */
-	baud = uart_get_baud_rate(port, termios, old, 0, 10000000);
+	/*
+	 * Min baud rate = 6bps and Max Baud Rate is 10Mbps for 100Mhz clk
+	 * min and max baud should be calculated here based on port->uartclk.
+	 * this way we get a valid baud and can safely call set_baud()
+	 */
+	minbaud = port->uartclk / ((XUARTPS_BDIV_MAX + 1) * XUARTPS_CD_MAX * 8);
+	maxbaud = port->uartclk / (XUARTPS_BDIV_MIN + 1);
+	baud = uart_get_baud_rate(port, termios, old, minbaud, maxbaud);
 	baud = xuartps_set_baud_rate(port, baud);
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
@@ -589,13 +635,17 @@ static void xuartps_set_termios(struct uart_port *port,
 				cval |= XUARTPS_MR_PARITY_MARK;
 			else
 				cval |= XUARTPS_MR_PARITY_SPACE;
-		} else if (termios->c_cflag & PARODD)
+		} else {
+			if (termios->c_cflag & PARODD)
 				cval |= XUARTPS_MR_PARITY_ODD;
 			else
 				cval |= XUARTPS_MR_PARITY_EVEN;
-	} else
+		}
+	} else {
 		cval |= XUARTPS_MR_PARITY_NONE;
-	xuartps_writel(cval , XUARTPS_MR_OFFSET);
+	}
+	cval |= mode_reg & 1;
+	xuartps_writel(cval, XUARTPS_MR_OFFSET);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
