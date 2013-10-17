@@ -18,6 +18,21 @@ struct gpio_chip;
  */
 struct gpio_desc;
 
+/* Acquire and dispose GPIOs */
+struct gpio_desc *__must_check gpiod_get(struct device *dev,
+					 const char *con_id);
+struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
+					       const char *con_id,
+					       unsigned int idx);
+void gpiod_put(struct gpio_desc *desc);
+
+struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
+					      const char *con_id);
+struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
+						    const char *con_id,
+						    unsigned int idx);
+void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
+
 int gpiod_get_direction(const struct gpio_desc *desc);
 int gpiod_direction_input(struct gpio_desc *desc);
 int gpiod_direction_output(struct gpio_desc *desc, int value);

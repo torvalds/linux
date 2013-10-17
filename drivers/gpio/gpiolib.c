@@ -70,6 +70,8 @@ static struct gpio_desc gpio_desc[ARCH_NR_GPIOS];
 
 #define GPIO_OFFSET_VALID(chip, offset) (offset >= 0 && offset < chip->ngpio)
 
+static DEFINE_MUTEX(gpio_lookup_lock);
+static LIST_HEAD(gpio_lookup_list);
 static LIST_HEAD(gpio_chips);
 
 #ifdef CONFIG_GPIO_SYSFS
@@ -2191,6 +2193,207 @@ void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 	_gpiod_set_raw_value(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
+
+/**
+ * gpiod_add_table() - register GPIO device consumers
+ * @table: array of consumers to register
+ * @num: number of consumers in table
+ */
+void gpiod_add_table(struct gpiod_lookup *table, size_t size)
+{
+	mutex_lock(&gpio_lookup_lock);
+
+	while (size--) {
+		list_add_tail(&table->list, &gpio_lookup_list);
+		table++;
+	}
+
+	mutex_unlock(&gpio_lookup_lock);
+}
+
+/*
+ * Caller must have a acquired gpio_lookup_lock
+ */
+static struct gpio_chip *find_chip_by_name(const char *name)
+{
+	struct gpio_chip *chip = NULL;
+
+	list_for_each_entry(chip, &gpio_lookup_list, list) {
+		if (chip->label == NULL)
+			continue;
+		if (!strcmp(chip->label, name))
+			break;
+	}
+
+	return chip;
+}
+
+#ifdef CONFIG_OF
+static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
+				      unsigned int idx, unsigned long *flags)
+{
+	char prop_name[32]; /* 32 is max size of property name */
+	enum of_gpio_flags of_flags;
+	struct gpio_desc *desc;
+
+	if (con_id)
+		snprintf(prop_name, 32, "%s-gpios", con_id);
+	else
+		snprintf(prop_name, 32, "gpios");
+
+	desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
+					&of_flags);
+
+	if (IS_ERR(desc))
+		return desc;
+
+	if (of_flags & OF_GPIO_ACTIVE_LOW)
+		*flags |= GPIOF_ACTIVE_LOW;
+
+	return desc;
+}
+#else
+static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
+				      unsigned int idx, unsigned long *flags)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
+static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
+				    unsigned int idx, unsigned long *flags)
+{
+	const char *dev_id = dev ? dev_name(dev) : NULL;
+	struct gpio_desc *desc = ERR_PTR(-ENODEV);
+	unsigned int match, best = 0;
+	struct gpiod_lookup *p;
+
+	mutex_lock(&gpio_lookup_lock);
+
+	list_for_each_entry(p, &gpio_lookup_list, list) {
+		match = 0;
+
+		if (p->dev_id) {
+			if (!dev_id || strcmp(p->dev_id, dev_id))
+				continue;
+
+			match += 2;
+		}
+
+		if (p->con_id) {
+			if (!con_id || strcmp(p->con_id, con_id))
+				continue;
+
+			match += 1;
+		}
+
+		if (p->idx != idx)
+			continue;
+
+		if (match > best) {
+			struct gpio_chip *chip;
+
+			chip = find_chip_by_name(p->chip_label);
+
+			if (!chip) {
+				dev_warn(dev, "cannot find GPIO chip %s\n",
+					 p->chip_label);
+				continue;
+			}
+
+			if (chip->ngpio >= p->chip_hwnum) {
+				dev_warn(dev, "GPIO chip %s has %d GPIOs\n",
+					 chip->label, chip->ngpio);
+				continue;
+			}
+
+			desc = gpio_to_desc(chip->base + p->chip_hwnum);
+			*flags = p->flags;
+
+			if (match != 3)
+				best = match;
+			else
+				break;
+		}
+	}
+
+	mutex_unlock(&gpio_lookup_lock);
+
+	return desc;
+}
+
+/**
+ * gpio_get - obtain a GPIO for a given GPIO function
+ * @dev:	GPIO consumer
+ * @con_id:	function within the GPIO consumer
+ *
+ * Return the GPIO descriptor corresponding to the function con_id of device
+ * dev, or an IS_ERR() condition if an error occured.
+ */
+struct gpio_desc *__must_check gpiod_get(struct device *dev, const char *con_id)
+{
+	return gpiod_get_index(dev, con_id, 0);
+}
+EXPORT_SYMBOL_GPL(gpiod_get);
+
+/**
+ * gpiod_get_index - obtain a GPIO from a multi-index GPIO function
+ * @dev:	GPIO consumer
+ * @con_id:	function within the GPIO consumer
+ * @idx:	index of the GPIO to obtain in the consumer
+ *
+ * This variant of gpiod_get() allows to access GPIOs other than the first
+ * defined one for functions that define several GPIOs.
+ *
+ * Return a valid GPIO descriptor, or an IS_ERR() condition in case of error.
+ */
+struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
+					       const char *con_id,
+					       unsigned int idx)
+{
+	struct gpio_desc *desc;
+	int status;
+	unsigned long flags = 0;
+
+	dev_dbg(dev, "GPIO lookup for consumer %s\n", con_id);
+
+	/* Using device tree? */
+	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node) {
+		dev_dbg(dev, "using device tree for GPIO lookup\n");
+		desc = of_find_gpio(dev, con_id, idx, &flags);
+	} else {
+		dev_dbg(dev, "using lookup tables for GPIO lookup");
+		desc = gpiod_find(dev, con_id, idx, &flags);
+	}
+
+	if (IS_ERR(desc)) {
+		dev_warn(dev, "lookup for GPIO %s failed\n", con_id);
+		return desc;
+	}
+
+	status = gpiod_request(desc, con_id);
+
+	if (status < 0)
+		return ERR_PTR(status);
+
+	if (flags & GPIOF_ACTIVE_LOW)
+		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+
+	return desc;
+}
+EXPORT_SYMBOL_GPL(gpiod_get_index);
+
+/**
+ * gpiod_put - dispose of a GPIO descriptor
+ * @desc:	GPIO descriptor to dispose of
+ *
+ * No descriptor can be used after gpiod_put() has been called on it.
+ */
+void gpiod_put(struct gpio_desc *desc)
+{
+	gpiod_free(desc);
+}
+EXPORT_SYMBOL_GPL(gpiod_put);
 
 #ifdef CONFIG_DEBUG_FS
 
