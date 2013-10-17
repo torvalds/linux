@@ -2671,7 +2671,7 @@ static int i915_debugfs_create(struct dentry *root,
 	return drm_add_fake_info_node(minor, ent, fops);
 }
 
-static struct drm_info_list i915_debugfs_list[] = {
+static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
@@ -2713,7 +2713,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
-static struct i915_debugfs_files {
+static const struct i915_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {
