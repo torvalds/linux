@@ -68,6 +68,14 @@ void mei_device_init(struct mei_device *dev)
 	mei_io_list_init(&dev->amthif_cmd_list);
 	mei_io_list_init(&dev->amthif_rd_complete_list);
 
+	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
+	dev->open_handle_count = 0;
+
+	/*
+	 * Reserving the first client ID
+	 * 0: Reserved for MEI Bus Message communications
+	 */
+	bitmap_set(dev->host_clients_map, 0, 1);
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
 

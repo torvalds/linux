@@ -365,15 +365,6 @@ void mei_host_client_init(struct work_struct *work)
 
 	mutex_lock(&dev->device_lock);
 
-	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
-	dev->open_handle_count = 0;
-
-	/*
-	 * Reserving the first three client IDs
-	 * 0: Reserved for MEI Bus Message communications
-	 */
-	bitmap_set(dev->host_clients_map, 0, 1);
-
 	for (i = 0; i < dev->me_clients_num; i++) {
 		client_props = &dev->me_clients[i].props;
 
