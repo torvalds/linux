@@ -61,6 +61,7 @@ static bool rt2800pci_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
 	return modparam_nohwcrypt;
 }
 
+#ifdef CONFIG_PCI
 static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 {
 	unsigned int i;
@@ -91,7 +92,6 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2x00mmio_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#ifdef CONFIG_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 {
 	struct rt2x00_dev *rt2x00dev = eeprom->data;
@@ -210,17 +210,23 @@ static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 /*
  * Device state switch handlers.
  */
-static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
+static int rt2800mmio_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	int retval;
-
 	/* Wait for DMA, ignore error until we initialize queues. */
 	rt2800_wait_wpdma_ready(rt2x00dev);
 
 	if (unlikely(rt2800mmio_init_queues(rt2x00dev)))
 		return -EIO;
 
-	retval = rt2800_enable_radio(rt2x00dev);
+	return rt2800_enable_radio(rt2x00dev);
+}
+
+#ifdef CONFIG_PCI
+static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
+{
+	int retval;
+
+	retval = rt2800mmio_enable_radio(rt2x00dev);
 	if (retval)
 		return retval;
 
@@ -237,7 +243,6 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	return retval;
 }
 
-#ifdef CONFIG_PCI
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
@@ -484,7 +489,7 @@ static int rt2800soc_set_device_state(struct rt2x00_dev *rt2x00dev,
 
 	switch (state) {
 	case STATE_RADIO_ON:
-		retval = rt2800pci_enable_radio(rt2x00dev);
+		retval = rt2800mmio_enable_radio(rt2x00dev);
 		break;
 
 	case STATE_RADIO_OFF:
