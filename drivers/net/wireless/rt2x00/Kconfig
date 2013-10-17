@@ -206,6 +206,7 @@ config RT2800_LIB
 config RT2800_LIB_MMIO
 	tristate
 	select RT2X00_LIB_MMIO
+	select RT2800_LIB
 
 config RT2X00_LIB_MMIO
 	tristate
