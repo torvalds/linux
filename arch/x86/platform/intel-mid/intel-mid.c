@@ -831,20 +831,15 @@ static void __init install_irq_resource(struct platform_device *pdev, int irq)
 	platform_device_add_resources(pdev, &res, 1);
 }
 
-static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *entry)
+static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *pentry,
+					struct devs_id *dev)
 {
-	const struct devs_id *dev = device_ids;
 	struct platform_device *pdev;
 	void *pdata = NULL;
 
-	while (dev->name[0]) {
-		if (dev->type == SFI_DEV_TYPE_IPC &&
-			!strncmp(dev->name, entry->name, SFI_NAME_LEN)) {
-			pdata = dev->get_platform_data(entry);
-			break;
-		}
-		dev++;
-	}
+	pr_debug("IPC bus, name = %16.16s, irq = 0x%2x\n",
+		pentry->name, pentry->irq);
+	pdata = dev->get_platform_data(pentry);
 
 	/*
 	 * On Medfield the platform device creation is handled by the MSIC
@@ -853,68 +848,94 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *entry)
 	if (intel_mid_has_msic())
 		return;
 
-	pdev = platform_device_alloc(entry->name, 0);
+	pdev = platform_device_alloc(pentry->name, 0);
 	if (pdev == NULL) {
 		pr_err("out of memory for SFI platform device '%s'.\n",
-			entry->name);
+			pentry->name);
 		return;
 	}
-	install_irq_resource(pdev, entry->irq);
+	install_irq_resource(pdev, pentry->irq);
 
 	pdev->dev.platform_data = pdata;
 	intel_scu_device_register(pdev);
 }
 
-static void __init sfi_handle_spi_dev(struct spi_board_info *spi_info)
+static void __init sfi_handle_spi_dev(struct sfi_device_table_entry *pentry,
+					struct devs_id *dev)
 {
-	const struct devs_id *dev = device_ids;
+	struct spi_board_info spi_info;
 	void *pdata = NULL;
 
+	memset(&spi_info, 0, sizeof(spi_info));
+	strncpy(spi_info.modalias, pentry->name, SFI_NAME_LEN);
+	spi_info.irq = ((pentry->irq == (u8)0xff) ? 0 : pentry->irq);
+	spi_info.bus_num = pentry->host_num;
+	spi_info.chip_select = pentry->addr;
+	spi_info.max_speed_hz = pentry->max_freq;
+	pr_debug("SPI bus=%d, name=%16.16s, irq=0x%2x, max_freq=%d, cs=%d\n",
+		spi_info.bus_num,
+		spi_info.modalias,
+		spi_info.irq,
+		spi_info.max_speed_hz,
+		spi_info.chip_select);
+
+	pdata = dev->get_platform_data(&spi_info);
+
+	spi_info.platform_data = pdata;
+	if (dev->delay)
+		intel_scu_spi_device_register(&spi_info);
+	else
+		spi_register_board_info(&spi_info, 1);
+}
+
+static void __init sfi_handle_i2c_dev(struct sfi_device_table_entry *pentry,
+					struct devs_id *dev)
+{
+	struct i2c_board_info i2c_info;
+	void *pdata = NULL;
+
+	memset(&i2c_info, 0, sizeof(i2c_info));
+	strncpy(i2c_info.type, pentry->name, SFI_NAME_LEN);
+	i2c_info.irq = ((pentry->irq == (u8)0xff) ? 0 : pentry->irq);
+	i2c_info.addr = pentry->addr;
+	pr_debug("I2C bus = %d, name = %16.16s, irq = 0x%2x, addr = 0x%x\n",
+		pentry->host_num,
+		i2c_info.type,
+		i2c_info.irq,
+		i2c_info.addr);
+	pdata = dev->get_platform_data(&i2c_info);
+	i2c_info.platform_data = pdata;
+
+	if (dev->delay)
+		intel_scu_i2c_device_register(pentry->host_num, &i2c_info);
+	else
+		i2c_register_board_info(pentry->host_num, &i2c_info, 1);
+}
+
+static struct devs_id __init *get_device_id(u8 type, char *name)
+{
+	struct devs_id *dev = device_ids;
+
+	if (device_ids == NULL)
+		return NULL;
+
 	while (dev->name[0]) {
-		if (dev->type == SFI_DEV_TYPE_SPI &&
-			!strncmp(dev->name, spi_info->modalias,
-						SFI_NAME_LEN)) {
-			pdata = dev->get_platform_data(spi_info);
-			break;
+		if (dev->type == type &&
+			!strncmp(dev->name, name, SFI_NAME_LEN)) {
+			return dev;
 		}
 		dev++;
 	}
-	spi_info->platform_data = pdata;
-	if (dev->delay)
-		intel_scu_spi_device_register(spi_info);
-	else
-		spi_register_board_info(spi_info, 1);
+
+	return NULL;
 }
-
-static void __init sfi_handle_i2c_dev(int bus, struct i2c_board_info *i2c_info)
-{
-	const struct devs_id *dev = device_ids;
-	void *pdata = NULL;
-
-	while (dev->name[0]) {
-		if (dev->type == SFI_DEV_TYPE_I2C &&
-			!strncmp(dev->name, i2c_info->type, SFI_NAME_LEN)) {
-			pdata = dev->get_platform_data(i2c_info);
-			break;
-		}
-		dev++;
-	}
-	i2c_info->platform_data = pdata;
-
-	if (dev->delay)
-		intel_scu_i2c_device_register(bus, i2c_info);
-	else
-		i2c_register_board_info(bus, i2c_info, 1);
-}
-
 
 static int __init sfi_parse_devs(struct sfi_table_header *table)
 {
 	struct sfi_table_simple *sb;
 	struct sfi_device_table_entry *pentry;
-	struct spi_board_info spi_info;
-	struct i2c_board_info i2c_info;
-	int num, i, bus;
+	struct devs_id *dev = NULL;
+	int num, i;
 	int ioapic;
 	struct io_apic_irq_attr irq_attr;
 
@@ -939,40 +960,20 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 		} else
 			irq = 0; /* No irq */
 
+		dev = get_device_id(pentry->type, pentry->name);
+
+		if ((dev == NULL) || (dev->get_platform_data == NULL))
+			continue;
+
 		switch (pentry->type) {
 		case SFI_DEV_TYPE_IPC:
-			pr_debug("info[%2d]: IPC bus, name = %16.16s, "
-				"irq = 0x%2x\n", i, pentry->name, pentry->irq);
-			sfi_handle_ipc_dev(pentry);
+			sfi_handle_ipc_dev(pentry, dev);
 			break;
 		case SFI_DEV_TYPE_SPI:
-			memset(&spi_info, 0, sizeof(spi_info));
-			strncpy(spi_info.modalias, pentry->name, SFI_NAME_LEN);
-			spi_info.irq = irq;
-			spi_info.bus_num = pentry->host_num;
-			spi_info.chip_select = pentry->addr;
-			spi_info.max_speed_hz = pentry->max_freq;
-			pr_debug("info[%2d]: SPI bus = %d, name = %16.16s, "
-				"irq = 0x%2x, max_freq = %d, cs = %d\n", i,
-				spi_info.bus_num,
-				spi_info.modalias,
-				spi_info.irq,
-				spi_info.max_speed_hz,
-				spi_info.chip_select);
-			sfi_handle_spi_dev(&spi_info);
+			sfi_handle_spi_dev(pentry, dev);
 			break;
 		case SFI_DEV_TYPE_I2C:
-			memset(&i2c_info, 0, sizeof(i2c_info));
-			bus = pentry->host_num;
-			strncpy(i2c_info.type, pentry->name, SFI_NAME_LEN);
-			i2c_info.irq = irq;
-			i2c_info.addr = pentry->addr;
-			pr_debug("info[%2d]: I2C bus = %d, name = %16.16s, "
-				"irq = 0x%2x, addr = 0x%x\n", i, bus,
-				i2c_info.type,
-				i2c_info.irq,
-				i2c_info.addr);
-			sfi_handle_i2c_dev(bus, &i2c_info);
+			sfi_handle_i2c_dev(pentry, dev);
 			break;
 		case SFI_DEV_TYPE_UART:
 		case SFI_DEV_TYPE_HSI:
