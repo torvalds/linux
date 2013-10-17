@@ -470,16 +470,4 @@ static struct pci_driver rt2800pci_driver = {
 	.resume		= rt2x00pci_resume,
 };
 
-
-static int __init rt2800pci_init(void)
-{
-	return pci_register_driver(&rt2800pci_driver);
-}
-
-static void __exit rt2800pci_exit(void)
-{
-	pci_unregister_driver(&rt2800pci_driver);
-}
-
-module_init(rt2800pci_init);
-module_exit(rt2800pci_exit);
+module_pci_driver(rt2800pci_driver);
