@@ -449,7 +449,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_CONNECTOR);
 	if (!obj) {
 		dev_dbg(dev->dev, "Invalid Connector object.\n");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	connector = obj_to_connector(obj);
@@ -491,7 +491,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		obj = drm_mode_object_find(dev, obj_id,
 					DRM_MODE_OBJECT_CONNECTOR);
 		if (!obj) {
-			ret = -EINVAL;
+			ret = -ENOENT;
 			goto mode_op_out;
 		}
 
