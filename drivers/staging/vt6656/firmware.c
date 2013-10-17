@@ -36,7 +36,7 @@
 #include "rndis.h"
 
 static int msglevel = MSG_LEVEL_INFO;
-//static int msglevel = MSG_LEVEL_DEBUG;
+/* static int msglevel = MSG_LEVEL_DEBUG; */
 
 #define FIRMWARE_VERSION	0x133		/* version 1.51 */
 #define FIRMWARE_NAME		"vntwusb.fw"
@@ -136,7 +136,7 @@ int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 	}
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n", pDevice->wFirmwareVersion);
 	if (pDevice->wFirmwareVersion < FIRMWARE_VERSION) {
-		// branch to loader for download new firmware
+		/* branch to loader for download new firmware */
 		FIRMWAREbBrach2Sram(pDevice);
 		return false;
 	}
