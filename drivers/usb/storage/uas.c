@@ -531,10 +531,12 @@ static int uas_submit_task_urb(struct scsi_cmnd *cmnd, gfp_t gfp,
 			  usb_free_urb, NULL);
 	urb->transfer_flags |= URB_FREE_BUFFER;
 
-	err = usb_submit_urb(urb, gfp);
-	if (err)
-		goto err;
 	usb_anchor_urb(urb, &devinfo->cmd_urbs);
+	err = usb_submit_urb(urb, gfp);
+	if (err) {
+		usb_unanchor_urb(urb);
+		goto err;
+	}
 
 	return 0;
 
@@ -558,13 +560,14 @@ static int uas_submit_sense_urb(struct Scsi_Host *shost,
 	urb = uas_alloc_sense_urb(devinfo, gfp, shost, stream);
 	if (!urb)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
+	usb_anchor_urb(urb, &devinfo->sense_urbs);
 	if (usb_submit_urb(urb, gfp)) {
+		usb_unanchor_urb(urb);
 		shost_printk(KERN_INFO, shost,
 			     "sense urb submission failure\n");
 		usb_free_urb(urb);
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
-	usb_anchor_urb(urb, &devinfo->sense_urbs);
 	return 0;
 }
 
@@ -594,14 +597,15 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	}
 
 	if (cmdinfo->state & SUBMIT_DATA_IN_URB) {
+		usb_anchor_urb(cmdinfo->data_in_urb, &devinfo->data_urbs);
 		if (usb_submit_urb(cmdinfo->data_in_urb, gfp)) {
+			usb_unanchor_urb(cmdinfo->data_in_urb);
 			scmd_printk(KERN_INFO, cmnd,
 					"data in urb submission failure\n");
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_IN_URB;
 		cmdinfo->state |= DATA_IN_URB_INFLIGHT;
-		usb_anchor_urb(cmdinfo->data_in_urb, &devinfo->data_urbs);
 	}
 
 	if (cmdinfo->state & ALLOC_DATA_OUT_URB) {
@@ -614,14 +618,15 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	}
 
 	if (cmdinfo->state & SUBMIT_DATA_OUT_URB) {
+		usb_anchor_urb(cmdinfo->data_out_urb, &devinfo->data_urbs);
 		if (usb_submit_urb(cmdinfo->data_out_urb, gfp)) {
+			usb_unanchor_urb(cmdinfo->data_out_urb);
 			scmd_printk(KERN_INFO, cmnd,
 					"data out urb submission failure\n");
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_OUT_URB;
 		cmdinfo->state |= DATA_OUT_URB_INFLIGHT;
-		usb_anchor_urb(cmdinfo->data_out_urb, &devinfo->data_urbs);
 	}
 
 	if (cmdinfo->state & ALLOC_CMD_URB) {
@@ -633,14 +638,13 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	}
 
 	if (cmdinfo->state & SUBMIT_CMD_URB) {
-		usb_get_urb(cmdinfo->cmd_urb);
+		usb_anchor_urb(cmdinfo->cmd_urb, &devinfo->cmd_urbs);
 		if (usb_submit_urb(cmdinfo->cmd_urb, gfp)) {
+			usb_unanchor_urb(cmdinfo->cmd_urb);
 			scmd_printk(KERN_INFO, cmnd,
 					"cmd urb submission failure\n");
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
-		usb_anchor_urb(cmdinfo->cmd_urb, &devinfo->cmd_urbs);
-		usb_put_urb(cmdinfo->cmd_urb);
 		cmdinfo->cmd_urb = NULL;
 		cmdinfo->state &= ~SUBMIT_CMD_URB;
 		cmdinfo->state |= COMMAND_INFLIGHT;
