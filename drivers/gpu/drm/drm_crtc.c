@@ -1557,7 +1557,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	obj = drm_mode_object_find(dev, crtc_resp->crtc_id,
 				   DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
@@ -1641,7 +1641,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	obj = drm_mode_object_find(dev, out_resp->connector_id,
 				   DRM_MODE_OBJECT_CONNECTOR);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	connector = obj_to_connector(obj);
@@ -1757,7 +1757,7 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	obj = drm_mode_object_find(dev, enc_resp->encoder_id,
 				   DRM_MODE_OBJECT_ENCODER);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	encoder = obj_to_encoder(obj);
@@ -2141,7 +2141,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 				   DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", crtc_req->crtc_id);
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
@@ -2232,7 +2232,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			if (!obj) {
 				DRM_DEBUG_KMS("Connector id %d unknown\n",
 						out_id);
-				ret = -EINVAL;
+				ret = -ENOENT;
 				goto out;
 			}
 			connector = obj_to_connector(obj);
@@ -2280,7 +2280,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	obj = drm_mode_object_find(dev, req->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
-		return -EINVAL;
+		return -ENOENT;
 	}
 	crtc = obj_to_crtc(obj);
 
@@ -3059,7 +3059,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	drm_modeset_lock_all(dev);
 	obj = drm_mode_object_find(dev, out_resp->prop_id, DRM_MODE_OBJECT_PROPERTY);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto done;
 	}
 	property = obj_to_property(obj);
@@ -3188,7 +3188,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	drm_modeset_lock_all(dev);
 	obj = drm_mode_object_find(dev, out_resp->blob_id, DRM_MODE_OBJECT_BLOB);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto done;
 	}
 	blob = obj_to_blob(obj);
@@ -3349,7 +3349,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_mode_object_find(dev, arg->obj_id, arg->obj_type);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	if (!obj->properties) {
@@ -3402,8 +3402,10 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	drm_modeset_lock_all(dev);
 
 	arg_obj = drm_mode_object_find(dev, arg->obj_id, arg->obj_type);
-	if (!arg_obj)
+	if (!arg_obj) {
+		ret = -ENOENT;
 		goto out;
+	}
 	if (!arg_obj->properties)
 		goto out;
 
@@ -3416,8 +3418,10 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 
 	prop_obj = drm_mode_object_find(dev, arg->prop_id,
 					DRM_MODE_OBJECT_PROPERTY);
-	if (!prop_obj)
+	if (!prop_obj) {
+		ret = -ENOENT;
 		goto out;
+	}
 	property = obj_to_property(prop_obj);
 
 	if (!drm_property_change_is_valid(property, arg->value))
@@ -3502,7 +3506,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 	drm_modeset_lock_all(dev);
 	obj = drm_mode_object_find(dev, crtc_lut->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
@@ -3561,7 +3565,7 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	drm_modeset_lock_all(dev);
 	obj = drm_mode_object_find(dev, crtc_lut->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
@@ -3615,7 +3619,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 	obj = drm_mode_object_find(dev, page_flip->crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj)
-		return -EINVAL;
+		return -ENOENT;
 	crtc = obj_to_crtc(obj);
 
 	mutex_lock(&crtc->mutex);
