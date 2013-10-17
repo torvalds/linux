@@ -40,9 +40,6 @@ void adf_attachment_free(struct adf_attachment_list *attachment);
 struct adf_event_refcount *adf_obj_find_event_refcount(struct adf_obj *obj,
 		enum adf_event_type type);
 
-void adf_modeinfo_set_name(struct drm_mode_modeinfo *mode);
-void adf_modeinfo_set_vrefresh(struct drm_mode_modeinfo *mode);
-
 static inline int adf_obj_check_supports_event(struct adf_obj *obj,
 		enum adf_event_type type)
 {
