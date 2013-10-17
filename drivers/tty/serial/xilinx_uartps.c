@@ -953,7 +953,7 @@ static void xuartps_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port = &xuartps_port[co->index];
 	unsigned long flags;
-	unsigned int imr;
+	unsigned int imr, ctrl;
 	int locked = 1;
 
 	if (oops_in_progress)
@@ -965,8 +965,18 @@ static void xuartps_console_write(struct console *co, const char *s,
 	imr = xuartps_readl(XUARTPS_IMR_OFFSET);
 	xuartps_writel(imr, XUARTPS_IDR_OFFSET);
 
+	/*
+	 * Make sure that the tx part is enabled. Set the TX enable bit and
+	 * clear the TX disable bit to enable the transmitter.
+	 */
+	ctrl = xuartps_readl(XUARTPS_CR_OFFSET);
+	xuartps_writel((ctrl & ~XUARTPS_CR_TX_DIS) | XUARTPS_CR_TX_EN,
+		XUARTPS_CR_OFFSET);
+
 	uart_console_write(port, s, count, xuartps_console_putchar);
 	xuartps_console_wait_tx(port);
+
+	xuartps_writel(ctrl, XUARTPS_CR_OFFSET);
 
 	/* restore interrupt state, it seems like there may be a h/w bug
 	 * in that the interrupt enable register should not need to be
