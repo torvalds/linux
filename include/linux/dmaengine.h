@@ -51,7 +51,7 @@ static inline int dma_submit_error(dma_cookie_t cookie)
  * @DMA_ERROR: transaction failed
  */
 enum dma_status {
-	DMA_SUCCESS = 0, DMA_COMPLETE = 0,
+	DMA_COMPLETE,
 	DMA_IN_PROGRESS,
 	DMA_PAUSED,
 	DMA_ERROR,
