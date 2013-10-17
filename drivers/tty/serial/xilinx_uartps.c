@@ -949,27 +949,26 @@ static int xuartps_probe(struct platform_device *pdev)
 	struct resource *res, *res2;
 	struct xuartps *xuartps_data;
 
-	xuartps_data = kzalloc(sizeof(*xuartps_data), GFP_KERNEL);
+	xuartps_data = devm_kzalloc(&pdev->dev, sizeof(*xuartps_data),
+			GFP_KERNEL);
 	if (!xuartps_data)
 		return -ENOMEM;
 
 	xuartps_data->aperclk = devm_clk_get(&pdev->dev, "aper_clk");
 	if (IS_ERR(xuartps_data->aperclk)) {
 		dev_err(&pdev->dev, "aper_clk clock not found.\n");
-		rc = PTR_ERR(xuartps_data->aperclk);
-		goto err_out_free;
+		return PTR_ERR(xuartps_data->aperclk);
 	}
 	xuartps_data->refclk = devm_clk_get(&pdev->dev, "ref_clk");
 	if (IS_ERR(xuartps_data->refclk)) {
 		dev_err(&pdev->dev, "ref_clk clock not found.\n");
-		rc = PTR_ERR(xuartps_data->refclk);
-		goto err_out_free;
+		return PTR_ERR(xuartps_data->refclk);
 	}
 
 	rc = clk_prepare_enable(xuartps_data->aperclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable APER clock.\n");
-		goto err_out_free;
+		return rc;
 	}
 	rc = clk_prepare_enable(xuartps_data->refclk);
 	if (rc) {
@@ -1020,8 +1019,6 @@ err_out_clk_disable:
 	clk_disable_unprepare(xuartps_data->refclk);
 err_out_clk_dis_aper:
 	clk_disable_unprepare(xuartps_data->aperclk);
-err_out_free:
-	kfree(xuartps_data);
 
 	return rc;
 }
@@ -1043,7 +1040,6 @@ static int xuartps_remove(struct platform_device *pdev)
 	port->mapbase = 0;
 	clk_disable_unprepare(xuartps_data->refclk);
 	clk_disable_unprepare(xuartps_data->aperclk);
-	kfree(xuartps_data);
 	return rc;
 }
 
