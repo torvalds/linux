@@ -15,8 +15,8 @@
 #ifndef UART_SB105X_H
 #define UART_SB105X_H
 
-/* 
- * option register 
+/*
+ * option register
  */
 
 /* Device Information Register */
