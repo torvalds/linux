@@ -52,7 +52,7 @@ static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
 
 }
 
-static unsigned int ipv6_defrag(unsigned int hooknum,
+static unsigned int ipv6_defrag(const struct nf_hook_ops *ops,
 				struct sk_buff *skb,
 				const struct net_device *in,
 				const struct net_device *out,
@@ -66,7 +66,7 @@ static unsigned int ipv6_defrag(unsigned int hooknum,
 		return NF_ACCEPT;
 #endif
 
-	reasm = nf_ct_frag6_gather(skb, nf_ct6_defrag_user(hooknum, skb));
+	reasm = nf_ct_frag6_gather(skb, nf_ct6_defrag_user(ops->hooknum, skb));
 	/* queued */
 	if (reasm == NULL)
 		return NF_STOLEN;
@@ -75,7 +75,7 @@ static unsigned int ipv6_defrag(unsigned int hooknum,
 	if (reasm == skb)
 		return NF_ACCEPT;
 
-	nf_ct_frag6_output(hooknum, reasm, (struct net_device *)in,
+	nf_ct_frag6_output(ops->hooknum, reasm, (struct net_device *)in,
 			   (struct net_device *)out, okfn);
 
 	return NF_STOLEN;

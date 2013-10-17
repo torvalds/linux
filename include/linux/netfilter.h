@@ -42,7 +42,8 @@ int netfilter_init(void);
 
 struct sk_buff;
 
-typedef unsigned int nf_hookfn(unsigned int hooknum,
+struct nf_hook_ops;
+typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
 			       struct sk_buff *skb,
 			       const struct net_device *in,
 			       const struct net_device *out,
@@ -52,12 +53,13 @@ struct nf_hook_ops {
 	struct list_head list;
 
 	/* User fills in from here down. */
-	nf_hookfn *hook;
-	struct module *owner;
-	u_int8_t pf;
-	unsigned int hooknum;
+	nf_hookfn	*hook;
+	struct module	*owner;
+	void		*priv;
+	u_int8_t	pf;
+	unsigned int	hooknum;
 	/* Hooks are ordered in ascending priority. */
-	int priority;
+	int		priority;
 };
 
 struct nf_sockopt_ops {
