@@ -454,7 +454,7 @@ static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 }
 
 static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
-					struct scsi_cmnd *cmnd, u16 stream_id)
+					struct scsi_cmnd *cmnd)
 {
 	struct usb_device *udev = devinfo->udev;
 	struct scsi_device *sdev = cmnd->device;
@@ -626,8 +626,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	}
 
 	if (cmdinfo->state & ALLOC_CMD_URB) {
-		cmdinfo->cmd_urb = uas_alloc_cmd_urb(devinfo, gfp, cmnd,
-						     cmdinfo->stream);
+		cmdinfo->cmd_urb = uas_alloc_cmd_urb(devinfo, gfp, cmnd);
 		if (!cmdinfo->cmd_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~ALLOC_CMD_URB;
