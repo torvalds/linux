@@ -219,7 +219,8 @@ static void early_mrst_spi_putc(char c)
 }
 
 /* Early SPI only uses polling mode */
-static void early_mrst_spi_write(struct console *con, const char *str, unsigned n)
+static void early_mrst_spi_write(struct console *con, const char *str,
+					unsigned n)
 {
 	int i;
 

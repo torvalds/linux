@@ -131,7 +131,7 @@ struct sfi_timer_table_entry *sfi_get_mtmr(int hint)
 	int i;
 	if (hint < sfi_mtimer_num) {
 		if (!sfi_mtimer_usage[hint]) {
-			pr_debug("hint taken for timer %d irq %d\n",\
+			pr_debug("hint taken for timer %d irq %d\n",
 				hint, sfi_mtimer_array[hint].irq);
 			sfi_mtimer_usage[hint] = 1;
 			return &sfi_mtimer_array[hint];
@@ -679,14 +679,14 @@ static void *msic_thermal_platform_data(void *info)
 /* tc35876x DSI-LVDS bridge chip and panel platform data */
 static void *tc35876x_platform_data(void *data)
 {
-       static struct tc35876x_platform_data pdata;
+	static struct tc35876x_platform_data pdata;
 
-       /* gpio pins set to -1 will not be used by the driver */
-       pdata.gpio_bridge_reset = get_gpio_by_name("LCMB_RXEN");
-       pdata.gpio_panel_bl_en = get_gpio_by_name("6S6P_BL_EN");
-       pdata.gpio_panel_vadd = get_gpio_by_name("EN_VREG_LCD_V3P3");
+	/* gpio pins set to -1 will not be used by the driver */
+	pdata.gpio_bridge_reset = get_gpio_by_name("LCMB_RXEN");
+	pdata.gpio_panel_bl_en = get_gpio_by_name("6S6P_BL_EN");
+	pdata.gpio_panel_vadd = get_gpio_by_name("EN_VREG_LCD_V3P3");
 
-       return &pdata;
+	return &pdata;
 }
 
 static const struct devs_id __initconst device_ids[] = {
@@ -729,7 +729,7 @@ static int i2c_next_dev;
 
 static void __init intel_scu_device_register(struct platform_device *pdev)
 {
-	if(ipc_next_dev == MAX_IPCDEVS)
+	if (ipc_next_dev == MAX_IPCDEVS)
 		pr_err("too many SCU IPC devices");
 	else
 		ipc_devs[ipc_next_dev++] = pdev;
@@ -872,7 +872,8 @@ static void __init sfi_handle_spi_dev(struct spi_board_info *spi_info)
 
 	while (dev->name[0]) {
 		if (dev->type == SFI_DEV_TYPE_SPI &&
-				!strncmp(dev->name, spi_info->modalias, SFI_NAME_LEN)) {
+			!strncmp(dev->name, spi_info->modalias,
+						SFI_NAME_LEN)) {
 			pdata = dev->get_platform_data(spi_info);
 			break;
 		}
@@ -904,7 +905,7 @@ static void __init sfi_handle_i2c_dev(int bus, struct i2c_board_info *i2c_info)
 		intel_scu_i2c_device_register(bus, i2c_info);
 	else
 		i2c_register_board_info(bus, i2c_info, 1);
- }
+}
 
 
 static int __init sfi_parse_devs(struct sfi_table_header *table)
@@ -1034,7 +1035,8 @@ static int __init pb_keys_init(void)
 	num = sizeof(gpio_button) / sizeof(struct gpio_keys_button);
 	for (i = 0; i < num; i++) {
 		gb[i].gpio = get_gpio_by_name(gb[i].desc);
-		pr_debug("info[%2d]: name = %s, gpio = %d\n", i, gb[i].desc, gb[i].gpio);
+		pr_debug("info[%2d]: name = %s, gpio = %d\n", i, gb[i].desc,
+					gb[i].gpio);
 		if (gb[i].gpio == -1)
 			continue;
 
