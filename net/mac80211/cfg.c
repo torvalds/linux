@@ -2865,29 +2865,42 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	if (!ieee80211_sdata_running(sdata))
 		return;
 
-	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP))
-		return;
-
 	sdata->radar_required = sdata->csa_radar_required;
 	err = ieee80211_vif_change_channel(sdata, &local->csa_chandef,
 					   &changed);
 	if (WARN_ON(err < 0))
 		return;
 
-	err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
-	if (err < 0)
-		return;
+	if (!local->use_chanctx) {
+		local->_oper_chandef = local->csa_chandef;
+		ieee80211_hw_config(local, 0);
+	}
 
-	changed |= err;
-	kfree(sdata->u.ap.next_beacon);
-	sdata->u.ap.next_beacon = NULL;
+	ieee80211_bss_info_change_notify(sdata, changed);
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
+		if (err < 0)
+			return;
+		changed |= err;
+		kfree(sdata->u.ap.next_beacon);
+		sdata->u.ap.next_beacon = NULL;
+
+		ieee80211_bss_info_change_notify(sdata, err);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ieee80211_ibss_finish_csa(sdata);
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
 	sdata->vif.csa_active = false;
 
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
-
-	ieee80211_bss_info_change_notify(sdata, changed);
 
 	cfg80211_ch_switch_notify(sdata->dev, &local->csa_chandef);
 }
@@ -2936,30 +2949,62 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->vif.csa_active)
 		return -EBUSY;
 
-	/* only handle AP for now. */
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
+		sdata->csa_counter_offset_beacon =
+			params->counter_offset_beacon;
+		sdata->csa_counter_offset_presp = params->counter_offset_presp;
+		sdata->u.ap.next_beacon =
+			cfg80211_beacon_dup(&params->beacon_after);
+		if (!sdata->u.ap.next_beacon)
+			return -ENOMEM;
+
+		err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
+		if (err < 0) {
+			kfree(sdata->u.ap.next_beacon);
+			return err;
+		}
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		if (!sdata->vif.bss_conf.ibss_joined)
+			return -EINVAL;
+
+		if (params->chandef.width != sdata->u.ibss.chandef.width)
+			return -EINVAL;
+
+		switch (params->chandef.width) {
+		case NL80211_CHAN_WIDTH_40:
+			if (cfg80211_get_chandef_type(&params->chandef) !=
+			    cfg80211_get_chandef_type(&sdata->u.ibss.chandef))
+				return -EINVAL;
+		case NL80211_CHAN_WIDTH_5:
+		case NL80211_CHAN_WIDTH_10:
+		case NL80211_CHAN_WIDTH_20_NOHT:
+		case NL80211_CHAN_WIDTH_20:
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		/* changes into another band are not supported */
+		if (sdata->u.ibss.chandef.chan->band !=
+		    params->chandef.chan->band)
+			return -EINVAL;
+
+		err = ieee80211_ibss_csa_beacon(sdata, params);
+		if (err < 0)
+			return err;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	sdata->u.ap.next_beacon = cfg80211_beacon_dup(&params->beacon_after);
-	if (!sdata->u.ap.next_beacon)
-		return -ENOMEM;
-
-	sdata->csa_counter_offset_beacon = params->counter_offset_beacon;
-	sdata->csa_counter_offset_presp = params->counter_offset_presp;
 	sdata->csa_radar_required = params->radar_required;
 
 	if (params->block_tx)
 		ieee80211_stop_queues_by_reason(&local->hw,
 				IEEE80211_MAX_QUEUE_MAP,
 				IEEE80211_QUEUE_STOP_REASON_CSA);
-
-	err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
-	if (err < 0)
-		return err;
 
 	local->csa_chandef = params->chandef;
 	sdata->vif.csa_active = true;
@@ -3014,7 +3059,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			need_offchan = true;
 		if (!ieee80211_is_action(mgmt->frame_control) ||
 		    mgmt->u.action.category == WLAN_CATEGORY_PUBLIC ||
-		    mgmt->u.action.category == WLAN_CATEGORY_SELF_PROTECTED)
+		    mgmt->u.action.category == WLAN_CATEGORY_SELF_PROTECTED ||
+		    mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT)
 			break;
 		rcu_read_lock();
 		sta = sta_info_get(sdata, mgmt->da);

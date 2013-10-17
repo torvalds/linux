@@ -750,7 +750,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 				intf, &rt2x00debug_fop_queue_stats);
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev))
 		intf->crypto_stats_entry =
 		    debugfs_create_file("crypto", S_IRUGO, intf->queue_folder,
 					intf, &rt2x00debug_fop_crypto_stats);

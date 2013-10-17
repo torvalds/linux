@@ -1048,7 +1048,7 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node = NULL;
 	unsigned long cmd_flags;
 	unsigned long scan_pending_q_flags;
-	uint16_t cancel_scan_cmd = false;
+	bool cancel_scan_cmd = false;
 
 	if ((adapter->curr_cmd) &&
 	    (adapter->curr_cmd->wait_q_enabled)) {

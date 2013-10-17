@@ -19,7 +19,7 @@
 #include "ath9k.h"
 #include "ar9003_mac.h"
 
-#define SKB_CB_ATHBUF(__skb)	(*((struct ath_buf **)__skb->cb))
+#define SKB_CB_ATHBUF(__skb)	(*((struct ath_rxbuf **)__skb->cb))
 
 static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
 {
@@ -35,7 +35,7 @@ static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
  * buffer (or rx fifo). This can incorrectly acknowledge packets
  * to a sender if last desc is self-linked.
  */
-static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
+static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -68,7 +68,7 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	sc->rx.rxlink = &ds->ds_link;
 }
 
-static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_buf *bf)
+static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_rxbuf *bf)
 {
 	if (sc->rx.buf_hold)
 		ath_rx_buf_link(sc, sc->rx.buf_hold);
@@ -112,13 +112,13 @@ static bool ath_rx_edma_buf_link(struct ath_softc *sc,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_rx_edma *rx_edma;
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 
 	rx_edma = &sc->rx.rx_edma[qtype];
 	if (skb_queue_len(&rx_edma->rx_fifo) >= rx_edma->rx_fifo_hwsize)
 		return false;
 
-	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	bf = list_first_entry(&sc->rx.rxbuf, struct ath_rxbuf, list);
 	list_del_init(&bf->list);
 
 	skb = bf->bf_mpdu;
@@ -138,7 +138,7 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 				  enum ath9k_rx_qtype qtype)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_buf *bf, *tbf;
+	struct ath_rxbuf *bf, *tbf;
 
 	if (list_empty(&sc->rx.rxbuf)) {
 		ath_dbg(common, QUEUE, "No free rx buf available\n");
@@ -154,7 +154,7 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 static void ath_rx_remove_buffer(struct ath_softc *sc,
 				 enum ath9k_rx_qtype qtype)
 {
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	struct ath_rx_edma *rx_edma;
 	struct sk_buff *skb;
 
@@ -171,7 +171,7 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 
 	ath_rx_remove_buffer(sc, ATH9K_RX_QUEUE_LP);
 	ath_rx_remove_buffer(sc, ATH9K_RX_QUEUE_HP);
@@ -199,7 +199,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int error = 0, i;
 	u32 size;
 
@@ -211,7 +211,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 	ath_rx_edma_init_queue(&sc->rx.rx_edma[ATH9K_RX_QUEUE_HP],
 			       ah->caps.rx_hp_qdepth);
 
-	size = sizeof(struct ath_buf) * nbufs;
+	size = sizeof(struct ath_rxbuf) * nbufs;
 	bf = devm_kzalloc(sc->dev, size, GFP_KERNEL);
 	if (!bf)
 		return -ENOMEM;
@@ -271,7 +271,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int error = 0;
 
 	spin_lock_init(&sc->sc_pcu_lock);
@@ -332,7 +332,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_rx_edma_cleanup(sc);
@@ -427,7 +427,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 int ath_startrecv(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_buf *bf, *tbf;
+	struct ath_rxbuf *bf, *tbf;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_edma_start_recv(sc);
@@ -447,7 +447,7 @@ int ath_startrecv(struct ath_softc *sc)
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
 
-	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	bf = list_first_entry(&sc->rx.rxbuf, struct ath_rxbuf, list);
 	ath9k_hw_putrxbuf(ah, bf->bf_daddr);
 	ath9k_hw_rxena(ah);
 
@@ -603,13 +603,13 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb, bool mybeacon)
 static bool ath_edma_get_buffers(struct ath_softc *sc,
 				 enum ath9k_rx_qtype qtype,
 				 struct ath_rx_status *rs,
-				 struct ath_buf **dest)
+				 struct ath_rxbuf **dest)
 {
 	struct ath_rx_edma *rx_edma = &sc->rx.rx_edma[qtype];
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int ret;
 
 	skb = skb_peek(&rx_edma->rx_fifo);
@@ -653,11 +653,11 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 	return true;
 }
 
-static struct ath_buf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
+static struct ath_rxbuf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
 						struct ath_rx_status *rs,
 						enum ath9k_rx_qtype qtype)
 {
-	struct ath_buf *bf = NULL;
+	struct ath_rxbuf *bf = NULL;
 
 	while (ath_edma_get_buffers(sc, qtype, rs, &bf)) {
 		if (!bf)
@@ -668,13 +668,13 @@ static struct ath_buf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
 	return NULL;
 }
 
-static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
+static struct ath_rxbuf *ath_get_next_rx_buf(struct ath_softc *sc,
 					   struct ath_rx_status *rs)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_desc *ds;
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	int ret;
 
 	if (list_empty(&sc->rx.rxbuf)) {
@@ -682,7 +682,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 		return NULL;
 	}
 
-	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	bf = list_first_entry(&sc->rx.rxbuf, struct ath_rxbuf, list);
 	if (bf == sc->rx.buf_hold)
 		return NULL;
 
@@ -702,7 +702,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 	ret = ath9k_hw_rxprocdesc(ah, ds, rs);
 	if (ret == -EINPROGRESS) {
 		struct ath_rx_status trs;
-		struct ath_buf *tbf;
+		struct ath_rxbuf *tbf;
 		struct ath_desc *tds;
 
 		memset(&trs, 0, sizeof(trs));
@@ -711,7 +711,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 			return NULL;
 		}
 
-		tbf = list_entry(bf->list.next, struct ath_buf, list);
+		tbf = list_entry(bf->list.next, struct ath_rxbuf, list);
 
 		/*
 		 * On some hardware the descriptor status words could
@@ -1308,7 +1308,7 @@ static void ath9k_apply_ampdu_details(struct ath_softc *sc,
 
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
-	struct ath_buf *bf;
+	struct ath_rxbuf *bf;
 	struct sk_buff *skb = NULL, *requeue_skb, *hdr_skb;
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;

@@ -64,7 +64,6 @@ struct ath_node;
 
 struct ath_config {
 	u16 txpowlimit;
-	u8 cabqReadytime;
 };
 
 /*************************/
@@ -207,6 +206,14 @@ struct ath_frame_info {
 	u8 baw_tracked : 1;
 };
 
+struct ath_rxbuf {
+	struct list_head list;
+	struct sk_buff *bf_mpdu;
+	void *bf_desc;
+	dma_addr_t bf_daddr;
+	dma_addr_t bf_buf_addr;
+};
+
 struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
@@ -307,7 +314,7 @@ struct ath_rx {
 	struct ath_descdma rxdma;
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
-	struct ath_buf *buf_hold;
+	struct ath_rxbuf *buf_hold;
 	struct sk_buff *frag;
 
 	u32 ampdu_ref;
@@ -926,7 +933,6 @@ void ath9k_deinit_device(struct ath_softc *sc);
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath9k_reload_chainmask_settings(struct ath_softc *sc);
 
-bool ath9k_uses_beacons(int type);
 void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw);
 int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
 			       enum spectral_mode spectral_mode);

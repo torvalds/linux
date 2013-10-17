@@ -186,7 +186,6 @@ void ath9k_hw_reset_calibration(struct ath_hw *ah,
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_conf *conf = &common->hw->conf;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
 
 	if (!ah->caldata)
@@ -208,7 +207,7 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 		return true;
 
 	ath_dbg(common, CALIBRATE, "Resetting Cal %d state for channel %u\n",
-		currCal->calData->calType, conf->chandef.chan->center_freq);
+		currCal->calData->calType, ah->curchan->chan->center_freq);
 
 	ah->caldata->CalValid &= ~currCal->calData->calType;
 	currCal->calState = CAL_WAITING;
@@ -242,7 +241,6 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	int32_t val;
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_conf *conf = &common->hw->conf;
 	s16 default_nf = ath9k_hw_get_default_nf(ah, chan);
 
 	if (ah->caldata)
@@ -252,7 +250,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		if (chainmask & (1 << i)) {
 			s16 nfval;
 
-			if ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf))
+			if ((i >= AR5416_MAX_CHAINS) && !IS_CHAN_HT40(chan))
 				continue;
 
 			if (h)
@@ -314,7 +312,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	ENABLE_REGWRITE_BUFFER(ah);
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (chainmask & (1 << i)) {
-			if ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf))
+			if ((i >= AR5416_MAX_CHAINS) && !IS_CHAN_HT40(chan))
 				continue;
 
 			val = REG_READ(ah, ah->nf_regs[i]);
@@ -408,7 +406,6 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 
 	ah->caldata->channel = chan->channel;
 	ah->caldata->channelFlags = chan->channelFlags;
-	ah->caldata->chanmode = chan->chanmode;
 	h = ah->caldata->nfCalHist;
 	default_nf = ath9k_hw_get_default_nf(ah, chan);
 	for (i = 0; i < NUM_NF_READINGS; i++) {

@@ -33,15 +33,12 @@ static bool ar9002_hw_is_cal_supported(struct ath_hw *ah,
 	bool supported = false;
 	switch (ah->supp_cals & cal_type) {
 	case IQ_MISMATCH_CAL:
-		/* Run IQ Mismatch for non-CCK only */
-		if (!IS_CHAN_B(chan))
-			supported = true;
+		supported = true;
 		break;
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
 		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		if (!IS_CHAN_B(chan) &&
-		    !((IS_CHAN_2GHZ(chan) || IS_CHAN_A_FAST_CLOCK(ah, chan)) &&
+		if (!((IS_CHAN_2GHZ(chan) || IS_CHAN_A_FAST_CLOCK(ah, chan)) &&
 		      IS_CHAN_HT20(chan)))
 			supported = true;
 		break;
