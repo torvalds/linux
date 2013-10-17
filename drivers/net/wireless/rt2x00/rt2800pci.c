@@ -237,15 +237,6 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	return retval;
 }
 
-static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
-{
-	if (rt2x00_is_soc(rt2x00dev)) {
-		rt2800_disable_radio(rt2x00dev);
-		rt2x00mmio_register_write(rt2x00dev, PWR_PIN_CFG, 0);
-		rt2x00mmio_register_write(rt2x00dev, TX_PIN_CFG, 0);
-	}
-}
-
 #ifdef CONFIG_PCI
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
@@ -280,7 +271,6 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		 * After the radio has been disabled, the device should
 		 * be put to sleep for powersaving.
 		 */
-		rt2800pci_disable_radio(rt2x00dev);
 		rt2800pci_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_IRQ_ON:
@@ -480,6 +470,13 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
+static void rt2800soc_disable_radio(struct rt2x00_dev *rt2x00dev)
+{
+	rt2800_disable_radio(rt2x00dev);
+	rt2x00mmio_register_write(rt2x00dev, PWR_PIN_CFG, 0);
+	rt2x00mmio_register_write(rt2x00dev, TX_PIN_CFG, 0);
+}
+
 static int rt2800soc_set_device_state(struct rt2x00_dev *rt2x00dev,
 				      enum dev_state state)
 {
@@ -491,7 +488,7 @@ static int rt2800soc_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 
 	case STATE_RADIO_OFF:
-		rt2800pci_disable_radio(rt2x00dev);
+		rt2800soc_disable_radio(rt2x00dev);
 		break;
 
 	case STATE_RADIO_IRQ_ON:
