@@ -144,6 +144,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
+		if (cpu_is_imx6sl()) {
+			val |= BM_CLPCR_BYPASS_PMIC_READY;
+			val |= BM_CLPCR_BYP_MMDC_CH0_LPM_HS;
+		} else {
+			val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -181,7 +187,8 @@ static int imx6q_pm_enter(suspend_state_t state)
 		imx_set_cpu_jump(0, v7_cpu_resume);
 		/* Zzz ... */
 		cpu_suspend(0, imx6q_suspend_finish);
-		imx_smp_prepare();
+		if (cpu_is_imx6q() || cpu_is_imx6dl())
+			imx_smp_prepare();
 		imx_anatop_post_resume();
 		imx_gpc_post_resume();
 		imx6q_enable_rbc(false);

@@ -47,6 +47,9 @@ static void __init imx6sl_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 
 	imx6sl_fec_init();
+	imx_anatop_init();
+	/* Reuse imx6q pm code */
+	imx6q_pm_init();
 }
 
 static void __init imx6sl_init_irq(void)
