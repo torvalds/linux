@@ -1,5 +1,5 @@
 /*
- * mrst.h: Intel Moorestown platform specific setup code
+ * intel-mid.h: Intel MID specific setup code
  *
  * (C) Copyright 2009 Intel Corporation
  *
@@ -8,8 +8,8 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#ifndef _ASM_X86_MRST_H
-#define _ASM_X86_MRST_H
+#ifndef _ASM_X86_INTEL_MID_H
+#define _ASM_X86_INTEL_MID_H
 
 #include <linux/sfi.h>
 
@@ -78,4 +78,4 @@ extern void intel_scu_devices_destroy(void);
 
 extern void mrst_rtc_init(void);
 
-#endif /* _ASM_X86_MRST_H */
+#endif /* _ASM_X86_INTEL_MID_H */

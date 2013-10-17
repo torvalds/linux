@@ -14,7 +14,7 @@
 #include <xen/hvc-console.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 #include <asm/pgtable.h>
 #include <linux/usb/ehci_def.h>
 

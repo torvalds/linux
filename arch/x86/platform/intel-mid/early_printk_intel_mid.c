@@ -1,5 +1,5 @@
 /*
- * early_printk_mrst.c - early consoles for Intel MID platforms
+ * early_printk_intel_mid.c - early consoles for Intel MID platforms
  *
  * Copyright (c) 2008-2010, Intel Corporation
  *
@@ -27,7 +27,7 @@
 
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 
 #define MRST_SPI_TIMEOUT		0x200000
 #define MRST_REGBASE_SPI0		0xff128000

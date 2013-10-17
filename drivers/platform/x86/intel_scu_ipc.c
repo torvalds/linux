@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/sfi.h>
 #include <linux/module.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
 
 /* IPC defines the following message types */

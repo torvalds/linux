@@ -1,5 +1,5 @@
 /*
- * Moorestown PCI support
+ * Intel MID PCI support
  *   Copyright (c) 2008 Intel Corporation
  *     Jesse Barnes <jesse.barnes@intel.com>
  *

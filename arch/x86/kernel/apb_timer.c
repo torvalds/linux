@@ -40,7 +40,7 @@
 
 #include <asm/fixmap.h>
 #include <asm/apb_timer.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 #include <asm/time.h>
 
 #define APBT_CLOCKEVENT_RATING		110

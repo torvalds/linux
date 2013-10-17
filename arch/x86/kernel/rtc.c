@@ -12,7 +12,7 @@
 #include <asm/vsyscall.h>
 #include <asm/x86_init.h>
 #include <asm/time.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 #include <asm/rtc.h>
 
 #ifdef CONFIG_X86_32

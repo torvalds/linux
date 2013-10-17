@@ -1,5 +1,5 @@
 /*
- * vrtc.c: Driver for virtual RTC device on Intel MID platform
+ * intel_mid_vrtc.c: Driver for virtual RTC device on Intel MID platform
  *
  * (C) Copyright 2009 Intel Corporation
  *
@@ -23,8 +23,8 @@
 #include <linux/sfi.h>
 #include <linux/platform_device.h>
 
-#include <asm/mrst.h>
-#include <asm/mrst-vrtc.h>
+#include <asm/intel-mid.h>
+#include <asm/intel_mid_vrtc.h>
 #include <asm/time.h>
 #include <asm/fixmap.h>
 

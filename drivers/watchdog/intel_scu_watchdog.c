@@ -48,7 +48,7 @@
 #include <linux/atomic.h>
 #include <asm/intel_scu_ipc.h>
 #include <asm/apb_timer.h>
-#include <asm/mrst.h>
+#include <asm/intel-mid.h>
 
 #include "intel_scu_watchdog.h"
 

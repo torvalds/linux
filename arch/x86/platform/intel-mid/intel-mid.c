@@ -1,8 +1,9 @@
 /*
- * mrst.c: Intel Moorestown platform specific setup code
+ * intel-mid.c: Intel MID platform setup code
  *
- * (C) Copyright 2008 Intel Corporation
+ * (C) Copyright 2008, 2012 Intel Corporation
  * Author: Jacob Pan (jacob.jun.pan@intel.com)
+ * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,8 +37,8 @@
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>
-#include <asm/mrst.h>
-#include <asm/mrst-vrtc.h>
+#include <asm/intel-mid.h>
+#include <asm/intel_mid_vrtc.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
 #include <asm/intel_scu_ipc.h>
@@ -219,7 +220,7 @@ static unsigned long __init mrst_calibrate_tsc(void)
 	lapic_timer_frequency = fsb * 1000 / HZ;
 	/* mark tsc clocksource as reliable */
 	set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
-	
+
 	if (fast_calibrate)
 		return fast_calibrate;
 
