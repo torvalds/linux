@@ -41,6 +41,11 @@
 static DEFINE_PER_CPU(xen_ulong_t [NR_EVENT_CHANNELS/BITS_PER_EVTCHN_WORD],
 		      cpu_evtchn_mask);
 
+static unsigned evtchn_2l_max_channels(void)
+{
+	return NR_EVENT_CHANNELS;
+}
+
 static void evtchn_2l_bind_to_cpu(struct irq_info *info, unsigned cpu)
 {
 	clear_bit(info->evtchn, BM(per_cpu(cpu_evtchn_mask, info->cpu)));
@@ -238,7 +243,7 @@ static void evtchn_2l_handle_events(unsigned cpu)
 
 			/* Process port. */
 			port = (word_idx * BITS_PER_EVTCHN_WORD) + bit_idx;
-			irq = evtchn_to_irq[port];
+			irq = get_evtchn_to_irq(port);
 
 			if (irq != -1) {
 				desc = irq_to_desc(irq);
@@ -332,7 +337,7 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 			int word_idx = i / BITS_PER_EVTCHN_WORD;
 			printk("  %d: event %d -> irq %d%s%s%s\n",
 			       cpu_from_evtchn(i), i,
-			       evtchn_to_irq[i],
+			       get_evtchn_to_irq(i),
 			       sync_test_bit(word_idx, BM(&v->evtchn_pending_sel))
 			       ? "" : " l2-clear",
 			       !sync_test_bit(i, BM(sh->evtchn_mask))
@@ -348,6 +353,8 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 }
 
 static const struct evtchn_ops evtchn_ops_2l = {
+	.max_channels      = evtchn_2l_max_channels,
+	.nr_channels       = evtchn_2l_max_channels,
 	.bind_to_cpu       = evtchn_2l_bind_to_cpu,
 	.clear_pending     = evtchn_2l_clear_pending,
 	.set_pending       = evtchn_2l_set_pending,

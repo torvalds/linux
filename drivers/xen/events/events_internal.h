@@ -35,7 +35,7 @@ struct irq_info {
 	int refcnt;
 	enum xen_irq_type type;	/* type */
 	unsigned irq;
-	unsigned short evtchn;	/* event channel */
+	unsigned int evtchn;	/* event channel */
 	unsigned short cpu;	/* cpu bound */
 
 	union {
@@ -55,6 +55,9 @@ struct irq_info {
 #define PIRQ_SHAREABLE	(1 << 1)
 
 struct evtchn_ops {
+	unsigned (*max_channels)(void);
+	unsigned (*nr_channels)(void);
+
 	int (*setup)(struct irq_info *info);
 	void (*bind_to_cpu)(struct irq_info *info, unsigned cpu);
 
@@ -70,11 +73,22 @@ struct evtchn_ops {
 
 extern const struct evtchn_ops *evtchn_ops;
 
-extern int *evtchn_to_irq;
+extern int **evtchn_to_irq;
+int get_evtchn_to_irq(unsigned int evtchn);
 
 struct irq_info *info_for_irq(unsigned irq);
 unsigned cpu_from_irq(unsigned irq);
 unsigned cpu_from_evtchn(unsigned int evtchn);
+
+static inline unsigned xen_evtchn_max_channels(void)
+{
+	return evtchn_ops->max_channels();
+}
+
+static inline unsigned xen_evtchn_nr_channels(void)
+{
+	return evtchn_ops->nr_channels();
+}
 
 /*
  * Do any ABI specific setup for a bound event channel before it can
