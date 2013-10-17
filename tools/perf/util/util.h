@@ -305,4 +305,6 @@ struct dso;
 
 char *get_srcline(struct dso *dso, unsigned long addr);
 void free_srcline(char *srcline);
+
+int filename__read_int(const char *filename, int *value);
 #endif /* GIT_COMPAT_UTIL_H */
