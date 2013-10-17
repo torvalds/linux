@@ -531,7 +531,9 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 		if (readent == NULL)
 			continue;
 
-		if ((error = readent(trans->tas_opc, msg, ent)) != 0)
+		error = readent(trans->tas_opc, msg, ent);
+
+		if (error != 0)
 			return error;
 	}
 
