@@ -4728,12 +4728,12 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			if (state == NULL)
 				break;
 			if (nfs4_schedule_stateid_recovery(server, state) < 0)
-				goto stateid_invalid;
+				goto recovery_failed;
 			goto wait_on_recovery;
 		case -NFS4ERR_EXPIRED:
 			if (state != NULL) {
 				if (nfs4_schedule_stateid_recovery(server, state) < 0)
-					goto stateid_invalid;
+					goto recovery_failed;
 			}
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
@@ -4762,7 +4762,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 	}
 	task->tk_status = nfs4_map_errors(task->tk_status);
 	return 0;
-stateid_invalid:
+recovery_failed:
 	task->tk_status = -EIO;
 	return 0;
 wait_on_recovery:
