@@ -63,6 +63,7 @@
 #include "mvm.h"
 #include "sta.h"
 #include "iwl-io.h"
+#include "iwl-prph.h"
 
 struct iwl_dbgfs_mvm_ctx {
 	struct iwl_mvm *mvm;
@@ -804,6 +805,17 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_fw_nmi_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+
+	iwl_write_prph(mvm->trans, DEVICE_SET_NMI_REG, 1);
+
+	return count;
+}
+
 static ssize_t
 iwl_dbgfs_scan_ant_rxchain_read(struct file *file,
 				char __user *user_buf,
@@ -1168,6 +1180,7 @@ MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
+MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain);
 
 #ifdef CONFIG_PM_SLEEP
@@ -1196,6 +1209,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 				     S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
 #ifdef CONFIG_PM_SLEEP
