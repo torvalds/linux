@@ -2298,6 +2298,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 	struct address_space *mapping = mpd->inode->i_mapping;
 	struct pagevec pvec;
 	unsigned int nr_pages;
+	long left = mpd->wbc->nr_to_write;
 	pgoff_t index = mpd->first_page;
 	pgoff_t end = mpd->last_page;
 	int tag;
@@ -2331,6 +2332,17 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			 * because we have a reference on the page.
 			 */
 			if (page->index > end)
+				goto out;
+
+			/*
+			 * Accumulated enough dirty pages? This doesn't apply
+			 * to WB_SYNC_ALL mode. For integrity sync we have to
+			 * keep going because someone may be concurrently
+			 * dirtying pages, and we might have synced a lot of
+			 * newly appeared dirty pages, but have not synced all
+			 * of the old dirty pages.
+			 */
+			if (mpd->wbc->sync_mode == WB_SYNC_NONE && left <= 0)
 				goto out;
 
 			/* If we can't merge this page, we are done. */
@@ -2367,19 +2379,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			if (err <= 0)
 				goto out;
 			err = 0;
-
-			/*
-			 * Accumulated enough dirty pages? This doesn't apply
-			 * to WB_SYNC_ALL mode. For integrity sync we have to
-			 * keep going because someone may be concurrently
-			 * dirtying pages, and we might have synced a lot of
-			 * newly appeared dirty pages, but have not synced all
-			 * of the old dirty pages.
-			 */
-			if (mpd->wbc->sync_mode == WB_SYNC_NONE &&
-			    mpd->next_page - mpd->first_page >=
-							mpd->wbc->nr_to_write)
-				goto out;
+			left--;
 		}
 		pagevec_release(&pvec);
 		cond_resched();
