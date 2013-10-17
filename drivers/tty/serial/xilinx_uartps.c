@@ -775,6 +775,54 @@ static void xuartps_enable_ms(struct uart_port *port)
 	/* N/A */
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int xuartps_poll_get_char(struct uart_port *port)
+{
+	u32 imr;
+	int c;
+
+	/* Disable all interrupts */
+	imr = xuartps_readl(XUARTPS_IMR_OFFSET);
+	xuartps_writel(imr, XUARTPS_IDR_OFFSET);
+
+	/* Check if FIFO is empty */
+	if (xuartps_readl(XUARTPS_SR_OFFSET) & XUARTPS_SR_RXEMPTY)
+		c = NO_POLL_CHAR;
+	else /* Read a character */
+		c = (unsigned char) xuartps_readl(XUARTPS_FIFO_OFFSET);
+
+	/* Enable interrupts */
+	xuartps_writel(imr, XUARTPS_IER_OFFSET);
+
+	return c;
+}
+
+static void xuartps_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	u32 imr;
+
+	/* Disable all interrupts */
+	imr = xuartps_readl(XUARTPS_IMR_OFFSET);
+	xuartps_writel(imr, XUARTPS_IDR_OFFSET);
+
+	/* Wait until FIFO is empty */
+	while (!(xuartps_readl(XUARTPS_SR_OFFSET) & XUARTPS_SR_TXEMPTY))
+		cpu_relax();
+
+	/* Write a character */
+	xuartps_writel(c, XUARTPS_FIFO_OFFSET);
+
+	/* Wait until FIFO is empty */
+	while (!(xuartps_readl(XUARTPS_SR_OFFSET) & XUARTPS_SR_TXEMPTY))
+		cpu_relax();
+
+	/* Enable interrupts */
+	xuartps_writel(imr, XUARTPS_IER_OFFSET);
+
+	return;
+}
+#endif
+
 /** The UART operations structure
  */
 static struct uart_ops xuartps_ops = {
@@ -807,6 +855,10 @@ static struct uart_ops xuartps_ops = {
 	.config_port	= xuartps_config_port,	/* Configure when driver
 						 * adds a xuartps port
 						 */
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= xuartps_poll_get_char,
+	.poll_put_char	= xuartps_poll_put_char,
+#endif
 };
 
 static struct uart_port xuartps_port[2];
