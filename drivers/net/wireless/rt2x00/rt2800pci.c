@@ -630,8 +630,8 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * RX control handlers
  */
-static void rt2800pci_fill_rxdone(struct queue_entry *entry,
-				  struct rxdone_entry_desc *rxdesc)
+static void rt2800mmio_fill_rxdone(struct queue_entry *entry,
+				   struct rxdone_entry_desc *rxdesc)
 {
 	struct queue_entry_priv_mmio *entry_priv = entry->priv_data;
 	__le32 *rxd = entry_priv->desc;
@@ -1119,7 +1119,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.clear_beacon		= rt2800_clear_beacon,
-	.fill_rxdone		= rt2800pci_fill_rxdone,
+	.fill_rxdone		= rt2800mmio_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,
 	.config_filter		= rt2800_config_filter,
