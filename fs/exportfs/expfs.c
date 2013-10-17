@@ -90,6 +90,23 @@ find_disconnected_root(struct dentry *dentry)
 	return dentry;
 }
 
+static bool dentry_connected(struct dentry *dentry)
+{
+	dget(dentry);
+	while (dentry->d_flags & DCACHE_DISCONNECTED) {
+		struct dentry *parent = dget_parent(dentry);
+
+		dput(dentry);
+		if (IS_ROOT(dentry)) {
+			dput(parent);
+			return false;
+		}
+		dentry = parent;
+	}
+	dput(dentry);
+	return true;
+}
+
 static void clear_disconnected(struct dentry *dentry)
 {
 	dget(dentry);
@@ -189,9 +206,9 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 				dput(pd);
 				if (err == -ENOENT)
 					/* some race between get_parent and
-					 * get_name?  just try again
+					 * get_name?
 					 */
-					continue;
+					goto out_reconnected;
 				break;
 			}
 			dprintk("%s: found name: %s\n", __func__, nbuf);
@@ -211,12 +228,12 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 			 * hopefully, npd == pd, though it isn't really
 			 * a problem if it isn't
 			 */
+			dput(npd);
+			dput(ppd);
 			if (npd == pd)
 				noprogress = 0;
 			else
-				printk("%s: npd != pd\n", __func__);
-			dput(npd);
-			dput(ppd);
+				goto out_reconnected;
 			if (IS_ROOT(pd)) {
 				/* something went wrong, we have to give up */
 				dput(pd);
@@ -233,6 +250,24 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 		return err;
 	}
 
+	return 0;
+out_reconnected:
+	/*
+	 * Someone must have renamed our entry into another parent, in
+	 * which case it has been reconnected by the rename.
+	 *
+	 * Or someone removed it entirely, in which case filehandle
+	 * lookup will succeed but the directory is now IS_DEAD and
+	 * subsequent operations on it will fail.
+	 *
+	 * Alternatively, maybe there was no race at all, and the
+	 * filesystem is just corrupt and gave us a parent that doesn't
+	 * actually contain any entry pointing to this inode.  So,
+	 * double check that this worked and return -ESTALE if not:
+	 */
+	if (!dentry_connected(target_dir))
+		return -ESTALE;
+	clear_disconnected(target_dir);
 	return 0;
 }
 
