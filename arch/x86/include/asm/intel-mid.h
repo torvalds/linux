@@ -19,6 +19,21 @@ extern int sfi_mrtc_num;
 extern struct sfi_rtc_table_entry sfi_mrtc_array[];
 
 /*
+ * Here defines the array of devices platform data that IAFW would export
+ * through SFI "DEVS" table, we use name and type to match the device and
+ * its platform data.
+ */
+struct devs_id {
+	char name[SFI_NAME_LEN + 1];
+	u8 type;
+	u8 delay;
+	void *(*get_platform_data)(void *info);
+	/* Custom handler for devices */
+	void (*device_handler)(struct sfi_device_table_entry *pentry,
+				struct devs_id *dev);
+};
+
+/*
  * Medfield is the follow-up of Moorestown, it combines two chip solution into
  * one. Other than that it also added always-on and constant tsc and lapic
  * timers. Medfield is the platform name, and the chip name is called Penwell
