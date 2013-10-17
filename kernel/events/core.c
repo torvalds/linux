@@ -5144,8 +5144,8 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 
 		buf = kmalloc(PATH_MAX, GFP_KERNEL);
 		if (!buf) {
-			name = strncpy(tmp, "//enomem", sizeof(tmp));
-			goto got_name;
+			name = "//enomem";
+			goto cpy_name;
 		}
 		/*
 		 * d_path() works from the end of the rb backwards, so we
@@ -5154,8 +5154,8 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 		 */
 		name = d_path(&file->f_path, buf, PATH_MAX - sizeof(u64));
 		if (IS_ERR(name)) {
-			name = strncpy(tmp, "//toolong", sizeof(tmp));
-			goto got_name;
+			name = "//toolong";
+			goto cpy_name;
 		}
 		inode = file_inode(vma->vm_file);
 		dev = inode->i_sb->s_dev;
@@ -5163,30 +5163,30 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 		gen = inode->i_generation;
 		maj = MAJOR(dev);
 		min = MINOR(dev);
-
+		goto got_name;
 	} else {
 		name = (char *)arch_vma_name(vma);
-		if (name) {
-			name = strncpy(tmp, name, sizeof(tmp) - 1);
-			tmp[sizeof(tmp) - 1] = '\0';
-			goto got_name;
-		}
+		if (name)
+			goto cpy_name;
 
 		if (vma->vm_start <= vma->vm_mm->start_brk &&
 				vma->vm_end >= vma->vm_mm->brk) {
-			name = strncpy(tmp, "[heap]", sizeof(tmp));
-			goto got_name;
+			name = "[heap]";
+			goto cpy_name;
 		}
 		if (vma->vm_start <= vma->vm_mm->start_stack &&
 				vma->vm_end >= vma->vm_mm->start_stack) {
-			name = strncpy(tmp, "[stack]", sizeof(tmp));
-			goto got_name;
+			name = "[stack]";
+			goto cpy_name;
 		}
 
-		name = strncpy(tmp, "//anon", sizeof(tmp));
-		goto got_name;
+		name = "//anon";
+		goto cpy_name;
 	}
 
+cpy_name:
+	strlcpy(tmp, name, sizeof(tmp));
+	name = tmp;
 got_name:
 	/*
 	 * Since our buffer works in 8 byte units we need to align our string
