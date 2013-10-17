@@ -1121,6 +1121,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	return 0;
 
 setup_exit:
+	pm_runtime_put(&sdd->pdev->dev);
 	/* setup() returns with device de-selected */
 	disable_cs(sdd, spi);
 
