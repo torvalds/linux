@@ -15,6 +15,7 @@
 
 extern int intel_mid_pci_init(void);
 extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
+extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
 extern int sfi_mrtc_num;
 extern struct sfi_rtc_table_entry sfi_mrtc_array[];
 
