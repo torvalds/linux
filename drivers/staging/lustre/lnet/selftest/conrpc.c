@@ -573,7 +573,7 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 		crpc->crp_node  = NULL;
 		crpc->crp_trans = NULL;
 		list_del_init(&crpc->crp_link);
-		count ++;
+		count++;
 
 		spin_unlock(&rpc->crpc_lock);
 
@@ -741,7 +741,7 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 	list_for_each_entry(ndl, &grp->grp_ndl_list, ndl_link) {
 		nd = ndl->ndl_node;
 		if (i < start) {
-			i ++;
+			i++;
 			continue;
 		}
 
@@ -1264,7 +1264,7 @@ lstcon_rpc_pinger(void *arg)
 		lstcon_rpc_trans_addreq(trans, crpc);
 		lstcon_rpc_post(crpc);
 
-		count ++;
+		count++;
 	}
 
 	if (console_session.ses_expired) {
