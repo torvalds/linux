@@ -91,26 +91,6 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2x00mmio_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
-static int rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
-{
-	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
-
-	if (!base_addr)
-		return -ENOMEM;
-
-	memcpy_fromio(rt2x00dev->eeprom, base_addr, EEPROM_SIZE);
-
-	iounmap(base_addr);
-	return 0;
-}
-#else
-static inline int rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
-{
-	return -ENOMEM;
-}
-#endif /* CONFIG_SOC_RT288X || CONFIG_SOC_RT305X */
-
 #ifdef CONFIG_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 {
@@ -183,21 +163,6 @@ static int rt2800pci_efuse_detect(struct rt2x00_dev *rt2x00dev)
 static inline int rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2800_read_eeprom_efuse(rt2x00dev);
-}
-#else
-static inline int rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int rt2800pci_efuse_detect(struct rt2x00_dev *rt2x00dev)
-{
-	return 0;
-}
-
-static inline int rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
-{
-	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_PCI */
 
@@ -339,6 +304,7 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 	return retval;
 }
 
+#ifdef CONFIG_PCI
 /*
  * Device probe functions.
  */
@@ -346,9 +312,7 @@ static int rt2800pci_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	if (rt2x00_is_soc(rt2x00dev))
-		retval = rt2800pci_read_eeprom_soc(rt2x00dev);
-	else if (rt2800pci_efuse_detect(rt2x00dev))
+	if (rt2800pci_efuse_detect(rt2x00dev))
 		retval = rt2800pci_read_eeprom_efuse(rt2x00dev);
 	else
 		retval = rt2800pci_read_eeprom_pci(rt2x00dev);
@@ -356,7 +320,6 @@ static int rt2800pci_read_eeprom(struct rt2x00_dev *rt2x00dev)
 	return retval;
 }
 
-#ifdef CONFIG_PCI
 static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -517,6 +480,19 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
+static int rt2800soc_read_eeprom(struct rt2x00_dev *rt2x00dev)
+{
+	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
+
+	if (!base_addr)
+		return -ENOMEM;
+
+	memcpy_fromio(rt2x00dev->eeprom, base_addr, EEPROM_SIZE);
+
+	iounmap(base_addr);
+	return 0;
+}
+
 static const struct ieee80211_ops rt2800soc_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -552,7 +528,7 @@ static const struct rt2800_ops rt2800soc_rt2800_ops = {
 	.register_multiread	= rt2x00mmio_register_multiread,
 	.register_multiwrite	= rt2x00mmio_register_multiwrite,
 	.regbusy_read		= rt2x00mmio_regbusy_read,
-	.read_eeprom		= rt2800pci_read_eeprom,
+	.read_eeprom		= rt2800soc_read_eeprom,
 	.hwcrypt_disabled	= rt2800pci_hwcrypt_disabled,
 	.drv_write_firmware	= rt2800pci_write_firmware,
 	.drv_init_registers	= rt2800mmio_init_registers,
