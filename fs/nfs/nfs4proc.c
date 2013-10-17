@@ -6596,8 +6596,14 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	struct nfs41_exchange_id_args args = {
 		.verifier = &verifier,
 		.client = clp,
+#ifdef CONFIG_NFS_V4_1_MIGRATION
 		.flags = EXCHGID4_FLAG_SUPP_MOVED_REFER |
-			EXCHGID4_FLAG_BIND_PRINC_STATEID,
+			 EXCHGID4_FLAG_BIND_PRINC_STATEID |
+			 EXCHGID4_FLAG_SUPP_MOVED_MIGR,
+#else
+		.flags = EXCHGID4_FLAG_SUPP_MOVED_REFER |
+			 EXCHGID4_FLAG_BIND_PRINC_STATEID,
+#endif
 	};
 	struct nfs41_exchange_id_res res = {
 		0
