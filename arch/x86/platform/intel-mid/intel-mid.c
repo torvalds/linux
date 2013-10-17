@@ -11,7 +11,7 @@
  * of the License.
  */
 
-#define pr_fmt(fmt) "mrst: " fmt
+#define pr_fmt(fmt) "intel_mid: " fmt
 
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -47,7 +47,7 @@
 
 /*
  * the clockevent devices on Moorestown/Medfield can be APBT or LAPIC clock,
- * cmdline option x86_mrst_timer can be used to override the configuration
+ * cmdline option x86_intel_mid_timer can be used to override the configuration
  * to prefer one or the other.
  * at runtime, there are basically three timer configurations:
  * 1. per cpu apbt clock only
@@ -66,12 +66,12 @@
  * lapic (always-on,ARAT) ------ 150
  */
 
-enum mrst_timer_options mrst_timer_options;
+enum intel_mid_timer_options intel_mid_timer_options;
 
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
-enum mrst_cpu_type __mrst_cpu_chip;
-EXPORT_SYMBOL_GPL(__mrst_cpu_chip);
+enum intel_mid_cpu_type __intel_mid_cpu_chip;
+EXPORT_SYMBOL_GPL(__intel_mid_cpu_chip);
 
 int sfi_mtimer_num;
 
@@ -79,11 +79,11 @@ struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
 EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 int sfi_mrtc_num;
 
-static void mrst_power_off(void)
+static void intel_mid_power_off(void)
 {
 }
 
-static void mrst_reboot(void)
+static void intel_mid_reboot(void)
 {
 	intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
 }
@@ -196,7 +196,7 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 	return 0;
 }
 
-static unsigned long __init mrst_calibrate_tsc(void)
+static unsigned long __init intel_mid_calibrate_tsc(void)
 {
 	unsigned long fast_calibrate;
 	u32 lo, hi, ratio, fsb;
@@ -227,13 +227,13 @@ static unsigned long __init mrst_calibrate_tsc(void)
 	return 0;
 }
 
-static void __init mrst_time_init(void)
+static void __init intel_mid_time_init(void)
 {
 	sfi_table_parse(SFI_SIG_MTMR, NULL, NULL, sfi_parse_mtmr);
-	switch (mrst_timer_options) {
-	case MRST_TIMER_APBT_ONLY:
+	switch (intel_mid_timer_options) {
+	case INTEL_MID_TIMER_APBT_ONLY:
 		break;
-	case MRST_TIMER_LAPIC_APBT:
+	case INTEL_MID_TIMER_LAPIC_APBT:
 		x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
 		x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
 		break;
@@ -249,19 +249,19 @@ static void __init mrst_time_init(void)
 	apbt_time_init();
 }
 
-static void mrst_arch_setup(void)
+static void __cpuinit intel_mid_arch_setup(void)
 {
 	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
-		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
+		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_PENWELL;
 	else {
 		pr_err("Unknown Intel MID CPU (%d:%d), default to Penwell\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
-		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
+		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_PENWELL;
 	}
 }
 
 /* MID systems don't have i8042 controller */
-static int mrst_i8042_detect(void)
+static int intel_mid_i8042_detect(void)
 {
 	return 0;
 }
@@ -272,7 +272,7 @@ static int mrst_i8042_detect(void)
  * watchdog or lock debug. Reading io port 0x61 results in 0xff which
  * misled NMI handler.
  */
-static unsigned char mrst_get_nmi_reason(void)
+static unsigned char intel_mid_get_nmi_reason(void)
 {
 	return 0;
 }
@@ -281,33 +281,32 @@ static unsigned char mrst_get_nmi_reason(void)
  * Moorestown specific x86_init function overrides and early setup
  * calls.
  */
-void __init x86_mrst_early_setup(void)
+void __init x86_intel_mid_early_setup(void)
 {
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.resources.reserve_resources = x86_init_noop;
 
-	x86_init.timers.timer_init = mrst_time_init;
+	x86_init.timers.timer_init = intel_mid_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
 
 	x86_init.irqs.pre_vector_init = x86_init_noop;
 
-	x86_init.oem.arch_setup = mrst_arch_setup;
+	x86_init.oem.arch_setup = intel_mid_arch_setup;
 
 	x86_cpuinit.setup_percpu_clockev = apbt_setup_secondary_clock;
 
-	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
-	x86_platform.i8042_detect = mrst_i8042_detect;
-	x86_init.timers.wallclock_init = mrst_rtc_init;
-	x86_platform.get_nmi_reason = mrst_get_nmi_reason;
+	x86_platform.calibrate_tsc = intel_mid_calibrate_tsc;
+	x86_platform.i8042_detect = intel_mid_i8042_detect;
+	x86_init.timers.wallclock_init = intel_mid_rtc_init;
+	x86_platform.get_nmi_reason = intel_mid_get_nmi_reason;
 
-	x86_init.pci.init = pci_mrst_init;
+	x86_init.pci.init = intel_mid_pci_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 
 	legacy_pic = &null_legacy_pic;
 
-	/* Moorestown specific power_off/restart method */
-	pm_power_off = mrst_power_off;
-	machine_ops.emergency_restart  = mrst_reboot;
+	pm_power_off = intel_mid_power_off;
+	machine_ops.emergency_restart  = intel_mid_reboot;
 
 	/* Avoid searching for BIOS MP tables */
 	x86_init.mpparse.find_smp_config = x86_init_noop;
@@ -319,24 +318,24 @@ void __init x86_mrst_early_setup(void)
  * if user does not want to use per CPU apb timer, just give it a lower rating
  * than local apic timer and skip the late per cpu timer init.
  */
-static inline int __init setup_x86_mrst_timer(char *arg)
+static inline int __init setup_x86_intel_mid_timer(char *arg)
 {
 	if (!arg)
 		return -EINVAL;
 
 	if (strcmp("apbt_only", arg) == 0)
-		mrst_timer_options = MRST_TIMER_APBT_ONLY;
+		intel_mid_timer_options = INTEL_MID_TIMER_APBT_ONLY;
 	else if (strcmp("lapic_and_apbt", arg) == 0)
-		mrst_timer_options = MRST_TIMER_LAPIC_APBT;
+		intel_mid_timer_options = INTEL_MID_TIMER_LAPIC_APBT;
 	else {
-		pr_warn("X86 MRST timer option %s not recognised"
-			   " use x86_mrst_timer=apbt_only or lapic_and_apbt\n",
+		pr_warn("X86 INTEL_MID timer option %s not recognised"
+			   " use x86_intel_mid_timer=apbt_only or lapic_and_apbt\n",
 			   arg);
 		return -EINVAL;
 	}
 	return 0;
 }
-__setup("x86_mrst_timer=", setup_x86_mrst_timer);
+__setup("x86_intel_mid_timer=", setup_x86_intel_mid_timer);
 
 /*
  * Parsing GPIO table first, since the DEVS table will need this table
@@ -400,7 +399,7 @@ struct devs_id {
 };
 
 /* the offset for the mapping of global gpio pin to irq */
-#define MRST_IRQ_OFFSET 0x100
+#define INTEL_MID_IRQ_OFFSET 0x100
 
 static void __init *pmic_gpio_platform_data(void *info)
 {
@@ -410,7 +409,7 @@ static void __init *pmic_gpio_platform_data(void *info)
 	if (gpio_base == -1)
 		gpio_base = 64;
 	pmic_gpio_pdata.gpio_base = gpio_base;
-	pmic_gpio_pdata.irq_base = gpio_base + MRST_IRQ_OFFSET;
+	pmic_gpio_pdata.irq_base = gpio_base + INTEL_MID_IRQ_OFFSET;
 	pmic_gpio_pdata.gpiointr = 0xffffeff8;
 
 	return &pmic_gpio_pdata;
@@ -424,7 +423,7 @@ static void __init *max3111_platform_data(void *info)
 	spi_info->mode = SPI_MODE_0;
 	if (intr == -1)
 		return NULL;
-	spi_info->irq = intr + MRST_IRQ_OFFSET;
+	spi_info->irq = intr + INTEL_MID_IRQ_OFFSET;
 	return NULL;
 }
 
@@ -464,8 +463,8 @@ static void __init *max7315_platform_data(void *info)
 		return NULL;
 	max7315->gpio_base = gpio_base;
 	if (intr != -1) {
-		i2c_info->irq = intr + MRST_IRQ_OFFSET;
-		max7315->irq_base = gpio_base + MRST_IRQ_OFFSET;
+		i2c_info->irq = intr + INTEL_MID_IRQ_OFFSET;
+		max7315->irq_base = gpio_base + INTEL_MID_IRQ_OFFSET;
 	} else {
 		i2c_info->irq = -1;
 		max7315->irq_base = -1;
@@ -492,8 +491,8 @@ static void *tca6416_platform_data(void *info)
 		return NULL;
 	tca6416.gpio_base = gpio_base;
 	if (intr != -1) {
-		i2c_info->irq = intr + MRST_IRQ_OFFSET;
-		tca6416.irq_base = gpio_base + MRST_IRQ_OFFSET;
+		i2c_info->irq = intr + INTEL_MID_IRQ_OFFSET;
+		tca6416.irq_base = gpio_base + INTEL_MID_IRQ_OFFSET;
 	} else {
 		i2c_info->irq = -1;
 		tca6416.irq_base = -1;
@@ -509,7 +508,7 @@ static void *mpu3050_platform_data(void *info)
 	if (intr == -1)
 		return NULL;
 
-	i2c_info->irq = intr + MRST_IRQ_OFFSET;
+	i2c_info->irq = intr + INTEL_MID_IRQ_OFFSET;
 	return NULL;
 }
 
@@ -523,8 +522,8 @@ static void __init *emc1403_platform_data(void *info)
 	if (intr == -1 || intr2nd == -1)
 		return NULL;
 
-	i2c_info->irq = intr + MRST_IRQ_OFFSET;
-	intr2nd_pdata = intr2nd + MRST_IRQ_OFFSET;
+	i2c_info->irq = intr + INTEL_MID_IRQ_OFFSET;
+	intr2nd_pdata = intr2nd + INTEL_MID_IRQ_OFFSET;
 
 	return &intr2nd_pdata;
 }
@@ -539,8 +538,8 @@ static void __init *lis331dl_platform_data(void *info)
 	if (intr == -1 || intr2nd == -1)
 		return NULL;
 
-	i2c_info->irq = intr + MRST_IRQ_OFFSET;
-	intr2nd_pdata = intr2nd + MRST_IRQ_OFFSET;
+	i2c_info->irq = intr + INTEL_MID_IRQ_OFFSET;
+	intr2nd_pdata = intr2nd + INTEL_MID_IRQ_OFFSET;
 
 	return &intr2nd_pdata;
 }
@@ -570,9 +569,9 @@ static struct platform_device msic_device = {
 	.resource	= msic_resources,
 };
 
-static inline bool mrst_has_msic(void)
+static inline bool intel_mid_has_msic(void)
 {
-	return mrst_identify_cpu() == MRST_CPU_CHIP_PENWELL;
+	return intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_PENWELL;
 }
 
 static int msic_scu_status_change(struct notifier_block *nb,
@@ -596,7 +595,7 @@ static int __init msic_init(void)
 	 * We need to be sure that the SCU IPC is ready before MSIC device
 	 * can be registered.
 	 */
-	if (mrst_has_msic())
+	if (intel_mid_has_msic())
 		intel_scu_notifier_add(&msic_scu_notifier);
 
 	return 0;
@@ -851,7 +850,7 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *entry)
 	 * On Medfield the platform device creation is handled by the MSIC
 	 * MFD driver so we don't need to do it here.
 	 */
-	if (mrst_has_msic())
+	if (intel_mid_has_msic())
 		return;
 
 	pdev = platform_device_alloc(entry->name, 0);
@@ -984,13 +983,13 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	return 0;
 }
 
-static int __init mrst_platform_init(void)
+static int __init intel_mid_platform_init(void)
 {
 	sfi_table_parse(SFI_SIG_GPIO, NULL, NULL, sfi_parse_gpio);
 	sfi_table_parse(SFI_SIG_DEVS, NULL, NULL, sfi_parse_devs);
 	return 0;
 }
-arch_initcall(mrst_platform_init);
+arch_initcall(intel_mid_platform_init);
 
 /*
  * we will search these buttons in SFI GPIO table (by name)
@@ -1010,7 +1009,7 @@ static struct gpio_keys_button gpio_button[] = {
 	{SW_KEYPAD_SLIDE,	-1, 1, "MagSw2",	EV_SW,  0, 20},
 };
 
-static struct gpio_keys_platform_data mrst_gpio_keys = {
+static struct gpio_keys_platform_data intel_mid_gpio_keys = {
 	.buttons	= gpio_button,
 	.rep		= 1,
 	.nbuttons	= -1, /* will fill it after search */
@@ -1020,7 +1019,7 @@ static struct platform_device pb_device = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.dev		= {
-		.platform_data	= &mrst_gpio_keys,
+		.platform_data	= &intel_mid_gpio_keys,
 	},
 };
 
@@ -1047,7 +1046,7 @@ static int __init pb_keys_init(void)
 	}
 
 	if (good) {
-		mrst_gpio_keys.nbuttons = good;
+		intel_mid_gpio_keys.nbuttons = good;
 		return platform_device_register(&pb_device);
 	}
 	return 0;

@@ -205,7 +205,7 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 			       where, size, value);
 }
 
-static int mrst_pci_irq_enable(struct pci_dev *dev)
+static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
 	u8 pin;
 	struct io_apic_irq_attr irq_attr;
@@ -225,23 +225,23 @@ static int mrst_pci_irq_enable(struct pci_dev *dev)
 	return 0;
 }
 
-struct pci_ops pci_mrst_ops = {
+struct pci_ops intel_mid_pci_ops = {
 	.read = pci_read,
 	.write = pci_write,
 };
 
 /**
- * pci_mrst_init - installs pci_mrst_ops
+ * intel_mid_pci_init - installs intel_mid_pci_ops
  *
  * Moorestown has an interesting PCI implementation (see above).
  * Called when the early platform detection installs it.
  */
-int __init pci_mrst_init(void)
+int __init intel_mid_pci_init(void)
 {
 	pr_info("Intel MID platform detected, using MID PCI ops\n");
 	pci_mmcfg_late_init();
-	pcibios_enable_irq = mrst_pci_irq_enable;
-	pci_root_ops = pci_mrst_ops;
+	pcibios_enable_irq = intel_mid_pci_irq_enable;
+	pci_root_ops = intel_mid_pci_ops;
 	pci_soc_mode = 1;
 	/* Continue with standard init */
 	return 1;

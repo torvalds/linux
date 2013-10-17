@@ -189,7 +189,7 @@ static __init int add_rtc_cmos(void)
 		return 0;
 
 	/* Intel MID platforms don't have ioport rtc */
-	if (mrst_identify_cpu())
+	if (intel_mid_identify_cpu())
 		return -ENODEV;
 
 	platform_device_register(&rtc_device);

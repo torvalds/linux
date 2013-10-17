@@ -3471,11 +3471,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			default x2apic cluster mode on platforms
 			supporting x2apic.
 
-	x86_mrst_timer= [X86-32,APBT]
-			Choose timer option for x86 Moorestown MID platform.
+	x86_intel_mid_timer= [X86-32,APBT]
+			Choose timer option for x86 Intel MID platform.
 			Two valid options are apbt timer only and lapic timer
 			plus one apbt timer for broadcast timer.
-			x86_mrst_timer=apbt_only | lapic_and_apbt
+			x86_intel_mid_timer=apbt_only | lapic_and_apbt
 
 	xen_emul_unplug=		[HW,X86,XEN]
 			Unplug Xen emulated devices

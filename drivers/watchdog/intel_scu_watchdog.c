@@ -445,7 +445,7 @@ static int __init intel_scu_watchdog_init(void)
 	 *
 	 * If it isn't an intel MID device then it doesn't have this watchdog
 	 */
-	if (!mrst_identify_cpu())
+	if (!intel_mid_identify_cpu())
 		return -ENODEV;
 
 	/* Check boot parameters to verify that their initial values */

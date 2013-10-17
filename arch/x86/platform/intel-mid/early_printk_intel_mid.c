@@ -152,7 +152,7 @@ void mrst_early_console_init(void)
 	spi0_cdiv = ((*pclk_spi0) & 0xe00) >> 9;
 	freq = 100000000 / (spi0_cdiv + 1);
 
-	if (mrst_identify_cpu() == MRST_CPU_CHIP_PENWELL)
+	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_PENWELL)
 		mrst_spi_paddr = MRST_REGBASE_SPI1;
 
 	pspi = (void *)set_fixmap_offset_nocache(FIX_EARLYCON_MEM_BASE,
