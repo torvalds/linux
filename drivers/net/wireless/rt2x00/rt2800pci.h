@@ -53,44 +53,7 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			(4 * sizeof(__le32))
 #define RXD_DESC_SIZE			(4 * sizeof(__le32))
-
-/*
- * TX descriptor format for TX, PRIO and Beacon Ring.
- */
-
-/*
- * Word0
- */
-#define TXD_W0_SD_PTR0			FIELD32(0xffffffff)
-
-/*
- * Word1
- */
-#define TXD_W1_SD_LEN1			FIELD32(0x00003fff)
-#define TXD_W1_LAST_SEC1		FIELD32(0x00004000)
-#define TXD_W1_BURST			FIELD32(0x00008000)
-#define TXD_W1_SD_LEN0			FIELD32(0x3fff0000)
-#define TXD_W1_LAST_SEC0		FIELD32(0x40000000)
-#define TXD_W1_DMA_DONE			FIELD32(0x80000000)
-
-/*
- * Word2
- */
-#define TXD_W2_SD_PTR1			FIELD32(0xffffffff)
-
-/*
- * Word3
- * WIV: Wireless Info Valid. 1: Driver filled WI, 0: DMA needs to copy WI
- * QSEL: Select on-chip FIFO ID for 2nd-stage output scheduler.
- *       0:MGMT, 1:HCCA 2:EDCA
- */
-#define TXD_W3_WIV			FIELD32(0x01000000)
-#define TXD_W3_QSEL			FIELD32(0x06000000)
-#define TXD_W3_TCO			FIELD32(0x20000000)
-#define TXD_W3_UCO			FIELD32(0x40000000)
-#define TXD_W3_ICO			FIELD32(0x80000000)
 
 /*
  * RX descriptor format for RX Ring.
