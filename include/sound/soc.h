@@ -644,9 +644,11 @@ struct snd_soc_component_driver {
 struct snd_soc_component {
 	const char *name;
 	int id;
-	int num_dai;
 	struct device *dev;
 	struct list_head list;
+
+	struct snd_soc_dai_driver *dai_drv;
+	int num_dai;
 
 	const struct snd_soc_component_driver *driver;
 };

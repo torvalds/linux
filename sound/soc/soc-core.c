@@ -4023,6 +4023,7 @@ __snd_soc_register_component(struct device *dev,
 
 	cmpnt->dev	= dev;
 	cmpnt->driver	= cmpnt_drv;
+	cmpnt->dai_drv	= dai_drv;
 	cmpnt->num_dai	= num_dai;
 
 	/*
@@ -4548,12 +4549,31 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 		if (pos->dev->of_node != args.np)
 			continue;
 
-		if (!pos->driver->of_xlate_dai_name) {
-			ret = -ENOSYS;
-			break;
+		if (pos->driver->of_xlate_dai_name) {
+			ret = pos->driver->of_xlate_dai_name(pos, &args, dai_name);
+		} else {
+			int id = -1;
+
+			switch (args.args_count) {
+			case 0:
+				id = 0; /* same as dai_drv[0] */
+				break;
+			case 1:
+				id = args.args[0];
+				break;
+			default:
+				/* not supported */
+				break;
+			}
+
+			if (id < 0 || id >= pos->num_dai) {
+				ret = -EINVAL;
+			} else {
+				*dai_name = pos->dai_drv[id].name;
+				ret = 0;
+			}
 		}
 
-		ret = pos->driver->of_xlate_dai_name(pos, &args, dai_name);
 		break;
 	}
 	mutex_unlock(&client_mutex);
