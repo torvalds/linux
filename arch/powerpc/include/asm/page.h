@@ -403,7 +403,7 @@ void arch_free_page(struct page *page, int order);
 
 struct vm_area_struct;
 
-#ifdef CONFIG_PPC_64K_PAGES
+#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC64)
 typedef pte_t *pgtable_t;
 #else
 typedef struct page *pgtable_t;
