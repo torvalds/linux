@@ -232,7 +232,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 	hw = to_me_hw(dev);
 
 
-	dev_err(&pdev->dev, "stop\n");
+	dev_dbg(&pdev->dev, "stop\n");
 	mei_stop(dev);
 
 	/* disable interrupts */
@@ -262,7 +262,7 @@ static int mei_me_pci_suspend(struct device *device)
 	if (!dev)
 		return -ENODEV;
 
-	dev_err(&pdev->dev, "suspend\n");
+	dev_dbg(&pdev->dev, "suspend\n");
 
 	mei_stop(dev);
 
