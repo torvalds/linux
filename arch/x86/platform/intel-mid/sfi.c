@@ -42,7 +42,6 @@
 #include <asm/intel_scu_ipc.h>
 #include <asm/apb_timer.h>
 #include <asm/reboot.h>
-#include "intel_mid_weak_decls.h"
 
 #define	SFI_SIG_OEM0	"OEM0"
 #define MAX_IPCDEVS	24
@@ -403,19 +402,20 @@ static void __init sfi_handle_i2c_dev(struct sfi_device_table_entry *pentry,
 		i2c_register_board_info(pentry->host_num, &i2c_info, 1);
 }
 
+extern struct devs_id *const __x86_intel_mid_dev_start[],
+		      *const __x86_intel_mid_dev_end[];
+
 static struct devs_id __init *get_device_id(u8 type, char *name)
 {
-	struct devs_id *dev = device_ids;
+	struct devs_id *const *dev_table;
 
-	if (device_ids == NULL)
-		return NULL;
-
-	while (dev->name[0]) {
+	for (dev_table = __x86_intel_mid_dev_start;
+			dev_table < __x86_intel_mid_dev_end; dev_table++) {
+		struct devs_id *dev = *dev_table;
 		if (dev->type == type &&
 			!strncmp(dev->name, name, SFI_NAME_LEN)) {
 			return dev;
 		}
-		dev++;
 	}
 
 	return NULL;

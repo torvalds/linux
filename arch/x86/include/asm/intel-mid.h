@@ -12,8 +12,11 @@
 #define _ASM_X86_INTEL_MID_H
 
 #include <linux/sfi.h>
+#include <linux/platform_device.h>
 
 extern int intel_mid_pci_init(void);
+extern int get_gpio_by_name(const char *name);
+extern void intel_scu_device_register(struct platform_device *pdev);
 extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
 extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
 extern int sfi_mrtc_num;
@@ -33,6 +36,10 @@ struct devs_id {
 	void (*device_handler)(struct sfi_device_table_entry *pentry,
 				struct devs_id *dev);
 };
+
+#define sfi_device(i)   \
+	static const struct devs_id *const __intel_mid_sfi_##i##_dev __used \
+	__attribute__((__section__(".x86_intel_mid_dev.init"))) = &i
 
 /*
  * Medfield is the follow-up of Moorestown, it combines two chip solution into
@@ -55,9 +62,15 @@ static inline enum intel_mid_cpu_type intel_mid_identify_cpu(void)
 	return __intel_mid_cpu_chip;
 }
 
+static inline bool intel_mid_has_msic(void)
+{
+	return (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_PENWELL);
+}
+
 #else /* !CONFIG_X86_INTEL_MID */
 
 #define intel_mid_identify_cpu()    (0)
+#define intel_mid_has_msic()    (0)
 
 #endif /* !CONFIG_X86_INTEL_MID */
 
@@ -93,5 +106,8 @@ extern void intel_scu_devices_destroy(void);
 /*#define MRST_VRTC_PGOFFSET	(0xc00) */
 
 extern void intel_mid_rtc_init(void);
+
+/* the offset for the mapping of global gpio pin to irq */
+#define INTEL_MID_IRQ_OFFSET 0x100
 
 #endif /* _ASM_X86_INTEL_MID_H */
