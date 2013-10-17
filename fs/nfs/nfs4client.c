@@ -925,7 +925,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 	dprintk("Server FSID: %llx:%llx\n",
 			(unsigned long long) server->fsid.major,
 			(unsigned long long) server->fsid.minor);
-	dprintk("Mount FH: %d\n", mntfh->size);
+	nfs_display_fhandle(mntfh, "Pseudo-fs root FH");
 
 	nfs4_session_set_rwsize(server);
 
