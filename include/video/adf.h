@@ -478,4 +478,7 @@ int adf_hotplug_notify_connected(struct adf_interface *intf,
 		struct drm_mode_modeinfo *modelist, size_t n_modes);
 void adf_hotplug_notify_disconnected(struct adf_interface *intf);
 
+void adf_modeinfo_set_name(struct drm_mode_modeinfo *mode);
+void adf_modeinfo_set_vrefresh(struct drm_mode_modeinfo *mode);
+
 #endif /* _VIDEO_ADF_H */
