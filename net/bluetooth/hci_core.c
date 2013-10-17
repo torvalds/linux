@@ -118,6 +118,29 @@ static int auto_accept_delay_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
 			auto_accept_delay_set, "%llu\n");
 
+static int static_address_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+
+	hci_dev_lock(hdev);
+	seq_printf(f, "%pMR\n", &hdev->static_addr);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int static_address_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, static_address_show, inode->i_private);
+}
+
+static const struct file_operations static_address_fops = {
+	.open		= static_address_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result)
@@ -815,6 +838,10 @@ static int __hci_init(struct hci_dev *hdev)
 	if (lmp_ssp_capable(hdev))
 		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
 				    hdev, &auto_accept_delay_fops);
+
+	if (lmp_le_capable(hdev))
+		debugfs_create_file("static_address", 0444, hdev->debugfs,
+				   hdev, &static_address_fops);
 
 	return 0;
 }
