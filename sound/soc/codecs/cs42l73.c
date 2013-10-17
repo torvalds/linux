@@ -1047,11 +1047,11 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		mmcc |= MS_MASTER;
+		mmcc |= CS42L73_MS_MASTER;
 		break;
 
 	case SND_SOC_DAIFMT_CBS_CFS:
-		mmcc &= ~MS_MASTER;
+		mmcc &= ~CS42L73_MS_MASTER;
 		break;
 
 	default:
@@ -1063,11 +1063,11 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	switch (format) {
 	case SND_SOC_DAIFMT_I2S:
-		spc &= ~SPDIF_PCM;
+		spc &= ~CS42L73_SPDIF_PCM;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		if (mmcc & MS_MASTER) {
+		if (mmcc & CS42L73_MS_MASTER) {
 			dev_err(codec->dev,
 				"PCM format in slave mode only\n");
 			return -EINVAL;
@@ -1077,25 +1077,25 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 				"PCM format is not supported on ASP port\n");
 			return -EINVAL;
 		}
-		spc |= SPDIF_PCM;
+		spc |= CS42L73_SPDIF_PCM;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (spc & SPDIF_PCM) {
+	if (spc & CS42L73_SPDIF_PCM) {
 		/* Clear PCM mode, clear PCM_BIT_ORDER bit for MSB->LSB */
-		spc &= ~(PCM_MODE_MASK | PCM_BIT_ORDER);
+		spc &= ~(CS42L73_PCM_MODE_MASK | CS42L73_PCM_BIT_ORDER);
 		switch (format) {
 		case SND_SOC_DAIFMT_DSP_B:
 			if (inv == SND_SOC_DAIFMT_IB_IF)
-				spc |= PCM_MODE0;
+				spc |= CS42L73_PCM_MODE0;
 			if (inv == SND_SOC_DAIFMT_IB_NF)
-				spc |= PCM_MODE1;
+				spc |= CS42L73_PCM_MODE1;
 		break;
 		case SND_SOC_DAIFMT_DSP_A:
 			if (inv == SND_SOC_DAIFMT_IB_IF)
-				spc |= PCM_MODE1;
+				spc |= CS42L73_PCM_MODE1;
 			break;
 		default:
 			return -EINVAL;
@@ -1155,7 +1155,7 @@ static int cs42l73_pcm_hw_params(struct snd_pcm_substream *substream,
 	int mclk_coeff;
 	int srate = params_rate(params);
 
-	if (priv->config[id].mmcc & MS_MASTER) {
+	if (priv->config[id].mmcc & CS42L73_MS_MASTER) {
 		/* CS42L73 Master */
 		/* MCLK -> srate */
 		mclk_coeff =
@@ -1174,13 +1174,13 @@ static int cs42l73_pcm_hw_params(struct snd_pcm_substream *substream,
 		priv->config[id].spc &= 0xFC;
 		/* Use SCLK=64*Fs if internal MCLK >= 6.4MHz */
 		if (priv->mclk >= 6400000)
-			priv->config[id].spc |= MCK_SCLK_64FS;
+			priv->config[id].spc |= CS42L73_MCK_SCLK_64FS;
 		else
-			priv->config[id].spc |= MCK_SCLK_MCLK;
+			priv->config[id].spc |= CS42L73_MCK_SCLK_MCLK;
 	} else {
 		/* CS42L73 Slave */
 		priv->config[id].spc &= 0xFC;
-		priv->config[id].spc |= MCK_SCLK_64FS;
+		priv->config[id].spc |= CS42L73_MCK_SCLK_64FS;
 	}
 	/* Update ASRCs */
 	priv->config[id].srate = srate;
@@ -1200,8 +1200,8 @@ static int cs42l73_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		snd_soc_update_bits(codec, CS42L73_DMMCC, MCLKDIS, 0);
-		snd_soc_update_bits(codec, CS42L73_PWRCTL1, PDN, 0);
+		snd_soc_update_bits(codec, CS42L73_DMMCC, CS42L73_MCLKDIS, 0);
+		snd_soc_update_bits(codec, CS42L73_PWRCTL1, CS42L73_PDN, 0);
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -1212,11 +1212,11 @@ static int cs42l73_set_bias_level(struct snd_soc_codec *codec,
 			regcache_cache_only(cs42l73->regmap, false);
 			regcache_sync(cs42l73->regmap);
 		}
-		snd_soc_update_bits(codec, CS42L73_PWRCTL1, PDN, 1);
+		snd_soc_update_bits(codec, CS42L73_PWRCTL1, CS42L73_PDN, 1);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, CS42L73_PWRCTL1, PDN, 1);
+		snd_soc_update_bits(codec, CS42L73_PWRCTL1, CS42L73_PDN, 1);
 		if (cs42l73->shutdwn_delay > 0) {
 			mdelay(cs42l73->shutdwn_delay);
 			cs42l73->shutdwn_delay = 0;
@@ -1225,7 +1225,7 @@ static int cs42l73_set_bias_level(struct snd_soc_codec *codec,
 				     * down.
 				     */
 		}
-		snd_soc_update_bits(codec, CS42L73_DMMCC, MCLKDIS, 1);
+		snd_soc_update_bits(codec, CS42L73_DMMCC, CS42L73_MCLKDIS, 1);
 		break;
 	}
 	codec->dapm.bias_level = level;
