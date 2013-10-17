@@ -1,0 +1,51 @@
+* Renesas CPG Module Stop (MSTP) Clocks
+
+The CPG can gate SoC device clocks. The gates are organized in groups of up to
+32 gates.
+
+This device tree binding describes a single 32 gate clocks group per node.
+Clocks are referenced by user nodes by the MSTP node phandle and the clock
+index in the group, from 0 to 31.
+
+Required Properties:
+
+  - compatible: Must be one of the following
+    - "renesas,r8a7790-mstp-clocks" for R8A7790 (R-Car H2) MSTP gate clocks
+    - "renesas,r8a7791-mstp-clocks" for R8A7791 (R-Car M2) MSTP gate clocks
+    - "renesas,cpg-mstp-clock" for generic MSTP gate clocks
+  - reg: Base address and length of the I/O mapped registers used by the MSTP
+    clocks. The first register is the clock control register and is mandatory.
+    The second register is the clock status register and is optional when not
+    implemented in hardware.
+  - clocks: Reference to the parent clocks, one per output clock. The parents
+    must appear in the same order as the output clocks.
+  - #clock-cells: Must be 1
+  - clock-output-names: The name of the clocks as free-form strings
+  - renesas,indices: Indices of the gate clocks into the group (0 to 31)
+
+The clocks, clock-output-names and renesas,indices properties contain one
+entry per gate clock. The MSTP groups are sparsely populated. Unimplemented
+gate clocks must not be declared.
+
+
+Example
+-------
+
+	#include <dt-bindings/clock/r8a7790-clock.h>
+
+	mstp3_clks: mstp3_clks@e615013c {
+		compatible = "renesas,r8a7790-mstp-clocks", "renesas,cpg-mstp-clocks";
+		reg = <0 0xe615013c 0 4>, <0 0xe6150048 0 4>;
+		clocks = <&cp_clk>, <&mmc1_clk>, <&sd3_clk>, <&sd2_clk>,
+			 <&cpg_clocks R8A7790_CLK_SD1>, <&cpg_clocks R8A7790_CLK_SD0>,
+			 <&mmc0_clk>;
+		#clock-cells = <1>;
+		clock-output-names =
+			"tpu0", "mmcif1", "sdhi3", "sdhi2",
+			 "sdhi1", "sdhi0", "mmcif0";
+		renesas,clock-indices = <
+			R8A7790_CLK_TPU0 R8A7790_CLK_MMCIF1 R8A7790_CLK_SDHI3
+			R8A7790_CLK_SDHI2 R8A7790_CLK_SDHI1 R8A7790_CLK_SDHI0
+			R8A7790_CLK_MMCIF0
+		>;
+	};
