@@ -407,6 +407,8 @@ int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 	ieee80211_scan_completed(mvm->hw, notif->status != SCAN_COMP_STATUS_OK);
 
+	iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+
 	return 0;
 }
 
@@ -475,6 +477,7 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
 		ieee80211_scan_completed(mvm->hw, true);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		return;
 	}

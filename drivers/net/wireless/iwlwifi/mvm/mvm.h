@@ -241,6 +241,7 @@ enum iwl_mvm_smps_type_request {
 
 enum iwl_mvm_ref_type {
 	IWL_MVM_REF_UCODE_DOWN,
+	IWL_MVM_REF_SCAN,
 
 	IWL_MVM_REF_COUNT,
 };

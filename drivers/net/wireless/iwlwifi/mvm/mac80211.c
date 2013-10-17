@@ -1442,11 +1442,17 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
-		ret = iwl_mvm_scan_request(mvm, vif, req);
-	else
+	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
 		ret = -EBUSY;
+		goto out;
+	}
 
+	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
+
+	ret = iwl_mvm_scan_request(mvm, vif, req);
+	if (ret)
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+out:
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
