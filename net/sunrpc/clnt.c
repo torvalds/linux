@@ -272,12 +272,13 @@ static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
 	memcpy(clnt->cl_nodename, nodename, clnt->cl_nodelen);
 }
 
-static int rpc_client_register(const struct rpc_create_args *args,
-			       struct rpc_clnt *clnt)
+static int rpc_client_register(struct rpc_clnt *clnt,
+			       rpc_authflavor_t pseudoflavor,
+			       const char *client_name)
 {
 	struct rpc_auth_create_args auth_args = {
-		.pseudoflavor = args->authflavor,
-		.target_name = args->client_name,
+		.pseudoflavor = pseudoflavor,
+		.target_name = client_name,
 	};
 	struct rpc_auth *auth;
 	struct net *net = rpc_net_ns(clnt);
@@ -298,7 +299,7 @@ static int rpc_client_register(const struct rpc_create_args *args,
 	auth = rpcauth_create(&auth_args, clnt);
 	if (IS_ERR(auth)) {
 		dprintk("RPC:       Couldn't create auth handle (flavor %u)\n",
-				args->authflavor);
+				pseudoflavor);
 		err = PTR_ERR(auth);
 		goto err_auth;
 	}
@@ -398,7 +399,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	/* save the nodename */
 	rpc_clnt_set_nodename(clnt, utsname()->nodename);
 
-	err = rpc_client_register(args, clnt);
+	err = rpc_client_register(clnt, args->authflavor, args->client_name);
 	if (err)
 		goto out_no_path;
 	if (parent)
