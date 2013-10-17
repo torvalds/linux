@@ -8,3 +8,4 @@ obj-y += clk-system.o clk-peripheral.o
 
 obj-$(CONFIG_AT91_PROGRAMMABLE_CLOCKS)	+= clk-programmable.o
 obj-$(CONFIG_HAVE_AT91_UTMI)		+= clk-utmi.o
+obj-$(CONFIG_HAVE_AT91_USB_CLK)		+= clk-usb.o

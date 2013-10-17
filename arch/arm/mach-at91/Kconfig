@@ -3,6 +3,9 @@ if ARCH_AT91
 config HAVE_AT91_UTMI
 	bool
 
+config HAVE_AT91_USB_CLK
+	bool
+
 config HAVE_AT91_DBGU0
 	bool
 
@@ -82,6 +85,7 @@ config SOC_SAMA5D3
 	select HAVE_AT91_DBGU1
 	select AT91_USE_OLD_CLK
 	select HAVE_AT91_UTMI
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
 	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35.
@@ -96,12 +100,14 @@ config SOC_AT91RM9200
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 
 config SOC_AT91SAM9260
 	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
 	select HAVE_AT91_DBGU0
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
 	  or AT91SAM9G20 SoC.
@@ -112,6 +118,7 @@ config SOC_AT91SAM9261
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9261 or AT91SAM9G10 SoC.
 
@@ -121,6 +128,7 @@ config SOC_AT91SAM9263
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 
 config SOC_AT91SAM9RL
 	bool "AT91SAM9RL"
@@ -137,6 +145,7 @@ config SOC_AT91SAM9G45
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
 	select HAVE_AT91_UTMI
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
 	  This support covers AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
@@ -148,6 +157,7 @@ config SOC_AT91SAM9X5
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
 	select HAVE_AT91_UTMI
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
 	  This means that your SAM9 name finishes with a '5' (except if it is
@@ -161,6 +171,7 @@ config SOC_AT91SAM9N12
 	select HAVE_FB_ATMEL
 	select SOC_AT91SAM9
 	select AT91_USE_OLD_CLK
+	select HAVE_AT91_USB_CLK
 	help
 	  Select this if you are using Atmel's AT91SAM9N12 SoC.
 

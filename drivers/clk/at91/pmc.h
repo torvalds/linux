@@ -99,4 +99,13 @@ extern void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np,
 						struct at91_pmc *pmc);
 #endif
 
+#if defined(CONFIG_HAVE_AT91_USB_CLK)
+extern void __init of_at91rm9200_clk_usb_setup(struct device_node *np,
+					       struct at91_pmc *pmc);
+extern void __init of_at91sam9x5_clk_usb_setup(struct device_node *np,
+					       struct at91_pmc *pmc);
+extern void __init of_at91sam9n12_clk_usb_setup(struct device_node *np,
+						struct at91_pmc *pmc);
+#endif
+
 #endif /* __PMC_H_ */

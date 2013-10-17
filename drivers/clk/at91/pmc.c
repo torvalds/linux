@@ -300,6 +300,21 @@ static const struct of_device_id pmc_clk_ids[] __initdata = {
 		.data = of_at91sam9x5_clk_utmi_setup,
 	},
 #endif
+	/* USB clock */
+#if defined(CONFIG_HAVE_AT91_USB_CLK)
+	{
+		.compatible = "atmel,at91rm9200-clk-usb",
+		.data = of_at91rm9200_clk_usb_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-clk-usb",
+		.data = of_at91sam9x5_clk_usb_setup,
+	},
+	{
+		.compatible = "atmel,at91sam9n12-clk-usb",
+		.data = of_at91sam9n12_clk_usb_setup,
+	},
+#endif
 	{ /*sentinel*/ }
 };
 
