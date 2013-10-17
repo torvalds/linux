@@ -455,8 +455,7 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 		      lstcon_session_feats_check(trans->tas_features);
 	}
 
-	CDEBUG(D_NET, "transaction %s : success %d, failure %d, total %d, "
-		      "RPC error(%d), Framework error(%d)\n",
+	CDEBUG(D_NET, "transaction %s : success %d, failure %d, total %d, RPC error(%d), Framework error(%d)\n",
 	       lstcon_rpc_trans_name(trans->tas_opc),
 	       lstcon_rpc_stat_success(stat, 0),
 	       lstcon_rpc_stat_failure(stat, 0),
@@ -942,8 +941,7 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 	}
 
 	if (reply->msg_ses_feats != trans->tas_features) {
-		CNETERR("Framework features %x from %s is different with "
-			"features on this transaction: %x\n",
+		CNETERR("Framework features %x from %s is different with features on this transaction: %x\n",
 			 reply->msg_ses_feats, libcfs_nid2str(nd->nd_id.nid),
 			 trans->tas_features);
 		status = mksn_rep->mksn_status = EPROTO;
@@ -1107,8 +1105,8 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			continue;
 
 		if (rc < 0) {
-			CDEBUG(D_NET, "Condition error while creating RPC "
-				      " for transaction %d: %d\n", transop, rc);
+			CDEBUG(D_NET, "Condition error while creating RPC for transaction %d: %d\n",
+					transop, rc);
 			break;
 		}
 
@@ -1345,8 +1343,7 @@ lstcon_rpc_cleanup_wait(void)
 
 		mutex_unlock(&console_session.ses_mutex);
 
-		CWARN("Session is shutting down, "
-		      "waiting for termination of transactions\n");
+		CWARN("Session is shutting down, waiting for termination of transactions\n");
 		cfs_pause(cfs_time_seconds(1));
 
 		mutex_lock(&console_session.ses_mutex);
@@ -1356,8 +1353,7 @@ lstcon_rpc_cleanup_wait(void)
 
 	lst_wait_until((atomic_read(&console_session.ses_rpc_counter) == 0),
 		       console_session.ses_rpc_lock,
-		       "Network is not accessible or target is down, "
-		       "waiting for %d console RPCs to being recycled\n",
+		       "Network is not accessible or target is down, waiting for %d console RPCs to being recycled\n",
 		       atomic_read(&console_session.ses_rpc_counter));
 
 	list_add(&zlist, &console_session.ses_rpc_freelist);
