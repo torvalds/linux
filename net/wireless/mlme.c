@@ -712,6 +712,8 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 
 			if (time_after_eq(jiffies, timeout)) {
 				c->dfs_state = NL80211_DFS_USABLE;
+				c->dfs_state_entered = jiffies;
+
 				cfg80211_chandef_create(&chandef, c,
 							NL80211_CHAN_NO_HT);
 
