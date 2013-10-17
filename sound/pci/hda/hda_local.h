@@ -752,10 +752,6 @@ struct hdmi_eld {
 	int	eld_size;
 	char    eld_buffer[ELD_MAX_SIZE];
 	struct parsed_hdmi_eld info;
-	struct mutex lock;
-#ifdef CONFIG_PROC_FS
-	struct snd_info_entry *proc_entry;
-#endif
 };
 
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
@@ -768,20 +764,10 @@ void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,
 			      struct hda_pcm_stream *hinfo);
 
 #ifdef CONFIG_PROC_FS
-int snd_hda_eld_proc_new(struct hda_codec *codec, struct hdmi_eld *eld,
-			 int index);
-void snd_hda_eld_proc_free(struct hda_codec *codec, struct hdmi_eld *eld);
-#else
-static inline int snd_hda_eld_proc_new(struct hda_codec *codec,
-				       struct hdmi_eld *eld,
-				       int index)
-{
-	return 0;
-}
-static inline void snd_hda_eld_proc_free(struct hda_codec *codec,
-					 struct hdmi_eld *eld)
-{
-}
+void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
+			     struct snd_info_buffer *buffer);
+void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
+			     struct snd_info_buffer *buffer);
 #endif
 
 #define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
