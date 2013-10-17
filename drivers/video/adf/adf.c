@@ -1092,6 +1092,15 @@ int adf_format_validate_yuv(struct adf_device *dev, struct adf_buffer *buf,
 }
 EXPORT_SYMBOL(adf_format_validate_yuv);
 
+/**
+ * adf_modeinfo_set_name - sets the name of a mode from its display resolution
+ *
+ * @mode: mode
+ *
+ * adf_modeinfo_set_name() fills in @mode->name in the format
+ * "[hdisplay]x[vdisplay](i)".  It is intended to help drivers create
+ * ADF/DRM-style modelists from other mode formats.
+ */
 void adf_modeinfo_set_name(struct drm_mode_modeinfo *mode)
 {
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
@@ -1100,7 +1109,18 @@ void adf_modeinfo_set_name(struct drm_mode_modeinfo *mode)
 		 mode->hdisplay, mode->vdisplay,
 		 interlaced ? "i" : "");
 }
+EXPORT_SYMBOL(adf_modeinfo_set_name);
 
+/**
+ * adf_modeinfo_set_vrefresh - sets the vrefresh of a mode from its other
+ * timing data
+ *
+ * @mode: mode
+ *
+ * adf_modeinfo_set_vrefresh() calculates @mode->vrefresh from
+ * @mode->{h,v}display and @mode->flags.  It is intended to help drivers
+ * create ADF/DRM-style modelists from other mode formats.
+ */
 void adf_modeinfo_set_vrefresh(struct drm_mode_modeinfo *mode)
 {
 	int refresh = 0;
@@ -1126,6 +1146,7 @@ void adf_modeinfo_set_vrefresh(struct drm_mode_modeinfo *mode)
 
 	mode->vrefresh = refresh;
 }
+EXPORT_SYMBOL(adf_modeinfo_set_vrefresh);
 
 static int __init adf_init(void)
 {
