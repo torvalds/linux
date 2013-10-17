@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -28,6 +29,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/cs42l73.h>
 #include "cs42l73.h"
 
 struct sp_config {
@@ -35,6 +37,7 @@ struct sp_config {
 	u32 srate;
 };
 struct  cs42l73_private {
+	struct cs42l73_platform_data pdata;
 	struct sp_config config[3];
 	struct regmap *regmap;
 	u32 sysclk;
@@ -310,15 +313,6 @@ static const struct soc_enum ng_delay_enum =
 	SOC_ENUM_SINGLE(CS42L73_NGCAB, 0,
 		ARRAY_SIZE(cs42l73_ng_delay_text), cs42l73_ng_delay_text);
 
-static const char * const charge_pump_freq_text[] = {
-	"0", "1", "2", "3", "4",
-	"5", "6", "7", "8", "9",
-	"10", "11", "12", "13", "14", "15" };
-
-static const struct soc_enum charge_pump_enum =
-	SOC_ENUM_SINGLE(CS42L73_CPFCHC, 4,
-		ARRAY_SIZE(charge_pump_freq_text), charge_pump_freq_text);
-
 static const char * const cs42l73_mono_mix_texts[] = {
 	"Left", "Right", "Mono Mix"};
 
@@ -510,8 +504,6 @@ static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 	*/
 	SOC_SINGLE("NG Threshold", CS42L73_NGCAB, 2, 7, 0),
 	SOC_ENUM("NG Delay", ng_delay_enum),
-
-	SOC_ENUM("Charge Pump Frequency", charge_pump_enum),
 
 	SOC_DOUBLE_R_TLV("XSP-IP Volume",
 			CS42L73_XSPAIPAA, CS42L73_XSPBIPBA, 0, 0x3F, 1,
@@ -1367,11 +1359,16 @@ static int cs42l73_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	regcache_cache_only(cs42l73->regmap, true);
-
 	cs42l73_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	cs42l73->mclksel = CS42L73_CLKID_MCLK1;	/* MCLK1 as master clk */
+	/* Set Charge Pump Frequency */
+	if (cs42l73->pdata.chgfreq)
+		snd_soc_update_bits(codec, CS42L73_CPFCHC,
+				    CS42L73_CHARGEPUMP_MASK,
+					cs42l73->pdata.chgfreq << 4);
+
+	/* MCLK1 as master clk */
+	cs42l73->mclksel = CS42L73_CLKID_MCLK1;
 	cs42l73->mclk = 0;
 
 	return ret;
@@ -1415,6 +1412,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 			     const struct i2c_device_id *id)
 {
 	struct cs42l73_private *cs42l73;
+	struct cs42l73_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
@@ -1426,14 +1424,32 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 	}
 
-	i2c_set_clientdata(i2c_client, cs42l73);
-
 	cs42l73->regmap = devm_regmap_init_i2c(i2c_client, &cs42l73_regmap);
 	if (IS_ERR(cs42l73->regmap)) {
 		ret = PTR_ERR(cs42l73->regmap);
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
+
+	if (pdata)
+		cs42l73->pdata = *pdata;
+
+	i2c_set_clientdata(i2c_client, cs42l73);
+
+	if (cs42l73->pdata.reset_gpio) {
+		ret = gpio_request_one(cs42l73->pdata.reset_gpio,
+				       GPIOF_OUT_INIT_HIGH, "CS42L73 /RST");
+		if (ret < 0) {
+			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
+				cs42l73->pdata.reset_gpio, ret);
+			return ret;
+		}
+		gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 0);
+		gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 1);
+	}
+
+	regcache_cache_bypass(cs42l73->regmap, true);
+
 	/* initialize codec */
 	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_AB, &reg);
 	devid = (reg & 0xFF) << 12;
@@ -1443,7 +1459,6 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 
 	ret = regmap_read(cs42l73->regmap, CS42L73_DEVID_E, &reg);
 	devid |= (reg & 0xF0) >> 4;
-
 
 	if (devid != CS42L73_DEVID) {
 		ret = -ENODEV;
@@ -1462,7 +1477,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	dev_info(&i2c_client->dev,
 		 "Cirrus Logic CS42L73, Revision: %02X\n", reg & 0xFF);
 
-	regcache_cache_only(cs42l73->regmap, true);
+	regcache_cache_bypass(cs42l73->regmap, false);
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs42l73, cs42l73_dai,
