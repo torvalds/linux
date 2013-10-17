@@ -56,12 +56,12 @@ static bool modparam_nohwcrypt = false;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
+#ifdef CONFIG_PCI
 static bool rt2800pci_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
 {
 	return modparam_nohwcrypt;
 }
 
-#ifdef CONFIG_PCI
 static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 {
 	unsigned int i;
@@ -462,6 +462,11 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
+static bool rt2800soc_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
+{
+	return modparam_nohwcrypt;
+}
+
 static void rt2800soc_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	rt2800_disable_radio(rt2x00dev);
@@ -585,7 +590,7 @@ static const struct rt2800_ops rt2800soc_rt2800_ops = {
 	.register_multiwrite	= rt2x00mmio_register_multiwrite,
 	.regbusy_read		= rt2x00mmio_regbusy_read,
 	.read_eeprom		= rt2800soc_read_eeprom,
-	.hwcrypt_disabled	= rt2800pci_hwcrypt_disabled,
+	.hwcrypt_disabled	= rt2800soc_hwcrypt_disabled,
 	.drv_write_firmware	= rt2800soc_write_firmware,
 	.drv_init_registers	= rt2800mmio_init_registers,
 	.drv_get_txwi		= rt2800mmio_get_txwi,
