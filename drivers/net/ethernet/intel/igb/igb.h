@@ -450,6 +450,8 @@ struct igb_adapter {
 	u8 rss_indir_tbl[IGB_RETA_SIZE];
 
 	unsigned long link_check_timeout;
+	int copper_tries;
+	struct e1000_info ei;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -463,6 +465,14 @@ struct igb_adapter {
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
 #define IGB_FLAG_NEED_LINK_UPDATE	(1 << 9)
 #define IGB_FLAG_MEDIA_RESET		(1 << 10)
+#define IGB_FLAG_MAS_CAPABLE		(1 << 11)
+#define IGB_FLAG_MAS_ENABLE		(1 << 12)
+
+/* Media Auto Sense */
+#define IGB_MAS_ENABLE_0		0X0001
+#define IGB_MAS_ENABLE_1		0X0002
+#define IGB_MAS_ENABLE_2		0X0004
+#define IGB_MAS_ENABLE_3		0X0008
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE	20408

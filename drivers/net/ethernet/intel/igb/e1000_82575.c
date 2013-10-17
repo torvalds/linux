@@ -441,6 +441,19 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 			? igb_setup_copper_link_82575
 			: igb_setup_serdes_link_82575;
 
+	if (mac->type == e1000_82580) {
+		switch (hw->device_id) {
+		/* feature not supported on these id's */
+		case E1000_DEV_ID_DH89XXCC_SGMII:
+		case E1000_DEV_ID_DH89XXCC_SERDES:
+		case E1000_DEV_ID_DH89XXCC_BACKPLANE:
+		case E1000_DEV_ID_DH89XXCC_SFP:
+			break;
+		default:
+			hw->dev_spec._82575.mas_capable = true;
+			break;
+		}
+	}
 	return 0;
 }
 

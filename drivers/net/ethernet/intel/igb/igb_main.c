@@ -1607,6 +1607,73 @@ static void igb_power_down_link(struct igb_adapter *adapter)
 }
 
 /**
+ * Detect and switch function for Media Auto Sense
+ * @adapter: address of the board private structure
+ **/
+static void igb_check_swap_media(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ctrl_ext, connsw;
+	bool swap_now = false;
+
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	connsw = rd32(E1000_CONNSW);
+
+	/* need to live swap if current media is copper and we have fiber/serdes
+	 * to go to.
+	 */
+
+	if ((hw->phy.media_type == e1000_media_type_copper) &&
+	    (!(connsw & E1000_CONNSW_AUTOSENSE_EN))) {
+		swap_now = true;
+	} else if (!(connsw & E1000_CONNSW_SERDESD)) {
+		/* copper signal takes time to appear */
+		if (adapter->copper_tries < 4) {
+			adapter->copper_tries++;
+			connsw |= E1000_CONNSW_AUTOSENSE_CONF;
+			wr32(E1000_CONNSW, connsw);
+			return;
+		} else {
+			adapter->copper_tries = 0;
+			if ((connsw & E1000_CONNSW_PHYSD) &&
+			    (!(connsw & E1000_CONNSW_PHY_PDN))) {
+				swap_now = true;
+				connsw &= ~E1000_CONNSW_AUTOSENSE_CONF;
+				wr32(E1000_CONNSW, connsw);
+			}
+		}
+	}
+
+	if (!swap_now)
+		return;
+
+	switch (hw->phy.media_type) {
+	case e1000_media_type_copper:
+		netdev_info(adapter->netdev,
+			"MAS: changing media to fiber/serdes\n");
+		ctrl_ext |=
+			E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES;
+		adapter->flags |= IGB_FLAG_MEDIA_RESET;
+		adapter->copper_tries = 0;
+		break;
+	case e1000_media_type_internal_serdes:
+	case e1000_media_type_fiber:
+		netdev_info(adapter->netdev,
+			"MAS: changing media to copper\n");
+		ctrl_ext &=
+			~E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES;
+		adapter->flags |= IGB_FLAG_MEDIA_RESET;
+		break;
+	default:
+		/* shouldn't get here during regular operation */
+		netdev_err(adapter->netdev,
+			"AMS: Invalid media type found, returning\n");
+		break;
+	}
+	wr32(E1000_CTRL_EXT, ctrl_ext);
+}
+
+/**
  *  igb_up - Open the interface and prepare it to handle traffic
  *  @adapter: board private structure
  **/
@@ -1717,6 +1784,37 @@ void igb_reinit_locked(struct igb_adapter *adapter)
 	igb_down(adapter);
 	igb_up(adapter);
 	clear_bit(__IGB_RESETTING, &adapter->state);
+}
+
+/** igb_enable_mas - Media Autosense re-enable after swap
+ *
+ * @adapter: adapter struct
+ **/
+static s32 igb_enable_mas(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 connsw;
+	s32 ret_val = 0;
+
+	connsw = rd32(E1000_CONNSW);
+	if (!(hw->phy.media_type == e1000_media_type_copper))
+		return ret_val;
+
+	/* configure for SerDes media detect */
+	if (!(connsw & E1000_CONNSW_SERDESD)) {
+		connsw |= E1000_CONNSW_ENRGSRC;
+		connsw |= E1000_CONNSW_AUTOSENSE_EN;
+		wr32(E1000_CONNSW, connsw);
+		wrfl();
+	} else if (connsw & E1000_CONNSW_SERDESD) {
+		/* already SerDes, no need to enable anything */
+		return ret_val;
+	} else {
+		netdev_info(adapter->netdev,
+			"MAS: Unable to configure feature, disabling..\n");
+		adapter->flags &= ~IGB_FLAG_MAS_ENABLE;
+	}
+	return ret_val;
 }
 
 void igb_reset(struct igb_adapter *adapter)
@@ -1830,6 +1928,16 @@ void igb_reset(struct igb_adapter *adapter)
 	hw->mac.ops.reset_hw(hw);
 	wr32(E1000_WUC, 0);
 
+	if (adapter->flags & IGB_FLAG_MEDIA_RESET) {
+		/* need to resetup here after media swap */
+		adapter->ei.get_invariants(hw);
+		adapter->flags &= ~IGB_FLAG_MEDIA_RESET;
+	}
+	if (adapter->flags & IGB_FLAG_MAS_ENABLE) {
+		if (igb_enable_mas(adapter))
+			dev_err(&pdev->dev,
+				"Error enabling Media Auto Sense\n");
+	}
 	if (hw->mac.ops.init_hw(hw))
 		dev_err(&pdev->dev, "Hardware Error\n");
 
@@ -1973,6 +2081,58 @@ void igb_set_fw_version(struct igb_adapter *adapter)
 		break;
 	}
 	return;
+}
+
+/**
+ * igb_init_mas - init Media Autosense feature if enabled in the NVM
+ *
+ * @adapter: adapter struct
+ **/
+static void igb_init_mas(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u16 eeprom_data;
+
+	hw->nvm.ops.read(hw, NVM_COMPAT, 1, &eeprom_data);
+	switch (hw->bus.func) {
+	case E1000_FUNC_0:
+		if (eeprom_data & IGB_MAS_ENABLE_0) {
+			adapter->flags |= IGB_FLAG_MAS_ENABLE;
+			netdev_info(adapter->netdev,
+				"MAS: Enabling Media Autosense for port %d\n",
+				hw->bus.func);
+		}
+		break;
+	case E1000_FUNC_1:
+		if (eeprom_data & IGB_MAS_ENABLE_1) {
+			adapter->flags |= IGB_FLAG_MAS_ENABLE;
+			netdev_info(adapter->netdev,
+				"MAS: Enabling Media Autosense for port %d\n",
+				hw->bus.func);
+		}
+		break;
+	case E1000_FUNC_2:
+		if (eeprom_data & IGB_MAS_ENABLE_2) {
+			adapter->flags |= IGB_FLAG_MAS_ENABLE;
+			netdev_info(adapter->netdev,
+				"MAS: Enabling Media Autosense for port %d\n",
+				hw->bus.func);
+		}
+		break;
+	case E1000_FUNC_3:
+		if (eeprom_data & IGB_MAS_ENABLE_3) {
+			adapter->flags |= IGB_FLAG_MAS_ENABLE;
+			netdev_info(adapter->netdev,
+				"MAS: Enabling Media Autosense for port %d\n",
+				hw->bus.func);
+		}
+		break;
+	default:
+		/* Shouldn't get here */
+		netdev_err(adapter->netdev,
+			"MAS: Invalid port configuration, returning\n");
+		break;
+	}
 }
 
 /**
@@ -2346,6 +2506,11 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->ets = false;
 	}
 #endif
+	/* Check if Media Autosense is enabled */
+	adapter->ei = *ei;
+	if (hw->dev_spec._82575.mas_capable)
+		igb_init_mas(adapter);
+
 	/* do hw tstamp init after resetting */
 	igb_ptp_init(adapter);
 
@@ -3931,6 +4096,7 @@ static void igb_watchdog_task(struct work_struct *work)
 	struct net_device *netdev = adapter->netdev;
 	u32 link;
 	int i;
+	u32 connsw;
 
 	link = igb_has_link(adapter);
 
@@ -3941,6 +4107,14 @@ static void igb_watchdog_task(struct work_struct *work)
 			link = false;
 	}
 
+	/* Force link down if we have fiber to swap to */
+	if (adapter->flags & IGB_FLAG_MAS_ENABLE) {
+		if (hw->phy.media_type == e1000_media_type_copper) {
+			connsw = rd32(E1000_CONNSW);
+			if (!(connsw & E1000_CONNSW_AUTOSENSE_EN))
+				link = 0;
+		}
+	}
 	if (link) {
 		/* Perform a reset if the media type changed. */
 		if (hw->dev_spec._82575.media_changed) {
@@ -4028,8 +4202,27 @@ static void igb_watchdog_task(struct work_struct *work)
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
 
+			/* link is down, time to check for alternate media */
+			if (adapter->flags & IGB_FLAG_MAS_ENABLE) {
+				igb_check_swap_media(adapter);
+				if (adapter->flags & IGB_FLAG_MEDIA_RESET) {
+					schedule_work(&adapter->reset_task);
+					/* return immediately */
+					return;
+				}
+			}
 			pm_schedule_suspend(netdev->dev.parent,
 					    MSEC_PER_SEC * 5);
+
+		/* also check for alternate media here */
+		} else if (!netif_carrier_ok(netdev) &&
+			   (adapter->flags & IGB_FLAG_MAS_ENABLE)) {
+			igb_check_swap_media(adapter);
+			if (adapter->flags & IGB_FLAG_MEDIA_RESET) {
+				schedule_work(&adapter->reset_task);
+				/* return immediately */
+				return;
+			}
 		}
 	}
 
