@@ -213,7 +213,7 @@ static void early_mrst_spi_putc(char c)
 	}
 
 	if (!timeout)
-		pr_warning("MRST earlycon: timed out\n");
+		pr_warn("MRST earlycon: timed out\n");
 	else
 		max3110_write_data(c);
 }

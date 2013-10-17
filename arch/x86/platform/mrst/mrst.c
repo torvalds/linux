@@ -328,7 +328,7 @@ static inline int __init setup_x86_mrst_timer(char *arg)
 	else if (strcmp("lapic_and_apbt", arg) == 0)
 		mrst_timer_options = MRST_TIMER_LAPIC_APBT;
 	else {
-		pr_warning("X86 MRST timer option %s not recognised"
+		pr_warn("X86 MRST timer option %s not recognised"
 			   " use x86_mrst_timer=apbt_only or lapic_and_apbt\n",
 			   arg);
 		return -EINVAL;
