@@ -543,6 +543,11 @@ struct ieee80211_mesh_sync_ops {
 	/* add other framework functions here */
 };
 
+struct mesh_csa_settings {
+	struct rcu_head rcu_head;
+	struct cfg80211_csa_settings settings;
+};
+
 struct ieee80211_if_mesh {
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
@@ -604,7 +609,9 @@ struct ieee80211_if_mesh {
 	int ps_peers_deep_sleep;
 	struct ps_data ps;
 	/* Channel Switching Support */
+	struct mesh_csa_settings __rcu *csa;
 	bool chsw_init;
+	u8 chsw_ttl;
 	u16 pre_value;
 };
 
@@ -1356,6 +1363,10 @@ void ieee80211_ibss_stop(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb);
+int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
+			      struct cfg80211_csa_settings *csa_settings,
+			      bool csa_action);
+int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);
