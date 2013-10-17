@@ -1814,27 +1814,11 @@ out:
 	trace->live = false;
 	return err;
 out_error_tp:
-	switch(errno) {
-	case ENOENT:
-		fputs("Error:\tUnable to find debugfs\n"
-		      "Hint:\tWas your kernel was compiled with debugfs support?\n"
-		      "Hint:\tIs the debugfs filesystem mounted?\n"
-		      "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'\n",
-		      trace->output);
-		break;
-	case EACCES:
-		fprintf(trace->output,
-			"Error:\tNo permissions to read %s/tracing/events/raw_syscalls\n"
-			"Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			debugfs_mountpoint, debugfs_mountpoint);
-		break;
-	default: {
-		char bf[256];
-		fprintf(trace->output, "Can't trace: %s\n",
-			strerror_r(errno, bf, sizeof(bf)));
-	}
-		break;
-	}
+{
+	char errbuf[BUFSIZ];
+	perf_evlist__strerror_tp(evlist, errno, errbuf, sizeof(errbuf));
+	fprintf(trace->output, "%s\n", errbuf);
+}
 	goto out_delete_evlist;
 }
 
