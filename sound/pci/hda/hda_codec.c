@@ -565,7 +565,7 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
 		if (val == 0 && null_count++) {  /* no second chance */
-			snd_printk(KERN_WARNING "hda_codec: "
+			snd_printdd("hda_codec: "
 				   "invalid CONNECT_LIST verb %x[%i]:%x\n",
 				    nid, i, parm);
 			return 0;
