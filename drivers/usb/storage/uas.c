@@ -93,28 +93,26 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo);
 static void uas_free_streams(struct uas_dev_info *devinfo);
 static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller);
 
+/* Must be called with devinfo->lock held, will temporary unlock the lock */
 static void uas_unlink_data_urbs(struct uas_dev_info *devinfo,
-				 struct uas_cmd_info *cmdinfo)
+				 struct uas_cmd_info *cmdinfo,
+				 unsigned long *lock_flags)
 {
-	unsigned long flags;
-
 	/*
 	 * The UNLINK_DATA_URBS flag makes sure uas_try_complete
 	 * (called by urb completion) doesn't release cmdinfo
 	 * underneath us.
 	 */
-	spin_lock_irqsave(&devinfo->lock, flags);
 	cmdinfo->state |= UNLINK_DATA_URBS;
-	spin_unlock_irqrestore(&devinfo->lock, flags);
+	spin_unlock_irqrestore(&devinfo->lock, *lock_flags);
 
 	if (cmdinfo->data_in_urb)
 		usb_unlink_urb(cmdinfo->data_in_urb);
 	if (cmdinfo->data_out_urb)
 		usb_unlink_urb(cmdinfo->data_out_urb);
 
-	spin_lock_irqsave(&devinfo->lock, flags);
+	spin_lock_irqsave(&devinfo->lock, *lock_flags);
 	cmdinfo->state &= ~UNLINK_DATA_URBS;
-	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_do_work(struct work_struct *work)
@@ -361,9 +359,7 @@ static void uas_stat_cmplt(struct urb *urb)
 			uas_sense(urb, cmnd);
 		if (cmnd->result != 0) {
 			/* cancel data transfers on error */
-			spin_unlock_irqrestore(&devinfo->lock, flags);
-			uas_unlink_data_urbs(devinfo, cmdinfo);
-			spin_lock_irqsave(&devinfo->lock, flags);
+			uas_unlink_data_urbs(devinfo, cmdinfo, &flags);
 		}
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		uas_try_complete(cmnd, __func__);
@@ -787,9 +783,7 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
 	} else {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		uas_unlink_data_urbs(devinfo, cmdinfo);
-		spin_lock_irqsave(&devinfo->lock, flags);
+		uas_unlink_data_urbs(devinfo, cmdinfo, &flags);
 		uas_try_complete(cmnd, __func__);
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		ret = SUCCESS;
