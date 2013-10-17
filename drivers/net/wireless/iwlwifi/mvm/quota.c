@@ -151,7 +151,8 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		if (id != phy_id)
 			continue;
 
-		quota *= (beacon_int - mvm->noa_duration) / beacon_int;
+		quota *= (beacon_int - mvm->noa_duration);
+		quota /= beacon_int;
 
 		cmd->quotas[i].quota = cpu_to_le32(quota);
 	}
