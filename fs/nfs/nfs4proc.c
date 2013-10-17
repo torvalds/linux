@@ -1575,6 +1575,9 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 			/* Don't recall a delegation if it was lost */
 			nfs4_schedule_lease_recovery(server->nfs_client);
 			return -EAGAIN;
+		case -NFS4ERR_MOVED:
+			nfs4_schedule_migration_recovery(server);
+			return -EAGAIN;
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_BAD_STATEID:
