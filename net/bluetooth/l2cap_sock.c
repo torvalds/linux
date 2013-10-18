@@ -159,8 +159,31 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 	if (!bdaddr_type_is_valid(la.l2_bdaddr_type))
 		return -EINVAL;
 
-	if (chan->src_type == BDADDR_BREDR && la.l2_bdaddr_type != BDADDR_BREDR)
-		return -EINVAL;
+	/* Check that the socket wasn't bound to something that
+	 * conflicts with the address given to connect(). If chan->src
+	 * is BDADDR_ANY it means bind() was never used, in which case
+	 * chan->src_type and la.l2_bdaddr_type do not need to match.
+	 */
+	if (chan->src_type == BDADDR_BREDR && bacmp(&chan->src, BDADDR_ANY) &&
+	    bdaddr_type_is_le(la.l2_bdaddr_type)) {
+		/* Old user space versions will try to incorrectly bind
+		 * the ATT socket using BDADDR_BREDR. We need to accept
+		 * this and fix up the source address type only when
+		 * both the source CID and destination CID indicate
+		 * ATT. Anything else is an invalid combination.
+		 */
+		if (chan->scid != L2CAP_CID_ATT ||
+		    la.l2_cid != __constant_cpu_to_le16(L2CAP_CID_ATT))
+			return -EINVAL;
+
+		/* We don't have the hdev available here to make a
+		 * better decision on random vs public, but since all
+		 * user space versions that exhibit this issue anyway do
+		 * not support random local addresses assuming public
+		 * here is good enough.
+		 */
+		chan->src_type = BDADDR_LE_PUBLIC;
+	}
 
 	if (chan->src_type != BDADDR_BREDR && la.l2_bdaddr_type == BDADDR_BREDR)
 		return -EINVAL;
