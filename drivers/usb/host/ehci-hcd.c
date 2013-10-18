@@ -1095,6 +1095,14 @@ int ehci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	spin_unlock_irq(&ehci->lock);
 
+	synchronize_irq(hcd->irq);
+
+	/* Check for race with a wakeup request */
+	if (do_wakeup && HCD_WAKEUP_PENDING(hcd)) {
+		ehci_resume(hcd, false);
+		return -EBUSY;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ehci_suspend);
