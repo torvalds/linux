@@ -418,6 +418,10 @@ void bond_debug_register(struct bonding *bond);
 void bond_debug_unregister(struct bonding *bond);
 void bond_debug_reregister(struct bonding *bond);
 const char *bond_mode_name(int mode);
+void bond_setup(struct net_device *bond_dev);
+unsigned int bond_get_num_tx_queues(void);
+int bond_netlink_init(void);
+void bond_netlink_fini(void);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
@@ -504,5 +508,8 @@ extern const struct bond_parm_tbl arp_all_targets_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern const struct bond_parm_tbl pri_reselect_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];
+
+/* exported from bond_netlink.c */
+extern struct rtnl_link_ops bond_link_ops;
 
 #endif /* _LINUX_BONDING_H */
