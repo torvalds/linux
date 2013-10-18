@@ -94,12 +94,28 @@ qlcnic_83xx_config_vnic_buff_descriptors(struct qlcnic_adapter *adapter)
  **/
 static int qlcnic_83xx_init_mgmt_vnic(struct qlcnic_adapter *adapter)
 {
-	int err = -EIO;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_npar_info *npar;
+	int i, err = -EIO;
 
 	qlcnic_83xx_get_minidump_template(adapter);
+
 	if (!(adapter->flags & QLCNIC_ADAPTER_INITIALIZED)) {
 		if (qlcnic_init_pci_info(adapter))
 			return err;
+
+		npar = adapter->npars;
+
+		for (i = 0; i < ahw->act_pci_func; i++, npar++) {
+			dev_info(dev, "id:%d active:%d type:%d port:%d min_bw:%d max_bw:%d mac_addr:%pM\n",
+				 npar->pci_func, npar->active, npar->type,
+				 npar->phy_port, npar->min_bw, npar->max_bw,
+				 npar->mac);
+		}
+
+		dev_info(dev, "Max functions = %d, active functions = %d\n",
+			 ahw->max_pci_func, ahw->act_pci_func);
 
 		if (qlcnic_83xx_set_vnic_opmode(adapter))
 			return err;
@@ -115,12 +131,12 @@ static int qlcnic_83xx_init_mgmt_vnic(struct qlcnic_adapter *adapter)
 		return err;
 
 	qlcnic_83xx_config_vnic_buff_descriptors(adapter);
-	adapter->ahw->msix_supported = !!qlcnic_use_msi_x;
+	ahw->msix_supported = qlcnic_use_msi_x ? 1 : 0;
 	adapter->flags |= QLCNIC_ADAPTER_INITIALIZED;
 	qlcnic_83xx_enable_vnic_mode(adapter, 1);
 
-	dev_info(&adapter->pdev->dev, "HAL Version: %d, Management function\n",
-		 adapter->ahw->fw_hal_version);
+	dev_info(dev, "HAL Version: %d, Management function\n",
+		 ahw->fw_hal_version);
 
 	return 0;
 }

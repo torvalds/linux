@@ -2321,19 +2321,7 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			i++;
 			memcpy(pci_info->mac + sizeof(u32), &cmd.rsp.arg[i], 2);
 			i = i + 3;
-			if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-				dev_info(dev, "id = %d active = %d type = %d\n"
-					 "\tport = %d min bw = %d max bw = %d\n"
-					 "\tmac_addr =  %pM\n", pci_info->id,
-					 pci_info->active, pci_info->type,
-					 pci_info->default_port,
-					 pci_info->tx_min_bw,
-					 pci_info->tx_max_bw, pci_info->mac);
 		}
-		if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-			dev_info(dev, "Max functions = %d, active functions = %d\n",
-				 ahw->max_pci_func, ahw->act_pci_func);
-
 	} else {
 		dev_err(dev, "Failed to get PCI Info, error = %d\n", err);
 		err = -EIO;

@@ -875,6 +875,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		adapter->npars[j].min_bw = pci_info[i].tx_min_bw;
 		adapter->npars[j].max_bw = pci_info[i].tx_max_bw;
 
+		memcpy(&adapter->npars[j].mac, &pci_info[i].mac, ETH_ALEN);
 		j++;
 	}
 

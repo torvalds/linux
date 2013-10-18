@@ -1199,6 +1199,7 @@ struct qlcnic_npar_info {
 	u8	promisc_mode;
 	u8	offload_flags;
 	u8      pci_func;
+	u8      mac[ETH_ALEN];
 };
 
 struct qlcnic_eswitch {
