@@ -193,14 +193,6 @@ static ssize_t show_name(struct device *dev,
 	return sprintf(buf, "%s\n", name);
 }
 
-static ssize_t show_class(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "0x%.2x%.2x%.2x\n", hdev->dev_class[2],
-		       hdev->dev_class[1], hdev->dev_class[0]);
-}
-
 static ssize_t show_address(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -211,14 +203,12 @@ static ssize_t show_address(struct device *dev,
 static DEVICE_ATTR(bus, S_IRUGO, show_bus, NULL);
 static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
-static DEVICE_ATTR(class, S_IRUGO, show_class, NULL);
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
 
 static struct attribute *bt_host_attrs[] = {
 	&dev_attr_bus.attr,
 	&dev_attr_type.attr,
 	&dev_attr_name.attr,
-	&dev_attr_class.attr,
 	&dev_attr_address.attr,
 	NULL
 };

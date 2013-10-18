@@ -187,6 +187,30 @@ static const struct file_operations inquiry_cache_fops = {
 	.release	= single_release,
 };
 
+static int dev_class_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+
+	hci_dev_lock(hdev);
+	seq_printf(f, "0x%.2x%.2x%.2x\n", hdev->dev_class[2],
+		   hdev->dev_class[1], hdev->dev_class[0]);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int dev_class_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dev_class_show, inode->i_private);
+}
+
+static const struct file_operations dev_class_fops = {
+	.open		= dev_class_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int voice_setting_get(void *data, u64 *val)
 {
 	struct hci_dev *hdev = data;
@@ -1043,6 +1067,8 @@ static int __hci_init(struct hci_dev *hdev)
 	if (lmp_bredr_capable(hdev)) {
 		debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
 				    hdev, &inquiry_cache_fops);
+		debugfs_create_file("dev_class", 0444, hdev->debugfs,
+				    hdev, &dev_class_fops);
 		debugfs_create_file("voice_setting", 0444, hdev->debugfs,
 				    hdev, &voice_setting_fops);
 	}
