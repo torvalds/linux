@@ -962,6 +962,7 @@ static int nfs4_init_server(struct nfs_server *server,
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
 	server->options = data->options;
+	server->auth_info = data->auth_info;
 
 	if (data->auth_info.flavor_len >= 1)
 		data->selected_flavor = data->auth_info.flavors[0];

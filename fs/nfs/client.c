@@ -786,6 +786,7 @@ static int nfs_init_server(struct nfs_server *server,
 		goto error;
 
 	server->port = data->nfs_server.port;
+	server->auth_info = data->auth_info;
 
 	error = nfs_init_server_rpcclient(server, &timeparms,
 					  data->selected_flavor);
@@ -929,6 +930,7 @@ void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_server *sour
 	target->acdirmax = source->acdirmax;
 	target->caps = source->caps;
 	target->options = source->options;
+	target->auth_info = source->auth_info;
 }
 EXPORT_SYMBOL_GPL(nfs_server_copy_userdata);
 
