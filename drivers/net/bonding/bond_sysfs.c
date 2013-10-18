@@ -283,49 +283,26 @@ static ssize_t bonding_store_mode(struct device *d,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	int new_value, ret = count;
+	int new_value, ret;
 	struct bonding *bond = to_bond(d);
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("unable to update mode of %s because interface is up.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
-
-	if (bond_has_slaves(bond)) {
-		pr_err("unable to update mode of %s because it has slaves.\n",
-			bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
 
 	new_value = bond_parse_parm(buf, bond_mode_tbl);
 	if (new_value < 0)  {
 		pr_err("%s: Ignoring invalid mode value %.*s.\n",
 		       bond->dev->name, (int)strlen(buf) - 1, buf);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-	if ((new_value == BOND_MODE_ALB ||
-	     new_value == BOND_MODE_TLB) &&
-	    bond->params.arp_interval) {
-		pr_err("%s: %s mode is incompatible with arp monitoring.\n",
-		       bond->dev->name, bond_mode_tbl[new_value].modename);
-		ret = -EINVAL;
-		goto out;
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = bond_option_mode_set(bond, new_value);
+	if (!ret) {
+		pr_info("%s: setting mode to %s (%d).\n",
+			bond->dev->name, bond_mode_tbl[new_value].modename,
+			new_value);
+		ret = count;
 	}
 
-	/* don't cache arp_validate between modes */
-	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
-	bond->params.mode = new_value;
-	pr_info("%s: setting mode to %s (%d).\n",
-		bond->dev->name, bond_mode_tbl[new_value].modename,
-		new_value);
-out:
 	rtnl_unlock();
 	return ret;
 }
