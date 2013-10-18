@@ -234,10 +234,10 @@ struct cfg80211_beacon_registration {
 };
 
 /* free object */
-extern void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
+void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
 
-extern int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
-			       char *newname);
+int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
+			char *newname);
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 
