@@ -2717,7 +2717,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	 */
 	ifmgd->wmm_last_param_set = -1;
 
-	if (elems.wmm_param)
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_WMM) && elems.wmm_param)
 		ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 					 elems.wmm_param_len);
 	else
@@ -3152,7 +3152,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime,
 					 &elems, true);
 
-	if (ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_WMM) &&
+	    ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 				     elems.wmm_param_len))
 		changed |= BSS_CHANGED_QOS;
 
@@ -4135,6 +4136,44 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	return err;
 }
 
+static bool ieee80211_usable_wmm_params(struct ieee80211_sub_if_data *sdata,
+					const u8 *wmm_param, int len)
+{
+	const u8 *pos;
+	size_t left;
+
+	if (len < 8)
+		return false;
+
+	if (wmm_param[5] != 1 /* version */)
+		return false;
+
+	pos = wmm_param + 8;
+	left = len - 8;
+
+	for (; left >= 4; left -= 4, pos += 4) {
+		u8 aifsn = pos[0] & 0x0f;
+		u8 ecwmin = pos[1] & 0x0f;
+		u8 ecwmax = (pos[1] & 0xf0) >> 4;
+		int aci = (pos[0] >> 5) & 0x03;
+
+		if (aifsn < 2) {
+			sdata_info(sdata,
+				   "AP has invalid WMM params (AIFSN=%d for ACI %d), disabling WMM\n",
+				   aifsn, aci);
+			return false;
+		}
+		if (ecwmin > ecwmax) {
+			sdata_info(sdata,
+				   "AP has invalid WMM params (ECWmin/max=%d/%d for ACI %d), disabling WMM\n",
+				   ecwmin, ecwmax, aci);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_assoc_request *req)
 {
@@ -4192,8 +4231,44 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* prepare assoc data */
-	
+
 	ifmgd->beacon_crc_valid = false;
+
+	assoc_data->wmm = bss->wmm_used &&
+			  (local->hw.queues >= IEEE80211_NUM_ACS);
+	if (assoc_data->wmm) {
+		/* try to check validity of WMM params IE */
+		const struct cfg80211_bss_ies *ies;
+		const u8 *wp, *start, *end;
+
+		rcu_read_lock();
+		ies = rcu_dereference(req->bss->ies);
+		start = ies->data;
+		end = start + ies->len;
+
+		while (true) {
+			wp = cfg80211_find_vendor_ie(
+				WLAN_OUI_MICROSOFT,
+				WLAN_OUI_TYPE_MICROSOFT_WMM,
+				start, end - start);
+			if (!wp)
+				break;
+			start = wp + wp[1] + 2;
+			/* if this IE is too short, try the next */
+			if (wp[1] <= 4)
+				continue;
+			/* if this IE is WMM params, we found what we wanted */
+			if (wp[6] == 1)
+				break;
+		}
+
+		if (!wp || !ieee80211_usable_wmm_params(sdata, wp + 2,
+							wp[1] - 2)) {
+			assoc_data->wmm = false;
+			ifmgd->flags |= IEEE80211_STA_DISABLE_WMM;
+		}
+		rcu_read_unlock();
+	}
 
 	/*
 	 * IEEE802.11n does not allow TKIP/WEP as pairwise ciphers in HT mode.
@@ -4224,18 +4299,22 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	/* Also disable HT if we don't support it or the AP doesn't use WMM */
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
 	if (!sband->ht_cap.ht_supported ||
-	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used) {
+	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used ||
+	    ifmgd->flags & IEEE80211_STA_DISABLE_WMM) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-		if (!bss->wmm_used)
+		if (!bss->wmm_used &&
+		    !(ifmgd->flags & IEEE80211_STA_DISABLE_WMM))
 			netdev_info(sdata->dev,
 				    "disabling HT as WMM/QoS is not supported by the AP\n");
 	}
 
 	/* disable VHT if we don't support it or the AP doesn't use WMM */
 	if (!sband->vht_cap.vht_supported ||
-	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used) {
+	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used ||
+	    ifmgd->flags & IEEE80211_STA_DISABLE_WMM) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-		if (!bss->wmm_used)
+		if (!bss->wmm_used &&
+		    !(ifmgd->flags & IEEE80211_STA_DISABLE_WMM))
 			netdev_info(sdata->dev,
 				    "disabling VHT as WMM/QoS is not supported by the AP\n");
 	}
@@ -4264,8 +4343,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		sdata->smps_mode = ifmgd->req_smps;
 
 	assoc_data->capability = req->bss->capability;
-	assoc_data->wmm = bss->wmm_used &&
-			  (local->hw.queues >= IEEE80211_NUM_ACS);
 	assoc_data->supp_rates = bss->supp_rates;
 	assoc_data->supp_rates_len = bss->supp_rates_len;
 
