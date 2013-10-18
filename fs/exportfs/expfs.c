@@ -228,14 +228,14 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 	int err = -ESTALE;
 
 	while (target_dir->d_flags & DCACHE_DISCONNECTED) {
-		struct dentry *pd = find_disconnected_root(target_dir);
+		struct dentry *dentry = find_disconnected_root(target_dir);
 
-		BUG_ON(pd == mnt->mnt_sb->s_root);
+		BUG_ON(dentry == mnt->mnt_sb->s_root);
 
-		if (!IS_ROOT(pd)) {
+		if (!IS_ROOT(dentry)) {
 			/* must have found a connected parent - great */
 			clear_disconnected(target_dir);
-			dput(pd);
+			dput(dentry);
 			break;
 		} else {
 			struct dentry *parent;
@@ -243,7 +243,7 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 			 * We have hit the top of a disconnected path, try to
 			 * find parent and connect.
 			 */
-			 parent = reconnect_one(mnt, pd, nbuf);
+			 parent = reconnect_one(mnt, dentry, nbuf);
 			 if (!parent)
 				goto out_reconnected;
 			if (IS_ERR(parent)) {
@@ -252,7 +252,7 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 			}
 			dput(parent);
 		}
-		dput(pd);
+		dput(dentry);
 	}
 
 	if (target_dir->d_flags & DCACHE_DISCONNECTED) {
