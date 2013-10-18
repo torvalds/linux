@@ -51,6 +51,11 @@
 #define  ESDHC_TUNE_CTRL_MIN		0
 #define  ESDHC_TUNE_CTRL_MAX		((1 << 7) - 1)
 
+#define ESDHC_TUNING_CTRL		0xcc
+#define ESDHC_STD_TUNING_EN		(1 << 24)
+/* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
+#define ESDHC_TUNING_START_TAP		0x1
+
 #define ESDHC_TUNING_BLOCK_PATTERN_LEN	64
 
 /* pinctrl state */
@@ -94,6 +99,12 @@
  * integrated on the i.MX6 series.
  */
 #define ESDHC_FLAG_USDHC		BIT(3)
+/* The IP supports manual tuning process */
+#define ESDHC_FLAG_MAN_TUNING		BIT(4)
+/* The IP supports standard tuning process */
+#define ESDHC_FLAG_STD_TUNING		BIT(5)
+/* The IP has SDHCI_CAPABILITIES_1 register */
+#define ESDHC_FLAG_HAVE_CAP1		BIT(6)
 
 struct esdhc_soc_data {
 	u32 flags;
@@ -116,7 +127,12 @@ static struct esdhc_soc_data esdhc_imx53_data = {
 };
 
 static struct esdhc_soc_data usdhc_imx6q_data = {
-	.flags = ESDHC_FLAG_USDHC,
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_MAN_TUNING,
+};
+
+static struct esdhc_soc_data usdhc_imx6sl_data = {
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
+			| ESDHC_FLAG_HAVE_CAP1,
 };
 
 struct pltfm_imx_data {
@@ -159,6 +175,7 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx35-esdhc", .data = &esdhc_imx35_data, },
 	{ .compatible = "fsl,imx51-esdhc", .data = &esdhc_imx51_data, },
 	{ .compatible = "fsl,imx53-esdhc", .data = &esdhc_imx53_data, },
+	{ .compatible = "fsl,imx6sl-usdhc", .data = &usdhc_imx6sl_data, },
 	{ .compatible = "fsl,imx6q-usdhc", .data = &usdhc_imx6q_data, },
 	{ /* sentinel */ }
 };
@@ -222,9 +239,16 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 		}
 	}
 
-	if (unlikely(reg == SDHCI_CAPABILITIES_1) && esdhc_is_usdhc(imx_data))
-		val = SDHCI_SUPPORT_DDR50 | SDHCI_SUPPORT_SDR104
-				| SDHCI_SUPPORT_SDR50;
+	if (unlikely(reg == SDHCI_CAPABILITIES_1)) {
+		if (esdhc_is_usdhc(imx_data)) {
+			if (imx_data->socdata->flags & ESDHC_FLAG_HAVE_CAP1)
+				val = readl(host->ioaddr + SDHCI_CAPABILITIES) & 0xFFFF;
+			else
+				/* imx6q/dl does not have cap_1 register, fake one */
+				val = SDHCI_SUPPORT_DDR50 | SDHCI_SUPPORT_SDR104
+					| SDHCI_SUPPORT_SDR50;
+		}
+	}
 
 	if (unlikely(reg == SDHCI_MAX_CURRENT) && esdhc_is_usdhc(imx_data)) {
 		val = 0;
@@ -331,12 +355,17 @@ static u16 esdhc_readw_le(struct sdhci_host *host, int reg)
 			ret |= SDHCI_CTRL_VDD_180;
 
 		if (esdhc_is_usdhc(imx_data)) {
-			val = readl(host->ioaddr + ESDHC_MIX_CTRL);
-			if (val & ESDHC_MIX_CTRL_EXE_TUNE)
-				ret |= SDHCI_CTRL_EXEC_TUNING;
-			if (val & ESDHC_MIX_CTRL_SMPCLK_SEL)
-				ret |= SDHCI_CTRL_TUNED_CLK;
+			if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
+				val = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			else if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING)
+				/* the std tuning bits is in ACMD12_ERR for imx6sl */
+				val = readl(host->ioaddr + SDHCI_ACMD12_ERR);
 		}
+
+		if (val & ESDHC_MIX_CTRL_EXE_TUNE)
+			ret |= SDHCI_CTRL_EXEC_TUNING;
+		if (val & ESDHC_MIX_CTRL_SMPCLK_SEL)
+			ret |= SDHCI_CTRL_TUNED_CLK;
 
 		ret |= (imx_data->uhs_mode & SDHCI_CTRL_UHS_MASK);
 		ret &= ~SDHCI_CTRL_PRESET_VAL_ENABLE;
@@ -370,12 +399,37 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 			new_val &= ~ESDHC_VENDOR_SPEC_VSELECT;
 		writel(new_val, host->ioaddr + ESDHC_VENDOR_SPEC);
 		imx_data->uhs_mode = val & SDHCI_CTRL_UHS_MASK;
-		new_val = readl(host->ioaddr + ESDHC_MIX_CTRL);
-		if (val & SDHCI_CTRL_TUNED_CLK)
-			new_val |= ESDHC_MIX_CTRL_SMPCLK_SEL;
-		else
-			new_val &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
-		writel(new_val , host->ioaddr + ESDHC_MIX_CTRL);
+		if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
+			new_val = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			if (val & SDHCI_CTRL_TUNED_CLK)
+				new_val |= ESDHC_MIX_CTRL_SMPCLK_SEL;
+			else
+				new_val &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
+			writel(new_val , host->ioaddr + ESDHC_MIX_CTRL);
+		} else if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
+			u32 v = readl(host->ioaddr + SDHCI_ACMD12_ERR);
+			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			new_val = readl(host->ioaddr + ESDHC_TUNING_CTRL);
+			if (val & SDHCI_CTRL_EXEC_TUNING) {
+				new_val |= ESDHC_STD_TUNING_EN |
+						ESDHC_TUNING_START_TAP;
+				v |= ESDHC_MIX_CTRL_EXE_TUNE;
+				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
+			} else {
+				new_val &= ~ESDHC_STD_TUNING_EN;
+				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
+				m &= ~ESDHC_MIX_CTRL_FBCLK_SEL;
+			}
+
+			if (val & SDHCI_CTRL_TUNED_CLK)
+				v |= ESDHC_MIX_CTRL_SMPCLK_SEL;
+			else
+				v &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
+
+			writel(new_val, host->ioaddr + ESDHC_TUNING_CTRL);
+			writel(v, host->ioaddr + SDHCI_ACMD12_ERR);
+			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
+		}
 		return;
 	case SDHCI_TRANSFER_MODE:
 		if ((imx_data->socdata->flags & ESDHC_FLAG_MULTIBLK_NO_INT)
@@ -774,7 +828,7 @@ static int esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 	return esdhc_change_pinstate(host, uhs);
 }
 
-static const struct sdhci_ops sdhci_esdhc_ops = {
+static struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = esdhc_readl_le,
 	.read_w = esdhc_readw_le,
 	.write_l = esdhc_writel_le,
@@ -786,7 +840,6 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.get_ro = esdhc_pltfm_get_ro,
 	.platform_bus_width = esdhc_pltfm_bus_width,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
-	.platform_execute_tuning = esdhc_executing_tuning,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
@@ -922,6 +975,9 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (esdhc_is_usdhc(imx_data))
 		writel(0x08100810, host->ioaddr + ESDHC_WTMK_LVL);
 
+	if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
+		sdhci_esdhc_ops.platform_execute_tuning =
+					esdhc_executing_tuning;
 	boarddata = &imx_data->boarddata;
 	if (sdhci_esdhc_imx_probe_dt(pdev, boarddata) < 0) {
 		if (!host->mmc->parent->platform_data) {
