@@ -223,12 +223,14 @@ static void dma_intr_coal_auto_tune(struct rsxx_cardinfo *card)
 /*----------------- RSXX DMA Handling -------------------*/
 static void rsxx_free_dma(struct rsxx_dma_ctrl *ctrl, struct rsxx_dma *dma)
 {
-	if (!pci_dma_mapping_error(ctrl->card->dev, dma->dma_addr)) {
-		pci_unmap_page(ctrl->card->dev, dma->dma_addr,
-			       get_dma_size(dma),
-			       dma->cmd == HW_CMD_BLK_WRITE ?
-					   PCI_DMA_TODEVICE :
-					   PCI_DMA_FROMDEVICE);
+	if (dma->cmd != HW_CMD_BLK_DISCARD) {
+		if (!pci_dma_mapping_error(ctrl->card->dev, dma->dma_addr)) {
+			pci_unmap_page(ctrl->card->dev, dma->dma_addr,
+				       get_dma_size(dma),
+				       dma->cmd == HW_CMD_BLK_WRITE ?
+						   PCI_DMA_TODEVICE :
+						   PCI_DMA_FROMDEVICE);
+		}
 	}
 
 	kmem_cache_free(rsxx_dma_pool, dma);
@@ -1057,11 +1059,14 @@ int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 			else
 				card->ctrl[i].stats.reads_issued--;
 
-			pci_unmap_page(card->dev, dma->dma_addr,
-				       get_dma_size(dma),
-				       dma->cmd == HW_CMD_BLK_WRITE ?
-				       PCI_DMA_TODEVICE :
-				       PCI_DMA_FROMDEVICE);
+			if (dma->cmd != HW_CMD_BLK_DISCARD) {
+				pci_unmap_page(card->dev, dma->dma_addr,
+					       get_dma_size(dma),
+					       dma->cmd == HW_CMD_BLK_WRITE ?
+					       PCI_DMA_TODEVICE :
+					       PCI_DMA_FROMDEVICE);
+			}
+
 			list_add_tail(&dma->list, &issued_dmas[i]);
 			push_tracker(card->ctrl[i].trackers, j);
 			cnt++;

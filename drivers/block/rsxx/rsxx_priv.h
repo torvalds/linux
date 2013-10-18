@@ -52,7 +52,7 @@ struct proc_cmd;
 #define RS70_PCI_REV_SUPPORTED	4
 
 #define DRIVER_NAME "rsxx"
-#define DRIVER_VERSION "4.0.1.2498"
+#define DRIVER_VERSION "4.0.2.2510"
 
 /* Block size is 4096 */
 #define RSXX_HW_BLK_SHIFT		12
