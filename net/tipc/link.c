@@ -2641,6 +2641,7 @@ static int link_cmd_set_value(const char *name, u32 new_value, u16 cmd)
 	struct tipc_link *l_ptr;
 	struct tipc_bearer *b_ptr;
 	struct tipc_media *m_ptr;
+	int res = 0;
 
 	l_ptr = link_find_link(name, &node);
 	if (l_ptr) {
@@ -2663,9 +2664,12 @@ static int link_cmd_set_value(const char *name, u32 new_value, u16 cmd)
 		case TIPC_CMD_SET_LINK_WINDOW:
 			tipc_link_set_queue_limits(l_ptr, new_value);
 			break;
+		default:
+			res = -EINVAL;
+			break;
 		}
 		tipc_node_unlock(node);
-		return 0;
+		return res;
 	}
 
 	b_ptr = tipc_bearer_find(name);
@@ -2673,15 +2677,18 @@ static int link_cmd_set_value(const char *name, u32 new_value, u16 cmd)
 		switch (cmd) {
 		case TIPC_CMD_SET_LINK_TOL:
 			b_ptr->tolerance = new_value;
-			return 0;
+			break;
 		case TIPC_CMD_SET_LINK_PRI:
 			b_ptr->priority = new_value;
-			return 0;
+			break;
 		case TIPC_CMD_SET_LINK_WINDOW:
 			b_ptr->window = new_value;
-			return 0;
+			break;
+		default:
+			res = -EINVAL;
+			break;
 		}
-		return -EINVAL;
+		return res;
 	}
 
 	m_ptr = tipc_media_find(name);
@@ -2690,15 +2697,18 @@ static int link_cmd_set_value(const char *name, u32 new_value, u16 cmd)
 	switch (cmd) {
 	case TIPC_CMD_SET_LINK_TOL:
 		m_ptr->tolerance = new_value;
-		return 0;
+		break;
 	case TIPC_CMD_SET_LINK_PRI:
 		m_ptr->priority = new_value;
-		return 0;
+		break;
 	case TIPC_CMD_SET_LINK_WINDOW:
 		m_ptr->window = new_value;
-		return 0;
+		break;
+	default:
+		res = -EINVAL;
+		break;
 	}
-	return -EINVAL;
+	return res;
 }
 
 struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space,
