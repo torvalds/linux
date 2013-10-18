@@ -163,7 +163,7 @@ int tipc_register_media(struct tipc_media *m_ptr);
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
-int  tipc_block_bearer(const char *name);
+int  tipc_block_bearer(struct tipc_bearer *b_ptr);
 void tipc_continue(struct tipc_bearer *tb_ptr);
 
 int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);

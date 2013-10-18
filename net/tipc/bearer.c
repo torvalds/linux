@@ -420,23 +420,15 @@ exit:
 }
 
 /**
- * tipc_block_bearer - Block the bearer with the given name, and reset all its links
+ * tipc_block_bearer - Block the bearer, and reset all its links
  */
-int tipc_block_bearer(const char *name)
+int tipc_block_bearer(struct tipc_bearer *b_ptr)
 {
-	struct tipc_bearer *b_ptr = NULL;
 	struct tipc_link *l_ptr;
 	struct tipc_link *temp_l_ptr;
 
 	read_lock_bh(&tipc_net_lock);
-	b_ptr = tipc_bearer_find(name);
-	if (!b_ptr) {
-		pr_warn("Attempt to block unknown bearer <%s>\n", name);
-		read_unlock_bh(&tipc_net_lock);
-		return -EINVAL;
-	}
-
-	pr_info("Blocking bearer <%s>\n", name);
+	pr_info("Blocking bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {

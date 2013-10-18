@@ -265,17 +265,17 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 		if (netif_carrier_ok(dev))
 			tipc_continue(eb_ptr->bearer);
 		else
-			tipc_block_bearer(eb_ptr->bearer->name);
+			tipc_block_bearer(eb_ptr->bearer);
 		break;
 	case NETDEV_UP:
 		tipc_continue(eb_ptr->bearer);
 		break;
 	case NETDEV_DOWN:
-		tipc_block_bearer(eb_ptr->bearer->name);
+		tipc_block_bearer(eb_ptr->bearer);
 		break;
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
-		tipc_block_bearer(eb_ptr->bearer->name);
+		tipc_block_bearer(eb_ptr->bearer);
 		tipc_continue(eb_ptr->bearer);
 		break;
 	case NETDEV_UNREGISTER:
