@@ -1067,7 +1067,6 @@ static int nfs_parse_security_flavors(char *value,
 		return 0;
 	}
 
-	mnt->flags |= NFS_MOUNT_SECFLAVOUR;
 	mnt->auth_info.flavors[0] = pseudoflavor;
 	mnt->auth_info.flavor_len = 1;
 	return 1;
@@ -2332,7 +2331,7 @@ static int nfs_compare_mount_options(const struct super_block *s, const struct n
 		goto Ebusy;
 	if (a->acdirmax != b->acdirmax)
 		goto Ebusy;
-	if (b->flags & NFS_MOUNT_SECFLAVOUR &&
+	if (b->auth_info.flavor_len > 0 &&
 	   clnt_a->cl_auth->au_flavor != clnt_b->cl_auth->au_flavor)
 		goto Ebusy;
 	return 1;

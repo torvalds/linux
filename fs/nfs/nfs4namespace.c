@@ -390,7 +390,7 @@ struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 
 	if (client->cl_auth->au_flavor != flavor)
 		flavor = client->cl_auth->au_flavor;
-	else if (!(server->flags & NFS_MOUNT_SECFLAVOUR)) {
+	else if (server->auth_info.flavor_len == 0) {
 		rpc_authflavor_t new = nfs4_negotiate_security(dir, name);
 		if ((int)new >= 0)
 			flavor = new;

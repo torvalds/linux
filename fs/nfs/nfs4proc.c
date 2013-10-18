@@ -2920,7 +2920,7 @@ int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 		if (status != -NFS4ERR_WRONGSEC)
 			break;
 		/* Did user force a 'sec=' mount option? */
-		if (server->flags & NFS_MOUNT_SECFLAVOUR)
+		if (server->auth_info.flavor_len > 0)
 			break;
 	default:
 		status = nfs4_do_find_root_sec(server, fhandle, info);
@@ -3180,7 +3180,7 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 			if (client != *clnt)
 				goto out;
 			/* No security negotiation if the user specified 'sec=' */
-			if (NFS_SERVER(dir)->flags & NFS_MOUNT_SECFLAVOUR)
+			if (NFS_SERVER(dir)->auth_info.flavor_len > 0)
 				goto out;
 			client = nfs4_create_sec_client(client, dir, name);
 			if (IS_ERR(client))

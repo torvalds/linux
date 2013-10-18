@@ -1051,6 +1051,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 {
 	struct nfs_client *parent_client;
 	struct nfs_server *server, *parent_server;
+	bool auth_probe;
 	int error;
 
 	dprintk("--> nfs4_create_referral_server()\n");
@@ -1083,8 +1084,9 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mntfh,
-			!(parent_server->flags & NFS_MOUNT_SECFLAVOUR));
+	auth_probe = parent_server->auth_info.flavor_len < 1;
+
+	error = nfs4_server_common_setup(server, mntfh, auth_probe);
 	if (error < 0)
 		goto error;
 
