@@ -196,12 +196,12 @@ static inline u32 vlan_get_ingress_priority(struct net_device *dev,
 }
 
 #ifdef CONFIG_VLAN_8021Q_GVRP
-extern int vlan_gvrp_request_join(const struct net_device *dev);
-extern void vlan_gvrp_request_leave(const struct net_device *dev);
-extern int vlan_gvrp_init_applicant(struct net_device *dev);
-extern void vlan_gvrp_uninit_applicant(struct net_device *dev);
-extern int vlan_gvrp_init(void);
-extern void vlan_gvrp_uninit(void);
+int vlan_gvrp_request_join(const struct net_device *dev);
+void vlan_gvrp_request_leave(const struct net_device *dev);
+int vlan_gvrp_init_applicant(struct net_device *dev);
+void vlan_gvrp_uninit_applicant(struct net_device *dev);
+int vlan_gvrp_init(void);
+void vlan_gvrp_uninit(void);
 #else
 static inline int vlan_gvrp_request_join(const struct net_device *dev) { return 0; }
 static inline void vlan_gvrp_request_leave(const struct net_device *dev) {}
@@ -212,12 +212,12 @@ static inline void vlan_gvrp_uninit(void) {}
 #endif
 
 #ifdef CONFIG_VLAN_8021Q_MVRP
-extern int vlan_mvrp_request_join(const struct net_device *dev);
-extern void vlan_mvrp_request_leave(const struct net_device *dev);
-extern int vlan_mvrp_init_applicant(struct net_device *dev);
-extern void vlan_mvrp_uninit_applicant(struct net_device *dev);
-extern int vlan_mvrp_init(void);
-extern void vlan_mvrp_uninit(void);
+int vlan_mvrp_request_join(const struct net_device *dev);
+void vlan_mvrp_request_leave(const struct net_device *dev);
+int vlan_mvrp_init_applicant(struct net_device *dev);
+void vlan_mvrp_uninit_applicant(struct net_device *dev);
+int vlan_mvrp_init(void);
+void vlan_mvrp_uninit(void);
 #else
 static inline int vlan_mvrp_request_join(const struct net_device *dev) { return 0; }
 static inline void vlan_mvrp_request_leave(const struct net_device *dev) {}
@@ -229,8 +229,8 @@ static inline void vlan_mvrp_uninit(void) {}
 
 extern const char vlan_fullname[];
 extern const char vlan_version[];
-extern int vlan_netlink_init(void);
-extern void vlan_netlink_fini(void);
+int vlan_netlink_init(void);
+void vlan_netlink_fini(void);
 
 extern struct rtnl_link_ops vlan_link_ops;
 
