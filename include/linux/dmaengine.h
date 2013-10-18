@@ -464,9 +464,12 @@ static inline void dma_set_unmap(struct dma_async_tx_descriptor *tx,
 	tx->unmap = unmap;
 }
 
+void dmaengine_unmap_put(struct dmaengine_unmap_data *unmap);
+
 static inline void dma_descriptor_unmap(struct dma_async_tx_descriptor *tx)
 {
 	if (tx->unmap) {
+		dmaengine_unmap_put(tx->unmap);
 		tx->unmap = NULL;
 	}
 }
