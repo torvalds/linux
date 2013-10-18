@@ -226,6 +226,10 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 	}
 
 	if (unlikely(reg == SDHCI_CAPABILITIES)) {
+		/* ignore bit[0-15] as it stores cap_1 register val for mx6sl */
+		if (imx_data->socdata->flags & ESDHC_FLAG_HAVE_CAP1)
+			val &= 0xffff0000;
+
 		/* In FSL esdhc IC module, only bit20 is used to indicate the
 		 * ADMA2 capability of esdhc, but this bit is messed up on
 		 * some SOCs (e.g. on MX25, MX35 this bit is set, but they
