@@ -17701,7 +17701,6 @@ err_out_free_res:
 err_out_disable_pdev:
 	if (pci_is_enabled(pdev))
 		pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return err;
 }
 
@@ -17733,7 +17732,6 @@ static void tg3_remove_one(struct pci_dev *pdev)
 		free_netdev(dev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 

@@ -2818,7 +2818,6 @@ static void pcnet32_remove_one(struct pci_dev *pdev)
 				    lp->init_block, lp->init_dma_addr);
 		free_netdev(dev);
 		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 

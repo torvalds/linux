@@ -3212,7 +3212,6 @@ bnad_init(struct bnad *bnad,
 	bnad->bar0 = ioremap_nocache(bnad->mmio_start, bnad->mmio_len);
 	if (!bnad->bar0) {
 		dev_err(&pdev->dev, "ioremap for bar0 failed\n");
-		pci_set_drvdata(pdev, NULL);
 		return -ENOMEM;
 	}
 	pr_info("bar0 mapped to %p, len %llu\n", bnad->bar0,
