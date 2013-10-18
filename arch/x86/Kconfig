@@ -1033,6 +1033,7 @@ config X86_REBOOTFIXUPS
 
 config MICROCODE
 	tristate "CPU microcode loading support"
+	depends on CPU_SUP_AMD || CPU_SUP_INTEL
 	select FW_LOADER
 	---help---
 
