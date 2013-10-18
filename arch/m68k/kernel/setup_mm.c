@@ -346,11 +346,11 @@ void __init setup_arch(char **cmdline_p)
 		panic("No configuration setup");
 	}
 
+	paging_init();
+
 #ifdef CONFIG_NATFEAT
 	nf_init();
 #endif
-
-	paging_init();
 
 #ifndef CONFIG_SUN3
 	for (i = 1; i < m68k_num_memory; i++)
