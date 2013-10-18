@@ -222,18 +222,6 @@ static ssize_t show_address(struct device *dev,
 	return sprintf(buf, "%pMR\n", &hdev->bdaddr);
 }
 
-static ssize_t show_features(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-
-	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		       hdev->features[0][0], hdev->features[0][1],
-		       hdev->features[0][2], hdev->features[0][3],
-		       hdev->features[0][4], hdev->features[0][5],
-		       hdev->features[0][6], hdev->features[0][7]);
-}
-
 static ssize_t show_manufacturer(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -260,7 +248,6 @@ static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 static DEVICE_ATTR(class, S_IRUGO, show_class, NULL);
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
-static DEVICE_ATTR(features, S_IRUGO, show_features, NULL);
 static DEVICE_ATTR(manufacturer, S_IRUGO, show_manufacturer, NULL);
 static DEVICE_ATTR(hci_version, S_IRUGO, show_hci_version, NULL);
 static DEVICE_ATTR(hci_revision, S_IRUGO, show_hci_revision, NULL);
@@ -271,7 +258,6 @@ static struct attribute *bt_host_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_class.attr,
 	&dev_attr_address.attr,
-	&dev_attr_features.attr,
 	&dev_attr_manufacturer.attr,
 	&dev_attr_hci_version.attr,
 	&dev_attr_hci_revision.attr,

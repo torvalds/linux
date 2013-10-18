@@ -58,6 +58,37 @@ static void hci_notify(struct hci_dev *hdev, int event)
 
 /* ---- HCI debugfs entries ---- */
 
+static int features_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	u8 p;
+
+	hci_dev_lock(hdev);
+	for (p = 0; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
+		seq_printf(f, "Page %u: 0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x "
+			   "0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x\n", p,
+			   hdev->features[p][0], hdev->features[p][1],
+			   hdev->features[p][2], hdev->features[p][3],
+			   hdev->features[p][4], hdev->features[p][5],
+			   hdev->features[p][6], hdev->features[p][7]);
+	}
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int features_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, features_show, inode->i_private);
+}
+
+static const struct file_operations features_fops = {
+	.open		= features_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int blacklist_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
@@ -991,9 +1022,10 @@ static int __hci_init(struct hci_dev *hdev)
 	if (!test_bit(HCI_SETUP, &hdev->dev_flags))
 		return 0;
 
+	debugfs_create_file("features", 0444, hdev->debugfs, hdev,
+			    &features_fops);
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
-
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
 	if (lmp_bredr_capable(hdev)) {
