@@ -1033,7 +1033,7 @@ static const struct of_device_id mcasp_dt_ids[] = {
 		.data = &da830_mcasp_pdata,
 	},
 	{
-		.compatible = "ti,omap2-mcasp-audio",
+		.compatible = "ti,am33xx-mcasp-audio",
 		.data = &omap2_mcasp_pdata,
 	},
 	{ /* sentinel */ }
