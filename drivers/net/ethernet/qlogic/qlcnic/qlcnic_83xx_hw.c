@@ -3369,10 +3369,21 @@ void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *adapter,
 	}
 	config = ahw->port_config;
 	if (config & QLC_83XX_CFG_STD_PAUSE) {
-		if (config & QLC_83XX_CFG_STD_TX_PAUSE)
+		switch (MSW(config)) {
+		case QLC_83XX_TX_PAUSE:
 			pause->tx_pause = 1;
-		if (config & QLC_83XX_CFG_STD_RX_PAUSE)
+			break;
+		case QLC_83XX_RX_PAUSE:
 			pause->rx_pause = 1;
+			break;
+		case QLC_83XX_TX_RX_PAUSE:
+		default:
+			/* Backward compatibility for existing
+			 * flash definitions
+			 */
+			pause->tx_pause = 1;
+			pause->rx_pause = 1;
+		}
 	}
 
 	if (QLC_83XX_AUTONEG(config))
@@ -3415,7 +3426,8 @@ int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *adapter,
 		ahw->port_config &= ~QLC_83XX_CFG_STD_RX_PAUSE;
 		ahw->port_config |= QLC_83XX_CFG_STD_TX_PAUSE;
 	} else if (!pause->rx_pause && !pause->tx_pause) {
-		ahw->port_config &= ~QLC_83XX_CFG_STD_TX_RX_PAUSE;
+		ahw->port_config &= ~(QLC_83XX_CFG_STD_TX_RX_PAUSE |
+				      QLC_83XX_CFG_STD_PAUSE);
 	}
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
