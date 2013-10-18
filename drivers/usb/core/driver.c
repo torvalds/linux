@@ -1179,8 +1179,8 @@ static int usb_resume_interface(struct usb_device *udev,
 						"reset_resume", status);
 		} else {
 			intf->needs_binding = 1;
-			dev_warn(&intf->dev, "no %s for driver %s?\n",
-					"reset_resume", driver->name);
+			dev_dbg(&intf->dev, "no reset_resume for driver %s?\n",
+					driver->name);
 		}
 	} else {
 		status = driver->resume(intf);
