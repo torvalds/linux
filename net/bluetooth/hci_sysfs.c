@@ -396,33 +396,6 @@ static struct device_type bt_host = {
 	.release = bt_host_release,
 };
 
-static int blacklist_show(struct seq_file *f, void *p)
-{
-	struct hci_dev *hdev = f->private;
-	struct bdaddr_list *b;
-
-	hci_dev_lock(hdev);
-
-	list_for_each_entry(b, &hdev->blacklist, list)
-		seq_printf(f, "%pMR\n", &b->bdaddr);
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-static int blacklist_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, blacklist_show, inode->i_private);
-}
-
-static const struct file_operations blacklist_fops = {
-	.open		= blacklist_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void print_bt_uuid(struct seq_file *f, u8 *uuid)
 {
 	u32 data0, data5;
@@ -496,9 +469,6 @@ int hci_add_sysfs(struct hci_dev *hdev)
 	hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
 	if (!hdev->debugfs)
 		return 0;
-
-	debugfs_create_file("blacklist", 0444, hdev->debugfs,
-			    hdev, &blacklist_fops);
 
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
