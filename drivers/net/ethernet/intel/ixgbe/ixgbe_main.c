@@ -245,7 +245,7 @@ static void ixgbe_check_minimum_link(struct ixgbe_adapter *adapter,
 		max_gts = 4 * width;
 		break;
 	case PCIE_SPEED_8_0GT:
-		/* 128b/130b encoding only reduces throughput by 1% */
+		/* 128b/130b encoding reduces throughput by less than 2% */
 		max_gts = 8 * width;
 		break;
 	default:
@@ -263,7 +263,7 @@ static void ixgbe_check_minimum_link(struct ixgbe_adapter *adapter,
 		   width,
 		   (speed == PCIE_SPEED_2_5GT ? "20%" :
 		    speed == PCIE_SPEED_5_0GT ? "20%" :
-		    speed == PCIE_SPEED_8_0GT ? "N/a" :
+		    speed == PCIE_SPEED_8_0GT ? "<2%" :
 		    "Unknown"));
 
 	if (max_gts < expected_gts) {
