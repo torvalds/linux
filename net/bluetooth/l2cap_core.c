@@ -6399,8 +6399,7 @@ static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 	if (hcon->type != ACL_LINK)
 		goto drop;
 
-	chan = l2cap_global_chan_by_psm(0, psm, &conn->hcon->src,
-					&conn->hcon->dst);
+	chan = l2cap_global_chan_by_psm(0, psm, &hcon->src, &hcon->dst);
 	if (!chan)
 		goto drop;
 
@@ -6413,7 +6412,7 @@ static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 		goto drop;
 
 	/* Store remote BD_ADDR and PSM for msg_name */
-	bacpy(&bt_cb(skb)->bdaddr, &conn->hcon->dst);
+	bacpy(&bt_cb(skb)->bdaddr, &hcon->dst);
 	bt_cb(skb)->psm = psm;
 
 	if (!chan->ops->recv(chan, skb))
@@ -6433,7 +6432,7 @@ static void l2cap_att_channel(struct l2cap_conn *conn,
 		goto drop;
 
 	chan = l2cap_global_chan_by_scid(BT_CONNECTED, L2CAP_CID_ATT,
-					 &conn->hcon->src, &conn->hcon->dst);
+					 &hcon->src, &hcon->dst);
 	if (!chan)
 		goto drop;
 
