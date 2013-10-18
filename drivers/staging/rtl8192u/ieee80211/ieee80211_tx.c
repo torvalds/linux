@@ -237,8 +237,8 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	kfree(txb);
 }
 
-struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
-					  gfp_t gfp_mask)
+static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
+						 gfp_t gfp_mask)
 {
 	struct ieee80211_txb *txb;
 	int i;
