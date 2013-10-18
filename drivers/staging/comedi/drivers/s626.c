@@ -2036,8 +2036,6 @@ static void s626_timer_load(struct comedi_device *dev,
 		(S626_INDXSRC_SOFT << S626_BF_INDXSRC) |
 		/* Operating mode is Timer. */
 		(S626_CLKSRC_TIMER << S626_BF_CLKSRC) |
-		/* Active high clock. */
-		(S626_CLKPOL_POS << S626_BF_CLKPOL) |
 		/* Count direction is Down. */
 		(S626_CNTDIR_DOWN << S626_BF_CLKPOL) |
 		/* Clock multiplier is 1x. */
@@ -2528,8 +2526,6 @@ static void s626_counters_init(struct comedi_device *dev)
 		(S626_CLKSRC_COUNTER << S626_BF_CLKSRC) |
 		/* Active high clock. */
 		(S626_CLKPOL_POS << S626_BF_CLKPOL) |
-		/* Count direction is up. */
-		(S626_CNTDIR_UP << S626_BF_CLKPOL) |
 		/* Clock multiplier is 1x. */
 		(S626_CLKMULT_1X << S626_BF_CLKMULT) |
 		/* Enabled by index */
