@@ -363,6 +363,9 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_LINK_EEE(data)		((data) & BIT_13)
 #define QLC_83XX_DCBX(data)			(((data) >> 28) & 7)
 #define QLC_83XX_AUTONEG(data)			((data) & BIT_15)
+#define QLC_83XX_TX_PAUSE			0x10
+#define QLC_83XX_RX_PAUSE			0x20
+#define QLC_83XX_TX_RX_PAUSE			0x30
 #define QLC_83XX_CFG_STD_PAUSE			(1 << 5)
 #define QLC_83XX_CFG_STD_TX_PAUSE		(1 << 20)
 #define QLC_83XX_CFG_STD_RX_PAUSE		(2 << 20)
@@ -626,7 +629,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
 				    struct qlcnic_info *, u8);
 int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
-int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *, int);
+int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *, int, int *);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);
 void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data);

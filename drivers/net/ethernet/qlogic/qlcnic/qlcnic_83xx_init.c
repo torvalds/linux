@@ -636,7 +636,7 @@ int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 	if (adapter->portnum == 0)
 		qlcnic_set_drv_version(adapter);
 
-	qlcnic_dcb_get_info(adapter);
+	qlcnic_dcb_get_info(adapter->dcb);
 	qlcnic_83xx_idc_attach_driver(adapter);
 
 	return 0;
@@ -818,6 +818,7 @@ static int qlcnic_83xx_idc_ready_state(struct qlcnic_adapter *adapter)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_mailbox *mbx = ahw->mailbox;
 	int ret = 0;
+	u32 owner;
 	u32 val;
 
 	/* Perform NIC configuration based ready state entry actions */
@@ -846,6 +847,10 @@ static int qlcnic_83xx_idc_ready_state(struct qlcnic_adapter *adapter)
 			clear_bit(QLC_83XX_MBX_READY, &mbx->status);
 			set_bit(__QLCNIC_RESETTING, &adapter->state);
 			qlcnic_83xx_idc_enter_need_reset_state(adapter, 1);
+		}  else {
+			owner = qlcnic_83xx_idc_find_reset_owner_id(adapter);
+			if (ahw->pci_func == owner)
+				qlcnic_dump_fw(adapter);
 		}
 		return -EIO;
 	}
@@ -1057,6 +1062,12 @@ void qlcnic_83xx_idc_poll_dev_state(struct work_struct *work)
 	}
 	adapter->ahw->idc.prev_state = adapter->ahw->idc.curr_state;
 	qlcnic_83xx_periodic_tasks(adapter);
+
+	/* Do not reschedule if firmaware is in hanged state and auto
+	 * recovery is disabled
+	 */
+	if ((adapter->flags & QLCNIC_FW_HANG) && !qlcnic_auto_fw_reset)
+		return;
 
 	/* Re-schedule the function */
 	if (test_bit(QLC_83XX_MODULE_LOADED, &adapter->ahw->idc.status))
@@ -2163,6 +2174,7 @@ static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
 int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_dcb *dcb;
 	int err = 0;
 
 	ahw->msix_supported = !!qlcnic_use_msi_x;
@@ -2220,8 +2232,10 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (err)
 		goto disable_mbx_intr;
 
-	if (adapter->dcb && qlcnic_dcb_attach(adapter))
-		qlcnic_clear_dcb_ops(adapter);
+	dcb = adapter->dcb;
+
+	if (dcb && qlcnic_dcb_attach(dcb))
+		qlcnic_clear_dcb_ops(dcb);
 
 	/* Periodically monitor device status */
 	qlcnic_83xx_idc_poll_dev_state(&adapter->fw_work.work);

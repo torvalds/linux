@@ -902,7 +902,7 @@ void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 			 QLCNIC_MBX_RSP(event[0]));
 		break;
 	case QLCNIC_MBX_DCBX_CONFIG_CHANGE_EVENT:
-		qlcnic_dcb_handle_aen(adapter, (void *)&event[1]);
+		qlcnic_dcb_aen_handler(adapter->dcb, (void *)&event[1]);
 		break;
 	default:
 		dev_dbg(&adapter->pdev->dev, "Unsupported AEN:0x%x.\n",
@@ -2321,19 +2321,7 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			i++;
 			memcpy(pci_info->mac + sizeof(u32), &cmd.rsp.arg[i], 2);
 			i = i + 3;
-			if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-				dev_info(dev, "id = %d active = %d type = %d\n"
-					 "\tport = %d min bw = %d max bw = %d\n"
-					 "\tmac_addr =  %pM\n", pci_info->id,
-					 pci_info->active, pci_info->type,
-					 pci_info->default_port,
-					 pci_info->tx_min_bw,
-					 pci_info->tx_max_bw, pci_info->mac);
 		}
-		if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-			dev_info(dev, "Max functions = %d, active functions = %d\n",
-				 ahw->max_pci_func, ahw->act_pci_func);
-
 	} else {
 		dev_err(dev, "Failed to get PCI Info, error = %d\n", err);
 		err = -EIO;
@@ -3279,12 +3267,12 @@ int qlcnic_83xx_reg_test(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
+inline int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
 {
 	return (ARRAY_SIZE(qlcnic_83xx_ext_reg_tbl) *
-		sizeof(adapter->ahw->ext_reg_tbl)) +
-		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) +
-		sizeof(adapter->ahw->reg_tbl));
+		sizeof(*adapter->ahw->ext_reg_tbl)) +
+		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) *
+		sizeof(*adapter->ahw->reg_tbl));
 }
 
 int qlcnic_83xx_get_registers(struct qlcnic_adapter *adapter, u32 *regs_buff)
@@ -3381,10 +3369,21 @@ void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *adapter,
 	}
 	config = ahw->port_config;
 	if (config & QLC_83XX_CFG_STD_PAUSE) {
-		if (config & QLC_83XX_CFG_STD_TX_PAUSE)
+		switch (MSW(config)) {
+		case QLC_83XX_TX_PAUSE:
 			pause->tx_pause = 1;
-		if (config & QLC_83XX_CFG_STD_RX_PAUSE)
+			break;
+		case QLC_83XX_RX_PAUSE:
 			pause->rx_pause = 1;
+			break;
+		case QLC_83XX_TX_RX_PAUSE:
+		default:
+			/* Backward compatibility for existing
+			 * flash definitions
+			 */
+			pause->tx_pause = 1;
+			pause->rx_pause = 1;
+		}
 	}
 
 	if (QLC_83XX_AUTONEG(config))
@@ -3427,7 +3426,8 @@ int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *adapter,
 		ahw->port_config &= ~QLC_83XX_CFG_STD_RX_PAUSE;
 		ahw->port_config |= QLC_83XX_CFG_STD_TX_PAUSE;
 	} else if (!pause->rx_pause && !pause->tx_pause) {
-		ahw->port_config &= ~QLC_83XX_CFG_STD_TX_RX_PAUSE;
+		ahw->port_config &= ~(QLC_83XX_CFG_STD_TX_RX_PAUSE |
+				      QLC_83XX_CFG_STD_PAUSE);
 	}
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
