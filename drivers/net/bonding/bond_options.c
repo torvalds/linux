@@ -12,6 +12,9 @@
 
 #include <linux/errno.h>
 #include <linux/if.h>
+#include <linux/netdevice.h>
+#include <linux/rwlock.h>
+#include <linux/rcupdate.h>
 #include "bonding.h"
 
 static bool bond_mode_is_valid(int mode)
@@ -52,4 +55,70 @@ int bond_option_mode_set(struct bonding *bond, int mode)
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = mode;
 	return 0;
+}
+
+int bond_option_active_slave_set(struct bonding *bond,
+				 struct net_device *slave_dev)
+{
+	int ret = 0;
+
+	if (slave_dev) {
+		if (!netif_is_bond_slave(slave_dev)) {
+			pr_err("Device %s is not bonding slave.\n",
+			       slave_dev->name);
+			return -EINVAL;
+		}
+
+		if (bond->dev != netdev_master_upper_dev_get(slave_dev)) {
+			pr_err("%s: Device %s is not our slave.\n",
+			       bond->dev->name, slave_dev->name);
+			return -EINVAL;
+		}
+	}
+
+	if (!USES_PRIMARY(bond->params.mode)) {
+		pr_err("%s: Unable to change active slave; %s is in mode %d\n",
+		       bond->dev->name, bond->dev->name, bond->params.mode);
+		return -EINVAL;
+	}
+
+	block_netpoll_tx();
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+
+	/* check to see if we are clearing active */
+	if (!slave_dev) {
+		pr_info("%s: Clearing current active slave.\n",
+		bond->dev->name);
+		rcu_assign_pointer(bond->curr_active_slave, NULL);
+		bond_select_active_slave(bond);
+	} else {
+		struct slave *old_active = bond->curr_active_slave;
+		struct slave *new_active = bond_slave_get_rtnl(slave_dev);
+
+		BUG_ON(!new_active);
+
+		if (new_active == old_active) {
+			/* do nothing */
+			pr_info("%s: %s is already the current active slave.\n",
+				bond->dev->name, new_active->dev->name);
+		} else {
+			if (old_active && (new_active->link == BOND_LINK_UP) &&
+			    IS_UP(new_active->dev)) {
+				pr_info("%s: Setting %s as active slave.\n",
+					bond->dev->name, new_active->dev->name);
+				bond_change_active_slave(bond, new_active);
+			} else {
+				pr_err("%s: Could not set %s as active slave; either %s is down or the link is down.\n",
+				       bond->dev->name, new_active->dev->name,
+				       new_active->dev->name);
+				ret = -EINVAL;
+			}
+		}
+	}
+
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
+	return ret;
 }

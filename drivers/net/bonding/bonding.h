@@ -427,6 +427,7 @@ unsigned int bond_get_num_tx_queues(void);
 int bond_netlink_init(void);
 void bond_netlink_fini(void);
 int bond_option_mode_set(struct bonding *bond, int mode);
+int bond_option_active_slave_set(struct bonding *bond, struct net_device *slave_dev);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
