@@ -134,7 +134,7 @@ static int xilly_probe(struct pci_dev *pdev,
 	struct xilly_endpoint *endpoint;
 	int rc = 0;
 
-	endpoint = xillybus_init_endpoint(pdev, NULL, &pci_hw);
+	endpoint = xillybus_init_endpoint(pdev, &pdev->dev, &pci_hw);
 
 	if (!endpoint)
 		return -ENOMEM;
