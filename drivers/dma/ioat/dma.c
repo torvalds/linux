@@ -531,21 +531,6 @@ static void ioat1_cleanup_event(unsigned long data)
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
-void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
-		    size_t len, struct ioat_dma_descriptor *hw)
-{
-	struct pci_dev *pdev = chan->device->pdev;
-	size_t offset = len - hw->size;
-
-	if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP))
-		ioat_unmap(pdev, hw->dst_addr - offset, len,
-			   PCI_DMA_FROMDEVICE, flags, 1);
-
-	if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP))
-		ioat_unmap(pdev, hw->src_addr - offset, len,
-			   PCI_DMA_TODEVICE, flags, 0);
-}
-
 dma_addr_t ioat_get_current_completion(struct ioat_chan_common *chan)
 {
 	dma_addr_t phys_complete;
@@ -603,7 +588,6 @@ static void __cleanup(struct ioat_dma_chan *ioat, dma_addr_t phys_complete)
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
 			dma_descriptor_unmap(tx);
-			ioat_dma_unmap(chan, tx->flags, desc->len, desc->hw);
 			ioat->active -= desc->hw->tx_cnt;
 			if (tx->callback) {
 				tx->callback(tx->callback_param);

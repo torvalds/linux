@@ -96,13 +96,6 @@ static const u8 pq16_idx_to_sed[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 static void ioat3_eh(struct ioat2_dma_chan *ioat);
 
-static dma_addr_t xor_get_src(struct ioat_raw_descriptor *descs[2], int idx)
-{
-	struct ioat_raw_descriptor *raw = descs[xor_idx_to_desc >> idx & 1];
-
-	return raw->field[xor_idx_to_field[idx]];
-}
-
 static void xor_set_src(struct ioat_raw_descriptor *descs[2],
 			dma_addr_t addr, u32 offset, int idx)
 {
@@ -296,164 +289,6 @@ static void ioat3_free_sed(struct ioatdma_device *device, struct ioat_sed_ent *s
 	kmem_cache_free(device->sed_pool, sed);
 }
 
-static void ioat3_dma_unmap(struct ioat2_dma_chan *ioat,
-			    struct ioat_ring_ent *desc, int idx)
-{
-	struct ioat_chan_common *chan = &ioat->base;
-	struct pci_dev *pdev = chan->device->pdev;
-	size_t len = desc->len;
-	size_t offset = len - desc->hw->size;
-	struct dma_async_tx_descriptor *tx = &desc->txd;
-	enum dma_ctrl_flags flags = tx->flags;
-
-	switch (desc->hw->ctl_f.op) {
-	case IOAT_OP_COPY:
-		if (!desc->hw->ctl_f.null) /* skip 'interrupt' ops */
-			ioat_dma_unmap(chan, flags, len, desc->hw);
-		break;
-	case IOAT_OP_XOR_VAL:
-	case IOAT_OP_XOR: {
-		struct ioat_xor_descriptor *xor = desc->xor;
-		struct ioat_ring_ent *ext;
-		struct ioat_xor_ext_descriptor *xor_ex = NULL;
-		int src_cnt = src_cnt_to_sw(xor->ctl_f.src_cnt);
-		struct ioat_raw_descriptor *descs[2];
-		int i;
-
-		if (src_cnt > 5) {
-			ext = ioat2_get_ring_ent(ioat, idx + 1);
-			xor_ex = ext->xor_ex;
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			descs[0] = (struct ioat_raw_descriptor *) xor;
-			descs[1] = (struct ioat_raw_descriptor *) xor_ex;
-			for (i = 0; i < src_cnt; i++) {
-				dma_addr_t src = xor_get_src(descs, i);
-
-				ioat_unmap(pdev, src - offset, len,
-					   PCI_DMA_TODEVICE, flags, 0);
-			}
-
-			/* dest is a source in xor validate operations */
-			if (xor->ctl_f.op == IOAT_OP_XOR_VAL) {
-				ioat_unmap(pdev, xor->dst_addr - offset, len,
-					   PCI_DMA_TODEVICE, flags, 1);
-				break;
-			}
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP))
-			ioat_unmap(pdev, xor->dst_addr - offset, len,
-				   PCI_DMA_FROMDEVICE, flags, 1);
-		break;
-	}
-	case IOAT_OP_PQ_VAL:
-	case IOAT_OP_PQ: {
-		struct ioat_pq_descriptor *pq = desc->pq;
-		struct ioat_ring_ent *ext;
-		struct ioat_pq_ext_descriptor *pq_ex = NULL;
-		int src_cnt = src_cnt_to_sw(pq->ctl_f.src_cnt);
-		struct ioat_raw_descriptor *descs[2];
-		int i;
-
-		if (src_cnt > 3) {
-			ext = ioat2_get_ring_ent(ioat, idx + 1);
-			pq_ex = ext->pq_ex;
-		}
-
-		/* in the 'continue' case don't unmap the dests as sources */
-		if (dmaf_p_disabled_continue(flags))
-			src_cnt--;
-		else if (dmaf_continue(flags))
-			src_cnt -= 3;
-
-		if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			descs[0] = (struct ioat_raw_descriptor *) pq;
-			descs[1] = (struct ioat_raw_descriptor *) pq_ex;
-			for (i = 0; i < src_cnt; i++) {
-				dma_addr_t src = pq_get_src(descs, i);
-
-				ioat_unmap(pdev, src - offset, len,
-					   PCI_DMA_TODEVICE, flags, 0);
-			}
-
-			/* the dests are sources in pq validate operations */
-			if (pq->ctl_f.op == IOAT_OP_XOR_VAL) {
-				if (!(flags & DMA_PREP_PQ_DISABLE_P))
-					ioat_unmap(pdev, pq->p_addr - offset,
-						   len, PCI_DMA_TODEVICE, flags, 0);
-				if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-					ioat_unmap(pdev, pq->q_addr - offset,
-						   len, PCI_DMA_TODEVICE, flags, 0);
-				break;
-			}
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (!(flags & DMA_PREP_PQ_DISABLE_P))
-				ioat_unmap(pdev, pq->p_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-			if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-				ioat_unmap(pdev, pq->q_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-		}
-		break;
-	}
-	case IOAT_OP_PQ_16S:
-	case IOAT_OP_PQ_VAL_16S: {
-		struct ioat_pq_descriptor *pq = desc->pq;
-		int src_cnt = src16_cnt_to_sw(pq->ctl_f.src_cnt);
-		struct ioat_raw_descriptor *descs[4];
-		int i;
-
-		/* in the 'continue' case don't unmap the dests as sources */
-		if (dmaf_p_disabled_continue(flags))
-			src_cnt--;
-		else if (dmaf_continue(flags))
-			src_cnt -= 3;
-
-		if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			descs[0] = (struct ioat_raw_descriptor *)pq;
-			descs[1] = (struct ioat_raw_descriptor *)(desc->sed->hw);
-			descs[2] = (struct ioat_raw_descriptor *)(&desc->sed->hw->b[0]);
-			for (i = 0; i < src_cnt; i++) {
-				dma_addr_t src = pq16_get_src(descs, i);
-
-				ioat_unmap(pdev, src - offset, len,
-					   PCI_DMA_TODEVICE, flags, 0);
-			}
-
-			/* the dests are sources in pq validate operations */
-			if (pq->ctl_f.op == IOAT_OP_XOR_VAL) {
-				if (!(flags & DMA_PREP_PQ_DISABLE_P))
-					ioat_unmap(pdev, pq->p_addr - offset,
-						   len, PCI_DMA_TODEVICE,
-						   flags, 0);
-				if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-					ioat_unmap(pdev, pq->q_addr - offset,
-						   len, PCI_DMA_TODEVICE,
-						   flags, 0);
-				break;
-			}
-		}
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (!(flags & DMA_PREP_PQ_DISABLE_P))
-				ioat_unmap(pdev, pq->p_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-			if (!(flags & DMA_PREP_PQ_DISABLE_Q))
-				ioat_unmap(pdev, pq->q_addr - offset, len,
-					   PCI_DMA_BIDIRECTIONAL, flags, 1);
-		}
-		break;
-	}
-	default:
-		dev_err(&pdev->dev, "%s: unknown op type: %#x\n",
-			__func__, desc->hw->ctl_f.op);
-	}
-}
-
 static bool desc_has_ext(struct ioat_ring_ent *desc)
 {
 	struct ioat_dma_descriptor *hw = desc->hw;
@@ -578,7 +413,6 @@ static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
 			dma_descriptor_unmap(tx);
-			ioat3_dma_unmap(ioat, desc, idx + i);
 			if (tx->callback) {
 				tx->callback(tx->callback_param);
 				tx->callback = NULL;

@@ -1164,43 +1164,12 @@ static void pl08x_free_txd(struct pl08x_driver_data *pl08x,
 	kfree(txd);
 }
 
-static void pl08x_unmap_buffers(struct pl08x_txd *txd)
-{
-	struct device *dev = txd->vd.tx.chan->device->dev;
-	struct pl08x_sg *dsg;
-
-	if (!(txd->vd.tx.flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-		if (txd->vd.tx.flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_single(dev, dsg->src_addr, dsg->len,
-						DMA_TO_DEVICE);
-		else {
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_page(dev, dsg->src_addr, dsg->len,
-						DMA_TO_DEVICE);
-		}
-	}
-	if (!(txd->vd.tx.flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-		if (txd->vd.tx.flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_single(dev, dsg->dst_addr, dsg->len,
-						DMA_FROM_DEVICE);
-		else
-			list_for_each_entry(dsg, &txd->dsg_list, node)
-				dma_unmap_page(dev, dsg->dst_addr, dsg->len,
-						DMA_FROM_DEVICE);
-	}
-}
-
 static void pl08x_desc_free(struct virt_dma_desc *vd)
 {
 	struct pl08x_txd *txd = to_pl08x_txd(&vd->tx);
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(vd->tx.chan);
 
 	dma_descriptor_unmap(txd);
-	if (!plchan->slave)
-		pl08x_unmap_buffers(txd);
-
 	if (!txd->done)
 		pl08x_release_mux(plchan);
 

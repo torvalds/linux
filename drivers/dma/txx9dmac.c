@@ -420,30 +420,6 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	list_move(&desc->desc_node, &dc->free_list);
 
 	dma_descriptor_unmap(txd);
-	if (!ds) {
-		dma_addr_t dmaaddr;
-		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			dmaaddr = is_dmac64(dc) ?
-				desc->hwdesc.DAR : desc->hwdesc32.DAR;
-			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-				dma_unmap_single(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_FROM_DEVICE);
-			else
-				dma_unmap_page(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_FROM_DEVICE);
-		}
-		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			dmaaddr = is_dmac64(dc) ?
-				desc->hwdesc.SAR : desc->hwdesc32.SAR;
-			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-				dma_unmap_single(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_TO_DEVICE);
-			else
-				dma_unmap_page(chan2parent(&dc->chan),
-					dmaaddr, desc->len, DMA_TO_DEVICE);
-		}
-	}
-
 	/*
 	 * The API requires that no submissions are done from a
 	 * callback, so we don't need to drop the lock here
