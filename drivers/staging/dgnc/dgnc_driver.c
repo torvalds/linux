@@ -488,9 +488,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* get the board structure and prep it */
 	brd = dgnc_Board[dgnc_NumBoards] =
 		kzalloc(sizeof(*brd), GFP_KERNEL);
-	if (!brd) {
+	if (!brd) 
 		return -ENOMEM;
-	}
 
 	/* make a temporary message buffer for the boot messages */
 	brd->msgbuf = brd->msgbuf_head =
