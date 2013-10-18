@@ -14,7 +14,7 @@
 #include <net/tcp.h>
 #include <net/protocol.h>
 
-struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
+struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 				netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
@@ -139,7 +139,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 out:
 	return segs;
 }
-EXPORT_SYMBOL(tcp_tso_segment);
+EXPORT_SYMBOL(tcp_gso_segment);
 
 struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
@@ -320,7 +320,7 @@ static int tcp4_gro_complete(struct sk_buff *skb)
 static const struct net_offload tcpv4_offload = {
 	.callbacks = {
 		.gso_send_check	=	tcp_v4_gso_send_check,
-		.gso_segment	=	tcp_tso_segment,
+		.gso_segment	=	tcp_gso_segment,
 		.gro_receive	=	tcp4_gro_receive,
 		.gro_complete	=	tcp4_gro_complete,
 	},
