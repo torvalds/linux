@@ -254,15 +254,20 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
  * bottom 4 bytes of each register, and the loads clear the
  * top 4 bytes of the affected register.
  */
+#ifdef __BIG_ENDIAN__
 #ifdef CONFIG_PPC64
 #define REG_BYTE(rp, i)		*((u8 *)((rp) + ((i) >> 2)) + ((i) & 3) + 4)
 #else
 #define REG_BYTE(rp, i)		*((u8 *)(rp) + (i))
 #endif
+#endif
+
+#ifdef __LITTLE_ENDIAN__
+#define REG_BYTE(rp, i)		(*(((u8 *)((rp) + ((i)>>2)) + ((i)&3))))
+#endif
 
 #define SWIZ_PTR(p)		((unsigned char __user *)((p) ^ swiz))
 
-#ifdef __BIG_ENDIAN__
 static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			    unsigned int reg, unsigned int nb,
 			    unsigned int flags, unsigned int instr,
@@ -304,6 +309,15 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			nb0 = nb + reg * 4 - 128;
 			nb = 128 - reg * 4;
 		}
+#ifdef __LITTLE_ENDIAN__
+		/*
+		 *  String instructions are endian neutral but the code
+		 *  below is not.  Force byte swapping on so that the
+		 *  effects of swizzling are undone in the load/store
+		 *  loops below.
+		 */
+		flags ^= SW;
+#endif
 	} else {
 		/* lwm, stmw */
 		nb = (32 - reg) * 4;
@@ -364,6 +378,7 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
  * Only POWER6 has these instructions, and it does true little-endian,
  * so we don't need the address swizzling.
  */
+#ifdef __BIG_ENDIAN__
 static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
 			   unsigned int flags)
 {
@@ -882,13 +897,9 @@ int fix_alignment(struct pt_regs *regs)
 	 * function
 	 */
 	if (flags & M) {
-#ifdef __BIG_ENDIAN__
 		PPC_WARN_ALIGNMENT(multiple, regs);
 		return emulate_multiple(regs, addr, reg, nb,
 					flags, instr, swiz);
-#else
-		return -EFAULT;
-#endif
 	}
 
 	/* Verify the address of the operand */
