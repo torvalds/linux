@@ -544,13 +544,17 @@
 #define S626_CRABIT_CNTSRC_A	 0	/* A counter source. */
 
 /* Bit field positions in CRB: */
-#define S626_CRBBIT_INTRESETCMD	15	/* Interrupt reset command. */
-#define S626_CRBBIT_INTRESET_B	14	/* B interrupt reset enable. */
-#define S626_CRBBIT_INTRESET_A	13	/* A interrupt reset enable. */
+#define S626_CRBBIT_INTRESETCMD	15	/* (w) Interrupt reset command. */
+#define S626_CRBBIT_CNTDIR_B	15	/* (r) B counter direction. */
+#define S626_CRBBIT_INTRESET_B	14	/* (w) B interrupt reset enable. */
+#define S626_CRBBIT_OVERDO_A	14	/* (r) A overflow routed to dig. out. */
+#define S626_CRBBIT_INTRESET_A	13	/* (w) A interrupt reset enable. */
+#define S626_CRBBIT_OVERDO_B	13	/* (r) B overflow routed to dig. out. */
 #define S626_CRBBIT_CLKENAB_A	12	/* A clock enable. */
 #define S626_CRBBIT_INTSRC_B	10	/* B interrupt source. */
 #define S626_CRBBIT_LATCHSRC	 8	/* A/B latch source. */
 #define S626_CRBBIT_LOADSRC_B	 6	/* B preload trigger. */
+#define S626_CRBBIT_CLEAR_B	 7	/* B cleared when A overflows. */
 #define S626_CRBBIT_CLKMULT_B	 3	/* B clock multiplier. */
 #define S626_CRBBIT_CLKENAB_B	 2	/* B clock enable. */
 #define S626_CRBBIT_INDXPOL_B	 1	/* B index polarity. */
@@ -569,12 +573,16 @@
 #define S626_CRAMSK_CNTSRC_A	(3 << S626_CRABIT_CNTSRC_A)
 
 #define S626_CRBMSK_INTRESETCMD	(1 << S626_CRBBIT_INTRESETCMD)
+#define S626_CRBMSK_CNTDIR_B	(1 << S626_CRBBIT_CNTDIR_B)
 #define S626_CRBMSK_INTRESET_B	(1 << S626_CRBBIT_INTRESET_B)
+#define S626_CRBMSK_OVERDO_A	(1 << S626_CRBBIT_OVERDO_A)
 #define S626_CRBMSK_INTRESET_A	(1 << S626_CRBBIT_INTRESET_A)
+#define S626_CRBMSK_OVERDO_B	(1 << S626_CRBBIT_OVERDO_B)
 #define S626_CRBMSK_CLKENAB_A	(1 << S626_CRBBIT_CLKENAB_A)
 #define S626_CRBMSK_INTSRC_B	(3 << S626_CRBBIT_INTSRC_B)
 #define S626_CRBMSK_LATCHSRC	(3 << S626_CRBBIT_LATCHSRC)
 #define S626_CRBMSK_LOADSRC_B	(3 << S626_CRBBIT_LOADSRC_B)
+#define S626_CRBMSK_CLEAR_B	(1 << S626_CRBBIT_CLEAR_B)
 #define S626_CRBMSK_CLKMULT_B	(3 << S626_CRBBIT_CLKMULT_B)
 #define S626_CRBMSK_CLKENAB_B	(1 << S626_CRBBIT_CLKENAB_B)
 #define S626_CRBMSK_INDXPOL_B	(1 << S626_CRBBIT_INDXPOL_B)
