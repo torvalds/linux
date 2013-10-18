@@ -46,6 +46,11 @@
 /* Bits 3 and 6 are not SDHCI standard definitions */
 #define  ESDHC_MIX_CTRL_SDHCI_MASK	0xb7
 
+/* dll control register */
+#define ESDHC_DLL_CTRL			0x60
+#define ESDHC_DLL_OVERRIDE_VAL_SHIFT	9
+#define ESDHC_DLL_OVERRIDE_EN_SHIFT	8
+
 /* tune control register */
 #define ESDHC_TUNE_CTRL_STATUS		0x68
 #define  ESDHC_TUNE_CTRL_STEP		1
@@ -817,6 +822,7 @@ static int esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
 	switch (uhs) {
 	case MMC_TIMING_UHS_SDR12:
@@ -837,6 +843,15 @@ static int esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 				ESDHC_MIX_CTRL_DDREN,
 				host->ioaddr + ESDHC_MIX_CTRL);
 		imx_data->is_ddr = 1;
+		if (boarddata->delay_line) {
+			u32 v;
+			v = boarddata->delay_line <<
+				ESDHC_DLL_OVERRIDE_VAL_SHIFT |
+				(1 << ESDHC_DLL_OVERRIDE_EN_SHIFT);
+			if (is_imx53_esdhc(imx_data))
+				v <<= 1;
+			writel(v, host->ioaddr + ESDHC_DLL_CTRL);
+		}
 		break;
 	}
 
@@ -900,6 +915,9 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 		boarddata->support_vsel = false;
 	else
 		boarddata->support_vsel = true;
+
+	if (of_property_read_u32(np, "fsl,delay-line", &boarddata->delay_line))
+		boarddata->delay_line = 0;
 
 	return 0;
 }
