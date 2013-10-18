@@ -6833,12 +6833,11 @@ int __init l2cap_init(void)
 	if (err < 0)
 		return err;
 
-	if (bt_debugfs) {
-		l2cap_debugfs = debugfs_create_file("l2cap", 0444, bt_debugfs,
-						    NULL, &l2cap_debugfs_fops);
-		if (!l2cap_debugfs)
-			BT_ERR("Failed to create L2CAP debug file");
-	}
+	if (IS_ERR_OR_NULL(bt_debugfs))
+		return 0;
+
+	l2cap_debugfs = debugfs_create_file("l2cap", 0444, bt_debugfs,
+					    NULL, &l2cap_debugfs_fops);
 
 	return 0;
 }
