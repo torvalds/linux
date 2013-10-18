@@ -953,9 +953,12 @@ static void dmaengine_unmap(struct kref *kref)
 		dma_unmap_page(dev, unmap->addr[i], unmap->len,
 			       DMA_FROM_DEVICE);
 	cnt += unmap->bidi_cnt;
-	for (; i < cnt; i++)
+	for (; i < cnt; i++) {
+		if (unmap->addr[i] == 0)
+			continue;
 		dma_unmap_page(dev, unmap->addr[i], unmap->len,
 			       DMA_BIDIRECTIONAL);
+	}
 	mempool_free(unmap, __get_unmap_pool(cnt)->pool);
 }
 
