@@ -2873,11 +2873,24 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	int status = -EPERM;
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
-		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
-		if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
-			continue;
-		break;
+	if (server->auth_info.flavor_len > 0) {
+		/* try each flavor specified by user */
+		for (i = 0; i < server->auth_info.flavor_len; i++) {
+			status = nfs4_lookup_root_sec(server, fhandle, info,
+						server->auth_info.flavors[i]);
+			if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
+				continue;
+			break;
+		}
+	} else {
+		/* no flavors specified by user, try default list */
+		for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
+			status = nfs4_lookup_root_sec(server, fhandle, info,
+						      flav_array[i]);
+			if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
+				continue;
+			break;
+		}
 	}
 
 	/*
@@ -2918,9 +2931,6 @@ int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 	case false:
 		status = nfs4_lookup_root(server, fhandle, info);
 		if (status != -NFS4ERR_WRONGSEC)
-			break;
-		/* Did user force a 'sec=' mount option? */
-		if (server->auth_info.flavor_len > 0)
 			break;
 	default:
 		status = nfs4_do_find_root_sec(server, fhandle, info);
@@ -3178,9 +3188,6 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 		case -NFS4ERR_WRONGSEC:
 			err = -EPERM;
 			if (client != *clnt)
-				goto out;
-			/* No security negotiation if the user specified 'sec=' */
-			if (NFS_SERVER(dir)->auth_info.flavor_len > 0)
 				goto out;
 			client = nfs4_create_sec_client(client, dir, name);
 			if (IS_ERR(client))
@@ -7941,6 +7948,9 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			flavor = RPC_AUTH_MAXFLAVOR;
 			break;
 		}
+
+		if (!nfs_auth_info_match(&server->auth_info, flavor))
+			flavor = RPC_AUTH_MAXFLAVOR;
 
 		if (flavor != RPC_AUTH_MAXFLAVOR) {
 			err = nfs4_lookup_root_sec(server, fhandle,

@@ -497,7 +497,8 @@ static const char *nfs_pseudoflavour_to_name(rpc_authflavor_t flavour)
 	static const struct {
 		rpc_authflavor_t flavour;
 		const char *str;
-	} sec_flavours[] = {
+	} sec_flavours[NFS_AUTH_INFO_MAX_FLAVORS] = {
+		/* update NFS_AUTH_INFO_MAX_FLAVORS when this list changes! */
 		{ RPC_AUTH_NULL, "null" },
 		{ RPC_AUTH_UNIX, "sys" },
 		{ RPC_AUTH_GSS_KRB5, "krb5" },
@@ -1019,6 +1020,52 @@ static void nfs_set_mount_transport_protocol(struct nfs_parsed_mount_data *mnt)
 }
 
 /*
+ * Add 'flavor' to 'auth_info' if not already present.
+ * Returns true if 'flavor' ends up in the list, false otherwise
+ */
+static bool nfs_auth_info_add(struct nfs_auth_info *auth_info,
+			      rpc_authflavor_t flavor)
+{
+	unsigned int i;
+	unsigned int max_flavor_len = (sizeof(auth_info->flavors) /
+				       sizeof(auth_info->flavors[0]));
+
+	/* make sure this flavor isn't already in the list */
+	for (i = 0; i < auth_info->flavor_len; i++) {
+		if (flavor == auth_info->flavors[i])
+			return true;
+	}
+
+	if (auth_info->flavor_len + 1 >= max_flavor_len) {
+		dfprintk(MOUNT, "NFS: too many sec= flavors\n");
+		return false;
+	}
+
+	auth_info->flavors[auth_info->flavor_len++] = flavor;
+	return true;
+}
+
+/*
+ * Return true if 'match' is in auth_info or auth_info is empty.
+ * Return false otherwise.
+ */
+bool nfs_auth_info_match(const struct nfs_auth_info *auth_info,
+			 rpc_authflavor_t match)
+{
+	int i;
+
+	if (!auth_info->flavor_len)
+		return true;
+
+	for (i = 0; i < auth_info->flavor_len; i++) {
+		if (auth_info->flavors[i] == match)
+			return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(nfs_auth_info_match);
+
+/*
  * Parse the value of the 'sec=' option.
  */
 static int nfs_parse_security_flavors(char *value,
@@ -1026,49 +1073,55 @@ static int nfs_parse_security_flavors(char *value,
 {
 	substring_t args[MAX_OPT_ARGS];
 	rpc_authflavor_t pseudoflavor;
+	char *p;
 
 	dfprintk(MOUNT, "NFS: parsing sec=%s option\n", value);
 
-	switch (match_token(value, nfs_secflavor_tokens, args)) {
-	case Opt_sec_none:
-		pseudoflavor = RPC_AUTH_NULL;
-		break;
-	case Opt_sec_sys:
-		pseudoflavor = RPC_AUTH_UNIX;
-		break;
-	case Opt_sec_krb5:
-		pseudoflavor = RPC_AUTH_GSS_KRB5;
-		break;
-	case Opt_sec_krb5i:
-		pseudoflavor = RPC_AUTH_GSS_KRB5I;
-		break;
-	case Opt_sec_krb5p:
-		pseudoflavor = RPC_AUTH_GSS_KRB5P;
-		break;
-	case Opt_sec_lkey:
-		pseudoflavor = RPC_AUTH_GSS_LKEY;
-		break;
-	case Opt_sec_lkeyi:
-		pseudoflavor = RPC_AUTH_GSS_LKEYI;
-		break;
-	case Opt_sec_lkeyp:
-		pseudoflavor = RPC_AUTH_GSS_LKEYP;
-		break;
-	case Opt_sec_spkm:
-		pseudoflavor = RPC_AUTH_GSS_SPKM;
-		break;
-	case Opt_sec_spkmi:
-		pseudoflavor = RPC_AUTH_GSS_SPKMI;
-		break;
-	case Opt_sec_spkmp:
-		pseudoflavor = RPC_AUTH_GSS_SPKMP;
-		break;
-	default:
-		return 0;
+	while ((p = strsep(&value, ":")) != NULL) {
+		switch (match_token(p, nfs_secflavor_tokens, args)) {
+		case Opt_sec_none:
+			pseudoflavor = RPC_AUTH_NULL;
+			break;
+		case Opt_sec_sys:
+			pseudoflavor = RPC_AUTH_UNIX;
+			break;
+		case Opt_sec_krb5:
+			pseudoflavor = RPC_AUTH_GSS_KRB5;
+			break;
+		case Opt_sec_krb5i:
+			pseudoflavor = RPC_AUTH_GSS_KRB5I;
+			break;
+		case Opt_sec_krb5p:
+			pseudoflavor = RPC_AUTH_GSS_KRB5P;
+			break;
+		case Opt_sec_lkey:
+			pseudoflavor = RPC_AUTH_GSS_LKEY;
+			break;
+		case Opt_sec_lkeyi:
+			pseudoflavor = RPC_AUTH_GSS_LKEYI;
+			break;
+		case Opt_sec_lkeyp:
+			pseudoflavor = RPC_AUTH_GSS_LKEYP;
+			break;
+		case Opt_sec_spkm:
+			pseudoflavor = RPC_AUTH_GSS_SPKM;
+			break;
+		case Opt_sec_spkmi:
+			pseudoflavor = RPC_AUTH_GSS_SPKMI;
+			break;
+		case Opt_sec_spkmp:
+			pseudoflavor = RPC_AUTH_GSS_SPKMP;
+			break;
+		default:
+			dfprintk(MOUNT,
+				 "NFS: sec= option '%s' not recognized\n", p);
+			return 0;
+		}
+
+		if (!nfs_auth_info_add(&mnt->auth_info, pseudoflavor))
+			return 0;
 	}
 
-	mnt->auth_info.flavors[0] = pseudoflavor;
-	mnt->auth_info.flavor_len = 1;
 	return 1;
 }
 
@@ -1615,12 +1668,14 @@ out_security_failure:
 }
 
 /*
- * Ensure that the specified authtype in args->auth_info is supported by
- * the server. Returns 0 if it's ok, and -EACCES if not.
+ * Ensure that a specified authtype in args->auth_info is supported by
+ * the server. Returns 0 and sets args->selected_flavor if it's ok, and
+ * -EACCES if not.
  */
-static int nfs_verify_authflavor(struct nfs_parsed_mount_data *args,
+static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 			rpc_authflavor_t *server_authlist, unsigned int count)
 {
+	rpc_authflavor_t flavor = RPC_AUTH_MAXFLAVOR;
 	unsigned int i;
 
 	/*
@@ -1632,17 +1687,19 @@ static int nfs_verify_authflavor(struct nfs_parsed_mount_data *args,
 	 * can be used.
 	 */
 	for (i = 0; i < count; i++) {
-		if (args->auth_info.flavors[0] == server_authlist[i] ||
-		    server_authlist[i] == RPC_AUTH_NULL)
+		flavor = server_authlist[i];
+
+		if (nfs_auth_info_match(&args->auth_info, flavor) ||
+		    flavor == RPC_AUTH_NULL)
 			goto out;
 	}
 
-	dfprintk(MOUNT, "NFS: auth flavor %u not supported by server\n",
-		args->auth_info.flavors[0]);
+	dfprintk(MOUNT,
+		 "NFS: specified auth flavors not supported by server\n");
 	return -EACCES;
 
 out:
-	args->selected_flavor = args->auth_info.flavors[0];
+	args->selected_flavor = flavor;
 	dfprintk(MOUNT, "NFS: using auth flavor %u\n", args->selected_flavor);
 	return 0;
 }
@@ -1732,7 +1789,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	 * whether the server supports it, and then just try to use it if so.
 	 */
 	if (args->auth_info.flavor_len > 0) {
-		status = nfs_verify_authflavor(args, authlist, authlist_len);
+		status = nfs_verify_authflavors(args, authlist, authlist_len);
 		dfprintk(MOUNT, "NFS: using auth flavor %u\n",
 			 args->selected_flavor);
 		if (status)
@@ -2102,9 +2159,6 @@ static int nfs_validate_text_mount_data(void *options,
 
 	nfs_set_port(sap, &args->nfs_server.port, port);
 
-	if (args->auth_info.flavor_len > 1)
-		goto out_bad_auth;
-
 	return nfs_parse_devname(dev_name,
 				   &args->nfs_server.hostname,
 				   max_namelen,
@@ -2123,10 +2177,6 @@ out_invalid_transport_udp:
 
 out_no_address:
 	dfprintk(MOUNT, "NFS: mount program didn't pass remote address\n");
-	return -EINVAL;
-
-out_bad_auth:
-	dfprintk(MOUNT, "NFS: Too many RPC auth flavours specified\n");
 	return -EINVAL;
 }
 

@@ -964,6 +964,9 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->options = data->options;
 	server->auth_info = data->auth_info;
 
+	/* Use the first specified auth flavor. If this flavor isn't
+	 * allowed by the server, use the SECINFO path to try the
+	 * other specified flavors */
 	if (data->auth_info.flavor_len >= 1)
 		data->selected_flavor = data->auth_info.flavors[0];
 	else

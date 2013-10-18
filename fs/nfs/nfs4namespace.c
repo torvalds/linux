@@ -137,6 +137,7 @@ static size_t nfs_parse_server_name(char *string, size_t len,
 
 /**
  * nfs_find_best_sec - Find a security mechanism supported locally
+ * @server: NFS server struct
  * @flavors: List of security tuples returned by SECINFO procedure
  *
  * Return the pseudoflavor of the first security mechanism in
@@ -145,7 +146,8 @@ static size_t nfs_parse_server_name(char *string, size_t len,
  * is searched in the order returned from the server, per RFC 3530
  * recommendation.
  */
-static rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
+static rpc_authflavor_t nfs_find_best_sec(struct nfs_server *server,
+					  struct nfs4_secinfo_flavors *flavors)
 {
 	rpc_authflavor_t pseudoflavor;
 	struct nfs4_secinfo4 *secinfo;
@@ -160,11 +162,18 @@ static rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
 		case RPC_AUTH_GSS:
 			pseudoflavor = rpcauth_get_pseudoflavor(secinfo->flavor,
 							&secinfo->flavor_info);
-			if (pseudoflavor != RPC_AUTH_MAXFLAVOR)
+			/* make sure pseudoflavor matches sec= mount opt */
+			if (pseudoflavor != RPC_AUTH_MAXFLAVOR &&
+			    nfs_auth_info_match(&server->auth_info,
+						pseudoflavor))
 				return pseudoflavor;
 			break;
 		}
 	}
+
+	/* if there were any sec= options then nothing matched */
+	if (server->auth_info.flavor_len > 0)
+		return -EPERM;
 
 	return RPC_AUTH_UNIX;
 }
@@ -187,7 +196,7 @@ static rpc_authflavor_t nfs4_negotiate_security(struct inode *inode, struct qstr
 		goto out;
 	}
 
-	flavor = nfs_find_best_sec(flavors);
+	flavor = nfs_find_best_sec(NFS_SERVER(inode), flavors);
 
 out:
 	put_page(page);
@@ -390,7 +399,7 @@ struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 
 	if (client->cl_auth->au_flavor != flavor)
 		flavor = client->cl_auth->au_flavor;
-	else if (server->auth_info.flavor_len == 0) {
+	else {
 		rpc_authflavor_t new = nfs4_negotiate_security(dir, name);
 		if ((int)new >= 0)
 			flavor = new;
