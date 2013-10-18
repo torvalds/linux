@@ -1032,6 +1032,10 @@ static int __hci_init(struct hci_dev *hdev)
 
 	debugfs_create_file("features", 0444, hdev->debugfs, hdev,
 			    &features_fops);
+	debugfs_create_u16("manufacturer", 0444, hdev->debugfs,
+			   &hdev->manufacturer);
+	debugfs_create_u8("hci_version", 0444, hdev->debugfs, &hdev->hci_ver);
+	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
