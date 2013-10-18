@@ -145,7 +145,7 @@ static size_t nfs_parse_server_name(char *string, size_t len,
  * is searched in the order returned from the server, per RFC 3530
  * recommendation.
  */
-rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
+static rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
 {
 	rpc_authflavor_t pseudoflavor;
 	struct nfs4_secinfo4 *secinfo;
