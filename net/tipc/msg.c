@@ -76,10 +76,11 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   u32 num_sect, unsigned int total_len, int max_size,
 		   struct sk_buff **buf)
 {
-	int dsz, sz, hsz, pos, res, cnt;
+	int dsz, sz, hsz;
+	unsigned char *to;
 
 	dsz = total_len;
-	pos = hsz = msg_hdr_sz(hdr);
+	hsz = msg_hdr_sz(hdr);
 	sz = hsz + dsz;
 	msg_set_size(hdr, sz);
 	if (unlikely(sz > max_size)) {
@@ -91,16 +92,11 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 	if (!(*buf))
 		return -ENOMEM;
 	skb_copy_to_linear_data(*buf, hdr, hsz);
-	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
-		skb_copy_to_linear_data_offset(*buf, pos,
-					       msg_sect[cnt].iov_base,
-					       msg_sect[cnt].iov_len);
-		pos += msg_sect[cnt].iov_len;
+	to = (*buf)->data + hsz;
+	if (total_len && memcpy_fromiovecend(to, msg_sect, 0, dsz)) {
+		kfree_skb(*buf);
+		*buf = NULL;
+		return -EFAULT;
 	}
-	if (likely(res))
-		return dsz;
-
-	kfree_skb(*buf);
-	*buf = NULL;
-	return -EFAULT;
+	return dsz;
 }
