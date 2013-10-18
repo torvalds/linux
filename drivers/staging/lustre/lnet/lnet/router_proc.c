@@ -30,7 +30,7 @@
 /* This is really lnet_proc.c. You might need to update sanity test 215
  * if any file format is changed. */
 
-static ctl_table_header_t *lnet_table_header = NULL;
+static ctl_table_header_t *lnet_table_header;
 
 #define CTL_LNET	 (0x100)
 enum {
