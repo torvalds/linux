@@ -32,6 +32,27 @@
 #include <linux/module.h>
 #include <drm/i915_powerwell.h>
 
+/**
+ * RC6 is a special power stage which allows the GPU to enter an very
+ * low-voltage mode when idle, using down to 0V while at this stage.  This
+ * stage is entered automatically when the GPU is idle when RC6 support is
+ * enabled, and as soon as new workload arises GPU wakes up automatically as well.
+ *
+ * There are different RC6 modes available in Intel GPU, which differentiate
+ * among each other with the latency required to enter and leave RC6 and
+ * voltage consumed by the GPU in different states.
+ *
+ * The combination of the following flags define which states GPU is allowed
+ * to enter, while RC6 is the normal RC6 state, RC6p is the deep RC6, and
+ * RC6pp is deepest RC6. Their support by hardware varies according to the
+ * GPU, BIOS, chipset and platform. RC6 is usually the safest one and the one
+ * which brings the most power savings; deeper states save more power, but
+ * require higher latency to switch to and wake up.
+ */
+#define INTEL_RC6_ENABLE			(1<<0)
+#define INTEL_RC6p_ENABLE			(1<<1)
+#define INTEL_RC6pp_ENABLE			(1<<2)
+
 /* FBC, or Frame Buffer Compression, is a technique employed to compress the
  * framebuffer contents in-memory, aiming at reducing the required bandwidth
  * during in-memory transfers and, therefore, reduce the power packet.
@@ -3685,6 +3706,20 @@ static void valleyview_disable_rps(struct drm_device *dev)
 	}
 }
 
+static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
+{
+	if (IS_GEN6(dev))
+		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
+
+	if (IS_HASWELL(dev))
+		DRM_DEBUG_DRIVER("Haswell: only RC6 available\n");
+
+	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
+			(mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+			(mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+			(mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+}
+
 int intel_enable_rc6(const struct drm_device *dev)
 {
 	/* No RC6 before Ironlake */
@@ -3699,18 +3734,13 @@ int intel_enable_rc6(const struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen == 5)
 		return 0;
 
-	if (IS_HASWELL(dev)) {
-		DRM_DEBUG_DRIVER("Haswell: only RC6 available\n");
+	if (IS_HASWELL(dev))
 		return INTEL_RC6_ENABLE;
-	}
 
 	/* snb/ivb have more than one rc6 state. */
-	if (INTEL_INFO(dev)->gen == 6) {
-		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
+	if (INTEL_INFO(dev)->gen == 6)
 		return INTEL_RC6_ENABLE;
-	}
 
-	DRM_DEBUG_DRIVER("RC6 and deep RC6 enabled\n");
 	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
 
@@ -3812,10 +3842,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 			rc6_mask |= GEN6_RC_CTL_RC6pp_ENABLE;
 	}
 
-	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-			(rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-			(rc6_mask & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-			(rc6_mask & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+	intel_print_rc6_info(dev, rc6_mask);
 
 	I915_WRITE(GEN6_RC_CONTROL,
 		   rc6_mask |
@@ -4051,6 +4078,9 @@ static void valleyview_enable_rps(struct drm_device *dev)
 				      VLV_RENDER_RC6_COUNT_EN));
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mode = GEN7_RC_CTL_TO_MODE;
+
+	intel_print_rc6_info(dev, rc6_mode);
+
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
@@ -4222,6 +4252,8 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 
 	I915_WRITE(PWRCTXA, i915_gem_obj_ggtt_offset(dev_priv->ips.pwrctx) | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
+
+	intel_print_rc6_info(dev, INTEL_RC6_ENABLE);
 }
 
 static unsigned long intel_pxfreq(u32 vidfreq)
