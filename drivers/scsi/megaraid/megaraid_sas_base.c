@@ -3194,19 +3194,21 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	     (le32_to_cpu(ci->count) <
 		  (MEGASAS_MAX_PD_CHANNELS * MEGASAS_MAX_DEV_PER_CHANNEL))) {
 
-		memset(instance->pd_list, 0,
+		memset(instance->local_pd_list, 0,
 			MEGASAS_MAX_PD * sizeof(struct megasas_pd_list));
 
 		for (pd_index = 0; pd_index < le32_to_cpu(ci->count); pd_index++) {
 
-			instance->pd_list[le16_to_cpu(pd_addr->deviceId)].tid	=
+			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].tid	=
 				le16_to_cpu(pd_addr->deviceId);
-			instance->pd_list[le16_to_cpu(pd_addr->deviceId)].driveType	=
+			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].driveType	=
 							pd_addr->scsiDevType;
-			instance->pd_list[le16_to_cpu(pd_addr->deviceId)].driveState	=
+			instance->local_pd_list[le16_to_cpu(pd_addr->deviceId)].driveState	=
 							MR_PD_STATE_SYSTEM;
 			pd_addr++;
 		}
+		memcpy(instance->pd_list, instance->local_pd_list,
+			sizeof(instance->pd_list));
 	}
 
 	pci_free_consistent(instance->pdev,
