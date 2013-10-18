@@ -160,14 +160,6 @@
 #define OFF false
 
 /*
- * Create a contiguous bitmask starting at bit position @lo and ending at
- * position @hi. For example
- *
- * GENMASK(21, 39) gives us the 64bit vector 0x000000ffffe00000.
- */
-#define GENMASK(lo, hi)			(((1ULL << ((hi) - (lo) + 1)) - 1) << (lo))
-
-/*
  * PCI-defined configuration space registers
  */
 #define PCI_DEVICE_ID_AMD_15H_M30H_NB_F1 0x141b
