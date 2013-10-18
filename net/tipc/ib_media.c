@@ -125,18 +125,18 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(buf);
-		return 0;
+		return NET_RX_DROP;
 	}
 
 	if (likely(ib_ptr->bearer)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			buf->next = NULL;
 			tipc_recv_msg(buf, ib_ptr->bearer);
-			return 0;
+			return NET_RX_SUCCESS;
 		}
 	}
 	kfree_skb(buf);
-	return 0;
+	return NET_RX_DROP;
 }
 
 /**
