@@ -290,8 +290,8 @@ EXPORT_SYMBOL(lnet_kiov_nob);
 
 void
 lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
-		     unsigned int nsiov, lnet_kiov_t *siov, unsigned int soffset,
-		     unsigned int nob)
+		    unsigned int nsiov, lnet_kiov_t *siov, unsigned int soffset,
+		    unsigned int nob)
 {
 	/* NB diov, siov are READ-ONLY */
 	unsigned int    this_nob;
@@ -372,8 +372,8 @@ EXPORT_SYMBOL(lnet_copy_kiov2kiov);
 
 void
 lnet_copy_kiov2iov(unsigned int niov, struct iovec *iov, unsigned int iovoffset,
-		    unsigned int nkiov, lnet_kiov_t *kiov, unsigned int kiovoffset,
-		    unsigned int nob)
+		   unsigned int nkiov, lnet_kiov_t *kiov,
+		   unsigned int kiovoffset, unsigned int nob)
 {
 	/* NB iov, kiov are READ-ONLY */
 	unsigned int    this_nob;
@@ -441,9 +441,10 @@ lnet_copy_kiov2iov(unsigned int niov, struct iovec *iov, unsigned int iovoffset,
 EXPORT_SYMBOL(lnet_copy_kiov2iov);
 
 void
-lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov, unsigned int kiovoffset,
-		    unsigned int niov, struct iovec *iov, unsigned int iovoffset,
-		    unsigned int nob)
+lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
+		   unsigned int kiovoffset, unsigned int niov,
+		   struct iovec *iov, unsigned int iovoffset,
+		   unsigned int nob)
 {
 	/* NB kiov, iov are READ-ONLY */
 	unsigned int    this_nob;
@@ -542,7 +543,8 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 
 		if (len <= frag_len) {
 			dst->kiov_len = len;
-			LASSERT(dst->kiov_offset + dst->kiov_len <= PAGE_CACHE_SIZE);
+			LASSERT(dst->kiov_offset + dst->kiov_len
+					     <= PAGE_CACHE_SIZE);
 			return (niov);
 		}
 
@@ -1733,7 +1735,8 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 
 	case LNET_MSG_PUT:
 	case LNET_MSG_REPLY:
-		if (payload_length > (__u32)(for_me ? LNET_MAX_PAYLOAD : LNET_MTU)) {
+		if (payload_length >
+		   (__u32)(for_me ? LNET_MAX_PAYLOAD : LNET_MTU)) {
 			CERROR("%s, src %s: bad %s payload %d "
 			       "(%d max expected)\n",
 			       libcfs_nid2str(from_nid),
@@ -1828,7 +1831,9 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 		goto drop;
 	}
 
-	/* msg zeroed in lnet_msg_alloc; i.e. flags all clear, pointers NULL etc */
+	/* msg zeroed in lnet_msg_alloc;
+	 * i.e. flags all clear, pointers NULL etc
+	 */
 
 	msg->msg_type = type;
 	msg->msg_private = private;
@@ -2226,7 +2231,8 @@ EXPORT_SYMBOL(lnet_set_reply_msg_len);
  *
  * \param self,target,portal,match_bits,offset See the discussion in LNetPut().
  * \param mdh A handle for the MD that describes the memory into which the
- * requested data will be received. The MD must be "free floating" (See LNetMDBind()).
+ * requested data will be received. The MD must be "free floating"
+ * (See LNetMDBind()).
  *
  * \retval  0      Success, and only in this case events will be generated
  * and logged to EQ (if it exists) of the MD.
