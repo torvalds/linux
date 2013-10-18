@@ -227,7 +227,7 @@
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
 
-			clocks = <&prcc_pclk 6 1>;
+			clocks = <&prcc_pclk 5 1>;
 		};
 
 		pinctrl {
