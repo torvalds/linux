@@ -1335,7 +1335,7 @@ static int __init acpi_os_name_setup(char *str)
 	if (!str || !*str)
 		return 0;
 
-	for (; count-- && str && *str; str++) {
+	for (; count-- && *str; str++) {
 		if (isalnum(*str) || *str == ' ' || *str == ':')
 			*p++ = *str;
 		else if (*str == '\'' || *str == '"')
