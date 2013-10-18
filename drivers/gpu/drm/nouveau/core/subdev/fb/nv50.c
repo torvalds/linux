@@ -27,14 +27,9 @@
 #include <core/engctx.h>
 #include <core/object.h>
 
-#include "priv.h"
 #include <subdev/bios.h>
 
-struct nv50_fb_priv {
-	struct nouveau_fb base;
-	struct page *r100c08_page;
-	dma_addr_t r100c08;
-};
+#include "nv50.h"
 
 int
 nv50_fb_memtype[0x80] = {
@@ -239,7 +234,7 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 		pr_cont("0x%08x\n", st1);
 }
 
-static int
+int
 nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
@@ -269,7 +264,7 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static void
+void
 nv50_fb_dtor(struct nouveau_object *object)
 {
 	struct nouveau_device *device = nv_device(object);
@@ -284,10 +279,10 @@ nv50_fb_dtor(struct nouveau_object *object)
 	nouveau_fb_destroy(&priv->base);
 }
 
-static int
+int
 nv50_fb_init(struct nouveau_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
+	struct nv50_fb_impl *impl = (void *)object->oclass;
 	struct nv50_fb_priv *priv = (void *)object;
 	int ret;
 
@@ -303,33 +298,18 @@ nv50_fb_init(struct nouveau_object *object)
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
-	switch (device->chipset) {
-	case 0x50:
-		nv_wr32(priv, 0x100c90, 0x000707ff);
-		break;
-	case 0xa3:
-	case 0xa5:
-	case 0xa8:
-		nv_wr32(priv, 0x100c90, 0x000d0fff);
-		break;
-	case 0xaf:
-		nv_wr32(priv, 0x100c90, 0x089d1fff);
-		break;
-	default:
-		nv_wr32(priv, 0x100c90, 0x001d07ff);
-		break;
-	}
-
+	nv_wr32(priv, 0x100c90, impl->trap);
 	return 0;
 }
 
 struct nouveau_oclass *
-nv50_fb_oclass = &(struct nouveau_oclass) {
-	.handle = NV_SUBDEV(FB, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+nv50_fb_oclass = &(struct nv50_fb_impl) {
+	.base.handle = NV_SUBDEV(FB, 0x50),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_fb_ctor,
 		.dtor = nv50_fb_dtor,
 		.init = nv50_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.trap = 0x000707ff,
+}.base;

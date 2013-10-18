@@ -94,6 +94,10 @@ extern struct nouveau_oclass *nv47_fb_oclass;
 extern struct nouveau_oclass *nv49_fb_oclass;
 extern struct nouveau_oclass *nv4e_fb_oclass;
 extern struct nouveau_oclass *nv50_fb_oclass;
+extern struct nouveau_oclass *nv84_fb_oclass;
+extern struct nouveau_oclass *nva3_fb_oclass;
+extern struct nouveau_oclass *nvaa_fb_oclass;
+extern struct nouveau_oclass *nvaf_fb_oclass;
 extern struct nouveau_oclass *nvc0_fb_oclass;
 
 struct nouveau_ram {
