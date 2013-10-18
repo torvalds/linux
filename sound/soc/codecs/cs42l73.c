@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -1416,6 +1416,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
+	u32 val32;
 
 	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l73_private),
 			       GFP_KERNEL);
@@ -1431,8 +1432,25 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	if (pdata)
+	if (pdata) {
 		cs42l73->pdata = *pdata;
+	} else {
+		pdata = devm_kzalloc(&i2c_client->dev,
+				     sizeof(struct cs42l73_platform_data),
+				GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&i2c_client->dev, "could not allocate pdata\n");
+			return -ENOMEM;
+		}
+		if (i2c_client->dev.of_node) {
+			if (of_property_read_u32(i2c_client->dev.of_node,
+				"chgfreq", &val32) >= 0)
+				pdata->chgfreq = val32;
+		}
+		pdata->reset_gpio = of_get_named_gpio(i2c_client->dev.of_node,
+						"reset-gpio", 0);
+		cs42l73->pdata = *pdata;
+	}
 
 	i2c_set_clientdata(i2c_client, cs42l73);
 
@@ -1493,6 +1511,12 @@ static int cs42l73_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct of_device_id cs42l73_of_match[] = {
+	{ .compatible = "cirrus,cs42l73", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, cs42l73_of_match);
+
 static const struct i2c_device_id cs42l73_id[] = {
 	{"cs42l73", 0},
 	{}
@@ -1504,6 +1528,7 @@ static struct i2c_driver cs42l73_i2c_driver = {
 	.driver = {
 		   .name = "cs42l73",
 		   .owner = THIS_MODULE,
+		   .of_match_table = cs42l73_of_match,
 		   },
 	.id_table = cs42l73_id,
 	.probe = cs42l73_i2c_probe,
