@@ -419,7 +419,7 @@ static void ghes_handle_memory_failure(struct acpi_generic_data *gdata, int sev)
 
 	if (sec_sev == GHES_SEV_CORRECTED &&
 	    (gdata->flags & CPER_SEC_ERROR_THRESHOLD_EXCEEDED) &&
-	    (mem_err->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS)) {
+	    (mem_err->validation_bits & CPER_MEM_VALID_PA)) {
 		pfn = mem_err->physical_addr >> PAGE_SHIFT;
 		if (pfn_valid(pfn))
 			memory_failure_queue(pfn, 0, MF_SOFT_OFFLINE);
@@ -430,7 +430,7 @@ static void ghes_handle_memory_failure(struct acpi_generic_data *gdata, int sev)
 	}
 	if (sev == GHES_SEV_RECOVERABLE &&
 	    sec_sev == GHES_SEV_RECOVERABLE &&
-	    mem_err->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS) {
+	    mem_err->validation_bits & CPER_MEM_VALID_PA) {
 		pfn = mem_err->physical_addr >> PAGE_SHIFT;
 		memory_failure_queue(pfn, 0, 0);
 	}

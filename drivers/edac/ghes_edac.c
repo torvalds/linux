@@ -297,15 +297,14 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 	}
 
 	/* Error address */
-	if (mem_err->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS) {
+	if (mem_err->validation_bits & CPER_MEM_VALID_PA) {
 		e->page_frame_number = mem_err->physical_addr >> PAGE_SHIFT;
 		e->offset_in_page = mem_err->physical_addr & ~PAGE_MASK;
 	}
 
 	/* Error grain */
-	if (mem_err->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS_MASK) {
+	if (mem_err->validation_bits & CPER_MEM_VALID_PA_MASK)
 		e->grain = ~(mem_err->physical_addr_mask & ~PAGE_MASK);
-	}
 
 	/* Memory error location, mapped on e->location */
 	p = e->location;

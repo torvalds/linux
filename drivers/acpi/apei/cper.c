@@ -8,7 +8,7 @@
  * various tables, such as ERST, BERT and HEST etc.
  *
  * For more information about CPER, please refer to Appendix N of UEFI
- * Specification version 2.3.
+ * Specification version 2.4.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -191,16 +191,17 @@ static const char *cper_mem_err_type_strs[] = {
 	"memory sparing",
 	"scrub corrected error",
 	"scrub uncorrected error",
+	"physical memory map-out event",
 };
 
 static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem)
 {
 	if (mem->validation_bits & CPER_MEM_VALID_ERROR_STATUS)
 		printk("%s""error_status: 0x%016llx\n", pfx, mem->error_status);
-	if (mem->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS)
+	if (mem->validation_bits & CPER_MEM_VALID_PA)
 		printk("%s""physical_address: 0x%016llx\n",
 		       pfx, mem->physical_addr);
-	if (mem->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS_MASK)
+	if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
 		printk("%s""physical_address_mask: 0x%016llx\n",
 		       pfx, mem->physical_addr_mask);
 	if (mem->validation_bits & CPER_MEM_VALID_NODE)
