@@ -6,7 +6,11 @@ Required properties:
 	"ti,da830-mcasp-audio"	: for both DA830 & DA850 platforms
 	"ti,omap2-mcasp-audio"	: for OMAP2 platforms (TI81xx, AM33xx)
 
-- reg : Should contain McASP registers offset and length
+- reg : Should contain reg specifiers for the entries in the reg-names property.
+- reg-names : Should contain:
+         * "mpu" for the main registers (required). For compatibility with
+           existing software, it is recommended this is the first entry.
+         * "dat" for separate data port register access (optional).
 - interrupts : Interrupt number for McASP
 - op-mode : I2S/DIT ops mode.
 - tdm-slots : Slots for TDM operation.
@@ -14,7 +18,6 @@ Required properties:
 - serial-dir : A list of serializer pin mode. The list number should be equal
 		to "num-serializer" parameter. Each entry is a number indication
 		serializer pin direction. (0 - INACTIVE, 1 - TX, 2 - RX)
-
 
 Optional properties:
 
@@ -31,6 +34,7 @@ mcasp0: mcasp0@1d00000 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	reg = <0x100000 0x3000>;
+	reg-names "mpu";
 	interrupts = <82 83>;
 	op-mode = <0>;		/* MCASP_IIS_MODE */
 	tdm-slots = <2>;
