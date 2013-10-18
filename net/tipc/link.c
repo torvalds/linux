@@ -1160,7 +1160,7 @@ static int link_send_sections_long(struct tipc_port *sender,
 	struct tipc_msg fragm_hdr;
 	struct sk_buff *buf, *buf_chain, *prev;
 	u32 fragm_crs, fragm_rest, hsz, sect_rest;
-	const unchar *sect_crs;
+	const unchar __user *sect_crs;
 	int curr_sect;
 	u32 fragm_no;
 	int res = 0;
@@ -1202,7 +1202,7 @@ again:
 
 		if (!sect_rest) {
 			sect_rest = msg_sect[++curr_sect].iov_len;
-			sect_crs = (const unchar *)msg_sect[curr_sect].iov_base;
+			sect_crs = msg_sect[curr_sect].iov_base;
 		}
 
 		if (sect_rest < fragm_rest)

@@ -338,7 +338,7 @@ static int release(struct socket *sock)
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf == NULL)
 			break;
-		if (TIPC_SKB_CB(buf)->handle != 0)
+		if (TIPC_SKB_CB(buf)->handle != NULL)
 			kfree_skb(buf);
 		else {
 			if ((sock->state == SS_CONNECTING) ||
@@ -1364,7 +1364,7 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		return TIPC_ERR_OVERLOAD;
 
 	/* Enqueue message */
-	TIPC_SKB_CB(buf)->handle = 0;
+	TIPC_SKB_CB(buf)->handle = NULL;
 	__skb_queue_tail(&sk->sk_receive_queue, buf);
 	skb_set_owner_r(buf, sk);
 
@@ -1687,7 +1687,7 @@ restart:
 		/* Disconnect and send a 'FIN+' or 'FIN-' message to peer */
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf) {
-			if (TIPC_SKB_CB(buf)->handle != 0) {
+			if (TIPC_SKB_CB(buf)->handle != NULL) {
 				kfree_skb(buf);
 				goto restart;
 			}
