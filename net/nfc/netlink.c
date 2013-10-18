@@ -58,6 +58,7 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_LLC_SDP] = { .type = NLA_NESTED },
 	[NFC_ATTR_FIRMWARE_NAME] = { .type = NLA_STRING,
 				     .len = NFC_FIRMWARE_NAME_MAXSIZE },
+	[NFC_ATTR_SE_APDU] = { .type = NLA_BINARY },
 };
 
 static const struct nla_policy nfc_sdp_genl_policy[NFC_SDP_ATTR_MAX + 1] = {
@@ -1278,6 +1279,91 @@ static int nfc_genl_dump_ses_done(struct netlink_callback *cb)
 	return 0;
 }
 
+struct se_io_ctx {
+	u32 dev_idx;
+	u32 se_idx;
+};
+
+static void se_io_cb(void *context, u8 *apdu, size_t apdu_len, int err)
+{
+	struct se_io_ctx *ctx = context;
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		kfree(ctx);
+		return;
+	}
+
+	hdr = genlmsg_put(msg, 0, 0, &nfc_genl_family, 0,
+			  NFC_CMD_SE_IO);
+	if (!hdr)
+		goto free_msg;
+
+	if (nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, ctx->dev_idx) ||
+	    nla_put_u32(msg, NFC_ATTR_SE_INDEX, ctx->se_idx) ||
+	    nla_put(msg, NFC_ATTR_SE_APDU, apdu_len, apdu))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+
+	kfree(ctx);
+
+	return;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+free_msg:
+	nlmsg_free(msg);
+	kfree(ctx);
+
+	return;
+}
+
+static int nfc_genl_se_io(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	struct se_io_ctx *ctx;
+	u32 dev_idx, se_idx;
+	u8 *apdu;
+	size_t apdu_len;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    !info->attrs[NFC_ATTR_SE_INDEX] ||
+	    !info->attrs[NFC_ATTR_SE_APDU])
+		return -EINVAL;
+
+	dev_idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+	se_idx = nla_get_u32(info->attrs[NFC_ATTR_SE_INDEX]);
+
+	dev = nfc_get_device(dev_idx);
+	if (!dev)
+		return -ENODEV;
+
+	if (!dev->ops || !dev->ops->se_io)
+		return -ENOTSUPP;
+
+	apdu_len = nla_len(info->attrs[NFC_ATTR_SE_APDU]);
+	if (apdu_len == 0)
+		return -EINVAL;
+
+	apdu = nla_data(info->attrs[NFC_ATTR_SE_APDU]);
+	if (!apdu)
+		return -EINVAL;
+
+	ctx = kzalloc(sizeof(struct se_io_ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->dev_idx = dev_idx;
+	ctx->se_idx = se_idx;
+
+	return dev->ops->se_io(dev, se_idx, apdu, apdu_len, se_io_cb, ctx);
+}
+
 static struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
@@ -1356,6 +1442,11 @@ static struct genl_ops nfc_genl_ops[] = {
 		.cmd = NFC_CMD_GET_SE,
 		.dumpit = nfc_genl_dump_ses,
 		.done = nfc_genl_dump_ses_done,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_SE_IO,
+		.doit = nfc_genl_se_io,
 		.policy = nfc_genl_policy,
 	},
 };
