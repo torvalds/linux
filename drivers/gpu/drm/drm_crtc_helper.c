@@ -1131,14 +1131,14 @@ void drm_kms_helper_poll_fini(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
-void drm_helper_hpd_irq_event(struct drm_device *dev)
+bool drm_helper_hpd_irq_event(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	enum drm_connector_status old_status;
 	bool changed = false;
 
 	if (!dev->mode_config.poll_enabled)
-		return;
+		return false;
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -1163,5 +1163,7 @@ void drm_helper_hpd_irq_event(struct drm_device *dev)
 
 	if (changed)
 		drm_kms_helper_hotplug_event(dev);
+
+	return changed;
 }
 EXPORT_SYMBOL(drm_helper_hpd_irq_event);
