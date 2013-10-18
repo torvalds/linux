@@ -57,7 +57,8 @@ brw_client_fini (sfw_test_instance_t *tsi)
 
 	list_for_each_entry (tsu, &tsi->tsi_units, tsu_list) {
 		bulk = tsu->tsu_private;
-		if (bulk == NULL) continue;
+		if (bulk == NULL)
+			continue;
 
 		srpc_free_bulk(bulk);
 		tsu->tsu_private = NULL;
@@ -134,11 +135,13 @@ brw_inject_one_error (void)
 {
 	struct timeval tv;
 
-	if (brw_inject_errors <= 0) return 0;
+	if (brw_inject_errors <= 0)
+		return 0;
 
 	do_gettimeofday(&tv);
 
-	if ((tv.tv_usec & 1) == 0) return 0;
+	if ((tv.tv_usec & 1) == 0)
+		return 0;
 
 	return brw_inject_errors--;
 }
@@ -151,7 +154,8 @@ brw_fill_page (struct page *pg, int pattern, __u64 magic)
 
 	LASSERT (addr != NULL);
 
-	if (pattern == LST_BRW_CHECK_NONE) return;
+	if (pattern == LST_BRW_CHECK_NONE)
+		return;
 
 	if (magic == BRW_MAGIC)
 		magic += brw_inject_one_error();
@@ -187,11 +191,13 @@ brw_check_page (struct page *pg, int pattern, __u64 magic)
 
 	if (pattern == LST_BRW_CHECK_SIMPLE) {
 		data = *((__u64 *) addr);
-		if (data != magic) goto bad_data;
+		if (data != magic)
+			goto bad_data;
 
 		addr += PAGE_CACHE_SIZE - BRW_MSIZE;
 		data = *((__u64 *) addr);
-		if (data != magic) goto bad_data;
+		if (data != magic)
+			goto bad_data;
 
 		return 0;
 	}
@@ -199,7 +205,8 @@ brw_check_page (struct page *pg, int pattern, __u64 magic)
 	if (pattern == LST_BRW_CHECK_FULL) {
 		for (i = 0; i < PAGE_CACHE_SIZE / BRW_MSIZE; i++) {
 			data = *(((__u64 *) addr) + i);
-			if (data != magic) goto bad_data;
+			if (data != magic)
+				goto bad_data;
 		}
 
 		return 0;
@@ -336,7 +343,8 @@ brw_client_done_rpc (sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 		goto out;
 	}
 
-	if (reqst->brw_rw == LST_BRW_WRITE) goto out;
+	if (reqst->brw_rw == LST_BRW_WRITE)
+		goto out;
 
 	if (brw_check_bulk(&rpc->crpc_bulk, reqst->brw_flags, magic) != 0) {
 		CERROR ("Bulk data from %s is corrupted!\n",
@@ -354,7 +362,8 @@ brw_server_rpc_done (srpc_server_rpc_t *rpc)
 {
 	srpc_bulk_t *blk = rpc->srpc_bulk;
 
-	if (blk == NULL) return;
+	if (blk == NULL)
+		return;
 
 	if (rpc->srpc_status != 0)
 		CERROR ("Bulk transfer %s %s has failed: %d\n",
