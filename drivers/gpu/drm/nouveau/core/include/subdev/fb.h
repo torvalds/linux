@@ -78,23 +78,23 @@ nouveau_fb(void *obj)
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_FB];
 }
 
-extern struct nouveau_oclass nv04_fb_oclass;
-extern struct nouveau_oclass nv10_fb_oclass;
-extern struct nouveau_oclass nv1a_fb_oclass;
-extern struct nouveau_oclass nv20_fb_oclass;
-extern struct nouveau_oclass nv25_fb_oclass;
-extern struct nouveau_oclass nv30_fb_oclass;
-extern struct nouveau_oclass nv35_fb_oclass;
-extern struct nouveau_oclass nv36_fb_oclass;
-extern struct nouveau_oclass nv40_fb_oclass;
-extern struct nouveau_oclass nv41_fb_oclass;
-extern struct nouveau_oclass nv44_fb_oclass;
-extern struct nouveau_oclass nv46_fb_oclass;
-extern struct nouveau_oclass nv47_fb_oclass;
-extern struct nouveau_oclass nv49_fb_oclass;
-extern struct nouveau_oclass nv4e_fb_oclass;
-extern struct nouveau_oclass nv50_fb_oclass;
-extern struct nouveau_oclass nvc0_fb_oclass;
+extern struct nouveau_oclass *nv04_fb_oclass;
+extern struct nouveau_oclass *nv10_fb_oclass;
+extern struct nouveau_oclass *nv1a_fb_oclass;
+extern struct nouveau_oclass *nv20_fb_oclass;
+extern struct nouveau_oclass *nv25_fb_oclass;
+extern struct nouveau_oclass *nv30_fb_oclass;
+extern struct nouveau_oclass *nv35_fb_oclass;
+extern struct nouveau_oclass *nv36_fb_oclass;
+extern struct nouveau_oclass *nv40_fb_oclass;
+extern struct nouveau_oclass *nv41_fb_oclass;
+extern struct nouveau_oclass *nv44_fb_oclass;
+extern struct nouveau_oclass *nv46_fb_oclass;
+extern struct nouveau_oclass *nv47_fb_oclass;
+extern struct nouveau_oclass *nv49_fb_oclass;
+extern struct nouveau_oclass *nv4e_fb_oclass;
+extern struct nouveau_oclass *nv50_fb_oclass;
+extern struct nouveau_oclass *nvc0_fb_oclass;
 
 struct nouveau_ram {
 	struct nouveau_object base;

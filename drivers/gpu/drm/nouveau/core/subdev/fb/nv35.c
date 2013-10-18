@@ -69,8 +69,8 @@ nv35_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv35_fb_oclass = {
+struct nouveau_oclass *
+nv35_fb_oclass = &(struct nouveau_oclass) {
 	.handle = NV_SUBDEV(FB, 0x35),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv35_fb_ctor,

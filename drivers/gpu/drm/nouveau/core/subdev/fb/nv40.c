@@ -84,8 +84,8 @@ nv40_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 
-struct nouveau_oclass
-nv40_fb_oclass = {
+struct nouveau_oclass *
+nv40_fb_oclass = &(struct nouveau_oclass) {
 	.handle = NV_SUBDEV(FB, 0x40),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv40_fb_ctor,

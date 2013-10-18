@@ -323,8 +323,8 @@ nv50_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv50_fb_oclass = {
+struct nouveau_oclass *
+nv50_fb_oclass = &(struct nouveau_oclass) {
 	.handle = NV_SUBDEV(FB, 0x50),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_fb_ctor,

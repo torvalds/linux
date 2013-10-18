@@ -53,7 +53,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nv04_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_FB     ] = &nv04_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_FB     ] =  nv04_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
@@ -71,7 +71,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nv04_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
-		device->oclass[NVDEV_SUBDEV_FB     ] = &nv04_fb_oclass;
+		device->oclass[NVDEV_SUBDEV_FB     ] =  nv04_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
