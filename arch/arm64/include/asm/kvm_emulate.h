@@ -177,4 +177,9 @@ static inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & ESR_EL2_FSC_TYPE;
 }
 
+static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
+{
+	return vcpu_sys_reg(vcpu, MPIDR_EL1);
+}
+
 #endif /* __ARM64_KVM_EMULATE_H__ */

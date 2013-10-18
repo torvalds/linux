@@ -157,4 +157,9 @@ static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
 }
 
+static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.cp15[c0_MPIDR];
+}
+
 #endif /* __ARM_KVM_EMULATE_H__ */
