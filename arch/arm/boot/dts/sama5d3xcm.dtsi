@@ -6,7 +6,6 @@
  *
  * Licensed under GPLv2 or later.
  */
-#include "sama5d3.dtsi"
 
 / {
 	compatible = "atmel,samad3xcm", "atmel,sama5d3", "atmel,sama5";
