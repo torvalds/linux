@@ -1116,9 +1116,12 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &sniff_max_interval_fops);
 	}
 
-	if (lmp_le_capable(hdev))
+	if (lmp_le_capable(hdev)) {
+		debugfs_create_u8("white_list_size", 0444, hdev->debugfs,
+				  &hdev->le_white_list_size);
 		debugfs_create_file("static_address", 0444, hdev->debugfs,
 				   hdev, &static_address_fops);
+	}
 
 	return 0;
 }
