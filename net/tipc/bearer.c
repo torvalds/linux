@@ -387,7 +387,7 @@ restart:
 
 	b_ptr = &tipc_bearers[bearer_id];
 	strcpy(b_ptr->name, name);
-	res = m_ptr->enable_bearer(b_ptr);
+	res = m_ptr->enable_media(b_ptr);
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
 			name, -res);
@@ -465,7 +465,7 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
 	b_ptr->blocked = 1;
-	b_ptr->media->disable_bearer(b_ptr);
+	b_ptr->media->disable_media(b_ptr);
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}
