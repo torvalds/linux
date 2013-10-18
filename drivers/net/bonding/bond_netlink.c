@@ -20,6 +20,10 @@
 #include <net/rtnetlink.h>
 #include "bonding.h"
 
+static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
+	[IFLA_BOND_MODE]		= { .type = NLA_U8 },
+};
+
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 {
 	if (tb[IFLA_ADDRESS]) {
@@ -31,11 +35,63 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
+static int bond_changelink(struct net_device *bond_dev,
+			   struct nlattr *tb[], struct nlattr *data[])
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	int err;
+
+	if (data && data[IFLA_BOND_MODE]) {
+		int mode = nla_get_u8(data[IFLA_BOND_MODE]);
+
+		err = bond_option_mode_set(bond, mode);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
+			struct nlattr *tb[], struct nlattr *data[])
+{
+	int err;
+
+	err = bond_changelink(bond_dev, tb, data);
+	if (err < 0)
+		return err;
+
+	return register_netdevice(bond_dev);
+}
+
+static size_t bond_get_size(const struct net_device *bond_dev)
+{
+	return nla_total_size(sizeof(u8));	/* IFLA_BOND_MODE */
+}
+
+static int bond_fill_info(struct sk_buff *skb,
+			  const struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+
+	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
+		goto nla_put_failure;
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.kind			= "bond",
 	.priv_size		= sizeof(struct bonding),
 	.setup			= bond_setup,
+	.maxtype		= IFLA_BOND_MAX,
+	.policy			= bond_policy,
 	.validate		= bond_validate,
+	.newlink		= bond_newlink,
+	.changelink		= bond_changelink,
+	.get_size		= bond_get_size,
+	.fill_info		= bond_fill_info,
 	.get_num_tx_queues	= bond_get_num_tx_queues,
 	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
 							     as for TX queues */
