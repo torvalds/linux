@@ -88,7 +88,7 @@ static int write_output(struct perf_record *rec, void *buf, size_t size)
 		int ret = write(rec->output, buf, size);
 
 		if (ret < 0) {
-			pr_err("failed to write\n");
+			pr_err("failed to write perf data, error: %m\n");
 			return -1;
 		}
 
