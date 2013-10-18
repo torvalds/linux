@@ -2130,15 +2130,28 @@ again:
 	}
 	if (ret > 0) {
 		if (metadata) {
-			btrfs_release_path(path);
-			metadata = 0;
+			if (path->slots[0] > 0) {
+				path->slots[0]--;
+				btrfs_item_key_to_cpu(path->nodes[0], &key,
+						      path->slots[0]);
+				if (key.objectid == node->bytenr &&
+				    key.type == BTRFS_EXTENT_ITEM_KEY &&
+				    key.offset == node->num_bytes)
+					ret = 0;
+			}
+			if (ret > 0) {
+				btrfs_release_path(path);
+				metadata = 0;
 
-			key.offset = node->num_bytes;
-			key.type = BTRFS_EXTENT_ITEM_KEY;
-			goto again;
+				key.objectid = node->bytenr;
+				key.offset = node->num_bytes;
+				key.type = BTRFS_EXTENT_ITEM_KEY;
+				goto again;
+			}
+		} else {
+			err = -EIO;
+			goto out;
 		}
-		err = -EIO;
-		goto out;
 	}
 
 	leaf = path->nodes[0];
