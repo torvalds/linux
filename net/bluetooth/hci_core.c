@@ -65,7 +65,7 @@ static int blacklist_show(struct seq_file *f, void *p)
 
 	hci_dev_lock(hdev);
 	list_for_each_entry(b, &hdev->blacklist, list)
-		seq_printf(f, "%pMR\n", &b->bdaddr);
+		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
 	hci_dev_unlock(hdev);
 
 	return 0;
