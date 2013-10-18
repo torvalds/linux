@@ -2962,7 +2962,7 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     csa_finalize_work);
 	struct ieee80211_local *local = sdata->local;
-	int err, changed;
+	int err, changed = 0;
 
 	if (!ieee80211_sdata_running(sdata))
 		return;
