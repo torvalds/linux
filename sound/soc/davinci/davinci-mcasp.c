@@ -1047,6 +1047,7 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 	struct snd_platform_data *pdata = NULL;
 	const struct of_device_id *match =
 			of_match_device(mcasp_dt_ids, &pdev->dev);
+	struct of_phandle_args dma_spec;
 
 	const u32 *of_serial_dir32;
 	u8 *of_serial_dir;
@@ -1108,6 +1109,28 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 
 		pdata->serial_dir = of_serial_dir;
 	}
+
+	ret = of_property_match_string(np, "dma-names", "tx");
+	if (ret < 0)
+		goto nodata;
+
+	ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
+					 &dma_spec);
+	if (ret < 0)
+		goto nodata;
+
+	pdata->tx_dma_channel = dma_spec.args[0];
+
+	ret = of_property_match_string(np, "dma-names", "rx");
+	if (ret < 0)
+		goto nodata;
+
+	ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
+					 &dma_spec);
+	if (ret < 0)
+		goto nodata;
+
+	pdata->rx_dma_channel = dma_spec.args[0];
 
 	ret = of_property_read_u32(np, "tx-num-evt", &val);
 	if (ret >= 0)
@@ -1213,15 +1236,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data->sram_size = pdata->sram_size_playback;
 	dma_data->dma_addr = dat->start + pdata->tx_dma_offset;
 
-	/* first TX, then RX */
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENODEV;
-		goto err_release_clk;
-	}
-
-	dma_data->channel = res->start;
+	if (res)
+		dma_data->channel = res->start;
+	else
+		dma_data->channel = pdata->tx_dma_channel;
 
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_CAPTURE];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
@@ -1231,13 +1250,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data->dma_addr = dat->start + pdata->rx_dma_offset;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "no DMA resource\n");
-		ret = -ENODEV;
-		goto err_release_clk;
-	}
+	if (res)
+		dma_data->channel = res->start;
+	else
+		dma_data->channel = pdata->rx_dma_channel;
 
-	dma_data->channel = res->start;
 	dev_set_drvdata(&pdev->dev, dev);
 	ret = snd_soc_register_component(&pdev->dev, &davinci_mcasp_component,
 					 &davinci_mcasp_dai[pdata->op_mode], 1);

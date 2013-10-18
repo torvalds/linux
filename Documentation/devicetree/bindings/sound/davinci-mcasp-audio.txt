@@ -18,6 +18,11 @@ Required properties:
 - serial-dir : A list of serializer pin mode. The list number should be equal
 		to "num-serializer" parameter. Each entry is a number indication
 		serializer pin direction. (0 - INACTIVE, 1 - TX, 2 - RX)
+- dmas: two element list of DMA controller phandles and DMA request line
+        ordered pairs.
+- dma-names: identifier string for each DMA request line in the dmas property.
+	     These strings correspond 1:1 with the ordered pairs in dmas. The dma
+	     identifiers must be "rx" and "tx".
 
 Optional properties:
 
