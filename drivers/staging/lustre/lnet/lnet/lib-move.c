@@ -82,8 +82,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 
 		if (tp->tp_threshold == 0 ||    /* needs culling anyway */
 		    nid == LNET_NID_ANY ||       /* removing all entries */
-		    tp->tp_nid == nid)	  /* matched this one */
-		{
+		    tp->tp_nid == nid) {	  /* matched this one */
 			list_del(&tp->tp_list);
 			list_add(&tp->tp_list, &cull);
 		}
@@ -1814,8 +1813,7 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 	 * call back lnd_recv() come what may... */
 
 	if (!list_empty(&the_lnet.ln_test_peers) && /* normally we don't */
-	    fail_peer(src_nid, 0))	     /* shall we now? */
-	{
+	    fail_peer(src_nid, 0)) {	     /* shall we now? */
 		CERROR("%s, src %s: Dropping %s to simulate failure\n",
 		       libcfs_nid2str(from_nid), libcfs_nid2str(src_nid),
 		       lnet_msgtyp2str(type));
@@ -2051,8 +2049,7 @@ LNetPut(lnet_nid_t self, lnet_handle_md_t mdh, lnet_ack_req_t ack,
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (!list_empty(&the_lnet.ln_test_peers) && /* normally we don't */
-	    fail_peer(target.nid, 1))	  /* shall we now? */
-	{
+	    fail_peer(target.nid, 1)) { /* shall we now? */
 		CERROR("Dropping PUT to %s: simulated failure\n",
 		       libcfs_id2str(target));
 		return -EIO;
@@ -2251,8 +2248,7 @@ LNetGet(lnet_nid_t self, lnet_handle_md_t mdh,
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (!list_empty(&the_lnet.ln_test_peers) && /* normally we don't */
-	    fail_peer(target.nid, 1))	  /* shall we now? */
-	{
+	    fail_peer(target.nid, 1)) {	  /* shall we now? */
 		CERROR("Dropping GET to %s: simulated failure\n",
 		       libcfs_id2str(target));
 		return -EIO;
