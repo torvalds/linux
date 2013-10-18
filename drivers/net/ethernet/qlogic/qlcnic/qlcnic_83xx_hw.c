@@ -902,7 +902,7 @@ void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 			 QLCNIC_MBX_RSP(event[0]));
 		break;
 	case QLCNIC_MBX_DCBX_CONFIG_CHANGE_EVENT:
-		qlcnic_dcb_handle_aen(adapter, (void *)&event[1]);
+		qlcnic_dcb_aen_handler(adapter->dcb, (void *)&event[1]);
 		break;
 	default:
 		dev_dbg(&adapter->pdev->dev, "Unsupported AEN:0x%x.\n",
