@@ -121,7 +121,6 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct aead_givcrypt_request *req;
 	struct scatterlist *sg;
 	struct scatterlist *asg;
-	struct esp_data *esp;
 	struct sk_buff *trailer;
 	void *tmp;
 	u8 *iv;
@@ -139,8 +138,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* skb is pure payload to encrypt */
 
-	esp = x->data;
-	aead = esp->aead;
+	aead = x->data;
 	alen = crypto_aead_authsize(aead);
 
 	tfclen = 0;
@@ -278,8 +276,7 @@ static int esp_input_done2(struct sk_buff *skb, int err)
 {
 	const struct iphdr *iph;
 	struct xfrm_state *x = xfrm_input_state(skb);
-	struct esp_data *esp = x->data;
-	struct crypto_aead *aead = esp->aead;
+	struct crypto_aead *aead = x->data;
 	int alen = crypto_aead_authsize(aead);
 	int hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
 	int elen = skb->len - hlen;
@@ -374,8 +371,7 @@ static void esp_input_done(struct crypto_async_request *base, int err)
 static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ip_esp_hdr *esph;
-	struct esp_data *esp = x->data;
-	struct crypto_aead *aead = esp->aead;
+	struct crypto_aead *aead = x->data;
 	struct aead_request *req;
 	struct sk_buff *trailer;
 	int elen = skb->len - sizeof(*esph) - crypto_aead_ivsize(aead);
@@ -457,8 +453,8 @@ out:
 
 static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 {
-	struct esp_data *esp = x->data;
-	u32 blksize = ALIGN(crypto_aead_blocksize(esp->aead), 4);
+	struct crypto_aead *aead = x->data;
+	u32 blksize = ALIGN(crypto_aead_blocksize(aead), 4);
 	unsigned int net_adj;
 
 	switch (x->props.mode) {
@@ -473,7 +469,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 		BUG();
 	}
 
-	return ((mtu - x->props.header_len - crypto_aead_authsize(esp->aead) -
+	return ((mtu - x->props.header_len - crypto_aead_authsize(aead) -
 		 net_adj) & ~(blksize - 1)) + net_adj - 2;
 }
 
@@ -508,18 +504,16 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 
 static void esp_destroy(struct xfrm_state *x)
 {
-	struct esp_data *esp = x->data;
+	struct crypto_aead *aead = x->data;
 
-	if (!esp)
+	if (!aead)
 		return;
 
-	crypto_free_aead(esp->aead);
-	kfree(esp);
+	crypto_free_aead(aead);
 }
 
 static int esp_init_aead(struct xfrm_state *x)
 {
-	struct esp_data *esp = x->data;
 	struct crypto_aead *aead;
 	int err;
 
@@ -528,7 +522,7 @@ static int esp_init_aead(struct xfrm_state *x)
 	if (IS_ERR(aead))
 		goto error;
 
-	esp->aead = aead;
+	x->data = aead;
 
 	err = crypto_aead_setkey(aead, x->aead->alg_key,
 				 (x->aead->alg_key_len + 7) / 8);
@@ -545,7 +539,6 @@ error:
 
 static int esp_init_authenc(struct xfrm_state *x)
 {
-	struct esp_data *esp = x->data;
 	struct crypto_aead *aead;
 	struct crypto_authenc_key_param *param;
 	struct rtattr *rta;
@@ -580,7 +573,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 	if (IS_ERR(aead))
 		goto error;
 
-	esp->aead = aead;
+	x->data = aead;
 
 	keylen = (x->aalg ? (x->aalg->alg_key_len + 7) / 8 : 0) +
 		 (x->ealg->alg_key_len + 7) / 8 + RTA_SPACE(sizeof(*param));
@@ -635,16 +628,11 @@ error:
 
 static int esp_init_state(struct xfrm_state *x)
 {
-	struct esp_data *esp;
 	struct crypto_aead *aead;
 	u32 align;
 	int err;
 
-	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
-	if (esp == NULL)
-		return -ENOMEM;
-
-	x->data = esp;
+	x->data = NULL;
 
 	if (x->aead)
 		err = esp_init_aead(x);
@@ -654,7 +642,7 @@ static int esp_init_state(struct xfrm_state *x)
 	if (err)
 		goto error;
 
-	aead = esp->aead;
+	aead = x->data;
 
 	x->props.header_len = sizeof(struct ip_esp_hdr) +
 			      crypto_aead_ivsize(aead);
@@ -678,7 +666,7 @@ static int esp_init_state(struct xfrm_state *x)
 	}
 
 	align = ALIGN(crypto_aead_blocksize(aead), 4);
-	x->props.trailer_len = align + 1 + crypto_aead_authsize(esp->aead);
+	x->props.trailer_len = align + 1 + crypto_aead_authsize(aead);
 
 error:
 	return err;
