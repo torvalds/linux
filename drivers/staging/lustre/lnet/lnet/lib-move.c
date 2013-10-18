@@ -1635,7 +1635,7 @@ lnet_msgtyp2str(int type)
 EXPORT_SYMBOL(lnet_msgtyp2str);
 
 void
-lnet_print_hdr(lnet_hdr_t * hdr)
+lnet_print_hdr(lnet_hdr_t *hdr)
 {
 	lnet_process_id_t src = {0};
 	lnet_process_id_t dst = {0};
