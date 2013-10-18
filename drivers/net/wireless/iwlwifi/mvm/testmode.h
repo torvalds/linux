@@ -60,23 +60,36 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __MVM_CONSTANTS_H
-#define __MVM_CONSTANTS_H
 
-#define IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
-#define IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT	(100 * USEC_PER_MSEC)
-#define IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT	(10 * USEC_PER_MSEC)
-#define IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT	(10 * USEC_PER_MSEC)
-#define IWL_MVM_UAPSD_RX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
-#define IWL_MVM_UAPSD_TX_DATA_TIMEOUT		(50 * USEC_PER_MSEC)
-#define IWL_MVM_PS_HEAVY_TX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_RX_THLD_PACKETS	8
-#define IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS	30
-#define IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS	20
-#define IWL_MVM_PS_HEAVY_TX_THLD_PERCENT	50
-#define IWL_MVM_PS_HEAVY_RX_THLD_PERCENT	50
-#define IWL_MVM_PS_SNOOZE_INTERVAL		25
-#define IWL_MVM_PS_SNOOZE_WINDOW		50
-#define IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW		25
+#ifndef __IWL_MVM_TESTMODE_H__
+#define __IWL_MVM_TESTMODE_H__
 
-#endif /* __MVM_CONSTANTS_H */
+/**
+ * enum iwl_mvm_testmode_attrs - testmode attributes inside NL80211_ATTR_TESTDATA
+ * @IWL_MVM_TM_ATTR_UNSPEC: (invalid attribute)
+ * @IWL_MVM_TM_ATTR_CMD: sub command, see &enum iwl_mvm_testmode_commands (u32)
+ * @IWL_MVM_TM_ATTR_NOA_DURATION: requested NoA duration (u32)
+ * @IWL_MVM_TM_ATTR_BEACON_FILTER_STATE: beacon filter state (0 or 1, u32)
+ */
+enum iwl_mvm_testmode_attrs {
+	IWL_MVM_TM_ATTR_UNSPEC,
+	IWL_MVM_TM_ATTR_CMD,
+	IWL_MVM_TM_ATTR_NOA_DURATION,
+	IWL_MVM_TM_ATTR_BEACON_FILTER_STATE,
+
+	/* keep last */
+	NUM_IWL_MVM_TM_ATTRS,
+	IWL_MVM_TM_ATTR_MAX = NUM_IWL_MVM_TM_ATTRS - 1,
+};
+
+/**
+ * enum iwl_mvm_testmode_commands - MVM testmode commands
+ * @IWL_MVM_TM_CMD_SET_NOA: set NoA on GO vif for testing
+ * @IWL_MVM_TM_CMD_SET_BEACON_FILTER: turn beacon filtering off/on
+ */
+enum iwl_mvm_testmode_commands {
+	IWL_MVM_TM_CMD_SET_NOA,
+	IWL_MVM_TM_CMD_SET_BEACON_FILTER,
+};
+
+#endif /* __IWL_MVM_TESTMODE_H__ */

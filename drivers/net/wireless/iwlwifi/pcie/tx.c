@@ -1539,6 +1539,9 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 				       "Clearing HCMD_ACTIVE for command %s\n",
 				       get_cmd_string(trans_pcie, cmd->id));
 			ret = -ETIMEDOUT;
+
+			iwl_op_mode_nic_error(trans->op_mode);
+
 			goto cancel;
 		}
 	}

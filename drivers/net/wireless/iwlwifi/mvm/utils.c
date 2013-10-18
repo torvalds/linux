@@ -466,7 +466,7 @@ void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
 	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
 	len = img->sec[IWL_UCODE_SECTION_DATA].len;
 
-	buf = kzalloc(len, GFP_KERNEL);
+	buf = kzalloc(len, GFP_ATOMIC);
 	if (!buf)
 		return;
 
