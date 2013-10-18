@@ -154,8 +154,6 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	}
 	blksize = ALIGN(crypto_aead_blocksize(aead), 4);
 	clen = ALIGN(skb->len + 2 + tfclen, blksize);
-	if (esp->padlen)
-		clen = ALIGN(clen, esp->padlen);
 	plen = clen - skb->len - tfclen;
 
 	err = skb_cow_data(skb, tfclen + plen + alen, &trailer);
@@ -461,7 +459,6 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
 	u32 blksize = ALIGN(crypto_aead_blocksize(esp->aead), 4);
-	u32 align = max_t(u32, blksize, esp->padlen);
 	unsigned int net_adj;
 
 	switch (x->props.mode) {
@@ -477,7 +474,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 	}
 
 	return ((mtu - x->props.header_len - crypto_aead_authsize(esp->aead) -
-		 net_adj) & ~(align - 1)) + net_adj - 2;
+		 net_adj) & ~(blksize - 1)) + net_adj - 2;
 }
 
 static void esp4_err(struct sk_buff *skb, u32 info)
@@ -659,8 +656,6 @@ static int esp_init_state(struct xfrm_state *x)
 
 	aead = esp->aead;
 
-	esp->padlen = 0;
-
 	x->props.header_len = sizeof(struct ip_esp_hdr) +
 			      crypto_aead_ivsize(aead);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
@@ -683,8 +678,6 @@ static int esp_init_state(struct xfrm_state *x)
 	}
 
 	align = ALIGN(crypto_aead_blocksize(aead), 4);
-	if (esp->padlen)
-		align = max_t(u32, align, esp->padlen);
 	x->props.trailer_len = align + 1 + crypto_aead_authsize(esp->aead);
 
 error:

@@ -6,9 +6,6 @@
 struct crypto_aead;
 
 struct esp_data {
-	/* 0..255 */
-	int padlen;
-
 	/* Confidentiality & Integrity */
 	struct crypto_aead *aead;
 };
