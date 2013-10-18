@@ -78,10 +78,14 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 	if (dirty_type == DIRTY) {
 		enum dirty_type t = DIRTY_HOT_DATA;
 
-		/* clear all the bitmaps */
-		for (; t <= DIRTY_COLD_NODE; t++)
-			if (test_and_clear_bit(segno, dirty_i->dirty_segmap[t]))
+		/* clear its dirty bitmap */
+		for (; t <= DIRTY_COLD_NODE; t++) {
+			if (test_and_clear_bit(segno,
+						dirty_i->dirty_segmap[t])) {
 				dirty_i->nr_dirty[t]--;
+				break;
+			}
+		}
 
 		if (get_valid_blocks(sbi, segno, sbi->segs_per_sec) == 0)
 			clear_bit(GET_SECNO(sbi, segno),
