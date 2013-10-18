@@ -931,7 +931,7 @@ mtype_list(const struct ip_set *set,
 	struct nlattr *atd, *nested;
 	const struct hbucket *n;
 	const struct mtype_elem *e;
-	u32 first = cb->args[2];
+	u32 first = cb->args[IPSET_CB_ARG0];
 	/* We assume that one hash bucket fills into one page */
 	void *incomplete;
 	int i;
@@ -940,20 +940,22 @@ mtype_list(const struct ip_set *set,
 	if (!atd)
 		return -EMSGSIZE;
 	pr_debug("list hash set %s\n", set->name);
-	for (; cb->args[2] < jhash_size(t->htable_bits); cb->args[2]++) {
+	for (; cb->args[IPSET_CB_ARG0] < jhash_size(t->htable_bits);
+	     cb->args[IPSET_CB_ARG0]++) {
 		incomplete = skb_tail_pointer(skb);
-		n = hbucket(t, cb->args[2]);
-		pr_debug("cb->args[2]: %lu, t %p n %p\n", cb->args[2], t, n);
+		n = hbucket(t, cb->args[IPSET_CB_ARG0]);
+		pr_debug("cb->arg bucket: %lu, t %p n %p\n",
+			 cb->args[IPSET_CB_ARG0], t, n);
 		for (i = 0; i < n->pos; i++) {
 			e = ahash_data(n, i, set->dsize);
 			if (SET_WITH_TIMEOUT(set) &&
 			    ip_set_timeout_expired(ext_timeout(e, set)))
 				continue;
 			pr_debug("list hash %lu hbucket %p i %u, data %p\n",
-				 cb->args[2], n, i, e);
+				 cb->args[IPSET_CB_ARG0], n, i, e);
 			nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 			if (!nested) {
-				if (cb->args[2] == first) {
+				if (cb->args[IPSET_CB_ARG0] == first) {
 					nla_nest_cancel(skb, atd);
 					return -EMSGSIZE;
 				} else
@@ -968,16 +970,16 @@ mtype_list(const struct ip_set *set,
 	}
 	ipset_nest_end(skb, atd);
 	/* Set listing finished */
-	cb->args[2] = 0;
+	cb->args[IPSET_CB_ARG0] = 0;
 
 	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, incomplete);
-	if (unlikely(first == cb->args[2])) {
+	if (unlikely(first == cb->args[IPSET_CB_ARG0])) {
 		pr_warning("Can't list set %s: one bucket does not fit into "
 			   "a message. Please report it!\n", set->name);
-		cb->args[2] = 0;
+		cb->args[IPSET_CB_ARG0] = 0;
 		return -EMSGSIZE;
 	}
 	ipset_nest_end(skb, atd);

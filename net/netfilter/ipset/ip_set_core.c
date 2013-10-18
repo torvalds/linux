@@ -1182,10 +1182,12 @@ ip_set_swap(struct sock *ctnl, struct sk_buff *skb,
 static int
 ip_set_dump_done(struct netlink_callback *cb)
 {
-	struct ip_set_net *inst = (struct ip_set_net *)cb->data;
-	if (cb->args[2]) {
-		pr_debug("release set %s\n", nfnl_set(inst, cb->args[1])->name);
-		__ip_set_put_byindex(inst, (ip_set_id_t) cb->args[1]);
+	struct ip_set_net *inst = (struct ip_set_net *)cb->args[IPSET_CB_NET];
+	if (cb->args[IPSET_CB_ARG0]) {
+		pr_debug("release set %s\n",
+			 nfnl_set(inst, cb->args[IPSET_CB_INDEX])->name);
+		__ip_set_put_byindex(inst,
+			(ip_set_id_t) cb->args[IPSET_CB_INDEX]);
 	}
 	return 0;
 }
@@ -1203,7 +1205,7 @@ dump_attrs(struct nlmsghdr *nlh)
 }
 
 static int
-dump_init(struct netlink_callback *cb)
+dump_init(struct netlink_callback *cb, struct ip_set_net *inst)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(cb->skb);
 	int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
@@ -1211,15 +1213,15 @@ dump_init(struct netlink_callback *cb)
 	struct nlattr *attr = (void *)nlh + min_len;
 	u32 dump_type;
 	ip_set_id_t index;
-	struct ip_set_net *inst = (struct ip_set_net *)cb->data;
 
 	/* Second pass, so parser can't fail */
 	nla_parse(cda, IPSET_ATTR_CMD_MAX,
 		  attr, nlh->nlmsg_len - min_len, ip_set_setname_policy);
 
-	/* cb->args[0] : dump single set/all sets
-	 *         [1] : set index
-	 *         [..]: type specific
+	/* cb->args[IPSET_CB_NET]:	net namespace
+	 *         [IPSET_CB_DUMP]:	dump single set/all sets
+	 *         [IPSET_CB_INDEX]: 	set index
+	 *         [IPSET_CB_ARG0]:	type specific
 	 */
 
 	if (cda[IPSET_ATTR_SETNAME]) {
@@ -1231,7 +1233,7 @@ dump_init(struct netlink_callback *cb)
 			return -ENOENT;
 
 		dump_type = DUMP_ONE;
-		cb->args[1] = index;
+		cb->args[IPSET_CB_INDEX] = index;
 	} else
 		dump_type = DUMP_ALL;
 
@@ -1239,7 +1241,8 @@ dump_init(struct netlink_callback *cb)
 		u32 f = ip_set_get_h32(cda[IPSET_ATTR_FLAGS]);
 		dump_type |= (f << 16);
 	}
-	cb->args[0] = dump_type;
+	cb->args[IPSET_CB_NET] = (unsigned long)inst;
+	cb->args[IPSET_CB_DUMP] = dump_type;
 
 	return 0;
 }
@@ -1251,12 +1254,12 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 	struct ip_set *set = NULL;
 	struct nlmsghdr *nlh = NULL;
 	unsigned int flags = NETLINK_CB(cb->skb).portid ? NLM_F_MULTI : 0;
+	struct ip_set_net *inst = ip_set_pernet(sock_net(skb->sk));
 	u32 dump_type, dump_flags;
 	int ret = 0;
-	struct ip_set_net *inst = (struct ip_set_net *)cb->data;
 
-	if (!cb->args[0]) {
-		ret = dump_init(cb);
+	if (!cb->args[IPSET_CB_DUMP]) {
+		ret = dump_init(cb, inst);
 		if (ret < 0) {
 			nlh = nlmsg_hdr(cb->skb);
 			/* We have to create and send the error message
@@ -1267,17 +1270,18 @@ ip_set_dump_start(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 	}
 
-	if (cb->args[1] >= inst->ip_set_max)
+	if (cb->args[IPSET_CB_INDEX] >= inst->ip_set_max)
 		goto out;
 
-	dump_type = DUMP_TYPE(cb->args[0]);
-	dump_flags = DUMP_FLAGS(cb->args[0]);
-	max = dump_type == DUMP_ONE ? cb->args[1] + 1 : inst->ip_set_max;
+	dump_type = DUMP_TYPE(cb->args[IPSET_CB_DUMP]);
+	dump_flags = DUMP_FLAGS(cb->args[IPSET_CB_DUMP]);
+	max = dump_type == DUMP_ONE ? cb->args[IPSET_CB_INDEX] + 1
+				    : inst->ip_set_max;
 dump_last:
-	pr_debug("args[0]: %u %u args[1]: %ld\n",
-		 dump_type, dump_flags, cb->args[1]);
-	for (; cb->args[1] < max; cb->args[1]++) {
-		index = (ip_set_id_t) cb->args[1];
+	pr_debug("dump type, flag: %u %u index: %ld\n",
+		 dump_type, dump_flags, cb->args[IPSET_CB_INDEX]);
+	for (; cb->args[IPSET_CB_INDEX] < max; cb->args[IPSET_CB_INDEX]++) {
+		index = (ip_set_id_t) cb->args[IPSET_CB_INDEX];
 		set = nfnl_set(inst, index);
 		if (set == NULL) {
 			if (dump_type == DUMP_ONE) {
@@ -1294,7 +1298,7 @@ dump_last:
 		     !!(set->type->features & IPSET_DUMP_LAST)))
 			continue;
 		pr_debug("List set: %s\n", set->name);
-		if (!cb->args[2]) {
+		if (!cb->args[IPSET_CB_ARG0]) {
 			/* Start listing: make sure set won't be destroyed */
 			pr_debug("reference set\n");
 			__ip_set_get(set);
@@ -1311,7 +1315,7 @@ dump_last:
 			goto nla_put_failure;
 		if (dump_flags & IPSET_FLAG_LIST_SETNAME)
 			goto next_set;
-		switch (cb->args[2]) {
+		switch (cb->args[IPSET_CB_ARG0]) {
 		case 0:
 			/* Core header data */
 			if (nla_put_string(skb, IPSET_ATTR_TYPENAME,
@@ -1331,7 +1335,7 @@ dump_last:
 			read_lock_bh(&set->lock);
 			ret = set->variant->list(set, skb, cb);
 			read_unlock_bh(&set->lock);
-			if (!cb->args[2])
+			if (!cb->args[IPSET_CB_ARG0])
 				/* Set is done, proceed with next one */
 				goto next_set;
 			goto release_refcount;
@@ -1340,8 +1344,8 @@ dump_last:
 	/* If we dump all sets, continue with dumping last ones */
 	if (dump_type == DUMP_ALL) {
 		dump_type = DUMP_LAST;
-		cb->args[0] = dump_type | (dump_flags << 16);
-		cb->args[1] = 0;
+		cb->args[IPSET_CB_DUMP] = dump_type | (dump_flags << 16);
+		cb->args[IPSET_CB_INDEX] = 0;
 		goto dump_last;
 	}
 	goto out;
@@ -1350,15 +1354,15 @@ nla_put_failure:
 	ret = -EFAULT;
 next_set:
 	if (dump_type == DUMP_ONE)
-		cb->args[1] = IPSET_INVALID_ID;
+		cb->args[IPSET_CB_INDEX] = IPSET_INVALID_ID;
 	else
-		cb->args[1]++;
+		cb->args[IPSET_CB_INDEX]++;
 release_refcount:
 	/* If there was an error or set is done, release set */
-	if (ret || !cb->args[2]) {
+	if (ret || !cb->args[IPSET_CB_ARG0]) {
 		pr_debug("release set %s\n", nfnl_set(inst, index)->name);
 		__ip_set_put_byindex(inst, index);
-		cb->args[2] = 0;
+		cb->args[IPSET_CB_ARG0] = 0;
 	}
 out:
 	if (nlh) {
@@ -1375,8 +1379,6 @@ ip_set_dump(struct sock *ctnl, struct sk_buff *skb,
 	    const struct nlmsghdr *nlh,
 	    const struct nlattr * const attr[])
 {
-	struct ip_set_net *inst = ip_set_pernet(sock_net(ctnl));
-
 	if (unlikely(protocol_failed(attr)))
 		return -IPSET_ERR_PROTOCOL;
 
@@ -1384,7 +1386,6 @@ ip_set_dump(struct sock *ctnl, struct sk_buff *skb,
 		struct netlink_dump_control c = {
 			.dump = ip_set_dump_start,
 			.done = ip_set_dump_done,
-			.data = (void *)inst
 		};
 		return netlink_dump_start(ctnl, skb, nlh, &c);
 	}
@@ -1961,7 +1962,6 @@ static int __net_init
 ip_set_net_init(struct net *net)
 {
 	struct ip_set_net *inst = ip_set_pernet(net);
-
 	struct ip_set **list;
 
 	inst->ip_set_max = max_sets ? max_sets : CONFIG_IP_SET_MAX;
