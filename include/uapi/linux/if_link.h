@@ -330,6 +330,7 @@ struct ifla_vxlan_port_range {
 enum {
 	IFLA_BOND_UNSPEC,
 	IFLA_BOND_MODE,
+	IFLA_BOND_ACTIVE_SLAVE,
 	__IFLA_BOND_MAX,
 };
 

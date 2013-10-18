@@ -22,6 +22,7 @@
 
 static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_MODE]		= { .type = NLA_U8 },
+	[IFLA_BOND_ACTIVE_SLAVE]	= { .type = NLA_U32 },
 };
 
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -48,6 +49,22 @@ static int bond_changelink(struct net_device *bond_dev,
 		if (err)
 			return err;
 	}
+	if (data && data[IFLA_BOND_ACTIVE_SLAVE]) {
+		int ifindex = nla_get_u32(data[IFLA_BOND_ACTIVE_SLAVE]);
+		struct net_device *slave_dev;
+
+		if (ifindex == 0) {
+			slave_dev = NULL;
+		} else {
+			slave_dev = __dev_get_by_index(dev_net(bond_dev),
+						       ifindex);
+			if (!slave_dev)
+				return -ENODEV;
+		}
+		err = bond_option_active_slave_set(bond, slave_dev);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -66,14 +83,18 @@ static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
 static size_t bond_get_size(const struct net_device *bond_dev)
 {
 	return nla_total_size(sizeof(u8));	/* IFLA_BOND_MODE */
+		+ nla_total_size(sizeof(u32));	/* IFLA_BOND_ACTIVE_SLAVE */
 }
 
 static int bond_fill_info(struct sk_buff *skb,
 			  const struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct net_device *slave_dev = bond_option_active_slave_get(bond);
 
-	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode))
+	if (nla_put_u8(skb, IFLA_BOND_MODE, bond->params.mode) ||
+	    (slave_dev &&
+	     nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, slave_dev->ifindex)))
 		goto nla_put_failure;
 	return 0;
 
