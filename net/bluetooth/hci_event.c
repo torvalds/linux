@@ -468,14 +468,13 @@ static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 	if (rp->status)
 		return;
 
-	hdev->hci_ver = rp->hci_ver;
-	hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
-	hdev->lmp_ver = rp->lmp_ver;
-	hdev->manufacturer = __le16_to_cpu(rp->manufacturer);
-	hdev->lmp_subver = __le16_to_cpu(rp->lmp_subver);
-
-	BT_DBG("%s manufacturer 0x%4.4x hci ver %d:%d", hdev->name,
-	       hdev->manufacturer, hdev->hci_ver, hdev->hci_rev);
+	if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		hdev->hci_ver = rp->hci_ver;
+		hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
+		hdev->lmp_ver = rp->lmp_ver;
+		hdev->manufacturer = __le16_to_cpu(rp->manufacturer);
+		hdev->lmp_subver = __le16_to_cpu(rp->lmp_subver);
+	}
 }
 
 static void hci_cc_read_local_commands(struct hci_dev *hdev,
