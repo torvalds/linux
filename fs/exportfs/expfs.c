@@ -69,27 +69,6 @@ find_acceptable_alias(struct dentry *result,
 	return NULL;
 }
 
-/*
- * Find root of a disconnected subtree and return a reference to it.
- */
-static struct dentry *
-find_disconnected_root(struct dentry *dentry)
-{
-	dget(dentry);
-	while (!IS_ROOT(dentry)) {
-		struct dentry *parent = dget_parent(dentry);
-
-		if (!(parent->d_flags & DCACHE_DISCONNECTED)) {
-			dput(parent);
-			break;
-		}
-
-		dput(dentry);
-		dentry = parent;
-	}
-	return dentry;
-}
-
 static bool dentry_connected(struct dentry *dentry)
 {
 	dget(dentry);
@@ -225,45 +204,26 @@ out_reconnected:
 static int
 reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 {
-	int err = -ESTALE;
+	struct dentry *dentry, *parent;
 
-	while (target_dir->d_flags & DCACHE_DISCONNECTED) {
-		struct dentry *dentry = find_disconnected_root(target_dir);
+	dentry = dget(target_dir);
 
+	while (dentry->d_flags & DCACHE_DISCONNECTED) {
 		BUG_ON(dentry == mnt->mnt_sb->s_root);
 
-		if (!IS_ROOT(dentry)) {
-			/* must have found a connected parent - great */
-			clear_disconnected(target_dir);
-			dput(dentry);
+		if (IS_ROOT(dentry))
+			parent = reconnect_one(mnt, dentry, nbuf);
+		else
+			parent = dget_parent(dentry);
+
+		if (!parent)
 			break;
-		} else {
-			struct dentry *parent;
-			/*
-			 * We have hit the top of a disconnected path, try to
-			 * find parent and connect.
-			 */
-			 parent = reconnect_one(mnt, dentry, nbuf);
-			 if (!parent)
-				goto out_reconnected;
-			if (IS_ERR(parent)) {
-				err = PTR_ERR(parent);
-				break;
-			}
-			dput(parent);
-		}
 		dput(dentry);
+		if (IS_ERR(parent))
+			return PTR_ERR(parent);
+		dentry = parent;
 	}
-
-	if (target_dir->d_flags & DCACHE_DISCONNECTED) {
-		/* something went wrong - oh-well */
-		if (!err)
-			err = -ESTALE;
-		return err;
-	}
-
-	return 0;
-out_reconnected:
+	dput(dentry);
 	clear_disconnected(target_dir);
 	return 0;
 }
