@@ -73,13 +73,12 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
  * Returns message data size or errno
  */
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   u32 num_sect, unsigned int total_len, int max_size,
-		   struct sk_buff **buf)
+		   unsigned int len, int max_size, struct sk_buff **buf)
 {
 	int dsz, sz, hsz;
 	unsigned char *to;
 
-	dsz = total_len;
+	dsz = len;
 	hsz = msg_hdr_sz(hdr);
 	sz = hsz + dsz;
 	msg_set_size(hdr, sz);
@@ -93,7 +92,7 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		return -ENOMEM;
 	skb_copy_to_linear_data(*buf, hdr, hsz);
 	to = (*buf)->data + hsz;
-	if (total_len && memcpy_fromiovecend(to, msg_sect, 0, dsz)) {
+	if (len && memcpy_fromiovecend(to, msg_sect, 0, dsz)) {
 		kfree_skb(*buf);
 		*buf = NULL;
 		return -EFAULT;

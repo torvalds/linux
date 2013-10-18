@@ -97,8 +97,7 @@ static int  link_recv_changeover_msg(struct tipc_link **l_ptr,
 static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance);
 static int  link_send_sections_long(struct tipc_port *sender,
 				    struct iovec const *msg_sect,
-				    u32 num_sect, unsigned int total_len,
-				    u32 destnode);
+				    unsigned int len, u32 destnode);
 static void link_state_event(struct tipc_link *l_ptr, u32 event);
 static void link_reset_statistics(struct tipc_link *l_ptr);
 static void link_print(struct tipc_link *l_ptr, const char *str);
@@ -1065,8 +1064,7 @@ static int link_send_buf_fast(struct tipc_link *l_ptr, struct sk_buff *buf,
  */
 int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
-				 const u32 num_sect, unsigned int total_len,
-				 u32 destaddr)
+				 unsigned int len, u32 destaddr)
 {
 	struct tipc_msg *hdr = &sender->phdr;
 	struct tipc_link *l_ptr;
@@ -1080,8 +1078,7 @@ again:
 	 * Try building message using port's max_pkt hint.
 	 * (Must not hold any locks while building message.)
 	 */
-	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len,
-			     sender->max_pkt, &buf);
+	res = tipc_msg_build(hdr, msg_sect, len, sender->max_pkt, &buf);
 	/* Exit if build request was invalid */
 	if (unlikely(res < 0))
 		return res;
@@ -1121,8 +1118,7 @@ exit:
 			if ((msg_hdr_sz(hdr) + res) <= sender->max_pkt)
 				goto again;
 
-			return link_send_sections_long(sender, msg_sect,
-						       num_sect, total_len,
+			return link_send_sections_long(sender, msg_sect, len,
 						       destaddr);
 		}
 		tipc_node_unlock(node);
@@ -1133,8 +1129,8 @@ exit:
 	if (buf)
 		return tipc_reject_msg(buf, TIPC_ERR_NO_NODE);
 	if (res >= 0)
-		return tipc_port_reject_sections(sender, hdr, msg_sect, num_sect,
-						 total_len, TIPC_ERR_NO_NODE);
+		return tipc_port_reject_sections(sender, hdr, msg_sect,
+						 len, TIPC_ERR_NO_NODE);
 	return res;
 }
 
@@ -1154,13 +1150,12 @@ exit:
  */
 static int link_send_sections_long(struct tipc_port *sender,
 				   struct iovec const *msg_sect,
-				   u32 num_sect, unsigned int total_len,
-				   u32 destaddr)
+				   unsigned int len, u32 destaddr)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_node *node;
 	struct tipc_msg *hdr = &sender->phdr;
-	u32 dsz = total_len;
+	u32 dsz = len;
 	u32 max_pkt, fragm_sz, rest;
 	struct tipc_msg fragm_hdr;
 	struct sk_buff *buf, *buf_chain, *prev;
@@ -1283,8 +1278,8 @@ reject:
 			buf = buf_chain->next;
 			kfree_skb(buf_chain);
 		}
-		return tipc_port_reject_sections(sender, hdr, msg_sect, num_sect,
-						 total_len, TIPC_ERR_NO_NODE);
+		return tipc_port_reject_sections(sender, hdr, msg_sect,
+						 len, TIPC_ERR_NO_NODE);
 	}
 
 	/* Append chain of fragments to send queue & send them */

@@ -622,13 +622,11 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 			res = tipc_send2name(tport->ref,
 					     &dest->addr.name.name,
 					     dest->addr.name.domain,
-					     m->msg_iovlen,
 					     m->msg_iov,
 					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_ID) {
 			res = tipc_send2port(tport->ref,
 					     &dest->addr.id,
-					     m->msg_iovlen,
 					     m->msg_iov,
 					     total_len);
 		} else if (dest->addrtype == TIPC_ADDR_MCAST) {
@@ -641,7 +639,6 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 				break;
 			res = tipc_multicast(tport->ref,
 					     &dest->addr.nameseq,
-					     m->msg_iovlen,
 					     m->msg_iov,
 					     total_len);
 		}
@@ -707,8 +704,7 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 
-		res = tipc_send(tport->ref, m->msg_iovlen, m->msg_iov,
-				total_len);
+		res = tipc_send(tport->ref, m->msg_iov, total_len);
 		if (likely(res != -ELINKCONG))
 			break;
 		if (timeout_val <= 0L) {
