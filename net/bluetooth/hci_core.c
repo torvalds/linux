@@ -2482,7 +2482,9 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!IS_ERR_OR_NULL(bt_debugfs))
 		hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
 
-	error = hci_add_sysfs(hdev);
+	dev_set_name(&hdev->dev, "%s", hdev->name);
+
+	error = device_add(&hdev->dev);
 	if (error < 0)
 		goto err_wqueue;
 
@@ -2570,7 +2572,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	hci_del_sysfs(hdev);
+	device_del(&hdev->dev);
 
 	debugfs_remove_recursive(hdev->debugfs);
 

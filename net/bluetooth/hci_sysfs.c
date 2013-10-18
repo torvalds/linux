@@ -402,24 +402,6 @@ void hci_init_sysfs(struct hci_dev *hdev)
 	device_initialize(dev);
 }
 
-int hci_add_sysfs(struct hci_dev *hdev)
-{
-	struct device *dev = &hdev->dev;
-
-	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
-
-	dev_set_name(dev, "%s", hdev->name);
-
-	return device_add(dev);
-}
-
-void hci_del_sysfs(struct hci_dev *hdev)
-{
-	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
-
-	device_del(&hdev->dev);
-}
-
 int __init bt_sysfs_init(void)
 {
 	bt_class = class_create(THIS_MODULE, "bluetooth");
