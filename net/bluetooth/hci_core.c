@@ -29,6 +29,7 @@
 #include <linux/idr.h>
 #include <linux/rfkill.h>
 #include <linux/debugfs.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -77,6 +78,43 @@ static int blacklist_open(struct inode *inode, struct file *file)
 
 static const struct file_operations blacklist_fops = {
 	.open		= blacklist_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int uuids_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct bt_uuid *uuid;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(uuid, &hdev->uuids, list) {
+		u32 data0, data5;
+		u16 data1, data2, data3, data4;
+
+		data5 = get_unaligned_le32(uuid);
+		data4 = get_unaligned_le16(uuid + 4);
+		data3 = get_unaligned_le16(uuid + 6);
+		data2 = get_unaligned_le16(uuid + 8);
+		data1 = get_unaligned_le16(uuid + 10);
+		data0 = get_unaligned_le32(uuid + 12);
+
+		seq_printf(f, "%.8x-%.4x-%.4x-%.4x-%.4x%.8x\n",
+			   data0, data1, data2, data3, data4, data5);
+	}
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int uuids_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, uuids_show, inode->i_private);
+}
+
+static const struct file_operations uuids_fops = {
+	.open		= uuids_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -871,6 +909,8 @@ static int __hci_init(struct hci_dev *hdev)
 
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
+
+	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
 	if (lmp_bredr_capable(hdev)) {
 		debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,

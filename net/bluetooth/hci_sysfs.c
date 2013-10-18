@@ -2,7 +2,6 @@
 
 #include <linux/debugfs.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -396,49 +395,6 @@ static struct device_type bt_host = {
 	.release = bt_host_release,
 };
 
-static void print_bt_uuid(struct seq_file *f, u8 *uuid)
-{
-	u32 data0, data5;
-	u16 data1, data2, data3, data4;
-
-	data5 = get_unaligned_le32(uuid);
-	data4 = get_unaligned_le16(uuid + 4);
-	data3 = get_unaligned_le16(uuid + 6);
-	data2 = get_unaligned_le16(uuid + 8);
-	data1 = get_unaligned_le16(uuid + 10);
-	data0 = get_unaligned_le32(uuid + 12);
-
-	seq_printf(f, "%.8x-%.4x-%.4x-%.4x-%.4x%.8x\n",
-		   data0, data1, data2, data3, data4, data5);
-}
-
-static int uuids_show(struct seq_file *f, void *p)
-{
-	struct hci_dev *hdev = f->private;
-	struct bt_uuid *uuid;
-
-	hci_dev_lock(hdev);
-
-	list_for_each_entry(uuid, &hdev->uuids, list)
-		print_bt_uuid(f, uuid->uuid);
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-static int uuids_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, uuids_show, inode->i_private);
-}
-
-static const struct file_operations uuids_fops = {
-	.open		= uuids_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 void hci_init_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
@@ -469,8 +425,6 @@ int hci_add_sysfs(struct hci_dev *hdev)
 	hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
 	if (!hdev->debugfs)
 		return 0;
-
-	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
 	return 0;
 }
