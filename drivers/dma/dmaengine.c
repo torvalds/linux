@@ -902,99 +902,6 @@ void dma_async_device_unregister(struct dma_device *device)
 EXPORT_SYMBOL(dma_async_device_unregister);
 
 /**
- * dma_async_memcpy_buf_to_buf - offloaded copy between virtual addresses
- * @chan: DMA channel to offload copy to
- * @dest: destination address (virtual)
- * @src: source address (virtual)
- * @len: length
- *
- * Both @dest and @src must be mappable to a bus address according to the
- * DMA mapping API rules for streaming mappings.
- * Both @dest and @src must stay memory resident (kernel memory or locked
- * user space pages).
- */
-dma_cookie_t
-dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
-			void *src, size_t len)
-{
-	struct dma_device *dev = chan->device;
-	struct dma_async_tx_descriptor *tx;
-	dma_addr_t dma_dest, dma_src;
-	dma_cookie_t cookie;
-	unsigned long flags;
-
-	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
-	dma_dest = dma_map_single(dev->dev, dest, len, DMA_FROM_DEVICE);
-	flags = DMA_CTRL_ACK |
-		DMA_COMPL_SRC_UNMAP_SINGLE |
-		DMA_COMPL_DEST_UNMAP_SINGLE;
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
-
-	if (!tx) {
-		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
-		dma_unmap_single(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
-		return -ENOMEM;
-	}
-
-	tx->callback = NULL;
-	cookie = tx->tx_submit(tx);
-
-	preempt_disable();
-	__this_cpu_add(chan->local->bytes_transferred, len);
-	__this_cpu_inc(chan->local->memcpy_count);
-	preempt_enable();
-
-	return cookie;
-}
-EXPORT_SYMBOL(dma_async_memcpy_buf_to_buf);
-
-/**
- * dma_async_memcpy_buf_to_pg - offloaded copy from address to page
- * @chan: DMA channel to offload copy to
- * @page: destination page
- * @offset: offset in page to copy to
- * @kdata: source address (virtual)
- * @len: length
- *
- * Both @page/@offset and @kdata must be mappable to a bus address according
- * to the DMA mapping API rules for streaming mappings.
- * Both @page/@offset and @kdata must stay memory resident (kernel memory or
- * locked user space pages)
- */
-dma_cookie_t
-dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
-			unsigned int offset, void *kdata, size_t len)
-{
-	struct dma_device *dev = chan->device;
-	struct dma_async_tx_descriptor *tx;
-	dma_addr_t dma_dest, dma_src;
-	dma_cookie_t cookie;
-	unsigned long flags;
-
-	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
-	dma_dest = dma_map_page(dev->dev, page, offset, len, DMA_FROM_DEVICE);
-	flags = DMA_CTRL_ACK | DMA_COMPL_SRC_UNMAP_SINGLE;
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
-
-	if (!tx) {
-		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
-		dma_unmap_page(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
-		return -ENOMEM;
-	}
-
-	tx->callback = NULL;
-	cookie = tx->tx_submit(tx);
-
-	preempt_disable();
-	__this_cpu_add(chan->local->bytes_transferred, len);
-	__this_cpu_inc(chan->local->memcpy_count);
-	preempt_enable();
-
-	return cookie;
-}
-EXPORT_SYMBOL(dma_async_memcpy_buf_to_pg);
-
-/**
  * dma_async_memcpy_pg_to_pg - offloaded copy from page to page
  * @chan: DMA channel to offload copy to
  * @dest_pg: destination page
@@ -1042,6 +949,52 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	return cookie;
 }
 EXPORT_SYMBOL(dma_async_memcpy_pg_to_pg);
+
+/**
+ * dma_async_memcpy_buf_to_buf - offloaded copy between virtual addresses
+ * @chan: DMA channel to offload copy to
+ * @dest: destination address (virtual)
+ * @src: source address (virtual)
+ * @len: length
+ *
+ * Both @dest and @src must be mappable to a bus address according to the
+ * DMA mapping API rules for streaming mappings.
+ * Both @dest and @src must stay memory resident (kernel memory or locked
+ * user space pages).
+ */
+dma_cookie_t
+dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
+			    void *src, size_t len)
+{
+	return dma_async_memcpy_pg_to_pg(chan, virt_to_page(dest),
+					 (unsigned long) dest & ~PAGE_MASK,
+					 virt_to_page(src),
+					 (unsigned long) src & ~PAGE_MASK, len);
+}
+EXPORT_SYMBOL(dma_async_memcpy_buf_to_buf);
+
+/**
+ * dma_async_memcpy_buf_to_pg - offloaded copy from address to page
+ * @chan: DMA channel to offload copy to
+ * @page: destination page
+ * @offset: offset in page to copy to
+ * @kdata: source address (virtual)
+ * @len: length
+ *
+ * Both @page/@offset and @kdata must be mappable to a bus address according
+ * to the DMA mapping API rules for streaming mappings.
+ * Both @page/@offset and @kdata must stay memory resident (kernel memory or
+ * locked user space pages)
+ */
+dma_cookie_t
+dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
+			   unsigned int offset, void *kdata, size_t len)
+{
+	return dma_async_memcpy_pg_to_pg(chan, page, offset,
+					 virt_to_page(kdata),
+					 (unsigned long) kdata & ~PAGE_MASK, len);
+}
+EXPORT_SYMBOL(dma_async_memcpy_buf_to_pg);
 
 void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan)
