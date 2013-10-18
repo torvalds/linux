@@ -103,7 +103,7 @@ static void periodic_unlink (struct ehci_hcd *ehci, unsigned frame, void *ptr)
 		*hw_p = *shadow_next_periodic(ehci, &here,
 				Q_NEXT_TYPE(ehci, *hw_p));
 	else
-		*hw_p = ehci->dummy->qh_dma;
+		*hw_p = cpu_to_hc32(ehci, ehci->dummy->qh_dma);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2446,7 +2446,8 @@ restart:
 				    q.itd->hw_next != EHCI_LIST_END(ehci))
 					*hw_p = q.itd->hw_next;
 				else
-					*hw_p = ehci->dummy->qh_dma;
+					*hw_p = cpu_to_hc32(ehci,
+							ehci->dummy->qh_dma);
 				type = Q_NEXT_TYPE(ehci, q.itd->hw_next);
 				wmb();
 				modified = itd_complete (ehci, q.itd);
@@ -2481,7 +2482,8 @@ restart:
 				    q.sitd->hw_next != EHCI_LIST_END(ehci))
 					*hw_p = q.sitd->hw_next;
 				else
-					*hw_p = ehci->dummy->qh_dma;
+					*hw_p = cpu_to_hc32(ehci,
+							ehci->dummy->qh_dma);
 				type = Q_NEXT_TYPE(ehci, q.sitd->hw_next);
 				wmb();
 				modified = sitd_complete (ehci, q.sitd);
