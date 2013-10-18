@@ -1050,7 +1050,6 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 	struct of_phandle_args dma_spec;
 
 	const u32 *of_serial_dir32;
-	u8 *of_serial_dir;
 	u32 val;
 	int i, ret = 0;
 
@@ -1081,32 +1080,21 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 		pdata->tdm_slots = val;
 	}
 
-	ret = of_property_read_u32(np, "num-serializer", &val);
-	if (ret >= 0)
-		pdata->num_serializer = val;
-
 	of_serial_dir32 = of_get_property(np, "serial-dir", &val);
 	val /= sizeof(u32);
-	if (val != pdata->num_serializer) {
-		dev_err(&pdev->dev,
-				"num-serializer(%d) != serial-dir size(%d)\n",
-				pdata->num_serializer, val);
-		ret = -EINVAL;
-		goto nodata;
-	}
-
 	if (of_serial_dir32) {
-		of_serial_dir = devm_kzalloc(&pdev->dev,
-						(sizeof(*of_serial_dir) * val),
-						GFP_KERNEL);
+		u8 *of_serial_dir = devm_kzalloc(&pdev->dev,
+						 (sizeof(*of_serial_dir) * val),
+						 GFP_KERNEL);
 		if (!of_serial_dir) {
 			ret = -ENOMEM;
 			goto nodata;
 		}
 
-		for (i = 0; i < pdata->num_serializer; i++)
+		for (i = 0; i < val; i++)
 			of_serial_dir[i] = be32_to_cpup(&of_serial_dir32[i]);
 
+		pdata->num_serializer = val;
 		pdata->serial_dir = of_serial_dir;
 	}
 

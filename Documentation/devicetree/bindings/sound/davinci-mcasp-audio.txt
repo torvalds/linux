@@ -49,7 +49,6 @@ mcasp0: mcasp0@1d00000 {
 	interrupts-names = "tx", "rx";
 	op-mode = <0>;		/* MCASP_IIS_MODE */
 	tdm-slots = <2>;
-	num-serializer = <16>;
 	serial-dir = <
 			0 0 0 0	/* 0: INACTIVE, 1: TX, 2: RX */
 			0 0 0 0
