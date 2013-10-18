@@ -275,18 +275,17 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	struct dma_chan *chan = xor_val_chan(submit, dest, src_list, src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
-	dma_addr_t *dma_src = NULL;
+	struct dmaengine_unmap_data *unmap = NULL;
 
 	BUG_ON(src_cnt <= 1);
 
-	if (submit->scribble)
-		dma_src = submit->scribble;
-	else if (sizeof(dma_addr_t) <= sizeof(struct page *))
-		dma_src = (dma_addr_t *) src_list;
+	if (device)
+		unmap = dmaengine_get_unmap_data(device->dev, src_cnt, GFP_NOIO);
 
-	if (dma_src && device && src_cnt <= device->max_xor &&
+	if (unmap && src_cnt <= device->max_xor &&
 	    is_dma_xor_aligned(device, offset, 0, len)) {
-		unsigned long dma_prep_flags = 0;
+		unsigned long dma_prep_flags = DMA_COMPL_SKIP_SRC_UNMAP |
+					       DMA_COMPL_SKIP_DEST_UNMAP;
 		int i;
 
 		pr_debug("%s: (async) len: %zu\n", __func__, len);
@@ -295,11 +294,15 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 			dma_prep_flags |= DMA_PREP_INTERRUPT;
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_prep_flags |= DMA_PREP_FENCE;
-		for (i = 0; i < src_cnt; i++)
-			dma_src[i] = dma_map_page(device->dev, src_list[i],
-						  offset, len, DMA_TO_DEVICE);
 
-		tx = device->device_prep_dma_xor_val(chan, dma_src, src_cnt,
+		for (i = 0; i < src_cnt; i++) {
+			unmap->addr[i] = dma_map_page(device->dev, src_list[i],
+						      offset, len, DMA_TO_DEVICE);
+			unmap->to_cnt++;
+		}
+		unmap->len = len;
+
+		tx = device->device_prep_dma_xor_val(chan, unmap->addr, src_cnt,
 						     len, result,
 						     dma_prep_flags);
 		if (unlikely(!tx)) {
@@ -308,11 +311,11 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 			while (!tx) {
 				dma_async_issue_pending(chan);
 				tx = device->device_prep_dma_xor_val(chan,
-					dma_src, src_cnt, len, result,
+					unmap->addr, src_cnt, len, result,
 					dma_prep_flags);
 			}
 		}
-
+		dma_set_unmap(tx, unmap);
 		async_tx_submit(chan, tx, submit);
 	} else {
 		enum async_tx_flags flags_orig = submit->flags;
@@ -334,6 +337,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 		async_tx_sync_epilog(submit);
 		submit->flags = flags_orig;
 	}
+	dmaengine_unmap_put(unmap);
 
 	return tx;
 }
