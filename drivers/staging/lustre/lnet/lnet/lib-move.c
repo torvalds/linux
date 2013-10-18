@@ -154,7 +154,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 		LIBCFS_FREE(tp, sizeof(*tp));
 	}
 
-	return (fail);
+	return fail;
 }
 
 unsigned int
@@ -165,7 +165,7 @@ lnet_iov_nob(unsigned int niov, struct iovec *iov)
 	while (niov-- > 0)
 		nob += (iov++)->iov_len;
 
-	return (nob);
+	return nob;
 }
 EXPORT_SYMBOL(lnet_iov_nob);
 
@@ -240,7 +240,7 @@ lnet_extract_iov(int dst_niov, struct iovec *dst,
 	unsigned int    niov;
 
 	if (len == 0)			   /* no data => */
-		return (0);		     /* no frags */
+		return 0;		     /* no frags */
 
 	LASSERT(src_niov > 0);
 	while (offset >= src->iov_len) {      /* skip initial frags */
@@ -260,7 +260,7 @@ lnet_extract_iov(int dst_niov, struct iovec *dst,
 
 		if (len <= frag_len) {
 			dst->iov_len = len;
-			return (niov);
+			return niov;
 		}
 
 		dst->iov_len = frag_len;
@@ -284,7 +284,7 @@ lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 	while (niov-- > 0)
 		nob += (kiov++)->kiov_len;
 
-	return (nob);
+	return nob;
 }
 EXPORT_SYMBOL(lnet_kiov_nob);
 
@@ -522,7 +522,7 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 	unsigned int    niov;
 
 	if (len == 0)			   /* no data => */
-		return (0);		     /* no frags */
+		return 0;		     /* no frags */
 
 	LASSERT(src_niov > 0);
 	while (offset >= src->kiov_len) {      /* skip initial frags */
@@ -545,7 +545,7 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 			dst->kiov_len = len;
 			LASSERT(dst->kiov_offset + dst->kiov_len
 					     <= PAGE_CACHE_SIZE);
-			return (niov);
+			return niov;
 		}
 
 		dst->kiov_len = frag_len;
@@ -1619,17 +1619,17 @@ lnet_msgtyp2str(int type)
 {
 	switch (type) {
 	case LNET_MSG_ACK:
-		return ("ACK");
+		return "ACK";
 	case LNET_MSG_PUT:
-		return ("PUT");
+		return "PUT";
 	case LNET_MSG_GET:
-		return ("GET");
+		return "GET";
 	case LNET_MSG_REPLY:
-		return ("REPLY");
+		return "REPLY";
 	case LNET_MSG_HELLO:
-		return ("HELLO");
+		return "HELLO";
 	default:
-		return ("<UNKNOWN>");
+		return "<UNKNOWN>";
 	}
 }
 EXPORT_SYMBOL(lnet_msgtyp2str);
