@@ -618,6 +618,8 @@ int ath10k_debug_start(struct ath10k *ar)
 {
 	int ret;
 
+	lockdep_assert_held(&ar->conf_mutex);
+
 	ret = ath10k_debug_htt_stats_req(ar);
 	if (ret)
 		/* continue normally anyway, this isn't serious */
@@ -628,7 +630,13 @@ int ath10k_debug_start(struct ath10k *ar)
 
 void ath10k_debug_stop(struct ath10k *ar)
 {
-	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
+	lockdep_assert_held(&ar->conf_mutex);
+
+	/* Must not use _sync to avoid deadlock, we do that in
+	 * ath10k_debug_destroy(). The check for htt_stats_mask is to avoid
+	 * warning from del_timer(). */
+	if (ar->debug.htt_stats_mask != 0)
+		cancel_delayed_work(&ar->debug.htt_stats_dwork);
 }
 
 int ath10k_debug_create(struct ath10k *ar)
@@ -660,6 +668,11 @@ int ath10k_debug_create(struct ath10k *ar)
 			    ar, &fops_htt_stats_mask);
 
 	return 0;
+}
+
+void ath10k_debug_destroy(struct ath10k *ar)
+{
+	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
 }
 
 #endif /* CONFIG_ATH10K_DEBUGFS */
