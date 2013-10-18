@@ -3353,6 +3353,8 @@ done:
 static int
 qlcnic_check_health(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_fw_dump *fw_dump = &ahw->fw_dump;
 	u32 state = 0, heartbeat;
 	u32 peg_status;
 	int err = 0;
@@ -3377,7 +3379,7 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		if (adapter->need_fw_reset)
 			goto detach;
 
-		if (adapter->ahw->reset_context && qlcnic_auto_fw_reset)
+		if (ahw->reset_context && qlcnic_auto_fw_reset)
 			qlcnic_reset_hw_context(adapter);
 
 		return 0;
@@ -3420,6 +3422,9 @@ detach:
 
 		qlcnic_schedule_work(adapter, qlcnic_detach_work, 0);
 		QLCDB(adapter, DRV, "fw recovery scheduled.\n");
+	} else if (!qlcnic_auto_fw_reset && fw_dump->enable &&
+		   adapter->flags & QLCNIC_FW_RESET_OWNER) {
+		qlcnic_dump_fw(adapter);
 	}
 
 	return 1;
