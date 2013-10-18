@@ -1279,9 +1279,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 					   DMA_TO_DEVICE);
 	tx = dma->device_prep_dma_xor(dma_chan, dest_dma, dma_srcs,
 				      IOAT_NUM_SRC_TEST, PAGE_SIZE,
-				      DMA_PREP_INTERRUPT |
-				      DMA_COMPL_SKIP_SRC_UNMAP |
-				      DMA_COMPL_SKIP_DEST_UNMAP);
+				      DMA_PREP_INTERRUPT);
 
 	if (!tx) {
 		dev_err(dev, "Self-test xor prep failed\n");
@@ -1342,9 +1340,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 					   DMA_TO_DEVICE);
 	tx = dma->device_prep_dma_xor_val(dma_chan, dma_srcs,
 					  IOAT_NUM_SRC_TEST + 1, PAGE_SIZE,
-					  &xor_val_result, DMA_PREP_INTERRUPT |
-					  DMA_COMPL_SKIP_SRC_UNMAP |
-					  DMA_COMPL_SKIP_DEST_UNMAP);
+					  &xor_val_result, DMA_PREP_INTERRUPT);
 	if (!tx) {
 		dev_err(dev, "Self-test zero prep failed\n");
 		err = -ENODEV;
@@ -1389,9 +1385,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 					   DMA_TO_DEVICE);
 	tx = dma->device_prep_dma_xor_val(dma_chan, dma_srcs,
 					  IOAT_NUM_SRC_TEST + 1, PAGE_SIZE,
-					  &xor_val_result, DMA_PREP_INTERRUPT |
-					  DMA_COMPL_SKIP_SRC_UNMAP |
-					  DMA_COMPL_SKIP_DEST_UNMAP);
+					  &xor_val_result, DMA_PREP_INTERRUPT);
 	if (!tx) {
 		dev_err(dev, "Self-test 2nd zero prep failed\n");
 		err = -ENODEV;

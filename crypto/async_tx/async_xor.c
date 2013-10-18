@@ -41,7 +41,7 @@ do_async_xor(struct dma_chan *chan, struct dmaengine_unmap_data *unmap,
 	dma_async_tx_callback cb_fn_orig = submit->cb_fn;
 	void *cb_param_orig = submit->cb_param;
 	enum async_tx_flags flags_orig = submit->flags;
-	enum dma_ctrl_flags dma_flags;
+	enum dma_ctrl_flags dma_flags = 0;
 	int src_cnt = unmap->to_cnt;
 	int xor_src_cnt;
 	dma_addr_t dma_dest = unmap->addr[unmap->to_cnt];
@@ -55,7 +55,6 @@ do_async_xor(struct dma_chan *chan, struct dmaengine_unmap_data *unmap,
 		/* if we are submitting additional xors, leave the chain open
 		 * and clear the callback parameters
 		 */
-		dma_flags = DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP;
 		if (src_cnt > xor_src_cnt) {
 			submit->flags &= ~ASYNC_TX_ACK;
 			submit->flags |= ASYNC_TX_FENCE;
@@ -284,8 +283,7 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 
 	if (unmap && src_cnt <= device->max_xor &&
 	    is_dma_xor_aligned(device, offset, 0, len)) {
-		unsigned long dma_prep_flags = DMA_COMPL_SKIP_SRC_UNMAP |
-					       DMA_COMPL_SKIP_DEST_UNMAP;
+		unsigned long dma_prep_flags = 0;
 		int i;
 
 		pr_debug("%s: (async) len: %zu\n", __func__, len);

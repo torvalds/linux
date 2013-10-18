@@ -1065,8 +1065,7 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	unmap->addr[1] = dma_map_page(dev->dev, dest_pg, dest_off, len,
 				      DMA_FROM_DEVICE);
 	unmap->len = len;
-	flags = DMA_CTRL_ACK | DMA_COMPL_SKIP_SRC_UNMAP |
-		DMA_COMPL_SKIP_DEST_UNMAP;
+	flags = DMA_CTRL_ACK;
 	tx = dev->device_prep_dma_memcpy(chan, unmap->addr[1], unmap->addr[0],
 					 len, flags);
 

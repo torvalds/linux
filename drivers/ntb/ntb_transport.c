@@ -1037,7 +1037,6 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 	struct dmaengine_unmap_data *unmap;
 	dma_cookie_t cookie;
 	void *buf = entry->buf;
-	unsigned long flags;
 
 	entry->len = len;
 
@@ -1073,10 +1072,9 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 
 	unmap->from_cnt = 1;
 
-	flags = DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP |
-		DMA_PREP_INTERRUPT;
 	txd = device->device_prep_dma_memcpy(chan, unmap->addr[1],
-					     unmap->addr[0], len, flags);
+					     unmap->addr[0], len,
+					     DMA_PREP_INTERRUPT);
 	if (!txd)
 		goto err_get_unmap;
 
@@ -1266,7 +1264,6 @@ static void ntb_async_tx(struct ntb_transport_qp *qp,
 	void __iomem *offset;
 	size_t len = entry->len;
 	void *buf = entry->buf;
-	unsigned long flags;
 
 	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
 	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
@@ -1301,10 +1298,8 @@ static void ntb_async_tx(struct ntb_transport_qp *qp,
 
 	unmap->to_cnt = 1;
 
-	flags = DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP |
-		DMA_PREP_INTERRUPT;
 	txd = device->device_prep_dma_memcpy(chan, dest, unmap->addr[0], len,
-					    flags);
+					     DMA_PREP_INTERRUPT);
 	if (!txd)
 		goto err_get_unmap;
 

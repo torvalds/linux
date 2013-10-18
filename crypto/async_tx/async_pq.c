@@ -62,7 +62,6 @@ do_async_gen_syndrome(struct dma_chan *chan,
 	dma_addr_t dma_dest[2];
 	int src_off = 0;
 
-	dma_flags |= DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP;
 	if (submit->flags & ASYNC_TX_FENCE)
 		dma_flags |= DMA_PREP_FENCE;
 
