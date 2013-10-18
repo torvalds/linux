@@ -428,6 +428,8 @@ int bond_netlink_init(void);
 void bond_netlink_fini(void);
 int bond_option_mode_set(struct bonding *bond, int mode);
 int bond_option_active_slave_set(struct bonding *bond, struct net_device *slave_dev);
+struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
+struct net_device *bond_option_active_slave_get(struct bonding *bond);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */

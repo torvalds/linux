@@ -57,6 +57,24 @@ int bond_option_mode_set(struct bonding *bond, int mode)
 	return 0;
 }
 
+static struct net_device *__bond_option_active_slave_get(struct bonding *bond,
+							 struct slave *slave)
+{
+	return USES_PRIMARY(bond->params.mode) && slave ? slave->dev : NULL;
+}
+
+struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond)
+{
+	struct slave *slave = rcu_dereference(bond->curr_active_slave);
+
+	return __bond_option_active_slave_get(bond, slave);
+}
+
+struct net_device *bond_option_active_slave_get(struct bonding *bond)
+{
+	return __bond_option_active_slave_get(bond, bond->curr_active_slave);
+}
+
 int bond_option_active_slave_set(struct bonding *bond,
 				 struct net_device *slave_dev)
 {

@@ -1219,13 +1219,13 @@ static ssize_t bonding_show_active_slave(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct slave *curr;
+	struct net_device *slave_dev;
 	int count = 0;
 
 	rcu_read_lock();
-	curr = rcu_dereference(bond->curr_active_slave);
-	if (USES_PRIMARY(bond->params.mode) && curr)
-		count = sprintf(buf, "%s\n", curr->dev->name);
+	slave_dev = bond_option_active_slave_get_rcu(bond);
+	if (slave_dev)
+		count = sprintf(buf, "%s\n", slave_dev->name);
 	rcu_read_unlock();
 
 	return count;
