@@ -45,20 +45,10 @@ struct pwm_bl_data {
 
 static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 {
-	unsigned int lth = pb->lth_brightness;
 	int duty_cycle, err;
 
 	if (pb->enabled)
 		return;
-
-	if (pb->levels)
-		duty_cycle = pb->levels[brightness];
-	else
-		duty_cycle = brightness;
-
-	duty_cycle = (duty_cycle * (pb->period - lth) / pb->scale) + lth;
-
-	pwm_config(pb->pwm, duty_cycle, pb->period);
 
 	err = regulator_enable(pb->power_supply);
 	if (err < 0)
@@ -94,10 +84,24 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	pb->enabled = false;
 }
 
+static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness)
+{
+	unsigned int lth = pb->lth_brightness;
+	int duty_cycle;
+
+	if (pb->levels)
+		duty_cycle = pb->levels[brightness];
+	else
+		duty_cycle = brightness;
+
+	return (duty_cycle * (pb->period - lth) / pb->scale) + lth;
+}
+
 static int pwm_backlight_update_status(struct backlight_device *bl)
 {
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
+	int duty_cycle;
 
 	if (bl->props.power != FB_BLANK_UNBLANK ||
 	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
@@ -107,9 +111,11 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
 
-	if (brightness > 0)
+	if (brightness > 0) {
+		duty_cycle = compute_duty_cycle(pb, brightness);
+		pwm_config(pb->pwm, duty_cycle, pb->period);
 		pwm_backlight_power_on(pb, brightness);
-	else
+	} else
 		pwm_backlight_power_off(pb);
 
 	if (pb->notify_after)
