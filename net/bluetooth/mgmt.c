@@ -1325,10 +1325,7 @@ static void enable_advertising(struct hci_request *req)
 	cp.min_interval = __constant_cpu_to_le16(0x0800);
 	cp.max_interval = __constant_cpu_to_le16(0x0800);
 	cp.type = get_adv_type(hdev);
-	if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-		cp.own_address_type = ADDR_LE_DEV_PUBLIC;
-	else
-		cp.own_address_type = ADDR_LE_DEV_RANDOM;
+	cp.own_address_type = hdev->own_addr_type;
 	cp.channel_map = 0x07;
 
 	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
@@ -3237,10 +3234,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		param_cp.type = LE_SCAN_ACTIVE;
 		param_cp.interval = cpu_to_le16(DISCOV_LE_SCAN_INT);
 		param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
-		if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-			param_cp.own_address_type = ADDR_LE_DEV_PUBLIC;
-		else
-			param_cp.own_address_type = ADDR_LE_DEV_RANDOM;
+		param_cp.own_address_type = hdev->own_addr_type;
 		hci_req_add(&req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
 			    &param_cp);
 

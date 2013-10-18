@@ -615,12 +615,7 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	else
 		conn->dst_type = ADDR_LE_DEV_RANDOM;
 
-	if (bacmp(&conn->src, BDADDR_ANY)) {
-		conn->src_type = ADDR_LE_DEV_PUBLIC;
-	} else {
-		bacpy(&conn->src, &hdev->static_addr);
-		conn->src_type = ADDR_LE_DEV_RANDOM;
-	}
+	conn->src_type = hdev->own_addr_type;
 
 	conn->state = BT_CONNECT;
 	conn->out = true;
