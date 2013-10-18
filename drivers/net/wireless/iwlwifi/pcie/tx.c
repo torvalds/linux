@@ -1465,7 +1465,8 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	spin_unlock_bh(&txq->lock);
 }
 
-#define HOST_COMPLETE_TIMEOUT (2 * HZ)
+#define HOST_COMPLETE_TIMEOUT	(2 * HZ)
+#define COMMAND_POKE_TIMEOUT	(HZ / 10)
 
 static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 				    struct iwl_host_cmd *cmd)
@@ -1493,6 +1494,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int cmd_idx;
 	int ret;
+	int timeout = HOST_COMPLETE_TIMEOUT;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));
@@ -1517,10 +1519,29 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		return ret;
 	}
 
-	ret = wait_event_timeout(trans_pcie->wait_command_queue,
-				 !test_bit(STATUS_HCMD_ACTIVE,
-					   &trans_pcie->status),
-				 HOST_COMPLETE_TIMEOUT);
+	while (timeout > 0) {
+		unsigned long flags;
+
+		timeout -= COMMAND_POKE_TIMEOUT;
+		ret = wait_event_timeout(trans_pcie->wait_command_queue,
+					 !test_bit(STATUS_HCMD_ACTIVE,
+						   &trans_pcie->status),
+					 COMMAND_POKE_TIMEOUT);
+		if (ret)
+			break;
+		/* poke the device - it may have lost the command */
+		if (iwl_trans_grab_nic_access(trans, true, &flags)) {
+			iwl_trans_release_nic_access(trans, &flags);
+			IWL_DEBUG_INFO(trans,
+				       "Tried to wake NIC for command %s\n",
+				       get_cmd_string(trans_pcie, cmd->id));
+		} else {
+			IWL_ERR(trans, "Failed to poke NIC for command %s\n",
+				get_cmd_string(trans_pcie, cmd->id));
+			break;
+		}
+	}
+
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
 			struct iwl_txq *txq =
