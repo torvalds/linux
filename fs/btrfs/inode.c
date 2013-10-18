@@ -6437,6 +6437,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 
 	if (btrfs_extent_readonly(root, disk_bytenr))
 		goto out;
+	btrfs_release_path(path);
 
 	/*
 	 * look for other files referencing this extent, if we
