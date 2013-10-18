@@ -107,7 +107,12 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		qxl_io_log(qdev, "failed crc check for client_monitors_config,"
 				 " retrying\n");
 	}
-	drm_helper_hpd_irq_event(qdev->ddev);
+
+	if (!drm_helper_hpd_irq_event(qdev->ddev)) {
+		/* notify that the monitor configuration changed, to
+		   adjust at the arbitrary resolution */
+		drm_kms_helper_hotplug_event(qdev->ddev);
+	}
 }
 
 static int qxl_add_monitors_config_modes(struct drm_connector *connector)
