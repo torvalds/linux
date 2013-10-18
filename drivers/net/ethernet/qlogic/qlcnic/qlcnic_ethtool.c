@@ -187,8 +187,8 @@ static int qlcnic_dev_statistics_len(struct qlcnic_adapter *adapter)
 		return -1;
 }
 
-#define QLCNIC_RING_REGS_COUNT	20
-#define QLCNIC_RING_REGS_LEN	(QLCNIC_RING_REGS_COUNT * sizeof(u32))
+#define	QLCNIC_TX_INTR_NOT_CONFIGURED	0X78563412
+
 #define QLCNIC_MAX_EEPROM_LEN   1024
 
 static const u32 diag_registers[] = {
@@ -219,7 +219,15 @@ static const u32 ext_diag_registers[] = {
 };
 
 #define QLCNIC_MGMT_API_VERSION	2
-#define QLCNIC_ETHTOOL_REGS_VER	3
+#define QLCNIC_ETHTOOL_REGS_VER	4
+
+static inline int qlcnic_get_ring_regs_len(struct qlcnic_adapter *adapter)
+{
+	int ring_regs_cnt = (adapter->max_drv_tx_rings * 5) +
+			    (adapter->max_rds_rings * 2) +
+			    (adapter->max_sds_rings * 3) + 5;
+	return ring_regs_cnt * sizeof(u32);
+}
 
 static int qlcnic_get_regs_len(struct net_device *dev)
 {
@@ -231,7 +239,9 @@ static int qlcnic_get_regs_len(struct net_device *dev)
 	else
 		len = sizeof(ext_diag_registers) + sizeof(diag_registers);
 
-	return QLCNIC_RING_REGS_LEN + len + QLCNIC_DEV_INFO_SIZE + 1;
+	len += ((QLCNIC_DEV_INFO_SIZE + 2) * sizeof(u32));
+	len += qlcnic_get_ring_regs_len(adapter);
+	return len;
 }
 
 static int qlcnic_get_eeprom_len(struct net_device *dev)
@@ -493,6 +503,8 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring;
+	struct qlcnic_host_rds_ring *rds_rings;
+	struct qlcnic_host_tx_ring *tx_ring;
 	u32 *regs_buff = p;
 	int ring, i = 0;
 
@@ -512,21 +524,35 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return;
 
-	regs_buff[i++] = 0xFFEFCDAB; /* Marker btw regs and ring count*/
+	/* Marker btw regs and TX ring count */
+	regs_buff[i++] = 0xFFEFCDAB;
 
-	regs_buff[i++] = 1; /* No. of tx ring */
-	regs_buff[i++] = le32_to_cpu(*(adapter->tx_ring->hw_consumer));
-	regs_buff[i++] = readl(adapter->tx_ring->crb_cmd_producer);
+	regs_buff[i++] = adapter->max_drv_tx_rings; /* No. of TX ring */
+	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		regs_buff[i++] = le32_to_cpu(*(tx_ring->hw_consumer));
+		regs_buff[i++] = tx_ring->sw_consumer;
+		regs_buff[i++] = readl(tx_ring->crb_cmd_producer);
+		regs_buff[i++] = tx_ring->producer;
+		if (tx_ring->crb_intr_mask)
+			regs_buff[i++] = readl(tx_ring->crb_intr_mask);
+		else
+			regs_buff[i++] = QLCNIC_TX_INTR_NOT_CONFIGURED;
+	}
 
-	regs_buff[i++] = 2; /* No. of rx ring */
-	regs_buff[i++] = readl(recv_ctx->rds_rings[0].crb_rcv_producer);
-	regs_buff[i++] = readl(recv_ctx->rds_rings[1].crb_rcv_producer);
+	regs_buff[i++] = adapter->max_rds_rings; /* No. of RX ring */
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_rings = &recv_ctx->rds_rings[ring];
+		regs_buff[i++] = readl(rds_rings->crb_rcv_producer);
+		regs_buff[i++] = rds_rings->producer;
+	}
 
-	regs_buff[i++] = adapter->max_sds_rings;
-
+	regs_buff[i++] = adapter->max_sds_rings; /* No. of SDS ring */
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &(recv_ctx->sds_rings[ring]);
 		regs_buff[i++] = readl(sds_ring->crb_sts_consumer);
+		regs_buff[i++] = sds_ring->consumer;
+		regs_buff[i++] = readl(sds_ring->crb_intr_mask);
 	}
 }
 

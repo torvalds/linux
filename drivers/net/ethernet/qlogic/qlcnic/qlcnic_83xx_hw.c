@@ -3267,12 +3267,12 @@ int qlcnic_83xx_reg_test(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
+inline int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
 {
 	return (ARRAY_SIZE(qlcnic_83xx_ext_reg_tbl) *
-		sizeof(adapter->ahw->ext_reg_tbl)) +
-		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) +
-		sizeof(adapter->ahw->reg_tbl));
+		sizeof(*adapter->ahw->ext_reg_tbl)) +
+		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) *
+		sizeof(*adapter->ahw->reg_tbl));
 }
 
 int qlcnic_83xx_get_registers(struct qlcnic_adapter *adapter, u32 *regs_buff)
