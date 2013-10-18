@@ -5,7 +5,7 @@
  *	Author: Huang Ying <ying.huang@intel.com>
  *
  * CPER is the format used to describe platform hardware error by
- * various APEI tables, such as ERST, BERT and HEST etc.
+ * various tables, such as ERST, BERT and HEST etc.
  *
  * For more information about CPER, please refer to Appendix N of UEFI
  * Specification version 2.3.
@@ -73,7 +73,7 @@ static const char *cper_severity_str(unsigned int severity)
  * printed, with @pfx is printed at the beginning of each line.
  */
 void cper_print_bits(const char *pfx, unsigned int bits,
-		     const char *strs[], unsigned int strs_size)
+		     const char * const strs[], unsigned int strs_size)
 {
 	int i, len = 0;
 	const char *str;
@@ -98,32 +98,32 @@ void cper_print_bits(const char *pfx, unsigned int bits,
 		printk("%s\n", buf);
 }
 
-static const char *cper_proc_type_strs[] = {
+static const char * const cper_proc_type_strs[] = {
 	"IA32/X64",
 	"IA64",
 };
 
-static const char *cper_proc_isa_strs[] = {
+static const char * const cper_proc_isa_strs[] = {
 	"IA32",
 	"IA64",
 	"X64",
 };
 
-static const char *cper_proc_error_type_strs[] = {
+static const char * const cper_proc_error_type_strs[] = {
 	"cache error",
 	"TLB error",
 	"bus error",
 	"micro-architectural error",
 };
 
-static const char *cper_proc_op_strs[] = {
+static const char * const cper_proc_op_strs[] = {
 	"unknown or generic",
 	"data read",
 	"data write",
 	"instruction execution",
 };
 
-static const char *cper_proc_flag_strs[] = {
+static const char * const cper_proc_flag_strs[] = {
 	"restartable",
 	"precise IP",
 	"overflow",
@@ -248,7 +248,7 @@ static const char *cper_pcie_port_type_strs[] = {
 };
 
 static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
-			    const struct acpi_hest_generic_data *gdata)
+			    const struct acpi_generic_data *gdata)
 {
 	if (pcie->validation_bits & CPER_PCIE_VALID_PORT_TYPE)
 		printk("%s""port_type: %d, %s\n", pfx, pcie->port_type,
@@ -283,17 +283,17 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 	pfx, pcie->bridge.secondary_status, pcie->bridge.control);
 }
 
-static const char *apei_estatus_section_flag_strs[] = {
+static const char * const cper_estatus_section_flag_strs[] = {
 	"primary",
 	"containment warning",
 	"reset",
-	"threshold exceeded",
+	"error threshold exceeded",
 	"resource not accessible",
 	"latent error",
 };
 
-static void apei_estatus_print_section(
-	const char *pfx, const struct acpi_hest_generic_data *gdata, int sec_no)
+static void cper_estatus_print_section(
+	const char *pfx, const struct acpi_generic_data *gdata, int sec_no)
 {
 	uuid_le *sec_type = (uuid_le *)gdata->section_type;
 	__u16 severity;
@@ -302,8 +302,8 @@ static void apei_estatus_print_section(
 	printk("%s""section: %d, severity: %d, %s\n", pfx, sec_no, severity,
 	       cper_severity_str(severity));
 	printk("%s""flags: 0x%02x\n", pfx, gdata->flags);
-	cper_print_bits(pfx, gdata->flags, apei_estatus_section_flag_strs,
-			ARRAY_SIZE(apei_estatus_section_flag_strs));
+	cper_print_bits(pfx, gdata->flags, cper_estatus_section_flag_strs,
+			ARRAY_SIZE(cper_estatus_section_flag_strs));
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_ID)
 		printk("%s""fru_id: %pUl\n", pfx, (uuid_le *)gdata->fru_id);
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_TEXT)
@@ -339,34 +339,34 @@ err_section_too_small:
 	pr_err(FW_WARN "error section length is too small\n");
 }
 
-void apei_estatus_print(const char *pfx,
-			const struct acpi_hest_generic_status *estatus)
+void cper_estatus_print(const char *pfx,
+			const struct acpi_generic_status *estatus)
 {
-	struct acpi_hest_generic_data *gdata;
+	struct acpi_generic_data *gdata;
 	unsigned int data_len, gedata_len;
 	int sec_no = 0;
 	__u16 severity;
 
-	printk("%s""APEI generic hardware error status\n", pfx);
+	printk("%s""Generic Hardware Error Status\n", pfx);
 	severity = estatus->error_severity;
 	printk("%s""severity: %d, %s\n", pfx, severity,
 	       cper_severity_str(severity));
 	data_len = estatus->data_length;
-	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
+	gdata = (struct acpi_generic_data *)(estatus + 1);
 	while (data_len >= sizeof(*gdata)) {
 		gedata_len = gdata->error_data_length;
-		apei_estatus_print_section(pfx, gdata, sec_no);
+		cper_estatus_print_section(pfx, gdata, sec_no);
 		data_len -= gedata_len + sizeof(*gdata);
 		gdata = (void *)(gdata + 1) + gedata_len;
 		sec_no++;
 	}
 }
-EXPORT_SYMBOL_GPL(apei_estatus_print);
+EXPORT_SYMBOL_GPL(cper_estatus_print);
 
-int apei_estatus_check_header(const struct acpi_hest_generic_status *estatus)
+int cper_estatus_check_header(const struct acpi_generic_status *estatus)
 {
 	if (estatus->data_length &&
-	    estatus->data_length < sizeof(struct acpi_hest_generic_data))
+	    estatus->data_length < sizeof(struct acpi_generic_data))
 		return -EINVAL;
 	if (estatus->raw_data_length &&
 	    estatus->raw_data_offset < sizeof(*estatus) + estatus->data_length)
@@ -374,19 +374,19 @@ int apei_estatus_check_header(const struct acpi_hest_generic_status *estatus)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(apei_estatus_check_header);
+EXPORT_SYMBOL_GPL(cper_estatus_check_header);
 
-int apei_estatus_check(const struct acpi_hest_generic_status *estatus)
+int cper_estatus_check(const struct acpi_generic_status *estatus)
 {
-	struct acpi_hest_generic_data *gdata;
+	struct acpi_generic_data *gdata;
 	unsigned int data_len, gedata_len;
 	int rc;
 
-	rc = apei_estatus_check_header(estatus);
+	rc = cper_estatus_check_header(estatus);
 	if (rc)
 		return rc;
 	data_len = estatus->data_length;
-	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
+	gdata = (struct acpi_generic_data *)(estatus + 1);
 	while (data_len >= sizeof(*gdata)) {
 		gedata_len = gdata->error_data_length;
 		if (gedata_len > data_len - sizeof(*gdata))
@@ -399,4 +399,4 @@ int apei_estatus_check(const struct acpi_hest_generic_status *estatus)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(apei_estatus_check);
+EXPORT_SYMBOL_GPL(cper_estatus_check);
