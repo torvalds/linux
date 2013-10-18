@@ -15,8 +15,9 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
-#include <net/bluetooth/a2mp.h>
-#include <net/bluetooth/amp.h>
+
+#include "a2mp.h"
+#include "amp.h"
 
 /* Global AMP Manager list */
 LIST_HEAD(amp_mgr_list);
@@ -75,33 +76,26 @@ u8 __next_ident(struct amp_mgr *mgr)
 	return mgr->ident;
 }
 
-static inline void __a2mp_cl_bredr(struct a2mp_cl *cl)
-{
-	cl->id = 0;
-	cl->type = 0;
-	cl->status = 1;
-}
-
 /* hci_dev_list shall be locked */
-static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl, u8 num_ctrl)
+static void __a2mp_add_cl(struct amp_mgr *mgr, struct a2mp_cl *cl)
 {
-	int i = 0;
 	struct hci_dev *hdev;
+	int i = 1;
 
-	__a2mp_cl_bredr(cl);
+	cl[0].id = AMP_ID_BREDR;
+	cl[0].type = AMP_TYPE_BREDR;
+	cl[0].status = AMP_STATUS_BLUETOOTH_ONLY;
 
 	list_for_each_entry(hdev, &hci_dev_list, list) {
-		/* Iterate through AMP controllers */
-		if (hdev->id == HCI_BREDR_ID)
-			continue;
-
-		/* Starting from second entry */
-		if (++i >= num_ctrl)
-			return;
-
-		cl[i].id = hdev->id;
-		cl[i].type = hdev->amp_type;
-		cl[i].status = hdev->amp_status;
+		if (hdev->dev_type == HCI_AMP) {
+			cl[i].id = hdev->id;
+			cl[i].type = hdev->amp_type;
+			if (test_bit(HCI_UP, &hdev->flags))
+				cl[i].status = hdev->amp_status;
+			else
+				cl[i].status = AMP_STATUS_POWERED_DOWN;
+			i++;
+		}
 	}
 }
 
@@ -129,6 +123,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	struct a2mp_discov_rsp *rsp;
 	u16 ext_feat;
 	u8 num_ctrl;
+	struct hci_dev *hdev;
 
 	if (len < sizeof(*req))
 		return -EINVAL;
@@ -152,7 +147,14 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	read_lock(&hci_dev_list_lock);
 
-	num_ctrl = __hci_num_ctrl();
+	/* at minimum the BR/EDR needs to be listed */
+	num_ctrl = 1;
+
+	list_for_each_entry(hdev, &hci_dev_list, list) {
+		if (hdev->dev_type == HCI_AMP)
+			num_ctrl++;
+	}
+
 	len = num_ctrl * sizeof(struct a2mp_cl) + sizeof(*rsp);
 	rsp = kmalloc(len, GFP_ATOMIC);
 	if (!rsp) {
@@ -163,7 +165,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	rsp->mtu = __constant_cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
 	rsp->ext_feat = 0;
 
-	__a2mp_add_cl(mgr, rsp->cl, num_ctrl);
+	__a2mp_add_cl(mgr, rsp->cl);
 
 	read_unlock(&hci_dev_list_lock);
 
@@ -208,7 +210,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		BT_DBG("Remote AMP id %d type %d status %d", cl->id, cl->type,
 		       cl->status);
 
-		if (cl->id != HCI_BREDR_ID && cl->type == HCI_AMP) {
+		if (cl->id != AMP_ID_BREDR && cl->type != AMP_TYPE_BREDR) {
 			struct a2mp_info_req req;
 
 			found = true;
@@ -344,7 +346,7 @@ static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	tmp = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
 
 	hdev = hci_dev_get(req->id);
-	if (!hdev || hdev->amp_type == HCI_BREDR || tmp) {
+	if (!hdev || hdev->amp_type == AMP_TYPE_BREDR || tmp) {
 		struct a2mp_amp_assoc_rsp rsp;
 		rsp.id = req->id;
 
@@ -451,7 +453,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	rsp.remote_id = req->local_id;
 
 	hdev = hci_dev_get(req->remote_id);
-	if (!hdev || hdev->amp_type != HCI_AMP) {
+	if (!hdev || hdev->amp_type == AMP_TYPE_BREDR) {
 		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 		goto send_rsp;
 	}
@@ -535,7 +537,8 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		goto send_rsp;
 	}
 
-	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, mgr->l2cap_conn->dst);
+	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK,
+				       &mgr->l2cap_conn->hcon->dst);
 	if (!hcon) {
 		BT_ERR("No phys link exist");
 		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
@@ -871,7 +874,7 @@ void a2mp_send_getinfo_rsp(struct hci_dev *hdev)
 	rsp.id = hdev->id;
 	rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 
-	if (hdev->amp_type != HCI_BREDR) {
+	if (hdev->amp_type != AMP_TYPE_BREDR) {
 		rsp.status = 0;
 		rsp.total_bw = cpu_to_le32(hdev->amp_total_bw);
 		rsp.max_bw = cpu_to_le32(hdev->amp_max_bw);

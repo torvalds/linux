@@ -218,11 +218,10 @@ void baswap(bdaddr_t *dst, bdaddr_t *src);
 
 struct bt_sock {
 	struct sock sk;
-	bdaddr_t    src;
-	bdaddr_t    dst;
 	struct list_head accept_q;
 	struct sock *parent;
 	unsigned long flags;
+	void (*skb_msg_name)(struct sk_buff *, void *, int *);
 };
 
 enum {
@@ -285,6 +284,8 @@ struct bt_skb_cb {
 	__u8 force_active;
 	struct l2cap_ctrl control;
 	struct hci_req_ctrl req;
+	bdaddr_t bdaddr;
+	__le16 psm;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
