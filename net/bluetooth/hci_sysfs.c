@@ -409,31 +409,17 @@ void hci_init_sysfs(struct hci_dev *hdev)
 int hci_add_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
-	int err;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
 	dev_set_name(dev, "%s", hdev->name);
 
-	err = device_add(dev);
-	if (err < 0)
-		return err;
-
-	if (!bt_debugfs)
-		return 0;
-
-	hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
-	if (!hdev->debugfs)
-		return 0;
-
-	return 0;
+	return device_add(dev);
 }
 
 void hci_del_sysfs(struct hci_dev *hdev)
 {
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
-
-	debugfs_remove_recursive(hdev->debugfs);
 
 	device_del(&hdev->dev);
 }
