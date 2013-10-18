@@ -101,31 +101,30 @@ struct rsnd_ssiu {
 #define rsnd_ssi_to_ssiu(ssi)\
 	(((struct rsnd_ssiu *)((ssi) - rsnd_mod_id(&(ssi)->mod))) - 1)
 
-static void rsnd_ssi_mode_init(struct rsnd_priv *priv,
-			       struct rsnd_ssiu *ssiu)
+static void rsnd_ssi_mode_set(struct rsnd_priv *priv,
+			      struct rsnd_dai *rdai,
+			      struct rsnd_ssi *ssi)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_ssi *ssi;
 	struct rsnd_mod *scu;
+	struct rsnd_ssiu *ssiu = rsnd_ssi_to_ssiu(ssi);
+	int id = rsnd_mod_id(&ssi->mod);
 	u32 flags;
 	u32 val;
-	int i;
+
+	scu   = rsnd_scu_mod_get(priv, rsnd_mod_id(&ssi->mod));
 
 	/*
 	 * SSI_MODE0
 	 */
-	ssiu->ssi_mode0 = 0;
-	for_each_rsnd_ssi(ssi, priv, i) {
-		flags = rsnd_ssi_mode_flags(ssi);
-		scu   = rsnd_scu_mod_get(priv, rsnd_mod_id(&ssi->mod));
 
-		/* see also BUSIF_MODE */
-		if (rsnd_scu_hpbif_is_enable(scu)) {
-			dev_dbg(dev, "SSI%d uses DEPENDENT mode\n", i);
-		} else {
-			ssiu->ssi_mode0 |= (1 << i);
-			dev_dbg(dev, "SSI%d uses INDEPENDENT mode\n", i);
-		}
+	/* see also BUSIF_MODE */
+	if (rsnd_scu_hpbif_is_enable(scu)) {
+		ssiu->ssi_mode0 &= ~(1 << id);
+		dev_dbg(dev, "SSI%d uses DEPENDENT mode\n", id);
+	} else {
+		ssiu->ssi_mode0 |= (1 << id);
+		dev_dbg(dev, "SSI%d uses INDEPENDENT mode\n", id);
 	}
 
 	/*
@@ -134,7 +133,7 @@ static void rsnd_ssi_mode_init(struct rsnd_priv *priv,
 #define ssi_parent_set(p, sync, adg, ext)		\
 	do {						\
 		ssi->parent = ssiu->ssi + p;		\
-		if (flags & RSND_SSI_CLK_FROM_ADG)	\
+		if (rsnd_rdai_is_clk_master(rdai))	\
 			val = adg;			\
 		else					\
 			val = ext;			\
@@ -142,15 +141,11 @@ static void rsnd_ssi_mode_init(struct rsnd_priv *priv,
 			val |= sync;			\
 	} while (0)
 
-	ssiu->ssi_mode1 = 0;
-	for_each_rsnd_ssi(ssi, priv, i) {
-		flags = rsnd_ssi_mode_flags(ssi);
-
-		if (!(flags & RSND_SSI_CLK_PIN_SHARE))
-			continue;
+	flags = rsnd_ssi_mode_flags(ssi);
+	if (flags & RSND_SSI_CLK_PIN_SHARE) {
 
 		val = 0;
-		switch (i) {
+		switch (id) {
 		case 1:
 			ssi_parent_set(0, (1 << 4), (0x2 << 0), (0x1 << 0));
 			break;
@@ -167,11 +162,6 @@ static void rsnd_ssi_mode_init(struct rsnd_priv *priv,
 
 		ssiu->ssi_mode1 |= val;
 	}
-}
-
-static void rsnd_ssi_mode_set(struct rsnd_ssi *ssi)
-{
-	struct rsnd_ssiu *ssiu = rsnd_ssi_to_ssiu(ssi);
 
 	rsnd_mod_write(&ssi->mod, SSI_MODE0, ssiu->ssi_mode0);
 	rsnd_mod_write(&ssi->mod, SSI_MODE1, ssiu->ssi_mode1);
@@ -381,7 +371,7 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->cr_own	= cr;
 	ssi->err	= -1; /* ignore 1st error */
 
-	rsnd_ssi_mode_set(ssi);
+	rsnd_ssi_mode_set(priv, rdai, ssi);
 
 	dev_dbg(dev, "%s.%d init\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
 
@@ -707,8 +697,6 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 
 		rsnd_mod_init(priv, &ssi->mod, ops, i);
 	}
-
-	rsnd_ssi_mode_init(priv, ssiu);
 
 	dev_dbg(dev, "ssi probed\n");
 
