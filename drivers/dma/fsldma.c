@@ -868,6 +868,7 @@ static void fsldma_cleanup_descriptor(struct fsldma_chan *chan,
 	/* Run any dependencies */
 	dma_run_dependencies(txd);
 
+	dma_descriptor_unmap(txd);
 	/* Unmap the dst buffer, if requested */
 	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
 		if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)

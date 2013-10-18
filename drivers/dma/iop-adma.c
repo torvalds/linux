@@ -152,6 +152,7 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 		if (tx->callback)
 			tx->callback(tx->callback_param);
 
+		dma_descriptor_unmap(tx);
 		/* unmap dma addresses
 		 * (unmap_single vs unmap_page?)
 		 */

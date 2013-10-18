@@ -2268,6 +2268,8 @@ static void pl330_tasklet(unsigned long data)
 			list_move_tail(&desc->node, &pch->dmac->desc_pool);
 		}
 
+		dma_descriptor_unmap(&desc->txd);
+
 		if (callback) {
 			spin_unlock_irqrestore(&pch->lock, flags);
 			callback(callback_param);

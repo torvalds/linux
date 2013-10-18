@@ -278,6 +278,7 @@ mv_xor_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 			desc->async_tx.callback(
 				desc->async_tx.callback_param);
 
+		dma_descriptor_unmap(&desc->async_tx);
 		/* unmap dma addresses
 		 * (unmap_single vs unmap_page?)
 		 */

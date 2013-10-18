@@ -1765,6 +1765,7 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 			desc->async_tx.callback(
 				desc->async_tx.callback_param);
 
+		dma_descriptor_unmap(&desc->async_tx);
 		/* unmap dma addresses
 		 * (unmap_single vs unmap_page?)
 		 *

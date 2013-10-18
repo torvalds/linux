@@ -293,6 +293,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 
 	list_move(&td_desc->desc_node, &td_chan->free_list);
 
+	dma_descriptor_unmap(txd);
 	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP))
 		__td_unmap_descs(td_desc,
 			txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE);

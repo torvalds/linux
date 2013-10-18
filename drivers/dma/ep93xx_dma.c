@@ -791,6 +791,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 		 * For the memcpy channels the API requires us to unmap the
 		 * buffers unless requested otherwise.
 		 */
+		dma_descriptor_unmap(&desc->txd);
 		if (!edmac->chan.private)
 			ep93xx_dma_unmap_buffers(desc);
 

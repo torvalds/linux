@@ -1197,6 +1197,7 @@ static void pl08x_desc_free(struct virt_dma_desc *vd)
 	struct pl08x_txd *txd = to_pl08x_txd(&vd->tx);
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(vd->tx.chan);
 
+	dma_descriptor_unmap(txd);
 	if (!plchan->slave)
 		pl08x_unmap_buffers(txd);
 
