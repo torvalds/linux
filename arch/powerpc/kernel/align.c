@@ -378,7 +378,6 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
  * Only POWER6 has these instructions, and it does true little-endian,
  * so we don't need the address swizzling.
  */
-#ifdef __BIG_ENDIAN__
 static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
 			   unsigned int flags)
 {
@@ -406,7 +405,6 @@ static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
 		return -EFAULT;
 	return 1;	/* exception handled and fixed up */
 }
-#endif
 
 #ifdef CONFIG_SPE
 
@@ -918,12 +916,8 @@ int fix_alignment(struct pt_regs *regs)
 
 	/* Special case for 16-byte FP loads and stores */
 	if (nb == 16) {
-#ifdef __BIG_ENDIAN__
 		PPC_WARN_ALIGNMENT(fp_pair, regs);
 		return emulate_fp_pair(addr, reg, flags);
-#else
-		return -EFAULT;
-#endif
 	}
 
 	PPC_WARN_ALIGNMENT(unaligned, regs);
