@@ -533,7 +533,8 @@
 			};
 
 			gpr: iomuxc-gpr@020e0000 {
-				compatible = "fsl,imx6sl-iomuxc-gpr", "syscon";
+				compatible = "fsl,imx6sl-iomuxc-gpr",
+					     "fsl,imx6q-iomuxc-gpr", "syscon";
 				reg = <0x020e0000 0x38>;
 			};
 
