@@ -597,11 +597,10 @@ static int dmatest_func(void *data)
 	set_user_nice(current, 10);
 
 	/*
-	 * src buffers are freed by the DMAEngine code with dma_unmap_single()
-	 * dst buffers are freed by ourselves below
+	 * src and dst buffers are freed by ourselves below
 	 */
-	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT
-	      | DMA_COMPL_SKIP_DEST_UNMAP | DMA_COMPL_SRC_UNMAP_SINGLE;
+	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT |
+		DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP;
 
 	while (!kthread_should_stop()
 	       && !(params->iterations && total_tests >= params->iterations)) {
@@ -750,7 +749,8 @@ static int dmatest_func(void *data)
 			continue;
 		}
 
-		/* Unmap by myself (see DMA_COMPL_SKIP_DEST_UNMAP above) */
+		/* Unmap by myself */
+		unmap_src(dev->dev, dma_srcs, len, src_cnt);
 		unmap_dst(dev->dev, dma_dsts, params->buf_size, dst_cnt);
 
 		error_count = 0;
