@@ -1964,6 +1964,29 @@ static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 	return 0;
 }
 
+static int vlv_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+				uint32_t *val)
+{
+	switch (source) {
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_VLV;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_DP_B:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_B_VLV;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_DP_C:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_C_VLV;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_NONE:
+		*val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int i9xx_pipe_crc_ctl_reg(struct drm_device *dev,
 				 enum intel_pipe_crc_source source,
 				 uint32_t *val)
@@ -2056,9 +2079,6 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	u32 val;
 	int ret;
 
-	if (IS_VALLEYVIEW(dev))
-		return -ENODEV;
-
 	if (pipe_crc->source == source)
 		return 0;
 
@@ -2070,6 +2090,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		ret = i8xx_pipe_crc_ctl_reg(source, &val);
 	else if (INTEL_INFO(dev)->gen < 5)
 		ret = i9xx_pipe_crc_ctl_reg(dev, source, &val);
+	else if (IS_VALLEYVIEW(dev))
+		ret = vlv_pipe_crc_ctl_reg(source, &val);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ret = ilk_pipe_crc_ctl_reg(source, &val);
 	else
