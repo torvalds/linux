@@ -819,7 +819,7 @@ static bool qlcnic_port_eswitch_cfg_capability(struct qlcnic_adapter *adapter)
 int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_pci_info *pci_info;
-	int i, ret = 0, j = 0;
+	int i, id = 0, ret = 0, j = 0;
 	u16 act_pci_func;
 	u8 pfn;
 
@@ -860,7 +860,8 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 			continue;
 
 		if (qlcnic_port_eswitch_cfg_capability(adapter)) {
-			if (!qlcnic_83xx_enable_port_eswitch(adapter, pfn))
+			if (!qlcnic_83xx_set_port_eswitch_status(adapter, pfn,
+								 &id))
 				adapter->npars[j].eswitch_status = true;
 			else
 				continue;
@@ -879,12 +880,12 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		j++;
 	}
 
-	if (qlcnic_82xx_check(adapter)) {
+	/* Update eSwitch status for adapters without per port eSwitch
+	 * configuration capability
+	 */
+	if (!qlcnic_port_eswitch_cfg_capability(adapter)) {
 		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
 			adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
-	} else if (!qlcnic_port_eswitch_cfg_capability(adapter)) {
-		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
-			qlcnic_enable_eswitch(adapter, i, 1);
 	}
 
 	kfree(pci_info);

@@ -256,8 +256,8 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_get_eswitch_port_info(struct qlcnic_adapter *adapter,
-					     int func, int *port_id)
+int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *adapter,
+					int func, int *port_id)
 {
 	struct qlcnic_info nic_info;
 	int err = 0;
@@ -273,23 +273,8 @@ static int qlcnic_83xx_get_eswitch_port_info(struct qlcnic_adapter *adapter,
 	else
 		err = -EIO;
 
-	return err;
-}
-
-int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *adapter, int func)
-{
-	int id, err = 0;
-
-	err = qlcnic_83xx_get_eswitch_port_info(adapter, func, &id);
-	if (err)
-		return err;
-
-	if (!(adapter->eswitch[id].flags & QLCNIC_SWITCH_ENABLE)) {
-		if (!qlcnic_enable_eswitch(adapter, id, 1))
-			adapter->eswitch[id].flags |= QLCNIC_SWITCH_ENABLE;
-		else
-			err = -EIO;
-	}
+	if (!err)
+		adapter->eswitch[*port_id].flags |= QLCNIC_SWITCH_ENABLE;
 
 	return err;
 }

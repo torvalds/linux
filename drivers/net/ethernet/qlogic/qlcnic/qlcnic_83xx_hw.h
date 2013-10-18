@@ -629,7 +629,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
 				    struct qlcnic_info *, u8);
 int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
-int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *, int);
+int qlcnic_83xx_set_port_eswitch_status(struct qlcnic_adapter *, int, int *);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);
 void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data);
