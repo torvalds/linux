@@ -1277,9 +1277,9 @@ static bool flush_sits_in_journal(struct f2fs_sb_info *sbi)
 			__mark_sit_entry_dirty(sbi, segno);
 		}
 		update_sits_in_cursum(sum, -sits_in_cursum(sum));
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /*
