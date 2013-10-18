@@ -489,7 +489,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	brd = dgnc_Board[dgnc_NumBoards] =
 		kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd) {
-		APR(("memory allocation for board structure failed\n"));
 		return -ENOMEM;
 	}
 
@@ -498,7 +497,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		kzalloc(sizeof(u8) * 8192, GFP_KERNEL);
 	if (!brd->msgbuf) {
 		kfree(brd);
-		APR(("memory allocation for board msgbuf failed\n"));
 		return -ENOMEM;
 	}
 
