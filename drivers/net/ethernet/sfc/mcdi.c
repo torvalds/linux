@@ -102,6 +102,10 @@ int efx_mcdi_init(struct efx_nic *efx)
 		netif_err(efx, probe, efx->net_dev,
 			  "Host already registered with MCPU\n");
 
+	if (efx->mcdi->fn_flags &
+	    (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_PRIMARY))
+		efx->primary = efx;
+
 	return 0;
 }
 

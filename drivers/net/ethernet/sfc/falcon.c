@@ -2247,6 +2247,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	struct falcon_board *board;
 	int rc;
 
+	efx->primary = efx; /* only one usable function per controller */
+
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
 	if (!nic_data)

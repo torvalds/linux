@@ -657,6 +657,13 @@ struct vfdi_status;
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
+ * @node: List node for maintaning primary/secondary function lists
+ * @primary: &struct efx_nic instance for the primary function of this
+ *	controller.  May be the same structure, and may be %NULL if no
+ *	primary function is bound.  Serialised by rtnl_lock.
+ * @secondary_list: List of &struct efx_nic instances for the secondary PCI
+ *	functions of the controller, if this is for the primary function.
+ *	Serialised by rtnl_lock.
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
@@ -786,6 +793,9 @@ struct efx_nic {
 	/* The following fields should be written very rarely */
 
 	char name[IFNAMSIZ];
+	struct list_head node;
+	struct efx_nic *primary;
+	struct list_head secondary_list;
 	struct pci_dev *pci_dev;
 	unsigned int port_num;
 	const struct efx_nic_type *type;
