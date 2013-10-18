@@ -864,7 +864,7 @@ static void s626_set_mode_a(struct comedi_device *dev,
 		break;
 	default:		/* Counter Mode: */
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
-		cra |= S626_CLKSRC_COUNTER;
+		cra |= S626_CLKSRC_COUNTER << S626_CRABIT_CLKSRC_A;
 		/* Clock polarity is passed through. */
 		cra |= (setup & S626_STDMSK_CLKPOL) <<
 		       (S626_CRABIT_CLKPOL_A - S626_STDBIT_CLKPOL);
