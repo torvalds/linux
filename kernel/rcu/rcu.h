@@ -122,4 +122,11 @@ int rcu_jiffies_till_stall_check(void);
 
 #endif /* #ifdef CONFIG_RCU_STALL_COMMON */
 
+/*
+ * Strings used in tracepoints need to be exported via the
+ * tracing system such that tools like perf and trace-cmd can
+ * translate the string address pointers to actual text.
+ */
+#define TPS(x)  tracepoint_string(x)
+
 #endif /* __LINUX_RCU_H */
