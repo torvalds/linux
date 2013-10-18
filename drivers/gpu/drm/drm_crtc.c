@@ -1303,7 +1303,7 @@ static void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
 }
 
 /**
- * drm_crtc_convert_to_umode - convert a modeinfo into a drm_display_mode
+ * drm_crtc_convert_umode - convert a modeinfo into a drm_display_mode
  * @out: drm_display_mode to return to the user
  * @in: drm_mode_modeinfo to use
  *
