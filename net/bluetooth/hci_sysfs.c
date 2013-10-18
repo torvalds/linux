@@ -255,87 +255,6 @@ static ssize_t show_hci_revision(struct device *dev,
 	return sprintf(buf, "%d\n", hdev->hci_rev);
 }
 
-static ssize_t show_idle_timeout(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%d\n", hdev->idle_timeout);
-}
-
-static ssize_t store_idle_timeout(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	unsigned int val;
-	int rv;
-
-	rv = kstrtouint(buf, 0, &val);
-	if (rv < 0)
-		return rv;
-
-	if (val != 0 && (val < 500 || val > 3600000))
-		return -EINVAL;
-
-	hdev->idle_timeout = val;
-
-	return count;
-}
-
-static ssize_t show_sniff_max_interval(struct device *dev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%d\n", hdev->sniff_max_interval);
-}
-
-static ssize_t store_sniff_max_interval(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	u16 val;
-	int rv;
-
-	rv = kstrtou16(buf, 0, &val);
-	if (rv < 0)
-		return rv;
-
-	if (val == 0 || val % 2 || val < hdev->sniff_min_interval)
-		return -EINVAL;
-
-	hdev->sniff_max_interval = val;
-
-	return count;
-}
-
-static ssize_t show_sniff_min_interval(struct device *dev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%d\n", hdev->sniff_min_interval);
-}
-
-static ssize_t store_sniff_min_interval(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	u16 val;
-	int rv;
-
-	rv = kstrtou16(buf, 0, &val);
-	if (rv < 0)
-		return rv;
-
-	if (val == 0 || val % 2 || val > hdev->sniff_max_interval)
-		return -EINVAL;
-
-	hdev->sniff_min_interval = val;
-
-	return count;
-}
-
 static DEVICE_ATTR(bus, S_IRUGO, show_bus, NULL);
 static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
@@ -345,13 +264,6 @@ static DEVICE_ATTR(features, S_IRUGO, show_features, NULL);
 static DEVICE_ATTR(manufacturer, S_IRUGO, show_manufacturer, NULL);
 static DEVICE_ATTR(hci_version, S_IRUGO, show_hci_version, NULL);
 static DEVICE_ATTR(hci_revision, S_IRUGO, show_hci_revision, NULL);
-
-static DEVICE_ATTR(idle_timeout, S_IRUGO | S_IWUSR,
-		   show_idle_timeout, store_idle_timeout);
-static DEVICE_ATTR(sniff_max_interval, S_IRUGO | S_IWUSR,
-		   show_sniff_max_interval, store_sniff_max_interval);
-static DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
-		   show_sniff_min_interval, store_sniff_min_interval);
 
 static struct attribute *bt_host_attrs[] = {
 	&dev_attr_bus.attr,
@@ -363,9 +275,6 @@ static struct attribute *bt_host_attrs[] = {
 	&dev_attr_manufacturer.attr,
 	&dev_attr_hci_version.attr,
 	&dev_attr_hci_revision.attr,
-	&dev_attr_idle_timeout.attr,
-	&dev_attr_sniff_max_interval.attr,
-	&dev_attr_sniff_min_interval.attr,
 	NULL
 };
 

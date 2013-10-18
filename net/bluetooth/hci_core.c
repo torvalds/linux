@@ -195,6 +195,90 @@ static int auto_accept_delay_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
 			auto_accept_delay_set, "%llu\n");
 
+static int idle_timeout_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val != 0 && (val < 500 || val > 3600000))
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->idle_timeout= val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int idle_timeout_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->idle_timeout;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(idle_timeout_fops, idle_timeout_get,
+			idle_timeout_set, "%llu\n");
+
+static int sniff_min_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val == 0 || val % 2 || val > hdev->sniff_max_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->sniff_min_interval= val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int sniff_min_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->sniff_min_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(sniff_min_interval_fops, sniff_min_interval_get,
+			sniff_min_interval_set, "%llu\n");
+
+static int sniff_max_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val == 0 || val % 2 || val < hdev->sniff_min_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->sniff_max_interval= val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int sniff_max_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->sniff_max_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(sniff_max_interval_fops, sniff_max_interval_get,
+			sniff_max_interval_set, "%llu\n");
+
 static int static_address_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
@@ -922,6 +1006,15 @@ static int __hci_init(struct hci_dev *hdev)
 	if (lmp_ssp_capable(hdev))
 		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
 				    hdev, &auto_accept_delay_fops);
+
+	if (lmp_sniff_capable(hdev)) {
+		debugfs_create_file("idle_timeout", 0644, hdev->debugfs,
+				    hdev, &idle_timeout_fops);
+		debugfs_create_file("sniff_min_interval", 0644, hdev->debugfs,
+				    hdev, &sniff_min_interval_fops);
+		debugfs_create_file("sniff_max_interval", 0644, hdev->debugfs,
+				    hdev, &sniff_max_interval_fops);
+	}
 
 	if (lmp_le_capable(hdev))
 		debugfs_create_file("static_address", 0444, hdev->debugfs,
