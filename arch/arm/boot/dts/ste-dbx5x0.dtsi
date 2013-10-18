@@ -197,7 +197,7 @@
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
 
-			clocks = <&prcc_pclk 2 1>;
+			clocks = <&prcc_pclk 2 11>;
 		};
 
 		gpio7: gpio@8011e080 {
@@ -212,7 +212,7 @@
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
 
-			clocks = <&prcc_pclk 2 1>;
+			clocks = <&prcc_pclk 2 11>;
 		};
 
 		gpio8: gpio@a03fe000 {
