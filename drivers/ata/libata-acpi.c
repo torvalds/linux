@@ -1035,17 +1035,3 @@ void ata_acpi_on_disable(struct ata_device *dev)
 {
 	ata_acpi_clear_gtf(dev);
 }
-
-void ata_scsi_acpi_bind(struct ata_device *dev)
-{
-	acpi_handle handle = ata_dev_acpi_handle(dev);
-	if (handle)
-		acpi_dev_pm_add_dependent(handle, &dev->sdev->sdev_gendev);
-}
-
-void ata_scsi_acpi_unbind(struct ata_device *dev)
-{
-	acpi_handle handle = ata_dev_acpi_handle(dev);
-	if (handle)
-		acpi_dev_pm_remove_dependent(handle, &dev->sdev->sdev_gendev);
-}
