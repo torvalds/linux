@@ -28,6 +28,10 @@
 #include <linux/timex.h>
 #include <linux/profile.h>
 
+
+unsigned long (*mach_random_get_entropy)(void);
+
+
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "xtime_update()" routine every clocktick
