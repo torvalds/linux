@@ -623,6 +623,8 @@ static int cbaf_probe(struct usb_interface *iface,
 
 error_create_group:
 error_check:
+	usb_put_intf(iface);
+	usb_put_dev(cbaf->usb_dev);
 	kfree(cbaf->buffer);
 error_kmalloc_buffer:
 	kfree(cbaf);
@@ -637,6 +639,7 @@ static void cbaf_disconnect(struct usb_interface *iface)
 	sysfs_remove_group(&dev->kobj, &cbaf_dev_attr_group);
 	usb_set_intfdata(iface, NULL);
 	usb_put_intf(iface);
+	usb_put_dev(cbaf->usb_dev);
 	kfree(cbaf->buffer);
 	/* paranoia: clean up crypto keys */
 	kzfree(cbaf);
