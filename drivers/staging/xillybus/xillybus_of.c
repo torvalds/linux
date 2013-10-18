@@ -117,14 +117,15 @@ static int xilly_drv_probe(struct platform_device *op)
 
 	rc = of_address_to_resource(dev->of_node, 0, &endpoint->res);
 	if (rc) {
-		pr_warn("xillybus: Failed to obtain device tree "
-			"resource\n");
+		dev_warn(endpoint->dev,
+			 "Failed to obtain device tree resource\n");
 		goto failed_request_regions;
 	}
 
 	if  (!request_mem_region(endpoint->res.start,
 				 resource_size(&endpoint->res), xillyname)) {
-		pr_err("xillybus: request_mem_region failed. Aborting.\n");
+		dev_err(endpoint->dev,
+			"request_mem_region failed. Aborting.\n");
 		rc = -EBUSY;
 		goto failed_request_regions;
 	}
@@ -132,7 +133,8 @@ static int xilly_drv_probe(struct platform_device *op)
 	endpoint->registers = of_iomap(dev->of_node, 0);
 
 	if (!endpoint->registers) {
-		pr_err("xillybus: Failed to map I/O memory. Aborting.\n");
+		dev_err(endpoint->dev,
+			"Failed to map I/O memory. Aborting.\n");
 		goto failed_iomap0;
 	}
 
@@ -141,8 +143,8 @@ static int xilly_drv_probe(struct platform_device *op)
 	rc = request_irq(irq, xillybus_isr, 0, xillyname, endpoint);
 
 	if (rc) {
-		pr_err("xillybus: Failed to register IRQ handler. "
-		       "Aborting.\n");
+		dev_err(endpoint->dev,
+			"Failed to register IRQ handler. Aborting.\n");
 		rc = -ENODEV;
 		goto failed_register_irq;
 	}
