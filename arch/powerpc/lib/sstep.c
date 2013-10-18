@@ -355,22 +355,36 @@ static int __kprobes do_fp_load(int rn, int (*func)(int, unsigned long),
 				struct pt_regs *regs)
 {
 	int err;
-	unsigned long val[sizeof(double) / sizeof(long)];
+	union {
+		double dbl;
+		unsigned long ul[2];
+		struct {
+#ifdef __BIG_ENDIAN__
+			unsigned _pad_;
+			unsigned word;
+#endif
+#ifdef __LITTLE_ENDIAN__
+			unsigned word;
+			unsigned _pad_;
+#endif
+		} single;
+	} data;
 	unsigned long ptr;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &val[0];
+	ptr = (unsigned long) &data.ul;
 	if (sizeof(unsigned long) == 8 || nb == 4) {
-		err = read_mem_unaligned(&val[0], ea, nb, regs);
-		ptr += sizeof(unsigned long) - nb;
+		err = read_mem_unaligned(&data.ul[0], ea, nb, regs);
+		if (nb == 4)
+			ptr = (unsigned long)&(data.single.word);
 	} else {
 		/* reading a double on 32-bit */
-		err = read_mem_unaligned(&val[0], ea, 4, regs);
+		err = read_mem_unaligned(&data.ul[0], ea, 4, regs);
 		if (!err)
-			err = read_mem_unaligned(&val[1], ea + 4, 4, regs);
+			err = read_mem_unaligned(&data.ul[1], ea + 4, 4, regs);
 	}
 	if (err)
 		return err;
@@ -382,28 +396,42 @@ static int __kprobes do_fp_store(int rn, int (*func)(int, unsigned long),
 				 struct pt_regs *regs)
 {
 	int err;
-	unsigned long val[sizeof(double) / sizeof(long)];
+	union {
+		double dbl;
+		unsigned long ul[2];
+		struct {
+#ifdef __BIG_ENDIAN__
+			unsigned _pad_;
+			unsigned word;
+#endif
+#ifdef __LITTLE_ENDIAN__
+			unsigned word;
+			unsigned _pad_;
+#endif
+		} single;
+	} data;
 	unsigned long ptr;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &val[0];
+	ptr = (unsigned long) &data.ul[0];
 	if (sizeof(unsigned long) == 8 || nb == 4) {
-		ptr += sizeof(unsigned long) - nb;
+		if (nb == 4)
+			ptr = (unsigned long)&(data.single.word);
 		err = (*func)(rn, ptr);
 		if (err)
 			return err;
-		err = write_mem_unaligned(val[0], ea, nb, regs);
+		err = write_mem_unaligned(data.ul[0], ea, nb, regs);
 	} else {
 		/* writing a double on 32-bit */
 		err = (*func)(rn, ptr);
 		if (err)
 			return err;
-		err = write_mem_unaligned(val[0], ea, 4, regs);
+		err = write_mem_unaligned(data.ul[0], ea, 4, regs);
 		if (!err)
-			err = write_mem_unaligned(val[1], ea + 4, 4, regs);
+			err = write_mem_unaligned(data.ul[1], ea + 4, 4, regs);
 	}
 	return err;
 }
