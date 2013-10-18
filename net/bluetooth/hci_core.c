@@ -2158,13 +2158,15 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 	return 0;
 }
 
-struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
+					 bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *b;
 
-	list_for_each_entry(b, &hdev->blacklist, list)
-		if (bacmp(bdaddr, &b->bdaddr) == 0)
+	list_for_each_entry(b, &hdev->blacklist, list) {
+		if (!bacmp(&b->bdaddr, bdaddr) && b->bdaddr_type == type)
 			return b;
+	}
 
 	return NULL;
 }
@@ -2174,9 +2176,7 @@ int hci_blacklist_clear(struct hci_dev *hdev)
 	struct list_head *p, *n;
 
 	list_for_each_safe(p, n, &hdev->blacklist) {
-		struct bdaddr_list *b;
-
-		b = list_entry(p, struct bdaddr_list, list);
+		struct bdaddr_list *b = list_entry(p, struct bdaddr_list, list);
 
 		list_del(p);
 		kfree(b);
@@ -2189,10 +2189,10 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
-	if (bacmp(bdaddr, BDADDR_ANY) == 0)
+	if (!bacmp(bdaddr, BDADDR_ANY))
 		return -EBADF;
 
-	if (hci_blacklist_lookup(hdev, bdaddr))
+	if (hci_blacklist_lookup(hdev, bdaddr, type))
 		return -EEXIST;
 
 	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
@@ -2200,6 +2200,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 		return -ENOMEM;
 
 	bacpy(&entry->bdaddr, bdaddr);
+	entry->bdaddr_type = type;
 
 	list_add(&entry->list, &hdev->blacklist);
 
@@ -2210,10 +2211,10 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
-	if (bacmp(bdaddr, BDADDR_ANY) == 0)
+	if (!bacmp(bdaddr, BDADDR_ANY))
 		return hci_blacklist_clear(hdev);
 
-	entry = hci_blacklist_lookup(hdev, bdaddr);
+	entry = hci_blacklist_lookup(hdev, bdaddr, type);
 	if (!entry)
 		return -ENOENT;
 
