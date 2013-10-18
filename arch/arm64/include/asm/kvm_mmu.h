@@ -91,6 +91,7 @@ int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
 #define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
+#define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
 
 static inline bool kvm_is_write_fault(unsigned long esr)
 {
@@ -116,13 +117,18 @@ static inline void kvm_set_s2pte_writable(pte_t *pte)
 	pte_val(*pte) |= PTE_S2_RDWR;
 }
 
+static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+{
+	pmd_val(*pmd) |= PMD_S2_RDWR;
+}
+
 struct kvm;
 
-static inline void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
+static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
+					      unsigned long size)
 {
 	if (!icache_is_aliasing()) {		/* PIPT */
-		unsigned long hva = gfn_to_hva(kvm, gfn);
-		flush_icache_range(hva, hva + PAGE_SIZE);
+		flush_icache_range(hva, hva + size);
 	} else if (!icache_is_aivivt()) {	/* non ASID-tagged VIVT */
 		/* any kind of VIPT cache */
 		__flush_icache_all();
