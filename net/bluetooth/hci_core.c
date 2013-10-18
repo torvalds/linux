@@ -385,6 +385,34 @@ static const struct file_operations static_address_fops = {
 	.release	= single_release,
 };
 
+static int own_address_type_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val != 0 && val != 1)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->own_addr_type = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int own_address_type_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->own_addr_type;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(own_address_type_fops, own_address_type_get,
+			own_address_type_set, "%llu\n");
+
 static int long_term_keys_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -1162,6 +1190,8 @@ static int __hci_init(struct hci_dev *hdev)
 				  &hdev->le_white_list_size);
 		debugfs_create_file("static_address", 0444, hdev->debugfs,
 				   hdev, &static_address_fops);
+		debugfs_create_file("own_address_type", 0644, hdev->debugfs,
+				    hdev, &own_address_type_fops);
 		debugfs_create_file("long_term_keys", 0400, hdev->debugfs,
 				    hdev, &long_term_keys_fops);
 	}
