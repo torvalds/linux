@@ -551,8 +551,8 @@ static tilegx_bundle_bits  jit_x1_bnezt(int ra, int broff)
 /*
  * This function generates unalign fixup JIT.
  *
- * We fist find unalign load/store instruction's destination, source
- * reguisters: ra, rb and rd. and 3 scratch registers by calling
+ * We first find unalign load/store instruction's destination, source
+ * registers: ra, rb and rd. and 3 scratch registers by calling
  * find_regs(...). 3 scratch clobbers should not alias with any register
  * used in the fault bundle. Then analyze the fault bundle to determine
  * if it's a load or store, operand width, branch or address increment etc.

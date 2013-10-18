@@ -6075,12 +6075,6 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-	ret = si_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("si_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
 			    RADEON_CG_BLOCK_MC |
 			    RADEON_CG_BLOCK_SDMA |

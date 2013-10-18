@@ -70,7 +70,8 @@ MODULE_LICENSE("GPL");
  * 		kvm->lock --> kvm->slots_lock --> kvm->irq_lock
  */
 
-DEFINE_RAW_SPINLOCK(kvm_lock);
+DEFINE_SPINLOCK(kvm_lock);
+static DEFINE_RAW_SPINLOCK(kvm_count_lock);
 LIST_HEAD(vm_list);
 
 static cpumask_var_t cpus_hardware_enabled;
@@ -490,9 +491,9 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	if (r)
 		goto out_err;
 
-	raw_spin_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
-	raw_spin_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 
 	return kvm;
 
@@ -581,9 +582,9 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	struct mm_struct *mm = kvm->mm;
 
 	kvm_arch_sync_events(kvm);
-	raw_spin_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
-	raw_spin_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kvm_io_bus_destroy(kvm->buses[i]);
@@ -1058,11 +1059,15 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
 /*
- * The hva returned by this function is only allowed to be read.
- * It should pair with kvm_read_hva() or kvm_read_hva_atomic().
+ * If writable is set to false, the hva returned by this function is only
+ * allowed to be read.
  */
-static unsigned long gfn_to_hva_read(struct kvm *kvm, gfn_t gfn)
+unsigned long gfn_to_hva_prot(struct kvm *kvm, gfn_t gfn, bool *writable)
 {
+	struct kvm_memory_slot *slot = gfn_to_memslot(kvm, gfn);
+	if (writable)
+		*writable = !memslot_is_readonly(slot);
+
 	return __gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL, false);
 }
 
@@ -1430,7 +1435,7 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 	int r;
 	unsigned long addr;
 
-	addr = gfn_to_hva_read(kvm, gfn);
+	addr = gfn_to_hva_prot(kvm, gfn, NULL);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
 	r = kvm_read_hva(data, (void __user *)addr + offset, len);
@@ -1468,7 +1473,7 @@ int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	int offset = offset_in_page(gpa);
 
-	addr = gfn_to_hva_read(kvm, gfn);
+	addr = gfn_to_hva_prot(kvm, gfn, NULL);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
 	pagefault_disable();
@@ -2677,11 +2682,12 @@ static void hardware_enable_nolock(void *junk)
 	}
 }
 
-static void hardware_enable(void *junk)
+static void hardware_enable(void)
 {
-	raw_spin_lock(&kvm_lock);
-	hardware_enable_nolock(junk);
-	raw_spin_unlock(&kvm_lock);
+	raw_spin_lock(&kvm_count_lock);
+	if (kvm_usage_count)
+		hardware_enable_nolock(NULL);
+	raw_spin_unlock(&kvm_count_lock);
 }
 
 static void hardware_disable_nolock(void *junk)
@@ -2694,11 +2700,12 @@ static void hardware_disable_nolock(void *junk)
 	kvm_arch_hardware_disable(NULL);
 }
 
-static void hardware_disable(void *junk)
+static void hardware_disable(void)
 {
-	raw_spin_lock(&kvm_lock);
-	hardware_disable_nolock(junk);
-	raw_spin_unlock(&kvm_lock);
+	raw_spin_lock(&kvm_count_lock);
+	if (kvm_usage_count)
+		hardware_disable_nolock(NULL);
+	raw_spin_unlock(&kvm_count_lock);
 }
 
 static void hardware_disable_all_nolock(void)
@@ -2712,16 +2719,16 @@ static void hardware_disable_all_nolock(void)
 
 static void hardware_disable_all(void)
 {
-	raw_spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_count_lock);
 	hardware_disable_all_nolock();
-	raw_spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_count_lock);
 }
 
 static int hardware_enable_all(void)
 {
 	int r = 0;
 
-	raw_spin_lock(&kvm_lock);
+	raw_spin_lock(&kvm_count_lock);
 
 	kvm_usage_count++;
 	if (kvm_usage_count == 1) {
@@ -2734,7 +2741,7 @@ static int hardware_enable_all(void)
 		}
 	}
 
-	raw_spin_unlock(&kvm_lock);
+	raw_spin_unlock(&kvm_count_lock);
 
 	return r;
 }
@@ -2744,20 +2751,17 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 {
 	int cpu = (long)v;
 
-	if (!kvm_usage_count)
-		return NOTIFY_OK;
-
 	val &= ~CPU_TASKS_FROZEN;
 	switch (val) {
 	case CPU_DYING:
 		printk(KERN_INFO "kvm: disabling virtualization on CPU%d\n",
 		       cpu);
-		hardware_disable(NULL);
+		hardware_disable();
 		break;
 	case CPU_STARTING:
 		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
 		       cpu);
-		hardware_enable(NULL);
+		hardware_enable();
 		break;
 	}
 	return NOTIFY_OK;
@@ -3050,10 +3054,10 @@ static int vm_stat_get(void *_offset, u64 *val)
 	struct kvm *kvm;
 
 	*val = 0;
-	raw_spin_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		*val += *(u32 *)((void *)kvm + offset);
-	raw_spin_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 	return 0;
 }
 
@@ -3067,12 +3071,12 @@ static int vcpu_stat_get(void *_offset, u64 *val)
 	int i;
 
 	*val = 0;
-	raw_spin_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		kvm_for_each_vcpu(i, vcpu, kvm)
 			*val += *(u32 *)((void *)vcpu + offset);
 
-	raw_spin_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 	return 0;
 }
 
@@ -3127,7 +3131,7 @@ static int kvm_suspend(void)
 static void kvm_resume(void)
 {
 	if (kvm_usage_count) {
-		WARN_ON(raw_spin_is_locked(&kvm_lock));
+		WARN_ON(raw_spin_is_locked(&kvm_count_lock));
 		hardware_enable_nolock(NULL);
 	}
 }

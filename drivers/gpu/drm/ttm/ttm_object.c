@@ -218,7 +218,7 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 					       uint32_t key)
 {
 	struct ttm_object_device *tdev = tfile->tdev;
-	struct ttm_base_object *base;
+	struct ttm_base_object *uninitialized_var(base);
 	struct drm_hash_item *hash;
 	int ret;
 

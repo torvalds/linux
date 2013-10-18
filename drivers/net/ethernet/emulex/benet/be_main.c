@@ -2802,7 +2802,7 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 	struct be_resources res = {0};
 	struct be_vf_cfg *vf_cfg;
 	u32 cap_flags, en_flags, vf;
-	int status;
+	int status = 0;
 
 	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 		    BE_IF_FLAGS_MULTICAST;

@@ -107,6 +107,14 @@ int kv_smc_dpm_enable(struct radeon_device *rdev, bool enable)
 		return kv_notify_message_to_smu(rdev, PPSMC_MSG_DPM_Disable);
 }
 
+int kv_smc_bapm_enable(struct radeon_device *rdev, bool enable)
+{
+	if (enable)
+		return kv_notify_message_to_smu(rdev, PPSMC_MSG_EnableBAPM);
+	else
+		return kv_notify_message_to_smu(rdev, PPSMC_MSG_DisableBAPM);
+}
+
 int kv_copy_bytes_to_smc(struct radeon_device *rdev,
 			 u32 smc_start_address,
 			 const u8 *src, u32 byte_count, u32 limit)

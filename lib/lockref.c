@@ -14,8 +14,8 @@
 	while (likely(arch_spin_value_unlocked(old.lock.rlock.raw_lock))) {  	\
 		struct lockref new = old, prev = old;				\
 		CODE								\
-		old.lock_count = cmpxchg(&lockref->lock_count,			\
-					 old.lock_count, new.lock_count);	\
+		old.lock_count = cmpxchg64(&lockref->lock_count,		\
+					   old.lock_count, new.lock_count);	\
 		if (likely(old.lock_count == prev.lock_count)) {		\
 			SUCCESS;						\
 		}								\

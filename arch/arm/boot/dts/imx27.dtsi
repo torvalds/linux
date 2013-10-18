@@ -187,7 +187,7 @@
 				compatible = "fsl,imx27-cspi";
 				reg = <0x1000e000 0x1000>;
 				interrupts = <16>;
-				clocks = <&clks 53>, <&clks 53>;
+				clocks = <&clks 53>, <&clks 60>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -198,7 +198,7 @@
 				compatible = "fsl,imx27-cspi";
 				reg = <0x1000f000 0x1000>;
 				interrupts = <15>;
-				clocks = <&clks 52>, <&clks 52>;
+				clocks = <&clks 52>, <&clks 60>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -309,7 +309,7 @@
 				compatible = "fsl,imx27-cspi";
 				reg = <0x10017000 0x1000>;
 				interrupts = <6>;
-				clocks = <&clks 51>, <&clks 51>;
+				clocks = <&clks 51>, <&clks 60>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};

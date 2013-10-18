@@ -67,7 +67,16 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 
 void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 {
-	if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+		mutex_lock(&rdev->pm.mutex);
+		if (power_supply_is_system_supplied() > 0)
+			rdev->pm.dpm.ac_power = true;
+		else
+			rdev->pm.dpm.ac_power = false;
+		if (rdev->asic->dpm.enable_bapm)
+			radeon_dpm_enable_bapm(rdev, rdev->pm.dpm.ac_power);
+		mutex_unlock(&rdev->pm.mutex);
+        } else if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 		if (rdev->pm.profile == PM_PROFILE_AUTO) {
 			mutex_lock(&rdev->pm.mutex);
 			radeon_pm_update_profile(rdev);
@@ -333,7 +342,7 @@ static ssize_t radeon_get_pm_profile(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	int cp = rdev->pm.profile;
 
@@ -349,7 +358,7 @@ static ssize_t radeon_set_pm_profile(struct device *dev,
 				     const char *buf,
 				     size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 
 	mutex_lock(&rdev->pm.mutex);
@@ -383,7 +392,7 @@ static ssize_t radeon_get_pm_method(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	int pm = rdev->pm.pm_method;
 
@@ -397,7 +406,7 @@ static ssize_t radeon_set_pm_method(struct device *dev,
 				    const char *buf,
 				    size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 
 	/* we don't support the legacy modes with dpm */
@@ -433,7 +442,7 @@ static ssize_t radeon_get_dpm_state(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_pm_state_type pm = rdev->pm.dpm.user_state;
 
@@ -447,7 +456,7 @@ static ssize_t radeon_set_dpm_state(struct device *dev,
 				    const char *buf,
 				    size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 
 	mutex_lock(&rdev->pm.mutex);
@@ -472,7 +481,7 @@ static ssize_t radeon_get_dpm_forced_performance_level(struct device *dev,
 						       struct device_attribute *attr,
 						       char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_dpm_forced_level level = rdev->pm.dpm.forced_level;
 
@@ -486,7 +495,7 @@ static ssize_t radeon_set_dpm_forced_performance_level(struct device *dev,
 						       const char *buf,
 						       size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_dpm_forced_level level;
 	int ret = 0;
@@ -524,7 +533,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	int temp;
 
@@ -532,6 +541,23 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 		temp = radeon_get_temperature(rdev);
 	else
 		temp = 0;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
+}
+
+static ssize_t radeon_hwmon_show_temp_thresh(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct radeon_device *rdev = ddev->dev_private;
+	int hyst = to_sensor_dev_attr(attr)->index;
+	int temp;
+
+	if (hyst)
+		temp = rdev->pm.dpm.thermal.min_temp;
+	else
+		temp = rdev->pm.dpm.thermal.max_temp;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
 }
@@ -544,16 +570,37 @@ static ssize_t radeon_hwmon_show_name(struct device *dev,
 }
 
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, radeon_hwmon_show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, radeon_hwmon_show_temp_thresh, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, radeon_hwmon_show_temp_thresh, NULL, 1);
 static SENSOR_DEVICE_ATTR(name, S_IRUGO, radeon_hwmon_show_name, NULL, 0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
 	&sensor_dev_attr_name.dev_attr.attr,
 	NULL
 };
 
+static umode_t hwmon_attributes_visible(struct kobject *kobj,
+					struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct radeon_device *rdev = ddev->dev_private;
+
+	/* Skip limit attributes if DPM is not enabled */
+	if (rdev->pm.pm_method != PM_METHOD_DPM &&
+	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group hwmon_attrgroup = {
 	.attrs = hwmon_attributes,
+	.is_visible = hwmon_attributes_visible,
 };
 
 static int radeon_hwmon_init(struct radeon_device *rdev)
@@ -870,10 +917,13 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 
 	radeon_dpm_post_set_power_state(rdev);
 
-	/* force low perf level for thermal */
-	if (rdev->pm.dpm.thermal_active &&
-	    rdev->asic->dpm.force_performance_level) {
-		radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_LOW);
+	if (rdev->asic->dpm.force_performance_level) {
+		if (rdev->pm.dpm.thermal_active)
+			/* force low perf level for thermal */
+			radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_LOW);
+		else
+			/* otherwise, enable auto */
+			radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	}
 
 done:
@@ -1102,9 +1152,10 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 {
 	int ret;
 
-	/* default to performance state */
+	/* default to balanced state */
 	rdev->pm.dpm.state = POWER_STATE_TYPE_BALANCED;
 	rdev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
+	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	rdev->pm.default_sclk = rdev->clock.default_sclk;
 	rdev->pm.default_mclk = rdev->clock.default_mclk;
 	rdev->pm.current_sclk = rdev->clock.default_sclk;

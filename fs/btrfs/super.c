@@ -921,7 +921,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 	}
 
-	btrfs_wait_all_ordered_extents(fs_info, 1);
+	btrfs_wait_all_ordered_extents(fs_info);
 
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
@@ -1340,6 +1340,12 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (ret)
 			goto restore;
 	} else {
+		if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state)) {
+			btrfs_err(fs_info,
+				"Remounting read-write after error is not allowed\n");
+			ret = -EINVAL;
+			goto restore;
+		}
 		if (fs_info->fs_devices->rw_devices == 0) {
 			ret = -EACCES;
 			goto restore;
@@ -1376,6 +1382,16 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (ret) {
 			pr_warn("btrfs: failed to resume dev_replace\n");
 			goto restore;
+		}
+
+		if (!fs_info->uuid_root) {
+			pr_info("btrfs: creating UUID tree\n");
+			ret = btrfs_create_uuid_tree(fs_info);
+			if (ret) {
+				pr_warn("btrfs: failed to create the uuid tree"
+					"%d\n", ret);
+				goto restore;
+			}
 		}
 		sb->s_flags &= ~MS_RDONLY;
 	}
@@ -1761,6 +1777,9 @@ static void btrfs_print_info(void)
 	printk(KERN_INFO "Btrfs loaded"
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
+#endif
+#ifdef CONFIG_BTRFS_ASSERT
+			", assert=on"
 #endif
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 			", integrity-checker=on"

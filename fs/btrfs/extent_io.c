@@ -1481,10 +1481,12 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 		*end = state->end;
 		cur_start = state->end + 1;
 		node = rb_next(node);
-		if (!node)
-			break;
 		total_bytes += state->end - state->start + 1;
-		if (total_bytes >= max_bytes)
+		if (total_bytes >= max_bytes) {
+			*end = *start + max_bytes - 1;
+			break;
+		}
+		if (!node)
 			break;
 	}
 out:

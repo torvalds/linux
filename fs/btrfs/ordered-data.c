@@ -563,11 +563,10 @@ static void btrfs_run_ordered_extent_work(struct btrfs_work *work)
  * wait for all the ordered extents in a root.  This is done when balancing
  * space between drives.
  */
-void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
+void btrfs_wait_ordered_extents(struct btrfs_root *root)
 {
 	struct list_head splice, works;
 	struct btrfs_ordered_extent *ordered, *next;
-	struct inode *inode;
 
 	INIT_LIST_HEAD(&splice);
 	INIT_LIST_HEAD(&works);
@@ -580,15 +579,6 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
 					   root_extent_list);
 		list_move_tail(&ordered->root_extent_list,
 			       &root->ordered_extents);
-		/*
-		 * the inode may be getting freed (in sys_unlink path).
-		 */
-		inode = igrab(ordered->inode);
-		if (!inode) {
-			cond_resched_lock(&root->ordered_extent_lock);
-			continue;
-		}
-
 		atomic_inc(&ordered->refs);
 		spin_unlock(&root->ordered_extent_lock);
 
@@ -605,21 +595,13 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
 	list_for_each_entry_safe(ordered, next, &works, work_list) {
 		list_del_init(&ordered->work_list);
 		wait_for_completion(&ordered->completion);
-
-		inode = ordered->inode;
 		btrfs_put_ordered_extent(ordered);
-		if (delay_iput)
-			btrfs_add_delayed_iput(inode);
-		else
-			iput(inode);
-
 		cond_resched();
 	}
 	mutex_unlock(&root->fs_info->ordered_operations_mutex);
 }
 
-void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info,
-				    int delay_iput)
+void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
 	struct list_head splice;
@@ -637,7 +619,7 @@ void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info,
 			       &fs_info->ordered_roots);
 		spin_unlock(&fs_info->ordered_root_lock);
 
-		btrfs_wait_ordered_extents(root, delay_iput);
+		btrfs_wait_ordered_extents(root);
 		btrfs_put_fs_root(root);
 
 		spin_lock(&fs_info->ordered_root_lock);

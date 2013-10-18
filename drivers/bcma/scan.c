@@ -269,6 +269,8 @@ static struct bcma_device *bcma_find_core_reverse(struct bcma_bus *bus, u16 core
 	return NULL;
 }
 
+#define IS_ERR_VALUE_U32(x) ((x) >= (u32)-MAX_ERRNO)
+
 static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			      struct bcma_device_id *match, int core_num,
 			      struct bcma_device *core)
@@ -351,11 +353,11 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 	 * the main register space for the core
 	 */
 	tmp = bcma_erom_get_addr_desc(bus, eromptr, SCAN_ADDR_TYPE_SLAVE, 0);
-	if (tmp == 0 || IS_ERR_VALUE(tmp)) {
+	if (tmp == 0 || IS_ERR_VALUE_U32(tmp)) {
 		/* Try again to see if it is a bridge */
 		tmp = bcma_erom_get_addr_desc(bus, eromptr,
 					      SCAN_ADDR_TYPE_BRIDGE, 0);
-		if (tmp == 0 || IS_ERR_VALUE(tmp)) {
+		if (tmp == 0 || IS_ERR_VALUE_U32(tmp)) {
 			return -EILSEQ;
 		} else {
 			bcma_info(bus, "Bridge found\n");
@@ -369,7 +371,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		for (j = 0; ; j++) {
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_SLAVE, i);
-			if (IS_ERR_VALUE(tmp)) {
+			if (IS_ERR_VALUE_U32(tmp)) {
 				/* no more entries for port _i_ */
 				/* pr_debug("erom: slave port %d "
 				 * "has %d descriptors\n", i, j); */
@@ -386,7 +388,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		for (j = 0; ; j++) {
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_MWRAP, i);
-			if (IS_ERR_VALUE(tmp)) {
+			if (IS_ERR_VALUE_U32(tmp)) {
 				/* no more entries for port _i_ */
 				/* pr_debug("erom: master wrapper %d "
 				 * "has %d descriptors\n", i, j); */
@@ -404,7 +406,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 		for (j = 0; ; j++) {
 			tmp = bcma_erom_get_addr_desc(bus, eromptr,
 				SCAN_ADDR_TYPE_SWRAP, i + hack);
-			if (IS_ERR_VALUE(tmp)) {
+			if (IS_ERR_VALUE_U32(tmp)) {
 				/* no more entries for port _i_ */
 				/* pr_debug("erom: master wrapper %d "
 				 * has %d descriptors\n", i, j); */

@@ -160,6 +160,13 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	bool autoneg = false;
 	bool link_up;
 
+	/* SFP type is needed for get_link_capabilities */
+	if (hw->phy.media_type & (ixgbe_media_type_fiber |
+				  ixgbe_media_type_fiber_qsfp)) {
+		if (hw->phy.sfp_type == ixgbe_sfp_type_not_present)
+				hw->phy.ops.identify_sfp(hw);
+	}
+
 	hw->mac.ops.get_link_capabilities(hw, &supported_link, &autoneg);
 
 	/* set the supported link speeds */
@@ -186,6 +193,11 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
 		if (supported_link & IXGBE_LINK_SPEED_100_FULL)
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
+
+		if (hw->phy.multispeed_fiber && !autoneg) {
+			if (supported_link & IXGBE_LINK_SPEED_10GB_FULL)
+				ecmd->advertising = ADVERTISED_10000baseT_Full;
+		}
 	}
 
 	if (autoneg) {
@@ -313,6 +325,14 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		 */
 		if (ecmd->advertising & ~ecmd->supported)
 			return -EINVAL;
+
+		/* only allow one speed at a time if no autoneg */
+		if (!ecmd->autoneg && hw->phy.multispeed_fiber) {
+			if (ecmd->advertising ==
+			    (ADVERTISED_10000baseT_Full |
+			     ADVERTISED_1000baseT_Full))
+				return -EINVAL;
+		}
 
 		old = hw->phy.autoneg_advertised;
 		advertised = 0;
@@ -1805,6 +1825,10 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 	unsigned int size = 1024;
 	netdev_tx_t tx_ret_val;
 	struct sk_buff *skb;
+	u32 flags_orig = adapter->flags;
+
+	/* DCB can modify the frames on Tx */
+	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 
 	/* allocate test skb */
 	skb = alloc_skb(size, GFP_KERNEL);
@@ -1857,6 +1881,7 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 
 	/* free the original skb */
 	kfree_skb(skb);
+	adapter->flags = flags_orig;
 
 	return ret_val;
 }

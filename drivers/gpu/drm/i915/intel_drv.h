@@ -280,6 +280,7 @@ struct intel_crtc_config {
 	struct {
 		u32 pos;
 		u32 size;
+		bool enabled;
 	} pch_pfit;
 
 	/* FDI configuration, only valid if has_pch_encoder is set. */

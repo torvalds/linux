@@ -1037,6 +1037,7 @@ static struct radeon_asic rv6xx_asic = {
 		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
 		.get_temperature = &rv6xx_get_temp,
+		.set_uvd_clocks = &r600_set_uvd_clocks,
 	},
 	.dpm = {
 		.init = &rv6xx_dpm_init,
@@ -1126,6 +1127,7 @@ static struct radeon_asic rs780_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.get_temperature = &rv6xx_get_temp,
+		.set_uvd_clocks = &r600_set_uvd_clocks,
 	},
 	.dpm = {
 		.init = &rs780_dpm_init,
@@ -1141,6 +1143,7 @@ static struct radeon_asic rs780_asic = {
 		.get_mclk = &rs780_dpm_get_mclk,
 		.print_power_state = &rs780_dpm_print_power_state,
 		.debugfs_print_current_performance_level = &rs780_dpm_debugfs_print_current_performance_level,
+		.force_performance_level = &rs780_dpm_force_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
@@ -1791,6 +1794,7 @@ static struct radeon_asic trinity_asic = {
 		.print_power_state = &trinity_dpm_print_power_state,
 		.debugfs_print_current_performance_level = &trinity_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &trinity_dpm_force_performance_level,
+		.enable_bapm = &trinity_dpm_enable_bapm,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -2166,6 +2170,7 @@ static struct radeon_asic kv_asic = {
 		.debugfs_print_current_performance_level = &kv_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &kv_dpm_force_performance_level,
 		.powergate_uvd = &kv_dpm_powergate_uvd,
+		.enable_bapm = &kv_dpm_enable_bapm,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -2390,7 +2395,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0 |
-				/*RADEON_PG_SUPPORT_GFX_CG | */
+				/*RADEON_PG_SUPPORT_GFX_PG | */
 				RADEON_PG_SUPPORT_SDMA;
 			break;
 		case CHIP_OLAND:
@@ -2479,7 +2484,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0;
-				/*RADEON_PG_SUPPORT_GFX_CG |
+				/*RADEON_PG_SUPPORT_GFX_PG |
 				RADEON_PG_SUPPORT_GFX_SMG |
 				RADEON_PG_SUPPORT_GFX_DMG |
 				RADEON_PG_SUPPORT_UVD |
@@ -2507,7 +2512,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0;
-				/*RADEON_PG_SUPPORT_GFX_CG |
+				/*RADEON_PG_SUPPORT_GFX_PG |
 				RADEON_PG_SUPPORT_GFX_SMG |
 				RADEON_PG_SUPPORT_UVD |
 				RADEON_PG_SUPPORT_VCE |

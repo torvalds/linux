@@ -4416,6 +4416,7 @@ static int bond_check_params(struct bond_params *params)
 	params->all_slaves_active = all_slaves_active;
 	params->resend_igmp = resend_igmp;
 	params->min_links = min_links;
+	params->lp_interval = BOND_ALB_DEFAULT_LP_INTERVAL;
 
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);

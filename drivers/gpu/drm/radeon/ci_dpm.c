@@ -4748,12 +4748,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->pcie_performance_request)
 		ci_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	ret = ci_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("ci_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
 			     RADEON_CG_BLOCK_MC |
 			     RADEON_CG_BLOCK_SDMA |

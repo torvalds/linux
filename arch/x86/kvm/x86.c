@@ -586,7 +586,7 @@ int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 		return 1;
 	if ((xcr0 & XSTATE_YMM) && !(xcr0 & XSTATE_SSE))
 		return 1;
-	if (xcr0 & ~host_xcr0)
+	if (xcr0 & ~vcpu->arch.guest_supported_xcr0)
 		return 1;
 	kvm_put_guest_xcr0(vcpu);
 	vcpu->arch.xcr0 = xcr0;
@@ -684,7 +684,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 	vcpu->arch.cr3 = cr3;
 	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
-	vcpu->arch.mmu.new_cr3(vcpu);
+	kvm_mmu_new_cr3(vcpu);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr3);
@@ -2984,11 +2984,13 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
 					 struct kvm_xsave *guest_xsave)
 {
-	if (cpu_has_xsave)
+	if (cpu_has_xsave) {
 		memcpy(guest_xsave->region,
 			&vcpu->arch.guest_fpu.state->xsave,
-			xstate_size);
-	else {
+			vcpu->arch.guest_xstate_size);
+		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)] &=
+			vcpu->arch.guest_supported_xcr0 | XSTATE_FPSSE;
+	} else {
 		memcpy(guest_xsave->region,
 			&vcpu->arch.guest_fpu.state->fxsave,
 			sizeof(struct i387_fxsave_struct));
@@ -3003,10 +3005,19 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 	u64 xstate_bv =
 		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)];
 
-	if (cpu_has_xsave)
+	if (cpu_has_xsave) {
+		/*
+		 * Here we allow setting states that are not present in
+		 * CPUID leaf 0xD, index 0, EDX:EAX.  This is for compatibility
+		 * with old userspace.
+		 */
+		if (xstate_bv & ~KVM_SUPPORTED_XCR0)
+			return -EINVAL;
+		if (xstate_bv & ~host_xcr0)
+			return -EINVAL;
 		memcpy(&vcpu->arch.guest_fpu.state->xsave,
-			guest_xsave->region, xstate_size);
-	else {
+			guest_xsave->region, vcpu->arch.guest_xstate_size);
+	} else {
 		if (xstate_bv & ~XSTATE_FPSSE)
 			return -EINVAL;
 		memcpy(&vcpu->arch.guest_fpu.state->fxsave,
@@ -5263,7 +5274,7 @@ static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long va
 
 	smp_call_function_single(freq->cpu, tsc_khz_changed, freq, 1);
 
-	raw_spin_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (vcpu->cpu != freq->cpu)
@@ -5273,7 +5284,7 @@ static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long va
 				send_ipi = 1;
 		}
 	}
-	raw_spin_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 
 	if (freq->old < freq->new && send_ipi) {
 		/*
@@ -5426,12 +5437,12 @@ static void pvclock_gtod_update_fn(struct work_struct *work)
 	struct kvm_vcpu *vcpu;
 	int i;
 
-	raw_spin_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		kvm_for_each_vcpu(i, vcpu, kvm)
 			set_bit(KVM_REQ_MASTERCLOCK_UPDATE, &vcpu->requests);
 	atomic_set(&kvm_guest_has_master_clock, 0);
-	raw_spin_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 }
 
 static DECLARE_WORK(pvclock_gtod_work, pvclock_gtod_update_fn);
@@ -6688,7 +6699,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	if (r)
 		return r;
 	kvm_vcpu_reset(vcpu);
-	r = kvm_mmu_setup(vcpu);
+	kvm_mmu_setup(vcpu);
 	vcpu_put(vcpu);
 
 	return r;
@@ -6940,6 +6951,10 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.ia32_tsc_adjust_msr = 0x0;
 	vcpu->arch.pv_time_enabled = false;
+
+	vcpu->arch.guest_supported_xcr0 = 0;
+	vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
+
 	kvm_async_pf_hash_reset(vcpu);
 	kvm_pmu_init(vcpu);
 
@@ -7283,7 +7298,7 @@ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
 	int r;
 
 	if ((vcpu->arch.mmu.direct_map != work->arch.direct_map) ||
-	      is_error_page(work->page))
+	      work->wakeup_all)
 		return;
 
 	r = kvm_mmu_reload(vcpu);
@@ -7393,7 +7408,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 	struct x86_exception fault;
 
 	trace_kvm_async_pf_ready(work->arch.token, work->gva);
-	if (is_error_page(work->page))
+	if (work->wakeup_all)
 		work->arch.token = ~0; /* broadcast wakeup */
 	else
 		kvm_del_async_pf_gfn(vcpu, work->arch.gfn);

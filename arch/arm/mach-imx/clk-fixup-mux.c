@@ -90,6 +90,7 @@ struct clk *imx_clk_fixup_mux(const char *name, void __iomem *reg,
 	init.ops = &clk_fixup_mux_ops;
 	init.parent_names = parents;
 	init.num_parents = num_parents;
+	init.flags = 0;
 
 	fixup_mux->mux.reg = reg;
 	fixup_mux->mux.shift = shift;

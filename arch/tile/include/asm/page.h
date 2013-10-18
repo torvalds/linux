@@ -182,10 +182,9 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 #define PAGE_OFFSET		(-(_AC(1, UL) << (MAX_VA_WIDTH - 1)))
 #define KERNEL_HIGH_VADDR	_AC(0xfffffff800000000, UL)  /* high 32GB */
-#define FIXADDR_BASE		(KERNEL_HIGH_VADDR - 0x400000000) /* 4 GB */
-#define FIXADDR_TOP		(KERNEL_HIGH_VADDR - 0x300000000) /* 4 GB */
+#define FIXADDR_BASE		(KERNEL_HIGH_VADDR - 0x300000000) /* 4 GB */
+#define FIXADDR_TOP		(KERNEL_HIGH_VADDR - 0x200000000) /* 4 GB */
 #define _VMALLOC_START		FIXADDR_TOP
-#define HUGE_VMAP_BASE		(KERNEL_HIGH_VADDR - 0x200000000) /* 4 GB */
 #define MEM_SV_START		(KERNEL_HIGH_VADDR - 0x100000000) /* 256 MB */
 #define MEM_MODULE_START	(MEM_SV_START + (256*1024*1024)) /* 256 MB */
 #define MEM_MODULE_END		(MEM_MODULE_START + (256*1024*1024))

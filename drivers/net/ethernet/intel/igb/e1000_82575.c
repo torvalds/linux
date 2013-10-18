@@ -719,6 +719,10 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	u32 ctrl_ext;
 	u32 mdic;
 
+	/* Extra read required for some PHY's on i354 */
+	if (hw->mac.type == e1000_i354)
+		igb_get_phy_id(hw);
+
 	/* For SGMII PHYs, we try the list of possible addresses until
 	 * we find one that works.  For non-SGMII PHYs
 	 * (e.g. integrated copper PHYs), an address of 1 should

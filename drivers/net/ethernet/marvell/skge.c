@@ -3092,6 +3092,9 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		if (!nskb)
 			goto resubmit;
 
+		skb = e->skb;
+		prefetch(skb->data);
+
 		if (skge_rx_setup(skge, e, nskb, skge->rx_buf_size) < 0) {
 			dev_kfree_skb(nskb);
 			goto resubmit;
@@ -3101,8 +3104,6 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 				 dma_unmap_addr(e, mapaddr),
 				 dma_unmap_len(e, maplen),
 				 PCI_DMA_FROMDEVICE);
-		skb = e->skb;
-		prefetch(skb->data);
 	}
 
 	skb_put(skb, len);

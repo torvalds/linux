@@ -586,7 +586,8 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 
 	fscache_operation_init(op, NULL, NULL);
 	op->flags = FSCACHE_OP_MYTHREAD |
-		(1 << FSCACHE_OP_WAITING);
+		(1 << FSCACHE_OP_WAITING) |
+		(1 << FSCACHE_OP_UNUSE_COOKIE);
 
 	spin_lock(&cookie->lock);
 
