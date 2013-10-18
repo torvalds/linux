@@ -949,9 +949,8 @@ out:
  * Create a version 4 volume record
  */
 static int nfs4_init_server(struct nfs_server *server,
-		const struct nfs_parsed_mount_data *data)
+		struct nfs_parsed_mount_data *data)
 {
-	rpc_authflavor_t pseudoflavor = RPC_AUTH_UNIX;
 	struct rpc_timeout timeparms;
 	int error;
 
@@ -964,8 +963,10 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->flags = data->flags;
 	server->options = data->options;
 
-	if (data->auth_flavor_len >= 1)
-		pseudoflavor = data->auth_flavors[0];
+	if (data->auth_info.flavor_len >= 1)
+		data->selected_flavor = data->auth_info.flavors[0];
+	else
+		data->selected_flavor = RPC_AUTH_UNIX;
 
 	/* Get a client record */
 	error = nfs4_set_client(server,
@@ -973,7 +974,7 @@ static int nfs4_init_server(struct nfs_server *server,
 			(const struct sockaddr *)&data->nfs_server.address,
 			data->nfs_server.addrlen,
 			data->client_address,
-			pseudoflavor,
+			data->selected_flavor,
 			data->nfs_server.protocol,
 			&timeparms,
 			data->minorversion,
@@ -993,7 +994,8 @@ static int nfs4_init_server(struct nfs_server *server,
 
 	server->port = data->nfs_server.port;
 
-	error = nfs_init_server_rpcclient(server, &timeparms, pseudoflavor);
+	error = nfs_init_server_rpcclient(server, &timeparms,
+					  data->selected_flavor);
 
 error:
 	/* Done */
@@ -1020,7 +1022,7 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
-	auth_probe = mount_info->parsed->auth_flavor_len < 1;
+	auth_probe = mount_info->parsed->auth_info.flavor_len < 1;
 
 	/* set up the general RPC client */
 	error = nfs4_init_server(server, mount_info->parsed);

@@ -787,7 +787,8 @@ static int nfs_init_server(struct nfs_server *server,
 
 	server->port = data->nfs_server.port;
 
-	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
+	error = nfs_init_server_rpcclient(server, &timeparms,
+					  data->selected_flavor);
 	if (error < 0)
 		goto error;
 

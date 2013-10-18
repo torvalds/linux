@@ -591,6 +591,12 @@ struct nfs_renameres {
 	struct nfs_fattr		*new_fattr;
 };
 
+/* parsed sec= options */
+struct nfs_auth_info {
+	unsigned int            flavor_len;
+	rpc_authflavor_t        flavors[1];
+};
+
 /*
  * Argument struct for decode_entry function
  */

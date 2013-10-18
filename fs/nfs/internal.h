@@ -88,8 +88,8 @@ struct nfs_parsed_mount_data {
 	unsigned int		namlen;
 	unsigned int		options;
 	unsigned int		bsize;
-	unsigned int		auth_flavor_len;
-	rpc_authflavor_t	auth_flavors[1];
+	struct nfs_auth_info	auth_info;
+	rpc_authflavor_t	selected_flavor;
 	char			*client_address;
 	unsigned int		version;
 	unsigned int		minorversion;
