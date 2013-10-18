@@ -834,6 +834,14 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
 	if (lmp_ssp_capable(hdev)) {
+		/* When SSP is available, then the host features page
+		 * should also be available as well. However some
+		 * controllers list the max_page as 0 as long as SSP
+		 * has not been enabled. To achieve proper debugging
+		 * output, force the minimum max_page to 1 at least.
+		 */
+		hdev->max_page = 0x01;
+
 		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
 			u8 mode = 0x01;
 			hci_req_add(req, HCI_OP_WRITE_SSP_MODE,

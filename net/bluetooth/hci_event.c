@@ -555,7 +555,8 @@ static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
 	if (rp->status)
 		return;
 
-	hdev->max_page = rp->max_page;
+	if (hdev->max_page < rp->max_page)
+		hdev->max_page = rp->max_page;
 
 	if (rp->page < HCI_MAX_PAGES)
 		memcpy(hdev->features[rp->page], rp->features, 8);
