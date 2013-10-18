@@ -800,7 +800,7 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 			 S626_STDMSK_CLKPOL;
 	} else {
 		/* If Counter mode (ClkSrcB<1> == 0): */
-		/* Indicate Timer mode. */
+		/* Indicate Counter mode. */
 		setup |= S626_CLKSRC_COUNTER << S626_STDBIT_CLKSRC;
 		/* Clock multiplier is passed through. */
 		setup |= (crb >> (S626_CRBBIT_CLKMULT_B -
