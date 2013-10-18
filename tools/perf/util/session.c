@@ -1263,7 +1263,9 @@ more:
 	if (!session_done())
 		goto more;
 done:
-	err = 0;
+	/* do the final flush for ordered samples */
+	self->ordered_samples.next_flush = ULLONG_MAX;
+	err = flush_sample_queue(self, tool);
 out_err:
 	free(buf);
 	perf_session__warn_about_errors(self, tool);
@@ -1392,13 +1394,13 @@ more:
 				    "Processing events...");
 	}
 
-	err = 0;
 	if (session_done())
-		goto out_err;
+		goto out;
 
 	if (file_pos < file_size)
 		goto more;
 
+out:
 	/* do the final flush for ordered samples */
 	session->ordered_samples.next_flush = ULLONG_MAX;
 	err = flush_sample_queue(session, tool);
