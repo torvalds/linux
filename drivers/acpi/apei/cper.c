@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/cper.h>
+#include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/aer.h>
@@ -210,6 +211,8 @@ static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem)
 		printk("%s""card: %d\n", pfx, mem->card);
 	if (mem->validation_bits & CPER_MEM_VALID_MODULE)
 		printk("%s""module: %d\n", pfx, mem->module);
+	if (mem->validation_bits & CPER_MEM_VALID_RANK_NUMBER)
+		printk("%s""rank: %d\n", pfx, mem->rank);
 	if (mem->validation_bits & CPER_MEM_VALID_BANK)
 		printk("%s""bank: %d\n", pfx, mem->bank);
 	if (mem->validation_bits & CPER_MEM_VALID_DEVICE)
@@ -231,6 +234,15 @@ static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem)
 		printk("%s""error_type: %d, %s\n", pfx, etype,
 		       etype < ARRAY_SIZE(cper_mem_err_type_strs) ?
 		       cper_mem_err_type_strs[etype] : "unknown");
+	}
+	if (mem->validation_bits & CPER_MEM_VALID_MODULE_HANDLE) {
+		const char *bank = NULL, *device = NULL;
+		dmi_memdev_name(mem->mem_dev_handle, &bank, &device);
+		if (bank != NULL && device != NULL)
+			printk("%s""DIMM location: %s %s", pfx, bank, device);
+		else
+			printk("%s""DIMM DMI handle: 0x%.4x",
+			       pfx, mem->mem_dev_handle);
 	}
 }
 
