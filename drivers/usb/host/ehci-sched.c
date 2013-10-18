@@ -794,7 +794,7 @@ static int check_intr_schedule (
 	unsigned		frame,
 	unsigned		uframe,
 	struct ehci_qh		*qh,
-	__hc32			*c_maskp,
+	unsigned		*c_maskp,
 	struct ehci_tt		*tt
 )
 {
