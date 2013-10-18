@@ -4459,9 +4459,11 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 		}
 	}
 
-	status = pci_enable_pcie_error_reporting(pdev);
-	if (status)
-		dev_info(&pdev->dev, "Could not use PCIe error reporting\n");
+	if (be_physfn(adapter)) {
+		status = pci_enable_pcie_error_reporting(pdev);
+		if (!status)
+			dev_info(&pdev->dev, "PCIe error reporting enabled\n");
+	}
 
 	status = be_ctrl_init(adapter);
 	if (status)
