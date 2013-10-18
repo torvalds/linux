@@ -929,7 +929,7 @@ M:	Javier Martinez Canillas <javier@dowhile0.org>
 L:	linux-omap@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/mach-omap2/board-igep0020.c
+F:	arch/arm/boot/dts/omap3-igep*
 
 ARM/INCOME PXA270 SUPPORT
 M:	Marek Vasut <marek.vasut@gmail.com>

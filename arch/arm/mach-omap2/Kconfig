@@ -326,19 +326,6 @@ config MACH_CM_T3517
 config MACH_CM_T3730
        bool
 
-config MACH_IGEP0020
-	bool "IGEP v2 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
-config MACH_IGEP0030
-	bool "IGEP OMAP3 module"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_IGEP0020
-	select OMAP_PACKAGE_CBB
-
 config MACH_SBC3530
 	bool "OMAP3 SBC STALKER board"
 	depends on ARCH_OMAP3
