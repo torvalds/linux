@@ -1,15 +1,11 @@
 /* Bluetooth HCI driver model support. */
 
-#include <linux/debugfs.h>
 #include <linux/module.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
 static struct class *bt_class;
-
-struct dentry *bt_debugfs;
-EXPORT_SYMBOL_GPL(bt_debugfs);
 
 static inline char *link_typetostr(int type)
 {
@@ -426,8 +422,6 @@ void hci_del_sysfs(struct hci_dev *hdev)
 
 int __init bt_sysfs_init(void)
 {
-	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
-
 	bt_class = class_create(THIS_MODULE, "bluetooth");
 
 	return PTR_ERR_OR_ZERO(bt_class);
@@ -436,6 +430,4 @@ int __init bt_sysfs_init(void)
 void bt_sysfs_cleanup(void)
 {
 	class_destroy(bt_class);
-
-	debugfs_remove_recursive(bt_debugfs);
 }
