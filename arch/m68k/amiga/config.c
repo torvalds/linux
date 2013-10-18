@@ -360,6 +360,14 @@ static void __init amiga_identify(void)
 #undef AMIGAHW_ANNOUNCE
 }
 
+
+static unsigned long amiga_random_get_entropy(void)
+{
+	/* VPOSR/VHPOSR provide at least 17 bits of data changing at 1.79 MHz */
+	return *(unsigned long *)&amiga_custom.vposr;
+}
+
+
     /*
      *  Setup the Amiga configuration info
      */
@@ -396,6 +404,8 @@ void __init config_amiga(void)
 #ifdef CONFIG_HEARTBEAT
 	mach_heartbeat = amiga_heartbeat;
 #endif
+
+	mach_random_get_entropy = amiga_random_get_entropy;
 
 	/* Fill in the clock value (based on the 700 kHz E-Clock) */
 	amiga_colorclock = 5*amiga_eclock;	/* 3.5 MHz */
