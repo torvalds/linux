@@ -1009,7 +1009,7 @@ static int __init dmaengine_init_unmap_pool(void)
 	return -ENOMEM;
 }
 
-static struct dmaengine_unmap_data *
+struct dmaengine_unmap_data *
 dmaengine_get_unmap_data(struct device *dev, int nr, gfp_t flags)
 {
 	struct dmaengine_unmap_data *unmap;
@@ -1024,6 +1024,7 @@ dmaengine_get_unmap_data(struct device *dev, int nr, gfp_t flags)
 
 	return unmap;
 }
+EXPORT_SYMBOL(dmaengine_get_unmap_data);
 
 /**
  * dma_async_memcpy_pg_to_pg - offloaded copy from page to page
