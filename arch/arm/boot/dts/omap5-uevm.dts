@@ -131,25 +131,25 @@
 			0xbc (PIN_INPUT | MUX_MODE0)		/*  mcspi2_clk */
 			0xbe (PIN_INPUT | MUX_MODE0)		/*  mcspi2_simo */
 			0xc0 (PIN_INPUT_PULLUP | MUX_MODE0)	/*  mcspi2_somi */
-			0xc2 (PIN_OUTPUT | MUX_MODE0)		/*  mcspi2_cs */
+			0xc2 (PIN_OUTPUT | MUX_MODE0)		/*  mcspi2_cs0 */
 		>;
 	};
 
 	mcspi3_pins: pinmux_mcspi3_pins {
 		pinctrl-single,pins = <
-			0x78 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_somi */
-			0x7a (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
-			0x7c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_simo */
-			0x7e (PIN_INPUT | MUX_MODE1)		/*  mcspi2_clk */
+			0x78 (PIN_INPUT | MUX_MODE1)		/*  mcspi3_somi */
+			0x7a (PIN_INPUT | MUX_MODE1)		/*  mcspi3_cs0 */
+			0x7c (PIN_INPUT | MUX_MODE1)		/*  mcspi3_simo */
+			0x7e (PIN_INPUT | MUX_MODE1)		/*  mcspi3_clk */
 		>;
 	};
 
 	mcspi4_pins: pinmux_mcspi4_pins {
 		pinctrl-single,pins = <
-			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_clk */
-			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_simo */
-			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi2_somi */
-			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
+			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_clk */
+			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_simo */
+			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi4_somi */
+			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi4_cs0 */
 		>;
 	};
 
