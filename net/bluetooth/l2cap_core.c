@@ -1382,19 +1382,27 @@ static struct l2cap_chan *l2cap_global_chan_by_scid(int state, u16 cid,
 
 static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 {
+	struct hci_conn *hcon = conn->hcon;
 	struct sock *parent;
 	struct l2cap_chan *chan, *pchan;
+	u8 dst_type;
 
 	BT_DBG("");
 
 	/* Check if we have socket listening on cid */
 	pchan = l2cap_global_chan_by_scid(BT_LISTEN, L2CAP_CID_ATT,
-					  &conn->hcon->src, &conn->hcon->dst);
+					  &hcon->src, &hcon->dst);
 	if (!pchan)
 		return;
 
 	/* Client ATT sockets should override the server one */
 	if (__l2cap_get_chan_by_dcid(conn, L2CAP_CID_ATT))
+		return;
+
+	dst_type = bdaddr_type(hcon, hcon->dst_type);
+
+	/* If device is blocked, do not create a channel for it */
+	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst, dst_type))
 		return;
 
 	parent = pchan->sk;
@@ -1407,10 +1415,10 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	chan->dcid = L2CAP_CID_ATT;
 
-	bacpy(&chan->src, &conn->hcon->src);
-	bacpy(&chan->dst, &conn->hcon->dst);
-	chan->src_type = bdaddr_type(conn->hcon, conn->hcon->src_type);
-	chan->dst_type = bdaddr_type(conn->hcon, conn->hcon->dst_type);
+	bacpy(&chan->src, &hcon->src);
+	bacpy(&chan->dst, &hcon->dst);
+	chan->src_type = bdaddr_type(hcon, hcon->src_type);
+	chan->dst_type = dst_type;
 
 	__l2cap_chan_add(conn, chan);
 
@@ -6437,6 +6445,9 @@ static void l2cap_att_channel(struct l2cap_conn *conn,
 		goto drop;
 
 	BT_DBG("chan %p, len %d", chan, skb->len);
+
+	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst, hcon->dst_type))
+		goto drop;
 
 	if (chan->imtu < skb->len)
 		goto drop;
