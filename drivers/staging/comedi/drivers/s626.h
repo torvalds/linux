@@ -469,10 +469,16 @@
 #define S626_INDXPOL_POS	0	/* Index input is active high. */
 #define S626_INDXPOL_NEG	1	/* Index input is active low. */
 
-/* ClkSrc values: */
-#define S626_CLKSRC_COUNTER	0	/* Counter mode. */
-#define S626_CLKSRC_TIMER	2	/* Timer mode. */
-#define S626_CLKSRC_EXTENDER	3	/* Extender mode. */
+/* Logical encoder mode values: */
+#define S626_ENCMODE_COUNTER	0	/* Counter mode. */
+#define S626_ENCMODE_TIMER	2	/* Timer mode. */
+#define S626_ENCMODE_EXTENDER	3	/* Extender mode. */
+
+/* Physical CntSrc values (for Counter A source and Counter B source): */
+#define S626_CNTSRC_ENCODER	0	/* Encoder */
+#define S626_CNTSRC_DIGIN	1	/* Digital inputs */
+#define S626_CNTSRC_SYSCLK	2	/* System clock up */
+#define S626_CNTSRC_SYSCLK_DOWN	3	/* System clock down */
 
 /* ClkPol values: */
 #define S626_CLKPOL_POS		0	/* Counter/Extender clock is
@@ -495,7 +501,7 @@
 #define S626_BF_LOADSRC		9	/* Preload trigger. */
 #define S626_BF_INDXSRC		7	/* Index source. */
 #define S626_BF_INDXPOL		6	/* Index polarity. */
-#define S626_BF_CLKSRC		4	/* Clock source. */
+#define S626_BF_ENCMODE		4	/* Encoder mode. */
 #define S626_BF_CLKPOL		3	/* Clock polarity/count direction. */
 #define S626_BF_CLKMULT		1	/* Clock multiplier. */
 #define S626_BF_CLKENAB		0	/* Clock enable. */
@@ -528,14 +534,14 @@
 
 /* Bit field positions in CRA: */
 #define S626_CRABIT_INDXSRC_B	14	/* B index source. */
-#define S626_CRABIT_CLKSRC_B	12	/* B clock source. */
+#define S626_CRABIT_CNTSRC_B	12	/* B counter source. */
 #define S626_CRABIT_INDXPOL_A	11	/* A index polarity. */
 #define S626_CRABIT_LOADSRC_A	 9	/* A preload trigger. */
 #define S626_CRABIT_CLKMULT_A	 7	/* A clock multiplier. */
 #define S626_CRABIT_INTSRC_A	 5	/* A interrupt source. */
 #define S626_CRABIT_CLKPOL_A	 4	/* A clock polarity. */
 #define S626_CRABIT_INDXSRC_A	 2	/* A index source. */
-#define S626_CRABIT_CLKSRC_A	 0	/* A clock source. */
+#define S626_CRABIT_CNTSRC_A	 0	/* A counter source. */
 
 /* Bit field positions in CRB: */
 #define S626_CRBBIT_INTRESETCMD	15	/* Interrupt reset command. */
@@ -553,14 +559,14 @@
 /* Bit field masks for CRA and CRB. */
 
 #define S626_CRAMSK_INDXSRC_B	(3 << S626_CRABIT_INDXSRC_B)
-#define S626_CRAMSK_CLKSRC_B	(3 << S626_CRABIT_CLKSRC_B)
+#define S626_CRAMSK_CNTSRC_B	(3 << S626_CRABIT_CNTSRC_B)
 #define S626_CRAMSK_INDXPOL_A	(1 << S626_CRABIT_INDXPOL_A)
 #define S626_CRAMSK_LOADSRC_A	(3 << S626_CRABIT_LOADSRC_A)
 #define S626_CRAMSK_CLKMULT_A	(3 << S626_CRABIT_CLKMULT_A)
 #define S626_CRAMSK_INTSRC_A	(3 << S626_CRABIT_INTSRC_A)
 #define S626_CRAMSK_CLKPOL_A	(3 << S626_CRABIT_CLKPOL_A)
 #define S626_CRAMSK_INDXSRC_A	(3 << S626_CRABIT_INDXSRC_A)
-#define S626_CRAMSK_CLKSRC_A	(3 << S626_CRABIT_CLKSRC_A)
+#define S626_CRAMSK_CNTSRC_A	(3 << S626_CRABIT_CNTSRC_A)
 
 #define S626_CRBMSK_INTRESETCMD	(1 << S626_CRBBIT_INTRESETCMD)
 #define S626_CRBMSK_INTRESET_B	(1 << S626_CRBBIT_INTRESET_B)
@@ -586,7 +592,7 @@
 #define S626_STDBIT_LOADSRC	 9
 #define S626_STDBIT_INDXSRC	 7
 #define S626_STDBIT_INDXPOL	 6
-#define S626_STDBIT_CLKSRC	 4
+#define S626_STDBIT_ENCMODE	 4
 #define S626_STDBIT_CLKPOL	 3
 #define S626_STDBIT_CLKMULT	 1
 #define S626_STDBIT_CLKENAB	 0
@@ -598,7 +604,7 @@
 #define S626_STDMSK_LOADSRC	(3 << S626_STDBIT_LOADSRC)
 #define S626_STDMSK_INDXSRC	(1 << S626_STDBIT_INDXSRC)
 #define S626_STDMSK_INDXPOL	(1 << S626_STDBIT_INDXPOL)
-#define S626_STDMSK_CLKSRC	(3 << S626_STDBIT_CLKSRC)
+#define S626_STDMSK_ENCMODE	(3 << S626_STDBIT_ENCMODE)
 #define S626_STDMSK_CLKPOL	(1 << S626_STDBIT_CLKPOL)
 #define S626_STDMSK_CLKMULT	(3 << S626_STDBIT_CLKMULT)
 #define S626_STDMSK_CLKENAB	(1 << S626_STDBIT_CLKENAB)
