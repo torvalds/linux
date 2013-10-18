@@ -738,20 +738,17 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 	return 0;
 }
 
-/** perf_evlist__mmap - Create per cpu maps to receive events
+/**
+ * perf_evlist__mmap - Create mmaps to receive events.
+ * @evlist: list of events
+ * @pages: map length in pages
+ * @overwrite: overwrite older events?
  *
- * @evlist - list of events
- * @pages - map length in pages
- * @overwrite - overwrite older events?
+ * If @overwrite is %false the user needs to signal event consumption using
+ * perf_mmap__write_tail().  Using perf_evlist__mmap_read() does this
+ * automatically.
  *
- * If overwrite is false the user needs to signal event consuption using:
- *
- *	struct perf_mmap *m = &evlist->mmap[cpu];
- *	unsigned int head = perf_mmap__read_head(m);
- *
- *	perf_mmap__write_tail(m, head)
- *
- * Using perf_evlist__read_on_cpu does this automatically.
+ * Return: %0 on success, negative error code otherwise.
  */
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite)
