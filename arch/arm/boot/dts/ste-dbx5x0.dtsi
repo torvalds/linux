@@ -694,7 +694,7 @@
 
 			clock-frequency = <400000>;
 
-			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 9>;
+			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
 			clock-names = "i2cclk", "apb_pclk";
 		};
 
