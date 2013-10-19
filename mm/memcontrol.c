@@ -311,7 +311,7 @@ struct mem_cgroup {
 
 	atomic_t	dead_count;
 #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
-	struct tcp_memcontrol tcp_mem;
+	struct cg_proto tcp_mem;
 #endif
 #if defined(CONFIG_MEMCG_KMEM)
 	/* analogous to slab_common's slab_caches list. per-memcg */
@@ -550,13 +550,13 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 	if (!memcg || mem_cgroup_is_root(memcg))
 		return NULL;
 
-	return &memcg->tcp_mem.cg_proto;
+	return &memcg->tcp_mem;
 }
 EXPORT_SYMBOL(tcp_proto_cgroup);
 
 static void disarm_sock_keys(struct mem_cgroup *memcg)
 {
-	if (!memcg_proto_activated(&memcg->tcp_mem.cg_proto))
+	if (!memcg_proto_activated(&memcg->tcp_mem))
 		return;
 	static_key_slow_dec(&memcg_socket_limit_enabled);
 }
