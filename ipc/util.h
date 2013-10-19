@@ -101,10 +101,10 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 #define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
 #define ipcid_to_seqx(id) ((id) / SEQ_MULTIPLIER)
 
-/* must be called with ids->rw_mutex acquired for writing */
+/* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
 
-/* must be called with ids->rw_mutex acquired for reading */
+/* must be called with ids->rwsem acquired for reading */
 int ipc_get_maxid(struct ipc_ids *);
 
 /* must be called with both locks acquired. */
@@ -139,9 +139,6 @@ int ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out);
 struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
 					     struct ipc_ids *ids, int id, int cmd,
 					     struct ipc64_perm *perm, int extra_perm);
-struct kern_ipc_perm *ipcctl_pre_down(struct ipc_namespace *ns,
-				      struct ipc_ids *ids, int id, int cmd,
-				      struct ipc64_perm *perm, int extra_perm);
 
 #ifndef CONFIG_ARCH_WANT_IPC_PARSE_VERSION
   /* On IA-64, we always use the "64-bit version" of the IPC structures.  */ 
@@ -182,19 +179,12 @@ static inline void ipc_assert_locked_object(struct kern_ipc_perm *perm)
 	assert_spin_locked(&perm->lock);
 }
 
-static inline void ipc_lock_by_ptr(struct kern_ipc_perm *perm)
-{
-	rcu_read_lock();
-	ipc_lock_object(perm);
-}
-
 static inline void ipc_unlock(struct kern_ipc_perm *perm)
 {
 	ipc_unlock_object(perm);
 	rcu_read_unlock();
 }
 
-struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id);
 struct kern_ipc_perm *ipc_obtain_object_check(struct ipc_ids *ids, int id);
 int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			struct ipc_ops *ops, struct ipc_params *params);

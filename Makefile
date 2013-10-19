@@ -1,6 +1,6 @@
 VERSION = 3
 PATCHLEVEL = 11
-SUBLEVEL = 5
+SUBLEVEL = 6
 EXTRAVERSION = -zen
 NAME = Dancing Doughnuts
 
