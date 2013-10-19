@@ -517,6 +517,62 @@ static const struct file_operations long_term_keys_fops = {
 	.release	= single_release,
 };
 
+static int conn_min_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0006 || val > 0x0c80 || val > hdev->le_conn_max_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_conn_min_interval= val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int conn_min_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_conn_min_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(conn_min_interval_fops, conn_min_interval_get,
+			conn_min_interval_set, "%llu\n");
+
+static int conn_max_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0006 || val > 0x0c80 || val < hdev->le_conn_min_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_conn_max_interval= val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int conn_max_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_conn_max_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(conn_max_interval_fops, conn_max_interval_get,
+			conn_max_interval_set, "%llu\n");
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result)
@@ -1273,6 +1329,10 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &own_address_type_fops);
 		debugfs_create_file("long_term_keys", 0400, hdev->debugfs,
 				    hdev, &long_term_keys_fops);
+		debugfs_create_file("conn_min_interval", 0644, hdev->debugfs,
+				    hdev, &conn_min_interval_fops);
+		debugfs_create_file("conn_max_interval", 0644, hdev->debugfs,
+				    hdev, &conn_max_interval_fops);
 	}
 
 	return 0;
@@ -2738,6 +2798,8 @@ struct hci_dev *hci_alloc_dev(void)
 
 	hdev->le_scan_interval = 0x0060;
 	hdev->le_scan_window = 0x0030;
+	hdev->le_conn_min_interval = 0x0028;
+	hdev->le_conn_max_interval = 0x0038;
 
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
