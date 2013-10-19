@@ -2619,6 +2619,67 @@ static void slic_xmit_complete(struct adapter *adapter)
 	adapter->max_isr_xmits = max(adapter->max_isr_xmits, frames);
 }
 
+static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
+			struct net_device *dev)
+{
+	if (isr & ~ISR_IO) {
+		if (isr & ISR_ERR) {
+			adapter->error_interrupts++;
+			if (isr & ISR_RMISS) {
+				int count;
+				int pre_count;
+				int errors;
+
+				struct slic_rcvqueue *rcvq =
+					&adapter->rcvqueue;
+
+				adapter->error_rmiss_interrupts++;
+
+				if (!rcvq->errors)
+					rcv_count = rcvq->count;
+				pre_count = rcvq->count;
+				errors = rcvq->errors;
+
+				while (rcvq->count < SLIC_RCVQ_FILLTHRESH) {
+					count = slic_rcvqueue_fill(adapter);
+					if (!count)
+						break;
+				}
+			} else if (isr & ISR_XDROP) {
+				dev_err(&dev->dev,
+						"isr & ISR_ERR [%x] "
+						"ISR_XDROP \n", isr);
+			} else {
+				dev_err(&dev->dev,
+						"isr & ISR_ERR [%x]\n",
+						isr);
+			}
+		}
+
+		if (isr & ISR_LEVENT) {
+			adapter->linkevent_interrupts++;
+			slic_link_event_handler(adapter);
+		}
+
+		if ((isr & ISR_UPC) || (isr & ISR_UPCERR) ||
+		    (isr & ISR_UPCBSY)) {
+			adapter->upr_interrupts++;
+			slic_upr_request_complete(adapter, isr);
+		}
+	}
+
+	if (isr & ISR_RCV) {
+		adapter->rcv_interrupts++;
+		slic_rcv_handler(adapter);
+	}
+
+	if (isr & ISR_CMD) {
+		adapter->xmit_interrupts++;
+		slic_xmit_complete(adapter);
+	}
+}
+
+
 static irqreturn_t slic_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
@@ -2633,64 +2694,7 @@ static irqreturn_t slic_interrupt(int irq, void *dev_id)
 		adapter->num_isrs++;
 		switch (adapter->card->state) {
 		case CARD_UP:
-			if (isr & ~ISR_IO) {
-				if (isr & ISR_ERR) {
-					adapter->error_interrupts++;
-					if (isr & ISR_RMISS) {
-						int count;
-						int pre_count;
-						int errors;
-
-						struct slic_rcvqueue *rcvq =
-						    &adapter->rcvqueue;
-
-						adapter->
-						    error_rmiss_interrupts++;
-						if (!rcvq->errors)
-							rcv_count = rcvq->count;
-						pre_count = rcvq->count;
-						errors = rcvq->errors;
-
-						while (rcvq->count <
-						       SLIC_RCVQ_FILLTHRESH) {
-							count =
-							    slic_rcvqueue_fill
-							    (adapter);
-							if (!count)
-								break;
-						}
-					} else if (isr & ISR_XDROP) {
-						dev_err(&dev->dev,
-							"isr & ISR_ERR [%x] "
-							"ISR_XDROP \n", isr);
-					} else {
-						dev_err(&dev->dev,
-							"isr & ISR_ERR [%x]\n",
-							isr);
-					}
-				}
-
-				if (isr & ISR_LEVENT) {
-					adapter->linkevent_interrupts++;
-					slic_link_event_handler(adapter);
-				}
-
-				if ((isr & ISR_UPC) ||
-				    (isr & ISR_UPCERR) || (isr & ISR_UPCBSY)) {
-					adapter->upr_interrupts++;
-					slic_upr_request_complete(adapter, isr);
-				}
-			}
-
-			if (isr & ISR_RCV) {
-				adapter->rcv_interrupts++;
-				slic_rcv_handler(adapter);
-			}
-
-			if (isr & ISR_CMD) {
-				adapter->xmit_interrupts++;
-				slic_xmit_complete(adapter);
-			}
+			slic_interrupt_card_up(isr, adapter, dev);
 			break;
 
 		case CARD_DOWN:
