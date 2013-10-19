@@ -1220,6 +1220,12 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	cancel_delayed_work(&hdev->discov_off);
 	hdev->discov_timeout = timeout;
 
+	/* Limited discoverable mode */
+	if (cp->val == 0x02)
+		set_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+	else
+		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+
 	hci_req_init(&req, hdev);
 
 	scan = SCAN_PAGE;
@@ -1229,8 +1235,6 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		if (cp->val == 0x02) {
 			/* Limited discoverable mode */
-			set_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-
 			hci_cp.num_iac = 2;
 			hci_cp.iac_lap[0] = 0x00;	/* LIAC */
 			hci_cp.iac_lap[1] = 0x8b;
@@ -1240,8 +1244,6 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 			hci_cp.iac_lap[5] = 0x9e;
 		} else {
 			/* General discoverable mode */
-			clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-
 			hci_cp.num_iac = 1;
 			hci_cp.iac_lap[0] = 0x33;	/* GIAC */
 			hci_cp.iac_lap[1] = 0x8b;
