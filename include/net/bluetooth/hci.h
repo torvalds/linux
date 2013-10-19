@@ -115,6 +115,7 @@ enum {
 	HCI_PAIRABLE,
 	HCI_SERVICE_CACHE,
 	HCI_DEBUG_KEYS,
+	HCI_DUT_MODE,
 	HCI_UNREGISTER,
 	HCI_USER_CHANNEL,
 
@@ -1042,6 +1043,8 @@ struct hci_rp_write_remote_amp_assoc {
 	__u8     status;
 	__u8     phy_handle;
 } __packed;
+
+#define HCI_OP_ENABLE_DUT_MODE		0x1803
 
 #define HCI_OP_WRITE_SSP_DEBUG_MODE	0x1804
 
