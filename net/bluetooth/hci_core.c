@@ -423,7 +423,7 @@ static int idle_timeout_set(void *data, u64 val)
 		return -EINVAL;
 
 	hci_dev_lock(hdev);
-	hdev->idle_timeout= val;
+	hdev->idle_timeout = val;
 	hci_dev_unlock(hdev);
 
 	return 0;
@@ -451,7 +451,7 @@ static int sniff_min_interval_set(void *data, u64 val)
 		return -EINVAL;
 
 	hci_dev_lock(hdev);
-	hdev->sniff_min_interval= val;
+	hdev->sniff_min_interval = val;
 	hci_dev_unlock(hdev);
 
 	return 0;
@@ -479,7 +479,7 @@ static int sniff_max_interval_set(void *data, u64 val)
 		return -EINVAL;
 
 	hci_dev_lock(hdev);
-	hdev->sniff_max_interval= val;
+	hdev->sniff_max_interval = val;
 	hci_dev_unlock(hdev);
 
 	return 0;
@@ -588,7 +588,7 @@ static int conn_min_interval_set(void *data, u64 val)
 		return -EINVAL;
 
 	hci_dev_lock(hdev);
-	hdev->le_conn_min_interval= val;
+	hdev->le_conn_min_interval = val;
 	hci_dev_unlock(hdev);
 
 	return 0;
@@ -616,7 +616,7 @@ static int conn_max_interval_set(void *data, u64 val)
 		return -EINVAL;
 
 	hci_dev_lock(hdev);
-	hdev->le_conn_max_interval= val;
+	hdev->le_conn_max_interval = val;
 	hci_dev_unlock(hdev);
 
 	return 0;
