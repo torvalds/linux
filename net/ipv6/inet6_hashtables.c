@@ -23,6 +23,30 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 
+static unsigned int inet6_ehashfn(struct net *net,
+				  const struct in6_addr *laddr,
+				  const u16 lport,
+				  const struct in6_addr *faddr,
+				  const __be16 fport)
+{
+	const u32 lhash = (__force u32)laddr->s6_addr32[3];
+	const u32 fhash = __ipv6_addr_jhash(faddr, ipv6_hash_secret);
+	return __inet6_ehashfn(lhash, lport, fhash, fport,
+			       inet_ehash_secret + net_hash_mix(net));
+}
+
+static int inet6_sk_ehashfn(const struct sock *sk)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct in6_addr *laddr = &sk->sk_v6_rcv_saddr;
+	const struct in6_addr *faddr = &sk->sk_v6_daddr;
+	const __u16 lport = inet->inet_num;
+	const __be16 fport = inet->inet_dport;
+	struct net *net = sock_net(sk);
+
+	return inet6_ehashfn(net, laddr, lport, faddr, fport);
+}
+
 int __inet6_hash(struct sock *sk, struct inet_timewait_sock *tw)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;

@@ -53,6 +53,18 @@
 #include <trace/events/skb.h>
 #include "udp_impl.h"
 
+static unsigned int udp6_ehashfn(struct net *net,
+				  const struct in6_addr *laddr,
+				  const u16 lport,
+				  const struct in6_addr *faddr,
+				  const __be16 fport)
+{
+	const u32 lhash = (__force u32)laddr->s6_addr32[3];
+	const u32 fhash = __ipv6_addr_jhash(faddr, ipv6_hash_secret);
+	return __inet6_ehashfn(lhash, lport, fhash, fport,
+			       inet_ehash_secret + net_hash_mix(net));
+}
+
 int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 {
 	const struct in6_addr *sk2_rcv_saddr6 = inet6_rcv_saddr(sk2);
@@ -214,8 +226,8 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				hash = inet6_ehashfn(net, daddr, hnum,
-						     saddr, sport);
+				hash = udp6_ehashfn(net, daddr, hnum,
+						    saddr, sport);
 				matches = 1;
 			} else if (score == SCORE2_MAX)
 				goto exact_match;
@@ -295,8 +307,8 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				hash = inet6_ehashfn(net, daddr, hnum,
-						     saddr, sport);
+				hash = udp6_ehashfn(net, daddr, hnum,
+						    saddr, sport);
 				matches = 1;
 			}
 		} else if (score == badness && reuseport) {
