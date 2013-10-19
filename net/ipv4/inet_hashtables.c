@@ -28,6 +28,10 @@ static unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
 				 const __u16 lport, const __be32 faddr,
 				 const __be16 fport)
 {
+	static u32 inet_ehash_secret __read_mostly;
+
+	net_get_random_once(&inet_ehash_secret, sizeof(inet_ehash_secret));
+
 	return __inet_ehashfn(laddr, lport, faddr, fport,
 			      inet_ehash_secret + net_hash_mix(net));
 }
