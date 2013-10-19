@@ -66,8 +66,10 @@
 		 UART_LSR_THRE doesn't. So, the macro BOTH_EMPTY should be replaced with UART_LSR_TEMT.
 *v1.4 : 2013-04-16
 *		1.fix bug dma buffer free error
+*v1.5 : 2013-10-17
+*		1.in some case, set uart rx as gpio interrupt to wake up arm, when arm suspends 
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.4 2013-04-16"
+#define VERSION_AND_TIME  "rk_serial.c v1.5 2013-10-17"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -111,6 +113,30 @@
 #define UART3_USE_DMA CLOSE_DMA
 #endif
 
+//serial wake up 
+#ifdef CONFIG_UART0_WAKEUP_RK29 
+#define UART0_USE_WAKEUP CONFIG_UART0_WAKEUP_RK29
+#else
+#define UART0_USE_WAKEUP 0
+#endif
+#ifdef CONFIG_UART1_WAKEUP_RK29
+#define UART1_USE_WAKEUP CONFIG_UART1_WAKEUP_RK29
+#else
+#define UART1_USE_WAKEUP 0
+#endif
+#ifdef CONFIG_UART2_WAKEUP_RK29
+#define UART2_USE_WAKEUP CONFIG_UART2_WAKEUP_RK29
+#else
+#define UART2_USE_WAKEUP 0
+#endif
+#ifdef CONFIG_UART3_WAKEUP_RK29
+#define UART3_USE_WAKEUP CONFIG_UART3_WAKEUP_RK29
+#else
+#define UART3_USE_WAKEUP 0
+#endif
+
+
+
 #define USE_TIMER    1           // use timer for dma transport
 #define POWER_MANEGEMENT 1
 #define RX_TIMEOUT		(3000*3)  //uint ms
@@ -119,12 +145,19 @@
 
 
 #define USE_DMA (UART0_USE_DMA | UART1_USE_DMA | UART2_USE_DMA | UART3_USE_DMA)
+#define USE_WAKEUP (UART0_USE_WAKEUP | UART1_USE_WAKEUP | UART2_USE_WAKEUP | UART3_USE_WAKEUP)
+
 #if USE_DMA
 #ifdef CONFIG_ARCH_RK29
 #include <mach/dma-pl330.h>
 #else
 #include <plat/dma-pl330.h>
 #endif
+#endif
+
+#if USE_WAKEUP
+#include <mach/iomux.h>
+#include <linux/wakelock.h>
 #endif
 
 
@@ -214,6 +247,21 @@ struct rk_uart_dma {
 };
 #endif
 
+#if USE_WAKEUP	
+struct uart_wake_up {
+	unsigned int enable;
+	unsigned int rx_mode;
+	unsigned int tx_mode;
+	unsigned int rx_pin;
+	char rx_pin_name[32];
+	unsigned int tx_pin;
+	unsigned int rx_irq;
+	char rx_irq_name[32];
+	struct wake_lock wakelock;
+	char wakelock_name[32];
+};
+#endif
+
 struct uart_rk_port {
 	struct uart_port	port;
 	struct platform_device	*pdev;
@@ -237,7 +285,7 @@ struct uart_rk_port {
 	unsigned char		msr_saved_flags;
 #endif
 
-	char			name[12];
+	char			name[16];
 	char			fifo[64];
 	char 			fifo_size;
 	unsigned long		port_activity;
@@ -246,6 +294,9 @@ struct uart_rk_port {
 	struct workqueue_struct *uart_wq;
 #if USE_DMA
 	struct rk_uart_dma *dma;
+#endif
+#if USE_WAKEUP
+	struct uart_wake_up *wakeup;
 #endif
 };
 
@@ -263,6 +314,7 @@ static int serial_rk_startup(struct uart_port *port);
 static inline unsigned int serial_in(struct uart_rk_port *up, int offset)
 {
 	offset = offset << 2;
+
 	return __raw_readb(up->port.membase + offset);
 }
 
@@ -464,6 +516,14 @@ static void serial_rk_enable_ms(struct uart_port *port)
 #endif
 }
 
+#if USE_WAKEUP
+static struct uart_wake_up rk29_uart_ports_wakeup[] = {
+		{UART0_USE_WAKEUP, UART0_SIN, UART0_SOUT},
+		{UART1_USE_WAKEUP, UART1_SIN, UART1_SOUT},
+		{UART2_USE_WAKEUP, UART2_SIN, UART2_SOUT},
+		{UART3_USE_WAKEUP, UART3_SIN, UART3_SOUT},
+};
+#endif
 
 #if USE_DMA
 /*
@@ -1790,6 +1850,81 @@ static struct uart_driver serial_rk_reg = {
 	.cons			= SERIAL_CONSOLE,
 	.nr			= UART_NR,
 };
+#if USE_WAKEUP
+static irqreturn_t serial_rk_wakeup_handler(int irq, void *dev) {
+	struct uart_rk_port *up = dev;
+	struct uart_wake_up *wakeup = up->wakeup;
+	if(wakeup->enable == 1) {
+		iomux_set(wakeup->rx_mode);
+		wake_lock_timeout(&wakeup->wakelock, 3 * HZ);
+	}    
+	return 0;
+}
+
+static int serial_rk_setup_wakeup_irq(struct uart_rk_port *up)
+{
+	int ret = 0;
+	struct uart_wake_up *wakeup = up->wakeup;
+
+	if(wakeup->enable == 1) {
+		memset(wakeup->wakelock_name, 0, 32);
+		sprintf(wakeup->wakelock_name, "serial.%d_wakelock", up->port.line);
+		wake_lock_init(&wakeup->wakelock, WAKE_LOCK_SUSPEND, wakeup->wakelock_name);
+		memset(wakeup->rx_pin_name, 0, 32);		
+		sprintf(wakeup->rx_pin_name, "UART%d_SIN", up->port.line);
+		wakeup->rx_pin = iomux_mode_to_gpio(wakeup->rx_mode);
+		ret = gpio_request(wakeup->rx_pin, wakeup->rx_pin_name);
+		if (ret) {
+			printk("request %s fail ! \n", wakeup->rx_pin_name);
+		    return ret;
+		}
+		gpio_direction_input(wakeup->rx_pin);
+		wakeup->rx_irq = gpio_to_irq(wakeup->rx_pin);
+		memset(wakeup->rx_irq_name, 0, 32);
+		sprintf(wakeup->rx_irq_name, "serial.%d_wake_up_irq", up->port.line);
+		ret = request_irq(wakeup->rx_irq, serial_rk_wakeup_handler, IRQF_TRIGGER_FALLING, wakeup->rx_irq_name, up);
+		if(ret < 0) {
+			printk("%s request fail\n", wakeup->rx_irq_name);
+		    return ret;
+	 	}
+		disable_irq_nosync(wakeup->rx_irq);
+		enable_irq_wake(wakeup->rx_irq);
+		iomux_set(wakeup->rx_mode);
+	}
+	return ret;
+}
+
+static int serial_rk_enable_wakeup_irq(struct uart_rk_port *up) {
+	struct uart_wake_up *wakeup = up->wakeup;
+	if(wakeup->enable == 1) {
+		iomux_set(wakeup->rx_mode & 0xfff0);
+		enable_irq(wakeup->rx_irq);
+	}
+    return 0;
+}
+
+static int serial_rk_disable_wakeup_irq(struct uart_rk_port *up) {
+	struct uart_wake_up *wakeup = up->wakeup;
+	if(wakeup->enable == 1) {
+		disable_irq_nosync(wakeup->rx_irq);
+		iomux_set(wakeup->rx_mode);
+	}
+    return 0;
+}
+
+static int serial_rk_remove_wakeup_irq(struct uart_rk_port *up) {
+	struct uart_wake_up *wakeup = up->wakeup;
+	if(wakeup->enable == 1) {
+		//disable_irq_nosync(wakeup->rx_irq);
+		free_irq(wakeup->rx_irq, NULL);
+		gpio_free(wakeup->rx_pin);
+		wake_lock_destroy(&wakeup->wakelock);
+	}
+    return 0;
+}
+#endif
+
+
 
 static int __devinit serial_rk_probe(struct platform_device *pdev)
 {
@@ -1833,6 +1968,9 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 	up->tx_loadsz = 30;
 #if USE_DMA
 	up->dma = &rk29_uart_ports_dma[pdev->id];
+#endif
+#if USE_WAKEUP
+	up->wakeup = &rk29_uart_ports_wakeup[pdev->id];
 #endif
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_RK;
@@ -1913,7 +2051,9 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, up);
 	dev_info(&pdev->dev, "membase 0x%08x\n", (unsigned) up->port.membase);
-
+#if USE_WAKEUP
+	serial_rk_setup_wakeup_irq(up); 
+#endif
 	return 0;
 
 do_iounmap:
@@ -1946,7 +2086,9 @@ static int __devexit serial_rk_remove(struct platform_device *pdev)
 		kfree(up);
 		release_mem_region(mem->start, (mem->end - mem->start) + 1);
 	}
-
+#if USE_WAKEUP
+    serial_rk_remove_wakeup_irq(up);
+#endif
 	return 0;
 }
 
@@ -1960,14 +2102,18 @@ static int serial_rk_suspend(struct platform_device *dev, pm_message_t state)
 	if(up->port.line == DBG_PORT && POWER_MANEGEMENT){
 		serial_rk_pm(&up->port, 1, 0);
 	}
-
+#if USE_WAKEUP
+    serial_rk_enable_wakeup_irq(up);
+#endif
 	return 0;
 }
 
 static int serial_rk_resume(struct platform_device *dev)
 {
 	struct uart_rk_port *up = platform_get_drvdata(dev);
-
+#if USE_WAKEUP
+    serial_rk_disable_wakeup_irq(up);
+#endif
 	if (up && up->port.line != DBG_PORT && POWER_MANEGEMENT){
 		uart_resume_port(&serial_rk_reg, &up->port);
 	}

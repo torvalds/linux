@@ -1533,6 +1533,11 @@ config UART0_DMA_RK29
 		 1:enable dma tx
 		 2:enable dma rx
 		 3:both enable dma tx and rx 
+config UART0_WAKEUP_RK29
+	bool "Serial port 0 WAKEUP support (EXPERIMENTAL)"
+	depends on UART0_RK29
+	default 0
+
 config UART1_RK29
 	bool "Serial port 1 support"
 	depends on SERIAL_RK29
@@ -1549,6 +1554,11 @@ config UART1_DMA_RK29
 		 1:enable dma tx
 	 	 2:enable dma rx
 	 	 3:both enable dma tx and rx 
+config UART1_WAKEUP_RK29
+	bool "Serial port 1 WAKEUP support (EXPERIMENTAL)"
+	depends on UART1_RK29
+	default 0
+
 config UART2_RK29
 	bool "Serial port 2 support"
 	depends on SERIAL_RK29
@@ -1565,6 +1575,11 @@ config UART2_DMA_RK29
 		 1:enable dma tx
 	 	 2:enable dma rx
 	 	 3:both enable dma tx and rx 
+config UART2_WAKEUP_RK29
+	bool "Serial port 2 WAKEUP support (EXPERIMENTAL)"
+	depends on UART2_RK29
+	default 0
+
 config UART3_RK29
 	bool "Serial port 3 support"
 	depends on SERIAL_RK29 && !ARCH_RK2928 && !ARCH_RK3026
@@ -1580,7 +1595,12 @@ config UART3_DMA_RK29
 	help 
 		 1:enable dma tx
 	 	 2:enable dma rx
-	 	 3:both enable dma tx and rx 
+	 	 3:both enable dma tx and rx
+config UART3_WAKEUP_RK29
+	bool "Serial port 3 WAKEUP support (EXPERIMENTAL)"
+	depends on UART3_RK29
+	default 0
+ 
 config SERIAL_RK29_CONSOLE
 	bool "Serial console support"
 	depends on SERIAL_RK29=y
