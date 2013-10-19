@@ -2987,6 +2987,11 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+bool tracing_is_disabled(void)
+{
+	return (tracing_disabled) ? true: false;
+}
+
 /*
  * Open and update trace_array ref count.
  * Must have the current trace_array passed to it.
