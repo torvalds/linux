@@ -136,6 +136,13 @@ static char *execute_command;
 static char *ramdisk_execute_command;
 
 /*
+ * Used to generate warnings if static_key manipulation functions are used
+ * before jump_label_init is called.
+ */
+bool static_key_initialized __read_mostly = false;
+EXPORT_SYMBOL_GPL(static_key_initialized);
+
+/*
  * If set, this is an indication to the drivers that reset the underlying
  * device before going ahead with the initialization otherwise driver might
  * rely on the BIOS and skip the reset operation.

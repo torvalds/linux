@@ -204,30 +204,16 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 
 int inet_sk_rebuild_header(struct sock *sk);
 
-extern u32 inet_ehash_secret;
-extern u32 ipv6_hash_secret;
-void build_ehash_secret(void);
-
-static inline unsigned int inet_ehashfn(struct net *net,
-					const __be32 laddr, const __u16 lport,
-					const __be32 faddr, const __be16 fport)
+static inline unsigned int __inet_ehashfn(const __be32 laddr,
+					  const __u16 lport,
+					  const __be32 faddr,
+					  const __be16 fport,
+					  u32 initval)
 {
 	return jhash_3words((__force __u32) laddr,
 			    (__force __u32) faddr,
 			    ((__u32) lport) << 16 | (__force __u32)fport,
-			    inet_ehash_secret + net_hash_mix(net));
-}
-
-static inline int inet_sk_ehashfn(const struct sock *sk)
-{
-	const struct inet_sock *inet = inet_sk(sk);
-	const __be32 laddr = inet->inet_rcv_saddr;
-	const __u16 lport = inet->inet_num;
-	const __be32 faddr = inet->inet_daddr;
-	const __be16 fport = inet->inet_dport;
-	struct net *net = sock_net(sk);
-
-	return inet_ehashfn(net, laddr, lport, faddr, fport);
+			    initval);
 }
 
 static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops)
