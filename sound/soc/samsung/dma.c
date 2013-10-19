@@ -441,6 +441,14 @@ static struct snd_soc_platform_driver samsung_asoc_platform = {
 	.pcm_free	= dma_free_dma_buffers,
 };
 
+void samsung_asoc_init_dma_data(struct snd_soc_dai *dai,
+				struct s3c_dma_params *playback,
+				struct s3c_dma_params *capture)
+{
+	snd_soc_dai_init_dma_data(dai, playback, capture);
+}
+EXPORT_SYMBOL_GPL(samsung_asoc_init_dma_data);
+
 int samsung_asoc_dma_platform_register(struct device *dev)
 {
 	return snd_soc_register_platform(dev, &samsung_asoc_platform);

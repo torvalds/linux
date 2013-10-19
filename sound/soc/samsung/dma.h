@@ -22,6 +22,9 @@ struct s3c_dma_params {
 	char *ch_name;
 };
 
+void samsung_asoc_init_dma_data(struct snd_soc_dai *dai,
+				struct s3c_dma_params *playback,
+				struct s3c_dma_params *capture);
 int samsung_asoc_dma_platform_register(struct device *dev);
 void samsung_asoc_dma_platform_unregister(struct device *dev);
 
