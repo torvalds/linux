@@ -1199,7 +1199,8 @@ static void w83793_init_client(struct i2c_client *client)
 
 static int watchdog_set_timeout(struct w83793_data *data, int timeout)
 {
-	int ret, mtimeout;
+	unsigned int mtimeout;
+	int ret;
 
 	mtimeout = DIV_ROUND_UP(timeout, 60);
 
