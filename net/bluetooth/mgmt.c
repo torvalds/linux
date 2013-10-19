@@ -4337,7 +4337,6 @@ void mgmt_set_powered_failed(struct hci_dev *hdev, int err)
 void mgmt_discoverable_timeout(struct hci_dev *hdev)
 {
 	struct hci_request req;
-	u8 scan = SCAN_PAGE;
 
 	hci_dev_lock(hdev);
 
@@ -4349,7 +4348,11 @@ void mgmt_discoverable_timeout(struct hci_dev *hdev)
 	clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
 
 	hci_req_init(&req, hdev);
-	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
+	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		u8 scan = SCAN_PAGE;
+		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE,
+			    sizeof(scan), &scan);
+	}
 	update_class(&req);
 	hci_req_run(&req, NULL);
 
