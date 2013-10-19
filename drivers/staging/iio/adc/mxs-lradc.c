@@ -1041,10 +1041,6 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 		goto err_mem;
 	}
 
-	ret = iio_sw_buffer_preenable(iio);
-	if (ret < 0)
-		goto err_buf;
-
 	if (lradc->soc == IMX28_LRADC)
 		mxs_lradc_reg_clear(lradc, LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK,
 							LRADC_CTRL1);
@@ -1069,8 +1065,6 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 
 	return 0;
 
-err_buf:
-	kfree(lradc->buffer);
 err_mem:
 	mutex_unlock(&lradc->lock);
 	return ret;

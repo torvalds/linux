@@ -61,17 +61,7 @@ static int ad7266_powerdown(struct ad7266_state *st)
 static int ad7266_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
-	int ret;
-
-	ret = ad7266_wakeup(st);
-	if (ret)
-		return ret;
-
-	ret = iio_sw_buffer_preenable(indio_dev);
-	if (ret)
-		ad7266_powerdown(st);
-
-	return ret;
+	return ad7266_wakeup(st);
 }
 
 static int ad7266_postdisable(struct iio_dev *indio_dev)

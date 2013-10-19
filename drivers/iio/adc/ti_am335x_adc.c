@@ -166,7 +166,7 @@ static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 	for (i = 0; i < fifo1count; i++)
 		read = tiadc_readl(adc_dev, REG_FIFO1);
 
-	return iio_sw_buffer_preenable(indio_dev);
+	return 0;
 }
 
 static int tiadc_buffer_postenable(struct iio_dev *indio_dev)

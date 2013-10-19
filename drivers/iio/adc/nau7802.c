@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/log2.h>
+#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>

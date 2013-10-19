@@ -15,6 +15,7 @@ atmel	Atmel Corporation
 avago	Avago Technologies
 bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
+capella	Capella Microsystems, Inc
 cavium	Cavium, Inc.
 chrp	Common Hardware Reference Platform
 cirrus	Cirrus Logic, Inc.
