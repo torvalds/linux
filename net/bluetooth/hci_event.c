@@ -198,6 +198,8 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 
 	memset(hdev->scan_rsp_data, 0, sizeof(hdev->scan_rsp_data));
 	hdev->scan_rsp_data_len = 0;
+
+	hdev->ssp_debug_mode = 0;
 }
 
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)

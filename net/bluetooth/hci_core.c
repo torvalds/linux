@@ -303,6 +303,55 @@ static int auto_accept_delay_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
 			auto_accept_delay_set, "%llu\n");
 
+static int ssp_debug_mode_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+	struct sk_buff *skb;
+	__u8 mode;
+	int err;
+
+	if (val != 0 && val != 1)
+		return -EINVAL;
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return -ENETDOWN;
+
+	hci_req_lock(hdev);
+	mode = val;
+	skb = __hci_cmd_sync(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE, sizeof(mode),
+			     &mode, HCI_CMD_TIMEOUT);
+	hci_req_unlock(hdev);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	err = -bt_to_errno(skb->data[0]);
+	kfree_skb(skb);
+
+	if (err < 0)
+		return err;
+
+	hci_dev_lock(hdev);
+	hdev->ssp_debug_mode = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int ssp_debug_mode_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->ssp_debug_mode;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ssp_debug_mode_fops, ssp_debug_mode_get,
+			ssp_debug_mode_set, "%llu\n");
+
 static int idle_timeout_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -1199,9 +1248,12 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &voice_setting_fops);
 	}
 
-	if (lmp_ssp_capable(hdev))
+	if (lmp_ssp_capable(hdev)) {
 		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
 				    hdev, &auto_accept_delay_fops);
+		debugfs_create_file("ssp_debug_mode", 0644, hdev->debugfs,
+				    hdev, &ssp_debug_mode_fops);
+	}
 
 	if (lmp_sniff_capable(hdev)) {
 		debugfs_create_file("idle_timeout", 0644, hdev->debugfs,

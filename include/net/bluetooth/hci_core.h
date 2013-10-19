@@ -169,6 +169,7 @@ struct hci_dev {
 	__u8		page_scan_type;
 	__u16		le_scan_interval;
 	__u16		le_scan_window;
+	__u8		ssp_debug_mode;
 
 	__u16		devid_source;
 	__u16		devid_vendor;
