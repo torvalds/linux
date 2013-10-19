@@ -62,6 +62,7 @@
 #define SLIC_OFFLOAD_IP_CHECKSUM		1
 #define STATS_TIMER_INTERVAL			2
 #define PING_TIMER_INTERVAL			    1
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -3636,8 +3637,8 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 		return err;
 
 	if (slic_debug > 0 && did_version++ == 0) {
-		printk(KERN_DEBUG "%s\n", slic_banner);
-		printk(KERN_DEBUG "%s\n", slic_proc_version);
+		dev_dbg(&pcidev->dev, "%s\n", slic_banner);
+		dev_dbg(&pcidev->dev, "%s\n", slic_proc_version);
 	}
 
 	if (!pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
@@ -3767,8 +3768,7 @@ static int __init slic_module_init(void)
 	slic_init_driver();
 
 	if (debug >= 0 && slic_debug != debug)
-		printk(KERN_DEBUG KBUILD_MODNAME ": debug level is %d.\n",
-		       debug);
+		pr_debug("debug level is %d.\n", debug);
 	if (debug >= 0)
 		slic_debug = debug;
 
