@@ -749,6 +749,9 @@ static void update_class(struct hci_request *req)
 	if (!hdev_is_powered(hdev))
 		return;
 
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return;
+
 	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		return;
 
