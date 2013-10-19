@@ -29,7 +29,6 @@ int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 	struct cg_proto *cg_proto, *parent_cg;
 	struct tcp_memcontrol *tcp;
 	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
-	struct net *net = current->nsproxy->net_ns;
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
@@ -37,9 +36,9 @@ int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 
 	tcp = tcp_from_cgproto(cg_proto);
 
-	tcp->tcp_prot_mem[0] = net->ipv4.sysctl_tcp_mem[0];
-	tcp->tcp_prot_mem[1] = net->ipv4.sysctl_tcp_mem[1];
-	tcp->tcp_prot_mem[2] = net->ipv4.sysctl_tcp_mem[2];
+	tcp->tcp_prot_mem[0] = sysctl_tcp_mem[0];
+	tcp->tcp_prot_mem[1] = sysctl_tcp_mem[1];
+	tcp->tcp_prot_mem[2] = sysctl_tcp_mem[2];
 	tcp->tcp_memory_pressure = 0;
 
 	parent_cg = tcp_prot.proto_cgroup(parent);
@@ -76,7 +75,6 @@ EXPORT_SYMBOL(tcp_destroy_cgroup);
 
 static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 {
-	struct net *net = current->nsproxy->net_ns;
 	struct tcp_memcontrol *tcp;
 	struct cg_proto *cg_proto;
 	u64 old_lim;
@@ -99,7 +97,7 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 
 	for (i = 0; i < 3; i++)
 		tcp->tcp_prot_mem[i] = min_t(long, val >> PAGE_SHIFT,
-					     net->ipv4.sysctl_tcp_mem[i]);
+					     sysctl_tcp_mem[i]);
 
 	if (val == RES_COUNTER_MAX)
 		clear_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);

@@ -1697,8 +1697,6 @@ static int __init inet_init(void)
 	ip_static_sysctl_init();
 #endif
 
-	tcp_prot.sysctl_mem = init_net.ipv4.sysctl_tcp_mem;
-
 	/*
 	 *	Add all the base protocols.
 	 */
