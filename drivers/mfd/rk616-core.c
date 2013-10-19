@@ -140,7 +140,38 @@ static int rk616_i2c_write_bits(struct mfd_rk616 *rk616, u16 reg,u32 mask,u32 *p
 	
 	return (ret == 1) ? 4 : ret;
 }
+
+
+static int rk616_i2c_bulk_write(struct mfd_rk616 *rk616, u16 reg,int count,u32 *pval)
+{
+	const struct i2c_client *client = rk616->client;
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	
+	
+	char *tx_buf = (char *)kmalloc((count<<2) + 2, GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+	
+	memcpy(tx_buf, &reg, 2); 
+	memcpy(tx_buf+2, (char *)pval, count<<2); 
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = (count<<2) + 2;
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = rk616->pdata->scl_rate;
+	msg.udelay = client->udelay;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	
+	return (ret == 1) ? count : ret;
+}
+
 #if defined(CONFIG_DEBUG_FS)
+
 static int rk616_reg_show(struct seq_file *s, void *v)
 {
 	int i = 0;
@@ -440,6 +471,8 @@ static int rk616_core_resume(struct device* dev)
 	rk616_clk_common_init(rk616);
 	return 0;
 }
+
+
 static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int ret;
@@ -499,6 +532,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	rk616->read_dev = rk616_i2c_read_reg;
 	rk616->write_dev = rk616_i2c_write_reg;
 	rk616->write_dev_bits = rk616_i2c_write_bits;
+	rk616->write_bulk = rk616_i2c_bulk_write;
 	
 #if defined(CONFIG_DEBUG_FS)
 	rk616->debugfs_dir = debugfs_create_dir("rk616", NULL);
@@ -513,6 +547,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	ret = mfd_add_devices(rk616->dev, -1,
 				      rk616_devs, ARRAY_SIZE(rk616_devs),
 				      NULL, rk616->irq_base);
+	
 	dev_info(&client->dev,"rk616 core probe success!\n");
 	return 0;
 }

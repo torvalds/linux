@@ -7,8 +7,10 @@ drivers/video/rockchip/transmitter/rk616_mipi_dsi.h
 #define DWC_DSI_VERSION	0x3131302A
 
 
-#define MIPI_DSI_PHY_OFFSET		0X0C00
+#define MIPI_DSI_PHY_OFFSET		0x0C00
+#define MIPI_DSI_PHY_SIZE		0x34c
 #define MIPI_DSI_HOST_OFFSET	0x1000
+#define MIPI_DSI_HOST_SIZE		0x74
 
 #define RK_ADDR(A)    (MIPI_DSI_PHY_OFFSET + (A << 2))
 

@@ -286,6 +286,7 @@ struct mfd_rk616 {
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev_bits)(struct mfd_rk616 *rk616,u16 reg,u32 mask,u32 *pval);
+	int (*write_bulk)(struct mfd_rk616 *rk616,u16 reg,int count,u32 *pval);
 };
 
 extern int rk616_set_vif(struct mfd_rk616 * rk616,rk_screen * screen,bool connect);
