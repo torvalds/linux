@@ -407,6 +407,14 @@ static inline int compute_score2(struct sock *sk, struct net *net,
 	return score;
 }
 
+static unsigned int udp_ehashfn(struct net *net, const __be32 laddr,
+				 const __u16 lport, const __be32 faddr,
+				 const __be16 fport)
+{
+	return __inet_ehashfn(laddr, lport, faddr, fport,
+			      inet_ehash_secret + net_hash_mix(net));
+}
+
 
 /* called with read_rcu_lock() */
 static struct sock *udp4_lib_lookup2(struct net *net,
@@ -430,8 +438,8 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				hash = inet_ehashfn(net, daddr, hnum,
-						    saddr, sport);
+				hash = udp_ehashfn(net, daddr, hnum,
+						   saddr, sport);
 				matches = 1;
 			}
 		} else if (score == badness && reuseport) {
@@ -511,8 +519,8 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				hash = inet_ehashfn(net, daddr, hnum,
-						    saddr, sport);
+				hash = udp_ehashfn(net, daddr, hnum,
+						   saddr, sport);
 				matches = 1;
 			}
 		} else if (score == badness && reuseport) {
