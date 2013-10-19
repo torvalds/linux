@@ -56,7 +56,7 @@
 #ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/compiler.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #define s_space "%%sr1"
 #define d_space "%%sr2"
 #else
@@ -524,4 +524,17 @@ EXPORT_SYMBOL(copy_to_user);
 EXPORT_SYMBOL(copy_from_user);
 EXPORT_SYMBOL(copy_in_user);
 EXPORT_SYMBOL(memcpy);
+
+long probe_kernel_read(void *dst, const void *src, size_t size)
+{
+	unsigned long addr = (unsigned long)src;
+
+	if (size < 0 || addr < PAGE_SIZE)
+		return -EFAULT;
+
+	/* check for I/O space F_EXTEND(0xfff00000) access as well? */
+
+	return __probe_kernel_read(dst, src, size);
+}
+
 #endif
