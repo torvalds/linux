@@ -2812,6 +2812,14 @@ static void handle_stripe_clean_event(struct r5conf *conf,
 		}
 		/* now that discard is done we can proceed with any sync */
 		clear_bit(STRIPE_DISCARD, &sh->state);
+		/*
+		 * SCSI discard will change some bio fields and the stripe has
+		 * no updated data, so remove it from hash list and the stripe
+		 * will be reinitialized
+		 */
+		spin_lock_irq(&conf->device_lock);
+		remove_hash(sh);
+		spin_unlock_irq(&conf->device_lock);
 		if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state))
 			set_bit(STRIPE_HANDLE, &sh->state);
 
