@@ -226,20 +226,6 @@ static int tcp_cgroup_reset(struct cgroup_subsys_state *css, unsigned int event)
 	return 0;
 }
 
-void tcp_prot_mem(struct mem_cgroup *memcg, long val, int idx)
-{
-	struct tcp_memcontrol *tcp;
-	struct cg_proto *cg_proto;
-
-	cg_proto = tcp_prot.proto_cgroup(memcg);
-	if (!cg_proto)
-		return;
-
-	tcp = tcp_from_cgproto(cg_proto);
-
-	tcp->tcp_prot_mem[idx] = val;
-}
-
 static struct cftype tcp_files[] = {
 	{
 		.name = "kmem.tcp.limit_in_bytes",
