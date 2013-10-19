@@ -939,7 +939,7 @@ nct6775_create_attr_group(struct device *dev, struct sensor_template_group *tg,
 	struct sensor_device_attribute_2 *a2;
 	struct attribute **attrs;
 	struct sensor_device_template **t;
-	int i, j, count;
+	int i, count;
 
 	if (repeat <= 0)
 		return ERR_PTR(-EINVAL);
@@ -970,7 +970,7 @@ nct6775_create_attr_group(struct device *dev, struct sensor_template_group *tg,
 
 	for (i = 0; i < repeat; i++) {
 		t = tg->templates;
-		for (j = 0; *t != NULL; j++) {
+		while (*t != NULL) {
 			snprintf(su->name, sizeof(su->name),
 				 (*t)->dev_attr.attr.name, tg->base + i);
 			if ((*t)->s2) {
