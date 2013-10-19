@@ -3649,8 +3649,7 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 		pci_using_dac = 1;
 		err = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (err) {
-			dev_err(&pcidev->dev, "unable to obtain 64-bit DMA for "
-					"consistent allocations\n");
+			dev_err(&pcidev->dev, "unable to obtain 64-bit DMA for consistent allocations\n");
 			goto err_out_disable_pci;
 		}
 	} else {
