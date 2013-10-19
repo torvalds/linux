@@ -2128,6 +2128,9 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 			}
 			next->wr.ud.remote_qpn  = user_wr->wr.ud.remote_qpn;
 			next->wr.ud.remote_qkey = user_wr->wr.ud.remote_qkey;
+			if (next->opcode == IB_WR_SEND_WITH_IMM)
+				next->ex.imm_data =
+					(__be32 __force) user_wr->ex.imm_data;
 		} else {
 			switch (next->opcode) {
 			case IB_WR_RDMA_WRITE_WITH_IMM:
