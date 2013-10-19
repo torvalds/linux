@@ -610,6 +610,7 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_put_dfa(profile->policy.dfa);
 	aa_put_replacedby(profile->replacedby);
 
+	kzfree(profile->hash);
 	kzfree(profile);
 }
 
