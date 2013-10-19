@@ -643,6 +643,8 @@ static int batadv_hard_if_event(struct notifier_block *this,
 
 	if (batadv_softif_is_valid(net_dev) && event == NETDEV_REGISTER) {
 		batadv_sysfs_add_meshif(net_dev);
+		bat_priv = netdev_priv(net_dev);
+		batadv_softif_create_vlan(bat_priv, BATADV_NO_FLAGS);
 		return NOTIFY_DONE;
 	}
 

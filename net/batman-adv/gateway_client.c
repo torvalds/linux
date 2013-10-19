@@ -221,11 +221,6 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	struct batadv_neigh_node *router = NULL;
 	char gw_addr[18] = { '\0' };
 
-	/* The batman daemon checks here if we already passed a full originator
-	 * cycle in order to make sure we don't choose the first gateway we
-	 * hear about. This check is based on the daemon's uptime which we
-	 * don't have.
-	 */
 	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
 		goto out;
 
@@ -726,7 +721,20 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	return true;
 }
 
-/* this call might reallocate skb data */
+/**
+ * batadv_gw_out_of_range - check if the dhcp request destination is the best gw
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the outgoing packet
+ *
+ * Check if the skb is a DHCP request and if it is sent to the current best GW
+ * server. Due to topology changes it may be the case that the GW server
+ * previously selected is not the best one anymore.
+ *
+ * Returns true if the packet destination is unicast and it is not the best gw,
+ * false otherwise.
+ *
+ * This call might reallocate skb data.
+ */
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb)
 {
@@ -737,6 +745,9 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	bool ret, out_of_range = false;
 	unsigned int header_len = 0;
 	uint8_t curr_tq_avg;
+	unsigned short vid;
+
+	vid = batadv_get_vid(skb, 0);
 
 	ret = batadv_gw_is_dhcp_target(skb, &header_len);
 	if (!ret)
@@ -744,7 +755,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 	ethhdr = (struct ethhdr *)skb->data;
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-						 ethhdr->h_dest);
+						 ethhdr->h_dest, vid);
 	if (!orig_dst_node)
 		goto out;
 

@@ -38,41 +38,54 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb,
 					   struct batadv_orig_node *orig_node,
 					   int packet_subtype);
-int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
-				    struct sk_buff *skb, int packet_type,
-				    int packet_subtype);
-
+int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
+				   struct sk_buff *skb, int packet_type,
+				   int packet_subtype, unsigned short vid);
+int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
+			   unsigned short vid);
 
 /**
- * batadv_send_unicast_skb - send the skb encapsulated in a unicast packet
+ * batadv_send_skb_via_tt - send an skb via TT lookup
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the payload to send
+ * @vid: the vid to be used to search the translation table
  *
- * Returns 1 in case of error or 0 otherwise.
+ * Look up the recipient node for the destination address in the ethernet
+ * header via the translation table. Wrap the given skb into a batman-adv
+ * unicast header. Then send this frame to the according destination node.
+ *
+ * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
-static inline int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
-					  struct sk_buff *skb)
+static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb,
+					 unsigned short vid)
 {
-	return batadv_send_skb_generic_unicast(bat_priv, skb, BATADV_UNICAST,
-					       0);
+	return batadv_send_skb_via_tt_generic(bat_priv, skb, BATADV_UNICAST, 0,
+					      vid);
 }
 
 /**
- * batadv_send_4addr_unicast_skb - send the skb encapsulated in a unicast 4addr
- *  packet
+ * batadv_send_skb_via_tt_4addr - send an skb via TT lookup
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the payload to send
  * @packet_subtype: the unicast 4addr packet subtype to use
+ * @vid: the vid to be used to search the translation table
  *
- * Returns 1 in case of error or 0 otherwise.
+ * Look up the recipient node for the destination address in the ethernet
+ * header via the translation table. Wrap the given skb into a batman-adv
+ * unicast-4addr header. Then send this frame to the according destination
+ * node.
+ *
+ * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
-static inline int batadv_send_skb_unicast_4addr(struct batadv_priv *bat_priv,
-						struct sk_buff *skb,
-						int packet_subtype)
+static inline int batadv_send_skb_via_tt_4addr(struct batadv_priv *bat_priv,
+					       struct sk_buff *skb,
+					       int packet_subtype,
+					       unsigned short vid)
 {
-	return batadv_send_skb_generic_unicast(bat_priv, skb,
-					       BATADV_UNICAST_4ADDR,
-					       packet_subtype);
+	return batadv_send_skb_via_tt_generic(bat_priv, skb,
+					      BATADV_UNICAST_4ADDR,
+					      packet_subtype, vid);
 }
 
 #endif /* _NET_BATMAN_ADV_SEND_H_ */

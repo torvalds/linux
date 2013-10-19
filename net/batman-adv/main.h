@@ -20,8 +20,8 @@
 #ifndef _NET_BATMAN_ADV_MAIN_H_
 #define _NET_BATMAN_ADV_MAIN_H_
 
-#define BATADV_DRIVER_AUTHOR "Marek Lindner <lindner_marek@yahoo.de>, " \
-			     "Simon Wunderlich <siwu@hrz.tu-chemnitz.de>"
+#define BATADV_DRIVER_AUTHOR "Marek Lindner <mareklindner@neomailbox.ch>, " \
+			     "Simon Wunderlich <sw@simonwunderlich.de>"
 #define BATADV_DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
@@ -167,15 +167,9 @@ enum batadv_uev_type {
 #include <net/rtnetlink.h>
 #include <linux/jiffies.h>
 #include <linux/seq_file.h>
-#include "types.h"
+#include <linux/if_vlan.h>
 
-/**
- * batadv_vlan_flags - flags for the four MSB of any vlan ID field
- * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
- */
-enum batadv_vlan_flags {
-	BATADV_VLAN_HAS_TAG	= BIT(15),
-};
+#include "types.h"
 
 #define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
 			       (int)(vid & VLAN_VID_MASK) : -1)
@@ -368,5 +362,6 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 			      uint8_t *dst, uint8_t type, uint8_t version,
 			      void *tvlv_value, uint16_t tvlv_value_len);
+unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

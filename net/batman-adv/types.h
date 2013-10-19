@@ -107,6 +107,32 @@ struct batadv_frag_list_entry {
 };
 
 /**
+ * struct batadv_vlan_tt - VLAN specific TT attributes
+ * @crc: CRC32 checksum of the entries belonging to this vlan
+ * @num_entries: number of TT entries for this VLAN
+ */
+struct batadv_vlan_tt {
+	uint32_t crc;
+	atomic_t num_entries;
+};
+
+/**
+ * batadv_orig_node_vlan - VLAN specific data per orig_node
+ * @vid: the VLAN identifier
+ * @tt: VLAN specific TT attributes
+ * @list: list node for orig_node::vlan_list
+ * @refcount: number of context where this object is currently in use
+ * @rcu: struct used for freeing in a RCU-safe manner
+ */
+struct batadv_orig_node_vlan {
+	unsigned short vid;
+	struct batadv_vlan_tt tt;
+	struct list_head list;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
  * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
  * @orig: originator ethernet address
  * @primary_addr: hosts primary interface address
@@ -120,14 +146,16 @@ struct batadv_frag_list_entry {
  * @batman_seqno_reset: time when the batman seqno window was reset
  * @capabilities: announced capabilities of this originator
  * @last_ttvn: last seen translation table version number
- * @tt_crc: CRC of the translation table
  * @tt_buff: last tt changeset this node received from the orig node
  * @tt_buff_len: length of the last tt changeset this node received from the
  *  orig node
  * @tt_buff_lock: lock that protects tt_buff and tt_buff_len
- * @tt_size: number of global TT entries announced by the orig node
  * @tt_initialised: bool keeping track of whether or not this node have received
  *  any translation table information from the orig node yet
+ * @tt_lock: prevents from updating the table while reading it. Table update is
+ *  made up by two operations (data structure update and metdata -CRC/TTVN-
+ *  recalculation) and they have to be executed atomically in order to avoid
+ *  another thread to read the table/metadata between those.
  * @last_real_seqno: last and best known sequence number
  * @last_ttl: ttl of last received packet
  * @bcast_bits: bitfield containing the info which payload broadcast originated
@@ -150,6 +178,9 @@ struct batadv_frag_list_entry {
  * @in_coding_list_lock: protects in_coding_list
  * @out_coding_list_lock: protects out_coding_list
  * @fragments: array with heads for fragment chains
+ * @vlan_list: a list of orig_node_vlan structs, one per VLAN served by the
+ *  originator represented by this object
+ * @vlan_list_lock: lock protecting vlan_list
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -165,12 +196,12 @@ struct batadv_orig_node {
 	unsigned long batman_seqno_reset;
 	uint8_t capabilities;
 	atomic_t last_ttvn;
-	uint32_t tt_crc;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff & tt_buff_len */
-	atomic_t tt_size;
 	bool tt_initialised;
+	/* prevents from changing the table while reading it */
+	spinlock_t tt_lock;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
@@ -197,6 +228,8 @@ struct batadv_orig_node {
 	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
 #endif
 	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
+	struct list_head vlan_list;
+	spinlock_t vlan_list_lock; /* protects vlan_list */
 };
 
 /**
@@ -383,11 +416,14 @@ enum batadv_counters {
  * @changes_list_lock: lock protecting changes_list
  * @req_list_lock: lock protecting req_list
  * @roam_list_lock: lock protecting roam_list
- * @local_entry_num: number of entries in the local hash table
- * @local_crc: Checksum of the local table, recomputed before sending a new OGM
  * @last_changeset: last tt changeset this host has generated
  * @last_changeset_len: length of last tt changeset this host has generated
  * @last_changeset_lock: lock protecting last_changeset & last_changeset_len
+ * @commit_lock: prevents from executing a local TT commit while reading the
+ *  local table. The local TT commit is made up by two operations (data
+ *  structure update and metdata -CRC/TTVN- recalculation) and they have to be
+ *  executed atomically in order to avoid another thread to read the
+ *  table/metadata between those.
  * @work: work queue callback item for translation table purging
  */
 struct batadv_priv_tt {
@@ -402,12 +438,12 @@ struct batadv_priv_tt {
 	spinlock_t changes_list_lock; /* protects changes */
 	spinlock_t req_list_lock; /* protects req_list */
 	spinlock_t roam_list_lock; /* protects roam_list */
-	atomic_t local_entry_num;
-	uint32_t local_crc;
 	unsigned char *last_changeset;
 	int16_t last_changeset_len;
 	/* protects last_changeset & last_changeset_len */
 	spinlock_t last_changeset_lock;
+	/* prevents from executing a commit while reading the table */
+	spinlock_t commit_lock;
 	struct delayed_work work;
 };
 
@@ -531,6 +567,26 @@ struct batadv_priv_nc {
 };
 
 /**
+ * struct batadv_softif_vlan - per VLAN attributes set
+ * @vid: VLAN identifier
+ * @kobj: kobject for sysfs vlan subdirectory
+ * @ap_isolation: AP isolation state
+ * @tt: TT private attributes (VLAN specific)
+ * @list: list node for bat_priv::softif_vlan_list
+ * @refcount: number of context where this object is currently in use
+ * @rcu: struct used for freeing in a RCU-safe manner
+ */
+struct batadv_softif_vlan {
+	unsigned short vid;
+	struct kobject *kobj;
+	atomic_t ap_isolation;		/* boolean */
+	struct batadv_vlan_tt tt;
+	struct hlist_node list;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
  * struct batadv_priv - per mesh interface data
  * @mesh_state: current status of the mesh (inactive/active/deactivating)
  * @soft_iface: net device which holds this struct as private data
@@ -540,7 +596,6 @@ struct batadv_priv_nc {
  * @bonding: bool indicating whether traffic bonding is enabled
  * @fragmentation: bool indicating whether traffic fragmentation is enabled
  * @frag_seqno: incremental counter to identify chains of egress fragments
- * @ap_isolation: bool indicating whether ap isolation is enabled
  * @bridge_loop_avoidance: bool indicating whether bridge loop avoidance is
  *  enabled
  * @distributed_arp_table: bool indicating whether distributed ARP table is
@@ -566,6 +621,9 @@ struct batadv_priv_nc {
  * @primary_if: one of the hard interfaces assigned to this mesh interface
  *  becomes the primary interface
  * @bat_algo_ops: routing algorithm used by this mesh interface
+ * @softif_vlan_list: a list of softif_vlan structs, one per VLAN created on top
+ *  of the mesh interface represented by this object
+ * @softif_vlan_list_lock: lock protecting softif_vlan_list
  * @bla: bridge loope avoidance data
  * @debug_log: holding debug logging relevant data
  * @gw: gateway data
@@ -584,7 +642,6 @@ struct batadv_priv {
 	atomic_t bonding;
 	atomic_t fragmentation;
 	atomic_t frag_seqno;
-	atomic_t ap_isolation;
 #ifdef CONFIG_BATMAN_ADV_BLA
 	atomic_t bridge_loop_avoidance;
 #endif
@@ -613,6 +670,8 @@ struct batadv_priv {
 	struct work_struct cleanup_work;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct batadv_algo_ops *bat_algo_ops;
+	struct hlist_head softif_vlan_list;
+	spinlock_t softif_vlan_list_lock; /* protects softif_vlan_list */
 #ifdef CONFIG_BATMAN_ADV_BLA
 	struct batadv_priv_bla bla;
 #endif
@@ -715,6 +774,7 @@ struct batadv_bla_claim {
 /**
  * struct batadv_tt_common_entry - tt local & tt global common data
  * @addr: mac address of non-mesh client
+ * @vid: VLAN identifier
  * @hash_entry: hlist node for batadv_priv_tt::local_hash or for
  *  batadv_priv_tt::global_hash
  * @flags: various state handling flags (see batadv_tt_client_flags)
@@ -724,6 +784,7 @@ struct batadv_bla_claim {
  */
 struct batadv_tt_common_entry {
 	uint8_t addr[ETH_ALEN];
+	unsigned short vid;
 	struct hlist_node hash_entry;
 	uint16_t flags;
 	unsigned long added_at;
@@ -931,6 +992,7 @@ struct batadv_algo_ops {
  * is used to stored ARP entries needed for the global DAT cache
  * @ip: the IPv4 corresponding to this DAT/ARP entry
  * @mac_addr: the MAC address associated to the stored IPv4
+ * @vid: the vlan ID associated to this entry
  * @last_update: time in jiffies when this entry was refreshed last time
  * @hash_entry: hlist node for batadv_priv_dat::hash
  * @refcount: number of contexts the object is used
@@ -939,6 +1001,7 @@ struct batadv_algo_ops {
 struct batadv_dat_entry {
 	__be32 ip;
 	uint8_t mac_addr[ETH_ALEN];
+	unsigned short vid;
 	unsigned long last_update;
 	struct hlist_node hash_entry;
 	atomic_t refcount;

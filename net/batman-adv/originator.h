@@ -40,6 +40,13 @@ int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num);
 int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num);
+struct batadv_orig_node_vlan *
+batadv_orig_node_vlan_new(struct batadv_orig_node *orig_node,
+			  unsigned short vid);
+struct batadv_orig_node_vlan *
+batadv_orig_node_vlan_get(struct batadv_orig_node *orig_node,
+			  unsigned short vid);
+void batadv_orig_node_vlan_free_ref(struct batadv_orig_node_vlan *orig_vlan);
 
 
 /* hashfunction to choose an entry in a hash table of given size
