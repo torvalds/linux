@@ -315,7 +315,6 @@ struct hci_conn {
 	__u8		attempt;
 	__u8		dev_class[3];
 	__u8		features[HCI_MAX_PAGES][8];
-	__u16		interval;
 	__u16		pkt_type;
 	__u16		link_policy;
 	__u32		link_mode;

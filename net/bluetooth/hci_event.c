@@ -2549,7 +2549,6 @@ static void hci_mode_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
 		conn->mode = ev->mode;
-		conn->interval = __le16_to_cpu(ev->interval);
 
 		if (!test_and_clear_bit(HCI_CONN_MODE_CHANGE_PEND,
 					&conn->flags)) {
