@@ -123,7 +123,7 @@ int __init bond_netlink_init(void)
 	return rtnl_link_register(&bond_link_ops);
 }
 
-void __exit bond_netlink_fini(void)
+void bond_netlink_fini(void)
 {
 	rtnl_link_unregister(&bond_link_ops);
 }
