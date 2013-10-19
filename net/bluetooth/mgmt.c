@@ -632,7 +632,7 @@ static void update_adv_data(struct hci_request *req)
 	struct hci_cp_le_set_adv_data cp;
 	u8 len;
 
-	if (!lmp_le_capable(hdev))
+	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
 		return;
 
 	memset(&cp, 0, sizeof(cp));
