@@ -887,7 +887,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	return skb;
 }
 
-static struct sk_buff* ieee80211_assoc_resp(struct ieee80211_device *ieee,
+static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 					    u8 *dest)
 {
 	struct sk_buff *skb;
@@ -941,7 +941,7 @@ static struct sk_buff* ieee80211_assoc_resp(struct ieee80211_device *ieee,
 	return skb;
 }
 
-static struct sk_buff* ieee80211_auth_resp(struct ieee80211_device *ieee,
+static struct sk_buff *ieee80211_auth_resp(struct ieee80211_device *ieee,
 					   int status, u8 *dest)
 {
 	struct sk_buff *skb;
