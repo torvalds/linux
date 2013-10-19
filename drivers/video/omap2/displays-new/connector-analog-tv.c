@@ -191,7 +191,7 @@ static int tvc_probe_pdata(struct platform_device *pdev)
 	in = omap_dss_find_output(pdata->source);
 	if (in == NULL) {
 		dev_err(&pdev->dev, "Failed to find video source\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	ddata->in = in;

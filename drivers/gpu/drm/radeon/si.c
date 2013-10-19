@@ -85,6 +85,9 @@ extern void si_dma_vm_set_page(struct radeon_device *rdev,
 			       uint32_t incr, uint32_t flags);
 static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					 bool enable);
+static void si_fini_pg(struct radeon_device *rdev);
+static void si_fini_cg(struct radeon_device *rdev);
+static void si_rlc_stop(struct radeon_device *rdev);
 
 static const u32 verde_rlc_save_restore_register_list[] =
 {
@@ -3607,6 +3610,13 @@ static void si_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
 	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+
+	/* disable PG/CG */
+	si_fini_pg(rdev);
+	si_fini_cg(rdev);
+
+	/* stop the rlc */
+	si_rlc_stop(rdev);
 
 	/* Disable CP parsing/prefetching */
 	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);

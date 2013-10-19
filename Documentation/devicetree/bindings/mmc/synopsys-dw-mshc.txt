@@ -1,14 +1,14 @@
-* Synopsis Designware Mobile Storage Host Controller
+* Synopsys Designware Mobile Storage Host Controller
 
-The Synopsis designware mobile storage host controller is used to interface
+The Synopsys designware mobile storage host controller is used to interface
 a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
 differences between the core mmc properties described by mmc.txt and the
-properties used by the Synopsis Designware Mobile Storage Host Controller.
+properties used by the Synopsys Designware Mobile Storage Host Controller.
 
 Required Properties:
 
 * compatible: should be
-	- snps,dw-mshc: for controllers compliant with synopsis dw-mshc.
+	- snps,dw-mshc: for controllers compliant with synopsys dw-mshc.
 * #address-cells: should be 1.
 * #size-cells: should be 0.
 
