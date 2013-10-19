@@ -204,6 +204,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
+	gt->npage = gt->gem.size / PAGE_SIZE;
 	gt->pages = pages;
 
 	return 0;

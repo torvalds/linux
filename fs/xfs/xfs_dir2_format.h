@@ -497,69 +497,58 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 /*
  * Offsets of . and .. in data space (always block 0)
  *
- * The macros are used for shortform directories as they have no headers to read
- * the magic number out of. Shortform directories need to know the size of the
- * data block header because the sfe embeds the block offset of the entry into
- * it so that it doesn't change when format conversion occurs. Bad Things Happen
- * if we don't follow this rule.
- *
  * XXX: there is scope for significant optimisation of the logic here. Right
  * now we are checking for "dir3 format" over and over again. Ideally we should
  * only do it once for each operation.
  */
-#define	XFS_DIR3_DATA_DOT_OFFSET(mp)	\
-	xfs_dir3_data_hdr_size(xfs_sb_version_hascrc(&(mp)->m_sb))
-#define	XFS_DIR3_DATA_DOTDOT_OFFSET(mp)	\
-	(XFS_DIR3_DATA_DOT_OFFSET(mp) + xfs_dir3_data_entsize(mp, 1))
-#define	XFS_DIR3_DATA_FIRST_OFFSET(mp)		\
-	(XFS_DIR3_DATA_DOTDOT_OFFSET(mp) + xfs_dir3_data_entsize(mp, 2))
-
 static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_dot_offset(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dot_offset(struct xfs_mount *mp)
 {
-	return xfs_dir3_data_entry_offset(hdr);
+	return xfs_dir3_data_hdr_size(xfs_sb_version_hascrc(&mp->m_sb));
 }
 
 static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_dotdot_offset(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dotdot_offset(struct xfs_mount *mp)
 {
-	bool dir3 = hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
-		    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC);
-	return xfs_dir3_data_dot_offset(hdr) +
-		__xfs_dir3_data_entsize(dir3, 1);
+	return xfs_dir3_data_dot_offset(mp) +
+		xfs_dir3_data_entsize(mp, 1);
 }
 
 static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_first_offset(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_first_offset(struct xfs_mount *mp)
 {
-	bool dir3 = hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
-		    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC);
-	return xfs_dir3_data_dotdot_offset(hdr) +
-		__xfs_dir3_data_entsize(dir3, 2);
+	return xfs_dir3_data_dotdot_offset(mp) +
+		xfs_dir3_data_entsize(mp, 2);
 }
 
 /*
  * location of . and .. in data space (always block 0)
  */
 static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_dot_entry_p(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dot_entry_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dot_offset(hdr));
+		((char *)hdr + xfs_dir3_data_dot_offset(mp));
 }
 
 static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_dotdot_entry_p(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_dotdot_entry_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dotdot_offset(hdr));
+		((char *)hdr + xfs_dir3_data_dotdot_offset(mp));
 }
 
 static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_first_entry_p(struct xfs_dir2_data_hdr *hdr)
+xfs_dir3_data_first_entry_p(
+	struct xfs_mount	*mp,
+	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_first_offset(hdr));
+		((char *)hdr + xfs_dir3_data_first_offset(mp));
 }
 
 /*

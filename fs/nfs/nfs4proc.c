@@ -912,6 +912,7 @@ struct nfs4_opendata {
 	struct iattr attrs;
 	unsigned long timestamp;
 	unsigned int rpc_done : 1;
+	unsigned int file_created : 1;
 	unsigned int is_recover : 1;
 	int rpc_status;
 	int cancelled;
@@ -1946,8 +1947,13 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 
 	nfs_fattr_map_and_free_names(server, &data->f_attr);
 
-	if (o_arg->open_flags & O_CREAT)
+	if (o_arg->open_flags & O_CREAT) {
 		update_changeattr(dir, &o_res->cinfo);
+		if (o_arg->open_flags & O_EXCL)
+			data->file_created = 1;
+		else if (o_res->cinfo.before != o_res->cinfo.after)
+			data->file_created = 1;
+	}
 	if ((o_res->rflags & NFS4_OPEN_RESULT_LOCKTYPE_POSIX) == 0)
 		server->caps &= ~NFS_CAP_POSIX_LOCK;
 	if(o_res->rflags & NFS4_OPEN_RESULT_CONFIRM) {
@@ -2191,7 +2197,8 @@ static int _nfs4_do_open(struct inode *dir,
 			struct nfs_open_context *ctx,
 			int flags,
 			struct iattr *sattr,
-			struct nfs4_label *label)
+			struct nfs4_label *label,
+			int *opened)
 {
 	struct nfs4_state_owner  *sp;
 	struct nfs4_state     *state = NULL;
@@ -2261,6 +2268,8 @@ static int _nfs4_do_open(struct inode *dir,
 			nfs_setsecurity(state->inode, opendata->o_res.f_attr, olabel);
 		}
 	}
+	if (opendata->file_created)
+		*opened |= FILE_CREATED;
 
 	if (pnfs_use_threshold(ctx_th, opendata->f_attr.mdsthreshold, server))
 		*ctx_th = opendata->f_attr.mdsthreshold;
@@ -2289,7 +2298,8 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 					struct nfs_open_context *ctx,
 					int flags,
 					struct iattr *sattr,
-					struct nfs4_label *label)
+					struct nfs4_label *label,
+					int *opened)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_exception exception = { };
@@ -2297,7 +2307,7 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 	int status;
 
 	do {
-		status = _nfs4_do_open(dir, ctx, flags, sattr, label);
+		status = _nfs4_do_open(dir, ctx, flags, sattr, label, opened);
 		res = ctx->state;
 		trace_nfs4_open_file(ctx, flags, status);
 		if (status == 0)
@@ -2659,7 +2669,8 @@ out:
 }
 
 static struct inode *
-nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags, struct iattr *attr)
+nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx,
+		int open_flags, struct iattr *attr, int *opened)
 {
 	struct nfs4_state *state;
 	struct nfs4_label l = {0, 0, 0, NULL}, *label = NULL;
@@ -2667,7 +2678,7 @@ nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags
 	label = nfs4_label_init_security(dir, ctx->dentry, attr, &l);
 
 	/* Protect against concurrent sillydeletes */
-	state = nfs4_do_open(dir, ctx, open_flags, attr, label);
+	state = nfs4_do_open(dir, ctx, open_flags, attr, label, opened);
 
 	nfs4_label_release_security(label);
 
@@ -3332,6 +3343,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	struct nfs4_label l, *ilabel = NULL;
 	struct nfs_open_context *ctx;
 	struct nfs4_state *state;
+	int opened = 0;
 	int status = 0;
 
 	ctx = alloc_nfs_open_context(dentry, FMODE_READ);
@@ -3341,7 +3353,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	ilabel = nfs4_label_init_security(dir, dentry, sattr, &l);
 
 	sattr->ia_mode &= ~current_umask();
-	state = nfs4_do_open(dir, ctx, flags, sattr, ilabel);
+	state = nfs4_do_open(dir, ctx, flags, sattr, ilabel, &opened);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
 		goto out;
@@ -7564,8 +7576,10 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 {
 	int err;
 	struct page *page;
-	rpc_authflavor_t flavor;
+	rpc_authflavor_t flavor = RPC_AUTH_MAXFLAVOR;
 	struct nfs4_secinfo_flavors *flavors;
+	struct nfs4_secinfo4 *secinfo;
+	int i;
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
@@ -7587,9 +7601,31 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	if (err)
 		goto out_freepage;
 
-	flavor = nfs_find_best_sec(flavors);
-	if (err == 0)
-		err = nfs4_lookup_root_sec(server, fhandle, info, flavor);
+	for (i = 0; i < flavors->num_flavors; i++) {
+		secinfo = &flavors->flavors[i];
+
+		switch (secinfo->flavor) {
+		case RPC_AUTH_NULL:
+		case RPC_AUTH_UNIX:
+		case RPC_AUTH_GSS:
+			flavor = rpcauth_get_pseudoflavor(secinfo->flavor,
+					&secinfo->flavor_info);
+			break;
+		default:
+			flavor = RPC_AUTH_MAXFLAVOR;
+			break;
+		}
+
+		if (flavor != RPC_AUTH_MAXFLAVOR) {
+			err = nfs4_lookup_root_sec(server, fhandle,
+						   info, flavor);
+			if (!err)
+				break;
+		}
+	}
+
+	if (flavor == RPC_AUTH_MAXFLAVOR)
+		err = -EPERM;
 
 out_freepage:
 	put_page(page);
