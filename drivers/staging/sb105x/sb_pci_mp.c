@@ -1808,10 +1808,7 @@ void mp_unregister_driver(struct uart_driver *drv)
     drv->tty_driver = NULL;
 
 
-    if (drv->state)
-    {
-        kfree(drv->state);
-    }
+    kfree(drv->state);
 
 }
 
