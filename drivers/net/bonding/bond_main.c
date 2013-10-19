@@ -1910,61 +1910,6 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 	return ret;
 }
 
-/*
- * This function changes the active slave to slave <slave_dev>.
- * It returns -EINVAL in the following cases.
- *  - <slave_dev> is not found in the list.
- *  - There is not active slave now.
- *  - <slave_dev> is already active.
- *  - The link state of <slave_dev> is not BOND_LINK_UP.
- *  - <slave_dev> is not running.
- * In these cases, this function does nothing.
- * In the other cases, current_slave pointer is changed and 0 is returned.
- */
-static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_device *slave_dev)
-{
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *old_active = NULL;
-	struct slave *new_active = NULL;
-	int res = 0;
-
-	if (!USES_PRIMARY(bond->params.mode))
-		return -EINVAL;
-
-	/* Verify that bond_dev is indeed the master of slave_dev */
-	if (!(slave_dev->flags & IFF_SLAVE) ||
-	    !netdev_has_upper_dev(slave_dev, bond_dev))
-		return -EINVAL;
-
-	read_lock(&bond->lock);
-
-	old_active = bond->curr_active_slave;
-	new_active = bond_get_slave_by_dev(bond, slave_dev);
-	/*
-	 * Changing to the current active: do nothing; return success.
-	 */
-	if (new_active && new_active == old_active) {
-		read_unlock(&bond->lock);
-		return 0;
-	}
-
-	if (new_active &&
-	    old_active &&
-	    new_active->link == BOND_LINK_UP &&
-	    IS_UP(new_active->dev)) {
-		block_netpoll_tx();
-		write_lock_bh(&bond->curr_slave_lock);
-		bond_change_active_slave(bond, new_active);
-		write_unlock_bh(&bond->curr_slave_lock);
-		unblock_netpoll_tx();
-	} else
-		res = -EINVAL;
-
-	read_unlock(&bond->lock);
-
-	return res;
-}
-
 static int bond_info_query(struct net_device *bond_dev, struct ifbond *info)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -3257,6 +3202,7 @@ static struct rtnl_link_stats64 *bond_get_stats(struct net_device *bond_dev,
 
 static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd)
 {
+	struct bonding *bond = netdev_priv(bond_dev);
 	struct net_device *slave_dev = NULL;
 	struct ifbond k_binfo;
 	struct ifbond __user *u_binfo = NULL;
@@ -3287,7 +3233,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 
 
 		if (mii->reg_num == 1) {
-			struct bonding *bond = netdev_priv(bond_dev);
 			mii->val_out = 0;
 			read_lock(&bond->lock);
 			read_lock(&bond->curr_slave_lock);
@@ -3359,7 +3304,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 			break;
 		case BOND_CHANGE_ACTIVE_OLD:
 		case SIOCBONDCHANGEACTIVE:
-			res = bond_ioctl_change_active(bond_dev, slave_dev);
+			res = bond_option_active_slave_set(bond, slave_dev);
 			break;
 		default:
 			res = -EOPNOTSUPP;
@@ -3951,7 +3896,7 @@ static void bond_destructor(struct net_device *bond_dev)
 	free_netdev(bond_dev);
 }
 
-static void bond_setup(struct net_device *bond_dev)
+void bond_setup(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
@@ -4451,31 +4396,10 @@ static int bond_init(struct net_device *bond_dev)
 	return 0;
 }
 
-static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
-{
-	if (tb[IFLA_ADDRESS]) {
-		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
-			return -EINVAL;
-		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
-			return -EADDRNOTAVAIL;
-	}
-	return 0;
-}
-
-static unsigned int bond_get_num_tx_queues(void)
+unsigned int bond_get_num_tx_queues(void)
 {
 	return tx_queues;
 }
-
-static struct rtnl_link_ops bond_link_ops __read_mostly = {
-	.kind			= "bond",
-	.priv_size		= sizeof(struct bonding),
-	.setup			= bond_setup,
-	.validate		= bond_validate,
-	.get_num_tx_queues	= bond_get_num_tx_queues,
-	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
-							     as for TX queues */
-};
 
 /* Create a new bond based on the specified name and bonding parameters.
  * If name is NULL, obtain a suitable "bond%d" name for us.
@@ -4563,7 +4487,7 @@ static int __init bonding_init(void)
 	if (res)
 		goto out;
 
-	res = rtnl_link_register(&bond_link_ops);
+	res = bond_netlink_init();
 	if (res)
 		goto err_link;
 
@@ -4579,7 +4503,7 @@ static int __init bonding_init(void)
 out:
 	return res;
 err:
-	rtnl_link_unregister(&bond_link_ops);
+	bond_netlink_fini();
 err_link:
 	unregister_pernet_subsys(&bond_net_ops);
 	goto out;
@@ -4592,7 +4516,7 @@ static void __exit bonding_exit(void)
 
 	bond_destroy_debugfs();
 
-	rtnl_link_unregister(&bond_link_ops);
+	bond_netlink_fini();
 	unregister_pernet_subsys(&bond_net_ops);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -4609,4 +4533,3 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION(DRV_DESCRIPTION ", v" DRV_VERSION);
 MODULE_AUTHOR("Thomas Davis, tadavis@lbl.gov and many others");
-MODULE_ALIAS_RTNL_LINK("bond");

@@ -325,6 +325,17 @@ struct ifla_vxlan_port_range {
 	__be16	high;
 };
 
+/* Bonding section */
+
+enum {
+	IFLA_BOND_UNSPEC,
+	IFLA_BOND_MODE,
+	IFLA_BOND_ACTIVE_SLAVE,
+	__IFLA_BOND_MAX,
+};
+
+#define IFLA_BOND_MAX	(__IFLA_BOND_MAX - 1)
+
 /* SR-IOV virtual function management section */
 
 enum {
