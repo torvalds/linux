@@ -205,7 +205,7 @@ static int line6_send_raw_message_async_part(struct message *msg,
 			__func__, retval);
 		usb_free_urb(urb);
 		kfree(msg);
-		return -EINVAL;
+		return retval;
 	}
 
 	return 0;
