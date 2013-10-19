@@ -409,7 +409,10 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	 */
 	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
 		desc->istate |= IRQS_PENDING;
-		mask_irq(desc);
+#ifdef CONFIG_FIQ_DEBUGGER
+		if(irq != (CONFIG_RK_DEBUG_UART + 66))
+#endif
+			mask_irq(desc);
 		goto out;
 	}
 
