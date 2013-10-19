@@ -220,7 +220,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		channel = ni.channel;
 
 		/* Verify boundaries on board */
-		if ((board < 0) || (board > dgnc_NumBoards) || (dgnc_NumBoards == 0))
+		if ((board > dgnc_NumBoards) || (dgnc_NumBoards == 0))
 			return -ENODEV;
 
 		/* Verify boundaries on channel */
