@@ -372,22 +372,22 @@ typedef IFB_STRCT*	IFBP;
 /**********************   W C I    F U N C T I O N S    P R O T O T Y P E S   ******************************/
 /***********************************************************************************************************/
 
-EXTERN_C int		 hcf_action			(IFBP ifbp, hcf_16 cmd );
-EXTERN_C int		 hcf_connect		(IFBP ifbp, hcf_io io_base );
-EXTERN_C int		 hcf_get_info		(IFBP ifbp, LTVP ltvp );
-EXTERN_C int		 hcf_service_nic	(IFBP ifbp, wci_bufp bufp, unsigned int len );
-EXTERN_C int		 hcf_cntl			(IFBP ifbp, hcf_16 cmd );
-EXTERN_C int		 hcf_put_info		(IFBP ifbp, LTVP ltvp );
-EXTERN_C int		 hcf_rcv_msg		(IFBP ifbp, DESC_STRCT *descp, unsigned int offset );
-EXTERN_C int		 hcf_send_msg       (IFBP ifbp, DESC_STRCT *dp, hcf_16 tx_cntl );
+EXTERN_C int hcf_action(IFBP ifbp, hcf_16 cmd);
+EXTERN_C int hcf_connect(IFBP ifbp, hcf_io io_base);
+EXTERN_C int hcf_get_info(IFBP ifbp, LTVP ltvp);
+EXTERN_C int hcf_service_nic(IFBP ifbp, wci_bufp bufp, unsigned int len);
+EXTERN_C int hcf_cntl(IFBP ifbp, hcf_16 cmd);
+EXTERN_C int hcf_put_info(IFBP ifbp, LTVP ltvp);
+EXTERN_C int hcf_rcv_msg(IFBP ifbp, DESC_STRCT *descp, unsigned int offset);
+EXTERN_C int hcf_send_msg(IFBP ifbp, DESC_STRCT *dp, hcf_16 tx_cntl);
 #if HCF_DMA
-EXTERN_C void		 hcf_dma_tx_put 	(IFBP ifbp, DESC_STRCT *d, hcf_16 tx_cntl );
+EXTERN_C void hcf_dma_tx_put(IFBP ifbp, DESC_STRCT *d, hcf_16 tx_cntl);
 EXTERN_C DESC_STRCT* hcf_dma_tx_get		(IFBP ifbp );
 EXTERN_C DESC_STRCT* hcf_dma_rx_get		(IFBP ifbp );
-EXTERN_C void		 hcf_dma_rx_put		(IFBP ifbp, DESC_STRCT *d );
+EXTERN_C void hcf_dma_rx_put(IFBP ifbp, DESC_STRCT *d);
 #endif // HCF_DMA
 #if (HCF_ASSERT) & HCF_ASSERT_LNK_MSF_RTN
-EXTERN_C void		 msf_assert	 		(unsigned int line_number, hcf_16 trace, hcf_32 qual );
+EXTERN_C void msf_assert(unsigned int line_number, hcf_16 trace, hcf_32 qual);
 #endif // HCF_ASSERT_LNK_MSF_RTN
 
 #endif  // HCF_H
