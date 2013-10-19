@@ -1483,8 +1483,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (err < 0) {
 		mgmt_pending_remove(cmd);
 		if (err == -ENODATA)
-			err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE,
-						hdev);
+			err = set_connectable_update_settings(hdev, sk,
+							      cp->val);
 		goto failed;
 	}
 
