@@ -668,6 +668,12 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			bi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			bi->bi_io_vec[0].bv_offset = 0;
 			bi->bi_size = STRIPE_SIZE;
+			/*
+			 * If this is discard request, set bi_vcnt 0. We don't
+			 * want to confuse SCSI because SCSI will replace payload
+			 */
+			if (rw & REQ_DISCARD)
+				bi->bi_vcnt = 0;
 			if (rrdev)
 				set_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags);
 
@@ -706,6 +712,12 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			rbi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			rbi->bi_io_vec[0].bv_offset = 0;
 			rbi->bi_size = STRIPE_SIZE;
+			/*
+			 * If this is discard request, set bi_vcnt 0. We don't
+			 * want to confuse SCSI because SCSI will replace payload
+			 */
+			if (rw & REQ_DISCARD)
+				rbi->bi_vcnt = 0;
 			if (conf->mddev->gendisk)
 				trace_block_bio_remap(bdev_get_queue(rbi->bi_bdev),
 						      rbi, disk_devt(conf->mddev->gendisk),
