@@ -204,8 +204,22 @@ fi
 
 for CF in $configs
 do
+	# Running TREE01 multiple times creates TREE01, TREE01.2, TREE01.3, ...
 	rd=$resdir/$ds/$CF
-	mkdir $rd || :
+	if test -d "${rd}"
+	then
+		n="`ls -d "${rd}"* | grep '\.[0-9]\+$' |
+			sed -e 's/^.*\.\([0-9]\+\)/\1/' |
+			sort -k1n | tail -1`"
+		if test -z "$n"
+		then
+			rd="${rd}.2"
+		else
+			n="`expr $n + 1`"
+			rd="${rd}.${n}"
+		fi
+	fi
+	mkdir "${rd}"
 	echo Results directory: $rd
 	kvm-test-1-rcu.sh $CONFIGFRAG/$kversion/$CF $builddir $rd $dur "-nographic $RCU_QEMU_ARG" "rcutorture.test_no_idle_hz=1 rcutorture.verbose=1 $RCU_BOOTARGS"
 done
