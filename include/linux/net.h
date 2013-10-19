@@ -239,6 +239,31 @@ do {								\
 #define net_random()		prandom_u32()
 #define net_srandom(seed)	prandom_seed((__force u32)(seed))
 
+bool __net_get_random_once(void *buf, int nbytes, bool *done,
+			   struct static_key *done_key);
+
+#ifdef HAVE_JUMP_LABEL
+#define ___NET_RANDOM_STATIC_KEY_INIT ((struct static_key) \
+		{ .enabled = ATOMIC_INIT(0), .entries = (void *)1 })
+#else /* !HAVE_JUMP_LABEL */
+#define ___NET_RANDOM_STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
+#endif /* HAVE_JUMP_LABEL */
+
+/* BE CAREFUL: this function is not interrupt safe */
+#define net_get_random_once(buf, nbytes)				\
+	({								\
+		bool ___ret = false;					\
+		static bool ___done = false;				\
+		static struct static_key ___done_key =			\
+			___NET_RANDOM_STATIC_KEY_INIT;			\
+		if (!static_key_true(&___done_key))			\
+			___ret = __net_get_random_once(buf,		\
+						       nbytes,		\
+						       &___done,	\
+						       &___done_key);	\
+		___ret;							\
+	})
+
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len);
 int kernel_recvmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
