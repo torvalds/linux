@@ -30,7 +30,7 @@ bool CheckHighPower(struct net_device *dev)
  *		and they are related to OFDM and MAC registers.
  *		So, we don't want to update it so frequently in per-Rx packet base.
  */
-void DoTxHighPower(struct net_device *dev)
+static void DoTxHighPower(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16			HiPwrUpperTh = 0;
@@ -125,7 +125,7 @@ bool CheckDig(struct net_device *dev)
 /*
  *	Implementation of DIG for Zebra and Zebra2.
  */
-void DIG_Zebra(struct net_device *dev)
+static void DIG_Zebra(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16			CCKFalseAlarm, OFDMFalseAlarm;
@@ -202,7 +202,7 @@ void DIG_Zebra(struct net_device *dev)
 /*
  *	Dispatch DIG implementation according to RF.
  */
-void DynamicInitGain(struct net_device *dev)
+static void DynamicInitGain(struct net_device *dev)
 {
 	DIG_Zebra(dev);
 }
@@ -223,7 +223,7 @@ void rtl8180_hw_dig_wq(struct work_struct *work)
 
 }
 
-int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
+static int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
 {
 	u8 rate_len;
 	u8 rate_ex_len;
@@ -255,7 +255,7 @@ found_rate:
  *	Get the Tx rate one degree up form the input rate in the supported rates.
  *	Return the upgrade rate if it is successed, otherwise return the input rate.
  */
-u8 GetUpgradeTxRate(struct net_device *dev, u8 rate)
+static u8 GetUpgradeTxRate(struct net_device *dev, u8 rate)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8                      UpRate;
@@ -315,7 +315,7 @@ u8 GetUpgradeTxRate(struct net_device *dev, u8 rate)
  *	Return the degrade rate if it is successed, otherwise return the input rate.
  */
 
-u8 GetDegradeTxRate(struct net_device *dev, u8 rate)
+static u8 GetDegradeTxRate(struct net_device *dev, u8 rate)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8                      DownRate;
@@ -375,7 +375,7 @@ u8 GetDegradeTxRate(struct net_device *dev, u8 rate)
  *      CCK rate.
  */
 
-bool MgntIsCckRate(u16 rate)
+static bool MgntIsCckRate(u16 rate)
 {
 	bool bReturn = false;
 
@@ -435,7 +435,7 @@ void TxPwrTracking87SE(struct net_device *dev)
 	}
 	priv->ThermalMeter = CurrentThermal;
 }
-void StaRateAdaptive87SE(struct net_device *dev)
+static void StaRateAdaptive87SE(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	unsigned long	CurrTxokCnt;

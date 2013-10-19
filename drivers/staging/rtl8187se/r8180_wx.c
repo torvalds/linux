@@ -50,8 +50,9 @@ static int r8180_wx_get_freq(struct net_device *dev,
 }
 
 
-int r8180_wx_set_key(struct net_device *dev, struct iw_request_info *info,
-		     union iwreq_data *wrqu, char *key)
+static int r8180_wx_set_key(struct net_device *dev,
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *key)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	struct iw_point *erq = &(wrqu->encoding);
