@@ -424,6 +424,25 @@ TRACE_EVENT(sched_pi_setprio,
 			__entry->oldprio, __entry->newprio)
 );
 
+#ifdef CONFIG_DETECT_HUNG_TASK
+TRACE_EVENT(sched_process_hang,
+	TP_PROTO(struct task_struct *tsk),
+	TP_ARGS(tsk),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid = tsk->pid;
+	),
+
+	TP_printk("comm=%s pid=%d", __entry->comm, __entry->pid)
+);
+#endif /* CONFIG_DETECT_HUNG_TASK */
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
