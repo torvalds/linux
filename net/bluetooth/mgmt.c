@@ -536,6 +536,18 @@ static u8 *create_uuid128_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 	return ptr;
 }
 
+static struct pending_cmd *mgmt_pending_find(u16 opcode, struct hci_dev *hdev)
+{
+	struct pending_cmd *cmd;
+
+	list_for_each_entry(cmd, &hdev->mgmt_pending, list) {
+		if (cmd->opcode == opcode)
+			return cmd;
+	}
+
+	return NULL;
+}
+
 static u8 create_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 {
 	u8 ad_len = 0;
@@ -884,18 +896,6 @@ static void mgmt_pending_foreach(u16 opcode, struct hci_dev *hdev,
 
 		cb(cmd, data);
 	}
-}
-
-static struct pending_cmd *mgmt_pending_find(u16 opcode, struct hci_dev *hdev)
-{
-	struct pending_cmd *cmd;
-
-	list_for_each_entry(cmd, &hdev->mgmt_pending, list) {
-		if (cmd->opcode == opcode)
-			return cmd;
-	}
-
-	return NULL;
 }
 
 static void mgmt_pending_remove(struct pending_cmd *cmd)
