@@ -1291,6 +1291,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_IPIP |
 		       SKB_GSO_TCPV6 |
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_MPLS |
@@ -1656,6 +1657,13 @@ static struct packet_offload ip_packet_offload __read_mostly = {
 	},
 };
 
+static const struct net_offload ipip_offload = {
+	.callbacks = {
+		.gso_send_check = inet_gso_send_check,
+		.gso_segment	= inet_gso_segment,
+	},
+};
+
 static int __init ipv4_offload_init(void)
 {
 	/*
@@ -1667,6 +1675,7 @@ static int __init ipv4_offload_init(void)
 		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
 
 	dev_add_offload(&ip_packet_offload);
+	inet_add_offload(&ipip_offload, IPPROTO_IPIP);
 	return 0;
 }
 

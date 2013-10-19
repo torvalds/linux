@@ -318,9 +318,11 @@ enum {
 
 	SKB_GSO_GRE = 1 << 6,
 
-	SKB_GSO_UDP_TUNNEL = 1 << 7,
+	SKB_GSO_IPIP = 1 << 7,
 
-	SKB_GSO_MPLS = 1 << 8,
+	SKB_GSO_UDP_TUNNEL = 1 << 8,
+
+	SKB_GSO_MPLS = 1 << 9,
 };
 
 #if BITS_PER_LONG > 32
