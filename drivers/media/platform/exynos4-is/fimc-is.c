@@ -867,10 +867,10 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 err_dfs:
 	fimc_is_debugfs_remove(is);
-err_vb:
-	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 err_sd:
 	fimc_is_unregister_subdevs(is);
+err_vb:
+	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 err_irq:
 	free_irq(is->irq, is);
 err_clk:
