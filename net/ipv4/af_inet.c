@@ -1273,16 +1273,17 @@ out:
 }
 
 static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
-	netdev_features_t features)
+					netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	const struct net_offload *ops;
+	unsigned int offset = 0;
 	struct iphdr *iph;
+	bool tunnel;
 	int proto;
+	int nhoff;
 	int ihl;
 	int id;
-	unsigned int offset = 0;
-	bool tunnel;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
 		     ~(SKB_GSO_TCPV4 |
@@ -1290,12 +1291,15 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_IPIP |
 		       SKB_GSO_TCPV6 |
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_MPLS |
 		       0)))
 		goto out;
 
+	skb_reset_network_header(skb);
+	nhoff = skb_network_header(skb) - skb_mac_header(skb);
 	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
 		goto out;
 
@@ -1312,7 +1316,10 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		goto out;
 	__skb_pull(skb, ihl);
 
-	tunnel = !!skb->encapsulation;
+	tunnel = SKB_GSO_CB(skb)->encap_level > 0;
+	if (tunnel)
+		features = skb->dev->hw_enc_features & netif_skb_features(skb);
+	SKB_GSO_CB(skb)->encap_level += ihl;
 
 	skb_reset_transport_header(skb);
 
@@ -1327,18 +1334,23 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	skb = segs;
 	do {
-		iph = ip_hdr(skb);
+		iph = (struct iphdr *)(skb_mac_header(skb) + nhoff);
 		if (!tunnel && proto == IPPROTO_UDP) {
 			iph->id = htons(id);
 			iph->frag_off = htons(offset >> 3);
 			if (skb->next != NULL)
 				iph->frag_off |= htons(IP_MF);
-			offset += (skb->len - skb->mac_len - iph->ihl * 4);
+			offset += skb->len - nhoff - ihl;
 		} else  {
 			iph->id = htons(id++);
 		}
-		iph->tot_len = htons(skb->len - skb->mac_len);
+		iph->tot_len = htons(skb->len - nhoff);
 		ip_send_check(iph);
+		if (tunnel) {
+			skb_reset_inner_headers(skb);
+			skb->encapsulation = 1;
+		}
+		skb->network_header = (u8 *)iph - skb->head;
 	} while ((skb = skb->next));
 
 out:
@@ -1645,6 +1657,13 @@ static struct packet_offload ip_packet_offload __read_mostly = {
 	},
 };
 
+static const struct net_offload ipip_offload = {
+	.callbacks = {
+		.gso_send_check = inet_gso_send_check,
+		.gso_segment	= inet_gso_segment,
+	},
+};
+
 static int __init ipv4_offload_init(void)
 {
 	/*
@@ -1656,6 +1675,7 @@ static int __init ipv4_offload_init(void)
 		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
 
 	dev_add_offload(&ip_packet_offload);
+	inet_add_offload(&ipip_offload, IPPROTO_IPIP);
 	return 0;
 }
 

@@ -903,6 +903,9 @@ EXPORT_SYMBOL(skb_clone);
 
 static void skb_headers_offset_update(struct sk_buff *skb, int off)
 {
+	/* Only adjust this if it actually is csum_start rather than csum */
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		skb->csum_start += off;
 	/* {transport,network,mac}_header and tail are relative to skb->head */
 	skb->transport_header += off;
 	skb->network_header   += off;
@@ -1109,9 +1112,6 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 #endif
 	skb->tail	      += off;
 	skb_headers_offset_update(skb, nhead);
-	/* Only adjust this if it actually is csum_start rather than csum */
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		skb->csum_start += nhead;
 	skb->cloned   = 0;
 	skb->hdr_len  = 0;
 	skb->nohdr    = 0;
@@ -1176,7 +1176,6 @@ struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 					NUMA_NO_NODE);
 	int oldheadroom = skb_headroom(skb);
 	int head_copy_len, head_copy_off;
-	int off;
 
 	if (!n)
 		return NULL;
@@ -1200,11 +1199,7 @@ struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 
 	copy_skb_header(n, skb);
 
-	off                  = newheadroom - oldheadroom;
-	if (n->ip_summed == CHECKSUM_PARTIAL)
-		n->csum_start += off;
-
-	skb_headers_offset_update(n, off);
+	skb_headers_offset_update(n, newheadroom - oldheadroom);
 
 	return n;
 }
@@ -2837,14 +2832,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features)
 		__copy_skb_header(nskb, skb);
 		nskb->mac_len = skb->mac_len;
 
-		/* nskb and skb might have different headroom */
-		if (nskb->ip_summed == CHECKSUM_PARTIAL)
-			nskb->csum_start += skb_headroom(nskb) - headroom;
-
-		skb_reset_mac_header(nskb);
-		skb_set_network_header(nskb, skb->mac_len);
-		nskb->transport_header = (nskb->network_header +
-					  skb_network_header_len(skb));
+		skb_headers_offset_update(nskb, skb_headroom(nskb) - headroom);
 
 		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
 						 nskb->data - tnl_hlen,
