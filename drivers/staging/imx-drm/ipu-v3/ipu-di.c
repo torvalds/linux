@@ -544,10 +544,48 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	if ((sig->v_sync_width == 0) || (sig->h_sync_width == 0))
 		return -EINVAL;
 
+	dev_dbg(di->ipu->dev, "Clocks: IPU %luHz DI %luHz Needed %luHz\n",
+		clk_get_rate(di->clk_ipu),
+		clk_get_rate(di->clk_di),
+		sig->pixelclock);
+
+	/*
+	 * CLKMODE_EXT means we must use the DI clock: this is needed
+	 * for things like LVDS which needs to feed the DI and LDB with
+	 * the same pixel clock.
+	 *
+	 * For other interfaces, we can arbitarily select between the DI
+	 * specific clock and the internal IPU clock.  See DI_GENERAL
+	 * bit 20.  We select the IPU clock if it can give us a clock
+	 * rate within 1% of the requested frequency, otherwise we use
+	 * the DI clock.
+	 */
 	if (sig->clkflags & IPU_DI_CLKMODE_EXT)
 		parent = di->clk_di;
-	else
-		parent = di->clk_ipu;
+	else {
+		unsigned long rate, clkrate;
+		unsigned div, error;
+
+		clkrate = clk_get_rate(di->clk_ipu);
+		div = (clkrate + sig->pixelclock / 2) / sig->pixelclock;
+		rate = clkrate / div;
+
+		error = rate / (sig->pixelclock / 1000);
+
+		dev_dbg(di->ipu->dev, "  IPU clock can give %lu with divider %u, error %d.%u%%\n",
+			rate, div, (signed)(error - 1000) / 10, error % 10);
+
+		/* Allow a 1% error */
+		if (error < 1010 && error >= 990) {
+			parent = di->clk_ipu;
+		} else {
+			parent = di->clk_di;
+
+			ret = clk_set_rate(parent, sig->pixelclock);
+			if (ret)
+				dev_err(di->ipu->dev, "Setting of DI clock failed: %d\n", ret);
+		}
+	}
 
 	ret = clk_set_parent(di->clk_di_pixel, parent);
 	if (ret) {
@@ -557,12 +595,24 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 		return ret;
 	}
 
+	/*
+	 * CLKMODE_SYNC means that we want the DI to be clocked at the
+	 * same rate as the parent clock.  This is needed (eg) for LDB
+	 * which needs to be fed with the same pixel clock.
+	 */
 	if (sig->clkflags & IPU_DI_CLKMODE_SYNC)
 		round = clk_get_rate(parent);
 	else
 		round = clk_round_rate(di->clk_di_pixel, sig->pixelclock);
 
 	ret = clk_set_rate(di->clk_di_pixel, round);
+
+	dev_dbg(di->ipu->dev, "Want %luHz IPU %luHz DI %luHz using %s, got %luHz\n",
+		sig->pixelclock,
+		clk_get_rate(di->clk_ipu),
+		clk_get_rate(di->clk_di),
+		parent == di->clk_di ? "DI" : "IPU",
+		clk_get_rate(di->clk_di_pixel));
 
 	h_total = sig->width + sig->h_sync_width + sig->h_start_width +
 		sig->h_end_width;
