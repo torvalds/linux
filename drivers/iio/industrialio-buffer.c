@@ -490,6 +490,9 @@ void iio_disable_all_buffers(struct iio_dev *indio_dev)
 	indio_dev->currentmode = INDIO_DIRECT_MODE;
 	if (indio_dev->setup_ops->postdisable)
 		indio_dev->setup_ops->postdisable(indio_dev);
+
+	if (indio_dev->available_scan_masks == NULL)
+		kfree(indio_dev->active_scan_mask);
 }
 
 static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
