@@ -193,18 +193,16 @@ static int uuids_show(struct seq_file *f, void *p)
 
 	hci_dev_lock(hdev);
 	list_for_each_entry(uuid, &hdev->uuids, list) {
-		u32 data0, data5;
-		u16 data1, data2, data3, data4;
+		u8 i, val[16];
 
-		data5 = get_unaligned_le32(uuid);
-		data4 = get_unaligned_le16(uuid + 4);
-		data3 = get_unaligned_le16(uuid + 6);
-		data2 = get_unaligned_le16(uuid + 8);
-		data1 = get_unaligned_le16(uuid + 10);
-		data0 = get_unaligned_le32(uuid + 12);
+		/* The Bluetooth UUID values are stored in big endian,
+		 * but with reversed byte order. So convert them into
+		 * the right order for the %pUb modifier.
+		 */
+		for (i = 0; i < 16; i++)
+			val[i] = uuid->uuid[15 - i];
 
-		seq_printf(f, "%.8x-%.4x-%.4x-%.4x-%.4x%.8x\n",
-			   data0, data1, data2, data3, data4, data5);
+		seq_printf(f, "%pUb\n", val);
 	}
 	hci_dev_unlock(hdev);
 
