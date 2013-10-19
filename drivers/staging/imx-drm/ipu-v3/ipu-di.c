@@ -560,9 +560,10 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	 * rate within 1% of the requested frequency, otherwise we use
 	 * the DI clock.
 	 */
-	if (sig->clkflags & IPU_DI_CLKMODE_EXT)
+	round = sig->pixelclock;
+	if (sig->clkflags & IPU_DI_CLKMODE_EXT) {
 		parent = di->clk_di;
-	else {
+	} else {
 		unsigned long rate, clkrate;
 		unsigned div, error;
 
@@ -584,6 +585,9 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 			ret = clk_set_rate(parent, sig->pixelclock);
 			if (ret)
 				dev_err(di->ipu->dev, "Setting of DI clock failed: %d\n", ret);
+
+			/* Use the integer divisor rate - avoid fractional dividers */
+			round = rate;
 		}
 	}
 
@@ -599,11 +603,12 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	 * CLKMODE_SYNC means that we want the DI to be clocked at the
 	 * same rate as the parent clock.  This is needed (eg) for LDB
 	 * which needs to be fed with the same pixel clock.
+	 *
+	 * Note: clk_set_rate(clk, clk_round_rate(clk, rate)) is the
+	 * same as clk_set_rate(clk, rate);
 	 */
 	if (sig->clkflags & IPU_DI_CLKMODE_SYNC)
 		round = clk_get_rate(parent);
-	else
-		round = clk_round_rate(di->clk_di_pixel, sig->pixelclock);
 
 	ret = clk_set_rate(di->clk_di_pixel, round);
 
