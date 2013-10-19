@@ -111,7 +111,7 @@ void * __devres_alloc(dr_release_t release, size_t size, gfp_t gfp,
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp);
+	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
 	if (unlikely(!dr))
 		return NULL;
 	set_node_dbginfo(&dr->node, name, size);
@@ -136,7 +136,7 @@ void * devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
 {
 	struct devres *dr;
 
-	dr = alloc_dr(release, size, gfp);
+	dr = alloc_dr(release, size, gfp | __GFP_ZERO);
 	if (unlikely(!dr))
 		return NULL;
 	return dr->data;
