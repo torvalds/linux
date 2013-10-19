@@ -2231,14 +2231,8 @@ static void slic_debug_card_destroy(struct sliccard *card)
 		if (adapter)
 			slic_debug_adapter_destroy(adapter);
 	}
-	if (card->debugfs_cardinfo) {
-		debugfs_remove(card->debugfs_cardinfo);
-		card->debugfs_cardinfo = NULL;
-	}
-	if (card->debugfs_dir) {
-		debugfs_remove(card->debugfs_dir);
-		card->debugfs_dir = NULL;
-	}
+	debugfs_remove(card->debugfs_cardinfo);
+	debugfs_remove(card->debugfs_dir);
 }
 
 static void slic_debug_init(void)
@@ -2256,10 +2250,7 @@ static void slic_debug_init(void)
 
 static void slic_debug_cleanup(void)
 {
-	if (slic_debugfs) {
-		debugfs_remove(slic_debugfs);
-		slic_debugfs = NULL;
-	}
+	debugfs_remove(slic_debugfs);
 }
 
 /*
