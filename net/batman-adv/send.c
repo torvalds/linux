@@ -267,11 +267,14 @@ int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
 
 	switch (packet_type) {
 	case BATADV_UNICAST:
-		batadv_send_skb_prepare_unicast(skb, orig_node);
+		if (!batadv_send_skb_prepare_unicast(skb, orig_node))
+			goto out;
 		break;
 	case BATADV_UNICAST_4ADDR:
-		batadv_send_skb_prepare_unicast_4addr(bat_priv, skb, orig_node,
-						      packet_subtype);
+		if (!batadv_send_skb_prepare_unicast_4addr(bat_priv, skb,
+							   orig_node,
+							   packet_subtype))
+			goto out;
 		break;
 	default:
 		/* this function supports UNICAST and UNICAST_4ADDR only. It
