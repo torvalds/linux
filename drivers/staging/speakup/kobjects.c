@@ -616,7 +616,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int len;
 	char *cp;
 	struct var_t *var_data;
-	int value;
+	long value;
 	unsigned long flags;
 
 	param = spk_var_header_by_name(attr->attr.name);
@@ -638,8 +638,10 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 			len = E_INC;
 		else
 			len = E_SET;
-		value = simple_strtol(cp, NULL, 10);
-		ret = spk_set_num_var(value, param, len);
+		if (kstrtol(cp, 10, &value) == 0)
+			ret = spk_set_num_var(value, param, len);
+		else
+			pr_warn("overflow or parsing error has occured");
 		if (ret == -ERANGE) {
 			var_data = param->data;
 			pr_warn("value for %s out of range, expect %d to %d\n",
