@@ -341,6 +341,10 @@ static void drm_unplug_minor(struct drm_minor *minor)
 	if (!minor || !device_is_registered(minor->kdev))
 		return;
 
+#if defined(CONFIG_DEBUG_FS)
+	drm_debugfs_cleanup(minor);
+#endif
+
 	drm_sysfs_device_remove(minor);
 }
 
@@ -359,10 +363,6 @@ static void drm_put_minor(struct drm_minor *minor)
 		return;
 
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
-
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_cleanup(minor);
-#endif
 
 	drm_unplug_minor(minor);
 
