@@ -554,7 +554,7 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		struct lov_tgt_desc **newtgts, **old = NULL;
 		__u32 newsize, oldsize = 0;
 
-		newsize = max(lov->lov_tgt_size, (__u32)2);
+		newsize = max_t(__u32, lov->lov_tgt_size, 2);
 		while (newsize < index + 1)
 			newsize = newsize << 1;
 		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
