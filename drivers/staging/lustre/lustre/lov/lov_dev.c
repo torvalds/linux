@@ -446,7 +446,7 @@ static int lov_process_config(const struct lu_env *env,
 	cmd = cfg->lcfg_command;
 	rc = lov_process_config_base(d->ld_obd, cfg, &index, &gen);
 	if (rc == 0) {
-		switch(cmd) {
+		switch (cmd) {
 		case LCFG_LOV_ADD_OBD:
 		case LCFG_LOV_ADD_INA:
 			rc = lov_cl_add_target(env, d, index);

@@ -923,7 +923,7 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 	int cmd;
 	int rc = 0;
 
-	switch(cmd = lcfg->lcfg_command) {
+	switch (cmd = lcfg->lcfg_command) {
 	case LCFG_LOV_ADD_OBD:
 	case LCFG_LOV_ADD_INA:
 	case LCFG_LOV_DEL_OBD: {

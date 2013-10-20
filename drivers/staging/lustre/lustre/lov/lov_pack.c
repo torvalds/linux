@@ -121,7 +121,7 @@ void lov_dump_lmm(int level, void *lmm)
 do {								    \
 	if (!(test)) lov_dump_lmm(D_ERROR, lmm);			\
 	LASSERT(test); /* so we know what assertion failed */	   \
-} while(0)
+} while (0)
 
 /* Pack LOV object metadata for disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.

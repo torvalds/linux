@@ -742,7 +742,7 @@ static void lov_lock_cancel(const struct lu_env *env,
 				continue;
 			}
 
-			switch(sublock->cll_state) {
+			switch (sublock->cll_state) {
 			case CLS_HELD:
 				rc = cl_unuse_try(subenv->lse_env, sublock);
 				lov_sublock_release(env, lck, i, 0, 0);

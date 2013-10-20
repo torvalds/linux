@@ -1315,7 +1315,7 @@ out_set:
 			(tot) = LOV_U64_MAX;			    \
 		else						    \
 			(tot) += (add);				 \
-	} while(0)
+	} while (0)
 
 int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,int success)
 {
