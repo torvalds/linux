@@ -848,7 +848,6 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
 			if (ort->rt6i_dst.plen != 128 &&
 			    ipv6_addr_equal(&ort->rt6i_dst.addr, daddr))
 				rt->rt6i_flags |= RTF_ANYCAST;
-			rt->rt6i_gateway = *daddr;
 		}
 
 		rt->rt6i_flags |= RTF_CACHE;
@@ -1245,6 +1244,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->dst.flags |= DST_HOST;
 	rt->dst.output  = ip6_output;
 	atomic_set(&rt->dst.__refcnt, 1);
+	rt->rt6i_gateway  = fl6->daddr;
 	rt->rt6i_dst.addr = fl6->daddr;
 	rt->rt6i_dst.plen = 128;
 	rt->rt6i_idev     = idev;
@@ -1801,7 +1801,10 @@ static struct rt6_info *ip6_rt_copy(struct rt6_info *ort,
 			in6_dev_hold(rt->rt6i_idev);
 		rt->dst.lastuse = jiffies;
 
-		rt->rt6i_gateway = ort->rt6i_gateway;
+		if (ort->rt6i_flags & RTF_GATEWAY)
+			rt->rt6i_gateway = ort->rt6i_gateway;
+		else
+			rt->rt6i_gateway = *dest;
 		rt->rt6i_flags = ort->rt6i_flags;
 		if ((ort->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) ==
 		    (RTF_DEFAULT | RTF_ADDRCONF))
@@ -2088,6 +2091,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	else
 		rt->rt6i_flags |= RTF_LOCAL;
 
+	rt->rt6i_gateway  = *addr;
 	rt->rt6i_dst.addr = *addr;
 	rt->rt6i_dst.plen = 128;
 	rt->rt6i_table = fib6_get_table(net, RT6_TABLE_LOCAL);
