@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/sun4i/sun4i_avs.c
+ * drivers/media/video/sunxi/sunxi_avs.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -21,7 +21,7 @@
  */
 
 /*
- * sun4i_avs.c
+ * sunxi_avs.c
  * driver for av-sync counter
  * Author : Truby.Zong <truby.zhuang@chipsbank.com>
  */
@@ -50,7 +50,7 @@
 #include <linux/poll.h>
 #include <linux/spinlock.h>
 
-#include "sun4i_cedar.h"
+#include "sunxi_cedar.h"
 
 #define DRV_VERSION "0.01alpha"
 

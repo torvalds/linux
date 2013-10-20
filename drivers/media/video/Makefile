@@ -214,8 +214,8 @@ ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb/frontends
 ccflags-y += -I$(srctree)/drivers/media/common/tuners
 
-ifdef CONFIG_VIDEO_SUN4I_CEDAR
-  obj-$(CONFIG_VIDEO_SUN4I_CEDAR) += sun4i/
+ifdef CONFIG_VIDEO_SUNXI_CEDAR
+  obj-$(CONFIG_VIDEO_SUNXI_CEDAR) += sunxi/
 endif
 ifdef CONFIG_VIDEO_SUN5I_CEDAR
   obj-$(CONFIG_VIDEO_SUN5I_CEDAR) += sun5i/

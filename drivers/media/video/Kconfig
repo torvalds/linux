@@ -1223,14 +1223,14 @@ config VIDEO_MX2_EMMAPRP
 
 endif # V4L_MEM2MEM_DRIVERS
 
-config VIDEO_SUN4I_CEDAR
-       tristate "CEDAR driver for sun4i"
+config VIDEO_SUNXI_CEDAR
+       tristate "CEDAR driver for sunxi"
        depends on ARCH_SUN4I
        help
-         CEDAR driver for sun4i
+         CEDAR driver for sunxi
 
-if VIDEO_SUN4I_CEDAR
-source "drivers/media/video/sun4i/Kconfig"
+if VIDEO_SUNXI_CEDAR
+source "drivers/media/video/sunxi/Kconfig"
 endif
 
 config VIDEO_SUN5I_CEDAR

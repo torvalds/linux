@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/sun4i/cache-v7.S
+ * drivers/media/video/sunxi/cache-v7.S
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>

@@ -1,5 +1,5 @@
 /*
- * drivers\media\video\sun4i\sun4i_cedar.c
+ * drivers\media\video\sunxi\sunxi_cedar.c
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * huangxin <huangxin@allwinnertech.com>
@@ -44,7 +44,7 @@
 #include <asm/signal.h>
 #include <mach/system.h>
 #include <mach/clock.h>
-#include "sun4i_cedar.h"
+#include "sunxi_cedar.h"
 
 #define DRV_VERSION "0.01alpha"
 
@@ -948,7 +948,7 @@ static struct file_operations cedardev_fops = {
 
 /*data relating*/
 static struct platform_device sw_device_cedar = {
-	.name = "sun4i-cedar",
+	.name = "sunxi-cedar",
 };
 
 /*method relating*/
@@ -958,7 +958,7 @@ static struct platform_driver sw_cedar_driver = {
 	.resume		= snd_sw_cedar_resume,
 #endif
 	.driver		= {
-		.name	= "sun4i-cedar",
+		.name	= "sunxi-cedar",
 	},
 };
 
