@@ -22,6 +22,9 @@
 	compatible = "samsung,exynos5420";
 
 	aliases {
+		mshc0 = &mmc_0;
+		mshc1 = &mmc_1;
+		mshc2 = &mmc_2;
 		pinctrl0 = &pinctrl_0;
 		pinctrl1 = &pinctrl_1;
 		pinctrl2 = &pinctrl_2;
@@ -86,6 +89,42 @@
 		interrupts = <0 96 0>;
 		clocks = <&clock 401>;
 		clock-names = "mfc";
+	};
+
+	mmc_0: mmc@12200000 {
+		compatible = "samsung,exynos5420-dw-mshc-smu";
+		interrupts = <0 75 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x12200000 0x2000>;
+		clocks = <&clock 351>, <&clock 132>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x40>;
+		status = "disabled";
+	};
+
+	mmc_1: mmc@12210000 {
+		compatible = "samsung,exynos5420-dw-mshc-smu";
+		interrupts = <0 76 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x12210000 0x2000>;
+		clocks = <&clock 352>, <&clock 133>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x40>;
+		status = "disabled";
+	};
+
+	mmc_2: mmc@12220000 {
+		compatible = "samsung,exynos5420-dw-mshc";
+		interrupts = <0 77 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x12220000 0x1000>;
+		clocks = <&clock 353>, <&clock 134>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x40>;
+		status = "disabled";
 	};
 
 	mct@101C0000 {
