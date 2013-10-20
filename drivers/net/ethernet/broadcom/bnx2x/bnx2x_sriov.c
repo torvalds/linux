@@ -470,10 +470,10 @@ static int bnx2x_vfop_qdtor_cmd(struct bnx2x *bp,
 				 bnx2x_vfop_qdtor, cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qdtor,
 					     cmd->block);
+	} else {
+		BNX2X_ERR("VF[%d] failed to add a vfop\n", vf->abs_vfid);
+		return -ENOMEM;
 	}
-	DP(BNX2X_MSG_IOV, "VF[%d] failed to add a vfop. rc %d\n",
-	   vf->abs_vfid, vfop->rc);
-	return -ENOMEM;
 }
 
 static void
