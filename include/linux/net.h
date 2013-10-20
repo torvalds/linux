@@ -24,6 +24,7 @@
 #include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
 #include <linux/kmemcheck.h>
 #include <linux/rcupdate.h>
+#include <linux/jump_label.h>
 #include <uapi/linux/net.h>
 
 struct poll_table_struct;
