@@ -2498,4 +2498,8 @@ enum bnx2x_pci_bus_speed {
 };
 
 void bnx2x_set_local_cmng(struct bnx2x *bp);
+
+#define MCPR_SCRATCH_BASE(bp) \
+	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
+
 #endif /* bnx2x.h */
