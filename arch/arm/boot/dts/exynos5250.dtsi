@@ -400,6 +400,7 @@
 		reg = <0x12200000 0x1000>;
 		clocks = <&clock 280>, <&clock 139>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
 		status = "disabled";
 	};
 
@@ -411,6 +412,7 @@
 		reg = <0x12210000 0x1000>;
 		clocks = <&clock 281>, <&clock 140>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
 		status = "disabled";
 	};
 
@@ -422,6 +424,7 @@
 		reg = <0x12220000 0x1000>;
 		clocks = <&clock 282>, <&clock 141>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
 		status = "disabled";
 	};
 
@@ -433,6 +436,7 @@
 		#size-cells = <0>;
 		clocks = <&clock 283>, <&clock 142>;
 		clock-names = "biu", "ciu";
+		fifo-depth = <0x80>;
 		status = "disabled";
 	};
 
