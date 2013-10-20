@@ -487,6 +487,10 @@ EXPORT_SYMBOL(drm_dev_alloc);
  */
 void drm_dev_free(struct drm_device *dev)
 {
+	drm_put_minor(dev->control);
+	drm_put_minor(dev->render);
+	drm_put_minor(dev->primary);
+
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
@@ -601,9 +605,9 @@ void drm_dev_unregister(struct drm_device *dev)
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
 
-	drm_put_minor(dev->control);
-	drm_put_minor(dev->render);
-	drm_put_minor(dev->primary);
+	drm_unplug_minor(dev->control);
+	drm_unplug_minor(dev->render);
+	drm_unplug_minor(dev->primary);
 
 	list_del(&dev->driver_item);
 }
