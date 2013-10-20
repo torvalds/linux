@@ -217,9 +217,6 @@ ccflags-y += -I$(srctree)/drivers/media/common/tuners
 ifdef CONFIG_VIDEO_SUNXI_CEDAR
   obj-$(CONFIG_VIDEO_SUNXI_CEDAR) += sunxi/
 endif
-ifdef CONFIG_VIDEO_SUN5I_CEDAR
-  obj-$(CONFIG_VIDEO_SUN5I_CEDAR) += sun5i/
-endif
 
 obj-$(CONFIG_CSI0_SUN4I) += sun4i_csi/csi0/
 obj-$(CONFIG_CSI1_SUN4I) += sun4i_csi/csi1/

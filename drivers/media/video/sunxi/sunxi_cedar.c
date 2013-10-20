@@ -412,13 +412,15 @@ static void cedar_engine_for_events(unsigned long arg)
 static unsigned int g_ctx_reg0;
 static void save_context(void)
 {
-	if (SUNXI_VER_A10A == sw_get_ic_ver())
+	if (SUNXI_VER_A10A == sw_get_ic_ver() ||
+	    SUNXI_VER_A13A == sw_get_ic_ver())
 		g_ctx_reg0 = readl(0xf1c20e00);
 }
 
 static void restore_context(void)
 {
-	if (SUNXI_VER_A10A == sw_get_ic_ver())
+	if (SUNXI_VER_A10A == sw_get_ic_ver() ||
+	    SUNXI_VER_A13A == sw_get_ic_ver())
 		writel(g_ctx_reg0, 0xf1c20e00);
 }
 
@@ -731,10 +733,12 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         break;
         case IOCTL_GET_IC_VER:
         {
-		if (SUNXI_VER_A10A == sw_get_ic_ver()) {
+		if (SUNXI_VER_A10A == sw_get_ic_ver() ||
+		    SUNXI_VER_A13A == sw_get_ic_ver()) {
         		return 0x0A10000A;
 		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+			   SUNXI_VER_A10C == sw_get_ic_ver() ||
+			   SUNXI_VER_A13B == sw_get_ic_ver()) {
         		return 0x0A10000B;
         	}else{
         		printk("IC_VER get error:%s,%d\n", __func__, __LINE__);

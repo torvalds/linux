@@ -208,9 +208,7 @@ early_param("sunxi_g2d_mem_reserve", reserve_g2d_param);
 #endif
 
 #if defined CONFIG_VIDEO_DECODER_SUNXI || \
-	defined CONFIG_VIDEO_DECODER_SUNXI_MODULE || \
-	defined CONFIG_VIDEO_DECODER_SUN5I || \
-	defined CONFIG_VIDEO_DECODER_SUN5I_MODULE
+	defined CONFIG_VIDEO_DECODER_SUNXI_MODULE
 /* The VE block is used by:
  *
  * - the Cedar video engine, drivers/media/video/sunxi

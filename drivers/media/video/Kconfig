@@ -1225,22 +1225,12 @@ endif # V4L_MEM2MEM_DRIVERS
 
 config VIDEO_SUNXI_CEDAR
        tristate "CEDAR driver for sunxi"
-       depends on ARCH_SUN4I
+       depends on ARCH_SUN4I || ARCH_SUN5I
        help
          CEDAR driver for sunxi
 
 if VIDEO_SUNXI_CEDAR
 source "drivers/media/video/sunxi/Kconfig"
-endif
-
-config VIDEO_SUN5I_CEDAR
-       tristate "CEDAR driver for sun5i"
-       depends on ARCH_SUN5I
-       help
-         CEDAR driver for sun5i
-
-if VIDEO_SUN5I_CEDAR
-source "drivers/media/video/sun5i/Kconfig"
 endif
 
 menuconfig VIDEO_CSI_SUN4I
