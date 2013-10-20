@@ -677,7 +677,7 @@ static int go7007_usb_interface_reset(struct go7007 *go)
 	/* Wait for an interrupt to indicate successful hardware reset */
 	if (go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
 			(intr_val & ~0x1) != 0x55aa) {
-		pr_err("unable to reset the USB interface\n");
+		dev_err(go->dev, "unable to reset the USB interface\n");
 		return -1;
 	}
 	return 0;
@@ -709,7 +709,7 @@ static int go7007_usb_ezusb_write_interrupt(struct go7007 *go,
 	if (r < 0)
 		goto write_int_error;
 	if (i == 100) {
-		pr_err("device is hung, status reg = 0x%04x\n", status_reg);
+		dev_err(go->dev, "device is hung, status reg = 0x%04x\n", status_reg);
 		return -1;
 	}
 	r = usb_control_msg(usb->usbdev, usb_sndctrlpipe(usb->usbdev, 0), 0x12,
@@ -725,7 +725,7 @@ static int go7007_usb_ezusb_write_interrupt(struct go7007 *go,
 	return 0;
 
 write_int_error:
-	pr_err("error in WriteInterrupt: %d\n", r);
+	dev_err(go->dev, "error in WriteInterrupt: %d\n", r);
 	return r;
 }
 
@@ -747,7 +747,7 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 			USB_TYPE_VENDOR | USB_RECIP_ENDPOINT, 0x55aa,
 			0xf0f0, go->usb_buf, 8, timeout);
 	if (r < 0) {
-		pr_err("error in WriteInterrupt: %d\n", r);
+		dev_err(go->dev, "error in WriteInterrupt: %d\n", r);
 		return r;
 	}
 	return 0;
@@ -762,13 +762,13 @@ static void go7007_usb_readinterrupt_complete(struct urb *urb)
 	if (status) {
 		if (status != -ESHUTDOWN &&
 				go->status != STATUS_SHUTDOWN) {
-			pr_err("error in read interrupt: %d\n", urb->status);
+			dev_err(go->dev, "error in read interrupt: %d\n", urb->status);
 		} else {
 			wake_up(&go->interrupt_waitq);
 			return;
 		}
 	} else if (urb->actual_length != urb->transfer_buffer_length) {
-		pr_err("short read in interrupt pipe!\n");
+		dev_err(go->dev, "short read in interrupt pipe!\n");
 	} else {
 		go->interrupt_available = 1;
 		go->interrupt_data = __le16_to_cpu(regs[0]);
@@ -787,7 +787,7 @@ static int go7007_usb_read_interrupt(struct go7007 *go)
 
 	r = usb_submit_urb(usb->intr_urb, GFP_KERNEL);
 	if (r < 0) {
-		pr_err("unable to submit interrupt urb: %d\n", r);
+		dev_err(go->dev, "unable to submit interrupt urb: %d\n", r);
 		return r;
 	}
 	return 0;
@@ -803,17 +803,17 @@ static void go7007_usb_read_video_pipe_complete(struct urb *urb)
 		return;
 	}
 	if (status) {
-		pr_err("error in video pipe: %d\n", status);
+		dev_err(go->dev, "error in video pipe: %d\n", status);
 		return;
 	}
 	if (urb->actual_length != urb->transfer_buffer_length) {
-		pr_err("short read in video pipe!\n");
+		dev_err(go->dev, "short read in video pipe!\n");
 		return;
 	}
 	go7007_parse_video_stream(go, urb->transfer_buffer, urb->actual_length);
 	r = usb_submit_urb(urb, GFP_ATOMIC);
 	if (r < 0)
-		pr_err("error in video pipe: %d\n", r);
+		dev_err(go->dev, "error in video pipe: %d\n", r);
 }
 
 static void go7007_usb_read_audio_pipe_complete(struct urb *urb)
@@ -824,19 +824,19 @@ static void go7007_usb_read_audio_pipe_complete(struct urb *urb)
 	if (!vb2_is_streaming(&go->vidq))
 		return;
 	if (status) {
-		pr_err("error in audio pipe: %d\n",
+		dev_err(go->dev, "error in audio pipe: %d\n",
 			status);
 		return;
 	}
 	if (urb->actual_length != urb->transfer_buffer_length) {
-		pr_err("short read in audio pipe!\n");
+		dev_err(go->dev, "short read in audio pipe!\n");
 		return;
 	}
 	if (go->audio_deliver != NULL)
 		go->audio_deliver(go, urb->transfer_buffer, urb->actual_length);
 	r = usb_submit_urb(urb, GFP_ATOMIC);
 	if (r < 0)
-		pr_err("error in audio pipe: %d\n", r);
+		dev_err(go->dev, "error in audio pipe: %d\n", r);
 }
 
 static int go7007_usb_stream_start(struct go7007 *go)
@@ -847,7 +847,7 @@ static int go7007_usb_stream_start(struct go7007 *go)
 	for (i = 0; i < 8; ++i) {
 		r = usb_submit_urb(usb->video_urbs[i], GFP_KERNEL);
 		if (r < 0) {
-			pr_err("error submitting video urb %d: %d\n", i, r);
+			dev_err(go->dev, "error submitting video urb %d: %d\n", i, r);
 			goto video_submit_failed;
 		}
 	}
@@ -857,7 +857,7 @@ static int go7007_usb_stream_start(struct go7007 *go)
 	for (i = 0; i < 8; ++i) {
 		r = usb_submit_urb(usb->audio_urbs[i], GFP_KERNEL);
 		if (r < 0) {
-			pr_err("error submitting audio urb %d: %d\n", i, r);
+			dev_err(go->dev, "error submitting audio urb %d: %d\n", i, r);
 			goto audio_submit_failed;
 		}
 	}
@@ -1099,7 +1099,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_px_tv402u;
 		break;
 	case GO7007_BOARDID_LIFEVIEW_LR192:
-		pr_err("The Lifeview TV Walker Ultra is not supported. Sorry!\n");
+		dev_err(go->dev, "The Lifeview TV Walker Ultra is not supported. Sorry!\n");
 		return -ENODEV;
 		name = "Lifeview TV Walker Ultra";
 		board = &board_lifeview_lr192;
@@ -1114,7 +1114,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		board = &board_ads_usbav_709;
 		break;
 	default:
-		pr_err("unknown board ID %d!\n",
+		dev_err(go->dev, "unknown board ID %d!\n",
 				(unsigned int)id->driver_info);
 		return -ENODEV;
 	}
@@ -1173,7 +1173,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		go->i2c_adapter.dev.parent = go->dev;
 		i2c_set_adapdata(&go->i2c_adapter, go);
 		if (i2c_add_adapter(&go->i2c_adapter) < 0) {
-			pr_err("error: i2c_add_adapter failed\n");
+			dev_err(go->dev, "error: i2c_add_adapter failed\n");
 			goto allocfail;
 		}
 		go->i2c_adapter_online = 1;
@@ -1225,7 +1225,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		/* Board strapping indicates tuner model */
 		if (go7007_usb_vendor_request(go, 0x41, 0, 0, go->usb_buf, 3,
 					1) < 0) {
-			pr_err("GPIO read failed!\n");
+			dev_err(go->dev, "GPIO read failed!\n");
 			goto allocfail;
 		}
 		switch (go->usb_buf[0] >> 6) {
@@ -1256,7 +1256,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		 * to the EZ-USB GPIO output pins */
 		if (go7007_usb_vendor_request(go, 0x40, 0x7f02, 0,
 					NULL, 0, 0) < 0) {
-			pr_err("GPIO write failed!\n");
+			dev_err(go->dev, "GPIO write failed!\n");
 			goto allocfail;
 		}
 	}
@@ -1265,7 +1265,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	 * a USB1.1 port.  There will be silent corruption of the stream. */
 	if ((board->flags & GO7007_USB_EZUSB) &&
 			usbdev->speed != USB_SPEED_HIGH)
-		pr_err("*** WARNING ***  This device must be connected to a USB 2.0 port! Attempting to capture video through a USB 1.1 port will result in stream corruption, even at low bitrates!\n");
+		dev_err(go->dev, "*** WARNING ***  This device must be connected to a USB 2.0 port! Attempting to capture video through a USB 1.1 port will result in stream corruption, even at low bitrates!\n");
 
 	/* Allocate the URBs and buffers for receiving the video stream */
 	if (board->flags & GO7007_USB_EZUSB) {
