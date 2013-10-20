@@ -80,7 +80,7 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 	*dr = desc;
 	devres_add(dev, dr);
 
-	return 0;
+	return desc;
 }
 EXPORT_SYMBOL(devm_gpiod_get_index);
 
