@@ -385,6 +385,7 @@
 	};
 
 	dwmmc_0: dwmmc0@12200000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
@@ -403,11 +404,8 @@
 		};
 	};
 
-	dwmmc_1: dwmmc1@12210000 {
-		status = "disabled";
-	};
-
 	dwmmc_2: dwmmc2@12220000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		fifo-depth = <0x80>;
@@ -424,10 +422,6 @@
 			bus-width = <4>;
 			disable-wp;
 		};
-	};
-
-	dwmmc_3: dwmmc3@12230000 {
-		status = "disabled";
 	};
 
 	i2s0: i2s@03830000 {

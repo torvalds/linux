@@ -141,6 +141,7 @@
 	};
 
 	dwmmc0@12200000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
@@ -158,11 +159,8 @@
 		};
 	};
 
-	dwmmc1@12210000 {
-		status = "disabled";
-	};
-
 	dwmmc2@12220000 {
+		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
 		fifo-depth = <0x80>;
@@ -178,10 +176,6 @@
 			bus-width = <4>;
 			disable-wp;
 		};
-	};
-
-	dwmmc3@12230000 {
-		status = "disabled";
 	};
 
 	spi_0: spi@12d20000 {

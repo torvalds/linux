@@ -400,6 +400,7 @@
 		reg = <0x12200000 0x1000>;
 		clocks = <&clock 280>, <&clock 139>;
 		clock-names = "biu", "ciu";
+		status = "disabled";
 	};
 
 	dwmmc_1: dwmmc1@12210000 {
@@ -410,6 +411,7 @@
 		reg = <0x12210000 0x1000>;
 		clocks = <&clock 281>, <&clock 140>;
 		clock-names = "biu", "ciu";
+		status = "disabled";
 	};
 
 	dwmmc_2: dwmmc2@12220000 {
@@ -420,6 +422,7 @@
 		reg = <0x12220000 0x1000>;
 		clocks = <&clock 282>, <&clock 141>;
 		clock-names = "biu", "ciu";
+		status = "disabled";
 	};
 
 	dwmmc_3: dwmmc3@12230000 {
@@ -430,6 +433,7 @@
 		#size-cells = <0>;
 		clocks = <&clock 283>, <&clock 142>;
 		clock-names = "biu", "ciu";
+		status = "disabled";
 	};
 
 	i2s0: i2s@03830000 {
