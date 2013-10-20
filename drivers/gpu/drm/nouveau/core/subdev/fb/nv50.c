@@ -243,7 +243,7 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv50_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &nv50_ram_oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -304,12 +304,13 @@ nv50_fb_init(struct nouveau_object *object)
 
 struct nouveau_oclass *
 nv50_fb_oclass = &(struct nv50_fb_impl) {
-	.base.handle = NV_SUBDEV(FB, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.handle = NV_SUBDEV(FB, 0x50),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_fb_ctor,
 		.dtor = nv50_fb_dtor,
 		.init = nv50_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
+	.base.ram = &nv50_ram_oclass,
 	.trap = 0x000707ff,
-}.base;
+}.base.base;

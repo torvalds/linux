@@ -26,12 +26,13 @@
 
 struct nouveau_oclass *
 nv84_fb_oclass = &(struct nv50_fb_impl) {
-	.base.handle = NV_SUBDEV(FB, 0x84),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.handle = NV_SUBDEV(FB, 0x84),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_fb_ctor,
 		.dtor = nv50_fb_dtor,
 		.init = nv50_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
+	.base.ram = &nv50_ram_oclass,
 	.trap = 0x001d07ff,
-}.base;
+}.base.base;

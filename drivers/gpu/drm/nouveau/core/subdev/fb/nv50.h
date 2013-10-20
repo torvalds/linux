@@ -16,7 +16,7 @@ void nv50_fb_dtor(struct nouveau_object *);
 int  nv50_fb_init(struct nouveau_object *);
 
 struct nv50_fb_impl {
-	struct nouveau_oclass base;
+	struct nouveau_fb_impl base;
 	u32 trap;
 };
 

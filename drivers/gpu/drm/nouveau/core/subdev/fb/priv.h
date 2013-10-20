@@ -26,10 +26,12 @@ extern struct nouveau_oclass nv44_ram_oclass;
 extern struct nouveau_oclass nv49_ram_oclass;
 extern struct nouveau_oclass nv4e_ram_oclass;
 extern struct nouveau_oclass nv50_ram_oclass;
+extern struct nouveau_oclass nva3_ram_oclass;
+extern struct nouveau_oclass nvaa_ram_oclass;
 extern struct nouveau_oclass nvc0_ram_oclass;
 
-#define nouveau_fb_create(p,e,c,r,d)                                           \
-	nouveau_fb_create_((p), (e), (c), (r), sizeof(**d), (void **)d)
+#define nouveau_fb_create(p,e,c,d)                                             \
+	nouveau_fb_create_((p), (e), (c), sizeof(**d), (void **)d)
 #define nouveau_fb_destroy(p) ({                                               \
 	struct nouveau_fb *pfb = (p);                                          \
 	_nouveau_fb_dtor(nv_object(pfb));                                      \
@@ -44,11 +46,15 @@ extern struct nouveau_oclass nvc0_ram_oclass;
 })
 
 int nouveau_fb_create_(struct nouveau_object *, struct nouveau_object *,
-		       struct nouveau_oclass *, struct nouveau_oclass *,
-		       int length, void **pobject);
+		       struct nouveau_oclass *, int, void **);
 void _nouveau_fb_dtor(struct nouveau_object *);
 int  _nouveau_fb_init(struct nouveau_object *);
 int  _nouveau_fb_fini(struct nouveau_object *, bool);
+
+struct nouveau_fb_impl {
+	struct nouveau_oclass base;
+	struct nouveau_oclass *ram;
+};
 
 struct nouveau_bios;
 int  nouveau_fb_bios_memtype(struct nouveau_bios *);
