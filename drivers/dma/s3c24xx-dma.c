@@ -1078,6 +1078,13 @@ static void s3c24xx_dma_free_virtual_channels(struct dma_device *dmadev)
 		list_del(&chan->vc.chan.device_node);
 }
 
+/* s3c2410, s3c2440 and s3c2442 have a 0x40 stride without separate clocks */
+static struct soc_data soc_s3c2410 = {
+	.stride = 0x40,
+	.has_reqsel = false,
+	.has_clocks = false,
+};
+
 /* s3c2412 and s3c2413 have a 0x40 stride and dmareqsel mechanism */
 static struct soc_data soc_s3c2412 = {
 	.stride = 0x40,
@@ -1094,6 +1101,9 @@ static struct soc_data soc_s3c2443 = {
 
 static struct platform_device_id s3c24xx_dma_driver_ids[] = {
 	{
+		.name		= "s3c2410-dma",
+		.driver_data	= (kernel_ulong_t)&soc_s3c2410,
+	}, {
 		.name		= "s3c2412-dma",
 		.driver_data	= (kernel_ulong_t)&soc_s3c2412,
 	}, {
