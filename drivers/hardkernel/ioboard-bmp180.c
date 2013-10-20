@@ -324,7 +324,7 @@ static int bmp180_detect(struct i2c_client *client)
 static int bmp180_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct bmp180_data  *bmp180;
-	int                 err;
+	int                 err=0;
 
 	bmp180 = kzalloc(sizeof(struct bmp180_data), GFP_KERNEL);
 	if (!bmp180) {
