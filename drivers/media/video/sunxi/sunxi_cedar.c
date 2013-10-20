@@ -422,6 +422,57 @@ static void restore_context(void)
 		writel(g_ctx_reg0, 0xf1c20e00);
 }
 
+static long __set_ve_freq (int arg)
+{
+	/*
+	** Although the Allwinner sun7i driver sources indicate that the VE
+	** clock can go up to 500MHz, very simple JPEG and MPEG decoding
+	** tests show it can't run reliably at even 408MHz.  Keeping the
+	** sun4i max setting seems best until more information is available.
+	*/
+	int max_rate = 320000000;
+	int min_rate = 100000000;
+	int arg_rate = arg * 1000000;	/* arg_rate is specified in MHz */
+	int divisor;
+
+	if (arg_rate > max_rate)
+		arg_rate = max_rate;
+	if (arg_rate < min_rate)
+		arg_rate = min_rate;
+
+	/*
+	** compute integer divisor of pll4clk_rate so that:
+	** ve_moduleclk >= arg_rate
+	**
+	** clamp divisor so that:
+	** min_rate <= ve_moduleclk <= max_rate
+	** 1 <= divisor <= 8
+	*/
+
+	divisor = pll4clk_rate / arg_rate;
+
+	if (divisor == 0)
+		divisor = 1;
+	else if (pll4clk_rate / divisor < min_rate && divisor > 1)
+		divisor--;
+	else if (pll4clk_rate / divisor > max_rate)
+		divisor++;
+
+	/* VE PLL divisor can't be > 8 */
+	if (divisor > 8)
+		divisor = 8;
+
+	if (clk_set_rate(ve_moduleclk, pll4clk_rate / divisor) == -1) {
+		printk("IOCTL_SET_VE_FREQ: error setting clock; pll4clk_rate = %lu, requested = %lu\n", pll4clk_rate, pll4clk_rate / divisor);
+		return -EFAULT;
+	}
+#ifdef CEDAR_DEBUG
+	printk("IOCTL_SET_VE_FREQ: pll4clk_rate = %lu, divisor = %d, arg_rate= %d, ve_moduleclk = %lu\n", pll4clk_rate, divisor, arg_rate, clk_get_rate(ve_moduleclk));
+#endif
+
+	return 0;
+}
+
 /*
  * ioctl function
  * including : wait video engine done,
@@ -571,19 +622,7 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 		case IOCTL_SET_VE_FREQ:
-			{
-				int arg_rate = (int)arg;
-				if(arg_rate >= 320){
-					clk_set_rate(ve_moduleclk, pll4clk_rate/3);//ve_moduleclk rate is 320khz
-				}else if((arg_rate >= 240) && (arg_rate < 320)){
-					clk_set_rate(ve_moduleclk, pll4clk_rate/4);//ve_moduleclk rate is 240khz
-				}else if((arg_rate >= 160) && (arg_rate < 240)){
-					clk_set_rate(ve_moduleclk, pll4clk_rate/6);//ve_moduleclk rate is 160khz
-				}else{
-					printk("IOCTL_SET_VE_FREQ set ve freq error,%s,%d\n", __func__, __LINE__);
-				}
-				break;
-			}
+			return __set_ve_freq((int) arg);
         case IOCTL_GETVALUE_AVS2:
 			/* Return AVS1 counter value */
             return readl(cedar_devp->iomap_addrs.regs_avs + 0x88);
@@ -926,7 +965,7 @@ static int __init cedardev_init(void)
 		return -EFAULT;
 	}
 	/*default the ve freq to 160M by lys 2011-12-23 15:25:34*/
-	clk_set_rate(ve_moduleclk, pll4clk_rate/6);
+	__set_ve_freq(160);
 	/*geting dram clk for ve!*/
 	dram_veclk = clk_get(NULL, "sdram_ve");
 	hosc_clk = clk_get(NULL,"hosc");
