@@ -324,10 +324,30 @@ err_idr:
 EXPORT_SYMBOL(drm_get_minor);
 
 /**
- * Put a secondary minor number.
+ * drm_unplug_minor - Unplug DRM minor
+ * @minor: Minor to unplug
  *
- * \param sec_minor - structure to be released
- * \return always zero
+ * Unplugs the given DRM minor but keeps the object. So after this returns,
+ * minor->dev is still valid so existing open-files can still access it to get
+ * device information from their drm_file ojects.
+ * If the minor is already unplugged or if @minor is NULL, nothing is done.
+ * The global DRM mutex must be held by the caller.
+ */
+static void drm_unplug_minor(struct drm_minor *minor)
+{
+	if (!minor || !device_is_registered(minor->kdev))
+		return;
+
+	drm_sysfs_device_remove(minor);
+}
+
+/**
+ * drm_put_minor - Destroy DRM minor
+ * @minor_p: Double pointer to DRM minor
+ *
+ * This calls drm_unplug_minor() on the given minor and then frees it. The minor
+ * pointer is reset to NULL before this returns.
+ * The global DRM mutex must be held by the caller.
  */
 int drm_put_minor(struct drm_minor **minor_p)
 {
@@ -339,7 +359,7 @@ int drm_put_minor(struct drm_minor **minor_p)
 	drm_debugfs_cleanup(minor);
 #endif
 
-	drm_sysfs_device_remove(minor);
+	drm_unplug_minor(minor);
 
 	idr_remove(&drm_minors_idr, minor->index);
 
@@ -348,11 +368,6 @@ int drm_put_minor(struct drm_minor **minor_p)
 	return 0;
 }
 EXPORT_SYMBOL(drm_put_minor);
-
-static void drm_unplug_minor(struct drm_minor *minor)
-{
-	drm_sysfs_device_remove(minor);
-}
 
 /**
  * Called via drm_exit() at module unload time or when pci device is
