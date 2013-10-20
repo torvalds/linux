@@ -543,14 +543,14 @@ static int mp_startup(struct sb_uart_state *state, int init_hw)
 		if (init_hw) {
 			mp_change_speed(state, NULL);
 
-			if (info->tty->termios.c_cflag & CBAUD)
+			if (info->tty && (info->tty->termios.c_cflag & CBAUD))
 				uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 		}
 
 		info->flags |= UIF_INITIALIZED;
 
-
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
+		if (info->tty)
+			clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	}
 
 	if (retval && capable(CAP_SYS_ADMIN))
