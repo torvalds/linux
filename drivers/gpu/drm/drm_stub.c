@@ -343,15 +343,17 @@ static void drm_unplug_minor(struct drm_minor *minor)
 
 /**
  * drm_put_minor - Destroy DRM minor
- * @minor_p: Double pointer to DRM minor
+ * @minor: Minor to destroy
  *
- * This calls drm_unplug_minor() on the given minor and then frees it. The minor
- * pointer is reset to NULL before this returns.
+ * This calls drm_unplug_minor() on the given minor and then frees it. Nothing
+ * is done if @minor is NULL. It is fine to call this on already unplugged
+ * minors.
  * The global DRM mutex must be held by the caller.
  */
-int drm_put_minor(struct drm_minor **minor_p)
+static void drm_put_minor(struct drm_minor *minor)
 {
-	struct drm_minor *minor = *minor_p;
+	if (!minor)
+		return;
 
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
 
@@ -364,10 +366,7 @@ int drm_put_minor(struct drm_minor **minor_p)
 	idr_remove(&drm_minors_idr, minor->index);
 
 	kfree(minor);
-	*minor_p = NULL;
-	return 0;
 }
-EXPORT_SYMBOL(drm_put_minor);
 
 /**
  * Called via drm_exit() at module unload time or when pci device is
@@ -562,13 +561,11 @@ err_unload:
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 err_primary_node:
-	drm_put_minor(&dev->primary);
+	drm_put_minor(dev->primary);
 err_render_node:
-	if (dev->render)
-		drm_put_minor(&dev->render);
+	drm_put_minor(dev->render);
 err_control_node:
-	if (dev->control)
-		drm_put_minor(&dev->control);
+	drm_put_minor(dev->control);
 err_agp:
 	if (dev->driver->bus->agp_destroy)
 		dev->driver->bus->agp_destroy(dev);
@@ -603,11 +600,9 @@ void drm_dev_unregister(struct drm_device *dev)
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
 
-	if (dev->control)
-		drm_put_minor(&dev->control);
-	if (dev->render)
-		drm_put_minor(&dev->render);
-	drm_put_minor(&dev->primary);
+	drm_put_minor(dev->control);
+	drm_put_minor(dev->render);
+	drm_put_minor(dev->primary);
 
 	list_del(&dev->driver_item);
 }
