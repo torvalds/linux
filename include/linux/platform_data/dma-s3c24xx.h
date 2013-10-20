@@ -9,6 +9,9 @@
  * any later version.
  */
 
+/* Helper to encode the source selection constraints for early s3c socs. */
+#define S3C24XX_DMA_CHANREQ(src, chan)	((BIT(3) | src) << chan * 4)
+
 enum s3c24xx_dma_bus {
 	S3C24XX_DMA_APB,
 	S3C24XX_DMA_AHB,

@@ -343,6 +343,50 @@ static struct resource s3c2410_dma_resource[] = {
 };
 #endif
 
+#if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2442)
+static struct s3c24xx_dma_channel s3c2410_dma_channels[DMACH_MAX] = {
+	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 0), },
+	[DMACH_XD1] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 1), },
+	[DMACH_SDI] = { S3C24XX_DMA_APB, false, S3C24XX_DMA_CHANREQ(2, 0) |
+						S3C24XX_DMA_CHANREQ(2, 2) |
+						S3C24XX_DMA_CHANREQ(1, 3),
+	},
+	[DMACH_SPI0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 1), },
+	[DMACH_SPI1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 3), },
+	[DMACH_UART0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 0), },
+	[DMACH_UART1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 1), },
+	[DMACH_UART2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(0, 3), },
+	[DMACH_TIMER] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 0) |
+						 S3C24XX_DMA_CHANREQ(3, 2) |
+						 S3C24XX_DMA_CHANREQ(3, 3),
+	},
+	[DMACH_I2S_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 1) |
+						  S3C24XX_DMA_CHANREQ(1, 2),
+	},
+	[DMACH_I2S_OUT] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(0, 2), },
+	[DMACH_USB_EP1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 0), },
+	[DMACH_USB_EP2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 1), },
+	[DMACH_USB_EP3] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 2), },
+	[DMACH_USB_EP4] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 3), },
+};
+
+static struct s3c24xx_dma_platdata s3c2410_dma_platdata = {
+	.num_phy_channels = 4,
+	.channels = s3c2410_dma_channels,
+	.num_channels = DMACH_MAX,
+};
+
+struct platform_device s3c2410_device_dma = {
+	.name		= "s3c2410-dma",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
+	.resource	= s3c2410_dma_resource,
+	.dev	= {
+		.platform_data	= &s3c2410_dma_platdata,
+	},
+};
+#endif
+
 #ifdef CONFIG_CPU_S3C2412
 static struct s3c24xx_dma_channel s3c2412_dma_channels[DMACH_MAX] = {
 	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, 17 },
@@ -380,6 +424,62 @@ struct platform_device s3c2412_device_dma = {
 	.resource	= s3c2410_dma_resource,
 	.dev	= {
 		.platform_data	= &s3c2412_dma_platdata,
+	},
+};
+#endif
+
+#if defined(CONFIG_CPU_S3C2440)
+static struct s3c24xx_dma_channel s3c2440_dma_channels[DMACH_MAX] = {
+	[DMACH_XD0] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 0), },
+	[DMACH_XD1] = { S3C24XX_DMA_AHB, true, S3C24XX_DMA_CHANREQ(0, 1), },
+	[DMACH_SDI] = { S3C24XX_DMA_APB, false, S3C24XX_DMA_CHANREQ(2, 0) |
+						S3C24XX_DMA_CHANREQ(6, 1) |
+						S3C24XX_DMA_CHANREQ(2, 2) |
+						S3C24XX_DMA_CHANREQ(1, 3),
+	},
+	[DMACH_SPI0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 1), },
+	[DMACH_SPI1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 3), },
+	[DMACH_UART0] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 0), },
+	[DMACH_UART1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(1, 1), },
+	[DMACH_UART2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(0, 3), },
+	[DMACH_TIMER] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(3, 0) |
+						 S3C24XX_DMA_CHANREQ(3, 2) |
+						 S3C24XX_DMA_CHANREQ(3, 3),
+	},
+	[DMACH_I2S_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(2, 1) |
+						  S3C24XX_DMA_CHANREQ(1, 2),
+	},
+	[DMACH_I2S_OUT] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(5, 0) |
+						   S3C24XX_DMA_CHANREQ(0, 2),
+	},
+	[DMACH_PCM_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(6, 0) |
+						  S3C24XX_DMA_CHANREQ(5, 2),
+	},
+	[DMACH_PCM_OUT] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(5, 1) |
+						  S3C24XX_DMA_CHANREQ(6, 3),
+	},
+	[DMACH_MIC_IN] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(6, 2) |
+						  S3C24XX_DMA_CHANREQ(5, 3),
+	},
+	[DMACH_USB_EP1] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 0), },
+	[DMACH_USB_EP2] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 1), },
+	[DMACH_USB_EP3] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 2), },
+	[DMACH_USB_EP4] = { S3C24XX_DMA_APB, true, S3C24XX_DMA_CHANREQ(4, 3), },
+};
+
+static struct s3c24xx_dma_platdata s3c2440_dma_platdata = {
+	.num_phy_channels = 4,
+	.channels = s3c2440_dma_channels,
+	.num_channels = DMACH_MAX,
+};
+
+struct platform_device s3c2440_device_dma = {
+	.name		= "s3c2410-dma",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
+	.resource	= s3c2410_dma_resource,
+	.dev	= {
+		.platform_data	= &s3c2440_dma_platdata,
 	},
 };
 #endif
