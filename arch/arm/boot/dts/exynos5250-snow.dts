@@ -175,7 +175,7 @@
 	 * On Snow we've got SIP WiFi and so can keep drive strengths low to
 	 * reduce EMI.
 	 */
-	dwmmc3@12230000 {
+	mmc@12230000 {
 		slot@0 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;

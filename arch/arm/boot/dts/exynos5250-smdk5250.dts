@@ -140,7 +140,7 @@
 		};
 	};
 
-	dwmmc0@12200000 {
+	mmc@12200000 {
 		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
@@ -158,7 +158,7 @@
 		};
 	};
 
-	dwmmc2@12220000 {
+	mmc@12220000 {
 		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;

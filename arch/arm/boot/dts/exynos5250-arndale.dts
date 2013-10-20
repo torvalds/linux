@@ -384,7 +384,7 @@
 		status = "disabled";
 	};
 
-	dwmmc_0: dwmmc0@12200000 {
+	mmc_0: mmc@12200000 {
 		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
@@ -403,7 +403,7 @@
 		};
 	};
 
-	dwmmc_2: dwmmc2@12220000 {
+	mmc_2: mmc@12220000 {
 		status = "okay";
 		num-slots = <1>;
 		supports-highspeed;
