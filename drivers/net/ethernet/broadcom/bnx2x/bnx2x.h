@@ -2073,7 +2073,8 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 
 void bnx2x_prep_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
 			       u8 src_type, u8 dst_type);
-int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae);
+int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
+			       u32 *comp);
 
 /* FLR related routines */
 u32 bnx2x_flr_clnup_poll_count(struct bnx2x *bp);

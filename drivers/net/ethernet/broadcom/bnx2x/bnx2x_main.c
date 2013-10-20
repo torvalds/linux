@@ -503,9 +503,9 @@ void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
 }
 
 /* issue a dmae command over the init-channel and wait for completion */
-int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae)
+int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
+			       u32 *comp)
 {
-	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
 	int cnt = CHIP_REV_IS_SLOW(bp) ? (400000) : 4000;
 	int rc = 0;
 
@@ -518,14 +518,14 @@ int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae)
 	spin_lock_bh(&bp->dmae_lock);
 
 	/* reset completion */
-	*wb_comp = 0;
+	*comp = 0;
 
 	/* post the command on the channel used for initializations */
 	bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
 
 	/* wait for completion */
 	udelay(5);
-	while ((*wb_comp & ~DMAE_PCI_ERR_FLAG) != DMAE_COMP_VAL) {
+	while ((*comp & ~DMAE_PCI_ERR_FLAG) != DMAE_COMP_VAL) {
 
 		if (!cnt ||
 		    (bp->recovery_state != BNX2X_RECOVERY_DONE &&
@@ -537,7 +537,7 @@ int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae)
 		cnt--;
 		udelay(50);
 	}
-	if (*wb_comp & DMAE_PCI_ERR_FLAG) {
+	if (*comp & DMAE_PCI_ERR_FLAG) {
 		BNX2X_ERR("DMAE PCI error!\n");
 		rc = DMAE_PCI_ERROR;
 	}
@@ -574,7 +574,7 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 	dmae.len = len32;
 
 	/* issue the command and wait for completion */
-	rc = bnx2x_issue_dmae_with_comp(bp, &dmae);
+	rc = bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
 	if (rc) {
 		BNX2X_ERR("DMAE returned failure %d\n", rc);
 		bnx2x_panic();
@@ -611,7 +611,7 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	dmae.len = len32;
 
 	/* issue the command and wait for completion */
-	rc = bnx2x_issue_dmae_with_comp(bp, &dmae);
+	rc = bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
 	if (rc) {
 		BNX2X_ERR("DMAE returned failure %d\n", rc);
 		bnx2x_panic();
