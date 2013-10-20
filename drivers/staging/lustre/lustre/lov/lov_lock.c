@@ -88,7 +88,7 @@ static struct lov_sublock_env *lov_sublock_env_get(const struct lu_env *env,
 			subenv->lse_io  = sub->sub_io;
 			subenv->lse_sub = sub;
 		} else {
-			subenv = (void*)sub;
+			subenv = (void *)sub;
 		}
 	}
 	return subenv;
@@ -167,7 +167,7 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 			lov_sublock_env_put(subenv);
 		} else {
 			/* error occurs. */
-			sublock = (void*)subenv;
+			sublock = (void *)subenv;
 		}
 
 		if (!IS_ERR(sublock))

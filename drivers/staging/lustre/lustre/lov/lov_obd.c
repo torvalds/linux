@@ -1909,7 +1909,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 					 (int) sizeof(struct obd_uuid))))
 			return -EFAULT;
 
-		flags = uarg ? *(__u32*)uarg : 0;
+		flags = uarg ? *(__u32 *)uarg : 0;
 		/* got statfs data */
 		rc = obd_statfs(NULL, lov->lov_tgts[index]->ltd_exp, &stat_buf,
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
@@ -2495,7 +2495,7 @@ static int lov_get_info(const struct lu_env *env, struct obd_export *exp,
 		GOTO(out, rc);
 	} else if (KEY_IS(KEY_CONNECT_FLAG)) {
 		struct lov_tgt_desc *tgt;
-		__u64 ost_idx = *((__u64*)val);
+		__u64 ost_idx = *((__u64 *)val);
 
 		LASSERT(*vallen == sizeof(__u64));
 		LASSERT(ost_idx < lov->desc.ld_tgt_count);
@@ -2564,7 +2564,7 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 
 	for (i = 0; i < count; i++, val = (char *)val + incr) {
 		if (next_id) {
-			tgt = lov->lov_tgts[((struct obd_id_info*)val)->idx];
+			tgt = lov->lov_tgts[((struct obd_id_info *)val)->idx];
 		} else {
 			tgt = lov->lov_tgts[i];
 		}
@@ -2593,9 +2593,9 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		} else if (next_id) {
 			err = obd_set_info_async(env, tgt->ltd_exp,
 					 keylen, key, vallen,
-					 ((struct obd_id_info*)val)->data, set);
+					 ((struct obd_id_info *)val)->data, set);
 		} else if (capa) {
-			struct mds_capa_info *info = (struct mds_capa_info*)val;
+			struct mds_capa_info *info = (struct mds_capa_info *)val;
 
 			LASSERT(vallen == sizeof(*info));
 
