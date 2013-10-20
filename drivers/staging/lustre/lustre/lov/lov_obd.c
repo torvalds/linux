@@ -2823,8 +2823,6 @@ struct obd_ops lov_obd_ops = {
 
 struct kmem_cache *lov_oinfo_slab;
 
-extern struct lu_kmem_descr lov_caches[];
-
 int __init lov_init(void)
 {
 	struct lprocfs_static_vars lvars = { 0 };

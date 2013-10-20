@@ -44,6 +44,8 @@
 #include <obd_class.h>
 
 #include "lov_cl_internal.h"
+#include "lov_internal.h"
+
 
 struct kmem_cache *lov_lock_kmem;
 struct kmem_cache *lov_object_kmem;

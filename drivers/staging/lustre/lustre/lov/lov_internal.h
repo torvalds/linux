@@ -89,6 +89,8 @@ struct lov_request_set {
 
 extern struct kmem_cache *lov_oinfo_slab;
 
+extern struct lu_kmem_descr lov_caches[];
+
 void lov_finish_set(struct lov_request_set *set);
 
 static inline void lov_get_reqset(struct lov_request_set *set)
