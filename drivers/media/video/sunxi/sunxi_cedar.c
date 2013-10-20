@@ -48,8 +48,6 @@
 
 #define DRV_VERSION "0.01alpha"
 
-#define CHIP_VERSION_F23
-
 #undef USE_CEDAR_ENGINE
 
 #ifndef CEDARDEV_MAJOR
@@ -69,11 +67,7 @@ int g_dev_minor = CEDARDEV_MINOR;
 module_param(g_dev_major, int, S_IRUGO);//S_IRUGO represent that g_dev_major can be read,but canot be write
 module_param(g_dev_minor, int, S_IRUGO);
 
-#ifdef CHIP_VERSION_F23
 #define VE_IRQ_NO (53)
-#else
-#define VE_IRQ_NO (48)
-#endif
 
 struct clk *ve_moduleclk = NULL;
 struct clk *ve_pll4clk = NULL;
@@ -89,11 +83,7 @@ extern unsigned long ve_size;
 extern int flush_clean_user_range(long start, long end);
 struct iomap_para{
 	volatile char* regs_macc;
-	#ifdef CHIP_VERSION_F23
 	volatile char* regs_avs;
-	#else
-	volatile char* regs_ccmu;
-	#endif
 };
 
 static DECLARE_WAIT_QUEUE_HEAD(wait_ve);
@@ -419,7 +409,6 @@ static void cedar_engine_for_events(unsigned long arg)
 	spin_unlock_irqrestore(&cedar_spin_lock, flags);
 }
 
-#ifdef CHIP_VERSION_F23
 static unsigned int g_ctx_reg0;
 static void save_context(void)
 {
@@ -430,36 +419,6 @@ static void restore_context(void)
 {
 	writel(g_ctx_reg0, 0xf1c20e00);
 }
-#else
-	#define save_context()
-	#define restore_context()
-#endif
-
-#ifdef CHIP_VERSION_F23
-short VEPLLTable[][6] =
-{
-	//set, actual, Nb, Kb, Mb, Pb
-	{ 60,  60,  5,  2,  2,  1},
-	{ 90,  90,  5,  2,  0,  2},
-	{120, 120,  5,  2,  2,  0},
-	{150, 150, 25,  0,  0,  2},
-	{180, 180,  5,  2,  0,  1},
-	{216, 216,  6,  2,  0,  1},
-	{240, 240,  5,  3,  0,  1},
-	{270, 270, 15,  2,  0,  2},
-	{300, 300, 25,  0,  0,  1},
-	{330, 336,  7,  1,  0,  0},
-	{360, 360,  5,  2,  0,  0},
-	{384, 384,  4,  3,  0,  0},
-	{402, 400, 25,  1,  2,  0},
-	{420, 416, 13,  3,  2,  0},
-	{444, 448, 14,  3,  2,  0},
-	{456, 456, 19,  0,  0,  0},
-	{468, 468, 13,  2,  0,  1},
-	{480, 480,  5,  3,  0,  0},
-	{492, 496, 31,  1,  2,  0},
-};
-#endif
 
 /*
  * ioctl function
