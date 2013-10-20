@@ -12118,7 +12118,6 @@ static int bnx2x_set_coherency_mask(struct bnx2x *bp)
 	struct device *dev = &bp->pdev->dev;
 
 	if (dma_set_mask(dev, DMA_BIT_MASK(64)) == 0) {
-		bp->flags |= USING_DAC_FLAG;
 		if (dma_set_coherent_mask(dev, DMA_BIT_MASK(64)) != 0) {
 			dev_err(dev, "dma_set_coherent_mask failed, aborting\n");
 			return -EIO;
@@ -12286,8 +12285,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_HIGHDMA;
 
 	dev->features |= dev->hw_features | NETIF_F_HW_VLAN_CTAG_RX;
-	if (bp->flags & USING_DAC_FLAG)
-		dev->features |= NETIF_F_HIGHDMA;
+	dev->features |= NETIF_F_HIGHDMA;
 
 	/* Add Loopback capability to the device */
 	dev->hw_features |= NETIF_F_LOOPBACK;
