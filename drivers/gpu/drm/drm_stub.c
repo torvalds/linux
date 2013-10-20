@@ -255,16 +255,20 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * Get a secondary minor number.
+ * drm_get_minor - Allocate and register new DRM minor
+ * @dev: DRM device
+ * @minor: Pointer to where new minor is stored
+ * @type: Type of minor
  *
- * \param dev device data structure
- * \param sec-minor structure to hold the assigned minor
- * \return negative number on failure.
+ * Allocate a new minor of the given type and register it. A pointer to the new
+ * minor is returned in @minor.
+ * Caller must hold the global DRM mutex.
  *
- * Search an empty entry and initialize it to the given parameters. This
- * routines assigns minor numbers to secondary heads of multi-headed cards
+ * RETURNS:
+ * 0 on success, negative error code on failure.
  */
-int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
+static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor,
+			 int type)
 {
 	struct drm_minor *new_minor;
 	int ret;
@@ -321,7 +325,6 @@ err_idr:
 	*minor = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_minor);
 
 /**
  * drm_unplug_minor - Unplug DRM minor
