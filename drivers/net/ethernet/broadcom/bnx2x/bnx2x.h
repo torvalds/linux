@@ -1197,8 +1197,9 @@ union cdu_context {
 /* TM (timers) host DB constants */
 #define TM_ILT_PAGE_SZ_HW	0
 #define TM_ILT_PAGE_SZ		(4096 << TM_ILT_PAGE_SZ_HW) /* 4K */
-/* #define TM_CONN_NUM		(CNIC_STARTING_CID+CNIC_ISCSI_CXT_MAX) */
-#define TM_CONN_NUM		1024
+#define TM_CONN_NUM		(BNX2X_FIRST_VF_CID + \
+				 BNX2X_VF_CIDS + \
+				 CNIC_ISCSI_CID_MAX)
 #define TM_ILT_SZ		(8 * TM_CONN_NUM)
 #define TM_ILT_LINES		DIV_ROUND_UP(TM_ILT_SZ, TM_ILT_PAGE_SZ)
 
