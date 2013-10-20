@@ -630,7 +630,7 @@ static int common_attr_done(struct lov_request_set *set)
 	if (tmp_oa == NULL)
 		GOTO(out, rc = -ENOMEM);
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		if (!req->rq_complete || req->rq_rc)
@@ -669,7 +669,7 @@ static int brw_done(struct lov_request_set *set)
 	struct list_head *pos;
 	struct lov_request *req;
 
-	list_for_each (pos, &set->set_list) {
+	list_for_each(pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
 		if (!req->rq_complete || req->rq_rc)

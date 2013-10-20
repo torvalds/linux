@@ -64,47 +64,47 @@ struct lu_kmem_descr lov_caches[] = {
 	{
 		.ckd_cache = &lov_lock_kmem,
 		.ckd_name  = "lov_lock_kmem",
-		.ckd_size  = sizeof (struct lov_lock)
+		.ckd_size  = sizeof(struct lov_lock)
 	},
 	{
 		.ckd_cache = &lov_object_kmem,
 		.ckd_name  = "lov_object_kmem",
-		.ckd_size  = sizeof (struct lov_object)
+		.ckd_size  = sizeof(struct lov_object)
 	},
 	{
 		.ckd_cache = &lov_thread_kmem,
 		.ckd_name  = "lov_thread_kmem",
-		.ckd_size  = sizeof (struct lov_thread_info)
+		.ckd_size  = sizeof(struct lov_thread_info)
 	},
 	{
 		.ckd_cache = &lov_session_kmem,
 		.ckd_name  = "lov_session_kmem",
-		.ckd_size  = sizeof (struct lov_session)
+		.ckd_size  = sizeof(struct lov_session)
 	},
 	{
 		.ckd_cache = &lov_req_kmem,
 		.ckd_name  = "lov_req_kmem",
-		.ckd_size  = sizeof (struct lov_req)
+		.ckd_size  = sizeof(struct lov_req)
 	},
 	{
 		.ckd_cache = &lovsub_lock_kmem,
 		.ckd_name  = "lovsub_lock_kmem",
-		.ckd_size  = sizeof (struct lovsub_lock)
+		.ckd_size  = sizeof(struct lovsub_lock)
 	},
 	{
 		.ckd_cache = &lovsub_object_kmem,
 		.ckd_name  = "lovsub_object_kmem",
-		.ckd_size  = sizeof (struct lovsub_object)
+		.ckd_size  = sizeof(struct lovsub_object)
 	},
 	{
 		.ckd_cache = &lovsub_req_kmem,
 		.ckd_name  = "lovsub_req_kmem",
-		.ckd_size  = sizeof (struct lovsub_req)
+		.ckd_size  = sizeof(struct lovsub_req)
 	},
 	{
 		.ckd_cache = &lov_lock_link_kmem,
 		.ckd_name  = "lov_lock_link_kmem",
-		.ckd_size  = sizeof (struct lov_lock_link)
+		.ckd_size  = sizeof(struct lov_lock_link)
 	},
 	{
 		.ckd_cache = NULL
