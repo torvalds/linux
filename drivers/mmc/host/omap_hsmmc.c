@@ -1827,13 +1827,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	mmc->ops	= &omap_hsmmc_ops;
 
-	/*
-	 * If regulator_disable can only put vcc_aux to sleep then there is
-	 * no off state.
-	 */
-	if (mmc_slot(host).vcc_aux_disable_is_sleep)
-		mmc_slot(host).no_off = 1;
-
 	mmc->f_min = OMAP_MMC_MIN_CLOCK;
 
 	if (pdata->max_freq > 0)
