@@ -346,6 +346,7 @@ static void drm_unplug_minor(struct drm_minor *minor)
 #endif
 
 	drm_sysfs_device_remove(minor);
+	idr_remove(&drm_minors_idr, minor->index);
 }
 
 /**
@@ -365,9 +366,6 @@ static void drm_put_minor(struct drm_minor *minor)
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
 
 	drm_unplug_minor(minor);
-
-	idr_remove(&drm_minors_idr, minor->index);
-
 	kfree(minor);
 }
 
