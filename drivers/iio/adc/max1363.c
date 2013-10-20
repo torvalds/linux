@@ -165,6 +165,8 @@ struct max1363_chip_info {
  * @thresh_low:		low threshold values
  * @vref:		Reference voltage regulator
  * @vref_uv:		Actual (external or internal) reference voltage
+ * @send:		function used to send data to the chip
+ * @recv:		function used to receive data from the chip
  */
 struct max1363_state {
 	struct i2c_client		*client;
@@ -186,6 +188,10 @@ struct max1363_state {
 	s16				thresh_low[8];
 	struct regulator		*vref;
 	u32				vref_uv;
+	int				(*send)(const struct i2c_client *client,
+						const char *buf, int count);
+	int				(*recv)(const struct i2c_client *client,
+						char *buf, int count);
 };
 
 #define MAX1363_MODE_SINGLE(_num, _mask) {				\
@@ -311,13 +317,37 @@ static const struct max1363_mode
 	return NULL;
 }
 
-static int max1363_write_basic_config(struct i2c_client *client,
-				      unsigned char d1,
-				      unsigned char d2)
+static int max1363_smbus_send(const struct i2c_client *client, const char *buf,
+		int count)
 {
-	u8 tx_buf[2] = {d1, d2};
+	int i, err;
 
-	return i2c_master_send(client, tx_buf, 2);
+	for (i = err = 0; err == 0 && i < count; ++i)
+		err = i2c_smbus_write_byte(client, buf[i]);
+
+	return err ? err : count;
+}
+
+static int max1363_smbus_recv(const struct i2c_client *client, char *buf,
+		int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; ++i) {
+		ret = i2c_smbus_read_byte(client);
+		if (ret < 0)
+			return ret;
+		buf[i] = ret;
+	}
+
+	return count;
+}
+
+static int max1363_write_basic_config(struct max1363_state *st)
+{
+	u8 tx_buf[2] = { st->setupbyte, st->configbyte };
+
+	return st->send(st->client, tx_buf, 2);
 }
 
 static int max1363_set_scan_mode(struct max1363_state *st)
@@ -327,9 +357,7 @@ static int max1363_set_scan_mode(struct max1363_state *st)
 			    | MAX1363_SE_DE_MASK);
 	st->configbyte |= st->current_mode->conf;
 
-	return max1363_write_basic_config(st->client,
-					  st->setupbyte,
-					  st->configbyte);
+	return max1363_write_basic_config(st);
 }
 
 static int max1363_read_single_chan(struct iio_dev *indio_dev,
@@ -366,7 +394,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 	}
 	if (st->chip_info->bits != 8) {
 		/* Get reading */
-		data = i2c_master_recv(client, rxbuf, 2);
+		data = st->recv(client, rxbuf, 2);
 		if (data < 0) {
 			ret = data;
 			goto error_ret;
@@ -375,7 +403,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 		  ((1 << st->chip_info->bits) - 1);
 	} else {
 		/* Get reading */
-		data = i2c_master_recv(client, rxbuf, 1);
+		data = st->recv(client, rxbuf, 1);
 		if (data < 0) {
 			ret = data;
 			goto error_ret;
@@ -772,11 +800,11 @@ static irqreturn_t max1363_event_handler(int irq, void *private)
 	u8 tx[2] = { st->setupbyte,
 		     MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0 };
 
-	i2c_master_recv(st->client, &rx, 1);
+	st->recv(st->client, &rx, 1);
 	mask = rx;
 	for_each_set_bit(loc, &mask, 8)
 		iio_push_event(indio_dev, max1363_event_codes[loc], timestamp);
-	i2c_master_send(st->client, tx, 2);
+	st->send(st->client, tx, 2);
 
 	return IRQ_HANDLED;
 }
@@ -812,9 +840,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 		st->setupbyte &= ~MAX1363_SETUP_MONITOR_SETUP;
 		st->configbyte &= ~MAX1363_SCAN_MASK;
 		st->monitor_on = false;
-		return max1363_write_basic_config(st->client,
-						st->setupbyte,
-						st->configbyte);
+		return max1363_write_basic_config(st);
 	}
 
 	/* Ensure we are in the relevant mode */
@@ -876,7 +902,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 		}
 
 
-	ret = i2c_master_send(st->client, tx_buf, len);
+	ret = st->send(st->client, tx_buf, len);
 	if (ret < 0)
 		goto error_ret;
 	if (ret != len) {
@@ -893,7 +919,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	 */
 	tx_buf[0] = st->setupbyte;
 	tx_buf[1] = MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0;
-	ret = i2c_master_send(st->client, tx_buf, 2);
+	ret = st->send(st->client, tx_buf, 2);
 	if (ret < 0)
 		goto error_ret;
 	if (ret != 2) {
@@ -1481,9 +1507,9 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (rxbuf == NULL)
 		goto done;
 	if (st->chip_info->bits != 8)
-		b_sent = i2c_master_recv(st->client, rxbuf, numvals*2);
+		b_sent = st->recv(st->client, rxbuf, numvals * 2);
 	else
-		b_sent = i2c_master_recv(st->client, rxbuf, numvals);
+		b_sent = st->recv(st->client, rxbuf, numvals);
 	if (b_sent < 0)
 		goto done_free;
 
@@ -1548,6 +1574,18 @@ static int max1363_probe(struct i2c_client *client,
 			goto error_disable_reg;
 		}
 		st->vref_uv = vref_uv;
+	}
+
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		st->send = i2c_master_send;
+		st->recv = i2c_master_recv;
+	} else if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)
+			&& st->chip_info->bits == 8) {
+		st->send = max1363_smbus_send;
+		st->recv = max1363_smbus_recv;
+	} else {
+		ret = -EOPNOTSUPP;
+		goto error_disable_reg;
 	}
 
 	ret = max1363_alloc_scan_masks(indio_dev);
