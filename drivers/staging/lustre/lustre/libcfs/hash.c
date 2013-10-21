@@ -469,7 +469,7 @@ cfs_hash_hlist_setup(cfs_hash_t *hs)
 }
 
 static void
-cfs_hash_bd_from_key(cfs_hash_t *hs, cfs_hash_bucket_t **bkts,
+cfs_hash_bd_from_key(cfs_hash_t *hs, struct cfs_hash_bucket **bkts,
 		     unsigned int bits, const void *key, cfs_hash_bd_t *bd)
 {
 	unsigned int index = cfs_hash_id(hs, key, (1U << bits) - 1);
@@ -563,8 +563,8 @@ void
 cfs_hash_bd_move_locked(cfs_hash_t *hs, cfs_hash_bd_t *bd_old,
 			cfs_hash_bd_t *bd_new, struct hlist_node *hnode)
 {
-	cfs_hash_bucket_t *obkt = bd_old->bd_bucket;
-	cfs_hash_bucket_t *nbkt = bd_new->bd_bucket;
+	struct cfs_hash_bucket *obkt = bd_old->bd_bucket;
+	struct cfs_hash_bucket *nbkt = bd_new->bd_bucket;
 	int		rc;
 
 	if (cfs_hash_bd_compare(bd_old, bd_new) == 0)
@@ -698,7 +698,7 @@ static void
 cfs_hash_multi_bd_lock(cfs_hash_t *hs, cfs_hash_bd_t *bds,
 		       unsigned n, int excl)
 {
-	cfs_hash_bucket_t *prev = NULL;
+	struct cfs_hash_bucket *prev = NULL;
 	int		i;
 
 	/**
@@ -721,7 +721,7 @@ static void
 cfs_hash_multi_bd_unlock(cfs_hash_t *hs, cfs_hash_bd_t *bds,
 			 unsigned n, int excl)
 {
-	cfs_hash_bucket_t *prev = NULL;
+	struct cfs_hash_bucket *prev = NULL;
 	int		i;
 
 	cfs_hash_for_each_bd(bds, n, i) {
@@ -884,7 +884,7 @@ cfs_hash_dual_bd_finddel_locked(cfs_hash_t *hs, cfs_hash_bd_t *bds,
 EXPORT_SYMBOL(cfs_hash_dual_bd_finddel_locked);
 
 static void
-cfs_hash_buckets_free(cfs_hash_bucket_t **buckets,
+cfs_hash_buckets_free(struct cfs_hash_bucket **buckets,
 		      int bkt_size, int prev_size, int size)
 {
 	int     i;
@@ -902,11 +902,11 @@ cfs_hash_buckets_free(cfs_hash_bucket_t **buckets,
  * needed, the newly allocated buckets if allocation was needed and
  * successful, and NULL on error.
  */
-static cfs_hash_bucket_t **
-cfs_hash_buckets_realloc(cfs_hash_t *hs, cfs_hash_bucket_t **old_bkts,
+static struct cfs_hash_bucket **
+cfs_hash_buckets_realloc(cfs_hash_t *hs, struct cfs_hash_bucket **old_bkts,
 			 unsigned int old_size, unsigned int new_size)
 {
-	cfs_hash_bucket_t **new_bkts;
+	struct cfs_hash_bucket **new_bkts;
 	int		 i;
 
 	LASSERT(old_size == 0 || old_bkts != NULL);
@@ -1874,7 +1874,7 @@ static int
 cfs_hash_rehash_worker(cfs_workitem_t *wi)
 {
 	cfs_hash_t	 *hs = container_of(wi, cfs_hash_t, hs_rehash_wi);
-	cfs_hash_bucket_t **bkts;
+	struct cfs_hash_bucket **bkts;
 	cfs_hash_bd_t       bd;
 	unsigned int	old_size;
 	unsigned int	new_size;
@@ -2028,7 +2028,7 @@ int cfs_hash_debug_header(struct seq_file *m)
 }
 EXPORT_SYMBOL(cfs_hash_debug_header);
 
-static cfs_hash_bucket_t **
+static struct cfs_hash_bucket **
 cfs_hash_full_bkts(cfs_hash_t *hs)
 {
 	/* NB: caller should hold hs->hs_rwlock if REHASH is set */

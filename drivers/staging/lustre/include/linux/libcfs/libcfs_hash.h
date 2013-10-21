@@ -97,20 +97,20 @@ union cfs_hash_lock {
  *   which depends on requirement of user
  * - some extra bytes (caller can require it while creating hash)
  */
-typedef struct cfs_hash_bucket {
+struct cfs_hash_bucket {
 	union cfs_hash_lock	hsb_lock;	/**< bucket lock */
 	__u32			hsb_count;	/**< current entries */
 	__u32			hsb_version;	/**< change version */
 	unsigned int		hsb_index;	/**< index of bucket */
 	int			hsb_depmax;	/**< max depth on bucket */
 	long			hsb_head[0];	/**< hash-head array */
-} cfs_hash_bucket_t;
+};
 
 /**
  * cfs_hash bucket descriptor, it's normally in stack of caller
  */
 typedef struct cfs_hash_bd {
-	cfs_hash_bucket_t	  *bd_bucket;      /**< address of bucket */
+	struct cfs_hash_bucket	*bd_bucket;      /**< address of bucket */
 	unsigned int		bd_offset;      /**< offset in bucket */
 } cfs_hash_bd_t;
 
@@ -221,7 +221,7 @@ typedef struct cfs_hash {
 	/** hash list operations */
 	struct cfs_hash_hlist_ops  *hs_hops;
 	/** hash buckets-table */
-	cfs_hash_bucket_t	 **hs_buckets;
+	struct cfs_hash_bucket	 **hs_buckets;
 	/** total number of items on this hash-table */
 	atomic_t		hs_count;
 	/** hash flags, see cfs_hash_tag for detail */
@@ -255,7 +255,7 @@ typedef struct cfs_hash {
 	/** refcount on this hash table */
 	atomic_t		hs_refcount;
 	/** rehash buckets-table */
-	cfs_hash_bucket_t	 **hs_rehash_buckets;
+	struct cfs_hash_bucket	 **hs_rehash_buckets;
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 	/** serialize debug members */
 	spinlock_t			hs_dep_lock;
@@ -451,7 +451,7 @@ cfs_hash_is_iterating(cfs_hash_t *hs)
 static inline int
 cfs_hash_bkt_size(cfs_hash_t *hs)
 {
-	return offsetof(cfs_hash_bucket_t, hsb_head[0]) +
+	return offsetof(struct cfs_hash_bucket, hsb_head[0]) +
 	       hs->hs_hops->hop_hhead_size(hs) * CFS_HASH_BKT_NHLIST(hs) +
 	       hs->hs_extra_bytes;
 }
