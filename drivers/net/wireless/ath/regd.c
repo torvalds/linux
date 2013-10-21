@@ -249,16 +249,16 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 		return;
 
 	/*
-	 * If no country IE has been received always enable active scan
-	 * on these channels. This is only done for specific regulatory SKUs
+	 * If no country IE has been received always enable passive scan
+	 * and no-ibss on these channels. This is only done for specific
+	 * regulatory SKUs.
 	 */
 	if (initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
 		ch = &sband->channels[11]; /* CH 12 */
-		if (ch->flags & IEEE80211_CHAN_NO_IR)
-			ch->flags &= ~IEEE80211_CHAN_NO_IR;
+		ch->flags |= IEEE80211_CHAN_NO_IR;
+
 		ch = &sband->channels[12]; /* CH 13 */
-		if (ch->flags & IEEE80211_CHAN_NO_IR)
-			ch->flags &= ~IEEE80211_CHAN_NO_IR;
+		ch->flags |= IEEE80211_CHAN_NO_IR;
 		return;
 	}
 
