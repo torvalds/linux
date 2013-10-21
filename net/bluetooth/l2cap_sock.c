@@ -1195,11 +1195,15 @@ static void l2cap_sock_ready_cb(struct l2cap_chan *chan)
 
 static void l2cap_sock_defer_cb(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->data;
-	struct sock *parent = bt_sk(sk)->parent;
+	struct sock *parent, *sk = chan->data;
 
+	lock_sock(sk);
+
+	parent = bt_sk(sk)->parent;
 	if (parent)
 		parent->sk_data_ready(parent, 0);
+
+	release_sock(sk);
 }
 
 static void l2cap_sock_resume_cb(struct l2cap_chan *chan)
