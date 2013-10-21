@@ -186,8 +186,8 @@ int ieee80211_encrypt_fragment(
 	int res;
 
  /*added to care about null crypt condition, to solve that system hangs when shared keys error*/
-        if (!crypt || !crypt->ops)
-        return -1;
+	if (!crypt || !crypt->ops)
+		return -1;
 
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP
 	struct ieee80211_hdr_4addr *header;
@@ -276,36 +276,36 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 static int
 ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 {
-  struct ether_header *eh = (struct ether_header *)skb->data;
-  unsigned int wme_UP = 0;
+	struct ether_header *eh = (struct ether_header *)skb->data;
+	unsigned int wme_UP = 0;
 
-  if(!network->QoS_Enable) {
-     skb->priority = 0;
-     return(wme_UP);
-  }
+	if (!network->QoS_Enable) {
+		skb->priority = 0;
+		return(wme_UP);
+	}
 
-  if(eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
-    const struct iphdr *ih = (struct iphdr *)(skb->data + \
+	if (eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
+		const struct iphdr *ih = (struct iphdr *)(skb->data + \
 		    sizeof(struct ether_header));
-    wme_UP = (ih->tos >> 5)&0x07;
-  } else if (vlan_tx_tag_present(skb)) {/* vtag packet */
+		wme_UP = (ih->tos >> 5)&0x07;
+	} else if (vlan_tx_tag_present(skb)) {/* vtag packet */
 #ifndef VLAN_PRI_SHIFT
 #define VLAN_PRI_SHIFT  13              /* Shift to find VLAN user priority */
 #define VLAN_PRI_MASK   7               /* Mask for user priority bits in VLAN */
 #endif
-	u32 tag = vlan_tx_tag_get(skb);
-	wme_UP = (tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
-  } else if(ETH_P_PAE ==  ntohs(((struct ethhdr *)skb->data)->h_proto)) {
-    wme_UP = 7;
-  }
+		u32 tag = vlan_tx_tag_get(skb);
+		wme_UP = (tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
+	} else if (ETH_P_PAE ==  ntohs(((struct ethhdr *)skb->data)->h_proto)) {
+		wme_UP = 7;
+	}
 
-  skb->priority = wme_UP;
-  return(wme_UP);
+	skb->priority = wme_UP;
+	return(wme_UP);
 }
 
 /* SKBs are added to the ieee->tx_queue. */
 int ieee80211_rtl_xmit(struct sk_buff *skb,
-		   struct net_device *dev)
+		       struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
@@ -331,15 +331,17 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 	 * If there is no driver handler to take the TXB, don't bother
 	 * creating it...
 	 */
-	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE))||
-	   ((!ieee->softmac_data_hard_start_xmit && (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
+	if ((!ieee->hard_start_xmit &&
+	     !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)) ||
+	    ((!ieee->softmac_data_hard_start_xmit &&
+	      (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		printk(KERN_WARNING "%s: No xmit handler.\n",
 		       ieee->dev->name);
 		goto success;
 	}
 
 	ieee80211_classify(skb,&ieee->current_network);
-	if(likely(ieee->raw_tx == 0)){
+	if (likely(ieee->raw_tx == 0)){
 
 		if (unlikely(skb->len < SNAP_SIZE + sizeof(u16))) {
 			printk(KERN_WARNING "%s: skb too small (%d).\n",
@@ -379,7 +381,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		/* Determine total amount of storage required for TXB packets */
 		bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
-		if(ieee->current_network.QoS_Enable) {
+		if (ieee->current_network.QoS_Enable) {
 			if (encrypt)
 				fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA |
 					IEEE80211_FCTL_WEP;
@@ -490,9 +492,9 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 				/* The last fragment takes the remaining length */
 				bytes = bytes_last_frag;
 			}
-			if(ieee->current_network.QoS_Enable) {
+			if (ieee->current_network.QoS_Enable) {
 			  /*
-			   * add 1 only indicate to corresponding seq number 
+			   * add 1 only indicate to corresponding seq number
 			   * control 2006/7/12
 			   */
 			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
@@ -526,17 +528,17 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		}
 		/* Advance sequence number in data frame. */
 		if (ieee->current_network.QoS_Enable) {
-		  if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
-			ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
-		  else
-			ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
+			if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
+				ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
+			else
+				ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
 		} else {
-  		  if (ieee->seq_ctrl[0] == 0xFFF)
-			ieee->seq_ctrl[0] = 0;
-		  else
-			ieee->seq_ctrl[0]++;
+			if (ieee->seq_ctrl[0] == 0xFFF)
+				ieee->seq_ctrl[0] = 0;
+			else
+				ieee->seq_ctrl[0]++;
 		}
-	}else{
+	} else {
 		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
 			printk(KERN_WARNING "%s: skb too small (%d).\n",
 			ieee->dev->name, skb->len);
@@ -544,7 +546,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		}
 
 		txb = ieee80211_alloc_txb(1, skb->len, GFP_ATOMIC);
-		if(!txb){
+		if (!txb) {
 			printk(KERN_WARNING "%s: Could not allocate TXB\n",
 			ieee->dev->name);
 			goto failed;
@@ -552,16 +554,16 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 
 		txb->encrypted = 0;
 		txb->payload_size = skb->len;
-		memcpy(skb_put(txb->fragments[0],skb->len), skb->data, skb->len);
+		memcpy(skb_put(txb->fragments[0], skb->len), skb->data, skb->len);
 	}
 
  success:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 		dev_kfree_skb_any(skb);
 	if (txb) {
-		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE){
+		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) {
 			ieee80211_softmac_xmit(txb, ieee);
-		}else{
+		} else {
 			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
 				stats->tx_packets++;
 				stats->tx_bytes += txb->payload_size;
