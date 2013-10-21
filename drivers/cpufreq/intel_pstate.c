@@ -33,6 +33,8 @@
 
 #define SAMPLE_COUNT		3
 
+#define BYT_RATIOS	0x66a
+
 #define FRAC_BITS 8
 #define int_tofp(X) ((int64_t)(X) << FRAC_BITS)
 #define fp_toint(X) ((X) >> FRAC_BITS)
@@ -342,6 +344,20 @@ static void intel_pstate_sysfs_expose_params(void)
 }
 
 /************************** sysfs end ************************/
+static int byt_get_min_pstate(void)
+{
+	u64 value;
+	rdmsrl(BYT_RATIOS, value);
+	return value & 0xFF;
+}
+
+static int byt_get_max_pstate(void)
+{
+	u64 value;
+	rdmsrl(BYT_RATIOS, value);
+	return (value >> 16) & 0xFF;
+}
+
 static int core_get_min_pstate(void)
 {
 	u64 value;
@@ -395,6 +411,24 @@ static struct cpu_defaults core_params = {
 		.set = core_set_pstate,
 	},
 };
+
+static struct cpu_defaults byt_params = {
+	.pid_policy = {
+		.sample_rate_ms = 10,
+		.deadband = 0,
+		.setpoint = 97,
+		.p_gain_pct = 14,
+		.d_gain_pct = 0,
+		.i_gain_pct = 4,
+	},
+	.funcs = {
+		.get_max = byt_get_max_pstate,
+		.get_min = byt_get_min_pstate,
+		.get_turbo = byt_get_max_pstate,
+		.set = core_set_pstate,
+	},
+};
+
 
 static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 {
@@ -553,6 +587,7 @@ static void intel_pstate_timer_func(unsigned long __data)
 static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x2a, core_params),
 	ICPU(0x2d, core_params),
+	ICPU(0x37, byt_params),
 	ICPU(0x3a, core_params),
 	ICPU(0x3c, core_params),
 	ICPU(0x3e, core_params),
