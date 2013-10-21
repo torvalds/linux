@@ -892,10 +892,10 @@ static int uas_isnt_supported(struct usb_device *udev)
 	return -ENODEV;
 }
 
-static int uas_switch_interface(struct usb_device *udev,
-						struct usb_interface *intf)
+static int uas_find_uas_alt_setting(struct usb_interface *intf)
 {
 	int i;
+	struct usb_device *udev = interface_to_usbdev(intf);
 	int sg_supported = udev->bus->sg_tablesize != 0;
 
 	for (i = 0; i < intf->num_altsetting; i++) {
@@ -904,13 +904,24 @@ static int uas_switch_interface(struct usb_device *udev,
 		if (uas_is_interface(alt)) {
 			if (!sg_supported)
 				return uas_isnt_supported(udev);
-			return usb_set_interface(udev,
-						alt->desc.bInterfaceNumber,
-						alt->desc.bAlternateSetting);
+			return alt->desc.bAlternateSetting;
 		}
 	}
 
 	return -ENODEV;
+}
+
+static int uas_switch_interface(struct usb_device *udev,
+				struct usb_interface *intf)
+{
+	int alt;
+
+	alt = uas_find_uas_alt_setting(intf);
+	if (alt < 0)
+		return alt;
+
+	return usb_set_interface(udev,
+			intf->altsetting[0].desc.bInterfaceNumber, alt);
 }
 
 static void uas_configure_endpoints(struct uas_dev_info *devinfo)
