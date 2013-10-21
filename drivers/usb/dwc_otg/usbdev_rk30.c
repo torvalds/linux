@@ -128,6 +128,8 @@ void usb20otg_hw_init(void)
         //usb phy enter usb mode
         unsigned int * otg_phy_con3 = (unsigned int*)(USBGRF_UOC0_CON0);
         *otg_phy_con3 = (0x0300 << 16);
+	//Disconnect Threshold Adjustment
+	*otg_phy_con3 = (0x07<<1)|((0x07<<1)<<16);	
 #endif    
         // other haredware init
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
@@ -321,6 +323,11 @@ static struct resource usb20_host_resource[] = {
 void usb20host_hw_init(void)
 {
     // usb phy config init
+#ifdef CONFIG_ARCH_RK3188
+    //Disconnect Threshold Adjustment
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON0);
+    *otg_phy_con1 = (0x07<<1)|((0x07<<1)<<16);
+#endif    
 
     // other haredware init
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
