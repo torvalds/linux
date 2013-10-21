@@ -5712,6 +5712,8 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		} else
 			tcp_init_metrics(sk);
 
+		tcp_update_pacing_rate(sk);
+
 		/* Prevent spurious tcp_cwnd_restart() on first data packet */
 		tp->lsndtime = tcp_time_stamp;
 
