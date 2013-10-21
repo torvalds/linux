@@ -219,6 +219,25 @@ static void ath_force_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
 	ath_force_no_ir_chan(ch);
 }
 
+static void
+__ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
+				enum nl80211_reg_initiator initiator,
+				struct ieee80211_channel *ch)
+{
+	if (ath_is_radar_freq(ch->center_freq) ||
+	    (ch->flags & IEEE80211_CHAN_RADAR))
+		return;
+
+	switch (initiator) {
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		ath_force_clear_no_ir_chan(wiphy, ch);
+		break;
+	default:
+		if (ch->beacon_found)
+			ch->flags &= ~IEEE80211_CHAN_NO_IR;
+	}
+}
+
 /*
  * These exception rules do not apply radar frequencies.
  *
@@ -236,33 +255,15 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	unsigned int i;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-
 		if (!wiphy->bands[band])
 			continue;
-
 		sband = wiphy->bands[band];
-
 		for (i = 0; i < sband->n_channels; i++) {
-
 			ch = &sband->channels[i];
+			__ath_reg_apply_beaconing_flags(wiphy, initiator, ch);
 
-			if (ath_is_radar_freq(ch->center_freq) ||
-			    (ch->flags & IEEE80211_CHAN_RADAR))
-				continue;
-
-			/*
-			 * If the country IE says initiating radiation
-			 * is OK we trust that.
-			 */
-			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE)
-				ath_force_clear_no_ir_chan(wiphy, ch);
-			else {
-				if (ch->beacon_found)
-					ch->flags &= ~IEEE80211_CHAN_NO_IR;
-			}
 		}
 	}
-
 }
 
 /**
