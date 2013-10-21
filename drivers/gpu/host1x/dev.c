@@ -154,7 +154,7 @@ static int host1x_probe(struct platform_device *pdev)
 	err = host1x_syncpt_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize syncpts\n");
-		return err;
+		goto fail_unprepare_disable;
 	}
 
 	err = host1x_intr_init(host, syncpt_irq);
@@ -175,6 +175,8 @@ fail_deinit_intr:
 	host1x_intr_deinit(host);
 fail_deinit_syncpt:
 	host1x_syncpt_deinit(host);
+fail_unprepare_disable:
+	clk_disable_unprepare(host->clk);
 	return err;
 }
 
