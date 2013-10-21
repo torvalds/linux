@@ -98,6 +98,11 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return phys_id == cpu_logical_map(cpu);
+}
+
 static void __init setup_processor(void)
 {
 	struct cpu_info *cpu_info;
