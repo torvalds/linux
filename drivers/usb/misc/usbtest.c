@@ -437,7 +437,7 @@ alloc_sglist(int nents, int max, int vary)
 	if (max == 0)
 		return NULL;
 
-	sg = kmalloc_array(nents, sizeof *sg, GFP_KERNEL);
+	sg = kmalloc_array(nents, sizeof(*sg), GFP_KERNEL);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, nents);
@@ -573,7 +573,7 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
 {
 	struct usb_config_descriptor	*config;
 
-	if (len < sizeof *config)
+	if (len < sizeof(*config))
 		return 0;
 	config = (struct usb_config_descriptor *) tdev->buf;
 
@@ -683,8 +683,8 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 
 	/* there's always [9.4.3] a device descriptor [9.6.1] */
 	retval = usb_get_descriptor(udev, USB_DT_DEVICE, 0,
-			dev->buf, sizeof udev->descriptor);
-	if (retval != sizeof udev->descriptor) {
+			dev->buf, sizeof(udev->descriptor));
+	if (retval != sizeof(udev->descriptor)) {
 		dev_err(&iface->dev, "dev descriptor --> %d\n", retval);
 		return (retval < 0) ? retval : -EDOM;
 	}
@@ -954,7 +954,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 		 * device, but some are chosen to trigger protocol stalls
 		 * or short reads.
 		 */
-		memset(&req, 0, sizeof req);
+		memset(&req, 0, sizeof(req));
 		req.bRequest = USB_REQ_GET_DESCRIPTOR;
 		req.bRequestType = USB_DIR_IN|USB_RECIP_DEVICE;
 
@@ -1074,7 +1074,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = kmalloc(sizeof *reqp, GFP_KERNEL);
+		reqp = kmalloc(sizeof(*reqp), GFP_KERNEL);
 		if (!reqp)
 			goto cleanup;
 		reqp->setup = req;
@@ -1667,13 +1667,13 @@ test_iso_queue(struct usbtest_dev *dev, struct usbtest_param *param,
 	if (param->sglen > 10)
 		return -EDOM;
 
-	memset(&context, 0, sizeof context);
+	memset(&context, 0, sizeof(context));
 	context.count = param->iterations * param->sglen;
 	context.dev = dev;
 	init_completion(&context.done);
 	spin_lock_init(&context.lock);
 
-	memset(urbs, 0, sizeof urbs);
+	memset(urbs, 0, sizeof(urbs));
 	udev = testdev_to_usbdev(dev);
 	dev_info(&dev->intf->dev,
 		"... iso period %d %sframes, wMaxPacket %04x\n",
