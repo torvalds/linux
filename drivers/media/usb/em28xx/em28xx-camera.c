@@ -48,6 +48,7 @@ static struct soc_camera_link camlink = {
 	.bus_id = 0,
 	.flags = 0,
 	.module_name = "em28xx",
+	.unbalanced_power = true,
 };
 
 
