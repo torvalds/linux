@@ -90,6 +90,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	u8 *prevhdr;
 	int offset = 0;
 	bool tunnel;
+	int nhoff;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
 		     ~(SKB_GSO_UDP |
@@ -103,10 +104,16 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       0)))
 		goto out;
 
+	skb_reset_network_header(skb);
+	nhoff = skb_network_header(skb) - skb_mac_header(skb);
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
 		goto out;
 
-	tunnel = skb->encapsulation;
+	tunnel = SKB_GSO_CB(skb)->encap_level > 0;
+	if (tunnel)
+		features = skb->dev->hw_enc_features & netif_skb_features(skb);
+	SKB_GSO_CB(skb)->encap_level += sizeof(*ipv6h);
+
 	ipv6h = ipv6_hdr(skb);
 	__skb_pull(skb, sizeof(*ipv6h));
 	segs = ERR_PTR(-EPROTONOSUPPORT);
@@ -123,13 +130,17 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		goto out;
 
 	for (skb = segs; skb; skb = skb->next) {
-		ipv6h = ipv6_hdr(skb);
-		ipv6h->payload_len = htons(skb->len - skb->mac_len -
-					   sizeof(*ipv6h));
+		ipv6h = (struct ipv6hdr *)(skb_mac_header(skb) + nhoff);
+		ipv6h->payload_len = htons(skb->len - nhoff - sizeof(*ipv6h));
+		if (tunnel) {
+			skb_reset_inner_headers(skb);
+			skb->encapsulation = 1;
+		}
+		skb->network_header = (u8 *)ipv6h - skb->head;
+
 		if (!tunnel && proto == IPPROTO_UDP) {
 			unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
-			fptr = (struct frag_hdr *)(skb_network_header(skb) +
-				unfrag_ip6hlen);
+			fptr = (struct frag_hdr *)((u8 *)ipv6h + unfrag_ip6hlen);
 			fptr->frag_off = htons(offset);
 			if (skb->next != NULL)
 				fptr->frag_off |= htons(IP6_MF);
