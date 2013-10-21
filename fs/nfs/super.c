@@ -2205,8 +2205,8 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 		data->nfs_server.addrlen);
 
 	/* overwrite those values with any that were specified */
-	error = nfs_parse_mount_options((char *)options, data);
-	if (error < 0)
+	error = -EINVAL;
+	if (!nfs_parse_mount_options((char *)options, data))
 		goto out;
 
 	/*
