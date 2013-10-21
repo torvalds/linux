@@ -78,7 +78,6 @@ struct cpudata {
 
 	struct timer_list timer;
 
-	struct pstate_adjust_policy *pstate_policy;
 	struct pstate_data pstate;
 	struct _pid pid;
 
@@ -100,14 +99,20 @@ struct pstate_adjust_policy {
 	int i_gain_pct;
 };
 
-static struct pstate_adjust_policy default_policy = {
-	.sample_rate_ms = 10,
-	.deadband = 0,
-	.setpoint = 97,
-	.p_gain_pct = 20,
-	.d_gain_pct = 0,
-	.i_gain_pct = 0,
+struct pstate_funcs {
+	int (*get_max)(void);
+	int (*get_min)(void);
+	int (*get_turbo)(void);
+	void (*set)(int pstate);
 };
+
+struct cpu_defaults {
+	struct pstate_adjust_policy pid_policy;
+	struct pstate_funcs funcs;
+};
+
+static struct pstate_adjust_policy pid_params;
+static struct pstate_funcs pstate_funcs;
 
 struct perf_limits {
 	int no_turbo;
@@ -186,14 +191,14 @@ static signed int pid_calc(struct _pid *pid, int busy)
 
 static inline void intel_pstate_busy_pid_reset(struct cpudata *cpu)
 {
-	pid_p_gain_set(&cpu->pid, cpu->pstate_policy->p_gain_pct);
-	pid_d_gain_set(&cpu->pid, cpu->pstate_policy->d_gain_pct);
-	pid_i_gain_set(&cpu->pid, cpu->pstate_policy->i_gain_pct);
+	pid_p_gain_set(&cpu->pid, pid_params.p_gain_pct);
+	pid_d_gain_set(&cpu->pid, pid_params.d_gain_pct);
+	pid_i_gain_set(&cpu->pid, pid_params.i_gain_pct);
 
 	pid_reset(&cpu->pid,
-		cpu->pstate_policy->setpoint,
+		pid_params.setpoint,
 		100,
-		cpu->pstate_policy->deadband,
+		pid_params.deadband,
 		0);
 }
 
@@ -227,12 +232,12 @@ struct pid_param {
 };
 
 static struct pid_param pid_files[] = {
-	{"sample_rate_ms", &default_policy.sample_rate_ms},
-	{"d_gain_pct", &default_policy.d_gain_pct},
-	{"i_gain_pct", &default_policy.i_gain_pct},
-	{"deadband", &default_policy.deadband},
-	{"setpoint", &default_policy.setpoint},
-	{"p_gain_pct", &default_policy.p_gain_pct},
+	{"sample_rate_ms", &pid_params.sample_rate_ms},
+	{"d_gain_pct", &pid_params.d_gain_pct},
+	{"i_gain_pct", &pid_params.i_gain_pct},
+	{"deadband", &pid_params.deadband},
+	{"setpoint", &pid_params.setpoint},
+	{"p_gain_pct", &pid_params.p_gain_pct},
 	{NULL, NULL}
 };
 
@@ -337,32 +342,59 @@ static void intel_pstate_sysfs_expose_params(void)
 }
 
 /************************** sysfs end ************************/
-
-static int intel_pstate_min_pstate(void)
+static int core_get_min_pstate(void)
 {
 	u64 value;
 	rdmsrl(MSR_PLATFORM_INFO, value);
 	return (value >> 40) & 0xFF;
 }
 
-static int intel_pstate_max_pstate(void)
+static int core_get_max_pstate(void)
 {
 	u64 value;
 	rdmsrl(MSR_PLATFORM_INFO, value);
 	return (value >> 8) & 0xFF;
 }
 
-static int intel_pstate_turbo_pstate(void)
+static int core_get_turbo_pstate(void)
 {
 	u64 value;
 	int nont, ret;
 	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
-	nont = intel_pstate_max_pstate();
+	nont = core_get_max_pstate();
 	ret = ((value) & 255);
 	if (ret <= nont)
 		ret = nont;
 	return ret;
 }
+
+static void core_set_pstate(int pstate)
+{
+	u64 val;
+
+	val = pstate << 8;
+	if (limits.no_turbo)
+		val |= (u64)1 << 32;
+
+	wrmsrl(MSR_IA32_PERF_CTL, val);
+}
+
+static struct cpu_defaults core_params = {
+	.pid_policy = {
+		.sample_rate_ms = 10,
+		.deadband = 0,
+		.setpoint = 97,
+		.p_gain_pct = 20,
+		.d_gain_pct = 0,
+		.i_gain_pct = 0,
+	},
+	.funcs = {
+		.get_max = core_get_max_pstate,
+		.get_min = core_get_min_pstate,
+		.get_turbo = core_get_turbo_pstate,
+		.set = core_set_pstate,
+	},
+};
 
 static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 {
@@ -383,7 +415,6 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 {
 	int max_perf, min_perf;
-	u64 val;
 
 	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
 
@@ -395,11 +426,8 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 	trace_cpu_frequency(pstate * 100000, cpu->cpu);
 
 	cpu->pstate.current_pstate = pstate;
-	val = pstate << 8;
-	if (limits.no_turbo)
-		val |= (u64)1 << 32;
 
-	wrmsrl(MSR_IA32_PERF_CTL, val);
+	pstate_funcs.set(pstate);
 }
 
 static inline void intel_pstate_pstate_increase(struct cpudata *cpu, int steps)
@@ -421,9 +449,9 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 {
 	sprintf(cpu->name, "Intel 2nd generation core");
 
-	cpu->pstate.min_pstate = intel_pstate_min_pstate();
-	cpu->pstate.max_pstate = intel_pstate_max_pstate();
-	cpu->pstate.turbo_pstate = intel_pstate_turbo_pstate();
+	cpu->pstate.min_pstate = pstate_funcs.get_min();
+	cpu->pstate.max_pstate = pstate_funcs.get_max();
+	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
 
 	/*
 	 * goto max pstate so we don't slow up boot if we are built-in if we are
@@ -464,7 +492,7 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 {
 	int sample_time, delay;
 
-	sample_time = cpu->pstate_policy->sample_rate_ms;
+	sample_time = pid_params.sample_rate_ms;
 	delay = msecs_to_jiffies(sample_time);
 	mod_timer_pinned(&cpu->timer, jiffies + delay);
 }
@@ -523,14 +551,14 @@ static void intel_pstate_timer_func(unsigned long __data)
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&policy }
 
 static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
-	ICPU(0x2a, default_policy),
-	ICPU(0x2d, default_policy),
-	ICPU(0x3a, default_policy),
-	ICPU(0x3c, default_policy),
-	ICPU(0x3e, default_policy),
-	ICPU(0x3f, default_policy),
-	ICPU(0x45, default_policy),
-	ICPU(0x46, default_policy),
+	ICPU(0x2a, core_params),
+	ICPU(0x2d, core_params),
+	ICPU(0x3a, core_params),
+	ICPU(0x3c, core_params),
+	ICPU(0x3e, core_params),
+	ICPU(0x3f, core_params),
+	ICPU(0x45, core_params),
+	ICPU(0x46, core_params),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
@@ -554,8 +582,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	intel_pstate_get_cpu_pstates(cpu);
 
 	cpu->cpu = cpunum;
-	cpu->pstate_policy =
-		(struct pstate_adjust_policy *)id->driver_data;
+
 	init_timer_deferrable(&cpu->timer);
 	cpu->timer.function = intel_pstate_timer_func;
 	cpu->timer.data =
@@ -683,9 +710,9 @@ static int intel_pstate_msrs_not_valid(void)
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
 
-	if (!intel_pstate_min_pstate() ||
-		!intel_pstate_max_pstate() ||
-		!intel_pstate_turbo_pstate())
+	if (!pstate_funcs.get_max() ||
+		!pstate_funcs.get_min() ||
+		!pstate_funcs.get_turbo())
 		return -ENODEV;
 
 	rdmsrl(MSR_IA32_APERF, tmp);
@@ -698,10 +725,30 @@ static int intel_pstate_msrs_not_valid(void)
 
 	return 0;
 }
+
+void copy_pid_params(struct pstate_adjust_policy *policy)
+{
+	pid_params.sample_rate_ms = policy->sample_rate_ms;
+	pid_params.p_gain_pct = policy->p_gain_pct;
+	pid_params.i_gain_pct = policy->i_gain_pct;
+	pid_params.d_gain_pct = policy->d_gain_pct;
+	pid_params.deadband = policy->deadband;
+	pid_params.setpoint = policy->setpoint;
+}
+
+void copy_cpu_funcs(struct pstate_funcs *funcs)
+{
+	pstate_funcs.get_max   = funcs->get_max;
+	pstate_funcs.get_min   = funcs->get_min;
+	pstate_funcs.get_turbo = funcs->get_turbo;
+	pstate_funcs.set       = funcs->set;
+}
+
 static int __init intel_pstate_init(void)
 {
 	int cpu, rc = 0;
 	const struct x86_cpu_id *id;
+	struct cpu_defaults *cpu_info;
 
 	if (no_load)
 		return -ENODEV;
@@ -709,6 +756,11 @@ static int __init intel_pstate_init(void)
 	id = x86_match_cpu(intel_pstate_cpu_ids);
 	if (!id)
 		return -ENODEV;
+
+	cpu_info = (struct cpu_defaults *)id->driver_data;
+
+	copy_pid_params(&cpu_info->pid_policy);
+	copy_cpu_funcs(&cpu_info->funcs);
 
 	if (intel_pstate_msrs_not_valid())
 		return -ENODEV;
