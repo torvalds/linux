@@ -46,17 +46,7 @@ copy_user_generic(void *to, const void *from, unsigned len)
 }
 
 __must_check unsigned long
-_copy_to_user(void __user *to, const void *from, unsigned len);
-__must_check unsigned long
 copy_in_user(void __user *to, const void __user *from, unsigned len);
-
-static __always_inline __must_check
-int copy_to_user(void __user *dst, const void *src, unsigned size)
-{
-	might_fault();
-
-	return _copy_to_user(dst, src, size);
-}
 
 static __always_inline __must_check
 int __copy_from_user(void *dst, const void __user *src, unsigned size)
