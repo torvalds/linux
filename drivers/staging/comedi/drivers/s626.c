@@ -656,7 +656,7 @@ static void s626_set_latch_source(struct comedi_device *dev,
 {
 	s626_debi_replace(dev, k->my_crb,
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_LATCHSRC),
-			  value << S626_CRBBIT_LATCHSRC);
+			  S626_SET_CRB_LATCHSRC(value));
 }
 
 /*
@@ -678,14 +678,16 @@ static void s626_reset_cap_flags_a(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
 	s626_debi_replace(dev, k->my_crb, ~S626_CRBMSK_INTCTRL,
-			  S626_CRBMSK_INTRESETCMD | S626_CRBMSK_INTRESET_A);
+			  (S626_SET_CRB_INTRESETCMD(1) |
+			   S626_SET_CRB_INTRESET_A(1)));
 }
 
 static void s626_reset_cap_flags_b(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
 	s626_debi_replace(dev, k->my_crb, ~S626_CRBMSK_INTCTRL,
-			  S626_CRBMSK_INTRESETCMD | S626_CRBMSK_INTRESET_B);
+			  (S626_SET_CRB_INTRESETCMD(1) |
+			   S626_SET_CRB_INTRESET_B(1)));
 }
 
 /*
@@ -698,6 +700,7 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 	uint16_t cra;
 	uint16_t crb;
 	uint16_t setup;
+	unsigned cntsrc, clkmult, clkpol, encmode;
 
 	/* Fetch CRA and CRB register images. */
 	cra = s626_debi_read(dev, k->my_cra);
@@ -707,44 +710,41 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 	 * Populate the standardized counter setup bit fields.
 	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
 	 */
-	setup = (cra & S626_STDMSK_LOADSRC) |	/* LoadSrc  = LoadSrcA. */
-		((crb << (S626_STDBIT_LATCHSRC - S626_CRBBIT_LATCHSRC)) &
-		 S626_STDMSK_LATCHSRC) |	/* LatchSrc = LatchSrcA. */
-		((cra << (S626_STDBIT_INTSRC - S626_CRABIT_INTSRC_A)) &
-		 S626_STDMSK_INTSRC) |		/* IntSrc   = IntSrcA. */
-		((cra << (S626_STDBIT_INDXSRC - (S626_CRABIT_INDXSRC_A + 1))) &
-		 S626_STDMSK_INDXSRC) |		/* IndxSrc  = IndxSrcA<1>. */
-		((cra >> (S626_CRABIT_INDXPOL_A - S626_STDBIT_INDXPOL)) &
-		 S626_STDMSK_INDXPOL) |		/* IndxPol  = IndxPolA. */
-		((crb >> (S626_CRBBIT_CLKENAB_A - S626_STDBIT_CLKENAB)) &
-		 S626_STDMSK_CLKENAB);		/* ClkEnab  = ClkEnabA. */
+	setup =
+		/* LoadSrc  = LoadSrcA. */
+		S626_SET_STD_LOADSRC(S626_GET_CRA_LOADSRC_A(cra)) |
+		/* LatchSrc = LatchSrcA. */
+		S626_SET_STD_LATCHSRC(S626_GET_CRB_LATCHSRC(crb)) |
+		/* IntSrc   = IntSrcA. */
+		S626_SET_STD_INTSRC(S626_GET_CRA_INTSRC_A(cra)) |
+		/* IndxSrc  = IndxSrcA<1>. */
+		S626_SET_STD_INDXSRC(S626_GET_CRA_INDXSRC_A(cra) >> 1) |
+		/* IndxPol  = IndxPolA. */
+		S626_SET_STD_INDXPOL(S626_GET_CRA_INDXPOL_A(cra)) |
+		/* ClkEnab  = ClkEnabA. */
+		S626_SET_STD_CLKENAB(S626_GET_CRB_CLKENAB_A(crb));
 
 	/* Adjust mode-dependent parameters. */
-	if (cra & (S626_CNTSRC_SYSCLK << S626_CRABIT_CNTSRC_A)) {
+	cntsrc = S626_GET_CRA_CNTSRC_A(cra);
+	if (cntsrc & S626_CNTSRC_SYSCLK) {
 		/* Timer mode (CntSrcA<1> == 1): */
-		/* Indicate Timer mode. */
-		setup |= S626_ENCMODE_TIMER << S626_STDBIT_ENCMODE;
+		encmode = S626_ENCMODE_TIMER;
 		/* Set ClkPol to indicate count direction (CntSrcA<0>). */
-		setup |= (cra << (S626_STDBIT_CLKPOL - S626_CRABIT_CNTSRC_A)) &
-			 S626_STDMSK_CLKPOL;
+		clkpol = cntsrc & 1;
 		/* ClkMult must be 1x in Timer mode. */
-		setup |= S626_MULT_X1 << S626_STDBIT_CLKMULT;
+		clkmult = S626_MULT_X1;
 	} else {
 		/* Counter mode (CntSrcA<1> == 0): */
-		/* Indicate Counter mode. */
-		setup |= S626_ENCMODE_COUNTER << S626_STDBIT_ENCMODE;
+		encmode = S626_ENCMODE_COUNTER;
 		/* Pass through ClkPol. */
-		setup |= (cra >> (S626_CRABIT_CLKPOL_A - S626_STDBIT_CLKPOL)) &
-			 S626_STDMSK_CLKPOL;
+		clkpol = S626_GET_CRA_CLKPOL_A(cra);
 		/* Force ClkMult to 1x if not legal, else pass through. */
-		if ((cra & S626_CRAMSK_CLKMULT_A) ==
-		    (S626_MULT_X0 << S626_CRABIT_CLKMULT_A))
-			setup |= S626_MULT_X1 << S626_STDBIT_CLKMULT;
-		else
-			setup |= (cra >> (S626_CRABIT_CLKMULT_A -
-					  S626_STDBIT_CLKMULT)) &
-				 S626_STDMSK_CLKMULT;
+		clkmult = S626_GET_CRA_CLKMULT_A(cra);
+		if (clkmult == S626_MULT_X0)
+			clkmult = S626_MULT_X1;
 	}
+	setup |= S626_SET_STD_ENCMODE(encmode) | S626_SET_STD_CLKMULT(clkmult) |
+		 S626_SET_STD_CLKPOL(clkpol);
 
 	/* Return adjusted counter setup. */
 	return setup;
@@ -756,6 +756,7 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 	uint16_t cra;
 	uint16_t crb;
 	uint16_t setup;
+	unsigned cntsrc, clkmult, clkpol, encmode;
 
 	/* Fetch CRA and CRB register images. */
 	cra = s626_debi_read(dev, k->my_cra);
@@ -765,50 +766,46 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 	 * Populate the standardized counter setup bit fields.
 	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
 	 */
-	setup = ((crb << (S626_STDBIT_INTSRC - S626_CRBBIT_INTSRC_B)) &
-		 S626_STDMSK_INTSRC) |		/* IntSrc   = IntSrcB. */
-		((crb << (S626_STDBIT_LATCHSRC - S626_CRBBIT_LATCHSRC)) &
-		 S626_STDMSK_LATCHSRC) |	/* LatchSrc = LatchSrcB. */
-		((crb << (S626_STDBIT_LOADSRC - S626_CRBBIT_LOADSRC_B)) &
-		 S626_STDMSK_LOADSRC) |		/* LoadSrc  = LoadSrcB. */
-		((crb << (S626_STDBIT_INDXPOL - S626_CRBBIT_INDXPOL_B)) &
-		 S626_STDMSK_INDXPOL) |		/* IndxPol  = IndxPolB. */
-		((crb >> (S626_CRBBIT_CLKENAB_B - S626_STDBIT_CLKENAB)) &
-		 S626_STDMSK_CLKENAB) |		/* ClkEnab  = ClkEnabB. */
-		((cra >> ((S626_CRABIT_INDXSRC_B + 1) - S626_STDBIT_INDXSRC)) &
-		 S626_STDMSK_INDXSRC);		/* IndxSrc  = IndxSrcB<1>. */
+	setup =
+		/* IntSrc   = IntSrcB. */
+		S626_SET_STD_INTSRC(S626_GET_CRB_INTSRC_B(crb)) |
+		/* LatchSrc = LatchSrcB. */
+		S626_SET_STD_LATCHSRC(S626_GET_CRB_LATCHSRC(crb)) |
+		/* LoadSrc  = LoadSrcB. */
+		S626_SET_STD_LOADSRC(S626_GET_CRB_LOADSRC_B(crb)) |
+		/* IndxPol  = IndxPolB. */
+		S626_SET_STD_INDXPOL(S626_GET_CRB_INDXPOL_B(crb)) |
+		/* ClkEnab  = ClkEnabB. */
+		S626_SET_STD_CLKENAB(S626_GET_CRB_CLKENAB_B(crb)) |
+		/* IndxSrc  = IndxSrcB<1>. */
+		S626_SET_STD_INDXSRC(S626_GET_CRA_INDXSRC_B(cra) >> 1);
 
 	/* Adjust mode-dependent parameters. */
-	if ((crb & S626_CRBMSK_CLKMULT_B) ==
-	    (S626_MULT_X0 << S626_CRBBIT_CLKMULT_B)) {
+	cntsrc = S626_GET_CRA_CNTSRC_B(cra);
+	clkmult = S626_GET_CRB_CLKMULT_B(crb);
+	if (clkmult == S626_MULT_X0) {
 		/* Extender mode (ClkMultB == S626_MULT_X0): */
-		/* Indicate Extender mode. */
-		setup |= S626_ENCMODE_EXTENDER << S626_STDBIT_ENCMODE;
+		encmode = S626_ENCMODE_EXTENDER;
 		/* Indicate multiplier is 1x. */
-		setup |= S626_MULT_X1 << S626_STDBIT_CLKMULT;
+		clkmult = S626_MULT_X1;
 		/* Set ClkPol equal to Timer count direction (CntSrcB<0>). */
-		setup |= (cra >> (S626_CRABIT_CNTSRC_B - S626_STDBIT_CLKPOL)) &
-			 S626_STDMSK_CLKPOL;
-	} else if (cra & (S626_CNTSRC_SYSCLK << S626_CRABIT_CNTSRC_B)) {
+		clkpol = cntsrc & 1;
+	} else if (cntsrc & S626_CNTSRC_SYSCLK) {
 		/* Timer mode (CntSrcB<1> == 1): */
-		/* Indicate Timer mode. */
-		setup |= S626_ENCMODE_TIMER << S626_STDBIT_ENCMODE;
+		encmode = S626_ENCMODE_TIMER;
 		/* Indicate multiplier is 1x. */
-		setup |= S626_MULT_X1 << S626_STDBIT_CLKMULT;
+		clkmult = S626_MULT_X1;
 		/* Set ClkPol equal to Timer count direction (CntSrcB<0>). */
-		setup |= (cra >> (S626_CRABIT_CNTSRC_B - S626_STDBIT_CLKPOL)) &
-			 S626_STDMSK_CLKPOL;
+		clkpol = cntsrc & 1;
 	} else {
 		/* If Counter mode (CntSrcB<1> == 0): */
-		/* Indicate Counter mode. */
-		setup |= S626_ENCMODE_COUNTER << S626_STDBIT_ENCMODE;
+		encmode = S626_ENCMODE_COUNTER;
 		/* Clock multiplier is passed through. */
-		setup |= (crb >> (S626_CRBBIT_CLKMULT_B -
-				  S626_STDBIT_CLKMULT)) & S626_STDMSK_CLKMULT;
 		/* Clock polarity is passed through. */
-		setup |= (crb << (S626_STDBIT_CLKPOL - S626_CRBBIT_CLKPOL_B)) &
-			 S626_STDMSK_CLKPOL;
+		clkpol = S626_GET_CRB_CLKPOL_B(crb);
 	}
+	setup |= S626_SET_STD_ENCMODE(encmode) | S626_SET_STD_CLKMULT(clkmult) |
+		 S626_SET_STD_CLKPOL(clkpol);
 
 	/* Return adjusted counter setup. */
 	return setup;
@@ -827,64 +824,58 @@ static void s626_set_mode_a(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 	uint16_t cra;
 	uint16_t crb;
+	unsigned cntsrc, clkmult, clkpol;
 
 	/* Initialize CRA and CRB images. */
 	/* Preload trigger is passed through. */
-	cra = setup & S626_CRAMSK_LOADSRC_A;
+	cra = S626_SET_CRA_LOADSRC_A(S626_GET_STD_LOADSRC(setup));
 	/* IndexSrc is restricted to ENC_X or IndxPol. */
-	cra |= (setup & S626_STDMSK_INDXSRC) >>
-	       (S626_STDBIT_INDXSRC - (S626_CRABIT_INDXSRC_A + 1));
+	cra |= S626_SET_CRA_INDXSRC_A(S626_GET_STD_INDXSRC(setup) << 1);
 
 	/* Reset any pending CounterA event captures. */
-	crb = S626_CRBMSK_INTRESETCMD | S626_CRBMSK_INTRESET_A;
+	crb = S626_SET_CRB_INTRESETCMD(1) | S626_SET_CRB_INTRESET_A(1);
 	/* Clock enable is passed through. */
-	crb |= (setup & S626_STDMSK_CLKENAB) <<
-	       (S626_CRBBIT_CLKENAB_A - S626_STDBIT_CLKENAB);
+	crb |= S626_SET_CRB_CLKENAB_A(S626_GET_STD_CLKENAB(setup));
 
 	/* Force IntSrc to Disabled if disable_int_src is asserted. */
 	if (!disable_int_src)
-		cra |= (setup & S626_STDMSK_INTSRC) >>
-		       (S626_STDBIT_INTSRC - S626_CRABIT_INTSRC_A);
+		cra |= S626_SET_CRA_INTSRC_A(S626_GET_STD_INTSRC(setup));
 
 	/* Populate all mode-dependent attributes of CRA & CRB images. */
-	switch ((setup & S626_STDMSK_ENCMODE) >> S626_STDBIT_ENCMODE) {
+	clkpol = S626_GET_STD_CLKPOL(setup);
+	switch (S626_GET_STD_ENCMODE(setup)) {
 	case S626_ENCMODE_EXTENDER: /* Extender Mode: */
 		/* Force to Timer mode (Extender valid only for B counters). */
 		/* Fall through to case S626_ENCMODE_TIMER: */
 	case S626_ENCMODE_TIMER:	/* Timer Mode: */
 		/* CntSrcA<1> selects system clock */
-		cra |= S626_CNTSRC_SYSCLK << S626_CRABIT_CNTSRC_A;
+		cntsrc = S626_CNTSRC_SYSCLK;
 		/* Count direction (CntSrcA<0>) obtained from ClkPol. */
-		cra |= (setup & S626_STDMSK_CLKPOL) >>
-		       (S626_STDBIT_CLKPOL - S626_CRABIT_CNTSRC_A);
+		cntsrc |= clkpol;
 		/* ClkPolA behaves as always-on clock enable. */
-		cra |= 1 << S626_CRABIT_CLKPOL_A;
+		clkpol = 1;
 		/* ClkMult must be 1x. */
-		cra |= S626_MULT_X1 << S626_CRABIT_CLKMULT_A;
+		clkmult = S626_MULT_X1;
 		break;
 	default:		/* Counter Mode: */
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
-		cra |= S626_CNTSRC_ENCODER << S626_CRABIT_CNTSRC_A;
+		cntsrc = S626_CNTSRC_ENCODER;
 		/* Clock polarity is passed through. */
-		cra |= (setup & S626_STDMSK_CLKPOL) <<
-		       (S626_CRABIT_CLKPOL_A - S626_STDBIT_CLKPOL);
 		/* Force multiplier to x1 if not legal, else pass through. */
-		if ((setup & S626_STDMSK_CLKMULT) ==
-		    (S626_MULT_X0 << S626_STDBIT_CLKMULT))
-			cra |= S626_MULT_X1 << S626_CRABIT_CLKMULT_A;
-		else
-			cra |= (setup & S626_STDMSK_CLKMULT) <<
-			       (S626_CRABIT_CLKMULT_A - S626_STDBIT_CLKMULT);
+		clkmult = S626_GET_STD_CLKMULT(setup);
+		if (clkmult == S626_MULT_X0)
+			clkmult = S626_MULT_X1;
 		break;
 	}
+	cra |= S626_SET_CRA_CNTSRC_A(cntsrc) | S626_SET_CRA_CLKPOL_A(clkpol) |
+	       S626_SET_CRA_CLKMULT_A(clkmult);
 
 	/*
 	 * Force positive index polarity if IndxSrc is software-driven only,
 	 * otherwise pass it through.
 	 */
-	if (~setup & S626_STDMSK_INDXSRC)
-		cra |= (setup & S626_STDMSK_INDXPOL) <<
-		       (S626_CRABIT_INDXPOL_A - S626_STDBIT_INDXPOL);
+	if (S626_GET_STD_INDXSRC(setup) == S626_INDXSRC_HARD)
+		cra |= S626_SET_CRA_INDXPOL_A(S626_GET_STD_INDXPOL(setup));
 
 	/*
 	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
@@ -910,73 +901,65 @@ static void s626_set_mode_b(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 	uint16_t cra;
 	uint16_t crb;
+	unsigned cntsrc, clkmult, clkpol;
 
 	/* Initialize CRA and CRB images. */
 	/* IndexSrc field is restricted to ENC_X or IndxPol. */
-	cra = (setup & S626_STDMSK_INDXSRC) <<
-	      (S626_CRABIT_INDXSRC_B + 1 - S626_STDBIT_INDXSRC);
+	cra = S626_SET_CRA_INDXSRC_B(S626_GET_STD_INDXSRC(setup) << 1);
 
 	/* Reset event captures and disable interrupts. */
-	crb = S626_CRBMSK_INTRESETCMD | S626_CRBMSK_INTRESET_B;
+	crb = S626_SET_CRB_INTRESETCMD(1) | S626_SET_CRB_INTRESET_B(1);
 	/* Clock enable is passed through. */
-	crb |= (setup & S626_STDMSK_CLKENAB) <<
-	       (S626_CRBBIT_CLKENAB_B - S626_STDBIT_CLKENAB);
+	crb |= S626_SET_CRB_CLKENAB_B(S626_GET_STD_CLKENAB(setup));
 	/* Preload trigger source is passed through. */
-	crb |= (setup & S626_STDMSK_LOADSRC) >>
-	       (S626_STDBIT_LOADSRC - S626_CRBBIT_LOADSRC_B);
+	crb |= S626_SET_CRB_LOADSRC_B(S626_GET_STD_LOADSRC(setup));
 
 	/* Force IntSrc to Disabled if disable_int_src is asserted. */
 	if (!disable_int_src)
-		crb |= (setup & S626_STDMSK_INTSRC) >>
-		       (S626_STDBIT_INTSRC - S626_CRBBIT_INTSRC_B);
+		crb |= S626_SET_CRB_INTSRC_B(S626_GET_STD_INTSRC(setup));
 
 	/* Populate all mode-dependent attributes of CRA & CRB images. */
-	switch ((setup & S626_STDMSK_ENCMODE) >> S626_STDBIT_ENCMODE) {
+	clkpol = S626_GET_STD_CLKPOL(setup);
+	switch (S626_GET_STD_ENCMODE(setup)) {
 	case S626_ENCMODE_TIMER:	/* Timer Mode: */
 		/* CntSrcB<1> selects system clock */
-		cra |= S626_CNTSRC_SYSCLK << S626_CRABIT_CNTSRC_B;
+		cntsrc = S626_CNTSRC_SYSCLK;
 		/* with direction (CntSrcB<0>) obtained from ClkPol. */
-		cra |= (setup & S626_STDMSK_CLKPOL) <<
-		       (S626_CRABIT_CNTSRC_B - S626_STDBIT_CLKPOL);
+		cntsrc |= clkpol;
 		/* ClkPolB behaves as always-on clock enable. */
-		crb |= 1 << S626_CRBBIT_CLKPOL_B;
+		clkpol = 1;
 		/* ClkMultB must be 1x. */
-		crb |= S626_MULT_X1 << S626_CRBBIT_CLKMULT_B;
+		clkmult = S626_MULT_X1;
 		break;
 	case S626_ENCMODE_EXTENDER:	/* Extender Mode: */
 		/* CntSrcB source is OverflowA (same as "timer") */
-		cra |= S626_CNTSRC_SYSCLK << S626_CRABIT_CNTSRC_B;
+		cntsrc = S626_CNTSRC_SYSCLK;
 		/* with direction obtained from ClkPol. */
-		cra |= (setup & S626_STDMSK_CLKPOL) <<
-		       (S626_CRABIT_CNTSRC_B - S626_STDBIT_CLKPOL);
+		cntsrc |= clkpol;
 		/* ClkPolB controls IndexB -- always set to active. */
-		crb |= 1 << S626_CRBBIT_CLKPOL_B;
+		clkpol = 1;
 		/* ClkMultB selects OverflowA as the clock source. */
-		crb |= S626_MULT_X0 << S626_CRBBIT_CLKMULT_B;
+		clkmult = S626_MULT_X0;
 		break;
 	default:		/* Counter Mode: */
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
-		cra |= S626_CNTSRC_ENCODER << S626_CRABIT_CNTSRC_B;
+		cntsrc = S626_CNTSRC_ENCODER;
 		/* ClkPol is passed through. */
-		crb |= (setup & S626_STDMSK_CLKPOL) >>
-		       (S626_STDBIT_CLKPOL - S626_CRBBIT_CLKPOL_B);
 		/* Force ClkMult to x1 if not legal, otherwise pass through. */
-		if ((setup & S626_STDMSK_CLKMULT) ==
-		    (S626_MULT_X0 << S626_STDBIT_CLKMULT))
-			crb |= S626_MULT_X1 << S626_CRBBIT_CLKMULT_B;
-		else
-			crb |= (setup & S626_STDMSK_CLKMULT) <<
-			       (S626_CRBBIT_CLKMULT_B - S626_STDBIT_CLKMULT);
+		clkmult = S626_GET_STD_CLKMULT(setup);
+		if (clkmult == S626_MULT_X0)
+			clkmult = S626_MULT_X1;
 		break;
 	}
+	cra |= S626_SET_CRA_CNTSRC_B(cntsrc);
+	crb |= S626_SET_CRB_CLKPOL_B(clkpol) | S626_SET_CRB_CLKMULT_B(clkmult);
 
 	/*
 	 * Force positive index polarity if IndxSrc is software-driven only,
 	 * otherwise pass it through.
 	 */
-	if (~setup & S626_STDMSK_INDXSRC)
-		crb |= (setup & S626_STDMSK_INDXPOL) >>
-		       (S626_STDBIT_INDXPOL - S626_CRBBIT_INDXPOL_B);
+	if (S626_GET_STD_INDXSRC(setup) == S626_INDXSRC_HARD)
+		crb |= S626_SET_CRB_INDXPOL_B(S626_GET_STD_INDXPOL(setup));
 
 	/*
 	 * If IntSrc has been forced to Disabled, update the MISC2 interrupt
@@ -1003,7 +986,7 @@ static void s626_set_enable_a(struct comedi_device *dev,
 {
 	s626_debi_replace(dev, k->my_crb,
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_A),
-			  enab << S626_CRBBIT_CLKENAB_A);
+			  S626_SET_CRB_CLKENAB_A(enab));
 }
 
 static void s626_set_enable_b(struct comedi_device *dev,
@@ -1011,26 +994,26 @@ static void s626_set_enable_b(struct comedi_device *dev,
 {
 	s626_debi_replace(dev, k->my_crb,
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_B),
-			  enab << S626_CRBBIT_CLKENAB_B);
+			  S626_SET_CRB_CLKENAB_B(enab));
 }
 
 static uint16_t s626_get_enable_a(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_crb) >> S626_CRBBIT_CLKENAB_A) & 1;
+	return S626_GET_CRB_CLKENAB_A(s626_debi_read(dev, k->my_crb));
 }
 
 static uint16_t s626_get_enable_b(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_crb) >> S626_CRBBIT_CLKENAB_B) & 1;
+	return S626_GET_CRB_CLKENAB_B(s626_debi_read(dev, k->my_crb));
 }
 
 #ifdef unused
 static uint16_t s626_get_latch_source(struct comedi_device *dev,
 				      const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_crb) >> S626_CRBBIT_LATCHSRC) & 3;
+	return S626_GET_CRB_LATCHSRC(s626_debi_read(dev, k->my_crb));
 }
 #endif
 
@@ -1043,7 +1026,7 @@ static void s626_set_load_trig_a(struct comedi_device *dev,
 				 const struct s626_enc_info *k, uint16_t trig)
 {
 	s626_debi_replace(dev, k->my_cra, ~S626_CRAMSK_LOADSRC_A,
-			  trig << S626_CRABIT_LOADSRC_A);
+			  S626_SET_CRA_LOADSRC_A(trig));
 }
 
 static void s626_set_load_trig_b(struct comedi_device *dev,
@@ -1051,19 +1034,19 @@ static void s626_set_load_trig_b(struct comedi_device *dev,
 {
 	s626_debi_replace(dev, k->my_crb,
 			  ~(S626_CRBMSK_LOADSRC_B | S626_CRBMSK_INTCTRL),
-			  trig << S626_CRBBIT_LOADSRC_B);
+			  S626_SET_CRB_LOADSRC_B(trig));
 }
 
 static uint16_t s626_get_load_trig_a(struct comedi_device *dev,
 				     const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_cra) >> S626_CRABIT_LOADSRC_A) & 3;
+	return S626_GET_CRA_LOADSRC_A(s626_debi_read(dev, k->my_cra));
 }
 
 static uint16_t s626_get_load_trig_b(struct comedi_device *dev,
 				     const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_crb) >> S626_CRBBIT_LOADSRC_B) & 3;
+	return S626_GET_CRB_LOADSRC_B(s626_debi_read(dev, k->my_crb));
 }
 
 /*
@@ -1079,11 +1062,12 @@ static void s626_set_int_src_a(struct comedi_device *dev,
 
 	/* Reset any pending counter overflow or index captures. */
 	s626_debi_replace(dev, k->my_crb, ~S626_CRBMSK_INTCTRL,
-			  S626_CRBMSK_INTRESETCMD | S626_CRBMSK_INTRESET_A);
+			  (S626_SET_CRB_INTRESETCMD(1) |
+			   S626_SET_CRB_INTRESET_A(1)));
 
 	/* Program counter interrupt source. */
 	s626_debi_replace(dev, k->my_cra, ~S626_CRAMSK_INTSRC_A,
-			  int_source << S626_CRABIT_INTSRC_A);
+			  S626_SET_CRA_INTSRC_A(int_source));
 
 	/* Update MISC2 interrupt enable mask. */
 	devpriv->counter_int_enabs =
@@ -1102,13 +1086,12 @@ static void s626_set_int_src_b(struct comedi_device *dev,
 	crb = s626_debi_read(dev, k->my_crb) & ~S626_CRBMSK_INTCTRL;
 
 	/* Reset any pending counter overflow or index captures. */
-	s626_debi_write(dev, k->my_crb, (crb | S626_CRBMSK_INTRESETCMD |
-					 S626_CRBMSK_INTRESET_B));
+	s626_debi_write(dev, k->my_crb, (crb | S626_SET_CRB_INTRESETCMD(1) |
+					 S626_SET_CRB_INTRESET_B(1)));
 
 	/* Program counter interrupt source. */
-	s626_debi_write(dev, k->my_crb,
-			((crb & ~S626_CRBMSK_INTSRC_B) |
-			 (int_source << S626_CRBBIT_INTSRC_B)));
+	s626_debi_write(dev, k->my_crb, ((crb & ~S626_CRBMSK_INTSRC_B) |
+					 S626_SET_CRB_INTSRC_B(int_source)));
 
 	/* Update MISC2 interrupt enable mask. */
 	devpriv->counter_int_enabs =
@@ -1119,13 +1102,13 @@ static void s626_set_int_src_b(struct comedi_device *dev,
 static uint16_t s626_get_int_src_a(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_cra) >> S626_CRABIT_INTSRC_A) & 3;
+	return S626_GET_CRA_INTSRC_A(s626_debi_read(dev, k->my_cra));
 }
 
 static uint16_t s626_get_int_src_b(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return (s626_debi_read(dev, k->my_crb) >> S626_CRBBIT_INTSRC_B) & 3;
+	return S626_GET_CRB_INTSRC_B(s626_debi_read(dev, k->my_crb));
 }
 
 #ifdef unused
@@ -1136,13 +1119,13 @@ static void s626_set_clk_mult(struct comedi_device *dev,
 			      const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_CLKMULT) |
-			    (value << S626_STDBIT_CLKMULT)), false);
+			     S626_SET_STD_CLKMULT(value)), false);
 }
 
 static uint16_t s626_get_clk_mult(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return (k->get_mode(dev, k) >> S626_STDBIT_CLKMULT) & 3;
+	return S626_GET_STD_CLKMULT(k->get_mode(dev, k));
 }
 
 /*
@@ -1152,13 +1135,13 @@ static void s626_set_clk_pol(struct comedi_device *dev,
 			     const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_CLKPOL) |
-			    (value << S626_STDBIT_CLKPOL)), false);
+			     S626_SET_STD_CLKPOL(value)), false);
 }
 
 static uint16_t s626_get_clk_pol(struct comedi_device *dev,
 				 const struct s626_enc_info *k)
 {
-	return (k->get_mode(dev, k) >> S626_STDBIT_CLKPOL) & 1;
+	return S626_GET_STD_CLKPOL(k->get_mode(dev, k));
 }
 
 /*
@@ -1168,13 +1151,13 @@ static void s626_set_enc_mode(struct comedi_device *dev,
 			      const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_ENCMODE) |
-			    (value << S626_STDBIT_ENCMODE)), false);
+			     S626_SET_STD_ENCMODE(value)), false);
 }
 
 static uint16_t s626_get_enc_mode(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return (k->get_mode(dev, k) >> S626_STDBIT_ENCMODE) & 3;
+	return S626_GET_STD_ENCMODE(k->get_mode(dev, k));
 }
 
 /*
@@ -1184,13 +1167,13 @@ static void s626_set_index_pol(struct comedi_device *dev,
 			       const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_INDXPOL) |
-			    ((value != 0) << S626_STDBIT_INDXPOL)), false);
+			     S626_SET_STD_INDXPOL(value != 0)), false);
 }
 
 static uint16_t s626_get_index_pol(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return (k->get_mode(dev, k) >> S626_STDBIT_INDXPOL) & 1;
+	return S626_GET_STD_INDXPOL(k->get_mode(dev, k));
 }
 
 /*
@@ -1200,13 +1183,13 @@ static void s626_set_index_src(struct comedi_device *dev,
 			       const struct s626_enc_info *k, uint16_t value)
 {
 	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_INDXSRC) |
-			    ((value != 0) << S626_STDBIT_INDXSRC)), false);
+			     S626_SET_STD_INDXSRC(value != 0)), false);
 }
 
 static uint16_t s626_get_index_src(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return (k->get_mode(dev, k) >> S626_STDBIT_INDXSRC) & 1;
+	return S626_GET_STD_INDXSRC(k->get_mode(dev, k));
 }
 #endif
 
@@ -2031,16 +2014,17 @@ static void s626_timer_load(struct comedi_device *dev,
 {
 	uint16_t setup =
 		/* Preload upon index. */
-		(S626_LOADSRC_INDX << S626_BF_LOADSRC) |
+		S626_SET_STD_LOADSRC(S626_LOADSRC_INDX) |
 		/* Disable hardware index. */
-		(S626_INDXSRC_SOFT << S626_BF_INDXSRC) |
+		S626_SET_STD_INDXSRC(S626_INDXSRC_SOFT) |
 		/* Operating mode is Timer. */
-		(S626_ENCMODE_TIMER << S626_BF_ENCMODE) |
+		S626_SET_STD_ENCMODE(S626_ENCMODE_TIMER) |
 		/* Count direction is Down. */
-		(S626_CNTDIR_DOWN << S626_BF_CLKPOL) |
+		S626_SET_STD_CLKPOL(S626_CNTDIR_DOWN) |
 		/* Clock multiplier is 1x. */
-		(S626_CLKMULT_1X << S626_BF_CLKMULT) |
-		(S626_CLKENAB_INDEX << S626_BF_CLKENAB);
+		S626_SET_STD_CLKMULT(S626_CLKMULT_1X) |
+		/* Enabled by index */
+		S626_SET_STD_CLKENAB(S626_CLKENAB_INDEX);
 	uint16_t value_latchsrc = S626_LATCHSRC_A_INDXA;
 	/* uint16_t enab = S626_CLKENAB_ALWAYS; */
 
@@ -2423,16 +2407,17 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 {
 	uint16_t setup =
 		/* Preload upon index. */
-		(S626_LOADSRC_INDX << S626_BF_LOADSRC) |
+		S626_SET_STD_LOADSRC(S626_LOADSRC_INDX) |
 		/* Disable hardware index. */
-		(S626_INDXSRC_SOFT << S626_BF_INDXSRC) |
+		S626_SET_STD_INDXSRC(S626_INDXSRC_SOFT) |
 		/* Operating mode is Counter. */
-		(S626_ENCMODE_COUNTER << S626_BF_ENCMODE) |
+		S626_SET_STD_ENCMODE(S626_ENCMODE_COUNTER) |
 		/* Active high clock. */
-		(S626_CLKPOL_POS << S626_BF_CLKPOL) |
+		S626_SET_STD_CLKPOL(S626_CLKPOL_POS) |
 		/* Clock multiplier is 1x. */
-		(S626_CLKMULT_1X << S626_BF_CLKMULT) |
-		(S626_CLKENAB_INDEX << S626_BF_CLKENAB);
+		S626_SET_STD_CLKMULT(S626_CLKMULT_1X) |
+		/* Enabled by index */
+		S626_SET_STD_CLKENAB(S626_CLKENAB_INDEX);
 	/* uint16_t disable_int_src = true; */
 	/* uint32_t Preloadvalue;              //Counter initial value */
 	uint16_t value_latchsrc = S626_LATCHSRC_AB_READ;
@@ -2519,17 +2504,17 @@ static void s626_counters_init(struct comedi_device *dev)
 	const struct s626_enc_info *k;
 	uint16_t setup =
 		/* Preload upon index. */
-		(S626_LOADSRC_INDX << S626_BF_LOADSRC) |
+		S626_SET_STD_LOADSRC(S626_LOADSRC_INDX) |
 		/* Disable hardware index. */
-		(S626_INDXSRC_SOFT << S626_BF_INDXSRC) |
+		S626_SET_STD_INDXSRC(S626_INDXSRC_SOFT) |
 		/* Operating mode is counter. */
-		(S626_ENCMODE_COUNTER << S626_BF_ENCMODE) |
+		S626_SET_STD_ENCMODE(S626_ENCMODE_COUNTER) |
 		/* Active high clock. */
-		(S626_CLKPOL_POS << S626_BF_CLKPOL) |
+		S626_SET_STD_CLKPOL(S626_CLKPOL_POS) |
 		/* Clock multiplier is 1x. */
-		(S626_CLKMULT_1X << S626_BF_CLKMULT) |
+		S626_SET_STD_CLKMULT(S626_CLKMULT_1X) |
 		/* Enabled by index */
-		(S626_CLKENAB_INDEX << S626_BF_CLKENAB);
+		S626_SET_STD_CLKENAB(S626_CLKENAB_INDEX);
 
 	/*
 	 * Disable all counter interrupts and clear any captured counter events.
