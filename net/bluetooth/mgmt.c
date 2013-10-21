@@ -1307,6 +1307,9 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 	struct hci_cp_write_page_scan_activity acp;
 	u8 type;
 
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return;
+
 	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return;
 
