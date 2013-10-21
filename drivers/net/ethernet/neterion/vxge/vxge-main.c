@@ -4739,7 +4739,6 @@ _exit6:
 _exit5:
 	vxge_device_unregister(hldev);
 _exit4:
-	pci_set_drvdata(pdev, NULL);
 	vxge_hw_device_terminate(hldev);
 	pci_disable_sriov(pdev);
 _exit3:
@@ -4782,7 +4781,6 @@ static void vxge_remove(struct pci_dev *pdev)
 		vxge_free_mac_add_list(&vdev->vpaths[i]);
 
 	vxge_device_unregister(hldev);
-	pci_set_drvdata(pdev, NULL);
 	/* Do not call pci_disable_sriov here, as it will break child devices */
 	vxge_hw_device_terminate(hldev);
 	iounmap(vdev->bar0);
