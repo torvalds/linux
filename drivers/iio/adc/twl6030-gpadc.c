@@ -887,7 +887,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	match = of_match_device(of_match_ptr(of_twl6030_match_tbl), dev);
+	match = of_match_device(of_twl6030_match_tbl, dev);
 	if (!match)
 		return -EINVAL;
 
