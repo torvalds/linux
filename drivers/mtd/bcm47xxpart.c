@@ -32,6 +32,7 @@
 #define ML_MAGIC1			0x39685a42
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
+#define SQSH_MAGIC			0x71736873	/* shsq */
 
 struct trx_header {
 	uint32_t magic;
@@ -172,6 +173,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			 * offset in next step.
 			 */
 			offset = rounddown(offset + trx->length, blocksize);
+			continue;
+		}
+
+		/* Squashfs on devices not using TRX */
+		if (buf[0x000 / 4] == SQSH_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
+					     offset, 0);
 			continue;
 		}
 	}
