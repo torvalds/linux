@@ -356,7 +356,7 @@ struct pci9118_private {
 	unsigned int ai_scans;			/* number of scans to do */
 	char dma_doublebuf;			/* we can use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
-	unsigned short *dmabuf_virt[2];			/*
+	unsigned short *dmabuf_virt[2];		/*
 						 * pointers to begin of
 						 * DMA buffer
 						 */
