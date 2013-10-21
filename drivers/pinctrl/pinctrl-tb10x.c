@@ -806,9 +806,8 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 	mutex_init(&state->mutex);
 
 	state->base = devm_ioremap_resource(dev, mem);
-	if (!state->base) {
-		dev_err(dev, "Request register region failed.\n");
-		ret = -EBUSY;
+	if (IS_ERR(state->base)) {
+		ret = PTR_ERR(state->base);
 		goto fail;
 	}
 
@@ -830,9 +829,9 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	state->pctl = pinctrl_register(&tb10x_pindesc, dev, state);
-	if (IS_ERR(state->pctl)) {
+	if (!state->pctl) {
 		dev_err(dev, "could not register TB10x pin driver\n");
-		ret = PTR_ERR(state->pctl);
+		ret = -EINVAL;
 		goto fail;
 	}
 
