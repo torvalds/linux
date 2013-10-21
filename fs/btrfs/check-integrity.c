@@ -1900,7 +1900,9 @@ again:
 							       dev_state,
 							       dev_bytenr);
 			}
-			if (block->logical_bytenr != bytenr) {
+			if (block->logical_bytenr != bytenr &&
+			    !(!block->is_metadata &&
+			      block->logical_bytenr == 0))
 				printk(KERN_INFO
 				       "Written block @%llu (%s/%llu/%d)"
 				       " found in hash table, %c,"
@@ -1910,15 +1912,14 @@ again:
 				       block->mirror_num,
 				       btrfsic_get_block_type(state, block),
 				       block->logical_bytenr);
-				block->logical_bytenr = bytenr;
-			} else if (state->print_mask &
-				   BTRFSIC_PRINT_MASK_VERBOSE)
+			else if (state->print_mask & BTRFSIC_PRINT_MASK_VERBOSE)
 				printk(KERN_INFO
 				       "Written block @%llu (%s/%llu/%d)"
 				       " found in hash table, %c.\n",
 				       bytenr, dev_state->name, dev_bytenr,
 				       block->mirror_num,
 				       btrfsic_get_block_type(state, block));
+			block->logical_bytenr = bytenr;
 		} else {
 			if (num_pages * PAGE_CACHE_SIZE <
 			    state->datablock_size) {
