@@ -199,9 +199,8 @@ int ieee80211_encrypt_fragment(
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
 		header = (struct ieee80211_hdr_4addr *)frag->data;
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to %pM\n",
-			       ieee->dev->name, header->addr1);
+			netdev_dbg(ieee->dev, "TKIP countermeasures: dropped "
+			       "TX packet to %pM\n", header->addr1);
 		}
 		return -1;
 	}
