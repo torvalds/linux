@@ -1481,9 +1481,10 @@ static int s3c64xx_spi_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	/* Disable the clock */
-	clk_disable_unprepare(sdd->src_clk);
-	clk_disable_unprepare(sdd->clk);
+	if (!pm_runtime_suspended(dev)) {
+		clk_disable_unprepare(sdd->clk);
+		clk_disable_unprepare(sdd->src_clk);
+	}
 
 	sdd->cur_speed = 0; /* Output Clock is stopped */
 
@@ -1499,9 +1500,10 @@ static int s3c64xx_spi_resume(struct device *dev)
 	if (sci->cfg_gpio)
 		sci->cfg_gpio();
 
-	/* Enable the clock */
-	clk_prepare_enable(sdd->src_clk);
-	clk_prepare_enable(sdd->clk);
+	if (!pm_runtime_suspended(dev)) {
+		clk_prepare_enable(sdd->src_clk);
+		clk_prepare_enable(sdd->clk);
+	}
 
 	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
