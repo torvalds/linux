@@ -828,22 +828,21 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		eth_hw_addr_inherit(dev, lowerdev);
 	}
 
+	port->count += 1;
+	err = register_netdevice(dev);
+	if (err < 0)
+		goto destroy_port;
+
 	err = netdev_upper_dev_link(lowerdev, dev);
 	if (err)
 		goto destroy_port;
 
-	port->count += 1;
-	err = register_netdevice(dev);
-	if (err < 0)
-		goto upper_dev_unlink;
 
 	list_add_tail_rcu(&vlan->list, &port->vlans);
 	netif_stacked_transfer_operstate(lowerdev, dev);
 
 	return 0;
 
-upper_dev_unlink:
-	netdev_upper_dev_unlink(lowerdev, dev);
 destroy_port:
 	port->count -= 1;
 	if (!port->count)
