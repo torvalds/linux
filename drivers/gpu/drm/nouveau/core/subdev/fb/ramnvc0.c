@@ -26,6 +26,7 @@
 #include <subdev/ltcg.h>
 
 #include "priv.h"
+#include "nv50.h"
 
 extern const u8 nvc0_pte_storage_type_map[256];
 

@@ -43,7 +43,7 @@ nv50_fb_memtype[0x80] = {
 	1, 0, 2, 0, 1, 0, 2, 0, 1, 1, 2, 2, 1, 1, 0, 0
 };
 
-static bool
+bool
 nv50_fb_memtype_valid(struct nouveau_fb *pfb, u32 memtype)
 {
 	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
@@ -259,7 +259,6 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		nv_warn(priv, "failed 0x100c08 page alloc\n");
 	}
 
-	priv->base.memtype_valid = nv50_fb_memtype_valid;
 	nv_subdev(priv)->intr = nv50_fb_intr;
 	return 0;
 }
@@ -311,6 +310,7 @@ nv50_fb_oclass = &(struct nv50_fb_impl) {
 		.init = nv50_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
+	.base.memtype = nv50_fb_memtype_valid,
 	.base.ram = &nv50_ram_oclass,
 	.trap = 0x000707ff,
 }.base.base;

@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
+#include "nv04.h"
 
 struct nvc0_fb_priv {
 	struct nouveau_fb base;
@@ -83,8 +83,6 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.memtype_valid = nvc0_fb_memtype_valid;
-
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (priv->r100c10_page) {
 		priv->r100c10 = pci_map_page(device->pdev, priv->r100c10_page,
@@ -97,7 +95,6 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-
 struct nouveau_oclass *
 nvc0_fb_oclass = &(struct nouveau_fb_impl) {
 	.base.handle = NV_SUBDEV(FB, 0xc0),
@@ -107,5 +104,6 @@ nvc0_fb_oclass = &(struct nouveau_fb_impl) {
 		.init = nvc0_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
+	.memtype = nvc0_fb_memtype_valid,
 	.ram = &nvc0_ram_oclass,
 }.base;

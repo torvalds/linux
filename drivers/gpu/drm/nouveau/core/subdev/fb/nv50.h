@@ -20,4 +20,7 @@ struct nv50_fb_impl {
 	u32 trap;
 };
 
+void __nv50_ram_put(struct nouveau_fb *, struct nouveau_mem *);
+extern int nv50_fb_memtype[0x80];
+
 #endif

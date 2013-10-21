@@ -24,7 +24,8 @@
 
 #include <subdev/bios.h>
 #include <core/mm.h>
-#include "priv.h"
+
+#include "nv50.h"
 
 void
 __nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem *mem)
