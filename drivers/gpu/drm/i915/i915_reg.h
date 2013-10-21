@@ -3926,6 +3926,7 @@
 #define DE_SPRITEA_FLIP_DONE    (1 << 28)
 #define DE_PLANEB_FLIP_DONE     (1 << 27)
 #define DE_PLANEA_FLIP_DONE     (1 << 26)
+#define DE_PLANE_FLIP_DONE(plane) (1 << (26 + (plane)))
 #define DE_PCU_EVENT            (1 << 25)
 #define DE_GTT_FAULT            (1 << 24)
 #define DE_POISON               (1 << 23)
@@ -3942,12 +3943,15 @@
 #define DE_PIPEB_CRC_DONE	(1 << 10)
 #define DE_PIPEB_FIFO_UNDERRUN  (1 << 8)
 #define DE_PIPEA_VBLANK         (1 << 7)
+#define DE_PIPE_VBLANK(pipe)    (1 << (7 + 8*(pipe)))
 #define DE_PIPEA_EVEN_FIELD     (1 << 6)
 #define DE_PIPEA_ODD_FIELD      (1 << 5)
 #define DE_PIPEA_LINE_COMPARE   (1 << 4)
 #define DE_PIPEA_VSYNC          (1 << 3)
 #define DE_PIPEA_CRC_DONE	(1 << 2)
+#define DE_PIPE_CRC_DONE(pipe)	(1 << (2 + 8*(pipe)))
 #define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
+#define DE_PIPE_FIFO_UNDERRUN(pipe)  (1 << (8*(pipe)))
 
 /* More Ivybridge lolz */
 #define DE_ERR_INT_IVB			(1<<30)
@@ -3963,9 +3967,8 @@
 #define DE_PIPEB_VBLANK_IVB		(1<<5)
 #define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
 #define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
+#define DE_PLANE_FLIP_DONE_IVB(plane)	(1<< (3 + 5*(plane)))
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
-
-#define DE_PIPE_VBLANK_ILK(pipe)	(1 << ((pipe * 8) + 7))
 #define DE_PIPE_VBLANK_IVB(pipe)	(1 << (pipe * 5))
 
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */

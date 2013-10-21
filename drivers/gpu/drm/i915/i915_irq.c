@@ -1541,6 +1541,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe;
 
 	if (de_iir & DE_AUX_CHANNEL_A)
 		dp_aux_irq_handler(dev);
@@ -1548,37 +1549,26 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_GSE)
 		intel_opregion_asle_intr(dev);
 
-	if (de_iir & DE_PIPEA_VBLANK)
-		drm_handle_vblank(dev, 0);
-
-	if (de_iir & DE_PIPEB_VBLANK)
-		drm_handle_vblank(dev, 1);
-
 	if (de_iir & DE_POISON)
 		DRM_ERROR("Poison interrupt\n");
 
-	if (de_iir & DE_PIPEA_FIFO_UNDERRUN)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
-			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
+	for_each_pipe(pipe) {
+		if (de_iir & DE_PIPE_VBLANK(pipe))
+			drm_handle_vblank(dev, pipe);
 
-	if (de_iir & DE_PIPEB_FIFO_UNDERRUN)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
-			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
+		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
+			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe, false))
+				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
+						 pipe_name(pipe));
 
-	if (de_iir & DE_PIPEA_CRC_DONE)
-		i9xx_pipe_crc_irq_handler(dev, PIPE_A);
+		if (de_iir & DE_PIPE_CRC_DONE(pipe))
+			i9xx_pipe_crc_irq_handler(dev, pipe);
 
-	if (de_iir & DE_PIPEB_CRC_DONE)
-		i9xx_pipe_crc_irq_handler(dev, PIPE_B);
-
-	if (de_iir & DE_PLANEA_FLIP_DONE) {
-		intel_prepare_page_flip(dev, 0);
-		intel_finish_page_flip_plane(dev, 0);
-	}
-
-	if (de_iir & DE_PLANEB_FLIP_DONE) {
-		intel_prepare_page_flip(dev, 1);
-		intel_finish_page_flip_plane(dev, 1);
+		/* plane/pipes map 1:1 on ilk+ */
+		if (de_iir & DE_PLANE_FLIP_DONE(pipe)) {
+			intel_prepare_page_flip(dev, pipe);
+			intel_finish_page_flip_plane(dev, pipe);
+		}
 	}
 
 	/* check event from PCH */
@@ -1613,9 +1603,11 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 		intel_opregion_asle_intr(dev);
 
 	for_each_pipe(i) {
-		if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
+		if (de_iir & (DE_PIPE_VBLANK_IVB(i)))
 			drm_handle_vblank(dev, i);
-		if (de_iir & (DE_PLANEA_FLIP_DONE_IVB << (5 * i))) {
+
+		/* plane/pipes map 1:1 on ilk+ */
+		if (de_iir & DE_PLANE_FLIP_DONE_IVB(i)) {
 			intel_prepare_page_flip(dev, i);
 			intel_finish_page_flip_plane(dev, i);
 		}
@@ -2018,7 +2010,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
 	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
-						     DE_PIPE_VBLANK_ILK(pipe);
+						     DE_PIPE_VBLANK(pipe);
 
 	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
@@ -2076,7 +2068,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
 	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
-						     DE_PIPE_VBLANK_ILK(pipe);
+						     DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_disable_display_irq(dev_priv, bit);
