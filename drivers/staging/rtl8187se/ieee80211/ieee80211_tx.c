@@ -185,7 +185,10 @@ int ieee80211_encrypt_fragment(
 	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
- /*added to care about null crypt condition, to solve that system hangs when shared keys error*/
+	/*
+	 * added to care about null crypt condition, to solve that system hangs
+	 * when shared keys error
+	 */
 	if (!crypt || !crypt->ops)
 		return -1;
 
@@ -203,10 +206,15 @@ int ieee80211_encrypt_fragment(
 		return -1;
 	}
 #endif
-	/* To encrypt, frame format is:
-	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
+	/*
+	 * To encrypt, frame format is:
+	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes)
+	 */
 
-	/* PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption. */
+	/*
+	 * PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU
+	 * encryption.
+	 */
 	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
 	 * call both MSDU and MPDU encryption functions from here. */
 	atomic_inc(&crypt->refcnt);
