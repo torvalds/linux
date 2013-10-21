@@ -206,7 +206,7 @@ static int __init exynos_cpuidle_probe(struct platform_device *pdev)
 
 	ret = cpuidle_register_driver(&exynos4_idle_driver);
 	if (ret) {
-		printk(KERN_ERR "CPUidle failed to register driver\n");
+		dev_err(&pdev->dev, "failed to register cpuidle driver\n");
 		return ret;
 	}
 
@@ -220,7 +220,7 @@ static int __init exynos_cpuidle_probe(struct platform_device *pdev)
 
 		ret = cpuidle_register_device(device);
 		if (ret) {
-			printk(KERN_ERR "CPUidle register device failed\n");
+			dev_err(&pdev->dev, "failed to register cpuidle device\n");
 			return ret;
 		}
 	}
