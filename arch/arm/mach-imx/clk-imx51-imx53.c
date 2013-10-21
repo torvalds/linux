@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/err.h>
 
@@ -130,8 +131,6 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 		unsigned long rate_ckih2)
 {
 	int i;
-
-	of_clk_init(NULL);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckil] = imx_obtain_fixed_clock("ckil", rate_ckil);
@@ -465,12 +464,16 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	return 0;
 }
 
-int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
-			unsigned long rate_ckih1, unsigned long rate_ckih2)
+static void __init mx51_clocks_init_dt(struct device_node *np)
+{
+	mx51_clocks_init(0, 0, 0, 0);
+}
+CLK_OF_DECLARE(imx51_ccm, "fsl,imx51-ccm", mx51_clocks_init_dt);
+
+static void __init mx53_clocks_init(struct device_node *np)
 {
 	int i;
 	unsigned long r;
-	struct device_node *np;
 
 	clk[pll1_sw] = imx_clk_pllv2("pll1_sw", "osc", MX53_DPLL1_BASE);
 	clk[pll2_sw] = imx_clk_pllv2("pll2_sw", "osc", MX53_DPLL2_BASE);
@@ -529,12 +532,11 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 			pr_err("i.MX53 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx53-ccm");
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	mx5_clocks_common_init(rate_ckil, rate_osc, rate_ckih1, rate_ckih2);
+	mx5_clocks_common_init(0, 0, 0, 0);
 
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx53-vpu.0");
 	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
@@ -566,16 +568,5 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 
 	r = clk_round_rate(clk[usboh3_per_gate], 54000000);
 	clk_set_rate(clk[usboh3_per_gate], r);
-
-	return 0;
 }
-
-int __init mx51_clocks_init_dt(void)
-{
-	return mx51_clocks_init(0, 0, 0, 0);
-}
-
-int __init mx53_clocks_init_dt(void)
-{
-	return mx53_clocks_init(0, 0, 0, 0);
-}
+CLK_OF_DECLARE(imx53_ccm, "fsl,imx53-ccm", mx53_clocks_init);
