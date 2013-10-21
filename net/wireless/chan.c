@@ -467,8 +467,7 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
 
 	res = cfg80211_chandef_usable(wiphy, chandef,
 				      IEEE80211_CHAN_DISABLED |
-				      IEEE80211_CHAN_PASSIVE_SCAN |
-				      IEEE80211_CHAN_NO_IBSS |
+				      IEEE80211_CHAN_NO_IR |
 				      IEEE80211_CHAN_RADAR);
 
 	trace_cfg80211_return_bool(res);

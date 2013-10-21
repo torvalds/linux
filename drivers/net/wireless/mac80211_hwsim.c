@@ -159,7 +159,7 @@ static const struct ieee80211_regdomain hwsim_world_regdom_custom_02 = {
 	.reg_rules = {
 		REG_RULE(2412-10, 2462+10, 40, 0, 20, 0),
 		REG_RULE(5725-10, 5850+10, 40, 0, 30,
-			NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 	}
 };
 
@@ -1485,7 +1485,7 @@ static void hw_scan_work(struct work_struct *work)
 		    req->channels[hwsim->scan_chan_idx]->center_freq);
 
 	hwsim->tmp_chan = req->channels[hwsim->scan_chan_idx];
-	if (hwsim->tmp_chan->flags & IEEE80211_CHAN_PASSIVE_SCAN ||
+	if (hwsim->tmp_chan->flags & IEEE80211_CHAN_NO_IR ||
 	    !req->n_ssids) {
 		dwell = 120;
 	} else {

@@ -50,24 +50,24 @@ static const struct ieee80211_regdomain mwifiex_world_regdom_custom = {
 		REG_RULE(2412-10, 2462+10, 40, 3, 20, 0),
 		/* Channel 12 - 13 */
 		REG_RULE(2467-10, 2472+10, 20, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 		/* Channel 14 */
 		REG_RULE(2484-10, 2484+10, 20, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_IR |
 			 NL80211_RRF_NO_OFDM),
 		/* Channel 36 - 48 */
 		REG_RULE(5180-10, 5240+10, 40, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 		/* Channel 149 - 165 */
 		REG_RULE(5745-10, 5825+10, 40, 3, 20,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+			 NL80211_RRF_NO_IR),
 		/* Channel 52 - 64 */
 		REG_RULE(5260-10, 5320+10, 40, 3, 30,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_IR |
 			 NL80211_RRF_DFS),
 		/* Channel 100 - 140 */
 		REG_RULE(5500-10, 5700+10, 40, 3, 30,
-			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_IR |
 			 NL80211_RRF_DFS),
 	}
 };
@@ -1968,7 +1968,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
 		user_scan_cfg->chan_list[i].radio_type = chan->band;
 
-		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+		if (chan->flags & IEEE80211_CHAN_NO_IR)
 			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_PASSIVE;
 		else

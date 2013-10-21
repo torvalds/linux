@@ -1595,7 +1595,7 @@ il3945_get_channels_for_scan(struct il_priv *il, enum ieee80211_band band,
 		 *  and use long active_dwell time.
 		 */
 		if (!is_active || il_is_channel_passive(ch_info) ||
-		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+		    (chan->flags & IEEE80211_CHAN_NO_IR)) {
 			scan_ch->type = 0;	/* passive */
 			if (IL_UCODE_API(il->ucode_ver) == 1)
 				scan_ch->active_dwell =

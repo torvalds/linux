@@ -163,35 +163,29 @@ static const struct ieee80211_regdomain world_regdom = {
 		REG_RULE(2412-10, 2462+10, 40, 6, 20, 0),
 		/* IEEE 802.11b/g, channels 12..13. */
 		REG_RULE(2467-10, 2472+10, 40, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN |
-			NL80211_RRF_NO_IBSS),
+			NL80211_RRF_NO_IR),
 		/* IEEE 802.11 channel 14 - Only JP enables
 		 * this and for 802.11b only */
 		REG_RULE(2484-10, 2484+10, 20, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN |
-			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_NO_IR |
 			NL80211_RRF_NO_OFDM),
 		/* IEEE 802.11a, channel 36..48 */
 		REG_RULE(5180-10, 5240+10, 160, 6, 20,
-                        NL80211_RRF_PASSIVE_SCAN |
-                        NL80211_RRF_NO_IBSS),
+                        NL80211_RRF_NO_IR),
 
 		/* IEEE 802.11a, channel 52..64 - DFS required */
 		REG_RULE(5260-10, 5320+10, 160, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN |
-			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_NO_IR |
 			NL80211_RRF_DFS),
 
 		/* IEEE 802.11a, channel 100..144 - DFS required */
 		REG_RULE(5500-10, 5720+10, 160, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN |
-			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_NO_IR |
 			NL80211_RRF_DFS),
 
 		/* IEEE 802.11a, channel 149..165 */
 		REG_RULE(5745-10, 5825+10, 80, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN |
-			NL80211_RRF_NO_IBSS),
+			NL80211_RRF_NO_IR),
 
 		/* IEEE 802.11ad (60gHz), channels 1..3 */
 		REG_RULE(56160+2160*1-1080, 56160+2160*3+1080, 2160, 0, 0, 0),
@@ -698,10 +692,8 @@ regdom_intersect(const struct ieee80211_regdomain *rd1,
 static u32 map_regdom_flags(u32 rd_flags)
 {
 	u32 channel_flags = 0;
-	if (rd_flags & NL80211_RRF_PASSIVE_SCAN)
-		channel_flags |= IEEE80211_CHAN_PASSIVE_SCAN;
-	if (rd_flags & NL80211_RRF_NO_IBSS)
-		channel_flags |= IEEE80211_CHAN_NO_IBSS;
+	if (rd_flags & NL80211_RRF_NO_IR_ALL)
+		channel_flags |= IEEE80211_CHAN_NO_IR;
 	if (rd_flags & NL80211_RRF_DFS)
 		channel_flags |= IEEE80211_CHAN_RADAR;
 	if (rd_flags & NL80211_RRF_NO_OFDM)
@@ -1066,13 +1058,8 @@ static void handle_reg_beacon(struct wiphy *wiphy, unsigned int chan_idx,
 	chan_before.center_freq = chan->center_freq;
 	chan_before.flags = chan->flags;
 
-	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN) {
-		chan->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
-		channel_changed = true;
-	}
-
-	if (chan->flags & IEEE80211_CHAN_NO_IBSS) {
-		chan->flags &= ~IEEE80211_CHAN_NO_IBSS;
+	if (chan->flags & IEEE80211_CHAN_NO_IR) {
+		chan->flags &= ~IEEE80211_CHAN_NO_IR;
 		channel_changed = true;
 	}
 

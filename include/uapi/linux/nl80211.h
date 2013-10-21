@@ -2231,10 +2231,9 @@ enum nl80211_band_attr {
  * @NL80211_FREQUENCY_ATTR_FREQ: Frequency in MHz
  * @NL80211_FREQUENCY_ATTR_DISABLED: Channel is disabled in current
  *	regulatory domain.
- * @NL80211_FREQUENCY_ATTR_PASSIVE_SCAN: Only passive scanning is
- *	permitted on this channel in current regulatory domain.
- * @NL80211_FREQUENCY_ATTR_NO_IBSS: IBSS networks are not permitted
- *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_NO_IR: no mechanisms that initiate radiation
+ * 	are permitted on this channel, this includes sending probe
+ * 	requests, or modes of operation that require beaconing.
  * @NL80211_FREQUENCY_ATTR_RADAR: Radar detection is mandatory
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX_TX_POWER: Maximum transmission power in mBm
@@ -2261,8 +2260,8 @@ enum nl80211_frequency_attr {
 	__NL80211_FREQUENCY_ATTR_INVALID,
 	NL80211_FREQUENCY_ATTR_FREQ,
 	NL80211_FREQUENCY_ATTR_DISABLED,
-	NL80211_FREQUENCY_ATTR_PASSIVE_SCAN,
-	NL80211_FREQUENCY_ATTR_NO_IBSS,
+	NL80211_FREQUENCY_ATTR_NO_IR,
+	__NL80211_FREQUENCY_ATTR_NO_IBSS,
 	NL80211_FREQUENCY_ATTR_RADAR,
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
 	NL80211_FREQUENCY_ATTR_DFS_STATE,
@@ -2278,6 +2277,9 @@ enum nl80211_frequency_attr {
 };
 
 #define NL80211_FREQUENCY_ATTR_MAX_TX_POWER NL80211_FREQUENCY_ATTR_MAX_TX_POWER
+#define NL80211_FREQUENCY_ATTR_PASSIVE_SCAN	NL80211_FREQUENCY_ATTR_NO_IR
+#define NL80211_FREQUENCY_ATTR_NO_IBSS		NL80211_FREQUENCY_ATTR_NO_IR
+#define NL80211_FREQUENCY_ATTR_NO_IR		NL80211_FREQUENCY_ATTR_NO_IR
 
 /**
  * enum nl80211_bitrate_attr - bitrate attributes
@@ -2420,8 +2422,9 @@ enum nl80211_sched_scan_match_attr {
  * @NL80211_RRF_DFS: DFS support is required to be used
  * @NL80211_RRF_PTP_ONLY: this is only for Point To Point links
  * @NL80211_RRF_PTMP_ONLY: this is only for Point To Multi Point links
- * @NL80211_RRF_PASSIVE_SCAN: passive scan is required
- * @NL80211_RRF_NO_IBSS: no IBSS is allowed
+ * @NL80211_RRF_NO_IR: no mechanisms that initiate radiation are allowed,
+ * 	this includes probe requests or modes of operation that require
+ * 	beaconing.
  */
 enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_OFDM		= 1<<0,
@@ -2431,9 +2434,16 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_DFS			= 1<<4,
 	NL80211_RRF_PTP_ONLY		= 1<<5,
 	NL80211_RRF_PTMP_ONLY		= 1<<6,
-	NL80211_RRF_PASSIVE_SCAN	= 1<<7,
-	NL80211_RRF_NO_IBSS		= 1<<8,
+	NL80211_RRF_NO_IR		= 1<<7,
+	__NL80211_RRF_NO_IBSS		= 1<<8,
 };
+
+#define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
+#define NL80211_RRF_NO_IBSS		NL80211_RRF_NO_IR
+#define NL80211_RRF_NO_IR		NL80211_RRF_NO_IR
+
+/* For backport compatibility with older userspace */
+#define NL80211_RRF_NO_IR_ALL		(NL80211_RRF_NO_IR | __NL80211_RRF_NO_IBSS)
 
 /**
  * enum nl80211_dfs_regions - regulatory DFS regions

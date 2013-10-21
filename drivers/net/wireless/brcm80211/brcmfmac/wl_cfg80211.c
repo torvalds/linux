@@ -202,9 +202,9 @@ static struct ieee80211_supported_band __wl_band_5ghz_a = {
 
 /* This is to override regulatory domains defined in cfg80211 module (reg.c)
  * By default world regulatory domain defined in reg.c puts the flags
- * NL80211_RRF_PASSIVE_SCAN and NL80211_RRF_NO_IBSS for 5GHz channels (for
- * 36..48 and 149..165). With respect to these flags, wpa_supplicant doesn't
- * start p2p operations on 5GHz channels. All the changes in world regulatory
+ * NL80211_RRF_NO_IR for 5GHz channels (for * 36..48 and 149..165).
+ * With respect to these flags, wpa_supplicant doesn't * start p2p
+ * operations on 5GHz channels. All the changes in world regulatory
  * domain are to be done here.
  */
 static const struct ieee80211_regdomain brcmf_regdom = {
@@ -5197,10 +5197,10 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 					if (channel & WL_CHAN_RADAR)
 						band_chan_arr[index].flags |=
 							(IEEE80211_CHAN_RADAR |
-							IEEE80211_CHAN_NO_IBSS);
+							IEEE80211_CHAN_NO_IR);
 					if (channel & WL_CHAN_PASSIVE)
 						band_chan_arr[index].flags |=
-						    IEEE80211_CHAN_PASSIVE_SCAN;
+						    IEEE80211_CHAN_NO_IR;
 				}
 			}
 			if (!update)

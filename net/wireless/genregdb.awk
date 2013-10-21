@@ -107,10 +107,13 @@ active && /^[ \t]*\(/ {
 		} else if (flagarray[arg] == "PTMP-ONLY") {
 			flags = flags "\n\t\t\tNL80211_RRF_PTMP_ONLY | "
 		} else if (flagarray[arg] == "PASSIVE-SCAN") {
-			flags = flags "\n\t\t\tNL80211_RRF_PASSIVE_SCAN | "
+			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
 		} else if (flagarray[arg] == "NO-IBSS") {
-			flags = flags "\n\t\t\tNL80211_RRF_NO_IBSS | "
+			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
+		} else if (flagarray[arg] == "NO-IR") {
+			flags = flags "\n\t\t\tNL80211_RRF_NO_IR | "
 		}
+
 	}
 	flags = flags "0"
 	printf "\t\tREG_RULE(%d, %d, %d, %d, %d, %s),\n", start, end, bw, gain, power, flags

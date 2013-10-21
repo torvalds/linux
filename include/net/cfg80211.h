@@ -91,9 +91,8 @@ enum ieee80211_band {
  * Channel flags set by the regulatory control code.
  *
  * @IEEE80211_CHAN_DISABLED: This channel is disabled.
- * @IEEE80211_CHAN_PASSIVE_SCAN: Only passive scanning is permitted
- *	on this channel.
- * @IEEE80211_CHAN_NO_IBSS: IBSS is not allowed on this channel.
+ * @IEEE80211_CHAN_NO_IR: do not initiate radiation, this includes
+ * 	sending probe requests or beaconing.
  * @IEEE80211_CHAN_RADAR: Radar detection is required on this channel.
  * @IEEE80211_CHAN_NO_HT40PLUS: extension channel above this channel
  * 	is not permitted.
@@ -113,8 +112,8 @@ enum ieee80211_band {
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED		= 1<<0,
-	IEEE80211_CHAN_PASSIVE_SCAN	= 1<<1,
-	IEEE80211_CHAN_NO_IBSS		= 1<<2,
+	IEEE80211_CHAN_NO_IR		= 1<<1,
+	/* hole at 1<<2 */
 	IEEE80211_CHAN_RADAR		= 1<<3,
 	IEEE80211_CHAN_NO_HT40PLUS	= 1<<4,
 	IEEE80211_CHAN_NO_HT40MINUS	= 1<<5,

@@ -223,10 +223,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			channel->flags |= IEEE80211_CHAN_NO_160MHZ;
 
 		if (!(ch_flags & NVM_CHANNEL_IBSS))
-			channel->flags |= IEEE80211_CHAN_NO_IBSS;
+			channel->flags |= IEEE80211_CHAN_NO_IR;
 
 		if (!(ch_flags & NVM_CHANNEL_ACTIVE))
-			channel->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+			channel->flags |= IEEE80211_CHAN_NO_IR;
 
 		if (ch_flags & NVM_CHANNEL_RADAR)
 			channel->flags |= IEEE80211_CHAN_RADAR;
