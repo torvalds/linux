@@ -10,12 +10,14 @@
  */
 #define __my_cpu_offset S390_lowcore.percpu_offset
 
+#ifdef CONFIG_64BIT
+
 /*
  * For 64 bit module code, the module may be more than 4G above the
  * per cpu area, use weak definitions to force the compiler to
  * generate external references.
  */
-#if defined(CONFIG_SMP) && defined(CONFIG_64BIT) && defined(MODULE)
+#if defined(CONFIG_SMP) && defined(MODULE)
 #define ARCH_NEEDS_WEAK_PER_CPU
 #endif
 
@@ -30,13 +32,7 @@
 	do {								\
 		old__ = prev__;						\
 		new__ = old__ op (val);					\
-		switch (sizeof(*ptr__)) {				\
-		case 8:							\
-			prev__ = cmpxchg64(ptr__, old__, new__);	\
-			break;						\
-		default:						\
-			prev__ = cmpxchg(ptr__, old__, new__);		\
-		}							\
+		prev__ = cmpxchg(ptr__, old__, new__);			\
 	} while (prev__ != old__);					\
 	preempt_enable();						\
 	new__;								\
@@ -74,13 +70,7 @@
 	pcp_op_T__ *ptr__;						\
 	preempt_disable();						\
 	ptr__ = __this_cpu_ptr(&(pcp));					\
-	switch (sizeof(*ptr__)) {					\
-	case 8:								\
-		ret__ = cmpxchg64(ptr__, oval, nval);			\
-		break;							\
-	default:							\
-		ret__ = cmpxchg(ptr__, oval, nval);			\
-	}								\
+	ret__ = cmpxchg(ptr__, oval, nval);				\
 	preempt_enable();						\
 	ret__;								\
 })
@@ -104,9 +94,7 @@
 #define this_cpu_xchg_1(pcp, nval) arch_this_cpu_xchg(pcp, nval)
 #define this_cpu_xchg_2(pcp, nval) arch_this_cpu_xchg(pcp, nval)
 #define this_cpu_xchg_4(pcp, nval) arch_this_cpu_xchg(pcp, nval)
-#ifdef CONFIG_64BIT
 #define this_cpu_xchg_8(pcp, nval) arch_this_cpu_xchg(pcp, nval)
-#endif
 
 #define arch_this_cpu_cmpxchg_double(pcp1, pcp2, o1, o2, n1, n2)	\
 ({									\
@@ -124,9 +112,9 @@
 })
 
 #define this_cpu_cmpxchg_double_4 arch_this_cpu_cmpxchg_double
-#ifdef CONFIG_64BIT
 #define this_cpu_cmpxchg_double_8 arch_this_cpu_cmpxchg_double
-#endif
+
+#endif /* CONFIG_64BIT */
 
 #include <asm-generic/percpu.h>
 
