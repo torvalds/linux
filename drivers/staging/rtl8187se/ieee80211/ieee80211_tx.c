@@ -245,7 +245,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	struct ieee80211_txb *txb;
 	int i;
 	txb = kmalloc(
-		sizeof(struct ieee80211_txb) + (sizeof(u8*) * nr_frags),
+		sizeof(struct ieee80211_txb) + (sizeof(u8 *) * nr_frags),
 		gfp_mask);
 	if (!txb)
 		return NULL;
@@ -275,7 +275,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 static int
 ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 {
-  struct ether_header *eh = (struct ether_header*)skb->data;
+  struct ether_header *eh = (struct ether_header *)skb->data;
   unsigned int wme_UP = 0;
 
   if(!network->QoS_Enable) {
@@ -284,7 +284,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
   }
 
   if(eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
-    const struct iphdr *ih = (struct iphdr*)(skb->data + \
+    const struct iphdr *ih = (struct iphdr *)(skb->data + \
 		    sizeof(struct ether_header));
     wme_UP = (ih->tos >> 5)&0x07;
   } else if (vlan_tx_tag_present(skb)) {//vtag packet
