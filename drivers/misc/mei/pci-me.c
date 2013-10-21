@@ -190,7 +190,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	schedule_delayed_work(&dev->timer_work, HZ);
 
-	pr_debug("initialization successful.\n");
+	dev_dbg(&pdev->dev, "initialization successful.\n");
 
 	return 0;
 
