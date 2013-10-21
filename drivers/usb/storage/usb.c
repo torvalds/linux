@@ -72,6 +72,10 @@
 #include "sierra_ms.h"
 #include "option_ms.h"
 
+#if IS_ENABLED(CONFIG_USB_UAS)
+#include "uas-detect.h"
+#endif
+
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
 MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
@@ -1034,6 +1038,12 @@ static int storage_probe(struct usb_interface *intf,
 	struct us_data *us;
 	int result;
 	int size;
+
+	/* If uas is enabled and this device can do uas then ignore it. */
+#if IS_ENABLED(CONFIG_USB_UAS)
+	if (uas_use_uas_driver(intf, id))
+		return -ENXIO;
+#endif
 
 	/*
 	 * If the device isn't standard (is handled by a subdriver
