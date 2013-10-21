@@ -638,10 +638,10 @@ config PARAVIRT_SPINLOCKS
 	  spinlock implementation with something virtualization-friendly
 	  (for example, block the virtual CPU rather than spinning).
 
-	  Unfortunately the downside is an up to 5% performance hit on
-	  native kernels, with various workloads.
+	  It has a minimal impact on native kernels and gives a nice performance
+	  benefit on paravirtualized KVM / Xen kernels.
 
-	  If you are unsure how to answer this question, answer N.
+	  If you are unsure how to answer this question, answer Y.
 
 source "arch/x86/xen/Kconfig"
 
