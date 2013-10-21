@@ -178,6 +178,47 @@ static bool ath_is_radar_freq(u16 center_freq)
 	return (center_freq >= 5260 && center_freq <= 5700);
 }
 
+static void ath_force_clear_no_ir_chan(struct wiphy *wiphy,
+				       struct ieee80211_channel *ch)
+{
+	const struct ieee80211_reg_rule *reg_rule;
+
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (IS_ERR(reg_rule))
+		return;
+
+	if (!(reg_rule->flags & NL80211_RRF_NO_IR))
+		if (ch->flags & IEEE80211_CHAN_NO_IR)
+			ch->flags &= ~IEEE80211_CHAN_NO_IR;
+}
+
+static void ath_force_clear_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
+{
+	struct ieee80211_channel *ch;
+
+	ch = ieee80211_get_channel(wiphy, center_freq);
+	if (!ch)
+		return;
+
+	ath_force_clear_no_ir_chan(wiphy, ch);
+}
+
+static void ath_force_no_ir_chan(struct ieee80211_channel *ch)
+{
+	ch->flags |= IEEE80211_CHAN_NO_IR;
+}
+
+static void ath_force_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
+{
+	struct ieee80211_channel *ch;
+
+	ch = ieee80211_get_channel(wiphy, center_freq);
+	if (!ch)
+		return;
+
+	ath_force_no_ir_chan(ch);
+}
+
 /*
  * N.B: These exception rules do not apply radar freqs.
  *
@@ -235,54 +276,38 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 
 }
 
-/* Allows active scan scan on Ch 12 and 13 */
+/**
+ * ath_reg_apply_active_scan_flags()
+ * @wiphy: the wiphy to use
+ * @initiator: the regulatory hint initiator
+ *
+ * If no country IE has been received always enable passive scan
+ * and no-ibss on these channels. This is only done for specific
+ * regulatory SKUs.
+ *
+ * If a country IE has been received check its rule for this
+ * channel first before enabling active scan. The passive scan
+ * would have been enforced by the initial processing of our
+ * custom regulatory domain.
+ */
 static void
 ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 				enum nl80211_reg_initiator initiator)
 {
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
-	const struct ieee80211_reg_rule *reg_rule;
 
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
 	if (!sband)
 		return;
 
-	/*
-	 * If no country IE has been received always enable passive scan
-	 * and no-ibss on these channels. This is only done for specific
-	 * regulatory SKUs.
-	 */
-	if (initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-		ch = &sband->channels[11]; /* CH 12 */
-		ch->flags |= IEEE80211_CHAN_NO_IR;
-
-		ch = &sband->channels[12]; /* CH 13 */
-		ch->flags |= IEEE80211_CHAN_NO_IR;
-		return;
-	}
-
-	/*
-	 * If a country IE has been received check its rule for this
-	 * channel first before enabling active scan. The passive scan
-	 * would have been enforced by the initial processing of our
-	 * custom regulatory domain.
-	 */
-
-	ch = &sband->channels[11]; /* CH 12 */
-	reg_rule = freq_reg_info(wiphy, ch->center_freq);
-	if (!IS_ERR(reg_rule)) {
-		if (!(reg_rule->flags & NL80211_RRF_NO_IR))
-			if (ch->flags & IEEE80211_CHAN_NO_IR)
-				ch->flags &= ~IEEE80211_CHAN_NO_IR;
-	}
-
-	ch = &sband->channels[12]; /* CH 13 */
-	reg_rule = freq_reg_info(wiphy, ch->center_freq);
-	if (!IS_ERR(reg_rule)) {
-		if (!(reg_rule->flags & NL80211_RRF_NO_IR))
-			if (ch->flags & IEEE80211_CHAN_NO_IR)
-				ch->flags &= ~IEEE80211_CHAN_NO_IR;
+	switch(initiator) {
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		ath_force_clear_no_ir_freq(wiphy, 2467);
+		ath_force_clear_no_ir_freq(wiphy, 2472);
+		break;
+	default:
+		ath_force_no_ir_freq(wiphy, 2467);
+		ath_force_no_ir_freq(wiphy, 2472);
 	}
 }
 
