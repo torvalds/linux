@@ -406,7 +406,7 @@ static struct chromeos_laptop cr48 = {
 	.callback = chromeos_laptop_dmi_matched, \
 	.driver_data = (void *)&board_
 
-static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
+static struct dmi_system_id chromeos_laptop_dmi_table[] __initdata = {
 	{
 		.ident = "Samsung Series 5 550",
 		.matches = {
