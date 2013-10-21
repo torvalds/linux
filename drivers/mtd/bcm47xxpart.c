@@ -27,6 +27,7 @@
 
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
+#define FACTORY_MAGIC			0x59544346	/* FCTY */
 #define POT_MAGIC1			0x54544f50	/* POTT */
 #define POT_MAGIC2			0x504f		/* OP */
 #define ML_MAGIC1			0x39685a42
@@ -114,6 +115,13 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		 */
 		if (buf[0x100 / 4] == BOARD_DATA_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
+					     offset, MTD_WRITEABLE);
+			continue;
+		}
+
+		/* Found on Huawei E970 */
+		if (buf[0x000 / 4] == FACTORY_MAGIC) {
+			bcm47xxpart_add_part(&parts[curr_part++], "factory",
 					     offset, MTD_WRITEABLE);
 			continue;
 		}
