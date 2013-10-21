@@ -594,7 +594,7 @@ isert_connect_release(struct isert_conn *isert_conn)
 
 	pr_debug("Entering isert_connect_release(): >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 
-	if (device->use_frwr)
+	if (device && device->use_frwr)
 		isert_conn_free_frwr_pool(isert_conn);
 
 	if (isert_conn->conn_qp) {
