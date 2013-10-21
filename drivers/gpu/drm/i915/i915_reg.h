@@ -1873,6 +1873,7 @@
 #define   PIPE_CRC_SOURCE_DP_B_G4X	(6 << 28)
 #define   PIPE_CRC_SOURCE_DP_C_G4X	(7 << 28)
 /* gen2 doesn't have source selection bits */
+#define   PIPE_CRC_INCLUDE_BORDER_I8XX	(1 << 30)
 
 #define _PIPE_CRC_RES_1_A_IVB		0x60064
 #define _PIPE_CRC_RES_2_A_IVB		0x60068
