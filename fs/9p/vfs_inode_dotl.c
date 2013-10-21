@@ -763,7 +763,6 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
 	int err;
-	char *name;
 	struct dentry *dir_dentry;
 	struct p9_fid *dfid, *oldfid;
 	struct v9fs_session_info *v9ses;
@@ -780,8 +779,6 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 	oldfid = v9fs_fid_lookup(old_dentry);
 	if (IS_ERR(oldfid))
 		return PTR_ERR(oldfid);
-
-	name = (char *) dentry->d_name.name;
 
 	err = p9_client_link(dfid, oldfid, (char *)dentry->d_name.name);
 
