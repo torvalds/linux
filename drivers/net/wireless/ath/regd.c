@@ -220,13 +220,11 @@ static void ath_force_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
 }
 
 /*
- * N.B: These exception rules do not apply radar freqs.
+ * These exception rules do not apply radar frequencies.
  *
- * - We enable adhoc (or beaconing) if allowed by 11d
- * - We enable active scan if the channel is allowed by 11d
+ * - We enable initiating radiation if the country IE says its fine:
  * - If no country IE has been processed and a we determine we have
- *   received a beacon on a channel we can enable active scan and
- *   adhoc (or beaconing).
+ *   received a beacon on a channel we can enable initiating radiation.
  */
 static void
 ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
@@ -234,7 +232,6 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 {
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
-	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
@@ -253,21 +250,13 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 			    (ch->flags & IEEE80211_CHAN_RADAR))
 				continue;
 
-			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				reg_rule = freq_reg_info(wiphy, ch->center_freq);
-				if (IS_ERR(reg_rule))
-					continue;
-				/*
-				 * If 11d had a rule for this channel ensure
-				 * we enable adhoc/beaconing if it allows us to
-				 * use it. Note that we would have disabled it
-				 * by applying our static world regdomain by
-				 * default during init, prior to calling our
-				 * regulatory_hint().
-				 */
-				if (!(reg_rule->flags & NL80211_RRF_NO_IR))
-					ch->flags &= ~IEEE80211_CHAN_NO_IR;
-			} else {
+			/*
+			 * If the country IE says initiating radiation
+			 * is OK we trust that.
+			 */
+			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE)
+				ath_force_clear_no_ir_chan(wiphy, ch);
+			else {
 				if (ch->beacon_found)
 					ch->flags &= ~IEEE80211_CHAN_NO_IR;
 			}
