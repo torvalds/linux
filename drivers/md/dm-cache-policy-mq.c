@@ -1001,10 +1001,14 @@ static void mq_force_mapping(struct dm_cache_policy *p,
 
 static dm_cblock_t mq_residency(struct dm_cache_policy *p)
 {
+	dm_cblock_t r;
 	struct mq_policy *mq = to_mq_policy(p);
 
-	/* FIXME: lock mutex, not sure we can block here */
-	return to_cblock(mq->nr_cblocks_allocated);
+	mutex_lock(&mq->lock);
+	r = to_cblock(mq->nr_cblocks_allocated);
+	mutex_unlock(&mq->lock);
+
+	return r;
 }
 
 static void mq_tick(struct dm_cache_policy *p)
