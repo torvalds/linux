@@ -1038,7 +1038,7 @@ leaf_item_out_of_bounce_error:
 						     disk_item_offset,
 						     sizeof(struct btrfs_item));
 			item_offset = btrfs_stack_item_offset(&disk_item);
-			item_size = btrfs_stack_item_offset(&disk_item);
+			item_size = btrfs_stack_item_size(&disk_item);
 			disk_key = &disk_item.key;
 			type = btrfs_disk_key_type(disk_key);
 
