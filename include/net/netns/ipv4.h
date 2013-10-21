@@ -71,7 +71,6 @@ struct netns_ipv4 {
 	int sysctl_tcp_ecn;
 
 	kgid_t sysctl_ping_group_range[2];
-	long sysctl_tcp_mem[3];
 
 	atomic_t dev_addr_genid;
 

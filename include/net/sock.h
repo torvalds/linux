@@ -1036,10 +1036,10 @@ enum cg_proto_flags {
 
 struct cg_proto {
 	void			(*enter_memory_pressure)(struct sock *sk);
-	struct res_counter	*memory_allocated;	/* Current allocated memory. */
-	struct percpu_counter	*sockets_allocated;	/* Current number of sockets. */
-	int			*memory_pressure;
-	long			*sysctl_mem;
+	struct res_counter	memory_allocated;	/* Current allocated memory. */
+	struct percpu_counter	sockets_allocated;	/* Current number of sockets. */
+	int			memory_pressure;
+	long			sysctl_mem[3];
 	unsigned long		flags;
 	/*
 	 * memcg field is used to find which memcg we belong directly
@@ -1135,9 +1135,9 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
 		return false;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return !!*sk->sk_cgrp->memory_pressure;
+		return !!sk->sk_cgrp->memory_pressure;
 
-	return !!*sk->sk_prot->memory_pressure;
+	return !!sk->sk_prot->memory_pressure;
 }
 
 static inline void sk_leave_memory_pressure(struct sock *sk)
@@ -1155,8 +1155,8 @@ static inline void sk_leave_memory_pressure(struct sock *sk)
 		struct proto *prot = sk->sk_prot;
 
 		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
-			if (*cg_proto->memory_pressure)
-				*cg_proto->memory_pressure = 0;
+			if (cg_proto->memory_pressure)
+				cg_proto->memory_pressure = 0;
 	}
 
 }
@@ -1192,7 +1192,7 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
 	struct res_counter *fail;
 	int ret;
 
-	ret = res_counter_charge_nofail(prot->memory_allocated,
+	ret = res_counter_charge_nofail(&prot->memory_allocated,
 					amt << PAGE_SHIFT, &fail);
 	if (ret < 0)
 		*parent_status = OVER_LIMIT;
@@ -1201,13 +1201,13 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
 static inline void memcg_memory_allocated_sub(struct cg_proto *prot,
 					      unsigned long amt)
 {
-	res_counter_uncharge(prot->memory_allocated, amt << PAGE_SHIFT);
+	res_counter_uncharge(&prot->memory_allocated, amt << PAGE_SHIFT);
 }
 
 static inline u64 memcg_memory_allocated_read(struct cg_proto *prot)
 {
 	u64 ret;
-	ret = res_counter_read_u64(prot->memory_allocated, RES_USAGE);
+	ret = res_counter_read_u64(&prot->memory_allocated, RES_USAGE);
 	return ret >> PAGE_SHIFT;
 }
 
@@ -1255,7 +1255,7 @@ static inline void sk_sockets_allocated_dec(struct sock *sk)
 		struct cg_proto *cg_proto = sk->sk_cgrp;
 
 		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
-			percpu_counter_dec(cg_proto->sockets_allocated);
+			percpu_counter_dec(&cg_proto->sockets_allocated);
 	}
 
 	percpu_counter_dec(prot->sockets_allocated);
@@ -1269,7 +1269,7 @@ static inline void sk_sockets_allocated_inc(struct sock *sk)
 		struct cg_proto *cg_proto = sk->sk_cgrp;
 
 		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
-			percpu_counter_inc(cg_proto->sockets_allocated);
+			percpu_counter_inc(&cg_proto->sockets_allocated);
 	}
 
 	percpu_counter_inc(prot->sockets_allocated);
@@ -1281,7 +1281,7 @@ sk_sockets_allocated_read_positive(struct sock *sk)
 	struct proto *prot = sk->sk_prot;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return percpu_counter_read_positive(sk->sk_cgrp->sockets_allocated);
+		return percpu_counter_read_positive(&sk->sk_cgrp->sockets_allocated);
 
 	return percpu_counter_read_positive(prot->sockets_allocated);
 }
