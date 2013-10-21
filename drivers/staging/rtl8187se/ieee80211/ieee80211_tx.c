@@ -501,13 +501,13 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 				bytes = bytes_last_frag;
 			}
 			if (ieee->current_network.QoS_Enable) {
-			  /*
-			   * add 1 only indicate to corresponding seq number
-			   * control 2006/7/12
-			   */
-			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
+				/*
+				 * add 1 only indicate to corresponding seq
+				 * number control 2006/7/12
+				 */
+				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
 			} else {
-			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
+				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
 			}
 
 			/* Put a SNAP header on the first fragment */
