@@ -34,6 +34,6 @@ nva3_fb_oclass = &(struct nv50_fb_impl) {
 		.fini = _nouveau_fb_fini,
 	},
 	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram = &nv50_ram_oclass,
+	.base.ram = &nva3_ram_oclass,
 	.trap = 0x000d0fff,
 }.base.base;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,43 @@
 
 #include "nv50.h"
 
-struct nouveau_oclass *
-nvaf_fb_oclass = &(struct nv50_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0xaf),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nouveau_fb_fini,
+static int
+nvaa_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	      struct nouveau_oclass *oclass, void *data, u32 datasize,
+	      struct nouveau_object **pobject)
+{
+	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
+	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
+	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nouveau_ram *ram;
+	int ret;
+
+	ret = nouveau_ram_create(parent, engine, oclass, &ram);
+	*pobject = nv_object(ram);
+	if (ret)
+		return ret;
+
+	ram->size = nv_rd32(pfb, 0x10020c);
+	ram->size = (ram->size & 0xffffff00) | ((ram->size & 0x000000ff) << 32);
+
+	ret = nouveau_mm_init(&pfb->vram, rsvd_head, (ram->size >> 12) -
+			      (rsvd_head + rsvd_tail), 1);
+	if (ret)
+		return ret;
+
+	ram->type   = NV_MEM_TYPE_STOLEN;
+	ram->stolen = (u64)nv_rd32(pfb, 0x100e10) << 12;
+	ram->get = nv50_ram_get;
+	ram->put = nv50_ram_put;
+	return 0;
+}
+
+struct nouveau_oclass
+nvaa_ram_oclass = {
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nvaa_ram_ctor,
+		.dtor = _nouveau_ram_dtor,
+		.init = _nouveau_ram_init,
+		.fini = _nouveau_ram_fini,
 	},
-	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram = &nvaa_ram_oclass,
-	.trap = 0x089d1fff,
-}.base.base;
+};

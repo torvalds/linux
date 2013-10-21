@@ -12,6 +12,8 @@
 #define nouveau_ram_fini(p,s)                                                  \
 	nouveau_object_fini(&(p)->base, (s))
 
+#define nouveau_ram_create_(p,e,o,s,d)                                         \
+	nouveau_object_create_((p), (e), (o), 0, (s), (void **)d)
 #define _nouveau_ram_dtor nouveau_object_destroy
 #define _nouveau_ram_init nouveau_object_init
 #define _nouveau_ram_fini nouveau_object_fini

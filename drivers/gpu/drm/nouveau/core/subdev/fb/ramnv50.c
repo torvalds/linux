@@ -27,6 +27,10 @@
 
 #include "nv50.h"
 
+struct nv50_ram {
+	struct nouveau_ram base;
+};
+
 void
 __nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem *mem)
 {
@@ -58,7 +62,7 @@ nv50_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 	kfree(mem);
 }
 
-static int
+int
 nv50_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	     u32 memtype, struct nouveau_mem **pmem)
 {
@@ -161,77 +165,73 @@ nv50_fb_vram_rblock(struct nouveau_fb *pfb, struct nouveau_ram *ram)
 	return rblock_size;
 }
 
-static int
-nv50_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 datasize,
-		struct nouveau_object **pobject)
+int
+nv50_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
+		 struct nouveau_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_device *device = nv_device(pfb);
-	struct nouveau_bios *bios = nouveau_bios(device);
-	struct nouveau_ram *ram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	u32 size;
+	struct nouveau_bios *bios = nouveau_bios(parent);
+	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nouveau_ram *ram;
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
+	ret = nouveau_ram_create_(parent, engine, oclass, length, pobject);
+	ram = *pobject;
 	if (ret)
 		return ret;
 
 	ram->size = nv_rd32(pfb, 0x10020c);
-	ram->size = (ram->size & 0xffffff00) |
-		       ((ram->size & 0x000000ff) << 32);
+	ram->size = (ram->size & 0xffffff00) | ((ram->size & 0x000000ff) << 32);
 
-	size = (ram->size >> 12) - rsvd_head - rsvd_tail;
-	switch (device->chipset) {
-	case 0xaa:
-	case 0xac:
-	case 0xaf: /* IGPs, no reordering, no real VRAM */
-		ret = nouveau_mm_init(&pfb->vram, rsvd_head, size, 1);
-		if (ret)
-			return ret;
-
-		ram->type   = NV_MEM_TYPE_STOLEN;
-		ram->stolen = (u64)nv_rd32(pfb, 0x100e10) << 12;
+	switch (nv_rd32(pfb, 0x100714) & 0x00000007) {
+	case 0: ram->type = NV_MEM_TYPE_DDR1; break;
+	case 1:
+		if (nouveau_fb_bios_memtype(bios) == NV_MEM_TYPE_DDR3)
+			ram->type = NV_MEM_TYPE_DDR3;
+		else
+			ram->type = NV_MEM_TYPE_DDR2;
 		break;
+	case 2: ram->type = NV_MEM_TYPE_GDDR3; break;
+	case 3: ram->type = NV_MEM_TYPE_GDDR4; break;
+	case 4: ram->type = NV_MEM_TYPE_GDDR5; break;
 	default:
-		switch (nv_rd32(pfb, 0x100714) & 0x00000007) {
-		case 0: ram->type = NV_MEM_TYPE_DDR1; break;
-		case 1:
-			if (nouveau_fb_bios_memtype(bios) == NV_MEM_TYPE_DDR3)
-				ram->type = NV_MEM_TYPE_DDR3;
-			else
-				ram->type = NV_MEM_TYPE_DDR2;
-			break;
-		case 2: ram->type = NV_MEM_TYPE_GDDR3; break;
-		case 3: ram->type = NV_MEM_TYPE_GDDR4; break;
-		case 4: ram->type = NV_MEM_TYPE_GDDR5; break;
-		default:
-			break;
-		}
-
-		ret = nouveau_mm_init(&pfb->vram, rsvd_head, size,
-				      nv50_fb_vram_rblock(pfb, ram) >> 12);
-		if (ret)
-			return ret;
-
-		ram->ranks = (nv_rd32(pfb, 0x100200) & 0x4) ? 2 : 1;
-		ram->tags  =  nv_rd32(pfb, 0x100320);
 		break;
 	}
 
+	ret = nouveau_mm_init(&pfb->vram, rsvd_head, (ram->size >> 12) -
+			      (rsvd_head + rsvd_tail),
+			      nv50_fb_vram_rblock(pfb, ram) >> 12);
+	if (ret)
+		return ret;
+
+	ram->ranks = (nv_rd32(pfb, 0x100200) & 0x4) ? 2 : 1;
+	ram->tags  =  nv_rd32(pfb, 0x100320);
 	ram->get = nv50_ram_get;
 	ram->put = nv50_ram_put;
 	return 0;
 }
 
+static int
+nv50_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	      struct nouveau_oclass *oclass, void *data, u32 datasize,
+	      struct nouveau_object **pobject)
+{
+	struct nv50_ram *ram;
+	int ret;
+
+	ret = nv50_ram_create(parent, engine, oclass, &ram);
+	*pobject = nv_object(ram);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 struct nouveau_oclass
 nv50_ram_oclass = {
-	.handle = 0,
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_ram_create,
+		.ctor = nv50_ram_ctor,
 		.dtor = _nouveau_ram_dtor,
 		.init = _nouveau_ram_init,
 		.fini = _nouveau_ram_fini,

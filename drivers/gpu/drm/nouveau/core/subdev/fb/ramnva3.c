@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,32 @@
 
 #include "nv50.h"
 
-struct nouveau_oclass *
-nvaf_fb_oclass = &(struct nv50_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0xaf),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nouveau_fb_fini,
+struct nva3_ram {
+	struct nouveau_ram base;
+};
+
+static int
+nva3_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	      struct nouveau_oclass *oclass, void *data, u32 datasize,
+	      struct nouveau_object **pobject)
+{
+	struct nva3_ram *ram;
+	int ret;
+
+	ret = nv50_ram_create(parent, engine, oclass, &ram);
+	*pobject = nv_object(ram);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+struct nouveau_oclass
+nva3_ram_oclass = {
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nva3_ram_ctor,
+		.dtor = _nouveau_ram_dtor,
+		.init = _nouveau_ram_init,
+		.fini = _nouveau_ram_fini,
 	},
-	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram = &nvaa_ram_oclass,
-	.trap = 0x089d1fff,
-}.base.base;
+};

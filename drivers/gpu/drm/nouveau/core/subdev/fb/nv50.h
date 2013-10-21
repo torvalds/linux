@@ -20,6 +20,13 @@ struct nv50_fb_impl {
 	u32 trap;
 };
 
+#define nv50_ram_create(p,e,o,d)                                               \
+	nv50_ram_create_((p), (e), (o), sizeof(**d), (void **)d)
+int  nv50_ram_create_(struct nouveau_object *, struct nouveau_object *,
+		      struct nouveau_oclass *, int, void **);
+int  nv50_ram_get(struct nouveau_fb *, u64 size, u32 align, u32 ncmin,
+		  u32 memtype, struct nouveau_mem **);
+void nv50_ram_put(struct nouveau_fb *, struct nouveau_mem **);
 void __nv50_ram_put(struct nouveau_fb *, struct nouveau_mem *);
 extern int nv50_fb_memtype[0x80];
 
