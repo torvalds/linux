@@ -1042,6 +1042,8 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(struct l2cap_chan *chan)
 {
 	struct sock *sk, *parent = chan->data;
 
+	lock_sock(parent);
+
 	/* Check for backlog size */
 	if (sk_acceptq_is_full(parent)) {
 		BT_DBG("backlog full %d", parent->sk_ack_backlog);
@@ -1058,6 +1060,8 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(struct l2cap_chan *chan)
 	l2cap_sock_init(sk, parent);
 
 	bt_accept_enqueue(parent, sk);
+
+	release_sock(parent);
 
 	return l2cap_pi(sk)->chan;
 }
