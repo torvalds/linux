@@ -499,15 +499,6 @@
 #define S626_CLKMULT_2X		1	/* 2x clock multiplier. */
 #define S626_CLKMULT_1X		2	/* 1x clock multiplier. */
 
-/* Bit Field positions in COUNTER_SETUP structure: */
-#define S626_BF_LOADSRC		9	/* Preload trigger. */
-#define S626_BF_INDXSRC		7	/* Index source. */
-#define S626_BF_INDXPOL		6	/* Index polarity. */
-#define S626_BF_ENCMODE		4	/* Encoder mode. */
-#define S626_BF_CLKPOL		3	/* Clock polarity/count direction. */
-#define S626_BF_CLKMULT		1	/* Clock multiplier. */
-#define S626_BF_CLKENAB		0	/* Clock enable. */
-
 /* Enumerated counter clock multipliers. */
 
 #define S626_MULT_X0		0x0003	/* Supports no multipliers;
