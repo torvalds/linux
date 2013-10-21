@@ -8,7 +8,7 @@ config ARCH_HIGHBANK
 	select ARM_AMBA
 	select ARM_ERRATA_764369
 	select ARM_ERRATA_775420
-	select ARM_ERRATA_798181
+	select ARM_ERRATA_798181 if SMP
 	select ARM_GIC
 	select ARM_TIMER_SP804
 	select CACHE_L2X0
