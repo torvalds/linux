@@ -320,9 +320,11 @@ enum {
 
 	SKB_GSO_IPIP = 1 << 7,
 
-	SKB_GSO_UDP_TUNNEL = 1 << 8,
+	SKB_GSO_SIT = 1 << 8,
 
-	SKB_GSO_MPLS = 1 << 9,
+	SKB_GSO_UDP_TUNNEL = 1 << 9,
+
+	SKB_GSO_MPLS = 1 << 10,
 };
 
 #if BITS_PER_LONG > 32

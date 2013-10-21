@@ -933,10 +933,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		ttl = iph6->hop_limit;
 	tos = INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
+	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_SIT);
+	if (IS_ERR(skb))
+		goto out;
 
 	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
 			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
@@ -946,8 +945,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
-	dev->stats.tx_errors++;
 	dev_kfree_skb(skb);
+out:
+	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 
@@ -956,12 +956,14 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
+	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_IPIP);
+	if (IS_ERR(skb))
+		goto out;
 
 	ip_tunnel_xmit(skb, dev, tiph, IPPROTO_IPIP);
+	return NETDEV_TX_OK;
+out:
+	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 
@@ -1292,6 +1294,12 @@ static void ipip6_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+#define SIT_FEATURES (NETIF_F_SG	   | \
+		      NETIF_F_FRAGLIST	   | \
+		      NETIF_F_HIGHDMA	   | \
+		      NETIF_F_GSO_SOFTWARE | \
+		      NETIF_F_HW_CSUM)
+
 static void ipip6_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip6_netdev_ops;
@@ -1305,6 +1313,8 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
+	dev->features		|= SIT_FEATURES;
+	dev->hw_features	|= SIT_FEATURES;
 }
 
 static int ipip6_tunnel_init(struct net_device *dev)
