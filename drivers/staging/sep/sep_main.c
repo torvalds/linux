@@ -4075,6 +4075,7 @@ static int sep_register_driver_with_fs(struct sep_device *sep)
 	if (ret_val) {
 		dev_warn(&sep->pdev->dev, "sysfs attribute1 fails for SEP %x\n",
 			ret_val);
+		misc_deregister(&sep->miscdev_sep);
 		return ret_val;
 	}
 
