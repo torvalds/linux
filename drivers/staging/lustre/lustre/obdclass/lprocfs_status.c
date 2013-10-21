@@ -1069,7 +1069,7 @@ static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 		struct timeval now;
 		do_gettimeofday(&now);
 		rc = seq_printf(p, "%-25s %lu.%lu secs.usecs\n",
-				"snapshot_time", now.tv_sec, now.tv_usec);
+				"snapshot_time", now.tv_sec, (unsigned long)now.tv_usec);
 		if (rc < 0)
 			return rc;
 	}
