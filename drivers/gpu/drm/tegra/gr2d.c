@@ -186,6 +186,7 @@ static int gr2d_probe(struct platform_device *pdev)
 	err = host1x_client_register(&gr2d->client.base);
 	if (err < 0) {
 		dev_err(dev, "failed to register host1x client: %d\n", err);
+		clk_disable_unprepare(gr2d->clk);
 		return err;
 	}
 
