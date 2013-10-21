@@ -277,7 +277,7 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 }
 
 /**
- * ath_reg_apply_active_scan_flags()
+ * ath_reg_apply_ir_flags()
  * @wiphy: the wiphy to use
  * @initiator: the regulatory hint initiator
  *
@@ -291,7 +291,7 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
  * custom regulatory domain.
  */
 static void
-ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
+ath_reg_apply_ir_flags(struct wiphy *wiphy,
 				enum nl80211_reg_initiator initiator)
 {
 	struct ieee80211_supported_band *sband;
@@ -357,7 +357,7 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 		break;
 	case 0x68:
 		ath_reg_apply_beaconing_flags(wiphy, initiator);
-		ath_reg_apply_active_scan_flags(wiphy, initiator);
+		ath_reg_apply_ir_flags(wiphy, initiator);
 		break;
 	}
 }
