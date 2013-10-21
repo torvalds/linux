@@ -224,8 +224,7 @@ int ieee80211_encrypt_fragment(
 
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_INFO "%s: Encryption failed: len=%d.\n",
-		       ieee->dev->name, frag->len);
+		netdev_info(ieee->dev, "Encryption failed: len=%d.\n", frag->len);
 		ieee->ieee_stats.tx_discards++;
 		return -1;
 	}
