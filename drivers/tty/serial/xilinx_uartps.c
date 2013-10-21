@@ -1198,6 +1198,20 @@ console_initcall(xuartps_console_init);
 
 #endif /* CONFIG_SERIAL_XILINX_PS_UART_CONSOLE */
 
+/** Structure Definitions
+ */
+static struct uart_driver xuartps_uart_driver = {
+	.owner		= THIS_MODULE,		/* Owner */
+	.driver_name	= XUARTPS_NAME,		/* Driver name */
+	.dev_name	= XUARTPS_TTY_NAME,	/* Node name */
+	.major		= XUARTPS_MAJOR,	/* Major number */
+	.minor		= XUARTPS_MINOR,	/* Minor number */
+	.nr		= XUARTPS_NR_PORTS,	/* Number of UART ports */
+#ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
+	.cons		= &xuartps_console,	/* Console */
+#endif
+};
+
 #ifdef CONFIG_PM_SLEEP
 /**
  * xuartps_suspend - suspend event
@@ -1310,20 +1324,6 @@ static int xuartps_resume(struct device *device)
 #endif /* ! CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(xuartps_dev_pm_ops, xuartps_suspend, xuartps_resume);
-
-/** Structure Definitions
- */
-static struct uart_driver xuartps_uart_driver = {
-	.owner		= THIS_MODULE,		/* Owner */
-	.driver_name	= XUARTPS_NAME,		/* Driver name */
-	.dev_name	= XUARTPS_TTY_NAME,	/* Node name */
-	.major		= XUARTPS_MAJOR,	/* Major number */
-	.minor		= XUARTPS_MINOR,	/* Minor number */
-	.nr		= XUARTPS_NR_PORTS,	/* Number of UART ports */
-#ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
-	.cons		= &xuartps_console,	/* Console */
-#endif
-};
 
 /* ---------------------------------------------------------------------
  * Platform bus binding
