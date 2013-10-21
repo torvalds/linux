@@ -205,4 +205,3 @@ module_platform_driver(rt288x_wdt_driver);
 MODULE_DESCRIPTION("MediaTek/Ralink RT288x/RT3xxx hardware watchdog driver");
 MODULE_AUTHOR("Gabor Juhos <juhosg@openwrt.org");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

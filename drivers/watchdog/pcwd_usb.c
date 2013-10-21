@@ -32,7 +32,7 @@
 #include <linux/errno.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/delay.h>	/* For mdelay function */
-#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>	/* For struct miscdevice */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
 #include <linux/notifier.h>	/* For notifier support */
 #include <linux/reboot.h>	/* For reboot_notifier stuff */
@@ -72,8 +72,6 @@ do {							\
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS_MISCDEV(TEMP_MINOR);
 
 /* Module Parameters */
 module_param(debug, int, 0);

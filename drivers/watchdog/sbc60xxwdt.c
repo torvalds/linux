@@ -387,4 +387,3 @@ module_exit(sbc60xxwdt_unload);
 MODULE_AUTHOR("Jakob Oestergaard <jakob@unthought.net>");
 MODULE_DESCRIPTION("60xx Single Board Computer Watchdog Timer driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

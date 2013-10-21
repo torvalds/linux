@@ -339,5 +339,4 @@ module_platform_driver_probe(imx2_wdt_driver, imx2_wdt_probe);
 MODULE_AUTHOR("Wolfram Sang");
 MODULE_DESCRIPTION("Watchdog driver for IMX2 and later");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:" DRIVER_NAME);

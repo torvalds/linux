@@ -225,4 +225,3 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:orion_wdt");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
