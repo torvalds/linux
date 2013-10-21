@@ -1935,8 +1935,8 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	p->rt.time_slice = sched_rr_timeslice;
 
 	/*
-	 * Requeue to the end of queue if we (and all of our ancestors) are the
-	 * only element on the queue
+	 * Requeue to the end of queue if we (and all of our ancestors) are not
+	 * the only element on the queue
 	 */
 	for_each_sched_rt_entity(rt_se) {
 		if (rt_se->run_list.prev != rt_se->run_list.next) {
