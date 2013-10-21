@@ -490,7 +490,8 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			if (encrypt)
 				skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
 
-			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(
+				skb_frag, hdr_len);
 			memcpy(frag_hdr, &header, hdr_len);
 
 			/*
@@ -511,9 +512,11 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 				 * add 1 only indicate to corresponding seq
 				 * number control 2006/7/12
 				 */
-				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
+				frag_hdr->seq_ctl = cpu_to_le16(
+					ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
 			} else {
-				frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
+				frag_hdr->seq_ctl = cpu_to_le16(
+					ieee->seq_ctrl[0]<<4 | i);
 			}
 
 			/* Put a SNAP header on the first fragment */
