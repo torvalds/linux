@@ -119,7 +119,7 @@
 #define V4L2_STD_A2		(V4L2_STD_A2_A    | V4L2_STD_A2_B)
 #define V4L2_STD_NICAM		(V4L2_STD_NICAM_A | V4L2_STD_NICAM_B)
 
-/* To preserve backward compatibilty,
+/* To preserve backward compatibility,
    (std & V4L2_STD_AUDIO) = 0 means that ALL audio stds are supported
  */
 

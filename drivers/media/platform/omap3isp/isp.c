@@ -1673,7 +1673,7 @@ void omap3isp_print_status(struct isp_device *isp)
  * ISP clocks get disabled in suspend(). Similarly, the clocks are reenabled in
  * resume(), and the the pipelines are restarted in complete().
  *
- * TODO: PM dependencies between the ISP and sensors are not modeled explicitly
+ * TODO: PM dependencies between the ISP and sensors are not modelled explicitly
  * yet.
  */
 static int isp_pm_prepare(struct device *dev)

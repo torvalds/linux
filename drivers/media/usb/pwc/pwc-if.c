@@ -1039,7 +1039,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* Set the leds off */
 	pwc_set_leds(pdev, 0, 0);
 
-	/* Setup intial videomode */
+	/* Setup initial videomode */
 	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT,
 				V4L2_PIX_FMT_YUV420, 30, &compression, 1);
 	if (rc)

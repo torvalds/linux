@@ -401,7 +401,7 @@ static int pluto_hw_init(struct pluto *pluto)
 	/* set automatic LED control by FPGA */
 	pluto_rw(pluto, REG_MISC, MISC_ALED, MISC_ALED);
 
-	/* set data endianess */
+	/* set data endianness */
 #ifdef __LITTLE_ENDIAN
 	pluto_rw(pluto, REG_PIDn(0), PID0_END, PID0_END);
 #else

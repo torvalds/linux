@@ -642,7 +642,7 @@ static const struct ov5642_datafmt
 static int reg_read(struct i2c_client *client, u16 reg, u8 *val)
 {
 	int ret;
-	/* We have 16-bit i2c addresses - care for endianess */
+	/* We have 16-bit i2c addresses - care for endianness */
 	unsigned char data[2] = { reg >> 8, reg & 0xff };
 
 	ret = i2c_master_send(client, data, 2);

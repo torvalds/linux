@@ -1108,7 +1108,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-/* timeperframe is arbitrary and continous */
+/* timeperframe is arbitrary and continuous */
 static int vidioc_enum_frameintervals(struct file *file, void *priv,
 					     struct v4l2_frmivalenum *fival)
 {
@@ -1125,7 +1125,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *priv,
 
 	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
 
-	/* fill in stepwise (step=1.0 is requred by V4L2 spec) */
+	/* fill in stepwise (step=1.0 is required by V4L2 spec) */
 	fival->stepwise.min  = tpf_min;
 	fival->stepwise.max  = tpf_max;
 	fival->stepwise.step = (struct v4l2_fract) {1, 1};

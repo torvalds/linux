@@ -427,7 +427,7 @@ int mc417_register_read(struct cx23885_dev *dev, u16 address, u32 *value)
 	cx_write(MC417_RWD, regval);
 
 	/* Transition RD to effect read transaction across bus.
-	 * Transtion 0x5000 -> 0x9000 correct (RD/RDY -> WR/RDY)?
+	 * Transition 0x5000 -> 0x9000 correct (RD/RDY -> WR/RDY)?
 	 * Should it be 0x9000 -> 0xF000 (also why is RDY being set, its
 	 * input only...)
 	 */

@@ -266,7 +266,7 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
-	/* exit if we didnt initialize the driver yet */
+	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
 		mxl_debug("driver not yet initialized, exit.");
 		goto fail;
@@ -322,7 +322,7 @@ static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int err;
 
-	/* exit if we didnt initialize the driver yet */
+	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
 		mxl_debug("driver not yet initialized, exit.");
 		goto fail;
