@@ -716,7 +716,7 @@ static int lis3l02dq_probe(struct spi_device *spi)
 				  lis3l02dq_channels,
 				  ARRAY_SIZE(lis3l02dq_channels));
 	if (ret) {
-		printk(KERN_ERR "failed to initialize the buffer\n");
+		dev_err(&spi->dev, "failed to initialize the buffer\n");
 		goto error_unreg_buffer_funcs;
 	}
 
