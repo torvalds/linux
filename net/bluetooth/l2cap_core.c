@@ -2813,17 +2813,16 @@ static void l2cap_raw_recv(struct l2cap_conn *conn, struct sk_buff *skb)
 	mutex_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
-		struct sock *sk = chan->sk;
 		if (chan->chan_type != L2CAP_CHAN_RAW)
 			continue;
 
-		/* Don't send frame to the socket it came from */
-		if (skb->sk == sk)
+		/* Don't send frame to the channel it came from */
+		if (bt_cb(skb)->chan == chan)
 			continue;
+
 		nskb = skb_clone(skb, GFP_KERNEL);
 		if (!nskb)
 			continue;
-
 		if (chan->ops->recv(chan, nskb))
 			kfree_skb(nskb);
 	}
