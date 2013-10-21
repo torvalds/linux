@@ -1159,10 +1159,13 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 	struct nfs4_state *state = data->state;
 	int ret;
 
-	/* allow cached opens (!rpc_done && !rpc_status) */
-	if (!data->rpc_done && data->rpc_status) {
-		ret = data->rpc_status;
-		goto err;
+	if (!data->rpc_done) {
+		if (data->rpc_status) {
+			ret = data->rpc_status;
+			goto err;
+		}
+		/* cached opens have already been processed */
+		goto update;
 	}
 
 	ret = -ENOMEM;
@@ -1176,6 +1179,7 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 
 	if (data->o_res.delegation_type != 0)
 		nfs4_opendata_check_deleg(data, state);
+update:
 	update_open_stateid(state, &data->o_res.stateid, NULL,
 			    data->o_arg.fmode);
 
