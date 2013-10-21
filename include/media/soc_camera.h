@@ -146,6 +146,15 @@ struct soc_camera_subdev_desc {
 	/* sensor driver private platform data */
 	void *drv_priv;
 
+	/*
+	 * Set unbalanced_power to true to deal with legacy drivers, failing to
+	 * balance their calls to subdevice's .s_power() method. clock_state is
+	 * then used internally by helper functions, it shouldn't be touched by
+	 * drivers or the platform code.
+	 */
+	bool unbalanced_power;
+	unsigned long clock_state;
+
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -200,6 +209,11 @@ struct soc_camera_link {
 	unsigned long flags;
 
 	void *priv;
+
+	/* Set by platforms to handle misbehaving drivers */
+	bool unbalanced_power;
+	/* Used by soc-camera helper functions */
+	unsigned long clock_state;
 
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);

@@ -71,11 +71,21 @@ static int video_dev_create(struct soc_camera_device *icd);
 int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
 			struct v4l2_clk *clk)
 {
-	int ret = clk ? v4l2_clk_enable(clk) : 0;
-	if (ret < 0) {
-		dev_err(dev, "Cannot enable clock: %d\n", ret);
-		return ret;
+	int ret;
+	bool clock_toggle;
+
+	if (clk && (!ssdd->unbalanced_power ||
+		    !test_and_set_bit(0, &ssdd->clock_state))) {
+		ret = v4l2_clk_enable(clk);
+		if (ret < 0) {
+			dev_err(dev, "Cannot enable clock: %d\n", ret);
+			return ret;
+		}
+		clock_toggle = true;
+	} else {
+		clock_toggle = false;
 	}
+
 	ret = regulator_bulk_enable(ssdd->sd_pdata.num_regulators,
 				    ssdd->sd_pdata.regulators);
 	if (ret < 0) {
@@ -98,7 +108,7 @@ epwron:
 	regulator_bulk_disable(ssdd->sd_pdata.num_regulators,
 			       ssdd->sd_pdata.regulators);
 eregenable:
-	if (clk)
+	if (clock_toggle)
 		v4l2_clk_disable(clk);
 
 	return ret;
@@ -127,7 +137,7 @@ int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd
 		ret = ret ? : err;
 	}
 
-	if (clk)
+	if (clk && (!ssdd->unbalanced_power || test_and_clear_bit(0, &ssdd->clock_state)))
 		v4l2_clk_disable(clk);
 
 	return ret;
