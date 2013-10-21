@@ -1374,8 +1374,6 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 
 	l2cap_chan_hold(chan);
 
-	chan->sk = sk;
-
 	l2cap_pi(sk)->chan = chan;
 
 	return sk;
