@@ -886,8 +886,8 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->regs = devm_ioremap_resource(&pdev->dev, regs);
-	if (!dsi->regs)
-		return -EADDRNOTAVAIL;
+	if (IS_ERR(dsi->regs))
+		return PTR_ERR(dsi->regs);
 
 	tegra_dsi_initialize(dsi);
 
