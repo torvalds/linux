@@ -1174,6 +1174,8 @@ static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,
 	if (!skb)
 		return ERR_PTR(err);
 
+	bt_cb(skb)->chan = chan;
+
 	return skb;
 }
 
