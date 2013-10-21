@@ -209,14 +209,13 @@ int ieee80211_encrypt_fragment(
 	/*
 	 * To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes)
-	 */
-
-	/*
+	 *
 	 * PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU
 	 * encryption.
+	 *
+	 * Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
+	 * call both MSDU and MPDU encryption functions from here.
 	 */
-	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
-	 * call both MSDU and MPDU encryption functions from here. */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
 	if (crypt->ops->encrypt_msdu)
@@ -407,14 +406,15 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			fc |= IEEE80211_FCTL_TODS;
-			/* To DS: Addr1 = BSSID, Addr2 = SA,
-			Addr3 = DA */
+			/* To DS: Addr1 = BSSID, Addr2 = SA, Addr3 = DA */
 			memcpy(&header.addr1, ieee->current_network.bssid, ETH_ALEN);
 			memcpy(&header.addr2, &src, ETH_ALEN);
 			memcpy(&header.addr3, &dest, ETH_ALEN);
 		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-			/* not From/To DS: Addr1 = DA, Addr2 = SA,
-			Addr3 = BSSID */
+			/*
+			 * not From/To DS: Addr1 = DA, Addr2 = SA,
+			 * Addr3 = BSSID
+			 */
 			memcpy(&header.addr1, dest, ETH_ALEN);
 			memcpy(&header.addr2, src, ETH_ALEN);
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
@@ -459,8 +459,10 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			bytes_per_frag -= crypt->ops->extra_prefix_len +
 				crypt->ops->extra_postfix_len;
 
-		/* Number of fragments is the total bytes_per_frag /
-		* payload_per_fragment */
+		/*
+		 * Number of fragments is the total bytes_per_frag /
+		 * payload_per_fragment
+		 */
 		nr_frags = bytes / bytes_per_frag;
 		bytes_last_frag = bytes % bytes_per_frag;
 		if (bytes_last_frag)
@@ -468,9 +470,11 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		else
 			bytes_last_frag = bytes_per_frag;
 
-		/* When we allocate the TXB we allocate enough space for the reserve
-		* and full fragment bytes (bytes_per_frag doesn't include prefix,
-		* postfix, header, FCS, etc.) */
+		/*
+		 * When we allocate the TXB we allocate enough space for the 
+		 * reserve and full fragment bytes (bytes_per_frag doesn't
+		 * include prefix, postfix, header, FCS, etc.)
+		 */
 		txb = ieee80211_alloc_txb(nr_frags, frag_size, GFP_ATOMIC);
 		if (unlikely(!txb)) {
 			printk(KERN_WARNING "%s: Could not allocate TXB\n",
@@ -489,8 +493,10 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 			memcpy(frag_hdr, &header, hdr_len);
 
-			/* If this is not the last fragment, then add the MOREFRAGS
-			* bit to the frame control */
+			/*
+			 * If this is not the last fragment, then add the MOREFRAGS
+			 * bit to the frame control
+			 */
 			if (i != nr_frags - 1) {
 				frag_hdr->frame_ctl = cpu_to_le16(
 					fc | IEEE80211_FCTL_MOREFRAGS);
