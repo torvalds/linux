@@ -1547,8 +1547,10 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	as->pdev = pdev;
 	as->regs = devm_ioremap_resource(&pdev->dev, regs);
-	if (!as->regs)
+	if (IS_ERR(as->regs)) {
+		ret = PTR_ERR(as->regs);
 		goto out_free_buffer;
+	}
 	as->phybase = regs->start;
 	as->irq = irq;
 	as->clk = clk;
