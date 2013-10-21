@@ -515,6 +515,9 @@ static int rk_mipi_dsi_host_power_up(void)
 	int ret = 0;
 	u32 val = 0;
 	
+	//disable all interrupt            
+	dsi_set_bits(0x1fffff, ERROR_MSK0 << 16);
+	dsi_set_bits(0x1ffff, ERROR_MSK1 << 16);
 	dsi_set_bits(1, shutdownz);
 	
 	val = 10;
@@ -642,10 +645,6 @@ static int rk_mipi_dsi_host_init(void *array, int n)
 	dsi_set_bits(10000, max_rd_time);
 	dsi_set_bits(1, dpicolom);
 	dsi_set_bits(1, dpishutdn);
-
-	//disable all interrupt            
-	dsi_set_bits(0x1fffff, ERROR_MSK0 << 16);
-	dsi_set_bits(0x1ffff, ERROR_MSK1 << 16);
 
 	dsi_set_bits(1, en_lp_hfp);
 	//dsi_set_bits(1, en_lp_hbp);
@@ -1483,7 +1482,7 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	gDsi.early_suspend.suspend = rk616_mipi_dsi_early_suspend;
 	gDsi.early_suspend.resume = rk616_mipi_dsi_late_resume;
-	gDsi.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
+	gDsi.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	register_early_suspend(&gDsi.early_suspend);
 #endif
 	
