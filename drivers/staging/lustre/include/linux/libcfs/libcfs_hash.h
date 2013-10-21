@@ -81,10 +81,10 @@ struct cfs_hash_ops;
 struct cfs_hash_lock_ops;
 struct cfs_hash_hlist_ops;
 
-typedef union {
+union cfs_hash_lock {
 	rwlock_t		rw;		/**< rwlock */
 	spinlock_t		spin;		/**< spinlock */
-} cfs_hash_lock_t;
+};
 
 /**
  * cfs_hash_bucket is a container of:
@@ -98,7 +98,7 @@ typedef union {
  * - some extra bytes (caller can require it while creating hash)
  */
 typedef struct cfs_hash_bucket {
-	cfs_hash_lock_t		hsb_lock;	/**< bucket lock */
+	union cfs_hash_lock	hsb_lock;	/**< bucket lock */
 	__u32			hsb_count;	/**< current entries */
 	__u32			hsb_version;	/**< change version */
 	unsigned int		hsb_index;	/**< index of bucket */
@@ -213,7 +213,7 @@ enum cfs_hash_tag {
 typedef struct cfs_hash {
 	/** serialize with rehash, or serialize all operations if
 	 * the hash-table has CFS_HASH_NO_BKTLOCK */
-	cfs_hash_lock_t	     hs_lock;
+	union cfs_hash_lock	     hs_lock;
 	/** hash operations */
 	struct cfs_hash_ops	*hs_ops;
 	/** hash lock operations */
@@ -276,13 +276,13 @@ typedef struct cfs_hash {
 
 typedef struct cfs_hash_lock_ops {
 	/** lock the hash table */
-	void    (*hs_lock)(cfs_hash_lock_t *lock, int exclusive);
+	void    (*hs_lock)(union cfs_hash_lock *lock, int exclusive);
 	/** unlock the hash table */
-	void    (*hs_unlock)(cfs_hash_lock_t *lock, int exclusive);
+	void    (*hs_unlock)(union cfs_hash_lock *lock, int exclusive);
 	/** lock the hash bucket */
-	void    (*hs_bkt_lock)(cfs_hash_lock_t *lock, int exclusive);
+	void    (*hs_bkt_lock)(union cfs_hash_lock *lock, int exclusive);
 	/** unlock the hash bucket */
-	void    (*hs_bkt_unlock)(cfs_hash_lock_t *lock, int exclusive);
+	void    (*hs_bkt_unlock)(union cfs_hash_lock *lock, int exclusive);
 } cfs_hash_lock_ops_t;
 
 typedef struct cfs_hash_hlist_ops {
