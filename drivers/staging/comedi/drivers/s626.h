@@ -498,17 +498,7 @@
 #define S626_CLKMULT_4X		0	/* 4x clock multiplier. */
 #define S626_CLKMULT_2X		1	/* 2x clock multiplier. */
 #define S626_CLKMULT_1X		2	/* 1x clock multiplier. */
-
-/* Enumerated counter clock multipliers. */
-
-#define S626_MULT_X0		0x0003	/* Supports no multipliers;
-					 * fixed physical multiplier = 3. */
-#define S626_MULT_X1		0x0002	/* Supports multiplier x1;
-					 * fixed physical multiplier = 2. */
-#define S626_MULT_X2		0x0001	/* Supports multipliers x1, x2;
-					 * physical multipliers = 1 or 2. */
-#define S626_MULT_X4		0x0000	/* Supports multipliers x1, x2, x4;
-					 * physical multipliers = 0, 1 or 2. */
+#define S626_CLKMULT_SPECIAL	3	/* Special clock multiplier value. */
 
 /* Sanity-check limits for parameters. */
 

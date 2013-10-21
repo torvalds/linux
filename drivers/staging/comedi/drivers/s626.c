@@ -731,7 +731,7 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 		/* Set ClkPol to indicate count direction (CntSrcA<0>). */
 		clkpol = cntsrc & 1;
 		/* ClkMult must be 1x in Timer mode. */
-		clkmult = S626_MULT_X1;
+		clkmult = S626_CLKMULT_1X;
 	} else {
 		/* Counter mode (CntSrcA<1> == 0): */
 		encmode = S626_ENCMODE_COUNTER;
@@ -739,8 +739,8 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 		clkpol = S626_GET_CRA_CLKPOL_A(cra);
 		/* Force ClkMult to 1x if not legal, else pass through. */
 		clkmult = S626_GET_CRA_CLKMULT_A(cra);
-		if (clkmult == S626_MULT_X0)
-			clkmult = S626_MULT_X1;
+		if (clkmult == S626_CLKMULT_SPECIAL)
+			clkmult = S626_CLKMULT_1X;
 	}
 	setup |= S626_SET_STD_ENCMODE(encmode) | S626_SET_STD_CLKMULT(clkmult) |
 		 S626_SET_STD_CLKPOL(clkpol);
@@ -781,18 +781,18 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 	/* Adjust mode-dependent parameters. */
 	cntsrc = S626_GET_CRA_CNTSRC_B(cra);
 	clkmult = S626_GET_CRB_CLKMULT_B(crb);
-	if (clkmult == S626_MULT_X0) {
-		/* Extender mode (ClkMultB == S626_MULT_X0): */
+	if (clkmult == S626_CLKMULT_SPECIAL) {
+		/* Extender mode (ClkMultB == S626_CLKMULT_SPECIAL): */
 		encmode = S626_ENCMODE_EXTENDER;
 		/* Indicate multiplier is 1x. */
-		clkmult = S626_MULT_X1;
+		clkmult = S626_CLKMULT_1X;
 		/* Set ClkPol equal to Timer count direction (CntSrcB<0>). */
 		clkpol = cntsrc & 1;
 	} else if (cntsrc & S626_CNTSRC_SYSCLK) {
 		/* Timer mode (CntSrcB<1> == 1): */
 		encmode = S626_ENCMODE_TIMER;
 		/* Indicate multiplier is 1x. */
-		clkmult = S626_MULT_X1;
+		clkmult = S626_CLKMULT_1X;
 		/* Set ClkPol equal to Timer count direction (CntSrcB<0>). */
 		clkpol = cntsrc & 1;
 	} else {
@@ -853,7 +853,7 @@ static void s626_set_mode_a(struct comedi_device *dev,
 		/* ClkPolA behaves as always-on clock enable. */
 		clkpol = 1;
 		/* ClkMult must be 1x. */
-		clkmult = S626_MULT_X1;
+		clkmult = S626_CLKMULT_1X;
 		break;
 	default:		/* Counter Mode: */
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
@@ -861,8 +861,8 @@ static void s626_set_mode_a(struct comedi_device *dev,
 		/* Clock polarity is passed through. */
 		/* Force multiplier to x1 if not legal, else pass through. */
 		clkmult = S626_GET_STD_CLKMULT(setup);
-		if (clkmult == S626_MULT_X0)
-			clkmult = S626_MULT_X1;
+		if (clkmult == S626_CLKMULT_SPECIAL)
+			clkmult = S626_CLKMULT_1X;
 		break;
 	}
 	cra |= S626_SET_CRA_CNTSRC_A(cntsrc) | S626_SET_CRA_CLKPOL_A(clkpol) |
@@ -927,7 +927,7 @@ static void s626_set_mode_b(struct comedi_device *dev,
 		/* ClkPolB behaves as always-on clock enable. */
 		clkpol = 1;
 		/* ClkMultB must be 1x. */
-		clkmult = S626_MULT_X1;
+		clkmult = S626_CLKMULT_1X;
 		break;
 	case S626_ENCMODE_EXTENDER:	/* Extender Mode: */
 		/* CntSrcB source is OverflowA (same as "timer") */
@@ -937,7 +937,7 @@ static void s626_set_mode_b(struct comedi_device *dev,
 		/* ClkPolB controls IndexB -- always set to active. */
 		clkpol = 1;
 		/* ClkMultB selects OverflowA as the clock source. */
-		clkmult = S626_MULT_X0;
+		clkmult = S626_CLKMULT_SPECIAL;
 		break;
 	default:		/* Counter Mode: */
 		/* Select ENC_C and ENC_D as clock/direction inputs. */
@@ -945,8 +945,8 @@ static void s626_set_mode_b(struct comedi_device *dev,
 		/* ClkPol is passed through. */
 		/* Force ClkMult to x1 if not legal, otherwise pass through. */
 		clkmult = S626_GET_STD_CLKMULT(setup);
-		if (clkmult == S626_MULT_X0)
-			clkmult = S626_MULT_X1;
+		if (clkmult == S626_CLKMULT_SPECIAL)
+			clkmult = S626_CLKMULT_1X;
 		break;
 	}
 	cra |= S626_SET_CRA_CNTSRC_B(cntsrc);
