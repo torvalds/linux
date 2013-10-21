@@ -82,6 +82,8 @@ struct ion_client {
 	struct dentry *debug_root;
 };
 
+static struct ion_client *g_client = NULL;
+
 /**
  * ion_handle - a client local reference to a buffer
  * @ref:		reference count
@@ -335,12 +337,22 @@ end:
 	return handle;
 }
 
+struct ion_handle *ion_alloc_by_kenel(size_t len, enum ion_heap_ids id)
+{
+	struct ion_handle *handle;
+	if(!g_client)
+		return NULL;
+	handle = ion_alloc(g_client, len , PAGE_SIZE, 1<<id);
+	if (IS_ERR_OR_NULL(handle))
+		return NULL;
+	return handle;
+}
+EXPORT_SYMBOL(ion_alloc_by_kenel);
 void ion_free(struct ion_client *client, struct ion_handle *handle)
 {
 	bool valid_handle;
 
 	BUG_ON(client != handle->client);
-
 	mutex_lock(&client->lock);
 	valid_handle = ion_handle_validate(client, handle);
 	if (!valid_handle) {
@@ -352,6 +364,12 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 	mutex_unlock(&client->lock);
 }
 
+void ion_free_by_kernel(struct ion_handle *handle)
+{
+	if(g_client)
+		ion_free(g_client, handle);
+}
+EXPORT_SYMBOL(ion_free_by_kernel);
 static void ion_client_get(struct ion_client *client);
 static int ion_client_put(struct ion_client *client);
 
@@ -411,6 +429,54 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 	return ret;
 }
 
+int ion_phys_by_kernel(struct ion_handle *handle, ion_phys_addr_t *addr, size_t *len)
+{
+	return ion_phys(g_client, handle, addr, len);
+}
+EXPORT_SYMBOL(ion_phys_by_kernel);
+static int __ion_phys_by_kernel_nolock(struct ion_handle *handle, 
+		ion_phys_addr_t *addr, size_t *len)
+{
+	struct ion_buffer *buffer;
+	int ret;
+
+	if (!ion_handle_validate(g_client, handle)) {
+		return -EINVAL;
+	}
+
+	buffer = handle->buffer;
+
+	if (!buffer->heap->ops->phys) {
+		pr_err("%s: ion_phys is not implemented by this heap.\n",
+		       __func__);
+		return -ENODEV;
+	}
+	mutex_lock(&buffer->lock);
+	ret = buffer->heap->ops->phys(buffer->heap, buffer, addr, len);
+	mutex_unlock(&buffer->lock);
+	return ret;
+}
+struct ion_handle *ion_handle_lookup_by_addr(ion_phys_addr_t addr)
+{
+	struct rb_node *n;
+
+	mutex_lock(&g_client->lock);
+	for (n = rb_first(&g_client->handles); n; n = rb_next(n)) {
+		int ret;
+		ion_phys_addr_t _addr;
+		size_t len;
+		struct ion_handle *handle = rb_entry(n, struct ion_handle,
+						     node);
+		ret = __ion_phys_by_kernel_nolock(handle, &_addr, &len);
+		if((ret == 0) && (_addr == addr)){
+			mutex_unlock(&g_client->lock);
+			return handle;
+		}
+	}
+	mutex_unlock(&g_client->lock);		
+	return NULL;
+}
+EXPORT_SYMBOL(ion_handle_lookup_by_addr);
 void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 {
 	struct ion_buffer *buffer;
@@ -1450,6 +1516,9 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 	idev->heaps = RB_ROOT;
 	idev->user_clients = RB_ROOT;
 	idev->kernel_clients = RB_ROOT;
+
+	g_client = ion_client_create(idev, -1, "kernel");
+
 	debugfs_create_file("leak", 0664, idev->debug_root, idev,
 			    &debug_leak_fops);
 	return idev;
@@ -1457,6 +1526,8 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 
 void ion_device_destroy(struct ion_device *dev)
 {
+	ion_client_destroy(g_client);
+	g_client = NULL;
 	misc_deregister(&dev->dev);
 	/* XXX need to free the heaps and clients ? */
 	kfree(dev);

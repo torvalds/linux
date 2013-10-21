@@ -128,6 +128,7 @@ void ion_client_destroy(struct ion_client *client);
 struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 			     size_t align, unsigned int flags);
 
+struct ion_handle *ion_alloc_by_kenel(size_t len, unsigned int flags);
 /**
  * ion_free - free a handle
  * @client:	the client
@@ -136,6 +137,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
  * Free the provided handle.
  */
 void ion_free(struct ion_client *client, struct ion_handle *handle);
+void ion_free_by_kernel(struct ion_handle *handle);
 
 /**
  * ion_phys - returns the physical address and len of a handle
@@ -164,6 +166,8 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
  * Map the given handle into the kernel and return a kernel address that
  * can be used to access this address.
  */
+int ion_phys_by_kernel(struct ion_handle *handle, ion_phys_addr_t *addr, size_t *len);
+struct ion_handle *ion_handle_lookup_by_addr(ion_phys_addr_t addr);
 void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle);
 
 /**

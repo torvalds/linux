@@ -47,14 +47,14 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 
 	if (!offset) {
 		if ((heap->total_size - heap->allocated_size) > size)
-			printk("%s: heap %s has enough memory (%luK) but"
+			pr_debug("%s: heap %s has enough memory (%luK) but"
 				" the allocation of size(%luK) still failed."
 				" Memory is probably fragmented.\n",
 				__func__, heap->name,
 				(heap->total_size - heap->allocated_size)/SZ_1K, 
 				size/SZ_1K);
 		else
-			printk("%s: heap %s has not enough memory(%luK)"
+			pr_debug("%s: heap %s has not enough memory(%luK)"
 				"the alloction of size is %luK.\n",
 				__func__, heap->name,
 				(heap->total_size - heap->allocated_size)/SZ_1K, 
