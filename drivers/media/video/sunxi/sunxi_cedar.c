@@ -67,7 +67,7 @@ int g_dev_minor = CEDARDEV_MINOR;
 module_param(g_dev_major, int, S_IRUGO);//S_IRUGO represent that g_dev_major can be read,but canot be write
 module_param(g_dev_minor, int, S_IRUGO);
 
-#define VE_IRQ_NO (53)
+#define VE_IRQ_NO (SW_INT_IRQNO_VE)
 
 struct clk *ve_moduleclk = NULL;
 struct clk *ve_pll4clk = NULL;
@@ -738,7 +738,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         		return 0x0A10000A;
 		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
 			   SUNXI_VER_A10C == sw_get_ic_ver() ||
-			   SUNXI_VER_A13B == sw_get_ic_ver()) {
+			   SUNXI_VER_A13B == sw_get_ic_ver() ||
+			   SUNXI_VER_A20 == sw_get_ic_ver()) {
         		return 0x0A10000B;
         	}else{
         		printk("IC_VER get error:%s,%d\n", __func__, __LINE__);
@@ -755,6 +756,28 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			flush_clean_user_range(cache_range.start, cache_range.end);
         }
         break;
+
+	case IOCTL_SET_REFCOUNT:
+		cedar_devp->ref_count = (int)arg;
+		break;
+
+	case IOCTL_READ_REG:
+	{
+		struct cedarv_regop reg_para;
+		if(copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
+			return -EFAULT;
+		return readl(reg_para.addr);
+	}
+
+	case IOCTL_WRITE_REG:
+	{
+		struct cedarv_regop reg_para;
+		if(copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
+			return -EFAULT;
+		writel(reg_para.value, reg_para.addr);
+		break;
+	}
+
         default:
         break;
     }
@@ -968,8 +991,12 @@ static int __init cedardev_init(void)
 		printk("set parent of ve_moduleclk to ve_pll4clk failed!\n");
 		return -EFAULT;
 	}
-	/*default the ve freq to 160M by lys 2011-12-23 15:25:34*/
-	__set_ve_freq(160);
+	if (SUNXI_VER_A20 == sw_get_ic_ver())
+		/* default the ve freq to 300M for A20 (from sun7i_cedar.c) */
+		__set_ve_freq(300);
+	else
+		/*default the ve freq to 160M by lys 2011-12-23 15:25:34*/
+		__set_ve_freq(160);
 	/*geting dram clk for ve!*/
 	dram_veclk = clk_get(NULL, "sdram_ve");
 	hosc_clk = clk_get(NULL,"hosc");
