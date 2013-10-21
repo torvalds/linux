@@ -428,8 +428,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		if (is_multicast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
 			qos_ctl = QOS_CTL_NOTCONTAIN_ACK;
-		}
-		else {
+		} else {
 			/* default:392 */
 			frag_size = ieee->fts;
 			qos_ctl = 0;
