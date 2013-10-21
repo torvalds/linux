@@ -708,7 +708,6 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 
 	/*
 	 * Populate the standardized counter setup bit fields.
-	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
 	 */
 	setup =
 		/* LoadSrc  = LoadSrcA. */
@@ -717,8 +716,8 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 		S626_SET_STD_LATCHSRC(S626_GET_CRB_LATCHSRC(crb)) |
 		/* IntSrc   = IntSrcA. */
 		S626_SET_STD_INTSRC(S626_GET_CRA_INTSRC_A(cra)) |
-		/* IndxSrc  = IndxSrcA<1>. */
-		S626_SET_STD_INDXSRC(S626_GET_CRA_INDXSRC_A(cra) >> 1) |
+		/* IndxSrc  = IndxSrcA. */
+		S626_SET_STD_INDXSRC(S626_GET_CRA_INDXSRC_A(cra)) |
 		/* IndxPol  = IndxPolA. */
 		S626_SET_STD_INDXPOL(S626_GET_CRA_INDXPOL_A(cra)) |
 		/* ClkEnab  = ClkEnabA. */
@@ -764,7 +763,6 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 
 	/*
 	 * Populate the standardized counter setup bit fields.
-	 * Note: IndexSrc is restricted to ENC_X or IndxPol.
 	 */
 	setup =
 		/* IntSrc   = IntSrcB. */
@@ -777,8 +775,8 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 		S626_SET_STD_INDXPOL(S626_GET_CRB_INDXPOL_B(crb)) |
 		/* ClkEnab  = ClkEnabB. */
 		S626_SET_STD_CLKENAB(S626_GET_CRB_CLKENAB_B(crb)) |
-		/* IndxSrc  = IndxSrcB<1>. */
-		S626_SET_STD_INDXSRC(S626_GET_CRA_INDXSRC_B(cra) >> 1);
+		/* IndxSrc  = IndxSrcB. */
+		S626_SET_STD_INDXSRC(S626_GET_CRA_INDXSRC_B(cra));
 
 	/* Adjust mode-dependent parameters. */
 	cntsrc = S626_GET_CRA_CNTSRC_B(cra);
@@ -829,8 +827,8 @@ static void s626_set_mode_a(struct comedi_device *dev,
 	/* Initialize CRA and CRB images. */
 	/* Preload trigger is passed through. */
 	cra = S626_SET_CRA_LOADSRC_A(S626_GET_STD_LOADSRC(setup));
-	/* IndexSrc is restricted to ENC_X or IndxPol. */
-	cra |= S626_SET_CRA_INDXSRC_A(S626_GET_STD_INDXSRC(setup) << 1);
+	/* IndexSrc is passed through. */
+	cra |= S626_SET_CRA_INDXSRC_A(S626_GET_STD_INDXSRC(setup));
 
 	/* Reset any pending CounterA event captures. */
 	crb = S626_SET_CRB_INTRESETCMD(1) | S626_SET_CRB_INTRESET_A(1);
@@ -874,7 +872,7 @@ static void s626_set_mode_a(struct comedi_device *dev,
 	 * Force positive index polarity if IndxSrc is software-driven only,
 	 * otherwise pass it through.
 	 */
-	if (S626_GET_STD_INDXSRC(setup) == S626_INDXSRC_HARD)
+	if (S626_GET_STD_INDXSRC(setup) != S626_INDXSRC_SOFT)
 		cra |= S626_SET_CRA_INDXPOL_A(S626_GET_STD_INDXPOL(setup));
 
 	/*
@@ -904,8 +902,8 @@ static void s626_set_mode_b(struct comedi_device *dev,
 	unsigned cntsrc, clkmult, clkpol;
 
 	/* Initialize CRA and CRB images. */
-	/* IndexSrc field is restricted to ENC_X or IndxPol. */
-	cra = S626_SET_CRA_INDXSRC_B(S626_GET_STD_INDXSRC(setup) << 1);
+	/* IndexSrc is passed through. */
+	cra = S626_SET_CRA_INDXSRC_B(S626_GET_STD_INDXSRC(setup));
 
 	/* Reset event captures and disable interrupts. */
 	crb = S626_SET_CRB_INTRESETCMD(1) | S626_SET_CRB_INTRESET_B(1);
@@ -958,7 +956,7 @@ static void s626_set_mode_b(struct comedi_device *dev,
 	 * Force positive index polarity if IndxSrc is software-driven only,
 	 * otherwise pass it through.
 	 */
-	if (S626_GET_STD_INDXSRC(setup) == S626_INDXSRC_HARD)
+	if (S626_GET_STD_INDXSRC(setup) != S626_INDXSRC_SOFT)
 		crb |= S626_SET_CRB_INDXPOL_B(S626_GET_STD_INDXPOL(setup));
 
 	/*

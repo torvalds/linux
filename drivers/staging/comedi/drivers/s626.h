@@ -462,8 +462,10 @@
 #define S626_LATCHSRC_B_OVERA	3	/* Latch B on A Overflow. */
 
 /* IndxSrc values: */
-#define S626_INDXSRC_HARD	0	/* Hardware or software index. */
-#define S626_INDXSRC_SOFT	1	/* Software index only. */
+#define S626_INDXSRC_ENCODER	0	/* Encoder. */
+#define S626_INDXSRC_DIGIN	1	/* Digital inputs. */
+#define S626_INDXSRC_SOFT	2	/* S/w controlled by IndxPol bit. */
+#define S626_INDXSRC_DISABLED	3	/* Index disabled. */
 
 /* IndxPol values: */
 #define S626_INDXPOL_POS	0	/* Index input is active high. */
@@ -730,7 +732,7 @@
 #define S626_STDWID_INTSRC	2
 #define S626_STDWID_LATCHSRC	2
 #define S626_STDWID_LOADSRC	2
-#define S626_STDWID_INDXSRC	1
+#define S626_STDWID_INDXSRC	2
 #define S626_STDWID_INDXPOL	1
 #define S626_STDWID_ENCMODE	2
 #define S626_STDWID_CLKPOL	1
