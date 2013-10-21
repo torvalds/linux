@@ -515,7 +515,7 @@ static struct platform_driver tiadc_driver = {
 		.name   = "TI-am335x-adc",
 		.owner	= THIS_MODULE,
 		.pm	= TIADC_PM_OPS,
-		.of_match_table = of_match_ptr(ti_adc_dt_ids),
+		.of_match_table = ti_adc_dt_ids,
 	},
 	.probe	= tiadc_probe,
 	.remove	= tiadc_remove,
