@@ -1477,7 +1477,9 @@ static int s3c64xx_spi_suspend(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
-	spi_master_suspend(master);
+	int ret = spi_master_suspend(master);
+	if (ret)
+		return ret;
 
 	/* Disable the clock */
 	clk_disable_unprepare(sdd->src_clk);
@@ -1503,9 +1505,7 @@ static int s3c64xx_spi_resume(struct device *dev)
 
 	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
-	spi_master_resume(master);
-
-	return 0;
+	return spi_master_resume(master);
 }
 #endif /* CONFIG_PM_SLEEP */
 
