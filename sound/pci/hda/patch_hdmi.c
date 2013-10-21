@@ -539,12 +539,12 @@ static void eld_proc_free(struct hdmi_spec_per_pin *per_pin)
 	}
 }
 #else
-static inline int snd_hda_eld_proc_new(struct hdmi_spec_per_pin *per_pin,
-				       int index)
+static inline int eld_proc_new(struct hdmi_spec_per_pin *per_pin,
+			       int index)
 {
 	return 0;
 }
-static inline void snd_hda_eld_proc_free(struct hdmi_spec_per_pin *per_pin)
+static inline void eld_proc_free(struct hdmi_spec_per_pin *per_pin)
 {
 }
 #endif
