@@ -1200,15 +1200,19 @@ static void display_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe,
 	struct intel_pipe_crc_entry *entry;
 	int head, tail;
 
+	spin_lock(&pipe_crc->lock);
+
 	if (!pipe_crc->entries) {
+		spin_unlock(&pipe_crc->lock);
 		DRM_ERROR("spurious interrupt\n");
 		return;
 	}
 
-	head = atomic_read(&pipe_crc->head);
-	tail = atomic_read(&pipe_crc->tail);
+	head = pipe_crc->head;
+	tail = pipe_crc->tail;
 
 	if (CIRC_SPACE(head, tail, INTEL_PIPE_CRC_ENTRIES_NR) < 1) {
+		spin_unlock(&pipe_crc->lock);
 		DRM_ERROR("CRC buffer overflowing\n");
 		return;
 	}
@@ -1223,7 +1227,9 @@ static void display_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe,
 	entry->crc[4] = crc4;
 
 	head = (head + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
-	atomic_set(&pipe_crc->head, head);
+	pipe_crc->head = head;
+
+	spin_unlock(&pipe_crc->lock);
 
 	wake_up_interruptible(&pipe_crc->wq);
 }
