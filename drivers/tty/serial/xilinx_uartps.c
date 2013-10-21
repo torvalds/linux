@@ -411,6 +411,7 @@ static unsigned int xuartps_set_baud_rate(struct uart_port *port,
 	return calc_baud;
 }
 
+#ifdef CONFIG_COMMON_CLK
 /**
  * xuartps_clk_notitifer_cb - Clock notifier callback
  * @nb:		Notifier block
@@ -504,6 +505,7 @@ static int xuartps_clk_notifier_cb(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	}
 }
+#endif
 
 /*----------------------Uart Operations---------------------------*/
 
@@ -1380,11 +1382,13 @@ static int xuartps_probe(struct platform_device *pdev)
 		goto err_out_clk_disable;
 	}
 
+#ifdef CONFIG_COMMON_CLK
 	xuartps_data->clk_rate_change_nb.notifier_call =
 			xuartps_clk_notifier_cb;
 	if (clk_notifier_register(xuartps_data->refclk,
 				&xuartps_data->clk_rate_change_nb))
 		dev_warn(&pdev->dev, "Unable to register clock notifier.\n");
+#endif
 
 	/* Initialize the port structure */
 	port = xuartps_get_port();
@@ -1415,8 +1419,10 @@ static int xuartps_probe(struct platform_device *pdev)
 	}
 
 err_out_notif_unreg:
+#ifdef CONFIG_COMMON_CLK
 	clk_notifier_unregister(xuartps_data->refclk,
 			&xuartps_data->clk_rate_change_nb);
+#endif
 err_out_clk_disable:
 	clk_disable_unprepare(xuartps_data->refclk);
 err_out_clk_dis_aper:
@@ -1438,8 +1444,10 @@ static int xuartps_remove(struct platform_device *pdev)
 	int rc;
 
 	/* Remove the xuartps port from the serial core */
+#ifdef CONFIG_COMMON_CLK
 	clk_notifier_unregister(xuartps_data->refclk,
 			&xuartps_data->clk_rate_change_nb);
+#endif
 	rc = uart_remove_one_port(&xuartps_uart_driver, port);
 	port->mapbase = 0;
 	clk_disable_unprepare(xuartps_data->refclk);
