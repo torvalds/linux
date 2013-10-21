@@ -294,7 +294,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 	}
 
 	if (eh->ether_type == __constant_htons(ETHERTYPE_IP)) {
-		const struct iphdr *ih = (struct iphdr *)(skb->data + \
+		const struct iphdr *ih = (struct iphdr *)(skb->data +
 		    sizeof(struct ether_header));
 		wme_UP = (ih->tos >> 5)&0x07;
 	} else if (vlan_tx_tag_present(skb)) {/* vtag packet */
