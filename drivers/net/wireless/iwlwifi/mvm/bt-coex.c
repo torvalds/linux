@@ -505,12 +505,16 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	struct iwl_mvm_sta *mvmsta;
 	int ret;
 
-	/* This can happen if the station has been removed right now */
 	if (sta_id == IWL_MVM_STATION_COUNT)
 		return 0;
 
 	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 					lockdep_is_held(&mvm->mutex));
+
+	/* This can happen if the station has been removed right now */
+	if (IS_ERR_OR_NULL(sta))
+		return 0;
+
 	mvmsta = (void *)sta->drv_priv;
 
 	/* nothing to do */
