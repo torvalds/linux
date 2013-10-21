@@ -147,6 +147,10 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 			dev->dev_state != MEI_DEV_POWER_DOWN &&
 			dev->dev_state != MEI_DEV_POWER_UP);
 
+	if (unexpected)
+		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
+			 mei_dev_state_str(dev->dev_state));
+
 	ret = mei_hw_reset(dev, interrupts_enabled);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "hw reset failed disabling the device\n");
@@ -184,10 +188,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->wd_pending = false;
-
-	if (unexpected)
-		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
-			 mei_dev_state_str(dev->dev_state));
 
 	if (!interrupts_enabled) {
 		dev_dbg(&dev->pdev->dev, "intr not enabled end of reset\n");
