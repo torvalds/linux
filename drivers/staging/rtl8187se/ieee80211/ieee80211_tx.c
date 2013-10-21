@@ -228,7 +228,8 @@ int ieee80211_encrypt_fragment(
 }
 
 
-void ieee80211_txb_free(struct ieee80211_txb *txb) {
+void ieee80211_txb_free(struct ieee80211_txb *txb)
+{
 	int i;
 	if (unlikely(!txb))
 		return;
