@@ -1070,11 +1070,24 @@ static int32_t handle_hc_xfercomp_intr(dwc_otg_hcd_t *_hcd,
 {
 	int 			urb_xfer_done;
 	dwc_otg_halt_status_e 	halt_status = DWC_OTG_HC_XFER_COMPLETE;
-	struct urb 		*urb = _qtd->urb;
-	int 			pipe_type = usb_pipetype(urb->pipe);
+	struct urb 		*urb;
+	int 			pipe_type;
 
 	DWC_DEBUGPL(DBG_HCD, "--Host Channel %d Interrupt: "
 		    "Transfer Complete--\n", _hc->hc_num);
+
+	if(((uint32_t) _qtd & 0xf0000000)==0){
+		DWC_PRINT("%s qtd %p\n", __func__, _qtd);
+		release_channel(_hcd, _hc, _qtd, _hc->halt_status);
+		return 1;
+	}
+
+	urb = _qtd->urb;
+	if(((uint32_t)urb & 0xf0000000)==0){
+		DWC_PRINT("%s qtd %p, urb %p\n", __func__, _qtd, urb);
+		release_channel(_hcd, _hc, _qtd, _hc->halt_status);
+		return 1;
+	}
 
      	/* 
 	 * Handle xfer complete on CSPLIT.
@@ -1083,6 +1096,7 @@ static int32_t handle_hc_xfercomp_intr(dwc_otg_hcd_t *_hcd,
 		_qtd->complete_split = 0;
 	}
 
+	pipe_type = usb_pipetype(urb->pipe);
 	/* Update the QTD and URB states. */
 	switch (pipe_type) {
 	case PIPE_CONTROL:
@@ -1926,6 +1940,9 @@ int32_t dwc_otg_hcd_handle_hc_n_intr (dwc_otg_hcd_t *_dwc_otg_hcd, uint32_t _num
 		}
 	}
 
+	if (hcint.b.chhltd) {
+		retval |= handle_hc_chhltd_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
+	}
 	if (hcint.b.xfercomp) {
 		retval |= handle_hc_xfercomp_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
 		/*
@@ -1934,9 +1951,6 @@ int32_t dwc_otg_hcd_handle_hc_n_intr (dwc_otg_hcd_t *_dwc_otg_hcd, uint32_t _num
 		 * to call the NYET interrupt handler in this case.
 		 */
 		hcint.b.nyet = 0;
-	}
-	if (hcint.b.chhltd) {
-		retval |= handle_hc_chhltd_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
 	}
 	if (hcint.b.ahberr) {
 		retval |= handle_hc_ahberr_intr(_dwc_otg_hcd, hc, hc_regs, qtd);

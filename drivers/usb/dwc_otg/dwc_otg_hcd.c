@@ -1599,34 +1599,37 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 	dwc_otg_qh_t * qh;
 	struct usb_host_endpoint *_ep;
 
+	dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
+	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
+
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD URB Dequeue\n");
 	
 	if(((uint32_t)_urb&0xf0000000)==0)
 		DWC_PRINT("%s urb is %p\n", __func__, _urb);
 		
-    _ep = dwc_urb_to_endpoint(_urb);
+	_ep = dwc_urb_to_endpoint(_urb);
 	if(_ep==NULL)
 	{
 		DWC_PRINT("%s=====================================================\n",__func__);
 		DWC_PRINT("urb->ep is null\n");
-		return -1;
+		goto out;
 	}
 		
 	urb_qtd = (dwc_otg_qtd_t *) _urb->hcpriv;
 	if(((uint32_t)urb_qtd&0xf0000000) == 0)
 	{
 		DWC_PRINT("%s,urb_qtd is %p urb %p, count %d\n",__func__, urb_qtd, _urb, atomic_read(&_urb->use_count));
-        if((atomic_read(&_urb->use_count)) == 0)
-            return 0;
-        else
-		    return -1;
+		if((atomic_read(&_urb->use_count)) == 1)
+			goto out;
+		else{
+			spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+			return 0;
+		}
 	}
 	qh = (dwc_otg_qh_t *) _ep->hcpriv;
-	dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
-	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
 #ifdef DEBUG
-    if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
+	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		dump_urb_info(_urb, "dwc_otg_hcd_urb_dequeue");
 		if (urb_qtd == qh->qtd_in_process) {
 			dump_channel_info(dwc_otg_hcd, qh);
@@ -1635,26 +1638,26 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 
 #endif	/*  */
 
-    if (urb_qtd == qh->qtd_in_process) {
-	    /* The QTD is in process (it has been assigned to a channel). */
-	    if (dwc_otg_hcd->flags.b.port_connect_status) {
-		    /*
-		     * If still connected (i.e. in host mode), halt the
-		     * channel so it can be used for other transfers. If
-		     * no longer connected, the host registers can't be
-		     * written to halt the channel since the core is in
-		     * device mode.
-		     */
-		    dwc_otg_hc_halt(dwc_otg_hcd->core_if, qh->channel,
+	if (urb_qtd == qh->qtd_in_process) {
+		/* The QTD is in process (it has been assigned to a channel). */
+		if (dwc_otg_hcd->flags.b.port_connect_status) {
+			/*
+			* If still connected (i.e. in host mode), halt the
+			* channel so it can be used for other transfers. If
+			* no longer connected, the host registers can't be
+			* written to halt the channel since the core is in
+			* device mode.
+			*/
+			dwc_otg_hc_halt(dwc_otg_hcd->core_if, qh->channel,
 					    DWC_OTG_HC_XFER_URB_DEQUEUE);
 		}
 	}
 
-    /*
-     * Free the QTD and clean up the associated QH. Leave the QH in the
-     * schedule if it has any remaining QTDs.
-     */
-    dwc_otg_hcd_qtd_remove_and_free(urb_qtd);
+	/*
+ 	* Free the QTD and clean up the associated QH. Leave the QH in the
+ 	* schedule if it has any remaining QTDs.
+ 	*/
+	dwc_otg_hcd_qtd_remove_and_free(urb_qtd);
 	if (urb_qtd == qh->qtd_in_process) {
 		dwc_otg_hcd_qh_deactivate(dwc_otg_hcd, qh, 0);
 		qh->channel = NULL;
@@ -1662,10 +1665,10 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 	} else if (list_empty(&qh->qtd_list)) {
 		dwc_otg_hcd_qh_remove(dwc_otg_hcd, qh);
 	}
-	
+out:	
 	_urb->hcpriv = NULL;
 	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
-    /* Higher layer software sets URB status. */
+	/* Higher layer software sets URB status. */
 	usb_hcd_giveback_urb(_hcd, _urb, _status);
 	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		DWC_PRINT("Called usb_hcd_giveback_urb()\n");
@@ -2325,15 +2328,18 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			break;
 		case USB_PORT_FEAT_SUSPEND:
+		#ifdef CONFIG_USB_SUSPEND
+			break;
+		#endif
 			DWC_DEBUGPL (DBG_HCD, "DWC OTG HCD HUB CONTROL - "
 				     "ClearPortFeature USB_PORT_FEAT_SUSPEND\n");
 			hprt0.d32 = dwc_otg_read_hprt0 (core_if);
 			hprt0.b.prtres = 1;
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			/* Clear Resume bit */
-            spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
+			spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 			mdelay (100);
-            spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
+			spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 			hprt0.b.prtres = 0;
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			break;
@@ -2508,6 +2514,9 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
 
 		switch (_wValue) {
 		case USB_PORT_FEAT_SUSPEND:
+		#ifdef CONFIG_USB_SUSPEND
+			break;
+		#endif
 			DWC_DEBUGPL (DBG_HCD, "DWC OTG HCD HUB CONTROL - "
 				     "SetPortFeature - USB_PORT_FEAT_SUSPEND\n");
                         if (_hcd->self.otg_port == _wIndex &&
