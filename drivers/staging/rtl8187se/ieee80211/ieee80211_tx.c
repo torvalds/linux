@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -207,7 +206,7 @@ int ieee80211_encrypt_fragment(
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 
-	// PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption.
+	/* PR: FIXME: Copied from hostap. Check fragmentation/MSDU/MPDU encryption. */
 	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
 	 * call both MSDU and MPDU encryption functions from here. */
 	atomic_inc(&crypt->refcnt);
@@ -270,8 +269,10 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	return txb;
 }
 
-// Classify the to-be send data packet
-// Need to acquire the sent queue index.
+/*
+ * Classify the to-be send data packet
+ * Need to acquire the sent queue index.
+ */
 static int
 ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 {
@@ -287,7 +288,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
     const struct iphdr *ih = (struct iphdr *)(skb->data + \
 		    sizeof(struct ether_header));
     wme_UP = (ih->tos >> 5)&0x07;
-  } else if (vlan_tx_tag_present(skb)) {//vtag packet
+  } else if (vlan_tx_tag_present(skb)) {/* vtag packet */
 #ifndef VLAN_PRI_SHIFT
 #define VLAN_PRI_SHIFT  13              /* Shift to find VLAN user priority */
 #define VLAN_PRI_MASK   7               /* Mask for user priority bits in VLAN */
@@ -295,7 +296,6 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 	u32 tag = vlan_tx_tag_get(skb);
 	wme_UP = (tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
   } else if(ETH_P_PAE ==  ntohs(((struct ethhdr *)skb->data)->h_proto)) {
-    //printk(KERN_WARNING "type = normal packet\n");
     wme_UP = 7;
   }
 
@@ -325,11 +325,12 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 
 	struct ieee80211_crypt_data* crypt;
 
-	//printk(KERN_WARNING "upper layer packet!\n");
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* If there is no driver handler to take the TXB, don't bother
-	 * creating it... */
+	/*
+	 * If there is no driver handler to take the TXB, don't bother
+	 * creating it...
+	 */
 	if ((!ieee->hard_start_xmit && !(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE))||
 	   ((!ieee->softmac_data_hard_start_xmit && (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		printk(KERN_WARNING "%s: No xmit handler.\n",
@@ -407,19 +408,19 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			memcpy(&header.addr2, src, ETH_ALEN);
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
 		}
-	//	printk(KERN_WARNING "essid MAC address is %pM", &header.addr1);
 		header.frame_ctl = cpu_to_le16(fc);
-		//hdr_len = IEEE80211_3ADDR_LEN;
 
-		/* Determine fragmentation size based on destination (multicast
-		* and broadcast are not fragmented) */
+		/*
+		 * Determine fragmentation size based on destination (multicast
+		 * and broadcast are not fragmented)
+		 */
 		if (is_multicast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
 			qos_ctl = QOS_CTL_NOTCONTAIN_ACK;
 		}
 		else {
-			//printk(KERN_WARNING "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&frag_size = %d\n", frag_size);
-			frag_size = ieee->fts;//default:392
+			/* default:392 */
+			frag_size = ieee->fts;
 			qos_ctl = 0;
 		}
 
@@ -432,11 +433,12 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			hdr_len = IEEE80211_3ADDR_LEN;
 		}
 
-		/* Determine amount of payload per fragment.  Regardless of if
-		* this stack is providing the full 802.11 header, one will
-		* eventually be affixed to this fragment -- so we must account for
-		* it when determining the amount of payload space. */
-		//bytes_per_frag = frag_size - (IEEE80211_3ADDR_LEN + (ieee->current_network->QoS_Enable ? 2:0));
+		/*
+		 * Determine amount of payload per fragment.  Regardless of if
+		 * this stack is providing the full 802.11 header, one will
+		 * eventually be affixed to this fragment -- so we must account
+		 * for it when determining the amount of payload space.
+		 */
 		bytes_per_frag = frag_size - hdr_len;
 		if (ieee->config &
 		(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
@@ -489,15 +491,14 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 				bytes = bytes_last_frag;
 			}
 			if(ieee->current_network.QoS_Enable) {
-			  // add 1 only indicate to corresponding seq number control 2006/7/12
+			  /*
+			   * add 1 only indicate to corresponding seq number 
+			   * control 2006/7/12
+			   */
 			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[UP2AC(skb->priority)+1]<<4 | i);
-			  //printk(KERN_WARNING "skb->priority = %d,", skb->priority);
-			  //printk(KERN_WARNING "type:%d: seq = %d\n",UP2AC(skb->priority),ieee->seq_ctrl[UP2AC(skb->priority)+1]);
 			} else {
 			  frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
 			}
-			//frag_hdr->seq_ctl = cpu_to_le16(ieee->seq_ctrl<<4 | i);
-			//
 
 			/* Put a SNAP header on the first fragment */
 			if (i == 0) {
@@ -512,16 +513,18 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			/* Advance the SKB... */
 			skb_pull(skb, bytes);
 
-			/* Encryption routine will move the header forward in order
-			* to insert the IV between the header and the payload */
+			/*
+			 * Encryption routine will move the header forward in
+			 * order to insert the IV between the header and the
+			 * payload
+			 */
 			if (encrypt)
 				ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 			if (ieee->config &
 			(CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
 				skb_put(skb_frag, 4);
 		}
-		// Advance sequence number in data frame.
-		//printk(KERN_WARNING "QoS Enalbed? %s\n", ieee->current_network.QoS_Enable?"Y":"N");
+		/* Advance sequence number in data frame. */
 		if (ieee->current_network.QoS_Enable) {
 		  if (ieee->seq_ctrl[UP2AC(skb->priority) + 1] == 0xFFF)
 			ieee->seq_ctrl[UP2AC(skb->priority) + 1] = 0;
@@ -533,7 +536,6 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 		  else
 			ieee->seq_ctrl[0]++;
 		}
-		//---
 	}else{
 		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
 			printk(KERN_WARNING "%s: skb too small (%d).\n",
