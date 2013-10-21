@@ -53,6 +53,17 @@ enum i2c_adapter_type {
 	I2C_ADAPTER_PANEL,
 };
 
+struct i2c_peripheral {
+	void (*add)(enum i2c_adapter_type type);
+	enum i2c_adapter_type type;
+};
+
+#define MAX_I2C_PERIPHERALS 3
+
+struct chromeos_laptop {
+	struct i2c_peripheral i2c_peripherals[MAX_I2C_PERIPHERALS];
+};
+
 static struct i2c_board_info __initdata cyapa_device = {
 	I2C_BOARD_INFO("cyapa", CYAPA_TP_I2C_ADDR),
 	.flags		= I2C_CLIENT_WAKE,
@@ -233,149 +244,193 @@ static __init struct i2c_client *add_i2c_device(const char *name,
 				       addr_list);
 }
 
-
-static struct i2c_client __init *add_smbus_device(const char *name,
-						  struct i2c_board_info *info)
+static int __init setup_cyapa_tp(enum i2c_adapter_type type)
 {
-	return add_i2c_device(name, I2C_ADAPTER_SMBUS, info);
-}
-
-static int __init setup_cyapa_smbus_tp(const struct dmi_system_id *id)
-{
-	/* add cyapa touchpad on smbus */
-	tp = add_smbus_device("trackpad", &cyapa_device);
+	/* add cyapa touchpad */
+	tp = add_i2c_device("trackpad", type, &cyapa_device);
 	return 0;
 }
 
-static int __init setup_atmel_224s_tp(const struct dmi_system_id *id)
+static int __init setup_atmel_224s_tp(enum i2c_adapter_type type)
 {
 	const unsigned short addr_list[] = { ATMEL_TP_I2C_BL_ADDR,
 					     ATMEL_TP_I2C_ADDR,
 					     I2C_CLIENT_END };
 
-	/* add atmel mxt touchpad on VGA DDC GMBus */
-	tp = add_probed_i2c_device("trackpad", I2C_ADAPTER_VGADDC,
+	/* add atmel mxt touchpad */
+	tp = add_probed_i2c_device("trackpad", type,
 				   &atmel_224s_tp_device, addr_list);
 	return 0;
 }
 
-static int __init setup_atmel_1664s_ts(const struct dmi_system_id *id)
+static int __init setup_atmel_1664s_ts(enum i2c_adapter_type type)
 {
 	const unsigned short addr_list[] = { ATMEL_TS_I2C_BL_ADDR,
 					     ATMEL_TS_I2C_ADDR,
 					     I2C_CLIENT_END };
 
-	/* add atmel mxt touch device on PANEL GMBus */
-	ts = add_probed_i2c_device("touchscreen", I2C_ADAPTER_PANEL,
+	/* add atmel mxt touch device */
+	ts = add_probed_i2c_device("touchscreen", type,
 				   &atmel_1664s_device, addr_list);
 	return 0;
 }
 
-
-static int __init setup_isl29018_als(const struct dmi_system_id *id)
+static int __init setup_isl29018_als(enum i2c_adapter_type type)
 {
 	/* add isl29018 light sensor */
-	als = add_smbus_device("lightsensor", &isl_als_device);
+	als = add_i2c_device("lightsensor", type, &isl_als_device);
 	return 0;
 }
 
-static int __init setup_isl29023_als(const struct dmi_system_id *id)
+static int __init setup_tsl2583_als(enum i2c_adapter_type type)
 {
-	/* add isl29023 light sensor on Panel GMBus */
-	als = add_i2c_device("lightsensor", I2C_ADAPTER_PANEL,
-			     &isl_als_device);
+	/* add tsl2583 light sensor */
+	als = add_i2c_device(NULL, type, &tsl2583_als_device);
 	return 0;
 }
 
-static int __init setup_tsl2583_als(const struct dmi_system_id *id)
+static int __init setup_tsl2563_als(enum i2c_adapter_type type)
 {
-	/* add tsl2583 light sensor on smbus */
-	als = add_smbus_device(NULL, &tsl2583_als_device);
+	/* add tsl2563 light sensor */
+	als = add_i2c_device(NULL, type, &tsl2563_als_device);
 	return 0;
 }
 
-static int __init setup_tsl2563_als(const struct dmi_system_id *id)
+static int __init
+chromeos_laptop_add_peripherals(const struct dmi_system_id *id)
 {
-	/* add tsl2563 light sensor on smbus */
-	als = add_smbus_device(NULL, &tsl2563_als_device);
-	return 0;
+	int i;
+	struct chromeos_laptop *cros_laptop = (void *)id->driver_data;
+
+	pr_debug("Adding peripherals for %s.\n", id->ident);
+
+	for (i = 0; i < MAX_I2C_PERIPHERALS; i++) {
+		struct i2c_peripheral *i2c_dev;
+
+		i2c_dev = &cros_laptop->i2c_peripherals[i];
+
+		/* No more peripherals. */
+		if (i2c_dev->add == NULL)
+			break;
+
+		/* Add the device. */
+		i2c_dev->add(i2c_dev->type);
+	}
+
+	/* Indicate to dmi_scan that processing is done. */
+	return 1;
 }
+
+static struct chromeos_laptop samsung_series_5_550 __initdata = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_SMBUS },
+		/* Light Sensor. */
+		{ .add = setup_isl29018_als, I2C_ADAPTER_SMBUS },
+	},
+};
+
+static struct chromeos_laptop samsung_series_5 __initdata = {
+	.i2c_peripherals = {
+		/* Light Sensor. */
+		{ .add = setup_tsl2583_als, I2C_ADAPTER_SMBUS },
+	},
+};
+
+static struct chromeos_laptop chromebook_pixel __initdata = {
+	.i2c_peripherals = {
+		/* Touch Screen. */
+		{ .add = setup_atmel_1664s_ts, I2C_ADAPTER_PANEL },
+		/* Touchpad. */
+		{ .add = setup_atmel_224s_tp, I2C_ADAPTER_VGADDC },
+		/* Light Sensor. */
+		{ .add = setup_isl29018_als, I2C_ADAPTER_PANEL },
+	},
+};
+
+static struct chromeos_laptop acer_c7_chromebook __initdata = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_SMBUS },
+	},
+};
+
+static struct chromeos_laptop acer_ac700 __initdata = {
+	.i2c_peripherals = {
+		/* Light Sensor. */
+		{ .add = setup_tsl2563_als, I2C_ADAPTER_SMBUS },
+	},
+};
+
+static struct chromeos_laptop hp_pavilion_14_chromebook __initdata = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_SMBUS },
+	},
+};
+
+static struct chromeos_laptop cr48 __initdata = {
+	.i2c_peripherals = {
+		/* Light Sensor. */
+		{ .add = setup_tsl2563_als, I2C_ADAPTER_SMBUS },
+	},
+};
+
+#define _CBDD(board_) \
+	.callback = &chromeos_laptop_add_peripherals, \
+	.driver_data = (void *)&board_
 
 static struct dmi_system_id __initdata chromeos_laptop_dmi_table[] = {
 	{
-		.ident = "Samsung Series 5 550 - Touchpad",
+		.ident = "Samsung Series 5 550",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lumpy"),
 		},
-		.callback = setup_cyapa_smbus_tp,
+		_CBDD(samsung_series_5_550),
 	},
 	{
-		.ident = "Chromebook Pixel - Touchscreen",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
-		},
-		.callback = setup_atmel_1664s_ts,
-	},
-	{
-		.ident = "Chromebook Pixel - Touchpad",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
-		},
-		.callback = setup_atmel_224s_tp,
-	},
-	{
-		.ident = "Samsung Series 5 550 - Light Sensor",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lumpy"),
-		},
-		.callback = setup_isl29018_als,
-	},
-	{
-		.ident = "Chromebook Pixel - Light Sensor",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
-		},
-		.callback = setup_isl29023_als,
-	},
-	{
-		.ident = "Acer C7 Chromebook - Touchpad",
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Parrot"),
-		},
-		.callback = setup_cyapa_smbus_tp,
-	},
-	{
-		.ident = "HP Pavilion 14 Chromebook - Touchpad",
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Butterfly"),
-		},
-		.callback = setup_cyapa_smbus_tp,
-	},
-	{
-		.ident = "Samsung Series 5 - Light Sensor",
+		.ident = "Samsung Series 5",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Alex"),
 		},
-		.callback = setup_tsl2583_als,
+		_CBDD(samsung_series_5),
 	},
 	{
-		.ident = "Cr-48 - Light Sensor",
+		.ident = "Chromebook Pixel",
 		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Mario"),
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
 		},
-		.callback = setup_tsl2563_als,
+		_CBDD(chromebook_pixel),
 	},
 	{
-		.ident = "Acer AC700 - Light Sensor",
+		.ident = "Acer C7 Chromebook",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Parrot"),
+		},
+		_CBDD(acer_c7_chromebook),
+	},
+	{
+		.ident = "Acer AC700",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
 		},
-		.callback = setup_tsl2563_als,
+		_CBDD(acer_ac700),
+	},
+	{
+		.ident = "HP Pavilion 14 Chromebook",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Butterfly"),
+		},
+		_CBDD(hp_pavilion_14_chromebook),
+	},
+	{
+		.ident = "Cr-48",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mario"),
+		},
+		_CBDD(cr48),
 	},
 	{ }
 };
