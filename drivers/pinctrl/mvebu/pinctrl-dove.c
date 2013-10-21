@@ -806,7 +806,7 @@ static struct platform_driver dove_pinctrl_driver = {
 	.driver = {
 		.name = "dove-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(dove_pinctrl_of_match),
+		.of_match_table = dove_pinctrl_of_match,
 	},
 	.probe = dove_pinctrl_probe,
 	.remove = dove_pinctrl_remove,
