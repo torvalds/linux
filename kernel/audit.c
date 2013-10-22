@@ -101,7 +101,8 @@ static __u32	audit_nlk_portid;
  * audit records being dropped. */
 static int	audit_rate_limit;
 
-/* Number of outstanding audit_buffers allowed. */
+/* Number of outstanding audit_buffers allowed.
+ * When set to zero, this means unlimited. */
 static int	audit_backlog_limit = 64;
 #define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
 static int	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
@@ -375,7 +376,8 @@ static int audit_set_failure(int state)
 static void audit_hold_skb(struct sk_buff *skb)
 {
 	if (audit_default &&
-	    skb_queue_len(&audit_skb_hold_queue) < audit_backlog_limit)
+	    (!audit_backlog_limit ||
+	     skb_queue_len(&audit_skb_hold_queue) < audit_backlog_limit))
 		skb_queue_tail(&audit_skb_hold_queue, skb);
 	else
 		kfree_skb(skb);
