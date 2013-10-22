@@ -1083,7 +1083,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
  * Rate-limited version of lock printing function.
  */
 #define LDLM_DEBUG_LIMIT(mask, lock, fmt, a...) do {			 \
-	static cfs_debug_limit_state_t _ldlm_cdls;			   \
+	static struct cfs_debug_limit_state _ldlm_cdls;			   \
 	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, &_ldlm_cdls);	      \
 	ldlm_lock_debug(&msgdata, mask, &_ldlm_cdls, lock, "### " fmt , ##a);\
 } while (0)

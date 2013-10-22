@@ -2206,7 +2206,7 @@ do {									  \
 #define DEBUG_REQ(level, req, fmt, args...)				   \
 do {									  \
 	if ((level) & (D_ERROR | D_WARNING)) {				\
-		static cfs_debug_limit_state_t cdls;			  \
+		static struct cfs_debug_limit_state cdls;			  \
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, level, &cdls);	    \
 		debug_req(&msgdata, level, &cdls, req, "@@@ "fmt" ", ## args);\
 	} else {							      \
