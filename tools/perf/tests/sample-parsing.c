@@ -276,7 +276,7 @@ int test__sample_parsing(void)
 	 * were added.
 	 */
 	if (PERF_SAMPLE_MAX > PERF_SAMPLE_IDENTIFIER << 1) {
-		pr_debug("sample format has changed - test needs updating\n");
+		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
 
