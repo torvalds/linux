@@ -1707,8 +1707,6 @@ static void smsc9420_remove(struct pci_dev *pdev)
 	if (!dev)
 		return;
 
-	pci_set_drvdata(pdev, NULL);
-
 	pd = netdev_priv(dev);
 	unregister_netdev(dev);
 
