@@ -24,7 +24,6 @@
 /*
  * Kernel only inode definitions
  */
-
 struct xfs_dinode;
 struct xfs_inode;
 struct xfs_buf;

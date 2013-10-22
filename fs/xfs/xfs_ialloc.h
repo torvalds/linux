@@ -23,6 +23,7 @@ struct xfs_dinode;
 struct xfs_imap;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_btree_cur;
 
 /*
  * Allocation parameters for inode allocation.
@@ -42,7 +43,7 @@ struct xfs_trans;
 static inline struct xfs_dinode *
 xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
 {
-	return (xfs_dinode_t *)
+	return (struct xfs_dinode *)
 		(xfs_buf_offset(b, o << (mp)->m_sb.sb_inodelog));
 }
 

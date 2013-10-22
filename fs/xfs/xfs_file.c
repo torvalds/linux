@@ -18,6 +18,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
+#include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
@@ -25,9 +26,6 @@
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_inode_item.h"
@@ -39,6 +37,7 @@
 #include "xfs_ioctl.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_dinode.h"
 
 #include <linux/aio.h>
 #include <linux/dcache.h>

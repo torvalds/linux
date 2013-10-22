@@ -25,10 +25,6 @@
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_da_btree.h"
@@ -49,6 +45,7 @@
 #include "xfs_dquot.h"
 #include "xfs_log_recover.h"
 #include "xfs_inode_item.h"
+#include "xfs_bmap_btree.h"
 
 /*
  * We include this last to have the helpers above available for the trace
