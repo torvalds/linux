@@ -225,7 +225,7 @@
 		status = "disabled";
 	};
 
-	mmcif1: mmcif@ee220000 {
+	mmcif1: mmc@ee220000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0 0xee220000 0 0x80>;
 		interrupt-parent = <&gic>;
@@ -239,7 +239,7 @@
 		reg = <0 0xe6060000 0 0x250>;
 	};
 
-	sdhi0: sdhi@ee100000 {
+	sdhi0: sd@ee100000 {
 		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee100000 0 0x100>;
 		interrupt-parent = <&gic>;
@@ -248,7 +248,7 @@
 		status = "disabled";
 	};
 
-	sdhi1: sdhi@ee120000 {
+	sdhi1: sd@ee120000 {
 		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee120000 0 0x100>;
 		interrupt-parent = <&gic>;
@@ -257,7 +257,7 @@
 		status = "disabled";
 	};
 
-	sdhi2: sdhi@ee140000 {
+	sdhi2: sd@ee140000 {
 		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee140000 0 0x100>;
 		interrupt-parent = <&gic>;
@@ -266,7 +266,7 @@
 		status = "disabled";
 	};
 
-	sdhi3: sdhi@ee160000 {
+	sdhi3: sd@ee160000 {
 		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee160000 0 0x100>;
 		interrupt-parent = <&gic>;
