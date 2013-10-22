@@ -243,6 +243,4 @@ extern int xfs_bmbt_change_owner(struct xfs_trans *tp, struct xfs_inode *ip,
 extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_inode *, int);
 
-extern const struct xfs_buf_ops xfs_bmbt_buf_ops;
-
 #endif	/* __XFS_BMAP_BTREE_H__ */

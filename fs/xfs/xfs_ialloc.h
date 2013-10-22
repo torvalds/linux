@@ -158,6 +158,4 @@ int xfs_ialloc_inode_init(struct xfs_mount *mp, struct xfs_trans *tp,
 			  xfs_agnumber_t agno, xfs_agblock_t agbno,
 			  xfs_agblock_t length, unsigned int gen);
 
-extern const struct xfs_buf_ops xfs_agi_buf_ops;
-
 #endif	/* __XFS_IALLOC_H__ */
