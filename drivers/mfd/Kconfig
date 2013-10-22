@@ -27,6 +27,18 @@ config MFD_AS3711
 	help
 	  Support for the AS3711 PMIC from AMS
 
+config MFD_AS3722
+	bool "ams AS3722 Power Management IC"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C && OF
+	help
+	  The ams AS3722 is a compact system PMU suitable for mobile phones,
+	  tablets etc. It has 4 DC/DC step-down regulators, 3 DC/DC step-down
+	  controllers, 11 LDOs, RTC, automatic battery, temperature and
+	  over current monitoring, GPIOs, ADC and a watchdog.
+
 config PMIC_ADP5520
 	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
 	depends on I2C=y
