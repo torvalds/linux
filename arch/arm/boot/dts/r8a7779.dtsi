@@ -207,7 +207,7 @@
 		interrupts = <0 100 0x4>;
 	};
 
-	sdhi0: sdhi@ffe4c000 {
+	sdhi0: sd@ffe4c000 {
 		compatible = "renesas,sdhi-r8a7779";
 		reg = <0xffe4c000 0x100>;
 		interrupt-parent = <&gic>;
@@ -217,7 +217,7 @@
 		status = "disabled";
 	};
 
-	sdhi1: sdhi@ffe4d000 {
+	sdhi1: sd@ffe4d000 {
 		compatible = "renesas,sdhi-r8a7779";
 		reg = <0xffe4d000 0x100>;
 		interrupt-parent = <&gic>;
@@ -227,7 +227,7 @@
 		status = "disabled";
 	};
 
-	sdhi2: sdhi@ffe4e000 {
+	sdhi2: sd@ffe4e000 {
 		compatible = "renesas,sdhi-r8a7779";
 		reg = <0xffe4e000 0x100>;
 		interrupt-parent = <&gic>;
@@ -237,7 +237,7 @@
 		status = "disabled";
 	};
 
-	sdhi3: sdhi@ffe4f000 {
+	sdhi3: sd@ffe4f000 {
 		compatible = "renesas,sdhi-r8a7779";
 		reg = <0xffe4f000 0x100>;
 		interrupt-parent = <&gic>;
