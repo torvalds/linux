@@ -266,6 +266,15 @@ static u32 pd_trans_len(u32 val)
 	return val & ((1 << (DESC_LENGTH_BITS_NUM + 1)) - 1);
 }
 
+static u32 cppi41_pop_desc(struct cppi41_dd *cdd, unsigned queue_num)
+{
+	u32 desc;
+
+	desc = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(queue_num));
+	desc &= ~0x1f;
+	return desc;
+}
+
 static irqreturn_t cppi41_irq(int irq, void *data)
 {
 	struct cppi41_dd *cdd = data;
@@ -303,8 +312,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
 			q_num += 32 * i;
-			desc = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(q_num));
-			desc &= ~0x1f;
+			desc = cppi41_pop_desc(cdd, q_num);
 			c = desc_to_chan(cdd, desc);
 			if (WARN_ON(!c)) {
 				pr_err("%s() q %d desc %08x\n", __func__,
@@ -520,15 +528,6 @@ static void cppi41_compute_td_desc(struct cppi41_desc *d)
 	d->pd0 = DESC_TYPE_TEARD << DESC_TYPE;
 }
 
-static u32 cppi41_pop_desc(struct cppi41_dd *cdd, unsigned queue_num)
-{
-	u32 desc;
-
-	desc = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(queue_num));
-	desc &= ~0x1f;
-	return desc;
-}
-
 static int cppi41_tear_down_chan(struct cppi41_channel *c)
 {
 	struct cppi41_dd *cdd = c->cdd;
@@ -612,7 +611,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 
 	WARN_ON(!c->td_retry);
 	if (!c->td_desc_seen) {
-		desc_phys = cppi_readl(cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
+		desc_phys = cppi41_pop_desc(cdd, c->q_num);
 		WARN_ON(!desc_phys);
 	}
 
