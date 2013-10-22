@@ -141,6 +141,9 @@ struct cppi41_dd {
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
 	struct chan_queues td_queue;
+
+	/* context for suspend/resume */
+	unsigned int dma_tdfdq;
 };
 
 #define FIST_COMPLETION_QUEUE	93
@@ -1050,6 +1053,7 @@ static int cppi41_suspend(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 
+	cdd->dma_tdfdq = cppi_readl(cdd->ctrl_mem + DMA_TDFDQ);
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	disable_sched(cdd);
 
@@ -1059,12 +1063,23 @@ static int cppi41_suspend(struct device *dev)
 static int cppi41_resume(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+	struct cppi41_channel *c;
 	int i;
 
 	for (i = 0; i < DESCS_AREAS; i++)
 		cppi_writel(cdd->descs_phys, cdd->qmgr_mem + QMGR_MEMBASE(i));
 
+	list_for_each_entry(c, &cdd->ddev.channels, chan.device_node)
+		if (!c->is_tx)
+			cppi_writel(c->q_num, c->gcr_reg + RXHPCRA0);
+
 	init_sched(cdd);
+
+	cppi_writel(cdd->dma_tdfdq, cdd->ctrl_mem + DMA_TDFDQ);
+	cppi_writel(cdd->scratch_phys, cdd->qmgr_mem + QMGR_LRAM0_BASE);
+	cppi_writel(QMGR_SCRATCH_SIZE, cdd->qmgr_mem + QMGR_LRAM_SIZE);
+	cppi_writel(0, cdd->qmgr_mem + QMGR_LRAM1_BASE);
+
 	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
 
 	return 0;
