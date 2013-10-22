@@ -749,7 +749,7 @@ void lnet_msg_containers_destroy(void);
 int lnet_msg_containers_create(void);
 
 char *lnet_msgtyp2str(int type);
-void lnet_print_hdr(lnet_hdr_t * hdr);
+void lnet_print_hdr(lnet_hdr_t *hdr);
 int lnet_fail_nid(lnet_nid_t nid, unsigned int threshold);
 
 void lnet_counters_get(lnet_counters_t *counters);
