@@ -476,7 +476,8 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 
-	if (p->rdev->family < CHIP_PALM && (cmd == 0 || cmd == 0x3) &&
+	/* TODO: is this still necessary on NI+ ? */
+	if ((cmd == 0 || cmd == 0x3) &&
 	    (start >> 28) != (p->rdev->uvd.gpu_addr >> 28)) {
 		DRM_ERROR("msg/fb buffer %LX-%LX out of 256MB segment!\n",
 			  start, end);
