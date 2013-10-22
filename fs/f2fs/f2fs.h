@@ -1155,7 +1155,16 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 	return (struct f2fs_stat_info*)sbi->stat_info;
 }
 
-#define stat_inc_call_count(si)	((si)->call_count++)
+#define stat_inc_call_count(si)		((si)->call_count++)
+#define stat_inc_bggc_count(sbi)	((sbi)->bg_gc++)
+#define stat_inc_dirty_dir(sbi)		((sbi)->n_dirty_dirs++)
+#define stat_dec_dirty_dir(sbi)		((sbi)->n_dirty_dirs--)
+#define stat_inc_total_hit(sb)		((F2FS_SB(sb))->total_hit_ext++)
+#define stat_inc_read_hit(sb)		((F2FS_SB(sb))->read_hit_ext++)
+#define stat_inc_seg_type(sbi, curseg)					\
+		((sbi)->segment_count[(curseg)->alloc_type]++)
+#define stat_inc_block_count(sbi, curseg)				\
+		((sbi)->block_count[(curseg)->alloc_type]++)
 
 #define stat_inc_seg_count(sbi, type)					\
 	do {								\
@@ -1190,6 +1199,13 @@ void __init f2fs_create_root_stats(void);
 void f2fs_destroy_root_stats(void);
 #else
 #define stat_inc_call_count(si)
+#define stat_inc_bggc_count(si)
+#define stat_inc_dirty_dir(sbi)
+#define stat_dec_dirty_dir(sbi)
+#define stat_inc_total_hit(sb)
+#define stat_inc_read_hit(sb)
+#define stat_inc_seg_type(sbi, curseg)
+#define stat_inc_block_count(sbi, curseg)
 #define stat_inc_seg_count(si, type)
 #define stat_inc_tot_blk_count(si, blks)
 #define stat_inc_data_blk_count(si, blks)

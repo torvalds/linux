@@ -467,9 +467,7 @@ static int __add_dirty_inode(struct inode *inode, struct dir_inode_entry *new)
 			return -EEXIST;
 	}
 	list_add_tail(&new->list, head);
-#ifdef CONFIG_F2FS_STAT_FS
-	sbi->n_dirty_dirs++;
-#endif
+	stat_inc_dirty_dir(sbi);
 	return 0;
 }
 
@@ -531,9 +529,7 @@ void remove_dirty_dir_inode(struct inode *inode)
 		if (entry->inode == inode) {
 			list_del(&entry->list);
 			kmem_cache_free(inode_entry_slab, entry);
-#ifdef CONFIG_F2FS_STAT_FS
-			sbi->n_dirty_dirs--;
-#endif
+			stat_dec_dirty_dir(sbi);
 			break;
 		}
 	}
