@@ -141,7 +141,7 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 #endif 
 
 #ifndef RK30SDK_WIFI_GPIO_WIFI_INT_B
-#define RK30SDK_WIFI_GPIO_WIFI_INT_B              INVALID_GPIO
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B              RK30_PIN3_PD2
 #define RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE   GPIO_HIGH 
 #endif
 
