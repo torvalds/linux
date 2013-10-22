@@ -1963,10 +1963,12 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 	struct btrfs_key key;
 	int ret;
 
+	if (btrfs_fs_incompat(root->fs_info, NO_HOLES))
+		goto out;
+
 	key.objectid = btrfs_ino(inode);
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = offset;
-
 
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0)
@@ -2064,8 +2066,10 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	u64 drop_end;
 	int ret = 0;
 	int err = 0;
+	int rsv_count;
 	bool same_page = ((offset >> PAGE_CACHE_SHIFT) ==
 			  ((offset + len - 1) >> PAGE_CACHE_SHIFT));
+	bool no_holes = btrfs_fs_incompat(root->fs_info, NO_HOLES);
 
 	ret = btrfs_wait_ordered_range(inode, offset, len);
 	if (ret)
@@ -2163,9 +2167,10 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	/*
 	 * 1 - update the inode
 	 * 1 - removing the extents in the range
-	 * 1 - adding the hole extent
+	 * 1 - adding the hole extent if no_holes isn't set
 	 */
-	trans = btrfs_start_transaction(root, 3);
+	rsv_count = no_holes ? 2 : 3;
+	trans = btrfs_start_transaction(root, rsv_count);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		goto out_free;
@@ -2202,7 +2207,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		btrfs_end_transaction(trans, root);
 		btrfs_btree_balance_dirty(root);
 
-		trans = btrfs_start_transaction(root, 3);
+		trans = btrfs_start_transaction(root, rsv_count);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
 			trans = NULL;

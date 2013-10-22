@@ -4203,6 +4203,49 @@ out:
 	return ret;
 }
 
+static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
+			     u64 offset, u64 len)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	/*
+	 * Still need to make sure the inode looks like it's been updated so
+	 * that any holes get logged if we fsync.
+	 */
+	if (btrfs_fs_incompat(root->fs_info, NO_HOLES)) {
+		BTRFS_I(inode)->last_trans = root->fs_info->generation;
+		BTRFS_I(inode)->last_sub_trans = root->log_transid;
+		BTRFS_I(inode)->last_log_commit = root->last_log_commit;
+		return 0;
+	}
+
+	/*
+	 * 1 - for the one we're dropping
+	 * 1 - for the one we're adding
+	 * 1 - for updating the inode.
+	 */
+	trans = btrfs_start_transaction(root, 3);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	ret = btrfs_drop_extents(trans, root, inode, offset, offset + len, 1);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		btrfs_end_transaction(trans, root);
+		return ret;
+	}
+
+	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(inode), offset,
+				       0, 0, len, 0, len, 0, 0, 0);
+	if (ret)
+		btrfs_abort_transaction(trans, root, ret);
+	else
+		btrfs_update_inode(trans, root, inode);
+	btrfs_end_transaction(trans, root);
+	return ret;
+}
+
 /*
  * This function puts in dummy file extents for the area we're creating a hole
  * for.  So if we are truncating this file to a larger size we need to insert
@@ -4211,7 +4254,6 @@ out:
  */
 int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map *em = NULL;
@@ -4266,31 +4308,10 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			struct extent_map *hole_em;
 			hole_size = last_byte - cur_offset;
 
-			trans = btrfs_start_transaction(root, 3);
-			if (IS_ERR(trans)) {
-				err = PTR_ERR(trans);
+			err = maybe_insert_hole(root, inode, cur_offset,
+						hole_size);
+			if (err)
 				break;
-			}
-
-			err = btrfs_drop_extents(trans, root, inode,
-						 cur_offset,
-						 cur_offset + hole_size, 1);
-			if (err) {
-				btrfs_abort_transaction(trans, root, err);
-				btrfs_end_transaction(trans, root);
-				break;
-			}
-
-			err = btrfs_insert_file_extent(trans, root,
-					btrfs_ino(inode), cur_offset, 0,
-					0, hole_size, 0, hole_size,
-					0, 0, 0);
-			if (err) {
-				btrfs_abort_transaction(trans, root, err);
-				btrfs_end_transaction(trans, root);
-				break;
-			}
-
 			btrfs_drop_extent_cache(inode, cur_offset,
 						cur_offset + hole_size - 1, 0);
 			hole_em = alloc_extent_map();
@@ -4309,7 +4330,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			hole_em->ram_bytes = hole_size;
 			hole_em->bdev = root->fs_info->fs_devices->latest_bdev;
 			hole_em->compress_type = BTRFS_COMPRESS_NONE;
-			hole_em->generation = trans->transid;
+			hole_em->generation = root->fs_info->generation;
 
 			while (1) {
 				write_lock(&em_tree->lock);
@@ -4322,17 +4343,14 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 							hole_size - 1, 0);
 			}
 			free_extent_map(hole_em);
-next:
-			btrfs_update_inode(trans, root, inode);
-			btrfs_end_transaction(trans, root);
 		}
+next:
 		free_extent_map(em);
 		em = NULL;
 		cur_offset = last_byte;
 		if (cur_offset >= block_end)
 			break;
 	}
-
 	free_extent_map(em);
 	unlock_extent_cached(io_tree, hole_start, block_end - 1, &cached_state,
 			     GFP_NOFS);
