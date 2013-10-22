@@ -45,6 +45,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 					   sizeof(struct stmmac_mdio_bus_data),
 					   GFP_KERNEL);
 
+	/* Set maxmtu to 1500 by default in case the maxmtu
+	 * paramter is not present.
+	*/
+	plat->maxmtu = 1500;
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added
@@ -53,6 +57,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	if (of_device_is_compatible(np, "st,spear600-gmac") ||
 		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
 		of_device_is_compatible(np, "snps,dwmac")) {
+		of_property_read_u32(np, "snps,max-mtu", &plat->maxmtu);
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}

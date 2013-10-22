@@ -15,6 +15,11 @@ Required properties:
 
 Optional properties:
 - mac-address: 6 bytes, mac address
+- snps,max-mtu          Maximum mtu size permitted. Useful since
+                        the Synopsys EMAC transmit and receive fifos are
+                        configurable by Core Consultant, resulting in
+                        different maximum mtus for different instances
+                        of the device.
 
 Examples:
 
@@ -26,4 +31,5 @@ Examples:
 		interrupt-names = "macirq", "eth_wake_irq";
 		mac-address = [000000000000]; /* Filled in by U-Boot */
 		phy-mode = "gmii";
+		snps,max-mtu = <4062>;
 	};
