@@ -111,6 +111,7 @@ unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
 
 /**
  * _wait_idlest_generic - wait for a module to leave the idle state
+ * @clk: module clock to wait for (needed for register offsets)
  * @reg: virtual address of module IDLEST register
  * @mask: value to mask against to determine if the module is active
  * @idlest: idle state indicator (0 or 1) for the clock
@@ -122,14 +123,14 @@ unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
  * elapsed.  XXX Deprecated - should be moved into drivers for the
  * individual IP block that the IDLEST register exists in.
  */
-static int _wait_idlest_generic(void __iomem *reg, u32 mask, u8 idlest,
-				const char *name)
+static int _wait_idlest_generic(struct clk_hw_omap *clk, void __iomem *reg,
+				u32 mask, u8 idlest, const char *name)
 {
 	int i = 0, ena = 0;
 
 	ena = (idlest) ? 0 : mask;
 
-	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
+	omap_test_timeout(((omap2_clk_readl(clk, reg) & mask) == ena),
 			  MAX_MODULE_ENABLE_WAIT, i);
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
@@ -162,7 +163,7 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	/* Not all modules have multiple clocks that their IDLEST depends on */
 	if (clk->ops->find_companion) {
 		clk->ops->find_companion(clk, &companion_reg, &other_bit);
-		if (!(__raw_readl(companion_reg) & (1 << other_bit)))
+		if (!(omap2_clk_readl(clk, companion_reg) & (1 << other_bit)))
 			return;
 	}
 
@@ -170,8 +171,8 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	r = cm_split_idlest_reg(idlest_reg, &prcm_mod, &idlest_reg_id);
 	if (r) {
 		/* IDLEST register not in the CM module */
-		_wait_idlest_generic(idlest_reg, (1 << idlest_bit), idlest_val,
-				     __clk_get_name(clk->hw.clk));
+		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
+				     idlest_val, __clk_get_name(clk->hw.clk));
 	} else {
 		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
 	};
@@ -333,13 +334,13 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 	}
 
 	/* FIXME should not have INVERT_ENABLE bit here */
-	v = __raw_readl(clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v &= ~(1 << clk->enable_bit);
 	else
 		v |= (1 << clk->enable_bit);
-	__raw_writel(v, clk->enable_reg);
-	v = __raw_readl(clk->enable_reg); /* OCP barrier */
+	omap2_clk_writel(v, clk, clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg); /* OCP barrier */
 
 	if (clk->ops && clk->ops->find_idlest)
 		_omap2_module_wait_ready(clk);
@@ -377,12 +378,12 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 		return;
 	}
 
-	v = __raw_readl(clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v |= (1 << clk->enable_bit);
 	else
 		v &= ~(1 << clk->enable_bit);
-	__raw_writel(v, clk->enable_reg);
+	omap2_clk_writel(v, clk, clk->enable_reg);
 	/* No OCP barrier needed here since it is a disable operation */
 
 	if (clkdm_control && clk->clkdm)
@@ -478,7 +479,7 @@ int omap2_dflt_clk_is_enabled(struct clk_hw *hw)
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	u32 v;
 
-	v = __raw_readl(clk->enable_reg);
+	v = omap2_clk_readl(clk, clk->enable_reg);
 
 	if (clk->flags & INVERT_ENABLE)
 		v ^= BIT(clk->enable_bit);
