@@ -42,7 +42,7 @@ nouveau_mc_intr(int irq, void *arg)
 	if (intr == 0xffffffff) /* likely fallen off the bus */
 		intr = 0x00000000;
 
-	if (pmc->use_msi && oclass->msi_rearm)
+	if (pmc->use_msi)
 		oclass->msi_rearm(pmc);
 
 	if (intr) {
@@ -111,20 +111,28 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	switch (device->pdev->device & 0x0ff0) {
-	case 0x00f0: /* BR02? */
-	case 0x02e0: /* BR02? */
-		pmc->use_msi = false;
+	case 0x00f0:
+	case 0x02e0:
+		/* BR02? NFI how these would be handled yet exactly */
 		break;
 	default:
-		pmc->use_msi = nouveau_boolopt(device->cfgopt, "NvMSI", true);
-		if (pmc->use_msi) {
-			pmc->use_msi = pci_enable_msi(device->pdev) == 0;
-			if (pmc->use_msi) {
-				nv_info(pmc, "MSI interrupts enabled\n");
-				oclass->msi_rearm(pmc);
-			}
+		switch (device->chipset) {
+		case 0xaa: break; /* reported broken, nv also disable it */
+		default:
+			pmc->use_msi = true;
+			break;
 		}
-		break;
+	}
+
+	pmc->use_msi = nouveau_boolopt(device->cfgopt, "NvMSI", pmc->use_msi);
+	if (pmc->use_msi && oclass->msi_rearm) {
+		pmc->use_msi = pci_enable_msi(device->pdev) == 0;
+		if (pmc->use_msi) {
+			nv_info(pmc, "MSI interrupts enabled\n");
+			oclass->msi_rearm(pmc);
+		}
+	} else {
+		pmc->use_msi = false;
 	}
 
 	ret = request_irq(device->pdev->irq, nouveau_mc_intr,
