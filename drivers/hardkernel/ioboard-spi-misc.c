@@ -43,21 +43,21 @@ static long 	ioboard_spi_misc_ioctl(struct file *file, unsigned int cmd, unsigne
 	switch (cmd) {
         case    IOBOARD_IOCGREG   :
             if(iocreg->cmd == IOBOARD_CMD_SPI_READ)    {
-                if(!ioboard_spi_read(spi->spi, iocreg->addr, &iocreg->rwdata[0], iocreg->size)) {
+                if(ioboard_spi_read(spi->spi, iocreg->addr, &iocreg->rwdata[0], iocreg->size)) {
                     printk("%s : IOBOARD_IOCGREG error!\n", __func__);  return  -1;
                 }
             }
             break;
         case    IOBOARD_IOCSREG   :
             if(iocreg->cmd == IOBOARD_CMD_SPI_WRITE)    {
-                if(!ioboard_spi_write(spi->spi, iocreg->addr, &iocreg->rwdata[0], iocreg->size)) {
+                if(ioboard_spi_write(spi->spi, iocreg->addr, &iocreg->rwdata[0], iocreg->size)) {
                     printk("%s : IOBOARD_IOCSREG error!\n", __func__);  return  -1;
                 }
             }
             break;
         case    IOBOARD_IOCGSTATUS:
             if(iocreg->cmd == IOBOARD_CMD_SPI_ERASE)    {
-                if(!ioboard_spi_erase(spi->spi, iocreg->addr, iocreg->size)) {
+                if(ioboard_spi_erase(spi->spi, iocreg->addr, iocreg->size)) {
                     printk("%s : IOBOARD_IOCSREG error!\n", __func__);  return  -1;
                 }
             }

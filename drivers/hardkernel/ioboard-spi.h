@@ -42,8 +42,8 @@ struct ioboard_spi_iocreg	{
     #define ERASE_SIZE_ALL      0xC7
 
 #define IOBOARD_IOCGREG     _IOR('i', 1, struct ioboard_spi_iocreg *)
-#define IOBOARD_IOCSREG     _IOR('i', 2, struct ioboard_spi_iocreg *)
-#define IOBOARD_IOCGSTATUS  _IOR('i', 3, unsigned char *)
+#define IOBOARD_IOCSREG     _IOW('i', 2, struct ioboard_spi_iocreg *)
+#define IOBOARD_IOCGSTATUS  _IOW('i', 3, unsigned char *)
 
 //[*]--------------------------------------------------------------------------------------------------[*]
 struct ioboard_spi  {

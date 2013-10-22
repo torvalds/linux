@@ -22,11 +22,11 @@ config ODROIDXU_IOBOARD
 		Enables the IOBOARD Drivers
     
 config ODROIDXU_IOBOARD_DEBUG
-    bool "Enable the ODROIDXU IOBOARD DEBUG Message"
+    bool "Enable the ODROIDXU IOBOARD DEBUG Enable"
 	depends on ODROIDXU_IOBOARD
 	default n
 	---help---
-		Enables the IOBOARD Debug Message 
+		Enables the IOBOARD Debug Message
     
 endmenu
 
