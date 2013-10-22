@@ -956,7 +956,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (ret)
+	if (ret < 0)
 		goto err_get_sync;
 
 	cdd->queues_rx = glue_info->queues_rx;
