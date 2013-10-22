@@ -39,6 +39,7 @@
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_data/serial-omap.h>
@@ -134,6 +135,7 @@ struct uart_omap_port {
 	struct uart_port	port;
 	struct uart_omap_dma	uart_dma;
 	struct device		*dev;
+	int			wakeirq;
 
 	unsigned char		ier;
 	unsigned char		lcr;
@@ -214,10 +216,23 @@ static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 	return pdata->get_context_loss_count(up->dev);
 }
 
+static inline void serial_omap_enable_wakeirq(struct uart_omap_port *up,
+				       bool enable)
+{
+	if (!up->wakeirq)
+		return;
+
+	if (enable)
+		enable_irq(up->wakeirq);
+	else
+		disable_irq(up->wakeirq);
+}
+
 static void serial_omap_enable_wakeup(struct uart_omap_port *up, bool enable)
 {
 	struct omap_uart_port_info *pdata = dev_get_platdata(up->dev);
 
+	serial_omap_enable_wakeirq(up, enable);
 	if (!pdata || !pdata->enable_wakeup)
 		return;
 
@@ -699,6 +714,20 @@ static int serial_omap_startup(struct uart_port *port)
 	if (retval)
 		return retval;
 
+	/* Optional wake-up IRQ */
+	if (up->wakeirq) {
+		retval = request_irq(up->wakeirq, serial_omap_irq,
+				     up->port.irqflags, up->name, up);
+		if (retval) {
+			free_irq(up->port.irq, up);
+			return retval;
+		}
+		disable_irq(up->wakeirq);
+	} else {
+		dev_info(up->port.dev, "no wakeirq for uart%d\n",
+			 up->port.line);
+	}
+
 	dev_dbg(up->port.dev, "serial_omap_startup+%d\n", up->port.line);
 
 	pm_runtime_get_sync(up->dev);
@@ -787,6 +816,8 @@ static void serial_omap_shutdown(struct uart_port *port)
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 	free_irq(up->port.irq, up);
+	if (up->wakeirq)
+		free_irq(up->wakeirq, up);
 }
 
 static void serial_omap_uart_qos_work(struct work_struct *work)
@@ -1572,22 +1603,28 @@ static int serial_omap_probe(struct platform_device *pdev)
 	struct uart_omap_port	*up;
 	struct resource		*mem, *irq;
 	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
-	int ret;
+	int ret, uartirq = 0, wakeirq = 0;
 
+	/* The optional wakeirq may be specified in the board dts file */
 	if (pdev->dev.of_node) {
+		uartirq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+		if (!uartirq)
+			return -EPROBE_DEFER;
+		wakeirq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 		omap_up_info = of_get_uart_port_info(&pdev->dev);
 		pdev->dev.platform_data = omap_up_info;
+	} else {
+		irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+		if (!irq) {
+			dev_err(&pdev->dev, "no irq resource?\n");
+			return -ENODEV;
+		}
+		uartirq = irq->start;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource?\n");
 		return -ENODEV;
 	}
 
@@ -1624,7 +1661,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_OMAP;
 	up->port.iotype = UPIO_MEM;
-	up->port.irq = irq->start;
+	up->port.irq = uartirq;
+	up->wakeirq = wakeirq;
 
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
