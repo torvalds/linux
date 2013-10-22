@@ -2373,8 +2373,6 @@ struct of_clk_provider {
 	void *data;
 };
 
-extern struct of_device_id __clk_of_table[];
-
 static const struct of_device_id __clk_of_table_sentinel
 	__used __section(__clk_of_table_end);
 
@@ -2534,7 +2532,7 @@ void __init of_clk_init(const struct of_device_id *matches)
 	struct device_node *np;
 
 	if (!matches)
-		matches = __clk_of_table;
+		matches = &__clk_of_table;
 
 	for_each_matching_node_and_match(np, matches, &match) {
 		of_clk_init_cb_t clk_init_cb = match->data;
