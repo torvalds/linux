@@ -18,6 +18,7 @@
 #include <linux/usb/uas.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -818,10 +819,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
 	uas_zap_dead(devinfo);
-	uas_free_streams(devinfo);
 	err = usb_reset_device(udev);
-	if (!err)
-		uas_configure_endpoints(devinfo);
 	devinfo->resetting = 0;
 
 	usb_unlock_device(udev);
@@ -1055,13 +1053,41 @@ set_alt0:
 
 static int uas_pre_reset(struct usb_interface *intf)
 {
-/* XXX: Need to return 1 if it's not our device in error handling */
+	struct Scsi_Host *shost = usb_get_intfdata(intf);
+	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	unsigned long flags;
+
+	/* Block new requests */
+	spin_lock_irqsave(shost->host_lock, flags);
+	scsi_block_requests(shost);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	/* Wait for any pending requests to complete */
+	flush_work(&devinfo->work);
+	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000) == 0) {
+		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
+		return 1;
+	}
+
+	uas_free_streams(devinfo);
+
 	return 0;
 }
 
 static int uas_post_reset(struct usb_interface *intf)
 {
-/* XXX: Need to return 1 if it's not our device in error handling */
+	struct Scsi_Host *shost = usb_get_intfdata(intf);
+	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	unsigned long flags;
+
+	uas_configure_endpoints(devinfo);
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	scsi_report_bus_reset(shost, 0);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	scsi_unblock_requests(shost);
+
 	return 0;
 }
 
