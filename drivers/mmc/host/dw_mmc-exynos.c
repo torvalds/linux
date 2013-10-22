@@ -251,12 +251,13 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	if (ret)
 		return ret;
 
+	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
+
 	ret = of_property_read_u32_array(np,
 			"samsung,dw-mshc-ddr-timing", timing, 2);
 	if (ret)
 		return ret;
 
-	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
 	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
 	host->priv = priv;
 	return 0;
