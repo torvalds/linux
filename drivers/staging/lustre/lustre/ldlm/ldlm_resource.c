@@ -389,7 +389,7 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 
 #endif /* LPROCFS */
 
-static unsigned ldlm_res_hop_hash(cfs_hash_t *hs,
+static unsigned ldlm_res_hop_hash(struct cfs_hash *hs,
 				  const void *key, unsigned mask)
 {
 	const struct ldlm_res_id     *id  = key;
@@ -401,7 +401,7 @@ static unsigned ldlm_res_hop_hash(cfs_hash_t *hs,
 	return val & mask;
 }
 
-static unsigned ldlm_res_hop_fid_hash(cfs_hash_t *hs,
+static unsigned ldlm_res_hop_fid_hash(struct cfs_hash *hs,
 				      const void *key, unsigned mask)
 {
 	const struct ldlm_res_id *id = key;
@@ -453,7 +453,7 @@ static void *ldlm_res_hop_object(struct hlist_node *hnode)
 	return hlist_entry(hnode, struct ldlm_resource, lr_hash);
 }
 
-static void ldlm_res_hop_get_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+static void ldlm_res_hop_get_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_resource *res;
 
@@ -461,7 +461,7 @@ static void ldlm_res_hop_get_locked(cfs_hash_t *hs, struct hlist_node *hnode)
 	ldlm_resource_getref(res);
 }
 
-static void ldlm_res_hop_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+static void ldlm_res_hop_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_resource *res;
 
@@ -470,7 +470,7 @@ static void ldlm_res_hop_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
 	ldlm_resource_putref_locked(res);
 }
 
-static void ldlm_res_hop_put(cfs_hash_t *hs, struct hlist_node *hnode)
+static void ldlm_res_hop_put(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct ldlm_resource *res;
 
@@ -743,7 +743,7 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 	} while (1);
 }
 
-static int ldlm_resource_clean(cfs_hash_t *hs, struct cfs_hash_bd *bd,
+static int ldlm_resource_clean(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			       struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
@@ -756,7 +756,7 @@ static int ldlm_resource_clean(cfs_hash_t *hs, struct cfs_hash_bd *bd,
 	return 0;
 }
 
-static int ldlm_resource_complain(cfs_hash_t *hs, struct cfs_hash_bd *bd,
+static int ldlm_resource_complain(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 				  struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource  *res = cfs_hash_object(hs, hnode);
@@ -1352,7 +1352,7 @@ void ldlm_dump_all_namespaces(ldlm_side_t client, int level)
 }
 EXPORT_SYMBOL(ldlm_dump_all_namespaces);
 
-static int ldlm_res_hash_dump(cfs_hash_t *hs, struct cfs_hash_bd *bd,
+static int ldlm_res_hash_dump(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			      struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource *res = cfs_hash_object(hs, hnode);

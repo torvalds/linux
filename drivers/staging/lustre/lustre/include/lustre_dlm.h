@@ -375,7 +375,7 @@ struct ldlm_namespace {
 	ldlm_side_t		ns_client;
 
 	/** Resource hash table for namespace. */
-	cfs_hash_t		*ns_rs_hash;
+	struct cfs_hash		*ns_rs_hash;
 
 	/** serialize */
 	spinlock_t		ns_lock;

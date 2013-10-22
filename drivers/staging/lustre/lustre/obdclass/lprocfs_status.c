@@ -898,7 +898,7 @@ static void lprocfs_free_client_stats(struct nid_stat *client_stat)
 
 void lprocfs_free_per_client_stats(struct obd_device *obd)
 {
-	cfs_hash_t *hash = obd->obd_nid_stats_hash;
+	struct cfs_hash *hash = obd->obd_nid_stats_hash;
 	struct nid_stat *stat;
 
 	/* we need extra list - because hash_exit called to early */
@@ -1422,7 +1422,7 @@ void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats)
 }
 EXPORT_SYMBOL(lprocfs_init_ldlm_stats);
 
-int lprocfs_exp_print_uuid(cfs_hash_t *hs, struct cfs_hash_bd *bd,
+int lprocfs_exp_print_uuid(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			   struct hlist_node *hnode, void *data)
 
 {
@@ -1453,7 +1453,7 @@ struct exp_hash_cb_data {
 	bool		first;
 };
 
-int lprocfs_exp_print_hash(cfs_hash_t *hs, struct cfs_hash_bd *bd,
+int lprocfs_exp_print_hash(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			   struct hlist_node *hnode, void *cb_data)
 
 {

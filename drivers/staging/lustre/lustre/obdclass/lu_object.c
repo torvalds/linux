@@ -175,7 +175,7 @@ void lu_object_unhash(const struct lu_env *env, struct lu_object *o)
 	top = o->lo_header;
 	set_bit(LU_OBJECT_HEARD_BANSHEE, &top->loh_flags);
 	if (!test_and_set_bit(LU_OBJECT_UNHASHED, &top->loh_flags)) {
-		cfs_hash_t *obj_hash = o->lo_dev->ld_site->ls_obj_hash;
+		struct cfs_hash *obj_hash = o->lo_dev->ld_site->ls_obj_hash;
 		struct cfs_hash_bd bd;
 
 		cfs_hash_bd_get_and_lock(obj_hash, &top->loh_fid, &bd, 1);
@@ -589,7 +589,7 @@ static struct lu_object *lu_object_new(const struct lu_env *env,
 				       const struct lu_object_conf *conf)
 {
 	struct lu_object	*o;
-	cfs_hash_t	      *hs;
+	struct cfs_hash	      *hs;
 	struct cfs_hash_bd	    bd;
 	struct lu_site_bkt_data *bkt;
 
@@ -618,7 +618,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	struct lu_object      *o;
 	struct lu_object      *shadow;
 	struct lu_site	*s;
-	cfs_hash_t	    *hs;
+	struct cfs_hash	    *hs;
 	struct cfs_hash_bd	  bd;
 	__u64		  version = 0;
 
@@ -788,7 +788,7 @@ struct lu_site_print_arg {
 };
 
 static int
-lu_site_obj_print(cfs_hash_t *hs, struct cfs_hash_bd *bd,
+lu_site_obj_print(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 		  struct hlist_node *hnode, void *data)
 {
 	struct lu_site_print_arg *arg = (struct lu_site_print_arg *)data;
@@ -874,7 +874,7 @@ static int lu_htable_order(void)
 	return bits;
 }
 
-static unsigned lu_obj_hop_hash(cfs_hash_t *hs,
+static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
 				const void *key, unsigned mask)
 {
 	struct lu_fid  *fid = (struct lu_fid *)key;
@@ -914,7 +914,7 @@ static int lu_obj_hop_keycmp(const void *key, struct hlist_node *hnode)
 	return lu_fid_eq(&h->loh_fid, (struct lu_fid *)key);
 }
 
-static void lu_obj_hop_get(cfs_hash_t *hs, struct hlist_node *hnode)
+static void lu_obj_hop_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	struct lu_object_header *h;
 
@@ -929,7 +929,7 @@ static void lu_obj_hop_get(cfs_hash_t *hs, struct hlist_node *hnode)
 	}
 }
 
-static void lu_obj_hop_put_locked(cfs_hash_t *hs, struct hlist_node *hnode)
+static void lu_obj_hop_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
 	LBUG(); /* we should never called it */
 }
@@ -1788,7 +1788,7 @@ typedef struct lu_site_stats{
 	unsigned	lss_busy;
 } lu_site_stats_t;
 
-static void lu_site_stats_get(cfs_hash_t *hs,
+static void lu_site_stats_get(struct cfs_hash *hs,
 			      lu_site_stats_t *stats, int populated)
 {
 	struct cfs_hash_bd bd;
@@ -2072,7 +2072,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 	struct lu_site_bkt_data	*bkt;
 	struct lu_object	*shadow;
 	wait_queue_t		 waiter;
-	cfs_hash_t		*hs;
+	struct cfs_hash		*hs;
 	struct cfs_hash_bd	 bd;
 	__u64			 version = 0;
 

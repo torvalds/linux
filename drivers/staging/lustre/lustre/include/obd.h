@@ -429,7 +429,7 @@ struct client_obd {
 	/* ptlrpc work for writeback in ptlrpcd context */
 	void		    *cl_writeback_work;
 	/* hash tables for osc_quota_info */
-	cfs_hash_t	      *cl_quota_hash[MAXQUOTAS];
+	struct cfs_hash	      *cl_quota_hash[MAXQUOTAS];
 };
 #define obd2cli_tgt(obd) ((char *)(obd)->u.cli.cl_target_uuid.uuid)
 
@@ -556,7 +556,7 @@ struct lov_obd {
 	__u32		   lov_tgt_size;   /* size of tgts array */
 	int		     lov_connects;
 	int		     lov_pool_count;
-	cfs_hash_t	     *lov_pools_hash_body; /* used for key access */
+	struct cfs_hash	     *lov_pools_hash_body; /* used for key access */
 	struct list_head	      lov_pool_list; /* used for sequential access */
 	struct proc_dir_entry   *lov_pool_proc_entry;
 	enum lustre_sec_part    lov_sp_me;
@@ -855,11 +855,11 @@ struct obd_device {
 	 * protection of other bits using _bh lock */
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
-	cfs_hash_t	     *obd_uuid_hash;
+	struct cfs_hash	     *obd_uuid_hash;
 	/* nid-export hash body */
-	cfs_hash_t	     *obd_nid_hash;
+	struct cfs_hash	     *obd_nid_hash;
 	/* nid stats body */
-	cfs_hash_t	     *obd_nid_stats_hash;
+	struct cfs_hash	     *obd_nid_stats_hash;
 	struct list_head	      obd_nid_stats;
 	atomic_t	    obd_refcount;
 	wait_queue_head_t	     obd_refcount_waitq;

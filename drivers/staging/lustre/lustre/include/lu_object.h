@@ -622,7 +622,7 @@ struct lu_site {
 	/**
 	 * objects hash table
 	 */
-	cfs_hash_t	       *ls_obj_hash;
+	struct cfs_hash	       *ls_obj_hash;
 	/**
 	 * index of bucket on hash table while purging
 	 */
