@@ -46,11 +46,15 @@
  * @n_lost: Number of received packets that had no matching flow in the flow
  * table that could not be sent to userspace (normally due to an overflow in
  * one of the datapath's queues).
+ * @n_mask_hit: Number of masks looked up for flow match.
+ *   @n_mask_hit / (@n_hit + @n_missed)  will be the average masks looked
+ *   up per packet.
  */
 struct dp_stats_percpu {
 	u64 n_hit;
 	u64 n_missed;
 	u64 n_lost;
+	u64 n_mask_hit;
 	struct u64_stats_sync sync;
 };
 
