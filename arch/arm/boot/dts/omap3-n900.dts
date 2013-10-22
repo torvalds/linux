@@ -142,6 +142,90 @@
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
 
+&vaux1 {
+	regulator-name = "V28";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-always-on; /* due battery cover sensor */
+};
+
+&vaux2 {
+	regulator-name = "VCSI";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&vaux3 {
+	regulator-name = "VMMC2_30";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <3000000>;
+};
+
+&vaux4 {
+	regulator-name = "VCAM_ANA_28";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+};
+
+&vmmc1 {
+	regulator-name = "VMMC1";
+	regulator-min-microvolt = <1850000>;
+	regulator-max-microvolt = <3150000>;
+};
+
+&vmmc2 {
+	regulator-name = "V28_A";
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-always-on; /* due VIO leak to AIC34 VDDs */
+};
+
+&vpll1 {
+	regulator-name = "VPLL";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+};
+
+&vpll2 {
+	regulator-name = "VSDI_CSI";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+};
+
+&vsim {
+	regulator-name = "VMMC2_IO_18";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&vio {
+	regulator-name = "VIO";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+
+};
+
+&vintana1 {
+	regulator-name = "VINTANA1";
+	/* fixed to 1500000 */
+	regulator-always-on;
+};
+
+&vintana2 {
+	regulator-name = "VINTANA2";
+	regulator-min-microvolt = <2750000>;
+	regulator-max-microvolt = <2750000>;
+	regulator-always-on;
+};
+
+&vintdig {
+	regulator-name = "VINTDIG";
+	/* fixed to 1500000 */
+	regulator-always-on;
+};
+
 &twl {
 	twl_audio: audio {
 		compatible = "ti,twl4030-audio";
