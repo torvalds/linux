@@ -260,47 +260,65 @@ bool batadv_check_management_packet(struct sk_buff *skb,
 	return true;
 }
 
+/**
+ * batadv_recv_my_icmp_packet - receive an icmp packet locally
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: icmp packet to process
+ *
+ * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * otherwise.
+ */
 static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
-				      struct sk_buff *skb, size_t icmp_len)
+				      struct sk_buff *skb)
 {
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_orig_node *orig_node = NULL;
-	struct batadv_icmp_packet_rr *icmp_packet;
-	int ret = NET_RX_DROP;
+	struct batadv_icmp_header *icmph;
+	int res, ret = NET_RX_DROP;
 
-	icmp_packet = (struct batadv_icmp_packet_rr *)skb->data;
+	icmph = (struct batadv_icmp_header *)skb->data;
 
-	/* add data to device queue */
-	if (icmp_packet->icmph.msg_type != BATADV_ECHO_REQUEST) {
-		batadv_socket_receive_packet(icmp_packet, icmp_len);
+	switch (icmph->msg_type) {
+	case BATADV_ECHO_REPLY:
+	case BATADV_DESTINATION_UNREACHABLE:
+	case BATADV_TTL_EXCEEDED:
+		/* receive the packet */
+		if (skb_linearize(skb) < 0)
+			break;
+
+		batadv_socket_receive_packet(icmph, skb->len);
+		break;
+	case BATADV_ECHO_REQUEST:
+		/* answer echo request (ping) */
+		primary_if = batadv_primary_if_get_selected(bat_priv);
+		if (!primary_if)
+			goto out;
+
+		/* get routing information */
+		orig_node = batadv_orig_hash_find(bat_priv, icmph->orig);
+		if (!orig_node)
+			goto out;
+
+		/* create a copy of the skb, if needed, to modify it. */
+		if (skb_cow(skb, ETH_HLEN) < 0)
+			goto out;
+
+		icmph = (struct batadv_icmp_header *)skb->data;
+
+		memcpy(icmph->dst, icmph->orig, ETH_ALEN);
+		memcpy(icmph->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
+		icmph->msg_type = BATADV_ECHO_REPLY;
+		icmph->header.ttl = BATADV_TTL;
+
+		res = batadv_send_skb_to_orig(skb, orig_node, NULL);
+		if (res != NET_XMIT_DROP)
+			ret = NET_RX_SUCCESS;
+
+		break;
+	default:
+		/* drop unknown type */
 		goto out;
 	}
-
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if)
-		goto out;
-
-	/* answer echo request (ping) */
-	/* get routing information */
-	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->icmph.orig);
-	if (!orig_node)
-		goto out;
-
-	/* create a copy of the skb, if needed, to modify it. */
-	if (skb_cow(skb, ETH_HLEN) < 0)
-		goto out;
-
-	icmp_packet = (struct batadv_icmp_packet_rr *)skb->data;
-
-	memcpy(icmp_packet->icmph.dst, icmp_packet->icmph.orig, ETH_ALEN);
-	memcpy(icmp_packet->icmph.orig, primary_if->net_dev->dev_addr,
-	       ETH_ALEN);
-	icmp_packet->icmph.msg_type = BATADV_ECHO_REPLY;
-	icmp_packet->icmph.header.ttl = BATADV_TTL;
-
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
-		ret = NET_RX_SUCCESS;
-
 out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
@@ -363,15 +381,12 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if)
 {
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	struct batadv_icmp_packet_rr *icmp_packet;
+	struct batadv_icmp_header *icmph;
+	struct batadv_icmp_packet_rr *icmp_packet_rr;
 	struct ethhdr *ethhdr;
 	struct batadv_orig_node *orig_node = NULL;
-	int hdr_size = sizeof(struct batadv_icmp_packet);
+	int hdr_size = sizeof(struct batadv_icmp_header);
 	int ret = NET_RX_DROP;
-
-	/* we truncate all incoming icmp packets if they don't match our size */
-	if (skb->len >= sizeof(struct batadv_icmp_packet_rr))
-		hdr_size = sizeof(struct batadv_icmp_packet_rr);
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
@@ -391,28 +406,39 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest))
 		goto out;
 
-	icmp_packet = (struct batadv_icmp_packet_rr *)skb->data;
+	icmph = (struct batadv_icmp_header *)skb->data;
 
 	/* add record route information if not full */
-	if ((icmp_packet->icmph.msg_type == BATADV_ECHO_REPLY ||
-	     icmp_packet->icmph.msg_type == BATADV_ECHO_REQUEST) &&
-	    (hdr_size == sizeof(struct batadv_icmp_packet_rr)) &&
-	    (icmp_packet->rr_cur < BATADV_RR_LEN)) {
-		memcpy(&(icmp_packet->rr[icmp_packet->rr_cur]),
+	if ((icmph->msg_type == BATADV_ECHO_REPLY ||
+	     icmph->msg_type == BATADV_ECHO_REQUEST) &&
+	    (skb->len >= sizeof(struct batadv_icmp_packet_rr))) {
+		if (skb_linearize(skb) < 0)
+			goto out;
+
+		/* create a copy of the skb, if needed, to modify it. */
+		if (skb_cow(skb, ETH_HLEN) < 0)
+			goto out;
+
+		icmph = (struct batadv_icmp_header *)skb->data;
+		icmp_packet_rr = (struct batadv_icmp_packet_rr *)icmph;
+		if (icmp_packet_rr->rr_cur >= BATADV_RR_LEN)
+			goto out;
+
+		memcpy(&(icmp_packet_rr->rr[icmp_packet_rr->rr_cur]),
 		       ethhdr->h_dest, ETH_ALEN);
-		icmp_packet->rr_cur++;
+		icmp_packet_rr->rr_cur++;
 	}
 
 	/* packet for me */
-	if (batadv_is_my_mac(bat_priv, icmp_packet->icmph.dst))
-		return batadv_recv_my_icmp_packet(bat_priv, skb, hdr_size);
+	if (batadv_is_my_mac(bat_priv, icmph->dst))
+		return batadv_recv_my_icmp_packet(bat_priv, skb);
 
 	/* TTL exceeded */
-	if (icmp_packet->icmph.header.ttl < 2)
+	if (icmph->header.ttl < 2)
 		return batadv_recv_icmp_ttl_exceeded(bat_priv, skb);
 
 	/* get routing information */
-	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->icmph.dst);
+	orig_node = batadv_orig_hash_find(bat_priv, icmph->dst);
 	if (!orig_node)
 		goto out;
 
@@ -420,10 +446,10 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	if (skb_cow(skb, ETH_HLEN) < 0)
 		goto out;
 
-	icmp_packet = (struct batadv_icmp_packet_rr *)skb->data;
+	icmph = (struct batadv_icmp_header *)skb->data;
 
 	/* decrement ttl */
-	icmp_packet->icmph.header.ttl--;
+	icmph->header.ttl--;
 
 	/* route it */
 	if (batadv_send_skb_to_orig(skb, orig_node, recv_if) != NET_XMIT_DROP)

@@ -239,6 +239,8 @@ struct batadv_icmp_packet_rr {
 	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
 };
 
+#define BATADV_ICMP_MAX_PACKET_SIZE	sizeof(struct batadv_icmp_packet_rr)
+
 /* All packet headers in front of an ethernet header have to be completely
  * divisible by 2 but not by 4 to make the payload after the ethernet
  * header again 4 bytes boundary aligned.
