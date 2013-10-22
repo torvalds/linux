@@ -199,11 +199,11 @@ lnet_freelist_alloc(lnet_freelist_t *fl)
 	lnet_freeobj_t *o;
 
 	if (list_empty(&fl->fl_list))
-		return (NULL);
+		return NULL;
 
 	o = list_entry(fl->fl_list.next, lnet_freeobj_t, fo_list);
 	list_del(&o->fo_list);
-	return ((void *)&o->fo_contents);
+	return (void *)&o->fo_contents;
 }
 
 static inline void
@@ -369,7 +369,7 @@ lnet_eq_alloc(void)
 	lnet_eq_t *eq;
 
 	LIBCFS_ALLOC(eq, sizeof(*eq));
-	return (eq);
+	return eq;
 }
 
 static inline void
@@ -405,7 +405,7 @@ lnet_md_alloc(lnet_md_t *umd)
 		INIT_LIST_HEAD(&md->md_list);
 	}
 
-	return (md);
+	return md;
 }
 
 static inline void
@@ -429,7 +429,7 @@ lnet_me_alloc(void)
 	lnet_me_t *me;
 
 	LIBCFS_ALLOC(me, sizeof(*me));
-	return (me);
+	return me;
 }
 
 static inline void
@@ -448,7 +448,7 @@ lnet_msg_alloc(void)
 	LIBCFS_ALLOC(msg, sizeof(*msg));
 
 	/* no need to zero, LIBCFS_ALLOC does for us */
-	return (msg);
+	return msg;
 }
 
 static inline void
