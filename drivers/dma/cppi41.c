@@ -563,36 +563,26 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 		c->td_retry = 100;
 	}
 
-	if (!c->td_seen) {
-		unsigned td_comp_queue;
+	if (!c->td_seen || !c->td_desc_seen) {
 
-		if (c->is_tx)
-			td_comp_queue =  cdd->td_queue.complete;
-		else
-			td_comp_queue =  c->q_comp_num;
+		desc_phys = cppi41_pop_desc(cdd, cdd->td_queue.complete);
+		if (!desc_phys)
+			desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
 
-		desc_phys = cppi41_pop_desc(cdd, td_comp_queue);
-		if (desc_phys) {
-			__iormb();
-
-			if (desc_phys == td_desc_phys) {
-				u32 pd0;
-				pd0 = td->pd0;
-				WARN_ON((pd0 >> DESC_TYPE) != DESC_TYPE_TEARD);
-				WARN_ON(!c->is_tx && !(pd0 & TD_DESC_IS_RX));
-				WARN_ON((pd0 & 0x1f) != c->port_num);
-			} else {
-				WARN_ON_ONCE(1);
-			}
-			c->td_seen = 1;
-		}
-	}
-	if (!c->td_desc_seen) {
-		desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
-		if (desc_phys) {
-			__iormb();
-			WARN_ON(c->desc_phys != desc_phys);
+		if (desc_phys == c->desc_phys) {
 			c->td_desc_seen = 1;
+
+		} else if (desc_phys == td_desc_phys) {
+			u32 pd0;
+
+			__iormb();
+			pd0 = td->pd0;
+			WARN_ON((pd0 >> DESC_TYPE) != DESC_TYPE_TEARD);
+			WARN_ON(!c->is_tx && !(pd0 & TD_DESC_IS_RX));
+			WARN_ON((pd0 & 0x1f) != c->port_num);
+			c->td_seen = 1;
+		} else if (desc_phys) {
+			WARN_ON_ONCE(1);
 		}
 	}
 	c->td_retry--;
