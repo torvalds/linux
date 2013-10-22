@@ -2064,6 +2064,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	arvif->vif = vif;
 
 	INIT_WORK(&arvif->wep_key_work, ath10k_tx_wep_key_work);
+	INIT_LIST_HEAD(&arvif->list);
 
 	if ((vif->type == NL80211_IFTYPE_MONITOR) && ar->monitor_present) {
 		ath10k_warn("Only one monitor interface allowed\n");
