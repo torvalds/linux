@@ -334,8 +334,6 @@
 					regulator-name = "smps10_out1";
 					regulator-min-microvolt = <5000000>;
 					regulator-max-microvolt = <5000000>;
-					regulator-always-on;
-					regulator-boot-on;
 				};
 
 				ldo1_reg: ldo1 {
