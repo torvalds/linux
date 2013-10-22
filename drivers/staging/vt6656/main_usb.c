@@ -723,13 +723,14 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_set_intfdata(intf, pDevice);
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
+
+	usb_device_reset(pDevice);
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
 		goto err_netdev;
 	}
-
-	usb_device_reset(pDevice);
 
 	return 0;
 
