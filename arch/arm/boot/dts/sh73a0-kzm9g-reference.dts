@@ -205,7 +205,7 @@
 		renesas,function = "i2c3";
 	};
 
-	mmcif_pins: mmcif {
+	mmcif_pins: mmc {
 		mux {
 			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
 			renesas,function = "mmc0";
@@ -217,17 +217,17 @@
 		};
 	};
 
-	scifa4_pins: scifa4 {
+	scifa4_pins: serial4 {
 		renesas,groups = "scifa4_data", "scifa4_ctrl";
 		renesas,function = "scifa4";
 	};
 
-	sdhi0_pins: sdhi0 {
+	sdhi0_pins: sd0 {
 		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
 		renesas,function = "sdhi0";
 	};
 
-	sdhi2_pins: sdhi2 {
+	sdhi2_pins: sd2 {
 		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
 		renesas,function = "sdhi2";
 	};
