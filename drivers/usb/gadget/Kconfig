@@ -1079,4 +1079,12 @@ config USB_G_WEBCAM
 
 endchoice
 
+config BYPASS_INPUT_TO_HIDG
+        bool "Allow send reports form HID devices to PC"
+        depends on (USB_G_ANDROID && USB_GADGET_DWC_OTG) 
+        default n 
+        help
+	  If say "y" there will create a new gadget HIDG
+	  and HID reports form HID devices will be bypass to PC 
+       
 endif # USB_GADGET

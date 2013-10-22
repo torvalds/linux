@@ -57,6 +57,10 @@
 #include "rndis.c"
 #include "u_ether.c"
 
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
+#include "f_hid_rk.c"
+#endif
+
 MODULE_AUTHOR("Mike Lockwood");
 MODULE_DESCRIPTION("Android Composite USB Driver");
 MODULE_LICENSE("GPL");
@@ -808,6 +812,160 @@ static struct android_usb_function audio_source_function = {
 	.attributes	= audio_source_function_attributes,
 };
 
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
+/* hid descriptor for a keyboard */
+const struct hidg_func_descriptor my_hid_data = {
+	.subclass		= 1, /* No subclass */
+	.protocol		= 2, /* 1-Keyboard,2-mouse */
+	.report_length		= 64,
+	.report_desc_length = 131,
+	.report_desc        = {
+        
+        0x05, 0x01, /*       USAGE_PAGE (Generic Desktop)         */
+        0x09, 0x06, /*       USAGE (Keyboard)                     */
+        0xA1, 0x01, /*       COLLECTION (Application)             */
+            0x85, 0x01, /*   REPORT ID (0x01)                     */
+            0x05, 0x07, /*   USAGE_PAGE (Keyboard)                */
+            0x19, 0xE0, /*   USAGE_MINIMUM (Keyboard LeftControl) */
+            0x29, 0xE7, /*   USAGE_MAXIMUM (Keyboard Right GUI)   */
+            0x15, 0x00, /*   LOGICAL_MINIMUM (0)                  */
+            0x25, 0x01, /*   LOGICAL_MAXIMUM (1)                  */
+            0x75, 0x01, /*   REPORT_SIZE (1)                      */
+            0x95, 0x08, /*   REPORT_COUNT (8)                     */
+            0x81, 0x02, /*   INPUT (Data,Var,Abs)                 */
+            0x95, 0x01, /*   REPORT_COUNT (1)                     */
+            0x75, 0x08, /*   REPORT_SIZE (8)                      */
+            0x81, 0x03, /*   INPUT (Cnst,Var,Abs)                 */
+            0x95, 0x05, /*   REPORT_COUNT (5)                     */
+            0x75, 0x01, /*   REPORT_SIZE (1)                      */
+            0x05, 0x08, /*   USAGE_PAGE (LEDs)                    */
+            0x19, 0x01, /*   USAGE_MINIMUM (Num Lock)             */
+            0x29, 0x05, /*   USAGE_MAXIMUM (Kana)                 */
+            0x91, 0x02, /*   OUTPUT (Data,Var,Abs)                */
+            0x95, 0x01, /*   REPORT_COUNT (1)                     */
+            0x75, 0x03, /*   REPORT_SIZE (3)                      */
+            0x91, 0x03, /*   OUTPUT (Cnst,Var,Abs)                */
+            0x95, 0x06, /*   REPORT_COUNT (6)                     */
+            0x75, 0x08, /*   REPORT_SIZE (8)                      */
+            0x15, 0x00, /*   LOGICAL_MINIMUM (0)                  */
+            0x25, 0x65, /*   LOGICAL_MAXIMUM (101)                */
+            0x05, 0x07, /*   USAGE_PAGE (Keyboard)                */
+            0x19, 0x00, /*   USAGE_MINIMUM (Reserved)             */
+            0x29, 0x65, /*   USAGE_MAXIMUM (Keyboard Application) */
+            0x81, 0x00, /*   INPUT (Data,Ary,Abs)                 */                                                        
+        0xC0,           /*   END_COLLECTION                       */   
+        
+        0x05, 0x01,     /*   USAGE_PAGE (Generic Desktop)         */
+        0x09, 0x02,     /*   USAGE (Mouse)                        */
+        0xA1, 0x01,     /*   COLLECTION (Application)             */
+            0x85, 0x02,     /*   REPORT ID (0x02)                 */
+            0x09, 0x01,     /*   USAGE (Pointer)                  */
+            
+            0xA1, 0x00,     /*   COLLECTION (Application)         */
+            0x05, 0x09,     /*   USAGE_PAGE (Button)              */
+            0x19, 0x01,     /*   USAGE_MINIMUM (Button 1)         */
+            0x29, 0x03,     /*   USAGE_MAXIMUM (Button 3)         */
+            0x15, 0x00,     /*   LOGICAL_MINIMUM (0)              */
+            0x25, 0x01,     /*   LOGICAL_MAXIMUM (1)              */
+            0x75, 0x01,     /*   REPORT_SIZE (1)                  */
+            0x95, 0x03,     /*   REPORT_COUNT (3)                 */
+            0x81, 0x02,     /*   INPUT (Data,Var,Abs)             */
+            0x75, 0x05,     /*   REPORT_SIZE (5)                  */
+            0x95, 0x01,     /*   REPORT_COUNT (1)                 */
+            0x81, 0x01,     /*   INPUT (Cnst,Var,Abs)             */
+            0x05, 0x01,     /*   USAGE_PAGE (Generic Desktop)     */
+            0x09, 0x30,     /*   USAGE (X)                        */
+            0x09, 0x31,     /*   USAGE (Y)                        */
+            0x16, 0x01, 0xF8, /* LOGICAL_MINIMUM (-2047)          */
+            0x26, 0xFF, 0x07, /* LOGICAL_MAXIMUM (2047)           */
+            0x75, 0x0C,     /*   REPORT_SIZE (12)                 */
+            0x95, 0x02,     /*   REPORT_COUNT (2)                 */
+            0x81, 0x06,     /*   INPUT (Data,Var,Rel)             */
+            0x09, 0x38, 
+            0x15, 0x81,     /*   LOGICAL_MINIMUM (-127)           */
+            0x25, 0x7F,     /*   LOGICAL_MAXIMUM (127)            */
+            0x75, 0x08,     /*   REPORT_SIZE (8)                  */
+            0x95, 0x01,     /*   REPORT_COUNT (1)                 */
+            0x81, 0x06,     /*   INPUT (Data,Var,Rel)             */
+            0xC0 ,          /*   END_COLLECTION                   */
+            
+        0xC0            /*   END_COLLECTION                       */
+
+	},
+};
+
+static int hidg_function_init(struct android_usb_function *f,
+			struct usb_composite_dev *cdev)
+{
+    ghid_setup(cdev->gadget, 1);
+    return 0;
+}
+
+static void hidg_function_cleanup(struct android_usb_function *f)
+{
+    ghid_cleanup();
+    return;
+}
+
+static int hidg_function_ctrlrequest(struct android_usb_function *f,
+                            struct usb_composite_dev *cdev,
+                            const struct usb_ctrlrequest *c)
+{   
+    return hidg_ctrlrequest(cdev, c);
+}
+
+static int hidg_function_bind_config(struct android_usb_function *f,
+						struct usb_configuration *c)
+{
+    if(my_hid_data.report_desc_length)
+        hidg_bind_config(c, &my_hid_data, 0);
+    return 0;
+}
+static int hidg_function_unbind_config(struct android_usb_function *f,
+						struct usb_configuration *c)
+{
+    return 0;
+}
+static ssize_t hidg_report_descriptor_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+    return sprintf(buf, "hid report_desc_length = %d\n", my_hid_data.report_desc_length);
+}
+
+static DEVICE_ATTR(report_descriptor, S_IRUGO | S_IWUSR, hidg_report_descriptor_show, NULL);
+
+static ssize_t hidg_bypass_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf," %s \n" ,
+	    f_hid_bypass_input_get()? "Input report bypass enable" : "Input report bypass disable");
+}
+
+static ssize_t hidg_bypass_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+    int bypass;
+    sscanf(buf, "%d", &bypass);
+    f_hid_bypass_input_set(bypass);
+	return size;
+}
+
+static DEVICE_ATTR(bypass_input, S_IRUGO | S_IWUSR, hidg_bypass_show, hidg_bypass_store);
+
+static struct device_attribute *hidg_function_attributes[] = 
+                {&dev_attr_bypass_input ,&dev_attr_report_descriptor ,NULL };
+
+
+static struct android_usb_function hidg_function = {
+	.name		= "hidg",
+	.init		= hidg_function_init,
+	.cleanup	= hidg_function_cleanup,
+	.bind_config	= hidg_function_bind_config,
+	.unbind_config  = hidg_function_unbind_config,
+	.ctrlrequest    = hidg_function_ctrlrequest,
+	.attributes     = hidg_function_attributes,
+};
+#endif
 static struct android_usb_function *supported_functions[] = {
 	&adb_function,
 	&acm_function,
@@ -817,9 +975,11 @@ static struct android_usb_function *supported_functions[] = {
 	&mass_storage_function,
 	&accessory_function,
 	&audio_source_function,
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
+	&hidg_function,
+#endif
 	NULL
 };
-
 
 static int android_init_functions(struct android_usb_function **functions,
 				  struct usb_composite_dev *cdev)
@@ -1277,6 +1437,9 @@ static void android_disconnect(struct usb_gadget *gadget)
 	   so we need to inform it when we are disconnected.
 	 */
 	acc_disconnect();
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
+    hidg_disconnect();
+#endif
 
 	spin_lock_irqsave(&cdev->lock, flags);
 	dev->connected = 0;

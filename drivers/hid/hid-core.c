@@ -37,6 +37,12 @@
 
 #include "hid-ids.h"
 
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
+extern f_hid_bypass_input_get();
+extern f_hid_kbd_translate_report(u8 * data, int len);
+extern f_hid_mouse_translate_report(struct hid_report *report , u8 *data);
+#endif
+
 /*
  * Version Information
  */
@@ -900,7 +906,6 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	__s32 min = field->logical_minimum;
 	__s32 max = field->logical_maximum;
 	__s32 *value;
-
 	value = kmalloc(sizeof(__s32) * count, GFP_ATOMIC);
 	if (!value)
 		return;
@@ -918,6 +923,11 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
 			goto exit;
 	}
+	
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG	
+    if((hid->type == 1) && (f_hid_bypass_input_get() == 1))
+        goto memcpy;//bypass mouse report
+#endif
 
 	for (n = 0; n < count; n++) {
 
@@ -936,8 +946,9 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 			&& search(field->value, value[n], count))
 				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt);
 	}
-
+memcpy:
 	memcpy(field->value, value, count * sizeof(__s32));
+
 exit:
 	kfree(value);
 }
@@ -1058,10 +1069,20 @@ void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		hid->hiddev_report_event(hid, report);
 	if (hid->claimed & HID_CLAIMED_HIDRAW)
 		hidraw_report_event(hid, data, size);
-
 	for (a = 0; a < report->maxfield; a++)
 		hid_input_field(hid, report->field[a], cdata, interrupt);
 
+#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
+
+	if((hid->type == 0) && (size == 8))//kbd
+	{
+        f_hid_kbd_translate_report(cdata, csize);
+    }
+    else if(hid->type == 1)//mouse
+    {
+        f_hid_mouse_translate_report(report, cdata);
+    }
+#endif
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_report_event(hid, report);
 }
