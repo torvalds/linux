@@ -18,6 +18,7 @@
 #include <linux/crc32.h>
 #include <linux/magic.h>
 #include <linux/kobject.h>
+#include <linux/sched.h>
 
 /*
  * For mount options
@@ -785,6 +786,20 @@ static inline struct kmem_cache *f2fs_kmem_cache_create(const char *name,
 					size_t size, void (*ctor)(void *))
 {
 	return kmem_cache_create(name, size, 0, SLAB_RECLAIM_ACCOUNT, ctor);
+}
+
+static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
+						gfp_t flags)
+{
+	void *entry;
+retry:
+	entry = kmem_cache_alloc(cachep, flags);
+	if (!entry) {
+		cond_resched();
+		goto retry;
+	}
+
+	return entry;
 }
 
 #define RAW_IS_INODE(p)	((p)->footer.nid == (p)->footer.ino)
