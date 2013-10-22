@@ -45,7 +45,7 @@ struct pwm_bl_data {
 
 static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 {
-	int duty_cycle, err;
+	int err;
 
 	if (pb->enabled)
 		return;
