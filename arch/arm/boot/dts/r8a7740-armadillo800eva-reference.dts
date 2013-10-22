@@ -90,7 +90,7 @@
 
 &i2c0 {
 	status = "okay";
-	touchscreen: st1232@55 {
+	touchscreen@55 {
 		compatible = "sitronix,st1232";
 		reg = <0x55>;
 		interrupt-parent = <&irqpin1>;
@@ -105,12 +105,12 @@
 	pinctrl-0 = <&scifa1_pins>;
 	pinctrl-names = "default";
 
-	scifa1_pins: scifa1 {
+	scifa1_pins: serial1 {
 		renesas,groups = "scifa1_data";
 		renesas,function = "scifa1";
 	};
 
-	st1232_pins: st1232 {
+	st1232_pins: touchscreen {
 		renesas,groups = "intc_irq10";
 		renesas,function = "intc";
 	};
@@ -125,7 +125,7 @@
 		renesas,function = "mmc0";
 	};
 
-	sdhi0_pins: sdhi0 {
+	sdhi0_pins: sd0 {
 		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_wp";
 		renesas,function = "sdhi0";
 	};
