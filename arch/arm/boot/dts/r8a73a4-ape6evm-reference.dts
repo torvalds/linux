@@ -88,22 +88,22 @@
 	pinctrl-0 = <&scifa0_pins>;
 	pinctrl-names = "default";
 
-	scifa0_pins: scifa0 {
+	scifa0_pins: serial0 {
 		renesas,groups = "scifa0_data";
 		renesas,function = "scifa0";
 	};
 
-	mmc0_pins: mmcif {
+	mmc0_pins: mmc {
 		renesas,groups = "mmc0_data8", "mmc0_ctrl";
 		renesas,function = "mmc0";
 	};
 
-	sdhi0_pins: sdhi0 {
+	sdhi0_pins: sd0 {
 		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
 		renesas,function = "sdhi0";
 	};
 
-	sdhi1_pins: sdhi1 {
+	sdhi1_pins: sd1 {
 		renesas,groups = "sdhi1_data4", "sdhi1_ctrl";
 		renesas,function = "sdhi1";
 	};
