@@ -185,7 +185,7 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, ctp);
 
-	rc = smk_curacc(skp->smk_known, MAY_READWRITE, &ad);
+	rc = smk_curacc(skp->smk_known, mode, &ad);
 	return rc;
 }
 
