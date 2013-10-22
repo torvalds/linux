@@ -133,7 +133,6 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
 
-	pr_debug("%s - physical_slot = %s\n", __func__, hotplug_slot_name(hotplug_slot));
 	kfree(slot->hotplug_slot->info);
 	kfree(slot->hotplug_slot);
 	kfree(slot);
@@ -183,10 +182,9 @@ int zpci_init_slot(struct zpci_dev *zdev)
 	snprintf(name, SLOT_NAME_SIZE, "%08x", zdev->fid);
 	rc = pci_hp_register(slot->hotplug_slot, zdev->bus,
 			     ZPCI_DEVFN, name);
-	if (rc) {
-		pr_err("pci_hp_register failed with error %d\n", rc);
+	if (rc)
 		goto error_reg;
-	}
+
 	list_add(&slot->slot_list, &s390_hotplug_slot_list);
 	return 0;
 

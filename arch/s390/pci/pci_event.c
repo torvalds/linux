@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <asm/pci_debug.h>
 
 /* Content Code Description for PCI Function Error */
 struct zpci_ccdf_err {
@@ -41,25 +42,15 @@ struct zpci_ccdf_avail {
 	u16 pec;			/* PCI event code */
 } __packed;
 
-static void zpci_event_log_err(struct zpci_ccdf_err *ccdf)
-{
-	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
-
-	zpci_err("SEI error CCD:\n");
-	zpci_err_hex(ccdf, sizeof(*ccdf));
-	dev_err(&zdev->pdev->dev, "event code: 0x%x\n", ccdf->pec);
-}
-
 static void zpci_event_log_avail(struct zpci_ccdf_avail *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
+	struct pci_dev *pdev = zdev ? zdev->pdev : NULL;
 
-	pr_err("%s%s: availability event: fh: 0x%x  fid: 0x%x  event code: 0x%x  reason:",
-		(zdev) ? dev_driver_string(&zdev->pdev->dev) : "?",
-		(zdev) ? dev_name(&zdev->pdev->dev) : "?",
-		ccdf->fh, ccdf->fid, ccdf->pec);
-	print_hex_dump(KERN_CONT, "ccdf", DUMP_PREFIX_OFFSET,
-		       16, 1, ccdf, sizeof(*ccdf), false);
+	pr_info("%s: Event 0x%x reconfigured PCI function 0x%x\n",
+		pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
+	zpci_err("avail CCDF:\n");
+	zpci_err_hex(ccdf, sizeof(*ccdf));
 
 	switch (ccdf->pec) {
 	case 0x0301:
@@ -79,14 +70,16 @@ static void zpci_event_log_avail(struct zpci_ccdf_avail *ccdf)
 void zpci_event_error(void *data)
 {
 	struct zpci_ccdf_err *ccdf = data;
-	struct zpci_dev *zdev;
+	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
 
-	zpci_event_log_err(ccdf);
-	zdev = get_zdev_by_fid(ccdf->fid);
-	if (!zdev) {
-		pr_err("Error event for unknown fid: %x", ccdf->fid);
+	zpci_err("error CCDF:\n");
+	zpci_err_hex(ccdf, sizeof(*ccdf));
+
+	if (!zdev)
 		return;
-	}
+
+	pr_err("%s: Event 0x%x reports an error for PCI function 0x%x\n",
+	       pci_name(zdev->pdev), ccdf->pec, ccdf->fid);
 }
 
 void zpci_event_availability(void *data)
