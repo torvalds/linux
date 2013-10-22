@@ -256,6 +256,19 @@ static const struct irq_domain_ops pl061_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
+/* Parse gpio base from DT */
+static int pl061_parse_gpio_base(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	int ret;
+
+	if (of_property_read_u32(np, "linux,gpio-base", &ret))
+		return -ENOENT;
+	if (ret >= 0)
+		return ret;
+	return -EINVAL;
+}
+
 static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
@@ -273,7 +286,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		if (irq_base <= 0)
 			return -ENODEV;
 	} else {
-		chip->gc.base = -1;
+		chip->gc.base = pl061_parse_gpio_base(dev);
 		irq_base = 0;
 	}
 

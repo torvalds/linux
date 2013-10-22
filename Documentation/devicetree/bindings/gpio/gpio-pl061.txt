@@ -1,0 +1,33 @@
+PL061 GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "arm,pl061", "arm,primecell".
+- #gpio-cells : Should be two.
+  - first cell is the gpio pin number
+  - second cell is used to specify the gpio polarity:
+      0 = active high
+      1 = active low
+- gpio-controller : Marks the device node as a GPIO controller.
+- interrupt-controller : Marks the device node as an interrupt controller.
+- #interrupt-cells : Should be two.
+  - first cell is the hw irq number
+  - second cell is used to specify the interrupt type:
+      0 = default, unspecified type
+      1 = rising edge triggered
+      2 = falling edge triggered
+      4 = high level triggered
+      8 = low level triggered
+- linux,gpio-base : Should be the global GPIO number.
+
+Example:
+	gpio0: gpio@fc806000 {
+		compatible = "arm,pl061", "arm,primecell";
+		reg = <0xfc806000 0x1000>;
+		interrupts = <0 64 0x4>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		linux,gpio-base = <0>;
+	};
