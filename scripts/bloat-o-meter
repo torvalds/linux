@@ -20,8 +20,8 @@ def getsizes(file):
         if type in "tTdDbBrR":
             # strip generated symbols
             if name[:6] == "__mod_": continue
-            # function names begin with '.' on 64-bit powerpc
-            if "." in name[1:]: name = "static." + name.split(".")[0]
+            # statics and some other optimizations adds random .NUMBER
+            name = re.sub(r'\.[0-9]+', '', name)
             sym[name] = sym.get(name, 0) + int(size, 16)
     return sym
 
