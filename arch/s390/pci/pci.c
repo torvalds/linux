@@ -120,25 +120,17 @@ EXPORT_SYMBOL_GPL(pci_proc_domain);
 static int zpci_set_airq(struct zpci_dev *zdev)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_REG_INT);
-	struct zpci_fib *fib;
-	int rc;
+	struct zpci_fib fib = {0};
 
-	fib = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!fib)
-		return -ENOMEM;
+	fib.isc = PCI_ISC;
+	fib.sum = 1;		/* enable summary notifications */
+	fib.noi = airq_iv_end(zdev->aibv);
+	fib.aibv = (unsigned long) zdev->aibv->vector;
+	fib.aibvo = 0;		/* each zdev has its own interrupt vector */
+	fib.aisb = (unsigned long) zpci_aisb_iv->vector + (zdev->aisb/64)*8;
+	fib.aisbo = zdev->aisb & 63;
 
-	fib->isc = PCI_ISC;
-	fib->sum = 1;		/* enable summary notifications */
-	fib->noi = airq_iv_end(zdev->aibv);
-	fib->aibv = (unsigned long) zdev->aibv->vector;
-	fib->aibvo = 0;		/* each zdev has its own interrupt vector */
-	fib->aisb = (unsigned long) zpci_aisb_iv->vector + (zdev->aisb/64)*8;
-	fib->aisbo = zdev->aisb & 63;
-
-	rc = zpci_mod_fc(req, fib);
-
-	free_page((unsigned long) fib);
-	return rc;
+	return zpci_mod_fc(req, &fib);
 }
 
 struct mod_pci_args {
@@ -151,22 +143,14 @@ struct mod_pci_args {
 static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args *args)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, dmaas, fn);
-	struct zpci_fib *fib;
-	int rc;
+	struct zpci_fib fib = {0};
 
-	/* The FIB must be available even if it's not used */
-	fib = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!fib)
-		return -ENOMEM;
+	fib.pba = args->base;
+	fib.pal = args->limit;
+	fib.iota = args->iota;
+	fib.fmb_addr = args->fmb_addr;
 
-	fib->pba = args->base;
-	fib->pal = args->limit;
-	fib->iota = args->iota;
-	fib->fmb_addr = args->fmb_addr;
-
-	rc = zpci_mod_fc(req, fib);
-	free_page((unsigned long) fib);
-	return rc;
+	return zpci_mod_fc(req, &fib);
 }
 
 /* Modify PCI: Register I/O address translation parameters */
