@@ -118,11 +118,11 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 				    ann->print_line, ann->full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self,
+static void hists__find_annotations(struct hists *hists,
 				    struct perf_evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	struct rb_node *nd = rb_first(&self->entries), *next;
+	struct rb_node *nd = rb_first(&hists->entries), *next;
 	int key = K_RIGHT;
 
 	while (nd) {

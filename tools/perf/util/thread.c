@@ -9,51 +9,51 @@
 
 struct thread *thread__new(pid_t pid, pid_t tid)
 {
-	struct thread *self = zalloc(sizeof(*self));
+	struct thread *thread = zalloc(sizeof(*thread));
 
-	if (self != NULL) {
-		map_groups__init(&self->mg);
-		self->pid_ = pid;
-		self->tid = tid;
-		self->ppid = -1;
-		self->comm = malloc(32);
-		if (self->comm)
-			snprintf(self->comm, 32, ":%d", self->tid);
+	if (thread != NULL) {
+		map_groups__init(&thread->mg);
+		thread->pid_ = pid;
+		thread->tid = tid;
+		thread->ppid = -1;
+		thread->comm = malloc(32);
+		if (thread->comm)
+			snprintf(thread->comm, 32, ":%d", thread->tid);
 	}
 
-	return self;
+	return thread;
 }
 
-void thread__delete(struct thread *self)
+void thread__delete(struct thread *thread)
 {
-	map_groups__exit(&self->mg);
-	free(self->comm);
-	free(self);
+	map_groups__exit(&thread->mg);
+	free(thread->comm);
+	free(thread);
 }
 
-int thread__set_comm(struct thread *self, const char *comm)
+int thread__set_comm(struct thread *thread, const char *comm)
 {
 	int err;
 
-	if (self->comm)
-		free(self->comm);
-	self->comm = strdup(comm);
-	err = self->comm == NULL ? -ENOMEM : 0;
+	if (thread->comm)
+		free(thread->comm);
+	thread->comm = strdup(comm);
+	err = thread->comm == NULL ? -ENOMEM : 0;
 	if (!err) {
-		self->comm_set = true;
+		thread->comm_set = true;
 	}
 	return err;
 }
 
-int thread__comm_len(struct thread *self)
+int thread__comm_len(struct thread *thread)
 {
-	if (!self->comm_len) {
-		if (!self->comm)
+	if (!thread->comm_len) {
+		if (!thread->comm)
 			return 0;
-		self->comm_len = strlen(self->comm);
+		thread->comm_len = strlen(thread->comm);
 	}
 
-	return self->comm_len;
+	return thread->comm_len;
 }
 
 size_t thread__fprintf(struct thread *thread, FILE *fp)
@@ -62,30 +62,30 @@ size_t thread__fprintf(struct thread *thread, FILE *fp)
 	       map_groups__fprintf(&thread->mg, verbose, fp);
 }
 
-void thread__insert_map(struct thread *self, struct map *map)
+void thread__insert_map(struct thread *thread, struct map *map)
 {
-	map_groups__fixup_overlappings(&self->mg, map, verbose, stderr);
-	map_groups__insert(&self->mg, map);
+	map_groups__fixup_overlappings(&thread->mg, map, verbose, stderr);
+	map_groups__insert(&thread->mg, map);
 }
 
-int thread__fork(struct thread *self, struct thread *parent)
+int thread__fork(struct thread *thread, struct thread *parent)
 {
 	int i;
 
 	if (parent->comm_set) {
-		if (self->comm)
-			free(self->comm);
-		self->comm = strdup(parent->comm);
-		if (!self->comm)
+		if (thread->comm)
+			free(thread->comm);
+		thread->comm = strdup(parent->comm);
+		if (!thread->comm)
 			return -ENOMEM;
-		self->comm_set = true;
+		thread->comm_set = true;
 	}
 
 	for (i = 0; i < MAP__NR_TYPES; ++i)
-		if (map_groups__clone(&self->mg, &parent->mg, i) < 0)
+		if (map_groups__clone(&thread->mg, &parent->mg, i) < 0)
 			return -ENOMEM;
 
-	self->ppid = parent->tid;
+	thread->ppid = parent->tid;
 
 	return 0;
 }

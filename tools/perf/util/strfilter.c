@@ -10,22 +10,22 @@ static const char *OP_not	= "!";	/* Logical NOT */
 #define is_operator(c)	((c) == '|' || (c) == '&' || (c) == '!')
 #define is_separator(c)	(is_operator(c) || (c) == '(' || (c) == ')')
 
-static void strfilter_node__delete(struct strfilter_node *self)
+static void strfilter_node__delete(struct strfilter_node *node)
 {
-	if (self) {
-		if (self->p && !is_operator(*self->p))
-			free((char *)self->p);
-		strfilter_node__delete(self->l);
-		strfilter_node__delete(self->r);
-		free(self);
+	if (node) {
+		if (node->p && !is_operator(*node->p))
+			free((char *)node->p);
+		strfilter_node__delete(node->l);
+		strfilter_node__delete(node->r);
+		free(node);
 	}
 }
 
-void strfilter__delete(struct strfilter *self)
+void strfilter__delete(struct strfilter *filter)
 {
-	if (self) {
-		strfilter_node__delete(self->root);
-		free(self);
+	if (filter) {
+		strfilter_node__delete(filter->root);
+		free(filter);
 	}
 }
 
@@ -170,30 +170,30 @@ struct strfilter *strfilter__new(const char *rules, const char **err)
 	return ret;
 }
 
-static bool strfilter_node__compare(struct strfilter_node *self,
+static bool strfilter_node__compare(struct strfilter_node *node,
 				    const char *str)
 {
-	if (!self || !self->p)
+	if (!node || !node->p)
 		return false;
 
-	switch (*self->p) {
+	switch (*node->p) {
 	case '|':	/* OR */
-		return strfilter_node__compare(self->l, str) ||
-			strfilter_node__compare(self->r, str);
+		return strfilter_node__compare(node->l, str) ||
+			strfilter_node__compare(node->r, str);
 	case '&':	/* AND */
-		return strfilter_node__compare(self->l, str) &&
-			strfilter_node__compare(self->r, str);
+		return strfilter_node__compare(node->l, str) &&
+			strfilter_node__compare(node->r, str);
 	case '!':	/* NOT */
-		return !strfilter_node__compare(self->r, str);
+		return !strfilter_node__compare(node->r, str);
 	default:
-		return strglobmatch(str, self->p);
+		return strglobmatch(str, node->p);
 	}
 }
 
 /* Return true if STR matches the filter rules */
-bool strfilter__compare(struct strfilter *self, const char *str)
+bool strfilter__compare(struct strfilter *node, const char *str)
 {
-	if (!self)
+	if (!node)
 		return false;
-	return strfilter_node__compare(self->root, str);
+	return strfilter_node__compare(node->root, str);
 }
