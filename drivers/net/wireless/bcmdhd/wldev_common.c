@@ -354,7 +354,7 @@ int wldev_set_country(
 	}
 
 	if ((error < 0) ||
-	    (strncmp(country_code, cspec.ccode, WLC_CNTRY_BUF_SZ) != 0)) {
+	    (strncmp(country_code, cspec.country_abbrev, WLC_CNTRY_BUF_SZ) != 0)) {
 
 		if (user_enforced) {
 			bzero(&scbval, sizeof(scb_val_t));
