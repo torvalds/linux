@@ -31,6 +31,20 @@
 &omap3_pmx_core {
 	pinctrl-names = "default";
 
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			0x14a (PIN_INPUT | MUX_MODE0)		/* uart2_rx */
+			0x148 (PIN_OUTPUT | MUX_MODE0)		/* uart2_tx */
+		>;
+	};
+
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			0x16e (PIN_INPUT | MUX_MODE0)		/* uart3_rx */
+			0x170 (PIN_OUTPUT | MUX_MODE0)		/* uart3_tx */
+		>;
+	};
+
 	i2c1_pins: pinmux_i2c1_pins {
 		pinctrl-single,pins = <
 			0x18a (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl */
@@ -126,4 +140,18 @@
 	phy-names = "usb2-phy";
 	mode = <2>;
 	power = <50>;
+};
+
+&uart1 {
+	status = "disabled";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
 };
