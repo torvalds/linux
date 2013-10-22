@@ -254,6 +254,9 @@ void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 			       const char *core_ck_name,
 			       const char *mpu_ck_name);
 
+u32 omap2_clk_readl(struct clk_hw_omap *clk, void __iomem *reg);
+void omap2_clk_writel(u32 val, struct clk_hw_omap *clk, void __iomem *reg);
+
 extern u16 cpu_mask;
 
 extern const struct clkops clkops_omap2_dflt_wait;
@@ -287,6 +290,8 @@ extern const struct clksel_rate div_1_2_rates[];
 extern const struct clksel_rate div_1_3_rates[];
 extern const struct clksel_rate div_1_4_rates[];
 extern const struct clksel_rate div31_1to31_rates[];
+
+extern void __iomem *clk_memmaps[];
 
 extern int am33xx_clk_init(void);
 
