@@ -124,6 +124,12 @@
 			0x11e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat3 */
 		>;
 	};
+
+	display_pins: pinmux_display_pins {
+		pinctrl-single,pins = <
+			0x0d4 (PIN_OUTPUT | MUX_MODE4)		/* RX51_LCD_RESET_GPIO */
+		>;
+	};
 };
 
 &i2c1 {
@@ -361,6 +367,9 @@
 		compatible = "acx565akm";
 		spi-max-frequency = <6000000>;
 		reg = <2>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&display_pins>;
 	};
 };
 
