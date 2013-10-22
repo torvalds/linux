@@ -20,6 +20,8 @@
 #include <linux/module.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -407,18 +409,18 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 	if (!pdata || !cfg)
 		return -EINVAL;
 
-	if (pdata->setup_resources) {
-		ret = pdata->setup_resources();
+	if (gpio_is_valid(pdata->enable_gpio)) {
+		ret = devm_gpio_request_one(dev, pdata->enable_gpio,
+					    GPIOF_DIR_OUT, "lp5523_enable");
 		if (ret < 0) {
-			dev_err(dev, "setup resoure err: %d\n", ret);
+			dev_err(dev, "could not acquire enable gpio (err=%d)\n",
+				ret);
 			goto err;
 		}
-	}
 
-	if (pdata->enable) {
-		pdata->enable(0);
+		gpio_set_value(pdata->enable_gpio, 0);
 		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
-		pdata->enable(1);
+		gpio_set_value(pdata->enable_gpio, 1);
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
@@ -459,11 +461,8 @@ void lp55xx_deinit_device(struct lp55xx_chip *chip)
 	if (chip->clk)
 		clk_disable_unprepare(chip->clk);
 
-	if (pdata->enable)
-		pdata->enable(0);
-
-	if (pdata->release_resources)
-		pdata->release_resources();
+	if (gpio_is_valid(pdata->enable_gpio))
+		gpio_set_value(pdata->enable_gpio, 0);
 }
 EXPORT_SYMBOL_GPL(lp55xx_deinit_device);
 
@@ -595,6 +594,8 @@ int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
 
 	of_property_read_string(np, "label", &pdata->label);
 	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
+
+	pdata->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
 
 	/* LP8501 specific */
 	of_property_read_u8(np, "pwr-sel", (u8 *)&pdata->pwr_sel);

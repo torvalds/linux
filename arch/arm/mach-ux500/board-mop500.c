@@ -297,6 +297,7 @@ static struct lp55xx_platform_data __initdata lp5521_pri_data = {
        .led_config     = &lp5521_pri_led[0],
        .num_channels   = 3,
        .clock_mode     = LP55XX_CLOCK_EXT,
+       .enable_gpio    = -1,
 };
 
 static struct lp55xx_led_config lp5521_sec_led[] = {
@@ -322,6 +323,7 @@ static struct lp55xx_platform_data __initdata lp5521_sec_data = {
        .led_config     = &lp5521_sec_led[0],
        .num_channels   = 3,
        .clock_mode     = LP55XX_CLOCK_EXT,
+       .enable_gpio    = -1,
 };
 
 /* I2C0 devices only available on the first HREF/MOP500 */

@@ -67,10 +67,8 @@ struct lp55xx_platform_data {
 	/* Clock configuration */
 	u8 clock_mode;
 
-	/* Platform specific functions */
-	int (*setup_resources)(void);
-	void (*release_resources)(void);
-	void (*enable)(bool state);
+	/* optional enable GPIO */
+	int enable_gpio;
 
 	/* Predefined pattern data */
 	struct lp55xx_predef_pattern *patterns;

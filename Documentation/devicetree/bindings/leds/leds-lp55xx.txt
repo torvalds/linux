@@ -10,6 +10,7 @@ Each child has own specific current settings
 - max-cur: Maximun current at each led channel.
 
 Optional properties:
+- enable-gpio: GPIO attached to the chip's enable pin
 - label: Used for naming LEDs
 - pwr-sel: LP8501 specific property. Power selection for output channels.
          0: D1~9 are connected to VDD
