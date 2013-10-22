@@ -1422,7 +1422,7 @@ void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats)
 }
 EXPORT_SYMBOL(lprocfs_init_ldlm_stats);
 
-int lprocfs_exp_print_uuid(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int lprocfs_exp_print_uuid(cfs_hash_t *hs, struct cfs_hash_bd *bd,
 			   struct hlist_node *hnode, void *data)
 
 {
@@ -1453,7 +1453,7 @@ struct exp_hash_cb_data {
 	bool		first;
 };
 
-int lprocfs_exp_print_hash(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+int lprocfs_exp_print_hash(cfs_hash_t *hs, struct cfs_hash_bd *bd,
 			   struct hlist_node *hnode, void *cb_data)
 
 {

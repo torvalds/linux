@@ -659,7 +659,7 @@ struct lu_site {
 static inline struct lu_site_bkt_data *
 lu_site_bkt_from_fid(struct lu_site *site, struct lu_fid *fid)
 {
-	cfs_hash_bd_t bd;
+	struct cfs_hash_bd bd;
 
 	cfs_hash_bd_get(site->ls_obj_hash, fid, &bd);
 	return cfs_hash_bd_extra_get(site->ls_obj_hash, &bd);

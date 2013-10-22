@@ -71,7 +71,7 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 	struct lu_object_header *top;
 	struct lu_site	  *site;
 	struct lu_object	*orig;
-	cfs_hash_bd_t	    bd;
+	struct cfs_hash_bd	    bd;
 	const struct lu_fid     *fid;
 
 	top  = o->lo_header;
@@ -176,7 +176,7 @@ void lu_object_unhash(const struct lu_env *env, struct lu_object *o)
 	set_bit(LU_OBJECT_HEARD_BANSHEE, &top->loh_flags);
 	if (!test_and_set_bit(LU_OBJECT_UNHASHED, &top->loh_flags)) {
 		cfs_hash_t *obj_hash = o->lo_dev->ld_site->ls_obj_hash;
-		cfs_hash_bd_t bd;
+		struct cfs_hash_bd bd;
 
 		cfs_hash_bd_get_and_lock(obj_hash, &top->loh_fid, &bd, 1);
 		list_del_init(&top->loh_lru);
@@ -306,8 +306,8 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	struct lu_object_header *h;
 	struct lu_object_header *temp;
 	struct lu_site_bkt_data *bkt;
-	cfs_hash_bd_t	    bd;
-	cfs_hash_bd_t	    bd2;
+	struct cfs_hash_bd	    bd;
+	struct cfs_hash_bd	    bd2;
 	struct list_head	       dispose;
 	int		      did_sth;
 	int		      start;
@@ -526,7 +526,7 @@ int lu_object_invariant(const struct lu_object *o)
 EXPORT_SYMBOL(lu_object_invariant);
 
 static struct lu_object *htable_lookup(struct lu_site *s,
-				       cfs_hash_bd_t *bd,
+				       struct cfs_hash_bd *bd,
 				       const struct lu_fid *f,
 				       wait_queue_t *waiter,
 				       __u64 *version)
@@ -590,7 +590,7 @@ static struct lu_object *lu_object_new(const struct lu_env *env,
 {
 	struct lu_object	*o;
 	cfs_hash_t	      *hs;
-	cfs_hash_bd_t	    bd;
+	struct cfs_hash_bd	    bd;
 	struct lu_site_bkt_data *bkt;
 
 	o = lu_object_alloc(env, dev, f, conf);
@@ -619,7 +619,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	struct lu_object      *shadow;
 	struct lu_site	*s;
 	cfs_hash_t	    *hs;
-	cfs_hash_bd_t	  bd;
+	struct cfs_hash_bd	  bd;
 	__u64		  version = 0;
 
 	/*
@@ -788,7 +788,7 @@ struct lu_site_print_arg {
 };
 
 static int
-lu_site_obj_print(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+lu_site_obj_print(cfs_hash_t *hs, struct cfs_hash_bd *bd,
 		  struct hlist_node *hnode, void *data)
 {
 	struct lu_site_print_arg *arg = (struct lu_site_print_arg *)data;
@@ -921,7 +921,7 @@ static void lu_obj_hop_get(cfs_hash_t *hs, struct hlist_node *hnode)
 	h = hlist_entry(hnode, struct lu_object_header, loh_hash);
 	if (atomic_add_return(1, &h->loh_ref) == 1) {
 		struct lu_site_bkt_data *bkt;
-		cfs_hash_bd_t	    bd;
+		struct cfs_hash_bd	    bd;
 
 		cfs_hash_bd_get(hs, &h->loh_fid, &bd);
 		bkt = cfs_hash_bd_extra_get(hs, &bd);
@@ -975,7 +975,7 @@ EXPORT_SYMBOL(lu_dev_del_linkage);
 int lu_site_init(struct lu_site *s, struct lu_device *top)
 {
 	struct lu_site_bkt_data *bkt;
-	cfs_hash_bd_t bd;
+	struct cfs_hash_bd bd;
 	char name[16];
 	int bits;
 	int i;
@@ -1791,7 +1791,7 @@ typedef struct lu_site_stats{
 static void lu_site_stats_get(cfs_hash_t *hs,
 			      lu_site_stats_t *stats, int populated)
 {
-	cfs_hash_bd_t bd;
+	struct cfs_hash_bd bd;
 	int	   i;
 
 	cfs_hash_for_each_bucket(hs, &bd, i) {
@@ -2073,7 +2073,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 	struct lu_object	*shadow;
 	wait_queue_t		 waiter;
 	cfs_hash_t		*hs;
-	cfs_hash_bd_t		 bd;
+	struct cfs_hash_bd	 bd;
 	__u64			 version = 0;
 
 	LASSERT(fid_is_zero(old));
