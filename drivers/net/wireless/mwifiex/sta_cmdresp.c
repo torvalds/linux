@@ -274,17 +274,20 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
 	struct mwifiex_ie_types_header *head;
-	u16 tlv, tlv_buf_len;
+	u16 tlv, tlv_buf_len, tlv_buf_left;
 	u8 *tlv_buf;
 	u32 i;
 
-	tlv_buf = ((u8 *)rate_cfg) +
-			sizeof(struct host_cmd_ds_tx_rate_cfg);
-	tlv_buf_len = le16_to_cpu(*(__le16 *) (tlv_buf + sizeof(u16)));
+	tlv_buf = ((u8 *)rate_cfg) + sizeof(struct host_cmd_ds_tx_rate_cfg);
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*rate_cfg);
 
-	while (tlv_buf && tlv_buf_len > 0) {
-		tlv = (*tlv_buf);
-		tlv = tlv | (*(tlv_buf + 1) << 8);
+	while (tlv_buf_left >= sizeof(*head)) {
+		head = (struct mwifiex_ie_types_header *)tlv_buf;
+		tlv = le16_to_cpu(head->type);
+		tlv_buf_len = le16_to_cpu(head->len);
+
+		if (tlv_buf_left < (sizeof(*head) + tlv_buf_len))
+			break;
 
 		switch (tlv) {
 		case TLV_TYPE_RATE_SCOPE:
@@ -304,9 +307,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 			/* Add RATE_DROP tlv here */
 		}
 
-		head = (struct mwifiex_ie_types_header *) tlv_buf;
-		tlv_buf += le16_to_cpu(head->len) + sizeof(*head);
-		tlv_buf_len -= le16_to_cpu(head->len);
+		tlv_buf += (sizeof(*head) + tlv_buf_len);
+		tlv_buf_left -= (sizeof(*head) + tlv_buf_len);
 	}
 
 	priv->is_data_rate_auto = mwifiex_is_rate_auto(priv);
