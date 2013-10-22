@@ -341,12 +341,16 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 	pg = (struct mwifiex_power_group *)
 		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
 	length = le16_to_cpu(pg_tlv_hdr->length);
-	if (length > 0) {
-		max_power = pg->power_max;
-		min_power = pg->power_min;
-		length -= sizeof(struct mwifiex_power_group);
-	}
-	while (length) {
+
+	/* At least one structure required to update power */
+	if (length < sizeof(struct mwifiex_power_group))
+		return 0;
+
+	max_power = pg->power_max;
+	min_power = pg->power_min;
+	length -= sizeof(struct mwifiex_power_group);
+
+	while (length >= sizeof(struct mwifiex_power_group)) {
 		pg++;
 		if (max_power < pg->power_max)
 			max_power = pg->power_max;
@@ -356,10 +360,8 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 
 		length -= sizeof(struct mwifiex_power_group);
 	}
-	if (le16_to_cpu(pg_tlv_hdr->length) > 0) {
-		priv->min_tx_power_level = (u8) min_power;
-		priv->max_tx_power_level = (u8) max_power;
-	}
+	priv->min_tx_power_level = (u8) min_power;
+	priv->max_tx_power_level = (u8) max_power;
 
 	return 0;
 }
