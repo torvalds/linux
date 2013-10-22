@@ -698,7 +698,8 @@ static size_t perf_evlist__mmap_size(unsigned long pages)
 int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 				  int unset __maybe_unused)
 {
-	unsigned int pages, val, *mmap_pages = opt->value;
+	unsigned int *mmap_pages = opt->value;
+	unsigned long pages, val;
 	size_t size;
 	static struct parse_tag tags[] = {
 		{ .tag  = 'B', .mult = 1       },
@@ -709,12 +710,12 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 	};
 
 	val = parse_tag_value(str, tags);
-	if (val != (unsigned int) -1) {
+	if (val != (unsigned long) -1) {
 		/* we got file size value */
 		pages = PERF_ALIGN(val, page_size) / page_size;
-		if (!is_power_of_2(pages)) {
+		if (pages < (1UL << 31) && !is_power_of_2(pages)) {
 			pages = next_pow2(pages);
-			pr_info("rounding mmap pages size to %u (%u pages)\n",
+			pr_info("rounding mmap pages size to %lu (%lu pages)\n",
 				pages * page_size, pages);
 		}
 	} else {
@@ -725,6 +726,11 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 			pr_err("failed to parse --mmap_pages/-m value\n");
 			return -1;
 		}
+	}
+
+	if (pages > UINT_MAX || pages > SIZE_MAX / page_size) {
+		pr_err("--mmap_pages/-m value too big\n");
+		return -1;
 	}
 
 	size = perf_evlist__mmap_size(pages);
