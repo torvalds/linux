@@ -52,12 +52,8 @@ struct wbsoft_priv {
 	struct hw_data sHwData;	/*For HAL */
 	struct wb35_mds Mds;
 
-	atomic_t thread_count;
-
 	u32 RxByteCount;
 	u32 TxByteCount;
-
-	u8 link_name[WB_MAX_LINK_NAME_LEN];
 
 	bool enabled;
 };
