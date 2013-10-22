@@ -17,10 +17,10 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_format.h"
 #include "xfs_shared.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -32,6 +32,7 @@
 #include "xfs_cksum.h"
 #include "xfs_icache.h"
 #include "xfs_ialloc.h"
+#include "xfs_trans.h"
 
 /*
  * Check that none of the inode's in the buffer have a next

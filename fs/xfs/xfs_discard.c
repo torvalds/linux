@@ -17,8 +17,8 @@
  */
 #include "xfs.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -33,6 +33,7 @@
 #include "xfs_extent_busy.h"
 #include "xfs_discard.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 STATIC int
 xfs_trim_extents(

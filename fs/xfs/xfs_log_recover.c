@@ -17,12 +17,12 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_format.h"
 #include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
 #include "xfs_inum.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -34,11 +34,12 @@
 #include "xfs_btree.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
+#include "xfs_log.h"
 #include "xfs_log_priv.h"
-#include "xfs_buf_item.h"
 #include "xfs_log_recover.h"
 #include "xfs_extfree_item.h"
 #include "xfs_trans_priv.h"
@@ -46,14 +47,10 @@
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_icreate_item.h"
 
 /* Need all the magic numbers and buffer ops structures from these headers */
-#include "xfs_symlink.h"
 #include "xfs_da_btree.h"
 #include "xfs_dir2.h"
-#include "xfs_attr_leaf.h"
-#include "xfs_attr_remote.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 
