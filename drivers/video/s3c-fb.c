@@ -828,7 +828,9 @@ static void s3c_fb_configure_lcd(struct s3c_fb *sfb,
 
 	data = readl(sfb->regs + VIDCON2);
 	data &= ~(VIDCON2_RGB_ORDER_E_MASK | VIDCON2_RGB_ORDER_O_MASK);
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
 	data |= VIDCON2_RGB_ORDER_E_BGR | VIDCON2_RGB_ORDER_O_BGR;
+#endif
 	writel(data, sfb->regs + VIDCON2);
 
 	/* Set alpha value width */
