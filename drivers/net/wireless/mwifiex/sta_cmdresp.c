@@ -340,7 +340,7 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 		((u8 *) data_buf + sizeof(struct host_cmd_ds_txpwr_cfg));
 	pg = (struct mwifiex_power_group *)
 		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
-	length = pg_tlv_hdr->length;
+	length = le16_to_cpu(pg_tlv_hdr->length);
 	if (length > 0) {
 		max_power = pg->power_max;
 		min_power = pg->power_min;
@@ -356,7 +356,7 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 
 		length -= sizeof(struct mwifiex_power_group);
 	}
-	if (pg_tlv_hdr->length > 0) {
+	if (le16_to_cpu(pg_tlv_hdr->length) > 0) {
 		priv->min_tx_power_level = (u8) min_power;
 		priv->max_tx_power_level = (u8) max_power;
 	}
