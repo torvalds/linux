@@ -105,6 +105,22 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 					"Failed to sync wakes in %x: %d\n",
 					reg, ret);
 		}
+
+		if (!d->chip->init_ack_masked)
+			continue;
+		/*
+		 * Ack all the masked interrupts uncondictionly,
+		 * OR if there is masked interrupt which hasn't been Acked,
+		 * it'll be ignored in irq handler, then may introduce irq storm
+		 */
+		if (d->mask_buf[i] && d->chip->ack_base) {
+			reg = d->chip->ack_base +
+				(i * map->reg_stride * d->irq_reg_stride);
+			ret = regmap_write(map, reg, d->mask_buf[i]);
+			if (ret != 0)
+				dev_err(d->map->dev, "Failed to ack 0x%x: %d\n",
+					reg, ret);
+		}
 	}
 
 	if (d->chip->runtime_pm)
