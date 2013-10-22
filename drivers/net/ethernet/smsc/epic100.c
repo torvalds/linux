@@ -1535,7 +1535,6 @@ static void epic_remove_one(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	/* pci_power_off(pdev, -1); */
 }
 

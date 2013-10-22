@@ -727,7 +727,6 @@ static void __rtl8139_cleanup_dev (struct net_device *dev)
 	pci_release_regions (pdev);
 
 	free_netdev(dev);
-	pci_set_drvdata (pdev, NULL);
 }
 
 

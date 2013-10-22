@@ -4577,7 +4577,6 @@ static void ql_release_all(struct pci_dev *pdev)
 		iounmap(qdev->doorbell_area);
 	vfree(qdev->mpi_coredump);
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
