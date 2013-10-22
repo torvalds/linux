@@ -72,11 +72,16 @@ static int perf_event__repipe_attr(struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_evlist **pevlist)
 {
+	struct perf_inject *inject = container_of(tool, struct perf_inject,
+						  tool);
 	int ret;
 
 	ret = perf_event__process_attr(tool, event, pevlist);
 	if (ret)
 		return ret;
+
+	if (!inject->pipe_output)
+		return 0;
 
 	return perf_event__repipe_synth(tool, event);
 }
