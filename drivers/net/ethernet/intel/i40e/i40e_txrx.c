@@ -37,6 +37,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 			   ((u64)td_tag  << I40E_TXD_QW1_L2TAG1_SHIFT));
 }
 
+#define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
 /**
  * i40e_program_fdir_filter - Program a Flow Director filter
  * @fdir_input: Packet data that will be filter parameters
@@ -50,6 +51,7 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	struct i40e_tx_buffer *tx_buf;
 	struct i40e_tx_desc *tx_desc;
 	struct i40e_ring *tx_ring;
+	unsigned int fpt, dcc;
 	struct i40e_vsi *vsi;
 	struct device *dev;
 	dma_addr_t dma;
@@ -68,7 +70,7 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	dev = tx_ring->dev;
 
 	dma = dma_map_single(dev, fdir_data->raw_packet,
-				I40E_FDIR_MAX_RAW_PACKET_LOOKUP, DMA_TO_DEVICE);
+			     I40E_FDIR_MAX_RAW_PACKET_LOOKUP, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma))
 		goto dma_fail;
 
@@ -77,74 +79,61 @@ int i40e_program_fdir_filter(struct i40e_fdir_data *fdir_data,
 	fdir_desc = I40E_TX_FDIRDESC(tx_ring, i);
 	tx_buf = &tx_ring->tx_bi[i];
 
-	i++;
-	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+	tx_ring->next_to_use = (i + 1 < tx_ring->count) ? i + 1 : 0;
 
-	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32((fdir_data->q_index
-					     << I40E_TXD_FLTR_QW0_QINDEX_SHIFT)
-					     & I40E_TXD_FLTR_QW0_QINDEX_MASK);
+	fpt = (fdir_data->q_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
+	      I40E_TXD_FLTR_QW0_QINDEX_MASK;
 
-	fdir_desc->qindex_flex_ptype_vsi |= cpu_to_le32((fdir_data->flex_off
-					    << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT)
-					    & I40E_TXD_FLTR_QW0_FLEXOFF_MASK);
+	fpt |= (fdir_data->flex_off << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT) &
+	       I40E_TXD_FLTR_QW0_FLEXOFF_MASK;
 
-	fdir_desc->qindex_flex_ptype_vsi |= cpu_to_le32((fdir_data->pctype
-					     << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT)
-					     & I40E_TXD_FLTR_QW0_PCTYPE_MASK);
+	fpt |= (fdir_data->pctype << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT) &
+	       I40E_TXD_FLTR_QW0_PCTYPE_MASK;
 
 	/* Use LAN VSI Id if not programmed by user */
 	if (fdir_data->dest_vsi == 0)
-		fdir_desc->qindex_flex_ptype_vsi |=
-					  cpu_to_le32((pf->vsi[pf->lan_vsi]->id)
-					   << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT);
+		fpt |= (pf->vsi[pf->lan_vsi]->id) <<
+		       I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT;
 	else
-		fdir_desc->qindex_flex_ptype_vsi |=
-					    cpu_to_le32((fdir_data->dest_vsi
-					    << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
-					    & I40E_TXD_FLTR_QW0_DEST_VSI_MASK);
+		fpt |= ((u32)fdir_data->dest_vsi <<
+			I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT) &
+		       I40E_TXD_FLTR_QW0_DEST_VSI_MASK;
 
-	fdir_desc->dtype_cmd_cntindex =
-				    cpu_to_le32(I40E_TX_DESC_DTYPE_FILTER_PROG);
+	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(fpt);
+
+	dcc = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
 	if (add)
-		fdir_desc->dtype_cmd_cntindex |= cpu_to_le32(
-				       I40E_FILTER_PROGRAM_DESC_PCMD_ADD_UPDATE
-					<< I40E_TXD_FLTR_QW1_PCMD_SHIFT);
+		dcc |= I40E_FILTER_PROGRAM_DESC_PCMD_ADD_UPDATE <<
+		       I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 	else
-		fdir_desc->dtype_cmd_cntindex |= cpu_to_le32(
-					   I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE
-					   << I40E_TXD_FLTR_QW1_PCMD_SHIFT);
+		dcc |= I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE <<
+		       I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 
-	fdir_desc->dtype_cmd_cntindex |= cpu_to_le32((fdir_data->dest_ctl
-					  << I40E_TXD_FLTR_QW1_DEST_SHIFT)
-					  & I40E_TXD_FLTR_QW1_DEST_MASK);
+	dcc |= (fdir_data->dest_ctl << I40E_TXD_FLTR_QW1_DEST_SHIFT) &
+	       I40E_TXD_FLTR_QW1_DEST_MASK;
 
-	fdir_desc->dtype_cmd_cntindex |= cpu_to_le32(
-		     (fdir_data->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT)
-		      & I40E_TXD_FLTR_QW1_FD_STATUS_MASK);
+	dcc |= (fdir_data->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT) &
+	       I40E_TXD_FLTR_QW1_FD_STATUS_MASK;
 
 	if (fdir_data->cnt_index != 0) {
-		fdir_desc->dtype_cmd_cntindex |=
-				    cpu_to_le32(I40E_TXD_FLTR_QW1_CNT_ENA_MASK);
-		fdir_desc->dtype_cmd_cntindex |=
-					    cpu_to_le32((fdir_data->cnt_index
-					    << I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT)
-					    & I40E_TXD_FLTR_QW1_CNTINDEX_MASK);
+		dcc |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
+		dcc |= ((u32)fdir_data->cnt_index <<
+			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
+		       I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 	}
 
+	fdir_desc->dtype_cmd_cntindex = cpu_to_le32(dcc);
 	fdir_desc->fd_id = cpu_to_le32(fdir_data->fd_id);
 
 	/* Now program a dummy descriptor */
 	i = tx_ring->next_to_use;
 	tx_desc = I40E_TX_DESC(tx_ring, i);
 
-	i++;
-	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+	tx_ring->next_to_use = (i + 1 < tx_ring->count) ? i + 1 : 0;
 
 	tx_desc->buffer_addr = cpu_to_le64(dma);
-	td_cmd = I40E_TX_DESC_CMD_EOP |
-		 I40E_TX_DESC_CMD_RS  |
-		 I40E_TX_DESC_CMD_DUMMY;
+	td_cmd = I40E_TXD_CMD | I40E_TX_DESC_CMD_DUMMY;
 
 	tx_desc->cmd_type_offset_bsz =
 		build_ctob(td_cmd, 0, I40E_FDIR_MAX_RAW_PACKET_LOOKUP, 0);
@@ -559,8 +548,6 @@ static void i40e_update_dynamic_itr(struct i40e_q_vector *q_vector)
 	i40e_set_new_dynamic_itr(&q_vector->tx);
 	if (old_itr != q_vector->tx.itr)
 		wr32(hw, reg_addr, q_vector->tx.itr);
-
-	i40e_flush(hw);
 }
 
 /**
@@ -1155,7 +1142,8 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 			qval = rd32(hw, I40E_QINT_TQCTL(0));
 			qval |= I40E_QINT_TQCTL_CAUSE_ENA_MASK;
 			wr32(hw, I40E_QINT_TQCTL(0), qval);
-			i40e_flush(hw);
+
+			i40e_irq_dynamic_enable_icr0(vsi->back);
 		}
 	}
 
@@ -1256,7 +1244,6 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	fdir_desc->dtype_cmd_cntindex = cpu_to_le32(dtype_cmd);
 }
 
-#define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
 /**
  * i40e_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
  * @skb:     send buffer
