@@ -450,7 +450,7 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 
 	arg.channel.mode = chan_to_phymode(&conf->chandef);
 
-	arg.channel.min_power = channel->max_power * 3;
+	arg.channel.min_power = 0;
 	arg.channel.max_power = channel->max_power * 4;
 	arg.channel.max_reg_power = channel->max_reg_power * 4;
 	arg.channel.max_antenna_gain = channel->max_antenna_gain;
@@ -529,7 +529,7 @@ static int ath10k_monitor_start(struct ath10k *ar, int vdev_id)
 	   don't have any vifs? */
 	arg.channel.mode = chan_to_phymode(&ar->hw->conf.chandef);
 
-	arg.channel.min_power = channel->max_power * 3;
+	arg.channel.min_power = 0;
 	arg.channel.max_power = channel->max_power * 4;
 	arg.channel.max_reg_power = channel->max_reg_power * 4;
 	arg.channel.max_antenna_gain = channel->max_antenna_gain;
@@ -1375,7 +1375,7 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 			ch->passive = passive;
 
 			ch->freq = channel->center_freq;
-			ch->min_power = channel->max_power * 3;
+			ch->min_power = 0;
 			ch->max_power = channel->max_power * 4;
 			ch->max_reg_power = channel->max_reg_power * 4;
 			ch->max_antenna_gain = channel->max_antenna_gain;
