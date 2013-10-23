@@ -230,6 +230,11 @@ enum {
 	MLX5_MAX_PAGE_SHIFT		= 31
 };
 
+enum {
+	MLX5_CAP_OFF_DCT		= 41,
+	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
+};
+
 struct mlx5_inbox_hdr {
 	__be16		opcode;
 	u8		rsvd[4];
@@ -319,9 +324,9 @@ struct mlx5_hca_cap {
 	u8	rsvd25[42];
 	__be16  log_uar_page_sz;
 	u8	rsvd26[28];
-	u8	log_msx_atomic_size_qp;
+	u8	log_max_atomic_size_qp;
 	u8	rsvd27[2];
-	u8	log_msx_atomic_size_dc;
+	u8	log_max_atomic_size_dc;
 	u8	rsvd28[76];
 };
 
