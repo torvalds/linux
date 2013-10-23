@@ -869,17 +869,7 @@ static struct platform_driver tb10x_pinctrl_pdrv = {
 	}
 };
 
-static int __init tb10x_iopinctrl_init(void)
-{
-	return platform_driver_register(&tb10x_pinctrl_pdrv);
-}
-
-static void __exit tb10x_iopinctrl_exit(void)
-{
-	platform_driver_unregister(&tb10x_pinctrl_pdrv);
-}
+module_platform_driver(tb10x_pinctrl_pdrv);
 
 MODULE_AUTHOR("Christian Ruppert <christian.ruppert@abilis.com>");
 MODULE_LICENSE("GPL");
-module_init(tb10x_iopinctrl_init);
-module_exit(tb10x_iopinctrl_exit);
