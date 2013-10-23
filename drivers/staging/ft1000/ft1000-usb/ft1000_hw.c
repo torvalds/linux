@@ -854,7 +854,7 @@ int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 	return 0;
 }
 
-int ft1000_reset(void *dev)
+static int ft1000_reset(void *dev)
 {
 	ft1000_reset_card(dev);
 	return 0;
