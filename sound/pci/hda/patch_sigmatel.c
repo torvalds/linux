@@ -2091,8 +2091,10 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 {
 	struct sigmatel_spec *spec = codec->spec;
 
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
+		codec->bus->avoid_link_reset = 1;
+	}
 }
 
 static void stac92hd83xxx_fixup_headset_jack(struct hda_codec *codec,
