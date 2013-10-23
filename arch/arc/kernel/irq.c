@@ -150,7 +150,7 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int __init get_hw_config_num_irq(void)
+int get_hw_config_num_irq(void)
 {
 	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
 
