@@ -158,7 +158,7 @@ struct sw_flow {
 	unsigned long used;	/* Last used time (in jiffies). */
 	u64 packet_count;	/* Number of packets matched. */
 	u64 byte_count;		/* Number of bytes matched. */
-	u8 tcp_flags;		/* Union of seen TCP flags. */
+	__be16 tcp_flags;	/* Union of seen TCP flags. */
 };
 
 struct arp_eth_header {

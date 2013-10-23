@@ -671,7 +671,7 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 	used = flow->used;
 	stats.n_packets = flow->packet_count;
 	stats.n_bytes = flow->byte_count;
-	tcp_flags = flow->tcp_flags;
+	tcp_flags = (u8)ntohs(flow->tcp_flags);
 	spin_unlock_bh(&flow->lock);
 
 	if (used &&
