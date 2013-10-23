@@ -331,6 +331,7 @@
 				interrupts = <0 110 0x04>;
 				clocks = <&clks 108>, <&clks 109>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			can2: flexcan@02094000 {
@@ -339,6 +340,7 @@
 				interrupts = <0 111 0x04>;
 				clocks = <&clks 110>, <&clks 111>;
 				clock-names = "ipg", "per";
+				status = "disabled";
 			};
 
 			gpt: gpt@02098000 {
