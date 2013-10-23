@@ -1192,18 +1192,20 @@ static int scsi_eh_abort_cmds(struct list_head *work_q,
 						  "0x%p\n", current->comm,
 						  scmd));
 		rtn = scsi_try_to_abort_cmd(shost->hostt, scmd);
-		if (rtn == SUCCESS || rtn == FAST_IO_FAIL) {
-			scmd->eh_eflags &= ~SCSI_EH_CANCEL_CMD;
-			if (rtn == FAST_IO_FAIL)
-				scsi_eh_finish_cmd(scmd, done_q);
-			else
-				list_move_tail(&scmd->eh_entry, &check_list);
-		} else
+		if (rtn == FAILED) {
 			SCSI_LOG_ERROR_RECOVERY(3, printk("%s: aborting"
 							  " cmd failed:"
 							  "0x%p\n",
 							  current->comm,
 							  scmd));
+			list_splice_init(&check_list, work_q);
+			return list_empty(work_q);
+		}
+		scmd->eh_eflags &= ~SCSI_EH_CANCEL_CMD;
+		if (rtn == FAST_IO_FAIL)
+			scsi_eh_finish_cmd(scmd, done_q);
+		else
+			list_move_tail(&scmd->eh_entry, &check_list);
 	}
 
 	return scsi_eh_test_devices(&check_list, work_q, done_q, 0);
