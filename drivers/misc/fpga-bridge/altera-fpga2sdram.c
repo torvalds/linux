@@ -34,6 +34,9 @@
 #define ALT_SDR_CTL_FPGAPORTRST_WR_SHIFT	4
 #define ALT_SDR_CTL_FPGAPORTRST_CTRL_SHIFT	8
 
+#define FOUR_BIT_MASK 0xf
+#define SIX_BIT_MASK 0x3f
+
 static struct of_device_id altera_fpga_of_match[];
 
 struct alt_fpga2sdram_data {
@@ -44,6 +47,8 @@ struct alt_fpga2sdram_data {
 	int mask;
 };
 
+static atomic_t instances;
+
 static int alt_fpga2sdram_enable_show(struct fpga_bridge *bridge)
 {
 	struct alt_fpga2sdram_data *priv = bridge->priv;
@@ -51,7 +56,7 @@ static int alt_fpga2sdram_enable_show(struct fpga_bridge *bridge)
 
 	regmap_read(priv->sdrctl, ALT_SDR_CTL_FPGAPORTRST_OFST, &value);
 
-	return ((value & priv->mask) != 0);
+	return ((value & priv->mask) == priv->mask);
 }
 
 static void alt_fpga2sdram_enable_set(struct fpga_bridge *bridge, bool enable)
@@ -68,61 +73,41 @@ static void alt_fpga2sdram_enable_set(struct fpga_bridge *bridge, bool enable)
 			   priv->mask, value);
 }
 
+struct prop_map {
+	char *prop_name;
+	uint32_t *prop_value;
+	uint32_t prop_max;
+};
 static int alt_fpga2sdram_get_mask(struct alt_fpga2sdram_data *priv)
 {
-	struct device_node *np = priv->np;
-	int mask, ctrl_shift, ctrl_mask;
-	u32 read, write, control[2];
-
-	if (of_property_read_u32(np, "read-port", &read)) {
-		dev_err(&priv->pdev->dev,
-			"read-port property missing\n");
-		return -EINVAL;
-	}
-	if ((read < 0) || (read > 3)) {
-		dev_err(&priv->pdev->dev,
-			"read-port property out of bounds\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_u32(np, "write-port", &write)) {
-		dev_err(&priv->pdev->dev,
-			"write-port property invalid or missing\n");
-		return -EINVAL;
-	}
-	if ((write < 0) || (write > 3)) {
-		dev_err(&priv->pdev->dev,
-			"write-port property out of bounds\n");
-		return -EINVAL;
+	int i;
+	uint32_t read, write, cmd;
+	struct prop_map map[] = {
+		{"read-ports-mask", &read, FOUR_BIT_MASK},
+		{"write-ports-mask", &write, FOUR_BIT_MASK},
+		{"cmd-ports-mask", &cmd, SIX_BIT_MASK},
+	};
+	for (i = 0; i < ARRAY_SIZE(map); i++) {
+		if (of_property_read_u32(priv->np, map[i].prop_name,
+			map[i].prop_value)) {
+			dev_err(&priv->pdev->dev,
+				"failed to find property, %s\n",
+				map[i].prop_name);
+			return -EINVAL;
+		} else if (*map[i].prop_value > map[i].prop_max) {
+			dev_err(&priv->pdev->dev,
+				"%s value 0x%x > than max 0x%x\n",
+				map[i].prop_name,
+				*map[i].prop_value,
+				map[i].prop_max);
+			return -EINVAL;
+		}
 	}
 
-	/* There can be 1 or 2 control ports specified */
-	if (of_property_read_u32_array(np, "control-ports", control,
-				       ARRAY_SIZE(control))) {
-		dev_err(&priv->pdev->dev,
-			"control-ports property missing\n");
-		return -EINVAL;
-	}
-	if ((control[0] < 0) || (control[0] > 5) ||
-	    (control[1] < 1) || (control[1] > 2)) {
-		dev_err(&priv->pdev->dev,
-			"control-ports property out of bounds\n");
-		return -EINVAL;
-	}
-
-	ctrl_shift = ALT_SDR_CTL_FPGAPORTRST_CTRL_SHIFT + control[0];
-
-	if (control[1] == 1)
-		ctrl_mask = 0x1;
-	else
-		ctrl_mask = 0x3;
-
-	mask = (1 << (ALT_SDR_CTL_FPGAPORTRST_RD_SHIFT + read)) |
-		(1 << (ALT_SDR_CTL_FPGAPORTRST_WR_SHIFT + write)) |
-		(ctrl_mask << ctrl_shift);
-
-	WARN_ON((mask & ALT_SDR_CTL_FPGAPORTRST_PORTRSTN_MSK) != mask);
-	priv->mask = mask;
+	priv->mask =
+		(read << ALT_SDR_CTL_FPGAPORTRST_RD_SHIFT) |
+		(write << ALT_SDR_CTL_FPGAPORTRST_WR_SHIFT) |
+		(cmd << ALT_SDR_CTL_FPGAPORTRST_CTRL_SHIFT);
 
 	return 0;
 }
@@ -143,6 +128,12 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id = of_match_device(altera_fpga_of_match,
 						     &pdev->dev);
 	int ret = 0;
+	if (atomic_inc_return(&instances) > 1) {
+		atomic_dec(&instances);
+		dev_err(&pdev->dev,
+			"already one instance of driver\n");
+		return -ENODEV;
+	}
 
 	data = (struct alt_fpga2sdram_data *)of_id->data;
 	WARN_ON(!data);
@@ -160,7 +151,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 	priv->sdrctl = syscon_regmap_lookup_by_compatible("altr,sdr-ctl");
 	if (IS_ERR(priv->sdrctl)) {
 		devm_kfree(&pdev->dev, priv);
-		dev_err(&priv->pdev->dev,
+		dev_err(&pdev->dev,
 			"regmap for altr,sdr-ctl lookup failed.\n");
 		return PTR_ERR(priv->sdrctl);
 	}
@@ -178,6 +169,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 static int alt_fpga_bridge_remove(struct platform_device *pdev)
 {
 	remove_fpga_bridge(pdev);
+	atomic_dec(&instances);
 	return 0;
 }
 
@@ -199,6 +191,7 @@ static struct platform_driver altera_fpga_driver = {
 
 static int __init alt_fpga_bridge_init(void)
 {
+	atomic_set(&instances, 0);
 	return platform_driver_probe(&altera_fpga_driver,
 				     alt_fpga_bridge_probe);
 }

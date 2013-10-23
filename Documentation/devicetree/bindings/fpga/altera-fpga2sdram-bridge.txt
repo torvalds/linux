@@ -1,0 +1,47 @@
+Altera FPGA To SDRAM Bridge Driver
+
+    This driver manages a bridge between an FPGA and the SDRAM used by an
+    host processor system (HPS). The bridge contains a number read ports,
+    write ports, and command ports.  Reconfiguring these ports requires
+    that no SDRAM transactions occur during reconfiguration.  In other words,
+    the code reconfiguring the ports cannot be run out of SDRAM nor can the
+    FPGA access the SDRAM during the reconfiguration.  This driver does not
+    support reconfiguring the ports.  Typcially, the ports are configured by
+    code running out of onchip ram before Linux is started.
+
+    This driver supports enabling and disabling of the configured ports all
+    at once, which allows for safe reprogramming of the FPGA from user space,
+    provided the new FPGA image uses the same port configuration.
+    User space can enable/disable the bridge by writing a "1" or a "0",
+    respectively, to its enable file under bridge's entry in
+    /sys/class/fpga-bridge. Typically, one disables the bridges before
+    reprogramming the FPGA.  Once the FPGA is reprogrammed, the bridges
+    are reenabled.
+
+Required properties:
+
+    - compatible : "altr,socfpga-fpga2sdram-bridge"
+
+    - read-ports-mask : Bits 0 to 3 corresponds read ports 0 to 3. A
+	bit set to 1 indicates the corresponding read port should be enabled.
+
+    - write-ports-mask : Bits 0 to 3 corresponds write ports 0 to 3. A
+	bit set to 1 indicates the corresponding write port should be enabled.
+
+    - cmd-ports-mask : Bits 0 to 5 correspond to command ports 0 to 5. A
+	bit set to 1 indicates the corresponding command port should be enabled.
+
+Optional properties:
+
+    - label : name that you want this bridge to show up as under
+	/sys/class/fpga-bridge.
+	Default is br<device#> if this is not specified
+
+Example:
+	fpga2sdram_br: fpgabridge@3 {
+		compatible = "altr,socfpga-fpga2sdram-bridge";
+		label = "fpga2sdram";
+		read-ports-mask = <3>;
+		write-ports-mask = <3>;
+		cmd-ports-mask = <0xd>;
+	};

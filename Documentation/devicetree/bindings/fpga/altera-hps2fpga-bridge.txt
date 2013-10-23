@@ -1,0 +1,39 @@
+Altera FPGA/HPS  Bridge Driver
+
+    This driver manages a bridge between a FPGA and a host processor system
+    (HPS).  User space can enable/disable the bridge by writing a "1" or a "0",
+    respectively, to its enable file under bridge's entry in
+    /sys/class/fpga-bridge.  Typically, one disables the bridges before
+    reprogramming the FPGA.  Once the FPGA is reprogrammed, the bridges
+    are reenabled.
+
+Required properties:
+
+  - compatible : "altr,socfpga-hps2fpga-bridge"
+		 "altr,socfpga-lwhps2fpga-bridge"
+		 "altr,socfpga-fpga2hps-bridge"
+
+  - clocks : clocks used by this module
+
+Optional properties:
+  - label : name that you want this bridge to show up as under
+	/sys/class/fpga-bridge.  Default is br<device#> if this is not specified
+
+Example:
+	hps_fpgabridge0: fpgabridge@0 {
+		compatible = "altr,socfpga-hps2fpga-bridge";
+		label = "hps2fpga";
+		clocks = <&l4_main_clk>;
+	};
+
+	hps_fpgabridge1: fpgabridge@1 {
+		compatible = "altr,socfpga-lwhps2fpga-bridge";
+		label = "lwhps2fpga";
+		clocks = <&l4_main_clk>;
+	};
+
+	hps_fpgabridge2: fpgabridge@2 {
+		compatible = "altr,socfpga-fpga2hps-bridge";
+		label = "fpga2hps";
+		clocks = <&l4_main_clk>;
+	};
