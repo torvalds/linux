@@ -275,11 +275,10 @@ static ssize_t sysfs_write_file(struct file *file, const char __user *user_buf,
 {
 	struct sysfs_open_file *of = sysfs_of(file);
 	ssize_t len = min_t(size_t, count, PAGE_SIZE);
+	loff_t size = file_inode(file)->i_size;
 	char *buf;
 
-	if (sysfs_is_bin(of->sd)) {
-		loff_t size = file_inode(file)->i_size;
-
+	if (sysfs_is_bin(of->sd) && size) {
 		if (size <= *ppos)
 			return 0;
 		len = min_t(ssize_t, len, size - *ppos);
