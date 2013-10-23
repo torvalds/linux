@@ -653,8 +653,11 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 	int eqn;
 	int err;
 
+	if (entries < 0)
+		return ERR_PTR(-EINVAL);
+
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries < 1 || entries > dev->mdev.caps.max_cqes)
+	if (entries > dev->mdev.caps.max_cqes)
 		return ERR_PTR(-EINVAL);
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
