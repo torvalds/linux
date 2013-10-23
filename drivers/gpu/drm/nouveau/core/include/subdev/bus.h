@@ -33,9 +33,9 @@ nouveau_bus(void *obj)
 #define _nouveau_bus_init _nouveau_subdev_init
 #define _nouveau_bus_fini _nouveau_subdev_fini
 
-extern struct nouveau_oclass nv04_bus_oclass;
-extern struct nouveau_oclass nv31_bus_oclass;
-extern struct nouveau_oclass nv50_bus_oclass;
-extern struct nouveau_oclass nvc0_bus_oclass;
+extern struct nouveau_oclass *nv04_bus_oclass;
+extern struct nouveau_oclass *nv31_bus_oclass;
+extern struct nouveau_oclass *nv50_bus_oclass;
+extern struct nouveau_oclass *nvc0_bus_oclass;
 
 #endif
