@@ -38,6 +38,7 @@
 #include <linux/bootmem.h>
 #include <linux/iommu-helper.h>
 
+#define CREATE_TRACE_POINTS
 #include <trace/events/swiotlb.h>
 
 #define OFFSET(val,align) ((unsigned long)	\
