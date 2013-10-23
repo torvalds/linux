@@ -310,6 +310,7 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 			     const char *buf,
 			     size_t count)
 {
+	unsigned long flags;
 	int enabled;
 	int err;
 
@@ -342,6 +343,13 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 		printk(KERN_INFO "netconsole: network logging started\n");
 
 	} else {	/* 0 */
+		/* We need to disable the netconsole before cleaning it up
+		 * otherwise we might end up in write_msg() with
+		 * nt->np.dev == NULL and nt->enabled == 1
+		 */
+		spin_lock_irqsave(&target_list_lock, flags);
+		nt->enabled = 0;
+		spin_unlock_irqrestore(&target_list_lock, flags);
 		netpoll_cleanup(&nt->np);
 	}
 
