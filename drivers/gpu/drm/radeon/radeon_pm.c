@@ -1249,9 +1249,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_JUNIPER:
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
-	case CHIP_PALM:
-	case CHIP_SUMO:
-	case CHIP_SUMO2:
 	case CHIP_BARTS:
 	case CHIP_TURKS:
 	case CHIP_CAICOS:
@@ -1276,6 +1273,21 @@ int radeon_pm_init(struct radeon_device *rdev)
 			rdev->pm.pm_method = PM_METHOD_DPM;
 		else
 			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		break;
+	case CHIP_PALM:
+	case CHIP_SUMO:
+	case CHIP_SUMO2:
+		/* DPM requires the RLC, RV770+ dGPU requires SMC */
+		if (!rdev->rlc_fw)
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		else if ((rdev->family >= CHIP_RV770) &&
+			 (!(rdev->flags & RADEON_IS_IGP)) &&
+			 (!rdev->smc_fw))
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		else if (radeon_dpm == 0)
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		else
+			rdev->pm.pm_method = PM_METHOD_DPM;
 		break;
 	default:
 		/* default to profile method */
