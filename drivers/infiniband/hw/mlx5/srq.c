@@ -390,9 +390,7 @@ int mlx5_ib_destroy_srq(struct ib_srq *srq)
 		mlx5_ib_db_unmap_user(to_mucontext(srq->uobject->context), &msrq->db);
 		ib_umem_release(msrq->umem);
 	} else {
-		kfree(msrq->wrid);
-		mlx5_buf_free(&dev->mdev, &msrq->buf);
-		mlx5_db_free(&dev->mdev, &msrq->db);
+		destroy_srq_kernel(dev, msrq);
 	}
 
 	kfree(srq);
