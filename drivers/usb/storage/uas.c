@@ -722,7 +722,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
-	u16 tag = devinfo->qdepth - 1;
+	u16 tag = devinfo->qdepth;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
@@ -843,7 +843,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
-	scsi_activate_tcq(sdev, devinfo->qdepth - 3);
+	scsi_activate_tcq(sdev, devinfo->qdepth - 2);
 	return 0;
 }
 
@@ -1027,7 +1027,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_LIST_HEAD(&devinfo->dead_list);
 	uas_configure_endpoints(devinfo);
 
-	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 3);
+	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 2);
 	if (result)
 		goto free_streams;
 
