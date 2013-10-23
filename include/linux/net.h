@@ -250,7 +250,6 @@ bool __net_get_random_once(void *buf, int nbytes, bool *done,
 #define ___NET_RANDOM_STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
 #endif /* HAVE_JUMP_LABEL */
 
-/* BE CAREFUL: this function is not interrupt safe */
 #define net_get_random_once(buf, nbytes)				\
 	({								\
 		bool ___ret = false;					\
