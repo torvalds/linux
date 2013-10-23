@@ -2261,7 +2261,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 		/* nested EPT: emulate EPT also to L1 */
 		nested_vmx_secondary_ctls_high |= SECONDARY_EXEC_ENABLE_EPT;
 		nested_vmx_ept_caps = VMX_EPT_PAGE_WALK_4_BIT |
-			 VMX_EPTP_WB_BIT | VMX_EPT_INVEPT_BIT;
+			 VMX_EPTP_WB_BIT | VMX_EPT_2MB_PAGE_BIT |
+			 VMX_EPT_INVEPT_BIT;
 		nested_vmx_ept_caps &= vmx_capability.ept;
 		/*
 		 * Since invept is completely emulated we support both global
