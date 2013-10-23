@@ -1476,7 +1476,7 @@
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
-#define DCLK 0x5e04
+#define DCLK (MCHBAR_MIRROR_BASE_SNB + 0x5e04)
 
 /** 915-945 and GM965 MCH register controlling DRAM channel access */
 #define DCC			0x10200
@@ -1771,9 +1771,9 @@
 #define GEN6_GT_THREAD_STATUS_CORE_MASK 0x7
 #define GEN6_GT_THREAD_STATUS_CORE_MASK_HSW (0x7 | (0x07 << 16))
 
-#define GEN6_GT_PERF_STATUS	0x145948
-#define GEN6_RP_STATE_LIMITS	0x145994
-#define GEN6_RP_STATE_CAP	0x145998
+#define GEN6_GT_PERF_STATUS	(MCHBAR_MIRROR_BASE_SNB + 0x5948)
+#define GEN6_RP_STATE_LIMITS	(MCHBAR_MIRROR_BASE_SNB + 0x5994)
+#define GEN6_RP_STATE_CAP	(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 
 /*
  * Logical Context regs
