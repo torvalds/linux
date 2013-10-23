@@ -17,7 +17,7 @@
 #include <linux/android_alarm.h>
 
 #define RT5025_DEVICE_NAME "RT5025"
-#define RT5025_DRV_VER	   "1.0.4_R"
+#define RT5025_DRV_VER	   "1.0.5_R"
 
 enum {
 	RT5025_RSTDELAY1_100MS,

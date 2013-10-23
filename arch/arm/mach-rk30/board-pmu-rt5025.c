@@ -424,8 +424,8 @@ static u8 jeita_scalar[8] = { 0x30, 0x2B, 0x25, 0x20, 0x15, 0x10, 0x10, 0x0D };
 //cc unit: xxx mA
 static int jeita_temp_cc[][5] = {{ 500,  500,  500,  500, 500},    // not plugin
 			   	 {   0 , 500,  500,  500,   0},    // normal USB
-			   	 {   0,  500, 1000,  500,   0},    // USB charger
-				 {   0,  500, 1000,  500,   0}};   // AC Adapter
+			   	 {   0,  1000, 2000, 1000,   0},    // USB charger
+				 {   0,  1000, 2000, 1000,   0}};   // AC Adapter
 //cv unit: xxx mV
 static int jeita_temp_cv[][5] = {{ 4200, 4200, 4200, 4200, 4200},  // not plugin
 				 { 4200, 4200, 4200, 4200, 4200},  // normal USB

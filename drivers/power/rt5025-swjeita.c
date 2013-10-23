@@ -349,7 +349,7 @@ static void thermal_reg_work_func(struct work_struct *work)
 				swji->dec_current = 300;
 				break;
 			case 2:
-				swji->dec_current = 1000;
+				swji->dec_current = 800;
 				break;
 		}
 		swji->cur_therm_region = therm_region;
@@ -430,10 +430,10 @@ static int __devexit rt5025_swjeita_remove(struct platform_device *pdev)
 static int rt5025_swjeita_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct rt5025_swjeita_info *swji = platform_get_drvdata(pdev);
-	swji->cur_therm_region = swji->dec_current = 0;
-	rt5025_notify_charging_cable(swji, swji->cur_cable);
 	swji->suspend = 1;
 	cancel_delayed_work_sync(&swji->thermal_reg_work);
+	swji->cur_therm_region = swji->dec_current = 0;
+	rt5025_notify_charging_cable(swji, swji->cur_cable);
 	RTINFO("\n");
 	return 0;
 }

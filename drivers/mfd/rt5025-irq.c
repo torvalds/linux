@@ -95,7 +95,7 @@ static void rt5025_work_func(struct work_struct *work)
 		chg_event = irq_stat[0]<<16 | irq_stat[1]<<8 | irq_stat[2];
 		pwr_event = irq_stat[3]<<8 | irq_stat[4];
 		#ifdef CONFIG_POWER_RT5025
-		if ((chg_event & CHARGER_DETECT_MASK) && ii->chip->power_info->otg_en == 0)
+		if ((chg_event & CHARGER_DETECT_MASK))
 		{
 			if (chg_event & CHG_EVENT_CHTERMI)
 			{

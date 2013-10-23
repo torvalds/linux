@@ -226,17 +226,31 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 	chgstatval = ret;
 	RTINFO("chgstat = 0x%02x\n", chgstatval);
 
+	if (info->otg_en)
+	{
+		ret = rt5025_set_bits(info->i2c, RT5025_REG_CHGCTL2, RT5025_CHGBUCKEN_MASK);
+		msleep(100);
+	}
+
 	new_acval = (chgstatval&RT5025_CHG_ACONLINE)>>RT5025_CHG_ACSHIFT;
 	if (old_acval != new_acval)
 	{
 		info->ac_online = new_acval;
 		power_supply_changed(&info->ac);
 	}
-	new_usbval = (chgstatval&RT5025_CHG_USBONLINE)>>RT5025_CHG_USBSHIFT;
+
+	new_usbval = (info->otg_en? \
+		0:(chgstatval&RT5025_CHG_USBONLINE)>>RT5025_CHG_USBSHIFT);
 	if (old_usbval != new_usbval)
 	{
 		info->usb_online = new_usbval;
 		power_supply_changed(&info->usb);
+	}
+
+	if (info->otg_en && new_acval == 0)
+	{
+		ret = rt5025_clr_bits(info->i2c, RT5025_REG_CHGCTL2, RT5025_CHGBUCKEN_MASK);
+		msleep(100);
 	}
 
 	if (old_acval != new_acval || old_usbval != new_usbval)
@@ -308,7 +322,7 @@ static void usb_detect_work_func(struct work_struct *work)
 	mutex_lock(&pi->var_lock);
 	if (pi->ac_online)
 	{
-		rt5025_set_charging_current(pi->i2c, 1000);
+		rt5025_set_charging_current(pi->i2c, 2000);
 		rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_AC_ADAPTER);
 		pi->usb_cnt = 0;
 	}
@@ -318,13 +332,13 @@ static void usb_detect_work_func(struct work_struct *work)
 		switch(dwc_vbus_status())
 		{
 			case 2: // USB Wall charger
-				rt5025_set_charging_current(pi->i2c, 1000);
+				rt5025_set_charging_current(pi->i2c, 2000);
 				rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_USB_TA);
 				RTINFO("rt5025: detect usb wall charger\n");
 				break;
 			case 1: //normal USB
 			default:
-				rt5025_set_charging_current(pi->i2c, 500);
+				rt5025_set_charging_current(pi->i2c, 2000);
 				rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_NORMAL_USB);
 				RTINFO("rt5025: detect normal usb\n");
 				break;
