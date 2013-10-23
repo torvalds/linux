@@ -151,10 +151,8 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	int err;
 
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		printk(KERN_INFO "hda_beep: unable to allocate input device\n");
+	if (!input_dev)
 		return -ENOMEM;
-	}
 
 	/* setup digital beep device */
 	input_dev->name = "HDA Digital PCBeep";
