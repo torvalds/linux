@@ -36,6 +36,19 @@
  */
 #define	SPECIAL_EXC_FRAME_SIZE	INT_FRAME_SIZE
 
+/* Now we only store something to exception thread info */
+#define	EXC_LEVEL_EXCEPTION_PROLOG(type)				\
+	ld	r14,PACAKSAVE(r13);					\
+	CURRENT_THREAD_INFO(r14, r14);					\
+	CURRENT_THREAD_INFO(r15, r1);					\
+	ld	r10,TI_FLAGS(r14);		     			\
+	std	r10,TI_FLAGS(r15);			     		\
+	ld	r10,TI_PREEMPT(r14);		     			\
+	std	r10,TI_PREEMPT(r15);		     			\
+	ld	r10,TI_TASK(r14);			     		\
+	std	r10,TI_TASK(r15);
+
+
 /* Exception prolog code for all exceptions */
 #define EXCEPTION_PROLOG(n, intnum, type, addition)	    		    \
 	mtspr	SPRN_SPRG_##type##_SCRATCH,r13;	/* get spare registers */   \
@@ -69,19 +82,22 @@
 
 #define CRIT_SET_KSTACK						            \
 	ld	r1,PACA_CRIT_STACK(r13);				    \
-	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;
+	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;				    \
+	EXC_LEVEL_EXCEPTION_PROLOG(CRIT);
 #define SPRN_CRIT_SRR0	SPRN_CSRR0
 #define SPRN_CRIT_SRR1	SPRN_CSRR1
 
 #define DBG_SET_KSTACK						            \
 	ld	r1,PACA_DBG_STACK(r13);					    \
-	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;
+	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;				    \
+	EXC_LEVEL_EXCEPTION_PROLOG(DBG);
 #define SPRN_DBG_SRR0	SPRN_DSRR0
 #define SPRN_DBG_SRR1	SPRN_DSRR1
 
 #define MC_SET_KSTACK						            \
 	ld	r1,PACA_MC_STACK(r13);					    \
-	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;
+	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;				    \
+	EXC_LEVEL_EXCEPTION_PROLOG(MC);
 #define SPRN_MC_SRR0	SPRN_MCSRR0
 #define SPRN_MC_SRR1	SPRN_MCSRR1
 
