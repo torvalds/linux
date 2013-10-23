@@ -1078,7 +1078,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	/* register webcam snapshot button input device */
 	pdev->button_dev = input_allocate_device();
 	if (!pdev->button_dev) {
-		PWC_ERROR("Err, insufficient memory for webcam snapshot button device.");
 		rc = -ENOMEM;
 		goto err_video_unreg;
 	}

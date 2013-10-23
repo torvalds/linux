@@ -557,10 +557,8 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 
 	em28xx_info("Registering snapshot button...\n");
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		em28xx_errdev("input_allocate_device failed\n");
+	if (!input_dev)
 		return -ENOMEM;
-	}
 
 	usb_make_path(dev->udev, dev->snapshot_button_path,
 		      sizeof(dev->snapshot_button_path));
