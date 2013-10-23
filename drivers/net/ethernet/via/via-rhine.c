@@ -2292,7 +2292,6 @@ static void rhine_remove_one(struct pci_dev *pdev)
 
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static void rhine_shutdown (struct pci_dev *pdev)
