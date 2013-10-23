@@ -652,8 +652,10 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 				DWC_DEBUGPL(DBG_PCD, 
 								"%s ep0: EP0_IN_DATA_PHASE\n", 
 								__func__);
-			    if((_req->length % MAX_EP0_SIZE) == 0)
-			        ep->dwc_ep.sent_zlp = 1;
+			    if((_req->length % MAX_EP0_SIZE) == 0){
+			        if(_req->zero)
+			            ep->dwc_ep.sent_zlp = 1;
+			        }
 				break;
 
 			case EP0_OUT_DATA_PHASE:
