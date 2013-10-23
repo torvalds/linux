@@ -2,6 +2,7 @@
 #include "../progress.h"
 #include "../libslang.h"
 #include "../ui.h"
+#include "tui.h"
 #include "../browser.h"
 
 static void tui_progress__update(u64 curr, u64 total, const char *title)
@@ -31,12 +32,12 @@ static void tui_progress__update(u64 curr, u64 total, const char *title)
 	pthread_mutex_unlock(&ui__lock);
 }
 
-static struct ui_progress tui_progress_fns =
+static struct ui_progress_ops tui_progress__ops =
 {
 	.update		= tui_progress__update,
 };
 
-void ui_progress__init(void)
+void tui_progress__init(void)
 {
-	progress_fns = &tui_progress_fns;
+	ui_progress__ops = &tui_progress__ops;
 }
