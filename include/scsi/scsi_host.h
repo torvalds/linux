@@ -599,6 +599,11 @@ struct Scsi_Host {
     
 	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
 
+	/* next two fields are used to bound the time spent in error handling */
+	int eh_deadline;
+	unsigned long last_reset;
+
+
 	/*
 	 * These three parameters can be used to allow for wide scsi,
 	 * and for host adapters that support multiple busses
