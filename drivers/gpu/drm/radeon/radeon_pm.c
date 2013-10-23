@@ -508,17 +508,21 @@ static ssize_t radeon_set_dpm_forced_performance_level(struct device *dev,
 	} else if (strncmp("auto", buf, strlen("auto")) == 0) {
 		level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	} else {
-		mutex_unlock(&rdev->pm.mutex);
 		count = -EINVAL;
 		goto fail;
 	}
 	if (rdev->asic->dpm.force_performance_level) {
+		if (rdev->pm.dpm.thermal_active) {
+			count = -EINVAL;
+			goto fail;
+		}
 		ret = radeon_dpm_force_performance_level(rdev, level);
 		if (ret)
 			count = -EINVAL;
 	}
-	mutex_unlock(&rdev->pm.mutex);
 fail:
+	mutex_unlock(&rdev->pm.mutex);
+
 	return count;
 }
 
