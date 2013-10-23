@@ -181,6 +181,7 @@ static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 {
 	struct mlx5_manage_pages_inbox *in;
 	struct mlx5_manage_pages_outbox out;
+	struct mlx5_manage_pages_inbox *nin;
 	struct page *page;
 	int inlen;
 	u64 addr;
@@ -247,13 +248,20 @@ static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 
 out_alloc:
 	if (notify_fail) {
-		memset(in, 0, inlen);
+		nin = kzalloc(sizeof(*nin), GFP_KERNEL);
+		if (!nin) {
+			mlx5_core_warn(dev, "allocation failed\n");
+			goto unmap;
+		}
 		memset(&out, 0, sizeof(out));
-		in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
-		in->hdr.opmod = cpu_to_be16(MLX5_PAGES_CANT_GIVE);
-		if (mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out)))
-			mlx5_core_warn(dev, "\n");
+		nin->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
+		nin->hdr.opmod = cpu_to_be16(MLX5_PAGES_CANT_GIVE);
+		if (mlx5_cmd_exec(dev, nin, sizeof(*nin), &out, sizeof(out)))
+			mlx5_core_warn(dev, "page notify failed\n");
+		kfree(nin);
 	}
+
+unmap:
 	for (i--; i >= 0; i--) {
 		addr = be64_to_cpu(in->pas[i]);
 		page = remove_page(dev, addr);
