@@ -472,16 +472,18 @@ static ssize_t enabled_store(struct device *dev,
 	return -ENOSYS;
 }
 
-static struct device_attribute powercap_def_attrs[] = {
-		__ATTR(enabled, S_IWUSR | S_IRUGO, enabled_show,
-							enabled_store),
-		__ATTR_NULL
+static DEVICE_ATTR_RW(enabled);
+
+static struct attribute *powercap_attrs[] = {
+	&dev_attr_enabled.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(powercap);
 
 static struct class powercap_class = {
 	.name = "powercap",
 	.dev_release = powercap_release,
-	.dev_attrs = powercap_def_attrs,
+	.dev_groups = powercap_groups,
 };
 
 struct powercap_zone *powercap_register_zone(
