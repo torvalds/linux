@@ -93,7 +93,19 @@ find_disconnected_root(struct dentry *dentry)
 /*
  * Make sure target_dir is fully connected to the dentry tree.
  *
- * It may already be, as the flag isn't always updated when connection happens.
+ * On successful return, DCACHE_DISCONNECTED will be cleared on
+ * target_dir, and target_dir->d_parent->...->d_parent will reach the
+ * root of the filesystem.
+ *
+ * Whenever DCACHE_DISCONNECTED is unset, target_dir is fully connected.
+ * But the converse is not true: target_dir may have DCACHE_DISCONNECTED
+ * set but already be connected.  In that case we'll verify the
+ * connection to root and then clear the flag.
+ *
+ * Note that target_dir could be removed by a concurrent operation.  In
+ * that case reconnect_path may still succeed with target_dir fully
+ * connected, but further operations using the filehandle will fail when
+ * necessary (due to S_DEAD being set on the directory).
  */
 static int
 reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
