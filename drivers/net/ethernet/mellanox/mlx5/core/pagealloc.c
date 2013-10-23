@@ -454,14 +454,19 @@ int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot)
 	return give_pages(dev, func_id, npages, 0);
 }
 
+enum {
+	MLX5_BLKS_FOR_RECLAIM_PAGES = 12
+};
+
 static int optimal_reclaimed_pages(void)
 {
 	struct mlx5_cmd_prot_block *block;
 	struct mlx5_cmd_layout *lay;
 	int ret;
 
-	ret = (sizeof(lay->in) + sizeof(block->data) -
-	       sizeof(struct mlx5_manage_pages_outbox)) / 8;
+	ret = (sizeof(lay->out) + MLX5_BLKS_FOR_RECLAIM_PAGES * sizeof(block->data) -
+	       sizeof(struct mlx5_manage_pages_outbox)) /
+	       FIELD_SIZEOF(struct mlx5_manage_pages_outbox, pas[0]);
 
 	return ret;
 }
