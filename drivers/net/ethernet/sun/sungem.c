@@ -2806,8 +2806,6 @@ static void gem_remove_one(struct pci_dev *pdev)
 		iounmap(gp->regs);
 		pci_release_regions(pdev);
 		free_netdev(dev);
-
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 
