@@ -79,9 +79,12 @@
 *v1.1 : add FT code 
 *v1.2 : add rk_mipi_dsi_init_lite() for mclk variation
 *v1.3 : add clk_notifier function for mclk variation
-*v1.4 : add 
+*v1.4 : add register temp to reduce the time driver resume takes when 
+		use I2C.
+*v1.5 : change early suspend level (BLANK_SCREEN + 1)
+*v1.6 : add dsi_rk616->resume to reduce the time driver resume takes
 */
-#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.3 2013-08-08"
+#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.6 2013-10-23"
 
 
 
@@ -1388,7 +1391,9 @@ static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 	dsi_set_bits(0, shutdownz);
 	rk_mipi_dsi_enable_video_mode(1);
 #ifdef CONFIG_MFD_RK616	
+	dsi_rk616->resume = 1;
 	rk616_display_router_cfg(dsi_rk616, g_rk29fd_screen, 0);
+	dsi_rk616->resume = 0;
 #endif	
 	dsi_set_bits(1, shutdownz);
 	MIPI_TRACE("%s:%d\n", __func__, __LINE__);
