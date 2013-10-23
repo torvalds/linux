@@ -1020,7 +1020,7 @@ static int bnx2x_copy32_vf_dmae(struct bnx2x *bp, u8 from_vf,
 	dmae.len = len32;
 
 	/* issue the command and wait for completion */
-	return bnx2x_issue_dmae_with_comp(bp, &dmae);
+	return bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
 }
 
 static void bnx2x_vf_mbx_resp_single_tlv(struct bnx2x *bp,

@@ -270,7 +270,8 @@ static SIMPLE_DEV_PM_OPS(dw_i2c_dev_pm_ops, dw_i2c_suspend, dw_i2c_resume);
 MODULE_ALIAS("platform:i2c_designware");
 
 static struct platform_driver dw_i2c_driver = {
-	.remove		= dw_i2c_remove,
+	.probe = dw_i2c_probe,
+	.remove = dw_i2c_remove,
 	.driver		= {
 		.name	= "i2c_designware",
 		.owner	= THIS_MODULE,
@@ -282,7 +283,7 @@ static struct platform_driver dw_i2c_driver = {
 
 static int __init dw_i2c_init_driver(void)
 {
-	return platform_driver_probe(&dw_i2c_driver, dw_i2c_probe);
+	return platform_driver_register(&dw_i2c_driver);
 }
 subsys_initcall(dw_i2c_init_driver);
 

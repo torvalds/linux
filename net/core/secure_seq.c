@@ -11,6 +11,7 @@
 
 #include <net/secure_seq.h>
 
+#if IS_ENABLED(CONFIG_IPV6) || IS_ENABLED(CONFIG_INET)
 #define NET_SECRET_SIZE (MD5_MESSAGE_BYTES / 4)
 
 static u32 net_secret[NET_SECRET_SIZE] ____cacheline_aligned;
@@ -19,6 +20,7 @@ static __always_inline void net_secret_init(void)
 {
 	net_get_random_once(net_secret, sizeof(net_secret));
 }
+#endif
 
 #ifdef CONFIG_INET
 static u32 seq_scale(u32 seq)

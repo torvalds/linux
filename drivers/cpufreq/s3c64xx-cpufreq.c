@@ -166,7 +166,7 @@ static void __init s3c64xx_cpufreq_config_regulator(void)
 		if (freq->frequency == CPUFREQ_ENTRY_INVALID)
 			continue;
 
-		dvfs = &s3c64xx_dvfs_table[freq->index];
+		dvfs = &s3c64xx_dvfs_table[freq->driver_data];
 		found = 0;
 
 		for (i = 0; i < count; i++) {

@@ -366,9 +366,11 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		goto err_in;
 	}
 
+	snprintf(eq->name, MLX5_MAX_EQ_NAME, "%s@pci:%s",
+		 name, pci_name(dev->pdev));
 	eq->eqn = out.eq_number;
 	err = request_irq(table->msix_arr[vecidx].vector, mlx5_msix_handler, 0,
-			  name, eq);
+			  eq->name, eq);
 	if (err)
 		goto err_eq;
 

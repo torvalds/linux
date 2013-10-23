@@ -15,8 +15,6 @@
 
 #include <mach/hardware.h>
 
-#include <linux/platform_device.h>
-
 #define DAVINCI_UART0_BASE	(IO_PHYS + 0x20000)
 #define DAVINCI_UART1_BASE	(IO_PHYS + 0x20400)
 #define DAVINCI_UART2_BASE	(IO_PHYS + 0x20800)
@@ -39,6 +37,8 @@
 #define UART_DM646X_SCR_TX_WATERMARK	0x08
 
 #ifndef __ASSEMBLY__
+#include <linux/platform_device.h>
+
 extern int davinci_serial_init(struct platform_device *);
 #endif
 

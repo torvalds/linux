@@ -637,13 +637,6 @@ void cpsw_rx_handler(void *token, int len, int status)
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
-	u32 rx, tx, rx_thresh;
-
-	rx_thresh = __raw_readl(&priv->wr_regs->rx_thresh_stat);
-	rx = __raw_readl(&priv->wr_regs->rx_stat);
-	tx = __raw_readl(&priv->wr_regs->tx_stat);
-	if (!rx_thresh && !rx && !tx)
-		return IRQ_NONE;
 
 	cpsw_intr_disable(priv);
 	if (priv->irq_enabled == true) {
@@ -1171,9 +1164,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		}
 	}
 
+	napi_enable(&priv->napi);
 	cpdma_ctlr_start(priv->dma);
 	cpsw_intr_enable(priv);
-	napi_enable(&priv->napi);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
