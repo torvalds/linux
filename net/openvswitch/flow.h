@@ -93,6 +93,7 @@ struct sw_flow_key {
 				struct {
 					__be16 src;		/* TCP/UDP/SCTP source port. */
 					__be16 dst;		/* TCP/UDP/SCTP destination port. */
+					__be16 flags;		/* TCP flags. */
 				} tp;
 				struct {
 					u8 sha[ETH_ALEN];	/* ARP source hardware address. */
@@ -109,6 +110,7 @@ struct sw_flow_key {
 			struct {
 				__be16 src;		/* TCP/UDP/SCTP source port. */
 				__be16 dst;		/* TCP/UDP/SCTP destination port. */
+				__be16 flags;		/* TCP flags. */
 			} tp;
 			struct {
 				struct in6_addr target;	/* ND target address. */

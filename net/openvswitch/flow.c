@@ -428,6 +428,7 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				struct tcphdr *tcp = tcp_hdr(skb);
 				key->ipv4.tp.src = tcp->source;
 				key->ipv4.tp.dst = tcp->dest;
+				key->ipv4.tp.flags = TCP_FLAGS_BE16(tcp);
 			}
 		} else if (key->ip.proto == IPPROTO_UDP) {
 			if (udphdr_ok(skb)) {
@@ -496,6 +497,7 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				struct tcphdr *tcp = tcp_hdr(skb);
 				key->ipv6.tp.src = tcp->source;
 				key->ipv6.tp.dst = tcp->dest;
+				key->ipv6.tp.flags = TCP_FLAGS_BE16(tcp);
 			}
 		} else if (key->ip.proto == NEXTHDR_UDP) {
 			if (udphdr_ok(skb)) {
