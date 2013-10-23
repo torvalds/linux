@@ -2228,7 +2228,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 		nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high);
 	nested_vmx_procbased_ctls_low = 0;
 	nested_vmx_procbased_ctls_high &=
-		CPU_BASED_VIRTUAL_INTR_PENDING | CPU_BASED_USE_TSC_OFFSETING |
+		CPU_BASED_VIRTUAL_INTR_PENDING |
+		CPU_BASED_VIRTUAL_NMI_PENDING | CPU_BASED_USE_TSC_OFFSETING |
 		CPU_BASED_HLT_EXITING | CPU_BASED_INVLPG_EXITING |
 		CPU_BASED_MWAIT_EXITING | CPU_BASED_CR3_LOAD_EXITING |
 		CPU_BASED_CR3_STORE_EXITING |
