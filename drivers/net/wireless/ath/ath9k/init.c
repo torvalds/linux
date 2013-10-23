@@ -589,6 +589,9 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_AR9565_2ANT)
 		ath_info(common, "WB335 2-ANT card detected\n");
 
+	if (sc->driver_data & ATH9K_PCI_KILLER)
+		ath_info(common, "Killer Wireless card detected\n");
+
 	/*
 	 * Some WB335 cards do not support antenna diversity. Since
 	 * we use a hardcoded value for AR9565 instead of using the
