@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/sched_clock.h>
+#include <plat/time.h>
 
 /*
  * MBus bridge block registers.
