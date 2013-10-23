@@ -62,7 +62,6 @@
 	pinctrl-0 = <
 			&twl6040_pins
 			&mcpdm_pins
-			&dmic_pins
 			&mcbsp1_pins
 			&mcbsp2_pins
 			&usbhost_pins
@@ -82,15 +81,6 @@
 			0x15e (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_dl_data.abemcpdm_dl_data */
 			0x160 (PIN_INPUT_PULLUP | MUX_MODE0)	/* abemcpdm_frame.abemcpdm_frame */
 			0x162 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_lb_clk.abemcpdm_lb_clk */
-		>;
-	};
-
-	dmic_pins: pinmux_dmic_pins {
-		pinctrl-single,pins = <
-			0x144 (PIN_INPUT | MUX_MODE0)		/* abedmic_din1.abedmic_din1 */
-			0x146 (PIN_INPUT | MUX_MODE0)		/* abedmic_din2.abedmic_din2 */
-			0x148 (PIN_INPUT | MUX_MODE0)		/* abedmic_din3.abedmic_din3 */
-			0x14a (PIN_OUTPUT | MUX_MODE0)		/* abedmic_clk1.abedmic_clk1 */
 		>;
 	};
 
