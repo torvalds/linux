@@ -72,6 +72,9 @@
 #if defined(CONFIG_MT6620)
 #include <linux/gps.h>
 #endif
+#ifdef CONFIG_RK_REMOTECTL
+#include <mach/remotectl.h>
+#endif
 
 #include "../mach-rk30/board-rk3168-ds1006h-camera.c"
 #include <plat/key.h>
@@ -254,6 +257,28 @@ static struct platform_device rk29_device_backlight = {
 	}
 };
 
+#endif
+#ifdef CONFIG_RK_REMOTECTL
+
+void rk30_remotectl_iomux(void)
+{
+        ;
+}
+
+struct RKxx_remotectl_platform_data rk30_remotectl_pdata = {
+    .gpio       =   RK30_PIN0_PA3,
+    .wakeup     = 1,
+    .rep    = 0,
+    .set_iomux = rk30_remotectl_iomux,
+};
+
+static struct platform_device rk30_device_remotectl = {
+        .name           = "rkxx-remotectl",
+        .id             = -1,
+        .dev            = {
+                .platform_data  = &rk30_remotectl_pdata,
+        },
+};
 #endif
 
 /*MMA8452 gsensor*/
@@ -1398,6 +1423,10 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_AC_USB_SWITCH)
 	&device_ac_usb_switch,
 #endif
+#ifdef CONFIG_RK_REMOTECTL      
+    &rk30_device_remotectl,
+#endif
+
 };
 
 
@@ -2258,15 +2287,17 @@ static struct cpufreq_frequency_table dvfs_gpu_table_volt_level1[] = {
 static struct cpufreq_frequency_table dvfs_ddr_table_volt_level0[] = {
 	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
 	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
-	{.frequency = 396 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
-        {.frequency = 460 * 1000 + DDR_FREQ_DUALVIEW,     .index = 1150 * 1000},
+	//{.frequency = 396 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
+	{.frequency = 666 * 1000 + DDR_FREQ_NORMAL,     .index = 1250 * 1000},
+        {.frequency = 666 * 1000 + DDR_FREQ_DUALVIEW,     .index = 1250 * 1000},
 	//{.frequency = 528 * 1000 + DDR_FREQ_NORMAL,     .index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table_t[] = {
 	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
-	{.frequency = 460 * 1000 + DDR_FREQ_NORMAL,     .index = 1150 * 1000},
+	//{.frequency = 460 * 1000 + DDR_FREQ_NORMAL,     .index = 1150 * 1000},
+	{.frequency = 666 * 1000 + DDR_FREQ_NORMAL,     .index = 1250 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 #define dvfs_ddr_table dvfs_ddr_table_volt_level0

@@ -198,6 +198,7 @@ source "drivers/input/lightsensor/Kconfig"
 
 source "drivers/input/sensors/Kconfig"
 
+source "drivers/input/remotectl/Kconfig"
 endif
 
 menu "Hardware I/O ports"
