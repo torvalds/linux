@@ -33,7 +33,8 @@
  * wa->usb_dev and wa->usb_iface initialized and refcounted,
  * wa->wa_descr initialized.
  */
-int wa_create(struct wahc *wa, struct usb_interface *iface)
+int wa_create(struct wahc *wa, struct usb_interface *iface,
+	kernel_ulong_t quirks)
 {
 	int result;
 	struct device *dev = &iface->dev;
@@ -41,6 +42,7 @@ int wa_create(struct wahc *wa, struct usb_interface *iface)
 	result = wa_rpipes_create(wa);
 	if (result < 0)
 		goto error_rpipes_create;
+	wa->quirks = quirks;
 	/* Fill up Data Transfer EP pointers */
 	wa->dti_epd = &iface->cur_altsetting->endpoint[1].desc;
 	wa->dto_epd = &iface->cur_altsetting->endpoint[2].desc;

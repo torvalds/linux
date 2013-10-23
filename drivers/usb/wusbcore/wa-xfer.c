@@ -479,13 +479,29 @@ static int __wa_seg_calculate_isoc_frame_count(struct wa_xfer *xfer,
 {
 	int segment_size = 0, frame_count = 0;
 	int index = isoc_frame_offset;
+	struct usb_iso_packet_descriptor *iso_frame_desc =
+		xfer->urb->iso_frame_desc;
 
 	while ((index < xfer->urb->number_of_packets)
-		&& ((segment_size + xfer->urb->iso_frame_desc[index].length)
+		&& ((segment_size + iso_frame_desc[index].length)
 				<= xfer->seg_size)) {
+		/*
+		 * For Alereon HWA devices, only include an isoc frame in a
+		 * segment if it is physically contiguous with the previous
+		 * frame.  This is required because those devices expect
+		 * the isoc frames to be sent as a single USB transaction as
+		 * opposed to one transaction per frame with standard HWA.
+		 */
+		if ((xfer->wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC)
+			&& (index > isoc_frame_offset)
+			&& ((iso_frame_desc[index - 1].offset +
+				iso_frame_desc[index - 1].length) !=
+				iso_frame_desc[index].offset))
+			break;
+
 		/* this frame fits. count it. */
 		++frame_count;
-		segment_size += xfer->urb->iso_frame_desc[index].length;
+		segment_size += iso_frame_desc[index].length;
 
 		/* move to the next isoc frame. */
 		++index;
@@ -681,7 +697,11 @@ static void wa_seg_dto_cb(struct urb *urb)
 	wa = xfer->wa;
 	dev = &wa->usb_iface->dev;
 	if (usb_pipeisoc(xfer->urb->pipe)) {
-		xfer->dto_isoc_frame_index += 1;
+		/* Alereon HWA sends all isoc frames in a single transfer. */
+		if (wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC)
+			xfer->dto_isoc_frame_index += seg->isoc_frame_count;
+		else
+			xfer->dto_isoc_frame_index += 1;
 		if (xfer->dto_isoc_frame_index < seg->isoc_frame_count) {
 			data_send_done = 0;
 			holding_dto = 1; /* checked in error cases. */
@@ -1007,17 +1027,18 @@ static struct scatterlist *wa_xfer_create_subset_sg(struct scatterlist *in_sg,
 static void __wa_populate_dto_urb_isoc(struct wa_xfer *xfer,
 	struct wa_seg *seg, int curr_iso_frame)
 {
-	/*
-	 * dto urb buffer address and size pulled from
-	 * iso_frame_desc.
-	 */
-	seg->dto_urb->transfer_dma = xfer->urb->transfer_dma +
-		xfer->urb->iso_frame_desc[curr_iso_frame].offset;
 	seg->dto_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	seg->dto_urb->sg = NULL;
 	seg->dto_urb->num_sgs = 0;
-	seg->dto_urb->transfer_buffer_length =
-		xfer->urb->iso_frame_desc[curr_iso_frame].length;
+	/* dto urb buffer address pulled from iso_frame_desc. */
+	seg->dto_urb->transfer_dma = xfer->urb->transfer_dma +
+		xfer->urb->iso_frame_desc[curr_iso_frame].offset;
+	/* The Alereon HWA sends a single URB with all isoc segs. */
+	if (xfer->wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC)
+		seg->dto_urb->transfer_buffer_length = seg->isoc_size;
+	else
+		seg->dto_urb->transfer_buffer_length =
+			xfer->urb->iso_frame_desc[curr_iso_frame].length;
 }
 
 /*
@@ -1298,6 +1319,8 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 	}
 	/* submit the isoc packet descriptor if present. */
 	if (seg->isoc_pack_desc_urb) {
+		struct wahc *wa = xfer->wa;
+
 		result = usb_submit_urb(seg->isoc_pack_desc_urb, GFP_ATOMIC);
 		if (result < 0) {
 			pr_err("%s: xfer %p#%u: ISO packet descriptor submit failed: %d\n",
@@ -1308,8 +1331,10 @@ static int __wa_seg_submit(struct wa_rpipe *rpipe, struct wa_xfer *xfer,
 		/*
 		 * If this segment contains more than one isoc frame, hold
 		 * onto the dto resource until we send all frames.
+		 * Only applies to non-Alereon devices.
 		 */
-		if (seg->isoc_frame_count > 1)
+		if (((wa->quirks & WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC) == 0)
+			&& (seg->isoc_frame_count > 1))
 			*dto_done = 0;
 	}
 	/* submit the out data if this is an out request. */

@@ -128,6 +128,14 @@ enum wa_dti_state {
 	WA_DTI_ISOC_PACKET_STATUS_PENDING
 };
 
+enum wa_quirks {
+	/*
+	 * The Alereon HWA expects the data frames in isochronous transfer
+	 * requests to be concatenated and not sent as separate packets.
+	 */
+	WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC	= 0x01,
+};
+
 /**
  * Instance of a HWA Host Controller
  *
@@ -218,10 +226,13 @@ struct wahc {
 	struct work_struct xfer_enqueue_work;
 	struct work_struct xfer_error_work;
 	atomic_t xfer_id_count;
+
+	kernel_ulong_t	quirks;
 };
 
 
-extern int wa_create(struct wahc *wa, struct usb_interface *iface);
+extern int wa_create(struct wahc *wa, struct usb_interface *iface,
+	kernel_ulong_t);
 extern void __wa_destroy(struct wahc *wa);
 void wa_reset_all(struct wahc *wa);
 

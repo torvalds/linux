@@ -679,7 +679,8 @@ static void hwahc_security_release(struct hwahc *hwahc)
 	/* nothing to do here so far... */
 }
 
-static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
+static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface,
+	kernel_ulong_t quirks)
 {
 	int result;
 	struct device *dev = &iface->dev;
@@ -724,7 +725,7 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
 		dev_err(dev, "Can't create WUSB HC structures: %d\n", result);
 		goto error_wusbhc_create;
 	}
-	result = wa_create(&hwahc->wa, iface);
+	result = wa_create(&hwahc->wa, iface, quirks);
 	if (result < 0)
 		goto error_wa_create;
 	return 0;
@@ -780,7 +781,7 @@ static int hwahc_probe(struct usb_interface *usb_iface,
 	wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	hwahc_init(hwahc);
-	result = hwahc_create(hwahc, usb_iface);
+	result = hwahc_create(hwahc, usb_iface, id->driver_info);
 	if (result < 0) {
 		dev_err(dev, "Cannot initialize internals: %d\n", result);
 		goto error_hwahc_create;
@@ -824,6 +825,12 @@ static void hwahc_disconnect(struct usb_interface *usb_iface)
 }
 
 static struct usb_device_id hwahc_id_table[] = {
+	/* Alereon 5310 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5310, 0xe0, 0x02, 0x01),
+	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC },
+	/* Alereon 5611 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5611, 0xe0, 0x02, 0x01),
+	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC },
 	/* FIXME: use class labels for this */
 	{ USB_INTERFACE_INFO(0xe0, 0x02, 0x01), },
 	{},
