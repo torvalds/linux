@@ -36,6 +36,18 @@
 #endif /* CONFIG_BATMAN_ADV_DAT */
 
 /**
+ * BATADV_TT_REMOTE_MASK - bitmask selecting the flags that are sent over the
+ *  wire only
+ */
+#define BATADV_TT_REMOTE_MASK	0x00FF
+
+/**
+ * BATADV_TT_SYNC_MASK - bitmask of the flags that need to be kept in sync
+ *  among the nodes. These flags are used to compute the global/local CRC
+ */
+#define BATADV_TT_SYNC_MASK	0x00F0
+
+/**
  * struct batadv_hard_iface_bat_iv - per hard interface B.A.T.M.A.N. IV data
  * @ogm_buff: buffer holding the OGM packet
  * @ogm_buff_len: length of the OGM packet buffer
@@ -133,14 +145,28 @@ struct batadv_orig_node_vlan {
 };
 
 /**
+ * struct batadv_orig_bat_iv - B.A.T.M.A.N. IV private orig_node members
+ * @bcast_own: bitfield containing the number of our OGMs this orig_node
+ *  rebroadcasted "back" to us (relative to last_real_seqno)
+ * @bcast_own_sum: counted result of bcast_own
+ * @ogm_cnt_lock: lock protecting bcast_own, bcast_own_sum,
+ *  neigh_node->bat_iv.real_bits & neigh_node->bat_iv.real_packet_count
+ */
+struct batadv_orig_bat_iv {
+	unsigned long *bcast_own;
+	uint8_t *bcast_own_sum;
+	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
+	 * neigh_node->bat_iv.real_bits & neigh_node->bat_iv.real_packet_count
+	 */
+	spinlock_t ogm_cnt_lock;
+};
+
+/**
  * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
  * @orig: originator ethernet address
  * @primary_addr: hosts primary interface address
  * @router: router that should be used to reach this originator
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
- * @bcast_own: bitfield containing the number of our OGMs this orig_node
- *  rebroadcasted "back" to us (relative to last_real_seqno)
- * @bcast_own_sum: counted result of bcast_own
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @batman_seqno_reset: time when the batman seqno window was reset
@@ -166,8 +192,6 @@ struct batadv_orig_node_vlan {
  * @neigh_list_lock: lock protecting neigh_list, router and bonding_list
  * @hash_entry: hlist node for batadv_priv::orig_hash
  * @bat_priv: pointer to soft_iface this orig node belongs to
- * @ogm_cnt_lock: lock protecting bcast_own, bcast_own_sum,
- *  neigh_node->real_bits & neigh_node->real_packet_count
  * @bcast_seqno_lock: lock protecting bcast_bits & last_bcast_seqno
  * @bond_candidates: how many candidates are available
  * @bond_list: list of bonding candidates
@@ -181,6 +205,7 @@ struct batadv_orig_node_vlan {
  * @vlan_list: a list of orig_node_vlan structs, one per VLAN served by the
  *  originator represented by this object
  * @vlan_list_lock: lock protecting vlan_list
+ * @bat_iv: B.A.T.M.A.N. IV private structure
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -189,8 +214,6 @@ struct batadv_orig_node {
 #ifdef CONFIG_BATMAN_ADV_DAT
 	batadv_dat_addr_t dat_addr;
 #endif
-	unsigned long *bcast_own;
-	uint8_t *bcast_own_sum;
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
@@ -211,10 +234,6 @@ struct batadv_orig_node {
 	spinlock_t neigh_list_lock;
 	struct hlist_node hash_entry;
 	struct batadv_priv *bat_priv;
-	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
-	 * neigh_node->real_bits & neigh_node->real_packet_count
-	 */
-	spinlock_t ogm_cnt_lock;
 	/* bcast_seqno_lock protects: bcast_bits & last_bcast_seqno */
 	spinlock_t bcast_seqno_lock;
 	atomic_t bond_candidates;
@@ -230,6 +249,7 @@ struct batadv_orig_node {
 	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
 	struct list_head vlan_list;
 	spinlock_t vlan_list_lock; /* protects vlan_list */
+	struct batadv_orig_bat_iv bat_iv;
 };
 
 /**
@@ -263,40 +283,49 @@ struct batadv_gw_node {
 };
 
 /**
- * struct batadv_neigh_node - structure for single hop neighbors
- * @list: list node for batadv_orig_node::neigh_list
- * @addr: mac address of neigh node
+ * struct batadv_neigh_bat_iv - B.A.T.M.A.N. IV specific structure for single
+ *  hop neighbors
  * @tq_recv: ring buffer of received TQ values from this neigh node
  * @tq_index: ring buffer index
  * @tq_avg: averaged tq of all tq values in the ring buffer (tq_recv)
- * @last_ttl: last received ttl from this neigh node
- * @bonding_list: list node for batadv_orig_node::bond_list
- * @last_seen: when last packet via this neighbor was received
  * @real_bits: bitfield containing the number of OGMs received from this neigh
  *  node (relative to orig_node->last_real_seqno)
  * @real_packet_count: counted result of real_bits
- * @orig_node: pointer to corresponding orig_node
- * @if_incoming: pointer to incoming hard interface
  * @lq_update_lock: lock protecting tq_recv & tq_index
- * @refcount: number of contexts the object is used
- * @rcu: struct used for freeing in an RCU-safe manner
  */
-struct batadv_neigh_node {
-	struct hlist_node list;
-	uint8_t addr[ETH_ALEN];
+struct batadv_neigh_bat_iv {
 	uint8_t tq_recv[BATADV_TQ_GLOBAL_WINDOW_SIZE];
 	uint8_t tq_index;
 	uint8_t tq_avg;
-	uint8_t last_ttl;
-	struct list_head bonding_list;
-	unsigned long last_seen;
 	DECLARE_BITMAP(real_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	uint8_t real_packet_count;
-	struct batadv_orig_node *orig_node;
-	struct batadv_hard_iface *if_incoming;
 	spinlock_t lq_update_lock; /* protects tq_recv & tq_index */
+};
+
+/**
+ * struct batadv_neigh_node - structure for single hops neighbors
+ * @list: list node for batadv_orig_node::neigh_list
+ * @orig_node: pointer to corresponding orig_node
+ * @addr: the MAC address of the neighboring interface
+ * @if_incoming: pointer to incoming hard interface
+ * @last_seen: when last packet via this neighbor was received
+ * @last_ttl: last received ttl from this neigh node
+ * @bonding_list: list node for batadv_orig_node::bond_list
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in an RCU-safe manner
+ * @bat_iv: B.A.T.M.A.N. IV private structure
+ */
+struct batadv_neigh_node {
+	struct hlist_node list;
+	struct batadv_orig_node *orig_node;
+	uint8_t addr[ETH_ALEN];
+	struct batadv_hard_iface *if_incoming;
+	unsigned long last_seen;
+	uint8_t last_ttl;
+	struct list_head bonding_list;
 	atomic_t refcount;
 	struct rcu_head rcu;
+	struct batadv_neigh_bat_iv bat_iv;
 };
 
 /**
@@ -595,6 +624,8 @@ struct batadv_softif_vlan {
  * @aggregated_ogms: bool indicating whether OGM aggregation is enabled
  * @bonding: bool indicating whether traffic bonding is enabled
  * @fragmentation: bool indicating whether traffic fragmentation is enabled
+ * @packet_size_max: max packet size that can be transmitted via
+ *  multiple fragmented skbs or a single frame if fragmentation is disabled
  * @frag_seqno: incremental counter to identify chains of egress fragments
  * @bridge_loop_avoidance: bool indicating whether bridge loop avoidance is
  *  enabled
@@ -641,6 +672,7 @@ struct batadv_priv {
 	atomic_t aggregated_ogms;
 	atomic_t bonding;
 	atomic_t fragmentation;
+	atomic_t packet_size_max;
 	atomic_t frag_seqno;
 #ifdef CONFIG_BATMAN_ADV_BLA
 	atomic_t bridge_loop_avoidance;
@@ -717,7 +749,7 @@ struct batadv_socket_client {
 struct batadv_socket_packet {
 	struct list_head list;
 	size_t icmp_len;
-	struct batadv_icmp_packet_rr icmp_packet;
+	uint8_t icmp_packet[BATADV_ICMP_MAX_PACKET_SIZE];
 };
 
 /**
@@ -975,6 +1007,16 @@ struct batadv_forw_packet {
  * @bat_primary_iface_set: called when primary interface is selected / changed
  * @bat_ogm_schedule: prepare a new outgoing OGM for the send queue
  * @bat_ogm_emit: send scheduled OGM
+ * @bat_neigh_cmp: compare the metrics of two neighbors
+ * @bat_neigh_is_equiv_or_better: check if neigh1 is equally good or
+ *  better than neigh2 from the metric prospective
+ * @bat_orig_print: print the originator table (optional)
+ * @bat_orig_free: free the resources allocated by the routing algorithm for an
+ *  orig_node object
+ * @bat_orig_add_if: ask the routing algorithm to apply the needed changes to
+ *  the orig_node due to a new hard-interface being added into the mesh
+ * @bat_orig_del_if: ask the routing algorithm to apply the needed changes to
+ *  the orig_node due to an hard-interface being removed from the mesh
  */
 struct batadv_algo_ops {
 	struct hlist_node list;
@@ -985,6 +1027,17 @@ struct batadv_algo_ops {
 	void (*bat_primary_iface_set)(struct batadv_hard_iface *hard_iface);
 	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
 	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
+	int (*bat_neigh_cmp)(struct batadv_neigh_node *neigh1,
+			     struct batadv_neigh_node *neigh2);
+	bool (*bat_neigh_is_equiv_or_better)(struct batadv_neigh_node *neigh1,
+					     struct batadv_neigh_node *neigh2);
+	/* orig_node handling API */
+	void (*bat_orig_print)(struct batadv_priv *priv, struct seq_file *seq);
+	void (*bat_orig_free)(struct batadv_orig_node *orig_node);
+	int (*bat_orig_add_if)(struct batadv_orig_node *orig_node,
+			       int max_if_num);
+	int (*bat_orig_del_if)(struct batadv_orig_node *orig_node,
+			       int max_if_num, int del_if_num);
 };
 
 /**

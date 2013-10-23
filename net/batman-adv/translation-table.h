@@ -21,7 +21,7 @@
 #define _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 
 int batadv_tt_init(struct batadv_priv *bat_priv);
-void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
+bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 			 unsigned short vid, int ifindex);
 uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
 				const uint8_t *addr, unsigned short vid,
@@ -45,6 +45,7 @@ bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
 					uint8_t *addr, unsigned short vid);
 bool batadv_tt_local_client_is_roaming(struct batadv_priv *bat_priv,
 				       uint8_t *addr, unsigned short vid);
+void batadv_tt_local_resize_to_mtu(struct net_device *soft_iface);
 bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig_node,
 					  const unsigned char *addr,

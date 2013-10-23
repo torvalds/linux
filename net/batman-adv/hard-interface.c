@@ -28,6 +28,7 @@
 #include "originator.h"
 #include "hash.h"
 #include "bridge_loop_avoidance.h"
+#include "gateway_client.h"
 
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -124,8 +125,11 @@ static int batadv_is_valid_iface(const struct net_device *net_dev)
  *
  * Returns true if the net device is a 802.11 wireless device, false otherwise.
  */
-static bool batadv_is_wifi_netdev(struct net_device *net_device)
+bool batadv_is_wifi_netdev(struct net_device *net_device)
 {
+	if (!net_device)
+		return false;
+
 #ifdef CONFIG_WIRELESS_EXT
 	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
 	 * check for wireless_handlers != NULL
@@ -139,34 +143,6 @@ static bool batadv_is_wifi_netdev(struct net_device *net_device)
 		return true;
 
 	return false;
-}
-
-/**
- * batadv_is_wifi_iface - check if the given interface represented by ifindex
- *  is a wifi interface
- * @ifindex: interface index to check
- *
- * Returns true if the interface represented by ifindex is a 802.11 wireless
- * device, false otherwise.
- */
-bool batadv_is_wifi_iface(int ifindex)
-{
-	struct net_device *net_device = NULL;
-	bool ret = false;
-
-	if (ifindex == BATADV_NULL_IFINDEX)
-		goto out;
-
-	net_device = dev_get_by_index(&init_net, ifindex);
-	if (!net_device)
-		goto out;
-
-	ret = batadv_is_wifi_netdev(net_device);
-
-out:
-	if (net_device)
-		dev_put(net_device);
-	return ret;
 }
 
 static struct batadv_hard_iface *
@@ -266,16 +242,9 @@ static void batadv_check_known_mac_addr(const struct net_device *net_dev)
 
 int batadv_hardif_min_mtu(struct net_device *soft_iface)
 {
-	const struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	const struct batadv_hard_iface *hard_iface;
-	/* allow big frames if all devices are capable to do so
-	 * (have MTU > 1500 + batadv_max_header_len())
-	 */
 	int min_mtu = ETH_DATA_LEN;
-	int max_header_len = batadv_max_header_len();
-
-	if (atomic_read(&bat_priv->fragmentation))
-		goto out;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -286,22 +255,40 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		min_mtu = min_t(int, hard_iface->net_dev->mtu - max_header_len,
-				min_mtu);
+		min_mtu = min_t(int, hard_iface->net_dev->mtu, min_mtu);
 	}
 	rcu_read_unlock();
+
+	atomic_set(&bat_priv->packet_size_max, min_mtu);
+
+	if (atomic_read(&bat_priv->fragmentation) == 0)
+		goto out;
+
+	/* with fragmentation enabled the maximum size of internally generated
+	 * packets such as translation table exchanges or tvlv containers, etc
+	 * has to be calculated
+	 */
+	min_mtu = min_t(int, min_mtu, BATADV_FRAG_MAX_FRAG_SIZE);
+	min_mtu -= sizeof(struct batadv_frag_packet);
+	min_mtu *= BATADV_FRAG_MAX_FRAGMENTS;
+	atomic_set(&bat_priv->packet_size_max, min_mtu);
+
+	/* with fragmentation enabled we can fragment external packets easily */
+	min_mtu = min_t(int, min_mtu, ETH_DATA_LEN);
+
 out:
-	return min_mtu;
+	return min_mtu - batadv_max_header_len();
 }
 
 /* adjusts the MTU if a new interface with a smaller MTU appeared. */
 void batadv_update_min_mtu(struct net_device *soft_iface)
 {
-	int min_mtu;
+	soft_iface->mtu = batadv_hardif_min_mtu(soft_iface);
 
-	min_mtu = batadv_hardif_min_mtu(soft_iface);
-	if (soft_iface->mtu != min_mtu)
-		soft_iface->mtu = min_mtu;
+	/* Check if the local translate table should be cleaned up to match a
+	 * new (and smaller) MTU.
+	 */
+	batadv_tt_local_resize_to_mtu(soft_iface);
 }
 
 static void
@@ -524,8 +511,12 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 	dev_put(hard_iface->soft_iface);
 
 	/* nobody uses this interface anymore */
-	if (!bat_priv->num_ifaces && autodel == BATADV_IF_CLEANUP_AUTO)
-		batadv_softif_destroy_sysfs(hard_iface->soft_iface);
+	if (!bat_priv->num_ifaces) {
+		batadv_gw_check_client_stop(bat_priv);
+
+		if (autodel == BATADV_IF_CLEANUP_AUTO)
+			batadv_softif_destroy_sysfs(hard_iface->soft_iface);
+	}
 
 	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
 	hard_iface->soft_iface = NULL;
