@@ -91,7 +91,8 @@
 #include "wusbhc.h"
 
 enum {
-	WA_SEGS_MAX = 255,
+	/* [WUSB] section 8.3.3 allocates 7 bits for the segment index. */
+	WA_SEGS_MAX = 128,
 };
 
 enum wa_seg_status {
@@ -588,7 +589,7 @@ static ssize_t __wa_xfer_setup_sizes(struct wa_xfer *xfer,
 			xfer->segs = 1;
 	}
 
-	if (xfer->segs >= WA_SEGS_MAX) {
+	if (xfer->segs > WA_SEGS_MAX) {
 		dev_err(dev, "BUG? oops, number of segments %zu bigger than %d\n",
 			(urb->transfer_buffer_length/xfer->seg_size),
 			WA_SEGS_MAX);
