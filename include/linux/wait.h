@@ -732,7 +732,7 @@ do {									\
 	int __ret = 0;							\
 	if (!(condition))						\
 		__ret = __wait_event_interruptible_lock_irq(wq,		\
-						condition, lock,)	\
+						condition, lock,);	\
 	__ret;								\
 })
 
