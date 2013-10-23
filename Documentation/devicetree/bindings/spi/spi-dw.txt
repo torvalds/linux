@@ -1,0 +1,30 @@
+* Synopsys DesignWare SPI
+
+Required properties :
+ - compatible : should contain "snps,dw-spi-mmio"
+ - reg : Offset and length of the register set for the device
+ - interrupts : should contain the interrupt number in the
+		appropriate format for IRQ controller
+
+Recommended properties :
+ - num-chipselect : total number of chipselects
+ - bus-num : The bus that SPI is on.
+
+Optional properties :
+ - tx-dma-channel : tx dma channel to use for SPI TX
+ - rx-dma-channel : rx dma channel to use for SPI RX
+ - clocks : clock source
+
+Example :
+	spi0: spi@fff00000 {
+		compatible = "snps,dw-spi-mmio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0xfff00000 0x1000>;
+		interrupts = <0 154 4>;
+		num-chipselect = <4>;
+		bus-num = <0>;
+		tx-dma-channel = <&pdma 16>;
+		rx-dma-channel = <&pdma 17>;
+		clocks = <&per_base_clk>;
+	};
