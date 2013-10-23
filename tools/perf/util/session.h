@@ -7,6 +7,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "thread.h"
+#include "data.h"
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
@@ -29,16 +30,13 @@ struct ordered_samples {
 
 struct perf_session {
 	struct perf_header	header;
-	unsigned long		size;
 	struct machines		machines;
 	struct perf_evlist	*evlist;
 	struct pevent		*pevent;
 	struct events_stats	stats;
-	int			fd;
-	bool			fd_pipe;
 	bool			repipe;
 	struct ordered_samples	ordered_samples;
-	char			filename[1];
+	struct perf_data_file	*file;
 };
 
 #define PRINT_IP_OPT_IP		(1<<0)
@@ -49,9 +47,8 @@ struct perf_session {
 
 struct perf_tool;
 
-struct perf_session *perf_session__new(const char *filename, int mode,
-				       bool force, bool repipe,
-				       struct perf_tool *tool);
+struct perf_session *perf_session__new(struct perf_data_file *file,
+				       bool repipe, struct perf_tool *tool);
 void perf_session__delete(struct perf_session *session);
 
 void perf_event_header__bswap(struct perf_event_header *self);

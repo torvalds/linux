@@ -36,6 +36,7 @@
 #include "util/session.h"
 #include "util/svghelper.h"
 #include "util/tool.h"
+#include "util/data.h"
 
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
@@ -990,8 +991,13 @@ static int __cmd_timechart(const char *output_name)
 		{ "power:power_frequency",	process_sample_power_frequency },
 #endif
 	};
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &perf_timechart);
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
+
+	struct perf_session *session = perf_session__new(&file, false,
+							 &perf_timechart);
 	int ret = -EINVAL;
 
 	if (session == NULL)

@@ -951,7 +951,10 @@ fail:
 
 struct trace {
 	struct perf_tool	tool;
-	int			audit_machine;
+	struct {
+		int		machine;
+		int		open_id;
+	}			audit;
 	struct {
 		int		max;
 		struct syscall  *table;
@@ -965,40 +968,24 @@ struct trace {
 	struct strlist		*ev_qualifier;
 	bool			not_ev_qualifier;
 	bool			live;
+	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
 	bool			sched;
 	bool			multiple_threads;
 	bool			summary;
 	bool			show_comm;
+	bool			show_tool_stats;
 	double			duration_filter;
 	double			runtime_ms;
+	struct {
+		u64		vfs_getname, proc_getname;
+	} stats;
 };
 
-static int thread__read_fd_path(struct thread *thread, int fd)
+static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pathname)
 {
 	struct thread_trace *ttrace = thread->priv;
-	char linkname[PATH_MAX], pathname[PATH_MAX];
-	struct stat st;
-	int ret;
-
-	if (thread->pid_ == thread->tid) {
-		scnprintf(linkname, sizeof(linkname),
-			  "/proc/%d/fd/%d", thread->pid_, fd);
-	} else {
-		scnprintf(linkname, sizeof(linkname),
-			  "/proc/%d/task/%d/fd/%d", thread->pid_, thread->tid, fd);
-	}
-
-	if (lstat(linkname, &st) < 0 || st.st_size + 1 > (off_t)sizeof(pathname))
-		return -1;
-
-	ret = readlink(linkname, pathname, sizeof(pathname));
-
-	if (ret < 0 || ret > st.st_size)
-		return -1;
-
-	pathname[ret] = '\0';
 
 	if (fd > ttrace->paths.max) {
 		char **npath = realloc(ttrace->paths.table, (fd + 1) * sizeof(char *));
@@ -1022,7 +1009,34 @@ static int thread__read_fd_path(struct thread *thread, int fd)
 	return ttrace->paths.table[fd] != NULL ? 0 : -1;
 }
 
-static const char *thread__fd_path(struct thread *thread, int fd, bool live)
+static int thread__read_fd_path(struct thread *thread, int fd)
+{
+	char linkname[PATH_MAX], pathname[PATH_MAX];
+	struct stat st;
+	int ret;
+
+	if (thread->pid_ == thread->tid) {
+		scnprintf(linkname, sizeof(linkname),
+			  "/proc/%d/fd/%d", thread->pid_, fd);
+	} else {
+		scnprintf(linkname, sizeof(linkname),
+			  "/proc/%d/task/%d/fd/%d", thread->pid_, thread->tid, fd);
+	}
+
+	if (lstat(linkname, &st) < 0 || st.st_size + 1 > (off_t)sizeof(pathname))
+		return -1;
+
+	ret = readlink(linkname, pathname, sizeof(pathname));
+
+	if (ret < 0 || ret > st.st_size)
+		return -1;
+
+	pathname[ret] = '\0';
+	return trace__set_fd_pathname(thread, fd, pathname);
+}
+
+static const char *thread__fd_path(struct thread *thread, int fd,
+				   struct trace *trace)
 {
 	struct thread_trace *ttrace = thread->priv;
 
@@ -1032,9 +1046,13 @@ static const char *thread__fd_path(struct thread *thread, int fd, bool live)
 	if (fd < 0)
 		return NULL;
 
-	if ((fd > ttrace->paths.max || ttrace->paths.table[fd] == NULL) &&
-	    (!live || thread__read_fd_path(thread, fd)))
-		return NULL;
+	if ((fd > ttrace->paths.max || ttrace->paths.table[fd] == NULL))
+		if (!trace->live)
+			return NULL;
+		++trace->stats.proc_getname;
+		if (thread__read_fd_path(thread, fd)) {
+			return NULL;
+	}
 
 	return ttrace->paths.table[fd];
 }
@@ -1044,7 +1062,7 @@ static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
 {
 	int fd = arg->val;
 	size_t printed = scnprintf(bf, size, "%d", fd);
-	const char *path = thread__fd_path(arg->thread, fd, arg->trace->live);
+	const char *path = thread__fd_path(arg->thread, fd, arg->trace);
 
 	if (path)
 		printed += scnprintf(bf + printed, size - printed, "<%s>", path);
@@ -1080,10 +1098,12 @@ static size_t trace__fprintf_tstamp(struct trace *trace, u64 tstamp, FILE *fp)
 }
 
 static bool done = false;
+static bool interrupted = false;
 
-static void sig_handler(int sig __maybe_unused)
+static void sig_handler(int sig)
 {
 	done = true;
+	interrupted = sig == SIGINT;
 }
 
 static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
@@ -1181,7 +1201,7 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
 	struct syscall *sc;
-	const char *name = audit_syscall_to_name(id, trace->audit_machine);
+	const char *name = audit_syscall_to_name(id, trace->audit.machine);
 
 	if (name == NULL)
 		return -1;
@@ -1445,6 +1465,12 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ret = perf_evsel__intval(evsel, sample, "ret");
 
+	if (id == trace->audit.open_id && ret >= 0 && trace->last_vfs_getname) {
+		trace__set_fd_pathname(thread, ret, trace->last_vfs_getname);
+		trace->last_vfs_getname = NULL;
+		++trace->stats.vfs_getname;
+	}
+
 	ttrace = thread->priv;
 
 	ttrace->exit_time = sample->time;
@@ -1486,6 +1512,13 @@ signed_print:
 out:
 	ttrace->entry_pending = false;
 
+	return 0;
+}
+
+static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
+			      struct perf_sample *sample)
+{
+	trace->last_vfs_getname = perf_evsel__rawptr(evsel, sample, "pathname");
 	return 0;
 }
 
@@ -1611,6 +1644,22 @@ static int trace__record(int argc, const char **argv)
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 
+static void perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname",
+						     evlist->nr_entries);
+	if (evsel == NULL)
+		return;
+
+	if (perf_evsel__field(evsel, "pathname") == NULL) {
+		perf_evsel__delete(evsel);
+		return;
+	}
+
+	evsel->handler.func = trace__vfs_getname;
+	perf_evlist__add(evlist, evsel);
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = perf_evlist__new();
@@ -1629,6 +1678,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_enter", trace__sys_enter) ||
 		perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit))
 		goto out_error_tp;
+
+	perf_evlist__add_vfs_getname(evlist);
 
 	if (trace->sched &&
 		perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
@@ -1662,10 +1713,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	err = perf_evlist__open(evlist);
-	if (err < 0) {
-		fprintf(trace->output, "Couldn't create the events: %s\n", strerror(errno));
-		goto out_delete_maps;
-	}
+	if (err < 0)
+		goto out_error_open;
 
 	err = perf_evlist__mmap(evlist, UINT_MAX, false);
 	if (err < 0) {
@@ -1722,26 +1771,35 @@ again:
 			handler = evsel->handler.func;
 			handler(trace, evsel, &sample);
 
-			if (done)
-				goto out_unmap_evlist;
+			if (interrupted)
+				goto out_disable;
 		}
 	}
 
 	if (trace->nr_events == before) {
-		if (done)
-			goto out_unmap_evlist;
+		int timeout = done ? 100 : -1;
 
-		poll(evlist->pollfd, evlist->nr_fds, -1);
+		if (poll(evlist->pollfd, evlist->nr_fds, timeout) > 0)
+			goto again;
+	} else {
+		goto again;
 	}
 
-	if (done)
-		perf_evlist__disable(evlist);
+out_disable:
+	perf_evlist__disable(evlist);
 
-	goto again;
+	if (!err) {
+		if (trace->summary)
+			trace__fprintf_thread_summary(trace, trace->output);
 
-out_unmap_evlist:
-	if (!err && trace->summary)
-		trace__fprintf_thread_summary(trace, trace->output);
+		if (trace->show_tool_stats) {
+			fprintf(trace->output, "Stats:\n "
+					       " vfs_getname : %" PRIu64 "\n"
+					       " proc_getname: %" PRIu64 "\n",
+				trace->stats.vfs_getname,
+				trace->stats.proc_getname);
+		}
+	}
 
 	perf_evlist__munmap(evlist);
 out_close_evlist:
@@ -1753,29 +1811,20 @@ out_delete_evlist:
 out:
 	trace->live = false;
 	return err;
+{
+	char errbuf[BUFSIZ];
+
 out_error_tp:
-	switch(errno) {
-	case ENOENT:
-		fputs("Error:\tUnable to find debugfs\n"
-		      "Hint:\tWas your kernel was compiled with debugfs support?\n"
-		      "Hint:\tIs the debugfs filesystem mounted?\n"
-		      "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'\n",
-		      trace->output);
-		break;
-	case EACCES:
-		fprintf(trace->output,
-			"Error:\tNo permissions to read %s/tracing/events/raw_syscalls\n"
-			"Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			debugfs_mountpoint, debugfs_mountpoint);
-		break;
-	default: {
-		char bf[256];
-		fprintf(trace->output, "Can't trace: %s\n",
-			strerror_r(errno, bf, sizeof(bf)));
-	}
-		break;
-	}
+	perf_evlist__strerror_tp(evlist, errno, errbuf, sizeof(errbuf));
+	goto out_error;
+
+out_error_open:
+	perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+
+out_error:
+	fprintf(trace->output, "%s\n", errbuf);
 	goto out_delete_evlist;
+}
 }
 
 static int trace__replay(struct trace *trace)
@@ -1783,8 +1832,12 @@ static int trace__replay(struct trace *trace)
 	const struct perf_evsel_str_handler handlers[] = {
 		{ "raw_syscalls:sys_enter",  trace__sys_enter, },
 		{ "raw_syscalls:sys_exit",   trace__sys_exit, },
+		{ "probe:vfs_getname",	     trace__vfs_getname, },
 	};
-
+	struct perf_data_file file = {
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+	};
 	struct perf_session *session;
 	int err = -1;
 
@@ -1807,8 +1860,7 @@ static int trace__replay(struct trace *trace)
 	if (symbol__init() < 0)
 		return -1;
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false,
-				    &trace->tool);
+	session = perf_session__new(&file, false, &trace->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -1992,7 +2044,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct trace trace = {
-		.audit_machine = audit_detect_machine(),
+		.audit = {
+			.machine = audit_detect_machine(),
+			.open_id = audit_name_to_syscall("open", trace.audit.machine),
+		},
 		.syscalls = {
 			. max = -1,
 		},
@@ -2014,6 +2069,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	const struct option trace_options[] = {
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
+	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),
 	OPT_STRING('e', "expr", &ev_qualifier_str, "expr",
 		    "list of events to trace"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),

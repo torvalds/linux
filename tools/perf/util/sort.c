@@ -182,8 +182,18 @@ static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	int64_t ret;
+
 	if (!left->ms.sym && !right->ms.sym)
 		return right->level - left->level;
+
+	/*
+	 * comparing symbol address alone is not enough since it's a
+	 * relative address within a dso.
+	 */
+	ret = sort__dso_cmp(left, right);
+	if (ret != 0)
+		return ret;
 
 	return _sort__sym_cmp(left->ms.sym, right->ms.sym);
 }

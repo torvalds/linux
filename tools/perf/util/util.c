@@ -394,3 +394,20 @@ unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
 
 	return (unsigned long) -1;
 }
+
+int filename__read_int(const char *filename, int *value)
+{
+	char line[64];
+	int fd = open(filename, O_RDONLY), err = -1;
+
+	if (fd < 0)
+		return -1;
+
+	if (read(fd, line, sizeof(line)) > 0) {
+		*value = atoi(line);
+		err = 0;
+	}
+
+	close(fd);
+	return err;
+}

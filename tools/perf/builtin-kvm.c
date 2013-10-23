@@ -17,6 +17,7 @@
 #include "util/tool.h"
 #include "util/stat.h"
 #include "util/top.h"
+#include "util/data.h"
 
 #include <sys/prctl.h>
 #include <sys/timerfd.h>
@@ -1215,10 +1216,13 @@ static int read_events(struct perf_kvm_stat *kvm)
 		.comm			= perf_event__process_comm,
 		.ordered_samples	= true,
 	};
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 
 	kvm->tool = eops;
-	kvm->session = perf_session__new(kvm->file_name, O_RDONLY, 0, false,
-					 &kvm->tool);
+	kvm->session = perf_session__new(&file, false, &kvm->tool);
 	if (!kvm->session) {
 		pr_err("Initializing perf session failed\n");
 		return -EINVAL;
@@ -1450,6 +1454,9 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		"perf kvm stat live [<options>]",
 		NULL
 	};
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_WRITE,
+	};
 
 
 	/* event handling */
@@ -1514,7 +1521,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * perf session
 	 */
-	kvm->session = perf_session__new(NULL, O_WRONLY, false, false, &kvm->tool);
+	kvm->session = perf_session__new(&file, false, &kvm->tool);
 	if (kvm->session == NULL) {
 		err = -ENOMEM;
 		goto out;

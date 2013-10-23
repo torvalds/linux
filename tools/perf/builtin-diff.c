@@ -16,6 +16,7 @@
 #include "util/sort.h"
 #include "util/symbol.h"
 #include "util/util.h"
+#include "util/data.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -42,7 +43,7 @@ struct diff_hpp_fmt {
 
 struct data__file {
 	struct perf_session	*session;
-	const char		*file;
+	struct perf_data_file	file;
 	int			 idx;
 	struct hists		*hists;
 	struct diff_hpp_fmt	 fmt[PERF_HPP_DIFF__MAX_INDEX];
@@ -601,7 +602,7 @@ static void data__fprintf(void)
 
 	data__for_each_file(i, d)
 		fprintf(stdout, "#  [%d] %s %s\n",
-			d->idx, d->file,
+			d->idx, d->file.path,
 			!d->idx ? "(Baseline)" : "");
 
 	fprintf(stdout, "#\n");
@@ -663,17 +664,16 @@ static int __cmd_diff(void)
 	int ret = -EINVAL, i;
 
 	data__for_each_file(i, d) {
-		d->session = perf_session__new(d->file, O_RDONLY, force,
-					       false, &tool);
+		d->session = perf_session__new(&d->file, false, &tool);
 		if (!d->session) {
-			pr_err("Failed to open %s\n", d->file);
+			pr_err("Failed to open %s\n", d->file.path);
 			ret = -ENOMEM;
 			goto out_delete;
 		}
 
 		ret = perf_session__process_events(d->session, &tool);
 		if (ret) {
-			pr_err("Failed to process %s\n", d->file);
+			pr_err("Failed to process %s\n", d->file.path);
 			goto out_delete;
 		}
 
@@ -1016,7 +1016,12 @@ static int data_init(int argc, const char **argv)
 		return -ENOMEM;
 
 	data__for_each_file(i, d) {
-		d->file = use_default ? defaults[i] : argv[i];
+		struct perf_data_file *file = &d->file;
+
+		file->path  = use_default ? defaults[i] : argv[i];
+		file->mode  = PERF_DATA_MODE_READ,
+		file->force = force,
+
 		d->idx  = i;
 	}
 

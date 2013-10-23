@@ -998,8 +998,10 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 
-	if (debugfs_valid_mountpoint(tracing_events_path))
+	if (debugfs_valid_mountpoint(tracing_events_path)) {
+		printf("  [ Tracepoints not available: %s ]\n", strerror(errno));
 		return;
+	}
 
 	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)

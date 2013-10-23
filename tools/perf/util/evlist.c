@@ -608,9 +608,36 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist, int prot, int mask)
+static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
+				       int prot, int mask, int cpu, int thread,
+				       int *output)
 {
 	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		int fd = FD(evsel, cpu, thread);
+
+		if (*output == -1) {
+			*output = fd;
+			if (__perf_evlist__mmap(evlist, idx, prot, mask,
+						*output) < 0)
+				return -1;
+		} else {
+			if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT, *output) != 0)
+				return -1;
+		}
+
+		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+		    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist, int prot,
+				     int mask)
+{
 	int cpu, thread;
 	int nr_cpus = cpu_map__nr(evlist->cpus);
 	int nr_threads = thread_map__nr(evlist->threads);
@@ -620,23 +647,9 @@ static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist, int prot, int m
 		int output = -1;
 
 		for (thread = 0; thread < nr_threads; thread++) {
-			list_for_each_entry(evsel, &evlist->entries, node) {
-				int fd = FD(evsel, cpu, thread);
-
-				if (output == -1) {
-					output = fd;
-					if (__perf_evlist__mmap(evlist, cpu,
-								prot, mask, output) < 0)
-						goto out_unmap;
-				} else {
-					if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT, output) != 0)
-						goto out_unmap;
-				}
-
-				if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-				    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
-					goto out_unmap;
-			}
+			if (perf_evlist__mmap_per_evsel(evlist, cpu, prot, mask,
+							cpu, thread, &output))
+				goto out_unmap;
 		}
 	}
 
@@ -648,9 +661,9 @@ out_unmap:
 	return -1;
 }
 
-static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist, int prot, int mask)
+static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist, int prot,
+					int mask)
 {
-	struct perf_evsel *evsel;
 	int thread;
 	int nr_threads = thread_map__nr(evlist->threads);
 
@@ -658,23 +671,9 @@ static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist, int prot, in
 	for (thread = 0; thread < nr_threads; thread++) {
 		int output = -1;
 
-		list_for_each_entry(evsel, &evlist->entries, node) {
-			int fd = FD(evsel, 0, thread);
-
-			if (output == -1) {
-				output = fd;
-				if (__perf_evlist__mmap(evlist, thread,
-							prot, mask, output) < 0)
-					goto out_unmap;
-			} else {
-				if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT, output) != 0)
-					goto out_unmap;
-			}
-
-			if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-			    perf_evlist__id_add_fd(evlist, evsel, 0, thread, fd) < 0)
-				goto out_unmap;
-		}
+		if (perf_evlist__mmap_per_evsel(evlist, thread, prot, mask, 0,
+						thread, &output))
+			goto out_unmap;
 	}
 
 	return 0;
@@ -738,20 +737,17 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 	return 0;
 }
 
-/** perf_evlist__mmap - Create per cpu maps to receive events
+/**
+ * perf_evlist__mmap - Create mmaps to receive events.
+ * @evlist: list of events
+ * @pages: map length in pages
+ * @overwrite: overwrite older events?
  *
- * @evlist - list of events
- * @pages - map length in pages
- * @overwrite - overwrite older events?
+ * If @overwrite is %false the user needs to signal event consumption using
+ * perf_mmap__write_tail().  Using perf_evlist__mmap_read() does this
+ * automatically.
  *
- * If overwrite is false the user needs to signal event consuption using:
- *
- *	struct perf_mmap *m = &evlist->mmap[cpu];
- *	unsigned int head = perf_mmap__read_head(m);
- *
- *	perf_mmap__write_tail(m, head)
- *
- * Using perf_evlist__read_on_cpu does this automatically.
+ * Return: %0 on success, negative error code otherwise.
  */
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite)
@@ -769,7 +765,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 
 	evlist->overwrite = overwrite;
 	evlist->mmap_len = perf_evlist__mmap_size(pages);
-	pr_debug("mmap size %luB\n", evlist->mmap_len);
+	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mask = evlist->mmap_len - page_size - 1;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
@@ -1125,4 +1121,67 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 	}
 
 	return printed + fprintf(fp, "\n");;
+}
+
+int perf_evlist__strerror_tp(struct perf_evlist *evlist __maybe_unused,
+			     int err, char *buf, size_t size)
+{
+	char sbuf[128];
+
+	switch (err) {
+	case ENOENT:
+		scnprintf(buf, size, "%s",
+			  "Error:\tUnable to find debugfs\n"
+			  "Hint:\tWas your kernel was compiled with debugfs support?\n"
+			  "Hint:\tIs the debugfs filesystem mounted?\n"
+			  "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
+		break;
+	case EACCES:
+		scnprintf(buf, size,
+			  "Error:\tNo permissions to read %s/tracing/events/raw_syscalls\n"
+			  "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
+			  debugfs_mountpoint, debugfs_mountpoint);
+		break;
+	default:
+		scnprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));
+		break;
+	}
+
+	return 0;
+}
+
+int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
+			       int err, char *buf, size_t size)
+{
+	int printed, value;
+	char sbuf[128], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
+
+	switch (err) {
+	case EACCES:
+	case EPERM:
+		printed = scnprintf(buf, size,
+				    "Error:\t%s.\n"
+				    "Hint:\tCheck /proc/sys/kernel/perf_event_paranoid setting.", emsg);
+
+		if (filename__read_int("/proc/sys/kernel/perf_event_paranoid", &value))
+			break;
+
+		printed += scnprintf(buf + printed, size - printed, "\nHint:\t");
+
+		if (value >= 2) {
+			printed += scnprintf(buf + printed, size - printed,
+					     "For your workloads it needs to be <= 1\nHint:\t");
+		}
+		printed += scnprintf(buf + printed, size - printed,
+				     "For system wide tracing it needs to be set to -1");
+
+		printed += scnprintf(buf + printed, size - printed,
+				    ".\nHint:\tThe current value is %d.", value);
+		break;
+	default:
+		scnprintf(buf, size, "%s", emsg);
+		break;
+	}
+
+	return 0;
 }

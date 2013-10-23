@@ -141,6 +141,14 @@ OPTIONS
 
 	Default: fractal,0.5,callee,function.
 
+--max-stack::
+	Set the stack depth limit when parsing the callchain, anything
+	beyond the specified depth will be ignored. This is a trade-off
+	between information loss and faster processing especially for
+	workloads that can have a very long callchain stack.
+
+	Default: 127
+
 -G::
 --inverted::
         alias for inverted caller based call graph.

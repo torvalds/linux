@@ -92,7 +92,8 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct thread *thread,
 			       struct perf_sample *sample,
 			       struct symbol **parent,
-			       struct addr_location *root_al);
+			       struct addr_location *root_al,
+			       int max_stack);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms

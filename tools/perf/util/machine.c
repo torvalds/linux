@@ -1253,10 +1253,12 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 					     struct thread *thread,
 					     struct ip_callchain *chain,
 					     struct symbol **parent,
-					     struct addr_location *root_al)
+					     struct addr_location *root_al,
+					     int max_stack)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	unsigned int i;
+	int chain_nr = min(max_stack, (int)chain->nr);
+	int i;
 	int err;
 
 	callchain_cursor_reset(&callchain_cursor);
@@ -1266,7 +1268,7 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 		return 0;
 	}
 
-	for (i = 0; i < chain->nr; i++) {
+	for (i = 0; i < chain_nr; i++) {
 		u64 ip;
 		struct addr_location al;
 
@@ -1338,12 +1340,14 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct thread *thread,
 			       struct perf_sample *sample,
 			       struct symbol **parent,
-			       struct addr_location *root_al)
+			       struct addr_location *root_al,
+			       int max_stack)
 {
 	int ret;
 
 	ret = machine__resolve_callchain_sample(machine, thread,
-						sample->callchain, parent, root_al);
+						sample->callchain, parent,
+						root_al, max_stack);
 	if (ret)
 		return ret;
 

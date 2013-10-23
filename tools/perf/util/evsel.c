@@ -986,6 +986,7 @@ static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
 	ret += PRINT_ATTR2(exclude_host, exclude_guest);
 	ret += PRINT_ATTR2N("excl.callchain_kern", exclude_callchain_kernel,
 			    "excl.callchain_user", exclude_callchain_user);
+	ret += PRINT_ATTR_U32(mmap2);
 
 	ret += PRINT_ATTR_U32(wakeup_events);
 	ret += PRINT_ATTR_U32(wakeup_watermark);
@@ -1217,6 +1218,7 @@ static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
 
 		sample->pid = u.val32[0];
 		sample->tid = u.val32[1];
+		array--;
 	}
 
 	return 0;
