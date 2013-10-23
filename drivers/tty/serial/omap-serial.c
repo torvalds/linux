@@ -177,7 +177,7 @@ struct uart_omap_port {
 	bool			is_suspending;
 };
 
-#define to_uart_omap_port(p)	((container_of((p), struct uart_omap_port, port)))
+#define to_uart_omap_port(p) ((container_of((p), struct uart_omap_port, port)))
 
 static struct uart_omap_port *ui[OMAP_MAX_HSUART_PORTS];
 
@@ -257,9 +257,9 @@ serial_omap_baud_is_mode16(struct uart_port *port, unsigned int baud)
 	unsigned int n16 = port->uartclk / (16 * baud);
 	int baudAbsDiff13 = baud - (port->uartclk / (13 * n13));
 	int baudAbsDiff16 = baud - (port->uartclk / (16 * n16));
-	if(baudAbsDiff13 < 0)
+	if (baudAbsDiff13 < 0)
 		baudAbsDiff13 = -baudAbsDiff13;
-	if(baudAbsDiff16 < 0)
+	if (baudAbsDiff16 < 0)
 		baudAbsDiff16 = -baudAbsDiff16;
 
 	return (baudAbsDiff13 >= baudAbsDiff16);
@@ -316,9 +316,8 @@ static void serial_omap_stop_tx(struct uart_port *port)
 			serial_out(up, UART_OMAP_SCR, up->scr);
 			res = (up->rs485.flags & SER_RS485_RTS_AFTER_SEND) ? 1 : 0;
 			if (gpio_get_value(up->rts_gpio) != res) {
-				if (up->rs485.delay_rts_after_send > 0) {
+				if (up->rs485.delay_rts_after_send > 0)
 					mdelay(up->rs485.delay_rts_after_send);
-				}
 				gpio_set_value(up->rts_gpio, res);
 			}
 		} else {
@@ -422,9 +421,8 @@ static void serial_omap_start_tx(struct uart_port *port)
 		res = (up->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
 		if (gpio_get_value(up->rts_gpio) != res) {
 			gpio_set_value(up->rts_gpio, res);
-			if (up->rs485.delay_rts_before_send > 0) {
+			if (up->rs485.delay_rts_before_send > 0)
 				mdelay(up->rs485.delay_rts_before_send);
-			}
 		}
 	}
 
@@ -1724,8 +1722,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.uartclk = omap_up_info->uartclk;
 	if (!up->port.uartclk) {
 		up->port.uartclk = DEFAULT_CLK_SPEED;
-		dev_warn(&pdev->dev, "No clock speed specified: using default:"
-						"%d\n", DEFAULT_CLK_SPEED);
+		dev_warn(&pdev->dev,
+			 "No clock speed specified: using default: %d\n"
+			 DEFAULT_CLK_SPEED);
 	}
 
 	up->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
