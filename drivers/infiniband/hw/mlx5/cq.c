@@ -750,17 +750,9 @@ int mlx5_ib_destroy_cq(struct ib_cq *cq)
 	return 0;
 }
 
-static int is_equal_rsn(struct mlx5_cqe64 *cqe64, struct mlx5_ib_srq *srq,
-			u32 rsn)
+static int is_equal_rsn(struct mlx5_cqe64 *cqe64, u32 rsn)
 {
-	u32 lrsn;
-
-	if (srq)
-		lrsn = be32_to_cpu(cqe64->srqn) & 0xffffff;
-	else
-		lrsn = be32_to_cpu(cqe64->sop_drop_qpn) & 0xffffff;
-
-	return rsn == lrsn;
+	return rsn == (ntohl(cqe64->sop_drop_qpn) & 0xffffff);
 }
 
 void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
@@ -790,8 +782,8 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
 	while ((int) --prod_index - (int) cq->mcq.cons_index >= 0) {
 		cqe = get_cqe(cq, prod_index & cq->ibcq.cqe);
 		cqe64 = (cq->mcq.cqe_sz == 64) ? cqe : cqe + 64;
-		if (is_equal_rsn(cqe64, srq, rsn)) {
-			if (srq)
+		if (is_equal_rsn(cqe64, rsn)) {
+			if (srq && (ntohl(cqe64->srqn) & 0xffffff))
 				mlx5_ib_free_srq_wqe(srq, be16_to_cpu(cqe64->wqe_counter));
 			++nfreed;
 		} else if (nfreed) {
