@@ -164,7 +164,7 @@ struct iwl_mvm_power_ops {
 	int (*power_update_device_mode)(struct iwl_mvm *mvm);
 	int (*power_disable)(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 	void (*power_update_binding)(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif);
+				     struct ieee80211_vif *vif, bool assign);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	int (*power_dbgfs_read)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				char *buf, int bufsz);
@@ -568,6 +568,9 @@ struct iwl_mvm {
 	u8 last_agg_queue;
 
 	u8 bound_vif_cnt;
+
+	/* Indicate if device power save is allowed */
+	bool ps_prevented;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -787,10 +790,11 @@ static inline int iwl_mvm_power_update_device_mode(struct iwl_mvm *mvm)
 }
 
 static inline void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
-						struct ieee80211_vif *vif)
+						struct ieee80211_vif *vif,
+						bool assign)
 {
 	if (mvm->pm_ops->power_update_binding)
-		mvm->pm_ops->power_update_binding(mvm, vif);
+		mvm->pm_ops->power_update_binding(mvm, vif, assign);
 }
 
 void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

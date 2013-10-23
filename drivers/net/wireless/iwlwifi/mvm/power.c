@@ -301,7 +301,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
 	cmd->keep_alive_seconds = cpu_to_le16(keep_alive);
 
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM ||
+	    mvm->ps_prevented)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
@@ -447,7 +448,7 @@ static int iwl_mvm_power_mac_disable(struct iwl_mvm *mvm,
 				    sizeof(cmd), &cmd);
 }
 
-static int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
+static int _iwl_mvm_power_update_device(struct iwl_mvm *mvm, bool force_disable)
 {
 	struct iwl_device_power_cmd cmd = {
 		.flags = cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
@@ -456,7 +457,8 @@ static int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
 		return 0;
 
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM ||
+	    force_disable)
 		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_CAM_MSK);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -471,6 +473,11 @@ static int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 
 	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC, sizeof(cmd),
 				    &cmd);
+}
+
+static int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
+{
+	return _iwl_mvm_power_update_device(mvm, false);
 }
 
 void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -525,8 +532,15 @@ static void iwl_mvm_power_binding_iterator(void *_data, u8 *mac,
 }
 
 static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
-					  struct ieee80211_vif *vif)
+					  struct ieee80211_vif *vif,
+					  bool assign)
 {
+	if (vif->type == NL80211_IFTYPE_MONITOR) {
+		int ret = _iwl_mvm_power_update_device(mvm, assign);
+		mvm->ps_prevented = assign;
+		WARN_ONCE(ret, "Failed to update power device state\n");
+	}
+
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_power_binding_iterator,
