@@ -420,13 +420,9 @@ static inline void skd_reg_write32(struct skd_device *skdev, u32 val,
 	if (likely(skdev->dbg_level < 2)) {
 		writel(val, skdev->mem_map[1] + offset);
 		barrier();
-		readl(skdev->mem_map[1] + offset);
-		barrier();
 	} else {
 		barrier();
 		writel(val, skdev->mem_map[1] + offset);
-		barrier();
-		readl(skdev->mem_map[1] + offset);
 		barrier();
 		VPRINTK(skdev, "offset %x = %x\n", offset, val);
 	}
@@ -438,13 +434,9 @@ static inline void skd_reg_write64(struct skd_device *skdev, u64 val,
 	if (likely(skdev->dbg_level < 2)) {
 		writeq(val, skdev->mem_map[1] + offset);
 		barrier();
-		readq(skdev->mem_map[1] + offset);
-		barrier();
 	} else {
 		barrier();
 		writeq(val, skdev->mem_map[1] + offset);
-		barrier();
-		readq(skdev->mem_map[1] + offset);
 		barrier();
 		VPRINTK(skdev, "offset %x = %016llx\n", offset, val);
 	}
@@ -1656,18 +1648,36 @@ static int skd_ioctl_sg_io(struct skd_device *skdev, fmode_t mode,
 		goto out;
 	}
 
-	if ((rc = skd_sg_io_get_and_check_args(skdev, &sksgio)) ||
-	    (rc = skd_sg_io_obtain_skspcl(skdev, &sksgio)) ||
-	    (rc = skd_sg_io_prep_buffering(skdev, &sksgio)) ||
-	    (rc = skd_sg_io_copy_buffer(skdev, &sksgio, SG_DXFER_TO_DEV)))
+	rc = skd_sg_io_get_and_check_args(skdev, &sksgio);
+	if (rc)
 		goto out;
 
-	if ((rc = skd_sg_io_send_fitmsg(skdev, &sksgio)) ||
-	    (rc = skd_sg_io_await(skdev, &sksgio)))
+	rc = skd_sg_io_obtain_skspcl(skdev, &sksgio);
+	if (rc)
 		goto out;
 
-	if ((rc = skd_sg_io_copy_buffer(skdev, &sksgio, SG_DXFER_FROM_DEV)) ||
-	    (rc = skd_sg_io_put_status(skdev, &sksgio)))
+	rc = skd_sg_io_prep_buffering(skdev, &sksgio);
+	if (rc)
+		goto out;
+
+	rc = skd_sg_io_copy_buffer(skdev, &sksgio, SG_DXFER_TO_DEV);
+	if (rc)
+		goto out;
+
+	rc = skd_sg_io_send_fitmsg(skdev, &sksgio);
+	if (rc)
+		goto out;
+
+	rc = skd_sg_io_await(skdev, &sksgio);
+	if (rc)
+		goto out;
+
+	rc = skd_sg_io_copy_buffer(skdev, &sksgio, SG_DXFER_FROM_DEV);
+	if (rc)
+		goto out;
+
+	rc = skd_sg_io_put_status(skdev, &sksgio);
+	if (rc)
 		goto out;
 
 	rc = 0;
@@ -4556,11 +4566,10 @@ static int skd_cons_skmsg(struct skd_device *skdev)
 	int rc = 0;
 	u32 i;
 
-	VPRINTK(skdev, "skmsg_table kzalloc, struct %u, count %u total %lu\n",
+	VPRINTK(skdev, "skmsg_table kzalloc, struct %lu, count %u total %lu\n",
 		sizeof(struct skd_fitmsg_context),
 		skdev->num_fitmsg_context,
-		(unsigned long) sizeof(struct skd_fitmsg_context) *
-					skdev->num_fitmsg_context);
+		sizeof(struct skd_fitmsg_context) * skdev->num_fitmsg_context);
 
 	skdev->skmsg_table = kzalloc(sizeof(struct skd_fitmsg_context)
 				     *skdev->num_fitmsg_context, GFP_KERNEL);
@@ -4611,7 +4620,7 @@ static int skd_cons_skreq(struct skd_device *skdev)
 	int rc = 0;
 	u32 i;
 
-	VPRINTK(skdev, "skreq_table kzalloc, struct %u, count %u total %u\n",
+	VPRINTK(skdev, "skreq_table kzalloc, struct %lu, count %u total %lu\n",
 		sizeof(struct skd_request_context),
 		skdev->num_req_context,
 		sizeof(struct skd_request_context) * skdev->num_req_context);
@@ -4623,7 +4632,7 @@ static int skd_cons_skreq(struct skd_device *skdev)
 		goto err_out;
 	}
 
-	VPRINTK(skdev, "alloc sg_table sg_per_req %u scatlist %u total %u\n",
+	VPRINTK(skdev, "alloc sg_table sg_per_req %u scatlist %lu total %lu\n",
 		skdev->sgs_per_request, sizeof(struct scatterlist),
 		skdev->sgs_per_request * sizeof(struct scatterlist));
 
@@ -4668,7 +4677,7 @@ static int skd_cons_skspcl(struct skd_device *skdev)
 	int rc = 0;
 	u32 i, nbytes;
 
-	VPRINTK(skdev, "skspcl_table kzalloc, struct %u, count %u total %u\n",
+	VPRINTK(skdev, "skspcl_table kzalloc, struct %lu, count %u total %lu\n",
 		sizeof(struct skd_special_context),
 		skdev->n_special,
 		sizeof(struct skd_special_context) * skdev->n_special);
