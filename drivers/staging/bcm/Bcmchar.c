@@ -49,11 +49,8 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
 
 	pTarang = (struct bcm_tarang_data *)filp->private_data;
 
-	if (pTarang == NULL) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-				"ptarang is null\n");
+	if (pTarang == NULL)
 		return 0;
-	}
 
 	Adapter = pTarang->Adapter;
 
