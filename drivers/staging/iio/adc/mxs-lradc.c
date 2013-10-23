@@ -868,10 +868,8 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 		return 0;
 
 	input = input_allocate_device();
-	if (!input) {
-		dev_err(dev, "Failed to allocate TS device!\n");
+	if (!input)
 		return -ENOMEM;
-	}
 
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
