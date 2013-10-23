@@ -318,7 +318,7 @@ static void imx6_pcie_host_init(struct pcie_port *pp)
 	while (!dw_pcie_link_up(pp)) {
 		usleep_range(100, 1000);
 		count++;
-		if (count >= 10) {
+		if (count >= 200) {
 			dev_err(pp->dev, "phy link never came up\n");
 			dev_dbg(pp->dev,
 				"DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
