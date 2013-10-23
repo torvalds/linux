@@ -1264,7 +1264,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		if (cp->val == 0x02) {
 			/* Limited discoverable mode */
-			hci_cp.num_iac = 2;
+			hci_cp.num_iac = min_t(u8, hdev->num_iac, 2);
 			hci_cp.iac_lap[0] = 0x00;	/* LIAC */
 			hci_cp.iac_lap[1] = 0x8b;
 			hci_cp.iac_lap[2] = 0x9e;
