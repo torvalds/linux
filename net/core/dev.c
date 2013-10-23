@@ -4648,6 +4648,7 @@ remove_symlinks:
 
 free_adj:
 	kfree(adj);
+	dev_put(adj_dev);
 
 	return ret;
 }
