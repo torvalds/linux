@@ -483,6 +483,7 @@ struct mlx5_priv {
 	struct rb_root		page_root;
 	int			fw_pages;
 	int			reg_pages;
+	struct list_head	free_list;
 
 	struct mlx5_core_health health;
 

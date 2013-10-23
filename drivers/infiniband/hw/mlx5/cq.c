@@ -620,7 +620,7 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	}
 	mlx5_fill_page_array(&cq->buf.buf, (*cqb)->pas);
 
-	(*cqb)->ctx.log_pg_sz = cq->buf.buf.page_shift - PAGE_SHIFT;
+	(*cqb)->ctx.log_pg_sz = cq->buf.buf.page_shift - 12;
 	*index = dev->mdev.priv.uuari.uars[0].index;
 
 	return 0;

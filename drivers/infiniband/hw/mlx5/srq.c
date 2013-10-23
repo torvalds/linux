@@ -123,7 +123,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_in;
 	}
 
-	(*in)->ctx.log_pg_sz = page_shift - PAGE_SHIFT;
+	(*in)->ctx.log_pg_sz = page_shift - 12;
 	(*in)->ctx.pgoff_cqn = cpu_to_be32(offset << 26);
 
 	return 0;
@@ -192,7 +192,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 	srq->wq_sig = !!srq_signature;
 
-	(*in)->ctx.log_pg_sz = page_shift - PAGE_SHIFT;
+	(*in)->ctx.log_pg_sz = page_shift - 12;
 
 	return 0;
 
