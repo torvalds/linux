@@ -46,7 +46,7 @@ struct uas_dev_info {
 	struct usb_anchor sense_urbs;
 	struct usb_anchor data_urbs;
 	int qdepth, resetting;
-	struct response_ui response;
+	struct response_iu response;
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
 	unsigned use_streams:1;
 	unsigned uas_sense_old:1;

@@ -79,7 +79,7 @@ struct sense_iu {
 	__u8 sense[SCSI_SENSE_BUFFERSIZE];
 };
 
-struct response_ui {
+struct response_iu {
 	__u8 iu_id;
 	__u8 rsvd1;
 	__be16 tag;
