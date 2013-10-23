@@ -923,12 +923,16 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 	radeon_dpm_post_set_power_state(rdev);
 
 	if (rdev->asic->dpm.force_performance_level) {
-		if (rdev->pm.dpm.thermal_active)
+		if (rdev->pm.dpm.thermal_active) {
+			enum radeon_dpm_forced_level level = rdev->pm.dpm.forced_level;
 			/* force low perf level for thermal */
 			radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_LOW);
-		else
-			/* otherwise, enable auto */
-			radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
+			/* save the user's level */
+			rdev->pm.dpm.forced_level = level;
+		} else {
+			/* otherwise, user selected level */
+			radeon_dpm_force_performance_level(rdev, rdev->pm.dpm.forced_level);
+		}
 	}
 
 done:
