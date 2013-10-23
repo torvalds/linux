@@ -236,6 +236,11 @@
 				compatible = "fsl,imx25-ssi", "fsl,imx21-ssi";
 				reg = <0x50014000 0x4000>;
 				interrupts = <11>;
+				clocks = <&clks 118>;
+				clock-names = "ipg";
+				dmas = <&sdma 24 1 0>,
+				       <&sdma 25 1 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -266,6 +271,11 @@
 				compatible = "fsl,imx25-ssi", "fsl,imx21-ssi";
 				reg = <0x50034000 0x4000>;
 				interrupts = <12>;
+				clocks = <&clks 117>;
+				clock-names = "ipg";
+				dmas = <&sdma 28 1 0>,
+				       <&sdma 29 1 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -436,7 +446,7 @@
 				#interrupt-cells = <2>;
 			};
 
-			sdma@53fd4000 {
+			sdma: sdma@53fd4000 {
 				compatible = "fsl,imx25-sdma", "fsl,imx35-sdma";
 				reg = <0x53fd4000 0x4000>;
 				clocks = <&clks 112>, <&clks 68>;
