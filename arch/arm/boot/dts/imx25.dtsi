@@ -178,7 +178,7 @@
 				reg = <0x43fac000 0x4000>;
 			};
 
-			audmux@43fb0000 {
+			audmux: audmux@43fb0000 {
 				compatible = "fsl,imx25-audmux", "fsl,imx31-audmux";
 				reg = <0x43fb0000 0x4000>;
 				status = "disabled";
