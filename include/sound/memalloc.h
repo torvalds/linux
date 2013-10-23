@@ -52,6 +52,7 @@ struct snd_dma_device {
 #else
 #define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
 #endif
+#define SNDRV_DMA_TYPE_DEV_IRAM		4	/* generic device iram-buffer */
 
 /*
  * info for buffer allocation

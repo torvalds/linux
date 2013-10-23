@@ -30,6 +30,7 @@
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
 #include <linux/dma-mapping.h>
+#include <linux/genalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <sound/memalloc.h>
@@ -157,6 +158,46 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 	dec_snd_pages(pg);
 	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
 }
+
+/**
+ * snd_malloc_dev_iram - allocate memory from on-chip internal ram
+ * @dmab: buffer allocation record to store the allocated data
+ * @size: number of bytes to allocate from the iram
+ *
+ * This function requires iram phandle provided via of_node
+ */
+void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
+{
+	struct device *dev = dmab->dev.dev;
+	struct gen_pool *pool = NULL;
+
+	if (dev->of_node)
+		pool = of_get_named_gen_pool(dev->of_node, "iram", 0);
+
+	if (!pool)
+		return;
+
+	/* Assign the pool into private_data field */
+	dmab->private_data = pool;
+
+	dmab->area = (void *)gen_pool_alloc(pool, size);
+	if (!dmab->area)
+		return;
+
+	dmab->addr = gen_pool_virt_to_phys(pool, (unsigned long)dmab->area);
+}
+
+/**
+ * snd_free_dev_iram - free allocated specific memory from on-chip internal ram
+ * @dmab: buffer allocation record to store the allocated data
+ */
+void snd_free_dev_iram(struct snd_dma_buffer *dmab)
+{
+	struct gen_pool *pool = dmab->private_data;
+
+	if (pool && dmab->area)
+		gen_pool_free(pool, (unsigned long)dmab->area, dmab->bytes);
+}
 #endif /* CONFIG_HAS_DMA */
 
 /*
@@ -197,6 +238,14 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA
+	case SNDRV_DMA_TYPE_DEV_IRAM:
+		snd_malloc_dev_iram(dmab, size);
+		if (dmab->area)
+			break;
+		/* Internal memory might have limited size and no enough space,
+		 * so if we fail to malloc, try to fetch memory traditionally.
+		 */
+		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages(device, size, &dmab->addr);
 		break;
@@ -269,6 +318,9 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 		snd_free_pages(dmab->area, dmab->bytes);
 		break;
 #ifdef CONFIG_HAS_DMA
+	case SNDRV_DMA_TYPE_DEV_IRAM:
+		snd_free_dev_iram(dmab);
+		break;
 	case SNDRV_DMA_TYPE_DEV:
 		snd_free_dev_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 		break;
