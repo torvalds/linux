@@ -27,7 +27,7 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif
 
-#define KSYM_NAME_LEN		128
+#define KSYM_NAME_LEN		255
 
 struct sym_entry {
 	unsigned long long addr;
@@ -109,6 +109,12 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	if (rc != 3) {
 		if (rc != EOF && fgets(str, 500, in) == NULL)
 			fprintf(stderr, "Read error or end of file.\n");
+		return -1;
+	}
+	if (strlen(str) > KSYM_NAME_LEN) {
+		fprintf(stderr, "Symbol %s too long for kallsyms (%lu vs %d).\n"
+                                "Please increase KSYM_NAME_LEN both in kernel and kallsyms.c\n",
+			str, strlen(str), KSYM_NAME_LEN);
 		return -1;
 	}
 
