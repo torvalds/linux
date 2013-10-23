@@ -1915,6 +1915,10 @@ static int set_frwr_li_wr(void **seg, struct ib_send_wr *wr, int *size,
 	if (unlikely((*seg == qp->sq.qend)))
 		*seg = mlx5_get_send_wqe(qp, 0);
 	if (!li) {
+		if (unlikely(wr->wr.fast_reg.page_list_len >
+			     wr->wr.fast_reg.page_list->max_page_list_len))
+			return	-ENOMEM;
+
 		set_frwr_pages(*seg, wr, mdev, pd, writ);
 		*seg += sizeof(struct mlx5_wqe_data_seg);
 		*size += (sizeof(struct mlx5_wqe_data_seg) / 16);
