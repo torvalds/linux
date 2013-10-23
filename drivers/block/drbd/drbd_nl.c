@@ -955,7 +955,7 @@ drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags, struct res
 	}
 
 	if (size > la_size_sect)
-		rv = DS_GREW;
+		rv = la_size_sect ? DS_GREW : DS_GREW_FROM_ZERO;
 	if (size < la_size_sect)
 		rv = DS_SHRUNK;
 
