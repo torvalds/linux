@@ -159,6 +159,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_S390_CSS_SUPPORT:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
+	case KVM_CAP_ENABLE_CAP_VM:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -187,6 +188,21 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	return 0;
 }
 
+static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
+{
+	int r;
+
+	if (cap->flags)
+		return -EINVAL;
+
+	switch (cap->cap) {
+	default:
+		r = -EINVAL;
+		break;
+	}
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
@@ -202,6 +218,14 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (copy_from_user(&s390int, argp, sizeof(s390int)))
 			break;
 		r = kvm_s390_inject_vm(kvm, &s390int);
+		break;
+	}
+	case KVM_ENABLE_CAP: {
+		struct kvm_enable_cap cap;
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			break;
+		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
 		break;
 	}
 	default:

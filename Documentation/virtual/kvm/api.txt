@@ -932,9 +932,9 @@ documentation when it pops into existence).
 
 4.37 KVM_ENABLE_CAP
 
-Capability: KVM_CAP_ENABLE_CAP
+Capability: KVM_CAP_ENABLE_CAP, KVM_CAP_ENABLE_CAP_VM
 Architectures: ppc, s390
-Type: vcpu ioctl
+Type: vcpu ioctl, vm ioctl (with KVM_CAP_ENABLE_CAP_VM)
 Parameters: struct kvm_enable_cap (in)
 Returns: 0 on success; -1 on error
 
@@ -965,6 +965,8 @@ function properly, this is the place to put them.
        __u8  pad[64];
 };
 
+The vcpu ioctl should be used for vcpu-specific capabilities, the vm ioctl
+for vm-wide capabilities.
 
 4.38 KVM_GET_MP_STATE
 
