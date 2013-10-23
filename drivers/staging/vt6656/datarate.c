@@ -274,15 +274,13 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
 		return;
 	}
 
-	if (psNodeDBTable->uTimeCount >= AUTORATE_TIMEOUT) {
+	if (psNodeDBTable->uTimeCount >= AUTORATE_TIMEOUT)
 		psNodeDBTable->uTimeCount = 0;
-	}
 
 	for (ii = 0; ii < MAX_RATE; ii++) {
 		if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
-			if (bAutoRate[ii] == true) {
+			if (bAutoRate[ii] == true)
 				wIdxUpRate = (u16) ii;
-			}
 		} else {
 			bAutoRate[ii] = false;
 		}
@@ -292,9 +290,8 @@ void RATEvTxRateFallBack(struct vnt_private *pDevice,
 		if ((psNodeDBTable->uTxOk[ii] != 0) ||
 				(psNodeDBTable->uTxFail[ii] != 0)) {
 			dwThroughputTbl[ii] *= psNodeDBTable->uTxOk[ii];
-			if (ii < RATE_11M) {
+			if (ii < RATE_11M)
 				psNodeDBTable->uTxFail[ii] *= 4;
-			}
 			dwThroughputTbl[ii] /= (psNodeDBTable->uTxOk[ii] + psNodeDBTable->uTxFail[ii]);
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Rate %d,Ok: %d, Fail:%d, Throughput:%d\n",
