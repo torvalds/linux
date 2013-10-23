@@ -68,14 +68,14 @@
 &audmux {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_1>;
+	pinctrl-0 = <&pinctrl_audmux>;
 };
 
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio3 19 0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
 	flash: m25p80@0 {
@@ -87,7 +87,7 @@
 
 &fec {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet_1>;
+	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
 	phy-reset-gpios = <&gpio3 23 0>;
 	status = "okay";
@@ -97,7 +97,7 @@
 	status = "okay";
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c1_1>;
+	pinctrl-0 = <&pinctrl_i2c1>;
 
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
@@ -112,7 +112,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	hog {
+	imx6q-sabrelite {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX6QDL_PAD_NANDF_D6__GPIO2_IO06 0x80000000
@@ -124,6 +124,86 @@
 				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x1f0b0
 				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x80000000
 				MX6QDL_PAD_EIM_D23__GPIO3_IO23	0x80000000
+			>;
+		};
+
+		pinctrl_audmux: audmuxgrp {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_DAT0__AUD4_RXD		0x80000000
+				MX6QDL_PAD_SD2_DAT3__AUD4_TXC		0x80000000
+				MX6QDL_PAD_SD2_DAT2__AUD4_TXD		0x80000000
+				MX6QDL_PAD_SD2_DAT1__AUD4_TXFS		0x80000000
+			>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D17__ECSPI1_MISO		0x100b1
+				MX6QDL_PAD_EIM_D18__ECSPI1_MOSI		0x100b1
+				MX6QDL_PAD_EIM_D16__ECSPI1_SCLK		0x100b1
+			>;
+		};
+
+		pinctrl_enet: enetgrp {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
+				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
+				MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x1b0b0
+				MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x1b0b0
+				MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x1b0b0
+				MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x1b0b0
+				MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x1b0b0
+				MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x1b0b0
+				MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x1b0b0
+				MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b0b0
+				MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x1b0b0
+				MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x1b0b0
+				MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b0b0
+				MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b0b0
+				MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b0b0
+				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D21__I2C1_SCL		0x4001b8b1
+				MX6QDL_PAD_EIM_D28__I2C1_SDA		0x4001b8b1
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D26__UART2_TX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D27__UART2_RX_DATA	0x1b0b1
+			>;
+		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_1__USB_OTG_ID		0x17059
+			>;
+		};
+
+		pinctrl_usdhc3: usdhc3grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x17059
+				MX6QDL_PAD_SD3_CLK__SD3_CLK		0x10059
+				MX6QDL_PAD_SD3_DAT0__SD3_DATA0		0x17059
+				MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x17059
+				MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x17059
+				MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x17059
+			>;
+		};
+
+		pinctrl_usdhc4: usdhc4grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_CMD__SD4_CMD		0x17059
+				MX6QDL_PAD_SD4_CLK__SD4_CLK		0x10059
+				MX6QDL_PAD_SD4_DAT0__SD4_DATA0		0x17059
+				MX6QDL_PAD_SD4_DAT1__SD4_DATA1		0x17059
+				MX6QDL_PAD_SD4_DAT2__SD4_DATA2		0x17059
+				MX6QDL_PAD_SD4_DAT3__SD4_DATA3		0x17059
 			>;
 		};
 	};
@@ -166,7 +246,7 @@
 &uart2 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2_1>;
+	pinctrl-0 = <&pinctrl_uart2>;
 };
 
 &usbh1 {
@@ -176,14 +256,14 @@
 &usbotg {
 	vbus-supply = <&reg_usb_otg_vbus>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg_1>;
+	pinctrl-0 = <&pinctrl_usbotg>;
 	disable-over-current;
 	status = "okay";
 };
 
 &usdhc3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3_2>;
+	pinctrl-0 = <&pinctrl_usdhc3>;
 	cd-gpios = <&gpio7 0 0>;
 	wp-gpios = <&gpio7 1 0>;
 	vmmc-supply = <&reg_3p3v>;
@@ -192,7 +272,7 @@
 
 &usdhc4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc4_2>;
+	pinctrl-0 = <&pinctrl_usdhc4>;
 	cd-gpios = <&gpio2 6 0>;
 	wp-gpios = <&gpio2 7 0>;
 	vmmc-supply = <&reg_3p3v>;
