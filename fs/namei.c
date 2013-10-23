@@ -1298,8 +1298,8 @@ static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
 }
 
 /*
- * Call i_op->lookup on the dentry.  The dentry must be negative but may be
- * hashed if it was pouplated with DCACHE_NEED_LOOKUP.
+ * Call i_op->lookup on the dentry.  The dentry must be negative and
+ * unhashed.
  *
  * dir->d_inode->i_mutex must be held
  */
