@@ -6088,6 +6088,12 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-omap.c
 
+OMAP/NEWFLOW NANOBONE MACHINE SUPPORT
+M:	Mark Jackson <mpfj@newflow.co.uk>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/boot/dts/am335x-nano.dts
+
 OMFS FILESYSTEM
 M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-karma-devel@lists.sourceforge.net

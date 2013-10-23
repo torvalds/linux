@@ -62,7 +62,6 @@
 	pinctrl-0 = <
 			&twl6040_pins
 			&mcpdm_pins
-			&dmic_pins
 			&mcbsp1_pins
 			&mcbsp2_pins
 			&usbhost_pins
@@ -71,7 +70,7 @@
 
 	twl6040_pins: pinmux_twl6040_pins {
 		pinctrl-single,pins = <
-			0x18a (PIN_OUTPUT | MUX_MODE6)	/* perslimbus2_clock.gpio5_145 */
+			0x17e (PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
 		>;
 	};
 
@@ -82,15 +81,6 @@
 			0x15e (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_dl_data.abemcpdm_dl_data */
 			0x160 (PIN_INPUT_PULLUP | MUX_MODE0)	/* abemcpdm_frame.abemcpdm_frame */
 			0x162 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abemcpdm_lb_clk.abemcpdm_lb_clk */
-		>;
-	};
-
-	dmic_pins: pinmux_dmic_pins {
-		pinctrl-single,pins = <
-			0x144 (PIN_INPUT | MUX_MODE0)		/* abedmic_din1.abedmic_din1 */
-			0x146 (PIN_INPUT | MUX_MODE0)		/* abedmic_din2.abedmic_din2 */
-			0x148 (PIN_INPUT | MUX_MODE0)		/* abedmic_din3.abedmic_din3 */
-			0x14a (PIN_OUTPUT | MUX_MODE0)		/* abedmic_clk1.abedmic_clk1 */
 		>;
 	};
 
@@ -131,25 +121,25 @@
 			0xbc (PIN_INPUT | MUX_MODE0)		/*  mcspi2_clk */
 			0xbe (PIN_INPUT | MUX_MODE0)		/*  mcspi2_simo */
 			0xc0 (PIN_INPUT_PULLUP | MUX_MODE0)	/*  mcspi2_somi */
-			0xc2 (PIN_OUTPUT | MUX_MODE0)		/*  mcspi2_cs */
+			0xc2 (PIN_OUTPUT | MUX_MODE0)		/*  mcspi2_cs0 */
 		>;
 	};
 
 	mcspi3_pins: pinmux_mcspi3_pins {
 		pinctrl-single,pins = <
-			0x78 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_somi */
-			0x7a (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
-			0x7c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_simo */
-			0x7e (PIN_INPUT | MUX_MODE1)		/*  mcspi2_clk */
+			0x78 (PIN_INPUT | MUX_MODE1)		/*  mcspi3_somi */
+			0x7a (PIN_INPUT | MUX_MODE1)		/*  mcspi3_cs0 */
+			0x7c (PIN_INPUT | MUX_MODE1)		/*  mcspi3_simo */
+			0x7e (PIN_INPUT | MUX_MODE1)		/*  mcspi3_clk */
 		>;
 	};
 
 	mcspi4_pins: pinmux_mcspi4_pins {
 		pinctrl-single,pins = <
-			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_clk */
-			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi2_simo */
-			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi2_somi */
-			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi2_cs */
+			0x164 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_clk */
+			0x168 (PIN_INPUT | MUX_MODE1)		/*  mcspi4_simo */
+			0x16a (PIN_INPUT | MUX_MODE1)		/*  mcspi4_somi */
+			0x16c (PIN_INPUT | MUX_MODE1)		/*  mcspi4_cs0 */
 		>;
 	};
 
@@ -500,4 +490,8 @@
 &uart5 {
         pinctrl-names = "default";
         pinctrl-0 = <&uart5_pins>;
+};
+
+&cpu0 {
+	cpu0-supply = <&smps123_reg>;
 };
