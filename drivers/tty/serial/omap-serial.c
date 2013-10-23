@@ -298,21 +298,22 @@ static void serial_omap_enable_ms(struct uart_port *port)
 static void serial_omap_stop_tx(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
-	struct circ_buf *xmit = &up->port.state->xmit;
 	int res;
 
 	pm_runtime_get_sync(up->dev);
 
-	/* handle rs485 */
+	/* Handle RS-485 */
 	if (up->rs485.flags & SER_RS485_ENABLED) {
-		/* do nothing if current tx not yet completed */
-		res = serial_in(up, UART_LSR) & UART_LSR_TEMT;
-		if (!res)
-			return;
-
-		/* if there's no more data to send, turn off rts */
-		if (uart_circ_empty(xmit)) {
-			/* if rts not already disabled */
+		if (up->scr & OMAP_UART_SCR_TX_EMPTY) {
+			/* THR interrupt is fired when both TX FIFO and TX
+			 * shift register are empty. This means there's nothing
+			 * left to transmit now, so make sure the THR interrupt
+			 * is fired when TX FIFO is below the trigger level,
+			 * disable THR interrupts and toggle the RS-485 GPIO
+			 * data direction pin if needed.
+			 */
+			up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+			serial_out(up, UART_OMAP_SCR, up->scr);
 			res = (up->rs485.flags & SER_RS485_RTS_AFTER_SEND) ? 1 : 0;
 			if (gpio_get_value(up->rts_gpio) != res) {
 				if (up->rs485.delay_rts_after_send > 0) {
@@ -320,6 +321,18 @@ static void serial_omap_stop_tx(struct uart_port *port)
 				}
 				gpio_set_value(up->rts_gpio, res);
 			}
+		} else {
+			/* We're asked to stop, but there's still stuff in the
+			 * UART FIFO, so make sure the THR interrupt is fired
+			 * when both TX FIFO and TX shift register are empty.
+			 * The next THR interrupt (if no transmission is started
+			 * in the meantime) will indicate the end of a
+			 * transmission. Therefore we _don't_ disable THR
+			 * interrupts in this situation.
+			 */
+			up->scr |= OMAP_UART_SCR_TX_EMPTY;
+			serial_out(up, UART_OMAP_SCR, up->scr);
+			return;
 		}
 	}
 
@@ -399,8 +412,12 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 	pm_runtime_get_sync(up->dev);
 
-	/* handle rs485 */
+	/* Handle RS-485 */
 	if (up->rs485.flags & SER_RS485_ENABLED) {
+		/* Fire THR interrupts when FIFO is below trigger level */
+		up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+		serial_out(up, UART_OMAP_SCR, up->scr);
+
 		/* if rts not already enabled */
 		res = (up->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
 		if (gpio_get_value(up->rts_gpio) != res) {
@@ -969,7 +986,7 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 
 	/* Set receive FIFO threshold to 16 characters and
-	 * transmit FIFO threshold to 16 spaces
+	 * transmit FIFO threshold to 32 spaces
 	 */
 	up->fcr &= ~OMAP_UART_FCR_RX_FIFO_TRIG_MASK;
 	up->fcr &= ~OMAP_UART_FCR_TX_FIFO_TRIG_MASK;
@@ -1374,6 +1391,15 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
 	/* Enable interrupts */
 	up->ier = mode;
 	serial_out(up, UART_IER, up->ier);
+
+	/* If RS-485 is disabled, make sure the THR interrupt is fired when
+	 * TX FIFO is below the trigger level.
+	 */
+	if (!(up->rs485.flags & SER_RS485_ENABLED) &&
+	    (up->scr & OMAP_UART_SCR_TX_EMPTY)) {
+		up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
+		serial_out(up, UART_OMAP_SCR, up->scr);
+	}
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 	pm_runtime_mark_last_busy(up->dev);
