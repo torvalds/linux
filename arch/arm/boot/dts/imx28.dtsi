@@ -343,6 +343,19 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
+				auart2_pins_a: auart2-pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_AUART2_RX__AUART2_RX
+						MX28_PAD_AUART2_TX__AUART2_TX
+						MX28_PAD_AUART2_CTS__AUART2_CTS
+						MX28_PAD_AUART2_RTS__AUART2_RTS
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
 				auart3_pins_a: auart3@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
