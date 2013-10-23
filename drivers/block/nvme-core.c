@@ -1568,10 +1568,26 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 	}
 }
 
+#ifdef CONFIG_COMPAT
+static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
+					unsigned int cmd, unsigned long arg)
+{
+	struct nvme_ns *ns = bdev->bd_disk->private_data;
+
+	switch (cmd) {
+	case SG_IO:
+		return nvme_sg_io32(ns, arg);
+	}
+	return nvme_ioctl(bdev, mode, cmd, arg);
+}
+#else
+#define nvme_compat_ioctl	NULL
+#endif
+
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
-	.compat_ioctl	= nvme_ioctl,
+	.compat_ioctl	= nvme_compat_ioctl,
 };
 
 static void nvme_resubmit_bios(struct nvme_queue *nvmeq)

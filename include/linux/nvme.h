@@ -165,6 +165,7 @@ int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
 struct sg_io_hdr;
 
 int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
+int nvme_sg_io32(struct nvme_ns *ns, unsigned long arg);
 int nvme_sg_get_version_num(int __user *ip);
 
 #endif /* _LINUX_NVME_H */
