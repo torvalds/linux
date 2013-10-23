@@ -2013,6 +2013,7 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath10k *ar = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 	int ret = 0;
+	u32 param;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -2022,6 +2023,25 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 		spin_lock_bh(&ar->data_lock);
 		ar->rx_channel = conf->chandef.chan;
 		spin_unlock_bh(&ar->data_lock);
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		ath10k_dbg(ATH10K_DBG_MAC, "mac config power %d\n",
+			   hw->conf.power_level);
+
+		param = ar->wmi.pdev_param->txpower_limit2g;
+		ret = ath10k_wmi_pdev_set_param(ar, param,
+						hw->conf.power_level * 2);
+		if (ret)
+			ath10k_warn("mac failed to set 2g txpower %d (%d)\n",
+				    hw->conf.power_level, ret);
+
+		param = ar->wmi.pdev_param->txpower_limit5g;
+		ret = ath10k_wmi_pdev_set_param(ar, param,
+						hw->conf.power_level * 2);
+		if (ret)
+			ath10k_warn("mac failed to set 5g txpower %d (%d)\n",
+				    hw->conf.power_level, ret);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_PS)
