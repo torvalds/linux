@@ -1137,7 +1137,7 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
 	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
 		return !!sk->sk_cgrp->memory_pressure;
 
-	return !!sk->sk_prot->memory_pressure;
+	return !!*sk->sk_prot->memory_pressure;
 }
 
 static inline void sk_leave_memory_pressure(struct sock *sk)
