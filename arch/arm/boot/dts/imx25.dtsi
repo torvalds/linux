@@ -453,6 +453,7 @@
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				interrupts = <34>;
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx25.bin";
 			};
 
 			wdog@53fdc000 {
