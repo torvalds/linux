@@ -881,11 +881,12 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 		}
 	}
 
-	printk("switching from power state:\n");
-	radeon_dpm_print_power_state(rdev, rdev->pm.dpm.current_ps);
-	printk("switching to power state:\n");
-	radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
-
+	if (radeon_dpm == 1) {
+		printk("switching from power state:\n");
+		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.current_ps);
+		printk("switching to power state:\n");
+		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
+	}
 	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
@@ -1176,7 +1177,8 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	mutex_lock(&rdev->pm.mutex);
 	radeon_dpm_init(rdev);
 	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps = rdev->pm.dpm.boot_ps;
-	radeon_dpm_print_power_states(rdev);
+	if (radeon_dpm == 1)
+		radeon_dpm_print_power_states(rdev);
 	radeon_dpm_setup_asic(rdev);
 	ret = radeon_dpm_enable(rdev);
 	mutex_unlock(&rdev->pm.mutex);
