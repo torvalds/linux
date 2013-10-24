@@ -273,7 +273,7 @@ void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
 static void ConstructBeacon(struct adapter *adapt, u8 *pframe, u32 *pLength)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u32 rate_len, pktlen;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -360,7 +360,7 @@ static void ConstructPSPoll(struct adapter *adapt, u8 *pframe, u32 *pLength)
 	struct rtw_ieee80211_hdr	*pwlanhdr;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u16 *fctrl;
+	__le16 *fctrl;
 
 	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
 
@@ -391,7 +391,7 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 	u8 bForcePowerSave)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u32 pktlen;
 	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 	struct wlan_network		*cur_network = &pmlmepriv->cur_network;
@@ -450,7 +450,7 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u8 *StaAddr, bool bHideSSID)
 {
 	struct rtw_ieee80211_hdr	*pwlanhdr;
-	u16 *fctrl;
+	__le16 *fctrl;
 	u8 *mac, *bssid;
 	u32 pktlen;
 	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
