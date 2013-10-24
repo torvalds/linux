@@ -551,7 +551,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	}
 	mlx5_ib_populate_pas(dev, qp->umem, page_shift, (*in)->pas, 0);
 	(*in)->ctx.log_pg_sz_remote_qpn =
-		cpu_to_be32((page_shift - 12) << 24);
+		cpu_to_be32((page_shift - MLX5_ADAPTER_PAGE_SHIFT) << 24);
 	(*in)->ctx.params2 = cpu_to_be32(offset << 6);
 
 	(*in)->ctx.qp_counter_set_usr_page = cpu_to_be32(uar_index);
@@ -648,7 +648,8 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 		goto err_buf;
 	}
 	(*in)->ctx.qp_counter_set_usr_page = cpu_to_be32(uar_index);
-	(*in)->ctx.log_pg_sz_remote_qpn = cpu_to_be32((qp->buf.page_shift - 12) << 24);
+	(*in)->ctx.log_pg_sz_remote_qpn =
+		cpu_to_be32((qp->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT) << 24);
 	/* Set "fast registration enabled" for all kernel QPs */
 	(*in)->ctx.params1 |= cpu_to_be32(1 << 11);
 	(*in)->ctx.sq_crq_size |= cpu_to_be16(1 << 4);

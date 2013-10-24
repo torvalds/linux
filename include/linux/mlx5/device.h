@@ -231,6 +231,10 @@ enum {
 };
 
 enum {
+	MLX5_ADAPTER_PAGE_SHIFT		= 12
+};
+
+enum {
 	MLX5_CAP_OFF_DCT		= 41,
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
 };
