@@ -320,13 +320,7 @@ static int mcp4725_probe(struct i2c_client *client,
 	data->powerdown_mode = pd ? pd-1 : 2; /* 500kohm_to_gnd */
 	data->dac_value = (inbuf[1] << 4) | (inbuf[2] >> 4);
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		return err;
-
-	dev_info(&client->dev, "MCP4725 DAC registered\n");
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 static int mcp4725_remove(struct i2c_client *client)
