@@ -2821,6 +2821,14 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 #define ATI_MULTICHANNEL_MODE_PAIRED	0
 #define ATI_MULTICHANNEL_MODE_SINGLE	1
 
+static int atihdmi_pin_get_eld(struct hda_codec *codec, hda_nid_t nid,
+			   unsigned char *buf, int *eld_size)
+{
+	/* call hda_eld.c ATI/AMD-specific function */
+	return snd_hdmi_get_eld_ati(codec, nid, buf, eld_size,
+				    is_amdhdmi_rev3_or_later(codec));
+}
+
 static void atihdmi_pin_setup_infoframe(struct hda_codec *codec, hda_nid_t pin_nid, int ca,
 					int active_channels, int conn_type)
 {
@@ -3048,6 +3056,7 @@ static int patch_atihdmi(struct hda_codec *codec)
 
 	spec = codec->spec;
 
+	spec->ops.pin_get_eld = atihdmi_pin_get_eld;
 	spec->ops.pin_get_slot_channel = atihdmi_pin_get_slot_channel;
 	spec->ops.pin_set_slot_channel = atihdmi_pin_set_slot_channel;
 	spec->ops.pin_setup_infoframe = atihdmi_pin_setup_infoframe;
