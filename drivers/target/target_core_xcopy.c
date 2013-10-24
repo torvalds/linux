@@ -679,7 +679,8 @@ static int target_xcopy_issue_pt_cmd(struct xcopy_pt_cmd *xpt_cmd)
 
 	pr_debug("target_xcopy_issue_pt_cmd(): SCSI status: 0x%02x\n",
 			se_cmd->scsi_status);
-	return 0;
+
+	return (se_cmd->scsi_status) ? -EINVAL : 0;
 }
 
 static int target_xcopy_read_source(
