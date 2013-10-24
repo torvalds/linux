@@ -3576,6 +3576,22 @@ int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_pll);
 
 /**
+ * snd_soc_dai_set_bclk_ratio - configure BCLK to sample rate ratio.
+ * @dai: DAI
+ * @ratio Ratio of BCLK to Sample rate.
+ *
+ * Configures the DAI for a preset BCLK to sample rate ratio.
+ */
+int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+{
+	if (dai->driver && dai->driver->ops->set_bclk_ratio)
+		return dai->driver->ops->set_bclk_ratio(dai, ratio);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
+
+/**
  * snd_soc_dai_set_fmt - configure DAI hardware audio format.
  * @dai: DAI
  * @fmt: SND_SOC_DAIFMT_ format value.
