@@ -2799,6 +2799,7 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 #define ATI_VERB_SET_MULTICHANNEL_23	0x778
 #define ATI_VERB_SET_MULTICHANNEL_45	0x779
 #define ATI_VERB_SET_MULTICHANNEL_67	0x77a
+#define ATI_VERB_SET_HBR_CONTROL	0x77c
 #define ATI_VERB_SET_MULTICHANNEL_1	0x785
 #define ATI_VERB_SET_MULTICHANNEL_3	0x786
 #define ATI_VERB_SET_MULTICHANNEL_5	0x787
@@ -2810,6 +2811,7 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 #define ATI_VERB_GET_MULTICHANNEL_23	0xf78
 #define ATI_VERB_GET_MULTICHANNEL_45	0xf79
 #define ATI_VERB_GET_MULTICHANNEL_67	0xf7a
+#define ATI_VERB_GET_HBR_CONTROL	0xf7c
 #define ATI_VERB_GET_MULTICHANNEL_1	0xf85
 #define ATI_VERB_GET_MULTICHANNEL_3	0xf86
 #define ATI_VERB_GET_MULTICHANNEL_5	0xf87
@@ -2820,6 +2822,9 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 
 #define ATI_MULTICHANNEL_MODE_PAIRED	0
 #define ATI_MULTICHANNEL_MODE_SINGLE	1
+
+#define ATI_HBR_CAPABLE 0x01
+#define ATI_HBR_ENABLE 0x10
 
 static int atihdmi_pin_get_eld(struct hda_codec *codec, hda_nid_t nid,
 			   unsigned char *buf, int *eld_size)
@@ -3015,6 +3020,35 @@ static void atihdmi_paired_cea_alloc_to_tlv_chmap(struct cea_channel_speaker_all
 	WARN_ON(count != channels);
 }
 
+static int atihdmi_pin_hbr_setup(struct hda_codec *codec, hda_nid_t pin_nid,
+				 bool hbr)
+{
+	int hbr_ctl, hbr_ctl_new;
+
+	hbr_ctl = snd_hda_codec_read(codec, pin_nid, 0, ATI_VERB_GET_HBR_CONTROL, 0);
+	if (hbr_ctl & ATI_HBR_CAPABLE) {
+		if (hbr)
+			hbr_ctl_new = hbr_ctl | ATI_HBR_ENABLE;
+		else
+			hbr_ctl_new = hbr_ctl & ~ATI_HBR_ENABLE;
+
+		snd_printdd("atihdmi_pin_hbr_setup: "
+				"NID=0x%x, %shbr-ctl=0x%x\n",
+				pin_nid,
+				hbr_ctl == hbr_ctl_new ? "" : "new-",
+				hbr_ctl_new);
+
+		if (hbr_ctl != hbr_ctl_new)
+			snd_hda_codec_write(codec, pin_nid, 0,
+						ATI_VERB_SET_HBR_CONTROL,
+						hbr_ctl_new);
+
+	} else if (hbr)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int atihdmi_init(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -3060,6 +3094,7 @@ static int patch_atihdmi(struct hda_codec *codec)
 	spec->ops.pin_get_slot_channel = atihdmi_pin_get_slot_channel;
 	spec->ops.pin_set_slot_channel = atihdmi_pin_set_slot_channel;
 	spec->ops.pin_setup_infoframe = atihdmi_pin_setup_infoframe;
+	spec->ops.pin_hbr_setup = atihdmi_pin_hbr_setup;
 
 	if (!has_amd_full_remap_support(codec)) {
 		/* override to ATI/AMD-specific versions with pairwise mapping */
