@@ -33,6 +33,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 
 /* usb register definitions */
 #define USB_VENDOR_ID_LSB		0x00
