@@ -1835,7 +1835,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 #endif
 
 	seq_printf(seq, "driver_version           : %s\n", slic_proc_version);
-	seq_printf(seq, "Microcode versions:           \n");
+	seq_puts(seq, "Microcode versions:           \n");
 	seq_printf(seq, "    Gigabit (gb)         : %s %s\n",
 		    MOJAVE_UCODE_VERS_STRING, MOJAVE_UCODE_VERS_DATE);
 	seq_printf(seq, "    Gigabit Receiver     : %s %s\n",
@@ -1866,8 +1866,8 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 			   config->macinfo[i].macaddrA[4],
 			   config->macinfo[i].macaddrA[5]);
 	}
-	seq_printf(seq, "     IF  Init State Duplex/Speed irq\n");
-	seq_printf(seq, "     -------------------------------\n");
+	seq_puts(seq, "     IF  Init State Duplex/Speed irq\n");
+	seq_puts(seq, "     -------------------------------\n");
 	for (i = 0; i < card->adapters_allocated; i++) {
 		struct adapter *adapter;
 
@@ -1910,7 +1910,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 	switch (config->FruFormat) {
 	case ATK_FRU_FORMAT:
 		{
-			seq_printf(seq,
+			seq_puts(seq,
 			    "Vendor                   : Alacritech, Inc.\n");
 			seq_printf(seq,
 			    "Assembly #               : %c%c%c%c%c%c\n",
@@ -1943,9 +1943,9 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 
 	default:
 		{
-			seq_printf(seq,
+			seq_puts(seq,
 			    "Vendor                   : Alacritech, Inc.\n");
-			seq_printf(seq,
+			seq_puts(seq,
 			    "Serial   #               : Empty FRU\n");
 			break;
 		}
@@ -1954,7 +1954,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 	switch (config->OEMFruFormat) {
 	case VENDOR1_FRU_FORMAT:
 		{
-			seq_printf(seq, "FRU Information:\n");
+			seq_puts(seq, "FRU Information:\n");
 			seq_printf(seq, "    Commodity #          : %c\n",
 				    oemfru[0]);
 			seq_printf(seq,
@@ -1977,7 +1977,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 
 	case VENDOR2_FRU_FORMAT:
 		{
-			seq_printf(seq, "FRU Information:\n");
+			seq_puts(seq, "FRU Information:\n");
 			seq_printf(seq,
 				    "    Part     #           : "
 				    "%c%c%c%c%c%c%c%c\n",
@@ -2000,12 +2000,12 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 
 	case VENDOR3_FRU_FORMAT:
 		{
-			seq_printf(seq, "FRU Information:\n");
+			seq_puts(seq, "FRU Information:\n");
 		}
 
 	case VENDOR4_FRU_FORMAT:
 		{
-			seq_printf(seq, "FRU Information:\n");
+			seq_puts(seq, "FRU Information:\n");
 			seq_printf(seq,
 				    "    FRU Number           : "
 				    "%c%c%c%c%c%c%c%c\n",
