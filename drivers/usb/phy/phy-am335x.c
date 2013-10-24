@@ -52,8 +52,7 @@ static int am335x_phy_probe(struct platform_device *pdev)
 		return am_phy->id;
 	}
 
-	ret = usb_phy_gen_create_phy(dev, &am_phy->usb_phy_gen,
-			USB_PHY_TYPE_USB2, 0, false);
+	ret = usb_phy_gen_create_phy(dev, &am_phy->usb_phy_gen, NULL);
 	if (ret)
 		return ret;
 
