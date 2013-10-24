@@ -279,6 +279,13 @@ static inline void snd_soc_dai_set_dma_data(struct snd_soc_dai *dai,
 		dai->capture_dma_data = data;
 }
 
+static inline void snd_soc_dai_init_dma_data(struct snd_soc_dai *dai,
+					     void *playback, void *capture)
+{
+	dai->playback_dma_data = playback;
+	dai->capture_dma_data = capture;
+}
+
 static inline void snd_soc_dai_set_drvdata(struct snd_soc_dai *dai,
 		void *data)
 {
