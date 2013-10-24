@@ -73,7 +73,7 @@ CFS_MODULE_PARM(accept_backlog, "i", int, 0444,
 CFS_MODULE_PARM(accept_timeout, "i", int, 0644,
 		"Acceptor's timeout (seconds)");
 
-static char *accept_type = NULL;
+static char *accept_type;
 
 int
 lnet_acceptor_get_tunables(void)
