@@ -101,6 +101,7 @@ struct tmio_mmc_host {
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
 	bool			resuming;
+	bool			sdio_irq_enabled;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
