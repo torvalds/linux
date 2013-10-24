@@ -935,12 +935,7 @@ static int m25p_probe(struct spi_device *spi)
 	struct flash_info		*info;
 	unsigned			i;
 	struct mtd_part_parser_data	ppdata;
-	struct device_node __maybe_unused *np = spi->dev.of_node;
-
-#ifdef CONFIG_MTD_OF_PARTS
-	if (!of_device_is_available(np))
-		return -ENODEV;
-#endif
+	struct device_node *np = spi->dev.of_node;
 
 	/* Platform data helps sort out which chip type we have, as
 	 * well as how this board partitions it.  If we don't have
