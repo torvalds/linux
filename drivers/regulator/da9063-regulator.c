@@ -717,7 +717,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 {
 	struct da9063 *da9063 = dev_get_drvdata(pdev->dev.parent);
 	struct da9063_pdata *da9063_pdata = dev_get_platdata(da9063->dev);
-	struct of_regulator_match *da9063_reg_matches;
+	struct of_regulator_match *da9063_reg_matches = NULL;
 	struct da9063_regulators_pdata *regl_pdata;
 	const struct da9063_dev_model *model;
 	struct da9063_regulators *regulators;
