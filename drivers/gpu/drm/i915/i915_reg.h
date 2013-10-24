@@ -1106,9 +1106,6 @@
 					     _HSW_PIPE_SLICE_CHICKEN_1_A, + \
 					     _HSW_PIPE_SLICE_CHICKEN_1_B)
 
-#define HSW_CLKGATE_DISABLE_PART_1	0x46500
-#define   HSW_DPFC_GATING_DISABLE	(1<<23)
-
 /*
  * GPIO regs
  */
