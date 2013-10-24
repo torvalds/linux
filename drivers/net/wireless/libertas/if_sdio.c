@@ -849,7 +849,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 			card->started = true;
 			/* Tell PM core that we don't need the card to be
 			 * powered now */
-			pm_runtime_put_noidle(&func->dev);
+			pm_runtime_put(&func->dev);
 		}
 	}
 
