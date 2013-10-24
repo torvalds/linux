@@ -17,12 +17,31 @@
 
 #include <linux/init.h>
 #include <linux/of.h>
+#include <linux/smp.h>
 
 #include <asm/compiler.h>
 #include <asm/errno.h>
 #include <asm/psci.h>
+#include <asm/smp_plat.h>
 
-struct psci_operations psci_ops;
+#define PSCI_POWER_STATE_TYPE_STANDBY		0
+#define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
+
+struct psci_power_state {
+	u16	id;
+	u8	type;
+	u8	affinity_level;
+};
+
+struct psci_operations {
+	int (*cpu_suspend)(struct psci_power_state state,
+			   unsigned long entry_point);
+	int (*cpu_off)(struct psci_power_state state);
+	int (*cpu_on)(unsigned long cpuid, unsigned long entry_point);
+	int (*migrate)(unsigned long cpuid);
+};
+
+static struct psci_operations psci_ops;
 
 static int (*invoke_psci_fn)(u64, u64, u64, u64);
 
@@ -209,3 +228,36 @@ out_put_node:
 	of_node_put(np);
 	return err;
 }
+
+#ifdef CONFIG_SMP
+
+static int __init smp_psci_init_cpu(struct device_node *dn, int cpu)
+{
+	return 0;
+}
+
+static int __init smp_psci_prepare_cpu(int cpu)
+{
+	int err;
+
+	if (!psci_ops.cpu_on) {
+		pr_err("no cpu_on method, not booting CPU%d\n", cpu);
+		return -ENODEV;
+	}
+
+	err = psci_ops.cpu_on(cpu_logical_map(cpu), __pa(secondary_holding_pen));
+	if (err) {
+		pr_err("failed to boot CPU%d (%d)\n", cpu, err);
+		return err;
+	}
+
+	return 0;
+}
+
+const struct smp_enable_ops smp_psci_ops __initconst = {
+	.name		= "psci",
+	.init_cpu	= smp_psci_init_cpu,
+	.prepare_cpu	= smp_psci_prepare_cpu,
+};
+
+#endif
