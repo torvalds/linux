@@ -219,7 +219,6 @@ struct slab {
 	union {
 		struct {
 			struct list_head list;
-			unsigned long colouroff;
 			void *s_mem;		/* including colour offset */
 			unsigned int inuse;	/* num of objs active in slab */
 			kmem_bufctl_t free;
@@ -2630,7 +2629,6 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep,
 		colour_off += cachep->slab_size;
 	}
 	slabp->inuse = 0;
-	slabp->colouroff = colour_off;
 	slabp->s_mem = addr + colour_off;
 	slabp->nodeid = nodeid;
 	slabp->free = 0;
