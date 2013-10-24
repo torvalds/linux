@@ -893,6 +893,7 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	struct xcopy_op *xop = NULL;
 	unsigned char *p = NULL, *seg_desc;
 	unsigned int list_id, list_id_usage, sdll, inline_dl, sa;
+	sense_reason_t ret = TCM_INVALID_PARAMETER_LIST;
 	int rc;
 	unsigned short tdll;
 
@@ -944,6 +945,17 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	if (rc <= 0)
 		goto out;
 
+	if (xop->src_dev->dev_attrib.block_size !=
+	    xop->dst_dev->dev_attrib.block_size) {
+		pr_err("XCOPY: Non matching src_dev block_size: %u + dst_dev"
+		       " block_size: %u currently unsupported\n",
+			xop->src_dev->dev_attrib.block_size,
+			xop->dst_dev->dev_attrib.block_size);
+		xcopy_pt_undepend_remotedev(xop);
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		goto out;
+	}
+
 	pr_debug("XCOPY: Processed %d target descriptors, length: %u\n", rc,
 				rc * XCOPY_TARGET_DESC_LEN);
 	seg_desc = &p[16];
@@ -966,7 +978,7 @@ out:
 	if (p)
 		transport_kunmap_data_sg(se_cmd);
 	kfree(xop);
-	return TCM_INVALID_PARAMETER_LIST;
+	return ret;
 }
 
 static sense_reason_t target_rcr_operating_parameters(struct se_cmd *se_cmd)
