@@ -73,8 +73,11 @@ init_sr:
 	.long	0x007f0000	/* Supervisor mode, everything masked */
 stack_addr:
 	.long	init_thread_union
+panic_addr:
+	.long	panic
 
 no_tag_table:
 	sub	r12, pc, (. - 2f)
-	bral	panic
+	/* branch to panic() which can be far away with that construct */
+	lddpc	pc, panic_addr
 2:	.asciz	"Boot loader didn't provide correct magic number\n"
