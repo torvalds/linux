@@ -22,10 +22,10 @@ Optional properties:
 				width of 8 is assumed.
 
  - ti,nand-ecc-opt:		A string setting the ECC layout to use. One of:
-
-		"sw"		Software method (default)
-		"hw"		Hardware method
-		"hw-romcode"	gpmc hamming mode method & romcode layout
+		"sw"		<deprecated> use "ham1" instead
+		"hw"		<deprecated> use "ham1" instead
+		"hw-romcode"	<deprecated> use "ham1" instead
+		"ham1"		1-bit Hamming ecc code
 		"bch4"		4-bit BCH ecc code
 		"bch8"		8-bit BCH ecc code
 

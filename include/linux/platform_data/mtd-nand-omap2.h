@@ -23,13 +23,8 @@ enum nand_io {
 };
 
 enum omap_ecc {
-		/* 1-bit ecc: stored at end of spare area */
-	OMAP_ECC_HAMMING_CODE_DEFAULT = 0, /* Default, s/w method */
-	OMAP_ECC_HAMMING_CODE_HW, /* gpmc to detect the error */
-		/* 1-bit ecc: stored at beginning of spare area as romcode */
-	OMAP_ECC_HAMMING_CODE_HW_ROMCODE, /* gpmc method & romcode layout */
 	/* 1-bit  ECC calculation by GPMC, Error detection by Software */
-	OMAP_ECC_HAM1_CODE_HW,
+	OMAP_ECC_HAM1_CODE_HW = 0,
 	/* 4-bit  ECC calculation by GPMC, Error detection by Software */
 	OMAP_ECC_BCH4_CODE_HW_DETECTION_SW,
 	/* 4-bit  ECC calculation by GPMC, Error detection by ELM */

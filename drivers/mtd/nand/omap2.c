@@ -1993,10 +1993,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	}
 
 	/* select the ecc type */
-	if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_DEFAULT)
-		info->nand.ecc.mode = NAND_ECC_SOFT;
-	else if ((pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW) ||
-		(pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW_ROMCODE)) {
+	if (pdata->ecc_opt == OMAP_ECC_HAM1_CODE_HW) {
 		info->nand.ecc.bytes            = 3;
 		info->nand.ecc.size             = 512;
 		info->nand.ecc.strength         = 1;
@@ -2025,7 +2022,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	}
 
 	/* rom code layout */
-	if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW_ROMCODE) {
+	if (pdata->ecc_opt == OMAP_ECC_HAM1_CODE_HW) {
 
 		if (info->nand.options & NAND_BUSWIDTH_16)
 			offset = 2;
@@ -2033,7 +2030,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 			offset = 1;
 			info->nand.badblock_pattern = &bb_descrip_flashbased;
 		}
-		omap_oobinfo.eccbytes = 3 * (info->mtd.oobsize/16);
+		omap_oobinfo.eccbytes = 3 * (info->mtd.writesize / 512);
 		for (i = 0; i < omap_oobinfo.eccbytes; i++)
 			omap_oobinfo.eccpos[i] = i+offset;
 
