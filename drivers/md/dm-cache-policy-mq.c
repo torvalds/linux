@@ -151,6 +151,21 @@ static void queue_init(struct queue *q)
 }
 
 /*
+ * Checks to see if the queue is empty.
+ * FIXME: reduce cpu usage.
+ */
+static bool queue_empty(struct queue *q)
+{
+	unsigned i;
+
+	for (i = 0; i < NR_QUEUE_LEVELS; i++)
+		if (!list_empty(q->qs + i))
+			return false;
+
+	return true;
+}
+
+/*
  * Insert an entry to the back of the given level.
  */
 static void queue_push(struct queue *q, unsigned level, struct list_head *elt)
@@ -442,6 +457,11 @@ static bool any_free_cblocks(struct mq_policy *mq)
 	return mq->nr_cblocks_allocated < from_cblock(mq->cache_size);
 }
 
+static bool any_clean_cblocks(struct mq_policy *mq)
+{
+	return !queue_empty(&mq->cache_clean);
+}
+
 /*
  * Fills result out with a cache block that isn't in use, or return
  * -ENOSPC.  This does _not_ mark the cblock as allocated, the caller is
@@ -688,17 +708,18 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock, dm_cblock_t 
 static unsigned adjusted_promote_threshold(struct mq_policy *mq,
 					   bool discarded_oblock, int data_dir)
 {
-	if (discarded_oblock && any_free_cblocks(mq) && data_dir == WRITE)
+	if (data_dir == READ)
+		return mq->promote_threshold + READ_PROMOTE_THRESHOLD;
+
+	if (discarded_oblock && (any_free_cblocks(mq) || any_clean_cblocks(mq))) {
 		/*
 		 * We don't need to do any copying at all, so give this a
-		 * very low threshold.  In practice this only triggers
-		 * during initial population after a format.
+		 * very low threshold.
 		 */
 		return DISCARDED_PROMOTE_THRESHOLD;
+	}
 
-	return data_dir == READ ?
-		(mq->promote_threshold + READ_PROMOTE_THRESHOLD) :
-		(mq->promote_threshold + WRITE_PROMOTE_THRESHOLD);
+	return mq->promote_threshold + WRITE_PROMOTE_THRESHOLD;
 }
 
 static bool should_promote(struct mq_policy *mq, struct entry *e,
@@ -772,6 +793,17 @@ static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 	return r;
 }
 
+static void insert_entry_in_pre_cache(struct mq_policy *mq,
+				      struct entry *e, dm_oblock_t oblock)
+{
+	e->in_cache = false;
+	e->dirty = false;
+	e->oblock = oblock;
+	e->hit_count = 1;
+	e->generation = mq->generation;
+	push(mq, e);
+}
+
 static void insert_in_pre_cache(struct mq_policy *mq,
 				dm_oblock_t oblock)
 {
@@ -789,30 +821,41 @@ static void insert_in_pre_cache(struct mq_policy *mq,
 		return;
 	}
 
-	e->in_cache = false;
-	e->dirty = false;
-	e->oblock = oblock;
-	e->hit_count = 1;
-	e->generation = mq->generation;
-	push(mq, e);
+	insert_entry_in_pre_cache(mq, e, oblock);
 }
 
 static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 			    struct policy_result *result)
 {
+	int r;
 	struct entry *e;
 	dm_cblock_t cblock;
 
 	if (find_free_cblock(mq, &cblock) == -ENOSPC) {
-		result->op = POLICY_MISS;
-		insert_in_pre_cache(mq, oblock);
-		return;
-	}
+		r = demote_cblock(mq, &result->old_oblock, &cblock);
+		if (unlikely(r)) {
+			result->op = POLICY_MISS;
+			insert_in_pre_cache(mq, oblock);
+			return;
+		}
 
-	e = alloc_entry(mq);
-	if (unlikely(!e)) {
-		result->op = POLICY_MISS;
-		return;
+		/*
+		 * This will always succeed, since we've just demoted.
+		 */
+		e = pop(mq, &mq->pre_cache);
+		result->op = POLICY_REPLACE;
+
+	} else {
+		e = alloc_entry(mq);
+		if (unlikely(!e))
+			e = pop(mq, &mq->pre_cache);
+
+		if (unlikely(!e)) {
+			result->op = POLICY_MISS;
+			return;
+		}
+
+		result->op = POLICY_NEW;
 	}
 
 	e->oblock = oblock;
@@ -823,7 +866,6 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 	e->generation = mq->generation;
 	push(mq, e);
 
-	result->op = POLICY_NEW;
 	result->cblock = e->cblock;
 }
 
