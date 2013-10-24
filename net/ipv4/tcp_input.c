@@ -2987,6 +2987,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	s32 seq_rtt = -1;
 	s32 ca_seq_rtt = -1;
 	ktime_t last_ackt = net_invalid_timestamp();
+	bool rtt_update;
 
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
@@ -3063,14 +3064,13 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 		flag |= FLAG_SACK_RENEGING;
 
-	if (tcp_ack_update_rtt(sk, flag, seq_rtt, sack_rtt) ||
-	    (flag & FLAG_ACKED))
-		tcp_rearm_rto(sk);
+	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt, sack_rtt);
 
 	if (flag & FLAG_ACKED) {
 		const struct tcp_congestion_ops *ca_ops
 			= inet_csk(sk)->icsk_ca_ops;
 
+		tcp_rearm_rto(sk);
 		if (unlikely(icsk->icsk_mtup.probe_size &&
 			     !after(tp->mtu_probe.probe_seq_end, tp->snd_una))) {
 			tcp_mtup_probe_success(sk);
@@ -3109,6 +3109,13 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 			ca_ops->pkts_acked(sk, pkts_acked, rtt_us);
 		}
+	} else if (skb && rtt_update && sack_rtt >= 0 &&
+		   sack_rtt > (s32)(now - TCP_SKB_CB(skb)->when)) {
+		/* Do not re-arm RTO if the sack RTT is measured from data sent
+		 * after when the head was last (re)transmitted. Otherwise the
+		 * timeout may continue to extend in loss recovery.
+		 */
+		tcp_rearm_rto(sk);
 	}
 
 #if FASTRETRANS_DEBUG > 0
