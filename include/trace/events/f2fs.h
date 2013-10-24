@@ -36,6 +36,11 @@
 		{ CURSEG_COLD_NODE, 	"Cold NODE" },			\
 		{ NO_CHECK_TYPE, 	"No TYPE" })
 
+#define show_file_type(type)						\
+	__print_symbolic(type,						\
+		{ 0,		"FILE" },				\
+		{ 1,		"DIR" })
+
 #define show_gc_type(type)						\
 	__print_symbolic(type,						\
 		{ FG_GC,	"Foreground GC" },			\
@@ -621,6 +626,45 @@ TRACE_EVENT(f2fs_do_submit_bio,
 		__entry->sync ? "sync" : "no sync",
 		(unsigned long long)__entry->sector,
 		__entry->size)
+);
+
+DECLARE_EVENT_CLASS(f2fs__page,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(int, type)
+		__field(int, dir)
+		__field(pgoff_t, index)
+		__field(int, dirty)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= page->mapping->host->i_sb->s_dev;
+		__entry->ino	= page->mapping->host->i_ino;
+		__entry->type	= type;
+		__entry->dir	= S_ISDIR(page->mapping->host->i_mode);
+		__entry->index	= page->index;
+		__entry->dirty	= PageDirty(page);
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, dirty = %d",
+		show_dev_ino(__entry),
+		show_block_type(__entry->type),
+		show_file_type(__entry->dir),
+		(unsigned long)__entry->index,
+		__entry->dirty)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
 );
 
 TRACE_EVENT(f2fs_submit_write_page,
