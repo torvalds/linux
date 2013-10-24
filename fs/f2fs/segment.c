@@ -1138,8 +1138,6 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 						SUM_JOURNAL_SIZE);
 	written_size += SUM_JOURNAL_SIZE;
 
-	set_page_dirty(page);
-
 	/* Step 3: write summary entries */
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
 		unsigned short blkoff;
@@ -1158,18 +1156,20 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 			summary = (struct f2fs_summary *)(kaddr + written_size);
 			*summary = seg_i->sum_blk->entries[j];
 			written_size += SUMMARY_SIZE;
-			set_page_dirty(page);
 
 			if (written_size + SUMMARY_SIZE <= PAGE_CACHE_SIZE -
 							SUM_FOOTER_SIZE)
 				continue;
 
+			set_page_dirty(page);
 			f2fs_put_page(page, 1);
 			page = NULL;
 		}
 	}
-	if (page)
+	if (page) {
+		set_page_dirty(page);
 		f2fs_put_page(page, 1);
+	}
 }
 
 static void write_normal_summaries(struct f2fs_sb_info *sbi,
