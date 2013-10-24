@@ -559,6 +559,8 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 	else if (skb->protocol == htons(ETH_P_PPP_SES))
 		nf_bridge->mask |= BRNF_PPPoE;
 
+	/* Must drop socket now because of tproxy. */
+	skb_orphan(skb);
 	return skb->dev;
 }
 
