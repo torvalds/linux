@@ -1856,7 +1856,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	mtd->name		= dev_name(&pdev->dev);
 	mtd->owner		= THIS_MODULE;
 	nand_chip		= &info->nand;
-	nand_chip->options	= pdata->devsize;
 	nand_chip->options	|= NAND_SKIP_BBTSCAN;
 #ifdef CONFIG_MTD_NAND_OMAP_BCH
 	info->of_node		= pdata->of_node;
@@ -1904,6 +1903,15 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->chip_delay = 50;
 	}
 
+	/* scan NAND device connected to chip controller */
+	nand_chip->options |= pdata->devsize & NAND_BUSWIDTH_16;
+	if (nand_scan_ident(mtd, 1, NULL)) {
+		pr_err("nand device scan failed, may be bus-width mismatch\n");
+		err = -ENXIO;
+		goto out_release_mem_region;
+	}
+
+	/* re-populate low-level callbacks based on xfer modes */
 	switch (pdata->xfer_type) {
 	case NAND_OMAP_PREFETCH_POLLED:
 		nand_chip->read_buf   = omap_read_buf_pref;
@@ -2007,17 +2015,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 		err = omap3_init_bch(mtd, pdata->ecc_opt);
 		if (err) {
 			err = -EINVAL;
-			goto out_release_mem_region;
-		}
-	}
-
-	/* DIP switches on some boards change between 8 and 16 bit
-	 * bus widths for flash.  Try the other width if the first try fails.
-	 */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		nand_chip->options ^= NAND_BUSWIDTH_16;
-		if (nand_scan_ident(mtd, 1, NULL)) {
-			err = -ENXIO;
 			goto out_release_mem_region;
 		}
 	}
