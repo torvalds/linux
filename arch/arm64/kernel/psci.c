@@ -20,6 +20,7 @@
 #include <linux/smp.h>
 
 #include <asm/compiler.h>
+#include <asm/cpu_ops.h>
 #include <asm/errno.h>
 #include <asm/psci.h>
 #include <asm/smp_plat.h>
@@ -231,12 +232,12 @@ out_put_node:
 
 #ifdef CONFIG_SMP
 
-static int __init smp_psci_init_cpu(struct device_node *dn, int cpu)
+static int __init cpu_psci_cpu_init(struct device_node *dn, unsigned int cpu)
 {
 	return 0;
 }
 
-static int __init smp_psci_prepare_cpu(int cpu)
+static int __init cpu_psci_cpu_prepare(unsigned int cpu)
 {
 	int err;
 
@@ -254,10 +255,10 @@ static int __init smp_psci_prepare_cpu(int cpu)
 	return 0;
 }
 
-const struct smp_enable_ops smp_psci_ops __initconst = {
+const struct cpu_operations cpu_psci_ops = {
 	.name		= "psci",
-	.init_cpu	= smp_psci_init_cpu,
-	.prepare_cpu	= smp_psci_prepare_cpu,
+	.cpu_init	= cpu_psci_cpu_init,
+	.cpu_prepare	= cpu_psci_cpu_prepare,
 };
 
 #endif

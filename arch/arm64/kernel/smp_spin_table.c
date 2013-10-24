@@ -21,10 +21,11 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cpu_ops.h>
 
 static phys_addr_t cpu_release_addr[NR_CPUS];
 
-static int __init smp_spin_table_init_cpu(struct device_node *dn, int cpu)
+static int smp_spin_table_cpu_init(struct device_node *dn, unsigned int cpu)
 {
 	/*
 	 * Determine the address from which the CPU is polling.
@@ -40,7 +41,7 @@ static int __init smp_spin_table_init_cpu(struct device_node *dn, int cpu)
 	return 0;
 }
 
-static int __init smp_spin_table_prepare_cpu(int cpu)
+static int smp_spin_table_cpu_prepare(unsigned int cpu)
 {
 	void **release_addr;
 
@@ -59,8 +60,8 @@ static int __init smp_spin_table_prepare_cpu(int cpu)
 	return 0;
 }
 
-const struct smp_enable_ops smp_spin_table_ops __initconst = {
+const struct cpu_operations smp_spin_table_ops = {
 	.name		= "spin-table",
-	.init_cpu 	= smp_spin_table_init_cpu,
-	.prepare_cpu	= smp_spin_table_prepare_cpu,
+	.cpu_init	= smp_spin_table_cpu_init,
+	.cpu_prepare	= smp_spin_table_cpu_prepare,
 };
