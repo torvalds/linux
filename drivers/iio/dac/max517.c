@@ -160,7 +160,6 @@ static int max517_probe(struct i2c_client *client,
 	struct max517_data *data;
 	struct iio_dev *indio_dev;
 	struct max517_platform_data *platform_data = client->dev.platform_data;
-	int err;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -192,13 +191,7 @@ static int max517_probe(struct i2c_client *client,
 		data->vref_mv[1] = platform_data->vref_mv[1];
 	}
 
-	err = iio_device_register(indio_dev);
-	if (err)
-		return err;
-
-	dev_info(&client->dev, "DAC registered\n");
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 static int max517_remove(struct i2c_client *client)
