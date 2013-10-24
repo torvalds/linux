@@ -68,10 +68,11 @@ So large block sizes are bad because they waste cache space.  And small
 block sizes are bad because they increase the amount of metadata (both
 in core and on disk).
 
-Writeback/writethrough
-----------------------
+Cache operating modes
+---------------------
 
-The cache has two modes, writeback and writethrough.
+The cache has three operating modes: writeback, writethrough and
+passthrough.
 
 If writeback, the default, is selected then a write to a block that is
 cached will go only to the cache and the block will be marked dirty in
@@ -80,6 +81,18 @@ the metadata.
 If writethrough is selected then a write to a cached block will not
 complete until it has hit both the origin and cache devices.  Clean
 blocks should remain clean.
+
+If passthrough is selected, useful when the cache contents are not known
+to be coherent with the origin device, then all reads are served from
+the origin device (all reads miss the cache) and all writes are
+forwarded to the origin device; additionally, write hits cause cache
+block invalidates.  Passthrough mode allows a cache device to be
+activated without having to worry about coherency.  Coherency that
+exists is maintained, although the cache will gradually cool as writes
+take place.  If the coherency of the cache can later be verified, or
+established, the cache device can can be transitioned to writethrough or
+writeback mode while still warm.  Otherwise, the cache contents can be
+discarded prior to transitioning to the desired operating mode.
 
 A simple cleaner policy is provided, which will clean (write back) all
 dirty blocks in a cache.  Useful for decommissioning a cache.

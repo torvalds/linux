@@ -1249,3 +1249,8 @@ int dm_cache_save_hint(struct dm_cache_metadata *cmd, dm_cblock_t cblock,
 
 	return r;
 }
+
+int dm_cache_metadata_all_clean(struct dm_cache_metadata *cmd, bool *result)
+{
+	return blocks_are_unmapped_or_clean(cmd, 0, cmd->cache_blocks, result);
+}
