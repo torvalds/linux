@@ -255,7 +255,7 @@ static void __exit anatop_regulator_exit(void)
 }
 module_exit(anatop_regulator_exit);
 
-MODULE_AUTHOR("Nancy Chen <Nancy.Chen@freescale.com>, "
-	      "Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org>");
+MODULE_AUTHOR("Nancy Chen <Nancy.Chen@freescale.com>");
+MODULE_AUTHOR("Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org>");
 MODULE_DESCRIPTION("ANATOP Regulator driver");
 MODULE_LICENSE("GPL v2");
