@@ -864,6 +864,364 @@ static __init void unregister_trigger_traceon_traceoff_cmds(void)
 	unregister_event_command(&trigger_traceoff_cmd);
 }
 
+/* Avoid typos */
+#define ENABLE_EVENT_STR	"enable_event"
+#define DISABLE_EVENT_STR	"disable_event"
+
+struct enable_trigger_data {
+	struct ftrace_event_file	*file;
+	bool				enable;
+};
+
+static void
+event_enable_trigger(struct event_trigger_data *data)
+{
+	struct enable_trigger_data *enable_data = data->private_data;
+
+	if (enable_data->enable)
+		clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
+	else
+		set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
+}
+
+static void
+event_enable_count_trigger(struct event_trigger_data *data)
+{
+	struct enable_trigger_data *enable_data = data->private_data;
+
+	if (!data->count)
+		return;
+
+	/* Skip if the event is in a state we want to switch to */
+	if (enable_data->enable == !(enable_data->file->flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+		return;
+
+	if (data->count != -1)
+		(data->count)--;
+
+	event_enable_trigger(data);
+}
+
+static int
+event_enable_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
+			   struct event_trigger_data *data)
+{
+	struct enable_trigger_data *enable_data = data->private_data;
+
+	seq_printf(m, "%s:%s:%s",
+		   enable_data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
+		   enable_data->file->event_call->class->system,
+		   enable_data->file->event_call->name);
+
+	if (data->count == -1)
+		seq_puts(m, ":unlimited");
+	else
+		seq_printf(m, ":count=%ld", data->count);
+
+	if (data->filter_str)
+		seq_printf(m, " if %s\n", data->filter_str);
+	else
+		seq_puts(m, "\n");
+
+	return 0;
+}
+
+static void
+event_enable_trigger_free(struct event_trigger_ops *ops,
+			  struct event_trigger_data *data)
+{
+	struct enable_trigger_data *enable_data = data->private_data;
+
+	if (WARN_ON_ONCE(data->ref <= 0))
+		return;
+
+	data->ref--;
+	if (!data->ref) {
+		/* Remove the SOFT_MODE flag */
+		trace_event_enable_disable(enable_data->file, 0, 1);
+		module_put(enable_data->file->event_call->mod);
+		trigger_data_free(data);
+		kfree(enable_data);
+	}
+}
+
+static struct event_trigger_ops event_enable_trigger_ops = {
+	.func			= event_enable_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops event_enable_count_trigger_ops = {
+	.func			= event_enable_count_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops event_disable_trigger_ops = {
+	.func			= event_enable_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops event_disable_count_trigger_ops = {
+	.func			= event_enable_count_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static int
+event_enable_trigger_func(struct event_command *cmd_ops,
+			  struct ftrace_event_file *file,
+			  char *glob, char *cmd, char *param)
+{
+	struct ftrace_event_file *event_enable_file;
+	struct enable_trigger_data *enable_data;
+	struct event_trigger_data *trigger_data;
+	struct event_trigger_ops *trigger_ops;
+	struct trace_array *tr = file->tr;
+	const char *system;
+	const char *event;
+	char *trigger;
+	char *number;
+	bool enable;
+	int ret;
+
+	if (!param)
+		return -EINVAL;
+
+	/* separate the trigger from the filter (s:e:n [if filter]) */
+	trigger = strsep(&param, " \t");
+	if (!trigger)
+		return -EINVAL;
+
+	system = strsep(&trigger, ":");
+	if (!trigger)
+		return -EINVAL;
+
+	event = strsep(&trigger, ":");
+
+	ret = -EINVAL;
+	event_enable_file = find_event_file(tr, system, event);
+	if (!event_enable_file)
+		goto out;
+
+	enable = strcmp(cmd, ENABLE_EVENT_STR) == 0;
+
+	trigger_ops = cmd_ops->get_trigger_ops(cmd, trigger);
+
+	ret = -ENOMEM;
+	trigger_data = kzalloc(sizeof(*trigger_data), GFP_KERNEL);
+	if (!trigger_data)
+		goto out;
+
+	enable_data = kzalloc(sizeof(*enable_data), GFP_KERNEL);
+	if (!enable_data) {
+		kfree(trigger_data);
+		goto out;
+	}
+
+	trigger_data->count = -1;
+	trigger_data->ops = trigger_ops;
+	trigger_data->cmd_ops = cmd_ops;
+	INIT_LIST_HEAD(&trigger_data->list);
+	RCU_INIT_POINTER(trigger_data->filter, NULL);
+
+	enable_data->enable = enable;
+	enable_data->file = event_enable_file;
+	trigger_data->private_data = enable_data;
+
+	if (glob[0] == '!') {
+		cmd_ops->unreg(glob+1, trigger_ops, trigger_data, file);
+		kfree(trigger_data);
+		kfree(enable_data);
+		ret = 0;
+		goto out;
+	}
+
+	if (trigger) {
+		number = strsep(&trigger, ":");
+
+		ret = -EINVAL;
+		if (!strlen(number))
+			goto out_free;
+
+		/*
+		 * We use the callback data field (which is a pointer)
+		 * as our counter.
+		 */
+		ret = kstrtoul(number, 0, &trigger_data->count);
+		if (ret)
+			goto out_free;
+	}
+
+	if (!param) /* if param is non-empty, it's supposed to be a filter */
+		goto out_reg;
+
+	if (!cmd_ops->set_filter)
+		goto out_reg;
+
+	ret = cmd_ops->set_filter(param, trigger_data, file);
+	if (ret < 0)
+		goto out_free;
+
+ out_reg:
+	/* Don't let event modules unload while probe registered */
+	ret = try_module_get(event_enable_file->event_call->mod);
+	if (!ret) {
+		ret = -EBUSY;
+		goto out_free;
+	}
+
+	ret = trace_event_enable_disable(event_enable_file, 1, 1);
+	if (ret < 0)
+		goto out_put;
+	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
+	/*
+	 * The above returns on success the # of functions enabled,
+	 * but if it didn't find any functions it returns zero.
+	 * Consider no functions a failure too.
+	 */
+	if (!ret) {
+		ret = -ENOENT;
+		goto out_disable;
+	} else if (ret < 0)
+		goto out_disable;
+	/* Just return zero, not the number of enabled functions */
+	ret = 0;
+ out:
+	return ret;
+
+ out_disable:
+	trace_event_enable_disable(event_enable_file, 0, 1);
+ out_put:
+	module_put(event_enable_file->event_call->mod);
+ out_free:
+	kfree(trigger_data);
+	kfree(enable_data);
+	goto out;
+}
+
+static int event_enable_register_trigger(char *glob,
+					 struct event_trigger_ops *ops,
+					 struct event_trigger_data *data,
+					 struct ftrace_event_file *file)
+{
+	struct enable_trigger_data *enable_data = data->private_data;
+	struct enable_trigger_data *test_enable_data;
+	struct event_trigger_data *test;
+	int ret = 0;
+
+	list_for_each_entry_rcu(test, &file->triggers, list) {
+		test_enable_data = test->private_data;
+		if (test_enable_data &&
+		    (test_enable_data->file == enable_data->file)) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	if (data->ops->init) {
+		ret = data->ops->init(data->ops, data);
+		if (ret < 0)
+			goto out;
+	}
+
+	list_add_rcu(&data->list, &file->triggers);
+	ret++;
+
+	if (trace_event_trigger_enable_disable(file, 1) < 0) {
+		list_del_rcu(&data->list);
+		ret--;
+	}
+out:
+	return ret;
+}
+
+static void event_enable_unregister_trigger(char *glob,
+					    struct event_trigger_ops *ops,
+					    struct event_trigger_data *test,
+					    struct ftrace_event_file *file)
+{
+	struct enable_trigger_data *test_enable_data = test->private_data;
+	struct enable_trigger_data *enable_data;
+	struct event_trigger_data *data;
+	bool unregistered = false;
+
+	list_for_each_entry_rcu(data, &file->triggers, list) {
+		enable_data = data->private_data;
+		if (enable_data &&
+		    (enable_data->file == test_enable_data->file)) {
+			unregistered = true;
+			list_del_rcu(&data->list);
+			trace_event_trigger_enable_disable(file, 0);
+			break;
+		}
+	}
+
+	if (unregistered && data->ops->free)
+		data->ops->free(data->ops, data);
+}
+
+static struct event_trigger_ops *
+event_enable_get_trigger_ops(char *cmd, char *param)
+{
+	struct event_trigger_ops *ops;
+	bool enable;
+
+	enable = strcmp(cmd, ENABLE_EVENT_STR) == 0;
+
+	if (enable)
+		ops = param ? &event_enable_count_trigger_ops :
+			&event_enable_trigger_ops;
+	else
+		ops = param ? &event_disable_count_trigger_ops :
+			&event_disable_trigger_ops;
+
+	return ops;
+}
+
+static struct event_command trigger_enable_cmd = {
+	.name			= ENABLE_EVENT_STR,
+	.trigger_type		= ETT_EVENT_ENABLE,
+	.func			= event_enable_trigger_func,
+	.reg			= event_enable_register_trigger,
+	.unreg			= event_enable_unregister_trigger,
+	.get_trigger_ops	= event_enable_get_trigger_ops,
+};
+
+static struct event_command trigger_disable_cmd = {
+	.name			= DISABLE_EVENT_STR,
+	.trigger_type		= ETT_EVENT_ENABLE,
+	.func			= event_enable_trigger_func,
+	.reg			= event_enable_register_trigger,
+	.unreg			= event_enable_unregister_trigger,
+	.get_trigger_ops	= event_enable_get_trigger_ops,
+};
+
+static __init void unregister_trigger_enable_disable_cmds(void)
+{
+	unregister_event_command(&trigger_enable_cmd);
+	unregister_event_command(&trigger_disable_cmd);
+}
+
+static __init int register_trigger_enable_disable_cmds(void)
+{
+	int ret;
+
+	ret = register_event_command(&trigger_enable_cmd);
+	if (WARN_ON(ret < 0))
+		return ret;
+	ret = register_event_command(&trigger_disable_cmd);
+	if (WARN_ON(ret < 0))
+		unregister_trigger_enable_disable_cmds();
+
+	return ret;
+}
+
 static __init int register_trigger_traceon_traceoff_cmds(void)
 {
 	int ret;
@@ -883,6 +1241,7 @@ __init int register_trigger_cmds(void)
 	register_trigger_traceon_traceoff_cmds();
 	register_trigger_snapshot_cmd();
 	register_trigger_stacktrace_cmd();
+	register_trigger_enable_disable_cmds();
 
 	return 0;
 }

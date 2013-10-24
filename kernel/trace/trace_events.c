@@ -1868,7 +1868,7 @@ struct event_probe_data {
 	bool				enable;
 };
 
-static struct ftrace_event_file *
+struct ftrace_event_file *
 find_event_file(struct trace_array *tr, const char *system,  const char *event)
 {
 	struct ftrace_event_file *file;
