@@ -3,7 +3,7 @@
 #
 menuconfig ROCKCHIP_REMOTECTL
 	bool "rkxx remotectl"
-	default y
+	default n
 	help
 	  Say Y here, will suport rk remotectl.
 	  This option doesn't affect the kernel.
@@ -13,7 +13,7 @@ if ROCKCHIP_REMOTECTL
 
 config RK_REMOTECTL
 	bool "rkxx remoctrl"
-	default y
+	default n
 	
 config RK_IR_WAKEUP
 	bool "rkxx remoctrl wakeup"
