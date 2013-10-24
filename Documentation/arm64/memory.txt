@@ -39,7 +39,7 @@ ffffffbffbc00000	ffffffbffbdfffff	   2MB		earlyprintk device
 
 ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O space
 
-ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[guard]
+ffffffbffbe10000	ffffffbcffffffff	  ~2MB		[guard]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		modules
 
