@@ -1534,11 +1534,12 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		pin_eld->eld_size = eld->eld_size;
 		pin_eld->info = eld->info;
 
-		/* Haswell-specific workaround: re-setup when the transcoder is
-		 * changed during the stream playback
+		/*
+		 * Re-setup pin and infoframe. This is needed e.g. when
+		 * - sink is first plugged-in (infoframe is not set up if !monitor_present)
+		 * - transcoder can change during stream playback on Haswell
 		 */
-		if (is_haswell(codec) &&
-		    eld->eld_valid && !old_eld_valid && per_pin->setup)
+		if (eld->eld_valid && !old_eld_valid && per_pin->setup)
 			hdmi_setup_audio_infoframe(codec, per_pin,
 						   per_pin->non_pcm);
 	}
