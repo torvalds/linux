@@ -1226,6 +1226,7 @@ endif # V4L_MEM2MEM_DRIVERS
 config VIDEO_SUNXI_CEDAR
        tristate "CEDAR driver for sunxi"
        depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
+       default m
        help
          CEDAR driver for sunxi
 

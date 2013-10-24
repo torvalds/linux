@@ -1,7 +1,7 @@
 config VIDEO_DECODER_SUNXI
 	tristate "sunxi video decoder support"
 	depends on VIDEO_SUNXI_CEDAR
-	default y
+	default m
 	---help---
 	  This is the driver for sunxi video decoder, including h264/
 	  mpeg4/mpeg2/vc1/rmvb.
