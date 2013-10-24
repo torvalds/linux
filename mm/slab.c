@@ -204,7 +204,6 @@ typedef unsigned int kmem_bufctl_t;
  */
 struct slab_rcu {
 	struct rcu_head head;
-	struct kmem_cache *cachep;
 	struct page *page;
 };
 
@@ -1824,7 +1823,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
 static void kmem_rcu_free(struct rcu_head *head)
 {
 	struct slab_rcu *slab_rcu = (struct slab_rcu *)head;
-	struct kmem_cache *cachep = slab_rcu->cachep;
+	struct kmem_cache *cachep = slab_rcu->page->slab_cache;
 
 	kmem_freepages(cachep, slab_rcu->page);
 	if (OFF_SLAB(cachep))
@@ -2052,7 +2051,6 @@ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
 		struct slab_rcu *slab_rcu;
 
 		slab_rcu = (struct slab_rcu *)slabp;
-		slab_rcu->cachep = cachep;
 		slab_rcu->page = page;
 		call_rcu(&slab_rcu->head, kmem_rcu_free);
 	} else {
