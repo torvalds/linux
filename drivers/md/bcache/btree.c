@@ -216,6 +216,10 @@ static void bch_btree_node_read_done(struct btree *b)
 	iter->size = b->c->sb.bucket_size / b->c->sb.block_size;
 	iter->used = 0;
 
+#ifdef CONFIG_BCACHE_DEBUG
+	iter->b = b;
+#endif
+
 	if (!i->seq)
 		goto err;
 
@@ -454,7 +458,7 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 	BUG_ON(b->written >= btree_blocks(b));
 	BUG_ON(b->written && !i->keys);
 	BUG_ON(b->sets->data->seq != i->seq);
-	bch_check_key_order(b, i);
+	bch_check_keys(b, "writing");
 
 	cancel_delayed_work(&b->work);
 
@@ -1917,7 +1921,7 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 				  struct bkey *replace_key)
 {
 	bool ret = false;
-	unsigned oldsize = bch_count_data(b);
+	int oldsize = bch_count_data(b);
 
 	while (!bch_keylist_empty(insert_keys)) {
 		struct bset *i = write_block(b);

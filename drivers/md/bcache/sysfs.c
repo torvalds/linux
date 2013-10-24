@@ -102,6 +102,7 @@ rw_attribute(io_error_halflife);
 rw_attribute(verify);
 rw_attribute(key_merging_disabled);
 rw_attribute(gc_always_rewrite);
+rw_attribute(expensive_debug_checks);
 rw_attribute(freelist_percent);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
@@ -517,6 +518,8 @@ lock_root:
 	sysfs_print(active_journal_entries,	fifo_used(&c->journal.pin));
 	sysfs_printf(verify,			"%i", c->verify);
 	sysfs_printf(key_merging_disabled,	"%i", c->key_merging_disabled);
+	sysfs_printf(expensive_debug_checks,
+		     "%i", c->expensive_debug_checks);
 	sysfs_printf(gc_always_rewrite,		"%i", c->gc_always_rewrite);
 	sysfs_printf(btree_shrinker_disabled,	"%i", c->shrinker_disabled);
 	sysfs_printf(copy_gc_enabled,		"%i", c->copy_gc_enabled);
@@ -599,6 +602,7 @@ STORE(__bch_cache_set)
 	sysfs_strtoul(journal_delay_ms,		c->journal_delay_ms);
 	sysfs_strtoul(verify,			c->verify);
 	sysfs_strtoul(key_merging_disabled,	c->key_merging_disabled);
+	sysfs_strtoul(expensive_debug_checks,	c->expensive_debug_checks);
 	sysfs_strtoul(gc_always_rewrite,	c->gc_always_rewrite);
 	sysfs_strtoul(btree_shrinker_disabled,	c->shrinker_disabled);
 	sysfs_strtoul(copy_gc_enabled,		c->copy_gc_enabled);
@@ -674,6 +678,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 #ifdef CONFIG_BCACHE_DEBUG
 	&sysfs_verify,
 	&sysfs_key_merging_disabled,
+	&sysfs_expensive_debug_checks,
 #endif
 	&sysfs_gc_always_rewrite,
 	&sysfs_btree_shrinker_disabled,

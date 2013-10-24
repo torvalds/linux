@@ -259,14 +259,6 @@ static inline void rw_lock(bool w, struct btree *b, int level)
 
 static inline void rw_unlock(bool w, struct btree *b)
 {
-#ifdef CONFIG_BCACHE_EDEBUG
-	unsigned i;
-
-	if (w && b->key.ptr[0])
-		for (i = 0; i <= b->nsets; i++)
-			bch_check_key_order(b, b->sets[i].data);
-#endif
-
 	if (w)
 		b->seq++;
 	(w ? up_write : up_read)(&b->lock);

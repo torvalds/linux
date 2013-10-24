@@ -398,8 +398,7 @@ long bch_bucket_alloc(struct cache *ca, unsigned watermark, bool wait)
 out:
 	wake_up_process(ca->alloc_thread);
 
-#ifdef CONFIG_BCACHE_EDEBUG
-	{
+	if (expensive_debug_checks(ca->set)) {
 		size_t iter;
 		long i;
 
@@ -413,7 +412,7 @@ out:
 		fifo_for_each(i, &ca->unused, iter)
 			BUG_ON(i == r);
 	}
-#endif
+
 	b = ca->buckets + r;
 
 	BUG_ON(atomic_read(&b->pin) != 1);

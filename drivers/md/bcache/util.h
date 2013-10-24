@@ -15,12 +15,12 @@
 
 struct closure;
 
-#ifdef CONFIG_BCACHE_EDEBUG
+#ifdef CONFIG_BCACHE_DEBUG
 
 #define atomic_dec_bug(v)	BUG_ON(atomic_dec_return(v) < 0)
 #define atomic_inc_bug(v, i)	BUG_ON(atomic_inc_return(v) <= i)
 
-#else /* EDEBUG */
+#else /* DEBUG */
 
 #define atomic_dec_bug(v)	atomic_dec(v)
 #define atomic_inc_bug(v, i)	atomic_inc(v)
