@@ -44,6 +44,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
+#include <linux/mman.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
@@ -97,6 +98,9 @@ enum ctype {
 	CT_EXEC_STACK,
 	CT_EXEC_KMALLOC,
 	CT_EXEC_VMALLOC,
+	CT_EXEC_USERSPACE,
+	CT_ACCESS_USERSPACE,
+	CT_WRITE_RO,
 };
 
 static char* cp_name[] = {
@@ -130,6 +134,9 @@ static char* cp_type[] = {
 	"EXEC_STACK",
 	"EXEC_KMALLOC",
 	"EXEC_VMALLOC",
+	"EXEC_USERSPACE",
+	"ACCESS_USERSPACE",
+	"WRITE_RO",
 };
 
 static struct jprobe lkdtm;
@@ -149,6 +156,8 @@ static DEFINE_SPINLOCK(count_lock);
 static DEFINE_SPINLOCK(lock_me_up);
 
 static u8 data_area[EXEC_SIZE];
+
+static const unsigned long rodata = 0xAA55AA55;
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
@@ -323,6 +332,15 @@ static void execute_location(void *dst)
 	func();
 }
 
+static void execute_user_location(void *dst)
+{
+	void (*func)(void) = dst;
+
+	if (copy_to_user(dst, do_nothing, EXEC_SIZE))
+		return;
+	func();
+}
+
 static void lkdtm_do_action(enum ctype which)
 {
 	switch (which) {
@@ -413,6 +431,49 @@ static void lkdtm_do_action(enum ctype which)
 		u32 *vmalloc_area = vmalloc(EXEC_SIZE);
 		execute_location(vmalloc_area);
 		vfree(vmalloc_area);
+		break;
+	}
+	case CT_EXEC_USERSPACE: {
+		unsigned long user_addr;
+
+		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+				    PROT_READ | PROT_WRITE | PROT_EXEC,
+				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+		if (user_addr >= TASK_SIZE) {
+			pr_warn("Failed to allocate user memory\n");
+			return;
+		}
+		execute_user_location((void *)user_addr);
+		vm_munmap(user_addr, PAGE_SIZE);
+		break;
+	}
+	case CT_ACCESS_USERSPACE: {
+		unsigned long user_addr, tmp;
+		unsigned long *ptr;
+
+		user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+				    PROT_READ | PROT_WRITE | PROT_EXEC,
+				    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+		if (user_addr >= TASK_SIZE) {
+			pr_warn("Failed to allocate user memory\n");
+			return;
+		}
+
+		ptr = (unsigned long *)user_addr;
+		tmp = *ptr;
+		tmp += 0xc0dec0de;
+		*ptr = tmp;
+
+		vm_munmap(user_addr, PAGE_SIZE);
+
+		break;
+	}
+	case CT_WRITE_RO: {
+		unsigned long *ptr;
+
+		ptr = (unsigned long *)&rodata;
+		*ptr ^= 0xabcd1234;
+
 		break;
 	}
 	case CT_NONE:
