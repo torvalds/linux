@@ -29,13 +29,11 @@ struct sysfs_elem_symlink {
 };
 
 struct sysfs_elem_attr {
-	struct attribute	*attr;
+	union {
+		struct attribute	*attr;
+		struct bin_attribute	*bin_attr;
+	};
 	struct sysfs_open_dirent *open;
-};
-
-struct sysfs_elem_bin_attr {
-	struct bin_attribute	*bin_attr;
-	struct hlist_head	buffers;
 };
 
 struct sysfs_inode_attrs {
@@ -74,7 +72,6 @@ struct sysfs_dirent {
 		struct sysfs_elem_dir		s_dir;
 		struct sysfs_elem_symlink	s_symlink;
 		struct sysfs_elem_attr		s_attr;
-		struct sysfs_elem_bin_attr	s_bin_attr;
 	};
 
 	unsigned short		s_flags;
