@@ -21,10 +21,26 @@
 
 struct device_node;
 
+/**
+ * struct cpu_operations - Callback operations for hotplugging CPUs.
+ *
+ * @name:	Name of the property as appears in a devicetree cpu node's
+ *		enable-method property.
+ * @cpu_init:	Reads any data necessary for a specific enable-method from the
+ *		devicetree, for a given cpu node and proposed logical id.
+ * @cpu_prepare: Early one-time preparation step for a cpu. If there is a
+ *		mechanism for doing so, tests whether it is possible to boot
+ *		the given CPU.
+ * @cpu_boot:	Boots a cpu into the kernel.
+ * @cpu_postboot: Optionally, perform any post-boot cleanup or necesary
+ *		synchronisation. Called from the cpu being booted.
+ */
 struct cpu_operations {
 	const char	*name;
 	int		(*cpu_init)(struct device_node *, unsigned int);
 	int		(*cpu_prepare)(unsigned int);
+	int		(*cpu_boot)(unsigned int);
+	void		(*cpu_postboot)(void);
 };
 
 extern const struct cpu_operations *cpu_ops[NR_CPUS];
