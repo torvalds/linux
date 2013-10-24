@@ -2726,51 +2726,31 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	struct bonding *bond = container_of(work, struct bonding,
 					    arp_work.work);
 	bool should_notify_peers = false;
-	int delta_in_ticks;
 
-	read_lock(&bond->lock);
-
-	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
-
-	if (!bond_has_slaves(bond))
+	if (!rtnl_trylock())
 		goto re_arm;
+
+	if (!bond_has_slaves(bond)) {
+		rtnl_unlock();
+		goto re_arm;
+	}
 
 	should_notify_peers = bond_should_notify_peers(bond);
 
-	if (bond_ab_arp_inspect(bond)) {
-		read_unlock(&bond->lock);
-
-		/* Race avoidance with bond_close flush of workqueue */
-		if (!rtnl_trylock()) {
-			read_lock(&bond->lock);
-			delta_in_ticks = 1;
-			should_notify_peers = false;
-			goto re_arm;
-		}
-
-		read_lock(&bond->lock);
-
+	if (bond_ab_arp_inspect(bond))
 		bond_ab_arp_commit(bond);
-
-		read_unlock(&bond->lock);
-		rtnl_unlock();
-		read_lock(&bond->lock);
-	}
 
 	bond_ab_arp_probe(bond);
 
+	if (should_notify_peers)
+		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
+
+	rtnl_unlock();
+
 re_arm:
 	if (bond->params.arp_interval)
-		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
-
-	read_unlock(&bond->lock);
-
-	if (should_notify_peers) {
-		if (!rtnl_trylock())
-			return;
-		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
-		rtnl_unlock();
-	}
+		queue_delayed_work(bond->wq, &bond->arp_work,
+				msecs_to_jiffies(bond->params.arp_interval));
 }
 
 /*-------------------------- netdev event handling --------------------------*/
