@@ -2902,8 +2902,9 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	 * number of fragments. If needed, we can call this function,
 	 * although it is less efficient.
 	 */
-	if (nr_frags > 23)
-		return -EIO;
+
+	/* nr_frags should be no more than 18. */
+	BUILD_BUG_ON(MAX_SKB_FRAGS + 1 > 23);
 
 	memset(desc, 0, sizeof(struct tx_desc) * (nr_frags + 1));
 
