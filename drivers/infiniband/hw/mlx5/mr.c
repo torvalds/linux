@@ -40,7 +40,6 @@
 #include "mlx5_ib.h"
 
 enum {
-	DEF_CACHE_SIZE	= 10,
 	MAX_PENDING_REG_MR = 8,
 };
 
@@ -550,7 +549,6 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent;
 	int limit;
-	int size;
 	int err;
 	int i;
 
@@ -571,13 +569,11 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->order = i + 2;
 		ent->dev = dev;
 
-		if (dev->mdev.profile->mask & MLX5_PROF_MASK_MR_CACHE) {
-			size = dev->mdev.profile->mr_cache[i].size;
+		if (dev->mdev.profile->mask & MLX5_PROF_MASK_MR_CACHE)
 			limit = dev->mdev.profile->mr_cache[i].limit;
-		} else {
-			size = DEF_CACHE_SIZE;
+		else
 			limit = 0;
-		}
+
 		INIT_WORK(&ent->work, cache_work_func);
 		INIT_DELAYED_WORK(&ent->dwork, delayed_cache_work_func);
 		ent->limit = limit;
