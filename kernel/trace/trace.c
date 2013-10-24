@@ -595,6 +595,28 @@ void free_snapshot(struct trace_array *tr)
 }
 
 /**
+ * tracing_alloc_snapshot - allocate snapshot buffer.
+ *
+ * This only allocates the snapshot buffer if it isn't already
+ * allocated - it doesn't also take a snapshot.
+ *
+ * This is meant to be used in cases where the snapshot buffer needs
+ * to be set up for events that can't sleep but need to be able to
+ * trigger a snapshot.
+ */
+int tracing_alloc_snapshot(void)
+{
+	struct trace_array *tr = &global_trace;
+	int ret;
+
+	ret = alloc_snapshot(tr);
+	WARN_ON(ret < 0);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tracing_alloc_snapshot);
+
+/**
  * trace_snapshot_alloc - allocate and take a snapshot of the current buffer.
  *
  * This is similar to trace_snapshot(), but it will allocate the
@@ -607,11 +629,10 @@ void free_snapshot(struct trace_array *tr)
  */
 void tracing_snapshot_alloc(void)
 {
-	struct trace_array *tr = &global_trace;
 	int ret;
 
-	ret = alloc_snapshot(tr);
-	if (WARN_ON(ret < 0))
+	ret = tracing_alloc_snapshot();
+	if (ret < 0)
 		return;
 
 	tracing_snapshot();
@@ -623,6 +644,12 @@ void tracing_snapshot(void)
 	WARN_ONCE(1, "Snapshot feature not enabled, but internal snapshot used");
 }
 EXPORT_SYMBOL_GPL(tracing_snapshot);
+int tracing_alloc_snapshot(void)
+{
+	WARN_ONCE(1, "Snapshot feature not enabled, but snapshot allocation used");
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(tracing_alloc_snapshot);
 void tracing_snapshot_alloc(void)
 {
 	/* Give warning */

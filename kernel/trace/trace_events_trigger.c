@@ -696,6 +696,90 @@ static struct event_command trigger_traceoff_cmd = {
 	.get_trigger_ops	= onoff_get_trigger_ops,
 };
 
+#ifdef CONFIG_TRACER_SNAPSHOT
+static void
+snapshot_trigger(struct event_trigger_data *data)
+{
+	tracing_snapshot();
+}
+
+static void
+snapshot_count_trigger(struct event_trigger_data *data)
+{
+	if (!data->count)
+		return;
+
+	if (data->count != -1)
+		(data->count)--;
+
+	snapshot_trigger(data);
+}
+
+static int
+register_snapshot_trigger(char *glob, struct event_trigger_ops *ops,
+			  struct event_trigger_data *data,
+			  struct ftrace_event_file *file)
+{
+	int ret = register_trigger(glob, ops, data, file);
+
+	if (ret > 0 && tracing_alloc_snapshot() != 0) {
+		unregister_trigger(glob, ops, data, file);
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static int
+snapshot_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
+		       struct event_trigger_data *data)
+{
+	return event_trigger_print("snapshot", m, (void *)data->count,
+				   data->filter_str);
+}
+
+static struct event_trigger_ops snapshot_trigger_ops = {
+	.func			= snapshot_trigger,
+	.print			= snapshot_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_trigger_free,
+};
+
+static struct event_trigger_ops snapshot_count_trigger_ops = {
+	.func			= snapshot_count_trigger,
+	.print			= snapshot_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_trigger_free,
+};
+
+static struct event_trigger_ops *
+snapshot_get_trigger_ops(char *cmd, char *param)
+{
+	return param ? &snapshot_count_trigger_ops : &snapshot_trigger_ops;
+}
+
+static struct event_command trigger_snapshot_cmd = {
+	.name			= "snapshot",
+	.trigger_type		= ETT_SNAPSHOT,
+	.func			= event_trigger_callback,
+	.reg			= register_snapshot_trigger,
+	.unreg			= unregister_trigger,
+	.get_trigger_ops	= snapshot_get_trigger_ops,
+};
+
+static __init int register_trigger_snapshot_cmd(void)
+{
+	int ret;
+
+	ret = register_event_command(&trigger_snapshot_cmd);
+	WARN_ON(ret < 0);
+
+	return ret;
+}
+#else
+static __init int register_trigger_snapshot_cmd(void) { return 0; }
+#endif /* CONFIG_TRACER_SNAPSHOT */
+
 static __init void unregister_trigger_traceon_traceoff_cmds(void)
 {
 	unregister_event_command(&trigger_traceon_cmd);
@@ -719,6 +803,7 @@ static __init int register_trigger_traceon_traceoff_cmds(void)
 __init int register_trigger_cmds(void)
 {
 	register_trigger_traceon_traceoff_cmds();
+	register_trigger_snapshot_cmd();
 
 	return 0;
 }

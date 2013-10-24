@@ -346,6 +346,7 @@ struct ftrace_event_file {
 enum event_trigger_type {
 	ETT_NONE		= (0),
 	ETT_TRACE_ONOFF		= (1 << 0),
+	ETT_SNAPSHOT		= (1 << 1),
 };
 
 extern void destroy_preds(struct ftrace_event_file *file);
