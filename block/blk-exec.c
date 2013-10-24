@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/sched/sysctl.h>
 
 #include "blk.h"
@@ -58,6 +59,12 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 
 	rq->rq_disk = bd_disk;
 	rq->end_io = done;
+
+	if (q->mq_ops) {
+		blk_mq_insert_request(q, rq, true);
+		return;
+	}
+
 	/*
 	 * need to check this before __blk_run_queue(), because rq can
 	 * be freed before that returns.

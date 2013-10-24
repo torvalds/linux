@@ -419,6 +419,8 @@ static inline void bio_list_init(struct bio_list *bl)
 	bl->head = bl->tail = NULL;
 }
 
+#define BIO_EMPTY_LIST	{ NULL, NULL }
+
 #define bio_list_for_each(bio, bl) \
 	for (bio = (bl)->head; bio; bio = bio->bi_next)
 
