@@ -222,7 +222,6 @@ struct slab {
 			void *s_mem;		/* including colour offset */
 			unsigned int inuse;	/* num of objs active in slab */
 			kmem_bufctl_t free;
-			unsigned short nodeid;
 		};
 		struct slab_rcu __slab_cover_slab_rcu;
 	};
@@ -1099,8 +1098,7 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 
 static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 {
-	struct slab *slabp = virt_to_slab(objp);
-	int nodeid = slabp->nodeid;
+	int nodeid = page_to_nid(virt_to_page(objp));
 	struct kmem_cache_node *n;
 	struct array_cache *alien = NULL;
 	int node;
@@ -1111,7 +1109,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	 * Make sure we are not freeing a object from another node to the array
 	 * cache on this cpu.
 	 */
-	if (likely(slabp->nodeid == node))
+	if (likely(nodeid == node))
 		return 0;
 
 	n = cachep->node[node];
@@ -2630,7 +2628,6 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep,
 	}
 	slabp->inuse = 0;
 	slabp->s_mem = addr + colour_off;
-	slabp->nodeid = nodeid;
 	slabp->free = 0;
 	return slabp;
 }
@@ -2707,7 +2704,7 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp,
 	next = slab_bufctl(slabp)[slabp->free];
 #if DEBUG
 	slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
-	WARN_ON(slabp->nodeid != nodeid);
+	WARN_ON(page_to_nid(virt_to_page(objp)) != nodeid);
 #endif
 	slabp->free = next;
 
@@ -2721,7 +2718,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
 
 #if DEBUG
 	/* Verify that the slab belongs to the intended node */
-	WARN_ON(slabp->nodeid != nodeid);
+	WARN_ON(page_to_nid(virt_to_page(objp)) != nodeid);
 
 	if (slab_bufctl(slabp)[objnr] + 1 <= SLAB_LIMIT + 1) {
 		printk(KERN_ERR "slab: double free detected in cache "
