@@ -360,6 +360,7 @@ struct xcopy_pt_cmd {
 	struct se_cmd se_cmd;
 	struct xcopy_op *xcopy_op;
 	struct completion xpt_passthrough_sem;
+	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 };
 
 static struct se_port xcopy_pt_port;
@@ -711,7 +712,7 @@ static int target_xcopy_read_source(
 		(unsigned long long)src_lba, src_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, NULL, length,
-				DMA_FROM_DEVICE, 0, NULL);
+			      DMA_FROM_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
 	xop->src_pt_cmd = xpt_cmd;
 
 	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, src_dev, &cdb[0],
@@ -771,7 +772,7 @@ static int target_xcopy_write_destination(
 		(unsigned long long)dst_lba, dst_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, NULL, length,
-				DMA_TO_DEVICE, 0, NULL);
+			      DMA_TO_DEVICE, 0, &xpt_cmd->sense_buffer[0]);
 	xop->dst_pt_cmd = xpt_cmd;
 
 	rc = target_xcopy_setup_pt_cmd(xpt_cmd, xop, dst_dev, &cdb[0],
