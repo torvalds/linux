@@ -1206,7 +1206,8 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	long nr_to_write = wbc->nr_to_write;
 
 	/* First check balancing cached NAT entries */
-	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK)) {
+	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK) ||
+				excess_prefree_segs(sbi)) {
 		f2fs_sync_fs(sbi->sb, true);
 		return 0;
 	}

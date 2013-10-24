@@ -14,6 +14,8 @@
 #define NULL_SEGNO			((unsigned int)(~0))
 #define NULL_SECNO			((unsigned int)(~0))
 
+#define DEF_RECLAIM_PREFREE_SEGMENTS	100	/* 200MB of prefree segments */
+
 /* L: Logical segment # in volume, R: Relative segment # in main area */
 #define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
 #define GET_R2L_SEGNO(free_i, segno)	(segno + free_i->start_segno)
@@ -470,6 +472,11 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 
 	return ((free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
 						reserved_sections(sbi)));
+}
+
+static inline bool excess_prefree_segs(struct f2fs_sb_info *sbi)
+{
+	return (prefree_segments(sbi) > SM_I(sbi)->rec_prefree_segments);
 }
 
 static inline int utilization(struct f2fs_sb_info *sbi)

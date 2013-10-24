@@ -299,6 +299,9 @@ struct f2fs_sm_info {
 	unsigned int main_segments;	/* # of segments in main area */
 	unsigned int reserved_segments;	/* # of reserved segments */
 	unsigned int ovp_segments;	/* # of overprovision segments */
+
+	/* a threshold to reclaim prefree segments */
+	unsigned int rec_prefree_segments;
 };
 
 /*

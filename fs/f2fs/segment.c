@@ -1645,6 +1645,7 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 	sm_info->ovp_segments = le32_to_cpu(ckpt->overprov_segment_count);
 	sm_info->main_segments = le32_to_cpu(raw_super->segment_count_main);
 	sm_info->ssa_blkaddr = le32_to_cpu(raw_super->ssa_blkaddr);
+	sm_info->rec_prefree_segments = DEF_RECLAIM_PREFREE_SEGMENTS;
 
 	err = build_sit_info(sbi);
 	if (err)
