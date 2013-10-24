@@ -185,7 +185,6 @@ static void (*smp_cross_call)(const struct cpumask *, unsigned int);
  */
 void __init smp_init_cpus(void)
 {
-	const char *enable_method;
 	struct device_node *dn = NULL;
 	unsigned int i, cpu = 1;
 	bool bootcpu_valid = false;
@@ -256,23 +255,8 @@ void __init smp_init_cpus(void)
 		if (cpu >= NR_CPUS)
 			goto next;
 
-		/*
-		 * We currently support only the "spin-table" enable-method.
-		 */
-		enable_method = of_get_property(dn, "enable-method", NULL);
-		if (!enable_method) {
-			pr_err("%s: missing enable-method property\n",
-				dn->full_name);
+		if (cpu_read_ops(dn, cpu) != 0)
 			goto next;
-		}
-
-		cpu_ops[cpu] = cpu_get_ops(enable_method);
-
-		if (!cpu_ops[cpu]) {
-			pr_err("%s: invalid enable-method property: %s\n",
-			       dn->full_name, enable_method);
-			goto next;
-		}
 
 		if (cpu_ops[cpu]->cpu_init(dn, cpu))
 			goto next;
