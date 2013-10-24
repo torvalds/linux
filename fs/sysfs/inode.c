@@ -314,32 +314,6 @@ void sysfs_evict_inode(struct inode *inode)
 	sysfs_put(sd);
 }
 
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name,
-			  const void *ns)
-{
-	struct sysfs_addrm_cxt acxt;
-	struct sysfs_dirent *sd;
-
-	if (!dir_sd) {
-		WARN(1, KERN_WARNING "sysfs: can not remove '%s', no directory\n",
-			name);
-		return -ENOENT;
-	}
-
-	sysfs_addrm_start(&acxt);
-
-	sd = sysfs_find_dirent(dir_sd, name, ns);
-	if (sd)
-		__sysfs_remove(&acxt, sd);
-
-	sysfs_addrm_finish(&acxt);
-
-	if (sd)
-		return 0;
-	else
-		return -ENOENT;
-}
-
 int sysfs_permission(struct inode *inode, int mask)
 {
 	struct sysfs_dirent *sd;
