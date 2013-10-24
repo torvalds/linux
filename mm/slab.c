@@ -2550,7 +2550,7 @@ static struct freelist *alloc_slabmgmt(struct kmem_cache *cachep,
 	return freelist;
 }
 
-static inline unsigned int *slab_bufctl(struct page *page)
+static inline unsigned int *slab_freelist(struct page *page)
 {
 	return (unsigned int *)(page->freelist);
 }
@@ -2597,7 +2597,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 		if (cachep->ctor)
 			cachep->ctor(objp);
 #endif
-		slab_bufctl(page)[i] = i;
+		slab_freelist(page)[i] = i;
 	}
 }
 
@@ -2616,7 +2616,7 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct page *page,
 {
 	void *objp;
 
-	objp = index_to_obj(cachep, page, slab_bufctl(page)[page->active]);
+	objp = index_to_obj(cachep, page, slab_freelist(page)[page->active]);
 	page->active++;
 #if DEBUG
 	WARN_ON(page_to_nid(virt_to_page(objp)) != nodeid);
@@ -2637,7 +2637,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct page *page,
 
 	/* Verify double free bug */
 	for (i = page->active; i < cachep->num; i++) {
-		if (slab_bufctl(page)[i] == objnr) {
+		if (slab_freelist(page)[i] == objnr) {
 			printk(KERN_ERR "slab: double free detected in cache "
 					"'%s', objp %p\n", cachep->name, objp);
 			BUG();
@@ -2645,7 +2645,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct page *page,
 	}
 #endif
 	page->active--;
-	slab_bufctl(page)[page->active] = objnr;
+	slab_freelist(page)[page->active] = objnr;
 }
 
 /*
@@ -4218,7 +4218,7 @@ static void handle_slab(unsigned long *n, struct kmem_cache *c,
 
 		for (j = page->active; j < c->num; j++) {
 			/* Skip freed item */
-			if (slab_bufctl(page)[j] == i) {
+			if (slab_freelist(page)[j] == i) {
 				active = false;
 				break;
 			}
