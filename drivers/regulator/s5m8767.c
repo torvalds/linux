@@ -910,32 +910,15 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.regmap = iodev->regmap;
 		config.of_node = pdata->regulators[i].reg_node;
 
-		rdev[i] = regulator_register(&regulators[id], &config);
+		rdev[i] = devm_regulator_register(&pdev->dev, &regulators[id],
+						  &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(s5m8767->dev, "regulator init failed for %d\n",
 					id);
-			rdev[i] = NULL;
-			goto err;
+			return ret;
 		}
 	}
-
-	return 0;
-err:
-	for (i = 0; i < s5m8767->num_regulators; i++)
-		regulator_unregister(rdev[i]);
-
-	return ret;
-}
-
-static int s5m8767_pmic_remove(struct platform_device *pdev)
-{
-	struct s5m8767_info *s5m8767 = platform_get_drvdata(pdev);
-	struct regulator_dev **rdev = s5m8767->rdev;
-	int i;
-
-	for (i = 0; i < s5m8767->num_regulators; i++)
-		regulator_unregister(rdev[i]);
 
 	return 0;
 }
@@ -952,7 +935,6 @@ static struct platform_driver s5m8767_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s5m8767_pmic_probe,
-	.remove = s5m8767_pmic_remove,
 	.id_table = s5m8767_pmic_id,
 };
 

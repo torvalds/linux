@@ -230,7 +230,7 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 	struct max77693_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_pmic_dev *max77693_pmic;
 	struct max77693_regulator_data *rdata = NULL;
-	int num_rdata, i, ret;
+	int num_rdata, i;
 	struct regulator_config config;
 
 	num_rdata = max77693_pmic_init_rdata(&pdev->dev, &rdata);
@@ -266,34 +266,14 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 		config.init_data = rdata[i].initdata;
 		config.of_node = rdata[i].of_node;
 
-		max77693_pmic->rdev[i] = regulator_register(&regulators[id],
-							    &config);
+		max77693_pmic->rdev[i] = devm_regulator_register(&pdev->dev,
+						&regulators[id], &config);
 		if (IS_ERR(max77693_pmic->rdev[i])) {
-			ret = PTR_ERR(max77693_pmic->rdev[i]);
 			dev_err(max77693_pmic->dev,
 				"Failed to initialize regulator-%d\n", id);
-			max77693_pmic->rdev[i] = NULL;
-			goto err;
+			return PTR_ERR(max77693_pmic->rdev[i]);
 		}
 	}
-
-	return 0;
- err:
-	while (--i >= 0)
-		regulator_unregister(max77693_pmic->rdev[i]);
-
-	return ret;
-}
-
-static int max77693_pmic_remove(struct platform_device *pdev)
-{
-	struct max77693_pmic_dev *max77693_pmic = platform_get_drvdata(pdev);
-	struct regulator_dev **rdev = max77693_pmic->rdev;
-	int i;
-
-	for (i = 0; i < max77693_pmic->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
 
 	return 0;
 }
@@ -311,7 +291,6 @@ static struct platform_driver max77693_pmic_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = max77693_pmic_probe,
-	.remove = max77693_pmic_remove,
 	.id_table = max77693_pmic_id,
 };
 

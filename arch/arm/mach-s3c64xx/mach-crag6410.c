@@ -310,10 +310,6 @@ static struct regulator_consumer_supply wallvdd_consumers[] = {
 
 	REGULATOR_SUPPLY("SPKVDDL", "spi0.1"),
 	REGULATOR_SUPPLY("SPKVDDR", "spi0.1"),
-	REGULATOR_SUPPLY("SPKVDDL", "wm5102-codec"),
-	REGULATOR_SUPPLY("SPKVDDR", "wm5102-codec"),
-	REGULATOR_SUPPLY("SPKVDDL", "wm5110-codec"),
-	REGULATOR_SUPPLY("SPKVDDR", "wm5110-codec"),
 
 	REGULATOR_SUPPLY("DC1VDD", "0-0034"),
 	REGULATOR_SUPPLY("DC2VDD", "0-0034"),
@@ -653,14 +649,6 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] = {
 	REGULATOR_SUPPLY("DBVDD3", "spi0.1"),
 	REGULATOR_SUPPLY("LDOVDD", "spi0.1"),
 	REGULATOR_SUPPLY("CPVDD", "spi0.1"),
-
-	REGULATOR_SUPPLY("DBVDD2", "wm5102-codec"),
-	REGULATOR_SUPPLY("DBVDD3", "wm5102-codec"),
-	REGULATOR_SUPPLY("CPVDD", "wm5102-codec"),
-
-	REGULATOR_SUPPLY("DBVDD2", "wm5110-codec"),
-	REGULATOR_SUPPLY("DBVDD3", "wm5110-codec"),
-	REGULATOR_SUPPLY("CPVDD", "wm5110-codec"),
 };
 
 static struct regulator_init_data pvdd_1v8 = {

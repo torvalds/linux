@@ -463,7 +463,7 @@ static int da903x_regulator_probe(struct platform_device *pdev)
 	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = ri;
 
-	rdev = regulator_register(&ri->desc, &config);
+	rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);
@@ -474,21 +474,12 @@ static int da903x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int da903x_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
-	return 0;
-}
-
 static struct platform_driver da903x_regulator_driver = {
 	.driver	= {
 		.name	= "da903x-regulator",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_regulator_probe,
-	.remove		= da903x_regulator_remove,
 };
 
 static int __init da903x_regulator_init(void)

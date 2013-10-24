@@ -200,7 +200,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	config.regmap = sreg->anatop;
 
 	/* register regulator */
-	rdev = regulator_register(rdesc, &config);
+	rdev = devm_regulator_register(dev, rdesc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(dev, "failed to register %s\n",
 			rdesc->name);
@@ -223,7 +223,6 @@ static int anatop_regulator_remove(struct platform_device *pdev)
 	struct anatop_regulator *sreg = rdev_get_drvdata(rdev);
 	const char *name = sreg->name;
 
-	regulator_unregister(rdev);
 	kfree(name);
 
 	return 0;

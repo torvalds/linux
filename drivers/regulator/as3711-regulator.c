@@ -273,32 +273,15 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];
 
-		rdev = regulator_register(&ri->desc, &config);
+		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register regulator %s\n",
 				ri->desc.name);
-			ret = PTR_ERR(rdev);
-			goto eregreg;
+			return PTR_ERR(rdev);
 		}
 		reg->rdev = rdev;
 	}
 	platform_set_drvdata(pdev, regs);
-	return 0;
-
-eregreg:
-	while (--id >= 0)
-		regulator_unregister(regs[id].rdev);
-
-	return ret;
-}
-
-static int as3711_regulator_remove(struct platform_device *pdev)
-{
-	struct as3711_regulator *regs = platform_get_drvdata(pdev);
-	int id;
-
-	for (id = 0; id < AS3711_REGULATOR_NUM; ++id)
-		regulator_unregister(regs[id].rdev);
 	return 0;
 }
 
@@ -308,7 +291,6 @@ static struct platform_driver as3711_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= as3711_regulator_probe,
-	.remove		= as3711_regulator_remove,
 };
 
 static int __init as3711_regulator_init(void)

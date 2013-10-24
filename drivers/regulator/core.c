@@ -36,6 +36,7 @@
 #include <trace/events/regulator.h>
 
 #include "dummy.h"
+#include "internal.h"
 
 #define rdev_crit(rdev, fmt, ...)					\
 	pr_crit("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
@@ -52,6 +53,7 @@ static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
+static LIST_HEAD(regulator_supply_alias_list);
 static bool has_full_constraints;
 static bool board_wants_dummy_regulator;
 
@@ -83,22 +85,16 @@ struct regulator_enable_gpio {
 };
 
 /*
- * struct regulator
+ * struct regulator_supply_alias
  *
- * One for each consumer device.
+ * Used to map lookups for a supply onto an alternative device.
  */
-struct regulator {
-	struct device *dev;
+struct regulator_supply_alias {
 	struct list_head list;
-	unsigned int always_on:1;
-	unsigned int bypass:1;
-	int uA_load;
-	int min_uV;
-	int max_uV;
-	char *supply_name;
-	struct device_attribute dev_attr;
-	struct regulator_dev *rdev;
-	struct dentry *debugfs;
+	struct device *src_dev;
+	const char *src_supply;
+	struct device *alias_dev;
+	const char *alias_supply;
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
@@ -1191,6 +1187,32 @@ static int _regulator_get_enable_time(struct regulator_dev *rdev)
 	return rdev->desc->ops->enable_time(rdev);
 }
 
+static struct regulator_supply_alias *regulator_find_supply_alias(
+		struct device *dev, const char *supply)
+{
+	struct regulator_supply_alias *map;
+
+	list_for_each_entry(map, &regulator_supply_alias_list, list)
+		if (map->src_dev == dev && strcmp(map->src_supply, supply) == 0)
+			return map;
+
+	return NULL;
+}
+
+static void regulator_supply_alias(struct device **dev, const char **supply)
+{
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(*dev, *supply);
+	if (map) {
+		dev_dbg(*dev, "Mapping supply %s to %s,%s\n",
+				*supply, map->alias_supply,
+				dev_name(map->alias_dev));
+		*dev = map->alias_dev;
+		*supply = map->alias_supply;
+	}
+}
+
 static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 						  const char *supply,
 						  int *ret)
@@ -1199,6 +1221,8 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	struct device_node *node;
 	struct regulator_map *map;
 	const char *devname = NULL;
+
+	regulator_supply_alias(&dev, &supply);
 
 	/* first do a dt based lookup */
 	if (dev && dev->of_node) {
@@ -1353,40 +1377,6 @@ struct regulator *regulator_get(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(regulator_get);
 
-static void devm_regulator_release(struct device *dev, void *res)
-{
-	regulator_put(*(struct regulator **)res);
-}
-
-/**
- * devm_regulator_get - Resource managed regulator_get()
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Managed regulator_get(). Regulators returned from this function are
- * automatically regulator_put() on driver detach. See regulator_get() for more
- * information.
- */
-struct regulator *devm_regulator_get(struct device *dev, const char *id)
-{
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = regulator_get(dev, id);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_get);
-
 /**
  * regulator_get_exclusive - obtain exclusive access to a regulator.
  * @dev: device for regulator "consumer"
@@ -1443,36 +1433,6 @@ struct regulator *regulator_get_optional(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(regulator_get_optional);
 
-/**
- * devm_regulator_get_optional - Resource managed regulator_get_optional()
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Managed regulator_get_optional(). Regulators returned from this
- * function are automatically regulator_put() on driver detach. See
- * regulator_get_optional() for more information.
- */
-struct regulator *devm_regulator_get_optional(struct device *dev,
-					      const char *id)
-{
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = regulator_get_optional(dev, id);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_get_optional);
-
 /* Locks held by regulator_put() */
 static void _regulator_put(struct regulator *regulator)
 {
@@ -1499,36 +1459,6 @@ static void _regulator_put(struct regulator *regulator)
 }
 
 /**
- * devm_regulator_get_exclusive - Resource managed regulator_get_exclusive()
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Managed regulator_get_exclusive(). Regulators returned from this function
- * are automatically regulator_put() on driver detach. See regulator_get() for
- * more information.
- */
-struct regulator *devm_regulator_get_exclusive(struct device *dev,
-					       const char *id)
-{
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = _regulator_get(dev, id, 1);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_get_exclusive);
-
-/**
  * regulator_put - "free" the regulator source
  * @regulator: regulator source
  *
@@ -1544,34 +1474,133 @@ void regulator_put(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_put);
 
-static int devm_regulator_match(struct device *dev, void *res, void *data)
+/**
+ * regulator_register_supply_alias - Provide device alias for supply lookup
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: Supply name or regulator ID that should be used to lookup the
+ * supply
+ *
+ * All lookups for id on dev will instead be conducted for alias_id on
+ * alias_dev.
+ */
+int regulator_register_supply_alias(struct device *dev, const char *id,
+				    struct device *alias_dev,
+				    const char *alias_id)
 {
-	struct regulator **r = res;
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-	return *r == data;
+	struct regulator_supply_alias *map;
+
+	map = regulator_find_supply_alias(dev, id);
+	if (map)
+		return -EEXIST;
+
+	map = kzalloc(sizeof(struct regulator_supply_alias), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	map->src_dev = dev;
+	map->src_supply = id;
+	map->alias_dev = alias_dev;
+	map->alias_supply = alias_id;
+
+	list_add(&map->list, &regulator_supply_alias_list);
+
+	pr_info("Adding alias for supply %s,%s -> %s,%s\n",
+		id, dev_name(dev), alias_id, dev_name(alias_dev));
+
+	return 0;
 }
+EXPORT_SYMBOL_GPL(regulator_register_supply_alias);
 
 /**
- * devm_regulator_put - Resource managed regulator_put()
- * @regulator: regulator to free
+ * regulator_unregister_supply_alias - Remove device alias
  *
- * Deallocate a regulator allocated with devm_regulator_get(). Normally
- * this function will not need to be called and the resource management
- * code will ensure that the resource is freed.
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: Supply name or regulator ID
+ *
+ * Remove a lookup alias if one exists for id on dev.
  */
-void devm_regulator_put(struct regulator *regulator)
+void regulator_unregister_supply_alias(struct device *dev, const char *id)
 {
-	int rc;
+	struct regulator_supply_alias *map;
 
-	rc = devres_release(regulator->dev, devm_regulator_release,
-			    devm_regulator_match, regulator);
-	if (rc != 0)
-		WARN_ON(rc);
+	map = regulator_find_supply_alias(dev, id);
+	if (map) {
+		list_del(&map->list);
+		kfree(map);
+	}
 }
-EXPORT_SYMBOL_GPL(devm_regulator_put);
+EXPORT_SYMBOL_GPL(regulator_unregister_supply_alias);
+
+/**
+ * regulator_bulk_register_supply_alias - register multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @alias_dev: device that should be used to lookup the supply
+ * @alias_id: List of supply names or regulator IDs that should be used to
+ * lookup the supply
+ * @num_id: Number of aliases to register
+ *
+ * @return 0 on success, an errno on failure.
+ *
+ * This helper function allows drivers to register several supply
+ * aliases in one operation.  If any of the aliases cannot be
+ * registered any aliases that were registered will be removed
+ * before returning to the caller.
+ */
+int regulator_bulk_register_supply_alias(struct device *dev, const char **id,
+					 struct device *alias_dev,
+					 const char **alias_id,
+					 int num_id)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < num_id; ++i) {
+		ret = regulator_register_supply_alias(dev, id[i], alias_dev,
+						      alias_id[i]);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	dev_err(dev,
+		"Failed to create supply alias %s,%s -> %s,%s\n",
+		id[i], dev_name(dev), alias_id[i], dev_name(alias_dev));
+
+	while (--i >= 0)
+		regulator_unregister_supply_alias(dev, id[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_bulk_register_supply_alias);
+
+/**
+ * regulator_bulk_unregister_supply_alias - unregister multiple aliases
+ *
+ * @dev: device that will be given as the regulator "consumer"
+ * @id: List of supply names or regulator IDs
+ * @num_id: Number of aliases to unregister
+ *
+ * This helper function allows drivers to unregister several supply
+ * aliases in one operation.
+ */
+void regulator_bulk_unregister_supply_alias(struct device *dev,
+					    const char **id,
+					    int num_id)
+{
+	int i;
+
+	for (i = 0; i < num_id; ++i)
+		regulator_unregister_supply_alias(dev, id[i]);
+}
+EXPORT_SYMBOL_GPL(regulator_bulk_unregister_supply_alias);
+
 
 /* Manage enable GPIO list. Same GPIO pin can be shared among regulators */
 static int regulator_ena_gpio_request(struct regulator_dev *rdev,
@@ -2911,52 +2940,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_bulk_get);
-
-/**
- * devm_regulator_bulk_get - managed get multiple regulator consumers
- *
- * @dev:           Device to supply
- * @num_consumers: Number of consumers to register
- * @consumers:     Configuration of consumers; clients are stored here.
- *
- * @return 0 on success, an errno on failure.
- *
- * This helper function allows drivers to get several regulator
- * consumers in one operation with management, the regulators will
- * automatically be freed when the device is unbound.  If any of the
- * regulators cannot be acquired then any regulators that were
- * allocated will be freed before returning to the caller.
- */
-int devm_regulator_bulk_get(struct device *dev, int num_consumers,
-			    struct regulator_bulk_data *consumers)
-{
-	int i;
-	int ret;
-
-	for (i = 0; i < num_consumers; i++)
-		consumers[i].consumer = NULL;
-
-	for (i = 0; i < num_consumers; i++) {
-		consumers[i].consumer = devm_regulator_get(dev,
-							   consumers[i].supply);
-		if (IS_ERR(consumers[i].consumer)) {
-			ret = PTR_ERR(consumers[i].consumer);
-			dev_err(dev, "Failed to get supply '%s': %d\n",
-				consumers[i].supply, ret);
-			consumers[i].consumer = NULL;
-			goto err;
-		}
-	}
-
-	return 0;
-
-err:
-	for (i = 0; i < num_consumers && consumers[i].consumer; i++)
-		devm_regulator_put(consumers[i].consumer);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
 
 static void regulator_bulk_enable_async(void *data, async_cookie_t cookie)
 {

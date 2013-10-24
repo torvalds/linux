@@ -856,7 +856,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			if (ret < 0) {
 				dev_err(&pdev->dev,
 					"reading TSTEP reg failed: %d\n", ret);
-				goto err_unregister_regulator;
+				return ret;
 			}
 			pmic->desc[id].ramp_delay =
 					palmas_smps_ramp_delay[reg & 0x3];
@@ -868,7 +868,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			reg_init = pdata->reg_init[id];
 			ret = palmas_smps_init(palmas, id, reg_init);
 			if (ret)
-				goto err_unregister_regulator;
+				return ret;
 		}
 
 		/* Register the regulators */
@@ -909,7 +909,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 
 			ret = palmas_smps_read(pmic->palmas, addr, &reg);
 			if (ret)
-				goto err_unregister_regulator;
+				return ret;
 			if (reg & PALMAS_SMPS12_VOLTAGE_RANGE)
 				pmic->range[id] = 1;
 
@@ -925,7 +925,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			addr = palmas_regs_info[id].ctrl_addr;
 			ret = palmas_smps_read(pmic->palmas, addr, &reg);
 			if (ret)
-				goto err_unregister_regulator;
+				return ret;
 			pmic->current_reg_mode[id] = reg &
 					PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
 		}
@@ -941,13 +941,13 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 		pmic->desc[id].supply_name = palmas_regs_info[id].sname;
 		config.of_node = palmas_matches[id].of_node;
 
-		rdev = regulator_register(&pmic->desc[id], &config);
+		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[id],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
 				"failed to register %s regulator\n",
 				pdev->name);
-			ret = PTR_ERR(rdev);
-			goto err_unregister_regulator;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
@@ -1015,13 +1015,13 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 		pmic->desc[id].supply_name = palmas_regs_info[id].sname;
 		config.of_node = palmas_matches[id].of_node;
 
-		rdev = regulator_register(&pmic->desc[id], &config);
+		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[id],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
 				"failed to register %s regulator\n",
 				pdev->name);
-			ret = PTR_ERR(rdev);
-			goto err_unregister_regulator;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
@@ -1037,30 +1037,13 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				else
 					ret = palmas_extreg_init(palmas,
 							id, reg_init);
-				if (ret) {
-					regulator_unregister(pmic->rdev[id]);
-					goto err_unregister_regulator;
-				}
+				if (ret)
+					return ret;
 			}
 		}
 	}
 
 
-	return 0;
-
-err_unregister_regulator:
-	while (--id >= 0)
-		regulator_unregister(pmic->rdev[id]);
-	return ret;
-}
-
-static int palmas_regulators_remove(struct platform_device *pdev)
-{
-	struct palmas_pmic *pmic = platform_get_drvdata(pdev);
-	int id;
-
-	for (id = 0; id < PALMAS_NUM_REGS; id++)
-		regulator_unregister(pmic->rdev[id]);
 	return 0;
 }
 
@@ -1083,7 +1066,6 @@ static struct platform_driver palmas_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = palmas_regulators_probe,
-	.remove = palmas_regulators_remove,
 };
 
 static int __init palmas_init(void)

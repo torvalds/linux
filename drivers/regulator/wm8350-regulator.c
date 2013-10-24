@@ -1206,7 +1206,8 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	config.regmap = wm8350->regmap;
 
 	/* register regulator */
-	rdev = regulator_register(&wm8350_reg[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &wm8350_reg[pdev->id],
+				       &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
 			wm8350_reg[pdev->id].name);
@@ -1217,7 +1218,6 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	ret = wm8350_register_irq(wm8350, wm8350_reg[pdev->id].irq,
 				  pmic_uv_handler, 0, "UV", rdev);
 	if (ret < 0) {
-		regulator_unregister(rdev);
 		dev_err(&pdev->dev, "failed to register regulator %s IRQ\n",
 			wm8350_reg[pdev->id].name);
 		return ret;
@@ -1232,8 +1232,6 @@ static int wm8350_regulator_remove(struct platform_device *pdev)
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 
 	wm8350_free_irq(wm8350, wm8350_reg[pdev->id].irq, rdev);
-
-	regulator_unregister(rdev);
 
 	return 0;
 }
