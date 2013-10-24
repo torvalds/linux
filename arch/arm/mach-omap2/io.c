@@ -244,7 +244,7 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 		.virtual	= OMAP4_SRAM_VA,
 		.pfn		= __phys_to_pfn(OMAP4_SRAM_PA),
 		.length		= PAGE_SIZE,
-		.type		= MT_MEMORY_SO,
+		.type		= MT_MEMORY_RW_SO,
 	},
 #endif
 
@@ -282,7 +282,7 @@ static struct map_desc omap54xx_io_desc[] __initdata = {
 		.virtual	= OMAP4_SRAM_VA,
 		.pfn		= __phys_to_pfn(OMAP4_SRAM_PA),
 		.length		= PAGE_SIZE,
-		.type		= MT_MEMORY_SO,
+		.type		= MT_MEMORY_RW_SO,
 	},
 #endif
 };

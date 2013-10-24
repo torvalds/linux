@@ -43,7 +43,7 @@ extern void ux500_timer_init(void);
 	.virtual	= IO_ADDRESS(x),	\
 	.pfn		= __phys_to_pfn(x),	\
 	.length		= sz,			\
-	.type		= MT_MEMORY,		\
+	.type		= MT_MEMORY_RWX,		\
 }
 
 extern struct smp_operations ux500_smp_ops;
