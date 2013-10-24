@@ -6453,7 +6453,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 7, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 10, 0x53);
 	rt2800_rfcsr_write(rt2x00dev, 11, 0x4a);
-	rt2800_rfcsr_write(rt2x00dev, 12, 0xc6);
+	rt2800_rfcsr_write(rt2x00dev, 12, 0x46);
 	rt2800_rfcsr_write(rt2x00dev, 13, 0x9f);
 	rt2800_rfcsr_write(rt2x00dev, 14, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 15, 0x00);
@@ -6466,7 +6466,8 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 22, 0x20);
 	rt2800_rfcsr_write(rt2x00dev, 23, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 24, 0x00);
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
 		rt2800_rfcsr_write(rt2x00dev, 25, 0x80);
 	else
 		rt2800_rfcsr_write(rt2x00dev, 25, 0xc0);
@@ -6486,10 +6487,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 38, 0x85);
 	rt2800_rfcsr_write(rt2x00dev, 39, 0x1b);
 
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
-		rt2800_rfcsr_write(rt2x00dev, 40, 0x0b);
-	else
-		rt2800_rfcsr_write(rt2x00dev, 40, 0x4b);
+	rt2800_rfcsr_write(rt2x00dev, 40, 0x0b);
 	rt2800_rfcsr_write(rt2x00dev, 41, 0xbb);
 	rt2800_rfcsr_write(rt2x00dev, 42, 0xd2);
 	rt2800_rfcsr_write(rt2x00dev, 43, 0x9a);
@@ -6510,16 +6508,26 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 53, 0x84);
 	rt2800_rfcsr_write(rt2x00dev, 54, 0x78);
 	rt2800_rfcsr_write(rt2x00dev, 55, 0x44);
-	rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
+		rt2800_rfcsr_write(rt2x00dev, 56, 0x42);
+	else
+		rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
 	rt2800_rfcsr_write(rt2x00dev, 57, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 58, 0x7f);
 	rt2800_rfcsr_write(rt2x00dev, 59, 0x8f);
 
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
-		rt2800_rfcsr_write(rt2x00dev, 61, 0xd1);
-	else
-		rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
+		if (rt2x00_is_usb(rt2x00dev))
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xd1);
+		else
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xd5);
+	} else {
+		if (rt2x00_is_usb(rt2x00dev))
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xdd);
+		else
+			rt2800_rfcsr_write(rt2x00dev, 61, 0xb5);
+	}
 	rt2800_rfcsr_write(rt2x00dev, 62, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 63, 0x00);
 
