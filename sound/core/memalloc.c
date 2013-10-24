@@ -238,6 +238,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA
+#ifdef CONFIG_GENERIC_ALLOCATOR
 	case SNDRV_DMA_TYPE_DEV_IRAM:
 		snd_malloc_dev_iram(dmab, size);
 		if (dmab->area)
@@ -246,6 +247,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		 * so if we fail to malloc, try to fetch memory traditionally.
 		 */
 		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages(device, size, &dmab->addr);
 		break;
@@ -318,9 +320,11 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 		snd_free_pages(dmab->area, dmab->bytes);
 		break;
 #ifdef CONFIG_HAS_DMA
+#ifdef CONFIG_GENERIC_ALLOCATOR
 	case SNDRV_DMA_TYPE_DEV_IRAM:
 		snd_free_dev_iram(dmab);
 		break;
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 	case SNDRV_DMA_TYPE_DEV:
 		snd_free_dev_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 		break;

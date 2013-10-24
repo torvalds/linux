@@ -3199,12 +3199,14 @@ int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
 			     struct vm_area_struct *area)
 {
 	area->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+#ifdef CONFIG_GENERIC_ALLOCATOR
 	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_IRAM) {
 		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
 		return remap_pfn_range(area, area->vm_start,
 				substream->dma_buffer.addr >> PAGE_SHIFT,
 				area->vm_end - area->vm_start, area->vm_page_prot);
 	}
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 #ifdef ARCH_HAS_DMA_MMAP_COHERENT
 	if (!substream->ops->page &&
 	    substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV)
