@@ -32,7 +32,7 @@
 // 2010/01/26 added a option to disable HDCP.
 #define SUPPORT_OUTPUTYUV
 #define SUPPORT_OUTPUTRGB
-// #define DISABLE_HDMITX_CSC
+#define DISABLE_HDMITX_CSC
 
 #define SUPPORT_INPUTRGB
 #define SUPPORT_INPUTYUV444
