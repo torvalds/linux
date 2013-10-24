@@ -86,7 +86,7 @@ config ATH9K_DFS_CERTIFIED
 
 config ATH9K_TX99
 	bool "Atheros ath9k TX99 testing support"
-	depends on CFG80211_CERTIFICATION_ONUS
+	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  Say N. This should only be enabled on systems undergoing

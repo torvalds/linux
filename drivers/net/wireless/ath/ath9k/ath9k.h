@@ -948,10 +948,25 @@ struct fft_sample_ht20_40 {
 	u8 data[SPECTRAL_HT20_40_NUM_BINS];
 } __packed;
 
-int ath9k_tx99_init(struct ath_softc *sc);
-void ath9k_tx99_deinit(struct ath_softc *sc);
+/********/
+/* TX99 */
+/********/
+
+#ifdef CONFIG_ATH9K_TX99
+void ath9k_tx99_init_debug(struct ath_softc *sc);
 int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 		    struct ath_tx_control *txctl);
+#else
+static inline void ath9k_tx99_init_debug(struct ath_softc *sc)
+{
+}
+static inline int ath9k_tx99_send(struct ath_softc *sc,
+				  struct sk_buff *skb,
+				  struct ath_tx_control *txctl)
+{
+	return 0;
+}
+#endif /* CONFIG_ATH9K_TX99 */
 
 void ath9k_tasklet(unsigned long data);
 int ath_cabq_update(struct ath_softc *);
@@ -968,6 +983,7 @@ extern bool is_ath9k_unloaded;
 
 u8 ath9k_parse_mpdudensity(u8 mpdudensity);
 irqreturn_t ath_isr(int irq, void *dev);
+int ath_reset(struct ath_softc *sc);
 int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);

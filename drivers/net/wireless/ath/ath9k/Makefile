@@ -13,9 +13,9 @@ ath9k-$(CONFIG_ATH9K_PCI) += pci.o
 ath9k-$(CONFIG_ATH9K_AHB) += ahb.o
 ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
 ath9k-$(CONFIG_ATH9K_DFS_DEBUGFS) += dfs_debug.o
-ath9k-$(CONFIG_ATH9K_DFS_CERTIFIED) += \
-		dfs.o
+ath9k-$(CONFIG_ATH9K_DFS_CERTIFIED) += dfs.o
 ath9k-$(CONFIG_PM_SLEEP) += wow.o
+ath9k-$(CONFIG_ATH9K_TX99) += tx99.o
 
 obj-$(CONFIG_ATH9K) += ath9k.o
 
