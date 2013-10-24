@@ -438,6 +438,10 @@ static int __init opal_init(void)
 
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
+	if (rc == 0) {
+		/* Setup code update interface */
+		opal_flash_init();
+	}
 
 	return 0;
 }

@@ -123,3 +123,6 @@ OPAL_CALL(opal_xscom_write,			OPAL_XSCOM_WRITE);
 OPAL_CALL(opal_lpc_read,			OPAL_LPC_READ);
 OPAL_CALL(opal_lpc_write,			OPAL_LPC_WRITE);
 OPAL_CALL(opal_return_cpu,			OPAL_RETURN_CPU);
+OPAL_CALL(opal_validate_flash,			OPAL_FLASH_VALIDATE);
+OPAL_CALL(opal_manage_flash,			OPAL_FLASH_MANAGE);
+OPAL_CALL(opal_update_flash,			OPAL_FLASH_UPDATE);

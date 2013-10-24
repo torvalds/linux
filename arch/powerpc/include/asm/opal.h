@@ -129,6 +129,9 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_LPC_READ				67
 #define OPAL_LPC_WRITE				68
 #define OPAL_RETURN_CPU				69
+#define OPAL_FLASH_VALIDATE			76
+#define OPAL_FLASH_MANAGE			77
+#define OPAL_FLASH_UPDATE			78
 
 #ifndef __ASSEMBLY__
 
@@ -724,6 +727,9 @@ int64_t opal_lpc_write(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 		       uint32_t addr, uint32_t data, uint32_t sz);
 int64_t opal_lpc_read(uint32_t chip_id, enum OpalLPCAddressType addr_type,
 		      uint32_t addr, uint32_t *data, uint32_t sz);
+int64_t opal_validate_flash(uint64_t buffer, uint32_t *size, uint32_t *result);
+int64_t opal_manage_flash(uint8_t op);
+int64_t opal_update_flash(uint64_t blk_list);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
@@ -752,6 +758,7 @@ extern int opal_set_rtc_time(struct rtc_time *tm);
 extern void opal_get_rtc_time(struct rtc_time *tm);
 extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
+extern void opal_flash_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 
