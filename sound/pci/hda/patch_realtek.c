@@ -2656,7 +2656,7 @@ static void alc283_shutup(struct hda_codec *codec)
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 
 	if (hp_pin_sense)
-		msleep(85);
+		msleep(100);
 
 	snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
@@ -2665,7 +2665,7 @@ static void alc283_shutup(struct hda_codec *codec)
 	alc_write_coef_idx(codec, 0x46, val | (3 << 12));
 
 	if (hp_pin_sense)
-		msleep(85);
+		msleep(100);
 	snd_hda_shutup_pins(codec);
 	alc_write_coef_idx(codec, 0x43, 0x9614);
 }
