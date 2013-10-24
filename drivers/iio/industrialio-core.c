@@ -685,7 +685,7 @@ int __iio_add_chan_devattr(const char *postfix,
 	int ret;
 	struct iio_dev_attr *iio_attr, *t;
 
-	iio_attr = kzalloc(sizeof *iio_attr, GFP_KERNEL);
+	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
 	if (iio_attr == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
