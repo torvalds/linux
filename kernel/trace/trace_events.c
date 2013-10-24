@@ -342,6 +342,12 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 	return ret;
 }
 
+int trace_event_enable_disable(struct ftrace_event_file *file,
+			       int enable, int soft_disable)
+{
+	return __ftrace_event_enable_disable(file, enable, soft_disable);
+}
+
 static int ftrace_event_enable_disable(struct ftrace_event_file *file,
 				       int enable)
 {
@@ -419,11 +425,6 @@ static void remove_subsystem(struct ftrace_subsystem_dir *dir)
 		list_del(&dir->list);
 		__put_system_dir(dir);
 	}
-}
-
-static void *event_file_data(struct file *filp)
-{
-	return ACCESS_ONCE(file_inode(filp)->i_private);
 }
 
 static void remove_event_file_dir(struct ftrace_event_file *file)
@@ -1549,6 +1550,9 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 	trace_create_file("filter", 0644, file->dir, file,
 			  &ftrace_event_filter_fops);
 
+	trace_create_file("trigger", 0644, file->dir, file,
+			  &event_trigger_fops);
+
 	trace_create_file("format", 0444, file->dir, call,
 			  &ftrace_event_format_fops);
 
@@ -1645,6 +1649,8 @@ trace_create_new_event(struct ftrace_event_call *call,
 	file->event_call = call;
 	file->tr = tr;
 	atomic_set(&file->sm_ref, 0);
+	atomic_set(&file->tm_ref, 0);
+	INIT_LIST_HEAD(&file->triggers);
 	list_add(&file->list, &tr->events);
 
 	return file;
@@ -2311,6 +2317,9 @@ int event_trace_del_tracer(struct trace_array *tr)
 {
 	mutex_lock(&event_mutex);
 
+	/* Disable any event triggers and associated soft-disabled events */
+	clear_event_triggers(tr);
+
 	/* Disable any running events */
 	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0);
 
@@ -2376,6 +2385,8 @@ static __init int event_trace_enable(void)
 	trace_printk_start_comm();
 
 	register_event_cmds();
+
+	register_trigger_cmds();
 
 	return 0;
 }

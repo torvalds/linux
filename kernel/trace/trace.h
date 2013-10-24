@@ -1028,8 +1028,189 @@ extern void trace_event_enable_cmd_record(bool enable);
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
+static inline void *event_file_data(struct file *filp)
+{
+	return ACCESS_ONCE(file_inode(filp)->i_private);
+}
+
 extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
+
+extern const struct file_operations event_trigger_fops;
+
+extern int register_trigger_cmds(void);
+extern void clear_event_triggers(struct trace_array *tr);
+
+struct event_trigger_data {
+	unsigned long			count;
+	int				ref;
+	struct event_trigger_ops	*ops;
+	struct event_command		*cmd_ops;
+	struct event_filter		*filter;
+	char				*filter_str;
+	void				*private_data;
+	struct list_head		list;
+};
+
+/**
+ * struct event_trigger_ops - callbacks for trace event triggers
+ *
+ * The methods in this structure provide per-event trigger hooks for
+ * various trigger operations.
+ *
+ * All the methods below, except for @init() and @free(), must be
+ * implemented.
+ *
+ * @func: The trigger 'probe' function called when the triggering
+ *	event occurs.  The data passed into this callback is the data
+ *	that was supplied to the event_command @reg() function that
+ *	registered the trigger (see struct event_command).
+ *
+ * @init: An optional initialization function called for the trigger
+ *	when the trigger is registered (via the event_command reg()
+ *	function).  This can be used to perform per-trigger
+ *	initialization such as incrementing a per-trigger reference
+ *	count, for instance.  This is usually implemented by the
+ *	generic utility function @event_trigger_init() (see
+ *	trace_event_triggers.c).
+ *
+ * @free: An optional de-initialization function called for the
+ *	trigger when the trigger is unregistered (via the
+ *	event_command @reg() function).  This can be used to perform
+ *	per-trigger de-initialization such as decrementing a
+ *	per-trigger reference count and freeing corresponding trigger
+ *	data, for instance.  This is usually implemented by the
+ *	generic utility function @event_trigger_free() (see
+ *	trace_event_triggers.c).
+ *
+ * @print: The callback function invoked to have the trigger print
+ *	itself.  This is usually implemented by a wrapper function
+ *	that calls the generic utility function @event_trigger_print()
+ *	(see trace_event_triggers.c).
+ */
+struct event_trigger_ops {
+	void			(*func)(struct event_trigger_data *data);
+	int			(*init)(struct event_trigger_ops *ops,
+					struct event_trigger_data *data);
+	void			(*free)(struct event_trigger_ops *ops,
+					struct event_trigger_data *data);
+	int			(*print)(struct seq_file *m,
+					 struct event_trigger_ops *ops,
+					 struct event_trigger_data *data);
+};
+
+/**
+ * struct event_command - callbacks and data members for event commands
+ *
+ * Event commands are invoked by users by writing the command name
+ * into the 'trigger' file associated with a trace event.  The
+ * parameters associated with a specific invocation of an event
+ * command are used to create an event trigger instance, which is
+ * added to the list of trigger instances associated with that trace
+ * event.  When the event is hit, the set of triggers associated with
+ * that event is invoked.
+ *
+ * The data members in this structure provide per-event command data
+ * for various event commands.
+ *
+ * All the data members below, except for @post_trigger, must be set
+ * for each event command.
+ *
+ * @name: The unique name that identifies the event command.  This is
+ *	the name used when setting triggers via trigger files.
+ *
+ * @trigger_type: A unique id that identifies the event command
+ *	'type'.  This value has two purposes, the first to ensure that
+ *	only one trigger of the same type can be set at a given time
+ *	for a particular event e.g. it doesn't make sense to have both
+ *	a traceon and traceoff trigger attached to a single event at
+ *	the same time, so traceon and traceoff have the same type
+ *	though they have different names.  The @trigger_type value is
+ *	also used as a bit value for deferring the actual trigger
+ *	action until after the current event is finished.  Some
+ *	commands need to do this if they themselves log to the trace
+ *	buffer (see the @post_trigger() member below).  @trigger_type
+ *	values are defined by adding new values to the trigger_type
+ *	enum in include/linux/ftrace_event.h.
+ *
+ * @post_trigger: A flag that says whether or not this command needs
+ *	to have its action delayed until after the current event has
+ *	been closed.  Some triggers need to avoid being invoked while
+ *	an event is currently in the process of being logged, since
+ *	the trigger may itself log data into the trace buffer.  Thus
+ *	we make sure the current event is committed before invoking
+ *	those triggers.  To do that, the trigger invocation is split
+ *	in two - the first part checks the filter using the current
+ *	trace record; if a command has the @post_trigger flag set, it
+ *	sets a bit for itself in the return value, otherwise it
+ *	directly invokes the trigger.  Once all commands have been
+ *	either invoked or set their return flag, the current record is
+ *	either committed or discarded.  At that point, if any commands
+ *	have deferred their triggers, those commands are finally
+ *	invoked following the close of the current event.  In other
+ *	words, if the event_trigger_ops @func() probe implementation
+ *	itself logs to the trace buffer, this flag should be set,
+ *	otherwise it can be left unspecified.
+ *
+ * All the methods below, except for @set_filter(), must be
+ * implemented.
+ *
+ * @func: The callback function responsible for parsing and
+ *	registering the trigger written to the 'trigger' file by the
+ *	user.  It allocates the trigger instance and registers it with
+ *	the appropriate trace event.  It makes use of the other
+ *	event_command callback functions to orchestrate this, and is
+ *	usually implemented by the generic utility function
+ *	@event_trigger_callback() (see trace_event_triggers.c).
+ *
+ * @reg: Adds the trigger to the list of triggers associated with the
+ *	event, and enables the event trigger itself, after
+ *	initializing it (via the event_trigger_ops @init() function).
+ *	This is also where commands can use the @trigger_type value to
+ *	make the decision as to whether or not multiple instances of
+ *	the trigger should be allowed.  This is usually implemented by
+ *	the generic utility function @register_trigger() (see
+ *	trace_event_triggers.c).
+ *
+ * @unreg: Removes the trigger from the list of triggers associated
+ *	with the event, and disables the event trigger itself, after
+ *	initializing it (via the event_trigger_ops @free() function).
+ *	This is usually implemented by the generic utility function
+ *	@unregister_trigger() (see trace_event_triggers.c).
+ *
+ * @set_filter: An optional function called to parse and set a filter
+ *	for the trigger.  If no @set_filter() method is set for the
+ *	event command, filters set by the user for the command will be
+ *	ignored.  This is usually implemented by the generic utility
+ *	function @set_trigger_filter() (see trace_event_triggers.c).
+ *
+ * @get_trigger_ops: The callback function invoked to retrieve the
+ *	event_trigger_ops implementation associated with the command.
+ */
+struct event_command {
+	struct list_head	list;
+	char			*name;
+	enum event_trigger_type	trigger_type;
+	bool			post_trigger;
+	int			(*func)(struct event_command *cmd_ops,
+					struct ftrace_event_file *file,
+					char *glob, char *cmd, char *params);
+	int			(*reg)(char *glob,
+				       struct event_trigger_ops *ops,
+				       struct event_trigger_data *data,
+				       struct ftrace_event_file *file);
+	void			(*unreg)(char *glob,
+					 struct event_trigger_ops *ops,
+					 struct event_trigger_data *data,
+					 struct ftrace_event_file *file);
+	int			(*set_filter)(char *filter_str,
+					      struct event_trigger_data *data,
+					      struct ftrace_event_file *file);
+	struct event_trigger_ops *(*get_trigger_ops)(char *cmd, char *param);
+};
+
+extern int trace_event_enable_disable(struct ftrace_event_file *file,
+				      int enable, int soft_disable);
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
