@@ -6,6 +6,7 @@
  *  Copyright (c) 2006 ATI Technologies Inc.
  *  Copyright (c) 2008 NVIDIA Corp.  All rights reserved.
  *  Copyright (c) 2008 Wei Ni <wni@nvidia.com>
+ *  Copyright (c) 2013 Anssi Hannula <anssi.hannula@iki.fi>
  *
  *  Authors:
  *			Wu Fengguang <wfg@linux.intel.com>
@@ -128,7 +129,7 @@ struct hdmi_spec {
 	struct hdmi_eld temp_eld;
 	struct hdmi_ops ops;
 	/*
-	 * Non-generic ATI/NVIDIA specific
+	 * Non-generic VIA/NVIDIA specific
 	 */
 	struct hda_multi_out multiout;
 	struct hda_pcm_stream pcm_playback;
@@ -2784,49 +2785,292 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 }
 
 /*
- * ATI-specific implementations
- *
- * FIXME: we may omit the whole this and use the generic code once after
- * it's confirmed to work.
+ * ATI/AMD-specific implementations
  */
 
-#define ATIHDMI_CVT_NID		0x02	/* audio converter */
-#define ATIHDMI_PIN_NID		0x03	/* HDMI output pin */
+#define is_amdhdmi_rev3_or_later(codec) \
+	((codec)->vendor_id == 0x1002aa01 && ((codec)->revision_id & 0xff00) >= 0x0300)
+#define has_amd_full_remap_support(codec) is_amdhdmi_rev3_or_later(codec)
 
-static int atihdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
-					struct hda_codec *codec,
-					unsigned int stream_tag,
-					unsigned int format,
-					struct snd_pcm_substream *substream)
+/* ATI/AMD specific HDA pin verbs, see the AMD HDA Verbs specification */
+#define ATI_VERB_SET_CHANNEL_ALLOCATION	0x771
+#define ATI_VERB_SET_DOWNMIX_INFO	0x772
+#define ATI_VERB_SET_MULTICHANNEL_01	0x777
+#define ATI_VERB_SET_MULTICHANNEL_23	0x778
+#define ATI_VERB_SET_MULTICHANNEL_45	0x779
+#define ATI_VERB_SET_MULTICHANNEL_67	0x77a
+#define ATI_VERB_SET_MULTICHANNEL_1	0x785
+#define ATI_VERB_SET_MULTICHANNEL_3	0x786
+#define ATI_VERB_SET_MULTICHANNEL_5	0x787
+#define ATI_VERB_SET_MULTICHANNEL_7	0x788
+#define ATI_VERB_SET_MULTICHANNEL_MODE	0x789
+#define ATI_VERB_GET_CHANNEL_ALLOCATION	0xf71
+#define ATI_VERB_GET_DOWNMIX_INFO	0xf72
+#define ATI_VERB_GET_MULTICHANNEL_01	0xf77
+#define ATI_VERB_GET_MULTICHANNEL_23	0xf78
+#define ATI_VERB_GET_MULTICHANNEL_45	0xf79
+#define ATI_VERB_GET_MULTICHANNEL_67	0xf7a
+#define ATI_VERB_GET_MULTICHANNEL_1	0xf85
+#define ATI_VERB_GET_MULTICHANNEL_3	0xf86
+#define ATI_VERB_GET_MULTICHANNEL_5	0xf87
+#define ATI_VERB_GET_MULTICHANNEL_7	0xf88
+#define ATI_VERB_GET_MULTICHANNEL_MODE	0xf89
+
+#define ATI_OUT_ENABLE 0x1
+
+#define ATI_MULTICHANNEL_MODE_PAIRED	0
+#define ATI_MULTICHANNEL_MODE_SINGLE	1
+
+static void atihdmi_pin_setup_infoframe(struct hda_codec *codec, hda_nid_t pin_nid, int ca,
+					int active_channels, int conn_type)
+{
+	snd_hda_codec_write(codec, pin_nid, 0, ATI_VERB_SET_CHANNEL_ALLOCATION, ca);
+}
+
+static int atihdmi_paired_swap_fc_lfe(int pos)
+{
+	/*
+	 * ATI/AMD have automatic FC/LFE swap built-in
+	 * when in pairwise mapping mode.
+	 */
+
+	switch (pos) {
+		/* see channel_allocations[].speakers[] */
+		case 2: return 3;
+		case 3: return 2;
+		default: break;
+	}
+
+	return pos;
+}
+
+static int atihdmi_paired_chmap_validate(int ca, int chs, unsigned char *map)
+{
+	struct cea_channel_speaker_allocation *cap;
+	int i, j;
+
+	/* check that only channel pairs need to be remapped on old pre-rev3 ATI/AMD */
+
+	cap = &channel_allocations[get_channel_allocation_order(ca)];
+	for (i = 0; i < chs; ++i) {
+		int mask = to_spk_mask(map[i]);
+		bool ok = false;
+		bool companion_ok = false;
+
+		if (!mask)
+			continue;
+
+		for (j = 0 + i % 2; j < 8; j += 2) {
+			int chan_idx = 7 - atihdmi_paired_swap_fc_lfe(j);
+			if (cap->speakers[chan_idx] == mask) {
+				/* channel is in a supported position */
+				ok = true;
+
+				if (i % 2 == 0 && i + 1 < chs) {
+					/* even channel, check the odd companion */
+					int comp_chan_idx = 7 - atihdmi_paired_swap_fc_lfe(j + 1);
+					int comp_mask_req = to_spk_mask(map[i+1]);
+					int comp_mask_act = cap->speakers[comp_chan_idx];
+
+					if (comp_mask_req == comp_mask_act)
+						companion_ok = true;
+					else
+						return -EINVAL;
+				}
+				break;
+			}
+		}
+
+		if (!ok)
+			return -EINVAL;
+
+		if (companion_ok)
+			i++; /* companion channel already checked */
+	}
+
+	return 0;
+}
+
+static int atihdmi_pin_set_slot_channel(struct hda_codec *codec, hda_nid_t pin_nid,
+					int hdmi_slot, int stream_channel)
+{
+	int verb;
+	int ati_channel_setup = 0;
+
+	if (hdmi_slot > 7)
+		return -EINVAL;
+
+	if (!has_amd_full_remap_support(codec)) {
+		hdmi_slot = atihdmi_paired_swap_fc_lfe(hdmi_slot);
+
+		/* In case this is an odd slot but without stream channel, do not
+		 * disable the slot since the corresponding even slot could have a
+		 * channel. In case neither have a channel, the slot pair will be
+		 * disabled when this function is called for the even slot. */
+		if (hdmi_slot % 2 != 0 && stream_channel == 0xf)
+			return 0;
+
+		hdmi_slot -= hdmi_slot % 2;
+
+		if (stream_channel != 0xf)
+			stream_channel -= stream_channel % 2;
+	}
+
+	verb = ATI_VERB_SET_MULTICHANNEL_01 + hdmi_slot/2 + (hdmi_slot % 2) * 0x00e;
+
+	/* ati_channel_setup format: [7..4] = stream_channel_id, [1] = mute, [0] = enable */
+
+	if (stream_channel != 0xf)
+		ati_channel_setup = (stream_channel << 4) | ATI_OUT_ENABLE;
+
+	return snd_hda_codec_write(codec, pin_nid, 0, verb, ati_channel_setup);
+}
+
+static int atihdmi_pin_get_slot_channel(struct hda_codec *codec, hda_nid_t pin_nid,
+					int asp_slot)
+{
+	bool was_odd = false;
+	int ati_asp_slot = asp_slot;
+	int verb;
+	int ati_channel_setup;
+
+	if (asp_slot > 7)
+		return -EINVAL;
+
+	if (!has_amd_full_remap_support(codec)) {
+		ati_asp_slot = atihdmi_paired_swap_fc_lfe(asp_slot);
+		if (ati_asp_slot % 2 != 0) {
+			ati_asp_slot -= 1;
+			was_odd = true;
+		}
+	}
+
+	verb = ATI_VERB_GET_MULTICHANNEL_01 + ati_asp_slot/2 + (ati_asp_slot % 2) * 0x00e;
+
+	ati_channel_setup = snd_hda_codec_read(codec, pin_nid, 0, verb, 0);
+
+	if (!(ati_channel_setup & ATI_OUT_ENABLE))
+		return 0xf;
+
+	return ((ati_channel_setup & 0xf0) >> 4) + !!was_odd;
+}
+
+static int atihdmi_paired_chmap_cea_alloc_validate_get_type(struct cea_channel_speaker_allocation *cap,
+							    int channels)
+{
+	int c;
+
+	/*
+	 * Pre-rev3 ATI/AMD codecs operate in a paired channel mode, so
+	 * we need to take that into account (a single channel may take 2
+	 * channel slots if we need to carry a silent channel next to it).
+	 * On Rev3+ AMD codecs this function is not used.
+	 */
+	int chanpairs = 0;
+
+	/* We only produce even-numbered channel count TLVs */
+	if ((channels % 2) != 0)
+		return -1;
+
+	for (c = 0; c < 7; c += 2) {
+		if (cap->speakers[c] || cap->speakers[c+1])
+			chanpairs++;
+	}
+
+	if (chanpairs * 2 != channels)
+		return -1;
+
+	return SNDRV_CTL_TLVT_CHMAP_PAIRED;
+}
+
+static void atihdmi_paired_cea_alloc_to_tlv_chmap(struct cea_channel_speaker_allocation *cap,
+						  unsigned int *chmap, int channels)
+{
+	/* produce paired maps for pre-rev3 ATI/AMD codecs */
+	int count = 0;
+	int c;
+
+	for (c = 7; c >= 0; c--) {
+		int chan = 7 - atihdmi_paired_swap_fc_lfe(7 - c);
+		int spk = cap->speakers[chan];
+		if (!spk) {
+			/* add N/A channel if the companion channel is occupied */
+			if (cap->speakers[chan + (chan % 2 ? -1 : 1)])
+				chmap[count++] = SNDRV_CHMAP_NA;
+
+			continue;
+		}
+
+		chmap[count++] = spk_to_chmap(spk);
+	}
+
+	WARN_ON(count != channels);
+}
+
+static int atihdmi_init(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
-	struct hdmi_spec_per_cvt *per_cvt = get_cvt(spec, 0);
-	int chans = substream->runtime->channels;
-	int i, err;
+	int pin_idx, err;
 
-	err = simple_playback_pcm_prepare(hinfo, codec, stream_tag, format,
-					  substream);
-	if (err < 0)
+	err = generic_hdmi_init(codec);
+
+	if (err)
 		return err;
-	snd_hda_codec_write(codec, per_cvt->cvt_nid, 0,
-			    AC_VERB_SET_CVT_CHAN_COUNT, chans - 1);
-	/* FIXME: XXX */
-	for (i = 0; i < chans; i++) {
-		snd_hda_codec_write(codec, per_cvt->cvt_nid, 0,
-				    AC_VERB_SET_HDMI_CHAN_SLOT,
-				    (i << 4) | i);
+
+	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
+
+		/* make sure downmix information in infoframe is zero */
+		snd_hda_codec_write(codec, per_pin->pin_nid, 0, ATI_VERB_SET_DOWNMIX_INFO, 0);
+
+		/* enable channel-wise remap mode if supported */
+		if (has_amd_full_remap_support(codec))
+			snd_hda_codec_write(codec, per_pin->pin_nid, 0,
+					    ATI_VERB_SET_MULTICHANNEL_MODE,
+					    ATI_MULTICHANNEL_MODE_SINGLE);
 	}
+
 	return 0;
 }
 
 static int patch_atihdmi(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
-	int err = patch_simple_hdmi(codec, ATIHDMI_CVT_NID, ATIHDMI_PIN_NID);
-	if (err < 0)
+	struct hdmi_spec_per_cvt *per_cvt;
+	int err, cvt_idx;
+
+	err = patch_generic_hdmi(codec);
+
+	if (err)
 		return err;
+
+	codec->patch_ops.init = atihdmi_init;
+
 	spec = codec->spec;
-	spec->pcm_playback.ops.prepare = atihdmi_playback_pcm_prepare;
+
+	spec->ops.pin_get_slot_channel = atihdmi_pin_get_slot_channel;
+	spec->ops.pin_set_slot_channel = atihdmi_pin_set_slot_channel;
+	spec->ops.pin_setup_infoframe = atihdmi_pin_setup_infoframe;
+
+	if (!has_amd_full_remap_support(codec)) {
+		/* override to ATI/AMD-specific versions with pairwise mapping */
+		spec->ops.chmap_cea_alloc_validate_get_type =
+			atihdmi_paired_chmap_cea_alloc_validate_get_type;
+		spec->ops.cea_alloc_to_tlv_chmap = atihdmi_paired_cea_alloc_to_tlv_chmap;
+		spec->ops.chmap_validate = atihdmi_paired_chmap_validate;
+	}
+
+	/* ATI/AMD converters do not advertise all of their capabilities */
+	for (cvt_idx = 0; cvt_idx < spec->num_cvts; cvt_idx++) {
+		per_cvt = get_cvt(spec, cvt_idx);
+		per_cvt->channels_max = max(per_cvt->channels_max, 8u);
+		per_cvt->rates |= SUPPORTED_RATES;
+		per_cvt->formats |= SUPPORTED_FORMATS;
+		per_cvt->maxbps = max(per_cvt->maxbps, 24u);
+	}
+
+	spec->channels_max = max(spec->channels_max, 8u);
+
 	return 0;
 }
 
@@ -2846,7 +3090,7 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x1002793c, .name = "RS600 HDMI",	.patch = patch_atihdmi },
 { .id = 0x10027919, .name = "RS600 HDMI",	.patch = patch_atihdmi },
 { .id = 0x1002791a, .name = "RS690/780 HDMI",	.patch = patch_atihdmi },
-{ .id = 0x1002aa01, .name = "R6xx HDMI",	.patch = patch_generic_hdmi },
+{ .id = 0x1002aa01, .name = "R6xx HDMI",	.patch = patch_atihdmi },
 { .id = 0x10951390, .name = "SiI1390 HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x10951392, .name = "SiI1392 HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x17e80047, .name = "Chrontel HDMI",	.patch = patch_generic_hdmi },
