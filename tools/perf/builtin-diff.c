@@ -303,12 +303,11 @@ static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
 	return -1;
 }
 
-static int hists__add_entry(struct hists *self,
+static int hists__add_entry(struct hists *hists,
 			    struct addr_location *al, u64 period,
 			    u64 weight, u64 transaction)
 {
-	if (__hists__add_entry(self, al, NULL, period, weight, transaction)
-	    != NULL)
+	if (__hists__add_entry(hists, al, NULL, period, weight, transaction) != NULL)
 		return 0;
 	return -ENOMEM;
 }
@@ -370,7 +369,7 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		struct hists *hists = &evsel->hists;
 
-		hists__collapse_resort(hists);
+		hists__collapse_resort(hists, NULL);
 	}
 }
 

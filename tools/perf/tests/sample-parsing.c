@@ -275,8 +275,8 @@ int test__sample_parsing(void)
 	 * Fail the test if it has not been updated when new sample format bits
 	 * were added.
 	 */
-	if (PERF_SAMPLE_MAX > PERF_SAMPLE_IDENTIFIER << 1) {
-		pr_debug("sample format has changed - test needs updating\n");
+	if (PERF_SAMPLE_MAX > PERF_SAMPLE_TRANSACTION << 1) {
+		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
 

@@ -1655,29 +1655,27 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-static const char default_sort_order[] = "avg, max, switch, runtime";
-static struct perf_sched sched = {
-	.tool = {
-		.sample		 = perf_sched__process_tracepoint_sample,
-		.comm		 = perf_event__process_comm,
-		.lost		 = perf_event__process_lost,
-		.fork		 = perf_sched__process_fork_event,
-		.ordered_samples = true,
-	},
-	.cmp_pid	      = LIST_HEAD_INIT(sched.cmp_pid),
-	.sort_list	      = LIST_HEAD_INIT(sched.sort_list),
-	.start_work_mutex     = PTHREAD_MUTEX_INITIALIZER,
-	.work_done_wait_mutex = PTHREAD_MUTEX_INITIALIZER,
-	.curr_pid	      = { [0 ... MAX_CPUS - 1] = -1 },
-	.sort_order	      = default_sort_order,
-	.replay_repeat	      = 10,
-	.profile_cpu	      = -1,
-	.next_shortname1      = 'A',
-	.next_shortname2      = '0',
-};
-
 int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 {
+	const char default_sort_order[] = "avg, max, switch, runtime";
+	struct perf_sched sched = {
+		.tool = {
+			.sample		 = perf_sched__process_tracepoint_sample,
+			.comm		 = perf_event__process_comm,
+			.lost		 = perf_event__process_lost,
+			.fork		 = perf_sched__process_fork_event,
+			.ordered_samples = true,
+		},
+		.cmp_pid	      = LIST_HEAD_INIT(sched.cmp_pid),
+		.sort_list	      = LIST_HEAD_INIT(sched.sort_list),
+		.start_work_mutex     = PTHREAD_MUTEX_INITIALIZER,
+		.work_done_wait_mutex = PTHREAD_MUTEX_INITIALIZER,
+		.sort_order	      = default_sort_order,
+		.replay_repeat	      = 10,
+		.profile_cpu	      = -1,
+		.next_shortname1      = 'A',
+		.next_shortname2      = '0',
+	};
 	const struct option latency_options[] = {
 	OPT_STRING('s', "sort", &sched.sort_order, "key[,key2...]",
 		   "sort by key(s): runtime, switch, avg, max"),
@@ -1733,6 +1731,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		.switch_event	    = replay_switch_event,
 		.fork_event	    = replay_fork_event,
 	};
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(sched.curr_pid); i++)
+		sched.curr_pid[i] = -1;
 
 	argc = parse_options(argc, argv, sched_options, sched_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);

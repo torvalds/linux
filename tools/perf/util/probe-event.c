@@ -47,7 +47,6 @@
 #include "session.h"
 
 #define MAX_CMDLEN 256
-#define MAX_PROBE_ARGS 128
 #define PERFPROBE_GROUP "probe"
 
 bool probe_event_dry_run;	/* Dry run flag */

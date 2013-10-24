@@ -386,6 +386,8 @@ unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
 			if (s != endptr)
 				break;
 
+			if (value > ULONG_MAX / i->mult)
+				break;
 			value *= i->mult;
 			return value;
 		}

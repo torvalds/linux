@@ -399,6 +399,7 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 	if (!he)
 		return NULL;
 
+	hists->nr_entries++;
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
 out:
@@ -406,7 +407,7 @@ out:
 	return he;
 }
 
-struct hist_entry *__hists__add_mem_entry(struct hists *self,
+struct hist_entry *__hists__add_mem_entry(struct hists *hists,
 					  struct addr_location *al,
 					  struct symbol *sym_parent,
 					  struct mem_info *mi,
@@ -429,14 +430,14 @@ struct hist_entry *__hists__add_mem_entry(struct hists *self,
 		.level	= al->level,
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
-		.hists = self,
+		.hists = hists,
 		.mem_info = mi,
 		.branch_info = NULL,
 	};
-	return add_hist_entry(self, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al, period, weight);
 }
 
-struct hist_entry *__hists__add_branch_entry(struct hists *self,
+struct hist_entry *__hists__add_branch_entry(struct hists *hists,
 					     struct addr_location *al,
 					     struct symbol *sym_parent,
 					     struct branch_info *bi,
@@ -460,14 +461,14 @@ struct hist_entry *__hists__add_branch_entry(struct hists *self,
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
 		.branch_info = bi,
-		.hists	= self,
+		.hists	= hists,
 		.mem_info = NULL,
 	};
 
-	return add_hist_entry(self, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al, period, weight);
 }
 
-struct hist_entry *__hists__add_entry(struct hists *self,
+struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
 				      struct symbol *sym_parent, u64 period,
 				      u64 weight, u64 transaction)
@@ -488,13 +489,13 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
-		.hists	= self,
+		.hists	= hists,
 		.branch_info = NULL,
 		.mem_info = NULL,
 		.transaction = transaction,
 	};
 
-	return add_hist_entry(self, &entry, al, period, weight);
+	return add_hist_entry(hists, &entry, al, period, weight);
 }
 
 int64_t
@@ -604,7 +605,7 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_symbol(hists, he);
 }
 
-void hists__collapse_resort(struct hists *hists)
+void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -631,6 +632,8 @@ void hists__collapse_resort(struct hists *hists)
 			 */
 			hists__apply_filters(hists, n);
 		}
+		if (prog)
+			ui_progress__update(prog, 1);
 	}
 }
 

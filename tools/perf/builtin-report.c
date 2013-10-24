@@ -373,9 +373,9 @@ static int process_read_event(struct perf_tool *tool,
 /* For pipe mode, sample_type is not currently set */
 static int perf_report__setup_sample_type(struct perf_report *rep)
 {
-	struct perf_session *self = rep->session;
-	u64 sample_type = perf_evlist__combined_sample_type(self->evlist);
-	bool is_pipe = perf_data_file__is_pipe(self->file);
+	struct perf_session *session = rep->session;
+	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
+	bool is_pipe = perf_data_file__is_pipe(session->file);
 
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
@@ -417,14 +417,14 @@ static void sig_handler(int sig __maybe_unused)
 }
 
 static size_t hists__fprintf_nr_sample_events(struct perf_report *rep,
-					      struct hists *self,
+					      struct hists *hists,
 					      const char *evname, FILE *fp)
 {
 	size_t ret;
 	char unit;
-	unsigned long nr_samples = self->stats.nr_events[PERF_RECORD_SAMPLE];
-	u64 nr_events = self->stats.total_period;
-	struct perf_evsel *evsel = hists_to_evsel(self);
+	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
+	u64 nr_events = hists->stats.total_period;
+	struct perf_evsel *evsel = hists_to_evsel(hists);
 	char buf[512];
 	size_t size = sizeof(buf);
 
@@ -496,6 +496,7 @@ static int __cmd_report(struct perf_report *rep)
 	struct map *kernel_map;
 	struct kmap *kernel_kmap;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+	struct ui_progress prog;
 	struct perf_data_file *file = session->file;
 
 	signal(SIGINT, sig_handler);
@@ -558,13 +559,19 @@ static int __cmd_report(struct perf_report *rep)
 	}
 
 	nr_samples = 0;
+	list_for_each_entry(pos, &session->evlist->entries, node)
+		nr_samples += pos->hists.nr_entries;
+
+	ui_progress__init(&prog, nr_samples, "Merging related events...");
+
+	nr_samples = 0;
 	list_for_each_entry(pos, &session->evlist->entries, node) {
 		struct hists *hists = &pos->hists;
 
 		if (pos->idx == 0)
 			hists->symbol_filter_str = rep->symbol_filter_str;
 
-		hists__collapse_resort(hists);
+		hists__collapse_resort(hists, &prog);
 		nr_samples += hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 		/* Non-group events are considered as leader */
@@ -576,6 +583,7 @@ static int __cmd_report(struct perf_report *rep)
 			hists__link(leader_hists, hists);
 		}
 	}
+	ui_progress__finish();
 
 	if (session_done())
 		return 0;
