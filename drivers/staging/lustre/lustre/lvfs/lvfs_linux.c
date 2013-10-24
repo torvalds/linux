@@ -65,9 +65,9 @@ EXPORT_SYMBOL(obd_memory);
 					      msg)
 # define ASSERT_KERNEL_CTXT(msg) LASSERTF(segment_eq(get_fs(), get_ds()), msg)
 #else
-# define ASSERT_CTXT_MAGIC(magic) do {} while(0)
-# define ASSERT_NOT_KERNEL_CTXT(msg) do {} while(0)
-# define ASSERT_KERNEL_CTXT(msg) do {} while(0)
+# define ASSERT_CTXT_MAGIC(magic) do {} while (0)
+# define ASSERT_NOT_KERNEL_CTXT(msg) do {} while (0)
+# define ASSERT_KERNEL_CTXT(msg) do {} while (0)
 #endif
 
 static void push_group_info(struct lvfs_run_ctxt *save,
