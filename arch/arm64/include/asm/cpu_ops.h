@@ -34,6 +34,11 @@ struct device_node;
  * @cpu_boot:	Boots a cpu into the kernel.
  * @cpu_postboot: Optionally, perform any post-boot cleanup or necesary
  *		synchronisation. Called from the cpu being booted.
+ * @cpu_disable: Prepares a cpu to die. May fail for some mechanism-specific
+ * 		reason, which will cause the hot unplug to be aborted. Called
+ * 		from the cpu to be killed.
+ * @cpu_die:	Makes a cpu leave the kernel. Must not fail. Called from the
+ *		cpu being killed.
  */
 struct cpu_operations {
 	const char	*name;
@@ -41,6 +46,10 @@ struct cpu_operations {
 	int		(*cpu_prepare)(unsigned int);
 	int		(*cpu_boot)(unsigned int);
 	void		(*cpu_postboot)(void);
+#ifdef CONFIG_HOTPLUG_CPU
+	int		(*cpu_disable)(unsigned int cpu);
+	void		(*cpu_die)(unsigned int cpu);
+#endif
 };
 
 extern const struct cpu_operations *cpu_ops[NR_CPUS];

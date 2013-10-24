@@ -161,6 +161,13 @@ config NR_CPUS
 	default "8" if ARCH_XGENE
 	default "4"
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
 source kernel/Kconfig.preempt
 
 config HZ
