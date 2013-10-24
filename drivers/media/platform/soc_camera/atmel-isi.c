@@ -34,13 +34,6 @@
 #define MIN_FRAME_RATE			15
 #define FRAME_INTERVAL_MILLI_SEC	(1000 / MIN_FRAME_RATE)
 
-/* ISI states */
-enum {
-	ISI_STATE_IDLE = 0,
-	ISI_STATE_READY,
-	ISI_STATE_WAIT_SOF,
-};
-
 /* Frame buffer descriptor */
 struct fbd {
 	/* Physical address of the frame buffer */
@@ -75,11 +68,6 @@ struct atmel_isi {
 	void __iomem			*regs;
 
 	int				sequence;
-	/* State of the ISI module in capturing mode */
-	int				state;
-
-	/* Wait queue for waiting for SOF */
-	wait_queue_head_t		vsync_wq;
 
 	struct vb2_alloc_ctx		*alloc_ctx;
 
@@ -207,12 +195,6 @@ static irqreturn_t isi_interrupt(int irq, void *dev_id)
 		isi_writel(isi, ISI_INTDIS, ISI_CTRL_DIS);
 		ret = IRQ_HANDLED;
 	} else {
-		if ((pending & ISI_SR_VSYNC) &&
-				(isi->state == ISI_STATE_IDLE)) {
-			isi->state = ISI_STATE_READY;
-			wake_up_interruptible(&isi->vsync_wq);
-			ret = IRQ_HANDLED;
-		}
 		if (likely(pending & ISI_SR_CXFR_DONE))
 			ret = atmel_isi_handle_streaming(isi);
 	}
@@ -407,43 +389,17 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
-
 	u32 sr = 0;
-	int ret;
 
 	spin_lock_irq(&isi->lock);
-	isi->state = ISI_STATE_IDLE;
-	/* Clear any pending SOF interrupt */
+	/* Clear any pending interrupt */
 	sr = isi_readl(isi, ISI_STATUS);
-	/* Enable VSYNC interrupt for SOF */
-	isi_writel(isi, ISI_INTEN, ISI_SR_VSYNC);
-	isi_writel(isi, ISI_CTRL, ISI_CTRL_EN);
-	spin_unlock_irq(&isi->lock);
 
-	dev_dbg(icd->parent, "Waiting for SOF\n");
-	ret = wait_event_interruptible(isi->vsync_wq,
-				       isi->state != ISI_STATE_IDLE);
-	if (ret)
-		goto err;
-
-	if (isi->state != ISI_STATE_READY) {
-		ret = -EIO;
-		goto err;
-	}
-
-	spin_lock_irq(&isi->lock);
-	isi->state = ISI_STATE_WAIT_SOF;
-	isi_writel(isi, ISI_INTDIS, ISI_SR_VSYNC);
 	if (count)
 		start_dma(isi, isi->active);
 	spin_unlock_irq(&isi->lock);
 
 	return 0;
-err:
-	isi->active = NULL;
-	isi->sequence = 0;
-	INIT_LIST_HEAD(&isi->video_buffer_list);
-	return ret;
 }
 
 /* abort streaming and wait for last buffer */
@@ -965,7 +921,6 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	isi->pdata = pdata;
 	isi->active = NULL;
 	spin_lock_init(&isi->lock);
-	init_waitqueue_head(&isi->vsync_wq);
 	INIT_LIST_HEAD(&isi->video_buffer_list);
 	INIT_LIST_HEAD(&isi->dma_desc_head);
 
