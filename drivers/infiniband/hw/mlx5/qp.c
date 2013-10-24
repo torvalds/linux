@@ -1550,7 +1550,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	mlx5_cur = to_mlx5_state(cur_state);
 	mlx5_new = to_mlx5_state(new_state);
 	mlx5_st = to_mlx5_st(ibqp->qp_type);
-	if (mlx5_cur < 0 || mlx5_new < 0 || mlx5_st < 0)
+	if (mlx5_st < 0)
 		goto out;
 
 	optpar = ib_mask_to_mlx5_opt(attr_mask);
