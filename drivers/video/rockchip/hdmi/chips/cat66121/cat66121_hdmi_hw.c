@@ -461,6 +461,7 @@ int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 #endif
 
 	// output Color mode
+#ifndef DISABLE_HDMITX_CSC
 	switch(vpara->output_color)
 	{
 		case HDMI_COLOR_YCbCr444:
@@ -474,6 +475,10 @@ int cat66121_hdmi_sys_config_video(struct hdmi_video_para *vpara)
 			bOutputColorMode = F_MODE_RGB444 ;
 			break ;
 	}
+#else
+	bOutputColorMode = F_MODE_RGB444 ;
+#endif
+
 	// Set ext video
 	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vpara->vic);
 	if(mode == NULL)
