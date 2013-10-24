@@ -470,6 +470,23 @@ static char *sysfs_pathname(struct sysfs_dirent *sd, char *path)
 	return path;
 }
 
+void sysfs_warn_dup(struct sysfs_dirent *parent, const char *name)
+{
+	char *path;
+
+	path = kzalloc(PATH_MAX, GFP_KERNEL);
+	if (path) {
+		sysfs_pathname(parent, path);
+		strlcat(path, "/", PATH_MAX);
+		strlcat(path, name, PATH_MAX);
+	}
+
+	WARN(1, KERN_WARNING "sysfs: cannot create duplicate filename '%s'\n",
+	     path ? path : name);
+
+	kfree(path);
+}
+
 /**
  *	sysfs_add_one - add sysfs_dirent to parent
  *	@acxt: addrm context to use
@@ -497,18 +514,9 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
 	int ret;
 
 	ret = __sysfs_add_one(acxt, sd, parent_sd);
-	if (ret == -EEXIST) {
-		char *path = kzalloc(PATH_MAX, GFP_KERNEL);
-		WARN(1, KERN_WARNING
-		     "sysfs: cannot create duplicate filename '%s'\n",
-		     (path == NULL) ? sd->s_name
-				    : (sysfs_pathname(parent_sd, path),
-				       strlcat(path, "/", PATH_MAX),
-				       strlcat(path, sd->s_name, PATH_MAX),
-				       path));
-		kfree(path);
-	}
 
+	if (ret == -EEXIST)
+		sysfs_warn_dup(parent_sd, sd->s_name);
 	return ret;
 }
 
