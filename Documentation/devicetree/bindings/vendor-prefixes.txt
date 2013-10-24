@@ -88,6 +88,7 @@ toshiba	Toshiba Corporation
 toumaz	Toumaz
 v3	V3 Semiconductor
 via	VIA Technologies, Inc.
+voipac	Voipac Technologies s.r.o.
 winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
