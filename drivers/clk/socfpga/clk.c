@@ -121,9 +121,7 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	int rc;
 	u32 fixed_div;
 
-	rc = of_property_read_u32(node, "reg", &reg);
-	if (WARN_ON(rc))
-		return NULL;
+	of_property_read_u32(node, "reg", &reg);
 
 	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
 	if (WARN_ON(!socfpga_clk))
