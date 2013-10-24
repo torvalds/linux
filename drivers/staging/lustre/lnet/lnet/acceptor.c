@@ -408,7 +408,7 @@ lnet_acceptor(void *arg)
 
 		continue;
 
-	failed:
+failed:
 		libcfs_sock_release(newsock);
 	}
 
