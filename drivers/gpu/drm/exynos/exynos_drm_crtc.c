@@ -36,9 +36,9 @@ enum exynos_crtc_mode {
  * @pipe: a crtc index created at load() with a new crtc object creation
  *	and the crtc object would be set to private->crtc array
  *	to get a crtc object corresponding to this pipe from private->crtc
- *	array when irq interrupt occured. the reason of using this pipe is that
+ *	array when irq interrupt occurred. the reason of using this pipe is that
  *	drm framework doesn't support multiple irq yet.
- *	we can refer to the crtc to current hardware interrupt occured through
+ *	we can refer to the crtc to current hardware interrupt occurred through
  *	this pipe value.
  * @dpms: store the crtc dpms value
  * @mode: store the crtc mode value
