@@ -948,9 +948,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	indio_dev->channels = pdata->iio_channels;
 	indio_dev->num_channels = pdata->nchannels;
 
-	ret = iio_device_register(indio_dev);
-
-	return ret;
+	return iio_device_register(indio_dev);
 }
 
 static int twl6030_gpadc_remove(struct platform_device *pdev)
