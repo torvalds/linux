@@ -53,6 +53,7 @@ lnet_acceptor_port(void)
 {
 	return accept_port;
 }
+EXPORT_SYMBOL(lnet_acceptor_port);
 
 static inline int
 lnet_accept_magic(__u32 magic, __u32 constant)
@@ -60,9 +61,6 @@ lnet_accept_magic(__u32 magic, __u32 constant)
 	return (magic == constant ||
 		magic == __swab32(constant));
 }
-
-
-EXPORT_SYMBOL(lnet_acceptor_port);
 
 static char *accept = "secure";
 
