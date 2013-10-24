@@ -29,12 +29,7 @@
 
 //#define JDEBUG
 
-static int ft1000_reset(void *ft1000dev);
 static int ft1000_submit_rx_urb(struct ft1000_info *info);
-static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static int ft1000_open (struct net_device *dev);
-static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev);
-static int ft1000_chkcard (struct ft1000_usb *dev);
 
 static u8 tempbuffer[1600];
 
@@ -671,6 +666,211 @@ static int ft1000_reset_card(struct net_device *dev)
 	return TRUE;
 }
 
+//---------------------------------------------------------------------------
+// Function:    ft1000_usb_transmit_complete
+//
+// Parameters:  urb  - transmitted usb urb
+//
+//
+// Returns:     none
+//
+// Description: This is the callback function when a urb is transmitted
+//
+// Notes:
+//
+//---------------------------------------------------------------------------
+static void ft1000_usb_transmit_complete(struct urb *urb)
+{
+
+	struct ft1000_usb *ft1000dev = urb->context;
+
+	if (urb->status)
+		pr_err("%s: TX status %d\n", ft1000dev->net->name, urb->status);
+
+	netif_wake_queue(ft1000dev->net);
+}
+
+//---------------------------------------------------------------------------
+//
+// Function:   ft1000_copy_down_pkt
+// Description: This function will take an ethernet packet and convert it to
+//             a Flarion packet prior to sending it to the ASIC Downlink
+//             FIFO.
+// Input:
+//     dev    - device structure
+//     packet - address of ethernet packet
+//     len    - length of IP packet
+// Output:
+//     status - FAILURE
+//              SUCCESS
+//
+//---------------------------------------------------------------------------
+static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
+{
+	struct ft1000_info *pInfo = netdev_priv(netdev);
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
+
+	int count, ret;
+	u8 *t;
+	struct pseudo_hdr hdr;
+
+	if (!pInfo->CardReady) {
+		DEBUG("ft1000_copy_down_pkt::Card Not Ready\n");
+		return -ENODEV;
+	}
+
+	count = sizeof(struct pseudo_hdr) + len;
+	if (count > MAX_BUF_SIZE) {
+		DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
+		DEBUG("size = %d\n", count);
+		return -EINVAL;
+	}
+
+	if (count % 4)
+		count = count + (4 - (count % 4));
+
+	memset(&hdr, 0, sizeof(struct pseudo_hdr));
+
+	hdr.length = ntohs(count);
+	hdr.source = 0x10;
+	hdr.destination = 0x20;
+	hdr.portdest = 0x20;
+	hdr.portsrc = 0x10;
+	hdr.sh_str_id = 0x91;
+	hdr.control = 0x00;
+
+	hdr.checksum = hdr.length ^ hdr.source ^ hdr.destination ^
+	    hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^ hdr.control;
+
+	memcpy(&pFt1000Dev->tx_buf[0], &hdr, sizeof(hdr));
+	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
+
+	netif_stop_queue(netdev);
+
+	usb_fill_bulk_urb(pFt1000Dev->tx_urb,
+			  pFt1000Dev->dev,
+			  usb_sndbulkpipe(pFt1000Dev->dev,
+					  pFt1000Dev->bulk_out_endpointAddr),
+			  pFt1000Dev->tx_buf, count,
+			  ft1000_usb_transmit_complete, (void *)pFt1000Dev);
+
+	t = (u8 *) pFt1000Dev->tx_urb->transfer_buffer;
+
+	ret = usb_submit_urb(pFt1000Dev->tx_urb, GFP_ATOMIC);
+
+	if (ret) {
+		DEBUG("ft1000 failed tx_urb %d\n", ret);
+		return ret;
+	} else {
+		pInfo->stats.tx_packets++;
+		pInfo->stats.tx_bytes += (len + 14);
+	}
+
+	return 0;
+}
+
+//---------------------------------------------------------------------------
+// Function:    ft1000_start_xmit
+//
+// Parameters:  skb - socket buffer to be sent
+//              dev - network device
+//
+//
+// Returns:     none
+//
+// Description: transmit a ethernet packet
+//
+// Notes:
+//
+//---------------------------------------------------------------------------
+static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ft1000_info *pInfo = netdev_priv(dev);
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
+	u8 *pdata;
+	int maxlen, pipe;
+
+	if (skb == NULL) {
+		DEBUG("ft1000_hw: ft1000_start_xmit:skb == NULL!!!\n");
+		return NETDEV_TX_OK;
+	}
+
+	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
+		DEBUG("network driver is closed, return\n");
+		goto err;
+	}
+
+	pipe =
+	    usb_sndbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_out_endpointAddr);
+	maxlen = usb_maxpacket(pFt1000Dev->dev, pipe, usb_pipeout(pipe));
+
+	pdata = (u8 *) skb->data;
+
+	if (pInfo->mediastate == 0) {
+		/* Drop packet is mediastate is down */
+		DEBUG("ft1000_hw:ft1000_start_xmit:mediastate is down\n");
+		goto err;
+	}
+
+	if ((skb->len < ENET_HEADER_SIZE) || (skb->len > ENET_MAX_SIZE)) {
+		/* Drop packet which has invalid size */
+		DEBUG("ft1000_hw:ft1000_start_xmit:invalid ethernet length\n");
+		goto err;
+	}
+
+	ft1000_copy_down_pkt(dev, (pdata + ENET_HEADER_SIZE - 2),
+			     skb->len - ENET_HEADER_SIZE + 2);
+
+err:
+	dev_kfree_skb(skb);
+
+	return NETDEV_TX_OK;
+}
+
+//---------------------------------------------------------------------------
+// Function:    ft1000_open
+//
+// Parameters:
+//              dev - network device
+//
+//
+// Returns:     none
+//
+// Description: open the network driver
+//
+// Notes:
+//
+//---------------------------------------------------------------------------
+static int ft1000_open(struct net_device *dev)
+{
+	struct ft1000_info *pInfo = netdev_priv(dev);
+	struct ft1000_usb *pFt1000Dev = pInfo->priv;
+	struct timeval tv;
+
+	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
+
+	pInfo->stats.rx_bytes = 0;
+	pInfo->stats.tx_bytes = 0;
+	pInfo->stats.rx_packets = 0;
+	pInfo->stats.tx_packets = 0;
+	do_gettimeofday(&tv);
+	pInfo->ConTm = tv.tv_sec;
+	pInfo->ProgConStat = 0;
+
+	netif_start_queue(dev);
+
+	netif_carrier_on(dev);
+
+	return ft1000_submit_rx_urb(pInfo);
+}
+
+static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
+{
+	struct ft1000_info *info = netdev_priv(dev);
+
+	return &(info->stats);
+}
+
 static const struct net_device_ops ftnet_ops =
 {
 	.ndo_open = &ft1000_open,
@@ -678,7 +878,6 @@ static const struct net_device_ops ftnet_ops =
 	.ndo_start_xmit = &ft1000_start_xmit,
 	.ndo_get_stats = &ft1000_netdev_stats,
 };
-
 
 //---------------------------------------------------------------------------
 // Function:    init_ft1000_netdev
@@ -694,6 +893,13 @@ static const struct net_device_ops ftnet_ops =
 // Notes:
 //
 //---------------------------------------------------------------------------
+
+static int ft1000_reset(void *dev)
+{
+	ft1000_reset_card(dev);
+	return 0;
+}
+
 int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 {
 	struct net_device *netdev;
@@ -854,175 +1060,6 @@ int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 	return 0;
 }
 
-static int ft1000_reset(void *dev)
-{
-	ft1000_reset_card(dev);
-	return 0;
-}
-
-//---------------------------------------------------------------------------
-// Function:    ft1000_usb_transmit_complete
-//
-// Parameters:  urb  - transmitted usb urb
-//
-//
-// Returns:     none
-//
-// Description: This is the callback function when a urb is transmitted
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-static void ft1000_usb_transmit_complete(struct urb *urb)
-{
-
-	struct ft1000_usb *ft1000dev = urb->context;
-
-	if (urb->status)
-		pr_err("%s: TX status %d\n", ft1000dev->net->name, urb->status);
-
-	netif_wake_queue(ft1000dev->net);
-}
-
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_copy_down_pkt
-// Description: This function will take an ethernet packet and convert it to
-//             a Flarion packet prior to sending it to the ASIC Downlink
-//             FIFO.
-// Input:
-//     dev    - device structure
-//     packet - address of ethernet packet
-//     len    - length of IP packet
-// Output:
-//     status - FAILURE
-//              SUCCESS
-//
-//---------------------------------------------------------------------------
-static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
-{
-	struct ft1000_info *pInfo = netdev_priv(netdev);
-	struct ft1000_usb *pFt1000Dev = pInfo->priv;
-
-	int count, ret;
-	u8 *t;
-	struct pseudo_hdr hdr;
-
-	if (!pInfo->CardReady) {
-		DEBUG("ft1000_copy_down_pkt::Card Not Ready\n");
-		return -ENODEV;
-	}
-
-	count = sizeof(struct pseudo_hdr) + len;
-	if (count > MAX_BUF_SIZE) {
-		DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
-		DEBUG("size = %d\n", count);
-		return -EINVAL;
-	}
-
-	if (count % 4)
-		count = count + (4 - (count % 4));
-
-	memset(&hdr, 0, sizeof(struct pseudo_hdr));
-
-	hdr.length = ntohs(count);
-	hdr.source = 0x10;
-	hdr.destination = 0x20;
-	hdr.portdest = 0x20;
-	hdr.portsrc = 0x10;
-	hdr.sh_str_id = 0x91;
-	hdr.control = 0x00;
-
-	hdr.checksum = hdr.length ^ hdr.source ^ hdr.destination ^
-	    hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^ hdr.control;
-
-	memcpy(&pFt1000Dev->tx_buf[0], &hdr, sizeof(hdr));
-	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
-
-	netif_stop_queue(netdev);
-
-	usb_fill_bulk_urb(pFt1000Dev->tx_urb,
-			  pFt1000Dev->dev,
-			  usb_sndbulkpipe(pFt1000Dev->dev,
-					  pFt1000Dev->bulk_out_endpointAddr),
-			  pFt1000Dev->tx_buf, count,
-			  ft1000_usb_transmit_complete, (void *)pFt1000Dev);
-
-	t = (u8 *) pFt1000Dev->tx_urb->transfer_buffer;
-
-	ret = usb_submit_urb(pFt1000Dev->tx_urb, GFP_ATOMIC);
-
-	if (ret) {
-		DEBUG("ft1000 failed tx_urb %d\n", ret);
-		return ret;
-	} else {
-		pInfo->stats.tx_packets++;
-		pInfo->stats.tx_bytes += (len + 14);
-	}
-
-	return 0;
-}
-
-
-//---------------------------------------------------------------------------
-// Function:    ft1000_start_xmit
-//
-// Parameters:  skb - socket buffer to be sent
-//              dev - network device
-//
-//
-// Returns:     none
-//
-// Description: transmit a ethernet packet
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	struct ft1000_info *pInfo = netdev_priv(dev);
-	struct ft1000_usb *pFt1000Dev = pInfo->priv;
-	u8 *pdata;
-	int maxlen, pipe;
-
-	if (skb == NULL) {
-		DEBUG("ft1000_hw: ft1000_start_xmit:skb == NULL!!!\n");
-		return NETDEV_TX_OK;
-	}
-
-	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
-		DEBUG("network driver is closed, return\n");
-		goto err;
-	}
-
-	pipe =
-	    usb_sndbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_out_endpointAddr);
-	maxlen = usb_maxpacket(pFt1000Dev->dev, pipe, usb_pipeout(pipe));
-
-	pdata = (u8 *) skb->data;
-
-	if (pInfo->mediastate == 0) {
-		/* Drop packet is mediastate is down */
-		DEBUG("ft1000_hw:ft1000_start_xmit:mediastate is down\n");
-		goto err;
-	}
-
-	if ((skb->len < ENET_HEADER_SIZE) || (skb->len > ENET_MAX_SIZE)) {
-		/* Drop packet which has invalid size */
-		DEBUG("ft1000_hw:ft1000_start_xmit:invalid ethernet length\n");
-		goto err;
-	}
-
-	ft1000_copy_down_pkt(dev, (pdata + ENET_HEADER_SIZE - 2),
-			     skb->len - ENET_HEADER_SIZE + 2);
-
-err:
-	dev_kfree_skb(skb);
-
-	return NETDEV_TX_OK;
-}
-
-
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_up_pkt
@@ -1159,44 +1196,6 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 	return 0;
 }
 
-
-//---------------------------------------------------------------------------
-// Function:    ft1000_open
-//
-// Parameters:
-//              dev - network device
-//
-//
-// Returns:     none
-//
-// Description: open the network driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-static int ft1000_open(struct net_device *dev)
-{
-	struct ft1000_info *pInfo = netdev_priv(dev);
-	struct ft1000_usb *pFt1000Dev = pInfo->priv;
-	struct timeval tv;
-
-	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
-
-	pInfo->stats.rx_bytes = 0;
-	pInfo->stats.tx_bytes = 0;
-	pInfo->stats.rx_packets = 0;
-	pInfo->stats.tx_packets = 0;
-	do_gettimeofday(&tv);
-	pInfo->ConTm = tv.tv_sec;
-	pInfo->ProgConStat = 0;
-
-	netif_start_queue(dev);
-
-	netif_carrier_on(dev);
-
-	return ft1000_submit_rx_urb(pInfo);
-}
-
 //---------------------------------------------------------------------------
 // Function:    ft1000_close
 //
@@ -1227,14 +1226,6 @@ int ft1000_close(struct net_device *net)
 
 	return 0;
 }
-
-static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
-{
-	struct ft1000_info *info = netdev_priv(dev);
-
-	return &(info->stats);
-}
-
 
 //---------------------------------------------------------------------------
 //
