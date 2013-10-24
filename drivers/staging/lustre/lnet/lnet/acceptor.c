@@ -95,7 +95,7 @@ lnet_acceptor_timeout(void)
 EXPORT_SYMBOL(lnet_acceptor_timeout);
 
 void
-lnet_connect_console_error (int rc, lnet_nid_t peer_nid,
+lnet_connect_console_error(int rc, lnet_nid_t peer_nid,
 			   __u32 peer_ip, int peer_port)
 {
 	switch (rc) {
@@ -162,7 +162,7 @@ lnet_connect(socket_t **sockp, lnet_nid_t peer_nid,
 	int		     port;
 	int		     fatal;
 
-	CLASSERT (sizeof(cr) <= 16);	    /* not too big to be on the stack */
+	CLASSERT(sizeof(cr) <= 16);	    /* not too big to be on the stack */
 
 	for (port = LNET_ACCEPTOR_MAX_RESERVED_PORT;
 	     port >= LNET_ACCEPTOR_MIN_RESERVED_PORT;
@@ -178,7 +178,7 @@ lnet_connect(socket_t **sockp, lnet_nid_t peer_nid,
 			continue;
 		}
 
-		CLASSERT (LNET_PROTO_ACCEPTOR_VERSION == 1);
+		CLASSERT(LNET_PROTO_ACCEPTOR_VERSION == 1);
 
 		cr.acr_magic   = LNET_PROTO_ACCEPTOR_MAGIC;
 		cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
@@ -232,10 +232,10 @@ lnet_accept(socket_t *sock, __u32 magic)
 	lnet_ni_t	      *ni;
 	char		   *str;
 
-	LASSERT (sizeof(cr) <= 16);	     /* not too big for the stack */
+	LASSERT(sizeof(cr) <= 16);	     /* not too big for the stack */
 
 	rc = libcfs_sock_getaddr(sock, 1, &peer_ip, &peer_port);
-	LASSERT (rc == 0);		      /* we succeeded before */
+	LASSERT(rc == 0);		      /* we succeeded before */
 
 	if (!lnet_accept_magic(magic, LNET_PROTO_ACCEPTOR_MAGIC)) {
 
@@ -245,7 +245,7 @@ lnet_accept(socket_t *sock, __u32 magic)
 			 * thing sent will be a version query.  I send back
 			 * LNET_PROTO_ACCEPTOR_MAGIC to tell her I'm "old" */
 
-			memset (&cr, 0, sizeof(cr));
+			memset(&cr, 0, sizeof(cr));
 			cr.acr_magic = LNET_PROTO_ACCEPTOR_MAGIC;
 			cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
 			rc = libcfs_sock_write(sock, &cr, sizeof(cr),
@@ -292,7 +292,7 @@ lnet_accept(socket_t *sock, __u32 magic)
 		 * "old". */
 		int peer_version = cr.acr_version;
 
-		memset (&cr, 0, sizeof(cr));
+		memset(&cr, 0, sizeof(cr));
 		cr.acr_magic = LNET_PROTO_ACCEPTOR_MAGIC;
 		cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
 
@@ -358,7 +358,7 @@ lnet_acceptor(void *arg)
 	int	    peer_port;
 	int	    secure = (int)((long_ptr_t)arg);
 
-	LASSERT (lnet_acceptor_state.pta_sock == NULL);
+	LASSERT(lnet_acceptor_state.pta_sock == NULL);
 
 	cfs_block_allsigs();
 
@@ -469,7 +469,7 @@ lnet_acceptor_start(void)
 	long rc2;
 	long secure;
 
-	LASSERT (lnet_acceptor_state.pta_sock == NULL);
+	LASSERT(lnet_acceptor_state.pta_sock == NULL);
 
 	rc = lnet_acceptor_get_tunables();
 	if (rc != 0)
