@@ -884,51 +884,23 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	/*
-	 * host->power toggles between false and true in both cases - either
-	 * or not the controller can be runtime-suspended during inactivity.
-	 * But if the controller has to be kept on, the runtime-pm usage_count
-	 * is kept positive, so no suspending actually takes place.
-	 */
-	if (ios->power_mode == MMC_POWER_ON && ios->clock) {
-		if (host->power != TMIO_MMC_ON_RUN) {
-			tmio_mmc_clk_update(mmc);
-			if (host->resuming) {
-				tmio_mmc_reset(host);
-				host->resuming = false;
-			}
-		}
-		if (host->power == TMIO_MMC_OFF_STOP)
-			tmio_mmc_reset(host);
+	switch (ios->power_mode) {
+	case MMC_POWER_OFF:
+		tmio_mmc_power_off(host);
+		tmio_mmc_clk_stop(host);
+		break;
+	case MMC_POWER_UP:
 		tmio_mmc_set_clock(host, ios->clock);
-		if (host->power == TMIO_MMC_OFF_STOP)
-			/* power up SD card and the bus */
-			tmio_mmc_power_on(host, ios->vdd);
-		host->power = TMIO_MMC_ON_RUN;
-		/* start bus clock */
+		tmio_mmc_power_on(host, ios->vdd);
 		tmio_mmc_clk_start(host);
-	} else if (ios->power_mode != MMC_POWER_UP) {
-		struct tmio_mmc_data *pdata = host->pdata;
-		unsigned int old_power = host->power;
-
-		if (old_power != TMIO_MMC_OFF_STOP) {
-			if (ios->power_mode == MMC_POWER_OFF) {
-				tmio_mmc_power_off(host);
-				host->power = TMIO_MMC_OFF_STOP;
-			} else {
-				host->power = TMIO_MMC_ON_STOP;
-			}
-		}
-
-		if (old_power == TMIO_MMC_ON_RUN) {
-			tmio_mmc_clk_stop(host);
-			if (pdata->clk_disable)
-				pdata->clk_disable(host->pdev);
-		}
-	}
-
-	if (host->power != TMIO_MMC_OFF_STOP)
 		tmio_mmc_set_bus_width(host, ios->bus_width);
+		break;
+	case MMC_POWER_ON:
+		tmio_mmc_set_clock(host, ios->clock);
+		tmio_mmc_clk_start(host);
+		tmio_mmc_set_bus_width(host, ios->bus_width);
+		break;
+	}
 
 	/* Let things settle. delay taken from winCE driver */
 	udelay(140);
@@ -1064,7 +1036,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 				  mmc->caps & MMC_CAP_NONREMOVABLE ||
 				  mmc->slot.cd_irq >= 0);
 
-	_host->power = TMIO_MMC_OFF_STOP;
 	if (tmio_mmc_clk_update(mmc) < 0) {
 		mmc->f_max = pdata->hclk;
 		mmc->f_min = mmc->f_max / 512;
@@ -1116,8 +1087,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	pm_runtime_enable(&pdev->dev);
 
 	ret = mmc_add_host(mmc);
-	if (pdata->clk_disable)
-		pdata->clk_disable(pdev);
 	if (ret < 0) {
 		tmio_mmc_host_remove(_host);
 		return ret;
@@ -1185,8 +1154,6 @@ int tmio_mmc_host_resume(struct device *dev)
 
 	tmio_mmc_enable_dma(host, true);
 
-	/* The MMC core will perform the complete set up */
-	host->resuming = true;
 	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_resume);
