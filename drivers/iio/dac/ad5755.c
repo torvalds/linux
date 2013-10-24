@@ -589,13 +589,7 @@ static int ad5755_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to register iio device: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 static int ad5755_remove(struct spi_device *spi)
