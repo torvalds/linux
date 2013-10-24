@@ -61,7 +61,7 @@ static int __init set_bios_reboot(const struct dmi_system_id *d)
 	if (reboot_type != BOOT_BIOS) {
 		reboot_type = BOOT_BIOS;
 		pr_info("%s series board detected. Selecting %s-method for reboots.\n",
-			"BIOS", d->ident);
+			d->ident, "BIOS");
 	}
 	return 0;
 }
@@ -117,7 +117,7 @@ static int __init set_pci_reboot(const struct dmi_system_id *d)
 	if (reboot_type != BOOT_CF9) {
 		reboot_type = BOOT_CF9;
 		pr_info("%s series board detected. Selecting %s-method for reboots.\n",
-			"PCI", d->ident);
+			d->ident, "PCI");
 	}
 	return 0;
 }
@@ -127,7 +127,7 @@ static int __init set_kbd_reboot(const struct dmi_system_id *d)
 	if (reboot_type != BOOT_KBD) {
 		reboot_type = BOOT_KBD;
 		pr_info("%s series board detected. Selecting %s-method for reboot.\n",
-			"KBD", d->ident);
+			d->ident, "KBD");
 	}
 	return 0;
 }
