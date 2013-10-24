@@ -49,8 +49,19 @@
 #include <linux/ide.h>
 #endif
 
+/*
+ * Make sure our attempts to over run the kernel stack doesn't trigger
+ * a compiler warning when CONFIG_FRAME_WARN is set. Then make sure we
+ * recurse past the end of THREAD_SIZE by default.
+ */
+#if defined(CONFIG_FRAME_WARN) && (CONFIG_FRAME_WARN > 0)
+#define REC_STACK_SIZE (CONFIG_FRAME_WARN / 2)
+#else
+#define REC_STACK_SIZE (THREAD_SIZE / 8)
+#endif
+#define REC_NUM_DEFAULT ((THREAD_SIZE / REC_STACK_SIZE) * 2)
+
 #define DEFAULT_COUNT 10
-#define REC_NUM_DEFAULT 10
 #define EXEC_SIZE 64
 
 enum cname {
@@ -140,8 +151,7 @@ static DEFINE_SPINLOCK(lock_me_up);
 static u8 data_area[EXEC_SIZE];
 
 module_param(recur_count, int, 0644);
-MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
-				 "default is 10");
+MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
 module_param(cpoint_name, charp, 0444);
 MODULE_PARM_DESC(cpoint_name, " Crash Point, where kernel is to be crashed");
 module_param(cpoint_type, charp, 0444);
@@ -280,16 +290,16 @@ static int lkdtm_parse_commandline(void)
 	return -EINVAL;
 }
 
-static int recursive_loop(int a)
+static int recursive_loop(int remaining)
 {
-	char buf[1024];
+	char buf[REC_STACK_SIZE];
 
-	memset(buf,0xFF,1024);
-	recur_count--;
-	if (!recur_count)
+	/* Make sure compiler does not optimize this away. */
+	memset(buf, (remaining & 0xff) | 0x1, REC_STACK_SIZE);
+	if (!remaining)
 		return 0;
 	else
-        	return recursive_loop(a);
+		return recursive_loop(remaining - 1);
 }
 
 static void do_nothing(void)
@@ -333,7 +343,7 @@ static void lkdtm_do_action(enum ctype which)
 			;
 		break;
 	case CT_OVERFLOW:
-		(void) recursive_loop(0);
+		(void) recursive_loop(recur_count);
 		break;
 	case CT_CORRUPT_STACK:
 		corrupt_stack();
