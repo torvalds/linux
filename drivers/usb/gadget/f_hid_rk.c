@@ -170,6 +170,100 @@ static struct usb_descriptor_header *hidg_fs_descriptors[] = {
 	NULL,
 };
 
+/* hid descriptor for a keyboard */
+const struct hidg_func_descriptor my_hid_data = {
+	.subclass		= 1, /* No subclass */
+	.protocol		= 2, /* 1-Keyboard,2-mouse */
+	.report_length		= 64,
+	.report_desc_length = 156,
+	.report_desc        = {
+        
+        0x05, 0x01, /*       USAGE_PAGE (Generic Desktop)         */
+        0x09, 0x06, /*       USAGE (Keyboard)                     */
+        0xA1, 0x01, /*       COLLECTION (Application)             */
+            0x85, 0x01, /*   REPORT ID (0x01)                     */
+            0x05, 0x07, /*   USAGE_PAGE (Keyboard)                */
+            0x19, 0xE0, /*   USAGE_MINIMUM (Keyboard LeftControl) */
+            0x29, 0xE7, /*   USAGE_MAXIMUM (Keyboard Right GUI)   */
+            0x15, 0x00, /*   LOGICAL_MINIMUM (0)                  */
+            0x25, 0x01, /*   LOGICAL_MAXIMUM (1)                  */
+            0x75, 0x01, /*   REPORT_SIZE (1)                      */
+            0x95, 0x08, /*   REPORT_COUNT (8)                     */
+            0x81, 0x02, /*   INPUT (Data,Var,Abs)                 */
+            0x95, 0x01, /*   REPORT_COUNT (1)                     */
+            0x75, 0x08, /*   REPORT_SIZE (8)                      */
+            0x81, 0x03, /*   INPUT (Cnst,Var,Abs)                 */
+            0x95, 0x05, /*   REPORT_COUNT (5)                     */
+            0x75, 0x01, /*   REPORT_SIZE (1)                      */
+            0x05, 0x08, /*   USAGE_PAGE (LEDs)                    */
+            0x19, 0x01, /*   USAGE_MINIMUM (Num Lock)             */
+            0x29, 0x05, /*   USAGE_MAXIMUM (Kana)                 */
+            0x91, 0x02, /*   OUTPUT (Data,Var,Abs)                */
+            0x95, 0x01, /*   REPORT_COUNT (1)                     */
+            0x75, 0x03, /*   REPORT_SIZE (3)                      */
+            0x91, 0x03, /*   OUTPUT (Cnst,Var,Abs)                */
+            0x95, 0x06, /*   REPORT_COUNT (6)                     */
+            0x75, 0x08, /*   REPORT_SIZE (8)                      */
+            0x15, 0x00, /*   LOGICAL_MINIMUM (0)                  */
+            0x25, 0x65, /*   LOGICAL_MAXIMUM (101)                */
+            0x05, 0x07, /*   USAGE_PAGE (Keyboard)                */
+            0x19, 0x00, /*   USAGE_MINIMUM (Reserved)             */
+            0x29, 0x65, /*   USAGE_MAXIMUM (Keyboard Application) */
+            0x81, 0x00, /*   INPUT (Data,Ary,Abs)                 */                                                        
+        0xC0,           /*   END_COLLECTION                       */   
+        
+        0x05, 0x0C,     /*   USAGE_PAGE (consumer page)           */
+        0x09, 0x01,     /*   USAGE (consumer control)             */
+        0xA1, 0x01,     /*   COLLECTION (Application)             */
+            0x85, 0x03, /*   REPORT ID (0x03)                     */
+            0x15, 0x00, /*   LOGICAL_MINIMUM (0)                  */
+            0x26, 0xFF, 0x02, /*  LOGICAL_MAXIMUM (0x2FF)         */
+            0x19, 0x00, /*   USAGE_MINIMUM (00)                   */
+            0x2A, 0xFF, 0x02, /*  USAGE_MAXIMUM (0x2FF)           */
+            0x75, 0x10, /*   REPORT_SIZE (16)                     */
+            0x95, 0x01, /*   REPORT_COUNT (1)                     */
+            0x81, 0x00, /*   INPUT (Data,Ary,Abs)                 */ 
+        0xC0,
+        
+        0x05, 0x01,     /*   USAGE_PAGE (Generic Desktop)         */
+        0x09, 0x02,     /*   USAGE (Mouse)                        */
+        0xA1, 0x01,     /*   COLLECTION (Application)             */
+            0x85, 0x02,     /*   REPORT ID (0x02)                 */
+            0x09, 0x01,     /*   USAGE (Pointer)                  */
+            
+            0xA1, 0x00,     /*   COLLECTION (Application)         */
+            0x05, 0x09,     /*   USAGE_PAGE (Button)              */
+            0x19, 0x01,     /*   USAGE_MINIMUM (Button 1)         */
+            0x29, 0x03,     /*   USAGE_MAXIMUM (Button 3)         */
+            0x15, 0x00,     /*   LOGICAL_MINIMUM (0)              */
+            0x25, 0x01,     /*   LOGICAL_MAXIMUM (1)              */
+            0x75, 0x01,     /*   REPORT_SIZE (1)                  */
+            0x95, 0x03,     /*   REPORT_COUNT (3)                 */
+            0x81, 0x02,     /*   INPUT (Data,Var,Abs)             */
+            0x75, 0x05,     /*   REPORT_SIZE (5)                  */
+            0x95, 0x01,     /*   REPORT_COUNT (1)                 */
+            0x81, 0x01,     /*   INPUT (Cnst,Var,Abs)             */
+            0x05, 0x01,     /*   USAGE_PAGE (Generic Desktop)     */
+            0x09, 0x30,     /*   USAGE (X)                        */
+            0x09, 0x31,     /*   USAGE (Y)                        */
+            0x16, 0x01, 0xF8, /* LOGICAL_MINIMUM (-2047)          */
+            0x26, 0xFF, 0x07, /* LOGICAL_MAXIMUM (2047)           */
+            0x75, 0x0C,     /*   REPORT_SIZE (12)                 */
+            0x95, 0x02,     /*   REPORT_COUNT (2)                 */
+            0x81, 0x06,     /*   INPUT (Data,Var,Rel)             */
+            0x09, 0x38, 
+            0x15, 0x81,     /*   LOGICAL_MINIMUM (-127)           */
+            0x25, 0x7F,     /*   LOGICAL_MAXIMUM (127)            */
+            0x75, 0x08,     /*   REPORT_SIZE (8)                  */
+            0x95, 0x01,     /*   REPORT_COUNT (1)                 */
+            0x81, 0x06,     /*   INPUT (Data,Var,Rel)             */
+            0xC0 ,          /*   END_COLLECTION                   */
+            
+        0xC0            /*   END_COLLECTION                       */
+
+	},
+};
+
 struct f_hidg *g_hidg;
 
 /*-------------------------------------------------------------------------*/
@@ -322,6 +416,7 @@ static void f_hid_queue_report(u8 *data, int len)
 
 #define KBD_REPORT_ID (0x01)
 #define MOUSE_REPORT_ID (0x02)
+#define CONSUMER_REPORT_ID (0x03)
 
 unsigned int f_hid_bypass_input_get()
 {
@@ -332,8 +427,9 @@ unsigned int f_hid_bypass_input_get()
 }
 EXPORT_SYMBOL(f_hid_bypass_input_get);
 
-unsigned char kbd_idle[]   = {KBD_REPORT_ID,0,0,0,0,0,0,0,0};
-unsigned char mouse_idle[] = {MOUSE_REPORT_ID,0,0,0,0,0};
+unsigned char kbd_idle[]     = {KBD_REPORT_ID,0,0,0,0,0,0,0,0};
+unsigned char mouse_idle[]   = {MOUSE_REPORT_ID,0,0,0,0,0};
+unsigned char consumer_idle[]= {CONSUMER_REPORT_ID,0,0};
 
 static void f_hid_send_idle_report(void)
 {
@@ -342,6 +438,8 @@ static void f_hid_send_idle_report(void)
         f_hid_queue_report(kbd_idle, sizeof(kbd_idle));
         mdelay(2);
         f_hid_queue_report(mouse_idle, sizeof(mouse_idle));
+        mdelay(2);
+        f_hid_queue_report(consumer_idle, sizeof(consumer_idle));
     }
 }
 
@@ -364,18 +462,74 @@ static void f_hid_bypass_input_set(u8 bypass)
 }
 
 struct kbd_report {
-    u8        id:8;
-    u8        raw_report[8];
+    u8        id;
+    u8        command;
+    u8        reserved;
+    u8        key_array[6];
+
 }__attribute__ ((packed));
 
-void f_hid_kbd_translate_report(u8 *data, int len)
+struct consumer_report {
+    u8        id;
+    u16        data;
+}__attribute__ ((packed));
+
+void f_hid_kbd_translate_report(struct hid_report *report, u8 *data)
 {
     if(f_hid_bypass_input_get())
     {
+        int i,j;
         struct kbd_report  k = {0};
+        struct consumer_report c = {0};
+        
+        struct hid_field *field;
+        
         k.id = KBD_REPORT_ID;//report id
-        memcpy(k.raw_report, data, len);//Byte 1 for report id
-
+        for (i = 0; i < report->maxfield; i++){
+            field = report->field[i];
+            if(HID_MAIN_ITEM_VARIABLE & field->flags)//VARIABLE REPORT
+            {
+                for(j = 0; j < field->report_count; j++)
+                {
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_LEFTCTRL)) 
+                        k.command |= field->value[j] ? 1 << 0 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_LEFTSHIFT)) 
+                        k.command |= field->value[j] ? 1 << 1 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_LEFTALT)) 
+                        k.command |= field->value[j] ? 1 << 2 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_LEFTMETA))
+                        k.command |= field->value[j] ? 1 << 3 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_RIGHTCTRL))
+                        k.command |= field->value[j] ? 1 << 4 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_RIGHTSHIFT)) 
+                        k.command |= field->value[j] ? 1 << 5 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_RIGHTALT)) 
+                        k.command |= field->value[j] ? 1 << 6 : 0 ;
+                    if((field->usage[j].type == EV_KEY) && (field->usage[j].code == KEY_RIGHTMETA)) 
+                        k.command |= field->value[j] ? 1 << 7 : 0 ;
+                }
+            }
+            else // ARRAY REPORT 
+            {
+                if(field->application == HID_GD_KEYBOARD)
+                {
+                    for(j = 0 ; j<(min(6,field->report_count)); j++)
+                    {
+                        k.key_array[j] = field->value[j];
+                    }
+                }
+                if(field->application == 0x000c0001)//CONSUMER PAGE
+                {
+                    for(j = 0 ; j < (field->report_count); j++)
+                    {
+                        c.id = CONSUMER_REPORT_ID;
+                        c.data = field->value[j];
+                        f_hid_queue_report((u8 *)&c, sizeof(c));
+                        return;
+                    }
+                }
+            }
+        }     
         f_hid_queue_report((u8 *)&k, sizeof(k));
     }
 }
@@ -390,7 +544,7 @@ struct mouse_report {
 }__attribute__ ((packed));
 
 
-void f_hid_mouse_translate_report(struct hid_report *report , u8 *data)
+void f_hid_mouse_translate_report(struct hid_report *report, u8 *data)
 {
 
     if(f_hid_bypass_input_get())
@@ -398,43 +552,23 @@ void f_hid_mouse_translate_report(struct hid_report *report , u8 *data)
         struct mouse_report m = {0};
         struct hid_field *field;
         
-        s32 mouse_rel[2] = { 0 };//0 for x, 1 for y
-        s32 mouse_wheel  = 0;
-        u8  mouse_button = 0;//bit[2:0] is valid, [7:3] reserved
-        
         int i,j;
-        
+        m.id     = MOUSE_REPORT_ID;
         for (i = 0; i < report->maxfield; i++){
             field = report->field[i];
-            if(field->usage->type == EV_KEY && field->usage->code == BTN_MOUSE) //mouse button
+            for(j=0; j<field->report_count; j++)
             {
-                for(j=0; j < field->report_count; j++)
-                {
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_MOUSE))
                     if(field->value[j])
-                        mouse_button |= 1 << j;
-                }
+                        m.button |= 1 << j;
+                if((field->usage[j].type == EV_REL) && (field->usage[j].code == REL_X))
+                    m.x = field->value[j];
+                if((field->usage[j].type == EV_REL) && (field->usage[j].code == REL_Y))
+                    m.y = field->value[j];
+                if((field->usage[j].type == EV_REL) && (field->usage[j].code == REL_WHEEL))
+                    m.wheel= field->value[j];
             }
-            if(field->usage->type == EV_REL && field->usage->code == 0) //mouse rel location
-            {
-                for(j=0; j < field->report_count ;j++)
-                {
-                    mouse_rel[j] = field->value[j];
-                }
-            }
-            if(field->usage->type == EV_REL && field->usage->code == REL_WHEEL) //mouse wheel
-            {
-                mouse_wheel = field->value[0];
-            }
-
         }
-
-        /*** generate HID report for hidg ***/
-        m.id     = MOUSE_REPORT_ID;
-        m.button = mouse_button;
-        m.x      = mouse_rel[0];
-        m.y      = mouse_rel[1];
-        m.wheel  = mouse_wheel;
-
         f_hid_queue_report((u8 *)&m, sizeof(m));
     }
 }
@@ -442,6 +576,8 @@ EXPORT_SYMBOL(f_hid_mouse_translate_report);
 
 #undef KBD_REPORT_ID
 #undef MOUSE_REPORT_ID
+#undef CONSUMER_REPORT_ID
+
 
 static unsigned int f_hidg_poll(struct file *file, poll_table *wait)
 {

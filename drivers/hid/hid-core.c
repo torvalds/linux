@@ -1074,9 +1074,9 @@ void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 
 #ifdef CONFIG_BYPASS_INPUT_TO_HIDG
 
-	if((hid->type == 0) && (size == 8))//kbd
+	if((hid->type == 0))//kbd
 	{
-        f_hid_kbd_translate_report(cdata, csize);
+        f_hid_kbd_translate_report(report, cdata);
     }
     else if(hid->type == 1)//mouse
     {
