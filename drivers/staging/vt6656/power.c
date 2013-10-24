@@ -233,9 +233,8 @@ void PSvSendPSPOLL(struct vnt_private *pDevice)
 	pTxPacket->cbPayloadLen = 0;
 
 	/* log failure if sending failed */
-	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
+	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
-	}
 }
 
 /*
