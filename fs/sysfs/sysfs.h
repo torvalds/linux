@@ -114,7 +114,9 @@ do {								\
 /* Test for attributes that want to ignore lockdep for read-locking */
 static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
 {
-	return sysfs_type(sd) == SYSFS_KOBJ_ATTR &&
+	int type = sysfs_type(sd);
+
+	return (type == SYSFS_KOBJ_ATTR || type == SYSFS_KOBJ_BIN_ATTR) &&
 		sd->s_attr.attr->ignore_lockdep;
 }
 
