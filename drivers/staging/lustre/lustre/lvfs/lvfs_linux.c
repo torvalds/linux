@@ -114,7 +114,7 @@ void push_ctxt(struct lvfs_run_ctxt *save, struct lvfs_run_ctxt *new_ctx,
 	if (new_ctx->dt != NULL)
 		return;
 
-	//ASSERT_NOT_KERNEL_CTXT("already in kernel context!\n");
+	/* ASSERT_NOT_KERNEL_CTXT("already in kernel context!\n"); */
 	ASSERT_CTXT_MAGIC(new_ctx->magic);
 	OBD_SET_CTXT_MAGIC(save);
 
