@@ -41,13 +41,13 @@
  *
  * @num_pages       Number of pages that make up the page table.
  * @pt_level        The indirection level of the page table. 0-2.
- * @pt_root_page    Pointer to the level 0 page of the page table.
+ * @pt_root_page    DMA address of the level 0 page of the page table.
  */
 struct vmw_mob {
 	struct ttm_buffer_object *pt_bo;
 	unsigned long num_pages;
 	unsigned pt_level;
-	struct page *pt_root_page;
+	dma_addr_t pt_root_page;
 	uint32_t id;
 };
 
@@ -65,7 +65,7 @@ struct vmw_otable {
 static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 			       struct vmw_mob *mob);
 static void vmw_mob_pt_setup(struct vmw_mob *mob,
-			     struct page **data_pages,
+			     struct vmw_piter data_iter,
 			     unsigned long num_data_pages);
 
 /*
@@ -89,12 +89,16 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdSetOTableBase body;
 	} *cmd;
-	struct page **pages = dev_priv->otable_bo->ttm->pages +
-		(offset >> PAGE_SHIFT);
 	struct vmw_mob *mob;
+	const struct vmw_sg_table *vsgt;
+	struct vmw_piter iter;
 	int ret;
 
 	BUG_ON(otable->page_table != NULL);
+
+	vsgt = vmw_bo_sg_table(dev_priv->otable_bo);
+	vmw_piter_start(&iter, vsgt, offset >> PAGE_SHIFT);
+	WARN_ON(!vmw_piter_next(&iter));
 
 	mob = vmw_mob_create(otable->size >> PAGE_SHIFT);
 	if (unlikely(mob == NULL)) {
@@ -103,15 +107,17 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	}
 
 	if (otable->size <= PAGE_SIZE) {
-		mob->pt_level = 0;
-		mob->pt_root_page = pages[0];
+		mob->pt_level = SVGA3D_MOBFMT_PTDEPTH_0;
+		mob->pt_root_page = vmw_piter_dma_addr(&iter);
+	} else if (vsgt->num_regions == 1) {
+		mob->pt_level = SVGA3D_MOBFMT_RANGE;
+		mob->pt_root_page = vmw_piter_dma_addr(&iter);
 	} else {
 		ret = vmw_mob_pt_populate(dev_priv, mob);
 		if (unlikely(ret != 0))
 			goto out_no_populate;
 
-		vmw_mob_pt_setup(mob, pages,
-				 otable->size >> PAGE_SHIFT);
+		vmw_mob_pt_setup(mob, iter, otable->size >> PAGE_SHIFT);
 	}
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
@@ -124,7 +130,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.type = type;
-	cmd->body.baseAddress = page_to_pfn(mob->pt_root_page);
+	cmd->body.baseAddress = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = otable->size;
 	cmd->body.validSizeInBytes = 0;
 	cmd->body.ptDepth = mob->pt_level;
@@ -244,9 +250,13 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	ret = ttm_bo_reserve(dev_priv->otable_bo, false, true, false, false);
 	BUG_ON(ret != 0);
 	ret = vmw_bo_driver.ttm_tt_populate(dev_priv->otable_bo->ttm);
-	ttm_bo_unreserve(dev_priv->otable_bo);
 	if (unlikely(ret != 0))
-		goto out_no_setup;
+		goto out_unreserve;
+	ret = vmw_bo_map_dma(dev_priv->otable_bo);
+	if (unlikely(ret != 0))
+		goto out_unreserve;
+
+	ttm_bo_unreserve(dev_priv->otable_bo);
 
 	offset = 0;
 	for (i = 0; i < SVGA_OTABLE_COUNT; ++i) {
@@ -260,6 +270,8 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	dev_priv->otables = otables;
 	return 0;
 
+out_unreserve:
+	ttm_bo_unreserve(dev_priv->otable_bo);
 out_no_setup:
 	for (i = 0; i < SVGA_OTABLE_COUNT; ++i)
 		vmw_takedown_otable_base(dev_priv, i, &otables[i]);
@@ -365,9 +377,19 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 
 	BUG_ON(ret != 0);
 	ret = vmw_bo_driver.ttm_tt_populate(mob->pt_bo->ttm);
-	ttm_bo_unreserve(mob->pt_bo);
 	if (unlikely(ret != 0))
-		ttm_bo_unref(&mob->pt_bo);
+		goto out_unreserve;
+	ret = vmw_bo_map_dma(mob->pt_bo);
+	if (unlikely(ret != 0))
+		goto out_unreserve;
+
+	ttm_bo_unreserve(mob->pt_bo);
+	
+	return 0;
+
+out_unreserve:
+	ttm_bo_unreserve(mob->pt_bo);
+	ttm_bo_unref(&mob->pt_bo);
 
 	return ret;
 }
@@ -376,7 +398,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 /*
  * vmw_mob_build_pt - Build a pagetable
  *
- * @data_pages:     Array of page pointers to the underlying buffer
+ * @data_addr:      Array of DMA addresses to the underlying buffer
  *                  object's data pages.
  * @num_data_pages: Number of buffer object data pages.
  * @pt_pages:       Array of page pointers to the page table pages.
@@ -384,26 +406,31 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
  * Returns the number of page table pages actually used.
  * Uses atomic kmaps of highmem pages to avoid TLB thrashing.
  */
-static unsigned long vmw_mob_build_pt(struct page **data_pages,
+static unsigned long vmw_mob_build_pt(struct vmw_piter *data_iter,
 				      unsigned long num_data_pages,
-				      struct page **pt_pages)
+				      struct vmw_piter *pt_iter)
 {
 	unsigned long pt_size = num_data_pages * VMW_PPN_SIZE;
 	unsigned long num_pt_pages = DIV_ROUND_UP(pt_size, PAGE_SIZE);
-	unsigned long pt_page, data_page;
+	unsigned long pt_page;
 	uint32_t *addr, *save_addr;
 	unsigned long i;
+	struct page *page;
 
-	data_page = 0;
 	for (pt_page = 0; pt_page < num_pt_pages; ++pt_page) {
-		save_addr = addr = kmap_atomic(pt_pages[pt_page]);
+		page = vmw_piter_page(pt_iter);
+
+		save_addr = addr = kmap_atomic(page);
 
 		for (i = 0; i < PAGE_SIZE / VMW_PPN_SIZE; ++i) {
-			*addr++ = page_to_pfn(data_pages[data_page++]);
-			if (unlikely(data_page >= num_data_pages))
+			u32 tmp = vmw_piter_dma_addr(data_iter) >> PAGE_SHIFT;
+			*addr++ = tmp;
+			if (unlikely(--num_data_pages == 0))
 				break;
+			WARN_ON(!vmw_piter_next(data_iter));
 		}
 		kunmap_atomic(save_addr);
+		vmw_piter_next(pt_iter);
 	}
 
 	return num_pt_pages;
@@ -413,38 +440,41 @@ static unsigned long vmw_mob_build_pt(struct page **data_pages,
  * vmw_mob_build_pt - Set up a multilevel mob pagetable
  *
  * @mob:            Pointer to a mob whose page table needs setting up.
- * @data_pages      Array of page pointers to the buffer object's data
+ * @data_addr       Array of DMA addresses to the buffer object's data
  *                  pages.
  * @num_data_pages: Number of buffer object data pages.
  *
  * Uses tail recursion to set up a multilevel mob page table.
  */
 static void vmw_mob_pt_setup(struct vmw_mob *mob,
-			     struct page **data_pages,
+			     struct vmw_piter data_iter,
 			     unsigned long num_data_pages)
 {
-	struct page **pt_pages;
 	unsigned long num_pt_pages = 0;
 	struct ttm_buffer_object *bo = mob->pt_bo;
+	struct vmw_piter save_pt_iter;
+	struct vmw_piter pt_iter;
+	const struct vmw_sg_table *vsgt;
 	int ret;
 
 	ret = ttm_bo_reserve(bo, false, true, false, 0);
 	BUG_ON(ret != 0);
 
-	pt_pages = bo->ttm->pages;
+	vsgt = vmw_bo_sg_table(bo);
+	vmw_piter_start(&pt_iter, vsgt, 0);
+	BUG_ON(!vmw_piter_next(&pt_iter));
 	mob->pt_level = 0;
 	while (likely(num_data_pages > 1)) {
 		++mob->pt_level;
 		BUG_ON(mob->pt_level > 2);
-
-		pt_pages += num_pt_pages;
-		num_pt_pages = vmw_mob_build_pt(data_pages, num_data_pages,
-						pt_pages);
-		data_pages = pt_pages;
+		save_pt_iter = pt_iter;
+		num_pt_pages = vmw_mob_build_pt(&data_iter, num_data_pages,
+						&pt_iter);
+		data_iter = save_pt_iter;
 		num_data_pages = num_pt_pages;
 	}
 
-	mob->pt_root_page = *pt_pages;
+	mob->pt_root_page = vmw_piter_dma_addr(&save_pt_iter);
 	ttm_bo_unreserve(bo);
 }
 
@@ -506,7 +536,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
  *
  * @dev_priv:       Pointer to a device private.
  * @mob:            Pointer to the mob we're making visible.
- * @data_pages:     Array of pointers to the data pages of the underlying
+ * @data_addr:      Array of DMA addresses to the data pages of the underlying
  *                  buffer object.
  * @num_data_pages: Number of data pages of the underlying buffer
  *                  object.
@@ -517,27 +547,35 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
  */
 int vmw_mob_bind(struct vmw_private *dev_priv,
 		 struct vmw_mob *mob,
-		 struct page **data_pages,
+		 const struct vmw_sg_table *vsgt,
 		 unsigned long num_data_pages,
 		 int32_t mob_id)
 {
 	int ret;
 	bool pt_set_up = false;
+	struct vmw_piter data_iter;
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineGBMob body;
 	} *cmd;
 
 	mob->id = mob_id;
+	vmw_piter_start(&data_iter, vsgt, 0);
+	if (unlikely(!vmw_piter_next(&data_iter)))
+		return 0;
+
 	if (likely(num_data_pages == 1)) {
-		mob->pt_level = 0;
-		mob->pt_root_page = *data_pages;
+		mob->pt_level = SVGA3D_MOBFMT_PTDEPTH_0;
+		mob->pt_root_page = vmw_piter_dma_addr(&data_iter);
+	} else if (vsgt->num_regions == 1) {
+		mob->pt_level = SVGA3D_MOBFMT_RANGE;
+		mob->pt_root_page = vmw_piter_dma_addr(&data_iter);
 	} else if (unlikely(mob->pt_bo == NULL)) {
 		ret = vmw_mob_pt_populate(dev_priv, mob);
 		if (unlikely(ret != 0))
 			return ret;
 
-		vmw_mob_pt_setup(mob, data_pages, num_data_pages);
+		vmw_mob_pt_setup(mob, data_iter, num_data_pages);
 		pt_set_up = true;
 	}
 
@@ -554,7 +592,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.mobid = mob_id;
 	cmd->body.ptDepth = mob->pt_level;
-	cmd->body.base = page_to_pfn(mob->pt_root_page);
+	cmd->body.base = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = num_data_pages * PAGE_SIZE;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));

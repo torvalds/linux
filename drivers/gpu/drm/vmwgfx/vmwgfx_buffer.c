@@ -272,6 +272,7 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
 		viter->dma_address = &__vmw_piter_dma_addr;
 		viter->page = &__vmw_piter_non_sg_page;
 		viter->addrs = vsgt->addrs;
+		viter->pages = vsgt->pages;
 		break;
 	case vmw_dma_map_populate:
 	case vmw_dma_map_bind:
@@ -452,6 +453,63 @@ static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
 	vmw_tt->mapped = false;
 }
 
+
+/**
+ * vmw_bo_map_dma - Make sure buffer object pages are visible to the device
+ *
+ * @bo: Pointer to a struct ttm_buffer_object
+ *
+ * Wrapper around vmw_ttm_map_dma, that takes a TTM buffer object pointer
+ * instead of a pointer to a struct vmw_ttm_backend as argument.
+ * Note that the buffer object must be either pinned or reserved before
+ * calling this function.
+ */
+int vmw_bo_map_dma(struct ttm_buffer_object *bo)
+{
+	struct vmw_ttm_tt *vmw_tt =
+		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+
+	return vmw_ttm_map_dma(vmw_tt);
+}
+
+
+/**
+ * vmw_bo_unmap_dma - Make sure buffer object pages are visible to the device
+ *
+ * @bo: Pointer to a struct ttm_buffer_object
+ *
+ * Wrapper around vmw_ttm_unmap_dma, that takes a TTM buffer object pointer
+ * instead of a pointer to a struct vmw_ttm_backend as argument.
+ */
+void vmw_bo_unmap_dma(struct ttm_buffer_object *bo)
+{
+	struct vmw_ttm_tt *vmw_tt =
+		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+
+	vmw_ttm_unmap_dma(vmw_tt);
+}
+
+
+/**
+ * vmw_bo_sg_table - Return a struct vmw_sg_table object for a
+ * TTM buffer object
+ *
+ * @bo: Pointer to a struct ttm_buffer_object
+ *
+ * Returns a pointer to a struct vmw_sg_table object. The object should
+ * not be freed after use.
+ * Note that for the device addresses to be valid, the buffer object must
+ * either be reserved or pinned.
+ */
+const struct vmw_sg_table *vmw_bo_sg_table(struct ttm_buffer_object *bo)
+{
+	struct vmw_ttm_tt *vmw_tt =
+		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+
+	return &vmw_tt->vsgt;
+}
+
+
 static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
 	struct vmw_ttm_tt *vmw_be =
@@ -478,7 +536,7 @@ static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 		}
 
 		return vmw_mob_bind(vmw_be->dev_priv, vmw_be->mob,
-				    ttm->pages, ttm->num_pages,
+				    &vmw_be->vsgt, ttm->num_pages,
 				    vmw_be->gmr_id);
 	default:
 		BUG();
@@ -525,6 +583,7 @@ static void vmw_ttm_destroy(struct ttm_tt *ttm)
 
 	kfree(vmw_be);
 }
+
 
 static int vmw_ttm_populate(struct ttm_tt *ttm)
 {

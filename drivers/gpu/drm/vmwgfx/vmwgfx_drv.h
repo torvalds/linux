@@ -708,6 +708,10 @@ extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
+extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
+extern void vmw_bo_unmap_dma(struct ttm_buffer_object *bo);
+extern const struct vmw_sg_table *
+vmw_bo_sg_table(struct ttm_buffer_object *bo);
 extern void vmw_piter_start(struct vmw_piter *viter,
 			    const struct vmw_sg_table *vsgt,
 			    unsigned long p_offs);
@@ -919,8 +923,8 @@ extern int vmw_prime_handle_to_fd(struct drm_device *dev,
  */
 struct vmw_mob;
 extern int vmw_mob_bind(struct vmw_private *dev_priv, struct vmw_mob *mob,
-			struct page **data_pages, unsigned long num_data_pages,
-			int32_t mob_id);
+			const struct vmw_sg_table *vsgt,
+			unsigned long num_data_pages, int32_t mob_id);
 extern void vmw_mob_unbind(struct vmw_private *dev_priv,
 			   struct vmw_mob *mob);
 extern void vmw_mob_destroy(struct vmw_mob *mob);
