@@ -163,8 +163,6 @@
  */
 static bool pfmemalloc_active __read_mostly;
 
-#define	SLAB_LIMIT	(((unsigned int)(~0U))-1)
-
 /*
  * struct slab
  *
@@ -626,8 +624,6 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
 		mgmt_size = 0;
 		nr_objs = slab_size / buffer_size;
 
-		if (nr_objs > SLAB_LIMIT)
-			nr_objs = SLAB_LIMIT;
 	} else {
 		/*
 		 * Ignore padding for the initial guess. The padding
@@ -647,9 +643,6 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
 		if (slab_mgmt_size(nr_objs, align) + nr_objs*buffer_size
 		       > slab_size)
 			nr_objs--;
-
-		if (nr_objs > SLAB_LIMIT)
-			nr_objs = SLAB_LIMIT;
 
 		mgmt_size = slab_mgmt_size(nr_objs, align);
 	}
