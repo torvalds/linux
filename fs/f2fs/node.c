@@ -240,7 +240,7 @@ retry:
 	write_unlock(&nm_i->nat_tree_lock);
 }
 
-static int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
+int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 
@@ -1205,12 +1205,8 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
 	long nr_to_write = wbc->nr_to_write;
 
-	/* First check balancing cached NAT entries */
-	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK) ||
-				excess_prefree_segs(sbi)) {
-		f2fs_sync_fs(sbi->sb, true);
-		return 0;
-	}
+	/* balancing f2fs's metadata in background */
+	f2fs_balance_fs_bg(sbi);
 
 	/* collect a number of dirty node pages and write together */
 	if (get_pages(sbi, F2FS_DIRTY_NODES) < COLLECT_DIRTY_NODES)

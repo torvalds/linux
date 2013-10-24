@@ -36,6 +36,14 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi)
 	}
 }
 
+void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
+{
+	/* check the # of cached NAT entries and prefree segments */
+	if (try_to_free_nats(sbi, NAT_ENTRY_PER_BLOCK) ||
+				excess_prefree_segs(sbi))
+		f2fs_sync_fs(sbi->sb, true);
+}
+
 static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		enum dirty_type dirty_type)
 {

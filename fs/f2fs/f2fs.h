@@ -965,6 +965,7 @@ long f2fs_compat_ioctl(struct file *, unsigned int, unsigned long);
  */
 void f2fs_set_inode_flags(struct inode *);
 struct inode *f2fs_iget(struct super_block *, unsigned long);
+int try_to_free_nats(struct f2fs_sb_info *, int);
 void update_inode(struct inode *, struct page *);
 int update_inode_page(struct inode *);
 int f2fs_write_inode(struct inode *, struct writeback_control *);
@@ -1045,6 +1046,7 @@ void destroy_node_manager_caches(void);
  * segment.c
  */
 void f2fs_balance_fs(struct f2fs_sb_info *);
+void f2fs_balance_fs_bg(struct f2fs_sb_info *);
 void invalidate_blocks(struct f2fs_sb_info *, block_t);
 void clear_prefree_segments(struct f2fs_sb_info *);
 int npages_for_summary_flush(struct f2fs_sb_info *);
