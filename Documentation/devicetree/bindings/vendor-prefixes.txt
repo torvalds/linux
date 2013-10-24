@@ -58,6 +58,7 @@ idt	Integrated Device Technologies, Inc.
 img	Imagination Technologies Ltd.
 intel	Intel Corporation
 intercontrol	Inter Control Group
+isee	ISEE 2007 S.L.
 isl	Intersil
 karo	Ka-Ro electronics GmbH
 lacie	LaCie
