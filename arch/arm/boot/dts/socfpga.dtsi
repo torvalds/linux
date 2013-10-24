@@ -517,45 +517,6 @@
 			status = "disabled";
 		};
 
-		gpio0: gpio@ff708000 {
-			compatible = "snps,dw-gpio";
-			reg = <0xff708000 0x1000>;
-			interrupts = <0 164 4>;
-			width = <29>;
-			virtual_irq_start = <257>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			clocks = <&l4_mp_clk>;
-		};
-
-		gpio1: gpio@ff709000 {
-			compatible = "snps,dw-gpio";
-			reg = <0xff709000 0x1000>;
-			interrupts = <0 165 4>;
-			width = <29>;
-			virtual_irq_start = <286>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			clocks = <&l4_mp_clk>;
-		};
-
-		gpio2: gpio@ff70a000 {
-			compatible = "snps,dw-gpio";
-			reg = <0xff70a000 0x1000>;
-			interrupts = <0 166 4>;
-			width = <27>;
-			virtual_irq_start = <315>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			clocks = <&l4_mp_clk>;
-		};
-
 		hps_0_fpgamgr: fpgamgr@0xff706000 {
 			compatible = "altr,fpga-mgr-1.0", "altr,fpga-mgr";
 			transport = "mmio";
