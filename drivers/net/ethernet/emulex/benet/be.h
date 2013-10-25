@@ -199,6 +199,19 @@ struct be_eq_obj {
 	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+#define BE_EQ_IDLE		0
+#define BE_EQ_NAPI		1	/* napi owns this EQ */
+#define BE_EQ_POLL		2	/* poll owns this EQ */
+#define BE_EQ_LOCKED		(BE_EQ_NAPI | BE_EQ_POLL)
+#define BE_EQ_NAPI_YIELD	4	/* napi yielded this EQ */
+#define BE_EQ_POLL_YIELD	8	/* poll yielded this EQ */
+#define BE_EQ_YIELD		(BE_EQ_NAPI_YIELD | BE_EQ_POLL_YIELD)
+#define BE_EQ_USER_PEND		(BE_EQ_POLL | BE_EQ_POLL_YIELD)
+	unsigned int state;
+	spinlock_t lock;	/* lock to serialize napi and busy-poll */
+#endif  /* CONFIG_NET_RX_BUSY_POLL */
 } ____cacheline_aligned_in_smp;
 
 struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
@@ -210,6 +223,11 @@ struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
 	ulong jiffies;
 	u64 rx_pkts_prev;	/* Used to calculate RX pps */
 	u64 tx_reqs_prev;	/* Used to calculate TX pps */
+};
+
+enum {
+	NAPI_POLLING,
+	BUSY_POLLING
 };
 
 struct be_mcc_obj {
@@ -561,6 +579,10 @@ extern const struct ethtool_ops be_ethtool_ops;
 	for (i = 0, eqo = &adapter->eq_obj[i]; i < adapter->num_evt_qs; \
 		i++, eqo++)
 
+#define for_all_rx_queues_on_eq(adapter, eqo, rxo, i)			\
+	for (i = eqo->idx, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;\
+		 i += adapter->num_evt_qs, rxo += adapter->num_evt_qs)
+
 #define is_mcc_eqo(eqo)			(eqo->idx == 0)
 #define mcc_eqo(adapter)		(&adapter->eq_obj[0])
 
@@ -710,6 +732,106 @@ static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
 {
 	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 }
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline bool be_lock_napi(struct be_eq_obj *eqo)
+{
+	bool status = true;
+
+	spin_lock(&eqo->lock); /* BH is already disabled */
+	if (eqo->state & BE_EQ_LOCKED) {
+		WARN_ON(eqo->state & BE_EQ_NAPI);
+		eqo->state |= BE_EQ_NAPI_YIELD;
+		status = false;
+	} else {
+		eqo->state = BE_EQ_NAPI;
+	}
+	spin_unlock(&eqo->lock);
+	return status;
+}
+
+static inline void be_unlock_napi(struct be_eq_obj *eqo)
+{
+	spin_lock(&eqo->lock); /* BH is already disabled */
+
+	WARN_ON(eqo->state & (BE_EQ_POLL | BE_EQ_NAPI_YIELD));
+	eqo->state = BE_EQ_IDLE;
+
+	spin_unlock(&eqo->lock);
+}
+
+static inline bool be_lock_busy_poll(struct be_eq_obj *eqo)
+{
+	bool status = true;
+
+	spin_lock_bh(&eqo->lock);
+	if (eqo->state & BE_EQ_LOCKED) {
+		eqo->state |= BE_EQ_POLL_YIELD;
+		status = false;
+	} else {
+		eqo->state |= BE_EQ_POLL;
+	}
+	spin_unlock_bh(&eqo->lock);
+	return status;
+}
+
+static inline void be_unlock_busy_poll(struct be_eq_obj *eqo)
+{
+	spin_lock_bh(&eqo->lock);
+
+	WARN_ON(eqo->state & (BE_EQ_NAPI));
+	eqo->state = BE_EQ_IDLE;
+
+	spin_unlock_bh(&eqo->lock);
+}
+
+static inline void be_enable_busy_poll(struct be_eq_obj *eqo)
+{
+	spin_lock_init(&eqo->lock);
+	eqo->state = BE_EQ_IDLE;
+}
+
+static inline void be_disable_busy_poll(struct be_eq_obj *eqo)
+{
+	local_bh_disable();
+
+	/* It's enough to just acquire napi lock on the eqo to stop
+	 * be_busy_poll() from processing any queueus.
+	 */
+	while (!be_lock_napi(eqo))
+		mdelay(1);
+
+	local_bh_enable();
+}
+
+#else /* CONFIG_NET_RX_BUSY_POLL */
+
+static inline bool be_lock_napi(struct be_eq_obj *eqo)
+{
+	return true;
+}
+
+static inline void be_unlock_napi(struct be_eq_obj *eqo)
+{
+}
+
+static inline bool be_lock_busy_poll(struct be_eq_obj *eqo)
+{
+	return false;
+}
+
+static inline void be_unlock_busy_poll(struct be_eq_obj *eqo)
+{
+}
+
+static inline void be_enable_busy_poll(struct be_eq_obj *eqo)
+{
+}
+
+static inline void be_disable_busy_poll(struct be_eq_obj *eqo)
+{
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		  u16 num_popped);

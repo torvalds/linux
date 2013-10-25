@@ -22,6 +22,7 @@
 #include <asm/div64.h>
 #include <linux/aer.h>
 #include <linux/if_bridge.h>
+#include <net/busy_poll.h>
 
 MODULE_VERSION(DRV_VER);
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -1556,7 +1557,7 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 }
 
 /* Process the RX completion indicated by rxcp when GRO is disabled */
-static void be_rx_compl_process(struct be_rx_obj *rxo,
+static void be_rx_compl_process(struct be_rx_obj *rxo, struct napi_struct *napi,
 				struct be_rx_compl_info *rxcp)
 {
 	struct be_adapter *adapter = rxo->adapter;
@@ -1581,7 +1582,7 @@ static void be_rx_compl_process(struct be_rx_obj *rxo,
 	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
-
+	skb_mark_napi_id(skb, napi);
 
 	if (rxcp->vlanf)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rxcp->vlan_tag);
@@ -1639,6 +1640,7 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
+	skb_mark_napi_id(skb, napi);
 
 	if (rxcp->vlanf)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rxcp->vlan_tag);
@@ -1819,6 +1821,8 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 
 	if (posted) {
 		atomic_add(posted, &rxq->used);
+		if (rxo->rx_post_starved)
+			rxo->rx_post_starved = false;
 		be_rxq_notify(adapter, rxq->id, posted);
 	} else if (atomic_read(&rxq->used) == 0) {
 		/* Let be_worker replenish when memory is available */
@@ -2021,6 +2025,7 @@ static void be_evt_queues_destroy(struct be_adapter *adapter)
 		if (eqo->q.created) {
 			be_eq_clean(eqo);
 			be_cmd_q_destroy(adapter, &eqo->q, QTYPE_EQ);
+			napi_hash_del(&eqo->napi);
 			netif_napi_del(&eqo->napi);
 		}
 		be_queue_free(adapter, &eqo->q);
@@ -2040,6 +2045,7 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 	for_all_evt_queues(adapter, eqo, i) {
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
 			       BE_NAPI_WEIGHT);
+		napi_hash_add(&eqo->napi);
 		aic = &adapter->aic_obj[i];
 		eqo->adapter = adapter;
 		eqo->tx_budget = BE_TX_BUDGET;
@@ -2262,7 +2268,7 @@ static inline bool do_gro(struct be_rx_compl_info *rxcp)
 }
 
 static int be_process_rx(struct be_rx_obj *rxo, struct napi_struct *napi,
-			int budget)
+			int budget, int polling)
 {
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_queue_info *rx_cq = &rxo->cq;
@@ -2293,10 +2299,12 @@ static int be_process_rx(struct be_rx_obj *rxo, struct napi_struct *napi,
 			goto loop_continue;
 		}
 
-		if (do_gro(rxcp))
+		/* Don't do gro when we're busy_polling */
+		if (do_gro(rxcp) && polling != BUSY_POLLING)
 			be_rx_compl_process_gro(rxo, napi, rxcp);
 		else
-			be_rx_compl_process(rxo, rxcp);
+			be_rx_compl_process(rxo, napi, rxcp);
+
 loop_continue:
 		be_rx_stats_update(rxo, rxcp);
 	}
@@ -2304,7 +2312,11 @@ loop_continue:
 	if (work_done) {
 		be_cq_notify(adapter, rx_cq->id, true, work_done);
 
-		if (atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM)
+		/* When an rx-obj gets into post_starved state, just
+		 * let be_worker do the posting.
+		 */
+		if (atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM &&
+		    !rxo->rx_post_starved)
 			be_post_rx_frags(rxo, GFP_ATOMIC);
 	}
 
@@ -2349,6 +2361,7 @@ int be_poll(struct napi_struct *napi, int budget)
 	struct be_eq_obj *eqo = container_of(napi, struct be_eq_obj, napi);
 	struct be_adapter *adapter = eqo->adapter;
 	int max_work = 0, work, i, num_evts;
+	struct be_rx_obj *rxo;
 	bool tx_done;
 
 	num_evts = events_get(eqo);
@@ -2361,13 +2374,18 @@ int be_poll(struct napi_struct *napi, int budget)
 			max_work = budget;
 	}
 
-	/* This loop will iterate twice for EQ0 in which
-	 * completions of the last RXQ (default one) are also processed
-	 * For other EQs the loop iterates only once
-	 */
-	for (i = eqo->idx; i < adapter->num_rx_qs; i += adapter->num_evt_qs) {
-		work = be_process_rx(&adapter->rx_obj[i], napi, budget);
-		max_work = max(work, max_work);
+	if (be_lock_napi(eqo)) {
+		/* This loop will iterate twice for EQ0 in which
+		 * completions of the last RXQ (default one) are also processed
+		 * For other EQs the loop iterates only once
+		 */
+		for_all_rx_queues_on_eq(adapter, eqo, rxo, i) {
+			work = be_process_rx(rxo, napi, budget, NAPI_POLLING);
+			max_work = max(work, max_work);
+		}
+		be_unlock_napi(eqo);
+	} else {
+		max_work = budget;
 	}
 
 	if (is_mcc_eqo(eqo))
@@ -2382,6 +2400,28 @@ int be_poll(struct napi_struct *napi, int budget)
 	}
 	return max_work;
 }
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static int be_busy_poll(struct napi_struct *napi)
+{
+	struct be_eq_obj *eqo = container_of(napi, struct be_eq_obj, napi);
+	struct be_adapter *adapter = eqo->adapter;
+	struct be_rx_obj *rxo;
+	int i, work = 0;
+
+	if (!be_lock_busy_poll(eqo))
+		return LL_FLUSH_BUSY;
+
+	for_all_rx_queues_on_eq(adapter, eqo, rxo, i) {
+		work = be_process_rx(rxo, napi, 4, BUSY_POLLING);
+		if (work)
+			break;
+	}
+
+	be_unlock_busy_poll(eqo);
+	return work;
+}
+#endif
 
 void be_detect_error(struct be_adapter *adapter)
 {
@@ -2614,9 +2654,11 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
-		for_all_evt_queues(adapter, eqo, i)
+	for_all_evt_queues(adapter, eqo, i) {
+		if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
 			napi_disable(&eqo->napi);
+			be_disable_busy_poll(eqo);
+		}
 		adapter->flags &= ~BE_FLAGS_NAPI_ENABLED;
 	}
 
@@ -2727,6 +2769,7 @@ static int be_open(struct net_device *netdev)
 
 	for_all_evt_queues(adapter, eqo, i) {
 		napi_enable(&eqo->napi);
+		be_enable_busy_poll(eqo);
 		be_eq_notify(adapter, eqo->q.id, true, false, 0);
 	}
 	adapter->flags |= BE_FLAGS_NAPI_ENABLED;
@@ -3989,6 +4032,9 @@ static const struct net_device_ops be_netdev_ops = {
 #endif
 	.ndo_bridge_setlink	= be_ndo_bridge_setlink,
 	.ndo_bridge_getlink	= be_ndo_bridge_getlink,
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	.ndo_busy_poll		= be_busy_poll
+#endif
 };
 
 static void be_netdev_init(struct net_device *netdev)
@@ -4376,10 +4422,11 @@ static void be_worker(struct work_struct *work)
 		be_cmd_get_die_temperature(adapter);
 
 	for_all_rx_queues(adapter, rxo, i) {
-		if (rxo->rx_post_starved) {
-			rxo->rx_post_starved = false;
+		/* Replenish RX-queues starved due to memory
+		 * allocation failures.
+		 */
+		if (rxo->rx_post_starved)
 			be_post_rx_frags(rxo, GFP_KERNEL);
-		}
 	}
 
 	be_eqd_update(adapter);
