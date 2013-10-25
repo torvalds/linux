@@ -72,17 +72,17 @@ static unsigned long xen_io_tlb_nslabs;
 
 static u64 start_dma_addr;
 
-static dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
+static inline dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 {
 	return phys_to_machine(XPADDR(paddr)).maddr;
 }
 
-static phys_addr_t xen_bus_to_phys(dma_addr_t baddr)
+static inline phys_addr_t xen_bus_to_phys(dma_addr_t baddr)
 {
 	return machine_to_phys(XMADDR(baddr)).paddr;
 }
 
-static dma_addr_t xen_virt_to_bus(void *address)
+static inline dma_addr_t xen_virt_to_bus(void *address)
 {
 	return xen_phys_to_bus(virt_to_phys(address));
 }
@@ -105,7 +105,7 @@ static int check_pages_physically_contiguous(unsigned long pfn,
 	return 1;
 }
 
-static int range_straddles_page_boundary(phys_addr_t p, size_t size)
+static inline int range_straddles_page_boundary(phys_addr_t p, size_t size)
 {
 	unsigned long pfn = PFN_DOWN(p);
 	unsigned int offset = p & ~PAGE_MASK;
