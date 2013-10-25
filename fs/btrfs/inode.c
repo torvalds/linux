@@ -7236,7 +7236,9 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	 * outstanding dirty pages are on disk.
 	 */
 	count = iov_length(iov, nr_segs);
-	btrfs_wait_ordered_range(inode, offset, count);
+	ret = btrfs_wait_ordered_range(inode, offset, count);
+	if (ret)
+		return ret;
 
 	if (rw & WRITE) {
 		/*
@@ -7577,7 +7579,10 @@ static int btrfs_truncate(struct inode *inode)
 	u64 mask = root->sectorsize - 1;
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 
-	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
+	ret = btrfs_wait_ordered_range(inode, inode->i_size & (~mask),
+				       (u64)-1);
+	if (ret)
+		return ret;
 
 	/*
 	 * Yes ladies and gentelment, this is indeed ugly.  The fact is we have

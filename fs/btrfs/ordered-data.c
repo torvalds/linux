@@ -734,8 +734,9 @@ void btrfs_start_ordered_extent(struct inode *inode,
 /*
  * Used to wait on ordered extents across a large range of bytes.
  */
-void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
+int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 {
+	int ret = 0;
 	u64 end;
 	u64 orig_end;
 	struct btrfs_ordered_extent *ordered;
@@ -751,8 +752,9 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	/* start IO across the range first to instantiate any delalloc
 	 * extents
 	 */
-	filemap_fdatawrite_range(inode->i_mapping, start, orig_end);
-
+	ret = filemap_fdatawrite_range(inode->i_mapping, start, orig_end);
+	if (ret)
+		return ret;
 	/*
 	 * So with compression we will find and lock a dirty page and clear the
 	 * first one as dirty, setup an async extent, and immediately return
@@ -768,10 +770,15 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	 * right and you are wrong.
 	 */
 	if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-		     &BTRFS_I(inode)->runtime_flags))
-		filemap_fdatawrite_range(inode->i_mapping, start, orig_end);
-
-	filemap_fdatawait_range(inode->i_mapping, start, orig_end);
+		     &BTRFS_I(inode)->runtime_flags)) {
+		ret = filemap_fdatawrite_range(inode->i_mapping, start,
+					       orig_end);
+		if (ret)
+			return ret;
+	}
+	ret = filemap_fdatawait_range(inode->i_mapping, start, orig_end);
+	if (ret)
+		return ret;
 
 	end = orig_end;
 	while (1) {
@@ -788,11 +795,14 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 		}
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		end = ordered->file_offset;
+		if (test_bit(BTRFS_ORDERED_IOERR, &ordered->flags))
+			ret = -EIO;
 		btrfs_put_ordered_extent(ordered);
-		if (end == 0 || end == start)
+		if (ret || end == 0 || end == start)
 			break;
 		end--;
 	}
+	return ret;
 }
 
 /*

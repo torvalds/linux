@@ -4257,7 +4257,12 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 			rc->extents_found);
 
 		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
-			btrfs_wait_ordered_range(rc->data_inode, 0, (u64)-1);
+			ret = btrfs_wait_ordered_range(rc->data_inode, 0,
+						       (u64)-1);
+			if (ret) {
+				err = ret;
+				goto out;
+			}
 			invalidate_mapping_pages(rc->data_inode->i_mapping,
 						 0, -1);
 			rc->stage = UPDATE_DATA_PTRS;
