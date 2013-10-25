@@ -191,7 +191,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	bitbang = spi_master_get_devdata(spi->master);
 
 	if (!cs) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;
@@ -258,7 +258,7 @@ static int spi_bitbang_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 static int spi_bitbang_prepare_hardware(struct spi_master *spi)
 {
-	struct spi_bitbang 	*bitbang;
+	struct spi_bitbang	*bitbang;
 	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi);
@@ -273,7 +273,7 @@ static int spi_bitbang_prepare_hardware(struct spi_master *spi)
 static int spi_bitbang_transfer_one(struct spi_master *master,
 				    struct spi_message *m)
 {
-	struct spi_bitbang 	*bitbang;
+	struct spi_bitbang	*bitbang;
 	unsigned		nsecs;
 	struct spi_transfer	*t = NULL;
 	unsigned		cs_change;
@@ -292,7 +292,7 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 	cs_change = 1;
 	status = 0;
 
-	list_for_each_entry (t, &m->transfers, transfer_list) {
+	list_for_each_entry(t, &m->transfers, transfer_list) {
 
 		/* override speed or wordsize? */
 		if (t->speed_hz || t->bits_per_word)
@@ -349,7 +349,8 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 		if (t->delay_usecs)
 			udelay(t->delay_usecs);
 
-		if (cs_change && !list_is_last(&t->transfer_list, &m->transfers)) {
+		if (cs_change &&
+		    !list_is_last(&t->transfer_list, &m->transfers)) {
 			/* sometimes a short mid-message deselect of the chip
 			 * may be needed to terminate a mode or command
 			 */
@@ -378,7 +379,7 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 
 static int spi_bitbang_unprepare_hardware(struct spi_master *spi)
 {
-	struct spi_bitbang 	*bitbang;
+	struct spi_bitbang	*bitbang;
 	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi);
