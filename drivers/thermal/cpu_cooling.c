@@ -482,7 +482,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	if (IS_ERR(cool_dev)) {
 		release_idr(&cpufreq_idr, cpufreq_dev->id);
 		kfree(cpufreq_dev);
-		return ERR_PTR(-EINVAL);
+		return cool_dev;
 	}
 	cpufreq_dev->cool_dev = cool_dev;
 	cpufreq_dev->cpufreq_state = 0;
