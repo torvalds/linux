@@ -564,7 +564,7 @@ struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 		goto out;
 	}
 
-	channel->busy = 1;
+	channel->busy = true;
 	channel->num = num;
 
 out:
@@ -582,7 +582,7 @@ void ipu_idmac_put(struct ipuv3_channel *channel)
 
 	mutex_lock(&ipu->channel_lock);
 
-	channel->busy = 0;
+	channel->busy = false;
 
 	mutex_unlock(&ipu->channel_lock);
 }

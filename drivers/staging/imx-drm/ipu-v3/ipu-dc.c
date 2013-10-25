@@ -316,7 +316,7 @@ struct ipu_dc *ipu_dc_get(struct ipu_soc *ipu, int channel)
 		return ERR_PTR(-EBUSY);
 	}
 
-	dc->in_use = 1;
+	dc->in_use = true;
 
 	mutex_unlock(&priv->mutex);
 
@@ -329,7 +329,7 @@ void ipu_dc_put(struct ipu_dc *dc)
 	struct ipu_dc_priv *priv = dc->priv;
 
 	mutex_lock(&priv->mutex);
-	dc->in_use = 0;
+	dc->in_use = false;
 	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_put);
