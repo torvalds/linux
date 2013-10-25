@@ -399,7 +399,7 @@ static void uv_nmi_dump_cpu_ip(int cpu, struct pt_regs *regs)
 	printk(KERN_DEFAULT "UV: %4d %6d %-32.32s ",
 		cpu, current->pid, current->comm);
 
-	printk_address(regs->ip, 1);
+	printk_address(regs->ip);
 }
 
 /* Dump this cpu's state */
