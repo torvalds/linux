@@ -132,7 +132,9 @@ struct btrfs_fs_devices {
 
 	/* all of the devices in the FS, protected by a mutex
 	 * so we can safely walk it to write out the supers without
-	 * worrying about add/remove by the multi-device code
+	 * worrying about add/remove by the multi-device code.
+	 * Scrubbing super can kick off supers writing by holding
+	 * this mutex lock.
 	 */
 	struct mutex device_list_mutex;
 	struct list_head devices;

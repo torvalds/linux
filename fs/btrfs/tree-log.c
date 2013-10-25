@@ -2586,9 +2586,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * the running transaction open, so a full commit can't hop
 	 * in and cause problems either.
 	 */
-	btrfs_scrub_pause_super(root);
 	ret = write_ctree_super(trans, root->fs_info->tree_root, 1);
-	btrfs_scrub_continue_super(root);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
 		goto out_wake_log_root;
