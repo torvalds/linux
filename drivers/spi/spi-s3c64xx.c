@@ -1459,11 +1459,14 @@ static int s3c64xx_spi_suspend(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
-	spi_master_suspend(master);
+	int ret = spi_master_suspend(master);
+	if (ret)
+		return ret;
 
-	/* Disable the clock */
-	clk_disable_unprepare(sdd->src_clk);
-	clk_disable_unprepare(sdd->clk);
+	if (!pm_runtime_suspended(dev)) {
+		clk_disable_unprepare(sdd->clk);
+		clk_disable_unprepare(sdd->src_clk);
+	}
 
 	sdd->cur_speed = 0; /* Output Clock is stopped */
 
@@ -1479,15 +1482,14 @@ static int s3c64xx_spi_resume(struct device *dev)
 	if (sci->cfg_gpio)
 		sci->cfg_gpio();
 
-	/* Enable the clock */
-	clk_prepare_enable(sdd->src_clk);
-	clk_prepare_enable(sdd->clk);
+	if (!pm_runtime_suspended(dev)) {
+		clk_prepare_enable(sdd->src_clk);
+		clk_prepare_enable(sdd->clk);
+	}
 
 	s3c64xx_spi_hwinit(sdd, sdd->port_id);
 
-	spi_master_resume(master);
-
-	return 0;
+	return spi_master_resume(master);
 }
 #endif /* CONFIG_PM_SLEEP */
 
