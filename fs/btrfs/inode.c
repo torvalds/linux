@@ -1180,10 +1180,8 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 	while (1) {
 		ret = btrfs_lookup_file_extent(trans, root, path, ino,
 					       cur_offset, 0);
-		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+		if (ret < 0)
 			goto error;
-		}
 		if (ret > 0 && path->slots[0] > 0 && check_prev) {
 			leaf = path->nodes[0];
 			btrfs_item_key_to_cpu(leaf, &found_key,
@@ -1197,10 +1195,8 @@ next_slot:
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
-			if (ret < 0) {
-				btrfs_abort_transaction(trans, root, ret);
+			if (ret < 0)
 				goto error;
-			}
 			if (ret > 0)
 				break;
 			leaf = path->nodes[0];
@@ -1291,10 +1287,8 @@ out_check:
 			ret = cow_file_range(inode, locked_page,
 					     cow_start, found_key.offset - 1,
 					     page_started, nr_written, 1);
-			if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+			if (ret)
 				goto error;
-			}
 			cow_start = (u64)-1;
 		}
 
@@ -1341,10 +1335,8 @@ out_check:
 		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
 			ret = btrfs_reloc_clone_csums(inode, cur_offset,
 						      num_bytes);
-			if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+			if (ret)
 				goto error;
-			}
 		}
 
 		extent_clear_unlock_delalloc(inode, cur_offset,
@@ -1366,10 +1358,8 @@ out_check:
 	if (cow_start != (u64)-1) {
 		ret = cow_file_range(inode, locked_page, cow_start, end,
 				     page_started, nr_written, 1);
-		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+		if (ret)
 			goto error;
-		}
 	}
 
 error:
