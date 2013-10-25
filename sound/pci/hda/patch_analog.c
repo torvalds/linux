@@ -973,8 +973,11 @@ static void ad1884_fixup_thinkpad(struct hda_codec *codec,
 {
 	struct ad198x_spec *spec = codec->spec;
 
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->gen.keep_eapd_on = 1;
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		spec->eapd_nid = 0x12;
+	}
 }
 
 /* set magic COEFs for dmic */
