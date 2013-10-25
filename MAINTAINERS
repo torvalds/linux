@@ -7822,6 +7822,13 @@ F:	Documentation/sound/alsa/soc/
 F:	sound/soc/
 F:	include/sound/soc*
 
+SOUND - DMAENGINE HELPERS
+M:	Lars-Peter Clausen <lars@metafoo.de>
+S:	Supported
+F:	include/sound/dmaengine_pcm.h
+F:	sound/core/pcm_dmaengine.c
+F:	sound/soc/soc-generic-dmaengine-pcm.c
+
 SPARC + UltraSPARC (sparc/sparc64)
 M:	"David S. Miller" <davem@davemloft.net>
 L:	sparclinux@vger.kernel.org
