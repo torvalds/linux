@@ -5598,7 +5598,7 @@ void intel_display_power_get(struct drm_device *dev,
 			     enum intel_display_power_domain domain)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_power_well *power_well = &dev_priv->power_well;
+	struct i915_power_domains *power_domains;
 
 	if (!HAS_POWER_WELL(dev))
 		return;
@@ -5606,16 +5606,18 @@ void intel_display_power_get(struct drm_device *dev,
 	if (is_always_on_power_domain(dev, domain))
 		return;
 
-	mutex_lock(&power_well->lock);
-	__intel_power_well_get(power_well);
-	mutex_unlock(&power_well->lock);
+	power_domains = &dev_priv->power_domains;
+
+	mutex_lock(&power_domains->lock);
+	__intel_power_well_get(&power_domains->power_wells[0]);
+	mutex_unlock(&power_domains->lock);
 }
 
 void intel_display_power_put(struct drm_device *dev,
 			     enum intel_display_power_domain domain)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_power_well *power_well = &dev_priv->power_well;
+	struct i915_power_domains *power_domains;
 
 	if (!HAS_POWER_WELL(dev))
 		return;
@@ -5623,12 +5625,14 @@ void intel_display_power_put(struct drm_device *dev,
 	if (is_always_on_power_domain(dev, domain))
 		return;
 
-	mutex_lock(&power_well->lock);
-	__intel_power_well_put(power_well);
-	mutex_unlock(&power_well->lock);
+	power_domains = &dev_priv->power_domains;
+
+	mutex_lock(&power_domains->lock);
+	__intel_power_well_put(&power_domains->power_wells[0]);
+	mutex_unlock(&power_domains->lock);
 }
 
-static struct i915_power_well *hsw_pwr;
+static struct i915_power_domains *hsw_pwr;
 
 /* Display audio driver power well request */
 void i915_request_power_well(void)
@@ -5637,7 +5641,7 @@ void i915_request_power_well(void)
 		return;
 
 	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_get(hsw_pwr);
+	__intel_power_well_get(&hsw_pwr->power_wells[0]);
 	mutex_unlock(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
@@ -5649,7 +5653,7 @@ void i915_release_power_well(void)
 		return;
 
 	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_put(hsw_pwr);
+	__intel_power_well_put(&hsw_pwr->power_wells[0]);
 	mutex_unlock(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
@@ -5657,12 +5661,15 @@ EXPORT_SYMBOL_GPL(i915_release_power_well);
 int i915_init_power_well(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
 
-	hsw_pwr = &dev_priv->power_well;
+	mutex_init(&power_domains->lock);
+	hsw_pwr = power_domains;
 
-	hsw_pwr->device = dev;
-	mutex_init(&hsw_pwr->lock);
-	hsw_pwr->count = 0;
+	power_well = &power_domains->power_wells[0];
+	power_well->device = dev;
+	power_well->count = 0;
 
 	return 0;
 }
@@ -5675,7 +5682,8 @@ void i915_remove_power_well(struct drm_device *dev)
 void intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_power_well *power_well = &dev_priv->power_well;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
 
 	if (!HAS_POWER_WELL(dev))
 		return;
@@ -5683,8 +5691,9 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 	if (!i915_disable_power_well && !enable)
 		return;
 
-	mutex_lock(&power_well->lock);
+	mutex_lock(&power_domains->lock);
 
+	power_well = &power_domains->power_wells[0];
 	/*
 	 * This function will only ever contribute one
 	 * to the power well reference count. i915_request
@@ -5702,20 +5711,24 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 		__intel_power_well_put(power_well);
 
  out:
-	mutex_unlock(&power_well->lock);
+	mutex_unlock(&power_domains->lock);
 }
 
 static void intel_resume_power_well(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_power_well *power_well = &dev_priv->power_well;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
 
 	if (!HAS_POWER_WELL(dev))
 		return;
 
-	mutex_lock(&power_well->lock);
+	mutex_lock(&power_domains->lock);
+
+	power_well = &power_domains->power_wells[0];
 	__intel_set_power_well(dev, power_well->count > 0);
-	mutex_unlock(&power_well->lock);
+
+	mutex_unlock(&power_domains->lock);
 }
 
 /*

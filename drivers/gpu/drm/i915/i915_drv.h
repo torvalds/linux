@@ -909,10 +909,16 @@ struct intel_ilk_power_mgmt {
 /* Power well structure for haswell */
 struct i915_power_well {
 	struct drm_device *device;
-	struct mutex lock;
 	/* power well enable/disable usage count */
 	int count;
 	int i915_request;
+};
+
+#define I915_MAX_POWER_WELLS 1
+
+struct i915_power_domains {
+	struct mutex lock;
+	struct i915_power_well power_wells[I915_MAX_POWER_WELLS];
 };
 
 struct i915_dri1_state {
@@ -1410,8 +1416,7 @@ typedef struct drm_i915_private {
 	 * mchdev_lock in intel_pm.c */
 	struct intel_ilk_power_mgmt ips;
 
-	/* Haswell power well */
-	struct i915_power_well power_well;
+	struct i915_power_domains power_domains;
 
 	struct i915_psr psr;
 
