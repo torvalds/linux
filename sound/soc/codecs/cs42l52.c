@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -1205,6 +1206,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 			     const struct i2c_device_id *id)
 {
 	struct cs42l52_private *cs42l52;
+	struct cs42l52_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
@@ -1222,11 +1224,22 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	i2c_set_clientdata(i2c_client, cs42l52);
+	if (pdata)
+		cs42l52->pdata = *pdata;
 
-	if (dev_get_platdata(&i2c_client->dev))
-		memcpy(&cs42l52->pdata, dev_get_platdata(&i2c_client->dev),
-		       sizeof(cs42l52->pdata));
+	if (cs42l52->pdata.reset_gpio) {
+		ret = gpio_request_one(cs42l52->pdata.reset_gpio,
+				       GPIOF_OUT_INIT_HIGH, "CS42L52 /RST");
+		if (ret < 0) {
+			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
+				cs42l52->pdata.reset_gpio, ret);
+			return ret;
+		}
+		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 0);
+		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 1);
+	}
+
+	i2c_set_clientdata(i2c_client, cs42l52);
 
 	ret = regmap_register_patch(cs42l52->regmap, cs42l52_threshold_patch,
 				    ARRAY_SIZE(cs42l52_threshold_patch));
