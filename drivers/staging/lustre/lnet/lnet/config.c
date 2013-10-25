@@ -188,8 +188,8 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 	if (strlen(networks) > LNET_SINGLE_TEXTBUF_NOB) {
 		/* _WAY_ conservative */
-		LCONSOLE_ERROR_MSG(0x112, "Can't parse networks: string too "
-				   "long\n");
+		LCONSOLE_ERROR_MSG(0x112,
+				   "Can't parse networks: string too long\n");
 		return -EINVAL;
 	}
 
@@ -255,8 +255,8 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 			net = libcfs_str2net(cfs_trimwhite(str));
 
 			if (net == LNET_NIDNET(LNET_NID_ANY)) {
-				LCONSOLE_ERROR_MSG(0x113, "Unrecognised network"
-						   " type\n");
+				LCONSOLE_ERROR_MSG(0x113,
+						   "Unrecognised network type\n");
 				tmp = str;
 				goto failed_syntax;
 			}
@@ -313,8 +313,8 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 			}
 
 			if (niface == LNET_MAX_INTERFACES) {
-				LCONSOLE_ERROR_MSG(0x115, "Too many interfaces "
-						   "for net %s\n",
+				LCONSOLE_ERROR_MSG(0x115,
+						   "Too many interfaces for net %s\n",
 						   libcfs_net2str(net));
 				goto failed;
 			}
@@ -722,8 +722,7 @@ lnet_parse_route(char *str, int *im_a_router)
 
 			rc = lnet_add_route(net, hops, nid);
 			if (rc != 0) {
-				CERROR("Can't create route "
-				       "to %s via %s\n",
+				CERROR("Can't create route to %s via %s\n",
 				       libcfs_net2str(net),
 				       libcfs_nid2str(nid));
 				goto out;
@@ -1156,14 +1155,15 @@ lnet_parse_ip2nets(char **networksp, char *ip2nets)
 	int	rc;
 
 	if (nip < 0) {
-		LCONSOLE_ERROR_MSG(0x117, "Error %d enumerating local IP "
-				   "interfaces for ip2nets to match\n", nip);
+		LCONSOLE_ERROR_MSG(0x117,
+				   "Error %d enumerating local IP interfaces for ip2nets to match\n",
+				   nip);
 		return nip;
 	}
 
 	if (nip == 0) {
-		LCONSOLE_ERROR_MSG(0x118, "No local IP interfaces "
-				   "for ip2nets to match\n");
+		LCONSOLE_ERROR_MSG(0x118,
+				   "No local IP interfaces for ip2nets to match\n");
 		return -ENOENT;
 	}
 
@@ -1176,8 +1176,8 @@ lnet_parse_ip2nets(char **networksp, char *ip2nets)
 	}
 
 	if (rc == 0) {
-		LCONSOLE_ERROR_MSG(0x11a, "ip2nets does not match "
-				   "any local IP interfaces\n");
+		LCONSOLE_ERROR_MSG(0x11a,
+				   "ip2nets does not match any local IP interfaces\n");
 		return -ENOENT;
 	}
 
