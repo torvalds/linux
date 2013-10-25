@@ -2272,7 +2272,7 @@ static void rtl8180_set_channel_map(u8 channel_plan, struct ieee80211_device *ie
 		}
 	case COUNTRY_CODE_GLOBAL_DOMAIN:
 		{
-			GET_DOT11D_INFO(ieee)->bEnabled = 0;
+			GET_DOT11D_INFO(ieee)->bEnabled = false;
 			Dot11d_Reset(ieee);
 			ieee->bGlobalDomain = true;
 			break;
@@ -2430,7 +2430,7 @@ short rtl8180_init(struct net_device *dev)
 	init_timer(&priv->SwAntennaDiversityTimer);
 	priv->SwAntennaDiversityTimer.data = (unsigned long)dev;
 	priv->SwAntennaDiversityTimer.function = (void *)SwAntennaDiversityTimerCallback;
-	priv->bDigMechanism = 1;
+	priv->bDigMechanism = true;
 	priv->InitialGain = 6;
 	priv->bXtalCalibration = false;
 	priv->XtalCal_Xin = 0;
