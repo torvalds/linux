@@ -1245,6 +1245,41 @@ done:
 }
 EXPORT_SYMBOL_GPL(spi_register_master);
 
+static void devm_spi_unregister(struct device *dev, void *res)
+{
+	spi_unregister_master(*(struct spi_master **)res);
+}
+
+/**
+ * dev_spi_register_master - register managed SPI master controller
+ * @dev:    device managing SPI master
+ * @master: initialized master, originally from spi_alloc_master()
+ * Context: can sleep
+ *
+ * Register a SPI device as with spi_register_master() which will
+ * automatically be unregister
+ */
+int devm_spi_register_master(struct device *dev, struct spi_master *master)
+{
+	struct spi_master **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_spi_unregister, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = spi_register_master(master);
+	if (ret != 0) {
+		*ptr = master;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_spi_register_master);
+
 static int __unregister(struct device *dev, void *null)
 {
 	spi_unregister_device(to_spi_device(dev));

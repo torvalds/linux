@@ -1619,7 +1619,6 @@ static int verify_controller_parameters(struct pl022 *pl022,
 		dev_err(&pl022->adev->dev,
 			"RX FIFO Trigger Level is configured incorrectly\n");
 		return -EINVAL;
-		break;
 	}
 	switch (chip_info->tx_lev_trig) {
 	case SSP_TX_1_OR_MORE_EMPTY_LOC:
@@ -1645,7 +1644,6 @@ static int verify_controller_parameters(struct pl022 *pl022,
 		dev_err(&pl022->adev->dev,
 			"TX FIFO Trigger Level is configured incorrectly\n");
 		return -EINVAL;
-		break;
 	}
 	if (chip_info->iface == SSP_INTERFACE_NATIONAL_MICROWIRE) {
 		if ((chip_info->ctrl_len < SSP_BITS_4)
@@ -2227,7 +2225,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* Register with the SPI framework */
 	amba_set_drvdata(adev, pl022);
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&adev->dev, master);
 	if (status != 0) {
 		dev_err(&adev->dev,
 			"probe - problem registering spi master\n");
@@ -2287,8 +2285,6 @@ pl022_remove(struct amba_device *adev)
 	clk_unprepare(pl022->clk);
 	amba_release_regions(adev);
 	tasklet_disable(&pl022->pump_transfers);
-	spi_unregister_master(pl022->master);
-	amba_set_drvdata(adev, NULL);
 	return 0;
 }
 

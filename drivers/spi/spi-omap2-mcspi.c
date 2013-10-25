@@ -1413,7 +1413,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto disable_pm;
 
-	status = spi_register_master(master);
+	status = devm_spi_register_master(&pdev->dev, master);
 	if (status < 0)
 		goto disable_pm;
 
@@ -1441,7 +1441,6 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(mcspi->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	spi_unregister_master(master);
 	kfree(dma_channels);
 
 	return 0;

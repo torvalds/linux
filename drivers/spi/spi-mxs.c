@@ -571,7 +571,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register SPI master, %d\n", ret);
 		goto out_disable_clk;
@@ -598,10 +598,8 @@ static int mxs_spi_remove(struct platform_device *pdev)
 	spi = spi_master_get_devdata(master);
 	ssp = &spi->ssp;
 
-	spi_unregister_master(master);
 	clk_disable_unprepare(ssp->clk);
 	dma_release_channel(ssp->dmach);
-	spi_master_put(master);
 
 	return 0;
 }
