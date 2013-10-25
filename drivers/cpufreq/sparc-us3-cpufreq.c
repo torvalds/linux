@@ -93,8 +93,7 @@ static unsigned int us3_freq_get(unsigned int cpu)
 	return ret;
 }
 
-static void us3_set_cpu_divider_index(struct cpufreq_policy *policy,
-		unsigned int index)
+static int us3_freq_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned int cpu = policy->cpu;
 	unsigned long new_bits, new_freq, reg;
@@ -136,22 +135,6 @@ static void us3_set_cpu_divider_index(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	set_cpus_allowed_ptr(current, &cpus_allowed);
-}
-
-static int us3_freq_target(struct cpufreq_policy *policy,
-			  unsigned int target_freq,
-			  unsigned int relation)
-{
-	unsigned int new_index = 0;
-
-	if (cpufreq_frequency_table_target(policy,
-					   &us3_freq_table[policy->cpu].table[0],
-					   target_freq,
-					   relation,
-					   &new_index))
-		return -EINVAL;
-
-	us3_set_cpu_divider_index(policy, new_index);
 
 	return 0;
 }
@@ -182,7 +165,7 @@ static int us3_freq_cpu_exit(struct cpufreq_policy *policy)
 {
 	if (cpufreq_us3_driver) {
 		cpufreq_frequency_table_put_attr(policy->cpu);
-		us3_set_cpu_divider_index(policy, 0);
+		us3_freq_target(policy, 0);
 	}
 
 	return 0;
@@ -219,7 +202,7 @@ static int __init us3_freq_init(void)
 
 		driver->init = us3_freq_cpu_init;
 		driver->verify = cpufreq_generic_frequency_table_verify;
-		driver->target = us3_freq_target;
+		driver->target_index = us3_freq_target;
 		driver->get = us3_freq_get;
 		driver->exit = us3_freq_cpu_exit;
 		strcpy(driver->name, "UltraSPARC-III");

@@ -177,36 +177,20 @@ static void sa1100_update_dram_timings(int current_speed, int new_speed)
 	}
 }
 
-static int sa1100_target(struct cpufreq_policy *policy,
-			 unsigned int target_freq,
-			 unsigned int relation)
+static int sa1100_target(struct cpufreq_policy *policy, unsigned int ppcr)
 {
 	unsigned int cur = sa11x0_getspeed(0);
-	unsigned int new_ppcr;
 	struct cpufreq_freqs freqs;
 
-	new_ppcr = sa11x0_freq_to_ppcr(target_freq);
-	switch (relation) {
-	case CPUFREQ_RELATION_L:
-		if (sa11x0_ppcr_to_freq(new_ppcr) > policy->max)
-			new_ppcr--;
-		break;
-	case CPUFREQ_RELATION_H:
-		if ((sa11x0_ppcr_to_freq(new_ppcr) > target_freq) &&
-		    (sa11x0_ppcr_to_freq(new_ppcr - 1) >= policy->min))
-			new_ppcr--;
-		break;
-	}
-
 	freqs.old = cur;
-	freqs.new = sa11x0_ppcr_to_freq(new_ppcr);
+	freqs.new = sa11x0_freq_table[ppcr].frequency;
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	if (freqs.new > cur)
 		sa1100_update_dram_timings(cur, freqs.new);
 
-	PPCR = new_ppcr;
+	PPCR = ppcr;
 
 	if (freqs.new < cur)
 		sa1100_update_dram_timings(cur, freqs.new);
@@ -224,7 +208,7 @@ static int __init sa1100_cpu_init(struct cpufreq_policy *policy)
 static struct cpufreq_driver sa1100_driver __refdata = {
 	.flags		= CPUFREQ_STICKY,
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target		= sa1100_target,
+	.target_index	= sa1100_target,
 	.get		= sa11x0_getspeed,
 	.init		= sa1100_cpu_init,
 	.name		= "sa1100",

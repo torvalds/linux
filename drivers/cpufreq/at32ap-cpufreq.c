@@ -35,25 +35,12 @@ static unsigned int at32_get_speed(unsigned int cpu)
 static unsigned int	ref_freq;
 static unsigned long	loops_per_jiffy_ref;
 
-static int at32_set_target(struct cpufreq_policy *policy,
-			  unsigned int target_freq,
-			  unsigned int relation)
+static int at32_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct cpufreq_freqs freqs;
-	long freq;
-
-	/* Convert target_freq from kHz to Hz */
-	freq = clk_round_rate(cpuclk, target_freq * 1000);
-
-	/* Check if policy->min <= new_freq <= policy->max */
-	if(freq < (policy->min * 1000) || freq > (policy->max * 1000))
-		return -EINVAL;
-
-	pr_debug("cpufreq: requested frequency %u Hz\n", target_freq * 1000);
 
 	freqs.old = at32_get_speed(0);
-	freqs.new = (freq + 500) / 1000;
-	freqs.flags = 0;
+	freqs.new = freq_table[index].frequency;
 
 	if (!ref_freq) {
 		ref_freq = freqs.old;
@@ -64,13 +51,13 @@ static int at32_set_target(struct cpufreq_policy *policy,
 	if (freqs.old < freqs.new)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
 				loops_per_jiffy_ref, ref_freq, freqs.new);
-	clk_set_rate(cpuclk, freq);
+	clk_set_rate(cpuclk, freqs.new * 1000);
 	if (freqs.new < freqs.old)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
 				loops_per_jiffy_ref, ref_freq, freqs.new);
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
-	pr_debug("cpufreq: set frequency %lu Hz\n", freq);
+	pr_debug("cpufreq: set frequency %u Hz\n", freqs.new * 1000);
 
 	return 0;
 }
@@ -139,7 +126,7 @@ static struct cpufreq_driver at32_driver = {
 	.name		= "at32ap",
 	.init		= at32_cpufreq_driver_init,
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target		= at32_set_target,
+	.target_index	= at32_set_target,
 	.get		= at32_get_speed,
 	.flags		= CPUFREQ_STICKY,
 };

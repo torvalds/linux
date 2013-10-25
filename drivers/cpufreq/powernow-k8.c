@@ -977,20 +977,17 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data,
 
 struct powernowk8_target_arg {
 	struct cpufreq_policy		*pol;
-	unsigned			targfreq;
-	unsigned			relation;
+	unsigned			newstate;
 };
 
 static long powernowk8_target_fn(void *arg)
 {
 	struct powernowk8_target_arg *pta = arg;
 	struct cpufreq_policy *pol = pta->pol;
-	unsigned targfreq = pta->targfreq;
-	unsigned relation = pta->relation;
+	unsigned newstate = pta->newstate;
 	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
 	u32 checkfid;
 	u32 checkvid;
-	unsigned int newstate;
 	int ret;
 
 	if (!data)
@@ -1004,8 +1001,9 @@ static long powernowk8_target_fn(void *arg)
 		return -EIO;
 	}
 
-	pr_debug("targ: cpu %d, %d kHz, min %d, max %d, relation %d\n",
-		pol->cpu, targfreq, pol->min, pol->max, relation);
+	pr_debug("targ: cpu %d, %d kHz, min %d, max %d\n",
+		pol->cpu, data->powernow_table[newstate].frequency, pol->min,
+		pol->max);
 
 	if (query_current_values_with_pending_wait(data))
 		return -EIO;
@@ -1020,10 +1018,6 @@ static long powernowk8_target_fn(void *arg)
 		       checkfid, data->currfid,
 		       checkvid, data->currvid);
 	}
-
-	if (cpufreq_frequency_table_target(pol, data->powernow_table,
-				targfreq, relation, &newstate))
-		return -EIO;
 
 	mutex_lock(&fidvid_mutex);
 
@@ -1044,11 +1038,9 @@ static long powernowk8_target_fn(void *arg)
 }
 
 /* Driver entry point to switch to the target frequency */
-static int powernowk8_target(struct cpufreq_policy *pol,
-		unsigned targfreq, unsigned relation)
+static int powernowk8_target(struct cpufreq_policy *pol, unsigned index)
 {
-	struct powernowk8_target_arg pta = { .pol = pol, .targfreq = targfreq,
-					     .relation = relation };
+	struct powernowk8_target_arg pta = { .pol = pol, .newstate = index };
 
 	return work_on_cpu(pol->cpu, powernowk8_target_fn, &pta);
 }
@@ -1213,7 +1205,7 @@ out:
 
 static struct cpufreq_driver cpufreq_amd64_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target		= powernowk8_target,
+	.target_index	= powernowk8_target,
 	.bios_limit	= acpi_processor_get_bios_limit,
 	.init		= powernowk8_cpu_init,
 	.exit		= powernowk8_cpu_exit,

@@ -62,26 +62,6 @@ struct cpufreq_frequency_table sa11x0_freq_table[NR_FREQS+1] = {
 	{ .frequency = CPUFREQ_TABLE_END, },
 };
 
-/* rounds up(!)  */
-unsigned int sa11x0_freq_to_ppcr(unsigned int khz)
-{
-	int i;
-
-	for (i = 0; i < NR_FREQS; i++)
-		if (sa11x0_freq_table[i].frequency >= khz)
-			break;
-
-	return i;
-}
-
-unsigned int sa11x0_ppcr_to_freq(unsigned int idx)
-{
-	unsigned int freq = 0;
-	if (idx < NR_FREQS)
-		freq = sa11x0_freq_table[idx].frequency;
-	return freq;
-}
-
 unsigned int sa11x0_getspeed(unsigned int cpu)
 {
 	if (cpu)

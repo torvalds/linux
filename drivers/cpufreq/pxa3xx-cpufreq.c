@@ -155,24 +155,16 @@ static unsigned int pxa3xx_cpufreq_get(unsigned int cpu)
 	return pxa3xx_get_clk_frequency_khz(0);
 }
 
-static int pxa3xx_cpufreq_set(struct cpufreq_policy *policy,
-			      unsigned int target_freq,
-			      unsigned int relation)
+static int pxa3xx_cpufreq_set(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct pxa3xx_freq_info *next;
 	struct cpufreq_freqs freqs;
 	unsigned long flags;
-	int idx;
 
 	if (policy->cpu != 0)
 		return -EINVAL;
 
-	/* Lookup the next frequency */
-	if (cpufreq_frequency_table_target(policy, pxa3xx_freqs_table,
-				target_freq, relation, &idx))
-		return -EINVAL;
-
-	next = &pxa3xx_freqs[idx];
+	next = &pxa3xx_freqs[index];
 
 	freqs.old = policy->cur;
 	freqs.new = next->cpufreq_mhz * 1000;
@@ -180,9 +172,6 @@ static int pxa3xx_cpufreq_set(struct cpufreq_policy *policy,
 	pr_debug("CPU frequency from %d MHz to %d MHz%s\n",
 			freqs.old / 1000, freqs.new / 1000,
 			(freqs.old == freqs.new) ? " (skipped)" : "");
-
-	if (freqs.old == target_freq)
-		return 0;
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
@@ -225,7 +214,7 @@ static int pxa3xx_cpufreq_init(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver pxa3xx_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target		= pxa3xx_cpufreq_set,
+	.target_index	= pxa3xx_cpufreq_set,
 	.init		= pxa3xx_cpufreq_init,
 	.exit		= cpufreq_generic_exit,
 	.get		= pxa3xx_cpufreq_get,

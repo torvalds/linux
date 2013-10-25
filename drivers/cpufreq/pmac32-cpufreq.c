@@ -374,17 +374,11 @@ static unsigned int pmac_cpufreq_get_speed(unsigned int cpu)
 }
 
 static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
-					unsigned int target_freq,
-					unsigned int relation)
+					unsigned int index)
 {
-	unsigned int    newstate = 0;
 	int		rc;
 
-	if (cpufreq_frequency_table_target(policy, pmac_cpu_freqs,
-			target_freq, relation, &newstate))
-		return -EINVAL;
-
-	rc = do_set_cpu_speed(policy, newstate, 1);
+	rc = do_set_cpu_speed(policy, index, 1);
 
 	ppc_proc_freq = cur_freq * 1000ul;
 	return rc;
@@ -453,7 +447,7 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver pmac_cpufreq_driver = {
 	.verify 	= cpufreq_generic_frequency_table_verify,
-	.target 	= pmac_cpufreq_target,
+	.target_index	= pmac_cpufreq_target,
 	.get		= pmac_cpufreq_get_speed,
 	.init		= pmac_cpufreq_cpu_init,
 	.suspend	= pmac_cpufreq_suspend,

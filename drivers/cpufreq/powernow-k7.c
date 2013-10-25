@@ -248,7 +248,7 @@ static void change_VID(int vid)
 }
 
 
-static void change_speed(struct cpufreq_policy *policy, unsigned int index)
+static int powernow_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	u8 fid, vid;
 	struct cpufreq_freqs freqs;
@@ -291,6 +291,8 @@ static void change_speed(struct cpufreq_policy *policy, unsigned int index)
 		local_irq_enable();
 
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+
+	return 0;
 }
 
 
@@ -533,22 +535,6 @@ static int powernow_decode_bios(int maxfid, int startvid)
 }
 
 
-static int powernow_target(struct cpufreq_policy *policy,
-			    unsigned int target_freq,
-			    unsigned int relation)
-{
-	unsigned int newstate;
-
-	if (cpufreq_frequency_table_target(policy, powernow_table, target_freq,
-				relation, &newstate))
-		return -EINVAL;
-
-	change_speed(policy, newstate);
-
-	return 0;
-}
-
-
 /*
  * We use the fact that the bus frequency is somehow
  * a multiple of 100000/3 khz, then we compute sgtc according
@@ -694,7 +680,7 @@ static int powernow_cpu_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver powernow_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target		= powernow_target,
+	.target_index	= powernow_target,
 	.get		= powernow_get,
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
 	.bios_limit	= acpi_processor_get_bios_limit,
