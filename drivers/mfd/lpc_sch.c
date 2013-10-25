@@ -59,18 +59,21 @@ static struct mfd_cell isch_smbus_cell = {
 	.name = "isch_smbus",
 	.num_resources = 1,
 	.resources = &smbus_sch_resource,
+	.ignore_resource_conflicts = true,
 };
 
 static struct mfd_cell sch_gpio_cell = {
 	.name = "sch_gpio",
 	.num_resources = 1,
 	.resources = &gpio_sch_resource,
+	.ignore_resource_conflicts = true,
 };
 
 static struct mfd_cell wdt_sch_cell = {
 	.name = "ie6xx_wdt",
 	.num_resources = 1,
 	.resources = &wdt_sch_resource,
+	.ignore_resource_conflicts = true,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(lpc_sch_ids) = {

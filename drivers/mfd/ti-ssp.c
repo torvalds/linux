@@ -445,7 +445,6 @@ static int ti_ssp_remove(struct platform_device *pdev)
 	iounmap(ssp->regs);
 	release_mem_region(ssp->res->start, resource_size(ssp->res));
 	kfree(ssp);
-	dev_set_drvdata(dev, NULL);
 	return 0;
 }
 

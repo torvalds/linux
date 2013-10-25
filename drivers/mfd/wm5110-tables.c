@@ -592,7 +592,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000043E, 0x0080 },    /* R1086  - DAC Volume Limit 6R */
 	{ 0x0000043F, 0x0800 },    /* R1087  - Noise Gate Select 6R */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
-	{ 0x00000458, 0x0001 },    /* R1112  - Noise Gate Control */
+	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
 	{ 0x00000480, 0x0040 },    /* R1152  - Class W ANC Threshold 1 */
 	{ 0x00000481, 0x0040 },    /* R1153  - Class W ANC Threshold 2 */
 	{ 0x00000490, 0x0069 },    /* R1168  - PDM SPK1 CTRL 1 */
@@ -1204,7 +1204,6 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000D1B, 0xFFFF },    /* R3355  - IRQ2 Status 4 Mask */
 	{ 0x00000D1C, 0xFFFF },    /* R3356  - IRQ2 Status 5 Mask */
 	{ 0x00000D1F, 0x0000 },    /* R3359  - IRQ2 Control */
-	{ 0x00000D50, 0x0000 },    /* R3408  - AOD wkup and trig */
 	{ 0x00000D53, 0xFFFF },    /* R3411  - AOD IRQ Mask IRQ1 */
 	{ 0x00000D54, 0xFFFF },    /* R3412  - AOD IRQ Mask IRQ2 */
 	{ 0x00000D56, 0x0000 },    /* R3414  - Jack detect debounce */
@@ -2291,21 +2290,37 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
 	case ARIZONA_DSP1_STATUS_3:
+	case ARIZONA_DSP1_SCRATCH_0:
+	case ARIZONA_DSP1_SCRATCH_1:
+	case ARIZONA_DSP1_SCRATCH_2:
+	case ARIZONA_DSP1_SCRATCH_3:
 	case ARIZONA_DSP2_CONTROL_1:
 	case ARIZONA_DSP2_CLOCKING_1:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
 	case ARIZONA_DSP2_STATUS_3:
+	case ARIZONA_DSP2_SCRATCH_0:
+	case ARIZONA_DSP2_SCRATCH_1:
+	case ARIZONA_DSP2_SCRATCH_2:
+	case ARIZONA_DSP2_SCRATCH_3:
 	case ARIZONA_DSP3_CONTROL_1:
 	case ARIZONA_DSP3_CLOCKING_1:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
 	case ARIZONA_DSP3_STATUS_3:
+	case ARIZONA_DSP3_SCRATCH_0:
+	case ARIZONA_DSP3_SCRATCH_1:
+	case ARIZONA_DSP3_SCRATCH_2:
+	case ARIZONA_DSP3_SCRATCH_3:
 	case ARIZONA_DSP4_CONTROL_1:
 	case ARIZONA_DSP4_CLOCKING_1:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
 	case ARIZONA_DSP4_STATUS_3:
+	case ARIZONA_DSP4_SCRATCH_0:
+	case ARIZONA_DSP4_SCRATCH_1:
+	case ARIZONA_DSP4_SCRATCH_2:
+	case ARIZONA_DSP4_SCRATCH_3:
 		return true;
 	default:
 		return false;
@@ -2347,25 +2362,41 @@ static bool wm5110_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_RAW_STATUS_7:
 	case ARIZONA_INTERRUPT_RAW_STATUS_8:
 	case ARIZONA_IRQ_PIN_STATUS:
+	case ARIZONA_AOD_WKUP_AND_TRIG:
 	case ARIZONA_AOD_IRQ1:
 	case ARIZONA_AOD_IRQ2:
+	case ARIZONA_AOD_IRQ_RAW_STATUS:
 	case ARIZONA_FX_CTRL2:
 	case ARIZONA_ASRC_STATUS:
 	case ARIZONA_DSP_STATUS:
-	case ARIZONA_DSP1_CONTROL_1:
-	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
 	case ARIZONA_DSP1_STATUS_3:
+	case ARIZONA_DSP1_SCRATCH_0:
+	case ARIZONA_DSP1_SCRATCH_1:
+	case ARIZONA_DSP1_SCRATCH_2:
+	case ARIZONA_DSP1_SCRATCH_3:
 	case ARIZONA_DSP2_STATUS_1:
 	case ARIZONA_DSP2_STATUS_2:
 	case ARIZONA_DSP2_STATUS_3:
+	case ARIZONA_DSP2_SCRATCH_0:
+	case ARIZONA_DSP2_SCRATCH_1:
+	case ARIZONA_DSP2_SCRATCH_2:
+	case ARIZONA_DSP2_SCRATCH_3:
 	case ARIZONA_DSP3_STATUS_1:
 	case ARIZONA_DSP3_STATUS_2:
 	case ARIZONA_DSP3_STATUS_3:
+	case ARIZONA_DSP3_SCRATCH_0:
+	case ARIZONA_DSP3_SCRATCH_1:
+	case ARIZONA_DSP3_SCRATCH_2:
+	case ARIZONA_DSP3_SCRATCH_3:
 	case ARIZONA_DSP4_STATUS_1:
 	case ARIZONA_DSP4_STATUS_2:
 	case ARIZONA_DSP4_STATUS_3:
+	case ARIZONA_DSP4_SCRATCH_0:
+	case ARIZONA_DSP4_SCRATCH_1:
+	case ARIZONA_DSP4_SCRATCH_2:
+	case ARIZONA_DSP4_SCRATCH_3:
 		return true;
 	default:
 		return false;

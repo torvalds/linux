@@ -25,6 +25,7 @@
 #include <linux/mfd/core.h>
 #include <linux/regmap.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 static struct resource rtc_resources[] = {

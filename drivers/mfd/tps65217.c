@@ -245,7 +245,7 @@ static struct i2c_driver tps65217_driver = {
 	.driver		= {
 		.name	= "tps65217",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(tps65217_of_match),
+		.of_match_table = tps65217_of_match,
 	},
 	.id_table	= tps65217_id_table,
 	.probe		= tps65217_probe,
