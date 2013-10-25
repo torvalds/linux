@@ -137,7 +137,7 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 			rate /= 16;
 
 		/* CLKCx calculation */
-		rate /= (((idiv_clk & 0x1F) + 1) * 2) ;
+		rate /= (((idiv_clk & 0x1F) + 1) * 2);
 
 		/* save best settings */
 		tmp = abs(target_rate - rate);
@@ -303,6 +303,7 @@ static int hspi_probe(struct platform_device *pdev)
 	master->setup		= hspi_setup;
 	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
+	master->dev.of_node	= pdev->dev.of_node;
 	master->auto_runtime_pm = true;
 	master->transfer_one_message		= hspi_transfer_one_message;
 	ret = devm_spi_register_master(&pdev->dev, master);
@@ -332,12 +333,19 @@ static int hspi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id hspi_of_match[] = {
+	{ .compatible = "renesas,hspi", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, hspi_of_match);
+
 static struct platform_driver hspi_driver = {
 	.probe = hspi_probe,
 	.remove = hspi_remove,
 	.driver = {
 		.name = "sh-hspi",
 		.owner = THIS_MODULE,
+		.of_match_table = hspi_of_match,
 	},
 };
 module_platform_driver(hspi_driver);
