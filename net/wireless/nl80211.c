@@ -9633,8 +9633,9 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	    nla_put(msg, NL80211_ATTR_IE, req->ie_len, req->ie))
 		goto nla_put_failure;
 
-	if (req->flags)
-		nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, req->flags);
+	if (req->flags &&
+	    nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, req->flags))
+		goto nla_put_failure;
 
 	return 0;
  nla_put_failure:
@@ -11118,16 +11119,18 @@ void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 				wakeup->pattern_idx))
 			goto free_msg;
 
-		if (wakeup->tcp_match)
-			nla_put_flag(msg, NL80211_WOWLAN_TRIG_WAKEUP_TCP_MATCH);
+		if (wakeup->tcp_match &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_WAKEUP_TCP_MATCH))
+			goto free_msg;
 
-		if (wakeup->tcp_connlost)
-			nla_put_flag(msg,
-				     NL80211_WOWLAN_TRIG_WAKEUP_TCP_CONNLOST);
+		if (wakeup->tcp_connlost &&
+		    nla_put_flag(msg, NL80211_WOWLAN_TRIG_WAKEUP_TCP_CONNLOST))
+			goto free_msg;
 
-		if (wakeup->tcp_nomoretokens)
-			nla_put_flag(msg,
-				NL80211_WOWLAN_TRIG_WAKEUP_TCP_NOMORETOKENS);
+		if (wakeup->tcp_nomoretokens &&
+		    nla_put_flag(msg,
+				 NL80211_WOWLAN_TRIG_WAKEUP_TCP_NOMORETOKENS))
+			goto free_msg;
 
 		if (wakeup->packet) {
 			u32 pkt_attr = NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211;
@@ -11263,24 +11266,29 @@ void cfg80211_ft_event(struct net_device *netdev,
 		return;
 
 	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_FT_EVENT);
-	if (!hdr) {
-		nlmsg_free(msg);
-		return;
-	}
+	if (!hdr)
+		goto out;
 
-	nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
-	nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
-	nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, ft_event->target_ap);
-	if (ft_event->ies)
-		nla_put(msg, NL80211_ATTR_IE, ft_event->ies_len, ft_event->ies);
-	if (ft_event->ric_ies)
-		nla_put(msg, NL80211_ATTR_IE_RIC, ft_event->ric_ies_len,
-			ft_event->ric_ies);
+	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
+	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
+	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, ft_event->target_ap))
+		goto out;
+
+	if (ft_event->ies &&
+	    nla_put(msg, NL80211_ATTR_IE, ft_event->ies_len, ft_event->ies))
+		goto out;
+	if (ft_event->ric_ies &&
+	    nla_put(msg, NL80211_ATTR_IE_RIC, ft_event->ric_ies_len,
+		    ft_event->ric_ies))
+		goto out;
 
 	genlmsg_end(msg, hdr);
 
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
 				NL80211_MCGRP_MLME, GFP_KERNEL);
+	return;
+ out:
+	nlmsg_free(msg);
 }
 EXPORT_SYMBOL(cfg80211_ft_event);
 
