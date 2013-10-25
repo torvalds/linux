@@ -2687,7 +2687,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	hdr = nl80211hdr_put(msg, info->snd_portid, info->snd_seq, 0,
 			     NL80211_CMD_NEW_KEY);
 	if (!hdr)
-		return -ENOBUFS;
+		goto nla_put_failure;
 
 	cookie.msg = msg;
 	cookie.idx = key_idx;
