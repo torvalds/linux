@@ -376,6 +376,7 @@ int exynos_mipi_dsi_rd_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 			"data id %x is not supported current DSI spec.\n",
 			data_id);
 
+		mutex_unlock(&dsim->lock);
 		return -EINVAL;
 	}
 
