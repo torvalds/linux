@@ -2949,7 +2949,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 		lun->dev.release = fsg_lun_release;
 		lun->dev.parent = &common->gadget->dev;
 		dev_set_drvdata(&lun->dev, &common->filesem);
-		dev_set_name(&lun->dev, name);
+		dev_set_name(&lun->dev, "%s", name);
 		lun->name = dev_name(&lun->dev);
 
 		rc = fsg_common_add_sysfs(common, lun);
