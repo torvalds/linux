@@ -5679,41 +5679,6 @@ void i915_remove_power_well(struct drm_device *dev)
 	hsw_pwr = NULL;
 }
 
-void intel_set_power_well(struct drm_device *dev, bool enable)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_power_domains *power_domains = &dev_priv->power_domains;
-	struct i915_power_well *power_well;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
-
-	if (!i915_disable_power_well && !enable)
-		return;
-
-	mutex_lock(&power_domains->lock);
-
-	power_well = &power_domains->power_wells[0];
-	/*
-	 * This function will only ever contribute one
-	 * to the power well reference count. i915_request
-	 * is what tracks whether we have or have not
-	 * added the one to the reference count.
-	 */
-	if (power_well->i915_request == enable)
-		goto out;
-
-	power_well->i915_request = enable;
-
-	if (enable)
-		__intel_power_well_get(power_well);
-	else
-		__intel_power_well_put(power_well);
-
- out:
-	mutex_unlock(&power_domains->lock);
-}
-
 static void intel_resume_power_well(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5745,7 +5710,7 @@ void intel_init_power_well(struct drm_device *dev)
 		return;
 
 	/* For now, we need the power well to be always enabled. */
-	intel_set_power_well(dev, true);
+	intel_display_set_init_power(dev, true);
 	intel_resume_power_well(dev);
 
 	/* We're taking over the BIOS, so clear any requests made by it since

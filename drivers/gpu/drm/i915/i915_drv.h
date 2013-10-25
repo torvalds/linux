@@ -100,6 +100,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_EDP,
 	POWER_DOMAIN_VGA,
+	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
 };
@@ -911,12 +912,17 @@ struct i915_power_well {
 	struct drm_device *device;
 	/* power well enable/disable usage count */
 	int count;
-	int i915_request;
 };
 
 #define I915_MAX_POWER_WELLS 1
 
 struct i915_power_domains {
+	/*
+	 * Power wells needed for initialization at driver init and suspend
+	 * time are on. They are kept on until after the first modeset.
+	 */
+	bool init_power_on;
+
 	struct mutex lock;
 	struct i915_power_well power_wells[I915_MAX_POWER_WELLS];
 };

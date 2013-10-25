@@ -477,7 +477,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	hsw_disable_package_c8(dev_priv);
-	intel_set_power_well(dev, true);
+	intel_display_set_init_power(dev, true);
 
 	drm_kms_helper_poll_disable(dev);
 

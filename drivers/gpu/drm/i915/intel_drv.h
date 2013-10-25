@@ -692,6 +692,7 @@ bool intel_crtc_active(struct drm_crtc *crtc);
 void i915_disable_vga_mem(struct drm_device *dev);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
+void intel_display_set_init_power(struct drm_device *dev, bool enable);
 
 
 /* intel_dp.c */
