@@ -113,7 +113,7 @@ static void write_moving(struct closure *cl)
 		bch_insert_data(&s->op.cl);
 	}
 
-	continue_at(cl, write_moving_finish, NULL);
+	continue_at(cl, write_moving_finish, bch_gc_wq);
 }
 
 static void read_moving_submit(struct closure *cl)
