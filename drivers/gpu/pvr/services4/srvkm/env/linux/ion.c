@@ -205,7 +205,6 @@ extern struct ion_device *ion_exynos;
 PVRSRV_ERROR IonInit(IMG_VOID)
 {
 	int uiHeapCount = gsGenericConfig.nr;
-	int uiError;
 	int i;
 
 	gapsIonHeaps = kzalloc(sizeof(struct ion_heap *) * uiHeapCount, GFP_KERNEL);
@@ -226,7 +225,6 @@ PVRSRV_ERROR IonInit(IMG_VOID)
 		gapsIonHeaps[i] = ion_heap_create(psPlatHeapData);
 		if (IS_ERR_OR_NULL(gapsIonHeaps[i]))
 		{
-			uiError = PTR_ERR(gapsIonHeaps[i]);
 			goto failHeapCreate;
 		}
 		ion_device_add_heap(gpsIonDev, gapsIonHeaps[i]);
