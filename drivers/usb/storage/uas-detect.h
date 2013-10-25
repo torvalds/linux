@@ -38,3 +38,14 @@ static int uas_find_uas_alt_setting(struct usb_interface *intf)
 
 	return -ENODEV;
 }
+
+static int uas_use_uas_driver(struct usb_interface *intf,
+			      const struct usb_device_id *id)
+{
+	unsigned long flags = id->driver_info;
+
+	if (flags & US_FL_IGNORE_UAS)
+		return 0;
+
+	return uas_find_uas_alt_setting(intf) >= 0;
+}

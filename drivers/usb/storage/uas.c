@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb_usual.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/storage.h>
 #include <linux/usb/uas.h>
@@ -866,7 +867,14 @@ static struct scsi_host_template uas_host_template = {
 	.ordered_tag = 1,
 };
 
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+	.driver_info = (flags) }
+
 static struct usb_device_id uas_usb_ids[] = {
+#	include "unusual_uas.h"
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_BULK) },
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_UAS) },
 	/* 0xaa is a prototype device I happen to have access to */
@@ -874,6 +882,8 @@ static struct usb_device_id uas_usb_ids[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, uas_usb_ids);
+
+#undef UNUSUAL_DEV
 
 static int uas_switch_interface(struct usb_device *udev,
 				struct usb_interface *intf)
@@ -972,6 +982,9 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct Scsi_Host *shost = NULL;
 	struct uas_dev_info *devinfo;
 	struct usb_device *udev = interface_to_usbdev(intf);
+
+	if (!uas_use_uas_driver(intf, id))
+		return -ENODEV;
 
 	if (uas_switch_interface(udev, intf))
 		return -ENODEV;
@@ -1083,10 +1096,6 @@ static void uas_disconnect(struct usb_interface *intf)
 	kfree(devinfo);
 }
 
-/*
- * XXX: Should this plug into libusual so we can auto-upgrade devices from
- * Bulk-Only to UAS?
- */
 static struct usb_driver uas_driver = {
 	.name = "uas",
 	.probe = uas_probe,
