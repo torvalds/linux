@@ -44,6 +44,9 @@ struct caam_drv_private_jr {
 	struct tasklet_struct irqtask;
 	int irq;			/* One per queue */
 
+	/* Number of scatterlist crypt transforms active on the JobR */
+	atomic_t tfm_count ____cacheline_aligned;
+
 	/* Job ring info */
 	int ringsize;	/* Size of rings (assume input = output) */
 	struct caam_jrentry_info *entinfo;	/* Alloc'ed 1 per ring entry */
