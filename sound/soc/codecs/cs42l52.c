@@ -1223,6 +1223,9 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
+	dev_info(&i2c_client->dev, "Cirrus Logic CS42L52, Revision: %02X\n",
+			reg & 0xFF);
+
 	/* Set Platform Data */
 	if (cs42l52->pdata.mica_cfg)
 		regmap_update_bits(cs42l52->regmap, CS42L52_MICA_CTL,
