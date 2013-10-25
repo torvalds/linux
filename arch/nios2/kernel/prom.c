@@ -95,6 +95,7 @@ void __init early_init_devtree(void *params)
 void __init device_tree_init(void)
 {
 	unsigned long base, size;
+	void *fdt_copy;
 
 	if (!initial_boot_params)
 		return;
@@ -103,17 +104,36 @@ void __init device_tree_init(void)
 	size = be32_to_cpu(initial_boot_params->totalsize);
 
 	/*
-	 * If the chosen DTB is not the built-in one (passed via
-	 * bootloader or found at a built-in physical address) and
-	 * it is within main memory above the kernel binary itself
-	 * (> memory_start), we need to reserve_bootmem().
+	 * If the supplied DTB is located in the kernel, it is
+	 * in __init memory and will eventually be destroyed
+	 * ('Freeing unused kernel memory: ...').
+	 *
+	 * If the DTB is located in the available system RAM
+	 * (between memory_start and memory_end), it will also
+	 * eventually be destroyed if that memory is allocated by
+	 * applications. The DTB might get placed there by a boot-
+	 * loader from not directly addressable memory such as a
+	 * SPI EEPROM sector.
+	 *
+	 * Usually, the DT will already have served its
+	 * purpose when the kernel starts. However, if drivers are
+	 * loaded as modules, they must still be able to access the
+	 * DTB entries after the kernel has started.
+	 *
+	 * Therefore, in these 2 cases, the DTB is moved to a new
+	 * bootmem-allocator allocated area. It has the added
+	 * benefit of reducing memory fragmentation.
 	 */
-	if ((base >= memory_start) && (base < memory_end)) {
+
+	if ((base >= __pa(_text)) && (base < memory_end)) {
 		reserve_bootmem(base, size, BOOTMEM_DEFAULT);
-		unflatten_device_tree();
+		fdt_copy = alloc_bootmem(size);
+		memcpy(fdt_copy, initial_boot_params, size);
+		initial_boot_params = fdt_copy;
 		free_bootmem(base, size);
-	} else
-		unflatten_device_tree();
+	}
+
+	unflatten_device_tree();
 }
 
 #ifdef CONFIG_EARLY_PRINTK
