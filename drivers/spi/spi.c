@@ -58,11 +58,13 @@ modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 
 	return sprintf(buf, "%s%s\n", SPI_MODULE_PREFIX, spi->modalias);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute spi_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *spi_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(spi_dev);
 
 /* modalias support makes "modprobe $MODALIAS" new-style hotplug work,
  * and the sysfs version makes coldplug work too.
@@ -229,7 +231,7 @@ static const struct dev_pm_ops spi_pm = {
 
 struct bus_type spi_bus_type = {
 	.name		= "spi",
-	.dev_attrs	= spi_dev_attrs,
+	.dev_groups	= spi_dev_groups,
 	.match		= spi_match_device,
 	.uevent		= spi_uevent,
 	.pm		= &spi_pm,
@@ -323,7 +325,7 @@ struct spi_device *spi_alloc_device(struct spi_master *master)
 	if (!spi_master_get(master))
 		return NULL;
 
-	spi = kzalloc(sizeof *spi, GFP_KERNEL);
+	spi = kzalloc(sizeof(*spi), GFP_KERNEL);
 	if (!spi) {
 		dev_err(dev, "cannot alloc spi_device\n");
 		spi_master_put(master);
@@ -838,10 +840,8 @@ static void of_register_spi_devices(struct spi_master *master)
 {
 	struct spi_device *spi;
 	struct device_node *nc;
-	const __be32 *prop;
-	char modalias[SPI_NAME_SIZE + 4];
 	int rc;
-	int len;
+	u32 value;
 
 	if (!master->dev.of_node)
 		return;
@@ -866,14 +866,14 @@ static void of_register_spi_devices(struct spi_master *master)
 		}
 
 		/* Device address */
-		prop = of_get_property(nc, "reg", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'reg' property\n",
-				nc->full_name);
+		rc = of_property_read_u32(nc, "reg", &value);
+		if (rc) {
+			dev_err(&master->dev, "%s has no valid 'reg' property (%d)\n",
+				nc->full_name, rc);
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->chip_select = be32_to_cpup(prop);
+		spi->chip_select = value;
 
 		/* Mode (clock phase/polarity/etc.) */
 		if (of_find_property(nc, "spi-cpha", NULL))
@@ -886,55 +886,53 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_3WIRE;
 
 		/* Device DUAL/QUAD mode */
-		prop = of_get_property(nc, "spi-tx-bus-width", &len);
-		if (prop && len == sizeof(*prop)) {
-			switch (be32_to_cpup(prop)) {
-			case SPI_NBITS_SINGLE:
+		if (!of_property_read_u32(nc, "spi-tx-bus-width", &value)) {
+			switch (value) {
+			case 1:
 				break;
-			case SPI_NBITS_DUAL:
+			case 2:
 				spi->mode |= SPI_TX_DUAL;
 				break;
-			case SPI_NBITS_QUAD:
+			case 4:
 				spi->mode |= SPI_TX_QUAD;
 				break;
 			default:
 				dev_err(&master->dev,
 					"spi-tx-bus-width %d not supported\n",
-					be32_to_cpup(prop));
+					value);
 				spi_dev_put(spi);
 				continue;
 			}
 		}
 
-		prop = of_get_property(nc, "spi-rx-bus-width", &len);
-		if (prop && len == sizeof(*prop)) {
-			switch (be32_to_cpup(prop)) {
-			case SPI_NBITS_SINGLE:
+		if (!of_property_read_u32(nc, "spi-rx-bus-width", &value)) {
+			switch (value) {
+			case 1:
 				break;
-			case SPI_NBITS_DUAL:
+			case 2:
 				spi->mode |= SPI_RX_DUAL;
 				break;
-			case SPI_NBITS_QUAD:
+			case 4:
 				spi->mode |= SPI_RX_QUAD;
 				break;
 			default:
 				dev_err(&master->dev,
 					"spi-rx-bus-width %d not supported\n",
-					be32_to_cpup(prop));
+					value);
 				spi_dev_put(spi);
 				continue;
 			}
 		}
 
 		/* Device speed */
-		prop = of_get_property(nc, "spi-max-frequency", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'spi-max-frequency' property\n",
-				nc->full_name);
+		rc = of_property_read_u32(nc, "spi-max-frequency", &value);
+		if (rc) {
+			dev_err(&master->dev, "%s has no valid 'spi-max-frequency' property (%d)\n",
+				nc->full_name, rc);
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->max_speed_hz = be32_to_cpup(prop);
+		spi->max_speed_hz = value;
 
 		/* IRQ */
 		spi->irq = irq_of_parse_and_map(nc, 0);
@@ -944,9 +942,7 @@ static void of_register_spi_devices(struct spi_master *master)
 		spi->dev.of_node = nc;
 
 		/* Register the new device */
-		snprintf(modalias, sizeof(modalias), "%s%s", SPI_MODULE_PREFIX,
-			 spi->modalias);
-		request_module(modalias);
+		request_module("%s%s", SPI_MODULE_PREFIX, spi->modalias);
 		rc = spi_add_device(spi);
 		if (rc) {
 			dev_err(&master->dev, "spi_device register error %s\n",
@@ -1097,7 +1093,7 @@ struct spi_master *spi_alloc_master(struct device *dev, unsigned size)
 	if (!dev)
 		return NULL;
 
-	master = kzalloc(size + sizeof *master, GFP_KERNEL);
+	master = kzalloc(size + sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return NULL;
 
@@ -1122,7 +1118,7 @@ static int of_spi_register_master(struct spi_master *master)
 		return 0;
 
 	nb = of_gpio_named_count(np, "cs-gpios");
-	master->num_chipselect = max(nb, (int)master->num_chipselect);
+	master->num_chipselect = max_t(int, nb, master->num_chipselect);
 
 	/* Return error only for an incorrectly formed cs-gpios property */
 	if (nb == 0 || nb == -ENOENT)
@@ -1437,8 +1433,7 @@ int spi_setup(struct spi_device *spi)
 	if (spi->master->setup)
 		status = spi->master->setup(spi);
 
-	dev_dbg(&spi->dev, "setup mode %d, %s%s%s%s"
-				"%u bits/w, %u Hz max --> %d\n",
+	dev_dbg(&spi->dev, "setup mode %d, %s%s%s%s%u bits/w, %u Hz max --> %d\n",
 			(int) (spi->mode & (SPI_CPOL | SPI_CPHA)),
 			(spi->mode & SPI_CS_HIGH) ? "cs_high, " : "",
 			(spi->mode & SPI_LSB_FIRST) ? "lsb, " : "",
@@ -1797,7 +1792,7 @@ int spi_bus_unlock(struct spi_master *master)
 EXPORT_SYMBOL_GPL(spi_bus_unlock);
 
 /* portable code must never pass more than 32 bytes */
-#define	SPI_BUFSIZ	max(32,SMP_CACHE_BYTES)
+#define	SPI_BUFSIZ	max(32, SMP_CACHE_BYTES)
 
 static u8	*buf;
 
@@ -1846,7 +1841,7 @@ int spi_write_then_read(struct spi_device *spi,
 	}
 
 	spi_message_init(&message);
-	memset(x, 0, sizeof x);
+	memset(x, 0, sizeof(x));
 	if (n_tx) {
 		x[0].len = n_tx;
 		spi_message_add_tail(&x[0], &message);
