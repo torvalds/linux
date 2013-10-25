@@ -83,13 +83,6 @@ struct caam_drv_private {
 	u8 qi_present;		/* Nonzero if QI present in device */
 	int secvio_irq;		/* Security violation interrupt number */
 
-	/* which jr allocated to scatterlist crypto */
-	atomic_t tfm_count ____cacheline_aligned;
-	/* list of registered crypto algorithms (mk generic context handle?) */
-	struct list_head alg_list;
-	/* list of registered hash algorithms (mk generic context handle?) */
-	struct list_head hash_list;
-
 #define	RNG4_MAX_HANDLES 2
 	/* RNG4 block */
 	u32 rng4_sh_init;	/* This bitmap shows which of the State
