@@ -248,22 +248,6 @@ acpi_cpufreq_target (
 
 
 static int
-acpi_cpufreq_verify (
-	struct cpufreq_policy   *policy)
-{
-	unsigned int result = 0;
-	struct cpufreq_acpi_io *data = acpi_io_data[policy->cpu];
-
-	pr_debug("acpi_cpufreq_verify\n");
-
-	result = cpufreq_frequency_table_verify(policy,
-			data->freq_table);
-
-	return (result);
-}
-
-
-static int
 acpi_cpufreq_cpu_init (
 	struct cpufreq_policy   *policy)
 {
@@ -321,7 +305,6 @@ acpi_cpufreq_cpu_init (
 			    data->acpi_data.states[i].transition_latency * 1000;
 		}
 	}
-	policy->cur = processor_get_freq(data, policy->cpu);
 
 	/* table init */
 	for (i = 0; i <= data->acpi_data.state_count; i++)
@@ -335,7 +318,7 @@ acpi_cpufreq_cpu_init (
 		}
 	}
 
-	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
+	result = cpufreq_table_validate_and_show(policy, data->freq_table);
 	if (result) {
 		goto err_freqfree;
 	}
@@ -355,8 +338,6 @@ acpi_cpufreq_cpu_init (
 			(u32) data->acpi_data.states[i].bus_master_latency,
 			(u32) data->acpi_data.states[i].status,
 			(u32) data->acpi_data.states[i].control);
-
-	cpufreq_frequency_table_get_attr(data->freq_table, policy->cpu);
 
 	/* the first call to ->target() should result in us actually
 	 * writing something to the appropriate registers. */
@@ -396,20 +377,14 @@ acpi_cpufreq_cpu_exit (
 }
 
 
-static struct freq_attr* acpi_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
-
 static struct cpufreq_driver acpi_cpufreq_driver = {
-	.verify 	= acpi_cpufreq_verify,
+	.verify 	= cpufreq_generic_frequency_table_verify,
 	.target 	= acpi_cpufreq_target,
 	.get 		= acpi_cpufreq_get,
 	.init		= acpi_cpufreq_cpu_init,
 	.exit		= acpi_cpufreq_cpu_exit,
 	.name		= "acpi-cpufreq",
-	.attr           = acpi_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 

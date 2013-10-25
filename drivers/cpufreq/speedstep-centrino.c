@@ -343,9 +343,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 static int centrino_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *cpu = &cpu_data(policy->cpu);
-	unsigned freq;
 	unsigned l, h;
-	int ret;
 	int i;
 
 	/* Only Intel makes Enhanced Speedstep-capable CPUs */
@@ -373,9 +371,8 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 	}
 
-	if (centrino_cpu_init_table(policy)) {
+	if (centrino_cpu_init_table(policy))
 		return -ENODEV;
-	}
 
 	/* Check to see if Enhanced SpeedStep is enabled, and try to
 	   enable it if not. */
@@ -395,22 +392,11 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 		}
 	}
 
-	freq = get_cur_freq(policy->cpu);
 	policy->cpuinfo.transition_latency = 10000;
 						/* 10uS transition latency */
-	policy->cur = freq;
 
-	pr_debug("centrino_cpu_init: cur=%dkHz\n", policy->cur);
-
-	ret = cpufreq_frequency_table_cpuinfo(policy,
+	return cpufreq_table_validate_and_show(policy,
 		per_cpu(centrino_model, policy->cpu)->op_points);
-	if (ret)
-		return (ret);
-
-	cpufreq_frequency_table_get_attr(
-		per_cpu(centrino_model, policy->cpu)->op_points, policy->cpu);
-
-	return 0;
 }
 
 static int centrino_cpu_exit(struct cpufreq_policy *policy)
@@ -425,19 +411,6 @@ static int centrino_cpu_exit(struct cpufreq_policy *policy)
 	per_cpu(centrino_model, cpu) = NULL;
 
 	return 0;
-}
-
-/**
- * centrino_verify - verifies a new CPUFreq policy
- * @policy: new policy
- *
- * Limit must be within this model's frequency range at least one
- * border included.
- */
-static int centrino_verify (struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy,
-			per_cpu(centrino_model, policy->cpu)->op_points);
 }
 
 /**
@@ -561,20 +534,15 @@ out:
 	return retval;
 }
 
-static struct freq_attr* centrino_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver centrino_driver = {
 	.name		= "centrino", /* should be speedstep-centrino,
 					 but there's a 16 char limit */
 	.init		= centrino_cpu_init,
 	.exit		= centrino_cpu_exit,
-	.verify		= centrino_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= centrino_target,
 	.get		= get_cur_freq,
-	.attr           = centrino_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 /*

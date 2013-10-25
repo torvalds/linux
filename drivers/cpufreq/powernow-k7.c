@@ -549,11 +549,6 @@ static int powernow_target(struct cpufreq_policy *policy,
 }
 
 
-static int powernow_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, powernow_table);
-}
-
 /*
  * We use the fact that the bus frequency is somehow
  * a multiple of 100000/3 khz, then we compute sgtc according
@@ -678,11 +673,7 @@ static int powernow_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency =
 		cpufreq_scale(2000000UL, fsb, latency);
 
-	policy->cur = powernow_get(0);
-
-	cpufreq_frequency_table_get_attr(powernow_table, policy->cpu);
-
-	return cpufreq_frequency_table_cpuinfo(policy, powernow_table);
+	return cpufreq_table_validate_and_show(policy, powernow_table);
 }
 
 static int powernow_cpu_exit(struct cpufreq_policy *policy)
@@ -701,13 +692,8 @@ static int powernow_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct freq_attr *powernow_table_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver powernow_driver = {
-	.verify		= powernow_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= powernow_target,
 	.get		= powernow_get,
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
@@ -716,7 +702,7 @@ static struct cpufreq_driver powernow_driver = {
 	.init		= powernow_cpu_init,
 	.exit		= powernow_cpu_exit,
 	.name		= "powernow-k7",
-	.attr		= powernow_table_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int __init powernow_init(void)

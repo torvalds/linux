@@ -87,16 +87,6 @@ static struct cpufreq_frequency_table s3c2450_freq_table[] = {
 	{ 0, CPUFREQ_TABLE_END },
 };
 
-static int s3c2416_cpufreq_verify_speed(struct cpufreq_policy *policy)
-{
-	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
-
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(policy, s3c_freq->freq_table);
-}
-
 static unsigned int s3c2416_cpufreq_get_speed(unsigned int cpu)
 {
 	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
@@ -486,19 +476,13 @@ static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 		freq++;
 	}
 
-	policy->cur = clk_get_rate(s3c_freq->armclk) / 1000;
-
 	/* Datasheet says PLL stabalisation time must be at least 300us,
 	 * so but add some fudge. (reference in LOCKCON0 register description)
 	 */
-	policy->cpuinfo.transition_latency = (500 * 1000) +
-					     s3c_freq->regulator_latency;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, s3c_freq->freq_table);
+	ret = cpufreq_generic_init(policy, s3c_freq->freq_table,
+			(500 * 1000) + s3c_freq->regulator_latency);
 	if (ret)
 		goto err_freq_table;
-
-	cpufreq_frequency_table_get_attr(s3c_freq->freq_table, 0);
 
 	register_reboot_notifier(&s3c2416_cpufreq_reboot_notifier);
 
@@ -518,19 +502,14 @@ err_hclk:
 	return ret;
 }
 
-static struct freq_attr *s3c2416_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver s3c2416_cpufreq_driver = {
 	.flags          = 0,
-	.verify		= s3c2416_cpufreq_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= s3c2416_cpufreq_set_target,
 	.get		= s3c2416_cpufreq_get_speed,
 	.init		= s3c2416_cpufreq_driver_init,
 	.name		= "s3c2416",
-	.attr		= s3c2416_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int __init s3c2416_cpufreq_init(void)

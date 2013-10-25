@@ -19,18 +19,10 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/slab.h>
 
 static struct clk *cpuclk;
-
-static int at32_verify_speed(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-			policy->cpuinfo.max_freq);
-	return 0;
-}
+static struct cpufreq_frequency_table *freq_table;
 
 static unsigned int at32_get_speed(unsigned int cpu)
 {
@@ -85,31 +77,68 @@ static int at32_set_target(struct cpufreq_policy *policy,
 
 static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
+	unsigned int frequency, rate, min_freq;
+	int retval, steps, i;
+
 	if (policy->cpu != 0)
 		return -EINVAL;
 
 	cpuclk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpuclk)) {
 		pr_debug("cpufreq: could not get CPU clk\n");
-		return PTR_ERR(cpuclk);
+		retval = PTR_ERR(cpuclk);
+		goto out_err;
 	}
 
-	policy->cpuinfo.min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
-	policy->cpuinfo.max_freq = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
+	min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
+	frequency = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
 	policy->cpuinfo.transition_latency = 0;
-	policy->cur = at32_get_speed(0);
-	policy->min = policy->cpuinfo.min_freq;
-	policy->max = policy->cpuinfo.max_freq;
 
-	printk("cpufreq: AT32AP CPU frequency driver\n");
+	/*
+	 * AVR32 CPU frequency rate scales in power of two between maximum and
+	 * minimum, also add space for the table end marker.
+	 *
+	 * Further validate that the frequency is usable, and append it to the
+	 * frequency table.
+	 */
+	steps = fls(frequency / min_freq) + 1;
+	freq_table = kzalloc(steps * sizeof(struct cpufreq_frequency_table),
+			GFP_KERNEL);
+	if (!freq_table) {
+		retval = -ENOMEM;
+		goto out_err_put_clk;
+	}
 
-	return 0;
+	for (i = 0; i < (steps - 1); i++) {
+		rate = clk_round_rate(cpuclk, frequency * 1000) / 1000;
+
+		if (rate != frequency)
+			freq_table[i].frequency = CPUFREQ_ENTRY_INVALID;
+		else
+			freq_table[i].frequency = frequency;
+
+		frequency /= 2;
+	}
+
+	freq_table[steps - 1].frequency = CPUFREQ_TABLE_END;
+
+	retval = cpufreq_table_validate_and_show(policy, freq_table);
+	if (!retval) {
+		printk("cpufreq: AT32AP CPU frequency driver\n");
+		return 0;
+	}
+
+	kfree(freq_table);
+out_err_put_clk:
+	clk_put(cpuclk);
+out_err:
+	return retval;
 }
 
 static struct cpufreq_driver at32_driver = {
 	.name		= "at32ap",
 	.init		= at32_cpufreq_driver_init,
-	.verify		= at32_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= at32_set_target,
 	.get		= at32_get_speed,
 	.flags		= CPUFREQ_STICKY,

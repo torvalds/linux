@@ -180,13 +180,6 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 struct cpufreq_driver {
 	char			name[CPUFREQ_NAME_LEN];
 	u8			flags;
-	/*
-	 * This should be set by platforms having multiple clock-domains, i.e.
-	 * supporting multiple policies. With this sysfs directories of governor
-	 * would be created in cpu/cpu<num>/cpufreq/ directory and so they can
-	 * use the same governor with different tunables for different clusters.
-	 */
-	bool			have_governor_per_policy;
 
 	/* needed by all drivers */
 	int	(*init)		(struct cpufreq_policy *policy);
@@ -211,13 +204,22 @@ struct cpufreq_driver {
 };
 
 /* flags */
-#define CPUFREQ_STICKY		0x01	/* the driver isn't removed even if
-					 * all ->init() calls failed */
-#define CPUFREQ_CONST_LOOPS	0x02	/* loops_per_jiffy or other kernel
-					 * "constants" aren't affected by
-					 * frequency transitions */
-#define CPUFREQ_PM_NO_WARN	0x04	/* don't warn on suspend/resume speed
-					 * mismatches */
+#define CPUFREQ_STICKY		(1 << 0)	/* driver isn't removed even if
+						   all ->init() calls failed */
+#define CPUFREQ_CONST_LOOPS	(1 << 1)	/* loops_per_jiffy or other
+						   kernel "constants" aren't
+						   affected by frequency
+						   transitions */
+#define CPUFREQ_PM_NO_WARN	(1 << 2)	/* don't warn on suspend/resume
+						   speed mismatches */
+
+/*
+ * This should be set by platforms having multiple clock-domains, i.e.
+ * supporting multiple policies. With this sysfs directories of governor would
+ * be created in cpu/cpu<num>/cpufreq/ directory and so they can use the same
+ * governor with different tunables for different clusters.
+ */
+#define CPUFREQ_HAVE_GOVERNOR_PER_POLICY (1 << 3)
 
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
@@ -238,6 +240,13 @@ static inline void cpufreq_verify_within_limits(struct cpufreq_policy *policy,
 	if (policy->min > policy->max)
 		policy->min = policy->max;
 	return;
+}
+
+static inline void
+cpufreq_verify_within_cpu_limits(struct cpufreq_policy *policy)
+{
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+			policy->cpuinfo.max_freq);
 }
 
 /*********************************************************************
@@ -392,6 +401,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 
 int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table);
+int cpufreq_generic_frequency_table_verify(struct cpufreq_policy *policy);
 
 int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table,
@@ -407,8 +417,20 @@ struct cpufreq_frequency_table *cpufreq_frequency_get_table(unsigned int cpu);
 
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
+extern struct freq_attr *cpufreq_generic_attr[];
 void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu);
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
+int cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
+				      struct cpufreq_frequency_table *table);
+
+int cpufreq_generic_init(struct cpufreq_policy *policy,
+		struct cpufreq_frequency_table *table,
+		unsigned int transition_latency);
+static inline int cpufreq_generic_exit(struct cpufreq_policy *policy)
+{
+	cpufreq_frequency_table_put_attr(policy->cpu);
+	return 0;
+}
 
 #endif /* _LINUX_CPUFREQ_H */

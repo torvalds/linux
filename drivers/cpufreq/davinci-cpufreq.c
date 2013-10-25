@@ -50,9 +50,7 @@ static int davinci_verify_speed(struct cpufreq_policy *policy)
 	if (policy->cpu)
 		return -EINVAL;
 
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-				     policy->cpuinfo.max_freq);
-
+	cpufreq_verify_within_cpu_limits(policy);
 	policy->min = clk_round_rate(armclk, policy->min * 1000) / 1000;
 	policy->max = clk_round_rate(armclk, policy->max * 1000) / 1000;
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
@@ -138,37 +136,14 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 			return result;
 	}
 
-	policy->cur = davinci_getspeed(0);
-
-	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	if (result) {
-		pr_err("%s: cpufreq_frequency_table_cpuinfo() failed",
-				__func__);
-		return result;
-	}
-
-	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
-
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
 	 * time taken with no drivers on notification list.
 	 * Setting the latency to 2000 us to accommodate addition of drivers
 	 * to pre/post change notification list.
 	 */
-	policy->cpuinfo.transition_latency = 2000 * 1000;
-	return 0;
+	return cpufreq_generic_init(policy, freq_table, 2000 * 1000);
 }
-
-static int davinci_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static struct freq_attr *davinci_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 static struct cpufreq_driver davinci_driver = {
 	.flags		= CPUFREQ_STICKY,
@@ -176,9 +151,9 @@ static struct cpufreq_driver davinci_driver = {
 	.target		= davinci_target,
 	.get		= davinci_getspeed,
 	.init		= davinci_cpu_init,
-	.exit		= davinci_cpu_exit,
+	.exit		= cpufreq_generic_exit,
 	.name		= "davinci",
-	.attr		= davinci_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int __init davinci_cpufreq_probe(struct platform_device *pdev)

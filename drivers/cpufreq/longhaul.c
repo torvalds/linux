@@ -625,12 +625,6 @@ static void longhaul_setup_voltagescaling(void)
 }
 
 
-static int longhaul_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, longhaul_table);
-}
-
-
 static int longhaul_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq, unsigned int relation)
 {
@@ -919,36 +913,18 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		longhaul_setup_voltagescaling();
 
 	policy->cpuinfo.transition_latency = 200000;	/* nsec */
-	policy->cur = calc_speed(longhaul_get_cpu_mult());
 
-	ret = cpufreq_frequency_table_cpuinfo(policy, longhaul_table);
-	if (ret)
-		return ret;
-
-	cpufreq_frequency_table_get_attr(longhaul_table, policy->cpu);
-
-	return 0;
+	return cpufreq_table_validate_and_show(policy, longhaul_table);
 }
-
-static int longhaul_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static struct freq_attr *longhaul_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 static struct cpufreq_driver longhaul_driver = {
-	.verify	= longhaul_verify,
+	.verify	= cpufreq_generic_frequency_table_verify,
 	.target	= longhaul_target,
 	.get	= longhaul_get,
 	.init	= longhaul_cpu_init,
-	.exit	= longhaul_cpu_exit,
+	.exit	= cpufreq_generic_exit,
 	.name	= "longhaul",
-	.attr	= longhaul_attr,
+	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id longhaul_id[] = {

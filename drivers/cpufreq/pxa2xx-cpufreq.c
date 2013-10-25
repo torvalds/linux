@@ -262,23 +262,6 @@ static u32 mdrefr_dri(unsigned int freq)
 	return (interval - (cpu_is_pxa27x() ? 31 : 0)) / 32;
 }
 
-/* find a valid frequency point */
-static int pxa_verify_policy(struct cpufreq_policy *policy)
-{
-	struct cpufreq_frequency_table *pxa_freqs_table;
-	pxa_freqs_t *pxa_freqs;
-	int ret;
-
-	find_freq_tables(&pxa_freqs_table, &pxa_freqs);
-	ret = cpufreq_frequency_table_verify(policy, pxa_freqs_table);
-
-	if (freq_debug)
-		pr_debug("Verified CPU policy: %dKhz min to %dKhz max\n",
-			 policy->min, policy->max);
-
-	return ret;
-}
-
 static unsigned int pxa_cpufreq_get(unsigned int cpu)
 {
 	return get_clk_frequency_khz(0);
@@ -414,8 +397,6 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 
 	/* set default policy and cpuinfo */
 	policy->cpuinfo.transition_latency = 1000; /* FIXME: 1 ms, assumed */
-	policy->cur = get_clk_frequency_khz(0);	   /* current freq */
-	policy->min = policy->max = policy->cur;
 
 	/* Generate pxa25x the run cpufreq_frequency_table struct */
 	for (i = 0; i < NUM_PXA25x_RUN_FREQS; i++) {
@@ -453,10 +434,12 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		find_freq_tables(&pxa255_freq_table, &pxa255_freqs);
 		pr_info("PXA255 cpufreq using %s frequency table\n",
 			pxa255_turbo_table ? "turbo" : "run");
-		cpufreq_frequency_table_cpuinfo(policy, pxa255_freq_table);
+
+		cpufreq_table_validate_and_show(policy, pxa255_freq_table);
 	}
-	else if (cpu_is_pxa27x())
-		cpufreq_frequency_table_cpuinfo(policy, pxa27x_freq_table);
+	else if (cpu_is_pxa27x()) {
+		cpufreq_table_validate_and_show(policy, pxa27x_freq_table);
+	}
 
 	printk(KERN_INFO "PXA CPU frequency change support initialized\n");
 
@@ -464,9 +447,10 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver pxa_cpufreq_driver = {
-	.verify	= pxa_verify_policy,
+	.verify	= cpufreq_generic_frequency_table_verify,
 	.target	= pxa_set_target,
 	.init	= pxa_cpufreq_init,
+	.exit	= cpufreq_generic_exit,
 	.get	= pxa_cpufreq_get,
 	.name	= "PXA2xx",
 };

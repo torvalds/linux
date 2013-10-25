@@ -264,23 +264,9 @@ static int speedstep_target(struct cpufreq_policy *policy,
 }
 
 
-/**
- * speedstep_verify - verifies a new CPUFreq policy
- * @policy: new policy
- *
- * Limit must be within speedstep_low_freq and speedstep_high_freq, with
- * at least one border included.
- */
-static int speedstep_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &speedstep_freqs[0]);
-}
-
-
 static int speedstep_cpu_init(struct cpufreq_policy *policy)
 {
 	int result;
-	unsigned int speed, state;
 	unsigned int *low, *high;
 
 	/* capability check */
@@ -316,32 +302,8 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 			pr_debug("workaround worked.\n");
 	}
 
-	/* get current speed setting */
-	state = speedstep_get_state();
-	speed = speedstep_freqs[state].frequency;
-
-	pr_debug("currently at %s speed setting - %i MHz\n",
-		(speed == speedstep_freqs[SPEEDSTEP_LOW].frequency)
-		? "low" : "high",
-		(speed / 1000));
-
-	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	policy->cur = speed;
-
-	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
-	if (result)
-		return result;
-
-	cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
-
-	return 0;
-}
-
-static int speedstep_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
+	return cpufreq_table_validate_and_show(policy, speedstep_freqs);
 }
 
 static unsigned int speedstep_get(unsigned int cpu)
@@ -362,20 +324,15 @@ static int speedstep_resume(struct cpufreq_policy *policy)
 	return result;
 }
 
-static struct freq_attr *speedstep_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver speedstep_driver = {
 	.name		= "speedstep-smi",
-	.verify		= speedstep_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= speedstep_target,
 	.init		= speedstep_cpu_init,
-	.exit		= speedstep_cpu_exit,
+	.exit		= cpufreq_generic_exit,
 	.get		= speedstep_get,
 	.resume		= speedstep_resume,
-	.attr		= speedstep_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id ss_smi_ids[] = {

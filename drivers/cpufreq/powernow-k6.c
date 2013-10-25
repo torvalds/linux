@@ -105,19 +105,6 @@ static void powernow_k6_set_state(struct cpufreq_policy *policy,
 
 
 /**
- * powernow_k6_verify - verifies a new CPUfreq policy
- * @policy: new policy
- *
- * Policy must be within lowest and highest possible CPU Frequency,
- * and at least one possible state must be within min and max.
- */
-static int powernow_k6_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &clock_ratio[0]);
-}
-
-
-/**
  * powernow_k6_setpolicy - sets a new CPUFreq policy
  * @policy: new policy
  * @target_freq: the target frequency
@@ -145,7 +132,6 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int i, f;
-	int result;
 
 	if (policy->cpu != 0)
 		return -ENODEV;
@@ -165,15 +151,8 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = 200000;
-	policy->cur = busfreq * max_multiplier;
 
-	result = cpufreq_frequency_table_cpuinfo(policy, clock_ratio);
-	if (result)
-		return result;
-
-	cpufreq_frequency_table_get_attr(clock_ratio, policy->cpu);
-
-	return 0;
+	return cpufreq_table_validate_and_show(policy, clock_ratio);
 }
 
 
@@ -195,19 +174,14 @@ static unsigned int powernow_k6_get(unsigned int cpu)
 	return ret;
 }
 
-static struct freq_attr *powernow_k6_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver powernow_k6_driver = {
-	.verify		= powernow_k6_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= powernow_k6_target,
 	.init		= powernow_k6_cpu_init,
 	.exit		= powernow_k6_cpu_exit,
 	.get		= powernow_k6_get,
 	.name		= "powernow-k6",
-	.attr		= powernow_k6_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id powernow_k6_ids[] = {

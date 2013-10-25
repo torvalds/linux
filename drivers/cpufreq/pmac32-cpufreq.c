@@ -86,11 +86,6 @@ static struct cpufreq_frequency_table pmac_cpu_freqs[] = {
 	{0,			CPUFREQ_TABLE_END},
 };
 
-static struct freq_attr* pmac_cpu_freqs_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static inline void local_delay(unsigned long ms)
 {
 	if (no_schedule)
@@ -378,11 +373,6 @@ static unsigned int pmac_cpufreq_get_speed(unsigned int cpu)
 	return cur_freq;
 }
 
-static int pmac_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, pmac_cpu_freqs);
-}
-
 static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 					unsigned int target_freq,
 					unsigned int relation)
@@ -402,14 +392,7 @@ static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 
 static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	if (policy->cpu != 0)
-		return -ENODEV;
-
-	policy->cpuinfo.transition_latency	= transition_latency;
-	policy->cur = cur_freq;
-
-	cpufreq_frequency_table_get_attr(pmac_cpu_freqs, policy->cpu);
-	return cpufreq_frequency_table_cpuinfo(policy, pmac_cpu_freqs);
+	return cpufreq_generic_init(policy, pmac_cpu_freqs, transition_latency);
 }
 
 static u32 read_gpio(struct device_node *np)
@@ -469,14 +452,14 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver pmac_cpufreq_driver = {
-	.verify 	= pmac_cpufreq_verify,
+	.verify 	= cpufreq_generic_frequency_table_verify,
 	.target 	= pmac_cpufreq_target,
 	.get		= pmac_cpufreq_get_speed,
 	.init		= pmac_cpufreq_cpu_init,
 	.suspend	= pmac_cpufreq_suspend,
 	.resume		= pmac_cpufreq_resume,
 	.flags		= CPUFREQ_PM_NO_WARN,
-	.attr		= pmac_cpu_freqs_attr,
+	.attr		= cpufreq_generic_attr,
 	.name		= "powermac",
 };
 

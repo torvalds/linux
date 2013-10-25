@@ -615,14 +615,12 @@ endmenu
 config PXA25x
 	bool
 	select CPU_XSCALE
-	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Select code specific to PXA21x/25x/26x variants
 
 config PXA27x
 	bool
 	select CPU_XSCALE
-	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Select code specific to PXA27x variants
 
@@ -635,7 +633,6 @@ config CPU_PXA26x
 config PXA3xx
 	bool
 	select CPU_XSC3
-	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Select code specific to PXA3xx variants
 

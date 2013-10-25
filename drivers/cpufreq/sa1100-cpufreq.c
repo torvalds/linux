@@ -218,18 +218,12 @@ static int sa1100_target(struct cpufreq_policy *policy,
 
 static int __init sa1100_cpu_init(struct cpufreq_policy *policy)
 {
-	if (policy->cpu != 0)
-		return -EINVAL;
-	policy->cur = policy->min = policy->max = sa11x0_getspeed(0);
-	policy->cpuinfo.min_freq = 59000;
-	policy->cpuinfo.max_freq = 287000;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-	return 0;
+	return cpufreq_generic_init(policy, sa11x0_freq_table, CPUFREQ_ETERNAL);
 }
 
 static struct cpufreq_driver sa1100_driver __refdata = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= sa11x0_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= sa1100_target,
 	.get		= sa11x0_getspeed,
 	.init		= sa1100_cpu_init,

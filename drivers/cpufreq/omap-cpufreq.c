@@ -40,13 +40,6 @@ static struct clk *mpu_clk;
 static struct device *mpu_dev;
 static struct regulator *mpu_reg;
 
-static int omap_verify_speed(struct cpufreq_policy *policy)
-{
-	if (!freq_table)
-		return -EINVAL;
-	return cpufreq_frequency_table_verify(policy, freq_table);
-}
-
 static unsigned int omap_getspeed(unsigned int cpu)
 {
 	unsigned long rate;
@@ -167,81 +160,52 @@ static inline void freq_table_free(void)
 
 static int omap_cpu_init(struct cpufreq_policy *policy)
 {
-	int result = 0;
+	int result;
 
 	mpu_clk = clk_get(NULL, "cpufreq_ck");
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
-	if (policy->cpu >= NR_CPUS) {
-		result = -EINVAL;
-		goto fail_ck;
-	}
-
-	policy->cur = omap_getspeed(policy->cpu);
-
-	if (!freq_table)
+	if (!freq_table) {
 		result = dev_pm_opp_init_cpufreq_table(mpu_dev, &freq_table);
-
-	if (result) {
-		dev_err(mpu_dev, "%s: cpu%d: failed creating freq table[%d]\n",
+		if (result) {
+			dev_err(mpu_dev,
+				"%s: cpu%d: failed creating freq table[%d]\n",
 				__func__, policy->cpu, result);
-		goto fail_ck;
+			goto fail;
+		}
 	}
 
 	atomic_inc_return(&freq_table_users);
 
-	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	if (result)
-		goto fail_table;
-
-	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
-
-	policy->cur = omap_getspeed(policy->cpu);
-
-	/*
-	 * On OMAP SMP configuartion, both processors share the voltage
-	 * and clock. So both CPUs needs to be scaled together and hence
-	 * needs software co-ordination. Use cpufreq affected_cpus
-	 * interface to handle this scenario. Additional is_smp() check
-	 * is to keep SMP_ON_UP build working.
-	 */
-	if (is_smp())
-		cpumask_setall(policy->cpus);
-
 	/* FIXME: what's the actual transition time? */
-	policy->cpuinfo.transition_latency = 300 * 1000;
+	result = cpufreq_generic_init(policy, freq_table, 300 * 1000);
+	if (!result)
+		return 0;
 
-	return 0;
-
-fail_table:
 	freq_table_free();
-fail_ck:
+fail:
 	clk_put(mpu_clk);
 	return result;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
 {
+	cpufreq_frequency_table_put_attr(policy->cpu);
 	freq_table_free();
 	clk_put(mpu_clk);
 	return 0;
 }
 
-static struct freq_attr *omap_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver omap_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= omap_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= omap_target,
 	.get		= omap_getspeed,
 	.init		= omap_cpu_init,
 	.exit		= omap_cpu_exit,
 	.name		= "omap",
-	.attr		= omap_cpufreq_attr,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int omap_cpufreq_probe(struct platform_device *pdev)

@@ -30,11 +30,6 @@ static struct clk *cpu_clk;
 static struct regulator *cpu_reg;
 static struct cpufreq_frequency_table *freq_table;
 
-static int cpu0_verify_speed(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, freq_table);
-}
-
 static unsigned int cpu0_get_speed(unsigned int cpu)
 {
 	return clk_get_rate(cpu_clk) / 1000;
@@ -127,50 +122,18 @@ post_notify:
 
 static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 {
-	int ret;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	if (ret) {
-		pr_err("invalid frequency table: %d\n", ret);
-		return ret;
-	}
-
-	policy->cpuinfo.transition_latency = transition_latency;
-	policy->cur = clk_get_rate(cpu_clk) / 1000;
-
-	/*
-	 * The driver only supports the SMP configuartion where all processors
-	 * share the clock and voltage and clock.  Use cpufreq affected_cpus
-	 * interface to have all CPUs scaled together.
-	 */
-	cpumask_setall(policy->cpus);
-
-	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
-
-	return 0;
+	return cpufreq_generic_init(policy, freq_table, transition_latency);
 }
-
-static int cpu0_cpufreq_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-
-	return 0;
-}
-
-static struct freq_attr *cpu0_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 static struct cpufreq_driver cpu0_cpufreq_driver = {
 	.flags = CPUFREQ_STICKY,
-	.verify = cpu0_verify_speed,
+	.verify = cpufreq_generic_frequency_table_verify,
 	.target = cpu0_set_target,
 	.get = cpu0_get_speed,
 	.init = cpu0_cpufreq_init,
-	.exit = cpu0_cpufreq_exit,
+	.exit = cpufreq_generic_exit,
 	.name = "generic_cpu0",
-	.attr = cpu0_cpufreq_attr,
+	.attr = cpufreq_generic_attr,
 };
 
 static int cpu0_cpufreq_probe(struct platform_device *pdev)

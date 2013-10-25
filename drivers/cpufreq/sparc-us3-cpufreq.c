@@ -156,12 +156,6 @@ static int us3_freq_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static int us3_freq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy,
-					      &us3_freq_table[policy->cpu].table[0]);
-}
-
 static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
@@ -181,13 +175,15 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = 0;
 	policy->cur = clock_tick;
 
-	return cpufreq_frequency_table_cpuinfo(policy, table);
+	return cpufreq_table_validate_and_show(policy, table);
 }
 
 static int us3_freq_cpu_exit(struct cpufreq_policy *policy)
 {
-	if (cpufreq_us3_driver)
+	if (cpufreq_us3_driver) {
+		cpufreq_frequency_table_put_attr(policy->cpu);
 		us3_set_cpu_divider_index(policy, 0);
+	}
 
 	return 0;
 }
@@ -222,7 +218,7 @@ static int __init us3_freq_init(void)
 			goto err_out;
 
 		driver->init = us3_freq_cpu_init;
-		driver->verify = us3_freq_verify;
+		driver->verify = cpufreq_generic_frequency_table_verify;
 		driver->target = us3_freq_target;
 		driver->get = us3_freq_get;
 		driver->exit = us3_freq_cpu_exit;

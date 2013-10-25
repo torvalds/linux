@@ -174,14 +174,6 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	__raw_writel(tmp1, reg);
 }
 
-static int s5pv210_verify_speed(struct cpufreq_policy *policy)
-{
-	if (policy->cpu)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(policy, s5pv210_freq_table);
-}
-
 static unsigned int s5pv210_getspeed(unsigned int cpu)
 {
 	if (cpu)
@@ -551,13 +543,7 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 	s5pv210_dram_conf[1].refresh = (__raw_readl(S5P_VA_DMC1 + 0x30) * 1000);
 	s5pv210_dram_conf[1].freq = clk_get_rate(dmc1_clk);
 
-	policy->cur = policy->min = policy->max = s5pv210_getspeed(0);
-
-	cpufreq_frequency_table_get_attr(s5pv210_freq_table, policy->cpu);
-
-	policy->cpuinfo.transition_latency = 40000;
-
-	return cpufreq_frequency_table_cpuinfo(policy, s5pv210_freq_table);
+	return cpufreq_generic_init(policy, s5pv210_freq_table, 40000);
 
 out_dmc1:
 	clk_put(dmc0_clk);
@@ -605,7 +591,7 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 
 static struct cpufreq_driver s5pv210_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= s5pv210_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= s5pv210_target,
 	.get		= s5pv210_getspeed,
 	.init		= s5pv210_cpu_init,

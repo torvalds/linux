@@ -209,12 +209,6 @@ static void exynos_enable_dvfs(void)
 				dvfs_info->base + XMU_DVFS_CTRL);
 }
 
-static int exynos_verify_speed(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy,
-					      dvfs_info->freq_table);
-}
-
 static unsigned int exynos_getspeed(unsigned int cpu)
 {
 	return dvfs_info->cur_frequency;
@@ -324,30 +318,19 @@ static void exynos_sort_descend_freq_table(void)
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	int ret;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, dvfs_info->freq_table);
-	if (ret) {
-		dev_err(dvfs_info->dev, "Invalid frequency table: %d\n", ret);
-		return ret;
-	}
-
-	policy->cur = dvfs_info->cur_frequency;
-	policy->cpuinfo.transition_latency = dvfs_info->latency;
-	cpumask_setall(policy->cpus);
-
-	cpufreq_frequency_table_get_attr(dvfs_info->freq_table, policy->cpu);
-
-	return 0;
+	return cpufreq_generic_init(policy, dvfs_info->freq_table,
+			dvfs_info->latency);
 }
 
 static struct cpufreq_driver exynos_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= exynos_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= exynos_target,
 	.get		= exynos_getspeed,
 	.init		= exynos_cpufreq_cpu_init,
+	.exit		= cpufreq_generic_exit,
 	.name		= CPUFREQ_NAME,
+	.attr		= cpufreq_generic_attr,
 };
 
 static const struct of_device_id exynos_cpufreq_match[] = {

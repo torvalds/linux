@@ -30,11 +30,6 @@ static struct {
 	u32 cnt;
 } spear_cpufreq;
 
-static int spear_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, spear_cpufreq.freq_tbl);
-}
-
 static unsigned int spear_cpufreq_get(unsigned int cpu)
 {
 	return clk_get_rate(spear_cpufreq.clk) / 1000;
@@ -176,43 +171,19 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 
 static int spear_cpufreq_init(struct cpufreq_policy *policy)
 {
-	int ret;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, spear_cpufreq.freq_tbl);
-	if (ret) {
-		pr_err("cpufreq_frequency_table_cpuinfo() failed");
-		return ret;
-	}
-
-	cpufreq_frequency_table_get_attr(spear_cpufreq.freq_tbl, policy->cpu);
-	policy->cpuinfo.transition_latency = spear_cpufreq.transition_latency;
-	policy->cur = spear_cpufreq_get(0);
-
-	cpumask_setall(policy->cpus);
-
-	return 0;
+	return cpufreq_generic_init(policy, spear_cpufreq.freq_tbl,
+			spear_cpufreq.transition_latency);
 }
-
-static int spear_cpufreq_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static struct freq_attr *spear_cpufreq_attr[] = {
-	 &cpufreq_freq_attr_scaling_available_freqs,
-	 NULL,
-};
 
 static struct cpufreq_driver spear_cpufreq_driver = {
 	.name		= "cpufreq-spear",
 	.flags		= CPUFREQ_STICKY,
-	.verify		= spear_cpufreq_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= spear_cpufreq_target,
 	.get		= spear_cpufreq_get,
 	.init		= spear_cpufreq_init,
-	.exit		= spear_cpufreq_exit,
-	.attr		= spear_cpufreq_attr,
+	.exit		= cpufreq_generic_exit,
+	.attr		= cpufreq_generic_attr,
 };
 
 static int spear_cpufreq_driver_init(void)

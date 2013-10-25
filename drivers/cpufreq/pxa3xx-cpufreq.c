@@ -108,7 +108,7 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 	pxa3xx_freqs_num = num;
 	pxa3xx_freqs_table = table;
 
-	return cpufreq_frequency_table_cpuinfo(policy, table);
+	return cpufreq_table_validate_and_show(policy, table);
 }
 
 static void __update_core_freq(struct pxa3xx_freq_info *info)
@@ -148,11 +148,6 @@ static void __update_bus_freq(struct pxa3xx_freq_info *info)
 
 	while ((ACSR & mask) != (accr & mask))
 		cpu_relax();
-}
-
-static int pxa3xx_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, pxa3xx_freqs_table);
 }
 
 static unsigned int pxa3xx_cpufreq_get(unsigned int cpu)
@@ -206,11 +201,10 @@ static int pxa3xx_cpufreq_init(struct cpufreq_policy *policy)
 	int ret = -EINVAL;
 
 	/* set default policy and cpuinfo */
-	policy->cpuinfo.min_freq = 104000;
-	policy->cpuinfo.max_freq = (cpu_is_pxa320()) ? 806000 : 624000;
+	policy->min = policy->cpuinfo.min_freq = 104000;
+	policy->max = policy->cpuinfo.max_freq =
+		(cpu_is_pxa320()) ? 806000 : 624000;
 	policy->cpuinfo.transition_latency = 1000; /* FIXME: 1 ms, assumed */
-	policy->max = pxa3xx_get_clk_frequency_khz(0);
-	policy->cur = policy->min = policy->max;
 
 	if (cpu_is_pxa300() || cpu_is_pxa310())
 		ret = setup_freqs_table(policy, pxa300_freqs,
@@ -230,9 +224,10 @@ static int pxa3xx_cpufreq_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver pxa3xx_cpufreq_driver = {
-	.verify		= pxa3xx_cpufreq_verify,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target		= pxa3xx_cpufreq_set,
 	.init		= pxa3xx_cpufreq_init,
+	.exit		= cpufreq_generic_exit,
 	.get		= pxa3xx_cpufreq_get,
 	.name		= "pxa3xx-cpufreq",
 };
