@@ -20,12 +20,11 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill-gpio.h>
 #include "board.h"
-#include "board-paz00.h"
 
 static struct rfkill_gpio_platform_data wifi_rfkill_platform_data = {
 	.name		= "wifi_rfkill",
-	.reset_gpio	= TEGRA_WIFI_RST,
-	.shutdown_gpio	= TEGRA_WIFI_PWRN,
+	.reset_gpio	= 25, /* PD1 */
+	.shutdown_gpio	= 85, /* PK5 */
 	.type	= RFKILL_TYPE_WLAN,
 };
 
