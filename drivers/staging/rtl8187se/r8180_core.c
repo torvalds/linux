@@ -2549,7 +2549,7 @@ short rtl8180_init(struct net_device *dev)
 				(priv->EarlyRxThreshold == 7 ?
 					 RCR_ONLYERLPKT : 0);
 
-	priv->IntrMask		= IMR_TMGDOK | IMR_TBDER | IMR_THPDER |
+	priv->IntrMask		= IMR_TMGDOK | IMR_TBDER |
 				  IMR_THPDER | IMR_THPDOK |
 				  IMR_TVODER | IMR_TVODOK |
 				  IMR_TVIDER | IMR_TVIDOK |
