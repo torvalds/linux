@@ -506,7 +506,7 @@ static void rt5025_get_dchg_cc(struct rt5025_battery_info *bi)
 {
   u8 data[4];
   u32 qh_old,ql_old,qh_new,ql_new;
-  u32 cc_masec,offset;
+  u32 cc_masec,offset=0;
   
   if (rt5025_read_reg(bi->client, RT5025_REG_QDCHGH_MSB, data, 4) < 0){
     printk(KERN_ERR "%s: Failed to read QDCHG\n", __func__);

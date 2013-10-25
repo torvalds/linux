@@ -327,16 +327,44 @@ static void thermal_reg_work_func(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = (struct delayed_work *)container_of(work, struct delayed_work, work);
 	struct rt5025_swjeita_info *swji = (struct rt5025_swjeita_info *)container_of(delayed_work, struct rt5025_swjeita_info, thermal_reg_work);
-	int therm_region;
+	int therm_region = 0;
 	
 	RTINFO("%s ++", __func__);
 	rt5025_get_internal_temp(swji);
+
+	#if 1
+	switch (swji->cur_therm_region)
+	{
+		case 0:
+			if (swji->cur_inttemp >=820)
+				therm_region = 1;
+			else
+				therm_region = 0;
+			break;
+		case 1:
+			if (swji->cur_inttemp <= 780)
+				therm_region = 0;
+			else if (swji->cur_inttemp >= 1020)
+				therm_region = 2;
+			else
+				therm_region = 1; 
+			break;
+		case 2:
+			if (swji->cur_inttemp <= 980)
+				therm_region = 1;
+			else
+				therm_region = 2;
+			break;
+			
+	}
+	#else
 	if (swji->cur_inttemp < 800)
 		therm_region = 0;
 	else if (swji->cur_inttemp >= 800 && swji->cur_inttemp < 1000)
 		therm_region = 1;
 	else
 		therm_region = 2;
+	#endif /* #if 1*/
 
 	if (therm_region != swji->cur_therm_region)
 	{

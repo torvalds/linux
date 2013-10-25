@@ -38,6 +38,7 @@ struct rt5025_irq_info {
 	int intr_pin;
 	int irq;
 	int suspend;
+	int init_once;
 };
 
 static void rt5025_work_func(struct work_struct *work)
@@ -114,14 +115,17 @@ static void rt5025_work_func(struct work_struct *work)
 
 			if (chg_event & (CHG_EVENT_INAC_PLUGIN | CHG_EVENT_INUSB_PLUGIN))
 			{
-				rt5025_set_charging_buck(ii->i2c, 0);
-				mdelay(50);
-				rt5025_set_charging_buck(ii->i2c, 1);
-				mdelay(100);
-				rt5025_set_charging_buck(ii->i2c, 0);
-				mdelay(50);
-				rt5025_set_charging_buck(ii->i2c, 1);
-				mdelay(200);
+				if (!ii->init_once)
+				{
+					rt5025_set_charging_buck(ii->i2c, 0);
+					mdelay(50);
+					rt5025_set_charging_buck(ii->i2c, 1);
+					mdelay(100);
+					rt5025_set_charging_buck(ii->i2c, 0);
+					mdelay(50);
+					rt5025_set_charging_buck(ii->i2c, 1);
+					mdelay(200);
+				}
 			}
 
 			if (ii->chip->power_info->chg_term <= 3)
@@ -149,6 +153,9 @@ static void rt5025_work_func(struct work_struct *work)
 	if (irq_stat[5] & RT5025_FLG_VOLT)
 		rt5025_gauge_irq_handler(ii->chip->battery_info, irq_stat[5] & RT5025_FLG_VOLT);
 	#endif /* CONFIG_POWER_RT5025 */
+
+	if (ii->init_once)
+		ii->init_once = 0;
 
 	/* restore all irq enable bit */
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]);
@@ -258,6 +265,7 @@ static int __devinit rt5025_irq_probe(struct platform_device *pdev)
 	if (pdata->cb)
 		ii->event_cb = pdata->cb;
 	wake_lock_init(&ii->irq_wake_lock, WAKE_LOCK_SUSPEND, "rt_irq_wake");
+	ii->init_once = 1;
 
 	rt5025_irq_reg_init(ii, pdata->irq_data);
 	rt5025_interrupt_init(ii);

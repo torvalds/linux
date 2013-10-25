@@ -419,8 +419,8 @@ static struct rt5025_irq_data rt5025_irq_data = {
 
 //temp unit: 'c*10 degree
 static int jeita_temp[4] = { 0, 150, 500, 600};
-			     //-5',  5',   15', 20',   45'   55'   55',  65'
-static u8 jeita_scalar[8] = { 0x30, 0x2B, 0x25, 0x20, 0x15, 0x10, 0x10, 0x0D };
+			     //-5',  5',   10', 20',   45'   55'   55',  65'
+static u8 jeita_scalar[8] = { 0x30, 0x2B, 0x28, 0x22, 0x15, 0x10, 0x10, 0x0D };
 //cc unit: xxx mA
 static int jeita_temp_cc[][5] = {{ 500,  500,  500,  500, 500},    // not plugin
 			   	 {   0 , 500,  500,  500,   0},    // normal USB
