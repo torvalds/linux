@@ -86,7 +86,7 @@ static int ade7759_spi_read_reg_16(struct device *dev,
 	struct ade7759_state *st = iio_priv(indio_dev);
 	int ret;
 
-	ret = spi_w8r16(st->us, ADE7759_READ_REG(reg_address));
+	ret = spi_w8r16be(st->us, ADE7759_READ_REG(reg_address));
 	if (ret < 0) {
 		dev_err(&st->us->dev, "problem when reading 16 bit register 0x%02X",
 			reg_address);
@@ -94,7 +94,6 @@ static int ade7759_spi_read_reg_16(struct device *dev,
 	}
 
 	*val = ret;
-	*val = be16_to_cpup(val);
 
 	return 0;
 }
