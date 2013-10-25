@@ -1327,7 +1327,6 @@ xfs_dir2_leafn_split(
 	args = state->args;
 	dp = args->dp;
 	mp = dp->i_mount;
-	ASSERT(args != NULL);
 	ASSERT(oldblk->magic == XFS_DIR2_LEAFN_MAGIC);
 	error = xfs_da_grow_inode(args, &blkno);
 	if (error) {
