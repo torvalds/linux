@@ -31,6 +31,7 @@
 #include <asm/uaccess.h>
 #include <mach/iomux.h>
 #include "rk3188_lcdc.h"
+#include <mach/gpio.h>
 
 
 
@@ -1064,8 +1065,11 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 		spin_unlock(&lcdc_dev->reg_lock);
 		return 0;
 	}
-
 	rk3188_lcdc_clk_disable(lcdc_dev);
+#if defined(CONFIG_ARCH_RK3026)
+	iomux_set(GPIO2_B0);
+	gpio_direction_output(RK30_PIN2_PB0,0);
+#endif
 	return 0;
 }
 
@@ -1076,7 +1080,9 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	int i=0;
 	int __iomem *c;
 	int v;
-
+#if defined(CONFIG_ARCH_RK3026)
+	iomux_set(LCDC0_DCLK);
+#endif
 	if(dev_drv->screen_ctr_info->io_enable) 		//power on
 		dev_drv->screen_ctr_info->io_enable();
 	
