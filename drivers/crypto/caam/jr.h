@@ -13,7 +13,4 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 				void *areq),
 		    void *areq);
 
-extern int caam_jr_probe(struct platform_device *pdev, struct device_node *np,
-			 int ring);
-extern int caam_jr_shutdown(struct device *dev);
 #endif /* JR_H */

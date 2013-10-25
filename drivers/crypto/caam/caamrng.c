@@ -279,7 +279,7 @@ static void __exit caam_rng_exit(void)
 static int __init caam_rng_init(void)
 {
 	struct device_node *dev_node;
-	struct platform_device *pdev;
+	struct platform_device *pdev, *jrpdev;
 	struct device *ctrldev;
 	struct caam_drv_private *priv;
 
@@ -305,9 +305,10 @@ static int __init caam_rng_init(void)
 	if (!priv)
 		return -ENODEV;
 
-	caam_init_rng(&rng_ctx, priv->jrdev[0]);
+	jrpdev = priv->jrpdev[0];
+	caam_init_rng(&rng_ctx, &jrpdev->dev);
 
-	dev_info(priv->jrdev[0], "registering rng-caam\n");
+	dev_info(&jrpdev->dev, "registering rng-caam\n");
 	return hwrng_register(&caam_rng);
 }
 
