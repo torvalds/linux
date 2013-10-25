@@ -564,6 +564,7 @@ static ssize_t counter_set(struct kobject *kobj,
 	acpi_event_status status;
 	acpi_handle handle;
 	int result = 0;
+	unsigned long tmp;
 
 	if (index == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI) {
 		int i;
@@ -596,8 +597,10 @@ static ssize_t counter_set(struct kobject *kobj,
 		else if (!strcmp(buf, "clear\n") &&
 			 (status & ACPI_EVENT_FLAG_SET))
 			result = acpi_clear_gpe(handle, index);
+		else if (!kstrtoul(buf, 0, &tmp))
+			all_counters[index].count = tmp;
 		else
-			all_counters[index].count = strtoul(buf, NULL, 0);
+			result = -EINVAL;
 	} else if (index < num_gpes + ACPI_NUM_FIXED_EVENTS) {
 		int event = index - num_gpes;
 		if (!strcmp(buf, "disable\n") &&
@@ -609,8 +612,10 @@ static ssize_t counter_set(struct kobject *kobj,
 		else if (!strcmp(buf, "clear\n") &&
 			 (status & ACPI_EVENT_FLAG_SET))
 			result = acpi_clear_event(event);
+		else if (!kstrtoul(buf, 0, &tmp))
+			all_counters[index].count = tmp;
 		else
-			all_counters[index].count = strtoul(buf, NULL, 0);
+			result = -EINVAL;
 	} else
 		all_counters[index].count = strtoul(buf, NULL, 0);
 
