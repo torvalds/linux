@@ -288,13 +288,13 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 		}
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (!map)
-			goto err_map;
+			goto err_map_kobj;
 		kobject_init(&map->kobj, &map_attr_type);
 		map->mem = mem;
 		mem->map = map;
 		ret = kobject_add(&map->kobj, idev->map_dir, "map%d", mi);
 		if (ret)
-			goto err_map;
+			goto err_map_kobj;
 		ret = kobject_uevent(&map->kobj, KOBJ_ADD);
 		if (ret)
 			goto err_map;
@@ -313,14 +313,14 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 		}
 		portio = kzalloc(sizeof(*portio), GFP_KERNEL);
 		if (!portio)
-			goto err_portio;
+			goto err_portio_kobj;
 		kobject_init(&portio->kobj, &portio_attr_type);
 		portio->port = port;
 		port->portio = portio;
 		ret = kobject_add(&portio->kobj, idev->portio_dir,
 							"port%d", pi);
 		if (ret)
-			goto err_portio;
+			goto err_portio_kobj;
 		ret = kobject_uevent(&portio->kobj, KOBJ_ADD);
 		if (ret)
 			goto err_portio;
@@ -329,14 +329,18 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 	return 0;
 
 err_portio:
-	for (pi--; pi >= 0; pi--) {
+	pi--;
+err_portio_kobj:
+	for (; pi >= 0; pi--) {
 		port = &idev->info->port[pi];
 		portio = port->portio;
 		kobject_put(&portio->kobj);
 	}
 	kobject_put(idev->portio_dir);
 err_map:
-	for (mi--; mi>=0; mi--) {
+	mi--;
+err_map_kobj:
+	for (; mi >= 0; mi--) {
 		mem = &idev->info->mem[mi];
 		map = mem->map;
 		kobject_put(&map->kobj);
