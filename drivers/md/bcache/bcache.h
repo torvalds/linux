@@ -773,7 +773,7 @@ struct cache_set {
 	struct gc_stat		gc_stats;
 	size_t			nbuckets;
 
-	struct closure_with_waitlist gc;
+	struct task_struct	*gc_thread;
 	/* Where in the btree gc currently is */
 	struct bkey		gc_done;
 
@@ -786,11 +786,10 @@ struct cache_set {
 	/* Counts how many sectors bio_insert has added to the cache */
 	atomic_t		sectors_to_gc;
 
-	struct closure		moving_gc;
-	struct closure_waitlist	moving_gc_wait;
+	wait_queue_head_t	moving_gc_wait;
 	struct keybuf		moving_gc_keys;
 	/* Number of moving GC bios in flight */
-	atomic_t		in_flight;
+	struct semaphore	moving_in_flight;
 
 	struct btree		*root;
 
@@ -1176,7 +1175,7 @@ bool bch_cache_set_error(struct cache_set *, const char *, ...);
 void bch_prio_write(struct cache *);
 void bch_write_bdev_super(struct cached_dev *, struct closure *);
 
-extern struct workqueue_struct *bcache_wq, *bch_gc_wq;
+extern struct workqueue_struct *bcache_wq;
 extern const char * const bch_cache_modes[];
 extern struct mutex bch_register_lock;
 extern struct list_head bch_cache_sets;

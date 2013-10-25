@@ -210,7 +210,7 @@ static void invalidate_buckets_lru(struct cache *ca)
 			 * multiple times when it can't do anything
 			 */
 			ca->invalidate_needs_gc = 1;
-			bch_queue_gc(ca->set);
+			wake_up_gc(ca->set);
 			return;
 		}
 
@@ -235,7 +235,7 @@ static void invalidate_buckets_fifo(struct cache *ca)
 
 		if (++checked >= ca->sb.nbuckets) {
 			ca->invalidate_needs_gc = 1;
-			bch_queue_gc(ca->set);
+			wake_up_gc(ca->set);
 			return;
 		}
 	}
@@ -260,7 +260,7 @@ static void invalidate_buckets_random(struct cache *ca)
 
 		if (++checked >= ca->sb.nbuckets / 2) {
 			ca->invalidate_needs_gc = 1;
-			bch_queue_gc(ca->set);
+			wake_up_gc(ca->set);
 			return;
 		}
 	}

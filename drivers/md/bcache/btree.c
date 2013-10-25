@@ -28,7 +28,9 @@
 
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/freezer.h>
 #include <linux/hash.h>
+#include <linux/kthread.h>
 #include <linux/prefetch.h>
 #include <linux/random.h>
 #include <linux/rcupdate.h>
@@ -105,7 +107,6 @@ static const char *op_type(struct btree_op *op)
 #define PTR_HASH(c, k)							\
 	(((k)->ptr[0] >> c->bucket_bits) | PTR_GEN(k, 0))
 
-struct workqueue_struct *bch_gc_wq;
 static struct workqueue_struct *btree_io_wq;
 
 void bch_btree_op_init_stack(struct btree_op *op)
@@ -732,12 +733,9 @@ int bch_btree_cache_alloc(struct cache_set *c)
 {
 	unsigned i;
 
-	/* XXX: doesn't check for errors */
-
-	closure_init_unlocked(&c->gc);
-
 	for (i = 0; i < mca_reserve(c); i++)
-		mca_bucket_alloc(c, &ZERO_KEY, GFP_KERNEL);
+		if (!mca_bucket_alloc(c, &ZERO_KEY, GFP_KERNEL))
+			return -ENOMEM;
 
 	list_splice_init(&c->btree_cache,
 			 &c->btree_cache_freeable);
@@ -1456,9 +1454,8 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 	return available;
 }
 
-static void bch_btree_gc(struct closure *cl)
+static void bch_btree_gc(struct cache_set *c)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, gc.cl);
 	int ret;
 	unsigned long available;
 	struct gc_stat stats;
@@ -1483,7 +1480,7 @@ static void bch_btree_gc(struct closure *cl)
 
 	if (ret) {
 		pr_warn("gc failed!");
-		continue_at(cl, bch_btree_gc, bch_gc_wq);
+		return;
 	}
 
 	/* Possibly wait for new UUIDs or whatever to hit disk */
@@ -1505,12 +1502,35 @@ static void bch_btree_gc(struct closure *cl)
 
 	trace_bcache_gc_end(c);
 
-	continue_at(cl, bch_moving_gc, bch_gc_wq);
+	bch_moving_gc(c);
 }
 
-void bch_queue_gc(struct cache_set *c)
+static int bch_gc_thread(void *arg)
 {
-	closure_trylock_call(&c->gc.cl, bch_btree_gc, bch_gc_wq, &c->cl);
+	struct cache_set *c = arg;
+
+	while (1) {
+		bch_btree_gc(c);
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop())
+			break;
+
+		try_to_freeze();
+		schedule();
+	}
+
+	return 0;
+}
+
+int bch_gc_thread_start(struct cache_set *c)
+{
+	c->gc_thread = kthread_create(bch_gc_thread, c, "bcache_gc");
+	if (IS_ERR(c->gc_thread))
+		return PTR_ERR(c->gc_thread);
+
+	set_task_state(c->gc_thread, TASK_INTERRUPTIBLE);
+	return 0;
 }
 
 /* Initial partial gc */
@@ -2480,14 +2500,12 @@ void bch_btree_exit(void)
 {
 	if (btree_io_wq)
 		destroy_workqueue(btree_io_wq);
-	if (bch_gc_wq)
-		destroy_workqueue(bch_gc_wq);
 }
 
 int __init bch_btree_init(void)
 {
-	if (!(bch_gc_wq = create_singlethread_workqueue("bch_btree_gc")) ||
-	    !(btree_io_wq = create_singlethread_workqueue("bch_btree_io")))
+	btree_io_wq = create_singlethread_workqueue("bch_btree_io");
+	if (!btree_io_wq)
 		return -ENOMEM;
 
 	return 0;

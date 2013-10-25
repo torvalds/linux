@@ -388,11 +388,17 @@ int bch_btree_insert(struct btree_op *, struct cache_set *, struct keylist *);
 
 int bch_btree_search_recurse(struct btree *, struct btree_op *);
 
-void bch_queue_gc(struct cache_set *);
+int bch_gc_thread_start(struct cache_set *);
 size_t bch_btree_gc_finish(struct cache_set *);
-void bch_moving_gc(struct closure *);
+void bch_moving_gc(struct cache_set *);
 int bch_btree_check(struct cache_set *, struct btree_op *);
 uint8_t __bch_btree_mark_key(struct cache_set *, int, struct bkey *);
+
+static inline void wake_up_gc(struct cache_set *c)
+{
+	if (c->gc_thread)
+		wake_up_process(c->gc_thread);
+}
 
 void bch_keybuf_init(struct keybuf *);
 void bch_refill_keybuf(struct cache_set *, struct keybuf *, struct bkey *,

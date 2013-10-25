@@ -566,7 +566,7 @@ STORE(__bch_cache_set)
 	}
 
 	if (attr == &sysfs_trigger_gc)
-		bch_queue_gc(c);
+		wake_up_gc(c);
 
 	if (attr == &sysfs_prune_cache) {
 		struct shrink_control sc;

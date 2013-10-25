@@ -57,8 +57,7 @@ static void write_moving_finish(struct closure *cl)
 
 	bch_keybuf_del(&io->s.op.c->moving_gc_keys, io->w);
 
-	atomic_dec_bug(&io->s.op.c->in_flight);
-	closure_wake_up(&io->s.op.c->moving_gc_wait);
+	up(&io->s.op.c->moving_in_flight);
 
 	closure_return_with_destructor(cl, moving_io_destructor);
 }
@@ -113,7 +112,7 @@ static void write_moving(struct closure *cl)
 		bch_data_insert(&s->op.cl);
 	}
 
-	continue_at(cl, write_moving_finish, bch_gc_wq);
+	continue_at(cl, write_moving_finish, system_wq);
 }
 
 static void read_moving_submit(struct closure *cl)
@@ -124,15 +123,17 @@ static void read_moving_submit(struct closure *cl)
 
 	bch_submit_bbio(bio, s->op.c, &io->w->key, 0);
 
-	continue_at(cl, write_moving, bch_gc_wq);
+	continue_at(cl, write_moving, system_wq);
 }
 
-static void read_moving(struct closure *cl)
+static void read_moving(struct cache_set *c)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, moving_gc);
 	struct keybuf_key *w;
 	struct moving_io *io;
 	struct bio *bio;
+	struct closure cl;
+
+	closure_init_stack(&cl);
 
 	/* XXX: if we error, background writeback could stall indefinitely */
 
@@ -164,13 +165,8 @@ static void read_moving(struct closure *cl)
 
 		trace_bcache_gc_copy(&w->key);
 
-		closure_call(&io->s.cl, read_moving_submit, NULL, &c->gc.cl);
-
-		if (atomic_inc_return(&c->in_flight) >= 64) {
-			closure_wait_event(&c->moving_gc_wait, cl,
-					   atomic_read(&c->in_flight) < 64);
-			continue_at(cl, read_moving, bch_gc_wq);
-		}
+		down(&c->moving_in_flight);
+		closure_call(&io->s.cl, read_moving_submit, NULL, &cl);
 	}
 
 	if (0) {
@@ -180,7 +176,7 @@ err:		if (!IS_ERR_OR_NULL(w->private))
 		bch_keybuf_del(&c->moving_gc_keys, w);
 	}
 
-	closure_return(cl);
+	closure_sync(&cl);
 }
 
 static bool bucket_cmp(struct bucket *l, struct bucket *r)
@@ -193,15 +189,14 @@ static unsigned bucket_heap_top(struct cache *ca)
 	return GC_SECTORS_USED(heap_peek(&ca->heap));
 }
 
-void bch_moving_gc(struct closure *cl)
+void bch_moving_gc(struct cache_set *c)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, gc.cl);
 	struct cache *ca;
 	struct bucket *b;
 	unsigned i;
 
 	if (!c->copy_gc_enabled)
-		closure_return(cl);
+		return;
 
 	mutex_lock(&c->bucket_lock);
 
@@ -242,13 +237,11 @@ void bch_moving_gc(struct closure *cl)
 
 	c->moving_gc_keys.last_scanned = ZERO_KEY;
 
-	closure_init(&c->moving_gc, cl);
-	read_moving(&c->moving_gc);
-
-	closure_return(cl);
+	read_moving(c);
 }
 
 void bch_moving_init_cache_set(struct cache_set *c)
 {
 	bch_keybuf_init(&c->moving_gc_keys);
+	sema_init(&c->moving_in_flight, 64);
 }
