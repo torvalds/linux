@@ -852,8 +852,8 @@ static int __init imx_drm_init(void)
 	INIT_LIST_HEAD(&imx_drm_device->encoder_list);
 
 	imx_drm_pdev = platform_device_register_simple("imx-drm", -1, NULL, 0);
-	if (!imx_drm_pdev) {
-		ret = -EINVAL;
+	if (IS_ERR(imx_drm_pdev)) {
+		ret = PTR_ERR(imx_drm_pdev);
 		goto err_pdev;
 	}
 
