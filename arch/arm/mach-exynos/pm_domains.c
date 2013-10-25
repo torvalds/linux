@@ -146,7 +146,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 	int ret = 0;
 	void __iomem *regs;
 
-	unsigned int gscl0, gscl1;
+	unsigned int gscl0 = 0, gscl1 = 0;
 
 	pd = container_of(domain, struct exynos_pm_domain, pd);
 	base = pd->base;
