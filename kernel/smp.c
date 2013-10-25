@@ -340,6 +340,7 @@ void __smp_call_function_single(int cpu, struct call_single_data *csd,
 	}
 	put_cpu();
 }
+EXPORT_SYMBOL_GPL(__smp_call_function_single);
 
 /**
  * smp_call_function_many(): Run a function on a set of other CPUs.
