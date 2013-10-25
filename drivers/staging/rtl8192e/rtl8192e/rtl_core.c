@@ -370,8 +370,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 	case eRfOn:
 		priv->rtllib->RfOffReason &= (~ChangeSource);
 
-		if ((ChangeSource == RF_CHANGE_BY_HW) &&
-		    (priv->bHwRadioOff == true))
+		if ((ChangeSource == RF_CHANGE_BY_HW) && priv->bHwRadioOff)
 			priv->bHwRadioOff = false;
 
 		if (!priv->rtllib->RfOffReason) {
@@ -405,8 +404,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 						      disas_lv_ss);
 			}
 		}
-		if ((ChangeSource == RF_CHANGE_BY_HW) &&
-		     (priv->bHwRadioOff == false))
+		if ((ChangeSource == RF_CHANGE_BY_HW) && !priv->bHwRadioOff)
 			priv->bHwRadioOff = true;
 		priv->rtllib->RfOffReason |= ChangeSource;
 		bActionAllowed = true;
@@ -428,7 +426,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 		PHY_SetRFPowerState(dev, StateToSet);
 		if (StateToSet == eRfOn) {
 
-			if (bConnectBySSID && (priv->blinked_ingpio == true)) {
+			if (bConnectBySSID && priv->blinked_ingpio) {
 				queue_delayed_work_rsl(ieee->wq,
 					 &ieee->associate_procedure_wq, 0);
 				priv->blinked_ingpio = false;
@@ -955,7 +953,7 @@ static int _rtl8192_sta_up(struct net_device *dev, bool is_silent_reset)
 	RT_TRACE(COMP_INIT, "Bringing up iface");
 	priv->bfirst_init = true;
 	init_status = priv->ops->initialize_adapter(dev);
-	if (init_status != true) {
+	if (!init_status) {
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization is failed!\n",
 			 __func__);
 		priv->bfirst_init = false;
@@ -1647,7 +1645,7 @@ void	rtl819x_watchdog_wqcallback(void *data)
 	bool	bHigherBusyRxTraffic = false;
 	bool bEnterPS = false;
 
-	if (IS_NIC_DOWN(priv) || (priv->bHwRadioOff == true))
+	if (IS_NIC_DOWN(priv) || priv->bHwRadioOff)
 		return;
 
 	if (priv->rtllib->state >= RTLLIB_LINKED) {
@@ -3045,7 +3043,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 	RT_TRACE(COMP_PS, "===========>%s()\n", __func__);
 	priv->bfirst_init = true;
 	init_status = priv->ops->initialize_adapter(dev);
-	if (init_status != true) {
+	if (!init_status) {
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization is failed!\n",
 			 __func__);
 		priv->bdisable_nic = false;

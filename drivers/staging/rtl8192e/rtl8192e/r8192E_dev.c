@@ -720,7 +720,7 @@ start:
 	}
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
 
-	if (priv->RegRfOff == true)
+	if (priv->RegRfOff)
 		priv->rtllib->eRFPowerState = eRfOff;
 
 	ulRegRead = read_nic_dword(dev, CPU_GEN);
@@ -745,7 +745,7 @@ start:
 	}
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
 	rtStatus = rtl8192_BBConfig(dev);
-	if (rtStatus != true) {
+	if (!rtStatus) {
 		RT_TRACE(COMP_ERR, "BB Config failed\n");
 		return rtStatus;
 	}
@@ -856,7 +856,7 @@ start:
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		RT_TRACE(COMP_INIT, "RF Config Started!\n");
 		rtStatus = rtl8192_phy_RFConfig(dev);
-		if (rtStatus != true) {
+		if (!rtStatus) {
 			RT_TRACE(COMP_ERR, "RF Config failed\n");
 			return rtStatus;
 		}
@@ -869,7 +869,7 @@ start:
 
 	write_nic_byte(dev, 0x87, 0x0);
 
-	if (priv->RegRfOff == true) {
+	if (priv->RegRfOff) {
 		RT_TRACE((COMP_INIT | COMP_RF | COMP_POWER),
 			  "%s(): Turn off RF for RegRfOff ----------\n",
 			  __func__);

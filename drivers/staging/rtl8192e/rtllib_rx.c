@@ -1729,7 +1729,7 @@ static inline void rtllib_extract_country_ie(
 			network->CountryIeLen = info_element->len;
 
 			if (!IS_COUNTRY_IE_VALID(ieee)) {
-				if ((rtllib_act_scanning(ieee, false) == true) && (ieee->FirstIe_InScan == 1))
+				if (rtllib_act_scanning(ieee, false) && ieee->FirstIe_InScan)
 					printk(KERN_INFO "Received beacon ContryIE, SSID: <%s>\n", network->ssid);
 				Dot11d_UpdateCountryIe(ieee, addr2, info_element->len, info_element->data);
 			}
