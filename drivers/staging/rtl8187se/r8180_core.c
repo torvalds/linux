@@ -2214,7 +2214,7 @@ static void watch_dog_adaptive(unsigned long data)
 		TxPwrTracking87SE((struct net_device *)data);
 
 	/* Perform DIG immediately. */
-	if (CheckDig((struct net_device *)data) == true)
+	if (CheckDig((struct net_device *)data))
 		queue_work(priv->ieee80211->wq, (void *)&priv->ieee80211->hw_dig_wq);
 	rtl8180_watch_dog((struct net_device *)data);
 
