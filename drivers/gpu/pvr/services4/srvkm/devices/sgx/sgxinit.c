@@ -468,7 +468,7 @@ PVRSRV_ERROR SGXInitialise(PVRSRV_SGXDEV_INFO	*psDevInfo,
 	PVRSRV_ERROR			eError;
 	PVRSRV_KERNEL_MEM_INFO	*psSGXHostCtlMemInfo = psDevInfo->psKernelSGXHostCtlMemInfo;
 	SGXMKIF_HOST_CTL		*psSGXHostCtl = psSGXHostCtlMemInfo->pvLinAddrKM;
-	static IMG_BOOL			bFirstTime = IMG_TRUE;
+	static __attribute__ ((unused)) IMG_BOOL			bFirstTime = IMG_TRUE;
 #if defined(PDUMP)
 	IMG_BOOL				bPDumpIsSuspended = PDumpIsSuspended();
 #endif /* PDUMP */

@@ -1316,7 +1316,7 @@ PVRSRV_ERROR PVRSRVMapIonHandleKM(PVRSRV_PER_PROCESS_DATA *psPerProc,
 								  IMG_UINT64 *pui64Stamp)
 {
 	PVRSRV_ENV_PER_PROCESS_DATA *psPerProcEnv = PVRSRVProcessPrivateData(psPerProc);
-	PVRSRV_DEVICE_NODE *psDeviceNode; 
+	__attribute__ ((unused)) PVRSRV_DEVICE_NODE *psDeviceNode; 
 	PVRSRV_KERNEL_MEM_INFO *psNewKernelMemInfo;
 	IMG_SYS_PHYADDR *pasSysPhysAddr;
 	IMG_SYS_PHYADDR *pasAdjustedSysPhysAddr;

@@ -158,7 +158,7 @@ PVRSRV_ERROR SysInitialise()
 	PVRSRV_ERROR 		eError;
 	PVRSRV_DEVICE_NODE	*psDeviceNode;
 	SGX_TIMING_INFORMATION*	psTimingInfo;
-	struct platform_device	*pdev;
+	__attribute__ ((unused)) struct platform_device	*pdev;
 
 	gpsSysData = &gsSysData;
 	OSMemSet(gpsSysData, 0, sizeof(SYS_DATA));
