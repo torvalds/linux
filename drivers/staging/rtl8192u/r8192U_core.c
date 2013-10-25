@@ -3789,14 +3789,9 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		goto out;
 	}
 
-	ipw = kmalloc(p->length, GFP_KERNEL);
-	if (ipw == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(ipw, p->pointer, p->length)) {
-		kfree(ipw);
-		ret = -EFAULT;
+	ipw = memdup_user(p->pointer, p->length);
+	if (IS_ERR(ipw)) {
+		ret = PTR_ERR(ipw);
 		goto out;
 	}
 
