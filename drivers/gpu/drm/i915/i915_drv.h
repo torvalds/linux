@@ -909,7 +909,6 @@ struct intel_ilk_power_mgmt {
 
 /* Power well structure for haswell */
 struct i915_power_well {
-	struct drm_device *device;
 	/* power well enable/disable usage count */
 	int count;
 };

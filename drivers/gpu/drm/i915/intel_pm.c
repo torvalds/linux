@@ -5581,17 +5581,19 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 	}
 }
 
-static void __intel_power_well_get(struct i915_power_well *power_well)
+static void __intel_power_well_get(struct drm_device *dev,
+				   struct i915_power_well *power_well)
 {
 	if (!power_well->count++)
-		__intel_set_power_well(power_well->device, true);
+		__intel_set_power_well(dev, true);
 }
 
-static void __intel_power_well_put(struct i915_power_well *power_well)
+static void __intel_power_well_put(struct drm_device *dev,
+				   struct i915_power_well *power_well)
 {
 	WARN_ON(!power_well->count);
 	if (!--power_well->count)
-		__intel_set_power_well(power_well->device, false);
+		__intel_set_power_well(dev, false);
 }
 
 void intel_display_power_get(struct drm_device *dev,
@@ -5609,7 +5611,7 @@ void intel_display_power_get(struct drm_device *dev,
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
-	__intel_power_well_get(&power_domains->power_wells[0]);
+	__intel_power_well_get(dev, &power_domains->power_wells[0]);
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -5628,7 +5630,7 @@ void intel_display_power_put(struct drm_device *dev,
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
-	__intel_power_well_put(&power_domains->power_wells[0]);
+	__intel_power_well_put(dev, &power_domains->power_wells[0]);
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -5637,11 +5639,16 @@ static struct i915_power_domains *hsw_pwr;
 /* Display audio driver power well request */
 void i915_request_power_well(void)
 {
+	struct drm_i915_private *dev_priv;
+
 	if (WARN_ON(!hsw_pwr))
 		return;
 
+	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
+				power_domains);
+
 	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_get(&hsw_pwr->power_wells[0]);
+	__intel_power_well_get(dev_priv->dev, &hsw_pwr->power_wells[0]);
 	mutex_unlock(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
@@ -5649,11 +5656,16 @@ EXPORT_SYMBOL_GPL(i915_request_power_well);
 /* Display audio driver power well release */
 void i915_release_power_well(void)
 {
+	struct drm_i915_private *dev_priv;
+
 	if (WARN_ON(!hsw_pwr))
 		return;
 
+	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
+				power_domains);
+
 	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_put(&hsw_pwr->power_wells[0]);
+	__intel_power_well_put(dev_priv->dev, &hsw_pwr->power_wells[0]);
 	mutex_unlock(&hsw_pwr->lock);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
@@ -5668,7 +5680,6 @@ int i915_init_power_well(struct drm_device *dev)
 	hsw_pwr = power_domains;
 
 	power_well = &power_domains->power_wells[0];
-	power_well->device = dev;
 	power_well->count = 0;
 
 	return 0;
