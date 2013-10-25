@@ -314,7 +314,7 @@ static const struct regmap_access_table as3722_volatile_table = {
 	.n_no_ranges = ARRAY_SIZE(as3722_cacheable_ranges),
 };
 
-const struct regmap_config as3722_regmap_config = {
+static const struct regmap_config as3722_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = AS3722_MAX_REGISTER,
