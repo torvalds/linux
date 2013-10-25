@@ -110,7 +110,7 @@ static void write_moving(struct closure *cl)
 		bkey_copy(&s->op.replace, &io->w->key);
 
 		closure_init(&s->op.cl, cl);
-		bch_insert_data(&s->op.cl);
+		bch_data_insert(&s->op.cl);
 	}
 
 	continue_at(cl, write_moving_finish, bch_gc_wq);

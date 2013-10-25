@@ -200,8 +200,9 @@ struct journal_device {
 struct closure;
 struct cache_set;
 struct btree_op;
+struct keylist;
 
-void bch_journal(struct closure *);
+atomic_t *bch_journal(struct cache_set *, struct keylist *, struct closure *);
 void bch_journal_next(struct journal *);
 void bch_journal_mark(struct cache_set *, struct list_head *);
 void bch_journal_meta(struct cache_set *, struct closure *);

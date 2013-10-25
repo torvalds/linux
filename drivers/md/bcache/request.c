@@ -25,6 +25,8 @@
 
 struct kmem_cache *bch_search_cache;
 
+static void bch_data_insert_start(struct closure *);
+
 /* Cgroup interface */
 
 #ifdef CONFIG_CGROUP_BCACHE
@@ -211,31 +213,42 @@ static void bio_csum(struct bio *bio, struct bkey *k)
 
 /* Insert data into cache */
 
-static void bio_invalidate(struct closure *cl)
+static void bch_data_insert_keys(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct bio *bio = op->cache_bio;
+	struct search *s = container_of(op, struct search, op);
 
-	pr_debug("invalidating %i sectors from %llu",
-		 bio_sectors(bio), (uint64_t) bio->bi_sector);
+	/*
+	 * If we're looping, might already be waiting on
+	 * another journal write - can't wait on more than one journal write at
+	 * a time
+	 *
+	 * XXX: this looks wrong
+	 */
+#if 0
+	while (atomic_read(&s->cl.remaining) & CLOSURE_WAITING)
+		closure_sync(&s->cl);
+#endif
 
-	while (bio_sectors(bio)) {
-		unsigned len = min(bio_sectors(bio), 1U << 14);
+	if (s->write)
+		op->journal = bch_journal(op->c, &op->keys,
+					  op->flush_journal
+					  ? &s->cl : NULL);
 
-		if (bch_keylist_realloc(&op->keys, 0, op->c))
-			goto out;
-
-		bio->bi_sector	+= len;
-		bio->bi_size	-= len << 9;
-
-		bch_keylist_add(&op->keys,
-				&KEY(op->inode, bio->bi_sector, len));
+	if (bch_btree_insert(op, op->c, &op->keys)) {
+		s->error		= -ENOMEM;
+		op->insert_data_done	= true;
 	}
 
-	op->insert_data_done = true;
-	bio_put(bio);
-out:
-	continue_at(cl, bch_journal, bcache_wq);
+	if (op->journal)
+		atomic_dec_bug(op->journal);
+	op->journal = NULL;
+
+	if (!op->insert_data_done)
+		continue_at(cl, bch_data_insert_start, bcache_wq);
+
+	bch_keylist_free(&op->keys);
+	closure_return(cl);
 }
 
 struct open_bucket {
@@ -423,7 +436,34 @@ static bool bch_alloc_sectors(struct bkey *k, unsigned sectors,
 	return true;
 }
 
-static void bch_insert_data_error(struct closure *cl)
+static void bch_data_invalidate(struct closure *cl)
+{
+	struct btree_op *op = container_of(cl, struct btree_op, cl);
+	struct bio *bio = op->cache_bio;
+
+	pr_debug("invalidating %i sectors from %llu",
+		 bio_sectors(bio), (uint64_t) bio->bi_sector);
+
+	while (bio_sectors(bio)) {
+		unsigned len = min(bio_sectors(bio), 1U << 14);
+
+		if (bch_keylist_realloc(&op->keys, 0, op->c))
+			goto out;
+
+		bio->bi_sector	+= len;
+		bio->bi_size	-= len << 9;
+
+		bch_keylist_add(&op->keys, &KEY(op->inode,
+						bio->bi_sector, len));
+	}
+
+	op->insert_data_done = true;
+	bio_put(bio);
+out:
+	continue_at(cl, bch_data_insert_keys, bcache_wq);
+}
+
+static void bch_data_insert_error(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
 
@@ -450,10 +490,10 @@ static void bch_insert_data_error(struct closure *cl)
 
 	op->keys.top = dst;
 
-	bch_journal(cl);
+	bch_data_insert_keys(cl);
 }
 
-static void bch_insert_data_endio(struct bio *bio, int error)
+static void bch_data_insert_endio(struct bio *bio, int error)
 {
 	struct closure *cl = bio->bi_private;
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
@@ -464,7 +504,7 @@ static void bch_insert_data_endio(struct bio *bio, int error)
 		if (s->writeback)
 			s->error = error;
 		else if (s->write)
-			set_closure_fn(cl, bch_insert_data_error, bcache_wq);
+			set_closure_fn(cl, bch_data_insert_error, bcache_wq);
 		else
 			set_closure_fn(cl, NULL, NULL);
 	}
@@ -472,14 +512,14 @@ static void bch_insert_data_endio(struct bio *bio, int error)
 	bch_bbio_endio(op->c, bio, error, "writing data to cache");
 }
 
-static void bch_insert_data_loop(struct closure *cl)
+static void bch_data_insert_start(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
 	struct search *s = container_of(op, struct search, op);
 	struct bio *bio = op->cache_bio, *n;
 
 	if (op->bypass)
-		return bio_invalidate(cl);
+		return bch_data_invalidate(cl);
 
 	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0) {
 		set_gc_sectors(op->c);
@@ -502,7 +542,7 @@ static void bch_insert_data_loop(struct closure *cl)
 		if (bch_keylist_realloc(&op->keys,
 					1 + (op->csum ? 1 : 0),
 					op->c))
-			continue_at(cl, bch_journal, bcache_wq);
+			continue_at(cl, bch_data_insert_keys, bcache_wq);
 
 		k = op->keys.top;
 		bkey_init(k);
@@ -514,7 +554,7 @@ static void bch_insert_data_loop(struct closure *cl)
 
 		n = bch_bio_split(bio, KEY_SIZE(k), GFP_NOIO, split);
 
-		n->bi_end_io	= bch_insert_data_endio;
+		n->bi_end_io	= bch_data_insert_endio;
 		n->bi_private	= cl;
 
 		if (s->writeback) {
@@ -537,7 +577,7 @@ static void bch_insert_data_loop(struct closure *cl)
 	} while (n != bio);
 
 	op->insert_data_done = true;
-	continue_at(cl, bch_journal, bcache_wq);
+	continue_at(cl, bch_data_insert_keys, bcache_wq);
 err:
 	/* bch_alloc_sectors() blocks if s->writeback = true */
 	BUG_ON(s->writeback);
@@ -556,7 +596,7 @@ err:
 		 * rest of the write.
 		 */
 		op->bypass = true;
-		return bio_invalidate(cl);
+		return bch_data_invalidate(cl);
 	} else {
 		/*
 		 * From a cache miss, we can just insert the keys for the data
@@ -566,14 +606,14 @@ err:
 		bio_put(bio);
 
 		if (!bch_keylist_empty(&op->keys))
-			continue_at(cl, bch_journal, bcache_wq);
+			continue_at(cl, bch_data_insert_keys, bcache_wq);
 		else
 			closure_return(cl);
 	}
 }
 
 /**
- * bch_insert_data - stick some data in the cache
+ * bch_data_insert - stick some data in the cache
  *
  * This is the starting point for any data to end up in a cache device; it could
  * be from a normal write, or a writeback write, or a write to a flash only
@@ -591,30 +631,13 @@ err:
  * If op->bypass is true, instead of inserting the data it invalidates the
  * region of the cache represented by op->cache_bio and op->inode.
  */
-void bch_insert_data(struct closure *cl)
+void bch_data_insert(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
 
 	bch_keylist_init(&op->keys);
 	bio_get(op->cache_bio);
-	bch_insert_data_loop(cl);
-}
-
-void bch_btree_insert_async(struct closure *cl)
-{
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
-
-	if (bch_btree_insert(op, op->c, &op->keys)) {
-		s->error		= -ENOMEM;
-		op->insert_data_done	= true;
-	}
-
-	if (op->insert_data_done) {
-		bch_keylist_free(&op->keys);
-		closure_return(cl);
-	} else
-		continue_at(cl, bch_insert_data_loop, bcache_wq);
+	bch_data_insert_start(cl);
 }
 
 /* Common code for the make_request functions */
@@ -969,7 +992,7 @@ static void cached_dev_read_done(struct closure *cl)
 	if (s->op.cache_bio &&
 	    !test_bit(CACHE_SET_STOPPING, &s->op.c->flags)) {
 		s->op.type = BTREE_REPLACE;
-		closure_call(&s->op.cl, bch_insert_data, NULL, cl);
+		closure_call(&s->op.cl, bch_data_insert, NULL, cl);
 	}
 
 	continue_at(cl, cached_dev_cache_miss_done, NULL);
@@ -1147,13 +1170,13 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		closure_bio_submit(bio, cl, s->d);
 	}
 
-	closure_call(&s->op.cl, bch_insert_data, NULL, cl);
+	closure_call(&s->op.cl, bch_data_insert, NULL, cl);
 	continue_at(cl, cached_dev_write_complete, NULL);
 }
 
-static void cached_dev_nodata(struct cached_dev *dc, struct search *s)
+static void cached_dev_nodata(struct closure *cl)
 {
-	struct closure *cl = &s->cl;
+	struct search *s = container_of(cl, struct search, cl);
 	struct bio *bio = &s->bio.bio;
 
 	if (s->op.flush_journal)
@@ -1186,9 +1209,15 @@ static void cached_dev_make_request(struct request_queue *q, struct bio *bio)
 		s = search_alloc(bio, d);
 		trace_bcache_request_start(s, bio);
 
-		if (!bio->bi_size)
-			cached_dev_nodata(dc, s);
-		else {
+		if (!bio->bi_size) {
+			/*
+			 * can't call bch_journal_meta from under
+			 * generic_make_request
+			 */
+			continue_at_nobarrier(&s->cl,
+					      cached_dev_nodata,
+					      bcache_wq);
+		} else {
 			s->op.bypass = check_should_bypass(dc, s);
 
 			if (rw)
@@ -1275,6 +1304,16 @@ static int flash_dev_cache_miss(struct btree *b, struct search *s,
 	return 0;
 }
 
+static void flash_dev_nodata(struct closure *cl)
+{
+	struct search *s = container_of(cl, struct search, cl);
+
+	if (s->op.flush_journal)
+		bch_journal_meta(s->op.c, cl);
+
+	continue_at(cl, search_free, NULL);
+}
+
 static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct search *s;
@@ -1294,8 +1333,13 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 	trace_bcache_request_start(s, bio);
 
 	if (!bio->bi_size) {
-		if (s->op.flush_journal)
-			bch_journal_meta(s->op.c, cl);
+		/*
+		 * can't call bch_journal_meta from under
+		 * generic_make_request
+		 */
+		continue_at_nobarrier(&s->cl,
+				      flash_dev_nodata,
+				      bcache_wq);
 	} else if (rw) {
 		bch_keybuf_check_overlapping(&s->op.c->moving_gc_keys,
 					&KEY(d->id, bio->bi_sector, 0),
@@ -1305,7 +1349,7 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 		s->writeback	= true;
 		s->op.cache_bio	= bio;
 
-		closure_call(&s->op.cl, bch_insert_data, NULL, cl);
+		closure_call(&s->op.cl, bch_data_insert, NULL, cl);
 	} else {
 		closure_call(&s->op.cl, btree_read_async, NULL, cl);
 	}
