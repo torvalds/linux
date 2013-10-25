@@ -438,6 +438,7 @@ static int txx9spi_remove(struct platform_device *dev)
 MODULE_ALIAS("platform:spi_txx9");
 
 static struct platform_driver txx9spi_driver = {
+	.probe = txx9spi_probe,
 	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
@@ -447,7 +448,7 @@ static struct platform_driver txx9spi_driver = {
 
 static int __init txx9spi_init(void)
 {
-	return platform_driver_probe(&txx9spi_driver, txx9spi_probe);
+	return platform_driver_register(&txx9spi_driver);
 }
 subsys_initcall(txx9spi_init);
 

@@ -985,6 +985,7 @@ static int au1550_spi_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
+	.probe = au1550_spi_probe,
 	.remove = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
@@ -1004,7 +1005,7 @@ static int __init au1550_spi_init(void)
 			printk(KERN_ERR "au1550-spi: cannot add memory"
 					"dbdma device\n");
 	}
-	return platform_driver_probe(&au1550_spi_drv, au1550_spi_probe);
+	return platform_driver_register(&au1550_spi_drv);
 }
 module_init(au1550_spi_init);
 
