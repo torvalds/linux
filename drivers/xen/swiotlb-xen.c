@@ -378,8 +378,13 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	 * buffering it.
 	 */
 	if (dma_capable(dev, dev_addr, size) &&
-	    !range_straddles_page_boundary(phys, size) && !swiotlb_force)
+	    !range_straddles_page_boundary(phys, size) && !swiotlb_force) {
+		/* we are not interested in the dma_addr returned by
+		 * xen_dma_map_page, only in the potential cache flushes executed
+		 * by the function. */
+		xen_dma_map_page(dev, page, offset, size, dir, attrs);
 		return dev_addr;
+	}
 
 	/*
 	 * Oh well, have to allocate and map a bounce buffer.
@@ -388,6 +393,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (map == SWIOTLB_MAP_ERROR)
 		return DMA_ERROR_CODE;
 
+	xen_dma_map_page(dev, pfn_to_page(map >> PAGE_SHIFT),
+					map & ~PAGE_MASK, size, dir, attrs);
 	dev_addr = xen_phys_to_bus(map);
 
 	/*
@@ -410,11 +417,14 @@ EXPORT_SYMBOL_GPL(xen_swiotlb_map_page);
  * whatever the device wrote there.
  */
 static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
-			     size_t size, enum dma_data_direction dir)
+			     size_t size, enum dma_data_direction dir,
+				 struct dma_attrs *attrs)
 {
 	phys_addr_t paddr = xen_bus_to_phys(dev_addr);
 
 	BUG_ON(dir == DMA_NONE);
+
+	xen_dma_unmap_page(hwdev, paddr, size, dir, attrs);
 
 	/* NOTE: We use dev_addr here, not paddr! */
 	if (is_xen_swiotlb_buffer(dev_addr)) {
@@ -438,7 +448,7 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 			    size_t size, enum dma_data_direction dir,
 			    struct dma_attrs *attrs)
 {
-	xen_unmap_single(hwdev, dev_addr, size, dir);
+	xen_unmap_single(hwdev, dev_addr, size, dir, attrs);
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_page);
 
@@ -461,11 +471,15 @@ xen_swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 
 	BUG_ON(dir == DMA_NONE);
 
+	if (target == SYNC_FOR_CPU)
+		xen_dma_sync_single_for_cpu(hwdev, paddr, size, dir);
+
 	/* NOTE: We use dev_addr here, not paddr! */
-	if (is_xen_swiotlb_buffer(dev_addr)) {
+	if (is_xen_swiotlb_buffer(dev_addr))
 		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, target);
-		return;
-	}
+
+	if (target == SYNC_FOR_DEVICE)
+		xen_dma_sync_single_for_cpu(hwdev, paddr, size, dir);
 
 	if (dir != DMA_FROM_DEVICE)
 		return;
@@ -536,8 +550,17 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				return DMA_ERROR_CODE;
 			}
 			sg->dma_address = xen_phys_to_bus(map);
-		} else
+		} else {
+			/* we are not interested in the dma_addr returned by
+			 * xen_dma_map_page, only in the potential cache flushes executed
+			 * by the function. */
+			xen_dma_map_page(hwdev, pfn_to_page(paddr >> PAGE_SHIFT),
+						paddr & ~PAGE_MASK,
+						sg->length,
+						dir,
+						attrs);
 			sg->dma_address = dev_addr;
+		}
 		sg_dma_len(sg) = sg->length;
 	}
 	return nelems;
@@ -559,7 +582,7 @@ xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 	BUG_ON(dir == DMA_NONE);
 
 	for_each_sg(sgl, sg, nelems, i)
-		xen_unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir);
+		xen_unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir, attrs);
 
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_sg_attrs);
