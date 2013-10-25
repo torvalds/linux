@@ -258,7 +258,9 @@ static int swsci(struct drm_device *dev, u32 function, u32 parm, u32 *parm_out)
 	/* Driver sleep timeout in ms. */
 	dslp = ioread32(&swsci->dslp);
 	if (!dslp) {
-		dslp = 2;
+		/* The spec says 2ms should be the default, but it's too small
+		 * for some machines. */
+		dslp = 50;
 	} else if (dslp > 500) {
 		/* Hey bios, trust must be earned. */
 		WARN_ONCE(1, "excessive driver sleep timeout (DSPL) %u\n", dslp);
@@ -405,6 +407,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (bclp > 255)
 		return ASLC_BACKLIGHT_FAILED;
 
+	DRM_DEBUG_KMS("updating opregion backlight %d/255\n", bclp);
 	intel_panel_set_backlight(dev, bclp, 255);
 	iowrite32(DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID, &asle->cblv);
 

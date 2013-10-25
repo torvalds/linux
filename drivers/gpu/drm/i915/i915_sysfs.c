@@ -253,6 +253,8 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
@@ -285,6 +287,8 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
 		ret = vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.max_delay);
@@ -308,6 +312,8 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	ret = kstrtou32(buf, 0, &val);
 	if (ret)
 		return ret;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
@@ -357,6 +363,8 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev))
 		ret = vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.min_delay);
@@ -380,6 +388,8 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	ret = kstrtou32(buf, 0, &val);
 	if (ret)
 		return ret;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 

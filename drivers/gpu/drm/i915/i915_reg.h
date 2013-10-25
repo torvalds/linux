@@ -26,6 +26,7 @@
 #define _I915_REG_H_
 
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
+#define _PIPE_INC(pipe, base, inc) ((base) + (pipe)*(inc))
 #define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
 
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
@@ -722,8 +723,12 @@
 #define GEN7_ERR_INT	0x44040
 #define   ERR_INT_POISON		(1<<31)
 #define   ERR_INT_MMIO_UNCLAIMED	(1<<13)
+#define   ERR_INT_PIPE_CRC_DONE_C	(1<<8)
 #define   ERR_INT_FIFO_UNDERRUN_C	(1<<6)
+#define   ERR_INT_PIPE_CRC_DONE_B	(1<<5)
 #define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
+#define   ERR_INT_PIPE_CRC_DONE_A	(1<<2)
+#define   ERR_INT_PIPE_CRC_DONE(pipe)	(1<<(2 + pipe*3))
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
 #define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
@@ -1835,6 +1840,61 @@
  * Display engine regs
  */
 
+/* Pipe A CRC regs */
+#define _PIPE_CRC_CTL_A		(dev_priv->info->display_mmio_offset + 0x60050)
+#define   PIPE_CRC_ENABLE		(1 << 31)
+#define   PIPE_CRC_SOURCE_PRIMARY_IVB	(0 << 29)
+#define   PIPE_CRC_SOURCE_SPRITE_IVB	(1 << 29)
+#define   PIPE_CRC_SOURCE_PF_IVB	(2 << 29)
+#define   PIPE_CRC_SOURCE_PRIMARY_ILK	(0 << 28)
+#define   PIPE_CRC_SOURCE_SPRITE_ILK	(1 << 28)
+#define   PIPE_CRC_SOURCE_PIPE_ILK	(2 << 28)
+/* embedded DP port on the north display block, reserved on ivb */
+#define   PIPE_CRC_SOURCE_PORT_A_ILK	(4 << 28)
+#define   PIPE_CRC_SOURCE_FDI_ILK	(5 << 28) /* reserved on ivb */
+#define _PIPE_CRC_RES_1_A_IVB		0x60064
+#define _PIPE_CRC_RES_2_A_IVB		0x60068
+#define _PIPE_CRC_RES_3_A_IVB		0x6006c
+#define _PIPE_CRC_RES_4_A_IVB		0x60070
+#define _PIPE_CRC_RES_5_A_IVB		0x60074
+
+#define _PIPE_CRC_RES_RED_A_ILK		0x60060
+#define _PIPE_CRC_RES_GREEN_A_ILK	0x60064
+#define _PIPE_CRC_RES_BLUE_A_ILK	0x60068
+#define _PIPE_CRC_RES_RES1_A_ILK	0x6006c
+#define _PIPE_CRC_RES_RES2_A_ILK	0x60080
+
+/* Pipe B CRC regs */
+#define _PIPE_CRC_CTL_B			0x61050
+#define _PIPE_CRC_RES_1_B_IVB		0x61064
+#define _PIPE_CRC_RES_2_B_IVB		0x61068
+#define _PIPE_CRC_RES_3_B_IVB		0x6106c
+#define _PIPE_CRC_RES_4_B_IVB		0x61070
+#define _PIPE_CRC_RES_5_B_IVB		0x61074
+
+#define PIPE_CRC_CTL(pipe)	_PIPE(pipe, _PIPE_CRC_CTL_A, _PIPE_CRC_CTL_B)
+#define PIPE_CRC_RES_1_IVB(pipe)	\
+	_PIPE(pipe, _PIPE_CRC_RES_1_A_IVB, _PIPE_CRC_RES_1_B_IVB)
+#define PIPE_CRC_RES_2_IVB(pipe)	\
+	_PIPE(pipe, _PIPE_CRC_RES_2_A_IVB, _PIPE_CRC_RES_2_B_IVB)
+#define PIPE_CRC_RES_3_IVB(pipe)	\
+	_PIPE(pipe, _PIPE_CRC_RES_3_A_IVB, _PIPE_CRC_RES_3_B_IVB)
+#define PIPE_CRC_RES_4_IVB(pipe)	\
+	_PIPE(pipe, _PIPE_CRC_RES_4_A_IVB, _PIPE_CRC_RES_4_B_IVB)
+#define PIPE_CRC_RES_5_IVB(pipe)	\
+	_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
+
+#define PIPE_CRC_RES_RED_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RED_A_ILK, 0x01000)
+#define PIPE_CRC_RES_GREEN_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_GREEN_A_ILK, 0x01000)
+#define PIPE_CRC_RES_BLUE_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_BLUE_A_ILK, 0x01000)
+#define PIPE_CRC_RES_RES1_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES1_A_ILK, 0x01000)
+#define PIPE_CRC_RES_RES2_ILK(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES2_A_ILK, 0x01000)
+
 /* Pipe A timing regs */
 #define _HTOTAL_A	(dev_priv->info->display_mmio_offset + 0x60000)
 #define _HBLANK_A	(dev_priv->info->display_mmio_offset + 0x60004)
@@ -1856,7 +1916,6 @@
 #define _PIPEBSRC	(dev_priv->info->display_mmio_offset + 0x6101c)
 #define _BCLRPAT_B	(dev_priv->info->display_mmio_offset + 0x61020)
 #define _VSYNCSHIFT_B	(dev_priv->info->display_mmio_offset + 0x61028)
-
 
 #define HTOTAL(trans) _TRANSCODER(trans, _HTOTAL_A, _HTOTAL_B)
 #define HBLANK(trans) _TRANSCODER(trans, _HBLANK_A, _HBLANK_B)
@@ -3251,11 +3310,11 @@
 
 /* define the Watermark register on Ironlake */
 #define WM0_PIPEA_ILK		0x45100
-#define  WM0_PIPE_PLANE_MASK	(0x7f<<16)
+#define  WM0_PIPE_PLANE_MASK	(0xffff<<16)
 #define  WM0_PIPE_PLANE_SHIFT	16
-#define  WM0_PIPE_SPRITE_MASK	(0x3f<<8)
+#define  WM0_PIPE_SPRITE_MASK	(0xff<<8)
 #define  WM0_PIPE_SPRITE_SHIFT	8
-#define  WM0_PIPE_CURSOR_MASK	(0x1f)
+#define  WM0_PIPE_CURSOR_MASK	(0xff)
 
 #define WM0_PIPEB_ILK		0x45104
 #define WM0_PIPEC_IVB		0x45200
@@ -3265,9 +3324,9 @@
 #define  WM1_LP_LATENCY_MASK	(0x7f<<24)
 #define  WM1_LP_FBC_MASK	(0xf<<20)
 #define  WM1_LP_FBC_SHIFT	20
-#define  WM1_LP_SR_MASK		(0x1ff<<8)
+#define  WM1_LP_SR_MASK		(0x7ff<<8)
 #define  WM1_LP_SR_SHIFT	8
-#define  WM1_LP_CURSOR_MASK	(0x3f)
+#define  WM1_LP_CURSOR_MASK	(0xff)
 #define WM2_LP_ILK		0x4510c
 #define  WM2_LP_EN		(1<<31)
 #define WM3_LP_ILK		0x45110
@@ -3348,17 +3407,17 @@
  *  } while (high1 != high2);
  *  frame = (high1 << 8) | low1;
  */
-#define _PIPEAFRAMEHIGH          (dev_priv->info->display_mmio_offset + 0x70040)
+#define _PIPEAFRAMEHIGH          0x70040
 #define   PIPE_FRAME_HIGH_MASK    0x0000ffff
 #define   PIPE_FRAME_HIGH_SHIFT   0
-#define _PIPEAFRAMEPIXEL         (dev_priv->info->display_mmio_offset + 0x70044)
+#define _PIPEAFRAMEPIXEL         0x70044
 #define   PIPE_FRAME_LOW_MASK     0xff000000
 #define   PIPE_FRAME_LOW_SHIFT    24
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
 /* GM45+ just has to be different */
-#define _PIPEA_FRMCOUNT_GM45	0x70040
-#define _PIPEA_FLIPCOUNT_GM45	0x70044
+#define _PIPEA_FRMCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x70040)
+#define _PIPEA_FLIPCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x70044)
 #define PIPE_FRMCOUNT_GM45(pipe) _PIPE(pipe, _PIPEA_FRMCOUNT_GM45, _PIPEB_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
@@ -3489,10 +3548,10 @@
 #define _PIPEBDSL		(dev_priv->info->display_mmio_offset + 0x71000)
 #define _PIPEBCONF		(dev_priv->info->display_mmio_offset + 0x71008)
 #define _PIPEBSTAT		(dev_priv->info->display_mmio_offset + 0x71024)
-#define _PIPEBFRAMEHIGH		(dev_priv->info->display_mmio_offset + 0x71040)
-#define _PIPEBFRAMEPIXEL	(dev_priv->info->display_mmio_offset + 0x71044)
-#define _PIPEB_FRMCOUNT_GM45	0x71040
-#define _PIPEB_FLIPCOUNT_GM45	0x71044
+#define _PIPEBFRAMEHIGH		0x71040
+#define _PIPEBFRAMEPIXEL	0x71044
+#define _PIPEB_FRMCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x71040)
+#define _PIPEB_FLIPCOUNT_GM45	(dev_priv->info->display_mmio_offset + 0x71044)
 
 
 /* Display B control */
@@ -3860,12 +3919,14 @@
 #define DE_PIPEB_ODD_FIELD      (1 << 13)
 #define DE_PIPEB_LINE_COMPARE   (1 << 12)
 #define DE_PIPEB_VSYNC          (1 << 11)
+#define DE_PIPEB_CRC_DONE	(1 << 10)
 #define DE_PIPEB_FIFO_UNDERRUN  (1 << 8)
 #define DE_PIPEA_VBLANK         (1 << 7)
 #define DE_PIPEA_EVEN_FIELD     (1 << 6)
 #define DE_PIPEA_ODD_FIELD      (1 << 5)
 #define DE_PIPEA_LINE_COMPARE   (1 << 4)
 #define DE_PIPEA_VSYNC          (1 << 3)
+#define DE_PIPEA_CRC_DONE	(1 << 2)
 #define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
 
 /* More Ivybridge lolz */
@@ -4867,7 +4928,17 @@
 #define   AUD_CONFIG_LOWER_N_SHIFT		4
 #define   AUD_CONFIG_LOWER_N_VALUE		(0xfff << 4)
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI_SHIFT	16
-#define   AUD_CONFIG_PIXEL_CLOCK_HDMI		(0xf << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK	(0xf << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_25175	(0 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_25200	(1 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_27000	(2 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_27027	(3 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_54000	(4 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_54054	(5 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_74176	(6 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_74250	(7 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_148352	(8 << 16)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_148500	(9 << 16)
 #define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
 
 /* HSW Audio */

@@ -64,8 +64,8 @@ static unsigned long i915_gem_inactive_count(struct shrinker *shrinker,
 					     struct shrink_control *sc);
 static unsigned long i915_gem_inactive_scan(struct shrinker *shrinker,
 					    struct shrink_control *sc);
-static long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
-static long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
+static unsigned long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
+static unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 static bool cpu_cache_is_coherent(struct drm_device *dev,
@@ -1082,7 +1082,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			mod_timer(&timer, expire);
 		}
 
-		schedule();
+		io_schedule();
 
 		if (timeout)
 			timeout_jiffies = expire - jiffies;
@@ -1728,13 +1728,13 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static long
+static unsigned long
 __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		  bool purgeable_only)
 {
 	struct list_head still_bound_list;
 	struct drm_i915_gem_object *obj, *next;
-	long count = 0;
+	unsigned long count = 0;
 
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.unbound_list,
@@ -1800,13 +1800,13 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 	return count;
 }
 
-static long
+static unsigned long
 i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 {
 	return __i915_gem_shrink(dev_priv, target, true);
 }
 
-static long
+static unsigned long
 i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *obj, *next;
@@ -1816,9 +1816,8 @@ i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 
 	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
 				 global_list) {
-		if (obj->pages_pin_count == 0)
+		if (i915_gem_object_put_pages(obj) == 0)
 			freed += obj->base.size >> PAGE_SHIFT;
-		i915_gem_object_put_pages(obj);
 	}
 	return freed;
 }
@@ -1903,6 +1902,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			sg->length += PAGE_SIZE;
 		}
 		last_pfn = page_to_pfn(page);
+
+		/* Check that the i965g/gm workaround works. */
+		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
 	}
 #ifdef CONFIG_SWIOTLB
 	if (!swiotlb_nr_tbl())
@@ -2403,6 +2405,8 @@ void i915_gem_reset(struct drm_device *dev)
 
 	for_each_ring(ring, dev_priv, i)
 		i915_gem_reset_ring_lists(dev_priv, ring);
+
+	i915_gem_cleanup_ringbuffer(dev);
 
 	i915_gem_restore_fences(dev);
 }
@@ -3927,6 +3931,11 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	if (obj->user_pin_count == ULONG_MAX) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (obj->user_pin_count == 0) {
 		ret = i915_gem_obj_ggtt_pin(obj, args->alignment, true, false);
 		if (ret)
@@ -4261,17 +4270,18 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 }
 
 int
-i915_gem_idle(struct drm_device *dev)
+i915_gem_suspend(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&dev->struct_mutex);
 	if (dev_priv->ums.mm_suspended)
-		return 0;
+		goto err;
 
 	ret = i915_gpu_idle(dev);
 	if (ret)
-		return ret;
+		goto err;
 
 	i915_gem_retire_requests(dev);
 
@@ -4279,16 +4289,26 @@ i915_gem_idle(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_gem_evict_everything(dev);
 
-	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
-
 	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);
 
-	/* Cancel the retire work handler, which should be idle now. */
+	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
+	 * We need to replace this with a semaphore, or something.
+	 * And not confound ums.mm_suspended!
+	 */
+	dev_priv->ums.mm_suspended = !drm_core_check_feature(dev,
+							     DRIVER_MODESET);
+	mutex_unlock(&dev->struct_mutex);
+
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 	cancel_delayed_work_sync(&dev_priv->mm.idle_work);
 
 	return 0;
+
+err:
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 int i915_gem_l3_remap(struct intel_ring_buffer *ring, int slice)
@@ -4541,26 +4561,12 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
 	drm_irq_uninstall(dev);
 
-	mutex_lock(&dev->struct_mutex);
-	ret =  i915_gem_idle(dev);
-
-	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
-	 * We need to replace this with a semaphore, or something.
-	 * And not confound ums.mm_suspended!
-	 */
-	if (ret != 0)
-		dev_priv->ums.mm_suspended = 1;
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	return i915_gem_suspend(dev);
 }
 
 void
@@ -4571,11 +4577,9 @@ i915_gem_lastclose(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_idle(dev);
+	ret = i915_gem_suspend(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static void
@@ -4947,6 +4951,7 @@ i915_gem_inactive_count(struct shrinker *shrinker, struct shrink_control *sc)
 
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
+
 	return count;
 }
 
@@ -5018,7 +5023,6 @@ i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
 			     struct drm_i915_private,
 			     mm.inactive_shrinker);
 	struct drm_device *dev = dev_priv->dev;
-	int nr_to_scan = sc->nr_to_scan;
 	unsigned long freed;
 	bool unlock = true;
 
@@ -5032,15 +5036,17 @@ i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
 		unlock = false;
 	}
 
-	freed = i915_gem_purge(dev_priv, nr_to_scan);
-	if (freed < nr_to_scan)
-		freed += __i915_gem_shrink(dev_priv, nr_to_scan,
-							false);
-	if (freed < nr_to_scan)
+	freed = i915_gem_purge(dev_priv, sc->nr_to_scan);
+	if (freed < sc->nr_to_scan)
+		freed += __i915_gem_shrink(dev_priv,
+					   sc->nr_to_scan - freed,
+					   false);
+	if (freed < sc->nr_to_scan)
 		freed += i915_gem_shrink_all(dev_priv);
 
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
+
 	return freed;
 }
 

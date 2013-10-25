@@ -1416,6 +1416,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
+#ifdef CONFIG_DRM_I915_FBDEV
 static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
 	struct apertures_struct *ap;
@@ -1436,6 +1437,11 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 
 	kfree(ap);
 }
+#else
+static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
+{
+}
+#endif
 
 static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 {
@@ -1477,8 +1483,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	info = (struct intel_device_info *) flags;
 
 	/* Refuse to load on gen6+ without kms enabled. */
-	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
+	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET)) {
+		DRM_INFO("Your hardware requires kernel modesetting (KMS)\n");
+		DRM_INFO("See CONFIG_DRM_I915_KMS, nomodeset, and i915.modeset parameters\n");
 		return -ENODEV;
+	}
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -1504,6 +1513,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->pc8.enabled = false;
 	dev_priv->pc8.disable_count = 2; /* requirements_met + gpu_idle */
 	INIT_DELAYED_WORK(&dev_priv->pc8.enable_work, hsw_enable_pc8_work);
+
+	intel_display_crc_init(dev);
 
 	i915_dump_device_info(dev_priv);
 
@@ -1542,15 +1553,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_uncore_early_sanitize(dev);
 
-	if (IS_HASWELL(dev) && (I915_READ(HSW_EDRAM_PRESENT) == 1)) {
-		/* The docs do not explain exactly how the calculation can be
-		 * made. It is somewhat guessable, but for now, it's always
-		 * 128MB.
-		 * NB: We can't write IDICR yet because we do not have gt funcs
-		 * set up */
-		dev_priv->ellc_size = 128;
-		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
-	}
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_detect_pch(dev);
+
+	intel_uncore_init(dev);
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
@@ -1609,13 +1615,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
-	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(dev);
-
 	intel_irq_init(dev);
 	intel_pm_init(dev);
 	intel_uncore_sanitize(dev);
-	intel_uncore_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
@@ -1699,6 +1701,7 @@ out_gtt:
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
 	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
 out_regs:
+	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1729,15 +1732,9 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->mm.inactive_shrinker.scan_objects)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
-	mutex_lock(&dev->struct_mutex);
-	ret = i915_gpu_idle(dev);
+	ret = i915_gem_suspend(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
-	i915_gem_retire_requests(dev);
-	mutex_unlock(&dev->struct_mutex);
-
-	/* Cancel the retire work handler, which should be idle now. */
-	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 
 	io_mapping_free(dev_priv->gtt.mappable);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
@@ -1852,7 +1849,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 		return;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_fb_restore_mode(dev);
+		intel_fbdev_restore_mode(dev);
 		vga_switcheroo_process_delayed_switch();
 		return;
 	}

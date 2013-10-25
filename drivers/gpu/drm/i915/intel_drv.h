@@ -309,6 +309,12 @@ struct intel_crtc_config {
 	bool double_wide;
 };
 
+struct intel_pipe_wm {
+	struct intel_wm_level wm[5];
+	uint32_t linetime;
+	bool fbc_wm_enabled;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -321,7 +327,7 @@ struct intel_crtc {
 	 */
 	bool active;
 	bool eld_vld;
-	bool primary_disabled; /* is the crtc obscured by a plane? */
+	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
@@ -349,6 +355,12 @@ struct intel_crtc {
 	/* Access to these should be protected by dev_priv->irq_lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
+
+	/* per-pipe watermark state */
+	struct {
+		/* watermarks currently being used  */
+		struct intel_pipe_wm active;
+	} wm;
 };
 
 struct intel_plane_wm_parameters {
@@ -677,6 +689,8 @@ ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
 				int dotclock);
 bool intel_crtc_active(struct drm_crtc *crtc);
 void i915_disable_vga_mem(struct drm_device *dev);
+void hsw_enable_ips(struct intel_crtc *crtc);
+void hsw_disable_ips(struct intel_crtc *crtc);
 
 
 /* intel_dp.c */
@@ -711,14 +725,36 @@ bool intel_dsi_init(struct drm_device *dev);
 void intel_dvo_init(struct drm_device *dev);
 
 
-/* intel_fb.c */
-int intel_fbdev_init(struct drm_device *dev);
-void intel_fbdev_initial_config(struct drm_device *dev);
-void intel_fbdev_fini(struct drm_device *dev);
-void intel_fbdev_set_suspend(struct drm_device *dev, int state);
-void intel_fb_output_poll_changed(struct drm_device *dev);
-void intel_fb_restore_mode(struct drm_device *dev);
+/* legacy fbdev emulation in intel_fbdev.c */
+#ifdef CONFIG_DRM_I915_FBDEV
+extern int intel_fbdev_init(struct drm_device *dev);
+extern void intel_fbdev_initial_config(struct drm_device *dev);
+extern void intel_fbdev_fini(struct drm_device *dev);
+extern void intel_fbdev_set_suspend(struct drm_device *dev, int state);
+extern void intel_fbdev_output_poll_changed(struct drm_device *dev);
+extern void intel_fbdev_restore_mode(struct drm_device *dev);
+#else
+static inline int intel_fbdev_init(struct drm_device *dev)
+{
+	return 0;
+}
 
+static inline void intel_fbdev_initial_config(struct drm_device *dev)
+{
+}
+
+static inline void intel_fbdev_fini(struct drm_device *dev)
+{
+}
+
+static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state)
+{
+}
+
+static inline void intel_fbdev_restore_mode(struct drm_device *dev)
+{
+}
+#endif
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);
@@ -799,8 +835,11 @@ void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
+void gen6_rps_idle(struct drm_i915_private *dev_priv);
+void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+void ilk_wm_get_hw_state(struct drm_device *dev);
 
 
 /* intel_sdvo.c */
@@ -809,7 +848,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 
 /* intel_sprite.c */
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
-void intel_flush_display_plane(struct drm_i915_private *dev_priv,
+void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 			       enum plane plane);
 void intel_plane_restore(struct drm_plane *plane);
 void intel_plane_disable(struct drm_plane *plane);
@@ -821,8 +860,5 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
-
-void gen6_rps_idle(struct drm_i915_private *dev_priv);
-void gen6_rps_boost(struct drm_i915_private *dev_priv);
 
 #endif /* __INTEL_DRV_H__ */

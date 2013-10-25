@@ -30,6 +30,7 @@
 
 #include <linux/sysrq.h>
 #include <linux/slab.h>
+#include <linux/circ_buf.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -518,6 +519,12 @@ i915_pipe_enabled(struct drm_device *dev, int pipe)
 	}
 }
 
+static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
+{
+	/* Gen2 doesn't have a hardware frame counter */
+	return 0;
+}
+
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
@@ -526,12 +533,30 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long high_frame;
 	unsigned long low_frame;
-	u32 high1, high2, low;
+	u32 high1, high2, low, pixel, vbl_start;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
 		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
 				"pipe %c\n", pipe_name(pipe));
 		return 0;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		struct intel_crtc *intel_crtc =
+			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+		const struct drm_display_mode *mode =
+			&intel_crtc->config.adjusted_mode;
+
+		vbl_start = mode->crtc_vblank_start * mode->crtc_htotal;
+	} else {
+		enum transcoder cpu_transcoder =
+			intel_pipe_to_cpu_transcoder(dev_priv, pipe);
+		u32 htotal;
+
+		htotal = ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff) + 1;
+		vbl_start = (I915_READ(VBLANK(cpu_transcoder)) & 0x1fff) + 1;
+
+		vbl_start *= htotal;
 	}
 
 	high_frame = PIPEFRAME(pipe);
@@ -544,13 +569,20 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	 */
 	do {
 		high1 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
-		low   = I915_READ(low_frame)  & PIPE_FRAME_LOW_MASK;
+		low   = I915_READ(low_frame);
 		high2 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
 	} while (high1 != high2);
 
 	high1 >>= PIPE_FRAME_HIGH_SHIFT;
+	pixel = low & PIPE_PIXEL_MASK;
 	low >>= PIPE_FRAME_LOW_SHIFT;
-	return (high1 << 8) | low;
+
+	/*
+	 * The frame counter increments at beginning of active.
+	 * Cook up a vblank counter by also checking the pixel
+	 * counter against vblank start.
+	 */
+	return ((high1 << 8) | low) + (pixel >= vbl_start);
 }
 
 static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
@@ -567,37 +599,98 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	return I915_READ(reg);
 }
 
+static bool intel_pipe_in_vblank(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t status;
+
+	if (IS_VALLEYVIEW(dev)) {
+		status = pipe == PIPE_A ?
+			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
+			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+		return I915_READ(VLV_ISR) & status;
+	} else if (IS_GEN2(dev)) {
+		status = pipe == PIPE_A ?
+			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
+			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+		return I915_READ16(ISR) & status;
+	} else if (INTEL_INFO(dev)->gen < 5) {
+		status = pipe == PIPE_A ?
+			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
+			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+		return I915_READ(ISR) & status;
+	} else if (INTEL_INFO(dev)->gen < 7) {
+		status = pipe == PIPE_A ?
+			DE_PIPEA_VBLANK :
+			DE_PIPEB_VBLANK;
+
+		return I915_READ(DEISR) & status;
+	} else {
+		switch (pipe) {
+		default:
+		case PIPE_A:
+			status = DE_PIPEA_VBLANK_IVB;
+			break;
+		case PIPE_B:
+			status = DE_PIPEB_VBLANK_IVB;
+			break;
+		case PIPE_C:
+			status = DE_PIPEC_VBLANK_IVB;
+			break;
+		}
+
+		return I915_READ(DEISR) & status;
+	}
+}
+
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 			     int *vpos, int *hpos)
 {
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 vbl = 0, position = 0;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	const struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
+	int position;
 	int vbl_start, vbl_end, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
 
-	if (!i915_pipe_enabled(dev, pipe)) {
+	if (!intel_crtc->active) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
 				 "pipe %c\n", pipe_name(pipe));
 		return 0;
 	}
 
-	/* Get vtotal. */
-	vtotal = 1 + ((I915_READ(VTOTAL(cpu_transcoder)) >> 16) & 0x1fff);
+	htotal = mode->crtc_htotal;
+	vtotal = mode->crtc_vtotal;
+	vbl_start = mode->crtc_vblank_start;
+	vbl_end = mode->crtc_vblank_end;
 
-	if (INTEL_INFO(dev)->gen >= 4) {
+	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
+
+	if (IS_GEN2(dev) || IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
-		position = I915_READ(PIPEDSL(pipe));
+		if (IS_GEN2(dev))
+			position = I915_READ(PIPEDSL(pipe)) & DSL_LINEMASK_GEN2;
+		else
+			position = I915_READ(PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
-		/* Decode into vertical scanout position. Don't have
-		 * horizontal scanout position.
+		/*
+		 * The scanline counter increments at the leading edge
+		 * of hsync, ie. it completely misses the active portion
+		 * of the line. Fix up the counter at both edges of vblank
+		 * to get a more accurate picture whether we're in vblank
+		 * or not.
 		 */
-		*vpos = position & 0x1fff;
-		*hpos = 0;
+		in_vbl = intel_pipe_in_vblank(dev, pipe);
+		if ((in_vbl && position == vbl_start - 1) ||
+		    (!in_vbl && position == vbl_end - 1))
+			position = (position + 1) % vtotal;
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
@@ -605,28 +698,32 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		 */
 		position = (I915_READ(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
-		htotal = 1 + ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff);
+		/* convert to pixel counts */
+		vbl_start *= htotal;
+		vbl_end *= htotal;
+		vtotal *= htotal;
+	}
+
+	in_vbl = position >= vbl_start && position < vbl_end;
+
+	/*
+	 * While in vblank, position will be negative
+	 * counting up towards 0 at vbl_end. And outside
+	 * vblank, position will be positive counting
+	 * up since vbl_end.
+	 */
+	if (position >= vbl_start)
+		position -= vbl_end;
+	else
+		position += vtotal - vbl_end;
+
+	if (IS_GEN2(dev) || IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+		*vpos = position;
+		*hpos = 0;
+	} else {
 		*vpos = position / htotal;
 		*hpos = position - (*vpos * htotal);
 	}
-
-	/* Query vblank area. */
-	vbl = I915_READ(VBLANK(cpu_transcoder));
-
-	/* Test position against vblank region. */
-	vbl_start = vbl & 0x1fff;
-	vbl_end = (vbl >> 16) & 0x1fff;
-
-	if ((*vpos < vbl_start) || (*vpos > vbl_end))
-		in_vbl = false;
-
-	/* Inside "upper part" of vblank area? Apply corrective offset: */
-	if (in_vbl && (*vpos >= vbl_start))
-		*vpos = *vpos - vtotal;
-
-	/* Readouts valid? */
-	if (vbl > 0)
-		ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
 
 	/* In vblank? */
 	if (in_vbl)
@@ -1092,6 +1189,83 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
+#if defined(CONFIG_DEBUG_FS)
+static void display_pipe_crc_update(struct drm_device *dev, enum pipe pipe,
+				    uint32_t crc0, uint32_t crc1,
+				    uint32_t crc2, uint32_t crc3,
+				    uint32_t crc4)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
+	struct intel_pipe_crc_entry *entry;
+	int head, tail;
+
+	if (!pipe_crc->entries) {
+		DRM_ERROR("spurious interrupt\n");
+		return;
+	}
+
+	head = atomic_read(&pipe_crc->head);
+	tail = atomic_read(&pipe_crc->tail);
+
+	if (CIRC_SPACE(head, tail, INTEL_PIPE_CRC_ENTRIES_NR) < 1) {
+		DRM_ERROR("CRC buffer overflowing\n");
+		return;
+	}
+
+	entry = &pipe_crc->entries[head];
+
+	entry->frame = dev->driver->get_vblank_counter(dev, pipe);
+	entry->crc[0] = crc0;
+	entry->crc[1] = crc1;
+	entry->crc[2] = crc2;
+	entry->crc[3] = crc3;
+	entry->crc[4] = crc4;
+
+	head = (head + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
+	atomic_set(&pipe_crc->head, head);
+
+	wake_up_interruptible(&pipe_crc->wq);
+}
+
+static void hsw_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	display_pipe_crc_update(dev, pipe,
+				I915_READ(PIPE_CRC_RES_1_IVB(pipe)),
+				0, 0, 0, 0);
+}
+
+static void ivb_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	display_pipe_crc_update(dev, pipe,
+				I915_READ(PIPE_CRC_RES_1_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_2_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_3_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_4_IVB(pipe)),
+				I915_READ(PIPE_CRC_RES_5_IVB(pipe)));
+}
+
+static void ilk_pipe_crc_update(struct drm_device *dev, enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	display_pipe_crc_update(dev, pipe,
+				I915_READ(PIPE_CRC_RES_RED_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_GREEN_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_BLUE_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_RES1_ILK(pipe)),
+				I915_READ(PIPE_CRC_RES_RES2_ILK(pipe)));
+}
+#else
+static inline void hsw_pipe_crc_update(struct drm_device *dev, int pipe) {}
+static inline void ivb_pipe_crc_update(struct drm_device *dev, int pipe) {}
+static inline void ilk_pipe_crc_update(struct drm_device *dev, int pipe) {}
+#endif
+
 /* The RPS events need forcewake, so we add them to a work queue and mask their
  * IMR bits until the work is done. Other interrupts can be processed without
  * the work queue. */
@@ -1254,21 +1428,26 @@ static void ivb_err_int_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 err_int = I915_READ(GEN7_ERR_INT);
+	enum pipe pipe;
 
 	if (err_int & ERR_INT_POISON)
 		DRM_ERROR("Poison interrupt\n");
 
-	if (err_int & ERR_INT_FIFO_UNDERRUN_A)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
-			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
+	for_each_pipe(pipe) {
+		if (err_int & ERR_INT_FIFO_UNDERRUN(pipe)) {
+			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
+								  false))
+				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
+						 pipe_name(pipe));
+		}
 
-	if (err_int & ERR_INT_FIFO_UNDERRUN_B)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
-			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
-
-	if (err_int & ERR_INT_FIFO_UNDERRUN_C)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_C, false))
-			DRM_DEBUG_DRIVER("Pipe C FIFO underrun\n");
+		if (err_int & ERR_INT_PIPE_CRC_DONE(pipe)) {
+			if (IS_IVYBRIDGE(dev))
+				ivb_pipe_crc_update(dev, pipe);
+			else
+				hsw_pipe_crc_update(dev, pipe);
+		}
+	}
 
 	I915_WRITE(GEN7_ERR_INT, err_int);
 }
@@ -1362,6 +1541,12 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	if (de_iir & DE_PIPEB_FIFO_UNDERRUN)
 		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
 			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
+
+	if (de_iir & DE_PIPEA_CRC_DONE)
+		ilk_pipe_crc_update(dev, PIPE_A);
+
+	if (de_iir & DE_PIPEB_CRC_DONE)
+		ilk_pipe_crc_update(dev, PIPE_B);
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
@@ -1988,6 +2173,7 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 	if (tmp & RING_WAIT) {
 		DRM_ERROR("Kicking stuck wait on %s\n",
 			  ring->name);
+		i915_handle_error(dev, false);
 		I915_WRITE_CTL(ring, tmp);
 		return HANGCHECK_KICK;
 	}
@@ -1999,6 +2185,7 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 		case 1:
 			DRM_ERROR("Kicking stuck semaphore on %s\n",
 				  ring->name);
+			i915_handle_error(dev, false);
 			I915_WRITE_CTL(ring, tmp);
 			return HANGCHECK_KICK;
 		case 0:
@@ -2337,8 +2524,10 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
-				DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
-				DE_PIPEA_FIFO_UNDERRUN | DE_POISON);
+				DE_AUX_CHANNEL_A |
+				DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
+				DE_PIPEB_CRC_DONE | DE_PIPEA_CRC_DONE |
+				DE_POISON);
 		extra_mask = DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT;
 	}
 
@@ -3153,18 +3342,21 @@ void intel_irq_init(struct drm_device *dev)
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
-	dev->driver->get_vblank_counter = i915_get_vblank_counter;
-	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	if (IS_GEN2(dev)) {
+		dev->max_vblank_count = 0;
+		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
+	} else if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+	} else {
+		dev->driver->get_vblank_counter = i915_get_vblank_counter;
+		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
-	else
-		dev->driver->get_vblank_timestamp = NULL;
-	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
+		dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
+	}
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev->driver->irq_handler = valleyview_irq_handler;

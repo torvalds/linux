@@ -350,7 +350,7 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	unsigned int bpp = intel_crtc->config.pipe_bpp;
 	u32 val, tmp;
 
-	DRM_DEBUG_KMS("pipe %d\n", pipe);
+	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
 
 	/* Update the DSI PLL */
 	vlv_enable_dsi_pll(intel_encoder);

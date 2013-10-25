@@ -822,10 +822,11 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
 	bpp = pipe_config->pipe_bpp;
-	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp) {
+	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp &&
+	    dev_priv->vbt.edp_bpp < bpp) {
 		DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
 			      dev_priv->vbt.edp_bpp);
-		bpp = min_t(int, bpp, dev_priv->vbt.edp_bpp);
+		bpp = dev_priv->vbt.edp_bpp;
 	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
@@ -2095,7 +2096,8 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 }
 
 static void
-intel_get_adjust_train(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE])
+intel_get_adjust_train(struct intel_dp *intel_dp,
+		       const uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
 	uint8_t v = 0;
 	uint8_t p = 0;
@@ -2297,7 +2299,8 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
-	int ret;
+	uint8_t buf[sizeof(intel_dp->train_set) + 1];
+	int ret, len;
 
 	if (HAS_DDI(dev)) {
 		uint32_t temp = I915_READ(DP_TP_CTL(port));
@@ -2367,36 +2370,35 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	I915_WRITE(intel_dp->output_reg, *DP);
 	POSTING_READ(intel_dp->output_reg);
 
-	ret = intel_dp_aux_native_write_1(intel_dp, DP_TRAINING_PATTERN_SET,
-					  dp_train_pat);
-	if (ret != 1)
-		return false;
-
-	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) !=
+	buf[0] = dp_train_pat;
+	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) ==
 	    DP_TRAINING_PATTERN_DISABLE) {
-		ret = intel_dp_aux_native_write(intel_dp,
-						DP_TRAINING_LANE0_SET,
-						intel_dp->train_set,
-						intel_dp->lane_count);
-		if (ret != intel_dp->lane_count)
-			return false;
+		/* don't write DP_TRAINING_LANEx_SET on disable */
+		len = 1;
+	} else {
+		/* DP_TRAINING_LANEx_SET follow DP_TRAINING_PATTERN_SET */
+		memcpy(buf + 1, intel_dp->train_set, intel_dp->lane_count);
+		len = intel_dp->lane_count + 1;
 	}
 
-	return true;
+	ret = intel_dp_aux_native_write(intel_dp, DP_TRAINING_PATTERN_SET,
+					buf, len);
+
+	return ret == len;
 }
 
 static bool
 intel_dp_reset_link_train(struct intel_dp *intel_dp, uint32_t *DP,
 			uint8_t dp_train_pat)
 {
-	memset(intel_dp->train_set, 0, 4);
+	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
 	intel_dp_set_signal_levels(intel_dp, DP);
 	return intel_dp_set_link_train(intel_dp, DP, dp_train_pat);
 }
 
 static bool
 intel_dp_update_link_train(struct intel_dp *intel_dp, uint32_t *DP,
-			   uint8_t link_status[DP_LINK_STATUS_SIZE])
+			   const uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
@@ -2507,7 +2509,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		if (i == intel_dp->lane_count) {
 			++loop_tries;
 			if (loop_tries == 5) {
-				DRM_DEBUG_KMS("too many full retries, give up\n");
+				DRM_ERROR("too many full retries, give up\n");
 				break;
 			}
 			intel_dp_reset_link_train(intel_dp, &DP,
@@ -2521,7 +2523,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
 			++voltage_tries;
 			if (voltage_tries == 5) {
-				DRM_DEBUG_KMS("too many voltage retries, give up\n");
+				DRM_ERROR("too many voltage retries, give up\n");
 				break;
 			}
 		} else
