@@ -279,7 +279,8 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	struct davinci_spi *dspi;
 	struct davinci_spi_config *spicfg;
 	u8 bits_per_word = 0;
-	u32 hz = 0, spifmt = 0, prescale = 0;
+	u32 hz = 0, spifmt = 0;
+	int prescale;
 
 	dspi = spi_master_get_devdata(spi->master);
 	spicfg = (struct davinci_spi_config *)spi->controller_data;
