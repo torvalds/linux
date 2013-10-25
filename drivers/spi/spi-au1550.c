@@ -775,7 +775,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	hw = spi_master_get_devdata(master);
 
-	hw->master = spi_master_get(master);
+	hw->master = master;
 	hw->pdata = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 

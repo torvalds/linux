@@ -414,10 +414,16 @@ static int spi_bitbang_unprepare_hardware(struct spi_master *spi)
  * This routine registers the spi_master, which will process requests in a
  * dedicated task, keeping IRQs unblocked most of the time.  To stop
  * processing those requests, call spi_bitbang_stop().
+ *
+ * On success, this routine will take a reference to master. The caller is
+ * responsible for calling spi_bitbang_stop() to decrement the reference and
+ * spi_master_put() as counterpart of spi_alloc_master() to prevent a memory
+ * leak.
  */
 int spi_bitbang_start(struct spi_bitbang *bitbang)
 {
 	struct spi_master *master = bitbang->master;
+	int ret;
 
 	if (!master || !bitbang->chipselect)
 		return -EINVAL;
@@ -449,7 +455,11 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	/* driver may get busy before register() returns, especially
 	 * if someone registered boardinfo for devices
 	 */
-	return spi_register_master(master);
+	ret = spi_register_master(spi_master_get(master));
+	if (ret)
+		spi_master_put(master);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_start);
 
