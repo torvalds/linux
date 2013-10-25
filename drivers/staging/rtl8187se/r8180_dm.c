@@ -665,7 +665,7 @@ static void StaRateAdaptive87SE(struct net_device *dev)
 	}
 
 	if (bTryUp && bTryDown)
-	printk("StaRateAdaptive87B(): Tx Rate tried upping and downing simultaneously!\n");
+		printk("StaRateAdaptive87B(): Tx Rate tried upping and downing simultaneously!\n");
 
 	/* 1 Test Upgrading Tx Rate
 	 * Sometimes the cause of the low throughput (high retry rate) is the compatibility between the AP and NIC.

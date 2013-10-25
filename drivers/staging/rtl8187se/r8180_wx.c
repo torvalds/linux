@@ -1147,12 +1147,12 @@ static int r8180_wx_set_gen_ie(struct net_device *dev,
 	if (priv->ieee80211->bHwRadioOff)
 		return 0;
 
-		down(&priv->wx_sem);
+	down(&priv->wx_sem);
 #if 1
-		ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, wrqu->data.length);
+	ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, wrqu->data.length);
 #endif
-		up(&priv->wx_sem);
-		return ret;
+	up(&priv->wx_sem);
+	return ret;
 
 
 }
