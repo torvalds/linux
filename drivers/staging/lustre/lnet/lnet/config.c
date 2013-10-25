@@ -43,7 +43,7 @@ typedef struct {			    /* tmp struct for parsing routes */
 	char	       ltb_text[0];     /* text buffer */
 } lnet_text_buf_t;
 
-static int lnet_tbnob = 0;			/* track text buf allocation */
+static int lnet_tbnob;			/* track text buf allocation */
 #define LNET_MAX_TEXTBUF_NOB     (64<<10)	/* bound allocation */
 #define LNET_SINGLE_TEXTBUF_NOB  (4<<10)
 
