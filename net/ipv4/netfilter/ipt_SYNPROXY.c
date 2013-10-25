@@ -267,7 +267,8 @@ synproxy_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	if (th == NULL)
 		return NF_DROP;
 
-	synproxy_parse_options(skb, par->thoff, th, &opts);
+	if (!synproxy_parse_options(skb, par->thoff, th, &opts))
+		return NF_DROP;
 
 	if (th->syn && !(th->ack || th->fin || th->rst)) {
 		/* Initial SYN from client */
@@ -350,7 +351,8 @@ static unsigned int ipv4_synproxy_hook(unsigned int hooknum,
 
 		/* fall through */
 	case TCP_CONNTRACK_SYN_SENT:
-		synproxy_parse_options(skb, thoff, th, &opts);
+		if (!synproxy_parse_options(skb, thoff, th, &opts))
+			return NF_DROP;
 
 		if (!th->syn && th->ack &&
 		    CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
@@ -373,7 +375,9 @@ static unsigned int ipv4_synproxy_hook(unsigned int hooknum,
 		if (!th->syn || !th->ack)
 			break;
 
-		synproxy_parse_options(skb, thoff, th, &opts);
+		if (!synproxy_parse_options(skb, thoff, th, &opts))
+			return NF_DROP;
+
 		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
 			synproxy->tsoff = opts.tsval - synproxy->its;
 

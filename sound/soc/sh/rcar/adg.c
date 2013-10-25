@@ -8,7 +8,6 @@
  * for more details.
  */
 #include <linux/sh_clk.h>
-#include <mach/clock.h>
 #include "rsnd.h"
 
 #define CLKA	0
@@ -22,6 +21,7 @@ struct rsnd_adg {
 
 	int rate_of_441khz_div_6;
 	int rate_of_48khz_div_6;
+	u32 ckr;
 };
 
 #define for_each_rsnd_clk(pos, adg, i)		\
@@ -116,6 +116,11 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 
 found_clock:
 
+	/* see rsnd_adg_ssi_clk_init() */
+	rsnd_mod_bset(mod, SSICKR, 0x00FF0000, adg->ckr);
+	rsnd_mod_write(mod, BRRA,  0x00000002); /* 1/6 */
+	rsnd_mod_write(mod, BRRB,  0x00000002); /* 1/6 */
+
 	/*
 	 * This "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
@@ -182,9 +187,7 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 		}
 	}
 
-	rsnd_priv_bset(priv, SSICKR, 0x00FF0000, ckr);
-	rsnd_priv_write(priv, BRRA,  0x00000002); /* 1/6 */
-	rsnd_priv_write(priv, BRRB,  0x00000002); /* 1/6 */
+	adg->ckr = ckr;
 }
 
 int rsnd_adg_probe(struct platform_device *pdev,

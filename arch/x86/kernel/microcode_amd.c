@@ -216,6 +216,7 @@ int apply_microcode_amd(int cpu)
 	/* need to apply patch? */
 	if (rev >= mc_amd->hdr.patch_id) {
 		c->microcode = rev;
+		uci->cpu_sig.rev = rev;
 		return 0;
 	}
 

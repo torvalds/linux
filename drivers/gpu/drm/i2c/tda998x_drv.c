@@ -707,8 +707,7 @@ tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 		reg_write(encoder, REG_VIP_CNTRL_2, priv->vip_cntrl_2);
 		break;
 	case DRM_MODE_DPMS_OFF:
-		/* disable audio and video ports */
-		reg_write(encoder, REG_ENA_AP, 0x00);
+		/* disable video ports */
 		reg_write(encoder, REG_ENA_VP_0, 0x00);
 		reg_write(encoder, REG_ENA_VP_1, 0x00);
 		reg_write(encoder, REG_ENA_VP_2, 0x00);

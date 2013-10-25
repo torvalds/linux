@@ -78,10 +78,6 @@ struct rsnd_dai_stream;
 #define rsnd_mod_bset(m, r, s, d) \
 	rsnd_bset(rsnd_mod_to_priv(m), m, RSND_REG_##r, s, d)
 
-#define rsnd_priv_read(p, r)		rsnd_read(p, NULL, RSND_REG_##r)
-#define rsnd_priv_write(p, r, d)	rsnd_write(p, NULL, RSND_REG_##r, d)
-#define rsnd_priv_bset(p, r, s, d)	rsnd_bset(p, NULL, RSND_REG_##r, s, d)
-
 u32 rsnd_read(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg);
 void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
 		enum rsnd_reg reg, u32 data);
@@ -220,8 +216,8 @@ int rsnd_gen_path_exit(struct rsnd_priv *priv,
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
-#define rsnd_is_gen1(s)		((s)->info->flags & RSND_GEN1)
-#define rsnd_is_gen2(s)		((s)->info->flags & RSND_GEN2)
+#define rsnd_is_gen1(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN1)
+#define rsnd_is_gen2(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN2)
 
 /*
  *	R-Car ADG
@@ -285,6 +281,7 @@ int rsnd_scu_probe(struct platform_device *pdev,
 void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
+bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod);
 #define rsnd_scu_nr(priv) ((priv)->scu_nr)
 
 /*

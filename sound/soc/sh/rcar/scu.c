@@ -146,20 +146,26 @@ static int rsnd_scu_set_hpbif(struct rsnd_priv *priv,
 	return 0;
 }
 
+bool rsnd_scu_hpbif_is_enable(struct rsnd_mod *mod)
+{
+	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
+	u32 flags = rsnd_scu_mode_flags(scu);
+
+	return !!(flags & RSND_SCU_USE_HPBIF);
+}
+
 static int rsnd_scu_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_scu *scu = rsnd_mod_to_scu(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 flags = rsnd_scu_mode_flags(scu);
 	int ret;
 
 	/*
 	 * SCU will be used if it has RSND_SCU_USE_HPBIF flags
 	 */
-	if (!(flags & RSND_SCU_USE_HPBIF)) {
+	if (!rsnd_scu_hpbif_is_enable(mod)) {
 		/* it use PIO transter */
 		dev_dbg(dev, "%s%d is not used\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));

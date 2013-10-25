@@ -131,6 +131,16 @@ static void tc2_pm_down(u64 residency)
 	} else
 		BUG();
 
+	/*
+	 * If the CPU is committed to power down, make sure
+	 * the power controller will be in charge of waking it
+	 * up upon IRQ, ie IRQ lines are cut from GIC CPU IF
+	 * to the CPU by disabling the GIC CPU IF to prevent wfi
+	 * from completing execution behind power controller back
+	 */
+	if (!skip_wfi)
+		gic_cpu_if_down();
+
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&tc2_pm_lock);
 
@@ -231,7 +241,6 @@ static void tc2_pm_suspend(u64 residency)
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	ve_spc_set_resume_addr(cluster, cpu, virt_to_phys(mcpm_entry_point));
-	gic_cpu_if_down();
 	tc2_pm_down(residency);
 }
 
