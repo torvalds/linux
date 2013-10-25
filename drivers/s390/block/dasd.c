@@ -698,10 +698,11 @@ static void dasd_profile_start(struct dasd_block *block,
 	}
 
 	spin_lock(&block->profile.lock);
-	if (block->profile.data)
+	if (block->profile.data) {
 		block->profile.data->dasd_io_nr_req[counter]++;
 		if (rq_data_dir(req) == READ)
 			block->profile.data->dasd_read_nr_req[counter]++;
+	}
 	spin_unlock(&block->profile.lock);
 
 	/*
