@@ -3267,7 +3267,7 @@ PVRSRV_ERROR OSCopyFromUser( IMG_PVOID pvProcess,
 ******************************************************************************/
 IMG_BOOL OSAccessOK(IMG_VERIFY_TEST eVerification, IMG_VOID *pvUserPtr, IMG_SIZE_T uiBytes)
 {
-    IMG_INT linuxType;
+    __attribute__ ((unused)) IMG_INT linuxType = 0;
 
     if (eVerification == PVR_VERIFY_READ)
     {
