@@ -188,6 +188,7 @@ static void __init sun4i_timer_init(struct device_node *node)
 	writel(val | TIMER_IRQ_EN(0), timer_base + TIMER_IRQ_EN_REG);
 
 	sun4i_clockevent.cpumask = cpumask_of(0);
+	sun4i_clockevent.irq = irq;
 
 	clockevents_config_and_register(&sun4i_clockevent, rate,
 					TIMER_SYNC_TICKS, 0xffffffff);
