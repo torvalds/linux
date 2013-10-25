@@ -599,6 +599,7 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 				  : CHAN_MODE_EXCLUSIVE;
 			return;
 		}
+		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (wdev->current_bss) {
