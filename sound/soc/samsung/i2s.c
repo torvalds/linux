@@ -1073,7 +1073,7 @@ static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 		dev_set_drvdata(&i2s->pdev->dev, i2s);
 	} else {	/* Create a new platform_device for Secondary */
 		i2s->pdev = platform_device_alloc("samsung-i2s-sec", -1);
-		if (IS_ERR(i2s->pdev))
+		if (!i2s->pdev)
 			return NULL;
 
 		i2s->pdev->dev.parent = &pdev->dev;
