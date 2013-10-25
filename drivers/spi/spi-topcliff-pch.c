@@ -1411,13 +1411,13 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	/* baseaddress + address offset) */
 	data->io_base_addr = pci_resource_start(board_dat->pdev, 1) +
 					 PCH_ADDRESS_SIZE * plat_dev->id;
-	data->io_remap_addr = pci_iomap(board_dat->pdev, 1, 0) +
-					 PCH_ADDRESS_SIZE * plat_dev->id;
+	data->io_remap_addr = pci_iomap(board_dat->pdev, 1, 0);
 	if (!data->io_remap_addr) {
 		dev_err(&plat_dev->dev, "%s pci_iomap failed\n", __func__);
 		ret = -ENOMEM;
 		goto err_pci_iomap;
 	}
+	data->io_remap_addr += PCH_ADDRESS_SIZE * plat_dev->id;
 
 	dev_dbg(&plat_dev->dev, "[ch%d] remap_addr=%p\n",
 		plat_dev->id, data->io_remap_addr);
