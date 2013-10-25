@@ -48,8 +48,9 @@ void usb_nop_xceiv_register(void)
 	if (pd)
 		return;
 	pd = platform_device_register_simple("usb_phy_gen_xceiv", -1, NULL, 0);
-	if (!pd) {
+	if (IS_ERR(pd)) {
 		pr_err("Unable to register generic usb transceiver\n");
+		pd = NULL;
 		return;
 	}
 }
