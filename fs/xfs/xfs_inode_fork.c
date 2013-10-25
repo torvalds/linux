@@ -1021,15 +1021,14 @@ xfs_iext_add(
 		 * the next index needed in the indirection array.
 		 */
 		else {
-			int	count = ext_diff;
+			uint	count = ext_diff;
 
 			while (count) {
 				erp = xfs_iext_irec_new(ifp, erp_idx);
-				erp->er_extcount = count;
-				count -= MIN(count, (int)XFS_LINEAR_EXTS);
-				if (count) {
+				erp->er_extcount = min(count, XFS_LINEAR_EXTS);
+				count -= erp->er_extcount;
+				if (count)
 					erp_idx++;
-				}
 			}
 		}
 	}
