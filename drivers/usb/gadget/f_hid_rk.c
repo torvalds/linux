@@ -537,7 +537,10 @@ EXPORT_SYMBOL(f_hid_kbd_translate_report);
 
 struct mouse_report {
     u8        id:8;
-    u8        button:8;
+    bool      button_l:1;
+    bool      button_r:1;
+    bool      button_m:1;
+    u8        reserved:5;
     signed    x :12;
     signed    y :12;
     s8        wheel:8;
@@ -558,9 +561,16 @@ void f_hid_mouse_translate_report(struct hid_report *report, u8 *data)
             field = report->field[i];
             for(j=0; j<field->report_count; j++)
             {
-                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_MOUSE))
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_LEFT))
                     if(field->value[j])
-                        m.button |= 1 << j;
+                        m.button_l = 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_RIGHT))
+                    if(field->value[j])
+                        m.button_r = 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_MIDDLE))
+                    if(field->value[j])
+                        m.button_m = 1;
+                        
                 if((field->usage[j].type == EV_REL) && (field->usage[j].code == REL_X))
                     m.x = field->value[j];
                 if((field->usage[j].type == EV_REL) && (field->usage[j].code == REL_Y))
