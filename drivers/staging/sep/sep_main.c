@@ -493,8 +493,7 @@ int sep_free_dma_table_data_handler(struct sep_device *sep,
 		 * then we skip this step altogether as restricted
 		 * memory is not available to the o/s at all.
 		 */
-		if (((*dma_ctx)->secure_dma == false) &&
-			(dma->out_map_array)) {
+		if (!(*dma_ctx)->secure_dma && dma->out_map_array) {
 
 			for (count = 0; count < dma->out_num_pages; count++) {
 				dma_unmap_page(&sep->pdev->dev,
@@ -515,8 +514,7 @@ int sep_free_dma_table_data_handler(struct sep_device *sep,
 		}
 
 		/* Again, we do this only for non secure dma */
-		if (((*dma_ctx)->secure_dma == false) &&
-			(dma->out_page_array)) {
+		if (!(*dma_ctx)->secure_dma && dma->out_page_array) {
 
 			for (count = 0; count < dma->out_num_pages; count++) {
 				if (!PageReserved(dma->out_page_array[count]))
@@ -1947,7 +1945,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 	}
 
 	/* Check if the pages are in Kernel Virtual Address layout */
-	if (is_kva == true)
+	if (is_kva)
 		error = sep_lock_kernel_pages(sep, app_virt_addr,
 			data_size, &lli_array_ptr, SEP_DRIVER_IN_FLAG,
 			dma_ctx);
@@ -2441,7 +2439,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 	dma_ctx->dma_res_arr[dma_ctx->nr_dcb_creat].out_page_array = NULL;
 
 	/* Lock the pages of the buffer and translate them to pages */
-	if (is_kva == true) {
+	if (is_kva) {
 		dev_dbg(&sep->pdev->dev, "[PID%d] Locking kernel input pages\n",
 						current->pid);
 		error = sep_lock_kernel_pages(sep, app_virt_in_addr,
@@ -2485,7 +2483,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 			goto end_function;
 		}
 
-		if (dma_ctx->secure_dma == true) {
+		if (dma_ctx->secure_dma) {
 			/* secure_dma requires use of non accessible memory */
 			dev_dbg(&sep->pdev->dev, "[PID%d] in secure_dma\n",
 				current->pid);
@@ -2722,11 +2720,11 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 	dcb_table_ptr->tail_data_size = 0;
 	dcb_table_ptr->out_vr_tail_pt = 0;
 
-	if (isapplet == true) {
+	if (isapplet) {
 
 		/* Check if there is enough data for DMA operation */
 		if (data_in_size < SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE) {
-			if (is_kva == true) {
+			if (is_kva) {
 				error = -ENODEV;
 				goto end_function_error;
 			} else {
@@ -2767,7 +2765,7 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 		if (tail_size) {
 			if (tail_size > sizeof(dcb_table_ptr->tail_data))
 				return -EINVAL;
-			if (is_kva == true) {
+			if (is_kva) {
 				error = -ENODEV;
 				goto end_function_error;
 			} else {
@@ -2878,7 +2876,7 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 	if (!dma_ctx || !*dma_ctx) /* nothing to be done here*/
 		return 0;
 
-	if (((*dma_ctx)->secure_dma == false) && (isapplet == true)) {
+	if (!(*dma_ctx)->secure_dma && isapplet) {
 		dev_dbg(&sep->pdev->dev, "[PID%d] handling applet\n",
 			current->pid);
 
@@ -2897,7 +2895,7 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 				pt_hold = (unsigned long)dcb_table_ptr->
 					out_vr_tail_pt;
 				tail_pt = (void *)pt_hold;
-				if (is_kva == true) {
+				if (is_kva) {
 					error = -ENODEV;
 					break;
 				} else {
