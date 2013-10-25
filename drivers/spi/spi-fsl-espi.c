@@ -289,8 +289,8 @@ static void fsl_espi_do_trans(struct spi_message *m,
 		if ((first->bits_per_word != t->bits_per_word) ||
 			(first->speed_hz != t->speed_hz)) {
 			espi_trans->status = -EINVAL;
-			dev_err(mspi->dev, "bits_per_word/speed_hz should be"
-					" same for the same SPI transfer\n");
+			dev_err(mspi->dev,
+				"bits_per_word/speed_hz should be same for the same SPI transfer\n");
 			return;
 		}
 
