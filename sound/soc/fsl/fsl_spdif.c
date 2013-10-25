@@ -1107,9 +1107,9 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (IS_ERR(res)) {
+	if (!res) {
 		dev_err(&pdev->dev, "could not determine device resources\n");
-		return PTR_ERR(res);
+		return -ENXIO;
 	}
 
 	regs = devm_ioremap_resource(&pdev->dev, res);
