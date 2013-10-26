@@ -1402,7 +1402,8 @@ extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 						 struct timeval *vblank_time,
 						 unsigned flags,
 						 struct drm_crtc *refcrtc);
-extern void drm_calc_timestamping_constants(struct drm_crtc *crtc);
+extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
+					    const struct drm_display_mode *mode);
 
 extern bool
 drm_mode_parse_command_line_for_connector(const char *mode_option,

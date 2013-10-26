@@ -536,7 +536,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	 * are later needed by vblank and swap-completion
 	 * timestamping. They are derived from true hwmode.
 	 */
-	drm_calc_timestamping_constants(crtc);
+	drm_calc_timestamping_constants(crtc, &crtc->hwmode);
 
 	/* FIXME: add subpixel order */
 done:

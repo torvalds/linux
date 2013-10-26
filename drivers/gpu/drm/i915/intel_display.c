@@ -9693,7 +9693,8 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		 * are later needed by vblank and swap-completion
 		 * timestamping. They are derived from true hwmode.
 		 */
-		drm_calc_timestamping_constants(crtc);
+		drm_calc_timestamping_constants(crtc,
+						&pipe_config->adjusted_mode);
 	}
 
 	/* FIXME: add subpixel order */
