@@ -1652,7 +1652,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns, struct list_head *ca
 
 		LDLM_LOCK_GET(lock);
 		spin_unlock(&ns->ns_lock);
-		lu_ref_add(&lock->l_reference, __FUNCTION__, current);
+		lu_ref_add(&lock->l_reference, __func__, current);
 
 		/* Pass the lock through the policy filter and see if it
 		 * should stay in LRU.
@@ -1670,7 +1670,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns, struct list_head *ca
 		result = pf(ns, lock, unused, added, count);
 		if (result == LDLM_POLICY_KEEP_LOCK) {
 			lu_ref_del(&lock->l_reference,
-				   __FUNCTION__, current);
+				   __func__, current);
 			LDLM_LOCK_RELEASE(lock);
 			spin_lock(&ns->ns_lock);
 			break;
@@ -1693,7 +1693,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns, struct list_head *ca
 			 * by itself, or the lock is no longer unused. */
 			unlock_res_and_lock(lock);
 			lu_ref_del(&lock->l_reference,
-				   __FUNCTION__, current);
+				   __func__, current);
 			LDLM_LOCK_RELEASE(lock);
 			spin_lock(&ns->ns_lock);
 			continue;
@@ -1724,7 +1724,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns, struct list_head *ca
 		LASSERT(list_empty(&lock->l_bl_ast));
 		list_add(&lock->l_bl_ast, cancels);
 		unlock_res_and_lock(lock);
-		lu_ref_del(&lock->l_reference, __FUNCTION__, current);
+		lu_ref_del(&lock->l_reference, __func__, current);
 		spin_lock(&ns->ns_lock);
 		added++;
 		unused--;
