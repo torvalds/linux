@@ -239,7 +239,7 @@ static void __rotate_change_maxhigh(struct interval_node *node,
 	left_max = node->in_left ? node->in_left->in_max_high : 0;
 	right_max = node->in_right ? node->in_right->in_max_high : 0;
 	node->in_max_high  = max_u64(interval_high(node),
-				     max_u64(left_max,right_max));
+				     max_u64(left_max, right_max));
 }
 
 /* The left rotation "pivots" around the link from node to node->right, and
