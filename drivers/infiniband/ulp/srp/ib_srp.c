@@ -86,6 +86,27 @@ module_param(topspin_workarounds, int, 0444);
 MODULE_PARM_DESC(topspin_workarounds,
 		 "Enable workarounds for Topspin/Cisco SRP target bugs if != 0");
 
+static struct kernel_param_ops srp_tmo_ops;
+
+static int srp_fast_io_fail_tmo = 15;
+module_param_cb(fast_io_fail_tmo, &srp_tmo_ops, &srp_fast_io_fail_tmo,
+		S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fast_io_fail_tmo,
+		 "Number of seconds between the observation of a transport"
+		 " layer error and failing all I/O. \"off\" means that this"
+		 " functionality is disabled.");
+
+static int srp_dev_loss_tmo = 60;
+module_param_cb(dev_loss_tmo, &srp_tmo_ops, &srp_dev_loss_tmo,
+		S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dev_loss_tmo,
+		 "Maximum number of seconds that the SRP transport should"
+		 " insulate transport layer errors. After this time has been"
+		 " exceeded the SCSI host is removed. Should be"
+		 " between 1 and " __stringify(SCSI_DEVICE_BLOCK_MAX_TIMEOUT)
+		 " if fast_io_fail_tmo has not been set. \"off\" means that"
+		 " this functionality is disabled.");
+
 static void srp_add_one(struct ib_device *device);
 static void srp_remove_one(struct ib_device *device);
 static void srp_recv_completion(struct ib_cq *cq, void *target_ptr);
@@ -101,6 +122,44 @@ static struct ib_client srp_client = {
 };
 
 static struct ib_sa_client srp_sa_client;
+
+static int srp_tmo_get(char *buffer, const struct kernel_param *kp)
+{
+	int tmo = *(int *)kp->arg;
+
+	if (tmo >= 0)
+		return sprintf(buffer, "%d", tmo);
+	else
+		return sprintf(buffer, "off");
+}
+
+static int srp_tmo_set(const char *val, const struct kernel_param *kp)
+{
+	int tmo, res;
+
+	if (strncmp(val, "off", 3) != 0) {
+		res = kstrtoint(val, 0, &tmo);
+		if (res)
+			goto out;
+	} else {
+		tmo = -1;
+	}
+	if (kp->arg == &srp_fast_io_fail_tmo)
+		res = srp_tmo_valid(tmo, srp_dev_loss_tmo);
+	else
+		res = srp_tmo_valid(srp_fast_io_fail_tmo, tmo);
+	if (res)
+		goto out;
+	*(int *)kp->arg = tmo;
+
+out:
+	return res;
+}
+
+static struct kernel_param_ops srp_tmo_ops = {
+	.get = srp_tmo_get,
+	.set = srp_tmo_set,
+};
 
 static inline struct srp_target_port *host_to_target(struct Scsi_Host *host)
 {
@@ -688,23 +747,42 @@ static void srp_free_req(struct srp_target_port *target,
 	spin_unlock_irqrestore(&target->lock, flags);
 }
 
-static void srp_reset_req(struct srp_target_port *target, struct srp_request *req)
+static void srp_finish_req(struct srp_target_port *target,
+			   struct srp_request *req, int result)
 {
 	struct scsi_cmnd *scmnd = srp_claim_req(target, req, NULL);
 
 	if (scmnd) {
 		srp_free_req(target, req, scmnd, 0);
-		scmnd->result = DID_RESET << 16;
+		scmnd->result = result;
 		scmnd->scsi_done(scmnd);
 	}
 }
 
-static int srp_reconnect_target(struct srp_target_port *target)
+static void srp_terminate_io(struct srp_rport *rport)
 {
-	struct Scsi_Host *shost = target->scsi_host;
-	int i, ret;
+	struct srp_target_port *target = rport->lld_data;
+	int i;
 
-	scsi_target_block(&shost->shost_gendev);
+	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
+		struct srp_request *req = &target->req_ring[i];
+		srp_finish_req(target, req, DID_TRANSPORT_FAILFAST << 16);
+	}
+}
+
+/*
+ * It is up to the caller to ensure that srp_rport_reconnect() calls are
+ * serialized and that no concurrent srp_queuecommand(), srp_abort(),
+ * srp_reset_device() or srp_reset_host() calls will occur while this function
+ * is in progress. One way to realize that is not to call this function
+ * directly but to call srp_reconnect_rport() instead since that last function
+ * serializes calls of this function via rport->mutex and also blocks
+ * srp_queuecommand() calls before invoking this function.
+ */
+static int srp_rport_reconnect(struct srp_rport *rport)
+{
+	struct srp_target_port *target = rport->lld_data;
+	int i, ret;
 
 	srp_disconnect_target(target);
 	/*
@@ -725,8 +803,7 @@ static int srp_reconnect_target(struct srp_target_port *target)
 
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
-		if (req->scmnd)
-			srp_reset_req(target, req);
+		srp_finish_req(target, req, DID_RESET << 16);
 	}
 
 	INIT_LIST_HEAD(&target->free_tx);
@@ -736,28 +813,9 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	if (ret == 0)
 		ret = srp_connect_target(target);
 
-	scsi_target_unblock(&shost->shost_gendev, ret == 0 ? SDEV_RUNNING :
-			    SDEV_TRANSPORT_OFFLINE);
-	target->transport_offline = !!ret;
-
-	if (ret)
-		goto err;
-
-	shost_printk(KERN_INFO, target->scsi_host, PFX "reconnect succeeded\n");
-
-	return ret;
-
-err:
-	shost_printk(KERN_ERR, target->scsi_host,
-		     PFX "reconnect failed (%d), removing target port.\n", ret);
-
-	/*
-	 * We couldn't reconnect, so kill our target port off.
-	 * However, we have to defer the real removal because we
-	 * are in the context of the SCSI error handler now, which
-	 * will deadlock if we call scsi_remove_host().
-	 */
-	srp_queue_remove_work(target);
+	if (ret == 0)
+		shost_printk(KERN_INFO, target->scsi_host,
+			     PFX "reconnect succeeded\n");
 
 	return ret;
 }
@@ -1356,10 +1414,11 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	struct srp_cmd *cmd;
 	struct ib_device *dev;
 	unsigned long flags;
-	int len;
+	int len, result;
 
-	if (unlikely(target->transport_offline)) {
-		scmnd->result = DID_NO_CONNECT << 16;
+	result = srp_chkready(target->rport);
+	if (unlikely(result)) {
+		scmnd->result = result;
 		scmnd->scsi_done(scmnd);
 		return 0;
 	}
@@ -1757,7 +1816,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 	if (srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
 			      SRP_TSK_ABORT_TASK) == 0)
 		ret = SUCCESS;
-	else if (target->transport_offline)
+	else if (target->rport->state == SRP_RPORT_LOST)
 		ret = FAST_IO_FAIL;
 	else
 		ret = FAILED;
@@ -1784,7 +1843,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
 		if (req->scmnd && req->scmnd->device == scmnd->device)
-			srp_reset_req(target, req);
+			srp_finish_req(target, req, DID_RESET << 16);
 	}
 
 	return SUCCESS;
@@ -1793,14 +1852,10 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 static int srp_reset_host(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
-	int ret = FAILED;
 
 	shost_printk(KERN_ERR, target->scsi_host, PFX "SRP reset_host called\n");
 
-	if (!srp_reconnect_target(target))
-		ret = SUCCESS;
-
-	return ret;
+	return srp_reconnect_rport(target->rport) == 0 ? SUCCESS : FAILED;
 }
 
 static int srp_slave_configure(struct scsi_device *sdev)
@@ -2637,7 +2692,13 @@ static void srp_remove_one(struct ib_device *device)
 }
 
 static struct srp_function_template ib_srp_transport_functions = {
+	.has_rport_state	 = true,
+	.reset_timer_if_blocked	 = true,
+	.fast_io_fail_tmo	 = &srp_fast_io_fail_tmo,
+	.dev_loss_tmo		 = &srp_dev_loss_tmo,
+	.reconnect		 = srp_rport_reconnect,
 	.rport_delete		 = srp_rport_delete,
+	.terminate_rport_io	 = srp_terminate_io,
 };
 
 static int __init srp_init_module(void)
