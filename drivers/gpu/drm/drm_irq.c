@@ -522,6 +522,7 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  *         0 = Default.
  *         DRM_CALLED_FROM_VBLIRQ = If function is called from vbl irq handler.
  * @refcrtc: drm_crtc* of crtc which defines scanout timing.
+ * @mode: mode which defines the scanout timings
  *
  * Returns negative value on error, failure or if not supported in current
  * video mode:
@@ -541,11 +542,11 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 					  int *max_error,
 					  struct timeval *vblank_time,
 					  unsigned flags,
-					  struct drm_crtc *refcrtc)
+					  const struct drm_crtc *refcrtc,
+					  const struct drm_display_mode *mode)
 {
 	ktime_t stime, etime, mono_time_offset;
 	struct timeval tv_etime;
-	struct drm_display_mode *mode;
 	int vbl_status, vtotal, vdisplay;
 	int vpos, hpos, i;
 	s64 framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
@@ -562,7 +563,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		return -EIO;
 	}
 
-	mode = &refcrtc->hwmode;
 	vtotal = mode->crtc_vtotal;
 	vdisplay = mode->crtc_vdisplay;
 
