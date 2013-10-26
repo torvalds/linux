@@ -428,7 +428,7 @@ static void interval_erase_color(struct interval_node *node,
 				if (node_is_black_or_0(tmp->in_right)) {
 					struct interval_node *o_left;
 					if ((o_left = tmp->in_left))
-					     o_left->in_color = INTERVAL_BLACK;
+						o_left->in_color = INTERVAL_BLACK;
 					tmp->in_color = INTERVAL_RED;
 					__rotate_right(tmp, root);
 					tmp = parent->in_right;
@@ -436,7 +436,7 @@ static void interval_erase_color(struct interval_node *node,
 				tmp->in_color = parent->in_color;
 				parent->in_color = INTERVAL_BLACK;
 				if (tmp->in_right)
-				    tmp->in_right->in_color = INTERVAL_BLACK;
+					tmp->in_right->in_color = INTERVAL_BLACK;
 				__rotate_left(parent, root);
 				node = *root;
 				break;
@@ -458,7 +458,7 @@ static void interval_erase_color(struct interval_node *node,
 				if (node_is_black_or_0(tmp->in_left)) {
 					struct interval_node *o_right;
 					if ((o_right = tmp->in_right))
-					    o_right->in_color = INTERVAL_BLACK;
+						o_right->in_color = INTERVAL_BLACK;
 					tmp->in_color = INTERVAL_RED;
 					__rotate_left(tmp, root);
 					tmp = parent->in_left;
@@ -545,7 +545,7 @@ void interval_erase(struct interval_node *node,
 		update_maxhigh(child ? : parent, node->in_max_high);
 		update_maxhigh(node, old->in_max_high);
 		if (parent == old)
-			 parent = node;
+			parent = node;
 		goto color;
 	}
 	parent = node->in_parent;
