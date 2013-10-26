@@ -436,17 +436,16 @@ int drm_control(struct drm_device *dev, void *data,
 }
 
 /**
- * drm_calc_timestamping_constants - Calculate and
- * store various constants which are later needed by
- * vblank and swap-completion timestamping, e.g, by
- * drm_calc_vbltimestamp_from_scanoutpos().
- * They are derived from crtc's true scanout timing,
- * so they take things like panel scaling or other
- * adjustments into account.
+ * drm_calc_timestamping_constants - Calculate vblank timestamp constants
  *
  * @crtc drm_crtc whose timestamp constants should be updated.
  * @mode display mode containing the scanout timings
  *
+ * Calculate and store various constants which are later
+ * needed by vblank and swap-completion timestamping, e.g,
+ * by drm_calc_vbltimestamp_from_scanoutpos(). They are
+ * derived from crtc's true scanout timing, so they take
+ * things like panel scaling or other adjustments into account.
  */
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
