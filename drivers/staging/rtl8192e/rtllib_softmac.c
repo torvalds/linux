@@ -3590,14 +3590,9 @@ int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p,
 		goto out;
 	}
 
-	param = kmalloc(p->length, GFP_KERNEL);
-	if (param == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(param, p->pointer, p->length)) {
-		kfree(param);
-		ret = -EFAULT;
+	param = memdup_user(p->pointer, p->length);
+	if (IS_ERR(param)) {
+		ret = PTR_ERR(param);
 		goto out;
 	}
 
