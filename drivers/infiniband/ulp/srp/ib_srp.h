@@ -177,6 +177,7 @@ struct srp_target_port {
 	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
 
+	struct work_struct	tl_err_work;
 	struct work_struct	remove_work;
 
 	struct list_head	list;
