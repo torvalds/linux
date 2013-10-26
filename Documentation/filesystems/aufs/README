@@ -173,10 +173,8 @@ There are several ways to build.
   path on the branch fs.
 - apply ./aufs3-standalone.patch too, if you have a plan to set
   CONFIG_AUFS_FS=m. otherwise you don't need ./aufs3-standalone.patch.
-- copy ./{Documentation,fs,include/linux/aufs_type.h,include/uapi/linux/
-  aufs_type.h} files to your kernel source tree (yes, there are two
-  files same named. but the contents are different). Never copy
-  $PWD/include/uapi/linux/Kbuild.
+- copy ./{Documentation,fs,include/uapi/linux/aufs_type.h} files to your
+  kernel source tree. Never copy $PWD/include/uapi/linux/Kbuild.
 - enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS, you can select either
   =m or =y.
 - and build your kernel as usual.
