@@ -125,11 +125,11 @@ static inline __u64 min_u64(__u64 x, __u64 y)
 
 #define interval_for_each(node, root)		   \
 for (node = interval_first(root); node != NULL;	 \
-     node = interval_next(node))
+	node = interval_next(node))
 
 #define interval_for_each_reverse(node, root)	   \
 for (node = interval_last(root); node != NULL;	  \
-     node = interval_prev(node))
+	node = interval_prev(node))
 
 static struct interval_node *interval_first(struct interval_node *node)
 {
