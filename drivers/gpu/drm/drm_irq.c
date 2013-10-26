@@ -450,7 +450,7 @@ int drm_control(struct drm_device *dev, void *data,
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
 {
-	s64 linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
+	int linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
 	int dotclock = mode->crtc_clock;
 
 	/* Fields of interlaced scanout modes are only half a frame duration.
@@ -483,8 +483,8 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 		  crtc->base.id, mode->crtc_htotal,
 		  mode->crtc_vtotal, mode->crtc_vdisplay);
 	DRM_DEBUG("crtc %d: clock %d kHz framedur %d linedur %d, pixeldur %d\n",
-		  crtc->base.id, dotclock, (int) framedur_ns,
-		  (int) linedur_ns, (int) pixeldur_ns);
+		  crtc->base.id, dotclock, framedur_ns,
+		  linedur_ns, pixeldur_ns);
 }
 EXPORT_SYMBOL(drm_calc_timestamping_constants);
 
@@ -544,7 +544,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	struct timeval tv_etime;
 	int vbl_status, vtotal, vdisplay;
 	int vpos, hpos, i;
-	s64 framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
+	int framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
 	bool invbl;
 
 	if (crtc < 0 || crtc >= dev->num_crtcs) {
@@ -607,18 +607,18 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		duration_ns = ktime_to_ns(etime) - ktime_to_ns(stime);
 
 		/* Accept result with <  max_error nsecs timing uncertainty. */
-		if (duration_ns <= (s64) *max_error)
+		if (duration_ns <= *max_error)
 			break;
 	}
 
 	/* Noisy system timing? */
 	if (i == DRM_TIMESTAMP_MAXRETRIES) {
 		DRM_DEBUG("crtc %d: Noisy timestamp %d us > %d us [%d reps].\n",
-			  crtc, (int) duration_ns/1000, *max_error/1000, i);
+			  crtc, duration_ns/1000, *max_error/1000, i);
 	}
 
 	/* Return upper bound of timestamp precision error. */
-	*max_error = (int) duration_ns;
+	*max_error = duration_ns;
 
 	/* Check if in vblank area:
 	 * vpos is >=0 in video scanout area, but negative
@@ -631,7 +631,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	 * since start of scanout at first display scanline. delta_ns
 	 * can be negative if start of scanout hasn't happened yet.
 	 */
-	delta_ns = (s64) vpos * linedur_ns + (s64) hpos * pixeldur_ns;
+	delta_ns = vpos * linedur_ns + hpos * pixeldur_ns;
 
 	/* Is vpos outside nominal vblank area, but less than
 	 * 1/100 of a frame height away from start of vblank?
@@ -669,7 +669,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		  crtc, (int)vbl_status, hpos, vpos,
 		  (long)tv_etime.tv_sec, (long)tv_etime.tv_usec,
 		  (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
-		  (int)duration_ns/1000, i);
+		  duration_ns/1000, i);
 
 	vbl_status = DRM_VBLANKTIME_SCANOUTPOS_METHOD;
 	if (invbl)
