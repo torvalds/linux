@@ -38,6 +38,8 @@ extern struct scsi_transport_template *
 srp_attach_transport(struct srp_function_template *);
 extern void srp_release_transport(struct scsi_transport_template *);
 
+extern void srp_rport_get(struct srp_rport *rport);
+extern void srp_rport_put(struct srp_rport *rport);
 extern struct srp_rport *srp_rport_add(struct Scsi_Host *,
 				       struct srp_rport_identifiers *);
 extern void srp_rport_del(struct srp_rport *);

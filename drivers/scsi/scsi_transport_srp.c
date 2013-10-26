@@ -185,6 +185,24 @@ static int srp_host_match(struct attribute_container *cont, struct device *dev)
 }
 
 /**
+ * srp_rport_get() - increment rport reference count
+ */
+void srp_rport_get(struct srp_rport *rport)
+{
+	get_device(&rport->dev);
+}
+EXPORT_SYMBOL(srp_rport_get);
+
+/**
+ * srp_rport_put() - decrement rport reference count
+ */
+void srp_rport_put(struct srp_rport *rport)
+{
+	put_device(&rport->dev);
+}
+EXPORT_SYMBOL(srp_rport_put);
+
+/**
  * srp_rport_add - add a SRP remote port to the device hierarchy
  * @shost:	scsi host the remote port is connected to.
  * @ids:	The port id for the remote port.
