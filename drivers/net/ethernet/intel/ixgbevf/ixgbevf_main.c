@@ -58,7 +58,7 @@ const char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
-#define DRV_VERSION "2.7.12-k"
+#define DRV_VERSION "2.11.3-k"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2012 Intel Corporation.";
@@ -580,7 +580,7 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
  * ixgbevf_write_eitr - write VTEITR register in hardware specific way
  * @q_vector: structure containing interrupt and ring information
  */
-static void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
+void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -1082,6 +1082,21 @@ static void ixgbevf_configure_srrctl(struct ixgbevf_adapter *adapter, int index)
 	IXGBE_WRITE_REG(hw, IXGBE_VFSRRCTL(index), srrctl);
 }
 
+static void ixgbevf_setup_psrtype(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	/* PSRTYPE must be initialized in 82599 */
+	u32 psrtype = IXGBE_PSRTYPE_TCPHDR | IXGBE_PSRTYPE_UDPHDR |
+		      IXGBE_PSRTYPE_IPV4HDR | IXGBE_PSRTYPE_IPV6HDR |
+		      IXGBE_PSRTYPE_L2HDR;
+
+	if (adapter->num_rx_queues > 1)
+		psrtype |= 1 << 29;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, psrtype);
+}
+
 static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -1129,8 +1144,7 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 	int i, j;
 	u32 rdlen;
 
-	/* PSRTYPE must be initialized in 82599 */
-	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, 0);
+	ixgbevf_setup_psrtype(adapter);
 
 	/* set_rx_buffer_len must be called before ring initialization */
 	ixgbevf_set_rx_buffer_len(adapter);

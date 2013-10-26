@@ -2257,13 +2257,13 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 
 #if IS_ENABLED(CONFIG_BQL)
 	/* detect ITR changes that require update of TXDCTL.WTHRESH */
-	if ((adapter->tx_itr_setting > 1) &&
+	if ((adapter->tx_itr_setting != 1) &&
 	    (adapter->tx_itr_setting < IXGBE_100K_ITR)) {
 		if ((tx_itr_prev == 1) ||
-		    (tx_itr_prev > IXGBE_100K_ITR))
+		    (tx_itr_prev >= IXGBE_100K_ITR))
 			need_reset = true;
 	} else {
-		if ((tx_itr_prev > 1) &&
+		if ((tx_itr_prev != 1) &&
 		    (tx_itr_prev < IXGBE_100K_ITR))
 			need_reset = true;
 	}
