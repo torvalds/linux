@@ -1965,6 +1965,14 @@ static ssize_t show_pkey(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "0x%04x\n", be16_to_cpu(target->path.pkey));
 }
 
+static ssize_t show_sgid(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
+
+	return sprintf(buf, "%pI6\n", target->path.sgid.raw);
+}
+
 static ssize_t show_dgid(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
@@ -2049,6 +2057,7 @@ static DEVICE_ATTR(id_ext,	    S_IRUGO, show_id_ext,	   NULL);
 static DEVICE_ATTR(ioc_guid,	    S_IRUGO, show_ioc_guid,	   NULL);
 static DEVICE_ATTR(service_id,	    S_IRUGO, show_service_id,	   NULL);
 static DEVICE_ATTR(pkey,	    S_IRUGO, show_pkey,		   NULL);
+static DEVICE_ATTR(sgid,	    S_IRUGO, show_sgid,		   NULL);
 static DEVICE_ATTR(dgid,	    S_IRUGO, show_dgid,		   NULL);
 static DEVICE_ATTR(orig_dgid,	    S_IRUGO, show_orig_dgid,	   NULL);
 static DEVICE_ATTR(req_lim,         S_IRUGO, show_req_lim,         NULL);
@@ -2065,6 +2074,7 @@ static struct device_attribute *srp_host_attrs[] = {
 	&dev_attr_ioc_guid,
 	&dev_attr_service_id,
 	&dev_attr_pkey,
+	&dev_attr_sgid,
 	&dev_attr_dgid,
 	&dev_attr_orig_dgid,
 	&dev_attr_req_lim,

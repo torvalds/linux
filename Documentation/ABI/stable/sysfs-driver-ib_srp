@@ -155,6 +155,13 @@ Contact:	linux-rdma@vger.kernel.org
 Description:	InfiniBand service ID used for establishing communication with
 		the SRP	target.
 
+What:		/sys/class/scsi_host/host<n>/sgid
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-rdma@vger.kernel.org
+Description:	InfiniBand GID of the source port used for communication with
+		the SRP target.
+
 What:		/sys/class/scsi_host/host<n>/zero_req_lim
 Date:		September 20, 2006
 KernelVersion:	2.6.18
