@@ -135,21 +135,6 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 	return oldval;
 }
 
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
-{
-	unsigned long tmp, tmp2;
-
-	__asm__ __volatile__("@ atomic_clear_mask\n"
-"1:	ldrex	%0, [%3]\n"
-"	bic	%0, %0, %4\n"
-"	strex	%1, %0, [%3]\n"
-"	teq	%1, #0\n"
-"	bne	1b"
-	: "=&r" (tmp), "=&r" (tmp2), "+Qo" (*addr)
-	: "r" (addr), "Ir" (mask)
-	: "cc");
-}
-
 #else /* ARM_ARCH_6 */
 
 #ifdef CONFIG_SMP
@@ -196,15 +181,6 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	raw_local_irq_restore(flags);
 
 	return ret;
-}
-
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
-{
-	unsigned long flags;
-
-	raw_local_irq_save(flags);
-	*addr &= ~mask;
-	raw_local_irq_restore(flags);
 }
 
 #endif /* __LINUX_ARM_ARCH__ */
