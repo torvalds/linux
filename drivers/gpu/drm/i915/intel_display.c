@@ -9597,21 +9597,19 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_display_mode *saved_mode, *saved_hwmode;
+	struct drm_display_mode *saved_mode;
 	struct intel_crtc_config *pipe_config = NULL;
 	struct intel_crtc *intel_crtc;
 	unsigned disable_pipes, prepare_pipes, modeset_pipes;
 	int ret = 0;
 
-	saved_mode = kcalloc(2, sizeof(*saved_mode), GFP_KERNEL);
+	saved_mode = kmalloc(sizeof(*saved_mode), GFP_KERNEL);
 	if (!saved_mode)
 		return -ENOMEM;
-	saved_hwmode = saved_mode + 1;
 
 	intel_modeset_affected_pipes(crtc, &modeset_pipes,
 				     &prepare_pipes, &disable_pipes);
 
-	*saved_hwmode = crtc->hwmode;
 	*saved_mode = crtc->mode;
 
 	/* Hack: Because we don't (yet) support global modeset on multiple
@@ -9686,9 +9684,6 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		dev_priv->display.crtc_enable(&intel_crtc->base);
 
 	if (modeset_pipes) {
-		/* Store real post-adjustment hardware mode. */
-		crtc->hwmode = pipe_config->adjusted_mode;
-
 		/* Calculate and store various constants which
 		 * are later needed by vblank and swap-completion
 		 * timestamping. They are derived from true hwmode.
@@ -9699,10 +9694,8 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 
 	/* FIXME: add subpixel order */
 done:
-	if (ret && crtc->enabled) {
-		crtc->hwmode = *saved_hwmode;
+	if (ret && crtc->enabled)
 		crtc->mode = *saved_mode;
-	}
 
 out:
 	kfree(pipe_config);
