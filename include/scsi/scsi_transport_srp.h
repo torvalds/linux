@@ -31,7 +31,8 @@ enum srp_rport_state {
 /**
  * struct srp_rport
  * @lld_data: LLD private data.
- * @mutex:    Protects against concurrent rport fast_io_fail / dev_loss_tmo.
+ * @mutex:    Protects against concurrent rport reconnect / fast_io_fail /
+ *   dev_loss_tmo activity.
  */
 struct srp_rport {
 	/* for initiator and target drivers */
@@ -48,6 +49,9 @@ struct srp_rport {
 	struct mutex		mutex;
 	enum srp_rport_state	state;
 	bool			deleted;
+	int			reconnect_delay;
+	int			failed_reconnects;
+	struct delayed_work	reconnect_work;
 	int			fast_io_fail_tmo;
 	int			dev_loss_tmo;
 	struct delayed_work	fast_io_fail_work;
@@ -60,6 +64,7 @@ struct srp_rport {
  *     dev_loss_tmo sysfs attribute for an rport.
  * @reset_timer_if_blocked: Whether or srp_timed_out() should reset the command
  *     timer if the device on which it has been queued is blocked.
+ * @reconnect_delay: If not NULL, points to the default reconnect_delay value.
  * @fast_io_fail_tmo: If not NULL, points to the default fast_io_fail_tmo value.
  * @dev_loss_tmo: If not NULL, points to the default dev_loss_tmo value.
  * @reconnect: Callback function for reconnecting to the target. See also
@@ -71,6 +76,7 @@ struct srp_function_template {
 	/* for initiator drivers */
 	bool has_rport_state;
 	bool reset_timer_if_blocked;
+	int *reconnect_delay;
 	int *fast_io_fail_tmo;
 	int *dev_loss_tmo;
 	int (*reconnect)(struct srp_rport *rport);
@@ -90,7 +96,8 @@ extern void srp_rport_put(struct srp_rport *rport);
 extern struct srp_rport *srp_rport_add(struct Scsi_Host *,
 				       struct srp_rport_identifiers *);
 extern void srp_rport_del(struct srp_rport *);
-extern int srp_tmo_valid(int fast_io_fail_tmo, int dev_loss_tmo);
+extern int srp_tmo_valid(int reconnect_delay, int fast_io_fail_tmo,
+			 int dev_loss_tmo);
 extern int srp_reconnect_rport(struct srp_rport *rport);
 extern void srp_start_tl_fail_timers(struct srp_rport *rport);
 extern void srp_remove_host(struct Scsi_Host *);

@@ -30,6 +30,14 @@ Contact:	linux-scsi@vger.kernel.org
 Description:	16-byte local SRP port identifier in hexadecimal format. An
 		example: 4c:49:4e:55:58:20:56:49:4f:00:00:00:00:00:00:00.
 
+What:		/sys/class/srp_remote_ports/port-<h>:<n>/reconnect_delay
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org
+Description:	Number of seconds the SCSI layer will wait after a reconnect
+		attempt failed before retrying. Setting this attribute to
+		"off" will disable time-based reconnecting.
+
 What:		/sys/class/srp_remote_ports/port-<h>:<n>/roles
 Date:		June 27, 2007
 KernelVersion:	2.6.24

@@ -145,9 +145,9 @@ static int srp_tmo_set(const char *val, const struct kernel_param *kp)
 		tmo = -1;
 	}
 	if (kp->arg == &srp_fast_io_fail_tmo)
-		res = srp_tmo_valid(tmo, srp_dev_loss_tmo);
+		res = srp_tmo_valid(-1, tmo, srp_dev_loss_tmo);
 	else
-		res = srp_tmo_valid(srp_fast_io_fail_tmo, tmo);
+		res = srp_tmo_valid(-1, srp_fast_io_fail_tmo, tmo);
 	if (res)
 		goto out;
 	*(int *)kp->arg = tmo;
