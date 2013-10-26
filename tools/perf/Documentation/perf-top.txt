@@ -140,20 +140,12 @@ Default is to monitor all CPUS.
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
 
--G [type,min,order]::
+-G::
+	Enables call-graph (stack chain/backtrace) recording.
+
 --call-graph::
-        Display call chains using type, min percent threshold and order.
-	type can be either:
-	- flat: single column, linear exposure of call chains.
-	- graph: use a graph tree, displaying absolute overhead rates.
-	- fractal: like graph, but displays relative rates. Each branch of
-		 the tree is considered as a new profiled object.
-
-	order can be either:
-	- callee: callee based call graph.
-	- caller: inverted caller based call graph.
-
-	Default: fractal,0.5,callee.
+	Setup and enable call-graph (stack chain/backtrace) recording,
+	implies -G.
 
 --ignore-callees=<regex>::
         Ignore callees of the function(s) matching the given regex.
