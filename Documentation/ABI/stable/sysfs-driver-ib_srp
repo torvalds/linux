@@ -63,6 +63,10 @@ Description:	Interface for making ib_srp connect to a new target.
 		  over multiple CPU's.
 		* tl_retry_count, a number in the range 2..7 specifying the
 		  IB RC retry count.
+		* queue_size, the maximum number of commands that the
+		  initiator is allowed to queue per SCSI host. The default
+		  value for this parameter is 62. The lowest supported value
+		  is 2.
 
 What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
 Date:		January 2, 2006

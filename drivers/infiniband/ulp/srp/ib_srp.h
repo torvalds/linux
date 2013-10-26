@@ -57,14 +57,11 @@ enum {
 	SRP_MAX_LUN		= 512,
 	SRP_DEF_SG_TABLESIZE	= 12,
 
-	SRP_RQ_SHIFT    	= 6,
-	SRP_RQ_SIZE		= 1 << SRP_RQ_SHIFT,
-
-	SRP_SQ_SIZE		= SRP_RQ_SIZE,
+	SRP_DEFAULT_QUEUE_SIZE	= 1 << 6,
 	SRP_RSP_SQ_SIZE		= 1,
-	SRP_REQ_SQ_SIZE		= SRP_SQ_SIZE - SRP_RSP_SQ_SIZE,
 	SRP_TSK_MGMT_SQ_SIZE	= 1,
-	SRP_CMD_SQ_SIZE		= SRP_REQ_SQ_SIZE - SRP_TSK_MGMT_SQ_SIZE,
+	SRP_DEFAULT_CMD_SQ_SIZE = SRP_DEFAULT_QUEUE_SIZE - SRP_RSP_SQ_SIZE -
+				  SRP_TSK_MGMT_SQ_SIZE,
 
 	SRP_TAG_NO_REQ		= ~0U,
 	SRP_TAG_TSK_MGMT	= 1U << 31,
@@ -156,6 +153,8 @@ struct srp_target_port {
 	char			target_name[32];
 	unsigned int		scsi_id;
 	unsigned int		sg_tablesize;
+	int			queue_size;
+	int			req_ring_size;
 	int			comp_vector;
 	int			tl_retry_count;
 
@@ -173,9 +172,9 @@ struct srp_target_port {
 
 	int			zero_req_lim;
 
-	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
-	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
-	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
+	struct srp_iu	       **tx_ring;
+	struct srp_iu	       **rx_ring;
+	struct srp_request	*req_ring;
 
 	struct work_struct	tl_err_work;
 	struct work_struct	remove_work;
