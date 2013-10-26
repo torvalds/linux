@@ -5,6 +5,24 @@ Contact:	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org
 Description:	Instructs an SRP initiator to disconnect from a target and to
 		remove all LUNs imported from that target.
 
+What:		/sys/class/srp_remote_ports/port-<h>:<n>/dev_loss_tmo
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org
+Description:	Number of seconds the SCSI layer will wait after a transport
+		layer error has been observed before removing a target port.
+		Zero means immediate removal. Setting this attribute to "off"
+		will disable the dev_loss timer.
+
+What:		/sys/class/srp_remote_ports/port-<h>:<n>/fast_io_fail_tmo
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org
+Description:	Number of seconds the SCSI layer will wait after a transport
+		layer error has been observed before failing I/O. Zero means
+		failing I/O immediately. Setting this attribute to "off" will
+		disable the fast_io_fail timer.
+
 What:		/sys/class/srp_remote_ports/port-<h>:<n>/port_id
 Date:		June 27, 2007
 KernelVersion:	2.6.24
@@ -17,3 +35,16 @@ Date:		June 27, 2007
 KernelVersion:	2.6.24
 Contact:	linux-scsi@vger.kernel.org
 Description:	Role of the remote port. Either "SRP Initiator" or "SRP Target".
+
+What:		/sys/class/srp_remote_ports/port-<h>:<n>/state
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org
+Description:	State of the transport layer used for communication with the
+		remote port. "running" if the transport layer is operational;
+		"blocked" if a transport layer error has been encountered but
+		the fast_io_fail_tmo timer has not yet fired; "fail-fast"
+		after the fast_io_fail_tmo timer has fired and before the
+		"dev_loss_tmo" timer has fired; "lost" after the
+		"dev_loss_tmo" timer has fired and before the port is finally
+		removed.
