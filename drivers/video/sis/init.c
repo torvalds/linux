@@ -3320,9 +3320,8 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 }
 
 #ifndef GETBITSTR
-#define BITMASK(h,l)    	(((unsigned)(1U << ((h)-(l)+1))-1)<<(l))
-#define GENMASK(mask)   	BITMASK(1?mask,0?mask)
-#define GETBITS(var,mask)   	(((var) & GENMASK(mask)) >> (0?mask))
+#define GENBITSMASK(mask)   	GENMASK(1?mask,0?mask)
+#define GETBITS(var,mask)   	(((var) & GENBITSMASK(mask)) >> (0?mask))
 #define GETBITSTR(val,from,to)  ((GETBITS(val,from)) << (0?to))
 #endif
 
