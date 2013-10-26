@@ -451,10 +451,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
 {
 	s64 linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
-	u64 dotclock;
-
-	/* Dot clock in Hz: */
-	dotclock = (u64) mode->clock * 1000;
+	int dotclock = mode->clock;
 
 	/* Fields of interlaced scanout modes are only half a frame duration.
 	 * Double the dotclock to get half the frame-/line-/pixelduration.
@@ -464,17 +461,16 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 
 	/* Valid dotclock? */
 	if (dotclock > 0) {
-		int frame_size;
-		/* Convert scanline length in pixels and video dot clock to
-		 * line duration, frame duration and pixel duration in
-		 * nanoseconds:
+		int frame_size = mode->crtc_htotal * mode->crtc_vtotal;
+
+		/*
+		 * Convert scanline length in pixels and video
+		 * dot clock to line duration, frame duration
+		 * and pixel duration in nanoseconds:
 		 */
-		pixeldur_ns = (s64) div64_u64(1000000000, dotclock);
-		linedur_ns  = (s64) div64_u64(((u64) mode->crtc_htotal *
-					      1000000000), dotclock);
-		frame_size = mode->crtc_htotal * mode->crtc_vtotal;
-		framedur_ns = (s64) div64_u64((u64) frame_size * 1000000000,
-					      dotclock);
+		pixeldur_ns = 1000000 / dotclock;
+		linedur_ns  = div_u64((u64) mode->crtc_htotal * 1000000, dotclock);
+		framedur_ns = div_u64((u64) frame_size * 1000000, dotclock);
 	} else
 		DRM_ERROR("crtc %d: Can't calculate constants, dotclock = 0!\n",
 			  crtc->base.id);
@@ -487,7 +483,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 		  crtc->base.id, mode->crtc_htotal,
 		  mode->crtc_vtotal, mode->crtc_vdisplay);
 	DRM_DEBUG("crtc %d: clock %d kHz framedur %d linedur %d, pixeldur %d\n",
-		  crtc->base.id, (int) dotclock/1000, (int) framedur_ns,
+		  crtc->base.id, dotclock, (int) framedur_ns,
 		  (int) linedur_ns, (int) pixeldur_ns);
 }
 EXPORT_SYMBOL(drm_calc_timestamping_constants);
