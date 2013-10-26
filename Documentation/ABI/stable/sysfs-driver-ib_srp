@@ -61,6 +61,8 @@ Description:	Interface for making ib_srp connect to a new target.
 		  interrupt is handled by a different CPU then the comp_vector
 		  parameter can be used to spread the SRP completion workload
 		  over multiple CPU's.
+		* tl_retry_count, a number in the range 2..7 specifying the
+		  IB RC retry count.
 
 What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
 Date:		January 2, 2006

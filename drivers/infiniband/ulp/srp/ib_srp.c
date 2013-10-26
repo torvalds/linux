@@ -390,7 +390,7 @@ static int srp_send_req(struct srp_target_port *target)
 	req->param.responder_resources	      = 4;
 	req->param.remote_cm_response_timeout = 20;
 	req->param.local_cm_response_timeout  = 20;
-	req->param.retry_count 		      = 7;
+	req->param.retry_count                = target->tl_retry_count;
 	req->param.rnr_retry_count 	      = 7;
 	req->param.max_cm_retries 	      = 15;
 
@@ -1907,6 +1907,14 @@ static ssize_t show_comp_vector(struct device *dev,
 	return sprintf(buf, "%d\n", target->comp_vector);
 }
 
+static ssize_t show_tl_retry_count(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
+
+	return sprintf(buf, "%d\n", target->tl_retry_count);
+}
+
 static ssize_t show_cmd_sg_entries(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -1934,6 +1942,7 @@ static DEVICE_ATTR(zero_req_lim,    S_IRUGO, show_zero_req_lim,	   NULL);
 static DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,   NULL);
 static DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
 static DEVICE_ATTR(comp_vector,     S_IRUGO, show_comp_vector,     NULL);
+static DEVICE_ATTR(tl_retry_count,  S_IRUGO, show_tl_retry_count,  NULL);
 static DEVICE_ATTR(cmd_sg_entries,  S_IRUGO, show_cmd_sg_entries,  NULL);
 static DEVICE_ATTR(allow_ext_sg,    S_IRUGO, show_allow_ext_sg,    NULL);
 
@@ -1949,6 +1958,7 @@ static struct device_attribute *srp_host_attrs[] = {
 	&dev_attr_local_ib_port,
 	&dev_attr_local_ib_device,
 	&dev_attr_comp_vector,
+	&dev_attr_tl_retry_count,
 	&dev_attr_cmd_sg_entries,
 	&dev_attr_allow_ext_sg,
 	NULL
@@ -2073,6 +2083,7 @@ enum {
 	SRP_OPT_ALLOW_EXT_SG	= 1 << 10,
 	SRP_OPT_SG_TABLESIZE	= 1 << 11,
 	SRP_OPT_COMP_VECTOR	= 1 << 12,
+	SRP_OPT_TL_RETRY_COUNT	= 1 << 13,
 	SRP_OPT_ALL		= (SRP_OPT_ID_EXT	|
 				   SRP_OPT_IOC_GUID	|
 				   SRP_OPT_DGID		|
@@ -2094,6 +2105,7 @@ static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_ALLOW_EXT_SG,		"allow_ext_sg=%u"	},
 	{ SRP_OPT_SG_TABLESIZE,		"sg_tablesize=%u"	},
 	{ SRP_OPT_COMP_VECTOR,		"comp_vector=%u"	},
+	{ SRP_OPT_TL_RETRY_COUNT,	"tl_retry_count=%u"	},
 	{ SRP_OPT_ERR,			NULL 			}
 };
 
@@ -2257,6 +2269,15 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 			target->comp_vector = token;
 			break;
 
+		case SRP_OPT_TL_RETRY_COUNT:
+			if (match_int(args, &token) || token < 2 || token > 7) {
+				pr_warn("bad tl_retry_count parameter '%s' (must be a number between 2 and 7)\n",
+					p);
+				goto out;
+			}
+			target->tl_retry_count = token;
+			break;
+
 		default:
 			pr_warn("unknown parameter or missing value '%s' in target creation request\n",
 				p);
@@ -2311,6 +2332,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target->cmd_sg_cnt	= cmd_sg_entries;
 	target->sg_tablesize	= indirect_sg_entries ? : cmd_sg_entries;
 	target->allow_ext_sg	= allow_ext_sg;
+	target->tl_retry_count	= 7;
 
 	ret = srp_parse_options(buf, target);
 	if (ret)

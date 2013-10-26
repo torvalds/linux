@@ -157,6 +157,7 @@ struct srp_target_port {
 	unsigned int		scsi_id;
 	unsigned int		sg_tablesize;
 	int			comp_vector;
+	int			tl_retry_count;
 
 	struct ib_sa_path_rec	path;
 	__be16			orig_dgid[8];
