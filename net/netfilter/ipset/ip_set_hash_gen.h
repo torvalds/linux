@@ -234,7 +234,6 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_uadt		IPSET_TOKEN(MTYPE, _uadt)
 #define mtype			MTYPE
 
-#define mtype_elem		IPSET_TOKEN(MTYPE, _elem)
 #define mtype_add		IPSET_TOKEN(MTYPE, _add)
 #define mtype_del		IPSET_TOKEN(MTYPE, _del)
 #define mtype_test_cidrs	IPSET_TOKEN(MTYPE, _test_cidrs)
