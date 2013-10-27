@@ -80,7 +80,7 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	/* move to new ASID and handle rollover */
 	if (unlikely(!(++asid_cpu(cpu) & MM_CTXT_ASID_MASK))) {
 
-		flush_tlb_all();
+		local_flush_tlb_all();
 
 		/*
 		 * Above checke for rollover of 8 bit ASID in 32 bit container.
@@ -131,6 +131,21 @@ static inline void destroy_context(struct mm_struct *mm)
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
+	const int cpu = smp_processor_id();
+
+	/*
+	 * Note that the mm_cpumask is "aggregating" only, we don't clear it
+	 * for the switched-out task, unlike some other arches.
+	 * It is used to enlist cpus for sending TLB flush IPIs and not sending
+	 * it to CPUs where a task once ran-on, could cause stale TLB entry
+	 * re-use, specially for a multi-threaded task.
+	 * e.g. T1 runs on C1, migrates to C3. T2 running on C2 munmaps.
+	 *      For a non-aggregating mm_cpumask, IPI not sent C1, and if T1
+	 *      were to re-migrate to C1, it could access the unmapped region
+	 *      via any existing stale TLB entries.
+	 */
+	cpumask_set_cpu(cpu, mm_cpumask(next));
+
 #ifndef CONFIG_SMP
 	/* PGD cached in MMU reg to avoid 3 mem lookups: task->mm->pgd */
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, next->pgd);

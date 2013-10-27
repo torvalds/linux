@@ -128,6 +128,7 @@ void start_kernel_secondary(void)
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
+	cpumask_set_cpu(cpu, mm_cpumask(mm));
 
 	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
