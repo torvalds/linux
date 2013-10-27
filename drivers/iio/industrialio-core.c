@@ -9,6 +9,8 @@
  * Based on elements of hwmon and input subsystems.
  */
 
+#define pr_fmt(fmt) "iio-core: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/idr.h>
@@ -132,16 +134,13 @@ static int __init iio_init(void)
 	/* Register sysfs bus */
 	ret  = bus_register(&iio_bus_type);
 	if (ret < 0) {
-		printk(KERN_ERR
-		       "%s could not register bus type\n",
-			__FILE__);
+		pr_err("could not register bus type\n");
 		goto error_nothing;
 	}
 
 	ret = alloc_chrdev_region(&iio_devt, 0, IIO_DEV_MAX, "iio");
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to allocate char dev region\n",
-		       __FILE__);
+		pr_err("failed to allocate char dev region\n");
 		goto error_unregister_bus_type;
 	}
 
@@ -686,7 +685,7 @@ int __iio_add_chan_devattr(const char *postfix,
 	int ret;
 	struct iio_dev_attr *iio_attr, *t;
 
-	iio_attr = kzalloc(sizeof *iio_attr, GFP_KERNEL);
+	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
 	if (iio_attr == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -951,7 +950,7 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 		if (dev->id < 0) {
 			/* cannot use a dev_err as the name isn't available */
-			printk(KERN_ERR "Failed to get id\n");
+			pr_err("failed to get device id\n");
 			kfree(dev);
 			return NULL;
 		}
