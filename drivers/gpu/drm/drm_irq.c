@@ -451,7 +451,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
 {
 	s64 linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
-	int dotclock = mode->clock;
+	int dotclock = mode->crtc_clock;
 
 	/* Fields of interlaced scanout modes are only half a frame duration.
 	 * Double the dotclock to get half the frame-/line-/pixelduration.
