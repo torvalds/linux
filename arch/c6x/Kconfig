@@ -36,9 +36,6 @@ config GENERIC_HWEIGHT
 config GENERIC_BUG
 	def_bool y
 
-config COMMON_CLKDEV
-	def_bool y
-
 config C6X_BIG_KERNEL
 	bool "Build a big kernel"
 	help
