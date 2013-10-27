@@ -177,6 +177,16 @@ int armada_fbdev_init(struct drm_device *dev)
 	return ret;
 }
 
+void armada_fbdev_lastclose(struct drm_device *dev)
+{
+	struct armada_private *priv = dev->dev_private;
+
+	drm_modeset_lock_all(dev);
+	if (priv->fbdev)
+		drm_fb_helper_restore_fbdev_mode(priv->fbdev);
+	drm_modeset_unlock_all(dev);
+}
+
 void armada_fbdev_fini(struct drm_device *dev)
 {
 	struct armada_private *priv = dev->dev_private;
