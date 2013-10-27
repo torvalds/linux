@@ -554,6 +554,27 @@ static u32 write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 	return Status;
 }
 
+static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,
+		u32 *state)
+{
+	int status = STATUS_SUCCESS;
+
+	DEBUG("FT1000:STATE_START_DWNLD\n");
+	if (ft1000dev->usbboot)
+		*hshake = get_handshake_usb(ft1000dev, HANDSHAKE_DSP_BL_READY);
+	else
+		*hshake = get_handshake(ft1000dev, HANDSHAKE_DSP_BL_READY);
+	if (*hshake == HANDSHAKE_DSP_BL_READY) {
+		DEBUG("scram_dnldr: handshake is HANDSHAKE_DSP_BL_READY, call put_handshake(HANDSHAKE_DRIVER_READY)\n");
+		put_handshake(ft1000dev, HANDSHAKE_DRIVER_READY);
+	} else {
+		DEBUG("FT1000:download:Download error: Handshake failed\n");
+		status = STATUS_FAILURE;
+	}
+	*state = STATE_BOOT_DWNLD;
+	return status;
+}
+
 /* Scramble downloader for Harley based ASIC via USB interface */
 u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32 FileLength)
@@ -617,29 +638,8 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 	while ((status == STATUS_SUCCESS) && (state != STATE_DONE_FILE)) {
 		switch (state) {
 		case STATE_START_DWNLD:
-			DEBUG("FT1000:STATE_START_DWNLD\n");
-			if (ft1000dev->usbboot)
-				handshake =
-				    get_handshake_usb(ft1000dev,
-						      HANDSHAKE_DSP_BL_READY);
-			else
-				handshake =
-				    get_handshake(ft1000dev,
-						  HANDSHAKE_DSP_BL_READY);
-
-			if (handshake == HANDSHAKE_DSP_BL_READY) {
-				DEBUG
-				    ("scram_dnldr: handshake is HANDSHAKE_DSP_BL_READY, call put_handshake(HANDSHAKE_DRIVER_READY)\n");
-				put_handshake(ft1000dev,
-					      HANDSHAKE_DRIVER_READY);
-			} else {
-				DEBUG
-				    ("FT1000:download:Download error: Handshake failed\n");
-				status = STATUS_FAILURE;
-			}
-
-			state = STATE_BOOT_DWNLD;
-
+			status = scram_start_dwnld(ft1000dev, &handshake,
+						   &state);
 			break;
 
 		case STATE_BOOT_DWNLD:
