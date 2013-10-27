@@ -266,7 +266,7 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 		+ sizeof(struct vnt_tx_mgmt));
 
 	flags = WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
-                        WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL);
+			WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL);
 
 	if (pDevice->bEnablePSMode)
 		flags |= WLAN_SET_FC_PWRMGT(1);
