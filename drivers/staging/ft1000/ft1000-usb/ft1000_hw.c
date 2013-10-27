@@ -628,9 +628,9 @@ static int ft1000_reset_card(struct net_device *dev)
 
 	DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
 
-	ft1000dev->fCondResetPend = 1;
+	ft1000dev->fCondResetPend = true;
 	info->CardReady = 0;
-	ft1000dev->fProvComplete = 0;
+	ft1000dev->fProvComplete = false;
 
 	/* Make sure we free any memory reserve for provisioning */
 	while (list_empty(&info->prov_list) == 0) {
@@ -661,7 +661,7 @@ static int ft1000_reset_card(struct net_device *dev)
 
 	info->CardReady = 1;
 
-	ft1000dev->fCondResetPend = 0;
+	ft1000dev->fCondResetPend = false;
 
 	return TRUE;
 }
@@ -958,8 +958,8 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 	pInfo->DSP_TIME[1] = 0;
 	pInfo->DSP_TIME[2] = 0;
 	pInfo->DSP_TIME[3] = 0;
-	ft1000dev->fAppMsgPend = 0;
-	ft1000dev->fCondResetPend = 0;
+	ft1000dev->fAppMsgPend = false;
+	ft1000dev->fCondResetPend = false;
 	ft1000dev->usbboot = 0;
 	ft1000dev->dspalive = 0;
 	memset(&ft1000dev->tempbuf[0], 0, sizeof(ft1000dev->tempbuf));
@@ -1432,7 +1432,7 @@ static int ft1000_dsp_prov(void *arg)
 
 	msleep(100);
 
-	dev->fProvComplete = 1;
+	dev->fProvComplete = true;
 	info->CardReady = 1;
 
 	return STATUS_SUCCESS;
@@ -1558,12 +1558,12 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			 * Send provisioning data to DSP
 			 */
 			if (list_empty(&info->prov_list) == 0) {
-				dev->fProvComplete = 0;
+				dev->fProvComplete = false;
 				status = ft1000_dsp_prov(dev);
 				if (status != STATUS_SUCCESS)
 					goto out;
 			} else {
-				dev->fProvComplete = 1;
+				dev->fProvComplete = true;
 				status =
 				    ft1000_write_register(dev, FT1000_DB_HB,
 							  FT1000_REG_DOORBELL);
@@ -1925,8 +1925,8 @@ int ft1000_poll(void* dev_id)
                 info->ft1000_reset(dev->net);
             }
             else {
-                dev->fProvComplete = 0;
-                dev->fCondResetPend = 1;
+                dev->fProvComplete = false;
+                dev->fCondResetPend = true;
             }
 
             ft1000_write_register(dev, FT1000_DB_COND_RESET, FT1000_REG_DOORBELL);
