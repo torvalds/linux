@@ -78,7 +78,7 @@ extern unsigned int HPAGE_SHIFT;
  *
  * Also, KERNELBASE >= PAGE_OFFSET and PHYSICAL_START >= MEMORY_START
  *
- * There are two was to determine a physical address from a virtual one:
+ * There are two ways to determine a physical address from a virtual one:
  * va = pa + PAGE_OFFSET - MEMORY_START
  * va = pa + KERNELBASE - PHYSICAL_START
  *
