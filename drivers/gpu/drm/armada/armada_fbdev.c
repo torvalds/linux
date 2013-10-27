@@ -202,10 +202,10 @@ void armada_fbdev_fini(struct drm_device *dev)
 			framebuffer_release(info);
 		}
 
+		drm_fb_helper_fini(fbh);
+
 		if (fbh->fb)
 			fbh->fb->funcs->destroy(fbh->fb);
-
-		drm_fb_helper_fini(fbh);
 
 		priv->fbdev = NULL;
 	}
