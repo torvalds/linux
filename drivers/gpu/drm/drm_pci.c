@@ -80,7 +80,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 	/* Reserve */
 	for (addr = (unsigned long)dmah->vaddr, sz = size;
 	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		SetPageReserved(virt_to_page(addr));
+		SetPageReserved(virt_to_page((void *)addr));
 	}
 
 	return dmah;
@@ -103,7 +103,7 @@ void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 		/* Unreserve */
 		for (addr = (unsigned long)dmah->vaddr, sz = dmah->size;
 		     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-			ClearPageReserved(virt_to_page(addr));
+			ClearPageReserved(virt_to_page((void *)addr));
 		}
 		dma_free_coherent(&dev->pdev->dev, dmah->size, dmah->vaddr,
 				  dmah->busaddr);
