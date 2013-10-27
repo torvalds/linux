@@ -685,7 +685,7 @@ int vt6656_hostap_ioctl(struct vnt_private *pDevice, struct iw_point *p)
 	    p->length > VIAWGET_HOSTAPD_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = kmalloc((int)p->length, (int)GFP_KERNEL);
+	param = kmalloc((int)p->length, GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 
