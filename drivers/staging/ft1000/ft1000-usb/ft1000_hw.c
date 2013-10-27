@@ -1912,7 +1912,7 @@ int ft1000_poll(void* dev_id)
         else if (tempword & FT1000_DB_COND_RESET) {
             DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type:  FT1000_DB_COND_RESET\n");
 
-	    if (dev->fAppMsgPend == 0) {
+	    if (!dev->fAppMsgPend) {
                // Reset ASIC and DSP
 
                 status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER0, (u8 *)&(info->DSP_TIME[0]), FT1000_MAG_DSP_TIMER0_INDX);
