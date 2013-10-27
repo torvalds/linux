@@ -612,7 +612,7 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 	loader_code_address = file_hdr->loader_code_address;
 	loader_code_size = file_hdr->loader_code_size;
-	correct_version = FALSE;
+	correct_version = false;
 
 	while ((status == STATUS_SUCCESS) && (state != STATE_DONE_FILE)) {
 		switch (state) {
@@ -923,7 +923,7 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 				case REQUEST_CODE_BY_VERSION:
 					DEBUG
 					    ("FT1000:download:REQUEST_CODE_BY_VERSION\n");
-					correct_version = FALSE;
+					correct_version = false;
 					requested_version =
 					    get_request_value(ft1000dev);
 
@@ -940,7 +940,7 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 						if (dsp_img_info->version ==
 						    requested_version) {
-							correct_version = TRUE;
+							correct_version = true;
 							DEBUG
 							    ("FT1000:download: correct_version is TRUE\n");
 							s_file =
