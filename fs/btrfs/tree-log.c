@@ -3421,11 +3421,6 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	if (skip_csum)
 		return 0;
 
-	if (em->compress_type) {
-		csum_offset = 0;
-		csum_len = block_len;
-	}
-
 	/*
 	 * First check and see if our csums are on our outstanding ordered
 	 * extents.
@@ -3509,8 +3504,13 @@ unlocked:
 	if (!mod_len || ret)
 		return ret;
 
-	csum_offset = mod_start - em->start;
-	csum_len = mod_len;
+	if (em->compress_type) {
+		csum_offset = 0;
+		csum_len = block_len;
+	} else {
+		csum_offset = mod_start - em->start;
+		csum_len = mod_len;
+	}
 
 	/* block start is already adjusted for the file extent offset. */
 	ret = btrfs_lookup_csums_range(log->fs_info->csum_root,
