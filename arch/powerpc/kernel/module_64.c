@@ -26,8 +26,7 @@
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
 #include <linux/sort.h>
-
-#include "setup.h"
+#include <asm/setup.h>
 
 /* FIXME: We don't do .init separately.  To do this, we'd need to have
    a separate r2 value in the init and core section, and stub between
