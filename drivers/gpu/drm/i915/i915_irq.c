@@ -675,7 +675,8 @@ static bool intel_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
 }
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
-			     int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+				    unsigned int flags, int *vpos, int *hpos,
+				    ktime_t *stime, ktime_t *etime)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
