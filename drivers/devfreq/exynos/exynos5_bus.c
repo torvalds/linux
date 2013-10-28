@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/devfreq.h>
 #include <linux/io.h>
-#include <linux/opp.h>
+#include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/clk.h>
@@ -131,7 +131,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 	struct platform_device *pdev = container_of(dev, struct platform_device,
 						    dev);
 	struct busfreq_data_int *data = platform_get_drvdata(pdev);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long old_freq, freq;
 	unsigned long volt;
 
@@ -143,8 +143,8 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 		return PTR_ERR(opp);
 	}
 
-	freq = opp_get_freq(opp);
-	volt = opp_get_voltage(opp);
+	freq = dev_pm_opp_get_freq(opp);
+	volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 
 	old_freq = data->curr_freq;
@@ -245,7 +245,7 @@ static int exynos5250_init_int_tables(struct busfreq_data_int *data)
 	int i, err = 0;
 
 	for (i = LV_0; i < _LV_END; i++) {
-		err = opp_add(data->dev, exynos5_int_opp_table[i].clk,
+		err = dev_pm_opp_add(data->dev, exynos5_int_opp_table[i].clk,
 				exynos5_int_opp_table[i].volt);
 		if (err) {
 			dev_err(data->dev, "Cannot add opp entries.\n");
@@ -261,7 +261,7 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 {
 	struct busfreq_data_int *data = container_of(this,
 					struct busfreq_data_int, pm_notifier);
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	unsigned long maxfreq = ULONG_MAX;
 	unsigned long freq;
 	unsigned long volt;
@@ -275,14 +275,14 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 		data->disabled = true;
 
 		rcu_read_lock();
-		opp = opp_find_freq_floor(data->dev, &maxfreq);
+		opp = dev_pm_opp_find_freq_floor(data->dev, &maxfreq);
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
 			err = PTR_ERR(opp);
 			goto unlock;
 		}
-		freq = opp_get_freq(opp);
-		volt = opp_get_voltage(opp);
+		freq = dev_pm_opp_get_freq(opp);
+		volt = dev_pm_opp_get_voltage(opp);
 		rcu_read_unlock();
 
 		err = exynos5_int_setvolt(data, volt);
@@ -315,7 +315,7 @@ unlock:
 static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 {
 	struct busfreq_data_int *data;
-	struct opp *opp;
+	struct dev_pm_opp *opp;
 	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	unsigned long initial_freq;
@@ -367,7 +367,7 @@ static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 	}
 
 	rcu_read_lock();
-	opp = opp_find_freq_floor(dev,
+	opp = dev_pm_opp_find_freq_floor(dev,
 			&exynos5_devfreq_int_profile.initial_freq);
 	if (IS_ERR(opp)) {
 		rcu_read_unlock();
@@ -376,8 +376,8 @@ static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 		err = PTR_ERR(opp);
 		goto err_opp_add;
 	}
-	initial_freq = opp_get_freq(opp);
-	initial_volt = opp_get_voltage(opp);
+	initial_freq = dev_pm_opp_get_freq(opp);
+	initial_volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
 	data->curr_freq = initial_freq;
 
