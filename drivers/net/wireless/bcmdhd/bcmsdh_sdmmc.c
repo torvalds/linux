@@ -1184,7 +1184,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext)) {
 			uint8 *buf = (uint8*)PKTDATA(sd->osh, pnext) +
 				xfred_len;
-			uint pad = 0;
+			int pad = 0;
 			pkt_len = PKTLEN(sd->osh, pnext);
 			if (0 != xfred_len) {
 				pkt_len -= xfred_len;
@@ -1231,11 +1231,11 @@ txglomfail:
 				!need_txglom &&
 #endif
 				TRUE) {
-				pkt_len = sdioh_request_packet_align(pkt_len, write,
+				int align_pkt_len = 0;
+				align_pkt_len = sdioh_request_packet_align(pkt_len, write,
 					func, blk_size);
 
-				pad = pkt_len - PKTLEN(sd->osh, pnext);
-
+				pad = align_pkt_len - pkt_len;
 				if (pad > 0) {
 					if (func == SDIO_FUNC_2) {
 						sd_err(("%s: padding is unexpected! pkt_len %d,"
