@@ -50,8 +50,6 @@
 #define this_cpu_and_2(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, &)
 #define this_cpu_or_1(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
 #define this_cpu_or_2(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
-#define this_cpu_xor_1(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, ^)
-#define this_cpu_xor_2(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, ^)
 
 #ifndef CONFIG_HAVE_MARCH_Z196_FEATURES
 
@@ -63,8 +61,6 @@
 #define this_cpu_and_8(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, &)
 #define this_cpu_or_4(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
 #define this_cpu_or_8(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
-#define this_cpu_xor_4(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, ^)
-#define this_cpu_xor_8(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, ^)
 
 #else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
@@ -133,8 +129,6 @@
 #define this_cpu_and_8(pcp, val)	arch_this_cpu_to_op(pcp, val, "lang")
 #define this_cpu_or_4(pcp, val)		arch_this_cpu_to_op(pcp, val, "lao")
 #define this_cpu_or_8(pcp, val)		arch_this_cpu_to_op(pcp, val, "laog")
-#define this_cpu_xor_4(pcp, val)	arch_this_cpu_to_op(pcp, val, "lax")
-#define this_cpu_xor_8(pcp, val)	arch_this_cpu_to_op(pcp, val, "laxg")
 
 #endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
