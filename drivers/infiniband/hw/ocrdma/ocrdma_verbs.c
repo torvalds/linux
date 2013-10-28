@@ -1981,9 +1981,7 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 
 	wqe_size = roundup(wqe_size, OCRDMA_WQE_ALIGN_BYTES);
 
-	if ((wr->wr.fast_reg.page_list_len >
-		qp->dev->attr.max_pages_per_frmr) ||
-		(wr->wr.fast_reg.length > 0xffffffffULL))
+	if (wr->wr.fast_reg.page_list_len > qp->dev->attr.max_pages_per_frmr)
 		return -EINVAL;
 
 	hdr->cw |= (OCRDMA_FR_MR << OCRDMA_WQE_OPCODE_SHIFT);
