@@ -363,4 +363,9 @@
 #define IMX6Q_GPR13_SATA_TX_LVL_1_240_V		(0x1f << 2)
 #define IMX6Q_GPR13_SATA_MPLL_CLK_EN		BIT(1)
 #define IMX6Q_GPR13_SATA_TX_EDGE_RATE		BIT(0)
+
+/* For imx6sl iomux gpr register field define */
+#define IMX6SL_GPR1_FEC_CLOCK_MUX1_SEL_MASK    (0x3 << 17)
+#define IMX6SL_GPR1_FEC_CLOCK_MUX2_SEL_MASK    (0x1 << 14)
+
 #endif /* __LINUX_IMX6Q_IOMUXC_GPR_H */
