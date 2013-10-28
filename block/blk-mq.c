@@ -210,14 +210,15 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 	return rq;
 }
 
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp)
+struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
+		gfp_t gfp, bool reserved)
 {
 	struct request *rq;
 
 	if (blk_mq_queue_enter(q))
 		return NULL;
 
-	rq = blk_mq_alloc_request_pinned(q, rw, gfp, false);
+	rq = blk_mq_alloc_request_pinned(q, rw, gfp, reserved);
 	blk_mq_put_ctx(rq->mq_ctx);
 	return rq;
 }
@@ -1326,6 +1327,15 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_reg *reg,
 		pr_err("blk-mq: queuedepth too large (%u)\n", reg->queue_depth);
 		reg->queue_depth = BLK_MQ_MAX_DEPTH;
 	}
+
+	/*
+	 * Set aside a tag for flush requests.  It will only be used while
+	 * another flush request is in progress but outside the driver.
+	 *
+	 * TODO: only allocate if flushes are supported
+	 */
+	reg->queue_depth++;
+	reg->reserved_tags++;
 
 	if (reg->queue_depth < (reg->reserved_tags + BLK_MQ_TAG_MIN))
 		return ERR_PTR(-EINVAL);

@@ -286,7 +286,7 @@ static void mq_flush_work(struct work_struct *work)
 
 	/* We don't need set REQ_FLUSH_SEQ, it's for consistency */
 	rq = blk_mq_alloc_request(q, WRITE_FLUSH|REQ_FLUSH_SEQ,
-		__GFP_WAIT|GFP_ATOMIC);
+		__GFP_WAIT|GFP_ATOMIC, true);
 	rq->cmd_type = REQ_TYPE_FS;
 	rq->end_io = flush_end_io;
 
