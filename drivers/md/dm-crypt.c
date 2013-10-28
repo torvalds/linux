@@ -171,7 +171,8 @@ struct crypt_config {
 
 	unsigned long flags;
 	unsigned int key_size;
-	unsigned int key_parts;
+	unsigned int key_parts;      /* independent parts in key buffer */
+	unsigned int key_extra_size; /* additional keys length */
 	u8 key[0];
 };
 
@@ -530,7 +531,7 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 		char ctx[crypto_shash_descsize(lmk->hash_tfm)];
 	} sdesc;
 	struct md5_state md5state;
-	u32 buf[4];
+	__le32 buf[4];
 	int i, r;
 
 	sdesc.desc.tfm = lmk->hash_tfm;
@@ -1274,8 +1275,11 @@ static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
 
 static int crypt_setkey_allcpus(struct crypt_config *cc)
 {
-	unsigned subkey_size = cc->key_size >> ilog2(cc->tfms_count);
+	unsigned subkey_size;
 	int err = 0, i, r;
+
+	/* Ignore extra keys (which are used for IV etc) */
+	subkey_size = (cc->key_size - cc->key_extra_size) >> ilog2(cc->tfms_count);
 
 	for (i = 0; i < cc->tfms_count; i++) {
 		r = crypto_ablkcipher_setkey(cc->tfms[i],
@@ -1409,6 +1413,7 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		return -EINVAL;
 	}
 	cc->key_parts = cc->tfms_count;
+	cc->key_extra_size = 0;
 
 	cc->cipher = kstrdup(cipher, GFP_KERNEL);
 	if (!cc->cipher)
@@ -1460,13 +1465,6 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		goto bad;
 	}
 
-	/* Initialize and set key */
-	ret = crypt_set_key(cc, key);
-	if (ret < 0) {
-		ti->error = "Error decoding and setting key";
-		goto bad;
-	}
-
 	/* Initialize IV */
 	cc->iv_size = crypto_ablkcipher_ivsize(any_tfm(cc));
 	if (cc->iv_size)
@@ -1497,11 +1495,20 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		 * to length of provided multi-key string.
 		 * If present (version 3), last key is used as IV seed.
 		 */
-		if (cc->key_size % cc->key_parts)
+		if (cc->key_size % cc->key_parts) {
 			cc->key_parts++;
+			cc->key_extra_size = cc->key_size / cc->key_parts;
+		}
 	} else {
 		ret = -EINVAL;
 		ti->error = "Invalid IV mode";
+		goto bad;
+	}
+
+	/* Initialize and set key */
+	ret = crypt_set_key(cc, key);
+	if (ret < 0) {
+		ti->error = "Error decoding and setting key";
 		goto bad;
 	}
 
