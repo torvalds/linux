@@ -118,9 +118,10 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	/*
 	 * If we were unsure about the device parent's power state up to this
 	 * point, the fact that the device is in D0 implies that the parent has
-	 * to be in D0 too.
+	 * to be in D0 too, except if ignore_parent is set.
 	 */
-	if (device->parent && device->parent->power.state == ACPI_STATE_UNKNOWN
+	if (!device->power.flags.ignore_parent && device->parent
+	    && device->parent->power.state == ACPI_STATE_UNKNOWN
 	    && result == ACPI_STATE_D0)
 		device->parent->power.state = ACPI_STATE_D0;
 
@@ -177,7 +178,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			 acpi_power_state_string(state));
 		return -ENODEV;
 	}
-	if (device->parent && (state < device->parent->power.state)) {
+	if (!device->power.flags.ignore_parent &&
+	    device->parent && (state < device->parent->power.state)) {
 		dev_warn(&device->dev,
 			 "Cannot transition to power state %s for parent in %s\n",
 			 acpi_power_state_string(state),
