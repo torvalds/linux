@@ -355,6 +355,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	if ((queue->flags & UVC_QUEUE_DROP_CORRUPTED) && buf->error) {
 		buf->error = 0;
 		buf->state = UVC_BUF_STATE_QUEUED;
+		buf->bytesused = 0;
 		vb2_set_plane_payload(&buf->buf, 0, 0);
 		return buf;
 	}
