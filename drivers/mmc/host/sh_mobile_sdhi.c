@@ -54,7 +54,7 @@ static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int 
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
-	int ret = clk_enable(priv->clk);
+	int ret = clk_prepare_enable(priv->clk);
 	if (ret < 0)
 		return ret;
 
@@ -67,7 +67,7 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 }
 
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
