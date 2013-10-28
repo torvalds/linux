@@ -762,13 +762,8 @@ void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 	if (!hotplug_kobj)
 		goto err_out;
 
-	kobject_init(&hotplug->kobj, &acpi_hotplug_profile_ktype);
-	error = kobject_set_name(&hotplug->kobj, "%s", name);
-	if (error)
-		goto err_out;
-
-	hotplug->kobj.parent = hotplug_kobj;
-	error = kobject_add(&hotplug->kobj, hotplug_kobj, NULL);
+	error = kobject_init_and_add(&hotplug->kobj,
+		&acpi_hotplug_profile_ktype, hotplug_kobj, "%s", name);
 	if (error)
 		goto err_out;
 
