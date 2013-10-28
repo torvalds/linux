@@ -159,6 +159,7 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 	dma_free_coherent(dev, PAGE_SIZE << pg, ptr, dma);
 }
 
+#ifdef CONFIG_GENERIC_ALLOCATOR
 /**
  * snd_malloc_dev_iram - allocate memory from on-chip internal ram
  * @dmab: buffer allocation record to store the allocated data
@@ -198,6 +199,7 @@ void snd_free_dev_iram(struct snd_dma_buffer *dmab)
 	if (pool && dmab->area)
 		gen_pool_free(pool, (unsigned long)dmab->area, dmab->bytes);
 }
+#endif /* CONFIG_GENERIC_ALLOCATOR */
 #endif /* CONFIG_HAS_DMA */
 
 /*
