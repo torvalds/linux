@@ -665,7 +665,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 			return err;
 	}
 
-	if (channel->tx_count) {
+	if (qlcnic_82xx_check(adapter) && channel->tx_count) {
 		err = qlcnic_validate_max_tx_rings(adapter, channel->tx_count);
 		if (err)
 			return err;

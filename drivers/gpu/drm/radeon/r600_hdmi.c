@@ -309,6 +309,9 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	u8 *sadb;
 	int sad_count;
 
+	/* XXX: setting this register causes hangs on some asics */
+	return;
+
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder)
 			radeon_connector = to_radeon_connector(connector);

@@ -497,10 +497,12 @@ struct i915_address_space {
 
 	/* FIXME: Need a more generic return type */
 	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level);
+				     enum i915_cache_level level,
+				     bool valid); /* Create a valid PTE */
 	void (*clear_range)(struct i915_address_space *vm,
 			    unsigned int first_entry,
-			    unsigned int num_entries);
+			    unsigned int num_entries,
+			    bool use_scratch);
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct sg_table *st,
 			       unsigned int first_entry,
@@ -2065,6 +2067,8 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 			      struct drm_i915_gem_object *obj);
 
+void i915_check_and_clear_faults(struct drm_device *dev);
+void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,

@@ -808,4 +808,5 @@ void bpf_jit_free(struct sk_filter *fp)
 {
 	if (fp->bpf_func != sk_run_filter)
 		module_free(NULL, fp->bpf_func);
+	kfree(fp);
 }

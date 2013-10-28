@@ -158,18 +158,6 @@ static inline board_info_t *to_dm9000_board(struct net_device *dev)
 
 /* DM9000 network board routine ---------------------------- */
 
-static void
-dm9000_reset(board_info_t * db)
-{
-	dev_dbg(db->dev, "resetting device\n");
-
-	/* RESET device */
-	writeb(DM9000_NCR, db->io_addr);
-	udelay(200);
-	writeb(NCR_RST, db->io_data);
-	udelay(200);
-}
-
 /*
  *   Read a byte from I/O port
  */
@@ -189,6 +177,27 @@ iow(board_info_t * db, int reg, int value)
 {
 	writeb(reg, db->io_addr);
 	writeb(value, db->io_data);
+}
+
+static void
+dm9000_reset(board_info_t *db)
+{
+	dev_dbg(db->dev, "resetting device\n");
+
+	/* Reset DM9000, see DM9000 Application Notes V1.22 Jun 11, 2004 page 29
+	 * The essential point is that we have to do a double reset, and the
+	 * instruction is to set LBK into MAC internal loopback mode.
+	 */
+	iow(db, DM9000_NCR, 0x03);
+	udelay(100); /* Application note says at least 20 us */
+	if (ior(db, DM9000_NCR) & 1)
+		dev_err(db->dev, "dm9000 did not respond to first reset\n");
+
+	iow(db, DM9000_NCR, 0);
+	iow(db, DM9000_NCR, 0x03);
+	udelay(100);
+	if (ior(db, DM9000_NCR) & 1)
+		dev_err(db->dev, "dm9000 did not respond to second reset\n");
 }
 
 /* routines for sending block to chip */
@@ -744,15 +753,20 @@ static const struct ethtool_ops dm9000_ethtool_ops = {
 static void dm9000_show_carrier(board_info_t *db,
 				unsigned carrier, unsigned nsr)
 {
+	int lpa;
 	struct net_device *ndev = db->ndev;
+	struct mii_if_info *mii = &db->mii;
 	unsigned ncr = dm9000_read_locked(db, DM9000_NCR);
 
-	if (carrier)
-		dev_info(db->dev, "%s: link up, %dMbps, %s-duplex, no LPA\n",
+	if (carrier) {
+		lpa = mii->mdio_read(mii->dev, mii->phy_id, MII_LPA);
+		dev_info(db->dev,
+			 "%s: link up, %dMbps, %s-duplex, lpa 0x%04X\n",
 			 ndev->name, (nsr & NSR_SPEED) ? 10 : 100,
-			 (ncr & NCR_FDX) ? "full" : "half");
-	else
+			 (ncr & NCR_FDX) ? "full" : "half", lpa);
+	} else {
 		dev_info(db->dev, "%s: link down\n", ndev->name);
+	}
 }
 
 static void
@@ -890,9 +904,15 @@ dm9000_init_dm9000(struct net_device *dev)
 			(dev->features & NETIF_F_RXCSUM) ? RCSR_CSUM : 0);
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
+	iow(db, DM9000_GPR, 0);
 
-	dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET); /* PHY RESET */
-	dm9000_phy_write(dev, 0, MII_DM_DSPCR, DSPCR_INIT_PARAM); /* Init */
+	/* If we are dealing with DM9000B, some extra steps are required: a
+	 * manual phy reset, and setting init params.
+	 */
+	if (db->type == TYPE_DM9000B) {
+		dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET);
+		dm9000_phy_write(dev, 0, MII_DM_DSPCR, DSPCR_INIT_PARAM);
+	}
 
 	ncr = (db->flags & DM9000_PLATF_EXT_PHY) ? NCR_EXT_PHY : 0;
 
