@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/clocksource.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -33,7 +32,6 @@
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
-#include <linux/clk-provider.h>
 #include <linux/clk/tegra.h>
 #include <linux/irqchip.h>
 
@@ -145,12 +143,6 @@ out:
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 }
 
-static void __init tegra_dt_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
-}
-
 static void __init paz00_init(void)
 {
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
@@ -193,7 +185,6 @@ DT_MACHINE_START(TEGRA_DT, "NVIDIA Tegra SoC (Flattened Device Tree)")
 	.smp		= smp_ops(tegra_smp_ops),
 	.init_early	= tegra_init_early,
 	.init_irq	= tegra_dt_init_irq,
-	.init_time	= tegra_dt_init_time,
 	.init_machine	= tegra_dt_init,
 	.init_late	= tegra_dt_init_late,
 	.restart	= tegra_pmc_restart,

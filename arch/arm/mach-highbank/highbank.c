@@ -24,7 +24,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/amba/bus.h>
-#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 
 #include <asm/psci.h>
@@ -69,20 +68,6 @@ static void __init highbank_init_irq(void)
 		l2x0_of_init(0, ~0UL);
 		outer_cache.disable = highbank_l2x0_disable;
 	}
-}
-
-static void __init highbank_timer_init(void)
-{
-	struct device_node *np;
-
-	/* Map system registers */
-	np = of_find_compatible_node(NULL, NULL, "calxeda,hb-sregs");
-	sregs_base = of_iomap(np, 0);
-	WARN_ON(!sregs_base);
-
-	of_clk_init(NULL);
-
-	clocksource_of_init();
 }
 
 static void highbank_power_off(void)
@@ -147,6 +132,13 @@ static struct platform_device highbank_cpuidle_device = {
 
 static void __init highbank_init(void)
 {
+	struct device_node *np;
+
+	/* Map system registers */
+	np = of_find_compatible_node(NULL, NULL, "calxeda,hb-sregs");
+	sregs_base = of_iomap(np, 0);
+	WARN_ON(!sregs_base);
+
 	pm_power_off = highbank_power_off;
 	highbank_pm_init();
 
@@ -170,7 +162,6 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.dma_zone_size	= (4ULL * SZ_1G),
 #endif
 	.init_irq	= highbank_init_irq,
-	.init_time	= highbank_timer_init,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
 	.restart	= highbank_restart,

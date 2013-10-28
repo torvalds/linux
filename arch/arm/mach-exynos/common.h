@@ -16,7 +16,6 @@
 #include <linux/of.h>
 
 void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
-void exynos_init_time(void);
 
 struct map_desc;
 void exynos_init_io(void);
