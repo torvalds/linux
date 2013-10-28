@@ -142,6 +142,13 @@ enum {
     b_11111000,b_11111001,b_11111010,b_11111011, b_11111100,b_11111101,b_11111110,b_11111111,
 };
 
+enum {
+    NO_INPUT = 0,
+    I2S_ONLY,
+    USB_ONLY,
+    I2S_USB_MIXING,
+};
+
 #define REG_TYPE_RO	0	// read only,  read during initialization
 #define REG_TYPE_RW	1	// read/write, read during initialization
 #define REG_TYPE_WI	2	// write only, written during initialization
@@ -1863,6 +1870,29 @@ static int cx2070x_dbg_show_regs(struct seq_file *s, void *unused)
 	
 	int reg_no = (int)s->private;
 	int i = 0;
+    int source_switch = 0;
+    if(reg_no == 0x4321) {
+        cx2070x_real_read(g_cx2070x_codec, DSP_INIT); 
+        source_switch = cx2070x_read_reg_cache(g_cx2070x_codec,DSP_INIT) & DSP_ENABLE_STREAM_3_4;
+        printk(">>>>>>>>>>>>source_switch = %0x",source_switch);
+        switch (source_switch) {
+			case DSP_NO_SOURCE:
+				seq_printf(s, "NO_INPUT\t");
+				break;
+			case DSP_ENABLE_STREAM_3:
+				seq_printf(s, "I2S_ONLY\t");
+				break;
+			case DSP_ENABLE_STREAM_4:
+				seq_printf(s, "USB_ONLY\t");
+				break;
+			case DSP_ENABLE_STREAM_3_4:
+				seq_printf(s, "I2S_USB_MIXING\t");
+				break;
+			default:
+				seq_printf(s, "UNKNOWN\t");
+			}
+        return 0;
+    }
 	
 	if (reg_no == noof(cx2070x_regs)) {
 		seq_printf(s, "Offset\tType\tValue\tName\n");
@@ -1946,7 +1976,32 @@ static ssize_t cx2070x_dbg_reg_write(struct file *file,
 		ERROR("%s, Failed to convert a string to an unsinged long integer.\n", __func__);
 		return ret;
 	}
-		
+
+    if(reg_no == 0x4321) {
+         printk(">>>>>>>>>>>>>>>>>>>>>>val = %d",val);
+         cx2070x_real_read(g_cx2070x_codec, DSP_INIT); 
+         switch (val) {
+			case NO_INPUT:
+                cx2070x_write(g_cx2070x_codec,DSP_INIT,(cx2070x_read_reg_cache(g_cx2070x_codec,DSP_INIT)|
+                    DSP_INIT_NEWC) & ~DSP_ENABLE_STREAM_3_4);
+                break;
+			case I2S_ONLY:
+                cx2070x_write(g_cx2070x_codec,DSP_INIT,(cx2070x_read_reg_cache(g_cx2070x_codec,DSP_INIT)| 
+                    DSP_INIT_NEWC | DSP_ENABLE_STREAM_3) & ~DSP_ENABLE_STREAM_4);
+				break;
+			case USB_ONLY:
+                cx2070x_write(g_cx2070x_codec,DSP_INIT,(cx2070x_read_reg_cache(g_cx2070x_codec,DSP_INIT)| 
+                    DSP_INIT_NEWC | DSP_ENABLE_STREAM_4) & ~DSP_ENABLE_STREAM_3);
+				break;
+			case I2S_USB_MIXING:
+                cx2070x_write(g_cx2070x_codec,DSP_INIT,cx2070x_read_reg_cache(g_cx2070x_codec,DSP_INIT)| 
+                    DSP_INIT_NEWC | DSP_ENABLE_STREAM_3_4);
+				break;
+			default:
+                return count;
+			}
+        return count;
+    }
 	switch (cx2070x_regs[reg_no].type) {
 	case REG_TYPE_RO:
 		ERROR("%s, A read-only register 0x%02x cannot be written.\n",
@@ -1984,6 +2039,7 @@ static int cx2070x_probe(struct snd_soc_codec *codec)
 #ifdef CONFIG_DEBUG_FS
     struct dentry *d, *regs;
     int n = 0;
+    int m = 0x4321;
 #endif
 
     INFO("%lu: %s() called\n",jiffies,__func__);
@@ -1997,6 +2053,9 @@ static int cx2070x_probe(struct snd_soc_codec *codec)
     d = debugfs_create_dir("cx2070x", NULL);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
+
+    debugfs_create_file("SOURCE_SWITCH", 0644, d, (void *)m,
+							&cx2070x_debug_reg_fops);
 		
     regs = debugfs_create_dir("regs", d);
 	if (IS_ERR(regs))

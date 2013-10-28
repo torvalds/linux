@@ -370,6 +370,10 @@
 #define DSP_INIT_STREAM_3				b_10001001	// enable stream 3 and 7
 #define DSP_INIT_STREAM_5				b_00100101	// enable stream 2 and 5
 #define DSP_INIT_STREAM_5_3				b_10101101	// enable streams 2,3,5,7
+#define DSP_NO_SOURCE					b_00000000
+#define DSP_ENABLE_STREAM_3             b_00001000
+#define DSP_ENABLE_STREAM_4             b_00010000
+#define DSP_ENABLE_STREAM_3_4           b_00011000
 #endif
 #else
   __REG(DSP_INIT,			0xffff, 0x1138,	0x00,       0, WI,B) // special
