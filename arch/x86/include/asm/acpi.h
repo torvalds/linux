@@ -26,6 +26,7 @@
 #include <acpi/pdc_intel.h>
 
 #include <asm/numa.h>
+#include <asm/fixmap.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mpspec.h>
