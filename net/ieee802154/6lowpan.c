@@ -440,7 +440,6 @@ lowpan_uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 		default:
 			pr_debug("ERROR: unknown UDP format\n");
 			goto err;
-			break;
 		}
 
 		pr_debug("uncompressed UDP ports: src = %d, dst = %d\n",
@@ -785,7 +784,6 @@ lowpan_alloc_new_frame(struct sk_buff *skb, u16 len, u16 tag)
 		goto skb_err;
 
 	frame->skb->priority = skb->priority;
-	frame->skb->dev = skb->dev;
 
 	/* reserve headroom for uncompressed ipv6 header */
 	skb_reserve(frame->skb, sizeof(struct ipv6hdr));
@@ -1120,19 +1118,19 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 			int mlen, int plen, int offset, int type)
 {
 	struct sk_buff *frag;
-	int hlen, ret;
+	int hlen;
 
 	hlen = (type == LOWPAN_DISPATCH_FRAG1) ?
 			LOWPAN_FRAG1_HEAD_SIZE : LOWPAN_FRAGN_HEAD_SIZE;
 
 	lowpan_raw_dump_inline(__func__, "6lowpan fragment header", head, hlen);
 
-	frag = dev_alloc_skb(hlen + mlen + plen + IEEE802154_MFR_SIZE);
+	frag = netdev_alloc_skb(skb->dev,
+				hlen + mlen + plen + IEEE802154_MFR_SIZE);
 	if (!frag)
 		return -ENOMEM;
 
 	frag->priority = skb->priority;
-	frag->dev = skb->dev;
 
 	/* copy header, MFR and payload */
 	memcpy(skb_put(frag, mlen), skb->data, mlen);
@@ -1145,9 +1143,7 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 	lowpan_raw_dump_table(__func__, " raw fragment dump", frag->data,
 								frag->len);
 
-	ret = dev_queue_xmit(frag);
-
-	return ret;
+	return dev_queue_xmit(frag);
 }
 
 static int
@@ -1181,7 +1177,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	head[0] &= ~LOWPAN_DISPATCH_FRAG1;
 	head[0] |= LOWPAN_DISPATCH_FRAGN;
 
-	while ((payload_length - offset > 0) && (err >= 0)) {
+	while (payload_length - offset > 0) {
 		int len = LOWPAN_FRAG_SIZE;
 
 		head[4] = offset / 8;
