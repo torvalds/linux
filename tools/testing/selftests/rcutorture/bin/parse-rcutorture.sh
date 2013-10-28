@@ -34,6 +34,8 @@ title="$2"
 
 trap 'rm -f $T.seq' 0
 
+. functions.sh
+
 # check for presence of rcutorture.txt file
 
 if test -f "$file" -a -r "$file"
@@ -49,7 +51,7 @@ fi
 if grep -q FAILURE $file || grep -q -e '-torture.*!!!' $file
 then
 	nerrs=`grep --binary-files=text '!!!' $file | tail -1 | awk '{for (i=NF-8;i<=NF;i++) sum+=$i; } END {print sum}'`
-	echo $title FAILURE, $nerrs instances
+	print_bug $title FAILURE, $nerrs instances
 	echo "   " $url
 	exit
 fi
@@ -84,21 +86,21 @@ if grep -q SUCCESS $file
 then
 	if test -s $T.seq
 	then
-		echo WARNING $title `cat $T.seq`
+		print_warning $title $title `cat $T.seq`
 		echo "   " $file
 		exit 2
 	fi
 else
 	if grep -q RCU_HOTPLUG $file
 	then
-		echo WARNING: HOTPLUG FAILURES $title `cat $T.seq`
+		print_warning HOTPLUG FAILURES $title `cat $T.seq`
 		echo "   " $file
 		exit 3
 	fi
 	echo $title no success message, `grep --binary-files=text 'ver:' $file | wc -l` successful RCU version messages
 	if test -s $T.seq
 	then
-		echo WARNING $title `cat $T.seq`
+		print_warning $title `cat $T.seq`
 	fi
 	exit 2
 fi

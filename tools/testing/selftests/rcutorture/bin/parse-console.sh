@@ -31,9 +31,11 @@ trap 'rm -f $T' 0
 file="$1"
 title="$2"
 
+. functions.sh
+
 egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:' < $file | grep -v 'ODEBUG: ' | grep -v 'Warning: unable to open an initial console' > $T
 if test -s $T
 then
-	echo Assertion failure in $file $title
+	print_warning Assertion failure in $file $title
 	cat $T
 fi

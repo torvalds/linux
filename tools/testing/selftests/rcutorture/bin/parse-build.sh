@@ -30,18 +30,28 @@
 T=$1
 title=$2
 
+. functions.sh
+
 if grep -q CC < $T
 then
 	:
 else
-	echo $title no build
+	print_bug $title no build
 	exit 1
 fi
 
-if egrep -q "error:|rcu[^/]*\.c.*warning:|rcu.*\.h.*warning:" < $T
+if grep -q "error:" < $T
 then
-	echo $title build errors:
-	egrep "error:|rcu[^/]*\.c.*warning:|rcu.*\.h.*warning:" < $T
+	print_bug $title build errors:
+	grep "error:" < $T
+	exit 2
+fi
+exit 0
+
+if egrep -q "rcu[^/]*\.c.*warning:|rcu.*\.h.*warning:" < $T
+then
+	print_warning $title build errors:
+	egrep "rcu[^/]*\.c.*warning:|rcu.*\.h.*warning:" < $T
 	exit 2
 fi
 exit 0

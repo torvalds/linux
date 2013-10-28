@@ -134,6 +134,22 @@ identify_qemu_vcpus () {
 	lscpu | grep '^CPU(s):' | sed -e 's/CPU(s)://'
 }
 
+# print_bug
+#
+# Prints "BUG: " in red followed by remaining arguments
+print_bug () {
+	printf '\033[031mBUG: \033[m'
+	echo $*
+}
+
+# print_warning
+#
+# Prints "WARNING: " in yellow followed by remaining arguments
+print_warning () {
+	printf '\033[033mWARNING: \033[m'
+	echo $*
+}
+
 # specify_qemu_cpus qemu-cmd qemu-args #cpus
 #
 # Appends a string containing "-smp XXX" to qemu-args, unless the incoming

@@ -188,6 +188,5 @@ then
 fi
 
 cp $builddir/console.log $resdir
-parse-rcutorture.sh $resdir/console.log $title >> $resdir/Warnings 2>&1
-parse-console.sh $resdir/console.log $title >> $resdir/Warnings 2>&1
-cat $resdir/Warnings
+parse-rcutorture.sh $resdir/console.log $title
+parse-console.sh $resdir/console.log $title
