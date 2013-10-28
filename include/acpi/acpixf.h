@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20130725
+#define ACPI_CA_VERSION                 0x20130823
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -280,9 +280,16 @@ acpi_status
 acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_install_global_event_handler
-				(acpi_gbl_event_handler handler, void *context))
-
+				acpi_install_sci_handler(acpi_sci_handler
+							 address,
+							 void *context))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_remove_sci_handler(acpi_sci_handler
+							 address))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				 acpi_install_global_event_handler
+				 (acpi_gbl_event_handler handler,
+				  void *context))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_install_fixed_event_handler(u32
 								  acpi_event,

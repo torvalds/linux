@@ -291,7 +291,7 @@ acpi_status acpi_ut_init_globals(void)
 
 #if (!ACPI_REDUCED_HARDWARE)
 
-	/* GPE support */
+	/* GPE/SCI support */
 
 	acpi_gbl_all_gpes_initialized = FALSE;
 	acpi_gbl_gpe_xrupt_list_head = NULL;
@@ -300,6 +300,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_current_gpe_count = 0;
 
 	acpi_gbl_global_event_handler = NULL;
+	acpi_gbl_sci_handler_list = NULL;
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 

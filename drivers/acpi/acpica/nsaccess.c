@@ -424,8 +424,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					/* Current scope has no parent scope */
 
 					ACPI_ERROR((AE_INFO,
-						    "ACPI path has too many parent prefixes (^) "
-						    "- reached beyond root node"));
+						    "%s: Path has too many parent prefixes (^) "
+						    "- reached beyond root node",
+						    pathname));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}

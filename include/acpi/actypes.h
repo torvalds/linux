@@ -474,6 +474,11 @@ typedef u64 acpi_integer;
 #define ACPI_MOVE_NAME(dest,src)        (ACPI_STRNCPY (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAME_SIZE))
 #endif
 
+/* Support for the special RSDP signature (8 characters) */
+
+#define ACPI_VALIDATE_RSDP_SIG(a)       (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
+#define ACPI_MAKE_RSDP_SIG(dest)        (ACPI_MEMCPY (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
+
 /*******************************************************************************
  *
  * Miscellaneous constants
@@ -945,6 +950,9 @@ typedef void
 /*
  * Various handlers and callback procedures
  */
+typedef
+u32 (*acpi_sci_handler) (void *context);
+
 typedef
 void (*acpi_gbl_event_handler) (u32 event_type,
 			       acpi_handle device,

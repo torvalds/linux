@@ -242,11 +242,11 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
  */
 u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context);
 
+u32 acpi_ev_sci_dispatch(void);
+
 u32 acpi_ev_install_sci_handler(void);
 
-acpi_status acpi_ev_remove_sci_handler(void);
-
-u32 acpi_ev_initialize_SCI(u32 program_SCI);
+acpi_status acpi_ev_remove_all_sci_handlers(void);
 
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_ev_terminate(void))
 #endif				/* __ACEVENTS_H__  */

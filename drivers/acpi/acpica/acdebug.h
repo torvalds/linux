@@ -113,11 +113,12 @@ void acpi_db_display_handlers(void);
 ACPI_HW_DEPENDENT_RETURN_VOID(void
 			      acpi_db_generate_gpe(char *gpe_arg,
 						   char *block_arg))
+ ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_generate_sci(void))
 
 /*
  * dbconvert - miscellaneous conversion routines
  */
- acpi_status acpi_db_hex_char_to_value(int hex_char, u8 *return_value);
+acpi_status acpi_db_hex_char_to_value(int hex_char, u8 *return_value);
 
 acpi_status acpi_db_convert_to_package(char *string, union acpi_object *object);
 
@@ -153,6 +154,8 @@ void acpi_db_batch_execute(char *count_arg);
 void acpi_db_set_scope(char *name);
 
 void acpi_db_dump_namespace(char *start_arg, char *depth_arg);
+
+void acpi_db_dump_namespace_paths(void);
 
 void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg);
 

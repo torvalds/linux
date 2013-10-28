@@ -196,7 +196,7 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
  *
  * FUNCTION:    acpi_ev_get_gpe_xrupt_block
  *
- * PARAMETERS:  interrupt_number     - Interrupt for a GPE block
+ * PARAMETERS:  interrupt_number            - Interrupt for a GPE block
  *
  * RETURN:      A GPE interrupt block
  *
