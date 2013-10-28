@@ -2,6 +2,7 @@
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver
  *
+ * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013
  * Copyright Matthew Wilcox for Intel Corp, 2010
  * Copyright Sarah Sharp for Intel Corp, 2010
  *
@@ -1261,4 +1262,5 @@ static struct usb_driver uas_driver = {
 module_usb_driver(uas_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Matthew Wilcox and Sarah Sharp");
+MODULE_AUTHOR(
+	"Hans de Goede <hdegoede@redhat.com>, Matthew Wilcox and Sarah Sharp");
