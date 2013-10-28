@@ -32,6 +32,7 @@ args="$*"
 
 dur=30
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
+PATH=${KVM}/bin:$PATH; export PATH
 builddir="${KVM}/b1"
 RCU_INITRD="$KVM/initrd"; export RCU_INITRD
 RCU_KMAKE_ARG=""; export RCU_KMAKE_ARG
@@ -39,6 +40,8 @@ resdir=""
 configs=""
 ds=`date +%Y.%m.%d-%H:%M:%S`
 kversion=""
+
+. functions.sh
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
@@ -58,27 +61,6 @@ usage () {
 	echo "       --results absolute-pathname"
 	echo "       --relbuilddir relative-pathname"
 	exit 1
-}
-
-# checkarg --argname argtype $# arg mustmatch cannotmatch
-checkarg () {
-	if test $3 -le 1
-	then
-		echo $1 needs argument $2 matching \"$5\"
-		usage
-	fi
-	if echo "$4" | grep -q -e "$5"
-	then
-		:
-	else
-		echo $1 $2 \"$4\" must match \"$5\"
-		usage
-	fi
-	if echo "$4" | grep -q -e "$6"
-	then
-		echo $1 $2 \"$4\" must not match \"$6\"
-		usage
-	fi
 }
 
 while test $# -gt 0
@@ -164,7 +146,6 @@ do
 	shift
 done
 
-PATH=${KVM}/bin:$PATH; export PATH
 CONFIGFRAG=${KVM}/configs; export CONFIGFRAG
 KVPATH=${CONFIGFRAG}/$kversion; export KVPATH
 

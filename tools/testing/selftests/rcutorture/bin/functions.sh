@@ -28,6 +28,30 @@ bootparam_hotplug_cpu () {
 	echo "$1" | grep -q "rcutorture\.onoff_"
 }
 
+# checkarg --argname argtype $# arg mustmatch cannotmatch
+#
+# Checks the specified argument "arg" against the mustmatch and cannotmatch
+# patterns.
+checkarg () {
+	if test $3 -le 1
+	then
+		echo $1 needs argument $2 matching \"$5\"
+		usage
+	fi
+	if echo "$4" | grep -q -e "$5"
+	then
+		:
+	else
+		echo $1 $2 \"$4\" must match \"$5\"
+		usage
+	fi
+	if echo "$4" | grep -q -e "$6"
+	then
+		echo $1 $2 \"$4\" must not match \"$6\"
+		usage
+	fi
+}
+
 # configfrag_boot_params bootparam-string config-fragment-file
 #
 # Adds boot parameters from the .boot file, if any.
