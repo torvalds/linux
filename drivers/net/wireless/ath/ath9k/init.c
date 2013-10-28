@@ -876,7 +876,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_ATH9K_WOW
 static const struct wiphy_wowlan_support ath9k_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = MAX_NUM_USER_PATTERN,
@@ -934,7 +934,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_5_10_MHZ;
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ATH9K_WOW
 	if ((ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
 	    (sc->driver_data & ATH9K_PCI_WOW) &&
 	    device_can_wakeup(sc->dev))

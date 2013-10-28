@@ -921,7 +921,7 @@ struct ath_hw {
 	/* Enterprise mode cap */
 	u32 ent_mode;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ATH9K_WOW
 	u32 wow_event_mask;
 #endif
 	bool is_clk_25mhz;
@@ -1127,7 +1127,7 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ATH9K_WOW
 const char *ath9k_hw_wow_event_to_string(u32 wow_event);
 void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
 				u8 *user_mask, int pattern_count,

@@ -570,6 +570,30 @@ static inline void ath_fill_led_pin(struct ath_softc *sc)
 }
 #endif
 
+/************************/
+/* Wake on Wireless LAN */
+/************************/
+
+#ifdef CONFIG_ATH9K_WOW
+int ath9k_suspend(struct ieee80211_hw *hw,
+		  struct cfg80211_wowlan *wowlan);
+int ath9k_resume(struct ieee80211_hw *hw);
+void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled);
+#else
+static inline int ath9k_suspend(struct ieee80211_hw *hw,
+				struct cfg80211_wowlan *wowlan)
+{
+	return 0;
+}
+static inline int ath9k_resume(struct ieee80211_hw *hw)
+{
+	return 0;
+}
+static inline void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+}
+#endif /* CONFIG_ATH9K_WOW */
+
 /*******************************/
 /* Antenna diversity/combining */
 /*******************************/
@@ -785,7 +809,7 @@ struct ath_softc {
 	bool tx99_state;
 	s16 tx99_power;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ATH9K_WOW
 	atomic_t wow_got_bmiss_intr;
 	atomic_t wow_sleep_proc_intr; /* in the middle of WoW sleep ? */
 	u32 wow_intr_before_sleep;
@@ -984,6 +1008,8 @@ extern bool is_ath9k_unloaded;
 u8 ath9k_parse_mpdudensity(u8 mpdudensity);
 irqreturn_t ath_isr(int irq, void *dev);
 int ath_reset(struct ath_softc *sc);
+void ath_cancel_work(struct ath_softc *sc);
+void ath_restart_work(struct ath_softc *sc);
 int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);
