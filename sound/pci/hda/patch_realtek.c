@@ -554,8 +554,6 @@ do_sku:
 			nid = portd;
 		else if (tmp == 3)
 			nid = porti;
-		else
-			return 1;
 		if (found_in_nid_list(nid, spec->gen.autocfg.line_out_pins,
 				      spec->gen.autocfg.line_outs))
 			return 1;
