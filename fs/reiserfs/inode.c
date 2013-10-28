@@ -1573,8 +1573,10 @@ struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 			reiserfs_warning(sb, "reiserfs-13077",
 				"nfsd/reiserfs, fhtype=%d, len=%d - odd",
 				fh_type, fh_len);
-		fh_type = 5;
+		fh_type = fh_len;
 	}
+	if (fh_len < 2)
+		return NULL;
 
 	return reiserfs_get_dentry(sb, fid->raw[0], fid->raw[1],
 		(fh_type == 3 || fh_type >= 5) ? fid->raw[2] : 0);
@@ -1583,6 +1585,8 @@ struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 struct dentry *reiserfs_fh_to_parent(struct super_block *sb, struct fid *fid,
 		int fh_len, int fh_type)
 {
+	if (fh_type > fh_len)
+		fh_type = fh_len;
 	if (fh_type < 4)
 		return NULL;
 
