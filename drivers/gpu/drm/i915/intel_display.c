@@ -9660,6 +9660,14 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		/* mode_set/enable/disable functions rely on a correct pipe
 		 * config. */
 		to_intel_crtc(crtc)->config = *pipe_config;
+
+		/*
+		 * Calculate and store various constants which
+		 * are later needed by vblank and swap-completion
+		 * timestamping. They are derived from true hwmode.
+		 */
+		drm_calc_timestamping_constants(crtc,
+						&pipe_config->adjusted_mode);
 	}
 
 	/* Only after disabling all output pipelines that will be changed can we
@@ -9682,15 +9690,6 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc)
 		dev_priv->display.crtc_enable(&intel_crtc->base);
-
-	if (modeset_pipes) {
-		/* Calculate and store various constants which
-		 * are later needed by vblank and swap-completion
-		 * timestamping. They are derived from true hwmode.
-		 */
-		drm_calc_timestamping_constants(crtc,
-						&pipe_config->adjusted_mode);
-	}
 
 	/* FIXME: add subpixel order */
 done:
