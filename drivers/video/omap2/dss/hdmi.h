@@ -378,15 +378,15 @@ static inline u32 hdmi_read_reg(void __iomem *base_addr, const u16 idx)
 	FLD_GET(hdmi_read_reg(base, idx), start, end)
 
 static inline int hdmi_wait_for_bit_change(void __iomem *base_addr,
-		const u16 idx, int b2, int b1, u32 val)
+		const u32 idx, int b2, int b1, u32 val)
 {
-	u32 t = 0;
-	while (val != REG_GET(base_addr, idx, b2, b1)) {
-		udelay(1);
+	u32 t = 0, v;
+	while (val != (v = REG_GET(base_addr, idx, b2, b1))) {
 		if (t++ > 10000)
-			return !val;
+			return v;
+		udelay(1);
 	}
-	return val;
+	return v;
 }
 
 /* HDMI wrapper funcs */
