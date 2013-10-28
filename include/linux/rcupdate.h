@@ -325,6 +325,7 @@ static inline void rcu_lock_release(struct lockdep_map *map)
 extern struct lockdep_map rcu_lock_map;
 extern struct lockdep_map rcu_bh_lock_map;
 extern struct lockdep_map rcu_sched_lock_map;
+extern struct lockdep_map rcu_callback_map;
 extern int debug_lockdep_rcu_enabled(void);
 
 /**
