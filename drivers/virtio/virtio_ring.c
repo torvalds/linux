@@ -430,13 +430,22 @@ EXPORT_SYMBOL_GPL(virtqueue_kick_prepare);
  * @vq: the struct virtqueue
  *
  * This does not need to be serialized.
+ *
+ * Returns false if host notify failed or queue is broken, otherwise true.
  */
-void virtqueue_notify(struct virtqueue *_vq)
+bool virtqueue_notify(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
+	if (unlikely(vq->broken))
+		return false;
+
 	/* Prod other side to tell it about changes. */
-	vq->notify(_vq);
+	if (vq->notify(_vq) < 0) {
+		vq->broken = true;
+		return false;
+	}
+	return true;
 }
 EXPORT_SYMBOL_GPL(virtqueue_notify);
 
@@ -449,11 +458,14 @@ EXPORT_SYMBOL_GPL(virtqueue_notify);
  *
  * Caller must ensure we don't call this with other virtqueue
  * operations at the same time (except where noted).
+ *
+ * Returns false if kick failed, otherwise true.
  */
-void virtqueue_kick(struct virtqueue *vq)
+bool virtqueue_kick(struct virtqueue *vq)
 {
 	if (virtqueue_kick_prepare(vq))
-		virtqueue_notify(vq);
+		return virtqueue_notify(vq);
+	return true;
 }
 EXPORT_SYMBOL_GPL(virtqueue_kick);
 
