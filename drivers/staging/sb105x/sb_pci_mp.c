@@ -1216,7 +1216,7 @@ static int mp_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 				return (inb(mp_devs[arg].option_reg_addr+MP_OPTR_IIR0+(state->port->line/8)));
 			}
 		case TIOCGGETPORTTYPE:
-			ret = get_device_type(arg);;
+			ret = get_device_type(arg);
 			return ret;
 		case TIOCSMULTIECHO: /* set to multi-drop mode(RS422) or echo mode(RS485)*/
 			outb( ( inb(info->interface_config_addr) & ~0x03 ) | 0x01 ,  
