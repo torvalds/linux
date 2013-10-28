@@ -48,7 +48,7 @@
 #define HDMI_WP_AUDIO_DATA			0x8C
 
 /* HDMI WP IRQ flags */
-
+#define HDMI_IRQ_CORE				(1 << 0)
 #define HDMI_IRQ_OCP_TIMEOUT			(1 << 4)
 #define HDMI_IRQ_AUDIO_FIFO_UNDERFLOW		(1 << 8)
 #define HDMI_IRQ_AUDIO_FIFO_OVERFLOW		(1 << 9)
