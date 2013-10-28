@@ -104,7 +104,7 @@ struct r10bio {
 	 * We choose the number when they are allocated.
 	 * We sometimes need an extra bio to write to the replacement.
 	 */
-	struct {
+	struct r10dev {
 		struct bio	*bio;
 		union {
 			struct bio	*repl_bio; /* used for resync and

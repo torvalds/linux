@@ -288,6 +288,8 @@ struct intel_fbc_work {
 	int interval;
 };
 
+int intel_connector_update_modes(struct drm_connector *connector,
+				struct edid *edid);
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 

@@ -764,8 +764,11 @@ static void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
 {
 	char iovbuf[32];
 	int retcode;
+	__le32 arp_mode_le;
 
-	brcmf_c_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
+	arp_mode_le = cpu_to_le32(arp_mode);
+	brcmf_c_mkiovar("arp_ol", (char *)&arp_mode_le, 4, iovbuf,
+			sizeof(iovbuf));
 	retcode = brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
@@ -781,8 +784,11 @@ static void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
 {
 	char iovbuf[32];
 	int retcode;
+	__le32 arp_enable_le;
 
-	brcmf_c_mkiovar("arpoe", (char *)&arp_enable, 4,
+	arp_enable_le = cpu_to_le32(arp_enable);
+
+	brcmf_c_mkiovar("arpoe", (char *)&arp_enable_le, 4,
 			iovbuf, sizeof(iovbuf));
 	retcode = brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
@@ -803,10 +809,10 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	char buf[128], *ptr;
 	u32 dongle_align = drvr->bus_if->align;
 	u32 glom = 0;
-	u32 roaming = 1;
-	uint bcn_timeout = 3;
-	int scan_assoc_time = 40;
-	int scan_unassoc_time = 40;
+	__le32 roaming_le = cpu_to_le32(1);
+	__le32 bcn_timeout_le = cpu_to_le32(3);
+	__le32 scan_assoc_time_le = cpu_to_le32(40);
+	__le32 scan_unassoc_time_le = cpu_to_le32(40);
 	int i;
 
 	mutex_lock(&drvr->proto_block);
@@ -841,14 +847,14 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 
 	/* Setup timeout if Beacons are lost and roam is off to report
 		 link down */
-	brcmf_c_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
+	brcmf_c_mkiovar("bcn_timeout", (char *)&bcn_timeout_le, 4, iovbuf,
 		    sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
-	brcmf_c_mkiovar("roam_off", (char *)&roaming, 4,
+	brcmf_c_mkiovar("roam_off", (char *)&roaming_le, 4,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
@@ -863,9 +869,9 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 				  sizeof(iovbuf));
 
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_SCAN_CHANNEL_TIME,
-			 (char *)&scan_assoc_time, sizeof(scan_assoc_time));
+		 (char *)&scan_assoc_time_le, sizeof(scan_assoc_time_le));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_SCAN_UNASSOC_TIME,
-			 (char *)&scan_unassoc_time, sizeof(scan_unassoc_time));
+		 (char *)&scan_unassoc_time_le, sizeof(scan_unassoc_time_le));
 
 	/* Set and enable ARP offload feature */
 	brcmf_c_arp_offload_set(drvr, BRCMF_ARPOL_MODE);
