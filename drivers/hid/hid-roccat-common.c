@@ -122,6 +122,59 @@ int roccat_common2_send_with_status(struct usb_device *usb_dev,
 }
 EXPORT_SYMBOL_GPL(roccat_common2_send_with_status);
 
+int roccat_common2_device_init_struct(struct usb_device *usb_dev,
+		struct roccat_common2_device *dev)
+{
+	mutex_init(&dev->lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(roccat_common2_device_init_struct);
+
+ssize_t roccat_common2_sysfs_read(struct file *fp, struct kobject *kobj,
+		char *buf, loff_t off, size_t count,
+		size_t real_size, uint command)
+{
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
+	struct roccat_common2_device *roccat_dev = hid_get_drvdata(dev_get_drvdata(dev));
+	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
+	int retval;
+
+	if (off >= real_size)
+		return 0;
+
+	if (off != 0 || count != real_size)
+		return -EINVAL;
+
+	mutex_lock(&roccat_dev->lock);
+	retval = roccat_common2_receive(usb_dev, command, buf, real_size);
+	mutex_unlock(&roccat_dev->lock);
+
+	return retval ? retval : real_size;
+}
+EXPORT_SYMBOL_GPL(roccat_common2_sysfs_read);
+
+ssize_t roccat_common2_sysfs_write(struct file *fp, struct kobject *kobj,
+		void const *buf, loff_t off, size_t count,
+		size_t real_size, uint command)
+{
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
+	struct roccat_common2_device *roccat_dev = hid_get_drvdata(dev_get_drvdata(dev));
+	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
+	int retval;
+
+	if (off != 0 || count != real_size)
+		return -EINVAL;
+
+	mutex_lock(&roccat_dev->lock);
+	retval = roccat_common2_send_with_status(usb_dev, command, buf, real_size);
+	mutex_unlock(&roccat_dev->lock);
+
+	return retval ? retval : real_size;
+}
+EXPORT_SYMBOL_GPL(roccat_common2_sysfs_write);
+
 MODULE_AUTHOR("Stefan Achatz");
 MODULE_DESCRIPTION("USB Roccat common driver");
 MODULE_LICENSE("GPL v2");
