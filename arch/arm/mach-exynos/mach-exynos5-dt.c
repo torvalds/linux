@@ -11,13 +11,10 @@
 
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
-#include <linux/memblock.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <mach/regs-pmu.h>
-
-#include <plat/cpu.h>
 #include <plat/mfc.h>
 
 #include "common.h"
