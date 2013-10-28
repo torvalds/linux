@@ -380,8 +380,6 @@ wls_parse_batching_cmd(struct net_device *dev, char *command, int total_len)
 		err = dhd_dev_pno_get_for_batch(dev, command, total_len);
 		if (err < 0) {
 			DHD_ERROR(("failed to getting batching results\n"));
-		} else {
-			err = strlen(command);
 		}
 	} else if (!strncmp(pos, PNO_BATCHING_STOP, strlen(PNO_BATCHING_STOP))) {
 		err = dhd_dev_pno_stop_for_batch(dev);

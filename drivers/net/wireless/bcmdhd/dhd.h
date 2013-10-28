@@ -317,6 +317,9 @@ typedef struct dhd_pub {
 #ifdef PNO_SUPPORT
 	void *pno_state;
 #endif
+#ifdef ROAM_AP_ENV_DETECTION
+	bool	roam_env_detection;
+#endif
 	bool	dongle_isolation;
 	bool	dongle_trap_occured;	/* flag for sending HANG event to upper layer */
 	int   hang_was_sent;
@@ -412,6 +415,7 @@ extern int dhd_os_wake_unlock(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_timeout(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_rx_timeout_enable(dhd_pub_t *pub, int val);
 extern int dhd_os_wake_lock_ctrl_timeout_enable(dhd_pub_t *pub, int val);
+extern int dhd_os_wake_lock_ctrl_timeout_cancel(dhd_pub_t *pub);
 extern int dhd_os_wd_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wd_wake_unlock(dhd_pub_t *pub);
 
@@ -445,6 +449,8 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 	dhd_os_wake_lock_rx_timeout_enable(pub, val)
 #define DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_ENABLE(pub, val) \
 	dhd_os_wake_lock_ctrl_timeout_enable(pub, val)
+#define DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_CANCEL(pub) \
+	dhd_os_wake_lock_ctrl_timeout_cancel(pub)
 #define DHD_PACKET_TIMEOUT_MS	1000
 #define DHD_EVENT_TIMEOUT_MS	1500
 
