@@ -215,6 +215,27 @@
 				allwinner,pull = <0>;
 			};
 
+			i2c0_pins_a: i2c0@0 {
+				allwinner,pins = "PB0", "PB1";
+				allwinner,function = "i2c0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			i2c1_pins_a: i2c1@0 {
+				allwinner,pins = "PB18", "PB19";
+				allwinner,function = "i2c1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			i2c2_pins_a: i2c2@0 {
+				allwinner,pins = "PB20", "PB21";
+				allwinner,function = "i2c2";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			emac_pins_a: emac0@0 {
 				allwinner,pins = "PA0", "PA1", "PA2",
 						"PA3", "PA4", "PA5", "PA6",
@@ -242,6 +263,11 @@
 		wdt: watchdog@01c20c90 {
 			compatible = "allwinner,sun4i-wdt";
 			reg = <0x01c20c90 0x10>;
+		};
+
+		sid: eeprom@01c23800 {
+			compatible = "allwinner,sun7i-a20-sid";
+			reg = <0x01c23800 0x200>;
 		};
 
 		uart0: serial@01c28000 {
@@ -321,6 +347,51 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 23>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@01c2ac00 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2ac00 0x400>;
+			interrupts = <0 7 1>;
+			clocks = <&apb1_gates 0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@01c2b000 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2b000 0x400>;
+			interrupts = <0 8 1>;
+			clocks = <&apb1_gates 1>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@01c2b400 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2b400 0x400>;
+			interrupts = <0 9 1>;
+			clocks = <&apb1_gates 2>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@01c2b800 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2b800 0x400>;
+			interrupts = <0 88 1>;
+			clocks = <&apb1_gates 3>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@01c2bc00 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2bc00 0x400>;
+			interrupts = <0 89 1>;
+			clocks = <&apb1_gates 15>;
+			clock-frequency = <100000>;
 			status = "disabled";
 		};
 
