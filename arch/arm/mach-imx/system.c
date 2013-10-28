@@ -42,9 +42,6 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
-	if (cpu_is_imx6q() || cpu_is_imx6dl())
-		imx_src_prepare_restart();
-
 	if (wdog_clk)
 		clk_enable(wdog_clk);
 
