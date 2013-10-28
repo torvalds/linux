@@ -698,6 +698,12 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	vbl_start = mode->crtc_vblank_start;
 	vbl_end = mode->crtc_vblank_end;
 
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		vbl_start = DIV_ROUND_UP(vbl_start, 2);
+		vbl_end /= 2;
+		vtotal /= 2;
+	}
+
 	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
 
 	/*
