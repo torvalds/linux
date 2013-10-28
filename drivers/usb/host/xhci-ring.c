@@ -145,29 +145,37 @@ static void next_trb(struct xhci_hcd *xhci,
  */
 static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
-	union xhci_trb *next;
 	unsigned long long addr;
 
 	ring->deq_updates++;
 
-	/* If this is not event ring, there is one more usable TRB */
+	/*
+	 * If this is not event ring, and the dequeue pointer
+	 * is not on a link TRB, there is one more usable TRB
+	 */
 	if (ring->type != TYPE_EVENT &&
 			!last_trb(xhci, ring, ring->deq_seg, ring->dequeue))
 		ring->num_trbs_free++;
-	next = ++(ring->dequeue);
 
-	/* Update the dequeue pointer further if that was a link TRB or we're at
-	 * the end of an event ring segment (which doesn't have link TRBS)
-	 */
-	while (last_trb(xhci, ring, ring->deq_seg, next)) {
-		if (ring->type == TYPE_EVENT &&	last_trb_on_last_seg(xhci,
-				ring, ring->deq_seg, next)) {
-			ring->cycle_state = (ring->cycle_state ? 0 : 1);
+	do {
+		/*
+		 * Update the dequeue pointer further if that was a link TRB or
+		 * we're at the end of an event ring segment (which doesn't have
+		 * link TRBS)
+		 */
+		if (last_trb(xhci, ring, ring->deq_seg, ring->dequeue)) {
+			if (ring->type == TYPE_EVENT &&
+					last_trb_on_last_seg(xhci, ring,
+						ring->deq_seg, ring->dequeue)) {
+				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+			}
+			ring->deq_seg = ring->deq_seg->next;
+			ring->dequeue = ring->deq_seg->trbs;
+		} else {
+			ring->dequeue++;
 		}
-		ring->deq_seg = ring->deq_seg->next;
-		ring->dequeue = ring->deq_seg->trbs;
-		next = ring->dequeue;
-	}
+	} while (last_trb(xhci, ring, ring->deq_seg, ring->dequeue));
+
 	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
 }
 
