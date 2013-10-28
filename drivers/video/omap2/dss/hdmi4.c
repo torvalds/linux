@@ -148,8 +148,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
-	dss_mgr_disable(mgr);
-
 	p = &hdmi.cfg.timings;
 
 	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
@@ -157,8 +155,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	phy = p->pixel_clock;
 
 	hdmi_pll_compute(&hdmi.pll, clk_get_rate(hdmi.sys_clk), phy);
-
-	hdmi_wp_video_stop(&hdmi.wp);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
 	r = hdmi_pll_enable(&hdmi.pll, &hdmi.wp);
