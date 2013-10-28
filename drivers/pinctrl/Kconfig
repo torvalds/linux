@@ -109,6 +109,11 @@ config PINCTRL_IMX
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_IMX1_CORE
+	bool
+	select PINMUX
+	select PINCONF
+
 config PINCTRL_IMX35
 	bool "IMX35 pinctrl driver"
 	depends on OF
