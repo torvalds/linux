@@ -262,9 +262,9 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 			    sizeof(u8), GFP_ATOMIC);
 	if (!efuse_tbl)
 		return;
-	efuse_word = kmalloc(EFUSE_MAX_WORD_UNIT * sizeof(u16 *), GFP_ATOMIC);
+	efuse_word = kzalloc(EFUSE_MAX_WORD_UNIT * sizeof(u16 *), GFP_ATOMIC);
 	if (!efuse_word)
-		goto done;
+		goto out;
 	for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
 		efuse_word[i] = kmalloc(efuse_max_section * sizeof(u16),
 					GFP_ATOMIC);
@@ -378,6 +378,7 @@ done:
 	for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++)
 		kfree(efuse_word[i]);
 	kfree(efuse_word);
+out:
 	kfree(efuse_tbl);
 }
 
