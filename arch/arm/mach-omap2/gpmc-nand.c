@@ -74,6 +74,11 @@ static void gpmc_set_legacy(struct omap_nand_platform_data *gpmc_nand_data,
 		s->wait_on_read = true;
 		s->wait_on_write = true;
 	}
+
+	if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
+		s->device_width = GPMC_DEVWIDTH_16BIT;
+	else
+		s->device_width = GPMC_DEVWIDTH_8BIT;
 }
 
 int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
@@ -117,11 +122,6 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 		gpmc_set_legacy(gpmc_nand_data, &s);
 
 	s.device_nand = true;
-
-	if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
-		s.device_width = GPMC_DEVWIDTH_16BIT;
-	else
-		s.device_width = GPMC_DEVWIDTH_8BIT;
 
 	err = gpmc_cs_program_settings(gpmc_nand_data->cs, &s);
 	if (err < 0)
