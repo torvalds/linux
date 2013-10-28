@@ -346,7 +346,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 				goto error;
 		}
 
-		err = f2fs_init_acl(inode, dir);
+		err = f2fs_init_acl(inode, dir, page);
 		if (err)
 			goto error;
 
