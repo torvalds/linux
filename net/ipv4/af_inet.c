@@ -1251,8 +1251,8 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	const struct net_offload *ops;
 	unsigned int offset = 0;
+	bool udpfrag, encap;
 	struct iphdr *iph;
-	bool tunnel;
 	int proto;
 	int nhoff;
 	int ihl;
@@ -1290,8 +1290,8 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		goto out;
 	__skb_pull(skb, ihl);
 
-	tunnel = SKB_GSO_CB(skb)->encap_level > 0;
-	if (tunnel)
+	encap = SKB_GSO_CB(skb)->encap_level > 0;
+	if (encap)
 		features = skb->dev->hw_enc_features & netif_skb_features(skb);
 	SKB_GSO_CB(skb)->encap_level += ihl;
 
@@ -1306,24 +1306,23 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	if (IS_ERR_OR_NULL(segs))
 		goto out;
 
+	udpfrag = !!skb->encapsulation && proto == IPPROTO_UDP;
 	skb = segs;
 	do {
 		iph = (struct iphdr *)(skb_mac_header(skb) + nhoff);
-		if (!tunnel && proto == IPPROTO_UDP) {
+		if (udpfrag) {
 			iph->id = htons(id);
 			iph->frag_off = htons(offset >> 3);
 			if (skb->next != NULL)
 				iph->frag_off |= htons(IP_MF);
 			offset += skb->len - nhoff - ihl;
-		} else  {
+		} else {
 			iph->id = htons(id++);
 		}
 		iph->tot_len = htons(skb->len - nhoff);
 		ip_send_check(iph);
-		if (tunnel) {
+		if (encap)
 			skb_reset_inner_headers(skb);
-			skb->encapsulation = 1;
-		}
 		skb->network_header = (u8 *)iph - skb->head;
 	} while ((skb = skb->next));
 
