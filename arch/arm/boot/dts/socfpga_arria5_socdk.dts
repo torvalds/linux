@@ -74,3 +74,7 @@
 		reg = <0x68>;
 	};
 };
+
+&usb1 {
+	status = "okay";
+};

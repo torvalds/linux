@@ -52,3 +52,7 @@
 	rxdv-skew-ps = <0>;
 	rxc-skew-ps = <2000>;
 };
+
+&usb1 {
+	status = "okay";
+};
