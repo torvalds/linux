@@ -543,7 +543,7 @@ static const struct of_device_id moxart_mac_match[] = {
 	{ }
 };
 
-struct __initdata platform_driver moxart_mac_driver = {
+static struct platform_driver moxart_mac_driver = {
 	.probe	= moxart_mac_probe,
 	.remove	= moxart_remove,
 	.driver	= {

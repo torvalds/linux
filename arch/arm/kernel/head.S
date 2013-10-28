@@ -77,6 +77,7 @@
 
 	__HEAD
 ENTRY(stext)
+ ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
  THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
@@ -352,6 +353,9 @@ ENTRY(secondary_startup)
 	 * the processor type - there is no need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
+
+ ARM_BE8(setend	be)				@ ensure we are in BE8 mode
+
 #ifdef CONFIG_ARM_VIRT_EXT
 	bl	__hyp_stub_install_secondary
 #endif
@@ -602,15 +606,20 @@ __fixup_a_pv_table:
 	b	2f
 1:	add     r7, r3
 	ldrh	ip, [r7, #2]
+ARM_BE8(rev16	ip, ip)
 	tst	ip, #0x4000
 	and	ip, #0x8f00
 	orrne	ip, r6	@ mask in offset bits 31-24
 	orreq	ip, r0	@ mask in offset bits 7-0
+ARM_BE8(rev16	ip, ip)
 	strh	ip, [r7, #2]
-	ldrheq	ip, [r7]
-	biceq	ip, #0x20
-	orreq	ip, ip, r0, lsr #16
-	strheq	ip, [r7]
+	bne	2f
+	ldrh	ip, [r7]
+ARM_BE8(rev16	ip, ip)
+	bic	ip, #0x20
+	orr	ip, ip, r0, lsr #16
+ARM_BE8(rev16	ip, ip)
+	strh	ip, [r7]
 2:	cmp	r4, r5
 	ldrcc	r7, [r4], #4	@ use branch for delay slot
 	bcc	1b
@@ -619,11 +628,20 @@ __fixup_a_pv_table:
 	moveq	r0, #0x400000	@ set bit 22, mov to mvn instruction
 	b	2f
 1:	ldr	ip, [r7, r3]
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	@ in BE8, we load data in BE, but instructions still in LE
+	bic	ip, ip, #0xff000000
+	tst	ip, #0x000f0000	@ check the rotation field
+	orrne	ip, ip, r6, lsl #24 @ mask in offset bits 31-24
+	biceq	ip, ip, #0x00004000 @ clear bit 22
+	orreq	ip, ip, r0, lsl #24 @ mask in offset bits 7-0
+#else
 	bic	ip, ip, #0x000000ff
 	tst	ip, #0xf00	@ check the rotation field
 	orrne	ip, ip, r6	@ mask in offset bits 31-24
 	biceq	ip, ip, #0x400000	@ clear bit 22
 	orreq	ip, ip, r0	@ mask in offset bits 7-0
+#endif
 	str	ip, [r7, r3]
 2:	cmp	r4, r5
 	ldrcc	r7, [r4], #4	@ use branch for delay slot

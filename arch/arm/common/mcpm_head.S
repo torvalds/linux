@@ -15,6 +15,7 @@
 
 #include <linux/linkage.h>
 #include <asm/mcpm.h>
+#include <asm/assembler.h>
 
 #include "vlock.h"
 
@@ -47,6 +48,7 @@
 
 ENTRY(mcpm_entry_point)
 
+ ARM_BE8(setend        be)
  THUMB(	adr	r12, BSYM(1f)	)
  THUMB(	bx	r12		)
  THUMB(	.thumb			)
