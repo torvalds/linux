@@ -21,26 +21,17 @@
 #include <linux/export.h>
 #include <asm/proc-fns.h>
 #include <asm/cpuidle.h>
-#include <mach/cpu.h>
-
-#include "pm.h"
 
 #define AT91_MAX_STATES	2
+
+static void (*at91_standby)(void);
 
 /* Actual code that puts the SoC in different idle states */
 static int at91_enter_idle(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			       int index)
 {
-	if (cpu_is_at91rm9200())
-		at91rm9200_standby();
-	else if (cpu_is_at91sam9g45())
-		at91sam9g45_standby();
-	else if (cpu_is_at91sam9263())
-		at91sam9263_standby();
-	else
-		at91sam9_standby();
-
+	at91_standby();
 	return index;
 }
 
@@ -60,9 +51,19 @@ static struct cpuidle_driver at91_idle_driver = {
 };
 
 /* Initialize CPU idle by registering the idle states */
-static int __init at91_init_cpuidle(void)
+static int at91_cpuidle_probe(struct platform_device *dev)
 {
+	at91_standby = (void *)(dev->dev.platform_data);
+	
 	return cpuidle_register(&at91_idle_driver, NULL);
 }
 
-device_initcall(at91_init_cpuidle);
+static struct platform_driver at91_cpuidle_driver = {
+	.driver = {
+		.name = "cpuidle-at91",
+		.owner = THIS_MODULE,
+	},
+	.probe = at91_cpuidle_probe,
+};
+
+module_platform_driver(at91_cpuidle_driver);
