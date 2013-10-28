@@ -219,6 +219,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	int cpu_index, device_declaration = 0;
 	acpi_status status = AE_OK;
 	static int cpu0_initialized;
+	unsigned long long value;
 
 	if (num_online_cpus() > 1)
 		errata.smp = TRUE;
@@ -258,7 +259,6 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		 * Declared with "Device" statement; match _UID.
 		 * Note that we don't handle string _UIDs yet.
 		 */
-		unsigned long long value;
 		status = acpi_evaluate_integer(pr->handle, METHOD_NAME__UID,
 						NULL, &value);
 		if (ACPI_FAILURE(status)) {
@@ -332,9 +332,9 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 * ensure we get the right value in the "physical id" field
 	 * of /proc/cpuinfo
 	 */
-	status = acpi_evaluate_object(pr->handle, "_SUN", NULL, &buffer);
+	status = acpi_evaluate_integer(pr->handle, "_SUN", NULL, &value);
 	if (ACPI_SUCCESS(status))
-		arch_fix_phys_package_id(pr->id, object.integer.value);
+		arch_fix_phys_package_id(pr->id, value);
 
 	return 0;
 }

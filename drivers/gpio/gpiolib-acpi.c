@@ -73,15 +73,8 @@ static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 static irqreturn_t acpi_gpio_irq_handler_evt(int irq, void *data)
 {
 	struct acpi_gpio_evt_pin *evt_pin = data;
-	struct acpi_object_list args;
-	union acpi_object arg;
 
-	arg.type = ACPI_TYPE_INTEGER;
-	arg.integer.value = evt_pin->pin;
-	args.count = 1;
-	args.pointer = &arg;
-
-	acpi_evaluate_object(evt_pin->evt_handle, NULL, &args, NULL);
+	acpi_execute_simple_method(evt_pin->evt_handle, NULL, evt_pin->pin);
 
 	return IRQ_HANDLED;
 }
