@@ -272,7 +272,8 @@ static struct rpc_xprt *rpc_clnt_set_transport(struct rpc_clnt *clnt,
 	struct rpc_xprt *old;
 
 	spin_lock(&clnt->cl_lock);
-	old = clnt->cl_xprt;
+	old = rcu_dereference_protected(clnt->cl_xprt,
+			lockdep_is_held(&clnt->cl_lock));
 
 	if (!xprt_bound(xprt))
 		clnt->cl_autobind = 1;
