@@ -166,7 +166,7 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	}
 
 	if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-		Adapter->LEDInfo.bLedInitDone = FALSE;
+		Adapter->LEDInfo.bLedInitDone = false;
 		Adapter->DriverState = DRIVER_INIT;
 		wake_up(&Adapter->LEDInfo.notify_led_event);
 	}
@@ -214,7 +214,7 @@ int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_
 	 * Firmware. Check for the Config file to be first to be sent from the
 	 * Application
 	 */
-	atomic_set(&Adapter->uiMBupdate, FALSE);
+	atomic_set(&Adapter->uiMBupdate, false);
 	if (!Adapter->bCfgDownloaded && psFwInfo->u32StartingAddress != CONFIG_BEGIN_ADDR) {
 		/* Can't Download Firmware. */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Download the config File first\n");

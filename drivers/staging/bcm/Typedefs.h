@@ -6,7 +6,7 @@
 #define  STATUS_SUCCESS	0
 #define  STATUS_FAILURE -1
 
-#define	 FALSE		0
+
 #define	 TRUE		1
 
 

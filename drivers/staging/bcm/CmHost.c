@@ -256,7 +256,7 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 	pstClassifierEntry = &Adapter->astClassifierTable[nClassifierIndex];
 	if (pstClassifierEntry) {
 		/* Store if Ipv6 */
-		pstClassifierEntry->bIpv6Protocol = (Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ? TRUE : FALSE;
+		pstClassifierEntry->bIpv6Protocol = (Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ? TRUE : false;
 
 		/* Destinaiton Port */
 		pstClassifierEntry->ucDestPortRangeLength = psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength / 4;
@@ -301,7 +301,7 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 				psfCSType->cCPacketClassificationRule.u8IPDestinationAddressLength,
 				psfCSType->cCPacketClassificationRule.u8IPDestinationAddress,
 				(Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ?
-			TRUE : FALSE, eDestIpAddress);
+			TRUE : false, eDestIpAddress);
 
 		/* Source Ip Address and Mask */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Ip Source Parameters : ");
@@ -309,7 +309,7 @@ static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stru
 		CopyIpAddrToClassifier(pstClassifierEntry,
 				psfCSType->cCPacketClassificationRule.u8IPMaskedSourceAddressLength,
 				psfCSType->cCPacketClassificationRule.u8IPMaskedSourceAddress,
-				(Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ? TRUE : FALSE,
+				(Adapter->PackInfo[uiSearchRuleIndex].ucIpVersion == IPV6) ? TRUE : false,
 				eSrcIpAddress);
 
 		/* TOS */
@@ -383,7 +383,7 @@ static inline VOID DeleteClassifierRuleFromSF(struct bcm_mini_adapter *Adapter, 
 	u16PacketClassificationRuleIndex = Adapter->astClassifierTable[nClassifierIndex].uiClassifierRuleIndex;
 	pstClassifierEntry = &Adapter->astClassifierTable[nClassifierIndex];
 	if (pstClassifierEntry) {
-		pstClassifierEntry->bUsed = FALSE;
+		pstClassifierEntry->bUsed = false;
 		pstClassifierEntry->uiClassifierRuleIndex = 0;
 		memset(pstClassifierEntry, 0, sizeof(struct bcm_classifier_rule));
 
@@ -685,7 +685,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 							memcpy(sPhsRule.u8PHSF, psfCSType->cPhsRule.u8PHSF, MAX_PHS_LENGTHS);
 							memcpy(sPhsRule.u8PHSM, psfCSType->cPhsRule.u8PHSM, MAX_PHS_LENGTHS);
 							sPhsRule.u8RefCnt = 0;
-							sPhsRule.bUnclassifiedPHSRule = FALSE;
+							sPhsRule.bUnclassifiedPHSRule = false;
 							sPhsRule.PHSModifiedBytes = 0;
 							sPhsRule.PHSModifiedNumPackets = 0;
 							sPhsRule.PHSErrorNumPackets = 0;
@@ -1577,7 +1577,7 @@ static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter, B_UIN
 	ULONG idx, max_try;
 
 	if ((Adapter->ulTotalTargetBuffersAvailable == 0) || (Adapter->ulFreeTargetBufferCnt == 0)) {
-		ClearTargetDSXBuffer(Adapter, tid, FALSE);
+		ClearTargetDSXBuffer(Adapter, tid, false);
 		return 0;
 	}
 
@@ -1590,7 +1590,7 @@ static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter, B_UIN
 
 	if (max_try == 0) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "\n GetNextTargetBufferLocation : Error No Free Target DSX Buffers FreeCnt : %lx ", Adapter->ulFreeTargetBufferCnt);
-		ClearTargetDSXBuffer(Adapter, tid, FALSE);
+		ClearTargetDSXBuffer(Adapter, tid, false);
 		return 0;
 	}
 
@@ -1644,9 +1644,9 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 	 */
 	pstAddIndication = RestoreCmControlResponseMessage(Adapter, pvBuffer);
 	if (pstAddIndication == NULL) {
-		ClearTargetDSXBuffer(Adapter, ((struct bcm_add_indication *)pvBuffer)->u16TID, FALSE);
+		ClearTargetDSXBuffer(Adapter, ((struct bcm_add_indication *)pvBuffer)->u16TID, false);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Error in restoring Service Flow param structure from DSx message");
-		return FALSE;
+		return false;
 	}
 
 	DumpCmControlPacket(pstAddIndication);
@@ -1656,7 +1656,7 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 	pLeader->Status = CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ;
 	pLeader->Vcid = 0;
 
-	ClearTargetDSXBuffer(Adapter, pstAddIndication->u16TID, FALSE);
+	ClearTargetDSXBuffer(Adapter, pstAddIndication->u16TID, false);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "### TID RECEIVED %d\n", pstAddIndication->u16TID);
 	switch (pstAddIndication->u8Type) {
 	case DSA_REQ:
@@ -1708,9 +1708,9 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 			if (pstAddIndication->sfAdmittedSet.bValid == TRUE)
 				Adapter->PackInfo[uiSearchRuleIndex].bAdmittedSet = TRUE;
 
-			if (pstAddIndication->sfActiveSet.bValid == FALSE) {
-				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
-				Adapter->PackInfo[uiSearchRuleIndex].bActivateRequestSent = FALSE;
+			if (pstAddIndication->sfActiveSet.bValid == false) {
+				Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
+				Adapter->PackInfo[uiSearchRuleIndex].bActivateRequestSent = false;
 				if (pstAddIndication->sfAdmittedSet.bValid)
 					psfLocalSet = &pstAddIndication->sfAdmittedSet;
 				else if (pstAddIndication->sfAuthorizedSet.bValid)
@@ -1722,8 +1722,8 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 
 			if (!psfLocalSet) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No set is valid\n");
-				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
-				Adapter->PackInfo[uiSearchRuleIndex].bValid = FALSE;
+				Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
+				Adapter->PackInfo[uiSearchRuleIndex].bValid = false;
 				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = 0;
 				kfree(pstAddIndication);
 			} else if (psfLocalSet->bValid && (pstAddIndication->u8CC == 0)) {
@@ -1759,15 +1759,15 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 					}
 				}
 			} else {
-				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
-				Adapter->PackInfo[uiSearchRuleIndex].bValid = FALSE;
+				Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
+				Adapter->PackInfo[uiSearchRuleIndex].bValid = false;
 				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = 0;
 				kfree(pstAddIndication);
 			}
 		} else {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "DSA ACK did not get valid SFID");
 			kfree(pstAddIndication);
-			return FALSE;
+			return false;
 		}
 	}
 	break;
@@ -1812,9 +1812,9 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 			if (pstChangeIndication->sfAdmittedSet.bValid == TRUE)
 				Adapter->PackInfo[uiSearchRuleIndex].bAdmittedSet = TRUE;
 
-			if (pstChangeIndication->sfActiveSet.bValid == FALSE) {
-				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
-				Adapter->PackInfo[uiSearchRuleIndex].bActivateRequestSent = FALSE;
+			if (pstChangeIndication->sfActiveSet.bValid == false) {
+				Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
+				Adapter->PackInfo[uiSearchRuleIndex].bActivateRequestSent = false;
 
 				if (pstChangeIndication->sfAdmittedSet.bValid)
 					psfLocalSet = &pstChangeIndication->sfAdmittedSet;
@@ -1827,8 +1827,8 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 
 			if (!psfLocalSet) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No set is valid\n");
-				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
-				Adapter->PackInfo[uiSearchRuleIndex].bValid = FALSE;
+				Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
+				Adapter->PackInfo[uiSearchRuleIndex].bValid = false;
 				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = 0;
 				kfree(pstAddIndication);
 			} else if (psfLocalSet->bValid && (pstChangeIndication->u8CC == 0)) {
@@ -1847,7 +1847,7 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 		} else {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "DSC ACK did not get valid SFID");
 			kfree(pstAddIndication);
-			return FALSE;
+			return false;
 		}
 	}
 	break;
@@ -1883,7 +1883,7 @@ bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to 
 		break;
 	default:
 		kfree(pstAddIndication);
-		return FALSE;
+		return false;
 	}
 	return TRUE;
 }
@@ -1934,13 +1934,13 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer
 			continue;
 		}
 
-		if (pHostInfo->RetainSF == FALSE) {
+		if (pHostInfo->RetainSF == false) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Going to Delete SF");
 			deleteSFBySfid(Adapter, uiSearchRuleIndex);
 		} else {
 			Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = ntohs(pHostInfo->VCID);
 			Adapter->PackInfo[uiSearchRuleIndex].usCID = ntohs(pHostInfo->newCID);
-			Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
+			Adapter->PackInfo[uiSearchRuleIndex].bActive = false;
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "pHostInfo->QoSParamSet: 0x%x\n", pHostInfo->QoSParamSet);
 

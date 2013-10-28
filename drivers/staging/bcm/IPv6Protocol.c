@@ -29,7 +29,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 	}
 
 	/* Get the Nextt Header Type */
-	*bParseDone = FALSE;
+	*bParseDone = false;
 
 
 	switch (*pucNextHeader) {
@@ -124,7 +124,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 
 	}
 
-	if (*bParseDone == FALSE) {
+	if (*bParseDone == false) {
 		if (*pusPayloadLength <= usNextHeaderOffset) {
 			*bParseDone = TRUE;
 		} else {
@@ -144,7 +144,7 @@ static UCHAR GetIpv6ProtocolPorts(UCHAR *pucPayload, USHORT *pusSrcPort,
 	USHORT *pusDestPort, USHORT usPayloadLength, UCHAR ucNextHeader)
 {
 	UCHAR *pIpv6HdrScanContext = pucPayload;
-	bool bDone = FALSE;
+	bool bDone = false;
 	UCHAR ucHeaderType = 0;
 	UCHAR *pucNextHeader = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -187,7 +187,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 	USHORT	ushSrcPort = 0;
 	UCHAR   ucNextProtocolAboveIP = 0;
 	struct bcm_ipv6_hdr *pstIpv6Header = NULL;
-	bool bClassificationSucceed = FALSE;
+	bool bClassificationSucceed = false;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 			DBG_LVL_ALL, "IpVersion6 ==========>\n");
@@ -277,10 +277,10 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 		INT iMatchedSFQueueIndex = 0;
 		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES) {
-			bClassificationSucceed = FALSE;
+			bClassificationSucceed = false;
 		} else {
-			if (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == FALSE)
-				bClassificationSucceed = FALSE;
+			if (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == false)
+				bClassificationSucceed = false;
 		}
 	}
 
@@ -341,7 +341,7 @@ static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 			}
 		}
 	}
-	return FALSE;
+	return false;
 }
 
 static bool MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
@@ -398,7 +398,7 @@ static bool MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 			}
 		}
 	}
-	return FALSE;
+	return false;
 
 }
 

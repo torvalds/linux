@@ -43,7 +43,7 @@ bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSr
 		}
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Ip Address Not Matched");
-	return FALSE;
+	return false;
 }
 
 
@@ -77,7 +77,7 @@ bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulD
 		}
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination Ip Address Not Matched");
-	return FALSE;
+	return false;
 }
 
 
@@ -103,7 +103,7 @@ bool MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfServi
 		return TRUE;
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Type Of Service Not Matched");
-	return FALSE;
+	return false;
 }
 
 
@@ -132,7 +132,7 @@ bool MatchProtocol(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucProtoc
 		}
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Protocol Not Matched");
-	return FALSE;
+	return false;
 }
 
 
@@ -164,7 +164,7 @@ bool MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule, USHORT ushSrcPo
 		}
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Src Port: %x Not Matched ", ushSrcPort);
-	return FALSE;
+	return false;
 }
 
 
@@ -197,7 +197,7 @@ bool MatchDestPort(struct bcm_classifier_rule *pstClassifierRule, USHORT ushDest
 		}
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Dest Port: %x Not Matched", ushDestPort);
-	return FALSE;
+	return false;
 }
 /**
 @ingroup tx_functions
@@ -209,7 +209,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 			   struct bcm_classifier_rule *pstClassifierRule)
 {
 	struct bcm_transport_header *xprt_hdr = NULL;
-	bool	bClassificationSucceed = FALSE;
+	bool	bClassificationSucceed = false;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "========>");
 
@@ -223,7 +223,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 		//Checking classifier validity
 		if (!pstClassifierRule->bUsed || pstClassifierRule->ucDirection == DOWNLINK_DIR)
 		{
-			bClassificationSucceed = FALSE;
+			bClassificationSucceed = false;
 			break;
 		}
 
@@ -233,17 +233,17 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 
 		//**************Checking IP header parameter**************************//
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Trying to match Source IP Address");
-		if (FALSE == (bClassificationSucceed =
+		if (false == (bClassificationSucceed =
 			MatchSrcIpAddress(pstClassifierRule, iphd->saddr)))
 			break;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Source IP Address Matched");
 
-		if (FALSE == (bClassificationSucceed =
+		if (false == (bClassificationSucceed =
 			MatchDestIpAddress(pstClassifierRule, iphd->daddr)))
 			break;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination IP Address Matched");
 
-		if (FALSE == (bClassificationSucceed =
+		if (false == (bClassificationSucceed =
 			MatchTos(pstClassifierRule, iphd->tos)))
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "TOS Match failed\n");
@@ -251,7 +251,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 		}
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "TOS Matched");
 
-		if (FALSE == (bClassificationSucceed =
+		if (false == (bClassificationSucceed =
 			MatchProtocol(pstClassifierRule, iphd->protocol)))
 			break;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Protocol Matched");
@@ -263,7 +263,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Source Port %04x",
 			(iphd->protocol == UDP) ? xprt_hdr->uhdr.source : xprt_hdr->thdr.source);
 
-		if (FALSE == (bClassificationSucceed =
+		if (false == (bClassificationSucceed =
 			MatchSrcPort(pstClassifierRule,
 				ntohs((iphd->protocol == UDP) ?
 				xprt_hdr->uhdr.source : xprt_hdr->thdr.source))))
@@ -273,7 +273,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Destination Port %04x",
 			(iphd->protocol == UDP) ? xprt_hdr->uhdr.dest :
 			xprt_hdr->thdr.dest);
-		if (FALSE == (bClassificationSucceed =
+		if (false == (bClassificationSucceed =
 			MatchDestPort(pstClassifierRule,
 			ntohs((iphd->protocol == UDP) ?
 			xprt_hdr->uhdr.dest : xprt_hdr->thdr.dest))))
@@ -286,13 +286,13 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES)
 		{
-			bClassificationSucceed = FALSE;
+			bClassificationSucceed = false;
 		}
 		else
 		{
-			if (FALSE == Adapter->PackInfo[iMatchedSFQueueIndex].bActive)
+			if (false == Adapter->PackInfo[iMatchedSFQueueIndex].bActive)
 			{
-				bClassificationSucceed = FALSE;
+				bClassificationSucceed = false;
 			}
 		}
 	}
@@ -451,7 +451,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 	struct iphdr *pIpHeader = NULL;
 	INT	  uiSfIndex = 0;
 	USHORT	usIndex = Adapter->usBestEffortQueueIndex;
-	bool	bFragmentedPkt = FALSE, bClassificationSucceed = FALSE;
+	bool	bFragmentedPkt = false, bClassificationSucceed = false;
 	USHORT	usCurrFragment = 0;
 
 	struct bcm_tcp_header *pTcpHeader;
@@ -529,16 +529,16 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 		//to classify the packet until match found
 		do
 		{
-			if (FALSE == Adapter->astClassifierTable[uiLoopIndex].bUsed)
+			if (false == Adapter->astClassifierTable[uiLoopIndex].bUsed)
 			{
-				bClassificationSucceed = FALSE;
+				bClassificationSucceed = false;
 				break;
 			}
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "Adapter->PackInfo[%d].bvalid=True\n", uiLoopIndex);
 
 			if (0 == Adapter->astClassifierTable[uiLoopIndex].ucDirection)
 			{
-				bClassificationSucceed = FALSE;//cannot be processed for classification.
+				bClassificationSucceed = false;//cannot be processed for classification.
 				break;						// it is a down link connection
 			}
 
@@ -556,7 +556,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 				if (eEthUnsupportedFrame == stEthCsPktInfo.eNwpktEthFrameType)
 				{
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a Valid Supported Ethernet Frame\n");
-					bClassificationSucceed = FALSE;
+					bClassificationSucceed = false;
 					break;
 				}
 
@@ -577,7 +577,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 				if (eEthOtherFrame != stEthCsPktInfo.eNwpktEthFrameType)
 				{
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet Not a 802.3 Ethernet Frame... hence not allowed over non-ETH CS SF\n");
-					bClassificationSucceed = FALSE;
+					bClassificationSucceed = false;
 					break;
 				}
 			}
@@ -590,7 +590,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 				if (stEthCsPktInfo.eNwpktIPFrameType == eNonIPPacket)
 				{
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, " ClassifyPacket : Packet is Not an IP Packet\n");
-					bClassificationSucceed = FALSE;
+					bClassificationSucceed = false;
 					break;
 				}
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Dump IP Header :\n");
@@ -636,7 +636,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 			stFragPktInfo.ulSrcIpAddress = pIpHeader->saddr;
 			stFragPktInfo.usIpIdentification = pIpHeader->id;
 			stFragPktInfo.pstMatchedClassifierEntry = pstClassifierRule;
-			stFragPktInfo.bOutOfOrderFragment = FALSE;
+			stFragPktInfo.bOutOfOrderFragment = false;
 			AddFragIPClsEntry(Adapter, &stFragPktInfo);
 		}
 
@@ -661,7 +661,7 @@ static bool EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRul
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "SRC MAC[%x] = %x ClassifierRuleSrcMAC = %x Mask : %x\n", i, Mac[i], pstClassifierRule->au8EThCSSrcMAC[i], pstClassifierRule->au8EThCSSrcMACMask[i]);
 		if ((pstClassifierRule->au8EThCSSrcMAC[i] & pstClassifierRule->au8EThCSSrcMACMask[i]) !=
 			(Mac[i] & pstClassifierRule->au8EThCSSrcMACMask[i]))
-			return FALSE;
+			return false;
 	}
 	return TRUE;
 }
@@ -678,7 +678,7 @@ static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRu
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "SRC MAC[%x] = %x ClassifierRuleSrcMAC = %x Mask : %x\n", i, Mac[i], pstClassifierRule->au8EThCSDestMAC[i], pstClassifierRule->au8EThCSDestMACMask[i]);
 		if ((pstClassifierRule->au8EThCSDestMAC[i] & pstClassifierRule->au8EThCSDestMACMask[i]) !=
 			(Mac[i] & pstClassifierRule->au8EThCSDestMACMask[i]))
-			return FALSE;
+			return false;
 	}
 	return TRUE;
 }
@@ -698,29 +698,29 @@ static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, 
 		if (memcmp(&pstEthCsPktInfo->usEtherType, &pstClassifierRule->au8EthCSEtherType[1], 2) == 0)
 			return TRUE;
 		else
-			return FALSE;
+			return false;
 	}
 
 	if (pstClassifierRule->au8EthCSEtherType[0] == 2)
 	{
 		if (eEth802LLCFrame != pstEthCsPktInfo->eNwpktEthFrameType)
-			return FALSE;
+			return false;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "%s  EthCS DSAP:%x EtherType[2]:%x\n", __FUNCTION__, pstEthCsPktInfo->ucDSAP, pstClassifierRule->au8EthCSEtherType[2]);
 		if (pstEthCsPktInfo->ucDSAP == pstClassifierRule->au8EthCSEtherType[2])
 			return TRUE;
 		else
-			return FALSE;
+			return false;
 
 	}
 
-	return FALSE;
+	return false;
 
 }
 
 static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
-	bool bClassificationSucceed = FALSE;
+	bool bClassificationSucceed = false;
 	USHORT usVLANID;
 	B_UINT8 uPriority = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -731,7 +731,7 @@ static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, s
 	if (pstClassifierRule->usValidityBitMap & (1<<PKT_CLASSIFICATION_USER_PRIORITY_VALID))
 	{
 		if (pstEthCsPktInfo->eNwpktEthFrameType != eEth802QVLANFrame)
-				return FALSE;
+				return false;
 
 		uPriority = (ntohs(*(USHORT *)(skb->data + sizeof(struct bcm_eth_header))) & 0xF000) >> 13;
 
@@ -739,17 +739,17 @@ static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, s
 				bClassificationSucceed = TRUE;
 
 		if (!bClassificationSucceed)
-			return FALSE;
+			return false;
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS 802.1 D  User Priority Rule Matched\n");
 
-	bClassificationSucceed = FALSE;
+	bClassificationSucceed = false;
 
 	if (pstClassifierRule->usValidityBitMap & (1<<PKT_CLASSIFICATION_VLANID_VALID))
 	{
 		if (pstEthCsPktInfo->eNwpktEthFrameType != eEth802QVLANFrame)
-				return FALSE;
+				return false;
 
 		usVLANID = ntohs(*(USHORT *)(skb->data + sizeof(struct bcm_eth_header))) & 0xFFF;
 
@@ -759,7 +759,7 @@ static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, s
 			bClassificationSucceed = TRUE;
 
 		if (!bClassificationSucceed)
-			return FALSE;
+			return false;
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS 802.1 Q VLAN ID Rule Matched\n");
@@ -773,21 +773,21 @@ static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* s
 				struct bcm_classifier_rule *pstClassifierRule,
 				B_UINT8 EthCSCupport)
 {
-	bool bClassificationSucceed = FALSE;
+	bool bClassificationSucceed = false;
 	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule, ((struct bcm_eth_header *)(skb->data))->au8SourceAddress);
 	if (!bClassificationSucceed)
-		return FALSE;
+		return false;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS SrcMAC Matched\n");
 
 	bClassificationSucceed = EthCSMatchDestMACAddress(pstClassifierRule, ((struct bcm_eth_header *)(skb->data))->au8DestinationAddress);
 	if (!bClassificationSucceed)
-		return FALSE;
+		return false;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS DestMAC Matched\n");
 
 	//classify on ETHType/802.2SAP TLV
 	bClassificationSucceed = EthCSMatchEThTypeSAP(pstClassifierRule, skb, pstEthCsPktInfo);
 	if (!bClassificationSucceed)
-		return FALSE;
+		return false;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS EthType/802.2SAP Matched\n");
 
@@ -795,7 +795,7 @@ static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* s
 
 	bClassificationSucceed = EthCSMatchVLANRules(pstClassifierRule, skb, pstEthCsPktInfo);
 	if (!bClassificationSucceed)
-		return FALSE;
+		return false;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "ETH CS 802.1 VLAN Rules Matched\n");
 
 	return bClassificationSucceed;

@@ -569,7 +569,7 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 				memset(&pstClassifierRulesTable->stOldPhsRulesList[nClsidIndex], 0, sizeof(struct bcm_phs_classifier_entry));
 			}
 		}
-		pstServiceFlowEntry->bUsed = FALSE;
+		pstServiceFlowEntry->bUsed = false;
 		pstServiceFlowEntry->uiVcid = 0;
 	}
 
@@ -793,21 +793,21 @@ static bool ValidatePHSRuleComplete(IN struct bcm_phs_rule *psPhsRule)
 	if (psPhsRule) {
 		if (!psPhsRule->u8PHSI) {
 			/* PHSI is not valid */
-			return FALSE;
+			return false;
 		}
 
 		if (!psPhsRule->u8PHSS) {
 			/* PHSS Is Undefined */
-			return FALSE;
+			return false;
 		}
 
 		/* Check if PHSF is defines for the PHS Rule */
 		if (!psPhsRule->u8PHSFLength) /* If any part of PHSF is valid then Rule contains valid PHSF */
-			return FALSE;
+			return false;
 
 		return TRUE;
 	} else
-		return FALSE;
+		return false;
 }
 
 UINT GetServiceFlowEntry(IN struct bcm_phs_table *psServiceFlowTable,
@@ -888,7 +888,7 @@ static UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiC
 	struct bcm_phs_classifier_table *psaClassifiertable = NULL;
 	UINT uiStatus = 0;
 	int iSfIndex;
-	bool bFreeEntryFound = FALSE;
+	bool bFreeEntryFound = false;
 
 	/* Check for a free entry in SFID table */
 	for (iSfIndex = 0; iSfIndex < MAX_SERVICEFLOWS; iSfIndex++) {
@@ -1009,7 +1009,7 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 				B_UINT8 u8AssociatedPHSI)
 {
 	UINT iClassifierIndex = 0;
-	bool bFreeEntryFound = FALSE;
+	bool bFreeEntryFound = false;
 	struct bcm_phs_classifier_entry *psClassifierRules = NULL;
 	UINT nStatus = PHS_SUCCESS;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -1102,7 +1102,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 {
 	struct bcm_phs_rule *pstAddPhsRule = NULL;
 	UINT nPhsRuleIndex = 0;
-	bool bPHSRuleOrphaned = FALSE;
+	bool bPHSRuleOrphaned = false;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	psPhsRule->u8RefCnt = 0;
@@ -1124,7 +1124,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 		}
 
 		/* Step 2.a PHS Rule Does Not Exist .Create New PHS Rule for uiClsId */
-		if (FALSE == bPHSRuleOrphaned) {
+		if (false == bPHSRuleOrphaned) {
 
 			pstClassifierEntry->pstPhsRule = kmalloc(sizeof(struct bcm_phs_rule), GFP_KERNEL);
 			if (NULL == pstClassifierEntry->pstPhsRule)
@@ -1153,7 +1153,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 static bool DerefPhsRule(IN B_UINT16  uiClsId, struct bcm_phs_classifier_table *psaClassifiertable, struct bcm_phs_rule *pstPhsRule)
 {
 	if (pstPhsRule == NULL)
-		return FALSE;
+		return false;
 
 	if (pstPhsRule->u8RefCnt)
 		pstPhsRule->u8RefCnt--;
@@ -1166,7 +1166,7 @@ static bool DerefPhsRule(IN B_UINT16  uiClsId, struct bcm_phs_classifier_table *
 		 */
 		return TRUE;
 	} else
-		return FALSE;
+		return false;
 }
 
 void DumpPhsRules(struct bcm_phs_extension *pDeviceExtension)
