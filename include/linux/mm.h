@@ -17,6 +17,8 @@
 #include <linux/pfn.h>
 #include <linux/bit_spinlock.h>
 #include <linux/shrinker.h>
+#include <linux/file.h>
+#include <linux/fs.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -982,6 +984,53 @@ static inline int fixup_user_fault(struct task_struct *tsk,
 	return -EFAULT;
 }
 #endif
+
+/*
+ * Mainly for aufs which wants to print different path in /proc/PID/maps.
+ */
+static inline struct file *vmr_pr_or_file(struct vm_region *region)
+{
+	struct file *f = region->vm_file, *pr = region->vm_prfile;
+	return (f && pr) ? pr : f;
+}
+
+static inline void vmr_fput(struct vm_region *region)
+{
+	struct file *f = region->vm_file, *pr = region->vm_prfile;
+	fput(f);
+	if (f && pr)
+		fput(pr);
+}
+
+static inline void vma_file_update_time(struct vm_area_struct *vma)
+{
+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
+	file_update_time(f);
+	if (f && pr)
+		file_update_time(pr);
+}
+
+static inline struct file *vma_pr_or_file(struct vm_area_struct *vma)
+{
+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
+	return (f && pr) ? pr : f;
+}
+
+static inline void vma_get_file(struct vm_area_struct *vma)
+{
+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
+	get_file(f);
+	if (f && pr)
+		get_file(pr);
+}
+
+static inline void vma_fput(struct vm_area_struct *vma)
+{
+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
+	fput(f);
+	if (f && pr)
+		fput(pr);
+}
 
 extern int make_pages_present(unsigned long addr, unsigned long end);
 extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
