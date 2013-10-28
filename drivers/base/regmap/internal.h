@@ -180,6 +180,9 @@ struct regmap_field {
 	/* lsb */
 	unsigned int shift;
 	unsigned int reg;
+
+	unsigned int id_size;
+	unsigned int id_offset;
 };
 
 #ifdef CONFIG_DEBUG_FS

@@ -431,11 +431,15 @@ bool regmap_reg_in_ranges(unsigned int reg,
  * @reg: Offset of the register within the regmap bank
  * @lsb: lsb of the register field.
  * @reg: msb of the register field.
+ * @id_size: port size if it has some ports
+ * @id_offset: address offset for each ports
  */
 struct reg_field {
 	unsigned int reg;
 	unsigned int lsb;
 	unsigned int msb;
+	unsigned int id_size;
+	unsigned int id_offset;
 };
 
 #define REG_FIELD(_reg, _lsb, _msb) {		\
@@ -454,6 +458,15 @@ void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
 
 int regmap_field_read(struct regmap_field *field, unsigned int *val);
 int regmap_field_write(struct regmap_field *field, unsigned int val);
+int regmap_field_update_bits(struct regmap_field *field,
+			     unsigned int mask, unsigned int val);
+
+int regmap_fields_write(struct regmap_field *field, unsigned int id,
+			unsigned int val);
+int regmap_fields_read(struct regmap_field *field, unsigned int id,
+		       unsigned int *val);
+int regmap_fields_update_bits(struct regmap_field *field,  unsigned int id,
+			      unsigned int mask, unsigned int val);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.

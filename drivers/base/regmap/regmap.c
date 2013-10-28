@@ -813,6 +813,8 @@ static void regmap_field_init(struct regmap_field *rm_field,
 	rm_field->reg = reg_field.reg;
 	rm_field->shift = reg_field.lsb;
 	rm_field->mask = ((BIT(field_bits) - 1) << reg_field.lsb);
+	rm_field->id_size = reg_field.id_size;
+	rm_field->id_offset = reg_field.id_offset;
 }
 
 /**
@@ -1425,6 +1427,74 @@ int regmap_field_write(struct regmap_field *field, unsigned int val)
 }
 EXPORT_SYMBOL_GPL(regmap_field_write);
 
+/**
+ * regmap_field_update_bits():	Perform a read/modify/write cycle
+ *                              on the register field
+ *
+ * @field: Register field to write to
+ * @mask: Bitmask to change
+ * @val: Value to be written
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_field_update_bits(struct regmap_field *field, unsigned int mask, unsigned int val)
+{
+	mask = (mask << field->shift) & field->mask;
+
+	return regmap_update_bits(field->regmap, field->reg,
+				  mask, val << field->shift);
+}
+EXPORT_SYMBOL_GPL(regmap_field_update_bits);
+
+/**
+ * regmap_fields_write(): Write a value to a single register field with port ID
+ *
+ * @field: Register field to write to
+ * @id: port ID
+ * @val: Value to be written
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_fields_write(struct regmap_field *field, unsigned int id,
+			unsigned int val)
+{
+	if (id >= field->id_size)
+		return -EINVAL;
+
+	return regmap_update_bits(field->regmap,
+				  field->reg + (field->id_offset * id),
+				  field->mask, val << field->shift);
+}
+EXPORT_SYMBOL_GPL(regmap_fields_write);
+
+/**
+ * regmap_fields_update_bits():	Perform a read/modify/write cycle
+ *                              on the register field
+ *
+ * @field: Register field to write to
+ * @id: port ID
+ * @mask: Bitmask to change
+ * @val: Value to be written
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_fields_update_bits(struct regmap_field *field,  unsigned int id,
+			      unsigned int mask, unsigned int val)
+{
+	if (id >= field->id_size)
+		return -EINVAL;
+
+	mask = (mask << field->shift) & field->mask;
+
+	return regmap_update_bits(field->regmap,
+				  field->reg + (field->id_offset * id),
+				  mask, val << field->shift);
+}
+EXPORT_SYMBOL_GPL(regmap_fields_update_bits);
+
 /*
  * regmap_bulk_write(): Write multiple registers to the device
  *
@@ -1734,6 +1804,39 @@ int regmap_field_read(struct regmap_field *field, unsigned int *val)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_field_read);
+
+/**
+ * regmap_fields_read(): Read a value to a single register field with port ID
+ *
+ * @field: Register field to read from
+ * @id: port ID
+ * @val: Pointer to store read value
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_fields_read(struct regmap_field *field, unsigned int id,
+		       unsigned int *val)
+{
+	int ret;
+	unsigned int reg_val;
+
+	if (id >= field->id_size)
+		return -EINVAL;
+
+	ret = regmap_read(field->regmap,
+			  field->reg + (field->id_offset * id),
+			  &reg_val);
+	if (ret != 0)
+		return ret;
+
+	reg_val &= field->mask;
+	reg_val >>= field->shift;
+	*val = reg_val;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_fields_read);
 
 /**
  * regmap_bulk_read(): Read multiple registers from the device
