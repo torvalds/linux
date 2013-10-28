@@ -6,6 +6,8 @@ Required properties:
   - reg-names: Should contain the reg names "nand_data" and "denali_reg"
   - interrupts : The interrupt number.
   - dm-mask : DMA bit mask
+  - have-hw-ecc-fixup : boolean indicating controller has ECC correction
+    in hardware, and also has slightly diffrent interrupt status bits.
 
 The device tree may optionally contain sub-nodes describing partitions of the
 address space. See partition.txt for more detail.
@@ -20,4 +22,5 @@ nand: nand@ff900000 {
 	reg-names = "nand_data", "denali_reg";
 	interrupts = <0 144 4>;
 	dma-mask = <0xffffffff>;
+	have-hw-ecc-fixup;
 };

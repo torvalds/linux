@@ -214,6 +214,16 @@
 #define INTR_STATUS(__bank)	(0x410 + ((__bank) * 0x50))
 #define INTR_EN(__bank)		(0x420 + ((__bank) * 0x50))
 
+/*
+ * Some versions of the IP have the ECC fixup handled in hardware.  In this
+ * configuration we only get interrupted when the error is uncorrectable.
+ * Unfortunately this bit replaces INTR_STATUS__ECC_TRANSACTION_DONE from the
+ * old IP.
+ * taken from patch by Jamie Iles <jamie at jamieiles.com>
+ *  support hardware with internal ECC fixup
+ */
+#define     INTR_STATUS__ECC_UNCOR_ERR			0x0001
+
 #define     INTR_STATUS__ECC_TRANSACTION_DONE		0x0001
 #define     INTR_STATUS__ECC_ERR			0x0002
 #define     INTR_STATUS__DMA_CMD_COMP			0x0004
@@ -325,6 +335,11 @@
 #define     CHNL_ACTIVE__CHANNEL1			0x0002
 #define     CHNL_ACTIVE__CHANNEL2			0x0004
 #define     CHNL_ACTIVE__CHANNEL3			0x0008
+
+#define FLASH_BURST_LENGTH		0x770
+#define CHIP_INTERLEAVE_ENABLE_AND_ALLOW_INT_READS		0X780
+#define NO_OF_BLOCKS_PER_LUN		0X790
+#define LUN_STATUS_CMD		0X7A0
 
 #define ACTIVE_SRC_ID				0x800
 #define     ACTIVE_SRC_ID__VALUE			0x00ff
@@ -478,7 +493,7 @@ struct denali_nand_info {
 	struct device *dev;
 	int total_used_banks;
 	uint32_t block;  /* stored for future use */
-	uint16_t page;
+	uint32_t page;
 	void __iomem *flash_reg;  /* Mapped io reg base address */
 	void __iomem *flash_mem;  /* Mapped io reg base address */
 
@@ -496,6 +511,7 @@ struct denali_nand_info {
 	uint32_t blksperchip;
 	uint32_t bbtskipbytes;
 	uint32_t max_banks;
+	bool have_hw_ecc_fixup;
 };
 
 extern int denali_init(struct denali_nand_info *denali);

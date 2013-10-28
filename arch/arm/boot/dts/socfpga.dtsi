@@ -616,7 +616,36 @@
 			interrupts = <0 144 4>;
 			dma-mask = <0xffffffff>;
 			clocks = <&nand_clk>;
+			have-hw-ecc-fixup;
+
+			partition@nand-boot {
+				/* 8MB for raw data. */
+				label = "NAND Flash Boot Area 8MB";
+				reg = <0x0 0x800000>;
 			};
+			partition@nand-rootfs {
+				/* 128MB jffs2 root filesystem. */
+				label = "NAND Flash jffs2 Root Filesystem 128MB";
+				reg = <0x800000 0x8000000>;
+			};
+			partition@nand-128 {
+				label = "NAND Flash 128 MB";
+				reg = <0x8800000 0x8000000>;
+			};
+			partition@nand-64 {
+				label = "NAND Flash 64 MB";
+				reg = <0x10800000 0x4000000>;
+			};
+			partition@nand-32 {
+				label = "NAND Flash 32 MB";
+				reg = <0x14800000 0x2000000>;
+			};
+			partition@nand-16 {
+				label = "NAND Flash 16 MB";
+				reg = <0x16800000 0x1000000>;
+			};
+
+		};
 
 		pmu {
 			#address-cells = <1>;
