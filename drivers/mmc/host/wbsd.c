@@ -1859,7 +1859,6 @@ static int wbsd_platform_resume(struct platform_device *dev)
 static int wbsd_pnp_suspend(struct pnp_dev *pnp_dev, pm_message_t state)
 {
 	struct mmc_host *mmc = dev_get_drvdata(&pnp_dev->dev);
-	struct wbsd_host *host;
 
 	if (mmc == NULL)
 		return 0;
