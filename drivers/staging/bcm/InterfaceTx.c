@@ -7,7 +7,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	struct bcm_interface_adapter *psIntfAdapter = pTcb->psIntfAdapter;
 	struct bcm_link_request *pControlMsg = (struct bcm_link_request *)urb->transfer_buffer;
 	struct bcm_mini_adapter *psAdapter = psIntfAdapter->psAdapter ;
-	BOOLEAN bpowerDownMsg = FALSE ;
+	bool bpowerDownMsg = FALSE ;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
     if (unlikely(netif_msg_tx_done(Adapter)))

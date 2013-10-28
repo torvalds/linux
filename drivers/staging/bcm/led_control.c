@@ -13,7 +13,7 @@ static B_UINT16 CFG_CalculateChecksum(B_UINT8 *pu8Buffer, B_UINT32 u32Size)
 	return u16CheckSum;
 }
 
-BOOLEAN IsReqGpioIsLedInNVM(struct bcm_mini_adapter *Adapter, UINT gpios)
+bool IsReqGpioIsLedInNVM(struct bcm_mini_adapter *Adapter, UINT gpios)
 {
 	INT Status;
 	Status = (Adapter->gpioBitMap & gpios) ^ gpios;
@@ -27,7 +27,7 @@ static INT LED_Blink(struct bcm_mini_adapter *Adapter, UINT GPIO_Num, UCHAR uiLe
 		ULONG timeout, INT num_of_time, enum bcm_led_events currdriverstate)
 {
 	int Status = STATUS_SUCCESS;
-	BOOLEAN bInfinite = FALSE;
+	bool bInfinite = FALSE;
 
 	/* Check if num_of_time is -ve. If yes, blink led in infinite loop */
 	if (num_of_time < 0) {
@@ -108,7 +108,7 @@ static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter, UCHAR GPIO_N
 	int Status = STATUS_SUCCESS;
 	INT num_of_time = 0, num_of_time_tx = 0, num_of_time_rx = 0;
 	UINT remDelay = 0;
-	BOOLEAN bBlinkBothLED = TRUE;
+	bool bBlinkBothLED = TRUE;
 	/* UINT GPIO_num = DISABLE_GPIO_NUM; */
 	ulong timeout = 0;
 
@@ -478,7 +478,7 @@ static int ReadLEDInformationFromEEPROM(struct bcm_mini_adapter *Adapter,
 
 
 static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
-					BOOLEAN *bEnableThread)
+					bool *bEnableThread)
 {
 	int Status = STATUS_SUCCESS;
 	/* Array to store GPIO numbers from EEPROM */
@@ -860,7 +860,7 @@ static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 int InitLedSettings(struct bcm_mini_adapter *Adapter)
 {
 	int Status = STATUS_SUCCESS;
-	BOOLEAN bEnableThread = TRUE;
+	bool bEnableThread = TRUE;
 	UCHAR uiIndex = 0;
 
 	/*

@@ -38,7 +38,7 @@ GetBulkInRcb(struct bcm_interface_adapter *psIntfAdapter)
 static void read_bulk_callback(struct urb *urb)
 {
 	struct sk_buff *skb = NULL;
-	BOOLEAN bHeaderSupressionEnabled = FALSE;
+	bool bHeaderSupressionEnabled = FALSE;
 	int QueueIndex = NO_OF_QUEUES + 1;
 	UINT uiIndex=0;
 	int process_done = 1;
@@ -240,7 +240,7 @@ Return:				TRUE  - If Rx was successful.
 					Other - If an error occurred.
 */
 
-BOOLEAN InterfaceRx (struct bcm_interface_adapter *psIntfAdapter)
+bool InterfaceRx (struct bcm_interface_adapter *psIntfAdapter)
 {
 	USHORT RxDescCount = NUM_RX_DESC - atomic_read(&psIntfAdapter->uNumRcbUsed);
 	struct bcm_usb_rcb *pRcb = NULL;

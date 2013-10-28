@@ -8,9 +8,9 @@ static UINT CreateClassifierPHSRule(B_UINT16  uiClsId, struct bcm_phs_classifier
 
 static UINT UpdateClassifierPHSRule(B_UINT16 uiClsId, struct bcm_phs_classifier_entry *pstClassifierEntry, struct bcm_phs_classifier_table *psaClassifiertable, struct bcm_phs_rule *psPhsRule, B_UINT8 u8AssociatedPHSI);
 
-static BOOLEAN ValidatePHSRuleComplete(struct bcm_phs_rule *psPhsRule);
+static bool ValidatePHSRuleComplete(struct bcm_phs_rule *psPhsRule);
 
-static BOOLEAN DerefPhsRule(B_UINT16 uiClsId, struct bcm_phs_classifier_table *psaClassifiertable, struct bcm_phs_rule *pstPhsRule);
+static bool DerefPhsRule(B_UINT16 uiClsId, struct bcm_phs_classifier_table *psaClassifiertable, struct bcm_phs_rule *pstPhsRule);
 
 static UINT GetClassifierEntry(struct bcm_phs_classifier_table *pstClassifierTable, B_UINT32 uiClsid, enum bcm_phs_classifier_context eClsContext, struct bcm_phs_classifier_entry **ppstClassifierEntry);
 
@@ -67,7 +67,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 		struct sk_buff **pPacket,
 		USHORT Vcid,
 		B_UINT16 uiClassifierRuleID,
-		BOOLEAN bHeaderSuppressionEnabled,
+		bool bHeaderSuppressionEnabled,
 		UINT *PacketLen,
 		UCHAR bEthCSSupport)
 {
@@ -81,7 +81,7 @@ int PHSTransmit(struct bcm_mini_adapter *Adapter,
 	PUCHAR pucPHSPktHdrOutBuf = Adapter->stPhsTxContextInfo.ucaHdrSuppressionOutBuf;
 	UINT usPacketType;
 	UINT BytesToRemove = 0;
-	BOOLEAN bPHSI = 0;
+	bool bPHSI = 0;
 	LONG ulPhsStatus = 0;
 	UINT numBytesCompressed = 0;
 	struct sk_buff *newPacket = NULL;
@@ -788,7 +788,7 @@ static void free_phs_serviceflow_rules(struct bcm_phs_table *psServiceFlowRulesT
 	psServiceFlowRulesTable = NULL;
 }
 
-static BOOLEAN ValidatePHSRuleComplete(IN struct bcm_phs_rule *psPhsRule)
+static bool ValidatePHSRuleComplete(IN struct bcm_phs_rule *psPhsRule)
 {
 	if (psPhsRule) {
 		if (!psPhsRule->u8PHSI) {
@@ -888,7 +888,7 @@ static UINT CreateSFToClassifierRuleMapping(IN B_UINT16 uiVcid, IN B_UINT16  uiC
 	struct bcm_phs_classifier_table *psaClassifiertable = NULL;
 	UINT uiStatus = 0;
 	int iSfIndex;
-	BOOLEAN bFreeEntryFound = FALSE;
+	bool bFreeEntryFound = FALSE;
 
 	/* Check for a free entry in SFID table */
 	for (iSfIndex = 0; iSfIndex < MAX_SERVICEFLOWS; iSfIndex++) {
@@ -1009,7 +1009,7 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 				B_UINT8 u8AssociatedPHSI)
 {
 	UINT iClassifierIndex = 0;
-	BOOLEAN bFreeEntryFound = FALSE;
+	bool bFreeEntryFound = FALSE;
 	struct bcm_phs_classifier_entry *psClassifierRules = NULL;
 	UINT nStatus = PHS_SUCCESS;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -1102,7 +1102,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 {
 	struct bcm_phs_rule *pstAddPhsRule = NULL;
 	UINT nPhsRuleIndex = 0;
-	BOOLEAN bPHSRuleOrphaned = FALSE;
+	bool bPHSRuleOrphaned = FALSE;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	psPhsRule->u8RefCnt = 0;
@@ -1150,7 +1150,7 @@ static UINT UpdateClassifierPHSRule(IN B_UINT16  uiClsId,
 	return PHS_SUCCESS;
 }
 
-static BOOLEAN DerefPhsRule(IN B_UINT16  uiClsId, struct bcm_phs_classifier_table *psaClassifiertable, struct bcm_phs_rule *pstPhsRule)
+static bool DerefPhsRule(IN B_UINT16  uiClsId, struct bcm_phs_classifier_table *psaClassifiertable, struct bcm_phs_rule *pstPhsRule)
 {
 	if (pstPhsRule == NULL)
 		return FALSE;

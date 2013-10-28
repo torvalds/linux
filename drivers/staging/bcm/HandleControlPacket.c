@@ -14,10 +14,10 @@
 static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
 {
 	struct bcm_tarang_data *pTarang = NULL;
-	BOOLEAN HighPriorityMessage = FALSE;
+	bool HighPriorityMessage = FALSE;
 	struct sk_buff *newPacket = NULL;
 	CHAR cntrl_msg_mask_bit = 0;
-	BOOLEAN drop_pkt_flag = TRUE;
+	bool drop_pkt_flag = TRUE;
 	USHORT usStatus = *(PUSHORT)(skb->data);
 
 	if (netif_msg_pktdata(Adapter))

@@ -9,7 +9,7 @@
 #define	 FALSE		0
 #define	 TRUE		1
 
-typedef char BOOLEAN;
+
 typedef char CHAR;
 typedef int INT;
 typedef short SHORT;

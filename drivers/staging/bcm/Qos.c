@@ -5,7 +5,7 @@ This file contains the routines related to Quality of Service.
 #include "headers.h"
 
 static void EThCSGetPktInfo(struct bcm_mini_adapter *Adapter, PVOID pvEthPayload, struct bcm_eth_packet_info *pstEthCsPktInfo);
-static BOOLEAN EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo, struct bcm_classifier_rule *pstClassifierRule, B_UINT8 EthCSCupport);
+static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo, struct bcm_classifier_rule *pstClassifierRule, B_UINT8 EthCSCupport);
 
 static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter, struct iphdr *iphd,
 			   struct bcm_classifier_rule *pstClassifierRule);
@@ -24,7 +24,7 @@ static VOID PruneQueue(struct bcm_mini_adapter *Adapter, INT iIndex);
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-BOOLEAN MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSrcIP)
+bool MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulSrcIP)
 {
 	UCHAR ucLoopIndex = 0;
 
@@ -58,7 +58,7 @@ BOOLEAN MatchSrcIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG u
 *
 * Returns     - TRUE(If address matches) else FAIL .
 *********************************************************************/
-BOOLEAN MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulDestIP)
+bool MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG ulDestIP)
 {
 	UCHAR ucLoopIndex = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -91,7 +91,7 @@ BOOLEAN MatchDestIpAddress(struct bcm_classifier_rule *pstClassifierRule, ULONG 
 *
 * Returns     - TRUE(If address matches) else FAIL.
 **************************************************************************/
-BOOLEAN MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfService)
+bool MatchTos(struct bcm_classifier_rule *pstClassifierRule, UCHAR ucTypeOfService)
 {
 
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -209,7 +209,7 @@ static USHORT	IpVersion4(struct bcm_mini_adapter *Adapter,
 			   struct bcm_classifier_rule *pstClassifierRule)
 {
 	struct bcm_transport_header *xprt_hdr = NULL;
-	BOOLEAN	bClassificationSucceed = FALSE;
+	bool	bClassificationSucceed = FALSE;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "========>");
 
@@ -451,7 +451,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 	struct iphdr *pIpHeader = NULL;
 	INT	  uiSfIndex = 0;
 	USHORT	usIndex = Adapter->usBestEffortQueueIndex;
-	BOOLEAN	bFragmentedPkt = FALSE, bClassificationSucceed = FALSE;
+	bool	bFragmentedPkt = FALSE, bClassificationSucceed = FALSE;
 	USHORT	usCurrFragment = 0;
 
 	struct bcm_tcp_header *pTcpHeader;
@@ -649,7 +649,7 @@ USHORT ClassifyPacket(struct bcm_mini_adapter *Adapter, struct sk_buff* skb)
 		return INVALID_QUEUE_INDEX;
 }
 
-static BOOLEAN EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRule, PUCHAR Mac)
+static bool EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifierRule, PUCHAR Mac)
 {
 	UINT i = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -666,7 +666,7 @@ static BOOLEAN EthCSMatchSrcMACAddress(struct bcm_classifier_rule *pstClassifier
 	return TRUE;
 }
 
-static BOOLEAN EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRule, PUCHAR Mac)
+static bool EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifierRule, PUCHAR Mac)
 {
 	UINT i = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -683,7 +683,7 @@ static BOOLEAN EthCSMatchDestMACAddress(struct bcm_classifier_rule *pstClassifie
 	return TRUE;
 }
 
-static BOOLEAN EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
+static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	if ((pstClassifierRule->ucEtherTypeLen == 0) ||
@@ -718,9 +718,9 @@ static BOOLEAN EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRul
 
 }
 
-static BOOLEAN EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
+static bool EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule, struct sk_buff* skb, struct bcm_eth_packet_info *pstEthCsPktInfo)
 {
-	BOOLEAN bClassificationSucceed = FALSE;
+	bool bClassificationSucceed = FALSE;
 	USHORT usVLANID;
 	B_UINT8 uPriority = 0;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -768,12 +768,12 @@ static BOOLEAN EthCSMatchVLANRules(struct bcm_classifier_rule *pstClassifierRule
 }
 
 
-static BOOLEAN EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* skb,
+static bool EThCSClassifyPkt(struct bcm_mini_adapter *Adapter, struct sk_buff* skb,
 				struct bcm_eth_packet_info *pstEthCsPktInfo,
 				struct bcm_classifier_rule *pstClassifierRule,
 				B_UINT8 EthCSCupport)
 {
-	BOOLEAN bClassificationSucceed = FALSE;
+	bool bClassificationSucceed = FALSE;
 	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule, ((struct bcm_eth_header *)(skb->data))->au8SourceAddress);
 	if (!bClassificationSucceed)
 		return FALSE;

@@ -113,7 +113,7 @@ static VOID deleteSFBySfid(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIn
 static inline VOID
 CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 		B_UINT8 u8IpAddressLen, B_UINT8 *pu8IpAddressMaskSrc,
-		BOOLEAN bIpVersion6, enum bcm_ipaddr_context eIpAddrContext)
+		bool bIpVersion6, enum bcm_ipaddr_context eIpAddrContext)
 {
 	int i = 0;
 	UINT nSizeOfIPAddressInBytes = IP_LENGTH_OF_ADDRESS;
@@ -213,7 +213,7 @@ CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 	}
 }
 
-void ClearTargetDSXBuffer(struct bcm_mini_adapter *Adapter, B_UINT16 TID, BOOLEAN bFreeAll)
+void ClearTargetDSXBuffer(struct bcm_mini_adapter *Adapter, B_UINT16 TID, bool bFreeAll)
 {
 	int i;
 
@@ -1630,7 +1630,7 @@ int FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter)
  * for the Connection Management.
  * @return - Queue index for the free SFID else returns Invalid Index.
  */
-BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to the Adapter structure */
+bool CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to the Adapter structure */
 				PVOID pvBuffer /* Starting Address of the Buffer, that contains the AddIndication Data */)
 {
 	struct bcm_connect_mgr_params *psfLocalSet = NULL;

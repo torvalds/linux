@@ -84,7 +84,7 @@ int SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int	status = 0;
-	BOOLEAN	bHeaderSupressionEnabled = FALSE;
+	bool	bHeaderSupressionEnabled = FALSE;
 	B_UINT16 uiClassifierRuleID;
 	u16	QueueIndex = skb_get_queue_mapping(Packet);
 	struct bcm_leader Leader = {0};

@@ -250,7 +250,7 @@ VOID transmit_packets(struct bcm_mini_adapter *Adapter)
 	UINT uiPrevTotalCount = 0;
 	int iIndex = 0;
 
-	BOOLEAN exit_flag = TRUE;
+	bool exit_flag = TRUE;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "=====>");
 

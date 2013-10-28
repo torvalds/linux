@@ -430,7 +430,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 	unsigned long value;
 	int retval = 0;
 	int usedIntOutForBulkTransfer = 0 ;
-	BOOLEAN bBcm16 = FALSE;
+	bool bBcm16 = FALSE;
 	UINT uiData = 0;
 	int bytes;
 

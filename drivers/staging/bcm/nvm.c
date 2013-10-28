@@ -45,7 +45,7 @@ static int BeceemFlashBulkWrite(
 	PUINT pBuffer,
 	unsigned int uiOffset,
 	unsigned int uiNumBytes,
-	BOOLEAN bVerify);
+	bool bVerify);
 
 static int GetFlashBaseAddr(struct bcm_mini_adapter *Adapter);
 
@@ -1034,7 +1034,7 @@ static int BeceemFlashBulkWrite(struct bcm_mini_adapter *Adapter,
 				PUINT pBuffer,
 				unsigned int uiOffset,
 				unsigned int uiNumBytes,
-				BOOLEAN bVerify)
+				bool bVerify)
 {
 	PCHAR pTempBuff			= NULL;
 	PUCHAR pcBuffer			= (PUCHAR)pBuffer;
@@ -1222,7 +1222,7 @@ static int BeceemFlashBulkWriteStatus(struct bcm_mini_adapter *Adapter,
 				PUINT pBuffer,
 				unsigned int uiOffset,
 				unsigned int uiNumBytes,
-				BOOLEAN bVerify)
+				bool bVerify)
 {
 	PCHAR pTempBuff			= NULL;
 	PUCHAR pcBuffer			= (PUCHAR)pBuffer;
@@ -1724,7 +1724,7 @@ int BeceemEEPROMBulkWrite(struct bcm_mini_adapter *Adapter,
 			PUCHAR pBuffer,
 			unsigned int uiOffset,
 			unsigned int uiNumBytes,
-			BOOLEAN bVerify)
+			bool bVerify)
 {
 	unsigned int uiBytesToCopy	= uiNumBytes;
 	/* unsigned int uiRdbk		= 0; */
@@ -1870,7 +1870,7 @@ int BeceemNVMWrite(struct bcm_mini_adapter *Adapter,
 		PUINT pBuffer,
 		unsigned int uiOffset,
 		unsigned int uiNumBytes,
-		BOOLEAN bVerify)
+		bool bVerify)
 {
 	int Status = 0;
 	unsigned int uiTemp = 0;
@@ -3105,8 +3105,8 @@ int BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, struct bcm_fl
 	struct bcm_flash2x_cs_info *psFlash2xCSInfo = Adapter->psFlash2xCSInfo;
 	enum bcm_flash2x_section_val uiHighestPriDSD = 0;
 	enum bcm_flash2x_section_val uiHighestPriISO = 0;
-	BOOLEAN SetActiveDSDDone = FALSE;
-	BOOLEAN SetActiveISODone = FALSE;
+	bool SetActiveDSDDone = FALSE;
+	bool SetActiveISODone = FALSE;
 
 	/* For 1.x map all the section except DSD0 will be shown as not present
 	 * This part will be used by calibration tool to detect the number of DSD present in Flash.
@@ -3536,7 +3536,7 @@ int BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section
 	enum bcm_flash2x_section_val eISOReadPart = 0, eISOWritePart = 0;
 	unsigned int uiReadOffsetWithinPart = 0, uiWriteOffsetWithinPart = 0;
 	unsigned int uiTotalDataToCopy = 0;
-	BOOLEAN IsThisHeaderSector = FALSE;
+	bool IsThisHeaderSector = FALSE;
 	unsigned int sigOffset = 0;
 	unsigned int ISOLength = 0;
 	unsigned int Status = STATUS_SUCCESS;
@@ -4129,7 +4129,7 @@ int BcmCopySection(struct bcm_mini_adapter *Adapter,
 int SaveHeaderIfPresent(struct bcm_mini_adapter *Adapter, PUCHAR pBuff, unsigned int uiOffset)
 {
 	unsigned int offsetToProtect = 0, HeaderSizeToProtect = 0;
-	BOOLEAN bHasHeader = FALSE;
+	bool bHasHeader = FALSE;
 	PUCHAR pTempBuff = NULL;
 	unsigned int uiSectAlignAddr = 0;
 	unsigned int sig = 0;
@@ -4469,9 +4469,9 @@ int WriteToFlashWithoutSectorErase(struct bcm_mini_adapter *Adapter,
 	return Status;
 }
 
-BOOLEAN IsSectionExistInFlash(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val section)
+bool IsSectionExistInFlash(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val section)
 {
-	BOOLEAN SectionPresent = FALSE;
+	bool SectionPresent = FALSE;
 
 	switch (section) {
 	case ISO_IMAGE1:
@@ -4656,7 +4656,7 @@ static int CorruptISOSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_sect
 	return STATUS_SUCCESS;
 }
 
-BOOLEAN IsNonCDLessDevice(struct bcm_mini_adapter *Adapter)
+bool IsNonCDLessDevice(struct bcm_mini_adapter *Adapter)
 {
 	if (Adapter->psFlash2xCSInfo->IsCDLessDeviceBootSig == NON_CDLESS_DEVICE_BOOT_SIG)
 		return TRUE;

@@ -1,13 +1,13 @@
 #include "headers.h"
 
-static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
+static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	struct bcm_ipv6_hdr *pstIpv6Header);
-static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
+static bool MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	struct bcm_ipv6_hdr *pstIpv6Header);
 static VOID DumpIpv6Header(struct bcm_ipv6_hdr *pstIpv6Header);
 
 static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
-	UCHAR *pucNextHeader, BOOLEAN *bParseDone, USHORT *pusPayloadLength)
+	UCHAR *pucNextHeader, bool *bParseDone, USHORT *pusPayloadLength)
 {
 	UCHAR *pucRetHeaderPtr = NULL;
 	UCHAR *pucPayloadPtr = NULL;
@@ -144,7 +144,7 @@ static UCHAR GetIpv6ProtocolPorts(UCHAR *pucPayload, USHORT *pusSrcPort,
 	USHORT *pusDestPort, USHORT usPayloadLength, UCHAR ucNextHeader)
 {
 	UCHAR *pIpv6HdrScanContext = pucPayload;
-	BOOLEAN bDone = FALSE;
+	bool bDone = FALSE;
 	UCHAR ucHeaderType = 0;
 	UCHAR *pucNextHeader = NULL;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -187,7 +187,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 	USHORT	ushSrcPort = 0;
 	UCHAR   ucNextProtocolAboveIP = 0;
 	struct bcm_ipv6_hdr *pstIpv6Header = NULL;
-	BOOLEAN bClassificationSucceed = FALSE;
+	bool bClassificationSucceed = FALSE;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 			DBG_LVL_ALL, "IpVersion6 ==========>\n");
@@ -288,7 +288,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 }
 
 
-static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
+static bool MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
@@ -344,7 +344,7 @@ static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule
 	return FALSE;
 }
 
-static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
+static bool MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	struct bcm_ipv6_hdr *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
