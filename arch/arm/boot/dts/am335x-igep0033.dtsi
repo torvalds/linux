@@ -44,6 +44,13 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 	};
+
+	vmmc: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &am33xx_pinmux {
@@ -178,6 +185,12 @@
 	tps: tps@2d {
 		reg = <0x2d>;
 	};
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmc>;
+	bus-width = <4>;
 };
 
 &uart0 {

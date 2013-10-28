@@ -18,6 +18,9 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -413,7 +416,7 @@
 			ti,hwmods = "usb_otg_hs";
 			status = "disabled";
 
-			ctrl_mod: control@44e10000 {
+			usb_ctrl_mod: control@44e10000 {
 				compatible = "ti,am335x-usb-ctrl-module";
 				reg = <0x44e10620 0x10
 					0x44e10648 0x4>;
@@ -426,7 +429,7 @@
 				reg = <0x47401300 0x100>;
 				reg-names = "phy";
 				status = "disabled";
-				ti,ctrl_mod = <&ctrl_mod>;
+				ti,ctrl_mod = <&usb_ctrl_mod>;
 			};
 
 			usb0: usb@47401000 {
@@ -474,7 +477,7 @@
 				reg = <0x47401b00 0x100>;
 				reg-names = "phy";
 				status = "disabled";
-				ti,ctrl_mod = <&ctrl_mod>;
+				ti,ctrl_mod = <&usb_ctrl_mod>;
 			};
 
 			usb1: usb@47401800 {
@@ -674,6 +677,7 @@
 			reg = <0x44d00000 0x4000	/* M3 UMEM */
 			       0x44d80000 0x2000>;	/* M3 DMEM */
 			ti,hwmods = "wkup_m3";
+			ti,no-reset-on-init;
 		};
 
 		elm: elm@48080000 {
@@ -713,6 +717,7 @@
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
+			ti,no-idle-on-init;
 			reg = <0x50000000 0x2000>;
 			interrupts = <100>;
 			gpmc,num-cs = <7>;
@@ -738,6 +743,34 @@
 			interrupts = <103>;
 			dmas = <&edma 6>,
 			       <&edma 5>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp0: mcasp@48038000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp0";
+			reg = <0x48038000 0x2000>,
+			      <0x46000000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <80>, <81>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 8>,
+				<&edma 9>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp1: mcasp@4803C000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp1";
+			reg = <0x4803C000 0x2000>,
+			      <0x46400000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <82>, <83>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 10>,
+				<&edma 11>;
 			dma-names = "tx", "rx";
 		};
 	};

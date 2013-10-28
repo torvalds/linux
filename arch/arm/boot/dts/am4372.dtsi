@@ -18,7 +18,12 @@
 
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
 		serial0 = &uart0;
+		ethernet0 = &cpsw_emac0;
+		ethernet1 = &cpsw_emac1;
 	};
 
 	cpus {
@@ -39,11 +44,42 @@
 		      <0x48240100 0x0100>;
 	};
 
+	l2-cache-controller@48242000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x48242000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	am43xx_pinmux: pinmux@44e10800 {
+		compatible = "pinctrl-single";
+		reg = <0x44e10800 0x31c>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+	};
+
 	ocp {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+		ti,hwmods = "l3_main";
+
+		edma: edma@49000000 {
+			compatible = "ti,edma3";
+			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
+			reg =	<0x49000000 0x10000>,
+				<0x44e10f90 0x10>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			dma-channels = <64>;
+			ti,edma-regions = <4>;
+			ti,edma-slots = <256>;
+		};
 
 		uart0: serial@44e09000 {
 			compatible = "ti,am4372-uart","ti,omap2-uart";
@@ -89,6 +125,18 @@
 			reg = <0x481aa000 0x2000>;
 			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart6";
+			status = "disabled";
+		};
+
+		mailbox: mailbox@480C8000 {
+			compatible = "ti,omap4-mailbox";
+			reg = <0x480C8000 0x200>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mailbox";
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <8>;
+			ti,mbox-names = "wkup_m3";
+			ti,mbox-data = <0 0 0 0>;
 			status = "disabled";
 		};
 
@@ -203,7 +251,6 @@
 			reg = <0x44e35000 0x1000>;
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "wd_timer2";
-			status = "disabled";
 		};
 
 		gpio0: gpio@44e07000 {
@@ -318,6 +365,40 @@
 			status = "disabled";
 		};
 
+		mmc1: mmc@48060000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x48060000 0x1000>;
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+			ti,needs-special-reset;
+			dmas = <&edma 24
+				&edma 25>;
+			dma-names = "tx", "rx";
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		mmc2: mmc@481d8000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x481d8000 0x1000>;
+			ti,hwmods = "mmc2";
+			ti,needs-special-reset;
+			dmas = <&edma 2
+				&edma 3>;
+			dma-names = "tx", "rx";
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		mmc3: mmc@47810000 {
+			compatible = "ti,omap4-hsmmc";
+			reg = <0x47810000 0x1000>;
+			ti,hwmods = "mmc3";
+			ti,needs-special-reset;
+			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		spi1: spi@481a0000 {
 			compatible = "ti,am4372-mcspi","ti,omap4-mcspi";
 			reg = <0x481a0000 0x400>;
@@ -366,50 +447,173 @@
 				      GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			ti,hwmods = "cpgmac0";
 			status = "disabled";
+			cpdma_channels = <8>;
+			ale_entries = <1024>;
+			bd_ram_size = <0x2000>;
+			no_bd_ram = <0>;
+			rx_descs = <64>;
+			mac_control = <0x20>;
+			slaves = <2>;
+			active_slave = <0>;
+			cpts_clock_mult = <0x80000000>;
+			cpts_clock_shift = <29>;
+			ranges;
+
+			davinci_mdio: mdio@4a101000 {
+				compatible = "ti,am4372-mdio","ti,davinci_mdio";
+				reg = <0x4a101000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,hwmods = "davinci_mdio";
+				bus_freq = <1000000>;
+				status = "disabled";
+			};
+
+			cpsw_emac0: slave@4a100200 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			cpsw_emac1: slave@4a100300 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
 		};
 
 		epwmss0: epwmss@48300000 {
 			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
 			reg = <0x48300000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			ti,hwmods = "epwmss0";
 			status = "disabled";
+
+			ecap0: ecap@48300100 {
+				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				reg = <0x48300100 0x80>;
+				ti,hwmods = "ecap0";
+				status = "disabled";
+			};
+
+			ehrpwm0: ehrpwm@48300200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48300200 0x80>;
+				ti,hwmods = "ehrpwm0";
+				status = "disabled";
+			};
 		};
 
 		epwmss1: epwmss@48302000 {
 			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
 			reg = <0x48302000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			ti,hwmods = "epwmss1";
 			status = "disabled";
+
+			ecap1: ecap@48302100 {
+				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				reg = <0x48302100 0x80>;
+				ti,hwmods = "ecap1";
+				status = "disabled";
+			};
+
+			ehrpwm1: ehrpwm@48302200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48302200 0x80>;
+				ti,hwmods = "ehrpwm1";
+				status = "disabled";
+			};
 		};
 
 		epwmss2: epwmss@48304000 {
 			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
 			reg = <0x48304000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			ti,hwmods = "epwmss2";
 			status = "disabled";
+
+			ecap2: ecap@48304100 {
+				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				reg = <0x48304100 0x80>;
+				ti,hwmods = "ecap2";
+				status = "disabled";
+			};
+
+			ehrpwm2: ehrpwm@48304200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48304200 0x80>;
+				ti,hwmods = "ehrpwm2";
+				status = "disabled";
+			};
 		};
 
 		epwmss3: epwmss@48306000 {
 			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
 			reg = <0x48306000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			ti,hwmods = "epwmss3";
 			status = "disabled";
+
+			ehrpwm3: ehrpwm@48306200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48306200 0x80>;
+				ti,hwmods = "ehrpwm3";
+				status = "disabled";
+			};
 		};
 
 		epwmss4: epwmss@48308000 {
 			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
 			reg = <0x48308000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			ti,hwmods = "epwmss4";
 			status = "disabled";
+
+			ehrpwm4: ehrpwm@48308200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x48308200 0x80>;
+				ti,hwmods = "ehrpwm4";
+				status = "disabled";
+			};
 		};
 
 		epwmss5: epwmss@4830a000 {
 			compatible = "ti,am4372-pwmss","ti,am33xx-pwmss";
 			reg = <0x4830a000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 			ti,hwmods = "epwmss5";
 			status = "disabled";
+
+			ehrpwm5: ehrpwm@4830a200 {
+				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				reg = <0x4830a200 0x80>;
+				ti,hwmods = "ehrpwm5";
+				status = "disabled";
+			};
+		};
+
+		sham: sham@53100000 {
+			compatible = "ti,omap5-sham";
+			ti,hwmods = "sham";
+			reg = <0x53100000 0x300>;
+			dmas = <&edma 36>;
+			dma-names = "rx";
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		aes: aes@53501000 {
@@ -417,6 +621,9 @@
 			ti,hwmods = "aes";
 			reg = <0x53501000 0xa0>;
 			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma 6
+				&edma 5>;
+			dma-names = "tx", "rx";
 		};
 
 		des: des@53701000 {
@@ -424,6 +631,37 @@
 			ti,hwmods = "des";
 			reg = <0x53701000 0xa0>;
 			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&edma 34
+				&edma 33>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp0: mcasp@48038000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp0";
+			reg = <0x48038000 0x2000>,
+			      <0x46000000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <80>, <81>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 8>,
+			       <&edma 9>;
+			dma-names = "tx", "rx";
+		};
+
+		mcasp1: mcasp@4803C000 {
+			compatible = "ti,am33xx-mcasp-audio";
+			ti,hwmods = "mcasp1";
+			reg = <0x4803C000 0x2000>,
+			      <0x46400000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <82>, <83>;
+			interrupts-names = "tx", "rx";
+			status = "disabled";
+			dmas = <&edma 10>,
+			       <&edma 11>;
+			dma-names = "tx", "rx";
 		};
 	};
 };
