@@ -11,10 +11,13 @@
 
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
 #include <asm/archrandom.h>
 #include <asm/io.h>
+#include <asm/prom.h>
 #include <asm/machdep.h>
 
 
