@@ -428,11 +428,11 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 #ifdef CONFIG_PPC_DCR
 	else {
 		int start;
-		start = dcr_resource_start(op->dev.of_node, 0);
-		drvdata->dcr_len = dcr_resource_len(op->dev.of_node, 0);
-		drvdata->dcr_host = dcr_map(op->dev.of_node, start, drvdata->dcr_len);
+		start = dcr_resource_start(pdev->dev.of_node, 0);
+		drvdata->dcr_len = dcr_resource_len(pdev->dev.of_node, 0);
+		drvdata->dcr_host = dcr_map(pdev->dev.of_node, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
-			dev_err(&op->dev, "invalid DCR address\n");
+			dev_err(&pdev->dev, "invalid DCR address\n");
 			return -ENODEV;
 		}
 	}
