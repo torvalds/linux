@@ -41,7 +41,7 @@
 #define HDMI_WP_VIDEO_SIZE			0x60
 #define HDMI_WP_VIDEO_TIMING_H			0x68
 #define HDMI_WP_VIDEO_TIMING_V			0x6C
-#define HDMI_WP_WP_CLK				0x70
+#define HDMI_WP_CLK				0x70
 #define HDMI_WP_AUDIO_CFG			0x80
 #define HDMI_WP_AUDIO_CFG2			0x84
 #define HDMI_WP_AUDIO_CTRL			0x88
