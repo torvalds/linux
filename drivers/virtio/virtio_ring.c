@@ -81,7 +81,7 @@ struct vring_virtqueue
 	u16 last_used_idx;
 
 	/* How to notify other side. FIXME: commonalize hcalls! */
-	void (*notify)(struct virtqueue *vq);
+	bool (*notify)(struct virtqueue *vq);
 
 #ifdef DEBUG
 	/* They're supposed to lock for us. */
@@ -744,7 +744,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,
 				      void *pages,
-				      void (*notify)(struct virtqueue *),
+				      bool (*notify)(struct virtqueue *),
 				      void (*callback)(struct virtqueue *),
 				      const char *name)
 {

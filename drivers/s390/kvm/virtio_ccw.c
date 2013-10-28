@@ -162,7 +162,7 @@ static inline long do_kvm_notify(struct subchannel_id schid,
 	return __rc;
 }
 
-static void virtio_ccw_kvm_notify(struct virtqueue *vq)
+static bool virtio_ccw_kvm_notify(struct virtqueue *vq)
 {
 	struct virtio_ccw_vq_info *info = vq->priv;
 	struct virtio_ccw_device *vcdev;
@@ -171,6 +171,9 @@ static void virtio_ccw_kvm_notify(struct virtqueue *vq)
 	vcdev = to_vc_device(info->vq->vdev);
 	ccw_device_get_schid(vcdev->cdev, &schid);
 	info->cookie = do_kvm_notify(schid, vq->index, info->cookie);
+	if (info->cookie < 0)
+		return false;
+	return true;
 }
 
 static int virtio_ccw_read_vq_conf(struct virtio_ccw_device *vcdev,

@@ -219,13 +219,14 @@ static void vm_reset(struct virtio_device *vdev)
 /* Transport interface */
 
 /* the notify function used when creating a virt queue */
-static void vm_notify(struct virtqueue *vq)
+static bool vm_notify(struct virtqueue *vq)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 
 	/* We write the queue's selector into the notification register to
 	 * signal the other end */
 	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Notify all virtqueues on an interrupt. */
