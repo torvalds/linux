@@ -158,9 +158,10 @@ config ACPI_PROCESSOR
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called processor.
+
 config ACPI_IPMI
 	tristate "IPMI"
-	depends on IPMI_SI && IPMI_HANDLER
+	depends on IPMI_SI
 	default n
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
