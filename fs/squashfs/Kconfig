@@ -63,6 +63,19 @@ config SQUASHFS_LZO
 
 	  If unsure, say N.
 
+config SQUASHFS_MULTI_DECOMPRESSOR
+	bool "Use multiple decompressors for handling parallel I/O"
+	depends on SQUASHFS
+	help
+	  By default Squashfs uses a single decompressor but it gives
+	  poor performance on parallel I/O workloads when using multiple CPU
+	  machines due to waiting on decompressor availability.
+
+	  If you have a parallel I/O workload and your system has enough memory,
+	  using this option may improve overall I/O performance.
+
+	  If unsure, say N.
+
 config SQUASHFS_XZ
 	bool "Include support for XZ compressed file systems"
 	depends on SQUASHFS
