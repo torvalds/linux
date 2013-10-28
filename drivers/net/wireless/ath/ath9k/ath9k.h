@@ -575,11 +575,15 @@ static inline void ath_fill_led_pin(struct ath_softc *sc)
 /************************/
 
 #ifdef CONFIG_ATH9K_WOW
+void ath9k_init_wow(struct ieee80211_hw *hw);
 int ath9k_suspend(struct ieee80211_hw *hw,
 		  struct cfg80211_wowlan *wowlan);
 int ath9k_resume(struct ieee80211_hw *hw);
 void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 #else
+static inline void ath9k_init_wow(struct ieee80211_hw *hw)
+{
+}
 static inline int ath9k_suspend(struct ieee80211_hw *hw,
 				struct cfg80211_wowlan *wowlan)
 {

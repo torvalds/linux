@@ -16,6 +16,13 @@
 
 #include "ath9k.h"
 
+static const struct wiphy_wowlan_support ath9k_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.n_patterns = MAX_NUM_USER_PATTERN,
+	.pattern_min_len = 1,
+	.pattern_max_len = MAX_PATTERN_SIZE,
+};
+
 static void ath9k_wow_map_triggers(struct ath_softc *sc,
 				   struct cfg80211_wowlan *wowlan,
 				   u32 *wow_triggers)
@@ -338,4 +345,17 @@ void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 	device_init_wakeup(sc->dev, 1);
 	device_set_wakeup_enable(sc->dev, enabled);
 	mutex_unlock(&sc->mutex);
+}
+
+void ath9k_init_wow(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
+	    (sc->driver_data & ATH9K_PCI_WOW) &&
+	    device_can_wakeup(sc->dev))
+		hw->wiphy->wowlan = &ath9k_wowlan_support;
+
+	atomic_set(&sc->wow_sleep_proc_intr, -1);
+	atomic_set(&sc->wow_got_bmiss_intr, -1);
 }
