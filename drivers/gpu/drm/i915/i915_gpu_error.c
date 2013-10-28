@@ -143,8 +143,10 @@ static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 
 	/* Seek the first printf which is hits start position */
 	if (e->pos < e->start) {
-		len = vsnprintf(NULL, 0, f, args);
-		if (!__i915_error_seek(e, len))
+		va_list tmp;
+
+		va_copy(tmp, args);
+		if (!__i915_error_seek(e, vsnprintf(NULL, 0, f, tmp)))
 			return;
 	}
 

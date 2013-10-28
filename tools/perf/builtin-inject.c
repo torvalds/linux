@@ -321,8 +321,6 @@ found:
 	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
 }
 
-extern volatile int session_done;
-
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;

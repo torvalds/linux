@@ -1812,7 +1812,8 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BCM281XX/BCM11XXX ARM ARCHITECTURE
-M:	Christian Daudt <csd@broadcom.com>
+M:	Christian Daudt <bcm@fixthebug.org>
+L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://git.github.com/broadcom/bcm11351
 S:	Maintained
 F:	arch/arm/mach-bcm/
@@ -2638,6 +2639,18 @@ F:	drivers/md/persistent-data/
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 F:	include/uapi/linux/dm-*.h
+
+DIGI NEO AND CLASSIC PCI PRODUCTS
+M:	Lidza Louina <lidza.louina@gmail.com>
+L:	driverdev-devel@linuxdriverproject.org
+S:	Maintained
+F:	drivers/staging/dgnc/
+
+DIGI EPCA PCI PRODUCTS
+M:	Lidza Louina <lidza.louina@gmail.com>
+L:	driverdev-devel@linuxdriverproject.org
+S:	Maintained
+F:	drivers/staging/dgap/
 
 DIOLAN U2C-12 I2C DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -6595,7 +6608,7 @@ S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
 PROMISE SATA TX2/TX4 CONTROLLER LIBATA DRIVER
-M:	Mikael Pettersson <mikpe@it.uu.se>
+M:	Mikael Pettersson <mikpelinux@gmail.com>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	drivers/ata/sata_promise.*
@@ -8724,9 +8737,8 @@ F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
 
 USB/IP DRIVERS
-M:	Matt Mooney <mfm@muteddisk.com>
 L:	linux-usb@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/staging/usbip/
 
 USB ISP116X DRIVER

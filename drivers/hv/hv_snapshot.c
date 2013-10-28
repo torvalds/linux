@@ -26,7 +26,7 @@
 
 #define VSS_MAJOR  5
 #define VSS_MINOR  0
-#define VSS_MAJOR_MINOR    (VSS_MAJOR << 16 | VSS_MINOR)
+#define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
 
 
 
@@ -190,8 +190,8 @@ void hv_vss_onchannelcallback(void *context)
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
 			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, UTIL_FW_MAJOR_MINOR,
-				 VSS_MAJOR_MINOR);
+				 recv_buffer, UTIL_FW_VERSION,
+				 VSS_VERSION);
 		} else {
 			vss_msg = (struct hv_vss_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
