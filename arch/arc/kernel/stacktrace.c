@@ -246,4 +246,5 @@ void save_stack_trace(struct stack_trace *trace)
 	/* Pass NULL for task so it unwinds the current call frame */
 	arc_unwind_core(NULL, NULL, __collect_all, trace);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);
 #endif
