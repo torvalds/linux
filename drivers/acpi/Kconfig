@@ -374,7 +374,9 @@ source "drivers/acpi/apei/Kconfig"
 
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
-	depends on X86_MCE && ACPI_APEI
+	depends on X86_MCE
+	select EFI
+	select UEFI_CPER
 	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
