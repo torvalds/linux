@@ -277,6 +277,26 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 	return 0;
 }
 
+static void bgmac_dma_rx_setup_desc(struct bgmac *bgmac,
+				    struct bgmac_dma_ring *ring, int desc_idx)
+{
+	struct bgmac_dma_desc *dma_desc = ring->cpu_base + desc_idx;
+	u32 ctl0 = 0, ctl1 = 0;
+
+	if (desc_idx == ring->num_slots - 1)
+		ctl0 |= BGMAC_DESC_CTL0_EOT;
+	ctl1 |= BGMAC_RX_BUF_SIZE & BGMAC_DESC_CTL1_LEN;
+	/* Is there any BGMAC device that requires extension? */
+	/* ctl1 |= (addrext << B43_DMA64_DCTL1_ADDREXT_SHIFT) &
+	 * B43_DMA64_DCTL1_ADDREXT_MASK;
+	 */
+
+	dma_desc->addr_low = cpu_to_le32(lower_32_bits(ring->slots[desc_idx].dma_addr));
+	dma_desc->addr_high = cpu_to_le32(upper_32_bits(ring->slots[desc_idx].dma_addr));
+	dma_desc->ctl0 = cpu_to_le32(ctl0);
+	dma_desc->ctl1 = cpu_to_le32(ctl1);
+}
+
 static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			     int weight)
 {
@@ -503,8 +523,6 @@ err_dma_free:
 static void bgmac_dma_init(struct bgmac *bgmac)
 {
 	struct bgmac_dma_ring *ring;
-	struct bgmac_dma_desc *dma_desc;
-	u32 ctl0, ctl1;
 	int i;
 
 	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++) {
@@ -537,23 +555,8 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 		if (ring->unaligned)
 			bgmac_dma_rx_enable(bgmac, ring);
 
-		for (j = 0, dma_desc = ring->cpu_base; j < ring->num_slots;
-		     j++, dma_desc++) {
-			ctl0 = ctl1 = 0;
-
-			if (j == ring->num_slots - 1)
-				ctl0 |= BGMAC_DESC_CTL0_EOT;
-			ctl1 |= BGMAC_RX_BUF_SIZE & BGMAC_DESC_CTL1_LEN;
-			/* Is there any BGMAC device that requires extension? */
-			/* ctl1 |= (addrext << B43_DMA64_DCTL1_ADDREXT_SHIFT) &
-			 * B43_DMA64_DCTL1_ADDREXT_MASK;
-			 */
-
-			dma_desc->addr_low = cpu_to_le32(lower_32_bits(ring->slots[j].dma_addr));
-			dma_desc->addr_high = cpu_to_le32(upper_32_bits(ring->slots[j].dma_addr));
-			dma_desc->ctl0 = cpu_to_le32(ctl0);
-			dma_desc->ctl1 = cpu_to_le32(ctl1);
-		}
+		for (j = 0; j < ring->num_slots; j++)
+			bgmac_dma_rx_setup_desc(bgmac, ring, j);
 
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_RX_INDEX,
 			    ring->index_base +
