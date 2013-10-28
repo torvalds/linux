@@ -138,6 +138,14 @@
 				status = "disabled";
 			};
 
+			coredivclk: corediv-clock@18740 {
+				compatible = "marvell,armada-370-corediv-clock";
+				reg = <0x18740 0xc>;
+				#clock-cells = <1>;
+				clocks = <&mainpll>;
+				clock-output-names = "nand";
+			};
+
 			timer@20300 {
 				reg = <0x20300 0x30>, <0x21040 0x30>;
 				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
@@ -249,6 +257,15 @@
 				status = "disabled";
 			};
 
+		};
+	};
+
+	clocks {
+		/* 2 GHz fixed main PLL */
+		mainpll: mainpll {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <2000000000>;
 		};
 	};
  };
