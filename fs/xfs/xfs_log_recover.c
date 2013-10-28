@@ -1585,6 +1585,7 @@ xlog_recover_add_to_trans(
 		"bad number of regions (%d) in inode log format",
 				  in_f->ilf_size);
 			ASSERT(0);
+			kmem_free(ptr);
 			return XFS_ERROR(EIO);
 		}
 
@@ -1970,6 +1971,13 @@ xlog_recover_do_inode_buffer(
  * magic number.  If we don't recognise the magic number in the buffer, then
  * return a LSN of -1 so that the caller knows it was an unrecognised block and
  * so can recover the buffer.
+ *
+ * Note: we cannot rely solely on magic number matches to determine that the
+ * buffer has a valid LSN - we also need to verify that it belongs to this
+ * filesystem, so we need to extract the object's LSN and compare it to that
+ * which we read from the superblock. If the UUIDs don't match, then we've got a
+ * stale metadata block from an old filesystem instance that we need to recover
+ * over the top of.
  */
 static xfs_lsn_t
 xlog_recover_get_buf_lsn(
@@ -1980,6 +1988,8 @@ xlog_recover_get_buf_lsn(
 	__uint16_t		magic16;
 	__uint16_t		magicda;
 	void			*blk = bp->b_addr;
+	uuid_t			*uuid;
+	xfs_lsn_t		lsn = -1;
 
 	/* v4 filesystems always recover immediately */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
@@ -1992,31 +2002,59 @@ xlog_recover_get_buf_lsn(
 	case XFS_ABTB_MAGIC:
 	case XFS_ABTC_MAGIC:
 	case XFS_IBT_CRC_MAGIC:
-	case XFS_IBT_MAGIC:
-		return be64_to_cpu(
-				((struct xfs_btree_block *)blk)->bb_u.s.bb_lsn);
+	case XFS_IBT_MAGIC: {
+		struct xfs_btree_block *btb = blk;
+
+		lsn = be64_to_cpu(btb->bb_u.s.bb_lsn);
+		uuid = &btb->bb_u.s.bb_uuid;
+		break;
+	}
 	case XFS_BMAP_CRC_MAGIC:
-	case XFS_BMAP_MAGIC:
-		return be64_to_cpu(
-				((struct xfs_btree_block *)blk)->bb_u.l.bb_lsn);
+	case XFS_BMAP_MAGIC: {
+		struct xfs_btree_block *btb = blk;
+
+		lsn = be64_to_cpu(btb->bb_u.l.bb_lsn);
+		uuid = &btb->bb_u.l.bb_uuid;
+		break;
+	}
 	case XFS_AGF_MAGIC:
-		return be64_to_cpu(((struct xfs_agf *)blk)->agf_lsn);
+		lsn = be64_to_cpu(((struct xfs_agf *)blk)->agf_lsn);
+		uuid = &((struct xfs_agf *)blk)->agf_uuid;
+		break;
 	case XFS_AGFL_MAGIC:
-		return be64_to_cpu(((struct xfs_agfl *)blk)->agfl_lsn);
+		lsn = be64_to_cpu(((struct xfs_agfl *)blk)->agfl_lsn);
+		uuid = &((struct xfs_agfl *)blk)->agfl_uuid;
+		break;
 	case XFS_AGI_MAGIC:
-		return be64_to_cpu(((struct xfs_agi *)blk)->agi_lsn);
+		lsn = be64_to_cpu(((struct xfs_agi *)blk)->agi_lsn);
+		uuid = &((struct xfs_agi *)blk)->agi_uuid;
+		break;
 	case XFS_SYMLINK_MAGIC:
-		return be64_to_cpu(((struct xfs_dsymlink_hdr *)blk)->sl_lsn);
+		lsn = be64_to_cpu(((struct xfs_dsymlink_hdr *)blk)->sl_lsn);
+		uuid = &((struct xfs_dsymlink_hdr *)blk)->sl_uuid;
+		break;
 	case XFS_DIR3_BLOCK_MAGIC:
 	case XFS_DIR3_DATA_MAGIC:
 	case XFS_DIR3_FREE_MAGIC:
-		return be64_to_cpu(((struct xfs_dir3_blk_hdr *)blk)->lsn);
+		lsn = be64_to_cpu(((struct xfs_dir3_blk_hdr *)blk)->lsn);
+		uuid = &((struct xfs_dir3_blk_hdr *)blk)->uuid;
+		break;
 	case XFS_ATTR3_RMT_MAGIC:
-		return be64_to_cpu(((struct xfs_attr3_rmt_hdr *)blk)->rm_lsn);
+		lsn = be64_to_cpu(((struct xfs_attr3_rmt_hdr *)blk)->rm_lsn);
+		uuid = &((struct xfs_attr3_rmt_hdr *)blk)->rm_uuid;
+		break;
 	case XFS_SB_MAGIC:
-		return be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
+		lsn = be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
+		uuid = &((struct xfs_dsb *)blk)->sb_uuid;
+		break;
 	default:
 		break;
+	}
+
+	if (lsn != (xfs_lsn_t)-1) {
+		if (!uuid_equal(&mp->m_sb.sb_uuid, uuid))
+			goto recover_immediately;
+		return lsn;
 	}
 
 	magicda = be16_to_cpu(((struct xfs_da_blkinfo *)blk)->magic);
@@ -2024,9 +2062,17 @@ xlog_recover_get_buf_lsn(
 	case XFS_DIR3_LEAF1_MAGIC:
 	case XFS_DIR3_LEAFN_MAGIC:
 	case XFS_DA3_NODE_MAGIC:
-		return be64_to_cpu(((struct xfs_da3_blkinfo *)blk)->lsn);
+		lsn = be64_to_cpu(((struct xfs_da3_blkinfo *)blk)->lsn);
+		uuid = &((struct xfs_da3_blkinfo *)blk)->uuid;
+		break;
 	default:
 		break;
+	}
+
+	if (lsn != (xfs_lsn_t)-1) {
+		if (!uuid_equal(&mp->m_sb.sb_uuid, uuid))
+			goto recover_immediately;
+		return lsn;
 	}
 
 	/*

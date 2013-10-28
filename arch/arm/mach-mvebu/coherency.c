@@ -140,6 +140,7 @@ int __init coherency_init(void)
 		coherency_base = of_iomap(np, 0);
 		coherency_cpu_base = of_iomap(np, 1);
 		set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
+		of_node_put(np);
 	}
 
 	return 0;
@@ -147,9 +148,14 @@ int __init coherency_init(void)
 
 static int __init coherency_late_init(void)
 {
-	if (of_find_matching_node(NULL, of_coherency_table))
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, of_coherency_table);
+	if (np) {
 		bus_register_notifier(&platform_bus_type,
 				      &mvebu_hwcc_platform_nb);
+		of_node_put(np);
+	}
 	return 0;
 }
 

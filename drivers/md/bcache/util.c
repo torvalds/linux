@@ -190,7 +190,16 @@ void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 	stats->last = now ?: 1;
 }
 
-unsigned bch_next_delay(struct ratelimit *d, uint64_t done)
+/**
+ * bch_next_delay() - increment @d by the amount of work done, and return how
+ * long to delay until the next time to do some work.
+ *
+ * @d - the struct bch_ratelimit to update
+ * @done - the amount of work done, in arbitrary units
+ *
+ * Returns the amount of time to delay by, in jiffies
+ */
+uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
 	uint64_t now = local_clock();
 
