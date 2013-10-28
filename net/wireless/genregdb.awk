@@ -33,15 +33,7 @@ BEGIN {
 	regdb = "const struct ieee80211_regdomain *reg_regdb[] = {\n"
 }
 
-/^[ \t]*#/ {
-	# Ignore
-}
-
-!active && /^[ \t]*$/ {
-	# Ignore
-}
-
-!active && /country/ {
+function parse_country_head() {
 	country=$2
 	sub(/:/, "", country)
 	printf "static const struct ieee80211_regdomain regdom_%s = {\n", country
@@ -57,7 +49,8 @@ BEGIN {
 	regdb = regdb "\t&regdom_" country ",\n"
 }
 
-active && /^[ \t]*\(/ {
+function parse_reg_rule()
+{
 	start = $1
 	sub(/\(/, "", start)
 	end = $3
@@ -120,12 +113,33 @@ active && /^[ \t]*\(/ {
 	rules++
 }
 
-active && /^[ \t]*$/ {
+function print_tail_country()
+{
 	active = 0
 	printf "\t},\n"
 	printf "\t.n_reg_rules = %d\n", rules
 	printf "};\n\n"
 	rules = 0;
+}
+
+/^[ \t]*#/ {
+	# Ignore
+}
+
+!active && /^[ \t]*$/ {
+	# Ignore
+}
+
+!active && /country/ {
+	parse_country_head()
+}
+
+active && /^[ \t]*\(/ {
+	parse_reg_rule()
+}
+
+active && /^[ \t]*$/ {
+	print_tail_country()
 }
 
 END {
