@@ -3092,6 +3092,7 @@ int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
 {
 	struct wmi_bcn_tx_cmd *cmd;
 	struct sk_buff *skb;
+	int ret;
 
 	skb = ath10k_wmi_alloc_skb(sizeof(*cmd) + arg->bcn_len);
 	if (!skb)
@@ -3104,7 +3105,11 @@ int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
 	cmd->hdr.bcn_len  = __cpu_to_le32(arg->bcn_len);
 	memcpy(cmd->bcn, arg->bcn, arg->bcn_len);
 
-	return ath10k_wmi_cmd_send_nowait(ar, skb, ar->wmi.cmd->bcn_tx_cmdid);
+	ret = ath10k_wmi_cmd_send_nowait(ar, skb, ar->wmi.cmd->bcn_tx_cmdid);
+	if (ret)
+		dev_kfree_skb(skb);
+
+	return ret;
 }
 
 static void ath10k_wmi_pdev_set_wmm_param(struct wmi_wmm_params *params,
