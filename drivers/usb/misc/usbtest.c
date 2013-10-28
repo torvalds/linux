@@ -689,6 +689,19 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 		return (retval < 0) ? retval : -EDOM;
 	}
 
+	/*
+	 * there's always [9.4.3] a bos device descriptor [9.6.2] in USB
+	 * 3.0 spec
+	 */
+	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0300) {
+		retval = usb_get_descriptor(udev, USB_DT_BOS, 0, dev->buf,
+				sizeof(*udev->bos->desc));
+		if (retval != sizeof(*udev->bos->desc)) {
+			dev_err(&iface->dev, "bos descriptor --> %d\n", retval);
+			return (retval < 0) ? retval : -EDOM;
+		}
+	}
+
 	/* there's always [9.4.3] at least one config descriptor [9.6.3] */
 	for (i = 0; i < udev->descriptor.bNumConfigurations; i++) {
 		retval = usb_get_descriptor(udev, USB_DT_CONFIG, i,
