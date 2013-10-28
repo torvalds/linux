@@ -43,7 +43,8 @@ struct map_info autcpu12_sram_map = {
 
 static int __init init_autcpu12_sram (void)
 {
-	int err, save0, save1;
+	map_word tmp, save0, save1;
+	int err;
 
 	autcpu12_sram_map.virt = ioremap(0x12000000, SZ_128K);
 	if (!autcpu12_sram_map.virt) {
@@ -51,7 +52,7 @@ static int __init init_autcpu12_sram (void)
 		err = -EIO;
 		goto out;
 	}
-	simple_map_init(&autcpu_sram_map);
+	simple_map_init(&autcpu12_sram_map);
 
 	/*
 	 * Check for 32K/128K
@@ -61,20 +62,22 @@ static int __init init_autcpu12_sram (void)
 	 * Read	and check result on ofs 0x0
 	 * Restore contents
 	 */
-	save0 = map_read32(&autcpu12_sram_map,0);
-	save1 = map_read32(&autcpu12_sram_map,0x10000);
-	map_write32(&autcpu12_sram_map,~save0,0x10000);
+	save0 = map_read(&autcpu12_sram_map, 0);
+	save1 = map_read(&autcpu12_sram_map, 0x10000);
+	tmp.x[0] = ~save0.x[0];
+	map_write(&autcpu12_sram_map, tmp, 0x10000);
 	/* if we find this pattern on 0x0, we have 32K size
 	 * restore contents and exit
 	 */
-	if ( map_read32(&autcpu12_sram_map,0) != save0) {
-		map_write32(&autcpu12_sram_map,save0,0x0);
+	tmp = map_read(&autcpu12_sram_map, 0);
+	if (!map_word_equal(&autcpu12_sram_map, tmp, save0)) {
+		map_write(&autcpu12_sram_map, save0, 0x0);
 		goto map;
 	}
 	/* We have a 128K found, restore 0x10000 and set size
 	 * to 128K
 	 */
-	map_write32(&autcpu12_sram_map,save1,0x10000);
+	map_write(&autcpu12_sram_map, save1, 0x10000);
 	autcpu12_sram_map.size = SZ_128K;
 
 map:
