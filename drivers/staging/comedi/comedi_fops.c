@@ -1421,17 +1421,11 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	async->cmd = cmd;
 	async->cmd.data = NULL;
 	/* load channel/gain list */
-	async->cmd.chanlist =
-	    kmalloc(async->cmd.chanlist_len * sizeof(int), GFP_KERNEL);
-	if (!async->cmd.chanlist) {
-		DPRINTK("allocation failed\n");
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(async->cmd.chanlist, user_chanlist,
-			   async->cmd.chanlist_len * sizeof(int))) {
-		DPRINTK("fault reading chanlist\n");
-		ret = -EFAULT;
+	async->cmd.chanlist = memdup_user(user_chanlist,
+					  async->cmd.chanlist_len * sizeof(int));
+	if (IS_ERR(async->cmd.chanlist)) {
+		ret = PTR_ERR(async->cmd.chanlist);
+		DPRINTK("memdup_user failed with code %d\n", ret);
 		goto cleanup;
 	}
 
@@ -1549,18 +1543,11 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 
 	/* load channel/gain list */
 	if (cmd.chanlist) {
-		chanlist =
-		    kmalloc(cmd.chanlist_len * sizeof(int), GFP_KERNEL);
-		if (!chanlist) {
-			DPRINTK("allocation failed\n");
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-
-		if (copy_from_user(chanlist, user_chanlist,
-				   cmd.chanlist_len * sizeof(int))) {
-			DPRINTK("fault reading chanlist\n");
-			ret = -EFAULT;
+		chanlist = memdup_user(user_chanlist,
+				       cmd.chanlist_len * sizeof(int));
+		if (IS_ERR(chanlist)) {
+			ret = PTR_ERR(chanlist);
+			DPRINTK("memdup_user exited with code %d", ret);
 			goto cleanup;
 		}
 
