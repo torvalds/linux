@@ -48,12 +48,23 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 }
 
 #ifdef CONFIG_64BIT
+static void __crst_table_upgrade(void *arg)
+{
+	struct mm_struct *mm = arg;
+
+	if (current->active_mm == mm)
+		update_mm(mm, current);
+	__tlb_flush_local();
+}
+
 int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)
 {
 	unsigned long *table, *pgd;
 	unsigned long entry;
+	int flush;
 
 	BUG_ON(limit > (1UL << 53));
+	flush = 0;
 repeat:
 	table = crst_table_alloc(mm);
 	if (!table)
@@ -79,12 +90,15 @@ repeat:
 		mm->pgd = (pgd_t *) table;
 		mm->task_size = mm->context.asce_limit;
 		table = NULL;
+		flush = 1;
 	}
 	spin_unlock_bh(&mm->page_table_lock);
 	if (table)
 		crst_table_free(mm, table);
 	if (mm->context.asce_limit < limit)
 		goto repeat;
+	if (flush)
+		on_each_cpu(__crst_table_upgrade, mm, 0);
 	return 0;
 }
 
@@ -92,6 +106,8 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 {
 	pgd_t *pgd;
 
+	if (current->active_mm == mm)
+		__tlb_flush_mm(mm);
 	while (mm->context.asce_limit > limit) {
 		pgd = mm->pgd;
 		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
@@ -114,6 +130,8 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 		mm->task_size = mm->context.asce_limit;
 		crst_table_free(mm, (unsigned long *) pgd);
 	}
+	if (current->active_mm == mm)
+		update_mm(mm, current);
 }
 #endif
 

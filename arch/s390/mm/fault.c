@@ -423,43 +423,6 @@ void __kprobes do_dat_exception(struct pt_regs *regs)
 		do_fault_error(regs, fault);
 }
 
-#ifdef CONFIG_64BIT
-void __kprobes do_asce_exception(struct pt_regs *regs)
-{
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-	unsigned long trans_exc_code;
-
-	/*
-	 * The instruction that caused the program check has
-	 * been nullified. Don't signal single step via SIGTRAP.
-	 */
-	clear_tsk_thread_flag(current, TIF_PER_TRAP);
-
-	trans_exc_code = regs->int_parm_long;
-	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
-		goto no_context;
-
-	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, trans_exc_code & __FAIL_ADDR_MASK);
-	up_read(&mm->mmap_sem);
-
-	if (vma) {
-		update_mm(mm, current);
-		return;
-	}
-
-	/* User mode accesses just cause a SIGSEGV */
-	if (user_mode(regs)) {
-		do_sigsegv(regs, SEGV_MAPERR);
-		return;
-	}
-
-no_context:
-	do_no_context(regs);
-}
-#endif
-
 int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 {
 	struct pt_regs regs;
