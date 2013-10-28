@@ -1127,12 +1127,12 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 
 	lowpan_raw_dump_inline(__func__, "6lowpan fragment header", head, hlen);
 
-	frag = dev_alloc_skb(hlen + mlen + plen + IEEE802154_MFR_SIZE);
+	frag = netdev_alloc_skb(skb->dev,
+				hlen + mlen + plen + IEEE802154_MFR_SIZE);
 	if (!frag)
 		return -ENOMEM;
 
 	frag->priority = skb->priority;
-	frag->dev = skb->dev;
 
 	/* copy header, MFR and payload */
 	memcpy(skb_put(frag, mlen), skb->data, mlen);
