@@ -5,6 +5,7 @@
 
 struct device;
 struct gpio_desc;
+struct seq_file;
 
 /**
  * struct gpio_chip - abstract a GPIO controller
