@@ -129,7 +129,9 @@ struct stack_frame {
 	regs->psw.mask	= psw_user_bits | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
+	__tlb_flush_mm(current->mm);					\
 	crst_table_downgrade(current->mm, 1UL << 31);			\
+	update_mm(current->mm, current);				\
 } while (0)
 
 /* Forward declaration, a strange C thing */

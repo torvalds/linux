@@ -26,12 +26,14 @@ static DEFINE_PER_CPU(struct cpuid, cpu_id);
 void __cpuinit cpu_init(void)
 {
 	struct cpuid *id = &per_cpu(cpu_id, smp_processor_id());
+	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 
 	get_cpu_id(id);
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
+	memset(idle, 0, sizeof(*idle));
 }
 
 /*

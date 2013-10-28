@@ -85,8 +85,10 @@ static int eeh_event_handler(void * dummy)
 	set_current_state(TASK_INTERRUPTIBLE);	/* Don't add to load average */
 	edev = handle_eeh_events(event);
 
-	eeh_clear_slot(eeh_dev_to_of_node(edev), EEH_MODE_RECOVERING);
-	pci_dev_put(edev->pdev);
+	if (edev) {
+		eeh_clear_slot(eeh_dev_to_of_node(edev), EEH_MODE_RECOVERING);
+		pci_dev_put(edev->pdev);
+	}
 
 	kfree(event);
 	mutex_unlock(&eeh_event_mutex);

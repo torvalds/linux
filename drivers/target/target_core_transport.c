@@ -1976,6 +1976,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
 	case TCM_UNKNOWN_MODE_PAGE:
 	case TCM_WRITE_PROTECTED:
+	case TCM_ADDRESS_OUT_OF_RANGE:
 	case TCM_CHECK_CONDITION_ABORT_CMD:
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 	case TCM_CHECK_CONDITION_NOT_READY:
@@ -4655,6 +4656,15 @@ int transport_send_check_condition_and_sense(
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = DATA_PROTECT;
 		/* WRITE PROTECTED */
 		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x27;
+		break;
+	case TCM_ADDRESS_OUT_OF_RANGE:
+		/* CURRENT ERROR */
+		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		/* ILLEGAL REQUEST */
+		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/* LOGICAL BLOCK ADDRESS OUT OF RANGE */
+		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x21;
 		break;
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 		/* CURRENT ERROR */

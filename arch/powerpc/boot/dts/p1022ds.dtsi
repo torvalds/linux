@@ -33,22 +33,6 @@
  */
 
 &board_lbc {
-	/*
-	 * This node is used to access the pixis via "indirect" mode,
-	 * which is done by writing the pixis register index to chip
-	 * select 0 and the value to/from chip select 1.  Indirect
-	 * mode is the only way to access the pixis when DIU video
-	 * is enabled.  Note that this assumes that the first column
-	 * of the 'ranges' property above is the chip select number.
-	 */
-	board-control@0,0 {
-		compatible = "fsl,p1022ds-indirect-pixis";
-		reg = <0x0 0x0 1	/* CS0 */
-		       0x1 0x0 1>;	/* CS1 */
-		interrupt-parent = <&mpic>;
-		interrupts = <8 0 0 0>;
-	};
-
 	nor@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;

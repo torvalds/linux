@@ -471,7 +471,7 @@ static void close_files(struct files_struct * files)
 	rcu_read_unlock();
 	for (;;) {
 		unsigned long set;
-		i = j * __NFDBITS;
+		i = j * BITS_PER_LONG;
 		if (i >= fdt->max_fds)
 			break;
 		set = fdt->open_fds[j++];
