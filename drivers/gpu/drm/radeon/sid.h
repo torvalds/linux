@@ -478,7 +478,7 @@
 #define		STATE3_MASK				(0x1f << 15)
 #define		STATE3_SHIFT				15
 
-#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x2808
+#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x28e8
 #define		TRAIN_DONE_D0      			(1 << 30)
 #define		TRAIN_DONE_D1      			(1 << 31)
 
