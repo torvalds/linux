@@ -453,12 +453,6 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 	int linedur_ns = 0, pixeldur_ns = 0, framedur_ns = 0;
 	int dotclock = mode->crtc_clock;
 
-	/* Fields of interlaced scanout modes are only half a frame duration.
-	 * Double the dotclock to get half the frame-/line-/pixelduration.
-	 */
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		dotclock *= 2;
-
 	/* Valid dotclock? */
 	if (dotclock > 0) {
 		int frame_size = mode->crtc_htotal * mode->crtc_vtotal;
@@ -471,6 +465,12 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 		pixeldur_ns = 1000000 / dotclock;
 		linedur_ns  = div_u64((u64) mode->crtc_htotal * 1000000, dotclock);
 		framedur_ns = div_u64((u64) frame_size * 1000000, dotclock);
+
+		/*
+		 * Fields of interlaced scanout modes are only half a frame duration.
+		 */
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+			framedur_ns /= 2;
 	} else
 		DRM_ERROR("crtc %d: Can't calculate constants, dotclock = 0!\n",
 			  crtc->base.id);
