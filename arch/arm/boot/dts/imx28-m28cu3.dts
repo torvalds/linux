@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Marek Vasut <marex@denx.de>
+ * Copyright (C) 2013 Marek Vasut <marex@denx.de>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -13,8 +13,8 @@
 #include "imx28.dtsi"
 
 / {
-	model = "DENX M28EVK";
-	compatible = "denx,m28evk", "fsl,imx28";
+	model = "MSR M28CU3";
+	compatible = "msr,m28cu3", "fsl,imx28";
 
 	memory {
 		reg = <0x40000000 0x08000000>;
@@ -30,59 +30,37 @@
 				status = "okay";
 
 				partition@0 {
-					label = "bootloader";
-					reg = <0x00000000 0x00300000>;
+					label = "gpmi-nfc-0-boot";
+					reg = <0x00000000 0x01400000>;
 					read-only;
 				};
 
 				partition@1 {
-					label = "environment";
-					reg = <0x00300000 0x00080000>;
-				};
-
-				partition@2 {
-					label = "redundant-environment";
-					reg = <0x00380000 0x00080000>;
-				};
-
-				partition@3 {
-					label = "kernel";
-					reg = <0x00400000 0x00400000>;
-				};
-
-				partition@4 {
-					label = "filesystem";
-					reg = <0x00800000 0x0f800000>;
+					label = "gpmi-nfc-general-use";
+					reg = <0x01400000 0x0ec00000>;
 				};
 			};
 
 			ssp0: ssp@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
-				pinctrl-0 = <&mmc0_8bit_pins_a
+				pinctrl-0 = <&mmc0_4bit_pins_a
 					     &mmc0_cd_cfg
 					     &mmc0_sck_cfg>;
-				bus-width = <8>;
-				wp-gpios = <&gpio3 10 0>;
+				bus-width = <4>;
 				vmmc-supply = <&reg_vddio_sd0>;
 				status = "okay";
 			};
 
 			ssp2: ssp@80014000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx28-spi";
+				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
-				pinctrl-0 = <&spi2_pins_a>;
+				pinctrl-0 = <&mmc2_4bit_pins_a
+					     &mmc2_cd_cfg
+					     &mmc2_sck_cfg>;
+				bus-width = <4>;
+				vmmc-supply = <&reg_vddio_sd1>;
 				status = "okay";
-
-				flash: m25p80@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "m25p80";
-					spi-max-frequency = <40000000>;
-					reg = <0>;
-				};
 			};
 
 			pinctrl@80018000 {
@@ -92,11 +70,10 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						MX28_PAD_PWM3__GPIO_3_28
-						MX28_PAD_AUART2_CTS__GPIO_3_10
-						MX28_PAD_AUART2_RTS__GPIO_3_11
-						MX28_PAD_AUART3_RX__GPIO_3_12
-						MX28_PAD_AUART3_TX__GPIO_3_13
+						MX28_PAD_SSP2_SS0__GPIO_2_19
+						MX28_PAD_PWM4__GPIO_3_29
+						MX28_PAD_AUART2_RX__GPIO_3_8
+						MX28_PAD_ENET0_RX_CLK__GPIO_4_13
 					>;
 					fsl,drive-strength = <MXS_DRIVE_4mA>;
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
@@ -106,8 +83,23 @@
 				lcdif_pins_m28: lcdif-m28@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
+						MX28_PAD_LCD_VSYNC__LCD_VSYNC
+						MX28_PAD_LCD_HSYNC__LCD_HSYNC
 						MX28_PAD_LCD_DOTCLK__LCD_DOTCLK
-						MX28_PAD_LCD_ENABLE__LCD_ENABLE
+						MX28_PAD_LCD_RESET__LCD_RESET
+						MX28_PAD_LCD_CS__LCD_ENABLE
+						MX28_PAD_AUART1_TX__GPIO_3_5
+					>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				led_pins_gpio: leds-m28@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP3_MISO__GPIO_2_26
+						MX28_PAD_SSP3_SCK__GPIO_2_24
 					>;
 					fsl,drive-strength = <MXS_DRIVE_4mA>;
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
@@ -115,29 +107,34 @@
 				};
 			};
 
+			ocotp@8002c000 {
+				status = "okay";
+			};
+
 			lcdif@80030000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a
 					     &lcdif_pins_m28>;
 				display = <&display>;
+				reset-active-high;
 				status = "okay";
 
-				display: display {
-					bits-per-pixel = <16>;
-					bus-width = <18>;
+				display: display0 {
+					bits-per-pixel = <32>;
+					bus-width = <24>;
 
 					display-timings {
 						native-mode = <&timing0>;
 						timing0: timing0 {
-							clock-frequency = <33260000>;
-							hactive = <800>;
-							vactive = <480>;
-							hback-porch = <0>;
-							hfront-porch = <256>;
-							vback-porch = <0>;
-							vfront-porch = <45>;
-							hsync-len = <1>;
-							vsync-len = <1>;
+							clock-frequency = <6410256>;
+							hactive = <320>;
+							vactive = <240>;
+							hback-porch = <38>;
+							hfront-porch = <20>;
+							vback-porch = <15>;
+							vfront-porch = <5>;
+							hsync-len = <30>;
+							vsync-len = <3>;
 							hsync-active = <0>;
 							vsync-active = <0>;
 							de-active = <1>;
@@ -146,71 +143,12 @@
 					};
 				};
 			};
-
-			can0: can@80032000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&can0_pins_a>;
-				status = "okay";
-			};
-
-			can1: can@80034000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&can1_pins_a>;
-				status = "okay";
-			};
 		};
 
 		apbx@80040000 {
-			saif0: saif@80042000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&saif0_pins_a>;
-				status = "okay";
-			};
-
-			saif1: saif@80046000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&saif1_pins_a>;
-				fsl,saif-master = <&saif0>;
-				status = "okay";
-			};
-
-			i2c0: i2c@80058000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&i2c0_pins_a>;
-				status = "okay";
-
-				sgtl5000: codec@0a {
-					compatible = "fsl,sgtl5000";
-					reg = <0x0a>;
-					VDDA-supply = <&reg_3p3v>;
-					VDDIO-supply = <&reg_3p3v>;
-					clocks = <&saif0>;
-				};
-
-				eeprom: eeprom@51 {
-					compatible = "atmel,24c128";
-					reg = <0x51>;
-					pagesize = <32>;
-				};
-
-				rtc: rtc@68 {
-					compatible = "stm,mt41t62";
-					reg = <0x68>;
-				};
-			};
-
-			lradc@80050000 {
-				status = "okay";
-				fsl,lradc-touchscreen-wires = <4>;
-			};
-
 			duart: serial@80074000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&duart_pins_a>;
-				status = "okay";
-			};
-
-			usbphy0: usbphy@8007c000 {
+				pinctrl-0 = <&duart_pins_b>;
 				status = "okay";
 			};
 
@@ -220,42 +158,30 @@
 
 			auart0: serial@8006a000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&auart0_pins_a>;
+				pinctrl-0 = <&auart0_2pins_a>;
 				status = "okay";
 			};
 
-			auart1: serial@8006c000 {
+			auart3: serial@80070000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&auart1_pins_a>;
-				status = "okay";
-			};
-
-			auart2: serial@8006e000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&auart2_2pins_b>;
+				pinctrl-0 = <&auart3_2pins_b>;
 				status = "okay";
 			};
 
 			pwm: pwm@80064000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&pwm4_pins_a>;
+				pinctrl-0 = <&pwm3_pins_a>;
 				status = "okay";
 			};
 		};
 	};
 
 	ahb@80080000 {
-		usb0: usb@80080000 {
-			vbus-supply = <&reg_usb0_vbus>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&usbphy0_pins_a>;
-			status = "okay";
-		};
-
 		usb1: usb@80090000 {
 			vbus-supply = <&reg_usb1_vbus>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&usbphy1_pins_a>;
+			disable-over-current;
 			status = "okay";
 		};
 
@@ -263,8 +189,8 @@
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a>;
-			clocks = <&clks 57>, <&clks 57>;
-			clock-names = "ipg", "ahb";
+			phy-reset-gpios = <&gpio4 13 0>;
+			phy-reset-duration = <100>;
 			status = "okay";
 		};
 
@@ -278,9 +204,27 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 4 5000000>;
+		pwms = <&pwm 3 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_gpio>;
+
+		user1 {
+			label = "sd0-led";
+			gpios = <&gpio2 26 0>;
+			linux,default-trigger = "mmc0";
+		};
+
+		user2 {
+			label = "sd1-led";
+			gpios = <&gpio2 24 0>;
+			linux,default-trigger = "mmc2";
+		};
 	};
 
 	regulators {
@@ -299,15 +243,15 @@
 			regulator-name = "vddio-sd0";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio3 28 0>;
+			gpio = <&gpio3 29 0>;
 		};
 
-		reg_usb0_vbus: usb0_vbus {
+		reg_vddio_sd1: vddio-sd1 {
 			compatible = "regulator-fixed";
-			regulator-name = "usb0_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 12 0>;
+			regulator-name = "vddio-sd1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 19 0>;
 		};
 
 		reg_usb1_vbus: usb1_vbus {
@@ -315,15 +259,8 @@
 			regulator-name = "usb1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 13 0>;
+			gpio = <&gpio3 8 0>;
+			enable-active-high;
 		};
-	};
-
-	sound {
-		compatible = "denx,m28evk-sgtl5000",
-			     "fsl,mxs-audio-sgtl5000";
-		model = "m28evk-sgtl5000";
-		saif-controllers = <&saif0 &saif1>;
-		audio-codec = <&sgtl5000>;
 	};
 };
