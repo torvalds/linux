@@ -621,36 +621,15 @@ static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 #define __raw_i915_read32(dev_priv__, reg__) readl((dev_priv__)->regs + (reg__))
 #define __raw_i915_read16(dev_priv__, reg__) readw((dev_priv__)->regs + (reg__))
 
-static bool intel_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
+static bool ilk_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t status;
-	int reg;
 
-	if (IS_VALLEYVIEW(dev)) {
-		status = pipe == PIPE_A ?
-			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
-			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-
-		reg = VLV_ISR;
-	} else if (IS_GEN2(dev)) {
-		status = pipe == PIPE_A ?
-			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
-			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-
-		reg = ISR;
-	} else if (INTEL_INFO(dev)->gen < 5) {
-		status = pipe == PIPE_A ?
-			I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT :
-			I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
-
-		reg = ISR;
-	} else if (INTEL_INFO(dev)->gen < 7) {
+	if (INTEL_INFO(dev)->gen < 7) {
 		status = pipe == PIPE_A ?
 			DE_PIPEA_VBLANK :
 			DE_PIPEB_VBLANK;
-
-		reg = DEISR;
 	} else {
 		switch (pipe) {
 		default:
@@ -664,14 +643,9 @@ static bool intel_pipe_in_vblank_locked(struct drm_device *dev, enum pipe pipe)
 			status = DE_PIPEC_VBLANK_IVB;
 			break;
 		}
-
-		reg = DEISR;
 	}
 
-	if (IS_GEN2(dev))
-		return __raw_i915_read16(dev_priv, reg) & status;
-	else
-		return __raw_i915_read32(dev_priv, reg) & status;
+	return __raw_i915_read32(dev_priv, DEISR) & status;
 }
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
@@ -729,17 +703,42 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		else
 			position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
-		/*
-		 * The scanline counter increments at the leading edge
-		 * of hsync, ie. it completely misses the active portion
-		 * of the line. Fix up the counter at both edges of vblank
-		 * to get a more accurate picture whether we're in vblank
-		 * or not.
-		 */
-		in_vbl = intel_pipe_in_vblank_locked(dev, pipe);
-		if ((in_vbl && position == vbl_start - 1) ||
-		    (!in_vbl && position == vbl_end - 1))
-			position = (position + 1) % vtotal;
+		if (HAS_PCH_SPLIT(dev)) {
+			/*
+			 * The scanline counter increments at the leading edge
+			 * of hsync, ie. it completely misses the active portion
+			 * of the line. Fix up the counter at both edges of vblank
+			 * to get a more accurate picture whether we're in vblank
+			 * or not.
+			 */
+			in_vbl = ilk_pipe_in_vblank_locked(dev, pipe);
+			if ((in_vbl && position == vbl_start - 1) ||
+			    (!in_vbl && position == vbl_end - 1))
+				position = (position + 1) % vtotal;
+		} else {
+			/*
+			 * ISR vblank status bits don't work the way we'd want
+			 * them to work on non-PCH platforms (for
+			 * ilk_pipe_in_vblank_locked()), and there doesn't
+			 * appear any other way to determine if we're currently
+			 * in vblank.
+			 *
+			 * Instead let's assume that we're already in vblank if
+			 * we got called from the vblank interrupt and the
+			 * scanline counter value indicates that we're on the
+			 * line just prior to vblank start. This should result
+			 * in the correct answer, unless the vblank interrupt
+			 * delivery really got delayed for almost exactly one
+			 * full frame/field.
+			 */
+			if (flags & DRM_CALLED_FROM_VBLIRQ &&
+			    position == vbl_start - 1) {
+				position = (position + 1) % vtotal;
+
+				/* Signal this correction as "applied". */
+				ret |= 0x8;
+			}
+		}
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
