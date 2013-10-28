@@ -344,7 +344,7 @@ struct iwl_trans_config {
 	u8 cmd_queue;
 	u8 cmd_fifo;
 	const u8 *no_reclaim_cmds;
-	int n_no_reclaim_cmds;
+	unsigned int n_no_reclaim_cmds;
 
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
