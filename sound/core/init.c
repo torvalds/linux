@@ -66,7 +66,7 @@ static int module_slot_match(struct module *module, int idx)
 #ifdef MODULE
 	const char *s1, *s2;
 
-	if (!module || !module->name || !slots[idx])
+	if (!module || !*module->name || !slots[idx])
 		return 0;
 
 	s1 = module->name;
