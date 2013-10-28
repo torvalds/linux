@@ -785,7 +785,6 @@ lowpan_alloc_new_frame(struct sk_buff *skb, u16 len, u16 tag)
 		goto skb_err;
 
 	frame->skb->priority = skb->priority;
-	frame->skb->dev = skb->dev;
 
 	/* reserve headroom for uncompressed ipv6 header */
 	skb_reserve(frame->skb, sizeof(struct ipv6hdr));
