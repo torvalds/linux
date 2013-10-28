@@ -35,13 +35,14 @@ static int gr3d_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
 	struct tegra_drm *tegra = dev_get_drvdata(client->parent);
+	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
 	struct gr3d *gr3d = to_gr3d(drm);
 
 	gr3d->channel = host1x_channel_request(client->dev);
 	if (!gr3d->channel)
 		return -ENOMEM;
 
-	client->syncpts[0] = host1x_syncpt_request(client->dev, 0);
+	client->syncpts[0] = host1x_syncpt_request(client->dev, flags);
 	if (!client->syncpts[0]) {
 		host1x_channel_free(gr3d->channel);
 		return -ENOMEM;
