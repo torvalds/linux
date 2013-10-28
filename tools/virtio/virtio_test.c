@@ -172,7 +172,8 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 							 GFP_ATOMIC);
 				if (likely(r == 0)) {
 					++started;
-					virtqueue_kick(vq->vq);
+					if (unlikely(!virtqueue_kick(vq->vq))
+						r = -1;
 				}
 			} else
 				r = -1;
