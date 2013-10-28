@@ -2258,8 +2258,12 @@ static void i915_hangcheck_elapsed(unsigned long data)
 				if (waitqueue_active(&ring->irq_queue)) {
 					/* Issue a wake-up to catch stuck h/w. */
 					if (!test_and_set_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings)) {
-						DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-							  ring->name);
+						if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(ring)))
+							DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
+								  ring->name);
+						else
+							DRM_INFO("Fake missed irq on %s\n",
+								 ring->name);
 						wake_up_all(&ring->irq_queue);
 					}
 					/* Safeguard against driver failure */
