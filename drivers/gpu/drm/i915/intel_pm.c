@@ -5670,7 +5670,7 @@ void i915_release_power_well(void)
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
 
-int i915_init_power_well(struct drm_device *dev)
+int intel_power_domains_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
@@ -5685,12 +5685,12 @@ int i915_init_power_well(struct drm_device *dev)
 	return 0;
 }
 
-void i915_remove_power_well(struct drm_device *dev)
+void intel_power_domains_remove(struct drm_device *dev)
 {
 	hsw_pwr = NULL;
 }
 
-static void intel_resume_power_well(struct drm_device *dev)
+static void intel_power_domains_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
@@ -5713,7 +5713,7 @@ static void intel_resume_power_well(struct drm_device *dev)
  * to be enabled, and it will only be disabled if none of the registers is
  * requesting it to be enabled.
  */
-void intel_init_power_well(struct drm_device *dev)
+void intel_power_domains_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -5722,7 +5722,7 @@ void intel_init_power_well(struct drm_device *dev)
 
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev, true);
-	intel_resume_power_well(dev);
+	intel_power_domains_resume(dev);
 
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */

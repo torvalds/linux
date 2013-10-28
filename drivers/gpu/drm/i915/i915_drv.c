@@ -595,7 +595,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	intel_init_power_well(dev);
+	intel_power_domains_init_hw(dev);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
