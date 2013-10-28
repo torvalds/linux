@@ -1729,8 +1729,10 @@ void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work)
 			break;
 
 		ret = ath10k_wmi_mgmt_tx(ar, skb);
-		if (ret)
+		if (ret) {
 			ath10k_warn("wmi mgmt_tx failed (%d)\n", ret);
+			ieee80211_free_txskb(ar->hw, skb);
+		}
 	}
 }
 

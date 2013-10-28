@@ -674,10 +674,8 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 
 	/* Send the management frame buffer to the target */
 	ret = ath10k_wmi_cmd_send(ar, wmi_skb, ar->wmi.cmd->mgmt_tx_cmdid);
-	if (ret) {
-		dev_kfree_skb_any(skb);
+	if (ret)
 		return ret;
-	}
 
 	/* TODO: report tx status to mac80211 - temporary just ACK */
 	info->flags |= IEEE80211_TX_STAT_ACK;
