@@ -1326,7 +1326,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto erate;
 	}
 
-	ret = clk_enable(hdmi->hdmi_clk);
+	ret = clk_prepare_enable(hdmi->hdmi_clk);
 	if (ret < 0) {
 		dev_err(hdmi->dev, "Cannot enable clock: %d\n", ret);
 		goto erate;
@@ -1404,7 +1404,7 @@ emap_htop1:
 emap:
 	release_mem_region(res->start, resource_size(res));
 ereqreg:
-	clk_disable(hdmi->hdmi_clk);
+	clk_disable_unprepare(hdmi->hdmi_clk);
 erate:
 	clk_put(hdmi->hdmi_clk);
 
@@ -1425,7 +1425,7 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&hdmi->edid_work);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	clk_disable(hdmi->hdmi_clk);
+	clk_disable_unprepare(hdmi->hdmi_clk);
 	clk_put(hdmi->hdmi_clk);
 	if (hdmi->htop1)
 		iounmap(hdmi->htop1);
