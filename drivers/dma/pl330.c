@@ -1648,8 +1648,7 @@ static int pl330_submit_req(void *ch_id, struct pl330_req *r)
 			r->cfg->nonsecure = 0;
 		else
 			r->cfg->nonsecure = 1;
-	} else {
-		/* Use last settings, if not provided */
+
 		ccr = _prepare_ccr(r->cfg);
 	} else {
 		ccr = readl(regs + CC(thrd->id));
