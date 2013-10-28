@@ -1832,7 +1832,7 @@ again:
 						     dir_key->offset,
 						     name, name_len, 0);
 		}
-		if (IS_ERR_OR_NULL(log_di)) {
+		if (!log_di || (IS_ERR(log_di) && PTR_ERR(log_di) == -ENOENT)) {
 			btrfs_dir_item_key_to_cpu(eb, di, &location);
 			btrfs_release_path(path);
 			btrfs_release_path(log_path);
@@ -1869,6 +1869,9 @@ again:
 				goto again;
 			ret = 0;
 			goto out;
+		} else if (IS_ERR(log_di)) {
+			kfree(name);
+			return PTR_ERR(log_di);
 		}
 		btrfs_release_path(log_path);
 		kfree(name);
