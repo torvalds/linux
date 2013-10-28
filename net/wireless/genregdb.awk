@@ -143,6 +143,8 @@ active && /^[ \t]*$/ {
 }
 
 END {
+	if (active)
+		print_tail_country()
 	print regdb "};"
 	print ""
 	print "int reg_regdb_size = ARRAY_SIZE(reg_regdb);"
