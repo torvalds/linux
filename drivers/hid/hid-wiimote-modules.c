@@ -1655,10 +1655,39 @@ static void wiimod_pro_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	ly = (ext[4] & 0xff) | ((ext[5] & 0x0f) << 8);
 	ry = (ext[6] & 0xff) | ((ext[7] & 0x0f) << 8);
 
-	input_report_abs(wdata->extension.input, ABS_X, lx - 0x800);
-	input_report_abs(wdata->extension.input, ABS_Y, 0x800 - ly);
-	input_report_abs(wdata->extension.input, ABS_RX, rx - 0x800);
-	input_report_abs(wdata->extension.input, ABS_RY, 0x800 - ry);
+	/* zero-point offsets */
+	lx -= 0x800;
+	ly = 0x800 - ly;
+	rx -= 0x800;
+	ry = 0x800 - ry;
+
+	/* Trivial automatic calibration. We don't know any calibration data
+	 * in the EEPROM so we must use the first report to calibrate the
+	 * null-position of the analog sticks. Users can retrigger calibration
+	 * via sysfs, or set it explicitly. If data is off more than abs(500),
+	 * we skip calibration as the sticks are likely to be moved already. */
+	if (!(wdata->state.flags & WIIPROTO_FLAG_PRO_CALIB_DONE)) {
+		wdata->state.flags |= WIIPROTO_FLAG_PRO_CALIB_DONE;
+		if (abs(lx) < 500)
+			wdata->state.calib_pro_sticks[0] = -lx;
+		if (abs(ly) < 500)
+			wdata->state.calib_pro_sticks[1] = -ly;
+		if (abs(rx) < 500)
+			wdata->state.calib_pro_sticks[2] = -rx;
+		if (abs(ry) < 500)
+			wdata->state.calib_pro_sticks[3] = -ry;
+	}
+
+	/* apply calibration data */
+	lx += wdata->state.calib_pro_sticks[0];
+	ly += wdata->state.calib_pro_sticks[1];
+	rx += wdata->state.calib_pro_sticks[2];
+	ry += wdata->state.calib_pro_sticks[3];
+
+	input_report_abs(wdata->extension.input, ABS_X, lx);
+	input_report_abs(wdata->extension.input, ABS_Y, ly);
+	input_report_abs(wdata->extension.input, ABS_RX, rx);
+	input_report_abs(wdata->extension.input, ABS_RY, ry);
 
 	input_report_key(wdata->extension.input,
 			 wiimod_pro_map[WIIMOD_PRO_KEY_RIGHT],
@@ -1766,12 +1795,70 @@ static int wiimod_pro_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
+static ssize_t wiimod_pro_calib_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *out)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	int r;
+
+	r = 0;
+	r += sprintf(&out[r], "%+06hd:", wdata->state.calib_pro_sticks[0]);
+	r += sprintf(&out[r], "%+06hd ", wdata->state.calib_pro_sticks[1]);
+	r += sprintf(&out[r], "%+06hd:", wdata->state.calib_pro_sticks[2]);
+	r += sprintf(&out[r], "%+06hd\n", wdata->state.calib_pro_sticks[3]);
+
+	return r;
+}
+
+static ssize_t wiimod_pro_calib_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	int r;
+	s16 x1, y1, x2, y2;
+
+	if (!strncmp(buf, "scan\n", 5)) {
+		spin_lock_irq(&wdata->state.lock);
+		wdata->state.flags &= ~WIIPROTO_FLAG_PRO_CALIB_DONE;
+		spin_unlock_irq(&wdata->state.lock);
+	} else {
+		r = sscanf(buf, "%hd:%hd %hd:%hd", &x1, &y1, &x2, &y2);
+		if (r != 4)
+			return -EINVAL;
+
+		spin_lock_irq(&wdata->state.lock);
+		wdata->state.flags |= WIIPROTO_FLAG_PRO_CALIB_DONE;
+		spin_unlock_irq(&wdata->state.lock);
+
+		wdata->state.calib_pro_sticks[0] = x1;
+		wdata->state.calib_pro_sticks[1] = y1;
+		wdata->state.calib_pro_sticks[2] = x2;
+		wdata->state.calib_pro_sticks[3] = y2;
+	}
+
+	return strnlen(buf, PAGE_SIZE);
+}
+
+static DEVICE_ATTR(pro_calib, S_IRUGO|S_IWUSR|S_IWGRP, wiimod_pro_calib_show,
+		   wiimod_pro_calib_store);
+
 static int wiimod_pro_probe(const struct wiimod_ops *ops,
 			    struct wiimote_data *wdata)
 {
 	int ret, i;
+	unsigned long flags;
 
 	INIT_WORK(&wdata->rumble_worker, wiimod_rumble_worker);
+	wdata->state.calib_pro_sticks[0] = 0;
+	wdata->state.calib_pro_sticks[1] = 0;
+	wdata->state.calib_pro_sticks[2] = 0;
+	wdata->state.calib_pro_sticks[3] = 0;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags &= ~WIIPROTO_FLAG_PRO_CALIB_DONE;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	wdata->extension.input = input_allocate_device();
 	if (!wdata->extension.input)
@@ -1783,6 +1870,13 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 	if (input_ff_create_memless(wdata->extension.input, NULL,
 				    wiimod_pro_play)) {
 		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	ret = device_create_file(&wdata->hdev->dev,
+				 &dev_attr_pro_calib);
+	if (ret) {
+		hid_err(wdata->hdev, "cannot create sysfs attribute\n");
 		goto err_free;
 	}
 
@@ -1806,20 +1900,23 @@ static int wiimod_pro_probe(const struct wiimod_ops *ops,
 	set_bit(ABS_RX, wdata->extension.input->absbit);
 	set_bit(ABS_RY, wdata->extension.input->absbit);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_X, -0x800, 0x800, 2, 4);
+			     ABS_X, -0x400, 0x400, 4, 100);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_Y, -0x800, 0x800, 2, 4);
+			     ABS_Y, -0x400, 0x400, 4, 100);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_RX, -0x800, 0x800, 2, 4);
+			     ABS_RX, -0x400, 0x400, 4, 100);
 	input_set_abs_params(wdata->extension.input,
-			     ABS_RY, -0x800, 0x800, 2, 4);
+			     ABS_RY, -0x400, 0x400, 4, 100);
 
 	ret = input_register_device(wdata->extension.input);
 	if (ret)
-		goto err_free;
+		goto err_file;
 
 	return 0;
 
+err_file:
+	device_remove_file(&wdata->hdev->dev,
+			   &dev_attr_pro_calib);
 err_free:
 	input_free_device(wdata->extension.input);
 	wdata->extension.input = NULL;
@@ -1837,6 +1934,8 @@ static void wiimod_pro_remove(const struct wiimod_ops *ops,
 	input_unregister_device(wdata->extension.input);
 	wdata->extension.input = NULL;
 	cancel_work_sync(&wdata->rumble_worker);
+	device_remove_file(&wdata->hdev->dev,
+			   &dev_attr_pro_calib);
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_rumble(wdata, 0);
