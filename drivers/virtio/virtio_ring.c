@@ -851,4 +851,12 @@ unsigned int virtqueue_get_vring_size(struct virtqueue *_vq)
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_vring_size);
 
+bool virtqueue_is_broken(struct virtqueue *_vq)
+{
+	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	return vq->broken;
+}
+EXPORT_SYMBOL_GPL(virtqueue_is_broken);
+
 MODULE_LICENSE("GPL");
