@@ -916,7 +916,7 @@ xfs_attr3_leaf_to_node(
 	if (error)
 		goto out;
 	node = bp1->b_addr;
-	xfs_da3_node_hdr_from_disk(&icnodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&icnodehdr, node);
 	btree = dp->d_ops->node_tree_p(node);
 
 	leaf = bp2->b_addr;
@@ -927,7 +927,7 @@ xfs_attr3_leaf_to_node(
 	btree[0].hashval = entries[icleafhdr.count - 1].hashval;
 	btree[0].before = cpu_to_be32(blkno);
 	icnodehdr.count = 1;
-	xfs_da3_node_hdr_to_disk(node, &icnodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &icnodehdr);
 	xfs_trans_log_buf(args->trans, bp1, 0, XFS_LBSIZE(mp) - 1);
 	error = 0;
 out:

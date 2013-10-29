@@ -76,13 +76,26 @@ struct xfs_dir_ops {
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 
 	int	(*leaf_hdr_size)(void);
+	void	(*leaf_hdr_to_disk)(struct xfs_dir2_leaf *to,
+				    struct xfs_dir3_icleaf_hdr *from);
+	void	(*leaf_hdr_from_disk)(struct xfs_dir3_icleaf_hdr *to,
+				      struct xfs_dir2_leaf *from);
 	int	(*leaf_max_ents)(struct xfs_mount *mp);
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 
 	int	(*node_hdr_size)(void);
+	void	(*node_hdr_to_disk)(struct xfs_da_intnode *to,
+				    struct xfs_da3_icnode_hdr *from);
+	void	(*node_hdr_from_disk)(struct xfs_da3_icnode_hdr *to,
+				      struct xfs_da_intnode *from);
 	struct xfs_da_node_entry *
 		(*node_tree_p)(struct xfs_da_intnode *dap);
+
+	void	(*free_hdr_to_disk)(struct xfs_dir2_free *to,
+				    struct xfs_dir3_icfree_hdr *from);
+	void	(*free_hdr_from_disk)(struct xfs_dir3_icfree_hdr *to,
+				      struct xfs_dir2_free *from);
 };
 
 extern const struct xfs_dir_ops *

@@ -68,7 +68,7 @@ xfs_dir3_leafn_check(
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 
 	if (leafhdr.magic == XFS_DIR3_LEAFN_MAGIC) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
@@ -192,53 +192,6 @@ xfs_dir2_free_try_read(
 	return __xfs_dir3_free_read(tp, dp, fbno, -2, bpp);
 }
 
-
-void
-xfs_dir3_free_hdr_from_disk(
-	struct xfs_dir3_icfree_hdr	*to,
-	struct xfs_dir2_free		*from)
-{
-	if (from->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC)) {
-		to->magic = be32_to_cpu(from->hdr.magic);
-		to->firstdb = be32_to_cpu(from->hdr.firstdb);
-		to->nvalid = be32_to_cpu(from->hdr.nvalid);
-		to->nused = be32_to_cpu(from->hdr.nused);
-	} else {
-		struct xfs_dir3_free_hdr *hdr3 = (struct xfs_dir3_free_hdr *)from;
-
-		to->magic = be32_to_cpu(hdr3->hdr.magic);
-		to->firstdb = be32_to_cpu(hdr3->firstdb);
-		to->nvalid = be32_to_cpu(hdr3->nvalid);
-		to->nused = be32_to_cpu(hdr3->nused);
-	}
-
-	ASSERT(to->magic == XFS_DIR2_FREE_MAGIC ||
-	       to->magic == XFS_DIR3_FREE_MAGIC);
-}
-
-static void
-xfs_dir3_free_hdr_to_disk(
-	struct xfs_dir2_free		*to,
-	struct xfs_dir3_icfree_hdr	*from)
-{
-	ASSERT(from->magic == XFS_DIR2_FREE_MAGIC ||
-	       from->magic == XFS_DIR3_FREE_MAGIC);
-
-	if (from->magic == XFS_DIR2_FREE_MAGIC) {
-		to->hdr.magic = cpu_to_be32(from->magic);
-		to->hdr.firstdb = cpu_to_be32(from->firstdb);
-		to->hdr.nvalid = cpu_to_be32(from->nvalid);
-		to->hdr.nused = cpu_to_be32(from->nused);
-	} else {
-		struct xfs_dir3_free_hdr *hdr3 = (struct xfs_dir3_free_hdr *)to;
-
-		hdr3->hdr.magic = cpu_to_be32(from->magic);
-		hdr3->firstdb = cpu_to_be32(from->firstdb);
-		hdr3->nvalid = cpu_to_be32(from->nvalid);
-		hdr3->nused = cpu_to_be32(from->nused);
-	}
-}
-
 static int
 xfs_dir3_free_get_buf(
 	struct xfs_trans	*tp,
@@ -276,7 +229,7 @@ xfs_dir3_free_get_buf(
 		uuid_copy(&hdr3->hdr.uuid, &mp->m_sb.sb_uuid);
 	} else
 		hdr.magic = XFS_DIR2_FREE_MAGIC;
-	xfs_dir3_free_hdr_to_disk(bp->b_addr, &hdr);
+	dp->d_ops->free_hdr_to_disk(bp->b_addr, &hdr);
 	*bpp = bp;
 	return 0;
 }
@@ -368,7 +321,7 @@ xfs_dir2_leaf_to_node(
 		return error;
 
 	free = fbp->b_addr;
-	xfs_dir3_free_hdr_from_disk(&freehdr, free);
+	dp->d_ops->free_hdr_from_disk(&freehdr, free);
 	leaf = lbp->b_addr;
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	ASSERT(be32_to_cpu(ltp->bestcount) <=
@@ -392,7 +345,7 @@ xfs_dir2_leaf_to_node(
 	freehdr.nused = n;
 	freehdr.nvalid = be32_to_cpu(ltp->bestcount);
 
-	xfs_dir3_free_hdr_to_disk(fbp->b_addr, &freehdr);
+	dp->d_ops->free_hdr_to_disk(fbp->b_addr, &freehdr);
 	xfs_dir2_free_log_bests(tp, fbp, 0, freehdr.nvalid - 1);
 	xfs_dir2_free_log_header(tp, fbp);
 
@@ -442,7 +395,7 @@ xfs_dir2_leafn_add(
 	mp = dp->i_mount;
 	tp = args->trans;
 	leaf = bp->b_addr;
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	/*
@@ -497,7 +450,7 @@ xfs_dir2_leafn_add(
 	lep->address = cpu_to_be32(xfs_dir2_db_off_to_dataptr(mp,
 				args->blkno, args->index));
 
-	xfs_dir3_leaf_hdr_to_disk(leaf, &leafhdr);
+	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(tp, dp, bp);
 	xfs_dir3_leaf_log_ents(tp, dp, bp, lfloglow, lfloghigh);
 	xfs_dir3_leaf_check(dp, bp);
@@ -507,20 +460,20 @@ xfs_dir2_leafn_add(
 #ifdef DEBUG
 static void
 xfs_dir2_free_hdr_check(
-	struct xfs_mount *mp,
+	struct xfs_inode *dp,
 	struct xfs_buf	*bp,
 	xfs_dir2_db_t	db)
 {
 	struct xfs_dir3_icfree_hdr hdr;
 
-	xfs_dir3_free_hdr_from_disk(&hdr, bp->b_addr);
+	dp->d_ops->free_hdr_from_disk(&hdr, bp->b_addr);
 
-	ASSERT((hdr.firstdb % xfs_dir3_free_max_bests(mp)) == 0);
+	ASSERT((hdr.firstdb % xfs_dir3_free_max_bests(dp->i_mount)) == 0);
 	ASSERT(hdr.firstdb <= db);
 	ASSERT(db < hdr.firstdb + hdr.nvalid);
 }
 #else
-#define xfs_dir2_free_hdr_check(mp, dp, db)
+#define xfs_dir2_free_hdr_check(dp, bp, db)
 #endif	/* DEBUG */
 
 /*
@@ -537,7 +490,7 @@ xfs_dir2_leafn_lasthash(
 	struct xfs_dir2_leaf_entry *ents;
 	struct xfs_dir3_icleaf_hdr leafhdr;
 
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
 	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
@@ -584,7 +537,7 @@ xfs_dir2_leafn_lookup_for_addname(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = bp->b_addr;
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	xfs_dir3_leaf_check(dp, bp);
@@ -655,7 +608,7 @@ xfs_dir2_leafn_lookup_for_addname(
 					return error;
 				free = curbp->b_addr;
 
-				xfs_dir2_free_hdr_check(mp, curbp, curdb);
+				xfs_dir2_free_hdr_check(dp, curbp, curdb);
 			}
 			/*
 			 * Get the index for our entry.
@@ -734,7 +687,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = bp->b_addr;
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	xfs_dir3_leaf_check(dp, bp);
@@ -969,8 +922,8 @@ xfs_dir2_leafn_order(
 	struct xfs_dir3_icleaf_hdr hdr1;
 	struct xfs_dir3_icleaf_hdr hdr2;
 
-	xfs_dir3_leaf_hdr_from_disk(&hdr1, leaf1);
-	xfs_dir3_leaf_hdr_from_disk(&hdr2, leaf2);
+	dp->d_ops->leaf_hdr_from_disk(&hdr1, leaf1);
+	dp->d_ops->leaf_hdr_from_disk(&hdr2, leaf2);
 	ents1 = dp->d_ops->leaf_ents_p(leaf1);
 	ents2 = dp->d_ops->leaf_ents_p(leaf2);
 
@@ -1025,8 +978,8 @@ xfs_dir2_leafn_rebalance(
 	}
 	leaf1 = blk1->bp->b_addr;
 	leaf2 = blk2->bp->b_addr;
-	xfs_dir3_leaf_hdr_from_disk(&hdr1, leaf1);
-	xfs_dir3_leaf_hdr_from_disk(&hdr2, leaf2);
+	dp->d_ops->leaf_hdr_from_disk(&hdr1, leaf1);
+	dp->d_ops->leaf_hdr_from_disk(&hdr2, leaf2);
 	ents1 = dp->d_ops->leaf_ents_p(leaf1);
 	ents2 = dp->d_ops->leaf_ents_p(leaf2);
 
@@ -1074,8 +1027,8 @@ xfs_dir2_leafn_rebalance(
 	ASSERT(hdr1.stale + hdr2.stale == oldstale);
 
 	/* log the changes made when moving the entries */
-	xfs_dir3_leaf_hdr_to_disk(leaf1, &hdr1);
-	xfs_dir3_leaf_hdr_to_disk(leaf2, &hdr2);
+	dp->d_ops->leaf_hdr_to_disk(leaf1, &hdr1);
+	dp->d_ops->leaf_hdr_to_disk(leaf2, &hdr2);
 	xfs_dir3_leaf_log_header(args->trans, dp, blk1->bp);
 	xfs_dir3_leaf_log_header(args->trans, dp, blk2->bp);
 
@@ -1124,8 +1077,9 @@ xfs_dir3_data_block_free(
 	int			logfree = 0;
 	__be16			*bests;
 	struct xfs_dir3_icfree_hdr freehdr;
+	struct xfs_inode	*dp = args->dp;
 
-	xfs_dir3_free_hdr_from_disk(&freehdr, free);
+	dp->d_ops->free_hdr_from_disk(&freehdr, free);
 
 	bests = xfs_dir3_free_bests_p(tp->t_mountp, free);
 	if (hdr) {
@@ -1161,7 +1115,7 @@ xfs_dir3_data_block_free(
 		logfree = 1;
 	}
 
-	xfs_dir3_free_hdr_to_disk(free, &freehdr);
+	dp->d_ops->free_hdr_to_disk(free, &freehdr);
 	xfs_dir2_free_log_header(tp, fbp);
 
 	/*
@@ -1226,7 +1180,7 @@ xfs_dir2_leafn_remove(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = bp->b_addr;
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
 	/*
@@ -1247,7 +1201,7 @@ xfs_dir2_leafn_remove(
 	 * Log the leaf block changes.
 	 */
 	leafhdr.stale++;
-	xfs_dir3_leaf_hdr_to_disk(leaf, &leafhdr);
+	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(tp, dp, bp);
 
 	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
@@ -1298,7 +1252,7 @@ xfs_dir2_leafn_remove(
 #ifdef DEBUG
 	{
 		struct xfs_dir3_icfree_hdr freehdr;
-		xfs_dir3_free_hdr_from_disk(&freehdr, free);
+		dp->d_ops->free_hdr_from_disk(&freehdr, free);
 		ASSERT(freehdr.firstdb == xfs_dir3_free_max_bests(mp) *
 					  (fdb - XFS_DIR2_FREE_FIRSTDB(mp)));
 	}
@@ -1449,7 +1403,7 @@ xfs_dir2_leafn_toosmall(
 	 */
 	blk = &state->path.blk[state->path.active - 1];
 	leaf = blk->bp->b_addr;
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 	xfs_dir3_leaf_check(dp, blk->bp);
 
@@ -1511,7 +1465,7 @@ xfs_dir2_leafn_toosmall(
 		bytes = state->blocksize - (state->blocksize >> 2);
 
 		leaf = bp->b_addr;
-		xfs_dir3_leaf_hdr_from_disk(&hdr2, leaf);
+		dp->d_ops->leaf_hdr_from_disk(&hdr2, leaf);
 		ents = dp->d_ops->leaf_ents_p(leaf);
 		count += hdr2.count - hdr2.stale;
 		bytes -= count * sizeof(ents[0]);
@@ -1574,10 +1528,10 @@ xfs_dir2_leafn_unbalance(
 	drop_leaf = drop_blk->bp->b_addr;
 	save_leaf = save_blk->bp->b_addr;
 
-	xfs_dir3_leaf_hdr_from_disk(&savehdr, save_leaf);
-	xfs_dir3_leaf_hdr_from_disk(&drophdr, drop_leaf);
-	sents = args->dp->d_ops->leaf_ents_p(save_leaf);
-	dents = args->dp->d_ops->leaf_ents_p(drop_leaf);
+	dp->d_ops->leaf_hdr_from_disk(&savehdr, save_leaf);
+	dp->d_ops->leaf_hdr_from_disk(&drophdr, drop_leaf);
+	sents = dp->d_ops->leaf_ents_p(save_leaf);
+	dents = dp->d_ops->leaf_ents_p(drop_leaf);
 
 	/*
 	 * If there are any stale leaf entries, take this opportunity
@@ -1603,8 +1557,8 @@ xfs_dir2_leafn_unbalance(
 	save_blk->hashval = be32_to_cpu(sents[savehdr.count - 1].hashval);
 
 	/* log the changes made when moving the entries */
-	xfs_dir3_leaf_hdr_to_disk(save_leaf, &savehdr);
-	xfs_dir3_leaf_hdr_to_disk(drop_leaf, &drophdr);
+	dp->d_ops->leaf_hdr_to_disk(save_leaf, &savehdr);
+	dp->d_ops->leaf_hdr_to_disk(drop_leaf, &drophdr);
 	xfs_dir3_leaf_log_header(args->trans, dp, save_blk->bp);
 	xfs_dir3_leaf_log_header(args->trans, dp, drop_blk->bp);
 
@@ -1735,7 +1689,7 @@ xfs_dir2_node_addname_int(
 		free = fbp->b_addr;
 		findex = fblk->index;
 		bests = xfs_dir3_free_bests_p(mp, free);
-		xfs_dir3_free_hdr_from_disk(&freehdr, free);
+		dp->d_ops->free_hdr_from_disk(&freehdr, free);
 
 		/*
 		 * This means the free entry showed that the data block had
@@ -1828,7 +1782,7 @@ xfs_dir2_node_addname_int(
 		 * there, so we have to do it here to avoid warnings. Blech.
 		 */
 		bests = xfs_dir3_free_bests_p(mp, free);
-		xfs_dir3_free_hdr_from_disk(&freehdr, free);
+		dp->d_ops->free_hdr_from_disk(&freehdr, free);
 		if (be16_to_cpu(bests[findex]) != NULLDATAOFF &&
 		    be16_to_cpu(bests[findex]) >= length)
 			dbno = freehdr.firstdb + findex;
@@ -1927,7 +1881,7 @@ xfs_dir2_node_addname_int(
 				return error;
 			free = fbp->b_addr;
 			bests = xfs_dir3_free_bests_p(mp, free);
-			xfs_dir3_free_hdr_from_disk(&freehdr, free);
+			dp->d_ops->free_hdr_from_disk(&freehdr, free);
 
 			/*
 			 * Remember the first slot as our empty slot.
@@ -1937,7 +1891,7 @@ xfs_dir2_node_addname_int(
 		} else {
 			free = fbp->b_addr;
 			bests = xfs_dir3_free_bests_p(mp, free);
-			xfs_dir3_free_hdr_from_disk(&freehdr, free);
+			dp->d_ops->free_hdr_from_disk(&freehdr, free);
 		}
 
 		/*
@@ -1962,7 +1916,7 @@ xfs_dir2_node_addname_int(
 		 */
 		if (bests[findex] == cpu_to_be16(NULLDATAOFF)) {
 			freehdr.nused++;
-			xfs_dir3_free_hdr_to_disk(fbp->b_addr, &freehdr);
+			dp->d_ops->free_hdr_to_disk(fbp->b_addr, &freehdr);
 			xfs_dir2_free_log_header(tp, fbp);
 		}
 		/*
@@ -2294,7 +2248,7 @@ xfs_dir2_node_trim_free(
 	if (!bp)
 		return 0;
 	free = bp->b_addr;
-	xfs_dir3_free_hdr_from_disk(&freehdr, free);
+	dp->d_ops->free_hdr_from_disk(&freehdr, free);
 
 	/*
 	 * If there are used entries, there's nothing to do.

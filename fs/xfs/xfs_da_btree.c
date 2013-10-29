@@ -129,56 +129,6 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
-void
-xfs_da3_node_hdr_from_disk(
-	struct xfs_da3_icnode_hdr	*to,
-	struct xfs_da_intnode		*from)
-{
-	ASSERT(from->hdr.info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
-	       from->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC));
-
-	if (from->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
-		struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)from;
-
-		to->forw = be32_to_cpu(hdr3->info.hdr.forw);
-		to->back = be32_to_cpu(hdr3->info.hdr.back);
-		to->magic = be16_to_cpu(hdr3->info.hdr.magic);
-		to->count = be16_to_cpu(hdr3->__count);
-		to->level = be16_to_cpu(hdr3->__level);
-		return;
-	}
-	to->forw = be32_to_cpu(from->hdr.info.forw);
-	to->back = be32_to_cpu(from->hdr.info.back);
-	to->magic = be16_to_cpu(from->hdr.info.magic);
-	to->count = be16_to_cpu(from->hdr.__count);
-	to->level = be16_to_cpu(from->hdr.__level);
-}
-
-void
-xfs_da3_node_hdr_to_disk(
-	struct xfs_da_intnode		*to,
-	struct xfs_da3_icnode_hdr	*from)
-{
-	ASSERT(from->magic == XFS_DA_NODE_MAGIC ||
-	       from->magic == XFS_DA3_NODE_MAGIC);
-
-	if (from->magic == XFS_DA3_NODE_MAGIC) {
-		struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)to;
-
-		hdr3->info.hdr.forw = cpu_to_be32(from->forw);
-		hdr3->info.hdr.back = cpu_to_be32(from->back);
-		hdr3->info.hdr.magic = cpu_to_be16(from->magic);
-		hdr3->__count = cpu_to_be16(from->count);
-		hdr3->__level = cpu_to_be16(from->level);
-		return;
-	}
-	to->hdr.info.forw = cpu_to_be32(from->forw);
-	to->hdr.info.back = cpu_to_be32(from->back);
-	to->hdr.info.magic = cpu_to_be16(from->magic);
-	to->hdr.__count = cpu_to_be16(from->count);
-	to->hdr.__level = cpu_to_be16(from->level);
-}
-
 static bool
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
@@ -186,8 +136,11 @@ xfs_da3_node_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_da_intnode	*hdr = bp->b_addr;
 	struct xfs_da3_icnode_hdr ichdr;
+	const struct xfs_dir_ops *ops;
 
-	xfs_da3_node_hdr_from_disk(&ichdr, hdr);
+	ops = xfs_dir_get_ops(mp, NULL);
+
+	ops->node_hdr_from_disk(&ichdr, hdr);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
@@ -354,11 +307,12 @@ xfs_da3_node_create(
 	struct xfs_da3_icnode_hdr ichdr = {0};
 	struct xfs_buf		*bp;
 	int			error;
+	struct xfs_inode	*dp = args->dp;
 
 	trace_xfs_da_node_create(args);
 	ASSERT(level <= XFS_DA_NODE_MAXDEPTH);
 
-	error = xfs_da_get_buf(tp, args->dp, blkno, -1, &bp, whichfork);
+	error = xfs_da_get_buf(tp, dp, blkno, -1, &bp, whichfork);
 	if (error)
 		return(error);
 	bp->b_ops = &xfs_da3_node_buf_ops;
@@ -377,10 +331,10 @@ xfs_da3_node_create(
 	}
 	ichdr.level = level;
 
-	xfs_da3_node_hdr_to_disk(node, &ichdr);
+	dp->d_ops->node_hdr_to_disk(node, &ichdr);
 	xfs_trans_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr,
-				args->dp->d_ops->node_hdr_size()));
+				dp->d_ops->node_hdr_size()));
 
 	*bpp = bp;
 	return(0);
@@ -590,7 +544,7 @@ xfs_da3_root_split(
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
 		struct xfs_da3_icnode_hdr nodehdr;
 
-		xfs_da3_node_hdr_from_disk(&nodehdr, oldroot);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, oldroot);
 		btree = dp->d_ops->node_tree_p(oldroot);
 		size = (int)((char *)&btree[nodehdr.count] - (char *)oldroot);
 		level = nodehdr.level;
@@ -605,7 +559,7 @@ xfs_da3_root_split(
 		struct xfs_dir2_leaf_entry *ents;
 
 		leaf = (xfs_dir2_leaf_t *)oldroot;
-		xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+		dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 		ents = dp->d_ops->leaf_ents_p(leaf);
 
 		ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
@@ -650,14 +604,14 @@ xfs_da3_root_split(
 		return error;
 
 	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	btree = dp->d_ops->node_tree_p(node);
 	btree[0].hashval = cpu_to_be32(blk1->hashval);
 	btree[0].before = cpu_to_be32(blk1->blkno);
 	btree[1].hashval = cpu_to_be32(blk2->hashval);
 	btree[1].before = cpu_to_be32(blk2->blkno);
 	nodehdr.count = 2;
-	xfs_da3_node_hdr_to_disk(node, &nodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 
 #ifdef DEBUG
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
@@ -694,11 +648,12 @@ xfs_da3_node_split(
 	int			newcount;
 	int			error;
 	int			useextra;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_split(state->args);
 
 	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 
 	/*
 	 * With V2 dirs the extra block is data or freespace.
@@ -745,7 +700,7 @@ xfs_da3_node_split(
 	 * If we had double-split op below us, then add the extra block too.
 	 */
 	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	if (oldblk->index <= nodehdr.count) {
 		oldblk->index++;
 		xfs_da3_node_add(state, oldblk, addblk);
@@ -800,8 +755,8 @@ xfs_da3_node_rebalance(
 
 	node1 = blk1->bp->b_addr;
 	node2 = blk2->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr1, node1);
-	xfs_da3_node_hdr_from_disk(&nodehdr2, node2);
+	dp->d_ops->node_hdr_from_disk(&nodehdr1, node1);
+	dp->d_ops->node_hdr_from_disk(&nodehdr2, node2);
 	btree1 = dp->d_ops->node_tree_p(node1);
 	btree2 = dp->d_ops->node_tree_p(node2);
 
@@ -816,8 +771,8 @@ xfs_da3_node_rebalance(
 		tmpnode = node1;
 		node1 = node2;
 		node2 = tmpnode;
-		xfs_da3_node_hdr_from_disk(&nodehdr1, node1);
-		xfs_da3_node_hdr_from_disk(&nodehdr2, node2);
+		dp->d_ops->node_hdr_from_disk(&nodehdr1, node1);
+		dp->d_ops->node_hdr_from_disk(&nodehdr2, node2);
 		btree1 = dp->d_ops->node_tree_p(node1);
 		btree2 = dp->d_ops->node_tree_p(node2);
 		swap = 1;
@@ -881,12 +836,12 @@ xfs_da3_node_rebalance(
 	/*
 	 * Log header of node 1 and all current bits of node 2.
 	 */
-	xfs_da3_node_hdr_to_disk(node1, &nodehdr1);
+	dp->d_ops->node_hdr_to_disk(node1, &nodehdr1);
 	xfs_trans_log_buf(tp, blk1->bp,
 		XFS_DA_LOGRANGE(node1, &node1->hdr,
 				dp->d_ops->node_hdr_size()));
 
-	xfs_da3_node_hdr_to_disk(node2, &nodehdr2);
+	dp->d_ops->node_hdr_to_disk(node2, &nodehdr2);
 	xfs_trans_log_buf(tp, blk2->bp,
 		XFS_DA_LOGRANGE(node2, &node2->hdr,
 				dp->d_ops->node_hdr_size() +
@@ -899,8 +854,8 @@ xfs_da3_node_rebalance(
 	if (swap) {
 		node1 = blk1->bp->b_addr;
 		node2 = blk2->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr1, node1);
-		xfs_da3_node_hdr_from_disk(&nodehdr2, node2);
+		dp->d_ops->node_hdr_from_disk(&nodehdr1, node1);
+		dp->d_ops->node_hdr_from_disk(&nodehdr2, node2);
 		btree1 = dp->d_ops->node_tree_p(node1);
 		btree2 = dp->d_ops->node_tree_p(node2);
 	}
@@ -934,7 +889,7 @@ xfs_da3_node_add(
 	trace_xfs_da_node_add(state->args);
 
 	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	btree = dp->d_ops->node_tree_p(node);
 
 	ASSERT(oldblk->index >= 0 && oldblk->index <= nodehdr.count);
@@ -958,7 +913,7 @@ xfs_da3_node_add(
 				tmp + sizeof(*btree)));
 
 	nodehdr.count += 1;
-	xfs_da3_node_hdr_to_disk(node, &nodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, oldblk->bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size()));
 
@@ -1097,6 +1052,7 @@ xfs_da3_root_join(
 	struct xfs_da3_icnode_hdr oldroothdr;
 	struct xfs_da_node_entry *btree;
 	int			error;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_root_join(state->args);
 
@@ -1104,7 +1060,7 @@ xfs_da3_root_join(
 
 	args = state->args;
 	oldroot = root_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&oldroothdr, oldroot);
+	dp->d_ops->node_hdr_from_disk(&oldroothdr, oldroot);
 	ASSERT(oldroothdr.forw == 0);
 	ASSERT(oldroothdr.back == 0);
 
@@ -1118,10 +1074,10 @@ xfs_da3_root_join(
 	 * Read in the (only) child block, then copy those bytes into
 	 * the root block's buffer and free the original child block.
 	 */
-	btree = args->dp->d_ops->node_tree_p(oldroot);
+	btree = dp->d_ops->node_tree_p(oldroot);
 	child = be32_to_cpu(btree[0].before);
 	ASSERT(child != 0);
-	error = xfs_da3_node_read(args->trans, args->dp, child, -1, &bp,
+	error = xfs_da3_node_read(args->trans, dp, child, -1, &bp,
 					     args->whichfork);
 	if (error)
 		return error;
@@ -1171,6 +1127,7 @@ xfs_da3_node_toosmall(
 	int			error;
 	int			retval;
 	int			i;
+	struct xfs_inode	*dp = state->args->dp;
 
 	trace_xfs_da_node_toosmall(state->args);
 
@@ -1182,7 +1139,7 @@ xfs_da3_node_toosmall(
 	blk = &state->path.blk[ state->path.active-1 ];
 	info = blk->bp->b_addr;
 	node = (xfs_da_intnode_t *)info;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	if (nodehdr.count > (state->node_ents >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
 		return(0);	/* blk over 50%, don't try to join */
@@ -1234,13 +1191,13 @@ xfs_da3_node_toosmall(
 			blkno = nodehdr.back;
 		if (blkno == 0)
 			continue;
-		error = xfs_da3_node_read(state->args->trans, state->args->dp,
+		error = xfs_da3_node_read(state->args->trans, dp,
 					blkno, -1, &bp, state->args->whichfork);
 		if (error)
 			return(error);
 
 		node = bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&thdr, node);
+		dp->d_ops->node_hdr_from_disk(&thdr, node);
 		xfs_trans_brelse(state->args->trans, bp);
 
 		if (count - thdr.count >= 0)
@@ -1287,7 +1244,7 @@ xfs_da3_node_lasthash(
 	struct xfs_da3_icnode_hdr nodehdr;
 
 	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	if (count)
 		*count = nodehdr.count;
 	if (!nodehdr.count)
@@ -1338,7 +1295,7 @@ xfs_da3_fixhashpath(
 		struct xfs_da3_icnode_hdr nodehdr;
 
 		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 		btree = dp->d_ops->node_tree_p(node);
 		if (be32_to_cpu(btree->hashval) == lasthash)
 			break;
@@ -1370,7 +1327,7 @@ xfs_da3_node_remove(
 	trace_xfs_da_node_remove(state->args);
 
 	node = drop_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&nodehdr, node);
+	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	ASSERT(drop_blk->index < nodehdr.count);
 	ASSERT(drop_blk->index >= 0);
 
@@ -1391,7 +1348,7 @@ xfs_da3_node_remove(
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &btree[index], sizeof(btree[index])));
 	nodehdr.count -= 1;
-	xfs_da3_node_hdr_to_disk(node, &nodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size()));
 
@@ -1426,8 +1383,8 @@ xfs_da3_node_unbalance(
 
 	drop_node = drop_blk->bp->b_addr;
 	save_node = save_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&drop_hdr, drop_node);
-	xfs_da3_node_hdr_from_disk(&save_hdr, save_node);
+	dp->d_ops->node_hdr_from_disk(&drop_hdr, drop_node);
+	dp->d_ops->node_hdr_from_disk(&save_hdr, save_node);
 	drop_btree = dp->d_ops->node_tree_p(drop_node);
 	save_btree = dp->d_ops->node_tree_p(save_node);
 	tp = state->args->trans;
@@ -1463,7 +1420,7 @@ xfs_da3_node_unbalance(
 	memcpy(&save_btree[sindex], &drop_btree[0], tmp);
 	save_hdr.count += drop_hdr.count;
 
-	xfs_da3_node_hdr_to_disk(save_node, &save_hdr);
+	dp->d_ops->node_hdr_to_disk(save_node, &save_hdr);
 	xfs_trans_log_buf(tp, save_blk->bp,
 		XFS_DA_LOGRANGE(save_node, &save_node->hdr,
 				dp->d_ops->node_hdr_size()));
@@ -1556,7 +1513,7 @@ xfs_da3_node_lookup_int(
 		 * Search an intermediate node for a match.
 		 */
 		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 		btree = dp->d_ops->node_tree_p(node);
 
 		max = nodehdr.count;
@@ -1665,8 +1622,8 @@ xfs_da3_node_order(
 
 	node1 = node1_bp->b_addr;
 	node2 = node2_bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&node1hdr, node1);
-	xfs_da3_node_hdr_from_disk(&node2hdr, node2);
+	dp->d_ops->node_hdr_from_disk(&node1hdr, node1);
+	dp->d_ops->node_hdr_from_disk(&node2hdr, node2);
 	btree1 = dp->d_ops->node_tree_p(node1);
 	btree2 = dp->d_ops->node_tree_p(node2);
 
@@ -1888,7 +1845,7 @@ xfs_da3_path_shift(
 	level = (path->active-1) - 1;	/* skip bottom layer in path */
 	for (blk = &path->blk[level]; level >= 0; blk--, level--) {
 		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(&nodehdr, node);
+		dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 		btree = dp->d_ops->node_tree_p(node);
 
 		if (forward && (blk->index < nodehdr.count - 1)) {
@@ -1945,7 +1902,7 @@ xfs_da3_path_shift(
 		case XFS_DA3_NODE_MAGIC:
 			blk->magic = XFS_DA_NODE_MAGIC;
 			node = (xfs_da_intnode_t *)info;
-			xfs_da3_node_hdr_from_disk(&nodehdr, node);
+			dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 			btree = dp->d_ops->node_tree_p(node);
 			blk->hashval = be32_to_cpu(btree[nodehdr.count - 1].hashval);
 			if (forward)
@@ -2233,7 +2190,7 @@ xfs_da3_swap_lastblock(
 		struct xfs_dir2_leaf_entry *ents;
 
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;
-		xfs_dir3_leaf_hdr_from_disk(&leafhdr, dead_leaf2);
+		dp->d_ops->leaf_hdr_from_disk(&leafhdr, dead_leaf2);
 		ents = dp->d_ops->leaf_ents_p(dead_leaf2);
 		dead_level = 0;
 		dead_hash = be32_to_cpu(ents[leafhdr.count - 1].hashval);
@@ -2241,7 +2198,7 @@ xfs_da3_swap_lastblock(
 		struct xfs_da3_icnode_hdr deadhdr;
 
 		dead_node = (xfs_da_intnode_t *)dead_info;
-		xfs_da3_node_hdr_from_disk(&deadhdr, dead_node);
+		dp->d_ops->node_hdr_from_disk(&deadhdr, dead_node);
 		btree = dp->d_ops->node_tree_p(dead_node);
 		dead_level = deadhdr.level;
 		dead_hash = be32_to_cpu(btree[deadhdr.count - 1].hashval);
@@ -2301,7 +2258,7 @@ xfs_da3_swap_lastblock(
 		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
-		xfs_da3_node_hdr_from_disk(&par_hdr, par_node);
+		dp->d_ops->node_hdr_from_disk(&par_hdr, par_node);
 		if (level >= 0 && level != par_hdr.level + 1) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(4)",
 					 XFS_ERRLEVEL_LOW, mp);
@@ -2352,7 +2309,7 @@ xfs_da3_swap_lastblock(
 		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
-		xfs_da3_node_hdr_from_disk(&par_hdr, par_node);
+		dp->d_ops->node_hdr_from_disk(&par_hdr, par_node);
 		if (par_hdr.level != level) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(7)",
 					 XFS_ERRLEVEL_LOW, mp);

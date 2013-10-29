@@ -464,18 +464,83 @@ xfs_dir3_leaf_hdr_size(void)
 	return sizeof(struct xfs_dir3_leaf_hdr);
 }
 
-static inline int
+static int
 xfs_dir3_max_leaf_ents(struct xfs_mount *mp)
 {
 	return (mp->m_dirblksize - xfs_dir3_leaf_hdr_size()) /
 		(uint)sizeof(struct xfs_dir2_leaf_entry);
 }
 
-static inline struct xfs_dir2_leaf_entry *
+static struct xfs_dir2_leaf_entry *
 xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
 {
 	return ((struct xfs_dir3_leaf *)lp)->__ents;
 }
+
+static void
+xfs_dir2_leaf_hdr_from_disk(
+	struct xfs_dir3_icleaf_hdr	*to,
+	struct xfs_dir2_leaf		*from)
+{
+	to->forw = be32_to_cpu(from->hdr.info.forw);
+	to->back = be32_to_cpu(from->hdr.info.back);
+	to->magic = be16_to_cpu(from->hdr.info.magic);
+	to->count = be16_to_cpu(from->hdr.count);
+	to->stale = be16_to_cpu(from->hdr.stale);
+
+	ASSERT(to->magic == XFS_DIR2_LEAF1_MAGIC ||
+	       to->magic == XFS_DIR2_LEAFN_MAGIC);
+}
+
+static void
+xfs_dir2_leaf_hdr_to_disk(
+	struct xfs_dir2_leaf		*to,
+	struct xfs_dir3_icleaf_hdr	*from)
+{
+	ASSERT(from->magic == XFS_DIR2_LEAF1_MAGIC ||
+	       from->magic == XFS_DIR2_LEAFN_MAGIC);
+
+	to->hdr.info.forw = cpu_to_be32(from->forw);
+	to->hdr.info.back = cpu_to_be32(from->back);
+	to->hdr.info.magic = cpu_to_be16(from->magic);
+	to->hdr.count = cpu_to_be16(from->count);
+	to->hdr.stale = cpu_to_be16(from->stale);
+}
+
+static void
+xfs_dir3_leaf_hdr_from_disk(
+	struct xfs_dir3_icleaf_hdr	*to,
+	struct xfs_dir2_leaf		*from)
+{
+	struct xfs_dir3_leaf_hdr *hdr3 = (struct xfs_dir3_leaf_hdr *)from;
+
+	to->forw = be32_to_cpu(hdr3->info.hdr.forw);
+	to->back = be32_to_cpu(hdr3->info.hdr.back);
+	to->magic = be16_to_cpu(hdr3->info.hdr.magic);
+	to->count = be16_to_cpu(hdr3->count);
+	to->stale = be16_to_cpu(hdr3->stale);
+
+	ASSERT(to->magic == XFS_DIR3_LEAF1_MAGIC ||
+	       to->magic == XFS_DIR3_LEAFN_MAGIC);
+}
+
+static void
+xfs_dir3_leaf_hdr_to_disk(
+	struct xfs_dir2_leaf		*to,
+	struct xfs_dir3_icleaf_hdr	*from)
+{
+	struct xfs_dir3_leaf_hdr *hdr3 = (struct xfs_dir3_leaf_hdr *)to;
+
+	ASSERT(from->magic == XFS_DIR3_LEAF1_MAGIC ||
+	       from->magic == XFS_DIR3_LEAFN_MAGIC);
+
+	hdr3->info.hdr.forw = cpu_to_be32(from->forw);
+	hdr3->info.hdr.back = cpu_to_be32(from->back);
+	hdr3->info.hdr.magic = cpu_to_be16(from->magic);
+	hdr3->count = cpu_to_be16(from->count);
+	hdr3->stale = cpu_to_be16(from->stale);
+}
+
 
 /*
  * Directory/Attribute Node block operations
@@ -502,6 +567,121 @@ static inline struct xfs_da_node_entry *
 xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
 {
 	return ((struct xfs_da3_intnode *)dap)->__btree;
+}
+
+static void
+xfs_da2_node_hdr_from_disk(
+	struct xfs_da3_icnode_hdr	*to,
+	struct xfs_da_intnode		*from)
+{
+	ASSERT(from->hdr.info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC));
+	to->forw = be32_to_cpu(from->hdr.info.forw);
+	to->back = be32_to_cpu(from->hdr.info.back);
+	to->magic = be16_to_cpu(from->hdr.info.magic);
+	to->count = be16_to_cpu(from->hdr.__count);
+	to->level = be16_to_cpu(from->hdr.__level);
+}
+
+static void
+xfs_da2_node_hdr_to_disk(
+	struct xfs_da_intnode		*to,
+	struct xfs_da3_icnode_hdr	*from)
+{
+	ASSERT(from->magic == XFS_DA_NODE_MAGIC);
+	to->hdr.info.forw = cpu_to_be32(from->forw);
+	to->hdr.info.back = cpu_to_be32(from->back);
+	to->hdr.info.magic = cpu_to_be16(from->magic);
+	to->hdr.__count = cpu_to_be16(from->count);
+	to->hdr.__level = cpu_to_be16(from->level);
+}
+
+static void
+xfs_da3_node_hdr_from_disk(
+	struct xfs_da3_icnode_hdr	*to,
+	struct xfs_da_intnode		*from)
+{
+	struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)from;
+
+	ASSERT(from->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC));
+	to->forw = be32_to_cpu(hdr3->info.hdr.forw);
+	to->back = be32_to_cpu(hdr3->info.hdr.back);
+	to->magic = be16_to_cpu(hdr3->info.hdr.magic);
+	to->count = be16_to_cpu(hdr3->__count);
+	to->level = be16_to_cpu(hdr3->__level);
+}
+
+static void
+xfs_da3_node_hdr_to_disk(
+	struct xfs_da_intnode		*to,
+	struct xfs_da3_icnode_hdr	*from)
+{
+	struct xfs_da3_node_hdr *hdr3 = (struct xfs_da3_node_hdr *)to;
+
+	ASSERT(from->magic == XFS_DA3_NODE_MAGIC);
+	hdr3->info.hdr.forw = cpu_to_be32(from->forw);
+	hdr3->info.hdr.back = cpu_to_be32(from->back);
+	hdr3->info.hdr.magic = cpu_to_be16(from->magic);
+	hdr3->__count = cpu_to_be16(from->count);
+	hdr3->__level = cpu_to_be16(from->level);
+}
+
+
+/*
+ * Directory free space block operations
+ */
+static void
+xfs_dir2_free_hdr_from_disk(
+	struct xfs_dir3_icfree_hdr	*to,
+	struct xfs_dir2_free		*from)
+{
+	to->magic = be32_to_cpu(from->hdr.magic);
+	to->firstdb = be32_to_cpu(from->hdr.firstdb);
+	to->nvalid = be32_to_cpu(from->hdr.nvalid);
+	to->nused = be32_to_cpu(from->hdr.nused);
+	ASSERT(to->magic == XFS_DIR2_FREE_MAGIC);
+}
+
+static void
+xfs_dir2_free_hdr_to_disk(
+	struct xfs_dir2_free		*to,
+	struct xfs_dir3_icfree_hdr	*from)
+{
+	ASSERT(from->magic == XFS_DIR2_FREE_MAGIC);
+
+	to->hdr.magic = cpu_to_be32(from->magic);
+	to->hdr.firstdb = cpu_to_be32(from->firstdb);
+	to->hdr.nvalid = cpu_to_be32(from->nvalid);
+	to->hdr.nused = cpu_to_be32(from->nused);
+}
+
+static void
+xfs_dir3_free_hdr_from_disk(
+	struct xfs_dir3_icfree_hdr	*to,
+	struct xfs_dir2_free		*from)
+{
+	struct xfs_dir3_free_hdr *hdr3 = (struct xfs_dir3_free_hdr *)from;
+
+	to->magic = be32_to_cpu(hdr3->hdr.magic);
+	to->firstdb = be32_to_cpu(hdr3->firstdb);
+	to->nvalid = be32_to_cpu(hdr3->nvalid);
+	to->nused = be32_to_cpu(hdr3->nused);
+
+	ASSERT(to->magic == XFS_DIR3_FREE_MAGIC);
+}
+
+static void
+xfs_dir3_free_hdr_to_disk(
+	struct xfs_dir2_free		*to,
+	struct xfs_dir3_icfree_hdr	*from)
+{
+	struct xfs_dir3_free_hdr *hdr3 = (struct xfs_dir3_free_hdr *)to;
+
+	ASSERT(from->magic == XFS_DIR3_FREE_MAGIC);
+
+	hdr3->hdr.magic = cpu_to_be32(from->magic);
+	hdr3->firstdb = cpu_to_be32(from->firstdb);
+	hdr3->nvalid = cpu_to_be32(from->nvalid);
+	hdr3->nused = cpu_to_be32(from->nused);
 }
 
 const struct xfs_dir_ops xfs_dir2_ops = {
@@ -532,11 +712,18 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_unused_p = xfs_dir2_data_unused_p,
 
 	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
+	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
+	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
 	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
+	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
+
+	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
+	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
 };
 
 const struct xfs_dir_ops xfs_dir2_ftype_ops = {
@@ -567,11 +754,18 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_unused_p = xfs_dir2_data_unused_p,
 
 	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
+	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
+	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
 	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
+	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
+
+	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
+	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
 };
 
 const struct xfs_dir_ops xfs_dir3_ops = {
@@ -602,20 +796,31 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_unused_p = xfs_dir3_data_unused_p,
 
 	.leaf_hdr_size = xfs_dir3_leaf_hdr_size,
+	.leaf_hdr_to_disk = xfs_dir3_leaf_hdr_to_disk,
+	.leaf_hdr_from_disk = xfs_dir3_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 
 	.node_hdr_size = xfs_da3_node_hdr_size,
+	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
+	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
+
+	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,
+	.free_hdr_from_disk = xfs_dir3_free_hdr_from_disk,
 };
 
 const struct xfs_dir_ops xfs_dir2_nondir_ops = {
 	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
+	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 };
 
 const struct xfs_dir_ops xfs_dir3_nondir_ops = {
 	.node_hdr_size = xfs_da3_node_hdr_size,
+	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
+	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 };
 

@@ -311,7 +311,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				return XFS_ERROR(EFSCORRUPTED);
 			}
 
-			xfs_da3_node_hdr_from_disk(&nodehdr, node);
+			dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 			btree = dp->d_ops->node_tree_p(node);
 			for (i = 0; i < nodehdr.count; btree++, i++) {
 				if (cursor->hashval

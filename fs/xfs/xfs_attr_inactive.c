@@ -231,7 +231,7 @@ xfs_attr3_node_inactive(
 	}
 
 	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(&ichdr, node);
+	dp->d_ops->node_hdr_from_disk(&ichdr, node);
 	parent_blkno = bp->b_bn;
 	if (!ichdr.count) {
 		xfs_trans_brelse(*trans, bp);

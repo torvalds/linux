@@ -122,16 +122,6 @@ struct xfs_da3_icnode_hdr {
 	__uint16_t	level;
 };
 
-extern void xfs_da3_node_hdr_from_disk(struct xfs_da3_icnode_hdr *to,
-				       struct xfs_da_intnode *from);
-extern void xfs_da3_node_hdr_to_disk(struct xfs_da_intnode *to,
-				     struct xfs_da3_icnode_hdr *from);
-
-extern void xfs_da3_intnode_from_disk(struct xfs_da3_icnode_hdr *to,
-				      struct xfs_da_intnode *from);
-extern void xfs_da3_intnode_to_disk(struct xfs_da_intnode *to,
-				    struct xfs_da3_icnode_hdr *from);
-
 #define	XFS_LBSIZE(mp)	(mp)->m_sb.sb_blocksize
 
 /*
@@ -523,9 +513,6 @@ struct xfs_dir3_leaf {
 
 #define XFS_DIR3_LEAF_CRC_OFF  offsetof(struct xfs_dir3_leaf_hdr, info.crc)
 
-extern void xfs_dir3_leaf_hdr_from_disk(struct xfs_dir3_icleaf_hdr *to,
-					struct xfs_dir2_leaf *from);
-
 /*
  * Get address of the bestcount field in the single-leaf block.
  */
@@ -716,9 +703,6 @@ struct xfs_dir3_icfree_hdr {
 	__uint32_t	nused;
 
 };
-
-void xfs_dir3_free_hdr_from_disk(struct xfs_dir3_icfree_hdr *to,
-				 struct xfs_dir2_free *from);
 
 static inline int
 xfs_dir3_free_hdr_size(struct xfs_mount *mp)
