@@ -778,6 +778,11 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
 
+	/* Don't poll the roothubs on bus suspend. */
+	xhci_dbg(xhci, "%s: stopping port polling.\n", __func__);
+	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	del_timer_sync(&hcd->rh_timer);
+
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
@@ -943,7 +948,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		usb_hcd_resume_root_hub(xhci->shared_hcd);
 	}
 	return retval;
-}
 #endif	/* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/

@@ -689,7 +689,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 		ret = connector_status_disconnected;
 
 	if (radeon_connector->ddc_bus)
-		dret = radeon_ddc_probe(radeon_connector);
+		dret = radeon_ddc_probe(radeon_connector, false);
 	if (dret) {
 		radeon_connector->detected_by_load = false;
 		if (radeon_connector->edid) {
@@ -895,7 +895,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 		return connector->status;
 
 	if (radeon_connector->ddc_bus)
-		dret = radeon_ddc_probe(radeon_connector);
+		dret = radeon_ddc_probe(radeon_connector, false);
 	if (dret) {
 		radeon_connector->detected_by_load = false;
 		if (radeon_connector->edid) {
@@ -1335,7 +1335,8 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 		if (encoder) {
 			/* setup ddc on the bridge */
 			radeon_atom_ext_encoder_setup_ddc(encoder);
-			if (radeon_ddc_probe(radeon_connector)) /* try DDC */
+			/* bridge chips are always aux */
+			if (radeon_ddc_probe(radeon_connector, true)) /* try DDC */
 				ret = connector_status_connected;
 			else if (radeon_connector->dac_load_detect) { /* try load detection */
 				struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -1353,7 +1354,8 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 				if (radeon_dp_getdpcd(radeon_connector))
 					ret = connector_status_connected;
 			} else {
-				if (radeon_ddc_probe(radeon_connector))
+				/* try non-aux ddc (DP to DVI/HMDI/etc. adapter) */
+				if (radeon_ddc_probe(radeon_connector, false))
 					ret = connector_status_connected;
 			}
 		}

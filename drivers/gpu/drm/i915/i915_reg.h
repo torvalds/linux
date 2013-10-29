@@ -197,6 +197,14 @@
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+/* IVB has funny definitions for which plane to flip. */
+#define   MI_DISPLAY_FLIP_IVB_PLANE_A  (0 << 19)
+#define   MI_DISPLAY_FLIP_IVB_PLANE_B  (1 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_A (2 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
+#define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
+#define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
+
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -436,6 +444,9 @@
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 12)
+
+#define GEN6_GT_MODE	0x20d0
+#define   GEN6_GT_MODE_HI	(1 << 9)
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c
@@ -1483,14 +1494,20 @@
 #define   DPC_HOTPLUG_INT_STATUS		(1 << 28)
 #define   HDMID_HOTPLUG_INT_STATUS		(1 << 27)
 #define   DPD_HOTPLUG_INT_STATUS		(1 << 27)
+/* CRT/TV common between gen3+ */
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
 #define   CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
 #define   CRT_HOTPLUG_MONITOR_COLOR		(3 << 8)
 #define   CRT_HOTPLUG_MONITOR_MONO		(2 << 8)
 #define   CRT_HOTPLUG_MONITOR_NONE		(0 << 8)
-#define   SDVOC_HOTPLUG_INT_STATUS		(1 << 7)
-#define   SDVOB_HOTPLUG_INT_STATUS		(1 << 6)
+/* SDVO is different across gen3/4 */
+#define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
+#define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)
+#define   SDVOC_HOTPLUG_INT_STATUS_I965		(3 << 4)
+#define   SDVOB_HOTPLUG_INT_STATUS_I965		(3 << 2)
+#define   SDVOC_HOTPLUG_INT_STATUS_I915		(1 << 7)
+#define   SDVOB_HOTPLUG_INT_STATUS_I915		(1 << 6)
 
 /* SDVO port control */
 #define SDVOB			0x61140
@@ -3015,6 +3032,8 @@
 #define _PFA_CTL_1               0x68080
 #define _PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define  PF_PIPE_SEL_MASK_IVB	(3<<29)
+#define  PF_PIPE_SEL_IVB(pipe)	((pipe)<<29)
 #define  PF_FILTER_MASK		(3<<23)
 #define  PF_FILTER_PROGRAMMED	(0<<23)
 #define  PF_FILTER_MED_3x3	(1<<23)
