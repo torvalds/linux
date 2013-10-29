@@ -136,7 +136,7 @@ xfs_dir2_sf_getdents(
 	 * Put .. entry unless we're starting past it.
 	 */
 	if (ctx->pos <= dotdot_offset) {
-		ino = xfs_dir2_sf_get_parent_ino(sfp);
+		ino = dp->d_ops->sf_get_parent_ino(sfp);
 		ctx->pos = dotdot_offset & 0x7fffffff;
 		if (!dir_emit(ctx, "..", 2, ino, DT_DIR))
 			return 0;
@@ -157,8 +157,8 @@ xfs_dir2_sf_getdents(
 			continue;
 		}
 
-		ino = xfs_dir3_sfe_get_ino(mp, sfp, sfep);
-		filetype = xfs_dir3_sfe_get_ftype(mp, sfp, sfep);
+		ino = dp->d_ops->sf_get_ino(sfp, sfep);
+		filetype = dp->d_ops->sf_get_ftype(sfep);
 		ctx->pos = off & 0x7fffffff;
 		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen, ino,
 			    xfs_dir3_get_dtype(mp, filetype)))

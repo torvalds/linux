@@ -39,6 +39,17 @@ struct xfs_dir_ops {
 	struct xfs_dir2_sf_entry *
 		(*sf_nextentry)(struct xfs_dir2_sf_hdr *hdr,
 				struct xfs_dir2_sf_entry *sfep);
+	__uint8_t (*sf_get_ftype)(struct xfs_dir2_sf_entry *sfep);
+	void	(*sf_put_ftype)(struct xfs_dir2_sf_entry *sfep,
+				__uint8_t ftype);
+	xfs_ino_t (*sf_get_ino)(struct xfs_dir2_sf_hdr *hdr,
+				struct xfs_dir2_sf_entry *sfep);
+	void	(*sf_put_ino)(struct xfs_dir2_sf_hdr *hdr,
+			      struct xfs_dir2_sf_entry *sfep,
+			      xfs_ino_t ino);
+	xfs_ino_t (*sf_get_parent_ino)(struct xfs_dir2_sf_hdr *hdr);
+	void	(*sf_put_parent_ino)(struct xfs_dir2_sf_hdr *hdr,
+				     xfs_ino_t ino);
 };
 
 extern const struct xfs_dir_ops xfs_dir2_ops;
@@ -79,15 +90,6 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 /*
  * Interface routines used by userspace utilities
  */
-extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *sfp);
-extern void xfs_dir2_sf_put_parent_ino(struct xfs_dir2_sf_hdr *sfp,
-		xfs_ino_t ino);
-extern xfs_ino_t xfs_dir3_sfe_get_ino(struct xfs_mount *mp,
-		struct xfs_dir2_sf_hdr *sfp, struct xfs_dir2_sf_entry *sfep);
-extern void xfs_dir3_sfe_put_ino(struct xfs_mount *mp,
-		struct xfs_dir2_sf_hdr *hdr, struct xfs_dir2_sf_entry *sfep,
-		xfs_ino_t ino);
-
 extern int xfs_dir2_isblock(struct xfs_trans *tp, struct xfs_inode *dp, int *r);
 extern int xfs_dir2_isleaf(struct xfs_trans *tp, struct xfs_inode *dp, int *r);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,

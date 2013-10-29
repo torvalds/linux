@@ -330,53 +330,6 @@ xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
 }
 
 /*
- * in dir3 shortform directories, the file type field is stored at a variable
- * offset after the inode number. Because it's only a single byte, endian
- * conversion is not necessary.
- */
-static inline __uint8_t *
-xfs_dir3_sfe_ftypep(
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep)
-{
-	return (__uint8_t *)&sfep->name[sfep->namelen];
-}
-
-static inline __uint8_t
-xfs_dir3_sfe_get_ftype(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep)
-{
-	__uint8_t	*ftp;
-
-	if (!xfs_sb_version_hasftype(&mp->m_sb))
-		return XFS_DIR3_FT_UNKNOWN;
-
-	ftp = xfs_dir3_sfe_ftypep(hdr, sfep);
-	if (*ftp >= XFS_DIR3_FT_MAX)
-		return XFS_DIR3_FT_UNKNOWN;
-	return *ftp;
-}
-
-static inline void
-xfs_dir3_sfe_put_ftype(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep,
-	__uint8_t		ftype)
-{
-	__uint8_t	*ftp;
-
-	ASSERT(ftype < XFS_DIR3_FT_MAX);
-
-	if (!xfs_sb_version_hasftype(&mp->m_sb))
-		return;
-	ftp = xfs_dir3_sfe_ftypep(hdr, sfep);
-	*ftp = ftype;
-}
-
-/*
  * Data block structures.
  *
  * A pure data block looks like the following drawing on disk:
