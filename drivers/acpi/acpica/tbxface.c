@@ -148,6 +148,8 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_tables)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_reallocate_root_table
@@ -181,6 +183,8 @@ acpi_status acpi_reallocate_root_table(void)
 	status = acpi_tb_resize_root_table_list();
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_reallocate_root_table)
 
 /*******************************************************************************
  *
@@ -357,6 +361,7 @@ acpi_get_table_with_size(char *signature,
 
 	return (AE_NOT_FOUND);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_get_table_with_size)
 
 acpi_status
@@ -368,6 +373,7 @@ acpi_get_table(char *signature,
 	return acpi_get_table_with_size(signature,
 		       instance, out_table, &tbl_size);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_get_table)
 
 /*******************************************************************************
@@ -424,7 +430,6 @@ acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
-
 
 /*******************************************************************************
  *

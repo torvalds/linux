@@ -105,7 +105,7 @@ acpi_status acpi_terminate(void)
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_terminate)
+ACPI_EXPORT_SYMBOL_INIT(acpi_terminate)
 
 #ifndef ACPI_ASL_COMPILER
 #ifdef ACPI_FUTURE_USAGE

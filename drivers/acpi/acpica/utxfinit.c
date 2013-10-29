@@ -125,7 +125,8 @@ acpi_status acpi_initialize_subsystem(void)
 	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
 	return_ACPI_STATUS(status);
 }
-ACPI_EXPORT_SYMBOL(acpi_initialize_subsystem)
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_subsystem)
 
 /*******************************************************************************
  *
@@ -229,7 +230,8 @@ acpi_status acpi_enable_subsystem(u32 flags)
 
 	return_ACPI_STATUS(status);
 }
-ACPI_EXPORT_SYMBOL(acpi_enable_subsystem)
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_enable_subsystem)
 
 /*******************************************************************************
  *
@@ -315,4 +317,5 @@ acpi_status acpi_initialize_objects(u32 flags)
 	acpi_gbl_startup_flags |= ACPI_INITIALIZED_OK;
 	return_ACPI_STATUS(status);
 }
-ACPI_EXPORT_SYMBOL(acpi_initialize_objects)
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_objects)
