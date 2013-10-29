@@ -521,7 +521,7 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 //-----------------------------------------------------------------------
 int dsp_reload(struct ft1000_usb *ft1000dev)
 {
-	u16 status;
+	int status;
 	u16 tempword;
 	u32 templong;
 

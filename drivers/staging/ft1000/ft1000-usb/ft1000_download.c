@@ -383,7 +383,7 @@ static int check_buffers(u16 *buff_w, u16 *buff_r, int len, int offset)
 
 	for (i = 0; i < len; i++) {
 		if (buff_w[i] != buff_r[i + offset])
-			return -1;
+			return -EREMOTEIO;
 	}
 
 	return 0;
@@ -399,7 +399,7 @@ static int write_dpram32_and_check(struct ft1000_usb *ft1000dev,
 	for (i = 0; i < 10; i++) {
 		status = ft1000_write_dpram32(ft1000dev, dpram,
 				(u8 *)&tempbuffer[0], 64);
-		if (status == STATUS_SUCCESS) {
+		if (status == 0) {
 			/* Work around for ASIC bit stuffing problem. */
 			if ((tempbuffer[31] & 0xfe00) == 0xfe00) {
 				status = ft1000_write_dpram32(ft1000dev,
@@ -414,7 +414,6 @@ static int write_dpram32_and_check(struct ft1000_usb *ft1000dev,
 							0)) {
 					DEBUG("FT1000:download:DPRAM write failed 1 during bootloading\n");
 					usleep_range(9000, 11000);
-					status = STATUS_FAILURE;
 					break;
 				}
 				status = ft1000_read_dpram32(ft1000dev,
@@ -425,7 +424,6 @@ static int write_dpram32_and_check(struct ft1000_usb *ft1000dev,
 							24)) {
 					DEBUG("FT1000:download:DPRAM write failed 2 during bootloading\n");
 					usleep_range(9000, 11000);
-					status = STATUS_FAILURE;
 					break;
 				}
 			} else {
@@ -433,11 +431,10 @@ static int write_dpram32_and_check(struct ft1000_usb *ft1000dev,
 							0)) {
 					DEBUG("FT1000:download:DPRAM write failed 3 during bootloading\n");
 					usleep_range(9000, 11000);
-					status = STATUS_FAILURE;
 					break;
 				}
 			}
-			if (status == STATUS_SUCCESS)
+			if (status == 0)
 				break;
 		}
 	}
