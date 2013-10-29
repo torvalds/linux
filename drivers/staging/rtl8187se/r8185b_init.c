@@ -493,7 +493,7 @@ static void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
 	  *	set BIT15=0
 	  *	(3)RF signal on/off when calibration[13], default: on,
 	  *	set BIT13=0.
-	  *	So we should minus 4 BITs offset. 
+	  *	So we should minus 4 BITs offset.
 	  */
 		RF_WriteReg(dev, 0x0f, (priv->XtalCal_Xin<<5) |
 			    (priv->XtalCal_Xout<<1) | BIT11 | BIT9); mdelay(1);
@@ -952,7 +952,7 @@ static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 		}
 	}
 
-	/* 
+	/*
 	 * 2. Swtich band: RF or BB specific actions,
 	 * for example, refresh tables in omc8255, or change initial gain if
 	 * necessary. Nothing to do for Zebra to switch band. Update current
@@ -1000,7 +1000,7 @@ static void MgntDisconnectIBSS(struct net_device *dev)
 	 *	then HW Radio ON, MgntQueue Stuck. Because Bcn DMA isn't
 	 *	complete, mgnt queue would stuck until Bcn packet send.
 	 *
-	 *	Disable Beacon Queue Own bit, suggested by jong	
+	 *	Disable Beacon Queue Own bit, suggested by jong
 	 */
 	ieee80211_stop_send_beacons(priv->ieee80211);
 
