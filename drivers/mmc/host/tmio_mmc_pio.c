@@ -149,7 +149,8 @@ static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 }
 
-static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
+static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
+				unsigned int new_clock)
 {
 	u32 clk = 0, clock;
 
@@ -767,9 +768,9 @@ fail:
 	pm_runtime_put_autosuspend(mmc_dev(mmc));
 }
 
-static int tmio_mmc_clk_update(struct mmc_host *mmc)
+static int tmio_mmc_clk_update(struct tmio_mmc_host *host)
 {
-	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct mmc_host *mmc = host->mmc;
 	struct tmio_mmc_data *pdata = host->pdata;
 	int ret;
 
@@ -911,6 +912,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			ios->clock, ios->power_mode);
 	host->mrq = NULL;
 
+	host->clk_cache = ios->clock;
+
 	mutex_unlock(&host->ios_lock);
 
 	pm_runtime_mark_last_busy(mmc_dev(mmc));
@@ -1036,7 +1039,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 				  mmc->caps & MMC_CAP_NONREMOVABLE ||
 				  mmc->slot.cd_irq >= 0);
 
-	if (tmio_mmc_clk_update(mmc) < 0) {
+	if (tmio_mmc_clk_update(_host) < 0) {
 		mmc->f_max = pdata->hclk;
 		mmc->f_min = mmc->f_max / 512;
 	}
@@ -1162,6 +1165,15 @@ EXPORT_SYMBOL(tmio_mmc_host_resume);
 #ifdef CONFIG_PM_RUNTIME
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (host->clk_cache)
+		tmio_mmc_clk_stop(host);
+
+	if (host->pdata->clk_disable)
+		host->pdata->clk_disable(host->pdev);
+
 	return 0;
 }
 EXPORT_SYMBOL(tmio_mmc_host_runtime_suspend);
@@ -1170,6 +1182,14 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	tmio_mmc_reset(host);
+	tmio_mmc_clk_update(host);
+
+	if (host->clk_cache) {
+		tmio_mmc_set_clock(host, host->clk_cache);
+		tmio_mmc_clk_start(host);
+	}
 
 	tmio_mmc_enable_dma(host, true);
 

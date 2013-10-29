@@ -73,9 +73,10 @@ struct tmio_mmc_host {
 	struct delayed_work	delayed_reset_work;
 	struct work_struct	done;
 
-	/* Cache IRQ mask */
+	/* Cache */
 	u32			sdcard_irq_mask;
 	u32			sdio_irq_mask;
+	unsigned int		clk_cache;
 
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
