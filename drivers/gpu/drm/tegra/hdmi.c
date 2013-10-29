@@ -40,6 +40,7 @@ struct tegra_hdmi {
 	struct host1x_client client;
 	struct tegra_output output;
 	struct device *dev;
+	bool enabled;
 
 	struct regulator *vdd;
 	struct regulator *pll;
@@ -699,6 +700,9 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	int retries = 1000;
 	int err;
 
+	if (hdmi->enabled)
+		return 0;
+
 	hdmi->dvi = !tegra_output_is_hdmi(output);
 
 	pclk = mode->clock * 1000;
@@ -906,6 +910,8 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 
 	/* TODO: add HDCP support */
 
+	hdmi->enabled = true;
+
 	return 0;
 }
 
@@ -913,9 +919,14 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 {
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 
+	if (!hdmi->enabled)
+		return 0;
+
 	reset_control_assert(hdmi->rst);
 	clk_disable(hdmi->clk);
 	regulator_disable(hdmi->pll);
+
+	hdmi->enabled = false;
 
 	return 0;
 }
