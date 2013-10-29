@@ -837,7 +837,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	UINT nCurClassifierCnt;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
-	pstAddIndication = (struct bcm_add_indication_alt *)pvBuffer;
+	pstAddIndication = pvBuffer;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "======>");
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Type: 0x%X", pstAddIndication->u8Type);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Direction: 0x%X", pstAddIndication->u8Direction);
@@ -1339,14 +1339,14 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	UINT uiSearchRuleIndex;
 	ULONG ulSFID;
 
-	pstAddIndicationAlt = (struct bcm_add_indication_alt *)(pvBuffer);
+	pstAddIndicationAlt = pvBuffer;
 
 	/*
 	 * In case of DSD Req By MS, we should immediately delete this SF so that
 	 * we can stop the further classifying the pkt for this SF.
 	 */
 	if (pstAddIndicationAlt->u8Type == DSD_REQ) {
-		pstDeletionRequest = (struct bcm_del_request *)pvBuffer;
+		pstDeletionRequest = pvBuffer;
 
 		ulSFID = ntohl(pstDeletionRequest->u32SFID);
 		uiSearchRuleIndex = SearchSfid(Adapter, ulSFID);
@@ -1452,12 +1452,12 @@ static inline struct bcm_add_indication_alt
 	struct bcm_add_indication *pstAddIndication = NULL;
 	struct bcm_add_indication_alt *pstAddIndicationDest = NULL;
 
-	pstAddIndication = (struct bcm_add_indication *)(pvBuffer);
+	pstAddIndication = pvBuffer;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "=====>");
 	if ((pstAddIndication->u8Type == DSD_REQ) ||
 		(pstAddIndication->u8Type == DSD_RSP) ||
 		(pstAddIndication->u8Type == DSD_ACK))
-		return (struct bcm_add_indication_alt *)pvBuffer;
+		return pvBuffer;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Inside RestoreCmControlResponseMessage ");
 	/*

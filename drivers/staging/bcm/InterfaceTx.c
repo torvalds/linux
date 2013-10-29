@@ -184,7 +184,7 @@ int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 {
 	struct bcm_usb_tcb *pTcb= NULL;
 
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
+	struct bcm_interface_adapter *psIntfAdapter = arg;
 	pTcb= GetBulkOutTcb(psIntfAdapter);
 	if(pTcb == NULL)
 	{

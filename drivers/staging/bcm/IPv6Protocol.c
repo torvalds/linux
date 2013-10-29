@@ -192,7 +192,7 @@ USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG,
 			DBG_LVL_ALL, "IpVersion6 ==========>\n");
 
-	pstIpv6Header = (struct bcm_ipv6_hdr *)pcIpHeader;
+	pstIpv6Header = pcIpHeader;
 
 	DumpIpv6Header(pstIpv6Header);
 
