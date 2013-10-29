@@ -576,7 +576,7 @@ static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,
 }
 
 static u16 request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
-		 u8 **c_file, const u8 *boot_end)
+		 u8 **c_file, const u8 *endpoint, bool boot_case)
 {
 	long word_length;
 	u16 status;
@@ -589,7 +589,7 @@ static u16 request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
 		DEBUG("FT1000:download:Download error: Max length exceeded\n");
 		return STATUS_FAILURE;
 	}
-	if ((word_length * 2 + (long)c_file) > (long)boot_end) {
+	if ((word_length * 2 + (long)c_file) > (long)endpoint) {
 		/* Error, beyond boot code range.*/
 		DEBUG("FT1000:download:Download error: Requested len=%d exceeds BOOT code boundary.\n", (int)word_length);
 		return STATUS_FAILURE;
@@ -597,9 +597,18 @@ static u16 request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
 	if (word_length & 0x1)
 		word_length++;
 	word_length = word_length / 2;
-	status = write_blk(ft1000dev, s_file, c_file, word_length);
-	/*DEBUG("write_blk returned %d\n", status); */
 
+	if (boot_case) {
+		status = write_blk(ft1000dev, s_file, c_file, word_length);
+		/*DEBUG("write_blk returned %d\n", status); */
+	} else {
+		write_blk_fifo(ft1000dev, s_file, c_file, word_length);
+		if (ft1000dev->usbboot == 0)
+			ft1000dev->usbboot++;
+		if (ft1000dev->usbboot == 1)
+			ft1000_write_dpram16(ft1000dev,
+					DWNLD_MAG1_PS_HDR_LOC, 0, 0);
+	}
 	return status;
 }
 
@@ -615,7 +624,6 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 	long word_length;
 	u16 request;
 	u16 temp;
-	u16 tempword;
 
 	struct dsp_file_hdr *file_hdr;
 	struct dsp_image_info *dsp_img_info = NULL;
@@ -703,7 +711,8 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 				case REQUEST_CODE_SEGMENT:
 					status = request_code_segment(ft1000dev,
 							&s_file, &c_file,
-							(const u8 *)boot_end);
+							(const u8 *)boot_end,
+							true);
 				break;
 				default:
 					DEBUG
@@ -805,45 +814,10 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 						break;
 					}
 
-					word_length =
-					    get_request_value(ft1000dev);
-					//DEBUG("FT1000:download:word_length = %d\n", (int)word_length);
-					if (word_length > MAX_LENGTH) {
-						DEBUG
-						    ("FT1000:download:Download error: Max length exceeded\n");
-						status = STATUS_FAILURE;
-						break;
-					}
-					if ((word_length * 2 + c_file) >
-					    code_end) {
-						/*
-						 * Error, beyond boot code range.
-						 */
-						DEBUG
-						    ("FT1000:download:Download error: Requested len=%d exceeds DSP code boundary.\n",
-						     (int)word_length);
-						status = STATUS_FAILURE;
-						break;
-					}
-					/*
-					 * Position ASIC DPRAM auto-increment pointer.
-					 */
-					dpram = (u16) DWNLD_MAG1_PS_HDR_LOC;
-					if (word_length & 0x1)
-						word_length++;
-					word_length = word_length / 2;
-
-					write_blk_fifo(ft1000dev, &s_file,
-						       &c_file, word_length);
-					if (ft1000dev->usbboot == 0)
-						ft1000dev->usbboot++;
-					if (ft1000dev->usbboot == 1) {
-						tempword = 0;
-						ft1000_write_dpram16(ft1000dev,
-								     DWNLD_MAG1_PS_HDR_LOC,
-								     tempword,
-								     0);
-					}
+					status = request_code_segment(ft1000dev,
+							&s_file, &c_file,
+							(const u8 *)code_end,
+							false);
 
 					break;
 
