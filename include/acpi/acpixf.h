@@ -54,6 +54,7 @@
 #include <acpi/acbuffer.h>
 
 extern u8 acpi_gbl_permanent_mmap;
+extern u32 acpi_rsdt_forced;
 
 /*
  * Globals that are publically available
@@ -110,7 +111,6 @@ extern u8 acpi_gbl_disable_ssdt_table_load;
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
-extern u32 acpi_rsdt_forced;
 /*
  * Initialization
  */
@@ -130,9 +130,10 @@ acpi_status acpi_terminate(void);
  * Miscellaneous global interfaces
  */
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable(void))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable(void))
 #ifdef ACPI_FUTURE_USAGE
-acpi_status acpi_subsystem_status(void);
+ acpi_status acpi_subsystem_status(void);
 #endif
 
 #ifdef ACPI_FUTURE_USAGE
@@ -172,7 +173,7 @@ acpi_status acpi_load_tables(void);
  */
 acpi_status acpi_reallocate_root_table(void);
 
-acpi_status acpi_find_root_pointer(acpi_size *rsdp_address);
+acpi_status acpi_find_root_pointer(acpi_size * rsdp_address);
 
 acpi_status acpi_unload_table_id(acpi_owner_id id);
 
@@ -184,6 +185,7 @@ acpi_status
 acpi_get_table_with_size(acpi_string signature,
 	       u32 instance, struct acpi_table_header **out_table,
 	       acpi_size *tbl_size);
+
 acpi_status
 acpi_get_table(acpi_string signature,
 	       u32 instance, struct acpi_table_header **out_table);
@@ -274,13 +276,16 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_install_sci_handler(acpi_sci_handler
 							 address,
 							 void *context))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_remove_sci_handler(acpi_sci_handler
 							 address))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_install_global_event_handler
 				 (acpi_gbl_event_handler handler,
 				  void *context))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_install_fixed_event_handler(u32
 								  acpi_event,
@@ -288,10 +293,12 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 								  handler,
 								  void
 								  *context))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_remove_fixed_event_handler(u32 acpi_event,
 								 acpi_event_handler
 								 handler))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_install_gpe_handler(acpi_handle
 							  gpe_device,
@@ -300,6 +307,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 							  acpi_gpe_handler
 							  address,
 							  void *context))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_remove_gpe_handler(acpi_handle gpe_device,
 							 u32 gpe_number,
@@ -336,6 +344,7 @@ acpi_status acpi_install_interface_handler(acpi_interface_handler handler);
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_acquire_global_lock(u16 timeout,
 							 u32 *handle))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_release_global_lock(u32 handle))
 
@@ -362,6 +371,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_get_event_status(u32 event,
 						      acpi_event_status
 						      *event_status))
+
 /*
  * General Purpose Event (GPE) Interfaces
  */
@@ -392,10 +402,12 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 							parent_device,
 							acpi_handle gpe_device,
 							u32 gpe_number))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_set_gpe_wake_mask(acpi_handle gpe_device,
 							u32 gpe_number,
 							u8 action))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_get_gpe_status(acpi_handle gpe_device,
 						     u32 gpe_number,
@@ -417,6 +429,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 						       *gpe_block_address,
 						       u32 register_count,
 						       u32 interrupt_number))
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_remove_gpe_block(acpi_handle gpe_device))
 
@@ -491,7 +504,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
  * Sleep/Wake interfaces
  */
 acpi_status
-acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);
+acpi_get_sleep_type_data(u8 sleep_state, u8 *slp_typ_a, u8 *slp_typ_b);
 
 acpi_status acpi_enter_sleep_state_prep(u8 sleep_state);
 
@@ -506,7 +519,6 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state);
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_set_firmware_waking_vector(u32
 								physical_address))
-
 #if ACPI_MACHINE_WIDTH == 64
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_set_firmware_waking_vector64(u64

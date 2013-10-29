@@ -378,6 +378,9 @@ acpi_status acpi_ut_init_globals(void)
 /* Public globals */
 
 ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
+
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
+
 ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+
 ACPI_EXPORT_SYMBOL(acpi_current_gpe_count)
