@@ -378,8 +378,10 @@ static void drm_events_release(struct drm_file *file_priv)
 		}
 
 	/* Remove unconsumed events */
-	list_for_each_entry_safe(e, et, &file_priv->event_list, link)
+	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
+		list_del(&e->link);
 		e->destroy(e);
+	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
