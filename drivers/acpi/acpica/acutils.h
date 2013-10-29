@@ -663,12 +663,6 @@ acpi_status
 acpi_ut_initialize_buffer(struct acpi_buffer *buffer,
 			  acpi_size required_length);
 
-void *acpi_ut_allocate(acpi_size size,
-		       u32 component, const char *module, u32 line);
-
-void *acpi_ut_allocate_zeroed(acpi_size size,
-			      u32 component, const char *module, u32 line);
-
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void *acpi_ut_allocate_and_track(acpi_size size,
 				 u32 component, const char *module, u32 line);

@@ -159,15 +159,6 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 		       acpi_size length, struct acpi_pld_info **return_buffer);
 
 /*
- * ACPI Memory management
- */
-void *acpi_allocate(u32 size);
-
-void *acpi_callocate(u32 size);
-
-void acpi_free(void *address);
-
-/*
  * ACPI table load/unload interfaces
  */
 acpi_status acpi_load_table(struct acpi_table_header *table);
