@@ -296,7 +296,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 		count = ADDRS_PER_BLOCK;
 
 	count -= dn.ofs_in_node;
-	BUG_ON(count < 0);
+	f2fs_bug_on(count < 0);
 
 	if (dn.ofs_in_node || IS_INODE(dn.node_page)) {
 		truncate_data_blocks_range(&dn, count);

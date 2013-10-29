@@ -110,7 +110,7 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 	pgoff_t fofs, start_fofs, end_fofs;
 	block_t start_blkaddr, end_blkaddr;
 
-	BUG_ON(blk_addr == NEW_ADDR);
+	f2fs_bug_on(blk_addr == NEW_ADDR);
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
 
@@ -436,7 +436,7 @@ static int get_data_block_ro(struct inode *inode, sector_t iblock,
 	}
 
 	/* It does not support data allocation */
-	BUG_ON(create);
+	f2fs_bug_on(create);
 
 	if (dn.data_blkaddr != NEW_ADDR && dn.data_blkaddr != NULL_ADDR) {
 		int i;

@@ -20,6 +20,12 @@
 #include <linux/kobject.h>
 #include <linux/sched.h>
 
+#ifdef CONFIG_F2FS_CHECK_FS
+#define f2fs_bug_on(condition)	BUG_ON(condition)
+#else
+#define f2fs_bug_on(condition)
+#endif
+
 /*
  * For mount options
  */
@@ -584,8 +590,8 @@ static inline int dec_valid_block_count(struct f2fs_sb_info *sbi,
 						blkcnt_t count)
 {
 	spin_lock(&sbi->stat_lock);
-	BUG_ON(sbi->total_valid_block_count < (block_t) count);
-	BUG_ON(inode->i_blocks < count);
+	f2fs_bug_on(sbi->total_valid_block_count < (block_t) count);
+	f2fs_bug_on(inode->i_blocks < count);
 	inode->i_blocks -= count;
 	sbi->total_valid_block_count -= (block_t)count;
 	spin_unlock(&sbi->stat_lock);
@@ -717,9 +723,9 @@ static inline void dec_valid_node_count(struct f2fs_sb_info *sbi,
 {
 	spin_lock(&sbi->stat_lock);
 
-	BUG_ON(sbi->total_valid_block_count < count);
-	BUG_ON(sbi->total_valid_node_count < count);
-	BUG_ON(inode->i_blocks < count);
+	f2fs_bug_on(sbi->total_valid_block_count < count);
+	f2fs_bug_on(sbi->total_valid_node_count < count);
+	f2fs_bug_on(inode->i_blocks < count);
 
 	inode->i_blocks -= count;
 	sbi->total_valid_node_count -= count;
@@ -740,7 +746,7 @@ static inline unsigned int valid_node_count(struct f2fs_sb_info *sbi)
 static inline void inc_valid_inode_count(struct f2fs_sb_info *sbi)
 {
 	spin_lock(&sbi->stat_lock);
-	BUG_ON(sbi->total_valid_inode_count == sbi->total_node_count);
+	f2fs_bug_on(sbi->total_valid_inode_count == sbi->total_node_count);
 	sbi->total_valid_inode_count++;
 	spin_unlock(&sbi->stat_lock);
 }
@@ -748,7 +754,7 @@ static inline void inc_valid_inode_count(struct f2fs_sb_info *sbi)
 static inline int dec_valid_inode_count(struct f2fs_sb_info *sbi)
 {
 	spin_lock(&sbi->stat_lock);
-	BUG_ON(!sbi->total_valid_inode_count);
+	f2fs_bug_on(!sbi->total_valid_inode_count);
 	sbi->total_valid_inode_count--;
 	spin_unlock(&sbi->stat_lock);
 	return 0;
@@ -769,7 +775,7 @@ static inline void f2fs_put_page(struct page *page, int unlock)
 		return;
 
 	if (unlock) {
-		BUG_ON(!PageLocked(page));
+		f2fs_bug_on(!PageLocked(page));
 		unlock_page(page);
 	}
 	page_cache_release(page);

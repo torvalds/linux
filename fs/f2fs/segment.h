@@ -522,16 +522,13 @@ static inline unsigned short curseg_blkoff(struct f2fs_sb_info *sbi, int type)
 	return curseg->next_blkoff;
 }
 
+#ifdef CONFIG_F2FS_CHECK_FS
 static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	unsigned int end_segno = SM_I(sbi)->segment_count - 1;
 	BUG_ON(segno > end_segno);
 }
 
-/*
- * This function is used for only debugging.
- * NOTE: In future, we have to remove this function.
- */
 static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 {
 	struct f2fs_sm_info *sm_info = SM_I(sbi);
@@ -565,6 +562,11 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 			valid_blocks++;
 	BUG_ON(GET_SIT_VBLOCKS(raw_sit) != valid_blocks);
 }
+#else
+#define check_seg_range(sbi, segno)
+#define verify_block_addr(sbi, blk_addr)
+#define check_block_count(sbi, segno, raw_sit)
+#endif
 
 static inline pgoff_t current_sit_addr(struct f2fs_sb_info *sbi,
 						unsigned int start)

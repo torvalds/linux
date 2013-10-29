@@ -142,8 +142,8 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 			lock_page(page);
-			BUG_ON(page->mapping != mapping);
-			BUG_ON(!PageDirty(page));
+			f2fs_bug_on(page->mapping != mapping);
+			f2fs_bug_on(!PageDirty(page));
 			clear_page_dirty_for_io(page);
 			if (f2fs_write_meta_page(page, &wbc)) {
 				unlock_page(page);
@@ -208,7 +208,7 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 void release_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	mutex_lock(&sbi->orphan_inode_mutex);
-	BUG_ON(sbi->n_orphans == 0);
+	f2fs_bug_on(sbi->n_orphans == 0);
 	sbi->n_orphans--;
 	mutex_unlock(&sbi->orphan_inode_mutex);
 }
@@ -252,7 +252,7 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 		if (orphan->ino == ino) {
 			list_del(&orphan->list);
 			kmem_cache_free(orphan_entry_slab, orphan);
-			BUG_ON(sbi->n_orphans == 0);
+			f2fs_bug_on(sbi->n_orphans == 0);
 			sbi->n_orphans--;
 			break;
 		}
@@ -263,7 +263,7 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 static void recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	struct inode *inode = f2fs_iget(sbi->sb, ino);
-	BUG_ON(IS_ERR(inode));
+	f2fs_bug_on(IS_ERR(inode));
 	clear_nlink(inode);
 
 	/* truncate all the data during iput */

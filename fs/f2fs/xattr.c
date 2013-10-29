@@ -372,7 +372,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 			alloc_nid_failed(sbi, new_nid);
 			return PTR_ERR(xpage);
 		}
-		BUG_ON(new_nid);
+		f2fs_bug_on(new_nid);
 	} else {
 		struct dnode_of_data dn;
 		set_new_dnode(&dn, inode, NULL, NULL, new_nid);

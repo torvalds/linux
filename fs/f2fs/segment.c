@@ -192,7 +192,7 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 	new_vblocks = se->valid_blocks + del;
 	offset = GET_SEGOFF_FROM_SEG0(sbi, blkaddr) & (sbi->blocks_per_seg - 1);
 
-	BUG_ON((new_vblocks >> (sizeof(unsigned short) << 3) ||
+	f2fs_bug_on((new_vblocks >> (sizeof(unsigned short) << 3) ||
 				(new_vblocks > sbi->blocks_per_seg)));
 
 	se->valid_blocks = new_vblocks;
@@ -232,7 +232,7 @@ void invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr)
 	unsigned int segno = GET_SEGNO(sbi, addr);
 	struct sit_info *sit_i = SIT_I(sbi);
 
-	BUG_ON(addr == NULL_ADDR);
+	f2fs_bug_on(addr == NULL_ADDR);
 	if (addr == NEW_ADDR)
 		return;
 
@@ -347,7 +347,7 @@ find_other_zone:
 		if (dir == ALLOC_RIGHT) {
 			secno = find_next_zero_bit(free_i->free_secmap,
 							TOTAL_SECS(sbi), 0);
-			BUG_ON(secno >= TOTAL_SECS(sbi));
+			f2fs_bug_on(secno >= TOTAL_SECS(sbi));
 		} else {
 			go_left = 1;
 			left_start = hint - 1;
@@ -363,7 +363,7 @@ find_other_zone:
 		}
 		left_start = find_next_zero_bit(free_i->free_secmap,
 							TOTAL_SECS(sbi), 0);
-		BUG_ON(left_start >= TOTAL_SECS(sbi));
+		f2fs_bug_on(left_start >= TOTAL_SECS(sbi));
 		break;
 	}
 	secno = left_start;
@@ -402,7 +402,7 @@ skip_left:
 	}
 got_it:
 	/* set it as dirty segment in free segmap */
-	BUG_ON(test_bit(segno, free_i->free_segmap));
+	f2fs_bug_on(test_bit(segno, free_i->free_segmap));
 	__set_inuse(sbi, segno);
 	*newseg = segno;
 	write_unlock(&free_i->segmap_lock);
@@ -773,7 +773,7 @@ static int __get_segment_type(struct page *page, enum page_type p_type)
 		return __get_segment_type_4(page, p_type);
 	}
 	/* NR_CURSEG_TYPE(6) logs by default */
-	BUG_ON(sbi->active_logs != NR_CURSEG_TYPE);
+	f2fs_bug_on(sbi->active_logs != NR_CURSEG_TYPE);
 	return __get_segment_type_6(page, p_type);
 }
 
@@ -850,7 +850,7 @@ void write_data_page(struct inode *inode, struct page *page,
 	struct f2fs_summary sum;
 	struct node_info ni;
 
-	BUG_ON(old_blkaddr == NULL_ADDR);
+	f2fs_bug_on(old_blkaddr == NULL_ADDR);
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
@@ -1240,7 +1240,7 @@ static struct page *get_next_sit_page(struct f2fs_sb_info *sbi,
 	/* get current sit block page without lock */
 	src_page = get_meta_page(sbi, src_off);
 	dst_page = grab_meta_page(sbi, dst_off);
-	BUG_ON(PageDirty(src_page));
+	f2fs_bug_on(PageDirty(src_page));
 
 	src_addr = page_address(src_page);
 	dst_addr = page_address(dst_page);
