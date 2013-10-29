@@ -19,9 +19,9 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
 
 struct device_node;
-struct gpio_desc;
 
 /*
  * This is Linux-specific flags. By default controllers' and Linux' mapping
