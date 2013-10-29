@@ -237,6 +237,13 @@ struct cpufreq_driver {
  */
 #define CPUFREQ_HAVE_GOVERNOR_PER_POLICY (1 << 3)
 
+/*
+ * Driver will do POSTCHANGE notifications from outside of their ->target()
+ * routine and so must set cpufreq_driver->flags with this flag, so that core
+ * can handle them specially.
+ */
+#define CPUFREQ_ASYNC_NOTIFICATION  (1 << 4)
+
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 

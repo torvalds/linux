@@ -1204,6 +1204,7 @@ out:
 }
 
 static struct cpufreq_driver cpufreq_amd64_driver = {
+	.flags		= CPUFREQ_ASYNC_NOTIFICATION,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= powernowk8_target,
 	.bios_limit	= acpi_processor_get_bios_limit,
