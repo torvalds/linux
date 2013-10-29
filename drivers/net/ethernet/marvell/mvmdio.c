@@ -44,6 +44,15 @@
 #define  MVMDIO_ERR_INT_SMI_DONE	   0x00000010
 #define MVMDIO_ERR_INT_MASK		   0x0080
 
+/*
+ * SMI Timeout measurements:
+ * - Kirkwood 88F6281 (Globalscale Dreamplug): 45us to 95us (Interrupt)
+ * - Armada 370       (Globalscale Mirabox):   41us to 43us (Polled)
+ */
+#define MVMDIO_SMI_TIMEOUT		   1000 /* 1000us = 1ms */
+#define MVMDIO_SMI_POLL_INTERVAL_MIN	   45
+#define MVMDIO_SMI_POLL_INTERVAL_MAX	   55
+
 struct orion_mdio_dev {
 	struct mutex lock;
 	void __iomem *regs;
@@ -68,34 +77,33 @@ static int orion_mdio_smi_is_done(struct orion_mdio_dev *dev)
 static int orion_mdio_wait_ready(struct mii_bus *bus)
 {
 	struct orion_mdio_dev *dev = bus->priv;
-	int count;
+	unsigned long timeout = usecs_to_jiffies(MVMDIO_SMI_TIMEOUT);
+	unsigned long end = jiffies + timeout;
+	int timedout = 0;
 
-	if (dev->err_interrupt <= 0) {
-		count = 0;
-		while (1) {
-			if (orion_mdio_smi_is_done(dev))
-				break;
+	while (1) {
+	        if (orion_mdio_smi_is_done(dev))
+			return 0;
+	        else if (timedout)
+			break;
 
-			if (count > 100) {
-				dev_err(bus->parent,
-					"Timeout: SMI busy for too long\n");
-				return -ETIMEDOUT;
-			}
+	        if (dev->err_interrupt <= 0) {
+			usleep_range(MVMDIO_SMI_POLL_INTERVAL_MIN,
+				     MVMDIO_SMI_POLL_INTERVAL_MAX);
 
-			udelay(10);
-			count++;
-		}
-	} else {
-		if (!orion_mdio_smi_is_done(dev)) {
+			if (time_is_before_jiffies(end))
+				++timedout;
+	        } else {
 			wait_event_timeout(dev->smi_busy_wait,
-				orion_mdio_smi_is_done(dev),
-				msecs_to_jiffies(100));
-			if (!orion_mdio_smi_is_done(dev))
-				return -ETIMEDOUT;
-		}
+				           orion_mdio_smi_is_done(dev),
+				           timeout);
+
+			++timedout;
+	        }
 	}
 
-	return 0;
+	dev_err(bus->parent, "Timeout: SMI busy for too long\n");
+	return  -ETIMEDOUT;
 }
 
 static int orion_mdio_read(struct mii_bus *bus, int mii_id,
