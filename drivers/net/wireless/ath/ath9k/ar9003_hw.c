@@ -223,6 +223,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       ar9462_2p1_modes_fast_clock);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9462_2p1_baseband_core_txfir_coeff_japan_2484);
+		INIT_INI_ARRAY(&ah->iniPcieSerdes,
+			       ar9462_2p1_pciephy_clkreq_disable_L1);
+		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
+			       ar9462_2p1_pciephy_clkreq_disable_L1);
 	} else if (AR_SREV_9462_20(ah)) {
 
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE], ar9462_2p0_mac_core);

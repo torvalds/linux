@@ -1771,4 +1771,11 @@ static const u32 ar9462_2p1_baseband_core_txfir_coeff_japan_2484[][2] = {
 	{0x0000a3a0, 0xca9228ee},
 };
 
+static const u32 ar9462_2p1_pciephy_clkreq_disable_L1[][2] = {
+	/* Addr      allmodes  */
+	{0x00018c00, 0x18213ede},
+	{0x00018c04, 0x000801d8},
+	{0x00018c08, 0x0003780c},
+};
+
 #endif /* INITVALS_9462_2P1_H */
