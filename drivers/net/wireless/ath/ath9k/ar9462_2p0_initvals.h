@@ -33,13 +33,6 @@ static const u32 ar9462_modes_fast_clock_2p0[][3] = {
 	{0x0000a254, 0x00000898, 0x00001130},
 };
 
-static const u32 ar9462_pciephy_clkreq_enable_L1_2p0[][2] = {
-	/* Addr      allmodes  */
-	{0x00018c00, 0x18253ede},
-	{0x00018c04, 0x000801d8},
-	{0x00018c08, 0x0003780c},
-};
-
 static const u32 ar9462_2p0_baseband_postamble[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
 	{0x00009810, 0xd00a8005, 0xd00a8005, 0xd00a8011, 0xd00a800d},
@@ -362,13 +355,6 @@ static const u32 ar9462_common_rx_gain_table_2p0[][2] = {
 static const u32 ar9462_pciephy_clkreq_disable_L1_2p0[][2] = {
 	/* Addr      allmodes  */
 	{0x00018c00, 0x18213ede},
-	{0x00018c04, 0x000801d8},
-	{0x00018c08, 0x0003780c},
-};
-
-static const u32 ar9462_pciephy_pll_on_clkreq_disable_L1_2p0[][2] = {
-	/* Addr      allmodes  */
-	{0x00018c00, 0x18212ede},
 	{0x00018c04, 0x000801d8},
 	{0x00018c08, 0x0003780c},
 };
