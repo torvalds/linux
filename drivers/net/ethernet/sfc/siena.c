@@ -25,10 +25,12 @@
 #include "workarounds.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
+#include "selftest.h"
 
 /* Hardware control for SFC9000 family including SFL9021 (aka Siena). */
 
 static void siena_init_wol(struct efx_nic *efx);
+static int siena_reset_hw(struct efx_nic *efx, enum reset_type method);
 
 
 static void siena_push_irq_moderation(struct efx_channel *channel)
@@ -125,6 +127,18 @@ static void siena_remove_port(struct efx_nic *efx)
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
 }
 
+void siena_prepare_flush(struct efx_nic *efx)
+{
+	if (efx->fc_disable++ == 0)
+		efx_mcdi_set_mac(efx);
+}
+
+void siena_finish_flush(struct efx_nic *efx)
+{
+	if (--efx->fc_disable == 0)
+		efx_mcdi_set_mac(efx);
+}
+
 static const struct efx_nic_register_test siena_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
 	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
@@ -154,10 +168,29 @@ static const struct efx_nic_register_test siena_register_tests[] = {
 	  EFX_OWORD32(0xFFFFFFFF, 0xFFFFFFFF, 0x00000007, 0x00000000) },
 };
 
-static int siena_test_registers(struct efx_nic *efx)
+static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 {
-	return efx_nic_test_registers(efx, siena_register_tests,
-				      ARRAY_SIZE(siena_register_tests));
+	enum reset_type reset_method = RESET_TYPE_ALL;
+	int rc, rc2;
+
+	efx_reset_down(efx, reset_method);
+
+	/* Reset the chip immediately so that it is completely
+	 * quiescent regardless of what any VF driver does.
+	 */
+	rc = siena_reset_hw(efx, reset_method);
+	if (rc)
+		goto out;
+
+	tests->registers =
+		efx_nic_test_registers(efx, siena_register_tests,
+				       ARRAY_SIZE(siena_register_tests))
+		? -1 : 1;
+
+	rc = siena_reset_hw(efx, reset_method);
+out:
+	rc2 = efx_reset_up(efx, reset_method, rc == 0);
+	return rc ? rc : rc2;
 }
 
 /**************************************************************************
@@ -637,7 +670,8 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.reset = siena_reset_hw,
 	.probe_port = siena_probe_port,
 	.remove_port = siena_remove_port,
-	.prepare_flush = efx_port_dummy_op_void,
+	.prepare_flush = siena_prepare_flush,
+	.finish_flush = siena_finish_flush,
 	.update_stats = siena_update_nic_stats,
 	.start_stats = siena_start_nic_stats,
 	.stop_stats = siena_stop_nic_stats,
@@ -649,7 +683,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.get_wol = siena_get_wol,
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,
-	.test_registers = siena_test_registers,
+	.test_chip = siena_test_chip,
 	.test_nvram = efx_mcdi_nvram_test_all,
 
 	.revision = EFX_REV_SIENA_A0,
