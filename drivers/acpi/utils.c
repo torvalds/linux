@@ -121,7 +121,7 @@ acpi_extract_package(union acpi_object *package,
 				break;
 			default:
 				printk(KERN_WARNING PREFIX "Invalid package element"
-					      " [%d]: got number, expecing"
+					      " [%d]: got number, expecting"
 					      " [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
@@ -148,7 +148,7 @@ acpi_extract_package(union acpi_object *package,
 			default:
 				printk(KERN_WARNING PREFIX "Invalid package element"
 					      " [%d] got string/buffer,"
-					      " expecing [%c]\n",
+					      " expecting [%c]\n",
 					      i, format_string[i]);
 				return AE_BAD_DATA;
 				break;
