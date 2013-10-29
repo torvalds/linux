@@ -280,6 +280,7 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 
 static struct gpio_chip template_chip = {
 	.label = "bcm-kona-gpio",
+	.owner = THIS_MODULE,
 	.direction_input = bcm_kona_gpio_direction_input,
 	.get = bcm_kona_gpio_get,
 	.direction_output = bcm_kona_gpio_direction_output,
