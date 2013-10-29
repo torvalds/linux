@@ -671,8 +671,9 @@ void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
 		struct tcp_fastopen_metrics *tfom = &tm->tcpm_fastopen;
 
 		write_seqlock_bh(&fastopen_seqlock);
-		tfom->mss = mss;
-		if (cookie->len > 0)
+		if (mss)
+			tfom->mss = mss;
+		if (cookie && cookie->len > 0)
 			tfom->cookie = *cookie;
 		if (syn_lost) {
 			++tfom->syn_loss;
