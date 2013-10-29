@@ -907,7 +907,7 @@ static int uas_find_endpoints(struct usb_host_interface *alt,
 	for (i = 0; i < n_endpoints; i++) {
 		unsigned char *extra = endpoint[i].extra;
 		int len = endpoint[i].extralen;
-		while (len > 1) {
+		while (len >= 3) {
 			if (extra[1] == USB_DT_PIPE_USAGE) {
 				unsigned pipe_id = extra[2];
 				if (pipe_id > 0 && pipe_id < 5)
