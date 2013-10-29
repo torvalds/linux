@@ -102,6 +102,7 @@
 #define AUDIO_SYNC_CLK_SPDIF 0x4b4
 
 #define CLK_SOURCE_SPDIF_OUT 0x108
+#define CLK_SOURCE_PWM 0x110
 #define CLK_SOURCE_D_AUDIO 0x3d0
 #define CLK_SOURCE_DAM0 0x3d8
 #define CLK_SOURCE_DAM1 0x3dc
@@ -827,7 +828,6 @@ static struct tegra_clk tegra30_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_extern1] = { .dt_id = TEGRA30_CLK_EXTERN1, .present = true },
 	[tegra_clk_extern2] = { .dt_id = TEGRA30_CLK_EXTERN2, .present = true },
 	[tegra_clk_extern3] = { .dt_id = TEGRA30_CLK_EXTERN3, .present = true },
-	[tegra_clk_pwm] = { .dt_id = TEGRA30_CLK_PWM, .present = true },
 	[tegra_clk_disp1] = { .dt_id = TEGRA30_CLK_DISP1, .present = true },
 	[tegra_clk_disp2] = { .dt_id = TEGRA30_CLK_DISP2, .present = true },
 	[tegra_clk_apbdma] = { .dt_id = TEGRA30_CLK_APBDMA, .present = true },
@@ -1111,6 +1111,7 @@ static const char *mux_pllpmdacd2_clkm[] = { "pll_p", "pll_m", "pll_d_out0",
 					     "pll_d2_out0", "clk_m" };
 static const char *mux_plld_out0_plld2_out0[] = { "pll_d_out0",
 						  "pll_d2_out0" };
+static const char *pwm_parents[] = { "pll_p", "pll_c", "clk_32k", "clk_m" };
 
 static struct tegra_periph_init_data tegra_periph_clk_list[] = {
 	TEGRA_INIT_DATA_MUX("spdif_out", spdif_out_parents, CLK_SOURCE_SPDIF_OUT, 10, TEGRA_PERIPH_ON_APB, TEGRA30_CLK_SPDIF_OUT),
@@ -1121,6 +1122,7 @@ static struct tegra_periph_init_data tegra_periph_clk_list[] = {
 	TEGRA_INIT_DATA_INT("3d2", mux_pllmcpa, CLK_SOURCE_3D2, 98, TEGRA_PERIPH_MANUAL_RESET, TEGRA30_CLK_GR3D2),
 	TEGRA_INIT_DATA_INT("se", mux_pllpcm_clkm, CLK_SOURCE_SE, 127, 0, TEGRA30_CLK_SE),
 	TEGRA_INIT_DATA_MUX8("hdmi", mux_pllpmdacd2_clkm, CLK_SOURCE_HDMI, 51, 0, TEGRA30_CLK_HDMI),
+	TEGRA_INIT_DATA("pwm", NULL, NULL, pwm_parents, CLK_SOURCE_PWM, 28, 2, 0, 0, 8, 1, 0, 17, TEGRA_PERIPH_ON_APB, TEGRA30_CLK_PWM),
 };
 
 static struct tegra_periph_init_data tegra_periph_nodiv_clk_list[] = {
