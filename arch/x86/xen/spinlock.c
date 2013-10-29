@@ -328,7 +328,6 @@ static noinline void xen_spin_unlock_slow(struct xen_spinlock *xl)
 		if (per_cpu(lock_spinners, cpu) == xl) {
 			ADD_STATS(released_slow_kicked, 1);
 			xen_send_IPI_one(cpu, XEN_SPIN_UNLOCK_VECTOR);
-			break;
 		}
 	}
 }

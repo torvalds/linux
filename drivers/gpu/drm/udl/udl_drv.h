@@ -74,6 +74,8 @@ struct udl_framebuffer {
 	struct drm_framebuffer base;
 	struct udl_gem_object *obj;
 	bool active_16; /* active on the 16-bit channel */
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 #define to_udl_fb(x) container_of(x, struct udl_framebuffer, base)

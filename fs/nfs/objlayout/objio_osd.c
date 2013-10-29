@@ -589,6 +589,7 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 	.flags                   = PNFS_LAYOUTRET_ON_SETATTR |
 				   PNFS_LAYOUTRET_ON_ERROR,
 
+	.owner		       	 = THIS_MODULE,
 	.alloc_layout_hdr        = objlayout_alloc_layout_hdr,
 	.free_layout_hdr         = objlayout_free_layout_hdr,
 
