@@ -758,7 +758,7 @@ static void HwConfigureRTL8185(struct net_device *dev)
 		write_nic_byte(dev, OFDM_TXAGC, 128);
 		val8 = val8 & 0xfe;
 	} else {
-		val8 = val8 | 0x01 ;
+		val8 = val8 | 0x01;
 	}
 
 
@@ -985,7 +985,7 @@ static void MgntDisconnectIBSS(struct net_device *dev)
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u8 i;
 
-	for (i = 0; i < 6 ; i++)
+	for (i = 0; i < 6; i++)
 		priv->ieee80211->current_network.bssid[i] = 0x55;
 
 
