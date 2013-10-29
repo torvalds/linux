@@ -715,6 +715,13 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 	}
 
 	node = acpi_ns_validate_handle(obj_handle);
+	if (!node) {
+
+		/* Ignore bad node during namespace walk */
+
+		return (AE_OK);
+	}
+
 	pathname = acpi_ns_get_external_pathname(node);
 
 	path_indent = 1;
