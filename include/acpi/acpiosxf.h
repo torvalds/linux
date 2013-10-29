@@ -78,7 +78,7 @@ struct acpi_signal_fatal_info {
  * OSL Initialization and shutdown primitives
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize
-acpi_status __init acpi_os_initialize(void);
+acpi_status acpi_os_initialize(void);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate
@@ -192,21 +192,17 @@ void acpi_os_free(void *memory);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_map_memory
-void __iomem *acpi_os_map_memory(acpi_physical_address where,
-				acpi_size length);
+void *acpi_os_map_memory(acpi_physical_address where, acpi_size length);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_unmap_memory
-void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
+void acpi_os_unmap_memory(void *logical_address, acpi_size size);
 #endif
-void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
 
-#ifdef ACPI_FUTURE_USAGE
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_physical_address
 acpi_status
 acpi_os_get_physical_address(void *logical_address,
 			     acpi_physical_address * physical_address);
-#endif
 #endif
 
 /*
@@ -251,9 +247,6 @@ acpi_os_remove_interrupt_handler(u32 interrupt_number,
 				 acpi_osd_handler service_routine);
 #endif
 
-void acpi_os_gpe_count(u32 gpe_number);
-void acpi_os_fixed_event_count(u32 fixed_event_number);
-
 /*
  * Threads and Scheduling
  */
@@ -266,9 +259,6 @@ acpi_status
 acpi_os_execute(acpi_execute_type type,
 		acpi_osd_exec_callback function, void *context);
 #endif
-
-acpi_status
-acpi_os_hotplug_execute(acpi_osd_exec_callback function, void *context);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_wait_events_complete
 void acpi_os_wait_events_complete(void);
@@ -357,13 +347,11 @@ void acpi_os_vprintf(const char *format, va_list args);
 void acpi_os_redirect_output(void *destination);
 #endif
 
-#ifdef ACPI_FUTURE_USAGE
 /*
  * Debug input
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read);
-#endif
 #endif
 
 /*
