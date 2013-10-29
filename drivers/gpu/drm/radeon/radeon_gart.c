@@ -995,6 +995,10 @@ retry:
 				radeon_asic_vm_set_page(rdev, ib, last_pde,
 							last_pt, count, incr,
 							R600_PTE_VALID);
+
+				count *= RADEON_VM_PTE_COUNT;
+				radeon_asic_vm_set_page(rdev, ib, last_pt, 0,
+							count, 0, 0);
 			}
 
 			count = 1;
@@ -1009,6 +1013,9 @@ retry:
 		radeon_asic_vm_set_page(rdev, ib, last_pde, last_pt, count,
 					incr, R600_PTE_VALID);
 
+		count *= RADEON_VM_PTE_COUNT;
+		radeon_asic_vm_set_page(rdev, ib, last_pt, 0,
+					count, 0, 0);
 	}
 
 	return 0;
@@ -1169,6 +1176,9 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 
 	/* reserve space for pde addresses */
 	ndw += npdes * 2;
+
+	/* reserve space for clearing new page tables */
+	ndw += npdes * 2 * RADEON_VM_PTE_COUNT;
 
 	/* update too big for an IB */
 	if (ndw > 0xfffff)
