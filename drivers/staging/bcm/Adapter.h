@@ -267,7 +267,7 @@ struct bcm_mini_adapter {
 	bool			fw_download_done;
 
 	char			*txctlpacket[MAX_CNTRL_PKTS];
-	atomic_t		cntrlpktCnt ;
+	atomic_t		cntrlpktCnt;
 	atomic_t		index_app_read_cntrlpkt;
 	atomic_t		index_wr_txcntrlpkt;
 	atomic_t		index_rd_txcntrlpkt;
