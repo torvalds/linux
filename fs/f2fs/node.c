@@ -633,19 +633,19 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		return 0;
 
 	/* get indirect nodes in the path */
-	for (i = 0; i < depth - 1; i++) {
+	for (i = 0; i < idx + 1; i++) {
 		/* refernece count'll be increased */
 		pages[i] = get_node_page(sbi, nid[i]);
 		if (IS_ERR(pages[i])) {
-			depth = i + 1;
 			err = PTR_ERR(pages[i]);
+			idx = i - 1;
 			goto fail;
 		}
 		nid[i + 1] = get_nid(pages[i], offset[i + 1], false);
 	}
 
 	/* free direct nodes linked to a partial indirect node */
-	for (i = offset[depth - 1]; i < NIDS_PER_BLOCK; i++) {
+	for (i = offset[idx + 1]; i < NIDS_PER_BLOCK; i++) {
 		child_nid = get_nid(pages[idx], i, false);
 		if (!child_nid)
 			continue;
@@ -656,7 +656,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		set_nid(pages[idx], i, 0, false);
 	}
 
-	if (offset[depth - 1] == 0) {
+	if (offset[idx + 1] == 0) {
 		dn->node_page = pages[idx];
 		dn->nid = nid[idx];
 		truncate_node(dn);
@@ -664,9 +664,10 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		f2fs_put_page(pages[idx], 1);
 	}
 	offset[idx]++;
-	offset[depth - 1] = 0;
+	offset[idx + 1] = 0;
+	idx--;
 fail:
-	for (i = depth - 3; i >= 0; i--)
+	for (i = idx; i >= 0; i--)
 		f2fs_put_page(pages[i], 1);
 
 	trace_f2fs_truncate_partial_nodes(dn->inode, nid, depth, err);
