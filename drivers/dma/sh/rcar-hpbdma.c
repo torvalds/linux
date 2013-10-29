@@ -287,6 +287,9 @@ static void hpb_dmae_halt(struct shdma_chan *schan)
 
 	ch_reg_write(chan, HPB_DMAE_DCMDR_DQEND, HPB_DMAE_DCMDR);
 	ch_reg_write(chan, HPB_DMAE_DSTPR_DMSTP, HPB_DMAE_DSTPR);
+
+	chan->plane_idx = 0;
+	chan->first_desc = true;
 }
 
 static const struct hpb_dmae_slave_config *
