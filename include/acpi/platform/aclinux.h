@@ -182,6 +182,7 @@ static inline void acpi_os_free(void *a)
 	}							\
 	lock ? AE_OK : AE_NO_MEMORY;				\
 })
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_lock
 
 #ifdef EXPORT_ACPI_INTERFACES
 #include <linux/export.h>
