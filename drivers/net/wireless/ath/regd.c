@@ -302,6 +302,7 @@ static void ath_force_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
 
 static void
 __ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
+				struct ath_regulatory *reg,
 				enum nl80211_reg_initiator initiator,
 				struct ieee80211_channel *ch)
 {
@@ -312,6 +313,10 @@ __ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	switch (initiator) {
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		ath_force_clear_no_ir_chan(wiphy, ch);
+		break;
+	case NL80211_REGDOM_SET_BY_USER:
+		if (ath_reg_dyn_country_user_allow(reg))
+			ath_force_clear_no_ir_chan(wiphy, ch);
 		break;
 	default:
 		if (ch->beacon_found)
@@ -328,6 +333,7 @@ __ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
  */
 static void
 ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
+			      struct ath_regulatory *reg,
 			      enum nl80211_reg_initiator initiator)
 {
 	enum ieee80211_band band;
@@ -341,8 +347,8 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 		sband = wiphy->bands[band];
 		for (i = 0; i < sband->n_channels; i++) {
 			ch = &sband->channels[i];
-			__ath_reg_apply_beaconing_flags(wiphy, initiator, ch);
-
+			__ath_reg_apply_beaconing_flags(wiphy, reg,
+							initiator, ch);
 		}
 	}
 }
@@ -363,7 +369,8 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
  */
 static void
 ath_reg_apply_ir_flags(struct wiphy *wiphy,
-				enum nl80211_reg_initiator initiator)
+		       struct ath_regulatory *reg,
+		       enum nl80211_reg_initiator initiator)
 {
 	struct ieee80211_supported_band *sband;
 
@@ -373,6 +380,12 @@ ath_reg_apply_ir_flags(struct wiphy *wiphy,
 
 	switch(initiator) {
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		ath_force_clear_no_ir_freq(wiphy, 2467);
+		ath_force_clear_no_ir_freq(wiphy, 2472);
+		break;
+	case NL80211_REGDOM_SET_BY_USER:
+		if (!ath_reg_dyn_country_user_allow(reg))
+			break;
 		ath_force_clear_no_ir_freq(wiphy, 2467);
 		ath_force_clear_no_ir_freq(wiphy, 2472);
 		break;
@@ -424,12 +437,15 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 	case 0x66:
 	case 0x67:
 	case 0x6C:
-		ath_reg_apply_beaconing_flags(wiphy, initiator);
+		ath_reg_apply_beaconing_flags(wiphy, reg, initiator);
 		break;
 	case 0x68:
-		ath_reg_apply_beaconing_flags(wiphy, initiator);
-		ath_reg_apply_ir_flags(wiphy, initiator);
+		ath_reg_apply_beaconing_flags(wiphy, reg, initiator);
+		ath_reg_apply_ir_flags(wiphy, reg, initiator);
 		break;
+	default:
+		if (ath_reg_dyn_country_user_allow(reg))
+			ath_reg_apply_beaconing_flags(wiphy, reg, initiator);
 	}
 }
 
