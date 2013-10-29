@@ -755,7 +755,7 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 
 		cmd.bt_secondary_ci =
 			iwl_ci_mask[chan->def.chan->hw_value][ci_bw_idx];
-		cmd.secondary_ch_phy_id = *((u16 *)data.primary->drv_priv);
+		cmd.secondary_ch_phy_id = *((u16 *)data.secondary->drv_priv);
 	}
 
 	rcu_read_unlock();
