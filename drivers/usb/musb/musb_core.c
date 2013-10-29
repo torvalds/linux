@@ -1941,17 +1941,26 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	switch (musb->port_mode) {
 	case MUSB_PORT_MODE_HOST:
 		status = musb_host_setup(musb, plat->power);
+		if (status < 0)
+			goto fail3;
+		status = musb_platform_set_mode(musb, MUSB_HOST);
 		break;
 	case MUSB_PORT_MODE_GADGET:
 		status = musb_gadget_setup(musb);
+		if (status < 0)
+			goto fail3;
+		status = musb_platform_set_mode(musb, MUSB_PERIPHERAL);
 		break;
 	case MUSB_PORT_MODE_DUAL_ROLE:
 		status = musb_host_setup(musb, plat->power);
 		if (status < 0)
 			goto fail3;
 		status = musb_gadget_setup(musb);
-		if (status)
+		if (status) {
 			musb_host_cleanup(musb);
+			goto fail3;
+		}
+		status = musb_platform_set_mode(musb, MUSB_OTG);
 		break;
 	default:
 		dev_err(dev, "unsupported port mode %d\n", musb->port_mode);
