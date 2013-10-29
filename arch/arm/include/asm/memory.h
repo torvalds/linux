@@ -174,7 +174,6 @@
 #define __PV_BITS_31_24	0x81000000
 #define __PV_BITS_7_0	0x81
 
-extern phys_addr_t (*arch_virt_to_idmap) (unsigned long x);
 extern u64 __pv_phys_offset;
 extern u64 __pv_offset;
 extern void fixup_pv_table(const void *, unsigned long);
@@ -289,6 +288,8 @@ static inline void *phys_to_virt(phys_addr_t x)
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
+
+extern phys_addr_t (*arch_virt_to_idmap)(unsigned long x);
 
 /*
  * These are for systems that have a hardware interconnect supported alias of
