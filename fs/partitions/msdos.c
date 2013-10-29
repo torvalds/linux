@@ -440,6 +440,11 @@ int msdos_partition(struct parsed_partitions *state)
 	struct partition *p;
 	struct fat_boot_sector *fb;
 	int slot;
+#ifdef CONFIG_EMMC_RK
+	//if card is emmc, msdos_partition return false
+	if(state->bdev->bd_disk->first_minor == 0)
+		return 0;
+#endif
 
 	data = read_part_sector(state, 0, &sect);
 	if (!data)
