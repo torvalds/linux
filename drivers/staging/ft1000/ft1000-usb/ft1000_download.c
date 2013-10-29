@@ -554,7 +554,7 @@ static int write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,
 		u32 *state)
 {
-	int status = STATUS_SUCCESS;
+	int status = 0;
 
 	DEBUG("FT1000:STATE_START_DWNLD\n");
 	if (ft1000dev->usbboot)
@@ -564,9 +564,11 @@ static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,
 	if (*hshake == HANDSHAKE_DSP_BL_READY) {
 		DEBUG("scram_dnldr: handshake is HANDSHAKE_DSP_BL_READY, call put_handshake(HANDSHAKE_DRIVER_READY)\n");
 		put_handshake(ft1000dev, HANDSHAKE_DRIVER_READY);
+	} else if (*hshake == HANDSHAKE_TIMEOUT_VALUE) {
+		status = -ETIMEDOUT;
 	} else {
 		DEBUG("FT1000:download:Download error: Handshake failed\n");
-		status = STATUS_FAILURE;
+		status = -ENETRESET;
 	}
 	*state = STATE_BOOT_DWNLD;
 	return status;
