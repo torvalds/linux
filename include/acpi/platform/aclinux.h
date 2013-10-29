@@ -74,7 +74,7 @@
 #define acpi_spinlock                       spinlock_t *
 #define acpi_cpu_flags                      unsigned long
 
-#else /* !__KERNEL__ */
+#else				/* !__KERNEL__ */
 
 #include <stdarg.h>
 #include <string.h>
@@ -102,7 +102,7 @@
 #define __cdecl
 #endif
 
-#endif /* __KERNEL__ */
+#endif				/* __KERNEL__ */
 
 /* Linux uses GCC */
 
@@ -183,6 +183,10 @@ static inline void acpi_os_free(void *a)
 	lock ? AE_OK : AE_NO_MEMORY;				\
 })
 
-#endif /* __KERNEL__ */
+#ifdef EXPORT_ACPI_INTERFACES
+#include <linux/export.h>
+#endif
 
-#endif /* __ACLINUX_H__ */
+#endif				/* __KERNEL__ */
+
+#endif				/* __ACLINUX_H__ */
