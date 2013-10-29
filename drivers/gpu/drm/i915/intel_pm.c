@@ -5592,7 +5592,7 @@ static void __intel_power_well_put(struct drm_device *dev,
 				   struct i915_power_well *power_well)
 {
 	WARN_ON(!power_well->count);
-	if (!--power_well->count)
+	if (!--power_well->count && i915_disable_power_well)
 		__intel_set_power_well(dev, false);
 }
 
