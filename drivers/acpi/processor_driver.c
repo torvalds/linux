@@ -171,7 +171,6 @@ static int __acpi_processor_start(struct acpi_device *device)
 
 #ifdef CONFIG_CPU_FREQ
 	acpi_processor_ppc_has_changed(pr, 0);
-	acpi_processor_load_module(pr);
 #endif
 	acpi_processor_get_throttling_info(pr);
 
