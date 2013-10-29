@@ -222,6 +222,22 @@ static bool supported_xcr0_bit(unsigned bit)
 static int __do_cpuid_ent_emulated(struct kvm_cpuid_entry2 *entry,
 				   u32 func, u32 index, int *nent, int maxnent)
 {
+	switch (func) {
+	case 0:
+		entry->eax = 1;		/* only one leaf currently */
+		++*nent;
+		break;
+	case 1:
+		entry->ecx = F(MOVBE);
+		++*nent;
+		break;
+	default:
+		break;
+	}
+
+	entry->function = func;
+	entry->index = index;
+
 	return 0;
 }
 
@@ -593,7 +609,7 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 		return -EINVAL;
 
 	r = -ENOMEM;
-	cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry2) * cpuid->nent);
+	cpuid_entries = vzalloc(sizeof(struct kvm_cpuid_entry2) * cpuid->nent);
 	if (!cpuid_entries)
 		goto out;
 

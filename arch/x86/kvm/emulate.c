@@ -2961,6 +2961,46 @@ static int em_mov(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+#define FFL(x) bit(X86_FEATURE_##x)
+
+static int em_movbe(struct x86_emulate_ctxt *ctxt)
+{
+	u32 ebx, ecx, edx, eax = 1;
+	u16 tmp;
+
+	/*
+	 * Check MOVBE is set in the guest-visible CPUID leaf.
+	 */
+	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx);
+	if (!(ecx & FFL(MOVBE)))
+		return emulate_ud(ctxt);
+
+	switch (ctxt->op_bytes) {
+	case 2:
+		/*
+		 * From MOVBE definition: "...When the operand size is 16 bits,
+		 * the upper word of the destination register remains unchanged
+		 * ..."
+		 *
+		 * Both casting ->valptr and ->val to u16 breaks strict aliasing
+		 * rules so we have to do the operation almost per hand.
+		 */
+		tmp = (u16)ctxt->src.val;
+		ctxt->dst.val &= ~0xffffUL;
+		ctxt->dst.val |= (unsigned long)swab16(tmp);
+		break;
+	case 4:
+		ctxt->dst.val = swab32((u32)ctxt->src.val);
+		break;
+	case 8:
+		ctxt->dst.val = swab64(ctxt->src.val);
+		break;
+	default:
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static int em_cr_write(struct x86_emulate_ctxt *ctxt)
 {
 	if (ctxt->ops->set_cr(ctxt, ctxt->modrm_reg, ctxt->src.val))
@@ -3893,11 +3933,11 @@ static const struct opcode twobyte_table[256] = {
 };
 
 static const struct gprefix three_byte_0f_38_f0 = {
-	N, N, N, N
+	I(DstReg | SrcMem | Mov, em_movbe), N, N, N
 };
 
 static const struct gprefix three_byte_0f_38_f1 = {
-	N, N, N, N
+	I(DstMem | SrcReg | Mov, em_movbe), N, N, N
 };
 
 /*
@@ -3907,8 +3947,13 @@ static const struct gprefix three_byte_0f_38_f1 = {
 static const struct opcode opcode_map_0f_38[256] = {
 	/* 0x00 - 0x7f */
 	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
-	/* 0x80 - 0xff */
-	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N)
+	/* 0x80 - 0xef */
+	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
+	/* 0xf0 - 0xf1 */
+	GP(EmulateOnUD | ModRM | Prefix, &three_byte_0f_38_f0),
+	GP(EmulateOnUD | ModRM | Prefix, &three_byte_0f_38_f1),
+	/* 0xf2 - 0xff */
+	N, N, X4(N), X8(N)
 };
 
 #undef D
