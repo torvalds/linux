@@ -130,11 +130,12 @@ static void tegra_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct tegra_output *output = encoder_to_output(encoder);
 	struct drm_panel *panel = output->panel;
 
-	if (panel && panel->funcs) {
-		if (mode != DRM_MODE_DPMS_ON)
-			drm_panel_disable(panel);
-		else
-			drm_panel_enable(panel);
+	if (mode != DRM_MODE_DPMS_ON) {
+		drm_panel_disable(panel);
+		tegra_output_disable(output);
+	} else {
+		tegra_output_enable(output);
+		drm_panel_enable(panel);
 	}
 }
 
