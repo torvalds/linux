@@ -754,6 +754,9 @@ static void ar9003_hw_init_mode_gain_regs(struct ath_hw *ah)
 static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 					 bool power_off)
 {
+	unsigned int i;
+	struct ar5416IniArray *array;
+
 	/*
 	 * Increase L1 Entry Latency. Some WB222 boards don't have
 	 * this change in eeprom/OTP.
@@ -779,18 +782,13 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	 * Configire PCIE after Ini init. SERDES values now come from ini file
 	 * This enables PCIe low power mode.
 	 */
-	if (ah->config.pcieSerDesWrite) {
-		unsigned int i;
-		struct ar5416IniArray *array;
+	array = power_off ? &ah->iniPcieSerdes :
+		&ah->iniPcieSerdesLowPower;
 
-		array = power_off ? &ah->iniPcieSerdes :
-				    &ah->iniPcieSerdesLowPower;
-
-		for (i = 0; i < array->ia_rows; i++) {
-			REG_WRITE(ah,
-				  INI_RA(array, i, 0),
-				  INI_RA(array, i, 1));
-		}
+	for (i = 0; i < array->ia_rows; i++) {
+		REG_WRITE(ah,
+			  INI_RA(array, i, 0),
+			  INI_RA(array, i, 1));
 	}
 }
 

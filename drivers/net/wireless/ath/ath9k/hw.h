@@ -283,7 +283,6 @@ struct ath9k_ops_config {
 	int additional_swba_backoff;
 	int ack_6mb;
 	u32 cwm_ignore_extcca;
-	bool pcieSerDesWrite;
 	u8 pcie_clock_req;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
