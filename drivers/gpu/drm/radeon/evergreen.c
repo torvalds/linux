@@ -1147,14 +1147,18 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 				if (!(tmp & EVERGREEN_CRTC_BLANK_DATA_EN)) {
 					radeon_wait_for_vblank(rdev, i);
 					tmp |= EVERGREEN_CRTC_BLANK_DATA_EN;
+					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 					WREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
+					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 				}
 			} else {
 				tmp = RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i]);
 				if (!(tmp & EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE)) {
 					radeon_wait_for_vblank(rdev, i);
 					tmp |= EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE;
+					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 					WREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i], tmp);
+					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 				}
 			}
 			/* wait for the next frame */
@@ -1179,6 +1183,8 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 		blackout &= ~BLACKOUT_MODE_MASK;
 		WREG32(MC_SHARED_BLACKOUT_CNTL, blackout | 1);
 	}
+	/* wait for the MC to settle */
+	udelay(100);
 }
 
 void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save)
@@ -1212,11 +1218,15 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 			if (ASIC_IS_DCE6(rdev)) {
 				tmp = RREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i]);
 				tmp |= EVERGREEN_CRTC_BLANK_DATA_EN;
+				WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 				WREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
+				WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 			} else {
 				tmp = RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i]);
 				tmp &= ~EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE;
+				WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 				WREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i], tmp);
+				WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 			}
 			/* wait for the next frame */
 			frame_count = radeon_get_vblank_counter(rdev, i);
