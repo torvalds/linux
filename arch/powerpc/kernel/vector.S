@@ -64,6 +64,9 @@ _GLOBAL(store_vr_state)
  * Enables the VMX for use in the kernel on return.
  * On SMP we know the VMX is free, since we give it up every
  * switch (ie, no lazy save of the vector registers).
+ *
+ * Note that on 32-bit this can only use registers that will be
+ * restored by fast_exception_return, i.e. r3 - r6, r10 and r11.
  */
 _GLOBAL(load_up_altivec)
 	mfmsr	r5			/* grab the current MSR */
@@ -89,11 +92,11 @@ _GLOBAL(load_up_altivec)
 	/* Save VMX state to last_task_used_altivec's THREAD struct */
 	toreal(r4)
 	addi	r4,r4,THREAD
-	addi	r7,r4,THREAD_VRSTATE
-	SAVE_32VRS(0,r5,r7)
+	addi	r6,r4,THREAD_VRSTATE
+	SAVE_32VRS(0,r5,r6)
 	mfvscr	vr0
 	li	r10,VRSTATE_VSCR
-	stvx	vr0,r10,r7
+	stvx	vr0,r10,r6
 	/* Disable VMX for last_task_used_altivec */
 	PPC_LL	r5,PT_REGS(r4)
 	toreal(r5)
@@ -125,13 +128,13 @@ _GLOBAL(load_up_altivec)
 	oris	r12,r12,MSR_VEC@h
 	std	r12,_MSR(r1)
 #endif
-	addi	r7,r5,THREAD_VRSTATE
+	addi	r6,r5,THREAD_VRSTATE
 	li	r4,1
 	li	r10,VRSTATE_VSCR
 	stw	r4,THREAD_USED_VR(r5)
-	lvx	vr0,r10,r7
+	lvx	vr0,r10,r6
 	mtvscr	vr0
-	REST_32VRS(0,r4,r7)
+	REST_32VRS(0,r4,r6)
 #ifndef CONFIG_SMP
 	/* Update last_task_used_altivec to 'current' */
 	subi	r4,r5,THREAD		/* Back to 'current' */

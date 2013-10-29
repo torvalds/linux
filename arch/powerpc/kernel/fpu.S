@@ -106,6 +106,8 @@ _GLOBAL(store_fp_state)
  * and save its floating-point registers in its thread_struct.
  * Load up this task's FP registers from its thread_struct,
  * enable the FPU for the current task and return to the task.
+ * Note that on 32-bit this can only use registers that will be
+ * restored by fast_exception_return, i.e. r3 - r6, r10 and r11.
  */
 _GLOBAL(load_up_fpu)
 	mfmsr	r5
@@ -131,10 +133,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	beq	1f
 	toreal(r4)
 	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
-	addi	r8,r4,THREAD_FPSTATE
-	SAVE_32FPVSRS(0, R5, R8)
+	addi	r10,r4,THREAD_FPSTATE
+	SAVE_32FPVSRS(0, R5, R10)
 	mffs	fr0
-	stfd	fr0,FPSTATE_FPSCR(r8)
+	stfd	fr0,FPSTATE_FPSCR(r10)
 	PPC_LL	r5,PT_REGS(r4)
 	toreal(r5)
 	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
@@ -157,10 +159,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	or	r12,r12,r4
 	std	r12,_MSR(r1)
 #endif
-	addi	r7,r5,THREAD_FPSTATE
-	lfd	fr0,FPSTATE_FPSCR(r7)
+	addi	r10,r5,THREAD_FPSTATE
+	lfd	fr0,FPSTATE_FPSCR(r10)
 	MTFSF_L(fr0)
-	REST_32FPVSRS(0, R4, R7)
+	REST_32FPVSRS(0, R4, R10)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	fromreal(r4)
