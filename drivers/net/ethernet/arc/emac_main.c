@@ -725,10 +725,10 @@ static int arc_emac_probe(struct platform_device *pdev)
 	/* Get MAC address from device tree */
 	mac_addr = of_get_mac_address(pdev->dev.of_node);
 
-	if (!mac_addr || !is_valid_ether_addr(mac_addr))
-		eth_hw_addr_random(ndev);
-	else
+	if (mac_addr)
 		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	else
+		eth_hw_addr_random(ndev);
 
 	dev_info(&pdev->dev, "MAC address is now %pM\n", ndev->dev_addr);
 
