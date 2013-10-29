@@ -1490,7 +1490,7 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 	u32 val, val_iddq;
 
 	parent = __clk_lookup(parent_name);
-	if (IS_ERR(parent)) {
+	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
 			name, parent_name);
 		return ERR_PTR(-EINVAL);
@@ -1591,7 +1591,7 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 		return ERR_PTR(-EINVAL);
 
 	parent = __clk_lookup(parent_name);
-	if (IS_ERR(parent)) {
+	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
 			name, parent_name);
 		return ERR_PTR(-EINVAL);
@@ -1632,7 +1632,7 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 		return ERR_PTR(-EINVAL);
 
 	parent = __clk_lookup(parent_name);
-	if (IS_ERR(parent)) {
+	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
 			name, parent_name);
 		return ERR_PTR(-EINVAL);
@@ -1756,7 +1756,7 @@ struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 		return ERR_PTR(-EINVAL);
 
 	parent = __clk_lookup(parent_name);
-	if (IS_ERR(parent)) {
+	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
 			name, parent_name);
 		return ERR_PTR(-EINVAL);
