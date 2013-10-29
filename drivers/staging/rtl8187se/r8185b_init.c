@@ -487,13 +487,13 @@ static void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
 	/* For crystal calibration, added by Roger, 2007.12.11. */
 	if (priv->bXtalCalibration) { /* reg 30.	*/
 	 /*
- 	  *  enable crystal calibration.
-	  *		RF Reg[30], (1)Xin:[12:9], Xout:[8:5],  addr[4:0].
-	  *		(2)PA Pwr delay timer[15:14], default: 2.4us,
-	  *		set BIT15=0
-	  *		(3)RF signal on/off when calibration[13], default: on,
-	  *		set BIT13=0.
-	  *		So we should minus 4 BITs offset. 
+	  *	enable crystal calibration.
+	  *	RF Reg[30], (1)Xin:[12:9], Xout:[8:5],  addr[4:0].
+	  *	(2)PA Pwr delay timer[15:14], default: 2.4us,
+	  *	set BIT15=0
+	  *	(3)RF signal on/off when calibration[13], default: on,
+	  *	set BIT13=0.
+	  *	So we should minus 4 BITs offset. 
 	  */
 		RF_WriteReg(dev, 0x0f, (priv->XtalCal_Xin<<5) |
 			    (priv->XtalCal_Xout<<1) | BIT11 | BIT9); mdelay(1);
@@ -953,10 +953,10 @@ static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 	}
 
 	/* 
- 	 * 2. Swtich band: RF or BB specific actions,
+	 * 2. Swtich band: RF or BB specific actions,
 	 * for example, refresh tables in omc8255, or change initial gain if
-	 *  necessary. Nothing to do for Zebra to switch band. Update current
-	 *  wireless mode if we switch to specified band successfully.
+	 * necessary. Nothing to do for Zebra to switch band. Update current
+	 * wireless mode if we switch to specified band successfully.
 	 */
 
 	ieee->mode = (WIRELESS_MODE)btWirelessMode;
