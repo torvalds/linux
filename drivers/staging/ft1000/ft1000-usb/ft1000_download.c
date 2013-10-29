@@ -389,6 +389,61 @@ static int check_buffers(u16 *buff_w, u16 *buff_r, int len, int offset)
 	return 0;
 }
 
+static int write_dpram32_and_check(struct ft1000_usb *ft1000dev,
+		u16 tempbuffer[], u16 dpram)
+{
+	int status;
+	u16 resultbuffer[64];
+	int i;
+
+	for (i = 0; i < 10; i++) {
+		status = ft1000_write_dpram32(ft1000dev, dpram,
+				(u8 *)&tempbuffer[0], 64);
+		if (status == STATUS_SUCCESS) {
+			/* Work around for ASIC bit stuffing problem. */
+			if ((tempbuffer[31] & 0xfe00) == 0xfe00) {
+				status = ft1000_write_dpram32(ft1000dev,
+						dpram+12, (u8 *)&tempbuffer[24],
+						64);
+			}
+			/* Let's check the data written */
+			status = ft1000_read_dpram32(ft1000dev, dpram,
+					(u8 *)&resultbuffer[0], 64);
+			if ((tempbuffer[31] & 0xfe00) == 0xfe00) {
+				if (check_buffers(tempbuffer, resultbuffer, 28,
+							0)) {
+					DEBUG("FT1000:download:DPRAM write failed 1 during bootloading\n");
+					usleep_range(9000, 11000);
+					status = STATUS_FAILURE;
+					break;
+				}
+				status = ft1000_read_dpram32(ft1000dev,
+						dpram+12,
+						(u8 *)&resultbuffer[0], 64);
+
+				if (check_buffers(tempbuffer, resultbuffer, 16,
+							24)) {
+					DEBUG("FT1000:download:DPRAM write failed 2 during bootloading\n");
+					usleep_range(9000, 11000);
+					status = STATUS_FAILURE;
+					break;
+				}
+			} else {
+				if (check_buffers(tempbuffer, resultbuffer, 32,
+							0)) {
+					DEBUG("FT1000:download:DPRAM write failed 3 during bootloading\n");
+					usleep_range(9000, 11000);
+					status = STATUS_FAILURE;
+					break;
+				}
+			}
+			if (status == STATUS_SUCCESS)
+				break;
+		}
+	}
+	return status;
+}
+
 /* writes a block of DSP image to DPRAM
  * Parameters:  struct ft1000_usb  - device structure
  *              u16 **pUsFile - DSP image file pointer in u16
@@ -399,10 +454,9 @@ static u32 write_blk (struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile,
 {
    u32 Status = STATUS_SUCCESS;
    u16 dpram;
-   int loopcnt, i, j;
+   int loopcnt, i;
    u16 tempword;
    u16 tempbuffer[64];
-   u16 resultbuffer[64];
 
    //DEBUG("FT1000:download:start word_length = %d\n",(int)word_length);
    dpram = (u16)DWNLD_MAG1_PS_HDR_LOC;
@@ -452,53 +506,8 @@ static u32 write_blk (struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile,
 	      }
 	      else
 	      {
-                 for (j=0; j<10; j++)
-                 {
-                   Status = ft1000_write_dpram32 (ft1000dev, dpram, (u8 *)&tempbuffer[0], 64);
-		   if (Status == STATUS_SUCCESS)
-		   {
-		       // Work around for ASIC bit stuffing problem.
-		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
-		       {
-      		           Status = ft1000_write_dpram32(ft1000dev, dpram+12, (u8 *)&tempbuffer[24], 64);
-		       }
-    		       // Let's check the data written
-	    	       Status = ft1000_read_dpram32 (ft1000dev, dpram, (u8 *)&resultbuffer[0], 64);
-		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
-		       {
-				if (check_buffers(tempbuffer, resultbuffer, 28, 0)) {
-					DEBUG("FT1000:download:DPRAM write failed 1 during bootloading\n");
-					msleep(10);
-					Status = STATUS_FAILURE;
-					break;
-				}
-   			   Status = ft1000_read_dpram32 (ft1000dev, dpram+12, (u8 *)&resultbuffer[0], 64);
-
-				if (check_buffers(tempbuffer, resultbuffer, 16, 24)) {
-					DEBUG("FT1000:download:DPRAM write failed 2 during bootloading\n");
-					msleep(10);
-					Status = STATUS_FAILURE;
-					break;
-				}
-			   
-			}
-			else
-			{
-				if (check_buffers(tempbuffer, resultbuffer, 32, 0)) {
-					DEBUG("FT1000:download:DPRAM write failed 3 during bootloading\n");
-					msleep(10);
-					Status = STATUS_FAILURE;
-					break;
-				}
-			    
-			}
-
-			if (Status == STATUS_SUCCESS)
-			    break;
-
-		    }
-		}
-
+		      Status = write_dpram32_and_check(ft1000dev, tempbuffer,
+				      dpram);
 		if (Status != STATUS_SUCCESS)
 		{
                     DEBUG("FT1000:download:Write failed tempbuffer[31] = 0x%x\n", tempbuffer[31]);
