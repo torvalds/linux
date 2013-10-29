@@ -169,8 +169,9 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 		DBG("rk_hifi_hw_params:failed to set the sysclk for codec side\n");
 		return ret;
 	}
-
+#if defined(CONFIG_RK616_USE_MCLK_12M)
 __setdiv:
+#endif
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out / div)/params_rate(params)-1);
 	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div - 1);
 
