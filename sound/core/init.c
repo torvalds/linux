@@ -597,7 +597,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 	/* last resort... */
 	snd_printk(KERN_ERR "unable to set card id (%s)\n", id);
 	if (card->proc_root->name)
-		strcpy(card->id, card->proc_root->name);
+		strlcpy(card->id, card->proc_root->name, sizeof(card->id));
 }
 
 /**
