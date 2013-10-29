@@ -260,6 +260,10 @@ static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	int idx;
 	bool defunikey, defmultikey, defmgmtkey;
 
+	/* caller must provide at least one old/new */
+	if (WARN_ON(!new && !old))
+		return;
+
 	if (new)
 		list_add_tail(&new->list, &sdata->key_list);
 
