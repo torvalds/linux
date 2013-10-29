@@ -100,29 +100,6 @@ config AUFS_RDU
 	shows better performance in most cases.
 	See detail in aufs.5.
 
-config AUFS_PROC_MAP
-	bool "support for /proc/maps and lsof(1)"
-	depends on PROC_FS
-	help
-	When you issue mmap(2) in aufs, it is actually a direct mmap(2)
-	call to the file on the branch fs since the file in aufs is
-	purely virtual. And the file path printed in /proc/maps (and
-	others) will be the path on the branch fs. In most cases, it
-	does no harm. But some utilities like lsof(1) may confuse since
-	the utility or user may expect the file path in aufs to be
-	printed.
-	To address this issue, aufs provides a patch which introduces a
-	new member called vm_prfile into struct vm_are_struct. The patch
-	is meaningless without enabling this configuration since nobody
-	sets the new vm_prfile member.
-	If you don't apply the patch, then enabling this configuration
-	will cause a compile error.
-	This approach is fragile since if someone else make some changes
-	around vm_file, then vm_prfile may not work anymore. As a
-	workaround such case, aufs provides this configuration. If you
-	disable it, then lsof(1) may produce incorrect result but the
-	problem will be gone even if the aufs patch is applied (I hope).
-
 config AUFS_SP_IATTR
 	bool "Respect the attributes (mtime/ctime mainly) of special files"
 	help
