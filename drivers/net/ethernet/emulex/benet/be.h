@@ -536,6 +536,11 @@ static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
 	adapter->is_virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
 }
 
+static inline bool is_ipv4_pkt(struct sk_buff *skb)
+{
+	return skb->protocol == ntohs(ETH_P_IP) && ip_hdr(skb)->version == 4;
+}
+
 static inline void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 {
 	u32 addr;
