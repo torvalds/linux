@@ -1275,15 +1275,17 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_setup_link_policy(req);
 
 	if (lmp_le_capable(hdev)) {
-		/* If the controller has a public BD_ADDR, then by
-		 * default use that one. If this is a LE only
-		 * controller without one, default to the random
-		 * address.
-		 */
-		if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-			hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
-		else
-			hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
+		if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+			/* If the controller has a public BD_ADDR, then
+			 * by default use that one. If this is a LE only
+			 * controller without a public address, default
+			 * to the random address.
+			 */
+			if (bacmp(&hdev->bdaddr, BDADDR_ANY))
+				hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
+			else
+				hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
+		}
 
 		hci_set_le_support(req);
 	}
