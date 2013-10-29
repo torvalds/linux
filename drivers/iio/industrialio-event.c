@@ -42,6 +42,12 @@ struct iio_event_interface {
 	struct attribute_group	group;
 };
 
+/**
+ * iio_push_event() - try to add event to the list for userspace reading
+ * @indio_dev:		IIO device structure
+ * @ev_code:		What event
+ * @timestamp:		When the event occurred
+ **/
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 {
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
