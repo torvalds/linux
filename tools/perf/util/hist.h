@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include "callchain.h"
 #include "header.h"
+#include "color.h"
 
 extern struct callchain_param callchain_param;
 
@@ -174,6 +175,18 @@ enum {
 void perf_hpp__init(void);
 void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_enable(unsigned col);
+
+static inline size_t perf_hpp__use_color(void)
+{
+	return !symbol_conf.field_sep;
+}
+
+static inline size_t perf_hpp__color_overhead(void)
+{
+	return perf_hpp__use_color() ?
+	       (COLOR_MAXLEN + sizeof(PERF_COLOR_RESET)) * PERF_HPP__MAX_INDEX
+	       : 0;
+}
 
 struct perf_evlist;
 

@@ -96,10 +96,10 @@ int test__task_exit(void)
 
 retry:
 	while ((event = perf_evlist__mmap_read(evlist, 0)) != NULL) {
-		if (event->header.type != PERF_RECORD_EXIT)
-			continue;
+		if (event->header.type == PERF_RECORD_EXIT)
+			nr_exit++;
 
-		nr_exit++;
+		perf_evlist__mmap_consume(evlist, 0);
 	}
 
 	if (!exited || !nr_exit) {
