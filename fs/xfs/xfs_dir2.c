@@ -105,7 +105,7 @@ xfs_dir_mount(
 	mp->m_dirleafblk = xfs_dir2_db_to_da(mp, XFS_DIR2_LEAF_FIRSTDB(mp));
 	mp->m_dirfreeblk = xfs_dir2_db_to_da(mp, XFS_DIR2_FREE_FIRSTDB(mp));
 
-	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size();
+	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size;
 	mp->m_attr_node_ents = (mp->m_sb.sb_blocksize - nodehdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
 	mp->m_dir_node_ents = (mp->m_dirblksize - nodehdr_size) /

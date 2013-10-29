@@ -333,8 +333,7 @@ xfs_da3_node_create(
 
 	dp->d_ops->node_hdr_to_disk(node, &ichdr);
 	xfs_trans_log_buf(tp, bp,
-		XFS_DA_LOGRANGE(node, &node->hdr,
-				dp->d_ops->node_hdr_size()));
+		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	*bpp = bp;
 	return(0);
@@ -838,13 +837,12 @@ xfs_da3_node_rebalance(
 	 */
 	dp->d_ops->node_hdr_to_disk(node1, &nodehdr1);
 	xfs_trans_log_buf(tp, blk1->bp,
-		XFS_DA_LOGRANGE(node1, &node1->hdr,
-				dp->d_ops->node_hdr_size()));
+		XFS_DA_LOGRANGE(node1, &node1->hdr, dp->d_ops->node_hdr_size));
 
 	dp->d_ops->node_hdr_to_disk(node2, &nodehdr2);
 	xfs_trans_log_buf(tp, blk2->bp,
 		XFS_DA_LOGRANGE(node2, &node2->hdr,
-				dp->d_ops->node_hdr_size() +
+				dp->d_ops->node_hdr_size +
 				(sizeof(btree2[0]) * nodehdr2.count)));
 
 	/*
@@ -915,7 +913,7 @@ xfs_da3_node_add(
 	nodehdr.count += 1;
 	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, oldblk->bp,
-		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size()));
+		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	/*
 	 * Copy the last hash value from the oldblk to propagate upwards.
@@ -1350,7 +1348,7 @@ xfs_da3_node_remove(
 	nodehdr.count -= 1;
 	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
-	    XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size()));
+	    XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	/*
 	 * Copy the last hash value from the block to propagate upwards.
@@ -1423,7 +1421,7 @@ xfs_da3_node_unbalance(
 	dp->d_ops->node_hdr_to_disk(save_node, &save_hdr);
 	xfs_trans_log_buf(tp, save_blk->bp,
 		XFS_DA_LOGRANGE(save_node, &save_node->hdr,
-				dp->d_ops->node_hdr_size()));
+				dp->d_ops->node_hdr_size));
 
 	/*
 	 * Save the last hashval in the remaining block for upward propagation.

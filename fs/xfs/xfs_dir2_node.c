@@ -274,7 +274,7 @@ xfs_dir2_free_log_header(
 	ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC) ||
 	       free->hdr.magic == cpu_to_be32(XFS_DIR3_FREE_MAGIC));
 #endif
-	xfs_trans_log_buf(tp, bp, 0, dp->d_ops->free_hdr_size() - 1);
+	xfs_trans_log_buf(tp, bp, 0, dp->d_ops->free_hdr_size - 1);
 }
 
 /*
@@ -1268,7 +1268,7 @@ xfs_dir2_leafn_remove(
 		 * (usually).
 		 */
 		if (longest == mp->m_dirblksize -
-			       dp->d_ops->data_entry_offset()) {
+			       dp->d_ops->data_entry_offset) {
 			/*
 			 * Try to punch out the data block.
 			 */
@@ -1300,7 +1300,7 @@ xfs_dir2_leafn_remove(
 	 * Return indication of whether this leaf block is empty enough
 	 * to justify trying to join it with a neighbor.
 	 */
-	*rval = (dp->d_ops->leaf_hdr_size() +
+	*rval = (dp->d_ops->leaf_hdr_size +
 		 (uint)sizeof(ents[0]) * (leafhdr.count - leafhdr.stale)) <
 		mp->m_dir_magicpct;
 	return 0;
@@ -1409,7 +1409,7 @@ xfs_dir2_leafn_toosmall(
 	xfs_dir3_leaf_check(dp, blk->bp);
 
 	count = leafhdr.count - leafhdr.stale;
-	bytes = dp->d_ops->leaf_hdr_size() + count * sizeof(ents[0]);
+	bytes = dp->d_ops->leaf_hdr_size + count * sizeof(ents[0]);
 	if (bytes > (state->blocksize >> 1)) {
 		/*
 		 * Blk over 50%, don't try to join.

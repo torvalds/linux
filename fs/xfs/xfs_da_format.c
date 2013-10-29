@@ -209,31 +209,41 @@ xfs_dir3_sfe_put_ino(
 /*
  * Directory data block operations
  */
-static int
-__xfs_dir3_data_entsize(
-	bool	ftype,
-	int	n)
-{
-	int	size = offsetof(struct xfs_dir2_data_entry, name[0]);
 
-	size += n;
-	size += sizeof(xfs_dir2_data_off_t);
-	if (ftype)
-		size += sizeof(__uint8_t);
-	return roundup(size, XFS_DIR2_DATA_ALIGN);
-}
+/*
+ * For special situations, the dirent size ends up fixed because we always know
+ * what the size of the entry is. That's true for the "." and "..", and
+ * therefore we know that they are a fixed size and hence their offsets are
+ * constant, as is the first entry.
+ *
+ * Hence, this calculation is written as a macro to be able to be calculated at
+ * compile time and so certain offsets can be calculated directly in the
+ * structure initaliser via the macro. There are two macros - one for dirents
+ * with ftype and without so there are no unresolvable conditionals in the
+ * calculations. We also use round_up() as XFS_DIR2_DATA_ALIGN is always a power
+ * of 2 and the compiler doesn't reject it (unlike roundup()).
+ */
+#define XFS_DIR2_DATA_ENTSIZE(n)					\
+	round_up((offsetof(struct xfs_dir2_data_entry, name[0]) + (n) +	\
+		 sizeof(xfs_dir2_data_off_t)), XFS_DIR2_DATA_ALIGN)
+
+#define XFS_DIR3_DATA_ENTSIZE(n)					\
+	round_up((offsetof(struct xfs_dir2_data_entry, name[0]) + (n) +	\
+		 sizeof(xfs_dir2_data_off_t) + sizeof(__uint8_t)),	\
+		XFS_DIR2_DATA_ALIGN)
 
 static int
 xfs_dir2_data_entsize(
 	int			n)
 {
-	return __xfs_dir3_data_entsize(false, n);
+	return XFS_DIR2_DATA_ENTSIZE(n);
 }
+
 static int
 xfs_dir3_data_entsize(
 	int			n)
 {
-	return __xfs_dir3_data_entsize(true, n);
+	return XFS_DIR3_DATA_ENTSIZE(n);
 }
 
 static __uint8_t
@@ -294,45 +304,6 @@ xfs_dir3_data_entry_tag_p(
 }
 
 /*
- * Offsets of . and .. in data space (always block 0)
- */
-static xfs_dir2_data_aoff_t
-xfs_dir2_data_dot_offset(void)
-{
-	return sizeof(struct xfs_dir2_data_hdr);
-}
-
-static xfs_dir2_data_aoff_t
-xfs_dir2_data_dotdot_offset(void)
-{
-	return xfs_dir2_data_dot_offset() + xfs_dir2_data_entsize(1);
-}
-
-static xfs_dir2_data_aoff_t
-xfs_dir2_data_first_offset(void)
-{
-	return xfs_dir2_data_dotdot_offset() + xfs_dir2_data_entsize(2);
-}
-
-static xfs_dir2_data_aoff_t
-xfs_dir3_data_dot_offset(void)
-{
-	return sizeof(struct xfs_dir3_data_hdr);
-}
-
-static xfs_dir2_data_aoff_t
-xfs_dir3_data_dotdot_offset(void)
-{
-	return xfs_dir3_data_dot_offset() + xfs_dir3_data_entsize(1);
-}
-
-static xfs_dir2_data_aoff_t
-xfs_dir3_data_first_offset(void)
-{
-	return xfs_dir3_data_dotdot_offset() + xfs_dir3_data_entsize(2);
-}
-
-/*
  * location of . and .. in data space (always block 0)
  */
 static struct xfs_dir2_data_entry *
@@ -340,7 +311,7 @@ xfs_dir2_data_dot_entry_p(
 	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir2_data_dot_offset());
+		((char *)hdr + sizeof(struct xfs_dir2_data_hdr));
 }
 
 static struct xfs_dir2_data_entry *
@@ -348,7 +319,8 @@ xfs_dir2_data_dotdot_entry_p(
 	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir2_data_dotdot_offset());
+		((char *)hdr + sizeof(struct xfs_dir2_data_hdr) +
+				XFS_DIR2_DATA_ENTSIZE(1));
 }
 
 static struct xfs_dir2_data_entry *
@@ -356,7 +328,9 @@ xfs_dir2_data_first_entry_p(
 	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir2_data_first_offset());
+		((char *)hdr + sizeof(struct xfs_dir2_data_hdr) +
+				XFS_DIR2_DATA_ENTSIZE(1) +
+				XFS_DIR2_DATA_ENTSIZE(2));
 }
 
 static struct xfs_dir2_data_entry *
@@ -364,7 +338,7 @@ xfs_dir3_data_dot_entry_p(
 	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dot_offset());
+		((char *)hdr + sizeof(struct xfs_dir3_data_hdr));
 }
 
 static struct xfs_dir2_data_entry *
@@ -372,7 +346,8 @@ xfs_dir3_data_dotdot_entry_p(
 	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dotdot_offset());
+		((char *)hdr + sizeof(struct xfs_dir3_data_hdr) +
+				XFS_DIR3_DATA_ENTSIZE(1));
 }
 
 static struct xfs_dir2_data_entry *
@@ -380,7 +355,9 @@ xfs_dir3_data_first_entry_p(
 	struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_first_offset());
+		((char *)hdr + sizeof(struct xfs_dir3_data_hdr) +
+				XFS_DIR3_DATA_ENTSIZE(1) +
+				XFS_DIR3_DATA_ENTSIZE(2));
 }
 
 static struct xfs_dir2_data_free *
@@ -395,44 +372,32 @@ xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
 	return ((struct xfs_dir3_data_hdr *)hdr)->best_free;
 }
 
-static size_t
-xfs_dir2_data_entry_offset(void)
-{
-	return sizeof(struct xfs_dir2_data_hdr);
-}
-
 static struct xfs_dir2_data_entry *
 xfs_dir2_data_entry_p(struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir2_data_entry_offset());
+		((char *)hdr + sizeof(struct xfs_dir2_data_hdr));
 }
 
 static struct xfs_dir2_data_unused *
 xfs_dir2_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_unused *)
-		((char *)hdr + xfs_dir2_data_entry_offset());
-}
-
-static size_t
-xfs_dir3_data_entry_offset(void)
-{
-	return sizeof(struct xfs_dir3_data_hdr);
+		((char *)hdr + sizeof(struct xfs_dir2_data_hdr));
 }
 
 static struct xfs_dir2_data_entry *
 xfs_dir3_data_entry_p(struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_entry_offset());
+		((char *)hdr + sizeof(struct xfs_dir3_data_hdr));
 }
 
 static struct xfs_dir2_data_unused *
 xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_unused *)
-		((char *)hdr + xfs_dir3_data_entry_offset());
+		((char *)hdr + sizeof(struct xfs_dir3_data_hdr));
 }
 
 
@@ -440,15 +405,9 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
  * Directory Leaf block operations
  */
 static int
-xfs_dir2_leaf_hdr_size(void)
-{
-	return sizeof(struct xfs_dir2_leaf_hdr);
-}
-
-static int
 xfs_dir2_max_leaf_ents(struct xfs_mount *mp)
 {
-	return (mp->m_dirblksize - xfs_dir2_leaf_hdr_size()) /
+	return (mp->m_dirblksize - sizeof(struct xfs_dir2_leaf_hdr)) /
 		(uint)sizeof(struct xfs_dir2_leaf_entry);
 }
 
@@ -459,15 +418,9 @@ xfs_dir2_leaf_ents_p(struct xfs_dir2_leaf *lp)
 }
 
 static int
-xfs_dir3_leaf_hdr_size(void)
-{
-	return sizeof(struct xfs_dir3_leaf_hdr);
-}
-
-static int
 xfs_dir3_max_leaf_ents(struct xfs_mount *mp)
 {
-	return (mp->m_dirblksize - xfs_dir3_leaf_hdr_size()) /
+	return (mp->m_dirblksize - sizeof(struct xfs_dir3_leaf_hdr)) /
 		(uint)sizeof(struct xfs_dir2_leaf_entry);
 }
 
@@ -545,25 +498,13 @@ xfs_dir3_leaf_hdr_to_disk(
 /*
  * Directory/Attribute Node block operations
  */
-static inline int
-xfs_da2_node_hdr_size(void)
-{
-	return sizeof(struct xfs_da_node_hdr);
-}
-
 static struct xfs_da_node_entry *
 xfs_da2_node_tree_p(struct xfs_da_intnode *dap)
 {
 	return dap->__btree;
 }
 
-static inline int
-xfs_da3_node_hdr_size(void)
-{
-	return sizeof(struct xfs_da3_node_hdr);
-}
-
-static inline struct xfs_da_node_entry *
+static struct xfs_da_node_entry *
 xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
 {
 	return ((struct xfs_da3_intnode *)dap)->__btree;
@@ -630,22 +571,16 @@ xfs_da3_node_hdr_to_disk(
  * Directory free space block operations
  */
 static int
-xfs_dir2_free_hdr_size(void)
-{
-	return sizeof(struct xfs_dir2_free_hdr);
-}
-
-static int
 xfs_dir2_free_max_bests(struct xfs_mount *mp)
 {
-	return (mp->m_dirblksize - xfs_dir2_free_hdr_size()) /
+	return (mp->m_dirblksize - sizeof(struct xfs_dir2_free_hdr)) /
 		sizeof(xfs_dir2_data_off_t);
 }
 
 static __be16 *
 xfs_dir2_free_bests_p(struct xfs_dir2_free *free)
 {
-	return (__be16 *)((char *)free + xfs_dir2_free_hdr_size());
+	return (__be16 *)((char *)free + sizeof(struct xfs_dir2_free_hdr));
 }
 
 /*
@@ -667,22 +602,16 @@ xfs_dir2_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
 }
 
 static int
-xfs_dir3_free_hdr_size(void)
-{
-	return sizeof(struct xfs_dir3_free_hdr);
-}
-
-static int
 xfs_dir3_free_max_bests(struct xfs_mount *mp)
 {
-	return (mp->m_dirblksize - xfs_dir3_free_hdr_size()) /
+	return (mp->m_dirblksize - sizeof(struct xfs_dir3_free_hdr)) /
 		sizeof(xfs_dir2_data_off_t);
 }
 
 static __be16 *
 xfs_dir3_free_bests_p(struct xfs_dir2_free *free)
 {
-	return (__be16 *)((char *)free + xfs_dir3_free_hdr_size());
+	return (__be16 *)((char *)free + sizeof(struct xfs_dir3_free_hdr));
 }
 
 /*
@@ -774,10 +703,13 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_entry_tag_p = xfs_dir2_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 
-	.data_dot_offset = xfs_dir2_data_dot_offset,
-	.data_dotdot_offset = xfs_dir2_data_dotdot_offset,
-	.data_first_offset = xfs_dir2_data_first_offset,
-	.data_entry_offset = xfs_dir2_data_entry_offset,
+	.data_dot_offset = sizeof(struct xfs_dir2_data_hdr),
+	.data_dotdot_offset = sizeof(struct xfs_dir2_data_hdr) +
+				XFS_DIR2_DATA_ENTSIZE(1),
+	.data_first_offset =  sizeof(struct xfs_dir2_data_hdr) +
+				XFS_DIR2_DATA_ENTSIZE(1) +
+				XFS_DIR2_DATA_ENTSIZE(2),
+	.data_entry_offset = sizeof(struct xfs_dir2_data_hdr),
 
 	.data_dot_entry_p = xfs_dir2_data_dot_entry_p,
 	.data_dotdot_entry_p = xfs_dir2_data_dotdot_entry_p,
@@ -785,18 +717,18 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
 
-	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
+	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
 	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
 	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
-	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
-	.free_hdr_size = xfs_dir2_free_hdr_size,
+	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
 	.free_max_bests = xfs_dir2_free_max_bests,
@@ -821,10 +753,13 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir2_data_bestfree_p,
 
-	.data_dot_offset = xfs_dir2_data_dot_offset,
-	.data_dotdot_offset = xfs_dir2_data_dotdot_offset,
-	.data_first_offset = xfs_dir2_data_first_offset,
-	.data_entry_offset = xfs_dir2_data_entry_offset,
+	.data_dot_offset = sizeof(struct xfs_dir2_data_hdr),
+	.data_dotdot_offset = sizeof(struct xfs_dir2_data_hdr) +
+				XFS_DIR3_DATA_ENTSIZE(1),
+	.data_first_offset =  sizeof(struct xfs_dir2_data_hdr) +
+				XFS_DIR3_DATA_ENTSIZE(1) +
+				XFS_DIR3_DATA_ENTSIZE(2),
+	.data_entry_offset = sizeof(struct xfs_dir2_data_hdr),
 
 	.data_dot_entry_p = xfs_dir2_data_dot_entry_p,
 	.data_dotdot_entry_p = xfs_dir2_data_dotdot_entry_p,
@@ -832,18 +767,18 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
 
-	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
+	.leaf_hdr_size = sizeof(struct xfs_dir2_leaf_hdr),
 	.leaf_hdr_to_disk = xfs_dir2_leaf_hdr_to_disk,
 	.leaf_hdr_from_disk = xfs_dir2_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
-	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
-	.free_hdr_size = xfs_dir2_free_hdr_size,
+	.free_hdr_size = sizeof(struct xfs_dir2_free_hdr),
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
 	.free_max_bests = xfs_dir2_free_max_bests,
@@ -868,10 +803,13 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
 	.data_bestfree_p = xfs_dir3_data_bestfree_p,
 
-	.data_dot_offset = xfs_dir3_data_dot_offset,
-	.data_dotdot_offset = xfs_dir3_data_dotdot_offset,
-	.data_first_offset = xfs_dir3_data_first_offset,
-	.data_entry_offset = xfs_dir3_data_entry_offset,
+	.data_dot_offset = sizeof(struct xfs_dir3_data_hdr),
+	.data_dotdot_offset = sizeof(struct xfs_dir3_data_hdr) +
+				XFS_DIR3_DATA_ENTSIZE(1),
+	.data_first_offset =  sizeof(struct xfs_dir3_data_hdr) +
+				XFS_DIR3_DATA_ENTSIZE(1) +
+				XFS_DIR3_DATA_ENTSIZE(2),
+	.data_entry_offset = sizeof(struct xfs_dir3_data_hdr),
 
 	.data_dot_entry_p = xfs_dir3_data_dot_entry_p,
 	.data_dotdot_entry_p = xfs_dir3_data_dotdot_entry_p,
@@ -879,18 +817,18 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_entry_p = xfs_dir3_data_entry_p,
 	.data_unused_p = xfs_dir3_data_unused_p,
 
-	.leaf_hdr_size = xfs_dir3_leaf_hdr_size,
+	.leaf_hdr_size = sizeof(struct xfs_dir3_leaf_hdr),
 	.leaf_hdr_to_disk = xfs_dir3_leaf_hdr_to_disk,
 	.leaf_hdr_from_disk = xfs_dir3_leaf_hdr_from_disk,
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 
-	.node_hdr_size = xfs_da3_node_hdr_size,
+	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
 	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 
-	.free_hdr_size = xfs_dir3_free_hdr_size,
+	.free_hdr_size = sizeof(struct xfs_dir3_free_hdr),
 	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir3_free_hdr_from_disk,
 	.free_max_bests = xfs_dir3_free_max_bests,
@@ -900,14 +838,14 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 };
 
 const struct xfs_dir_ops xfs_dir2_nondir_ops = {
-	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 };
 
 const struct xfs_dir_ops xfs_dir3_nondir_ops = {
-	.node_hdr_size = xfs_da3_node_hdr_size,
+	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
 	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,

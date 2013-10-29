@@ -59,10 +59,10 @@ struct xfs_dir_ops {
 	struct xfs_dir2_data_free *
 		(*data_bestfree_p)(struct xfs_dir2_data_hdr *hdr);
 
-	xfs_dir2_data_aoff_t (*data_dot_offset)(void);
-	xfs_dir2_data_aoff_t (*data_dotdot_offset)(void);
-	xfs_dir2_data_aoff_t (*data_first_offset)(void);
-	size_t	(*data_entry_offset)(void);
+	xfs_dir2_data_aoff_t data_dot_offset;
+	xfs_dir2_data_aoff_t data_dotdot_offset;
+	xfs_dir2_data_aoff_t data_first_offset;
+	size_t	data_entry_offset;
 
 	struct xfs_dir2_data_entry *
 		(*data_dot_entry_p)(struct xfs_dir2_data_hdr *hdr);
@@ -75,7 +75,7 @@ struct xfs_dir_ops {
 	struct xfs_dir2_data_unused *
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 
-	int	(*leaf_hdr_size)(void);
+	int	leaf_hdr_size;
 	void	(*leaf_hdr_to_disk)(struct xfs_dir2_leaf *to,
 				    struct xfs_dir3_icleaf_hdr *from);
 	void	(*leaf_hdr_from_disk)(struct xfs_dir3_icleaf_hdr *to,
@@ -84,7 +84,7 @@ struct xfs_dir_ops {
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 
-	int	(*node_hdr_size)(void);
+	int	node_hdr_size;
 	void	(*node_hdr_to_disk)(struct xfs_da_intnode *to,
 				    struct xfs_da3_icnode_hdr *from);
 	void	(*node_hdr_from_disk)(struct xfs_da3_icnode_hdr *to,
@@ -92,7 +92,7 @@ struct xfs_dir_ops {
 	struct xfs_da_node_entry *
 		(*node_tree_p)(struct xfs_da_intnode *dap);
 
-	int	(*free_hdr_size)(void);
+	int	free_hdr_size;
 	void	(*free_hdr_to_disk)(struct xfs_dir2_free *to,
 				    struct xfs_dir3_icfree_hdr *from);
 	void	(*free_hdr_from_disk)(struct xfs_dir3_icfree_hdr *to,

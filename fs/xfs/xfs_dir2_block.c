@@ -951,7 +951,7 @@ xfs_dir2_leaf_to_block(
 	while (dp->i_d.di_size > mp->m_dirblksize) {
 		int hdrsz;
 
-		hdrsz = dp->d_ops->data_entry_offset();
+		hdrsz = dp->d_ops->data_entry_offset;
 		bestsp = xfs_dir2_leaf_bests_p(ltp);
 		if (be16_to_cpu(bestsp[be32_to_cpu(ltp->bestcount) - 1]) ==
 					    mp->m_dirblksize - hdrsz) {
@@ -1185,7 +1185,7 @@ xfs_dir2_sf_to_block(
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
 	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
 				(char *)dep - (char *)hdr));
-	offset = dp->d_ops->data_first_offset();
+	offset = dp->d_ops->data_first_offset;
 	/*
 	 * Loop over existing entries, stuff them in.
 	 */

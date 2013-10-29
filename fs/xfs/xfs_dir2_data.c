@@ -598,7 +598,7 @@ xfs_dir3_data_init(
 		hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 
 	bf = dp->d_ops->data_bestfree_p(hdr);
-	bf[0].offset = cpu_to_be16(dp->d_ops->data_entry_offset());
+	bf[0].offset = cpu_to_be16(dp->d_ops->data_entry_offset);
 	for (i = 1; i < XFS_DIR2_DATA_FD_COUNT; i++) {
 		bf[i].length = 0;
 		bf[i].offset = 0;
@@ -610,7 +610,7 @@ xfs_dir3_data_init(
 	dup = dp->d_ops->data_unused_p(hdr);
 	dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 
-	t = mp->m_dirblksize - (uint)dp->d_ops->data_entry_offset();
+	t = mp->m_dirblksize - (uint)dp->d_ops->data_entry_offset;
 	bf[0].length = cpu_to_be16(t);
 	dup->length = cpu_to_be16(t);
 	*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16((char *)dup - (char *)hdr);
@@ -663,7 +663,7 @@ xfs_dir2_data_log_header(
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 #endif
 
-	xfs_trans_log_buf(tp, bp, 0, dp->d_ops->data_entry_offset() - 1);
+	xfs_trans_log_buf(tp, bp, 0, dp->d_ops->data_entry_offset - 1);
 }
 
 /*
@@ -742,7 +742,7 @@ xfs_dir2_data_make_free(
 	 * If this isn't the start of the block, then back up to
 	 * the previous entry and see if it's free.
 	 */
-	if (offset > dp->d_ops->data_entry_offset()) {
+	if (offset > dp->d_ops->data_entry_offset) {
 		__be16			*tagp;	/* tag just before us */
 
 		tagp = (__be16 *)((char *)hdr + offset) - 1;
