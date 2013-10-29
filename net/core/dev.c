@@ -1628,6 +1628,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	skb->mark = 0;
 	secpath_reset(skb);
 	nf_reset(skb);
+	nf_reset_trace(skb);
 	return netif_rx(skb);
 }
 EXPORT_SYMBOL_GPL(dev_forward_skb);
@@ -1893,6 +1894,9 @@ static void skb_warn_bad_offload(const struct sk_buff *skb)
 	static const netdev_features_t null_features = 0;
 	struct net_device *dev = skb->dev;
 	const char *driver = "";
+
+	if (!net_ratelimit())
+		return;
 
 	if (dev && dev->dev.parent)
 		driver = dev_driver_string(dev->dev.parent);
