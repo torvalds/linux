@@ -603,7 +603,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	struct drm_device *dev;
 	struct drm_crtc *save_crtcs, *new_crtc, *crtc;
 	struct drm_encoder *save_encoders, *new_encoder, *encoder;
-	struct drm_framebuffer *old_fb = NULL;
 	bool mode_changed = false; /* if true do a full mode set */
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
 	struct drm_connector *save_connectors, *connector;
@@ -798,14 +797,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
-			old_fb = set->crtc->fb;
 			set->crtc->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
-						      old_fb)) {
+						      save_set.fb)) {
 				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
 					  set->crtc->base.id);
-				set->crtc->fb = old_fb;
+				set->crtc->fb = save_set.fb;
 				ret = -EINVAL;
 				goto fail;
 			}
@@ -820,13 +818,11 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	} else if (fb_changed) {
 		set->crtc->x = set->x;
 		set->crtc->y = set->y;
-
-		old_fb = set->crtc->fb;
 		set->crtc->fb = set->fb;
 		ret = crtc_funcs->mode_set_base(set->crtc,
-						set->x, set->y, old_fb);
+						set->x, set->y, save_set.fb);
 		if (ret != 0) {
-			set->crtc->fb = old_fb;
+			set->crtc->fb = save_set.fb;
 			goto fail;
 		}
 	}
