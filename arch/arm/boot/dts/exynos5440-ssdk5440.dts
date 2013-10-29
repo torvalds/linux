@@ -68,9 +68,11 @@
 
 	pcie@290000 {
 		reset-gpio = <&pin_ctrl 5 0>;
+		status = "okay";
 	};
 
 	pcie@2a0000 {
 		reset-gpio = <&pin_ctrl 22 0>;
+		status = "okay";
 	};
 };
