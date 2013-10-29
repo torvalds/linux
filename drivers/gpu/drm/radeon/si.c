@@ -1799,6 +1799,7 @@ static void si_gpu_init(struct radeon_device *rdev)
 	rdev->config.si.backend_map = gb_backend_map;
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
+	WREG32(DMIF_ADDR_CALC, gb_addr_config);
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
 
 	/* primary versions */
