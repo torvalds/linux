@@ -30,7 +30,7 @@ There are 4 power domains within DAPM
       machine driver and responds to asynchronous events e.g when HP
       are inserted
 
-   3. Path domain - audio susbsystem signal paths
+   3. Path domain - audio subsystem signal paths
       Automatically set when mixer and mux settings are changed by the user.
       e.g. alsamixer, amixer.
 
@@ -64,7 +64,7 @@ Audio DAPM widgets fall into a number of types:-
  o Speaker    - Speaker
  o Supply     - Power or clock supply widget used by other widgets.
  o Regulator  - External regulator that supplies power to audio components.
- o Clock      -	External clock that supplies clock to audio componnents.
+ o Clock      -	External clock that supplies clock to audio components.
  o AIF IN     - Audio Interface Input (with TDM slot mask).
  o AIF OUT    - Audio Interface Output (with TDM slot mask).
  o Siggen     - Signal Generator.
