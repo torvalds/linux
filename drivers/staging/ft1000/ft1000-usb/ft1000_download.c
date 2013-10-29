@@ -108,11 +108,11 @@ struct dsp_image_info {
 
 
 /* checks if the doorbell register is cleared */
-static u32 check_usb_db(struct ft1000_usb *ft1000dev)
+static int check_usb_db(struct ft1000_usb *ft1000dev)
 {
 	int loopcnt;
 	u16 temp;
-	u32 status;
+	int status;
 
 	loopcnt = 0;
 
@@ -159,7 +159,7 @@ static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 {
 	u16 handshake;
 	int loopcnt;
-	u32 status = 0;
+	int status = 0;
 
 	loopcnt = 0;
 
@@ -206,7 +206,7 @@ static void put_handshake(struct ft1000_usb *ft1000dev,u16 handshake_value)
 {
 	u32 tempx;
 	u16 tempword;
-	u32 status;
+	int status;
 
 	tempx = (u32)handshake_value;
 	tempx = ntohl(tempx);
@@ -226,7 +226,7 @@ static u16 get_handshake_usb(struct ft1000_usb *ft1000dev, u16 expected_value)
 	u16 handshake;
 	int loopcnt;
 	u16 temp;
-	u32 status = 0;
+	int status = 0;
 
 	loopcnt = 0;
 	handshake = 0;
@@ -278,7 +278,7 @@ static void put_handshake_usb(struct ft1000_usb *ft1000dev,u16 handshake_value)
 static u16 get_request_type(struct ft1000_usb *ft1000dev)
 {
 	u16 request_type;
-	u32 status;
+	int status;
 	u16 tempword;
 	u32 tempx;
 
@@ -301,7 +301,7 @@ static u16 get_request_type(struct ft1000_usb *ft1000dev)
 static u16 get_request_type_usb(struct ft1000_usb *ft1000dev)
 {
 	u16 request_type;
-	u32 status;
+	int status;
 	u16 tempword;
 	u32 tempx;
 
@@ -331,7 +331,7 @@ static long get_request_value(struct ft1000_usb *ft1000dev)
 {
 	u32 value;
 	u16 tempword;
-	u32 status;
+	int status;
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
@@ -355,7 +355,7 @@ static long get_request_value(struct ft1000_usb *ft1000dev)
 static void put_request_value(struct ft1000_usb *ft1000dev, long lvalue)
 {
 	u32    tempx;
-	u32    status;
+	int    status;
 
 	tempx = ntohl(lvalue);
 	status = fix_ft1000_write_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC,
@@ -523,10 +523,10 @@ static void usb_dnld_complete (struct urb *urb)
  *              u8  **pUcFile - DSP image file pointer in u8
  *              long word_length - length of the buffer to be written to DPRAM
  */
-static u32 write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
+static int write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 			  u8 **pUcFile, long word_length)
 {
-	u32 Status = STATUS_SUCCESS;
+	int Status = STATUS_SUCCESS;
 	int byte_length;
 
 	byte_length = word_length * 4;
@@ -575,11 +575,11 @@ static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,
 	return status;
 }
 
-static u16 request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
+static int request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
 		 u8 **c_file, const u8 *endpoint, bool boot_case)
 {
 	long word_length;
-	u16 status;
+	int status;
 
 	/*DEBUG("FT1000:REQUEST_CODE_SEGMENT\n");i*/
 	word_length = get_request_value(ft1000dev);
@@ -613,10 +613,10 @@ static u16 request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
 }
 
 /* Scramble downloader for Harley based ASIC via USB interface */
-u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
+int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32 FileLength)
 {
-	u16 status = STATUS_SUCCESS;
+	int status = STATUS_SUCCESS;
 	u32 state;
 	u16 handshake;
 	struct pseudo_hdr *pseudo_header;
