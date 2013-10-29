@@ -520,7 +520,7 @@ static int __f2fs_setxattr(struct inode *inode, int name_index,
 		 */
 		free = MIN_OFFSET(inode) - ((char *)last - (char *)base_addr);
 		if (found)
-			free = free - ENTRY_SIZE(here);
+			free = free + ENTRY_SIZE(here);
 
 		if (free < newsize) {
 			error = -ENOSPC;
