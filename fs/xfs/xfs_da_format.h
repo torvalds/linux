@@ -551,36 +551,6 @@ struct xfs_dir3_leaf {
 extern void xfs_dir3_leaf_hdr_from_disk(struct xfs_dir3_icleaf_hdr *to,
 					struct xfs_dir2_leaf *from);
 
-static inline int
-xfs_dir3_leaf_hdr_size(struct xfs_dir2_leaf *lp)
-{
-	if (lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAF1_MAGIC) ||
-	    lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC))
-		return sizeof(struct xfs_dir3_leaf_hdr);
-	return sizeof(struct xfs_dir2_leaf_hdr);
-}
-
-static inline int
-xfs_dir3_max_leaf_ents(struct xfs_mount *mp, struct xfs_dir2_leaf *lp)
-{
-	return (mp->m_dirblksize - xfs_dir3_leaf_hdr_size(lp)) /
-		(uint)sizeof(struct xfs_dir2_leaf_entry);
-}
-
-/*
- * Get address of the bestcount field in the single-leaf block.
- */
-static inline struct xfs_dir2_leaf_entry *
-xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
-{
-	if (lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAF1_MAGIC) ||
-	    lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
-		struct xfs_dir3_leaf *lp3 = (struct xfs_dir3_leaf *)lp;
-		return lp3->__ents;
-	}
-	return lp->__ents;
-}
-
 /*
  * Get address of the bestcount field in the single-leaf block.
  */

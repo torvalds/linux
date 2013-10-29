@@ -113,12 +113,7 @@ xfs_dir_mount(
 	else
 		mp->m_dirnameops = &xfs_default_nameops;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		mp->m_dir_inode_ops = &xfs_dir3_ops;
-	else if (xfs_sb_version_hasftype(&mp->m_sb))
-		mp->m_dir_inode_ops = &xfs_dir2_ftype_ops;
-	else
-		mp->m_dir_inode_ops = &xfs_dir2_ops;
+	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
 }
 
 /*

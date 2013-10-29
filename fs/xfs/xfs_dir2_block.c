@@ -937,7 +937,7 @@ xfs_dir2_leaf_to_block(
 	mp = dp->i_mount;
 	leaf = lbp->b_addr;
 	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
-	ents = xfs_dir3_leaf_ents_p(leaf);
+	ents = dp->d_ops->leaf_ents_p(leaf);
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAF1_MAGIC ||

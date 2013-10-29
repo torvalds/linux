@@ -605,7 +605,7 @@ xfs_da3_root_split(
 
 		leaf = (xfs_dir2_leaf_t *)oldroot;
 		xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
-		ents = xfs_dir3_leaf_ents_p(leaf);
+		ents = dp->d_ops->leaf_ents_p(leaf);
 
 		ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
 		       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
@@ -1319,7 +1319,8 @@ xfs_da3_fixhashpath(
 			return;
 		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		lasthash = xfs_dir2_leafn_lasthash(blk->bp, &count);
+		lasthash = xfs_dir2_leafn_lasthash(state->args->dp,
+						   blk->bp, &count);
 		if (count == 0)
 			return;
 		break;
@@ -1536,7 +1537,8 @@ xfs_da3_node_lookup_int(
 		if (blk->magic == XFS_DIR2_LEAFN_MAGIC ||
 		    blk->magic == XFS_DIR3_LEAFN_MAGIC) {
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
-			blk->hashval = xfs_dir2_leafn_lasthash(blk->bp, NULL);
+			blk->hashval = xfs_dir2_leafn_lasthash(args->dp,
+							       blk->bp, NULL);
 			break;
 		}
 
@@ -1702,7 +1704,7 @@ xfs_da3_blk_link(
 		before = xfs_attr_leaf_order(old_blk->bp, new_blk->bp);
 		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		before = xfs_dir2_leafn_order(old_blk->bp, new_blk->bp);
+		before = xfs_dir2_leafn_order(args->dp, old_blk->bp, new_blk->bp);
 		break;
 	case XFS_DA_NODE_MAGIC:
 		before = xfs_da3_node_order(old_blk->bp, new_blk->bp);
@@ -1947,16 +1949,15 @@ xfs_da3_path_shift(
 			blk->magic = XFS_ATTR_LEAF_MAGIC;
 			ASSERT(level == path->active-1);
 			blk->index = 0;
-			blk->hashval = xfs_attr_leaf_lasthash(blk->bp,
-							      NULL);
+			blk->hashval = xfs_attr_leaf_lasthash(blk->bp, NULL);
 			break;
 		case XFS_DIR2_LEAFN_MAGIC:
 		case XFS_DIR3_LEAFN_MAGIC:
 			blk->magic = XFS_DIR2_LEAFN_MAGIC;
 			ASSERT(level == path->active-1);
 			blk->index = 0;
-			blk->hashval = xfs_dir2_leafn_lasthash(blk->bp,
-							       NULL);
+			blk->hashval = xfs_dir2_leafn_lasthash(args->dp,
+							       blk->bp, NULL);
 			break;
 		default:
 			ASSERT(0);
@@ -2223,7 +2224,7 @@ xfs_da3_swap_lastblock(
 
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;
 		xfs_dir3_leaf_hdr_from_disk(&leafhdr, dead_leaf2);
-		ents = xfs_dir3_leaf_ents_p(dead_leaf2);
+		ents = ip->d_ops->leaf_ents_p(dead_leaf2);
 		dead_level = 0;
 		dead_hash = be32_to_cpu(ents[leafhdr.count - 1].hashval);
 	} else {

@@ -435,6 +435,48 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 		((char *)hdr + xfs_dir3_data_entry_offset());
 }
 
+
+/*
+ * Directory Leaf block operations
+ */
+static int
+xfs_dir2_leaf_hdr_size(void)
+{
+	return sizeof(struct xfs_dir2_leaf_hdr);
+}
+
+static int
+xfs_dir2_max_leaf_ents(struct xfs_mount *mp)
+{
+	return (mp->m_dirblksize - xfs_dir2_leaf_hdr_size()) /
+		(uint)sizeof(struct xfs_dir2_leaf_entry);
+}
+
+static struct xfs_dir2_leaf_entry *
+xfs_dir2_leaf_ents_p(struct xfs_dir2_leaf *lp)
+{
+	return lp->__ents;
+}
+
+static int
+xfs_dir3_leaf_hdr_size(void)
+{
+	return sizeof(struct xfs_dir3_leaf_hdr);
+}
+
+static inline int
+xfs_dir3_max_leaf_ents(struct xfs_mount *mp)
+{
+	return (mp->m_dirblksize - xfs_dir3_leaf_hdr_size()) /
+		(uint)sizeof(struct xfs_dir2_leaf_entry);
+}
+
+static inline struct xfs_dir2_leaf_entry *
+xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
+{
+	return ((struct xfs_dir3_leaf *)lp)->__ents;
+}
+
 const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_entsize = xfs_dir2_sf_entsize,
 	.sf_nextentry = xfs_dir2_sf_nextentry,
@@ -461,6 +503,10 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.data_first_entry_p = xfs_dir2_data_first_entry_p,
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
+
+	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
+	.leaf_max_ents = xfs_dir2_max_leaf_ents,
+	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
 };
 
@@ -490,6 +536,10 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.data_first_entry_p = xfs_dir2_data_first_entry_p,
 	.data_entry_p = xfs_dir2_data_entry_p,
 	.data_unused_p = xfs_dir2_data_unused_p,
+
+	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
+	.leaf_max_ents = xfs_dir2_max_leaf_ents,
+	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 };
 
 const struct xfs_dir_ops xfs_dir3_ops = {
@@ -518,4 +568,29 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.data_first_entry_p = xfs_dir3_data_first_entry_p,
 	.data_entry_p = xfs_dir3_data_entry_p,
 	.data_unused_p = xfs_dir3_data_unused_p,
+
+	.leaf_hdr_size = xfs_dir3_leaf_hdr_size,
+	.leaf_max_ents = xfs_dir3_max_leaf_ents,
+	.leaf_ents_p = xfs_dir3_leaf_ents_p,
 };
+
+/*
+ * Return the ops structure according to the current config.  If we are passed
+ * an inode, then that overrides the default config we use which is based on
+ * feature bits.
+ */
+const struct xfs_dir_ops *
+xfs_dir_get_ops(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*dp)
+{
+	if (dp)
+		return dp->d_ops;
+	if (mp->m_dir_inode_ops)
+		return mp->m_dir_inode_ops;
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		return &xfs_dir3_ops;
+	if (xfs_sb_version_hasftype(&mp->m_sb))
+		return &xfs_dir2_ftype_ops;
+	return &xfs_dir2_ops;
+}

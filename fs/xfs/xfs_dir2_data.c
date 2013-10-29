@@ -68,17 +68,10 @@ __xfs_dir3_data_check(
 	hdr = bp->b_addr;
 
 	/*
-	 * We can be passed a null dp here from a verifier, so manually
-	 * configure the ops here in that case.
+	 * We can be passed a null dp here from a verifier, so we need to go the
+	 * hard way to get them.
 	 */
-	if (dp)
-		ops = dp->d_ops;
-	else if (xfs_sb_version_hascrc(&mp->m_sb))
-		ops = &xfs_dir3_ops;
-	else if (xfs_sb_version_hasftype(&mp->m_sb))
-		ops = &xfs_dir2_ftype_ops;
-	else
-		ops = &xfs_dir2_ops;
+	ops = xfs_dir_get_ops(mp, dp);
 
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):

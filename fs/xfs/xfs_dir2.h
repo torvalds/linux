@@ -74,11 +74,15 @@ struct xfs_dir_ops {
 		(*data_entry_p)(struct xfs_dir2_data_hdr *hdr);
 	struct xfs_dir2_data_unused *
 		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
+
+	int	(*leaf_hdr_size)(void);
+	int	(*leaf_max_ents)(struct xfs_mount *mp);
+	struct xfs_dir2_leaf_entry *
+		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 };
 
-extern const struct xfs_dir_ops xfs_dir2_ops;
-extern const struct xfs_dir_ops xfs_dir2_ftype_ops;
-extern const struct xfs_dir_ops xfs_dir3_ops;
+extern const struct xfs_dir_ops *
+	xfs_dir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
 
 /*
  * Generic directory interface routines
