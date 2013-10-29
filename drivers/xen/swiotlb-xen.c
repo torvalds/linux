@@ -548,7 +548,7 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
 							   attrs);
 				sg_dma_len(sgl) = 0;
-				return DMA_ERROR_CODE;
+				return 0;
 			}
 			sg->dma_address = xen_phys_to_bus(map);
 		} else {
