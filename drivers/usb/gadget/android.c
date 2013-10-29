@@ -639,10 +639,19 @@ static int mass_storage_function_init(struct android_usb_function *f,
 								GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
-
+#ifdef CONFIG_UMS_AS_CDROM   
+	//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is true++++++++++++++++++\n");   
+	config->fsg.nluns = 1;
+	config->fsg.luns[0].removable = 1;
+	config->fsg.luns[0].ro = 1;
+    config->fsg.luns[0].cdrom = 1;
+#else
+	//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is false -------------------\n");
 	config->fsg.nluns = 2;
 	config->fsg.luns[0].removable = 1;
 	config->fsg.luns[1].removable = 1;
+#endif
+
 
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
@@ -653,12 +662,14 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	err = sysfs_create_link(&f->dev->kobj,
 				&common->luns[0].dev.kobj,
 				"lun");
-        err = sysfs_create_link(&f->dev->kobj, &common->luns[1].dev.kobj,"lun1");
+#ifndef CONFIG_UMS_AS_CDROM 	
+		//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is false -------------------\n");
+       err = sysfs_create_link(&f->dev->kobj, &common->luns[1].dev.kobj,"lun1");
 	if (err) {
 		kfree(config);
 		return err;
 	}
-
+#endif
 	config->common = common;
 	f->config = config;
 	return 0;

@@ -1086,5 +1086,11 @@ config BYPASS_INPUT_TO_HIDG
         help
 	  If say "y" there will create a new gadget HIDG
 	  and HID reports form HID devices will be bypass to PC 
-       
+
+config UMS_AS_CDROM
+       bool "Set mass storage as a virtual CDROM"
+       default n
+       help
+         Set mass storage as a virtual CDROM for drivers install.
+             
 endif # USB_GADGET
