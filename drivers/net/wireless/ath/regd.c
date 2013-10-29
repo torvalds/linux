@@ -114,6 +114,78 @@ static const struct ieee80211_regdomain ath_world_regdom_67_68_6A_6C = {
 	}
 };
 
+static bool dynamic_country_user_possible(struct ath_regulatory *reg)
+{
+	if (config_enabled(CONFIG_ATH_REG_DYNAMIC_USER_CERT_TESTING))
+		return true;
+
+	switch (reg->country_code) {
+	case CTRY_UNITED_STATES:
+	case CTRY_JAPAN1:
+	case CTRY_JAPAN2:
+	case CTRY_JAPAN3:
+	case CTRY_JAPAN4:
+	case CTRY_JAPAN5:
+	case CTRY_JAPAN6:
+	case CTRY_JAPAN7:
+	case CTRY_JAPAN8:
+	case CTRY_JAPAN9:
+	case CTRY_JAPAN10:
+	case CTRY_JAPAN11:
+	case CTRY_JAPAN12:
+	case CTRY_JAPAN13:
+	case CTRY_JAPAN14:
+	case CTRY_JAPAN15:
+	case CTRY_JAPAN16:
+	case CTRY_JAPAN17:
+	case CTRY_JAPAN18:
+	case CTRY_JAPAN19:
+	case CTRY_JAPAN20:
+	case CTRY_JAPAN21:
+	case CTRY_JAPAN22:
+	case CTRY_JAPAN23:
+	case CTRY_JAPAN24:
+	case CTRY_JAPAN25:
+	case CTRY_JAPAN26:
+	case CTRY_JAPAN27:
+	case CTRY_JAPAN28:
+	case CTRY_JAPAN29:
+	case CTRY_JAPAN30:
+	case CTRY_JAPAN31:
+	case CTRY_JAPAN32:
+	case CTRY_JAPAN33:
+	case CTRY_JAPAN34:
+	case CTRY_JAPAN35:
+	case CTRY_JAPAN36:
+	case CTRY_JAPAN37:
+	case CTRY_JAPAN38:
+	case CTRY_JAPAN39:
+	case CTRY_JAPAN40:
+	case CTRY_JAPAN41:
+	case CTRY_JAPAN42:
+	case CTRY_JAPAN43:
+	case CTRY_JAPAN44:
+	case CTRY_JAPAN45:
+	case CTRY_JAPAN46:
+	case CTRY_JAPAN47:
+	case CTRY_JAPAN48:
+	case CTRY_JAPAN49:
+	case CTRY_JAPAN50:
+	case CTRY_JAPAN51:
+	case CTRY_JAPAN52:
+	case CTRY_JAPAN53:
+	case CTRY_JAPAN54:
+	case CTRY_JAPAN55:
+	case CTRY_JAPAN56:
+	case CTRY_JAPAN57:
+	case CTRY_JAPAN58:
+	case CTRY_JAPAN59:
+		return false;
+	}
+
+	return true;
+}
+
 static inline bool is_wwr_sku(u16 regd)
 {
 	return ((regd & COUNTRY_ERD_FLAG) != COUNTRY_ERD_FLAG) &&
@@ -399,78 +471,6 @@ static void ath_reg_dyn_country(struct wiphy *wiphy,
 			  "dynamically updated by %s\n",
 	       reg->current_rd,
 	       reg_initiator_name(request->initiator));
-}
-
-static bool dynamic_country_user_possible(struct ath_regulatory *reg)
-{
-	if (config_enabled(CONFIG_ATH_REG_DYNAMIC_USER_CERT_TESTING))
-		return true;
-
-	switch (reg->country_code) {
-	case CTRY_UNITED_STATES:
-	case CTRY_JAPAN1:
-	case CTRY_JAPAN2:
-	case CTRY_JAPAN3:
-	case CTRY_JAPAN4:
-	case CTRY_JAPAN5:
-	case CTRY_JAPAN6:
-	case CTRY_JAPAN7:
-	case CTRY_JAPAN8:
-	case CTRY_JAPAN9:
-	case CTRY_JAPAN10:
-	case CTRY_JAPAN11:
-	case CTRY_JAPAN12:
-	case CTRY_JAPAN13:
-	case CTRY_JAPAN14:
-	case CTRY_JAPAN15:
-	case CTRY_JAPAN16:
-	case CTRY_JAPAN17:
-	case CTRY_JAPAN18:
-	case CTRY_JAPAN19:
-	case CTRY_JAPAN20:
-	case CTRY_JAPAN21:
-	case CTRY_JAPAN22:
-	case CTRY_JAPAN23:
-	case CTRY_JAPAN24:
-	case CTRY_JAPAN25:
-	case CTRY_JAPAN26:
-	case CTRY_JAPAN27:
-	case CTRY_JAPAN28:
-	case CTRY_JAPAN29:
-	case CTRY_JAPAN30:
-	case CTRY_JAPAN31:
-	case CTRY_JAPAN32:
-	case CTRY_JAPAN33:
-	case CTRY_JAPAN34:
-	case CTRY_JAPAN35:
-	case CTRY_JAPAN36:
-	case CTRY_JAPAN37:
-	case CTRY_JAPAN38:
-	case CTRY_JAPAN39:
-	case CTRY_JAPAN40:
-	case CTRY_JAPAN41:
-	case CTRY_JAPAN42:
-	case CTRY_JAPAN43:
-	case CTRY_JAPAN44:
-	case CTRY_JAPAN45:
-	case CTRY_JAPAN46:
-	case CTRY_JAPAN47:
-	case CTRY_JAPAN48:
-	case CTRY_JAPAN49:
-	case CTRY_JAPAN50:
-	case CTRY_JAPAN51:
-	case CTRY_JAPAN52:
-	case CTRY_JAPAN53:
-	case CTRY_JAPAN54:
-	case CTRY_JAPAN55:
-	case CTRY_JAPAN56:
-	case CTRY_JAPAN57:
-	case CTRY_JAPAN58:
-	case CTRY_JAPAN59:
-		return false;
-	}
-
-	return true;
 }
 
 static void ath_reg_dyn_country_user(struct wiphy *wiphy,
