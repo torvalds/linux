@@ -275,7 +275,7 @@ static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 	if (dd->flags & FLAGS_CBC)
 		val |= AES_REG_CTRL_CBC;
 	if (dd->flags & FLAGS_CTR) {
-		val |= AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_32;
+		val |= AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_128;
 		mask = AES_REG_CTRL_CTR | AES_REG_CTRL_CTR_WIDTH_MASK;
 	}
 	if (dd->flags & FLAGS_ENCRYPT)
