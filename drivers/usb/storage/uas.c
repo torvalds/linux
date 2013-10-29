@@ -53,6 +53,7 @@ struct uas_dev_info {
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
 	unsigned use_streams:1;
 	unsigned uas_sense_old:1;
+	unsigned running_task:1;
 	struct scsi_cmnd *cmnd;
 	spinlock_t lock;
 	struct work_struct work;
@@ -195,6 +196,7 @@ static void uas_zap_dead(struct uas_dev_info *devinfo)
 				    DATA_OUT_URB_INFLIGHT);
 		uas_try_complete(cmnd, __func__);
 	}
+	devinfo->running_task = 0;
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -340,6 +342,9 @@ static void uas_stat_cmplt(struct urb *urb)
 
 	if (!cmnd) {
 		if (iu->iu_id == IU_ID_RESPONSE) {
+			if (!devinfo->running_task)
+				dev_warn(&urb->dev->dev,
+				    "stat urb: recv unexpected response iu\n");
 			/* store results for uas_eh_task_mgmt() */
 			memcpy(&devinfo->response, iu, sizeof(devinfo->response));
 		}
@@ -726,14 +731,26 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 	u16 tag = devinfo->qdepth;
 	unsigned long flags;
 	struct urb *sense_urb;
+	int result = SUCCESS;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
+
+	if (devinfo->running_task) {
+		shost_printk(KERN_INFO, shost,
+			     "%s: %s: error already running a task\n",
+			     __func__, fname);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		return FAILED;
+	}
+
+	devinfo->running_task = 1;
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
 	sense_urb = uas_submit_sense_urb(shost, GFP_ATOMIC, tag);
 	if (!sense_urb) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit sense urb failed\n",
 			     __func__, fname);
+		devinfo->running_task = 0;
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return FAILED;
 	}
@@ -741,6 +758,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit task mgmt urb failed\n",
 			     __func__, fname);
+		devinfo->running_task = 0;
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		usb_kill_urb(sense_urb);
 		return FAILED;
@@ -748,23 +766,33 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 
 	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 3000) == 0) {
+		/*
+		 * Note we deliberately do not clear running_task here. If we
+		 * allow new tasks to be submitted, there is no way to figure
+		 * out if a received response_iu is for the failed task or for
+		 * the new one. A bus-reset will eventually clear running_task.
+		 */
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s timed out\n", __func__, fname);
 		return FAILED;
 	}
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+	devinfo->running_task = 0;
 	if (be16_to_cpu(devinfo->response.tag) != tag) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s failed (wrong tag %d/%d)\n", __func__,
 			     fname, be16_to_cpu(devinfo->response.tag), tag);
-		return FAILED;
-	}
-	if (devinfo->response.response_code != RC_TMF_COMPLETE) {
+		result = FAILED;
+	} else if (devinfo->response.response_code != RC_TMF_COMPLETE) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s failed (rc 0x%x)\n", __func__,
 			     fname, devinfo->response.response_code);
-		return FAILED;
+		result = FAILED;
 	}
-	return SUCCESS;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	return result;
 }
 
 static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
@@ -982,6 +1010,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->intf = intf;
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
+	devinfo->running_task = 0;
 	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);
