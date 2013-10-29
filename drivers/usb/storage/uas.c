@@ -550,39 +550,38 @@ err:
  * daft to me.
  */
 
-static int uas_submit_sense_urb(struct Scsi_Host *shost,
-				gfp_t gfp, unsigned int stream)
+static struct urb *uas_submit_sense_urb(struct Scsi_Host *shost,
+					gfp_t gfp, unsigned int stream)
 {
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 	struct urb *urb;
 
 	urb = uas_alloc_sense_urb(devinfo, gfp, shost, stream);
 	if (!urb)
-		return SCSI_MLQUEUE_DEVICE_BUSY;
+		return NULL;
 	usb_anchor_urb(urb, &devinfo->sense_urbs);
 	if (usb_submit_urb(urb, gfp)) {
 		usb_unanchor_urb(urb);
 		shost_printk(KERN_INFO, shost,
 			     "sense urb submission failure\n");
 		usb_free_urb(urb);
-		return SCSI_MLQUEUE_DEVICE_BUSY;
+		return NULL;
 	}
-	return 0;
+	return urb;
 }
 
 static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 			   struct uas_dev_info *devinfo, gfp_t gfp)
 {
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
-	int err;
+	struct urb *urb;
 
 	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
 	if (cmdinfo->state & SUBMIT_STATUS_URB) {
-		err = uas_submit_sense_urb(cmnd->device->host, gfp,
+		urb = uas_submit_sense_urb(cmnd->device->host, gfp,
 					   cmdinfo->stream);
-		if (err) {
-			return err;
-		}
+		if (!urb)
+			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~SUBMIT_STATUS_URB;
 	}
 
@@ -726,10 +725,12 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 	u16 tag = devinfo->qdepth;
 	unsigned long flags;
+	struct urb *sense_urb;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	if (uas_submit_sense_urb(shost, GFP_ATOMIC, tag)) {
+	sense_urb = uas_submit_sense_urb(shost, GFP_ATOMIC, tag);
+	if (!sense_urb) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit sense urb failed\n",
 			     __func__, fname);
@@ -741,6 +742,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 			     "%s: %s: submit task mgmt urb failed\n",
 			     __func__, fname);
 		spin_unlock_irqrestore(&devinfo->lock, flags);
+		usb_kill_urb(sense_urb);
 		return FAILED;
 	}
 	spin_unlock_irqrestore(&devinfo->lock, flags);
