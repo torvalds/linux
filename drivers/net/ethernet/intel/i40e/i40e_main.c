@@ -7204,8 +7204,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	len = sizeof(struct i40e_vsi *) * pf->hw.func_caps.num_vsis;
 	pf->vsi = kzalloc(len, GFP_KERNEL);
-	if (!pf->vsi)
+	if (!pf->vsi) {
+		err = -ENOMEM;
 		goto err_switch_setup;
+	}
 
 	err = i40e_setup_pf_switch(pf);
 	if (err) {

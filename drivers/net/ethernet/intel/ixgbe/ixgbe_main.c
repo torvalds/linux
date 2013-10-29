@@ -245,7 +245,7 @@ static void ixgbe_check_minimum_link(struct ixgbe_adapter *adapter,
 		max_gts = 4 * width;
 		break;
 	case PCIE_SPEED_8_0GT:
-		/* 128b/130b encoding only reduces throughput by 1% */
+		/* 128b/130b encoding reduces throughput by less than 2% */
 		max_gts = 8 * width;
 		break;
 	default:
@@ -263,7 +263,7 @@ static void ixgbe_check_minimum_link(struct ixgbe_adapter *adapter,
 		   width,
 		   (speed == PCIE_SPEED_2_5GT ? "20%" :
 		    speed == PCIE_SPEED_5_0GT ? "20%" :
-		    speed == PCIE_SPEED_8_0GT ? "N/a" :
+		    speed == PCIE_SPEED_8_0GT ? "<2%" :
 		    "Unknown"));
 
 	if (max_gts < expected_gts) {
@@ -3891,15 +3891,13 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx;
 
-	local_bh_disable(); /* for ixgbe_qv_lock_napi() */
 	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++) {
 		napi_disable(&adapter->q_vector[q_idx]->napi);
-		while (!ixgbe_qv_lock_napi(adapter->q_vector[q_idx])) {
+		while (!ixgbe_qv_disable(adapter->q_vector[q_idx])) {
 			pr_info("QV %d locked\n", q_idx);
-			mdelay(1);
+			usleep_range(1000, 20000);
 		}
 	}
-	local_bh_enable();
 }
 
 #ifdef CONFIG_IXGBE_DCB
@@ -7754,29 +7752,6 @@ skip_sriov:
 	if (ixgbe_pcie_from_parent(hw))
 		ixgbe_get_parent_bus_info(adapter);
 
-	/* print bus type/speed/width info */
-	e_dev_info("(PCI Express:%s:%s) %pM\n",
-		   (hw->bus.speed == ixgbe_bus_speed_8000 ? "8.0GT/s" :
-		    hw->bus.speed == ixgbe_bus_speed_5000 ? "5.0GT/s" :
-		    hw->bus.speed == ixgbe_bus_speed_2500 ? "2.5GT/s" :
-		    "Unknown"),
-		   (hw->bus.width == ixgbe_bus_width_pcie_x8 ? "Width x8" :
-		    hw->bus.width == ixgbe_bus_width_pcie_x4 ? "Width x4" :
-		    hw->bus.width == ixgbe_bus_width_pcie_x1 ? "Width x1" :
-		    "Unknown"),
-		   netdev->dev_addr);
-
-	err = ixgbe_read_pba_string_generic(hw, part_str, IXGBE_PBANUM_LENGTH);
-	if (err)
-		strncpy(part_str, "Unknown", IXGBE_PBANUM_LENGTH);
-	if (ixgbe_is_sfp(hw) && hw->phy.sfp_type != ixgbe_sfp_type_not_present)
-		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, PBA No: %s\n",
-			   hw->mac.type, hw->phy.type, hw->phy.sfp_type,
-		           part_str);
-	else
-		e_dev_info("MAC: %d, PHY: %d, PBA No: %s\n",
-			   hw->mac.type, hw->phy.type, part_str);
-
 	/* calculate the expected PCIe bandwidth required for optimal
 	 * performance. Note that some older parts will never have enough
 	 * bandwidth due to being older generation PCIe parts. We clamp these
@@ -7791,6 +7766,19 @@ skip_sriov:
 		break;
 	}
 	ixgbe_check_minimum_link(adapter, expected_gts);
+
+	err = ixgbe_read_pba_string_generic(hw, part_str, IXGBE_PBANUM_LENGTH);
+	if (err)
+		strncpy(part_str, "Unknown", IXGBE_PBANUM_LENGTH);
+	if (ixgbe_is_sfp(hw) && hw->phy.sfp_type != ixgbe_sfp_type_not_present)
+		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, PBA No: %s\n",
+			   hw->mac.type, hw->phy.type, hw->phy.sfp_type,
+		           part_str);
+	else
+		e_dev_info("MAC: %d, PHY: %d, PBA No: %s\n",
+			   hw->mac.type, hw->phy.type, part_str);
+
+	e_dev_info("%pM\n", netdev->dev_addr);
 
 	/* reset the hardware with the new settings */
 	err = hw->mac.ops.start_hw(hw);

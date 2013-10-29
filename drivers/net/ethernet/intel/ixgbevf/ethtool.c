@@ -45,16 +45,27 @@
 
 struct ixgbe_stats {
 	char stat_string[ETH_GSTRING_LEN];
-	int sizeof_stat;
-	int stat_offset;
-	int base_stat_offset;
-	int saved_reset_offset;
+	struct {
+		int sizeof_stat;
+		int stat_offset;
+		int base_stat_offset;
+		int saved_reset_offset;
+	};
 };
 
-#define IXGBEVF_STAT(m, b, r)  sizeof(((struct ixgbevf_adapter *)0)->m), \
-			    offsetof(struct ixgbevf_adapter, m),         \
-			    offsetof(struct ixgbevf_adapter, b),         \
-			    offsetof(struct ixgbevf_adapter, r)
+#define IXGBEVF_STAT(m, b, r) { \
+	.sizeof_stat = FIELD_SIZEOF(struct ixgbevf_adapter, m), \
+	.stat_offset = offsetof(struct ixgbevf_adapter, m), \
+	.base_stat_offset = offsetof(struct ixgbevf_adapter, b), \
+	.saved_reset_offset = offsetof(struct ixgbevf_adapter, r) \
+}
+
+#define IXGBEVF_ZSTAT(m) { \
+	.sizeof_stat = FIELD_SIZEOF(struct ixgbevf_adapter, m), \
+	.stat_offset = offsetof(struct ixgbevf_adapter, m), \
+	.base_stat_offset = -1, \
+	.saved_reset_offset = -1 \
+}
 
 static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBEVF_STAT(stats.vfgprc, stats.base_vfgprc,
@@ -65,15 +76,20 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 				  stats.saved_reset_vfgorc)},
 	{"tx_bytes", IXGBEVF_STAT(stats.vfgotc, stats.base_vfgotc,
 				  stats.saved_reset_vfgotc)},
-	{"tx_busy", IXGBEVF_STAT(tx_busy, zero_base, zero_base)},
+	{"tx_busy", IXGBEVF_ZSTAT(tx_busy)},
 	{"multicast", IXGBEVF_STAT(stats.vfmprc, stats.base_vfmprc,
 				   stats.saved_reset_vfmprc)},
-	{"rx_csum_offload_good", IXGBEVF_STAT(hw_csum_rx_good, zero_base,
-					      zero_base)},
-	{"rx_csum_offload_errors", IXGBEVF_STAT(hw_csum_rx_error, zero_base,
-						zero_base)},
-	{"tx_csum_offload_ctxt", IXGBEVF_STAT(hw_csum_tx_good, zero_base,
-					      zero_base)},
+	{"rx_csum_offload_good", IXGBEVF_ZSTAT(hw_csum_rx_good)},
+	{"rx_csum_offload_errors", IXGBEVF_ZSTAT(hw_csum_rx_error)},
+	{"tx_csum_offload_ctxt", IXGBEVF_ZSTAT(hw_csum_tx_good)},
+#ifdef BP_EXTENDED_STATS
+	{"rx_bp_poll_yield", IXGBEVF_ZSTAT(bp_rx_yields)},
+	{"rx_bp_cleaned", IXGBEVF_ZSTAT(bp_rx_cleaned)},
+	{"rx_bp_misses", IXGBEVF_ZSTAT(bp_rx_missed)},
+	{"tx_bp_napi_yield", IXGBEVF_ZSTAT(bp_tx_yields)},
+	{"tx_bp_cleaned", IXGBEVF_ZSTAT(bp_tx_cleaned)},
+	{"tx_bp_misses", IXGBEVF_ZSTAT(bp_tx_missed)},
+#endif
 };
 
 #define IXGBE_QUEUE_STATS_LEN 0
@@ -390,22 +406,50 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 				      struct ethtool_stats *stats, u64 *data)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	char *base = (char *) adapter;
 	int i;
+#ifdef BP_EXTENDED_STATS
+	u64 rx_yields = 0, rx_cleaned = 0, rx_missed = 0,
+	    tx_yields = 0, tx_cleaned = 0, tx_missed = 0;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		rx_yields += adapter->rx_ring[i].bp_yields;
+		rx_cleaned += adapter->rx_ring[i].bp_cleaned;
+		rx_yields += adapter->rx_ring[i].bp_yields;
+	}
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		tx_yields += adapter->tx_ring[i].bp_yields;
+		tx_cleaned += adapter->tx_ring[i].bp_cleaned;
+		tx_yields += adapter->tx_ring[i].bp_yields;
+	}
+
+	adapter->bp_rx_yields = rx_yields;
+	adapter->bp_rx_cleaned = rx_cleaned;
+	adapter->bp_rx_missed = rx_missed;
+
+	adapter->bp_tx_yields = tx_yields;
+	adapter->bp_tx_cleaned = tx_cleaned;
+	adapter->bp_tx_missed = tx_missed;
+#endif
 
 	ixgbevf_update_stats(adapter);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
-		char *p = (char *)adapter +
-			ixgbe_gstrings_stats[i].stat_offset;
-		char *b = (char *)adapter +
-			ixgbe_gstrings_stats[i].base_stat_offset;
-		char *r = (char *)adapter +
-			ixgbe_gstrings_stats[i].saved_reset_offset;
-		data[i] = ((ixgbe_gstrings_stats[i].sizeof_stat ==
-			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p) -
-			  ((ixgbe_gstrings_stats[i].sizeof_stat ==
-			    sizeof(u64)) ? *(u64 *)b : *(u32 *)b) +
-			  ((ixgbe_gstrings_stats[i].sizeof_stat ==
-			    sizeof(u64)) ? *(u64 *)r : *(u32 *)r);
+		char *p = base + ixgbe_gstrings_stats[i].stat_offset;
+		char *b = base + ixgbe_gstrings_stats[i].base_stat_offset;
+		char *r = base + ixgbe_gstrings_stats[i].saved_reset_offset;
+
+		if (ixgbe_gstrings_stats[i].sizeof_stat == sizeof(u64)) {
+			if (ixgbe_gstrings_stats[i].base_stat_offset >= 0)
+				data[i] = *(u64 *)p - *(u64 *)b + *(u64 *)r;
+			else
+				data[i] = *(u64 *)p;
+		} else {
+			if (ixgbe_gstrings_stats[i].base_stat_offset >= 0)
+				data[i] = *(u32 *)p - *(u32 *)b + *(u32 *)r;
+			else
+				data[i] = *(u32 *)p;
+		}
 	}
 }
 
