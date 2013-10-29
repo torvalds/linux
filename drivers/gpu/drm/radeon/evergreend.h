@@ -77,6 +77,10 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 
+#define	CP_STRMOUT_CNTL					0x84FC
+
+#define	CP_COHER_CNTL					0x85F0
+#define	CP_COHER_SIZE					0x85F4
 #define	CP_COHER_BASE					0x85F8
 #define CP_ME_CNTL					0x86D8
 #define		CP_ME_HALT					(1 << 28)

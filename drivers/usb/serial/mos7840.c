@@ -2581,7 +2581,6 @@ error:
 static void mos7840_disconnect(struct usb_serial *serial)
 {
 	int i;
-	unsigned long flags;
 	struct moschip_port *mos7840_port;
 	dbg("%s", " disconnect :entering..........");
 
