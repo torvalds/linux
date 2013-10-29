@@ -766,6 +766,14 @@ endchoice
 
 comment "Device tree only"
 
+config	SOC_IMX50
+	bool "i.MX50 support"
+	select HAVE_IMX_SRC
+	select SOC_IMX5
+
+	help
+	  This enables support for Freescale i.MX50 processor.
+
 config	SOC_IMX53
 	bool "i.MX53 support"
 	select HAVE_IMX_SRC
