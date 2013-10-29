@@ -639,7 +639,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 	unsigned int n, rc, ranges, is_kexec_kdump = 0;
 	unsigned long lmb_size, base, size, sz;
 	int nid;
-	struct assoc_arrays aa;
+	struct assoc_arrays aa = { .arrays = NULL };
 
 	n = of_get_drconf_memory(memory, &dm);
 	if (!n)
