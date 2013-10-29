@@ -908,31 +908,17 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 	devinfo->cmnd = NULL;
 
 	r = uas_find_endpoints(devinfo->intf->cur_altsetting, eps);
+	if (r)
+		return r;
 
-	/*
-	 * Assume that if we didn't find a proper set of descriptors, we're
-	 * using a device with old firmware that happens to be set up like
-	 * this.
-	 */
-	if (r != 0) {
-		devinfo->cmd_pipe = usb_sndbulkpipe(udev, 1);
-		devinfo->status_pipe = usb_rcvbulkpipe(udev, 1);
-		devinfo->data_in_pipe = usb_rcvbulkpipe(udev, 2);
-		devinfo->data_out_pipe = usb_sndbulkpipe(udev, 2);
-
-		eps[1] = usb_pipe_endpoint(udev, devinfo->status_pipe);
-		eps[2] = usb_pipe_endpoint(udev, devinfo->data_in_pipe);
-		eps[3] = usb_pipe_endpoint(udev, devinfo->data_out_pipe);
-	} else {
-		devinfo->cmd_pipe = usb_sndbulkpipe(udev,
-					     usb_endpoint_num(&eps[0]->desc));
-		devinfo->status_pipe = usb_rcvbulkpipe(udev,
-					     usb_endpoint_num(&eps[1]->desc));
-		devinfo->data_in_pipe = usb_rcvbulkpipe(udev,
-					     usb_endpoint_num(&eps[2]->desc));
-		devinfo->data_out_pipe = usb_sndbulkpipe(udev,
-					     usb_endpoint_num(&eps[3]->desc));
-	}
+	devinfo->cmd_pipe = usb_sndbulkpipe(udev,
+					    usb_endpoint_num(&eps[0]->desc));
+	devinfo->status_pipe = usb_rcvbulkpipe(udev,
+					    usb_endpoint_num(&eps[1]->desc));
+	devinfo->data_in_pipe = usb_rcvbulkpipe(udev,
+					    usb_endpoint_num(&eps[2]->desc));
+	devinfo->data_out_pipe = usb_sndbulkpipe(udev,
+					    usb_endpoint_num(&eps[3]->desc));
 
 	devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1, 3, 256,
 								GFP_KERNEL);
