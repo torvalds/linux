@@ -76,6 +76,11 @@
 				compatible = "sirf,prima2-rsc";
 				reg = <0x88020000 0x1000>;
 			};
+
+			cphifbg@88030000 {
+				compatible = "sirf,prima2-cphifbg";
+				reg = <0x88030000 0x1000>;
+			};
 		};
 
 		mem-iobg {
@@ -86,9 +91,16 @@
 
 			memory-controller@90000000 {
 				compatible = "sirf,prima2-memc";
-				reg = <0x90000000 0x10000>;
+				reg = <0x90000000 0x2000>;
 				interrupts = <27>;
 				clocks = <&clks 5>;
+			};
+
+			memc-monitor {
+				compatible = "sirf,prima2-memcmon";
+				reg = <0x90002000 0x200>;
+				interrupts = <4>;
+				clocks = <&clks 32>;
 			};
 		};
 
@@ -287,7 +299,13 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
+				sirf,spi-num-chipselects = <1>;
+				sirf,spi-dma-rx-channel = <25>;
+				sirf,spi-dma-tx-channel = <20>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clks 19>;
+				status = "disabled";
 			};
 
 			spi1: spi@b0170000 {
@@ -295,7 +313,13 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
+				sirf,spi-num-chipselects = <1>;
+				sirf,spi-dma-rx-channel = <12>;
+				sirf,spi-dma-tx-channel = <13>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clks 20>;
+				status = "disabled";
 			};
 
 			i2c0: i2c@b00e0000 {
@@ -304,6 +328,8 @@
 				reg = <0xb00e0000 0x10000>;
 				interrupts = <24>;
 				clocks = <&clks 17>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 
 			i2c1: i2c@b00f0000 {
@@ -312,6 +338,8 @@
 				reg = <0xb00f0000 0x10000>;
 				interrupts = <25>;
 				clocks = <&clks 18>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 
 			tsc@b0110000 {
