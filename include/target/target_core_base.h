@@ -779,6 +779,8 @@ struct se_subsystem_dev {
 };
 
 struct se_device {
+#define SE_DEV_LINK_MAGIC			0xfeeddeef
+	u32			dev_link_magic;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
@@ -869,6 +871,8 @@ struct se_port_stat_grps {
 };
 
 struct se_lun {
+#define SE_LUN_LINK_MAGIC			0xffff7771
+	u32			lun_link_magic;
 	/* See transport_lun_status_table */
 	enum transport_lun_status_table lun_status;
 	u32			lun_access;

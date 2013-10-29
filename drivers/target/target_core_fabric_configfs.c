@@ -72,6 +72,12 @@ static int target_fabric_mappedlun_link(
 	struct se_portal_group *se_tpg;
 	struct config_item *nacl_ci, *tpg_ci, *tpg_ci_s, *wwn_ci, *wwn_ci_s;
 	int ret = 0, lun_access;
+
+	if (lun->lun_link_magic != SE_LUN_LINK_MAGIC) {
+		pr_err("Bad lun->lun_link_magic, not a valid lun_ci pointer:"
+			" %p to struct lun: %p\n", lun_ci, lun);
+		return -EFAULT;
+	}
 	/*
 	 * Ensure that the source port exists
 	 */
@@ -745,6 +751,12 @@ static int target_fabric_port_link(
 				se_dev_group);
 	struct target_fabric_configfs *tf;
 	int ret;
+
+	if (dev->dev_link_magic != SE_DEV_LINK_MAGIC) {
+		pr_err("Bad dev->dev_link_magic, not a valid se_dev_ci pointer:"
+			" %p to struct se_device: %p\n", se_dev_ci, dev);
+		return -EFAULT;
+	}
 
 	tpg_ci = &lun_ci->ci_parent->ci_group->cg_item;
 	se_tpg = container_of(to_config_group(tpg_ci),
