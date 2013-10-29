@@ -186,6 +186,15 @@ static bool dynamic_country_user_possible(struct ath_regulatory *reg)
 	return true;
 }
 
+static bool ath_reg_dyn_country_user_allow(struct ath_regulatory *reg)
+{
+	if (!config_enabled(CONFIG_ATH_REG_DYNAMIC_USER_REG_HINTS))
+		return false;
+	if (!dynamic_country_user_possible(reg))
+		return false;
+	return true;
+}
+
 static inline bool is_wwr_sku(u16 regd)
 {
 	return ((regd & COUNTRY_ERD_FLAG) != COUNTRY_ERD_FLAG) &&
@@ -473,17 +482,6 @@ static void ath_reg_dyn_country(struct wiphy *wiphy,
 	       reg_initiator_name(request->initiator));
 }
 
-static void ath_reg_dyn_country_user(struct wiphy *wiphy,
-				     struct ath_regulatory *reg,
-				     struct regulatory_request *request)
-{
-	if (!config_enabled(CONFIG_ATH_REG_DYNAMIC_USER_REG_HINTS))
-		return;
-	if (!dynamic_country_user_possible(reg))
-		return;
-	ath_reg_dyn_country(wiphy, reg, request);
-}
-
 void ath_reg_notifier_apply(struct wiphy *wiphy,
 			    struct regulatory_request *request,
 			    struct ath_regulatory *reg)
@@ -516,7 +514,8 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		break;
 	case NL80211_REGDOM_SET_BY_USER:
-		ath_reg_dyn_country_user(wiphy, reg, request);
+		if (ath_reg_dyn_country_user_allow(reg))
+			ath_reg_dyn_country(wiphy, reg, request);
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		ath_reg_dyn_country(wiphy, reg, request);
