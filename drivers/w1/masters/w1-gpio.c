@@ -58,6 +58,7 @@ static int w1_gpio_probe_dt(struct platform_device *pdev)
 {
 	struct w1_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;
+	int gpio;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -66,7 +67,11 @@ static int w1_gpio_probe_dt(struct platform_device *pdev)
 	if (of_get_property(np, "linux,open-drain", NULL))
 		pdata->is_open_drain = 1;
 
-	pdata->pin = of_get_gpio(np, 0);
+	gpio = of_get_gpio(np, 0);
+	if (gpio < 0)
+		return gpio;
+	pdata->pin = gpio;
+
 	pdata->ext_pullup_enable_pin = of_get_gpio(np, 1);
 	pdev->dev.platform_data = pdata;
 
