@@ -809,7 +809,7 @@ xfs_buf_item_init(
  * Mark bytes first through last inclusive as dirty in the buf
  * item's bitmap.
  */
-void
+static void
 xfs_buf_item_log_segment(
 	struct xfs_buf_log_item	*bip,
 	uint			first,

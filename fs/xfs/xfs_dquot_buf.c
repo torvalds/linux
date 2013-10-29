@@ -18,6 +18,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -267,7 +268,7 @@ xfs_dquot_buf_read_verify(
  * the buffer after the update is done. This ensures that the dquot in the
  * buffer always has an up-to-date CRC value.
  */
-void
+static void
 xfs_dquot_buf_write_verify(
 	struct xfs_buf	*bp)
 {

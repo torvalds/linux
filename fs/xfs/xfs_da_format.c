@@ -18,6 +18,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -706,7 +707,7 @@ xfs_dir3_free_hdr_to_disk(
 	hdr3->nused = cpu_to_be32(from->nused);
 }
 
-const struct xfs_dir_ops xfs_dir2_ops = {
+static const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_entsize = xfs_dir2_sf_entsize,
 	.sf_nextentry = xfs_dir2_sf_nextentry,
 	.sf_get_ftype = xfs_dir2_sfe_get_ftype,
@@ -756,7 +757,7 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
 
-const struct xfs_dir_ops xfs_dir2_ftype_ops = {
+static const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.sf_entsize = xfs_dir3_sf_entsize,
 	.sf_nextentry = xfs_dir3_sf_nextentry,
 	.sf_get_ftype = xfs_dir3_sfe_get_ftype,
@@ -806,7 +807,7 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
 
-const struct xfs_dir_ops xfs_dir3_ops = {
+static const struct xfs_dir_ops xfs_dir3_ops = {
 	.sf_entsize = xfs_dir3_sf_entsize,
 	.sf_nextentry = xfs_dir3_sf_nextentry,
 	.sf_get_ftype = xfs_dir3_sfe_get_ftype,
@@ -856,14 +857,14 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.db_to_fdindex = xfs_dir3_db_to_fdindex,
 };
 
-const struct xfs_dir_ops xfs_dir2_nondir_ops = {
+static const struct xfs_dir_ops xfs_dir2_nondir_ops = {
 	.node_hdr_size = sizeof(struct xfs_da_node_hdr),
 	.node_hdr_to_disk = xfs_da2_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 };
 
-const struct xfs_dir_ops xfs_dir3_nondir_ops = {
+static const struct xfs_dir_ops xfs_dir3_nondir_ops = {
 	.node_hdr_size = sizeof(struct xfs_da3_node_hdr),
 	.node_hdr_to_disk = xfs_da3_node_hdr_to_disk,
 	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,

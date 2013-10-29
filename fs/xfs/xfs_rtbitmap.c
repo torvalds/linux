@@ -37,6 +37,7 @@
 #include "xfs_buf.h"
 #include "xfs_icache.h"
 #include "xfs_dinode.h"
+#include "xfs_rtalloc.h"
 
 
 /*
