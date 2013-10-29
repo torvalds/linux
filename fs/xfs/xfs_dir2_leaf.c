@@ -500,7 +500,7 @@ xfs_dir2_block_to_leaf(
 		hdr->magic = cpu_to_be32(XFS_DIR3_DATA_MAGIC);
 
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	/*
 	 * Set up leaf tail and bests table.
 	 */
@@ -700,7 +700,7 @@ xfs_dir2_leaf_addname(
 	ents = xfs_dir3_leaf_ents_p(leaf);
 	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	length = xfs_dir3_data_entsize(mp, args->namelen);
+	length = dp->d_ops->data_entsize(args->namelen);
 
 	/*
 	 * See if there are any entries with the same hash value
@@ -901,20 +901,20 @@ xfs_dir2_leaf_addname(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
-	xfs_dir3_dirent_put_ftype(mp, dep, args->filetype);
-	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
+	dp->d_ops->data_put_ftype(dep, args->filetype);
+	tagp = dp->d_ops->data_entry_tag_p(dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Need to scan fix up the bestfree table.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	/*
 	 * Need to log the data block's header.
 	 */
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
-	xfs_dir2_data_log_entry(tp, dbp, dep);
+	xfs_dir2_data_log_entry(tp, dp, dbp, dep);
 	/*
 	 * If the bests table needs to be changed, do it.
 	 * Log the change unless we've already done that.
@@ -1230,7 +1230,7 @@ xfs_dir2_leaf_lookup(
 	 * Return the found inode number & CI name if appropriate
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
-	args->filetype = xfs_dir3_dirent_get_ftype(dp->i_mount, dep);
+	args->filetype = dp->d_ops->data_get_ftype(dep);
 	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_trans_brelse(tp, dbp);
 	xfs_trans_brelse(tp, lbp);
@@ -1433,7 +1433,7 @@ xfs_dir2_leaf_removename(
 	 */
 	xfs_dir2_data_make_free(tp, dbp,
 		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
-		xfs_dir3_data_entsize(mp, dep->namelen), &needlog, &needscan);
+		dp->d_ops->data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * We just mark the leaf entry stale by putting a null in it.
 	 */
@@ -1449,7 +1449,7 @@ xfs_dir2_leaf_removename(
 	 * log the data block header if necessary.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
 	/*
@@ -1561,9 +1561,9 @@ xfs_dir2_leaf_replace(
 	 * Put the new inode number in, log it.
 	 */
 	dep->inumber = cpu_to_be64(args->inumber);
-	xfs_dir3_dirent_put_ftype(dp->i_mount, dep, args->filetype);
+	dp->d_ops->data_put_ftype(dep, args->filetype);
 	tp = args->trans;
-	xfs_dir2_data_log_entry(tp, dbp, dep);
+	xfs_dir2_data_log_entry(tp, dp, dbp, dep);
 	xfs_dir3_leaf_check(dp->i_mount, lbp);
 	xfs_trans_brelse(tp, lbp);
 	return 0;

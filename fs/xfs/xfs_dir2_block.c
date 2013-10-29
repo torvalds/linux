@@ -280,6 +280,7 @@ out:
 static void
 xfs_dir2_block_compact(
 	struct xfs_trans		*tp,
+	struct xfs_inode		*dp,
 	struct xfs_buf			*bp,
 	struct xfs_dir2_data_hdr	*hdr,
 	struct xfs_dir2_block_tail	*btp,
@@ -323,7 +324,7 @@ xfs_dir2_block_compact(
 	 * This needs to happen before the next call to use_free.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(tp->t_mountp, hdr, needlog);
+		xfs_dir2_data_freescan(dp, hdr, needlog);
 }
 
 /*
@@ -369,7 +370,7 @@ xfs_dir2_block_addname(
 	if (error)
 		return error;
 
-	len = xfs_dir3_data_entsize(mp, args->namelen);
+	len = dp->d_ops->data_entsize(args->namelen);
 
 	/*
 	 * Set up pointers to parts of the block.
@@ -418,7 +419,7 @@ xfs_dir2_block_addname(
 	 * If need to compact the leaf entries, do it now.
 	 */
 	if (compact) {
-		xfs_dir2_block_compact(tp, bp, hdr, btp, blp, &needlog,
+		xfs_dir2_block_compact(tp, dp, bp, hdr, btp, blp, &needlog,
 				      &lfloghigh, &lfloglow);
 		/* recalculate blp post-compaction */
 		blp = xfs_dir2_block_leaf_p(btp);
@@ -468,7 +469,7 @@ xfs_dir2_block_addname(
 		 * This needs to happen before the next call to use_free.
 		 */
 		if (needscan) {
-			xfs_dir2_data_freescan(mp, hdr, &needlog);
+			xfs_dir2_data_freescan(dp, hdr, &needlog);
 			needscan = 0;
 		}
 		/*
@@ -549,18 +550,18 @@ xfs_dir2_block_addname(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
-	xfs_dir3_dirent_put_ftype(mp, dep, args->filetype);
-	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
+	dp->d_ops->data_put_ftype(dep, args->filetype);
+	tagp = dp->d_ops->data_entry_tag_p(dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Clean up the bestfree array and log the header, tail, and entry.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, bp);
 	xfs_dir2_block_log_tail(tp, bp);
-	xfs_dir2_data_log_entry(tp, bp, dep);
+	xfs_dir2_data_log_entry(tp, dp, bp, dep);
 	xfs_dir3_data_check(dp, bp);
 	return 0;
 }
@@ -642,7 +643,7 @@ xfs_dir2_block_lookup(
 	 * Fill in inode number, CI name if appropriate, release the block.
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
-	args->filetype = xfs_dir3_dirent_get_ftype(mp, dep);
+	args->filetype = dp->d_ops->data_get_ftype(dep);
 	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_trans_brelse(args->trans, bp);
 	return XFS_ERROR(error);
@@ -801,7 +802,7 @@ xfs_dir2_block_removename(
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, bp,
 		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
-		xfs_dir3_data_entsize(mp, dep->namelen), &needlog, &needscan);
+		dp->d_ops->data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * Fix up the block tail.
 	 */
@@ -816,7 +817,7 @@ xfs_dir2_block_removename(
 	 * Fix up bestfree, log the header if necessary.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, bp);
 	xfs_dir3_data_check(dp, bp);
@@ -875,8 +876,8 @@ xfs_dir2_block_replace(
 	 * Change the inode number to the new value.
 	 */
 	dep->inumber = cpu_to_be64(args->inumber);
-	xfs_dir3_dirent_put_ftype(mp, dep, args->filetype);
-	xfs_dir2_data_log_entry(args->trans, bp, dep);
+	dp->d_ops->data_put_ftype(dep, args->filetype);
+	xfs_dir2_data_log_entry(args->trans, dp, bp, dep);
 	xfs_dir3_data_check(dp, bp);
 	return 0;
 }
@@ -1023,7 +1024,7 @@ xfs_dir2_leaf_to_block(
 	 * Scan the bestfree if we need it and log the data block header.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
 	/*
@@ -1158,32 +1159,32 @@ xfs_dir2_sf_to_block(
 	/*
 	 * Create entry for .
 	 */
-	dep = xfs_dir3_data_dot_entry_p(mp, hdr);
+	dep = dp->d_ops->data_dot_entry_p(hdr);
 	dep->inumber = cpu_to_be64(dp->i_ino);
 	dep->namelen = 1;
 	dep->name[0] = '.';
-	xfs_dir3_dirent_put_ftype(mp, dep, XFS_DIR3_FT_DIR);
-	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
+	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
+	tagp = dp->d_ops->data_entry_tag_p(dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
-	xfs_dir2_data_log_entry(tp, bp, dep);
+	xfs_dir2_data_log_entry(tp, dp, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
 	blp[0].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
 				(char *)dep - (char *)hdr));
 	/*
 	 * Create entry for ..
 	 */
-	dep = xfs_dir3_data_dotdot_entry_p(mp, hdr);
+	dep = dp->d_ops->data_dotdot_entry_p(hdr);
 	dep->inumber = cpu_to_be64(dp->d_ops->sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
-	xfs_dir3_dirent_put_ftype(mp, dep, XFS_DIR3_FT_DIR);
-	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
+	dp->d_ops->data_put_ftype(dep, XFS_DIR3_FT_DIR);
+	tagp = dp->d_ops->data_entry_tag_p(dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
-	xfs_dir2_data_log_entry(tp, bp, dep);
+	xfs_dir2_data_log_entry(tp, dp, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
 	blp[1].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
 				(char *)dep - (char *)hdr));
-	offset = xfs_dir3_data_first_offset(mp);
+	offset = dp->d_ops->data_first_offset();
 	/*
 	 * Loop over existing entries, stuff them in.
 	 */
@@ -1224,12 +1225,11 @@ xfs_dir2_sf_to_block(
 		dep = (xfs_dir2_data_entry_t *)((char *)hdr + newoffset);
 		dep->inumber = cpu_to_be64(dp->d_ops->sf_get_ino(sfp, sfep));
 		dep->namelen = sfep->namelen;
-		xfs_dir3_dirent_put_ftype(mp, dep,
-					  dp->d_ops->sf_get_ftype(sfep));
+		dp->d_ops->data_put_ftype(dep, dp->d_ops->sf_get_ftype(sfep));
 		memcpy(dep->name, sfep->name, dep->namelen);
-		tagp = xfs_dir3_data_entry_tag_p(mp, dep);
+		tagp = dp->d_ops->data_entry_tag_p(dep);
 		*tagp = cpu_to_be16((char *)dep - (char *)hdr);
-		xfs_dir2_data_log_entry(tp, bp, dep);
+		xfs_dir2_data_log_entry(tp, dp, bp, dep);
 		name.name = sfep->name;
 		name.len = sfep->namelen;
 		blp[2 + i].hashval = cpu_to_be32(mp->m_dirnameops->

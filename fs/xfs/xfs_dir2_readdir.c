@@ -119,9 +119,9 @@ xfs_dir2_sf_getdents(
 	 * mp->m_dirdatablk.
 	 */
 	dot_offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					     xfs_dir3_data_dot_offset(mp));
+						dp->d_ops->data_dot_offset());
 	dotdot_offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-						xfs_dir3_data_dotdot_offset(mp));
+						dp->d_ops->data_dotdot_offset());
 
 	/*
 	 * Put . entry unless we're starting past it.
@@ -237,7 +237,7 @@ xfs_dir2_block_getdents(
 		/*
 		 * Bump pointer for the next iteration.
 		 */
-		ptr += xfs_dir3_data_entsize(mp, dep->namelen);
+		ptr += dp->d_ops->data_entsize(dep->namelen);
 		/*
 		 * The entry is before the desired starting point, skip it.
 		 */
@@ -248,7 +248,7 @@ xfs_dir2_block_getdents(
 					    (char *)dep - (char *)hdr);
 
 		ctx->pos = cook & 0x7fffffff;
-		filetype = xfs_dir3_dirent_get_ftype(mp, dep);
+		filetype = dp->d_ops->data_get_ftype(dep);
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
@@ -601,7 +601,7 @@ xfs_dir2_leaf_getdents(
 					}
 					dep = (xfs_dir2_data_entry_t *)ptr;
 					length =
-					   xfs_dir3_data_entsize(mp, dep->namelen);
+					   dp->d_ops->data_entsize(dep->namelen);
 					ptr += length;
 				}
 				/*
@@ -632,8 +632,8 @@ xfs_dir2_leaf_getdents(
 		}
 
 		dep = (xfs_dir2_data_entry_t *)ptr;
-		length = xfs_dir3_data_entsize(mp, dep->namelen);
-		filetype = xfs_dir3_dirent_get_ftype(mp, dep);
+		length = dp->d_ops->data_entsize(dep->namelen);
+		filetype = dp->d_ops->data_get_ftype(dep);
 
 		ctx->pos = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
 		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,

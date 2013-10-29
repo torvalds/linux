@@ -604,7 +604,7 @@ xfs_dir2_leafn_lookup_for_addname(
 		ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC) ||
 		       free->hdr.magic == cpu_to_be32(XFS_DIR3_FREE_MAGIC));
 	}
-	length = xfs_dir3_data_entsize(mp, args->namelen);
+	length = dp->d_ops->data_entsize(args->namelen);
 	/*
 	 * Loop over leaf entries with the right hash value.
 	 */
@@ -815,7 +815,7 @@ xfs_dir2_leafn_lookup_for_entry(
 				xfs_trans_brelse(tp, state->extrablk.bp);
 			args->cmpresult = cmp;
 			args->inumber = be64_to_cpu(dep->inumber);
-			args->filetype = xfs_dir3_dirent_get_ftype(mp, dep);
+			args->filetype = dp->d_ops->data_get_ftype(dep);
 			*indexp = index;
 			state->extravalid = 1;
 			state->extrablk.bp = curbp;
@@ -1259,13 +1259,13 @@ xfs_dir2_leafn_remove(
 	longest = be16_to_cpu(bf[0].length);
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, dbp, off,
-		xfs_dir3_data_entsize(mp, dep->namelen), &needlog, &needscan);
+		dp->d_ops->data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * Rescan the data block freespaces for bestfree.
 	 * Log the data block header if needed.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
 	xfs_dir3_data_check(dp, dbp);
@@ -1711,7 +1711,7 @@ xfs_dir2_node_addname_int(
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
-	length = xfs_dir3_data_entsize(mp, args->namelen);
+	length = dp->d_ops->data_entsize(args->namelen);
 	/*
 	 * If we came in with a freespace block that means that lookup
 	 * found an entry with our hash value.  This is the freespace
@@ -2007,15 +2007,15 @@ xfs_dir2_node_addname_int(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
-	xfs_dir3_dirent_put_ftype(mp, dep, args->filetype);
-	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
+	dp->d_ops->data_put_ftype(dep, args->filetype);
+	tagp = dp->d_ops->data_entry_tag_p(dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
-	xfs_dir2_data_log_entry(tp, dbp, dep);
+	xfs_dir2_data_log_entry(tp, dp, dbp, dep);
 	/*
 	 * Rescan the block for bestfree if needed.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, hdr, &needlog);
+		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	/*
 	 * Log the data block header if needed.
 	 */
@@ -2228,8 +2228,9 @@ xfs_dir2_node_replace(
 		 * Fill in the new inode number and log the entry.
 		 */
 		dep->inumber = cpu_to_be64(inum);
-		xfs_dir3_dirent_put_ftype(state->mp, dep, args->filetype);
-		xfs_dir2_data_log_entry(args->trans, state->extrablk.bp, dep);
+		args->dp->d_ops->data_put_ftype(dep, args->filetype);
+		xfs_dir2_data_log_entry(args->trans, args->dp,
+					state->extrablk.bp, dep);
 		rval = 0;
 	}
 	/*

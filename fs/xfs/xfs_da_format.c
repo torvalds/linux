@@ -28,7 +28,9 @@
 #include "xfs_inode.h"
 #include "xfs_dir2.h"
 
-
+/*
+ * Shortform directory ops
+ */
 static int
 xfs_dir2_sf_entsize(
 	struct xfs_dir2_sf_hdr	*hdr,
@@ -203,6 +205,184 @@ xfs_dir3_sfe_put_ino(
 			(xfs_dir2_inou_t *)&sfep->name[sfep->namelen + 1], ino);
 }
 
+
+/*
+ * Directory data block operations
+ */
+static int
+__xfs_dir3_data_entsize(
+	bool	ftype,
+	int	n)
+{
+	int	size = offsetof(struct xfs_dir2_data_entry, name[0]);
+
+	size += n;
+	size += sizeof(xfs_dir2_data_off_t);
+	if (ftype)
+		size += sizeof(__uint8_t);
+	return roundup(size, XFS_DIR2_DATA_ALIGN);
+}
+
+static int
+xfs_dir2_data_entsize(
+	int			n)
+{
+	return __xfs_dir3_data_entsize(false, n);
+}
+static int
+xfs_dir3_data_entsize(
+	int			n)
+{
+	return __xfs_dir3_data_entsize(true, n);
+}
+
+static __uint8_t
+xfs_dir2_data_get_ftype(
+	struct xfs_dir2_data_entry *dep)
+{
+	return XFS_DIR3_FT_UNKNOWN;
+}
+
+static void
+xfs_dir2_data_put_ftype(
+	struct xfs_dir2_data_entry *dep,
+	__uint8_t		ftype)
+{
+	ASSERT(ftype < XFS_DIR3_FT_MAX);
+}
+
+static __uint8_t
+xfs_dir3_data_get_ftype(
+	struct xfs_dir2_data_entry *dep)
+{
+	__uint8_t	ftype = dep->name[dep->namelen];
+
+	ASSERT(ftype < XFS_DIR3_FT_MAX);
+	if (ftype >= XFS_DIR3_FT_MAX)
+		return XFS_DIR3_FT_UNKNOWN;
+	return ftype;
+}
+
+static void
+xfs_dir3_data_put_ftype(
+	struct xfs_dir2_data_entry *dep,
+	__uint8_t		type)
+{
+	ASSERT(type < XFS_DIR3_FT_MAX);
+	ASSERT(dep->namelen != 0);
+
+	dep->name[dep->namelen] = type;
+}
+
+/*
+ * Pointer to an entry's tag word.
+ */
+static __be16 *
+xfs_dir2_data_entry_tag_p(
+	struct xfs_dir2_data_entry *dep)
+{
+	return (__be16 *)((char *)dep +
+		xfs_dir2_data_entsize(dep->namelen) - sizeof(__be16));
+}
+
+static __be16 *
+xfs_dir3_data_entry_tag_p(
+	struct xfs_dir2_data_entry *dep)
+{
+	return (__be16 *)((char *)dep +
+		xfs_dir3_data_entsize(dep->namelen) - sizeof(__be16));
+}
+
+/*
+ * Offsets of . and .. in data space (always block 0)
+ */
+static xfs_dir2_data_aoff_t
+xfs_dir2_data_dot_offset(void)
+{
+	return sizeof(struct xfs_dir2_data_hdr);
+}
+
+static xfs_dir2_data_aoff_t
+xfs_dir2_data_dotdot_offset(void)
+{
+	return xfs_dir2_data_dot_offset() + xfs_dir2_data_entsize(1);
+}
+
+static xfs_dir2_data_aoff_t
+xfs_dir2_data_first_offset(void)
+{
+	return xfs_dir2_data_dotdot_offset() + xfs_dir2_data_entsize(2);
+}
+
+static xfs_dir2_data_aoff_t
+xfs_dir3_data_dot_offset(void)
+{
+	return sizeof(struct xfs_dir3_data_hdr);
+}
+
+static xfs_dir2_data_aoff_t
+xfs_dir3_data_dotdot_offset(void)
+{
+	return xfs_dir3_data_dot_offset() + xfs_dir3_data_entsize(1);
+}
+
+static xfs_dir2_data_aoff_t
+xfs_dir3_data_first_offset(void)
+{
+	return xfs_dir3_data_dotdot_offset() + xfs_dir3_data_entsize(2);
+}
+
+/*
+ * location of . and .. in data space (always block 0)
+ */
+static struct xfs_dir2_data_entry *
+xfs_dir2_data_dot_entry_p(
+	struct xfs_dir2_data_hdr *hdr)
+{
+	return (struct xfs_dir2_data_entry *)
+		((char *)hdr + xfs_dir2_data_dot_offset());
+}
+
+static struct xfs_dir2_data_entry *
+xfs_dir2_data_dotdot_entry_p(
+	struct xfs_dir2_data_hdr *hdr)
+{
+	return (struct xfs_dir2_data_entry *)
+		((char *)hdr + xfs_dir2_data_dotdot_offset());
+}
+
+static struct xfs_dir2_data_entry *
+xfs_dir2_data_first_entry_p(
+	struct xfs_dir2_data_hdr *hdr)
+{
+	return (struct xfs_dir2_data_entry *)
+		((char *)hdr + xfs_dir2_data_first_offset());
+}
+
+static struct xfs_dir2_data_entry *
+xfs_dir3_data_dot_entry_p(
+	struct xfs_dir2_data_hdr *hdr)
+{
+	return (struct xfs_dir2_data_entry *)
+		((char *)hdr + xfs_dir3_data_dot_offset());
+}
+
+static struct xfs_dir2_data_entry *
+xfs_dir3_data_dotdot_entry_p(
+	struct xfs_dir2_data_hdr *hdr)
+{
+	return (struct xfs_dir2_data_entry *)
+		((char *)hdr + xfs_dir3_data_dotdot_offset());
+}
+
+static struct xfs_dir2_data_entry *
+xfs_dir3_data_first_entry_p(
+	struct xfs_dir2_data_hdr *hdr)
+{
+	return (struct xfs_dir2_data_entry *)
+		((char *)hdr + xfs_dir3_data_first_offset());
+}
+
 const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_entsize = xfs_dir2_sf_entsize,
 	.sf_nextentry = xfs_dir2_sf_nextentry,
@@ -212,6 +392,18 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_put_ino = xfs_dir2_sfe_put_ino,
 	.sf_get_parent_ino = xfs_dir2_sf_get_parent_ino,
 	.sf_put_parent_ino = xfs_dir2_sf_put_parent_ino,
+
+	.data_entsize = xfs_dir2_data_entsize,
+	.data_get_ftype = xfs_dir2_data_get_ftype,
+	.data_put_ftype = xfs_dir2_data_put_ftype,
+	.data_entry_tag_p = xfs_dir2_data_entry_tag_p,
+
+	.data_dot_offset = xfs_dir2_data_dot_offset,
+	.data_dotdot_offset = xfs_dir2_data_dotdot_offset,
+	.data_first_offset = xfs_dir2_data_first_offset,
+	.data_dot_entry_p = xfs_dir2_data_dot_entry_p,
+	.data_dotdot_entry_p = xfs_dir2_data_dotdot_entry_p,
+	.data_first_entry_p = xfs_dir2_data_first_entry_p,
 };
 
 const struct xfs_dir_ops xfs_dir2_ftype_ops = {
@@ -223,6 +415,18 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.sf_put_ino = xfs_dir3_sfe_put_ino,
 	.sf_get_parent_ino = xfs_dir2_sf_get_parent_ino,
 	.sf_put_parent_ino = xfs_dir2_sf_put_parent_ino,
+
+	.data_entsize = xfs_dir3_data_entsize,
+	.data_get_ftype = xfs_dir3_data_get_ftype,
+	.data_put_ftype = xfs_dir3_data_put_ftype,
+	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
+
+	.data_dot_offset = xfs_dir2_data_dot_offset,
+	.data_dotdot_offset = xfs_dir2_data_dotdot_offset,
+	.data_first_offset = xfs_dir2_data_first_offset,
+	.data_dot_entry_p = xfs_dir2_data_dot_entry_p,
+	.data_dotdot_entry_p = xfs_dir2_data_dotdot_entry_p,
+	.data_first_entry_p = xfs_dir2_data_first_entry_p,
 };
 
 const struct xfs_dir_ops xfs_dir3_ops = {
@@ -234,4 +438,16 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.sf_put_ino = xfs_dir3_sfe_put_ino,
 	.sf_get_parent_ino = xfs_dir2_sf_get_parent_ino,
 	.sf_put_parent_ino = xfs_dir2_sf_put_parent_ino,
+
+	.data_entsize = xfs_dir3_data_entsize,
+	.data_get_ftype = xfs_dir3_data_get_ftype,
+	.data_put_ftype = xfs_dir3_data_put_ftype,
+	.data_entry_tag_p = xfs_dir3_data_entry_tag_p,
+
+	.data_dot_offset = xfs_dir3_data_dot_offset,
+	.data_dotdot_offset = xfs_dir3_data_dotdot_offset,
+	.data_first_offset = xfs_dir3_data_first_offset,
+	.data_dot_entry_p = xfs_dir3_data_dot_entry_p,
+	.data_dotdot_entry_p = xfs_dir3_data_dotdot_entry_p,
+	.data_first_entry_p = xfs_dir3_data_first_entry_p,
 };

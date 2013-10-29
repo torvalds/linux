@@ -62,11 +62,25 @@ __xfs_dir3_data_check(
 	char			*p;		/* current data position */
 	int			stale;		/* count of stale leaves */
 	struct xfs_name		name;
+	const struct xfs_dir_ops *ops;
 
 	mp = bp->b_target->bt_mount;
 	hdr = bp->b_addr;
 	bf = xfs_dir3_data_bestfree_p(hdr);
 	p = (char *)xfs_dir3_data_entry_p(hdr);
+
+	/*
+	 * We can be passed a null dp here from a verifier, so manually
+	 * configure the ops here in that case.
+	 */
+	if (dp)
+		ops = dp->d_ops;
+	else if (xfs_sb_version_hascrc(&mp->m_sb))
+		ops = &xfs_dir3_ops;
+	else if (xfs_sb_version_hasftype(&mp->m_sb))
+		ops = &xfs_dir2_ftype_ops;
+	else
+		ops = &xfs_dir2_ops;
 
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
@@ -146,10 +160,10 @@ __xfs_dir3_data_check(
 		XFS_WANT_CORRUPTED_RETURN(
 			!xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)));
 		XFS_WANT_CORRUPTED_RETURN(
-			be16_to_cpu(*xfs_dir3_data_entry_tag_p(mp, dep)) ==
+			be16_to_cpu(*ops->data_entry_tag_p(dep)) ==
 					       (char *)dep - (char *)hdr);
 		XFS_WANT_CORRUPTED_RETURN(
-			xfs_dir3_dirent_get_ftype(mp, dep) < XFS_DIR3_FT_MAX);
+				ops->data_get_ftype(dep) < XFS_DIR3_FT_MAX);
 		count++;
 		lastfree = 0;
 		if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
@@ -167,7 +181,7 @@ __xfs_dir3_data_check(
 			}
 			XFS_WANT_CORRUPTED_RETURN(i < be32_to_cpu(btp->count));
 		}
-		p += xfs_dir3_data_entsize(mp, dep->namelen);
+		p += ops->data_entsize(dep->namelen);
 	}
 	/*
 	 * Need to have seen all the entries and all the bestfree slots.
@@ -485,9 +499,9 @@ xfs_dir2_data_freeremove(
  */
 void
 xfs_dir2_data_freescan(
-	xfs_mount_t		*mp,		/* filesystem mount point */
-	xfs_dir2_data_hdr_t	*hdr,		/* data block header */
-	int			*loghead)	/* out: log data header */
+	struct xfs_inode	*dp,
+	struct xfs_dir2_data_hdr *hdr,
+	int			*loghead)
 {
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_dir2_data_entry_t	*dep;		/* active data entry */
@@ -513,10 +527,10 @@ xfs_dir2_data_freescan(
 	p = (char *)xfs_dir3_data_entry_p(hdr);
 	if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC)) {
-		btp = xfs_dir2_block_tail_p(mp, hdr);
+		btp = xfs_dir2_block_tail_p(dp->i_mount, hdr);
 		endp = (char *)xfs_dir2_block_leaf_p(btp);
 	} else
-		endp = (char *)hdr + mp->m_dirblksize;
+		endp = (char *)hdr + dp->i_mount->m_dirblksize;
 	/*
 	 * Loop over the block's entries.
 	 */
@@ -537,8 +551,8 @@ xfs_dir2_data_freescan(
 		else {
 			dep = (xfs_dir2_data_entry_t *)p;
 			ASSERT((char *)dep - (char *)hdr ==
-			       be16_to_cpu(*xfs_dir3_data_entry_tag_p(mp, dep)));
-			p += xfs_dir3_data_entsize(mp, dep->namelen);
+			       be16_to_cpu(*dp->d_ops->data_entry_tag_p(dep)));
+			p += dp->d_ops->data_entsize(dep->namelen);
 		}
 	}
 }
@@ -625,11 +639,11 @@ xfs_dir3_data_init(
 void
 xfs_dir2_data_log_entry(
 	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
 	struct xfs_buf		*bp,
 	xfs_dir2_data_entry_t	*dep)		/* data entry pointer */
 {
 	struct xfs_dir2_data_hdr *hdr = bp->b_addr;
-	struct xfs_mount	*mp = tp->t_mountp;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
@@ -637,7 +651,7 @@ xfs_dir2_data_log_entry(
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
 	xfs_trans_log_buf(tp, bp, (uint)((char *)dep - (char *)hdr),
-		(uint)((char *)(xfs_dir3_data_entry_tag_p(mp, dep) + 1) -
+		(uint)((char *)(dp->d_ops->data_entry_tag_p(dep) + 1) -
 		       (char *)hdr - 1));
 }
 

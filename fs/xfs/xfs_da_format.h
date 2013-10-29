@@ -456,72 +456,6 @@ typedef struct xfs_dir2_data_unused {
 } xfs_dir2_data_unused_t;
 
 /*
- * Size of a data entry.
- */
-static inline int
-__xfs_dir3_data_entsize(
-	bool	ftype,
-	int	n)
-{
-	int	size = offsetof(struct xfs_dir2_data_entry, name[0]);
-
-	size += n;
-	size += sizeof(xfs_dir2_data_off_t);
-	if (ftype)
-		size += sizeof(__uint8_t);
-	return roundup(size, XFS_DIR2_DATA_ALIGN);
-}
-static inline int
-xfs_dir3_data_entsize(
-	struct xfs_mount	*mp,
-	int			n)
-{
-	bool ftype = xfs_sb_version_hasftype(&mp->m_sb) ? true : false;
-	return __xfs_dir3_data_entsize(ftype, n);
-}
-
-static inline __uint8_t
-xfs_dir3_dirent_get_ftype(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_data_entry *dep)
-{
-	if (xfs_sb_version_hasftype(&mp->m_sb)) {
-		__uint8_t	type = dep->name[dep->namelen];
-
-		ASSERT(type < XFS_DIR3_FT_MAX);
-		if (type < XFS_DIR3_FT_MAX)
-			return type;
-
-	}
-	return XFS_DIR3_FT_UNKNOWN;
-}
-
-static inline void
-xfs_dir3_dirent_put_ftype(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_data_entry *dep,
-	__uint8_t		type)
-{
-	ASSERT(type < XFS_DIR3_FT_MAX);
-	ASSERT(dep->namelen != 0);
-
-	if (xfs_sb_version_hasftype(&mp->m_sb))
-		dep->name[dep->namelen] = type;
-}
-
-/*
- * Pointer to an entry's tag word.
- */
-static inline __be16 *
-xfs_dir3_data_entry_tag_p(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_data_entry *dep)
-{
-	return (__be16 *)((char *)dep +
-		xfs_dir3_data_entsize(mp, dep->namelen) - sizeof(__be16));
-}
-
-/*
  * Pointer to a freespace's tag word.
  */
 static inline __be16 *
@@ -559,63 +493,6 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 {
 	return (struct xfs_dir2_data_unused *)
 		((char *)hdr + xfs_dir3_data_entry_offset(hdr));
-}
-
-/*
- * Offsets of . and .. in data space (always block 0)
- *
- * XXX: there is scope for significant optimisation of the logic here. Right
- * now we are checking for "dir3 format" over and over again. Ideally we should
- * only do it once for each operation.
- */
-static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_dot_offset(struct xfs_mount *mp)
-{
-	return xfs_dir3_data_hdr_size(xfs_sb_version_hascrc(&mp->m_sb));
-}
-
-static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_dotdot_offset(struct xfs_mount *mp)
-{
-	return xfs_dir3_data_dot_offset(mp) +
-		xfs_dir3_data_entsize(mp, 1);
-}
-
-static inline xfs_dir2_data_aoff_t
-xfs_dir3_data_first_offset(struct xfs_mount *mp)
-{
-	return xfs_dir3_data_dotdot_offset(mp) +
-		xfs_dir3_data_entsize(mp, 2);
-}
-
-/*
- * location of . and .. in data space (always block 0)
- */
-static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_dot_entry_p(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dot_offset(mp));
-}
-
-static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_dotdot_entry_p(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_dotdot_offset(mp));
-}
-
-static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_first_entry_p(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_first_offset(mp));
 }
 
 /*

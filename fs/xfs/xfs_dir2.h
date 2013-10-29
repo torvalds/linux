@@ -50,6 +50,22 @@ struct xfs_dir_ops {
 	xfs_ino_t (*sf_get_parent_ino)(struct xfs_dir2_sf_hdr *hdr);
 	void	(*sf_put_parent_ino)(struct xfs_dir2_sf_hdr *hdr,
 				     xfs_ino_t ino);
+
+	int	(*data_entsize)(int len);
+	__uint8_t (*data_get_ftype)(struct xfs_dir2_data_entry *dep);
+	void	(*data_put_ftype)(struct xfs_dir2_data_entry *dep,
+				__uint8_t ftype);
+	__be16 * (*data_entry_tag_p)(struct xfs_dir2_data_entry *dep);
+
+	xfs_dir2_data_aoff_t (*data_dot_offset)(void);
+	xfs_dir2_data_aoff_t (*data_dotdot_offset)(void);
+	xfs_dir2_data_aoff_t (*data_first_offset)(void);
+	struct xfs_dir2_data_entry *
+		(*data_dot_entry_p)(struct xfs_dir2_data_hdr *hdr);
+	struct xfs_dir2_data_entry *
+		(*data_dotdot_entry_p)(struct xfs_dir2_data_hdr *hdr);
+	struct xfs_dir2_data_entry *
+		(*data_first_entry_p)(struct xfs_dir2_data_hdr *hdr);
 };
 
 extern const struct xfs_dir_ops xfs_dir2_ops;
@@ -95,10 +111,10 @@ extern int xfs_dir2_isleaf(struct xfs_trans *tp, struct xfs_inode *dp, int *r);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
-extern void xfs_dir2_data_freescan(struct xfs_mount *mp,
+extern void xfs_dir2_data_freescan(struct xfs_inode *dp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
-extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_buf *bp,
-		struct xfs_dir2_data_entry *dep);
+extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_inode *dp,
+		struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
 extern void xfs_dir2_data_log_header(struct xfs_trans *tp,
 		struct xfs_buf *bp);
 extern void xfs_dir2_data_log_unused(struct xfs_trans *tp, struct xfs_buf *bp,

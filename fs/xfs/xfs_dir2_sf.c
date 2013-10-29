@@ -251,11 +251,11 @@ xfs_dir2_block_to_sf(
 			dp->d_ops->sf_put_ino(sfp, sfep,
 					      be64_to_cpu(dep->inumber));
 			dp->d_ops->sf_put_ftype(sfep,
-					xfs_dir3_dirent_get_ftype(mp, dep));
+					dp->d_ops->data_get_ftype(dep));
 
 			sfep = dp->d_ops->sf_nextentry(sfp, sfep);
 		}
-		ptr += xfs_dir3_data_entsize(mp, dep->namelen);
+		ptr += dp->d_ops->data_entsize(dep->namelen);
 	}
 	ASSERT((char *)sfep - (char *)sfp == size);
 	xfs_dir2_sf_check(args);
@@ -473,12 +473,12 @@ xfs_dir2_sf_addname_hard(
 	 * to insert the new entry.
 	 * If it's going to end up at the end then oldsfep will point there.
 	 */
-	for (offset = xfs_dir3_data_first_offset(mp),
+	for (offset = dp->d_ops->data_first_offset(),
 	      oldsfep = xfs_dir2_sf_firstentry(oldsfp),
-	      add_datasize = xfs_dir3_data_entsize(mp, args->namelen),
+	      add_datasize = dp->d_ops->data_entsize(args->namelen),
 	      eof = (char *)oldsfep == &buf[old_isize];
 	     !eof;
-	     offset = new_offset + xfs_dir3_data_entsize(mp, oldsfep->namelen),
+	     offset = new_offset + dp->d_ops->data_entsize(oldsfep->namelen),
 	      oldsfep = dp->d_ops->sf_nextentry(oldsfp, oldsfep),
 	      eof = (char *)oldsfep == &buf[old_isize]) {
 		new_offset = xfs_dir2_sf_get_offset(oldsfep);
@@ -555,8 +555,8 @@ xfs_dir2_sf_addname_pick(
 	mp = dp->i_mount;
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	size = xfs_dir3_data_entsize(mp, args->namelen);
-	offset = xfs_dir3_data_first_offset(mp);
+	size = dp->d_ops->data_entsize(args->namelen);
+	offset = dp->d_ops->data_first_offset();
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	holefit = 0;
 	/*
@@ -568,7 +568,7 @@ xfs_dir2_sf_addname_pick(
 		if (!holefit)
 			holefit = offset + size <= xfs_dir2_sf_get_offset(sfep);
 		offset = xfs_dir2_sf_get_offset(sfep) +
-			 xfs_dir3_data_entsize(mp, sfep->namelen);
+			 dp->d_ops->data_entsize(sfep->namelen);
 		sfep = dp->d_ops->sf_nextentry(sfp, sfep);
 	}
 	/*
@@ -629,7 +629,7 @@ xfs_dir2_sf_check(
 	mp = dp->i_mount;
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-	offset = xfs_dir3_data_first_offset(mp);
+	offset = dp->d_ops->data_first_offset();
 	ino = dp->d_ops->sf_get_parent_ino(sfp);
 	i8count = ino > XFS_DIR2_MAX_SHORT_INUM;
 
@@ -641,7 +641,7 @@ xfs_dir2_sf_check(
 		i8count += ino > XFS_DIR2_MAX_SHORT_INUM;
 		offset =
 			xfs_dir2_sf_get_offset(sfep) +
-			xfs_dir3_data_entsize(mp, sfep->namelen);
+			dp->d_ops->data_entsize(sfep->namelen);
 		ASSERT(dp->d_ops->sf_get_ftype(sfep) < XFS_DIR3_FT_MAX);
 	}
 	ASSERT(i8count == sfp->i8count);
