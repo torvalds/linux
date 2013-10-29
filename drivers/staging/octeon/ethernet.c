@@ -455,7 +455,7 @@ int cvm_oct_common_init(struct net_device *dev)
 	if (priv->of_node)
 		mac = of_get_mac_address(priv->of_node);
 
-	if (mac && is_valid_ether_addr(mac))
+	if (mac)
 		memcpy(dev->dev_addr, mac, ETH_ALEN);
 	else
 		eth_hw_addr_random(dev);
