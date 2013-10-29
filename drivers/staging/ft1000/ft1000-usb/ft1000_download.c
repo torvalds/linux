@@ -575,6 +575,34 @@ static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,
 	return status;
 }
 
+static u16 request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
+		 u8 **c_file, const u8 *boot_end)
+{
+	long word_length;
+	u16 status;
+
+	/*DEBUG("FT1000:REQUEST_CODE_SEGMENT\n");i*/
+	word_length = get_request_value(ft1000dev);
+	/*DEBUG("FT1000:word_length = 0x%x\n", (int)word_length); */
+	/*NdisMSleep (100); */
+	if (word_length > MAX_LENGTH) {
+		DEBUG("FT1000:download:Download error: Max length exceeded\n");
+		return STATUS_FAILURE;
+	}
+	if ((word_length * 2 + (long)c_file) > (long)boot_end) {
+		/* Error, beyond boot code range.*/
+		DEBUG("FT1000:download:Download error: Requested len=%d exceeds BOOT code boundary.\n", (int)word_length);
+		return STATUS_FAILURE;
+	}
+	if (word_length & 0x1)
+		word_length++;
+	word_length = word_length / 2;
+	status = write_blk(ft1000dev, s_file, c_file, word_length);
+	/*DEBUG("write_blk returned %d\n", status); */
+
+	return status;
+}
+
 /* Scramble downloader for Harley based ASIC via USB interface */
 u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 		u32 FileLength)
@@ -673,41 +701,10 @@ u16 scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					ft1000dev->fcodeldr = 1;
 					break;
 				case REQUEST_CODE_SEGMENT:
-					//DEBUG("FT1000:REQUEST_CODE_SEGMENT\n");
-					word_length =
-					    get_request_value(ft1000dev);
-					//DEBUG("FT1000:word_length = 0x%x\n", (int)word_length);
-					//NdisMSleep (100);
-					if (word_length > MAX_LENGTH) {
-						DEBUG
-						    ("FT1000:download:Download error: Max length exceeded\n");
-						status = STATUS_FAILURE;
-						break;
-					}
-					if ((word_length * 2 + c_file) >
-					    boot_end) {
-						/*
-						 * Error, beyond boot code range.
-						 */
-						DEBUG
-						    ("FT1000:download:Download error: Requested len=%d exceeds BOOT code boundary.\n",
-						     (int)word_length);
-						status = STATUS_FAILURE;
-						break;
-					}
-					/*
-					 * Position ASIC DPRAM auto-increment pointer.
-					 */
-					dpram = (u16) DWNLD_MAG1_PS_HDR_LOC;
-					if (word_length & 0x1)
-						word_length++;
-					word_length = word_length / 2;
-
-					status =
-					    write_blk(ft1000dev, &s_file,
-						      &c_file, word_length);
-					//DEBUG("write_blk returned %d\n", status);
-					break;
+					status = request_code_segment(ft1000dev,
+							&s_file, &c_file,
+							(const u8 *)boot_end);
+				break;
 				default:
 					DEBUG
 					    ("FT1000:download:Download error: Bad request type=%d in BOOT download state.\n",
