@@ -235,6 +235,8 @@ static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 		writel(1 << (chan_id + BP_APBHX_CHANNEL_CTRL_RESET_CHANNEL),
 			mxs_dma->base + HW_APBHX_CHANNEL_CTRL + STMP_OFFSET_REG_SET);
 	}
+
+	mxs_chan->status = DMA_COMPLETE;
 }
 
 static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
@@ -362,7 +364,7 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 			chan);
 		mxs_chan->status = DMA_ERROR;
 		mxs_dma_reset_chan(mxs_chan);
-	} else {
+	} else if (mxs_chan->status != DMA_COMPLETE) {
 		if (mxs_chan->flags & MXS_DMA_SG_LOOP)
 			mxs_chan->status = DMA_IN_PROGRESS;
 		else
