@@ -47,7 +47,6 @@
 #include <plat/iic-core.h>
 #include <plat/tv-core.h>
 #include <plat/ace-core.h>
-#include <plat/spi-core.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
