@@ -898,16 +898,11 @@ static int uas_switch_interface(struct usb_device *udev,
 			intf->altsetting[0].desc.bInterfaceNumber, alt);
 }
 
-static void uas_configure_endpoints(struct uas_dev_info *devinfo)
+static int uas_find_endpoints(struct usb_host_interface *alt,
+			      struct usb_host_endpoint *eps[])
 {
-	struct usb_host_endpoint *eps[4] = { };
-	struct usb_interface *intf = devinfo->intf;
-	struct usb_device *udev = devinfo->udev;
-	struct usb_host_endpoint *endpoint = intf->cur_altsetting->endpoint;
-	unsigned i, n_endpoints = intf->cur_altsetting->desc.bNumEndpoints;
-
-	devinfo->uas_sense_old = 0;
-	devinfo->cmnd = NULL;
+	struct usb_host_endpoint *endpoint = alt->endpoint;
+	unsigned i, n_endpoints = alt->desc.bNumEndpoints;
 
 	for (i = 0; i < n_endpoints; i++) {
 		unsigned char *extra = endpoint[i].extra;
@@ -924,12 +919,29 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 		}
 	}
 
+	if (!eps[0] || !eps[1] || !eps[2] || !eps[3])
+		return -ENODEV;
+
+	return 0;
+}
+
+static void uas_configure_endpoints(struct uas_dev_info *devinfo)
+{
+	struct usb_host_endpoint *eps[4] = { };
+	struct usb_device *udev = devinfo->udev;
+	int r;
+
+	devinfo->uas_sense_old = 0;
+	devinfo->cmnd = NULL;
+
+	r = uas_find_endpoints(devinfo->intf->cur_altsetting, eps);
+
 	/*
-	 * Assume that if we didn't find a control pipe descriptor, we're
+	 * Assume that if we didn't find a proper set of descriptors, we're
 	 * using a device with old firmware that happens to be set up like
 	 * this.
 	 */
-	if (!eps[0]) {
+	if (r != 0) {
 		devinfo->cmd_pipe = usb_sndbulkpipe(udev, 1);
 		devinfo->status_pipe = usb_rcvbulkpipe(udev, 1);
 		devinfo->data_in_pipe = usb_rcvbulkpipe(udev, 2);
