@@ -167,7 +167,7 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
  *
  * This function requires iram phandle provided via of_node
  */
-void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
+static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
 {
 	struct device *dev = dmab->dev.dev;
 	struct gen_pool *pool = NULL;
@@ -192,7 +192,7 @@ void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
  * snd_free_dev_iram - free allocated specific memory from on-chip internal ram
  * @dmab: buffer allocation record to store the allocated data
  */
-void snd_free_dev_iram(struct snd_dma_buffer *dmab)
+static void snd_free_dev_iram(struct snd_dma_buffer *dmab)
 {
 	struct gen_pool *pool = dmab->private_data;
 
