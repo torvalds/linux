@@ -2775,6 +2775,7 @@ static bool evergreen_vm_reg_valid(u32 reg)
 	case CAYMAN_SQ_EX_ALLOC_TABLE_SLOTS:
 		return true;
 	default:
+		DRM_ERROR("Invalid register 0x%x in CS\n", reg);
 		return false;
 	}
 }
