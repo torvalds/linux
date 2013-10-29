@@ -510,6 +510,8 @@ static int hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
 	}
 
 	schan = &new_hpb_chan->shdma_chan;
+	schan->max_xfer_len = HPB_DMA_TCR_MAX;
+
 	shdma_chan_probe(sdev, schan, id);
 
 	if (pdev->id >= 0)
