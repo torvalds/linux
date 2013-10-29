@@ -468,16 +468,12 @@ static int __init odroid_sysfs_init(void)
 {	
 #if defined(SLEEP_DISABLE_FLAG)
 	#ifdef CONFIG_HAS_WAKELOCK
-		printk("--------------------------------------------------------\n");
 		printk("%s(%d) : Sleep Disable Flag SET!!(Wake_lock_init)\n", __FUNCTION__, __LINE__);
-		printk("--------------------------------------------------------\n");
 
 	    wake_lock_init(&sleep_wake_lock, WAKE_LOCK_SUSPEND, "sleep_wake_lock");
 	#endif
 #else
-	printk("--------------------------------------------------------\n");
 	printk("%s(%d) : Sleep Enable !! \n", __FUNCTION__, __LINE__);
-	printk("--------------------------------------------------------\n");
 #endif
 
     return platform_driver_register(&odroid_sysfs_driver);

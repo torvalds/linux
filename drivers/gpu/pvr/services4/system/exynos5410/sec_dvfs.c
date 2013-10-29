@@ -215,7 +215,9 @@ void sec_gpu_dvfs_init(void)
 		g_gpu_dvfs_data[i].quick_up_threadhold = default_dvfs_data[i].quick_up_threadhold;
 		g_gpu_dvfs_data[i].stay_total_count = default_dvfs_data[i].stay_total_count;
 		g_gpu_dvfs_data[i].mask  = setmask(default_dvfs_data[i].level, default_dvfs_data[i].clock);
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
 		PVR_LOG(("G3D DVFS Info: Level:%d, Clock:%d MHz, Voltage:%d uV", g_gpu_dvfs_data[i].level, g_gpu_dvfs_data[i].clock, g_gpu_dvfs_data[i].voltage));
+#endif
 	}
 	/* default dvfs level depend on default clock setting */
 	sgx_dvfs_level = sec_gpu_dvfs_level_from_clk_get(gpu_clock_get());

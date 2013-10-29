@@ -806,9 +806,9 @@ static void __init set_volt_table_CA7(void)
 			else
 				exynos5410_volt_table_CA7[i] = asv_volt;
 		}
-
-		pr_info("CPUFREQ of CA7  L%d : %d uV\n", i,
-				exynos5410_volt_table_CA7[i]);
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
+		pr_info("CPUFREQ of CA7  L%d : %d uV\n", i, exynos5410_volt_table_CA7[i]);
+#endif
 	}
 
 	max_support_idx_CA7 = L1;
@@ -848,9 +848,9 @@ static void __init set_volt_table_CA15(void)
 			else
 				exynos5410_volt_table_CA15[i] = asv_volt;
 		}
-
-		pr_info("CPUFREQ of CA15 L%d : %d uV\n", i,
-				exynos5410_volt_table_CA15[i]);
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
+		pr_info("CPUFREQ of CA15 L%d : %d uV\n", i, exynos5410_volt_table_CA15[i]);
+#endif
 	}
 
 	max_support_idx_CA15 = L2;

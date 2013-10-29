@@ -358,7 +358,7 @@ static int bmp180_probe(struct i2c_client *client, const struct i2c_device_id *i
 	
 	if ((err = sysfs_create_group(&client->dev.kobj, &bmp180_attribute_group)) < 0)		goto error;
 
-    printk("\n=================== ioboard_%s ===================\n\n", __func__);
+    printk("odroidxu: ioboard: bmp180 probe\n", __func__);
 
 	return 0;
 

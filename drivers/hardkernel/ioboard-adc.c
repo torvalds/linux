@@ -153,7 +153,7 @@ static	int		ioboard_adc_probe		(struct platform_device *pdev)
 
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &adc_attribute_group)) < 0)		goto error;
 
-    printk("\n=================== %s ===================\n\n", __func__);
+    printk("odroidxu: ioboard: adc probe\n", __func__);
 
 	return 0;
 

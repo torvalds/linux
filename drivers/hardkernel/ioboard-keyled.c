@@ -239,7 +239,7 @@ static	int		ioboard_keyled_probe		(struct platform_device *pdev)
 	if(BoardTestFlag)
         hrtimer_start(&BoardTestTimer, ktime_set(0, 500000000), HRTIMER_MODE_REL);
 
-    printk("\n=================== %s ===================\n\n", __func__);
+        printk("odroidxu: ioboard: keyled probe\n");
 
 	return	sysfs_create_group(&pdev->dev.kobj, &ioboard_sysfs_attr_group);
 }

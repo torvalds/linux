@@ -425,6 +425,7 @@ void 	touch_hw_reset		(struct touch *ts)
 //[*]--------------------------------------------------------------------------------------------------[*]
 int		touch_info_display	(struct touch *ts)
 {
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
 	printk("--------------------------------------------------------\n");
 	printk("           TOUCH SCREEN INFORMATION\n");
 	printk("--------------------------------------------------------\n");
@@ -483,10 +484,11 @@ int		touch_info_display	(struct touch *ts)
 		printk("TOUCH INPUT Name = %s\n", ts->pdata->name);
 		printk("TOUCH ABS X MAX = %d, TOUCH ABS X MIN = %d\n", ts->pdata->abs_max_x, ts->pdata->abs_min_x);
 		printk("TOUCH ABS Y MAX = %d, TOUCH ABS Y MIN = %d\n", ts->pdata->abs_max_y, ts->pdata->abs_min_y);
-		printk("Dummy Touchscreen driver!\n");
+		printk("odroidxu: Dummy Touchscreen driver!\n");
 	}
-
-	printk("--------------------------------------------------------\n");
+#else
+	printk("odroidxu: Dummy touchscreen driver!\n");
+#endif
 	
 	return	0;
 }

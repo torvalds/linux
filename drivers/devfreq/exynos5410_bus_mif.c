@@ -683,9 +683,9 @@ static int exynos5410_mif_table(struct busfreq_data_mif *data)
 
 		if (!asv_volt)
 			asv_volt = mif_bus_opp_list[i].volt;
-
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
 		pr_info("MIF %luKhz ASV is %duV\n", mif_bus_opp_list[i].clk, asv_volt);
-
+#endif
 		ret = opp_add(data->dev, mif_bus_opp_list[i].clk, asv_volt);
 
 		if (ret) {

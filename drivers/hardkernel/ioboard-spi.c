@@ -418,7 +418,7 @@ static int ioboard_spi_probe        (struct spi_device *spi)
     
 //ioboard_spi_test(spi);
     
-    printk("\n=================== %s ===================\n\n", __func__);
+    printk("odroidxu: ioboard: probe spi\n", __func__);
 
     return  0;
 

@@ -800,7 +800,9 @@ static void print_constraints(struct regulator_dev *rdev)
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
 		count += sprintf(buf + count, "standby");
 
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
 	rdev_info(rdev, "%s\n", buf);
+#endif
 
 	if ((constraints->min_uV != constraints->max_uV) &&
 	    !(constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE))

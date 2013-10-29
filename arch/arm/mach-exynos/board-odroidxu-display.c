@@ -445,17 +445,13 @@ void __init exynos5_odroidxu_display_init(void)
     int     i;
 
     if(!strncmp(VoutBootArgs, "dp", sizeof("dp")))   {
-        printk("\n---------------------------------------------------------\n\n");
-        printk("%s : Display Port(DP) Monitor!\n\n", __func__);         
+        printk("%s : Display Port(DP) Monitor!\n", __func__);         
         s5p_dp_set_parameter();
-        printk("\n---------------------------------------------------------\n\n");
         odroidxu_lcd1_pdata.vidcon1	= 0,
     	s5p_dp_set_platdata(&odroidxu_dp_data);
     }
     else    {
-        printk("\n---------------------------------------------------------\n\n");
         printk("%s : LCD or HDMI or DVI Monitor!\n", __func__);
-        printk("\n---------------------------------------------------------\n\n");
     	s5p_dsim1_set_platdata(&dsim_platform_data);
     }
     
@@ -467,14 +463,10 @@ void __init exynos5_odroidxu_display_init(void)
             FrameBufferSizeX = DEFAULT_FB_X;
             FrameBufferSizeY = DEFAULT_FB_Y;
         }
-        printk("\n---------------------------------------------------------\n\n");
         printk("Virtual FB Size from Boot Parameter : X(%d), y(%d)\n", FrameBufferSizeX, FrameBufferSizeY);         
-        printk("\n---------------------------------------------------------\n\n");
     }
     else    {
-        printk("\n---------------------------------------------------------\n\n");
         printk("FB Size : X(%d), y(%d)\n", FrameBufferSizeX, FrameBufferSizeY);         
-        printk("\n---------------------------------------------------------\n\n");
     }
     odroidxu_fb_default.win_mode.xres = FrameBufferSizeX;
     odroidxu_fb_default.win_mode.yres = FrameBufferSizeY;

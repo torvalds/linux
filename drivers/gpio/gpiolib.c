@@ -1092,11 +1092,9 @@ unlock:
 	status = gpiochip_export(chip);
 	if (status)
 		goto fail;
-
-	pr_info("gpiochip_add: registered GPIOs %d to %d on device: %s\n",
-		chip->base, chip->base + chip->ngpio - 1,
-		chip->label ? : "generic");
-
+#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
+	pr_info("gpiochip_add: registered GPIOs %d to %d on device: %s\n", chip->base, chip->base + chip->ngpio - 1, chip->label ? : "generic");
+#endif
 	return 0;
 fail:
 	/* failures here can mean systems won't boot... */

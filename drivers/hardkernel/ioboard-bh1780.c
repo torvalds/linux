@@ -254,7 +254,7 @@ static int bh1780_probe(struct i2c_client *client, const struct i2c_device_id *i
 	
 	if ((err = sysfs_create_group(&client->dev.kobj, &bh1780_attribute_group)) < 0)		goto error;
 
-    printk("\n=================== ioboard_%s ===================\n\n", __func__);
+    printk("odroidxu: ioboard: bh1780 probe\n", __func__);
 
 	return 0;
 

@@ -28,5 +28,12 @@ config ODROIDXU_IOBOARD_DEBUG
 	---help---
 		Enables the IOBOARD Debug Message
     
+
+config ODROIDXU_DEBUG_MESSAGES
+	bool "Enables toons of platform debug message
+	default n
+	---help---
+		Enabling tons of kernel debug messages
+
 endmenu
 
