@@ -53,6 +53,10 @@ struct mdp4_crtc {
 	struct drm_pending_vblank_event *event;
 	struct msm_fence_cb pageflip_cb;
 
+#define PENDING_CURSOR 0x1
+#define PENDING_FLIP   0x2
+	atomic_t pending;
+
 	/* the fb that we currently hold a scanout ref to: */
 	struct drm_framebuffer *fb;
 
@@ -93,7 +97,8 @@ static void update_fb(struct drm_crtc *crtc, bool async,
 	}
 }
 
-static void complete_flip(struct drm_crtc *crtc, bool canceled)
+/* if file!=NULL, this is preclose potential cancel-flip path */
+static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -103,11 +108,14 @@ static void complete_flip(struct drm_crtc *crtc, bool canceled)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	event = mdp4_crtc->event;
 	if (event) {
-		mdp4_crtc->event = NULL;
-		if (canceled)
-			event->base.destroy(&event->base);
-		else
+		/* if regular vblank case (!file) or if cancel-flip from
+		 * preclose on file that requested flip, then send the
+		 * event:
+		 */
+		if (!file || (event->base.file_priv == file)) {
+			mdp4_crtc->event = NULL;
 			drm_send_vblank_event(dev, mdp4_crtc->id, event);
+		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -132,17 +140,29 @@ static void crtc_flush(struct drm_crtc *crtc)
 	mdp4_write(mdp4_kms, REG_MDP4_OVERLAY_FLUSH, flush);
 }
 
+static void request_pending(struct drm_crtc *crtc, uint32_t pending)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+
+	atomic_or(pending, &mdp4_crtc->pending);
+	mdp4_irq_register(get_kms(crtc), &mdp4_crtc->vblank);
+}
+
 static void pageflip_cb(struct msm_fence_cb *cb)
 {
 	struct mdp4_crtc *mdp4_crtc =
 		container_of(cb, struct mdp4_crtc, pageflip_cb);
 	struct drm_crtc *crtc = &mdp4_crtc->base;
+	struct drm_framebuffer *fb = crtc->fb;
 
-	mdp4_plane_set_scanout(mdp4_crtc->plane, crtc->fb);
+	if (!fb)
+		return;
+
+	mdp4_plane_set_scanout(mdp4_crtc->plane, fb);
 	crtc_flush(crtc);
 
 	/* enable vblank to complete flip: */
-	mdp4_irq_register(get_kms(crtc), &mdp4_crtc->vblank);
+	request_pending(crtc, PENDING_FLIP);
 }
 
 static void unref_fb_worker(struct drm_flip_work *work, void *val)
@@ -386,6 +406,7 @@ static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *obj;
+	unsigned long flags;
 
 	if (mdp4_crtc->event) {
 		dev_err(dev->dev, "already pending flip!\n");
@@ -394,7 +415,10 @@ static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
 
 	obj = msm_framebuffer_bo(new_fb, 0);
 
+	spin_lock_irqsave(&dev->event_lock, flags);
 	mdp4_crtc->event = event;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
 	update_fb(crtc, true, new_fb);
 
 	return msm_gem_queue_inactive_cb(obj, &mdp4_crtc->pageflip_cb);
@@ -506,6 +530,8 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 		drm_gem_object_unreference_unlocked(old_bo);
 	}
 
+	request_pending(crtc, PENDING_CURSOR);
+
 	return 0;
 
 fail:
@@ -550,13 +576,21 @@ static void mdp4_crtc_vblank_irq(struct mdp4_irq *irq, uint32_t irqstatus)
 	struct mdp4_crtc *mdp4_crtc = container_of(irq, struct mdp4_crtc, vblank);
 	struct drm_crtc *crtc = &mdp4_crtc->base;
 	struct msm_drm_private *priv = crtc->dev->dev_private;
+	unsigned pending;
 
-	update_cursor(crtc);
-	complete_flip(crtc, false);
 	mdp4_irq_unregister(get_kms(crtc), &mdp4_crtc->vblank);
 
-	drm_flip_work_commit(&mdp4_crtc->unref_fb_work, priv->wq);
-	drm_flip_work_commit(&mdp4_crtc->unref_cursor_work, priv->wq);
+	pending = atomic_xchg(&mdp4_crtc->pending, 0);
+
+	if (pending & PENDING_FLIP) {
+		complete_flip(crtc, NULL);
+		drm_flip_work_commit(&mdp4_crtc->unref_fb_work, priv->wq);
+	}
+
+	if (pending & PENDING_CURSOR) {
+		update_cursor(crtc);
+		drm_flip_work_commit(&mdp4_crtc->unref_cursor_work, priv->wq);
+	}
 }
 
 static void mdp4_crtc_err_irq(struct mdp4_irq *irq, uint32_t irqstatus)
@@ -573,9 +607,10 @@ uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc)
 	return mdp4_crtc->vblank.irqmask;
 }
 
-void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc)
+void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
 {
-	complete_flip(crtc, true);
+	DBG("cancel: %p", file);
+	complete_flip(crtc, file);
 }
 
 /* set dma config, ie. the format the encoder wants. */

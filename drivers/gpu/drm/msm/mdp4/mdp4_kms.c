@@ -135,7 +135,7 @@ static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
 	unsigned i;
 
 	for (i = 0; i < priv->num_crtcs; i++)
-		mdp4_crtc_cancel_pending_flip(priv->crtcs[i]);
+		mdp4_crtc_cancel_pending_flip(priv->crtcs[i], file);
 }
 
 static void mdp4_destroy(struct msm_kms *kms)
