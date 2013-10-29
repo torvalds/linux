@@ -60,6 +60,7 @@
 	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x080 : 0x140) + (n) * 0x70)
 #define HW_APBHX_CHn_BAR(d, n) \
 	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x070 : 0x130) + (n) * 0x70)
+#define HW_APBX_CHn_DEBUG1(d, n) (0x150 + (n) * 0x70)
 
 /*
  * ccw bits definitions
@@ -204,12 +205,36 @@ static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int chan_id = mxs_chan->chan.chan_id;
 
-	if (dma_is_apbh(mxs_dma) && apbh_is_old(mxs_dma))
+	if (dma_is_apbh(mxs_dma) && apbh_is_old(mxs_dma)) {
 		writel(1 << (chan_id + BP_APBH_CTRL0_RESET_CHANNEL),
 			mxs_dma->base + HW_APBHX_CTRL0 + STMP_OFFSET_REG_SET);
-	else
+	} else {
+		unsigned long elapsed = 0;
+		const unsigned long max_wait = 50000; /* 50ms */
+		void __iomem *reg_dbg1 = mxs_dma->base +
+				HW_APBX_CHn_DEBUG1(mxs_dma, chan_id);
+
+		/*
+		 * On i.MX28 APBX, the DMA channel can stop working if we reset
+		 * the channel while it is in READ_FLUSH (0x08) state.
+		 * We wait here until we leave the state. Then we trigger the
+		 * reset. Waiting a maximum of 50ms, the kernel shouldn't crash
+		 * because of this.
+		 */
+		while ((readl(reg_dbg1) & 0xf) == 0x8 && elapsed < max_wait) {
+			udelay(100);
+			elapsed += 100;
+		}
+
+		if (elapsed >= max_wait)
+			dev_err(&mxs_chan->mxs_dma->pdev->dev,
+					"Failed waiting for the DMA channel %d to leave state READ_FLUSH, trying to reset channel in READ_FLUSH state now\n",
+					chan_id);
+
+
 		writel(1 << (chan_id + BP_APBHX_CHANNEL_CTRL_RESET_CHANNEL),
 			mxs_dma->base + HW_APBHX_CHANNEL_CTRL + STMP_OFFSET_REG_SET);
+	}
 }
 
 static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
