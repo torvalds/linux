@@ -628,6 +628,17 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 void acpi_ut_repair_name(char *name);
 
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
+
+u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source);
+
+u8
+acpi_ut_safe_strncat(char *dest,
+		     acpi_size dest_size,
+		     char *source, acpi_size max_transfer_length);
+#endif
+
 /*
  * utmutex - mutex support
  */

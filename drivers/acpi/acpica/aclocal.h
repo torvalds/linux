@@ -1072,7 +1072,7 @@ struct acpi_db_method_info {
 	char *name;
 	u32 flags;
 	u32 num_loops;
-	char pathname[128];
+	char pathname[ACPI_DB_LINE_BUFFER_SIZE];
 	char **args;
 	acpi_object_type *types;
 
