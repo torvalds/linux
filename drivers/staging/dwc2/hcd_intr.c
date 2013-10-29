@@ -1932,21 +1932,20 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 
 	chan = hsotg->hc_ptr_array[chnum];
 
-	if (dbg_hc(chan))
-		dev_vdbg(hsotg->dev, "--Host Channel Interrupt--, Channel %d\n",
-			 chnum);
-
 	hcint = readl(hsotg->regs + HCINT(chnum));
 	hcintmsk = readl(hsotg->regs + HCINTMSK(chnum));
-	if (dbg_hc(chan))
-		dev_vdbg(hsotg->dev,
-			 "  hcint 0x%08x, hcintmsk 0x%08x, hcint&hcintmsk 0x%08x\n",
-			 hcint, hcintmsk, hcint & hcintmsk);
-
 	if (!chan) {
 		dev_err(hsotg->dev, "## hc_ptr_array for channel is NULL ##\n");
 		writel(hcint, hsotg->regs + HCINT(chnum));
 		return;
+	}
+
+	if (dbg_hc(chan)) {
+		dev_vdbg(hsotg->dev, "--Host Channel Interrupt--, Channel %d\n",
+			 chnum);
+		dev_vdbg(hsotg->dev,
+			 "  hcint 0x%08x, hcintmsk 0x%08x, hcint&hcintmsk 0x%08x\n",
+			 hcint, hcintmsk, hcint & hcintmsk);
 	}
 
 	writel(hcint, hsotg->regs + HCINT(chnum));
