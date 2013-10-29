@@ -60,6 +60,7 @@
 #define HPB_DMAE_DSTPR_DMSTP	BIT(0)
 
 /* DMA status register (DSTSR) bits */
+#define HPB_DMAE_DSTSR_DQSTS	BIT(2)
 #define HPB_DMAE_DSTSR_DMSTS	BIT(0)
 
 /* DMA common registers */
@@ -385,7 +386,10 @@ static bool hpb_dmae_channel_busy(struct shdma_chan *schan)
 	struct hpb_dmae_chan *chan = to_chan(schan);
 	u32 dstsr = ch_reg_read(chan, HPB_DMAE_DSTSR);
 
-	return (dstsr & HPB_DMAE_DSTSR_DMSTS) == HPB_DMAE_DSTSR_DMSTS;
+	if (chan->xfer_mode == XFER_DOUBLE)
+		return dstsr & HPB_DMAE_DSTSR_DQSTS;
+	else
+		return dstsr & HPB_DMAE_DSTSR_DMSTS;
 }
 
 static int
