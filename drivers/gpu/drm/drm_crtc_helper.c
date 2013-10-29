@@ -604,7 +604,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 int drm_crtc_helper_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
-	struct drm_crtc *save_crtcs, *new_crtc, *crtc;
+	struct drm_crtc *new_crtc;
 	struct drm_encoder *save_encoders, *new_encoder, *encoder;
 	bool mode_changed = false; /* if true do a full mode set */
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
@@ -641,37 +641,27 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	dev = set->crtc->dev;
 
-	/* Allocate space for the backup of all (non-pointer) crtc, encoder and
-	 * connector data. */
-	save_crtcs = kzalloc(dev->mode_config.num_crtc *
-			     sizeof(struct drm_crtc), GFP_KERNEL);
-	if (!save_crtcs)
-		return -ENOMEM;
-
+	/*
+	 * Allocate space for the backup of all (non-pointer) encoder and
+	 * connector data.
+	 */
 	save_encoders = kzalloc(dev->mode_config.num_encoder *
 				sizeof(struct drm_encoder), GFP_KERNEL);
-	if (!save_encoders) {
-		kfree(save_crtcs);
+	if (!save_encoders)
 		return -ENOMEM;
-	}
 
 	save_connectors = kzalloc(dev->mode_config.num_connector *
 				sizeof(struct drm_connector), GFP_KERNEL);
 	if (!save_connectors) {
-		kfree(save_crtcs);
 		kfree(save_encoders);
 		return -ENOMEM;
 	}
 
-	/* Copy data. Note that driver private data is not affected.
+	/*
+	 * Copy data. Note that driver private data is not affected.
 	 * Should anything bad happen only the expected state is
 	 * restored, not the drivers personal bookkeeping.
 	 */
-	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		save_crtcs[count++] = *crtc;
-	}
-
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		save_encoders[count++] = *encoder;
@@ -833,16 +823,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 
 	kfree(save_connectors);
 	kfree(save_encoders);
-	kfree(save_crtcs);
 	return 0;
 
 fail:
 	/* Restore all previous data. */
-	count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		*crtc = save_crtcs[count++];
-	}
-
 	count = 0;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		*encoder = save_encoders[count++];
@@ -861,7 +845,6 @@ fail:
 
 	kfree(save_connectors);
 	kfree(save_encoders);
-	kfree(save_crtcs);
 	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_helper_set_config);
