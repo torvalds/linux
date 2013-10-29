@@ -709,7 +709,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on HAVE_CLK && (SUPERH || ARCH_SHMOBILE)
+	depends on HAVE_CLK && (SUPERH || ARM || COMPILE_TEST)
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
