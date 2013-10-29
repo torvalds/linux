@@ -1401,13 +1401,19 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	struct blk_plug *plug;
 	struct request *rq;
 	bool ret = false;
+	struct list_head *plug_list;
 
 	plug = current->plug;
 	if (!plug)
 		goto out;
 	*request_count = 0;
 
-	list_for_each_entry_reverse(rq, &plug->list, queuelist) {
+	if (q->mq_ops)
+		plug_list = &plug->mq_list;
+	else
+		plug_list = &plug->list;
+
+	list_for_each_entry_reverse(rq, plug_list, queuelist) {
 		int el_ret;
 
 		if (rq->q == q)

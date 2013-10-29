@@ -950,7 +950,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		if (plug) {
 			blk_mq_bio_to_request(rq, bio);
-			if (list_empty(&plug->list))
+			if (list_empty(&plug->mq_list))
 				trace_block_plug(q);
 			else if (request_count >= BLK_MAX_REQUEST_COUNT) {
 				blk_flush_plug_list(plug, false);
