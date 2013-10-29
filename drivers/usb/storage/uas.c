@@ -1050,12 +1050,6 @@ static void uas_free_streams(struct uas_dev_info *devinfo)
 	usb_free_streams(devinfo->intf, eps, 3, GFP_KERNEL);
 }
 
-/*
- * XXX: What I'd like to do here is register a SCSI host for each USB host in
- * the system.  Follow usb-storage's design of registering a SCSI host for
- * each USB device for the moment.  Can implement this by walking up the
- * USB hierarchy until we find a USB host.
- */
 static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	int result = -ENOMEM;
