@@ -35,7 +35,7 @@ struct bcm_link_request {
 #define MAX_PROTOCOL_LENGTH   32
 #define IPV6_ADDRESS_SIZEINBYTES 0x10
 
-typedef union _U_IP_ADDRESS {
+union u_ip_address {
 	struct {
 		ULONG ulIpv4Addr[MAX_IP_RANGE_LENGTH]; /* Source Ip Address Range */
 		ULONG ulIpv4Mask[MAX_IP_RANGE_LENGTH]; /* Source Ip Mask Address Range */
@@ -52,7 +52,7 @@ typedef union _U_IP_ADDRESS {
 		UCHAR ucIpv6Address[MAX_IP_RANGE_LENGTH * IPV6_ADDRESS_SIZEINBYTES];
 		UCHAR ucIpv6Mask[MAX_IP_RANGE_LENGTH * IPV6_ADDRESS_SIZEINBYTES];
 	};
-} U_IP_ADDRESS;
+};
 
 struct bcm_hdr_suppression_contextinfo {
 	UCHAR ucaHdrSuppressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
@@ -66,10 +66,10 @@ struct bcm_classifier_rule {
 	bool		bUsed;
 	USHORT		usVCID_Value;
 	B_UINT8		u8ClassifierRulePriority; /* This field detemines the Classifier Priority */
-	U_IP_ADDRESS	stSrcIpAddress;
+	union u_ip_address	stSrcIpAddress;
 	UCHAR		ucIPSourceAddressLength; /* Ip Source Address Length */
 
-	U_IP_ADDRESS	stDestIpAddress;
+	union u_ip_address	stDestIpAddress;
 	UCHAR		ucIPDestinationAddressLength; /* Ip Destination Address Length */
 	UCHAR		ucIPTypeOfServiceLength; /* Type of service Length */
 	UCHAR		ucTosLow; /* Tos Low */
