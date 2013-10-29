@@ -510,6 +510,9 @@ int iio_device_register(struct iio_dev *indio_dev);
  **/
 void iio_device_unregister(struct iio_dev *indio_dev);
 
+int devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev);
+void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
+
 /**
  * iio_push_event() - try to add event to the list for userspace reading
  * @indio_dev:		IIO device structure
