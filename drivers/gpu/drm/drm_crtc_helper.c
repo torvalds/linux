@@ -822,8 +822,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		set->crtc->y = set->y;
 
 		old_fb = set->crtc->fb;
-		if (set->crtc->fb != set->fb)
-			set->crtc->fb = set->fb;
+		set->crtc->fb = set->fb;
 		ret = crtc_funcs->mode_set_base(set->crtc,
 						set->x, set->y, old_fb);
 		if (ret != 0) {
