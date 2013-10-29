@@ -93,7 +93,6 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 				struct uas_dev_info *devinfo, gfp_t gfp);
 static void uas_do_work(struct work_struct *work);
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
-static void uas_configure_endpoints(struct uas_dev_info *devinfo);
 static void uas_free_streams(struct uas_dev_info *devinfo);
 static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller);
 
@@ -898,7 +897,7 @@ static int uas_switch_interface(struct usb_device *udev,
 			intf->altsetting[0].desc.bInterfaceNumber, alt);
 }
 
-static void uas_configure_endpoints(struct uas_dev_info *devinfo)
+static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 {
 	struct usb_host_endpoint *eps[4] = { };
 	struct usb_device *udev = devinfo->udev;
@@ -920,14 +919,18 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 	devinfo->data_out_pipe = usb_sndbulkpipe(udev,
 					    usb_endpoint_num(&eps[3]->desc));
 
-	devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1, 3, 256,
-								GFP_KERNEL);
-	if (devinfo->qdepth < 0) {
+	if (udev->speed != USB_SPEED_SUPER) {
 		devinfo->qdepth = 256;
 		devinfo->use_streams = 0;
 	} else {
+		devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1,
+						    3, 256, GFP_KERNEL);
+		if (devinfo->qdepth < 0)
+			return devinfo->qdepth;
 		devinfo->use_streams = 1;
 	}
+
+	return 0;
 }
 
 static void uas_free_streams(struct uas_dev_info *devinfo)
@@ -984,7 +987,10 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_WORK(&devinfo->work, uas_do_work);
 	INIT_LIST_HEAD(&devinfo->work_list);
 	INIT_LIST_HEAD(&devinfo->dead_list);
-	uas_configure_endpoints(devinfo);
+
+	result = uas_configure_endpoints(devinfo);
+	if (result)
+		goto set_alt0;
 
 	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 2);
 	if (result)
@@ -1039,7 +1045,11 @@ static int uas_post_reset(struct usb_interface *intf)
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 	unsigned long flags;
 
-	uas_configure_endpoints(devinfo);
+	if (uas_configure_endpoints(devinfo) != 0) {
+		shost_printk(KERN_ERR, shost,
+			     "%s: alloc streams error after reset", __func__);
+		return 1;
+	}
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	scsi_report_bus_reset(shost, 0);
