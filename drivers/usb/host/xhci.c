@@ -949,6 +949,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	}
 	return retval;
 #endif	/* CONFIG_PM */
+}
 
 /*-------------------------------------------------------------------------*/
 
