@@ -547,7 +547,7 @@ static int rk_fb_io_enable(void)
 
 #if defined(CONFIG_LCDC1_RK3188)
 struct rk29fb_info lcdc1_screen_info = {
-	.prop           = EXTEND,       //extend display device
+	   .prop           = EXTEND,       //extend display device
        .lcd_info  = NULL,
        .set_screen_info = hdmi_init_lcdc,
 
@@ -1544,7 +1544,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_REGULATOR_ACT8846
-#define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define PMU_POWER_SLEEP RK30_PIN0_PD1
 #define PMU_VSEL RK30_PIN3_PD3
 #define ACT8846_HOST_IRQ                RK30_PIN0_PB3
 
@@ -1811,6 +1811,45 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 #include "../mach-rk30/board-pmu-tps65910.c"
 #endif
 
+#if defined(CONFIG_SCALER_TV5735)
+struct scaler_output_port tv_oports[] ={
+	{
+		.led_gpio = INVALID_GPIO,
+		.type = SCALER_OUT_VGA,
+	},
+};
+
+struct scaler_input_port tv_iports[] = {
+	{//rk
+		.led_gpio = RK30_PIN0_PD4,
+		.type = SCALER_IN_RGB,
+	},
+	{//pc
+		.led_gpio = RK30_PIN0_PD5,
+		.type = SCALER_IN_VGA,
+	}
+};
+
+struct scaler_platform_data tv5735_data = {
+	.func_type     = SCALER_FUNC_FULL,
+
+	.iports        = tv_iports,
+	.iport_size    = ARRAY_SIZE(tv_iports),
+
+	.oports        = tv_oports,
+	.oport_size    = ARRAY_SIZE(tv_oports),
+
+	.power_gpio    = RK30_PIN2_PD7,
+	.power_level   = GPIO_HIGH,
+	.vga5v_gpio    = RK30_PIN3_PD7,
+	.vga5v_level   = GPIO_HIGH,
+	.ddc_sel_gpio  = RK30_PIN0_PB4,
+	.ddc_sel_level = GPIO_HIGH, //set default input port 
+	.vga_hsync_gpio= RK30_PIN0_PA1,
+	.vga_vsync_gpio= RK30_PIN0_PA5,
+};
+#endif
+
 #if defined(CONFIG_SCALER_TEST) 
 //the fisrt port is default 
 struct scaler_output_port tst_oports[] ={
@@ -1834,15 +1873,31 @@ struct scaler_input_port tst_iports[] = {
 	},
 };
 
+static void test_init_hw(void)
+{
+	//xn223
+	if (!gpio_request(RK30_PIN1_PD6, NULL))
+		gpio_direction_output(RK30_PIN1_PD6, GPIO_HIGH); 
+	else
+		printk("%s: request XNN223_PWN gpio failed\n", __func__);
+}
+
 struct scaler_platform_data test_data = {
-	.func_type = SCALER_FUNC_SWITCH,
+	.func_type     = SCALER_FUNC_SWITCH,
 
-	.iports = tst_iports,
-	.iport_size = ARRAY_SIZE(tst_iports),
-	.oports = tst_oports,
-	.oport_size = ARRAY_SIZE(tst_oports),
+	.iports        = tst_iports,
+	.iport_size    = ARRAY_SIZE(tst_iports),
+	.oports        = tst_oports,
+	.oport_size    = ARRAY_SIZE(tst_oports),
 
-	.power_gpio = RK30_PIN2_PD7,
+	.power_gpio    = RK30_PIN2_PD7,
+	.power_level   = GPIO_HIGH,
+	.vga5v_gpio    = RK30_PIN3_PD7,
+	.vga5v_level   = GPIO_HIGH,
+	.ddc_sel_gpio  = RK30_PIN0_PB4,
+	.ddc_sel_level = GPIO_HIGH,
+	//func
+	.init_hw       = test_init_hw,
 };
 #endif
 
@@ -1977,9 +2032,17 @@ void  rk30_pwm_resume_voltage_set(void)
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
-#if defined(CONFIG_SCALER_DEVICE) 
+#if defined(CONFIG_SCALER_TV5735) 
 	{
-		.type	        = "vga_i2c",
+		.type	        = "tv5735",
+		.addr           = 0x57,
+		.flags	        = 0,
+		.platform_data = &tv5735_data,
+	},
+#endif
+#if defined(CONFIG_SCALER_DEVICE_DDC) 
+	{
+		.type	        = "scaler_ddc",
 		.addr           = 0x50,
 		.flags	        = 0,
 	},

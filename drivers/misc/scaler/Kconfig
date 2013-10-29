@@ -7,5 +7,10 @@ menuconfig SCALER_DEVICE
 	default n	
 
 if SCALER_DEVICE
+
+config SCALER_DEVICE_DDC
+	bool "Scaler Device Support DDC Read EDID"
+	default n	
+
 source "drivers/misc/scaler/chips/Kconfig"
 endif

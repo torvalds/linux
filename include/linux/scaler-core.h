@@ -5,7 +5,9 @@
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include <linux/list.h>
+#include <linux/fb.h>
 
+struct scaler_platform_data;
 
 struct display_edid {
 	char *data;
@@ -80,24 +82,15 @@ struct scaler_chip_dev {
 	char name[I2C_NAME_SIZE];
 	struct i2c_client *client;
 	
+	struct scaler_platform_data *pdata;
+
 	enum scaler_function_type func_type;
-
-	int int_gpio;
-	int reset_gpio;
-	int power_gpio;
-	int status_gpio;
-	char reg_size;  //8bit = 1, 16bit = 2, 24bit = 3,32bit = 4.
-
-	struct list_head iports; //config all support input type by make menuconfig
-	struct list_head oports; //config all support output type by make menuconfig
+	struct list_head iports; 
+	struct list_head oports; 
 	enum scaler_input_type cur_in_type;
-	int cur_inport_id;
 	enum scaler_output_type cur_out_type;
+	int cur_inport_id;
 	int cur_outport_id;
-
-	//init hardware(gpio etc.)
-	int (*init_hw)(void);
-	int (*exit_hw)(void);
 
 	//enable chip to process image
 	void (*start)(void);
@@ -120,8 +113,16 @@ struct scaler_chip_dev {
 struct scaler_platform_data {
 	int int_gpio;
 	int reset_gpio;
-	int power_gpio;
 	int status_gpio; //check chip if work on lower power mode or normal mode.
+
+	int power_gpio;
+	int power_level;
+	int vga5v_gpio;
+	int vga5v_level;
+	int ddc_sel_gpio;
+	int ddc_sel_level; //ddc dev default select by defined the first input port in iports
+	int vga_hsync_gpio; //detect vga-in v\hsync clk by gpio
+	int vga_vsync_gpio;
 
 	char *firmware; 
 	//function type
@@ -148,14 +149,20 @@ struct scaler_device {
 	struct list_head chips;
 };
 
+//scaler core
+int scaler_init_platform(struct scaler_platform_data *pdata);
 struct scaler_chip_dev *alloc_scaler_chip(void);
 //free chip memory and port memory
 void free_scaler_chip(struct scaler_chip_dev *chip);
 int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *pdata);
-//
 int register_scaler_chip(struct scaler_chip_dev *chip);
 int unregister_scaler_chip(struct scaler_chip_dev *chip);
 
+//edid
+int scaler_switch_default_screen(void);
+struct fb_videmode *scaler_get_cmode(void);
+
+//fs ioctl
 #define SCALER_IOCTL_MAGIC 'a'
 #define SCALER_IOCTL_POWER _IOW(SCALER_IOCTL_MAGIC, 0x00, char)
 #define SCALER_IOCTL_GET_CUR_INPUT _IOR(SCALER_IOCTL_MAGIC, 0x01, int)

@@ -21,6 +21,7 @@
 #include <linux/scaler-core.h>
 
 #define SCALER_CORE_VERSION "v1.0.0"
+#define SCALER_CORE_NAME "scaler-core"
 #define SCALER_DEV_NAME "scaler-ctrl"
 
 static DEFINE_MUTEX(mutex_chips);
@@ -113,6 +114,60 @@ struct scaler_chip_dev *alloc_scaler_chip(void)
 	return p;
 }
 
+int scaler_init_platform(struct scaler_platform_data *pdata)
+{
+	printk("%s: init scaler platform\n", SCALER_CORE_NAME);
+
+	if (pdata->init_hw) {
+		pdata->init_hw();
+		msleep(5);
+	}
+
+	//power
+	if (pdata->power_gpio > 0) {
+		if (!gpio_request(pdata->power_gpio, NULL)) {
+			if (pdata->power_level != GPIO_HIGH && 
+					pdata->power_level != GPIO_LOW) {
+				printk("%s: power pin level use default high\n", SCALER_CORE_NAME);
+				pdata->power_level = GPIO_HIGH;
+			}
+			gpio_direction_output(pdata->power_gpio, pdata->power_level); 
+		}else
+			printk("%s: request vga power gpio failed\n", SCALER_CORE_NAME);
+	}else
+		printk("%s: Don't defined power gpio pin\n", SCALER_CORE_NAME);
+
+	//vga 5v en
+	if (pdata->vga5v_gpio > 0) {
+		if (!gpio_request(pdata->vga5v_gpio, NULL)) {
+			if (pdata->vga5v_level != GPIO_HIGH && 
+					pdata->vga5v_level != GPIO_LOW) {
+				printk("%s: vga5ven pin level use default high\n", SCALER_CORE_NAME);
+				pdata->vga5v_level = GPIO_HIGH;
+			}
+			gpio_direction_output(pdata->vga5v_gpio, pdata->vga5v_level); 
+		}else
+			printk("%s: request vga5ven  gpio failed\n", SCALER_CORE_NAME);
+		msleep(10);
+	}else
+		printk("%s: Don't defined vga5ven gpio pin\n", SCALER_CORE_NAME);
+	
+	//ddc select
+	if (pdata->ddc_sel_gpio > 0) {
+		if (!gpio_request(pdata->ddc_sel_gpio, NULL)) {
+			if (pdata->ddc_sel_level != GPIO_HIGH && 
+					pdata->ddc_sel_level != GPIO_LOW) {
+				printk("%s: ddc select pin level use default high\n", SCALER_CORE_NAME);
+				pdata->ddc_sel_level = GPIO_HIGH;
+			}
+			gpio_direction_output(pdata->ddc_sel_gpio, pdata->ddc_sel_level); 
+		}else
+			printk("%s: request ddc select gpio failed\n", SCALER_CORE_NAME);
+		msleep(10);
+	}else
+		printk("%s: Don't defined ddc select gpio pin\n", SCALER_CORE_NAME);
+}
+
 int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *pdata)
 {
 	int i;
@@ -120,7 +175,7 @@ int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *
 	struct scaler_input_port *iport = NULL;
 
 	if (!chip || !pdata) {
-		printk("%s: chip or pdata is null.\n", __func__);
+		printk("%s: chip or pdata is null.\n", SCALER_CORE_NAME);
 		return -1;
 	}
 	
@@ -129,7 +184,7 @@ int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *
 			pdata->func_type < SCALER_FUNC_NUMS) {
 		chip->func_type = pdata->func_type;
 	}else {
-		printk("%s: not defined scaer function type\n", __func__);
+		printk("%s: not defined scaer function type\n", SCALER_CORE_NAME);
 		chip->func_type = SCALER_FUNC_FULL;
 	}
 	printk("%s: %s %s\n", chip->name, scaler_func_name[0], scaler_func_name[chip->func_type]);
@@ -138,7 +193,7 @@ int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *
 	for (i = 0; i < pdata->iport_size; i++) {
 		iport = kzalloc(sizeof(struct scaler_input_port), GFP_KERNEL);
 		if (!iport) {
-		    printk("%s: kzalloc input port memeory failed.\n", __func__);
+		    printk("%s: kzalloc input port memeory failed.\n", SCALER_CORE_NAME);
 		    return -1;
 		}else {
 			iport->max_hres = 1920;
@@ -179,7 +234,7 @@ int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *
 	for (i = 0; i < pdata->oport_size; i++) {
 		oport = kzalloc(sizeof(struct scaler_output_port), GFP_KERNEL);
 		if (!oport) {
-		    printk("%s: kzalloc output port memeory failed.\n", __func__);
+		    printk("%s: kzalloc output port memeory failed.\n", SCALER_CORE_NAME);
 		    return -1;
 		}else {
 			oport->max_hres = 1920;
@@ -214,6 +269,7 @@ int init_scaler_chip(struct scaler_chip_dev *chip, struct scaler_platform_data *
 		}// if (!oport)
 	}//for()
 
+
 	return 0;
 }
 
@@ -223,7 +279,8 @@ void free_scaler_chip(struct scaler_chip_dev *chip)
 	struct scaler_output_port *out = NULL;
 	struct scaler_input_port *in = NULL;
 	if (chip) {
-
+		printk("%s: free %s chip<id:%d> memory resource\n", 
+				        SCALER_CORE_NAME, chip->name, chip->id);
 		list_for_each_entry(out, &chip->oports, next) {
 			kfree(out);
 		}
@@ -271,7 +328,11 @@ int register_scaler_chip(struct scaler_chip_dev *chip)
 		chip->id = ++chip_ids;  //chip id only grow
 		list_add_tail(&chip->next, &sdev->chips);
 		mutex_unlock(&mutex_chips);
-		printk("%s: register scaler chip %s success.\n", __func__, chip->name);
+		printk("%s: register scaler chip %s<id:%d> success.\n", 
+				     SCALER_CORE_NAME, chip->name, chip->id);
+	}else {
+		printk("%s: register scaler chip %s<id:%d> failed.\n", 
+				     SCALER_CORE_NAME, chip->name, chip->id);
 	}
 
 	return res;
@@ -305,7 +366,7 @@ int unregister_scaler_chip(struct scaler_chip_dev *chip)
 		mutex_lock(&mutex_chips);
 		list_del(&chip->next);
 		mutex_unlock(&mutex_chips);
-		printk("%s: unregister scaler chip %s success.\n", __func__, chip->name);
+		printk("%s: unregister scaler chip %s<id:%d> success.\n", __func__, chip->name, chip->id);
 	}
 
 	return res;
@@ -350,13 +411,14 @@ static int  scaler_file_ioctl(struct inode *inode, struct file *filp, unsigned i
 			break;
 		case SCALER_IOCTL_SET_CUR_INPUT:
 			//choose input channel;
-			copy_from_user(&iport_id, arg, sizeof(int));
+			copy_from_user(&iport_id, (void *)arg, sizeof(int));
 
 			list_for_each_entry(chip, &sdev->chips, next) {
 				if (chip->cur_inport_id != iport_id) {
 					list_for_each_entry(iport, &chip->iports, next) {//if iport belong to this chip
 						if (iport->id == iport_id) {
 							chip->cur_inport_id = iport_id;
+							chip->cur_in_type = iport->type;
 							chip->parse_cmd(cmd, arg);
 							break;
 						}
@@ -369,7 +431,7 @@ static int  scaler_file_ioctl(struct inode *inode, struct file *filp, unsigned i
 			list_for_each_entry(chip, &sdev->chips, next) {
 				iport_id = chip->cur_inport_id;
 			}//list chips
-			copy_to_user(arg, &iport_id, sizeof(int));
+			copy_to_user((void *)arg, &iport_id, sizeof(int));
 			printk("current input port id %d\n", iport_id);
 			break;
 		default:
