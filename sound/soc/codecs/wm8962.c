@@ -3616,28 +3616,28 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 			   0);
 
 	/* Apply static configuration for GPIOs */
-	for (i = 0; i < ARRAY_SIZE(pdata->gpio_init); i++)
-		if (pdata->gpio_init[i]) {
+	for (i = 0; i < ARRAY_SIZE(wm8962->pdata.gpio_init); i++)
+		if (wm8962->pdata.gpio_init[i]) {
 			wm8962_set_gpio_mode(wm8962, i + 1);
 			regmap_write(wm8962->regmap, 0x200 + i,
-				     pdata->gpio_init[i] & 0xffff);
+				     wm8962->pdata.gpio_init[i] & 0xffff);
 		}
 
 
 	/* Put the speakers into mono mode? */
-	if (pdata->spk_mono)
+	if (wm8962->pdata.spk_mono)
 		regmap_update_bits(wm8962->regmap, WM8962_CLASS_D_CONTROL_2,
 				   WM8962_SPK_MONO_MASK, WM8962_SPK_MONO);
 
 	/* Micbias setup, detection enable and detection
 	 * threasholds. */
-	if (pdata->mic_cfg)
+	if (wm8962->pdata.mic_cfg)
 		regmap_update_bits(wm8962->regmap, WM8962_ADDITIONAL_CONTROL_4,
 				   WM8962_MICDET_ENA |
 				   WM8962_MICDET_THR_MASK |
 				   WM8962_MICSHORT_THR_MASK |
 				   WM8962_MICBIAS_LVL,
-				   pdata->mic_cfg);
+				   wm8962->pdata.mic_cfg);
 
 	/* Latch volume update bits */
 	regmap_update_bits(wm8962->regmap, WM8962_LEFT_INPUT_VOLUME,
@@ -3682,7 +3682,7 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (wm8962->irq) {
-		if (pdata->irq_active_low) {
+		if (wm8962->pdata.irq_active_low) {
 			trigger = IRQF_TRIGGER_LOW;
 			irq_pol = WM8962_IRQ_POL;
 		} else {
