@@ -43,7 +43,6 @@
 #include <plat/iic-core.h>
 #include <plat/keypad-core.h>
 #include <plat/tv-core.h>
-#include <plat/spi-core.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
@@ -197,8 +196,6 @@ void __init s5pv210_map_io(void)
 
 	/* setup TV devices */
 	s5p_hdmi_setname("s5pv210-hdmi");
-
-	s3c64xx_spi_setname("s5pv210-spi");
 }
 
 void __init s5pv210_init_clocks(int xtal)

@@ -43,7 +43,6 @@
 #include <plat/nand-core.h>
 #include <plat/adc-core.h>
 #include <plat/rtc-core.h>
-#include <plat/spi-core.h>
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -100,9 +99,6 @@ void __init s3c2443_map_io(void)
 {
 	s3c24xx_gpiocfg_default.set_pull = s3c2443_gpio_setpull;
 	s3c24xx_gpiocfg_default.get_pull = s3c2443_gpio_getpull;
-
-	/* initialize device information early */
-	s3c64xx_spi_setname("s3c2443-spi");
 
 	iotable_init(s3c2443_iodesc, ARRAY_SIZE(s3c2443_iodesc));
 }

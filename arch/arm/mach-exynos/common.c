@@ -553,8 +553,6 @@ static void __init exynos4_map_io(void)
 
 	s5p_fb_setname(0, "exynos4-fb");
 	s5p_hdmi_setname("exynos4-hdmi");
-
-	s3c64xx_spi_setname("exynos4210-spi");
 }
 
 static void __init exynos5_map_io(void)
