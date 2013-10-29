@@ -385,12 +385,24 @@ static void free_css_set_work(struct work_struct *work)
 		struct cgroup *cgrp = link->cgrp;
 		list_del(&link->cg_link_list);
 		list_del(&link->cgrp_link_list);
-		if (atomic_dec_and_test(&cgrp->count)) {
-			check_for_release(cgrp);
-			cgroup_wakeup_rmdir_waiter(cgrp);
-		}
-		kfree(link);
-	}
+
+		/*
+		 * We may not be holding cgroup_mutex, and if cgrp->count is
+		 * dropped to 0 the cgroup can be destroyed at any time, hence
+		 * rcu_read_lock is used to keep it alive.
+		 */
+                rcu_read_lock();
+                if (atomic_dec_and_test(&cgrp->count) &&
+                    notify_on_release(cgrp)) {
+                        if (1)
+                                set_bit(CGRP_RELEASABLE, &cgrp->flags);
+                        check_for_release(cgrp);
+                }
+                rcu_read_unlock();
+
+                kfree(link);
+        }
+
 	write_unlock(&css_set_lock);
 
 	kfree(cg);
