@@ -873,11 +873,11 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 		if (net_ratelimit())
 			printk(KERN_INFO "%s: find HTCControl!\n", __func__);
 		hdrlen += 4;
-		rx_stats->bContainHTC = 1;
+		rx_stats->bContainHTC = true;
 	}
 
 	 if (RTLLIB_QOS_HAS_SEQ(fc))
-		rx_stats->bIsQosData = 1;
+		rx_stats->bIsQosData = true;
 
 	return hdrlen;
 }

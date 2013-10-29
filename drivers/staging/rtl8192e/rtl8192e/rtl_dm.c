@@ -2265,7 +2265,7 @@ void dm_CheckRfCtrlGPIO(void *data)
 		return;
 
 	if (priv->bfirst_after_down) {
-		priv->bfirst_after_down = 1;
+		priv->bfirst_after_down = true;
 		return;
 	}
 
@@ -2312,9 +2312,9 @@ void	dm_rf_pathcheck_workitemcallback(void *data)
 
 	for (i = 0; i < RF90_PATH_MAX; i++) {
 		if (rfpath & (0x01<<i))
-			priv->brfpath_rxenable[i] = 1;
+			priv->brfpath_rxenable[i] = true;
 		else
-			priv->brfpath_rxenable[i] = 0;
+			priv->brfpath_rxenable[i] = false;
 	}
 	if (!DM_RxPathSelTable.Enable)
 		return;

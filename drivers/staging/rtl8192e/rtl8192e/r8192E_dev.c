@@ -2213,7 +2213,7 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 	priv->MidHighPwrTHR_L2 = 0x40;
 	priv->PwrDomainProtect = false;
 
-	priv->bfirst_after_down = 0;
+	priv->bfirst_after_down = false;
 }
 
 void rtl8192_EnableInterrupt(struct net_device *dev)

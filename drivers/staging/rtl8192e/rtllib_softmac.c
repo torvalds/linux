@@ -705,7 +705,7 @@ static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 	ieee->scan_watch_dog = 0;
 	if (ieee->scanning_continue == 1) {
 		ieee->scanning_continue = 0;
-		ieee->actscanning = 0;
+		ieee->actscanning = false;
 
 		cancel_delayed_work(&ieee->softmac_scan_wq);
 	}
@@ -1574,7 +1574,7 @@ static void rtllib_associate_complete_wq(void *data)
 
 	if (ieee->is_silent_reset) {
 		printk(KERN_INFO "silent reset associate\n");
-		ieee->is_silent_reset = 0;
+		ieee->is_silent_reset = false;
 	}
 
 	if (ieee->data_hard_resume)
@@ -3097,7 +3097,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->sta_edca_param[2] = 0x005E4342;
 	ieee->sta_edca_param[3] = 0x002F3262;
 	ieee->aggregation = true;
-	ieee->enable_rx_imm_BA = 1;
+	ieee->enable_rx_imm_BA = true;
 	ieee->tx_pending.txb = NULL;
 
 	_setup_timer(&ieee->associate_timer,

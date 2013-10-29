@@ -998,7 +998,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 	priv->bDriverIsGoingToUnload = true;
 	priv->up = 0;
 	priv->rtllib->ieee_up = 0;
-	priv->bfirst_after_down = 1;
+	priv->bfirst_after_down = true;
 	RT_TRACE(COMP_DOWN, "==========>%s()\n", __func__);
 	if (!netif_queue_stopped(dev))
 		netif_stop_queue(dev);
@@ -1117,8 +1117,8 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->rtllib->hwscan_sem_up = 1;
 	priv->rtllib->status = 0;
 	priv->H2CTxCmdSeq = 0;
-	priv->bDisableFrameBursting = 0;
-	priv->bDMInitialGainEnable = 1;
+	priv->bDisableFrameBursting = false;
+	priv->bDMInitialGainEnable = true;
 	priv->polling_timer_on = 0;
 	priv->up_first_time = 1;
 	priv->blinked_ingpio = false;
@@ -1160,7 +1160,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->CckPwEnl = 6;
 	priv->ScanDelay = 50;
 	priv->ResetProgress = RESET_TYPE_NORESET;
-	priv->bForcedSilentReset = 0;
+	priv->bForcedSilentReset = false;
 	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
@@ -1169,7 +1169,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->RxCounter = 0;
 	priv->rtllib->wx_set_enc = 0;
 	priv->bHwRadioOff = false;
-	priv->RegRfOff = 0;
+	priv->RegRfOff = false;
 	priv->isRFOff = false;
 	priv->bInPowerSaveMode = false;
 	priv->rtllib->RfOffReason = 0;
