@@ -187,7 +187,7 @@ int mfd_add_devices(struct device *parent, int id,
 		    int irq_base, struct irq_domain *domain)
 {
 	int i;
-	int ret = 0;
+	int ret;
 	atomic_t *cnts;
 
 	/* initialize reference counting for all cells */
@@ -200,12 +200,16 @@ int mfd_add_devices(struct device *parent, int id,
 		ret = mfd_add_device(parent, id, cells + i, cnts + i, mem_base,
 				     irq_base, domain);
 		if (ret)
-			break;
+			goto fail;
 	}
 
-	if (ret)
-		mfd_remove_devices(parent);
+	return 0;
 
+fail:
+	if (i)
+		mfd_remove_devices(parent);
+	else
+		kfree(cnts);
 	return ret;
 }
 EXPORT_SYMBOL(mfd_add_devices);
