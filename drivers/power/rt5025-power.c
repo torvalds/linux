@@ -253,7 +253,8 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 		msleep(100);
 	}
 
-	if (old_acval != new_acval || old_usbval != new_usbval)
+	//if (old_acval != new_acval || old_usbval != new_usbval)
+	if (new_acval || new_usbval)
 		schedule_delayed_work(&info->usb_detect_work, 0); //no delay
 
 	new_chgval = (chgstatval&RT5025_CHGSTAT_MASK)>>RT5025_CHGSTAT_SHIFT;

@@ -75,6 +75,7 @@ static void rt5025_work_func(struct work_struct *work)
 		irq_enable[3] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN4);
 		irq_enable[4] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN5);
 		irq_enable[5] = rt5025_reg_read(ii->i2c, RT5025_REG_GAUGEIRQEN);
+		#if 0
 		/* disable all irq enable bit first */
 		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]&RT5025_ADAPIRQ_MASK);
 		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, 0x00);
@@ -82,6 +83,7 @@ static void rt5025_work_func(struct work_struct *work)
 		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN4, 0x00);
 		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN5, 0x00);
 		rt5025_reg_write(ii->i2c, RT5025_REG_GAUGEIRQEN, 0x00);
+		#endif //#if 0
 		/* read irq status bit */
 		irq_stat[0] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS1);
 		irq_stat[1] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS2);
@@ -124,7 +126,7 @@ static void rt5025_work_func(struct work_struct *work)
 					rt5025_set_charging_buck(ii->i2c, 0);
 					mdelay(50);
 					rt5025_set_charging_buck(ii->i2c, 1);
-					mdelay(200);
+					mdelay(400);
 				}
 			}
 
@@ -157,6 +159,7 @@ static void rt5025_work_func(struct work_struct *work)
 	if (ii->init_once)
 		ii->init_once = 0;
 
+	#if 0
 	/* restore all irq enable bit */
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]);
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]);
@@ -165,6 +168,7 @@ static void rt5025_work_func(struct work_struct *work)
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN5, irq_enable[4]);
 	if (rt5025_reg_read(ii->i2c, RT5025_REG_GAUGEIRQEN) == 0)
 		rt5025_reg_write(ii->i2c, RT5025_REG_GAUGEIRQEN, irq_enable[5]);
+	#endif //#if 0
 
 	//enable_irq(ii->irq);
 }
