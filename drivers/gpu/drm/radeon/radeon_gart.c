@@ -607,8 +607,8 @@ static int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
  */
 int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 {
-	unsigned pd_size, pts_size;
-	u64 *pd_addr;
+	unsigned pd_size, pd_entries, pts_size;
+	struct radeon_ib ib;
 	int r;
 
 	if (vm == NULL) {
@@ -619,8 +619,10 @@ int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 		return 0;
 	}
 
-retry:
 	pd_size = radeon_vm_directory_size(rdev);
+	pd_entries = radeon_vm_num_pdes(rdev);
+
+retry:
 	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
 			     &vm->page_directory, pd_size,
 			     RADEON_VM_PTB_ALIGN_SIZE, false);
@@ -637,9 +639,31 @@ retry:
 	vm->pd_gpu_addr = radeon_sa_bo_gpu_addr(vm->page_directory);
 
 	/* Initially clear the page directory */
-	pd_addr = radeon_sa_bo_cpu_addr(vm->page_directory);
-	memset(pd_addr, 0, pd_size);
+	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib,
+			  NULL, pd_entries * 2 + 64);
+	if (r) {
+		radeon_sa_bo_free(rdev, &vm->page_directory, vm->fence);
+		return r;
+	}
 
+	ib.length_dw = 0;
+
+	radeon_asic_vm_set_page(rdev, &ib, vm->pd_gpu_addr,
+				0, pd_entries, 0, 0);
+
+	radeon_ib_sync_to(&ib, vm->fence);
+	r = radeon_ib_schedule(rdev, &ib, NULL);
+	if (r) {
+		radeon_ib_free(rdev, &ib);
+		radeon_sa_bo_free(rdev, &vm->page_directory, vm->fence);
+		return r;
+	}
+	radeon_fence_unref(&vm->fence);
+	vm->fence = radeon_fence_ref(ib.fence);
+	radeon_ib_free(rdev, &ib);
+	radeon_fence_unref(&vm->last_flush);
+
+	/* allocate page table array */
 	pts_size = radeon_vm_num_pdes(rdev) * sizeof(struct radeon_sa_bo *);
 	vm->page_tables = kzalloc(pts_size, GFP_KERNEL);
 
