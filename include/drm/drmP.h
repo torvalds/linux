@@ -413,6 +413,7 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
+	int always_authenticated;
 	int authenticated;
 	struct pid *pid;
 	kuid_t uid;
