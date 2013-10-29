@@ -919,9 +919,13 @@ struct acpi_buffer {
 	void *pointer;		/* pointer to buffer */
 };
 
-/* Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_LOCAL_BUFFER */
-
-#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.pointer)
+/*
+ * Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_BUFFER.
+ * Note: We use acpi_os_free here because acpi_os_allocate was used to allocate
+ * the buffer. This purposefully bypasses the internal allocation tracking
+ * mechanism (if it is enabled).
+ */
+#define ACPI_FREE_BUFFER(b)         acpi_os_free((b).pointer)
 
 /*
  * name_type for acpi_get_name
