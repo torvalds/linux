@@ -2053,7 +2053,6 @@ int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_dma_mem *cmd,
 				   struct be_fat_conf_params *cfgs);
-int lancer_wait_ready(struct be_adapter *adapter);
 int lancer_physdev_ctrl(struct be_adapter *adapter, u32 mask);
 int lancer_initiate_dump(struct be_adapter *adapter);
 bool dump_present(struct be_adapter *adapter);

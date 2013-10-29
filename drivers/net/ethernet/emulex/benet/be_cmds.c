@@ -522,7 +522,7 @@ static u16 be_POST_stage_get(struct be_adapter *adapter)
 	return sem & POST_STAGE_MASK;
 }
 
-int lancer_wait_ready(struct be_adapter *adapter)
+static int lancer_wait_ready(struct be_adapter *adapter)
 {
 #define SLIPORT_READY_TIMEOUT 30
 	u32 sliport_status;
