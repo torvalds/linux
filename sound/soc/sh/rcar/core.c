@@ -94,6 +94,7 @@
  *
  */
 #include <linux/pm_runtime.h>
+#include <linux/shdma-base.h>
 #include "rsnd.h"
 
 #define RSND_RATES SNDRV_PCM_RATE_8000_96000
@@ -254,13 +255,6 @@ int rsnd_dma_available(struct rsnd_dma *dma)
 	return !!dma->chan;
 }
 
-static bool rsnd_dma_filter(struct dma_chan *chan, void *param)
-{
-	chan->private = param;
-
-	return true;
-}
-
 int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		  int is_play, int id,
 		  int (*inquiry)(struct rsnd_dma *dma,
@@ -268,7 +262,9 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		  int (*complete)(struct rsnd_dma *dma))
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct dma_slave_config cfg;
 	dma_cap_mask_t mask;
+	int ret;
 
 	if (dma->chan) {
 		dev_err(dev, "it already has dma channel\n");
@@ -278,14 +274,22 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	dma->slave.shdma_slave.slave_id = id;
-
-	dma->chan = dma_request_channel(mask, rsnd_dma_filter,
-					&dma->slave.shdma_slave);
+	dma->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+						     (void *)id, dev,
+						     is_play ? "tx" : "rx");
 	if (!dma->chan) {
 		dev_err(dev, "can't get dma channel\n");
 		return -EIO;
 	}
+
+	cfg.slave_id	= id;
+	cfg.dst_addr	= 0; /* use default addr when playback */
+	cfg.src_addr	= 0; /* use default addr when capture */
+	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+
+	ret = dmaengine_slave_config(dma->chan, &cfg);
+	if (ret < 0)
+		goto rsnd_dma_init_err;
 
 	dma->dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	dma->priv = priv;
@@ -294,6 +298,11 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	INIT_WORK(&dma->work, rsnd_dma_do_work);
 
 	return 0;
+
+rsnd_dma_init_err:
+	rsnd_dma_quit(priv, dma);
+
+	return ret;
 }
 
 void  rsnd_dma_quit(struct rsnd_priv *priv,
