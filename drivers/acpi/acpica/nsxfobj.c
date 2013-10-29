@@ -201,7 +201,7 @@ acpi_status acpi_get_parent(acpi_handle handle, acpi_handle * ret_handle)
 		status = AE_NULL_ENTRY;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
@@ -281,7 +281,7 @@ acpi_get_next_object(acpi_object_type type,
 		*ret_handle = ACPI_CAST_PTR(acpi_handle, node);
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);

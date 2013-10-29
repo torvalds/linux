@@ -375,7 +375,7 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
 
 	acpi_gbl_exception_handler = handler;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -445,12 +445,12 @@ acpi_status acpi_install_sci_handler(acpi_sci_handler address, void *context)
 	new_sci_handler->next = acpi_gbl_sci_handler_list;
 	acpi_gbl_sci_handler_list = new_sci_handler;
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 
-      exit:
+exit:
 	if (ACPI_FAILURE(status)) {
 		ACPI_FREE(new_sci_handler);
 	}
@@ -517,7 +517,7 @@ acpi_status acpi_remove_sci_handler(acpi_sci_handler address)
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	status = AE_NOT_EXIST;
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -566,7 +566,7 @@ acpi_install_global_event_handler(acpi_gbl_event_handler handler, void *context)
 	acpi_gbl_global_event_handler = handler;
 	acpi_gbl_global_event_handler_context = context;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -638,7 +638,7 @@ acpi_install_fixed_event_handler(u32 event,
 				  handler));
 	}
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }

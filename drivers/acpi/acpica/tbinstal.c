@@ -231,10 +231,10 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 		goto release;
 	}
 
-      print_header:
+print_header:
 	acpi_tb_print_table_header(table_desc->address, table_desc->pointer);
 
-      release:
+release:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
@@ -306,7 +306,7 @@ struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
 
 	return (NULL);		/* There was no override */
 
-      finish_override:
+finish_override:
 
 	ACPI_INFO((AE_INFO,
 		   "%4.4s %p %s table override, new table: %p",

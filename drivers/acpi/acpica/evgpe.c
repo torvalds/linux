@@ -458,7 +458,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 		gpe_block = gpe_block->next;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return (int_status);

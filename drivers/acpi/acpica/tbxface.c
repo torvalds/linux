@@ -466,7 +466,7 @@ acpi_install_table_handler(acpi_table_handler handler, void *context)
 	acpi_gbl_table_handler = handler;
 	acpi_gbl_table_handler_context = context;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -507,7 +507,7 @@ acpi_status acpi_remove_table_handler(acpi_table_handler handler)
 
 	acpi_gbl_table_handler = NULL;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }

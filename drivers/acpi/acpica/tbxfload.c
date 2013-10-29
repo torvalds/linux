@@ -201,7 +201,7 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	ACPI_INFO((AE_INFO, "All ACPI Tables successfully acquired"));
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
@@ -269,7 +269,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 					     acpi_gbl_table_handler_context);
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	return_ACPI_STATUS(status);
 }

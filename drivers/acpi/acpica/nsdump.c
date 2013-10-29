@@ -620,7 +620,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		obj_type = ACPI_TYPE_INVALID;	/* Terminate loop after next pass */
 	}
 
-      cleanup:
+cleanup:
 	acpi_os_printf("\n");
 	return (AE_OK);
 }

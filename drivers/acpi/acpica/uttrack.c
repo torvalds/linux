@@ -430,7 +430,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 		element->next = allocation;
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_MEMORY);
 	return_ACPI_STATUS(status);
 }

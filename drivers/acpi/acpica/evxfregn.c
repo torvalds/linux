@@ -148,7 +148,7 @@ acpi_install_address_space_handler(acpi_handle device,
 
 	status = acpi_ev_execute_reg_methods(node, space_id);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
@@ -287,7 +287,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 
 	status = AE_NOT_EXIST;
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }

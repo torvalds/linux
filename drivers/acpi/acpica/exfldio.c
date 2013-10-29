@@ -1002,7 +1002,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 						mask, merged_datum,
 						field_offset);
 
-      exit:
+exit:
 	/* Free temporary buffer if we used one */
 
 	if (new_buffer) {

@@ -310,7 +310,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 	/* All done, normal exit */
 
-      all_done:
+all_done:
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
 			  ACPI_FORMAT_UINT64(return_value)));
@@ -318,7 +318,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	*ret_integer = return_value;
 	return_ACPI_STATUS(AE_OK);
 
-      error_exit:
+error_exit:
 	/* Base was set/validated above */
 
 	if (base == 10) {

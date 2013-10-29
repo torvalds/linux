@@ -570,10 +570,10 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		break;
 	}
 
-      cleanup1:
+cleanup1:
 	acpi_ut_remove_reference(info->return_object);
 
-      cleanup:
+cleanup:
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While evaluating Sleep State [%s]",

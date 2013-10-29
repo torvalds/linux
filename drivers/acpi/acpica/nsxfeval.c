@@ -442,7 +442,7 @@ acpi_evaluate_object(acpi_handle handle,
 		acpi_ex_exit_interpreter();
 	}
 
-      cleanup:
+cleanup:
 
 	/* Free the input parameter list (if we created one) */
 
@@ -618,10 +618,10 @@ acpi_walk_namespace(acpi_object_type type,
 					descending_callback, ascending_callback,
 					context, return_value);
 
-      unlock_and_exit2:
+unlock_and_exit2:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_read_lock(&acpi_gbl_namespace_rw_lock);
 	return_ACPI_STATUS(status);
 }
@@ -865,7 +865,7 @@ acpi_attach_data(acpi_handle obj_handle,
 
 	status = acpi_ns_attach_data(node, handler, data);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }
@@ -911,7 +911,7 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 
 	status = acpi_ns_detach_data(node, handler);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }
@@ -958,7 +958,7 @@ acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 
 	status = acpi_ns_get_attached_data(node, handler, data);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }
