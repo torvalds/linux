@@ -106,6 +106,7 @@ struct dsps_musb_wrapper {
 
 	/* bit positions for mode */
 	unsigned	iddig:5;
+	unsigned	iddig_mux:5;
 	/* miscellaneous stuff */
 	u8		poll_seconds;
 };
@@ -406,6 +407,54 @@ static int dsps_musb_exit(struct musb *musb)
 	return 0;
 }
 
+static int dsps_musb_set_mode(struct musb *musb, u8 mode)
+{
+	struct device *dev = musb->controller;
+	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
+	const struct dsps_musb_wrapper *wrp = glue->wrp;
+	void __iomem *ctrl_base = musb->ctrl_base;
+	void __iomem *base = musb->mregs;
+	u32 reg;
+
+	reg = dsps_readl(base, wrp->mode);
+
+	switch (mode) {
+	case MUSB_HOST:
+		reg &= ~(1 << wrp->iddig);
+
+		/*
+		 * if we're setting mode to host-only or device-only, we're
+		 * going to ignore whatever the PHY sends us and just force
+		 * ID pin status by SW
+		 */
+		reg |= (1 << wrp->iddig_mux);
+
+		dsps_writel(base, wrp->mode, reg);
+		dsps_writel(ctrl_base, wrp->phy_utmi, 0x02);
+		break;
+	case MUSB_PERIPHERAL:
+		reg |= (1 << wrp->iddig);
+
+		/*
+		 * if we're setting mode to host-only or device-only, we're
+		 * going to ignore whatever the PHY sends us and just force
+		 * ID pin status by SW
+		 */
+		reg |= (1 << wrp->iddig_mux);
+
+		dsps_writel(base, wrp->mode, reg);
+		break;
+	case MUSB_OTG:
+		dsps_writel(base, wrp->phy_utmi, 0x02);
+		break;
+	default:
+		dev_err(glue->dev, "unsupported mode %d\n", mode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct musb_platform_ops dsps_ops = {
 	.init		= dsps_musb_init,
 	.exit		= dsps_musb_exit,
@@ -414,6 +463,7 @@ static struct musb_platform_ops dsps_ops = {
 	.disable	= dsps_musb_disable,
 
 	.try_idle	= dsps_musb_try_idle,
+	.set_mode	= dsps_musb_set_mode,
 };
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
@@ -608,6 +658,7 @@ static const struct dsps_musb_wrapper am33xx_driver_data = {
 	.reset			= 0,
 	.otg_disable		= 21,
 	.iddig			= 8,
+	.iddig_mux		= 7,
 	.usb_shift		= 0,
 	.usb_mask		= 0x1ff,
 	.usb_bitmap		= (0x1ff << 0),
