@@ -254,6 +254,10 @@ static void wdm_int_callback(struct urb *urb)
 			"NOTIFY_NETWORK_CONNECTION %s network",
 			dr->wValue ? "connected to" : "disconnected from");
 		goto exit;
+	case USB_CDC_NOTIFY_SPEED_CHANGE:
+		dev_dbg(&desc->intf->dev, "SPEED_CHANGE received (len %u)",
+			urb->actual_length);
+		goto exit;
 	default:
 		clear_bit(WDM_POLL_RUNNING, &desc->flags);
 		dev_err(&desc->intf->dev,
