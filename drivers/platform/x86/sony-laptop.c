@@ -145,7 +145,8 @@ static void sony_nc_thermal_resume(void);
 #endif
 static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 		unsigned int handle);
-static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd);
+static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd,
+		unsigned int handle);
 
 static int sony_nc_battery_care_setup(struct platform_device *pd,
 		unsigned int handle);
@@ -1444,7 +1445,7 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x014b:
 		case 0x014c:
 		case 0x0163:
-			sony_nc_kbd_backlight_cleanup(pd);
+			sony_nc_kbd_backlight_cleanup(pd, handle);
 			break;
 		default:
 			continue;
@@ -1822,6 +1823,12 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 	int result;
 	int ret = 0;
 
+	if (kbdbl_ctl) {
+		pr_warn("handle 0x%.4x: keyboard backlight setup already done for 0x%.4x\n",
+				handle, kbdbl_ctl->handle);
+		return -EBUSY;
+	}
+
 	/* verify the kbd backlight presence, these handles are not used for
 	 * keyboard backlight only
 	 */
@@ -1881,9 +1888,10 @@ outkzalloc:
 	return ret;
 }
 
-static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd)
+static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd,
+		unsigned int handle)
 {
-	if (kbdbl_ctl) {
+	if (kbdbl_ctl && handle == kbdbl_ctl->handle) {
 		device_remove_file(&pd->dev, &kbdbl_ctl->mode_attr);
 		device_remove_file(&pd->dev, &kbdbl_ctl->timeout_attr);
 		kfree(kbdbl_ctl);
