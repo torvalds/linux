@@ -3892,6 +3892,25 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
 };
 
+static const struct gprefix three_byte_0f_38_f0 = {
+	N, N, N, N
+};
+
+static const struct gprefix three_byte_0f_38_f1 = {
+	N, N, N, N
+};
+
+/*
+ * Insns below are selected by the prefix which indexed by the third opcode
+ * byte.
+ */
+static const struct opcode opcode_map_0f_38[256] = {
+	/* 0x00 - 0x7f */
+	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
+	/* 0x80 - 0xff */
+	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N)
+};
+
 #undef D
 #undef N
 #undef G
@@ -4212,6 +4231,13 @@ done_prefixes:
 		ctxt->opcode_len = 2;
 		ctxt->b = insn_fetch(u8, ctxt);
 		opcode = twobyte_table[ctxt->b];
+
+		/* 0F_38 opcode map */
+		if (ctxt->b == 0x38) {
+			ctxt->opcode_len = 3;
+			ctxt->b = insn_fetch(u8, ctxt);
+			opcode = opcode_map_0f_38[ctxt->b];
+		}
 	}
 	ctxt->d = opcode.flags;
 
@@ -4543,6 +4569,8 @@ special_insn:
 
 	if (ctxt->opcode_len == 2)
 		goto twobyte_insn;
+	else if (ctxt->opcode_len == 3)
+		goto threebyte_insn;
 
 	switch (ctxt->b) {
 	case 0x63:		/* movsxd */
@@ -4726,6 +4754,8 @@ twobyte_insn:
 	default:
 		goto cannot_emulate;
 	}
+
+threebyte_insn:
 
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
