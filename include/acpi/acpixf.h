@@ -106,7 +106,7 @@ extern u8 acpi_gbl_disable_ssdt_table_load;
 	static ACPI_INLINE prototype {return(AE_OK);}
 
 #define ACPI_HW_DEPENDENT_RETURN_VOID(prototype) \
-	static ACPI_INLINE prototype {}
+	static ACPI_INLINE prototype {return;}
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
