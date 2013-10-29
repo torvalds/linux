@@ -589,16 +589,7 @@ static int ad5755_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return iio_device_register(indio_dev);
-}
-
-static int ad5755_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad5755_id[] = {
@@ -617,7 +608,6 @@ static struct spi_driver ad5755_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad5755_probe,
-	.remove = ad5755_remove,
 	.id_table = ad5755_id,
 };
 module_spi_driver(ad5755_driver);
