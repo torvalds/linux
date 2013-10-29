@@ -304,8 +304,7 @@ struct sh_pfc_soc_info {
 #define PORTCR(nr, reg)							\
 	{								\
 		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, PORT##nr##_IN_PD,		\
-			      PORT##nr##_IN_PU, PORT##nr##_OUT),	\
+			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
 				PORT##nr##_FN0, PORT##nr##_FN1,		\
 				PORT##nr##_FN2, PORT##nr##_FN3,		\
 				PORT##nr##_FN4, PORT##nr##_FN5,		\
