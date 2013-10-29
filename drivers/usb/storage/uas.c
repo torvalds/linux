@@ -898,33 +898,6 @@ static int uas_switch_interface(struct usb_device *udev,
 			intf->altsetting[0].desc.bInterfaceNumber, alt);
 }
 
-static int uas_find_endpoints(struct usb_host_interface *alt,
-			      struct usb_host_endpoint *eps[])
-{
-	struct usb_host_endpoint *endpoint = alt->endpoint;
-	unsigned i, n_endpoints = alt->desc.bNumEndpoints;
-
-	for (i = 0; i < n_endpoints; i++) {
-		unsigned char *extra = endpoint[i].extra;
-		int len = endpoint[i].extralen;
-		while (len >= 3) {
-			if (extra[1] == USB_DT_PIPE_USAGE) {
-				unsigned pipe_id = extra[2];
-				if (pipe_id > 0 && pipe_id < 5)
-					eps[pipe_id - 1] = &endpoint[i];
-				break;
-			}
-			len -= extra[0];
-			extra += extra[0];
-		}
-	}
-
-	if (!eps[0] || !eps[1] || !eps[2] || !eps[3])
-		return -ENODEV;
-
-	return 0;
-}
-
 static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 {
 	struct usb_host_endpoint *eps[4] = { };
