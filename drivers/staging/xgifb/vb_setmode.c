@@ -845,11 +845,10 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeIdIndex,
 			VCLKIndex = TVCLKBASE_315_25 + HiTVVCLK;
 
 		if (pVBInfo->SetFlag & TVSimuMode) {
-			if (modeflag & Charx8Dot) {
+			if (modeflag & Charx8Dot)
 				VCLKIndex = TVCLKBASE_315_25 + HiTVSimuVCLK;
-			} else {
+			else
 				VCLKIndex = TVCLKBASE_315_25 + HiTVTextVCLK;
-			}
 		}
 
 		/* 301lv */
