@@ -450,75 +450,66 @@ static int write_dpram32_and_check(struct ft1000_usb *ft1000dev,
  *              u8  **pUcFile - DSP image file pointer in u8
  *              long word_length - length of the buffer to be written to DPRAM
  */
-static u32 write_blk (struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile, long word_length)
+static int write_blk(struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile,
+		long word_length)
 {
-   u32 Status = STATUS_SUCCESS;
-   u16 dpram;
-   int loopcnt, i;
-   u16 tempword;
-   u16 tempbuffer[64];
+	int status = STATUS_SUCCESS;
+	u16 dpram;
+	int loopcnt, i;
+	u16 tempword;
+	u16 tempbuffer[64];
 
-   //DEBUG("FT1000:download:start word_length = %d\n",(int)word_length);
-   dpram = (u16)DWNLD_MAG1_PS_HDR_LOC;
-   tempword = *(*pUsFile);
-   (*pUsFile)++;
-   Status = ft1000_write_dpram16(ft1000dev, dpram, tempword, 0);
-   tempword = *(*pUsFile);
-   (*pUsFile)++;
-   Status = ft1000_write_dpram16(ft1000dev, dpram++, tempword, 1);
+	/*DEBUG("FT1000:download:start word_length = %d\n",(int)word_length); */
+	dpram = (u16)DWNLD_MAG1_PS_HDR_LOC;
+	tempword = *(*pUsFile);
+	(*pUsFile)++;
+	status = ft1000_write_dpram16(ft1000dev, dpram, tempword, 0);
+	tempword = *(*pUsFile);
+	(*pUsFile)++;
+	status = ft1000_write_dpram16(ft1000dev, dpram++, tempword, 1);
 
-   *pUcFile = *pUcFile + 4;
-   word_length--;
-   tempword = (u16)word_length;
-   word_length = (word_length / 16) + 1;
-   for (; word_length > 0; word_length--) /* In words */
-   {
-	   loopcnt = 0;
-
-	      for (i=0; i<32; i++)
-	      {
-		       if (tempword != 0)
-		       {
-    		           tempbuffer[i++] = *(*pUsFile);
-			   (*pUsFile)++;
-   	    	           tempbuffer[i] = *(*pUsFile);
-			   (*pUsFile)++;
-			   *pUcFile = *pUcFile + 4;
-			   loopcnt++;
-			   tempword--;
-		       }
-		       else
-		       {
-			   tempbuffer[i++] = 0;
-			   tempbuffer[i] = 0;
-                       }
-	      }
-
-              //DEBUG("write_blk: loopcnt is %d\n", loopcnt);
-              //DEBUG("write_blk: bootmode = %d\n", bootmode);
-              //DEBUG("write_blk: dpram = %x\n", dpram);
-	      if (ft1000dev->bootmode == 0)
-	      {
-		 if (dpram >= 0x3F4)
-                     Status = ft1000_write_dpram32 (ft1000dev, dpram, (u8 *)&tempbuffer[0], 8);
-	         else
-                    Status = ft1000_write_dpram32 (ft1000dev, dpram, (u8 *)&tempbuffer[0], 64);
-	      }
-	      else
-	      {
-		      Status = write_dpram32_and_check(ft1000dev, tempbuffer,
-				      dpram);
-		if (Status != STATUS_SUCCESS)
-		{
-                    DEBUG("FT1000:download:Write failed tempbuffer[31] = 0x%x\n", tempbuffer[31]);
-		    break;
+	*pUcFile = *pUcFile + 4;
+	word_length--;
+	tempword = (u16)word_length;
+	word_length = (word_length / 16) + 1;
+	for (; word_length > 0; word_length--) { /* In words */
+		loopcnt = 0;
+		for (i = 0; i < 32; i++) {
+			if (tempword != 0) {
+				tempbuffer[i++] = *(*pUsFile);
+				(*pUsFile)++;
+				tempbuffer[i] = *(*pUsFile);
+				(*pUsFile)++;
+				*pUcFile = *pUcFile + 4;
+				loopcnt++;
+				tempword--;
+			} else {
+				tempbuffer[i++] = 0;
+				tempbuffer[i] = 0;
+			}
 		}
 
-	     }
-   	     dpram = dpram + loopcnt;
-   }
-
-   return Status;
+		/*DEBUG("write_blk: loopcnt is %d\n", loopcnt); */
+		/*DEBUG("write_blk: bootmode = %d\n", bootmode); */
+		/*DEBUG("write_blk: dpram = %x\n", dpram); */
+		if (ft1000dev->bootmode == 0) {
+			if (dpram >= 0x3F4)
+				status = ft1000_write_dpram32(ft1000dev, dpram,
+						(u8 *)&tempbuffer[0], 8);
+			else
+				status = ft1000_write_dpram32(ft1000dev, dpram,
+						(u8 *)&tempbuffer[0], 64);
+		} else {
+			status = write_dpram32_and_check(ft1000dev, tempbuffer,
+					dpram);
+			if (status != STATUS_SUCCESS) {
+				DEBUG("FT1000:download:Write failed tempbuffer[31] = 0x%x\n", tempbuffer[31]);
+				break;
+			}
+		}
+		dpram = dpram + loopcnt;
+	}
+	return status;
 }
 
 static void usb_dnld_complete (struct urb *urb)
