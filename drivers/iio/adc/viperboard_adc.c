@@ -133,7 +133,7 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = vprbrd_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(vprbrd_adc_iio_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register iio (adc)");
 		return ret;
@@ -144,22 +144,12 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vprbrd_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-
 static struct platform_driver vprbrd_adc_driver = {
 	.driver = {
 		.name	= "viperboard-adc",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= vprbrd_adc_probe,
-	.remove		= vprbrd_adc_remove,
 };
 
 module_platform_driver(vprbrd_adc_driver);
