@@ -470,7 +470,6 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool stats_cmd_sent;
-	u32 if_type;
 	struct {
 		u32 size;
 		u32 total_size;
