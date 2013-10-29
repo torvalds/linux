@@ -45,37 +45,34 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		return 0;
 	}
 
-	if (vid) {
-		if (v->port_idx) {
-			p = v->parent.port;
-			br = p->br;
-			dev = p->dev;
-		} else {
-			br = v->parent.br;
-			dev = br->dev;
-		}
-		ops = dev->netdev_ops;
+	if (v->port_idx) {
+		p = v->parent.port;
+		br = p->br;
+		dev = p->dev;
+	} else {
+		br = v->parent.br;
+		dev = br->dev;
+	}
+	ops = dev->netdev_ops;
 
-		if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
-			/* Add VLAN to the device filter if it is supported.
-			 * Stricly speaking, this is not necessary now, since
-			 * devices are made promiscuous by the bridge, but if
-			 * that ever changes this code will allow tagged
-			 * traffic to enter the bridge.
-			 */
-			err = ops->ndo_vlan_rx_add_vid(dev, htons(ETH_P_8021Q),
-						       vid);
-			if (err)
-				return err;
-		}
+	if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
+		/* Add VLAN to the device filter if it is supported.
+		 * Stricly speaking, this is not necessary now, since
+		 * devices are made promiscuous by the bridge, but if
+		 * that ever changes this code will allow tagged
+		 * traffic to enter the bridge.
+		 */
+		err = ops->ndo_vlan_rx_add_vid(dev, htons(ETH_P_8021Q),
+					       vid);
+		if (err)
+			return err;
+	}
 
-		err = br_fdb_insert(br, p, dev->dev_addr, vid);
-		if (err) {
-			br_err(br, "failed insert local address into bridge "
-			       "forwarding table\n");
-			goto out_filt;
-		}
-
+	err = br_fdb_insert(br, p, dev->dev_addr, vid);
+	if (err) {
+		br_err(br, "failed insert local address into bridge "
+		       "forwarding table\n");
+		goto out_filt;
 	}
 
 	set_bit(vid, v->vlan_bitmap);
@@ -98,7 +95,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 	__vlan_delete_pvid(v, vid);
 	clear_bit(vid, v->untagged_bitmap);
 
-	if (v->port_idx && vid) {
+	if (v->port_idx) {
 		struct net_device *dev = v->parent.port->dev;
 		const struct net_device_ops *ops = dev->netdev_ops;
 
@@ -192,6 +189,8 @@ out:
 bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 			struct sk_buff *skb, u16 *vid)
 {
+	int err;
+
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
@@ -204,20 +203,32 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	if (!v)
 		return false;
 
-	if (br_vlan_get_tag(skb, vid)) {
+	err = br_vlan_get_tag(skb, vid);
+	if (!*vid) {
 		u16 pvid = br_get_pvid(v);
 
-		/* Frame did not have a tag.  See if pvid is set
-		 * on this port.  That tells us which vlan untagged
-		 * traffic belongs to.
+		/* Frame had a tag with VID 0 or did not have a tag.
+		 * See if pvid is set on this port.  That tells us which
+		 * vlan untagged or priority-tagged traffic belongs to.
 		 */
 		if (pvid == VLAN_N_VID)
 			return false;
 
-		/* PVID is set on this port.  Any untagged ingress
-		 * frame is considered to belong to this vlan.
+		/* PVID is set on this port.  Any untagged or priority-tagged
+		 * ingress frame is considered to belong to this vlan.
 		 */
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
+		*vid = pvid;
+		if (likely(err))
+			/* Untagged Frame. */
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
+		else
+			/* Priority-tagged Frame.
+			 * At this point, We know that skb->vlan_tci had
+			 * VLAN_TAG_PRESENT bit and its VID field was 0x000.
+			 * We update only VID field and preserve PCP field.
+			 */
+			skb->vlan_tci |= pvid;
+
 		return true;
 	}
 
@@ -248,7 +259,9 @@ bool br_allowed_egress(struct net_bridge *br,
 	return false;
 }
 
-/* Must be protected by RTNL */
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 {
 	struct net_port_vlans *pv = NULL;
@@ -278,7 +291,9 @@ out:
 	return err;
 }
 
-/* Must be protected by RTNL */
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int br_vlan_delete(struct net_bridge *br, u16 vid)
 {
 	struct net_port_vlans *pv;
@@ -289,14 +304,9 @@ int br_vlan_delete(struct net_bridge *br, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
-	if (vid) {
-		/* If the VID !=0 remove fdb for this vid. VID 0 is special
-		 * in that it's the default and is always there in the fdb.
-		 */
-		spin_lock_bh(&br->hash_lock);
-		fdb_delete_by_addr(br, br->dev->dev_addr, vid);
-		spin_unlock_bh(&br->hash_lock);
-	}
+	spin_lock_bh(&br->hash_lock);
+	fdb_delete_by_addr(br, br->dev->dev_addr, vid);
+	spin_unlock_bh(&br->hash_lock);
 
 	__vlan_del(pv, vid);
 	return 0;
@@ -329,7 +339,9 @@ unlock:
 	return 0;
 }
 
-/* Must be protected by RTNL */
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
 {
 	struct net_port_vlans *pv = NULL;
@@ -363,7 +375,9 @@ clean_up:
 	return err;
 }
 
-/* Must be protected by RTNL */
+/* Must be protected by RTNL.
+ * Must be called with vid in range from 1 to 4094 inclusive.
+ */
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 {
 	struct net_port_vlans *pv;
@@ -374,14 +388,9 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 	if (!pv)
 		return -EINVAL;
 
-	if (vid) {
-		/* If the VID !=0 remove fdb for this vid. VID 0 is special
-		 * in that it's the default and is always there in the fdb.
-		 */
-		spin_lock_bh(&port->br->hash_lock);
-		fdb_delete_by_addr(port->br, port->dev->dev_addr, vid);
-		spin_unlock_bh(&port->br->hash_lock);
-	}
+	spin_lock_bh(&port->br->hash_lock);
+	fdb_delete_by_addr(port->br, port->dev->dev_addr, vid);
+	spin_unlock_bh(&port->br->hash_lock);
 
 	return __vlan_del(pv, vid);
 }

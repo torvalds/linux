@@ -891,16 +891,7 @@ static void bnx2x_get_regs(struct net_device *dev,
 	 * will re-enable parity attentions right after the dump.
 	 */
 
-	/* Disable parity on path 0 */
-	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
-
-	/* Disable parity on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_disable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
 	dump_hdr.preset = DUMP_ALL_PRESETS;
@@ -928,18 +919,9 @@ static void bnx2x_get_regs(struct net_device *dev,
 	/* Actually read the registers */
 	__bnx2x_get_regs(bp, p);
 
-	/* Re-enable parity attentions on path 0 */
-	bnx2x_pretend_func(bp, 0);
+	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
-
-	/* Re-enable parity attentions on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_clear_blocks_parity(bp);
-	bnx2x_enable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 }
 
 static int bnx2x_get_preset_regs_len(struct net_device *dev, u32 preset)
@@ -993,16 +975,7 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	 * will re-enable parity attentions right after the dump.
 	 */
 
-	/* Disable parity on path 0 */
-	bnx2x_pretend_func(bp, 0);
 	bnx2x_disable_blocks_parity(bp);
-
-	/* Disable parity on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_disable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	dump_hdr.header_size = (sizeof(struct dump_header) / 4) - 1;
 	dump_hdr.preset = bp->dump_preset_idx;
@@ -1032,18 +1005,9 @@ static int bnx2x_get_dump_data(struct net_device *dev,
 	/* Actually read the registers */
 	__bnx2x_get_preset_regs(bp, p, dump_hdr.preset);
 
-	/* Re-enable parity attentions on path 0 */
-	bnx2x_pretend_func(bp, 0);
+	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
-
-	/* Re-enable parity attentions on path 1 */
-	bnx2x_pretend_func(bp, 1);
-	bnx2x_clear_blocks_parity(bp);
-	bnx2x_enable_blocks_parity(bp);
-
-	/* Return to current function */
-	bnx2x_pretend_func(bp, BP_ABS_FUNC(bp));
 
 	return 0;
 }
