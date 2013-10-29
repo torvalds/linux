@@ -1215,6 +1215,7 @@ xfs_setup_inode(
 		else
 			inode->i_op = &xfs_dir_inode_operations;
 		inode->i_fop = &xfs_dir_file_operations;
+		ip->d_ops = ip->i_mount->m_dir_inode_ops;
 		break;
 	case S_IFLNK:
 		inode->i_op = &xfs_symlink_inode_operations;

@@ -329,32 +329,6 @@ xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
 		((char *)hdr + xfs_dir2_sf_hdr_size(hdr->i8count));
 }
 
-static inline int
-xfs_dir3_sf_entsize(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_sf_hdr	*hdr,
-	int			len)
-{
-	int count = sizeof(struct xfs_dir2_sf_entry); 	/* namelen + offset */
-
-	count += len;					/* name */
-	count += hdr->i8count ? sizeof(xfs_dir2_ino8_t) :
-				sizeof(xfs_dir2_ino4_t); /* ino # */
-	if (xfs_sb_version_hasftype(&mp->m_sb))
-		count += sizeof(__uint8_t);		/* file type */
-	return count;
-}
-
-static inline struct xfs_dir2_sf_entry *
-xfs_dir3_sf_nextentry(
-	struct xfs_mount	*mp,
-	struct xfs_dir2_sf_hdr	*hdr,
-	struct xfs_dir2_sf_entry *sfep)
-{
-	return (struct xfs_dir2_sf_entry *)
-		((char *)sfep + xfs_dir3_sf_entsize(mp, hdr, sfep->namelen));
-}
-
 /*
  * in dir3 shortform directories, the file type field is stored at a variable
  * offset after the inode number. Because it's only a single byte, endian

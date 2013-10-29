@@ -49,6 +49,9 @@ typedef struct xfs_inode {
 	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
 	xfs_ifork_t		i_df;		/* data fork */
 
+	/* operations vectors */
+	const struct xfs_dir_ops *d_ops;		/* directory ops vector */
+
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */

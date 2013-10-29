@@ -32,6 +32,20 @@ struct xfs_dir2_data_unused;
 extern struct xfs_name	xfs_name_dotdot;
 
 /*
+ * directory operations vector for encode/decode routines
+ */
+struct xfs_dir_ops {
+	int	(*sf_entsize)(struct xfs_dir2_sf_hdr *hdr, int len);
+	struct xfs_dir2_sf_entry *
+		(*sf_nextentry)(struct xfs_dir2_sf_hdr *hdr,
+				struct xfs_dir2_sf_entry *sfep);
+};
+
+extern const struct xfs_dir_ops xfs_dir2_ops;
+extern const struct xfs_dir_ops xfs_dir2_ftype_ops;
+extern const struct xfs_dir_ops xfs_dir3_ops;
+
+/*
  * Generic directory interface routines
  */
 extern void xfs_dir_startup(void);

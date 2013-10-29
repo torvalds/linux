@@ -23,6 +23,7 @@ struct xfs_bmap_free;
 struct xfs_inode;
 struct xfs_trans;
 struct zone;
+struct xfs_dir_ops;
 
 /*========================================================================
  * Btree searching and modification structure definitions.
