@@ -65,7 +65,6 @@ __xfs_dir3_data_check(
 	const struct xfs_dir_ops *ops;
 
 	mp = bp->b_target->bt_mount;
-	hdr = bp->b_addr;
 
 	/*
 	 * We can be passed a null dp here from a verifier, so we need to go the
@@ -73,12 +72,25 @@ __xfs_dir3_data_check(
 	 */
 	ops = xfs_dir_get_ops(mp, dp);
 
+	hdr = bp->b_addr;
+	p = (char *)ops->data_entry_p(hdr);
+
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
 	case cpu_to_be32(XFS_DIR2_BLOCK_MAGIC):
 		btp = xfs_dir2_block_tail_p(mp, hdr);
 		lep = xfs_dir2_block_leaf_p(btp);
 		endp = (char *)lep;
+
+		/*
+		 * The number of leaf entries is limited by the size of the
+		 * block and the amount of space used by the data entries.
+		 * We don't know how much space is used by the data entries yet,
+		 * so just ensure that the count falls somewhere inside the
+		 * block right now.
+		 */
+		XFS_WANT_CORRUPTED_RETURN(be32_to_cpu(btp->count) <
+			((char *)btp - p) / sizeof(struct xfs_dir2_leaf_entry));
 		break;
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
@@ -88,13 +100,12 @@ __xfs_dir3_data_check(
 		XFS_ERROR_REPORT("Bad Magic", XFS_ERRLEVEL_LOW, mp);
 		return EFSCORRUPTED;
 	}
-	bf = ops->data_bestfree_p(hdr);
-	p = (char *)ops->data_entry_p(hdr);
 
-	count = lastfree = freeseen = 0;
 	/*
 	 * Account for zero bestfree entries.
 	 */
+	bf = ops->data_bestfree_p(hdr);
+	count = lastfree = freeseen = 0;
 	if (!bf[0].length) {
 		XFS_WANT_CORRUPTED_RETURN(!bf[0].offset);
 		freeseen |= 1 << 0;
