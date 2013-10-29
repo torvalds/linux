@@ -536,7 +536,7 @@ ENTRY(fixup_smp)
 	ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(fixup_smp)
 
-#ifdef __ARMEB_
+#ifdef __ARMEB__
 #define LOW_OFFSET	0x4
 #define HIGH_OFFSET	0x0
 #else
@@ -632,6 +632,7 @@ __fixup_a_pv_table:
 #endif
 ENDPROC(__fixup_a_pv_table)
 
+	.align
 3:	.long __pv_offset
 
 ENTRY(fixup_pv_table)
