@@ -413,8 +413,12 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
-	int always_authenticated;
-	int authenticated;
+	unsigned always_authenticated :1;
+	unsigned authenticated :1;
+	unsigned is_master :1; /* this file private is a master for a minor */
+	/* true when the client has asked us to expose stereo 3D mode flags */
+	unsigned stereo_allowed :1;
+
 	struct pid *pid;
 	kuid_t uid;
 	drm_magic_t magic;
@@ -431,13 +435,8 @@ struct drm_file {
 	struct file *filp;
 	void *driver_priv;
 
-	int is_master; /* this file private is a master for a minor */
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
-
-	/* true when the client has asked us to expose stereo 3D mode flags */
-	bool stereo_allowed;
-
 	/**
 	 * fbs - List of framebuffers associated with this file.
 	 *
