@@ -915,9 +915,8 @@ static void ActUpdateChannelAccessSetting(struct net_device *dev,
 	 */
 	write_nic_byte(dev, AckTimeOutReg, 0x5B);
 
-	for (eACI = 0; eACI < AC_MAX; eACI++) {
+	for (eACI = 0; eACI < AC_MAX; eACI++)
 		write_nic_byte(dev, ACM_CONTROL, 0);
-	}
 }
 
 static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
