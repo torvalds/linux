@@ -95,13 +95,17 @@ xfs_dir_mount(
 	ASSERT(xfs_sb_version_hasdirv2(&mp->m_sb));
 	ASSERT((1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog)) <=
 	       XFS_MAX_BLOCKSIZE);
+
+	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
+	mp->m_nondir_inode_ops = xfs_nondir_get_ops(mp, NULL);
+
 	mp->m_dirblksize = 1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog);
 	mp->m_dirblkfsbs = 1 << mp->m_sb.sb_dirblklog;
 	mp->m_dirdatablk = xfs_dir2_db_to_da(mp, XFS_DIR2_DATA_FIRSTDB(mp));
 	mp->m_dirleafblk = xfs_dir2_db_to_da(mp, XFS_DIR2_LEAF_FIRSTDB(mp));
 	mp->m_dirfreeblk = xfs_dir2_db_to_da(mp, XFS_DIR2_FREE_FIRSTDB(mp));
 
-	nodehdr_size = __xfs_da3_node_hdr_size(xfs_sb_version_hascrc(&mp->m_sb));
+	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size();
 	mp->m_attr_node_ents = (mp->m_sb.sb_blocksize - nodehdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
 	mp->m_dir_node_ents = (mp->m_dirblksize - nodehdr_size) /
@@ -113,7 +117,6 @@ xfs_dir_mount(
 	else
 		mp->m_dirnameops = &xfs_default_nameops;
 
-	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
 }
 
 /*

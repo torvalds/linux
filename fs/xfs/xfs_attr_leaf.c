@@ -41,6 +41,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
 #include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 
 /*
@@ -916,7 +917,7 @@ xfs_attr3_leaf_to_node(
 		goto out;
 	node = bp1->b_addr;
 	xfs_da3_node_hdr_from_disk(&icnodehdr, node);
-	btree = xfs_da3_node_tree_p(node);
+	btree = dp->d_ops->node_tree_p(node);
 
 	leaf = bp2->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(&icleafhdr, leaf);

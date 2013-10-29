@@ -477,6 +477,33 @@ xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
 	return ((struct xfs_dir3_leaf *)lp)->__ents;
 }
 
+/*
+ * Directory/Attribute Node block operations
+ */
+static inline int
+xfs_da2_node_hdr_size(void)
+{
+	return sizeof(struct xfs_da_node_hdr);
+}
+
+static struct xfs_da_node_entry *
+xfs_da2_node_tree_p(struct xfs_da_intnode *dap)
+{
+	return dap->__btree;
+}
+
+static inline int
+xfs_da3_node_hdr_size(void)
+{
+	return sizeof(struct xfs_da3_node_hdr);
+}
+
+static inline struct xfs_da_node_entry *
+xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
+{
+	return ((struct xfs_da3_intnode *)dap)->__btree;
+}
+
 const struct xfs_dir_ops xfs_dir2_ops = {
 	.sf_entsize = xfs_dir2_sf_entsize,
 	.sf_nextentry = xfs_dir2_sf_nextentry,
@@ -508,6 +535,8 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
 
+	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_tree_p = xfs_da2_node_tree_p,
 };
 
 const struct xfs_dir_ops xfs_dir2_ftype_ops = {
@@ -540,6 +569,9 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.leaf_hdr_size = xfs_dir2_leaf_hdr_size,
 	.leaf_max_ents = xfs_dir2_max_leaf_ents,
 	.leaf_ents_p = xfs_dir2_leaf_ents_p,
+
+	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_tree_p = xfs_da2_node_tree_p,
 };
 
 const struct xfs_dir_ops xfs_dir3_ops = {
@@ -572,6 +604,19 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.leaf_hdr_size = xfs_dir3_leaf_hdr_size,
 	.leaf_max_ents = xfs_dir3_max_leaf_ents,
 	.leaf_ents_p = xfs_dir3_leaf_ents_p,
+
+	.node_hdr_size = xfs_da3_node_hdr_size,
+	.node_tree_p = xfs_da3_node_tree_p,
+};
+
+const struct xfs_dir_ops xfs_dir2_nondir_ops = {
+	.node_hdr_size = xfs_da2_node_hdr_size,
+	.node_tree_p = xfs_da2_node_tree_p,
+};
+
+const struct xfs_dir_ops xfs_dir3_nondir_ops = {
+	.node_hdr_size = xfs_da3_node_hdr_size,
+	.node_tree_p = xfs_da3_node_tree_p,
 };
 
 /*
@@ -593,4 +638,18 @@ xfs_dir_get_ops(
 	if (xfs_sb_version_hasftype(&mp->m_sb))
 		return &xfs_dir2_ftype_ops;
 	return &xfs_dir2_ops;
+}
+
+const struct xfs_dir_ops *
+xfs_nondir_get_ops(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*dp)
+{
+	if (dp)
+		return dp->d_ops;
+	if (mp->m_nondir_inode_ops)
+		return mp->m_nondir_inode_ops;
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		return &xfs_dir3_nondir_ops;
+	return &xfs_dir2_nondir_ops;
 }

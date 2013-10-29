@@ -40,6 +40,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
 #include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 STATIC int
 xfs_attr_shortform_compare(const void *a, const void *b)
@@ -226,6 +227,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	struct xfs_da_node_entry *btree;
 	int error, i;
 	struct xfs_buf *bp;
+	struct xfs_inode	*dp = context->dp;
 
 	trace_xfs_attr_node_list(context);
 
@@ -239,7 +241,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	bp = NULL;
 	if (cursor->blkno > 0) {
-		error = xfs_da3_node_read(NULL, context->dp, cursor->blkno, -1,
+		error = xfs_da3_node_read(NULL, dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != EFSCORRUPTED))
 			return(error);
@@ -289,7 +291,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 		for (;;) {
 			__uint16_t magic;
 
-			error = xfs_da3_node_read(NULL, context->dp,
+			error = xfs_da3_node_read(NULL, dp,
 						      cursor->blkno, -1, &bp,
 						      XFS_ATTR_FORK);
 			if (error)
@@ -310,7 +312,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			}
 
 			xfs_da3_node_hdr_from_disk(&nodehdr, node);
-			btree = xfs_da3_node_tree_p(node);
+			btree = dp->d_ops->node_tree_p(node);
 			for (i = 0; i < nodehdr.count; btree++, i++) {
 				if (cursor->hashval
 						<= be32_to_cpu(btree->hashval)) {
@@ -346,8 +348,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			break;
 		cursor->blkno = leafhdr.forw;
 		xfs_trans_brelse(NULL, bp);
-		error = xfs_attr3_leaf_read(NULL, context->dp, cursor->blkno, -1,
-					   &bp);
+		error = xfs_attr3_leaf_read(NULL, dp, cursor->blkno, -1, &bp);
 		if (error)
 			return error;
 	}

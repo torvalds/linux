@@ -40,6 +40,7 @@
 #include "xfs_quota.h"
 #include "xfs_trace.h"
 #include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 /*
  * Look at all the extents for this logical region,
@@ -236,7 +237,7 @@ xfs_attr3_node_inactive(
 		xfs_trans_brelse(*trans, bp);
 		return 0;
 	}
-	btree = xfs_da3_node_tree_p(node);
+	btree = dp->d_ops->node_tree_p(node);
 	child_fsb = be32_to_cpu(btree[0].before);
 	xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
 

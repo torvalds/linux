@@ -79,10 +79,16 @@ struct xfs_dir_ops {
 	int	(*leaf_max_ents)(struct xfs_mount *mp);
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
+
+	int	(*node_hdr_size)(void);
+	struct xfs_da_node_entry *
+		(*node_tree_p)(struct xfs_da_intnode *dap);
 };
 
 extern const struct xfs_dir_ops *
 	xfs_dir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
+extern const struct xfs_dir_ops *
+	xfs_nondir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
 
 /*
  * Generic directory interface routines

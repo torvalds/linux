@@ -1203,6 +1203,7 @@ xfs_setup_inode(
 	inode->i_ctime.tv_nsec	= ip->i_d.di_ctime.t_nsec;
 	xfs_diflags_to_iflags(inode, ip);
 
+	ip->d_ops = ip->i_mount->m_nondir_inode_ops;
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_op = &xfs_inode_operations;
