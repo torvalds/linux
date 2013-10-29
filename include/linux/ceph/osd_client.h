@@ -6,9 +6,10 @@
 #include <linux/mempool.h>
 #include <linux/rbtree.h>
 
-#include "types.h"
-#include "osdmap.h"
-#include "messenger.h"
+#include <linux/ceph/types.h>
+#include <linux/ceph/osdmap.h>
+#include <linux/ceph/messenger.h>
+#include <linux/ceph/auth.h>
 
 /* 
  * Maximum object name size 
@@ -40,9 +41,7 @@ struct ceph_osd {
 	struct list_head o_requests;
 	struct list_head o_linger_requests;
 	struct list_head o_osd_lru;
-	struct ceph_authorizer *o_authorizer;
-	void *o_authorizer_buf, *o_authorizer_reply_buf;
-	size_t o_authorizer_buf_len, o_authorizer_reply_buf_len;
+	struct ceph_auth_handshake o_auth;
 	unsigned long lru_ttl;
 	int o_marked_for_keepalive;
 	struct list_head o_keepalive_item;
@@ -208,7 +207,7 @@ extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
 
-extern void ceph_calc_raw_layout(struct ceph_osd_client *osdc,
+extern int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 			struct ceph_file_layout *layout,
 			u64 snapid,
 			u64 off, u64 *plen, u64 *bno,

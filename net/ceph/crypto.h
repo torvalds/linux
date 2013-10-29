@@ -16,7 +16,8 @@ struct ceph_crypto_key {
 
 static inline void ceph_crypto_key_destroy(struct ceph_crypto_key *key)
 {
-	kfree(key->key);
+	if (key)
+		kfree(key->key);
 }
 
 extern int ceph_crypto_key_clone(struct ceph_crypto_key *dst,
