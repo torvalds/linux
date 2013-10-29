@@ -257,6 +257,107 @@ static void dm9000_dumpblk_32bit(void __iomem *reg, int count)
 		tmp = readl(reg);
 }
 
+/*
+ * Sleep, either by using msleep() or if we are suspending, then
+ * use mdelay() to sleep.
+ */
+static void dm9000_msleep(board_info_t *db, unsigned int ms)
+{
+	if (db->in_suspend)
+		mdelay(ms);
+	else
+		msleep(ms);
+}
+
+/* Read a word from phyxcer */
+static int
+dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
+{
+	board_info_t *db = netdev_priv(dev);
+	unsigned long flags;
+	unsigned int reg_save;
+	int ret;
+
+	mutex_lock(&db->addr_lock);
+
+	spin_lock_irqsave(&db->lock, flags);
+
+	/* Save previous register address */
+	reg_save = readb(db->io_addr);
+
+	/* Fill the phyxcer register into REG_0C */
+	iow(db, DM9000_EPAR, DM9000_PHY | reg);
+
+	/* Issue phyxcer read command */
+	iow(db, DM9000_EPCR, EPCR_ERPRR | EPCR_EPOS);
+
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock, flags);
+
+	dm9000_msleep(db, 1);		/* Wait read complete */
+
+	spin_lock_irqsave(&db->lock, flags);
+	reg_save = readb(db->io_addr);
+
+	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer read command */
+
+	/* The read data keeps on REG_0D & REG_0E */
+	ret = (ior(db, DM9000_EPDRH) << 8) | ior(db, DM9000_EPDRL);
+
+	/* restore the previous address */
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock, flags);
+
+	mutex_unlock(&db->addr_lock);
+
+	dm9000_dbg(db, 5, "phy_read[%02x] -> %04x\n", reg, ret);
+	return ret;
+}
+
+/* Write a word to phyxcer */
+static void
+dm9000_phy_write(struct net_device *dev,
+		 int phyaddr_unused, int reg, int value)
+{
+	board_info_t *db = netdev_priv(dev);
+	unsigned long flags;
+	unsigned long reg_save;
+
+	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
+	mutex_lock(&db->addr_lock);
+
+	spin_lock_irqsave(&db->lock, flags);
+
+	/* Save previous register address */
+	reg_save = readb(db->io_addr);
+
+	/* Fill the phyxcer register into REG_0C */
+	iow(db, DM9000_EPAR, DM9000_PHY | reg);
+
+	/* Fill the written data into REG_0D & REG_0E */
+	iow(db, DM9000_EPDRL, value);
+	iow(db, DM9000_EPDRH, value >> 8);
+
+	/* Issue phyxcer write command */
+	iow(db, DM9000_EPCR, EPCR_EPOS | EPCR_ERPRW);
+
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock, flags);
+
+	dm9000_msleep(db, 1);		/* Wait write complete */
+
+	spin_lock_irqsave(&db->lock, flags);
+	reg_save = readb(db->io_addr);
+
+	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
+
+	/* restore the previous address */
+	writeb(reg_save, db->io_addr);
+
+	spin_unlock_irqrestore(&db->lock, flags);
+	mutex_unlock(&db->addr_lock);
+}
+
 /* dm9000_set_io
  *
  * select the specified set of io routines to use with the
@@ -794,6 +895,9 @@ dm9000_init_dm9000(struct net_device *dev)
 
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
 
+	dm9000_phy_write(dev, 0, MII_BMCR, BMCR_RESET); /* PHY RESET */
+	dm9000_phy_write(dev, 0, MII_DM_DSPCR, DSPCR_INIT_PARAM); /* Init */
+
 	ncr = (db->flags & DM9000_PLATF_EXT_PHY) ? NCR_EXT_PHY : 0;
 
 	/* if wol is needed, then always set NCR_WAKEEN otherwise we end
@@ -1200,109 +1304,6 @@ dm9000_open(struct net_device *dev)
 	return 0;
 }
 
-/*
- * Sleep, either by using msleep() or if we are suspending, then
- * use mdelay() to sleep.
- */
-static void dm9000_msleep(board_info_t *db, unsigned int ms)
-{
-	if (db->in_suspend)
-		mdelay(ms);
-	else
-		msleep(ms);
-}
-
-/*
- *   Read a word from phyxcer
- */
-static int
-dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
-{
-	board_info_t *db = netdev_priv(dev);
-	unsigned long flags;
-	unsigned int reg_save;
-	int ret;
-
-	mutex_lock(&db->addr_lock);
-
-	spin_lock_irqsave(&db->lock,flags);
-
-	/* Save previous register address */
-	reg_save = readb(db->io_addr);
-
-	/* Fill the phyxcer register into REG_0C */
-	iow(db, DM9000_EPAR, DM9000_PHY | reg);
-
-	iow(db, DM9000_EPCR, EPCR_ERPRR | EPCR_EPOS);	/* Issue phyxcer read command */
-
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock,flags);
-
-	dm9000_msleep(db, 1);		/* Wait read complete */
-
-	spin_lock_irqsave(&db->lock,flags);
-	reg_save = readb(db->io_addr);
-
-	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer read command */
-
-	/* The read data keeps on REG_0D & REG_0E */
-	ret = (ior(db, DM9000_EPDRH) << 8) | ior(db, DM9000_EPDRL);
-
-	/* restore the previous address */
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock,flags);
-
-	mutex_unlock(&db->addr_lock);
-
-	dm9000_dbg(db, 5, "phy_read[%02x] -> %04x\n", reg, ret);
-	return ret;
-}
-
-/*
- *   Write a word to phyxcer
- */
-static void
-dm9000_phy_write(struct net_device *dev,
-		 int phyaddr_unused, int reg, int value)
-{
-	board_info_t *db = netdev_priv(dev);
-	unsigned long flags;
-	unsigned long reg_save;
-
-	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
-	mutex_lock(&db->addr_lock);
-
-	spin_lock_irqsave(&db->lock,flags);
-
-	/* Save previous register address */
-	reg_save = readb(db->io_addr);
-
-	/* Fill the phyxcer register into REG_0C */
-	iow(db, DM9000_EPAR, DM9000_PHY | reg);
-
-	/* Fill the written data into REG_0D & REG_0E */
-	iow(db, DM9000_EPDRL, value);
-	iow(db, DM9000_EPDRH, value >> 8);
-
-	iow(db, DM9000_EPCR, EPCR_EPOS | EPCR_ERPRW);	/* Issue phyxcer write command */
-
-	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock, flags);
-
-	dm9000_msleep(db, 1);		/* Wait write complete */
-
-	spin_lock_irqsave(&db->lock,flags);
-	reg_save = readb(db->io_addr);
-
-	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
-
-	/* restore the previous address */
-	writeb(reg_save, db->io_addr);
-
-	spin_unlock_irqrestore(&db->lock, flags);
-	mutex_unlock(&db->addr_lock);
-}
-
 static void
 dm9000_shutdown(struct net_device *dev)
 {
@@ -1501,7 +1502,12 @@ dm9000_probe(struct platform_device *pdev)
 	db->flags |= DM9000_PLATF_SIMPLE_PHY;
 #endif
 
-	dm9000_reset(db);
+	/* Fixing bug on dm9000_probe, takeover dm9000_reset(db),
+	 * Need 'NCR_MAC_LBK' bit to indeed stable our DM9000 fifo
+	 * while probe stage.
+	 */
+
+	iow(db, DM9000_NCR, NCR_MAC_LBK | NCR_RST);
 
 	/* try multiple times, DM9000 sometimes gets the read wrong */
 	for (i = 0; i < 8; i++) {
