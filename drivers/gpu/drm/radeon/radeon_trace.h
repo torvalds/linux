@@ -47,6 +47,30 @@ TRACE_EVENT(radeon_cs,
 		      __entry->fences)
 );
 
+TRACE_EVENT(radeon_vm_set_page,
+	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
+		     uint32_t incr, uint32_t flags),
+	    TP_ARGS(pe, addr, count, incr, flags),
+	    TP_STRUCT__entry(
+			     __field(u64, pe)
+			     __field(u64, addr)
+			     __field(u32, count)
+			     __field(u32, incr)
+			     __field(u32, flags)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pe = pe;
+			   __entry->addr = addr;
+			   __entry->count = count;
+			   __entry->incr = incr;
+			   __entry->flags = flags;
+			   ),
+	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%08x, count=%u",
+		      __entry->pe, __entry->addr, __entry->incr,
+		      __entry->flags, __entry->count)
+);
+
 DECLARE_EVENT_CLASS(radeon_fence_request,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),

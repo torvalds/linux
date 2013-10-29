@@ -25,6 +25,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_trace.h"
 #include "cikd.h"
 
 /* sdma */
@@ -656,6 +657,8 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	uint64_t value;
 	unsigned ndw;
+
+	trace_radeon_vm_set_page(pe, addr, count, incr, r600_flags);
 
 	if (flags & RADEON_VM_PAGE_SYSTEM) {
 		while (count) {
