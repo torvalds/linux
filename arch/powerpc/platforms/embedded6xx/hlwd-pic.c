@@ -181,6 +181,7 @@ struct irq_domain *hlwd_pic_init(struct device_node *np)
 					   &hlwd_irq_domain_ops, io_base);
 	if (!irq_domain) {
 		pr_err("failed to allocate irq_domain\n");
+		iounmap(io_base);
 		return NULL;
 	}
 

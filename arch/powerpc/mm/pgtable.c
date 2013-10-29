@@ -32,8 +32,6 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 
-#include "mmu_decl.h"
-
 static inline int is_exec_fault(void)
 {
 	return current->thread.regs && TRAP(current->thread.regs) == 0x400;
@@ -72,7 +70,7 @@ struct page * maybe_pte_to_page(pte_t pte)
  * support falls into the same category.
  */
 
-static pte_t set_pte_filter(pte_t pte, unsigned long addr)
+static pte_t set_pte_filter(pte_t pte)
 {
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
@@ -81,17 +79,6 @@ static pte_t set_pte_filter(pte_t pte, unsigned long addr)
 		if (!pg)
 			return pte;
 		if (!test_bit(PG_arch_1, &pg->flags)) {
-#ifdef CONFIG_8xx
-			/* On 8xx, cache control instructions (particularly
-			 * "dcbst" from flush_dcache_icache) fault as write
-			 * operation if there is an unpopulated TLB entry
-			 * for the address in question. To workaround that,
-			 * we invalidate the TLB here, thus avoiding dcbst
-			 * misbehaviour.
-			 */
-			/* 8xx doesn't care about PID, size or ind args */
-			_tlbil_va(addr, 0, 0, 0);
-#endif /* CONFIG_8xx */
 			flush_dcache_icache_page(pg);
 			set_bit(PG_arch_1, &pg->flags);
 		}
@@ -111,7 +98,7 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
  * instead we "filter out" the exec permission for non clean pages.
  */
-static pte_t set_pte_filter(pte_t pte, unsigned long addr)
+static pte_t set_pte_filter(pte_t pte)
 {
 	struct page *pg;
 
@@ -193,7 +180,7 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 * this context might not have been activated yet when this
 	 * is called.
 	 */
-	pte = set_pte_filter(pte, addr);
+	pte = set_pte_filter(pte);
 
 	/* Perform the setting of the PTE */
 	__set_pte_at(mm, addr, ptep, pte, 0);
