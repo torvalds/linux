@@ -530,50 +530,53 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 /*
  * Error/Warning output
  */
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
-acpi_error(const char *module_name,
-	   u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+acpi_error(const char *module_name, u32 line_number, const char *format, ...);
 
+ACPI_PRINTF_LIKE(4)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_exception(const char *module_name,
-	       u32 line_number,
-	       acpi_status status, const char *format, ...) ACPI_PRINTF_LIKE(4);
+	       u32 line_number, acpi_status status, const char *format, ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
-acpi_warning(const char *module_name,
-	     u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+acpi_warning(const char *module_name, u32 line_number, const char *format, ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
-acpi_info(const char *module_name,
-	  u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+acpi_info(const char *module_name, u32 line_number, const char *format, ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_bios_error(const char *module_name,
-		u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+		u32 line_number, const char *format, ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_bios_warning(const char *module_name,
-		  u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
+		  u32 line_number, const char *format, ...);
 
 /*
  * Debug output
  */
 #ifdef ACPI_DEBUG_OUTPUT
 
+ACPI_PRINTF_LIKE(6)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_debug_print(u32 requested_debug_level,
 		 u32 line_number,
 		 const char *function_name,
 		 const char *module_name,
-		 u32 component_id, const char *format, ...) ACPI_PRINTF_LIKE(6);
+		 u32 component_id, const char *format, ...);
 
+ACPI_PRINTF_LIKE(6)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_debug_print_raw(u32 requested_debug_level,
 		     u32 line_number,
 		     const char *function_name,
 		     const char *module_name,
-		     u32 component_id,
-		     const char *format, ...) ACPI_PRINTF_LIKE(6);
+		     u32 component_id, const char *format, ...);
 #endif
 
 #endif				/* __ACXFACE_H__ */
