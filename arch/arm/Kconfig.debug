@@ -255,6 +255,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX35.
 
+	config DEBUG_IMX50_UART
+		bool "i.MX50 Debug UART"
+		depends on SOC_IMX50
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX50.
+
 	config DEBUG_IMX51_UART
 		bool "i.MX51 Debug UART"
 		depends on SOC_IMX51
@@ -897,6 +904,7 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX21_IMX27_UART || \
 						DEBUG_IMX31_UART || \
 						DEBUG_IMX35_UART || \
+						DEBUG_IMX50_UART || \
 						DEBUG_IMX51_UART || \
 						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART || \
@@ -931,6 +939,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX21_IMX27_UART || \
 				 DEBUG_IMX31_UART || \
 				 DEBUG_IMX35_UART || \
+				 DEBUG_IMX50_UART || \
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
