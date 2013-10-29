@@ -968,7 +968,7 @@ static void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 	else if (ieee->mode == WIRELESS_MODE_G)
 		DMESG("WIRELESS_MODE_G\n");
 
-	ActUpdateChannelAccessSetting( dev, ieee->mode,
+	ActUpdateChannelAccessSetting(dev, ieee->mode,
 				      &priv->ChannelAccessSetting);
 }
 
