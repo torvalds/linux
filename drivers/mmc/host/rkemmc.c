@@ -546,6 +546,7 @@ static void __rk_mmc_start_request(struct rk_mmc *host, struct mmc_command *cmd)
 		host->bus_test = 1;
 	else
 		host->bus_test = 0;
+	
 	mmc_dbg(host,"start command: CMD%d, ARGR=0x%08x CMDR=0x%08x\n",
 		 	cmd->opcode, cmd->arg, cmdflags);
 	rk_mmc_start_command(host, cmd, cmdflags);
@@ -568,6 +569,7 @@ static void rk_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq);
 	WARN_ON(host->state != STATE_IDLE);
+	WARN_ON(host->shutdown == 1);
 
 	spin_lock_bh(&host->lock);
 	host->state = STATE_SENDING_CMD;
@@ -1409,6 +1411,12 @@ static void rk_mmc_shutdown(struct platform_device *pdev)
 	//struct mmc_host *mmc = host->mmc;
 
 	mmc_info(host, "shutdown\n");
+
+	host->shutdown = 1;
+	//card go pre-idle state
+	mmc_writel(host, CMDARG, 0xF0F0F0F0);
+	mmc_writel(host, CMD, 0 | MMC_CMD_INIT | MMC_CMD_START | MMC_USE_HOLD_REG);
+	mdelay(10);
 #if 0
 	host->shutdown = 1;
 	mmc_remove_host(host->mmc);
