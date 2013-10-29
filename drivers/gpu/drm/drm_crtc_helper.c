@@ -822,6 +822,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		ret = crtc_funcs->mode_set_base(set->crtc,
 						set->x, set->y, save_set.fb);
 		if (ret != 0) {
+			set->crtc->x = save_set.x;
+			set->crtc->y = save_set.y;
 			set->crtc->fb = save_set.fb;
 			goto fail;
 		}
