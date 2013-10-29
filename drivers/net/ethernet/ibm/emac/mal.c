@@ -263,7 +263,9 @@ static inline void mal_schedule_poll(struct mal_instance *mal)
 {
 	if (likely(napi_schedule_prep(&mal->napi))) {
 		MAL_DBG2(mal, "schedule_poll" NL);
+		spin_lock(&mal->lock);
 		mal_disable_eob_irq(mal);
+		spin_unlock(&mal->lock);
 		__napi_schedule(&mal->napi);
 	} else
 		MAL_DBG2(mal, "already in poll" NL);
@@ -445,7 +447,9 @@ static int mal_poll(struct napi_struct *napi, int budget)
 			if (!napi_reschedule(napi))
 				goto more_work;
 
+			spin_lock_irqsave(&mal->lock, flags);
 			mal_disable_eob_irq(mal);
+			spin_unlock_irqrestore(&mal->lock, flags);
 			goto again;
 		}
 		mc->ops->poll_tx(mc->dev);
