@@ -397,6 +397,13 @@ else
   endif
 endif
 
+$(call feature_check,timerfd)
+ifeq ($(feature-timerfd), 1)
+  CFLAGS += -DHAVE_TIMERFD_SUPPORT
+else
+  msg := $(warning No timerfd support. Disables 'perf kvm stat live');
+endif
+
 disable-python = $(eval $(disable-python_code))
 define disable-python_code
   CFLAGS += -DNO_LIBPYTHON

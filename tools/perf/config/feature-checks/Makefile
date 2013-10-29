@@ -25,7 +25,8 @@ FILES=					\
 	test-libunwind			\
 	test-on-exit			\
 	test-stackprotector-all		\
-	test-stackprotector
+	test-stackprotector		\
+	test-timerfd
 
 CC := $(CC) -MD
 
@@ -134,6 +135,9 @@ test-on-exit:
 	$(BUILD)
 
 test-backtrace:
+	$(BUILD)
+
+test-timerfd:
 	$(BUILD)
 
 -include *.d
