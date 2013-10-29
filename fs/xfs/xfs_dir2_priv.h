@@ -59,7 +59,8 @@ extern int xfs_dir3_data_readahead(struct xfs_trans *tp, struct xfs_inode *dp,
 
 extern struct xfs_dir2_data_free *
 xfs_dir2_data_freeinsert(struct xfs_dir2_data_hdr *hdr,
-		struct xfs_dir2_data_unused *dup, int *loghead);
+		struct xfs_dir2_data_free *bf, struct xfs_dir2_data_unused *dup,
+		int *loghead);
 extern int xfs_dir3_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
 		struct xfs_buf **bpp);
 

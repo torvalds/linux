@@ -56,16 +56,24 @@ struct xfs_dir_ops {
 	void	(*data_put_ftype)(struct xfs_dir2_data_entry *dep,
 				__uint8_t ftype);
 	__be16 * (*data_entry_tag_p)(struct xfs_dir2_data_entry *dep);
+	struct xfs_dir2_data_free *
+		(*data_bestfree_p)(struct xfs_dir2_data_hdr *hdr);
 
 	xfs_dir2_data_aoff_t (*data_dot_offset)(void);
 	xfs_dir2_data_aoff_t (*data_dotdot_offset)(void);
 	xfs_dir2_data_aoff_t (*data_first_offset)(void);
+	size_t	(*data_entry_offset)(void);
+
 	struct xfs_dir2_data_entry *
 		(*data_dot_entry_p)(struct xfs_dir2_data_hdr *hdr);
 	struct xfs_dir2_data_entry *
 		(*data_dotdot_entry_p)(struct xfs_dir2_data_hdr *hdr);
 	struct xfs_dir2_data_entry *
 		(*data_first_entry_p)(struct xfs_dir2_data_hdr *hdr);
+	struct xfs_dir2_data_entry *
+		(*data_entry_p)(struct xfs_dir2_data_hdr *hdr);
+	struct xfs_dir2_data_unused *
+		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
 };
 
 extern const struct xfs_dir_ops xfs_dir2_ops;
@@ -115,19 +123,21 @@ extern void xfs_dir2_data_freescan(struct xfs_inode *dp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
 extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_inode *dp,
 		struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
-extern void xfs_dir2_data_log_header(struct xfs_trans *tp,
+extern void xfs_dir2_data_log_header(struct xfs_trans *tp, struct xfs_inode *dp,
 		struct xfs_buf *bp);
 extern void xfs_dir2_data_log_unused(struct xfs_trans *tp, struct xfs_buf *bp,
 		struct xfs_dir2_data_unused *dup);
-extern void xfs_dir2_data_make_free(struct xfs_trans *tp, struct xfs_buf *bp,
+extern void xfs_dir2_data_make_free(struct xfs_trans *tp, struct xfs_inode *dp,
+		struct xfs_buf *bp, xfs_dir2_data_aoff_t offset,
+		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
+extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_inode *dp,
+		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup,
 		xfs_dir2_data_aoff_t offset, xfs_dir2_data_aoff_t len,
 		int *needlogp, int *needscanp);
-extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_buf *bp,
-		struct xfs_dir2_data_unused *dup, xfs_dir2_data_aoff_t offset,
-		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
 
 extern struct xfs_dir2_data_free *xfs_dir2_data_freefind(
-		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_unused *dup);
+		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
+		struct xfs_dir2_data_unused *dup);
 
 extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 extern const struct xfs_buf_ops xfs_dir3_leafn_buf_ops;

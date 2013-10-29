@@ -1255,10 +1255,10 @@ xfs_dir2_leafn_remove(
 	dbp = dblk->bp;
 	hdr = dbp->b_addr;
 	dep = (xfs_dir2_data_entry_t *)((char *)hdr + off);
-	bf = xfs_dir3_data_bestfree_p(hdr);
+	bf = dp->d_ops->data_bestfree_p(hdr);
 	longest = be16_to_cpu(bf[0].length);
 	needlog = needscan = 0;
-	xfs_dir2_data_make_free(tp, dbp, off,
+	xfs_dir2_data_make_free(tp, dp, dbp, off,
 		dp->d_ops->data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * Rescan the data block freespaces for bestfree.
@@ -1267,7 +1267,7 @@ xfs_dir2_leafn_remove(
 	if (needscan)
 		xfs_dir2_data_freescan(dp, hdr, &needlog);
 	if (needlog)
-		xfs_dir2_data_log_header(tp, dbp);
+		xfs_dir2_data_log_header(tp, dp, dbp);
 	xfs_dir3_data_check(dp, dbp);
 	/*
 	 * If the longest data block freespace changes, need to update
@@ -1308,7 +1308,7 @@ xfs_dir2_leafn_remove(
 		 * (usually).
 		 */
 		if (longest == mp->m_dirblksize -
-			       xfs_dir3_data_entry_offset(hdr)) {
+			       dp->d_ops->data_entry_offset()) {
 			/*
 			 * Try to punch out the data block.
 			 */
@@ -1962,7 +1962,7 @@ xfs_dir2_node_addname_int(
 		 * change again.
 		 */
 		hdr = dbp->b_addr;
-		bf = xfs_dir3_data_bestfree_p(hdr);
+		bf = dp->d_ops->data_bestfree_p(hdr);
 		bests[findex] = bf[0].length;
 		logfree = 1;
 	}
@@ -1984,7 +1984,7 @@ xfs_dir2_node_addname_int(
 		if (error)
 			return error;
 		hdr = dbp->b_addr;
-		bf = xfs_dir3_data_bestfree_p(hdr);
+		bf = dp->d_ops->data_bestfree_p(hdr);
 		logfree = 0;
 	}
 	ASSERT(be16_to_cpu(bf[0].length) >= length);
@@ -1997,7 +1997,7 @@ xfs_dir2_node_addname_int(
 	/*
 	 * Mark the first part of the unused space, inuse for us.
 	 */
-	xfs_dir2_data_use_free(tp, dbp, dup,
+	xfs_dir2_data_use_free(tp, dp, dbp, dup,
 		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr), length,
 		&needlog, &needscan);
 	/*
@@ -2020,7 +2020,7 @@ xfs_dir2_node_addname_int(
 	 * Log the data block header if needed.
 	 */
 	if (needlog)
-		xfs_dir2_data_log_header(tp, dbp);
+		xfs_dir2_data_log_header(tp, dp, dbp);
 	/*
 	 * If the freespace entry is now wrong, update it.
 	 */

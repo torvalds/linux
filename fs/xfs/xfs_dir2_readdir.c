@@ -213,7 +213,7 @@ xfs_dir2_block_getdents(
 	 * Set up values for the loop.
 	 */
 	btp = xfs_dir2_block_tail_p(mp, hdr);
-	ptr = (char *)xfs_dir3_data_entry_p(hdr);
+	ptr = (char *)dp->d_ops->data_entry_p(hdr);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 
 	/*
@@ -578,13 +578,13 @@ xfs_dir2_leaf_getdents(
 			/*
 			 * Find our position in the block.
 			 */
-			ptr = (char *)xfs_dir3_data_entry_p(hdr);
+			ptr = (char *)dp->d_ops->data_entry_p(hdr);
 			byteoff = xfs_dir2_byte_to_off(mp, curoff);
 			/*
 			 * Skip past the header.
 			 */
 			if (byteoff == 0)
-				curoff += xfs_dir3_data_entry_offset(hdr);
+				curoff += dp->d_ops->data_entry_offset();
 			/*
 			 * Skip past entries until we reach our offset.
 			 */

@@ -412,17 +412,6 @@ struct xfs_dir3_data_hdr {
 
 #define XFS_DIR3_DATA_CRC_OFF  offsetof(struct xfs_dir3_data_hdr, hdr.crc)
 
-static inline struct xfs_dir2_data_free *
-xfs_dir3_data_bestfree_p(struct xfs_dir2_data_hdr *hdr)
-{
-	if (hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
-	    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC)) {
-		struct xfs_dir3_data_hdr *hdr3 = (struct xfs_dir3_data_hdr *)hdr;
-		return hdr3->best_free;
-	}
-	return hdr->bestfree;
-}
-
 /*
  * Active entry in a data block.
  *
@@ -463,36 +452,6 @@ xfs_dir2_data_unused_tag_p(struct xfs_dir2_data_unused *dup)
 {
 	return (__be16 *)((char *)dup +
 			be16_to_cpu(dup->length) - sizeof(__be16));
-}
-
-static inline size_t
-xfs_dir3_data_hdr_size(bool dir3)
-{
-	if (dir3)
-		return sizeof(struct xfs_dir3_data_hdr);
-	return sizeof(struct xfs_dir2_data_hdr);
-}
-
-static inline size_t
-xfs_dir3_data_entry_offset(struct xfs_dir2_data_hdr *hdr)
-{
-	bool dir3 = hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
-		    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC);
-	return xfs_dir3_data_hdr_size(dir3);
-}
-
-static inline struct xfs_dir2_data_entry *
-xfs_dir3_data_entry_p(struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_entry *)
-		((char *)hdr + xfs_dir3_data_entry_offset(hdr));
-}
-
-static inline struct xfs_dir2_data_unused *
-xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
-{
-	return (struct xfs_dir2_data_unused *)
-		((char *)hdr + xfs_dir3_data_entry_offset(hdr));
 }
 
 /*
