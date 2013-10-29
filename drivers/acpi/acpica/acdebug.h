@@ -243,6 +243,8 @@ void acpi_db_display_history(void);
 
 char *acpi_db_get_from_history(char *command_num_arg);
 
+char *acpi_db_get_history_by_index(u32 commandd_num);
+
 /*
  * dbinput - user front-end to the AML debugger
  */
