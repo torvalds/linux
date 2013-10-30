@@ -654,7 +654,9 @@ static int lowpan_header_create(struct sk_buff *skb,
 	head[1] = iphc1;
 
 	skb_pull(skb, sizeof(struct ipv6hdr));
+	skb_reset_transport_header(skb);
 	memcpy(skb_push(skb, hc06_ptr - head), head, hc06_ptr - head);
+	skb_reset_network_header(skb);
 
 	lowpan_raw_dump_table(__func__, "raw skb data dump", skb->data,
 				skb->len);
@@ -737,7 +739,6 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 		return -ENOMEM;
 
 	skb_push(new, sizeof(struct ipv6hdr));
-	skb_reset_network_header(new);
 	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
 
 	new->protocol = htons(ETH_P_IPV6);
@@ -1059,7 +1060,6 @@ lowpan_process_data(struct sk_buff *skb)
 		skb = new;
 
 		skb_push(skb, sizeof(struct udphdr));
-		skb_reset_transport_header(skb);
 		skb_copy_to_linear_data(skb, &uh, sizeof(struct udphdr));
 
 		lowpan_raw_dump_table(__func__, "raw UDP header dump",
@@ -1102,17 +1102,6 @@ static int lowpan_set_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int lowpan_get_mac_header_length(struct sk_buff *skb)
-{
-	/*
-	 * Currently long addressing mode is supported only, so the overall
-	 * header size is 21:
-	 * FC SeqNum DPAN DA  SA  Sec
-	 * 2  +  1  +  2 + 8 + 8 + 0  = 21
-	 */
-	return 21;
-}
-
 static int
 lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 			int mlen, int plen, int offset, int type)
@@ -1133,12 +1122,15 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 	frag->priority = skb->priority;
 
 	/* copy header, MFR and payload */
-	memcpy(skb_put(frag, mlen), skb->data, mlen);
-	memcpy(skb_put(frag, hlen), head, hlen);
+	skb_put(frag, mlen);
+	skb_copy_to_linear_data(frag, skb_mac_header(skb), mlen);
 
-	if (plen)
-		skb_copy_from_linear_data_offset(skb, offset + mlen,
-					skb_put(frag, plen), plen);
+	skb_put(frag, hlen);
+	skb_copy_to_linear_data_offset(frag, mlen, head, hlen);
+
+	skb_put(frag, plen);
+	skb_copy_to_linear_data_offset(frag, mlen + hlen,
+				       skb_network_header(skb) + offset, plen);
 
 	lowpan_raw_dump_table(__func__, " raw fragment dump", frag->data,
 								frag->len);
@@ -1152,7 +1144,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	int  err, header_length, payload_length, tag, offset = 0;
 	u8 head[5];
 
-	header_length = lowpan_get_mac_header_length(skb);
+	header_length = skb->mac_len;
 	payload_length = skb->len - header_length;
 	tag = lowpan_dev_info(dev)->fragment_tag++;
 
@@ -1323,8 +1315,6 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		/* Pull off the 1-byte of 6lowpan header. */
 		skb_pull(local_skb, 1);
-		skb_reset_network_header(local_skb);
-		skb_set_transport_header(local_skb, sizeof(struct ipv6hdr));
 
 		lowpan_give_skb_to_devices(local_skb);
 
