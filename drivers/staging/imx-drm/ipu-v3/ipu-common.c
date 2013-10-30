@@ -1006,7 +1006,7 @@ static int ipu_add_subdevice_pdata(struct device *dev,
 	pdev = platform_device_register_data(dev, reg->name, ipu_client_id++,
 			&reg->pdata, sizeof(struct ipu_platform_reg));
 
-	return pdev ? 0 : -EINVAL;
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
 static int ipu_add_client_devices(struct ipu_soc *ipu)
