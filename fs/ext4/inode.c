@@ -2423,16 +2423,15 @@ static int ext4_writepages(struct address_space *mapping,
 	 * because that could violate lock ordering on umount
 	 */
 	if (!mapping->nrpages || !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-		return 0;
+		goto out_writepages;
 
 	if (ext4_should_journal_data(inode)) {
 		struct blk_plug plug;
-		int ret;
 
 		blk_start_plug(&plug);
 		ret = write_cache_pages(mapping, wbc, __writepage, mapping);
 		blk_finish_plug(&plug);
-		return ret;
+		goto out_writepages;
 	}
 
 	/*
@@ -2445,8 +2444,10 @@ static int ext4_writepages(struct address_space *mapping,
 	 * *never* be called, so if that ever happens, we would want
 	 * the stack trace.
 	 */
-	if (unlikely(sbi->s_mount_flags & EXT4_MF_FS_ABORTED))
-		return -EROFS;
+	if (unlikely(sbi->s_mount_flags & EXT4_MF_FS_ABORTED)) {
+		ret = -EROFS;
+		goto out_writepages;
+	}
 
 	if (ext4_should_dioread_nolock(inode)) {
 		/*
