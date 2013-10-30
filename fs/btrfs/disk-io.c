@@ -2033,50 +2033,28 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	btrfs_stop_workers(&fs_info->qgroup_rescan_workers);
 }
 
+static void free_root_extent_buffers(struct btrfs_root *root)
+{
+	if (root) {
+		free_extent_buffer(root->node);
+		free_extent_buffer(root->commit_root);
+		root->node = NULL;
+		root->commit_root = NULL;
+	}
+}
+
 /* helper to cleanup tree roots */
 static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 {
-	free_extent_buffer(info->tree_root->node);
-	free_extent_buffer(info->tree_root->commit_root);
-	info->tree_root->node = NULL;
-	info->tree_root->commit_root = NULL;
+	free_root_extent_buffers(info->tree_root);
 
-	if (info->dev_root) {
-		free_extent_buffer(info->dev_root->node);
-		free_extent_buffer(info->dev_root->commit_root);
-		info->dev_root->node = NULL;
-		info->dev_root->commit_root = NULL;
-	}
-	if (info->extent_root) {
-		free_extent_buffer(info->extent_root->node);
-		free_extent_buffer(info->extent_root->commit_root);
-		info->extent_root->node = NULL;
-		info->extent_root->commit_root = NULL;
-	}
-	if (info->csum_root) {
-		free_extent_buffer(info->csum_root->node);
-		free_extent_buffer(info->csum_root->commit_root);
-		info->csum_root->node = NULL;
-		info->csum_root->commit_root = NULL;
-	}
-	if (info->quota_root) {
-		free_extent_buffer(info->quota_root->node);
-		free_extent_buffer(info->quota_root->commit_root);
-		info->quota_root->node = NULL;
-		info->quota_root->commit_root = NULL;
-	}
-	if (info->uuid_root) {
-		free_extent_buffer(info->uuid_root->node);
-		free_extent_buffer(info->uuid_root->commit_root);
-		info->uuid_root->node = NULL;
-		info->uuid_root->commit_root = NULL;
-	}
-	if (chunk_root) {
-		free_extent_buffer(info->chunk_root->node);
-		free_extent_buffer(info->chunk_root->commit_root);
-		info->chunk_root->node = NULL;
-		info->chunk_root->commit_root = NULL;
-	}
+	free_root_extent_buffers(info->dev_root);
+	free_root_extent_buffers(info->extent_root);
+	free_root_extent_buffers(info->csum_root);
+	free_root_extent_buffers(info->quota_root);
+	free_root_extent_buffers(info->uuid_root);
+	if (chunk_root)
+		free_root_extent_buffers(info->chunk_root);
 }
 
 static void del_fs_roots(struct btrfs_fs_info *fs_info)
