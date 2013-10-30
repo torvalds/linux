@@ -551,6 +551,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 	if (ctx->flags & KEYRING_SEARCH_DO_STATE_CHECK) {
 		/* we set a different error code if we pass a negative key */
 		if (kflags & (1 << KEY_FLAG_NEGATIVE)) {
+			smp_rmb();
 			ctx->result = ERR_PTR(key->type_data.reject_error);
 			kleave(" = %d [neg]", ctx->skipped_ret);
 			goto skipped;
@@ -1062,12 +1063,6 @@ int __key_link_begin(struct key *keyring,
 	if (index_key->type == &key_type_keyring)
 		down_write(&keyring_serialise_link_sem);
 
-	/* check that we aren't going to overrun the user's quota */
-	ret = key_payload_reserve(keyring,
-				  keyring->datalen + KEYQUOTA_LINK_BYTES);
-	if (ret < 0)
-		goto error_sem;
-
 	/* Create an edit script that will insert/replace the key in the
 	 * keyring tree.
 	 */
@@ -1077,17 +1072,25 @@ int __key_link_begin(struct key *keyring,
 				  NULL);
 	if (IS_ERR(edit)) {
 		ret = PTR_ERR(edit);
-		goto error_quota;
+		goto error_sem;
+	}
+
+	/* If we're not replacing a link in-place then we're going to need some
+	 * extra quota.
+	 */
+	if (!edit->dead_leaf) {
+		ret = key_payload_reserve(keyring,
+					  keyring->datalen + KEYQUOTA_LINK_BYTES);
+		if (ret < 0)
+			goto error_cancel;
 	}
 
 	*_edit = edit;
 	kleave(" = 0");
 	return 0;
 
-error_quota:
-	/* undo the quota changes */
-	key_payload_reserve(keyring,
-			    keyring->datalen - KEYQUOTA_LINK_BYTES);
+error_cancel:
+	assoc_array_cancel_edit(edit);
 error_sem:
 	if (index_key->type == &key_type_keyring)
 		up_write(&keyring_serialise_link_sem);
@@ -1145,7 +1148,7 @@ void __key_link_end(struct key *keyring,
 	if (index_key->type == &key_type_keyring)
 		up_write(&keyring_serialise_link_sem);
 
-	if (edit) {
+	if (edit && !edit->dead_leaf) {
 		key_payload_reserve(keyring,
 				    keyring->datalen - KEYQUOTA_LINK_BYTES);
 		assoc_array_cancel_edit(edit);
@@ -1242,6 +1245,7 @@ int key_unlink(struct key *keyring, struct key *key)
 		goto error;
 
 	assoc_array_apply_edit(edit);
+	key_payload_reserve(keyring, keyring->datalen - KEYQUOTA_LINK_BYTES);
 	ret = 0;
 
 error:
