@@ -7188,7 +7188,7 @@ static int cik_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     CP_RB0_RPTR, CP_RB0_WPTR,
-			     RADEON_CP_PACKET2);
+			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
 
