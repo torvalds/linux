@@ -1442,6 +1442,7 @@ int ext4_read_inline_dir(struct file *file,
 	if (ret < 0)
 		goto out;
 
+	ret = 0;
 	sb = inode->i_sb;
 	parent_ino = le32_to_cpu(((struct ext4_dir_entry_2 *)dir_buf)->inode);
 	offset = ctx->pos;
