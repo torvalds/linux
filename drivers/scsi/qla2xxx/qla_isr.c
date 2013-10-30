@@ -2937,7 +2937,7 @@ msix_out:
 int
 qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
-	int ret;
+	int ret = QLA_FUNCTION_FAILED;
 	device_reg_t __iomem *reg = ha->iobase;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
@@ -2971,9 +2971,11 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 		    ha->chip_revision, ha->fw_attributes);
 		goto clear_risc_ints;
 	}
-	ql_log(ql_log_info, vha, 0x0037,
-	    "MSI-X Falling back-to MSI mode -%d.\n", ret);
+
 skip_msix:
+
+	ql_log(ql_log_info, vha, 0x0037,
+	    "Falling back-to MSI mode -%d.\n", ret);
 
 	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
 	    !IS_QLA8001(ha) && !IS_P3P_TYPE(ha) && !IS_QLAFX00(ha))
@@ -2986,13 +2988,12 @@ skip_msix:
 		ha->flags.msi_enabled = 1;
 	} else
 		ql_log(ql_log_warn, vha, 0x0039,
-		    "MSI-X; Falling back-to INTa mode -- %d.\n", ret);
+		    "Falling back-to INTa mode -- %d.\n", ret);
+skip_msi:
 
 	/* Skip INTx on ISP82xx. */
 	if (!ha->flags.msi_enabled && IS_QLA82XX(ha))
 		return QLA_FUNCTION_FAILED;
-
-skip_msi:
 
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
 	    ha->flags.msi_enabled ? 0 : IRQF_SHARED,
