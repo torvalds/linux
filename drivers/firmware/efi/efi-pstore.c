@@ -18,14 +18,12 @@ module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 
 static int efi_pstore_open(struct pstore_info *psi)
 {
-	efivar_entry_iter_begin();
 	psi->data = NULL;
 	return 0;
 }
 
 static int efi_pstore_close(struct pstore_info *psi)
 {
-	efivar_entry_iter_end();
 	psi->data = NULL;
 	return 0;
 }
@@ -91,19 +89,125 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 	__efivar_entry_get(entry, &entry->var.Attributes,
 			   &entry->var.DataSize, entry->var.Data);
 	size = entry->var.DataSize;
+	memcpy(*cb_data->buf, entry->var.Data,
+	       (size_t)min_t(unsigned long, EFIVARS_DATA_SIZE_MAX, size));
 
-	*cb_data->buf = kmemdup(entry->var.Data, size, GFP_KERNEL);
-	if (*cb_data->buf == NULL)
-		return -ENOMEM;
 	return size;
 }
 
+/**
+ * efi_pstore_scan_sysfs_enter
+ * @entry: scanning entry
+ * @next: next entry
+ * @head: list head
+ */
+static void efi_pstore_scan_sysfs_enter(struct efivar_entry *pos,
+					struct efivar_entry *next,
+					struct list_head *head)
+{
+	pos->scanning = true;
+	if (&next->list != head)
+		next->scanning = true;
+}
+
+/**
+ * __efi_pstore_scan_sysfs_exit
+ * @entry: deleting entry
+ * @turn_off_scanning: Check if a scanning flag should be turned off
+ */
+static inline void __efi_pstore_scan_sysfs_exit(struct efivar_entry *entry,
+						bool turn_off_scanning)
+{
+	if (entry->deleting) {
+		list_del(&entry->list);
+		efivar_entry_iter_end();
+		efivar_unregister(entry);
+		efivar_entry_iter_begin();
+	} else if (turn_off_scanning)
+		entry->scanning = false;
+}
+
+/**
+ * efi_pstore_scan_sysfs_exit
+ * @pos: scanning entry
+ * @next: next entry
+ * @head: list head
+ * @stop: a flag checking if scanning will stop
+ */
+static void efi_pstore_scan_sysfs_exit(struct efivar_entry *pos,
+				       struct efivar_entry *next,
+				       struct list_head *head, bool stop)
+{
+	__efi_pstore_scan_sysfs_exit(pos, true);
+	if (stop)
+		__efi_pstore_scan_sysfs_exit(next, &next->list != head);
+}
+
+/**
+ * efi_pstore_sysfs_entry_iter
+ *
+ * @data: function-specific data to pass to callback
+ * @pos: entry to begin iterating from
+ *
+ * You MUST call efivar_enter_iter_begin() before this function, and
+ * efivar_entry_iter_end() afterwards.
+ *
+ * It is possible to begin iteration from an arbitrary entry within
+ * the list by passing @pos. @pos is updated on return to point to
+ * the next entry of the last one passed to efi_pstore_read_func().
+ * To begin iterating from the beginning of the list @pos must be %NULL.
+ */
+static int efi_pstore_sysfs_entry_iter(void *data, struct efivar_entry **pos)
+{
+	struct efivar_entry *entry, *n;
+	struct list_head *head = &efivar_sysfs_list;
+	int size = 0;
+
+	if (!*pos) {
+		list_for_each_entry_safe(entry, n, head, list) {
+			efi_pstore_scan_sysfs_enter(entry, n, head);
+
+			size = efi_pstore_read_func(entry, data);
+			efi_pstore_scan_sysfs_exit(entry, n, head, size < 0);
+			if (size)
+				break;
+		}
+		*pos = n;
+		return size;
+	}
+
+	list_for_each_entry_safe_from((*pos), n, head, list) {
+		efi_pstore_scan_sysfs_enter((*pos), n, head);
+
+		size = efi_pstore_read_func((*pos), data);
+		efi_pstore_scan_sysfs_exit((*pos), n, head, size < 0);
+		if (size)
+			break;
+	}
+	*pos = n;
+	return size;
+}
+
+/**
+ * efi_pstore_read
+ *
+ * This function returns a size of NVRAM entry logged via efi_pstore_write().
+ * The meaning and behavior of efi_pstore/pstore are as below.
+ *
+ * size > 0: Got data of an entry logged via efi_pstore_write() successfully,
+ *           and pstore filesystem will continue reading subsequent entries.
+ * size == 0: Entry was not logged via efi_pstore_write(),
+ *            and efi_pstore driver will continue reading subsequent entries.
+ * size < 0: Failed to get data of entry logging via efi_pstore_write(),
+ *           and pstore will stop reading entry.
+ */
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 			       int *count, struct timespec *timespec,
 			       char **buf, bool *compressed,
 			       struct pstore_info *psi)
 {
 	struct pstore_read_data data;
+	ssize_t size;
 
 	data.id = id;
 	data.type = type;
@@ -112,8 +216,17 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	data.compressed = compressed;
 	data.buf = buf;
 
-	return __efivar_entry_iter(efi_pstore_read_func, &efivar_sysfs_list, &data,
-				   (struct efivar_entry **)&psi->data);
+	*data.buf = kzalloc(EFIVARS_DATA_SIZE_MAX, GFP_KERNEL);
+	if (!*data.buf)
+		return -ENOMEM;
+
+	efivar_entry_iter_begin();
+	size = efi_pstore_sysfs_entry_iter(&data,
+					   (struct efivar_entry **)&psi->data);
+	efivar_entry_iter_end();
+	if (size <= 0)
+		kfree(*data.buf);
+	return size;
 }
 
 static int efi_pstore_write(enum pstore_type_id type,
@@ -184,9 +297,17 @@ static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 			return 0;
 	}
 
+	if (entry->scanning) {
+		/*
+		 * Skip deletion because this entry will be deleted
+		 * after scanning is completed.
+		 */
+		entry->deleting = true;
+	} else
+		list_del(&entry->list);
+
 	/* found */
 	__efivar_entry_delete(entry);
-	list_del(&entry->list);
 
 	return 1;
 }
@@ -214,10 +335,12 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 
 	efivar_entry_iter_begin();
 	found = __efivar_entry_iter(efi_pstore_erase_func, &efivar_sysfs_list, &edata, &entry);
-	efivar_entry_iter_end();
 
-	if (found)
+	if (found && !entry->scanning) {
+		efivar_entry_iter_end();
 		efivar_unregister(entry);
+	} else
+		efivar_entry_iter_end();
 
 	return 0;
 }
