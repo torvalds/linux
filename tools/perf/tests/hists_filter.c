@@ -42,11 +42,11 @@ static struct sample fake_samples[] = {
 	{ .pid = 300, .ip = 0xf0000 + 800, },
 };
 
-static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
+static int add_hist_entries(struct perf_evlist *evlist,
+			    struct machine *machine __maybe_unused)
 {
 	struct perf_evsel *evsel;
 	struct addr_location al;
-	struct hist_entry *he;
 	struct perf_sample sample = { .cpu = 0, };
 	size_t i;
 
@@ -62,6 +62,10 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 					.misc = PERF_RECORD_MISC_USER,
 				},
 			};
+			struct hist_entry_iter iter = {
+				.ops = &hist_iter_normal,
+				.hide_unresolved = false,
+			};
 
 			/* make sure it has no filter at first */
 			evsel->hists.thread_filter = NULL;
@@ -71,21 +75,19 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			sample.pid = fake_samples[i].pid;
 			sample.tid = fake_samples[i].pid;
 			sample.ip = fake_samples[i].ip;
+			sample.period = 100;
 
 			if (perf_event__preprocess_sample(&event, machine, &al,
 							  &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(&evsel->hists, &al, NULL,
-						NULL, NULL, 100, 1, 0);
-			if (he == NULL)
+			if (hist_entry_iter__add(&iter, &al, evsel, &sample,
+						 PERF_MAX_STACK_DEPTH) < 0)
 				goto out;
 
 			fake_samples[i].thread = al.thread;
 			fake_samples[i].map = al.map;
 			fake_samples[i].sym = al.sym;
-
-			hists__inc_nr_samples(he->hists, he->filtered);
 		}
 	}
 

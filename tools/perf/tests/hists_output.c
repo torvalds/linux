@@ -46,7 +46,7 @@ static struct sample fake_samples[] = {
 static int add_hist_entries(struct hists *hists, struct machine *machine)
 {
 	struct addr_location al;
-	struct hist_entry *he;
+	struct perf_evsel *evsel = hists_to_evsel(hists);
 	struct perf_sample sample = { .period = 100, };
 	size_t i;
 
@@ -55,6 +55,10 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 			.header = {
 				.misc = PERF_RECORD_MISC_USER,
 			},
+		};
+		struct hist_entry_iter iter = {
+			.ops = &hist_iter_normal,
+			.hide_unresolved = false,
 		};
 
 		sample.cpu = fake_samples[i].cpu;
@@ -66,9 +70,8 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 						  &sample) < 0)
 			goto out;
 
-		he = __hists__add_entry(hists, &al, NULL, NULL, NULL,
-					sample.period, 1, 0);
-		if (he == NULL)
+		if (hist_entry_iter__add(&iter, &al, evsel, &sample,
+					 PERF_MAX_STACK_DEPTH) < 0)
 			goto out;
 
 		fake_samples[i].thread = al.thread;
