@@ -66,5 +66,129 @@
 
 #define P8_DSISR_MC_SLB_ERRORS		(P7_DSISR_MC_SLB_ERRORS | \
 					 P8_DSISR_MC_ERAT_MULTIHIT_SEC)
+enum MCE_Version {
+	MCE_V1 = 1,
+};
+
+enum MCE_Severity {
+	MCE_SEV_NO_ERROR = 0,
+	MCE_SEV_WARNING = 1,
+	MCE_SEV_ERROR_SYNC = 2,
+	MCE_SEV_FATAL = 3,
+};
+
+enum MCE_Disposition {
+	MCE_DISPOSITION_RECOVERED = 0,
+	MCE_DISPOSITION_NOT_RECOVERED = 1,
+};
+
+enum MCE_Initiator {
+	MCE_INITIATOR_UNKNOWN = 0,
+	MCE_INITIATOR_CPU = 1,
+};
+
+enum MCE_ErrorType {
+	MCE_ERROR_TYPE_UNKNOWN = 0,
+	MCE_ERROR_TYPE_UE = 1,
+	MCE_ERROR_TYPE_SLB = 2,
+	MCE_ERROR_TYPE_ERAT = 3,
+	MCE_ERROR_TYPE_TLB = 4,
+};
+
+enum MCE_UeErrorType {
+	MCE_UE_ERROR_INDETERMINATE = 0,
+	MCE_UE_ERROR_IFETCH = 1,
+	MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH = 2,
+	MCE_UE_ERROR_LOAD_STORE = 3,
+	MCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE = 4,
+};
+
+enum MCE_SlbErrorType {
+	MCE_SLB_ERROR_INDETERMINATE = 0,
+	MCE_SLB_ERROR_PARITY = 1,
+	MCE_SLB_ERROR_MULTIHIT = 2,
+};
+
+enum MCE_EratErrorType {
+	MCE_ERAT_ERROR_INDETERMINATE = 0,
+	MCE_ERAT_ERROR_PARITY = 1,
+	MCE_ERAT_ERROR_MULTIHIT = 2,
+};
+
+enum MCE_TlbErrorType {
+	MCE_TLB_ERROR_INDETERMINATE = 0,
+	MCE_TLB_ERROR_PARITY = 1,
+	MCE_TLB_ERROR_MULTIHIT = 2,
+};
+
+struct machine_check_event {
+	enum MCE_Version	version:8;	/* 0x00 */
+	uint8_t			in_use;		/* 0x01 */
+	enum MCE_Severity	severity:8;	/* 0x02 */
+	enum MCE_Initiator	initiator:8;	/* 0x03 */
+	enum MCE_ErrorType	error_type:8;	/* 0x04 */
+	enum MCE_Disposition	disposition:8;	/* 0x05 */
+	uint8_t			reserved_1[2];	/* 0x06 */
+	uint64_t		gpr3;		/* 0x08 */
+	uint64_t		srr0;		/* 0x10 */
+	uint64_t		srr1;		/* 0x18 */
+	union {					/* 0x20 */
+		struct {
+			enum MCE_UeErrorType ue_error_type:8;
+			uint8_t		effective_address_provided;
+			uint8_t		physical_address_provided;
+			uint8_t		reserved_1[5];
+			uint64_t	effective_address;
+			uint64_t	physical_address;
+			uint8_t		reserved_2[8];
+		} ue_error;
+
+		struct {
+			enum MCE_SlbErrorType slb_error_type:8;
+			uint8_t		effective_address_provided;
+			uint8_t		reserved_1[6];
+			uint64_t	effective_address;
+			uint8_t		reserved_2[16];
+		} slb_error;
+
+		struct {
+			enum MCE_EratErrorType erat_error_type:8;
+			uint8_t		effective_address_provided;
+			uint8_t		reserved_1[6];
+			uint64_t	effective_address;
+			uint8_t		reserved_2[16];
+		} erat_error;
+
+		struct {
+			enum MCE_TlbErrorType tlb_error_type:8;
+			uint8_t		effective_address_provided;
+			uint8_t		reserved_1[6];
+			uint64_t	effective_address;
+			uint8_t		reserved_2[16];
+		} tlb_error;
+	} u;
+};
+
+struct mce_error_info {
+	enum MCE_ErrorType error_type:8;
+	union {
+		enum MCE_UeErrorType ue_error_type:8;
+		enum MCE_SlbErrorType slb_error_type:8;
+		enum MCE_EratErrorType erat_error_type:8;
+		enum MCE_TlbErrorType tlb_error_type:8;
+	} u;
+	uint8_t		reserved[2];
+};
+
+#define MAX_MC_EVT	100
+
+/* Release flags for get_mce_event() */
+#define MCE_EVENT_RELEASE	true
+#define MCE_EVENT_DONTRELEASE	false
+
+extern void save_mce_event(struct pt_regs *regs, long handled,
+			   struct mce_error_info *mce_err, uint64_t addr);
+extern int get_mce_event(struct machine_check_event *mce, bool release);
+extern void release_mce_event(void);
 
 #endif /* __ASM_PPC64_MCE_H__ */

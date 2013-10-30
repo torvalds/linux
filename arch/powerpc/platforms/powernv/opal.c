@@ -21,6 +21,7 @@
 #include <linux/kobject.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
+#include <asm/mce.h>
 
 #include "powernv.h"
 
@@ -256,8 +257,7 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 
 int opal_machine_check(struct pt_regs *regs)
 {
-	struct opal_machine_check_event *opal_evt = get_paca()->opal_mc_evt;
-	struct opal_machine_check_event evt;
+	struct machine_check_event evt;
 	const char *level, *sevstr, *subtype;
 	static const char *opal_mc_ue_types[] = {
 		"Indeterminate",
@@ -282,30 +282,29 @@ int opal_machine_check(struct pt_regs *regs)
 		"Multihit",
 	};
 
-	/* Copy the event structure and release the original */
-	evt = *opal_evt;
-	opal_evt->in_use = 0;
+	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
+		return 0;
 
 	/* Print things out */
-	if (evt.version != OpalMCE_V1) {
+	if (evt.version != MCE_V1) {
 		pr_err("Machine Check Exception, Unknown event version %d !\n",
 		       evt.version);
 		return 0;
 	}
 	switch(evt.severity) {
-	case OpalMCE_SEV_NO_ERROR:
+	case MCE_SEV_NO_ERROR:
 		level = KERN_INFO;
 		sevstr = "Harmless";
 		break;
-	case OpalMCE_SEV_WARNING:
+	case MCE_SEV_WARNING:
 		level = KERN_WARNING;
 		sevstr = "";
 		break;
-	case OpalMCE_SEV_ERROR_SYNC:
+	case MCE_SEV_ERROR_SYNC:
 		level = KERN_ERR;
 		sevstr = "Severe";
 		break;
-	case OpalMCE_SEV_FATAL:
+	case MCE_SEV_FATAL:
 	default:
 		level = KERN_ERR;
 		sevstr = "Fatal";
@@ -313,12 +312,12 @@ int opal_machine_check(struct pt_regs *regs)
 	}
 
 	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
-	       evt.disposition == OpalMCE_DISPOSITION_RECOVERED ?
+	       evt.disposition == MCE_DISPOSITION_RECOVERED ?
 	       "Recovered" : "[Not recovered");
 	printk("%s  Initiator: %s\n", level,
-	       evt.initiator == OpalMCE_INITIATOR_CPU ? "CPU" : "Unknown");
+	       evt.initiator == MCE_INITIATOR_CPU ? "CPU" : "Unknown");
 	switch(evt.error_type) {
-	case OpalMCE_ERROR_TYPE_UE:
+	case MCE_ERROR_TYPE_UE:
 		subtype = evt.u.ue_error.ue_error_type <
 			ARRAY_SIZE(opal_mc_ue_types) ?
 			opal_mc_ue_types[evt.u.ue_error.ue_error_type]
@@ -331,7 +330,7 @@ int opal_machine_check(struct pt_regs *regs)
 			printk("%s      Physial address: %016llx\n",
 			       level, evt.u.ue_error.physical_address);
 		break;
-	case OpalMCE_ERROR_TYPE_SLB:
+	case MCE_ERROR_TYPE_SLB:
 		subtype = evt.u.slb_error.slb_error_type <
 			ARRAY_SIZE(opal_mc_slb_types) ?
 			opal_mc_slb_types[evt.u.slb_error.slb_error_type]
@@ -341,7 +340,7 @@ int opal_machine_check(struct pt_regs *regs)
 			printk("%s    Effective address: %016llx\n",
 			       level, evt.u.slb_error.effective_address);
 		break;
-	case OpalMCE_ERROR_TYPE_ERAT:
+	case MCE_ERROR_TYPE_ERAT:
 		subtype = evt.u.erat_error.erat_error_type <
 			ARRAY_SIZE(opal_mc_erat_types) ?
 			opal_mc_erat_types[evt.u.erat_error.erat_error_type]
@@ -351,7 +350,7 @@ int opal_machine_check(struct pt_regs *regs)
 			printk("%s    Effective address: %016llx\n",
 			       level, evt.u.erat_error.effective_address);
 		break;
-	case OpalMCE_ERROR_TYPE_TLB:
+	case MCE_ERROR_TYPE_TLB:
 		subtype = evt.u.tlb_error.tlb_error_type <
 			ARRAY_SIZE(opal_mc_tlb_types) ?
 			opal_mc_tlb_types[evt.u.tlb_error.tlb_error_type]
@@ -362,11 +361,11 @@ int opal_machine_check(struct pt_regs *regs)
 			       level, evt.u.tlb_error.effective_address);
 		break;
 	default:
-	case OpalMCE_ERROR_TYPE_UNKNOWN:
+	case MCE_ERROR_TYPE_UNKNOWN:
 		printk("%s  Error type: Unknown\n", level);
 		break;
 	}
-	return evt.severity == OpalMCE_SEV_FATAL ? 0 : 1;
+	return evt.severity == MCE_SEV_FATAL ? 0 : 1;
 }
 
 static irqreturn_t opal_interrupt(int irq, void *data)

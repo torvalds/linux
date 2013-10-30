@@ -133,20 +133,114 @@ static long mce_handle_ierror_p7(uint64_t srr1)
 	return handled;
 }
 
+static void mce_get_common_ierror(struct mce_error_info *mce_err, uint64_t srr1)
+{
+	switch (P7_SRR1_MC_IFETCH(srr1)) {
+	case P7_SRR1_MC_IFETCH_SLB_PARITY:
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_PARITY;
+		break;
+	case P7_SRR1_MC_IFETCH_SLB_MULTIHIT:
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_MULTIHIT;
+		break;
+	case P7_SRR1_MC_IFETCH_TLB_MULTIHIT:
+		mce_err->error_type = MCE_ERROR_TYPE_TLB;
+		mce_err->u.tlb_error_type = MCE_TLB_ERROR_MULTIHIT;
+		break;
+	case P7_SRR1_MC_IFETCH_UE:
+	case P7_SRR1_MC_IFETCH_UE_IFU_INTERNAL:
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type = MCE_UE_ERROR_IFETCH;
+		break;
+	case P7_SRR1_MC_IFETCH_UE_TLB_RELOAD:
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type =
+				MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH;
+		break;
+	}
+}
+
+static void mce_get_ierror_p7(struct mce_error_info *mce_err, uint64_t srr1)
+{
+	mce_get_common_ierror(mce_err, srr1);
+	if (P7_SRR1_MC_IFETCH(srr1) == P7_SRR1_MC_IFETCH_SLB_BOTH) {
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_INDETERMINATE;
+	}
+}
+
+static void mce_get_derror_p7(struct mce_error_info *mce_err, uint64_t dsisr)
+{
+	if (dsisr & P7_DSISR_MC_UE) {
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type = MCE_UE_ERROR_LOAD_STORE;
+	} else if (dsisr & P7_DSISR_MC_UE_TABLEWALK) {
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type =
+				MCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE;
+	} else if (dsisr & P7_DSISR_MC_ERAT_MULTIHIT) {
+		mce_err->error_type = MCE_ERROR_TYPE_ERAT;
+		mce_err->u.erat_error_type = MCE_ERAT_ERROR_MULTIHIT;
+	} else if (dsisr & P7_DSISR_MC_SLB_MULTIHIT) {
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_MULTIHIT;
+	} else if (dsisr & P7_DSISR_MC_SLB_PARITY_MFSLB) {
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_PARITY;
+	} else if (dsisr & P7_DSISR_MC_TLB_MULTIHIT_MFTLB) {
+		mce_err->error_type = MCE_ERROR_TYPE_TLB;
+		mce_err->u.tlb_error_type = MCE_TLB_ERROR_MULTIHIT;
+	} else if (dsisr & P7_DSISR_MC_SLB_MULTIHIT_PARITY) {
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_INDETERMINATE;
+	}
+}
+
 long __machine_check_early_realmode_p7(struct pt_regs *regs)
 {
-	uint64_t srr1;
+	uint64_t srr1, addr;
 	long handled = 1;
+	struct mce_error_info mce_error_info = { 0 };
 
 	srr1 = regs->msr;
 
-	if (P7_SRR1_MC_LOADSTORE(srr1))
+	/*
+	 * Handle memory errors depending whether this was a load/store or
+	 * ifetch exception. Also, populate the mce error_type and
+	 * type-specific error_type from either SRR1 or DSISR, depending
+	 * whether this was a load/store or ifetch exception
+	 */
+	if (P7_SRR1_MC_LOADSTORE(srr1)) {
 		handled = mce_handle_derror_p7(regs->dsisr);
-	else
+		mce_get_derror_p7(&mce_error_info, regs->dsisr);
+		addr = regs->dar;
+	} else {
 		handled = mce_handle_ierror_p7(srr1);
+		mce_get_ierror_p7(&mce_error_info, srr1);
+		addr = regs->nip;
+	}
 
-	/* TODO: Decode machine check reason. */
+	save_mce_event(regs, handled, &mce_error_info, addr);
 	return handled;
+}
+
+static void mce_get_ierror_p8(struct mce_error_info *mce_err, uint64_t srr1)
+{
+	mce_get_common_ierror(mce_err, srr1);
+	if (P7_SRR1_MC_IFETCH(srr1) == P8_SRR1_MC_IFETCH_ERAT_MULTIHIT) {
+		mce_err->error_type = MCE_ERROR_TYPE_ERAT;
+		mce_err->u.erat_error_type = MCE_ERAT_ERROR_MULTIHIT;
+	}
+}
+
+static void mce_get_derror_p8(struct mce_error_info *mce_err, uint64_t dsisr)
+{
+	mce_get_derror_p7(mce_err, dsisr);
+	if (dsisr & P8_DSISR_MC_ERAT_MULTIHIT_SEC) {
+		mce_err->error_type = MCE_ERROR_TYPE_ERAT;
+		mce_err->u.erat_error_type = MCE_ERAT_ERROR_MULTIHIT;
+	}
 }
 
 static long mce_handle_ierror_p8(uint64_t srr1)
@@ -169,16 +263,22 @@ static long mce_handle_derror_p8(uint64_t dsisr)
 
 long __machine_check_early_realmode_p8(struct pt_regs *regs)
 {
-	uint64_t srr1;
+	uint64_t srr1, addr;
 	long handled = 1;
+	struct mce_error_info mce_error_info = { 0 };
 
 	srr1 = regs->msr;
 
-	if (P7_SRR1_MC_LOADSTORE(srr1))
+	if (P7_SRR1_MC_LOADSTORE(srr1)) {
 		handled = mce_handle_derror_p8(regs->dsisr);
-	else
+		mce_get_derror_p8(&mce_error_info, regs->dsisr);
+		addr = regs->dar;
+	} else {
 		handled = mce_handle_ierror_p8(srr1);
+		mce_get_ierror_p8(&mce_error_info, srr1);
+		addr = regs->nip;
+	}
 
-	/* TODO: Decode machine check reason. */
+	save_mce_event(regs, handled, &mce_error_info, addr);
 	return handled;
 }
