@@ -1733,7 +1733,7 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int ret = VM_FAULT_LOCKED;
 
 	sb_start_pagefault(inode->i_sb);
-	file_update_time(vma->vm_file);
+	vma_file_update_time(vma);
 	lock_page(page);
 	if (page->mapping != inode->i_mapping) {
 		unlock_page(page);
