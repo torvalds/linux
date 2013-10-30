@@ -224,7 +224,7 @@ static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
 
 static void mxs_dma_disable_chan(struct mxs_dma_chan *mxs_chan)
 {
-	mxs_chan->status = DMA_SUCCESS;
+	mxs_chan->status = DMA_COMPLETE;
 }
 
 static void mxs_dma_pause_chan(struct mxs_dma_chan *mxs_chan)
@@ -312,12 +312,12 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 			if (mxs_chan->flags & MXS_DMA_SG_LOOP)
 				mxs_chan->status = DMA_IN_PROGRESS;
 			else
-				mxs_chan->status = DMA_SUCCESS;
+				mxs_chan->status = DMA_COMPLETE;
 		}
 
 		stat1 &= ~(1 << channel);
 
-		if (mxs_chan->status == DMA_SUCCESS)
+		if (mxs_chan->status == DMA_COMPLETE)
 			dma_cookie_complete(&mxs_chan->desc);
 
 		/* schedule tasklet on this channel */

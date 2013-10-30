@@ -749,7 +749,7 @@ static enum dma_status mv_xor_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_SUCCESS) {
+	if (ret == DMA_COMPLETE) {
 		mv_xor_clean_completed_slots(mv_chan);
 		return ret;
 	}
@@ -874,7 +874,7 @@ static int mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	msleep(1);
 
 	if (mv_xor_status(dma_chan, cookie, NULL) !=
-	    DMA_SUCCESS) {
+	    DMA_COMPLETE) {
 		dev_err(dma_chan->device->dev,
 			"Self-test copy timed out, disabling\n");
 		err = -ENODEV;
@@ -968,7 +968,7 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 	msleep(8);
 
 	if (mv_xor_status(dma_chan, cookie, NULL) !=
-	    DMA_SUCCESS) {
+	    DMA_COMPLETE) {
 		dev_err(dma_chan->device->dev,
 			"Self-test xor timed out, disabling\n");
 		err = -ENODEV;

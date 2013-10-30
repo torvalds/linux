@@ -163,7 +163,7 @@ static void mmp_tdma_disable_chan(struct mmp_tdma_chan *tdmac)
 	/* disable irq */
 	writel(0, tdmac->reg_base + TDIMR);
 
-	tdmac->status = DMA_SUCCESS;
+	tdmac->status = DMA_COMPLETE;
 }
 
 static void mmp_tdma_resume_chan(struct mmp_tdma_chan *tdmac)
@@ -398,7 +398,7 @@ static struct dma_async_tx_descriptor *mmp_tdma_prep_dma_cyclic(
 	int num_periods = buf_len / period_len;
 	int i = 0, buf = 0;
 
-	if (tdmac->status != DMA_SUCCESS)
+	if (tdmac->status != DMA_COMPLETE)
 		return NULL;
 
 	if (period_len > TDMA_MAX_XFER_BYTES) {
@@ -532,7 +532,7 @@ static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 	tdmac->idx	   = idx;
 	tdmac->type	   = type;
 	tdmac->reg_base	   = (unsigned long)tdev->base + idx * 4;
-	tdmac->status = DMA_SUCCESS;
+	tdmac->status = DMA_COMPLETE;
 	tdev->tdmac[tdmac->idx] = tdmac;
 	tasklet_init(&tdmac->tasklet, dma_do_tasklet, (unsigned long)tdmac);
 

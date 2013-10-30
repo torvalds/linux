@@ -771,7 +771,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 		desc->desc.tx_submit = imxdma_tx_submit;
 		/* txd.flags will be overwritten in prep funcs */
 		desc->desc.flags = DMA_CTRL_ACK;
-		desc->status = DMA_SUCCESS;
+		desc->status = DMA_COMPLETE;
 
 		list_add_tail(&desc->node, &imxdmac->ld_free);
 		imxdmac->descs_allocated++;

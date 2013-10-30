@@ -638,7 +638,7 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 	if (error)
 		sdmac->status = DMA_ERROR;
 	else
-		sdmac->status = DMA_SUCCESS;
+		sdmac->status = DMA_COMPLETE;
 
 	dma_cookie_complete(&sdmac->desc);
 	if (sdmac->desc.callback)

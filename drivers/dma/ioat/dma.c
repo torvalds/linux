@@ -733,7 +733,7 @@ ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(c, cookie, txstate);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	device->cleanup_fn((unsigned long) c);
@@ -859,7 +859,7 @@ int ioat_dma_self_test(struct ioatdma_device *device)
 
 	if (tmo == 0 ||
 	    dma->device_tx_status(dma_chan, cookie, NULL)
-					!= DMA_SUCCESS) {
+					!= DMA_COMPLETE) {
 		dev_err(dev, "Self-test copy timed out, disabling\n");
 		err = -ENODEV;
 		goto unmap_dma;
