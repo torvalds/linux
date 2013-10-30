@@ -316,3 +316,30 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 		break;
 	}
 }
+
+uint64_t get_mce_fault_addr(struct machine_check_event *evt)
+{
+	switch (evt->error_type) {
+	case MCE_ERROR_TYPE_UE:
+		if (evt->u.ue_error.effective_address_provided)
+			return evt->u.ue_error.effective_address;
+		break;
+	case MCE_ERROR_TYPE_SLB:
+		if (evt->u.slb_error.effective_address_provided)
+			return evt->u.slb_error.effective_address;
+		break;
+	case MCE_ERROR_TYPE_ERAT:
+		if (evt->u.erat_error.effective_address_provided)
+			return evt->u.erat_error.effective_address;
+		break;
+	case MCE_ERROR_TYPE_TLB:
+		if (evt->u.tlb_error.effective_address_provided)
+			return evt->u.tlb_error.effective_address;
+		break;
+	default:
+	case MCE_ERROR_TYPE_UNKNOWN:
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(get_mce_fault_addr);

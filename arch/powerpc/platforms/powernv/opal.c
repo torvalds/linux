@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/kobject.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
@@ -251,6 +252,44 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	return written;
 }
 
+static int opal_recover_mce(struct pt_regs *regs,
+					struct machine_check_event *evt)
+{
+	int recovered = 0;
+	uint64_t ea = get_mce_fault_addr(evt);
+
+	if (!(regs->msr & MSR_RI)) {
+		/* If MSR_RI isn't set, we cannot recover */
+		recovered = 0;
+	} else if (evt->disposition == MCE_DISPOSITION_RECOVERED) {
+		/* Platform corrected itself */
+		recovered = 1;
+	} else if (ea && !is_kernel_addr(ea)) {
+		/*
+		 * Faulting address is not in kernel text. We should be fine.
+		 * We need to find which process uses this address.
+		 * For now, kill the task if we have received exception when
+		 * in userspace.
+		 *
+		 * TODO: Queue up this address for hwpoisioning later.
+		 */
+		if (user_mode(regs) && !is_global_init(current)) {
+			_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+			recovered = 1;
+		} else
+			recovered = 0;
+	} else if (user_mode(regs) && !is_global_init(current) &&
+		evt->severity == MCE_SEV_ERROR_SYNC) {
+		/*
+		 * If we have received a synchronous error when in userspace
+		 * kill the task.
+		 */
+		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+		recovered = 1;
+	}
+	return recovered;
+}
+
 int opal_machine_check(struct pt_regs *regs)
 {
 	struct machine_check_event evt;
@@ -266,7 +305,9 @@ int opal_machine_check(struct pt_regs *regs)
 	}
 	machine_check_print_event_info(&evt);
 
-	return evt.severity == MCE_SEV_FATAL ? 0 : 1;
+	if (opal_recover_mce(regs, &evt))
+		return 1;
+	return 0;
 }
 
 static irqreturn_t opal_interrupt(int irq, void *data)
