@@ -737,7 +737,6 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 		return -ENOMEM;
 
 	skb_push(new, sizeof(struct ipv6hdr));
-	skb_reset_network_header(new);
 	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
 
 	new->protocol = htons(ETH_P_IPV6);
@@ -1059,7 +1058,6 @@ lowpan_process_data(struct sk_buff *skb)
 		skb = new;
 
 		skb_push(skb, sizeof(struct udphdr));
-		skb_reset_transport_header(skb);
 		skb_copy_to_linear_data(skb, &uh, sizeof(struct udphdr));
 
 		lowpan_raw_dump_table(__func__, "raw UDP header dump",
@@ -1323,8 +1321,6 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		/* Pull off the 1-byte of 6lowpan header. */
 		skb_pull(local_skb, 1);
-		skb_reset_network_header(local_skb);
-		skb_set_transport_header(local_skb, sizeof(struct ipv6hdr));
 
 		lowpan_give_skb_to_devices(local_skb);
 
