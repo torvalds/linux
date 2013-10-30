@@ -994,11 +994,9 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
 	struct inode	*dir = dentry->d_parent->d_inode;
 	const char	*name = dentry->d_name.name;
 	int		namelen = dentry->d_name.len;
-	unsigned short	reclen;
 	int		err;
 	struct ext4_dir_entry_2 *de;
 
-	reclen = EXT4_DIR_REC_LEN(namelen);
 	err = ext4_find_dest_de(dir, inode, iloc->bh,
 				inline_start, inline_size,
 				name, namelen, &de);
