@@ -1069,7 +1069,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		break;
 
 	case ESDHC_CD_PERMANENT:
-		host->mmc->caps = MMC_CAP_NONREMOVABLE;
+		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
 		break;
 
 	case ESDHC_CD_NONE:
