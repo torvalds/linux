@@ -4426,6 +4426,25 @@ static void alc272_fixup_mario(struct hda_codec *codec,
 		       "hda_codec: failed to override amp caps for NID 0x2\n");
 }
 
+static const struct snd_pcm_chmap_elem asus_pcm_2_1_chmaps[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 4,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_NA, SNDRV_CHMAP_LFE } }, /* LFE only on right */
+	{ }
+};
+
+/* override the 2.1 chmap */
+static void alc662_fixup_bass_chmap(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_BUILD) {
+		struct alc_spec *spec = codec->spec;
+		spec->gen.pcm_rec[0].stream[0].chmap = asus_pcm_2_1_chmaps;
+	}
+}
+
 enum {
 	ALC662_FIXUP_ASPIRE,
 	ALC662_FIXUP_IDEAPAD,
@@ -4446,6 +4465,7 @@ enum {
 	ALC662_FIXUP_INV_DMIC,
 	ALC668_FIXUP_DELL_MIC_NO_PRESENCE,
 	ALC668_FIXUP_HEADSET_MODE,
+	ALC662_FIXUP_BASS_CHMAP,
 };
 
 static const struct hda_fixup alc662_fixups[] = {
@@ -4620,6 +4640,12 @@ static const struct hda_fixup alc662_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode_alc668,
 	},
+	[ALC662_FIXUP_BASS_CHMAP] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc662_fixup_bass_chmap,
+		.chained = true,
+		.chain_id = ALC662_FIXUP_ASUS_MODE4
+	},
 };
 
 static const struct snd_pci_quirk alc662_fixup_tbl[] = {
@@ -4633,8 +4659,8 @@ static const struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x05d8, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05db, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x103c, 0x1632, "HP RP5800", ALC662_FIXUP_HP_RP5800),
-	SND_PCI_QUIRK(0x1043, 0x1477, "ASUS N56VZ", ALC662_FIXUP_ASUS_MODE4),
-	SND_PCI_QUIRK(0x1043, 0x1bf3, "ASUS N76VZ", ALC662_FIXUP_ASUS_MODE4),
+	SND_PCI_QUIRK(0x1043, 0x1477, "ASUS N56VZ", ALC662_FIXUP_BASS_CHMAP),
+	SND_PCI_QUIRK(0x1043, 0x1bf3, "ASUS N76VZ", ALC662_FIXUP_BASS_CHMAP),
 	SND_PCI_QUIRK(0x1043, 0x8469, "ASUS mobo", ALC662_FIXUP_NO_JACK_DETECT),
 	SND_PCI_QUIRK(0x105b, 0x0cd6, "Foxconn", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
