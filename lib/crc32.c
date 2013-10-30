@@ -1031,6 +1031,40 @@ static int __init crc32c_test(void)
 	return 0;
 }
 
+static int __init crc32c_combine_test(void)
+{
+	int i, j;
+	int errors = 0, runs = 0;
+
+	for (i = 0; i < 100; i++) {
+		u32 crc_full;
+
+		crc_full = __crc32c_le(test[i].crc, test_buf + test[i].start,
+				       test[i].length);
+		for (j = 0; j <= test[i].length; ++j) {
+			u32 crc1, crc2;
+			u32 len1 = j, len2 = test[i].length - j;
+
+			crc1 = __crc32c_le(test[i].crc, test_buf +
+					   test[i].start, len1);
+			crc2 = __crc32c_le(0, test_buf + test[i].start +
+					   len1, len2);
+
+			if (!(crc_full == __crc32c_le_combine(crc1, crc2, len2) &&
+			      crc_full == test[i].crc32c_le))
+				errors++;
+			runs++;
+		}
+	}
+
+	if (errors)
+		pr_warn("crc32c_combine: %d/%d self tests failed\n", errors, runs);
+	else
+		pr_info("crc32c_combine: %d self tests passed\n", runs);
+
+	return 0;
+}
+
 static int __init crc32_test(void)
 {
 	int i;
@@ -1090,10 +1124,48 @@ static int __init crc32_test(void)
 	return 0;
 }
 
+static int __init crc32_combine_test(void)
+{
+	int i, j;
+	int errors = 0, runs = 0;
+
+	for (i = 0; i < 100; i++) {
+		u32 crc_full;
+
+		crc_full = crc32_le(test[i].crc, test_buf + test[i].start,
+				    test[i].length);
+		for (j = 0; j <= test[i].length; ++j) {
+			u32 crc1, crc2;
+			u32 len1 = j, len2 = test[i].length - j;
+
+			crc1 = crc32_le(test[i].crc, test_buf +
+					test[i].start, len1);
+			crc2 = crc32_le(0, test_buf + test[i].start +
+					len1, len2);
+
+			if (!(crc_full == crc32_le_combine(crc1, crc2, len2) &&
+			      crc_full == test[i].crc_le))
+				errors++;
+			runs++;
+		}
+	}
+
+	if (errors)
+		pr_warn("crc32_combine: %d/%d self tests failed\n", errors, runs);
+	else
+		pr_info("crc32_combine: %d self tests passed\n", runs);
+
+	return 0;
+}
+
 static int __init crc32test_init(void)
 {
 	crc32_test();
 	crc32c_test();
+
+	crc32_combine_test();
+	crc32c_combine_test();
+
 	return 0;
 }
 
