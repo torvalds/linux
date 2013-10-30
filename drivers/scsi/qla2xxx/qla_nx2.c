@@ -1860,7 +1860,7 @@ qla8044_device_state_handler(struct scsi_qla_host *vha)
 			goto exit;
 		case QLA8XXX_DEV_COLD:
 			rval = qla8044_device_bootstrap(vha);
-			goto exit;
+			break;
 		case QLA8XXX_DEV_INITIALIZING:
 			qla8044_idc_unlock(ha);
 			msleep(1000);
