@@ -232,6 +232,10 @@ int main(void)
 	DEFINE(PACA_DTL_RIDX, offsetof(struct paca_struct, dtl_ridx));
 #endif /* CONFIG_PPC_STD_MMU_64 */
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
+#ifdef CONFIG_PPC_BOOK3S_64
+	DEFINE(PACAMCEMERGSP, offsetof(struct paca_struct, mc_emergency_sp));
+	DEFINE(PACA_IN_MCE, offsetof(struct paca_struct, in_mce));
+#endif
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
 	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
 	DEFINE(PACA_STARTTIME, offsetof(struct paca_struct, starttime));

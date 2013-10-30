@@ -285,6 +285,18 @@ void system_reset_exception(struct pt_regs *regs)
 
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
+
+/*
+ * This function is called in real mode. Strictly no printk's please.
+ *
+ * regs->nip and regs->msr contains srr0 and ssr1.
+ */
+long machine_check_early(struct pt_regs *regs)
+{
+	/* TODO: handle/decode machine check reason */
+	return 0;
+}
+
 #endif
 
 /*
