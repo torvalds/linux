@@ -83,11 +83,10 @@ static int probed;
 #define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_ERR3	0x3c77	/* 16.7 */
 
 /* Devices 12 Function 6, Offsets 0x80 to 0xcc */
-static const u32 dram_rule[] = {
+static const u32 sbridge_dram_rule[] = {
 	0x80, 0x88, 0x90, 0x98, 0xa0,
 	0xa8, 0xb0, 0xb8, 0xc0, 0xc8,
 };
-#define MAX_SAD		ARRAY_SIZE(dram_rule)
 
 #define SAD_LIMIT(reg)		((GET_BITFIELD(reg, 6, 25) << 26) | 0x3ffffff)
 #define DRAM_ATTR(reg)		GET_BITFIELD(reg, 2,  3)
@@ -275,10 +274,12 @@ static const u32 correrrthrsld[] = {
 
 struct sbridge_pvt;
 struct sbridge_info {
-	u32	mcmtr;
-	u32	rankcfgr;
-	u64	(*get_tolm)(struct sbridge_pvt *pvt);
-	u64	(*get_tohm)(struct sbridge_pvt *pvt);
+	u32		mcmtr;
+	u32		rankcfgr;
+	u64		(*get_tolm)(struct sbridge_pvt *pvt);
+	u64		(*get_tohm)(struct sbridge_pvt *pvt);
+	const u32	*dram_rule;
+	u8		max_sad;
 };
 
 struct sbridge_channel {
@@ -673,9 +674,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	 * algorithm bellow.
 	 */
 	prv = 0;
-	for (n_sads = 0; n_sads < MAX_SAD; n_sads++) {
+	for (n_sads = 0; n_sads < pvt->info.max_sad; n_sads++) {
 		/* SAD_LIMIT Address range is 45:26 */
-		pci_read_config_dword(pvt->pci_sad0, dram_rule[n_sads],
+		pci_read_config_dword(pvt->pci_sad0, pvt->info.dram_rule[n_sads],
 				      &reg);
 		limit = SAD_LIMIT(reg);
 
@@ -847,8 +848,8 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	/*
 	 * Step 1) Get socket
 	 */
-	for (n_sads = 0; n_sads < MAX_SAD; n_sads++) {
-		pci_read_config_dword(pvt->pci_sad0, dram_rule[n_sads],
+	for (n_sads = 0; n_sads < pvt->info.max_sad; n_sads++) {
+		pci_read_config_dword(pvt->pci_sad0, pvt->info.dram_rule[n_sads],
 				      &reg);
 
 		if (!DRAM_RULE_ENABLE(reg))
@@ -863,7 +864,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			break;
 		prv = limit;
 	}
-	if (n_sads == MAX_SAD) {
+	if (n_sads == pvt->info.max_sad) {
 		sprintf(msg, "Can't discover the memory socket");
 		return -EINVAL;
 	}
@@ -1678,6 +1679,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	mci->ctl_page_to_phys = NULL;
 	pvt->info.get_tolm = sbridge_get_tolm;
 	pvt->info.get_tohm = sbridge_get_tohm;
+	pvt->info.dram_rule = sbridge_dram_rule;
+	pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = sbridge_check_error;
