@@ -654,7 +654,9 @@ static int lowpan_header_create(struct sk_buff *skb,
 	head[1] = iphc1;
 
 	skb_pull(skb, sizeof(struct ipv6hdr));
+	skb_reset_transport_header(skb);
 	memcpy(skb_push(skb, hc06_ptr - head), head, hc06_ptr - head);
+	skb_reset_network_header(skb);
 
 	lowpan_raw_dump_table(__func__, "raw skb data dump", skb->data,
 				skb->len);
