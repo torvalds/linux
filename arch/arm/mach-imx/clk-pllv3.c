@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -66,6 +67,7 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 			break;
 		if (time_after(jiffies, timeout))
 			break;
+		usleep_range(50, 500);
 	} while (1);
 
 	if (readl_relaxed(pll->base) & BM_PLL_LOCK)
