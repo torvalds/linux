@@ -414,7 +414,7 @@ enum {
 	LVDS_BIT_MAP_JEIDA
 };
 
-static const char *imx_ldb_bit_mappings[] = {
+static const char * const imx_ldb_bit_mappings[] = {
 	[LVDS_BIT_MAP_SPWG]  = "spwg",
 	[LVDS_BIT_MAP_JEIDA] = "jeida",
 };
