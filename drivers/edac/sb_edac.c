@@ -278,6 +278,7 @@ struct sbridge_info {
 	u32	mcmtr;
 	u32	rankcfgr;
 	u64	(*get_tolm)(struct sbridge_pvt *pvt);
+	u64	(*get_tohm)(struct sbridge_pvt *pvt);
 };
 
 struct sbridge_channel {
@@ -470,6 +471,14 @@ static u64 sbridge_get_tolm(struct sbridge_pvt *pvt)
 	return GET_TOLM(reg);
 }
 
+static u64 sbridge_get_tohm(struct sbridge_pvt *pvt)
+{
+	u32 reg;
+
+	pci_read_config_dword(pvt->pci_sad1, TOHM, &reg);
+	return GET_TOHM(reg);
+}
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -651,9 +660,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	edac_dbg(0, "TOLM: %u.%03u GB (0x%016Lx)\n", mb, kb, (u64)pvt->tolm);
 
 	/* Address range is already 45:25 */
-	pci_read_config_dword(pvt->pci_sad1, TOHM,
-			      &reg);
-	pvt->tohm = GET_TOHM(reg);
+	pvt->tohm = pvt->info.get_tohm(pvt);
 	tmp_mb = (1 + pvt->tohm) >> 20;
 
 	mb = div_u64_rem(tmp_mb, 1000, &kb);
@@ -1670,6 +1677,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	mci->dev_name = pci_name(sbridge_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
 	pvt->info.get_tolm = sbridge_get_tolm;
+	pvt->info.get_tohm = sbridge_get_tohm;
 
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = sbridge_check_error;
