@@ -517,10 +517,10 @@ int mic_virtio_add_device(struct mic_vdev *mvdev,
 			void __user *argp)
 {
 	struct mic_device *mdev = mvdev->mdev;
-	struct mic_device_desc *dd;
+	struct mic_device_desc *dd = NULL;
 	struct mic_vqconfig *vqconfig;
 	int vr_size, i, j, ret;
-	u8 type;
+	u8 type = 0;
 	s8 db;
 	char irqname[10];
 	struct mic_bootparam *bootparam = mdev->dp;

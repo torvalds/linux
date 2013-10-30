@@ -20,6 +20,7 @@
  */
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/pci.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"
