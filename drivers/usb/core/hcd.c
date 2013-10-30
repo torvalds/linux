@@ -674,9 +674,11 @@ error:
 	 * Avoiding calls to local_irq_disable/enable makes the code
 	 * RT-friendly.
 	 */
-	spin_unlock(&hcd_root_hub_lock);
+	if (!hcd_giveback_urb_in_bh(hcd))
+		spin_unlock(&hcd_root_hub_lock);
 	usb_hcd_giveback_urb(hcd, urb, status);
-	spin_lock(&hcd_root_hub_lock);
+	if (!hcd_giveback_urb_in_bh(hcd))
+		spin_lock(&hcd_root_hub_lock);
 
 	spin_unlock_irq(&hcd_root_hub_lock);
 	return 0;
@@ -717,9 +719,11 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			memcpy(urb->transfer_buffer, buffer, length);
 
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
-			spin_unlock(&hcd_root_hub_lock);
+			if (!hcd_giveback_urb_in_bh(hcd))
+				spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb, 0);
-			spin_lock(&hcd_root_hub_lock);
+			if (!hcd_giveback_urb_in_bh(hcd))
+				spin_lock(&hcd_root_hub_lock);
 		} else {
 			length = 0;
 			set_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
@@ -810,9 +814,11 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			hcd->status_urb = NULL;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
 
-			spin_unlock(&hcd_root_hub_lock);
+			if (!hcd_giveback_urb_in_bh(hcd))
+				spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb, status);
-			spin_lock(&hcd_root_hub_lock);
+			if (!hcd_giveback_urb_in_bh(hcd))
+				spin_lock(&hcd_root_hub_lock);
 		}
 	}
  done:
@@ -1641,8 +1647,11 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  * @urb->unlinked.  Erroneous short transfers are detected in case
  * the HCD hasn't checked for them.
  */
-void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
+static void __usb_hcd_giveback_urb(struct urb *urb)
 {
+	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
+	int status = urb->status;
+
 	urb->hcpriv = NULL;
 	if (unlikely(urb->unlinked))
 		status = urb->unlinked;
@@ -1662,6 +1671,68 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (unlikely(atomic_read(&urb->reject)))
 		wake_up (&usb_kill_urb_queue);
 	usb_put_urb (urb);
+}
+
+static void usb_giveback_urb_bh(unsigned long param)
+{
+	struct giveback_urb_bh *bh = (struct giveback_urb_bh *)param;
+	unsigned long flags;
+	struct list_head local_list;
+
+	spin_lock_irqsave(&bh->lock, flags);
+	list_replace_init(&bh->head, &local_list);
+	spin_unlock_irqrestore(&bh->lock, flags);
+
+	while (!list_empty(&local_list)) {
+		struct urb *urb;
+
+		urb = list_entry(local_list.next, struct urb, urb_list);
+		list_del_init(&urb->urb_list);
+		__usb_hcd_giveback_urb(urb);
+	}
+}
+
+/**
+ * usb_hcd_giveback_urb - return URB from HCD to device driver
+ *  <at> hcd: host controller returning the URB
+ *  <at> urb: urb being returned to the USB device driver.
+ *  <at> status: completion status code for the URB.
+ * Context: in_interrupt()
+ *
+ * This hands the URB from HCD to its USB device driver, using its
+ * completion function.  The HCD has freed all per-urb resources
+ * (and is done using urb->hcpriv).  It also released all HCD locks;
+ * the device driver won't cause problems if it frees, modifies,
+ * or resubmits this URB.
+ *
+ * If  <at> urb was unlinked, the value of  <at> status will be overridden by
+ *  <at> urb->unlinked.  Erroneous short transfers are detected in case
+ * the HCD hasn't checked for them.
+ */
+void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
+{
+	struct giveback_urb_bh *bh = __this_cpu_ptr(hcd->async_bh);
+	bool async = 1;
+
+	urb->status = status;
+	if (!hcd_giveback_urb_in_bh(hcd)) {
+		__usb_hcd_giveback_urb(urb);
+		return;
+	}
+
+	if (usb_pipeisoc(urb->pipe) || usb_pipeint(urb->pipe)) {
+		bh = __this_cpu_ptr(hcd->periodic_bh);
+		async = 0;
+	}
+
+	spin_lock(&bh->lock);
+	list_add_tail(&urb->urb_list, &bh->head);
+	spin_unlock(&bh->lock);
+
+	if (async)
+		tasklet_schedule(&bh->bh);
+	else
+		tasklet_hi_schedule(&bh->bh);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_giveback_urb);
 
@@ -2281,6 +2352,60 @@ void usb_hc_died (struct usb_hcd *hcd)
 }
 EXPORT_SYMBOL_GPL (usb_hc_died);
 
+static void __init_giveback_urb_bh(struct giveback_urb_bh __percpu *bh)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct giveback_urb_bh *pbh = per_cpu_ptr(bh, i);
+		spin_lock_init(&pbh->lock);
+		INIT_LIST_HEAD(&pbh->head);
+		tasklet_init(&pbh->bh, usb_giveback_urb_bh, (unsigned long)pbh);
+	}
+}
+
+static int init_giveback_urb_bh(struct usb_hcd *hcd)
+{
+	if (!hcd_giveback_urb_in_bh(hcd))
+		return 0;
+
+	hcd->periodic_bh = alloc_percpu(typeof(*hcd->periodic_bh));
+	if (!hcd->periodic_bh)
+		return -ENOMEM;
+
+	hcd->async_bh = alloc_percpu(typeof(*hcd->async_bh));
+	if (!hcd->async_bh) {
+		free_percpu(hcd->periodic_bh);
+		return -ENOMEM;
+	}
+
+	__init_giveback_urb_bh(hcd->periodic_bh);
+	__init_giveback_urb_bh(hcd->async_bh);
+
+	return 0;
+}
+
+static void __exit_giveback_urb_bh(struct giveback_urb_bh __percpu *bh)
+{
+	int i;
+
+	for_each_possible_cpu(i)
+		tasklet_kill(&per_cpu_ptr(bh, i)->bh);
+}
+
+static void exit_giveback_urb_bh(struct usb_hcd *hcd)
+{
+	if (!hcd_giveback_urb_in_bh(hcd))
+		return;
+
+	__exit_giveback_urb_bh(hcd->periodic_bh);
+	__exit_giveback_urb_bh(hcd->async_bh);
+
+	free_percpu(hcd->periodic_bh);
+	free_percpu(hcd->async_bh);
+}
+
+
 /*-------------------------------------------------------------------------*/
 
 /**
@@ -2546,6 +2671,16 @@ int usb_add_hcd(struct usb_hcd *hcd,
 			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 
+	if (usb_hcd_is_primary_hcd(hcd)) {
+		retval = init_giveback_urb_bh(hcd);
+		if (retval)
+			goto err_init_giveback_bh;
+	} else {
+		/* share tasklet handling with primary hcd */
+		hcd->async_bh = hcd->primary_hcd->async_bh;
+		hcd->periodic_bh = hcd->primary_hcd->periodic_bh;
+	}
+
 	/* enable irqs just before we start the controller,
 	 * if the BIOS provides legacy PCI irqs.
 	 */
@@ -2609,6 +2744,8 @@ err_hcd_driver_start:
 	if (usb_hcd_is_primary_hcd(hcd) && hcd->irq > 0)
 		free_irq(irqnum, hcd);
 err_request_irq:
+	exit_giveback_urb_bh(hcd);
+err_init_giveback_bh:
 err_hcd_driver_setup:
 err_set_rh_speed:
 	usb_put_dev(hcd->self.root_hub);
@@ -2653,6 +2790,9 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&rhdev);		/* Sets rhdev to NULL */
 	mutex_unlock(&usb_bus_list_lock);
+
+	if (usb_hcd_is_primary_hcd(hcd))
+		exit_giveback_urb_bh(hcd);
 
 	/* Prevent any more root-hub status calls from the timer.
 	 * The HCD might still restart the timer (if a port status change
