@@ -299,6 +299,7 @@ struct drm_i915_error_state {
 	u32 cpu_ring_tail[I915_NUM_RINGS];
 	u32 error; /* gen6+ */
 	u32 err_int; /* gen7 */
+	u32 bbstate[I915_NUM_RINGS];
 	u32 instpm[I915_NUM_RINGS];
 	u32 instps[I915_NUM_RINGS];
 	u32 extra_instdone[I915_NUM_INSTDONE_REG];

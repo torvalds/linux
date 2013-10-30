@@ -718,6 +718,7 @@
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 #define DMA_FADD_I8XX	0x020d0
+#define RING_BBSTATE(base)	((base)+0x110)
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
