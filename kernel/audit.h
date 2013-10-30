@@ -197,6 +197,10 @@ struct audit_context {
 			int			fd;
 			int			flags;
 		} mmap;
+		struct {
+			int			argc;
+			struct mm_struct	*mm;
+		} execve;
 	};
 	int fds[2];
 
