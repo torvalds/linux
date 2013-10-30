@@ -324,18 +324,7 @@ static struct platform_driver tb10x_gpio_driver = {
 	}
 };
 
-static int __init ab_gpio_init(void)
-{
-	return platform_driver_register(&tb10x_gpio_driver);
-}
-
-static void __exit ab_gpio_exit(void)
-{
-	platform_driver_unregister(&tb10x_gpio_driver);
-}
-
-module_init(ab_gpio_init);
-module_exit(ab_gpio_exit);
+module_platform_driver(tb10x_gpio_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("tb10x gpio.");
 MODULE_VERSION("0.0.1");
