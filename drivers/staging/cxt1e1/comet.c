@@ -159,8 +159,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
     /* 60: t1 ALMI cfg */
     /* Configure Line Coding */
 
-	switch (port_mode)
-	{
+	switch (port_mode) {
 	/* 1 - T1 B8ZS */
 	case CFG_FRAME_SF:
 		pci_write_32((u_int32_t *) &comet->cdrc_cfg, 0);
@@ -286,8 +285,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
 
     /* 0x30: "BRIF cfg"; 0x20 is 'CMODE', 0x03 is (bit) rate */
     /* note "rate bits can only be set once after reset" */
-	if (clockmaster)
-		{
+	if (clockmaster) {
 		/* CMODE == clockMode, 0=clock master (so all 3 others should be slave) */
 		/* rate = 1.544 Mb/s */
 		if (isT1mode)
@@ -302,8 +300,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
 
 		/* Master Mode i.e.FPMODE=0 (@0x20) */
 		pci_write_32((u_int32_t *) &comet->brif_fpcfg, 0x00);
-		if ((moreParams & CFG_CLK_PORT_MASK) == CFG_CLK_PORT_INTERNAL)
-			{
+		if ((moreParams & CFG_CLK_PORT_MASK) == CFG_CLK_PORT_INTERNAL) {
 			if (cxt1e1_log_level >= LOG_SBEBUG12)
 				pr_info(">> %s: clockmaster internal clock\n", __func__);
 			/* internal oscillator */
@@ -422,8 +419,7 @@ WrtXmtWaveformTbl(ci_t *ci, comet_t *comet,
 {
 	u_int32_t sample, unit;
 
-	for (sample = 0; sample < COMET_NUM_SAMPLES; sample++)
-		{
+	for (sample = 0; sample < COMET_NUM_SAMPLES; sample++) {
 		for (unit = 0; unit < COMET_NUM_UNITS; unit++)
 			WrtXmtWaveform(ci, comet, sample, unit, table[sample][unit]);
 		}
@@ -554,8 +550,7 @@ SetCometOps(comet_t *comet)
 {
 	volatile u_int8_t rd_value;
 
-	if (comet == mConfig.C4Func1Base + (COMET0_OFFSET >> 2))
-	{
+	if (comet == mConfig.C4Func1Base + (COMET0_OFFSET >> 2)) {
 		/* read the BRIF Configuration */
 		rd_value = (u_int8_t) pci_read_32((u_int32_t *) &comet->brif_cfg);
 		rd_value &= ~0x20;
