@@ -177,7 +177,7 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist, int err, char *buf, s
 static inline unsigned int perf_mmap__read_head(struct perf_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->base;
-	int head = pc->data_head;
+	int head = ACCESS_ONCE(pc->data_head);
 	rmb();
 	return head;
 }
@@ -190,7 +190,7 @@ static inline void perf_mmap__write_tail(struct perf_mmap *md,
 	/*
 	 * ensure all reads are done before we write the tail out.
 	 */
-	/* mb(); */
+	mb();
 	pc->data_tail = tail;
 }
 
