@@ -68,7 +68,7 @@ A: To understand this, you need to know a bit of background information
 
    The "net" tree continues to collect fixes for the vX.Y content, and
    is fed back to Linus at regular (~weekly) intervals.  Meaning that the
-   focus for "net" is on stablilization and bugfixes.
+   focus for "net" is on stabilization and bugfixes.
 
    Finally, the vX.Y gets released, and the whole cycle starts over.
 
