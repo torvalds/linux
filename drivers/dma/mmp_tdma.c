@@ -62,6 +62,11 @@
 #define TDCR_BURSTSZ_16B	(0x3 << 6)
 #define TDCR_BURSTSZ_32B	(0x6 << 6)
 #define TDCR_BURSTSZ_64B	(0x7 << 6)
+#define TDCR_BURSTSZ_SQU_1B		(0x5 << 6)
+#define TDCR_BURSTSZ_SQU_2B		(0x6 << 6)
+#define TDCR_BURSTSZ_SQU_4B		(0x0 << 6)
+#define TDCR_BURSTSZ_SQU_8B		(0x1 << 6)
+#define TDCR_BURSTSZ_SQU_16B	(0x3 << 6)
 #define TDCR_BURSTSZ_SQU_32B	(0x7 << 6)
 #define TDCR_BURSTSZ_128B	(0x5 << 6)
 #define TDCR_DSTDIR_MSK		(0x3 << 4)	/* Dst Direction */
@@ -228,8 +233,31 @@ static int mmp_tdma_config_chan(struct mmp_tdma_chan *tdmac)
 			return -EINVAL;
 		}
 	} else if (tdmac->type == PXA910_SQU) {
-		tdcr |= TDCR_BURSTSZ_SQU_32B;
 		tdcr |= TDCR_SSPMOD;
+
+		switch (tdmac->burst_sz) {
+		case 1:
+			tdcr |= TDCR_BURSTSZ_SQU_1B;
+			break;
+		case 2:
+			tdcr |= TDCR_BURSTSZ_SQU_2B;
+			break;
+		case 4:
+			tdcr |= TDCR_BURSTSZ_SQU_4B;
+			break;
+		case 8:
+			tdcr |= TDCR_BURSTSZ_SQU_8B;
+			break;
+		case 16:
+			tdcr |= TDCR_BURSTSZ_SQU_16B;
+			break;
+		case 32:
+			tdcr |= TDCR_BURSTSZ_SQU_32B;
+			break;
+		default:
+			dev_err(tdmac->dev, "mmp_tdma: unknown burst size.\n");
+			return -EINVAL;
+		}
 	}
 
 	writel(tdcr, tdmac->reg_base + TDCR);
@@ -324,7 +352,7 @@ static int mmp_tdma_alloc_chan_resources(struct dma_chan *chan)
 
 	if (tdmac->irq) {
 		ret = devm_request_irq(tdmac->dev, tdmac->irq,
-			mmp_tdma_chan_handler, IRQF_DISABLED, "tdma", tdmac);
+			mmp_tdma_chan_handler, 0, "tdma", tdmac);
 		if (ret)
 			return ret;
 	}
@@ -559,7 +587,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	if (irq_num != chan_num) {
 		irq = platform_get_irq(pdev, 0);
 		ret = devm_request_irq(&pdev->dev, irq,
-			mmp_tdma_int_handler, IRQF_DISABLED, "tdma", tdev);
+			mmp_tdma_int_handler, 0, "tdma", tdev);
 		if (ret)
 			return ret;
 	}

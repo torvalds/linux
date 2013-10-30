@@ -2133,8 +2133,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	writel(0x000000FF, pl08x->base + PL080_ERR_CLEAR);
 	writel(0x000000FF, pl08x->base + PL080_TC_CLEAR);
 
-	ret = request_irq(adev->irq[0], pl08x_irq, IRQF_DISABLED,
-			  DRIVER_NAME, pl08x);
+	ret = request_irq(adev->irq[0], pl08x_irq, 0, DRIVER_NAME, pl08x);
 	if (ret) {
 		dev_err(&adev->dev, "%s failed to request interrupt %d\n",
 			__func__, adev->irq[0]);

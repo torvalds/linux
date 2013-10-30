@@ -1018,7 +1018,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 	return &dma_desc->txd;
 }
 
-struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
+static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 	struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
 	unsigned long flags, void *context)
