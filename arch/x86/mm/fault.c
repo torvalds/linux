@@ -20,6 +20,9 @@
 #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
 #include <asm/fixmap.h>			/* VSYSCALL_START		*/
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/exceptions.h>
+
 /*
  * Page fault error code bits:
  *
@@ -1232,12 +1235,22 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	exception_exit(prev_state);
 }
 
+static void trace_page_fault_entries(struct pt_regs *regs,
+				     unsigned long error_code)
+{
+	if (user_mode(regs))
+		trace_user_page_fault(read_cr2(), regs, error_code);
+	else
+		trace_kernel_page_fault(read_cr2(), regs, error_code);
+}
+
 dotraplinkage void __kprobes
 trace_do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
+	trace_page_fault_entries(regs, error_code);
 	__do_page_fault(regs, error_code);
 	exception_exit(prev_state);
 }
