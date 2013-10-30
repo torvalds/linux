@@ -1077,17 +1077,16 @@ void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 
 	if (!is_edp(intel_dp))
 		return;
-	DRM_DEBUG_KMS("Turn eDP VDD on\n");
 
 	WARN(intel_dp->want_panel_vdd,
 	     "eDP VDD already requested on\n");
 
 	intel_dp->want_panel_vdd = true;
 
-	if (ironlake_edp_have_panel_vdd(intel_dp)) {
-		DRM_DEBUG_KMS("eDP VDD already on\n");
+	if (ironlake_edp_have_panel_vdd(intel_dp))
 		return;
-	}
+
+	DRM_DEBUG_KMS("Turning eDP VDD on\n");
 
 	if (!ironlake_edp_have_panel_power(intel_dp))
 		ironlake_wait_panel_power_cycle(intel_dp);
@@ -1121,6 +1120,8 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	if (!intel_dp->want_panel_vdd && ironlake_edp_have_panel_vdd(intel_dp)) {
+		DRM_DEBUG_KMS("Turning eDP VDD off\n");
+
 		pp = ironlake_get_pp_control(intel_dp);
 		pp &= ~EDP_FORCE_VDD;
 
@@ -1153,7 +1154,6 @@ void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	if (!is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turn eDP VDD off %d\n", intel_dp->want_panel_vdd);
 	WARN(!intel_dp->want_panel_vdd, "eDP VDD not forced on");
 
 	intel_dp->want_panel_vdd = false;
