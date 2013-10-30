@@ -3010,7 +3010,7 @@ static const struct file_operations *stat_fops[] = {
 
 static int kvm_init_debug(void)
 {
-	int r = -EFAULT;
+	int r = -EEXIST;
 	struct kvm_stats_debugfs_item *p;
 
 	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
