@@ -4595,6 +4595,9 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	struct mgmt_ev_device_disconnected ev;
 	struct sock *sk = NULL;
 
+	if (link_type != ACL_LINK && link_type != LE_LINK)
+		return;
+
 	mgmt_pending_foreach(MGMT_OP_DISCONNECT, hdev, disconnect_rsp, &sk);
 
 	bacpy(&ev.addr.bdaddr, bdaddr);
