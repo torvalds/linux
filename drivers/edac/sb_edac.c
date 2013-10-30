@@ -112,37 +112,27 @@ static const u32 sbridge_interleave_list[] = {
 	0xac, 0xb4, 0xbc, 0xc4, 0xcc,
 };
 
-#define SAD_PKG0(reg)		GET_BITFIELD(reg, 0, 2)
-#define SAD_PKG1(reg)		GET_BITFIELD(reg, 3, 5)
-#define SAD_PKG2(reg)		GET_BITFIELD(reg, 8, 10)
-#define SAD_PKG3(reg)		GET_BITFIELD(reg, 11, 13)
-#define SAD_PKG4(reg)		GET_BITFIELD(reg, 16, 18)
-#define SAD_PKG5(reg)		GET_BITFIELD(reg, 19, 21)
-#define SAD_PKG6(reg)		GET_BITFIELD(reg, 24, 26)
-#define SAD_PKG7(reg)		GET_BITFIELD(reg, 27, 29)
+struct interleave_pkg {
+	unsigned char start;
+	unsigned char end;
+};
 
-static inline int sad_pkg(u32 reg, int interleave)
+static const struct interleave_pkg sbridge_interleave_pkg[] = {
+	{ 0, 2 },
+	{ 3, 5 },
+	{ 8, 10 },
+	{ 11, 13 },
+	{ 16, 18 },
+	{ 19, 21 },
+	{ 24, 26 },
+	{ 27, 29 },
+};
+
+static inline int sad_pkg(const struct interleave_pkg *table, u32 reg,
+			  int interleave)
 {
-	switch (interleave) {
-	case 0:
-		return SAD_PKG0(reg);
-	case 1:
-		return SAD_PKG1(reg);
-	case 2:
-		return SAD_PKG2(reg);
-	case 3:
-		return SAD_PKG3(reg);
-	case 4:
-		return SAD_PKG4(reg);
-	case 5:
-		return SAD_PKG5(reg);
-	case 6:
-		return SAD_PKG6(reg);
-	case 7:
-		return SAD_PKG7(reg);
-	default:
-		return -EINVAL;
-	}
+	return GET_BITFIELD(reg, table[interleave].start,
+			    table[interleave].end);
 }
 
 /* Devices 12 Function 7 */
@@ -279,6 +269,7 @@ struct sbridge_info {
 	u64		(*get_tohm)(struct sbridge_pvt *pvt);
 	const u32	*dram_rule;
 	const u32	*interleave_list;
+	const struct interleave_pkg *interleave_pkg;
 	u8		max_sad;
 	u8		max_interleave;
 };
@@ -700,13 +691,14 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 
 		pci_read_config_dword(pvt->pci_sad0, pvt->info.interleave_list[n_sads],
 				      &reg);
-		sad_interl = sad_pkg(reg, 0);
+		sad_interl = sad_pkg(pvt->info.interleave_pkg, reg, 0);
 		for (j = 0; j < 8; j++) {
-			if (j > 0 && sad_interl == sad_pkg(reg, j))
+			u32 pkg = sad_pkg(pvt->info.interleave_pkg, reg, j);
+			if (j > 0 && sad_interl == pkg)
 				break;
 
 			edac_dbg(0, "SAD#%d, interleave #%d: %d\n",
-				 n_sads, j, sad_pkg(reg, j));
+				 n_sads, j, pkg);
 		}
 	}
 
@@ -874,11 +866,12 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 
 	pci_read_config_dword(pvt->pci_sad0, pvt->info.interleave_list[n_sads],
 			      &reg);
-	sad_interl = sad_pkg(reg, 0);
+	sad_interl = sad_pkg(pvt->info.interleave_pkg, reg, 0);
 	for (sad_way = 0; sad_way < 8; sad_way++) {
-		if (sad_way > 0 && sad_interl == sad_pkg(reg, sad_way))
+		u32 pkg = sad_pkg(pvt->info.interleave_pkg, reg, sad_way);
+		if (sad_way > 0 && sad_interl == pkg)
 			break;
-		sad_interleave[sad_way] = sad_pkg(reg, sad_way);
+		sad_interleave[sad_way] = pkg;
 		edac_dbg(0, "SAD interleave #%d: %d\n",
 			 sad_way, sad_interleave[sad_way]);
 	}
@@ -1684,6 +1677,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 	pvt->info.interleave_list = sbridge_interleave_list;
 	pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
+	pvt->info.interleave_pkg = sbridge_interleave_pkg;
 
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = sbridge_check_error;
