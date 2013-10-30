@@ -1035,10 +1035,6 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	}
 
 	mv_chan->mmr_base = xordev->xor_base;
-	if (!mv_chan->mmr_base) {
-		ret = -ENOMEM;
-		goto err_free_dma;
-	}
 	tasklet_init(&mv_chan->irq_tasklet, mv_xor_tasklet, (unsigned long)
 		     mv_chan);
 
