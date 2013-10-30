@@ -956,10 +956,6 @@ qla2x00_model_name_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (IS_QLAFX00(vha->hw))
-		return snprintf(buf, PAGE_SIZE, "%s\n",
-		    vha->hw->mr.product_name);
-
 	return snprintf(buf, PAGE_SIZE, "%s\n", vha->hw->model_number);
 }
 

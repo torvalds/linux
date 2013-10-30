@@ -2836,12 +2836,8 @@ skip_dpc:
 
 	qla2x00_dfs_setup(base_vha);
 
-	if (IS_QLAFX00(ha))
-		ql_log(ql_log_info, base_vha, 0x015a,
-		    "QLogic %s.\n", ha->mr.product_name);
-	else
-		ql_log(ql_log_info, base_vha, 0x00fb,
-		    "QLogic %s - %s.\n", ha->model_number, ha->model_desc);
+	ql_log(ql_log_info, base_vha, 0x00fb,
+	    "QLogic %s - %s.\n", ha->model_number, ha->model_desc);
 	ql_log(ql_log_info, base_vha, 0x00fc,
 	    "ISP%04X: %s @ %s hdma%c host#=%ld fw=%s.\n",
 	    pdev->device, ha->isp_ops->pci_info_str(base_vha, pci_info),

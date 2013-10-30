@@ -304,7 +304,9 @@ struct register_host_info {
 #define QLAFX00_TGT_NODE_LIST_SIZE (sizeof(uint32_t) * 32)
 
 struct config_info_data {
-	uint8_t		product_name[256];
+	uint8_t		model_num[16];
+	uint8_t		model_description[80];
+	uint8_t		reserved0[160];
 	uint8_t		symbolic_name[64];
 	uint8_t		serial_num[32];
 	uint8_t		hw_version[16];
@@ -491,7 +493,6 @@ struct qla_mt_iocb_rsp_fx00 {
 #define FX00_DEF_RATOV	10
 
 struct mr_data_fx00 {
-	uint8_t	product_name[256];
 	uint8_t	symbolic_name[64];
 	uint8_t	serial_num[32];
 	uint8_t	hw_version[16];
