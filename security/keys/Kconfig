@@ -38,7 +38,7 @@ config PERSISTENT_KEYRINGS
 	  removed if they expire (a default timeout is set upon creation).
 
 config BIG_KEYS
-	tristate "Large payload keys"
+	bool "Large payload keys"
 	depends on KEYS
 	depends on TMPFS
 	help
