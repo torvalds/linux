@@ -1792,8 +1792,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (ev->status == 0)
 		conn->state = BT_CLOSED;
 
-	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags) &&
-	    (conn->type == ACL_LINK || conn->type == LE_LINK)) {
+	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags)) {
 		if (ev->status) {
 			mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
 					       conn->dst_type, ev->status);
