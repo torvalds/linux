@@ -2,6 +2,7 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000, 2001, 2004 MIPS Technologies, Inc.
  * Copyright (C) 2001 Ralf Baechle
+ * Copyright (C) 2013 Imagination Technologies Ltd.
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -44,6 +45,7 @@
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
 #include <asm/setup.h>
+#include <asm/rtlx.h>
 
 int gcmp_present = -1;
 static unsigned long _msc01_biu_base;
@@ -126,6 +128,11 @@ static void malta_hw0_irqdispatch(void)
 	}
 
 	do_IRQ(MALTA_INT_BASE + irq);
+
+#ifdef MIPS_VPE_APSP_API
+	if (aprp_hook)
+		aprp_hook();
+#endif
 }
 
 static void malta_ipi_irqdispatch(void)
@@ -313,6 +320,11 @@ static void ipi_call_dispatch(void)
 
 static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 {
+#ifdef MIPS_VPE_APSP_API
+	if (aprp_hook)
+		aprp_hook();
+#endif
+
 	scheduler_ipi();
 
 	return IRQ_HANDLED;
