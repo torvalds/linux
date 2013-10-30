@@ -761,7 +761,7 @@ static int intel_pstate_msrs_not_valid(void)
 	return 0;
 }
 
-void copy_pid_params(struct pstate_adjust_policy *policy)
+static void copy_pid_params(struct pstate_adjust_policy *policy)
 {
 	pid_params.sample_rate_ms = policy->sample_rate_ms;
 	pid_params.p_gain_pct = policy->p_gain_pct;
@@ -771,7 +771,7 @@ void copy_pid_params(struct pstate_adjust_policy *policy)
 	pid_params.setpoint = policy->setpoint;
 }
 
-void copy_cpu_funcs(struct pstate_funcs *funcs)
+static void copy_cpu_funcs(struct pstate_funcs *funcs)
 {
 	pstate_funcs.get_max   = funcs->get_max;
 	pstate_funcs.get_min   = funcs->get_min;
