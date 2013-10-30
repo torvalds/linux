@@ -2081,18 +2081,7 @@ static struct platform_driver vpe_pdrv = {
 	},
 };
 
-static void __exit vpe_exit(void)
-{
-	platform_driver_unregister(&vpe_pdrv);
-}
-
-static int __init vpe_init(void)
-{
-	return platform_driver_register(&vpe_pdrv);
-}
-
-module_init(vpe_init);
-module_exit(vpe_exit);
+module_platform_driver(vpe_pdrv);
 
 MODULE_DESCRIPTION("TI VPE driver");
 MODULE_AUTHOR("Dale Farnsworth, <dale@farnsworth.org>");
