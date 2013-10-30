@@ -623,6 +623,7 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	int reply_bytes;
 	int ret;
 
+	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_check_edp(intel_dp);
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
@@ -665,7 +666,7 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				      reply, reply_bytes);
 		if (ret < 0) {
 			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
-			return ret;
+			goto out;
 		}
 
 		switch (reply[0] & AUX_NATIVE_REPLY_MASK) {
@@ -676,7 +677,8 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			break;
 		case AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		case AUX_NATIVE_REPLY_DEFER:
 			/*
 			 * For now, just give more slack to branch devices. We
@@ -694,7 +696,8 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		default:
 			DRM_ERROR("aux_ch invalid native reply 0x%02x\n",
 				  reply[0]);
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		}
 
 		switch (reply[0] & AUX_I2C_REPLY_MASK) {
@@ -702,22 +705,29 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			if (mode == MODE_I2C_READ) {
 				*read_byte = reply[1];
 			}
-			return reply_bytes - 1;
+			ret = reply_bytes - 1;
+			goto out;
 		case AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		case AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
 			udelay(100);
 			break;
 		default:
 			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", reply[0]);
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		}
 	}
 
 	DRM_ERROR("too many retries, giving up\n");
-	return -EREMOTEIO;
+	ret = -EREMOTEIO;
+
+out:
+	ironlake_edp_panel_vdd_off(intel_dp, false);
+	return ret;
 }
 
 static int
@@ -739,9 +749,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	intel_dp->adapter.algo_data = &intel_dp->algo;
 	intel_dp->adapter.dev.parent = &intel_connector->base.kdev;
 
-	ironlake_edp_panel_vdd_on(intel_dp);
 	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return ret;
 }
 
@@ -3478,7 +3486,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
 						      &power_seq);
 
-	ironlake_edp_panel_vdd_on(intel_dp);
 	edid = drm_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
@@ -3509,8 +3516,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		if (fixed_mode)
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
-
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode);
 	intel_panel_setup_backlight(connector);
