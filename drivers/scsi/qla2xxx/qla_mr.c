@@ -1610,6 +1610,22 @@ qlafx00_timer_routine(scsi_qla_host_t *vha)
 			ha->mr.fw_critemp_timer_tick--;
 		}
 	}
+	if (ha->mr.host_info_resend) {
+		/*
+		 * Incomplete host info might be sent to firmware
+		 * durinng system boot - info should be resend
+		 */
+		if (ha->mr.hinfo_resend_timer_tick == 0) {
+			ha->mr.host_info_resend = false;
+			set_bit(FX00_HOST_INFO_RESEND, &vha->dpc_flags);
+			ha->mr.hinfo_resend_timer_tick =
+			    QLAFX00_HINFO_RESEND_INTERVAL;
+			qla2xxx_wake_dpc(vha);
+		} else {
+			ha->mr.hinfo_resend_timer_tick--;
+		}
+	}
+
 }
 
 /*
@@ -1888,6 +1904,8 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			    p_sysid->sysname, SYSNAME_LENGTH);
 			strncpy(phost_info->nodename,
 			    p_sysid->nodename, NODENAME_LENGTH);
+			if (!strcmp(phost_info->nodename, "(none)"))
+				ha->mr.host_info_resend = true;
 			strncpy(phost_info->release,
 			    p_sysid->release, RELEASE_LENGTH);
 			strncpy(phost_info->version,

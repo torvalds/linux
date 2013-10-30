@@ -511,6 +511,8 @@ struct mr_data_fx00 {
 	uint32_t old_aenmbx0_state;
 	uint32_t critical_temperature;
 	bool extended_io_enabled;
+	bool host_info_resend;
+	uint8_t hinfo_resend_timer_tick;
 };
 
 #define QLAFX00_EXTENDED_IO_EN_MASK    0x20
@@ -537,6 +539,7 @@ struct mr_data_fx00 {
 #define QLAFX00_RESET_INTERVAL		120	/* number of seconds */
 #define QLAFX00_MAX_RESET_INTERVAL	600	/* number of seconds */
 #define QLAFX00_CRITEMP_INTERVAL	60	/* number of seconds */
+#define QLAFX00_HINFO_RESEND_INTERVAL	60	/* number of seconds */
 
 #define QLAFX00_CRITEMP_THRSHLD		80	/* Celsius degrees */
 

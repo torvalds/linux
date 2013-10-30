@@ -3370,6 +3370,7 @@ typedef struct scsi_qla_host {
 #define FX00_RESET_RECOVERY	23
 #define FX00_TARGET_SCAN	24
 #define FX00_CRITEMP_RECOVERY	25
+#define FX00_HOST_INFO_RESEND	26
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0

@@ -2495,6 +2495,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mr.fw_reset_timer_tick = QLAFX00_RESET_INTERVAL;
 		ha->mr.fw_critemp_timer_tick = QLAFX00_CRITEMP_INTERVAL;
 		ha->mr.fw_hbt_en = 1;
+		ha->mr.host_info_resend = false;
+		ha->mr.hinfo_resend_timer_tick = QLAFX00_HINFO_RESEND_INTERVAL;
 	}
 
 	ql_dbg_pci(ql_dbg_init, pdev, 0x001e,
@@ -4866,6 +4868,14 @@ qla2x00_do_dpc(void *data)
 				}
 				ql_dbg(ql_dbg_dpc, base_vha, 0x401f,
 				    "ISPFx00 Target Scan End\n");
+			}
+			if (test_and_clear_bit(FX00_HOST_INFO_RESEND,
+				&base_vha->dpc_flags)) {
+				ql_dbg(ql_dbg_dpc, base_vha, 0x4023,
+				    "ISPFx00 Host Info resend scheduled\n");
+				qlafx00_fx_disc(base_vha,
+				    &base_vha->hw->mr.fcport,
+				    FXDISC_REG_HOST_INFO);
 			}
 		}
 
