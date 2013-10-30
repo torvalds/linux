@@ -315,7 +315,6 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 		struct device *dma_dev = bgmac->core->dma_dev;
 		struct bgmac_slot_info *slot = &ring->slots[ring->start];
 		struct sk_buff *skb = slot->skb;
-		struct sk_buff *new_skb;
 		struct bgmac_rx_header *rx;
 		u16 len, flags;
 
@@ -328,38 +327,51 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 		len = le16_to_cpu(rx->len);
 		flags = le16_to_cpu(rx->flags);
 
-		/* Check for poison and drop or pass the packet */
-		if (len == 0xdead && flags == 0xbeef) {
-			bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
-				  ring->start);
-		} else {
+		do {
+			dma_addr_t old_dma_addr = slot->dma_addr;
+			int err;
+
+			/* Check for poison and drop or pass the packet */
+			if (len == 0xdead && flags == 0xbeef) {
+				bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
+					  ring->start);
+				dma_sync_single_for_device(dma_dev,
+							   slot->dma_addr,
+							   BGMAC_RX_BUF_SIZE,
+							   DMA_FROM_DEVICE);
+				break;
+			}
+
 			/* Omit CRC. */
 			len -= ETH_FCS_LEN;
 
-			new_skb = netdev_alloc_skb_ip_align(bgmac->net_dev, len);
-			if (new_skb) {
-				skb_put(new_skb, len);
-				skb_copy_from_linear_data_offset(skb, BGMAC_RX_FRAME_OFFSET,
-								 new_skb->data,
-								 len);
-				skb_checksum_none_assert(skb);
-				new_skb->protocol =
-					eth_type_trans(new_skb, bgmac->net_dev);
-				netif_receive_skb(new_skb);
-				handled++;
-			} else {
-				bgmac->net_dev->stats.rx_dropped++;
-				bgmac_err(bgmac, "Allocation of skb for copying packet failed!\n");
+			/* Prepare new skb as replacement */
+			err = bgmac_dma_rx_skb_for_slot(bgmac, slot);
+			if (err) {
+				/* Poison the old skb */
+				rx->len = cpu_to_le16(0xdead);
+				rx->flags = cpu_to_le16(0xbeef);
+
+				dma_sync_single_for_device(dma_dev,
+							   slot->dma_addr,
+							   BGMAC_RX_BUF_SIZE,
+							   DMA_FROM_DEVICE);
+				break;
 			}
+			bgmac_dma_rx_setup_desc(bgmac, ring, ring->start);
 
-			/* Poison the old skb */
-			rx->len = cpu_to_le16(0xdead);
-			rx->flags = cpu_to_le16(0xbeef);
-		}
+			/* Unmap old skb, we'll pass it to the netfif */
+			dma_unmap_single(dma_dev, old_dma_addr,
+					 BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
-		/* Make it back accessible to the hardware */
-		dma_sync_single_for_device(dma_dev, slot->dma_addr,
-					   BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
+			skb_put(skb, BGMAC_RX_FRAME_OFFSET + len);
+			skb_pull(skb, BGMAC_RX_FRAME_OFFSET);
+
+			skb_checksum_none_assert(skb);
+			skb->protocol = eth_type_trans(skb, bgmac->net_dev);
+			netif_receive_skb(skb);
+			handled++;
+		} while (0);
 
 		if (++ring->start >= BGMAC_RX_RING_SLOTS)
 			ring->start = 0;
