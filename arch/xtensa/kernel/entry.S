@@ -1117,6 +1117,13 @@ ENDPROC(fast_syscall_spill_registers)
  * We basically restore WINDOWBASE and WINDOWSTART to the condition when
  * we entered the spill routine and jump to the user exception handler.
  *
+ * Note that we only need to restore the bits in windowstart that have not
+ * been spilled yet by the _spill_register routine. Luckily, a3 contains a
+ * rotated windowstart with only those bits set for frames that haven't been
+ * spilled yet. Because a3 is rotated such that bit 0 represents the register
+ * frame for the current windowbase - 1, we need to rotate a3 left by the
+ * value of the current windowbase + 1 and move it to windowstart.
+ *
  * a0: value of depc, original value in depc
  * a2: trashed, original value in EXC_TABLE_DOUBLE_SAVE
  * a3: exctable, original value in excsave1
@@ -1131,10 +1138,15 @@ ENTRY(fast_syscall_spill_registers_fixup)
 	/* We need to make sure the current registers (a0-a3) are preserved.
 	 * To do this, we simply set the bit for the current window frame
 	 * in WS, so that the exception handlers save them to the task stack.
+	 *
+	 * Note: we use a3 to set the windowbase, so we take a special care
+	 * of it, saving it in the original _spill_registers frame across
+	 * the exception handler call.
 	 */
 
 	xsr	a3, excsave1	# get spill-mask
 	slli	a3, a3, 1	# shift left by one
+	addi	a3, a3, 1	# set the bit for the current window frame
 
 	slli	a2, a3, 32-WSBITS
 	src	a2, a3, a2	# a2 = xxwww1yyxxxwww1yy......
