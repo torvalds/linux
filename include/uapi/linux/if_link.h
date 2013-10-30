@@ -481,4 +481,17 @@ enum {
 
 #define IFLA_IPOIB_MAX (__IFLA_IPOIB_MAX - 1)
 
+
+/* HSR section */
+
+enum {
+	IFLA_HSR_UNSPEC,
+	IFLA_HSR_SLAVE1,
+	IFLA_HSR_SLAVE2,
+	IFLA_HSR_MULTICAST_SPEC,
+	__IFLA_HSR_MAX,
+};
+
+#define IFLA_HSR_MAX (__IFLA_HSR_MAX - 1)
+
 #endif /* _UAPI_LINUX_IF_LINK_H */
