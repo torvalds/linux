@@ -1555,6 +1555,15 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 		qla8044_idc_lock(ha);
 	}
 
+	drv_state = qla8044_rd_direct(vha,
+	    QLA8044_CRB_DRV_STATE_INDEX);
+	drv_active = qla8044_rd_direct(vha,
+	    QLA8044_CRB_DRV_ACTIVE_INDEX);
+
+	ql_log(ql_log_info, vha, 0xb0c5,
+	    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x\n",
+	    __func__, vha->host_no, drv_state, drv_active);
+
 	if (!ha->flags.nic_core_reset_owner) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb0c3,
 		    "%s(%ld): reset acknowledged\n",
@@ -1580,23 +1589,15 @@ qla8044_need_reset_handler(struct scsi_qla_host *vha)
 
 			dev_state = qla8044_rd_direct(vha,
 					QLA8044_CRB_DEV_STATE_INDEX);
-		} while (dev_state == QLA8XXX_DEV_NEED_RESET);
+		} while (((drv_state & drv_active) != drv_active) &&
+		    (dev_state == QLA8XXX_DEV_NEED_RESET));
 	} else {
 		qla8044_set_rst_ready(vha);
 
 		/* wait for 10 seconds for reset ack from all functions */
 		reset_timeout = jiffies + (ha->fcoe_reset_timeout * HZ);
 
-		drv_state = qla8044_rd_direct(vha,
-		    QLA8044_CRB_DRV_STATE_INDEX);
-		drv_active = qla8044_rd_direct(vha,
-		    QLA8044_CRB_DRV_ACTIVE_INDEX);
-
-		ql_log(ql_log_info, vha, 0xb0c5,
-		    "%s(%ld): drv_state = 0x%x, drv_active = 0x%x\n",
-		    __func__, vha->host_no, drv_state, drv_active);
-
-		while (drv_state != drv_active) {
+		while ((drv_state & drv_active) != drv_active) {
 			if (time_after_eq(jiffies, reset_timeout)) {
 				ql_log(ql_log_info, vha, 0xb0c6,
 				    "%s: RESET TIMEOUT!"
