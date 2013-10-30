@@ -228,6 +228,7 @@ enum {
 	PERF_HPP__OVERHEAD_US,
 	PERF_HPP__OVERHEAD_GUEST_SYS,
 	PERF_HPP__OVERHEAD_GUEST_US,
+	PERF_HPP__OVERHEAD_ACC,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
 
@@ -254,6 +255,9 @@ typedef int (*hpp_snprint_fn)(struct perf_hpp *hpp, const char *fmt, ...);
 int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	       hpp_field_fn get_field, const char *fmt,
 	       hpp_snprint_fn print_fn, bool fmt_percent);
+int __hpp__fmt_acc(struct perf_hpp *hpp, struct hist_entry *he,
+		   hpp_field_fn get_field, const char *fmt,
+		   hpp_snprint_fn print_fn, bool fmt_percent);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {
