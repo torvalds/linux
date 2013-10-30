@@ -107,7 +107,8 @@ int radeon_gem_object_open(struct drm_gem_object *obj,
 void radeon_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
-				      int *vpos, int *hpos);
+				      int *vpos, int *hpos, ktime_t *stime,
+				      ktime_t *etime);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
