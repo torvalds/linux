@@ -152,6 +152,15 @@ struct paca_struct {
 	 */
 	struct opal_machine_check_event *opal_mc_evt;
 #endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Exclusive emergency stack pointer for machine check exception. */
+	void *mc_emergency_sp;
+	/*
+	 * Flag to check whether we are in machine check early handler
+	 * and already using emergency stack.
+	 */
+	u16 in_mce;
+#endif
 
 	/* Stuff for accurate time accounting */
 	u64 user_time;			/* accumulated usermode TB ticks */
