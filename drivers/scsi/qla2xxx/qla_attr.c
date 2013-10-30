@@ -862,7 +862,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 }
 
 void
-qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
+qla2x00_free_sysfs_attr(scsi_qla_host_t *vha, bool stop_beacon)
 {
 	struct Scsi_Host *host = vha->host;
 	struct sysfs_entry *iter;
@@ -880,7 +880,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 		    iter->attr);
 	}
 
-	if (ha->beacon_blink_led == 1)
+	if (stop_beacon && ha->beacon_blink_led == 1)
 		ha->isp_ops->beacon_off(vha);
 }
 
