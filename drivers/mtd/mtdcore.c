@@ -37,7 +37,6 @@
 #include <linux/backing-dev.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
-#include <linux/major.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
