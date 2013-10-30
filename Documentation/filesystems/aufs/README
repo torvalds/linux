@@ -168,9 +168,7 @@ There are several ways to build.
 1.
 - apply ./aufs3-kbuild.patch to your kernel source files.
 - apply ./aufs3-base.patch too.
-- apply ./aufs3-proc_map.patch too, if you want to make /proc/PID/maps (and
-  others including lsof(1)) show the file path on aufs instead of the
-  path on the branch fs.
+- apply ./aufs3-mmap.patch too.
 - apply ./aufs3-standalone.patch too, if you have a plan to set
   CONFIG_AUFS_FS=m. otherwise you don't need ./aufs3-standalone.patch.
 - copy ./{Documentation,fs,include/uapi/linux/aufs_type.h} files to your
@@ -187,9 +185,7 @@ There are several ways to build.
 2.
 - module only (CONFIG_AUFS_FS=m).
 - apply ./aufs3-base.patch to your kernel source files.
-- apply ./aufs3-proc_map.patch too to your kernel source files,
-  if you want to make /proc/PID/maps (and others including lsof(1)) show
-  the file path on aufs instead of the path on the branch fs.
+- apply ./aufs3-mmap.patch too.
 - apply ./aufs3-standalone.patch too.
 - build your kernel, don't forget "make headers_install", and reboot.
 - edit ./config.mk and set other aufs configurations if necessary.
