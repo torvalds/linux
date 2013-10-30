@@ -392,32 +392,10 @@ static inline void alloc_system_vector(int vector)
 	}
 }
 
-#ifdef CONFIG_TRACING
-static inline void trace_set_intr_gate(unsigned int gate, void *addr)
-{
-	gate_desc s;
-
-	pack_gate(&s, GATE_INTERRUPT, (unsigned long)addr, 0, 0, __KERNEL_CS);
-	write_idt_entry(trace_idt_table, gate, &s);
-}
-
-static inline void __trace_alloc_intr_gate(unsigned int n, void *addr)
-{
-	trace_set_intr_gate(n, addr);
-}
-#else
-static inline void trace_set_intr_gate(unsigned int gate, void *addr)
-{
-}
-
-#define __trace_alloc_intr_gate(n, addr)
-#endif
-
 #define alloc_intr_gate(n, addr)				\
 	do {							\
 		alloc_system_vector(n);				\
 		set_intr_gate(n, addr);				\
-		__trace_alloc_intr_gate(n, trace_##addr);	\
 	} while (0)
 
 /*
