@@ -1249,9 +1249,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_JUNIPER:
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
-	case CHIP_BARTS:
-	case CHIP_TURKS:
-	case CHIP_CAICOS:
 	case CHIP_CAYMAN:
 	case CHIP_ARUBA:
 	case CHIP_BONAIRE:
@@ -1272,6 +1269,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_PALM:
 	case CHIP_SUMO:
 	case CHIP_SUMO2:
+	case CHIP_BARTS:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
 	case CHIP_VERDE:
