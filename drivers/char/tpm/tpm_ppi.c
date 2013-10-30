@@ -30,6 +30,9 @@ static acpi_status ppi_callback(acpi_handle handle, u32 level, void *context,
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+	if (ACPI_FAILURE(status))
+		return status;
+
 	if (strstr(buffer.pointer, context) != NULL) {
 		*return_value = handle;
 		kfree(buffer.pointer);
