@@ -917,8 +917,8 @@ qla2x00_serial_num_show(struct device *dev, struct device_attribute *attr,
 		return snprintf(buf, PAGE_SIZE, "%s\n",
 		    vha->hw->mr.serial_num);
 	} else if (IS_FWI2_CAPABLE(ha)) {
-		qla2xxx_get_vpd_field(vha, "SN", buf, PAGE_SIZE);
-		return snprintf(buf, PAGE_SIZE, "%s\n", buf);
+		qla2xxx_get_vpd_field(vha, "SN", buf, PAGE_SIZE - 1);
+		return strlen(strcat(buf, "\n"));
 	}
 
 	sn = ((ha->serial0 & 0x1f) << 16) | (ha->serial2 << 8) | ha->serial1;
