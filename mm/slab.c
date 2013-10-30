@@ -2531,14 +2531,6 @@ static struct freelist *alloc_slabmgmt(struct kmem_cache *cachep,
 		/* Slab management obj is off-slab. */
 		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
 					      local_flags, nodeid);
-		/*
-		 * If the first object in the slab is leaked (it's allocated
-		 * but no one has a reference to it), we want to make sure
-		 * kmemleak does not treat the ->s_mem pointer as a reference
-		 * to the object. Otherwise we will not report the leak.
-		 */
-		kmemleak_scan_area(&page->lru, sizeof(struct list_head),
-				   local_flags);
 		if (!freelist)
 			return NULL;
 	} else {
