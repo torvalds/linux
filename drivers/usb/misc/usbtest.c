@@ -657,6 +657,25 @@ static int is_good_ss_cap(struct usbtest_dev *tdev, u8 *buf)
 	return 1;
 }
 
+static int is_good_con_id(struct usbtest_dev *tdev, u8 *buf)
+{
+	struct usb_ss_container_id_descriptor *con_id;
+
+	con_id = (struct usb_ss_container_id_descriptor *) buf;
+
+	if (con_id->bLength != USB_DT_USB_SS_CONTN_ID_SIZE) {
+		ERROR(tdev, "bogus container id descriptor length\n");
+		return 0;
+	}
+
+	if (con_id->bReserved) {	/* reserved == 0 */
+		ERROR(tdev, "reserved bits set\n");
+		return 0;
+	}
+
+	return 1;
+}
+
 /* sanity test for standard requests working with usb_control_mesg() and some
  * of the utility functions which use it.
  *
@@ -807,6 +826,14 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 						dev->buf + total ||
 						!is_good_ss_cap(dev, buf)) {
 					dev_err(&iface->dev, "bogus superspeed device capability descriptor\n");
+					return -EDOM;
+				}
+				break;
+			case CONTAINER_ID_TYPE:
+				if (buf + USB_DT_USB_SS_CONTN_ID_SIZE >
+						dev->buf + total ||
+						!is_good_con_id(dev, buf)) {
+					dev_err(&iface->dev, "bogus container id descriptor\n");
 					return -EDOM;
 				}
 				break;
