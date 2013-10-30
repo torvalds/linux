@@ -197,12 +197,13 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 		 */
 		if (mapping_cap_account_dirty(mapping)) {
 			unsigned long addr;
-			struct file *file = get_file(vma->vm_file);
+			struct file *file = vma->vm_file;
 
 			flags &= MAP_NONBLOCK;
+			vma_get_file(vma);
 			addr = mmap_region(file, start, size,
 					flags, vma->vm_flags, pgoff);
-			fput(file);
+			vma_fput(vma);
 			if (IS_ERR_VALUE(addr)) {
 				err = addr;
 			} else {
