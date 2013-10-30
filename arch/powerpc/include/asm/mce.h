@@ -190,5 +190,8 @@ extern void save_mce_event(struct pt_regs *regs, long handled,
 			   struct mce_error_info *mce_err, uint64_t addr);
 extern int get_mce_event(struct machine_check_event *mce, bool release);
 extern void release_mce_event(void);
+extern void machine_check_queue_event(void);
+extern void machine_check_process_queued_event(void);
+extern void machine_check_print_event_info(struct machine_check_event *evt);
 
 #endif /* __ASM_PPC64_MCE_H__ */

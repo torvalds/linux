@@ -258,29 +258,6 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 int opal_machine_check(struct pt_regs *regs)
 {
 	struct machine_check_event evt;
-	const char *level, *sevstr, *subtype;
-	static const char *opal_mc_ue_types[] = {
-		"Indeterminate",
-		"Instruction fetch",
-		"Page table walk ifetch",
-		"Load/Store",
-		"Page table walk Load/Store",
-	};
-	static const char *opal_mc_slb_types[] = {
-		"Indeterminate",
-		"Parity",
-		"Multihit",
-	};
-	static const char *opal_mc_erat_types[] = {
-		"Indeterminate",
-		"Parity",
-		"Multihit",
-	};
-	static const char *opal_mc_tlb_types[] = {
-		"Indeterminate",
-		"Parity",
-		"Multihit",
-	};
 
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return 0;
@@ -291,80 +268,8 @@ int opal_machine_check(struct pt_regs *regs)
 		       evt.version);
 		return 0;
 	}
-	switch(evt.severity) {
-	case MCE_SEV_NO_ERROR:
-		level = KERN_INFO;
-		sevstr = "Harmless";
-		break;
-	case MCE_SEV_WARNING:
-		level = KERN_WARNING;
-		sevstr = "";
-		break;
-	case MCE_SEV_ERROR_SYNC:
-		level = KERN_ERR;
-		sevstr = "Severe";
-		break;
-	case MCE_SEV_FATAL:
-	default:
-		level = KERN_ERR;
-		sevstr = "Fatal";
-		break;
-	}
+	machine_check_print_event_info(&evt);
 
-	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
-	       evt.disposition == MCE_DISPOSITION_RECOVERED ?
-	       "Recovered" : "[Not recovered");
-	printk("%s  Initiator: %s\n", level,
-	       evt.initiator == MCE_INITIATOR_CPU ? "CPU" : "Unknown");
-	switch(evt.error_type) {
-	case MCE_ERROR_TYPE_UE:
-		subtype = evt.u.ue_error.ue_error_type <
-			ARRAY_SIZE(opal_mc_ue_types) ?
-			opal_mc_ue_types[evt.u.ue_error.ue_error_type]
-			: "Unknown";
-		printk("%s  Error type: UE [%s]\n", level, subtype);
-		if (evt.u.ue_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.ue_error.effective_address);
-		if (evt.u.ue_error.physical_address_provided)
-			printk("%s      Physial address: %016llx\n",
-			       level, evt.u.ue_error.physical_address);
-		break;
-	case MCE_ERROR_TYPE_SLB:
-		subtype = evt.u.slb_error.slb_error_type <
-			ARRAY_SIZE(opal_mc_slb_types) ?
-			opal_mc_slb_types[evt.u.slb_error.slb_error_type]
-			: "Unknown";
-		printk("%s  Error type: SLB [%s]\n", level, subtype);
-		if (evt.u.slb_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.slb_error.effective_address);
-		break;
-	case MCE_ERROR_TYPE_ERAT:
-		subtype = evt.u.erat_error.erat_error_type <
-			ARRAY_SIZE(opal_mc_erat_types) ?
-			opal_mc_erat_types[evt.u.erat_error.erat_error_type]
-			: "Unknown";
-		printk("%s  Error type: ERAT [%s]\n", level, subtype);
-		if (evt.u.erat_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.erat_error.effective_address);
-		break;
-	case MCE_ERROR_TYPE_TLB:
-		subtype = evt.u.tlb_error.tlb_error_type <
-			ARRAY_SIZE(opal_mc_tlb_types) ?
-			opal_mc_tlb_types[evt.u.tlb_error.tlb_error_type]
-			: "Unknown";
-		printk("%s  Error type: TLB [%s]\n", level, subtype);
-		if (evt.u.tlb_error.effective_address_provided)
-			printk("%s    Effective address: %016llx\n",
-			       level, evt.u.tlb_error.effective_address);
-		break;
-	default:
-	case MCE_ERROR_TYPE_UNKNOWN:
-		printk("%s  Error type: Unknown\n", level);
-		break;
-	}
 	return evt.severity == MCE_SEV_FATAL ? 0 : 1;
 }
 
