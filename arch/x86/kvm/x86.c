@@ -2718,8 +2718,7 @@ static void wbinvd_ipi(void *garbage)
 
 static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
 {
-	return vcpu->kvm->arch.iommu_domain &&
-	       vcpu->kvm->arch.iommu_noncoherent;
+	return kvm_arch_has_noncoherent_dma(vcpu->kvm);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -6998,6 +6997,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
 	INIT_LIST_HEAD(&kvm->arch.zapped_obsolete_pages);
 	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
+	atomic_set(&kvm->arch.noncoherent_dma_count, 0);
 
 	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
 	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
@@ -7436,6 +7436,24 @@ bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
 		return !kvm_event_needs_reinjection(vcpu) &&
 			kvm_x86_ops->interrupt_allowed(vcpu);
 }
+
+void kvm_arch_register_noncoherent_dma(struct kvm *kvm)
+{
+	atomic_inc(&kvm->arch.noncoherent_dma_count);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_register_noncoherent_dma);
+
+void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm)
+{
+	atomic_dec(&kvm->arch.noncoherent_dma_count);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_unregister_noncoherent_dma);
+
+bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
+{
+	return atomic_read(&kvm->arch.noncoherent_dma_count);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_inj_virq);

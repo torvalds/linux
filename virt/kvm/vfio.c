@@ -27,6 +27,7 @@ struct kvm_vfio_group {
 struct kvm_vfio {
 	struct list_head group_list;
 	struct mutex lock;
+	bool noncoherent;
 };
 
 static struct vfio_group *kvm_vfio_group_get_external_user(struct file *filep)
@@ -56,6 +57,43 @@ static void kvm_vfio_group_put_external_user(struct vfio_group *vfio_group)
 	fn(vfio_group);
 
 	symbol_put(vfio_group_put_external_user);
+}
+
+/*
+ * Groups can use the same or different IOMMU domains.  If the same then
+ * adding a new group may change the coherency of groups we've previously
+ * been told about.  We don't want to care about any of that so we retest
+ * each group and bail as soon as we find one that's noncoherent.  This
+ * means we only ever [un]register_noncoherent_dma once for the whole device.
+ */
+static void kvm_vfio_update_coherency(struct kvm_device *dev)
+{
+	struct kvm_vfio *kv = dev->private;
+	bool noncoherent = false;
+	struct kvm_vfio_group *kvg;
+
+	mutex_lock(&kv->lock);
+
+	list_for_each_entry(kvg, &kv->group_list, node) {
+		/*
+		 * TODO: We need an interface to check the coherency of
+		 * the IOMMU domain this group is using.  For now, assume
+		 * it's always noncoherent.
+		 */
+		noncoherent = true;
+		break;
+	}
+
+	if (noncoherent != kv->noncoherent) {
+		kv->noncoherent = noncoherent;
+
+		if (kv->noncoherent)
+			kvm_arch_register_noncoherent_dma(dev->kvm);
+		else
+			kvm_arch_unregister_noncoherent_dma(dev->kvm);
+	}
+
+	mutex_unlock(&kv->lock);
 }
 
 static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
@@ -105,6 +143,8 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 
 		mutex_unlock(&kv->lock);
 
+		kvm_vfio_update_coherency(dev);
+
 		return 0;
 
 	case KVM_DEV_VFIO_GROUP_DEL:
@@ -139,6 +179,8 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 		mutex_unlock(&kv->lock);
 
 		kvm_vfio_group_put_external_user(vfio_group);
+
+		kvm_vfio_update_coherency(dev);
 
 		return ret;
 	}
@@ -184,6 +226,8 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 		list_del(&kvg->node);
 		kfree(kvg);
 	}
+
+	kvm_vfio_update_coherency(dev);
 
 	kfree(kv);
 	kfree(dev); /* alloc by kvm_ioctl_create_device, free by .destroy */

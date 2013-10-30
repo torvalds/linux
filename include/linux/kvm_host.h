@@ -670,6 +670,25 @@ static inline void kvm_arch_free_vm(struct kvm *kvm)
 }
 #endif
 
+#ifdef __KVM_HAVE_ARCH_NONCOHERENT_DMA
+void kvm_arch_register_noncoherent_dma(struct kvm *kvm);
+void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm);
+bool kvm_arch_has_noncoherent_dma(struct kvm *kvm);
+#else
+static inline void kvm_arch_register_noncoherent_dma(struct kvm *kvm)
+{
+}
+
+static inline void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm)
+{
+}
+
+static inline bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
+{
+	return false;
+}
+#endif
+
 static inline wait_queue_head_t *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
 {
 #ifdef __KVM_HAVE_ARCH_WQP
