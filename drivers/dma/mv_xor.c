@@ -1035,6 +1035,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	}
 
 	mv_chan->mmr_base = xordev->xor_base;
+	mv_chan->mmr_high_base = xordev->xor_high_base;
 	tasklet_init(&mv_chan->irq_tasklet, mv_xor_tasklet, (unsigned long)
 		     mv_chan);
 
@@ -1093,7 +1094,7 @@ static void
 mv_xor_conf_mbus_windows(struct mv_xor_device *xordev,
 			 const struct mbus_dram_target_info *dram)
 {
-	void __iomem *base = xordev->xor_base;
+	void __iomem *base = xordev->xor_high_base;
 	u32 win_enable = 0;
 	int i;
 
