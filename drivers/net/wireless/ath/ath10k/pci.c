@@ -2471,7 +2471,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ret = ath10k_do_pci_wake(ar);
 	if (ret) {
 		ath10k_err("Failed to get chip id: %d\n", ret);
-		return ret;
+		goto err_iomap;
 	}
 
 	chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
