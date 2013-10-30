@@ -1622,8 +1622,7 @@ static struct radeon_asic cayman_asic = {
 	.vm = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cayman_vm_set_page,
+		.set_page = &cayman_dma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &cayman_gfx_ring,
@@ -1723,8 +1722,7 @@ static struct radeon_asic trinity_asic = {
 	.vm = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cayman_vm_set_page,
+		.set_page = &cayman_dma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &cayman_gfx_ring,
@@ -1854,8 +1852,7 @@ static struct radeon_asic si_asic = {
 	.vm = {
 		.init = &si_vm_init,
 		.fini = &si_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &si_vm_set_page,
+		.set_page = &si_dma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &si_gfx_ring,
@@ -2000,8 +1997,7 @@ static struct radeon_asic ci_asic = {
 	.vm = {
 		.init = &cik_vm_init,
 		.fini = &cik_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cik_vm_set_page,
+		.set_page = &cik_sdma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &ci_gfx_ring,
@@ -2100,8 +2096,7 @@ static struct radeon_asic kv_asic = {
 	.vm = {
 		.init = &cik_vm_init,
 		.fini = &cik_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cik_vm_set_page,
+		.set_page = &cik_sdma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &ci_gfx_ring,

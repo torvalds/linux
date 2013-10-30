@@ -832,6 +832,12 @@ struct radeon_mec {
 #define RADEON_VM_PTB_ALIGN_MASK (RADEON_VM_PTB_ALIGN_SIZE - 1)
 #define RADEON_VM_PTB_ALIGN(a) (((a) + RADEON_VM_PTB_ALIGN_MASK) & ~RADEON_VM_PTB_ALIGN_MASK)
 
+#define R600_PTE_VALID		(1 << 0)
+#define R600_PTE_SYSTEM		(1 << 1)
+#define R600_PTE_SNOOPED	(1 << 2)
+#define R600_PTE_READABLE	(1 << 5)
+#define R600_PTE_WRITEABLE	(1 << 6)
+
 struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
@@ -1675,8 +1681,6 @@ struct radeon_asic {
 	struct {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
-
-		u32 pt_ring_index;
 		void (*set_page)(struct radeon_device *rdev,
 				 struct radeon_ib *ib,
 				 uint64_t pe,

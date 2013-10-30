@@ -654,13 +654,12 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			  uint64_t addr, unsigned count,
 			  uint32_t incr, uint32_t flags)
 {
-	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	uint64_t value;
 	unsigned ndw;
 
-	trace_radeon_vm_set_page(pe, addr, count, incr, r600_flags);
+	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
 
-	if (flags & RADEON_VM_PAGE_SYSTEM) {
+	if (flags & R600_PTE_SYSTEM) {
 		while (count) {
 			ndw = count * 2;
 			if (ndw > 0xFFFFE)
@@ -672,16 +671,10 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 			ib->ptr[ib->length_dw++] = ndw;
 			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
 				addr += incr;
-				value |= r600_flags;
+				value |= flags;
 				ib->ptr[ib->length_dw++] = value;
 				ib->ptr[ib->length_dw++] = upper_32_bits(value);
 			}
@@ -692,7 +685,7 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			if (ndw > 0x7FFFF)
 				ndw = 0x7FFFF;
 
-			if (flags & RADEON_VM_PAGE_VALID)
+			if (flags & R600_PTE_VALID)
 				value = addr;
 			else
 				value = 0;
@@ -700,7 +693,7 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_GENERATE_PTE_PDE, 0, 0);
 			ib->ptr[ib->length_dw++] = pe; /* dst addr */
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-			ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+			ib->ptr[ib->length_dw++] = flags; /* mask */
 			ib->ptr[ib->length_dw++] = 0;
 			ib->ptr[ib->length_dw++] = value; /* value */
 			ib->ptr[ib->length_dw++] = upper_32_bits(value);

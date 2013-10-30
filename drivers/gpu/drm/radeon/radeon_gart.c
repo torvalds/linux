@@ -914,6 +914,26 @@ uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr)
 }
 
 /**
+ * radeon_vm_page_flags - translate page flags to what the hw uses
+ *
+ * @flags: flags comming from userspace
+ *
+ * Translate the flags the userspace ABI uses to hw flags.
+ */
+static uint32_t radeon_vm_page_flags(uint32_t flags)
+{
+        uint32_t hw_flags = 0;
+        hw_flags |= (flags & RADEON_VM_PAGE_VALID) ? R600_PTE_VALID : 0;
+        hw_flags |= (flags & RADEON_VM_PAGE_READABLE) ? R600_PTE_READABLE : 0;
+        hw_flags |= (flags & RADEON_VM_PAGE_WRITEABLE) ? R600_PTE_WRITEABLE : 0;
+        if (flags & RADEON_VM_PAGE_SYSTEM) {
+                hw_flags |= R600_PTE_SYSTEM;
+                hw_flags |= (flags & RADEON_VM_PAGE_SNOOPED) ? R600_PTE_SNOOPED : 0;
+        }
+        return hw_flags;
+}
+
+/**
  * radeon_vm_update_pdes - make sure that page directory is valid
  *
  * @rdev: radeon_device pointer
@@ -974,7 +994,7 @@ retry:
 			if (count) {
 				radeon_asic_vm_set_page(rdev, ib, last_pde,
 							last_pt, count, incr,
-							RADEON_VM_PAGE_VALID);
+							R600_PTE_VALID);
 			}
 
 			count = 1;
@@ -987,7 +1007,7 @@ retry:
 
 	if (count) {
 		radeon_asic_vm_set_page(rdev, ib, last_pde, last_pt, count,
-					incr, RADEON_VM_PAGE_VALID);
+					incr, R600_PTE_VALID);
 
 	}
 
@@ -1082,7 +1102,6 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_bo *bo,
 			    struct ttm_mem_reg *mem)
 {
-	unsigned ridx = rdev->asic->vm.pt_ring_index;
 	struct radeon_ib ib;
 	struct radeon_bo_va *bo_va;
 	unsigned nptes, npdes, ndw;
@@ -1155,7 +1174,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	if (ndw > 0xfffff)
 		return -ENOMEM;
 
-	r = radeon_ib_get(rdev, ridx, &ib, NULL, ndw * 4);
+	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, ndw * 4);
 	ib.length_dw = 0;
 
 	r = radeon_vm_update_pdes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset);
@@ -1165,7 +1184,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	}
 
 	radeon_vm_update_ptes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset,
-			      addr, bo_va->flags);
+			      addr, radeon_vm_page_flags(bo_va->flags));
 
 	radeon_ib_sync_to(&ib, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
