@@ -545,4 +545,7 @@ struct mr_data_fx00 {
 
 #define QLAFX00_CRITEMP_THRSHLD		80	/* Celsius degrees */
 
+/* Max conncurrent IOs that can be queued */
+#define QLAFX00_MAX_CANQUEUE		1024
+
 #endif

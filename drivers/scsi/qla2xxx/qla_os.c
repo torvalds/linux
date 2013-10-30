@@ -2562,7 +2562,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host = base_vha->host;
 	base_vha->req = req;
 	if (IS_QLAFX00(ha))
-		host->can_queue = 1024;
+		host->can_queue = QLAFX00_MAX_CANQUEUE;
 	else
 		host->can_queue = req->length + 128;
 	if (IS_QLA2XXX_MIDTYPE(ha))
