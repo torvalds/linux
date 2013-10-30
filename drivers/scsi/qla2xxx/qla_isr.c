@@ -298,11 +298,18 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		{ "Complete", "Request Notification", "Time Extension" };
 	int rval;
 	struct device_reg_24xx __iomem *reg24 = &vha->hw->iobase->isp24;
+	struct device_reg_82xx __iomem *reg82 = &vha->hw->iobase->isp82;
 	uint16_t __iomem *wptr;
 	uint16_t cnt, timeout, mb[QLA_IDC_ACK_REGS];
 
 	/* Seed data -- mailbox1 -> mailbox7. */
-	wptr = (uint16_t __iomem *)&reg24->mailbox1;
+	if (IS_QLA81XX(vha->hw) || IS_QLA83XX(vha->hw))
+		wptr = (uint16_t __iomem *)&reg24->mailbox1;
+	else if (IS_QLA8044(vha->hw))
+		wptr = (uint16_t __iomem *)&reg82->mailbox_out[1];
+	else
+		return;
+
 	for (cnt = 0; cnt < QLA_IDC_ACK_REGS; cnt++, wptr++)
 		mb[cnt] = RD_REG_WORD(wptr);
 
