@@ -1942,8 +1942,8 @@ static int vpe_probe(struct platform_device *pdev)
 	int ret, irq, func;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	if (!dev)
+		return -ENOMEM;
 
 	spin_lock_init(&dev->lock);
 
@@ -1962,8 +1962,8 @@ static int vpe_probe(struct platform_device *pdev)
 	 * registers based on the sub block base addresses
 	 */
 	dev->base = devm_ioremap(&pdev->dev, res->start, SZ_32K);
-	if (IS_ERR(dev->base)) {
-		ret = PTR_ERR(dev->base);
+	if (!dev->base) {
+		ret = -ENOMEM;
 		goto v4l2_dev_unreg;
 	}
 
