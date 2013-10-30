@@ -26,7 +26,7 @@
 #include "sysfs.h"
 
 DEFINE_MUTEX(sysfs_mutex);
-DEFINE_SPINLOCK(sysfs_assoc_lock);
+DEFINE_SPINLOCK(sysfs_symlink_target_lock);
 
 #define to_sysfs_dirent(X) rb_entry((X), struct sysfs_dirent, s_rb)
 
@@ -902,9 +902,21 @@ void sysfs_remove_dir(struct kobject *kobj)
 {
 	struct sysfs_dirent *sd = kobj->sd;
 
-	spin_lock(&sysfs_assoc_lock);
+	/*
+	 * In general, kboject owner is responsible for ensuring removal
+	 * doesn't race with other operations and sysfs doesn't provide any
+	 * protection; however, when @kobj is used as a symlink target, the
+	 * symlinking entity usually doesn't own @kobj and thus has no
+	 * control over removal.  @kobj->sd may be removed anytime and
+	 * symlink code may end up dereferencing an already freed sd.
+	 *
+	 * sysfs_symlink_target_lock synchronizes @kobj->sd disassociation
+	 * against symlink operations so that symlink code can safely
+	 * dereference @kobj->sd.
+	 */
+	spin_lock(&sysfs_symlink_target_lock);
 	kobj->sd = NULL;
-	spin_unlock(&sysfs_assoc_lock);
+	spin_unlock(&sysfs_symlink_target_lock);
 
 	if (sd) {
 		WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);

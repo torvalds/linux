@@ -159,7 +159,7 @@ extern struct kmem_cache *sysfs_dir_cachep;
  * dir.c
  */
 extern struct mutex sysfs_mutex;
-extern spinlock_t sysfs_assoc_lock;
+extern spinlock_t sysfs_symlink_target_lock;
 extern const struct dentry_operations sysfs_dentry_ops;
 
 extern const struct file_operations sysfs_dir_operations;

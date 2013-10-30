@@ -32,13 +32,15 @@ static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 
 	BUG_ON(!name || !parent_sd);
 
-	/* target->sd can go away beneath us but is protected with
-	 * sysfs_assoc_lock.  Fetch target_sd from it.
+	/*
+	 * We don't own @target and it may be removed at any time.
+	 * Synchronize using sysfs_symlink_target_lock.  See
+	 * sysfs_remove_dir() for details.
 	 */
-	spin_lock(&sysfs_assoc_lock);
+	spin_lock(&sysfs_symlink_target_lock);
 	if (target->sd)
 		target_sd = sysfs_get(target->sd);
-	spin_unlock(&sysfs_assoc_lock);
+	spin_unlock(&sysfs_symlink_target_lock);
 
 	error = -ENOENT;
 	if (!target_sd)
@@ -140,10 +142,16 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 			const char *name)
 {
 	const void *ns = NULL;
-	spin_lock(&sysfs_assoc_lock);
+
+	/*
+	 * We don't own @target and it may be removed at any time.
+	 * Synchronize using sysfs_symlink_target_lock.  See
+	 * sysfs_remove_dir() for details.
+	 */
+	spin_lock(&sysfs_symlink_target_lock);
 	if (targ->sd)
 		ns = targ->sd->s_ns;
-	spin_unlock(&sysfs_assoc_lock);
+	spin_unlock(&sysfs_symlink_target_lock);
 	sysfs_hash_and_remove(kobj->sd, name, ns);
 }
 
