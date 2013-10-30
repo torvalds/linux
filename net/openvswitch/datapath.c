@@ -251,9 +251,9 @@ void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
 	OVS_CB(skb)->flow = flow;
 	OVS_CB(skb)->pkt_key = &key;
 
-	stats_counter = &stats->n_hit;
-	ovs_flow_used(OVS_CB(skb)->flow, skb);
+	ovs_flow_stats_update(OVS_CB(skb)->flow, skb);
 	ovs_execute_actions(dp, skb);
+	stats_counter = &stats->n_hit;
 
 out:
 	/* Update datapath statistics. */
@@ -459,14 +459,6 @@ out:
 	return err;
 }
 
-static void clear_stats(struct sw_flow *flow)
-{
-	flow->used = 0;
-	flow->tcp_flags = 0;
-	flow->packet_count = 0;
-	flow->byte_count = 0;
-}
-
 static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 {
 	struct ovs_header *ovs_header = info->userhdr;
@@ -505,7 +497,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		packet->protocol = htons(ETH_P_802_2);
 
 	/* Build an sw_flow for sending this packet. */
-	flow = ovs_flow_alloc();
+	flow = ovs_flow_alloc(false);
 	err = PTR_ERR(flow);
 	if (IS_ERR(flow))
 		goto err_kfree_skb;
@@ -641,10 +633,10 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 	const int skb_orig_len = skb->len;
 	struct nlattr *start;
 	struct ovs_flow_stats stats;
+	__be16 tcp_flags;
+	unsigned long used;
 	struct ovs_header *ovs_header;
 	struct nlattr *nla;
-	unsigned long used;
-	u8 tcp_flags;
 	int err;
 
 	ovs_header = genlmsg_put(skb, portid, seq, &dp_flow_genl_family, flags, cmd);
@@ -673,24 +665,17 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 
 	nla_nest_end(skb, nla);
 
-	spin_lock_bh(&flow->lock);
-	used = flow->used;
-	stats.n_packets = flow->packet_count;
-	stats.n_bytes = flow->byte_count;
-	tcp_flags = (u8)ntohs(flow->tcp_flags);
-	spin_unlock_bh(&flow->lock);
-
+	ovs_flow_stats_get(flow, &stats, &used, &tcp_flags);
 	if (used &&
 	    nla_put_u64(skb, OVS_FLOW_ATTR_USED, ovs_flow_used_time(used)))
 		goto nla_put_failure;
 
 	if (stats.n_packets &&
-	    nla_put(skb, OVS_FLOW_ATTR_STATS,
-		    sizeof(struct ovs_flow_stats), &stats))
+	    nla_put(skb, OVS_FLOW_ATTR_STATS, sizeof(struct ovs_flow_stats), &stats))
 		goto nla_put_failure;
 
-	if (tcp_flags &&
-	    nla_put_u8(skb, OVS_FLOW_ATTR_TCP_FLAGS, tcp_flags))
+	if ((u8)ntohs(tcp_flags) &&
+	     nla_put_u8(skb, OVS_FLOW_ATTR_TCP_FLAGS, (u8)ntohs(tcp_flags)))
 		goto nla_put_failure;
 
 	/* If OVS_FLOW_ATTR_ACTIONS doesn't fit, skip dumping the actions if
@@ -770,6 +755,7 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	struct datapath *dp;
 	struct sw_flow_actions *acts = NULL;
 	struct sw_flow_match match;
+	bool exact_5tuple;
 	int error;
 
 	/* Extract key. */
@@ -778,7 +764,7 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		goto error;
 
 	ovs_match_init(&match, &key, &mask);
-	error = ovs_nla_get_match(&match,
+	error = ovs_nla_get_match(&match, &exact_5tuple,
 				  a[OVS_FLOW_ATTR_KEY], a[OVS_FLOW_ATTR_MASK]);
 	if (error)
 		goto error;
@@ -817,12 +803,11 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 			goto err_unlock_ovs;
 
 		/* Allocate flow. */
-		flow = ovs_flow_alloc();
+		flow = ovs_flow_alloc(!exact_5tuple);
 		if (IS_ERR(flow)) {
 			error = PTR_ERR(flow);
 			goto err_unlock_ovs;
 		}
-		clear_stats(flow);
 
 		flow->key = masked_key;
 		flow->unmasked_key = key;
@@ -866,11 +851,8 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 		reply = ovs_flow_cmd_build_info(flow, dp, info, OVS_FLOW_CMD_NEW);
 
 		/* Clear stats. */
-		if (a[OVS_FLOW_ATTR_CLEAR]) {
-			spin_lock_bh(&flow->lock);
-			clear_stats(flow);
-			spin_unlock_bh(&flow->lock);
-		}
+		if (a[OVS_FLOW_ATTR_CLEAR])
+			ovs_flow_stats_clear(flow);
 	}
 	ovs_unlock();
 
@@ -908,7 +890,7 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	ovs_match_init(&match, &key, NULL);
-	err = ovs_nla_get_match(&match, a[OVS_FLOW_ATTR_KEY], NULL);
+	err = ovs_nla_get_match(&match, NULL, a[OVS_FLOW_ATTR_KEY], NULL);
 	if (err)
 		return err;
 
@@ -962,7 +944,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	ovs_match_init(&match, &key, NULL);
-	err = ovs_nla_get_match(&match, a[OVS_FLOW_ATTR_KEY], NULL);
+	err = ovs_nla_get_match(&match, NULL, a[OVS_FLOW_ATTR_KEY], NULL);
 	if (err)
 		goto unlock;
 

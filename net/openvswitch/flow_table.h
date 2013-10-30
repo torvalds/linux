@@ -55,7 +55,7 @@ struct flow_table {
 int ovs_flow_init(void);
 void ovs_flow_exit(void);
 
-struct sw_flow *ovs_flow_alloc(void);
+struct sw_flow *ovs_flow_alloc(bool percpu_stats);
 void ovs_flow_free(struct sw_flow *, bool deferred);
 
 int ovs_flow_tbl_init(struct flow_table *);

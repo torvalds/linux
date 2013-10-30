@@ -72,19 +72,42 @@ void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		*d++ = *s++ & *m++;
 }
 
-struct sw_flow *ovs_flow_alloc(void)
+struct sw_flow *ovs_flow_alloc(bool percpu_stats)
 {
 	struct sw_flow *flow;
+	int cpu;
 
 	flow = kmem_cache_alloc(flow_cache, GFP_KERNEL);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_init(&flow->lock);
 	flow->sf_acts = NULL;
 	flow->mask = NULL;
 
+	flow->stats.is_percpu = percpu_stats;
+
+	if (!percpu_stats) {
+		flow->stats.stat = kzalloc(sizeof(*flow->stats.stat), GFP_KERNEL);
+		if (!flow->stats.stat)
+			goto err;
+
+		spin_lock_init(&flow->stats.stat->lock);
+	} else {
+		flow->stats.cpu_stats = alloc_percpu(struct flow_stats);
+		if (!flow->stats.cpu_stats)
+			goto err;
+
+		for_each_possible_cpu(cpu) {
+			struct flow_stats *cpu_stats;
+
+			cpu_stats = per_cpu_ptr(flow->stats.cpu_stats, cpu);
+			spin_lock_init(&cpu_stats->lock);
+		}
+	}
 	return flow;
+err:
+	kfree(flow);
+	return ERR_PTR(-ENOMEM);
 }
 
 int ovs_flow_tbl_count(struct flow_table *table)
@@ -118,6 +141,10 @@ static struct flex_array *alloc_buckets(unsigned int n_buckets)
 static void flow_free(struct sw_flow *flow)
 {
 	kfree((struct sf_flow_acts __force *)flow->sf_acts);
+	if (flow->stats.is_percpu)
+		free_percpu(flow->stats.cpu_stats);
+	else
+		kfree(flow->stats.stat);
 	kmem_cache_free(flow_cache, flow);
 }
 
