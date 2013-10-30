@@ -836,12 +836,17 @@ struct drm_driver {
 	/**
 	 * Called by vblank timestamping code.
 	 *
-	 * Return the current display scanout position from a crtc.
+	 * Return the current display scanout position from a crtc, and an
+	 * optional accurate ktime_get timestamp of when position was measured.
 	 *
 	 * \param dev  DRM device.
 	 * \param crtc Id of the crtc to query.
 	 * \param *vpos Target location for current vertical scanout position.
 	 * \param *hpos Target location for current horizontal scanout position.
+	 * \param *stime Target location for timestamp taken immediately before
+	 *               scanout position query. Can be NULL to skip timestamp.
+	 * \param *etime Target location for timestamp taken immediately after
+	 *               scanout position query. Can be NULL to skip timestamp.
 	 *
 	 * Returns vpos as a positive number while in active scanout area.
 	 * Returns vpos as a negative number inside vblank, counting the number
@@ -858,7 +863,8 @@ struct drm_driver {
 	 *
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, int crtc,
-				     int *vpos, int *hpos);
+				     int *vpos, int *hpos, ktime_t *stime,
+				     ktime_t *etime);
 
 	/**
 	 * Called by \c drm_get_last_vbltimestamp. Should return a precise
