@@ -159,6 +159,9 @@ extern int qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
 extern int __qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
 extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 
+extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
+extern void qla2x00_disable_board_on_pci_error(struct work_struct *);
+
 /*
  * Global Functions in qla_mid.c source file.
  */
@@ -454,6 +457,7 @@ extern uint8_t *qla25xx_read_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
 extern int qla25xx_write_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
 				    uint32_t);
 extern int qla2x00_is_a_vp_did(scsi_qla_host_t *, uint32_t);
+bool qla2x00_check_reg_for_disconnect(scsi_qla_host_t *, uint32_t);
 
 extern int qla2x00_beacon_on(struct scsi_qla_host *);
 extern int qla2x00_beacon_off(struct scsi_qla_host *);

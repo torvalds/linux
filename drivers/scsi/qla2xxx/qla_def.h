@@ -3301,6 +3301,7 @@ struct qla_hw_data {
 	struct work_struct nic_core_reset;
 	struct work_struct idc_state_handler;
 	struct work_struct nic_core_unrecoverable;
+	struct work_struct board_disable;
 
 	struct mr_data_fx00 mr;
 

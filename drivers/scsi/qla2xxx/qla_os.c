@@ -2738,6 +2738,8 @@ que_init:
 	 */
 	qla2xxx_wake_dpc(base_vha);
 
+	INIT_WORK(&ha->board_disable, qla2x00_disable_board_on_pci_error);
+
 	if (IS_QLA8031(ha) || IS_MCTP_CAPABLE(ha)) {
 		sprintf(wq_name, "qla2xxx_%lu_dpc_lp_wq", base_vha->host_no);
 		ha->dpc_lp_wq = create_singlethread_workqueue(wq_name);
@@ -4673,6 +4675,66 @@ exit:
 	return rval;
 }
 
+void
+qla2x00_disable_board_on_pci_error(struct work_struct *work)
+{
+	struct qla_hw_data *ha = container_of(work, struct qla_hw_data,
+	    board_disable);
+	struct pci_dev *pdev = ha->pdev;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
+	ql_log(ql_log_warn, base_vha, 0x015b,
+	    "Disabling adapter.\n");
+
+	set_bit(UNLOADING, &base_vha->dpc_flags);
+
+	qla2x00_delete_all_vps(ha, base_vha);
+
+	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
+
+	qla2x00_dfs_remove(base_vha);
+
+	qla84xx_put_chip(base_vha);
+
+	if (base_vha->timer_active)
+		qla2x00_stop_timer(base_vha);
+
+	base_vha->flags.online = 0;
+
+	qla2x00_destroy_deferred_work(ha);
+
+	/*
+	 * Do not try to stop beacon blink as it will issue a mailbox
+	 * command.
+	 */
+	qla2x00_free_sysfs_attr(base_vha, false);
+
+	fc_remove_host(base_vha->host);
+
+	scsi_remove_host(base_vha->host);
+
+	base_vha->flags.init_done = 0;
+	qla25xx_delete_queues(base_vha);
+	qla2x00_free_irqs(base_vha);
+	qla2x00_free_fcports(base_vha);
+	qla2x00_mem_free(ha);
+	qla82xx_md_free(base_vha);
+	qla2x00_free_queues(ha);
+
+	scsi_host_put(base_vha->host);
+
+	qla2x00_unmap_iobases(ha);
+
+	pci_release_selected_regions(ha->pdev, ha->bars);
+	kfree(ha);
+	ha = NULL;
+
+	pci_disable_pcie_error_reporting(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+
+}
+
 /**************************************************************************
 * qla2x00_do_dpc
 *   This kernel thread is a task that is schedule by the interrupt handler
@@ -5026,9 +5088,20 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		return;
 	}
 
-	/* Hardware read to raise pending EEH errors during mailbox waits. */
-	if (!pci_channel_offline(ha->pdev))
+	/*
+	 * Hardware read to raise pending EEH errors during mailbox waits. If
+	 * the read returns -1 then disable the board.
+	 */
+	if (!pci_channel_offline(ha->pdev)) {
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
+		if (w == 0xffff)
+			/*
+			 * Schedule this on the default system workqueue so that
+			 * all the adapter workqueues and the DPC thread can be
+			 * shutdown cleanly.
+			 */
+			schedule_work(&ha->board_disable);
+	}
 
 	/* Make sure qla82xx_watchdog is run only for physical port */
 	if (!vha->vp_idx && IS_P3P_TYPE(ha)) {
