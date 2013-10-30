@@ -424,12 +424,9 @@ static inline int mmc_regulator_get_supply(struct mmc_host *mmc)
 
 int mmc_pm_notify(struct notifier_block *notify_block, unsigned long, void *);
 
-/* Module parameter */
-extern bool mmc_assume_removable;
-
 static inline int mmc_card_is_removable(struct mmc_host *host)
 {
-	return !(host->caps & MMC_CAP_NONREMOVABLE) && mmc_assume_removable;
+	return !(host->caps & MMC_CAP_NONREMOVABLE);
 }
 
 static inline int mmc_card_keep_power(struct mmc_host *host)
