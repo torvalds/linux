@@ -1100,17 +1100,6 @@ static int lowpan_set_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int lowpan_get_mac_header_length(struct sk_buff *skb)
-{
-	/*
-	 * Currently long addressing mode is supported only, so the overall
-	 * header size is 21:
-	 * FC SeqNum DPAN DA  SA  Sec
-	 * 2  +  1  +  2 + 8 + 8 + 0  = 21
-	 */
-	return 21;
-}
-
 static int
 lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 			int mlen, int plen, int offset, int type)
@@ -1150,7 +1139,7 @@ lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 	int  err, header_length, payload_length, tag, offset = 0;
 	u8 head[5];
 
-	header_length = lowpan_get_mac_header_length(skb);
+	header_length = skb->mac_len;
 	payload_length = skb->len - header_length;
 	tag = lowpan_dev_info(dev)->fragment_tag++;
 
