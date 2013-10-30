@@ -1105,12 +1105,6 @@ static void sbridge_put_all_devices(void)
 	}
 }
 
-/*
- *	sbridge_get_all_devices	Find and perform 'get' operation on the MCH's
- *			device/functions we want to reference for this driver
- *
- *			Need to 'get' device 16 func 1 and func 2
- */
 static int sbridge_get_onedevice(struct pci_dev **prev,
 				 u8 *num_mc,
 				 const struct pci_id_table *table,
@@ -1212,11 +1206,21 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	return 0;
 }
 
-static int sbridge_get_all_devices(u8 *num_mc)
+/*
+ * sbridge_get_all_devices - Find and perform 'get' operation on the MCH's
+ *			     device/functions we want to reference for this driver.
+ *			     Need to 'get' device 16 func 1 and func 2.
+ * @num_mc: pointer to the memory controllers count, to be incremented in case
+ * 	    of success.
+ * @table: model specific table
+ *
+ * returns 0 in case of success or error code
+ */
+static int sbridge_get_all_devices(u8 *num_mc,
+				   const struct pci_id_table *table)
 {
 	int i, rc;
 	struct pci_dev *pdev = NULL;
-	const struct pci_id_table *table = pci_dev_descr_sbridge_table;
 
 	while (table && table->descr) {
 		for (i = 0; i < table->n_devs; i++) {
@@ -1736,7 +1740,7 @@ static int sbridge_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	probed++;
 
-	rc = sbridge_get_all_devices(&num_mc);
+	rc = sbridge_get_all_devices(&num_mc, pci_dev_descr_sbridge_table);
 	if (unlikely(rc < 0))
 		goto fail0;
 	mc = 0;
