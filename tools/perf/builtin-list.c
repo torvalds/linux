@@ -14,20 +14,31 @@
 #include "util/parse-events.h"
 #include "util/cache.h"
 #include "util/pmu.h"
+#include "util/parse-options.h"
 
 int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int i;
+	const struct option list_options[] = {
+		OPT_END()
+	};
+	const char * const list_usage[] = {
+		"perf list [hw|sw|cache|tracepoint|pmu|event_glob]",
+		NULL
+	};
+
+	argc = parse_options(argc, argv, list_options, list_usage,
+			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	setup_pager();
 
-	if (argc == 1) {
+	if (argc == 0) {
 		print_events(NULL, false);
 		return 0;
 	}
 
-	for (i = 1; i < argc; ++i) {
-		if (i > 2)
+	for (i = 0; i < argc; ++i) {
+		if (i)
 			putchar('\n');
 		if (strncmp(argv[i], "tracepoint", 10) == 0)
 			print_tracepoint_events(NULL, NULL, false);
