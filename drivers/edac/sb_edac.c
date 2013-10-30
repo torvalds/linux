@@ -309,7 +309,7 @@ struct sbridge_dev {
 struct sbridge_pvt {
 	struct pci_dev		*pci_ta, *pci_ddrio, *pci_ras;
 	struct pci_dev		*pci_sad0, *pci_sad1, *pci_ha0;
-	struct pci_dev		*pci_br;
+	struct pci_dev		*pci_br0;
 	struct pci_dev		*pci_tad[NUM_CHANNELS];
 
 	struct sbridge_dev	*sbridge_dev;
@@ -534,10 +534,10 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 	pvt->info.rankcfgr = SB_RANK_CFG_A;
 
-	pci_read_config_dword(pvt->pci_br, SAD_TARGET, &reg);
+	pci_read_config_dword(pvt->pci_br0, SAD_TARGET, &reg);
 	pvt->sbridge_dev->source_id = SOURCE_ID(reg);
 
-	pci_read_config_dword(pvt->pci_br, SAD_CONTROL, &reg);
+	pci_read_config_dword(pvt->pci_br0, SAD_CONTROL, &reg);
 	pvt->sbridge_dev->node_id = NODE_ID(reg);
 	edac_dbg(0, "mc#%d: Node ID: %d, source ID: %d\n",
 		 pvt->sbridge_dev->mc,
@@ -1267,7 +1267,7 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 		case 13:
 			switch (func) {
 			case 6:
-				pvt->pci_br = pdev;
+				pvt->pci_br0 = pdev;
 				break;
 			default:
 				goto error;
