@@ -1369,7 +1369,6 @@
 			};
 
 			hdmi: hdmi@0120000 {
-				compatible = "fsl,imx6q-hdmi";
 				reg = <0x00120000 0x9000>;
 				interrupts = <0 115 0x04>;
 				gpr = <&gpr>;

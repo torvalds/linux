@@ -161,5 +161,6 @@
 };
 
 &hdmi {
+	compatible = "fsl,imx6q-hdmi";
 	crtcs = <&ipu1 0>, <&ipu1 1>, <&ipu2 0>, <&ipu2 1>;
 };
