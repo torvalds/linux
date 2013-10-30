@@ -442,7 +442,7 @@ int msdos_partition(struct parsed_partitions *state)
 	int slot;
 #ifdef CONFIG_EMMC_RK
 	//if card is emmc, msdos_partition return false
-	if(state->bdev->bd_disk->first_minor == 0)
+	if(state->bdev->bd_disk->major == MMC_BLOCK_MAJOR &&state->bdev->bd_disk->first_minor == 0)
 		return 0;
 #endif
 
