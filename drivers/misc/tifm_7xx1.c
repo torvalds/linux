@@ -356,8 +356,10 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, fm);
 
 	fm->addr = pci_ioremap_bar(dev, 0);
-	if (!fm->addr)
+	if (!fm->addr) {
+		rc = -ENODEV;
 		goto err_out_free;
+	}
 
 	rc = request_irq(dev->irq, tifm_7xx1_isr, IRQF_SHARED, DRIVER_NAME, fm);
 	if (rc)
