@@ -629,6 +629,80 @@ xfs_da3_node_hdr_to_disk(
 /*
  * Directory free space block operations
  */
+static int
+xfs_dir2_free_hdr_size(void)
+{
+	return sizeof(struct xfs_dir2_free_hdr);
+}
+
+static int
+xfs_dir2_free_max_bests(struct xfs_mount *mp)
+{
+	return (mp->m_dirblksize - xfs_dir2_free_hdr_size()) /
+		sizeof(xfs_dir2_data_off_t);
+}
+
+static __be16 *
+xfs_dir2_free_bests_p(struct xfs_dir2_free *free)
+{
+	return (__be16 *)((char *)free + xfs_dir2_free_hdr_size());
+}
+
+/*
+ * Convert data space db to the corresponding free db.
+ */
+static xfs_dir2_db_t
+xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
+{
+	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir2_free_max_bests(mp);
+}
+
+/*
+ * Convert data space db to the corresponding index in a free db.
+ */
+static int
+xfs_dir2_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
+{
+	return db % xfs_dir2_free_max_bests(mp);
+}
+
+static int
+xfs_dir3_free_hdr_size(void)
+{
+	return sizeof(struct xfs_dir3_free_hdr);
+}
+
+static int
+xfs_dir3_free_max_bests(struct xfs_mount *mp)
+{
+	return (mp->m_dirblksize - xfs_dir3_free_hdr_size()) /
+		sizeof(xfs_dir2_data_off_t);
+}
+
+static __be16 *
+xfs_dir3_free_bests_p(struct xfs_dir2_free *free)
+{
+	return (__be16 *)((char *)free + xfs_dir3_free_hdr_size());
+}
+
+/*
+ * Convert data space db to the corresponding free db.
+ */
+static xfs_dir2_db_t
+xfs_dir3_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
+{
+	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir3_free_max_bests(mp);
+}
+
+/*
+ * Convert data space db to the corresponding index in a free db.
+ */
+static int
+xfs_dir3_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
+{
+	return db % xfs_dir3_free_max_bests(mp);
+}
+
 static void
 xfs_dir2_free_hdr_from_disk(
 	struct xfs_dir3_icfree_hdr	*to,
@@ -722,8 +796,13 @@ const struct xfs_dir_ops xfs_dir2_ops = {
 	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
+	.free_hdr_size = xfs_dir2_free_hdr_size,
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
+	.free_max_bests = xfs_dir2_free_max_bests,
+	.free_bests_p = xfs_dir2_free_bests_p,
+	.db_to_fdb = xfs_dir2_db_to_fdb,
+	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
 
 const struct xfs_dir_ops xfs_dir2_ftype_ops = {
@@ -764,8 +843,13 @@ const struct xfs_dir_ops xfs_dir2_ftype_ops = {
 	.node_hdr_from_disk = xfs_da2_node_hdr_from_disk,
 	.node_tree_p = xfs_da2_node_tree_p,
 
+	.free_hdr_size = xfs_dir2_free_hdr_size,
 	.free_hdr_to_disk = xfs_dir2_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir2_free_hdr_from_disk,
+	.free_max_bests = xfs_dir2_free_max_bests,
+	.free_bests_p = xfs_dir2_free_bests_p,
+	.db_to_fdb = xfs_dir2_db_to_fdb,
+	.db_to_fdindex = xfs_dir2_db_to_fdindex,
 };
 
 const struct xfs_dir_ops xfs_dir3_ops = {
@@ -806,8 +890,13 @@ const struct xfs_dir_ops xfs_dir3_ops = {
 	.node_hdr_from_disk = xfs_da3_node_hdr_from_disk,
 	.node_tree_p = xfs_da3_node_tree_p,
 
+	.free_hdr_size = xfs_dir3_free_hdr_size,
 	.free_hdr_to_disk = xfs_dir3_free_hdr_to_disk,
 	.free_hdr_from_disk = xfs_dir3_free_hdr_from_disk,
+	.free_max_bests = xfs_dir3_free_max_bests,
+	.free_bests_p = xfs_dir3_free_bests_p,
+	.db_to_fdb = xfs_dir3_db_to_fdb,
+	.db_to_fdindex = xfs_dir3_db_to_fdindex,
 };
 
 const struct xfs_dir_ops xfs_dir2_nondir_ops = {

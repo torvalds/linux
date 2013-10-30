@@ -92,10 +92,15 @@ struct xfs_dir_ops {
 	struct xfs_da_node_entry *
 		(*node_tree_p)(struct xfs_da_intnode *dap);
 
+	int	(*free_hdr_size)(void);
 	void	(*free_hdr_to_disk)(struct xfs_dir2_free *to,
 				    struct xfs_dir3_icfree_hdr *from);
 	void	(*free_hdr_from_disk)(struct xfs_dir3_icfree_hdr *to,
 				      struct xfs_dir2_free *from);
+	int	(*free_max_bests)(struct xfs_mount *mp);
+	__be16 * (*free_bests_p)(struct xfs_dir2_free *free);
+	xfs_dir2_db_t (*db_to_fdb)(struct xfs_mount *mp, xfs_dir2_db_t db);
+	int	(*db_to_fdindex)(struct xfs_mount *mp, xfs_dir2_db_t db);
 };
 
 extern const struct xfs_dir_ops *

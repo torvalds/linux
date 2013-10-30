@@ -704,45 +704,6 @@ struct xfs_dir3_icfree_hdr {
 
 };
 
-static inline int
-xfs_dir3_free_hdr_size(struct xfs_mount *mp)
-{
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		return sizeof(struct xfs_dir3_free_hdr);
-	return sizeof(struct xfs_dir2_free_hdr);
-}
-
-static inline int
-xfs_dir3_free_max_bests(struct xfs_mount *mp)
-{
-	return (mp->m_dirblksize - xfs_dir3_free_hdr_size(mp)) /
-		sizeof(xfs_dir2_data_off_t);
-}
-
-static inline __be16 *
-xfs_dir3_free_bests_p(struct xfs_mount *mp, struct xfs_dir2_free *free)
-{
-	return (__be16 *)((char *)free + xfs_dir3_free_hdr_size(mp));
-}
-
-/*
- * Convert data space db to the corresponding free db.
- */
-static inline xfs_dir2_db_t
-xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
-{
-	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir3_free_max_bests(mp);
-}
-
-/*
- * Convert data space db to the corresponding index in a free db.
- */
-static inline int
-xfs_dir2_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
-{
-	return db % xfs_dir3_free_max_bests(mp);
-}
-
 /*
  * Single block format.
  *
