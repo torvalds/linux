@@ -789,7 +789,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 
 		size = ip - to; /* Must fit our buffer, see above */
 		bytes = copy_from_user_nmi(buf, (void __user *)to, size);
-		if (bytes != size)
+		if (bytes != 0)
 			return 0;
 
 		kaddr = buf;

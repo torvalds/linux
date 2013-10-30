@@ -31,6 +31,6 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 	ret = __copy_from_user_inatomic(to, from, n);
 	pagefault_enable();
 
-	return n - ret;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(copy_from_user_nmi);

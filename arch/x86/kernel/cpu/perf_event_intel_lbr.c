@@ -491,7 +491,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 
 		/* may fail if text not present */
 		bytes = copy_from_user_nmi(buf, (void __user *)from, size);
-		if (bytes != size)
+		if (bytes != 0)
 			return X86_BR_NONE;
 
 		addr = buf;
