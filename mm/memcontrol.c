@@ -3774,7 +3774,7 @@ void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
 	/* Update stat data for mem_cgroup */
 	preempt_disable();
 	WARN_ON_ONCE(from->stat->count[idx] < nr_pages);
-	__this_cpu_add(from->stat->count[idx], -nr_pages);
+	__this_cpu_sub(from->stat->count[idx], nr_pages);
 	__this_cpu_add(to->stat->count[idx], nr_pages);
 	preempt_enable();
 }
