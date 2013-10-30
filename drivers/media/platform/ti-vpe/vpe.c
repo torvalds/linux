@@ -2007,8 +2007,10 @@ static int vpe_probe(struct platform_device *pdev)
 	vpe_top_vpdma_reset(dev);
 
 	dev->vpdma = vpdma_create(pdev);
-	if (IS_ERR(dev->vpdma))
+	if (IS_ERR(dev->vpdma)) {
+		ret = PTR_ERR(dev->vpdma);
 		goto runtime_put;
+	}
 
 	vfd = &dev->vfd;
 	*vfd = vpe_videodev;
