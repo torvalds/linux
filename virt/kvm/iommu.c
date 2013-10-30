@@ -79,7 +79,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 	flags = IOMMU_READ;
 	if (!(slot->flags & KVM_MEM_READONLY))
 		flags |= IOMMU_WRITE;
-	if (kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY)
+	if (!kvm->arch.iommu_noncoherent)
 		flags |= IOMMU_CACHE;
 
 
@@ -158,7 +158,8 @@ int kvm_assign_device(struct kvm *kvm,
 {
 	struct pci_dev *pdev = NULL;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
-	int r, last_flags;
+	int r;
+	bool noncoherent;
 
 	/* check if iommu exists and in use */
 	if (!domain)
@@ -174,15 +175,13 @@ int kvm_assign_device(struct kvm *kvm,
 		return r;
 	}
 
-	last_flags = kvm->arch.iommu_flags;
-	if (iommu_domain_has_cap(kvm->arch.iommu_domain,
-				 IOMMU_CAP_CACHE_COHERENCY))
-		kvm->arch.iommu_flags |= KVM_IOMMU_CACHE_COHERENCY;
+	noncoherent = !iommu_domain_has_cap(kvm->arch.iommu_domain,
+					    IOMMU_CAP_CACHE_COHERENCY);
 
 	/* Check if need to update IOMMU page table for guest memory */
-	if ((last_flags ^ kvm->arch.iommu_flags) ==
-			KVM_IOMMU_CACHE_COHERENCY) {
+	if (noncoherent != kvm->arch.iommu_noncoherent) {
 		kvm_iommu_unmap_memslots(kvm);
+		kvm->arch.iommu_noncoherent = noncoherent;
 		r = kvm_iommu_map_memslots(kvm);
 		if (r)
 			goto out_unmap;
@@ -342,6 +341,7 @@ int kvm_iommu_unmap_guest(struct kvm *kvm)
 	mutex_lock(&kvm->slots_lock);
 	kvm_iommu_unmap_memslots(kvm);
 	kvm->arch.iommu_domain = NULL;
+	kvm->arch.iommu_noncoherent = false;
 	mutex_unlock(&kvm->slots_lock);
 
 	iommu_domain_free(domain);

@@ -2719,7 +2719,7 @@ static void wbinvd_ipi(void *garbage)
 static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->arch.iommu_domain &&
-		!(vcpu->kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY);
+	       vcpu->kvm->arch.iommu_noncoherent;
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
