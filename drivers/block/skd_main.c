@@ -5321,8 +5321,10 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	skdev = skd_construct(pdev);
-	if (skdev == NULL)
+	if (skdev == NULL) {
+		rc = -ENOMEM;
 		goto err_out_regions;
+	}
 
 	skd_pci_info(skdev, pci_str);
 	pr_info("(%s): %s 64bit\n", skd_name(skdev), pci_str);
