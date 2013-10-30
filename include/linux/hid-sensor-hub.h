@@ -21,6 +21,8 @@
 
 #include <linux/hid.h>
 #include <linux/hid-sensor-ids.h>
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 /**
  * struct hid_sensor_hub_attribute_info - Attribute info
@@ -184,6 +186,7 @@ struct hid_sensor_common {
 	struct platform_device *pdev;
 	unsigned usage_id;
 	bool data_ready;
+	struct iio_trigger *trigger;
 	struct hid_sensor_hub_attribute_info poll;
 	struct hid_sensor_hub_attribute_info report_state;
 	struct hid_sensor_hub_attribute_info power_state;
