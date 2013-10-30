@@ -71,8 +71,10 @@ int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 		 * TODO: Encrypt the stored data with a temporary key.
 		 */
 		file = shmem_file_setup("", datalen, 0);
-		if (IS_ERR(file))
+		if (IS_ERR(file)) {
+			ret = PTR_ERR(file);
 			goto err_quota;
+		}
 
 		written = kernel_write(file, prep->data, prep->datalen, 0);
 		if (written != datalen) {
