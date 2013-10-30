@@ -477,7 +477,6 @@ static int sysfs_bin_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!sysfs_get_active(of->sd))
 		goto out_unlock;
 
-	rc = -EINVAL;
 	if (!battr->mmap)
 		goto out_put;
 
