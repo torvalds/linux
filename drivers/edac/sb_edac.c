@@ -1244,8 +1244,8 @@ static int sbridge_get_all_devices(u8 *num_mc,
 	return 0;
 }
 
-static int mci_bind_devs(struct mem_ctl_info *mci,
-			 struct sbridge_dev *sbridge_dev)
+static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
+				 struct sbridge_dev *sbridge_dev)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev;
@@ -1687,7 +1687,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	mci->edac_check = sbridge_check_error;
 
 	/* Store pci devices at mci for faster access */
-	rc = mci_bind_devs(mci, sbridge_dev);
+	rc = sbridge_mci_bind_devs(mci, sbridge_dev);
 	if (unlikely(rc < 0))
 		goto fail0;
 
