@@ -4613,6 +4613,8 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 link_type, u8 addr_type, u8 status)
 {
+	u8 bdaddr_type = link_to_bdaddr(link_type, addr_type);
+	struct mgmt_cp_disconnect *cp;
 	struct mgmt_rp_disconnect rp;
 	struct pending_cmd *cmd;
 
@@ -4623,8 +4625,16 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (!cmd)
 		return;
 
+	cp = cmd->param;
+
+	if (bacmp(bdaddr, &cp->addr.bdaddr))
+		return;
+
+	if (cp->addr.type != bdaddr_type)
+		return;
+
 	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = link_to_bdaddr(link_type, addr_type);
+	rp.addr.type = bdaddr_type;
 
 	cmd_complete(cmd->sk, cmd->index, MGMT_OP_DISCONNECT,
 		     mgmt_status(status), &rp, sizeof(rp));
