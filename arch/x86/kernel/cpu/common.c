@@ -346,8 +346,8 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 			continue;
 
 		printk(KERN_WARNING
-		       "CPU: CPU feature %s disabled, no CPUID level 0x%x\n",
-				x86_cap_flags[df->feature], df->level);
+		       "CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
+				x86_cap_flag(df->feature), df->level);
 	}
 }
 
