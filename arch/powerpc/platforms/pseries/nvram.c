@@ -429,9 +429,6 @@ static int __init pseries_nvram_init_os_partition(struct nvram_os_partition
 	loff_t p;
 	int size;
 
-	/* Scan nvram for partitions */
-	nvram_scan_partitions();
-
 	/* Look for ours */
 	p = nvram_find_partition(part->name, NVRAM_SIG_OS, &size);
 
@@ -794,6 +791,9 @@ static void __init nvram_init_oops_partition(int rtas_partition_exists)
 static int __init pseries_nvram_init_log_partitions(void)
 {
 	int rc;
+
+	/* Scan nvram for partitions */
+	nvram_scan_partitions();
 
 	rc = pseries_nvram_init_os_partition(&rtas_log_partition);
 	nvram_init_oops_partition(rc == 0);
