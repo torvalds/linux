@@ -12,7 +12,7 @@
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x015b       | 0x4b,0xba,0xfa |
- * | Mailbox commands             |       0x1181       | 0x111a-0x111b  |
+ * | Mailbox commands             |       0x1187       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
  * |                              |                    | 0x1018-0x1019  |
  * |                              |                    | 0x1115-0x1116  |

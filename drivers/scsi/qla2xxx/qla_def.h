@@ -862,7 +862,6 @@ struct mbx_cmd_32 {
  */
 #define MBC_LOAD_RAM			1	/* Load RAM. */
 #define MBC_EXECUTE_FIRMWARE		2	/* Execute firmware. */
-#define MBC_WRITE_RAM_WORD		4	/* Write RAM word. */
 #define MBC_READ_RAM_WORD		5	/* Read RAM word. */
 #define MBC_MAILBOX_REGISTER_TEST	6	/* Wrap incoming mailboxes */
 #define MBC_VERIFY_CHECKSUM		7	/* Verify checksum. */
@@ -937,6 +936,8 @@ struct mbx_cmd_32 {
 /*
  * ISP24xx mailbox commands
  */
+#define MBC_WRITE_SERDES		0x3	/* Write serdes word. */
+#define MBC_READ_SERDES			0x4	/* Read serdes word. */
 #define MBC_SERDES_PARAMS		0x10	/* Serdes Tx Parameters. */
 #define MBC_GET_IOCB_STATUS		0x12	/* Get IOCB status command. */
 #define MBC_PORT_PARAMS			0x1A	/* Port iDMA Parameters. */

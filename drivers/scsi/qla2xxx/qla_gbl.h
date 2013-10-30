@@ -341,6 +341,11 @@ extern int
 qla2x00_system_error(scsi_qla_host_t *);
 
 extern int
+qla2x00_write_serdes_word(scsi_qla_host_t *, uint16_t, uint16_t);
+extern int
+qla2x00_read_serdes_word(scsi_qla_host_t *, uint16_t, uint16_t *);
+
+extern int
 qla2x00_set_serdes_params(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);
 
 extern int
