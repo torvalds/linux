@@ -606,6 +606,28 @@ static int is_good_config(struct usbtest_dev *tdev, int len)
 	return 0;
 }
 
+static int is_good_ext(struct usbtest_dev *tdev, u8 *buf)
+{
+	struct usb_ext_cap_descriptor *ext;
+	u32 attr;
+
+	ext = (struct usb_ext_cap_descriptor *) buf;
+
+	if (ext->bLength != USB_DT_USB_EXT_CAP_SIZE) {
+		ERROR(tdev, "bogus usb 2.0 extension descriptor length\n");
+		return 0;
+	}
+
+	attr = le32_to_cpu(ext->bmAttributes);
+	/* bits[1:4] is used and others are reserved */
+	if (attr & ~0x1e) {	/* reserved == 0 */
+		ERROR(tdev, "reserved bits set\n");
+		return 0;
+	}
+
+	return 1;
+}
+
 /* sanity test for standard requests working with usb_control_mesg() and some
  * of the utility functions which use it.
  *
@@ -694,11 +716,66 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	 * 3.0 spec
 	 */
 	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0300) {
+		struct usb_bos_descriptor *bos = NULL;
+		struct usb_dev_cap_header *header = NULL;
+		unsigned total, num, length;
+		u8 *buf;
+
 		retval = usb_get_descriptor(udev, USB_DT_BOS, 0, dev->buf,
 				sizeof(*udev->bos->desc));
 		if (retval != sizeof(*udev->bos->desc)) {
 			dev_err(&iface->dev, "bos descriptor --> %d\n", retval);
 			return (retval < 0) ? retval : -EDOM;
+		}
+
+		bos = (struct usb_bos_descriptor *)dev->buf;
+		total = le16_to_cpu(bos->wTotalLength);
+		num = bos->bNumDeviceCaps;
+
+		if (total > TBUF_SIZE)
+			total = TBUF_SIZE;
+
+		/*
+		 * get generic device-level capability descriptors [9.6.2]
+		 * in USB 3.0 spec
+		 */
+		retval = usb_get_descriptor(udev, USB_DT_BOS, 0, dev->buf,
+				total);
+		if (retval != total) {
+			dev_err(&iface->dev, "bos descriptor set --> %d\n",
+					retval);
+			return (retval < 0) ? retval : -EDOM;
+		}
+
+		length = sizeof(*udev->bos->desc);
+		buf = dev->buf;
+		for (i = 0; i < num; i++) {
+			buf += length;
+			if (buf + sizeof(struct usb_dev_cap_header) >
+					dev->buf + total)
+				break;
+
+			header = (struct usb_dev_cap_header *)buf;
+			length = header->bLength;
+
+			if (header->bDescriptorType !=
+					USB_DT_DEVICE_CAPABILITY) {
+				dev_warn(&udev->dev, "not device capability descriptor, skip\n");
+				continue;
+			}
+
+			switch (header->bDevCapabilityType) {
+			case USB_CAP_TYPE_EXT:
+				if (buf + USB_DT_USB_EXT_CAP_SIZE >
+						dev->buf + total ||
+						!is_good_ext(dev, buf)) {
+					dev_err(&iface->dev, "bogus usb 2.0 extension descriptor\n");
+					return -EDOM;
+				}
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
