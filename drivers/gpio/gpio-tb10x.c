@@ -207,10 +207,8 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	spin_lock_init(&tb10x_gpio->spinlock);
 
 	tb10x_gpio->base = devm_ioremap_resource(&pdev->dev, mem);
-	if (!tb10x_gpio->base) {
-		dev_err(&pdev->dev, "Could not remap reg space.\n");
-		goto fail_ioremap;
-	}
+	if (IS_ERR(tb10x_gpio->base))
+		return PTR_ERR(tb10x_gpio->base);
 
 	tb10x_gpio->gc.label		= of_node_full_name(dn);
 	tb10x_gpio->gc.dev		= &pdev->dev;
