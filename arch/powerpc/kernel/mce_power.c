@@ -148,3 +148,37 @@ long __machine_check_early_realmode_p7(struct pt_regs *regs)
 	/* TODO: Decode machine check reason. */
 	return handled;
 }
+
+static long mce_handle_ierror_p8(uint64_t srr1)
+{
+	long handled = 0;
+
+	handled = mce_handle_common_ierror(srr1);
+
+	if (P7_SRR1_MC_IFETCH(srr1) == P8_SRR1_MC_IFETCH_ERAT_MULTIHIT) {
+		flush_and_reload_slb();
+		handled = 1;
+	}
+	return handled;
+}
+
+static long mce_handle_derror_p8(uint64_t dsisr)
+{
+	return mce_handle_derror(dsisr, P8_DSISR_MC_SLB_ERRORS);
+}
+
+long __machine_check_early_realmode_p8(struct pt_regs *regs)
+{
+	uint64_t srr1;
+	long handled = 1;
+
+	srr1 = regs->msr;
+
+	if (P7_SRR1_MC_LOADSTORE(srr1))
+		handled = mce_handle_derror_p8(regs->dsisr);
+	else
+		handled = mce_handle_ierror_p8(srr1);
+
+	/* TODO: Decode machine check reason. */
+	return handled;
+}
