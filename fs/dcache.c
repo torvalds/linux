@@ -1331,14 +1331,6 @@ rename_retry:
  * list is non-empty and continue searching.
  */
 
-/**
- * have_submounts - check for mounts over a dentry
- * @parent: dentry to check.
- *
- * Return true if the parent or its subdirectories contain
- * a mount point
- */
-
 static enum d_walk_ret check_mount(void *data, struct dentry *dentry)
 {
 	int *ret = data;
@@ -1349,6 +1341,13 @@ static enum d_walk_ret check_mount(void *data, struct dentry *dentry)
 	return D_WALK_CONTINUE;
 }
 
+/**
+ * have_submounts - check for mounts over a dentry
+ * @parent: dentry to check.
+ *
+ * Return true if the parent or its subdirectories contain
+ * a mount point
+ */
 int have_submounts(struct dentry *parent)
 {
 	int ret = 0;

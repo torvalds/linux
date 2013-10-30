@@ -687,6 +687,10 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 	else
 		return -EIO;
 
+	/* no need to send SMB logoff if uid already closed due to reconnect */
+	if (ses->need_reconnect)
+		goto smb2_session_already_dead;
+
 	rc = small_smb2_init(SMB2_LOGOFF, NULL, (void **) &req);
 	if (rc)
 		return rc;
@@ -701,6 +705,8 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 	 * No tcon so can't do
 	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
 	 */
+
+smb2_session_already_dead:
 	return rc;
 }
 
