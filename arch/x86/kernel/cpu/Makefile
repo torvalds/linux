@@ -13,9 +13,11 @@ nostackp := $(call cc-option, -fno-stack-protector)
 CFLAGS_common.o		:= $(nostackp)
 
 obj-y			:= intel_cacheinfo.o scattered.o topology.o
-obj-y			+= proc.o capflags.o powerflags.o common.o
+obj-y			+= capflags.o powerflags.o common.o
 obj-y			+= rdrand.o
 obj-y			+= match.o
+
+obj-$(CONFIG_PROC_FS)	+= proc.o
 
 obj-$(CONFIG_X86_32)	+= bugs.o
 obj-$(CONFIG_X86_64)	+= bugs_64.o
