@@ -288,13 +288,11 @@ static inline void au_vm_file_reset(struct vm_area_struct *vma,
 static inline void au_vm_prfile_set(struct vm_area_struct *vma,
 				    struct file *file)
 {
-#ifdef CONFIG_AUFS_PROC_MAP
 	get_file(file);
 	vma->vm_prfile = file;
 #ifndef CONFIG_MMU
 	get_file(file);
 	vma->vm_region->vm_prfile = file;
-#endif
 #endif
 }
 
