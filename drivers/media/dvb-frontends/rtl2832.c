@@ -489,6 +489,7 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		init = rtl2832_tuner_init_e4000;
 		break;
 	case RTL2832_TUNER_R820T:
+	case RTL2832_TUNER_R828D:
 		len = ARRAY_SIZE(rtl2832_tuner_init_r820t);
 		init = rtl2832_tuner_init_r820t;
 		break;
