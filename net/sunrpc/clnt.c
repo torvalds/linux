@@ -31,7 +31,6 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/un.h>
-#include <linux/rcupdate.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/addr.h>
