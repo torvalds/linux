@@ -586,11 +586,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	 * code gets preempted or delayed for some reason.
 	 */
 	for (i = 0; i < DRM_TIMESTAMP_MAXRETRIES; i++) {
-		/* Disable preemption to make it very likely to
-		 * succeed in the first iteration even on PREEMPT_RT kernel.
-		 */
-		preempt_disable();
-
 		/* Get system timestamp before query. */
 		stime = ktime_get();
 
@@ -601,8 +596,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 		etime = ktime_get();
 		if (!drm_timestamp_monotonic)
 			mono_time_offset = ktime_get_monotonic_offset();
-
-		preempt_enable();
 
 		/* Return as no-op if scanout query unsupported or failed. */
 		if (!(vbl_status & DRM_SCANOUTPOS_VALID)) {
