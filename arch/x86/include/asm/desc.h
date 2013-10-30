@@ -395,15 +395,10 @@ static inline void trace_set_intr_gate(unsigned int gate, void *addr)
 #define __trace_alloc_intr_gate(n, addr)
 #endif
 
-static inline void __alloc_intr_gate(unsigned int n, void *addr)
-{
-	set_intr_gate(n, addr);
-}
-
 #define alloc_intr_gate(n, addr)				\
 	do {							\
 		alloc_system_vector(n);				\
-		__alloc_intr_gate(n, addr);			\
+		set_intr_gate(n, addr);				\
 		__trace_alloc_intr_gate(n, trace_##addr);	\
 	} while (0)
 
