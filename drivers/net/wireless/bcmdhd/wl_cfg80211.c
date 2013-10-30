@@ -8044,6 +8044,7 @@ wl_notify_sched_scan_results(struct wl_priv *wl, struct net_device *ndev,
 				wl_clr_drv_status(wl, SCANNING, ndev);
 				goto out_err;
 			}
+			p2p_scan(wl) = false;
 		}
 
 		wl_set_drv_status(wl, SCANNING, ndev);
