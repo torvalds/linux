@@ -359,8 +359,9 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	if (musb->int_tx || musb->int_rx || musb->int_usb)
 		ret |= musb_interrupt(musb);
 
-	/* Poll for ID change */
-	if (musb->xceiv->state == OTG_STATE_B_IDLE)
+	/* Poll for ID change in OTG port mode */
+	if (musb->xceiv->state == OTG_STATE_B_IDLE &&
+			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
 		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 out:
 	spin_unlock_irqrestore(&musb->lock, flags);
