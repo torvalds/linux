@@ -804,7 +804,7 @@ machine_arch_initcall(pseries, pseries_nvram_init_log_partitions);
 int __init pSeries_nvram_init(void)
 {
 	struct device_node *nvram;
-	const unsigned int *nbytes_p;
+	const __be32 *nbytes_p;
 	unsigned int proplen;
 
 	nvram = of_find_node_by_type(NULL, "nvram");
@@ -817,7 +817,7 @@ int __init pSeries_nvram_init(void)
 		return -EIO;
 	}
 
-	nvram_size = *nbytes_p;
+	nvram_size = be32_to_cpup(nbytes_p);
 
 	nvram_fetch = rtas_token("nvram-fetch");
 	nvram_store = rtas_token("nvram-store");
