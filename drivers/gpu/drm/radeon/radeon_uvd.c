@@ -622,7 +622,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	if (r) 
 		goto err;
 
-	r = radeon_ib_get(rdev, ring, &ib, NULL, 16);
+	r = radeon_ib_get(rdev, ring, &ib, NULL, 64);
 	if (r)
 		goto err;
 
