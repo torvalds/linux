@@ -1507,15 +1507,15 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		/* Ensure bearer is still enabled */
 		if (unlikely(!b_ptr->active))
-			goto cont;
+			goto discard;
 
 		/* Ensure message is well-formed */
 		if (unlikely(!link_recv_buf_validate(buf)))
-			goto cont;
+			goto discard;
 
 		/* Ensure message data is a single contiguous unit */
 		if (unlikely(skb_linearize(buf)))
-			goto cont;
+			goto discard;
 
 		/* Handle arrival of a non-unicast link message */
 		msg = buf_msg(buf);
@@ -1531,20 +1531,18 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		/* Discard unicast link messages destined for another node */
 		if (unlikely(!msg_short(msg) &&
 			     (msg_destnode(msg) != tipc_own_addr)))
-			goto cont;
+			goto discard;
 
 		/* Locate neighboring node that sent message */
 		n_ptr = tipc_node_find(msg_prevnode(msg));
 		if (unlikely(!n_ptr))
-			goto cont;
+			goto discard;
 		tipc_node_lock(n_ptr);
 
 		/* Locate unicast link endpoint that should handle message */
 		l_ptr = n_ptr->links[b_ptr->identity];
-		if (unlikely(!l_ptr)) {
-			tipc_node_unlock(n_ptr);
-			goto cont;
-		}
+		if (unlikely(!l_ptr))
+			goto unlock_discard;
 
 		/* Verify that communication with node is currently allowed */
 		if ((n_ptr->block_setup & WAIT_PEER_DOWN) &&
@@ -1554,10 +1552,8 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			!msg_redundant_link(msg))
 			n_ptr->block_setup &= ~WAIT_PEER_DOWN;
 
-		if (n_ptr->block_setup) {
-			tipc_node_unlock(n_ptr);
-			goto cont;
-		}
+		if (n_ptr->block_setup)
+			goto unlock_discard;
 
 		/* Validate message sequence number info */
 		seq_no = msg_seqno(msg);
@@ -1593,98 +1589,97 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		/* Now (finally!) process the incoming message */
 protocol_check:
-		if (likely(link_working_working(l_ptr))) {
-			if (likely(seq_no == mod(l_ptr->next_in_no))) {
-				l_ptr->next_in_no++;
-				if (unlikely(l_ptr->oldest_deferred_in))
-					head = link_insert_deferred_queue(l_ptr,
-									  head);
-deliver:
-				if (likely(msg_isdata(msg))) {
-					tipc_node_unlock(n_ptr);
-					tipc_port_recv_msg(buf);
-					continue;
-				}
-				switch (msg_user(msg)) {
-					int ret;
-				case MSG_BUNDLER:
-					l_ptr->stats.recv_bundles++;
-					l_ptr->stats.recv_bundled +=
-						msg_msgcnt(msg);
-					tipc_node_unlock(n_ptr);
-					tipc_link_recv_bundle(buf);
-					continue;
-				case NAME_DISTRIBUTOR:
-					n_ptr->bclink.recv_permitted = true;
-					tipc_node_unlock(n_ptr);
-					tipc_named_recv(buf);
-					continue;
-				case BCAST_PROTOCOL:
-					tipc_link_recv_sync(n_ptr, buf);
-					tipc_node_unlock(n_ptr);
-					continue;
-				case CONN_MANAGER:
-					tipc_node_unlock(n_ptr);
-					tipc_port_recv_proto_msg(buf);
-					continue;
-				case MSG_FRAGMENTER:
-					l_ptr->stats.recv_fragments++;
-					ret = tipc_link_recv_fragment(
-						&l_ptr->defragm_buf,
-						&buf, &msg);
-					if (ret == 1) {
-						l_ptr->stats.recv_fragmented++;
-						goto deliver;
-					}
-					if (ret == -1)
-						l_ptr->next_in_no--;
-					break;
-				case CHANGEOVER_PROTOCOL:
-					type = msg_type(msg);
-					if (link_recv_changeover_msg(&l_ptr,
-								     &buf)) {
-						msg = buf_msg(buf);
-						seq_no = msg_seqno(msg);
-						if (type == ORIGINAL_MSG)
-							goto deliver;
-						goto protocol_check;
-					}
-					break;
-				default:
-					kfree_skb(buf);
-					buf = NULL;
-					break;
-				}
+		if (unlikely(!link_working_working(l_ptr))) {
+			if (msg_user(msg) == LINK_PROTOCOL) {
+				link_recv_proto_msg(l_ptr, buf);
+				head = link_insert_deferred_queue(l_ptr, head);
 				tipc_node_unlock(n_ptr);
-				tipc_net_route_msg(buf);
 				continue;
 			}
+
+			/* Traffic message. Conditionally activate link */
+			link_state_event(l_ptr, TRAFFIC_MSG_EVT);
+
+			if (link_working_working(l_ptr)) {
+				/* Re-insert buffer in front of queue */
+				buf->next = head;
+				head = buf;
+				tipc_node_unlock(n_ptr);
+				continue;
+			}
+			goto unlock_discard;
+		}
+
+		/* Link is now in state WORKING_WORKING */
+		if (unlikely(seq_no != mod(l_ptr->next_in_no))) {
 			link_handle_out_of_seq_msg(l_ptr, buf);
 			head = link_insert_deferred_queue(l_ptr, head);
 			tipc_node_unlock(n_ptr);
 			continue;
 		}
-
-		/* Link is not in state WORKING_WORKING */
-		if (msg_user(msg) == LINK_PROTOCOL) {
-			link_recv_proto_msg(l_ptr, buf);
+		l_ptr->next_in_no++;
+		if (unlikely(l_ptr->oldest_deferred_in))
 			head = link_insert_deferred_queue(l_ptr, head);
+deliver:
+		if (likely(msg_isdata(msg))) {
 			tipc_node_unlock(n_ptr);
+			tipc_port_recv_msg(buf);
 			continue;
 		}
-
-		/* Traffic message. Conditionally activate link */
-		link_state_event(l_ptr, TRAFFIC_MSG_EVT);
-
-		if (link_working_working(l_ptr)) {
-			/* Re-insert buffer in front of queue */
-			buf->next = head;
-			head = buf;
+		switch (msg_user(msg)) {
+			int ret;
+		case MSG_BUNDLER:
+			l_ptr->stats.recv_bundles++;
+			l_ptr->stats.recv_bundled += msg_msgcnt(msg);
+			tipc_node_unlock(n_ptr);
+			tipc_link_recv_bundle(buf);
+			continue;
+		case NAME_DISTRIBUTOR:
+			n_ptr->bclink.recv_permitted = true;
+			tipc_node_unlock(n_ptr);
+			tipc_named_recv(buf);
+			continue;
+		case BCAST_PROTOCOL:
+			tipc_link_recv_sync(n_ptr, buf);
 			tipc_node_unlock(n_ptr);
 			continue;
+		case CONN_MANAGER:
+			tipc_node_unlock(n_ptr);
+			tipc_port_recv_proto_msg(buf);
+			continue;
+		case MSG_FRAGMENTER:
+			l_ptr->stats.recv_fragments++;
+			ret = tipc_link_recv_fragment(&l_ptr->defragm_buf,
+						      &buf, &msg);
+			if (ret == 1) {
+				l_ptr->stats.recv_fragmented++;
+				goto deliver;
+			}
+			if (ret == -1)
+				l_ptr->next_in_no--;
+			break;
+		case CHANGEOVER_PROTOCOL:
+			type = msg_type(msg);
+			if (link_recv_changeover_msg(&l_ptr, &buf)) {
+				msg = buf_msg(buf);
+				seq_no = msg_seqno(msg);
+				if (type == ORIGINAL_MSG)
+					goto deliver;
+				goto protocol_check;
+			}
+			break;
+		default:
+			kfree_skb(buf);
+			buf = NULL;
+			break;
 		}
 		tipc_node_unlock(n_ptr);
-cont:
+		tipc_net_route_msg(buf);
+		continue;
+unlock_discard:
+
+		tipc_node_unlock(n_ptr);
+discard:
 		kfree_skb(buf);
 	}
 	read_unlock_bh(&tipc_net_lock);
