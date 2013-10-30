@@ -2734,7 +2734,6 @@ struct req_que {
 	srb_t **outstanding_cmds;
 	uint32_t current_outstanding_cmd;
 	uint16_t num_outstanding_cmds;
-#define	MAX_Q_DEPTH		32
 	int max_q_depth;
 
 	dma_addr_t  dma_fx00;
@@ -3303,12 +3302,6 @@ struct qla_hw_data {
 	struct work_struct idc_state_handler;
 	struct work_struct nic_core_unrecoverable;
 
-#define HOST_QUEUE_RAMPDOWN_INTERVAL           (60 * HZ)
-#define HOST_QUEUE_RAMPUP_INTERVAL             (30 * HZ)
-	unsigned long   host_last_rampdown_time;
-	unsigned long   host_last_rampup_time;
-	int             cfg_lun_q_depth;
-
 	struct mr_data_fx00 mr;
 
 	struct qlt_hw_data tgt;
@@ -3372,12 +3365,10 @@ typedef struct scsi_qla_host {
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 #define SCR_PENDING		21	/* SCR in target mode */
-#define HOST_RAMP_DOWN_QUEUE_DEPTH     22
-#define HOST_RAMP_UP_QUEUE_DEPTH       23
-#define PORT_UPDATE_NEEDED	24
-#define FX00_RESET_RECOVERY	25
-#define FX00_TARGET_SCAN	26
-#define FX00_CRITEMP_RECOVERY	27
+#define PORT_UPDATE_NEEDED	22
+#define FX00_RESET_RECOVERY	23
+#define FX00_TARGET_SCAN	24
+#define FX00_CRITEMP_RECOVERY	25
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0

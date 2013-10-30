@@ -110,7 +110,8 @@ MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
 		"0 - no FDMI. Default is 1 - perform FDMI.");
 
-int ql2xmaxqdepth = MAX_Q_DEPTH;
+#define MAX_Q_DEPTH	32
+static int ql2xmaxqdepth = MAX_Q_DEPTH;
 module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to set for each LUN. "
@@ -728,10 +729,8 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	}
 
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
-	if (!sp) {
-		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
+	if (!sp)
 		goto qc24_host_busy;
-	}
 
 	sp->u.scmd.cmd = cmd;
 	sp->type = SRB_SCSI_CMD;
@@ -744,7 +743,6 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3013,
 		    "Start scsi failed rval=%d for cmd=%p.\n", rval, cmd);
-		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
 		goto qc24_host_busy_free_sp;
 	}
 
@@ -1472,81 +1470,6 @@ qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
 		tag_type = 0;
 
 	return tag_type;
-}
-
-static void
-qla2x00_host_ramp_down_queuedepth(scsi_qla_host_t *vha)
-{
-	scsi_qla_host_t *vp;
-	struct Scsi_Host *shost;
-	struct scsi_device *sdev;
-	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
-
-	ha->host_last_rampdown_time = jiffies;
-
-	if (ha->cfg_lun_q_depth <= vha->host->cmd_per_lun)
-		return;
-
-	if ((ha->cfg_lun_q_depth / 2) < vha->host->cmd_per_lun)
-		ha->cfg_lun_q_depth = vha->host->cmd_per_lun;
-	else
-		ha->cfg_lun_q_depth = ha->cfg_lun_q_depth / 2;
-
-	/*
-	 * Geometrically ramp down the queue depth for all devices on this
-	 * adapter
-	 */
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	list_for_each_entry(vp, &ha->vp_list, list) {
-		shost = vp->host;
-		shost_for_each_device(sdev, shost) {
-			if (sdev->queue_depth > shost->cmd_per_lun) {
-				if (sdev->queue_depth < ha->cfg_lun_q_depth)
-					continue;
-				ql_dbg(ql_dbg_io, vp, 0x3031,
-				    "%ld:%d:%d: Ramping down queue depth to %d",
-				    vp->host_no, sdev->id, sdev->lun,
-				    ha->cfg_lun_q_depth);
-				qla2x00_change_queue_depth(sdev,
-				    ha->cfg_lun_q_depth, SCSI_QDEPTH_DEFAULT);
-			}
-		}
-	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-	return;
-}
-
-static void
-qla2x00_host_ramp_up_queuedepth(scsi_qla_host_t *vha)
-{
-	scsi_qla_host_t *vp;
-	struct Scsi_Host *shost;
-	struct scsi_device *sdev;
-	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
-
-	ha->host_last_rampup_time = jiffies;
-	ha->cfg_lun_q_depth++;
-
-	/*
-	 * Linearly ramp up the queue depth for all devices on this
-	 * adapter
-	 */
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	list_for_each_entry(vp, &ha->vp_list, list) {
-		shost = vp->host;
-		shost_for_each_device(sdev, shost) {
-			if (sdev->queue_depth > ha->cfg_lun_q_depth)
-				continue;
-			qla2x00_change_queue_depth(sdev, ha->cfg_lun_q_depth,
-			    SCSI_QDEPTH_RAMP_UP);
-		}
-	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-	return;
 }
 
 /**
@@ -2424,7 +2347,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
-	ha->cfg_lun_q_depth = ql2xmaxqdepth;
 
 	/* Assign ISP specific operations. */
 	if (IS_QLA2100(ha)) {
@@ -4994,17 +4916,6 @@ loop_resync_check:
 			qla2xxx_flash_npiv_conf(base_vha);
 		}
 
-		if (test_and_clear_bit(HOST_RAMP_DOWN_QUEUE_DEPTH,
-		    &base_vha->dpc_flags)) {
-			/* Prevents simultaneous ramp up and down */
-			clear_bit(HOST_RAMP_UP_QUEUE_DEPTH,
-			    &base_vha->dpc_flags);
-			qla2x00_host_ramp_down_queuedepth(base_vha);
-		}
-
-		if (test_and_clear_bit(HOST_RAMP_UP_QUEUE_DEPTH,
-		    &base_vha->dpc_flags))
-			qla2x00_host_ramp_up_queuedepth(base_vha);
 intr_on_check:
 		if (!ha->interrupts_on)
 			ha->isp_ops->enable_intrs(ha);
@@ -5186,7 +5097,6 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		    "Loop down - seconds remaining %d.\n",
 		    atomic_read(&vha->loop_down_timer));
 	}
-
 	/* Check if beacon LED needs to be blinked for physical host only */
 	if (!vha->vp_idx && (ha->beacon_blink_led == 1)) {
 		/* There is no beacon_blink function for ISP82xx */
@@ -5210,9 +5120,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags) ||
 	    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags) ||
 	    test_bit(VP_DPC_NEEDED, &vha->dpc_flags) ||
-	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags) ||
-	    test_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags) ||
-	    test_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags))) {
+	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags))) {
 		ql_dbg(ql_dbg_timer, vha, 0x600b,
 		    "isp_abort_needed=%d loop_resync_needed=%d "
 		    "fcport_update_needed=%d start_dpc=%d "
@@ -5225,15 +5133,12 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_timer, vha, 0x600c,
 		    "beacon_blink_needed=%d isp_unrecoverable=%d "
 		    "fcoe_ctx_reset_needed=%d vp_dpc_needed=%d "
-		    "relogin_needed=%d, host_ramp_down_needed=%d "
-		    "host_ramp_up_needed=%d.\n",
+		    "relogin_needed=%d.\n",
 		    test_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags),
 		    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags),
 		    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags),
 		    test_bit(VP_DPC_NEEDED, &vha->dpc_flags),
-		    test_bit(RELOGIN_NEEDED, &vha->dpc_flags),
-		    test_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags),
-		    test_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags));
+		    test_bit(RELOGIN_NEEDED, &vha->dpc_flags));
 		qla2xxx_wake_dpc(vha);
 	}
 
