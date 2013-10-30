@@ -444,7 +444,7 @@
 
 #define _DPIO_TX3_SWING_CTL4_A		0x690
 #define _DPIO_TX3_SWING_CTL4_B		0x2a90
-#define DPIO_TX3_SWING_CTL4(pipe) _PIPE(pipe, _DPIO_TX_SWING_CTL4_A, \
+#define DPIO_TX3_SWING_CTL4(pipe) _PIPE(pipe, _DPIO_TX3_SWING_CTL4_A, \
 					_DPIO_TX3_SWING_CTL4_B)
 
 /*
