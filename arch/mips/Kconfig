@@ -1907,6 +1907,11 @@ config MIPS_VPE_LOADER
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
 
+config MIPS_VPE_LOADER_MT
+	bool
+	default "y"
+	depends on MIPS_VPE_LOADER && !MIPS_CMP
+
 config MIPS_MT_SMTC_IM_BACKSTOP
 	bool "Use per-TC register bits as backstop for inhibited IM bits"
 	depends on MIPS_MT_SMTC
