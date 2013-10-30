@@ -199,7 +199,6 @@ struct audit_context {
 		} mmap;
 		struct {
 			int			argc;
-			struct mm_struct	*mm;
 		} execve;
 	};
 	int fds[2];

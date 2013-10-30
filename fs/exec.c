@@ -1383,10 +1383,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 	if (retval)
 		return retval;
 
-	retval = audit_bprm(bprm);
-	if (retval)
-		return retval;
-
 	/* Need to fetch pid before load_binary changes it */
 	old_pid = current->pid;
 	rcu_read_lock();
@@ -1408,6 +1404,7 @@ int search_binary_handler(struct linux_binprm *bprm)
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
 				if (depth == 0) {
+					audit_bprm(bprm);
 					trace_sched_process_exec(current, old_pid, bprm);
 					ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
 				}
