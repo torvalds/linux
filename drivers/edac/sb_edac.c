@@ -273,9 +273,11 @@ static const u32 correrrthrsld[] = {
 #define NUM_CHANNELS	4
 #define MAX_DIMMS	3		/* Max DIMMS per channel */
 
+struct sbridge_pvt;
 struct sbridge_info {
 	u32	mcmtr;
 	u32	rankcfgr;
+	u64	(*get_tolm)(struct sbridge_pvt *pvt);
 };
 
 struct sbridge_channel {
@@ -459,6 +461,15 @@ static void free_sbridge_dev(struct sbridge_dev *sbridge_dev)
 	kfree(sbridge_dev);
 }
 
+static u64 sbridge_get_tolm(struct sbridge_pvt *pvt)
+{
+	u32 reg;
+
+	/* Address range is 32:28 */
+	pci_read_config_dword(pvt->pci_sad1, TOLM, &reg);
+	return GET_TOLM(reg);
+}
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -633,10 +644,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	 * Step 1) Get TOLM/TOHM ranges
 	 */
 
-	/* Address range is 32:28 */
-	pci_read_config_dword(pvt->pci_sad1, TOLM,
-			      &reg);
-	pvt->tolm = GET_TOLM(reg);
+	pvt->tolm = pvt->info.get_tolm(pvt);
 	tmp_mb = (1 + pvt->tolm) >> 20;
 
 	mb = div_u64_rem(tmp_mb, 1000, &kb);
@@ -1661,6 +1669,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge Socket#%d", mci->mc_idx);
 	mci->dev_name = pci_name(sbridge_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
+	pvt->info.get_tolm = sbridge_get_tolm;
 
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = sbridge_check_error;
