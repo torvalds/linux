@@ -392,18 +392,6 @@ static irqreturn_t ci_irq(int irq, void *data)
 static int ci_get_platdata(struct device *dev,
 		struct ci_hdrc_platform_data *platdata)
 {
-	/* Get the vbus regulator */
-	platdata->reg_vbus = devm_regulator_get(dev, "vbus");
-	if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
-	} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
-		platdata->reg_vbus = NULL; /* no vbus regualator is needed */
-	} else if (IS_ERR(platdata->reg_vbus)) {
-		dev_err(dev, "Getting regulator error: %ld\n",
-			PTR_ERR(platdata->reg_vbus));
-		return PTR_ERR(platdata->reg_vbus);
-	}
-
 	if (!platdata->phy_mode)
 		platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
 
@@ -412,6 +400,21 @@ static int ci_get_platdata(struct device *dev,
 
 	if (platdata->dr_mode == USB_DR_MODE_UNKNOWN)
 		platdata->dr_mode = USB_DR_MODE_OTG;
+
+	if (platdata->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		/* Get the vbus regulator */
+		platdata->reg_vbus = devm_regulator_get(dev, "vbus");
+		if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
+			return -EPROBE_DEFER;
+		} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
+			/* no vbus regualator is needed */
+			platdata->reg_vbus = NULL;
+		} else if (IS_ERR(platdata->reg_vbus)) {
+			dev_err(dev, "Getting regulator error: %ld\n",
+				PTR_ERR(platdata->reg_vbus));
+			return PTR_ERR(platdata->reg_vbus);
+		}
+	}
 
 	return 0;
 }
