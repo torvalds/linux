@@ -89,14 +89,10 @@ static int __init opal_register_exception_handlers(void)
 	if (!(powerpc_firmware_features & FW_FEATURE_OPAL))
 		return -ENODEV;
 
-	/* Hookup some exception handlers. We use the fwnmi area at 0x7000
-	 * to provide the glue space to OPAL
+	/* Hookup some exception handlers except machine check. We use the
+	 * fwnmi area at 0x7000 to provide the glue space to OPAL
 	 */
 	glue = 0x7000;
-	opal_register_exception_handler(OPAL_MACHINE_CHECK_HANDLER,
-					__pa(opal_mc_secondary_handler[0]),
-					glue);
-	glue += 128;
 	opal_register_exception_handler(OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
 					0, glue);
 	glue += 128;
