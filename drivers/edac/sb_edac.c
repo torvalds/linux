@@ -107,11 +107,10 @@ static char *get_dram_attr(u32 reg)
 	}
 }
 
-static const u32 interleave_list[] = {
+static const u32 sbridge_interleave_list[] = {
 	0x84, 0x8c, 0x94, 0x9c, 0xa4,
 	0xac, 0xb4, 0xbc, 0xc4, 0xcc,
 };
-#define MAX_INTERLEAVE	ARRAY_SIZE(interleave_list)
 
 #define SAD_PKG0(reg)		GET_BITFIELD(reg, 0, 2)
 #define SAD_PKG1(reg)		GET_BITFIELD(reg, 3, 5)
@@ -279,7 +278,9 @@ struct sbridge_info {
 	u64		(*get_tolm)(struct sbridge_pvt *pvt);
 	u64		(*get_tohm)(struct sbridge_pvt *pvt);
 	const u32	*dram_rule;
+	const u32	*interleave_list;
 	u8		max_sad;
+	u8		max_interleave;
 };
 
 struct sbridge_channel {
@@ -697,7 +698,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			 reg);
 		prv = limit;
 
-		pci_read_config_dword(pvt->pci_sad0, interleave_list[n_sads],
+		pci_read_config_dword(pvt->pci_sad0, pvt->info.interleave_list[n_sads],
 				      &reg);
 		sad_interl = sad_pkg(reg, 0);
 		for (j = 0; j < 8; j++) {
@@ -820,7 +821,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	int 			n_rir, n_sads, n_tads, sad_way, sck_xch;
 	int			sad_interl, idx, base_ch;
 	int			interleave_mode;
-	unsigned		sad_interleave[MAX_INTERLEAVE];
+	unsigned		sad_interleave[pvt->info.max_interleave];
 	u32			reg;
 	u8			ch_way,sck_way;
 	u32			tad_offset;
@@ -871,7 +872,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	*area_type = get_dram_attr(reg);
 	interleave_mode = INTERLEAVE_MODE(reg);
 
-	pci_read_config_dword(pvt->pci_sad0, interleave_list[n_sads],
+	pci_read_config_dword(pvt->pci_sad0, pvt->info.interleave_list[n_sads],
 			      &reg);
 	sad_interl = sad_pkg(reg, 0);
 	for (sad_way = 0; sad_way < 8; sad_way++) {
@@ -1681,6 +1682,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	pvt->info.get_tohm = sbridge_get_tohm;
 	pvt->info.dram_rule = sbridge_dram_rule;
 	pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
+	pvt->info.interleave_list = sbridge_interleave_list;
+	pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
 
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = sbridge_check_error;
