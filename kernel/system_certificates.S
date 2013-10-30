@@ -1,12 +1,10 @@
 #include <linux/export.h>
 #include <linux/init.h>
 
-#define GLOBAL(name)	\
-	.globl VMLINUX_SYMBOL(name);	\
-	VMLINUX_SYMBOL(name):
-
 	__INITRODATA
 
-GLOBAL(system_certificate_list)
+	.globl VMLINUX_SYMBOL(system_certificate_list)
+VMLINUX_SYMBOL(system_certificate_list):
 	.incbin "kernel/x509_certificate_list"
-GLOBAL(system_certificate_list_end)
+	.globl VMLINUX_SYMBOL(system_certificate_list_end)
+VMLINUX_SYMBOL(system_certificate_list_end):
