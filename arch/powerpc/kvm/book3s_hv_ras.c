@@ -58,18 +58,6 @@ static void reload_slb(struct kvm_vcpu *vcpu)
 	}
 }
 
-/* POWER7 TLB flush */
-static void flush_tlb_power7(struct kvm_vcpu *vcpu)
-{
-	unsigned long i, rb;
-
-	rb = TLBIEL_INVAL_SET_LPID;
-	for (i = 0; i < POWER7_TLB_SETS; ++i) {
-		asm volatile("tlbiel %0" : : "r" (rb));
-		rb += 1 << TLBIEL_INVAL_SET_SHIFT;
-	}
-}
-
 /*
  * On POWER7, see if we can handle a machine check that occurred inside
  * the guest in real mode, without switching to the host partition.
@@ -96,7 +84,8 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 				   DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI);
 		}
 		if (dsisr & DSISR_MC_TLB_MULTI) {
-			flush_tlb_power7(vcpu);
+			if (cur_cpu_spec && cur_cpu_spec->flush_tlb)
+				cur_cpu_spec->flush_tlb(TLBIEL_INVAL_SET_LPID);
 			dsisr &= ~DSISR_MC_TLB_MULTI;
 		}
 		/* Any other errors we don't understand? */
@@ -113,7 +102,8 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 		reload_slb(vcpu);
 		break;
 	case SRR1_MC_IFETCH_TLBMULTI:
-		flush_tlb_power7(vcpu);
+		if (cur_cpu_spec && cur_cpu_spec->flush_tlb)
+			cur_cpu_spec->flush_tlb(TLBIEL_INVAL_SET_LPID);
 		break;
 	default:
 		handled = 0;
