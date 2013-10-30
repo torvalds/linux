@@ -439,7 +439,6 @@ err_out_files:
 		device_remove_file(connector->kdev, &connector_attrs_opt1[i]);
 	for (i = 0; i < attr_cnt; i++)
 		device_remove_file(connector->kdev, &connector_attrs[i]);
-	put_device(connector->kdev);
 	device_unregister(connector->kdev);
 
 out:
@@ -472,7 +471,6 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 	for (i = 0; i < ARRAY_SIZE(connector_attrs); i++)
 		device_remove_file(connector->kdev, &connector_attrs[i]);
 	sysfs_remove_bin_file(&connector->kdev->kobj, &edid_attr);
-	put_device(connector->kdev);
 	device_unregister(connector->kdev);
 	connector->kdev = NULL;
 }
