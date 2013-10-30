@@ -343,6 +343,7 @@ struct config_info_data {
 #define FXDISC_GET_TGT_NODE_INFO	0x80
 #define FXDISC_GET_TGT_NODE_LIST	0x81
 #define FXDISC_REG_HOST_INFO		0x99
+#define FXDISC_ABORT_IOCTL		0xff
 
 #define QLAFX00_HBA_ICNTRL_REG		0x20B08
 #define QLAFX00_ICR_ENB_MASK            0x80000000
