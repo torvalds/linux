@@ -1122,12 +1122,15 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 	frag->priority = skb->priority;
 
 	/* copy header, MFR and payload */
-	memcpy(skb_put(frag, mlen), skb->data, mlen);
-	memcpy(skb_put(frag, hlen), head, hlen);
+	skb_put(frag, mlen);
+	skb_copy_to_linear_data(frag, skb_mac_header(skb), mlen);
 
-	if (plen)
-		skb_copy_from_linear_data_offset(skb, offset + mlen,
-					skb_put(frag, plen), plen);
+	skb_put(frag, hlen);
+	skb_copy_to_linear_data_offset(frag, mlen, head, hlen);
+
+	skb_put(frag, plen);
+	skb_copy_to_linear_data_offset(frag, mlen + hlen,
+				       skb_network_header(skb) + offset, plen);
 
 	lowpan_raw_dump_table(__func__, " raw fragment dump", frag->data,
 								frag->len);
