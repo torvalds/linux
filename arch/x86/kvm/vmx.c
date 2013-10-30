@@ -1498,7 +1498,7 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 			break;
 
 	if (i == NR_AUTOLOAD_MSRS) {
-		printk_once(KERN_WARNING"Not enough mst switch entries. "
+		printk_once(KERN_WARNING "Not enough msr switch entries. "
 				"Can't add msr %x\n", msr);
 		return;
 	} else if (i == m->nr) {
