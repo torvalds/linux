@@ -426,6 +426,9 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 
 	ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
+	if (sdata->reserved_chanctx)
+		ieee80211_vif_unreserve_chanctx(sdata);
+
 	ieee80211_assign_vif_chanctx(sdata, NULL);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
@@ -635,6 +638,166 @@ int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+static void
+__ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
+				      bool clear)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *vlan;
+	struct ieee80211_chanctx_conf *conf;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP))
+		return;
+
+	lockdep_assert_held(&local->mtx);
+
+	/* Check that conf exists, even when clearing this function
+	 * must be called with the AP's channel context still there
+	 * as it would otherwise cause VLANs to have an invalid
+	 * channel context pointer for a while, possibly pointing
+	 * to a channel context that has already been freed.
+	 */
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+				lockdep_is_held(&local->chanctx_mtx));
+	WARN_ON(!conf);
+
+	if (clear)
+		conf = NULL;
+
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		rcu_assign_pointer(vlan->vif.chanctx_conf, conf);
+}
+
+void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
+					 bool clear)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	mutex_lock(&local->chanctx_mtx);
+
+	__ieee80211_vif_copy_chanctx_to_vlans(sdata, clear);
+
+	mutex_unlock(&local->chanctx_mtx);
+}
+
+int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata)
+{
+	lockdep_assert_held(&sdata->local->chanctx_mtx);
+
+	if (WARN_ON(!sdata->reserved_chanctx))
+		return -EINVAL;
+
+	if (--sdata->reserved_chanctx->refcount == 0)
+		ieee80211_free_chanctx(sdata->local, sdata->reserved_chanctx);
+
+	sdata->reserved_chanctx = NULL;
+
+	return 0;
+}
+
+int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
+				  const struct cfg80211_chan_def *chandef,
+				  enum ieee80211_chanctx_mode mode)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *new_ctx, *curr_ctx;
+	int ret = 0;
+
+	mutex_lock(&local->chanctx_mtx);
+
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	curr_ctx = container_of(conf, struct ieee80211_chanctx, conf);
+
+	/* try to find another context with the chandef we want */
+	new_ctx = ieee80211_find_chanctx(local, chandef, mode);
+	if (!new_ctx) {
+		/* create a new context */
+		new_ctx = ieee80211_new_chanctx(local, chandef, mode);
+		if (IS_ERR(new_ctx)) {
+			ret = PTR_ERR(new_ctx);
+			goto out;
+		}
+	}
+
+	new_ctx->refcount++;
+	sdata->reserved_chanctx = new_ctx;
+	sdata->reserved_chandef = *chandef;
+out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
+
+int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata,
+				       u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx *ctx;
+	struct ieee80211_chanctx *old_ctx;
+	struct ieee80211_chanctx_conf *conf;
+	int ret;
+	u32 tmp_changed = *changed;
+
+	/* TODO: need to recheck if the chandef is usable etc.? */
+
+	lockdep_assert_held(&local->mtx);
+
+	mutex_lock(&local->chanctx_mtx);
+
+	ctx = sdata->reserved_chanctx;
+	if (WARN_ON(!ctx)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	old_ctx = container_of(conf, struct ieee80211_chanctx, conf);
+
+	if (sdata->vif.bss_conf.chandef.width != sdata->reserved_chandef.width)
+		tmp_changed |= BSS_CHANGED_BANDWIDTH;
+
+	sdata->vif.bss_conf.chandef = sdata->reserved_chandef;
+
+	/* unref our reservation before assigning */
+	ctx->refcount--;
+	sdata->reserved_chanctx = NULL;
+
+	ret = ieee80211_assign_vif_chanctx(sdata, ctx);
+	if (old_ctx->refcount == 0)
+		ieee80211_free_chanctx(local, old_ctx);
+	if (ret) {
+		/* if assign fails refcount stays the same */
+		if (ctx->refcount == 0)
+			ieee80211_free_chanctx(local, ctx);
+		goto out;
+	}
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		__ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
+
+	*changed = tmp_changed;
+
+	ieee80211_recalc_chanctx_chantype(local, ctx);
+	ieee80211_recalc_smps_chanctx(local, ctx);
+	ieee80211_recalc_radar_chanctx(local, ctx);
+	ieee80211_recalc_chanctx_min_def(local, ctx);
+out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
+
 int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 				   const struct cfg80211_chan_def *chandef,
 				   u32 *changed)
@@ -711,40 +874,6 @@ void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata)
 	conf = rcu_dereference_protected(ap->vif.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	rcu_assign_pointer(sdata->vif.chanctx_conf, conf);
-	mutex_unlock(&local->chanctx_mtx);
-}
-
-void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
-					 bool clear)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_sub_if_data *vlan;
-	struct ieee80211_chanctx_conf *conf;
-
-	lockdep_assert_held(&local->mtx);
-
-	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP))
-		return;
-
-	mutex_lock(&local->chanctx_mtx);
-
-	/*
-	 * Check that conf exists, even when clearing this function
-	 * must be called with the AP's channel context still there
-	 * as it would otherwise cause VLANs to have an invalid
-	 * channel context pointer for a while, possibly pointing
-	 * to a channel context that has already been freed.
-	 */
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
-				lockdep_is_held(&local->chanctx_mtx));
-	WARN_ON(!conf);
-
-	if (clear)
-		conf = NULL;
-
-	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		rcu_assign_pointer(vlan->vif.chanctx_conf, conf);
-
 	mutex_unlock(&local->chanctx_mtx);
 }
 
