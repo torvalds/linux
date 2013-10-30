@@ -2295,17 +2295,17 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 0:
 		break;
 	case 1:
-		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		slot = ffs(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
 	case 2:
-		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		slot = ffs(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
-		slot = find_next_bit((unsigned long *)&tx_mask, 32, slot + 1);
+		slot = fls(tx_mask);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
 		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
@@ -2336,18 +2336,18 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 0:
 		break;
 	case 1:
-		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		slot = ffs(rx_mask);
 		snd_soc_update_bits(codec, AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
 				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
 		break;
 	case 2:
-		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		slot = ffs(rx_mask);
 		snd_soc_update_bits(codec,
 				AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
 				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
-		slot = find_next_bit((unsigned long *)&rx_mask, 32, slot + 1);
+		slot = fls(rx_mask);
 		snd_soc_update_bits(codec,
 				AB8500_ADSLOTSEL(slot),
 				AB8500_MASK_SLOT(slot),
