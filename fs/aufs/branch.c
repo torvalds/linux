@@ -365,7 +365,7 @@ static int au_wbr_init(struct au_branch *br, struct super_block *sb,
 
 	/*
 	 * a limit for rmdir/rename a dir
-	 * cf. AUFS_MAX_NAMELEN in include/linux/aufs_type.h
+	 * cf. AUFS_MAX_NAMELEN in include/uapi/linux/aufs_type.h
 	 */
 	err = vfs_statfs(&br->br_path, &kst);
 	if (unlikely(err))
