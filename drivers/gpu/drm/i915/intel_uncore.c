@@ -633,6 +633,40 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	return 0;
 }
 
+int i915_get_reset_stats_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_reset_stats *args = data;
+	struct i915_ctx_hang_stats *hs;
+	int ret;
+
+	if (args->ctx_id == DEFAULT_CONTEXT_ID && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	hs = i915_gem_context_get_hang_stats(dev, file, args->ctx_id);
+	if (IS_ERR(hs)) {
+		mutex_unlock(&dev->struct_mutex);
+		return PTR_ERR(hs);
+	}
+
+	if (capable(CAP_SYS_ADMIN))
+		args->reset_count = i915_reset_count(&dev_priv->gpu_error);
+	else
+		args->reset_count = 0;
+
+	args->batch_active = hs->batch_active;
+	args->batch_pending = hs->batch_pending;
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 static int i965_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
