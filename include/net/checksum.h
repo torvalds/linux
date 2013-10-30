@@ -79,6 +79,12 @@ csum_block_add(__wsum csum, __wsum csum2, int offset)
 }
 
 static inline __wsum
+csum_block_add_ext(__wsum csum, __wsum csum2, int offset, int len)
+{
+	return csum_block_add(csum, csum2, offset);
+}
+
+static inline __wsum
 csum_block_sub(__wsum csum, __wsum csum2, int offset)
 {
 	u32 sum = (__force u32)csum2;
