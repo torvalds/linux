@@ -262,7 +262,7 @@ static const u32 correrrthrsld[] = {
 
 /* Device 17, function 0 */
 
-#define RANK_CFG_A		0x0328
+#define SB_RANK_CFG_A		0x0328
 
 #define IS_RDIMM_ENABLED(reg)		GET_BITFIELD(reg, 11, 11)
 
@@ -275,6 +275,7 @@ static const u32 correrrthrsld[] = {
 
 struct sbridge_info {
 	u32	mcmtr;
+	u32	rankcfgr;
 };
 
 struct sbridge_channel {
@@ -520,6 +521,8 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	enum edac_type mode;
 	enum mem_type mtype;
 
+	pvt->info.rankcfgr = SB_RANK_CFG_A;
+
 	pci_read_config_dword(pvt->pci_br, SAD_TARGET, &reg);
 	pvt->sbridge_dev->source_id = SOURCE_ID(reg);
 
@@ -558,7 +561,8 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	}
 
 	if (pvt->pci_ddrio) {
-		pci_read_config_dword(pvt->pci_ddrio, RANK_CFG_A, &reg);
+		pci_read_config_dword(pvt->pci_ddrio, pvt->info.rankcfgr,
+				      &reg);
 		if (IS_RDIMM_ENABLED(reg)) {
 			/* FIXME: Can also be LRDIMM */
 			edac_dbg(0, "Memory is registered\n");
