@@ -739,7 +739,7 @@ do {									\
 #define __wait_event_interruptible_lock_irq_timeout(wq, condition,	\
 						    lock, timeout)	\
 	___wait_event(wq, ___wait_cond_timeout(condition),		\
-		      TASK_INTERRUPTIBLE, 0, ret,			\
+		      TASK_INTERRUPTIBLE, 0, timeout,			\
 		      spin_unlock_irq(&lock);				\
 		      __ret = schedule_timeout(__ret);			\
 		      spin_lock_irq(&lock));
