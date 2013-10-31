@@ -105,7 +105,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 {
 	struct ring_buffer *rb;
 	unsigned long tail, offset, head;
-	int have_lost;
+	int have_lost, page_shift;
 	struct {
 		struct perf_event_header header;
 		u64			 id;
@@ -159,12 +159,12 @@ int perf_output_begin(struct perf_output_handle *handle,
 	if (unlikely(head - local_read(&rb->wakeup) > rb->watermark))
 		local_add(rb->watermark, &rb->wakeup);
 
-	handle->page = offset >> (PAGE_SHIFT + page_order(rb));
-	handle->page &= rb->nr_pages - 1;
-	handle->size = offset & ((PAGE_SIZE << page_order(rb)) - 1);
-	handle->addr = rb->data_pages[handle->page];
-	handle->addr += handle->size;
-	handle->size = (PAGE_SIZE << page_order(rb)) - handle->size;
+	page_shift = PAGE_SHIFT + page_order(rb);
+
+	handle->page = (offset >> page_shift) & (rb->nr_pages - 1);
+	offset &= (1UL << page_shift) - 1;
+	handle->addr = rb->data_pages[handle->page] + offset;
+	handle->size = (1UL << page_shift) - offset;
 
 	if (unlikely(have_lost)) {
 		struct perf_sample_data sample_data;
