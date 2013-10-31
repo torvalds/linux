@@ -577,9 +577,9 @@ static int bL_switcher_enable(void)
 	int cpu, ret;
 
 	mutex_lock(&bL_switcher_activation_lock);
-	cpu_hotplug_driver_lock();
+	lock_device_hotplug();
 	if (bL_switcher_active) {
-		cpu_hotplug_driver_unlock();
+		unlock_device_hotplug();
 		mutex_unlock(&bL_switcher_activation_lock);
 		return 0;
 	}
@@ -615,7 +615,7 @@ error:
 	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
 
 out:
-	cpu_hotplug_driver_unlock();
+	unlock_device_hotplug();
 	mutex_unlock(&bL_switcher_activation_lock);
 	return ret;
 }
@@ -629,7 +629,7 @@ static void bL_switcher_disable(void)
 	struct task_struct *task;
 
 	mutex_lock(&bL_switcher_activation_lock);
-	cpu_hotplug_driver_lock();
+	lock_device_hotplug();
 
 	if (!bL_switcher_active)
 		goto out;
@@ -685,7 +685,7 @@ static void bL_switcher_disable(void)
 	bL_activation_notify(BL_NOTIFY_POST_DISABLE);
 
 out:
-	cpu_hotplug_driver_unlock();
+	unlock_device_hotplug();
 	mutex_unlock(&bL_switcher_activation_lock);
 }
 
