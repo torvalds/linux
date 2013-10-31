@@ -2060,7 +2060,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	LIST_HEAD(inode_list);
 	struct btrfs_key key;
 	struct btrfs_key next_key;
-	struct btrfs_trans_handle *trans;
+	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_root *reloc_root;
 	struct btrfs_root_item *root_item;
 	struct btrfs_path *path;
@@ -2109,18 +2109,19 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	memset(&next_key, 0, sizeof(next_key));
 
 	while (1) {
-		trans = btrfs_start_transaction(root, 0);
-		BUG_ON(IS_ERR(trans));
-		trans->block_rsv = rc->block_rsv;
-
 		ret = btrfs_block_rsv_refill(root, rc->block_rsv, min_reserved,
 					     BTRFS_RESERVE_FLUSH_ALL);
 		if (ret) {
-			BUG_ON(ret != -EAGAIN);
-			ret = btrfs_commit_transaction(trans, root);
-			BUG_ON(ret);
-			continue;
+			err = ret;
+			goto out;
 		}
+		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans)) {
+			err = PTR_ERR(trans);
+			trans = NULL;
+			goto out;
+		}
+		trans->block_rsv = rc->block_rsv;
 
 		replaced = 0;
 		max_level = level;
@@ -2166,6 +2167,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		root_item->drop_level = level;
 
 		btrfs_end_transaction_throttle(trans, root);
+		trans = NULL;
 
 		btrfs_btree_balance_dirty(root);
 
@@ -2194,7 +2196,8 @@ out:
 		btrfs_update_reloc_root(trans, root);
 	}
 
-	btrfs_end_transaction_throttle(trans, root);
+	if (trans)
+		btrfs_end_transaction_throttle(trans, root);
 
 	btrfs_btree_balance_dirty(root);
 
@@ -3992,16 +3995,6 @@ restart:
 				rc->extents_found--;
 				rc->search_start = key.objectid;
 			}
-		}
-
-		ret = btrfs_block_rsv_check(rc->extent_root, rc->block_rsv, 5);
-		if (ret < 0) {
-			if (ret != -ENOSPC) {
-				err = ret;
-				WARN_ON(1);
-				break;
-			}
-			rc->commit_transaction = 1;
 		}
 
 		if (rc->commit_transaction) {
