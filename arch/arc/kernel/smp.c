@@ -95,7 +95,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
  *        If it turns out to be elaborate, it's better to code it in assembly
  *
  */
-void __attribute__((weak)) arc_platform_smp_wait_to_boot(int cpu)
+void __weak arc_platform_smp_wait_to_boot(int cpu)
 {
 	/*
 	 * As a hack for debugging - since debugger will single-step over the
