@@ -1148,6 +1148,46 @@ continue_unlock:
 	return nwritten;
 }
 
+int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
+{
+	struct address_space *mapping = sbi->node_inode->i_mapping;
+	pgoff_t index = 0, end = LONG_MAX;
+	struct pagevec pvec;
+	int nr_pages;
+	int ret2 = 0, ret = 0;
+
+	pagevec_init(&pvec, 0);
+	while ((index <= end) &&
+			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+			PAGECACHE_TAG_WRITEBACK,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
+		unsigned i;
+
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			/* until radix tree lookup accepts end_index */
+			if (page->index > end)
+				continue;
+
+			if (ino && ino_of_node(page) == ino)
+				wait_on_page_writeback(page);
+			if (TestClearPageError(page))
+				ret = -EIO;
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	}
+
+	if (test_and_clear_bit(AS_ENOSPC, &mapping->flags))
+		ret2 = -ENOSPC;
+	if (test_and_clear_bit(AS_EIO, &mapping->flags))
+		ret2 = -EIO;
+	if (!ret)
+		ret = ret2;
+	return ret;
+}
+
 static int f2fs_write_node_page(struct page *page,
 				struct writeback_control *wbc)
 {

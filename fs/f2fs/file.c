@@ -189,8 +189,9 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 			if (ret)
 				goto out;
 		}
-		filemap_fdatawait_range(sbi->node_inode->i_mapping,
-							0, LONG_MAX);
+		ret = wait_on_node_pages_writeback(sbi, inode->i_ino);
+		if (ret)
+			goto out;
 		ret = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 	}
 out:
