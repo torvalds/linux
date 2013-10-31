@@ -973,6 +973,16 @@ struct acpi_system_info {
 	u32 debug_layer;
 };
 
+/*
+ * System statistics returned by acpi_get_statistics()
+ */
+struct acpi_statistics {
+	u32 sci_count;
+	u32 gpe_count;
+	u32 fixed_event_count[ACPI_NUM_FIXED_EVENTS];
+	u32 method_count;
+};
+
 /* Table Event Types */
 
 #define ACPI_TABLE_EVENT_LOAD           0x0

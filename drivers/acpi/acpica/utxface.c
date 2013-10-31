@@ -208,6 +208,44 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 
 ACPI_EXPORT_SYMBOL(acpi_get_system_info)
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_get_statistics
+ *
+ * PARAMETERS:  stats           - Where the statistics are returned
+ *
+ * RETURN:      status          - the status of the call
+ *
+ * DESCRIPTION: Get the contents of the various system counters
+ *
+ ******************************************************************************/
+acpi_status acpi_get_statistics(struct acpi_statistics *stats)
+{
+	ACPI_FUNCTION_TRACE(acpi_get_statistics);
+
+	/* Parameter validation */
+
+	if (!stats) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Various interrupt-based event counters */
+
+	stats->sci_count = acpi_sci_count;
+	stats->gpe_count = acpi_gpe_count;
+
+	ACPI_MEMCPY(stats->fixed_event_count, acpi_fixed_event_count,
+		    sizeof(acpi_fixed_event_count));
+
+	/* Other counters */
+
+	stats->method_count = acpi_method_count;
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_get_statistics)
+
 /*****************************************************************************
  *
  * FUNCTION:    acpi_install_initialization_handler

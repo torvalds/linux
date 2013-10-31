@@ -406,7 +406,9 @@ extern u32 acpi_gbl_nesting_level;
 
 /* Event counters */
 
+ACPI_EXTERN u32 acpi_method_count;
 ACPI_EXTERN u32 acpi_gpe_count;
+ACPI_EXTERN u32 acpi_sci_count;
 ACPI_EXTERN u32 acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS];
 
 /* Support for dynamic control method tracing mechanism */

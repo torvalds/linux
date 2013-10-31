@@ -292,6 +292,7 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 	 * reentered one more time (even if it is the same thread)
 	 */
 	obj_desc->method.thread_count++;
+	acpi_method_count++;
 	return_ACPI_STATUS(status);
 
 cleanup:
