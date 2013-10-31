@@ -8,7 +8,7 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    signal.o sys.o kmod.o workqueue.o pid.o task_work.o \
 	    extable.o params.o posix-timers.o \
 	    kthread.o sys_ni.o posix-cpu-timers.o \
-	    hrtimer.o rwsem.o nsproxy.o semaphore.o \
+	    hrtimer.o rwsem.o nsproxy.o \
 	    notifier.o ksysfs.o cred.o reboot.o \
 	    async.o range.o groups.o lglock.o smpboot.o
 
