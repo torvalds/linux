@@ -35,6 +35,7 @@
 #include <linux/kdebug.h>	/* notifier mechanism */
 #include "../../mm/internal.h"	/* munlock_vma_page */
 #include <linux/percpu-rwsem.h>
+#include <linux/task_work.h>
 
 #include <linux/uprobes.h>
 
@@ -1096,21 +1097,22 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 }
 
 /* Slot allocation for XOL */
-static int xol_add_vma(struct xol_area *area)
+static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 {
-	struct mm_struct *mm = current->mm;
 	int ret = -EALREADY;
 
 	down_write(&mm->mmap_sem);
 	if (mm->uprobes_state.xol_area)
 		goto fail;
 
-	ret = -ENOMEM;
-	/* Try to map as high as possible, this is only a hint. */
-	area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE, PAGE_SIZE, 0, 0);
-	if (area->vaddr & ~PAGE_MASK) {
-		ret = area->vaddr;
-		goto fail;
+	if (!area->vaddr) {
+		/* Try to map as high as possible, this is only a hint. */
+		area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
+						PAGE_SIZE, 0, 0);
+		if (area->vaddr & ~PAGE_MASK) {
+			ret = area->vaddr;
+			goto fail;
+		}
 	}
 
 	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
@@ -1120,11 +1122,47 @@ static int xol_add_vma(struct xol_area *area)
 
 	smp_wmb();	/* pairs with get_xol_area() */
 	mm->uprobes_state.xol_area = area;
-	ret = 0;
  fail:
 	up_write(&mm->mmap_sem);
 
 	return ret;
+}
+
+static struct xol_area *__create_xol_area(unsigned long vaddr)
+{
+	struct mm_struct *mm = current->mm;
+	uprobe_opcode_t insn = UPROBE_SWBP_INSN;
+	struct xol_area *area;
+
+	area = kmalloc(sizeof(*area), GFP_KERNEL);
+	if (unlikely(!area))
+		goto out;
+
+	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long), GFP_KERNEL);
+	if (!area->bitmap)
+		goto free_area;
+
+	area->page = alloc_page(GFP_HIGHUSER);
+	if (!area->page)
+		goto free_bitmap;
+
+	area->vaddr = vaddr;
+	init_waitqueue_head(&area->wq);
+	/* Reserve the 1st slot for get_trampoline_vaddr() */
+	set_bit(0, area->bitmap);
+	atomic_set(&area->slot_count, 1);
+	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
+
+	if (!xol_add_vma(mm, area))
+		return area;
+
+	__free_page(area->page);
+ free_bitmap:
+	kfree(area->bitmap);
+ free_area:
+	kfree(area);
+ out:
+	return NULL;
 }
 
 /*
@@ -1137,42 +1175,12 @@ static struct xol_area *get_xol_area(void)
 {
 	struct mm_struct *mm = current->mm;
 	struct xol_area *area;
-	uprobe_opcode_t insn = UPROBE_SWBP_INSN;
+
+	if (!mm->uprobes_state.xol_area)
+		__create_xol_area(0);
 
 	area = mm->uprobes_state.xol_area;
-	if (area)
-		goto ret;
-
-	area = kzalloc(sizeof(*area), GFP_KERNEL);
-	if (unlikely(!area))
-		goto out;
-
-	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long), GFP_KERNEL);
-	if (!area->bitmap)
-		goto free_area;
-
-	area->page = alloc_page(GFP_HIGHUSER);
-	if (!area->page)
-		goto free_bitmap;
-
-	/* allocate first slot of task's xol_area for the return probes */
-	set_bit(0, area->bitmap);
-	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
-	atomic_set(&area->slot_count, 1);
-	init_waitqueue_head(&area->wq);
-
-	if (!xol_add_vma(area))
-		return area;
-
-	__free_page(area->page);
- free_bitmap:
-	kfree(area->bitmap);
- free_area:
-	kfree(area);
- out:
-	area = mm->uprobes_state.xol_area;
- ret:
-	smp_read_barrier_depends();     /* pairs with wmb in xol_add_vma() */
+	smp_read_barrier_depends();	/* pairs with wmb in xol_add_vma() */
 	return area;
 }
 
@@ -1345,14 +1353,6 @@ void uprobe_free_utask(struct task_struct *t)
 }
 
 /*
- * Called in context of a new clone/fork from copy_process.
- */
-void uprobe_copy_process(struct task_struct *t)
-{
-	t->utask = NULL;
-}
-
-/*
  * Allocate a uprobe_task object for the task if if necessary.
  * Called when the thread hits a breakpoint.
  *
@@ -1365,6 +1365,90 @@ static struct uprobe_task *get_utask(void)
 	if (!current->utask)
 		current->utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
 	return current->utask;
+}
+
+static int dup_utask(struct task_struct *t, struct uprobe_task *o_utask)
+{
+	struct uprobe_task *n_utask;
+	struct return_instance **p, *o, *n;
+
+	n_utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
+	if (!n_utask)
+		return -ENOMEM;
+	t->utask = n_utask;
+
+	p = &n_utask->return_instances;
+	for (o = o_utask->return_instances; o; o = o->next) {
+		n = kmalloc(sizeof(struct return_instance), GFP_KERNEL);
+		if (!n)
+			return -ENOMEM;
+
+		*n = *o;
+		atomic_inc(&n->uprobe->ref);
+		n->next = NULL;
+
+		*p = n;
+		p = &n->next;
+		n_utask->depth++;
+	}
+
+	return 0;
+}
+
+static void uprobe_warn(struct task_struct *t, const char *msg)
+{
+	pr_warn("uprobe: %s:%d failed to %s\n",
+			current->comm, current->pid, msg);
+}
+
+static void dup_xol_work(struct callback_head *work)
+{
+	kfree(work);
+
+	if (current->flags & PF_EXITING)
+		return;
+
+	if (!__create_xol_area(current->utask->vaddr))
+		uprobe_warn(current, "dup xol area");
+}
+
+/*
+ * Called in context of a new clone/fork from copy_process.
+ */
+void uprobe_copy_process(struct task_struct *t, unsigned long flags)
+{
+	struct uprobe_task *utask = current->utask;
+	struct mm_struct *mm = current->mm;
+	struct callback_head *work;
+	struct xol_area *area;
+
+	t->utask = NULL;
+
+	if (!utask || !utask->return_instances)
+		return;
+
+	if (mm == t->mm && !(flags & CLONE_VFORK))
+		return;
+
+	if (dup_utask(t, utask))
+		return uprobe_warn(t, "dup ret instances");
+
+	/* The task can fork() after dup_xol_work() fails */
+	area = mm->uprobes_state.xol_area;
+	if (!area)
+		return uprobe_warn(t, "dup xol area");
+
+	if (mm == t->mm)
+		return;
+
+	/* TODO: move it into the union in uprobe_task */
+	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	if (!work)
+		return uprobe_warn(t, "dup xol area");
+
+	utask->vaddr = area->vaddr;
+	init_task_work(work, dup_xol_work);
+	task_work_add(t, work, true);
 }
 
 /*
