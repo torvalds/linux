@@ -39,11 +39,6 @@ int zynq_cpun_start(u32 address, int cpu)
 	u32 trampoline_code_size = &zynq_secondary_trampoline_end -
 						&zynq_secondary_trampoline;
 
-	if (cpu > ncores) {
-		pr_warn("CPU No. is not available in the system\n");
-		return -1;
-	}
-
 	/* MS: Expectation that SLCR are directly map and accessible */
 	/* Not possible to jump to non aligned address */
 	if (!(address & 3) && (!address || (address >= trampoline_code_size))) {
