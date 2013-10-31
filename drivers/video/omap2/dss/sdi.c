@@ -46,7 +46,7 @@ static struct {
 struct sdi_clk_calc_ctx {
 	unsigned long pck_min, pck_max;
 
-	struct dss_clock_info dss_cinfo;
+	unsigned long long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
 
@@ -63,19 +63,18 @@ static bool dpi_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	return true;
 }
 
-static bool dpi_calc_dss_cb(int fckd, unsigned long fck, void *data)
+static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 {
 	struct sdi_clk_calc_ctx *ctx = data;
 
-	ctx->dss_cinfo.fck = fck;
-	ctx->dss_cinfo.fck_div = fckd;
+	ctx->fck = fck;
 
 	return dispc_div_calc(fck, ctx->pck_min, ctx->pck_max,
 			dpi_calc_dispc_cb, ctx);
 }
 
 static int sdi_calc_clock_div(unsigned long pclk,
-		struct dss_clock_info *dss_cinfo,
+		unsigned long *fck,
 		struct dispc_clock_info *dispc_cinfo)
 {
 	int i;
@@ -100,7 +99,7 @@ static int sdi_calc_clock_div(unsigned long pclk,
 
 		ok = dss_div_calc(ctx.pck_min, dpi_calc_dss_cb, &ctx);
 		if (ok) {
-			*dss_cinfo = ctx.dss_cinfo;
+			*fck = ctx.fck;
 			*dispc_cinfo = ctx.dispc_cinfo;
 			return 0;
 		}
@@ -128,7 +127,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *out = &sdi.output;
 	struct omap_video_timings *t = &sdi.timings;
-	struct dss_clock_info dss_cinfo;
+	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long pck;
 	int r;
@@ -150,13 +149,13 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	t->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 	t->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
-	r = sdi_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
+	r = sdi_calc_clock_div(t->pixel_clock * 1000, &fck, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 
 	sdi.mgr_config.clock_info = dispc_cinfo;
 
-	pck = dss_cinfo.fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div / 1000;
+	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div / 1000;
 
 	if (pck != t->pixel_clock) {
 		DSSWARN("Could not find exact pixel clock. Requested %d kHz, "
@@ -169,7 +168,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 
 	dss_mgr_set_timings(out->manager, t);
 
-	r = dss_set_clock_div(&dss_cinfo);
+	r = dss_set_fck_rate(fck);
 	if (r)
 		goto err_set_dss_clock_div;
 
