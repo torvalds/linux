@@ -2131,6 +2131,10 @@
 #define   CRT_HOTPLUG_MONITOR_COLOR		(3 << 8)
 #define   CRT_HOTPLUG_MONITOR_MONO		(2 << 8)
 #define   CRT_HOTPLUG_MONITOR_NONE		(0 << 8)
+#define   DP_AUX_CHANNEL_D_INT_STATUS_G4X	(1 << 6)
+#define   DP_AUX_CHANNEL_C_INT_STATUS_G4X	(1 << 5)
+#define   DP_AUX_CHANNEL_B_INT_STATUS_G4X	(1 << 4)
+#define   DP_AUX_CHANNEL_MASK_INT_STATUS_G4X	(1 << 4)
 /* SDVO is different across gen3/4 */
 #define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
 #define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)

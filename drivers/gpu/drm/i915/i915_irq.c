@@ -1472,6 +1472,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
 
+			if (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
+				dp_aux_irq_handler(dev);
+
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
@@ -3652,6 +3655,10 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 			intel_hpd_irq_handler(dev, hotplug_trigger,
 					      IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915);
+
+			if (IS_G4X(dev) &&
+			    (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X))
+				dp_aux_irq_handler(dev);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);

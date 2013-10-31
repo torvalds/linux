@@ -404,7 +404,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	int i, ret, recv_bytes;
 	uint32_t status;
 	int try, precharge, clock = 0;
-	bool has_aux_irq = INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev);
+	bool has_aux_irq = true;
 	uint32_t timeout;
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
