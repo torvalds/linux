@@ -2022,7 +2022,6 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	s32 ret_val;
 	static int global_quad_port_a; /* global quad port a indication */
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
-	unsigned long mmio_start, mmio_len;
 	int err, pci_using_dac;
 	u8 part_str[E1000_PBANUM_LENGTH];
 
@@ -2079,11 +2078,8 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->back = adapter;
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
-	mmio_start = pci_resource_start(pdev, 0);
-	mmio_len = pci_resource_len(pdev, 0);
-
 	err = -EIO;
-	hw->hw_addr = ioremap(mmio_start, mmio_len);
+	hw->hw_addr = pci_iomap(pdev, 0, 0);
 	if (!hw->hw_addr)
 		goto err_ioremap;
 
@@ -2093,8 +2089,8 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
-	netdev->mem_start = mmio_start;
-	netdev->mem_end = mmio_start + mmio_len;
+	netdev->mem_start = pci_resource_start(pdev, 0);
+	netdev->mem_end = pci_resource_end(pdev, 0);
 
 	/* PCI config space info */
 	hw->vendor_id = pdev->vendor;
