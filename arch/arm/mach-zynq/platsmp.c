@@ -121,11 +121,20 @@ static void __init zynq_smp_prepare_cpus(unsigned int max_cpus)
 	scu_enable(zynq_scu_base);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static int zynq_cpu_kill(unsigned cpu)
+{
+	zynq_slcr_cpu_stop(cpu);
+	return 1;
+}
+#endif
+
 struct smp_operations zynq_smp_ops __initdata = {
 	.smp_init_cpus		= zynq_smp_init_cpus,
 	.smp_prepare_cpus	= zynq_smp_prepare_cpus,
 	.smp_boot_secondary	= zynq_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= zynq_platform_cpu_die,
+	.cpu_kill		= zynq_cpu_kill,
 #endif
 };
