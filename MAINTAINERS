@@ -4815,6 +4815,7 @@ M:	Gleb Natapov <gleb@redhat.com>
 M:	Paolo Bonzini <pbonzini@redhat.com>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
+T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
 S:	Supported
 F:	Documentation/*/kvm*.txt
 F:	Documentation/virtual/kvm/
