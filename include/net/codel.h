@@ -72,10 +72,21 @@ static inline codel_time_t codel_get_time(void)
 	return ns >> CODEL_SHIFT;
 }
 
-#define codel_time_after(a, b)		((s32)(a) - (s32)(b) > 0)
-#define codel_time_after_eq(a, b)	((s32)(a) - (s32)(b) >= 0)
-#define codel_time_before(a, b)		((s32)(a) - (s32)(b) < 0)
-#define codel_time_before_eq(a, b)	((s32)(a) - (s32)(b) <= 0)
+/* Dealing with timer wrapping, according to RFC 1982, as desc in wikipedia:
+ *  https://en.wikipedia.org/wiki/Serial_number_arithmetic#General_Solution
+ * codel_time_after(a,b) returns true if the time a is after time b.
+ */
+#define codel_time_after(a, b)						\
+	(typecheck(codel_time_t, a) &&					\
+	 typecheck(codel_time_t, b) &&					\
+	 ((s32)((a) - (b)) > 0))
+#define codel_time_before(a, b) 	codel_time_after(b, a)
+
+#define codel_time_after_eq(a, b)					\
+	(typecheck(codel_time_t, a) &&					\
+	 typecheck(codel_time_t, b) &&					\
+	 ((s32)((a) - (b)) >= 0))
+#define codel_time_before_eq(a, b)	codel_time_after_eq(b, a)
 
 /* Qdiscs using codel plugin must use codel_skb_cb in their own cb[] */
 struct codel_skb_cb {
