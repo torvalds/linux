@@ -12,39 +12,9 @@
 #include <linux/perf_event.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/circ_buf.h>
 
 #include "internal.h"
-
-static bool perf_output_space(struct ring_buffer *rb, unsigned long tail,
-			      unsigned long offset, unsigned long head)
-{
-	unsigned long sz = perf_data_size(rb);
-	unsigned long mask = sz - 1;
-
-	/*
-	 * check if user-writable
-	 * overwrite : over-write its own tail
-	 * !overwrite: buffer possibly drops events.
-	 */
-	if (rb->overwrite)
-		return true;
-
-	/*
-	 * verify that payload is not bigger than buffer
-	 * otherwise masking logic may fail to detect
-	 * the "not enough space" condition
-	 */
-	if ((head - offset) > sz)
-		return false;
-
-	offset = (offset - tail) & mask;
-	head   = (head   - tail) & mask;
-
-	if ((int)(head - offset) < 0)
-		return false;
-
-	return true;
-}
 
 static void perf_output_wakeup(struct perf_output_handle *handle)
 {
@@ -181,9 +151,10 @@ int perf_output_begin(struct perf_output_handle *handle,
 		tail = ACCESS_ONCE(rb->user_page->data_tail);
 		smp_mb();
 		offset = head = local_read(&rb->head);
-		head += size;
-		if (unlikely(!perf_output_space(rb, tail, offset, head)))
+		if (!rb->overwrite &&
+		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))
 			goto fail;
+		head += size;
 	} while (local_cmpxchg(&rb->head, offset, head) != offset);
 
 	if (head - local_read(&rb->wakeup) > rb->watermark)
