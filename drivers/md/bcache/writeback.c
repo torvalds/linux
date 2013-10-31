@@ -292,14 +292,12 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 				  uint64_t offset, int nr_sectors)
 {
 	struct bcache_device *d = c->devices[inode];
-	unsigned stripe_offset;
-	uint64_t stripe = offset;
+	unsigned stripe_offset, stripe, sectors_dirty;
 
 	if (!d)
 		return;
 
-	do_div(stripe, d->stripe_size);
-
+	stripe = offset_to_stripe(d, offset);
 	stripe_offset = offset & (d->stripe_size - 1);
 
 	while (nr_sectors) {
@@ -309,7 +307,16 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 		if (nr_sectors < 0)
 			s = -s;
 
-		atomic_add(s, d->stripe_sectors_dirty + stripe);
+		if (stripe >= d->nr_stripes)
+			return;
+
+		sectors_dirty = atomic_add_return(s,
+					d->stripe_sectors_dirty + stripe);
+		if (sectors_dirty == d->stripe_size)
+			set_bit(stripe, d->full_dirty_stripes);
+		else
+			clear_bit(stripe, d->full_dirty_stripes);
+
 		nr_sectors -= s;
 		stripe_offset = 0;
 		stripe++;
@@ -321,59 +328,70 @@ static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 	return KEY_DIRTY(k);
 }
 
-static bool dirty_full_stripe_pred(struct keybuf *buf, struct bkey *k)
+static void refill_full_stripes(struct cached_dev *dc)
 {
-	uint64_t stripe = KEY_START(k);
-	unsigned nr_sectors = KEY_SIZE(k);
-	struct cached_dev *dc = container_of(buf, struct cached_dev,
-					     writeback_keys);
+	struct keybuf *buf = &dc->writeback_keys;
+	unsigned start_stripe, stripe, next_stripe;
+	bool wrapped = false;
 
-	if (!KEY_DIRTY(k))
-		return false;
+	stripe = offset_to_stripe(&dc->disk, KEY_OFFSET(&buf->last_scanned));
 
-	do_div(stripe, dc->disk.stripe_size);
+	if (stripe >= dc->disk.nr_stripes)
+		stripe = 0;
+
+	start_stripe = stripe;
 
 	while (1) {
-		if (atomic_read(dc->disk.stripe_sectors_dirty + stripe) ==
-		    dc->disk.stripe_size)
-			return true;
+		stripe = find_next_bit(dc->disk.full_dirty_stripes,
+				       dc->disk.nr_stripes, stripe);
 
-		if (nr_sectors <= dc->disk.stripe_size)
-			return false;
+		if (stripe == dc->disk.nr_stripes)
+			goto next;
 
-		nr_sectors -= dc->disk.stripe_size;
-		stripe++;
+		next_stripe = find_next_zero_bit(dc->disk.full_dirty_stripes,
+						 dc->disk.nr_stripes, stripe);
+
+		buf->last_scanned = KEY(dc->disk.id,
+					stripe * dc->disk.stripe_size, 0);
+
+		bch_refill_keybuf(dc->disk.c, buf,
+				  &KEY(dc->disk.id,
+				       next_stripe * dc->disk.stripe_size, 0),
+				  dirty_pred);
+
+		if (array_freelist_empty(&buf->freelist))
+			return;
+
+		stripe = next_stripe;
+next:
+		if (wrapped && stripe > start_stripe)
+			return;
+
+		if (stripe == dc->disk.nr_stripes) {
+			stripe = 0;
+			wrapped = true;
+		}
 	}
 }
 
 static bool refill_dirty(struct cached_dev *dc)
 {
 	struct keybuf *buf = &dc->writeback_keys;
-	bool searched_from_start = false;
 	struct bkey end = KEY(dc->disk.id, MAX_KEY_OFFSET, 0);
+	bool searched_from_start = false;
+
+	if (dc->partial_stripes_expensive) {
+		refill_full_stripes(dc);
+		if (array_freelist_empty(&buf->freelist))
+			return false;
+	}
 
 	if (bkey_cmp(&buf->last_scanned, &end) >= 0) {
 		buf->last_scanned = KEY(dc->disk.id, 0, 0);
 		searched_from_start = true;
 	}
 
-	if (dc->partial_stripes_expensive) {
-		uint64_t i;
-
-		for (i = 0; i < dc->disk.nr_stripes; i++)
-			if (atomic_read(dc->disk.stripe_sectors_dirty + i) ==
-			    dc->disk.stripe_size)
-				goto full_stripes;
-
-		goto normal_refill;
-full_stripes:
-		searched_from_start = false;	/* not searching entire btree */
-		bch_refill_keybuf(dc->disk.c, buf, &end,
-				  dirty_full_stripe_pred);
-	} else {
-normal_refill:
-		bch_refill_keybuf(dc->disk.c, buf, &end, dirty_pred);
-	}
+	bch_refill_keybuf(dc->disk.c, buf, &end, dirty_pred);
 
 	return bkey_cmp(&buf->last_scanned, &end) >= 0 && searched_from_start;
 }

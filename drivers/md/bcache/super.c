@@ -738,6 +738,10 @@ static void bcache_device_free(struct bcache_device *d)
 		mempool_destroy(d->unaligned_bvec);
 	if (d->bio_split)
 		bioset_free(d->bio_split);
+	if (is_vmalloc_addr(d->full_dirty_stripes))
+		vfree(d->full_dirty_stripes);
+	else
+		kfree(d->full_dirty_stripes);
 	if (is_vmalloc_addr(d->stripe_sectors_dirty))
 		vfree(d->stripe_sectors_dirty);
 	else
@@ -757,14 +761,25 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 
 	d->nr_stripes = DIV_ROUND_UP_ULL(sectors, d->stripe_size);
 
-	if (!d->nr_stripes || d->nr_stripes > SIZE_MAX / sizeof(atomic_t))
+	if (!d->nr_stripes ||
+	    d->nr_stripes > INT_MAX ||
+	    d->nr_stripes > SIZE_MAX / sizeof(atomic_t)) {
+		pr_err("nr_stripes too large");
 		return -ENOMEM;
+	}
 
 	n = d->nr_stripes * sizeof(atomic_t);
 	d->stripe_sectors_dirty = n < PAGE_SIZE << 6
 		? kzalloc(n, GFP_KERNEL)
 		: vzalloc(n);
 	if (!d->stripe_sectors_dirty)
+		return -ENOMEM;
+
+	n = BITS_TO_LONGS(d->nr_stripes) * sizeof(unsigned long);
+	d->full_dirty_stripes = n < PAGE_SIZE << 6
+		? kzalloc(n, GFP_KERNEL)
+		: vzalloc(n);
+	if (!d->full_dirty_stripes)
 		return -ENOMEM;
 
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||

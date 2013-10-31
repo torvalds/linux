@@ -368,6 +368,35 @@ DEFINE_EVENT(btree_node, bcache_btree_set_root,
 	TP_ARGS(b)
 );
 
+TRACE_EVENT(bcache_keyscan,
+	TP_PROTO(unsigned nr_found,
+		 unsigned start_inode, uint64_t start_offset,
+		 unsigned end_inode, uint64_t end_offset),
+	TP_ARGS(nr_found,
+		start_inode, start_offset,
+		end_inode, end_offset),
+
+	TP_STRUCT__entry(
+		__field(__u32,	nr_found			)
+		__field(__u32,	start_inode			)
+		__field(__u64,	start_offset			)
+		__field(__u32,	end_inode			)
+		__field(__u64,	end_offset			)
+	),
+
+	TP_fast_assign(
+		__entry->nr_found	= nr_found;
+		__entry->start_inode	= start_inode;
+		__entry->start_offset	= start_offset;
+		__entry->end_inode	= end_inode;
+		__entry->end_offset	= end_offset;
+	),
+
+	TP_printk("found %u keys from %u:%llu to %u:%llu", __entry->nr_found,
+		  __entry->start_inode, __entry->start_offset,
+		  __entry->end_inode, __entry->end_offset)
+);
+
 /* Allocator */
 
 TRACE_EVENT(bcache_alloc_invalidate,

@@ -237,7 +237,7 @@ struct keybuf {
 
 	struct rb_root		keys;
 
-#define KEYBUF_NR		100
+#define KEYBUF_NR		500
 	DECLARE_ARRAY_ALLOCATOR(struct keybuf_key, freelist, KEYBUF_NR);
 };
 
@@ -273,9 +273,10 @@ struct bcache_device {
 	atomic_t		detaching;
 	int			flush_done;
 
-	uint64_t		nr_stripes;
+	unsigned		nr_stripes;
 	unsigned		stripe_size;
 	atomic_t		*stripe_sectors_dirty;
+	unsigned long		*full_dirty_stripes;
 
 	unsigned long		sectors_dirty_last;
 	long			sectors_dirty_derivative;

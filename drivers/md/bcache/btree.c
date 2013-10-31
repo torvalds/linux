@@ -2378,6 +2378,7 @@ static inline int keybuf_nonoverlapping_cmp(struct keybuf_key *l,
 
 struct refill {
 	struct btree_op	op;
+	unsigned	nr_found;
 	struct keybuf	*buf;
 	struct bkey	*end;
 	keybuf_pred_fn	*pred;
@@ -2414,6 +2415,8 @@ static int refill_keybuf_fn(struct btree_op *op, struct btree *b,
 
 		if (RB_INSERT(&buf->keys, w, node, keybuf_cmp))
 			array_free(&buf->freelist, w);
+		else
+			refill->nr_found++;
 
 		if (array_freelist_empty(&buf->freelist))
 			ret = MAP_DONE;
@@ -2434,18 +2437,18 @@ void bch_refill_keybuf(struct cache_set *c, struct keybuf *buf,
 	cond_resched();
 
 	bch_btree_op_init(&refill.op, -1);
-	refill.buf = buf;
-	refill.end = end;
-	refill.pred = pred;
+	refill.nr_found	= 0;
+	refill.buf	= buf;
+	refill.end	= end;
+	refill.pred	= pred;
 
 	bch_btree_map_keys(&refill.op, c, &buf->last_scanned,
 			   refill_keybuf_fn, MAP_END_KEY);
 
-	pr_debug("found %s keys from %llu:%llu to %llu:%llu",
-		 RB_EMPTY_ROOT(&buf->keys) ? "no" :
-		 array_freelist_empty(&buf->freelist) ? "some" : "a few",
-		 KEY_INODE(&start), KEY_OFFSET(&start),
-		 KEY_INODE(&buf->last_scanned), KEY_OFFSET(&buf->last_scanned));
+	trace_bcache_keyscan(refill.nr_found,
+			     KEY_INODE(&start), KEY_OFFSET(&start),
+			     KEY_INODE(&buf->last_scanned),
+			     KEY_OFFSET(&buf->last_scanned));
 
 	spin_lock(&buf->lock);
 
