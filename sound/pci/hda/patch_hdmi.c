@@ -46,6 +46,7 @@ module_param(static_hdmi_pcm, bool, 0644);
 MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
 #define is_haswell(codec)  ((codec)->vendor_id == 0x80862807)
+#define is_valleyview(codec) ((codec)->vendor_id == 0x80862882)
 
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
@@ -1327,7 +1328,7 @@ static int hdmi_choose_cvt(struct hda_codec *codec,
 	return 0;
 }
 
-static void haswell_config_cvts(struct hda_codec *codec,
+static void not_share_unassigned_cvt(struct hda_codec *codec,
 			hda_nid_t pin_nid, int mux_idx)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1406,8 +1407,8 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			    mux_idx);
 
 	/* configure unused pins to choose other converters */
-	if (is_haswell(codec))
-		haswell_config_cvts(codec, per_pin->pin_nid, mux_idx);
+	if (is_haswell(codec) || is_valleyview(codec))
+		not_share_unassigned_cvt(codec, per_pin->pin_nid, mux_idx);
 
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
 
