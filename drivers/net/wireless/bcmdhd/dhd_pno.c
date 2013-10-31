@@ -857,14 +857,22 @@ dhd_pno_set_for_ssid(dhd_pub_t *dhd, wlc_ssid_t* ssid_list, int nssid,
 			scan_fr, pno_repeat, pno_freq_expo_max, nchan));
 
 	_params = &(_pno_state->pno_params_arr[INDEX_OF_LEGACY_PARAMS]);
-	if (!(_pno_state->pno_mode & DHD_PNO_LEGACY_MODE)) {
-		_pno_state->pno_mode |= DHD_PNO_LEGACY_MODE;
-		err = _dhd_pno_reinitialize_prof(dhd, _params, DHD_PNO_LEGACY_MODE);
+	if (_pno_state->pno_mode & DHD_PNO_LEGACY_MODE) {
+		DHD_ERROR(("%s : Legacy PNO mode was already started, "
+			"will disable previous one to start new one\n", __FUNCTION__));
+		err = dhd_pno_stop_for_ssid(dhd);
 		if (err < 0) {
-			DHD_ERROR(("%s : failed to reinitialize profile (err %d)\n",
+			DHD_ERROR(("%s : failed to stop legacy PNO (err %d)\n",
 				__FUNCTION__, err));
 			goto exit;
 		}
+	}
+	_pno_state->pno_mode |= DHD_PNO_LEGACY_MODE;
+	err = _dhd_pno_reinitialize_prof(dhd, _params, DHD_PNO_LEGACY_MODE);
+	if (err < 0) {
+		DHD_ERROR(("%s : failed to reinitialize profile (err %d)\n",
+			__FUNCTION__, err));
+		goto exit;
 	}
 	memset(_chan_list, 0, sizeof(_chan_list));
 	tot_nchan = nchan;
@@ -930,7 +938,7 @@ dhd_pno_set_for_ssid(dhd_pub_t *dhd, wlc_ssid_t* ssid_list, int nssid,
 		goto exit;
 	}
 	if ((err = _dhd_pno_add_ssid(dhd, ssid_list, nssid)) < 0) {
-		DHD_ERROR(("failed to add ssid list (err %d) in firmware\n", err));
+		DHD_ERROR(("failed to add ssid list(err %d), %d in firmware\n", err, nssid));
 		goto exit;
 	}
 	for (i = 0; i < nssid; i++) {
