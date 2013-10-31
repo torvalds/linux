@@ -107,8 +107,6 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 static void intel_crt_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_config *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
-
 	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
