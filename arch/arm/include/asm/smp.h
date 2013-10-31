@@ -114,6 +114,15 @@ struct smp_operations {
 #endif
 };
 
+struct of_cpu_method {
+	const char *method;
+	struct smp_operations *ops;
+};
+
+#define CPU_METHOD_OF_DECLARE(name, _method, _ops)			\
+	static const struct of_cpu_method __cpu_method_of_table_##name	\
+		__used __section(__cpu_method_of_table)			\
+		= { .method = _method, .ops = _ops }
 /*
  * set platform specific SMP operations
  */
