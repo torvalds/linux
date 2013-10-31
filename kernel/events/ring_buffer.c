@@ -141,21 +141,22 @@ int perf_output_begin(struct perf_output_handle *handle,
 	perf_output_get_handle(handle);
 
 	do {
-		/*
-		 * Userspace could choose to issue a mb() before updating the
-		 * tail pointer. So that all reads will be completed before the
-		 * write is issued.
-		 *
-		 * See perf_output_put_handle().
-		 */
 		tail = ACCESS_ONCE(rb->user_page->data_tail);
-		smp_mb();
 		offset = head = local_read(&rb->head);
 		if (!rb->overwrite &&
 		    unlikely(CIRC_SPACE(head, tail, perf_data_size(rb)) < size))
 			goto fail;
 		head += size;
 	} while (local_cmpxchg(&rb->head, offset, head) != offset);
+
+	/*
+	 * Separate the userpage->tail read from the data stores below.
+	 * Matches the MB userspace SHOULD issue after reading the data
+	 * and before storing the new tail position.
+	 *
+	 * See perf_output_put_handle().
+	 */
+	smp_mb();
 
 	if (unlikely(head - local_read(&rb->wakeup) > rb->watermark))
 		local_add(rb->watermark, &rb->wakeup);
