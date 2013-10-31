@@ -471,7 +471,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 	edma_pause(echan->ch_num);
 
 	switch (ch_status) {
-	case DMA_COMPLETE:
+	case EDMA_DMA_COMPLETE:
 		spin_lock_irqsave(&echan->vchan.lock, flags);
 
 		edesc = echan->edesc;
@@ -490,7 +490,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 		spin_unlock_irqrestore(&echan->vchan.lock, flags);
 
 		break;
-	case DMA_CC_ERROR:
+	case EDMA_DMA_CC_ERROR:
 		spin_lock_irqsave(&echan->vchan.lock, flags);
 
 		edma_read_slot(EDMA_CHAN_SLOT(echan->slot[0]), &p);
