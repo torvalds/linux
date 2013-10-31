@@ -75,43 +75,6 @@
  * nodes that are pinning the oldest journal entries first.
  */
 
-#define BCACHE_JSET_VERSION_UUIDv1	1
-/* Always latest UUID format */
-#define BCACHE_JSET_VERSION_UUID	1
-#define BCACHE_JSET_VERSION		1
-
-/*
- * On disk format for a journal entry:
- * seq is monotonically increasing; every journal entry has its own unique
- * sequence number.
- *
- * last_seq is the oldest journal entry that still has keys the btree hasn't
- * flushed to disk yet.
- *
- * version is for on disk format changes.
- */
-struct jset {
-	uint64_t		csum;
-	uint64_t		magic;
-	uint64_t		seq;
-	uint32_t		version;
-	uint32_t		keys;
-
-	uint64_t		last_seq;
-
-	BKEY_PADDED(uuid_bucket);
-	BKEY_PADDED(btree_root);
-	uint16_t		btree_level;
-	uint16_t		pad[3];
-
-	uint64_t		prio_bucket[MAX_CACHES_PER_SET];
-
-	union {
-		struct bkey	start[0];
-		uint64_t	d[0];
-	};
-};
-
 /*
  * Only used for holding the journal entries we read in btree_journal_read()
  * during cache_registration

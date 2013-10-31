@@ -193,37 +193,6 @@ static __always_inline int64_t bkey_cmp(const struct bkey *l,
 		: (int64_t) KEY_OFFSET(l) - (int64_t) KEY_OFFSET(r);
 }
 
-static inline size_t bkey_u64s(const struct bkey *k)
-{
-	BUG_ON(KEY_CSUM(k) > 1);
-	return 2 + KEY_PTRS(k) + (KEY_CSUM(k) ? 1 : 0);
-}
-
-static inline size_t bkey_bytes(const struct bkey *k)
-{
-	return bkey_u64s(k) * sizeof(uint64_t);
-}
-
-static inline void bkey_copy(struct bkey *dest, const struct bkey *src)
-{
-	memcpy(dest, src, bkey_bytes(src));
-}
-
-static inline void bkey_copy_key(struct bkey *dest, const struct bkey *src)
-{
-	if (!src)
-		src = &KEY(0, 0, 0);
-
-	SET_KEY_INODE(dest, KEY_INODE(src));
-	SET_KEY_OFFSET(dest, KEY_OFFSET(src));
-}
-
-static inline struct bkey *bkey_next(const struct bkey *k)
-{
-	uint64_t *d = (void *) k;
-	return (struct bkey *) (d + bkey_u64s(k));
-}
-
 /* Keylists */
 
 struct keylist {

@@ -231,7 +231,7 @@ static void bch_btree_node_read_done(struct btree *b)
 			goto err;
 
 		err = "bad magic";
-		if (i->magic != bset_magic(b->c))
+		if (i->magic != bset_magic(&b->c->sb))
 			goto err;
 
 		err = "bad checksum";

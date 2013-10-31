@@ -27,16 +27,6 @@ struct closure;
 
 #endif
 
-#define BITMASK(name, type, field, offset, size)		\
-static inline uint64_t name(const type *k)			\
-{ return (k->field >> offset) & ~(((uint64_t) ~0) << size); }	\
-								\
-static inline void SET_##name(type *k, uint64_t v)		\
-{								\
-	k->field &= ~(~((uint64_t) ~0 << size) << offset);	\
-	k->field |= v << offset;				\
-}
-
 #define DECLARE_HEAP(type, name)					\
 	struct {							\
 		size_t size, used;					\

@@ -684,7 +684,7 @@ void bch_bset_init_next(struct btree *b)
 	} else
 		get_random_bytes(&i->seq, sizeof(uint64_t));
 
-	i->magic	= bset_magic(b->c);
+	i->magic	= bset_magic(&b->c->sb);
 	i->version	= 0;
 	i->keys		= 0;
 
@@ -1034,7 +1034,7 @@ static void __btree_sort(struct btree *b, struct btree_iter *iter,
 		 * memcpy()
 		 */
 
-		out->magic	= bset_magic(b->c);
+		out->magic	= bset_magic(&b->c->sb);
 		out->seq	= b->sets[0].data->seq;
 		out->version	= b->sets[0].data->version;
 		swap(out, b->sets[0].data);

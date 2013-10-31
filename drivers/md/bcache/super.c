@@ -45,15 +45,6 @@ const char * const bch_cache_modes[] = {
 	NULL
 };
 
-struct uuid_entry_v0 {
-	uint8_t		uuid[16];
-	uint8_t		label[32];
-	uint32_t	first_reg;
-	uint32_t	last_reg;
-	uint32_t	invalidated;
-	uint32_t	pad;
-};
-
 static struct kobject *bcache_kobj;
 struct mutex bch_register_lock;
 LIST_HEAD(bch_cache_sets);
@@ -562,7 +553,7 @@ void bch_prio_write(struct cache *ca)
 		}
 
 		p->next_bucket	= ca->prio_buckets[i + 1];
-		p->magic	= pset_magic(ca);
+		p->magic	= pset_magic(&ca->sb);
 		p->csum		= bch_crc64(&p->magic, bucket_bytes(ca) - 8);
 
 		bucket = bch_bucket_alloc(ca, WATERMARK_PRIO, true);
@@ -613,7 +604,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 			if (p->csum != bch_crc64(&p->magic, bucket_bytes(ca) - 8))
 				pr_warn("bad csum reading priorities");
 
-			if (p->magic != pset_magic(ca))
+			if (p->magic != pset_magic(&ca->sb))
 				pr_warn("bad magic reading priorities");
 
 			bucket = p->next_bucket;

@@ -74,7 +74,7 @@ reread:		left = ca->sb.bucket_size - offset;
 			struct list_head *where;
 			size_t blocks, bytes = set_bytes(j);
 
-			if (j->magic != jset_magic(ca->set))
+			if (j->magic != jset_magic(&ca->sb))
 				return ret;
 
 			if (bytes > left << 9)
@@ -596,7 +596,7 @@ static void journal_write_unlocked(struct closure *cl)
 	for_each_cache(ca, c, i)
 		w->data->prio_bucket[ca->sb.nr_this_dev] = ca->prio_buckets[0];
 
-	w->data->magic		= jset_magic(c);
+	w->data->magic		= jset_magic(&c->sb);
 	w->data->version	= BCACHE_JSET_VERSION;
 	w->data->last_seq	= last_seq(&c->journal);
 	w->data->csum		= csum_set(w->data);

@@ -264,16 +264,17 @@ static void bch_data_invalidate(struct closure *cl)
 		 bio_sectors(bio), (uint64_t) bio->bi_sector);
 
 	while (bio_sectors(bio)) {
-		unsigned len = min(bio_sectors(bio), 1U << 14);
+		unsigned sectors = min(bio_sectors(bio),
+				       1U << (KEY_SIZE_BITS - 1));
 
 		if (bch_keylist_realloc(&op->insert_keys, 0, op->c))
 			goto out;
 
-		bio->bi_sector	+= len;
-		bio->bi_size	-= len << 9;
+		bio->bi_sector	+= sectors;
+		bio->bi_size	-= sectors << 9;
 
 		bch_keylist_add(&op->insert_keys,
-				&KEY(op->inode, bio->bi_sector, len));
+				&KEY(op->inode, bio->bi_sector, sectors));
 	}
 
 	op->insert_data_done = true;
