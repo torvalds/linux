@@ -1941,9 +1941,4 @@ static int __init init_uprobes(void)
 
 	return register_die_notifier(&uprobe_exception_nb);
 }
-module_init(init_uprobes);
-
-static void __exit exit_uprobes(void)
-{
-}
-module_exit(exit_uprobes);
+__initcall(init_uprobes);
