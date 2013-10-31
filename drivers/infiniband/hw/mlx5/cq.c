@@ -556,7 +556,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		goto err_db;
 	}
 	mlx5_ib_populate_pas(dev, cq->buf.umem, page_shift, (*cqb)->pas, 0);
-	(*cqb)->ctx.log_pg_sz = page_shift - PAGE_SHIFT;
+	(*cqb)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 
 	*index = to_mucontext(context)->uuari.uars[0].index;
 
