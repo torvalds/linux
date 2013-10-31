@@ -2552,8 +2552,7 @@ again:
 		failed = 0;
 		retried = true;
 		goto again;
-	} else if (failed && retried) {
-		WARN_ON(1);
+	} else if (WARN_ON(failed && retried)) {
 		ret = -ENOSPC;
 	}
 error:
@@ -5402,10 +5401,8 @@ static int bio_size_ok(struct block_device *bdev, struct bio *bio,
 		.bi_rw = bio->bi_rw,
 	};
 
-	if (bio->bi_vcnt == 0) {
-		WARN_ON(1);
+	if (WARN_ON(bio->bi_vcnt == 0))
 		return 1;
-	}
 
 	prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
 	if (bio_sectors(bio) > max_sectors)
@@ -5638,10 +5635,8 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	struct btrfs_device *dev;
 	u64 tmp;
 
-	if (!devid && !fs_info) {
-		WARN_ON(1);
+	if (WARN_ON(!devid && !fs_info))
 		return ERR_PTR(-EINVAL);
-	}
 
 	dev = __alloc_device();
 	if (IS_ERR(dev))

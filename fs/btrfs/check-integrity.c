@@ -2464,10 +2464,8 @@ static int btrfsic_process_written_superblock(
 		}
 	}
 
-	if (-1 == btrfsic_check_all_ref_blocks(state, superblock, 0)) {
-		WARN_ON(1);
+	if (WARN_ON(-1 == btrfsic_check_all_ref_blocks(state, superblock, 0)))
 		btrfsic_dump_tree(state);
-	}
 
 	return 0;
 }
@@ -2907,7 +2905,7 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 		btrfsic_release_block_ctx(&block_ctx);
 	}
 
-	if (!match) {
+	if (WARN_ON(!match)) {
 		printk(KERN_INFO "btrfs: attempt to write M-block which contains logical bytenr that doesn't map to dev+physical bytenr of submit_bio,"
 		       " buffer->log_bytenr=%llu, submit_bio(bdev=%s,"
 		       " phys_bytenr=%llu)!\n",
@@ -2924,7 +2922,6 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 			       bytenr, block_ctx.dev->name,
 			       block_ctx.dev_bytenr, mirror_num);
 		}
-		WARN_ON(1);
 	}
 }
 

@@ -1550,9 +1550,8 @@ again:
 	if (ret && !insert) {
 		err = -ENOENT;
 		goto out;
-	} else if (ret) {
+	} else if (WARN_ON(ret)) {
 		err = -EIO;
-		WARN_ON(1);
 		goto out;
 	}
 
@@ -5752,9 +5751,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 			extent_slot = path->slots[0];
 		}
-	} else if (ret == -ENOENT) {
+	} else if (WARN_ON(ret == -ENOENT)) {
 		btrfs_print_leaf(extent_root, path->nodes[0]);
-		WARN_ON(1);
 		btrfs_err(info,
 			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
 			bytenr, parent, root_objectid, owner_objectid,
@@ -8317,10 +8315,9 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 					struct btrfs_space_info,
 					list);
 		if (btrfs_test_opt(info->tree_root, ENOSPC_DEBUG)) {
-			if (space_info->bytes_pinned > 0 ||
+			if (WARN_ON(space_info->bytes_pinned > 0 ||
 			    space_info->bytes_reserved > 0 ||
-			    space_info->bytes_may_use > 0) {
-				WARN_ON(1);
+			    space_info->bytes_may_use > 0)) {
 				dump_space_info(space_info, 0, 0);
 			}
 		}

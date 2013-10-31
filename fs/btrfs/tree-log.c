@@ -2130,8 +2130,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		WARN_ON(*level >= BTRFS_MAX_LEVEL);
 		cur = path->nodes[*level];
 
-		if (btrfs_header_level(cur) != *level)
-			WARN_ON(1);
+		WARN_ON(btrfs_header_level(cur) != *level);
 
 		if (path->slots[*level] >=
 		    btrfs_header_nritems(cur))
@@ -2951,10 +2950,8 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 
 	/* find the first key from this transaction again */
 	ret = btrfs_search_slot(NULL, root, &min_key, path, 0, 0);
-	if (ret != 0) {
-		WARN_ON(1);
+	if (WARN_ON(ret != 0))
 		goto done;
-	}
 
 	/*
 	 * we have a block from this transaction, log every item in it

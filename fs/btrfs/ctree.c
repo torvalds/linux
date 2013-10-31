@@ -1285,11 +1285,10 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		free_extent_buffer(eb_root);
 		blocksize = btrfs_level_size(root, old_root->level);
 		old = read_tree_block(root, logical, blocksize, 0);
-		if (!old || !extent_buffer_uptodate(old)) {
+		if (WARN_ON(!old || !extent_buffer_uptodate(old))) {
 			free_extent_buffer(old);
 			pr_warn("btrfs: failed to read tree block %llu from get_old_root\n",
 				logical);
-			WARN_ON(1);
 		} else {
 			eb = btrfs_clone_extent_buffer(old);
 			free_extent_buffer(old);
@@ -3643,8 +3642,7 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 		ret = 1;
 		goto out;
 	}
-	if (!empty && push_items == btrfs_header_nritems(right))
-		WARN_ON(1);
+	WARN_ON(!empty && push_items == btrfs_header_nritems(right));
 
 	/* push data from right to left */
 	copy_extent_buffer(left, right,

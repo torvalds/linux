@@ -475,14 +475,8 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	if (page != eb->pages[0])
 		return 0;
 	found_start = btrfs_header_bytenr(eb);
-	if (found_start != start) {
-		WARN_ON(1);
+	if (WARN_ON(found_start != start || !PageUptodate(page)))
 		return 0;
-	}
-	if (!PageUptodate(page)) {
-		WARN_ON(1);
-		return 0;
-	}
 	csum_tree_block(root, eb, 0);
 	return 0;
 }

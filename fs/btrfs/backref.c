@@ -326,8 +326,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 
 	eb = path->nodes[level];
 	while (!eb) {
-		if (!level) {
-			WARN_ON(1);
+		if (WARN_ON(!level)) {
 			ret = 1;
 			goto out;
 		}

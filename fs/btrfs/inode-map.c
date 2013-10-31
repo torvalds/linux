@@ -78,10 +78,8 @@ again:
 			    btrfs_transaction_in_commit(fs_info)) {
 				leaf = path->nodes[0];
 
-				if (btrfs_header_nritems(leaf) == 0) {
-					WARN_ON(1);
+				if (WARN_ON(btrfs_header_nritems(leaf) == 0))
 					break;
-				}
 
 				/*
 				 * Save the key so we can advances forward

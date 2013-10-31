@@ -1777,8 +1777,7 @@ again:
 			new_ptr_gen = 0;
 		}
 
-		if (new_bytenr > 0 && new_bytenr == old_bytenr) {
-			WARN_ON(1);
+		if (WARN_ON(new_bytenr > 0 && new_bytenr == old_bytenr)) {
 			ret = level;
 			break;
 		}
@@ -3545,10 +3544,8 @@ static int find_data_references(struct reloc_control *rc,
 				err = ret;
 				goto out;
 			}
-			if (ret > 0) {
-				WARN_ON(1);
+			if (WARN_ON(ret > 0))
 				goto out;
-			}
 
 			leaf = path->nodes[0];
 			nritems = btrfs_header_nritems(leaf);
@@ -3568,11 +3565,9 @@ static int find_data_references(struct reloc_control *rc,
 		}
 
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		if (key.objectid != ref_objectid ||
-		    key.type != BTRFS_EXTENT_DATA_KEY) {
-			WARN_ON(1);
+		if (WARN_ON(key.objectid != ref_objectid ||
+		    key.type != BTRFS_EXTENT_DATA_KEY))
 			break;
-		}
 
 		fi = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_file_extent_item);

@@ -564,10 +564,8 @@ static int begin_cmd(struct send_ctx *sctx, int cmd)
 {
 	struct btrfs_cmd_header *hdr;
 
-	if (!sctx->send_buf) {
-		WARN_ON(1);
+	if (WARN_ON(!sctx->send_buf))
 		return -EINVAL;
-	}
 
 	BUG_ON(sctx->send_size);
 
