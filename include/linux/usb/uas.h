@@ -83,7 +83,7 @@ struct response_iu {
 	__u8 iu_id;
 	__u8 rsvd1;
 	__be16 tag;
-	__be16 add_response_info;
+	__u8 add_response_info[3];
 	__u8 response_code;
 };
 
