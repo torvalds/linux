@@ -451,7 +451,7 @@ tcp_fastopen - INTEGER
 	connect() to perform a TCP handshake automatically.
 
 	The values (bitmap) are
-	1: Enables sending data in the opening SYN on the client.
+	1: Enables sending data in the opening SYN on the client w/ MSG_FASTOPEN.
 	2: Enables TCP Fast Open on the server side, i.e., allowing data in
 	   a SYN packet to be accepted and passed to the application before
 	   3-way hand shake finishes.
@@ -464,7 +464,7 @@ tcp_fastopen - INTEGER
 	   different ways of setting max_qlen without the TCP_FASTOPEN socket
 	   option.
 
-	Default: 0
+	Default: 1
 
 	Note that the client & server side Fast Open flags (1 and 2
 	respectively) must be also enabled before the rest of flags can take
