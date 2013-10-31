@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/debugfs.h>
+#include <linux/acpi.h>
 #include <trace/events/power.h>
 
 #include <asm/div64.h>
@@ -779,6 +780,72 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.set       = funcs->set;
 }
 
+#if IS_ENABLED(CONFIG_ACPI)
+#include <acpi/processor.h>
+
+static bool intel_pstate_no_acpi_pss(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		acpi_status status;
+		union acpi_object *pss;
+		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+		struct acpi_processor *pr = per_cpu(processors, i);
+
+		if (!pr)
+			continue;
+
+		status = acpi_evaluate_object(pr->handle, "_PSS", NULL, &buffer);
+		if (ACPI_FAILURE(status))
+			continue;
+
+		pss = buffer.pointer;
+		if (pss && pss->type == ACPI_TYPE_PACKAGE) {
+			kfree(pss);
+			return false;
+		}
+
+		kfree(pss);
+	}
+
+	return true;
+}
+
+struct hw_vendor_info {
+	u16  valid;
+	char oem_id[ACPI_OEM_ID_SIZE];
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE];
+};
+
+/* Hardware vendor-specific info that has its own power management modes */
+static struct hw_vendor_info vendor_info[] = {
+	{1, "HP    ", "ProLiant"},
+	{0, "", ""},
+};
+
+static bool intel_pstate_platform_pwr_mgmt_exists(void)
+{
+	struct acpi_table_header hdr;
+	struct hw_vendor_info *v_info;
+
+	if (acpi_disabled
+	    || ACPI_FAILURE(acpi_get_table_header(ACPI_SIG_FADT, 0, &hdr)))
+		return false;
+
+	for (v_info = vendor_info; v_info->valid; v_info++) {
+		if (!strncmp(hdr.oem_id, v_info->oem_id, ACPI_OEM_ID_SIZE)
+		    && !strncmp(hdr.oem_table_id, v_info->oem_table_id, ACPI_OEM_TABLE_ID_SIZE)
+		    && intel_pstate_no_acpi_pss())
+			return true;
+	}
+
+	return false;
+}
+#else /* CONFIG_ACPI not enabled */
+static inline bool intel_pstate_platform_pwr_mgmt_exists(void) { return false; }
+#endif /* CONFIG_ACPI */
+
 static int __init intel_pstate_init(void)
 {
 	int cpu, rc = 0;
@@ -790,6 +857,13 @@ static int __init intel_pstate_init(void)
 
 	id = x86_match_cpu(intel_pstate_cpu_ids);
 	if (!id)
+		return -ENODEV;
+
+	/*
+	 * The Intel pstate driver will be ignored if the platform
+	 * firmware has its own power management modes.
+	 */
+	if (intel_pstate_platform_pwr_mgmt_exists())
 		return -ENODEV;
 
 	cpu_info = (struct cpu_defaults *)id->driver_data;
