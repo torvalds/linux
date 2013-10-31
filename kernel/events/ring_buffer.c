@@ -106,7 +106,6 @@ int perf_output_begin(struct perf_output_handle *handle,
 	struct ring_buffer *rb;
 	unsigned long tail, offset, head;
 	int have_lost;
-	struct perf_sample_data sample_data;
 	struct {
 		struct perf_event_header header;
 		u64			 id;
@@ -132,10 +131,9 @@ int perf_output_begin(struct perf_output_handle *handle,
 
 	have_lost = local_read(&rb->lost);
 	if (unlikely(have_lost)) {
-		lost_event.header.size = sizeof(lost_event);
-		perf_event_header__init_id(&lost_event.header, &sample_data,
-					   event);
-		size += lost_event.header.size;
+		size += sizeof(lost_event);
+		if (event->attr.sample_id_all)
+			size += event->id_header_size;
 	}
 
 	perf_output_get_handle(handle);
@@ -169,11 +167,16 @@ int perf_output_begin(struct perf_output_handle *handle,
 	handle->size = (PAGE_SIZE << page_order(rb)) - handle->size;
 
 	if (unlikely(have_lost)) {
+		struct perf_sample_data sample_data;
+
+		lost_event.header.size = sizeof(lost_event);
 		lost_event.header.type = PERF_RECORD_LOST;
 		lost_event.header.misc = 0;
 		lost_event.id          = event->id;
 		lost_event.lost        = local_xchg(&rb->lost, 0);
 
+		perf_event_header__init_id(&lost_event.header,
+					   &sample_data, event);
 		perf_output_put(handle, lost_event);
 		perf_event__output_id_sample(event, handle, &sample_data);
 	}
