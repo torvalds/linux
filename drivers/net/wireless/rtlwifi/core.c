@@ -651,6 +651,25 @@ static int rtl_op_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void rtl_update_beacon(struct ieee80211_hw *hw,
+                struct ieee80211_vif *vif)
+{
+        struct sk_buff *skb;
+
+        skb = ieee80211_beacon_get(hw, vif);
+        rtl_op_tx(hw, skb);
+}
+
+static int rtl_op_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+                bool set)
+{
+        struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+        _rtl_update_beacon(hw, rtlpriv->mac80211.vif);
+
+        return 0;
+}
+
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf, u32 changed)
@@ -668,6 +687,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		if ((changed & BSS_CHANGED_BEACON) ||
 		    (changed & BSS_CHANGED_BEACON_ENABLED &&
 		     bss_conf->enable_beacon)) {
+		     	rtl_update_beacon(hw, vif);
 			if (mac->beacon_enabled == 0) {
 				RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
 					 "BSS_CHANGED_BEACON_ENABLED\n");
@@ -1317,6 +1337,7 @@ const struct ieee80211_ops rtl_ops = {
 	.configure_filter = rtl_op_configure_filter,
 	.sta_add = rtl_op_sta_add,
 	.sta_remove = rtl_op_sta_remove,
+	.set_tim = rtl_op_set_tim,
 	.set_key = rtl_op_set_key,
 	.conf_tx = rtl_op_conf_tx,
 	.bss_info_changed = rtl_op_bss_info_changed,
