@@ -2934,10 +2934,10 @@ static void tcp_synack_rtt_meas(struct sock *sk, const u32 synack_stamp)
 		tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt, -1);
 }
 
-static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked, u32 in_flight)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	icsk->icsk_ca_ops->cong_avoid(sk, ack, in_flight);
+	icsk->icsk_ca_ops->cong_avoid(sk, ack, acked, in_flight);
 	tcp_sk(sk)->snd_cwnd_stamp = tcp_time_stamp;
 }
 
@@ -3454,7 +3454,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	/* Advance cwnd if state allows */
 	if (tcp_may_raise_cwnd(sk, flag))
-		tcp_cong_avoid(sk, ack, prior_in_flight);
+		tcp_cong_avoid(sk, ack, acked, prior_in_flight);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		is_dupack = !(flag & (FLAG_SND_UNA_ADVANCED | FLAG_NOT_DUP));
