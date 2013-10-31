@@ -653,6 +653,7 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_RUNTIME_SERVICES	3	/* Can we use runtime services? */
 #define EFI_MEMMAP		4	/* Can we use EFI memory map? */
 #define EFI_64BIT		5	/* Is the firmware 64-bit? */
+#define EFI_ARCH_1		6	/* First arch-specific bit */
 
 #ifdef CONFIG_EFI
 # ifdef CONFIG_X86
