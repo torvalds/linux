@@ -190,6 +190,46 @@
 		clock-names = "pclk", "clk32k_in";
 	};
 
+	sdhci@700b0000 {
+		compatible = "nvidia,tegra124-sdhci";
+		reg = <0x700b0000 0x200>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_SDMMC1>;
+		resets = <&tegra_car 14>;
+		reset-names = "sdhci";
+		status = "disable";
+	};
+
+	sdhci@700b0200 {
+		compatible = "nvidia,tegra124-sdhci";
+		reg = <0x700b0200 0x200>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_SDMMC2>;
+		resets = <&tegra_car 9>;
+		reset-names = "sdhci";
+		status = "disable";
+	};
+
+	sdhci@700b0400 {
+		compatible = "nvidia,tegra124-sdhci";
+		reg = <0x700b0400 0x200>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_SDMMC3>;
+		resets = <&tegra_car 69>;
+		reset-names = "sdhci";
+		status = "disable";
+	};
+
+	sdhci@700b0600 {
+		compatible = "nvidia,tegra124-sdhci";
+		reg = <0x700b0600 0x200>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_SDMMC4>;
+		resets = <&tegra_car 15>;
+		reset-names = "sdhci";
+		status = "disable";
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
