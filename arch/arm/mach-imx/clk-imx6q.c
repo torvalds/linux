@@ -122,13 +122,14 @@ static struct clk_div_table clk_enet_ref_table[] = {
 	{ .val = 1, .div = 10, },
 	{ .val = 2, .div = 5, },
 	{ .val = 3, .div = 4, },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table post_div_table[] = {
 	{ .val = 2, .div = 1, },
 	{ .val = 1, .div = 2, },
 	{ .val = 0, .div = 4, },
-	{ }
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table video_div_table[] = {
@@ -136,7 +137,7 @@ static struct clk_div_table video_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 2, .div = 1, },
 	{ .val = 3, .div = 4, },
-	{ }
+	{ /* sentinel */ }
 };
 
 static void __init imx6q_clocks_init(struct device_node *ccm_node)
