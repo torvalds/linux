@@ -3036,8 +3036,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	return 0;
 probe_err3:
-	amba_set_drvdata(adev, NULL);
-
 	/* Idle the DMAC */
 	list_for_each_entry_safe(pch, _p, &pdmac->ddma.channels,
 			chan.device_node) {
@@ -3068,7 +3066,6 @@ static int pl330_remove(struct amba_device *adev)
 		of_dma_controller_free(adev->dev.of_node);
 
 	dma_async_device_unregister(&pdmac->ddma);
-	amba_set_drvdata(adev, NULL);
 
 	/* Idle the DMAC */
 	list_for_each_entry_safe(pch, _p, &pdmac->ddma.channels,
