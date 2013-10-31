@@ -308,7 +308,7 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 	while (*link_bw > (dp->dpcd[1] * 27000))
 		link_bw++;
 
-	while (link_bw[0]) {
+	while ((ret = -EIO) && link_bw[0]) {
 		/* find minimum required lane count at this link rate */
 		dp->link_nr = dp->dpcd[2] & DPCD_RC02_MAX_LANE_COUNT;
 		while ((dp->link_nr >> 1) * link_bw[0] > datarate)
@@ -339,6 +339,8 @@ nouveau_dp_train(struct nouveau_disp *disp, const struct nouveau_dp_func *func,
 
 	/* finish link training */
 	dp_set_training_pattern(dp, 0);
+	if (ret < 0)
+		ERR("link training failed\n");
 
 	/* execute post-train script from vbios */
 	dp_link_train_fini(dp);
