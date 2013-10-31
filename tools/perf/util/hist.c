@@ -407,73 +407,12 @@ out:
 	return he;
 }
 
-struct hist_entry *__hists__add_mem_entry(struct hists *hists,
-					  struct addr_location *al,
-					  struct symbol *sym_parent,
-					  struct mem_info *mi,
-					  u64 period,
-					  u64 weight)
-{
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.comm = thread__comm(al->thread),
-		.ms = {
-			.map	= al->map,
-			.sym	= al->sym,
-		},
-		.stat = {
-			.period	= period,
-			.weight = weight,
-			.nr_events = 1,
-		},
-		.cpu	= al->cpu,
-		.ip	= al->addr,
-		.level	= al->level,
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-		.hists = hists,
-		.mem_info = mi,
-		.branch_info = NULL,
-	};
-	return add_hist_entry(hists, &entry, al, period, weight);
-}
-
-struct hist_entry *__hists__add_branch_entry(struct hists *hists,
-					     struct addr_location *al,
-					     struct symbol *sym_parent,
-					     struct branch_info *bi,
-					     u64 period,
-					     u64 weight)
-{
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.comm = thread__comm(al->thread),
-		.ms = {
-			.map	= bi->to.map,
-			.sym	= bi->to.sym,
-		},
-		.cpu	= al->cpu,
-		.ip	= bi->to.addr,
-		.level	= al->level,
-		.stat = {
-			.period	= period,
-			.nr_events = 1,
-			.weight = weight,
-		},
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-		.branch_info = bi,
-		.hists	= hists,
-		.mem_info = NULL,
-	};
-
-	return add_hist_entry(hists, &entry, al, period, weight);
-}
-
 struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
-				      struct symbol *sym_parent, u64 period,
-				      u64 weight, u64 transaction)
+				      struct symbol *sym_parent,
+				      struct branch_info *bi,
+				      struct mem_info *mi,
+				      u64 period, u64 weight, u64 transaction)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -486,15 +425,15 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.ip	= al->addr,
 		.level	= al->level,
 		.stat = {
-			.period	= period,
 			.nr_events = 1,
+			.period	= period,
 			.weight = weight,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
 		.hists	= hists,
-		.branch_info = NULL,
-		.mem_info = NULL,
+		.branch_info = bi,
+		.mem_info = mi,
 		.transaction = transaction,
 	};
 

@@ -246,8 +246,9 @@ static struct hist_entry *perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	struct hist_entry *he;
 
 	pthread_mutex_lock(&evsel->hists.lock);
-	he = __hists__add_entry(&evsel->hists, al, NULL, sample->period,
-				sample->weight, sample->transaction);
+	he = __hists__add_entry(&evsel->hists, al, NULL, NULL, NULL,
+				sample->period, sample->weight,
+				sample->transaction);
 	pthread_mutex_unlock(&evsel->hists.lock);
 	if (he == NULL)
 		return NULL;

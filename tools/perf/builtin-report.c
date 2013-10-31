@@ -115,7 +115,8 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 	 * and this is indirectly achieved by passing period=weight here
 	 * and the he_stat__add_period() function.
 	 */
-	he = __hists__add_mem_entry(&evsel->hists, al, parent, mi, cost, cost);
+	he = __hists__add_entry(&evsel->hists, al, parent, NULL, mi,
+				cost, cost, 0);
 	if (!he)
 		return -ENOMEM;
 
@@ -200,12 +201,16 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 
 		err = -ENOMEM;
 
+		/* overwrite the 'al' to branch-to info */
+		al->map = bi[i].to.map;
+		al->sym = bi[i].to.sym;
+		al->addr = bi[i].to.addr;
 		/*
 		 * The report shows the percentage of total branches captured
 		 * and not events sampled. Thus we use a pseudo period of 1.
 		 */
-		he = __hists__add_branch_entry(&evsel->hists, al, parent,
-				&bi[i], 1, 1);
+		he = __hists__add_entry(&evsel->hists, al, parent, &bi[i], NULL,
+					1, 1, 0);
 		if (he) {
 			struct annotation *notes;
 			bx = he->branch_info;
@@ -266,8 +271,9 @@ static int perf_evsel__add_hist_entry(struct perf_tool *tool,
 			return err;
 	}
 
-	he = __hists__add_entry(&evsel->hists, al, parent, sample->period,
-				sample->weight, sample->transaction);
+	he = __hists__add_entry(&evsel->hists, al, parent, NULL, NULL,
+				sample->period, sample->weight,
+				sample->transaction);
 	if (he == NULL)
 		return -ENOMEM;
 
