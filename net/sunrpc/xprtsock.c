@@ -856,14 +856,6 @@ static void xs_tcp_close(struct rpc_xprt *xprt)
 		xs_tcp_shutdown(xprt);
 }
 
-static void xs_local_destroy(struct rpc_xprt *xprt)
-{
-	xs_close(xprt);
-	xs_free_peer_addresses(xprt);
-	xprt_free(xprt);
-	module_put(THIS_MODULE);
-}
-
 /**
  * xs_destroy - prepare to shutdown a transport
  * @xprt: doomed transport
@@ -873,7 +865,10 @@ static void xs_destroy(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
-	xs_local_destroy(xprt);
+	xs_close(xprt);
+	xs_free_peer_addresses(xprt);
+	xprt_free(xprt);
+	module_put(THIS_MODULE);
 }
 
 static inline struct rpc_xprt *xprt_from_sock(struct sock *sk)
@@ -2513,7 +2508,7 @@ static struct rpc_xprt_ops xs_local_ops = {
 	.send_request		= xs_local_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
 	.close			= xs_close,
-	.destroy		= xs_local_destroy,
+	.destroy		= xs_destroy,
 	.print_stats		= xs_local_print_stats,
 };
 
