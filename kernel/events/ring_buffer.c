@@ -121,17 +121,17 @@ int perf_output_begin(struct perf_output_handle *handle,
 		event = event->parent;
 
 	rb = rcu_dereference(event->rb);
-	if (!rb)
+	if (unlikely(!rb))
 		goto out;
 
-	handle->rb	= rb;
-	handle->event	= event;
-
-	if (!rb->nr_pages)
+	if (unlikely(!rb->nr_pages))
 		goto out;
+
+	handle->rb    = rb;
+	handle->event = event;
 
 	have_lost = local_read(&rb->lost);
-	if (have_lost) {
+	if (unlikely(have_lost)) {
 		lost_event.header.size = sizeof(lost_event);
 		perf_event_header__init_id(&lost_event.header, &sample_data,
 					   event);
@@ -157,7 +157,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 		head += size;
 	} while (local_cmpxchg(&rb->head, offset, head) != offset);
 
-	if (head - local_read(&rb->wakeup) > rb->watermark)
+	if (unlikely(head - local_read(&rb->wakeup) > rb->watermark))
 		local_add(rb->watermark, &rb->wakeup);
 
 	handle->page = offset >> (PAGE_SHIFT + page_order(rb));
@@ -167,7 +167,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	handle->addr += handle->size;
 	handle->size = (PAGE_SIZE << page_order(rb)) - handle->size;
 
-	if (have_lost) {
+	if (unlikely(have_lost)) {
 		lost_event.header.type = PERF_RECORD_LOST;
 		lost_event.header.misc = 0;
 		lost_event.id          = event->id;
