@@ -429,9 +429,18 @@ static const struct driver_info cdc_mbim_info = {
 };
 
 /* MBIM and NCM devices should not need a ZLP after NTBs with
- * dwNtbOutMaxSize length. This driver_info is for the exceptional
- * devices requiring it anyway, allowing them to be supported without
- * forcing the performance penalty on all the sane devices.
+ * dwNtbOutMaxSize length. Nevertheless, a number of devices from
+ * different vendor IDs will fail unless we send ZLPs, forcing us
+ * to make this the default.
+ *
+ * This default may cause a performance penalty for spec conforming
+ * devices wanting to take advantage of optimizations possible without
+ * ZLPs.  A whitelist is added in an attempt to avoid this for devices
+ * known to conform to the MBIM specification.
+ *
+ * All known devices supporting NCM compatibility mode are also
+ * conforming to the NCM and MBIM specifications. For this reason, the
+ * NCM subclass entry is also in the ZLP whitelist.
  */
 static const struct driver_info cdc_mbim_info_zlp = {
 	.description = "CDC MBIM",
@@ -454,16 +463,13 @@ static const struct usb_device_id mbim_devs[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
 	},
-	/* Sierra Wireless MC7710 need ZLPs */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68a2, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
-	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
-	},
-	/* HP hs2434 Mobile Broadband Module needs ZLPs */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x3f0, 0x4b1d, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
-	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
-	},
-	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	/* ZLP conformance whitelist: All Ericsson MBIM devices */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bdb, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
+	},
+	/* default entry */
+	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
 	},
 	{
 	},
