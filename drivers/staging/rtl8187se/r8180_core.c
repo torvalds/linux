@@ -1855,7 +1855,7 @@ short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 
 		if (remain == len && !descfrag) {
 			ownbit_flag = false;
-			*tail = *tail | (1<<29) ; /* fist segment of the packet */
+			*tail = *tail | (1<<29); /* fist segment of the packet */
 			*tail = *tail | (len);
 		} else {
 			ownbit_flag = true;
