@@ -454,7 +454,7 @@ bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
 	fckd_hw_max = dss.feat->fck_div_max;
 
 	m = dss.feat->dss_fck_multiplier;
-	prate = dss_get_dpll4_rate();
+	prate = clk_get_rate(dss.parent_clk);
 
 	fck_min = fck_min ? fck_min : 1;
 
@@ -473,20 +473,13 @@ bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
 
 int dss_set_fck_rate(unsigned long rate)
 {
+	int r;
+
 	DSSDBG("set fck to %lu\n", rate);
 
-	if (dss.parent_clk) {
-		unsigned long prate;
-		unsigned m;
-		int r;
-
-		prate = clk_get_rate(clk_get_parent(dss.parent_clk));
-		m = dss.feat->dss_fck_multiplier;
-
-		r = clk_set_rate(dss.parent_clk, rate * m);
-		if (r)
-			return r;
-	}
+	r = clk_set_rate(dss.dss_clk, rate);
+	if (r)
+		return r;
 
 	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
 
@@ -495,14 +488,6 @@ int dss_set_fck_rate(unsigned long rate)
 			rate);
 
 	return 0;
-}
-
-unsigned long dss_get_dpll4_rate(void)
-{
-	if (dss.parent_clk)
-		return clk_get_rate(clk_get_parent(dss.parent_clk));
-	else
-		return 0;
 }
 
 unsigned long dss_get_dispc_clk_rate(void)
@@ -522,7 +507,7 @@ static int dss_setup_default_clock(void)
 
 	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 
-	prate = dss_get_dpll4_rate();
+	prate = clk_get_rate(dss.parent_clk);
 
 	fck_div = DIV_ROUND_UP(prate * dss.feat->dss_fck_multiplier,
 			max_dss_fck);
@@ -715,35 +700,35 @@ static const struct dss_features omap24xx_dss_feats __initconst = {
 	 */
 	.fck_div_max		=	6,
 	.dss_fck_multiplier	=	2,
-	.parent_clk_name	=	"dss1_fck",
+	.parent_clk_name	=	"core_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 };
 
 static const struct dss_features omap34xx_dss_feats __initconst = {
 	.fck_div_max		=	16,
 	.dss_fck_multiplier	=	2,
-	.parent_clk_name	=	"dpll4_m4_ck",
+	.parent_clk_name	=	"dpll4_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 };
 
 static const struct dss_features omap3630_dss_feats __initconst = {
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
-	.parent_clk_name	=	"dpll4_m4_ck",
+	.parent_clk_name	=	"dpll4_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 };
 
 static const struct dss_features omap44xx_dss_feats __initconst = {
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
-	.parent_clk_name	=	"dpll_per_m5x2_ck",
+	.parent_clk_name	=	"dpll_per_x2_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap4,
 };
 
 static const struct dss_features omap54xx_dss_feats __initconst = {
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
-	.parent_clk_name	=	"dpll_per_h12x2_ck",
+	.parent_clk_name	=	"dpll_per_x2_ck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap5,
 };
 
