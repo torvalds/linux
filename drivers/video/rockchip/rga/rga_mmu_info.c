@@ -78,57 +78,49 @@ static int rga_buf_size_cal(uint32_t yrgb_addr, uint32_t uv_addr, uint32_t v_add
         case RK_FORMAT_RGBA_8888 :
             stride = (w * 4 + 3) & (~3);
             size_yrgb = stride*h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_RGBX_8888 :
             stride = (w * 4 + 3) & (~3);
             size_yrgb = stride*h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_RGB_888 :
             stride = (w * 3 + 3) & (~3);
             size_yrgb = stride*h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_BGRA_8888 :
             size_yrgb = w*h*4;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_RGB_565 :
             stride = (w*2 + 3) & (~3);
             size_yrgb = stride * h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_RGBA_5551 :
             stride = (w*2 + 3) & (~3);
             size_yrgb = stride * h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_RGBA_4444 :
             stride = (w*2 + 3) & (~3);
             size_yrgb = stride * h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
         case RK_FORMAT_BGR_888 :
             stride = (w*3 + 3) & (~3);
             size_yrgb = stride * h;
-            end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
-            pageCount = end - start;
+            pageCount = (size_yrgb + PAGE_SIZE - 1) >> PAGE_SHIFT;
             break;
 
         /* YUV FORMAT */
@@ -137,6 +129,7 @@ static int rga_buf_size_cal(uint32_t yrgb_addr, uint32_t uv_addr, uint32_t v_add
             size_yrgb = stride * h;
             size_uv = stride * h;
             start = MIN(yrgb_addr, uv_addr);
+
             start >>= PAGE_SHIFT;
             end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
             end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
@@ -344,7 +337,6 @@ static int rga_MapUserMemory(struct page **pages,
                     while (0);
 
                     #else
-
                     do
                     {
                         pte_t       * pte;
