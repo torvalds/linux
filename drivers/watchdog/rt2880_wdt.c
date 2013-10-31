@@ -144,7 +144,7 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rt288x_wdt_base = devm_request_and_ioremap(&pdev->dev, res);
+	rt288x_wdt_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rt288x_wdt_base))
 		return PTR_ERR(rt288x_wdt_base);
 
