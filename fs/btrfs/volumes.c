@@ -4901,7 +4901,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			num_stripes = map->num_stripes;
 			max_errors = nr_parity_stripes(map);
 
-			raid_map = kmalloc(sizeof(u64) * num_stripes,
+			raid_map = kmalloc_array(num_stripes, sizeof(u64),
 					   GFP_NOFS);
 			if (!raid_map) {
 				ret = -ENOMEM;

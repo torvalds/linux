@@ -1198,7 +1198,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		ra = &file->f_ra;
 	}
 
-	pages = kmalloc(sizeof(struct page *) * max_cluster,
+	pages = kmalloc_array(max_cluster, sizeof(struct page *),
 			GFP_NOFS);
 	if (!pages) {
 		ret = -ENOMEM;

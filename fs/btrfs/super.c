@@ -1470,7 +1470,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	nr_devices = fs_info->fs_devices->open_devices;
 	BUG_ON(!nr_devices);
 
-	devices_info = kmalloc(sizeof(*devices_info) * nr_devices,
+	devices_info = kmalloc_array(nr_devices, sizeof(*devices_info),
 			       GFP_NOFS);
 	if (!devices_info)
 		return -ENOMEM;

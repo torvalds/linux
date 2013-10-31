@@ -770,13 +770,13 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 	 */
 	btrfs_set_path_blocking(path);
 
-	keys = kmalloc(sizeof(struct btrfs_key) * nitems, GFP_NOFS);
+	keys = kmalloc_array(nitems, sizeof(struct btrfs_key), GFP_NOFS);
 	if (!keys) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	data_size = kmalloc(sizeof(u32) * nitems, GFP_NOFS);
+	data_size = kmalloc_array(nitems, sizeof(u32), GFP_NOFS);
 	if (!data_size) {
 		ret = -ENOMEM;
 		goto error;
