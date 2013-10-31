@@ -72,13 +72,7 @@ static void reg_mr_callback(int status, void *context)
 	int c = order2idx(dev, mr->order);
 	struct mlx5_cache_ent *ent = &cache->ent[c];
 	u8 key;
-	unsigned long delta = jiffies - mr->start;
-	unsigned long index;
 	unsigned long flags;
-
-	index = find_last_bit(&delta, 8 * sizeof(delta));
-	if (index == 64)
-		index = 0;
 
 	spin_lock_irqsave(&ent->lock, flags);
 	ent->pending--;
