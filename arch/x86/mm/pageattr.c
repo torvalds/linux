@@ -686,7 +686,27 @@ static int alloc_pmd_page(pud_t *pud)
 	return 0;
 }
 
-#define populate_pte(cpa, start, end, pages, pmd, pgprot)	do {} while (0)
+static void populate_pte(struct cpa_data *cpa,
+			 unsigned long start, unsigned long end,
+			 unsigned num_pages, pmd_t *pmd, pgprot_t pgprot)
+{
+	pte_t *pte;
+
+	pte = pte_offset_kernel(pmd, start);
+
+	while (num_pages-- && start < end) {
+
+		/* deal with the NX bit */
+		if (!(pgprot_val(pgprot) & _PAGE_NX))
+			cpa->pfn &= ~_PAGE_NX;
+
+		set_pte(pte, pfn_pte(cpa->pfn >> PAGE_SHIFT, pgprot));
+
+		start	 += PAGE_SIZE;
+		cpa->pfn += PAGE_SIZE;
+		pte++;
+	}
+}
 
 static int populate_pmd(struct cpa_data *cpa,
 			unsigned long start, unsigned long end,
