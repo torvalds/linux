@@ -66,7 +66,7 @@ static acpi_status acpi_tb_load_namespace(void);
  *
  ******************************************************************************/
 
-acpi_status acpi_load_tables(void)
+acpi_status __init acpi_load_tables(void)
 {
 	acpi_status status;
 

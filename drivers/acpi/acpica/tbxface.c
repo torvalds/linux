@@ -164,7 +164,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_tables)
  *              kernel.
  *
  ******************************************************************************/
-acpi_status acpi_reallocate_root_table(void)
+acpi_status __init acpi_reallocate_root_table(void)
 {
 	acpi_status status;
 

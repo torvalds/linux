@@ -114,17 +114,17 @@ extern u8 acpi_gbl_disable_ssdt_table_load;
 /*
  * Initialization
  */
-acpi_status
+acpi_status __init
 acpi_initialize_tables(struct acpi_table_desc *initial_storage,
 		       u32 initial_table_count, u8 allow_resize);
 
 acpi_status __init acpi_initialize_subsystem(void);
 
-acpi_status acpi_enable_subsystem(u32 flags);
+acpi_status __init acpi_enable_subsystem(u32 flags);
 
-acpi_status acpi_initialize_objects(u32 flags);
+acpi_status __init acpi_initialize_objects(u32 flags);
 
-acpi_status acpi_terminate(void);
+acpi_status __init acpi_terminate(void);
 
 /*
  * Miscellaneous global interfaces
@@ -168,14 +168,14 @@ acpi_status acpi_load_table(struct acpi_table_header *table);
 
 acpi_status acpi_unload_parent_table(acpi_handle object);
 
-acpi_status acpi_load_tables(void);
+acpi_status __init acpi_load_tables(void);
 
 /*
  * ACPI table manipulation interfaces
  */
-acpi_status acpi_reallocate_root_table(void);
+acpi_status __init acpi_reallocate_root_table(void);
 
-acpi_status acpi_find_root_pointer(acpi_size * rsdp_address);
+acpi_status __init acpi_find_root_pointer(acpi_size *rsdp_address);
 
 acpi_status acpi_unload_table_id(acpi_owner_id id);
 

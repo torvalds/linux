@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("utxface")
  * DESCRIPTION: Shutdown the ACPICA subsystem and release all resources.
  *
  ******************************************************************************/
-acpi_status acpi_terminate(void)
+acpi_status __init acpi_terminate(void)
 {
 	acpi_status status;
 
