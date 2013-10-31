@@ -50,12 +50,10 @@ bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 
 	if (hdr->evt == HCI_EV_CMD_COMPLETE) {
 		struct hci_ev_cmd_complete *ec;
-		u16 opcode, ocf, ogf;
+		u16 opcode;
 
 		ec = (void *) (skb->data + HCI_EVENT_HDR_SIZE);
 		opcode = __le16_to_cpu(ec->opcode);
-		ocf = hci_opcode_ocf(opcode);
-		ogf = hci_opcode_ogf(opcode);
 
 		if (priv->btmrvl_dev.sendcmdflag) {
 			priv->btmrvl_dev.sendcmdflag = false;
@@ -63,9 +61,8 @@ bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 			wake_up_interruptible(&priv->adapter->cmd_wait_q);
 		}
 
-		if (ogf == OGF) {
-			BT_DBG("vendor event skipped: ogf 0x%4.4x ocf 0x%4.4x",
-			       ogf, ocf);
+		if (hci_opcode_ogf(opcode) == 0x3F) {
+			BT_DBG("vendor event skipped: opcode=%#4.4x", opcode);
 			kfree_skb(skb);
 			return false;
 		}
@@ -89,7 +86,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 	}
 
 	switch (event->data[0]) {
-	case BT_CMD_AUTO_SLEEP_MODE:
+	case BT_EVENT_AUTO_SLEEP_MODE:
 		if (!event->data[2]) {
 			if (event->data[1] == BT_PS_ENABLE)
 				adapter->psmode = 1;
@@ -102,7 +99,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 		}
 		break;
 
-	case BT_CMD_HOST_SLEEP_CONFIG:
+	case BT_EVENT_HOST_SLEEP_CONFIG:
 		if (!event->data[3])
 			BT_DBG("gpio=%x, gap=%x", event->data[1],
 							event->data[2]);
@@ -110,7 +107,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 			BT_DBG("HSCFG command failed");
 		break;
 
-	case BT_CMD_HOST_SLEEP_ENABLE:
+	case BT_EVENT_HOST_SLEEP_ENABLE:
 		if (!event->data[1]) {
 			adapter->hs_state = HS_ACTIVATED;
 			if (adapter->psmode)
@@ -121,7 +118,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 		}
 		break;
 
-	case BT_CMD_MODULE_CFG_REQ:
+	case BT_EVENT_MODULE_CFG_REQ:
 		if (priv->btmrvl_dev.sendcmdflag &&
 				event->data[1] == MODULE_BRINGUP_REQ) {
 			BT_DBG("EVENT:%s",
@@ -166,7 +163,7 @@ exit:
 }
 EXPORT_SYMBOL_GPL(btmrvl_process_event);
 
-static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 cmd_no,
+static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 				const void *param, u8 len)
 {
 	struct sk_buff *skb;
@@ -179,7 +176,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 cmd_no,
 	}
 
 	hdr = (struct hci_command_hdr *)skb_put(skb, HCI_COMMAND_HDR_SIZE);
-	hdr->opcode = cpu_to_le16(hci_opcode_pack(OGF, cmd_no));
+	hdr->opcode = cpu_to_le16(opcode);
 	hdr->plen = len;
 
 	if (len)
