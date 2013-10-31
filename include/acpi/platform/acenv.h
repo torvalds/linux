@@ -147,6 +147,9 @@
 #if defined(_LINUX) || defined(__linux__)
 #include <acpi/platform/aclinux.h>
 
+#elif defined(_APPLE) || defined(__APPLE__)
+#include "acmacosx.h"
+
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include "acfreebsd.h"
 
