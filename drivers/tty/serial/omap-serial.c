@@ -1723,7 +1723,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	if (!up->port.uartclk) {
 		up->port.uartclk = DEFAULT_CLK_SPEED;
 		dev_warn(&pdev->dev,
-			 "No clock speed specified: using default: %d\n"
+			 "No clock speed specified: using default: %d\n",
 			 DEFAULT_CLK_SPEED);
 	}
 
