@@ -1125,8 +1125,8 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		pp = ironlake_get_pp_control(intel_dp);
 		pp &= ~EDP_FORCE_VDD;
 
-		pp_stat_reg = _pp_ctrl_reg(intel_dp);
-		pp_ctrl_reg = _pp_stat_reg(intel_dp);
+		pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
+		pp_stat_reg = _pp_stat_reg(intel_dp);
 
 		I915_WRITE(pp_ctrl_reg, pp);
 		POSTING_READ(pp_ctrl_reg);
