@@ -3440,10 +3440,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root, int max_mirrors)
 {
-	int ret;
-
-	ret = write_all_supers(root, max_mirrors);
-	return ret;
+	return write_all_supers(root, max_mirrors);
 }
 
 /* Drop a fs root from the radix tree and free it. */
