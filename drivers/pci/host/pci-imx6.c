@@ -200,12 +200,6 @@ static int pcie_phy_write(void __iomem *dbi_base, int addr, int data)
 static int imx6q_pcie_abort_handler(unsigned long addr,
 		unsigned int fsr, struct pt_regs *regs)
 {
-	/*
-	 * If it was an imprecise abort, then we need to correct the
-	 * return address to be _after_ the instruction.
-	 */
-	if (fsr & (1 << 10))
-		regs->ARM_pc += 4;
 	return 0;
 }
 
@@ -324,7 +318,7 @@ static void imx6_pcie_host_init(struct pcie_port *pp)
 	while (!dw_pcie_link_up(pp)) {
 		usleep_range(100, 1000);
 		count++;
-		if (count >= 10) {
+		if (count >= 200) {
 			dev_err(pp->dev, "phy link never came up\n");
 			dev_dbg(pp->dev,
 				"DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
@@ -439,7 +433,6 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 
 	pp->dbi_base = devm_ioremap_resource(&pdev->dev, dbi_base);
 	if (IS_ERR(pp->dbi_base)) {
-		dev_err(&pdev->dev, "unable to remap dbi_base\n");
 		ret = PTR_ERR(pp->dbi_base);
 		goto err;
 	}
@@ -558,7 +551,7 @@ static struct platform_driver imx6_pcie_driver = {
 	.driver = {
 		.name	= "imx6q-pcie",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(imx6_pcie_of_match),
+		.of_match_table = imx6_pcie_of_match,
 	},
 };
 
@@ -568,7 +561,7 @@ static int __init imx6_pcie_init(void)
 {
 	return platform_driver_probe(&imx6_pcie_driver, imx6_pcie_probe);
 }
-module_init(imx6_pcie_init);
+fs_initcall(imx6_pcie_init);
 
 MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
 MODULE_DESCRIPTION("Freescale i.MX6 PCIe host controller driver");
