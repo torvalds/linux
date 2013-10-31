@@ -581,7 +581,14 @@
  *	operation, %NL80211_ATTR_MAC contains the peer MAC address, and
  *	%NL80211_ATTR_REASON_CODE the reason code to be used (only with
  *	%NL80211_TDLS_TEARDOWN).
- * @NL80211_CMD_TDLS_MGMT: Send a TDLS management frame.
+ * @NL80211_CMD_TDLS_MGMT: Send a TDLS management frame. The
+ *	%NL80211_ATTR_TDLS_ACTION attribute determines the type of frame to be
+ *	sent. Public Action codes (802.11-2012 8.1.5.1) will be sent as
+ *	802.11 management frames, while TDLS action codes (802.11-2012
+ *	8.5.13.1) will be encapsulated and sent as data frames. The currently
+ *	supported Public Action code is %WLAN_PUB_ACTION_TDLS_DISCOVER_RES
+ *	and the currently supported TDLS actions codes are given in
+ *	&enum ieee80211_tdls_actioncode.
  *
  * @NL80211_CMD_UNEXPECTED_FRAME: Used by an application controlling an AP
  *	(or GO) interface (i.e. hostapd) to ask for unexpected frames to
