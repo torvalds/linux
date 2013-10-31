@@ -20,7 +20,7 @@
 
 #include "parse-options.h"
 #include "parse-events.h"
-
+#include "hist.h"
 #include "thread.h"
 
 extern regex_t parent_regex;
@@ -130,6 +130,21 @@ static inline void hist_entry__add_pair(struct hist_entry *pair,
 {
 	list_add_tail(&pair->pairs.node, &he->pairs.head);
 }
+
+static inline float hist_entry__get_percent_limit(struct hist_entry *he)
+{
+	u64 period = he->stat.period;
+	u64 total_period = hists__total_period(he->hists);
+
+	if (unlikely(total_period == 0))
+		return 0;
+
+	if (symbol_conf.cumulate_callchain)
+		period = he->stat_acc->period;
+
+	return period * 100.0 / total_period;
+}
+
 
 enum sort_mode {
 	SORT_MODE__NORMAL,
