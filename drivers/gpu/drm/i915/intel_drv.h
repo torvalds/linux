@@ -630,6 +630,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
 struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc);
+enum pipe intel_get_pipe_from_connector(struct intel_connector *connector);
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
@@ -802,10 +803,11 @@ void intel_pch_panel_fitting(struct intel_crtc *crtc,
 void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 			      struct intel_crtc_config *pipe_config,
 			      int fitting_mode);
-void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max);
+void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
+			       u32 max);
 int intel_panel_setup_backlight(struct drm_connector *connector);
-void intel_panel_enable_backlight(struct drm_device *dev, enum pipe pipe);
-void intel_panel_disable_backlight(struct drm_device *dev);
+void intel_panel_enable_backlight(struct intel_connector *connector);
+void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_device *dev);
 enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 

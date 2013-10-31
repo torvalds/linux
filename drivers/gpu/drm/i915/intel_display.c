@@ -9874,6 +9874,18 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 }
 
+enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
+{
+	struct drm_encoder *encoder = connector->base.encoder;
+
+	WARN_ON(!mutex_is_locked(&connector->base.dev->mode_config.mutex));
+
+	if (!encoder)
+		return INVALID_PIPE;
+
+	return to_intel_crtc(encoder->crtc)->pipe;
+}
+
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file)
 {

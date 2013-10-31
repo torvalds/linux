@@ -54,6 +54,7 @@
 #define DRIVER_DATE		"20080730"
 
 enum pipe {
+	INVALID_PIPE = -1,
 	PIPE_A = 0,
 	PIPE_B,
 	PIPE_C,

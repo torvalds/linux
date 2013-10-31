@@ -1249,7 +1249,6 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = to_intel_crtc(intel_dig_port->base.base.crtc)->pipe;
 	u32 pp;
 	u32 pp_ctrl_reg;
 
@@ -1272,7 +1271,7 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
-	intel_panel_enable_backlight(dev, pipe);
+	intel_panel_enable_backlight(intel_dp->attached_connector);
 }
 
 void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
@@ -1285,7 +1284,7 @@ void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return;
 
-	intel_panel_disable_backlight(dev);
+	intel_panel_disable_backlight(intel_dp->attached_connector);
 
 	DRM_DEBUG_KMS("\n");
 	pp = ironlake_get_pp_control(intel_dp);
