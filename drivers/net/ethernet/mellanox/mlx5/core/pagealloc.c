@@ -229,7 +229,8 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 	set_bit(n, &fwp->bitmask);
 	if (fwp->free_count == MLX5_NUM_4K_IN_PAGE) {
 		rb_erase(&fwp->rb_node, &dev->priv.page_root);
-		list_del(&fwp->list);
+		if (fwp->free_count != 1)
+			list_del(&fwp->list);
 		dma_unmap_page(&dev->pdev->dev, addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		__free_page(fwp->page);
 		kfree(fwp);
