@@ -214,6 +214,22 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->regfile.saveBLC_CPU_PWM_CTL2 = I915_READ(BLC_PWM_CPU_CTL2);
 		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
+		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
+
+		dev_priv->regfile.saveBLC_PWM_CTL =
+			I915_READ(VLV_BLC_PWM_CTL(PIPE_A));
+		dev_priv->regfile.saveBLC_HIST_CTL =
+			I915_READ(VLV_BLC_HIST_CTL(PIPE_A));
+		dev_priv->regfile.saveBLC_PWM_CTL2 =
+			I915_READ(VLV_BLC_PWM_CTL2(PIPE_A));
+		dev_priv->regfile.saveBLC_PWM_CTL_B =
+			I915_READ(VLV_BLC_PWM_CTL(PIPE_B));
+		dev_priv->regfile.saveBLC_HIST_CTL_B =
+			I915_READ(VLV_BLC_HIST_CTL(PIPE_B));
+		dev_priv->regfile.saveBLC_PWM_CTL2_B =
+			I915_READ(VLV_BLC_PWM_CTL2(PIPE_B));
 	} else {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
 		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
@@ -302,6 +318,19 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
 		I915_WRITE(RSTDBYCTL,
 			   dev_priv->regfile.saveMCHBAR_RENDER_STANDBY);
+	} else if (IS_VALLEYVIEW(dev)) {
+		I915_WRITE(VLV_BLC_PWM_CTL(PIPE_A),
+			   dev_priv->regfile.saveBLC_PWM_CTL);
+		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_A),
+			   dev_priv->regfile.saveBLC_HIST_CTL);
+		I915_WRITE(VLV_BLC_PWM_CTL2(PIPE_A),
+			   dev_priv->regfile.saveBLC_PWM_CTL2);
+		I915_WRITE(VLV_BLC_PWM_CTL(PIPE_B),
+			   dev_priv->regfile.saveBLC_PWM_CTL);
+		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_B),
+			   dev_priv->regfile.saveBLC_HIST_CTL);
+		I915_WRITE(VLV_BLC_PWM_CTL2(PIPE_B),
+			   dev_priv->regfile.saveBLC_PWM_CTL2);
 	} else {
 		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->regfile.savePFIT_PGM_RATIOS);
 		I915_WRITE(BLC_PWM_CTL, dev_priv->regfile.saveBLC_PWM_CTL);
