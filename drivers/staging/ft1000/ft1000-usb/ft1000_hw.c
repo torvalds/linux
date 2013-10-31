@@ -1,11 +1,9 @@
-//=====================================================
-// CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
-//
-//
-// This file is part of Express Card USB Driver
-//
-// $Id:
-//====================================================
+/* CopyRight (C) 2007 Qualcomm Inc. All Rights Reserved.
+*
+*
+* This file is part of Express Card USB Driver
+*/
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -35,27 +33,17 @@ static u8 tempbuffer[1600];
 
 #define MAX_RCV_LOOP   100
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_control
-//
-// Parameters:  ft1000_usb  - device structure
-//              pipe - usb control message pipe
-//              request - control request
-//              requesttype - control message request type
-//              value - value to be written or 0
-//              index - register index
-//              data - data buffer to hold the read/write values
-//              size - data size
-//              timeout - control message time out value
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function sends a control message via USB interface synchronously
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* send a control message via USB interface synchronously
+*  Parameters:  ft1000_usb  - device structure
+*               pipe - usb control message pipe
+*               request - control request
+*               requesttype - control message request type
+*               value - value to be written or 0
+*               index - register index
+*               data - data buffer to hold the read/write values
+*               size - data size
+*               timeout - control message time out value
+*/
 static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 			  u8 request, u8 requesttype, u16 value, u16 index,
 			  void *data, u16 size, int timeout)
@@ -76,22 +64,7 @@ static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_read_register
-//
-// Parameters:  ft1000_usb  - device structure
-//              Data - data buffer to hold the value read
-//              nRegIndex - register index
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function returns the value in a register
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-
+/* returns the value in a register */
 int ft1000_read_register(struct ft1000_usb *ft1000dev, u16* Data,
 			 u16 nRegIndx)
 {
@@ -110,21 +83,7 @@ int ft1000_read_register(struct ft1000_usb *ft1000dev, u16* Data,
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_write_register
-//
-// Parameters:  ft1000_usb  - device structure
-//              value - value to write into a register
-//              nRegIndex - register index
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function writes the value in a register
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* writes the value in a register */
 int ft1000_write_register(struct ft1000_usb *ft1000dev, u16 value,
 			  u16 nRegIndx)
 {
@@ -143,23 +102,7 @@ int ft1000_write_register(struct ft1000_usb *ft1000dev, u16 value,
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_read_dpram32
-//
-// Parameters:  ft1000_usb  - device structure
-//              indx - starting address to read
-//              buffer - data buffer to hold the data read
-//              cnt - number of byte read from DPRAM
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function read a number of bytes from DPRAM
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-
+/* read a number of bytes from DPRAM */
 int ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			u16 cnt)
 {
@@ -178,22 +121,7 @@ int ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_write_dpram32
-//
-// Parameters:  ft1000_usb  - device structure
-//              indx - starting address to write the data
-//              buffer - data buffer to write into DPRAM
-//              cnt - number of bytes to write
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function writes into DPRAM a number of bytes
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* writes into DPRAM a number of bytes */
 int ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			 u16 cnt)
 {
@@ -215,22 +143,7 @@ int ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_read_dpram16
-//
-// Parameters:  ft1000_usb  - device structure
-//              indx - starting address to read
-//              buffer - data buffer to hold the data read
-//              hightlow - high or low 16 bit word
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function read 16 bits from DPRAM
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* read 16 bits from DPRAM */
 int ft1000_read_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			u8 highlow)
 {
@@ -255,22 +168,7 @@ int ft1000_read_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_write_dpram16
-//
-// Parameters:  ft1000_usb  - device structure
-//              indx - starting address to write the data
-//              value - 16bits value to write
-//              hightlow - high or low 16 bit word
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function writes into DPRAM a number of bytes
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* write into DPRAM a number of bytes */
 int ft1000_write_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u16 value, u8 highlow)
 {
 	int ret = STATUS_SUCCESS;
@@ -294,22 +192,7 @@ int ft1000_write_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u16 value, u8 h
 	return ret;
 }
 
-//---------------------------------------------------------------------------
-// Function:    fix_ft1000_read_dpram32
-//
-// Parameters:  ft1000_usb  - device structure
-//              indx - starting address to read
-//              buffer - data buffer to hold the data read
-//
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function read DPRAM 4 words at a time
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* read DPRAM 4 words at a time */
 int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx,
 			    u8 *buffer)
 {
@@ -338,22 +221,7 @@ int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx,
 }
 
 
-//---------------------------------------------------------------------------
-// Function:    fix_ft1000_write_dpram32
-//
-// Parameters:  ft1000_usb  - device structure
-//              indx - starting address to write
-//              buffer - data buffer to write
-//
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function write to DPRAM 4 words at a time
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* Description: This function write to DPRAM 4 words at a time */
 int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 {
 	u16 pos1;
@@ -410,17 +278,7 @@ int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 	return ret;
 }
 
-
-//------------------------------------------------------------------------
-//
-//  Function:   card_reset_dsp
-//
-//  Synopsis:   This function is called to reset or activate the DSP
-//
-//  Arguments:  value                  - reset or activate
-//
-//  Returns:    None
-//-----------------------------------------------------------------------
+/* reset or activate the DSP */
 static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 {
 	u16 status = STATUS_SUCCESS;
@@ -457,21 +315,11 @@ static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 	}
 }
 
-//---------------------------------------------------------------------------
-// Function:    card_send_command
-//
-// Parameters:  ft1000_usb  - device structure
-//              ptempbuffer - command buffer
-//              size - command buffer size
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function sends a command to ASIC
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* send a command to ASIC
+*  Parameters:  ft1000_usb  - device structure
+*               ptempbuffer - command buffer
+*               size - command buffer size
+*/
 void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 		       int size)
 {
@@ -509,16 +357,7 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 
 }
 
-//--------------------------------------------------------------------------
-//
-//  Function:   dsp_reload
-//
-//  Synopsis:   This function is called to load or reload the DSP
-//
-//  Arguments:  ft1000dev - device structure
-//
-//  Returns:    None
-//-----------------------------------------------------------------------
+/* load or reload the DSP */
 int dsp_reload(struct ft1000_usb *ft1000dev)
 {
 	int status;
@@ -569,17 +408,7 @@ int dsp_reload(struct ft1000_usb *ft1000dev)
 	return 0;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_reset_asic
-// Description: This function will call the Card Service function to reset the
-//             ASIC.
-// Input:
-//     dev    - device structure
-// Output:
-//     none
-//
-//---------------------------------------------------------------------------
+/* call the Card Service function to reset the ASIC. */
 static void ft1000_reset_asic(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
@@ -607,18 +436,6 @@ static void ft1000_reset_asic(struct net_device *dev)
 	DEBUG("ft1000_hw: interrupt status register = 0x%x\n", tempword);
 }
 
-
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_reset_card
-// Description: This function will reset the card
-// Input:
-//     dev    - device structure
-// Output:
-//     status - FALSE (card reset fail)
-//              TRUE  (card reset successful)
-//
-//---------------------------------------------------------------------------
 static int ft1000_reset_card(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
@@ -666,19 +483,7 @@ static int ft1000_reset_card(struct net_device *dev)
 	return TRUE;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_usb_transmit_complete
-//
-// Parameters:  urb  - transmitted usb urb
-//
-//
-// Returns:     none
-//
-// Description: This is the callback function when a urb is transmitted
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* callback function when a urb is transmitted */
 static void ft1000_usb_transmit_complete(struct urb *urb)
 {
 
@@ -690,21 +495,9 @@ static void ft1000_usb_transmit_complete(struct urb *urb)
 	netif_wake_queue(ft1000dev->net);
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_copy_down_pkt
-// Description: This function will take an ethernet packet and convert it to
-//             a Flarion packet prior to sending it to the ASIC Downlink
-//             FIFO.
-// Input:
-//     dev    - device structure
-//     packet - address of ethernet packet
-//     len    - length of IP packet
-// Output:
-//     status - FAILURE
-//              SUCCESS
-//
-//---------------------------------------------------------------------------
+/* take an ethernet packet and convert it to a Flarion
+*  packet prior to sending it to the ASIC Downlink FIFO.
+*/
 static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 {
 	struct ft1000_info *pInfo = netdev_priv(netdev);
@@ -769,20 +562,10 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 	return 0;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_start_xmit
-//
-// Parameters:  skb - socket buffer to be sent
-//              dev - network device
-//
-//
-// Returns:     none
-//
-// Description: transmit a ethernet packet
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* transmit an ethernet packet
+*  Parameters:  skb - socket buffer to be sent
+*               dev - network device
+*/
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
@@ -827,20 +610,7 @@ err:
 	return NETDEV_TX_OK;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_open
-//
-// Parameters:
-//              dev - network device
-//
-//
-// Returns:     none
-//
-// Description: open the network driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* open the network driver */
 static int ft1000_open(struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
@@ -879,21 +649,7 @@ static const struct net_device_ops ftnet_ops =
 	.ndo_get_stats = &ft1000_netdev_stats,
 };
 
-//---------------------------------------------------------------------------
-// Function:    init_ft1000_netdev
-//
-// Parameters:  ft1000dev  - device structure
-//
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function initialize the network device
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-
+/* initialize the network device */
 static int ft1000_reset(void *dev)
 {
 	ft1000_reset_card(dev);
@@ -1014,20 +770,7 @@ err_net:
 	return ret_val;
 }
 
-//---------------------------------------------------------------------------
-// Function:    reg_ft1000_netdev
-//
-// Parameters:  ft1000dev  - device structure
-//
-//
-// Returns:     STATUS_SUCCESS - success
-//              STATUS_FAILURE - failure
-//
-// Description: This function register the network driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* register the network driver */
 int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 		      struct usb_interface *intf)
 {
@@ -1060,19 +803,9 @@ int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 	return 0;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_copy_up_pkt
-// Description: This function will take a packet from the FIFO up link and
-//             convert it into an ethernet packet and deliver it to the IP stack
-// Input:
-//     urb - the receiving usb urb
-//
-// Output:
-//     status - FAILURE
-//              SUCCESS
-//
-//---------------------------------------------------------------------------
+/* take a packet from the FIFO up link and
+*  convert it into an ethernet packet and deliver it to the IP stack
+*/
 static int ft1000_copy_up_pkt(struct urb *urb)
 {
 	struct ft1000_info *info = urb->context;
@@ -1155,19 +888,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 }
 
 
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_submit_rx_urb
-// Description: the receiving function of the network driver
-//
-// Input:
-//     info - a private structure contains the device information
-//
-// Output:
-//     status - FAILURE
-//              SUCCESS
-//
-//---------------------------------------------------------------------------
+/* the receiving function of the network driver */
 static int ft1000_submit_rx_urb(struct ft1000_info *info)
 {
 	int result;
@@ -1196,20 +917,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 	return 0;
 }
 
-//---------------------------------------------------------------------------
-// Function:    ft1000_close
-//
-// Parameters:
-//              net - network device
-//
-//
-// Returns:     none
-//
-// Description: close the network driver
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
+/* close the network driver */
 int ft1000_close(struct net_device *net)
 {
 	struct ft1000_info *pInfo = netdev_priv(net);
@@ -1227,18 +935,7 @@ int ft1000_close(struct net_device *net)
 	return 0;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_chkcard
-// Description: This function will check if the device is presently available on
-//             the system.
-// Input:
-//     dev    - device structure
-// Output:
-//     status - FALSE (device is not present)
-//              TRUE  (device is present)
-//
-//---------------------------------------------------------------------------
+/* check if the device is presently available on the system. */
 static int ft1000_chkcard(struct ft1000_usb *dev)
 {
 	u16 tempword;
@@ -1271,19 +968,12 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	return TRUE;
 }
 
-//---------------------------------------------------------------------------
-//
-// Function:   ft1000_receive_cmd
-// Description: This function will read a message from the dpram area.
-// Input:
-//    dev - network device structure
-//    pbuffer - caller supply address to buffer
-//    pnxtph - pointer to next pseudo header
-// Output:
-//   Status = 0 (unsuccessful)
-//          = 1 (successful)
-//
-//---------------------------------------------------------------------------
+/* read a message from the dpram area.
+*  Input:
+*    dev - network device structure
+*    pbuffer - caller supply address to buffer
+*    pnxtph - pointer to next pseudo header
+*/
 static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 			       int maxsz, u16 *pnxtph)
 {
