@@ -21,6 +21,8 @@
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc-wdm.h>
 #include <linux/usb/cdc_ncm.h>
+#include <net/ipv6.h>
+#include <net/addrconf.h>
 
 /* driver specific data - must match cdc_ncm usage */
 struct cdc_mbim_state {
@@ -184,6 +186,60 @@ error:
 	return NULL;
 }
 
+/* Some devices are known to send Neigbor Solicitation messages and
+ * require Neigbor Advertisement replies.  The IPv6 core will not
+ * respond since IFF_NOARP is set, so we must handle them ourselves.
+ */
+static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
+{
+	struct ipv6hdr *iph = (void *)buf;
+	struct nd_msg *msg = (void *)(iph + 1);
+	struct net_device *netdev;
+	struct inet6_dev *in6_dev;
+	bool is_router;
+
+	/* we'll only respond to requests from unicast addresses to
+	 * our solicited node addresses.
+	 */
+	if (!ipv6_addr_is_solict_mult(&iph->daddr) ||
+	    !(ipv6_addr_type(&iph->saddr) & IPV6_ADDR_UNICAST))
+		return;
+
+	/* need to send the NA on the VLAN dev, if any */
+	if (tci)
+		netdev = __vlan_find_dev_deep(dev->net, htons(ETH_P_8021Q),
+					      tci);
+	else
+		netdev = dev->net;
+	if (!netdev)
+		return;
+
+	in6_dev = in6_dev_get(netdev);
+	if (!in6_dev)
+		return;
+	is_router = !!in6_dev->cnf.forwarding;
+	in6_dev_put(in6_dev);
+
+	/* ipv6_stub != NULL if in6_dev_get returned an inet6_dev */
+	ipv6_stub->ndisc_send_na(netdev, NULL, &iph->saddr, &msg->target,
+				 is_router /* router */,
+				 true /* solicited */,
+				 false /* override */,
+				 true /* inc_opt */);
+}
+
+static bool is_neigh_solicit(u8 *buf, size_t len)
+{
+	struct ipv6hdr *iph = (void *)buf;
+	struct nd_msg *msg = (void *)(iph + 1);
+
+	return (len >= sizeof(struct ipv6hdr) + sizeof(struct nd_msg) &&
+		iph->nexthdr == IPPROTO_ICMPV6 &&
+		msg->icmph.icmp6_code == 0 &&
+		msg->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION);
+}
+
+
 static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_t len, u16 tci)
 {
 	__be16 proto = htons(ETH_P_802_3);
@@ -198,6 +254,8 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 			proto = htons(ETH_P_IP);
 			break;
 		case 0x60:
+			if (is_neigh_solicit(buf, len))
+				do_neigh_solicit(dev, buf, tci);
 			proto = htons(ETH_P_IPV6);
 			break;
 		default:
