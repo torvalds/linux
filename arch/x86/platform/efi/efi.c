@@ -860,6 +860,9 @@ void __init efi_enter_virtual_mode(void)
 		new_memmap = krealloc(new_memmap,
 				      (count + 1) * memmap.desc_size,
 				      GFP_KERNEL);
+		if (!new_memmap)
+			goto err_out;
+
 		memcpy(new_memmap + (count * memmap.desc_size), md,
 		       memmap.desc_size);
 		count++;
@@ -914,6 +917,11 @@ void __init efi_enter_virtual_mode(void)
 			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			 EFI_VARIABLE_RUNTIME_ACCESS,
 			 0, NULL);
+
+	return;
+
+ err_out:
+	pr_err("Error reallocating memory, EFI runtime non-functional!\n");
 }
 
 /*
