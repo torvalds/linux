@@ -3296,6 +3296,18 @@ static int em_cpuid(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_sahf(struct x86_emulate_ctxt *ctxt)
+{
+	u32 flags;
+
+	flags = EFLG_CF | EFLG_PF | EFLG_AF | EFLG_ZF | EFLG_SF;
+	flags &= *reg_rmw(ctxt, VCPU_REGS_RAX) >> 8;
+
+	ctxt->eflags &= ~0xffUL;
+	ctxt->eflags |= flags | X86_EFLAGS_FIXED;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_lahf(struct x86_emulate_ctxt *ctxt)
 {
 	*reg_rmw(ctxt, VCPU_REGS_RAX) &= ~0xff00UL;
@@ -3790,7 +3802,8 @@ static const struct opcode opcode_table[256] = {
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
 	I(SrcImmFAddr | No64, em_call_far), N,
 	II(ImplicitOps | Stack, em_pushf, pushf),
-	II(ImplicitOps | Stack, em_popf, popf), N, I(ImplicitOps, em_lahf),
+	II(ImplicitOps | Stack, em_popf, popf),
+	I(ImplicitOps, em_sahf), I(ImplicitOps, em_lahf),
 	/* 0xA0 - 0xA7 */
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs | PageTable, em_mov),
