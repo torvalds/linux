@@ -461,25 +461,28 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	ACPI_FUNCTION_TRACE_PTR(ut_get_simple_object_size, internal_object);
 
-	/*
-	 * Handle a null object (Could be a uninitialized package
-	 * element -- which is legal)
-	 */
-	if (!internal_object) {
-		*obj_length = sizeof(union acpi_object);
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Start with the length of the Acpi object */
+	/* Start with the length of the (external) Acpi object */
 
 	length = sizeof(union acpi_object);
 
+	/* A NULL object is allowed, can be a legal uninitialized package element */
+
+	if (!internal_object) {
+	/*
+		 * Object is NULL, just return the length of union acpi_object
+		 * (A NULL union acpi_object is an object of all zeroes.)
+	 */
+		*obj_length = ACPI_ROUND_UP_TO_NATIVE_WORD(length);
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* A Namespace Node should never appear here */
+
 	if (ACPI_GET_DESCRIPTOR_TYPE(internal_object) == ACPI_DESC_TYPE_NAMED) {
 
-		/* Object is a named object (reference), just return the length */
+		/* A namespace node should never get here */
 
-		*obj_length = ACPI_ROUND_UP_TO_NATIVE_WORD(length);
-		return_ACPI_STATUS(status);
+		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
 	/*
