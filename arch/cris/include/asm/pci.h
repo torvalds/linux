@@ -11,7 +11,6 @@
 
 #define pcibios_assign_all_busses(void) 1
 
-extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
