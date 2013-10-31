@@ -48,7 +48,7 @@ static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 			  u8 request, u8 requesttype, u16 value, u16 index,
 			  void *data, u16 size, int timeout)
 {
-	u16 ret;
+	int ret;
 
 	if ((ft1000dev == NULL) || (ft1000dev->dev == NULL)) {
 		DEBUG("ft1000dev or ft1000dev->dev == NULL, failure\n");
@@ -68,7 +68,7 @@ static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 int ft1000_read_register(struct ft1000_usb *ft1000dev, u16* Data,
 			 u16 nRegIndx)
 {
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 
 	ret = ft1000_control(ft1000dev,
 			     usb_rcvctrlpipe(ft1000dev->dev, 0),
@@ -87,7 +87,7 @@ int ft1000_read_register(struct ft1000_usb *ft1000dev, u16* Data,
 int ft1000_write_register(struct ft1000_usb *ft1000dev, u16 value,
 			  u16 nRegIndx)
 {
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 
 	ret = ft1000_control(ft1000dev,
 			     usb_sndctrlpipe(ft1000dev->dev, 0),
@@ -106,7 +106,7 @@ int ft1000_write_register(struct ft1000_usb *ft1000dev, u16 value,
 int ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			u16 cnt)
 {
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 
 	ret = ft1000_control(ft1000dev,
 			     usb_rcvctrlpipe(ft1000dev->dev, 0),
@@ -125,7 +125,7 @@ int ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 int ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			 u16 cnt)
 {
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 
 	if (cnt % 4)
 		cnt += cnt - (cnt % 4);
@@ -147,7 +147,7 @@ int ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 int ft1000_read_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 			u8 highlow)
 {
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 	u8 request;
 
 	if (highlow == 0)
@@ -171,7 +171,7 @@ int ft1000_read_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 /* write into DPRAM a number of bytes */
 int ft1000_write_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u16 value, u8 highlow)
 {
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 	u8 request;
 
 	if (highlow == 0)
@@ -198,12 +198,12 @@ int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx,
 {
 	u8 buf[16];
 	u16 pos;
-	int ret = STATUS_SUCCESS;
+	int ret = 0;
 
 	pos = (indx / 4) * 4;
 	ret = ft1000_read_dpram32(ft1000dev, pos, buf, 16);
 
-	if (ret == STATUS_SUCCESS) {
+	if (ret == 0) {
 		pos = (indx % 4) * 4;
 		*buffer++ = buf[pos++];
 		*buffer++ = buf[pos++];
@@ -230,13 +230,13 @@ int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 	u8 buf[32];
 	u8 resultbuffer[32];
 	u8 *pdata;
-	int ret  = STATUS_SUCCESS;
+	int ret  = 0;
 
 	pos1 = (indx / 4) * 4;
 	pdata = buffer;
 	ret = ft1000_read_dpram32(ft1000dev, pos1, buf, 16);
 
-	if (ret == STATUS_SUCCESS) {
+	if (ret == 0) {
 		pos2 = (indx % 4)*4;
 		buf[pos2++] = *buffer++;
 		buf[pos2++] = *buffer++;
@@ -250,24 +250,24 @@ int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 
 	ret = ft1000_read_dpram32(ft1000dev, pos1, (u8 *)&resultbuffer[0], 16);
 
-	if (ret == STATUS_SUCCESS) {
+	if (ret == 0) {
 		buffer = pdata;
 		for (i = 0; i < 16; i++) {
 			if (buf[i] != resultbuffer[i])
-				ret = STATUS_FAILURE;
+				ret = -1;
 		}
 	}
 
-	if (ret == STATUS_FAILURE) {
+	if (ret == -1) {
 		ret = ft1000_write_dpram32(ft1000dev, pos1,
 					   (u8 *)&tempbuffer[0], 16);
 		ret = ft1000_read_dpram32(ft1000dev, pos1,
 					  (u8 *)&resultbuffer[0], 16);
-		if (ret == STATUS_SUCCESS) {
+		if (ret == 0) {
 			buffer = pdata;
 			for (i = 0; i < 16; i++) {
 				if (tempbuffer[i] != resultbuffer[i]) {
-					ret = STATUS_FAILURE;
+					ret = -1;
 					DEBUG("%s Failed to write\n",
 					      __func__);
 				}
@@ -281,7 +281,7 @@ int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 /* reset or activate the DSP */
 static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 {
-	u16 status = STATUS_SUCCESS;
+	int status = 0;
 	u16 tempword;
 
 	status = ft1000_write_register(ft1000dev, HOST_INTF_BE,
@@ -398,7 +398,7 @@ int dsp_reload(struct ft1000_usb *ft1000dev)
 	/* call codeloader */
 	status = scram_dnldr(ft1000dev, pFileStart, FileLength);
 
-	if (status != STATUS_SUCCESS)
+	if (status != 0)
 		return -EIO;
 
 	msleep(1000);
@@ -823,7 +823,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 
 	if (ft1000dev->status & FT1000_STATUS_CLOSING) {
 		DEBUG("network driver is closed, return\n");
-		return STATUS_SUCCESS;
+		return 0;
 	}
 	// Read length
 	len = urb->transfer_buffer_length;
@@ -838,7 +838,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 	if (tempword != *chksum) {
 		info->stats.rx_errors++;
 		ft1000_submit_rx_urb(info);
-		return STATUS_FAILURE;
+		return -1;
 	}
 
 	skb = dev_alloc_skb(len + 12 + 2);
@@ -847,7 +847,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 		DEBUG("ft1000_copy_up_pkt: No Network buffers available\n");
 		info->stats.rx_errors++;
 		ft1000_submit_rx_urb(info);
-		return STATUS_FAILURE;
+		return -1;
 	}
 
 	pbuffer = (u8 *) skb_put(skb, len + 12);
@@ -884,7 +884,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 
 	ft1000_submit_rx_urb(info);
 
-	return SUCCESS;
+	return 0;
 }
 
 
@@ -939,7 +939,7 @@ int ft1000_close(struct net_device *net)
 static int ft1000_chkcard(struct ft1000_usb *dev)
 {
 	u16 tempword;
-	u16 status;
+	int status;
 
 	if (dev->fCondResetPend) {
 		DEBUG
@@ -977,7 +977,8 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 			       int maxsz, u16 *pnxtph)
 {
-	u16 size, ret;
+	u16 size;
+	int ret;
 	u16 *ppseudohdr;
 	int i;
 	u16 tempword;
@@ -1049,7 +1050,7 @@ static int ft1000_dsp_prov(void *arg)
 	struct prov_record *ptr;
 	struct pseudo_hdr *ppseudo_hdr;
 	u16 *pmsg;
-	u16 status;
+	int status;
 	u16 TempShortBuf[256];
 
 	DEBUG("*** DspProv Entered\n");
@@ -1071,7 +1072,7 @@ static int ft1000_dsp_prov(void *arg)
 			i++;
 			if (i == 10) {
 				DEBUG("FT1000:ft1000_dsp_prov:message drop\n");
-				return STATUS_FAILURE;
+				return -1;
 			}
 			ft1000_read_register(dev, &tempword,
 					     FT1000_REG_DOORBELL);
@@ -1125,7 +1126,7 @@ static int ft1000_dsp_prov(void *arg)
 	dev->fProvComplete = true;
 	info->CardReady = 1;
 
-	return STATUS_SUCCESS;
+	return 0;
 }
 
 static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
@@ -1139,7 +1140,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 	u16 i;
 	struct pseudo_hdr *ppseudo_hdr;
 	u16 *pmsg;
-	u16 status;
+	int status;
 	union {
 		u8 byte[2];
 		u16 wrd;
@@ -1147,7 +1148,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 
 	char *cmdbuffer = kmalloc(1600, GFP_KERNEL);
 	if (!cmdbuffer)
-		return STATUS_FAILURE;
+		return -1;
 
 	status = ft1000_read_dpram32(dev, 0x200, cmdbuffer, size);
 
@@ -1250,7 +1251,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			if (list_empty(&info->prov_list) == 0) {
 				dev->fProvComplete = false;
 				status = ft1000_dsp_prov(dev);
-				if (status != STATUS_SUCCESS)
+				if (status != 0)
 					goto out;
 			} else {
 				dev->fProvComplete = true;
@@ -1425,7 +1426,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 		break;
 	}
 
-	status = STATUS_SUCCESS;
+	status = 0;
 out:
 	kfree(cmdbuffer);
 	DEBUG("return from ft1000_proc_drvmsg\n");
@@ -1438,7 +1439,7 @@ int ft1000_poll(void* dev_id)
 	struct ft1000_info *info = netdev_priv(dev->net);
 
     u16 tempword;
-    u16 status;
+    int status;
     u16 size;
     int i;
     u16 data;
@@ -1451,7 +1452,7 @@ int ft1000_poll(void* dev_id)
 
     if (ft1000_chkcard(dev) == FALSE) {
         DEBUG("ft1000_poll::ft1000_chkcard: failed\n");
-        return STATUS_FAILURE;
+        return -1;
     }
 
     status = ft1000_read_register (dev, &tempword, FT1000_REG_DOORBELL);
@@ -1477,7 +1478,7 @@ int ft1000_poll(void* dev_id)
                         DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type: FT1000_DB_DPRAM_RX : portid DRIVERID\n");
 
                         status = ft1000_proc_drvmsg (dev, size);
-                        if (status != STATUS_SUCCESS )
+                        if (status != 0 )
                             return status;
                         break;
                     case DSPBCMSGID:
@@ -1577,7 +1578,7 @@ int ft1000_poll(void* dev_id)
             }
             if (i==100) {
                 DEBUG("Unable to reset ASIC\n");
-                return STATUS_SUCCESS;
+                return 0;
             }
             msleep(10);
             // Program WMARK register
@@ -1624,6 +1625,6 @@ int ft1000_poll(void* dev_id)
 
     }
 
-    return STATUS_SUCCESS;
+    return 0;
 
 }
