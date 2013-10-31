@@ -961,6 +961,11 @@ EXPORT_SYMBOL(ib_resize_cq);
 struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
 
 	mr = pd->device->get_dma_mr(pd, mr_access_flags);
 
@@ -983,6 +988,11 @@ struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
 			     u64 *iova_start)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
 
 	if (!pd->device->reg_phys_mr)
 		return ERR_PTR(-ENOSYS);
@@ -1012,6 +1022,10 @@ int ib_rereg_phys_mr(struct ib_mr *mr,
 {
 	struct ib_pd *old_pd;
 	int ret;
+
+	ret = ib_check_mr_access(mr_access_flags);
+	if (ret)
+		return ret;
 
 	if (!mr->device->rereg_phys_mr)
 		return -ENOSYS;

@@ -939,13 +939,9 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	if ((cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK))
 		return -EINVAL;
 
-	/*
-	 * Local write permission is required if remote write or
-	 * remote atomic permission is also requested.
-	 */
-	if (cmd.access_flags & (IB_ACCESS_REMOTE_ATOMIC | IB_ACCESS_REMOTE_WRITE) &&
-	    !(cmd.access_flags & IB_ACCESS_LOCAL_WRITE))
-		return -EINVAL;
+	ret = ib_check_mr_access(cmd.access_flags);
+	if (ret)
+		return ret;
 
 	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
