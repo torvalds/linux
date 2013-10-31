@@ -359,7 +359,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
 	bio = compressed_bio_alloc(bdev, first_byte, GFP_NOFS);
-	if(!bio) {
+	if (!bio) {
 		kfree(cb);
 		return -ENOMEM;
 	}

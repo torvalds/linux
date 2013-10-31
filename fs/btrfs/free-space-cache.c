@@ -2280,7 +2280,7 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 		goto out;
 
 	entry = rb_entry(node, struct btrfs_free_space, offset_index);
-	while(1) {
+	while (1) {
 		if (entry->bytes < bytes && entry->bytes > *max_extent_size)
 			*max_extent_size = entry->bytes;
 

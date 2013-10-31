@@ -4034,7 +4034,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 	if (offset >= last)
 		return NULL;
 
-	while(1) {
+	while (1) {
 		len = last - offset;
 		if (len == 0)
 			break;

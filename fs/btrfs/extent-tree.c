@@ -5017,7 +5017,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 
 	if (to_reserve)
-		trace_btrfs_space_reservation(root->fs_info,"delalloc",
+		trace_btrfs_space_reservation(root->fs_info, "delalloc",
 					      btrfs_ino(inode), to_reserve, 1);
 	block_rsv_add_bytes(block_rsv, to_reserve, 1);
 
@@ -8022,7 +8022,7 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 
 	spin_lock(&sinfo->lock);
 
-	for(i = 0; i < BTRFS_NR_RAID_TYPES; i++)
+	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
 		if (!list_empty(&sinfo->block_groups[i]))
 			free_bytes += __btrfs_get_ro_block_group_free_space(
 						&sinfo->block_groups[i]);
@@ -8310,7 +8310,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 
 	release_global_block_rsv(info);
 
-	while(!list_empty(&info->space_info)) {
+	while (!list_empty(&info->space_info)) {
 		space_info = list_entry(info->space_info.next,
 					struct btrfs_space_info,
 					list);

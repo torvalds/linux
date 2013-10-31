@@ -6262,7 +6262,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *pag
 	/* adjust the range_start to make sure it doesn't
 	 * go backwards from the start they passed in
 	 */
-	range_start = max(start,range_start);
+	range_start = max(start, range_start);
 	found = found_end - range_start;
 
 	if (found > 0) {
@@ -7066,7 +7066,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 			}
 		} else {
 			submit_len += bvec->bv_len;
-			nr_pages ++;
+			nr_pages++;
 			bvec++;
 		}
 	}
@@ -8367,7 +8367,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	int err;
 	int drop_inode = 0;
 	u64 objectid;
-	u64 index = 0 ;
+	u64 index = 0;
 	int name_len;
 	int datasize;
 	unsigned long ptr;

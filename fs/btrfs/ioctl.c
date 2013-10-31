@@ -686,7 +686,7 @@ static inline int btrfs_check_sticky(struct inode *dir, struct inode *inode)
  *     nfs_async_unlink().
  */
 
-static int btrfs_may_delete(struct inode *dir,struct dentry *victim,int isdir)
+static int btrfs_may_delete(struct inode *dir, struct dentry *victim, int isdir)
 {
 	int error;
 
@@ -856,7 +856,7 @@ static int find_new_extents(struct btrfs_root *root,
 
 	path->keep_locks = 1;
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_forward(root, &min_key, path, newer_than);
 		if (ret != 0)
 			goto none;
@@ -1918,7 +1918,7 @@ static noinline int search_ioctl(struct inode *inode,
 
 	path->keep_locks = 1;
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_forward(root, &key, path, sk->min_transid);
 		if (ret != 0) {
 			if (ret > 0)
@@ -2004,7 +2004,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	key.type = BTRFS_INODE_REF_KEY;
 	key.offset = (u64)-1;
 
-	while(1) {
+	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
@@ -2033,7 +2033,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		}
 
 		*(ptr + len) = '/';
-		read_extent_buffer(l, ptr,(unsigned long)(iref + 1), len);
+		read_extent_buffer(l, ptr, (unsigned long)(iref + 1), len);
 
 		if (key.offset == BTRFS_FIRST_FREE_OBJECTID)
 			break;
@@ -2044,7 +2044,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		dirid = key.objectid;
 	}
 	memmove(name, ptr, total_len);
-	name[total_len]='\0';
+	name[total_len] = '\0';
 	ret = 0;
 out:
 	btrfs_free_path(path);
@@ -2130,7 +2130,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 
 	inode = dentry->d_inode;
 	dest = BTRFS_I(inode)->root;
-	if (!capable(CAP_SYS_ADMIN)){
+	if (!capable(CAP_SYS_ADMIN)) {
 		/*
 		 * Regular user.  Only allow this with a special mount
 		 * option, when the user has write+exec access to the

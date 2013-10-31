@@ -369,7 +369,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 	u64 root_objectid = 0;
 
 	atomic_inc(&fs_info->defrag_running);
-	while(1) {
+	while (1) {
 		/* Pause the auto defragger. */
 		if (test_bit(BTRFS_FS_STATE_REMOUNTING,
 			     &fs_info->fs_state))
