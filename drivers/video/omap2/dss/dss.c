@@ -446,12 +446,20 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 	unsigned long prate;
 	unsigned m;
 
+	fck_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
 	if (dss.parent_clk == NULL) {
-		fck = clk_get_rate(dss.dss_clk);
+		unsigned pckd;
+
+		pckd = fck_hw_max / pck;
+
+		fck = pck * pckd;
+
+		fck = clk_round_rate(dss.dss_clk, fck);
+
 		return func(fck, data);
 	}
 
-	fck_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 	fckd_hw_max = dss.feat->fck_div_max;
 
 	m = dss.feat->dss_fck_multiplier;
@@ -503,16 +511,17 @@ static int dss_setup_default_clock(void)
 	unsigned fck_div;
 	int r;
 
-	if (dss.parent_clk == NULL)
-		return 0;
-
 	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 
-	prate = clk_get_rate(dss.parent_clk);
+	if (dss.parent_clk == NULL) {
+		fck = clk_round_rate(dss.dss_clk, max_dss_fck);
+	} else {
+		prate = clk_get_rate(dss.parent_clk);
 
-	fck_div = DIV_ROUND_UP(prate * dss.feat->dss_fck_multiplier,
-			max_dss_fck);
-	fck = prate / fck_div * dss.feat->dss_fck_multiplier;
+		fck_div = DIV_ROUND_UP(prate * dss.feat->dss_fck_multiplier,
+				max_dss_fck);
+		fck = prate / fck_div * dss.feat->dss_fck_multiplier;
+	}
 
 	r = dss_set_fck_rate(fck);
 	if (r)
