@@ -486,9 +486,13 @@ static u32 asle_isct_state(struct drm_device *dev)
 	return ASLC_ISCT_STATE_FAILED;
 }
 
-void intel_opregion_asle_intr(struct drm_device *dev)
+static void asle_work(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion =
+		container_of(work, struct intel_opregion, asle_work);
+	struct drm_i915_private *dev_priv =
+		container_of(opregion, struct drm_i915_private, opregion);
+	struct drm_device *dev = dev_priv->dev;
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 	u32 aslc_stat = 0;
 	u32 aslc_req;
@@ -533,6 +537,14 @@ void intel_opregion_asle_intr(struct drm_device *dev)
 		aslc_stat |= asle_isct_state(dev);
 
 	iowrite32(aslc_stat, &asle->aslc);
+}
+
+void intel_opregion_asle_intr(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->opregion.asle)
+		schedule_work(&dev_priv->opregion.asle_work);
 }
 
 #define ACPI_EV_DISPLAY_SWITCH (1<<0)
@@ -735,6 +747,8 @@ void intel_opregion_fini(struct drm_device *dev)
 	if (opregion->asle)
 		iowrite32(ASLE_ARDY_NOT_READY, &opregion->asle->ardy);
 
+	cancel_work_sync(&dev_priv->opregion.asle_work);
+
 	if (opregion->acpi) {
 		iowrite32(0, &opregion->acpi->drdy);
 
@@ -827,6 +841,8 @@ int intel_opregion_setup(struct drm_device *dev)
 		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
 		return -ENOTSUPP;
 	}
+
+	INIT_WORK(&opregion->asle_work, asle_work);
 
 	base = acpi_os_ioremap(asls, OPREGION_SIZE);
 	if (!base)

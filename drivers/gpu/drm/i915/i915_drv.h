@@ -242,6 +242,7 @@ struct intel_opregion {
 	struct opregion_asle __iomem *asle;
 	void __iomem *vbt;
 	u32 __iomem *lid_state;
+	struct work_struct asle_work;
 };
 #define OPREGION_SIZE            (8*1024)
 
