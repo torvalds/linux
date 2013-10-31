@@ -209,10 +209,10 @@ acpi_status acpi_ut_delete_caches(void)
 
 	/* Free memory lists */
 
-	ACPI_FREE(acpi_gbl_global_list);
+	acpi_os_free(acpi_gbl_global_list);
 	acpi_gbl_global_list = NULL;
 
-	ACPI_FREE(acpi_gbl_ns_node_list);
+	acpi_os_free(acpi_gbl_ns_node_list);
 	acpi_gbl_ns_node_list = NULL;
 #endif
 
