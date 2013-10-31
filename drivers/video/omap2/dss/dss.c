@@ -436,7 +436,8 @@ enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 	}
 }
 
-bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
+bool dss_div_calc(unsigned long pck, unsigned long fck_min,
+		dss_div_calc_func func, void *data)
 {
 	int fckd, fckd_start, fckd_stop;
 	unsigned long fck;

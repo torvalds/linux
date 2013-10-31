@@ -245,7 +245,8 @@ void dss_set_dac_pwrdn_bgz(bool enable);
 int dss_set_fck_rate(unsigned long rate);
 
 typedef bool (*dss_div_calc_func)(unsigned long fck, void *data);
-bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data);
+bool dss_div_calc(unsigned long pck, unsigned long fck_min,
+		dss_div_calc_func func, void *data);
 
 /* SDI */
 int sdi_init_platform_driver(void) __init;

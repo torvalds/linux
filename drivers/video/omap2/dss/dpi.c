@@ -236,7 +236,7 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 			ctx->pck_min = 0;
 		ctx->pck_max = pck + 1000 * i * i * i;
 
-		ok = dss_div_calc(ctx->pck_min, dpi_calc_dss_cb, ctx);
+		ok = dss_div_calc(pck, ctx->pck_min, dpi_calc_dss_cb, ctx);
 		if (ok)
 			return ok;
 	}

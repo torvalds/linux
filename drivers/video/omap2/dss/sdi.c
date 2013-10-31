@@ -97,7 +97,7 @@ static int sdi_calc_clock_div(unsigned long pclk,
 			ctx.pck_min = 0;
 		ctx.pck_max = pclk + 1000 * i * i * i;
 
-		ok = dss_div_calc(ctx.pck_min, dpi_calc_dss_cb, &ctx);
+		ok = dss_div_calc(pclk, ctx.pck_min, dpi_calc_dss_cb, &ctx);
 		if (ok) {
 			*fck = ctx.fck;
 			*dispc_cinfo = ctx.dispc_cinfo;
