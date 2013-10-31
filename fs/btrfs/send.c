@@ -3902,15 +3902,15 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 	while (key.offset < ekey->offset + left_len) {
 		ei = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
 		right_type = btrfs_file_extent_type(eb, ei);
-		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
-		right_len = btrfs_file_extent_num_bytes(eb, ei);
-		right_offset = btrfs_file_extent_offset(eb, ei);
-		right_gen = btrfs_file_extent_generation(eb, ei);
-
 		if (right_type != BTRFS_FILE_EXTENT_REG) {
 			ret = 0;
 			goto out;
 		}
+
+		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
+		right_len = btrfs_file_extent_num_bytes(eb, ei);
+		right_offset = btrfs_file_extent_offset(eb, ei);
+		right_gen = btrfs_file_extent_generation(eb, ei);
 
 		/*
 		 * Are we at extent 8? If yes, we know the extent is changed.
