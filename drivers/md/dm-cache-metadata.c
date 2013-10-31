@@ -667,19 +667,85 @@ void dm_cache_metadata_close(struct dm_cache_metadata *cmd)
 	kfree(cmd);
 }
 
+/*
+ * Checks that the given cache block is either unmapped or clean.
+ */
+static int block_unmapped_or_clean(struct dm_cache_metadata *cmd, dm_cblock_t b,
+				   bool *result)
+{
+	int r;
+	__le64 value;
+	dm_oblock_t ob;
+	unsigned flags;
+
+	r = dm_array_get_value(&cmd->info, cmd->root, from_cblock(b), &value);
+	if (r) {
+		DMERR("block_unmapped_or_clean failed");
+		return r;
+	}
+
+	unpack_value(value, &ob, &flags);
+	*result = !((flags & M_VALID) && (flags & M_DIRTY));
+
+	return 0;
+}
+
+static int blocks_are_unmapped_or_clean(struct dm_cache_metadata *cmd,
+					dm_cblock_t begin, dm_cblock_t end,
+					bool *result)
+{
+	int r;
+	*result = true;
+
+	while (begin != end) {
+		r = block_unmapped_or_clean(cmd, begin, result);
+		if (r)
+			return r;
+
+		if (!*result) {
+			DMERR("cache block %llu is dirty",
+			      (unsigned long long) from_cblock(begin));
+			return 0;
+		}
+
+		begin = to_cblock(from_cblock(begin) + 1);
+	}
+
+	return 0;
+}
+
 int dm_cache_resize(struct dm_cache_metadata *cmd, dm_cblock_t new_cache_size)
 {
 	int r;
+	bool clean;
 	__le64 null_mapping = pack_value(0, 0);
 
 	down_write(&cmd->root_lock);
 	__dm_bless_for_disk(&null_mapping);
+
+	if (from_cblock(new_cache_size) < from_cblock(cmd->cache_blocks)) {
+		r = blocks_are_unmapped_or_clean(cmd, new_cache_size, cmd->cache_blocks, &clean);
+		if (r) {
+			__dm_unbless_for_disk(&null_mapping);
+			goto out;
+		}
+
+		if (!clean) {
+			DMERR("unable to shrink cache due to dirty blocks");
+			r = -EINVAL;
+			__dm_unbless_for_disk(&null_mapping);
+			goto out;
+		}
+	}
+
 	r = dm_array_resize(&cmd->info, cmd->root, from_cblock(cmd->cache_blocks),
 			    from_cblock(new_cache_size),
 			    &null_mapping, &cmd->root);
 	if (!r)
 		cmd->cache_blocks = new_cache_size;
 	cmd->changed = true;
+
+out:
 	up_write(&cmd->root_lock);
 
 	return r;

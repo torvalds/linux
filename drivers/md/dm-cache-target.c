@@ -2502,26 +2502,71 @@ static int load_discard(void *context, sector_t discard_block_size,
 	return 0;
 }
 
+static dm_cblock_t get_cache_dev_size(struct cache *cache)
+{
+	sector_t size = get_dev_size(cache->cache_dev);
+	(void) sector_div(size, cache->sectors_per_block);
+	return to_cblock(size);
+}
+
+static bool can_resize(struct cache *cache, dm_cblock_t new_size)
+{
+	if (from_cblock(new_size) > from_cblock(cache->cache_size))
+		return true;
+
+	/*
+	 * We can't drop a dirty block when shrinking the cache.
+	 */
+	while (from_cblock(new_size) < from_cblock(cache->cache_size)) {
+		new_size = to_cblock(from_cblock(new_size) + 1);
+		if (is_dirty(cache, new_size)) {
+			DMERR("unable to shrink cache; cache block %llu is dirty",
+			      (unsigned long long) from_cblock(new_size));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static int resize_cache_dev(struct cache *cache, dm_cblock_t new_size)
+{
+	int r;
+
+	r = dm_cache_resize(cache->cmd, cache->cache_size);
+	if (r) {
+		DMERR("could not resize cache metadata");
+		return r;
+	}
+
+	cache->cache_size = new_size;
+
+	return 0;
+}
+
 static int cache_preresume(struct dm_target *ti)
 {
 	int r = 0;
 	struct cache *cache = ti->private;
-	sector_t actual_cache_size = get_dev_size(cache->cache_dev);
-	(void) sector_div(actual_cache_size, cache->sectors_per_block);
+	dm_cblock_t csize = get_cache_dev_size(cache);
 
 	/*
 	 * Check to see if the cache has resized.
 	 */
-	if (from_cblock(cache->cache_size) != actual_cache_size || !cache->sized) {
-		cache->cache_size = to_cblock(actual_cache_size);
-
-		r = dm_cache_resize(cache->cmd, cache->cache_size);
-		if (r) {
-			DMERR("could not resize cache metadata");
+	if (!cache->sized) {
+		r = resize_cache_dev(cache, csize);
+		if (r)
 			return r;
-		}
 
 		cache->sized = true;
+
+	} else if (csize != cache->cache_size) {
+		if (!can_resize(cache, csize))
+			return -EINVAL;
+
+		r = resize_cache_dev(cache, csize);
+		if (r)
+			return r;
 	}
 
 	if (!cache->loaded_mappings) {
