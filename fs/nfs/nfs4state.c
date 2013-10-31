@@ -1476,7 +1476,7 @@ restart:
 		if (status >= 0) {
 			status = nfs4_reclaim_locks(state, ops);
 			if (status >= 0) {
-				if (test_bit(NFS_DELEGATED_STATE, &state->flags) != 0) {
+				if (!test_bit(NFS_DELEGATED_STATE, &state->flags)) {
 					spin_lock(&state->state_lock);
 					list_for_each_entry(lock, &state->lock_states, ls_locks) {
 						if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
