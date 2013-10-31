@@ -128,6 +128,67 @@ static irqreturn_t altr_sdram_mc_err_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_EDAC_DEBUG
+static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
+					const char __user *data,
+					size_t count, loff_t *ppos)
+{
+	struct mem_ctl_info *mci = file->private_data;
+	struct altr_sdram_mc_data *drvdata = mci->pvt_info;
+	u32 *ptemp;
+	dma_addr_t dma_handle;
+	u32 reg, read_reg = 0;
+
+	ptemp = dma_alloc_coherent(mci->pdev, 16, &dma_handle, GFP_KERNEL);
+	if (IS_ERR(ptemp)) {
+		dma_free_coherent(mci->pdev, 16, ptemp, dma_handle);
+		dev_err(mci->pdev, "**EDAC Inject: Buffer Allocation error\n");
+		return -ENOMEM;
+	}
+
+	regmap_read(drvdata->mc_vbase, ALTR_SDR_CTLCFG, &read_reg);
+	read_reg &= ~(ALTR_SDR_CTLCFG_GEN_SB_ERR | ALTR_SDR_CTLCFG_GEN_DB_ERR);
+
+	if (count == 3) {
+		dev_alert(mci->pdev, "** EDAC Inject Double bit error\n");
+		regmap_write(drvdata->mc_vbase, ALTR_SDR_CTLCFG,
+				(read_reg | ALTR_SDR_CTLCFG_GEN_DB_ERR));
+	} else {
+		dev_alert(mci->pdev, "** EDAC Inject Single bit error\n");
+		regmap_write(drvdata->mc_vbase,	ALTR_SDR_CTLCFG,
+				(read_reg | ALTR_SDR_CTLCFG_GEN_SB_ERR));
+	}
+
+	ptemp[0] = 0x5A5A5A5A;
+	ptemp[1] = 0xA5A5A5A5;
+	regmap_write(drvdata->mc_vbase,	ALTR_SDR_CTLCFG, read_reg);
+	wmb();
+
+	reg = ptemp[0];
+	read_reg = ptemp[1];
+
+	dma_free_coherent(mci->pdev, 16, ptemp, dma_handle);
+
+	return count;
+}
+
+static const struct file_operations altr_sdr_mc_debug_inject_fops = {
+	.open = simple_open,
+	.write = altr_sdr_mc_err_inject_write,
+	.llseek = generic_file_llseek,
+};
+
+static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
+{
+	if (mci->debugfs)
+		debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
+			&altr_sdr_mc_debug_inject_fops);
+}
+#else
+static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
+{}
+#endif
+
 /* Get total memory size from Open Firmware DTB */
 static u32 altr_sdram_get_total_mem_size(void)
 {
@@ -249,6 +310,8 @@ static int altr_sdram_mc_probe(struct platform_device *pdev)
 		res = -ENODEV;
 		goto err;
 	}
+
+	altr_sdr_mc_create_debugfs_nodes(mci);
 
 	devres_close_group(&pdev->dev, NULL);
 
