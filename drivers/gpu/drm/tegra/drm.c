@@ -104,9 +104,11 @@ static void tegra_drm_context_free(struct tegra_drm_context *context)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
+#ifdef CONFIG_TEGRA_DRM_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_restore_mode(tegra->fbdev);
+#endif
 }
 
 static struct host1x_bo *

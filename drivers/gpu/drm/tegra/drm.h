@@ -27,10 +27,12 @@ struct tegra_fb {
 	unsigned int num_planes;
 };
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 struct tegra_fbdev {
 	struct drm_fb_helper base;
 	struct tegra_fb *fb;
 };
+#endif
 
 struct tegra_drm {
 	struct drm_device *drm;
@@ -38,7 +40,9 @@ struct tegra_drm {
 	struct mutex clients_lock;
 	struct list_head clients;
 
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_fbdev *fbdev;
+#endif
 };
 
 struct tegra_drm_client;
@@ -265,7 +269,9 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
+#endif
 
 extern struct platform_driver tegra_dc_driver;
 extern struct platform_driver tegra_dsi_driver;
