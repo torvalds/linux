@@ -1608,7 +1608,7 @@ static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->def,
+	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->min_def,
 				       ctx->rx_chains_static,
 				       ctx->rx_chains_dynamic);
 	if (ret) {
@@ -1652,7 +1652,7 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 		return;
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->def,
+	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->min_def,
 				 ctx->rx_chains_static,
 				 ctx->rx_chains_dynamic);
 	iwl_mvm_bt_coex_vif_change(mvm);
