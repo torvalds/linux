@@ -1,5 +1,5 @@
 /*
- * kirkwood-sheevaplug-esata.dts - Device tree file for Sheevaplug
+ * kirkwood-sheevaplug.dts - Device tree file for Sheevaplug
  *
  * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
  *
