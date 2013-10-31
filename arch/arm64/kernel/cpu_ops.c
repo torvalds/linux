@@ -68,8 +68,8 @@ int __init cpu_read_ops(struct device_node *dn, int cpu)
 
 	cpu_ops[cpu] = cpu_get_ops(enable_method);
 	if (!cpu_ops[cpu]) {
-		pr_err("%s: invalid enable-method property: %s\n",
-		       dn->full_name, enable_method);
+		pr_warn("%s: unsupported enable-method property: %s\n",
+			dn->full_name, enable_method);
 		return -EOPNOTSUPP;
 	}
 
