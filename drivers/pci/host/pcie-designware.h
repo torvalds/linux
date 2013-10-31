@@ -11,6 +11,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef _PCIE_DESIGNWARE_H
+#define _PCIE_DESIGNWARE_H
+
 struct pcie_port_info {
 	u32		cfg0_size;
 	u32		cfg1_size;
@@ -47,7 +50,7 @@ struct pcie_port {
 	u32			lanes;
 	struct pcie_host_ops	*ops;
 	int			msi_irq;
-	int			msi_irq_start;
+	struct irq_domain	*irq_domain;
 	unsigned long		msi_data;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_IRQS);
 };
@@ -63,17 +66,12 @@ struct pcie_host_ops {
 	void (*host_init)(struct pcie_port *pp);
 };
 
-extern unsigned long global_io_offset;
-
 int cfg_read(void __iomem *addr, int where, int size, u32 *val);
 int cfg_write(void __iomem *addr, int where, int size, u32 val);
-int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size, u32 val);
-int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size, u32 *val);
 void dw_handle_msi_irq(struct pcie_port *pp);
 void dw_pcie_msi_init(struct pcie_port *pp);
 int dw_pcie_link_up(struct pcie_port *pp);
 void dw_pcie_setup_rc(struct pcie_port *pp);
 int dw_pcie_host_init(struct pcie_port *pp);
-int dw_pcie_setup(int nr, struct pci_sys_data *sys);
-struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys);
-int dw_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+
+#endif /* _PCIE_DESIGNWARE_H */
