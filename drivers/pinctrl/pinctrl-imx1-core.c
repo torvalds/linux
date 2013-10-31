@@ -615,8 +615,8 @@ int imx1_pinctrl_core_probe(struct platform_device *pdev,
 
 	ipctl->base = devm_ioremap_nocache(&pdev->dev, res->start,
 			resource_size(res));
-	if (IS_ERR(ipctl->base))
-		return PTR_ERR(ipctl->base);
+	if (!ipctl->base)
+		return -ENOMEM;
 
 	pctl_desc = &imx1_pinctrl_desc;
 	pctl_desc->name = dev_name(&pdev->dev);
