@@ -131,6 +131,8 @@ char __initdata boot_command_line[COMMAND_LINE_SIZE];
 char *saved_command_line;
 /* Command line for parameter parsing */
 static char *static_command_line;
+/* Command line for per-initcall parameter parsing */
+static char *initcall_command_line;
 
 static char *execute_command;
 static char *ramdisk_execute_command;
@@ -347,6 +349,7 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 static void __init setup_command_line(char *command_line)
 {
 	saved_command_line = alloc_bootmem(strlen (boot_command_line)+1);
+	initcall_command_line = alloc_bootmem(strlen (boot_command_line)+1);
 	static_command_line = alloc_bootmem(strlen (command_line)+1);
 	strcpy (saved_command_line, boot_command_line);
 	strcpy (static_command_line, command_line);
@@ -744,9 +747,9 @@ static void __init do_initcall_level(int level)
 	extern const struct kernel_param __start___param[], __stop___param[];
 	initcall_t *fn;
 
-	strcpy(static_command_line, saved_command_line);
+	strcpy(initcall_command_line, saved_command_line);
 	parse_args(initcall_level_names[level],
-		   static_command_line, __start___param,
+		   initcall_command_line, __start___param,
 		   __stop___param - __start___param,
 		   level, level,
 		   &repair_env_string);
