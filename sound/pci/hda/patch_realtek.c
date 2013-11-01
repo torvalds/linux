@@ -3503,6 +3503,8 @@ static void alc283_fixup_chromebook(struct hda_codec *codec,
 		/* Disable AA-loopback as it causes white noise */
 		spec->gen.mixer_nid = 0;
 		spec->gen.hp_automute_hook = alc283_hp_automute_hook;
+		break;
+	case HDA_FIXUP_ACT_INIT:
 		/* MIC2-VREF control */
 		/* Set to manual mode */
 		val = alc_read_coef_idx(codec, 0x06);
