@@ -214,8 +214,6 @@ struct skd_request_context {
 	u32 fitmsg_id;
 
 	struct request *req;
-	struct bio *bio;
-	unsigned long start_time;
 	u8 flush_cmd;
 	u8 discard_page;
 
@@ -506,26 +504,6 @@ static void skd_log_skreq(struct skd_device *skdev,
  * READ/WRITE REQUESTS
  *****************************************************************************
  */
-static void skd_stop_queue(struct skd_device *skdev)
-{
-	blk_stop_queue(skdev->queue);
-}
-
-static void skd_unstop_queue(struct skd_device *skdev)
-{
-	queue_flag_clear(QUEUE_FLAG_STOPPED, skdev->queue);
-}
-
-static void skd_start_queue(struct skd_device *skdev)
-{
-	blk_start_queue(skdev->queue);
-}
-
-static int skd_queue_stopped(struct skd_device *skdev)
-{
-	return blk_queue_stopped(skdev->queue);
-}
-
 static void skd_fail_all_pending(struct skd_device *skdev)
 {
 	struct request_queue *q = skdev->queue;
@@ -634,14 +612,14 @@ static void skd_request_fn(struct request_queue *q)
 		return;
 	}
 
-	if (skd_queue_stopped(skdev)) {
+	if (blk_queue_stopped(skdev->queue)) {
 		if (skdev->skmsg_free_list == NULL ||
 		    skdev->skreq_free_list == NULL ||
 		    skdev->in_flight >= skdev->queue_low_water_mark)
 			/* There is still some kind of shortage */
 			return;
 
-		skd_unstop_queue(skdev);
+		queue_flag_clear(QUEUE_FLAG_STOPPED, skdev->queue);
 	}
 
 	/*
@@ -887,7 +865,7 @@ skip_sg:
 	 * we are out of a resource.
 	 */
 	if (req)
-		skd_stop_queue(skdev);
+		blk_stop_queue(skdev->queue);
 }
 
 static void skd_end_request_blk(struct skd_device *skdev,
@@ -1106,7 +1084,7 @@ static void skd_timer_tick(ulong arg)
 	skdev->timer_countdown = SKD_DRAINING_TIMO;
 	skdev->state = SKD_DRVR_STATE_DRAINING_TIMEOUT;
 	skdev->timo_slot = timo_slot;
-	skd_stop_queue(skdev);
+	blk_stop_queue(skdev->queue);
 
 timer_func_out:
 	mod_timer(&skdev->timer, (jiffies + HZ));
@@ -1165,7 +1143,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 
 		/*start the queue so we can respond with error to requests */
 		/* wakeup anyone waiting for startup complete */
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -1191,7 +1169,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 			pr_debug("%s:%s:%d Slot drained, starting queue.\n",
 				 skdev->name, __func__, __LINE__);
 			skdev->state = SKD_DRVR_STATE_ONLINE;
-			skd_start_queue(skdev);
+			blk_start_queue(skdev->queue);
 			return;
 		}
 		if (skdev->timer_countdown > 0) {
@@ -1241,7 +1219,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 
 		/*start the queue so we can respond with error to requests */
 		/* wakeup anyone waiting for startup complete */
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -3241,7 +3219,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		 */
 		skdev->state = SKD_DRVR_STATE_BUSY_SANITIZE;
 		skdev->timer_countdown = SKD_TIMER_SECONDS(3);
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		break;
 	case FIT_SR_DRIVE_BUSY_ERASE:
 		skdev->state = SKD_DRVR_STATE_BUSY_ERASE;
@@ -3276,7 +3254,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 	case FIT_SR_DRIVE_FAULT:
 		skd_drive_fault(skdev);
 		skd_recover_requests(skdev, 0);
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		break;
 
 	/* PCIe bus returned all Fs? */
@@ -3285,7 +3263,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		       skd_name(skdev), state, sense);
 		skd_drive_disappeared(skdev);
 		skd_recover_requests(skdev, 0);
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		break;
 	default:
 		/*
@@ -3609,7 +3587,7 @@ static void skd_start_device(struct skd_device *skdev)
 		/*start the queue so we can respond with error to requests */
 		pr_debug("%s:%s:%d starting %s queue\n",
 			 skdev->name, __func__, __LINE__, skdev->name);
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -3621,7 +3599,7 @@ static void skd_start_device(struct skd_device *skdev)
 		/*start the queue so we can respond with error to requests */
 		pr_debug("%s:%s:%d starting %s queue to error-out reqs\n",
 			 skdev->name, __func__, __LINE__, skdev->name);
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -3766,7 +3744,7 @@ static int skd_quiesce_dev(struct skd_device *skdev)
 	case SKD_DRVR_STATE_BUSY_IMMINENT:
 		pr_debug("%s:%s:%d stopping %s queue\n",
 			 skdev->name, __func__, __LINE__, skdev->name);
-		skd_stop_queue(skdev);
+		blk_stop_queue(skdev->queue);
 		break;
 	case SKD_DRVR_STATE_ONLINE:
 	case SKD_DRVR_STATE_STOPPING:
@@ -3835,7 +3813,7 @@ static int skd_unquiesce_dev(struct skd_device *skdev)
 		pr_debug("%s:%s:%d starting %s queue\n",
 			 skdev->name, __func__, __LINE__, skdev->name);
 		pr_info("(%s): STEC s1120 ONLINE\n", skd_name(skdev));
-		skd_start_queue(skdev);
+		blk_start_queue(skdev->queue);
 		skdev->gendisk_on = 1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -4620,7 +4598,7 @@ static int skd_cons_disk(struct skd_device *skdev)
 	spin_lock_irqsave(&skdev->lock, flags);
 	pr_debug("%s:%s:%d stopping %s queue\n",
 		 skdev->name, __func__, __LINE__, skdev->name);
-	skd_stop_queue(skdev);
+	blk_stop_queue(skdev->queue);
 	spin_unlock_irqrestore(&skdev->lock, flags);
 
 err_out:
