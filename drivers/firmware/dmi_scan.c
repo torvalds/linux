@@ -8,6 +8,7 @@
 #include <linux/bootmem.h>
 #include <linux/random.h>
 #include <asm/dmi.h>
+#include <asm/unaligned.h>
 
 /*
  * DMI stands for "Desktop Management Interface".  It is part
@@ -347,7 +348,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 		pr_warn(FW_BUG "Too many DIMM entries in SMBIOS table\n");
 		return;
 	}
-	dmi_memdev[nr].handle = dm->handle;
+	dmi_memdev[nr].handle = get_unaligned(&dm->handle);
 	dmi_memdev[nr].device = dmi_string(dm, d[0x10]);
 	dmi_memdev[nr].bank = dmi_string(dm, d[0x11]);
 	nr++;
