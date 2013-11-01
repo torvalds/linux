@@ -77,6 +77,8 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
+static void cik_fini_pg(struct radeon_device *rdev);
+static void cik_fini_cg(struct radeon_device *rdev);
 static void cik_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					  bool enable);
 
@@ -1692,6 +1694,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 			       fw_name);
 			release_firmware(rdev->smc_fw);
 			rdev->smc_fw = NULL;
+			err = 0;
 		} else if (rdev->smc_fw->size != smc_req_size) {
 			printk(KERN_ERR
 			       "cik_smc: Bogus length %zu in firmware \"%s\"\n",
@@ -2845,10 +2848,8 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		rdev->config.cik.tile_config |= (3 << 0);
 		break;
 	}
-	if ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT)
-		rdev->config.cik.tile_config |= 1 << 4;
-	else
-		rdev->config.cik.tile_config |= 0 << 4;
+	rdev->config.cik.tile_config |=
+		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cik.tile_config |=
 		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cik.tile_config |=
@@ -3182,6 +3183,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	r = radeon_ib_get(rdev, ring->idx, &ib, NULL, 256);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
+		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
@@ -3198,6 +3200,8 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+		radeon_scratch_free(rdev, scratch);
+		radeon_ib_free(rdev, &ib);
 		return r;
 	}
 	for (i = 0; i < rdev->usec_timeout; i++) {
@@ -4187,6 +4191,10 @@ static void cik_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
 
+	/* disable CG/PG */
+	cik_fini_pg(rdev);
+	cik_fini_cg(rdev);
+
 	/* stop the rlc */
 	cik_rlc_stop(rdev);
 
@@ -4456,8 +4464,8 @@ static int cik_mc_init(struct radeon_device *rdev)
 	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
 	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* size in MB on si */
-	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
-	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
+	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	si_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
@@ -4735,12 +4743,13 @@ static void cik_vm_decode_fault(struct radeon_device *rdev,
 	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
 	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
 	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
-	char *block = (char *)&mc_client;
+	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
+		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
 
-	printk("VM fault (0x%02x, vmid %d) at page %u, %s from %s (%d)\n",
+	printk("VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
 	       protections, vmid, addr,
 	       (status & MEMORY_CLIENT_RW_MASK) ? "write" : "read",
-	       block, mc_id);
+	       block, mc_client, mc_id);
 }
 
 /**

@@ -6973,7 +6973,7 @@ static int rtw_mp_ctx(struct net_device *dev,
 	stop = strncmp(extra, "stop", 4);
 	sscanf(extra, "count =%d, pkt", &count);
 
-	_rtw_memset(extra, '\0', sizeof(extra));
+	_rtw_memset(extra, '\0', sizeof(*extra));
 
 	if (stop == 0) {
 		bStartTest = 0; /*  To set Stop */

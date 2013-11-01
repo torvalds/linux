@@ -181,7 +181,7 @@ enum {
 	MLX5_DEV_CAP_FLAG_TLP_HINTS	= 1LL << 39,
 	MLX5_DEV_CAP_FLAG_SIG_HAND_OVER	= 1LL << 40,
 	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 41,
-	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 1LL << 46,
+	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 3LL << 46,
 };
 
 enum {
@@ -417,7 +417,7 @@ struct mlx5_init_seg {
 	struct health_buffer	health;
 	__be32			rsvd2[884];
 	__be32			health_counter;
-	__be32			rsvd3[1023];
+	__be32			rsvd3[1019];
 	__be64			ieee1588_clk;
 	__be32			ieee1588_clk_type;
 	__be32			clr_intx;

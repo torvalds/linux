@@ -146,7 +146,7 @@ static const struct watchdog_ops sunxi_wdt_ops = {
 	.set_timeout	= sunxi_wdt_set_timeout,
 };
 
-static int __init sunxi_wdt_probe(struct platform_device *pdev)
+static int sunxi_wdt_probe(struct platform_device *pdev)
 {
 	struct sunxi_wdt_dev *sunxi_wdt;
 	struct resource *res;
@@ -187,7 +187,7 @@ static int __init sunxi_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit sunxi_wdt_remove(struct platform_device *pdev)
+static int sunxi_wdt_remove(struct platform_device *pdev)
 {
 	struct sunxi_wdt_dev *sunxi_wdt = platform_get_drvdata(pdev);
 

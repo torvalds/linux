@@ -403,7 +403,7 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 	dev = pci_physfn(dev);
 
-	list_for_each_entry(dmaru, &dmar_drhd_units, list) {
+	for_each_drhd_unit(dmaru) {
 		drhd = container_of(dmaru->hdr,
 				    struct acpi_dmar_hardware_unit,
 				    header);

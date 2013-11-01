@@ -1102,6 +1102,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		 * non-AGG queue.
 		 */
 		iwl_clear_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+
+		ssn = trans_pcie->txq[txq_id].q.read_ptr;
 	}
 
 	/* Place first TFD at index corresponding to start sequence number.

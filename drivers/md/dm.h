@@ -184,6 +184,9 @@ void dm_free_md_mempools(struct dm_md_mempools *pools);
 /*
  * Helpers that are used by DM core
  */
+unsigned dm_get_reserved_bio_based_ios(void);
+unsigned dm_get_reserved_rq_based_ios(void);
+
 static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen)
 {
 	return !maxlen || strlen(result) + 1 >= maxlen;

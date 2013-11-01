@@ -150,7 +150,7 @@ enum ib_qp_state get_ibqp_state(enum ocrdma_qp_state qps)
 		return IB_QPS_SQE;
 	case OCRDMA_QPS_ERR:
 		return IB_QPS_ERR;
-	};
+	}
 	return IB_QPS_ERR;
 }
 
@@ -171,7 +171,7 @@ static enum ocrdma_qp_state get_ocrdma_qp_state(enum ib_qp_state qps)
 		return OCRDMA_QPS_SQE;
 	case IB_QPS_ERR:
 		return OCRDMA_QPS_ERR;
-	};
+	}
 	return OCRDMA_QPS_ERR;
 }
 
@@ -1982,7 +1982,7 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *qp, struct ib_qp_init_attr *attrs,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_QP, sizeof(*cmd));
 	if (!cmd)

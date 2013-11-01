@@ -198,6 +198,8 @@ static inline void cpu_relax(void)
 	barrier();
 }
 
+#define arch_mutex_cpu_relax()  barrier()
+
 static inline void psw_set_key(unsigned int key)
 {
 	asm volatile("spka 0(%0)" : : "d" (key));

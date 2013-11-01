@@ -99,11 +99,16 @@ config BLK_DEV_THROTTLING
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
 
-config CMDLINE_PARSER
+config BLK_CMDLINE_PARSER
 	bool "Block device command line partition parser"
 	default n
 	---help---
-	Parsing command line, get the partitions information.
+	Enabling this option allows you to specify the partition layout from
+	the kernel boot args.  This is typically of use for embedded devices
+	which don't otherwise have any standardized method for listing the
+	partitions on a block device.
+
+	See Documentation/block/cmdline-partition.txt for more information.
 
 menu "Partition Types"
 
