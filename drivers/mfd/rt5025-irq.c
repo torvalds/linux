@@ -75,7 +75,9 @@ static void rt5025_work_func(struct work_struct *work)
 		irq_enable[3] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN4);
 		irq_enable[4] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQEN5);
 		irq_enable[5] = rt5025_reg_read(ii->i2c, RT5025_REG_GAUGEIRQEN);
-		#if 0
+		#if 1
+		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]&(~RT5025_CHTERMI_MASK));
+		#else
 		/* disable all irq enable bit first */
 		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]&RT5025_ADAPIRQ_MASK);
 		rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, 0x00);
@@ -159,7 +161,9 @@ static void rt5025_work_func(struct work_struct *work)
 	if (ii->init_once)
 		ii->init_once = 0;
 
-	#if 0
+	#if 1
+	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]);
+	#else
 	/* restore all irq enable bit */
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]);
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]);
