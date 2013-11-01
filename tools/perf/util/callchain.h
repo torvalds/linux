@@ -147,6 +147,9 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 
 struct option;
 
+int record_parse_callchain(const char *arg, struct perf_record_opts *opts);
 int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
+int record_callchain_opt(const struct option *opt, const char *arg, int unset);
+
 extern const char record_callchain_help[];
 #endif	/* __PERF_CALLCHAIN_H */

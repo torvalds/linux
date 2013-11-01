@@ -83,8 +83,7 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
-static void intel_crt_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
@@ -102,7 +101,27 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 	else
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
-	pipe_config->adjusted_mode.flags |= flags;
+	return flags;
+}
+
+static void intel_crt_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = encoder->base.dev;
+
+	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
+}
+
+static void hsw_crt_get_config(struct intel_encoder *encoder,
+			       struct intel_crtc_config *pipe_config)
+{
+	intel_ddi_get_config(encoder, pipe_config);
+
+	pipe_config->adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
+					      DRM_MODE_FLAG_NHSYNC |
+					      DRM_MODE_FLAG_PVSYNC |
+					      DRM_MODE_FLAG_NVSYNC);
+	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the
@@ -799,7 +818,10 @@ void intel_crt_init(struct drm_device *dev)
 	crt->base.mode_set = intel_crt_mode_set;
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
-	crt->base.get_config = intel_crt_get_config;
+	if (IS_HASWELL(dev))
+		crt->base.get_config = hsw_crt_get_config;
+	else
+		crt->base.get_config = intel_crt_get_config;
 	if (I915_HAS_HOTPLUG(dev))
 		crt->base.hpd_pin = HPD_CRT;
 	if (HAS_DDI(dev))

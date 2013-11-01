@@ -580,15 +580,13 @@ static struct aa_namespace *__next_namespace(struct aa_namespace *root,
 
 	/* check if the next ns is a sibling, parent, gp, .. */
 	parent = ns->parent;
-	while (parent) {
+	while (ns != root) {
 		mutex_unlock(&ns->lock);
 		next = list_entry_next(ns, base.list);
 		if (!list_entry_is_head(next, &parent->sub_ns, base.list)) {
 			mutex_lock(&next->lock);
 			return next;
 		}
-		if (parent == root)
-			return NULL;
 		ns = parent;
 		parent = parent->parent;
 	}

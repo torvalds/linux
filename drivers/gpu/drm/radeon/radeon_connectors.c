@@ -1658,9 +1658,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_object_attach_property(&radeon_connector->base.base,
 						      rdev->mode_info.underscan_vborder_property,
 						      0);
-			drm_object_attach_property(&radeon_connector->base.base,
-						   rdev->mode_info.audio_property,
-						   RADEON_AUDIO_DISABLE);
+			if (radeon_audio != 0)
+				drm_object_attach_property(&radeon_connector->base.base,
+							   rdev->mode_info.audio_property,
+							   (radeon_audio == 1) ?
+							   RADEON_AUDIO_AUTO :
+							   RADEON_AUDIO_DISABLE);
 			subpixel_order = SubPixelHorizontalRGB;
 			connector->interlace_allowed = true;
 			if (connector_type == DRM_MODE_CONNECTOR_HDMIB)
@@ -1754,10 +1757,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 							      rdev->mode_info.underscan_vborder_property,
 							      0);
 			}
-			if (ASIC_IS_DCE2(rdev)) {
+			if (ASIC_IS_DCE2(rdev) && (radeon_audio != 0)) {
 				drm_object_attach_property(&radeon_connector->base.base,
-							      rdev->mode_info.audio_property,
-							      RADEON_AUDIO_DISABLE);
+							   rdev->mode_info.audio_property,
+							   (radeon_audio == 1) ?
+							   RADEON_AUDIO_AUTO :
+							   RADEON_AUDIO_DISABLE);
 			}
 			if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 				radeon_connector->dac_load_detect = true;
@@ -1799,10 +1804,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 							      rdev->mode_info.underscan_vborder_property,
 							      0);
 			}
-			if (ASIC_IS_DCE2(rdev)) {
+			if (ASIC_IS_DCE2(rdev) && (radeon_audio != 0)) {
 				drm_object_attach_property(&radeon_connector->base.base,
-							      rdev->mode_info.audio_property,
-							      RADEON_AUDIO_DISABLE);
+							   rdev->mode_info.audio_property,
+							   (radeon_audio == 1) ?
+							   RADEON_AUDIO_AUTO :
+							   RADEON_AUDIO_DISABLE);
 			}
 			subpixel_order = SubPixelHorizontalRGB;
 			connector->interlace_allowed = true;
@@ -1843,10 +1850,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 							      rdev->mode_info.underscan_vborder_property,
 							      0);
 			}
-			if (ASIC_IS_DCE2(rdev)) {
+			if (ASIC_IS_DCE2(rdev) && (radeon_audio != 0)) {
 				drm_object_attach_property(&radeon_connector->base.base,
-							      rdev->mode_info.audio_property,
-							      RADEON_AUDIO_DISABLE);
+							   rdev->mode_info.audio_property,
+							   (radeon_audio == 1) ?
+							   RADEON_AUDIO_AUTO :
+							   RADEON_AUDIO_DISABLE);
 			}
 			connector->interlace_allowed = true;
 			/* in theory with a DP to VGA converter... */

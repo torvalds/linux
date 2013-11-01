@@ -765,6 +765,8 @@ extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
 extern bool
 intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 extern void intel_ddi_fdi_disable(struct drm_crtc *crtc);
+extern void intel_ddi_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_config *pipe_config);
 
 extern void intel_display_handle_reset(struct drm_device *dev);
 extern bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
@@ -793,6 +795,5 @@ extern void hsw_pc8_disable_interrupts(struct drm_device *dev);
 extern void hsw_pc8_restore_interrupts(struct drm_device *dev);
 extern void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 extern void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
-extern void i915_disable_vga_mem(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */

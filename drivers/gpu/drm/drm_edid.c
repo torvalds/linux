@@ -2925,6 +2925,8 @@ int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb)
 			/* Speaker Allocation Data Block */
 			if (dbl == 3) {
 				*sadb = kmalloc(dbl, GFP_KERNEL);
+				if (!*sadb)
+					return -ENOMEM;
 				memcpy(*sadb, &db[1], dbl);
 				count = dbl;
 				break;

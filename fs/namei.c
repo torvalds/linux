@@ -2294,10 +2294,11 @@ out:
  * path_mountpoint - look up a path to be umounted
  * @dfd:	directory file descriptor to start walk from
  * @name:	full pathname to walk
+ * @path:	pointer to container for result
  * @flags:	lookup flags
  *
  * Look up the given name, but don't attempt to revalidate the last component.
- * Returns 0 and "path" will be valid on success; Retuns error otherwise.
+ * Returns 0 and "path" will be valid on success; Returns error otherwise.
  */
 static int
 path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags)

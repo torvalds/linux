@@ -531,7 +531,7 @@ static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)
 	case BE_DEV_DOWN:
 		ocrdma_close(dev);
 		break;
-	};
+	}
 }
 
 static struct ocrdma_driver ocrdma_drv = {
