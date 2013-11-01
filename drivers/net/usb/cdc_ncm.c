@@ -292,9 +292,9 @@ max_dgram_err:
 }
 
 static void
-cdc_ncm_find_endpoints(struct cdc_ncm_ctx *ctx, struct usb_interface *intf)
+cdc_ncm_find_endpoints(struct usbnet *dev, struct usb_interface *intf)
 {
-	struct usb_host_endpoint *e;
+	struct usb_host_endpoint *e, *in = NULL, *out = NULL;
 	u8 ep;
 
 	for (ep = 0; ep < intf->cur_altsetting->desc.bNumEndpoints; ep++) {
@@ -303,18 +303,18 @@ cdc_ncm_find_endpoints(struct cdc_ncm_ctx *ctx, struct usb_interface *intf)
 		switch (e->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 		case USB_ENDPOINT_XFER_INT:
 			if (usb_endpoint_dir_in(&e->desc)) {
-				if (ctx->status_ep == NULL)
-					ctx->status_ep = e;
+				if (!dev->status)
+					dev->status = e;
 			}
 			break;
 
 		case USB_ENDPOINT_XFER_BULK:
 			if (usb_endpoint_dir_in(&e->desc)) {
-				if (ctx->in_ep == NULL)
-					ctx->in_ep = e;
+				if (!in)
+					in = e;
 			} else {
-				if (ctx->out_ep == NULL)
-					ctx->out_ep = e;
+				if (!out)
+					out = e;
 			}
 			break;
 
@@ -322,6 +322,14 @@ cdc_ncm_find_endpoints(struct cdc_ncm_ctx *ctx, struct usb_interface *intf)
 			break;
 		}
 	}
+	if (in && !dev->in)
+		dev->in = usb_rcvbulkpipe(dev->udev,
+					  in->desc.bEndpointAddress &
+					  USB_ENDPOINT_NUMBER_MASK);
+	if (out && !dev->out)
+		dev->out = usb_sndbulkpipe(dev->udev,
+					   out->desc.bEndpointAddress &
+					   USB_ENDPOINT_NUMBER_MASK);
 }
 
 static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
@@ -477,11 +485,9 @@ advance:
 	if (temp)
 		goto error2;
 
-	cdc_ncm_find_endpoints(ctx, ctx->data);
-	cdc_ncm_find_endpoints(ctx, ctx->control);
-
-	if ((ctx->in_ep == NULL) || (ctx->out_ep == NULL) ||
-	    (ctx->status_ep == NULL))
+	cdc_ncm_find_endpoints(dev, ctx->data);
+	cdc_ncm_find_endpoints(dev, ctx->control);
+	if (!dev->in || !dev->out || !dev->status)
 		goto error2;
 
 	dev->net->ethtool_ops = &cdc_ncm_ethtool_ops;
@@ -496,12 +502,6 @@ advance:
 		dev_info(&dev->udev->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
 	}
 
-
-	dev->in = usb_rcvbulkpipe(dev->udev,
-		ctx->in_ep->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-	dev->out = usb_sndbulkpipe(dev->udev,
-		ctx->out_ep->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-	dev->status = ctx->status_ep;
 	dev->rx_urb_size = ctx->rx_max;
 
 	/* cdc_ncm_setup will override dwNtbOutMaxSize if it is
