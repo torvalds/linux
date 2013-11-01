@@ -110,8 +110,6 @@ struct cdc_ncm_ctx {
 
 	u32 tx_timer_pending;
 	u32 tx_curr_frame_num;
-	u32 rx_speed;
-	u32 tx_speed;
 	u32 rx_max;
 	u32 tx_max;
 	u32 max_datagram_size;

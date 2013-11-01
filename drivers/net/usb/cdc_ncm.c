@@ -510,7 +510,6 @@ advance:
 	    ctx->tx_max % usb_maxpacket(dev->udev, dev->out, 1) == 0)
 		ctx->tx_max++;
 
-	ctx->tx_speed = ctx->rx_speed = 0;
 	return 0;
 
 error2:
@@ -1048,7 +1047,6 @@ static void
 cdc_ncm_speed_change(struct usbnet *dev,
 		     struct usb_cdc_speed_change *data)
 {
-	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	uint32_t rx_speed = le32_to_cpu(data->DLBitRRate);
 	uint32_t tx_speed = le32_to_cpu(data->ULBitRate);
 
@@ -1056,25 +1054,20 @@ cdc_ncm_speed_change(struct usbnet *dev,
 	 * Currently the USB-NET API does not support reporting the actual
 	 * device speed. Do print it instead.
 	 */
-	if ((tx_speed != ctx->tx_speed) || (rx_speed != ctx->rx_speed)) {
-		ctx->tx_speed = tx_speed;
-		ctx->rx_speed = rx_speed;
-
-		if ((tx_speed > 1000000) && (rx_speed > 1000000)) {
-			printk(KERN_INFO KBUILD_MODNAME
-			       ": %s: %u mbit/s downlink "
-			       "%u mbit/s uplink\n",
-			       dev->net->name,
-			       (unsigned int)(rx_speed / 1000000U),
-			       (unsigned int)(tx_speed / 1000000U));
-		} else {
-			printk(KERN_INFO KBUILD_MODNAME
-			       ": %s: %u kbit/s downlink "
-			       "%u kbit/s uplink\n",
-			       dev->net->name,
-			       (unsigned int)(rx_speed / 1000U),
-			       (unsigned int)(tx_speed / 1000U));
-		}
+	if ((tx_speed > 1000000) && (rx_speed > 1000000)) {
+		printk(KERN_INFO KBUILD_MODNAME
+		       ": %s: %u mbit/s downlink "
+		       "%u mbit/s uplink\n",
+		       dev->net->name,
+		       (unsigned int)(rx_speed / 1000000U),
+		       (unsigned int)(tx_speed / 1000000U));
+	} else {
+		printk(KERN_INFO KBUILD_MODNAME
+		       ": %s: %u kbit/s downlink "
+		       "%u kbit/s uplink\n",
+		       dev->net->name,
+		       (unsigned int)(rx_speed / 1000U),
+		       (unsigned int)(tx_speed / 1000U));
 	}
 }
 
@@ -1111,8 +1104,6 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		       dev->net->name, ctx->connected ? "" : "dis");
 
 		usbnet_link_change(dev, ctx->connected, 0);
-		if (!ctx->connected)
-			ctx->tx_speed = ctx->rx_speed = 0;
 		break;
 
 	case USB_CDC_NOTIFY_SPEED_CHANGE:
