@@ -1481,6 +1481,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	data->transaction = 0;
 	if (type & PERF_SAMPLE_TRANSACTION) {
+		OVERFLOW_CHECK_u64(array);
 		data->transaction = *array;
 		array++;
 	}
