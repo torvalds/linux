@@ -193,8 +193,9 @@ static int pl2303_startup(struct usb_serial *serial)
 		type = type_0;
 	else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40)
 		type = HX;
-	else if (serial->dev->descriptor.bDeviceClass == 0x00
-		 || serial->dev->descriptor.bDeviceClass == 0xFF)
+	else if (serial->dev->descriptor.bDeviceClass == 0x00)
+		type = type_1;
+	else if (serial->dev->descriptor.bDeviceClass == 0xFF)
 		type = type_1;
 	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
