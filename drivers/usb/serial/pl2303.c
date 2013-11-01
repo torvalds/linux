@@ -395,7 +395,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	 * 2) Divisor based method: encodes a divisor to a base value (12MHz*32)
 	 *    => supported by HX chips (and likely not by type_0/1 chips)
 	 */
-	if (type != HX)
+	if (type != HX || baud <= 115200)
 		baud = pl2303_baudrate_encode_direct(baud, type, buf);
 	else
 		baud = pl2303_baudrate_encode_divisor(baud, type, buf);
