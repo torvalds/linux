@@ -31,7 +31,7 @@ CC := $(CC) -MD
 
 all: $(FILES)
 
-BUILD = $(CC) $(LDFLAGS) -o $(OUTPUT)$@ $@.c
+BUILD = $(CC) $(CFLAGS) $(LDFLAGS) -o $(OUTPUT)$@ $@.c
 
 ###############################
 
