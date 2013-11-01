@@ -1971,6 +1971,9 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 	struct audit_buffer *ab;
 	uid_t uid, ologinuid, nloginuid;
 
+	if (!audit_enabled)
+		return;
+
 	uid = from_kuid(&init_user_ns, task_uid(current));
 	ologinuid = from_kuid(&init_user_ns, koldloginuid);
 	nloginuid = from_kuid(&init_user_ns, kloginuid),
