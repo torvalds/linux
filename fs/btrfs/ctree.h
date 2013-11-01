@@ -1151,6 +1151,9 @@ struct btrfs_space_info {
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
 	wait_queue_head_t wait;
+
+	struct kobject kobj;
+	struct kobject block_group_kobjs[BTRFS_NR_RAID_TYPES];
 };
 
 #define	BTRFS_BLOCK_RSV_GLOBAL		1
@@ -1526,6 +1529,7 @@ struct btrfs_fs_info {
 	int thread_pool_size;
 
 	struct kobject super_kobj;
+	struct kobject *space_info_kobj;
 	struct completion kobj_unregister;
 	int do_barriers;
 	int closing;
@@ -3178,6 +3182,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(
 						 struct btrfs_fs_info *info,
 						 u64 bytenr);
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
+int get_block_group_index(struct btrfs_block_group_cache *cache);
 struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					struct btrfs_root *root, u32 blocksize,
 					u64 parent, u64 root_objectid,

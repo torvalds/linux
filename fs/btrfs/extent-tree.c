@@ -35,6 +35,7 @@
 #include "locking.h"
 #include "free-space-cache.h"
 #include "math.h"
+#include "sysfs.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 
@@ -3408,6 +3409,23 @@ int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr)
 	return readonly;
 }
 
+static const char *alloc_name(u64 flags)
+{
+	switch (flags) {
+	case BTRFS_BLOCK_GROUP_METADATA|BTRFS_BLOCK_GROUP_DATA:
+		return "mixed";
+	case BTRFS_BLOCK_GROUP_METADATA:
+		return "metadata";
+	case BTRFS_BLOCK_GROUP_DATA:
+		return "data";
+	case BTRFS_BLOCK_GROUP_SYSTEM:
+		return "system";
+	default:
+		WARN_ON(1);
+		return "invalid-combination";
+	};
+}
+
 static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 			     u64 total_bytes, u64 bytes_used,
 			     struct btrfs_space_info **space_info)
@@ -3463,11 +3481,21 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->chunk_alloc = 0;
 	found->flush = 0;
 	init_waitqueue_head(&found->wait);
+
+	ret = kobject_init_and_add(&found->kobj, &space_info_ktype,
+				    info->space_info_kobj, "%s",
+				    alloc_name(found->flags));
+	if (ret) {
+		kfree(found);
+		return ret;
+	}
+
 	*space_info = found;
 	list_add_rcu(&found->list, &info->space_info);
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		info->data_sinfo = found;
-	return 0;
+
+	return ret;
 }
 
 static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
@@ -6152,9 +6180,27 @@ int __get_raid_index(u64 flags)
 	return BTRFS_RAID_SINGLE; /* BTRFS_BLOCK_GROUP_SINGLE */
 }
 
-static int get_block_group_index(struct btrfs_block_group_cache *cache)
+int get_block_group_index(struct btrfs_block_group_cache *cache)
 {
 	return __get_raid_index(cache->flags);
+}
+
+static const char *btrfs_raid_type_names[BTRFS_NR_RAID_TYPES] = {
+	[BTRFS_RAID_RAID10]	= "raid10",
+	[BTRFS_RAID_RAID1]	= "raid1",
+	[BTRFS_RAID_DUP]	= "dup",
+	[BTRFS_RAID_RAID0]	= "raid0",
+	[BTRFS_RAID_SINGLE]	= "single",
+	[BTRFS_RAID_RAID5]	= "raid5",
+	[BTRFS_RAID_RAID6]	= "raid6",
+};
+
+const char *get_raid_name(enum btrfs_raid_types type)
+{
+	if (type >= BTRFS_NR_RAID_TYPES)
+		return NULL;
+
+	return btrfs_raid_type_names[type];
 }
 
 enum btrfs_loop_type {
@@ -8340,6 +8386,8 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	release_global_block_rsv(info);
 
 	while (!list_empty(&info->space_info)) {
+		int i;
+
 		space_info = list_entry(info->space_info.next,
 					struct btrfs_space_info,
 					list);
@@ -8350,9 +8398,17 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 				dump_space_info(space_info, 0, 0);
 			}
 		}
-		percpu_counter_destroy(&space_info->total_bytes_pinned);
 		list_del(&space_info->list);
-		kfree(space_info);
+		for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+			struct kobject *kobj;
+			kobj = &space_info->block_group_kobjs[i];
+			if (kobj->parent) {
+				kobject_del(kobj);
+				kobject_put(kobj);
+			}
+		}
+		kobject_del(&space_info->kobj);
+		kobject_put(&space_info->kobj);
 	}
 	return 0;
 }
@@ -8363,6 +8419,19 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 	int index = get_block_group_index(cache);
 
 	down_write(&space_info->groups_sem);
+	if (list_empty(&space_info->block_groups[index])) {
+		struct kobject *kobj = &space_info->block_group_kobjs[index];
+		int ret;
+
+		kobject_get(&space_info->kobj); /* put in release */
+		ret = kobject_init_and_add(kobj, &btrfs_raid_ktype,
+					   &space_info->kobj,
+					   get_raid_name(index));
+		if (ret) {
+			pr_warn("btrfs: failed to add kobject for block cache. ignoring.\n");
+			kobject_put(&space_info->kobj);
+		}
+	}
 	list_add_tail(&cache->list, &space_info->block_groups[index]);
 	up_write(&space_info->groups_sem);
 }
@@ -8803,8 +8872,11 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * are still on the list after taking the semaphore
 	 */
 	list_del_init(&block_group->list);
-	if (list_empty(&block_group->space_info->block_groups[index]))
+	if (list_empty(&block_group->space_info->block_groups[index])) {
+		kobject_del(&block_group->space_info->block_group_kobjs[index]);
+		kobject_put(&block_group->space_info->block_group_kobjs[index]);
 		clear_avail_alloc_bits(root->fs_info, block_group->flags);
+	}
 	up_write(&block_group->space_info->groups_sem);
 
 	if (block_group->cached == BTRFS_CACHE_STARTED)

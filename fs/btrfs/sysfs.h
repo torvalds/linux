@@ -22,6 +22,12 @@ static struct kobj_attribute btrfs_attr_##_name =			\
 	BTRFS_ATTR_RW(_name, _mode, _show, NULL)
 #define BTRFS_ATTR_PTR(_name)    (&btrfs_attr_##_name.attr)
 
+#define BTRFS_RAID_ATTR(_name, _show)					\
+static struct kobj_attribute btrfs_raid_attr_##_name =			\
+			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
+#define BTRFS_RAID_ATTR_PTR(_name)    (&btrfs_raid_attr_##_name.attr)
+
+
 struct btrfs_feature_attr {
 	struct kobj_attribute kobj_attr;
 	enum btrfs_feature_set feature_set;
@@ -53,4 +59,6 @@ static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
 			to_btrfs_feature_attr(attr_to_btrfs_attr(a))
 char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags);
 extern const char * const btrfs_feature_set_names[3];
+extern struct kobj_type space_info_ktype;
+extern struct kobj_type btrfs_raid_ktype;
 #endif /* _BTRFS_SYSFS_H_ */

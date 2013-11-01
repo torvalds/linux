@@ -219,6 +219,140 @@ static const struct attribute_group btrfs_feature_attr_group = {
 	.attrs = btrfs_supported_feature_attrs,
 };
 
+static ssize_t btrfs_show_u64(u64 *value_ptr, spinlock_t *lock, char *buf)
+{
+	u64 val;
+	if (lock)
+		spin_lock(lock);
+	val = *value_ptr;
+	if (lock)
+		spin_unlock(lock);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", val);
+}
+
+static ssize_t global_rsv_size_show(struct kobject *kobj,
+				    struct kobj_attribute *ka, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj->parent);
+	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
+	return btrfs_show_u64(&block_rsv->size, &block_rsv->lock, buf);
+}
+BTRFS_ATTR(global_rsv_size, 0444, global_rsv_size_show);
+
+static ssize_t global_rsv_reserved_show(struct kobject *kobj,
+					struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj->parent);
+	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
+	return btrfs_show_u64(&block_rsv->reserved, &block_rsv->lock, buf);
+}
+BTRFS_ATTR(global_rsv_reserved, 0444, global_rsv_reserved_show);
+
+#define to_space_info(_kobj) container_of(_kobj, struct btrfs_space_info, kobj)
+
+static ssize_t raid_bytes_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf);
+BTRFS_RAID_ATTR(total_bytes, raid_bytes_show);
+BTRFS_RAID_ATTR(used_bytes, raid_bytes_show);
+
+static ssize_t raid_bytes_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+
+{
+	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
+	struct btrfs_block_group_cache *block_group;
+	int index = kobj - sinfo->block_group_kobjs;
+	u64 val = 0;
+
+	down_read(&sinfo->groups_sem);
+	list_for_each_entry(block_group, &sinfo->block_groups[index], list) {
+		if (&attr->attr == BTRFS_RAID_ATTR_PTR(total_bytes))
+			val += block_group->key.offset;
+		else
+			val += btrfs_block_group_used(&block_group->item);
+	}
+	up_read(&sinfo->groups_sem);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", val);
+}
+
+static struct attribute *raid_attributes[] = {
+	BTRFS_RAID_ATTR_PTR(total_bytes),
+	BTRFS_RAID_ATTR_PTR(used_bytes),
+	NULL
+};
+
+static void release_raid_kobj(struct kobject *kobj)
+{
+	kobject_put(kobj->parent);
+}
+
+struct kobj_type btrfs_raid_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.release = release_raid_kobj,
+	.default_attrs = raid_attributes,
+};
+
+#define SPACE_INFO_ATTR(field)						\
+static ssize_t btrfs_space_info_show_##field(struct kobject *kobj,	\
+					     struct kobj_attribute *a,	\
+					     char *buf)			\
+{									\
+	struct btrfs_space_info *sinfo = to_space_info(kobj);		\
+	return btrfs_show_u64(&sinfo->field, &sinfo->lock, buf);	\
+}									\
+BTRFS_ATTR(field, 0444, btrfs_space_info_show_##field)
+
+static ssize_t btrfs_space_info_show_total_bytes_pinned(struct kobject *kobj,
+						       struct kobj_attribute *a,
+						       char *buf)
+{
+	struct btrfs_space_info *sinfo = to_space_info(kobj);
+	s64 val = percpu_counter_sum(&sinfo->total_bytes_pinned);
+	return snprintf(buf, PAGE_SIZE, "%lld\n", val);
+}
+
+SPACE_INFO_ATTR(flags);
+SPACE_INFO_ATTR(total_bytes);
+SPACE_INFO_ATTR(bytes_used);
+SPACE_INFO_ATTR(bytes_pinned);
+SPACE_INFO_ATTR(bytes_reserved);
+SPACE_INFO_ATTR(bytes_may_use);
+SPACE_INFO_ATTR(disk_used);
+SPACE_INFO_ATTR(disk_total);
+BTRFS_ATTR(total_bytes_pinned, 0444, btrfs_space_info_show_total_bytes_pinned);
+
+static struct attribute *space_info_attrs[] = {
+	BTRFS_ATTR_PTR(flags),
+	BTRFS_ATTR_PTR(total_bytes),
+	BTRFS_ATTR_PTR(bytes_used),
+	BTRFS_ATTR_PTR(bytes_pinned),
+	BTRFS_ATTR_PTR(bytes_reserved),
+	BTRFS_ATTR_PTR(bytes_may_use),
+	BTRFS_ATTR_PTR(disk_used),
+	BTRFS_ATTR_PTR(disk_total),
+	BTRFS_ATTR_PTR(total_bytes_pinned),
+	NULL,
+};
+
+static void space_info_release(struct kobject *kobj)
+{
+	struct btrfs_space_info *sinfo = to_space_info(kobj);
+	percpu_counter_destroy(&sinfo->total_bytes_pinned);
+	kfree(sinfo);
+}
+
+struct kobj_type space_info_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.release = space_info_release,
+	.default_attrs = space_info_attrs,
+};
+
+static const struct attribute *allocation_attrs[] = {
+	BTRFS_ATTR_PTR(global_rsv_reserved),
+	BTRFS_ATTR_PTR(global_rsv_size),
+	NULL,
+};
+
 static void btrfs_release_super_kobj(struct kobject *kobj)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
@@ -239,6 +373,9 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 
 void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 {
+	sysfs_remove_files(fs_info->space_info_kobj, allocation_attrs);
+	kobject_del(fs_info->space_info_kobj);
+	kobject_put(fs_info->space_info_kobj);
 	kobject_del(&fs_info->super_kobj);
 	kobject_put(&fs_info->super_kobj);
 	wait_for_completion(&fs_info->kobj_unregister);
@@ -388,6 +525,17 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 		goto failure;
 
 	error = add_unknown_feature_attrs(fs_info);
+	if (error)
+		goto failure;
+
+	fs_info->space_info_kobj = kobject_create_and_add("allocation",
+						  &fs_info->super_kobj);
+	if (!fs_info->space_info_kobj) {
+		error = -ENOMEM;
+		goto failure;
+	}
+
+	error = sysfs_create_files(fs_info->space_info_kobj, allocation_attrs);
 	if (error)
 		goto failure;
 
