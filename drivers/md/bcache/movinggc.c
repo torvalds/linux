@@ -184,7 +184,8 @@ static bool bucket_cmp(struct bucket *l, struct bucket *r)
 
 static unsigned bucket_heap_top(struct cache *ca)
 {
-	return GC_SECTORS_USED(heap_peek(&ca->heap));
+	struct bucket *b;
+	return (b = heap_peek(&ca->heap)) ? GC_SECTORS_USED(b) : 0;
 }
 
 void bch_moving_gc(struct cache_set *c)
