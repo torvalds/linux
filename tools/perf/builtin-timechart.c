@@ -41,6 +41,7 @@
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
 
+static int proc_num = 15;
 
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */
@@ -955,7 +956,7 @@ static void write_svg_file(const char *filename)
 	do {
 		count = determine_display_tasks(thresh);
 		thresh /= 10;
-	} while (!process_filter && thresh && count < 15);
+	} while (!process_filter && thresh && count < proc_num);
 
 	open_svg(filename, numcpus, count, first_time, last_time);
 
@@ -1102,6 +1103,8 @@ int cmd_timechart(int argc, const char **argv,
 		       parse_process),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
+	OPT_INTEGER('n', "proc-num", &proc_num,
+		    "min. number of tasks to print"),
 	OPT_END()
 	};
 	const char * const timechart_usage[] = {

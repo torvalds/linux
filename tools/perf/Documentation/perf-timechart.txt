@@ -54,6 +54,10 @@ $ perf timechart
 
   Written 10.2 seconds of trace to output.svg.
 
+-n::
+--proc-num::
+        Print task info for at least given number of tasks.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
