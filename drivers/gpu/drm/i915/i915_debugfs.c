@@ -2026,6 +2026,9 @@ static int vlv_pipe_crc_ctl_reg(struct drm_device *dev,
 				enum intel_pipe_crc_source *source,
 				uint32_t *val)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool need_stable_symbols = false;
+
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO) {
 		int ret = i9xx_pipe_crc_auto_source(dev, pipe, source);
 		if (ret)
@@ -2038,15 +2041,40 @@ static int vlv_pipe_crc_ctl_reg(struct drm_device *dev,
 		break;
 	case INTEL_PIPE_CRC_SOURCE_DP_B:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_B_VLV;
+		need_stable_symbols = true;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_DP_C:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_C_VLV;
+		need_stable_symbols = true;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_NONE:
 		*val = 0;
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	/*
+	 * When the pipe CRC tap point is after the transcoders we need
+	 * to tweak symbol-level features to produce a deterministic series of
+	 * symbols for a given frame. We need to reset those features only once
+	 * a frame (instead of every nth symbol):
+	 *   - DC-balance: used to ensure a better clock recovery from the data
+	 *     link (SDVO)
+	 *   - DisplayPort scrambling: used for EMI reduction
+	 */
+	if (need_stable_symbols) {
+		uint32_t tmp = I915_READ(PORT_DFT2_G4X);
+
+		WARN_ON(!IS_G4X(dev));
+
+		tmp |= DC_BALANCE_RESET_VLV;
+		if (pipe == PIPE_A)
+			tmp |= PIPE_A_SCRAMBLE_RESET;
+		else
+			tmp |= PIPE_B_SCRAMBLE_RESET;
+
+		I915_WRITE(PORT_DFT2_G4X, tmp);
 	}
 
 	return 0;
@@ -2126,6 +2154,22 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_device *dev,
 	}
 
 	return 0;
+}
+
+static void vlv_undo_pipe_scramble_reset(struct drm_device *dev,
+					 enum pipe pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp = I915_READ(PORT_DFT2_G4X);
+
+	if (pipe == PIPE_A)
+		tmp &= ~PIPE_A_SCRAMBLE_RESET;
+	else
+		tmp &= ~PIPE_B_SCRAMBLE_RESET;
+	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK))
+		tmp &= ~DC_BALANCE_RESET_VLV;
+	I915_WRITE(PORT_DFT2_G4X, tmp);
+
 }
 
 static void g4x_undo_pipe_scramble_reset(struct drm_device *dev,
@@ -2267,6 +2311,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 		if (IS_G4X(dev))
 			g4x_undo_pipe_scramble_reset(dev, pipe);
+		else if (IS_VALLEYVIEW(dev))
+			vlv_undo_pipe_scramble_reset(dev, pipe);
 	}
 
 	return 0;
