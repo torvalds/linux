@@ -923,7 +923,7 @@ int cdc_ncm_rx_verify_ndp16(struct sk_buff *skb_in, int ndpoffset)
 
 	if (le16_to_cpu(ndp16->wLength) < USB_CDC_NCM_NDP16_LENGTH_MIN) {
 		pr_debug("invalid DPT16 length <%u>\n",
-					le32_to_cpu(ndp16->dwSignature));
+			 le16_to_cpu(ndp16->wLength));
 		goto error;
 	}
 
