@@ -52,6 +52,7 @@ static u64		first_time, last_time;
 
 static bool		power_only;
 static bool		tasks_only;
+static bool		with_backtrace;
 
 
 struct per_pid;
@@ -126,6 +127,7 @@ struct cpu_sample {
 	u64 end_time;
 	int type;
 	int cpu;
+	const char *backtrace;
 };
 
 static struct per_pid *all_data;
@@ -147,6 +149,7 @@ struct wake_event {
 	int waker;
 	int wakee;
 	u64 time;
+	const char *backtrace;
 };
 
 static struct power_event    *power_events;
@@ -231,7 +234,8 @@ static void pid_exit(int pid, u64 timestamp)
 }
 
 static void
-pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end)
+pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end,
+	       const char *backtrace)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
@@ -254,6 +258,7 @@ pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end)
 	sample->type = type;
 	sample->next = c->samples;
 	sample->cpu = cpu;
+	sample->backtrace = backtrace;
 	c->samples = sample;
 
 	if (sample->type == TYPE_RUNNING && end > start && start > 0) {
@@ -405,7 +410,8 @@ static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
 }
 
 static void
-sched_wakeup(int cpu, u64 timestamp, int pid, struct trace_entry *te)
+sched_wakeup(int cpu, u64 timestamp, int pid, struct trace_entry *te,
+	     const char *backtrace)
 {
 	struct per_pid *p;
 	struct wakeup_entry *wake = (void *)te;
@@ -416,6 +422,7 @@ sched_wakeup(int cpu, u64 timestamp, int pid, struct trace_entry *te)
 
 	we->time = timestamp;
 	we->waker = pid;
+	we->backtrace = backtrace;
 
 	if ((te->flags & TRACE_FLAG_HARDIRQ) || (te->flags & TRACE_FLAG_SOFTIRQ))
 		we->waker = -1;
@@ -430,13 +437,15 @@ sched_wakeup(int cpu, u64 timestamp, int pid, struct trace_entry *te)
 		p->current->state = TYPE_WAITING;
 	}
 	if (p && p->current && p->current->state == TYPE_BLOCKED) {
-		pid_put_sample(p->pid, p->current->state, cpu, p->current->state_since, timestamp);
+		pid_put_sample(p->pid, p->current->state, cpu,
+			       p->current->state_since, timestamp, NULL);
 		p->current->state_since = timestamp;
 		p->current->state = TYPE_WAITING;
 	}
 }
 
-static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
+static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te,
+			 const char *backtrace)
 {
 	struct per_pid *p = NULL, *prev_p;
 	struct sched_switch *sw = (void *)te;
@@ -447,10 +456,14 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 	p = find_create_pid(sw->next_pid);
 
 	if (prev_p->current && prev_p->current->state != TYPE_NONE)
-		pid_put_sample(sw->prev_pid, TYPE_RUNNING, cpu, prev_p->current->state_since, timestamp);
+		pid_put_sample(sw->prev_pid, TYPE_RUNNING, cpu,
+			       prev_p->current->state_since, timestamp,
+			       backtrace);
 	if (p && p->current) {
 		if (p->current->state != TYPE_NONE)
-			pid_put_sample(sw->next_pid, p->current->state, cpu, p->current->state_since, timestamp);
+			pid_put_sample(sw->next_pid, p->current->state, cpu,
+				       p->current->state_since, timestamp,
+				       backtrace);
 
 		p->current->state_since = timestamp;
 		p->current->state = TYPE_RUNNING;
@@ -466,8 +479,87 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 	}
 }
 
+static const char *cat_backtrace(union perf_event *event,
+				 struct perf_sample *sample,
+				 struct machine *machine)
+{
+	struct addr_location al;
+	unsigned int i;
+	char *p = NULL;
+	size_t p_len;
+	u8 cpumode = PERF_RECORD_MISC_USER;
+	struct addr_location tal;
+	struct ip_callchain *chain = sample->callchain;
+	FILE *f = open_memstream(&p, &p_len);
+
+	if (!f) {
+		perror("open_memstream error");
+		return NULL;
+	}
+
+	if (!chain)
+		goto exit;
+
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
+		fprintf(stderr, "problem processing %d event, skipping it.\n",
+			event->header.type);
+		goto exit;
+	}
+
+	for (i = 0; i < chain->nr; i++) {
+		u64 ip;
+
+		if (callchain_param.order == ORDER_CALLEE)
+			ip = chain->ips[i];
+		else
+			ip = chain->ips[chain->nr - i - 1];
+
+		if (ip >= PERF_CONTEXT_MAX) {
+			switch (ip) {
+			case PERF_CONTEXT_HV:
+				cpumode = PERF_RECORD_MISC_HYPERVISOR;
+				break;
+			case PERF_CONTEXT_KERNEL:
+				cpumode = PERF_RECORD_MISC_KERNEL;
+				break;
+			case PERF_CONTEXT_USER:
+				cpumode = PERF_RECORD_MISC_USER;
+				break;
+			default:
+				pr_debug("invalid callchain context: "
+					 "%"PRId64"\n", (s64) ip);
+
+				/*
+				 * It seems the callchain is corrupted.
+				 * Discard all.
+				 */
+				free(p);
+				p = NULL;
+				goto exit;
+			}
+			continue;
+		}
+
+		tal.filtered = false;
+		thread__find_addr_location(al.thread, machine, cpumode,
+					   MAP__FUNCTION, ip, &tal);
+
+		if (tal.sym)
+			fprintf(f, "..... %016" PRIx64 " %s\n", ip,
+				tal.sym->name);
+		else
+			fprintf(f, "..... %016" PRIx64 "\n", ip);
+	}
+
+exit:
+	fclose(f);
+
+	return p;
+}
+
 typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
-				  struct perf_sample *sample);
+				  struct perf_sample *sample,
+				  const char *backtrace);
 
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event __maybe_unused,
@@ -487,7 +579,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		return f(evsel, sample);
+		return f(evsel, sample, cat_backtrace(event, sample, machine));
 	}
 
 	return 0;
@@ -495,7 +587,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 static int
 process_sample_cpu_idle(struct perf_evsel *evsel __maybe_unused,
-			struct perf_sample *sample)
+			struct perf_sample *sample,
+			const char *backtrace __maybe_unused)
 {
 	struct power_processor_entry *ppe = sample->raw_data;
 
@@ -508,7 +601,8 @@ process_sample_cpu_idle(struct perf_evsel *evsel __maybe_unused,
 
 static int
 process_sample_cpu_frequency(struct perf_evsel *evsel __maybe_unused,
-			     struct perf_sample *sample)
+			     struct perf_sample *sample,
+			     const char *backtrace __maybe_unused)
 {
 	struct power_processor_entry *ppe = sample->raw_data;
 
@@ -518,28 +612,31 @@ process_sample_cpu_frequency(struct perf_evsel *evsel __maybe_unused,
 
 static int
 process_sample_sched_wakeup(struct perf_evsel *evsel __maybe_unused,
-			    struct perf_sample *sample)
+			    struct perf_sample *sample,
+			    const char *backtrace)
 {
 	struct trace_entry *te = sample->raw_data;
 
-	sched_wakeup(sample->cpu, sample->time, sample->pid, te);
+	sched_wakeup(sample->cpu, sample->time, sample->pid, te, backtrace);
 	return 0;
 }
 
 static int
 process_sample_sched_switch(struct perf_evsel *evsel __maybe_unused,
-			    struct perf_sample *sample)
+			    struct perf_sample *sample,
+			    const char *backtrace)
 {
 	struct trace_entry *te = sample->raw_data;
 
-	sched_switch(sample->cpu, sample->time, te);
+	sched_switch(sample->cpu, sample->time, te, backtrace);
 	return 0;
 }
 
 #ifdef SUPPORT_OLD_POWER_EVENTS
 static int
 process_sample_power_start(struct perf_evsel *evsel __maybe_unused,
-			   struct perf_sample *sample)
+			   struct perf_sample *sample,
+			   const char *backtrace __maybe_unused)
 {
 	struct power_entry_old *peo = sample->raw_data;
 
@@ -549,7 +646,8 @@ process_sample_power_start(struct perf_evsel *evsel __maybe_unused,
 
 static int
 process_sample_power_end(struct perf_evsel *evsel __maybe_unused,
-			 struct perf_sample *sample)
+			 struct perf_sample *sample,
+			 const char *backtrace __maybe_unused)
 {
 	c_state_end(sample->cpu, sample->time);
 	return 0;
@@ -557,7 +655,8 @@ process_sample_power_end(struct perf_evsel *evsel __maybe_unused,
 
 static int
 process_sample_power_frequency(struct perf_evsel *evsel __maybe_unused,
-			       struct perf_sample *sample)
+			       struct perf_sample *sample,
+			       const char *backtrace __maybe_unused)
 {
 	struct power_entry_old *peo = sample->raw_data;
 
@@ -741,11 +840,12 @@ static void draw_wakeups(void)
 		}
 
 		if (we->waker == -1)
-			svg_interrupt(we->time, to);
+			svg_interrupt(we->time, to, we->backtrace);
 		else if (from && to && abs(from - to) == 1)
-			svg_wakeline(we->time, from, to);
+			svg_wakeline(we->time, from, to, we->backtrace);
 		else
-			svg_partial_wakeline(we->time, from, task_from, to, task_to);
+			svg_partial_wakeline(we->time, from, task_from, to,
+					     task_to, we->backtrace);
 		we = we->next;
 
 		free(task_from);
@@ -798,11 +898,20 @@ static void draw_process_bars(void)
 			sample = c->samples;
 			while (sample) {
 				if (sample->type == TYPE_RUNNING)
-					svg_running(Y, sample->cpu, sample->start_time, sample->end_time);
+					svg_running(Y, sample->cpu,
+						    sample->start_time,
+						    sample->end_time,
+						    sample->backtrace);
 				if (sample->type == TYPE_BLOCKED)
-					svg_blocked(Y, sample->cpu, sample->start_time, sample->end_time);
+					svg_blocked(Y, sample->cpu,
+						    sample->start_time,
+						    sample->end_time,
+						    sample->backtrace);
 				if (sample->type == TYPE_WAITING)
-					svg_waiting(Y, sample->cpu, sample->start_time, sample->end_time);
+					svg_waiting(Y, sample->cpu,
+						    sample->start_time,
+						    sample->end_time,
+						    sample->backtrace);
 				sample = sample->next;
 			}
 
@@ -1050,6 +1159,11 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	unsigned int common_args_nr = ARRAY_SIZE(common_args);
 
+	const char * const backtrace_args[] = {
+		"-g",
+	};
+	unsigned int backtrace_args_no = ARRAY_SIZE(backtrace_args);
+
 	const char * const power_args[] = {
 		"-e", "power:cpu_frequency",
 		"-e", "power:cpu_idle",
@@ -1089,8 +1203,11 @@ static int __cmd_record(int argc, const char **argv)
 		old_power_args_nr = 0;
 	}
 
+	if (!with_backtrace)
+		backtrace_args_no = 0;
+
 	record_elems = common_args_nr + tasks_args_nr +
-		power_args_nr + old_power_args_nr;
+		power_args_nr + old_power_args_nr + backtrace_args_no;
 
 	rec_argc = record_elems + argc;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
@@ -1101,6 +1218,9 @@ static int __cmd_record(int argc, const char **argv)
 	p = rec_argv;
 	for (i = 0; i < common_args_nr; i++)
 		*p++ = strdup(common_args[i]);
+
+	for (i = 0; i < backtrace_args_no; i++)
+		*p++ = strdup(backtrace_args[i]);
 
 	for (i = 0; i < tasks_args_nr; i++)
 		*p++ = strdup(tasks_args[i]);
@@ -1155,6 +1275,7 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_BOOLEAN('P', "power-only", &power_only, "output power data only"),
 	OPT_BOOLEAN('T', "tasks-only", &tasks_only,
 		    "output processes data only"),
+	OPT_BOOLEAN('g', "callchain", &with_backtrace, "record callchain"),
 	OPT_END()
 	};
 	const char * const record_usage[] = {

@@ -68,6 +68,9 @@ RECORD OPTIONS
 -T::
 --tasks-only::
         Record only tasks-related events
+-g::
+--callchain::
+        Do call-graph (stack chain/backtrace) recording
 
 SEE ALSO
 --------

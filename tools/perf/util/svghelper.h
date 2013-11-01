@@ -5,9 +5,9 @@
 
 extern void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end);
 extern void svg_box(int Yslot, u64 start, u64 end, const char *type);
-extern void svg_blocked(int Yslot, int cpu, u64 start, u64 end);
-extern void svg_running(int Yslot, int cpu, u64 start, u64 end);
-extern void svg_waiting(int Yslot, int cpu, u64 start, u64 end);
+extern void svg_blocked(int Yslot, int cpu, u64 start, u64 end, const char *backtrace);
+extern void svg_running(int Yslot, int cpu, u64 start, u64 end, const char *backtrace);
+extern void svg_waiting(int Yslot, int cpu, u64 start, u64 end, const char *backtrace);
 extern void svg_cpu_box(int cpu, u64 max_frequency, u64 turbo_frequency);
 
 
@@ -18,9 +18,9 @@ extern void svg_pstate(int cpu, u64 start, u64 end, u64 freq);
 
 extern void svg_time_grid(void);
 extern void svg_legenda(void);
-extern void svg_wakeline(u64 start, int row1, int row2);
-extern void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2);
-extern void svg_interrupt(u64 start, int row);
+extern void svg_wakeline(u64 start, int row1, int row2, const char *backtrace);
+extern void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2, const char *backtrace);
+extern void svg_interrupt(u64 start, int row, const char *backtrace);
 extern void svg_text(int Yslot, u64 start, const char *text);
 extern void svg_close(void);
 

@@ -130,7 +130,7 @@ void svg_box(int Yslot, u64 start, u64 end, const char *type)
 }
 
 static char *time_to_string(u64 duration);
-void svg_blocked(int Yslot, int cpu, u64 start, u64 end)
+void svg_blocked(int Yslot, int cpu, u64 start, u64 end, const char *backtrace)
 {
 	if (!svgfile)
 		return;
@@ -138,11 +138,13 @@ void svg_blocked(int Yslot, int cpu, u64 start, u64 end)
 	fprintf(svgfile, "<g>\n");
 	fprintf(svgfile, "<title>#%d blocked %s</title>\n", cpu,
 		time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Blocked on:\n%s</desc>\n", backtrace);
 	svg_box(Yslot, start, end, "blocked");
 	fprintf(svgfile, "</g>\n");
 }
 
-void svg_running(int Yslot, int cpu, u64 start, u64 end)
+void svg_running(int Yslot, int cpu, u64 start, u64 end, const char *backtrace)
 {
 	double text_size;
 	if (!svgfile)
@@ -152,6 +154,8 @@ void svg_running(int Yslot, int cpu, u64 start, u64 end)
 
 	fprintf(svgfile, "<title>#%d running %s</title>\n",
 		cpu, time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Switched because:\n%s</desc>\n", backtrace);
 	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"sample\"/>\n",
 		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT);
 
@@ -187,7 +191,7 @@ static char *time_to_string(u64 duration)
 	return text;
 }
 
-void svg_waiting(int Yslot, int cpu, u64 start, u64 end)
+void svg_waiting(int Yslot, int cpu, u64 start, u64 end, const char *backtrace)
 {
 	char *text;
 	const char *style;
@@ -212,6 +216,8 @@ void svg_waiting(int Yslot, int cpu, u64 start, u64 end)
 
 	fprintf(svgfile, "<g transform=\"translate(%4.8f,%4.8f)\">\n", time2pixels(start), Yslot * SLOT_MULT);
 	fprintf(svgfile, "<title>#%d waiting %s</title>\n", cpu, time_to_string(end - start));
+	if (backtrace)
+		fprintf(svgfile, "<desc>Waiting on:\n%s</desc>\n", backtrace);
 	fprintf(svgfile, "<rect x=\"0\" width=\"%4.8f\" y=\"0\" height=\"%4.1f\" class=\"%s\"/>\n",
 		time2pixels(end)-time2pixels(start), SLOT_HEIGHT, style);
 	if (font_size > MIN_TEXT_SIZE)
@@ -382,7 +388,7 @@ void svg_pstate(int cpu, u64 start, u64 end, u64 freq)
 }
 
 
-void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2)
+void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2, const char *backtrace)
 {
 	double height;
 
@@ -395,6 +401,9 @@ void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc
 	fprintf(svgfile, "<title>%s wakes up %s</title>\n",
 		desc1 ? desc1 : "?",
 		desc2 ? desc2 : "?");
+
+	if (backtrace)
+		fprintf(svgfile, "<desc>%s</desc>\n", backtrace);
 
 	if (row1 < row2) {
 		if (row1) {
@@ -437,7 +446,7 @@ void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc
 	fprintf(svgfile, "</g>\n");
 }
 
-void svg_wakeline(u64 start, int row1, int row2)
+void svg_wakeline(u64 start, int row1, int row2, const char *backtrace)
 {
 	double height;
 
@@ -446,6 +455,9 @@ void svg_wakeline(u64 start, int row1, int row2)
 
 
 	fprintf(svgfile, "<g>\n");
+
+	if (backtrace)
+		fprintf(svgfile, "<desc>%s</desc>\n", backtrace);
 
 	if (row1 < row2)
 		fprintf(svgfile, "<line x1=\"%4.8f\" y1=\"%4.2f\" x2=\"%4.8f\" y2=\"%4.2f\" style=\"stroke:rgb(32,255,32);stroke-width:0.009\"/>\n",
@@ -463,7 +475,7 @@ void svg_wakeline(u64 start, int row1, int row2)
 	fprintf(svgfile, "</g>\n");
 }
 
-void svg_interrupt(u64 start, int row)
+void svg_interrupt(u64 start, int row, const char *backtrace)
 {
 	if (!svgfile)
 		return;
@@ -471,6 +483,9 @@ void svg_interrupt(u64 start, int row)
 	fprintf(svgfile, "<g>\n");
 
 	fprintf(svgfile, "<title>Wakeup from interrupt</title>\n");
+
+	if (backtrace)
+		fprintf(svgfile, "<desc>%s</desc>\n", backtrace);
 
 	fprintf(svgfile, "<circle  cx=\"%4.8f\" cy=\"%4.2f\" r = \"0.01\"  style=\"fill:rgb(255,128,128)\"/>\n",
 			time2pixels(start), row * SLOT_MULT);
