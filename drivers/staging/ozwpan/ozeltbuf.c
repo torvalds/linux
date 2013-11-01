@@ -138,7 +138,7 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 
 	oz_dbg(ON, "%s: (0x%x)\n", __func__, id);
 
-	st = kzalloc(sizeof(struct oz_elt_stream), GFP_ATOMIC | __GFP_ZERO);
+	st = kzalloc(sizeof(struct oz_elt_stream), GFP_ATOMIC);
 	if (st == NULL)
 		return -ENOMEM;
 	atomic_set(&st->ref_count, 1);
