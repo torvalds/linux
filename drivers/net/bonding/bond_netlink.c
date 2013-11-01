@@ -82,8 +82,8 @@ static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
 
 static size_t bond_get_size(const struct net_device *bond_dev)
 {
-	return nla_total_size(sizeof(u8));	/* IFLA_BOND_MODE */
-		+ nla_total_size(sizeof(u32));	/* IFLA_BOND_ACTIVE_SLAVE */
+	return nla_total_size(sizeof(u8)) +	/* IFLA_BOND_MODE */
+		nla_total_size(sizeof(u32));	/* IFLA_BOND_ACTIVE_SLAVE */
 }
 
 static int bond_fill_info(struct sk_buff *skb,
