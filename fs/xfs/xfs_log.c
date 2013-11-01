@@ -1076,6 +1076,7 @@ xlog_assign_tail_lsn_locked(
 		tail_lsn = lip->li_lsn;
 	else
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
+	trace_xfs_log_assign_tail_lsn(log, tail_lsn);
 	atomic64_set(&log->l_tail_lsn, tail_lsn);
 	return tail_lsn;
 }
