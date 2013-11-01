@@ -134,17 +134,10 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 
 enum pl2303_type {
-	type_0,		/* H version ? */
-	type_1,		/* H version ? */
-	HX_TA,		/* HX(A) / X(A) / TA version  */ /* TODO: improve */
-	HXD_EA_RA_SA,	/* HXD / EA / RA / SA version */ /* TODO: improve */
-	TB,		/* TB version */
+	type_0,		/* don't know the difference between type 0 and */
+	type_1,		/* type 1, until someone from prolific tells us... */
+	HX,		/* HX version of the pl2303 chip */
 };
-/*
- * NOTE: don't know the difference between type 0 and type 1,
- * until someone from Prolific tells us...
- * TODO: distinguish between X/HX, TA and HXD, EA, RA, SA variants
- */
 
 struct pl2303_serial_private {
 	enum pl2303_type type;
@@ -201,28 +194,8 @@ static int pl2303_startup(struct usb_serial *serial)
 		type = type_0;
 		type_str = "type_0";
 	} else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40) {
-		/*
-		 * NOTE: The bcdDevice version is the only difference between
-		 * the device descriptors of the X/HX, HXD, EA, RA, SA, TA, TB
-		 */
-		if (le16_to_cpu(serial->dev->descriptor.bcdDevice) == 0x300) {
-			type = HX_TA;
-			type_str = "X/HX/TA";
-		} else if (le16_to_cpu(serial->dev->descriptor.bcdDevice)
-								     == 0x400) {
-			type = HXD_EA_RA_SA;
-			type_str = "HXD/EA/RA/SA";
-		} else if (le16_to_cpu(serial->dev->descriptor.bcdDevice)
-								     == 0x500) {
-			type = TB;
-			type_str = "TB";
-		} else {
-			dev_info(&serial->interface->dev,
-					   "unknown/unsupported device type\n");
-			kfree(spriv);
-			kfree(buf);
-			return -ENODEV;
-		}
+		type = HX;
+		type_str = "X/HX";
 	} else if (serial->dev->descriptor.bDeviceClass == 0x00
 		   || serial->dev->descriptor.bDeviceClass == 0xFF) {
 		type = type_1;
@@ -243,10 +216,10 @@ static int pl2303_startup(struct usb_serial *serial)
 	pl2303_vendor_read(0x8383, 0, serial, buf);
 	pl2303_vendor_write(0, 1, serial);
 	pl2303_vendor_write(1, 0, serial);
-	if (type == type_0 || type == type_1)
-		pl2303_vendor_write(2, 0x24, serial);
-	else
+	if (type == HX)
 		pl2303_vendor_write(2, 0x44, serial);
+	else
+		pl2303_vendor_write(2, 0x24, serial);
 
 	kfree(buf);
 	return 0;
@@ -311,19 +284,12 @@ static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
 	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
 				 4800, 7200, 9600, 14400, 19200, 28800, 38400,
 				 57600, 115200, 230400, 460800, 614400, 921600,
-				 1228800, 2457600, 3000000, 6000000, 12000000 };
+				 1228800, 2457600, 3000000, 6000000 };
 	/*
-	 * NOTE: With the exception of type_0/1 devices, the following
-	 * additional baud rates are supported (tested with HX rev. 3A only):
-	 * 110*, 56000*, 128000, 134400, 161280, 201600, 256000*, 268800,
-	 * 403200, 806400.	(*: not HX)
-	 *
-	 * Maximum values: HXD, TB: 12000000; HX, TA: 6000000;
-	 *                 type_0+1: 1228800; RA: 921600; SA: 115200
-	 *
-	 * As long as we are not using this encoding method for anything else
-	 * than the type_0+1 and HX chips, there is no point in complicating
-	 * the code to support them.
+	 * NOTE: The PL2303HX (tested with rev. 3A) also supports the following
+	 * baud rates: 128000, 134400, 161280, 201600, 268800, 403200, 806400.
+	 * As long as we are not using this encoding method for them, there is
+	 * no point in complicating the code to support them.
 	 */
 	int i;
 
@@ -338,14 +304,8 @@ static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
 		baud = baud_sup[i - 1];
 	else
 		baud = baud_sup[i];
-	/* Respect the chip type specific baud rate limits */
-	/*
-	 * FIXME: as long as we don't know how to distinguish between the
-	 * HXD, EA, RA, and SA chip variants, allow the max. value of 12M.
-	 */
-	if (type == HX_TA)
-		baud = min_t(int, baud, 6000000);
-	else if (type == type_0 || type == type_1)
+	/* type_0, type_1 only support up to 1228800 baud */
+	if (type != HX)
 		baud = min_t(int, baud, 1228800);
 	/* Direct (standard) baud rate encoding method */
 	put_unaligned_le32(baud, buf);
@@ -384,19 +344,10 @@ static int pl2303_baudrate_encode_divisor(int baud, enum pl2303_type type,
 	 * Baud rates smaller than the specified 75 baud are definitely working
 	 * fine.
 	 */
-	if (type == type_0 || type == type_1)
-		baud = min_t(int, baud, 1228800 * 1.1);
-	else if (type == HX_TA)
+	if (type == HX)
 		baud = min_t(int, baud, 6000000 * 1.1);
-	else if (type == HXD_EA_RA_SA)
-		/* HXD, EA: 12Mbps; RA: 1Mbps; SA: 115200 bps */
-		/*
-		 * FIXME: as long as we don't know how to distinguish between
-		 * these chip variants, allow the max. of these values
-		 */
-		baud = min_t(int, baud, 12000000 * 1.1);
-	else if (type == TB)
-		baud = min_t(int, baud, 12000000 * 1.1);
+	else
+		baud = min_t(int, baud, 1228800 * 1.1);
 	/* Determine factors A and B */
 	A = 0;
 	B = 12000000 * 32 / baud;  /* 12MHz */
@@ -460,7 +411,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	 * the device likely uses the same baud rate generator for both methods
 	 * so that there is likley no difference.
 	 */
-	if (type == type_0 || type == type_1)
+	if (type != HX)
 		baud = pl2303_baudrate_encode_direct(baud, type, buf);
 	else
 		baud = pl2303_baudrate_encode_divisor(baud, type, buf);
@@ -598,10 +549,10 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	dev_dbg(&port->dev, "0xa1:0x21:0:0  %d - %7ph\n", i, buf);
 
 	if (C_CRTSCTS(tty)) {
-		if (spriv->type == type_0 || spriv->type == type_1)
-			pl2303_vendor_write(0x0, 0x41, serial);
-		else
+		if (spriv->type == HX)
 			pl2303_vendor_write(0x0, 0x61, serial);
+		else
+			pl2303_vendor_write(0x0, 0x41, serial);
 	} else {
 		pl2303_vendor_write(0x0, 0x0, serial);
 	}
@@ -638,7 +589,7 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	int result;
 
-	if (spriv->type == type_0 || spriv->type == type_1) {
+	if (spriv->type != HX) {
 		usb_clear_halt(serial->dev, port->write_urb->pipe);
 		usb_clear_halt(serial->dev, port->read_urb->pipe);
 	} else {
