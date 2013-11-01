@@ -422,7 +422,7 @@ struct gfs2_quota_data {
 	struct list_head qd_list;
 	struct list_head qd_reclaim;
 
-	atomic_t qd_count;
+	struct lockref qd_lockref;
 
 	struct kqid qd_id;
 	unsigned long qd_flags;		/* QDF_... */
