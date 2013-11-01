@@ -689,6 +689,12 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			 */
 			writeq(ndev->mw[1].bar_sz + 0x1000, ndev->reg_base +
 			       SNB_PBAR4LMT_OFFSET);
+			/* HW errata on the Limit registers.  They can only be
+			 * written when the base register is 4GB aligned and
+			 * < 32bit.  This should already be the case based on the
+			 * driver defaults, but write the Limit registers first
+			 * just in case.
+			 */
 		} else {
 			ndev->limits.max_mw = SNB_MAX_MW;
 
@@ -707,6 +713,12 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			 * something silly
 			 */
 			writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
+			/* HW errata on the Limit registers.  They can only be
+			 * written when the base register is 4GB aligned and
+			 * < 32bit.  This should already be the case based on the
+			 * driver defaults, but write the Limit registers first
+			 * just in case.
+			 */
 		}
 
 		/* The Xeon errata workaround requires setting SBAR Base
