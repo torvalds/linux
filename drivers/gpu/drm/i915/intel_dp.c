@@ -3326,11 +3326,16 @@ intel_trans_dp_port_sel(struct drm_crtc *crtc)
 }
 
 /* check the VBT to see whether the eDP is on DP-D port */
-bool intel_dpd_is_edp(struct drm_device *dev)
+bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	union child_device_config *p_child;
 	int i;
+	static const short port_mapping[] = {
+		[PORT_B] = PORT_IDPB,
+		[PORT_C] = PORT_IDPC,
+		[PORT_D] = PORT_IDPD,
+	};
 
 	if (!dev_priv->vbt.child_dev_num)
 		return false;
@@ -3338,7 +3343,7 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		p_child = dev_priv->vbt.child_dev + i;
 
-		if (p_child->common.dvo_port == PORT_IDPD &&
+		if (p_child->common.dvo_port == port_mapping[port] &&
 		    (p_child->common.device_type & DEVICE_TYPE_eDP_BITS) ==
 		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
 			return true;
@@ -3625,12 +3630,13 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	case PORT_A:
 		type = DRM_MODE_CONNECTOR_eDP;
 		break;
+	case PORT_B:
 	case PORT_C:
-		if (IS_VALLEYVIEW(dev))
+		if (IS_VALLEYVIEW(dev) && intel_dp_is_edp(dev, port))
 			type = DRM_MODE_CONNECTOR_eDP;
 		break;
 	case PORT_D:
-		if (HAS_PCH_SPLIT(dev) && intel_dpd_is_edp(dev))
+		if (HAS_PCH_SPLIT(dev) && intel_dp_is_edp(dev, port))
 			type = DRM_MODE_CONNECTOR_eDP;
 		break;
 	default:	/* silence GCC warning */
