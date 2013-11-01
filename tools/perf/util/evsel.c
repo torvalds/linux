@@ -663,7 +663,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	}
 
 	if (opts->sample_address)
-		attr->sample_type	|= PERF_SAMPLE_DATA_SRC;
+		perf_evsel__set_sample_bit(evsel, DATA_SRC);
 
 	if (opts->no_delay) {
 		attr->watermark = 0;
@@ -675,13 +675,13 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	}
 
 	if (opts->sample_weight)
-		attr->sample_type	|= PERF_SAMPLE_WEIGHT;
+		perf_evsel__set_sample_bit(evsel, WEIGHT);
 
 	attr->mmap  = track;
 	attr->comm  = track;
 
 	if (opts->sample_transaction)
-		attr->sample_type	|= PERF_SAMPLE_TRANSACTION;
+		perf_evsel__set_sample_bit(evsel, TRANSACTION);
 
 	/*
 	 * XXX see the function comment above
