@@ -305,7 +305,7 @@ static int receive_mergeable(struct receive_queue *rq, struct sk_buff *head_skb)
 	struct sk_buff *curr_skb = head_skb;
 	char *buf;
 	struct page *page;
-	int num_buf, len;
+	int num_buf, len, offset;
 
 	num_buf = hdr->mhdr.num_buffers;
 	while (--num_buf) {
@@ -342,9 +342,16 @@ static int receive_mergeable(struct receive_queue *rq, struct sk_buff *head_skb)
 			head_skb->truesize += MAX_PACKET_LEN;
 		}
 		page = virt_to_head_page(buf);
-		skb_add_rx_frag(curr_skb, num_skb_frags, page,
-				buf - (char *)page_address(page), len,
-				MAX_PACKET_LEN);
+		offset = buf - (char *)page_address(page);
+		if (skb_can_coalesce(curr_skb, num_skb_frags, page, offset)) {
+			put_page(page);
+			skb_coalesce_rx_frag(curr_skb, num_skb_frags - 1,
+					     len, MAX_PACKET_LEN);
+		} else {
+			skb_add_rx_frag(curr_skb, num_skb_frags, page,
+					offset, len,
+					MAX_PACKET_LEN);
+		}
 		--rq->num;
 	}
 	return 0;
