@@ -396,8 +396,8 @@ static int wm_coeff_write_control(struct snd_kcontrol *kcontrol,
 	ret = regmap_raw_write(adsp->regmap, reg, scratch,
 			       ctl->len);
 	if (ret) {
-		adsp_err(adsp, "Failed to write %zu bytes to %x\n",
-			 ctl->len, reg);
+		adsp_err(adsp, "Failed to write %zu bytes to %x: %d\n",
+			 ctl->len, reg, ret);
 		kfree(scratch);
 		return ret;
 	}
@@ -450,8 +450,8 @@ static int wm_coeff_read_control(struct snd_kcontrol *kcontrol,
 
 	ret = regmap_raw_read(adsp->regmap, reg, scratch, ctl->len);
 	if (ret) {
-		adsp_err(adsp, "Failed to read %zu bytes from %x\n",
-			 ctl->len, reg);
+		adsp_err(adsp, "Failed to read %zu bytes from %x: %d\n",
+			 ctl->len, reg, ret);
 		kfree(scratch);
 		return ret;
 	}
@@ -1313,8 +1313,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 						     le32_to_cpu(blk->len));
 			if (ret != 0) {
 				adsp_err(dsp,
-					"%s.%d: Failed to write to %x in %s\n",
-					file, blocks, reg, region_name);
+					"%s.%d: Failed to write to %x in %s: %d\n",
+					file, blocks, reg, region_name, ret);
 			}
 		}
 
