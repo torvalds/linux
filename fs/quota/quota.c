@@ -117,6 +117,7 @@ static int quota_setinfo(struct super_block *sb, int type, void __user *addr)
 
 static void copy_to_if_dqblk(struct if_dqblk *dst, struct fs_disk_quota *src)
 {
+	memset(dst, 0, sizeof(*dst));
 	dst->dqb_bhardlimit = src->d_blk_hardlimit;
 	dst->dqb_bsoftlimit = src->d_blk_softlimit;
 	dst->dqb_curspace = src->d_bcount;
