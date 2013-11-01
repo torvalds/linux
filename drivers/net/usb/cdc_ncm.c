@@ -53,8 +53,6 @@
 #include <linux/usb/cdc.h>
 #include <linux/usb/cdc_ncm.h>
 
-#define	DRIVER_VERSION				"14-Mar-2012"
-
 #if IS_ENABLED(CONFIG_USB_NET_CDC_MBIM)
 static bool prefer_mbim = true;
 #else
@@ -67,18 +65,6 @@ static void cdc_ncm_txpath_bh(unsigned long param);
 static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
 static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *hr_timer);
 static struct usb_driver cdc_ncm_driver;
-
-static void
-cdc_ncm_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
-{
-	struct usbnet *dev = netdev_priv(net);
-
-	strlcpy(info->driver, dev->driver_name, sizeof(info->driver));
-	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, dev->driver_info->description,
-		sizeof(info->fw_version));
-	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
-}
 
 static u8 cdc_ncm_setup(struct usbnet *dev)
 {
@@ -360,16 +346,6 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 	kfree(ctx);
 }
 
-static const struct ethtool_ops cdc_ncm_ethtool_ops = {
-	.get_drvinfo = cdc_ncm_get_drvinfo,
-	.get_link = usbnet_get_link,
-	.get_msglevel = usbnet_get_msglevel,
-	.set_msglevel = usbnet_set_msglevel,
-	.get_settings = usbnet_get_settings,
-	.set_settings = usbnet_set_settings,
-	.nway_reset = usbnet_nway_reset,
-};
-
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting)
 {
 	const struct usb_cdc_union_desc *union_desc = NULL;
@@ -498,8 +474,6 @@ advance:
 	/* initialize data interface */
 	if (cdc_ncm_setup(dev))
 		goto error2;
-
-	dev->net->ethtool_ops = &cdc_ncm_ethtool_ops;
 
 	usb_set_intfdata(ctx->data, dev);
 	usb_set_intfdata(ctx->control, dev);
