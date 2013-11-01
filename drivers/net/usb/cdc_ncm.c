@@ -87,7 +87,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 			      0, iface_no, &ncm_parm,
 			      sizeof(ncm_parm));
 	if (err < 0) {
-		pr_debug("failed GET_NTB_PARAMETERS\n");
+		dev_dbg(&dev->intf->dev, "failed GET_NTB_PARAMETERS\n");
 		return 1;
 	}
 
@@ -115,11 +115,10 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 		flags = 0;
 	}
 
-	pr_debug("dwNtbInMaxSize=%u dwNtbOutMaxSize=%u "
-		 "wNdpOutPayloadRemainder=%u wNdpOutDivisor=%u "
-		 "wNdpOutAlignment=%u wNtbOutMaxDatagrams=%u flags=0x%x\n",
-		 ctx->rx_max, ctx->tx_max, ctx->tx_remainder, ctx->tx_modulus,
-		 ctx->tx_ndp_modulus, ctx->tx_max_datagrams, flags);
+	dev_dbg(&dev->intf->dev,
+		"dwNtbInMaxSize=%u dwNtbOutMaxSize=%u wNdpOutPayloadRemainder=%u wNdpOutDivisor=%u wNdpOutAlignment=%u wNtbOutMaxDatagrams=%u flags=0x%x\n",
+		ctx->rx_max, ctx->tx_max, ctx->tx_remainder, ctx->tx_modulus,
+		ctx->tx_ndp_modulus, ctx->tx_max_datagrams, flags);
 
 	/* max count of tx datagrams */
 	if ((ctx->tx_max_datagrams == 0) ||
@@ -128,14 +127,14 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 
 	/* verify maximum size of received NTB in bytes */
 	if (ctx->rx_max < USB_CDC_NCM_NTB_MIN_IN_SIZE) {
-		pr_debug("Using min receive length=%d\n",
-						USB_CDC_NCM_NTB_MIN_IN_SIZE);
+		dev_dbg(&dev->intf->dev, "Using min receive length=%d\n",
+			USB_CDC_NCM_NTB_MIN_IN_SIZE);
 		ctx->rx_max = USB_CDC_NCM_NTB_MIN_IN_SIZE;
 	}
 
 	if (ctx->rx_max > CDC_NCM_NTB_MAX_SIZE_RX) {
-		pr_debug("Using default maximum receive length=%d\n",
-						CDC_NCM_NTB_MAX_SIZE_RX);
+		dev_dbg(&dev->intf->dev, "Using default maximum receive length=%d\n",
+			CDC_NCM_NTB_MAX_SIZE_RX);
 		ctx->rx_max = CDC_NCM_NTB_MAX_SIZE_RX;
 	}
 
@@ -148,15 +147,15 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 				       | USB_RECIP_INTERFACE,
 				       0, iface_no, &dwNtbInMaxSize, 4);
 		if (err < 0)
-			pr_debug("Setting NTB Input Size failed\n");
+			dev_dbg(&dev->intf->dev, "Setting NTB Input Size failed\n");
 	}
 
 	/* verify maximum size of transmitted NTB in bytes */
 	if ((ctx->tx_max <
 	    (min_hdr_size + min_dgram_size)) ||
 	    (ctx->tx_max > CDC_NCM_NTB_MAX_SIZE_TX)) {
-		pr_debug("Using default maximum transmit length=%d\n",
-						CDC_NCM_NTB_MAX_SIZE_TX);
+		dev_dbg(&dev->intf->dev, "Using default maximum transmit length=%d\n",
+			CDC_NCM_NTB_MAX_SIZE_TX);
 		ctx->tx_max = CDC_NCM_NTB_MAX_SIZE_TX;
 
 		/* Adding a pad byte here simplifies the handling in
@@ -178,7 +177,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 
 	if ((val < USB_CDC_NCM_NDP_ALIGN_MIN_SIZE) ||
 	    (val != ((-val) & val)) || (val >= ctx->tx_max)) {
-		pr_debug("Using default alignment: 4 bytes\n");
+		dev_dbg(&dev->intf->dev, "Using default alignment: 4 bytes\n");
 		ctx->tx_ndp_modulus = USB_CDC_NCM_NDP_ALIGN_MIN_SIZE;
 	}
 
@@ -192,13 +191,13 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 
 	if ((val < USB_CDC_NCM_NDP_ALIGN_MIN_SIZE) ||
 	    (val != ((-val) & val)) || (val >= ctx->tx_max)) {
-		pr_debug("Using default transmit modulus: 4 bytes\n");
+		dev_dbg(&dev->intf->dev, "Using default transmit modulus: 4 bytes\n");
 		ctx->tx_modulus = USB_CDC_NCM_NDP_ALIGN_MIN_SIZE;
 	}
 
 	/* verify the payload remainder */
 	if (ctx->tx_remainder >= ctx->tx_modulus) {
-		pr_debug("Using default transmit remainder: 0 bytes\n");
+		dev_dbg(&dev->intf->dev, "Using default transmit remainder: 0 bytes\n");
 		ctx->tx_remainder = 0;
 	}
 
@@ -216,7 +215,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 				       USB_CDC_NCM_CRC_NOT_APPENDED,
 				       iface_no, NULL, 0);
 		if (err < 0)
-			pr_debug("Setting CRC mode off failed\n");
+			dev_dbg(&dev->intf->dev, "Setting CRC mode off failed\n");
 	}
 
 	/* set NTB format, if both formats are supported */
@@ -227,7 +226,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 				       USB_CDC_NCM_NTB16_FORMAT,
 				       iface_no, NULL, 0);
 		if (err < 0)
-			pr_debug("Setting NTB format to 16-bit failed\n");
+			dev_dbg(&dev->intf->dev, "Setting NTB format to 16-bit failed\n");
 	}
 
 	ctx->max_datagram_size = min_dgram_size;
@@ -248,8 +247,8 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 				      | USB_RECIP_INTERFACE,
 				      0, iface_no, &max_datagram_size, 2);
 		if (err < 0) {
-			pr_debug("GET_MAX_DATAGRAM_SIZE failed, use size=%u\n",
-				 min_dgram_size);
+			dev_dbg(&dev->intf->dev, "GET_MAX_DATAGRAM_SIZE failed, use size=%u\n",
+				min_dgram_size);
 		} else {
 			ctx->max_datagram_size =
 				le16_to_cpu(max_datagram_size);
@@ -275,7 +274,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 						iface_no, &max_datagram_size,
 						2);
 				if (err < 0)
-					pr_debug("SET_MAX_DGRAM_SIZE failed\n");
+					dev_dbg(&dev->intf->dev, "SET_MAX_DGRAM_SIZE failed\n");
 			}
 		}
 	}
@@ -867,6 +866,7 @@ error:
 /* verify NTB header and return offset of first NDP, or negative error */
 int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in)
 {
+	struct usbnet *dev = netdev_priv(skb_in->dev);
 	struct usb_cdc_ncm_nth16 *nth16;
 	int len;
 	int ret = -EINVAL;
@@ -876,7 +876,7 @@ int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in)
 
 	if (skb_in->len < (sizeof(struct usb_cdc_ncm_nth16) +
 					sizeof(struct usb_cdc_ncm_ndp16))) {
-		pr_debug("frame too short\n");
+		netif_dbg(dev, rx_err, dev->net, "frame too short\n");
 		goto error;
 	}
 
@@ -890,16 +890,18 @@ int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in)
 
 	len = le16_to_cpu(nth16->wBlockLength);
 	if (len > ctx->rx_max) {
-		pr_debug("unsupported NTB block length %u/%u\n", len,
-								ctx->rx_max);
+		netif_dbg(dev, rx_err, dev->net,
+			  "unsupported NTB block length %u/%u\n", len,
+			  ctx->rx_max);
 		goto error;
 	}
 
 	if ((ctx->rx_seq + 1) != le16_to_cpu(nth16->wSequence) &&
-		(ctx->rx_seq || le16_to_cpu(nth16->wSequence)) &&
-		!((ctx->rx_seq == 0xffff) && !le16_to_cpu(nth16->wSequence))) {
-		pr_debug("sequence number glitch prev=%d curr=%d\n",
-				ctx->rx_seq, le16_to_cpu(nth16->wSequence));
+	    (ctx->rx_seq || le16_to_cpu(nth16->wSequence)) &&
+	    !((ctx->rx_seq == 0xffff) && !le16_to_cpu(nth16->wSequence))) {
+		netif_dbg(dev, rx_err, dev->net,
+			  "sequence number glitch prev=%d curr=%d\n",
+			  ctx->rx_seq, le16_to_cpu(nth16->wSequence));
 	}
 	ctx->rx_seq = le16_to_cpu(nth16->wSequence);
 
@@ -912,18 +914,20 @@ EXPORT_SYMBOL_GPL(cdc_ncm_rx_verify_nth16);
 /* verify NDP header and return number of datagrams, or negative error */
 int cdc_ncm_rx_verify_ndp16(struct sk_buff *skb_in, int ndpoffset)
 {
+	struct usbnet *dev = netdev_priv(skb_in->dev);
 	struct usb_cdc_ncm_ndp16 *ndp16;
 	int ret = -EINVAL;
 
 	if ((ndpoffset + sizeof(struct usb_cdc_ncm_ndp16)) > skb_in->len) {
-		pr_debug("invalid NDP offset  <%u>\n", ndpoffset);
+		netif_dbg(dev, rx_err, dev->net, "invalid NDP offset  <%u>\n",
+			  ndpoffset);
 		goto error;
 	}
 	ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb_in->data + ndpoffset);
 
 	if (le16_to_cpu(ndp16->wLength) < USB_CDC_NCM_NDP16_LENGTH_MIN) {
-		pr_debug("invalid DPT16 length <%u>\n",
-			 le16_to_cpu(ndp16->wLength));
+		netif_dbg(dev, rx_err, dev->net, "invalid DPT16 length <%u>\n",
+			  le16_to_cpu(ndp16->wLength));
 		goto error;
 	}
 
@@ -932,9 +936,9 @@ int cdc_ncm_rx_verify_ndp16(struct sk_buff *skb_in, int ndpoffset)
 					sizeof(struct usb_cdc_ncm_dpe16));
 	ret--; /* we process NDP entries except for the last one */
 
-	if ((sizeof(struct usb_cdc_ncm_ndp16) + ret * (sizeof(struct usb_cdc_ncm_dpe16))) >
-								skb_in->len) {
-		pr_debug("Invalid nframes = %d\n", ret);
+	if ((sizeof(struct usb_cdc_ncm_ndp16) +
+	     ret * (sizeof(struct usb_cdc_ncm_dpe16))) > skb_in->len) {
+		netif_dbg(dev, rx_err, dev->net, "Invalid nframes = %d\n", ret);
 		ret = -EINVAL;
 	}
 
@@ -991,9 +995,9 @@ next_ndp:
 		/* sanity checking */
 		if (((offset + len) > skb_in->len) ||
 				(len > ctx->rx_max) || (len < ETH_HLEN)) {
-			pr_debug("invalid frame detected (ignored)"
-					"offset[%u]=%u, length=%u, skb=%p\n",
-					x, offset, len, skb_in);
+			netif_dbg(dev, rx_err, dev->net,
+				  "invalid frame detected (ignored) offset[%u]=%u, length=%u, skb=%p\n",
+				  x, offset, len, skb_in);
 			if (!x)
 				goto err_ndp;
 			break;
@@ -1031,17 +1035,13 @@ cdc_ncm_speed_change(struct usbnet *dev,
 	 * device speed. Do print it instead.
 	 */
 	if ((tx_speed > 1000000) && (rx_speed > 1000000)) {
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": %s: %u mbit/s downlink "
-		       "%u mbit/s uplink\n",
-		       dev->net->name,
+		netif_info(dev, link, dev->net,
+		       "%u mbit/s downlink %u mbit/s uplink\n",
 		       (unsigned int)(rx_speed / 1000000U),
 		       (unsigned int)(tx_speed / 1000000U));
 	} else {
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": %s: %u kbit/s downlink "
-		       "%u kbit/s uplink\n",
-		       dev->net->name,
+		netif_info(dev, link, dev->net,
+		       "%u kbit/s downlink %u kbit/s uplink\n",
 		       (unsigned int)(rx_speed / 1000U),
 		       (unsigned int)(tx_speed / 1000U));
 	}
@@ -1074,11 +1074,9 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		 * sent by device after USB_CDC_NOTIFY_SPEED_CHANGE.
 		 */
 		ctx->connected = le16_to_cpu(event->wValue);
-
-		printk(KERN_INFO KBUILD_MODNAME ": %s: network connection:"
-		       " %sconnected\n",
-		       dev->net->name, ctx->connected ? "" : "dis");
-
+		netif_info(dev, link, dev->net,
+			   "network connection: %sconnected\n",
+			   ctx->connected ? "" : "dis");
 		usbnet_link_change(dev, ctx->connected, 0);
 		break;
 
