@@ -800,8 +800,12 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	 * would be more efficient for USB HS mobile device with DMA
 	 * engine to receive a full size NTB, than canceling DMA
 	 * transfer and receiving a short packet.
+	 *
+	 * This optimization support is pointless if we end up sending
+	 * a ZLP after full sized NTBs.
 	 */
-	if (skb_out->len > CDC_NCM_MIN_TX_PKT)
+	if (!(dev->driver_info->flags & FLAG_SEND_ZLP) &&
+	    skb_out->len > CDC_NCM_MIN_TX_PKT)
 		memset(skb_put(skb_out, ctx->tx_max - skb_out->len), 0,
 		       ctx->tx_max - skb_out->len);
 	else if ((skb_out->len % dev->maxpacket) == 0)
