@@ -2285,7 +2285,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 		sock = create_v4_sock(net, port);
 	if (IS_ERR(sock)) {
 		kfree(vs);
-		return ERR_PTR(PTR_ERR(sock));
+		return ERR_CAST(sock);
 	}
 
 	vs->sock = sock;
