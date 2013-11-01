@@ -51,4 +51,6 @@ static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
 #define attr_to_btrfs_attr(a) container_of(a, struct kobj_attribute, attr)
 #define attr_to_btrfs_feature_attr(a) \
 			to_btrfs_feature_attr(attr_to_btrfs_attr(a))
+char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags);
+extern const char * const btrfs_feature_set_names[3];
 #endif /* _BTRFS_SYSFS_H_ */

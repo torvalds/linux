@@ -254,6 +254,31 @@ const char * const btrfs_feature_set_names[3] = {
 static char btrfs_unknown_feature_names[3][NUM_FEATURE_BITS][13];
 static struct btrfs_feature_attr btrfs_feature_attrs[3][NUM_FEATURE_BITS];
 
+char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags)
+{
+	size_t bufsize = 4096; /* safe max, 64 names * 64 bytes */
+	int len = 0;
+	int i;
+	char *str;
+
+	str = kmalloc(bufsize, GFP_KERNEL);
+	if (!str)
+		return str;
+
+	for (i = 0; i < ARRAY_SIZE(btrfs_feature_attrs[set]); i++) {
+		const char *name;
+
+		if (!(flags & (1ULL << i)))
+			continue;
+
+		name = btrfs_feature_attrs[set][i].kobj_attr.attr.name;
+		len += snprintf(str + len, bufsize - len, "%s%s",
+				len ? "," : "", name);
+	}
+
+	return str;
+}
+
 static void init_feature_attrs(void)
 {
 	struct btrfs_feature_attr *fa;
@@ -264,11 +289,17 @@ static void init_feature_attrs(void)
 	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unknown_feature_names[0]) !=
 		     ARRAY_SIZE(btrfs_feature_attrs[0]));
 
+	memset(btrfs_feature_attrs, 0, sizeof(btrfs_feature_attrs));
+	memset(btrfs_unknown_feature_names, 0,
+	       sizeof(btrfs_unknown_feature_names));
+
 	for (i = 0; btrfs_supported_feature_attrs[i]; i++) {
 		struct btrfs_feature_attr *sfa;
 		struct attribute *a = btrfs_supported_feature_attrs[i];
+		int bit;
 		sfa = attr_to_btrfs_feature_attr(a);
-		fa = &btrfs_feature_attrs[sfa->feature_set][sfa->feature_bit];
+		bit = ilog2(sfa->feature_bit);
+		fa = &btrfs_feature_attrs[sfa->feature_set][bit];
 
 		fa->kobj_attr.attr.name = sfa->kobj_attr.attr.name;
 	}
