@@ -912,7 +912,7 @@ static int determine_display_tasks(u64 threshold)
 		/* no exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = last_time;
-		if (p->total_time >= threshold && !power_only)
+		if (p->total_time >= threshold)
 			p->display = 1;
 
 		c = p->all;
@@ -923,7 +923,7 @@ static int determine_display_tasks(u64 threshold)
 			if (c->start_time == 1)
 				c->start_time = first_time;
 
-			if (c->total_time >= threshold && !power_only) {
+			if (c->total_time >= threshold) {
 				c->display = 1;
 				count++;
 			}
@@ -950,6 +950,8 @@ static void write_svg_file(const char *filename)
 
 	numcpus++;
 
+	if (power_only)
+		proc_num = 0;
 
 	/* We'd like to show at least proc_num tasks;
 	 * be less picky if we have fewer */
@@ -967,9 +969,11 @@ static void write_svg_file(const char *filename)
 		svg_cpu_box(i, max_freq, turbo_frequency);
 
 	draw_cpu_usage();
-	draw_process_bars();
+	if (proc_num)
+		draw_process_bars();
 	draw_c_p_states();
-	draw_wakeups();
+	if (proc_num)
+		draw_wakeups();
 
 	svg_close();
 }
