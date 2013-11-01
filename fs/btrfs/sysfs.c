@@ -355,6 +355,49 @@ static const struct attribute *allocation_attrs[] = {
 	NULL,
 };
 
+static ssize_t btrfs_label_show(struct kobject *kobj,
+				struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	return snprintf(buf, PAGE_SIZE, "%s\n", fs_info->super_copy->label);
+}
+
+static ssize_t btrfs_label_store(struct kobject *kobj,
+				 struct kobj_attribute *a,
+				 const char *buf, size_t len)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = fs_info->fs_root;
+	int ret;
+
+	if (len >= BTRFS_LABEL_SIZE) {
+		pr_err("btrfs: unable to set label with more than %d bytes\n",
+		       BTRFS_LABEL_SIZE - 1);
+		return -EINVAL;
+	}
+
+	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	spin_lock(&root->fs_info->super_lock);
+	strcpy(fs_info->super_copy->label, buf);
+	spin_unlock(&root->fs_info->super_lock);
+	ret = btrfs_commit_transaction(trans, root);
+
+	if (!ret)
+		return len;
+
+	return ret;
+}
+BTRFS_ATTR_RW(label, 0644, btrfs_label_show, btrfs_label_store);
+
+static struct attribute *btrfs_attrs[] = {
+	BTRFS_ATTR_PTR(label),
+	NULL,
+};
+
 static void btrfs_release_super_kobj(struct kobject *kobj)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
@@ -364,6 +407,7 @@ static void btrfs_release_super_kobj(struct kobject *kobj)
 static struct kobj_type btrfs_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.release	= btrfs_release_super_kobj,
+	.default_attrs	= btrfs_attrs,
 };
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
