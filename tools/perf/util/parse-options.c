@@ -569,7 +569,7 @@ int parse_options_usage(const char * const *usagestr,
 			const char *optstr, bool short_opt)
 {
 	if (!usagestr)
-		return PARSE_OPT_HELP;
+		goto opt;
 
 	fprintf(stderr, "\n usage: %s\n", *usagestr++);
 	while (*usagestr && **usagestr)
@@ -582,6 +582,7 @@ int parse_options_usage(const char * const *usagestr,
 	}
 	fputc('\n', stderr);
 
+opt:
 	for (  ; opts->type != OPTION_END; opts++) {
 		if (short_opt) {
 			if (opts->short_name == *optstr)
