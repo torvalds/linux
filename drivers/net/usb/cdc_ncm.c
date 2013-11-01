@@ -883,8 +883,9 @@ int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in)
 	nth16 = (struct usb_cdc_ncm_nth16 *)skb_in->data;
 
 	if (le32_to_cpu(nth16->dwSignature) != USB_CDC_NCM_NTH16_SIGN) {
-		pr_debug("invalid NTH16 signature <%u>\n",
-					le32_to_cpu(nth16->dwSignature));
+		netif_dbg(dev, rx_err, dev->net,
+			  "invalid NTH16 signature <%#010x>\n",
+			  le32_to_cpu(nth16->dwSignature));
 		goto error;
 	}
 
@@ -972,8 +973,9 @@ next_ndp:
 	ndp16 = (struct usb_cdc_ncm_ndp16 *)(skb_in->data + ndpoffset);
 
 	if (le32_to_cpu(ndp16->dwSignature) != USB_CDC_NCM_NDP16_NOCRC_SIGN) {
-		pr_debug("invalid DPT16 signature <%u>\n",
-			 le32_to_cpu(ndp16->dwSignature));
+		netif_dbg(dev, rx_err, dev->net,
+			  "invalid DPT16 signature <%#010x>\n",
+			  le32_to_cpu(ndp16->dwSignature));
 		goto err_ndp;
 	}
 	dpe16 = ndp16->dpe16;
