@@ -95,15 +95,9 @@ static int armada_debugfs_write(struct file *file, const char __user *ptr,
 	return len;
 }
 
-static int armada_debugfs_reg_w_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations fops_reg_w = {
 	.owner = THIS_MODULE,
-	.open = armada_debugfs_reg_w_open,
+	.open = simple_open,
 	.write = armada_debugfs_write,
 	.llseek = noop_llseek,
 };
