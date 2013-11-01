@@ -86,6 +86,11 @@
 				  "sdhi0_cd", "sdhi0_wp";
 		renesas,function = "sdhi0";
 	};
+
+	hspi0_pins: hspi0 {
+		renesas,groups = "hspi0_a";
+		renesas,function = "hspi0";
+	};
 };
 
 &sdhi0 {
@@ -94,5 +99,11 @@
 
 	vmmc-supply = <&fixedregulator3v3>;
 	bus-width = <4>;
+	status = "okay";
+};
+
+&hspi0 {
+	pinctrl-0 = <&hspi0_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
