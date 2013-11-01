@@ -638,6 +638,22 @@ int intel_parse_bios(struct drm_device *dev);
 #define	 DEVICE_TYPE_DP		0x68C6
 #define	 DEVICE_TYPE_eDP	0x78C6
 
+#define  DEVICE_TYPE_CLASS_EXTENSION	(1 << 15)
+#define  DEVICE_TYPE_POWER_MANAGEMENT	(1 << 14)
+#define  DEVICE_TYPE_HOTPLUG_SIGNALING	(1 << 13)
+#define  DEVICE_TYPE_INTERNAL_CONNECTOR	(1 << 12)
+#define  DEVICE_TYPE_NOT_HDMI_OUTPUT	(1 << 11)
+#define  DEVICE_TYPE_MIPI_OUTPUT	(1 << 10)
+#define  DEVICE_TYPE_COMPOSITE_OUTPUT	(1 << 9)
+#define  DEVICE_TYPE_DUAL_CHANNEL	(1 << 8)
+#define  DEVICE_TYPE_HIGH_SPEED_LINK	(1 << 6)
+#define  DEVICE_TYPE_LVDS_SINGALING	(1 << 5)
+#define  DEVICE_TYPE_TMDS_DVI_SIGNALING	(1 << 4)
+#define  DEVICE_TYPE_VIDEO_SIGNALING	(1 << 3)
+#define  DEVICE_TYPE_DISPLAYPORT_OUTPUT	(1 << 2)
+#define  DEVICE_TYPE_DIGITAL_OUTPUT	(1 << 1)
+#define  DEVICE_TYPE_ANALOG_OUTPUT	(1 << 0)
+
 /* define the DVO port for HDMI output type */
 #define		DVO_B		1
 #define		DVO_C		2

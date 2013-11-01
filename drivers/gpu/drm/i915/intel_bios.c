@@ -624,11 +624,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 	aux_channel = child->raw[25];
 
-	is_dvi = child->common.device_type & (1 << 4);
-	is_dp = child->common.device_type & (1 << 2);
-	is_crt = child->common.device_type & (1 << 0);
-	is_hdmi = is_dvi && (child->common.device_type & (1 << 11)) == 0;
-	is_edp = is_dp && (child->common.device_type & (1 << 12));
+	is_dvi = child->common.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
+	is_dp = child->common.device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
+	is_crt = child->common.device_type & DEVICE_TYPE_ANALOG_OUTPUT;
+	is_hdmi = is_dvi && (child->common.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT) == 0;
+	is_edp = is_dp && (child->common.device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
 
 	info->supports_dvi = is_dvi;
 	info->supports_hdmi = is_hdmi;
