@@ -3284,7 +3284,8 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 		p_child = dev_priv->vbt.child_dev + i;
 
 		if (p_child->common.dvo_port == PORT_IDPD &&
-		    p_child->common.device_type == DEVICE_TYPE_eDP)
+		    (p_child->common.device_type & DEVICE_TYPE_eDP_BITS) ==
+		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
 			return true;
 	}
 	return false;
