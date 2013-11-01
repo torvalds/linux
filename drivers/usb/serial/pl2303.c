@@ -269,128 +269,115 @@ static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 	return retval;
 }
 
-static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
-								      u8 buf[4])
-{
-	/*
-	 * NOTE: Only the values defined in baud_sup are supported !
-	 *       => if unsupported values are set, the PL2303 seems to
-	 *	    use 9600 baud (at least my PL2303X always does)
-	 */
-	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
-				 4800, 7200, 9600, 14400, 19200, 28800, 38400,
-				 57600, 115200, 230400, 460800, 614400, 921600,
-				 1228800, 2457600, 3000000, 6000000 };
-	int i;
-
-	/* Set baudrate to nearest supported value */
-	for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
-		if (baud_sup[i] > baud)
-			break;
-	}
-	if (i == ARRAY_SIZE(baud_sup))
-		baud = baud_sup[i - 1];
-	else if (i > 0 && (baud_sup[i] - baud) > (baud - baud_sup[i - 1]))
-		baud = baud_sup[i - 1];
-	else
-		baud = baud_sup[i];
-	/* type_0, type_1 only support up to 1228800 baud */
-	if (type != HX)
-		baud = min_t(int, baud, 1228800);
-	/* Direct (standard) baud rate encoding method */
-	put_unaligned_le32(baud, buf);
-
-	return baud;
-}
-
-static int pl2303_baudrate_encode_divisor(int baud, enum pl2303_type type,
-								      u8 buf[4])
-{
-	/*
-	 * Divisor based baud rate encoding method
-	 *
-	 * NOTE: it's not clear if the type_0/1 chips support this method
-	 *
-	 * divisor = 12MHz * 32 / baudrate = 2^A * B
-	 *
-	 * with
-	 *
-	 * A = buf[1] & 0x0e
-	 * B = buf[0]  +  (buf[1] & 0x01) << 8
-	 *
-	 * Special cases:
-	 * => 8 < B < 16: device seems to work not properly
-	 * => B <= 8: device uses the max. value B = 512 instead
-	 */
-	unsigned int A, B;
-
-	/* Respect the specified baud rate limits */
-	baud = max_t(int, baud, 75);
-	if (type == HX)
-		baud = min_t(int, baud, 6000000);
-	else
-		baud = min_t(int, baud, 1228800);
-	/* Determine factors A and B */
-	A = 0;
-	B = 12000000 * 32 / baud;  /* 12MHz */
-	B <<= 1; /* Add one bit for rounding */
-	while (B > (512 << 1) && A <= 14) {
-		A += 2;
-		B >>= 2;
-	}
-	if (A > 14) { /* max. divisor = min. baudrate reached */
-		A = 14;
-		B = 512;
-		/* => ~45.78 baud */
-	} else {
-		B = (B + 1) >> 1; /* Round the last bit */
-	}
-	/* Handle special cases */
-	if (B == 512)
-		B = 0; /* also: 1 to 8 */
-	else if (B < 16)
-		/*
-		 * NOTE: With the current algorithm this happens
-		 * only for A=0 and means that the min. divisor
-		 * (respectively: the max. baudrate) is reached.
-		 */
-		B = 16;		/* => 24 MBaud */
-	/* Encode the baud rate */
-	buf[3] = 0x80;     /* Select divisor encoding method */
-	buf[2] = 0;
-	buf[1] = (A & 0x0e);		/* A */
-	buf[1] |= ((B & 0x100) >> 8);	/* MSB of B */
-	buf[0] = B & 0xff;		/* 8 LSBs of B */
-	/* Calculate the actual/resulting baud rate */
-	if (B <= 8)
-		B = 512;
-	baud = 12000000 * 32 / ((1 << A) * B);
-
-	return baud;
-}
-
 static void pl2303_encode_baudrate(struct tty_struct *tty,
 					struct usb_serial_port *port,
-					enum pl2303_type type,
 					u8 buf[4])
 {
+	struct usb_serial *serial = port->serial;
+	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	int baud;
 
 	baud = tty_get_baud_rate(tty);
 	dev_dbg(&port->dev, "baud requested = %d\n", baud);
 	if (!baud)
 		return;
-	/*
-	 * There are two methods for setting/encoding the baud rate
-	 * 1) Direct method: encodes the baud rate value directly
-	 *    => supported by all chip types
-	 * 2) Divisor based method: encodes a divisor to a base value (12MHz*32)
-	 *    => supported by HX chips (and likely not by type_0/1 chips)
-	 */
-	if (type != HX || baud <= 115200)
-		baud = pl2303_baudrate_encode_direct(baud, type, buf);
-	else
-		baud = pl2303_baudrate_encode_divisor(baud, type, buf);
+
+	if (spriv->type != HX || baud <= 115200) {
+		/*
+		 * NOTE: Only the values defined in baud_sup are supported !
+		 *       => if unsupported values are set, the PL2303 seems to
+		 *	    use 9600 baud (at least my PL2303X always does)
+		 */
+		const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400,
+					 3600, 4800, 7200, 9600, 14400, 19200,
+					 28800, 38400, 57600, 115200, 230400,
+					 460800, 614400, 921600, 1228800,
+					 2457600, 3000000, 6000000 };
+		int i;
+
+		/* Set baudrate to nearest supported value */
+		for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
+			if (baud_sup[i] > baud)
+				break;
+		}
+
+		if (i == ARRAY_SIZE(baud_sup))
+			baud = baud_sup[i - 1];
+		else if (i > 0
+			     && (baud_sup[i] - baud) > (baud - baud_sup[i - 1]))
+			baud = baud_sup[i - 1];
+		else
+			baud = baud_sup[i];
+
+		/* type_0, type_1 only support up to 1228800 baud */
+		if (spriv->type != HX)
+			baud = min_t(int, baud, 1228800);
+
+		/* Direct (standard) baud rate encoding method */
+		put_unaligned_le32(baud, buf);
+	} else {
+		/*
+		 * Divisor based baud rate encoding method
+		 *
+		 * NOTE: it's not clear if the type_0/1 chips
+		 * support this method
+		 *
+		 * divisor = 12MHz * 32 / baudrate = 2^A * B
+		 *
+		 * with
+		 *
+		 * A = buf[1] & 0x0e
+		 * B = buf[0]  +  (buf[1] & 0x01) << 8
+		 *
+		 * Special cases:
+		 * => 8 < B < 16: device seems to work not properly
+		 * => B <= 8: device uses the max. value B = 512 instead
+		 */
+		unsigned int A, B;
+
+		/* Respect the specified baud rate limits */
+		baud = max_t(int, baud, 75);
+		if (spriv->type == HX)
+			baud = min_t(int, baud, 6000000);
+		else
+			baud = min_t(int, baud, 1228800);
+		/* Determine factors A and B */
+		A = 0;
+		B = 12000000 * 32 / baud;  /* 12MHz */
+		B <<= 1; /* Add one bit for rounding */
+		while (B > (512 << 1) && A <= 14) {
+			A += 2;
+			B >>= 2;
+		}
+		if (A > 14) { /* max. divisor = min. baudrate reached */
+			A = 14;
+			B = 512;
+			/* => ~45.78 baud */
+		} else {
+			B = (B + 1) >> 1; /* Round the last bit */
+		}
+		/* Handle special cases */
+		if (B == 512)
+			B = 0; /* also: 1 to 8 */
+		else if (B < 16)
+			/*
+			 * NOTE: With the current algorithm this happens
+			 * only for A=0 and means that the min. divisor
+			 * (respectively: the max. baudrate) is reached.
+			 */
+			B = 16;		/* => 24 MBaud */
+		/* Encode the baud rate */
+		buf[3] = 0x80;     /* Select divisor encoding method */
+		buf[2] = 0;
+		buf[1] = (A & 0x0e);		/* A */
+		buf[1] |= ((B & 0x100) >> 8);	/* MSB of B */
+		buf[0] = B & 0xff;		/* 8 LSBs of B */
+		/* Calculate the actual/resulting baud rate */
+		if (B <= 8)
+			B = 512;
+		baud = 12000000 * 32 / ((1 << A) * B);
+	}
+
 	/* Save resulting baud rate */
 	tty_encode_baud_rate(tty, baud, baud);
 	dev_dbg(&port->dev, "baud set = %d\n", baud);
@@ -447,8 +434,8 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		dev_dbg(&port->dev, "data bits = %d\n", buf[6]);
 	}
 
-	/* For reference:   buf[0]:buf[3] baud rate value */
-	pl2303_encode_baudrate(tty, port, spriv->type, buf);
+	/* For reference buf[0]:buf[3] baud rate value */
+	pl2303_encode_baudrate(tty, port, &buf[0]);
 
 	/* For reference buf[4]=0 is 1 stop bits */
 	/* For reference buf[4]=1 is 1.5 stop bits */
