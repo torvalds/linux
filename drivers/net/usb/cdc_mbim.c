@@ -369,15 +369,13 @@ error:
 
 static int cdc_mbim_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	int ret = 0;
+	int ret = -ENODEV;
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct cdc_mbim_state *info = (void *)&dev->data;
 	struct cdc_ncm_ctx *ctx = info->ctx;
 
-	if (ctx == NULL) {
-		ret = -1;
+	if (!ctx)
 		goto error;
-	}
 
 	/*
 	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
