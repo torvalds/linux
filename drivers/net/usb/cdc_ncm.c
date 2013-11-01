@@ -1141,22 +1141,6 @@ static int cdc_ncm_check_connect(struct usbnet *dev)
 	return !ctx->connected;
 }
 
-static int
-cdc_ncm_probe(struct usb_interface *udev, const struct usb_device_id *prod)
-{
-	return usbnet_probe(udev, prod);
-}
-
-static void cdc_ncm_disconnect(struct usb_interface *intf)
-{
-	struct usbnet *dev = usb_get_intfdata(intf);
-
-	if (dev == NULL)
-		return;		/* already disconnected */
-
-	usbnet_disconnect(intf);
-}
-
 static const struct driver_info cdc_ncm_info = {
 	.description = "CDC NCM",
 	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET,
@@ -1267,8 +1251,8 @@ MODULE_DEVICE_TABLE(usb, cdc_devs);
 static struct usb_driver cdc_ncm_driver = {
 	.name = "cdc_ncm",
 	.id_table = cdc_devs,
-	.probe = cdc_ncm_probe,
-	.disconnect = cdc_ncm_disconnect,
+	.probe = usbnet_probe,
+	.disconnect = usbnet_disconnect,
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
 	.reset_resume =	usbnet_resume,
