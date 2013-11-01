@@ -484,11 +484,6 @@ bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
 	unsigned m;
 
 	if (dss.dpll4_m4_ck == NULL) {
-		/*
-		 * TODO: dss1_fclk can be changed on OMAP2, but the available
-		 * dividers are not continuous. We just use the pre-set rate for
-		 * now.
-		 */
 		fck = clk_get_rate(dss.dss_clk);
 		fckd = 1;
 		return func(fckd, fck, data);
@@ -761,9 +756,13 @@ void dss_debug_dump_clocks(struct seq_file *s)
 #endif
 
 static const struct dss_features omap24xx_dss_feats __initconst = {
-	.fck_div_max		=	16,
+	/*
+	 * fck div max is really 16, but the divider range has gaps. The range
+	 * from 1 to 6 has no gaps, so let's use that as a max.
+	 */
+	.fck_div_max		=	6,
 	.dss_fck_multiplier	=	2,
-	.clk_name		=	NULL,
+	.clk_name		=	"dss1_fck",
 	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 };
 
