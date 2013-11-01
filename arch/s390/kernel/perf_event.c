@@ -60,7 +60,7 @@ static bool is_in_guest(struct pt_regs *regs)
 {
 	if (user_mode(regs))
 		return false;
-#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+#if IS_ENABLED(CONFIG_KVM)
 	return instruction_pointer(regs) == (unsigned long) &sie_exit;
 #else
 	return false;

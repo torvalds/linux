@@ -74,7 +74,7 @@ _TIF_TRACE    = (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 	.endm
 
 	.macro LPP newpp
-#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+#if IS_ENABLED(CONFIG_KVM)
 	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
 	jz	.+8
 	.insn	s,0xb2800000,\newpp
@@ -82,7 +82,7 @@ _TIF_TRACE    = (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 	.endm
 
 	.macro	HANDLE_SIE_INTERCEPT scratch,reason
-#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+#if IS_ENABLED(CONFIG_KVM)
 	tmhh	%r8,0x0001		# interrupting from user ?
 	jnz	.+62
 	lgr	\scratch,%r9
@@ -946,7 +946,7 @@ cleanup_idle_insn:
 	.quad	__critical_end - __critical_start
 
 
-#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+#if IS_ENABLED(CONFIG_KVM)
 /*
  * sie64a calling convention:
  * %r2 pointer to sie control block
