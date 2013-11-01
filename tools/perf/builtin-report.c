@@ -905,13 +905,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			input_name = "perf.data";
 	}
 
-	if (strcmp(input_name, "-") != 0)
-		setup_browser(true);
-	else {
-		use_browser = 0;
-		perf_hpp__init();
-	}
-
 	file.path  = input_name;
 	file.force = report.force;
 
@@ -957,6 +950,18 @@ repeat:
 	if (setup_sorting() < 0)
 		usage_with_options(report_usage, options);
 
+	if (parent_pattern != default_parent_pattern) {
+		if (sort_dimension__add("parent") < 0)
+			goto error;
+	}
+
+	if (strcmp(input_name, "-") != 0)
+		setup_browser(true);
+	else {
+		use_browser = 0;
+		perf_hpp__init();
+	}
+
 	/*
 	 * Only in the TUI browser we are doing integrated annotation,
 	 * so don't allocate extra space that won't be used in the stdio
@@ -985,11 +990,6 @@ repeat:
 
 	if (symbol__init() < 0)
 		goto error;
-
-	if (parent_pattern != default_parent_pattern) {
-		if (sort_dimension__add("parent") < 0)
-			goto error;
-	}
 
 	if (argc) {
 		/*
