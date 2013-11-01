@@ -120,7 +120,7 @@ struct btmrvl_private {
 #define PS_SLEEP			0x01
 #define PS_AWAKE			0x00
 
-#define BT_CMD_DATA_SIZE		32
+#define BT_CAL_HDR_LEN			4
 #define BT_CAL_DATA_SIZE		28
 
 struct btmrvl_event {

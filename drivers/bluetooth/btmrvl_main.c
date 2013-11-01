@@ -415,28 +415,20 @@ static int btmrvl_open(struct hci_dev *hdev)
 }
 
 static int btmrvl_download_cal_data(struct btmrvl_private *priv,
-				    u8 *config_data)
+				    u8 *data, int len)
 {
-	int i, ret;
-	u8 data[BT_CMD_DATA_SIZE];
+	int ret;
 
 	data[0] = 0x00;
 	data[1] = 0x00;
 	data[2] = 0x00;
-	data[3] = BT_CMD_DATA_SIZE - 4;
-
-	/* Swap cal-data bytes. Each four bytes are swapped. Considering 4
-	 * byte SDIO header offset, mapping of input and output bytes will be
-	 * {3, 2, 1, 0} -> {0+4, 1+4, 2+4, 3+4},
-	 * {7, 6, 5, 4} -> {4+4, 5+4, 6+4, 7+4} */
-	for (i = 4; i < BT_CMD_DATA_SIZE; i++)
-		data[i] = config_data[(i / 4) * 8 - 1 - i];
+	data[3] = len;
 
 	print_hex_dump_bytes("Calibration data: ",
-			     DUMP_PREFIX_OFFSET, data, BT_CMD_DATA_SIZE);
+			     DUMP_PREFIX_OFFSET, data, BT_CAL_HDR_LEN + len);
 
 	ret = btmrvl_send_sync_cmd(priv, BT_CMD_LOAD_CONFIG_DATA, data,
-				   BT_CMD_DATA_SIZE);
+				   BT_CAL_HDR_LEN + len);
 	if (ret)
 		BT_ERR("Failed to download caibration data\n");
 
@@ -446,7 +438,7 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 static int btmrvl_cal_data_dt(struct btmrvl_private *priv)
 {
 	struct device_node *dt_node;
-	u8 cal_data[BT_CAL_DATA_SIZE];
+	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
 	const char name[] = "btmrvl_caldata";
 	const char property[] = "btmrvl,caldata";
 	int ret;
@@ -455,13 +447,14 @@ static int btmrvl_cal_data_dt(struct btmrvl_private *priv)
 	if (!dt_node)
 		return -ENODEV;
 
-	ret = of_property_read_u8_array(dt_node, property, cal_data,
-					sizeof(cal_data));
+	ret = of_property_read_u8_array(dt_node, property,
+					cal_data + BT_CAL_HDR_LEN,
+					BT_CAL_DATA_SIZE);
 	if (ret)
 		return ret;
 
 	BT_DBG("Use cal data from device tree");
-	ret = btmrvl_download_cal_data(priv, cal_data);
+	ret = btmrvl_download_cal_data(priv, cal_data, BT_CAL_DATA_SIZE);
 	if (ret) {
 		BT_ERR("Fail to download calibrate data");
 		return ret;
