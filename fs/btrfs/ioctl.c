@@ -3498,6 +3498,20 @@ out:
 	return ret;
 }
 
+static long btrfs_ioctl_global_rsv(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_block_rsv *block_rsv = &root->fs_info->global_block_rsv;
+	u64 reserved;
+
+	spin_lock(&block_rsv->lock);
+	reserved = block_rsv->reserved;
+	spin_unlock(&block_rsv->lock);
+
+	if (arg && copy_to_user(arg, &reserved, sizeof(reserved)))
+		return -EFAULT;
+	return 0;
+}
+
 /*
  * there are many ways the trans_start and trans_end ioctls can lead
  * to deadlocks.  They should only be used by applications that
@@ -4706,6 +4720,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_logical_to_ino(root, argp);
 	case BTRFS_IOC_SPACE_INFO:
 		return btrfs_ioctl_space_info(root, argp);
+	case BTRFS_IOC_GLOBAL_RSV:
+		return btrfs_ioctl_global_rsv(root, argp);
 	case BTRFS_IOC_SYNC: {
 		int ret;
 
