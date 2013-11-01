@@ -1530,6 +1530,7 @@ struct btrfs_fs_info {
 
 	struct kobject super_kobj;
 	struct kobject *space_info_kobj;
+	struct kobject *device_dir_kobj;
 	struct completion kobj_unregister;
 	int do_barriers;
 	int closing;

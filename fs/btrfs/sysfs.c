@@ -23,11 +23,13 @@
 #include <linux/buffer_head.h>
 #include <linux/kobject.h>
 #include <linux/bug.h>
+#include <linux/genhd.h>
 
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "sysfs.h"
+#include "volumes.h"
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 
@@ -374,6 +376,8 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 {
 	sysfs_remove_files(fs_info->space_info_kobj, allocation_attrs);
+	kobject_del(fs_info->device_dir_kobj);
+	kobject_put(fs_info->device_dir_kobj);
 	kobject_del(fs_info->space_info_kobj);
 	kobject_put(fs_info->space_info_kobj);
 	kobject_del(&fs_info->super_kobj);
@@ -507,6 +511,30 @@ static int add_unknown_feature_attrs(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+static int add_device_membership(struct btrfs_fs_info *fs_info)
+{
+	int error = 0;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *dev;
+
+	fs_info->device_dir_kobj = kobject_create_and_add("devices",
+						&fs_info->super_kobj);
+	if (!fs_info->device_dir_kobj)
+		return -ENOMEM;
+
+	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
+		struct hd_struct *disk = dev->bdev->bd_part;
+		struct kobject *disk_kobj = &part_to_dev(disk)->kobj;
+
+		error = sysfs_create_link(fs_info->device_dir_kobj,
+					  disk_kobj, disk_kobj->name);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
 /* /sys/fs/btrfs/ entry */
 static struct kset *btrfs_kset;
 
@@ -525,6 +553,10 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 		goto failure;
 
 	error = add_unknown_feature_attrs(fs_info);
+	if (error)
+		goto failure;
+
+	error = add_device_membership(fs_info);
 	if (error)
 		goto failure;
 
