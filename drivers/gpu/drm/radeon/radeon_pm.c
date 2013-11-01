@@ -1244,11 +1244,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_RV730:
 	case CHIP_RV710:
 	case CHIP_RV740:
-	case CHIP_CEDAR:
-	case CHIP_REDWOOD:
-	case CHIP_JUNIPER:
-	case CHIP_CYPRESS:
-	case CHIP_HEMLOCK:
 	case CHIP_CAYMAN:
 	case CHIP_ARUBA:
 	case CHIP_BONAIRE:
@@ -1266,6 +1261,11 @@ int radeon_pm_init(struct radeon_device *rdev)
 		else
 			rdev->pm.pm_method = PM_METHOD_PROFILE;
 		break;
+	case CHIP_CEDAR:
+	case CHIP_REDWOOD:
+	case CHIP_JUNIPER:
+	case CHIP_CYPRESS:
+	case CHIP_HEMLOCK:
 	case CHIP_PALM:
 	case CHIP_SUMO:
 	case CHIP_SUMO2:
