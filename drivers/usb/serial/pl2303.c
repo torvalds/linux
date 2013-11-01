@@ -273,46 +273,44 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					u8 buf[4])
 {
+	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
+	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
+	                         57600, 115200, 230400, 460800, 500000, 614400,
+	                         921600, 1228800, 2457600, 3000000, 6000000 };
+
 	struct usb_serial *serial = port->serial;
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
 	int baud;
+	int i;
 
+	/*
+	 * NOTE: Only the values defined in baud_sup are supported!
+	 *       => if unsupported values are set, the PL2303 seems to use
+	 *          9600 baud (at least my PL2303X always does)
+	 */
 	baud = tty_get_baud_rate(tty);
 	dev_dbg(&port->dev, "baud requested = %d\n", baud);
 	if (!baud)
 		return;
 
+	/* Set baudrate to nearest supported value */
+	for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
+		if (baud_sup[i] > baud)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(baud_sup))
+		baud = baud_sup[i - 1];
+	else if (i > 0 && (baud_sup[i] - baud) > (baud - baud_sup[i - 1]))
+		baud = baud_sup[i - 1];
+	else
+		baud = baud_sup[i];
+
+	/* type_0, type_1 only support up to 1228800 baud */
+	if (spriv->type != HX)
+		baud = min_t(int, baud, 1228800);
+
 	if (spriv->type != HX || baud <= 115200) {
-		/*
-		 * NOTE: Only the values defined in baud_sup are supported !
-		 *       => if unsupported values are set, the PL2303 seems to
-		 *	    use 9600 baud (at least my PL2303X always does)
-		 */
-		const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400,
-					 3600, 4800, 7200, 9600, 14400, 19200,
-					 28800, 38400, 57600, 115200, 230400,
-					 460800, 500000, 614400, 921600,
-					 1228800, 2457600, 3000000, 6000000 };
-		int i;
-
-		/* Set baudrate to nearest supported value */
-		for (i = 0; i < ARRAY_SIZE(baud_sup); ++i) {
-			if (baud_sup[i] > baud)
-				break;
-		}
-
-		if (i == ARRAY_SIZE(baud_sup))
-			baud = baud_sup[i - 1];
-		else if (i > 0
-			     && (baud_sup[i] - baud) > (baud - baud_sup[i - 1]))
-			baud = baud_sup[i - 1];
-		else
-			baud = baud_sup[i];
-
-		/* type_0, type_1 only support up to 1228800 baud */
-		if (spriv->type != HX)
-			baud = min_t(int, baud, 1228800);
-
 		/* Direct (standard) baud rate encoding method */
 		put_unaligned_le32(baud, buf);
 	} else {
@@ -333,17 +331,10 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 		 * => 8 < B < 16: device seems to work not properly
 		 * => B <= 8: device uses the max. value B = 512 instead
 		 */
-		unsigned int A, B;
 
-		/* Respect the specified baud rate limits */
-		baud = max_t(int, baud, 75);
-		if (spriv->type == HX)
-			baud = min_t(int, baud, 6000000);
-		else
-			baud = min_t(int, baud, 1228800);
 		/* Determine factors A and B */
-		A = 0;
-		B = 12000000 * 32 / baud;  /* 12MHz */
+		unsigned int A = 0;
+		unsigned int B = 12000000 * 32 / baud;  /* 12MHz */
 		B <<= 1; /* Add one bit for rounding */
 		while (B > (512 << 1) && A <= 14) {
 			A += 2;
