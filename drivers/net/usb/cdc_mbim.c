@@ -175,7 +175,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 	}
 
 	spin_lock_bh(&ctx->mtx);
-	skb_out = cdc_ncm_fill_tx_frame(ctx, skb, sign);
+	skb_out = cdc_ncm_fill_tx_frame(dev, skb, sign);
 	spin_unlock_bh(&ctx->mtx);
 	return skb_out;
 

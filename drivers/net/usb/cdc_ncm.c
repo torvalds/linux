@@ -80,8 +80,9 @@ cdc_ncm_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
 }
 
-static u8 cdc_ncm_setup(struct cdc_ncm_ctx *ctx)
+static u8 cdc_ncm_setup(struct usbnet *dev)
 {
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	u32 val;
 	u8 flags;
 	u8 iface_no;
@@ -90,7 +91,6 @@ static u8 cdc_ncm_setup(struct cdc_ncm_ctx *ctx)
 	u16 ntb_fmt_supported;
 	u32 min_dgram_size;
 	u32 min_hdr_size;
-	struct usbnet *dev = netdev_priv(ctx->netdev);
 
 	iface_no = ctx->control->cur_altsetting->desc.bInterfaceNumber;
 
@@ -285,8 +285,8 @@ static u8 cdc_ncm_setup(struct cdc_ncm_ctx *ctx)
 	}
 
 max_dgram_err:
-	if (ctx->netdev->mtu != (ctx->max_datagram_size - eth_hlen))
-		ctx->netdev->mtu = ctx->max_datagram_size - eth_hlen;
+	if (dev->net->mtu != (ctx->max_datagram_size - eth_hlen))
+		dev->net->mtu = ctx->max_datagram_size - eth_hlen;
 
 	return 0;
 }
@@ -375,11 +375,10 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 	hrtimer_init(&ctx->tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ctx->tx_timer.function = &cdc_ncm_tx_timer_cb;
-	ctx->bh.data = (unsigned long)ctx;
+	ctx->bh.data = (unsigned long)dev;
 	ctx->bh.func = cdc_ncm_txpath_bh;
 	atomic_set(&ctx->stop, 0);
 	spin_lock_init(&ctx->mtx);
-	ctx->netdev = dev->net;
 
 	/* store ctx pointer in device data field */
 	dev->data[0] = (unsigned long)ctx;
@@ -477,7 +476,7 @@ advance:
 		goto error2;
 
 	/* initialize data interface */
-	if (cdc_ncm_setup(ctx))
+	if (cdc_ncm_setup(dev))
 		goto error2;
 
 	/* configure data interface */
@@ -669,9 +668,9 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 }
 
 struct sk_buff *
-cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign)
+cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 {
-	struct usbnet *dev = netdev_priv(ctx->netdev);
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	struct usb_cdc_ncm_nth16 *nth16;
 	struct usb_cdc_ncm_ndp16 *ndp16;
 	struct sk_buff *skb_out;
@@ -695,7 +694,7 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign)
 		if (skb_out == NULL) {
 			if (skb != NULL) {
 				dev_kfree_skb_any(skb);
-				ctx->netdev->stats.tx_dropped++;
+				dev->net->stats.tx_dropped++;
 			}
 			goto exit_no_skb;
 		}
@@ -733,12 +732,12 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign)
 				/* won't fit, MTU problem? */
 				dev_kfree_skb_any(skb);
 				skb = NULL;
-				ctx->netdev->stats.tx_dropped++;
+				dev->net->stats.tx_dropped++;
 			} else {
 				/* no room for skb - store for later */
 				if (ctx->tx_rem_skb != NULL) {
 					dev_kfree_skb_any(ctx->tx_rem_skb);
-					ctx->netdev->stats.tx_dropped++;
+					dev->net->stats.tx_dropped++;
 				}
 				ctx->tx_rem_skb = skb;
 				ctx->tx_rem_sign = sign;
@@ -771,7 +770,7 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign)
 	if (skb != NULL) {
 		dev_kfree_skb_any(skb);
 		skb = NULL;
-		ctx->netdev->stats.tx_dropped++;
+		dev->net->stats.tx_dropped++;
 	}
 
 	ctx->tx_curr_frame_num = n;
@@ -814,7 +813,7 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign)
 
 	/* return skb */
 	ctx->tx_curr_skb = NULL;
-	ctx->netdev->stats.tx_packets += ctx->tx_curr_frame_num;
+	dev->net->stats.tx_packets += ctx->tx_curr_frame_num;
 	return skb_out;
 
 exit_no_skb:
@@ -846,18 +845,19 @@ static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *timer)
 
 static void cdc_ncm_txpath_bh(unsigned long param)
 {
-	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)param;
+	struct usbnet *dev = (struct usbnet *)param;
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 
 	spin_lock_bh(&ctx->mtx);
 	if (ctx->tx_timer_pending != 0) {
 		ctx->tx_timer_pending--;
 		cdc_ncm_tx_timeout_start(ctx);
 		spin_unlock_bh(&ctx->mtx);
-	} else if (ctx->netdev != NULL) {
+	} else if (dev->net != NULL) {
 		spin_unlock_bh(&ctx->mtx);
-		netif_tx_lock_bh(ctx->netdev);
-		usbnet_start_xmit(NULL, ctx->netdev);
-		netif_tx_unlock_bh(ctx->netdev);
+		netif_tx_lock_bh(dev->net);
+		usbnet_start_xmit(NULL, dev->net);
+		netif_tx_unlock_bh(dev->net);
 	} else {
 		spin_unlock_bh(&ctx->mtx);
 	}
@@ -880,7 +880,7 @@ cdc_ncm_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		goto error;
 
 	spin_lock_bh(&ctx->mtx);
-	skb_out = cdc_ncm_fill_tx_frame(ctx, skb, cpu_to_le32(USB_CDC_NCM_NDP16_NOCRC_SIGN));
+	skb_out = cdc_ncm_fill_tx_frame(dev, skb, cpu_to_le32(USB_CDC_NCM_NDP16_NOCRC_SIGN));
 	spin_unlock_bh(&ctx->mtx);
 	return skb_out;
 
@@ -1047,9 +1047,10 @@ error:
 }
 
 static void
-cdc_ncm_speed_change(struct cdc_ncm_ctx *ctx,
+cdc_ncm_speed_change(struct usbnet *dev,
 		     struct usb_cdc_speed_change *data)
 {
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	uint32_t rx_speed = le32_to_cpu(data->DLBitRRate);
 	uint32_t tx_speed = le32_to_cpu(data->ULBitRate);
 
@@ -1063,18 +1064,18 @@ cdc_ncm_speed_change(struct cdc_ncm_ctx *ctx,
 
 		if ((tx_speed > 1000000) && (rx_speed > 1000000)) {
 			printk(KERN_INFO KBUILD_MODNAME
-				": %s: %u mbit/s downlink "
-				"%u mbit/s uplink\n",
-				ctx->netdev->name,
-				(unsigned int)(rx_speed / 1000000U),
-				(unsigned int)(tx_speed / 1000000U));
+			       ": %s: %u mbit/s downlink "
+			       "%u mbit/s uplink\n",
+			       dev->net->name,
+			       (unsigned int)(rx_speed / 1000000U),
+			       (unsigned int)(tx_speed / 1000000U));
 		} else {
 			printk(KERN_INFO KBUILD_MODNAME
-				": %s: %u kbit/s downlink "
-				"%u kbit/s uplink\n",
-				ctx->netdev->name,
-				(unsigned int)(rx_speed / 1000U),
-				(unsigned int)(tx_speed / 1000U));
+			       ": %s: %u kbit/s downlink "
+			       "%u kbit/s uplink\n",
+			       dev->net->name,
+			       (unsigned int)(rx_speed / 1000U),
+			       (unsigned int)(tx_speed / 1000U));
 		}
 	}
 }
@@ -1091,7 +1092,7 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 
 	/* test for split data in 8-byte chunks */
 	if (test_and_clear_bit(EVENT_STS_SPLIT, &dev->flags)) {
-		cdc_ncm_speed_change(ctx,
+		cdc_ncm_speed_change(dev,
 		      (struct usb_cdc_speed_change *)urb->transfer_buffer);
 		return;
 	}
@@ -1108,8 +1109,8 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		ctx->connected = le16_to_cpu(event->wValue);
 
 		printk(KERN_INFO KBUILD_MODNAME ": %s: network connection:"
-			" %sconnected\n",
-			ctx->netdev->name, ctx->connected ? "" : "dis");
+		       " %sconnected\n",
+		       dev->net->name, ctx->connected ? "" : "dis");
 
 		usbnet_link_change(dev, ctx->connected, 0);
 		if (!ctx->connected)
@@ -1121,8 +1122,8 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 					sizeof(struct usb_cdc_speed_change)))
 			set_bit(EVENT_STS_SPLIT, &dev->flags);
 		else
-			cdc_ncm_speed_change(ctx,
-				(struct usb_cdc_speed_change *) &event[1]);
+			cdc_ncm_speed_change(dev,
+					     (struct usb_cdc_speed_change *)&event[1]);
 		break;
 
 	default:
