@@ -798,11 +798,11 @@ static void draw_process_bars(void)
 			sample = c->samples;
 			while (sample) {
 				if (sample->type == TYPE_RUNNING)
-					svg_sample(Y, sample->cpu, sample->start_time, sample->end_time);
+					svg_running(Y, sample->cpu, sample->start_time, sample->end_time);
 				if (sample->type == TYPE_BLOCKED)
-					svg_box(Y, sample->start_time, sample->end_time, "blocked");
+					svg_blocked(Y, sample->cpu, sample->start_time, sample->end_time);
 				if (sample->type == TYPE_WAITING)
-					svg_waiting(Y, sample->start_time, sample->end_time);
+					svg_waiting(Y, sample->cpu, sample->start_time, sample->end_time);
 				sample = sample->next;
 			}
 

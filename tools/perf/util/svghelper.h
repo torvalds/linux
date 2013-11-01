@@ -5,8 +5,9 @@
 
 extern void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end);
 extern void svg_box(int Yslot, u64 start, u64 end, const char *type);
-extern void svg_sample(int Yslot, int cpu, u64 start, u64 end);
-extern void svg_waiting(int Yslot, u64 start, u64 end);
+extern void svg_blocked(int Yslot, int cpu, u64 start, u64 end);
+extern void svg_running(int Yslot, int cpu, u64 start, u64 end);
+extern void svg_waiting(int Yslot, int cpu, u64 start, u64 end);
 extern void svg_cpu_box(int cpu, u64 max_frequency, u64 turbo_frequency);
 
 
