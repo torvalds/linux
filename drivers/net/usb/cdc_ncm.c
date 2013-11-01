@@ -371,8 +371,10 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 			union_desc = (const struct usb_cdc_union_desc *)buf;
 			/* the master must be the interface we are probing */
 			if (intf->cur_altsetting->desc.bInterfaceNumber !=
-			    union_desc->bMasterInterface0)
+			    union_desc->bMasterInterface0) {
+				dev_dbg(&intf->dev, "bogus CDC Union\n");
 				goto error;
+			}
 			ctx->data = usb_ifnum_to_if(dev->udev,
 						    union_desc->bSlaveInterface0);
 			break;
@@ -416,45 +418,59 @@ advance:
 	}
 
 	/* check if we got everything */
-	if (!ctx->data || (!ctx->mbim_desc && !ctx->ether_desc))
+	if (!ctx->data || (!ctx->mbim_desc && !ctx->ether_desc)) {
+		dev_dbg(&intf->dev, "CDC descriptors missing\n");
 		goto error;
+	}
 
 	/* claim data interface, if different from control */
 	if (ctx->data != ctx->control) {
 		temp = usb_driver_claim_interface(driver, ctx->data, dev);
-		if (temp)
+		if (temp) {
+			dev_dbg(&intf->dev, "failed to claim data intf\n");
 			goto error;
+		}
 	}
 
 	iface_no = ctx->data->cur_altsetting->desc.bInterfaceNumber;
 
 	/* reset data interface */
 	temp = usb_set_interface(dev->udev, iface_no, 0);
-	if (temp)
+	if (temp) {
+		dev_dbg(&intf->dev, "set interface failed\n");
 		goto error2;
+	}
 
 	/* configure data interface */
 	temp = usb_set_interface(dev->udev, iface_no, data_altsetting);
-	if (temp)
+	if (temp) {
+		dev_dbg(&intf->dev, "set interface failed\n");
 		goto error2;
+	}
 
 	cdc_ncm_find_endpoints(dev, ctx->data);
 	cdc_ncm_find_endpoints(dev, ctx->control);
-	if (!dev->in || !dev->out || !dev->status)
+	if (!dev->in || !dev->out || !dev->status) {
+		dev_dbg(&intf->dev, "failed to collect endpoints\n");
 		goto error2;
+	}
 
 	/* initialize data interface */
-	if (cdc_ncm_setup(dev))
+	if (cdc_ncm_setup(dev))	{
+		dev_dbg(&intf->dev, "cdc_ncm_setup() failed\n");
 		goto error2;
+	}
 
 	usb_set_intfdata(ctx->data, dev);
 	usb_set_intfdata(ctx->control, dev);
 
 	if (ctx->ether_desc) {
 		temp = usbnet_get_ethernet_addr(dev, ctx->ether_desc->iMACAddress);
-		if (temp)
+		if (temp) {
+			dev_dbg(&intf->dev, "failed to get mac address\n");
 			goto error2;
-		dev_info(&dev->udev->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
+		}
+		dev_info(&intf->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
 	}
 
 	/* usbnet use these values for sizing tx/rx queues */
@@ -471,7 +487,7 @@ error2:
 error:
 	cdc_ncm_free((struct cdc_ncm_ctx *)dev->data[0]);
 	dev->data[0] = 0;
-	dev_info(&dev->udev->dev, "bind() failure\n");
+	dev_info(&intf->dev, "bind() failure\n");
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(cdc_ncm_bind_common);
