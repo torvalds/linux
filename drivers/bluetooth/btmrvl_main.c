@@ -19,7 +19,7 @@
  **/
 
 #include <linux/module.h>
-
+#include <linux/of.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -414,52 +414,8 @@ static int btmrvl_open(struct hci_dev *hdev)
 	return 0;
 }
 
-/*
- * This function parses provided calibration data input. It should contain
- * hex bytes separated by space or new line character. Here is an example.
- * 00 1C 01 37 FF FF FF FF 02 04 7F 01
- * CE BA 00 00 00 2D C6 C0 00 00 00 00
- * 00 F0 00 00
- */
-static int btmrvl_parse_cal_cfg(const u8 *src, u32 len, u8 *dst, u32 dst_size)
-{
-	const u8 *s = src;
-	u8 *d = dst;
-	int ret;
-	u8 tmp[3];
-
-	tmp[2] = '\0';
-	while ((s - src) <= len - 2) {
-		if (isspace(*s)) {
-			s++;
-			continue;
-		}
-
-		if (isxdigit(*s)) {
-			if ((d - dst) >= dst_size) {
-				BT_ERR("calibration data file too big!!!");
-				return -EINVAL;
-			}
-
-			memcpy(tmp, s, 2);
-
-			ret = kstrtou8(tmp, 16, d++);
-			if (ret < 0)
-				return ret;
-
-			s += 2;
-		} else {
-			return -EINVAL;
-		}
-	}
-	if (d == dst)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int btmrvl_load_cal_data(struct btmrvl_private *priv,
-				u8 *config_data)
+static int btmrvl_download_cal_data(struct btmrvl_private *priv,
+				    u8 *config_data)
 {
 	int i, ret;
 	u8 data[BT_CMD_DATA_SIZE];
@@ -487,44 +443,31 @@ static int btmrvl_load_cal_data(struct btmrvl_private *priv,
 	return 0;
 }
 
-static int
-btmrvl_process_cal_cfg(struct btmrvl_private *priv, u8 *data, u32 size)
+static int btmrvl_cal_data_dt(struct btmrvl_private *priv)
 {
+	struct device_node *dt_node;
 	u8 cal_data[BT_CAL_DATA_SIZE];
+	const char name[] = "btmrvl_caldata";
+	const char property[] = "btmrvl,caldata";
 	int ret;
 
-	ret = btmrvl_parse_cal_cfg(data, size, cal_data, sizeof(cal_data));
+	dt_node = of_find_node_by_name(NULL, name);
+	if (!dt_node)
+		return -ENODEV;
+
+	ret = of_property_read_u8_array(dt_node, property, cal_data,
+					sizeof(cal_data));
 	if (ret)
 		return ret;
 
-	ret = btmrvl_load_cal_data(priv, cal_data);
+	BT_DBG("Use cal data from device tree");
+	ret = btmrvl_download_cal_data(priv, cal_data);
 	if (ret) {
-		BT_ERR("Fail to load calibrate data");
+		BT_ERR("Fail to download calibrate data");
 		return ret;
 	}
 
 	return 0;
-}
-
-static int btmrvl_cal_data_config(struct btmrvl_private *priv)
-{
-	const struct firmware *cfg;
-	int ret;
-	const char *cal_data = priv->btmrvl_dev.cal_data;
-
-	if (!cal_data)
-		return 0;
-
-	ret = request_firmware(&cfg, cal_data, priv->btmrvl_dev.dev);
-	if (ret < 0) {
-		BT_DBG("Failed to get %s file, skipping cal data download",
-		       cal_data);
-		return 0;
-	}
-
-	ret = btmrvl_process_cal_cfg(priv, (u8 *)cfg->data, cfg->size);
-	release_firmware(cfg);
-	return ret;
 }
 
 static int btmrvl_setup(struct hci_dev *hdev)
@@ -533,8 +476,7 @@ static int btmrvl_setup(struct hci_dev *hdev)
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 
-	if (btmrvl_cal_data_config(priv))
-		BT_ERR("Set cal data failed");
+	btmrvl_cal_data_dt(priv);
 
 	priv->btmrvl_dev.psmode = 1;
 	btmrvl_enable_ps(priv);

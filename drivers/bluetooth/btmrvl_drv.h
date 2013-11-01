@@ -23,8 +23,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <net/bluetooth/bluetooth.h>
-#include <linux/ctype.h>
-#include <linux/firmware.h>
 
 #define BTM_HEADER_LEN			4
 #define BTM_UPLD_SIZE			2312
@@ -43,8 +41,6 @@ struct btmrvl_thread {
 struct btmrvl_device {
 	void *card;
 	struct hci_dev *hcidev;
-	struct device *dev;
-	const char *cal_data;
 
 	u8 dev_type;
 
