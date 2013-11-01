@@ -4657,7 +4657,7 @@ static int _nfs4_do_set_security_label(struct inode *inode,
 	struct iattr sattr = {0};
 	struct nfs_server *server = NFS_SERVER(inode);
 	const u32 bitmask[3] = { 0, 0, FATTR4_WORD2_SECURITY_LABEL };
-	struct nfs_setattrargs args = {
+	struct nfs_setattrargs arg = {
 		.fh             = NFS_FH(inode),
 		.iap            = &sattr,
 		.server		= server,
@@ -4671,14 +4671,14 @@ static int _nfs4_do_set_security_label(struct inode *inode,
 	};
 	struct rpc_message msg = {
 		.rpc_proc       = &nfs4_procedures[NFSPROC4_CLNT_SETATTR],
-		.rpc_argp       = &args,
+		.rpc_argp       = &arg,
 		.rpc_resp       = &res,
 	};
 	int status;
 
-	nfs4_stateid_copy(&args.stateid, &zero_stateid);
+	nfs4_stateid_copy(&arg.stateid, &zero_stateid);
 
-	status = rpc_call_sync(server->client, &msg, 0);
+	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (status)
 		dprintk("%s failed: %d\n", __func__, status);
 
