@@ -48,6 +48,7 @@
 #include "rcu-string.h"
 #include "dev-replace.h"
 #include "raid56.h"
+#include "sysfs.h"
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
@@ -2743,6 +2744,12 @@ retry_root_backup:
 
 	btrfs_close_extra_devices(fs_info, fs_devices, 1);
 
+	ret = btrfs_sysfs_add_one(fs_info);
+	if (ret) {
+		pr_err("btrfs: failed to init sysfs interface: %d\n", ret);
+		goto fail_block_groups;
+	}
+
 	ret = btrfs_init_space_info(fs_info);
 	if (ret) {
 		printk(KERN_ERR "Failed to initial space info: %d\n", ret);
@@ -3583,6 +3590,8 @@ int close_ctree(struct btrfs_root *root)
 		printk(KERN_INFO "btrfs: at unmount delalloc count %lld\n",
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
+
+	btrfs_sysfs_remove_one(fs_info);
 
 	del_fs_roots(fs_info);
 

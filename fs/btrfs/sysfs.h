@@ -15,6 +15,13 @@ enum btrfs_feature_set {
 	.store	= _store,						\
 }
 
+#define BTRFS_ATTR_RW(_name, _mode, _show, _store)			\
+static struct kobj_attribute btrfs_attr_##_name =			\
+			__INIT_KOBJ_ATTR(_name, _mode, _show, _store)
+#define BTRFS_ATTR(_name, _mode, _show)					\
+	BTRFS_ATTR_RW(_name, _mode, _show, NULL)
+#define BTRFS_ATTR_PTR(_name)    (&btrfs_attr_##_name.attr)
+
 struct btrfs_feature_attr {
 	struct kobj_attribute kobj_attr;
 	enum btrfs_feature_set feature_set;
@@ -40,4 +47,7 @@ static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
 /* convert from attribute */
 #define to_btrfs_feature_attr(a) \
 			container_of(a, struct btrfs_feature_attr, kobj_attr)
+#define attr_to_btrfs_attr(a) container_of(a, struct kobj_attribute, attr)
+#define attr_to_btrfs_feature_attr(a) \
+			to_btrfs_feature_attr(attr_to_btrfs_attr(a))
 #endif /* _BTRFS_SYSFS_H_ */

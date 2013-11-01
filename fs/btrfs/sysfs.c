@@ -28,6 +28,25 @@
 #include "transaction.h"
 #include "sysfs.h"
 
+static void btrfs_release_super_kobj(struct kobject *kobj);
+static struct kobj_type btrfs_ktype = {
+	.sysfs_ops	= &kobj_sysfs_ops,
+	.release	= btrfs_release_super_kobj,
+};
+
+static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
+{
+	if (kobj->ktype != &btrfs_ktype)
+		return NULL;
+	return container_of(kobj, struct btrfs_fs_info, super_kobj);
+}
+
+static void btrfs_release_super_kobj(struct kobject *kobj)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	complete(&fs_info->kobj_unregister);
+}
+
 static ssize_t btrfs_feature_attr_show(struct kobject *kobj,
 				       struct kobj_attribute *a, char *buf)
 {
@@ -64,6 +83,23 @@ static const struct attribute_group btrfs_feature_attr_group = {
 
 /* /sys/fs/btrfs/ entry */
 static struct kset *btrfs_kset;
+
+void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
+{
+	kobject_del(&fs_info->super_kobj);
+	kobject_put(&fs_info->super_kobj);
+	wait_for_completion(&fs_info->kobj_unregister);
+}
+
+int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
+{
+	int error;
+
+	init_completion(&fs_info->kobj_unregister);
+	error = kobject_init_and_add(&fs_info->super_kobj, &btrfs_ktype, NULL,
+				     "%pU", fs_info->fsid);
+	return error;
+}
 
 int btrfs_init_sysfs(void)
 {
