@@ -1990,6 +1990,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
 {
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
+	struct intel_digital_port *dig_port;
 	int ret = 0;
 
 	*source = INTEL_PIPE_CRC_SOURCE_PIPE;
@@ -2011,8 +2012,22 @@ static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
 			break;
 		case INTEL_OUTPUT_DISPLAYPORT:
 		case INTEL_OUTPUT_EDP:
-			/* We can't get stable CRCs for DP ports somehow. */
-			ret = -ENODEV;
+			dig_port = enc_to_dig_port(&encoder->base);
+			switch (dig_port->port) {
+			case PORT_B:
+				*source = INTEL_PIPE_CRC_SOURCE_DP_B;
+				break;
+			case PORT_C:
+				*source = INTEL_PIPE_CRC_SOURCE_DP_C;
+				break;
+			case PORT_D:
+				*source = INTEL_PIPE_CRC_SOURCE_DP_D;
+				break;
+			default:
+				WARN(1, "nonexisting DP port %c\n",
+				     port_name(dig_port->port));
+				break;
+			}
 			break;
 		}
 	}
