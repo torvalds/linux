@@ -4,11 +4,6 @@
  * Copyright (C) 2001-2007 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2003 IBM Corp.
  *
- * Copyright (C) 2009, 2013 Frank Schäfer <fschaefer.oss@googlemail.com>
- *  - fixes, improvements and documentation for the baud rate encoding methods
- * Copyright (C) 2013 Reinhard Max <max@suse.de>
- *  - fixes and improvements for the divisor based baud rate encoding method
- *
  * Original driver for 2.2.x by anonymous
  *
  *	This program is free software; you can redistribute it and/or
@@ -315,58 +310,21 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 		put_unaligned_le32(baud, buf);
 	} else {
 		/*
-		 * Divisor based baud rate encoding method
-		 *
 		 * NOTE: it's not clear if the type_0/1 chips
 		 * support this method
 		 *
-		 * divisor = 12MHz * 32 / baudrate = 2^A * B
-		 *
-		 * with
-		 *
-		 * A = buf[1] & 0x0e
-		 * B = buf[0]  +  (buf[1] & 0x01) << 8
-		 *
-		 * Special cases:
-		 * => 8 < B < 16: device seems to work not properly
-		 * => B <= 8: device uses the max. value B = 512 instead
+		 * Apparently the formula for higher speeds is:
+		 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
 		 */
-
-		/* Determine factors A and B */
-		unsigned int A = 0;
-		unsigned int B = 12000000 * 32 / baud;  /* 12MHz */
-		B <<= 1; /* Add one bit for rounding */
-		while (B > (512 << 1) && A <= 14) {
-			A += 2;
-			B >>= 2;
-		}
-		if (A > 14) { /* max. divisor = min. baudrate reached */
-			A = 14;
-			B = 512;
-			/* => ~45.78 baud */
-		} else {
-			B = (B + 1) >> 1; /* Round the last bit */
-		}
-		/* Handle special cases */
-		if (B == 512)
-			B = 0; /* also: 1 to 8 */
-		else if (B < 16)
-			/*
-			 * NOTE: With the current algorithm this happens
-			 * only for A=0 and means that the min. divisor
-			 * (respectively: the max. baudrate) is reached.
-			 */
-			B = 16;		/* => 24 MBaud */
-		/* Encode the baud rate */
-		buf[3] = 0x80;     /* Select divisor encoding method */
+		unsigned tmp = 12000000 * 32 / baud;
+		buf[3] = 0x80;
 		buf[2] = 0;
-		buf[1] = (A & 0x0e);		/* A */
-		buf[1] |= ((B & 0x100) >> 8);	/* MSB of B */
-		buf[0] = B & 0xff;		/* 8 LSBs of B */
-		/* Calculate the actual/resulting baud rate */
-		if (B <= 8)
-			B = 512;
-		baud = 12000000 * 32 / ((1 << A) * B);
+		buf[1] = (tmp >= 256);
+		while (tmp >= 256) {
+			tmp >>= 2;
+			buf[1] <<= 1;
+		}
+		buf[0] = tmp;
 	}
 
 	/* Save resulting baud rate */
