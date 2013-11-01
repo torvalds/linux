@@ -98,7 +98,6 @@ struct cdc_ncm_ctx {
 	const struct usb_cdc_union_desc *union_desc;
 	const struct usb_cdc_ether_desc *ether_desc;
 
-	struct usb_device *udev;
 	struct usb_interface *control;
 	struct usb_interface *data;
 

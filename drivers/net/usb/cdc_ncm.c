@@ -388,8 +388,6 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	buf = intf->cur_altsetting->extra;
 	len = intf->cur_altsetting->extralen;
 
-	ctx->udev = dev->udev;
-
 	/* parse through descriptors associated with control interface */
 	while ((len > 0) && (buf[0] > 2) && (buf[0] <= len)) {
 
