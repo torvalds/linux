@@ -638,6 +638,9 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	tca->gpio.direction_output = tca6507_gpio_direction_output;
 	tca->gpio.set = tca6507_gpio_set_value;
 	tca->gpio.dev = &client->dev;
+#ifdef CONFIG_OF_GPIO
+	tca->gpio.of_node = of_node_get(client->dev.of_node);
+#endif
 	err = gpiochip_add(&tca->gpio);
 	if (err) {
 		tca->gpio.ngpio = 0;
@@ -696,6 +699,8 @@ tca6507_led_dt_init(struct i2c_client *client)
 		led.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
 		led.flags = 0;
+		if (of_property_match_string(child, "compatible", "gpio") >= 0)
+			led.flags |= TCA6507_MAKE_GPIO;
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret != 0 || reg < 0 || reg >= NUM_LEDS)
 			continue;
@@ -709,6 +714,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 
 	pdata->leds.leds = tca_leds;
 	pdata->leds.num_leds = NUM_LEDS;
+	pdata->gpio_base = -1;
 
 	return pdata;
 }
