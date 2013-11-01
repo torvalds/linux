@@ -714,7 +714,7 @@ static int audit_set_feature(struct sk_buff *skb)
 		old_lock = af.lock & feature;
 
 		/* are we changing a locked feature? */
-		if ((af.lock & feature) && (new_feature != old_feature)) {
+		if (old_lock && (new_feature != old_feature)) {
 			audit_log_feature_change(i, old_feature, new_feature,
 						 old_lock, new_lock, 0);
 			return -EPERM;
