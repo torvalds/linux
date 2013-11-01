@@ -82,12 +82,16 @@
 #define	CG_SPLL_FUNC_CNTL_2				0x604
 #define		SCLK_MUX_SEL(x)				((x) << 0)
 #define		SCLK_MUX_SEL_MASK			(0x1ff << 0)
+#define		SCLK_MUX_UPDATE				(1 << 26)
 #define	CG_SPLL_FUNC_CNTL_3				0x608
 #define		SPLL_FB_DIV(x)				((x) << 0)
 #define		SPLL_FB_DIV_MASK			(0x3ffffff << 0)
 #define		SPLL_DITHEN				(1 << 28)
+#define	CG_SPLL_STATUS					0x60c
+#define		SPLL_CHG_STATUS				(1 << 1)
 
 #define MPLL_CNTL_MODE                                  0x61c
+#       define MPLL_MCLK_SEL                            (1 << 11)
 #       define SS_SSEN                                  (1 << 24)
 #       define SS_DSMODE_EN                             (1 << 25)
 
