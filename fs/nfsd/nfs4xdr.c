@@ -411,6 +411,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		label->data = kzalloc(dummy32 + 1, GFP_KERNEL);
 		if (!label->data)
 			return nfserr_jukebox;
+		label->len = dummy32;
 		defer_free(argp, kfree, label->data);
 		memcpy(label->data, buf, dummy32);
 	}
