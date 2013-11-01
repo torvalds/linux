@@ -324,20 +324,12 @@ static int pl2303_baudrate_encode_divisor(int baud, enum pl2303_type type,
 	 */
 	unsigned int A, B;
 
-	/*
-	 * NOTE: The Windows driver allows maximum baud rates of 110% of the
-	 * specified maximium value.
-	 * Quick tests with early (2004) HX (rev. A) chips suggest, that even
-	 * higher baud rates (up to the maximum of 24M baud !) are working fine,
-	 * but that should really be tested carefully in "real life" scenarios
-	 * before removing the upper limit completely.
-	 * Baud rates smaller than the specified 75 baud are definitely working
-	 * fine.
-	 */
+	/* Respect the specified baud rate limits */
+	baud = max_t(int, baud, 75);
 	if (type == HX)
-		baud = min_t(int, baud, 6000000 * 1.1);
+		baud = min_t(int, baud, 6000000);
 	else
-		baud = min_t(int, baud, 1228800 * 1.1);
+		baud = min_t(int, baud, 1228800);
 	/* Determine factors A and B */
 	A = 0;
 	B = 12000000 * 32 / baud;  /* 12MHz */
