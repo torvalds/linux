@@ -800,7 +800,7 @@ EXPORT_SYMBOL_GPL(sysfs_notify);
 const struct file_operations sysfs_file_operations = {
 	.read		= seq_read,
 	.write		= sysfs_write_file,
-	.llseek		= seq_lseek,
+	.llseek		= generic_file_llseek,
 	.open		= sysfs_open_file,
 	.release	= sysfs_release,
 	.poll		= sysfs_poll,
