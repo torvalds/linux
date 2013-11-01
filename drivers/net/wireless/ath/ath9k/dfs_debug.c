@@ -44,14 +44,20 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	if (sc->dfs_detector)
-		dfs_pool_stats = sc->dfs_detector->get_stats(sc->dfs_detector);
-
 	len += scnprintf(buf + len, size - len, "DFS support for "
 			 "macVersion = 0x%x, macRev = 0x%x: %s\n",
 			 hw_ver->macVersion, hw_ver->macRev,
 			 (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_DFS) ?
 					"enabled" : "disabled");
+
+	if (!sc->dfs_detector) {
+		len += scnprintf(buf + len, size - len,
+				 "DFS detector not enabled\n");
+		goto exit;
+	}
+
+	dfs_pool_stats = sc->dfs_detector->get_stats(sc->dfs_detector);
+
 	len += scnprintf(buf + len, size - len, "Pulse detector statistics:\n");
 	ATH9K_DFS_STAT("pulse events reported   ", pulses_total);
 	ATH9K_DFS_STAT("invalid pulse events    ", pulses_no_dfs);
@@ -76,6 +82,7 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 	ATH9K_DFS_POOL_STAT("Seqs. alloc error       ", pseq_alloc_error);
 	ATH9K_DFS_POOL_STAT("Seqs. in use            ", pseq_used);
 
+exit:
 	if (len > size)
 		len = size;
 
