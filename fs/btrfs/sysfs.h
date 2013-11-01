@@ -31,7 +31,8 @@ struct btrfs_feature_attr {
 #define BTRFS_FEAT_ATTR(_name, _feature_set, _prefix, _feature_bit)	     \
 static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
 	.kobj_attr = __INIT_KOBJ_ATTR(_name, S_IRUGO,			     \
-				      btrfs_feature_attr_show, NULL),	     \
+				      btrfs_feature_attr_show,		     \
+				      btrfs_feature_attr_store),	     \
 	.feature_set	= _feature_set,					     \
 	.feature_bit	= _prefix ##_## _feature_bit,			     \
 }
