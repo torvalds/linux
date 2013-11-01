@@ -11130,7 +11130,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return NULL;
 
-	error = kmalloc(sizeof(*error), GFP_ATOMIC);
+	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (error == NULL)
 		return NULL;
 
@@ -11138,6 +11138,9 @@ intel_display_capture_error_state(struct drm_device *dev)
 		error->power_well_driver = I915_READ(HSW_PWR_WELL_DRIVER);
 
 	for_each_pipe(i) {
+		if (!intel_display_power_enabled(dev, POWER_DOMAIN_PIPE(i)))
+			continue;
+
 		if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev)) {
 			error->cursor[i].control = I915_READ(CURCNTR(i));
 			error->cursor[i].position = I915_READ(CURPOS(i));
@@ -11171,6 +11174,10 @@ intel_display_capture_error_state(struct drm_device *dev)
 	for (i = 0; i < error->num_transcoders; i++) {
 		enum transcoder cpu_transcoder = transcoders[i];
 
+		if (!intel_display_power_enabled(dev,
+				POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
+			continue;
+
 		error->transcoder[i].cpu_transcoder = cpu_transcoder;
 
 		error->transcoder[i].conf = I915_READ(PIPECONF(cpu_transcoder));
@@ -11181,12 +11188,6 @@ intel_display_capture_error_state(struct drm_device *dev)
 		error->transcoder[i].vblank = I915_READ(VBLANK(cpu_transcoder));
 		error->transcoder[i].vsync = I915_READ(VSYNC(cpu_transcoder));
 	}
-
-	/* In the code above we read the registers without checking if the power
-	 * well was on, so here we have to clear the FPGA_DBG_RM_NOCLAIM bit to
-	 * prevent the next I915_WRITE from detecting it and printing an error
-	 * message. */
-	intel_uncore_clear_errors(dev);
 
 	return error;
 }
