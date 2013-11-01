@@ -1936,6 +1936,7 @@ static const char * const pipe_crc_sources[] = {
 	"DP-B",
 	"DP-C",
 	"DP-D",
+	"auto",
 };
 
 static const char *pipe_crc_source_name(enum intel_pipe_crc_source source)
@@ -1964,10 +1965,13 @@ static int display_crc_ctl_open(struct inode *inode, struct file *file)
 	return single_open(file, display_crc_ctl_show, dev);
 }
 
-static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 				 uint32_t *val)
 {
-	switch (source) {
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
+		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
+
+	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_INCLUDE_BORDER_I8XX;
 		break;
@@ -1981,10 +1985,54 @@ static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 	return 0;
 }
 
-static int vlv_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
+				     enum intel_pipe_crc_source *source)
+{
+	struct intel_encoder *encoder;
+	struct intel_crtc *crtc;
+	int ret = 0;
+
+	*source = INTEL_PIPE_CRC_SOURCE_PIPE;
+
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (!encoder->base.crtc)
+			continue;
+
+		crtc = to_intel_crtc(encoder->base.crtc);
+
+		if (crtc->pipe != pipe)
+			continue;
+
+		switch (encoder->type) {
+		case INTEL_OUTPUT_TVOUT:
+			*source = INTEL_PIPE_CRC_SOURCE_TV;
+			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+		case INTEL_OUTPUT_EDP:
+			/* We can't get stable CRCs for DP ports somehow. */
+			ret = -ENODEV;
+			break;
+		}
+	}
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
+}
+
+static int vlv_pipe_crc_ctl_reg(struct drm_device *dev,
+				enum pipe pipe,
+				enum intel_pipe_crc_source *source,
 				uint32_t *val)
 {
-	switch (source) {
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO) {
+		int ret = i9xx_pipe_crc_auto_source(dev, pipe, source);
+		if (ret)
+			return ret;
+	}
+
+	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_VLV;
 		break;
@@ -2005,10 +2053,17 @@ static int vlv_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 }
 
 static int i9xx_pipe_crc_ctl_reg(struct drm_device *dev,
-				 enum intel_pipe_crc_source source,
+				 enum pipe pipe,
+				 enum intel_pipe_crc_source *source,
 				 uint32_t *val)
 {
-	switch (source) {
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO) {
+		int ret = i9xx_pipe_crc_auto_source(dev, pipe, source);
+		if (ret)
+			return ret;
+	}
+
+	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PIPE_I9XX;
 		break;
@@ -2042,10 +2097,13 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_device *dev,
 	return 0;
 }
 
-static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 				uint32_t *val)
 {
-	switch (source) {
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
+		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
+
+	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PRIMARY_ILK;
 		break;
@@ -2065,10 +2123,13 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
 	return 0;
 }
 
-static int ivb_pipe_crc_ctl_reg(enum intel_pipe_crc_source source,
+static int ivb_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 				uint32_t *val)
 {
-	switch (source) {
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
+		*source = INTEL_PIPE_CRC_SOURCE_PF;
+
+	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PRIMARY_IVB;
 		break;
@@ -2104,15 +2165,15 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		return -EINVAL;
 
 	if (IS_GEN2(dev))
-		ret = i8xx_pipe_crc_ctl_reg(source, &val);
+		ret = i8xx_pipe_crc_ctl_reg(&source, &val);
 	else if (INTEL_INFO(dev)->gen < 5)
-		ret = i9xx_pipe_crc_ctl_reg(dev, source, &val);
+		ret = i9xx_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 	else if (IS_VALLEYVIEW(dev))
-		ret = vlv_pipe_crc_ctl_reg(source, &val);
+		ret = vlv_pipe_crc_ctl_reg(dev,pipe, &source, &val);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
-		ret = ilk_pipe_crc_ctl_reg(source, &val);
+		ret = ilk_pipe_crc_ctl_reg(&source, &val);
 	else
-		ret = ivb_pipe_crc_ctl_reg(source, &val);
+		ret = ivb_pipe_crc_ctl_reg(&source, &val);
 
 	if (ret != 0)
 		return ret;
