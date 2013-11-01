@@ -28,29 +28,53 @@
 #include "transaction.h"
 #include "sysfs.h"
 
-static void btrfs_release_super_kobj(struct kobject *kobj);
-static struct kobj_type btrfs_ktype = {
-	.sysfs_ops	= &kobj_sysfs_ops,
-	.release	= btrfs_release_super_kobj,
-};
+static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 
-static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
+static u64 get_features(struct btrfs_fs_info *fs_info,
+			enum btrfs_feature_set set)
 {
-	if (kobj->ktype != &btrfs_ktype)
-		return NULL;
-	return container_of(kobj, struct btrfs_fs_info, super_kobj);
-}
-
-static void btrfs_release_super_kobj(struct kobject *kobj)
-{
-	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	complete(&fs_info->kobj_unregister);
+	struct btrfs_super_block *disk_super = fs_info->super_copy;
+	if (set == FEAT_COMPAT)
+		return btrfs_super_compat_flags(disk_super);
+	else if (set == FEAT_COMPAT_RO)
+		return btrfs_super_compat_ro_flags(disk_super);
+	else
+		return btrfs_super_incompat_flags(disk_super);
 }
 
 static ssize_t btrfs_feature_attr_show(struct kobject *kobj,
 				       struct kobj_attribute *a, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0\n");
+	int val = 0;
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	if (fs_info) {
+		struct btrfs_feature_attr *fa = to_btrfs_feature_attr(a);
+		u64 features = get_features(fs_info, fa->feature_set);
+		if (features & fa->feature_bit)
+			val = 1;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static umode_t btrfs_feature_visible(struct kobject *kobj,
+				     struct attribute *attr, int unused)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	umode_t mode = attr->mode;
+
+	if (fs_info) {
+		struct btrfs_feature_attr *fa;
+		u64 features;
+
+		fa = attr_to_btrfs_feature_attr(attr);
+		features = get_features(fs_info, fa->feature_set);
+
+		if (!(features & fa->feature_bit))
+			mode = 0;
+	}
+
+	return mode;
 }
 
 BTRFS_FEAT_ATTR_INCOMPAT(mixed_backref, MIXED_BACKREF);
@@ -78,11 +102,27 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 
 static const struct attribute_group btrfs_feature_attr_group = {
 	.name = "features",
+	.is_visible = btrfs_feature_visible,
 	.attrs = btrfs_supported_feature_attrs,
 };
 
-/* /sys/fs/btrfs/ entry */
-static struct kset *btrfs_kset;
+static void btrfs_release_super_kobj(struct kobject *kobj)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	complete(&fs_info->kobj_unregister);
+}
+
+static struct kobj_type btrfs_ktype = {
+	.sysfs_ops	= &kobj_sysfs_ops,
+	.release	= btrfs_release_super_kobj,
+};
+
+static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
+{
+	if (kobj->ktype != &btrfs_ktype)
+		return NULL;
+	return container_of(kobj, struct btrfs_fs_info, super_kobj);
+}
 
 void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 {
@@ -91,13 +131,22 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 	wait_for_completion(&fs_info->kobj_unregister);
 }
 
+/* /sys/fs/btrfs/ entry */
+static struct kset *btrfs_kset;
+
 int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 {
 	int error;
 
 	init_completion(&fs_info->kobj_unregister);
+	fs_info->super_kobj.kset = btrfs_kset;
 	error = kobject_init_and_add(&fs_info->super_kobj, &btrfs_ktype, NULL,
 				     "%pU", fs_info->fsid);
+
+	error = sysfs_create_group(&fs_info->super_kobj,
+				   &btrfs_feature_attr_group);
+	if (error)
+		btrfs_sysfs_remove_one(fs_info);
 	return error;
 }
 
