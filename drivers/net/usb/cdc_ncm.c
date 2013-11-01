@@ -372,6 +372,7 @@ static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 
 int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_altsetting)
 {
+	const struct usb_cdc_union_desc *union_desc = NULL;
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *driver;
 	u8 *buf;
@@ -406,16 +407,15 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 		switch (buf[2]) {
 		case USB_CDC_UNION_TYPE:
-			if (buf[0] < sizeof(*(ctx->union_desc)))
+			if (buf[0] < sizeof(*union_desc))
 				break;
 
-			ctx->union_desc =
-					(const struct usb_cdc_union_desc *)buf;
+			union_desc = (const struct usb_cdc_union_desc *)buf;
 
 			ctx->control = usb_ifnum_to_if(dev->udev,
-					ctx->union_desc->bMasterInterface0);
+						       union_desc->bMasterInterface0);
 			ctx->data = usb_ifnum_to_if(dev->udev,
-					ctx->union_desc->bSlaveInterface0);
+						    union_desc->bSlaveInterface0);
 			break;
 
 		case USB_CDC_ETHERNET_TYPE:
@@ -458,7 +458,7 @@ advance:
 	}
 
 	/* some buggy devices have an IAD but no CDC Union */
-	if (!ctx->union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
+	if (!union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
 		ctx->control = intf;
 		ctx->data = usb_ifnum_to_if(dev->udev, intf->cur_altsetting->desc.bInterfaceNumber + 1);
 		dev_dbg(&intf->dev, "CDC Union missing - got slave from IAD\n");
