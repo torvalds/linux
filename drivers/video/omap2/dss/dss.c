@@ -264,8 +264,6 @@ const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src)
 
 void dss_dump_clocks(struct seq_file *s)
 {
-	unsigned long dpll4_ck_rate;
-	unsigned long dpll4_m4_ck_rate;
 	const char *fclk_name, *fclk_real_name;
 	unsigned long fclk_rate;
 
@@ -278,21 +276,9 @@ void dss_dump_clocks(struct seq_file *s)
 	fclk_real_name = dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_FCK);
 	fclk_rate = clk_get_rate(dss.dss_clk);
 
-	if (dss.dpll4_m4_ck) {
-		dpll4_ck_rate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
-		dpll4_m4_ck_rate = clk_get_rate(dss.dpll4_m4_ck);
-
-		seq_printf(s, "dpll4_ck %lu\n", dpll4_ck_rate);
-
-		seq_printf(s, "%s (%s) = %lu / %lu * %d  = %lu\n",
-				fclk_name, fclk_real_name, dpll4_ck_rate,
-				dpll4_ck_rate / dpll4_m4_ck_rate,
-				dss.feat->dss_fck_multiplier, fclk_rate);
-	} else {
-		seq_printf(s, "%s (%s) = %lu\n",
-				fclk_name, fclk_real_name,
-				fclk_rate);
-	}
+	seq_printf(s, "%s (%s) = %lu\n",
+			fclk_name, fclk_real_name,
+			fclk_rate);
 
 	dss_runtime_put();
 }
