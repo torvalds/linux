@@ -44,13 +44,11 @@ static int cdc_mbim_manage_power(struct usbnet *dev, int on)
 	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
 		/* need autopm_get/put here to ensure the usbcore sees the new value */
 		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
 		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
+		if (!rv)
+			usb_autopm_put_interface(dev->intf);
 	}
-err:
-	return rv;
+	return 0;
 }
 
 static int cdc_mbim_wdm_manage_power(struct usb_interface *intf, int status)
