@@ -961,7 +961,7 @@ static void set_use_dec(void *data)
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
 }
 
-static ssize_t lirc_write(struct file *file, const char *buf,
+static ssize_t lirc_write(struct file *file, const char __user *buf,
 			 size_t n, loff_t *ppos)
 {
 	int i, count;
