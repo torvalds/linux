@@ -401,6 +401,7 @@ static int wm_coeff_write_control(struct snd_kcontrol *kcontrol,
 		kfree(scratch);
 		return ret;
 	}
+	adsp_dbg(adsp, "Wrote %zu bytes to %x\n", ctl->len, reg);
 
 	kfree(scratch);
 
@@ -455,6 +456,7 @@ static int wm_coeff_read_control(struct snd_kcontrol *kcontrol,
 		kfree(scratch);
 		return ret;
 	}
+	adsp_dbg(adsp, "Read %zu bytes from %x\n", ctl->len, reg);
 
 	memcpy(buf, scratch, ctl->len);
 	kfree(scratch);
