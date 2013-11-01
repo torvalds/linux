@@ -410,7 +410,7 @@ static int cdc_mbim_resume(struct usb_interface *intf)
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && callsub && info->subdriver->suspend)
+	if (ret < 0 && callsub)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
