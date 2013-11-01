@@ -3337,6 +3337,9 @@ bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 		[PORT_D] = PORT_IDPD,
 	};
 
+	if (port == PORT_A)
+		return true;
+
 	if (!dev_priv->vbt.child_dev_num)
 		return false;
 
@@ -3621,27 +3624,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
 	intel_dp->attached_connector = intel_connector;
 
-	type = DRM_MODE_CONNECTOR_DisplayPort;
-	/*
-	 * FIXME : We need to initialize built-in panels before external panels.
-	 * For X0, DP_C is fixed as eDP. Revisit this as part of VLV eDP cleanup
-	 */
-	switch (port) {
-	case PORT_A:
+	if (intel_dp_is_edp(dev, port))
 		type = DRM_MODE_CONNECTOR_eDP;
-		break;
-	case PORT_B:
-	case PORT_C:
-		if (IS_VALLEYVIEW(dev) && intel_dp_is_edp(dev, port))
-			type = DRM_MODE_CONNECTOR_eDP;
-		break;
-	case PORT_D:
-		if (HAS_PCH_SPLIT(dev) && intel_dp_is_edp(dev, port))
-			type = DRM_MODE_CONNECTOR_eDP;
-		break;
-	default:	/* silence GCC warning */
-		break;
-	}
+	else
+		type = DRM_MODE_CONNECTOR_DisplayPort;
 
 	/*
 	 * For eDP we always set the encoder type to INTEL_OUTPUT_EDP, but
