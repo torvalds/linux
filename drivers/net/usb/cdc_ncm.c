@@ -280,6 +280,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 			/* if value changed, update device */
 			if (ctx->max_datagram_size !=
 					le16_to_cpu(max_datagram_size)) {
+				max_datagram_size = cpu_to_le16(ctx->max_datagram_size);
 				err = usbnet_write_cmd(dev,
 						USB_CDC_SET_MAX_DATAGRAM_SIZE,
 						USB_TYPE_CLASS | USB_DIR_OUT
