@@ -382,7 +382,6 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	len = intf->cur_altsetting->extralen;
 
 	ctx->udev = dev->udev;
-	ctx->intf = intf;
 
 	/* parse through descriptors associated with control interface */
 	while ((len > 0) && (buf[0] > 2) && (buf[0] <= len)) {
@@ -489,7 +488,6 @@ advance:
 
 	usb_set_intfdata(ctx->data, dev);
 	usb_set_intfdata(ctx->control, dev);
-	usb_set_intfdata(ctx->intf, dev);
 
 	if (ctx->ether_desc) {
 		temp = usbnet_get_ethernet_addr(dev, ctx->ether_desc->iMACAddress);
@@ -562,7 +560,7 @@ void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 		ctx->control = NULL;
 	}
 
-	usb_set_intfdata(ctx->intf, NULL);
+	usb_set_intfdata(intf, NULL);
 	cdc_ncm_free(ctx);
 }
 EXPORT_SYMBOL_GPL(cdc_ncm_unbind);

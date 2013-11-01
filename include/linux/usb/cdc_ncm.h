@@ -103,7 +103,6 @@ struct cdc_ncm_ctx {
 	struct usb_host_endpoint *in_ep;
 	struct usb_host_endpoint *out_ep;
 	struct usb_host_endpoint *status_ep;
-	struct usb_interface *intf;
 	struct usb_interface *control;
 	struct usb_interface *data;
 
