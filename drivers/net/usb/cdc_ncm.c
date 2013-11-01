@@ -159,8 +159,7 @@ static u8 cdc_ncm_setup(struct usbnet *dev)
 	}
 
 	/* verify maximum size of transmitted NTB in bytes */
-	if ((ctx->tx_max < (CDC_NCM_MIN_HDR_SIZE + ctx->max_datagram_size)) ||
-	    (ctx->tx_max > CDC_NCM_NTB_MAX_SIZE_TX)) {
+	if (ctx->tx_max > CDC_NCM_NTB_MAX_SIZE_TX) {
 		dev_dbg(&dev->intf->dev, "Using default maximum transmit length=%d\n",
 			CDC_NCM_NTB_MAX_SIZE_TX);
 		ctx->tx_max = CDC_NCM_NTB_MAX_SIZE_TX;
