@@ -2150,6 +2150,14 @@
 #define PCH_HDMIC	0xe1150
 #define PCH_HDMID	0xe1160
 
+#define PORT_DFT_I9XX				0x61150
+#define   DC_BALANCE_RESET			(1 << 25)
+#define PORT_DFT2_G4X				0x61154
+#define   DC_BALANCE_RESET_VLV			(1 << 31)
+#define   PIPE_SCRAMBLE_RESET_MASK		(0x3 << 0)
+#define   PIPE_B_SCRAMBLE_RESET			(1 << 1)
+#define   PIPE_A_SCRAMBLE_RESET			(1 << 0)
+
 /* Gen 3 SDVO bits: */
 #define   SDVO_ENABLE				(1 << 31)
 #define   SDVO_PIPE_SEL(pipe)			((pipe) << 30)
