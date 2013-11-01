@@ -394,6 +394,9 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	/* store ctx pointer in device data field */
 	dev->data[0] = (unsigned long)ctx;
 
+	/* only the control interface can be successfully probed */
+	ctx->control = intf;
+
 	/* get some pointers */
 	driver = driver_of(intf);
 	buf = intf->cur_altsetting->extra;
@@ -411,9 +414,10 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 				break;
 
 			union_desc = (const struct usb_cdc_union_desc *)buf;
-
-			ctx->control = usb_ifnum_to_if(dev->udev,
-						       union_desc->bMasterInterface0);
+			/* the master must be the interface we are probing */
+			if (intf->cur_altsetting->desc.bInterfaceNumber !=
+			    union_desc->bMasterInterface0)
+				goto error;
 			ctx->data = usb_ifnum_to_if(dev->udev,
 						    union_desc->bSlaveInterface0);
 			break;
@@ -459,14 +463,12 @@ advance:
 
 	/* some buggy devices have an IAD but no CDC Union */
 	if (!union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
-		ctx->control = intf;
 		ctx->data = usb_ifnum_to_if(dev->udev, intf->cur_altsetting->desc.bInterfaceNumber + 1);
 		dev_dbg(&intf->dev, "CDC Union missing - got slave from IAD\n");
 	}
 
 	/* check if we got everything */
-	if ((ctx->control == NULL) || (ctx->data == NULL) ||
-	    ((!ctx->mbim_desc) && ((ctx->ether_desc == NULL) || (ctx->control != intf))))
+	if (!ctx->data || (!ctx->mbim_desc && !ctx->ether_desc))
 		goto error;
 
 	/* claim data interface, if different from control */
