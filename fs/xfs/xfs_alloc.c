@@ -2294,6 +2294,8 @@ xfs_read_agf(
 {
 	int		error;
 
+	trace_xfs_read_agf(mp, agno);
+
 	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
@@ -2324,8 +2326,9 @@ xfs_alloc_read_agf(
 	struct xfs_perag	*pag;		/* per allocation group data */
 	int			error;
 
-	ASSERT(agno != NULLAGNUMBER);
+	trace_xfs_alloc_read_agf(mp, agno);
 
+	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_read_agf(mp, tp, agno,
 			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XBF_TRYLOCK : 0,
 			bpp);

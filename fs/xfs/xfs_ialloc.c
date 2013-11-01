@@ -40,6 +40,7 @@
 #include "xfs_icreate_item.h"
 #include "xfs_icache.h"
 #include "xfs_dinode.h"
+#include "xfs_trace.h"
 
 
 /*
@@ -1627,8 +1628,9 @@ xfs_read_agi(
 {
 	int			error;
 
-	ASSERT(agno != NULLAGNUMBER);
+	trace_xfs_read_agi(mp, agno);
 
+	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, bpp, &xfs_agi_buf_ops);
@@ -1650,6 +1652,8 @@ xfs_ialloc_read_agi(
 	struct xfs_agi		*agi;	/* allocation group header */
 	struct xfs_perag	*pag;	/* per allocation group data */
 	int			error;
+
+	trace_xfs_ialloc_read_agi(mp, agno);
 
 	error = xfs_read_agi(mp, tp, agno, bpp);
 	if (error)

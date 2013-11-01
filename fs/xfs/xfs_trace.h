@@ -135,6 +135,31 @@ DEFINE_PERAG_REF_EVENT(xfs_perag_clear_reclaim);
 DEFINE_PERAG_REF_EVENT(xfs_perag_set_eofblocks);
 DEFINE_PERAG_REF_EVENT(xfs_perag_clear_eofblocks);
 
+DECLARE_EVENT_CLASS(xfs_ag_class,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),
+	TP_ARGS(mp, agno),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+	),
+	TP_printk("dev %d:%d agno %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno)
+);
+#define DEFINE_AG_EVENT(name)	\
+DEFINE_EVENT(xfs_ag_class, name,	\
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),	\
+	TP_ARGS(mp, agno))
+
+DEFINE_AG_EVENT(xfs_read_agf);
+DEFINE_AG_EVENT(xfs_alloc_read_agf);
+DEFINE_AG_EVENT(xfs_read_agi);
+DEFINE_AG_EVENT(xfs_ialloc_read_agi);
+
 TRACE_EVENT(xfs_attr_list_node_descend,
 	TP_PROTO(struct xfs_attr_list_context *ctx,
 		 struct xfs_da_node_entry *btree),
