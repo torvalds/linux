@@ -177,7 +177,6 @@ static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
 	enum pl2303_type type = type_0;
-	char *type_str = "unknown (treating as type_0)";
 	unsigned char *buf;
 
 	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
@@ -190,18 +189,14 @@ static int pl2303_startup(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 
-	if (serial->dev->descriptor.bDeviceClass == 0x02) {
+	if (serial->dev->descriptor.bDeviceClass == 0x02)
 		type = type_0;
-		type_str = "type_0";
-	} else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40) {
+	else if (serial->dev->descriptor.bMaxPacketSize0 == 0x40)
 		type = HX;
-		type_str = "X/HX";
-	} else if (serial->dev->descriptor.bDeviceClass == 0x00
-		   || serial->dev->descriptor.bDeviceClass == 0xFF) {
+	else if (serial->dev->descriptor.bDeviceClass == 0x00
+		 || serial->dev->descriptor.bDeviceClass == 0xFF)
 		type = type_1;
-		type_str = "type_1";
-	}
-	dev_dbg(&serial->interface->dev, "device type: %s\n", type_str);
+	dev_dbg(&serial->interface->dev, "device type: %d\n", type);
 
 	spriv->type = type;
 	usb_set_serial_data(serial, spriv);
