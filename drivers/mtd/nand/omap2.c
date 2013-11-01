@@ -1953,7 +1953,8 @@ static int omap_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.read_page	= omap_read_page_bch;
 		nand_chip->ecc.write_page	= omap_write_page_bch;
 		/* This ECC scheme requires ELM H/W block */
-		if (is_elm_present(info, pdata->elm_of_node, BCH8_ECC) < 0) {
+		err = is_elm_present(info, pdata->elm_of_node, BCH8_ECC);
+		if (err < 0) {
 			pr_err("nand: error: could not initialize ELM\n");
 			goto return_error;
 		}
