@@ -36,6 +36,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __LINUX_USB_CDC_NCM_H
+#define __LINUX_USB_CDC_NCM_H
+
 #define CDC_NCM_COMM_ALTSETTING_NCM		0
 #define CDC_NCM_COMM_ALTSETTING_MBIM		1
 
@@ -133,3 +136,5 @@ extern void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf);
 extern struct sk_buff *cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb, __le32 sign);
 extern int cdc_ncm_rx_verify_nth16(struct cdc_ncm_ctx *ctx, struct sk_buff *skb_in);
 extern int cdc_ncm_rx_verify_ndp16(struct sk_buff *skb_in, int ndpoffset);
+
+#endif /* __LINUX_USB_CDC_NCM_H */
