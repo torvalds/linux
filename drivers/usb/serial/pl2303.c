@@ -305,14 +305,10 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	if (spriv->type != HX)
 		baud = min_t(int, baud, 1228800);
 
-	if (spriv->type != HX || baud <= 115200) {
-		/* Direct (standard) baud rate encoding method */
+	if (baud <= 115200) {
 		put_unaligned_le32(baud, buf);
 	} else {
 		/*
-		 * NOTE: it's not clear if the type_0/1 chips
-		 * support this method
-		 *
 		 * Apparently the formula for higher speeds is:
 		 * baudrate = 12M * 32 / (2^buf[1]) / buf[0]
 		 */
