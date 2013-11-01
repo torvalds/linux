@@ -51,6 +51,7 @@ static u64		turbo_frequency;
 static u64		first_time, last_time;
 
 static bool		power_only;
+static bool		tasks_only;
 
 
 struct per_pid;
@@ -971,7 +972,8 @@ static void write_svg_file(const char *filename)
 	draw_cpu_usage();
 	if (proc_num)
 		draw_process_bars();
-	draw_c_p_states();
+	if (!tasks_only)
+		draw_c_p_states();
 	if (proc_num)
 		draw_wakeups();
 
@@ -1102,6 +1104,8 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width, "page width"),
 	OPT_BOOLEAN('P', "power-only", &power_only, "output power data only"),
+	OPT_BOOLEAN('T', "tasks-only", &tasks_only,
+		    "output processes data only"),
 	OPT_CALLBACK('p', "process", NULL, "process",
 		      "process selector. Pass a pid or process name.",
 		       parse_process),
@@ -1118,6 +1122,11 @@ int cmd_timechart(int argc, const char **argv,
 
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (power_only && tasks_only) {
+		pr_err("-P and -T options cannot be used at the same time.\n");
+		return -1;
+	}
 
 	symbol__init();
 
