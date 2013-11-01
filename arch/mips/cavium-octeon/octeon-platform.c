@@ -336,13 +336,13 @@ static void __init octeon_fdt_pip_iface(int pip, int idx, u64 *pmac)
 	int p;
 	int count = 0;
 
-	if (cvmx_helper_interface_enumerate(idx) == 0)
-		count = cvmx_helper_ports_on_interface(idx);
-
 	snprintf(name_buffer, sizeof(name_buffer), "interface@%d", idx);
 	iface = fdt_subnode_offset(initial_boot_params, pip, name_buffer);
 	if (iface < 0)
 		return;
+
+	if (cvmx_helper_interface_enumerate(idx) == 0)
+		count = cvmx_helper_ports_on_interface(idx);
 
 	for (p = 0; p < 16; p++)
 		octeon_fdt_pip_port(iface, idx, p, count - 1, pmac);
