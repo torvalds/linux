@@ -682,7 +682,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 		return ERR_PTR(-ENODEV);
 
 	tca_leds = devm_kzalloc(&client->dev,
-			sizeof(struct led_info) * count, GFP_KERNEL);
+			sizeof(struct led_info) * NUM_LEDS, GFP_KERNEL);
 	if (!tca_leds)
 		return ERR_PTR(-ENOMEM);
 
@@ -695,9 +695,9 @@ tca6507_led_dt_init(struct i2c_client *client)
 			of_get_property(child, "label", NULL) ? : child->name;
 		led.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
-
+		led.flags = 0;
 		ret = of_property_read_u32(child, "reg", &reg);
-		if (ret != 0)
+		if (ret != 0 || reg < 0 || reg >= NUM_LEDS)
 			continue;
 
 		tca_leds[reg] = led;
@@ -708,7 +708,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->leds.leds = tca_leds;
-	pdata->leds.num_leds = count;
+	pdata->leds.num_leds = NUM_LEDS;
 
 	return pdata;
 }
