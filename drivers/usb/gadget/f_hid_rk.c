@@ -175,7 +175,7 @@ const struct hidg_func_descriptor my_hid_data = {
 	.subclass		= 1, /* No subclass */
 	.protocol		= 2, /* 1-Keyboard,2-mouse */
 	.report_length		= 64,
-	.report_desc_length = 156,
+	.report_desc_length = 150,
 	.report_desc        = {
         
         0x05, 0x01, /*       USAGE_PAGE (Generic Desktop)         */
@@ -234,15 +234,12 @@ const struct hidg_func_descriptor my_hid_data = {
             0xA1, 0x00,     /*   COLLECTION (Application)         */
             0x05, 0x09,     /*   USAGE_PAGE (Button)              */
             0x19, 0x01,     /*   USAGE_MINIMUM (Button 1)         */
-            0x29, 0x03,     /*   USAGE_MAXIMUM (Button 3)         */
+            0x29, 0x08,     /*   USAGE_MAXIMUM (Button 8)         */
             0x15, 0x00,     /*   LOGICAL_MINIMUM (0)              */
             0x25, 0x01,     /*   LOGICAL_MAXIMUM (1)              */
             0x75, 0x01,     /*   REPORT_SIZE (1)                  */
-            0x95, 0x03,     /*   REPORT_COUNT (3)                 */
+            0x95, 0x08,     /*   REPORT_COUNT (8)                 */
             0x81, 0x02,     /*   INPUT (Data,Var,Abs)             */
-            0x75, 0x05,     /*   REPORT_SIZE (5)                  */
-            0x95, 0x01,     /*   REPORT_COUNT (1)                 */
-            0x81, 0x01,     /*   INPUT (Cnst,Var,Abs)             */
             0x05, 0x01,     /*   USAGE_PAGE (Generic Desktop)     */
             0x09, 0x30,     /*   USAGE (X)                        */
             0x09, 0x31,     /*   USAGE (Y)                        */
@@ -537,10 +534,15 @@ EXPORT_SYMBOL(f_hid_kbd_translate_report);
 
 struct mouse_report {
     u8        id:8;
-    bool      button_l:1;
-    bool      button_r:1;
-    bool      button_m:1;
-    u8        reserved:5;
+    bool      button_left:1;
+    bool      button_right:1;
+    bool      button_middle:1;
+    bool      button_side:1;
+    bool      button_extra:1;
+    bool      button_forward:1;
+    bool      button_back:1;
+    bool      button_task:1;
+
     signed    x :12;
     signed    y :12;
     s8        wheel:8;
@@ -563,13 +565,29 @@ void f_hid_mouse_translate_report(struct hid_report *report, u8 *data)
             {
                 if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_LEFT))
                     if(field->value[j])
-                        m.button_l = 1;
+                        m.button_left= 1;
                 if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_RIGHT))
                     if(field->value[j])
-                        m.button_r = 1;
+                        m.button_right= 1;
                 if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_MIDDLE))
                     if(field->value[j])
-                        m.button_m = 1;
+                        m.button_middle= 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_SIDE))
+                    if(field->value[j])
+                        m.button_side= 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_EXTRA))
+                    if(field->value[j])
+                        m.button_extra= 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_FORWARD))
+                    if(field->value[j])
+                        m.button_forward= 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_BACK))
+                    if(field->value[j])
+                        m.button_back= 1;
+                if((field->usage[j].type == EV_KEY) && (field->usage[j].code == BTN_TASK))
+                    if(field->value[j])
+                        m.button_task= 1;
+
                         
                 if((field->usage[j].type == EV_REL) && (field->usage[j].code == REL_X))
                     m.x = field->value[j];
