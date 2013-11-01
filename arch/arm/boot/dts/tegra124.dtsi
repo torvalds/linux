@@ -97,6 +97,12 @@
 		#dma-cells = <1>;
 	};
 
+	pinmux: pinmux@70000868 {
+		compatible = "nvidia,tegra124-pinmux";
+		reg = <0x70000868 0x164>,	/* Pad control registers */
+		      <0x70003000 0x434>;	/* Mux registers */
+	};
+
 	/*
 	 * There are two serial driver i.e. 8250 based simple serial
 	 * driver and APB DMA based serial driver for higher baudrate
