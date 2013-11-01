@@ -1123,6 +1123,35 @@ void r700_cp_fini(struct radeon_device *rdev)
 	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
+void rv770_set_clk_bypass_mode(struct radeon_device *rdev)
+{
+	u32 tmp, i;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return;
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp &= SCLK_MUX_SEL_MASK;
+	tmp |= SCLK_MUX_SEL(1) | SCLK_MUX_UPDATE;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CG_SPLL_STATUS) & SPLL_CHG_STATUS)
+			break;
+		udelay(1);
+	}
+
+	tmp &= ~SCLK_MUX_UPDATE;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	tmp = RREG32(MPLL_CNTL_MODE);
+	if ((rdev->family == CHIP_RV710) || (rdev->family == CHIP_RV730))
+		tmp &= ~RV730_MPLL_MCLK_SEL;
+	else
+		tmp &= ~MPLL_MCLK_SEL;
+	WREG32(MPLL_CNTL_MODE, tmp);
+}
+
 /*
  * Core functions
  */
