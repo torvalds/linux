@@ -271,7 +271,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 			goto out;
 		}
 		ctx->backlog--;
-	} else if (!ctx->uid) {
+	} else if (!ctx->uid || ctx->cm_id != cm_id) {
 		/*
 		 * We ignore events for new connections until userspace has set
 		 * their context.  This can only happen if an error occurs on a
