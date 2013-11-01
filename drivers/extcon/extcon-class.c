@@ -792,6 +792,8 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 		return;
 	}
 
+	device_unregister(&edev->dev);
+
 	if (edev->mutually_exclusive && edev->max_supported) {
 		for (index = 0; edev->mutually_exclusive[index];
 				index++)
@@ -812,7 +814,6 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 	if (switch_class)
 		class_compat_remove_link(switch_class, &edev->dev, NULL);
 #endif
-	device_unregister(&edev->dev);
 	put_device(&edev->dev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_unregister);
