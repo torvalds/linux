@@ -139,7 +139,6 @@ enum pl2303_type {
 	HX_TA,		/* HX(A) / X(A) / TA version  */ /* TODO: improve */
 	HXD_EA_RA_SA,	/* HXD / EA / RA / SA version */ /* TODO: improve */
 	TB,		/* TB version */
-	HX_CLONE,	/* Cheap and less functional clone of the HX chip */
 };
 /*
  * NOTE: don't know the difference between type 0 and type 1,
@@ -207,23 +206,8 @@ static int pl2303_startup(struct usb_serial *serial)
 		 * the device descriptors of the X/HX, HXD, EA, RA, SA, TA, TB
 		 */
 		if (le16_to_cpu(serial->dev->descriptor.bcdDevice) == 0x300) {
-			/* Check if the device is a clone */
-			pl2303_vendor_read(0x9494, 0, serial, buf);
-			/*
-			 * NOTE: Not sure if this read is really needed.
-			 * The HX returns 0x00, the clone 0x02, but the Windows
-			 * driver seems to ignore the value and continues.
-			 */
-			pl2303_vendor_write(0x0606, 0xaa, serial);
-			pl2303_vendor_read(0x8686, 0, serial, buf);
-			if (buf[0] != 0xaa) {
-				type = HX_CLONE;
-				type_str = "X/HX clone (limited functionality)";
-			} else {
-				type = HX_TA;
-				type_str = "X/HX/TA";
-			}
-			pl2303_vendor_write(0x0606, 0x00, serial);
+			type = HX_TA;
+			type_str = "X/HX/TA";
 		} else if (le16_to_cpu(serial->dev->descriptor.bcdDevice)
 								     == 0x400) {
 			type = HXD_EA_RA_SA;
@@ -321,9 +305,8 @@ static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
 {
 	/*
 	 * NOTE: Only the values defined in baud_sup are supported !
-	 * => if unsupported values are set, the PL2303 uses 9600 baud instead
-	 * => HX clones just don't work at unsupported baud rates < 115200 baud,
-	 *    for baud rates > 115200 they run at 115200 baud
+	 *       => if unsupported values are set, the PL2303 seems to
+	 *	    use 9600 baud (at least my PL2303X always does)
 	 */
 	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
 				 4800, 7200, 9600, 14400, 19200, 28800, 38400,
@@ -333,14 +316,14 @@ static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
 	 * NOTE: With the exception of type_0/1 devices, the following
 	 * additional baud rates are supported (tested with HX rev. 3A only):
 	 * 110*, 56000*, 128000, 134400, 161280, 201600, 256000*, 268800,
-	 * 403200, 806400.	(*: not HX and HX clones)
+	 * 403200, 806400.	(*: not HX)
 	 *
 	 * Maximum values: HXD, TB: 12000000; HX, TA: 6000000;
-	 *                 type_0+1: 1228800; RA: 921600; HX clones, SA: 115200
+	 *                 type_0+1: 1228800; RA: 921600; SA: 115200
 	 *
 	 * As long as we are not using this encoding method for anything else
-	 * than the type_0+1, HX and HX clone chips, there is no point in
-	 * complicating the code to support them.
+	 * than the type_0+1 and HX chips, there is no point in complicating
+	 * the code to support them.
 	 */
 	int i;
 
@@ -364,8 +347,6 @@ static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
 		baud = min_t(int, baud, 6000000);
 	else if (type == type_0 || type == type_1)
 		baud = min_t(int, baud, 1228800);
-	else if (type == HX_CLONE)
-		baud = min_t(int, baud, 115200);
 	/* Direct (standard) baud rate encoding method */
 	put_unaligned_le32(baud, buf);
 
@@ -378,8 +359,7 @@ static int pl2303_baudrate_encode_divisor(int baud, enum pl2303_type type,
 	/*
 	 * Divisor based baud rate encoding method
 	 *
-	 * NOTE: HX clones do NOT support this method.
-	 * It's not clear if the type_0/1 chips support it.
+	 * NOTE: it's not clear if the type_0/1 chips support this method
 	 *
 	 * divisor = 12MHz * 32 / baudrate = 2^A * B
 	 *
@@ -472,7 +452,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	 * 1) Direct method: encodes the baud rate value directly
 	 *    => supported by all chip types
 	 * 2) Divisor based method: encodes a divisor to a base value (12MHz*32)
-	 *    => not supported by HX clones (and likely type_0/1 chips)
+	 *    => supported by HX chips (and likely not by type_0/1 chips)
 	 *
 	 * NOTE: Although the divisor based baud rate encoding method is much
 	 * more flexible, some of the standard baud rate values can not be
@@ -480,7 +460,7 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	 * the device likely uses the same baud rate generator for both methods
 	 * so that there is likley no difference.
 	 */
-	if (type == type_0 || type == type_1 || type == HX_CLONE)
+	if (type == type_0 || type == type_1)
 		baud = pl2303_baudrate_encode_direct(baud, type, buf);
 	else
 		baud = pl2303_baudrate_encode_divisor(baud, type, buf);
@@ -833,7 +813,6 @@ static void pl2303_break_ctl(struct tty_struct *tty, int break_state)
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				 BREAK_REQUEST, BREAK_REQUEST_TYPE, state,
 				 0, NULL, 0, 100);
-	/* NOTE: HX clones don't support sending breaks, -EPIPE is returned */
 	if (result)
 		dev_err(&port->dev, "error sending break = %d\n", result);
 }
