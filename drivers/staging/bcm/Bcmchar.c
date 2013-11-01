@@ -1190,7 +1190,7 @@ cntrlEnd:
 		break;
 
 	case IOCTL_BCM_CAL_INIT: {
-		UINT uiSectorSize = 0 ;
+		UINT uiSectorSize = 0;
 		if (Adapter->eNVMType == NVM_FLASH) {
 			if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 				return -EFAULT;
@@ -1403,7 +1403,7 @@ cntrlEnd:
 
 	case IOCTL_BCM_FLASH2X_SECTION_READ: {
 		struct bcm_flash2x_readwrite sFlash2xRead = {0};
-		PUCHAR pReadBuff = NULL ;
+		PUCHAR pReadBuff = NULL;
 		UINT NOB = 0;
 		UINT BuffSize = 0;
 		UINT ReadBytes = 0;
@@ -1438,7 +1438,7 @@ cntrlEnd:
 		else
 			BuffSize = NOB;
 
-		ReadOffset = sFlash2xRead.offset ;
+		ReadOffset = sFlash2xRead.offset;
 		OutPutBuff = IoBuffer.OutputBuffer;
 		pReadBuff = (PCHAR)kzalloc(BuffSize , GFP_KERNEL);
 
@@ -1483,7 +1483,7 @@ cntrlEnd:
 			NOB = NOB - ReadBytes;
 			if (NOB) {
 				ReadOffset = ReadOffset + ReadBytes;
-				OutPutBuff = OutPutBuff + ReadBytes ;
+				OutPutBuff = OutPutBuff + ReadBytes;
 			}
 		}
 
@@ -1538,7 +1538,7 @@ cntrlEnd:
 		if (NOB > Adapter->uiSectorSize)
 			BuffSize = Adapter->uiSectorSize;
 		else
-			BuffSize = NOB ;
+			BuffSize = NOB;
 
 		pWriteBuff = kmalloc(BuffSize, GFP_KERNEL);
 
@@ -1841,10 +1841,10 @@ cntrlEnd:
 
 	case IOCTL_BCM_NVM_RAW_READ: {
 		struct bcm_nvm_readwrite stNVMRead;
-		INT NOB ;
-		INT BuffSize ;
+		INT NOB;
+		INT BuffSize;
 		INT ReadOffset = 0;
-		UINT ReadBytes = 0 ;
+		UINT ReadBytes = 0;
 		PUCHAR pReadBuff;
 		void __user *OutPutBuff;
 
