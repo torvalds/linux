@@ -86,7 +86,7 @@ enum {
 MODULE_AUTHOR("bug-reports: support@stec-inc.com");
 MODULE_LICENSE("Dual BSD/GPL");
 
-MODULE_DESCRIPTION("STEC s1120 PCIe SSD block/BIO driver (b" DRV_BUILD_ID ")");
+MODULE_DESCRIPTION("STEC s1120 PCIe SSD block driver (b" DRV_BUILD_ID ")");
 MODULE_VERSION(DRV_VERSION "-" DRV_BUILD_ID);
 
 #define PCI_VENDOR_ID_STEC      0x1B39
@@ -352,21 +352,8 @@ struct skd_device {
 
 	u32 timo_slot;
 
+
 	struct work_struct completion_worker;
-};
-
-#define SKD_FLUSH_JOB   "skd-flush-jobs"
-struct kmem_cache *skd_flush_slab;
-
-/*
- * These commands hold "nonzero size FLUSH bios",
- * which are enqueud in skdev->flush_list during
- * completion of "zero size FLUSH commands".
- * It will be active in biomode.
- */
-struct skd_flush_cmd {
-	void *cmd;
-	struct list_head flist;
 };
 
 #define SKD_WRITEL(DEV, VAL, OFF) skd_reg_write32(DEV, VAL, OFF)
@@ -541,7 +528,7 @@ skd_prep_rw_cdb(struct skd_scsi_request *scsi_req,
 
 static void
 skd_prep_zerosize_flush_cdb(struct skd_scsi_request *scsi_req,
-			struct skd_request_context *skreq)
+			    struct skd_request_context *skreq)
 {
 	skreq->flush_cmd = 1;
 
@@ -559,9 +546,9 @@ skd_prep_zerosize_flush_cdb(struct skd_scsi_request *scsi_req,
 
 static void
 skd_prep_discard_cdb(struct skd_scsi_request *scsi_req,
-			struct skd_request_context *skreq,
-			struct page *page,
-			u32 lba, u32 count)
+		     struct skd_request_context *skreq,
+		     struct page *page,
+		     u32 lba, u32 count)
 {
 	char *buf;
 	unsigned long len;
@@ -655,10 +642,7 @@ static void skd_request_fn(struct request_queue *q)
 			 skdev->name, __func__, __LINE__,
 			 req, lba, lba, count, count, data_dir);
 
-		/* At this point we know there is a request
-		 * (from our bio q or req q depending on the way
-		 * the driver is built do checks for resources.
-		 */
+		/* At this point we know there is a request */
 
 		/* Are too many requets already in progress? */
 		if (skdev->in_flight >= skdev->cur_max_queue_depth) {
@@ -693,7 +677,7 @@ static void skd_request_fn(struct request_queue *q)
 		skreq->discard_page = 0;
 
 		/*
-		 * OK to now dequeue request from either bio or q.
+		 * OK to now dequeue request from q.
 		 *
 		 * At this point we are comitted to either start or reject
 		 * the native request. Note that skd_request_context is
@@ -868,15 +852,15 @@ skip_sg:
 		blk_stop_queue(skdev->queue);
 }
 
-static void skd_end_request_blk(struct skd_device *skdev,
-				struct skd_request_context *skreq, int error)
+static void skd_end_request(struct skd_device *skdev,
+			    struct skd_request_context *skreq, int error)
 {
 	struct request *req = skreq->req;
 	unsigned int io_flags = req->cmd_flags;
 
 	if ((io_flags & REQ_DISCARD) &&
 		(skreq->discard_page == 1)) {
-		pr_debug("%s:%s:%d skd_end_request_blk, free the page!",
+		pr_debug("%s:%s:%d, free the page!",
 			 skdev->name, __func__, __LINE__);
 		free_page((unsigned long)req->buffer);
 		req->buffer = NULL;
@@ -898,7 +882,7 @@ static void skd_end_request_blk(struct skd_device *skdev,
 }
 
 static int skd_preop_sg_list(struct skd_device *skdev,
-				 struct skd_request_context *skreq)
+			     struct skd_request_context *skreq)
 {
 	struct request *req = skreq->req;
 	int writing = skreq->sg_data_dir == SKD_DATA_DIR_HOST_TO_CARD;
@@ -961,7 +945,7 @@ static int skd_preop_sg_list(struct skd_device *skdev,
 }
 
 static void skd_postop_sg_list(struct skd_device *skdev,
-				   struct skd_request_context *skreq)
+			       struct skd_request_context *skreq)
 {
 	int writing = skreq->sg_data_dir == SKD_DATA_DIR_HOST_TO_CARD;
 	int pci_dir = writing ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
@@ -974,12 +958,6 @@ static void skd_postop_sg_list(struct skd_device *skdev,
 		skreq->sksg_dma_address +
 		((skreq->n_sg) * sizeof(struct fit_sg_descriptor));
 	pci_unmap_sg(skdev->pdev, &skreq->sg[0], skreq->n_sg, pci_dir);
-}
-
-static void skd_end_request(struct skd_device *skdev,
-			    struct skd_request_context *skreq, int error)
-{
-	skd_end_request_blk(skdev, skreq, error);
 }
 
 static void skd_request_fn_not_online(struct request_queue *q)
@@ -1525,7 +1503,7 @@ static int skd_sg_io_obtain_skspcl(struct skd_device *skdev,
 	struct skd_special_context *skspcl = NULL;
 	int rc;
 
-	for (;; ) {
+	for (;;) {
 		ulong flags;
 
 		spin_lock_irqsave(&skdev->lock, flags);
@@ -2300,10 +2278,6 @@ static void skd_complete_other(struct skd_device *skdev,
 			       volatile struct fit_completion_entry_v1 *skcomp,
 			       volatile struct fit_comp_error_info *skerr);
 
-
-static void skd_requeue_request(struct skd_device *skdev,
-				struct skd_request_context *skreq);
-
 struct sns_info {
 	u8 type;
 	u8 stat;
@@ -2349,9 +2323,9 @@ static struct sns_info skd_chkstat_table[] = {
  * type and stat, ignore key, asc, ascq.
  */
 
-static enum skd_check_status_action skd_check_status(struct skd_device *skdev,
-				u8 cmp_status,
-				volatile struct fit_comp_error_info *skerr)
+static enum skd_check_status_action
+skd_check_status(struct skd_device *skdev,
+		 u8 cmp_status, volatile struct fit_comp_error_info *skerr)
 {
 	int i, n;
 
@@ -2424,7 +2398,7 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 
 	case SKD_CHECK_STATUS_BUSY_IMMINENT:
 		skd_log_skreq(skdev, skreq, "retry(busy)");
-		skd_requeue_request(skdev, skreq);
+		blk_requeue_request(skdev->queue, skreq->req);
 		pr_info("(%s) drive BUSY imminent\n", skd_name(skdev));
 		skdev->state = SKD_DRVR_STATE_BUSY_IMMINENT;
 		skdev->timer_countdown = SKD_TIMER_MINUTES(20);
@@ -2434,7 +2408,7 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 	case SKD_CHECK_STATUS_REQUEUE_REQUEST:
 		if ((unsigned long) ++skreq->req->special < SKD_MAX_RETRIES) {
 			skd_log_skreq(skdev, skreq, "retry");
-			skd_requeue_request(skdev, skreq);
+			blk_requeue_request(skdev->queue, skreq->req);
 			break;
 		}
 	/* fall through to report error */
@@ -2445,14 +2419,6 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 		break;
 	}
 }
-
-static void skd_requeue_request(struct skd_device *skdev,
-				struct skd_request_context *skreq)
-{
-	blk_requeue_request(skdev->queue, skreq->req);
-}
-
-
 
 /* assume spinlock is already held */
 static void skd_release_skreq(struct skd_device *skdev,
@@ -2998,7 +2964,6 @@ static void skd_release_special(struct skd_device *skdev,
 	int i, was_depleted;
 
 	for (i = 0; i < skspcl->req.n_sg; i++) {
-
 		struct page *page = sg_page(&skspcl->req.sg[i]);
 		__free_page(page);
 	}
@@ -3140,7 +3105,6 @@ static skd_isr(int irq, void *ptr)
 
 	return rc;
 }
-
 
 static void skd_drive_fault(struct skd_device *skdev)
 {
@@ -3297,7 +3261,7 @@ static void skd_recover_requests(struct skd_device *skdev, int requeue)
 			if (requeue &&
 			    (unsigned long) ++skreq->req->special <
 			    SKD_MAX_RETRIES)
-				skd_requeue_request(skdev, skreq);
+				blk_requeue_request(skdev->queue, skreq->req);
 			else
 				skd_end_request(skdev, skreq, -EIO);
 
@@ -3305,8 +3269,6 @@ static void skd_recover_requests(struct skd_device *skdev, int requeue)
 
 			skreq->state = SKD_REQ_STATE_IDLE;
 			skreq->id += SKD_ID_INCR;
-
-
 		}
 		if (i > 0)
 			skreq[-1].next = skreq;
@@ -3879,7 +3841,6 @@ static irqreturn_t skd_comp_q(int irq, void *skd_host_data)
 	SKD_WRITEL(skdev, FIT_ISH_COMPLETION_POSTED, FIT_INT_STATUS_HOST);
 	deferred = skd_isr_completion_posted(skdev, skd_isr_comp_limit,
 						&flush_enqueued);
-
 	if (flush_enqueued)
 		skd_request_fn(skdev->queue);
 
@@ -5450,15 +5411,6 @@ static int __init skd_init(void)
 		skd_isr_type = SKD_IRQ_DEFAULT;
 	}
 
-	skd_flush_slab = kmem_cache_create(SKD_FLUSH_JOB,
-						sizeof(struct skd_flush_cmd),
-						0, 0, NULL);
-
-	if (!skd_flush_slab) {
-		pr_err("failed to allocated flush slab.\n");
-		return -ENOMEM;
-	}
-
 	if (skd_max_queue_depth < 1
 	    || skd_max_queue_depth > SKD_MAX_QUEUE_DEPTH) {
 		pr_info(
@@ -5507,7 +5459,6 @@ static int __init skd_init(void)
 	skd_major = rc;
 
 	return pci_register_driver(&skd_driver);
-
 }
 
 static void __exit skd_exit(void)
@@ -5516,8 +5467,6 @@ static void __exit skd_exit(void)
 
 	unregister_blkdev(skd_major, DRV_NAME);
 	pci_unregister_driver(&skd_driver);
-
-	kmem_cache_destroy(skd_flush_slab);
 }
 
 module_init(skd_init);
