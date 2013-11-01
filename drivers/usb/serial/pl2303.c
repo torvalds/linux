@@ -281,12 +281,6 @@ static int pl2303_baudrate_encode_direct(int baud, enum pl2303_type type,
 				 4800, 7200, 9600, 14400, 19200, 28800, 38400,
 				 57600, 115200, 230400, 460800, 614400, 921600,
 				 1228800, 2457600, 3000000, 6000000 };
-	/*
-	 * NOTE: The PL2303HX (tested with rev. 3A) also supports the following
-	 * baud rates: 128000, 134400, 161280, 201600, 268800, 403200, 806400.
-	 * As long as we are not using this encoding method for them, there is
-	 * no point in complicating the code to support them.
-	 */
 	int i;
 
 	/* Set baudrate to nearest supported value */
@@ -400,12 +394,6 @@ static void pl2303_encode_baudrate(struct tty_struct *tty,
 	 *    => supported by all chip types
 	 * 2) Divisor based method: encodes a divisor to a base value (12MHz*32)
 	 *    => supported by HX chips (and likely not by type_0/1 chips)
-	 *
-	 * NOTE: Although the divisor based baud rate encoding method is much
-	 * more flexible, some of the standard baud rate values can not be
-	 * realized exactly. But the difference is very small (max. 0.2%) and
-	 * the device likely uses the same baud rate generator for both methods
-	 * so that there is likley no difference.
 	 */
 	if (type != HX)
 		baud = pl2303_baudrate_encode_direct(baud, type, buf);
