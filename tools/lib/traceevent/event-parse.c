@@ -4446,11 +4446,11 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 {
 	int print_pretty = 1;
 
-	if (event->pevent->print_raw)
+	if (event->pevent->print_raw || (event->flags & EVENT_FL_PRINTRAW))
 		print_event_fields(s, record->data, record->size, event);
 	else {
 
-		if (event->handler)
+		if (event->handler && !(event->flags & EVENT_FL_NOHANDLE))
 			print_pretty = event->handler(s, record, event,
 						      event->context);
 
