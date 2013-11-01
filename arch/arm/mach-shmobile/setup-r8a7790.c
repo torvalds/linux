@@ -106,11 +106,14 @@ void __init r8a7790_pinmux_init(void)
 #define __R8A7790_SCIF(scif_type, _scscr, algo, index, baseaddr, irq)	\
 static struct plat_sci_port scif##index##_platform_data = {		\
 	.type		= scif_type,					\
-	.mapbase	= baseaddr,					\
 	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
 	.scbrr_algo_id	= algo,						\
 	.scscr		= _scscr,					\
-	.irqs		= SCIx_IRQ_MUXED(irq),				\
+};									\
+									\
+static struct resource scif##index##_resources[] = {			\
+	DEFINE_RES_MEM(baseaddr, 0x100),				\
+	DEFINE_RES_IRQ(irq),						\
 }
 
 #define R8A7790_SCIF(index, baseaddr, irq)				\
@@ -141,9 +144,11 @@ R8A7790_HSCIF(8, 0xe62c0000, gic_spi(154)); /* HSCIF0 */
 R8A7790_HSCIF(9, 0xe62c8000, gic_spi(155)); /* HSCIF1 */
 
 #define r8a7790_register_scif(index)					       \
-	platform_device_register_data(&platform_bus, "sh-sci", index,	       \
-				      &scif##index##_platform_data,	       \
-				      sizeof(scif##index##_platform_data))
+	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+					  scif##index##_resources,	       \
+					  ARRAY_SIZE(scif##index##_resources), \
+					  &scif##index##_platform_data,	       \
+					  sizeof(scif##index##_platform_data))
 
 static const struct renesas_irqc_config irqc0_data __initconst = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
