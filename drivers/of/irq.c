@@ -147,18 +147,9 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 	pr_debug(" -> addrsize=%d\n", addrsize);
 
-	/* If we were passed no "reg" property and we attempt to parse
-	 * an interrupt-map, then #address-cells must be 0.
-	 * Fail if it's not.
-	 */
-	if (addr == NULL && addrsize != 0) {
-		pr_debug(" -> no reg passed in when needed !\n");
-		return -EINVAL;
-	}
-
 	/* Precalculate the match array - this simplifies match loop */
 	for (i = 0; i < addrsize; i++)
-		initial_match_array[i] = addr[i];
+		initial_match_array[i] = addr ? addr[i] : 0;
 	for (i = 0; i < intsize; i++)
 		initial_match_array[addrsize + i] = cpu_to_be32(out_irq->args[i]);
 
@@ -172,6 +163,15 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			pr_debug(" -> got it !\n");
 			of_node_put(old);
 			return 0;
+		}
+
+		/*
+		 * interrupt-map parsing does not work without a reg
+		 * property when #address-cells != 0
+		 */
+		if (addrsize && !addr) {
+			pr_debug(" -> no reg passed in when needed !\n");
+			goto fail;
 		}
 
 		/* Now look for an interrupt-map */
