@@ -1578,6 +1578,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 	if (type & PERF_SAMPLE_DATA_SRC)
 		result += sizeof(u64);
 
+	if (type & PERF_SAMPLE_TRANSACTION)
+		result += sizeof(u64);
+
 	return result;
 }
 
@@ -1748,6 +1751,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 
 	if (type & PERF_SAMPLE_DATA_SRC) {
 		*array = sample->data_src;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TRANSACTION) {
+		*array = sample->transaction;
 		array++;
 	}
 
