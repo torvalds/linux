@@ -353,7 +353,6 @@ struct mac80211_hwsim_data {
 	} ps;
 	bool ps_poll_pending;
 	struct dentry *debugfs;
-	struct dentry *debugfs_ps;
 
 	struct sk_buff_head pending;	/* packets pending */
 	/*
@@ -362,7 +361,6 @@ struct mac80211_hwsim_data {
 	 * radio can be in more then one group.
 	 */
 	u64 group;
-	struct dentry *debugfs_group;
 
 	int power_level;
 
@@ -1734,9 +1732,7 @@ static void mac80211_hwsim_free(void)
 	spin_unlock_bh(&hwsim_radio_lock);
 
 	list_for_each_entry_safe(data, tmpdata, &tmplist, list) {
-		debugfs_remove(data->debugfs_group);
-		debugfs_remove(data->debugfs_ps);
-		debugfs_remove(data->debugfs);
+		debugfs_remove_recursive(data->debugfs);
 		ieee80211_unregister_hw(data->hw);
 		device_release_driver(data->dev);
 		device_unregister(data->dev);
@@ -2534,12 +2530,10 @@ static int __init init_mac80211_hwsim(void)
 
 		data->debugfs = debugfs_create_dir("hwsim",
 						   hw->wiphy->debugfsdir);
-		data->debugfs_ps = debugfs_create_file("ps", 0666,
-						       data->debugfs, data,
-						       &hwsim_fops_ps);
-		data->debugfs_group = debugfs_create_file("group", 0666,
-							data->debugfs, data,
-							&hwsim_fops_group);
+		debugfs_create_file("ps", 0666, data->debugfs, data,
+				    &hwsim_fops_ps);
+		debugfs_create_file("group", 0666, data->debugfs, data,
+				    &hwsim_fops_group);
 
 		tasklet_hrtimer_init(&data->beacon_timer,
 				     mac80211_hwsim_beacon,
