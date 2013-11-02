@@ -14,6 +14,8 @@
 #ifndef __ASM_PLAT_UNCOMPRESS_H
 #define __ASM_PLAT_UNCOMPRESS_H
 
+#include <linux/swab.h>
+
 typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 
 /* uart setup */
@@ -54,6 +56,9 @@ uart_wr(unsigned int reg, unsigned int val)
 	volatile unsigned int *ptr;
 
 	ptr = (volatile unsigned int *)(reg + uart_base);
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	val = __swab32(val);
+#endif /* CONFIG_CPU_BIG_ENDIAN */
 	*ptr = val;
 }
 
@@ -63,7 +68,11 @@ uart_rd(unsigned int reg)
 	volatile unsigned int *ptr;
 
 	ptr = (volatile unsigned int *)(reg + uart_base);
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	return __swab32(*ptr);
+#else
 	return *ptr;
+#endif /* CONFIG_CPU_BIG_ENDIAN */
 }
 
 /* we can deal with the case the UARTs are being run
@@ -102,10 +111,17 @@ static inline void flush(void)
 {
 }
 
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define __raw_writel(d, ad)			\
+	do {							\
+		*((volatile unsigned int __force *)(ad)) = __swab32(d); \
+	} while (0)
+#else
 #define __raw_writel(d, ad)			\
 	do {							\
 		*((volatile unsigned int __force *)(ad)) = (d); \
 	} while (0)
+#endif /* CONFIG_CPU_BIG_ENDIAN */
 
 #ifdef CONFIG_S3C_BOOT_ERROR_RESET
 

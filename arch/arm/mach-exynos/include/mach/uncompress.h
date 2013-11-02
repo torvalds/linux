@@ -17,9 +17,15 @@
 #include <mach/map.h>
 #include <plat/uncompress.h>
 
+#include <linux/swab.h>
+
 static unsigned int __raw_readl(unsigned int ptr)
 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	return __swab32(*((volatile unsigned int *)ptr));
+#else
 	return *((volatile unsigned int *)ptr);
+#endif /* CONFIG_CPU_BIG_ENDIAN */
 }
 
 static void arch_detect_cpu(void)
