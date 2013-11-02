@@ -95,9 +95,9 @@ struct device_node *of_irq_find_parent(struct device_node *child)
 int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
-	__be32 initial_match_array[8];
+	__be32 initial_match_array[MAX_PHANDLE_ARGS];
 	const __be32 *match_array = initial_match_array;
-	const __be32 *tmp, *imap, *imask, dummy_imask[] = { ~0, ~0, ~0, ~0, ~0 };
+	const __be32 *tmp, *imap, *imask, dummy_imask[] = { [0 ... MAX_PHANDLE_ARGS] = ~0 };
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
 
@@ -146,6 +146,10 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	addrsize = (tmp == NULL) ? 2 : be32_to_cpu(*tmp);
 
 	pr_debug(" -> addrsize=%d\n", addrsize);
+
+	/* Range check so that the temporary buffer doesn't overflow */
+	if (WARN_ON(addrsize + intsize > MAX_PHANDLE_ARGS))
+		goto fail;
 
 	/* Precalculate the match array - this simplifies match loop */
 	for (i = 0; i < addrsize; i++)
@@ -229,6 +233,8 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			    newintsize, newaddrsize);
 
 			/* Check for malformed properties */
+			if (WARN_ON(newaddrsize + newintsize > MAX_PHANDLE_ARGS))
+				goto fail;
 			if (imaplen < (newaddrsize + newintsize))
 				goto fail;
 
