@@ -71,6 +71,7 @@ Dot11d_UpdateCountryIe(
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 	u8 i, j, NumTriples, MaxChnlNum;
+	u8 index, MaxTxPowerInDbm;
 	PCHNL_TXPOWER_TRIPLE pTriple;
 
 	if ((CoutryIeLen - 3)%3 != 0) {
@@ -95,7 +96,8 @@ Dot11d_UpdateCountryIe(
 			Dot11d_Reset(dev);
 			return;
 		}
-		if (MAX_CHANNEL_NUMBER < (pTriple->FirstChnl + pTriple->NumChnls)) {
+		if (MAX_CHANNEL_NUMBER <
+		    (pTriple->FirstChnl + pTriple->NumChnls)) {
 			/*
 			 * It is not a valid set of channel id,
 			 * so stop processing
@@ -107,8 +109,10 @@ Dot11d_UpdateCountryIe(
 		}
 
 		for (j = 0; j < pTriple->NumChnls; j++) {
-			pDot11dInfo->channel_map[pTriple->FirstChnl + j] = 1;
-			pDot11dInfo->MaxTxPwrDbmList[pTriple->FirstChnl + j] = pTriple->MaxTxPowerInDbm;
+			index = pTriple->FirstChnl + j;
+			pDot11dInfo->channel_map[index] = 1;
+			MaxTxPowerInDbm = pTriple->MaxTxPowerInDbm;
+			pDot11dInfo->MaxTxPwrDbmList[index] = MaxTxPowerInDbm;
 			MaxChnlNum = pTriple->FirstChnl + j;
 		}
 
