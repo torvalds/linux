@@ -815,7 +815,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 					 cpu_to_le16(rtllib_query_seqnum(ieee, skb_frag,
 							     header.addr1));
 				frag_hdr->seq_ctl =
-					 cpu_to_le16(frag_hdr->seq_ctl<<4 | i);
+					 cpu_to_le16(le16_to_cpu(frag_hdr->seq_ctl)<<4 | i);
 			} else {
 				frag_hdr->seq_ctl =
 					 cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
