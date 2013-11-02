@@ -106,7 +106,7 @@ Dot11d_UpdateCountryIe(
 			return;
 		}
 
-		for (j = 0 ; j < pTriple->NumChnls; j++) {
+		for (j = 0; j < pTriple->NumChnls; j++) {
 			pDot11dInfo->channel_map[pTriple->FirstChnl + j] = 1;
 			pDot11dInfo->MaxTxPwrDbmList[pTriple->FirstChnl + j] = pTriple->MaxTxPowerInDbm;
 			MaxChnlNum = pTriple->FirstChnl + j;
