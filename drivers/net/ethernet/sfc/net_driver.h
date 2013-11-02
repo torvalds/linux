@@ -141,6 +141,8 @@ struct efx_special_buffer {
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
  * @unmap_len: Length of this fragment to unmap
+ * @dma_offset: Offset of @dma_addr from the address of the backing DMA mapping.
+ * Only valid if @unmap_len != 0.
  */
 struct efx_tx_buffer {
 	union {
@@ -154,6 +156,7 @@ struct efx_tx_buffer {
 	unsigned short flags;
 	unsigned short len;
 	unsigned short unmap_len;
+	unsigned short dma_offset;
 };
 #define EFX_TX_BUF_CONT		1	/* not last descriptor of packet */
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
