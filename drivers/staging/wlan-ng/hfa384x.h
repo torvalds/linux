@@ -350,10 +350,10 @@ PD Record codes
 
 /*-------------------------------------------------------------*/
 /* Commonly used basic types */
-typedef struct hfa384x_bytestr {
+struct hfa384x_bytestr {
 	u16 len;
 	u8 data[0];
-} __packed hfa384x_bytestr_t;
+} __packed;
 
 typedef struct hfa384x_bytestr32 {
 	u16 len;
