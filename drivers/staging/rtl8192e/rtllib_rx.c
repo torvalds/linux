@@ -2528,29 +2528,30 @@ static inline void rtllib_process_probe_response(
 		"'%s' ( %pM ): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		escape_essid(info_element->data, info_element->len),
 		beacon->header.addr3,
-		(beacon->capability & (1<<0xf)) ? '1' : '0',
-		(beacon->capability & (1<<0xe)) ? '1' : '0',
-		(beacon->capability & (1<<0xd)) ? '1' : '0',
-		(beacon->capability & (1<<0xc)) ? '1' : '0',
-		(beacon->capability & (1<<0xb)) ? '1' : '0',
-		(beacon->capability & (1<<0xa)) ? '1' : '0',
-		(beacon->capability & (1<<0x9)) ? '1' : '0',
-		(beacon->capability & (1<<0x8)) ? '1' : '0',
-		(beacon->capability & (1<<0x7)) ? '1' : '0',
-		(beacon->capability & (1<<0x6)) ? '1' : '0',
-		(beacon->capability & (1<<0x5)) ? '1' : '0',
-		(beacon->capability & (1<<0x4)) ? '1' : '0',
-		(beacon->capability & (1<<0x3)) ? '1' : '0',
-		(beacon->capability & (1<<0x2)) ? '1' : '0',
-		(beacon->capability & (1<<0x1)) ? '1' : '0',
-		(beacon->capability & (1<<0x0)) ? '1' : '0');
+		(le16_to_cpu(beacon->capability) & (1<<0xf)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0xe)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0xd)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0xc)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0xb)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0xa)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x9)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x8)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x7)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x6)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x5)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x4)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x3)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x2)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x1)) ? '1' : '0',
+		(le16_to_cpu(beacon->capability) & (1<<0x0)) ? '1' : '0');
 
 	if (rtllib_network_init(ieee, beacon, network, stats)) {
 		RTLLIB_DEBUG_SCAN("Dropped '%s' ( %pM) via %s.\n",
 				  escape_essid(info_element->data,
 				  info_element->len),
 				  beacon->header.addr3,
-				  WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+				  WLAN_FC_GET_STYPE(
+					  le16_to_cpu(beacon->header.frame_ctl)) ==
 				  RTLLIB_STYPE_PROBE_RESP ?
 				  "PROBE RESPONSE" : "BEACON");
 		goto free_network;
@@ -2560,7 +2561,7 @@ static inline void rtllib_process_probe_response(
 	if (!rtllib_legal_channel(ieee, network->channel))
 		goto free_network;
 
-	if (WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+	if (WLAN_FC_GET_STYPE(le16_to_cpu(beacon->header.frame_ctl)) ==
 	    RTLLIB_STYPE_PROBE_RESP) {
 		if (IsPassiveChannel(ieee, network->channel)) {
 			printk(KERN_INFO "GetScanInfo(): For Global Domain, "
@@ -2629,7 +2630,8 @@ static inline void rtllib_process_probe_response(
 		RTLLIB_DEBUG_SCAN("Adding '%s' ( %pM) via %s.\n",
 				  escape_essid(network->ssid,
 				  network->ssid_len), network->bssid,
-				  WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+				  WLAN_FC_GET_STYPE(
+					  le16_to_cpu(beacon->header.frame_ctl)) ==
 				  RTLLIB_STYPE_PROBE_RESP ?
 				  "PROBE RESPONSE" : "BEACON");
 		memcpy(target, network, sizeof(*target));
@@ -2640,7 +2642,8 @@ static inline void rtllib_process_probe_response(
 		RTLLIB_DEBUG_SCAN("Updating '%s' ( %pM) via %s.\n",
 				  escape_essid(target->ssid,
 				  target->ssid_len), target->bssid,
-				  WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+				  WLAN_FC_GET_STYPE(
+					  le16_to_cpu(beacon->header.frame_ctl)) ==
 				  RTLLIB_STYPE_PROBE_RESP ?
 				  "PROBE RESPONSE" : "BEACON");
 
@@ -2682,15 +2685,17 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 {
 	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data ;
 
-	if (WLAN_FC_GET_STYPE(header->frame_ctl) != RTLLIB_STYPE_PROBE_RESP &&
-	    WLAN_FC_GET_STYPE(header->frame_ctl) != RTLLIB_STYPE_BEACON)
+	if ((WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)) !=
+	    RTLLIB_STYPE_PROBE_RESP) &&
+	    (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)) !=
+	    RTLLIB_STYPE_BEACON))
 		ieee->last_rx_ps_time = jiffies;
 
-	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
+	switch (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl))) {
 
 	case RTLLIB_STYPE_BEACON:
 		RTLLIB_DEBUG_MGMT("received BEACON (%d)\n",
-				  WLAN_FC_GET_STYPE(header->frame_ctl));
+				  WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		RTLLIB_DEBUG_SCAN("Beacon\n");
 		rtllib_process_probe_response(
 				ieee, (struct rtllib_probe_response *)header,
@@ -2705,14 +2710,15 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 
 	case RTLLIB_STYPE_PROBE_RESP:
 		RTLLIB_DEBUG_MGMT("received PROBE RESPONSE (%d)\n",
-			WLAN_FC_GET_STYPE(header->frame_ctl));
+			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		RTLLIB_DEBUG_SCAN("Probe response\n");
 		rtllib_process_probe_response(ieee,
 			      (struct rtllib_probe_response *)header, stats);
 		break;
 	case RTLLIB_STYPE_PROBE_REQ:
 		RTLLIB_DEBUG_MGMT("received PROBE RESQUEST (%d)\n",
-				  WLAN_FC_GET_STYPE(header->frame_ctl));
+				  WLAN_FC_GET_STYPE(
+					  le16_to_cpu(header->frame_ctl)));
 		RTLLIB_DEBUG_SCAN("Probe request\n");
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
 		    ((ieee->iw_mode == IW_MODE_ADHOC ||
