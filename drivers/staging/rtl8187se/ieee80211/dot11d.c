@@ -142,9 +142,8 @@ DOT11D_GetMaxTxPwrInDbm(
 		netdev_info(dev->dev, "DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
 		return MaxTxPwrInDbm;
 	}
-	if (pDot11dInfo->channel_map[Channel]) {
+	if (pDot11dInfo->channel_map[Channel])
 		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
-	}
 
 	return MaxTxPwrInDbm;
 }
