@@ -99,16 +99,94 @@ static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
 	unsigned idx)
 {
 	struct omap_sg *sg = d->sg + idx;
+	uint32_t val;
 
-	if (d->dir == DMA_DEV_TO_MEM)
-		omap_set_dma_dest_params(c->dma_ch, OMAP_DMA_PORT_EMIFF,
-			OMAP_DMA_AMODE_POST_INC, sg->addr, 0, 0);
-	else
-		omap_set_dma_src_params(c->dma_ch, OMAP_DMA_PORT_EMIFF,
-			OMAP_DMA_AMODE_POST_INC, sg->addr, 0, 0);
+	if (d->dir == DMA_DEV_TO_MEM) {
+		if (dma_omap1()) {
+			val = c->plat->dma_read(CSDP, c->dma_ch);
+			val &= ~(0x1f << 9);
+			val |= OMAP_DMA_PORT_EMIFF << 9;
+			c->plat->dma_write(val, CSDP, c->dma_ch);
+		}
 
-	omap_set_dma_transfer_params(c->dma_ch, d->es, sg->en, sg->fn,
-		d->sync_mode, c->dma_sig, d->sync_type);
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~(0x03 << 14);
+		val |= OMAP_DMA_AMODE_POST_INC << 14;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		c->plat->dma_write(sg->addr, CDSA, c->dma_ch);
+		c->plat->dma_write(0, CDEI, c->dma_ch);
+		c->plat->dma_write(0, CDFI, c->dma_ch);
+	} else {
+		if (dma_omap1()) {
+			val = c->plat->dma_read(CSDP, c->dma_ch);
+			val &= ~(0x1f << 2);
+			val |= OMAP_DMA_PORT_EMIFF << 2;
+			c->plat->dma_write(val, CSDP, c->dma_ch);
+		}
+
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~(0x03 << 12);
+		val |= OMAP_DMA_AMODE_POST_INC << 12;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		c->plat->dma_write(sg->addr, CSSA, c->dma_ch);
+		c->plat->dma_write(0, CSEI, c->dma_ch);
+		c->plat->dma_write(0, CSFI, c->dma_ch);
+	}
+
+	val = c->plat->dma_read(CSDP, c->dma_ch);
+	val &= ~0x03;
+	val |= d->es;
+	c->plat->dma_write(val, CSDP, c->dma_ch);
+
+	if (dma_omap1()) {
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~(1 << 5);
+		if (d->sync_mode == OMAP_DMA_SYNC_FRAME)
+			val |= 1 << 5;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		val = c->plat->dma_read(CCR2, c->dma_ch);
+		val &= ~(1 << 2);
+		if (d->sync_mode == OMAP_DMA_SYNC_BLOCK)
+			val |= 1 << 2;
+		c->plat->dma_write(val, CCR2, c->dma_ch);
+	} else if (c->dma_sig) {
+		val = c->plat->dma_read(CCR, c->dma_ch);
+
+		/* DMA_SYNCHRO_CONTROL_UPPER depends on the channel number */
+		val &= ~((1 << 23) | (3 << 19) | 0x1f);
+		val |= (c->dma_sig & ~0x1f) << 14;
+		val |= c->dma_sig & 0x1f;
+
+		if (d->sync_mode & OMAP_DMA_SYNC_FRAME)
+			val |= 1 << 5;
+		else
+			val &= ~(1 << 5);
+
+		if (d->sync_mode & OMAP_DMA_SYNC_BLOCK)
+			val |= 1 << 18;
+		else
+			val &= ~(1 << 18);
+
+		switch (d->sync_type) {
+		case OMAP_DMA_DST_SYNC_PREFETCH:
+			val &= ~(1 << 24);	/* dest synch */
+			val |= 1 << 23;		/* Prefetch */
+			break;
+		case 0:
+			val &= ~(1 << 24);	/* dest synch */
+			break;
+		default:
+			val |= 1 << 24;		/* source synch */
+			break;
+		}
+		c->plat->dma_write(val, CCR, c->dma_ch);
+	}
+
+	c->plat->dma_write(sg->en, CEN, c->dma_ch);
+	c->plat->dma_write(sg->fn, CFN, c->dma_ch);
 
 	omap_start_dma(c->dma_ch);
 }
@@ -117,6 +195,7 @@ static void omap_dma_start_desc(struct omap_chan *c)
 {
 	struct virt_dma_desc *vd = vchan_next_desc(&c->vc);
 	struct omap_desc *d;
+	uint32_t val;
 
 	if (!vd) {
 		c->desc = NULL;
@@ -128,12 +207,39 @@ static void omap_dma_start_desc(struct omap_chan *c)
 	c->desc = d = to_omap_dma_desc(&vd->tx);
 	c->sgidx = 0;
 
-	if (d->dir == DMA_DEV_TO_MEM)
-		omap_set_dma_src_params(c->dma_ch, d->periph_port,
-			OMAP_DMA_AMODE_CONSTANT, d->dev_addr, 0, d->fi);
-	else
-		omap_set_dma_dest_params(c->dma_ch, d->periph_port,
-			OMAP_DMA_AMODE_CONSTANT, d->dev_addr, 0, d->fi);
+	if (d->dir == DMA_DEV_TO_MEM) {
+		if (dma_omap1()) {
+			val = c->plat->dma_read(CSDP, c->dma_ch);
+			val &= ~(0x1f << 2);
+			val |= d->periph_port << 2;
+			c->plat->dma_write(val, CSDP, c->dma_ch);
+		}
+
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~(0x03 << 12);
+		val |= OMAP_DMA_AMODE_CONSTANT << 12;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		c->plat->dma_write(d->dev_addr, CSSA, c->dma_ch);
+		c->plat->dma_write(0, CSEI, c->dma_ch);
+		c->plat->dma_write(d->fi, CSFI, c->dma_ch);
+	} else {
+		if (dma_omap1()) {
+			val = c->plat->dma_read(CSDP, c->dma_ch);
+			val &= ~(0x1f << 9);
+			val |= d->periph_port << 9;
+			c->plat->dma_write(val, CSDP, c->dma_ch);
+		}
+
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~(0x03 << 14);
+		val |= OMAP_DMA_AMODE_CONSTANT << 14;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		c->plat->dma_write(d->dev_addr, CDSA, c->dma_ch);
+		c->plat->dma_write(0, CDEI, c->dma_ch);
+		c->plat->dma_write(d->fi, CDFI, c->dma_ch);
+	}
 
 	omap_dma_start_sg(c, d, 0);
 }
@@ -452,8 +558,12 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	}
 
 	if (dma_omap2plus()) {
-		omap_set_dma_src_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
-		omap_set_dma_dest_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
+		uint32_t val;
+
+		val = c->plat->dma_read(CSDP, c->dma_ch);
+		val |= 0x03 << 7; /* src burst mode 16 */
+		val |= 0x03 << 14; /* dst burst mode 16 */
+		c->plat->dma_write(val, CSDP, c->dma_ch);
 	}
 
 	return vchan_tx_prep(&c->vc, &d->vd, flags);

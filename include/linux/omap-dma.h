@@ -289,8 +289,10 @@ struct omap_system_dma_plat_info {
 #define dma_omap2plus()	0
 #endif
 #define dma_omap1()	(!dma_omap2plus())
-#define dma_omap15xx()	((dma_omap1() && (d->dev_caps & ENABLE_1510_MODE)))
-#define dma_omap16xx()	((dma_omap1() && (d->dev_caps & ENABLE_16XX_MODE)))
+#define __dma_omap15xx(d) (dma_omap1() && (d)->dev_caps & ENABLE_1510_MODE)
+#define __dma_omap16xx(d) (dma_omap1() && (d)->dev_caps & ENABLE_16XX_MODE)
+#define dma_omap15xx()	__dma_omap15xx(d)
+#define dma_omap16xx()	__dma_omap16xx(d)
 
 extern struct omap_system_dma_plat_info *omap_get_plat_info(void);
 
