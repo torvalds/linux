@@ -53,7 +53,7 @@ static int odroid_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int bfs, rfs, ret;
+	int bfs, rfs, ret, psr;
 	unsigned long rclk, epll_clk = 180633600;
 
 	switch (params_format(params)) {
@@ -100,12 +100,47 @@ static int odroid_hw_params(struct snd_pcm_substream *substream,
 
 	rclk = params_rate(params) * rfs;
 
-	if (epll_clk % rclk != 0) {
+    switch (rclk) {
+        case 4096000:  
+        case 5644800:  
+        case 6144000:  
+        case 8467200:  
+        case 9216000:  
+                psr = 8;
+                break;  
+        case 8192000:   
+        case 11289600:  
+        case 12288000:  
+        case 16934400:  
+        case 18432000:  
+                psr = 4;
+                break;  
+        case 22579200:  
+        case 24576000:  
+        case 33868800:  
+        case 36864000:  
+                psr = 2;
+                break;  
+        case 67737600:  
+        case 73728000:  
+                psr = 1;
+                break;  
+        default:
+                printk(KERN_ERR "rclk = %lu is not yet supported!\n", rclk);
+                return -EINVAL;
+        }
+
+
+/*	if (epll_clk % rclk != 0) {
 		pr_err("Not yet supported!\n");
 		return -EINVAL;
-	}
+	}*/
 
-	set_epll_rate(epll_clk);
+	ret = set_epll_rate(rclk * psr);
+	if(ret < 0) {
+		pr_emerg("max98090: error while setting the epll rate: %d\n", ret);
+		return ret;
+	}
 
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
 			| SND_SOC_DAIFMT_NB_NF
@@ -206,7 +241,40 @@ static struct snd_soc_card odroid = {
 	.num_links = ARRAY_SIZE(odroid_dai),
 };
 
-static int __init odroid_audio_init(void)
+static int __devinit snd_odroid_probe(struct platform_device *pdev) 
+{
+	
+	int ret = 0;
+	
+	odroid.dev = &pdev->dev;
+	ret = snd_soc_register_card(&odroid);
+	if(ret) {
+		dev_err(&pdev->dev, "snd_soc_register_card failed %d\n", ret);
+		return ret;
+	}
+	
+	return 0;
+}
+
+static int __devexit snd_odroid_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_card(&odroid);
+	return 0;
+}
+
+static struct platform_driver snd_odroid_driver = {
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "Odroid-max98090",
+	},
+	.probe = snd_odroid_probe,
+	.remove = __devexit_p(snd_odroid_remove),
+};
+
+module_platform_driver(snd_odroid_driver);
+	
+
+/*static int __init odroid_audio_init(void)
 {
 	int ret;
 	odroid_snd_device = platform_device_alloc("soc-audio", 0);
@@ -228,7 +296,7 @@ static void __exit odroid_audio_exit(void)
 {
 	platform_device_unregister(odroid_snd_device);
 }
-module_exit(odroid_audio_exit);
+module_exit(odroid_audio_exit); */
 
 MODULE_DESCRIPTION("ALSA SoC ODROID max98090");
 MODULE_LICENSE("GPL");
