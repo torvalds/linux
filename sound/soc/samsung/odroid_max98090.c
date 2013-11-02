@@ -241,40 +241,8 @@ static struct snd_soc_card odroid = {
 	.num_links = ARRAY_SIZE(odroid_dai),
 };
 
-static int __devinit snd_odroid_probe(struct platform_device *pdev) 
-{
-	
-	int ret = 0;
-	
-	odroid.dev = &pdev->dev;
-	ret = snd_soc_register_card(&odroid);
-	if(ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card failed %d\n", ret);
-		return ret;
-	}
-	
-	return 0;
-}
 
-static int __devexit snd_odroid_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&odroid);
-	return 0;
-}
-
-static struct platform_driver snd_odroid_driver = {
-	.driver = {
-		.owner = THIS_MODULE,
-		.name = "Odroid-max98090",
-	},
-	.probe = snd_odroid_probe,
-	.remove = __devexit_p(snd_odroid_remove),
-};
-
-module_platform_driver(snd_odroid_driver);
-	
-
-/*static int __init odroid_audio_init(void)
+static int __init odroid_audio_init(void)
 {
 	int ret;
 	odroid_snd_device = platform_device_alloc("soc-audio", 0);
@@ -296,7 +264,7 @@ static void __exit odroid_audio_exit(void)
 {
 	platform_device_unregister(odroid_snd_device);
 }
-module_exit(odroid_audio_exit); */
+module_exit(odroid_audio_exit);
 
 MODULE_DESCRIPTION("ALSA SoC ODROID max98090");
 MODULE_LICENSE("GPL");
