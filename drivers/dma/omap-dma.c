@@ -594,7 +594,6 @@ static void omap_dma_free(struct omap_dmadev *od)
 		tasklet_kill(&c->vc.task);
 		kfree(c);
 	}
-	kfree(od);
 }
 
 static int omap_dma_probe(struct platform_device *pdev)
@@ -602,7 +601,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	struct omap_dmadev *od;
 	int rc, i;
 
-	od = kzalloc(sizeof(*od), GFP_KERNEL);
+	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
 		return -ENOMEM;
 
