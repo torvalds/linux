@@ -220,8 +220,8 @@ static void ipcomp_free_scratches(void)
 
 static void * __percpu *ipcomp_alloc_scratches(void)
 {
-	int i;
 	void * __percpu *scratches;
+	int i;
 
 	if (ipcomp_scratch_users++)
 		return ipcomp_scratches;
@@ -233,7 +233,9 @@ static void * __percpu *ipcomp_alloc_scratches(void)
 	ipcomp_scratches = scratches;
 
 	for_each_possible_cpu(i) {
-		void *scratch = vmalloc(IPCOMP_SCRATCH_SIZE);
+		void *scratch;
+
+		scratch = vmalloc_node(IPCOMP_SCRATCH_SIZE, cpu_to_node(i));
 		if (!scratch)
 			return NULL;
 		*per_cpu_ptr(scratches, i) = scratch;
