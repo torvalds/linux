@@ -337,7 +337,7 @@ int mtdpart_partition(struct parsed_partitions *state)
 	if(n < SECTOR_1G)
 		return 0;
 
-	if (state->bdev->bd_disk->major != MMC_BLOCK_MAJOR || state->bdev->bd_disk->first_minor != 0)
+	if (!(state->bdev->bd_disk->flags & 2))
 		return 0;
 
 	cmdline = strstr(saved_command_line, "mtdparts=") + 9;

@@ -441,8 +441,8 @@ int msdos_partition(struct parsed_partitions *state)
 	struct fat_boot_sector *fb;
 	int slot;
 #ifdef CONFIG_EMMC_RK
-	//if card is emmc, msdos_partition return false
-	if(state->bdev->bd_disk->major == MMC_BLOCK_MAJOR &&state->bdev->bd_disk->first_minor == 0)
+	//if card is emmc(flag:2 is set in 'drivers/mmc/card/block.c'), return false
+	if(state->bdev->bd_disk->flags & 2)
 		return 0;
 #endif
 

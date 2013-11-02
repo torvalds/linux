@@ -1756,6 +1756,10 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	md->disk->driverfs_dev = parent;
 	set_disk_ro(md->disk, md->read_only || default_ro);
 	md->disk->flags = GENHD_FL_EXT_DEVT;
+#ifdef CONFIG_EMMC_RK
+	if(HOST_IS_EMMC(card->host))
+		md->disk->flags |= 2;  /* 2 is unused flags in 'include/linux/genhd.h' */
+#endif
 
 	/*
 	 * As discussed on lkml, GENHD_FL_REMOVABLE should:
