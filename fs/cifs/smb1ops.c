@@ -67,7 +67,7 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "issued NT_CANCEL for mid %u, rc = %d\n",
-		 in_buf->Mid, rc);
+		 get_mid(in_buf), rc);
 
 	return rc;
 }
@@ -101,7 +101,7 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
-		if (mid->mid == buf->Mid &&
+		if (compare_mid(mid->mid, buf) &&
 		    mid->mid_state == MID_REQUEST_SUBMITTED &&
 		    le16_to_cpu(mid->command) == buf->Command) {
 			spin_unlock(&GlobalMid_Lock);

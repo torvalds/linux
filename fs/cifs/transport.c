@@ -58,7 +58,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 		return temp;
 	else {
 		memset(temp, 0, sizeof(struct mid_q_entry));
-		temp->mid = smb_buffer->Mid;	/* always LE */
+		temp->mid = get_mid(smb_buffer);
 		temp->pid = current->pid;
 		temp->command = cpu_to_le16(smb_buffer->Command);
 		cifs_dbg(FYI, "For smb_command %d\n", smb_buffer->Command);

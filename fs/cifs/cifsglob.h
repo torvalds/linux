@@ -622,9 +622,32 @@ set_credits(struct TCP_Server_Info *server, const int val)
 }
 
 static inline __u64
-get_next_mid(struct TCP_Server_Info *server)
+get_next_mid64(struct TCP_Server_Info *server)
 {
 	return server->ops->get_next_mid(server);
+}
+
+static inline __le16
+get_next_mid(struct TCP_Server_Info *server)
+{
+	__u16 mid = get_next_mid64(server);
+	/*
+	 * The value in the SMB header should be little endian for easy
+	 * on-the-wire decoding.
+	 */
+	return cpu_to_le16(mid);
+}
+
+static inline __u16
+get_mid(const struct smb_hdr *smb)
+{
+	return le16_to_cpu(smb->Mid);
+}
+
+static inline bool
+compare_mid(__u16 mid, const struct smb_hdr *smb)
+{
+	return mid == le16_to_cpu(smb->Mid);
 }
 
 /*

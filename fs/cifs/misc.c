@@ -295,7 +295,8 @@ check_smb_hdr(struct smb_hdr *smb)
 	if (smb->Command == SMB_COM_LOCKING_ANDX)
 		return 0;
 
-	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n", smb->Mid);
+	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n",
+		 get_mid(smb));
 	return 1;
 }
 
@@ -351,6 +352,7 @@ checkSMB(char *buf, unsigned int total_read)
 	}
 
 	if (4 + rfclen != clc_len) {
+		__u16 mid = get_mid(smb);
 		/* check if bcc wrapped around for large read responses */
 		if ((rfclen > 64 * 1024) && (rfclen > clc_len)) {
 			/* check if lengths match mod 64K */
@@ -358,11 +360,11 @@ checkSMB(char *buf, unsigned int total_read)
 				return 0; /* bcc wrapped */
 		}
 		cifs_dbg(FYI, "Calculated size %u vs length %u mismatch for mid=%u\n",
-			 clc_len, 4 + rfclen, smb->Mid);
+			 clc_len, 4 + rfclen, mid);
 
 		if (4 + rfclen < clc_len) {
 			cifs_dbg(VFS, "RFC1001 size %u smaller than SMB for mid=%u\n",
-				 rfclen, smb->Mid);
+				 rfclen, mid);
 			return -EIO;
 		} else if (rfclen > clc_len + 512) {
 			/*
@@ -375,7 +377,7 @@ checkSMB(char *buf, unsigned int total_read)
 			 * data to 512 bytes.
 			 */
 			cifs_dbg(VFS, "RFC1001 size %u more than 512 bytes larger than SMB for mid=%u\n",
-				 rfclen, smb->Mid);
+				 rfclen, mid);
 			return -EIO;
 		}
 	}

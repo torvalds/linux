@@ -428,7 +428,7 @@ struct smb_hdr {
 	__u16 Tid;
 	__le16 Pid;
 	__u16 Uid;
-	__u16 Mid;
+	__le16 Mid;
 	__u8 WordCount;
 } __attribute__((packed));
 

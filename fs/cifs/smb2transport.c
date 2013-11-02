@@ -466,7 +466,7 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 static inline void
 smb2_seq_num_into_buf(struct TCP_Server_Info *server, struct smb2_hdr *hdr)
 {
-	hdr->MessageId = get_next_mid(server);
+	hdr->MessageId = get_next_mid64(server);
 }
 
 static struct mid_q_entry *
