@@ -9,7 +9,6 @@
  * more details.
  */
 
-//#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -538,12 +537,9 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 
 	michael_mic_hdr(skb, tkey->tx_hdr);
 
-	// { david, 2006.9.1
-	// fix the wpa process with wmm enabled.
 	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
 		tkey->tx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
-	// }
 	pos = skb_put(skb, 8);
 
 	if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
@@ -587,12 +583,9 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 
 	michael_mic_hdr(skb, tkey->rx_hdr);
-	// { david, 2006.9.1
-	// fix the wpa process with wmm enabled.
 	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
-	// }
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
@@ -746,6 +739,5 @@ void ieee80211_crypto_tkip_exit(void)
 
 void ieee80211_tkip_null(void)
 {
-//    printk("============>%s()\n", __func__);
         return;
 }
