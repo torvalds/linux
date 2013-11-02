@@ -99,90 +99,15 @@ static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
 	unsigned idx)
 {
 	struct omap_sg *sg = d->sg + idx;
-	uint32_t val;
 
 	if (d->dir == DMA_DEV_TO_MEM) {
-		if (dma_omap1()) {
-			val = c->plat->dma_read(CSDP, c->dma_ch);
-			val &= ~(0x1f << 9);
-			val |= OMAP_DMA_PORT_EMIFF << 9;
-			c->plat->dma_write(val, CSDP, c->dma_ch);
-		}
-
-		val = c->plat->dma_read(CCR, c->dma_ch);
-		val &= ~(0x03 << 14);
-		val |= OMAP_DMA_AMODE_POST_INC << 14;
-		c->plat->dma_write(val, CCR, c->dma_ch);
-
 		c->plat->dma_write(sg->addr, CDSA, c->dma_ch);
 		c->plat->dma_write(0, CDEI, c->dma_ch);
 		c->plat->dma_write(0, CDFI, c->dma_ch);
 	} else {
-		if (dma_omap1()) {
-			val = c->plat->dma_read(CSDP, c->dma_ch);
-			val &= ~(0x1f << 2);
-			val |= OMAP_DMA_PORT_EMIFF << 2;
-			c->plat->dma_write(val, CSDP, c->dma_ch);
-		}
-
-		val = c->plat->dma_read(CCR, c->dma_ch);
-		val &= ~(0x03 << 12);
-		val |= OMAP_DMA_AMODE_POST_INC << 12;
-		c->plat->dma_write(val, CCR, c->dma_ch);
-
 		c->plat->dma_write(sg->addr, CSSA, c->dma_ch);
 		c->plat->dma_write(0, CSEI, c->dma_ch);
 		c->plat->dma_write(0, CSFI, c->dma_ch);
-	}
-
-	val = c->plat->dma_read(CSDP, c->dma_ch);
-	val &= ~0x03;
-	val |= d->es;
-	c->plat->dma_write(val, CSDP, c->dma_ch);
-
-	if (dma_omap1()) {
-		val = c->plat->dma_read(CCR, c->dma_ch);
-		val &= ~(1 << 5);
-		if (d->sync_mode == OMAP_DMA_SYNC_FRAME)
-			val |= 1 << 5;
-		c->plat->dma_write(val, CCR, c->dma_ch);
-
-		val = c->plat->dma_read(CCR2, c->dma_ch);
-		val &= ~(1 << 2);
-		if (d->sync_mode == OMAP_DMA_SYNC_BLOCK)
-			val |= 1 << 2;
-		c->plat->dma_write(val, CCR2, c->dma_ch);
-	} else if (c->dma_sig) {
-		val = c->plat->dma_read(CCR, c->dma_ch);
-
-		/* DMA_SYNCHRO_CONTROL_UPPER depends on the channel number */
-		val &= ~((1 << 23) | (3 << 19) | 0x1f);
-		val |= (c->dma_sig & ~0x1f) << 14;
-		val |= c->dma_sig & 0x1f;
-
-		if (d->sync_mode & OMAP_DMA_SYNC_FRAME)
-			val |= 1 << 5;
-		else
-			val &= ~(1 << 5);
-
-		if (d->sync_mode & OMAP_DMA_SYNC_BLOCK)
-			val |= 1 << 18;
-		else
-			val &= ~(1 << 18);
-
-		switch (d->sync_type) {
-		case OMAP_DMA_DST_SYNC_PREFETCH:
-			val &= ~(1 << 24);	/* dest synch */
-			val |= 1 << 23;		/* Prefetch */
-			break;
-		case 0:
-			val &= ~(1 << 24);	/* dest synch */
-			break;
-		default:
-			val |= 1 << 24;		/* source synch */
-			break;
-		}
-		c->plat->dma_write(val, CCR, c->dma_ch);
 	}
 
 	c->plat->dma_write(sg->en, CEN, c->dma_ch);
@@ -210,13 +135,15 @@ static void omap_dma_start_desc(struct omap_chan *c)
 	if (d->dir == DMA_DEV_TO_MEM) {
 		if (dma_omap1()) {
 			val = c->plat->dma_read(CSDP, c->dma_ch);
-			val &= ~(0x1f << 2);
+			val &= ~(0x1f << 9 | 0x1f << 2);
+			val |= OMAP_DMA_PORT_EMIFF << 9;
 			val |= d->periph_port << 2;
 			c->plat->dma_write(val, CSDP, c->dma_ch);
 		}
 
 		val = c->plat->dma_read(CCR, c->dma_ch);
-		val &= ~(0x03 << 12);
+		val &= ~(0x03 << 14 | 0x03 << 12);
+		val |= OMAP_DMA_AMODE_POST_INC << 14;
 		val |= OMAP_DMA_AMODE_CONSTANT << 12;
 		c->plat->dma_write(val, CCR, c->dma_ch);
 
@@ -226,19 +153,65 @@ static void omap_dma_start_desc(struct omap_chan *c)
 	} else {
 		if (dma_omap1()) {
 			val = c->plat->dma_read(CSDP, c->dma_ch);
-			val &= ~(0x1f << 9);
+			val &= ~(0x1f << 9 | 0x1f << 2);
 			val |= d->periph_port << 9;
+			val |= OMAP_DMA_PORT_EMIFF << 2;
 			c->plat->dma_write(val, CSDP, c->dma_ch);
 		}
 
 		val = c->plat->dma_read(CCR, c->dma_ch);
-		val &= ~(0x03 << 14);
+		val &= ~(0x03 << 12 | 0x03 << 14);
 		val |= OMAP_DMA_AMODE_CONSTANT << 14;
+		val |= OMAP_DMA_AMODE_POST_INC << 12;
 		c->plat->dma_write(val, CCR, c->dma_ch);
 
 		c->plat->dma_write(d->dev_addr, CDSA, c->dma_ch);
 		c->plat->dma_write(0, CDEI, c->dma_ch);
 		c->plat->dma_write(d->fi, CDFI, c->dma_ch);
+	}
+
+	val = c->plat->dma_read(CSDP, c->dma_ch);
+	val &= ~0x03;
+	val |= d->es;
+	c->plat->dma_write(val, CSDP, c->dma_ch);
+
+	if (dma_omap1()) {
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~(1 << 5);
+		if (d->sync_mode == OMAP_DMA_SYNC_FRAME)
+			val |= 1 << 5;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		val = c->plat->dma_read(CCR2, c->dma_ch);
+		val &= ~(1 << 2);
+		if (d->sync_mode == OMAP_DMA_SYNC_BLOCK)
+			val |= 1 << 2;
+		c->plat->dma_write(val, CCR2, c->dma_ch);
+	} else if (c->dma_sig) {
+		val = c->plat->dma_read(CCR, c->dma_ch);
+
+		/* DMA_SYNCHRO_CONTROL_UPPER depends on the channel number */
+		val &= ~(1 << 24 | 1 << 23 | 3 << 19 | 1 << 18 | 1 << 5 | 0x1f);
+		val |= (c->dma_sig & ~0x1f) << 14;
+		val |= c->dma_sig & 0x1f;
+
+		if (d->sync_mode & OMAP_DMA_SYNC_FRAME)
+			val |= 1 << 5;
+
+		if (d->sync_mode & OMAP_DMA_SYNC_BLOCK)
+			val |= 1 << 18;
+
+		switch (d->sync_type) {
+		case OMAP_DMA_DST_SYNC_PREFETCH:/* dest synch */
+			val |= 1 << 23;		/* Prefetch */
+			break;
+		case 0:
+			break;
+		default:
+			val |= 1 << 24; 	/* source synch */
+			break;
+		}
+		c->plat->dma_write(val, CCR, c->dma_ch);
 	}
 
 	omap_dma_start_sg(c, d, 0);
