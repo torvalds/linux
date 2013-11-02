@@ -175,7 +175,7 @@ static struct attribute_group i2c_atmel_attr_grp = {
 
 static bool i2c_atmel_req_canceled(struct tpm_chip *chip, u8 status)
 {
-	return 0;
+	return false;
 }
 
 static const struct tpm_vendor_specific i2c_atmel = {
