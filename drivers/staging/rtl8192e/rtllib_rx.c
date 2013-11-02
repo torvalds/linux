@@ -490,7 +490,7 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb **prx
 			} else {
 				u16 len;
 			/* Leave Ethernet header part of hdr and full payload */
-				len = htons(sub_skb->len);
+				len = sub_skb->len;
 				memcpy(skb_push(sub_skb, 2), &len, 2);
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->src, ETH_ALEN);
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->dst, ETH_ALEN);
@@ -1224,7 +1224,7 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 			} else {
 				u16 len;
 				/* Leave Ethernet header part of hdr and full payload */
-				len = htons(sub_skb->len);
+				len = sub_skb->len;
 				memcpy(skb_push(sub_skb, 2), &len, 2);
 				memcpy(skb_push(sub_skb, ETH_ALEN), src, ETH_ALEN);
 				memcpy(skb_push(sub_skb, ETH_ALEN), dst, ETH_ALEN);
@@ -1632,13 +1632,13 @@ static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info 
 		/* WMM spec P.11: The minimum value for AIFSN shall be 2 */
 		qos_param->aifs[aci] = (qos_param->aifs[aci] < 2) ? 2 : qos_param->aifs[aci];
 
-		qos_param->cw_min[aci] = ac_params->ecw_min_max & 0x0F;
+		qos_param->cw_min[aci] = cpu_to_le16(ac_params->ecw_min_max & 0x0F);
 
-		qos_param->cw_max[aci] = (ac_params->ecw_min_max & 0xF0) >> 4;
+		qos_param->cw_max[aci] = cpu_to_le16((ac_params->ecw_min_max & 0xF0) >> 4);
 
 		qos_param->flag[aci] =
 		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
-		qos_param->tx_op_limit[aci] = le16_to_cpu(ac_params->tx_op_limit);
+		qos_param->tx_op_limit[aci] = ac_params->tx_op_limit;
 	}
 	return rc;
 }
