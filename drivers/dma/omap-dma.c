@@ -201,8 +201,6 @@ static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 	c->plat->dma_write(d->cicr, CICR, c->dma_ch);
 
 	val = c->plat->dma_read(CCR, c->dma_ch);
-	if (od->plat->errata & DMA_ERRATA_IFRAME_BUFFERING)
-		val |= CCR_BUFFERING_DISABLE;
 	val |= CCR_ENABLE;
 	mb();
 	c->plat->dma_write(val, CCR, c->dma_ch);
@@ -558,6 +556,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl, unsigned sglen,
 	enum dma_transfer_direction dir, unsigned long tx_flags, void *context)
 {
+	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	enum dma_slave_buswidth dev_width;
 	struct scatterlist *sgent;
@@ -636,6 +635,8 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 
 		d->cicr |= CICR_MISALIGNED_ERR_IE | CICR_TRANS_ERR_IE;
 	}
+	if (od->plat->errata & DMA_ERRATA_IFRAME_BUFFERING)
+		d->ccr |= CCR_BUFFERING_DISABLE;
 
 	/*
 	 * Build our scatterlist entries: each contains the address,
@@ -760,6 +761,8 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 
 		d->csdp |= CSDP_DST_BURST_64 | CSDP_SRC_BURST_64;
 	}
+	if (od->plat->errata & DMA_ERRATA_IFRAME_BUFFERING)
+		d->ccr |= CCR_BUFFERING_DISABLE;
 
 	c->cyclic = true;
 
