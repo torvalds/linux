@@ -344,25 +344,17 @@ void dwc2_hcd_init_usecs(struct dwc2_hsotg *hsotg)
 static int dwc2_find_single_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	unsigned short utime = qh->usecs;
-	int done = 0;
-	int i = 0;
-	int ret = -1;
+	int i;
 
-	while (!done) {
+	for (i = 0; i < 8; i++) {
 		/* At the start hsotg->frame_usecs[i] = max_uframe_usecs[i] */
 		if (utime <= hsotg->frame_usecs[i]) {
 			hsotg->frame_usecs[i] -= utime;
 			qh->frame_usecs[i] += utime;
-			ret = i;
-			done = 1;
-		} else {
-			i++;
-			if (i == 8)
-				done = 1;
+			return i;
 		}
 	}
-
-	return ret;
+	return -1;
 }
 
 /*
@@ -372,21 +364,14 @@ static int dwc2_find_multi_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	unsigned short utime = qh->usecs;
 	unsigned short xtime;
-	int t_left = utime;
-	int done = 0;
-	int i = 0;
+	int t_left;
+	int i;
 	int j;
-	int ret = -1;
+	int k;
 
-	while (!done) {
-		if (hsotg->frame_usecs[i] <= 0) {
-			i++;
-			if (i == 8) {
-				ret = -1;
-				done = 1;
-			}
+	for (i = 0; i < 8; i++) {
+		if (hsotg->frame_usecs[i] <= 0)
 			continue;
-		}
 
 		/*
 		 * we need n consecutive slots so use j as a start slot
@@ -400,50 +385,35 @@ static int dwc2_find_multi_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 			 */
 			if (xtime + hsotg->frame_usecs[j] < utime) {
 				if (hsotg->frame_usecs[j] <
-							max_uframe_usecs[j]) {
-					ret = -1;
-					break;
-				}
+							max_uframe_usecs[j])
+					continue;
 			}
 			if (xtime >= utime) {
-				ret = i;
-				break;
+				t_left = utime;
+				for (k = i; k < 8; k++) {
+					t_left -= hsotg->frame_usecs[k];
+					if (t_left <= 0) {
+						qh->frame_usecs[k] +=
+							hsotg->frame_usecs[k]
+								+ t_left;
+						hsotg->frame_usecs[k] = -t_left;
+						return i;
+					} else {
+						qh->frame_usecs[k] +=
+							hsotg->frame_usecs[k];
+						hsotg->frame_usecs[k] = 0;
+					}
+				}
 			}
 			/* add the frame time to x time */
 			xtime += hsotg->frame_usecs[j];
 			/* we must have a fully available next frame or break */
 			if (xtime < utime &&
-			   hsotg->frame_usecs[j] == max_uframe_usecs[j]) {
-				ret = -1;
-				break;
-			}
-		}
-		if (ret >= 0) {
-			t_left = utime;
-			for (j = i; t_left > 0 && j < 8; j++) {
-				t_left -= hsotg->frame_usecs[j];
-				if (t_left <= 0) {
-					qh->frame_usecs[j] +=
-						hsotg->frame_usecs[j] + t_left;
-					hsotg->frame_usecs[j] = -t_left;
-					ret = i;
-					done = 1;
-				} else {
-					qh->frame_usecs[j] +=
-						hsotg->frame_usecs[j];
-					hsotg->frame_usecs[j] = 0;
-				}
-			}
-		} else {
-			i++;
-			if (i == 8) {
-				ret = -1;
-				done = 1;
-			}
+			   hsotg->frame_usecs[j] == max_uframe_usecs[j])
+				continue;
 		}
 	}
-
-	return ret;
+	return -1;
 }
 
 static int dwc2_find_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
