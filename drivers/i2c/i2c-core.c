@@ -50,7 +50,7 @@ static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 static struct device_type i2c_client_type;
-static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
+//static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
 static int i2c_check_addr_ex(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
@@ -586,6 +586,7 @@ out_err_silent:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(i2c_new_device);
+
 #ifdef CONFIG_PLAT_RK
 #define RK610_KEY       "rk610"
 static int __i2c_client_print(struct device *dev, void *param)
@@ -636,6 +637,14 @@ int i2c_check_rk610_ex(int nr)
                 ex = 0;
         return ex;
 }
+#else
+int i2c_check_rk610_ex(int nr)
+{
+        return 0;
+}
+#endif //end of CONFIG_PLAT_RK
+EXPORT_SYMBOL_GPL(i2c_check_rk610_ex);
+
 #ifdef CONFIG_I2C_RK30
 int i2c_add_device(int nr, struct i2c_board_info const *info)
 {
@@ -709,18 +718,12 @@ out_err_silent:
 	return status;
 }
 #else
-int i2c_check_rk610_ex(int nr)
-{
-        return 0;
-}
 int i2c_add_device(int nr, struct i2c_board_info const *info)
 {
         return 0;
 }
-#endif
-EXPORT_SYMBOL_GPL(i2c_check_rk610_ex);
+#endif //end of CONFIG_I2C_RK30
 EXPORT_SYMBOL_GPL(i2c_add_device);
-#endif
 
 
 /**
