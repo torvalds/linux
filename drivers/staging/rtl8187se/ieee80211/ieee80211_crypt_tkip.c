@@ -739,5 +739,4 @@ void ieee80211_crypto_tkip_exit(void)
 
 void ieee80211_tkip_null(void)
 {
-	return;
 }
