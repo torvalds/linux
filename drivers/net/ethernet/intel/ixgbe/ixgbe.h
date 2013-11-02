@@ -67,7 +67,11 @@
 #define IXGBE_MAX_TXD			   4096
 #define IXGBE_MIN_TXD			     64
 
+#if (PAGE_SIZE < 8192)
 #define IXGBE_DEFAULT_RXD		    512
+#else
+#define IXGBE_DEFAULT_RXD		    128
+#endif
 #define IXGBE_MAX_RXD			   4096
 #define IXGBE_MIN_RXD			     64
 
