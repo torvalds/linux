@@ -1,11 +1,3 @@
-/*
- *	File:
- *		Dot11d.c
- *
- *	Description:
- *		Implement 802.11d
- */
-
 #include "dot11d.h"
 
 void
@@ -24,10 +16,7 @@ Dot11d_Init(struct ieee80211_device *ieee)
 	netdev_info(ieee->dev, "Dot11d_Init()\n");
 }
 
-/*
- * Description:
- *	Reset to the state as we are just entering a regulatory domain.
- */
+/* Reset to the state as we are just entering a regulatory domain. */
 void
 Dot11d_Reset(struct ieee80211_device *ieee)
 {
