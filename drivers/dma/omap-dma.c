@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -60,6 +61,7 @@ struct omap_desc {
 	uint8_t sync_mode;	/* OMAP_DMA_SYNC_xxx */
 	uint8_t sync_type;	/* OMAP_DMA_xxx_SYNC* */
 	uint8_t periph_port;	/* Peripheral port */
+	uint16_t cicr;		/* CICR value */
 
 	unsigned sglen;
 	struct omap_sg sg[0];
@@ -95,6 +97,111 @@ static void omap_dma_desc_free(struct virt_dma_desc *vd)
 	kfree(container_of(vd, struct omap_desc, vd));
 }
 
+static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
+{
+	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
+	uint32_t val;
+
+	if (__dma_omap15xx(od->plat->dma_attr))
+		c->plat->dma_write(0, CPC, c->dma_ch);
+	else
+		c->plat->dma_write(0, CDAC, c->dma_ch);
+
+	if (!__dma_omap15xx(od->plat->dma_attr) && c->cyclic) {
+		val = c->plat->dma_read(CLNK_CTRL, c->dma_ch);
+
+		if (dma_omap1())
+			val &= ~(1 << 14);
+
+		val |= c->dma_ch | 1 << 15;
+
+		c->plat->dma_write(val, CLNK_CTRL, c->dma_ch);
+	} else if (od->plat->errata & DMA_ERRATA_PARALLEL_CHANNELS)
+		c->plat->dma_write(c->dma_ch, CLNK_CTRL, c->dma_ch);
+
+	/* Clear CSR */
+	if (dma_omap1())
+		c->plat->dma_read(CSR, c->dma_ch);
+	else
+		c->plat->dma_write(~0, CSR, c->dma_ch);
+
+	/* Enable interrupts */
+	c->plat->dma_write(d->cicr, CICR, c->dma_ch);
+
+	val = c->plat->dma_read(CCR, c->dma_ch);
+	if (od->plat->errata & DMA_ERRATA_IFRAME_BUFFERING)
+		val |= OMAP_DMA_CCR_BUFFERING_DISABLE;
+	val |= OMAP_DMA_CCR_EN;
+	mb();
+	c->plat->dma_write(val, CCR, c->dma_ch);
+}
+
+static void omap_dma_stop(struct omap_chan *c)
+{
+	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
+	uint32_t val;
+
+	/* disable irq */
+	c->plat->dma_write(0, CICR, c->dma_ch);
+
+	/* Clear CSR */
+	if (dma_omap1())
+		c->plat->dma_read(CSR, c->dma_ch);
+	else
+		c->plat->dma_write(~0, CSR, c->dma_ch);
+
+	val = c->plat->dma_read(CCR, c->dma_ch);
+	if (od->plat->errata & DMA_ERRATA_i541 &&
+	    val & OMAP_DMA_CCR_SEL_SRC_DST_SYNC) {
+		uint32_t sysconfig;
+		unsigned i;
+
+		sysconfig = c->plat->dma_read(OCP_SYSCONFIG, c->dma_ch);
+		val = sysconfig & ~DMA_SYSCONFIG_MIDLEMODE_MASK;
+		val |= DMA_SYSCONFIG_MIDLEMODE(DMA_IDLEMODE_NO_IDLE);
+		c->plat->dma_write(val, OCP_SYSCONFIG, c->dma_ch);
+
+		val = c->plat->dma_read(CCR, c->dma_ch);
+		val &= ~OMAP_DMA_CCR_EN;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+
+		/* Wait for sDMA FIFO to drain */
+		for (i = 0; ; i++) {
+			val = c->plat->dma_read(CCR, c->dma_ch);
+			if (!(val & (OMAP_DMA_CCR_RD_ACTIVE | OMAP_DMA_CCR_WR_ACTIVE)))
+				break;
+
+			if (i > 100)
+				break;
+
+			udelay(5);
+		}
+
+		if (val & (OMAP_DMA_CCR_RD_ACTIVE | OMAP_DMA_CCR_WR_ACTIVE))
+			dev_err(c->vc.chan.device->dev,
+				"DMA drain did not complete on lch %d\n",
+			        c->dma_ch);
+
+		c->plat->dma_write(sysconfig, OCP_SYSCONFIG, c->dma_ch);
+	} else {
+		val &= ~OMAP_DMA_CCR_EN;
+		c->plat->dma_write(val, CCR, c->dma_ch);
+	}
+
+	mb();
+
+	if (!__dma_omap15xx(od->plat->dma_attr) && c->cyclic) {
+		val = c->plat->dma_read(CLNK_CTRL, c->dma_ch);
+
+		if (dma_omap1())
+			val |= 1 << 14; /* set the STOP_LNK bit */
+		else
+			val &= ~(1 << 15); /* Clear the ENABLE_LNK bit */
+
+		c->plat->dma_write(val, CLNK_CTRL, c->dma_ch);
+	}
+}
+
 static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
 	unsigned idx)
 {
@@ -113,7 +220,7 @@ static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
 	c->plat->dma_write(sg->en, CEN, c->dma_ch);
 	c->plat->dma_write(sg->fn, CFN, c->dma_ch);
 
-	omap_start_dma(c->dma_ch);
+	omap_dma_start(c, d);
 }
 
 static void omap_dma_start_desc(struct omap_chan *c)
@@ -434,6 +541,12 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	d->sync_mode = OMAP_DMA_SYNC_FRAME;
 	d->sync_type = sync_type;
 	d->periph_port = OMAP_DMA_PORT_TIPB;
+	d->cicr = OMAP_DMA_DROP_IRQ | OMAP_DMA_BLOCK_IRQ;
+
+	if (dma_omap1())
+		d->cicr |= OMAP1_DMA_TOUT_IRQ;
+	else
+		d->cicr |= OMAP2_DMA_MISALIGNED_ERR_IRQ | OMAP2_DMA_TRANS_ERR_IRQ;
 
 	/*
 	 * Build our scatterlist entries: each contains the address,
@@ -463,6 +576,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	size_t period_len, enum dma_transfer_direction dir, unsigned long flags,
 	void *context)
 {
+	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	enum dma_slave_buswidth dev_width;
 	struct omap_desc *d;
@@ -519,15 +633,25 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	d->sg[0].en = period_len / es_bytes[es];
 	d->sg[0].fn = buf_len / period_len;
 	d->sglen = 1;
+	d->cicr = OMAP_DMA_DROP_IRQ;
+	if (flags & DMA_PREP_INTERRUPT)
+		d->cicr |= OMAP_DMA_FRAME_IRQ;
+
+	if (dma_omap1())
+		d->cicr |= OMAP1_DMA_TOUT_IRQ;
+	else
+		d->cicr |= OMAP2_DMA_MISALIGNED_ERR_IRQ | OMAP2_DMA_TRANS_ERR_IRQ;
 
 	if (!c->cyclic) {
 		c->cyclic = true;
-		omap_dma_link_lch(c->dma_ch, c->dma_ch);
 
-		if (flags & DMA_PREP_INTERRUPT)
-			omap_enable_dma_irq(c->dma_ch, OMAP_DMA_FRAME_IRQ);
+		if (__dma_omap15xx(od->plat->dma_attr)) {
+			uint32_t val;
 
-		omap_disable_dma_irq(c->dma_ch, OMAP_DMA_BLOCK_IRQ);
+			val = c->plat->dma_read(CCR, c->dma_ch);
+			val |= 3 << 8;
+			c->plat->dma_write(val, CCR, c->dma_ch);
+		}
 	}
 
 	if (dma_omap2plus()) {
@@ -568,20 +692,27 @@ static int omap_dma_terminate_all(struct omap_chan *c)
 
 	/*
 	 * Stop DMA activity: we assume the callback will not be called
-	 * after omap_stop_dma() returns (even if it does, it will see
+	 * after omap_dma_stop() returns (even if it does, it will see
 	 * c->desc is NULL and exit.)
 	 */
 	if (c->desc) {
 		c->desc = NULL;
 		/* Avoid stopping the dma twice */
 		if (!c->paused)
-			omap_stop_dma(c->dma_ch);
+			omap_dma_stop(c);
 	}
 
 	if (c->cyclic) {
 		c->cyclic = false;
 		c->paused = false;
-		omap_dma_unlink_lch(c->dma_ch, c->dma_ch);
+
+		if (__dma_omap15xx(od->plat->dma_attr)) {
+			uint32_t val;
+
+			val = c->plat->dma_read(CCR, c->dma_ch);
+			val &= ~(3 << 8);
+			c->plat->dma_write(val, CCR, c->dma_ch);
+		}
 	}
 
 	vchan_get_all_descriptors(&c->vc, &head);
@@ -598,7 +729,7 @@ static int omap_dma_pause(struct omap_chan *c)
 		return -EINVAL;
 
 	if (!c->paused) {
-		omap_stop_dma(c->dma_ch);
+		omap_dma_stop(c);
 		c->paused = true;
 	}
 
@@ -612,7 +743,7 @@ static int omap_dma_resume(struct omap_chan *c)
 		return -EINVAL;
 
 	if (c->paused) {
-		omap_start_dma(c->dma_ch);
+		omap_dma_start(c, c->desc);
 		c->paused = false;
 	}
 
