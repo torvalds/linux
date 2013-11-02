@@ -923,6 +923,8 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	if (nfsi->cache_validity & NFS_INO_INVALID_ACL)
 		nfs_zap_acl_cache(inode);
 
+	nfs_setsecurity(inode, fattr, label);
+
 	dfprintk(PAGECACHE, "NFS: (%s/%Ld) revalidation complete\n",
 		inode->i_sb->s_id,
 		(long long)NFS_FILEID(inode));
