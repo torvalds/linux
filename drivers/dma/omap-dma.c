@@ -26,11 +26,13 @@ struct omap_dmadev {
 	spinlock_t lock;
 	struct tasklet_struct task;
 	struct list_head pending;
+	struct omap_system_dma_plat_info *plat;
 };
 
 struct omap_chan {
 	struct virt_dma_chan vc;
 	struct list_head node;
+	struct omap_system_dma_plat_info *plat;
 
 	struct dma_slave_config	cfg;
 	unsigned dma_sig;
@@ -573,6 +575,7 @@ static int omap_dma_chan_init(struct omap_dmadev *od, int dma_sig)
 	if (!c)
 		return -ENOMEM;
 
+	c->plat = od->plat;
 	c->dma_sig = dma_sig;
 	c->vc.desc_free = omap_dma_desc_free;
 	vchan_init(&c->vc, &od->ddev);
@@ -604,6 +607,10 @@ static int omap_dma_probe(struct platform_device *pdev)
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
 		return -ENOMEM;
+
+	od->plat = omap_get_plat_info();
+	if (!od->plat)
+		return -EPROBE_DEFER;
 
 	dma_cap_set(DMA_SLAVE, od->ddev.cap_mask);
 	dma_cap_set(DMA_CYCLIC, od->ddev.cap_mask);

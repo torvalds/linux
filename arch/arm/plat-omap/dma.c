@@ -2000,6 +2000,12 @@ void omap_dma_global_context_restore(void)
 			omap_clear_dma(ch);
 }
 
+struct omap_system_dma_plat_info *omap_get_plat_info(void)
+{
+	return p;
+}
+EXPORT_SYMBOL_GPL(omap_get_plat_info);
+
 static int omap_system_dma_probe(struct platform_device *pdev)
 {
 	int ch, ret = 0;
