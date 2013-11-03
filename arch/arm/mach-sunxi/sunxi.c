@@ -25,6 +25,8 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 
+#include "common.h"
+
 #define SUN4I_WATCHDOG_CTRL_REG		0x00
 #define SUN4I_WATCHDOG_CTRL_RESTART		BIT(0)
 #define SUN4I_WATCHDOG_MODE_REG		0x04
@@ -147,6 +149,7 @@ DT_MACHINE_START(SUN6I_DT, "Allwinner sun6i (A31) Family")
 	.init_time	= sun6i_timer_init,
 	.dt_compat	= sun6i_board_dt_compat,
 	.restart	= sun6i_restart,
+	.smp		= smp_ops(sun6i_smp_ops),
 MACHINE_END
 
 static const char * const sun7i_board_dt_compat[] = {
