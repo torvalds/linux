@@ -230,6 +230,37 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 	}
 }
 
+static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
+				      struct sg_table *pages,
+				      unsigned first_entry,
+				      enum i915_cache_level cache_level)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+	gen8_gtt_pte_t *pt_vaddr;
+	unsigned act_pt = first_entry / GEN8_PTES_PER_PAGE;
+	unsigned act_pte = first_entry % GEN8_PTES_PER_PAGE;
+	struct sg_page_iter sg_iter;
+
+	pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
+	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
+		dma_addr_t page_addr;
+
+		page_addr = sg_dma_address(sg_iter.sg) +
+				(sg_iter.sg_pgoffset << PAGE_SHIFT);
+		pt_vaddr[act_pte] = gen8_pte_encode(page_addr, cache_level,
+						    true);
+		if (++act_pte == GEN8_PTES_PER_PAGE) {
+			kunmap_atomic(pt_vaddr);
+			act_pt++;
+			pt_vaddr = kmap_atomic(&ppgtt->gen8_pt_pages[act_pt]);
+			act_pte = 0;
+
+		}
+	}
+	kunmap_atomic(pt_vaddr);
+}
+
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
@@ -296,7 +327,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
 	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
-	ppgtt->base.insert_entries = NULL;
+	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 
 	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
