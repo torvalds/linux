@@ -756,7 +756,8 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
@@ -792,10 +793,11 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	if (cpu_transcoder == TRANSCODER_EDP) {
 		switch (pipe) {
 		case PIPE_A:
-			/* Can only use the always-on power well for eDP when
-			 * not using the panel fitter, and when not using motion
-			  * blur mitigation (which we don't support). */
-			if (intel_crtc->config.pch_pfit.enabled)
+			/* On Haswell, can only use the always-on power well for
+			 * eDP when not using the panel fitter, and when not
+			 * using motion blur mitigation (which we don't
+			 * support). */
+			if (IS_HASWELL(dev) && intel_crtc->config.pch_pfit.enabled)
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
 			else
 				temp |= TRANS_DDI_EDP_INPUT_A_ON;
