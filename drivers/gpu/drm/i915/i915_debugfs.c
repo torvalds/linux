@@ -1646,18 +1646,37 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_ppgtt_info(struct seq_file *m, void *data)
+static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	int i, ret;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int unused, i;
 
+	if (!ppgtt)
+		return;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	seq_printf(m, "Page directories: %d\n", ppgtt->num_pd_pages);
+	seq_printf(m, "Page tables: %d\n", ppgtt->num_pt_pages);
+	for_each_ring(ring, dev_priv, unused) {
+		seq_printf(m, "%s\n", ring->name);
+		for (i = 0; i < 4; i++) {
+			u32 offset = 0x270 + i * 8;
+			u64 pdp = I915_READ(ring->mmio_base + offset + 4);
+			pdp <<= 32;
+			pdp |= I915_READ(ring->mmio_base + offset);
+			for (i = 0; i < 4; i++)
+				seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
+		}
+	}
+}
+
+static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i;
+
 	if (INTEL_INFO(dev)->gen == 6)
 		seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
 
@@ -1676,6 +1695,22 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
 	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
+}
+
+static int i915_ppgtt_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+
+	int ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (INTEL_INFO(dev)->gen >= 8)
+		gen8_ppgtt_info(m, dev);
+	else if (INTEL_INFO(dev)->gen >= 6)
+		gen6_ppgtt_info(m, dev);
+
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
