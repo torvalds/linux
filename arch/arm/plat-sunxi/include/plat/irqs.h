@@ -190,7 +190,7 @@
 /* sun7i only */
 #define SW_INT_IRQNO_TWI3		(88 + SW_INT_START)
 #define SW_INT_IRQNO_TWI4		(89 + SW_INT_START)
-
+#define SW_INT_IRQNO_GMAC		(85 + SW_INT_START)
 #ifdef CONFIG_ARCH_SUN7I
 #define SW_INT_END				  (127 + SW_INT_START)
 #else
