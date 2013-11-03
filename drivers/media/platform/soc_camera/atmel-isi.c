@@ -241,16 +241,6 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	unsigned long size;
-	int ret;
-
-	/* Reset ISI */
-	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
-	if (ret < 0) {
-		dev_err(icd->parent, "Reset ISI timed out\n");
-		return ret;
-	}
-	/* Disable all interrupts */
-	isi_writel(isi, ISI_INTDIS, ~0UL);
 
 	size = icd->sizeimage;
 
@@ -390,6 +380,16 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	u32 sr = 0;
+	int ret;
+
+	/* Reset ISI */
+	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
+	if (ret < 0) {
+		dev_err(icd->parent, "Reset ISI timed out\n");
+		return ret;
+	}
+	/* Disable all interrupts */
+	isi_writel(isi, ISI_INTDIS, ~0UL);
 
 	spin_lock_irq(&isi->lock);
 	/* Clear any pending interrupt */
