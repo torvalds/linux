@@ -2156,7 +2156,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	else
 		dspcntr &= ~DISPPLANE_TILED;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		dspcntr &= ~DISPPLANE_TRICKLE_FEED_DISABLE;
 	else
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
