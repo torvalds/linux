@@ -1670,6 +1670,8 @@ static int gen6_bsd_ring_flush(struct intel_ring_buffer *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
+	if (INTEL_INFO(ring->dev)->gen >= 8)
+		cmd += 1;
 	/*
 	 * Bspec vol 1c.5 - video engine command streamer:
 	 * "If ENABLED, all TLBs will be invalidated once the flush
@@ -1681,8 +1683,13 @@ static int gen6_bsd_ring_flush(struct intel_ring_buffer *ring,
 			MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, MI_NOOP);
+	if (INTEL_INFO(ring->dev)->gen >= 8) {
+		intel_ring_emit(ring, 0); /* upper addr */
+		intel_ring_emit(ring, 0); /* value */
+	} else  {
+		intel_ring_emit(ring, 0);
+		intel_ring_emit(ring, MI_NOOP);
+	}
 	intel_ring_advance(ring);
 	return 0;
 }
@@ -1764,6 +1771,8 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
+	if (INTEL_INFO(ring->dev)->gen >= 8)
+		cmd += 1;
 	/*
 	 * Bspec vol 1c.3 - blitter engine command streamer:
 	 * "If ENABLED, all TLBs will be invalidated once the flush
@@ -1775,8 +1784,13 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 			MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, MI_NOOP);
+	if (INTEL_INFO(ring->dev)->gen >= 8) {
+		intel_ring_emit(ring, 0); /* upper addr */
+		intel_ring_emit(ring, 0); /* value */
+	} else  {
+		intel_ring_emit(ring, 0);
+		intel_ring_emit(ring, MI_NOOP);
+	}
 	intel_ring_advance(ring);
 
 	if (IS_GEN7(dev) && flush)
