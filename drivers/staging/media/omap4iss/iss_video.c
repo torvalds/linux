@@ -571,7 +571,7 @@ iss_video_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cropcap)
 	ret = v4l2_subdev_call(subdev, video, cropcap, cropcap);
 	mutex_unlock(&video->mutex);
 
-	return ret == -ENOIOCTLCMD ? -EINVAL : ret;
+	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
 }
 
 static int
@@ -598,7 +598,7 @@ iss_video_get_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &format);
 	if (ret < 0)
-		return ret == -ENOIOCTLCMD ? -EINVAL : ret;
+		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
 
 	crop->c.left = 0;
 	crop->c.top = 0;
@@ -623,7 +623,7 @@ iss_video_set_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 	ret = v4l2_subdev_call(subdev, video, s_crop, crop);
 	mutex_unlock(&video->mutex);
 
-	return ret == -ENOIOCTLCMD ? -EINVAL : ret;
+	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
 }
 
 static int
