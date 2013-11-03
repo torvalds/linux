@@ -75,6 +75,7 @@
 #include "desc.h"
 #include "key.h"
 #include "card.h"
+#include "rndis.h"
 
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
@@ -465,6 +466,8 @@ struct vnt_private {
 	u8 byOriginalZonetype;
 
 	int bLinkPass; /* link status: OK or fail */
+	struct vnt_cmd_card_init init_command;
+	struct vnt_rsp_card_init init_response;
 	u8 abyCurrentNetAddr[ETH_ALEN];
 	u8 abyPermanentNetAddr[ETH_ALEN];
 
