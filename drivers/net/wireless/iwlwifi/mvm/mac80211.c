@@ -256,7 +256,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
-			       NL80211_FEATURE_P2P_GO_OPPPS;
+			       NL80211_FEATURE_P2P_GO_OPPPS |
+			       NL80211_FEATURE_LOW_PRIORITY_SCAN;
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
