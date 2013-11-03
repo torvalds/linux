@@ -504,12 +504,27 @@ struct slave_list {
 	struct list_head res_list[MLX4_NUM_OF_RESOURCE_TYPE];
 };
 
+struct resource_allocator {
+	union {
+		int res_reserved;
+		int res_port_rsvd[MLX4_MAX_PORTS];
+	};
+	union {
+		int res_free;
+		int res_port_free[MLX4_MAX_PORTS];
+	};
+	int *quota;
+	int *allocated;
+	int *guaranteed;
+};
+
 struct mlx4_resource_tracker {
 	spinlock_t lock;
 	/* tree for each resources */
 	struct rb_root res_tree[MLX4_NUM_OF_RESOURCE_TYPE];
 	/* num_of_slave's lists, one per slave */
 	struct slave_list *slave_list;
+	struct resource_allocator res_alloc[MLX4_NUM_OF_RESOURCE_TYPE];
 };
 
 #define SLAVE_EVENT_EQ_SIZE	128
@@ -1252,5 +1267,7 @@ static inline spinlock_t *mlx4_tlock(struct mlx4_dev *dev)
 #define NOT_MASKED_PD_BITS 17
 
 void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work);
+
+void mlx4_init_quotas(struct mlx4_dev *dev);
 
 #endif /* MLX4_H */

@@ -562,13 +562,17 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	}
 
 	dev->caps.num_ports		= func_cap.num_ports;
-	dev->caps.num_qps		= func_cap.qp_quota;
-	dev->caps.num_srqs		= func_cap.srq_quota;
-	dev->caps.num_cqs		= func_cap.cq_quota;
-	dev->caps.num_eqs               = func_cap.max_eq;
-	dev->caps.reserved_eqs          = func_cap.reserved_eq;
-	dev->caps.num_mpts		= func_cap.mpt_quota;
-	dev->caps.num_mtts		= func_cap.mtt_quota;
+	dev->quotas.qp			= func_cap.qp_quota;
+	dev->quotas.srq			= func_cap.srq_quota;
+	dev->quotas.cq			= func_cap.cq_quota;
+	dev->quotas.mpt			= func_cap.mpt_quota;
+	dev->quotas.mtt			= func_cap.mtt_quota;
+	dev->caps.num_qps		= 1 << hca_param.log_num_qps;
+	dev->caps.num_srqs		= 1 << hca_param.log_num_srqs;
+	dev->caps.num_cqs		= 1 << hca_param.log_num_cqs;
+	dev->caps.num_mpts		= 1 << hca_param.log_mpt_sz;
+	dev->caps.num_eqs		= func_cap.max_eq;
+	dev->caps.reserved_eqs		= func_cap.reserved_eq;
 	dev->caps.num_pds               = MLX4_NUM_PDS;
 	dev->caps.num_mgms              = 0;
 	dev->caps.num_amgms             = 0;
@@ -2102,9 +2106,15 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 			"aborting.\n");
 		return err;
 	}
-	if (num_vfs > MLX4_MAX_NUM_VF) {
-		printk(KERN_ERR "There are more VF's (%d) than allowed(%d)\n",
-		       num_vfs, MLX4_MAX_NUM_VF);
+
+	/* Due to requirement that all VFs and the PF are *guaranteed* 2 MACS
+	 * per port, we must limit the number of VFs to 63 (since their are
+	 * 128 MACs)
+	 */
+	if (num_vfs >= MLX4_MAX_NUM_VF) {
+		dev_err(&pdev->dev,
+			"Requested more VF's (%d) than allowed (%d)\n",
+			num_vfs, MLX4_MAX_NUM_VF - 1);
 		return -EINVAL;
 	}
 
@@ -2321,6 +2331,8 @@ slave_start:
 
 	if (err)
 		goto err_steer;
+
+	mlx4_init_quotas(dev);
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		err = mlx4_init_port_info(dev, port);

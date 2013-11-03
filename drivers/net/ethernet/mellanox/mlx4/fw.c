@@ -177,6 +177,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_cmd_mailbox *outbox,
 				struct mlx4_cmd_info *cmd)
 {
+	struct mlx4_priv *priv = mlx4_priv(dev);
 	u8	field;
 	u32	size;
 	int	err = 0;
@@ -250,13 +251,13 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		field = 0; /* protected FMR support not available as yet */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FMR_OFFSET);
 
-		size = dev->caps.num_qps;
+		size = priv->mfunc.master.res_tracker.res_alloc[RES_QP].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
 
-		size = dev->caps.num_srqs;
+		size = priv->mfunc.master.res_tracker.res_alloc[RES_SRQ].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
 
-		size = dev->caps.num_cqs;
+		size = priv->mfunc.master.res_tracker.res_alloc[RES_CQ].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
 
 		size = dev->caps.num_eqs;
@@ -265,10 +266,10 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		size = dev->caps.reserved_eqs;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
 
-		size = dev->caps.num_mpts;
+		size = priv->mfunc.master.res_tracker.res_alloc[RES_MPT].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
 
-		size = dev->caps.num_mtts;
+		size = priv->mfunc.master.res_tracker.res_alloc[RES_MTT].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
 
 		size = dev->caps.num_mgms + dev->caps.num_amgms;

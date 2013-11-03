@@ -641,12 +641,23 @@ struct mlx4_counter {
 	__be64	tx_bytes;
 };
 
+struct mlx4_quotas {
+	int qp;
+	int cq;
+	int srq;
+	int mpt;
+	int mtt;
+	int counter;
+	int xrcd;
+};
+
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
 	unsigned long		num_slaves;
 	struct mlx4_caps	caps;
 	struct mlx4_phys_caps	phys_caps;
+	struct mlx4_quotas	quotas;
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
@@ -770,6 +781,12 @@ static inline int mlx4_master_func_num(struct mlx4_dev *dev)
 static inline int mlx4_is_master(struct mlx4_dev *dev)
 {
 	return dev->flags & MLX4_FLAG_MASTER;
+}
+
+static inline int mlx4_num_reserved_sqps(struct mlx4_dev *dev)
+{
+	return dev->phys_caps.base_sqpn + 8 +
+		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev);
 }
 
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)

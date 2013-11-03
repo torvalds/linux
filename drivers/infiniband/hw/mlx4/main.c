@@ -177,18 +177,18 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 
 	props->max_mr_size	   = ~0ull;
 	props->page_size_cap	   = dev->dev->caps.page_size_cap;
-	props->max_qp		   = dev->dev->caps.num_qps - dev->dev->caps.reserved_qps;
+	props->max_qp		   = dev->dev->quotas.qp;
 	props->max_qp_wr	   = dev->dev->caps.max_wqes - MLX4_IB_SQ_MAX_SPARE;
 	props->max_sge		   = min(dev->dev->caps.max_sq_sg,
 					 dev->dev->caps.max_rq_sg);
-	props->max_cq		   = dev->dev->caps.num_cqs - dev->dev->caps.reserved_cqs;
+	props->max_cq		   = dev->dev->quotas.cq;
 	props->max_cqe		   = dev->dev->caps.max_cqes;
-	props->max_mr		   = dev->dev->caps.num_mpts - dev->dev->caps.reserved_mrws;
+	props->max_mr		   = dev->dev->quotas.mpt;
 	props->max_pd		   = dev->dev->caps.num_pds - dev->dev->caps.reserved_pds;
 	props->max_qp_rd_atom	   = dev->dev->caps.max_qp_dest_rdma;
 	props->max_qp_init_rd_atom = dev->dev->caps.max_qp_init_rdma;
 	props->max_res_rd_atom	   = props->max_qp_rd_atom * props->max_qp;
-	props->max_srq		   = dev->dev->caps.num_srqs - dev->dev->caps.reserved_srqs;
+	props->max_srq		   = dev->dev->quotas.srq;
 	props->max_srq_wr	   = dev->dev->caps.max_srq_wqes - 1;
 	props->max_srq_sge	   = dev->dev->caps.max_srq_sge;
 	props->max_fast_reg_page_list_len = MLX4_MAX_FAST_REG_PAGES;

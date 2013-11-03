@@ -284,10 +284,59 @@ static const char *ResourceType(enum mlx4_resource rt)
 }
 
 static void rem_slave_vlans(struct mlx4_dev *dev, int slave);
+static inline void initialize_res_quotas(struct mlx4_dev *dev,
+					 struct resource_allocator *res_alloc,
+					 enum mlx4_resource res_type,
+					 int vf, int num_instances)
+{
+	res_alloc->guaranteed[vf] = num_instances / (2 * (dev->num_vfs + 1));
+	res_alloc->quota[vf] = (num_instances / 2) + res_alloc->guaranteed[vf];
+	if (vf == mlx4_master_func_num(dev)) {
+		res_alloc->res_free = num_instances;
+		if (res_type == RES_MTT) {
+			/* reserved mtts will be taken out of the PF allocation */
+			res_alloc->res_free += dev->caps.reserved_mtts;
+			res_alloc->guaranteed[vf] += dev->caps.reserved_mtts;
+			res_alloc->quota[vf] += dev->caps.reserved_mtts;
+		}
+	}
+}
+
+void mlx4_init_quotas(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int pf;
+
+	/* quotas for VFs are initialized in mlx4_slave_cap */
+	if (mlx4_is_slave(dev))
+		return;
+
+	if (!mlx4_is_mfunc(dev)) {
+		dev->quotas.qp = dev->caps.num_qps - dev->caps.reserved_qps -
+			mlx4_num_reserved_sqps(dev);
+		dev->quotas.cq = dev->caps.num_cqs - dev->caps.reserved_cqs;
+		dev->quotas.srq = dev->caps.num_srqs - dev->caps.reserved_srqs;
+		dev->quotas.mtt = dev->caps.num_mtts - dev->caps.reserved_mtts;
+		dev->quotas.mpt = dev->caps.num_mpts - dev->caps.reserved_mrws;
+		return;
+	}
+
+	pf = mlx4_master_func_num(dev);
+	dev->quotas.qp =
+		priv->mfunc.master.res_tracker.res_alloc[RES_QP].quota[pf];
+	dev->quotas.cq =
+		priv->mfunc.master.res_tracker.res_alloc[RES_CQ].quota[pf];
+	dev->quotas.srq =
+		priv->mfunc.master.res_tracker.res_alloc[RES_SRQ].quota[pf];
+	dev->quotas.mtt =
+		priv->mfunc.master.res_tracker.res_alloc[RES_MTT].quota[pf];
+	dev->quotas.mpt =
+		priv->mfunc.master.res_tracker.res_alloc[RES_MPT].quota[pf];
+}
 int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	int i;
+	int i, j;
 	int t;
 
 	priv->mfunc.master.res_tracker.slave_list =
@@ -308,8 +357,104 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	for (i = 0 ; i < MLX4_NUM_OF_RESOURCE_TYPE; i++)
 		priv->mfunc.master.res_tracker.res_tree[i] = RB_ROOT;
 
+	for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
+		struct resource_allocator *res_alloc =
+			&priv->mfunc.master.res_tracker.res_alloc[i];
+		res_alloc->quota = kmalloc((dev->num_vfs + 1) * sizeof(int), GFP_KERNEL);
+		res_alloc->guaranteed = kmalloc((dev->num_vfs + 1) * sizeof(int), GFP_KERNEL);
+		if (i == RES_MAC || i == RES_VLAN)
+			res_alloc->allocated = kzalloc(MLX4_MAX_PORTS *
+						       (dev->num_vfs + 1) * sizeof(int),
+							GFP_KERNEL);
+		else
+			res_alloc->allocated = kzalloc((dev->num_vfs + 1) * sizeof(int), GFP_KERNEL);
+
+		if (!res_alloc->quota || !res_alloc->guaranteed ||
+		    !res_alloc->allocated)
+			goto no_mem_err;
+
+		for (t = 0; t < dev->num_vfs + 1; t++) {
+			switch (i) {
+			case RES_QP:
+				initialize_res_quotas(dev, res_alloc, RES_QP,
+						      t, dev->caps.num_qps -
+						      dev->caps.reserved_qps -
+						      mlx4_num_reserved_sqps(dev));
+				break;
+			case RES_CQ:
+				initialize_res_quotas(dev, res_alloc, RES_CQ,
+						      t, dev->caps.num_cqs -
+						      dev->caps.reserved_cqs);
+				break;
+			case RES_SRQ:
+				initialize_res_quotas(dev, res_alloc, RES_SRQ,
+						      t, dev->caps.num_srqs -
+						      dev->caps.reserved_srqs);
+				break;
+			case RES_MPT:
+				initialize_res_quotas(dev, res_alloc, RES_MPT,
+						      t, dev->caps.num_mpts -
+						      dev->caps.reserved_mrws);
+				break;
+			case RES_MTT:
+				initialize_res_quotas(dev, res_alloc, RES_MTT,
+						      t, dev->caps.num_mtts -
+						      dev->caps.reserved_mtts);
+				break;
+			case RES_MAC:
+				if (t == mlx4_master_func_num(dev)) {
+					res_alloc->quota[t] = MLX4_MAX_MAC_NUM;
+					res_alloc->guaranteed[t] = 2;
+					for (j = 0; j < MLX4_MAX_PORTS; j++)
+						res_alloc->res_port_free[j] = MLX4_MAX_MAC_NUM;
+				} else {
+					res_alloc->quota[t] = MLX4_MAX_MAC_NUM;
+					res_alloc->guaranteed[t] = 2;
+				}
+				break;
+			case RES_VLAN:
+				if (t == mlx4_master_func_num(dev)) {
+					res_alloc->quota[t] = MLX4_MAX_VLAN_NUM;
+					res_alloc->guaranteed[t] = MLX4_MAX_VLAN_NUM / 2;
+					for (j = 0; j < MLX4_MAX_PORTS; j++)
+						res_alloc->res_port_free[j] =
+							res_alloc->quota[t];
+				} else {
+					res_alloc->quota[t] = MLX4_MAX_VLAN_NUM / 2;
+					res_alloc->guaranteed[t] = 0;
+				}
+				break;
+			case RES_COUNTER:
+				res_alloc->quota[t] = dev->caps.max_counters;
+				res_alloc->guaranteed[t] = 0;
+				if (t == mlx4_master_func_num(dev))
+					res_alloc->res_free = res_alloc->quota[t];
+				break;
+			default:
+				break;
+			}
+			if (i == RES_MAC || i == RES_VLAN) {
+				for (j = 0; j < MLX4_MAX_PORTS; j++)
+					res_alloc->res_port_rsvd[j] +=
+						res_alloc->guaranteed[t];
+			} else {
+				res_alloc->res_reserved += res_alloc->guaranteed[t];
+			}
+		}
+	}
 	spin_lock_init(&priv->mfunc.master.res_tracker.lock);
-	return 0 ;
+	return 0;
+
+no_mem_err:
+	for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
+		kfree(priv->mfunc.master.res_tracker.res_alloc[i].allocated);
+		priv->mfunc.master.res_tracker.res_alloc[i].allocated = NULL;
+		kfree(priv->mfunc.master.res_tracker.res_alloc[i].guaranteed);
+		priv->mfunc.master.res_tracker.res_alloc[i].guaranteed = NULL;
+		kfree(priv->mfunc.master.res_tracker.res_alloc[i].quota);
+		priv->mfunc.master.res_tracker.res_alloc[i].quota = NULL;
+	}
+	return -ENOMEM;
 }
 
 void mlx4_free_resource_tracker(struct mlx4_dev *dev,
@@ -333,6 +478,14 @@ void mlx4_free_resource_tracker(struct mlx4_dev *dev,
 		}
 
 		if (type != RES_TR_FREE_SLAVES_ONLY) {
+			for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
+				kfree(priv->mfunc.master.res_tracker.res_alloc[i].allocated);
+				priv->mfunc.master.res_tracker.res_alloc[i].allocated = NULL;
+				kfree(priv->mfunc.master.res_tracker.res_alloc[i].guaranteed);
+				priv->mfunc.master.res_tracker.res_alloc[i].guaranteed = NULL;
+				kfree(priv->mfunc.master.res_tracker.res_alloc[i].quota);
+				priv->mfunc.master.res_tracker.res_alloc[i].quota = NULL;
+			}
 			kfree(priv->mfunc.master.res_tracker.slave_list);
 			priv->mfunc.master.res_tracker.slave_list = NULL;
 		}
