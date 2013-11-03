@@ -1119,6 +1119,5 @@ int omap4iss_video_register(struct iss_video *video, struct v4l2_device *vdev)
 
 void omap4iss_video_unregister(struct iss_video *video)
 {
-	if (video_is_registered(&video->video))
-		video_unregister_device(&video->video);
+	video_unregister_device(&video->video);
 }
