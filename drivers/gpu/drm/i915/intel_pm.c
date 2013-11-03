@@ -5520,7 +5520,9 @@ static bool is_always_on_power_domain(struct drm_device *dev,
 
 	BUG_ON(BIT(domain) & ~POWER_DOMAIN_MASK);
 
-	if (IS_HASWELL(dev)) {
+	if (IS_BROADWELL(dev)) {
+		always_on_domains = BDW_ALWAYS_ON_POWER_DOMAINS;
+	} else if (IS_HASWELL(dev)) {
 		always_on_domains = HSW_ALWAYS_ON_POWER_DOMAINS;
 	} else {
 		WARN_ON(1);
@@ -6006,4 +6008,3 @@ void intel_pm_init(struct drm_device *dev)
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }
-

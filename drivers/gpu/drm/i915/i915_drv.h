@@ -117,6 +117,10 @@ enum intel_display_power_domain {
 #define HSW_ALWAYS_ON_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PIPE_A) |		\
 	BIT(POWER_DOMAIN_TRANSCODER_EDP))
+#define BDW_ALWAYS_ON_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PIPE_A) |		\
+	BIT(POWER_DOMAIN_TRANSCODER_EDP) |	\
+	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER))
 
 enum hpd_pin {
 	HPD_NONE = 0,
@@ -1804,7 +1808,7 @@ struct drm_i915_file_private {
 #define HAS_IPS(dev)		(IS_ULT(dev))
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
-#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
+#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev) || IS_BROADWELL(dev))
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(IS_HASWELL(dev))
 
