@@ -336,7 +336,7 @@ err_out:
 }
 
 static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
-		struct ipu_client_platformdata *pdata)
+	struct ipu_client_platformdata *pdata, struct drm_device *drm)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 	int dp = -EINVAL;
@@ -350,9 +350,9 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		return ret;
 	}
 
-	ret = imx_drm_add_crtc(&ipu_crtc->base,
+	ret = imx_drm_add_crtc(drm, &ipu_crtc->base,
 			&ipu_crtc->imx_crtc,
-			&ipu_crtc_helper_funcs, THIS_MODULE,
+			&ipu_crtc_helper_funcs,
 			ipu_crtc->dev->parent->of_node, pdata->di);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
@@ -404,6 +404,7 @@ err_put_resources:
 static int ipu_drm_bind(struct device *dev, struct device *master, void *data)
 {
 	struct ipu_client_platformdata *pdata = dev->platform_data;
+	struct drm_device *drm = data;
 	struct ipu_crtc *ipu_crtc;
 	int ret;
 
@@ -413,7 +414,7 @@ static int ipu_drm_bind(struct device *dev, struct device *master, void *data)
 
 	ipu_crtc->dev = dev;
 
-	ret = ipu_crtc_init(ipu_crtc, pdata);
+	ret = ipu_crtc_init(ipu_crtc, pdata, drm);
 	if (ret)
 		return ret;
 

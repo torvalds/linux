@@ -52,7 +52,6 @@ struct imx_drm_crtc {
 	struct imx_drm_device			*imxdrm;
 	int					pipe;
 	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
-	struct module				*owner;
 	struct crtc_cookie			cookie;
 	int					mux_id;
 };
@@ -74,7 +73,6 @@ static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
 
 static void imx_drm_device_put(void);
-static struct imx_drm_device *__imx_drm_device(void);
 
 int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
 {
@@ -114,7 +112,7 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
 {
-	struct imx_drm_device *imxdrm = __imx_drm_device();
+	struct imx_drm_device *imxdrm = crtc->dev->dev_private;
 	unsigned i;
 
 	for (i = 0; i < MAX_CRTC; i++)
@@ -241,7 +239,6 @@ static struct drm_device *imx_drm_device_get(void)
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	struct imx_drm_encoder *enc;
 	struct imx_drm_connector *con;
-	struct imx_drm_crtc *crtc;
 
 	list_for_each_entry(enc, &imxdrm->encoder_list, list) {
 		if (!try_module_get(enc->owner)) {
@@ -259,19 +256,8 @@ static struct drm_device *imx_drm_device_get(void)
 		}
 	}
 
-	list_for_each_entry(crtc, &imxdrm->crtc_list, list) {
-		if (!try_module_get(crtc->owner)) {
-			dev_err(imxdrm->dev, "could not get module %s\n",
-					module_name(crtc->owner));
-			goto unwind_crtc;
-		}
-	}
-
 	return imxdrm->drm;
 
-unwind_crtc:
-	list_for_each_entry_continue_reverse(crtc, &imxdrm->crtc_list, list)
-		module_put(crtc->owner);
 unwind_con:
 	list_for_each_entry_continue_reverse(con, &imxdrm->connector_list, list)
 		module_put(con->owner);
@@ -290,12 +276,8 @@ static void imx_drm_device_put(void)
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	struct imx_drm_encoder *enc;
 	struct imx_drm_connector *con;
-	struct imx_drm_crtc *crtc;
 
 	mutex_lock(&imxdrm->mutex);
-
-	list_for_each_entry(crtc, &imxdrm->crtc_list, list)
-		module_put(crtc->owner);
 
 	list_for_each_entry(con, &imxdrm->connector_list, list)
 		module_put(con->owner);
@@ -536,12 +518,12 @@ static void imx_drm_update_possible_crtcs(void)
  * The return value if !NULL is a cookie for the caller to pass to
  * imx_drm_remove_crtc later.
  */
-int imx_drm_add_crtc(struct drm_crtc *crtc,
+int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 		struct imx_drm_crtc **new_crtc,
 		const struct imx_drm_crtc_helper_funcs *imx_drm_helper_funcs,
-		struct module *owner, void *cookie, int id)
+		void *cookie, int id)
 {
-	struct imx_drm_device *imxdrm = __imx_drm_device();
+	struct imx_drm_device *imxdrm = drm->dev_private;
 	struct imx_drm_crtc *imx_drm_crtc;
 	int ret;
 
@@ -575,8 +557,6 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 	imx_drm_crtc->crtc = crtc;
 	imx_drm_crtc->imxdrm = imxdrm;
 
-	imx_drm_crtc->owner = owner;
-
 	imxdrm->crtc[imx_drm_crtc->pipe] = imx_drm_crtc;
 
 	*new_crtc = imx_drm_crtc;
@@ -588,10 +568,8 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
 
-	drm_crtc_init(imxdrm->drm, crtc,
+	drm_crtc_init(drm, crtc,
 			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs);
-
-	drm_mode_group_reinit(imxdrm->drm);
 
 	imx_drm_update_possible_crtcs();
 
@@ -621,8 +599,6 @@ int imx_drm_remove_crtc(struct imx_drm_crtc *imx_drm_crtc)
 	drm_crtc_cleanup(imx_drm_crtc->crtc);
 
 	imxdrm->crtc[imx_drm_crtc->pipe] = NULL;
-
-	drm_mode_group_reinit(imxdrm->drm);
 
 	mutex_unlock(&imxdrm->mutex);
 
