@@ -92,8 +92,9 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 	struct nouveau_timer *ptimer = nouveau_timer(therm);
 	struct nouveau_therm_priv *priv = (void *)therm;
 	unsigned long flags;
+	bool immd = true;
 	bool poll = true;
-	int duty;
+	int duty = -1;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (mode < 0)
@@ -119,21 +120,22 @@ nouveau_therm_update(struct nouveau_therm *therm, int mode)
 			duty = priv->cstate;
 			poll = false;
 		}
+		immd = false;
 		break;
 	case NOUVEAU_THERM_CTRL_NONE:
 	default:
 		ptimer->alarm_cancel(ptimer, &priv->alarm);
 		poll = false;
-		goto done;
 	}
 
-	nv_debug(therm, "FAN target request: %d%%\n", duty);
-	nouveau_therm_fan_set(therm, (mode != NOUVEAU_THERM_CTRL_AUTO), duty);
-
-done:
 	if (list_empty(&priv->alarm.head) && poll)
 		ptimer->alarm(ptimer, 1000000000ULL, &priv->alarm);
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (duty >= 0) {
+		nv_debug(therm, "FAN target request: %d%%\n", duty);
+		nouveau_therm_fan_set(therm, immd, duty);
+	}
 }
 
 int
