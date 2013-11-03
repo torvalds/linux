@@ -248,8 +248,6 @@ __iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
 	fmt.pad = pad;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
-	if (ret == -ENOIOCTLCMD)
-		ret = -EINVAL;
 
 	mutex_unlock(&video->mutex);
 
@@ -552,7 +550,7 @@ iss_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret)
-		return ret == -ENOIOCTLCMD ? -EINVAL : ret;
+		return ret;
 
 	iss_video_mbus_to_pix(video, &fmt.format, &format->fmt.pix);
 	return 0;
