@@ -5181,6 +5181,15 @@ static void lpt_suspend_hw(struct drm_device *dev)
 	}
 }
 
+static void gen8_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
+}
+
 static void haswell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5833,6 +5842,8 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
+		} else if (INTEL_INFO(dev)->gen == 8) {
+			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
