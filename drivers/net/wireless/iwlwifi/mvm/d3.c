@@ -1031,7 +1031,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	ret = iwl_mvm_send_proto_offload(mvm, vif);
+	ret = iwl_mvm_send_proto_offload(mvm, vif, false, CMD_SYNC);
 	if (ret)
 		goto out;
 

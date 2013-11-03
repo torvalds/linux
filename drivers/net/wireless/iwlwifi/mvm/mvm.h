@@ -906,7 +906,10 @@ iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 #endif
 void iwl_mvm_set_wowlan_qos_seq(struct iwl_mvm_sta *mvm_ap_sta,
 				struct iwl_wowlan_config_cmd_v2 *cmd);
-int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif,
+			       bool disable_offloading,
+			       u32 cmd_flags);
 
 /* D0i3 */
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
