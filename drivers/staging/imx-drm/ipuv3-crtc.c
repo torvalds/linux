@@ -17,6 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
  */
+#include <linux/component.h>
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/device.h>
@@ -400,43 +401,60 @@ err_put_resources:
 	return ret;
 }
 
-static int ipu_drm_probe(struct platform_device *pdev)
+static int ipu_drm_bind(struct device *dev, struct device *master, void *data)
 {
-	struct ipu_client_platformdata *pdata = pdev->dev.platform_data;
+	struct ipu_client_platformdata *pdata = dev->platform_data;
 	struct ipu_crtc *ipu_crtc;
 	int ret;
 
-	if (!pdata)
+	ipu_crtc = devm_kzalloc(dev, sizeof(*ipu_crtc), GFP_KERNEL);
+	if (!ipu_crtc)
+		return -ENOMEM;
+
+	ipu_crtc->dev = dev;
+
+	ret = ipu_crtc_init(ipu_crtc, pdata);
+	if (ret)
+		return ret;
+
+	dev_set_drvdata(dev, ipu_crtc);
+
+	return 0;
+}
+
+static void ipu_drm_unbind(struct device *dev, struct device *master,
+	void *data)
+{
+	struct ipu_crtc *ipu_crtc = dev_get_drvdata(dev);
+
+	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
+
+	ipu_plane_put_resources(ipu_crtc->plane[0]);
+	ipu_put_resources(ipu_crtc);
+}
+
+static const struct component_ops ipu_crtc_ops = {
+	.bind = ipu_drm_bind,
+	.unbind = ipu_drm_unbind,
+};
+
+static int ipu_drm_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	if (!pdev->dev.platform_data)
 		return -EINVAL;
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	ipu_crtc = devm_kzalloc(&pdev->dev, sizeof(*ipu_crtc), GFP_KERNEL);
-	if (!ipu_crtc)
-		return -ENOMEM;
-
-	ipu_crtc->dev = &pdev->dev;
-
-	ret = ipu_crtc_init(ipu_crtc, pdata);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, ipu_crtc);
-
-	return 0;
+	return component_add(&pdev->dev, &ipu_crtc_ops);
 }
 
 static int ipu_drm_remove(struct platform_device *pdev)
 {
-	struct ipu_crtc *ipu_crtc = platform_get_drvdata(pdev);
-
-	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
-
-	ipu_plane_put_resources(ipu_crtc->plane[0]);
-	ipu_put_resources(ipu_crtc);
-
+	component_del(&pdev->dev, &ipu_crtc_ops);
 	return 0;
 }
 

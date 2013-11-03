@@ -18,6 +18,7 @@
  * MA 02110-1301, USA.
  */
 
+#include <linux/component.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
@@ -192,15 +193,15 @@ static int imx_pd_register(struct imx_parallel_display *imxpd)
 	return 0;
 }
 
-static int imx_pd_probe(struct platform_device *pdev)
+static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int ret;
 	const char *fmt;
 
-	imxpd = devm_kzalloc(&pdev->dev, sizeof(*imxpd), GFP_KERNEL);
+	imxpd = devm_kzalloc(dev, sizeof(*imxpd), GFP_KERNEL);
 	if (!imxpd)
 		return -ENOMEM;
 
@@ -218,7 +219,7 @@ static int imx_pd_probe(struct platform_device *pdev)
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
 	}
 
-	imxpd->dev = &pdev->dev;
+	imxpd->dev = dev;
 
 	ret = imx_pd_register(imxpd);
 	if (ret)
@@ -226,14 +227,15 @@ static int imx_pd_probe(struct platform_device *pdev)
 
 	ret = imx_drm_encoder_add_possible_crtcs(imxpd->imx_drm_encoder, np);
 
-	platform_set_drvdata(pdev, imxpd);
+	dev_set_drvdata(dev, imxpd);
 
 	return 0;
 }
 
-static int imx_pd_remove(struct platform_device *pdev)
+static void imx_pd_unbind(struct device *dev, struct device *master,
+	void *data)
 {
-	struct imx_parallel_display *imxpd = platform_get_drvdata(pdev);
+	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
 	struct drm_connector *connector = &imxpd->connector;
 	struct drm_encoder *encoder = &imxpd->encoder;
 
@@ -241,7 +243,21 @@ static int imx_pd_remove(struct platform_device *pdev)
 
 	imx_drm_remove_connector(imxpd->imx_drm_connector);
 	imx_drm_remove_encoder(imxpd->imx_drm_encoder);
+}
 
+static const struct component_ops imx_pd_ops = {
+	.bind	= imx_pd_bind,
+	.unbind	= imx_pd_unbind,
+};
+
+static int imx_pd_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &imx_pd_ops);
+}
+
+static int imx_pd_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &imx_pd_ops);
 	return 0;
 }
 

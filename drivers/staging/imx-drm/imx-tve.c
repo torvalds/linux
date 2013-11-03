@@ -20,6 +20,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/component.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -583,9 +584,10 @@ static const int of_get_tve_mode(struct device_node *np)
 	return -EINVAL;
 }
 
-static int imx_tve_probe(struct platform_device *pdev)
+static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct device_node *np = dev->of_node;
 	struct device_node *ddc_node;
 	struct imx_tve *tve;
 	struct resource *res;
@@ -594,11 +596,11 @@ static int imx_tve_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	tve = devm_kzalloc(&pdev->dev, sizeof(*tve), GFP_KERNEL);
+	tve = devm_kzalloc(dev, sizeof(*tve), GFP_KERNEL);
 	if (!tve)
 		return -ENOMEM;
 
-	tve->dev = &pdev->dev;
+	tve->dev = dev;
 	spin_lock_init(&tve->lock);
 
 	ddc_node = of_parse_phandle(np, "ddc", 0);
@@ -609,7 +611,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 
 	tve->mode = of_get_tve_mode(np);
 	if (tve->mode != TVE_MODE_VGA) {
-		dev_err(&pdev->dev, "only VGA mode supported, currently\n");
+		dev_err(dev, "only VGA mode supported, currently\n");
 		return -EINVAL;
 	}
 
@@ -618,7 +620,7 @@ static int imx_tve_probe(struct platform_device *pdev)
 					   &tve->hsync_pin);
 
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to get vsync pin\n");
+			dev_err(dev, "failed to get vsync pin\n");
 			return ret;
 		}
 
@@ -626,40 +628,40 @@ static int imx_tve_probe(struct platform_device *pdev)
 					    &tve->vsync_pin);
 
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to get vsync pin\n");
+			dev_err(dev, "failed to get vsync pin\n");
 			return ret;
 		}
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	tve_regmap_config.lock_arg = tve;
-	tve->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "tve", base,
+	tve->regmap = devm_regmap_init_mmio_clk(dev, "tve", base,
 						&tve_regmap_config);
 	if (IS_ERR(tve->regmap)) {
-		dev_err(&pdev->dev, "failed to init regmap: %ld\n",
+		dev_err(dev, "failed to init regmap: %ld\n",
 			PTR_ERR(tve->regmap));
 		return PTR_ERR(tve->regmap);
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+		dev_err(dev, "failed to get irq\n");
 		return irq;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+	ret = devm_request_threaded_irq(dev, irq, NULL,
 					imx_tve_irq_handler, IRQF_ONESHOT,
 					"imx-tve", tve);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
+		dev_err(dev, "failed to request irq: %d\n", ret);
 		return ret;
 	}
 
-	tve->dac_reg = devm_regulator_get(&pdev->dev, "dac");
+	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
 		regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
 		ret = regulator_enable(tve->dac_reg);
@@ -667,17 +669,17 @@ static int imx_tve_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	tve->clk = devm_clk_get(&pdev->dev, "tve");
+	tve->clk = devm_clk_get(dev, "tve");
 	if (IS_ERR(tve->clk)) {
-		dev_err(&pdev->dev, "failed to get high speed tve clock: %ld\n",
+		dev_err(dev, "failed to get high speed tve clock: %ld\n",
 			PTR_ERR(tve->clk));
 		return PTR_ERR(tve->clk);
 	}
 
 	/* this is the IPU DI clock input selector, can be parented to tve_di */
-	tve->di_sel_clk = devm_clk_get(&pdev->dev, "di_sel");
+	tve->di_sel_clk = devm_clk_get(dev, "di_sel");
 	if (IS_ERR(tve->di_sel_clk)) {
-		dev_err(&pdev->dev, "failed to get ipu di mux clock: %ld\n",
+		dev_err(dev, "failed to get ipu di mux clock: %ld\n",
 			PTR_ERR(tve->di_sel_clk));
 		return PTR_ERR(tve->di_sel_clk);
 	}
@@ -688,11 +690,11 @@ static int imx_tve_probe(struct platform_device *pdev)
 
 	ret = regmap_read(tve->regmap, TVE_COM_CONF_REG, &val);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to read configuration register: %d\n", ret);
+		dev_err(dev, "failed to read configuration register: %d\n", ret);
 		return ret;
 	}
 	if (val != 0x00100000) {
-		dev_err(&pdev->dev, "configuration register default value indicates this is not a TVEv2\n");
+		dev_err(dev, "configuration register default value indicates this is not a TVEv2\n");
 		return -ENODEV;
 	}
 
@@ -705,14 +707,15 @@ static int imx_tve_probe(struct platform_device *pdev)
 
 	ret = imx_drm_encoder_add_possible_crtcs(tve->imx_drm_encoder, np);
 
-	platform_set_drvdata(pdev, tve);
+	dev_set_drvdata(dev, tve);
 
 	return 0;
 }
 
-static int imx_tve_remove(struct platform_device *pdev)
+static void imx_tve_unbind(struct device *dev, struct device *master,
+	void *data)
 {
-	struct imx_tve *tve = platform_get_drvdata(pdev);
+	struct imx_tve *tve = dev_get_drvdata(dev);
 	struct drm_connector *connector = &tve->connector;
 	struct drm_encoder *encoder = &tve->encoder;
 
@@ -723,7 +726,21 @@ static int imx_tve_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(tve->dac_reg))
 		regulator_disable(tve->dac_reg);
+}
 
+static const struct component_ops imx_tve_ops = {
+	.bind	= imx_tve_bind,
+	.unbind	= imx_tve_unbind,
+};
+
+static int imx_tve_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &imx_tve_ops);
+}
+
+static int imx_tve_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &imx_tve_ops);
 	return 0;
 }
 

@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  */
-
+#include <linux/component.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
@@ -89,6 +89,8 @@ static void imx_drm_driver_lastclose(struct drm_device *drm)
 static int imx_drm_driver_unload(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
+
+	component_unbind_all(drm->dev, drm);
 
 	imx_drm_device_put();
 
@@ -371,11 +373,8 @@ static void imx_drm_connector_unregister(
 }
 
 /*
- * Called by the CRTC driver when all CRTCs are registered. This
- * puts all the pieces together and initializes the driver.
- * Once this is called no more CRTCs can be registered since
- * the drm core has hardcoded the number of crtcs in several
- * places.
+ * Main DRM initialisation. This binds, initialises and registers
+ * with DRM the subcomponents of the driver.
  */
 static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 {
@@ -428,8 +427,15 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	platform_set_drvdata(drm->platformdev, drm);
 	mutex_unlock(&imxdrm->mutex);
+
+	/* Now try and bind all our sub-components */
+	ret = component_bind_all(drm->dev, drm);
+	if (ret)
+		goto err_relock;
 	return 0;
 
+err_relock:
+	mutex_lock(&imxdrm->mutex);
 err_vblank:
 	drm_vblank_cleanup(drm);
 err_kms:
@@ -809,6 +815,70 @@ static struct drm_driver imx_drm_driver = {
 	.patchlevel		= 0,
 };
 
+static int compare_parent_of(struct device *dev, void *data)
+{
+	struct of_phandle_args *args = data;
+	return dev->parent && dev->parent->of_node == args->np;
+}
+
+static int compare_of(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+static int imx_drm_add_components(struct device *master, struct master *m)
+{
+	struct device_node *np = master->of_node;
+	unsigned i;
+	int ret;
+
+	for (i = 0; ; i++) {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_fixed_args(np, "crtcs", 1,
+						       i, &args);
+		if (ret)
+			break;
+
+		ret = component_master_add_child(m, compare_parent_of, &args);
+		of_node_put(args.np);
+
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; ; i++) {
+		struct device_node *node;
+
+		node = of_parse_phandle(np, "connectors", i);
+		if (!node)
+			break;
+
+		ret = component_master_add_child(m, compare_of, node);
+		of_node_put(node);
+
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int imx_drm_bind(struct device *dev)
+{
+	return drm_platform_init(&imx_drm_driver, to_platform_device(dev));
+}
+
+static void imx_drm_unbind(struct device *dev)
+{
+	drm_put_dev(dev_get_drvdata(dev));
+}
+
+static const struct component_master_ops imx_drm_ops = {
+	.add_components = imx_drm_add_components,
+	.bind = imx_drm_bind,
+	.unbind = imx_drm_unbind,
+};
+
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -819,15 +889,20 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 
 	imx_drm_device->dev = &pdev->dev;
 
-	return drm_platform_init(&imx_drm_driver, pdev);
+	return component_master_add(&pdev->dev, &imx_drm_ops);
 }
 
 static int imx_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_put_dev(platform_get_drvdata(pdev));
-
+	component_master_del(&pdev->dev, &imx_drm_ops);
 	return 0;
 }
+
+static const struct of_device_id imx_drm_dt_ids[] = {
+	{ .compatible = "fsl,imx-drm", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, imx_drm_dt_ids);
 
 static struct platform_driver imx_drm_pdrv = {
 	.probe		= imx_drm_platform_probe,
@@ -835,10 +910,9 @@ static struct platform_driver imx_drm_pdrv = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "imx-drm",
+		.of_match_table = imx_drm_dt_ids,
 	},
 };
-
-static struct platform_device *imx_drm_pdev;
 
 static int __init imx_drm_init(void)
 {
@@ -852,12 +926,6 @@ static int __init imx_drm_init(void)
 	INIT_LIST_HEAD(&imx_drm_device->connector_list);
 	INIT_LIST_HEAD(&imx_drm_device->encoder_list);
 
-	imx_drm_pdev = platform_device_register_simple("imx-drm", -1, NULL, 0);
-	if (IS_ERR(imx_drm_pdev)) {
-		ret = PTR_ERR(imx_drm_pdev);
-		goto err_pdev;
-	}
-
 	ret = platform_driver_register(&imx_drm_pdrv);
 	if (ret)
 		goto err_pdrv;
@@ -865,8 +933,6 @@ static int __init imx_drm_init(void)
 	return 0;
 
 err_pdrv:
-	platform_device_unregister(imx_drm_pdev);
-err_pdev:
 	kfree(imx_drm_device);
 
 	return ret;
@@ -874,7 +940,6 @@ err_pdev:
 
 static void __exit imx_drm_exit(void)
 {
-	platform_device_unregister(imx_drm_pdev);
 	platform_driver_unregister(&imx_drm_pdrv);
 
 	kfree(imx_drm_device);

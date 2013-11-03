@@ -20,6 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/component.h>
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -450,11 +451,11 @@ static const struct of_device_id imx_ldb_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_ldb_dt_ids);
 
-static int imx_ldb_probe(struct platform_device *pdev)
+static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	const struct of_device_id *of_id =
-			of_match_device(imx_ldb_dt_ids, &pdev->dev);
+			of_match_device(imx_ldb_dt_ids, dev);
 	struct device_node *child;
 	const u8 *edidp;
 	struct imx_ldb *imx_ldb;
@@ -464,17 +465,17 @@ static int imx_ldb_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	imx_ldb = devm_kzalloc(&pdev->dev, sizeof(*imx_ldb), GFP_KERNEL);
+	imx_ldb = devm_kzalloc(dev, sizeof(*imx_ldb), GFP_KERNEL);
 	if (!imx_ldb)
 		return -ENOMEM;
 
 	imx_ldb->regmap = syscon_regmap_lookup_by_phandle(np, "gpr");
 	if (IS_ERR(imx_ldb->regmap)) {
-		dev_err(&pdev->dev, "failed to get parent regmap\n");
+		dev_err(dev, "failed to get parent regmap\n");
 		return PTR_ERR(imx_ldb->regmap);
 	}
 
-	imx_ldb->dev = &pdev->dev;
+	imx_ldb->dev = dev;
 
 	if (of_id)
 		imx_ldb->lvds_mux = of_id->data;
@@ -512,7 +513,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 			return -EINVAL;
 
 		if (dual && i > 0) {
-			dev_warn(&pdev->dev, "dual-channel mode, ignoring second output\n");
+			dev_warn(dev, "dual-channel mode, ignoring second output\n");
 			continue;
 		}
 
@@ -551,7 +552,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 			break;
 		case LVDS_BIT_MAP_JEIDA:
 			if (datawidth == 18) {
-				dev_err(&pdev->dev, "JEIDA standard only supported in 24 bit\n");
+				dev_err(dev, "JEIDA standard only supported in 24 bit\n");
 				return -EINVAL;
 			}
 			if (i == 0 || dual)
@@ -560,7 +561,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 				imx_ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 | LDB_BIT_MAP_CH1_JEIDA;
 			break;
 		default:
-			dev_err(&pdev->dev, "data mapping not specified or invalid\n");
+			dev_err(dev, "data mapping not specified or invalid\n");
 			return -EINVAL;
 		}
 
@@ -571,14 +572,15 @@ static int imx_ldb_probe(struct platform_device *pdev)
 		imx_drm_encoder_add_possible_crtcs(channel->imx_drm_encoder, child);
 	}
 
-	platform_set_drvdata(pdev, imx_ldb);
+	dev_set_drvdata(dev, imx_ldb);
 
 	return 0;
 }
 
-static int imx_ldb_remove(struct platform_device *pdev)
+static void imx_ldb_unbind(struct device *dev, struct device *master,
+	void *data)
 {
-	struct imx_ldb *imx_ldb = platform_get_drvdata(pdev);
+	struct imx_ldb *imx_ldb = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -591,7 +593,21 @@ static int imx_ldb_remove(struct platform_device *pdev)
 		imx_drm_remove_connector(channel->imx_drm_connector);
 		imx_drm_remove_encoder(channel->imx_drm_encoder);
 	}
+}
 
+static const struct component_ops imx_ldb_ops = {
+	.bind	= imx_ldb_bind,
+	.unbind	= imx_ldb_unbind,
+};
+
+static int imx_ldb_probe(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &imx_ldb_ops);
+}
+
+static int imx_ldb_remove(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &imx_ldb_ops);
 	return 0;
 }
 
