@@ -1306,7 +1306,6 @@ static int iss_probe(struct platform_device *pdev)
 
 	iss->dev = &pdev->dev;
 	iss->pdata = pdata;
-	iss->ref_count = 0;
 
 	iss->raw_dmamask = DMA_BIT_MASK(32);
 	iss->dev->dma_mask = &iss->raw_dmamask;
