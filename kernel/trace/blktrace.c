@@ -579,13 +579,12 @@ static int compat_blk_trace_setup(struct request_queue *q, char *name,
 		.end_lba = cbuts.end_lba,
 		.pid = cbuts.pid,
 	};
-	memcpy(&buts.name, &cbuts.name, 32);
 
 	ret = do_blk_trace_setup(q, name, dev, bdev, &buts);
 	if (ret)
 		return ret;
 
-	if (copy_to_user(arg, &buts.name, 32)) {
+	if (copy_to_user(arg, &buts.name, ARRAY_SIZE(buts.name))) {
 		blk_trace_remove(q);
 		return -EFAULT;
 	}
