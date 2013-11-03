@@ -728,8 +728,6 @@ struct drm_master {
 struct drm_bus {
 	const char *(*get_name)(struct drm_device *dev);
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
-	int (*set_unique)(struct drm_device *dev, struct drm_master *master,
-			  struct drm_unique *unique);
 };
 
 /**
@@ -1511,6 +1509,9 @@ extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				       size_t align);
 extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
+extern int drm_pci_set_unique(struct drm_device *dev,
+			      struct drm_master *master,
+			      struct drm_unique *u);
 
 			       /* sysfs support (drm_sysfs.c) */
 struct drm_sysfs_class;

@@ -185,9 +185,9 @@ err:
 	return ret;
 }
 
-static int drm_pci_set_unique(struct drm_device *dev,
-			      struct drm_master *master,
-			      struct drm_unique *u)
+int drm_pci_set_unique(struct drm_device *dev,
+		       struct drm_master *master,
+		       struct drm_unique *u)
 {
 	int domain, bus, slot, func, ret;
 	const char *bus_name;
@@ -314,7 +314,6 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 static struct drm_bus drm_pci_bus = {
 	.get_name = drm_pci_get_name,
 	.set_busid = drm_pci_set_busid,
-	.set_unique = drm_pci_set_unique,
 };
 
 /**
@@ -478,6 +477,13 @@ void drm_pci_agp_destroy(struct drm_device *dev) {}
 
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
+
+int drm_pci_set_unique(struct drm_device *dev,
+		       struct drm_master *master,
+		       struct drm_unique *u)
 {
 	return -EINVAL;
 }
