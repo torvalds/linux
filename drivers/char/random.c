@@ -1228,14 +1228,11 @@ static void init_std_data(struct entropy_store *r)
 	ktime_t now = ktime_get_real();
 	unsigned long rv;
 
-	r->entropy_count = 0;
-	r->entropy_total = 0;
-	r->last_data_init = 0;
 	r->last_pulled = jiffies;
 	mix_pool_bytes(r, &now, sizeof(now), NULL);
 	for (i = r->poolinfo->poolbytes; i > 0; i -= sizeof(rv)) {
 		if (!arch_get_random_long(&rv))
-			break;
+			rv = random_get_entropy();
 		mix_pool_bytes(r, &rv, sizeof(rv), NULL);
 	}
 	mix_pool_bytes(r, utsname(), sizeof(*(utsname())), NULL);
@@ -1258,7 +1255,7 @@ static int rand_initialize(void)
 	init_std_data(&nonblocking_pool);
 	return 0;
 }
-module_init(rand_initialize);
+early_initcall(rand_initialize);
 
 #ifdef CONFIG_BLOCK
 void rand_initialize_disk(struct gendisk *disk)
@@ -1433,10 +1430,15 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		return 0;
 	case RNDZAPENTCNT:
 	case RNDCLEARPOOL:
-		/* Clear the entropy pool counters. */
+		/*
+		 * Clear the entropy pool counters. We no longer clear
+		 * the entropy pool, as that's silly.
+		 */
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		rand_initialize();
+		input_pool.entropy_count = 0;
+		nonblocking_pool.entropy_count = 0;
+		blocking_pool.entropy_count = 0;
 		return 0;
 	default:
 		return -EINVAL;
