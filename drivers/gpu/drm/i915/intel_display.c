@@ -7172,7 +7172,7 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev)) {
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
 		}

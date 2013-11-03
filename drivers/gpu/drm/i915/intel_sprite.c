@@ -267,7 +267,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	sprctl |= SPRITE_ENABLE;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
 	intel_update_sprite_watermarks(plane, crtc, src_w, pixel_size, true,
