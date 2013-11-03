@@ -360,6 +360,47 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 	return 0;
 }
 
+static int
+gen8_render_ring_flush(struct intel_ring_buffer *ring,
+		       u32 invalidate_domains, u32 flush_domains)
+{
+	u32 flags = 0;
+	u32 scratch_addr = ring->scratch.gtt_offset + 128;
+	int ret;
+
+	flags |= PIPE_CONTROL_CS_STALL;
+
+	if (flush_domains) {
+		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+	}
+	if (invalidate_domains) {
+		flags |= PIPE_CONTROL_TLB_INVALIDATE;
+		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_QW_WRITE;
+		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+	}
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
+	intel_ring_emit(ring, flags);
+	intel_ring_emit(ring, scratch_addr);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+
+	return 0;
+
+}
+
 static void ring_write_tail(struct intel_ring_buffer *ring,
 			    u32 value)
 {
@@ -1817,6 +1858,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		if (INTEL_INFO(dev)->gen == 6)
 			ring->flush = gen6_render_ring_flush;
 		if (INTEL_INFO(dev)->gen >= 8) {
+			ring->flush = gen8_render_ring_flush;
 			ring->irq_get = gen8_ring_get_irq;
 			ring->irq_put = gen8_ring_put_irq;
 		} else {
