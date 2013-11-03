@@ -317,7 +317,6 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 }
 
 static struct drm_bus drm_pci_bus = {
-	.bus_type = DRIVER_BUS_PCI,
 	.get_irq = drm_pci_get_irq,
 	.get_name = drm_pci_get_name,
 	.set_busid = drm_pci_set_busid,

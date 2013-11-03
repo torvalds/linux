@@ -143,11 +143,6 @@ int drm_err(const char *func, const char *format, ...);
 #define DRIVER_PRIME       0x4000
 #define DRIVER_RENDER      0x8000
 
-#define DRIVER_BUS_PCI 0x1
-#define DRIVER_BUS_PLATFORM 0x2
-#define DRIVER_BUS_USB 0x3
-#define DRIVER_BUS_HOST1X 0x4
-
 /***********************************************************************/
 /** \name Begin the DRM... */
 /*@{*/
@@ -731,7 +726,6 @@ struct drm_master {
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 
 struct drm_bus {
-	int bus_type;
 	int (*get_irq)(struct drm_device *dev);
 	const char *(*get_name)(struct drm_device *dev);
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);

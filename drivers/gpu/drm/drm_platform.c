@@ -123,7 +123,6 @@ err:
 }
 
 static struct drm_bus drm_platform_bus = {
-	.bus_type = DRIVER_BUS_PLATFORM,
 	.get_irq = drm_platform_get_irq,
 	.get_name = drm_platform_get_name,
 	.set_busid = drm_platform_set_busid,

@@ -37,7 +37,6 @@ static int drm_host1x_set_busid(struct drm_device *dev,
 }
 
 static struct drm_bus drm_host1x_bus = {
-	.bus_type = DRIVER_BUS_HOST1X,
 	.set_busid = drm_host1x_set_busid,
 };
 
