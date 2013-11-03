@@ -386,22 +386,21 @@ int drm_control(struct drm_device *dev, void *data,
 	 * this used to be a separate function in drm_dma.h
 	 */
 
+	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
+		return 0;
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return 0;
+	/* UMS was only ever support on pci devices. */
+	if (WARN_ON(!dev->pdev))
+		return -EINVAL;
 
 	switch (ctl->func) {
 	case DRM_INST_HANDLER:
-		if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-			return 0;
-		if (drm_core_check_feature(dev, DRIVER_MODESET))
-			return 0;
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl->irq != drm_dev_to_irq(dev))
 			return -EINVAL;
 		return drm_irq_install(dev);
 	case DRM_UNINST_HANDLER:
-		if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-			return 0;
-		if (drm_core_check_feature(dev, DRIVER_MODESET))
-			return 0;
 		return drm_irq_uninstall(dev);
 	default:
 		return -EINVAL;
