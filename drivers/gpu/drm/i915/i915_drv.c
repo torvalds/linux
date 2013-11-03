@@ -574,7 +574,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		mutex_unlock(&dev->struct_mutex);
 
 		/* We need working interrupts for modeset enabling ... */
-		drm_irq_install(dev);
+		drm_irq_install(dev, dev->pdev->irq);
 
 		intel_modeset_init_hw(dev);
 
@@ -752,7 +752,7 @@ int i915_reset(struct drm_device *dev)
 		 * being false when they shouldn't be able to.
 		 */
 		drm_irq_uninstall(dev);
-		drm_irq_install(dev);
+		drm_irq_install(dev, dev->pdev->irq);
 
 		/* rps/rc6 re-init is necessary to restore state lost after the
 		 * reset and the re-install of drm irq. Skip for ironlake per

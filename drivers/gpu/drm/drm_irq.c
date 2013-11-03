@@ -233,11 +233,6 @@ static void drm_irq_vgaarb_nokms(void *cookie, bool state)
 	}
 }
 
-static inline int drm_dev_to_irq(struct drm_device *dev)
-{
-	return dev->driver->bus->get_irq(dev);
-}
-
 /**
  * Install IRQ handler.
  *
@@ -247,13 +242,11 @@ static inline int drm_dev_to_irq(struct drm_device *dev)
  * \c irq_preinstall() and \c irq_postinstall() functions
  * before and after the installation.
  */
-int drm_irq_install(struct drm_device *dev)
+int drm_irq_install(struct drm_device *dev, int irq)
 {
-	int ret, irq;
+	int ret;
 	unsigned long sh_flags = 0;
 	char *irqname;
-
-	irq = drm_dev_to_irq(dev);
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
@@ -399,7 +392,7 @@ int drm_control(struct drm_device *dev, void *data,
 		    ctl->irq != irq)
 			return -EINVAL;
 		mutex_lock(&dev->struct_mutex);
-		ret = drm_irq_install(dev);
+		ret = drm_irq_install(dev, irq);
 		mutex_unlock(&dev->struct_mutex);
 
 		return ret;

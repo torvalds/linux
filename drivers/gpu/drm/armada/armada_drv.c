@@ -173,7 +173,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_kms;
 
-	ret = drm_irq_install(dev);
+	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
 	if (ret)
 		goto err_kms;
 
