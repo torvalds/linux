@@ -24,7 +24,7 @@ menuconfig ACPI
 	  are configured, ACPI is used.
 
 	  The project home page for the Linux ACPI subsystem is here:
-	  <http://www.lesswatts.org/projects/acpi/>
+	  <https://01.org/linux-acpi>
 
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
@@ -91,24 +91,6 @@ config ACPI_EC_DEBUGFS
 	  Thus this option is a debug option that helps to write ACPI drivers
 	  and can be used to identify ACPI code or EC firmware bugs.
 
-config ACPI_PROC_EVENT
-	bool "Deprecated /proc/acpi/event support"
-	depends on PROC_FS
-	default y
-	help
-	  A user-space daemon, acpid, typically reads /proc/acpi/event
-	  and handles all ACPI-generated events.
-
-	  These events are now delivered to user-space either
-	  via the input layer or as netlink events.
-
-	  This build option enables the old code for legacy
-	  user-space implementation.  After some time, this will
-	  be moved under CONFIG_ACPI_PROCFS, and then deleted.
-
-	  Say Y here to retain the old behaviour.  Say N if your
-	  user-space is newer than kernel 2.6.23 (September 2007).
-
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
@@ -141,9 +123,9 @@ config ACPI_BUTTON
 	default y
 	help
 	  This driver handles events on the power, sleep, and lid buttons.
-	  A daemon reads /proc/acpi/event and perform user-defined actions
-	  such as shutting down the system.  This is necessary for
-	  software-controlled poweroff.
+	  A daemon reads events from input devices or via netlink and
+	  performs user-defined actions such as shutting down the system.
+	  This is necessary for software-controlled poweroff.
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
@@ -179,12 +161,6 @@ config ACPI_DOCK
 	help
 	  This driver supports ACPI-controlled docking stations and removable
 	  drive bays such as the IBM Ultrabay and the Dell Module Bay.
-
-config ACPI_I2C
-	def_tristate I2C
-	depends on I2C
-	help
-	  ACPI I2C enumeration support.
 
 config ACPI_PROCESSOR
 	tristate "Processor"

@@ -32,7 +32,7 @@ This document contains the following sections:
 	 (9) Setting the data file size
 	(10) Page alloc/read/write
 	(11) Page uncaching
-	(12) Index and data file update
+	(12) Index and data file consistency
 	(13) Miscellaneous cookie operations
 	(14) Cookie unregistration
 	(15) Index invalidation
@@ -433,7 +433,7 @@ to the caller.  The attribute adjustment excludes read and write operations.
 
 
 =====================
-PAGE READ/ALLOC/WRITE
+PAGE ALLOC/READ/WRITE
 =====================
 
 And the sixth step is to store and retrieve pages in the cache.  There are
@@ -499,7 +499,7 @@ Else if there's a copy of the page resident in the cache:
      (*) An argument that's 0 on success or negative for an error code.
 
      If an error occurs, it should be assumed that the page contains no usable
-     data.
+     data.  fscache_readpages_cancel() may need to be called.
 
      end_io_func() will be called in process context if the read is results in
      an error, but it might be called in interrupt context if the read is
@@ -623,6 +623,22 @@ some of the pages being read and some being allocated.  Those pages will have
 been marked appropriately and will need uncaching.
 
 
+CANCELLATION OF UNREAD PAGES
+----------------------------
+
+If one or more pages are passed to fscache_read_or_alloc_pages() but not then
+read from the cache and also not read from the underlying filesystem then
+those pages will need to have any marks and reservations removed.  This can be
+done by calling:
+
+	void fscache_readpages_cancel(struct fscache_cookie *cookie,
+				      struct list_head *pages);
+
+prior to returning to the caller.  The cookie argument should be as passed to
+fscache_read_or_alloc_pages().  Every page in the pages list will be examined
+and any that have PG_fscache set will be uncached.
+
+
 ==============
 PAGE UNCACHING
 ==============
@@ -690,9 +706,18 @@ written to the cache and for the cache to finish with the page generally.  No
 error is returned.
 
 
-==========================
-INDEX AND DATA FILE UPDATE
-==========================
+===============================
+INDEX AND DATA FILE CONSISTENCY
+===============================
+
+To find out whether auxiliary data for an object is up to data within the
+cache, the following function can be called:
+
+	int fscache_check_consistency(struct fscache_cookie *cookie)
+
+This will call back to the netfs to check whether the auxiliary data associated
+with a cookie is correct.  It returns 0 if it is and -ESTALE if it isn't; it
+may also return -ENOMEM and -ERESTARTSYS.
 
 To request an update of the index data for an index or other object, the
 following function should be called:

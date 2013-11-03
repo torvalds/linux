@@ -423,8 +423,11 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 	set_sb_free_blocks(rs, sb_free_blocks(rs) + 1);
 
 	journal_mark_dirty(th, s, sbh);
-	if (for_unformatted)
+	if (for_unformatted) {
+		int depth = reiserfs_write_unlock_nested(s);
 		dquot_free_block_nodirty(inode, 1);
+		reiserfs_write_lock_nested(s, depth);
+	}
 }
 
 void reiserfs_free_block(struct reiserfs_transaction_handle *th,
@@ -1128,6 +1131,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 	b_blocknr_t finish = SB_BLOCK_COUNT(s) - 1;
 	int passno = 0;
 	int nr_allocated = 0;
+	int depth;
 
 	determine_prealloc_size(hint);
 	if (!hint->formatted_node) {
@@ -1137,10 +1141,13 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			       "reiserquota: allocating %d blocks id=%u",
 			       amount_needed, hint->inode->i_uid);
 #endif
+		depth = reiserfs_write_unlock_nested(s);
 		quota_ret =
 		    dquot_alloc_block_nodirty(hint->inode, amount_needed);
-		if (quota_ret)	/* Quota exceeded? */
+		if (quota_ret) {	/* Quota exceeded? */
+			reiserfs_write_lock_nested(s, depth);
 			return QUOTA_EXCEEDED;
+		}
 		if (hint->preallocate && hint->prealloc_size) {
 #ifdef REISERQUOTA_DEBUG
 			reiserfs_debug(s, REISERFS_DEBUG_CODE,
@@ -1153,6 +1160,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 				hint->preallocate = hint->prealloc_size = 0;
 		}
 		/* for unformatted nodes, force large allocations */
+		reiserfs_write_lock_nested(s, depth);
 	}
 
 	do {
@@ -1181,9 +1189,11 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 					       hint->inode->i_uid);
 #endif
 				/* Free not allocated blocks */
+				depth = reiserfs_write_unlock_nested(s);
 				dquot_free_block_nodirty(hint->inode,
 					amount_needed + hint->prealloc_size -
 					nr_allocated);
+				reiserfs_write_lock_nested(s, depth);
 			}
 			while (nr_allocated--)
 				reiserfs_free_block(hint->th, hint->inode,
@@ -1214,10 +1224,13 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			       REISERFS_I(hint->inode)->i_prealloc_count,
 			       hint->inode->i_uid);
 #endif
+
+		depth = reiserfs_write_unlock_nested(s);
 		dquot_free_block_nodirty(hint->inode, amount_needed +
 					 hint->prealloc_size - nr_allocated -
 					 REISERFS_I(hint->inode)->
 					 i_prealloc_count);
+		reiserfs_write_lock_nested(s, depth);
 	}
 
 	return CARRY_ON;
@@ -1340,10 +1353,11 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 		                 "reading failed", __func__, block);
 	else {
 		if (buffer_locked(bh)) {
+			int depth;
 			PROC_INFO_INC(sb, scan_bitmap.wait);
-			reiserfs_write_unlock(sb);
+			depth = reiserfs_write_unlock_nested(sb);
 			__wait_on_buffer(bh);
-			reiserfs_write_lock(sb);
+			reiserfs_write_lock_nested(sb, depth);
 		}
 		BUG_ON(!buffer_uptodate(bh));
 		BUG_ON(atomic_read(&bh->b_count) == 0);

@@ -157,7 +157,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*data));
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -167,7 +167,7 @@ static int vcnl4000_probe(struct i2c_client *client,
 
 	ret = i2c_smbus_read_byte_data(data->client, VCNL4000_PROD_REV);
 	if (ret < 0)
-		goto error_free_dev;
+		return ret;
 
 	dev_info(&client->dev, "VCNL4000 Ambient light/proximity sensor, Prod %02x, Rev: %02x\n",
 		ret >> 4, ret & 0xf);
@@ -181,22 +181,14 @@ static int vcnl4000_probe(struct i2c_client *client,
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
-		goto error_free_dev;
+		return ret;
 
 	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-	return ret;
 }
 
 static int vcnl4000_remove(struct i2c_client *client)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
-
+	iio_device_unregister(i2c_get_clientdata(client));
 	return 0;
 }
 

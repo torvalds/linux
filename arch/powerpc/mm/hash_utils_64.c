@@ -907,7 +907,7 @@ static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 
 	if (ea >= spt->maxaddr)
 		return 0;
-	if (ea < 0x100000000) {
+	if (ea < 0x100000000UL) {
 		/* addresses below 4GB use spt->low_prot */
 		sbpm = spt->low_prot;
 	} else {

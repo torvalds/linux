@@ -71,7 +71,7 @@ To register the chip at address 0x63 on specific adapter, set the platform data
 according to include/linux/platform_data/leds-lm3556.h, set the i2c board info
 
 Example:
-	static struct i2c_board_info __initdata board_i2c_ch4[]	= {
+	static struct i2c_board_info board_i2c_ch4[] __initdata = {
 		{
 			 I2C_BOARD_INFO(LM3556_NAME, 0x63),
 			 .platform_data = &lm3556_pdata,

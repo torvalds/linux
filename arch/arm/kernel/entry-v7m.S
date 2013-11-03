@@ -49,7 +49,7 @@ __irq_entry:
 	mov	r1, sp
 	stmdb	sp!, {lr}
 	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	bl	nvic_do_IRQ
+	bl	nvic_handle_irq
 
 	pop	{lr}
 	@

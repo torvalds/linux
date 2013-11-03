@@ -136,7 +136,7 @@ static struct property *sym_get_range_prop(struct symbol *sym)
 	return NULL;
 }
 
-static long sym_get_range_val(struct symbol *sym, int base)
+static long long sym_get_range_val(struct symbol *sym, int base)
 {
 	sym_calc_value(sym);
 	switch (sym->type) {
@@ -149,13 +149,14 @@ static long sym_get_range_val(struct symbol *sym, int base)
 	default:
 		break;
 	}
-	return strtol(sym->curr.val, NULL, base);
+	return strtoll(sym->curr.val, NULL, base);
 }
 
 static void sym_validate_range(struct symbol *sym)
 {
 	struct property *prop;
-	long base, val, val2;
+	int base;
+	long long val, val2;
 	char str[64];
 
 	switch (sym->type) {
@@ -171,7 +172,7 @@ static void sym_validate_range(struct symbol *sym)
 	prop = sym_get_range_prop(sym);
 	if (!prop)
 		return;
-	val = strtol(sym->curr.val, NULL, base);
+	val = strtoll(sym->curr.val, NULL, base);
 	val2 = sym_get_range_val(prop->expr->left.sym, base);
 	if (val >= val2) {
 		val2 = sym_get_range_val(prop->expr->right.sym, base);
@@ -179,9 +180,9 @@ static void sym_validate_range(struct symbol *sym)
 			return;
 	}
 	if (sym->type == S_INT)
-		sprintf(str, "%ld", val2);
+		sprintf(str, "%lld", val2);
 	else
-		sprintf(str, "0x%lx", val2);
+		sprintf(str, "0x%llx", val2);
 	sym->curr.val = strdup(str);
 }
 
@@ -594,7 +595,7 @@ bool sym_string_valid(struct symbol *sym, const char *str)
 bool sym_string_within_range(struct symbol *sym, const char *str)
 {
 	struct property *prop;
-	long val;
+	long long val;
 
 	switch (sym->type) {
 	case S_STRING:
@@ -605,7 +606,7 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		prop = sym_get_range_prop(sym);
 		if (!prop)
 			return true;
-		val = strtol(str, NULL, 10);
+		val = strtoll(str, NULL, 10);
 		return val >= sym_get_range_val(prop->expr->left.sym, 10) &&
 		       val <= sym_get_range_val(prop->expr->right.sym, 10);
 	case S_HEX:
@@ -614,7 +615,7 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		prop = sym_get_range_prop(sym);
 		if (!prop)
 			return true;
-		val = strtol(str, NULL, 16);
+		val = strtoll(str, NULL, 16);
 		return val >= sym_get_range_val(prop->expr->left.sym, 16) &&
 		       val <= sym_get_range_val(prop->expr->right.sym, 16);
 	case S_BOOLEAN:
@@ -963,11 +964,11 @@ struct sym_match {
  * - first, symbols that match exactly
  * - then, alphabetical sort
  */
-static int sym_rel_comp( const void *sym1, const void *sym2 )
+static int sym_rel_comp(const void *sym1, const void *sym2)
 {
-	struct sym_match *s1 = *(struct sym_match **)sym1;
-	struct sym_match *s2 = *(struct sym_match **)sym2;
-	int l1, l2;
+	const struct sym_match *s1 = sym1;
+	const struct sym_match *s2 = sym2;
+	int exact1, exact2;
 
 	/* Exact match:
 	 * - if matched length on symbol s1 is the length of that symbol,
@@ -978,11 +979,11 @@ static int sym_rel_comp( const void *sym1, const void *sym2 )
 	 * exactly; if this is the case, we can't decide which comes first,
 	 * and we fallback to sorting alphabetically.
 	 */
-	l1 = s1->eo - s1->so;
-	l2 = s2->eo - s2->so;
-	if (l1 == strlen(s1->sym->name) && l2 != strlen(s2->sym->name))
+	exact1 = (s1->eo - s1->so) == strlen(s1->sym->name);
+	exact2 = (s2->eo - s2->so) == strlen(s2->sym->name);
+	if (exact1 && !exact2)
 		return -1;
-	if (l1 != strlen(s1->sym->name) && l2 == strlen(s2->sym->name))
+	if (!exact1 && exact2)
 		return 1;
 
 	/* As a fallback, sort symbols alphabetically */
@@ -992,7 +993,7 @@ static int sym_rel_comp( const void *sym1, const void *sym2 )
 struct symbol **sym_re_search(const char *pattern)
 {
 	struct symbol *sym, **sym_arr = NULL;
-	struct sym_match **sym_match_arr = NULL;
+	struct sym_match *sym_match_arr = NULL;
 	int i, cnt, size;
 	regex_t re;
 	regmatch_t match[1];
@@ -1005,47 +1006,38 @@ struct symbol **sym_re_search(const char *pattern)
 		return NULL;
 
 	for_all_symbols(i, sym) {
-		struct sym_match *tmp_sym_match;
 		if (sym->flags & SYMBOL_CONST || !sym->name)
 			continue;
 		if (regexec(&re, sym->name, 1, match, 0))
 			continue;
-		if (cnt + 1 >= size) {
+		if (cnt >= size) {
 			void *tmp;
 			size += 16;
-			tmp = realloc(sym_match_arr, size * sizeof(struct sym_match *));
-			if (!tmp) {
+			tmp = realloc(sym_match_arr, size * sizeof(struct sym_match));
+			if (!tmp)
 				goto sym_re_search_free;
-			}
 			sym_match_arr = tmp;
 		}
 		sym_calc_value(sym);
-		tmp_sym_match = (struct sym_match*)malloc(sizeof(struct sym_match));
-		if (!tmp_sym_match)
-			goto sym_re_search_free;
-		tmp_sym_match->sym = sym;
-		/* As regexec return 0, we know we have a match, so
+		/* As regexec returned 0, we know we have a match, so
 		 * we can use match[0].rm_[se]o without further checks
 		 */
-		tmp_sym_match->so = match[0].rm_so;
-		tmp_sym_match->eo = match[0].rm_eo;
-		sym_match_arr[cnt++] = tmp_sym_match;
+		sym_match_arr[cnt].so = match[0].rm_so;
+		sym_match_arr[cnt].eo = match[0].rm_eo;
+		sym_match_arr[cnt++].sym = sym;
 	}
 	if (sym_match_arr) {
-		qsort(sym_match_arr, cnt, sizeof(struct sym_match*), sym_rel_comp);
+		qsort(sym_match_arr, cnt, sizeof(struct sym_match), sym_rel_comp);
 		sym_arr = malloc((cnt+1) * sizeof(struct symbol));
 		if (!sym_arr)
 			goto sym_re_search_free;
 		for (i = 0; i < cnt; i++)
-			sym_arr[i] = sym_match_arr[i]->sym;
+			sym_arr[i] = sym_match_arr[i].sym;
 		sym_arr[cnt] = NULL;
 	}
 sym_re_search_free:
-	if (sym_match_arr) {
-		for (i = 0; i < cnt; i++)
-			free(sym_match_arr[i]);
-		free(sym_match_arr);
-	}
+	/* sym_match_arr can be NULL if no match, but free(NULL) is OK */
+	free(sym_match_arr);
 	regfree(&re);
 
 	return sym_arr;

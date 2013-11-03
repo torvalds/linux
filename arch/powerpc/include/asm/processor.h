@@ -149,8 +149,6 @@ typedef struct {
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
-	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
-
 #ifdef CONFIG_PPC64
 	unsigned long	ksp_vsid;
 #endif
@@ -162,6 +160,7 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_PPC32
 	void		*pgdir;		/* root of page-table tree */
+	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
 #endif
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	/*
@@ -247,6 +246,10 @@ struct thread_struct {
 	unsigned long	tm_orig_msr;	/* Thread's MSR on ctx switch */
 	struct pt_regs	ckpt_regs;	/* Checkpointed registers */
 
+	unsigned long	tm_tar;
+	unsigned long	tm_ppr;
+	unsigned long	tm_dscr;
+
 	/*
 	 * Transactional FP and VSX 0-31 register set.
 	 * NOTE: the sense of these is the opposite of the integer ckpt_regs!
@@ -317,7 +320,6 @@ struct thread_struct {
 #else
 #define INIT_THREAD  { \
 	.ksp = INIT_SP, \
-	.ksp_limit = INIT_SP_LIMIT, \
 	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.fs = KERNEL_DS, \
 	.fpr = {{0}}, \

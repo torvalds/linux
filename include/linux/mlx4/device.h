@@ -33,6 +33,7 @@
 #ifndef MLX4_DEVICE_H
 #define MLX4_DEVICE_H
 
+#include <linux/if_ether.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
@@ -207,6 +208,7 @@ enum mlx4_event {
 	MLX4_EVENT_TYPE_CMD		   = 0x0a,
 	MLX4_EVENT_TYPE_VEP_UPDATE	   = 0x19,
 	MLX4_EVENT_TYPE_COMM_CHANNEL	   = 0x18,
+	MLX4_EVENT_TYPE_OP_REQUIRED	   = 0x1a,
 	MLX4_EVENT_TYPE_FATAL_WARNING	   = 0x1b,
 	MLX4_EVENT_TYPE_FLR_EVENT	   = 0x1c,
 	MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT = 0x1d,
@@ -619,7 +621,7 @@ struct mlx4_eth_av {
 	u8		dgid[16];
 	u32		reserved4[2];
 	__be16		vlan;
-	u8		mac[6];
+	u8		mac[ETH_ALEN];
 };
 
 union mlx4_ext_av {
@@ -913,10 +915,10 @@ enum mlx4_net_trans_promisc_mode {
 };
 
 struct mlx4_spec_eth {
-	u8	dst_mac[6];
-	u8	dst_mac_msk[6];
-	u8	src_mac[6];
-	u8	src_mac_msk[6];
+	u8	dst_mac[ETH_ALEN];
+	u8	dst_mac_msk[ETH_ALEN];
+	u8	src_mac[ETH_ALEN];
+	u8	src_mac_msk[ETH_ALEN];
 	u8	ether_type_enable;
 	__be16	ether_type;
 	__be16	vlan_id_msk;
@@ -1050,11 +1052,6 @@ struct _rule_hw {
 		struct mlx4_net_trans_rule_hw_ipv4 ipv4;
 		struct mlx4_net_trans_rule_hw_tcp_udp tcp_udp;
 	};
-};
-
-/* translating DMFS verbs sniffer rule to the FW API would need two reg IDs */
-struct mlx4_flow_handle {
-	u64 reg_id[2];
 };
 
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,

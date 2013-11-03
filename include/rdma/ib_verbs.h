@@ -116,7 +116,8 @@ enum ib_device_cap_flags {
 	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
 	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
 	IB_DEVICE_MEM_WINDOW_TYPE_2A	= (1<<23),
-	IB_DEVICE_MEM_WINDOW_TYPE_2B	= (1<<24)
+	IB_DEVICE_MEM_WINDOW_TYPE_2B	= (1<<24),
+	IB_DEVICE_MANAGED_FLOW_STEERING = (1<<29)
 };
 
 enum ib_atomic_cap {
@@ -635,6 +636,12 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
 };
 
+
+/*
+ * Note: users may not call ib_close_qp or ib_destroy_qp from the event_handler
+ * callback to destroy the passed in QP.
+ */
+
 struct ib_qp_init_attr {
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
@@ -953,6 +960,7 @@ struct ib_ucontext {
 	struct list_head	srq_list;
 	struct list_head	ah_list;
 	struct list_head	xrcd_list;
+	struct list_head	rule_list;
 	int			closing;
 };
 
@@ -1033,7 +1041,8 @@ struct ib_qp {
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
-	atomic_t		usecnt; /* count times opened, mcast attaches */
+	/* count times opened, mcast attaches, flow attaches */
+	atomic_t		usecnt;
 	struct list_head	open_list;
 	struct ib_qp           *real_qp;
 	struct ib_uobject      *uobject;
@@ -1066,6 +1075,112 @@ struct ib_fmr {
 	struct list_head	list;
 	u32			lkey;
 	u32			rkey;
+};
+
+/* Supported steering options */
+enum ib_flow_attr_type {
+	/* steering according to rule specifications */
+	IB_FLOW_ATTR_NORMAL		= 0x0,
+	/* default unicast and multicast rule -
+	 * receive all Eth traffic which isn't steered to any QP
+	 */
+	IB_FLOW_ATTR_ALL_DEFAULT	= 0x1,
+	/* default multicast rule -
+	 * receive all Eth multicast traffic which isn't steered to any QP
+	 */
+	IB_FLOW_ATTR_MC_DEFAULT		= 0x2,
+	/* sniffer rule - receive all port traffic */
+	IB_FLOW_ATTR_SNIFFER		= 0x3
+};
+
+/* Supported steering header types */
+enum ib_flow_spec_type {
+	/* L2 headers*/
+	IB_FLOW_SPEC_ETH	= 0x20,
+	/* L3 header*/
+	IB_FLOW_SPEC_IPV4	= 0x30,
+	/* L4 headers*/
+	IB_FLOW_SPEC_TCP	= 0x40,
+	IB_FLOW_SPEC_UDP	= 0x41
+};
+
+#define IB_FLOW_SPEC_SUPPORT_LAYERS 4
+
+/* Flow steering rule priority is set according to it's domain.
+ * Lower domain value means higher priority.
+ */
+enum ib_flow_domain {
+	IB_FLOW_DOMAIN_USER,
+	IB_FLOW_DOMAIN_ETHTOOL,
+	IB_FLOW_DOMAIN_RFS,
+	IB_FLOW_DOMAIN_NIC,
+	IB_FLOW_DOMAIN_NUM /* Must be last */
+};
+
+struct ib_flow_eth_filter {
+	u8	dst_mac[6];
+	u8	src_mac[6];
+	__be16	ether_type;
+	__be16	vlan_tag;
+};
+
+struct ib_flow_spec_eth {
+	enum ib_flow_spec_type	  type;
+	u16			  size;
+	struct ib_flow_eth_filter val;
+	struct ib_flow_eth_filter mask;
+};
+
+struct ib_flow_ipv4_filter {
+	__be32	src_ip;
+	__be32	dst_ip;
+};
+
+struct ib_flow_spec_ipv4 {
+	enum ib_flow_spec_type	   type;
+	u16			   size;
+	struct ib_flow_ipv4_filter val;
+	struct ib_flow_ipv4_filter mask;
+};
+
+struct ib_flow_tcp_udp_filter {
+	__be16	dst_port;
+	__be16	src_port;
+};
+
+struct ib_flow_spec_tcp_udp {
+	enum ib_flow_spec_type	      type;
+	u16			      size;
+	struct ib_flow_tcp_udp_filter val;
+	struct ib_flow_tcp_udp_filter mask;
+};
+
+union ib_flow_spec {
+	struct {
+		enum ib_flow_spec_type	type;
+		u16			size;
+	};
+	struct ib_flow_spec_eth		eth;
+	struct ib_flow_spec_ipv4        ipv4;
+	struct ib_flow_spec_tcp_udp	tcp_udp;
+};
+
+struct ib_flow_attr {
+	enum ib_flow_attr_type type;
+	u16	     size;
+	u16	     priority;
+	u32	     flags;
+	u8	     num_of_specs;
+	u8	     port;
+	/* Following are the optional layers according to user request
+	 * struct ib_flow_spec_xxx
+	 * struct ib_flow_spec_yyy
+	 */
+};
+
+struct ib_flow {
+	struct ib_qp		*qp;
+	struct ib_uobject	*uobject;
 };
 
 struct ib_mad;
@@ -1300,6 +1415,11 @@ struct ib_device {
 						 struct ib_ucontext *ucontext,
 						 struct ib_udata *udata);
 	int			   (*dealloc_xrcd)(struct ib_xrcd *xrcd);
+	struct ib_flow *	   (*create_flow)(struct ib_qp *qp,
+						  struct ib_flow_attr
+						  *flow_attr,
+						  int domain);
+	int			   (*destroy_flow)(struct ib_flow *flow_id);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -2259,5 +2379,9 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device);
  * @xrcd: The XRC domain to deallocate.
  */
 int ib_dealloc_xrcd(struct ib_xrcd *xrcd);
+
+struct ib_flow *ib_create_flow(struct ib_qp *qp,
+			       struct ib_flow_attr *flow_attr, int domain);
+int ib_destroy_flow(struct ib_flow *flow_id);
 
 #endif /* IB_VERBS_H */

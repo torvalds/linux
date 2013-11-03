@@ -454,6 +454,18 @@ static void hci_setup_event_mask(struct hci_request *req)
 		events[4] |= 0x04; /* Read Remote Extended Features Complete */
 		events[5] |= 0x08; /* Synchronous Connection Complete */
 		events[5] |= 0x10; /* Synchronous Connection Changed */
+	} else {
+		/* Use a different default for LE-only devices */
+		memset(events, 0, sizeof(events));
+		events[0] |= 0x10; /* Disconnection Complete */
+		events[0] |= 0x80; /* Encryption Change */
+		events[1] |= 0x08; /* Read Remote Version Information Complete */
+		events[1] |= 0x20; /* Command Complete */
+		events[1] |= 0x40; /* Command Status */
+		events[1] |= 0x80; /* Hardware Error */
+		events[2] |= 0x04; /* Number of Completed Packets */
+		events[3] |= 0x02; /* Data Buffer Overflow */
+		events[5] |= 0x80; /* Encryption Key Refresh Complete */
 	}
 
 	if (lmp_inq_rssi_capable(hdev))
@@ -513,7 +525,10 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 	hci_setup_event_mask(req);
 
-	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
+	/* AVM Berlin (31), aka "BlueFRITZ!", doesn't support the read
+	 * local supported commands HCI command.
+	 */
+	if (hdev->manufacturer != 31 && hdev->hci_ver > BLUETOOTH_VER_1_1)
 		hci_req_add(req, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
 	if (lmp_ssp_capable(hdev)) {
@@ -605,7 +620,7 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	 * as supported send it. If not supported assume that the controller
 	 * does not have actual support for stored link keys which makes this
 	 * command redundant anyway.
-         */
+	 */
 	if (hdev->commands[6] & 0x80) {
 		struct hci_cp_delete_stored_link_key cp;
 
@@ -1131,7 +1146,11 @@ int hci_dev_open(__u16 dev)
 		goto done;
 	}
 
-	if (hdev->rfkill && rfkill_blocked(hdev->rfkill)) {
+	/* Check for rfkill but allow the HCI setup stage to proceed
+	 * (which in itself doesn't cause any RF activity).
+	 */
+	if (test_bit(HCI_RFKILLED, &hdev->dev_flags) &&
+	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
 		ret = -ERFKILL;
 		goto done;
 	}
@@ -1551,10 +1570,13 @@ static int hci_rfkill_set_block(void *data, bool blocked)
 
 	BT_DBG("%p name %s blocked %d", hdev, hdev->name, blocked);
 
-	if (!blocked)
-		return 0;
-
-	hci_dev_do_close(hdev);
+	if (blocked) {
+		set_bit(HCI_RFKILLED, &hdev->dev_flags);
+		if (!test_bit(HCI_SETUP, &hdev->dev_flags))
+			hci_dev_do_close(hdev);
+	} else {
+		clear_bit(HCI_RFKILLED, &hdev->dev_flags);
+	}
 
 	return 0;
 }
@@ -1576,9 +1598,13 @@ static void hci_power_on(struct work_struct *work)
 		return;
 	}
 
-	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+	if (test_bit(HCI_RFKILLED, &hdev->dev_flags)) {
+		clear_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+		hci_dev_do_close(hdev);
+	} else if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
 		queue_delayed_work(hdev->req_workqueue, &hdev->power_off,
 				   HCI_AUTO_OFF_TIMEOUT);
+	}
 
 	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags))
 		mgmt_index_added(hdev);
@@ -2165,10 +2191,6 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	write_lock(&hci_dev_list_lock);
-	list_add(&hdev->list, &hci_dev_list);
-	write_unlock(&hci_dev_list_lock);
-
 	hdev->workqueue = alloc_workqueue("%s", WQ_HIGHPRI | WQ_UNBOUND |
 					  WQ_MEM_RECLAIM, 1, hdev->name);
 	if (!hdev->workqueue) {
@@ -2198,10 +2220,17 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
+	if (hdev->rfkill && rfkill_blocked(hdev->rfkill))
+		set_bit(HCI_RFKILLED, &hdev->dev_flags);
+
 	set_bit(HCI_SETUP, &hdev->dev_flags);
 
 	if (hdev->dev_type != HCI_AMP)
 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+
+	write_lock(&hci_dev_list_lock);
+	list_add(&hdev->list, &hci_dev_list);
+	write_unlock(&hci_dev_list_lock);
 
 	hci_notify(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
@@ -2215,9 +2244,6 @@ err_wqueue:
 	destroy_workqueue(hdev->req_workqueue);
 err:
 	ida_simple_remove(&hci_index_ida, hdev->id);
-	write_lock(&hci_dev_list_lock);
-	list_del(&hdev->list);
-	write_unlock(&hci_dev_list_lock);
 
 	return error;
 }
@@ -3399,8 +3425,16 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
 	 */
 	if (hdev->sent_cmd) {
 		req_complete = bt_cb(hdev->sent_cmd)->req.complete;
-		if (req_complete)
+
+		if (req_complete) {
+			/* We must set the complete callback to NULL to
+			 * avoid calling the callback more than once if
+			 * this function gets called again.
+			 */
+			bt_cb(hdev->sent_cmd)->req.complete = NULL;
+
 			goto call_complete;
+		}
 	}
 
 	/* Remove all pending commands belonging to this request */

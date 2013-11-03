@@ -1355,7 +1355,7 @@ static int at91_can_probe(struct platform_device *pdev)
 	if (at91_is_sam9263(priv))
 		dev->sysfs_groups[0] = &at91_sysfs_attr_group;
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = register_candev(dev);
@@ -1405,10 +1405,10 @@ static int at91_can_remove(struct platform_device *pdev)
 
 static const struct platform_device_id at91_can_id_table[] = {
 	{
-		.name = "at91_can",
+		.name = "at91sam9x5_can",
 		.driver_data = (kernel_ulong_t)&at91_at91sam9x5_data,
 	}, {
-		.name = "at91sam9x5_can",
+		.name = "at91_can",
 		.driver_data = (kernel_ulong_t)&at91_at91sam9263_data,
 	}, {
 		/* sentinel */

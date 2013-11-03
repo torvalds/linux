@@ -33,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
@@ -57,7 +56,7 @@
 #define USBTV_CHUNK_SIZE	256
 #define USBTV_CHUNK		240
 #define USBTV_CHUNKS		(USBTV_WIDTH * USBTV_HEIGHT \
-					/ 2 / USBTV_CHUNK)
+					/ 4 / USBTV_CHUNK)
 
 /* Chunk header. */
 #define USBTV_MAGIC_OK(chunk)	((be32_to_cpu(chunk[0]) & 0xff000000) \
@@ -89,18 +88,80 @@ struct usbtv {
 	/* Number of currently processed frame, useful find
 	 * out when a new one begins. */
 	u32 frame_id;
+	int chunks_done;
 
+	enum {
+		USBTV_COMPOSITE_INPUT,
+		USBTV_SVIDEO_INPUT,
+	} input;
 	int iso_size;
 	unsigned int sequence;
 	struct urb *isoc_urbs[USBTV_ISOC_TRANSFERS];
 };
 
-static int usbtv_setup_capture(struct usbtv *usbtv)
+static int usbtv_set_regs(struct usbtv *usbtv, const u16 regs[][2], int size)
 {
 	int ret;
 	int pipe = usb_rcvctrlpipe(usbtv->udev, 0);
 	int i;
-	static const u16 protoregs[][2] = {
+
+	for (i = 0; i < size; i++) {
+		u16 index = regs[i][0];
+		u16 value = regs[i][1];
+
+		ret = usb_control_msg(usbtv->udev, pipe, USBTV_REQUEST_REG,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			value, index, NULL, 0, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int usbtv_select_input(struct usbtv *usbtv, int input)
+{
+	int ret;
+
+	static const u16 composite[][2] = {
+		{ USBTV_BASE + 0x0105, 0x0060 },
+		{ USBTV_BASE + 0x011f, 0x00f2 },
+		{ USBTV_BASE + 0x0127, 0x0060 },
+		{ USBTV_BASE + 0x00ae, 0x0010 },
+		{ USBTV_BASE + 0x0284, 0x00aa },
+		{ USBTV_BASE + 0x0239, 0x0060 },
+	};
+
+	static const u16 svideo[][2] = {
+		{ USBTV_BASE + 0x0105, 0x0010 },
+		{ USBTV_BASE + 0x011f, 0x00ff },
+		{ USBTV_BASE + 0x0127, 0x0060 },
+		{ USBTV_BASE + 0x00ae, 0x0030 },
+		{ USBTV_BASE + 0x0284, 0x0088 },
+		{ USBTV_BASE + 0x0239, 0x0060 },
+	};
+
+	switch (input) {
+	case USBTV_COMPOSITE_INPUT:
+		ret = usbtv_set_regs(usbtv, composite, ARRAY_SIZE(composite));
+		break;
+	case USBTV_SVIDEO_INPUT:
+		ret = usbtv_set_regs(usbtv, svideo, ARRAY_SIZE(svideo));
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	if (!ret)
+		usbtv->input = input;
+
+	return ret;
+}
+
+static int usbtv_setup_capture(struct usbtv *usbtv)
+{
+	int ret;
+	static const u16 setup[][2] = {
 		/* These seem to enable the device. */
 		{ USBTV_BASE + 0x0008, 0x0001 },
 		{ USBTV_BASE + 0x01d0, 0x00ff },
@@ -188,18 +249,35 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
-	for (i = 0; i < ARRAY_SIZE(protoregs); i++) {
-		u16 index = protoregs[i][0];
-		u16 value = protoregs[i][1];
+	ret = usbtv_set_regs(usbtv, setup, ARRAY_SIZE(setup));
+	if (ret)
+		return ret;
 
-		ret = usb_control_msg(usbtv->udev, pipe, USBTV_REQUEST_REG,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, index, NULL, 0, 0);
-		if (ret < 0)
-			return ret;
-	}
+	ret = usbtv_select_input(usbtv, usbtv->input);
+	if (ret)
+		return ret;
 
 	return 0;
+}
+
+/* Copy data from chunk into a frame buffer, deinterlacing the data
+ * into every second line. Unfortunately, they don't align nicely into
+ * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
+ * Therefore, we break down the chunk into two halves before copyting,
+ * so that we can interleave a line if needed. */
+static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
+{
+	int half;
+
+	for (half = 0; half < 2; half++) {
+		int part_no = chunk_no * 2 + half;
+		int line = part_no / 3;
+		int part_index = (line * 2 + !odd) * 3 + (part_no % 3);
+
+		u32 *dst = &frame[part_index * USBTV_CHUNK/2];
+		memcpy(dst, src, USBTV_CHUNK/2 * sizeof(*src));
+		src += USBTV_CHUNK/2;
+	}
 }
 
 /* Called for each 256-byte image chunk.
@@ -218,17 +296,17 @@ static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
 	frame_id = USBTV_FRAME_ID(chunk);
 	odd = USBTV_ODD(chunk);
 	chunk_no = USBTV_CHUNK_NO(chunk);
-
-	/* Deinterlace. TODO: Use interlaced frame format. */
-	chunk_no = (chunk_no - chunk_no % 3) * 2 + chunk_no % 3;
-	chunk_no += !odd * 3;
-
 	if (chunk_no >= USBTV_CHUNKS)
 		return;
 
 	/* Beginning of a frame. */
-	if (chunk_no == 0)
+	if (chunk_no == 0) {
 		usbtv->frame_id = frame_id;
+		usbtv->chunks_done = 0;
+	}
+
+	if (usbtv->frame_id != frame_id)
+		return;
 
 	spin_lock_irqsave(&usbtv->buflock, flags);
 	if (list_empty(&usbtv->bufs)) {
@@ -241,19 +319,23 @@ static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
 	buf = list_first_entry(&usbtv->bufs, struct usbtv_buf, list);
 	frame = vb2_plane_vaddr(&buf->vb, 0);
 
-	/* Copy the chunk. */
-	memcpy(&frame[chunk_no * USBTV_CHUNK], &chunk[1],
-			USBTV_CHUNK * sizeof(chunk[1]));
+	/* Copy the chunk data. */
+	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
+	usbtv->chunks_done++;
 
 	/* Last chunk in a frame, signalling an end */
-	if (usbtv->frame_id && chunk_no == USBTV_CHUNKS-1) {
+	if (odd && chunk_no == USBTV_CHUNKS-1) {
 		int size = vb2_plane_size(&buf->vb, 0);
+		enum vb2_buffer_state state = usbtv->chunks_done ==
+						USBTV_CHUNKS ?
+						VB2_BUF_STATE_DONE :
+						VB2_BUF_STATE_ERROR;
 
 		buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 		buf->vb.v4l2_buf.sequence = usbtv->sequence++;
 		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 		vb2_set_plane_payload(&buf->vb, 0, size);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&buf->vb, state);
 		list_del(&buf->list);
 	}
 
@@ -418,10 +500,17 @@ static int usbtv_querycap(struct file *file, void *priv,
 static int usbtv_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
 {
-	if (i->index > 0)
+	switch (i->index) {
+	case USBTV_COMPOSITE_INPUT:
+		strlcpy(i->name, "Composite", sizeof(i->name));
+		break;
+	case USBTV_SVIDEO_INPUT:
+		strlcpy(i->name, "S-Video", sizeof(i->name));
+		break;
+	default:
 		return -EINVAL;
+	}
 
-	strlcpy(i->name, "Composite", sizeof(i->name));
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	i->std = V4L2_STD_525_60;
 	return 0;
@@ -461,15 +550,15 @@ static int usbtv_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 
 static int usbtv_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	*i = 0;
+	struct usbtv *usbtv = video_drvdata(file);
+	*i = usbtv->input;
 	return 0;
 }
 
 static int usbtv_s_input(struct file *file, void *priv, unsigned int i)
 {
-	if (i > 0)
-		return -EINVAL;
-	return 0;
+	struct usbtv *usbtv = video_drvdata(file);
+	return usbtv_select_input(usbtv, i);
 }
 
 static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id norm)
@@ -518,7 +607,7 @@ static int usbtv_queue_setup(struct vb2_queue *vq,
 	if (*nbuffers < 2)
 		*nbuffers = 2;
 	*nplanes = 1;
-	sizes[0] = USBTV_CHUNK * USBTV_CHUNKS * sizeof(u32);
+	sizes[0] = USBTV_WIDTH * USBTV_HEIGHT / 2 * sizeof(u32);
 
 	return 0;
 }

@@ -384,7 +384,7 @@ static struct attribute_group lm3533_attribute_group = {
 
 static int lm3533_device_als_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int ret;
 
 	if (!pdata->als)
@@ -407,7 +407,7 @@ static int lm3533_device_als_init(struct lm3533 *lm3533)
 
 static int lm3533_device_bl_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int i;
 	int ret;
 
@@ -436,7 +436,7 @@ static int lm3533_device_bl_init(struct lm3533 *lm3533)
 
 static int lm3533_device_led_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int i;
 	int ret;
 
@@ -481,7 +481,7 @@ static int lm3533_device_setup(struct lm3533 *lm3533,
 
 static int lm3533_device_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int ret;
 
 	dev_dbg(lm3533->dev, "%s\n", __func__);

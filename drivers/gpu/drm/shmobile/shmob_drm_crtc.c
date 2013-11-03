@@ -465,7 +465,8 @@ void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc)
 
 static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
-				    struct drm_pending_vblank_event *event)
+				    struct drm_pending_vblank_event *event,
+				    uint32_t page_flip_flags)
 {
 	struct shmob_drm_crtc *scrtc = to_shmob_crtc(crtc);
 	struct drm_device *dev = scrtc->crtc.dev;

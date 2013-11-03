@@ -121,8 +121,6 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	map->reg_defaults_raw = config->reg_defaults_raw;
 	map->cache_word_size = DIV_ROUND_UP(config->val_bits, 8);
 	map->cache_size_raw = map->cache_word_size * config->num_reg_defaults_raw;
-	map->cache_present = NULL;
-	map->cache_present_nbits = 0;
 
 	map->cache = NULL;
 	map->cache_ops = cache_types[i];
@@ -181,7 +179,6 @@ void regcache_exit(struct regmap *map)
 
 	BUG_ON(!map->cache_ops);
 
-	kfree(map->cache_present);
 	kfree(map->reg_defaults);
 	if (map->cache_free)
 		kfree(map->reg_defaults_raw);
@@ -240,9 +237,6 @@ int regcache_write(struct regmap *map,
 		return 0;
 
 	BUG_ON(!map->cache_ops);
-
-	if (!regmap_writeable(map, reg))
-		return -EIO;
 
 	if (!regmap_volatile(map, reg))
 		return map->cache_ops->write(map, reg, value);
@@ -410,22 +404,16 @@ EXPORT_SYMBOL_GPL(regcache_sync_region);
 int regcache_drop_region(struct regmap *map, unsigned int min,
 			 unsigned int max)
 {
-	unsigned int reg;
 	int ret = 0;
 
-	if (!map->cache_present && !(map->cache_ops && map->cache_ops->drop))
+	if (!map->cache_ops || !map->cache_ops->drop)
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
 
 	trace_regcache_drop_region(map->dev, min, max);
 
-	if (map->cache_present)
-		for (reg = min; reg < max + 1; reg++)
-			clear_bit(reg, map->cache_present);
-
-	if (map->cache_ops && map->cache_ops->drop)
-		ret = map->cache_ops->drop(map, min, max);
+	ret = map->cache_ops->drop(map, min, max);
 
 	map->unlock(map->lock_arg);
 
@@ -492,42 +480,6 @@ void regcache_cache_bypass(struct regmap *map, bool enable)
 	map->unlock(map->lock_arg);
 }
 EXPORT_SYMBOL_GPL(regcache_cache_bypass);
-
-int regcache_set_reg_present(struct regmap *map, unsigned int reg)
-{
-	unsigned long *cache_present;
-	unsigned int cache_present_size;
-	unsigned int nregs;
-	int i;
-
-	nregs = reg + 1;
-	cache_present_size = BITS_TO_LONGS(nregs);
-	cache_present_size *= sizeof(long);
-
-	if (!map->cache_present) {
-		cache_present = kmalloc(cache_present_size, GFP_KERNEL);
-		if (!cache_present)
-			return -ENOMEM;
-		bitmap_zero(cache_present, nregs);
-		map->cache_present = cache_present;
-		map->cache_present_nbits = nregs;
-	}
-
-	if (nregs > map->cache_present_nbits) {
-		cache_present = krealloc(map->cache_present,
-					 cache_present_size, GFP_KERNEL);
-		if (!cache_present)
-			return -ENOMEM;
-		for (i = 0; i < nregs; i++)
-			if (i >= map->cache_present_nbits)
-				clear_bit(i, cache_present);
-		map->cache_present = cache_present;
-		map->cache_present_nbits = nregs;
-	}
-
-	set_bit(reg, map->cache_present);
-	return 0;
-}
 
 bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		      unsigned int val)
@@ -620,7 +572,16 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 		return -ENOENT;
 }
 
+static bool regcache_reg_present(unsigned long *cache_present, unsigned int idx)
+{
+	if (!cache_present)
+		return true;
+
+	return test_bit(idx, cache_present);
+}
+
 static int regcache_sync_block_single(struct regmap *map, void *block,
+				      unsigned long *cache_present,
 				      unsigned int block_base,
 				      unsigned int start, unsigned int end)
 {
@@ -630,7 +591,7 @@ static int regcache_sync_block_single(struct regmap *map, void *block,
 	for (i = start; i < end; i++) {
 		regtmp = block_base + (i * map->reg_stride);
 
-		if (!regcache_reg_present(map, regtmp))
+		if (!regcache_reg_present(cache_present, i))
 			continue;
 
 		val = regcache_get_val(map, block, i);
@@ -681,6 +642,7 @@ static int regcache_sync_block_raw_flush(struct regmap *map, const void **data,
 }
 
 static int regcache_sync_block_raw(struct regmap *map, void *block,
+			    unsigned long *cache_present,
 			    unsigned int block_base, unsigned int start,
 			    unsigned int end)
 {
@@ -693,7 +655,7 @@ static int regcache_sync_block_raw(struct regmap *map, void *block,
 	for (i = start; i < end; i++) {
 		regtmp = block_base + (i * map->reg_stride);
 
-		if (!regcache_reg_present(map, regtmp)) {
+		if (!regcache_reg_present(cache_present, i)) {
 			ret = regcache_sync_block_raw_flush(map, &data,
 							    base, regtmp);
 			if (ret != 0)
@@ -719,17 +681,19 @@ static int regcache_sync_block_raw(struct regmap *map, void *block,
 		}
 	}
 
-	return regcache_sync_block_raw_flush(map, &data, base, regtmp);
+	return regcache_sync_block_raw_flush(map, &data, base, regtmp +
+			map->reg_stride);
 }
 
 int regcache_sync_block(struct regmap *map, void *block,
+			unsigned long *cache_present,
 			unsigned int block_base, unsigned int start,
 			unsigned int end)
 {
 	if (regmap_can_raw_write(map))
-		return regcache_sync_block_raw(map, block, block_base,
-					       start, end);
+		return regcache_sync_block_raw(map, block, cache_present,
+					       block_base, start, end);
 	else
-		return regcache_sync_block_single(map, block, block_base,
-						  start, end);
+		return regcache_sync_block_single(map, block, cache_present,
+						  block_base, start, end);
 }

@@ -31,9 +31,8 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	int err;
 
 #ifdef CONFIG_64BIT
-	extern int iosapic_serial_irq(int cellnum);
 	if (!dev->irq && (dev->id.sversion == 0xad))
-		dev->irq = iosapic_serial_irq(dev->mod_index-1);
+		dev->irq = iosapic_serial_irq(dev);
 #endif
 
 	if (!dev->irq) {

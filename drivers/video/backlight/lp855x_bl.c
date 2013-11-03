@@ -246,7 +246,7 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 {
 	struct lp855x *lp = bl_get_data(bl);
 
-	if (bl->props.state & BL_CORE_SUSPENDED)
+	if (bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		bl->props.brightness = 0;
 
 	if (lp->mode == PWM_BASED) {

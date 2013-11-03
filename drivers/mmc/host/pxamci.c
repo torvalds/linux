@@ -83,7 +83,7 @@ struct pxamci_host {
 static inline void pxamci_init_ocr(struct pxamci_host *host)
 {
 #ifdef CONFIG_REGULATOR
-	host->vcc = regulator_get(mmc_dev(host->mmc), "vmmc");
+	host->vcc = regulator_get_optional(mmc_dev(host->mmc), "vmmc");
 
 	if (IS_ERR(host->vcc))
 		host->vcc = NULL;
@@ -128,7 +128,7 @@ static inline int pxamci_set_power(struct pxamci_host *host,
 			       !!on ^ host->pdata->gpio_power_invert);
 	}
 	if (!host->vcc && host->pdata && host->pdata->setpower)
-		host->pdata->setpower(mmc_dev(host->mmc), vdd);
+		return host->pdata->setpower(mmc_dev(host->mmc), vdd);
 
 	return 0;
 }

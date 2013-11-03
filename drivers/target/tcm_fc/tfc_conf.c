@@ -311,7 +311,11 @@ static struct se_portal_group *ft_add_tpg(
 	 */
 	if (strstr(name, "tpgt_") != name)
 		return NULL;
-	if (strict_strtoul(name + 5, 10, &index) || index > UINT_MAX)
+
+	ret = kstrtoul(name + 5, 10, &index);
+	if (ret)
+		return NULL;
+	if (index > UINT_MAX)
 		return NULL;
 
 	lacl = container_of(wwn, struct ft_lport_acl, fc_lport_wwn);

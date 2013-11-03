@@ -357,13 +357,9 @@ extern int CIFSSMBUnixQuerySymLink(const unsigned int xid,
 			struct cifs_tcon *tcon,
 			const unsigned char *searchName, char **syminfo,
 			const struct nls_table *nls_codepage);
-#ifdef CONFIG_CIFS_SYMLINK_EXPERIMENTAL
-extern int CIFSSMBQueryReparseLinkInfo(const unsigned int xid,
-			struct cifs_tcon *tcon,
-			const unsigned char *searchName,
-			char *symlinkinfo, const int buflen, __u16 fid,
-			const struct nls_table *nls_codepage);
-#endif /* temporarily unused until cifs_symlink fixed */
+extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
+			       __u16 fid, char **symlinkinfo,
+			       const struct nls_table *nls_codepage);
 extern int CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
@@ -435,7 +431,7 @@ extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
 extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
 extern int calc_seckey(struct cifs_ses *);
-extern void generate_smb3signingkey(struct TCP_Server_Info *);
+extern int generate_smb3signingkey(struct cifs_ses *);
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern int calc_lanman_hash(const char *password, const char *cryptkey,
@@ -497,5 +493,7 @@ void cifs_writev_complete(struct work_struct *work);
 struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
 						work_func_t complete);
 void cifs_writedata_release(struct kref *refcount);
-
+int open_query_close_cifs_symlink(const unsigned char *path, char *pbuf,
+			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
+			unsigned int xid);
 #endif			/* _CIFSPROTO_H */

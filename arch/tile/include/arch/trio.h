@@ -23,6 +23,45 @@
 #ifndef __ASSEMBLER__
 
 /*
+ * Map SQ Doorbell Format.
+ * This describes the format of the write-only doorbell register that exists
+ * in the last 8-bytes of the MAP_SQ_BASE/LIM range.  This register is only
+ * writable from PCIe space.  Writes to this register will not be written to
+ * Tile memory space and thus no IO VA translation is required if the last
+ * page of the BASE/LIM range is not otherwise written.
+ */
+
+__extension__
+typedef union
+{
+  struct
+  {
+#ifndef __BIG_ENDIAN__
+    /*
+     * When written with a 1, the associated MAP_SQ region's doorbell
+     * interrupt will be triggered once all previous writes are visible to
+     * Tile software.
+     */
+    uint_reg_t doorbell   : 1;
+    /*
+     * When written with a 1, the descriptor at the head of the associated
+     * MAP_SQ's FIFO will be dequeued.
+     */
+    uint_reg_t pop        : 1;
+    /* Reserved. */
+    uint_reg_t __reserved : 62;
+#else   /* __BIG_ENDIAN__ */
+    uint_reg_t __reserved : 62;
+    uint_reg_t pop        : 1;
+    uint_reg_t doorbell   : 1;
+#endif
+  };
+
+  uint_reg_t word;
+} TRIO_MAP_SQ_DOORBELL_FMT_t;
+
+
+/*
  * Tile PIO Region Configuration - CFG Address Format.
  * This register describes the address format for PIO accesses when the
  * associated region is setup with TYPE=CFG.

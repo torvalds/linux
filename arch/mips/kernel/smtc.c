@@ -645,7 +645,7 @@ void smtc_prepare_cpus(int cpus)
  * (unsigned long)idle->thread_info the gp
  *
  */
-void __cpuinit smtc_boot_secondary(int cpu, struct task_struct *idle)
+void smtc_boot_secondary(int cpu, struct task_struct *idle)
 {
 	extern u32 kernelsp[NR_CPUS];
 	unsigned long flags;

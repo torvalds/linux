@@ -477,7 +477,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 	}
 
 	return ((mtu - x->props.header_len - crypto_aead_authsize(esp->aead) -
-		 net_adj) & ~(align - 1)) + (net_adj - 2);
+		 net_adj) & ~(align - 1)) + net_adj - 2;
 }
 
 static void esp4_err(struct sk_buff *skb, u32 info)

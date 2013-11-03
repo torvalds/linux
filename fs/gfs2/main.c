@@ -32,7 +32,8 @@
 struct workqueue_struct *gfs2_control_wq;
 
 static struct shrinker qd_shrinker = {
-	.shrink = gfs2_shrink_qd_memory,
+	.count_objects = gfs2_qd_shrink_count,
+	.scan_objects = gfs2_qd_shrink_scan,
 	.seeks = DEFAULT_SEEKS,
 };
 
@@ -155,7 +156,7 @@ static int __init init_gfs2_fs(void)
 		goto fail_wq;
 
 	gfs2_control_wq = alloc_workqueue("gfs2_control",
-			       WQ_NON_REENTRANT | WQ_UNBOUND | WQ_FREEZABLE, 0);
+					  WQ_UNBOUND | WQ_FREEZABLE, 0);
 	if (!gfs2_control_wq)
 		goto fail_recovery;
 

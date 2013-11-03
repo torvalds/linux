@@ -10,6 +10,40 @@
 		reg = <0x80000000 0x7ff00000>;
 	};
 
+	pcie-controller {
+		status = "okay";
+		pex-clk-supply = <&sys_3v3_pexs_reg>;
+		vdd-supply = <&ldo1_reg>;
+		avdd-supply = <&ldo2_reg>;
+
+		pci@1,0 {
+			status = "okay";
+			nvidia,num-lanes = <2>;
+		};
+
+		pci@2,0 {
+			nvidia,num-lanes = <2>;
+		};
+
+		pci@3,0 {
+			status = "okay";
+			nvidia,num-lanes = <2>;
+		};
+	};
+
+	host1x {
+		hdmi {
+			status = "okay";
+
+			vdd-supply = <&sys_3v3_reg>;
+			pll-supply = <&vio_reg>;
+
+			nvidia,hpd-gpio =
+				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+			nvidia,ddc-i2c-bus = <&hdmiddc>;
+		};
+	};
+
 	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
@@ -76,6 +110,11 @@
 				nvidia,pull = <0>;
 				nvidia,tristate = <0>;
 			};
+			pex_l1_prsnt_n_pdd4 {
+				nvidia,pins =	"pex_l1_prsnt_n_pdd4",
+						"pex_l1_clkreq_n_pdd6";
+				nvidia,pull = <2>;
+			};
 			sdio3 {
 				nvidia,pins = "drive_sdio3";
 				nvidia,high-speed-mode = <0>;
@@ -84,6 +123,10 @@
 				nvidia,pull-up-strength = <42>;
 				nvidia,slew-rate-rising = <1>;
 				nvidia,slew-rate-falling = <1>;
+			};
+			gpv {
+				nvidia,pins = "drive_gpv";
+				nvidia,pull-up-strength = <16>;
 			};
 		};
 	};
@@ -107,7 +150,7 @@
 		clock-frequency = <100000>;
 	};
 
-	i2c@7000c700 {
+	hdmiddc: i2c@7000c700 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
@@ -262,7 +305,7 @@
 	pmc {
 		status = "okay";
 		nvidia,invert-interrupt;
-		nvidia,suspend-mode = <2>;
+		nvidia,suspend-mode = <1>;
 		nvidia,cpu-pwr-good-time = <2000>;
 		nvidia,cpu-pwr-off-time = <200>;
 		nvidia,core-pwr-good-time = <3845 3845>;
@@ -283,6 +326,15 @@
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
+	};
+
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		vbus-supply = <&usb3_vbus_reg>;
+		status = "okay";
 	};
 
 	clocks {
@@ -357,7 +409,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(I, 4) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA_GPIO(DD, 6) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
@@ -369,7 +421,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA_GPIO(DD, 4) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
@@ -421,7 +473,9 @@
 
 		nvidia,audio-routing =
 			"Headphones", "HPOR",
-			"Headphones", "HPOL";
+			"Headphones", "HPOL",
+			"Mic Jack", "MICBIAS1",
+			"IN2P", "Mic Jack";
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&rt5640>;

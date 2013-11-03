@@ -137,8 +137,8 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
 {
 	int fw_idx, req_idx;
 
-	fw_idx = 0;
-	for (req_idx = req->n_ssids - 1; req_idx > 0; req_idx--) {
+	for (req_idx = req->n_ssids - 1, fw_idx = 0; req_idx > 0;
+	     req_idx--, fw_idx++) {
 		cmd->direct_scan[fw_idx].id = WLAN_EID_SSID;
 		cmd->direct_scan[fw_idx].len = req->ssids[req_idx].ssid_len;
 		memcpy(cmd->direct_scan[fw_idx].ssid,
@@ -153,7 +153,9 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
  * just to notify that this scan is active and not passive.
  * In order to notify the FW of the number of SSIDs we wish to scan (including
  * the zero-length one), we need to set the corresponding bits in chan->type,
- * one for each SSID, and set the active bit (first).
+ * one for each SSID, and set the active bit (first). The first SSID is already
+ * included in the probe template, so we need to set only req->n_ssids - 1 bits
+ * in addition to the first bit.
  */
 static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
 {
@@ -176,19 +178,12 @@ static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
 	struct iwl_scan_channel *chan = (struct iwl_scan_channel *)
 		(cmd->data + le16_to_cpu(cmd->tx_cmd.len));
 	int i;
-	__le32 chan_type_value;
-
-	if (req->n_ssids > 0)
-		chan_type_value = cpu_to_le32(BIT(req->n_ssids + 1) - 1);
-	else
-		chan_type_value = SCAN_CHANNEL_TYPE_PASSIVE;
 
 	for (i = 0; i < cmd->channel_count; i++) {
 		chan->channel = cpu_to_le16(req->channels[i]->hw_value);
+		chan->type = cpu_to_le32(BIT(req->n_ssids) - 1);
 		if (req->channels[i]->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			chan->type = SCAN_CHANNEL_TYPE_PASSIVE;
-		else
-			chan->type = chan_type_value;
+			chan->type &= cpu_to_le32(~SCAN_CHANNEL_TYPE_ACTIVE);
 		chan->active_dwell = cpu_to_le16(active_dwell);
 		chan->passive_dwell = cpu_to_le16(passive_dwell);
 		chan->iteration_count = cpu_to_le16(1);
@@ -306,10 +301,12 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	 */
 	if (req->n_ssids > 0) {
 		cmd->passive2active = cpu_to_le16(1);
+		cmd->scan_flags |= SCAN_FLAGS_PASSIVE2ACTIVE;
 		ssid = req->ssids[0].ssid;
 		ssid_len = req->ssids[0].ssid_len;
 	} else {
 		cmd->passive2active = 0;
+		cmd->scan_flags &= ~SCAN_FLAGS_PASSIVE2ACTIVE;
 	}
 
 	iwl_mvm_scan_fill_ssids(cmd, req);
@@ -397,6 +394,11 @@ static bool iwl_mvm_scan_abort_notif(struct iwl_notif_wait_data *notif_wait,
 			return false;
 		}
 
+		/*
+		 * If scan cannot be aborted, it means that we had a
+		 * SCAN_COMPLETE_NOTIFICATION in the pipe and it called
+		 * ieee80211_scan_completed already.
+		 */
 		IWL_DEBUG_SCAN(mvm, "Scan cannot be aborted, exit now: %d\n",
 			       *resp);
 		return true;
@@ -420,14 +422,19 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 					       SCAN_COMPLETE_NOTIFICATION };
 	int ret;
 
+	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+		return;
+
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_abort,
 				   scan_abort_notif,
 				   ARRAY_SIZE(scan_abort_notif),
 				   iwl_mvm_scan_abort_notif, NULL);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD, CMD_SYNC, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD,
+				   CMD_SYNC | CMD_SEND_IN_RFKILL, 0, NULL);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send SCAN_ABORT_CMD: %d\n", ret);
+		/* mac80211's state will be cleaned in the fw_restart flow */
 		goto out_remove_notif;
 	}
 

@@ -74,15 +74,10 @@ static struct vmpressure *work_to_vmpressure(struct work_struct *work)
 	return container_of(work, struct vmpressure, work);
 }
 
-static struct vmpressure *cg_to_vmpressure(struct cgroup *cg)
-{
-	return css_to_vmpressure(cgroup_subsys_state(cg, mem_cgroup_subsys_id));
-}
-
 static struct vmpressure *vmpressure_parent(struct vmpressure *vmpr)
 {
-	struct cgroup *cg = vmpressure_to_css(vmpr)->cgroup;
-	struct mem_cgroup *memcg = mem_cgroup_from_cont(cg);
+	struct cgroup_subsys_state *css = vmpressure_to_css(vmpr);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 
 	memcg = parent_mem_cgroup(memcg);
 	if (!memcg)
@@ -180,12 +175,12 @@ static void vmpressure_work_fn(struct work_struct *work)
 	if (!vmpr->scanned)
 		return;
 
-	mutex_lock(&vmpr->sr_lock);
+	spin_lock(&vmpr->sr_lock);
 	scanned = vmpr->scanned;
 	reclaimed = vmpr->reclaimed;
 	vmpr->scanned = 0;
 	vmpr->reclaimed = 0;
-	mutex_unlock(&vmpr->sr_lock);
+	spin_unlock(&vmpr->sr_lock);
 
 	do {
 		if (vmpressure_event(vmpr, scanned, reclaimed))
@@ -240,13 +235,13 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
 	if (!scanned)
 		return;
 
-	mutex_lock(&vmpr->sr_lock);
+	spin_lock(&vmpr->sr_lock);
 	vmpr->scanned += scanned;
 	vmpr->reclaimed += reclaimed;
 	scanned = vmpr->scanned;
-	mutex_unlock(&vmpr->sr_lock);
+	spin_unlock(&vmpr->sr_lock);
 
-	if (scanned < vmpressure_win || work_pending(&vmpr->work))
+	if (scanned < vmpressure_win)
 		return;
 	schedule_work(&vmpr->work);
 }
@@ -283,7 +278,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
 
 /**
  * vmpressure_register_event() - Bind vmpressure notifications to an eventfd
- * @cg:		cgroup that is interested in vmpressure notifications
+ * @css:	css that is interested in vmpressure notifications
  * @cft:	cgroup control files handle
  * @eventfd:	eventfd context to link notifications with
  * @args:	event arguments (used to set up a pressure level threshold)
@@ -298,10 +293,11 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
  * cftype).register_event, and then cgroup core will handle everything by
  * itself.
  */
-int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
-			      struct eventfd_ctx *eventfd, const char *args)
+int vmpressure_register_event(struct cgroup_subsys_state *css,
+			      struct cftype *cft, struct eventfd_ctx *eventfd,
+			      const char *args)
 {
-	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+	struct vmpressure *vmpr = css_to_vmpressure(css);
 	struct vmpressure_event *ev;
 	int level;
 
@@ -329,7 +325,7 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
 
 /**
  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
- * @cg:		cgroup handle
+ * @css:	css handle
  * @cft:	cgroup control files handle
  * @eventfd:	eventfd context that was used to link vmpressure with the @cg
  *
@@ -341,10 +337,11 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
  * cftype).unregister_event, and then cgroup core will handle everything
  * by itself.
  */
-void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+void vmpressure_unregister_event(struct cgroup_subsys_state *css,
+				 struct cftype *cft,
 				 struct eventfd_ctx *eventfd)
 {
-	struct vmpressure *vmpr = cg_to_vmpressure(cg);
+	struct vmpressure *vmpr = css_to_vmpressure(css);
 	struct vmpressure_event *ev;
 
 	mutex_lock(&vmpr->events_lock);
@@ -367,8 +364,24 @@ void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
  */
 void vmpressure_init(struct vmpressure *vmpr)
 {
-	mutex_init(&vmpr->sr_lock);
+	spin_lock_init(&vmpr->sr_lock);
 	mutex_init(&vmpr->events_lock);
 	INIT_LIST_HEAD(&vmpr->events);
 	INIT_WORK(&vmpr->work, vmpressure_work_fn);
+}
+
+/**
+ * vmpressure_cleanup() - shuts down vmpressure control structure
+ * @vmpr:	Structure to be cleaned up
+ *
+ * This function should be called before the structure in which it is
+ * embedded is cleaned up.
+ */
+void vmpressure_cleanup(struct vmpressure *vmpr)
+{
+	/*
+	 * Make sure there is no pending work before eventfd infrastructure
+	 * goes away.
+	 */
+	flush_work(&vmpr->work);
 }

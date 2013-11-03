@@ -111,8 +111,8 @@ static struct severity {
 #ifdef	CONFIG_MEMORY_FAILURE
 	MCESEV(
 		KEEP, "Action required but unaffected thread is continuable",
-		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR),
-		MCGMASK(MCG_STATUS_RIPV, MCG_STATUS_RIPV)
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR, MCI_UC_SAR|MCI_ADDR),
+		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, MCG_STATUS_RIPV)
 		),
 	MCESEV(
 		AR, "Action required: data load error in a user process",

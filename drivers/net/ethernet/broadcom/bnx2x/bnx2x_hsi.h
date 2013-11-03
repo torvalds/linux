@@ -1300,6 +1300,9 @@ struct drv_func_mb {
 
 	#define DRV_MSG_CODE_EEE_RESULTS_ACK            0xda000000
 
+	#define DRV_MSG_CODE_RMMOD                      0xdb000000
+	#define REQ_BC_VER_4_RMMOD_CMD                  0x0007080f
+
 	#define DRV_MSG_CODE_SET_MF_BW                  0xe0000000
 	#define REQ_BC_VER_4_SET_MF_BW                  0x00060202
 	#define DRV_MSG_CODE_SET_MF_BW_ACK              0xe1000000
@@ -1371,6 +1374,8 @@ struct drv_func_mb {
 	#define FW_MSG_CODE_DRV_INFO_NACK               0xd9100000
 
 	#define FW_MSG_CODE_EEE_RESULS_ACK              0xda100000
+
+	#define FW_MSG_CODE_RMMOD_ACK                   0xdb100000
 
 	#define FW_MSG_CODE_SET_MF_BW_SENT              0xe0000000
 	#define FW_MSG_CODE_SET_MF_BW_DONE              0xe1000000

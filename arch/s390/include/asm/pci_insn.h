@@ -79,11 +79,11 @@ struct zpci_fib {
 } __packed;
 
 
-int s390pci_mod_fc(u64 req, struct zpci_fib *fib);
-int s390pci_refresh_trans(u64 fn, u64 addr, u64 range);
-int s390pci_load(u64 *data, u64 req, u64 offset);
-int s390pci_store(u64 data, u64 req, u64 offset);
-int s390pci_store_block(const u64 *data, u64 req, u64 offset);
-void set_irq_ctrl(u16 ctl, char *unused, u8 isc);
+int zpci_mod_fc(u64 req, struct zpci_fib *fib);
+int zpci_refresh_trans(u64 fn, u64 addr, u64 range);
+int zpci_load(u64 *data, u64 req, u64 offset);
+int zpci_store(u64 data, u64 req, u64 offset);
+int zpci_store_block(const u64 *data, u64 req, u64 offset);
+void zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc);
 
 #endif

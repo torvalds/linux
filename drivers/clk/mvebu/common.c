@@ -45,8 +45,10 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 	clk_data.clk_num = 2 + desc->num_ratios;
 	clk_data.clks = kzalloc(clk_data.clk_num * sizeof(struct clk *),
 				GFP_KERNEL);
-	if (WARN_ON(!clk_data.clks))
+	if (WARN_ON(!clk_data.clks)) {
+		iounmap(base);
 		return;
+	}
 
 	/* Register TCLK */
 	of_property_read_string_index(np, "clock-output-names", 0,
@@ -134,7 +136,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (WARN_ON(!ctrl))
-		return;
+		goto ctrl_out;
 
 	spin_lock_init(&ctrl->lock);
 
@@ -145,10 +147,8 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 	ctrl->num_gates = n;
 	ctrl->gates = kzalloc(ctrl->num_gates * sizeof(struct clk *),
 			      GFP_KERNEL);
-	if (WARN_ON(!ctrl->gates)) {
-		kfree(ctrl);
-		return;
-	}
+	if (WARN_ON(!ctrl->gates))
+		goto gates_out;
 
 	for (n = 0; n < ctrl->num_gates; n++) {
 		const char *parent =
@@ -160,4 +160,10 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 	}
 
 	of_clk_add_provider(np, clk_gating_get_src, ctrl);
+
+	return;
+gates_out:
+	kfree(ctrl);
+ctrl_out:
+	iounmap(base);
 }

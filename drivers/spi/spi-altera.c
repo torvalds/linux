@@ -124,7 +124,7 @@ static int altera_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	hw->tx = t->tx_buf;
 	hw->rx = t->rx_buf;
 	hw->count = 0;
-	hw->bytes_per_word = t->bits_per_word / 8;
+	hw->bytes_per_word = DIV_ROUND_UP(t->bits_per_word, 8);
 	hw->len = t->len / hw->bytes_per_word;
 
 	if (hw->irq >= 0) {
@@ -140,11 +140,11 @@ static int altera_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 		hw->imr &= ~ALTERA_SPI_CONTROL_IRRDY_MSK;
 		writel(hw->imr, hw->base + ALTERA_SPI_CONTROL);
 	} else {
-		/* send the first byte */
-		writel(hw_txbyte(hw, 0), hw->base + ALTERA_SPI_TXDATA);
-
-		while (1) {
+		while (hw->count < hw->len) {
 			unsigned int rxd;
+
+			writel(hw_txbyte(hw, hw->count),
+			       hw->base + ALTERA_SPI_TXDATA);
 
 			while (!(readl(hw->base + ALTERA_SPI_STATUS) &
 				 ALTERA_SPI_STATUS_RRDY_MSK))
@@ -164,14 +164,7 @@ static int altera_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 			}
 
 			hw->count++;
-
-			if (hw->count < hw->len)
-				writel(hw_txbyte(hw, hw->count),
-				       hw->base + ALTERA_SPI_TXDATA);
-			else
-				break;
 		}
-
 	}
 
 	return hw->count * hw->bytes_per_word;
@@ -207,7 +200,7 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 
 static int altera_spi_probe(struct platform_device *pdev)
 {
-	struct altera_spi_platform_data *platp = pdev->dev.platform_data;
+	struct altera_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct altera_spi *hw;
 	struct spi_master *master;
 	struct resource *res;
@@ -234,15 +227,11 @@ static int altera_spi_probe(struct platform_device *pdev)
 
 	/* find and map our resources */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		goto exit_busy;
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-				     pdev->name))
-		goto exit_busy;
-	hw->base = devm_ioremap_nocache(&pdev->dev, res->start,
-					resource_size(res));
-	if (!hw->base)
-		goto exit_busy;
+	hw->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hw->base)) {
+		err = PTR_ERR(hw->base);
+		goto exit;
+	}
 	/* program defaults into the registers */
 	hw->imr = 0;		/* disable spi interrupts */
 	writel(hw->imr, hw->base + ALTERA_SPI_CONTROL);
@@ -269,9 +258,6 @@ static int altera_spi_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "base %p, irq %d\n", hw->base, hw->irq);
 
 	return 0;
-
-exit_busy:
-	err = -EBUSY;
 exit:
 	spi_master_put(master);
 	return err;
@@ -290,6 +276,7 @@ static int altera_spi_remove(struct platform_device *dev)
 #ifdef CONFIG_OF
 static const struct of_device_id altera_spi_match[] = {
 	{ .compatible = "ALTR,spi-1.0", },
+	{ .compatible = "altr,spi-1.0", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_spi_match);

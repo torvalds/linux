@@ -81,6 +81,13 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
+/* Length, Service, and Signal fields of Phy for Tx */
+struct vnt_phy_field {
+	u8 signal;
+	u8 service;
+	__le16 len;
+} __packed;
+
 unsigned int
 BBuGetFrameTime(
      u8 byPreambleType,
@@ -90,8 +97,7 @@ BBuGetFrameTime(
     );
 
 void BBvCalculateParameter(struct vnt_private *, u32 cbFrameLength,
-	u16 wRate, u8 byPacketType, u16 *pwPhyLen, u8 *pbyPhySrv,
-	u8 *pbyPhySgn);
+	u16 wRate, u8 byPacketType, struct vnt_phy_field *);
 
 /* timer for antenna diversity */
 

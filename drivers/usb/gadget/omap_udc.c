@@ -2734,7 +2734,7 @@ static int omap_udc_probe(struct platform_device *pdev)
 	int			hmc;
 	struct usb_phy		*xceiv = NULL;
 	const char		*type = NULL;
-	struct omap_usb_config	*config = pdev->dev.platform_data;
+	struct omap_usb_config	*config = dev_get_platdata(&pdev->dev);
 	struct clk		*dc_clk = NULL;
 	struct clk		*hhc_clk = NULL;
 

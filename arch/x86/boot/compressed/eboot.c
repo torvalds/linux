@@ -225,7 +225,7 @@ static void low_free(unsigned long size, unsigned long addr)
 	unsigned long nr_pages;
 
 	nr_pages = round_up(size, EFI_PAGE_SIZE) / EFI_PAGE_SIZE;
-	efi_call_phys2(sys_table->boottime->free_pages, addr, size);
+	efi_call_phys2(sys_table->boottime->free_pages, addr, nr_pages);
 }
 
 static void find_bits(unsigned long mask, u8 *pos, u8 *size)

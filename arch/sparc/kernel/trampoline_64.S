@@ -32,13 +32,11 @@ itlb_load:
 dtlb_load:
 	.asciz	"SUNW,dtlb-load"
 
-	/* XXX __cpuinit this thing XXX */
 #define TRAMP_STACK_SIZE	1024
 	.align	16
 tramp_stack:
 	.skip	TRAMP_STACK_SIZE
 
-	__CPUINIT
 	.align		8
 	.globl		sparc64_cpu_startup, sparc64_cpu_startup_end
 sparc64_cpu_startup:
@@ -131,7 +129,6 @@ startup_continue:
 	clr		%l5
 	sethi		%hi(num_kernel_image_mappings), %l6
 	lduw		[%l6 + %lo(num_kernel_image_mappings)], %l6
-	add		%l6, 1, %l6
 
 	mov		15, %l7
 	BRANCH_IF_ANY_CHEETAH(g1,g5,2f)
@@ -224,7 +221,6 @@ niagara_lock_tlb:
 	clr		%l5
 	sethi		%hi(num_kernel_image_mappings), %l6
 	lduw		[%l6 + %lo(num_kernel_image_mappings)], %l6
-	add		%l6, 1, %l6
 
 1:
 	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5

@@ -1,7 +1,7 @@
 /*
  *  s2255drv.c - a driver for the Sensoray 2255 USB video capture device
  *
- *   Copyright (C) 2007-2010 by Sensoray Company Inc.
+ *   Copyright (C) 2007-2013 by Sensoray Company Inc.
  *                              Dean Anderson
  *
  * Some video buffer code based on vivi driver:
@@ -52,7 +52,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 
-#define S2255_VERSION		"1.22.1"
+#define S2255_VERSION		"1.23.1"
 #define FIRMWARE_FILE_NAME "f2255usb.bin"
 
 /* default JPEG quality */
@@ -1303,11 +1303,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id i)
 	int ret = 0;
 
 	mutex_lock(&q->vb_lock);
-	if (videobuf_queue_is_busy(q)) {
-		dprintk(1, "queue busy\n");
-		ret = -EBUSY;
-		goto out_s_std;
-	}
 	if (res_locked(fh)) {
 		dprintk(1, "can't change standard after started\n");
 		ret = -EBUSY;

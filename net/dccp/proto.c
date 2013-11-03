@@ -336,7 +336,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 			mask |= POLLIN | POLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
-			if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
+			if (sk_stream_is_writeable(sk)) {
 				mask |= POLLOUT | POLLWRNORM;
 			} else {  /* send SIGIO later */
 				set_bit(SOCK_ASYNC_NOSPACE,
@@ -347,7 +347,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 				 * wspace test but before the flags are set,
 				 * IO signal will be lost.
 				 */
-				if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk))
+				if (sk_stream_is_writeable(sk))
 					mask |= POLLOUT | POLLWRNORM;
 			}
 		}

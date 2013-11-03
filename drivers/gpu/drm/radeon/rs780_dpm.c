@@ -28,6 +28,7 @@
 #include "r600_dpm.h"
 #include "rs780_dpm.h"
 #include "atom.h"
+#include <linux/seq_file.h>
 
 static struct igp_ps *rs780_get_ps(struct radeon_ps *rps)
 {
@@ -61,9 +62,7 @@ static void rs780_get_pm_mode_parameters(struct radeon_device *rdev)
 			radeon_crtc = to_radeon_crtc(crtc);
 			pi->crtc_id = radeon_crtc->crtc_id;
 			if (crtc->mode.htotal && crtc->mode.vtotal)
-				pi->refresh_rate =
-					(crtc->mode.clock * 1000) /
-					(crtc->mode.htotal * crtc->mode.vtotal);
+				pi->refresh_rate = drm_mode_vrefresh(&crtc->mode);
 			break;
 		}
 	}
@@ -375,9 +374,8 @@ static void rs780_disable_vbios_powersaving(struct radeon_device *rdev)
 	WREG32_P(CG_INTGFX_MISC, 0, ~0xFFF00000);
 }
 
-static void rs780_force_voltage_to_high(struct radeon_device *rdev)
+static void rs780_force_voltage(struct radeon_device *rdev, u16 voltage)
 {
-	struct igp_power_info *pi = rs780_get_pi(rdev);
 	struct igp_ps *current_state = rs780_get_ps(rdev->pm.dpm.current_ps);
 
 	if ((current_state->max_voltage == RS780_VDDC_LEVEL_HIGH) &&
@@ -389,7 +387,7 @@ static void rs780_force_voltage_to_high(struct radeon_device *rdev)
 	udelay(1);
 
 	WREG32_P(FVTHROT_PWM_CTRL_REG0,
-		 STARTING_PWM_HIGHTIME(pi->max_voltage),
+		 STARTING_PWM_HIGHTIME(voltage),
 		 ~STARTING_PWM_HIGHTIME_MASK);
 
 	WREG32_P(FVTHROT_PWM_CTRL_REG0,
@@ -399,6 +397,26 @@ static void rs780_force_voltage_to_high(struct radeon_device *rdev)
 		~RANGE_PWM_FEEDBACK_DIV_EN);
 
 	udelay(1);
+
+	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
+}
+
+static void rs780_force_fbdiv(struct radeon_device *rdev, u32 fb_div)
+{
+	struct igp_ps *current_state = rs780_get_ps(rdev->pm.dpm.current_ps);
+
+	if (current_state->sclk_low == current_state->sclk_high)
+		return;
+
+	WREG32_P(GFX_MACRO_BYPASS_CNTL, SPLL_BYPASS_CNTL, ~SPLL_BYPASS_CNTL);
+
+	WREG32_P(FVTHROT_FBDIV_REG2, FORCED_FEEDBACK_DIV(fb_div),
+		 ~FORCED_FEEDBACK_DIV_MASK);
+	WREG32_P(FVTHROT_FBDIV_REG1, STARTING_FEEDBACK_DIV(fb_div),
+		 ~STARTING_FEEDBACK_DIV_MASK);
+	WREG32_P(FVTHROT_FBDIV_REG1, FORCE_FEEDBACK_DIV, ~FORCE_FEEDBACK_DIV);
+
+	udelay(100);
 
 	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
 }
@@ -431,17 +449,13 @@ static int rs780_set_engine_clock_scaling(struct radeon_device *rdev,
 	if (ret)
 		return ret;
 
-	WREG32_P(GFX_MACRO_BYPASS_CNTL, SPLL_BYPASS_CNTL, ~SPLL_BYPASS_CNTL);
+	if ((min_dividers.ref_div != max_dividers.ref_div) ||
+	    (min_dividers.post_div != max_dividers.post_div) ||
+	    (max_dividers.ref_div != current_max_dividers.ref_div) ||
+	    (max_dividers.post_div != current_max_dividers.post_div))
+		return -EINVAL;
 
-	WREG32_P(FVTHROT_FBDIV_REG2, FORCED_FEEDBACK_DIV(max_dividers.fb_div),
-		 ~FORCED_FEEDBACK_DIV_MASK);
-	WREG32_P(FVTHROT_FBDIV_REG1, STARTING_FEEDBACK_DIV(max_dividers.fb_div),
-		 ~STARTING_FEEDBACK_DIV_MASK);
-	WREG32_P(FVTHROT_FBDIV_REG1, FORCE_FEEDBACK_DIV, ~FORCE_FEEDBACK_DIV);
-
-	udelay(100);
-
-	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
+	rs780_force_fbdiv(rdev, max_dividers.fb_div);
 
 	if (max_dividers.fb_div > min_dividers.fb_div) {
 		WREG32_P(FVTHROT_FBDIV_REG0,
@@ -483,6 +497,9 @@ static void rs780_activate_engine_clk_scaling(struct radeon_device *rdev,
 
 	if ((new_state->sclk_high == old_state->sclk_high) &&
 	    (new_state->sclk_low == old_state->sclk_low))
+		return;
+
+	if (new_state->sclk_high == new_state->sclk_low)
 		return;
 
 	rs780_clk_scaling_enable(rdev, true);
@@ -648,7 +665,7 @@ int rs780_dpm_set_power_state(struct radeon_device *rdev)
 	rs780_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (pi->voltage_control) {
-		rs780_force_voltage_to_high(rdev);
+		rs780_force_voltage(rdev, pi->max_voltage);
 		mdelay(5);
 	}
 
@@ -716,12 +733,16 @@ static void rs780_parse_pplib_non_clock_info(struct radeon_device *rdev,
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
 		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
 		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
-	} else if (r600_is_uvd_state(rps->class, rps->class2)) {
-		rps->vclk = RS780_DEFAULT_VCLK_FREQ;
-		rps->dclk = RS780_DEFAULT_DCLK_FREQ;
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
+	}
+
+	if (r600_is_uvd_state(rps->class, rps->class2)) {
+		if ((rps->vclk == 0) || (rps->dclk == 0)) {
+			rps->vclk = RS780_DEFAULT_VCLK_FREQ;
+			rps->dclk = RS780_DEFAULT_DCLK_FREQ;
+		}
 	}
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_BOOT)
@@ -960,4 +981,80 @@ u32 rs780_dpm_get_mclk(struct radeon_device *rdev, bool low)
 	struct igp_power_info *pi = rs780_get_pi(rdev);
 
 	return pi->bootup_uma_clk;
+}
+
+void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						       struct seq_file *m)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct igp_ps *ps = rs780_get_ps(rps);
+	u32 current_fb_div = RREG32(FVTHROT_STATUS_REG0) & CURRENT_FEEDBACK_DIV_MASK;
+	u32 func_cntl = RREG32(CG_SPLL_FUNC_CNTL);
+	u32 ref_div = ((func_cntl & SPLL_REF_DIV_MASK) >> SPLL_REF_DIV_SHIFT) + 1;
+	u32 post_div = ((func_cntl & SPLL_SW_HILEN_MASK) >> SPLL_SW_HILEN_SHIFT) + 1 +
+		((func_cntl & SPLL_SW_LOLEN_MASK) >> SPLL_SW_LOLEN_SHIFT) + 1;
+	u32 sclk = (rdev->clock.spll.reference_freq * current_fb_div) /
+		(post_div * ref_div);
+
+	seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+
+	/* guess based on the current sclk */
+	if (sclk < (ps->sclk_low + 500))
+		seq_printf(m, "power level 0    sclk: %u vddc_index: %d\n",
+			   ps->sclk_low, ps->min_voltage);
+	else
+		seq_printf(m, "power level 1    sclk: %u vddc_index: %d\n",
+			   ps->sclk_high, ps->max_voltage);
+}
+
+int rs780_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level)
+{
+	struct igp_power_info *pi = rs780_get_pi(rdev);
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct igp_ps *ps = rs780_get_ps(rps);
+	struct atom_clock_dividers dividers;
+	int ret;
+
+	rs780_clk_scaling_enable(rdev, false);
+	rs780_voltage_scaling_enable(rdev, false);
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (pi->voltage_control)
+			rs780_force_voltage(rdev, pi->max_voltage);
+
+		ret = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+						     ps->sclk_high, false, &dividers);
+		if (ret)
+			return ret;
+
+		rs780_force_fbdiv(rdev, dividers.fb_div);
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		ret = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+						     ps->sclk_low, false, &dividers);
+		if (ret)
+			return ret;
+
+		rs780_force_fbdiv(rdev, dividers.fb_div);
+
+		if (pi->voltage_control)
+			rs780_force_voltage(rdev, pi->min_voltage);
+	} else {
+		if (pi->voltage_control)
+			rs780_force_voltage(rdev, pi->max_voltage);
+
+		if (ps->sclk_high != ps->sclk_low) {
+			WREG32_P(FVTHROT_FBDIV_REG1, 0, ~FORCE_FEEDBACK_DIV);
+			rs780_clk_scaling_enable(rdev, true);
+		}
+
+		if (pi->voltage_control) {
+			rs780_voltage_scaling_enable(rdev, true);
+			rs780_enable_voltage_scaling(rdev, rps);
+		}
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }

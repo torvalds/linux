@@ -1199,7 +1199,7 @@ bool wsm_flush_tx(struct cw1200_common *priv)
 
 	if (priv->bh_error) {
 		/* In case of failure do not wait for magic. */
-		pr_err("[WSM] Fatal error occured, will not flush TX.\n");
+		pr_err("[WSM] Fatal error occurred, will not flush TX.\n");
 		return false;
 	} else {
 		/* Get a timestamp of "oldest" frame */

@@ -611,7 +611,16 @@ static
 int hwarc_reset(struct uwb_rc *uwb_rc)
 {
 	struct hwarc *hwarc = uwb_rc->priv;
-	return usb_reset_device(hwarc->usb_dev);
+	int result;
+
+	/* device lock must be held when calling usb_reset_device. */
+	result = usb_lock_device_for_reset(hwarc->usb_dev, NULL);
+	if (result >= 0) {
+		result = usb_reset_device(hwarc->usb_dev);
+		usb_unlock_device(hwarc->usb_dev);
+	}
+
+	return result;
 }
 
 /**
@@ -709,8 +718,10 @@ static int hwarc_neep_init(struct uwb_rc *rc)
 
 error_neep_submit:
 	usb_free_urb(hwarc->neep_urb);
+	hwarc->neep_urb = NULL;
 error_urb_alloc:
 	free_page((unsigned long)hwarc->rd_buffer);
+	hwarc->rd_buffer = NULL;
 error_rd_buffer:
 	return -ENOMEM;
 }
@@ -723,7 +734,10 @@ static void hwarc_neep_release(struct uwb_rc *rc)
 
 	usb_kill_urb(hwarc->neep_urb);
 	usb_free_urb(hwarc->neep_urb);
+	hwarc->neep_urb = NULL;
+
 	free_page((unsigned long)hwarc->rd_buffer);
+	hwarc->rd_buffer = NULL;
 }
 
 /**

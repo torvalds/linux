@@ -29,7 +29,7 @@ static inline cycles_t get_cycles(void)
 	ret = 0;
 
 	__asm__ __volatile__(
-		"97:	mftb %0\n"
+		"97:	mfspr %0, %2\n"
 		"99:\n"
 		".section __ftr_fixup,\"a\"\n"
 		".align 2\n"
@@ -41,7 +41,7 @@ static inline cycles_t get_cycles(void)
 		"	.long 0\n"
 		"	.long 0\n"
 		".previous"
-		: "=r" (ret) : "i" (CPU_FTR_601));
+		: "=r" (ret) : "i" (CPU_FTR_601), "i" (SPRN_TBRL));
 	return ret;
 #endif
 }

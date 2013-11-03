@@ -259,7 +259,7 @@ static const struct irq_domain_ops pl061_domain_ops = {
 static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
-	struct pl061_platform_data *pdata = dev->platform_data;
+	struct pl061_platform_data *pdata = dev_get_platdata(dev);
 	struct pl061_gpio *chip;
 	int ret, irq, i, irq_base;
 

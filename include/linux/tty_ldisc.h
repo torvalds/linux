@@ -109,6 +109,17 @@
  *
  *	Tells the discipline that the DCD pin has changed its status.
  *	Used exclusively by the N_PPS (Pulse-Per-Second) line discipline.
+ *
+ * int	(*receive_buf2)(struct tty_struct *, const unsigned char *cp,
+ *			char *fp, int count);
+ *
+ *	This function is called by the low-level tty driver to send
+ *	characters received by the hardware to the line discpline for
+ *	processing.  <cp> is a pointer to the buffer of input
+ *	character received by the device.  <fp> is a pointer to a
+ *	pointer of flag bytes which indicate whether a character was
+ *	received with a parity error, etc.
+ *	If assigned, prefer this function for automatic flow control.
  */
 
 #include <linux/fs.h>
@@ -195,6 +206,8 @@ struct tty_ldisc_ops {
 	void	(*write_wakeup)(struct tty_struct *);
 	void	(*dcd_change)(struct tty_struct *, unsigned int);
 	void	(*fasync)(struct tty_struct *tty, int on);
+	int	(*receive_buf2)(struct tty_struct *, const unsigned char *cp,
+				char *fp, int count);
 
 	struct  module *owner;
 
@@ -203,8 +216,7 @@ struct tty_ldisc_ops {
 
 struct tty_ldisc {
 	struct tty_ldisc_ops *ops;
-	atomic_t users;
-	wait_queue_head_t wq_idle;
+	struct tty_struct *tty;
 };
 
 #define TTY_LDISC_MAGIC	0x5403

@@ -75,7 +75,7 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void __cpuinit exynos_secondary_init(unsigned int cpu)
+static void exynos_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
@@ -90,7 +90,7 @@ static void __cpuinit exynos_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	unsigned long phys_cpu = cpu_logical_map(cpu);

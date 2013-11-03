@@ -39,7 +39,7 @@
 #include "kernel.h"
 #include "irq.h"
 
-volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
+volatile unsigned long cpu_callin_map[NR_CPUS] = {0,};
 
 cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 
@@ -53,7 +53,7 @@ const struct sparc32_ipi_ops *sparc32_ipi_ops;
  * instruction which is much better...
  */
 
-void __cpuinit smp_store_cpu_info(int id)
+void smp_store_cpu_info(int id)
 {
 	int cpu_node;
 	int mid;
@@ -120,7 +120,7 @@ void cpu_panic(void)
 	panic("SMP bolixed\n");
 }
 
-struct linux_prom_registers smp_penguin_ctable __cpuinitdata = { 0 };
+struct linux_prom_registers smp_penguin_ctable = { 0 };
 
 void smp_send_reschedule(int cpu)
 {
@@ -259,10 +259,10 @@ void __init smp_prepare_boot_cpu(void)
 	set_cpu_possible(cpuid, true);
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	extern int __cpuinit smp4m_boot_one_cpu(int, struct task_struct *);
-	extern int __cpuinit smp4d_boot_one_cpu(int, struct task_struct *);
+	extern int smp4m_boot_one_cpu(int, struct task_struct *);
+	extern int smp4d_boot_one_cpu(int, struct task_struct *);
 	int ret=0;
 
 	switch(sparc_cpu_model) {
@@ -297,7 +297,7 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	return ret;
 }
 
-void __cpuinit arch_cpu_pre_starting(void *arg)
+void arch_cpu_pre_starting(void *arg)
 {
 	local_ops->cache_all();
 	local_ops->tlb_all();
@@ -317,7 +317,7 @@ void __cpuinit arch_cpu_pre_starting(void *arg)
 	}
 }
 
-void __cpuinit arch_cpu_pre_online(void *arg)
+void arch_cpu_pre_online(void *arg)
 {
 	unsigned int cpuid = hard_smp_processor_id();
 
@@ -344,7 +344,7 @@ void __cpuinit arch_cpu_pre_online(void *arg)
 	}
 }
 
-void __cpuinit sparc_start_secondary(void *arg)
+void sparc_start_secondary(void *arg)
 {
 	unsigned int cpu;
 
@@ -375,7 +375,7 @@ void __cpuinit sparc_start_secondary(void *arg)
 	BUG();
 }
 
-void __cpuinit smp_callin(void)
+void smp_callin(void)
 {
 	sparc_start_secondary(NULL);
 }

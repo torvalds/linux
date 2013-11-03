@@ -7,7 +7,7 @@ UART node.
 
 Required properties:
 - rs485-rts-delay: prop-encoded-array <a b> where:
-  * a is the delay beteween rts signal and beginning of data sent in milliseconds.
+  * a is the delay between rts signal and beginning of data sent in milliseconds.
       it corresponds to the delay before sending data.
   * b is the delay between end of data sent and rts signal in milliseconds
       it corresponds to the delay after sending data and actual release of the line.

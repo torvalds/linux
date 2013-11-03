@@ -321,7 +321,7 @@ static inline int sizeof_ns2_led_priv(int num_leds)
 
 static int ns2_led_probe(struct platform_device *pdev)
 {
-	struct ns2_led_platform_data *pdata = pdev->dev.platform_data;
+	struct ns2_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct ns2_led_priv *priv;
 	int i;
 	int ret;

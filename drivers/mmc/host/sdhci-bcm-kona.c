@@ -24,7 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/version.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include "sdhci-pltfm.h"
@@ -162,7 +161,7 @@ static int sdhci_bcm_kona_sd_card_emulate(struct sdhci_host *host, int insert)
 /*
  * SD card interrupt event callback
  */
-void sdhci_bcm_kona_card_event(struct sdhci_host *host)
+static void sdhci_bcm_kona_card_event(struct sdhci_host *host)
 {
 	if (mmc_gpio_get_cd(host->mmc) > 0) {
 		dev_dbg(mmc_dev(host->mmc),
@@ -221,13 +220,14 @@ static struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
 		SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 };
 
-static const struct of_device_id sdhci_bcm_kona_of_match[] __initdata = {
-	{ .compatible = "bcm,kona-sdhci"},
+static struct __initconst of_device_id sdhci_bcm_kona_of_match[] = {
+	{ .compatible = "brcm,kona-sdhci"},
+	{ .compatible = "bcm,kona-sdhci"}, /* deprecated name */
 	{}
 };
 MODULE_DEVICE_TABLE(of, sdhci_bcm_kona_of_match);
 
-static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
+static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 {
 	struct sdhci_bcm_kona_dev *kona_dev = NULL;
 	struct sdhci_pltfm_host *pltfm_priv;
@@ -263,7 +263,7 @@ static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
 		(mmc_gpio_get_cd(host->mmc) != -ENOSYS) ? 'Y' : 'N',
 		(mmc_gpio_get_ro(host->mmc) != -ENOSYS) ? 'Y' : 'N');
 
-	if (host->mmc->caps | MMC_CAP_NONREMOVABLE)
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	dev_dbg(dev, "is_8bit=%c\n",
@@ -282,7 +282,7 @@ static int __init sdhci_bcm_kona_probe(struct platform_device *pdev)
 	}
 
 	/* if device is eMMC, emulate card insert right here */
-	if (host->mmc->caps | MMC_CAP_NONREMOVABLE) {
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE) {
 		ret = sdhci_bcm_kona_sd_card_emulate(host, 1);
 		if (ret) {
 			dev_err(dev,
@@ -336,10 +336,10 @@ static struct platform_driver sdhci_bcm_kona_driver = {
 		.name	= "sdhci-kona",
 		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PLTFM_PMOPS,
-		.of_match_table = of_match_ptr(sdhci_bcm_kona_of_match),
+		.of_match_table = sdhci_bcm_kona_of_match,
 	},
 	.probe		= sdhci_bcm_kona_probe,
-	.remove		= __exit_p(sdhci_bcm_kona_remove),
+	.remove		= sdhci_bcm_kona_remove,
 };
 module_platform_driver(sdhci_bcm_kona_driver);
 

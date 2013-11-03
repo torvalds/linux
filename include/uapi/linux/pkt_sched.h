@@ -73,9 +73,17 @@ struct tc_estimator {
 #define TC_H_ROOT	(0xFFFFFFFFU)
 #define TC_H_INGRESS    (0xFFFFFFF1U)
 
+/* Need to corrospond to iproute2 tc/tc_core.h "enum link_layer" */
+enum tc_link_layer {
+	TC_LINKLAYER_UNAWARE, /* Indicate unaware old iproute2 util */
+	TC_LINKLAYER_ETHERNET,
+	TC_LINKLAYER_ATM,
+};
+#define TC_LINKLAYER_MASK 0x0F /* limit use to lower 4 bits */
+
 struct tc_ratespec {
 	unsigned char	cell_log;
-	unsigned char	__reserved;
+	__u8		linklayer; /* lower 4 bits */
 	unsigned short	overhead;
 	short		cell_align;
 	unsigned short	mpu;
@@ -736,4 +744,45 @@ struct tc_fq_codel_xstats {
 	};
 };
 
+/* FQ */
+
+enum {
+	TCA_FQ_UNSPEC,
+
+	TCA_FQ_PLIMIT,		/* limit of total number of packets in queue */
+
+	TCA_FQ_FLOW_PLIMIT,	/* limit of packets per flow */
+
+	TCA_FQ_QUANTUM,		/* RR quantum */
+
+	TCA_FQ_INITIAL_QUANTUM,		/* RR quantum for new flow */
+
+	TCA_FQ_RATE_ENABLE,	/* enable/disable rate limiting */
+
+	TCA_FQ_FLOW_DEFAULT_RATE,/* for sockets with unspecified sk_rate,
+				  * use the following rate
+				  */
+
+	TCA_FQ_FLOW_MAX_RATE,	/* per flow max rate */
+
+	TCA_FQ_BUCKETS_LOG,	/* log2(number of buckets) */
+	__TCA_FQ_MAX
+};
+
+#define TCA_FQ_MAX	(__TCA_FQ_MAX - 1)
+
+struct tc_fq_qd_stats {
+	__u64	gc_flows;
+	__u64	highprio_packets;
+	__u64	tcp_retrans;
+	__u64	throttled;
+	__u64	flows_plimit;
+	__u64	pkts_too_long;
+	__u64	allocation_errors;
+	__s64	time_next_delayed_flow;
+	__u32	flows;
+	__u32	inactive_flows;
+	__u32	throttled_flows;
+	__u32	pad;
+};
 #endif

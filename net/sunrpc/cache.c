@@ -1823,19 +1823,11 @@ int sunrpc_cache_register_pipefs(struct dentry *parent,
 				 const char *name, umode_t umode,
 				 struct cache_detail *cd)
 {
-	struct qstr q;
-	struct dentry *dir;
-	int ret = 0;
-
-	q.name = name;
-	q.len = strlen(name);
-	q.hash = full_name_hash(q.name, q.len);
-	dir = rpc_create_cache_dir(parent, &q, umode, cd);
-	if (!IS_ERR(dir))
-		cd->u.pipefs.dir = dir;
-	else
-		ret = PTR_ERR(dir);
-	return ret;
+	struct dentry *dir = rpc_create_cache_dir(parent, name, umode, cd);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+	cd->u.pipefs.dir = dir;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_register_pipefs);
 

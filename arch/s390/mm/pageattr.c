@@ -118,7 +118,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		pte = pte_offset_kernel(pmd, address);
 		if (!enable) {
 			__ptep_ipte(address, pte);
-			pte_val(*pte) = _PAGE_TYPE_EMPTY;
+			pte_val(*pte) = _PAGE_INVALID;
 			continue;
 		}
 		pte_val(*pte) = __pa(address);

@@ -47,7 +47,7 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 	id = driver->id_table;
 
 	while (id->name[0]) {
-		if (!strcmp(dev_name(dev), id->name))
+		if (!strncmp(dev_name(dev), id->name, sizeof(id->name)))
 			return 1;
 
 		id++;
@@ -71,7 +71,7 @@ static int mei_cl_device_probe(struct device *dev)
 
 	dev_dbg(dev, "Device probe\n");
 
-	strncpy(id.name, dev_name(dev), MEI_CL_NAME_SIZE);
+	strncpy(id.name, dev_name(dev), sizeof(id.name));
 
 	return driver->probe(device, &id);
 }
@@ -108,11 +108,13 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute mei_cl_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *mei_cl_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(mei_cl_dev);
 
 static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -124,7 +126,7 @@ static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static struct bus_type mei_cl_bus_type = {
 	.name		= "mei",
-	.dev_attrs	= mei_cl_dev_attrs,
+	.dev_groups	= mei_cl_dev_groups,
 	.match		= mei_cl_device_match,
 	.probe		= mei_cl_device_probe,
 	.remove		= mei_cl_device_remove,
@@ -295,10 +297,13 @@ int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 
 	if (cl->reading_state != MEI_READ_COMPLETE &&
 	    !waitqueue_active(&cl->rx_wait)) {
+
 		mutex_unlock(&dev->device_lock);
 
 		if (wait_event_interruptible(cl->rx_wait,
-				(MEI_READ_COMPLETE == cl->reading_state))) {
+				cl->reading_state == MEI_READ_COMPLETE  ||
+				mei_cl_is_transitioning(cl))) {
+
 			if (signal_pending(current))
 				return -EINTR;
 			return -ERESTARTSYS;

@@ -91,7 +91,7 @@ static int xen_acpi_processor_enable(struct acpi_device *device)
 	return 0;
 }
 
-static int __cpuinit xen_acpi_processor_add(struct acpi_device *device)
+static int xen_acpi_processor_add(struct acpi_device *device)
 {
 	int ret;
 	struct acpi_processor *pr;

@@ -514,7 +514,7 @@ static int mmphw_probe(struct platform_device *pdev)
 	if (IS_ERR(ctrl->clk)) {
 		dev_err(ctrl->dev, "unable to get clk %s\n", mi->clk_name);
 		ret = -ENOENT;
-		goto failed_get_clk;
+		goto failed;
 	}
 	clk_prepare_enable(ctrl->clk);
 
@@ -551,21 +551,8 @@ failed_path_init:
 		path_deinit(path_plat);
 	}
 
-	if (ctrl->clk) {
-		devm_clk_put(ctrl->dev, ctrl->clk);
-		clk_disable_unprepare(ctrl->clk);
-	}
-failed_get_clk:
-	devm_free_irq(ctrl->dev, ctrl->irq, ctrl);
+	clk_disable_unprepare(ctrl->clk);
 failed:
-	if (ctrl) {
-		if (ctrl->reg_base)
-			devm_iounmap(ctrl->dev, ctrl->reg_base);
-		devm_release_mem_region(ctrl->dev, res->start,
-				resource_size(res));
-		devm_kfree(ctrl->dev, ctrl);
-	}
-
 	dev_err(&pdev->dev, "device init failed\n");
 
 	return ret;

@@ -31,10 +31,12 @@
 #include "led.h"
 
 #define IEEE80211_AUTH_TIMEOUT		(HZ / 5)
+#define IEEE80211_AUTH_TIMEOUT_LONG	(HZ / 2)
 #define IEEE80211_AUTH_TIMEOUT_SHORT	(HZ / 10)
 #define IEEE80211_AUTH_MAX_TRIES	3
 #define IEEE80211_AUTH_WAIT_ASSOC	(HZ * 5)
 #define IEEE80211_ASSOC_TIMEOUT		(HZ / 5)
+#define IEEE80211_ASSOC_TIMEOUT_LONG	(HZ / 2)
 #define IEEE80211_ASSOC_TIMEOUT_SHORT	(HZ / 10)
 #define IEEE80211_ASSOC_MAX_TRIES	3
 
@@ -209,8 +211,9 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_channel *channel,
 			     const struct ieee80211_ht_operation *ht_oper,
 			     const struct ieee80211_vht_operation *vht_oper,
-			     struct cfg80211_chan_def *chandef, bool verbose)
+			     struct cfg80211_chan_def *chandef, bool tracking)
 {
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct cfg80211_chan_def vht_chandef;
 	u32 ht_cfreq, ret;
 
@@ -229,7 +232,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	ht_cfreq = ieee80211_channel_to_frequency(ht_oper->primary_chan,
 						  channel->band);
 	/* check that channel matches the right operating channel */
-	if (channel->center_freq != ht_cfreq) {
+	if (!tracking && channel->center_freq != ht_cfreq) {
 		/*
 		 * It's possible that some APs are confused here;
 		 * Netgear WNDR3700 sometimes reports 4 higher than
@@ -237,11 +240,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 		 * since we look at probe response/beacon data here
 		 * it should be OK.
 		 */
-		if (verbose)
-			sdata_info(sdata,
-				   "Wrong control channel: center-freq: %d ht-cfreq: %d ht->primary_chan: %d band: %d - Disabling HT\n",
-				   channel->center_freq, ht_cfreq,
-				   ht_oper->primary_chan, channel->band);
+		sdata_info(sdata,
+			   "Wrong control channel: center-freq: %d ht-cfreq: %d ht->primary_chan: %d band: %d - Disabling HT\n",
+			   channel->center_freq, ht_cfreq,
+			   ht_oper->primary_chan, channel->band);
 		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
 		goto out;
 	}
@@ -295,7 +297,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 				channel->band);
 		break;
 	default:
-		if (verbose)
+		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT operation IE has invalid channel width (%d), disable VHT\n",
 				   vht_oper->chan_width);
@@ -304,7 +306,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!cfg80211_chandef_valid(&vht_chandef)) {
-		if (verbose)
+		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT information is invalid, disable VHT\n");
 		ret = IEEE80211_STA_DISABLE_VHT;
@@ -317,7 +319,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!cfg80211_chandef_compatible(chandef, &vht_chandef)) {
-		if (verbose)
+		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT information doesn't match HT, disable VHT\n");
 		ret = IEEE80211_STA_DISABLE_VHT;
@@ -333,18 +335,27 @@ out:
 	if (ret & IEEE80211_STA_DISABLE_VHT)
 		vht_chandef = *chandef;
 
+	/*
+	 * Ignore the DISABLED flag when we're already connected and only
+	 * tracking the APs beacon for bandwidth changes - otherwise we
+	 * might get disconnected here if we connect to an AP, update our
+	 * regulatory information based on the AP's country IE and the
+	 * information we have is wrong/outdated and disables the channel
+	 * that we're actually using for the connection to the AP.
+	 */
 	while (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
-					IEEE80211_CHAN_DISABLED)) {
+					tracking ? 0 :
+						   IEEE80211_CHAN_DISABLED)) {
 		if (WARN_ON(chandef->width == NL80211_CHAN_WIDTH_20_NOHT)) {
 			ret = IEEE80211_STA_DISABLE_HT |
 			      IEEE80211_STA_DISABLE_VHT;
-			goto out;
+			break;
 		}
 
 		ret |= chandef_downgrade(chandef);
 	}
 
-	if (chandef->width != vht_chandef.width && verbose)
+	if (chandef->width != vht_chandef.width && !tracking)
 		sdata_info(sdata,
 			   "capabilities/regulatory prevented using AP HT/VHT configuration, downgraded\n");
 
@@ -384,7 +395,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 
 	/* calculate new channel (type) based on HT/VHT operation IEs */
 	flags = ieee80211_determine_chantype(sdata, sband, chan, ht_oper,
-					     vht_oper, &chandef, false);
+					     vht_oper, &chandef, true);
 
 	/*
 	 * Downgrade the new channel if we associated with restricted
@@ -477,27 +488,6 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 }
 
 /* frame sending functions */
-
-static int ieee80211_compatible_rates(const u8 *supp_rates, int supp_rates_len,
-				      struct ieee80211_supported_band *sband,
-				      u32 *rates)
-{
-	int i, j, count;
-	*rates = 0;
-	count = 0;
-	for (i = 0; i < supp_rates_len; i++) {
-		int rate = (supp_rates[i] & 0x7F) * 5;
-
-		for (j = 0; j < sband->n_bitrates; j++)
-			if (sband->bitrates[j].bitrate == rate) {
-				*rates |= BIT(j);
-				count++;
-				break;
-			}
-	}
-
-	return count;
-}
 
 static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, u8 ap_ht_param,
@@ -617,12 +607,12 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info;
 	size_t offset = 0, noffset;
-	int i, count, rates_len, supp_rates_len;
+	int i, count, rates_len, supp_rates_len, shift;
 	u16 capab;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
-	u32 rates = 0;
+	u32 rate_flags, rates = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -633,8 +623,10 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		return;
 	}
 	chan = chanctx_conf->def.chan;
+	rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
+	shift = ieee80211_vif_get_shift(&sdata->vif);
 
 	if (assoc_data->supp_rates_len) {
 		/*
@@ -643,17 +635,24 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		 * in the association request (e.g. D-Link DAP 1353 in
 		 * b-only mode)...
 		 */
-		rates_len = ieee80211_compatible_rates(assoc_data->supp_rates,
-						       assoc_data->supp_rates_len,
-						       sband, &rates);
+		rates_len = ieee80211_parse_bitrates(&chanctx_conf->def, sband,
+						     assoc_data->supp_rates,
+						     assoc_data->supp_rates_len,
+						     &rates);
 	} else {
 		/*
 		 * In case AP not provide any supported rates information
 		 * before association, we send information element(s) with
 		 * all rates that we support.
 		 */
-		rates = ~0;
-		rates_len = sband->n_bitrates;
+		rates_len = 0;
+		for (i = 0; i < sband->n_bitrates; i++) {
+			if ((rate_flags & sband->bitrates[i].flags)
+			    != rate_flags)
+				continue;
+			rates |= BIT(i);
+			rates_len++;
+		}
 	}
 
 	skb = alloc_skb(local->hw.extra_tx_headroom +
@@ -730,8 +729,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	count = 0;
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if (BIT(i) & rates) {
-			int rate = sband->bitrates[i].bitrate;
-			*pos++ = (u8) (rate / 5);
+			int rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+						5 * (1 << shift));
+			*pos++ = (u8) rate;
 			if (++count == 8)
 				break;
 		}
@@ -744,8 +744,10 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 		for (i++; i < sband->n_bitrates; i++) {
 			if (BIT(i) & rates) {
-				int rate = sband->bitrates[i].bitrate;
-				*pos++ = (u8) (rate / 5);
+				int rate;
+				rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+						    5 * (1 << shift));
+				*pos++ = (u8) rate;
 			}
 		}
 	}
@@ -756,7 +758,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		*pos++ = WLAN_EID_PWR_CAPABILITY;
 		*pos++ = 2;
 		*pos++ = 0; /* min tx power */
-		*pos++ = chan->max_power; /* max tx power */
+		 /* max tx power */
+		*pos++ = ieee80211_chandef_max_power(&chanctx_conf->def);
 
 		/* 2. supported channels */
 		/* TODO: get this in reg domain format */
@@ -1110,6 +1113,15 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	case -1:
 		cfg80211_chandef_create(&new_chandef, new_chan,
 					NL80211_CHAN_NO_HT);
+		/* keep width for 5/10 MHz channels */
+		switch (sdata->vif.bss_conf.chandef.width) {
+		case NL80211_CHAN_WIDTH_5:
+		case NL80211_CHAN_WIDTH_10:
+			new_chandef.width = sdata->vif.bss_conf.chandef.width;
+			break;
+		default:
+			break;
+		}
 		break;
 	}
 
@@ -2432,15 +2444,16 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 				u8 *supp_rates, unsigned int supp_rates_len,
 				u32 *rates, u32 *basic_rates,
 				bool *have_higher_than_11mbit,
-				int *min_rate, int *min_rate_index)
+				int *min_rate, int *min_rate_index,
+				int shift, u32 rate_flags)
 {
 	int i, j;
 
 	for (i = 0; i < supp_rates_len; i++) {
-		int rate = (supp_rates[i] & 0x7f) * 5;
+		int rate = supp_rates[i] & 0x7f;
 		bool is_basic = !!(supp_rates[i] & 0x80);
 
-		if (rate > 110)
+		if ((rate * 5 * (1 << shift)) > 110)
 			*have_higher_than_11mbit = true;
 
 		/*
@@ -2456,12 +2469,20 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 			continue;
 
 		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate) {
+			struct ieee80211_rate *br;
+			int brate;
+
+			br = &sband->bitrates[j];
+			if ((rate_flags & br->flags) != rate_flags)
+				continue;
+
+			brate = DIV_ROUND_UP(br->bitrate, (1 << shift) * 5);
+			if (brate == rate) {
 				*rates |= BIT(j);
 				if (is_basic)
 					*basic_rates |= BIT(j);
-				if (rate < *min_rate) {
-					*min_rate = rate;
+				if ((rate * 5) < *min_rate) {
+					*min_rate = rate * 5;
 					*min_rate_index = j;
 				}
 				break;
@@ -2840,14 +2861,6 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_put(local, bss);
 		sdata->vif.bss_conf.beacon_rate = bss->beacon_rate;
 	}
-
-	if (!sdata->u.mgd.associated ||
-	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.associated->bssid))
-		return;
-
-	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime,
-					 elems, true);
-
 }
 
 
@@ -3136,6 +3149,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 
+	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime,
+					 &elems, true);
+
 	if (ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 				     elems.wmm_param_len))
 		changed |= BSS_CHANGED_QOS;
@@ -3394,10 +3410,13 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 
 	if (tx_flags == 0) {
 		auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
-		ifmgd->auth_data->timeout_started = true;
+		auth_data->timeout_started = true;
 		run_again(sdata, auth_data->timeout);
 	} else {
-		auth_data->timeout_started = false;
+		auth_data->timeout =
+			round_jiffies_up(jiffies + IEEE80211_AUTH_TIMEOUT_LONG);
+		auth_data->timeout_started = true;
+		run_again(sdata, auth_data->timeout);
 	}
 
 	return 0;
@@ -3434,7 +3453,11 @@ static int ieee80211_do_assoc(struct ieee80211_sub_if_data *sdata)
 		assoc_data->timeout_started = true;
 		run_again(sdata, assoc_data->timeout);
 	} else {
-		assoc_data->timeout_started = false;
+		assoc_data->timeout =
+			round_jiffies_up(jiffies +
+					 IEEE80211_ASSOC_TIMEOUT_LONG);
+		assoc_data->timeout_started = true;
+		run_again(sdata, assoc_data->timeout);
 	}
 
 	return 0;
@@ -3829,7 +3852,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	ifmgd->flags |= ieee80211_determine_chantype(sdata, sband,
 						     cbss->channel,
 						     ht_oper, vht_oper,
-						     &chandef, true);
+						     &chandef, false);
 
 	sdata->needed_rx_chains = min(ieee80211_ht_vht_rx_chains(sdata, cbss),
 				      local->rx_chains);
@@ -3884,27 +3907,40 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		if (!new_sta)
 			return -ENOMEM;
 	}
-
 	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
+		struct ieee80211_chanctx_conf *chanctx_conf;
 		struct ieee80211_supported_band *sband;
 		const struct cfg80211_bss_ies *ies;
+		int shift;
+		u32 rate_flags;
 
 		sband = local->hw.wiphy->bands[cbss->channel->band];
 
 		err = ieee80211_prep_channel(sdata, cbss);
 		if (err) {
 			sta_info_free(local, new_sta);
-			return err;
+			return -EINVAL;
 		}
+		shift = ieee80211_vif_get_shift(&sdata->vif);
+
+		rcu_read_lock();
+		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		if (WARN_ON(!chanctx_conf)) {
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
+		rcu_read_unlock();
 
 		ieee80211_get_rates(sband, bss->supp_rates,
 				    bss->supp_rates_len,
 				    &rates, &basic_rates,
 				    &have_higher_than_11mbit,
-				    &min_rate, &min_rate_index);
+				    &min_rate, &min_rate_index,
+				    shift, rate_flags);
 
 		/*
 		 * This used to be a workaround for basic rates missing

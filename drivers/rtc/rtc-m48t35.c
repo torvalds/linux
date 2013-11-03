@@ -175,7 +175,7 @@ static int m48t35_probe(struct platform_device *pdev)
 
 	priv->rtc = devm_rtc_device_register(&pdev->dev, "m48t35",
 				  &m48t35_ops, THIS_MODULE);
-	return PTR_RET(priv->rtc);
+	return PTR_ERR_OR_ZERO(priv->rtc);
 }
 
 static struct platform_driver m48t35_platform_driver = {

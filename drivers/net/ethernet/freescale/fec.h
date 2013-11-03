@@ -259,6 +259,7 @@ struct bufdesc_ex {
 struct fec_enet_delayed_work {
 	struct delayed_work delay_work;
 	bool timeout;
+	bool trig_tx;
 };
 
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
@@ -294,6 +295,9 @@ struct fec_enet_private {
 	struct bufdesc	*cur_rx, *cur_tx;
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
+
+	unsigned short tx_ring_size;
+	unsigned short rx_ring_size;
 
 	struct	platform_device *pdev;
 

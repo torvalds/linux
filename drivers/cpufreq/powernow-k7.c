@@ -177,7 +177,7 @@ static int get_ranges(unsigned char *pst)
 	unsigned int speed;
 	u8 fid, vid;
 
-	powernow_table = kzalloc((sizeof(struct cpufreq_frequency_table) *
+	powernow_table = kzalloc((sizeof(*powernow_table) *
 				(number_scales + 1)), GFP_KERNEL);
 	if (!powernow_table)
 		return -ENOMEM;
@@ -309,8 +309,7 @@ static int powernow_acpi_init(void)
 		goto err0;
 	}
 
-	acpi_processor_perf = kzalloc(sizeof(struct acpi_processor_performance),
-				      GFP_KERNEL);
+	acpi_processor_perf = kzalloc(sizeof(*acpi_processor_perf), GFP_KERNEL);
 	if (!acpi_processor_perf) {
 		retval = -ENOMEM;
 		goto err0;
@@ -346,7 +345,7 @@ static int powernow_acpi_init(void)
 		goto err2;
 	}
 
-	powernow_table = kzalloc((sizeof(struct cpufreq_frequency_table) *
+	powernow_table = kzalloc((sizeof(*powernow_table) *
 				(number_scales + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		retval = -ENOMEM;
@@ -497,7 +496,7 @@ static int powernow_decode_bios(int maxfid, int startvid)
 					"relevant to this CPU).\n",
 					psb->numpst);
 
-			p += sizeof(struct psb_s);
+			p += sizeof(*psb);
 
 			pst = (struct pst_s *) p;
 
@@ -510,12 +509,12 @@ static int powernow_decode_bios(int maxfid, int startvid)
 				    (maxfid == pst->maxfid) &&
 				    (startvid == pst->startvid)) {
 					print_pst_entry(pst, j);
-					p = (char *)pst + sizeof(struct pst_s);
+					p = (char *)pst + sizeof(*pst);
 					ret = get_ranges(p);
 					return ret;
 				} else {
 					unsigned int k;
-					p = (char *)pst + sizeof(struct pst_s);
+					p = (char *)pst + sizeof(*pst);
 					for (k = 0; k < number_scales; k++)
 						p += 2;
 				}
@@ -563,7 +562,7 @@ static int powernow_verify(struct cpufreq_policy *policy)
  * We will then get the same kind of behaviour already tested under
  * the "well-known" other OS.
  */
-static int __cpuinit fixup_sgtc(void)
+static int fixup_sgtc(void)
 {
 	unsigned int sgtc;
 	unsigned int m;
@@ -597,7 +596,7 @@ static unsigned int powernow_get(unsigned int cpu)
 }
 
 
-static int __cpuinit acer_cpufreq_pst(const struct dmi_system_id *d)
+static int acer_cpufreq_pst(const struct dmi_system_id *d)
 {
 	printk(KERN_WARNING PFX
 		"%s laptop with broken PST tables in BIOS detected.\n",
@@ -615,7 +614,7 @@ static int __cpuinit acer_cpufreq_pst(const struct dmi_system_id *d)
  * A BIOS update is all that can save them.
  * Mention this, and disable cpufreq.
  */
-static struct dmi_system_id __cpuinitdata powernow_dmi_table[] = {
+static struct dmi_system_id powernow_dmi_table[] = {
 	{
 		.callback = acer_cpufreq_pst,
 		.ident = "Acer Aspire",
@@ -627,7 +626,7 @@ static struct dmi_system_id __cpuinitdata powernow_dmi_table[] = {
 	{ }
 };
 
-static int __cpuinit powernow_cpu_init(struct cpufreq_policy *policy)
+static int powernow_cpu_init(struct cpufreq_policy *policy)
 {
 	union msr_fidvidstatus fidvidstatus;
 	int result;
@@ -717,7 +716,6 @@ static struct cpufreq_driver powernow_driver = {
 	.init		= powernow_cpu_init,
 	.exit		= powernow_cpu_exit,
 	.name		= "powernow-k7",
-	.owner		= THIS_MODULE,
 	.attr		= powernow_table_attr,
 };
 

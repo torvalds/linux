@@ -128,7 +128,6 @@ static int mfld_pb_remove(struct platform_device *pdev)
 
 	free_irq(irq, input);
 	input_unregister_device(input);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

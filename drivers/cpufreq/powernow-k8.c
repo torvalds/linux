@@ -623,7 +623,7 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 	if (check_pst_table(data, pst, maxvid))
 		return -EINVAL;
 
-	powernow_table = kmalloc((sizeof(struct cpufreq_frequency_table)
+	powernow_table = kmalloc((sizeof(*powernow_table)
 		* (data->numps + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		printk(KERN_ERR PFX "powernow_table memory alloc failure\n");
@@ -793,7 +793,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	}
 
 	/* fill in data->powernow_table */
-	powernow_table = kmalloc((sizeof(struct cpufreq_frequency_table)
+	powernow_table = kmalloc((sizeof(*powernow_table)
 		* (data->acpi_data.state_count + 1)), GFP_KERNEL);
 	if (!powernow_table) {
 		pr_debug("powernow_table memory alloc failure\n");
@@ -1069,7 +1069,7 @@ struct init_on_cpu {
 	int rc;
 };
 
-static void __cpuinit powernowk8_cpu_init_on_cpu(void *_init_on_cpu)
+static void powernowk8_cpu_init_on_cpu(void *_init_on_cpu)
 {
 	struct init_on_cpu *init_on_cpu = _init_on_cpu;
 
@@ -1096,7 +1096,7 @@ static const char missing_pss_msg[] =
 	FW_BUG PFX "If that doesn't help, try upgrading your BIOS.\n";
 
 /* per CPU init entry point to the driver */
-static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
+static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	struct init_on_cpu init_on_cpu;
@@ -1106,7 +1106,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (rc)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct powernow_k8_data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR PFX "unable to alloc powernow_k8_data");
 		return -ENOMEM;
@@ -1240,7 +1240,6 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 	.exit		= powernowk8_cpu_exit,
 	.get		= powernowk8_get,
 	.name		= "powernow-k8",
-	.owner		= THIS_MODULE,
 	.attr		= powernow_k8_attr,
 };
 
@@ -1263,7 +1262,7 @@ static void __request_acpi_cpufreq(void)
 }
 
 /* driver entry point for init */
-static int __cpuinit powernowk8_init(void)
+static int powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
 	int ret;

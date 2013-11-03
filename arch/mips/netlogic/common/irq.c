@@ -40,6 +40,10 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+
 #include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/ptrace.h>
@@ -223,17 +227,6 @@ static void nlm_init_node_irqs(int node)
 	nodep->irqmask = irqmask;
 }
 
-void __init arch_init_irq(void)
-{
-	/* Initialize the irq descriptors */
-	nlm_init_percpu_irqs();
-	nlm_init_node_irqs(0);
-	write_c0_eimr(nlm_current_node()->irqmask);
-#if defined(CONFIG_CPU_XLR)
-	nlm_setup_fmn_irq();
-#endif
-}
-
 void nlm_smp_irq_init(int hwcpuid)
 {
 	int node, cpu;
@@ -265,4 +258,57 @@ asmlinkage void plat_irq_dispatch(void)
 
 	/* top level irq handling */
 	do_IRQ(nlm_irq_to_xirq(node, i));
+}
+
+#ifdef CONFIG_OF
+static struct irq_domain *xlp_pic_domain;
+
+static const struct irq_domain_ops xlp_pic_irq_domain_ops = {
+	.xlate = irq_domain_xlate_onetwocell,
+};
+
+static int __init xlp_of_pic_init(struct device_node *node,
+					struct device_node *parent)
+{
+	const int n_picirqs = PIC_IRT_LAST_IRQ - PIC_IRQ_BASE + 1;
+	struct resource res;
+	int socid, ret;
+
+	/* we need a hack to get the PIC's SoC chip id */
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret < 0) {
+		pr_err("PIC %s: reg property not found!\n", node->name);
+		return -EINVAL;
+	}
+	socid = (res.start >> 18) & 0x3;
+	xlp_pic_domain = irq_domain_add_legacy(node, n_picirqs,
+		nlm_irq_to_xirq(socid, PIC_IRQ_BASE), PIC_IRQ_BASE,
+		&xlp_pic_irq_domain_ops, NULL);
+	if (xlp_pic_domain == NULL) {
+		pr_err("PIC %s: Creating legacy domain failed!\n", node->name);
+		return -EINVAL;
+	}
+	pr_info("Node %d: IRQ domain created for PIC@%pa\n", socid,
+							&res.start);
+	return 0;
+}
+
+static struct of_device_id __initdata xlp_pic_irq_ids[] = {
+	{ .compatible = "netlogic,xlp-pic", .data = xlp_of_pic_init },
+	{},
+};
+#endif
+
+void __init arch_init_irq(void)
+{
+	/* Initialize the irq descriptors */
+	nlm_init_percpu_irqs();
+	nlm_init_node_irqs(0);
+	write_c0_eimr(nlm_current_node()->irqmask);
+#if defined(CONFIG_CPU_XLR)
+	nlm_setup_fmn_irq();
+#endif
+#if defined(CONFIG_OF)
+	of_irq_init(xlp_pic_irq_ids);
+#endif
 }

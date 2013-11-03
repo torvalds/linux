@@ -33,9 +33,14 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 	struct stmmac_priv *priv = (struct stmmac_priv *)p;
 	unsigned int txsize = priv->dma_tx_size;
 	unsigned int entry = priv->cur_tx % txsize;
-	struct dma_desc *desc = priv->dma_tx + entry;
+	struct dma_desc *desc;
 	unsigned int nopaged_len = skb_headlen(skb);
 	unsigned int bmax, len;
+
+	if (priv->extend_desc)
+		desc = (struct dma_desc *)(priv->dma_etx + entry);
+	else
+		desc = priv->dma_tx + entry;
 
 	if (priv->plat->enh_desc)
 		bmax = BUF_SIZE_8KiB;
@@ -54,7 +59,11 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 						STMMAC_RING_MODE);
 		wmb();
 		entry = (++priv->cur_tx) % txsize;
-		desc = priv->dma_tx + entry;
+
+		if (priv->extend_desc)
+			desc = (struct dma_desc *)(priv->dma_etx + entry);
+		else
+			desc = priv->dma_tx + entry;
 
 		desc->des2 = dma_map_single(priv->device, skb->data + bmax,
 					    len, DMA_TO_DEVICE);

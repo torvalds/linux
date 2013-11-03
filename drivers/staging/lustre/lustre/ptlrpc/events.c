@@ -55,7 +55,6 @@ void request_out_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id   *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
-	ENTRY;
 
 	LASSERT (ev->type == LNET_EVENT_SEND ||
 		 ev->type == LNET_EVENT_UNLINK);
@@ -79,8 +78,6 @@ void request_out_callback(lnet_event_t *ev)
 	}
 
 	ptlrpc_req_finished(req);
-
-	EXIT;
 }
 
 /*
@@ -90,7 +87,6 @@ void reply_in_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id   *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
-	ENTRY;
 
 	DEBUG_REQ(D_NET, req, "type %d, status %d", ev->type, ev->status);
 
@@ -166,7 +162,6 @@ out_wake:
 	 * since we don't have our own ref */
 	ptlrpc_client_wake_req(req);
 	spin_unlock(&req->rq_lock);
-	EXIT;
 }
 
 /*
@@ -177,7 +172,6 @@ void client_bulk_callback (lnet_event_t *ev)
 	struct ptlrpc_cb_id     *cbid = ev->md.user_ptr;
 	struct ptlrpc_bulk_desc *desc = cbid->cbid_arg;
 	struct ptlrpc_request   *req;
-	ENTRY;
 
 	LASSERT ((desc->bd_type == BULK_PUT_SINK &&
 		  ev->type == LNET_EVENT_PUT) ||
@@ -220,7 +214,6 @@ void client_bulk_callback (lnet_event_t *ev)
 		ptlrpc_client_wake_req(desc->bd_req);
 
 	spin_unlock(&desc->bd_lock);
-	EXIT;
 }
 
 /*
@@ -289,7 +282,6 @@ void request_in_callback(lnet_event_t *ev)
 	struct ptlrpc_service_part	  *svcpt = rqbd->rqbd_svcpt;
 	struct ptlrpc_service	     *service = svcpt->scp_service;
 	struct ptlrpc_request	     *req;
-	ENTRY;
 
 	LASSERT (ev->type == LNET_EVENT_PUT ||
 		 ev->type == LNET_EVENT_UNLINK);
@@ -378,7 +370,6 @@ void request_in_callback(lnet_event_t *ev)
 	wake_up(&svcpt->scp_waitq);
 
 	spin_unlock(&svcpt->scp_lock);
-	EXIT;
 }
 
 /*
@@ -389,7 +380,6 @@ void reply_out_callback(lnet_event_t *ev)
 	struct ptlrpc_cb_id	  *cbid = ev->md.user_ptr;
 	struct ptlrpc_reply_state *rs = cbid->cbid_arg;
 	struct ptlrpc_service_part *svcpt = rs->rs_svcpt;
-	ENTRY;
 
 	LASSERT (ev->type == LNET_EVENT_SEND ||
 		 ev->type == LNET_EVENT_ACK ||
@@ -400,7 +390,6 @@ void reply_out_callback(lnet_event_t *ev)
 		 * net's ref on 'rs' */
 		LASSERT (ev->unlinked);
 		ptlrpc_rs_decref(rs);
-		EXIT;
 		return;
 	}
 
@@ -421,7 +410,6 @@ void reply_out_callback(lnet_event_t *ev)
 		spin_unlock(&rs->rs_lock);
 		spin_unlock(&svcpt->scp_rep_lock);
 	}
-	EXIT;
 }
 
 

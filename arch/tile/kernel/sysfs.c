@@ -157,6 +157,67 @@ hvconfig_bin_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
+static ssize_t hv_stats_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *page)
+{
+	int cpu = dev->id;
+	long lotar = HV_XY_TO_LOTAR(cpu_x(cpu), cpu_y(cpu));
+
+	ssize_t n = hv_confstr(HV_CONFSTR_HV_STATS,
+			       (unsigned long)page, PAGE_SIZE - 1,
+			       lotar, 0);
+	n = n < 0 ? 0 : min(n, (ssize_t)PAGE_SIZE - 1);
+	page[n] = '\0';
+	return n;
+}
+
+static ssize_t hv_stats_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *page,
+			      size_t count)
+{
+	int cpu = dev->id;
+	long lotar = HV_XY_TO_LOTAR(cpu_x(cpu), cpu_y(cpu));
+
+	ssize_t n = hv_confstr(HV_CONFSTR_HV_STATS, 0, 0, lotar, 1);
+	return n < 0 ? n : count;
+}
+
+static DEVICE_ATTR(hv_stats, 0644, hv_stats_show, hv_stats_store);
+
+static int hv_stats_device_add(struct device *dev, struct subsys_interface *sif)
+{
+	int err, cpu = dev->id;
+
+	if (!cpu_online(cpu))
+		return 0;
+
+	err = sysfs_create_file(&dev->kobj, &dev_attr_hv_stats.attr);
+
+	return err;
+}
+
+static int hv_stats_device_remove(struct device *dev,
+				  struct subsys_interface *sif)
+{
+	int cpu = dev->id;
+
+	if (!cpu_online(cpu))
+		return 0;
+
+	sysfs_remove_file(&dev->kobj, &dev_attr_hv_stats.attr);
+	return 0;
+}
+
+
+static struct subsys_interface hv_stats_interface = {
+	.name			= "hv_stats",
+	.subsys			= &cpu_subsys,
+	.add_dev		= hv_stats_device_add,
+	.remove_dev		= hv_stats_device_remove,
+};
+
 static int __init create_sysfs_entries(void)
 {
 	int err = 0;
@@ -186,6 +247,21 @@ static int __init create_sysfs_entries(void)
 		hvconfig_bin.read = hvconfig_bin_read;
 		hvconfig_bin.size = PAGE_SIZE;
 		err = sysfs_create_bin_file(hypervisor_kobj, &hvconfig_bin);
+	}
+
+	if (!err) {
+		/*
+		 * Don't bother adding the hv_stats files on each CPU if
+		 * our hypervisor doesn't supply statistics.
+		 */
+		int cpu = raw_smp_processor_id();
+		long lotar = HV_XY_TO_LOTAR(cpu_x(cpu), cpu_y(cpu));
+		char dummy;
+		ssize_t n = hv_confstr(HV_CONFSTR_HV_STATS,
+				       (unsigned long) &dummy, 1,
+				       lotar, 0);
+		if (n >= 0)
+			err = subsys_interface_register(&hv_stats_interface);
 	}
 
 	return err;

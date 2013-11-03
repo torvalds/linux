@@ -410,6 +410,64 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
+				 const struct cfg80211_chan_def *chandef,
+				 u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	int ret;
+	u32 chanctx_changed = 0;
+
+	/* should never be called if not performing a channel switch. */
+	if (WARN_ON(!sdata->vif.csa_active))
+		return -EINVAL;
+
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
+				     IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+
+	mutex_lock(&local->chanctx_mtx);
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (ctx->refcount != 1) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (sdata->vif.bss_conf.chandef.width != chandef->width) {
+		chanctx_changed = IEEE80211_CHANCTX_CHANGE_WIDTH;
+		*changed |= BSS_CHANGED_BANDWIDTH;
+	}
+
+	sdata->vif.bss_conf.chandef = *chandef;
+	ctx->conf.def = *chandef;
+
+	chanctx_changed |= IEEE80211_CHANCTX_CHANGE_CHANNEL;
+	drv_change_chanctx(local, ctx, chanctx_changed);
+
+	if (!local->use_chanctx) {
+		local->_oper_chandef = *chandef;
+		ieee80211_hw_config(local, 0);
+	}
+
+	ieee80211_recalc_chanctx_chantype(local, ctx);
+	ieee80211_recalc_smps_chanctx(local, ctx);
+	ieee80211_recalc_radar_chanctx(local, ctx);
+
+	ret = 0;
+ out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
+
 int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 				   const struct cfg80211_chan_def *chandef,
 				   u32 *changed)

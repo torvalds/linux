@@ -49,37 +49,40 @@ int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ath9k_cmn_get_hw_crypto_keytype);
 
-static u32 ath9k_get_extchanmode(struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type)
+static u32 ath9k_get_extchanmode(struct cfg80211_chan_def *chandef)
 {
 	u32 chanmode = 0;
 
-	switch (chan->band) {
+	switch (chandef->chan->band) {
 	case IEEE80211_BAND_2GHZ:
-		switch (channel_type) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
+		switch (chandef->width) {
+		case NL80211_CHAN_WIDTH_20_NOHT:
+		case NL80211_CHAN_WIDTH_20:
 			chanmode = CHANNEL_G_HT20;
 			break;
-		case NL80211_CHAN_HT40PLUS:
-			chanmode = CHANNEL_G_HT40PLUS;
+		case NL80211_CHAN_WIDTH_40:
+			if (chandef->center_freq1 > chandef->chan->center_freq)
+				chanmode = CHANNEL_G_HT40PLUS;
+			else
+				chanmode = CHANNEL_G_HT40MINUS;
 			break;
-		case NL80211_CHAN_HT40MINUS:
-			chanmode = CHANNEL_G_HT40MINUS;
+		default:
 			break;
 		}
 		break;
 	case IEEE80211_BAND_5GHZ:
-		switch (channel_type) {
-		case NL80211_CHAN_NO_HT:
-		case NL80211_CHAN_HT20:
+		switch (chandef->width) {
+		case NL80211_CHAN_WIDTH_20_NOHT:
+		case NL80211_CHAN_WIDTH_20:
 			chanmode = CHANNEL_A_HT20;
 			break;
-		case NL80211_CHAN_HT40PLUS:
-			chanmode = CHANNEL_A_HT40PLUS;
+		case NL80211_CHAN_WIDTH_40:
+			if (chandef->center_freq1 > chandef->chan->center_freq)
+				chanmode = CHANNEL_A_HT40PLUS;
+			else
+				chanmode = CHANNEL_A_HT40MINUS;
 			break;
-		case NL80211_CHAN_HT40MINUS:
-			chanmode = CHANNEL_A_HT40MINUS;
+		default:
 			break;
 		}
 		break;
@@ -94,13 +97,12 @@ static u32 ath9k_get_extchanmode(struct ieee80211_channel *chan,
  * Update internal channel flags.
  */
 void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
-			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type channel_type)
+			       struct cfg80211_chan_def *chandef)
 {
-	ichan->channel = chan->center_freq;
-	ichan->chan = chan;
+	ichan->channel = chandef->chan->center_freq;
+	ichan->chan = chandef->chan;
 
-	if (chan->band == IEEE80211_BAND_2GHZ) {
+	if (chandef->chan->band == IEEE80211_BAND_2GHZ) {
 		ichan->chanmode = CHANNEL_G;
 		ichan->channelFlags = CHANNEL_2GHZ | CHANNEL_OFDM;
 	} else {
@@ -108,8 +110,22 @@ void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
 		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
 	}
 
-	if (channel_type != NL80211_CHAN_NO_HT)
-		ichan->chanmode = ath9k_get_extchanmode(chan, channel_type);
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+		ichan->channelFlags |= CHANNEL_QUARTER;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		ichan->channelFlags |= CHANNEL_HALF;
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		break;
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_40:
+		ichan->chanmode = ath9k_get_extchanmode(chandef);
+		break;
+	default:
+		WARN_ON(1);
+	}
 }
 EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
 
@@ -125,8 +141,7 @@ struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 
 	chan_idx = curchan->hw_value;
 	channel = &ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, curchan,
-				  cfg80211_get_chandef_type(&hw->conf.chandef));
+	ath9k_cmn_update_ichannel(channel, &hw->conf.chandef);
 
 	return channel;
 }

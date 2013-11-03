@@ -1293,7 +1293,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 * According to RFC3010, this takes precedence over all other errors.
 	 */
 	status = nfserr_minor_vers_mismatch;
-	if (args->minorversion > nfsd_supported_minorversion)
+	if (nfsd_minorversion(args->minorversion, NFSD_TEST) <= 0)
 		goto out;
 
 	status = nfs41_check_op_ordering(args);
@@ -1524,7 +1524,7 @@ static inline u32 nfsd4_write_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 static inline u32 nfsd4_exchange_id_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
 	return (op_encode_hdr_size + 2 + 1 + /* eir_clientid, eir_sequenceid */\
-		1 + 1 + 0 + /* eir_flags, spr_how, SP4_NONE (for now) */\
+		1 + 1 + 2 + /* eir_flags, spr_how, spo_must_enforce & _allow */\
 		2 + /*eir_server_owner.so_minor_id */\
 		/* eir_server_owner.so_major_id<> */\
 		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\

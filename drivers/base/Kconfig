@@ -200,11 +200,9 @@ config DMA_SHARED_BUFFER
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
 
-config CMA
-	bool "Contiguous Memory Allocator"
-	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK
-	select MIGRATION
-	select MEMORY_ISOLATION
+config DMA_CMA
+	bool "DMA Contiguous Memory Allocator"
+	depends on HAVE_DMA_CONTIGUOUS && CMA
 	help
 	  This enables the Contiguous Memory Allocator which allows drivers
 	  to allocate big physically-contiguous blocks of memory for use with
@@ -213,17 +211,7 @@ config CMA
 	  For more information see <include/linux/dma-contiguous.h>.
 	  If unsure, say "n".
 
-if CMA
-
-config CMA_DEBUG
-	bool "CMA debug messages (DEVELOPMENT)"
-	depends on DEBUG_KERNEL
-	help
-	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-	  messages for every CMA call as well as various messages while
-	  processing calls such as dma_alloc_from_contiguous().
-	  This option does not affect warning and error messages.
-
+if  DMA_CMA
 comment "Default contiguous memory area size:"
 
 config CMA_SIZE_MBYTES

@@ -101,52 +101,52 @@ lnet_connect_console_error (int rc, lnet_nid_t peer_nid,
 	switch (rc) {
 	/* "normal" errors */
 	case -ECONNREFUSED:
-		CNETERR("Connection to %s at host %u.%u.%u.%u on port %d was "
+		CNETERR("Connection to %s at host %pI4h on port %d was "
 			"refused: check that Lustre is running on that node.\n",
 			libcfs_nid2str(peer_nid),
-			HIPQUAD(peer_ip), peer_port);
+			&peer_ip, peer_port);
 		break;
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
-		CNETERR("Connection to %s at host %u.%u.%u.%u "
+		CNETERR("Connection to %s at host %pI4h "
 			"was unreachable: the network or that node may "
 			"be down, or Lustre may be misconfigured.\n",
-			libcfs_nid2str(peer_nid), HIPQUAD(peer_ip));
+			libcfs_nid2str(peer_nid), &peer_ip);
 		break;
 	case -ETIMEDOUT:
-		CNETERR("Connection to %s at host %u.%u.%u.%u on "
+		CNETERR("Connection to %s at host %pI4h on "
 			"port %d took too long: that node may be hung "
 			"or experiencing high load.\n",
 			libcfs_nid2str(peer_nid),
-			HIPQUAD(peer_ip), peer_port);
+			&peer_ip, peer_port);
 		break;
 	case -ECONNRESET:
-		LCONSOLE_ERROR_MSG(0x11b, "Connection to %s at host %u.%u.%u.%u"
+		LCONSOLE_ERROR_MSG(0x11b, "Connection to %s at host %pI4h"
 				   " on port %d was reset: "
 				   "is it running a compatible version of "
 				   "Lustre and is %s one of its NIDs?\n",
 				   libcfs_nid2str(peer_nid),
-				   HIPQUAD(peer_ip), peer_port,
+				   &peer_ip, peer_port,
 				   libcfs_nid2str(peer_nid));
 		break;
 	case -EPROTO:
 		LCONSOLE_ERROR_MSG(0x11c, "Protocol error connecting to %s at "
-				   "host %u.%u.%u.%u on port %d: is it running "
+				   "host %pI4h on port %d: is it running "
 				   "a compatible version of Lustre?\n",
 				   libcfs_nid2str(peer_nid),
-				   HIPQUAD(peer_ip), peer_port);
+				   &peer_ip, peer_port);
 		break;
 	case -EADDRINUSE:
 		LCONSOLE_ERROR_MSG(0x11d, "No privileged ports available to "
-				   "connect to %s at host %u.%u.%u.%u on port "
+				   "connect to %s at host %pI4h on port "
 				   "%d\n", libcfs_nid2str(peer_nid),
-				   HIPQUAD(peer_ip), peer_port);
+				   &peer_ip, peer_port);
 		break;
 	default:
 		LCONSOLE_ERROR_MSG(0x11e, "Unexpected error %d connecting to %s"
-				   " at host %u.%u.%u.%u on port %d\n", rc,
+				   " at host %pI4h on port %d\n", rc,
 				   libcfs_nid2str(peer_nid),
-				   HIPQUAD(peer_ip), peer_port);
+				   &peer_ip, peer_port);
 		break;
 	}
 }
@@ -253,8 +253,8 @@ lnet_accept(socket_t *sock, __u32 magic)
 
 			if (rc != 0)
 				CERROR("Error sending magic+version in response"
-				       "to LNET magic from %u.%u.%u.%u: %d\n",
-				       HIPQUAD(peer_ip), rc);
+				       "to LNET magic from %pI4h: %d\n",
+				       &peer_ip, rc);
 			return -EPROTO;
 		}
 
@@ -265,9 +265,9 @@ lnet_accept(socket_t *sock, __u32 magic)
 		else
 			str = "unrecognised";
 
-		LCONSOLE_ERROR_MSG(0x11f, "Refusing connection from %u.%u.%u.%u"
+		LCONSOLE_ERROR_MSG(0x11f, "Refusing connection from %pI4h"
 				   " magic %08x: %s acceptor protocol\n",
-				   HIPQUAD(peer_ip), magic, str);
+				   &peer_ip, magic, str);
 		return -EPROTO;
 	}
 
@@ -278,7 +278,7 @@ lnet_accept(socket_t *sock, __u32 magic)
 			      accept_timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading connection request version from "
-		       "%u.%u.%u.%u\n", rc, HIPQUAD(peer_ip));
+		       "%pI4h\n", rc, &peer_ip);
 		return -EIO;
 	}
 
@@ -301,8 +301,8 @@ lnet_accept(socket_t *sock, __u32 magic)
 
 		if (rc != 0)
 			CERROR("Error sending magic+version in response"
-			       "to version %d from %u.%u.%u.%u: %d\n",
-			       peer_version, HIPQUAD(peer_ip), rc);
+			       "to version %d from %pI4h: %d\n",
+			       peer_version, &peer_ip, rc);
 		return -EPROTO;
 	}
 
@@ -312,7 +312,7 @@ lnet_accept(socket_t *sock, __u32 magic)
 			      accept_timeout);
 	if (rc != 0) {
 		CERROR("Error %d reading connection request from "
-		       "%u.%u.%u.%u\n", rc, HIPQUAD(peer_ip));
+		       "%pI4h\n", rc, &peer_ip);
 		return -EIO;
 	}
 
@@ -324,23 +324,23 @@ lnet_accept(socket_t *sock, __u32 magic)
 	    ni->ni_nid != cr.acr_nid) { /* right NET, wrong NID! */
 		if (ni != NULL)
 			lnet_ni_decref(ni);
-		LCONSOLE_ERROR_MSG(0x120, "Refusing connection from %u.%u.%u.%u"
+		LCONSOLE_ERROR_MSG(0x120, "Refusing connection from %pI4h"
 				   " for %s: No matching NI\n",
-				   HIPQUAD(peer_ip), libcfs_nid2str(cr.acr_nid));
+				   &peer_ip, libcfs_nid2str(cr.acr_nid));
 		return -EPERM;
 	}
 
 	if (ni->ni_lnd->lnd_accept == NULL) {
 		/* This catches a request for the loopback LND */
 		lnet_ni_decref(ni);
-		LCONSOLE_ERROR_MSG(0x121, "Refusing connection from %u.%u.%u.%u"
+		LCONSOLE_ERROR_MSG(0x121, "Refusing connection from %pI4h"
 				  " for %s: NI doesn not accept IP connections\n",
-				  HIPQUAD(peer_ip), libcfs_nid2str(cr.acr_nid));
+				  &peer_ip, libcfs_nid2str(cr.acr_nid));
 		return -EPERM;
 	}
 
-	CDEBUG(D_NET, "Accept %s from %u.%u.%u.%u\n",
-	       libcfs_nid2str(cr.acr_nid), HIPQUAD(peer_ip));
+	CDEBUG(D_NET, "Accept %s from %pI4h\n",
+	       libcfs_nid2str(cr.acr_nid), &peer_ip);
 
 	rc = ni->ni_lnd->lnd_accept(ni, sock);
 
@@ -410,9 +410,9 @@ lnet_acceptor(void *arg)
 		}
 
 		if (secure && peer_port > LNET_ACCEPTOR_MAX_RESERVED_PORT) {
-			CERROR("Refusing connection from %u.%u.%u.%u: "
+			CERROR("Refusing connection from %pI4h: "
 			       "insecure port %d\n",
-			       HIPQUAD(peer_ip), peer_port);
+			       &peer_ip, peer_port);
 			goto failed;
 		}
 
@@ -420,7 +420,7 @@ lnet_acceptor(void *arg)
 				      accept_timeout);
 		if (rc != 0) {
 			CERROR("Error %d reading connection request from "
-			       "%u.%u.%u.%u\n", rc, HIPQUAD(peer_ip));
+			       "%pI4h\n", rc, &peer_ip);
 			goto failed;
 		}
 

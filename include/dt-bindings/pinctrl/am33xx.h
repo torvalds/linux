@@ -5,7 +5,7 @@
 #ifndef _DT_BINDINGS_PINCTRL_AM33XX_H
 #define _DT_BINDINGS_PINCTRL_AM33XX_H
 
-#include <include/dt-bindings/pinctrl/omap.h>
+#include <dt-bindings/pinctrl/omap.h>
 
 /* am33xx specific mux bit defines */
 #undef PULL_ENA

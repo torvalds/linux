@@ -23,7 +23,7 @@
 #define SIRFSOC_INT_RISC_LEVEL1         0x0024
 #define SIRFSOC_INIT_IRQ_ID		0x0038
 
-#define SIRFSOC_NUM_IRQS		128
+#define SIRFSOC_NUM_IRQS		64
 
 static struct irq_domain *sirfsoc_irqdomain;
 
@@ -32,15 +32,18 @@ sirfsoc_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
+	int ret;
+	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 
-	gc = irq_alloc_generic_chip("SIRFINTC", 1, irq_start, base, handle_level_irq);
+	ret = irq_alloc_domain_generic_chips(sirfsoc_irqdomain, num, 1, "irq_sirfsoc",
+		handle_level_irq, clr, 0, IRQ_GC_INIT_MASK_CACHE);
+
+	gc = irq_get_domain_generic_chip(sirfsoc_irqdomain, irq_start);
+	gc->reg_base = base;
 	ct = gc->chip_types;
-
 	ct->chip.irq_mask = irq_gc_mask_clr_bit;
 	ct->chip.irq_unmask = irq_gc_mask_set_bit;
 	ct->regs.mask = SIRFSOC_INT_RISC_MASK0;
-
-	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE, IRQ_NOREQUEST, 0);
 }
 
 static asmlinkage void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *regs)
@@ -60,9 +63,8 @@ static int __init sirfsoc_irq_init(struct device_node *np, struct device_node *p
 	if (!base)
 		panic("unable to map intc cpu registers\n");
 
-	/* using legacy because irqchip_generic does not work with linear */
-	sirfsoc_irqdomain = irq_domain_add_legacy(np, SIRFSOC_NUM_IRQS, 0, 0,
-				 &irq_domain_simple_ops, base);
+	sirfsoc_irqdomain = irq_domain_add_linear(np, SIRFSOC_NUM_IRQS,
+		&irq_generic_chip_ops, base);
 
 	sirfsoc_alloc_gc(base, 0, 32);
 	sirfsoc_alloc_gc(base + 4, 32, SIRFSOC_NUM_IRQS - 32);

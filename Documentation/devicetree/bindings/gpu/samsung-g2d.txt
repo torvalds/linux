@@ -11,8 +11,11 @@ Required properties:
 
   - interrupts : G2D interrupt number to the CPU.
   - clocks : from common clock binding: handle to G2D clocks.
-  - clock-names : from common clock binding: must contain "sclk_fimg2d" and
-		  "fimg2d", corresponding to entries in the clocks property.
+  - clock-names : names of clocks listed in clocks property, in the same
+		  order, depending on SoC type:
+		  - for S5PV210 and Exynos4 based SoCs: "fimg2d" and
+		    "sclk_fimg2d"
+		  - for Exynos5250 SoC: "fimg2d".
 
 Example:
 	g2d@12800000 {

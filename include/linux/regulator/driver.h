@@ -40,6 +40,26 @@ enum regulator_status {
 };
 
 /**
+ * struct regulator_linear_range - specify linear voltage ranges
+ *
+ * Specify a range of voltages for regulator_map_linar_range() and
+ * regulator_list_linear_range().
+ *
+ * @min_uV:  Lowest voltage in range
+ * @max_uV:  Highest voltage in range
+ * @min_sel: Lowest selector for range
+ * @max_sel: Highest selector for range
+ * @uV_step: Step size
+ */
+struct regulator_linear_range {
+	unsigned int min_uV;
+	unsigned int max_uV;
+	unsigned int min_sel;
+	unsigned int max_sel;
+	unsigned int uV_step;
+};
+
+/**
  * struct regulator_ops - regulator operations.
  *
  * @enable: Configure the regulator as enabled.
@@ -223,6 +243,9 @@ struct regulator_desc {
 	unsigned int linear_min_sel;
 	unsigned int ramp_delay;
 
+	const struct regulator_linear_range *linear_ranges;
+	int n_linear_ranges;
+
 	const unsigned int *volt_table;
 
 	unsigned int vsel_reg;
@@ -326,10 +349,14 @@ int regulator_mode_to_status(unsigned int);
 
 int regulator_list_voltage_linear(struct regulator_dev *rdev,
 				  unsigned int selector);
+int regulator_list_voltage_linear_range(struct regulator_dev *rdev,
+					unsigned int selector);
 int regulator_list_voltage_table(struct regulator_dev *rdev,
 				  unsigned int selector);
 int regulator_map_voltage_linear(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
+int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
+				       int min_uV, int max_uV);
 int regulator_map_voltage_iterate(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
 int regulator_map_voltage_ascend(struct regulator_dev *rdev,

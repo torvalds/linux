@@ -369,7 +369,8 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (sc->quirks & PS3REMOTE)
 		return ps3remote_mapping(hdev, hi, field, usage, bit, max);
 
-	return -1;
+	/* Let hid-core decide for the others */
+	return 0;
 }
 
 /*
@@ -536,6 +537,10 @@ static int buzz_init(struct hid_device *hdev)
 	drv_data = hid_get_drvdata(hdev);
 	BUG_ON(!(drv_data->quirks & BUZZ_CONTROLLER));
 
+	/* Validate expected report characteristics. */
+	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 0, 0, 7))
+		return -ENODEV;
+
 	buzz = kzalloc(sizeof(*buzz), GFP_KERNEL);
 	if (!buzz) {
 		hid_err(hdev, "Insufficient memory, cannot allocate driver data\n");
@@ -623,7 +628,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct sony_sc *sc;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 
-	sc = kzalloc(sizeof(*sc), GFP_KERNEL);
+	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
 	if (sc == NULL) {
 		hid_err(hdev, "can't alloc sony descriptor\n");
 		return -ENOMEM;
@@ -635,7 +640,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	if (sc->quirks & VAIO_RDESC_CONSTANT)
@@ -648,7 +653,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
@@ -668,8 +673,6 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	return 0;
 err_stop:
 	hid_hw_stop(hdev);
-err_free:
-	kfree(sc);
 	return ret;
 }
 
@@ -681,7 +684,6 @@ static void sony_remove(struct hid_device *hdev)
 		buzz_remove(hdev);
 
 	hid_hw_stop(hdev);
-	kfree(sc);
 }
 
 static const struct hid_device_id sony_devices[] = {

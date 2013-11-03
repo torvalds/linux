@@ -848,7 +848,6 @@ qla82xx_rom_lock(struct qla_hw_data *ha)
 {
 	int done = 0, timeout = 0;
 	uint32_t lock_owner = 0;
-	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	while (!done) {
 		/* acquire semaphore2 from PCI HW block */
@@ -857,9 +856,6 @@ qla82xx_rom_lock(struct qla_hw_data *ha)
 			break;
 		if (timeout >= qla82xx_rom_lock_timeout) {
 			lock_owner = qla82xx_rd_32(ha, QLA82XX_ROM_LOCK_ID);
-			ql_dbg(ql_dbg_p3p, vha, 0xb085,
-			    "Failed to acquire rom lock, acquired by %d.\n",
-			    lock_owner);
 			return -1;
 		}
 		timeout++;
@@ -1666,8 +1662,14 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	}
 
 	/* Mapping of IO base pointer */
-	ha->iobase = (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase +
-	    0xbc000 + (ha->pdev->devfn << 11));
+	if (IS_QLA8044(ha)) {
+		ha->iobase =
+		    (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase);
+	} else if (IS_QLA82XX(ha)) {
+		ha->iobase =
+		    (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase +
+			0xbc000 + (ha->pdev->devfn << 11));
+	}
 
 	if (!ql2xdbwr) {
 		ha->nxdb_wr_ptr =
@@ -1967,7 +1969,7 @@ static struct qla82xx_legacy_intr_set legacy_intr[] = \
  * @ha: SCSI driver HA context
  * @mb0: Mailbox0 register
  */
-static void
+void
 qla82xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 {
 	uint16_t	cnt;
@@ -2075,13 +2077,6 @@ qla82xx_intr_handler(int irq, void *dev_id)
 		WRT_REG_DWORD(&reg->host_int, 0);
 	}
 
-#ifdef QL_DEBUG_LEVEL_17
-	if (!irq && ha->flags.eeh_busy)
-		ql_log(ql_log_warn, vha, 0x503d,
-		    "isr:status %x, cmd_flags %lx, mbox_int %x, stat %x.\n",
-		    status, ha->mbx_cmd_flags, ha->flags.mbox_int, stat);
-#endif
-
 	qla2x00_handle_mbx_completion(ha, status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -2146,13 +2141,6 @@ qla82xx_msix_default(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->host_int, 0);
 	} while (0);
-
-#ifdef QL_DEBUG_LEVEL_17
-	if (!irq && ha->flags.eeh_busy)
-		ql_log(ql_log_warn, vha, 0x5044,
-		    "isr:status %x, cmd_flags %lx, mbox_int %x, stat %x.\n",
-		    status, ha->mbx_cmd_flags, ha->flags.mbox_int, stat);
-#endif
 
 	qla2x00_handle_mbx_completion(ha, status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -2247,7 +2235,10 @@ qla82xx_enable_intrs(struct qla_hw_data *ha)
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	qla82xx_mbx_intr_enable(vha);
 	spin_lock_irq(&ha->hardware_lock);
-	qla82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0xfbff);
+	if (IS_QLA8044(ha))
+		qla8044_wr_reg(ha, LEG_INTR_MASK_OFFSET, 0);
+	else
+		qla82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0xfbff);
 	spin_unlock_irq(&ha->hardware_lock);
 	ha->interrupts_on = 1;
 }
@@ -2258,7 +2249,10 @@ qla82xx_disable_intrs(struct qla_hw_data *ha)
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	qla82xx_mbx_intr_disable(vha);
 	spin_lock_irq(&ha->hardware_lock);
-	qla82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0x0400);
+	if (IS_QLA8044(ha))
+		qla8044_wr_reg(ha, LEG_INTR_MASK_OFFSET, 1);
+	else
+		qla82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0x0400);
 	spin_unlock_irq(&ha->hardware_lock);
 	ha->interrupts_on = 0;
 }
@@ -3008,6 +3002,9 @@ qla8xxx_dev_failed_handler(scsi_qla_host_t *vha)
 	if (IS_QLA82XX(ha)) {
 		qla82xx_clear_drv_active(ha);
 		qla82xx_idc_unlock(ha);
+	} else if (IS_QLA8044(ha)) {
+		qla8044_clear_drv_active(vha);
+		qla8044_idc_unlock(ha);
 	}
 
 	/* Set DEV_FAILED flag to disable timer */
@@ -3134,7 +3131,7 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 			if (fw_major_version != ha->fw_major_version ||
 			    fw_minor_version != ha->fw_minor_version ||
 			    fw_subminor_version != ha->fw_subminor_version) {
-				ql_log(ql_log_info, vha, 0xb02d,
+				ql_dbg(ql_dbg_p3p, vha, 0xb02d,
 				    "Firmware version differs "
 				    "Previous version: %d:%d:%d - "
 				    "New version: %d:%d:%d\n",
@@ -3330,6 +3327,14 @@ static int qla82xx_check_temp(scsi_qla_host_t *vha)
 	return 0;
 }
 
+int qla82xx_read_temperature(scsi_qla_host_t *vha)
+{
+	uint32_t temp;
+
+	temp = qla82xx_rd_32(vha->hw, CRB_TEMP_STATE);
+	return qla82xx_get_temp_val(temp);
+}
+
 void qla82xx_clear_pending_mbx(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -3423,8 +3428,18 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 
 int qla82xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
-	int rval;
-	rval = qla82xx_device_state_handler(vha);
+	int rval = -1;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (IS_QLA82XX(ha))
+		rval = qla82xx_device_state_handler(vha);
+	else if (IS_QLA8044(ha)) {
+		qla8044_idc_lock(ha);
+		/* Decide the reset ownership */
+		qla83xx_reset_ownership(vha);
+		qla8044_idc_unlock(ha);
+		rval = qla8044_device_state_handler(vha);
+	}
 	return rval;
 }
 
@@ -3432,17 +3447,25 @@ void
 qla82xx_set_reset_owner(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	uint32_t dev_state;
+	uint32_t dev_state = 0;
 
-	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+	if (IS_QLA82XX(ha))
+		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+	else if (IS_QLA8044(ha))
+		dev_state = qla8044_rd_direct(vha, QLA8044_CRB_DEV_STATE_INDEX);
+
 	if (dev_state == QLA8XXX_DEV_READY) {
 		ql_log(ql_log_info, vha, 0xb02f,
 		    "HW State: NEED RESET\n");
-		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			QLA8XXX_DEV_NEED_RESET);
-		ha->flags.nic_core_reset_owner = 1;
-		ql_dbg(ql_dbg_p3p, vha, 0xb030,
-		    "reset_owner is 0x%x\n", ha->portnum);
+		if (IS_QLA82XX(ha)) {
+			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+			    QLA8XXX_DEV_NEED_RESET);
+			ha->flags.nic_core_reset_owner = 1;
+			ql_dbg(ql_dbg_p3p, vha, 0xb030,
+			    "reset_owner is 0x%x\n", ha->portnum);
+		} else if (IS_QLA8044(ha))
+			qla8044_wr_direct(vha, QLA8044_CRB_DEV_STATE_INDEX,
+			    QLA8XXX_DEV_NEED_RESET);
 	} else
 		ql_log(ql_log_info, vha, 0xb031,
 		    "Device state is 0x%x = %s.\n",
@@ -3463,7 +3486,7 @@ qla82xx_set_reset_owner(scsi_qla_host_t *vha)
 int
 qla82xx_abort_isp(scsi_qla_host_t *vha)
 {
-	int rval;
+	int rval = -1;
 	struct qla_hw_data *ha = vha->hw;
 
 	if (vha->device_flags & DFLG_DEV_FAILED) {
@@ -3477,7 +3500,15 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 	qla82xx_set_reset_owner(vha);
 	qla82xx_idc_unlock(ha);
 
-	rval = qla82xx_device_state_handler(vha);
+	if (IS_QLA82XX(ha))
+		rval = qla82xx_device_state_handler(vha);
+	else if (IS_QLA8044(ha)) {
+		qla8044_idc_lock(ha);
+		/* Decide the reset ownership */
+		qla83xx_reset_ownership(vha);
+		qla8044_idc_unlock(ha);
+		rval = qla8044_device_state_handler(vha);
+	}
 
 	qla82xx_idc_lock(ha);
 	qla82xx_clear_rst_ready(ha);
@@ -3597,7 +3628,7 @@ int qla2x00_wait_for_fcoe_ctx_reset(scsi_qla_host_t *vha)
 void
 qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 {
-	int i;
+	int i, fw_state = 0;
 	unsigned long flags;
 	struct qla_hw_data *ha = vha->hw;
 
@@ -3608,7 +3639,11 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 	if (!ha->flags.isp82xx_fw_hung) {
 		for (i = 0; i < 2; i++) {
 			msleep(1000);
-			if (qla82xx_check_fw_alive(vha)) {
+			if (IS_QLA82XX(ha))
+				fw_state = qla82xx_check_fw_alive(vha);
+			else if (IS_QLA8044(ha))
+				fw_state = qla8044_check_fw_alive(vha);
+			if (fw_state) {
 				ha->flags.isp82xx_fw_hung = 1;
 				qla82xx_clear_pending_mbx(vha);
 				break;
@@ -4072,7 +4107,7 @@ qla82xx_minidump_process_rdmem(scsi_qla_host_t *vha,
 	return QLA_SUCCESS;
 }
 
-static int
+int
 qla82xx_validate_template_chksum(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -4384,7 +4419,11 @@ qla82xx_md_prep(scsi_qla_host_t *vha)
 		    ha->md_template_size / 1024);
 
 		/* Get Minidump template */
-		rval = qla82xx_md_get_template(vha);
+		if (IS_QLA8044(ha))
+			rval = qla8044_md_get_template(vha);
+		else
+			rval = qla82xx_md_get_template(vha);
+
 		if (rval == QLA_SUCCESS) {
 			ql_dbg(ql_dbg_p3p, vha, 0xb04b,
 			    "MiniDump Template obtained\n");

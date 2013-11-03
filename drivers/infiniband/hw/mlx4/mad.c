@@ -1511,8 +1511,14 @@ static int create_pv_sqp(struct mlx4_ib_demux_pv_ctx *ctx,
 
 	memset(&attr, 0, sizeof attr);
 	attr.qp_state = IB_QPS_INIT;
-	attr.pkey_index =
-		to_mdev(ctx->ib_dev)->pkeys.virt2phys_pkey[ctx->slave][ctx->port - 1][0];
+	ret = 0;
+	if (create_tun)
+		ret = find_slave_port_pkey_ix(to_mdev(ctx->ib_dev), ctx->slave,
+					      ctx->port, IB_DEFAULT_PKEY_FULL,
+					      &attr.pkey_index);
+	if (ret || !create_tun)
+		attr.pkey_index =
+			to_mdev(ctx->ib_dev)->pkeys.virt2phys_pkey[ctx->slave][ctx->port - 1][0];
 	attr.qkey = IB_QP1_QKEY;
 	attr.port_num = ctx->port;
 	ret = ib_modify_qp(tun_qp->qp, &attr, qp_attr_mask_INIT);

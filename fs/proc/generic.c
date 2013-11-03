@@ -271,7 +271,7 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *file,
 		de = next;
 	} while (de);
 	spin_unlock(&proc_subdir_lock);
-	return 0;
+	return 1;
 }
 
 int proc_readdir(struct file *file, struct dir_context *ctx)

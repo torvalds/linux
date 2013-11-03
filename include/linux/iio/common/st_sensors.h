@@ -17,6 +17,8 @@
 #include <linux/iio/trigger.h>
 #include <linux/bitops.h>
 
+#include <linux/platform_data/st_sensors_pdata.h>
+
 #define ST_SENSORS_TX_MAX_LENGTH		2
 #define ST_SENSORS_RX_MAX_LENGTH		6
 
@@ -118,14 +120,16 @@ struct st_sensor_bdu {
 /**
  * struct st_sensor_data_ready_irq - ST sensor device data-ready interrupt
  * @addr: address of the register.
- * @mask: mask to write the on/off value.
+ * @mask_int1: mask to enable/disable IRQ on INT1 pin.
+ * @mask_int2: mask to enable/disable IRQ on INT2 pin.
  * struct ig1 - represents the Interrupt Generator 1 of sensors.
  * @en_addr: address of the enable ig1 register.
  * @en_mask: mask to write the on/off value for enable.
  */
 struct st_sensor_data_ready_irq {
 	u8 addr;
-	u8 mask;
+	u8 mask_int1;
+	u8 mask_int2;
 	struct {
 		u8 en_addr;
 		u8 en_mask;
@@ -201,6 +205,7 @@ struct st_sensors {
  * @buffer_data: Data used by buffer part.
  * @odr: Output data rate of the sensor [Hz].
  * num_data_channels: Number of data channels used in buffer.
+ * @drdy_int_pin: Redirect DRDY on pin 1 (1) or pin 2 (2).
  * @get_irq_data_ready: Function to get the IRQ used for data ready signal.
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers and mutex used by I/O operations.
@@ -218,6 +223,8 @@ struct st_sensor_data {
 
 	unsigned int odr;
 	unsigned int num_data_channels;
+
+	u8 drdy_int_pin;
 
 	unsigned int (*get_irq_data_ready) (struct iio_dev *indio_dev);
 
@@ -249,7 +256,8 @@ static inline void st_sensors_deallocate_trigger(struct iio_dev *indio_dev)
 }
 #endif
 
-int st_sensors_init_sensor(struct iio_dev *indio_dev);
+int st_sensors_init_sensor(struct iio_dev *indio_dev,
+					struct st_sensors_platform_data *pdata);
 
 int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable);
 

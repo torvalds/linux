@@ -40,7 +40,13 @@ Two elements are required for tracepoints :
 
 In order to use tracepoints, you should include linux/tracepoint.h.
 
-In include/trace/subsys.h :
+In include/trace/events/subsys.h :
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM subsys
+
+#if !defined(_TRACE_SUBSYS_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_SUBSYS_H
 
 #include <linux/tracepoint.h>
 
@@ -48,10 +54,16 @@ DECLARE_TRACE(subsys_eventname,
 	TP_PROTO(int firstarg, struct task_struct *p),
 	TP_ARGS(firstarg, p));
 
+#endif /* _TRACE_SUBSYS_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>
+
 In subsys/file.c (where the tracing statement must be added) :
 
-#include <trace/subsys.h>
+#include <trace/events/subsys.h>
 
+#define CREATE_TRACE_POINTS
 DEFINE_TRACE(subsys_eventname);
 
 void somefct(void)
@@ -71,6 +83,9 @@ Where :
 
 - TP_ARGS(firstarg, p) are the parameters names, same as found in the
   prototype.
+
+- if you use the header in multiple source files, #define CREATE_TRACE_POINTS
+  should appear only in one source file.
 
 Connecting a function (probe) to a tracepoint is done by providing a
 probe (function to call) for the specific tracepoint through

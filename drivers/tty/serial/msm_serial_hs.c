@@ -1618,7 +1618,7 @@ static int msm_hs_probe(struct platform_device *pdev)
 	struct msm_hs_port *msm_uport;
 	struct resource *resource;
 	const struct msm_serial_hs_platform_data *pdata =
-						pdev->dev.platform_data;
+						dev_get_platdata(&pdev->dev);
 
 	if (pdev->id < 0 || pdev->id >= UARTDM_NR) {
 		printk(KERN_ERR "Invalid plaform device ID = %d\n", pdev->id);

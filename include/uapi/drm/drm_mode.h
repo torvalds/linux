@@ -223,6 +223,8 @@ struct drm_mode_get_connector {
 	__u32 connection;
 	__u32 mm_width, mm_height; /**< HxW in millimeters */
 	__u32 subpixel;
+
+	__u32 pad;
 };
 
 #define DRM_MODE_PROP_PENDING	(1<<0)
@@ -412,7 +414,8 @@ struct drm_mode_crtc_lut {
 };
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
-#define DRM_MODE_PAGE_FLIP_FLAGS DRM_MODE_PAGE_FLIP_EVENT
+#define DRM_MODE_PAGE_FLIP_ASYNC 0x02
+#define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT|DRM_MODE_PAGE_FLIP_ASYNC)
 
 /*
  * Request a page flip on the specified crtc.
@@ -426,11 +429,14 @@ struct drm_mode_crtc_lut {
  * flip is already pending as the ioctl is called, EBUSY will be
  * returned.
  *
- * The ioctl supports one flag, DRM_MODE_PAGE_FLIP_EVENT, which will
- * request that drm sends back a vblank event (see drm.h: struct
- * drm_event_vblank) when the page flip is done.  The user_data field
- * passed in with this ioctl will be returned as the user_data field
- * in the vblank event struct.
+ * Flag DRM_MODE_PAGE_FLIP_EVENT requests that drm sends back a vblank
+ * event (see drm.h: struct drm_event_vblank) when the page flip is
+ * done.  The user_data field passed in with this ioctl will be
+ * returned as the user_data field in the vblank event struct.
+ *
+ * Flag DRM_MODE_PAGE_FLIP_ASYNC requests that the flip happen
+ * 'as soon as possible', meaning that it not delay waiting for vblank.
+ * This may cause tearing on the screen.
  *
  * The reserved field must be zero until we figure out something
  * clever to use it for.

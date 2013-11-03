@@ -208,17 +208,6 @@ static int __init omap_serial_early_init(void)
 				pr_info("%s used as console in debug mode: uart%d clocks will not be gated",
 					uart_name, uart->num);
 			}
-
-			/*
-			 * omap-uart can be used for earlyprintk logs
-			 * So if omap-uart is used as console then prevent
-			 * uart reset and idle to get logs from omap-uart
-			 * until uart console driver is available to take
-			 * care for console messages.
-			 * Idling or resetting omap-uart while printing logs
-			 * early boot logs can stall the boot-up.
-			 */
-			oh->flags |= HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET;
 		}
 	} while (1);
 

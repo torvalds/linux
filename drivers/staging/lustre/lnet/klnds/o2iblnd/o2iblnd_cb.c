@@ -1319,9 +1319,9 @@ kiblnd_connect_peer (kib_peer_t *peer)
 	}
 
 	LASSERT (cmid->device != NULL);
-	CDEBUG(D_NET, "%s: connection bound to %s:%u.%u.%u.%u:%s\n",
+	CDEBUG(D_NET, "%s: connection bound to %s:%pI4h:%s\n",
 	       libcfs_nid2str(peer->ibp_nid), dev->ibd_ifname,
-	       HIPQUAD(dev->ibd_ifip), cmid->device->name);
+	       &dev->ibd_ifip, cmid->device->name);
 
 	return;
 
@@ -1802,7 +1802,7 @@ kiblnd_recv (lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 int
 kiblnd_thread_start(int (*fn)(void *arg), void *arg, char *name)
 {
-	task_t *task = kthread_run(fn, arg, name);
+	struct task_struct *task = kthread_run(fn, arg, "%s", name);
 
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -2209,8 +2209,8 @@ kiblnd_passive_connect (struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	if (*kiblnd_tunables.kib_require_priv_port &&
 	    ntohs(peer_addr->sin_port) >= PROT_SOCK) {
 		__u32 ip = ntohl(peer_addr->sin_addr.s_addr);
-		CERROR("Peer's port (%u.%u.%u.%u:%hu) is not privileged\n",
-		       HIPQUAD(ip), ntohs(peer_addr->sin_port));
+		CERROR("Peer's port (%pI4h:%hu) is not privileged\n",
+		       &ip, ntohs(peer_addr->sin_port));
 		goto failed;
 	}
 
@@ -2254,11 +2254,11 @@ kiblnd_passive_connect (struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	if (ni == NULL ||			 /* no matching net */
 	    ni->ni_nid != reqmsg->ibm_dstnid ||   /* right NET, wrong NID! */
 	    net->ibn_dev != ibdev) {	      /* wrong device */
-		CERROR("Can't accept %s on %s (%s:%d:%u.%u.%u.%u): "
+		CERROR("Can't accept %s on %s (%s:%d:%pI4h): "
 		       "bad dst nid %s\n", libcfs_nid2str(nid),
 		       ni == NULL ? "NA" : libcfs_nid2str(ni->ni_nid),
 		       ibdev->ibd_ifname, ibdev->ibd_nnets,
-		       HIPQUAD(ibdev->ibd_ifip),
+		       &ibdev->ibd_ifip,
 		       libcfs_nid2str(reqmsg->ibm_dstnid));
 
 		goto failed;

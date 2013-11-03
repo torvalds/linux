@@ -347,6 +347,16 @@ struct lov_user_md_v3 {	   /* LOV EA user data (host-endian) */
 	struct lov_user_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 } __attribute__((packed));
 
+static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
+{
+	if (lmm_magic == LOV_USER_MAGIC_V3)
+		return sizeof(struct lov_user_md_v3) +
+				stripes * sizeof(struct lov_user_ost_data_v1);
+	else
+		return sizeof(struct lov_user_md_v1) +
+				stripes * sizeof(struct lov_user_ost_data_v1);
+}
+
 /* Compile with -D_LARGEFILE64_SOURCE or -D_GNU_SOURCE (or #define) to
  * use this.  It is unsafe to #define those values in this header as it
  * is possible the application has already #included <sys/stat.h>. */
@@ -462,6 +472,8 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 
 /* printf display format
    e.g. printf("file FID is "DFID"\n", PFID(fid)); */
+#define FID_NOBRACE_LEN 40
+#define FID_LEN (FID_NOBRACE_LEN + 2)
 #define DFID_NOBRACE LPX64":0x%x:0x%x"
 #define DFID "["DFID_NOBRACE"]"
 #define PFID(fid)     \

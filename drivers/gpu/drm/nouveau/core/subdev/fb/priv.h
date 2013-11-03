@@ -81,7 +81,7 @@ void nv44_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
 void nv46_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
 
-void nv50_ram_put(struct nouveau_fb *, struct nouveau_mem **);
+void __nv50_ram_put(struct nouveau_fb *, struct nouveau_mem *);
 extern int nv50_fb_memtype[0x80];
 
 #endif

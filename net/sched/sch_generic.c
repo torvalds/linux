@@ -25,9 +25,14 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
+
+/* Qdisc to use by default */
+const struct Qdisc_ops *default_qdisc_ops = &pfifo_fast_ops;
+EXPORT_SYMBOL(default_qdisc_ops);
 
 /* Main transmission queue. */
 
@@ -207,15 +212,19 @@ void __qdisc_run(struct Qdisc *q)
 
 unsigned long dev_trans_start(struct net_device *dev)
 {
-	unsigned long val, res = dev->trans_start;
+	unsigned long val, res;
 	unsigned int i;
 
+	if (is_vlan_dev(dev))
+		dev = vlan_dev_real_dev(dev);
+	res = dev->trans_start;
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		val = netdev_get_tx_queue(dev, i)->trans_start;
 		if (val && time_after(val, res))
 			res = val;
 	}
 	dev->trans_start = res;
+
 	return res;
 }
 EXPORT_SYMBOL(dev_trans_start);
@@ -525,12 +534,11 @@ struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.dump		=	pfifo_fast_dump,
 	.owner		=	THIS_MODULE,
 };
-EXPORT_SYMBOL(pfifo_fast_ops);
 
 static struct lock_class_key qdisc_tx_busylock;
 
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
-			  struct Qdisc_ops *ops)
+			  const struct Qdisc_ops *ops)
 {
 	void *p;
 	struct Qdisc *sch;
@@ -574,9 +582,13 @@ errout:
 }
 
 struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
-				struct Qdisc_ops *ops, unsigned int parentid)
+				const struct Qdisc_ops *ops,
+				unsigned int parentid)
 {
 	struct Qdisc *sch;
+
+	if (!try_module_get(ops->owner))
+		goto errout;
 
 	sch = qdisc_alloc(dev_queue, ops);
 	if (IS_ERR(sch))
@@ -681,7 +693,7 @@ static void attach_one_default_qdisc(struct net_device *dev,
 
 	if (dev->tx_queue_len) {
 		qdisc = qdisc_create_dflt(dev_queue,
-					  &pfifo_fast_ops, TC_H_ROOT);
+					  default_qdisc_ops, TC_H_ROOT);
 		if (!qdisc) {
 			netdev_info(dev, "activation failed\n");
 			return;
@@ -734,9 +746,8 @@ void dev_activate(struct net_device *dev)
 	int need_watchdog;
 
 	/* No queueing discipline is attached to device;
-	   create default one i.e. pfifo_fast for devices,
-	   which need queueing and noqueue_qdisc for
-	   virtual interfaces
+	 * create default one for devices, which need queueing
+	 * and noqueue_qdisc for virtual interfaces
 	 */
 
 	if (dev->qdisc == &noop_qdisc)
@@ -904,6 +915,7 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r,
 	memset(r, 0, sizeof(*r));
 	r->overhead = conf->overhead;
 	r->rate_bytes_ps = conf->rate;
+	r->linklayer = (conf->linklayer & TC_LINKLAYER_MASK);
 	r->mult = 1;
 	/*
 	 * The deal here is to replace a divide by a reciprocal one

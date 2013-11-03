@@ -211,8 +211,11 @@ static int slave_configure(struct scsi_device *sdev)
 		/*
 		 * Many devices do not respond properly to READ_CAPACITY_16.
 		 * Tell the SCSI layer to try READ_CAPACITY_10 first.
+		 * However some USB 3.0 drive enclosures return capacity
+		 * modulo 2TB. Those must use READ_CAPACITY_16
 		 */
-		sdev->try_rc_10_first = 1;
+		if (!(us->fflags & US_FL_NEEDS_CAP16))
+			sdev->try_rc_10_first = 1;
 
 		/* assume SPC3 or latter devices support sense size > 18 */
 		if (sdev->scsi_level > SCSI_SPC_2)
@@ -496,7 +499,7 @@ US_DO_ALL_FLAGS
  ***********************************************************************/
 
 /* Output routine for the sysfs max_sectors file */
-static ssize_t show_max_sectors(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t max_sectors_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
@@ -504,7 +507,7 @@ static ssize_t show_max_sectors(struct device *dev, struct device_attribute *att
 }
 
 /* Input routine for the sysfs max_sectors file */
-static ssize_t store_max_sectors(struct device *dev, struct device_attribute *attr, const char *buf,
+static ssize_t max_sectors_store(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
@@ -514,16 +517,14 @@ static ssize_t store_max_sectors(struct device *dev, struct device_attribute *at
 		blk_queue_max_hw_sectors(sdev->request_queue, ms);
 		return count;
 	}
-	return -EINVAL;	
+	return -EINVAL;
 }
-
-static DEVICE_ATTR(max_sectors, S_IRUGO | S_IWUSR, show_max_sectors,
-		store_max_sectors);
+static DEVICE_ATTR_RW(max_sectors);
 
 static struct device_attribute *sysfs_device_attr_list[] = {
-		&dev_attr_max_sectors,
-		NULL,
-		};
+	&dev_attr_max_sectors,
+	NULL,
+};
 
 /*
  * this defines our host template, with which we'll allocate hosts

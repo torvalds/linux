@@ -372,14 +372,11 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 	int tlen = dev->needed_tailroom;
 	struct sock *sk = dev_net(dev)->ipv6.ndisc_sk;
 	struct sk_buff *skb;
-	int err;
 
-	skb = sock_alloc_send_skb(sk,
-				  hlen + sizeof(struct ipv6hdr) + len + tlen,
-				  1, &err);
+	skb = alloc_skb(hlen + sizeof(struct ipv6hdr) + len + tlen, GFP_ATOMIC);
 	if (!skb) {
-		ND_PRINTK(0, err, "ndisc: %s failed to allocate an skb, err=%d\n",
-			  __func__, err);
+		ND_PRINTK(0, err, "ndisc: %s failed to allocate an skb\n",
+			  __func__);
 		return NULL;
 	}
 
@@ -388,6 +385,11 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 
 	skb_reserve(skb, hlen + sizeof(struct ipv6hdr));
 	skb_reset_transport_header(skb);
+
+	/* Manually assign socket ownership as we avoid calling
+	 * sock_alloc_send_pskb() to bypass wmem buffer limits
+	 */
+	skb_set_owner_w(skb, sk);
 
 	return skb;
 }
@@ -428,7 +430,6 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	type = icmp6h->icmp6_type;
 
 	if (!dst) {
-		struct sock *sk = net->ipv6.ndisc_sk;
 		struct flowi6 fl6;
 
 		icmpv6_flow_init(sk, &fl6, type, saddr, daddr, skb->dev->ifindex);
@@ -462,10 +463,10 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	rcu_read_unlock();
 }
 
-static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
-			  const struct in6_addr *daddr,
-			  const struct in6_addr *solicited_addr,
-			  bool router, bool solicited, bool override, bool inc_opt)
+void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
+		   const struct in6_addr *daddr,
+		   const struct in6_addr *solicited_addr,
+		   bool router, bool solicited, bool override, bool inc_opt)
 {
 	struct sk_buff *skb;
 	struct in6_addr tmpaddr;
@@ -479,7 +480,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	if (ifp) {
 		src_addr = solicited_addr;
 		if (ifp->flags & IFA_F_OPTIMISTIC)
-			override = 0;
+			override = false;
 		inc_opt |= ifp->idev->cnf.force_tllao;
 		in6_ifa_put(ifp);
 	} else {
@@ -557,7 +558,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	}
 
 	if (ipv6_addr_any(saddr))
-		inc_opt = 0;
+		inc_opt = false;
 	if (inc_opt)
 		optlen += ndisc_opt_addr_space(dev);
 
@@ -663,9 +664,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		}
 		ndisc_send_ns(dev, neigh, target, target, saddr);
 	} else if ((probes -= neigh->parms->app_probes) < 0) {
-#ifdef CONFIG_ARPD
 		neigh_app_ns(neigh);
-#endif
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
 		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr);
@@ -790,7 +789,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		     (is_router = pndisc_is_router(&msg->target, dev)) >= 0)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
-			    inc != 0 &&
+			    inc &&
 			    idev->nd_parms->proxy_delay != 0) {
 				/*
 				 * for anycast or proxy,
@@ -1369,8 +1368,11 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	if (!ndisc_parse_options(msg->opt, ndoptlen, &ndopts))
 		return;
 
-	if (!ndopts.nd_opts_rh)
+	if (!ndopts.nd_opts_rh) {
+		ip6_redirect_no_header(skb, dev_net(skb->dev),
+					skb->dev->ifindex, 0);
 		return;
+	}
 
 	hdr = (u8 *)ndopts.nd_opts_rh;
 	hdr += 8;
@@ -1517,9 +1519,26 @@ static void pndisc_redo(struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+static bool ndisc_suppress_frag_ndisc(struct sk_buff *skb)
+{
+	struct inet6_dev *idev = __in6_dev_get(skb->dev);
+
+	if (!idev)
+		return true;
+	if (IP6CB(skb)->flags & IP6SKB_FRAGMENTED &&
+	    idev->cnf.suppress_frag_ndisc) {
+		net_warn_ratelimited("Received fragmented ndisc packet. Carefully consider disabling suppress_frag_ndisc.\n");
+		return true;
+	}
+	return false;
+}
+
 int ndisc_rcv(struct sk_buff *skb)
 {
 	struct nd_msg *msg;
+
+	if (ndisc_suppress_frag_ndisc(skb))
+		return 0;
 
 	if (skb_linearize(skb))
 		return 0;
@@ -1576,7 +1595,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		idev = in6_dev_get(dev);
 		if (!idev)
 			break;
@@ -1586,7 +1605,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		neigh_ifdown(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		break;
 	case NETDEV_NOTIFY_PEERS:
 		ndisc_send_unsol_na(dev);
@@ -1708,24 +1727,28 @@ int __init ndisc_init(void)
 	if (err)
 		goto out_unregister_pernet;
 #endif
-	err = register_netdevice_notifier(&ndisc_netdev_notifier);
-	if (err)
-		goto out_unregister_sysctl;
 out:
 	return err;
 
-out_unregister_sysctl:
 #ifdef CONFIG_SYSCTL
-	neigh_sysctl_unregister(&nd_tbl.parms);
 out_unregister_pernet:
-#endif
 	unregister_pernet_subsys(&ndisc_net_ops);
 	goto out;
+#endif
+}
+
+int __init ndisc_late_init(void)
+{
+	return register_netdevice_notifier(&ndisc_netdev_notifier);
+}
+
+void ndisc_late_cleanup(void)
+{
+	unregister_netdevice_notifier(&ndisc_netdev_notifier);
 }
 
 void ndisc_cleanup(void)
 {
-	unregister_netdevice_notifier(&ndisc_netdev_notifier);
 #ifdef CONFIG_SYSCTL
 	neigh_sysctl_unregister(&nd_tbl.parms);
 #endif

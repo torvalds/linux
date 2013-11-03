@@ -99,7 +99,6 @@
 #include <linux/prefetch.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/idr.h>
 #include <linux/dma-mapping.h>
 
 #include "musb_core.h"
@@ -920,6 +919,52 @@ static void musb_generic_disable(struct musb *musb)
 	temp = musb_readw(mbase, MUSB_INTRTX);
 	temp = musb_readw(mbase, MUSB_INTRRX);
 
+}
+
+/*
+ * Program the HDRC to start (enable interrupts, dma, etc.).
+ */
+void musb_start(struct musb *musb)
+{
+	void __iomem    *regs = musb->mregs;
+	u8              devctl = musb_readb(regs, MUSB_DEVCTL);
+
+	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
+
+	/*  Set INT enable registers, enable interrupts */
+	musb->intrtxe = musb->epmask;
+	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
+	musb->intrrxe = musb->epmask & 0xfffe;
+	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
+	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
+
+	musb_writeb(regs, MUSB_TESTMODE, 0);
+
+	/* put into basic highspeed mode and start session */
+	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
+			| MUSB_POWER_HSENAB
+			/* ENSUSPEND wedges tusb */
+			/* | MUSB_POWER_ENSUSPEND */
+		   );
+
+	musb->is_active = 0;
+	devctl = musb_readb(regs, MUSB_DEVCTL);
+	devctl &= ~MUSB_DEVCTL_SESSION;
+
+	/* session started after:
+	 * (a) ID-grounded irq, host mode;
+	 * (b) vbus present/connect IRQ, peripheral mode;
+	 * (c) peripheral initiates, using SRP
+	 */
+	if (musb->port_mode != MUSB_PORT_MODE_HOST &&
+			(devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
+		musb->is_active = 1;
+	} else {
+		devctl |= MUSB_DEVCTL_SESSION;
+	}
+
+	musb_platform_enable(musb);
+	musb_writeb(regs, MUSB_DEVCTL, devctl);
 }
 
 /*
@@ -1764,12 +1809,8 @@ static void musb_free(struct musb *musb)
 			disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
-	if (is_dma_capable() && musb->dma_controller) {
-		struct dma_controller	*c = musb->dma_controller;
-
-		(void) c->stop(c);
-		dma_controller_destroy(c);
-	}
+	if (musb->dma_controller)
+		dma_controller_destroy(musb->dma_controller);
 
 	musb_host_free(musb);
 }
@@ -1787,7 +1828,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 {
 	int			status;
 	struct musb		*musb;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 
 	/* The driver might handle more features than the board; OK.
 	 * Fail when the board needs a feature that's not enabled.
@@ -1844,19 +1885,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	pm_runtime_get_sync(musb->controller);
 
-#ifndef CONFIG_MUSB_PIO_ONLY
-	if (use_dma && dev->dma_mask) {
-		struct dma_controller	*c;
-
-		c = dma_controller_create(musb, musb->mregs);
-		musb->dma_controller = c;
-		if (c)
-			(void) c->start(c);
-	}
-#endif
-	/* ideally this would be abstracted in platform setup */
-	if (!is_dma_capable() || !musb->dma_controller)
-		dev->dma_mask = NULL;
+	if (use_dma && dev->dma_mask)
+		musb->dma_controller = dma_controller_create(musb, musb->mregs);
 
 	/* be sure interrupts are disabled before connecting ISR */
 	musb_platform_disable(musb);
@@ -1944,6 +1974,8 @@ fail4:
 	musb_gadget_cleanup(musb);
 
 fail3:
+	if (musb->dma_controller)
+		dma_controller_destroy(musb->dma_controller);
 	pm_runtime_put_sync(musb->controller);
 
 fail2:
@@ -2002,9 +2034,6 @@ static int musb_remove(struct platform_device *pdev)
 
 	musb_free(musb);
 	device_init_wakeup(dev, 0);
-#ifndef CONFIG_MUSB_PIO_ONLY
-	dma_set_mask(dev, *dev->parent->dma_mask);
-#endif
 	return 0;
 }
 

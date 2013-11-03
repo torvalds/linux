@@ -78,7 +78,7 @@ enum print_line_t trace_print_printk_msg_only(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_printf(s, "%s", field->buf);
+	ret = trace_seq_puts(s, field->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -558,14 +558,14 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 			if (ret)
 				ret = trace_seq_puts(s, "??");
 			if (ret)
-				ret = trace_seq_puts(s, "\n");
+				ret = trace_seq_putc(s, '\n');
 			continue;
 		}
 		if (!ret)
 			break;
 		if (ret)
 			ret = seq_print_user_ip(s, mm, ip, sym_flags);
-		ret = trace_seq_puts(s, "\n");
+		ret = trace_seq_putc(s, '\n');
 	}
 
 	if (mm)
@@ -579,7 +579,7 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	int ret;
 
 	if (!ip)
-		return trace_seq_printf(s, "0");
+		return trace_seq_putc(s, '0');
 
 	if (sym_flags & TRACE_ITER_SYM_OFFSET)
 		ret = seq_print_sym_offset(s, "%s", ip);
@@ -964,14 +964,14 @@ static enum print_line_t trace_fn_trace(struct trace_iterator *iter, int flags,
 		goto partial;
 
 	if ((flags & TRACE_ITER_PRINT_PARENT) && field->parent_ip) {
-		if (!trace_seq_printf(s, " <-"))
+		if (!trace_seq_puts(s, " <-"))
 			goto partial;
 		if (!seq_print_ip_sym(s,
 				      field->parent_ip,
 				      flags))
 			goto partial;
 	}
-	if (!trace_seq_printf(s, "\n"))
+	if (!trace_seq_putc(s, '\n'))
 		goto partial;
 
 	return TRACE_TYPE_HANDLED;
@@ -1210,7 +1210,7 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 		if (!seq_print_ip_sym(s, *p, flags))
 			goto partial;
-		if (!trace_seq_puts(s, "\n"))
+		if (!trace_seq_putc(s, '\n'))
 			goto partial;
 	}
 

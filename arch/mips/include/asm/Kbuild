@@ -1,2 +1,15 @@
 # MIPS headers
+generic-y += cputime.h
+generic-y += current.h
+generic-y += emergency-restart.h
+generic-y += local64.h
+generic-y += mutex.h
+generic-y += parport.h
+generic-y += percpu.h
+generic-y += scatterlist.h
+generic-y += sections.h
+generic-y += segment.h
+generic-y += serial.h
 generic-y += trace_clock.h
+generic-y += ucontext.h
+generic-y += xor.h

@@ -291,7 +291,7 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
  * @cpu : CPU ID
  * @power_state: CPU low power state.
  */
-int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
+int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 {
 	struct omap4_cpu_pm_info *pm_info = &per_cpu(omap4_pm_info, cpu);
 	unsigned int cpu_state = 0;

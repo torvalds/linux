@@ -90,9 +90,10 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 
 	/* SDRAM setup/hold time */
 	dcon_write(dcon, 0x3a, 0xc040);
-	dcon_write(dcon, 0x41, 0x0000);
-	dcon_write(dcon, 0x41, 0x0101);
-	dcon_write(dcon, 0x42, 0x0101);
+	dcon_write(dcon, DCON_REG_MEM_OPT_A, 0x0000);  /* clear option bits */
+	dcon_write(dcon, DCON_REG_MEM_OPT_A,
+				MEM_DLL_CLOCK_DELAY | MEM_POWER_DOWN);
+	dcon_write(dcon, DCON_REG_MEM_OPT_B, MEM_SOFT_RESET);
 
 	/* Colour swizzle, AA, no passthrough, backlight */
 	if (is_init) {
@@ -121,30 +122,31 @@ err:
 static int dcon_bus_stabilize(struct dcon_priv *dcon, int is_powered_down)
 {
 	unsigned long timeout;
+	u8 pm;
 	int x;
 
 power_up:
 	if (is_powered_down) {
-		x = 1;
-		x = olpc_ec_cmd(0x26, (unsigned char *)&x, 1, NULL, 0);
+		pm = 1;
+		x = olpc_ec_cmd(EC_DCON_POWER_MODE, &pm, 1, NULL, 0);
 		if (x) {
 			pr_warn("unable to force dcon to power up: %d!\n", x);
 			return x;
 		}
-		msleep(10); /* we'll be conservative */
+		usleep_range(10000, 11000);  /* we'll be conservative */
 	}
 
 	pdata->bus_stabilize_wiggle();
 
 	for (x = -1, timeout = 50; timeout && x < 0; timeout--) {
-		msleep(1);
+		usleep_range(1000, 1100);
 		x = dcon_read(dcon, DCON_REG_ID);
 	}
 	if (x < 0) {
 		pr_err("unable to stabilize dcon's smbus, reasserting power and praying.\n");
 		BUG_ON(olpc_board_at_least(olpc_board(0xc2)));
-		x = 0;
-		olpc_ec_cmd(0x26, (unsigned char *)&x, 1, NULL, 0);
+		pm = 0;
+		olpc_ec_cmd(EC_DCON_POWER_MODE, &pm, 1, NULL, 0);
 		msleep(100);
 		is_powered_down = 1;
 		goto power_up;	/* argh, stupid hardware.. */
@@ -207,8 +209,8 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
 		return;
 
 	if (sleep) {
-		x = 0;
-		x = olpc_ec_cmd(0x26, (unsigned char *)&x, 1, NULL, 0);
+		u8 pm = 0;
+		x = olpc_ec_cmd(EC_DCON_POWER_MODE, &pm, 1, NULL, 0);
 		if (x)
 			pr_warn("unable to force dcon to power down: %d!\n", x);
 		else

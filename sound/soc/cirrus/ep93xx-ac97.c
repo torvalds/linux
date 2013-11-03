@@ -102,13 +102,13 @@ static struct ep93xx_ac97_info *ep93xx_ac97_info;
 
 static struct ep93xx_dma_data ep93xx_ac97_pcm_out = {
 	.name		= "ac97-pcm-out",
-	.dma_port	= EP93XX_DMA_AAC1,
+	.port		= EP93XX_DMA_AAC1,
 	.direction	= DMA_MEM_TO_DEV,
 };
 
 static struct ep93xx_dma_data ep93xx_ac97_pcm_in = {
 	.name		= "ac97-pcm-in",
-	.dma_port	= EP93XX_DMA_AAC1,
+	.port		= EP93XX_DMA_AAC1,
 	.direction	= DMA_DEV_TO_MEM,
 };
 
@@ -363,9 +363,6 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	info->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);

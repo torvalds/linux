@@ -1,6 +1,6 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2007-2009 Solarflare Communications Inc.
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2007-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -147,8 +147,7 @@ enum efx_loopback_mode {
  * @RESET_TYPE_TX_WATCHDOG: reset due to TX watchdog
  * @RESET_TYPE_INT_ERROR: reset due to internal error
  * @RESET_TYPE_RX_RECOVERY: reset to recover from RX datapath errors
- * @RESET_TYPE_RX_DESC_FETCH: pcie error during rx descriptor fetch
- * @RESET_TYPE_TX_DESC_FETCH: pcie error during tx descriptor fetch
+ * @RESET_TYPE_DMA_ERROR: DMA error
  * @RESET_TYPE_TX_SKIP: hardware completed empty tx descriptors
  * @RESET_TYPE_MC_FAILURE: MC reboot/assertion
  */
@@ -163,8 +162,7 @@ enum reset_type {
 	RESET_TYPE_TX_WATCHDOG,
 	RESET_TYPE_INT_ERROR,
 	RESET_TYPE_RX_RECOVERY,
-	RESET_TYPE_RX_DESC_FETCH,
-	RESET_TYPE_TX_DESC_FETCH,
+	RESET_TYPE_DMA_ERROR,
 	RESET_TYPE_TX_SKIP,
 	RESET_TYPE_MC_FAILURE,
 	RESET_TYPE_MAX,

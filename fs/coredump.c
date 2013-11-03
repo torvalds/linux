@@ -190,6 +190,11 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				err = cn_printf(cn, "%d",
 					      task_tgid_vnr(current));
 				break;
+			/* global pid */
+			case 'P':
+				err = cn_printf(cn, "%d",
+					      task_tgid_nr(current));
+				break;
 			/* uid */
 			case 'u':
 				err = cn_printf(cn, "%d", cred->uid);

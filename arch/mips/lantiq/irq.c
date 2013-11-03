@@ -461,7 +461,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	return 0;
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return MIPS_CPU_TIMER_IRQ;
 }

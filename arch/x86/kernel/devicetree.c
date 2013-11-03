@@ -52,8 +52,7 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-					    unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
 	initrd_start = (unsigned long)__va(start);
 	initrd_end = (unsigned long)__va(end);
@@ -133,7 +132,7 @@ static void x86_of_pci_irq_disable(struct pci_dev *dev)
 {
 }
 
-void __cpuinit x86_of_pci_init(void)
+void x86_of_pci_init(void)
 {
 	pcibios_enable_irq = x86_of_pci_irq_enable;
 	pcibios_disable_irq = x86_of_pci_irq_disable;

@@ -68,7 +68,7 @@ struct nfc_ops {
 			     void *cb_context);
 	int (*tm_send)(struct nfc_dev *dev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_dev *dev, struct nfc_target *target);
-	int (*fw_upload)(struct nfc_dev *dev, const char *firmware_name);
+	int (*fw_download)(struct nfc_dev *dev, const char *firmware_name);
 
 	/* Secure Element API */
 	int (*discover_se)(struct nfc_dev *dev);
@@ -127,7 +127,7 @@ struct nfc_dev {
 	int targets_generation;
 	struct device dev;
 	bool dev_up;
-	bool fw_upload_in_progress;
+	bool fw_download_in_progress;
 	u8 rf_mode;
 	bool polling;
 	struct nfc_target *active_target;
@@ -223,6 +223,9 @@ struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
 int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 				 u8 *gt, u8 gt_len);
 u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len);
+
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			 u32 result);
 
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int ntargets);

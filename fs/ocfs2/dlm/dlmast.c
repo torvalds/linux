@@ -292,7 +292,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct dlm_lock *lock = NULL;
 	struct dlm_proxy_ast *past = (struct dlm_proxy_ast *) msg->buf;
 	char *name;
-	struct list_head *iter, *head=NULL;
+	struct list_head *head = NULL;
 	__be64 cookie;
 	u32 flags;
 	u8 node;
@@ -373,8 +373,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	/* try convert queue for both ast/bast */
 	head = &res->converting;
 	lock = NULL;
-	list_for_each(iter, head) {
-		lock = list_entry (iter, struct dlm_lock, list);
+	list_for_each_entry(lock, head, list) {
 		if (lock->ml.cookie == cookie)
 			goto do_ast;
 	}
@@ -385,8 +384,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	else
 		head = &res->granted;
 
-	list_for_each(iter, head) {
-		lock = list_entry (iter, struct dlm_lock, list);
+	list_for_each_entry(lock, head, list) {
 		if (lock->ml.cookie == cookie)
 			goto do_ast;
 	}

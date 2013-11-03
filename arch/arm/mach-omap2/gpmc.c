@@ -149,7 +149,7 @@ struct omap3_gpmc_regs {
 
 static struct gpmc_client_irq gpmc_client_irq[GPMC_NR_IRQ];
 static struct irq_chip gpmc_irq_chip;
-static unsigned gpmc_irq_start;
+static int gpmc_irq_start;
 
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
@@ -1491,8 +1491,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 */
 	ret = gpmc_cs_remap(cs, res.start);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot remap GPMC CS %d to 0x%x\n",
-			cs, res.start);
+		dev_err(&pdev->dev, "cannot remap GPMC CS %d to %pa\n",
+			cs, &res.start);
 		goto err;
 	}
 

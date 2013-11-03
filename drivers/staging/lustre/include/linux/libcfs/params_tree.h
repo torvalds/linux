@@ -54,7 +54,6 @@ typedef struct proc_inode		       cfs_proc_inode_t;
 typedef struct seq_file			 cfs_seq_file_t;
 typedef struct seq_operations		   cfs_seq_ops_t;
 typedef struct file_operations		  cfs_param_file_ops_t;
-typedef module_t			   *cfs_param_module_t;
 typedef struct proc_dir_entry		   cfs_param_dentry_t;
 typedef struct poll_table_struct		cfs_poll_table_t;
 #define CFS_PARAM_MODULE			THIS_MODULE
@@ -115,11 +114,10 @@ typedef struct cfs_seq_operations {
 	int   (*show) (cfs_seq_file_t *m, void *v);
 } cfs_seq_ops_t;
 
-typedef void *cfs_param_module_t;
 typedef void *cfs_poll_table_t;
 
 typedef struct cfs_param_file_ops {
-	cfs_param_module_t owner;
+	struct module *owner;
 	int (*open) (cfs_inode_t *, struct file *);
 	loff_t (*llseek)(struct file *, loff_t, int);
 	int (*release) (cfs_inode_t *, cfs_param_file_t *);

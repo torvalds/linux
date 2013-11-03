@@ -400,6 +400,7 @@ typedef struct
 #define PTRACE_POKE_SYSTEM_CALL	      0x5008
 #define PTRACE_ENABLE_TE	      0x5009
 #define PTRACE_DISABLE_TE	      0x5010
+#define PTRACE_TE_ABORT_RAND	      0x5011
 
 /*
  * PT_PROT definition is loosely based on hppa bsd definition in

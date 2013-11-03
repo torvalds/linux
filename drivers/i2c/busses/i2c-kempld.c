@@ -246,9 +246,9 @@ static void kempld_i2c_device_init(struct kempld_i2c_data *i2c)
 		bus_frequency = KEMPLD_I2C_FREQ_MAX;
 
 	if (pld->info.spec_major == 1)
-		prescale = pld->pld_clock / bus_frequency * 5 - 1000;
+		prescale = pld->pld_clock / (bus_frequency * 5) - 1000;
 	else
-		prescale = pld->pld_clock / bus_frequency * 4 - 3000;
+		prescale = pld->pld_clock / (bus_frequency * 4) - 3000;
 
 	if (prescale < 0)
 		prescale = 0;

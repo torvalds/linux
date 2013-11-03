@@ -1816,10 +1816,7 @@ static __be32 nfsd4_encode_fs_location4(struct nfsd4_fs_location *location,
 static __be32 nfsd4_encode_path(const struct path *root,
 		const struct path *path, __be32 **pp, int *buflen)
 {
-	struct path cur = {
-		.mnt = path->mnt,
-		.dentry = path->dentry,
-	};
+	struct path cur = *path;
 	__be32 *p = *pp;
 	struct dentry **components = NULL;
 	unsigned int ncomponents = 0;
@@ -1859,14 +1856,19 @@ static __be32 nfsd4_encode_path(const struct path *root,
 
 	while (ncomponents) {
 		struct dentry *dentry = components[ncomponents - 1];
-		unsigned int len = dentry->d_name.len;
+		unsigned int len;
 
+		spin_lock(&dentry->d_lock);
+		len = dentry->d_name.len;
 		*buflen -= 4 + (XDR_QUADLEN(len) << 2);
-		if (*buflen < 0)
+		if (*buflen < 0) {
+			spin_unlock(&dentry->d_lock);
 			goto out_free;
+		}
 		WRITE32(len);
 		WRITEMEM(dentry->d_name.name, len);
 		dprintk("/%s", dentry->d_name.name);
+		spin_unlock(&dentry->d_lock);
 		dput(dentry);
 		ncomponents--;
 	}
@@ -3360,7 +3362,8 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 		8 /* eir_clientid */ +
 		4 /* eir_sequenceid */ +
 		4 /* eir_flags */ +
-		4 /* spr_how (SP4_NONE) */ +
+		4 /* spr_how */ +
+		8 /* spo_must_enforce, spo_must_allow */ +
 		8 /* so_minor_id */ +
 		4 /* so_major_id.len */ +
 		(XDR_QUADLEN(major_id_sz) * 4) +
@@ -3372,8 +3375,6 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	WRITE32(exid->seqid);
 	WRITE32(exid->flags);
 
-	/* state_protect4_r. Currently only support SP4_NONE */
-	BUG_ON(exid->spa_how != SP4_NONE);
 	WRITE32(exid->spa_how);
 	switch (exid->spa_how) {
 	case SP4_NONE:

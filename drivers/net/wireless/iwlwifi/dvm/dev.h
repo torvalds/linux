@@ -540,7 +540,6 @@ struct iwl_rxon_context {
 enum iwl_scan_type {
 	IWL_SCAN_NORMAL,
 	IWL_SCAN_RADIO_RESET,
-	IWL_SCAN_ROC,
 };
 
 /**
@@ -824,12 +823,6 @@ struct iwl_priv {
 	/* counts reply_tx error */
 	struct reply_tx_error_statistics reply_tx_stats;
 	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
-
-	/* remain-on-channel offload support */
-	struct ieee80211_channel *hw_roc_channel;
-	struct delayed_work hw_roc_disable_work;
-	int hw_roc_duration;
-	bool hw_roc_setup, hw_roc_start_notified;
 
 	/* bt coex */
 	u8 bt_enable_flag;

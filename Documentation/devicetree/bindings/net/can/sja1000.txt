@@ -37,7 +37,7 @@ Optional properties:
 	If not specified or if the specified value is 0, the CLKOUT pin
 	will be disabled.
 
-- nxp,no-comparator-bypass : Allows to disable the CAN input comperator.
+- nxp,no-comparator-bypass : Allows to disable the CAN input comparator.
 
 For further information, please have a look to the SJA1000 data sheet.
 

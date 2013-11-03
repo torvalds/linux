@@ -305,67 +305,89 @@ CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
 }
 
 int
-CIFSCheckMFSymlink(struct cifs_fattr *fattr,
-		   const unsigned char *path,
-		   struct cifs_sb_info *cifs_sb, unsigned int xid)
+open_query_close_cifs_symlink(const unsigned char *path, char *pbuf,
+			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
+			unsigned int xid)
 {
 	int rc;
 	int oplock = 0;
 	__u16 netfid = 0;
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *ptcon;
 	struct cifs_io_parms io_parms;
-	u8 *buf;
-	char *pbuf;
-	unsigned int bytes_read = 0;
 	int buf_type = CIFS_NO_BUFFER;
-	unsigned int link_len = 0;
 	FILE_ALL_INFO file_info;
-
-	if (!CIFSCouldBeMFSymlink(fattr))
-		/* it's not a symlink */
-		return 0;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
+	ptcon = tlink_tcon(tlink);
 
-	rc = CIFSSMBOpen(xid, pTcon, path, FILE_OPEN, GENERIC_READ,
+	rc = CIFSSMBOpen(xid, ptcon, path, FILE_OPEN, GENERIC_READ,
 			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
 			 cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc != 0)
-		goto out;
+	if (rc != 0) {
+		cifs_put_tlink(tlink);
+		return rc;
+	}
 
 	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
-		CIFSSMBClose(xid, pTcon, netfid);
+		CIFSSMBClose(xid, ptcon, netfid);
+		cifs_put_tlink(tlink);
 		/* it's not a symlink */
-		goto out;
+		return rc;
 	}
+
+	io_parms.netfid = netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = ptcon;
+	io_parms.offset = 0;
+	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
+
+	rc = CIFSSMBRead(xid, &io_parms, pbytes_read, &pbuf, &buf_type);
+	CIFSSMBClose(xid, ptcon, netfid);
+	cifs_put_tlink(tlink);
+	return rc;
+}
+
+
+int
+CIFSCheckMFSymlink(struct cifs_fattr *fattr,
+		   const unsigned char *path,
+		   struct cifs_sb_info *cifs_sb, unsigned int xid)
+{
+	int rc = 0;
+	u8 *buf = NULL;
+	unsigned int link_len = 0;
+	unsigned int bytes_read = 0;
+	struct cifs_tcon *ptcon;
+
+	if (!CIFSCouldBeMFSymlink(fattr))
+		/* it's not a symlink */
+		return 0;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
 	if (!buf) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	pbuf = buf;
-	io_parms.netfid = netfid;
-	io_parms.pid = current->tgid;
-	io_parms.tcon = pTcon;
-	io_parms.offset = 0;
-	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
-	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
-	CIFSSMBClose(xid, pTcon, netfid);
-	if (rc != 0) {
-		kfree(buf);
+	ptcon = tlink_tcon(cifs_sb_tlink(cifs_sb));
+	if ((ptcon->ses) && (ptcon->ses->server->ops->query_mf_symlink))
+		rc = ptcon->ses->server->ops->query_mf_symlink(path, buf,
+						 &bytes_read, cifs_sb, xid);
+	else
 		goto out;
-	}
+
+	if (rc != 0)
+		goto out;
+
+	if (bytes_read == 0) /* not a symlink */
+		goto out;
 
 	rc = CIFSParseMFSymlink(buf, bytes_read, &link_len, NULL);
-	kfree(buf);
 	if (rc == -EINVAL) {
 		/* it's not a symlink */
 		rc = 0;
@@ -381,7 +403,7 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 	fattr->cf_mode |= S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO;
 	fattr->cf_dtype = DT_LNK;
 out:
-	cifs_put_tlink(tlink);
+	kfree(buf);
 	return rc;
 }
 
@@ -487,6 +509,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 
 	xid = get_xid();
 
@@ -497,25 +520,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 		goto out;
 	}
 	tcon = tlink_tcon(tlink);
-
-	/*
-	 * For now, we just handle symlinks with unix extensions enabled.
-	 * Eventually we should handle NTFS reparse points, and MacOS
-	 * symlink support. For instance...
-	 *
-	 * rc = CIFSSMBQueryReparseLinkInfo(...)
-	 *
-	 * For now, just return -EACCES when the server doesn't support posix
-	 * extensions. Note that we still allow querying symlinks when posix
-	 * extensions are manually disabled. We could disable these as well
-	 * but there doesn't seem to be any harm in allowing the client to
-	 * read them.
-	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
-	    !cap_unix(tcon->ses)) {
-		rc = -EACCES;
-		goto out;
-	}
+	server = tcon->ses->server;
 
 	full_path = build_path_from_dentry(direntry);
 	if (!full_path)
@@ -537,6 +542,9 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	if ((rc != 0) && cap_unix(tcon->ses))
 		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
 					     cifs_sb->local_nls);
+	else if (rc != 0 && server->ops->query_symlink)
+		rc = server->ops->query_symlink(xid, tcon, full_path,
+						&target_path, cifs_sb);
 
 	kfree(full_path);
 out:

@@ -25,11 +25,12 @@ struct siginfo;
 /*
  * Careful to keep union _sifields from shifting ...
  */
-#if __SIZEOF_LONG__ == 4
+#if _MIPS_SZLONG == 32
 #define __ARCH_SI_PREAMBLE_SIZE (3 * sizeof(int))
-#endif
-#if __SIZEOF_LONG__ == 8
+#elif _MIPS_SZLONG == 64
 #define __ARCH_SI_PREAMBLE_SIZE (4 * sizeof(int))
+#else
+#error _MIPS_SZLONG neither 32 nor 64
 #endif
 
 #include <asm-generic/siginfo.h>

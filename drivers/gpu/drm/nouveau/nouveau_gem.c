@@ -50,12 +50,6 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 		return;
 	nvbo->gem = NULL;
 
-	/* Lockdep hates you for doing reserve with gem object lock held */
-	if (WARN_ON_ONCE(nvbo->pin_refcnt)) {
-		nvbo->pin_refcnt = 1;
-		nouveau_bo_unpin(nvbo);
-	}
-
 	if (gem->import_attach)
 		drm_prime_gem_destroy(gem, nvbo->bo.sg);
 
@@ -226,7 +220,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 	}
 
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	rep->map_handle = nvbo->bo.addr_space_offset;
+	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.vma_node);
 	rep->tile_mode = nvbo->tile_mode;
 	rep->tile_flags = nvbo->tile_flags;
 	return 0;
@@ -585,18 +579,31 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	return 0;
 }
 
+static inline void
+u_free(void *addr)
+{
+	if (!is_vmalloc_addr(addr))
+		kfree(addr);
+	else
+		vfree(addr);
+}
+
 static inline void *
 u_memcpya(uint64_t user, unsigned nmemb, unsigned size)
 {
 	void *mem;
 	void __user *userptr = (void __force __user *)(uintptr_t)user;
 
-	mem = kmalloc(nmemb * size, GFP_KERNEL);
+	size *= nmemb;
+
+	mem = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
+	if (!mem)
+		mem = vmalloc(size);
 	if (!mem)
 		return ERR_PTR(-ENOMEM);
 
-	if (DRM_COPY_FROM_USER(mem, userptr, nmemb * size)) {
-		kfree(mem);
+	if (DRM_COPY_FROM_USER(mem, userptr, size)) {
+		u_free(mem);
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -682,7 +689,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 		nouveau_bo_wr32(nvbo, r->reloc_bo_offset >> 2, data);
 	}
 
-	kfree(reloc);
+	u_free(reloc);
 	return ret;
 }
 
@@ -744,7 +751,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 	bo = u_memcpya(req->buffers, req->nr_buffers, sizeof(*bo));
 	if (IS_ERR(bo)) {
-		kfree(push);
+		u_free(push);
 		return nouveau_abi16_put(abi16, PTR_ERR(bo));
 	}
 
@@ -855,8 +862,8 @@ out:
 	nouveau_fence_unref(&fence);
 
 out_prevalid:
-	kfree(bo);
-	kfree(push);
+	u_free(bo);
+	u_free(push);
 
 out_next:
 	if (chan->dma.ib_max) {

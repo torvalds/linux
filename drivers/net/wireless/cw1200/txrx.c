@@ -1165,7 +1165,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 		if (cw1200_handle_action_rx(priv, skb))
 			return;
 	} else if (ieee80211_is_beacon(frame->frame_control) &&
-		   !arg->status &&
+		   !arg->status && priv->vif &&
 		   !memcmp(ieee80211_get_SA(frame), priv->vif->bss_conf.bssid,
 			   ETH_ALEN)) {
 		const u8 *tim_ie;

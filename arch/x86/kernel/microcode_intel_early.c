@@ -34,7 +34,7 @@ struct mc_saved_data {
 	struct microcode_intel **mc_saved;
 } mc_saved_data;
 
-static enum ucode_state __cpuinit
+static enum ucode_state
 generic_load_microcode_early(struct microcode_intel **mc_saved_p,
 			     unsigned int mc_saved_count,
 			     struct ucode_cpu_info *uci)
@@ -69,7 +69,7 @@ out:
 	return state;
 }
 
-static void __cpuinit
+static void
 microcode_pointer(struct microcode_intel **mc_saved,
 		  unsigned long *mc_saved_in_initrd,
 		  unsigned long initrd_start, int mc_saved_count)
@@ -82,7 +82,7 @@ microcode_pointer(struct microcode_intel **mc_saved,
 }
 
 #ifdef CONFIG_X86_32
-static void __cpuinit
+static void
 microcode_phys(struct microcode_intel **mc_saved_tmp,
 	       struct mc_saved_data *mc_saved_data)
 {
@@ -101,7 +101,7 @@ microcode_phys(struct microcode_intel **mc_saved_tmp,
 }
 #endif
 
-static enum ucode_state __cpuinit
+static enum ucode_state
 load_microcode(struct mc_saved_data *mc_saved_data,
 	       unsigned long *mc_saved_in_initrd,
 	       unsigned long initrd_start,
@@ -375,7 +375,7 @@ do {						\
 #define native_wrmsr(msr, low, high)		\
 	native_write_msr(msr, low, high);
 
-static int __cpuinit collect_cpu_info_early(struct ucode_cpu_info *uci)
+static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 {
 	unsigned int val[2];
 	u8 x86, x86_model;
@@ -584,7 +584,7 @@ scan_microcode(unsigned long start, unsigned long end,
 /*
  * Print ucode update info.
  */
-static void __cpuinit
+static void
 print_ucode_info(struct ucode_cpu_info *uci, unsigned int date)
 {
 	int cpu = smp_processor_id();
@@ -605,7 +605,7 @@ static int current_mc_date;
 /*
  * Print early updated ucode info after printk works. This is delayed info dump.
  */
-void __cpuinit show_ucode_info_early(void)
+void show_ucode_info_early(void)
 {
 	struct ucode_cpu_info uci;
 
@@ -621,7 +621,7 @@ void __cpuinit show_ucode_info_early(void)
  * mc_saved_data.mc_saved and delay printing microcode info in
  * show_ucode_info_early() until printk() works.
  */
-static void __cpuinit print_ucode(struct ucode_cpu_info *uci)
+static void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_intel;
 	int *delay_ucode_info_p;
@@ -643,12 +643,12 @@ static void __cpuinit print_ucode(struct ucode_cpu_info *uci)
  * Flush global tlb. We only do this in x86_64 where paging has been enabled
  * already and PGE should be enabled as well.
  */
-static inline void __cpuinit flush_tlb_early(void)
+static inline void flush_tlb_early(void)
 {
 	__native_flush_tlb_global_irq_disabled();
 }
 
-static inline void __cpuinit print_ucode(struct ucode_cpu_info *uci)
+static inline void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_intel;
 
@@ -660,8 +660,8 @@ static inline void __cpuinit print_ucode(struct ucode_cpu_info *uci)
 }
 #endif
 
-static int __cpuinit apply_microcode_early(struct mc_saved_data *mc_saved_data,
-					   struct ucode_cpu_info *uci)
+static int apply_microcode_early(struct mc_saved_data *mc_saved_data,
+				 struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_intel;
 	unsigned int val[2];
@@ -763,7 +763,7 @@ load_ucode_intel_bsp(void)
 #endif
 }
 
-void __cpuinit load_ucode_intel_ap(void)
+void load_ucode_intel_ap(void)
 {
 	struct mc_saved_data *mc_saved_data_p;
 	struct ucode_cpu_info uci;

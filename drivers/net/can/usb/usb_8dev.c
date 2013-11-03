@@ -779,6 +779,7 @@ static int usb_8dev_start(struct usb_8dev_priv *priv)
 			usb_unanchor_urb(urb);
 			usb_free_coherent(priv->udev, RX_BUFFER_SIZE, buf,
 					  urb->transfer_dma);
+			usb_free_urb(urb);
 			break;
 		}
 

@@ -528,10 +528,8 @@ static void dr_cpu_mark(struct ds_data *resp, int cpu, int ncpus,
 	}
 }
 
-static int __cpuinit dr_cpu_configure(struct ds_info *dp,
-				      struct ds_cap_state *cp,
-				      u64 req_num,
-				      cpumask_t *mask)
+static int dr_cpu_configure(struct ds_info *dp, struct ds_cap_state *cp,
+			    u64 req_num, cpumask_t *mask)
 {
 	struct ds_data *resp;
 	int resp_len, ncpus, cpu;
@@ -627,9 +625,8 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 	return 0;
 }
 
-static void __cpuinit dr_cpu_data(struct ds_info *dp,
-				  struct ds_cap_state *cp,
-				  void *buf, int len)
+static void dr_cpu_data(struct ds_info *dp, struct ds_cap_state *cp, void *buf,
+			int len)
 {
 	struct ds_data *data = buf;
 	struct dr_cpu_tag *tag = (struct dr_cpu_tag *) (data + 1);
@@ -852,9 +849,8 @@ void ldom_reboot(const char *boot_command)
 	if (boot_command && strlen(boot_command)) {
 		unsigned long len;
 
-		strcpy(full_boot_str, "boot ");
-		strlcpy(full_boot_str + strlen("boot "), boot_command,
-			sizeof(full_boot_str + strlen("boot ")));
+		snprintf(full_boot_str, sizeof(full_boot_str), "boot %s",
+			 boot_command);
 		len = strlen(full_boot_str);
 
 		if (reboot_data_supported) {

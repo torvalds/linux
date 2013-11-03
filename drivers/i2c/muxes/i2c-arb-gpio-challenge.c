@@ -21,7 +21,6 @@
 #include <linux/i2c-mux.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -131,7 +130,7 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot find device tree node\n");
 		return -ENODEV;
 	}
-	if (dev->platform_data) {
+	if (dev_get_platdata(dev)) {
 		dev_err(dev, "Platform data is not supported\n");
 		return -EINVAL;
 	}
@@ -201,7 +200,7 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 	arb->parent = of_find_i2c_adapter_by_node(parent_np);
 	if (!arb->parent) {
 		dev_err(dev, "Cannot find parent bus\n");
-		return -EINVAL;
+		return -EPROBE_DEFER;
 	}
 
 	/* Actually add the mux adapter */

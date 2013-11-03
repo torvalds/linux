@@ -488,7 +488,6 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_ep *ep;
 	int status, i;
 
-#ifndef USBF_PHONET_INCLUDED
 	struct f_phonet_opts *phonet_opts;
 
 	phonet_opts = container_of(f->fi, struct f_phonet_opts, func_inst);
@@ -507,7 +506,6 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		phonet_opts->bound = true;
 	}
-#endif
 
 	/* Reserve interface IDs */
 	status = usb_interface_id(c, f);
@@ -656,8 +654,11 @@ static struct usb_function_instance *phonet_alloc_inst(void)
 
 	opts->func_inst.free_func_inst = phonet_free_inst;
 	opts->net = gphonet_setup_default();
-	if (IS_ERR(opts->net))
-		return ERR_PTR(PTR_ERR(opts->net));
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
 
 	config_group_init_type_name(&opts->func_inst.group, "",
 			&phonet_func_type);

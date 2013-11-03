@@ -135,6 +135,8 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->csa_chan = 0;
 	priv->csa_expire_time = 0;
+	priv->del_list_idx = 0;
+	priv->hs2_enabled = false;
 
 	return mwifiex_add_bss_prio_tbl(priv);
 }
@@ -377,16 +379,9 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 static void
 mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 {
-	int i;
-
 	if (!adapter) {
 		pr_err("%s: adapter is NULL\n", __func__);
 		return;
-	}
-
-	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i])
-			del_timer_sync(&adapter->priv[i]->scan_delay_timer);
 	}
 
 	mwifiex_cancel_all_pending_cmd(adapter);
@@ -398,12 +393,7 @@ mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 	dev_dbg(adapter->dev, "info: free cmd buffer\n");
 	mwifiex_free_cmd_buffer(adapter);
 
-	del_timer(&adapter->cmd_timer);
-
 	dev_dbg(adapter->dev, "info: free scan table\n");
-
-	if (adapter->if_ops.cleanup_if)
-		adapter->if_ops.cleanup_if(adapter);
 
 	if (adapter->sleep_cfm)
 		dev_kfree_skb_any(adapter->sleep_cfm);
@@ -693,7 +683,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		if (!ret) {
 			dev_notice(adapter->dev,
 				   "WLAN FW already running! Skip FW dnld\n");
-			goto done;
+			return 0;
 		}
 
 		poll_num = MAX_FIRMWARE_POLL_TRIES;
@@ -702,7 +692,6 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		if (!adapter->winner) {
 			dev_notice(adapter->dev,
 				   "FW already running! Skip FW dnld\n");
-			poll_num = MAX_MULTI_INTERFACE_POLL_TRIES;
 			goto poll_fw;
 		}
 	}
@@ -719,14 +708,8 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 poll_fw:
 	/* Check if the firmware is downloaded successfully or not */
 	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
-	if (ret) {
+	if (ret)
 		dev_err(adapter->dev, "FW failed to be active in time\n");
-		return -1;
-	}
-done:
-	/* re-enable host interrupt for mwifiex after fw dnld is successful */
-	if (adapter->if_ops.enable_int)
-		adapter->if_ops.enable_int(adapter);
 
 	return ret;
 }

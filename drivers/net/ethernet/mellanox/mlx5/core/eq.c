@@ -268,7 +268,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_PAGE_REQUEST:
 			{
 				u16 func_id = be16_to_cpu(eqe->data.req_pages.func_id);
-				s16 npages = be16_to_cpu(eqe->data.req_pages.num_pages);
+				s32 npages = be32_to_cpu(eqe->data.req_pages.num_pages);
 
 				mlx5_core_dbg(dev, "page request for func 0x%x, napges %d\n", func_id, npages);
 				mlx5_core_req_pages_handler(dev, func_id, npages);
@@ -366,9 +366,11 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		goto err_in;
 	}
 
+	snprintf(eq->name, MLX5_MAX_EQ_NAME, "%s@pci:%s",
+		 name, pci_name(dev->pdev));
 	eq->eqn = out.eq_number;
 	err = request_irq(table->msix_arr[vecidx].vector, mlx5_msix_handler, 0,
-			  name, eq);
+			  eq->name, eq);
 	if (err)
 		goto err_eq;
 

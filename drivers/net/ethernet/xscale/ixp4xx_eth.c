@@ -1384,7 +1384,7 @@ static int eth_init_one(struct platform_device *pdev)
 {
 	struct port *port;
 	struct net_device *dev;
-	struct eth_plat_info *plat = pdev->dev.platform_data;
+	struct eth_plat_info *plat = dev_get_platdata(&pdev->dev);
 	u32 regs_phys;
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	int err;

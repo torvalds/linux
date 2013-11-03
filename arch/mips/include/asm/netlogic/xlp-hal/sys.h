@@ -117,6 +117,36 @@
 #define SYS_SCRTCH2				0x4b
 #define SYS_SCRTCH3				0x4c
 
+/* PLL registers XLP2XX */
+#define SYS_PLL_CTRL0				0x240
+#define SYS_PLL_CTRL1				0x241
+#define SYS_PLL_CTRL2				0x242
+#define SYS_PLL_CTRL3				0x243
+#define SYS_DMC_PLL_CTRL0			0x244
+#define SYS_DMC_PLL_CTRL1			0x245
+#define SYS_DMC_PLL_CTRL2			0x246
+#define SYS_DMC_PLL_CTRL3			0x247
+
+#define SYS_PLL_CTRL0_DEVX(x)			(0x248 + (x) * 4)
+#define SYS_PLL_CTRL1_DEVX(x)			(0x249 + (x) * 4)
+#define SYS_PLL_CTRL2_DEVX(x)			(0x24a + (x) * 4)
+#define SYS_PLL_CTRL3_DEVX(x)			(0x24b + (x) * 4)
+
+#define SYS_CPU_PLL_CHG_CTRL			0x288
+#define SYS_PLL_CHG_CTRL			0x289
+#define SYS_CLK_DEV_DIS				0x28a
+#define SYS_CLK_DEV_SEL				0x28b
+#define SYS_CLK_DEV_DIV				0x28c
+#define SYS_CLK_DEV_CHG				0x28d
+#define SYS_CLK_DEV_SEL_REG			0x28e
+#define SYS_CLK_DEV_DIV_REG			0x28f
+#define SYS_CPU_PLL_LOCK			0x29f
+#define SYS_SYS_PLL_LOCK			0x2a0
+#define SYS_PLL_MEM_CMD				0x2a1
+#define SYS_CPU_PLL_MEM_REQ			0x2a2
+#define SYS_SYS_PLL_MEM_REQ			0x2a3
+#define SYS_PLL_MEM_STAT			0x2a4
+
 #ifndef __ASSEMBLY__
 
 #define nlm_read_sys_reg(b, r)		nlm_read_reg(b, r)
@@ -124,5 +154,6 @@
 #define nlm_get_sys_pcibase(node) nlm_pcicfg_base(XLP_IO_SYS_OFFSET(node))
 #define nlm_get_sys_regbase(node) (nlm_get_sys_pcibase(node) + XLP_IO_PCI_HDRSZ)
 
+unsigned int nlm_get_pic_frequency(int node);
 #endif
 #endif

@@ -70,20 +70,6 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 	clk_disable(priv->clk);
 }
 
-static void sh_mobile_sdhi_set_pwr(struct platform_device *pdev, int state)
-{
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-
-	p->set_pwr(pdev, state);
-}
-
-static int sh_mobile_sdhi_get_cd(struct platform_device *pdev)
-{
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-
-	return p->get_cd(pdev);
-}
-
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 {
 	int timeout = 1000;
@@ -127,9 +113,14 @@ static const struct sh_mobile_sdhi_ops sdhi_ops = {
 };
 
 static const struct of_device_id sh_mobile_sdhi_of_match[] = {
-	{ .compatible = "renesas,shmobile-sdhi" },
-	{ .compatible = "renesas,sh7372-sdhi" },
-	{ .compatible = "renesas,r8a7740-sdhi", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{ .compatible = "renesas,sdhi-shmobile" },
+	{ .compatible = "renesas,sdhi-sh7372" },
+	{ .compatible = "renesas,sdhi-sh73a0", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{ .compatible = "renesas,sdhi-r8a73a4", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{ .compatible = "renesas,sdhi-r8a7740", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{ .compatible = "renesas,sdhi-r8a7778", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{ .compatible = "renesas,sdhi-r8a7779", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{ .compatible = "renesas,sdhi-r8a7790", .data = &sh_mobile_sdhi_of_cfg[0], },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
@@ -180,10 +171,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities |= p->tmio_caps;
 		mmc_data->capabilities2 |= p->tmio_caps2;
 		mmc_data->cd_gpio = p->cd_gpio;
-		if (p->set_pwr)
-			mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
-		if (p->get_cd)
-			mmc_data->get_cd = sh_mobile_sdhi_get_cd;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			/*

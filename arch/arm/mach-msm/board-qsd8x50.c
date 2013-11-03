@@ -28,7 +28,6 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <mach/board.h>
 #include <mach/irqs.h>
 #include <mach/sirc.h>
 #include <mach/vreg.h>

@@ -60,7 +60,7 @@ struct nfcsim {
 static struct nfcsim *dev0;
 static struct nfcsim *dev1;
 
-struct workqueue_struct *wq;
+static struct workqueue_struct *wq;
 
 static void nfcsim_cleanup_dev(struct nfcsim *dev, u8 shutdown)
 {
@@ -481,7 +481,7 @@ static void nfcsim_free_device(struct nfcsim *dev)
 	kfree(dev);
 }
 
-int __init nfcsim_init(void)
+static int __init nfcsim_init(void)
 {
 	int rc;
 
@@ -522,7 +522,7 @@ exit:
 	return rc;
 }
 
-void __exit nfcsim_exit(void)
+static void __exit nfcsim_exit(void)
 {
 	nfcsim_cleanup_dev(dev0, 1);
 	nfcsim_cleanup_dev(dev1, 1);

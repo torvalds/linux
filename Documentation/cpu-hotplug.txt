@@ -267,8 +267,8 @@ Q: If i have some kernel code that needs to be aware of CPU arrival and
 A: This is what you would need in your kernel code to receive notifications.
 
 	#include <linux/cpu.h>
-	static int __cpuinit foobar_cpu_callback(struct notifier_block *nfb,
-					    unsigned long action, void *hcpu)
+	static int foobar_cpu_callback(struct notifier_block *nfb,
+				       unsigned long action, void *hcpu)
 	{
 		unsigned int cpu = (unsigned long)hcpu;
 
@@ -285,7 +285,7 @@ A: This is what you would need in your kernel code to receive notifications.
 		return NOTIFY_OK;
 	}
 
-	static struct notifier_block __cpuinitdata foobar_cpu_notifer =
+	static struct notifier_block foobar_cpu_notifer =
 	{
 	   .notifier_call = foobar_cpu_callback,
 	};

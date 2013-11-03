@@ -160,7 +160,8 @@ enum palmas_regulators {
 	PALMAS_REG_SMPS7,
 	PALMAS_REG_SMPS8,
 	PALMAS_REG_SMPS9,
-	PALMAS_REG_SMPS10,
+	PALMAS_REG_SMPS10_OUT2,
+	PALMAS_REG_SMPS10_OUT1,
 	/* LDO regulators */
 	PALMAS_REG_LDO1,
 	PALMAS_REG_LDO2,
@@ -181,6 +182,50 @@ enum palmas_regulators {
 	PALMAS_REG_SYSEN2,
 	/* Total number of regulators */
 	PALMAS_NUM_REGS,
+};
+
+/* External controll signal name */
+enum {
+	PALMAS_EXT_CONTROL_ENABLE1      = 0x1,
+	PALMAS_EXT_CONTROL_ENABLE2      = 0x2,
+	PALMAS_EXT_CONTROL_NSLEEP       = 0x4,
+};
+
+/*
+ * Palmas device resources can be controlled externally for
+ * enabling/disabling it rather than register write through i2c.
+ * Add the external controlled requestor ID for different resources.
+ */
+enum palmas_external_requestor_id {
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN1,
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN2,
+	PALMAS_EXTERNAL_REQSTR_ID_SYSEN1,
+	PALMAS_EXTERNAL_REQSTR_ID_SYSEN2,
+	PALMAS_EXTERNAL_REQSTR_ID_CLK32KG,
+	PALMAS_EXTERNAL_REQSTR_ID_CLK32KGAUDIO,
+	PALMAS_EXTERNAL_REQSTR_ID_REGEN3,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS12,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS3,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS45,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS6,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS7,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS8,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS9,
+	PALMAS_EXTERNAL_REQSTR_ID_SMPS10,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO1,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO2,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO3,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO4,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO5,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO6,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO7,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO8,
+	PALMAS_EXTERNAL_REQSTR_ID_LDO9,
+	PALMAS_EXTERNAL_REQSTR_ID_LDOLN,
+	PALMAS_EXTERNAL_REQSTR_ID_LDOUSB,
+
+	/* Last entry */
+	PALMAS_EXTERNAL_REQSTR_ID_MAX,
 };
 
 struct palmas_pmic_platform_data {
@@ -258,6 +303,7 @@ struct palmas_platform_data {
 	 */
 	int mux_from_pdata;
 	u8 pad1, pad2;
+	bool pm_off;
 
 	struct palmas_pmic_platform_data *pmic_pdata;
 	struct palmas_gpadc_platform_data *gpadc_pdata;
@@ -355,9 +401,9 @@ struct palmas_pmic {
 	int smps123;
 	int smps457;
 
-	int range[PALMAS_REG_SMPS10];
-	unsigned int ramp_delay[PALMAS_REG_SMPS10];
-	unsigned int current_reg_mode[PALMAS_REG_SMPS10];
+	int range[PALMAS_REG_SMPS10_OUT1];
+	unsigned int ramp_delay[PALMAS_REG_SMPS10_OUT1];
+	unsigned int current_reg_mode[PALMAS_REG_SMPS10_OUT1];
 };
 
 struct palmas_resource {
@@ -371,17 +417,15 @@ struct palmas_usb {
 
 	struct extcon_dev edev;
 
-	/* used to set vbus, in atomic path */
-	struct work_struct set_vbus_work;
-
 	int id_otg_irq;
 	int id_irq;
 	int vbus_otg_irq;
 	int vbus_irq;
 
-	int vbus_enable;
-
 	enum palmas_usb_state linkstat;
+	int wakeup;
+	bool enable_vbus_detection;
+	bool enable_id_detection;
 };
 
 #define comparator_to_palmas(x) container_of((x), struct palmas_usb, comparator)
@@ -449,7 +493,7 @@ enum usb_irq_events {
 #define PALMAS_DVFS_BASE					0x180
 #define PALMAS_PMU_CONTROL_BASE					0x1A0
 #define PALMAS_RESOURCE_BASE					0x1D4
-#define PALMAS_PU_PD_OD_BASE					0x1F4
+#define PALMAS_PU_PD_OD_BASE					0x1F0
 #define PALMAS_LED_BASE						0x200
 #define PALMAS_INTERRUPT_BASE					0x210
 #define PALMAS_USB_OTG_BASE					0x250
@@ -1734,16 +1778,20 @@ enum usb_irq_events {
 #define PALMAS_REGEN3_CTRL_MODE_ACTIVE_SHIFT			0
 
 /* Registers for function PAD_CONTROL */
-#define PALMAS_PU_PD_INPUT_CTRL1				0x0
-#define PALMAS_PU_PD_INPUT_CTRL2				0x1
-#define PALMAS_PU_PD_INPUT_CTRL3				0x2
-#define PALMAS_OD_OUTPUT_CTRL					0x4
-#define PALMAS_POLARITY_CTRL					0x5
-#define PALMAS_PRIMARY_SECONDARY_PAD1				0x6
-#define PALMAS_PRIMARY_SECONDARY_PAD2				0x7
-#define PALMAS_I2C_SPI						0x8
-#define PALMAS_PU_PD_INPUT_CTRL4				0x9
-#define PALMAS_PRIMARY_SECONDARY_PAD3				0xA
+#define PALMAS_OD_OUTPUT_CTRL2					0x2
+#define PALMAS_POLARITY_CTRL2					0x3
+#define PALMAS_PU_PD_INPUT_CTRL1				0x4
+#define PALMAS_PU_PD_INPUT_CTRL2				0x5
+#define PALMAS_PU_PD_INPUT_CTRL3				0x6
+#define PALMAS_PU_PD_INPUT_CTRL5				0x7
+#define PALMAS_OD_OUTPUT_CTRL					0x8
+#define PALMAS_POLARITY_CTRL					0x9
+#define PALMAS_PRIMARY_SECONDARY_PAD1				0xA
+#define PALMAS_PRIMARY_SECONDARY_PAD2				0xB
+#define PALMAS_I2C_SPI						0xC
+#define PALMAS_PU_PD_INPUT_CTRL4				0xD
+#define PALMAS_PRIMARY_SECONDARY_PAD3				0xE
+#define PALMAS_PRIMARY_SECONDARY_PAD4				0xF
 
 /* Bit definitions for PU_PD_INPUT_CTRL1 */
 #define PALMAS_PU_PD_INPUT_CTRL1_RESET_IN_PD			0x40
@@ -2501,6 +2549,15 @@ enum usb_irq_events {
 #define PALMAS_PU_PD_GPIO_CTRL1					0x6
 #define PALMAS_PU_PD_GPIO_CTRL2					0x7
 #define PALMAS_OD_OUTPUT_GPIO_CTRL				0x8
+#define PALMAS_GPIO_DATA_IN2					0x9
+#define PALMAS_GPIO_DATA_DIR2					0x0A
+#define PALMAS_GPIO_DATA_OUT2					0x0B
+#define PALMAS_GPIO_DEBOUNCE_EN2				0x0C
+#define PALMAS_GPIO_CLEAR_DATA_OUT2				0x0D
+#define PALMAS_GPIO_SET_DATA_OUT2				0x0E
+#define PALMAS_PU_PD_GPIO_CTRL3					0x0F
+#define PALMAS_PU_PD_GPIO_CTRL4					0x10
+#define PALMAS_OD_OUTPUT_GPIO_CTRL2				0x11
 
 /* Bit definitions for GPIO_DATA_IN */
 #define PALMAS_GPIO_DATA_IN_GPIO_7_IN				0x80
@@ -2865,5 +2922,10 @@ static inline int palmas_irq_get_virq(struct palmas *palmas, int irq)
 {
 	return regmap_irq_get_virq(palmas->irq_data, irq);
 }
+
+
+int palmas_ext_control_req_config(struct palmas *palmas,
+	enum palmas_external_requestor_id ext_control_req_id,
+	int ext_ctrl, bool enable);
 
 #endif /*  __LINUX_MFD_PALMAS_H */

@@ -105,7 +105,7 @@ void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df)
 int hypfs_dbfs_init(void)
 {
 	dbfs_dir = debugfs_create_dir("s390_hypfs", NULL);
-	return PTR_RET(dbfs_dir);
+	return PTR_ERR_OR_ZERO(dbfs_dir);
 }
 
 void hypfs_dbfs_exit(void)

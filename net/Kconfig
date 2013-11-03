@@ -228,7 +228,7 @@ config RPS
 
 config RFS_ACCEL
 	boolean
-	depends on RPS && GENERIC_HARDIRQS
+	depends on RPS
 	select CPU_RMAP
 	default y
 
@@ -244,7 +244,7 @@ config NETPRIO_CGROUP
 	  Cgroup subsystem for use in assigning processes to network priorities on
 	  a per-interface basis
 
-config NET_LL_RX_POLL
+config NET_RX_BUSY_POLL
 	boolean
 	default y
 
@@ -281,7 +281,7 @@ menu "Network testing"
 
 config NET_PKTGEN
 	tristate "Packet Generator (USE WITH CAUTION)"
-	depends on PROC_FS
+	depends on INET && PROC_FS
 	---help---
 	  This module will inject preconfigured packets, at a configurable
 	  rate, out of a given interface.  It is used for network interface

@@ -473,7 +473,7 @@ static int entry(u64 ip, struct thread *thread, struct machine *machine,
 
 	thread__find_addr_location(thread, machine,
 				   PERF_RECORD_MISC_USER,
-				   MAP__FUNCTION, ip, &al, NULL);
+				   MAP__FUNCTION, ip, &al);
 
 	e.ip = ip;
 	e.map = al.map;

@@ -3,7 +3,14 @@ Texas Instruments - tlv320aic3x Codec module
 The tlv320aic3x serial control bus communicates through I2C protocols
 
 Required properties:
-- compatible - "string" -  "ti,tlv320aic3x"
+
+- compatible - "string" - One of:
+    "ti,tlv320aic3x" - Generic TLV320AIC3x device
+    "ti,tlv320aic33" - TLV320AIC33
+    "ti,tlv320aic3007" - TLV320AIC3007
+    "ti,tlv320aic3106" - TLV320AIC3106
+
+
 - reg - <int> -  I2C slave address
 
 

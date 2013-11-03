@@ -1,0 +1,4 @@
+config USB_MSI3101
+	tristate "Mirics MSi3101 SDR Dongle"
+	depends on USB && VIDEO_DEV && VIDEO_V4L2
+        select VIDEOBUF2_VMALLOC

@@ -20,7 +20,6 @@
 
 #include <linux/bug.h>
 
-#include "core.h"
 #include "htc.h"
 #include "rx_desc.h"
 
@@ -1317,7 +1316,7 @@ struct htt_rx_desc {
 #define HTT_LOG2_MAX_CACHE_LINE_SIZE 7	/* 2^7 = 128 */
 #define HTT_MAX_CACHE_LINE_SIZE_MASK ((1 << HTT_LOG2_MAX_CACHE_LINE_SIZE) - 1)
 
-struct ath10k_htt *ath10k_htt_attach(struct ath10k *ar);
+int ath10k_htt_attach(struct ath10k *ar);
 int ath10k_htt_attach_target(struct ath10k_htt *htt);
 void ath10k_htt_detach(struct ath10k_htt *htt);
 

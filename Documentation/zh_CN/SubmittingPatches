@@ -146,7 +146,7 @@ Majordomo lists of VGER.KERNEL.ORG at:
         <http://vger.kernel.org/vger-lists.html>
 
 如果改动影响了用户空间和内核之间的接口，请给 MAN-PAGES 的维护者（列在
-MAITAINERS 文件里的）发送一个手册页（man-pages）补丁，或者至少通知一下改
+MAINTAINERS 文件里的）发送一个手册页（man-pages）补丁，或者至少通知一下改
 变，让一些信息有途径进入手册页。
 
 即使在第四步的时候，维护者没有作出回应，也要确认在修改他们的代码的时候

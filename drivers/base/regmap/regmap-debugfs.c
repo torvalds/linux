@@ -85,8 +85,8 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	unsigned int reg_offset;
 
 	/* Suppress the cache if we're using a subrange */
-	if (from)
-		return from;
+	if (base)
+		return base;
 
 	/*
 	 * If we don't have a cache build one so we don't have to do a
@@ -281,7 +281,7 @@ static ssize_t regmap_map_write_file(struct file *file,
 	reg = simple_strtoul(start, &start, 16);
 	while (*start == ' ')
 		start++;
-	if (strict_strtoul(start, 16, &value))
+	if (kstrtoul(start, 16, &value))
 		return -EINVAL;
 
 	/* Userspace has been fiddling around behind the kernel's back */

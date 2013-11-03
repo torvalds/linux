@@ -1350,8 +1350,11 @@ static struct usb_function_instance *ncm_alloc_inst(void)
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = ncm_free_inst;
 	opts->net = gether_setup_default();
-	if (IS_ERR(opts->net))
-		return ERR_PTR(PTR_ERR(opts->net));
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
 
 	config_group_init_type_name(&opts->func_inst.group, "", &ncm_func_type);
 

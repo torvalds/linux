@@ -152,7 +152,6 @@ struct upcall_cache_entry *upcall_cache_get_entry(struct upcall_cache *cache,
 	struct list_head *head;
 	wait_queue_t wait;
 	int rc, found;
-	ENTRY;
 
 	LASSERT(cache);
 
@@ -176,7 +175,7 @@ find_again:
 			new = alloc_entry(cache, key, args);
 			if (!new) {
 				CERROR("fail to alloc entry\n");
-				RETURN(ERR_PTR(-ENOMEM));
+				return ERR_PTR(-ENOMEM);
 			}
 			goto find_again;
 		} else {
@@ -266,17 +265,14 @@ find_again:
 	/* Now we know it's good */
 out:
 	spin_unlock(&cache->uc_lock);
-	RETURN(entry);
+	return entry;
 }
 EXPORT_SYMBOL(upcall_cache_get_entry);
 
 void upcall_cache_put_entry(struct upcall_cache *cache,
 			    struct upcall_cache_entry *entry)
 {
-	ENTRY;
-
 	if (!entry) {
-		EXIT;
 		return;
 	}
 
@@ -284,7 +280,6 @@ void upcall_cache_put_entry(struct upcall_cache *cache,
 	spin_lock(&cache->uc_lock);
 	put_entry(cache, entry);
 	spin_unlock(&cache->uc_lock);
-	EXIT;
 }
 EXPORT_SYMBOL(upcall_cache_put_entry);
 
@@ -294,7 +289,6 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 	struct upcall_cache_entry *entry = NULL;
 	struct list_head *head;
 	int found = 0, rc = 0;
-	ENTRY;
 
 	LASSERT(cache);
 
@@ -314,7 +308,7 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 		       cache->uc_name, key);
 		/* haven't found, it's possible */
 		spin_unlock(&cache->uc_lock);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (err) {
@@ -356,7 +350,7 @@ out:
 	wake_up_all(&entry->ue_waitq);
 	put_entry(cache, entry);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(upcall_cache_downcall);
 
@@ -364,7 +358,6 @@ static void cache_flush(struct upcall_cache *cache, int force)
 {
 	struct upcall_cache_entry *entry, *next;
 	int i;
-	ENTRY;
 
 	spin_lock(&cache->uc_lock);
 	for (i = 0; i < UC_CACHE_HASH_SIZE; i++) {
@@ -379,7 +372,6 @@ static void cache_flush(struct upcall_cache *cache, int force)
 		}
 	}
 	spin_unlock(&cache->uc_lock);
-	EXIT;
 }
 
 void upcall_cache_flush_idle(struct upcall_cache *cache)
@@ -399,7 +391,6 @@ void upcall_cache_flush_one(struct upcall_cache *cache, __u64 key, void *args)
 	struct list_head *head;
 	struct upcall_cache_entry *entry;
 	int found = 0;
-	ENTRY;
 
 	head = &cache->uc_hashtable[UC_CACHE_HASH_INDEX(key)];
 
@@ -431,11 +422,10 @@ struct upcall_cache *upcall_cache_init(const char *name, const char *upcall,
 {
 	struct upcall_cache *cache;
 	int i;
-	ENTRY;
 
 	LIBCFS_ALLOC(cache, sizeof(*cache));
 	if (!cache)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&cache->uc_lock);
 	rwlock_init(&cache->uc_upcall_rwlock);
@@ -448,7 +438,7 @@ struct upcall_cache *upcall_cache_init(const char *name, const char *upcall,
 	cache->uc_acquire_expire = 30;
 	cache->uc_ops = ops;
 
-	RETURN(cache);
+	return cache;
 }
 EXPORT_SYMBOL(upcall_cache_init);
 

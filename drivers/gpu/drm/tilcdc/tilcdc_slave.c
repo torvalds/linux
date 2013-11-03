@@ -16,7 +16,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/of_i2c.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
 #include <drm/drm_encoder_slave.h>
@@ -73,13 +72,38 @@ static void slave_encoder_prepare(struct drm_encoder *encoder)
 	tilcdc_crtc_set_panel_info(encoder->crtc, &slave_info);
 }
 
+static bool slave_encoder_fixup(struct drm_encoder *encoder,
+		const struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+{
+	/*
+	 * tilcdc does not generate VESA-complient sync but aligns
+	 * VS on the second edge of HS instead of first edge.
+	 * We use adjusted_mode, to fixup sync by aligning both rising
+	 * edges and add HSKEW offset to let the slave encoder fix it up.
+	 */
+	adjusted_mode->hskew = mode->hsync_end - mode->hsync_start;
+	adjusted_mode->flags |= DRM_MODE_FLAG_HSKEW;
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC) {
+		adjusted_mode->flags |= DRM_MODE_FLAG_PHSYNC;
+		adjusted_mode->flags &= ~DRM_MODE_FLAG_NHSYNC;
+	} else {
+		adjusted_mode->flags |= DRM_MODE_FLAG_NHSYNC;
+		adjusted_mode->flags &= ~DRM_MODE_FLAG_PHSYNC;
+	}
+
+	return drm_i2c_encoder_mode_fixup(encoder, mode, adjusted_mode);
+}
+
+
 static const struct drm_encoder_funcs slave_encoder_funcs = {
 		.destroy        = slave_encoder_destroy,
 };
 
 static const struct drm_encoder_helper_funcs slave_encoder_helper_funcs = {
 		.dpms           = drm_i2c_encoder_dpms,
-		.mode_fixup     = drm_i2c_encoder_mode_fixup,
+		.mode_fixup     = slave_encoder_fixup,
 		.prepare        = slave_encoder_prepare,
 		.commit         = drm_i2c_encoder_commit,
 		.mode_set       = drm_i2c_encoder_mode_set,

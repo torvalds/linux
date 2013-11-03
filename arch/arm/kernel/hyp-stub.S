@@ -56,8 +56,8 @@ ENTRY(__boot_cpu_mode)
 	ldr	\reg3, [\reg2]
 	ldr	\reg1, [\reg2, \reg3]
 	cmp	\mode, \reg1		@ matches primary CPU boot mode?
-	orrne	r7, r7, #BOOT_CPU_MODE_MISMATCH
-	strne	r7, [r5, r6]		@ record what happened and give up
+	orrne	\reg1, \reg1, #BOOT_CPU_MODE_MISMATCH
+	strne	\reg1, [\reg2, \reg3]	@ record what happened and give up
 	.endm
 
 #else	/* ZIMAGE */

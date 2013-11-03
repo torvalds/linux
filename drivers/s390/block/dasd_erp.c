@@ -124,10 +124,15 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *cqr)
 {
 	int success;
+	unsigned long long startclk, stopclk;
+	struct dasd_device *startdev;
 
 	BUG_ON(cqr->refers == NULL || cqr->function == NULL);
 
 	success = cqr->status == DASD_CQR_DONE;
+	startclk = cqr->startclk;
+	stopclk = cqr->stopclk;
+	startdev = cqr->startdev;
 
 	/* free all ERPs - but NOT the original cqr */
 	while (cqr->refers != NULL) {
@@ -142,6 +147,9 @@ struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *cqr)
 	}
 
 	/* set corresponding status to original cqr */
+	cqr->startclk = startclk;
+	cqr->stopclk = stopclk;
+	cqr->startdev = startdev;
 	if (success)
 		cqr->status = DASD_CQR_DONE;
 	else {
@@ -160,11 +168,13 @@ dasd_log_sense(struct dasd_ccw_req *cqr, struct irb *irb)
 
 	device = cqr->startdev;
 	if (cqr->intrc == -ETIMEDOUT) {
-		dev_err(&device->cdev->dev, "cqr %p timeout error", cqr);
+		dev_err(&device->cdev->dev,
+			"A timeout error occurred for cqr %p", cqr);
 		return;
 	}
 	if (cqr->intrc == -ENOLINK) {
-		dev_err(&device->cdev->dev, "cqr %p transport error", cqr);
+		dev_err(&device->cdev->dev,
+			"A transport error occurred for cqr %p", cqr);
 		return;
 	}
 	/* dump sense data */

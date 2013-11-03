@@ -129,7 +129,7 @@ static int as3711_i2c_probe(struct i2c_client *client,
 	int ret;
 
 	if (!client->dev.of_node) {
-		pdata = client->dev.platform_data;
+		pdata = dev_get_platdata(&client->dev);
 		if (!pdata)
 			dev_dbg(&client->dev, "Platform data not found\n");
 	} else {

@@ -199,4 +199,7 @@ extern const struct dcbnl_rtnl_ops bnx2x_dcbnl_ops;
 int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall);
 #endif /* BCM_DCBNL */
 
+int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp);
+int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp);
+
 #endif /* BNX2X_DCB_H */

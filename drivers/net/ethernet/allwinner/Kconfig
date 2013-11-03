@@ -3,19 +3,20 @@
 #
 
 config NET_VENDOR_ALLWINNER
-       bool "Allwinner devices"
-       default y
-       depends on ARCH_SUNXI
-       ---help---
-         If you have a network (Ethernet) card belonging to this
-	 class, say Y and read the Ethernet-HOWTO, available from
-	 <http://www.tldp.org/docs.html#howto>.
+	bool "Allwinner devices"
+	default y
 
-	 Note that the answer to this question doesn't directly
-	 affect the kernel: saying N will just cause the configurator
-	 to skip all the questions about Allwinner cards. If you say Y,
-	 you will be asked for your specific card in the following
-	 questions.
+	depends on ARCH_SUNXI
+	---help---
+	  If you have a network (Ethernet) card belonging to this
+	  class, say Y and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly
+	  affect the kernel: saying N will just cause the configurator
+	  to skip all the questions about Allwinner cards. If you say Y,
+	  you will be asked for your specific card in the following
+	  questions.
 
 if NET_VENDOR_ALLWINNER
 
@@ -26,6 +27,7 @@ config SUN4I_EMAC
 	select CRC32
 	select MII
 	select PHYLIB
+	select MDIO_SUN4I
         ---help---
           Support for Allwinner A10 EMAC ethernet driver.
 

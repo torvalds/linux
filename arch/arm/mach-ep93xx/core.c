@@ -281,7 +281,7 @@ static AMBA_APB_DEVICE(uart1, "apb:uart1", 0x00041010, EP93XX_UART1_PHYS_BASE,
 	{ IRQ_EP93XX_UART1 }, &ep93xx_uart_data);
 
 static AMBA_APB_DEVICE(uart2, "apb:uart2", 0x00041010, EP93XX_UART2_PHYS_BASE,
-	{ IRQ_EP93XX_UART2 }, &ep93xx_uart_data);
+	{ IRQ_EP93XX_UART2 }, NULL);
 
 static AMBA_APB_DEVICE(uart3, "apb:uart3", 0x00041010, EP93XX_UART3_PHYS_BASE,
 	{ IRQ_EP93XX_UART3 }, &ep93xx_uart_data);

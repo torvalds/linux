@@ -1011,6 +1011,11 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Must release MDIO ownership and mutex after MAC reset. */
 	switch (hw->mac.type) {
+	case e1000_82573:
+		/* Release mutex only if the hw semaphore is acquired */
+		if (!ret_val)
+			e1000_put_hw_semaphore_82573(hw);
+		break;
 	case e1000_82574:
 	case e1000_82583:
 		/* Release mutex only if the hw semaphore is acquired */
@@ -2057,6 +2062,7 @@ const struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
 	.flags2			= FLAG2_DISABLE_ASPM_L0S
+				  | FLAG2_DISABLE_ASPM_L1
 				  | FLAG2_NO_DISABLE_RX,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,

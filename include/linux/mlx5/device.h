@@ -181,7 +181,7 @@ enum {
 	MLX5_DEV_CAP_FLAG_TLP_HINTS	= 1LL << 39,
 	MLX5_DEV_CAP_FLAG_SIG_HAND_OVER	= 1LL << 40,
 	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 41,
-	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 1LL << 46,
+	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 3LL << 46,
 };
 
 enum {
@@ -309,21 +309,20 @@ struct mlx5_hca_cap {
 	__be16	max_desc_sz_rq;
 	u8	rsvd21[2];
 	__be16	max_desc_sz_sq_dc;
-	u8	rsvd22[4];
-	__be16	max_qp_mcg;
-	u8	rsvd23;
+	__be32	max_qp_mcg;
+	u8	rsvd22[3];
 	u8	log_max_mcg;
-	u8	rsvd24;
+	u8	rsvd23;
 	u8	log_max_pd;
-	u8	rsvd25;
+	u8	rsvd24;
 	u8	log_max_xrcd;
-	u8	rsvd26[42];
+	u8	rsvd25[42];
 	__be16  log_uar_page_sz;
-	u8	rsvd27[28];
+	u8	rsvd26[28];
 	u8	log_msx_atomic_size_qp;
-	u8	rsvd28[2];
+	u8	rsvd27[2];
 	u8	log_msx_atomic_size_dc;
-	u8	rsvd29[76];
+	u8	rsvd28[76];
 };
 
 
@@ -418,7 +417,7 @@ struct mlx5_init_seg {
 	struct health_buffer	health;
 	__be32			rsvd2[884];
 	__be32			health_counter;
-	__be32			rsvd3[1023];
+	__be32			rsvd3[1019];
 	__be64			ieee1588_clk;
 	__be32			ieee1588_clk_type;
 	__be32			clr_intx;
@@ -472,9 +471,8 @@ struct mlx5_eqe_cmd {
 struct mlx5_eqe_page_req {
 	u8		rsvd0[2];
 	__be16		func_id;
-	u8		rsvd1[2];
-	__be16		num_pages;
-	__be32		rsvd2[5];
+	__be32		num_pages;
+	__be32		rsvd1[5];
 };
 
 union ev_data {
@@ -688,6 +686,26 @@ struct mlx5_query_cq_mbox_out {
 	struct mlx5_cq_context	ctx;
 	u8			rsvd6[16];
 	__be64			pas[0];
+};
+
+struct mlx5_enable_hca_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_enable_hca_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_disable_hca_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_disable_hca_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
 };
 
 struct mlx5_eq_context {

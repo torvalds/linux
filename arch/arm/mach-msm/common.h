@@ -14,13 +14,10 @@
 
 extern void msm7x01_timer_init(void);
 extern void msm7x30_timer_init(void);
-extern void msm_dt_timer_init(void);
 extern void qsd8x50_timer_init(void);
 
 extern void msm_map_common_io(void);
 extern void msm_map_msm7x30_io(void);
-extern void msm_map_msm8x60_io(void);
-extern void msm_map_msm8960_io(void);
 extern void msm_map_qsd8x50_io(void);
 
 extern void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
@@ -28,5 +25,20 @@ extern void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 
 extern struct smp_operations msm_smp_ops;
 extern void msm_cpu_die(unsigned int cpu);
+
+struct msm_mmc_platform_data;
+
+extern void msm_add_devices(void);
+extern void msm_init_irq(void);
+extern void msm_init_gpio(void);
+extern int msm_add_sdcc(unsigned int controller,
+			struct msm_mmc_platform_data *plat,
+			unsigned int stat_irq, unsigned long stat_irq_flags);
+
+#if defined(CONFIG_MSM_SMD) && defined(CONFIG_DEBUG_FS)
+extern int smd_debugfs_init(void);
+#else
+static inline int smd_debugfs_init(void) { return 0; }
+#endif
 
 #endif

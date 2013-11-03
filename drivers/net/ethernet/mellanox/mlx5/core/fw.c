@@ -113,7 +113,7 @@ int mlx5_cmd_query_hca_cap(struct mlx5_core_dev *dev,
 	caps->log_max_srq = out->hca_cap.log_max_srqs & 0x1f;
 	caps->local_ca_ack_delay = out->hca_cap.local_ca_ack_delay & 0x1f;
 	caps->log_max_mcg = out->hca_cap.log_max_mcg;
-	caps->max_qp_mcg = be16_to_cpu(out->hca_cap.max_qp_mcg);
+	caps->max_qp_mcg = be32_to_cpu(out->hca_cap.max_qp_mcg) & 0xffffff;
 	caps->max_ra_res_qp = 1 << (out->hca_cap.log_max_ra_res_qp & 0x3f);
 	caps->max_ra_req_qp = 1 << (out->hca_cap.log_max_ra_req_qp & 0x3f);
 	caps->max_srq_wqes = 1 << out->hca_cap.log_max_srq_sz;

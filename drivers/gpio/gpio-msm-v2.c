@@ -106,7 +106,7 @@ struct msm_gpio_dev {
 	void __iomem *msm_tlmm_base;
 };
 
-struct msm_gpio_dev msm_gpio;
+static struct msm_gpio_dev msm_gpio;
 
 #define GPIO_INTR_CFG_SU(gpio)    (msm_gpio.msm_tlmm_base + 0x0400 + \
 								(0x04 * (gpio)))
@@ -378,7 +378,7 @@ static int msm_gpio_probe(struct platform_device *pdev)
 	int ret, ngpio;
 	struct resource *res;
 
-	if (!of_property_read_u32(pdev->dev.of_node, "ngpio", &ngpio)) {
+	if (of_property_read_u32(pdev->dev.of_node, "ngpio", &ngpio)) {
 		dev_err(&pdev->dev, "%s: ngpio property missing\n", __func__);
 		return -EINVAL;
 	}

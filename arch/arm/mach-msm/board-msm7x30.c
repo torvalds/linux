@@ -30,7 +30,6 @@
 #include <asm/memory.h>
 #include <asm/setup.h>
 
-#include <mach/board.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
 

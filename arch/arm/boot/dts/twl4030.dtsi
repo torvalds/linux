@@ -47,6 +47,12 @@
 		regulator-max-microvolt = <3150000>;
 	};
 
+	vmmc2: regulator-vmmc2 {
+		compatible = "ti,twl4030-vmmc2";
+		regulator-min-microvolt = <1850000>;
+		regulator-max-microvolt = <3150000>;
+	};
+
 	vusb1v5: regulator-vusb1v5 {
 		compatible = "ti,twl4030-vusb1v5";
 	};

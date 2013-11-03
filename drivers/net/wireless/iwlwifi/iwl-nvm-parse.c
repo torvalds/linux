@@ -118,6 +118,7 @@ static const u8 iwl_nvm_channels[] = {
 #define LAST_2GHZ_HT_PLUS	9
 #define LAST_5GHZ_HT		161
 
+#define DEFAULT_MAX_TX_POWER 16
 
 /* rate data (static) */
 static struct ieee80211_rate iwl_cfg80211_rates[] = {
@@ -232,8 +233,11 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		/* Initialize regulatory-based run-time data */
 
-		/* TODO: read the real value from the NVM */
-		channel->max_power = 0;
+		/*
+		 * Default value - highest tx power value.  max_power
+		 * is not used in mvm, and is used for backwards compatibility
+		 */
+		channel->max_power = DEFAULT_MAX_TX_POWER;
 		is_5ghz = channel->band == IEEE80211_BAND_5GHZ;
 		IWL_DEBUG_EEPROM(dev,
 				 "Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x %ddBm): Ad-Hoc %ssupported\n",

@@ -12,7 +12,7 @@
  * and 6282 variants of the Marvell Kirkwood Development Board.
  */
 
-/include/ "kirkwood.dtsi"
+#include "kirkwood.dtsi"
 
 / {
 	memory {
@@ -77,13 +77,21 @@
 			cd-gpios = <&gpio1 6 0>;
 			status = "okay";
 		};
+	};
+};
 
-		pcie-controller {
-			status = "okay";
+&mdio {
+	status = "okay";
 
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
+	ethphy0: ethernet-phy@8 {
+		device_type = "ethernet-phy";
+		reg = <8>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

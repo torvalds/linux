@@ -2247,10 +2247,13 @@ int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {
+	struct regulatory_request *lr;
+
 	if (!reg_dev_ignore_cell_hint(wiphy))
 		reg_num_devs_support_basehint++;
 
-	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
+	lr = get_last_request();
+	wiphy_update_regulatory(wiphy, lr->initiator);
 }
 
 void wiphy_regulatory_deregister(struct wiphy *wiphy)
@@ -2279,7 +2282,9 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 static void reg_timeout_work(struct work_struct *work)
 {
 	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, restoring regulatory settings\n");
+	rtnl_lock();
 	restore_regulatory_settings(true);
+	rtnl_unlock();
 }
 
 int __init regulatory_init(void)

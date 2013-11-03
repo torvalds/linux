@@ -87,7 +87,7 @@ extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
-void __cpuinit smp_callin(void)
+void smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
 
@@ -281,7 +281,8 @@ static unsigned long kimage_addr_to_ra(void *p)
 	return kern_base + (val - KERNBASE);
 }
 
-static void __cpuinit ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg, void **descrp)
+static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg,
+				void **descrp)
 {
 	extern unsigned long sparc64_ttable_tl0;
 	extern unsigned long kern_locked_tte_data;
@@ -342,7 +343,7 @@ extern unsigned long sparc64_cpu_startup;
  */
 static struct thread_info *cpu_new_thread = NULL;
 
-static int __cpuinit smp_boot_one_cpu(unsigned int cpu, struct task_struct *idle)
+static int smp_boot_one_cpu(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long entry =
 		(unsigned long)(&sparc64_cpu_startup);
@@ -1266,7 +1267,7 @@ void smp_fill_in_sib_core_maps(void)
 	}
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int ret = smp_boot_one_cpu(cpu, tidle);
 

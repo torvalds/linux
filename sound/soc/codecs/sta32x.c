@@ -363,16 +363,18 @@ static void sta32x_watchdog(struct work_struct *work)
 	}
 
 	if (!sta32x->shutdown)
-		schedule_delayed_work(&sta32x->watchdog_work,
-				      round_jiffies_relative(HZ));
+		queue_delayed_work(system_power_efficient_wq,
+				   &sta32x->watchdog_work,
+				   round_jiffies_relative(HZ));
 }
 
 static void sta32x_watchdog_start(struct sta32x_priv *sta32x)
 {
 	if (sta32x->pdata->needs_esd_watchdog) {
 		sta32x->shutdown = 0;
-		schedule_delayed_work(&sta32x->watchdog_work,
-				      round_jiffies_relative(HZ));
+		queue_delayed_work(system_power_efficient_wq,
+				   &sta32x->watchdog_work,
+				   round_jiffies_relative(HZ));
 	}
 }
 

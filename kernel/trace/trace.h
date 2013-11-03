@@ -130,19 +130,12 @@ enum trace_flag_type {
 
 struct trace_array;
 
-struct trace_cpu {
-	struct trace_array	*tr;
-	struct dentry		*dir;
-	int			cpu;
-};
-
 /*
  * The CPU trace array - it consists of thousands of trace entries
  * plus some other descriptor data: (for example which task started
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	struct trace_cpu	trace_cpu;
 	atomic_t		disabled;
 	void			*buffer_page;	/* ring buffer spare */
 
@@ -196,7 +189,6 @@ struct trace_array {
 	bool			allocated_snapshot;
 #endif
 	int			buffer_disabled;
-	struct trace_cpu	trace_cpu;	/* place holder */
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
 	int			sys_refcount_exit;
@@ -214,7 +206,7 @@ struct trace_array {
 	struct dentry		*event_dir;
 	struct list_head	systems;
 	struct list_head	events;
-	struct task_struct	*waiter;
+	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	int			ref;
 };
 
@@ -680,6 +672,15 @@ extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 					       struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
+/*
+ * Tracer data references selftest functions that only occur
+ * on boot up. These can be __init functions. Thus, when selftests
+ * are enabled, then the tracers need to reference __init functions.
+ */
+#define __tracer_data		__refdata
+#else
+/* Tracers are seldom changed. Optimize when selftests are disabled. */
+#define __tracer_data		__read_mostly
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
@@ -1021,6 +1022,9 @@ extern struct list_head ftrace_events;
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
+
+extern const char *__start___tracepoint_str[];
+extern const char *__stop___tracepoint_str[];
 
 void trace_printk_init_buffers(void);
 void trace_printk_start_comm(void);

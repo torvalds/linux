@@ -42,14 +42,15 @@
 #define	TPIDR_EL1	18	/* Thread ID, Privileged */
 #define	AMAIR_EL1	19	/* Aux Memory Attribute Indirection Register */
 #define	CNTKCTL_EL1	20	/* Timer Control Register (EL1) */
+#define	PAR_EL1		21	/* Physical Address Register */
 /* 32bit specific registers. Keep them at the end of the range */
-#define	DACR32_EL2	21	/* Domain Access Control Register */
-#define	IFSR32_EL2	22	/* Instruction Fault Status Register */
-#define	FPEXC32_EL2	23	/* Floating-Point Exception Control Register */
-#define	DBGVCR32_EL2	24	/* Debug Vector Catch Register */
-#define	TEECR32_EL1	25	/* ThumbEE Configuration Register */
-#define	TEEHBR32_EL1	26	/* ThumbEE Handler Base Register */
-#define	NR_SYS_REGS	27
+#define	DACR32_EL2	22	/* Domain Access Control Register */
+#define	IFSR32_EL2	23	/* Instruction Fault Status Register */
+#define	FPEXC32_EL2	24	/* Floating-Point Exception Control Register */
+#define	DBGVCR32_EL2	25	/* Debug Vector Catch Register */
+#define	TEECR32_EL1	26	/* ThumbEE Configuration Register */
+#define	TEEHBR32_EL1	27	/* ThumbEE Handler Base Register */
+#define	NR_SYS_REGS	28
 
 /* 32bit mapping */
 #define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */
@@ -69,6 +70,8 @@
 #define c5_AIFSR	(AFSR1_EL1 * 2)	/* Auxiliary Instr Fault Status R */
 #define c6_DFAR		(FAR_EL1 * 2)	/* Data Fault Address Register */
 #define c6_IFAR		(c6_DFAR + 1)	/* Instruction Fault Address Register */
+#define c7_PAR		(PAR_EL1 * 2)	/* Physical Address Register */
+#define c7_PAR_high	(c7_PAR + 1)	/* PAR top 32 bits */
 #define c10_PRRR	(MAIR_EL1 * 2)	/* Primary Region Remap Register */
 #define c10_NMRR	(c10_PRRR + 1)	/* Normal Memory Remap Register */
 #define c12_VBAR	(VBAR_EL1 * 2)	/* Vector Base Address Register */

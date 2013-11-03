@@ -486,9 +486,8 @@ static struct notifier_block fw_shutdown_nb = {
 	.notifier_call = fw_shutdown_notify,
 };
 
-static ssize_t firmware_timeout_show(struct class *class,
-				     struct class_attribute *attr,
-				     char *buf)
+static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
+			    char *buf)
 {
 	return sprintf(buf, "%d\n", loading_timeout);
 }
@@ -506,9 +505,8 @@ static ssize_t firmware_timeout_show(struct class *class,
  *
  *	Note: zero means 'wait forever'.
  **/
-static ssize_t firmware_timeout_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t timeout_store(struct class *class, struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	loading_timeout = simple_strtol(buf, NULL, 10);
 	if (loading_timeout < 0)
@@ -518,8 +516,7 @@ static ssize_t firmware_timeout_store(struct class *class,
 }
 
 static struct class_attribute firmware_class_attrs[] = {
-	__ATTR(timeout, S_IWUSR | S_IRUGO,
-		firmware_timeout_show, firmware_timeout_store),
+	__ATTR_RW(timeout),
 	__ATTR_NULL
 };
 
@@ -868,8 +865,15 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 		goto err_del_dev;
 	}
 
+	mutex_lock(&fw_lock);
+	list_add(&buf->pending_list, &pending_fw_head);
+	mutex_unlock(&fw_lock);
+
 	retval = device_create_file(f_dev, &dev_attr_loading);
 	if (retval) {
+		mutex_lock(&fw_lock);
+		list_del_init(&buf->pending_list);
+		mutex_unlock(&fw_lock);
 		dev_err(f_dev, "%s: device_create_file failed\n", __func__);
 		goto err_del_bin_attr;
 	}
@@ -883,10 +887,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
-
-	mutex_lock(&fw_lock);
-	list_add(&buf->pending_list, &pending_fw_head);
-	mutex_unlock(&fw_lock);
 
 	wait_for_completion(&buf->completion);
 

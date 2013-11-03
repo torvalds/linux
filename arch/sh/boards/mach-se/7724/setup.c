@@ -365,7 +365,7 @@ static struct platform_device keysc_device = {
 static struct resource sh_eth_resources[] = {
 	[0] = {
 		.start = SH_ETH_ADDR,
-		.end   = SH_ETH_ADDR + 0x1FC,
+		.end   = SH_ETH_ADDR + 0x1FC - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -377,6 +377,7 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8187 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
 };
 
 static struct platform_device sh_eth_device = {

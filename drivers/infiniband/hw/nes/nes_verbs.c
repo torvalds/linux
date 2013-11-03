@@ -1384,6 +1384,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 			if (ibpd->uobject) {
 				uresp.mmap_sq_db_index = nesqp->mmap_sq_db_index;
+				uresp.mmap_rq_db_index = 0;
 				uresp.actual_sq_size = sq_size;
 				uresp.actual_rq_size = rq_size;
 				uresp.qp_id = nesqp->hwqp.qp_id;
@@ -1767,7 +1768,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		resp.cq_id = nescq->hw_cq.cq_number;
 		resp.cq_size = nescq->hw_cq.cq_size;
 		resp.mmap_db_index = 0;
-		if (ib_copy_to_udata(udata, &resp, sizeof resp)) {
+		if (ib_copy_to_udata(udata, &resp, sizeof resp - sizeof resp.reserved)) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 			kfree(nescq);
 			return ERR_PTR(-EFAULT);

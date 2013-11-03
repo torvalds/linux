@@ -1,8 +1,8 @@
-Linux* Base Driver for Intel(R) Network Connection
-==================================================
+Linux* Base Driver for Intel(R) Ethernet Network Connection
+===========================================================
 
 Intel Gigabit Linux driver.
-Copyright(c) 1999 - 2010 Intel Corporation.
+Copyright(c) 1999 - 2013 Intel Corporation.
 
 Contents
 ========
@@ -36,6 +36,53 @@ Default Value: 0
 This parameter adds support for SR-IOV.  It causes the driver to spawn up to
 max_vfs worth of virtual function.
 
+QueuePairs
+----------
+Valid Range:  0-1
+Default Value:  1 (TX and RX will be paired onto one interrupt vector)
+
+If set to 0, when MSI-X is enabled, the TX and RX will attempt to occupy
+separate vectors.
+
+This option can be overridden to 1 if there are not sufficient interrupts
+available.  This can occur if any combination of RSS, VMDQ, and max_vfs
+results in more than 4 queues being used.
+
+Node
+----
+Valid Range:   0-n
+Default Value: -1 (off)
+
+  0 - n: where n is the number of the NUMA node that should be used to
+         allocate memory for this adapter port.
+  -1: uses the driver default of allocating memory on whichever processor is
+      running insmod/modprobe.
+
+  The Node parameter will allow you to pick which NUMA node you want to have
+  the adapter allocate memory from.  All driver structures, in-memory queues,
+  and receive buffers will be allocated on the node specified.  This parameter
+  is only useful when interrupt affinity is specified, otherwise some portion
+  of the time the interrupt could run on a different core than the memory is
+  allocated on, causing slower memory access and impacting throughput, CPU, or
+  both.
+
+EEE
+---
+Valid Range:  0-1
+Default Value: 1 (enabled)
+
+  A link between two EEE-compliant devices will result in periodic bursts of
+  data followed by long periods where in the link is in an idle state. This Low
+  Power Idle (LPI) state is supported in both 1Gbps and 100Mbps link speeds.
+  NOTE: EEE support requires autonegotiation.
+
+DMAC
+----
+Valid Range: 0-1
+Default Value: 1 (enabled)
+  Enables or disables DMA Coalescing feature.
+
+
 
 Additional Configurations
 =========================
@@ -55,10 +102,10 @@ Additional Configurations
   - The maximum MTU setting for Jumbo Frames is 9216.  This value coincides
     with the maximum Jumbo Frames size of 9234 bytes.
 
-  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
-    loss of link.
+  - Using Jumbo frames at 10 or 100 Mbps is not supported and may result in
+    poor performance or loss of link.
 
-  Ethtool
+  ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
   diagnostics, as well as displaying statistical information. The latest
@@ -105,6 +152,14 @@ Additional Configurations
   Spoof event(s) detected on VF(n)
 
   Where n=the VF that attempted to do the spoofing.
+
+  Setting MAC Address, VLAN and Rate Limit Using IProute2 Tool
+  ------------------------------------------------------------
+  You can set a MAC address of a Virtual Function (VF), a default VLAN and the
+  rate limit using the IProute2 tool. Download the latest version of the
+  iproute2 tool from Sourceforge if your version does not have all the
+  features you require.
+
 
 Support
 =======

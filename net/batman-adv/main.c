@@ -19,6 +19,10 @@
 
 #include <linux/crc32c.h>
 #include <linux/highmem.h>
+#include <linux/if_vlan.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
+#include <net/dsfield.h>
 #include "main.h"
 #include "sysfs.h"
 #include "debugfs.h"
@@ -61,6 +65,7 @@ static int __init batadv_init(void)
 	batadv_recv_handler_init();
 
 	batadv_iv_init();
+	batadv_nc_init();
 
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
 
@@ -138,7 +143,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
-	ret = batadv_nc_init(bat_priv);
+	ret = batadv_nc_mesh_init(bat_priv);
 	if (ret < 0)
 		goto err;
 
@@ -163,7 +168,7 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	batadv_vis_quit(bat_priv);
 
 	batadv_gw_node_purge(bat_priv);
-	batadv_nc_free(bat_priv);
+	batadv_nc_mesh_free(bat_priv);
 	batadv_dat_free(bat_priv);
 	batadv_bla_free(bat_priv);
 
@@ -247,6 +252,60 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 
 out:
 	return primary_if;
+}
+
+/**
+ * batadv_skb_set_priority - sets skb priority according to packet content
+ * @skb: the packet to be sent
+ * @offset: offset to the packet content
+ *
+ * This function sets a value between 256 and 263 (802.1d priority), which
+ * can be interpreted by the cfg80211 or other drivers.
+ */
+void batadv_skb_set_priority(struct sk_buff *skb, int offset)
+{
+	struct iphdr ip_hdr_tmp, *ip_hdr;
+	struct ipv6hdr ip6_hdr_tmp, *ip6_hdr;
+	struct ethhdr ethhdr_tmp, *ethhdr;
+	struct vlan_ethhdr *vhdr, vhdr_tmp;
+	u32 prio;
+
+	/* already set, do nothing */
+	if (skb->priority >= 256 && skb->priority <= 263)
+		return;
+
+	ethhdr = skb_header_pointer(skb, offset, sizeof(*ethhdr), &ethhdr_tmp);
+	if (!ethhdr)
+		return;
+
+	switch (ethhdr->h_proto) {
+	case htons(ETH_P_8021Q):
+		vhdr = skb_header_pointer(skb, offset + sizeof(*vhdr),
+					  sizeof(*vhdr), &vhdr_tmp);
+		if (!vhdr)
+			return;
+		prio = ntohs(vhdr->h_vlan_TCI) & VLAN_PRIO_MASK;
+		prio = prio >> VLAN_PRIO_SHIFT;
+		break;
+	case htons(ETH_P_IP):
+		ip_hdr = skb_header_pointer(skb, offset + sizeof(*ethhdr),
+					    sizeof(*ip_hdr), &ip_hdr_tmp);
+		if (!ip_hdr)
+			return;
+		prio = (ipv4_get_dsfield(ip_hdr) & 0xfc) >> 5;
+		break;
+	case htons(ETH_P_IPV6):
+		ip6_hdr = skb_header_pointer(skb, offset + sizeof(*ethhdr),
+					     sizeof(*ip6_hdr), &ip6_hdr_tmp);
+		if (!ip6_hdr)
+			return;
+		prio = (ipv6_get_dsfield(ip6_hdr) & 0xfc) >> 5;
+		break;
+	default:
+		return;
+	}
+
+	skb->priority = prio + 256;
 }
 
 static int batadv_recv_unhandled_packet(struct sk_buff *skb,

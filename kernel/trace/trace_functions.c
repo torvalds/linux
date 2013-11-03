@@ -199,7 +199,7 @@ static int func_set_flag(u32 old_flags, u32 bit, int set)
 	return 0;
 }
 
-static struct tracer function_trace __read_mostly =
+static struct tracer function_trace __tracer_data =
 {
 	.name		= "function",
 	.init		= function_trace_init,

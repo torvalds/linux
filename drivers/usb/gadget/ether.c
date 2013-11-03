@@ -449,14 +449,20 @@ fail:
 
 static int __exit eth_unbind(struct usb_composite_dev *cdev)
 {
-	if (has_rndis())
+	if (has_rndis()) {
+		usb_put_function(f_rndis);
 		usb_put_function_instance(fi_rndis);
-	if (use_eem)
+	}
+	if (use_eem) {
+		usb_put_function(f_eem);
 		usb_put_function_instance(fi_eem);
-	else if (can_support_ecm(cdev->gadget))
+	} else if (can_support_ecm(cdev->gadget)) {
+		usb_put_function(f_ecm);
 		usb_put_function_instance(fi_ecm);
-	else
+	} else {
+		usb_put_function(f_geth);
 		usb_put_function_instance(fi_geth);
+	}
 	return 0;
 }
 

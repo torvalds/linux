@@ -49,6 +49,8 @@ qla2x00_prep_ms_iocb(scsi_qla_host_t *vha, uint32_t req_size, uint32_t rsp_size)
 	ms_pkt->dseg_rsp_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ms_pkt->dseg_rsp_length = ms_pkt->rsp_bytecount;
 
+	vha->qla_stats.control_requests++;
+
 	return (ms_pkt);
 }
 
@@ -86,6 +88,8 @@ qla24xx_prep_ms_iocb(scsi_qla_host_t *vha, uint32_t req_size, uint32_t rsp_size)
 	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
 	ct_pkt->vp_index = vha->vp_idx;
+
+	vha->qla_stats.control_requests++;
 
 	return (ct_pkt);
 }
@@ -226,17 +230,9 @@ qla2x00_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 			fcport->d_id.b.domain = 0xf0;
 
 		ql_dbg(ql_dbg_disc, vha, 0x2063,
-		    "GA_NXT entry - nn %02x%02x%02x%02x%02x%02x%02x%02x "
-		    "pn %02x%02x%02x%02x%02x%02x%02x%02x "
+		    "GA_NXT entry - nn %8phN pn %8phN "
 		    "port_id=%02x%02x%02x.\n",
-		    fcport->node_name[0], fcport->node_name[1],
-		    fcport->node_name[2], fcport->node_name[3],
-		    fcport->node_name[4], fcport->node_name[5],
-		    fcport->node_name[6], fcport->node_name[7],
-		    fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7],
+		    fcport->node_name, fcport->port_name,
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
 	}
@@ -447,17 +443,9 @@ qla2x00_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			    ct_rsp->rsp.gnn_id.node_name, WWN_SIZE);
 
 			ql_dbg(ql_dbg_disc, vha, 0x2058,
-			    "GID_PT entry - nn %02x%02x%02x%02x%02x%02x%02X%02x "
-			    "pn %02x%02x%02x%02x%02x%02x%02X%02x "
+			    "GID_PT entry - nn %8phN pn %8phN "
 			    "portid=%02x%02x%02x.\n",
-			    list[i].node_name[0], list[i].node_name[1],
-			    list[i].node_name[2], list[i].node_name[3],
-			    list[i].node_name[4], list[i].node_name[5],
-			    list[i].node_name[6], list[i].node_name[7],
-			    list[i].port_name[0], list[i].port_name[1],
-			    list[i].port_name[2], list[i].port_name[3],
-			    list[i].port_name[4], list[i].port_name[5],
-			    list[i].port_name[6], list[i].port_name[7],
+			    list[i].node_name, list[i].port_name,
 			    list[i].d_id.b.domain, list[i].d_id.b.area,
 			    list[i].d_id.b.al_pa);
 		}
@@ -739,6 +727,8 @@ qla2x00_prep_sns_cmd(scsi_qla_host_t *vha, uint16_t cmd, uint16_t scmd_len,
 	wc = (data_size - 16) / 4;		/* Size in 32bit words. */
 	sns_cmd->p.cmd.size = cpu_to_le16(wc);
 
+	vha->qla_stats.control_requests++;
+
 	return (sns_cmd);
 }
 
@@ -796,17 +786,9 @@ qla2x00_sns_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 			fcport->d_id.b.domain = 0xf0;
 
 		ql_dbg(ql_dbg_disc, vha, 0x2061,
-		    "GA_NXT entry - nn %02x%02x%02x%02x%02x%02x%02x%02x "
-		    "pn %02x%02x%02x%02x%02x%02x%02x%02x "
+		    "GA_NXT entry - nn %8phN pn %8phN "
 		    "port_id=%02x%02x%02x.\n",
-		    fcport->node_name[0], fcport->node_name[1],
-		    fcport->node_name[2], fcport->node_name[3],
-		    fcport->node_name[4], fcport->node_name[5],
-		    fcport->node_name[6], fcport->node_name[7],
-		    fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7],
+		    fcport->node_name, fcport->port_name,
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
 	}
@@ -991,17 +973,9 @@ qla2x00_sns_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			    WWN_SIZE);
 
 			ql_dbg(ql_dbg_disc, vha, 0x206e,
-			    "GID_PT entry - nn %02x%02x%02x%02x%02x%02x%02x%02x "
-			    "pn %02x%02x%02x%02x%02x%02x%02x%02x "
+			    "GID_PT entry - nn %8phN pn %8phN "
 			    "port_id=%02x%02x%02x.\n",
-			    list[i].node_name[0], list[i].node_name[1],
-			    list[i].node_name[2], list[i].node_name[3],
-			    list[i].node_name[4], list[i].node_name[5],
-			    list[i].node_name[6], list[i].node_name[7],
-			    list[i].port_name[0], list[i].port_name[1],
-			    list[i].port_name[2], list[i].port_name[3],
-			    list[i].port_name[4], list[i].port_name[5],
-			    list[i].port_name[6], list[i].port_name[7],
+			    list[i].node_name, list[i].port_name,
 			    list[i].d_id.b.domain, list[i].d_id.b.area,
 			    list[i].d_id.b.al_pa);
 		}
@@ -1321,11 +1295,7 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *vha)
 	size += 4 + WWN_SIZE;
 
 	ql_dbg(ql_dbg_disc, vha, 0x2025,
-	    "NodeName = %02x%02x%02x%02x%02x%02x%02x%02x.\n",
-	    eiter->a.node_name[0], eiter->a.node_name[1],
-	    eiter->a.node_name[2], eiter->a.node_name[3],
-	    eiter->a.node_name[4], eiter->a.node_name[5],
-	    eiter->a.node_name[6], eiter->a.node_name[7]);
+	    "NodeName = %8phN.\n", eiter->a.node_name);
 
 	/* Manufacturer. */
 	eiter = (struct ct_fdmi_hba_attr *) (entries + size);
@@ -1428,16 +1398,8 @@ qla2x00_fdmi_rhba(scsi_qla_host_t *vha)
 	qla2x00_update_ms_fdmi_iocb(vha, size + 16);
 
 	ql_dbg(ql_dbg_disc, vha, 0x202e,
-	    "RHBA identifier = "
-	    "%02x%02x%02x%02x%02x%02x%02x%02x size=%d.\n",
-	    ct_req->req.rhba.hba_identifier[0],
-	    ct_req->req.rhba.hba_identifier[1],
-	    ct_req->req.rhba.hba_identifier[2],
-	    ct_req->req.rhba.hba_identifier[3],
-	    ct_req->req.rhba.hba_identifier[4],
-	    ct_req->req.rhba.hba_identifier[5],
-	    ct_req->req.rhba.hba_identifier[6],
-	    ct_req->req.rhba.hba_identifier[7], size);
+	    "RHBA identifier = %8phN size=%d.\n",
+	    ct_req->req.rhba.hba_identifier, size);
 	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x2076,
 	    entries, size);
 
@@ -1494,11 +1456,7 @@ qla2x00_fdmi_dhba(scsi_qla_host_t *vha)
 	memcpy(ct_req->req.dhba.port_name, vha->port_name, WWN_SIZE);
 
 	ql_dbg(ql_dbg_disc, vha, 0x2036,
-	    "DHBA portname = %02x%02x%02x%02x%02x%02x%02x%02x.\n",
-	    ct_req->req.dhba.port_name[0], ct_req->req.dhba.port_name[1],
-	    ct_req->req.dhba.port_name[2], ct_req->req.dhba.port_name[3],
-	    ct_req->req.dhba.port_name[4], ct_req->req.dhba.port_name[5],
-	    ct_req->req.dhba.port_name[6], ct_req->req.dhba.port_name[7]);
+	    "DHBA portname = %8phN.\n", ct_req->req.dhba.port_name);
 
 	/* Execute MS IOCB */
 	rval = qla2x00_issue_iocb(vha, ha->ms_iocb, ha->ms_iocb_dma,
@@ -1678,12 +1636,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha)
 	qla2x00_update_ms_fdmi_iocb(vha, size + 16);
 
 	ql_dbg(ql_dbg_disc, vha, 0x203e,
-	    "RPA portname= %02x%02x%02x%02x%02X%02x%02x%02x size=%d.\n",
-	    ct_req->req.rpa.port_name[0], ct_req->req.rpa.port_name[1],
-	    ct_req->req.rpa.port_name[2], ct_req->req.rpa.port_name[3],
-	    ct_req->req.rpa.port_name[4], ct_req->req.rpa.port_name[5],
-	    ct_req->req.rpa.port_name[6], ct_req->req.rpa.port_name[7],
-	    size);
+	    "RPA portname= %8phN size=%d.\n", ct_req->req.rpa.port_name, size);
 	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x2079,
 	    entries, size);
 
@@ -1940,16 +1893,8 @@ qla2x00_gpsc(scsi_qla_host_t *vha, sw_info_t *list)
 
 			ql_dbg(ql_dbg_disc, vha, 0x205b,
 			    "GPSC ext entry - fpn "
-			    "%02x%02x%02x%02x%02x%02x%02x%02x speeds=%04x "
-			    "speed=%04x.\n",
-			    list[i].fabric_port_name[0],
-			    list[i].fabric_port_name[1],
-			    list[i].fabric_port_name[2],
-			    list[i].fabric_port_name[3],
-			    list[i].fabric_port_name[4],
-			    list[i].fabric_port_name[5],
-			    list[i].fabric_port_name[6],
-			    list[i].fabric_port_name[7],
+			    "%8phN speeds=%04x speed=%04x.\n",
+			    list[i].fabric_port_name,
 			    be16_to_cpu(ct_rsp->rsp.gpsc.speeds),
 			    be16_to_cpu(ct_rsp->rsp.gpsc.speed));
 		}

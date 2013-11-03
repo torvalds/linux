@@ -359,7 +359,7 @@ static int samsung_usb2phy_probe(struct platform_device *pdev)
 {
 	struct samsung_usbphy *sphy;
 	struct usb_otg *otg;
-	struct samsung_usbphy_data *pdata = pdev->dev.platform_data;
+	struct samsung_usbphy_data *pdata = dev_get_platdata(&pdev->dev);
 	const struct samsung_usbphy_drvdata *drv_data;
 	struct device *dev = &pdev->dev;
 	struct resource *phy_mem;
@@ -388,7 +388,7 @@ static int samsung_usb2phy_probe(struct platform_device *pdev)
 		clk = devm_clk_get(dev, "otg");
 
 	if (IS_ERR(clk)) {
-		dev_err(dev, "Failed to get otg clock\n");
+		dev_err(dev, "Failed to get usbhost/otg clock\n");
 		return PTR_ERR(clk);
 	}
 

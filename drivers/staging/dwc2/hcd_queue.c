@@ -116,7 +116,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			qh->interval = 8;
 #endif
 		hprt = readl(hsotg->regs + HPRT0);
-		prtspd = hprt & HPRT0_SPD_MASK;
+		prtspd = (hprt & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT;
 		if (prtspd == HPRT0_SPD_HIGH_SPEED &&
 		    (dev_speed == USB_SPEED_LOW ||
 		     dev_speed == USB_SPEED_FULL)) {
@@ -196,6 +196,9 @@ static struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 					  gfp_t mem_flags)
 {
 	struct dwc2_qh *qh;
+
+	if (!urb->priv)
+		return NULL;
 
 	/* Allocate memory */
 	qh = kzalloc(sizeof(*qh), mem_flags);
@@ -638,7 +641,7 @@ int dwc2_hcd_qtd_add(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 	struct dwc2_hcd_urb *urb = qtd->urb;
 	unsigned long flags;
 	int allocated = 0;
-	int retval = 0;
+	int retval;
 
 	/*
 	 * Get the QH which holds the QTD-list to insert to. Create QH if it
@@ -652,8 +655,19 @@ int dwc2_hcd_qtd_add(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 	}
 
 	spin_lock_irqsave(&hsotg->lock, flags);
+
 	retval = dwc2_hcd_qh_add(hsotg, *qh);
-	if (retval && allocated) {
+	if (retval)
+		goto fail;
+
+	qtd->qh = *qh;
+	list_add_tail(&qtd->qtd_list_entry, &(*qh)->qtd_list);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return 0;
+
+fail:
+	if (allocated) {
 		struct dwc2_qtd *qtd2, *qtd2_tmp;
 		struct dwc2_qh *qh_tmp = *qh;
 
@@ -668,8 +682,6 @@ int dwc2_hcd_qtd_add(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 		dwc2_hcd_qh_free(hsotg, qh_tmp);
 	} else {
-		qtd->qh = *qh;
-		list_add_tail(&qtd->qtd_list_entry, &(*qh)->qtd_list);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
 

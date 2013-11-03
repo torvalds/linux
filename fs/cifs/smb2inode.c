@@ -60,7 +60,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -136,7 +136,8 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	rc = smb2_open_op_close(xid, tcon, cifs_sb, full_path,
-				FILE_READ_ATTRIBUTES, FILE_OPEN, 0, smb2_data,
+				FILE_READ_ATTRIBUTES, FILE_OPEN,
+				OPEN_REPARSE_POINT, smb2_data,
 				SMB2_OP_QUERY_INFO);
 	if (rc)
 		goto out;
@@ -191,8 +192,8 @@ smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	    struct cifs_sb_info *cifs_sb)
 {
 	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
-				  CREATE_DELETE_ON_CLOSE, NULL,
-				  SMB2_OP_DELETE);
+				  CREATE_DELETE_ON_CLOSE | OPEN_REPARSE_POINT,
+				  NULL, SMB2_OP_DELETE);
 }
 
 static int

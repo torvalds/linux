@@ -53,6 +53,11 @@ OMAP DWC3 GLUE
    It should be set to "1" for HW mode and "2" for SW mode.
  - ranges: the child address space are mapped 1:1 onto the parent address space
 
+Optional Properties:
+ - extcon : phandle for the extcon device omap dwc3 uses to detect
+   connect/disconnect events.
+ - vbus-supply : phandle to the regulator device tree node if needed.
+
 Sub-nodes:
 The dwc3 core should be added as subnode to omap dwc3 glue.
 - dwc3 :

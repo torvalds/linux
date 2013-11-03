@@ -1266,6 +1266,7 @@ static void gspca_release(struct v4l2_device *v4l2_device)
 static int dev_open(struct file *file)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
+	int ret;
 
 	PDEBUG(D_STREAM, "[%s] open", current->comm);
 
@@ -1273,7 +1274,10 @@ static int dev_open(struct file *file)
 	if (!try_module_get(gspca_dev->module))
 		return -ENODEV;
 
-	return v4l2_fh_open(file);
+	ret = v4l2_fh_open(file);
+	if (ret)
+		module_put(gspca_dev->module);
+	return ret;
 }
 
 static int dev_close(struct file *file)

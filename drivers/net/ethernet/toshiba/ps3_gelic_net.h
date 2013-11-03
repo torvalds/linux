@@ -37,7 +37,6 @@
 #define GELIC_NET_RXBUF_ALIGN           128
 #define GELIC_CARD_RX_CSUM_DEFAULT      1 /* hw chksum */
 #define GELIC_NET_WATCHDOG_TIMEOUT      5*HZ
-#define GELIC_NET_NAPI_WEIGHT           (GELIC_NET_RX_DESCRIPTORS)
 #define GELIC_NET_BROADCAST_ADDR        0xffffffffffffL
 
 #define GELIC_NET_MC_COUNT_MAX          32 /* multicast address list */

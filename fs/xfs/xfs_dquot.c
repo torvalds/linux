@@ -17,6 +17,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_format.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
@@ -28,6 +29,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -62,7 +64,8 @@ int xfs_dqerror_mod = 33;
 struct kmem_zone		*xfs_qm_dqtrxzone;
 static struct kmem_zone		*xfs_qm_dqzone;
 
-static struct lock_class_key xfs_dquot_other_class;
+static struct lock_class_key xfs_dquot_group_class;
+static struct lock_class_key xfs_dquot_project_class;
 
 /*
  * This is called to free all the memory associated with a dquot
@@ -701,8 +704,20 @@ xfs_qm_dqread(
 	 * Make sure group quotas have a different lock class than user
 	 * quotas.
 	 */
-	if (!(type & XFS_DQ_USER))
-		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_other_class);
+	switch (type) {
+	case XFS_DQ_USER:
+		/* uses the default lock class */
+		break;
+	case XFS_DQ_GROUP:
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_group_class);
+		break;
+	case XFS_DQ_PROJ:
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_project_class);
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
 
 	XFS_STATS_INC(xs_qm_dquot);
 
@@ -710,10 +725,8 @@ xfs_qm_dqread(
 
 	if (flags & XFS_QMOPT_DQALLOC) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_QM_DQALLOC);
-		error = xfs_trans_reserve(tp, XFS_QM_DQALLOC_SPACE_RES(mp),
-					  XFS_QM_DQALLOC_LOG_RES(mp), 0,
-					  XFS_TRANS_PERM_LOG_RES,
-					  XFS_WRITE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_attrsetm,
+					  XFS_QM_DQALLOC_SPACE_RES(mp), 0);
 		if (error)
 			goto error1;
 		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
@@ -940,13 +953,8 @@ xfs_qm_dqput_final(
 
 	trace_xfs_dqput_free(dqp);
 
-	mutex_lock(&qi->qi_lru_lock);
-	if (list_empty(&dqp->q_lru)) {
-		list_add_tail(&dqp->q_lru, &qi->qi_lru_list);
-		qi->qi_lru_count++;
+	if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
 		XFS_STATS_INC(xs_qm_dquot_unused);
-	}
-	mutex_unlock(&qi->qi_lru_lock);
 
 	/*
 	 * If we just added a udquot to the freelist, then we want to release

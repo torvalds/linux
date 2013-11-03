@@ -22,6 +22,8 @@
  * for more details.
  */
 
+#include <linux/delay.h>
+
 #define NVRAM_USER_DATA_START	0x100
 
 #define NVCMD_BEGIN_READ	(0x7 << 5)	/* nvRam begin read command */

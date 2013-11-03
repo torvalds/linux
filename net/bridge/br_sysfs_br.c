@@ -1,5 +1,5 @@
 /*
- *	Sysfs attributes of bridge ports
+ *	Sysfs attributes of bridge
  *	Linux ethernet bridge
  *
  *	Authors:

@@ -69,8 +69,18 @@ extern unsigned long pci_dram_offset;
 
 extern resource_size_t isa_mem_base;
 
-#if defined(CONFIG_PPC32) && defined(CONFIG_PPC_INDIRECT_IO)
-#error CONFIG_PPC_INDIRECT_IO is not yet supported on 32 bits
+/* Boolean set by platform if PIO accesses are suppored while _IO_BASE
+ * is not set or addresses cannot be translated to MMIO. This is typically
+ * set when the platform supports "special" PIO accesses via a non memory
+ * mapped mechanism, and allows things like the early udbg UART code to
+ * function.
+ */
+extern bool isa_io_special;
+
+#ifdef CONFIG_PPC32
+#if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
+#error CONFIG_PPC_INDIRECT_{PIO,MMIO} are not yet supported on 32 bits
+#endif
 #endif
 
 /*
@@ -222,9 +232,9 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * for PowerPC is as close as possible to the x86 version of these, and thus
  * provides fairly heavy weight barriers for the non-raw versions
  *
- * In addition, they support a hook mechanism when CONFIG_PPC_INDIRECT_IO
- * allowing the platform to provide its own implementation of some or all
- * of the accessors.
+ * In addition, they support a hook mechanism when CONFIG_PPC_INDIRECT_MMIO
+ * or CONFIG_PPC_INDIRECT_PIO are set allowing the platform to provide its
+ * own implementation of some or all of the accessors.
  */
 
 /*
@@ -240,8 +250,8 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
 
 /* Indirect IO address tokens:
  *
- * When CONFIG_PPC_INDIRECT_IO is set, the platform can provide hooks
- * on all IOs. (Note that this is all 64 bits only for now)
+ * When CONFIG_PPC_INDIRECT_MMIO is set, the platform can provide hooks
+ * on all MMIOs. (Note that this is all 64 bits only for now)
  *
  * To help platforms who may need to differenciate MMIO addresses in
  * their hooks, a bitfield is reserved for use by the platform near the
@@ -263,11 +273,14 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  *
  * The direct IO mapping operations will then mask off those bits
  * before doing the actual access, though that only happen when
- * CONFIG_PPC_INDIRECT_IO is set, thus be careful when you use that
+ * CONFIG_PPC_INDIRECT_MMIO is set, thus be careful when you use that
  * mechanism
+ *
+ * For PIO, there is a separate CONFIG_PPC_INDIRECT_PIO which makes
+ * all PIO functions call through a hook.
  */
 
-#ifdef CONFIG_PPC_INDIRECT_IO
+#ifdef CONFIG_PPC_INDIRECT_MMIO
 #define PCI_IO_IND_TOKEN_MASK	0x0fff000000000000ul
 #define PCI_IO_IND_TOKEN_SHIFT	48
 #define PCI_FIX_ADDR(addr)						\
@@ -672,7 +685,7 @@ extern void __iomem * __ioremap_at(phys_addr_t pa, void *ea,
 extern void __iounmap_at(void *ea, unsigned long size);
 
 /*
- * When CONFIG_PPC_INDIRECT_IO is set, we use the generic iomap implementation
+ * When CONFIG_PPC_INDIRECT_PIO is set, we use the generic iomap implementation
  * which needs some additional definitions here. They basically allow PIO
  * space overall to be 1GB. This will work as long as we never try to use
  * iomap to map MMIO below 1GB which should be fine on ppc64

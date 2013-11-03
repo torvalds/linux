@@ -48,13 +48,8 @@ static int cvm_oct_fill_hw_skbuff(int pool, int size, int elements)
 	while (freed) {
 
 		struct sk_buff *skb = dev_alloc_skb(size + 256);
-		if (unlikely(skb == NULL)) {
-			pr_warning
-			    ("Failed to allocate skb for hardware pool %d\n",
-			     pool);
+		if (unlikely(skb == NULL))
 			break;
-		}
-
 		skb_reserve(skb, 256 - (((unsigned long)skb->data) & 0x7f));
 		*(struct sk_buff **)(skb->data - sizeof(void *)) = skb;
 		cvmx_fpa_free(skb->data, pool, DONT_WRITEBACK(size / 128));

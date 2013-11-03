@@ -38,7 +38,6 @@
 #include <net/ip.h>
 
 #include "Typedefs.h"
-#include "Version.h"
 #include "Macros.h"
 #include "HostMIBSInterface.h"
 #include "cntrl_SignalingInterface.h"
@@ -71,7 +70,7 @@
 #define DEV_NAME	"tarang"
 #define DRV_DESCRIPTION "Beceem Communications Inc. WiMAX driver"
 #define DRV_COPYRIGHT	"Copyright 2010. Beceem Communications Inc"
-#define DRV_VERSION	VER_FILEVERSION_STR
+#define DRV_VERSION	"5.2.45"
 #define PFX		DRV_NAME " "
 
 extern struct class *bcm_class;

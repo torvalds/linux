@@ -142,7 +142,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 		return r;
 	}
 	bo->rdev = rdev;
-	bo->gem_base.driver_private = NULL;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
@@ -377,6 +376,7 @@ int radeon_bo_list_validate(struct ww_acquire_ctx *ticket,
 					domain = lobj->alt_domain;
 					goto retry;
 				}
+				ttm_eu_backoff_reservation(ticket, head);
 				return r;
 			}
 		}

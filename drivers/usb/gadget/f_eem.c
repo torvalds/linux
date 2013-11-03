@@ -593,8 +593,11 @@ static struct usb_function_instance *eem_alloc_inst(void)
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = eem_free_inst;
 	opts->net = gether_setup_default();
-	if (IS_ERR(opts->net))
-		return ERR_CAST(opts->net);
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
 
 	config_group_init_type_name(&opts->func_inst.group, "", &eem_func_type);
 
@@ -621,7 +624,7 @@ static void eem_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_free_all_descriptors(f);
 }
 
-struct usb_function *eem_alloc(struct usb_function_instance *fi)
+static struct usb_function *eem_alloc(struct usb_function_instance *fi)
 {
 	struct f_eem	*eem;
 	struct f_eem_opts *opts;

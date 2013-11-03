@@ -162,6 +162,8 @@ static inline const char *cache_name(struct kmem_cache *s)
 
 static inline struct kmem_cache *cache_from_memcg(struct kmem_cache *s, int idx)
 {
+	if (!s->memcg_params)
+		return NULL;
 	return s->memcg_params->memcg_caches[idx];
 }
 
@@ -271,3 +273,6 @@ struct kmem_cache_node {
 #endif
 
 };
+
+void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+void slab_stop(struct seq_file *m, void *p);

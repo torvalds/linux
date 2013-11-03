@@ -68,7 +68,6 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 			       RADEON_GEM_DOMAIN_GTT, sg, &bo);
 	if (ret)
 		return ERR_PTR(ret);
-	bo->gem_base.driver_private = bo;
 
 	mutex_lock(&rdev->gem.mutex);
 	list_add_tail(&bo->list, &rdev->gem.objects);

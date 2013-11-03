@@ -254,10 +254,8 @@ static int ux500_dma_channel_abort(struct dma_channel *channel)
 	return 0;
 }
 
-static int ux500_dma_controller_stop(struct dma_controller *c)
+static void ux500_dma_controller_stop(struct ux500_dma_controller *controller)
 {
-	struct ux500_dma_controller *controller = container_of(c,
-			struct ux500_dma_controller, controller);
 	struct ux500_dma_channel *ux500_channel;
 	struct dma_channel *channel;
 	u8 ch_num;
@@ -281,18 +279,14 @@ static int ux500_dma_controller_stop(struct dma_controller *c)
 		if (ux500_channel->dma_chan)
 			dma_release_channel(ux500_channel->dma_chan);
 	}
-
-	return 0;
 }
 
-static int ux500_dma_controller_start(struct dma_controller *c)
+static int ux500_dma_controller_start(struct ux500_dma_controller *controller)
 {
-	struct ux500_dma_controller *controller = container_of(c,
-			struct ux500_dma_controller, controller);
 	struct ux500_dma_channel *ux500_channel = NULL;
 	struct musb *musb = controller->private_data;
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct ux500_musb_board_data *data;
 	struct dma_channel *dma_channel = NULL;
 	char **chan_names;
@@ -339,7 +333,9 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 			if (!ux500_channel->dma_chan)
 				ux500_channel->dma_chan =
 					dma_request_channel(mask,
-							    data->dma_filter,
+							    data ?
+							    data->dma_filter :
+							    NULL,
 							    param_array[ch_num]);
 
 			if (!ux500_channel->dma_chan) {
@@ -347,7 +343,7 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 					dir, ch_num);
 
 				/* Release already allocated channels */
-				ux500_dma_controller_stop(c);
+				ux500_dma_controller_stop(controller);
 
 				return -EBUSY;
 			}
@@ -369,6 +365,7 @@ void dma_controller_destroy(struct dma_controller *c)
 	struct ux500_dma_controller *controller = container_of(c,
 			struct ux500_dma_controller, controller);
 
+	ux500_dma_controller_stop(controller);
 	kfree(controller);
 }
 
@@ -378,6 +375,7 @@ struct dma_controller *dma_controller_create(struct musb *musb,
 	struct ux500_dma_controller *controller;
 	struct platform_device *pdev = to_platform_device(musb->controller);
 	struct resource	*iomem;
+	int ret;
 
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
 	if (!controller)
@@ -394,14 +392,15 @@ struct dma_controller *dma_controller_create(struct musb *musb,
 
 	controller->phy_base = (dma_addr_t) iomem->start;
 
-	controller->controller.start = ux500_dma_controller_start;
-	controller->controller.stop = ux500_dma_controller_stop;
 	controller->controller.channel_alloc = ux500_dma_channel_allocate;
 	controller->controller.channel_release = ux500_dma_channel_release;
 	controller->controller.channel_program = ux500_dma_channel_program;
 	controller->controller.channel_abort = ux500_dma_channel_abort;
 	controller->controller.is_compatible = ux500_dma_is_compatible;
 
+	ret = ux500_dma_controller_start(controller);
+	if (ret)
+		goto plat_get_fail;
 	return &controller->controller;
 
 plat_get_fail:

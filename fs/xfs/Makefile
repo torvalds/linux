@@ -27,9 +27,12 @@ xfs-y				+= xfs_trace.o
 
 # highlevel code
 xfs-y				+= xfs_aops.o \
+				   xfs_attr_inactive.o \
+				   xfs_attr_list.o \
 				   xfs_bit.o \
+				   xfs_bmap_util.o \
 				   xfs_buf.o \
-				   xfs_dfrag.o \
+				   xfs_dir2_readdir.o \
 				   xfs_discard.o \
 				   xfs_error.o \
 				   xfs_export.o \
@@ -44,11 +47,11 @@ xfs-y				+= xfs_aops.o \
 				   xfs_iops.o \
 				   xfs_itable.o \
 				   xfs_message.o \
+				   xfs_mount.o \
 				   xfs_mru_cache.o \
-				   xfs_rename.o \
 				   xfs_super.o \
-				   xfs_utils.o \
-				   xfs_vnodeops.o \
+				   xfs_symlink.o \
+				   xfs_trans.o \
 				   xfs_xattr.o \
 				   kmem.o \
 				   uuid.o
@@ -73,10 +76,13 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_ialloc_btree.o \
 				   xfs_icreate_item.o \
 				   xfs_inode.o \
+				   xfs_inode_fork.o \
+				   xfs_inode_buf.o \
 				   xfs_log_recover.o \
-				   xfs_mount.o \
-				   xfs_symlink.o \
-				   xfs_trans.o
+				   xfs_log_rlimit.o \
+				   xfs_sb.o \
+				   xfs_symlink_remote.o \
+				   xfs_trans_resv.o
 
 # low-level transaction/log code
 xfs-y				+= xfs_log.o \

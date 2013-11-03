@@ -817,7 +817,6 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 		if (neigh) {
 			neigh->cm = NULL;
-			list_del(&neigh->list);
 			ipoib_neigh_free(neigh);
 
 			tx->neigh = NULL;
@@ -1234,7 +1233,6 @@ static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
 
 		if (neigh) {
 			neigh->cm = NULL;
-			list_del(&neigh->list);
 			ipoib_neigh_free(neigh);
 
 			tx->neigh = NULL;
@@ -1325,7 +1323,6 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 			neigh = p->neigh;
 			if (neigh) {
 				neigh->cm = NULL;
-				list_del(&neigh->list);
 				ipoib_neigh_free(neigh);
 			}
 			list_del(&p->list);

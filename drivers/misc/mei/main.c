@@ -249,19 +249,16 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		mutex_unlock(&dev->device_lock);
 
 		if (wait_event_interruptible(cl->rx_wait,
-			(MEI_READ_COMPLETE == cl->reading_state ||
-			 MEI_FILE_INITIALIZING == cl->state ||
-			 MEI_FILE_DISCONNECTED == cl->state ||
-			 MEI_FILE_DISCONNECTING == cl->state))) {
+				MEI_READ_COMPLETE == cl->reading_state ||
+				mei_cl_is_transitioning(cl))) {
+
 			if (signal_pending(current))
 				return -EINTR;
 			return -ERESTARTSYS;
 		}
 
 		mutex_lock(&dev->device_lock);
-		if (MEI_FILE_INITIALIZING == cl->state ||
-		    MEI_FILE_DISCONNECTED == cl->state ||
-		    MEI_FILE_DISCONNECTING == cl->state) {
+		if (mei_cl_is_transitioning(cl)) {
 			rets = -EBUSY;
 			goto out;
 		}
@@ -625,24 +622,32 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 	unsigned int mask = 0;
 
 	if (WARN_ON(!cl || !cl->dev))
-		return mask;
+		return POLLERR;
 
 	dev = cl->dev;
 
 	mutex_lock(&dev->device_lock);
 
-	if (dev->dev_state != MEI_DEV_ENABLED)
-		goto out;
-
-
-	if (cl == &dev->iamthif_cl) {
-		mask = mei_amthif_poll(dev, file, wait);
+	if (!mei_cl_is_connected(cl)) {
+		mask = POLLERR;
 		goto out;
 	}
 
 	mutex_unlock(&dev->device_lock);
+
+
+	if (cl == &dev->iamthif_cl)
+		return mei_amthif_poll(dev, file, wait);
+
 	poll_wait(file, &cl->tx_wait, wait);
+
 	mutex_lock(&dev->device_lock);
+
+	if (!mei_cl_is_connected(cl)) {
+		mask = POLLERR;
+		goto out;
+	}
+
 	if (MEI_WRITE_COMPLETE == cl->writing_state)
 		mask |= (POLLIN | POLLRDNORM);
 

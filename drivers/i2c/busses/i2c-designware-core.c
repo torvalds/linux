@@ -98,6 +98,8 @@
 
 #define DW_IC_ERR_TX_ABRT	0x1
 
+#define DW_IC_TAR_10BITADDR_MASTER BIT(12)
+
 /*
  * status codes
  */
@@ -317,6 +319,12 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 				47,	/* tLOW = 4.7 us */
 				3,	/* tf = 0.3 us */
 				0);	/* No offset */
+
+	/* Allow platforms to specify the ideal HCNT and LCNT values */
+	if (dev->ss_hcnt && dev->ss_lcnt) {
+		hcnt = dev->ss_hcnt;
+		lcnt = dev->ss_lcnt;
+	}
 	dw_writel(dev, hcnt, DW_IC_SS_SCL_HCNT);
 	dw_writel(dev, lcnt, DW_IC_SS_SCL_LCNT);
 	dev_dbg(dev->dev, "Standard-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
@@ -331,6 +339,11 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 				13,	/* tLOW = 1.3 us */
 				3,	/* tf = 0.3 us */
 				0);	/* No offset */
+
+	if (dev->fs_hcnt && dev->fs_lcnt) {
+		hcnt = dev->fs_hcnt;
+		lcnt = dev->fs_lcnt;
+	}
 	dw_writel(dev, hcnt, DW_IC_FS_SCL_HCNT);
 	dw_writel(dev, lcnt, DW_IC_FS_SCL_LCNT);
 	dev_dbg(dev->dev, "Fast-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
@@ -377,21 +390,33 @@ static int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;
-	u32 ic_con;
+	u32 ic_con, ic_tar = 0;
 
 	/* Disable the adapter */
 	__i2c_dw_enable(dev, false);
 
-	/* set the slave (target) address */
-	dw_writel(dev, msgs[dev->msg_write_idx].addr, DW_IC_TAR);
-
 	/* if the slave address is ten bit address, enable 10BITADDR */
 	ic_con = dw_readl(dev, DW_IC_CON);
-	if (msgs[dev->msg_write_idx].flags & I2C_M_TEN)
+	if (msgs[dev->msg_write_idx].flags & I2C_M_TEN) {
 		ic_con |= DW_IC_CON_10BITADDR_MASTER;
-	else
+		/*
+		 * If I2C_DYNAMIC_TAR_UPDATE is set, the 10-bit addressing
+		 * mode has to be enabled via bit 12 of IC_TAR register.
+		 * We set it always as I2C_DYNAMIC_TAR_UPDATE can't be
+		 * detected from registers.
+		 */
+		ic_tar = DW_IC_TAR_10BITADDR_MASTER;
+	} else {
 		ic_con &= ~DW_IC_CON_10BITADDR_MASTER;
+	}
+
 	dw_writel(dev, ic_con, DW_IC_CON);
+
+	/*
+	 * Set the slave (target) address and enable 10-bit addressing mode
+	 * if applicable.
+	 */
+	dw_writel(dev, msgs[dev->msg_write_idx].addr | ic_tar, DW_IC_TAR);
 
 	/* Enable the adapter */
 	__i2c_dw_enable(dev, true);
@@ -416,6 +441,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	u32 addr = msgs[dev->msg_write_idx].addr;
 	u32 buf_len = dev->tx_buf_len;
 	u8 *buf = dev->tx_buf;
+	bool need_restart = false;
 
 	intr_mask = DW_IC_INTR_DEFAULT_MASK;
 
@@ -443,6 +469,14 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			/* new i2c_msg */
 			buf = msgs[dev->msg_write_idx].buf;
 			buf_len = msgs[dev->msg_write_idx].len;
+
+			/* If both IC_EMPTYFIFO_HOLD_MASTER_EN and
+			 * IC_RESTART_EN are set, we must manually
+			 * set restart bit between messages.
+			 */
+			if ((dev->master_cfg & DW_IC_CON_RESTART_EN) &&
+					(dev->msg_write_idx > 0))
+				need_restart = true;
 		}
 
 		tx_limit = dev->tx_fifo_depth - dw_readl(dev, DW_IC_TXFLR);
@@ -460,6 +494,11 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			if (dev->msg_write_idx == dev->msgs_num - 1 &&
 			    buf_len == 1)
 				cmd |= BIT(9);
+
+			if (need_restart) {
+				cmd |= BIT(10);
+				need_restart = false;
+			}
 
 			if (msgs[dev->msg_write_idx].flags & I2C_M_RD) {
 

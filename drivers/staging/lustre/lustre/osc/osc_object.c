@@ -191,10 +191,9 @@ static int osc_object_glimpse(const struct lu_env *env,
 {
 	struct lov_oinfo *oinfo = cl2osc(obj)->oo_oinfo;
 
-	ENTRY;
 	lvb->lvb_size   = oinfo->loi_kms;
 	lvb->lvb_blocks = oinfo->loi_lvb.lvb_blocks;
-	RETURN(0);
+	return 0;
 }
 
 

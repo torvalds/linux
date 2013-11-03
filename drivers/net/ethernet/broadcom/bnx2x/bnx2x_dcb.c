@@ -30,10 +30,8 @@
 #include "bnx2x_dcb.h"
 
 /* forward declarations of dcbx related functions */
-static int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp);
 static void bnx2x_pfc_set_pfc(struct bnx2x *bp);
 static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp);
-static int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp);
 static void bnx2x_dcbx_get_ets_pri_pg_tbl(struct bnx2x *bp,
 					  u32 *set_configuration_ets_pg,
 					  u32 *pri_pg_tbl);
@@ -425,30 +423,52 @@ static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 		bnx2x_pfc_clear(bp);
 }
 
-static int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
+int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
 {
 	struct bnx2x_func_state_params func_params = {NULL};
+	int rc;
 
 	func_params.f_obj = &bp->func_obj;
 	func_params.cmd = BNX2X_F_CMD_TX_STOP;
 
+	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	__set_bit(RAMROD_RETRY, &func_params.ramrod_flags);
+
 	DP(BNX2X_MSG_DCB, "STOP TRAFFIC\n");
-	return bnx2x_func_state_change(bp, &func_params);
+
+	rc = bnx2x_func_state_change(bp, &func_params);
+	if (rc) {
+		BNX2X_ERR("Unable to hold traffic for HW configuration\n");
+		bnx2x_panic();
+	}
+
+	return rc;
 }
 
-static int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
+int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
 {
 	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_tx_start_params *tx_params =
 		&func_params.params.tx_start;
+	int rc;
 
 	func_params.f_obj = &bp->func_obj;
 	func_params.cmd = BNX2X_F_CMD_TX_START;
 
+	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
+	__set_bit(RAMROD_RETRY, &func_params.ramrod_flags);
+
 	bnx2x_dcbx_fw_struct(bp, tx_params);
 
 	DP(BNX2X_MSG_DCB, "START TRAFFIC\n");
-	return bnx2x_func_state_change(bp, &func_params);
+
+	rc = bnx2x_func_state_change(bp, &func_params);
+	if (rc) {
+		BNX2X_ERR("Unable to resume traffic after HW configuration\n");
+		bnx2x_panic();
+	}
+
+	return rc;
 }
 
 static void bnx2x_dcbx_2cos_limit_update_ets_config(struct bnx2x *bp)
@@ -744,7 +764,9 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 			if (IS_MF(bp))
 				bnx2x_link_sync_notify(bp);
 
-			bnx2x_dcbx_stop_hw_tx(bp);
+			set_bit(BNX2X_SP_RTNL_TX_STOP, &bp->sp_rtnl_state);
+
+			schedule_delayed_work(&bp->sp_rtnl_task, 0);
 
 			return;
 		}
@@ -753,7 +775,13 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 		bnx2x_pfc_set_pfc(bp);
 
 		bnx2x_dcbx_update_ets_params(bp);
-		bnx2x_dcbx_resume_hw_tx(bp);
+
+		/* ets may affect cmng configuration: reinit it in hw */
+		bnx2x_set_local_cmng(bp);
+
+		set_bit(BNX2X_SP_RTNL_TX_RESUME, &bp->sp_rtnl_state);
+
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
 
 		return;
 	case BNX2X_DCBX_STATE_TX_RELEASED:
@@ -2363,21 +2391,24 @@ static u8 bnx2x_dcbnl_get_featcfg(struct net_device *netdev, int featid,
 		case DCB_FEATCFG_ATTR_PG:
 			if (bp->dcbx_local_feat.ets.enabled)
 				*flags |= DCB_FEATCFG_ENABLE;
-			if (bp->dcbx_error & DCBX_LOCAL_ETS_ERROR)
+			if (bp->dcbx_error & (DCBX_LOCAL_ETS_ERROR |
+					      DCBX_REMOTE_MIB_ERROR))
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		case DCB_FEATCFG_ATTR_PFC:
 			if (bp->dcbx_local_feat.pfc.enabled)
 				*flags |= DCB_FEATCFG_ENABLE;
 			if (bp->dcbx_error & (DCBX_LOCAL_PFC_ERROR |
-			    DCBX_LOCAL_PFC_MISMATCH))
+					      DCBX_LOCAL_PFC_MISMATCH |
+					      DCBX_REMOTE_MIB_ERROR))
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		case DCB_FEATCFG_ATTR_APP:
 			if (bp->dcbx_local_feat.app.enabled)
 				*flags |= DCB_FEATCFG_ENABLE;
 			if (bp->dcbx_error & (DCBX_LOCAL_APP_ERROR |
-			    DCBX_LOCAL_APP_MISMATCH))
+					      DCBX_LOCAL_APP_MISMATCH |
+					      DCBX_REMOTE_MIB_ERROR))
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		default:

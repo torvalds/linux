@@ -367,39 +367,6 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 }
 
 /**
- * aer_do_secondary_bus_reset - perform secondary bus reset
- * @dev: pointer to bridge's pci_dev data structure
- *
- * Invoked when performing link reset at Root Port or Downstream Port.
- */
-void aer_do_secondary_bus_reset(struct pci_dev *dev)
-{
-	u16 p2p_ctrl;
-
-	/* Assert Secondary Bus Reset */
-	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
-	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
-
-	/*
-	 * we should send hot reset message for 2ms to allow it time to
-	 * propagate to all downstream ports
-	 */
-	msleep(2);
-
-	/* De-assert Secondary Bus Reset */
-	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
-
-	/*
-	 * System software must wait for at least 100ms from the end
-	 * of a reset of one or more device before it is permitted
-	 * to issue Configuration Requests to those devices.
-	 */
-	msleep(200);
-}
-
-/**
  * default_reset_link - default reset function
  * @dev: pointer to pci_dev data structure
  *
@@ -408,7 +375,7 @@ void aer_do_secondary_bus_reset(struct pci_dev *dev)
  */
 static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
-	aer_do_secondary_bus_reset(dev);
+	pci_reset_bridge_secondary_bus(dev);
 	dev_printk(KERN_DEBUG, &dev->dev, "downstream link has been reset\n");
 	return PCI_ERS_RESULT_RECOVERED;
 }

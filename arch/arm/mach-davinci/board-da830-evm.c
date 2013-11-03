@@ -185,10 +185,6 @@ static __init void da830_evm_usb_init(void)
 			   __func__, ret);
 }
 
-static struct davinci_uart_config da830_evm_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 static const short da830_evm_mcasp1_pins[] = {
 	DA830_AHCLKX1, DA830_ACLKX1, DA830_AFSX1, DA830_AHCLKR1, DA830_AFSR1,
 	DA830_AMUTE1, DA830_AXR1_0, DA830_AXR1_1, DA830_AXR1_2, DA830_AXR1_5,
@@ -630,7 +626,7 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: watchdog registration failed: %d\n",
 				ret);
 
-	davinci_serial_init(&da830_evm_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
 

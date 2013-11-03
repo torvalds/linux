@@ -299,7 +299,7 @@ void __init sanity_check_meminfo(void)
  * paging_init() sets up the page tables, initialises the zone memory
  * maps, and sets up the zero page, bad page and bad page tables.
  */
-void __init paging_init(struct machine_desc *mdesc)
+void __init paging_init(const struct machine_desc *mdesc)
 {
 	early_trap_init((void *)CONFIG_VECTORS_BASE);
 	mpu_setup();

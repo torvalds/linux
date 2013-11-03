@@ -2054,7 +2054,7 @@ static struct pxa25x_udc memory = {
 /*
  *	probe - binds to the platform device
  */
-static int __init pxa25x_udc_probe(struct platform_device *pdev)
+static int pxa25x_udc_probe(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = &memory;
 	int retval, irq;
@@ -2117,7 +2117,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 	/* other non-static parts of init */
 	dev->dev = &pdev->dev;
-	dev->mach = pdev->dev.platform_data;
+	dev->mach = dev_get_platdata(&pdev->dev);
 
 	dev->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
@@ -2203,7 +2203,7 @@ static void pxa25x_udc_shutdown(struct platform_device *_dev)
 	pullup_off();
 }
 
-static int __exit pxa25x_udc_remove(struct platform_device *pdev)
+static int pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
@@ -2294,7 +2294,8 @@ static int pxa25x_udc_resume(struct platform_device *dev)
 
 static struct platform_driver udc_driver = {
 	.shutdown	= pxa25x_udc_shutdown,
-	.remove		= __exit_p(pxa25x_udc_remove),
+	.probe		= pxa25x_udc_probe,
+	.remove		= pxa25x_udc_remove,
 	.suspend	= pxa25x_udc_suspend,
 	.resume		= pxa25x_udc_resume,
 	.driver		= {
@@ -2303,7 +2304,7 @@ static struct platform_driver udc_driver = {
 	},
 };
 
-module_platform_driver_probe(udc_driver, pxa25x_udc_probe);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Frank Becker, Robert Schwebel, David Brownell");

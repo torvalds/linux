@@ -1108,7 +1108,7 @@ static int twlreg_probe(struct platform_device *pdev)
 		drvdata = NULL;
 	} else {
 		id = pdev->id;
-		initdata = pdev->dev.platform_data;
+		initdata = dev_get_platdata(&pdev->dev);
 		for (i = 0, template = NULL; i < ARRAY_SIZE(twl_of_match); i++) {
 			template = twl_of_match[i].data;
 			if (template && template->desc.id == id)

@@ -379,6 +379,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		try_to_freeze();
 
 		/* we should try only the port we connected to before */
+		mutex_lock(&server->srv_mutex);
 		rc = generic_ip_connect(server);
 		if (rc) {
 			cifs_dbg(FYI, "reconnect error %d\n", rc);
@@ -390,6 +391,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
 		}
+		mutex_unlock(&server->srv_mutex);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
 	return rc;
@@ -1114,7 +1116,7 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		break;
 #ifdef CONFIG_CIFS_SMB2
 	case Smb_20:
-		vol->ops = &smb21_operations; /* currently identical with 2.1 */
+		vol->ops = &smb20_operations;
 		vol->vals = &smb20_values;
 		break;
 	case Smb_21:
@@ -1575,8 +1577,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnlen(string, MAX_USERNAME_SIZE) >
-							MAX_USERNAME_SIZE) {
+			if (strnlen(string, CIFS_MAX_USERNAME_LEN) >
+							CIFS_MAX_USERNAME_LEN) {
 				printk(KERN_WARNING "CIFS: username too long\n");
 				goto cifs_parse_mount_err;
 			}
@@ -1675,7 +1677,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnlen(string, 256) == 256) {
+			if (strnlen(string, CIFS_MAX_DOMAINNAME_LEN)
+					== CIFS_MAX_DOMAINNAME_LEN) {
 				printk(KERN_WARNING "CIFS: domain name too"
 						    " long\n");
 				goto cifs_parse_mount_err;
@@ -2220,13 +2223,13 @@ static int match_session(struct cifs_ses *ses, struct smb_vol *vol)
 		/* anything else takes username/password */
 		if (strncmp(ses->user_name,
 			    vol->username ? vol->username : "",
-			    MAX_USERNAME_SIZE))
+			    CIFS_MAX_USERNAME_LEN))
 			return 0;
 		if (strlen(vol->username) != 0 &&
 		    ses->password != NULL &&
 		    strncmp(ses->password,
 			    vol->password ? vol->password : "",
-			    MAX_PASSWORD_SIZE))
+			    CIFS_MAX_PASSWORD_LEN))
 			return 0;
 	}
 	return 1;
@@ -2276,8 +2279,8 @@ cifs_put_smb_ses(struct cifs_ses *ses)
 
 #ifdef CONFIG_KEYS
 
-/* strlen("cifs:a:") + INET6_ADDRSTRLEN + 1 */
-#define CIFSCREDS_DESC_SIZE (7 + INET6_ADDRSTRLEN + 1)
+/* strlen("cifs:a:") + CIFS_MAX_DOMAINNAME_LEN + 1 */
+#define CIFSCREDS_DESC_SIZE (7 + CIFS_MAX_DOMAINNAME_LEN + 1)
 
 /* Populate username and pw fields from keyring if possible */
 static int
@@ -2351,7 +2354,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	}
 
 	len = delim - payload;
-	if (len > MAX_USERNAME_SIZE || len <= 0) {
+	if (len > CIFS_MAX_USERNAME_LEN || len <= 0) {
 		cifs_dbg(FYI, "Bad value from username search (len=%zd)\n",
 			 len);
 		rc = -EINVAL;
@@ -2368,7 +2371,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	cifs_dbg(FYI, "%s: username=%s\n", __func__, vol->username);
 
 	len = key->datalen - (len + 1);
-	if (len > MAX_PASSWORD_SIZE || len <= 0) {
+	if (len > CIFS_MAX_PASSWORD_LEN || len <= 0) {
 		cifs_dbg(FYI, "Bad len for password search (len=%zd)\n", len);
 		rc = -EINVAL;
 		kfree(vol->username);
@@ -3825,33 +3828,8 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	if (server->ops->sess_setup)
 		rc = server->ops->sess_setup(xid, ses, nls_info);
 
-	if (rc) {
+	if (rc)
 		cifs_dbg(VFS, "Send error in SessSetup = %d\n", rc);
-	} else {
-		mutex_lock(&server->srv_mutex);
-		if (!server->session_estab) {
-			server->session_key.response = ses->auth_key.response;
-			server->session_key.len = ses->auth_key.len;
-			server->sequence_number = 0x2;
-			server->session_estab = true;
-			ses->auth_key.response = NULL;
-			if (server->ops->generate_signingkey)
-				server->ops->generate_signingkey(server);
-		}
-		mutex_unlock(&server->srv_mutex);
-
-		cifs_dbg(FYI, "CIFS Session Established successfully\n");
-		spin_lock(&GlobalMid_Lock);
-		ses->status = CifsGood;
-		ses->need_reconnect = false;
-		spin_unlock(&GlobalMid_Lock);
-	}
-
-	kfree(ses->auth_key.response);
-	ses->auth_key.response = NULL;
-	ses->auth_key.len = 0;
-	kfree(ses->ntlmssp);
-	ses->ntlmssp = NULL;
 
 	return rc;
 }

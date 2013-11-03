@@ -87,22 +87,28 @@ int w1_ds2781_eeprom_cmd(struct device *dev, int addr, int cmd)
 }
 EXPORT_SYMBOL(w1_ds2781_eeprom_cmd);
 
-static ssize_t w1_ds2781_read_bin(struct file *filp,
-				  struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
-				  char *buf, loff_t off, size_t count)
+static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
+			     struct bin_attribute *bin_attr, char *buf,
+			     loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	return w1_ds2781_io(dev, buf, off, count, 0);
 }
 
-static struct bin_attribute w1_ds2781_bin_attr = {
-	.attr = {
-		.name = "w1_slave",
-		.mode = S_IRUGO,
-	},
-	.size = DS2781_DATA_SIZE,
-	.read = w1_ds2781_read_bin,
+static BIN_ATTR_RO(w1_slave, DS2781_DATA_SIZE);
+
+static struct bin_attribute *w1_ds2781_bin_attrs[] = {
+	&bin_attr_w1_slave,
+	NULL,
+};
+
+static const struct attribute_group w1_ds2781_group = {
+	.bin_attrs = w1_ds2781_bin_attrs,
+};
+
+static const struct attribute_group *w1_ds2781_groups[] = {
+	&w1_ds2781_group,
+	NULL,
 };
 
 static DEFINE_IDA(bat_ida);
@@ -130,16 +136,10 @@ static int w1_ds2781_add_slave(struct w1_slave *sl)
 	if (ret)
 		goto pdev_add_failed;
 
-	ret = sysfs_create_bin_file(&sl->dev.kobj, &w1_ds2781_bin_attr);
-	if (ret)
-		goto bin_attr_failed;
-
 	dev_set_drvdata(&sl->dev, pdev);
 
 	return 0;
 
-bin_attr_failed:
-	platform_device_del(pdev);
 pdev_add_failed:
 	platform_device_put(pdev);
 pdev_alloc_failed:
@@ -155,12 +155,12 @@ static void w1_ds2781_remove_slave(struct w1_slave *sl)
 
 	platform_device_unregister(pdev);
 	ida_simple_remove(&bat_ida, id);
-	sysfs_remove_bin_file(&sl->dev.kobj, &w1_ds2781_bin_attr);
 }
 
 static struct w1_family_ops w1_ds2781_fops = {
 	.add_slave    = w1_ds2781_add_slave,
 	.remove_slave = w1_ds2781_remove_slave,
+	.groups       = w1_ds2781_groups,
 };
 
 static struct w1_family w1_ds2781_family = {

@@ -89,13 +89,18 @@ extern unsigned int processor_id;
 		__val;							\
 	})
 
+/*
+ * The memory clobber prevents gcc 4.5 from reordering the mrc before
+ * any is_smp() tests, which can cause undefined instruction aborts on
+ * ARM1136 r0 due to the missing extended CP15 registers.
+ */
 #define read_cpuid_ext(ext_reg)						\
 	({								\
 		unsigned int __val;					\
 		asm("mrc	p15, 0, %0, c0, " ext_reg		\
 		    : "=r" (__val)					\
 		    :							\
-		    : "cc");						\
+		    : "memory");					\
 		__val;							\
 	})
 

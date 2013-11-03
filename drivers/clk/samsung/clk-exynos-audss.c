@@ -62,7 +62,7 @@ static struct syscore_ops exynos_audss_clk_syscore_ops = {
 #endif /* CONFIG_PM_SLEEP */
 
 /* register exynos_audss clocks */
-void __init exynos_audss_clk_init(struct device_node *np)
+static void __init exynos_audss_clk_init(struct device_node *np)
 {
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -82,11 +82,13 @@ void __init exynos_audss_clk_init(struct device_node *np)
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
 	clk_table[EXYNOS_MOUT_AUDSS] = clk_register_mux(NULL, "mout_audss",
-				mout_audss_p, ARRAY_SIZE(mout_audss_p), 0,
+				mout_audss_p, ARRAY_SIZE(mout_audss_p),
+				CLK_SET_RATE_NO_REPARENT,
 				reg_base + ASS_CLK_SRC, 0, 1, 0, &lock);
 
 	clk_table[EXYNOS_MOUT_I2S] = clk_register_mux(NULL, "mout_i2s",
-				mout_i2s_p, ARRAY_SIZE(mout_i2s_p), 0,
+				mout_i2s_p, ARRAY_SIZE(mout_i2s_p),
+				CLK_SET_RATE_NO_REPARENT,
 				reg_base + ASS_CLK_SRC, 2, 2, 0, &lock);
 
 	clk_table[EXYNOS_DOUT_SRP] = clk_register_divider(NULL, "dout_srp",

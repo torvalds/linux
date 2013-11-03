@@ -582,7 +582,7 @@ static void smack_inode_free_security(struct inode *inode)
  * Returns 0 if it all works out, -ENOMEM if there's no memory
  */
 static int smack_inode_init_security(struct inode *inode, struct inode *dir,
-				     const struct qstr *qstr, char **name,
+				     const struct qstr *qstr, const char **name,
 				     void **value, size_t *len)
 {
 	struct inode_smack *issp = inode->i_security;
@@ -591,11 +591,8 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 	char *dsp = smk_of_inode(dir);
 	int may;
 
-	if (name) {
-		*name = kstrdup(XATTR_SMACK_SUFFIX, GFP_NOFS);
-		if (*name == NULL)
-			return -ENOMEM;
-	}
+	if (name)
+		*name = XATTR_SMACK_SUFFIX;
 
 	if (value) {
 		rcu_read_lock();
@@ -1998,12 +1995,11 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
  *
  * Create or update the port list entry
  */
-static int smk_ipv6_port_check(struct sock *sk, struct sockaddr *address,
+static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 				int act)
 {
 	__be16 *bep;
 	__be32 *be32p;
-	struct sockaddr_in6 *addr6;
 	struct smk_port_label *spp;
 	struct socket_smack *ssp = sk->sk_security;
 	struct smack_known *skp;
@@ -2025,10 +2021,9 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr *address,
 	/*
 	 * Get the IP address and port from the address.
 	 */
-	addr6 = (struct sockaddr_in6 *)address;
-	port = ntohs(addr6->sin6_port);
-	bep = (__be16 *)(&addr6->sin6_addr);
-	be32p = (__be32 *)(&addr6->sin6_addr);
+	port = ntohs(address->sin6_port);
+	bep = (__be16 *)(&address->sin6_addr);
+	be32p = (__be32 *)(&address->sin6_addr);
 
 	/*
 	 * It's remote, so port lookup does no good.
@@ -2060,9 +2055,9 @@ auditout:
 	ad.a.u.net->family = sk->sk_family;
 	ad.a.u.net->dport = port;
 	if (act == SMK_RECEIVING)
-		ad.a.u.net->v6info.saddr = addr6->sin6_addr;
+		ad.a.u.net->v6info.saddr = address->sin6_addr;
 	else
-		ad.a.u.net->v6info.daddr = addr6->sin6_addr;
+		ad.a.u.net->v6info.daddr = address->sin6_addr;
 #endif
 	return smk_access(skp, object, MAY_WRITE, &ad);
 }
@@ -2201,7 +2196,8 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 	case PF_INET6:
 		if (addrlen < sizeof(struct sockaddr_in6))
 			return -EINVAL;
-		rc = smk_ipv6_port_check(sock->sk, sap, SMK_CONNECTING);
+		rc = smk_ipv6_port_check(sock->sk, (struct sockaddr_in6 *)sap,
+						SMK_CONNECTING);
 		break;
 	}
 	return rc;
@@ -3034,7 +3030,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 				int size)
 {
 	struct sockaddr_in *sip = (struct sockaddr_in *) msg->msg_name;
-	struct sockaddr *sap = (struct sockaddr *) msg->msg_name;
+	struct sockaddr_in6 *sap = (struct sockaddr_in6 *) msg->msg_name;
 	int rc = 0;
 
 	/*
@@ -3066,6 +3062,8 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 {
 	struct smack_known *skp;
 	int found = 0;
+	int acat;
+	int kcat;
 
 	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) != 0) {
 		/*
@@ -3082,12 +3080,28 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 		list_for_each_entry(skp, &smack_known_list, list) {
 			if (sap->attr.mls.lvl != skp->smk_netlabel.attr.mls.lvl)
 				continue;
-			if (memcmp(sap->attr.mls.cat,
-				skp->smk_netlabel.attr.mls.cat,
-				SMK_CIPSOLEN) != 0)
-				continue;
-			found = 1;
-			break;
+			/*
+			 * Compare the catsets. Use the netlbl APIs.
+			 */
+			if ((sap->flags & NETLBL_SECATTR_MLS_CAT) == 0) {
+				if ((skp->smk_netlabel.flags &
+				     NETLBL_SECATTR_MLS_CAT) == 0)
+					found = 1;
+				break;
+			}
+			for (acat = -1, kcat = -1; acat == kcat; ) {
+				acat = netlbl_secattr_catmap_walk(
+					sap->attr.mls.cat, acat + 1);
+				kcat = netlbl_secattr_catmap_walk(
+					skp->smk_netlabel.attr.mls.cat,
+					kcat + 1);
+				if (acat < 0 || kcat < 0)
+					break;
+			}
+			if (acat == kcat) {
+				found = 1;
+				break;
+			}
 		}
 		rcu_read_unlock();
 
@@ -3121,9 +3135,8 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 	return smack_net_ambient;
 }
 
-static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr *sap)
+static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr_in6 *sip)
 {
-	struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
 	u8 nexthdr;
 	int offset;
 	int proto = -EINVAL;
@@ -3181,7 +3194,7 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = sk->sk_security;
 	struct smack_known *skp;
-	struct sockaddr sadd;
+	struct sockaddr_in6 sadd;
 	int rc = 0;
 	struct smk_audit_info ad;
 #ifdef CONFIG_AUDIT
@@ -3879,12 +3892,12 @@ static __init void init_smack_known_list(void)
 	/*
 	 * Create the known labels list
 	 */
-	list_add(&smack_known_huh.list, &smack_known_list);
-	list_add(&smack_known_hat.list, &smack_known_list);
-	list_add(&smack_known_star.list, &smack_known_list);
-	list_add(&smack_known_floor.list, &smack_known_list);
-	list_add(&smack_known_invalid.list, &smack_known_list);
-	list_add(&smack_known_web.list, &smack_known_list);
+	smk_insert_entry(&smack_known_huh);
+	smk_insert_entry(&smack_known_hat);
+	smk_insert_entry(&smack_known_star);
+	smk_insert_entry(&smack_known_floor);
+	smk_insert_entry(&smack_known_invalid);
+	smk_insert_entry(&smack_known_web);
 }
 
 /**

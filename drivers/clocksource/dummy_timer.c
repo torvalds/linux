@@ -25,7 +25,7 @@ static void dummy_timer_set_mode(enum clock_event_mode mode,
 	 */
 }
 
-static void __cpuinit dummy_timer_setup(void)
+static void dummy_timer_setup(void)
 {
 	int cpu = smp_processor_id();
 	struct clock_event_device *evt = __this_cpu_ptr(&dummy_timer_evt);
@@ -41,7 +41,7 @@ static void __cpuinit dummy_timer_setup(void)
 	clockevents_register_device(evt);
 }
 
-static int __cpuinit dummy_timer_cpu_notify(struct notifier_block *self,
+static int dummy_timer_cpu_notify(struct notifier_block *self,
 				      unsigned long action, void *hcpu)
 {
 	if ((action & ~CPU_TASKS_FROZEN) == CPU_STARTING)
@@ -50,7 +50,7 @@ static int __cpuinit dummy_timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block dummy_timer_cpu_nb __cpuinitdata = {
+static struct notifier_block dummy_timer_cpu_nb = {
 	.notifier_call = dummy_timer_cpu_notify,
 };
 

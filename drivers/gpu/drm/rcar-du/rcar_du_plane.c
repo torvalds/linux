@@ -36,90 +36,95 @@ static inline struct rcar_du_plane *to_rcar_plane(struct drm_plane *plane)
 	return container_of(plane, struct rcar_du_kms_plane, plane)->hwplane;
 }
 
-static u32 rcar_du_plane_read(struct rcar_du_device *rcdu,
+static u32 rcar_du_plane_read(struct rcar_du_group *rgrp,
 			      unsigned int index, u32 reg)
 {
-	return rcar_du_read(rcdu, index * PLANE_OFF + reg);
+	return rcar_du_read(rgrp->dev,
+			    rgrp->mmio_offset + index * PLANE_OFF + reg);
 }
 
-static void rcar_du_plane_write(struct rcar_du_device *rcdu,
+static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 				unsigned int index, u32 reg, u32 data)
 {
-	rcar_du_write(rcdu, index * PLANE_OFF + reg, data);
+	rcar_du_write(rgrp->dev, rgrp->mmio_offset + index * PLANE_OFF + reg,
+		      data);
 }
 
 int rcar_du_plane_reserve(struct rcar_du_plane *plane,
 			  const struct rcar_du_format_info *format)
 {
-	struct rcar_du_device *rcdu = plane->dev;
+	struct rcar_du_group *rgrp = plane->group;
 	unsigned int i;
 	int ret = -EBUSY;
 
-	mutex_lock(&rcdu->planes.lock);
+	mutex_lock(&rgrp->planes.lock);
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->planes.planes); ++i) {
-		if (!(rcdu->planes.free & (1 << i)))
+	for (i = 0; i < ARRAY_SIZE(rgrp->planes.planes); ++i) {
+		if (!(rgrp->planes.free & (1 << i)))
 			continue;
 
 		if (format->planes == 1 ||
-		    rcdu->planes.free & (1 << ((i + 1) % 8)))
+		    rgrp->planes.free & (1 << ((i + 1) % 8)))
 			break;
 	}
 
-	if (i == ARRAY_SIZE(rcdu->planes.planes))
+	if (i == ARRAY_SIZE(rgrp->planes.planes))
 		goto done;
 
-	rcdu->planes.free &= ~(1 << i);
+	rgrp->planes.free &= ~(1 << i);
 	if (format->planes == 2)
-		rcdu->planes.free &= ~(1 << ((i + 1) % 8));
+		rgrp->planes.free &= ~(1 << ((i + 1) % 8));
 
 	plane->hwindex = i;
 
 	ret = 0;
 
 done:
-	mutex_unlock(&rcdu->planes.lock);
+	mutex_unlock(&rgrp->planes.lock);
 	return ret;
 }
 
 void rcar_du_plane_release(struct rcar_du_plane *plane)
 {
-	struct rcar_du_device *rcdu = plane->dev;
+	struct rcar_du_group *rgrp = plane->group;
 
 	if (plane->hwindex == -1)
 		return;
 
-	mutex_lock(&rcdu->planes.lock);
-	rcdu->planes.free |= 1 << plane->hwindex;
+	mutex_lock(&rgrp->planes.lock);
+	rgrp->planes.free |= 1 << plane->hwindex;
 	if (plane->format->planes == 2)
-		rcdu->planes.free |= 1 << ((plane->hwindex + 1) % 8);
-	mutex_unlock(&rcdu->planes.lock);
+		rgrp->planes.free |= 1 << ((plane->hwindex + 1) % 8);
+	mutex_unlock(&rgrp->planes.lock);
 
 	plane->hwindex = -1;
 }
 
 void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 {
-	struct rcar_du_device *rcdu = plane->dev;
+	struct rcar_du_group *rgrp = plane->group;
 	unsigned int index = plane->hwindex;
 
-	/* According to the datasheet the Y position is expressed in raster line
-	 * units. However, 32bpp formats seem to require a doubled Y position
-	 * value. Similarly, for the second plane, NV12 and NV21 formats seem to
+	/* The Y position is expressed in raster line units and must be doubled
+	 * for 32bpp formats, according to the R8A7790 datasheet. No mention of
+	 * doubling the Y position is found in the R8A7779 datasheet, but the
+	 * rule seems to apply there as well.
+	 *
+	 * Similarly, for the second plane, NV12 and NV21 formats seem to
 	 * require a halved Y position value.
 	 */
-	rcar_du_plane_write(rcdu, index, PnSPXR, plane->src_x);
-	rcar_du_plane_write(rcdu, index, PnSPYR, plane->src_y *
+	rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
+	rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *
 			    (plane->format->bpp == 32 ? 2 : 1));
-	rcar_du_plane_write(rcdu, index, PnDSA0R, plane->dma[0]);
+	rcar_du_plane_write(rgrp, index, PnDSA0R, plane->dma[0]);
 
 	if (plane->format->planes == 2) {
 		index = (index + 1) % 8;
 
-		rcar_du_plane_write(rcdu, index, PnSPXR, plane->src_x);
-		rcar_du_plane_write(rcdu, index, PnSPYR, plane->src_y *
+		rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
+		rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *
 				    (plane->format->bpp == 16 ? 2 : 1) / 2);
-		rcar_du_plane_write(rcdu, index, PnDSA0R, plane->dma[1]);
+		rcar_du_plane_write(rgrp, index, PnDSA0R, plane->dma[1]);
 	}
 }
 
@@ -140,7 +145,7 @@ void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
 static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 				     unsigned int index)
 {
-	struct rcar_du_device *rcdu = plane->dev;
+	struct rcar_du_group *rgrp = plane->group;
 	u32 colorkey;
 	u32 pnmr;
 
@@ -154,9 +159,9 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	 * enable alpha-blending regardless of the X bit value.
 	 */
 	if (plane->format->fourcc != DRM_FORMAT_XRGB1555)
-		rcar_du_plane_write(rcdu, index, PnALPHAR, PnALPHAR_ABIT_0);
+		rcar_du_plane_write(rgrp, index, PnALPHAR, PnALPHAR_ABIT_0);
 	else
-		rcar_du_plane_write(rcdu, index, PnALPHAR,
+		rcar_du_plane_write(rgrp, index, PnALPHAR,
 				    PnALPHAR_ABIT_X | plane->alpha);
 
 	pnmr = PnMR_BM_MD | plane->format->pnmr;
@@ -172,14 +177,14 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	if (plane->format->fourcc == DRM_FORMAT_YUYV)
 		pnmr |= PnMR_YCDF_YUYV;
 
-	rcar_du_plane_write(rcdu, index, PnMR, pnmr);
+	rcar_du_plane_write(rgrp, index, PnMR, pnmr);
 
 	switch (plane->format->fourcc) {
 	case DRM_FORMAT_RGB565:
 		colorkey = ((plane->colorkey & 0xf80000) >> 8)
 			 | ((plane->colorkey & 0x00fc00) >> 5)
 			 | ((plane->colorkey & 0x0000f8) >> 3);
-		rcar_du_plane_write(rcdu, index, PnTC2R, colorkey);
+		rcar_du_plane_write(rgrp, index, PnTC2R, colorkey);
 		break;
 
 	case DRM_FORMAT_ARGB1555:
@@ -187,12 +192,12 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 		colorkey = ((plane->colorkey & 0xf80000) >> 9)
 			 | ((plane->colorkey & 0x00f800) >> 6)
 			 | ((plane->colorkey & 0x0000f8) >> 3);
-		rcar_du_plane_write(rcdu, index, PnTC2R, colorkey);
+		rcar_du_plane_write(rgrp, index, PnTC2R, colorkey);
 		break;
 
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
-		rcar_du_plane_write(rcdu, index, PnTC3R,
+		rcar_du_plane_write(rgrp, index, PnTC3R,
 				    PnTC3R_CODE | (plane->colorkey & 0xffffff));
 		break;
 	}
@@ -201,7 +206,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 				  unsigned int index)
 {
-	struct rcar_du_device *rcdu = plane->dev;
+	struct rcar_du_group *rgrp = plane->group;
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
 	u32 mwr;
@@ -211,7 +216,7 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 	 * The data format is selected by the DDDF field in PnMR and the EDF
 	 * field in DDCR4.
 	 */
-	ddcr4 = rcar_du_plane_read(rcdu, index, PnDDCR4);
+	ddcr4 = rcar_du_plane_read(rgrp, index, PnDDCR4);
 	ddcr4 &= ~PnDDCR4_EDF_MASK;
 	ddcr4 |= plane->format->edf | PnDDCR4_CODE;
 
@@ -232,8 +237,8 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 		}
 	}
 
-	rcar_du_plane_write(rcdu, index, PnDDCR2, ddcr2);
-	rcar_du_plane_write(rcdu, index, PnDDCR4, ddcr4);
+	rcar_du_plane_write(rgrp, index, PnDDCR2, ddcr2);
+	rcar_du_plane_write(rgrp, index, PnDDCR4, ddcr4);
 
 	/* Memory pitch (expressed in pixels) */
 	if (plane->format->planes == 2)
@@ -241,19 +246,19 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 	else
 		mwr = plane->pitch * 8 / plane->format->bpp;
 
-	rcar_du_plane_write(rcdu, index, PnMWR, mwr);
+	rcar_du_plane_write(rgrp, index, PnMWR, mwr);
 
 	/* Destination position and size */
-	rcar_du_plane_write(rcdu, index, PnDSXR, plane->width);
-	rcar_du_plane_write(rcdu, index, PnDSYR, plane->height);
-	rcar_du_plane_write(rcdu, index, PnDPXR, plane->dst_x);
-	rcar_du_plane_write(rcdu, index, PnDPYR, plane->dst_y);
+	rcar_du_plane_write(rgrp, index, PnDSXR, plane->width);
+	rcar_du_plane_write(rgrp, index, PnDSYR, plane->height);
+	rcar_du_plane_write(rgrp, index, PnDPXR, plane->dst_x);
+	rcar_du_plane_write(rgrp, index, PnDPYR, plane->dst_y);
 
 	/* Wrap-around and blinking, disabled */
-	rcar_du_plane_write(rcdu, index, PnWASPR, 0);
-	rcar_du_plane_write(rcdu, index, PnWAMWR, 4095);
-	rcar_du_plane_write(rcdu, index, PnBTR, 0);
-	rcar_du_plane_write(rcdu, index, PnMLR, 0);
+	rcar_du_plane_write(rgrp, index, PnWASPR, 0);
+	rcar_du_plane_write(rgrp, index, PnWAMWR, 4095);
+	rcar_du_plane_write(rgrp, index, PnBTR, 0);
+	rcar_du_plane_write(rgrp, index, PnMLR, 0);
 }
 
 void rcar_du_plane_setup(struct rcar_du_plane *plane)
@@ -273,7 +278,7 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		       uint32_t src_w, uint32_t src_h)
 {
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_device *rcdu = plane->dev->dev_private;
+	struct rcar_du_device *rcdu = rplane->group->dev;
 	const struct rcar_du_format_info *format;
 	unsigned int nplanes;
 	int ret;
@@ -316,26 +321,25 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	rcar_du_plane_compute_base(rplane, fb);
 	rcar_du_plane_setup(rplane);
 
-	mutex_lock(&rcdu->planes.lock);
+	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = true;
 	rcar_du_crtc_update_planes(rplane->crtc);
-	mutex_unlock(&rcdu->planes.lock);
+	mutex_unlock(&rplane->group->planes.lock);
 
 	return 0;
 }
 
 static int rcar_du_plane_disable(struct drm_plane *plane)
 {
-	struct rcar_du_device *rcdu = plane->dev->dev_private;
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 
 	if (!rplane->enabled)
 		return 0;
 
-	mutex_lock(&rcdu->planes.lock);
+	mutex_lock(&rplane->group->planes.lock);
 	rplane->enabled = false;
 	rcar_du_crtc_update_planes(rplane->crtc);
-	mutex_unlock(&rcdu->planes.lock);
+	mutex_unlock(&rplane->group->planes.lock);
 
 	rcar_du_plane_release(rplane);
 
@@ -377,9 +381,7 @@ static void rcar_du_plane_set_colorkey(struct rcar_du_plane *plane,
 static void rcar_du_plane_set_zpos(struct rcar_du_plane *plane,
 				   unsigned int zpos)
 {
-	struct rcar_du_device *rcdu = plane->dev;
-
-	mutex_lock(&rcdu->planes.lock);
+	mutex_lock(&plane->group->planes.lock);
 	if (plane->zpos == zpos)
 		goto done;
 
@@ -390,21 +392,21 @@ static void rcar_du_plane_set_zpos(struct rcar_du_plane *plane,
 	rcar_du_crtc_update_planes(plane->crtc);
 
 done:
-	mutex_unlock(&rcdu->planes.lock);
+	mutex_unlock(&plane->group->planes.lock);
 }
 
 static int rcar_du_plane_set_property(struct drm_plane *plane,
 				      struct drm_property *property,
 				      uint64_t value)
 {
-	struct rcar_du_device *rcdu = plane->dev->dev_private;
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_group *rgrp = rplane->group;
 
-	if (property == rcdu->planes.alpha)
+	if (property == rgrp->planes.alpha)
 		rcar_du_plane_set_alpha(rplane, value);
-	else if (property == rcdu->planes.colorkey)
+	else if (property == rgrp->planes.colorkey)
 		rcar_du_plane_set_colorkey(rplane, value);
-	else if (property == rcdu->planes.zpos)
+	else if (property == rgrp->planes.zpos)
 		rcar_du_plane_set_zpos(rplane, value);
 	else
 		return -EINVAL;
@@ -432,37 +434,39 @@ static const uint32_t formats[] = {
 	DRM_FORMAT_NV16,
 };
 
-int rcar_du_plane_init(struct rcar_du_device *rcdu)
+int rcar_du_planes_init(struct rcar_du_group *rgrp)
 {
+	struct rcar_du_planes *planes = &rgrp->planes;
+	struct rcar_du_device *rcdu = rgrp->dev;
 	unsigned int i;
 
-	mutex_init(&rcdu->planes.lock);
-	rcdu->planes.free = 0xff;
+	mutex_init(&planes->lock);
+	planes->free = 0xff;
 
-	rcdu->planes.alpha =
+	planes->alpha =
 		drm_property_create_range(rcdu->ddev, 0, "alpha", 0, 255);
-	if (rcdu->planes.alpha == NULL)
+	if (planes->alpha == NULL)
 		return -ENOMEM;
 
 	/* The color key is expressed as an RGB888 triplet stored in a 32-bit
 	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
 	 * or enable source color keying (1).
 	 */
-	rcdu->planes.colorkey =
+	planes->colorkey =
 		drm_property_create_range(rcdu->ddev, 0, "colorkey",
 					  0, 0x01ffffff);
-	if (rcdu->planes.colorkey == NULL)
+	if (planes->colorkey == NULL)
 		return -ENOMEM;
 
-	rcdu->planes.zpos =
+	planes->zpos =
 		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 7);
-	if (rcdu->planes.zpos == NULL)
+	if (planes->zpos == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->planes.planes); ++i) {
-		struct rcar_du_plane *plane = &rcdu->planes.planes[i];
+	for (i = 0; i < ARRAY_SIZE(planes->planes); ++i) {
+		struct rcar_du_plane *plane = &planes->planes[i];
 
-		plane->dev = rcdu;
+		plane->group = rgrp;
 		plane->hwindex = -1;
 		plane->alpha = 255;
 		plane->colorkey = RCAR_DU_COLORKEY_NONE;
@@ -472,10 +476,15 @@ int rcar_du_plane_init(struct rcar_du_device *rcdu)
 	return 0;
 }
 
-int rcar_du_plane_register(struct rcar_du_device *rcdu)
+int rcar_du_planes_register(struct rcar_du_group *rgrp)
 {
+	struct rcar_du_planes *planes = &rgrp->planes;
+	struct rcar_du_device *rcdu = rgrp->dev;
+	unsigned int crtcs;
 	unsigned int i;
 	int ret;
+
+	crtcs = ((1 << rcdu->num_crtcs) - 1) & (3 << (2 * rgrp->index));
 
 	for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
 		struct rcar_du_kms_plane *plane;
@@ -484,23 +493,22 @@ int rcar_du_plane_register(struct rcar_du_device *rcdu)
 		if (plane == NULL)
 			return -ENOMEM;
 
-		plane->hwplane = &rcdu->planes.planes[i + 2];
+		plane->hwplane = &planes->planes[i + 2];
 		plane->hwplane->zpos = 1;
 
-		ret = drm_plane_init(rcdu->ddev, &plane->plane,
-				     (1 << rcdu->num_crtcs) - 1,
+		ret = drm_plane_init(rcdu->ddev, &plane->plane, crtcs,
 				     &rcar_du_plane_funcs, formats,
 				     ARRAY_SIZE(formats), false);
 		if (ret < 0)
 			return ret;
 
 		drm_object_attach_property(&plane->plane.base,
-					   rcdu->planes.alpha, 255);
+					   planes->alpha, 255);
 		drm_object_attach_property(&plane->plane.base,
-					   rcdu->planes.colorkey,
+					   planes->colorkey,
 					   RCAR_DU_COLORKEY_NONE);
 		drm_object_attach_property(&plane->plane.base,
-					   rcdu->planes.zpos, 1);
+					   planes->zpos, 1);
 	}
 
 	return 0;

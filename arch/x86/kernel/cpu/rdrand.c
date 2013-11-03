@@ -52,7 +52,7 @@ static inline int rdrand_long(unsigned long *v)
  */
 #define RESEED_LOOP ((512*128)/sizeof(unsigned long))
 
-void __cpuinit x86_init_rdrand(struct cpuinfo_x86 *c)
+void x86_init_rdrand(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_ARCH_RANDOM
 	unsigned long tmp;
