@@ -624,6 +624,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 8:
 	case 7:
 	case 6:
 		for (i = 0; i < dev_priv->num_fence_regs; i++)
