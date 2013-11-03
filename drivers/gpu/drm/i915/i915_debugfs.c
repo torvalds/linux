@@ -1623,7 +1623,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 			   I915_READ16(C0DRB3));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
 			   I915_READ16(C1DRB3));
-	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "MAD_DIMM_C0 = 0x%08x\n",
 			   I915_READ(MAD_DIMM_C0));
 		seq_printf(m, "MAD_DIMM_C1 = 0x%08x\n",
@@ -1632,8 +1632,12 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 			   I915_READ(MAD_DIMM_C2));
 		seq_printf(m, "TILECTL = 0x%08x\n",
 			   I915_READ(TILECTL));
-		seq_printf(m, "ARB_MODE = 0x%08x\n",
-			   I915_READ(ARB_MODE));
+		if (IS_GEN8(dev))
+			seq_printf(m, "GAMTARBMODE = 0x%08x\n",
+				   I915_READ(GAMTARBMODE));
+		else
+			seq_printf(m, "ARB_MODE = 0x%08x\n",
+				   I915_READ(ARB_MODE));
 		seq_printf(m, "DISP_ARB_CTL = 0x%08x\n",
 			   I915_READ(DISP_ARB_CTL));
 	}
