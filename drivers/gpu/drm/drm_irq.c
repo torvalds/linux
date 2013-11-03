@@ -254,20 +254,13 @@ int drm_irq_install(struct drm_device *dev)
 	if (drm_dev_to_irq(dev) == 0)
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
-
 	/* Driver must have been initialized */
-	if (!dev->dev_private) {
-		mutex_unlock(&dev->struct_mutex);
+	if (!dev->dev_private)
 		return -EINVAL;
-	}
 
-	if (dev->irq_enabled) {
-		mutex_unlock(&dev->struct_mutex);
+	if (dev->irq_enabled)
 		return -EBUSY;
-	}
 	dev->irq_enabled = true;
-	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("irq=%d\n", drm_dev_to_irq(dev));
 
@@ -288,9 +281,7 @@ int drm_irq_install(struct drm_device *dev)
 			  sh_flags, irqname, dev);
 
 	if (ret < 0) {
-		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = false;
-		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
@@ -302,9 +293,7 @@ int drm_irq_install(struct drm_device *dev)
 		ret = dev->driver->irq_postinstall(dev);
 
 	if (ret < 0) {
-		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = false;
-		mutex_unlock(&dev->struct_mutex);
 		if (!drm_core_check_feature(dev, DRIVER_MODESET))
 			vga_client_register(dev->pdev, NULL, NULL, NULL);
 		free_irq(drm_dev_to_irq(dev), dev);
@@ -330,10 +319,8 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = false;
-	mutex_unlock(&dev->struct_mutex);
 
 	/*
 	 * Wake up any waiters so they don't hang.
@@ -381,6 +368,7 @@ int drm_control(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
 	struct drm_control *ctl = data;
+	int ret = 0;
 
 	/* if we haven't irq we fallback for compatibility reasons -
 	 * this used to be a separate function in drm_dma.h
@@ -399,9 +387,17 @@ int drm_control(struct drm_device *dev, void *data,
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl->irq != drm_dev_to_irq(dev))
 			return -EINVAL;
-		return drm_irq_install(dev);
+		mutex_lock(&dev->struct_mutex);
+		ret = drm_irq_install(dev);
+		mutex_unlock(&dev->struct_mutex);
+
+		return ret;
 	case DRM_UNINST_HANDLER:
-		return drm_irq_uninstall(dev);
+		mutex_lock(&dev->struct_mutex);
+		ret = drm_irq_uninstall(dev);
+		mutex_unlock(&dev->struct_mutex);
+
+		return ret;
 	default:
 		return -EINVAL;
 	}

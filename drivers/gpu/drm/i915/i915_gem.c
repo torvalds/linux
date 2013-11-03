@@ -4522,16 +4522,15 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	}
 
 	BUG_ON(!list_empty(&dev_priv->gtt.base.active_list));
-	mutex_unlock(&dev->struct_mutex);
 
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto cleanup_ringbuffer;
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 
 cleanup_ringbuffer:
-	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
 	dev_priv->ums.mm_suspended = 1;
 	mutex_unlock(&dev->struct_mutex);
@@ -4546,7 +4545,9 @@ i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
+	mutex_lock(&dev->struct_mutex);
 	drm_irq_uninstall(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return i915_gem_suspend(dev);
 }

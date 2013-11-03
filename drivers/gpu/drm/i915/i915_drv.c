@@ -746,6 +746,11 @@ int i915_reset(struct drm_device *dev)
 			return ret;
 		}
 
+		/*
+		 * FIXME: This is horribly race against concurrent pageflip and
+		 * vblank wait ioctls since they can observe dev->irqs_disabled
+		 * being false when they shouldn't be able to.
+		 */
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
 
