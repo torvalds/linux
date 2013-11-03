@@ -5818,14 +5818,16 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 
 static void haswell_set_pipeconf(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	uint32_t val;
 
 	val = 0;
 
-	if (intel_crtc->config.dither)
+	if (IS_HASWELL(dev) && intel_crtc->config.dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
 	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
@@ -5838,6 +5840,33 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 
 	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
 	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
+
+	if (IS_BROADWELL(dev)) {
+		val = 0;
+
+		switch (intel_crtc->config.pipe_bpp) {
+		case 18:
+			val |= PIPEMISC_DITHER_6_BPC;
+			break;
+		case 24:
+			val |= PIPEMISC_DITHER_8_BPC;
+			break;
+		case 30:
+			val |= PIPEMISC_DITHER_10_BPC;
+			break;
+		case 36:
+			val |= PIPEMISC_DITHER_12_BPC;
+			break;
+		default:
+			/* Case prevented by pipe_config_set_bpp. */
+			BUG();
+		}
+
+		if (intel_crtc->config.dither)
+			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
+
+		I915_WRITE(PIPEMISC(pipe), val);
+	}
 }
 
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
