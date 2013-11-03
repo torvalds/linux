@@ -1290,7 +1290,8 @@ static int iss_probe(struct platform_device *pdev)
 {
 	struct iss_platform_data *pdata = pdev->dev.platform_data;
 	struct iss_device *iss;
-	int i, ret;
+	unsigned int i;
+	int ret;
 
 	if (pdata == NULL)
 		return -EINVAL;
@@ -1414,7 +1415,7 @@ error:
 static int iss_remove(struct platform_device *pdev)
 {
 	struct iss_device *iss = platform_get_drvdata(pdev);
-	int i;
+	unsigned int i;
 
 	iss_unregister_entities(iss);
 	iss_cleanup_modules(iss);
