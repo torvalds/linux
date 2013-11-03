@@ -77,14 +77,14 @@ typedef struct _CMD_WRITE_MASK
     u8        byMask;
 } CMD_WRITE_MASK, *PCMD_WRITE_MASK;
 
-typedef struct _CMD_CARD_INIT
+struct vnt_cmd_card_init
 {
-    u8        byInitClass;
-    u8        bExistSWNetAddr;
-    u8        bySWNetAddr[6];
-    u8        byShortRetryLimit;
-    u8        byLongRetryLimit;
-} CMD_CARD_INIT, *PCMD_CARD_INIT;
+	u8 init_class;
+	u8 exist_sw_net_addr;
+	u8 sw_net_addr[6];
+	u8 short_retry_limit;
+	u8 long_retry_limit;
+};
 
 typedef struct _RSP_CARD_INIT
 {

@@ -299,13 +299,13 @@ static void device_init_diversity_timer(struct vnt_private *pDevice)
 static int device_init_registers(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
+	struct vnt_cmd_card_init init_cmd;
 	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 abySNAP_RFC1042[ETH_ALEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 	u8 abySNAP_Bridgetunnel[ETH_ALEN]
 		= {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
 	u8 byAntenna;
 	int ii;
-	CMD_CARD_INIT sInitCmd;
 	int ntStatus = STATUS_SUCCESS;
 	RSP_CARD_INIT   sInitRsp;
 	u8 byTmp;
@@ -343,20 +343,17 @@ static int device_init_registers(struct vnt_private *pDevice)
             return false;
         }
 
-    sInitCmd.byInitClass = DEVICE_INIT_COLD;
-    sInitCmd.bExistSWNetAddr = (u8) pDevice->bExistSWNetAddr;
-    for (ii = 0; ii < 6; ii++)
-	sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
-    sInitCmd.byShortRetryLimit = pDevice->byShortRetryLimit;
-    sInitCmd.byLongRetryLimit = pDevice->byLongRetryLimit;
+	init_cmd.init_class = DEVICE_INIT_COLD;
+	init_cmd.exist_sw_net_addr = (u8) pDevice->bExistSWNetAddr;
+	for (ii = 0; ii < 6; ii++)
+		init_cmd.sw_net_addr[ii] = pDevice->abyCurrentNetAddr[ii];
+	init_cmd.short_retry_limit = pDevice->byShortRetryLimit;
+	init_cmd.long_retry_limit = pDevice->byLongRetryLimit;
 
-    /* issue card_init command to device */
-    ntStatus = CONTROLnsRequestOut(pDevice,
-                                    MESSAGE_TYPE_CARDINIT,
-                                    0,
-                                    0,
-                                    sizeof(CMD_CARD_INIT),
-                                    (u8 *) &(sInitCmd));
+	/* issue card_init command to device */
+	ntStatus = CONTROLnsRequestOut(pDevice,
+		MESSAGE_TYPE_CARDINIT, 0, 0,
+		sizeof(struct vnt_cmd_card_init), (u8 *)&init_cmd);
 
     if ( ntStatus != STATUS_SUCCESS ) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail \n");
