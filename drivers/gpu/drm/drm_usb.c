@@ -36,11 +36,6 @@ err_free:
 }
 EXPORT_SYMBOL(drm_get_usb_dev);
 
-static const char *drm_usb_get_name(struct drm_device *dev)
-{
-	return "USB";
-}
-
 static int drm_usb_set_busid(struct drm_device *dev,
 			       struct drm_master *master)
 {
@@ -48,7 +43,6 @@ static int drm_usb_set_busid(struct drm_device *dev,
 }
 
 static struct drm_bus drm_usb_bus = {
-	.get_name = drm_usb_get_name,
 	.set_busid = drm_usb_set_busid,
 };
     

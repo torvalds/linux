@@ -137,12 +137,6 @@ static int drm_get_pci_domain(struct drm_device *dev)
 	return pci_domain_nr(dev->pdev->bus);
 }
 
-static const char *drm_pci_get_name(struct drm_device *dev)
-{
-	struct pci_driver *pdriver = dev->driver->kdriver.pci;
-	return pdriver->name;
-}
-
 static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	int len, ret;
@@ -287,7 +281,6 @@ void drm_pci_agp_destroy(struct drm_device *dev)
 }
 
 static struct drm_bus drm_pci_bus = {
-	.get_name = drm_pci_get_name,
 	.set_busid = drm_pci_set_busid,
 };
 
