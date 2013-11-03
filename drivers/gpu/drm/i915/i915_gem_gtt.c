@@ -59,6 +59,7 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
 
+#define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
 #define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
 #define GEN8_LEGACY_PDPS		4
 
@@ -194,6 +195,41 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
+static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
+				   unsigned first_entry,
+				   unsigned num_entries,
+				   bool use_scratch)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+	gen8_gtt_pte_t *pt_vaddr, scratch_pte;
+	unsigned act_pt = first_entry / GEN8_PTES_PER_PAGE;
+	unsigned first_pte = first_entry % GEN8_PTES_PER_PAGE;
+	unsigned last_pte, i;
+
+	scratch_pte = gen8_pte_encode(ppgtt->base.scratch.addr,
+				      I915_CACHE_LLC, use_scratch);
+
+	while (num_entries) {
+		struct page *page_table = &ppgtt->gen8_pt_pages[act_pt];
+
+		last_pte = first_pte + num_entries;
+		if (last_pte > GEN8_PTES_PER_PAGE)
+			last_pte = GEN8_PTES_PER_PAGE;
+
+		pt_vaddr = kmap_atomic(page_table);
+
+		for (i = first_pte; i < last_pte; i++)
+			pt_vaddr[i] = scratch_pte;
+
+		kunmap_atomic(pt_vaddr);
+
+		num_entries -= last_pte - first_pte;
+		first_pte = 0;
+		act_pt++;
+	}
+}
+
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
@@ -259,7 +295,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
 	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
 	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
-	ppgtt->base.clear_range = NULL;
+	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.insert_entries = NULL;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 
@@ -311,6 +347,10 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 		}
 		kunmap_atomic(pd_vaddr);
 	}
+
+	ppgtt->base.clear_range(&ppgtt->base, 0,
+				ppgtt->num_pd_entries * GEN8_PTES_PER_PAGE,
+				true);
 
 	DRM_DEBUG_DRIVER("Allocated %d pages for page directories (%d wasted)\n",
 			 ppgtt->num_pd_pages, ppgtt->num_pd_pages - max_pdp);
