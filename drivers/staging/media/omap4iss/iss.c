@@ -560,7 +560,6 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe)
 	struct media_entity *entity;
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
-	int failure = 0;
 
 	entity = &pipe->output->video.entity;
 	while (1) {
@@ -579,7 +578,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe)
 		v4l2_subdev_call(subdev, video, s_stream, 0);
 	}
 
-	return failure;
+	return 0;
 }
 
 /*
