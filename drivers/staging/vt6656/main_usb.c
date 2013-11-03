@@ -300,6 +300,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct vnt_cmd_card_init init_cmd;
+	struct vnt_rsp_card_init init_rsp;
 	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 abySNAP_RFC1042[ETH_ALEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 	u8 abySNAP_Bridgetunnel[ETH_ALEN]
@@ -307,7 +308,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	u8 byAntenna;
 	int ii;
 	int ntStatus = STATUS_SUCCESS;
-	RSP_CARD_INIT   sInitRsp;
 	u8 byTmp;
 	u8 byCalibTXIQ = 0, byCalibTXDC = 0, byCalibRXIQ = 0;
 
@@ -362,7 +362,7 @@ static int device_init_registers(struct vnt_private *pDevice)
     }
 
 	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_INIT_RSP, 0, 0,
-			sizeof(RSP_CARD_INIT), (u8 *) &(sInitRsp));
+		sizeof(struct vnt_rsp_card_init), (u8 *)&init_rsp);
 	if (ntStatus != STATUS_SUCCESS) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"Cardinit request in status fail!\n");
@@ -519,7 +519,7 @@ static int device_init_registers(struct vnt_private *pDevice)
         pDevice->byMaxChannel = CB_MAX_CHANNEL;
 
 	/* get RFType */
-        pDevice->byRFType = sInitRsp.byRFType;
+	pDevice->byRFType = init_rsp.rf_type;
 
         if ((pDevice->byRFType & RF_EMU) != 0) {
 		/* force change RevID for VT3253 emu */
@@ -570,7 +570,7 @@ static int device_init_registers(struct vnt_private *pDevice)
         CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
 
 	/* get permanent network address */
-	memcpy(pDevice->abyPermanentNetAddr, &sInitRsp.byNetAddr[0], 6);
+	memcpy(pDevice->abyPermanentNetAddr, &init_rsp.net_addr[0], 6);
 	memcpy(pDevice->abyCurrentNetAddr,
 	       pDevice->abyPermanentNetAddr,
 	       ETH_ALEN);

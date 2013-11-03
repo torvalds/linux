@@ -86,14 +86,14 @@ struct vnt_cmd_card_init
 	u8 long_retry_limit;
 };
 
-typedef struct _RSP_CARD_INIT
+struct vnt_rsp_card_init
 {
-    u8        byStatus;
-    u8        byNetAddr[6];
-    u8        byRFType;
-    u8        byMinChannel;
-    u8        byMaxChannel;
-} RSP_CARD_INIT, *PRSP_CARD_INIT;
+	u8 status;
+	u8 net_addr[6];
+	u8 rf_type;
+	u8 min_channel;
+	u8 max_channel;
+};
 
 typedef struct _CMD_SET_KEY
 {
