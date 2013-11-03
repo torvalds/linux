@@ -51,7 +51,7 @@
 #define ticks_to_hz_rounddown(t)	((((t) + 1) * HZ) >> 8)
 #define ticks_to_hz_roundup(t)		(((((t) + 1) * HZ) + 255) >> 8)
 #define ticks_to_secs(t)		(((t) + 1) >> 8)
-#define secs_to_ticks(s)		(((s) << 8) - 1)
+#define secs_to_ticks(s)		((s) ? (((s) << 8) - 1) : 0)
 
 #define WDT_MR_RESET	0x3FFF2FFF
 
