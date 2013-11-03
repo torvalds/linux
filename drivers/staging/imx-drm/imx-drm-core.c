@@ -69,7 +69,11 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 {
 #if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
+#endif
 
+	drm_kms_helper_poll_fini(drm);
+
+#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_fini(imxdrm->fbhelper);
 #endif
@@ -77,7 +81,6 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	component_unbind_all(drm->dev, drm);
 
 	drm_vblank_cleanup(drm);
-	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 
 	return 0;
@@ -213,8 +216,18 @@ void imx_drm_encoder_destroy(struct drm_encoder *encoder)
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_destroy);
 
+static void imx_drm_output_poll_changed(struct drm_device *drm)
+{
+#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
+	struct imx_drm_device *imxdrm = drm->dev_private;
+
+	drm_fbdev_cma_hotplug_event(imxdrm->fbhelper);
+#endif
+}
+
 static struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
+	.output_poll_changed = imx_drm_output_poll_changed,
 };
 
 /*
@@ -258,8 +271,6 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
 
 	drm_mode_config_init(drm);
-
-	drm_kms_helper_poll_init(drm);
 
 	ret = drm_vblank_init(drm, MAX_CRTC);
 	if (ret)
@@ -313,6 +324,9 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		goto err_unbind;
 	}
 #endif
+
+	drm_kms_helper_poll_init(drm);
+
 	return 0;
 
 err_unbind:
@@ -320,7 +334,6 @@ err_unbind:
 err_vblank:
 	drm_vblank_cleanup(drm);
 err_kms:
-	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 
 	return ret;
