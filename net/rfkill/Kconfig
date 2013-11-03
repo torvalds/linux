@@ -52,7 +52,6 @@ config RFKILL_GPIO
 config SUNXI_RFKILL
 	bool "Winner's GPIO RFKILL driver"
 	depends on RFKILL
-    depends on ARCH_SUN4I || ARCH_SUN5I
-    default y if ARCH_SUN4I
-    default y if ARCH_SUN5I
+	depends on PLAT_SUNXI
+	default y
 
