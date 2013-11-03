@@ -156,9 +156,6 @@ struct iss_video {
 	unsigned int bpl_value;		/* bytes per line value */
 	unsigned int bpl_padding;	/* padding at end of line */
 
-	/* Entity video node streaming */
-	unsigned int streaming:1;
-
 	/* Pipeline state */
 	struct iss_pipeline pipe;
 	struct mutex stream_lock;	/* pipeline and stream states */

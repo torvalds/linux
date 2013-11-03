@@ -743,11 +743,6 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	mutex_lock(&video->stream_lock);
 
-	if (video->streaming) {
-		mutex_unlock(&video->stream_lock);
-		return -EBUSY;
-	}
-
 	/* Start streaming on the pipeline. No link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
@@ -842,9 +837,6 @@ err_media_entity_pipeline_start:
 		video->queue = NULL;
 	}
 
-	if (!ret)
-		video->streaming = 1;
-
 	mutex_unlock(&video->stream_lock);
 	return ret;
 }
@@ -882,7 +874,6 @@ iss_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	omap4iss_pipeline_set_stream(pipe, ISS_PIPELINE_STREAM_STOPPED);
 	vb2_streamoff(&vfh->queue, type);
 	video->queue = NULL;
-	video->streaming = 0;
 
 	if (video->iss->pdata->set_constraints)
 		video->iss->pdata->set_constraints(video->iss, false);
