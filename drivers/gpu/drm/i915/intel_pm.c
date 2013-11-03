@@ -2291,7 +2291,9 @@ static uint32_t ilk_compute_fbc_wm(const struct hsw_pipe_wm_parameters *params,
 
 static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
 {
-	if (INTEL_INFO(dev)->gen >= 7)
+	if (INTEL_INFO(dev)->gen >= 8)
+		return 3072;
+	else if (INTEL_INFO(dev)->gen >= 7)
 		return 768;
 	else
 		return 512;
@@ -2336,7 +2338,9 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 	}
 
 	/* clamp to max that the registers can hold */
-	if (INTEL_INFO(dev)->gen >= 7)
+	if (INTEL_INFO(dev)->gen >= 8)
+		max = level == 0 ? 255 : 2047;
+	else if (INTEL_INFO(dev)->gen >= 7)
 		/* IVB/HSW primary/sprite plane watermarks */
 		max = level == 0 ? 127 : 1023;
 	else if (!is_sprite)
@@ -2366,10 +2370,13 @@ static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
 }
 
 /* Calculate the maximum FBC watermark */
-static unsigned int ilk_fbc_wm_max(void)
+static unsigned int ilk_fbc_wm_max(struct drm_device *dev)
 {
 	/* max that registers can hold */
-	return 15;
+	if (INTEL_INFO(dev)->gen >= 8)
+		return 31;
+	else
+		return 15;
 }
 
 static void ilk_compute_wm_maximums(struct drm_device *dev,
@@ -2381,7 +2388,7 @@ static void ilk_compute_wm_maximums(struct drm_device *dev,
 	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
 	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
 	max->cur = ilk_cursor_wm_max(dev, level, config);
-	max->fbc = ilk_fbc_wm_max();
+	max->fbc = ilk_fbc_wm_max(dev);
 }
 
 static bool ilk_validate_wm_level(int level,
@@ -2722,10 +2729,18 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 		if (!r->enable)
 			break;
 
-		results->wm_lp[wm_lp - 1] = HSW_WM_LP_VAL(level * 2,
-							  r->fbc_val,
-							  r->pri_val,
-							  r->cur_val);
+		results->wm_lp[wm_lp - 1] = WM3_LP_EN |
+			((level * 2) << WM1_LP_LATENCY_SHIFT) |
+			(r->pri_val << WM1_LP_SR_SHIFT) |
+			r->cur_val;
+
+		if (INTEL_INFO(dev)->gen >= 8)
+			results->wm_lp[wm_lp - 1] |=
+				r->fbc_val << WM1_LP_FBC_SHIFT_BDW;
+		else
+			results->wm_lp[wm_lp - 1] |=
+				r->fbc_val << WM1_LP_FBC_SHIFT;
+
 		results->wm_lp_spr[wm_lp - 1] = r->spr_val;
 	}
 
