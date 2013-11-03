@@ -149,11 +149,9 @@ typedef enum __device_msg_level {
 	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
-typedef enum __device_init_type {
-	DEVICE_INIT_COLD = 0,       /* cold init */
-	DEVICE_INIT_RESET,          /* reset init or Dx to D0 power remain */
-	DEVICE_INIT_DXPL            /* Dx to D0 power lost init */
-} DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
+#define DEVICE_INIT_COLD	0x0 /* cold init */
+#define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
+#define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
 
 /* USB */
 

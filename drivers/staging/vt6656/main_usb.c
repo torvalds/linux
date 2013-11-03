@@ -215,8 +215,7 @@ static void device_set_multi(struct net_device *dev);
 static int  device_close(struct net_device *dev);
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
-static int device_init_registers(struct vnt_private *pDevice,
-	DEVICE_INIT_TYPE InitType);
+static int device_init_registers(struct vnt_private *pDevice);
 static bool device_init_defrag_cb(struct vnt_private *pDevice);
 static void device_init_diversity_timer(struct vnt_private *pDevice);
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
@@ -297,8 +296,7 @@ static void device_init_diversity_timer(struct vnt_private *pDevice)
  * initialization of MAC & BBP registers
  */
 
-static int device_init_registers(struct vnt_private *pDevice,
-	DEVICE_INIT_TYPE InitType)
+static int device_init_registers(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -313,12 +311,14 @@ static int device_init_registers(struct vnt_private *pDevice,
 	u8 byTmp;
 	u8 byCalibTXIQ = 0, byCalibTXDC = 0, byCalibRXIQ = 0;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n", InitType, pDevice->byPacketType);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n",
+				DEVICE_INIT_COLD, pDevice->byPacketType);
+
 	spin_lock_irq(&pDevice->lock);
-	if (InitType == DEVICE_INIT_COLD) {
-		memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-		memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-		memcpy(pDevice->abySNAP_Bridgetunnel,
+
+	memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
+	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
+	memcpy(pDevice->abySNAP_Bridgetunnel,
 		       abySNAP_Bridgetunnel,
 		       ETH_ALEN);
 
@@ -342,9 +342,8 @@ static int device_init_registers(struct vnt_private *pDevice,
             spin_unlock_irq(&pDevice->lock);
             return false;
         }
-    }
 
-    sInitCmd.byInitClass = (u8)InitType;
+    sInitCmd.byInitClass = DEVICE_INIT_COLD;
     sInitCmd.bExistSWNetAddr = (u8) pDevice->bExistSWNetAddr;
     for (ii = 0; ii < 6; ii++)
 	sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
@@ -364,138 +363,145 @@ static int device_init_registers(struct vnt_private *pDevice,
         spin_unlock_irq(&pDevice->lock);
         return false;
     }
-    if (InitType == DEVICE_INIT_COLD) {
 
-        ntStatus = CONTROLnsRequestIn(pDevice,MESSAGE_TYPE_INIT_RSP,0,0,sizeof(RSP_CARD_INIT), (u8 *) &(sInitRsp));
-
-        if (ntStatus != STATUS_SUCCESS) {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Cardinit request in status fail!\n");
-            spin_unlock_irq(&pDevice->lock);
-            return false;
-        }
+	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_INIT_RSP, 0, 0,
+			sizeof(RSP_CARD_INIT), (u8 *) &(sInitRsp));
+	if (ntStatus != STATUS_SUCCESS) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"Cardinit request in status fail!\n");
+		spin_unlock_irq(&pDevice->lock);
+		return false;
+	}
 
 	/* local ID for AES functions */
-        ntStatus = CONTROLnsRequestIn(pDevice,
-                                    MESSAGE_TYPE_READ,
-                                    MAC_REG_LOCALID,
-                                    MESSAGE_REQUEST_MACREG,
-                                    1,
-                                    &pDevice->byLocalID);
-
-        if ( ntStatus != STATUS_SUCCESS ) {
-            spin_unlock_irq(&pDevice->lock);
-            return false;
-        }
+	ntStatus = CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
+			&pDevice->byLocalID);
+	if (ntStatus != STATUS_SUCCESS) {
+		spin_unlock_irq(&pDevice->lock);
+		return false;
+	}
 
 	/* do MACbSoftwareReset in MACvInitialize */
 
 	/* force CCK */
-        pDevice->bCCK = true;
+	pDevice->bCCK = true;
 	pDevice->bProtectMode = false;
 	/* only used in 11g type, sync with ERP IE */
-        pDevice->bNonERPPresent = false;
-        pDevice->bBarkerPreambleMd = false;
-        if ( pDevice->bFixRate ) {
-            pDevice->wCurrentRate = (u16) pDevice->uConnectionRate;
-        } else {
-            if ( pDevice->byBBType == BB_TYPE_11B )
-                pDevice->wCurrentRate = RATE_11M;
-            else
-                pDevice->wCurrentRate = RATE_54M;
-        }
+	pDevice->bNonERPPresent = false;
+	pDevice->bBarkerPreambleMd = false;
+	if (pDevice->bFixRate) {
+		pDevice->wCurrentRate = (u16)pDevice->uConnectionRate;
+	} else {
+		if (pDevice->byBBType == BB_TYPE_11B)
+			pDevice->wCurrentRate = RATE_11M;
+		else
+			pDevice->wCurrentRate = RATE_54M;
+	}
 
-        CHvInitChannelTable(pDevice);
+	CHvInitChannelTable(pDevice);
 
-        pDevice->byTopOFDMBasicRate = RATE_24M;
-        pDevice->byTopCCKBasicRate = RATE_1M;
+	pDevice->byTopOFDMBasicRate = RATE_24M;
+	pDevice->byTopCCKBasicRate = RATE_1M;
 	pDevice->byRevId = 0;
 	/* target to IF pin while programming to RF chip */
-        pDevice->byCurPwr = 0xFF;
+	pDevice->byCurPwr = 0xFF;
 
-        pDevice->byCCKPwr = pDevice->abyEEPROM[EEP_OFS_PWR_CCK];
-        pDevice->byOFDMPwrG = pDevice->abyEEPROM[EEP_OFS_PWR_OFDMG];
+	pDevice->byCCKPwr = pDevice->abyEEPROM[EEP_OFS_PWR_CCK];
+	pDevice->byOFDMPwrG = pDevice->abyEEPROM[EEP_OFS_PWR_OFDMG];
 	/* load power table */
 	for (ii = 0; ii < 14; ii++) {
-            pDevice->abyCCKPwrTbl[ii] = pDevice->abyEEPROM[ii + EEP_OFS_CCK_PWR_TBL];
-            if (pDevice->abyCCKPwrTbl[ii] == 0)
-                pDevice->abyCCKPwrTbl[ii] = pDevice->byCCKPwr;
-            pDevice->abyOFDMPwrTbl[ii] = pDevice->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
-            if (pDevice->abyOFDMPwrTbl[ii] == 0)
-                pDevice->abyOFDMPwrTbl[ii] = pDevice->byOFDMPwrG;
-        }
+		pDevice->abyCCKPwrTbl[ii] =
+			pDevice->abyEEPROM[ii + EEP_OFS_CCK_PWR_TBL];
+
+		if (pDevice->abyCCKPwrTbl[ii] == 0)
+			pDevice->abyCCKPwrTbl[ii] = pDevice->byCCKPwr;
+			pDevice->abyOFDMPwrTbl[ii] =
+				pDevice->abyEEPROM[ii + EEP_OFS_OFDM_PWR_TBL];
+		if (pDevice->abyOFDMPwrTbl[ii] == 0)
+			pDevice->abyOFDMPwrTbl[ii] = pDevice->byOFDMPwrG;
+	}
 
 	/*
 	 * original zonetype is USA, but custom zonetype is Europe,
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
-          if(((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
-	        (pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe))&&
-	     (pDevice->byOriginalZonetype == ZoneType_USA)) {
+	if (((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
+		(pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe)) &&
+		(pDevice->byOriginalZonetype == ZoneType_USA)) {
 		for (ii = 11; ii < 14; ii++) {
 			pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
 			pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
 		}
-	  }
+	}
 
-	  pDevice->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
+	pDevice->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
 
-	  /* load OFDM A power table */
-	  for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
-            pDevice->abyOFDMAPwrTbl[ii] = pDevice->abyEEPROM[ii + EEP_OFS_OFDMA_PWR_TBL];
-            if (pDevice->abyOFDMAPwrTbl[ii] == 0)
-                pDevice->abyOFDMAPwrTbl[ii] = pDevice->byOFDMPwrA;
-        }
+	/* load OFDM A power table */
+	for (ii = 0; ii < CB_MAX_CHANNEL_5G; ii++) {
+		pDevice->abyOFDMAPwrTbl[ii] =
+			pDevice->abyEEPROM[ii + EEP_OFS_OFDMA_PWR_TBL];
 
-        byAntenna = pDevice->abyEEPROM[EEP_OFS_ANTENNA];
-        if (byAntenna & EEP_ANTINV)
-            pDevice->bTxRxAntInv = true;
-        else
-            pDevice->bTxRxAntInv = false;
+		if (pDevice->abyOFDMAPwrTbl[ii] == 0)
+			pDevice->abyOFDMAPwrTbl[ii] = pDevice->byOFDMPwrA;
+	}
 
-        byAntenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
+	byAntenna = pDevice->abyEEPROM[EEP_OFS_ANTENNA];
+
+	if (byAntenna & EEP_ANTINV)
+		pDevice->bTxRxAntInv = true;
+	else
+		pDevice->bTxRxAntInv = false;
+
+	byAntenna &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
 	if (byAntenna == 0) /* if not set default is both */
-            byAntenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
+		byAntenna = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-        if (byAntenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
-            pDevice->byAntennaCount = 2;
-            pDevice->byTxAntennaMode = ANT_B;
-            pDevice->dwTxAntennaSel = 1;
-            pDevice->dwRxAntennaSel = 1;
-            if (pDevice->bTxRxAntInv == true)
-                pDevice->byRxAntennaMode = ANT_A;
-            else
-                pDevice->byRxAntennaMode = ANT_B;
+	if (byAntenna == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
+		pDevice->byAntennaCount = 2;
+		pDevice->byTxAntennaMode = ANT_B;
+		pDevice->dwTxAntennaSel = 1;
+		pDevice->dwRxAntennaSel = 1;
 
-            if (pDevice->bDiversityRegCtlON)
-                pDevice->bDiversityEnable = true;
-            else
-                pDevice->bDiversityEnable = false;
-        } else  {
-            pDevice->bDiversityEnable = false;
-            pDevice->byAntennaCount = 1;
-            pDevice->dwTxAntennaSel = 0;
-            pDevice->dwRxAntennaSel = 0;
-            if (byAntenna & EEP_ANTENNA_AUX) {
-                pDevice->byTxAntennaMode = ANT_A;
-                if (pDevice->bTxRxAntInv == true)
-                    pDevice->byRxAntennaMode = ANT_B;
-                else
-                    pDevice->byRxAntennaMode = ANT_A;
-            } else {
-                pDevice->byTxAntennaMode = ANT_B;
-                if (pDevice->bTxRxAntInv == true)
-                    pDevice->byRxAntennaMode = ANT_A;
-                else
-                    pDevice->byRxAntennaMode = ANT_B;
-            }
-        }
-        pDevice->ulDiversityNValue = 100*255;
-        pDevice->ulDiversityMValue = 100*16;
-        pDevice->byTMax = 1;
-        pDevice->byTMax2 = 4;
-        pDevice->ulSQ3TH = 0;
-        pDevice->byTMax3 = 64;
+		if (pDevice->bTxRxAntInv == true)
+			pDevice->byRxAntennaMode = ANT_A;
+		else
+			pDevice->byRxAntennaMode = ANT_B;
+
+		if (pDevice->bDiversityRegCtlON)
+			pDevice->bDiversityEnable = true;
+		else
+			pDevice->bDiversityEnable = false;
+	} else  {
+		pDevice->bDiversityEnable = false;
+		pDevice->byAntennaCount = 1;
+		pDevice->dwTxAntennaSel = 0;
+		pDevice->dwRxAntennaSel = 0;
+
+		if (byAntenna & EEP_ANTENNA_AUX) {
+			pDevice->byTxAntennaMode = ANT_A;
+
+			if (pDevice->bTxRxAntInv == true)
+				pDevice->byRxAntennaMode = ANT_B;
+			else
+				pDevice->byRxAntennaMode = ANT_A;
+		} else {
+			pDevice->byTxAntennaMode = ANT_B;
+
+		if (pDevice->bTxRxAntInv == true)
+			pDevice->byRxAntennaMode = ANT_A;
+		else
+			pDevice->byRxAntennaMode = ANT_B;
+		}
+	}
+
+	pDevice->ulDiversityNValue = 100 * 255;
+	pDevice->ulDiversityMValue = 100 * 16;
+	pDevice->byTMax = 1;
+	pDevice->byTMax2 = 4;
+	pDevice->ulSQ3TH = 0;
+	pDevice->byTMax3 = 64;
 
 	/* get Auto Fall Back type */
         pDevice->byAutoFBCtrl = AUTO_FB_0;
@@ -524,49 +530,50 @@ static int device_init_registers(struct vnt_private *pDevice,
         }
 
 	/* load vt3266 calibration parameters in EEPROM */
-        if (pDevice->byRFType == RF_VT3226D0) {
-            if((pDevice->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
-                (pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
-                byCalibTXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
-                byCalibTXDC = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_DC];
-                byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
-                if( (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) ) {
+	if (pDevice->byRFType == RF_VT3226D0) {
+		if ((pDevice->abyEEPROM[EEP_OFS_MAJOR_VER] == 0x1) &&
+			(pDevice->abyEEPROM[EEP_OFS_MINOR_VER] >= 0x4)) {
+
+			byCalibTXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_IQ];
+			byCalibTXDC = pDevice->abyEEPROM[EEP_OFS_CALIB_TX_DC];
+			byCalibRXIQ = pDevice->abyEEPROM[EEP_OFS_CALIB_RX_IQ];
+			if (byCalibTXIQ || byCalibTXDC || byCalibRXIQ) {
 			/* CR255, enable TX/RX IQ and DC compensation mode */
-			ControlvWriteByte(pDevice,
+				ControlvWriteByte(pDevice,
 					  MESSAGE_REQUEST_BBREG,
 					  0xFF,
 					  0x03);
 			/* CR251, TX I/Q Imbalance Calibration */
-			ControlvWriteByte(pDevice,
+				ControlvWriteByte(pDevice,
 					  MESSAGE_REQUEST_BBREG,
 					  0xFB,
 					  byCalibTXIQ);
 			/* CR252, TX DC-Offset Calibration */
-			ControlvWriteByte(pDevice,
+				ControlvWriteByte(pDevice,
 					  MESSAGE_REQUEST_BBREG,
 					  0xFC,
 					  byCalibTXDC);
 			/* CR253, RX I/Q Imbalance Calibration */
-			ControlvWriteByte(pDevice,
+				ControlvWriteByte(pDevice,
 					  MESSAGE_REQUEST_BBREG,
 					  0xFD,
 					  byCalibRXIQ);
-                } else {
+			} else {
 			/* CR255, turn off BB Calibration compensation */
-			ControlvWriteByte(pDevice,
+				ControlvWriteByte(pDevice,
 					  MESSAGE_REQUEST_BBREG,
 					  0xFF,
 					  0x0);
-                }
-            }
-        }
+			}
+		}
+	}
         pMgmt->eScanType = WMAC_SCAN_PASSIVE;
         pMgmt->uCurrChannel = pDevice->uChannel;
         pMgmt->uIBSSChannel = pDevice->uChannel;
         CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
 
 	/* get permanent network address */
-        memcpy(pDevice->abyPermanentNetAddr,&(sInitRsp.byNetAddr[0]),6);
+	memcpy(pDevice->abyPermanentNetAddr, &sInitRsp.byNetAddr[0], 6);
 	memcpy(pDevice->abyCurrentNetAddr,
 	       pDevice->abyPermanentNetAddr,
 	       ETH_ALEN);
@@ -574,7 +581,6 @@ static int device_init_registers(struct vnt_private *pDevice,
 	/* if exist SW network address, use it */
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Network address = %pM\n",
 		pDevice->abyCurrentNetAddr);
-    }
 
     /*
      * set BB and packet type at the same time
@@ -962,10 +968,10 @@ static int  device_open(struct net_device *dev)
     /* read config file */
     Read_config_file(pDevice);
 
-    if (device_init_registers(pDevice, DEVICE_INIT_COLD) == false) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
-        goto free_all;
-    }
+	if (device_init_registers(pDevice) == false) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
+		goto free_all;
+	}
 
     device_set_multi(pDevice->dev);
 
