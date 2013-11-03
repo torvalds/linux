@@ -72,6 +72,32 @@ static const u32 hsw_ddi_translations_hdmi[] = {
 	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
 };
 
+static const u32 bdw_ddi_translations_dp[] = {
+	0x00FFFFFF, 0x0007000E,		/* DP parameters */
+	0x00D75FFF, 0x000E000A,
+	0x00BEFFFF, 0x00140006,
+	0x00FFFFFF, 0x000E000A,
+	0x00D75FFF, 0x00180004,
+	0x80CB2FFF, 0x001B0002,
+	0x00F7DFFF, 0x00180004,
+	0x80D75FFF, 0x001B0002,
+	0x80FFFFFF, 0x001B0002,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
+static const u32 bdw_ddi_translations_fdi[] = {
+	0x00FFFFFF, 0x0001000E,		/* FDI parameters */
+	0x00D75FFF, 0x0004000A,
+	0x00C30FFF, 0x00070006,
+	0x00AAAFFF, 0x000C0000,
+	0x00FFFFFF, 0x0004000A,
+	0x00D75FFF, 0x00090004,
+	0x00C30FFF, 0x000C0000,
+	0x00FFFFFF, 0x00070006,
+	0x00D75FFF, 0x000C0000,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -92,8 +118,9 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	}
 }
 
-/* On Haswell, DDI port buffers must be programmed with correct values
- * in advance. The buffer values are different for FDI and DP modes,
+/*
+ * Starting with Haswell, DDI port buffers must be programmed with correct
+ * values in advance. The buffer values are different for FDI and DP modes,
  * but the HDMI/DVI fields are shared among those. So we program the DDI
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
@@ -103,10 +130,26 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 	int i;
-	const u32 *ddi_translations = (port == PORT_E) ?
-		hsw_ddi_translations_fdi :
-		hsw_ddi_translations_dp;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+	const u32 *ddi_translations_fdi;
+	const u32 *ddi_translations_dp;
+	const u32 *ddi_translations;
+
+	if (IS_BROADWELL(dev)) {
+		ddi_translations_fdi = bdw_ddi_translations_fdi;
+		ddi_translations_dp = bdw_ddi_translations_dp;
+	} else if (IS_HASWELL(dev)) {
+		ddi_translations_fdi = hsw_ddi_translations_fdi;
+		ddi_translations_dp = hsw_ddi_translations_dp;
+	} else {
+		WARN(1, "ddi translation table missing\n");
+		ddi_translations_fdi = bdw_ddi_translations_fdi;
+		ddi_translations_dp = bdw_ddi_translations_dp;
+	}
+
+	ddi_translations = ((port == PORT_E) ?
+		ddi_translations_fdi :
+		ddi_translations_dp);
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
