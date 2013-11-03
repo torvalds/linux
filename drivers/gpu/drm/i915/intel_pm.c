@@ -3924,7 +3924,10 @@ void gen6_update_ring_freq(struct drm_device *dev)
 		int diff = dev_priv->rps.max_delay - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
-		if (IS_HASWELL(dev)) {
+		if (INTEL_INFO(dev)->gen >= 8) {
+			/* max(2 * GT, DDR). NB: GT is 50MHz units */
+			ring_freq = max(min_ring_freq, gpu_freq);
+		} else if (IS_HASWELL(dev)) {
 			ring_freq = mult_frac(gpu_freq, 5, 4);
 			ring_freq = max(min_ring_freq, ring_freq);
 			/* leave ia_freq as the default, chosen by cpufreq */
