@@ -1910,6 +1910,21 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	if (crtc->fb) {
+		int r;
+		struct radeon_framebuffer *radeon_fb;
+		struct radeon_bo *rbo;
+
+		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		r = radeon_bo_reserve(rbo, false);
+		if (unlikely(r))
+			DRM_ERROR("failed to reserve rbo before unpin\n");
+		else {
+			radeon_bo_unpin(rbo);
+			radeon_bo_unreserve(rbo);
+		}
+	}
 	/* disable the GRPH */
 	if (ASIC_IS_DCE4(rdev))
 		WREG32(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 0);
