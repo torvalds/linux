@@ -1182,7 +1182,8 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 
 		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
 		drm_mm_takedown(&dev_priv->gtt.base.mm);
-		gtt_size += GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE;
+		if (INTEL_INFO(dev)->gen < 8)
+			gtt_size += GEN6_PPGTT_PD_ENTRIES*PAGE_SIZE;
 	}
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 }
