@@ -1555,14 +1555,25 @@ static void rem_slave_vlans(struct mlx4_dev *dev, int slave)
 }
 
 static int vlan_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
-			  u64 in_param, u64 *out_param, int port)
+			  u64 in_param, u64 *out_param, int in_port)
 {
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_slave_state *slave_state = priv->mfunc.master.slave_state;
 	int err;
 	u16 vlan;
 	int vlan_index;
+	int port;
+
+	port = !in_port ? get_param_l(out_param) : in_port;
 
 	if (!port || op != RES_OP_RESERVE_AND_MAP)
 		return -EINVAL;
+
+	/* upstream kernels had NOP for reg/unreg vlan. Continue this. */
+	if (!in_port && port > 0 && port <= dev->caps.num_ports) {
+		slave_state[slave].old_vlan_api = true;
+		return 0;
+	}
 
 	vlan = (u16) in_param;
 
@@ -1856,10 +1867,14 @@ static int mac_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 static int vlan_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 			    u64 in_param, u64 *out_param, int port)
 {
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_slave_state *slave_state = priv->mfunc.master.slave_state;
 	int err = 0;
 
 	switch (op) {
 	case RES_OP_RESERVE_AND_MAP:
+		if (slave_state[slave].old_vlan_api)
+			return 0;
 		if (!port)
 			return -EINVAL;
 		vlan_del_from_slave(dev, slave, in_param, port);
