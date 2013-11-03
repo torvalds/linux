@@ -355,7 +355,7 @@ static int imx_drm_connector_register(
 			imx_drm_connector->connector->connector_type);
 	drm_mode_group_reinit(imxdrm->drm);
 
-	return drm_sysfs_connector_add(imx_drm_connector->connector);
+	return 0;
 }
 
 /*
@@ -379,6 +379,7 @@ static void imx_drm_connector_unregister(
 static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 {
 	struct imx_drm_device *imxdrm = __imx_drm_device();
+	struct drm_connector *connector;
 	int ret;
 
 	imxdrm->drm = drm;
@@ -432,8 +433,27 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	ret = component_bind_all(drm->dev, drm);
 	if (ret)
 		goto err_relock;
+
+	/*
+	 * All components are now added, we can publish the connector sysfs
+	 * entries to userspace.  This will generate hotplug events and so
+	 * userspace will expect to be able to access DRM at this point.
+	 */
+	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
+		ret = drm_sysfs_connector_add(connector);
+		if (ret) {
+			dev_err(drm->dev,
+				"[CONNECTOR:%d:%s] drm_sysfs_connector_add failed: %d\n",
+				connector->base.id,
+				drm_get_connector_name(connector), ret);
+			goto err_unbind;
+		}
+	}
+
 	return 0;
 
+err_unbind:
+	component_unbind_all(drm->dev, drm);
 err_relock:
 	mutex_lock(&imxdrm->mutex);
 err_vblank:
