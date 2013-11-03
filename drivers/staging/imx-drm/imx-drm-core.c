@@ -70,6 +70,10 @@ struct imx_drm_connector {
 	struct module				*owner;
 };
 
+static int legacyfb_depth = 16;
+module_param(legacyfb_depth, int, 0444);
+
+static void imx_drm_device_put(void);
 static struct imx_drm_device *__imx_drm_device(void);
 
 int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
@@ -80,15 +84,22 @@ EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
 
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
+#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
 
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
+#endif
 }
 
 static int imx_drm_driver_unload(struct drm_device *drm)
 {
+#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
 	struct imx_drm_device *imxdrm = drm->dev_private;
+
+	if (imxdrm->fbhelper)
+		drm_fbdev_cma_fini(imxdrm->fbhelper);
+#endif
 
 	component_unbind_all(drm->dev, drm);
 
@@ -225,7 +236,7 @@ static struct imx_drm_device *__imx_drm_device(void)
 	return imx_drm_device;
 }
 
-struct drm_device *imx_drm_device_get(void)
+static struct drm_device *imx_drm_device_get(void)
 {
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	struct imx_drm_encoder *enc;
@@ -273,9 +284,8 @@ unwind_enc:
 	return NULL;
 
 }
-EXPORT_SYMBOL_GPL(imx_drm_device_get);
 
-void imx_drm_device_put(void)
+static void imx_drm_device_put(void)
 {
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	struct imx_drm_encoder *enc;
@@ -295,7 +305,6 @@ void imx_drm_device_put(void)
 
 	mutex_unlock(&imxdrm->mutex);
 }
-EXPORT_SYMBOL_GPL(imx_drm_device_put);
 
 static int drm_mode_group_reinit(struct drm_device *dev)
 {
@@ -450,6 +459,24 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		}
 	}
 
+	/*
+	 * All components are now initialised, so setup the fb helper.
+	 * The fb helper takes copies of key hardware information, so the
+	 * crtcs/connectors/encoders must not change after this point.
+	 */
+#if IS_ENABLED(CONFIG_DRM_IMX_FB_HELPER)
+	if (legacyfb_depth != 16 && legacyfb_depth != 32) {
+		dev_warn(drm->dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
+		legacyfb_depth = 16;
+	}
+	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth,
+				drm->mode_config.num_crtc, MAX_CRTC);
+	if (IS_ERR(imxdrm->fbhelper)) {
+		ret = PTR_ERR(imxdrm->fbhelper);
+		imxdrm->fbhelper = NULL;
+		goto err_unbind;
+	}
+#endif
 	return 0;
 
 err_unbind:
@@ -766,14 +793,6 @@ err_busy:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_drm_add_connector);
-
-void imx_drm_fb_helper_set(struct drm_fbdev_cma *fbdev_helper)
-{
-	struct imx_drm_device *imxdrm = __imx_drm_device();
-
-	imxdrm->fbhelper = fbdev_helper;
-}
-EXPORT_SYMBOL_GPL(imx_drm_fb_helper_set);
 
 /*
  * imx_drm_remove_connector - remove a connector
