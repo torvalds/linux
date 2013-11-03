@@ -5009,6 +5009,7 @@
 
 #define HALF_SLICE_CHICKEN3		0xe184
 #define   GEN8_CENTROID_PIXEL_OPT_DIS	(1<<8)
+#define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1<<1)
 
 #define G4X_AUD_VID_DID			(dev_priv->info->display_mmio_offset + 0x62020)
 #define INTEL_AUDIO_DEVCL		0x808629FB
