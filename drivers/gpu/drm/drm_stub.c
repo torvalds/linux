@@ -166,9 +166,6 @@ static void drm_master_destroy(struct kref *kref)
 		master->unique_len = 0;
 	}
 
-	kfree(dev->devname);
-	dev->devname = NULL;
-
 	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
 		list_del(&pt->head);
 		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
@@ -647,8 +644,6 @@ static void drm_dev_release(struct kref *ref)
 	drm_minor_free(dev, DRM_MINOR_LEGACY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
-
-	kfree(dev->devname);
 
 	mutex_destroy(&dev->master_mutex);
 	kfree(dev);

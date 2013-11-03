@@ -72,9 +72,6 @@ static void
 drm_unset_busid(struct drm_device *dev,
 		struct drm_master *master)
 {
-	kfree(dev->devname);
-	dev->devname = NULL;
-
 	kfree(master->unique);
 	master->unique = NULL;
 	master->unique_len = 0;

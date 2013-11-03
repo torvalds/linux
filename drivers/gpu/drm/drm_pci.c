@@ -146,7 +146,6 @@ static const char *drm_pci_get_name(struct drm_device *dev)
 static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	int len, ret;
-	struct pci_driver *pdriver = dev->driver->kdriver.pci;
 	master->unique_len = 40;
 	master->unique_size = master->unique_len;
 	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
@@ -168,18 +167,6 @@ static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 	} else
 		master->unique_len = len;
 
-	dev->devname =
-		kmalloc(strlen(pdriver->name) +
-			master->unique_len + 2, GFP_KERNEL);
-
-	if (dev->devname == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	sprintf(dev->devname, "%s@%s", pdriver->name,
-		master->unique);
-
 	return 0;
 err:
 	return ret;
@@ -190,7 +177,6 @@ int drm_pci_set_unique(struct drm_device *dev,
 		       struct drm_unique *u)
 {
 	int domain, bus, slot, func, ret;
-	const char *bus_name;
 
 	master->unique_len = u->unique_len;
 	master->unique_size = u->unique_len + 1;
@@ -206,17 +192,6 @@ int drm_pci_set_unique(struct drm_device *dev,
 	}
 
 	master->unique[master->unique_len] = '\0';
-
-	bus_name = dev->driver->bus->get_name(dev);
-	dev->devname = kmalloc(strlen(bus_name) +
-			       strlen(master->unique) + 2, GFP_KERNEL);
-	if (!dev->devname) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	sprintf(dev->devname, "%s@%s", bus_name,
-		master->unique);
 
 	/* Return error if the busid submitted doesn't match the device's actual
 	 * busid.

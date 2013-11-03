@@ -1048,7 +1048,6 @@ struct drm_vblank_crtc {
  */
 struct drm_device {
 	struct list_head legacy_dev_list;/**< list of devices per driver for stealth attach cleanup */
-	char *devname;			/**< For /proc/interrupts */
 	int if_version;			/**< Highest interface version set */
 
 	/** \name Lifetime Management */

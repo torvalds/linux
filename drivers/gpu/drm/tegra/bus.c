@@ -12,9 +12,7 @@ static int drm_host1x_set_busid(struct drm_device *dev,
 				struct drm_master *master)
 {
 	const char *device = dev_name(dev->dev);
-	const char *driver = dev->driver->name;
 	const char *bus = dev->dev->bus->name;
-	int length;
 
 	master->unique_len = strlen(bus) + 1 + strlen(device);
 	master->unique_size = master->unique_len;
@@ -24,14 +22,6 @@ static int drm_host1x_set_busid(struct drm_device *dev,
 		return -ENOMEM;
 
 	snprintf(master->unique, master->unique_len + 1, "%s:%s", bus, device);
-
-	length = strlen(driver) + 1 + master->unique_len;
-
-	dev->devname = kmalloc(length + 1, GFP_KERNEL);
-	if (!dev->devname)
-		return -ENOMEM;
-
-	snprintf(dev->devname, length + 1, "%s@%s", driver, master->unique);
 
 	return 0;
 }
