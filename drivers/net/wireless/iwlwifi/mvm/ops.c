@@ -813,6 +813,27 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 	iwl_mvm_nic_restart(mvm);
 }
 
+static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
+					struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = _data;
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
+
+	IWL_DEBUG_RPM(mvm, "entering D0i3 - vif %pM\n", vif->addr);
+	if (vif->type != NL80211_IFTYPE_STATION ||
+	    !vif->bss_conf.assoc)
+		return;
+
+	iwl_mvm_update_d0i3_power_mode(mvm, vif, true, flags);
+
+	/*
+	 * on init/association, mvm already configures POWER_TABLE_CMD
+	 * and REPLY_MCAST_FILTER_CMD, so currently don't
+	 * reconfigure them (we might want to use different
+	 * params later on, though).
+	 */
+}
+
 static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -823,9 +844,28 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
 
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_enter_d0i3_iterator,
+						   mvm);
+
 	return iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD,
 				    flags | CMD_MAKE_TRANS_IDLE,
 				    sizeof(d3_cfg_cmd), &d3_cfg_cmd);
+}
+
+static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = _data;
+	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO;
+
+	IWL_DEBUG_RPM(mvm, "exiting D0i3 - vif %pM\n", vif->addr);
+	if (vif->type != NL80211_IFTYPE_STATION ||
+	    !vif->bss_conf.assoc)
+		return;
+
+	iwl_mvm_update_d0i3_power_mode(mvm, vif, false, flags);
 }
 
 static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
@@ -833,10 +873,19 @@ static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE |
 		    CMD_WAKE_UP_TRANS;
+	int ret;
 
 	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
 
-	return iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
+	if (ret)
+		return ret;
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_exit_d0i3_iterator,
+						   mvm);
+	return 0;
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
