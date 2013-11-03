@@ -4002,6 +4002,74 @@
 #define GTIIR   0x44018
 #define GTIER   0x4401c
 
+#define GEN8_MASTER_IRQ			0x44200
+#define  GEN8_MASTER_IRQ_CONTROL	(1<<31)
+#define  GEN8_PCU_IRQ			(1<<30)
+#define  GEN8_DE_PCH_IRQ		(1<<23)
+#define  GEN8_DE_MISC_IRQ		(1<<22)
+#define  GEN8_DE_PORT_IRQ		(1<<20)
+#define  GEN8_DE_PIPE_C_IRQ		(1<<18)
+#define  GEN8_DE_PIPE_B_IRQ		(1<<17)
+#define  GEN8_DE_PIPE_A_IRQ		(1<<16)
+#define  GEN8_GT_VECS_IRQ		(1<<6)
+#define  GEN8_GT_VCS2_IRQ		(1<<3)
+#define  GEN8_GT_VCS1_IRQ		(1<<2)
+#define  GEN8_GT_BCS_IRQ		(1<<1)
+#define  GEN8_GT_RCS_IRQ		(1<<0)
+/* Lazy definition */
+#define  GEN8_GT_IRQS			0x000000ff
+#define  GEN8_DE_IRQS			0x01ff0000
+#define  GEN8_RSVD_IRQS			0xB700ff00
+
+#define GEN8_GT_ISR(which) (0x44300 + (0x10 * (which)))
+#define GEN8_GT_IMR(which) (0x44304 + (0x10 * (which)))
+#define GEN8_GT_IIR(which) (0x44308 + (0x10 * (which)))
+#define GEN8_GT_IER(which) (0x4430c + (0x10 * (which)))
+
+#define GEN8_BCS_IRQ_SHIFT 16
+#define GEN8_RCS_IRQ_SHIFT 0
+#define GEN8_VCS2_IRQ_SHIFT 16
+#define GEN8_VCS1_IRQ_SHIFT 0
+#define GEN8_VECS_IRQ_SHIFT 0
+
+#define GEN8_DE_PIPE_ISR(pipe) (0x44400 + (0x10 * (pipe)))
+#define GEN8_DE_PIPE_IMR(pipe) (0x44404 + (0x10 * (pipe)))
+#define GEN8_DE_PIPE_IIR(pipe) (0x44408 + (0x10 * (pipe)))
+#define GEN8_DE_PIPE_IER(pipe) (0x4440c + (0x10 * (pipe)))
+#define  GEN8_PIPE_UNDERRUN		(1 << 31)
+#define  GEN8_PIPE_CDCLK_CRC_ERROR	(1 << 29)
+#define  GEN8_PIPE_CDCLK_CRC_DONE	(1 << 28)
+#define  GEN8_PIPE_CURSOR_FAULT		(1 << 10)
+#define  GEN8_PIPE_SPRITE_FAULT		(1 << 9)
+#define  GEN8_PIPE_PRIMARY_FAULT	(1 << 8)
+#define  GEN8_PIPE_SPRITE_FLIP_DONE	(1 << 5)
+#define  GEN8_PIPE_FLIP_DONE		(1 << 4)
+#define  GEN8_PIPE_SCAN_LINE_EVENT	(1 << 2)
+#define  GEN8_PIPE_VSYNC		(1 << 1)
+#define  GEN8_PIPE_VBLANK		(1 << 0)
+#define GEN8_DE_PIPE_IRQ_ERRORS	(GEN8_PIPE_UNDERRUN | \
+				 GEN8_PIPE_CDCLK_CRC_ERROR | \
+				 GEN8_PIPE_CURSOR_FAULT | \
+				 GEN8_PIPE_SPRITE_FAULT | \
+				 GEN8_PIPE_PRIMARY_FAULT)
+
+#define GEN8_DE_PORT_ISR 0x44440
+#define GEN8_DE_PORT_IMR 0x44444
+#define GEN8_DE_PORT_IIR 0x44448
+#define GEN8_DE_PORT_IER 0x4444c
+#define  _PORT_DP_A_HOTPLUG		(1 << 3)
+
+#define GEN8_DE_MISC_ISR 0x44460
+#define GEN8_DE_MISC_IMR 0x44464
+#define GEN8_DE_MISC_IIR 0x44468
+#define GEN8_DE_MISC_IER 0x4446c
+#define  GEN8_DE_MISC_GSE		(1 << 27)
+
+#define GEN8_PCU_ISR 0x444e0
+#define GEN8_PCU_IMR 0x444e4
+#define GEN8_PCU_IIR 0x444e8
+#define GEN8_PCU_IER 0x444ec
+
 #define ILK_DISPLAY_CHICKEN2	0x42004
 /* Required on all Ironlake and Sandybridge according to the B-Spec. */
 #define  ILK_ELPIN_409_SELECT	(1 << 25)

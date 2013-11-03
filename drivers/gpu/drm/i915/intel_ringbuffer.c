@@ -1066,6 +1066,52 @@ hsw_vebox_put_irq(struct intel_ring_buffer *ring)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
+static bool
+gen8_ring_get_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	if (!dev->irq_enabled)
+		return false;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	if (ring->irq_refcount++ == 0) {
+		if (HAS_L3_DPF(dev) && ring->id == RCS) {
+			I915_WRITE_IMR(ring,
+				       ~(ring->irq_enable_mask |
+					 GT_RENDER_L3_PARITY_ERROR_INTERRUPT));
+		} else {
+			I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
+		}
+		POSTING_READ(RING_IMR(ring->mmio_base));
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+
+	return true;
+}
+
+static void
+gen8_ring_put_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	if (--ring->irq_refcount == 0) {
+		if (HAS_L3_DPF(dev) && ring->id == RCS) {
+			I915_WRITE_IMR(ring,
+				       ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
+		} else {
+			I915_WRITE_IMR(ring, ~0);
+		}
+		POSTING_READ(RING_IMR(ring->mmio_base));
+	}
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+}
+
 static int
 i965_dispatch_execbuffer(struct intel_ring_buffer *ring,
 			 u32 offset, u32 length,
@@ -1732,8 +1778,13 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)
 			ring->flush = gen6_render_ring_flush;
-		ring->irq_get = gen6_ring_get_irq;
-		ring->irq_put = gen6_ring_put_irq;
+		if (INTEL_INFO(dev)->gen >= 8) {
+			ring->irq_get = gen8_ring_get_irq;
+			ring->irq_put = gen8_ring_put_irq;
+		} else {
+			ring->irq_get = gen6_ring_get_irq;
+			ring->irq_put = gen6_ring_put_irq;
+		}
 		ring->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
@@ -1897,9 +1948,16 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->add_request = gen6_add_request;
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
-		ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
-		ring->irq_get = gen6_ring_get_irq;
-		ring->irq_put = gen6_ring_put_irq;
+		if (INTEL_INFO(dev)->gen >= 8) {
+			ring->irq_enable_mask =
+				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
+			ring->irq_get = gen8_ring_get_irq;
+			ring->irq_put = gen8_ring_put_irq;
+		} else {
+			ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
+			ring->irq_get = gen6_ring_get_irq;
+			ring->irq_put = gen6_ring_put_irq;
+		}
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		ring->sync_to = gen6_ring_sync;
 		ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VR;
@@ -1946,9 +2004,16 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	ring->add_request = gen6_add_request;
 	ring->get_seqno = gen6_ring_get_seqno;
 	ring->set_seqno = ring_set_seqno;
-	ring->irq_enable_mask = GT_BLT_USER_INTERRUPT;
-	ring->irq_get = gen6_ring_get_irq;
-	ring->irq_put = gen6_ring_put_irq;
+	if (INTEL_INFO(dev)->gen >= 8) {
+		ring->irq_enable_mask =
+			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
+		ring->irq_get = gen8_ring_get_irq;
+		ring->irq_put = gen8_ring_put_irq;
+	} else {
+		ring->irq_enable_mask = GT_BLT_USER_INTERRUPT;
+		ring->irq_get = gen6_ring_get_irq;
+		ring->irq_put = gen6_ring_put_irq;
+	}
 	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	ring->sync_to = gen6_ring_sync;
 	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_BR;
@@ -1978,10 +2043,19 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	ring->add_request = gen6_add_request;
 	ring->get_seqno = gen6_ring_get_seqno;
 	ring->set_seqno = ring_set_seqno;
-	ring->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
-	ring->irq_get = hsw_vebox_get_irq;
-	ring->irq_put = hsw_vebox_put_irq;
 	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		ring->irq_enable_mask =
+			(GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT) |
+			GT_RENDER_CS_MASTER_ERROR_INTERRUPT;
+		ring->irq_get = gen8_ring_get_irq;
+		ring->irq_put = gen8_ring_put_irq;
+	} else {
+		ring->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
+		ring->irq_get = hsw_vebox_get_irq;
+		ring->irq_put = hsw_vebox_put_irq;
+	}
 	ring->sync_to = gen6_ring_sync;
 	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VER;
 	ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_VEV;
