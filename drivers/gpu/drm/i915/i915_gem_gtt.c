@@ -410,6 +410,8 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		ret = gen6_ppgtt_init(ppgtt);
+	else if (IS_GEN8(dev))
+		ret = -ENOSYS;
 	else
 		BUG();
 
