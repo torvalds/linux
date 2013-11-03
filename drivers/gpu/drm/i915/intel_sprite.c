@@ -1092,6 +1092,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		break;
 
 	case 7:
+	case 8:
 		if (IS_IVYBRIDGE(dev)) {
 			intel_plane->can_scale = true;
 			intel_plane->max_downscale = 2;

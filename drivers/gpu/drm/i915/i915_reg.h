@@ -743,6 +743,7 @@
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
 #define DERRMR		0x44050
+/* Note that HBLANK events are reserved on bdw+ */
 #define   DERRMR_PIPEA_SCANLINE		(1<<0)
 #define   DERRMR_PIPEA_PRI_FLIP_DONE	(1<<1)
 #define   DERRMR_PIPEA_SPR_FLIP_DONE	(1<<2)

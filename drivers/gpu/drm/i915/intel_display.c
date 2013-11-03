@@ -10309,7 +10309,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 			dev_priv->display.modeset_global_resources =
 				ivb_modeset_global_resources;
-		} else if (IS_HASWELL(dev)) {
+		} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
 			dev_priv->display.modeset_global_resources =
@@ -10340,6 +10340,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.queue_flip = intel_gen6_queue_flip;
 		break;
 	case 7:
+	case 8: /* FIXME(BDW): Check that the gen8 RCS flip works. */
 		dev_priv->display.queue_flip = intel_gen7_queue_flip;
 		break;
 	}
