@@ -586,7 +586,53 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 8) {
+		int i;
+		seq_printf(m, "Master Interrupt Control:\t%08x\n",
+			   I915_READ(GEN8_MASTER_IRQ));
+
+		for (i = 0; i < 4; i++) {
+			seq_printf(m, "GT Interrupt IMR %d:\t%08x\n",
+				   i, I915_READ(GEN8_GT_IMR(i)));
+			seq_printf(m, "GT Interrupt IIR %d:\t%08x\n",
+				   i, I915_READ(GEN8_GT_IIR(i)));
+			seq_printf(m, "GT Interrupt IER %d:\t%08x\n",
+				   i, I915_READ(GEN8_GT_IER(i)));
+		}
+
+		for_each_pipe(i) {
+			seq_printf(m, "Pipe %c IMR:\t%08x\n",
+				   pipe_name(i),
+				   I915_READ(GEN8_DE_PIPE_IMR(i)));
+			seq_printf(m, "Pipe %c IIR:\t%08x\n",
+				   pipe_name(i),
+				   I915_READ(GEN8_DE_PIPE_IIR(i)));
+			seq_printf(m, "Pipe %c IER:\t%08x\n",
+				   pipe_name(i),
+				   I915_READ(GEN8_DE_PIPE_IER(i)));
+		}
+
+		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
+			   I915_READ(GEN8_DE_PORT_IMR));
+		seq_printf(m, "Display Engine port interrupt identity:\t%08x\n",
+			   I915_READ(GEN8_DE_PORT_IIR));
+		seq_printf(m, "Display Engine port interrupt enable:\t%08x\n",
+			   I915_READ(GEN8_DE_PORT_IER));
+
+		seq_printf(m, "Display Engine misc interrupt mask:\t%08x\n",
+			   I915_READ(GEN8_DE_MISC_IMR));
+		seq_printf(m, "Display Engine misc interrupt identity:\t%08x\n",
+			   I915_READ(GEN8_DE_MISC_IIR));
+		seq_printf(m, "Display Engine misc interrupt enable:\t%08x\n",
+			   I915_READ(GEN8_DE_MISC_IER));
+
+		seq_printf(m, "PCU interrupt mask:\t%08x\n",
+			   I915_READ(GEN8_PCU_IMR));
+		seq_printf(m, "PCU interrupt identity:\t%08x\n",
+			   I915_READ(GEN8_PCU_IIR));
+		seq_printf(m, "PCU interrupt enable:\t%08x\n",
+			   I915_READ(GEN8_PCU_IER));
+	} else if (IS_VALLEYVIEW(dev)) {
 		seq_printf(m, "Display IER:\t%08x\n",
 			   I915_READ(VLV_IER));
 		seq_printf(m, "Display IIR:\t%08x\n",
@@ -658,7 +704,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
 	for_each_ring(ring, dev_priv, i) {
-		if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		if (INTEL_INFO(dev)->gen >= 6) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
 				   ring->name, I915_READ_IMR(ring));
