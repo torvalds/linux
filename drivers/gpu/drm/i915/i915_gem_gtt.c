@@ -30,6 +30,7 @@
 
 #define GEN6_PPGTT_PD_ENTRIES 512
 #define I915_PPGTT_PT_ENTRIES (PAGE_SIZE / sizeof(gen6_gtt_pte_t))
+typedef uint64_t gen8_gtt_pte_t;
 
 /* PPGTT stuff */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
@@ -942,7 +943,7 @@ static int gen8_gmch_probe(struct drm_device *dev,
 	*stolen = gen8_get_stolen_size(snb_gmch_ctl);
 
 	gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
-	*gtt_total = (gtt_size / 8) << PAGE_SHIFT;
+	*gtt_total = (gtt_size / sizeof(gen8_gtt_pte_t)) << PAGE_SHIFT;
 
 	ret = ggtt_probe_common(dev, gtt_size);
 
