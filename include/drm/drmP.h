@@ -1076,7 +1076,7 @@ struct drm_device {
 
 	/** \name Usage Counters */
 	/*@{ */
-	int open_count;			/**< Outstanding files open */
+	int open_count;			/**< Outstanding files open, protected by drm_global_mutex. */
 	int buf_use;			/**< Buffers in use -- cannot alloc */
 	atomic_t buf_alloc;		/**< Buffer allocation in progress */
 	/*@} */
