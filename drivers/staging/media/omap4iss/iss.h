@@ -136,10 +136,10 @@ int omap4iss_subclk_enable(struct iss_device *iss,
 			   enum iss_subclk_resource res);
 int omap4iss_subclk_disable(struct iss_device *iss,
 			    enum iss_subclk_resource res);
-int omap4iss_isp_subclk_enable(struct iss_device *iss,
+void omap4iss_isp_subclk_enable(struct iss_device *iss,
 				enum iss_isp_subclk_resource res);
-int omap4iss_isp_subclk_disable(struct iss_device *iss,
-				enum iss_isp_subclk_resource res);
+void omap4iss_isp_subclk_disable(struct iss_device *iss,
+				 enum iss_isp_subclk_resource res);
 
 void omap4iss_isp_enable_interrupts(struct iss_device *iss);
 void omap4iss_isp_disable_interrupts(struct iss_device *iss);

@@ -836,7 +836,7 @@ int omap4iss_subclk_disable(struct iss_device *iss,
 				 ISP5_CTRL_IPIPE_CLK_ENABLE |\
 				 ISP5_CTRL_IPIPEIF_CLK_ENABLE)
 
-static int __iss_isp_subclk_update(struct iss_device *iss)
+static void __iss_isp_subclk_update(struct iss_device *iss)
 {
 	u32 clk = 0;
 
@@ -861,24 +861,22 @@ static int __iss_isp_subclk_update(struct iss_device *iss)
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) &
 		~ISS_ISP5_CLKCTRL_MASK) | clk,
 		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
-
-	return 0;
 }
 
-int omap4iss_isp_subclk_enable(struct iss_device *iss,
+void omap4iss_isp_subclk_enable(struct iss_device *iss,
 				enum iss_isp_subclk_resource res)
 {
 	iss->isp_subclk_resources |= res;
 
-	return __iss_isp_subclk_update(iss);
+	__iss_isp_subclk_update(iss);
 }
 
-int omap4iss_isp_subclk_disable(struct iss_device *iss,
-				enum iss_isp_subclk_resource res)
+void omap4iss_isp_subclk_disable(struct iss_device *iss,
+				 enum iss_isp_subclk_resource res)
 {
 	iss->isp_subclk_resources &= ~res;
 
-	return __iss_isp_subclk_update(iss);
+	__iss_isp_subclk_update(iss);
 }
 
 /*
