@@ -178,12 +178,10 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 	switch (input) {
 	case IPIPEIF_INPUT_CSI2A:
 		issctrl_val |= ISS_CTRL_INPUT_SEL_CSI2A;
-		isp5ctrl_val |= ISP5_CTRL_VD_PULSE_EXT;
 		break;
 
 	case IPIPEIF_INPUT_CSI2B:
 		issctrl_val |= ISS_CTRL_INPUT_SEL_CSI2B;
-		isp5ctrl_val |= ISP5_CTRL_VD_PULSE_EXT;
 		break;
 
 	default:
@@ -192,7 +190,8 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 
 	issctrl_val |= ISS_CTRL_SYNC_DETECT_VS_RAISING;
 
-	isp5ctrl_val |= ISP5_CTRL_PSYNC_CLK_SEL | ISP5_CTRL_SYNC_ENABLE;
+	isp5ctrl_val |= ISP5_CTRL_VD_PULSE_EXT | ISP5_CTRL_PSYNC_CLK_SEL |
+			ISP5_CTRL_SYNC_ENABLE;
 
 	writel(issctrl_val, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CTRL);
 	writel(isp5ctrl_val, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
