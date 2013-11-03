@@ -56,9 +56,9 @@ struct drm_gem_cma_object *imx_drm_fb_get_obj(struct drm_framebuffer *fb);
 
 struct drm_device *imx_drm_device_get(void);
 void imx_drm_device_put(void);
-int imx_drm_crtc_panel_format_pins(struct drm_crtc *crtc, u32 encoder_type,
+int imx_drm_panel_format_pins(struct drm_encoder *encoder,
 		u32 interface_pix_fmt, int hsync_pin, int vsync_pin);
-int imx_drm_crtc_panel_format(struct drm_crtc *crtc, u32 encoder_type,
+int imx_drm_panel_format(struct drm_encoder *encoder,
 		u32 interface_pix_fmt);
 void imx_drm_fb_helper_set(struct drm_fbdev_cma *fbdev_helper);
 

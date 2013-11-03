@@ -200,8 +200,7 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 		pixel_fmt = V4L2_PIX_FMT_RGB24;
 	}
 
-	imx_drm_crtc_panel_format(encoder->crtc, DRM_MODE_ENCODER_LVDS,
-			pixel_fmt);
+	imx_drm_panel_format(encoder, pixel_fmt);
 }
 
 static void imx_ldb_encoder_commit(struct drm_encoder *encoder)

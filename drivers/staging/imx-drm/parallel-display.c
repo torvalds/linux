@@ -108,8 +108,7 @@ static void imx_pd_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
 
-	imx_drm_crtc_panel_format(encoder->crtc, DRM_MODE_ENCODER_NONE,
-			imxpd->interface_pix_fmt);
+	imx_drm_panel_format(encoder, imxpd->interface_pix_fmt);
 }
 
 static void imx_pd_encoder_commit(struct drm_encoder *encoder)

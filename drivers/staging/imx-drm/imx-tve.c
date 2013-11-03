@@ -310,13 +310,11 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 
 	switch (tve->mode) {
 	case TVE_MODE_VGA:
-		imx_drm_crtc_panel_format_pins(encoder->crtc,
-				DRM_MODE_ENCODER_DAC, IPU_PIX_FMT_GBR24,
+		imx_drm_panel_format_pins(encoder, IPU_PIX_FMT_GBR24,
 				tve->hsync_pin, tve->vsync_pin);
 		break;
 	case TVE_MODE_TVOUT:
-		imx_drm_crtc_panel_format(encoder->crtc, DRM_MODE_ENCODER_TVDAC,
-					  V4L2_PIX_FMT_YUV444);
+		imx_drm_panel_format(encoder, V4L2_PIX_FMT_YUV444);
 		break;
 	}
 }
@@ -510,12 +508,16 @@ static int tve_clk_init(struct imx_tve *tve, void __iomem *base)
 
 static int imx_tve_register(struct imx_tve *tve)
 {
+	int encoder_type;
 	int ret;
+
+	encoder_type = tve->mode == TVE_MODE_VGA ?
+				DRM_MODE_ENCODER_DAC : DRM_MODE_ENCODER_TVDAC;
 
 	tve->connector.funcs = &imx_tve_connector_funcs;
 	tve->encoder.funcs = &imx_tve_encoder_funcs;
 
-	tve->encoder.encoder_type = DRM_MODE_ENCODER_NONE;
+	tve->encoder.encoder_type = encoder_type;
 	tve->connector.connector_type = DRM_MODE_CONNECTOR_VGA;
 
 	drm_encoder_helper_add(&tve->encoder, &imx_tve_encoder_helper_funcs);

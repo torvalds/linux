@@ -284,6 +284,7 @@ static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
 		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
 			IPU_DI_CLKMODE_EXT;
 		break;
+	case DRM_MODE_ENCODER_TMDS:
 	case DRM_MODE_ENCODER_NONE:
 		ipu_crtc->di_clkflags = 0;
 		break;
