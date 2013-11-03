@@ -15,24 +15,18 @@
  */
 #include <linux/component.h>
 #include <linux/device.h>
+#include <linux/fb.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include <linux/fb.h>
-#include <linux/module.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
 #include "imx-drm.h"
 
 #define MAX_CRTC	4
-
-struct crtc_cookie {
-	void *cookie;
-	int id;
-	struct list_head list;
-};
 
 struct imx_drm_crtc;
 
@@ -47,7 +41,8 @@ struct imx_drm_crtc {
 	struct drm_crtc				*crtc;
 	int					pipe;
 	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
-	struct crtc_cookie			cookie;
+	void					*cookie;
+	int					id;
 	int					mux_id;
 };
 
@@ -271,9 +266,9 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		goto err_kms;
 
 	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
-	 * by drm timer once a current process gives up ownership of
-	 * vblank event.(after drm_vblank_put function is called)
+	 * with vblank_disable_allowed = true, vblank interrupt will be
+	 * disabled by drm timer once a current process gives up ownership
+	 * of vblank event. (after drm_vblank_put function is called)
 	 */
 	drm->vblank_disable_allowed = true;
 
@@ -350,26 +345,20 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 	 * The vblank arrays are dimensioned by MAX_CRTC - we can't
 	 * pass IDs greater than this to those functions.
 	 */
-	if (imxdrm->pipes >= MAX_CRTC) {
-		ret = -EINVAL;
-		goto err_busy;
-	}
+	if (imxdrm->pipes >= MAX_CRTC)
+		return -EINVAL;
 
-	if (imxdrm->drm->open_count) {
-		ret = -EBUSY;
-		goto err_busy;
-	}
+	if (imxdrm->drm->open_count)
+		return -EBUSY;
 
 	imx_drm_crtc = kzalloc(sizeof(*imx_drm_crtc), GFP_KERNEL);
-	if (!imx_drm_crtc) {
-		ret = -ENOMEM;
-		goto err_alloc;
-	}
+	if (!imx_drm_crtc)
+		return -ENOMEM;
 
 	imx_drm_crtc->imx_drm_helper_funcs = *imx_drm_helper_funcs;
 	imx_drm_crtc->pipe = imxdrm->pipes++;
-	imx_drm_crtc->cookie.cookie = cookie;
-	imx_drm_crtc->cookie.id = id;
+	imx_drm_crtc->cookie = cookie;
+	imx_drm_crtc->id = id;
 	imx_drm_crtc->mux_id = imx_drm_crtc->pipe;
 	imx_drm_crtc->crtc = crtc;
 
@@ -392,8 +381,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 err_register:
 	imxdrm->crtc[imx_drm_crtc->pipe] = NULL;
 	kfree(imx_drm_crtc);
-err_alloc:
-err_busy:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_drm_add_crtc);
@@ -429,8 +416,8 @@ static uint32_t imx_drm_find_crtc_mask(struct imx_drm_device *imxdrm,
 
 	for (i = 0; i < MAX_CRTC; i++) {
 		struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[i];
-		if (imx_drm_crtc && imx_drm_crtc->cookie.id == id &&
-		    imx_drm_crtc->cookie.cookie == cookie)
+		if (imx_drm_crtc && imx_drm_crtc->id == id &&
+		    imx_drm_crtc->cookie == cookie)
 			return drm_crtc_mask(imx_drm_crtc->crtc);
 	}
 
