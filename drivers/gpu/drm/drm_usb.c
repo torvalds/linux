@@ -51,7 +51,6 @@ int drm_usb_init(struct drm_driver *driver, struct usb_driver *udriver)
 	int res;
 	DRM_DEBUG("\n");
 
-	driver->kdriver.usb = udriver;
 	driver->bus = &drm_usb_bus;
 
 	res = usb_register(udriver);

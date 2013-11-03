@@ -963,11 +963,6 @@ struct drm_driver {
 	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
-	union {
-		struct pci_driver *pci;
-		struct platform_device *platform_device;
-		struct usb_driver *usb;
-	} kdriver;
 	struct drm_bus *bus;
 
 	/* List of devices hanging off this driver with stealth attach. */

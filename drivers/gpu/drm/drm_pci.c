@@ -364,7 +364,6 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 
 	DRM_DEBUG("\n");
 
-	driver->kdriver.pci = pdriver;
 	driver->bus = &drm_pci_bus;
 
 	if (driver->driver_features & DRIVER_MODESET)

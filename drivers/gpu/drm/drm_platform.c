@@ -121,7 +121,6 @@ int drm_platform_init(struct drm_driver *driver, struct platform_device *platfor
 {
 	DRM_DEBUG("\n");
 
-	driver->kdriver.platform_device = platform_device;
 	driver->bus = &drm_platform_bus;
 	return drm_get_platform_dev(platform_device, driver);
 }
