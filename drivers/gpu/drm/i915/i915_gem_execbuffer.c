@@ -1146,8 +1146,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
-	 * hsw should have this fixed, but let's be paranoid and do it
-	 * unconditionally for now. */
+	 * hsw should have this fixed, but bdw mucks it up again. */
 	if (flags & I915_DISPATCH_SECURE && !batch_obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(batch_obj, batch_obj->cache_level);
 

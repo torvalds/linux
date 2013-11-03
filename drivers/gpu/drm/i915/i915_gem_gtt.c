@@ -439,7 +439,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 			 ppgtt->num_pt_pages,
 			 (ppgtt->num_pt_pages - num_pt_pages) +
 			 size % (1<<30));
-	return -ENOSYS; /* Not ready yet */
+	return 0;
 
 err_out:
 	ppgtt->base.cleanup(&ppgtt->base);

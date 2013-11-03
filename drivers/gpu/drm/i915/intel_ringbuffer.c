@@ -1699,6 +1699,9 @@ gen8_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 			      u32 offset, u32 len,
 			      unsigned flags)
 {
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	bool ppgtt = dev_priv->mm.aliasing_ppgtt != NULL &&
+		!(flags & I915_DISPATCH_SECURE);
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
@@ -1706,7 +1709,7 @@ gen8_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		return ret;
 
 	/* FIXME(BDW): Address space and security selectors. */
-	intel_ring_emit(ring, MI_BATCH_BUFFER_START_GEN8);
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START_GEN8 | (ppgtt<<8));
 	intel_ring_emit(ring, offset);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
