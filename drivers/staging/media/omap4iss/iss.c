@@ -642,11 +642,11 @@ static int iss_reset(struct iss_device *iss)
 
 	while (readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_SYSCONFIG) &
 			ISS_HL_SYSCONFIG_SOFTRESET) {
-		if (timeout++ > 10000) {
+		if (timeout++ > 100) {
 			dev_alert(iss->dev, "cannot reset ISS\n");
 			return -ETIMEDOUT;
 		}
-		udelay(1);
+		usleep_range(10, 10);
 	}
 
 	return 0;
@@ -674,7 +674,7 @@ static int iss_isp_reset(struct iss_device *iss)
 			dev_alert(iss->dev, "cannot set ISP5 to standby\n");
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 1500);
 	}
 
 	/* Now finally, do the reset */
@@ -689,7 +689,7 @@ static int iss_isp_reset(struct iss_device *iss)
 			dev_alert(iss->dev, "cannot reset ISP5\n");
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 1500);
 	}
 
 	return 0;
