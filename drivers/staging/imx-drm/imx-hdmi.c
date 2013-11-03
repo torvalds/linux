@@ -120,6 +120,8 @@ struct imx_hdmi {
 	struct clk *isfr_clk;
 	struct clk *iahb_clk;
 
+	enum drm_connector_status connector_status;
+
 	struct hdmi_data_info hdmi_data;
 	int vic;
 
@@ -1301,9 +1303,6 @@ static int imx_hdmi_fb_registered(struct imx_hdmi *hdmi)
 	/* Clear Hotplug interrupts */
 	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD, HDMI_IH_PHY_STAT0);
 
-	/* Unmute interrupts */
-	hdmi_writeb(hdmi, ~HDMI_IH_PHY_STAT0_HPD, HDMI_IH_MUTE_PHY_STAT0);
-
 	return 0;
 }
 
@@ -1372,8 +1371,9 @@ static void imx_hdmi_poweroff(struct imx_hdmi *hdmi)
 static enum drm_connector_status imx_hdmi_connector_detect(struct drm_connector
 							*connector, bool force)
 {
-	/* FIXME */
-	return connector_status_connected;
+	struct imx_hdmi *hdmi = container_of(connector, struct imx_hdmi,
+					     connector);
+	return hdmi->connector_status;
 }
 
 static int imx_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -1487,6 +1487,18 @@ static struct drm_connector_helper_funcs imx_hdmi_connector_helper_funcs = {
 	.best_encoder = imx_hdmi_connector_best_encoder,
 };
 
+static irqreturn_t imx_hdmi_hardirq(int irq, void *dev_id)
+{
+	struct imx_hdmi *hdmi = dev_id;
+	u8 intr_stat;
+
+	intr_stat = hdmi_readb(hdmi, HDMI_IH_PHY_STAT0);
+	if (intr_stat)
+		hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
+
+	return intr_stat ? IRQ_WAKE_THREAD : IRQ_NONE;
+}
+
 static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 {
 	struct imx_hdmi *hdmi = dev_id;
@@ -1503,17 +1515,21 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 
 			hdmi_modb(hdmi, 0, HDMI_PHY_HPD, HDMI_PHY_POL0);
 
+			hdmi->connector_status = connector_status_connected;
 			imx_hdmi_poweron(hdmi);
 		} else {
 			dev_dbg(hdmi->dev, "EVENT=plugout\n");
 
 			hdmi_modb(hdmi, HDMI_PHY_HPD, HDMI_PHY_HPD, HDMI_PHY_POL0);
 
+			hdmi->connector_status = connector_status_disconnected;
 			imx_hdmi_poweroff(hdmi);
 		}
+		drm_helper_hpd_irq_event(hdmi->connector.dev);
 	}
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
+	hdmi_writeb(hdmi, ~HDMI_IH_PHY_STAT0_HPD, HDMI_IH_MUTE_PHY_STAT0);
 
 	return IRQ_HANDLED;
 }
@@ -1526,6 +1542,8 @@ static int imx_hdmi_register(struct drm_device *drm, struct imx_hdmi *hdmi)
 				       hdmi->dev->of_node);
 	if (ret)
 		return ret;
+
+	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_encoder_helper_add(&hdmi->encoder, &imx_hdmi_encoder_helper_funcs);
 	drm_encoder_init(drm, &hdmi->encoder, &imx_hdmi_encoder_funcs,
@@ -1578,6 +1596,7 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	hdmi->dev = dev;
+	hdmi->connector_status = connector_status_disconnected;
 	hdmi->sample_rate = 48000;
 	hdmi->ratio = 100;
 
@@ -1601,8 +1620,9 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (irq < 0)
 		return -EINVAL;
 
-	ret = devm_request_irq(dev, irq, imx_hdmi_irq, 0,
-			       dev_name(dev), hdmi);
+	ret = devm_request_threaded_irq(dev, irq, imx_hdmi_hardirq,
+					imx_hdmi_irq, IRQF_SHARED,
+					dev_name(dev), hdmi);
 	if (ret)
 		return ret;
 
@@ -1678,6 +1698,9 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_iahb;
 
+	/* Unmute interrupts */
+	hdmi_writeb(hdmi, ~HDMI_IH_PHY_STAT0_HPD, HDMI_IH_MUTE_PHY_STAT0);
+
 	dev_set_drvdata(dev, hdmi);
 
 	return 0;
@@ -1694,6 +1717,9 @@ static void imx_hdmi_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct imx_hdmi *hdmi = dev_get_drvdata(dev);
+
+	/* Disable all interrupts */
+	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
