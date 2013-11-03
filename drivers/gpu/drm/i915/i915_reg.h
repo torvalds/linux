@@ -1822,6 +1822,9 @@
  * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
+/* Same as Haswell, but 72064 bytes now. */
+#define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
+
 
 #define VLV_CLK_CTL2			0x101104
 #define   CLK_CTL2_CZCOUNT_30NS_SHIFT	28
