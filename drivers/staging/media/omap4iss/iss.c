@@ -121,8 +121,7 @@ int omap4iss_get_external_info(struct iss_pipeline *pipe,
 	struct iss_device *iss =
 		container_of(pipe, struct iss_video, pipe)->iss;
 	struct v4l2_subdev_format fmt;
-	struct v4l2_ext_controls ctrls;
-	struct v4l2_ext_control ctrl;
+	struct v4l2_ctrl *ctrl;
 	int ret;
 
 	if (!pipe->external)
@@ -142,23 +141,15 @@ int omap4iss_get_external_info(struct iss_pipeline *pipe,
 
 	pipe->external_bpp = omap4iss_video_format_info(fmt.format.code)->bpp;
 
-	memset(&ctrls, 0, sizeof(ctrls));
-	memset(&ctrl, 0, sizeof(ctrl));
-
-	ctrl.id = V4L2_CID_PIXEL_RATE;
-
-	ctrls.ctrl_class = V4L2_CTRL_ID2CLASS(ctrl.id);
-	ctrls.count = 1;
-	ctrls.controls = &ctrl;
-
-	ret = v4l2_g_ext_ctrls(pipe->external->ctrl_handler, &ctrls);
-	if (ret < 0) {
+	ctrl = v4l2_ctrl_find(pipe->external->ctrl_handler,
+			      V4L2_CID_PIXEL_RATE);
+	if (ctrl == NULL) {
 		dev_warn(iss->dev, "no pixel rate control in subdev %s\n",
 			 pipe->external->name);
-		return ret;
+		return -EPIPE;
 	}
 
-	pipe->external_rate = ctrl.value64;
+	pipe->external_rate = v4l2_ctrl_g_ctrl_int64(ctrl);
 
 	return 0;
 }
