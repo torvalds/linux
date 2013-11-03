@@ -5277,6 +5277,7 @@ static void lpt_suspend_hw(struct drm_device *dev)
 static void gen8_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe i;
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
@@ -5287,6 +5288,17 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 
 	/* WaSwitchSolVfFArbitrationPriority */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
+
+	/* WaPsrDPAMaskVBlankInSRD */
+	I915_WRITE(CHICKEN_PAR1_1,
+		   I915_READ(CHICKEN_PAR1_1) | DPA_MASK_VBLANK_SRD);
+
+	/* WaPsrDPRSUnmaskVBlankInSRD */
+	for_each_pipe(i) {
+		I915_WRITE(CHICKEN_PIPESL_1(i),
+			   I915_READ(CHICKEN_PIPESL_1(i) |
+				     DPRS_MASK_VBLANK_SRD));
+	}
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
