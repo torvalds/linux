@@ -233,6 +233,11 @@ static void drm_irq_vgaarb_nokms(void *cookie, bool state)
 	}
 }
 
+static inline int drm_dev_to_irq(struct drm_device *dev)
+{
+	return dev->driver->bus->get_irq(dev);
+}
+
 /**
  * Install IRQ handler.
  *

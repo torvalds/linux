@@ -1594,7 +1594,7 @@ static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *fi
 
 	switch (param->param) {
 	case R128_PARAM_IRQ_NR:
-		value = drm_dev_to_irq(dev);
+		value = dev->pdev->irq;
 		break;
 	default:
 		return -EINVAL;
