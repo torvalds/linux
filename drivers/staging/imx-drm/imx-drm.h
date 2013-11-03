@@ -39,18 +39,6 @@ int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc);
 void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc);
 void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc);
 
-struct imx_drm_encoder;
-int imx_drm_add_encoder(struct drm_encoder *encoder,
-		struct imx_drm_encoder **new_enc,
-		struct module *owner);
-int imx_drm_remove_encoder(struct imx_drm_encoder *);
-
-struct imx_drm_connector;
-int imx_drm_add_connector(struct drm_connector *connector,
-		struct imx_drm_connector **new_con,
-		struct module *owner);
-int imx_drm_remove_connector(struct imx_drm_connector *);
-
 void imx_drm_mode_config_init(struct drm_device *drm);
 
 struct drm_gem_cma_object *imx_drm_fb_get_obj(struct drm_framebuffer *fb);
@@ -63,8 +51,6 @@ int imx_drm_panel_format(struct drm_encoder *encoder,
 struct device_node;
 
 int imx_drm_encoder_get_mux_id(struct drm_encoder *encoder);
-int imx_drm_encoder_add_possible_crtcs(struct imx_drm_encoder *imx_drm_encoder,
-		struct device_node *np);
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);
 
