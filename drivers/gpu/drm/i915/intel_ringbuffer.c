@@ -2021,7 +2021,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	ring->id = VCS;
 
 	ring->write_tail = ring_write_tail;
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->mmio_base = GEN6_BSD_RING_BASE;
 		/* gen6 bsd needs a special wa for tail updates */
 		if (IS_GEN6(dev))
