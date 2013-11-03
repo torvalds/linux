@@ -1,5 +1,5 @@
 
-imxdrm-objs := imx-drm-core.o imx-fb.o
+imxdrm-objs := imx-drm-core.o
 
 obj-$(CONFIG_DRM_IMX) += imxdrm.o
 

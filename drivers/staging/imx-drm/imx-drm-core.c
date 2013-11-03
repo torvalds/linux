@@ -381,6 +381,10 @@ static void imx_drm_connector_unregister(
 	drm_mode_group_reinit(imxdrm->drm);
 }
 
+static struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
+	.fb_create = drm_fb_cma_create,
+};
+
 /*
  * Main DRM initialisation. This binds, initialises and registers
  * with DRM the subcomponents of the driver.
@@ -406,8 +410,18 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 */
 	drm->irq_enabled = true;
 
+	/*
+	 * set max width and height as default value(4096x4096).
+	 * this value would be used to check framebuffer size limitation
+	 * at drm_mode_addfb().
+	 */
+	drm->mode_config.min_width = 64;
+	drm->mode_config.min_height = 64;
+	drm->mode_config.max_width = 4096;
+	drm->mode_config.max_height = 4096;
+	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
+
 	drm_mode_config_init(drm);
-	imx_drm_mode_config_init(drm);
 
 	mutex_lock(&imxdrm->mutex);
 
