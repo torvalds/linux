@@ -938,8 +938,10 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 				BTRFS_DEV_STAT_CORRUPTION_ERRS);
 	}
 
-	if (sctx->readonly && !sctx->is_dev_replace)
-		goto did_not_correct_error;
+	if (sctx->readonly) {
+		ASSERT(!sctx->is_dev_replace);
+		goto out;
+	}
 
 	if (!is_metadata && !have_csum) {
 		struct scrub_fixup_nodatasum *fixup_nodatasum;
