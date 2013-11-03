@@ -58,6 +58,15 @@ typedef uint64_t gen8_gtt_pte_t;
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
 
+static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
+					     enum i915_cache_level level,
+					     bool valid)
+{
+	gen8_gtt_pte_t pte = valid ? _PAGE_PRESENT | _PAGE_RW : 0;
+	pte |= addr;
+	return pte;
+}
+
 static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
 				     bool valid)
@@ -576,6 +585,57 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+static inline void gen8_set_pte(void __iomem *addr, gen8_gtt_pte_t pte)
+{
+#ifdef writeq
+	writeq(pte, addr);
+#else
+	iowrite32((u32)pte, addr);
+	iowrite32(pte >> 32, addr + 4);
+#endif
+}
+
+static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
+				     struct sg_table *st,
+				     unsigned int first_entry,
+				     enum i915_cache_level level)
+{
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	gen8_gtt_pte_t __iomem *gtt_entries =
+		(gen8_gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
+	int i = 0;
+	struct sg_page_iter sg_iter;
+	dma_addr_t addr;
+
+	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
+		addr = sg_dma_address(sg_iter.sg) +
+			(sg_iter.sg_pgoffset << PAGE_SHIFT);
+		gen8_set_pte(&gtt_entries[i],
+			     gen8_pte_encode(addr, level, true));
+		i++;
+	}
+
+	/*
+	 * XXX: This serves as a posting read to make sure that the PTE has
+	 * actually been updated. There is some concern that even though
+	 * registers and PTEs are within the same BAR that they are potentially
+	 * of NUMA access patterns. Therefore, even with the way we assume
+	 * hardware should work, we must keep this posting read for paranoia.
+	 */
+	if (i != 0)
+		WARN_ON(readq(&gtt_entries[i-1])
+			!= gen8_pte_encode(addr, level, true));
+
+#if 0 /* TODO: Still needed on GEN8? */
+	/* This next bit makes the above posting read even more important. We
+	 * want to flush the TLBs only after we're certain all the PTE updates
+	 * have finished.
+	 */
+	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+#endif
+}
+
 /*
  * Binds an object into the global gtt with the specified cache level. The object
  * will be accessible to the GPU via commands whose operands reference offsets
@@ -618,6 +678,30 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
 
+static void gen8_ggtt_clear_range(struct i915_address_space *vm,
+				  unsigned int first_entry,
+				  unsigned int num_entries,
+				  bool use_scratch)
+{
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	gen8_gtt_pte_t scratch_pte, __iomem *gtt_base =
+		(gen8_gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
+	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
+	int i;
+
+	if (WARN(num_entries > max_entries,
+		 "First entry = %d; Num entries = %d (max=%d)\n",
+		 first_entry, num_entries, max_entries))
+		num_entries = max_entries;
+
+	scratch_pte = gen8_pte_encode(vm->scratch.addr,
+				      I915_CACHE_LLC,
+				      use_scratch);
+	for (i = 0; i < num_entries; i++)
+		gen8_set_pte(&gtt_base[i], scratch_pte);
+	readl(gtt_base);
+}
+
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 				  unsigned int first_entry,
 				  unsigned int num_entries,
@@ -640,7 +724,6 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
 }
-
 
 static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct sg_table *st,
@@ -947,8 +1030,8 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	ret = ggtt_probe_common(dev, gtt_size);
 
-	dev_priv->gtt.base.clear_range = NULL;
-	dev_priv->gtt.base.insert_entries = NULL;
+	dev_priv->gtt.base.clear_range = gen8_ggtt_clear_range;
+	dev_priv->gtt.base.insert_entries = gen8_ggtt_insert_entries;
 
 	return ret;
 }
