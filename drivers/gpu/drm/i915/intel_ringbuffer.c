@@ -1688,6 +1688,27 @@ static int gen6_bsd_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
+gen8_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			      u32 offset, u32 len,
+			      unsigned flags)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	/* FIXME(BDW): Address space and security selectors. */
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START_GEN8);
+	intel_ring_emit(ring, offset);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
 hsw_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 			      u32 offset, u32 len,
 			      unsigned flags)
@@ -1826,6 +1847,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	ring->write_tail = ring_write_tail;
 	if (IS_HASWELL(dev))
 		ring->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
+	else if (IS_GEN8(dev))
+		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 	else if (INTEL_INFO(dev)->gen >= 6)
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	else if (INTEL_INFO(dev)->gen >= 4)
@@ -1953,12 +1976,15 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 			ring->irq_get = gen8_ring_get_irq;
 			ring->irq_put = gen8_ring_put_irq;
+			ring->dispatch_execbuffer =
+				gen8_ring_dispatch_execbuffer;
 		} else {
 			ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 			ring->irq_get = gen6_ring_get_irq;
 			ring->irq_put = gen6_ring_put_irq;
+			ring->dispatch_execbuffer =
+				gen6_ring_dispatch_execbuffer;
 		}
-		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 		ring->sync_to = gen6_ring_sync;
 		ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VR;
 		ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_INVALID;
@@ -2009,12 +2035,13 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 		ring->irq_get = gen8_ring_get_irq;
 		ring->irq_put = gen8_ring_put_irq;
+		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 	} else {
 		ring->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
+		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	}
-	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	ring->sync_to = gen6_ring_sync;
 	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_BR;
 	ring->semaphore_register[VCS] = MI_SEMAPHORE_SYNC_BV;
@@ -2043,7 +2070,6 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	ring->add_request = gen6_add_request;
 	ring->get_seqno = gen6_ring_get_seqno;
 	ring->set_seqno = ring_set_seqno;
-	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 
 	if (INTEL_INFO(dev)->gen >= 8) {
 		ring->irq_enable_mask =
@@ -2051,10 +2077,12 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 			GT_RENDER_CS_MASTER_ERROR_INTERRUPT;
 		ring->irq_get = gen8_ring_get_irq;
 		ring->irq_put = gen8_ring_put_irq;
+		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 	} else {
 		ring->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
 		ring->irq_get = hsw_vebox_get_irq;
 		ring->irq_put = hsw_vebox_put_irq;
+		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	}
 	ring->sync_to = gen6_ring_sync;
 	ring->semaphore_register[RCS] = MI_SEMAPHORE_SYNC_VER;
