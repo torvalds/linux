@@ -111,9 +111,7 @@ enum {
 
 struct imx_tve {
 	struct drm_connector connector;
-	struct imx_drm_connector *imx_drm_connector;
 	struct drm_encoder encoder;
-	struct imx_drm_encoder *imx_drm_encoder;
 	struct device *dev;
 	spinlock_t lock;	/* register lock */
 	bool enabled;
@@ -224,11 +222,6 @@ static enum drm_connector_status imx_tve_connector_detect(
 				struct drm_connector *connector, bool force)
 {
 	return connector_status_connected;
-}
-
-static void imx_tve_connector_destroy(struct drm_connector *connector)
-{
-	/* do not free here */
 }
 
 static int imx_tve_connector_get_modes(struct drm_connector *connector)
@@ -368,16 +361,11 @@ static void imx_tve_encoder_disable(struct drm_encoder *encoder)
 	tve_disable(tve);
 }
 
-static void imx_tve_encoder_destroy(struct drm_encoder *encoder)
-{
-	/* do not free here */
-}
-
 static struct drm_connector_funcs imx_tve_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_tve_connector_detect,
-	.destroy = imx_tve_connector_destroy,
+	.destroy = imx_drm_connector_destroy,
 };
 
 static struct drm_connector_helper_funcs imx_tve_connector_helper_funcs = {
@@ -387,7 +375,7 @@ static struct drm_connector_helper_funcs imx_tve_connector_helper_funcs = {
 };
 
 static struct drm_encoder_funcs imx_tve_encoder_funcs = {
-	.destroy = imx_tve_encoder_destroy,
+	.destroy = imx_drm_encoder_destroy,
 };
 
 static struct drm_encoder_helper_funcs imx_tve_encoder_helper_funcs = {
@@ -507,7 +495,7 @@ static int tve_clk_init(struct imx_tve *tve, void __iomem *base)
 	return 0;
 }
 
-static int imx_tve_register(struct imx_tve *tve)
+static int imx_tve_register(struct drm_device *drm, struct imx_tve *tve)
 {
 	int encoder_type;
 	int ret;
@@ -515,30 +503,19 @@ static int imx_tve_register(struct imx_tve *tve)
 	encoder_type = tve->mode == TVE_MODE_VGA ?
 				DRM_MODE_ENCODER_DAC : DRM_MODE_ENCODER_TVDAC;
 
-	tve->connector.funcs = &imx_tve_connector_funcs;
-	tve->encoder.funcs = &imx_tve_encoder_funcs;
-
-	tve->encoder.encoder_type = encoder_type;
-	tve->connector.connector_type = DRM_MODE_CONNECTOR_VGA;
+	ret = imx_drm_encoder_parse_of(drm, &tve->encoder,
+				       tve->dev->of_node);
+	if (ret)
+		return ret;
 
 	drm_encoder_helper_add(&tve->encoder, &imx_tve_encoder_helper_funcs);
-	ret = imx_drm_add_encoder(&tve->encoder, &tve->imx_drm_encoder,
-			THIS_MODULE);
-	if (ret) {
-		dev_err(tve->dev, "adding encoder failed with %d\n", ret);
-		return ret;
-	}
+	drm_encoder_init(drm, &tve->encoder, &imx_tve_encoder_funcs,
+			 encoder_type);
 
 	drm_connector_helper_add(&tve->connector,
 			&imx_tve_connector_helper_funcs);
-
-	ret = imx_drm_add_connector(&tve->connector,
-			&tve->imx_drm_connector, THIS_MODULE);
-	if (ret) {
-		imx_drm_remove_encoder(tve->imx_drm_encoder);
-		dev_err(tve->dev, "adding connector failed with %d\n", ret);
-		return ret;
-	}
+	drm_connector_init(drm, &tve->connector, &imx_tve_connector_funcs,
+			   DRM_MODE_CONNECTOR_VGA);
 
 	drm_mode_connector_attach_encoder(&tve->connector, &tve->encoder);
 
@@ -587,6 +564,7 @@ static const int of_get_tve_mode(struct device_node *np)
 static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
 	struct device_node *ddc_node;
 	struct imx_tve *tve;
@@ -701,11 +679,9 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 	/* disable cable detection for VGA mode */
 	ret = regmap_write(tve->regmap, TVE_CD_CONT_REG, 0);
 
-	ret = imx_tve_register(tve);
+	ret = imx_tve_register(drm, tve);
 	if (ret)
 		return ret;
-
-	ret = imx_drm_encoder_add_possible_crtcs(tve->imx_drm_encoder, np);
 
 	dev_set_drvdata(dev, tve);
 
@@ -716,13 +692,9 @@ static void imx_tve_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct imx_tve *tve = dev_get_drvdata(dev);
-	struct drm_connector *connector = &tve->connector;
-	struct drm_encoder *encoder = &tve->encoder;
 
-	drm_mode_connector_detach_encoder(connector, encoder);
-
-	imx_drm_remove_connector(tve->imx_drm_connector);
-	imx_drm_remove_encoder(tve->imx_drm_encoder);
+	tve->connector.funcs->destroy(&tve->connector);
+	tve->encoder.funcs->destroy(&tve->encoder);
 
 	if (!IS_ERR(tve->dac_reg))
 		regulator_disable(tve->dac_reg);

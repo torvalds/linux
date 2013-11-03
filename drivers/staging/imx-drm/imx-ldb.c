@@ -59,9 +59,8 @@ struct imx_ldb;
 struct imx_ldb_channel {
 	struct imx_ldb *ldb;
 	struct drm_connector connector;
-	struct imx_drm_connector *imx_drm_connector;
 	struct drm_encoder encoder;
-	struct imx_drm_encoder *imx_drm_encoder;
+	struct device_node *child;
 	int chno;
 	void *edid;
 	int edid_len;
@@ -90,11 +89,6 @@ static enum drm_connector_status imx_ldb_connector_detect(
 		struct drm_connector *connector, bool force)
 {
 	return connector_status_connected;
-}
-
-static void imx_ldb_connector_destroy(struct drm_connector *connector)
-{
-	/* do not free here */
 }
 
 static int imx_ldb_connector_get_modes(struct drm_connector *connector)
@@ -308,16 +302,11 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 	}
 }
 
-static void imx_ldb_encoder_destroy(struct drm_encoder *encoder)
-{
-	/* do not free here */
-}
-
 static struct drm_connector_funcs imx_ldb_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_ldb_connector_detect,
-	.destroy = imx_ldb_connector_destroy,
+	.destroy = imx_drm_connector_destroy,
 };
 
 static struct drm_connector_helper_funcs imx_ldb_connector_helper_funcs = {
@@ -327,7 +316,7 @@ static struct drm_connector_helper_funcs imx_ldb_connector_helper_funcs = {
 };
 
 static struct drm_encoder_funcs imx_ldb_encoder_funcs = {
-	.destroy = imx_ldb_encoder_destroy,
+	.destroy = imx_drm_encoder_destroy,
 };
 
 static struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
@@ -354,45 +343,36 @@ static int imx_ldb_get_clk(struct imx_ldb *ldb, int chno)
 	return PTR_ERR_OR_ZERO(ldb->clk_pll[chno]);
 }
 
-static int imx_ldb_register(struct imx_ldb_channel *imx_ldb_ch)
+static int imx_ldb_register(struct drm_device *drm,
+	struct imx_ldb_channel *imx_ldb_ch)
 {
-	int ret;
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
+	int ret;
+
+	ret = imx_drm_encoder_parse_of(drm, &imx_ldb_ch->encoder,
+				       imx_ldb_ch->child);
+	if (ret)
+		return ret;
 
 	ret = imx_ldb_get_clk(ldb, imx_ldb_ch->chno);
 	if (ret)
 		return ret;
+
 	if (ldb->ldb_ctrl & LDB_SPLIT_MODE_EN) {
-		ret |= imx_ldb_get_clk(ldb, 1);
+		ret = imx_ldb_get_clk(ldb, 1);
 		if (ret)
 			return ret;
 	}
 
-	imx_ldb_ch->connector.funcs = &imx_ldb_connector_funcs;
-	imx_ldb_ch->encoder.funcs = &imx_ldb_encoder_funcs;
-
-	imx_ldb_ch->encoder.encoder_type = DRM_MODE_ENCODER_LVDS;
-	imx_ldb_ch->connector.connector_type = DRM_MODE_CONNECTOR_LVDS;
-
 	drm_encoder_helper_add(&imx_ldb_ch->encoder,
 			&imx_ldb_encoder_helper_funcs);
-	ret = imx_drm_add_encoder(&imx_ldb_ch->encoder,
-			&imx_ldb_ch->imx_drm_encoder, THIS_MODULE);
-	if (ret) {
-		dev_err(ldb->dev, "adding encoder failed with %d\n", ret);
-		return ret;
-	}
+	drm_encoder_init(drm, &imx_ldb_ch->encoder, &imx_ldb_encoder_funcs,
+			 DRM_MODE_ENCODER_LVDS);
 
 	drm_connector_helper_add(&imx_ldb_ch->connector,
 			&imx_ldb_connector_helper_funcs);
-
-	ret = imx_drm_add_connector(&imx_ldb_ch->connector,
-			&imx_ldb_ch->imx_drm_connector, THIS_MODULE);
-	if (ret) {
-		imx_drm_remove_encoder(imx_ldb_ch->imx_drm_encoder);
-		dev_err(ldb->dev, "adding connector failed with %d\n", ret);
-		return ret;
-	}
+	drm_connector_init(drm, &imx_ldb_ch->connector,
+			   &imx_ldb_connector_funcs, DRM_MODE_CONNECTOR_LVDS);
 
 	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector,
 			&imx_ldb_ch->encoder);
@@ -453,6 +433,7 @@ MODULE_DEVICE_TABLE(of, imx_ldb_dt_ids);
 
 static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 {
+	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
 	const struct of_device_id *of_id =
 			of_match_device(imx_ldb_dt_ids, dev);
@@ -523,6 +504,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		channel = &imx_ldb->channel[i];
 		channel->ldb = imx_ldb;
 		channel->chno = i;
+		channel->child = child;
 
 		edidp = of_get_property(child, "edid", &channel->edid_len);
 		if (edidp) {
@@ -565,11 +547,9 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 			return -EINVAL;
 		}
 
-		ret = imx_ldb_register(channel);
+		ret = imx_ldb_register(drm, channel);
 		if (ret)
 			return ret;
-
-		imx_drm_encoder_add_possible_crtcs(channel->imx_drm_encoder, child);
 	}
 
 	dev_set_drvdata(dev, imx_ldb);
@@ -585,13 +565,9 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
-		struct drm_connector *connector = &channel->connector;
-		struct drm_encoder *encoder = &channel->encoder;
 
-		drm_mode_connector_detach_encoder(connector, encoder);
-
-		imx_drm_remove_connector(channel->imx_drm_connector);
-		imx_drm_remove_encoder(channel->imx_drm_encoder);
+		channel->connector.funcs->destroy(&channel->connector);
+		channel->encoder.funcs->destroy(&channel->encoder);
 	}
 }
 
