@@ -44,6 +44,7 @@
 #include <net/cfg80211.h>
 #include <linux/timer.h>
 #include <linux/usb.h>
+#include <linux/crc32.h>
 
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
