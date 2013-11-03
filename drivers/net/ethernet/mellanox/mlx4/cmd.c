@@ -1687,7 +1687,7 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		if (NO_INDX != vp_oper->vlan_idx) {
 			__mlx4_unregister_vlan(&priv->dev,
-					       port, vp_oper->vlan_idx);
+					       port, vp_oper->state.default_vlan);
 			vp_oper->vlan_idx = NO_INDX;
 		}
 		if (NO_INDX != vp_oper->mac_idx) {

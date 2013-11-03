@@ -406,23 +406,26 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 }
 EXPORT_SYMBOL_GPL(mlx4_register_vlan);
 
-void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
+void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan)
 {
 	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
+	int index;
+
+	mutex_lock(&table->mutex);
+	if (mlx4_find_cached_vlan(dev, port, vlan, &index)) {
+		mlx4_warn(dev, "vlan 0x%x is not in the vlan table\n", vlan);
+		goto out;
+	}
 
 	if (index < MLX4_VLAN_REGULAR) {
 		mlx4_warn(dev, "Trying to free special vlan index %d\n", index);
-		return;
-	}
-
-	mutex_lock(&table->mutex);
-	if (!table->refs[index]) {
-		mlx4_warn(dev, "No vlan entry for index %d\n", index);
 		goto out;
 	}
+
 	if (--table->refs[index]) {
-		mlx4_dbg(dev, "Have more references for index %d,"
-			 "no need to modify vlan table\n", index);
+		mlx4_dbg(dev, "Have %d more references for index %d,"
+			 "no need to modify vlan table\n", table->refs[index],
+			 index);
 		goto out;
 	}
 	table->entries[index] = 0;
@@ -432,19 +435,19 @@ out:
 	mutex_unlock(&table->mutex);
 }
 
-void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
+void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan)
 {
 	u64 out_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
-		(void) mlx4_cmd_imm(dev, index, &out_param,
+		(void) mlx4_cmd_imm(dev, vlan, &out_param,
 				    ((u32) port) << 8 | (u32) RES_VLAN,
 				    RES_OP_RESERVE_AND_MAP,
 				    MLX4_CMD_FREE_RES, MLX4_CMD_TIME_CLASS_A,
 				    MLX4_CMD_WRAPPED);
 		return;
 	}
-	__mlx4_unregister_vlan(dev, port, index);
+	__mlx4_unregister_vlan(dev, port, vlan);
 }
 EXPORT_SYMBOL_GPL(mlx4_unregister_vlan);
 

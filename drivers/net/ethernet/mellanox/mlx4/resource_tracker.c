@@ -4085,7 +4085,7 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 	if (work->flags & MLX4_VF_IMMED_VLAN_FLAG_VLAN && !errors &&
 	    NO_INDX != work->orig_vlan_ix)
 		__mlx4_unregister_vlan(&work->priv->dev, work->port,
-				       work->orig_vlan_ix);
+				       work->orig_vlan_id);
 out:
 	kfree(work);
 	return;

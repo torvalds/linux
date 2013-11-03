@@ -1111,7 +1111,7 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
-void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);
+void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan);
 int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz);

@@ -1079,7 +1079,7 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 		u8 *pg, u16 *ratelimit);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
-void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);
+void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan);
 
 int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list,
 		      int npages, u64 iova, u32 *lkey, u32 *rkey);
