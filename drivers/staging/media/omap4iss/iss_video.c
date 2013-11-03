@@ -826,16 +826,17 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		spin_unlock_irqrestore(&video->qlock, flags);
 	}
 
-	if (ret < 0) {
+	mutex_unlock(&video->stream_lock);
+	return 0;
+
 err_omap4iss_set_stream:
-		vb2_streamoff(&vfh->queue, type);
+	vb2_streamoff(&vfh->queue, type);
 err_iss_video_check_format:
-		media_entity_pipeline_stop(&video->video.entity);
+	media_entity_pipeline_stop(&video->video.entity);
 err_media_entity_pipeline_start:
-		if (video->iss->pdata->set_constraints)
-			video->iss->pdata->set_constraints(video->iss, false);
-		video->queue = NULL;
-	}
+	if (video->iss->pdata->set_constraints)
+		video->iss->pdata->set_constraints(video->iss, false);
+	video->queue = NULL;
 
 	mutex_unlock(&video->stream_lock);
 	return ret;

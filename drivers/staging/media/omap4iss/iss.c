@@ -887,24 +887,22 @@ void omap4iss_isp_subclk_disable(struct iss_device *iss,
  */
 static int iss_enable_clocks(struct iss_device *iss)
 {
-	int r;
+	int ret;
 
-	r = clk_enable(iss->iss_fck);
-	if (r) {
+	ret = clk_enable(iss->iss_fck);
+	if (ret) {
 		dev_err(iss->dev, "clk_enable iss_fck failed\n");
-		return r;
+		return ret;
 	}
 
-	r = clk_enable(iss->iss_ctrlclk);
-	if (r) {
+	ret = clk_enable(iss->iss_ctrlclk);
+	if (ret) {
 		dev_err(iss->dev, "clk_enable iss_ctrlclk failed\n");
-		goto out_clk_enable_ctrlclk;
+		clk_disable(iss->iss_fck);
+		return ret;
 	}
-	return 0;
 
-out_clk_enable_ctrlclk:
-	clk_disable(iss->iss_fck);
-	return r;
+	return 0;
 }
 
 /*
