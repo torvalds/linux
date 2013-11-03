@@ -8,6 +8,7 @@
 struct drm_crtc;
 struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_encoder;
 struct imx_drm_crtc;
 struct drm_fbdev_cma;
@@ -69,5 +70,7 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 
 int imx_drm_connector_mode_valid(struct drm_connector *connector,
 	struct drm_display_mode *mode);
+void imx_drm_connector_destroy(struct drm_connector *connector);
+void imx_drm_encoder_destroy(struct drm_encoder *encoder);
 
 #endif /* _IMX_DRM_H_ */

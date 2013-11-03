@@ -363,6 +363,19 @@ static void imx_drm_connector_unregister(
 	drm_mode_group_reinit(imxdrm->drm);
 }
 
+void imx_drm_connector_destroy(struct drm_connector *connector)
+{
+	drm_sysfs_connector_remove(connector);
+	drm_connector_cleanup(connector);
+}
+EXPORT_SYMBOL_GPL(imx_drm_connector_destroy);
+
+void imx_drm_encoder_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+}
+EXPORT_SYMBOL_GPL(imx_drm_encoder_destroy);
+
 static struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 };
