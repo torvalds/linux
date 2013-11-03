@@ -5286,6 +5286,8 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	/* FIXME(BDW): Check all the w/a, some might only apply to
 	 * pre-production hw. */
 
+	I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_BWGTLB_DISABLE));
+
 	/* WaSwitchSolVfFArbitrationPriority */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
