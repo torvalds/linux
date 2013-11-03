@@ -377,7 +377,7 @@ int drm_control(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
 	struct drm_control *ctl = data;
-	int ret = 0;
+	int ret = 0, irq;
 
 	/* if we haven't irq we fallback for compatibility reasons -
 	 * this used to be a separate function in drm_dma.h
@@ -393,8 +393,10 @@ int drm_control(struct drm_device *dev, void *data,
 
 	switch (ctl->func) {
 	case DRM_INST_HANDLER:
+		irq = dev->pdev->irq;
+
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
-		    ctl->irq != drm_dev_to_irq(dev))
+		    ctl->irq != irq)
 			return -EINVAL;
 		mutex_lock(&dev->struct_mutex);
 		ret = drm_irq_install(dev);
