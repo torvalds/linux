@@ -72,6 +72,19 @@ static const u32 hsw_ddi_translations_hdmi[] = {
 	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
 };
 
+static const u32 bdw_ddi_translations_edp[] = {
+	0x00FFFFFF, 0x00000012,		/* DP parameters */
+	0x00EBAFFF, 0x00020011,
+	0x00C71FFF, 0x0006000F,
+	0x00FFFFFF, 0x00020011,
+	0x00DB6FFF, 0x0005000F,
+	0x00BEEFFF, 0x000A000C,
+	0x00FFFFFF, 0x0005000F,
+	0x00DB6FFF, 0x000A000C,
+	0x00FFFFFF, 0x000A000C,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
 static const u32 bdw_ddi_translations_dp[] = {
 	0x00FFFFFF, 0x0007000E,		/* DP parameters */
 	0x00D75FFF, 0x000E000A,
@@ -133,23 +146,39 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 	const u32 *ddi_translations_fdi;
 	const u32 *ddi_translations_dp;
+	const u32 *ddi_translations_edp;
 	const u32 *ddi_translations;
 
 	if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
+		ddi_translations_edp = bdw_ddi_translations_edp;
 	} else if (IS_HASWELL(dev)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
 		ddi_translations_dp = hsw_ddi_translations_dp;
+		ddi_translations_edp = hsw_ddi_translations_dp;
 	} else {
 		WARN(1, "ddi translation table missing\n");
+		ddi_translations_edp = bdw_ddi_translations_dp;
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 	}
 
-	ddi_translations = ((port == PORT_E) ?
-		ddi_translations_fdi :
-		ddi_translations_dp);
+	switch (port) {
+	case PORT_A:
+		ddi_translations = ddi_translations_edp;
+		break;
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		ddi_translations = ddi_translations_dp;
+		break;
+	case PORT_E:
+		ddi_translations = ddi_translations_fdi;
+		break;
+	default:
+		BUG();
+	}
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
