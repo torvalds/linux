@@ -213,7 +213,15 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 			 tmp & wdt->mr_mask, wdt->mr & wdt->mr_mask);
 
 	setup_timer(&wdt->timer, at91_ping, (unsigned long)wdt);
-	mod_timer(&wdt->timer, jiffies + wdt->heartbeat);
+
+	/*
+	 * Use min_heartbeat the first time to avoid spurious watchdog reset:
+	 * we don't know for how long the watchdog counter is running, and
+	 *  - resetting it right now might trigger a watchdog fault reset
+	 *  - waiting for heartbeat time might lead to a watchdog timeout
+	 *    reset
+	 */
+	mod_timer(&wdt->timer, jiffies + min_heartbeat);
 
 	/* Try to set timeout from device tree first */
 	if (watchdog_init_timeout(&wdt->wdd, 0, dev))
