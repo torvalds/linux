@@ -5188,6 +5188,12 @@ static void gen8_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
+
+	/* FIXME(BDW): Check all the w/a, some might only apply to
+	 * pre-production hw. */
+
+	/* WaSwitchSolVfFArbitrationPriority */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 }
 
 static void haswell_init_clock_gating(struct drm_device *dev)
