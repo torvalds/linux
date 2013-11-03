@@ -170,8 +170,13 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		break;
 	case PORT_B:
 	case PORT_C:
-	case PORT_D:
 		ddi_translations = ddi_translations_dp;
+		break;
+	case PORT_D:
+		if (intel_dpd_is_edp(dev))
+			ddi_translations = ddi_translations_edp;
+		else
+			ddi_translations = ddi_translations_dp;
 		break;
 	case PORT_E:
 		ddi_translations = ddi_translations_fdi;
