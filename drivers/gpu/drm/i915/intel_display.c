@@ -2176,7 +2176,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_MODIFY_DISPBASE(DSPSURF(plane),
 			     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
@@ -7199,7 +7199,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(CURPOS_IVB(pipe), pos);
 		ivb_update_cursor(crtc, base);
 	} else {

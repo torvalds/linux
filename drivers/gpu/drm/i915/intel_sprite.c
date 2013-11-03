@@ -306,7 +306,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
 	 * register */
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
 	else if (obj->tiling_mode != I915_TILING_NONE)
 		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
