@@ -112,8 +112,6 @@ static struct vendor_data vendor_st = {
 	.get_fifosize		= get_fifosize_st,
 };
 
-static struct uart_amba_port *amba_ports[UART_NR];
-
 /* Deals with DMA transactions */
 
 struct pl011_sgbuf {
