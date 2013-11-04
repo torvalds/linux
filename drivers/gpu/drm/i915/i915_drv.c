@@ -508,6 +508,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 		intel_modeset_suspend_hw(dev);
 	}
 
+	i915_gem_suspend_gtt_mappings(dev);
+
 	i915_save_state(dev);
 
 	intel_opregion_fini(dev);
@@ -656,6 +658,9 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 
 static int i915_drm_thaw(struct drm_device *dev)
 {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		i915_check_and_clear_faults(dev);
+
 	return __i915_drm_thaw(dev, true);
 }
 

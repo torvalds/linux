@@ -100,8 +100,10 @@ static void host_stop(struct ci_hdrc *ci)
 {
 	struct usb_hcd *hcd = ci->hcd;
 
-	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
+	if (hcd) {
+		usb_remove_hcd(hcd);
+		usb_put_hcd(hcd);
+	}
 	if (ci->platdata->reg_vbus)
 		regulator_disable(ci->platdata->reg_vbus);
 }

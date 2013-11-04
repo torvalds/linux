@@ -67,6 +67,10 @@ int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 int ipv6_chk_home_addr(struct net *net, const struct in6_addr *addr);
 #endif
 
+bool ipv6_chk_custom_prefix(const struct in6_addr *addr,
+				   const unsigned int prefix_len,
+				   struct net_device *dev);
+
 int ipv6_chk_prefix(const struct in6_addr *addr, struct net_device *dev);
 
 struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net,

@@ -49,7 +49,7 @@
 #define SOCFPGA_L4_SP_CLK		"l4_sp_clk"
 #define SOCFPGA_NAND_CLK		"nand_clk"
 #define SOCFPGA_NAND_X_CLK		"nand_x_clk"
-#define SOCFPGA_MMC_CLK			"mmc_clk"
+#define SOCFPGA_MMC_CLK			"sdmmc_clk"
 #define SOCFPGA_DB_CLK			"gpio_db_clk"
 
 #define div_mask(width)	((1 << (width)) - 1)

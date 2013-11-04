@@ -127,18 +127,17 @@ MODULE_PARM_DESC(minor,
 		 "default is -1 (automatic)");
 #endif
 
-static int kbd_backlight = 1;
+static int kbd_backlight = -1;
 module_param(kbd_backlight, int, 0444);
 MODULE_PARM_DESC(kbd_backlight,
 		 "set this to 0 to disable keyboard backlight, "
-		 "1 to enable it (default: 0)");
+		 "1 to enable it (default: no change from current value)");
 
-static int kbd_backlight_timeout;	/* = 0 */
+static int kbd_backlight_timeout = -1;
 module_param(kbd_backlight_timeout, int, 0444);
 MODULE_PARM_DESC(kbd_backlight_timeout,
-		 "set this to 0 to set the default 10 seconds timeout, "
-		 "1 for 30 seconds, 2 for 60 seconds and 3 to disable timeout "
-		 "(default: 0)");
+		 "meaningful values vary from 0 to 3 and their meaning depends "
+		 "on the model (default: no change from current value)");
 
 #ifdef CONFIG_PM_SLEEP
 static void sony_nc_kbd_backlight_resume(void);
@@ -1844,6 +1843,8 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 	if (!kbdbl_ctl)
 		return -ENOMEM;
 
+	kbdbl_ctl->mode = kbd_backlight;
+	kbdbl_ctl->timeout = kbd_backlight_timeout;
 	kbdbl_ctl->handle = handle;
 	if (handle == 0x0137)
 		kbdbl_ctl->base = 0x0C00;
@@ -1870,8 +1871,8 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 	if (ret)
 		goto outmode;
 
-	__sony_nc_kbd_backlight_mode_set(kbd_backlight);
-	__sony_nc_kbd_backlight_timeout_set(kbd_backlight_timeout);
+	__sony_nc_kbd_backlight_mode_set(kbdbl_ctl->mode);
+	__sony_nc_kbd_backlight_timeout_set(kbdbl_ctl->timeout);
 
 	return 0;
 
@@ -1886,17 +1887,8 @@ outkzalloc:
 static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd)
 {
 	if (kbdbl_ctl) {
-		int result;
-
 		device_remove_file(&pd->dev, &kbdbl_ctl->mode_attr);
 		device_remove_file(&pd->dev, &kbdbl_ctl->timeout_attr);
-
-		/* restore the default hw behaviour */
-		sony_call_snc_handle(kbdbl_ctl->handle,
-				kbdbl_ctl->base | 0x10000, &result);
-		sony_call_snc_handle(kbdbl_ctl->handle,
-				kbdbl_ctl->base + 0x200, &result);
-
 		kfree(kbdbl_ctl);
 		kbdbl_ctl = NULL;
 	}

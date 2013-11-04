@@ -1499,7 +1499,7 @@ static void atmel_set_ops(struct uart_port *port)
 /*
  * Get ip name usart or uart
  */
-static int atmel_get_ip_name(struct uart_port *port)
+static void atmel_get_ip_name(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	int name = UART_GET_IP_NAME(port);
@@ -1518,10 +1518,7 @@ static int atmel_get_ip_name(struct uart_port *port)
 		atmel_port->is_usart = false;
 	} else {
 		dev_err(port->dev, "Not supported ip name, set to uart\n");
-		return -EINVAL;
 	}
-
-	return 0;
 }
 
 /*
@@ -2405,9 +2402,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	/*
 	 * Get port name of usart or uart
 	 */
-	ret = atmel_get_ip_name(&port->uart);
-	if (ret < 0)
-		goto err_add_port;
+	atmel_get_ip_name(&port->uart);
 
 	return 0;
 

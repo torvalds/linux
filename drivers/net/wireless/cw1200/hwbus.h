@@ -28,7 +28,6 @@ struct hwbus_ops {
 	void (*unlock)(struct hwbus_priv *self);
 	size_t (*align_size)(struct hwbus_priv *self, size_t size);
 	int (*power_mgmt)(struct hwbus_priv *self, bool suspend);
-	int (*irq_enable)(struct hwbus_priv *self, int enable);
 };
 
 #endif /* CW1200_HWBUS_H */
