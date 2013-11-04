@@ -20,6 +20,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/prctl.h>
 
 #include <asm/uaccess.h>
 #include <asm/reg.h>
@@ -691,6 +692,23 @@ update_regs:
 	pr_debug("va: %08x  %08x\n", va.wp[0], va.wp[1]);
 	pr_debug("vb: %08x  %08x\n", vb.wp[0], vb.wp[1]);
 
+	if (current->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE) {
+		if ((FP_CUR_EXCEPTIONS & FP_EX_DIVZERO)
+		    && (current->thread.fpexc_mode & PR_FP_EXC_DIV))
+			return 1;
+		if ((FP_CUR_EXCEPTIONS & FP_EX_OVERFLOW)
+		    && (current->thread.fpexc_mode & PR_FP_EXC_OVF))
+			return 1;
+		if ((FP_CUR_EXCEPTIONS & FP_EX_UNDERFLOW)
+		    && (current->thread.fpexc_mode & PR_FP_EXC_UND))
+			return 1;
+		if ((FP_CUR_EXCEPTIONS & FP_EX_INEXACT)
+		    && (current->thread.fpexc_mode & PR_FP_EXC_RES))
+			return 1;
+		if ((FP_CUR_EXCEPTIONS & FP_EX_INVALID)
+		    && (current->thread.fpexc_mode & PR_FP_EXC_INV))
+			return 1;
+	}
 	return 0;
 
 illegal:
@@ -867,6 +885,8 @@ int speround_handler(struct pt_regs *regs)
 
 	pr_debug("  to fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
 
+	if (current->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE)
+		return (current->thread.fpexc_mode & PR_FP_EXC_RES) ? 1 : 0;
 	return 0;
 }
 
