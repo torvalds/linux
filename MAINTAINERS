@@ -8917,60 +8917,13 @@ W:	http://pegasus2.sourceforge.net/
 S:	Maintained
 F:	drivers/net/usb/rtl8150.c
 
-USB SERIAL BELKIN F5U103 DRIVER
-M:	William Greathouse <wgreathouse@smva.com>
+USB SERIAL SUBSYSTEM
+M:	Johan Hovold <jhovold@gmail.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	drivers/usb/serial/belkin_sa.*
-
-USB SERIAL CYPRESS M8 DRIVER
-M:	Lonnie Mendez <dignome@gmail.com>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-W:	http://geocities.com/i0xox0i
-W:	http://firstlight.net/cvs
-F:	drivers/usb/serial/cypress_m8.*
-
-USB SERIAL CYBERJACK DRIVER
-M:	Matthias Bruestle and Harald Welte <support@reiner-sct.com>
-W:	http://www.reiner-sct.de/support/treiber_cyberjack.php
-S:	Maintained
-F:	drivers/usb/serial/cyberjack.c
-
-USB SERIAL DIGI ACCELEPORT DRIVER
-M:	Peter Berger <pberger@brimson.com>
-M:	Al Borchers <alborchers@steinerpoint.com>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/digi_acceleport.c
-
-USB SERIAL DRIVER
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	linux-usb@vger.kernel.org
-S:	Supported
 F:	Documentation/usb/usb-serial.txt
-F:	drivers/usb/serial/generic.c
-F:	drivers/usb/serial/usb-serial.c
+F:	drivers/usb/serial/
 F:	include/linux/usb/serial.h
-
-USB SERIAL EMPEG EMPEG-CAR MARK I/II DRIVER
-M:	Gary Brubaker <xavyer@ix.netcom.com>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/empeg.c
-
-USB SERIAL KEYSPAN DRIVER
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/serial/*keyspan*
-
-USB SERIAL WHITEHEAT DRIVER
-M:	Support Department <support@connecttech.com>
-L:	linux-usb@vger.kernel.org
-W:	http://www.connecttech.com
-S:	Supported
-F:	drivers/usb/serial/whiteheat*
 
 USB SMSC75XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
