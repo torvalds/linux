@@ -465,12 +465,9 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 
 static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
-	struct extent_io_tree *tree;
 	u64 start = page_offset(page);
 	u64 found_start;
 	struct extent_buffer *eb;
-
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
 	eb = (struct extent_buffer *)page->private;
 	if (page != eb->pages[0])
@@ -570,7 +567,6 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 				      u64 phy_offset, struct page *page,
 				      u64 start, u64 end, int mirror)
 {
-	struct extent_io_tree *tree;
 	u64 found_start;
 	int found_level;
 	struct extent_buffer *eb;
@@ -581,7 +577,6 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	if (!page->private)
 		goto out;
 
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	eb = (struct extent_buffer *)page->private;
 
 	/* the pending IO might have been the only thing that kept this buffer
@@ -968,11 +963,9 @@ static int btree_migratepage(struct address_space *mapping,
 static int btree_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
-	struct extent_io_tree *tree;
 	struct btrfs_fs_info *fs_info;
 	int ret;
 
-	tree = &BTRFS_I(mapping->host)->io_tree;
 	if (wbc->sync_mode == WB_SYNC_NONE) {
 
 		if (wbc->for_kupdate)
@@ -1274,7 +1267,6 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root;
 	struct btrfs_key key;
 	int ret = 0;
-	u64 bytenr;
 	uuid_le uuid;
 
 	root = btrfs_alloc_root(fs_info);
@@ -1296,7 +1288,6 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	bytenr = leaf->start;
 	memset_extent_buffer(leaf, 0, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_bytenr(leaf, leaf->start);
 	btrfs_set_header_generation(leaf, trans->transid);
@@ -1685,12 +1676,10 @@ static void end_workqueue_fn(struct btrfs_work *work)
 {
 	struct bio *bio;
 	struct end_io_wq *end_io_wq;
-	struct btrfs_fs_info *fs_info;
 	int error;
 
 	end_io_wq = container_of(work, struct end_io_wq, work);
 	bio = end_io_wq->bio;
-	fs_info = end_io_wq->info;
 
 	error = end_io_wq->error;
 	bio->bi_private = end_io_wq->private;
