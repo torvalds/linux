@@ -634,9 +634,9 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 
 static void nft_match_release(void)
 {
-	struct nft_xt *nft_match;
+	struct nft_xt *nft_match, *tmp;
 
-	list_for_each_entry(nft_match, &nft_match_list, head)
+	list_for_each_entry_safe(nft_match, tmp, &nft_match_list, head)
 		kfree(nft_match);
 }
 
@@ -705,9 +705,9 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 
 static void nft_target_release(void)
 {
-	struct nft_xt *nft_target;
+	struct nft_xt *nft_target, *tmp;
 
-	list_for_each_entry(nft_target, &nft_target_list, head)
+	list_for_each_entry_safe(nft_target, tmp, &nft_target_list, head)
 		kfree(nft_target);
 }
 
