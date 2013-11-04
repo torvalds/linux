@@ -1037,7 +1037,7 @@ static int __init crc32c_combine_test(void)
 	int i, j;
 	int errors = 0, runs = 0;
 
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 10; i++) {
 		u32 crc_full;
 
 		crc_full = __crc32c_le(test[i].crc, test_buf + test[i].start,
@@ -1131,7 +1131,7 @@ static int __init crc32_combine_test(void)
 	int i, j;
 	int errors = 0, runs = 0;
 
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 10; i++) {
 		u32 crc_full;
 
 		crc_full = crc32_le(test[i].crc, test_buf + test[i].start,
