@@ -612,6 +612,12 @@ static struct device_attribute *rndis_function_attributes[] = {
 	&dev_attr_vendorID,
 	NULL
 };
+static int rndis_function_ctrlrequest(struct android_usb_function *f,
+						struct usb_composite_dev *cdev,
+						const struct usb_ctrlrequest *c)
+{
+	return rndis_setup(cdev, c);
+}
 
 static struct android_usb_function rndis_function = {
 	.name		= "rndis",
@@ -619,6 +625,7 @@ static struct android_usb_function rndis_function = {
 	.cleanup	= rndis_function_cleanup,
 	.bind_config	= rndis_function_bind_config,
 	.unbind_config	= rndis_function_unbind_config,
+	.ctrlrequest    = rndis_function_ctrlrequest,
 	.attributes	= rndis_function_attributes,
 };
 
@@ -1320,7 +1327,6 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 	struct android_usb_function	*f;
 	int value = -EOPNOTSUPP;
 	unsigned long flags;
-
 	req->zero = 0;
 	req->complete = composite_setup_complete;
 	req->length = 0;

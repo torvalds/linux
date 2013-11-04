@@ -794,11 +794,11 @@ static int hidg_ctrlrequest(struct usb_composite_dev *cdev,
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_GET_REPORT):
 		VDBG(cdev, "get_report\n");
+        return -EOPNOTSUPP;
 
 		/* send an empty report */
 		length = min_t(unsigned, length, hidg->report_length);
 		memset(req->buf, 0x0, length);
-
 		goto respond;
 		break;
 
