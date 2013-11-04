@@ -1170,10 +1170,11 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 			if (page->index > end)
 				continue;
 
-			if (ino && ino_of_node(page) == ino)
+			if (ino && ino_of_node(page) == ino) {
 				wait_on_page_writeback(page);
-			if (TestClearPageError(page))
-				ret = -EIO;
+				if (TestClearPageError(page))
+					ret = -EIO;
+			}
 		}
 		pagevec_release(&pvec);
 		cond_resched();
