@@ -160,6 +160,7 @@ The producer will look something like this:
 	spin_lock(&producer_lock);
 
 	unsigned long head = buffer->head;
+	/* The spin_unlock() and next spin_lock() provide needed ordering. */
 	unsigned long tail = ACCESS_ONCE(buffer->tail);
 
 	if (CIRC_SPACE(head, tail, buffer->size) >= 1) {
@@ -168,9 +169,8 @@ The producer will look something like this:
 
 		produce_item(item);
 
-		smp_wmb(); /* commit the item before incrementing the head */
-
-		ACCESS_ONCE(buffer->head) = (head + 1) & (buffer->size - 1);
+		smp_store_release(buffer->head,
+				  (head + 1) & (buffer->size - 1));
 
 		/* wake_up() will make sure that the head is committed before
 		 * waking anyone up */
@@ -200,21 +200,20 @@ The consumer will look something like this:
 
 	spin_lock(&consumer_lock);
 
-	unsigned long head = ACCESS_ONCE(buffer->head);
+	/* Read index before reading contents at that index. */
+	unsigned long head = smp_load_acquire(buffer->head);
 	unsigned long tail = buffer->tail;
 
 	if (CIRC_CNT(head, tail, buffer->size) >= 1) {
-		/* read index before reading contents at that index */
-		smp_rmb();
 
 		/* extract one item from the buffer */
 		struct item *item = buffer[tail];
 
 		consume_item(item);
 
-		smp_mb(); /* finish reading descriptor before incrementing tail */
-
-		ACCESS_ONCE(buffer->tail) = (tail + 1) & (buffer->size - 1);
+		/* Finish reading descriptor before incrementing tail. */
+		smp_store_release(buffer->tail,
+				  (tail + 1) & (buffer->size - 1));
 	}
 
 	spin_unlock(&consumer_lock);
@@ -223,15 +222,17 @@ This will instruct the CPU to make sure the index is up to date before reading
 the new item, and then it shall make sure the CPU has finished reading the item
 before it writes the new tail pointer, which will erase the item.
 
-
-Note the use of ACCESS_ONCE() in both algorithms to read the opposition index.
-This prevents the compiler from discarding and reloading its cached value -
-which some compilers will do across smp_read_barrier_depends().  This isn't
-strictly needed if you can be sure that the opposition index will _only_ be
-used the once.  Similarly, ACCESS_ONCE() is used in both algorithms to
-write the thread's index.  This documents the fact that we are writing
-to something that can be read concurrently and also prevents the compiler
-from tearing the store.
+Note the use of ACCESS_ONCE() and smp_load_acquire() to read the
+opposition index.  This prevents the compiler from discarding and
+reloading its cached value - which some compilers will do across
+smp_read_barrier_depends().  This isn't strictly needed if you can
+be sure that the opposition index will _only_ be used the once.
+The smp_load_acquire() additionally forces the CPU to order against
+subsequent memory references.  Similarly, smp_store_release() is used
+in both algorithms to write the thread's index.  This documents the
+fact that we are writing to something that can be read concurrently,
+prevents the compiler from tearing the store, and enforces ordering
+against previous accesses.
 
 
 ===============
