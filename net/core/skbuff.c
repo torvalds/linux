@@ -1928,9 +1928,8 @@ fault:
 EXPORT_SYMBOL(skb_store_bits);
 
 /* Checksum skb data. */
-
-__wsum skb_checksum(const struct sk_buff *skb, int offset,
-			  int len, __wsum csum)
+__wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
+		      __wsum csum, const struct skb_checksum_ops *ops)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -1941,7 +1940,7 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		csum = csum_partial(skb->data + offset, copy, csum);
+		csum = ops->update(skb->data + offset, copy, csum);
 		if ((len -= copy) == 0)
 			return csum;
 		offset += copy;
@@ -1962,10 +1961,10 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap_atomic(skb_frag_page(frag));
-			csum2 = csum_partial(vaddr + frag->page_offset +
-					     offset - start, copy, 0);
+			csum2 = ops->update(vaddr + frag->page_offset +
+					    offset - start, copy, 0);
 			kunmap_atomic(vaddr);
-			csum = csum_block_add(csum, csum2, pos);
+			csum = ops->combine(csum, csum2, pos, copy);
 			if (!(len -= copy))
 				return csum;
 			offset += copy;
@@ -1984,9 +1983,9 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 			__wsum csum2;
 			if (copy > len)
 				copy = len;
-			csum2 = skb_checksum(frag_iter, offset - start,
-					     copy, 0);
-			csum = csum_block_add(csum, csum2, pos);
+			csum2 = __skb_checksum(frag_iter, offset - start,
+					       copy, 0, ops);
+			csum = ops->combine(csum, csum2, pos, copy);
 			if ((len -= copy) == 0)
 				return csum;
 			offset += copy;
@@ -1997,6 +1996,18 @@ __wsum skb_checksum(const struct sk_buff *skb, int offset,
 	BUG_ON(len);
 
 	return csum;
+}
+EXPORT_SYMBOL(__skb_checksum);
+
+__wsum skb_checksum(const struct sk_buff *skb, int offset,
+		    int len, __wsum csum)
+{
+	const struct skb_checksum_ops ops = {
+		.update  = csum_partial,
+		.combine = csum_block_add_ext,
+	};
+
+	return __skb_checksum(skb, offset, len, csum, &ops);
 }
 EXPORT_SYMBOL(skb_checksum);
 
