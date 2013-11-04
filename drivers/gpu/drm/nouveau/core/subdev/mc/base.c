@@ -25,6 +25,15 @@
 #include <subdev/mc.h>
 #include <core/option.h>
 
+static inline u32
+nouveau_mc_intr_mask(struct nouveau_mc *pmc)
+{
+	u32 intr = nv_rd32(pmc, 0x000100);
+	if (intr == 0xffffffff) /* likely fallen off the bus */
+		intr = 0x00000000;
+	return intr;
+}
+
 static irqreturn_t
 nouveau_mc_intr(int irq, void *arg)
 {
@@ -37,16 +46,12 @@ nouveau_mc_intr(int irq, void *arg)
 
 	nv_wr32(pmc, 0x000140, 0x00000000);
 	nv_rd32(pmc, 0x000140);
-
-	intr = nv_rd32(pmc, 0x000100);
-	if (intr == 0xffffffff) /* likely fallen off the bus */
-		intr = 0x00000000;
-
+	intr = nouveau_mc_intr_mask(pmc);
 	if (pmc->use_msi)
 		oclass->msi_rearm(pmc);
 
 	if (intr) {
-		u32 stat = nv_rd32(pmc, 0x000100);
+		u32 stat = intr = nouveau_mc_intr_mask(pmc);
 		while (map->stat) {
 			if (intr & map->stat) {
 				unit = nouveau_subdev(pmc, map->unit);
