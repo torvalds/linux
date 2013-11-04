@@ -349,6 +349,7 @@
 #define   IOSF_BYTE_ENABLES_SHIFT		4
 #define   IOSF_BAR_SHIFT			1
 #define   IOSF_SB_BUSY				(1<<0)
+#define   IOSF_PORT_BUNIT			0x3
 #define   IOSF_PORT_PUNIT			0x4
 #define   IOSF_PORT_NC				0x11
 #define   IOSF_PORT_DPIO			0x12
