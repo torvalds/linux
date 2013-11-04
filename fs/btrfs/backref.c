@@ -1683,8 +1683,8 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 		btrfs_release_path(path);
 
 		leaf = path->nodes[0];
-		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
-		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+		item_size = btrfs_item_size_nr(leaf, slot);
+		ptr = btrfs_item_ptr_offset(leaf, slot);
 		cur_offset = 0;
 
 		while (cur_offset < item_size) {
