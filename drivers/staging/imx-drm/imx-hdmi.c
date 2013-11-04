@@ -555,7 +555,7 @@ static void hdmi_video_packetize(struct imx_hdmi *hdmi)
 	unsigned int remap_size = HDMI_VP_REMAP_YCC422_16bit;
 	unsigned int output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_PP;
 	struct hdmi_data_info *hdmi_data = &hdmi->hdmi_data;
-	u8 val;
+	u8 val, vp_conf;
 
 	if (hdmi_data->enc_out_format == RGB
 		|| hdmi_data->enc_out_format == YCBCR444) {
@@ -599,16 +599,16 @@ static void hdmi_video_packetize(struct imx_hdmi *hdmi)
 
 	/* Data from pixel repeater block */
 	if (hdmi_data->pix_repet_factor > 1) {
-		hdmi_modb(hdmi, HDMI_VP_CONF_PR_EN_ENABLE |
-				HDMI_VP_CONF_BYPASS_SELECT_PIX_REPEATER,
-			  HDMI_VP_CONF_PR_EN_MASK |
-			  HDMI_VP_CONF_BYPASS_SELECT_MASK, HDMI_VP_CONF);
+		vp_conf = HDMI_VP_CONF_PR_EN_ENABLE |
+			  HDMI_VP_CONF_BYPASS_SELECT_PIX_REPEATER;
 	} else { /* data from packetizer block */
-		hdmi_modb(hdmi, HDMI_VP_CONF_PR_EN_DISABLE |
-				HDMI_VP_CONF_BYPASS_SELECT_VID_PACKETIZER,
-			  HDMI_VP_CONF_PR_EN_MASK |
-			  HDMI_VP_CONF_BYPASS_SELECT_MASK, HDMI_VP_CONF);
+		vp_conf = HDMI_VP_CONF_PR_EN_DISABLE |
+			  HDMI_VP_CONF_BYPASS_SELECT_VID_PACKETIZER;
 	}
+
+	hdmi_modb(hdmi, vp_conf,
+		  HDMI_VP_CONF_PR_EN_MASK |
+		  HDMI_VP_CONF_BYPASS_SELECT_MASK, HDMI_VP_CONF);
 
 	hdmi_modb(hdmi, 1 << HDMI_VP_STUFF_IDEFAULT_PHASE_OFFSET,
 		  HDMI_VP_STUFF_IDEFAULT_PHASE_MASK, HDMI_VP_STUFF);
@@ -616,29 +616,24 @@ static void hdmi_video_packetize(struct imx_hdmi *hdmi)
 	hdmi_writeb(hdmi, remap_size, HDMI_VP_REMAP);
 
 	if (output_select == HDMI_VP_CONF_OUTPUT_SELECTOR_PP) {
-		hdmi_modb(hdmi, HDMI_VP_CONF_BYPASS_EN_DISABLE |
-				HDMI_VP_CONF_PP_EN_ENABLE |
-				HDMI_VP_CONF_YCC422_EN_DISABLE,
-			  HDMI_VP_CONF_BYPASS_EN_MASK |
-			  HDMI_VP_CONF_PP_EN_ENMASK |
-			  HDMI_VP_CONF_YCC422_EN_MASK, HDMI_VP_CONF);
+		vp_conf = HDMI_VP_CONF_BYPASS_EN_DISABLE |
+			  HDMI_VP_CONF_PP_EN_ENABLE |
+			  HDMI_VP_CONF_YCC422_EN_DISABLE;
 	} else if (output_select == HDMI_VP_CONF_OUTPUT_SELECTOR_YCC422) {
-		hdmi_modb(hdmi, HDMI_VP_CONF_BYPASS_EN_DISABLE |
-				HDMI_VP_CONF_PP_EN_DISABLE |
-				HDMI_VP_CONF_YCC422_EN_ENABLE,
-			  HDMI_VP_CONF_BYPASS_EN_MASK |
-			  HDMI_VP_CONF_PP_EN_ENMASK |
-			  HDMI_VP_CONF_YCC422_EN_MASK, HDMI_VP_CONF);
+		vp_conf = HDMI_VP_CONF_BYPASS_EN_DISABLE |
+			  HDMI_VP_CONF_PP_EN_DISABLE |
+			  HDMI_VP_CONF_YCC422_EN_ENABLE;
 	} else if (output_select == HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS) {
-		hdmi_modb(hdmi, HDMI_VP_CONF_BYPASS_EN_ENABLE |
-				HDMI_VP_CONF_PP_EN_DISABLE |
-				HDMI_VP_CONF_YCC422_EN_DISABLE,
-			  HDMI_VP_CONF_BYPASS_EN_MASK |
-			  HDMI_VP_CONF_PP_EN_ENMASK |
-			  HDMI_VP_CONF_YCC422_EN_MASK, HDMI_VP_CONF);
+		vp_conf = HDMI_VP_CONF_BYPASS_EN_ENABLE |
+			  HDMI_VP_CONF_PP_EN_DISABLE |
+			  HDMI_VP_CONF_YCC422_EN_DISABLE;
 	} else {
 		return;
 	}
+
+	hdmi_modb(hdmi, vp_conf,
+		  HDMI_VP_CONF_BYPASS_EN_MASK | HDMI_VP_CONF_PP_EN_ENMASK |
+		  HDMI_VP_CONF_YCC422_EN_MASK, HDMI_VP_CONF);
 
 	hdmi_modb(hdmi, HDMI_VP_STUFF_PP_STUFFING_STUFFING_MODE |
 			HDMI_VP_STUFF_YCC422_STUFFING_STUFFING_MODE,
