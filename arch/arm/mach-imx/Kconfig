@@ -20,16 +20,6 @@ config ARCH_MXC
 menu "Freescale i.MX support"
 	depends on ARCH_MXC
 
-config MXC_IRQ_PRIOR
-	bool "Use IRQ priority"
-	help
-	  Select this if you want to use prioritized IRQ handling.
-	  This feature prevents higher priority ISR to be interrupted
-	  by lower priority IRQ.
-	  This may be useful in embedded applications, where are strong
-	  requirements for timing.
-	  Say N here, unless you have a specialized requirement.
-
 config MXC_TZIC
 	bool
 
