@@ -685,7 +685,7 @@ do {									\
 	    else								\
 	      {									\
 		r = 0;								\
-		if (X##_s)							\
+		if (!X##_s)							\
 		  r = ~r;							\
 	      }									\
 	    FP_SET_EXCEPTION(FP_EX_INVALID);					\
@@ -762,7 +762,7 @@ do {									\
 	    if (!rsigned)							\
 	      {									\
 		r = 0;								\
-		if (X##_s)							\
+		if (!X##_s)							\
 		  r = ~r;							\
 	      }									\
 	    else if (rsigned != 2)						\
