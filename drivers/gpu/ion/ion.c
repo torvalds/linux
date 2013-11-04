@@ -38,6 +38,7 @@
 #include <linux/idr.h>
 
 #include "ion_priv.h"
+#include "compat_ion.h"
 
 /**
  * struct ion_device - the metadata of the ion device node
@@ -1139,7 +1140,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(handle))
 			return PTR_ERR(handle);
 
-		data.handle = (struct ion_handle *)handle->id;
+		data.handle = handle->id;
 
 		if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
 			ion_free(client, handle);
@@ -1156,7 +1157,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				   sizeof(struct ion_handle_data)))
 			return -EFAULT;
 		mutex_lock(&client->lock);
-		handle = ion_uhandle_get(client, (int)data.handle);
+		handle = ion_uhandle_get(client, data.handle);
 		mutex_unlock(&client->lock);
 		if (!handle)
 			return -EINVAL;
@@ -1171,7 +1172,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
 			return -EFAULT;
-		handle = ion_uhandle_get(client, (int)data.handle);
+		handle = ion_uhandle_get(client, data.handle);
 		data.fd = ion_share_dma_buf_fd(client, handle);
 		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
 			return -EFAULT;
@@ -1191,7 +1192,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(handle))
 			ret = PTR_ERR(handle);
 		else
-			data.handle = (struct ion_handle *)handle->id;
+			data.handle = handle->id;
 
 		if (copy_to_user((void __user *)arg, &data,
 				 sizeof(struct ion_fd_data)))
@@ -1256,6 +1257,7 @@ static const struct file_operations ion_fops = {
 	.open           = ion_open,
 	.release        = ion_release,
 	.unlocked_ioctl = ion_ioctl,
+	.compat_ioctl   = compat_ion_ioctl,
 };
 
 static size_t ion_debug_heap_total(struct ion_client *client,
