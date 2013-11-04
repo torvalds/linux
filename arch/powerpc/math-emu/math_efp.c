@@ -680,7 +680,8 @@ int speround_handler(struct pt_regs *regs)
 {
 	union dw_union fgpr;
 	int s_lo, s_hi;
-	unsigned long speinsn, type, fc;
+	int lo_inexact, hi_inexact;
+	unsigned long speinsn, type, fc, fptype;
 
 	if (get_user(speinsn, (unsigned int __user *) regs->nip))
 		return -EFAULT;
@@ -693,8 +694,12 @@ int speround_handler(struct pt_regs *regs)
 	__FPU_FPSCR = mfspr(SPRN_SPEFSCR);
 	pr_debug("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
 
+	fptype = (speinsn >> 5) & 0x7;
+
 	/* No need to round if the result is exact */
-	if (!(__FPU_FPSCR & FP_EX_INEXACT))
+	lo_inexact = __FPU_FPSCR & (SPEFSCR_FG | SPEFSCR_FX);
+	hi_inexact = __FPU_FPSCR & (SPEFSCR_FGH | SPEFSCR_FXH);
+	if (!(lo_inexact || (hi_inexact && fptype == VCT)))
 		return 0;
 
 	fc = (speinsn >> 21) & 0x1f;
@@ -705,7 +710,7 @@ int speround_handler(struct pt_regs *regs)
 
 	pr_debug("round fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
 
-	switch ((speinsn >> 5) & 0x7) {
+	switch (fptype) {
 	/* Since SPE instructions on E500 core can handle round to nearest
 	 * and round toward zero with IEEE-754 complied, we just need
 	 * to handle round toward +Inf and round toward -Inf by software.
@@ -728,11 +733,15 @@ int speround_handler(struct pt_regs *regs)
 
 	case VCT:
 		if (FP_ROUNDMODE == FP_RND_PINF) {
-			if (!s_lo) fgpr.wp[1]++; /* Z_low > 0, choose Z1 */
-			if (!s_hi) fgpr.wp[0]++; /* Z_high word > 0, choose Z1 */
+			if (lo_inexact && !s_lo)
+				fgpr.wp[1]++; /* Z_low > 0, choose Z1 */
+			if (hi_inexact && !s_hi)
+				fgpr.wp[0]++; /* Z_high word > 0, choose Z1 */
 		} else { /* round to -Inf */
-			if (s_lo) fgpr.wp[1]++; /* Z_low < 0, choose Z2 */
-			if (s_hi) fgpr.wp[0]++; /* Z_high < 0, choose Z2 */
+			if (lo_inexact && s_lo)
+				fgpr.wp[1]++; /* Z_low < 0, choose Z2 */
+			if (hi_inexact && s_hi)
+				fgpr.wp[0]++; /* Z_high < 0, choose Z2 */
 		}
 		break;
 
