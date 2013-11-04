@@ -417,7 +417,6 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
-	int idx;
 
 	en_dbg(HW, priv, "Killing VID:%d\n", vid);
 
@@ -425,10 +424,7 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
 
 	/* Remove VID from port VLAN filter */
 	mutex_lock(&mdev->state_lock);
-	if (!mlx4_find_cached_vlan(mdev->dev, priv->port, vid, &idx))
-		mlx4_unregister_vlan(mdev->dev, priv->port, idx);
-	else
-		en_dbg(HW, priv, "could not find vid %d in cache\n", vid);
+	mlx4_unregister_vlan(mdev->dev, priv->port, vid);
 
 	if (mdev->device_up && priv->port_up) {
 		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv);
