@@ -360,9 +360,17 @@
 #define VLV_IOSF_DATA				(VLV_DISPLAY_BASE + 0x2104)
 #define VLV_IOSF_ADDR				(VLV_DISPLAY_BASE + 0x2108)
 
+/* See configdb bunit SB addr map */
+#define BUNIT_REG_BISOC				0x11
+
 #define PUNIT_OPCODE_REG_READ			6
 #define PUNIT_OPCODE_REG_WRITE			7
 
+#define PUNIT_REG_DSPFREQ			0x36
+#define   DSPFREQSTAT_SHIFT			30
+#define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
+#define   DSPFREQGUAR_SHIFT			14
+#define   DSPFREQGUAR_MASK			(0x3 << DSPFREQGUAR_SHIFT)
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
 #define	  PUNIT_CLK_GATE			1
@@ -425,6 +433,7 @@
 #define  DSI_PLL_N1_DIV_MASK			(3 << 16)
 #define  DSI_PLL_M1_DIV_SHIFT			0
 #define  DSI_PLL_M1_DIV_MASK			(0x1ff << 0)
+#define CCK_DISPLAY_CLOCK_CONTROL		0x6b
 
 /*
  * DPIO - a special bus for various display related registers to hide behind

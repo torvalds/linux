@@ -87,10 +87,6 @@ static void gmbus_set_freq(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
 
-	/* Skip setting the gmbus freq if BIOS has already programmed it */
-	if (I915_READ(GMBUSFREQ_VLV) != 0xA0)
-		return;
-
 	/* Obtain SKU information */
 	mutex_lock(&dev_priv->dpio_lock);
 	hpll_freq =

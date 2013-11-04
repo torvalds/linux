@@ -3894,6 +3894,181 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
+static int valleyview_get_vco(struct drm_i915_private *dev_priv)
+{
+	int vco;
+
+	switch (dev_priv->mem_freq) {
+	default:
+	case 800:
+		vco = 800;
+		break;
+	case 1066:
+		vco = 1600;
+		break;
+	case 1333:
+		vco = 2000;
+		break;
+	}
+
+	return vco;
+}
+
+/* Adjust CDclk dividers to allow high res or save power if possible */
+static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, cmd;
+
+	if (cdclk >= 320) /* jump to highest voltage for 400MHz too */
+		cmd = 2;
+	else if (cdclk == 266)
+		cmd = 1;
+	else
+		cmd = 0;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val &= ~DSPFREQGUAR_MASK;
+	val |= (cmd << DSPFREQGUAR_SHIFT);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) &
+		      DSPFREQSTAT_MASK) == (cmd << DSPFREQSTAT_SHIFT),
+		     50)) {
+		DRM_ERROR("timed out waiting for CDclk change\n");
+	}
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (cdclk == 400) {
+		u32 divider, vco;
+
+		vco = valleyview_get_vco(dev_priv);
+		divider = ((vco << 1) / cdclk) - 1;
+
+		mutex_lock(&dev_priv->dpio_lock);
+		/* adjust cdclk divider */
+		val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
+		val &= ~0xf;
+		val |= divider;
+		vlv_cck_write(dev_priv, CCK_DISPLAY_CLOCK_CONTROL, val);
+		mutex_unlock(&dev_priv->dpio_lock);
+	}
+
+	mutex_lock(&dev_priv->dpio_lock);
+	/* adjust self-refresh exit latency value */
+	val = vlv_bunit_read(dev_priv, BUNIT_REG_BISOC);
+	val &= ~0x7f;
+
+	/*
+	 * For high bandwidth configs, we set a higher latency in the bunit
+	 * so that the core display fetch happens in time to avoid underruns.
+	 */
+	if (cdclk == 400)
+		val |= 4500 / 250; /* 4.5 usec */
+	else
+		val |= 3000 / 250; /* 3.0 usec */
+	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	/* Since we changed the CDclk, we need to update the GMBUSFREQ too */
+	intel_i2c_reset(dev);
+}
+
+static int valleyview_cur_cdclk(struct drm_i915_private *dev_priv)
+{
+	int cur_cdclk, vco;
+	int divider;
+
+	vco = valleyview_get_vco(dev_priv);
+
+	mutex_lock(&dev_priv->dpio_lock);
+	divider = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	divider &= 0xf;
+
+	cur_cdclk = (vco << 1) / (divider + 1);
+
+	return cur_cdclk;
+}
+
+static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
+				 int max_pixclk)
+{
+	int cur_cdclk;
+
+	cur_cdclk = valleyview_cur_cdclk(dev_priv);
+
+	/*
+	 * Really only a few cases to deal with, as only 4 CDclks are supported:
+	 *   200MHz
+	 *   267MHz
+	 *   320MHz
+	 *   400MHz
+	 * So we check to see whether we're above 90% of the lower bin and
+	 * adjust if needed.
+	 */
+	if (max_pixclk > 288000) {
+		return 400;
+	} else if (max_pixclk > 240000) {
+		return 320;
+	} else
+		return 266;
+	/* Looks like the 200MHz CDclk freq doesn't work on some configs */
+}
+
+static int intel_mode_max_pixclk(struct drm_i915_private *dev_priv,
+				 unsigned modeset_pipes,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *intel_crtc;
+	int max_pixclk = 0;
+
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		if (modeset_pipes & (1 << intel_crtc->pipe))
+			max_pixclk = max(max_pixclk,
+					 pipe_config->adjusted_mode.crtc_clock);
+		else if (intel_crtc->base.enabled)
+			max_pixclk = max(max_pixclk,
+					 intel_crtc->config.adjusted_mode.crtc_clock);
+	}
+
+	return max_pixclk;
+}
+
+static void valleyview_modeset_global_pipes(struct drm_device *dev,
+					    unsigned *prepare_pipes,
+					    unsigned modeset_pipes,
+					    struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc;
+	int max_pixclk = intel_mode_max_pixclk(dev_priv, modeset_pipes,
+					       pipe_config);
+	int cur_cdclk = valleyview_cur_cdclk(dev_priv);
+
+	if (valleyview_calc_cdclk(dev_priv, max_pixclk) == cur_cdclk)
+		return;
+
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+			    base.head)
+		if (intel_crtc->base.enabled)
+			*prepare_pipes |= (1 << intel_crtc->pipe);
+}
+
+static void valleyview_modeset_global_resources(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int max_pixclk = intel_mode_max_pixclk(dev_priv, 0, NULL);
+	int cur_cdclk = valleyview_cur_cdclk(dev_priv);
+	int req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
+
+	if (req_cdclk != cur_cdclk)
+		valleyview_set_cdclk(dev, req_cdclk);
+}
+
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -9318,6 +9493,17 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 				       "[modeset]");
 	}
 
+	/*
+	 * See if the config requires any additional preparation, e.g.
+	 * to adjust global state with pipes off.  We need to do this
+	 * here so we can get the modeset_pipe updated config for the new
+	 * mode set on this crtc.  For other crtcs we need to use the
+	 * adjusted_mode bits in the crtc directly.
+	 */
+	if (IS_VALLEYVIEW(dev))
+		valleyview_modeset_global_pipes(dev, &prepare_pipes,
+						modeset_pipes, pipe_config);
+
 	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
 		intel_crtc_disable(&intel_crtc->base);
 
@@ -10317,6 +10503,9 @@ static void intel_init_display(struct drm_device *dev)
 		}
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.write_eld = g4x_write_eld;
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->display.modeset_global_resources =
+			valleyview_modeset_global_resources;
 	}
 
 	/* Default just returns -ENODEV to indicate unsupported */
