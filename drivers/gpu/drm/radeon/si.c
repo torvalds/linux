@@ -1681,6 +1681,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		       fw_name);
 		release_firmware(rdev->smc_fw);
 		rdev->smc_fw = NULL;
+		err = 0;
 	} else if (rdev->smc_fw->size != smc_req_size) {
 		printk(KERN_ERR
 		       "si_smc: Bogus length %zu in firmware \"%s\"\n",

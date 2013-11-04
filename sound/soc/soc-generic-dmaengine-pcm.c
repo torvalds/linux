@@ -25,7 +25,7 @@
 #include <sound/dmaengine_pcm.h>
 
 struct dmaengine_pcm {
-	struct dma_chan *chan[SNDRV_PCM_STREAM_CAPTURE + 1];
+	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
 	const struct snd_dmaengine_pcm_config *config;
 	struct snd_soc_platform platform;
 	unsigned int flags;

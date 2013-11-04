@@ -604,6 +604,10 @@
 #define   ARB_MODE_SWIZZLE_IVB	(1<<5)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
 #define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
+#define   RING_FAULT_GTTSEL_MASK (1<<11)
+#define   RING_FAULT_SRCID(x)	((x >> 3) & 0xff)
+#define   RING_FAULT_FAULT_TYPE(x) ((x >> 1) & 0x3)
+#define   RING_FAULT_VALID	(1<<0)
 #define DONE_REG		0x40b0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
@@ -4279,7 +4283,9 @@
 #define FDI_RX_CHICKEN(pipe) _PIPE(pipe, _FDI_RXA_CHICKEN, _FDI_RXB_CHICKEN)
 
 #define SOUTH_DSPCLK_GATE_D	0xc2020
+#define  PCH_DPLUNIT_CLOCK_GATE_DISABLE (1<<30)
 #define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
+#define  PCH_CPUNIT_CLOCK_GATE_DISABLE (1<<14)
 #define  PCH_LP_PARTITION_LEVEL_DISABLE  (1<<12)
 
 /* CPU: FDI_TX */
