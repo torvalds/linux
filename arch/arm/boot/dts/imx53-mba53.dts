@@ -148,7 +148,7 @@
 &audmux {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux_1>;
+	pinctrl-0 = <&pinctrl_audmux>;
 };
 
 &i2c2 {
