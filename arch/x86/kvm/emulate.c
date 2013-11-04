@@ -785,9 +785,10 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
  * @highbyte_regs specifies whether to decode AH,CH,DH,BH.
  */
 static void *decode_register(struct x86_emulate_ctxt *ctxt, u8 modrm_reg,
-			     int highbyte_regs)
+			     int byteop)
 {
 	void *p;
+	int highbyte_regs = (ctxt->rex_prefix == 0) && byteop;
 
 	if (highbyte_regs && modrm_reg >= 4 && modrm_reg < 8)
 		p = (unsigned char *)reg_rmw(ctxt, modrm_reg & 3) + 1;
@@ -1024,7 +1025,6 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 				    struct operand *op)
 {
 	unsigned reg = ctxt->modrm_reg;
-	int highbyte_regs = ctxt->rex_prefix == 0;
 
 	if (!(ctxt->d & ModRM))
 		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
@@ -1046,10 +1046,10 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 
 	op->type = OP_REG;
 	if (ctxt->d & ByteOp) {
-		op->addr.reg = decode_register(ctxt, reg, highbyte_regs);
+		op->addr.reg = decode_register(ctxt, reg, true);
 		op->bytes = 1;
 	} else {
-		op->addr.reg = decode_register(ctxt, reg, 0);
+		op->addr.reg = decode_register(ctxt, reg, false);
 		op->bytes = ctxt->op_bytes;
 	}
 	fetch_register_operand(op);
@@ -1082,12 +1082,10 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	ctxt->modrm_seg = VCPU_SREG_DS;
 
 	if (ctxt->modrm_mod == 3) {
-		int highbyte_regs = ctxt->rex_prefix == 0;
-
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
-					       highbyte_regs && (ctxt->d & ByteOp));
+				ctxt->d & ByteOp);
 		if (ctxt->d & Sse) {
 			op->type = OP_XMM;
 			op->bytes = 16;
@@ -4117,10 +4115,8 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	case OpMem8:
 		ctxt->memop.bytes = 1;
 		if (ctxt->memop.type == OP_REG) {
-			int highbyte_regs = ctxt->rex_prefix == 0;
-
-			ctxt->memop.addr.reg = decode_register(ctxt, ctxt->modrm_rm,
-					       highbyte_regs);
+			ctxt->memop.addr.reg = decode_register(ctxt,
+					ctxt->modrm_rm, true);
 			fetch_register_operand(&ctxt->memop);
 		}
 		goto mem_common;
