@@ -806,19 +806,94 @@ static void imx_hdmi_phy_sel_interface_control(struct imx_hdmi *hdmi, u8 enable)
 			 HDMI_PHY_CONF0_SELDIPIF_MASK);
 }
 
+enum {
+	RES_8,
+	RES_10,
+	RES_12,
+	RES_MAX,
+};
+
+struct mpll_config {
+	unsigned long mpixelclock;
+	struct {
+		u16 cpce;
+		u16 gmp;
+	} res[RES_MAX];
+};
+
+static const struct mpll_config mpll_config[] = {
+	{
+		45250000, {
+			{ 0x01e0, 0x0000 },
+			{ 0x21e1, 0x0000 },
+			{ 0x41e2, 0x0000 }
+		},
+	}, {
+		92500000, {
+			{ 0x0140, 0x0005 },
+			{ 0x2141, 0x0005 },
+			{ 0x4142, 0x0005 },
+		},
+	}, {
+		148500000, {
+			{ 0x00a0, 0x000a },
+			{ 0x20a1, 0x000a },
+			{ 0x40a2, 0x000a },
+		},
+	}, {
+		~0UL, {
+			{ 0x00a0, 0x000a },
+			{ 0x2001, 0x000f },
+			{ 0x4002, 0x000f },
+		},
+	}
+};
+
+struct curr_ctrl {
+	unsigned long mpixelclock;
+	u16 curr[RES_MAX];
+};
+
+static const struct curr_ctrl curr_ctrl[] = {
+	/*	pixelclk     bpp8    bpp10   bpp12 */
+	{
+		 54000000, { 0x091c, 0x091c, 0x06dc },
+	}, {
+		 58400000, { 0x091c, 0x06dc, 0x06dc },
+	}, {
+		 72000000, { 0x06dc, 0x06dc, 0x091c },
+	}, {
+		 74250000, { 0x06dc, 0x0b5c, 0x091c },
+	}, {
+		118800000, { 0x091c, 0x091c, 0x06dc },
+	}, {
+		216000000, { 0x06dc, 0x0b5c, 0x091c },
+	}
+};
+
 static int hdmi_phy_configure(struct imx_hdmi *hdmi, unsigned char prep,
 			      unsigned char res, int cscon)
 {
+	unsigned res_idx, i;
 	u8 val, msec;
-
-	/* color resolution 0 is 8 bit colour depth */
-	if (!res)
-		res = 8;
 
 	if (prep)
 		return -EINVAL;
-	else if (res != 8 && res != 12)
+
+	switch (res) {
+	case 0:	/* color resolution 0 is 8 bit colour depth */
+	case 8:
+		res_idx = RES_8;
+		break;
+	case 10:
+		res_idx = RES_10;
+		break;
+	case 12:
+		res_idx = RES_12;
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	/* Enable csc path */
 	if (cscon)
@@ -845,164 +920,29 @@ static int hdmi_phy_configure(struct imx_hdmi *hdmi, unsigned char prep,
 			HDMI_PHY_I2CM_SLAVE_ADDR);
 	hdmi_phy_test_clear(hdmi, 0);
 
-	if (hdmi->hdmi_data.video_mode.mpixelclock <= 45250000) {
-		switch (res) {
-		case 8:
-			/* PLL/MPLL Cfg */
-			hdmi_phy_i2c_write(hdmi, 0x01e0, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x0000, 0x15);  /* GMPCTRL */
+	/* PLL/MPLL Cfg - always match on final entry */
+	for (i = 0; i < ARRAY_SIZE(mpll_config) - 1; i++)
+		if (hdmi->hdmi_data.video_mode.mpixelclock <=
+		    mpll_config[i].mpixelclock)
 			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x21e1, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x0000, 0x15);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x41e2, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x0000, 0x15);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 92500000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x0140, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x0005, 0x15);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x2141, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x0005, 0x15);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x4142, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x0005, 0x15);
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 148500000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x00a0, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x000a, 0x15);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x20a1, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x000a, 0x15);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x40a2, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x000a, 0x15);
-		default:
-			return -EINVAL;
-		}
-	} else {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x00a0, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x000a, 0x15);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x2001, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x000f, 0x15);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x4002, 0x06);
-			hdmi_phy_i2c_write(hdmi, 0x000f, 0x15);
-		default:
-			return -EINVAL;
-		}
-	}
 
-	if (hdmi->hdmi_data.video_mode.mpixelclock <= 54000000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);  /* CURRCTRL */
+	hdmi_phy_i2c_write(hdmi, mpll_config[i].res[res_idx].cpce, 0x06);
+	hdmi_phy_i2c_write(hdmi, mpll_config[i].res[res_idx].gmp, 0x15);
+
+	for (i = 0; i < ARRAY_SIZE(curr_ctrl); i++)
+		if (hdmi->hdmi_data.video_mode.mpixelclock <=
+		    curr_ctrl[i].mpixelclock)
 			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 58400000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 72000000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 74250000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x0b5c, 0x10);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 118800000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (hdmi->hdmi_data.video_mode.mpixelclock <= 216000000) {
-		switch (res) {
-		case 8:
-			hdmi_phy_i2c_write(hdmi, 0x06dc, 0x10);
-			break;
-		case 10:
-			hdmi_phy_i2c_write(hdmi, 0x0b5c, 0x10);
-			break;
-		case 12:
-			hdmi_phy_i2c_write(hdmi, 0x091c, 0x10);
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else {
+
+	if (i >= ARRAY_SIZE(curr_ctrl)) {
 		dev_err(hdmi->dev,
 				"Pixel clock %d - unsupported by HDMI\n",
 				hdmi->hdmi_data.video_mode.mpixelclock);
 		return -EINVAL;
 	}
+
+	/* CURRCTRL */
+	hdmi_phy_i2c_write(hdmi, curr_ctrl[i].curr[res_idx], 0x10);
 
 	hdmi_phy_i2c_write(hdmi, 0x0000, 0x13);  /* PLLPHBYCTRL */
 	hdmi_phy_i2c_write(hdmi, 0x0006, 0x17);
