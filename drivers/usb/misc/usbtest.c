@@ -944,7 +944,7 @@ struct ctrl_ctx {
 	int			last;
 };
 
-#define NUM_SUBCASES	15		/* how many test subcases here? */
+#define NUM_SUBCASES	16		/* how many test subcases here? */
 
 struct subcase {
 	struct usb_ctrlrequest	setup;
@@ -1217,6 +1217,15 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 				break;
 			}
 			expected = -EREMOTEIO;
+			break;
+		case 15:
+			req.wValue = cpu_to_le16(USB_DT_BOS << 8);
+			if (udev->bos)
+				len = le16_to_cpu(udev->bos->desc->wTotalLength);
+			else
+				len = sizeof(struct usb_bos_descriptor);
+			if (udev->speed != USB_SPEED_SUPER)
+				expected = -EPIPE;
 			break;
 		default:
 			ERROR(dev, "bogus number of ctrl queue testcases!\n");
