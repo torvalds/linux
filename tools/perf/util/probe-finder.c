@@ -583,7 +583,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 	}
 
 	if (die_find_member(&type, field->name, die_mem) == NULL) {
-		pr_warning("%s(tyep:%s) has no member %s.\n", varname,
+		pr_warning("%s(type:%s) has no member %s.\n", varname,
 			   dwarf_diename(&type), field->name);
 		return -EINVAL;
 	}

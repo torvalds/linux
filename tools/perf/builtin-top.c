@@ -856,7 +856,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 						   &sample, machine);
 		} else if (event->header.type < PERF_RECORD_MAX) {
 			hists__inc_nr_events(&evsel->hists, event->header.type);
-			machine__process_event(machine, event);
+			machine__process_event(machine, event, &sample);
 		} else
 			++session->stats.nr_unknown_events;
 next_event:
@@ -1040,7 +1040,7 @@ parse_percent_limit(const struct option *opt, const char *arg,
 
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	int status;
+	int status = -1;
 	char errbuf[BUFSIZ];
 	struct perf_top top = {
 		.count_filter	     = 5,
@@ -1159,8 +1159,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (sort_order == default_sort_order)
 		sort_order = "dso,symbol";
 
-	if (setup_sorting() < 0)
-		usage_with_options(top_usage, options);
+	if (setup_sorting() < 0) {
+		parse_options_usage(top_usage, options, "s", 1);
+		goto out_delete_evlist;
+	}
 
 	/* display thread wants entries to be collapsed in a different tree */
 	sort__need_collapse = 1;

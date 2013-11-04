@@ -663,7 +663,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	}
 
 	if (opts->sample_address)
-		attr->sample_type	|= PERF_SAMPLE_DATA_SRC;
+		perf_evsel__set_sample_bit(evsel, DATA_SRC);
 
 	if (opts->no_delay) {
 		attr->watermark = 0;
@@ -675,13 +675,13 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	}
 
 	if (opts->sample_weight)
-		attr->sample_type	|= PERF_SAMPLE_WEIGHT;
+		perf_evsel__set_sample_bit(evsel, WEIGHT);
 
 	attr->mmap  = track;
 	attr->comm  = track;
 
 	if (opts->sample_transaction)
-		attr->sample_type	|= PERF_SAMPLE_TRANSACTION;
+		perf_evsel__set_sample_bit(evsel, TRANSACTION);
 
 	/*
 	 * XXX see the function comment above
@@ -1051,6 +1051,8 @@ retry_open:
 								     group_fd, flags);
 			if (FD(evsel, cpu, thread) < 0) {
 				err = -errno;
+				pr_debug2("perf_event_open failed, error %d\n",
+					  err);
 				goto try_fallback;
 			}
 			set_rlimit = NO_CHANGE;
@@ -1479,6 +1481,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	data->transaction = 0;
 	if (type & PERF_SAMPLE_TRANSACTION) {
+		OVERFLOW_CHECK_u64(array);
 		data->transaction = *array;
 		array++;
 	}
@@ -1573,6 +1576,9 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 		result += sizeof(u64);
 
 	if (type & PERF_SAMPLE_DATA_SRC)
+		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_TRANSACTION)
 		result += sizeof(u64);
 
 	return result;
@@ -1745,6 +1751,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 
 	if (type & PERF_SAMPLE_DATA_SRC) {
 		*array = sample->data_src;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TRANSACTION) {
+		*array = sample->transaction;
 		array++;
 	}
 

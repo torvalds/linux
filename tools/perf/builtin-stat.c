@@ -1596,7 +1596,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf stat [<options>] [<command>]",
 		NULL
 	};
-	int status = -ENOMEM, run_idx;
+	int status = -EINVAL, run_idx;
 	const char *mode;
 
 	setlocale(LC_ALL, "");
@@ -1614,12 +1614,15 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (output_name && output_fd) {
 		fprintf(stderr, "cannot use both --output and --log-fd\n");
-		usage_with_options(stat_usage, options);
+		parse_options_usage(stat_usage, options, "o", 1);
+		parse_options_usage(NULL, options, "log-fd", 0);
+		goto out;
 	}
 
 	if (output_fd < 0) {
 		fprintf(stderr, "argument to --log-fd must be a > 0\n");
-		usage_with_options(stat_usage, options);
+		parse_options_usage(stat_usage, options, "log-fd", 0);
+		goto out;
 	}
 
 	if (!output) {
@@ -1656,7 +1659,9 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		/* User explicitly passed -B? */
 		if (big_num_opt == 1) {
 			fprintf(stderr, "-B option not supported with -x\n");
-			usage_with_options(stat_usage, options);
+			parse_options_usage(stat_usage, options, "B", 1);
+			parse_options_usage(NULL, options, "x", 1);
+			goto out;
 		} else /* Nope, so disable big number formatting */
 			big_num = false;
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
@@ -1666,7 +1671,9 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		usage_with_options(stat_usage, options);
 
 	if (run_count < 0) {
-		usage_with_options(stat_usage, options);
+		pr_err("Run count must be a positive number\n");
+		parse_options_usage(stat_usage, options, "r", 1);
+		goto out;
 	} else if (run_count == 0) {
 		forever = true;
 		run_count = 1;
@@ -1678,8 +1685,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		fprintf(stderr, "both cgroup and no-aggregation "
 			"modes only available in system-wide mode\n");
 
-		usage_with_options(stat_usage, options);
-		return -1;
+		parse_options_usage(stat_usage, options, "G", 1);
+		parse_options_usage(NULL, options, "A", 1);
+		parse_options_usage(NULL, options, "a", 1);
+		goto out;
 	}
 
 	if (add_default_attributes())
@@ -1688,25 +1697,28 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	perf_target__validate(&target);
 
 	if (perf_evlist__create_maps(evsel_list, &target) < 0) {
-		if (perf_target__has_task(&target))
+		if (perf_target__has_task(&target)) {
 			pr_err("Problems finding threads of monitor\n");
-		if (perf_target__has_cpu(&target))
+			parse_options_usage(stat_usage, options, "p", 1);
+			parse_options_usage(NULL, options, "t", 1);
+		} else if (perf_target__has_cpu(&target)) {
 			perror("failed to parse CPUs map");
-
-		usage_with_options(stat_usage, options);
-		return -1;
+			parse_options_usage(stat_usage, options, "C", 1);
+			parse_options_usage(NULL, options, "a", 1);
+		}
+		goto out;
 	}
 	if (interval && interval < 100) {
 		pr_err("print interval must be >= 100ms\n");
-		usage_with_options(stat_usage, options);
-		return -1;
+		parse_options_usage(stat_usage, options, "I", 1);
+		goto out_free_maps;
 	}
 
 	if (perf_evlist__alloc_stats(evsel_list, interval))
 		goto out_free_maps;
 
 	if (perf_stat_init_aggr_mode())
-		goto out;
+		goto out_free_maps;
 
 	/*
 	 * We dont want to block the signals - that would cause

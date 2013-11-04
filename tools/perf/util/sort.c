@@ -1,5 +1,6 @@
 #include "sort.h"
 #include "hist.h"
+#include "comm.h"
 #include "symbol.h"
 
 regex_t		parent_regex;
@@ -42,7 +43,7 @@ static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 	return n;
 }
 
-static int64_t cmp_null(void *l, void *r)
+static int64_t cmp_null(const void *l, const void *r)
 {
 	if (!l && !r)
 		return 0;
@@ -63,8 +64,9 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 				       size_t size, unsigned int width)
 {
+	const char *comm = thread__comm_str(he->thread);
 	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
-			      he->thread->comm ?: "", he->thread->tid);
+			       comm ?: "", he->thread->tid);
 }
 
 struct sort_entry sort_thread = {
@@ -79,25 +81,21 @@ struct sort_entry sort_thread = {
 static int64_t
 sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->tid - left->thread->tid;
+	/* Compare the addr that should be unique among comm */
+	return comm__str(right->comm) - comm__str(left->comm);
 }
 
 static int64_t
 sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 {
-	char *comm_l = left->thread->comm;
-	char *comm_r = right->thread->comm;
-
-	if (!comm_l || !comm_r)
-		return cmp_null(comm_l, comm_r);
-
-	return strcmp(comm_l, comm_r);
+	/* Compare the addr that should be unique among comm */
+	return comm__str(right->comm) - comm__str(left->comm);
 }
 
 static int hist_entry__comm_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*s", width, he->thread->comm);
+	return repsep_snprintf(bf, size, "%*s", width, comm__str(he->comm));
 }
 
 struct sort_entry sort_comm = {
