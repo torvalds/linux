@@ -1328,7 +1328,16 @@ static int hdmi_choose_cvt(struct hda_codec *codec,
 	return 0;
 }
 
-static void not_share_unassigned_cvt(struct hda_codec *codec,
+/* Intel HDMI workaround to fix audio routing issue:
+ * For some Intel display codecs, pins share the same connection list.
+ * So a conveter can be selected by multiple pins and playback on any of these
+ * pins will generate sound on the external display, because audio flows from
+ * the same converter to the display pipeline. Also muting one pin may make
+ * other pins have no sound output.
+ * So this function assures that an assigned converter for a pin is not selected
+ * by any other pins.
+ */
+static void intel_not_share_assigned_cvt(struct hda_codec *codec,
 			hda_nid_t pin_nid, int mux_idx)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1408,7 +1417,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 
 	/* configure unused pins to choose other converters */
 	if (is_haswell(codec) || is_valleyview(codec))
-		not_share_unassigned_cvt(codec, per_pin->pin_nid, mux_idx);
+		intel_not_share_assigned_cvt(codec, per_pin->pin_nid, mux_idx);
 
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
 
