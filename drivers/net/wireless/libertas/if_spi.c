@@ -1094,11 +1094,7 @@ static int if_spi_init_card(struct if_spi_card *card)
 		goto out;
 
 out:
-	release_firmware(helper);
-	release_firmware(mainfw);
-
 	lbs_deb_leave_args(LBS_DEB_SPI, "err %d\n", err);
-
 	return err;
 }
 

@@ -1885,7 +1885,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	} else if (caldata) {
 		clear_bit(PAPRD_PACKET_SENT, &caldata->cal_flags);
 	}
-	ah->noise = ath9k_hw_getchan_noise(ah, chan);
+	ah->noise = ath9k_hw_getchan_noise(ah, chan, chan->noisefloor);
 
 	if (fastcc) {
 		r = ath9k_hw_do_fastcc(ah, chan);

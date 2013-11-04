@@ -178,6 +178,10 @@ struct brcmf_sdio_dev {
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
 	bool irq_wake;			/* irq wake enable flags */
+	bool sg_support;
+	uint max_request_size;
+	ushort max_segment_count;
+	uint max_segment_size;
 };
 
 /* Register/deregister interrupt handler. */
@@ -216,7 +220,7 @@ int brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 int brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 			  uint flags, u8 *buf, uint nbytes);
 int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			    uint flags, struct sk_buff_head *pktq);
+			    uint flags, struct sk_buff_head *pktq, uint totlen);
 
 /* Flags bits */
 

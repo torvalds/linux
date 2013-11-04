@@ -43,15 +43,17 @@
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
+#define ATH10K_MAX_NUM_MGMT_PENDING 16
+
 struct ath10k;
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	bool is_mapped;
 	bool is_aborted;
+	u8 vdev_id;
 
 	struct {
-		u8 vdev_id;
 		u8 tid;
 		bool is_offchan;
 
@@ -102,11 +104,26 @@ struct ath10k_bmi {
 	bool done_sent;
 };
 
+#define ATH10K_MAX_MEM_REQS 16
+
+struct ath10k_mem_chunk {
+	void *vaddr;
+	dma_addr_t paddr;
+	u32 len;
+	u32 req_id;
+};
+
 struct ath10k_wmi {
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
 	wait_queue_head_t tx_credits_wq;
+	struct wmi_cmd_map *cmd;
+	struct wmi_vdev_param_map *vdev_param;
+	struct wmi_pdev_param_map *pdev_param;
+
+	u32 num_mem_chunks;
+	struct ath10k_mem_chunk mem_chunks[ATH10K_MAX_MEM_REQS];
 };
 
 struct ath10k_peer_stat {
@@ -188,6 +205,8 @@ struct ath10k_peer {
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)
 
 struct ath10k_vif {
+	struct list_head list;
+
 	u32 vdev_id;
 	enum wmi_vdev_type vdev_type;
 	enum wmi_vdev_subtype vdev_subtype;
@@ -198,8 +217,10 @@ struct ath10k_vif {
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
 
+	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
-	u8 def_wep_key_index;
+	u8 def_wep_key_idx;
+	u8 def_wep_key_newidx;
 
 	u16 tx_seq_no;
 
@@ -268,6 +289,12 @@ enum ath10k_fw_features {
 	/* wmi_mgmt_rx_hdr contains extra RSSI information */
 	ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX = 0,
 
+	/* firmware from 10X branch */
+	ATH10K_FW_FEATURE_WMI_10X = 1,
+
+	/* firmware support tx frame management over WMI, otherwise it's HTT */
+	ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX = 2,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -324,9 +351,19 @@ struct ath10k {
 		} fw;
 	} hw_params;
 
-	const struct firmware *board_data;
+	const struct firmware *board;
+	const void *board_data;
+	size_t board_len;
+
 	const struct firmware *otp;
+	const void *otp_data;
+	size_t otp_len;
+
 	const struct firmware *firmware;
+	const void *firmware_data;
+	size_t firmware_len;
+
+	int fw_api;
 
 	struct {
 		struct completion started;
@@ -369,6 +406,7 @@ struct ath10k {
 	/* protects shared structure data */
 	spinlock_t data_lock;
 
+	struct list_head arvifs;
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 
@@ -376,6 +414,9 @@ struct ath10k {
 	struct sk_buff_head offchan_tx_queue;
 	struct completion offchan_tx_completed;
 	struct sk_buff *offchan_tx_skb;
+
+	struct work_struct wmi_mgmt_tx_work;
+	struct sk_buff_head wmi_mgmt_tx_queue;
 
 	enum ath10k_state state;
 

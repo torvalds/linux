@@ -131,6 +131,7 @@ struct l2cap_conninfo {
 
 /* L2CAP fixed channels */
 #define L2CAP_FC_L2CAP		0x02
+#define L2CAP_FC_CONNLESS	0x04
 #define L2CAP_FC_A2MP		0x08
 
 /* L2CAP Control Field bit masks */
@@ -237,6 +238,7 @@ struct l2cap_conn_rsp {
 /* protocol/service multiplexer (PSM) */
 #define L2CAP_PSM_SDP		0x0001
 #define L2CAP_PSM_RFCOMM	0x0003
+#define L2CAP_PSM_3DSP		0x0021
 
 /* channel indentifier */
 #define L2CAP_CID_SIGNALING	0x0001
@@ -442,7 +444,12 @@ struct l2cap_chan {
 
 	__u8		state;
 
+	bdaddr_t	dst;
+	__u8		dst_type;
+	bdaddr_t	src;
+	__u8		src_type;
 	__le16		psm;
+	__le16		sport;
 	__u16		dcid;
 	__u16		scid;
 
@@ -452,8 +459,6 @@ struct l2cap_chan {
 	__u8		mode;
 	__u8		chan_type;
 	__u8		chan_policy;
-
-	__le16		sport;
 
 	__u8		sec_level;
 
@@ -549,6 +554,7 @@ struct l2cap_ops {
 						 int state);
 	void			(*ready) (struct l2cap_chan *chan);
 	void			(*defer) (struct l2cap_chan *chan);
+	void			(*resume) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };
@@ -556,9 +562,6 @@ struct l2cap_ops {
 struct l2cap_conn {
 	struct hci_conn		*hcon;
 	struct hci_chan		*hchan;
-
-	bdaddr_t		*dst;
-	bdaddr_t		*src;
 
 	unsigned int		mtu;
 
@@ -650,6 +653,7 @@ enum {
 	FLAG_FLUSHABLE,
 	FLAG_EXT_CTRL,
 	FLAG_EFS_ENABLE,
+	FLAG_DEFER_SETUP,
 };
 
 enum {

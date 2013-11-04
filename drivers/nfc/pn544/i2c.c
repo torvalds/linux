@@ -18,6 +18,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -151,8 +153,7 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 	char rset_cmd[] = { 0x05, 0xF9, 0x04, 0x00, 0xC3, 0xE5 };
 	int count = sizeof(rset_cmd);
 
-	pr_info(DRIVER_DESC ": %s\n", __func__);
-	dev_info(&phy->i2c_dev->dev, "Detecting nfc_en polarity\n");
+	nfc_info(&phy->i2c_dev->dev, "Detecting nfc_en polarity\n");
 
 	/* Disable fw download */
 	gpio_set_value(phy->gpio_fw, 0);
@@ -173,7 +174,7 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 			dev_dbg(&phy->i2c_dev->dev, "Sending reset cmd\n");
 			ret = i2c_master_send(phy->i2c_dev, rset_cmd, count);
 			if (ret == count) {
-				dev_info(&phy->i2c_dev->dev,
+				nfc_info(&phy->i2c_dev->dev,
 					 "nfc_en polarity : active %s\n",
 					 (polarity == 0 ? "low" : "high"));
 				goto out;
@@ -181,7 +182,7 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 		}
 	}
 
-	dev_err(&phy->i2c_dev->dev,
+	nfc_err(&phy->i2c_dev->dev,
 		"Could not detect nfc_en polarity, fallback to active high\n");
 
 out:
@@ -201,7 +202,7 @@ static int pn544_hci_i2c_enable(void *phy_id)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
-	pr_info(DRIVER_DESC ": %s\n", __func__);
+	pr_info("%s\n", __func__);
 
 	pn544_hci_i2c_enable_mode(phy, PN544_HCI_MODE);
 
@@ -213,8 +214,6 @@ static int pn544_hci_i2c_enable(void *phy_id)
 static void pn544_hci_i2c_disable(void *phy_id)
 {
 	struct pn544_i2c_phy *phy = phy_id;
-
-	pr_info(DRIVER_DESC ": %s\n", __func__);
 
 	gpio_set_value(phy->gpio_fw, 0);
 	gpio_set_value(phy->gpio_en, !phy->en_polarity);
@@ -298,11 +297,9 @@ static int check_crc(u8 *buf, int buflen)
 	crc = ~crc;
 
 	if (buf[len - 2] != (crc & 0xff) || buf[len - 1] != (crc >> 8)) {
-		pr_err(PN544_HCI_I2C_DRIVER_NAME
-		       ": CRC error 0x%x != 0x%x 0x%x\n",
+		pr_err("CRC error 0x%x != 0x%x 0x%x\n",
 		       crc, buf[len - 1], buf[len - 2]);
-
-		pr_info(DRIVER_DESC ": %s : BAD CRC\n", __func__);
+		pr_info("%s: BAD CRC\n", __func__);
 		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_NONE,
 			       16, 2, buf, buflen, false);
 		return -EPERM;
@@ -328,13 +325,13 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 
 	r = i2c_master_recv(client, &len, 1);
 	if (r != 1) {
-		dev_err(&client->dev, "cannot read len byte\n");
+		nfc_err(&client->dev, "cannot read len byte\n");
 		return -EREMOTEIO;
 	}
 
 	if ((len < (PN544_HCI_I2C_LLC_MIN_SIZE - 1)) ||
 	    (len > (PN544_HCI_I2C_LLC_MAX_SIZE - 1))) {
-		dev_err(&client->dev, "invalid len byte\n");
+		nfc_err(&client->dev, "invalid len byte\n");
 		r = -EBADMSG;
 		goto flush;
 	}
@@ -386,7 +383,7 @@ static int pn544_hci_i2c_fw_read_status(struct pn544_i2c_phy *phy)
 
 	r = i2c_master_recv(client, (char *) &response, sizeof(response));
 	if (r != sizeof(response)) {
-		dev_err(&client->dev, "cannot read fw status\n");
+		nfc_err(&client->dev, "cannot read fw status\n");
 		return -EIO;
 	}
 
@@ -478,8 +475,7 @@ static int pn544_hci_i2c_fw_download(void *phy_id, const char *firmware_name)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
-	pr_info(DRIVER_DESC ": Starting Firmware Download (%s)\n",
-		firmware_name);
+	pr_info("Starting Firmware Download (%s)\n", firmware_name);
 
 	strcpy(phy->firmware_name, firmware_name);
 
@@ -493,7 +489,7 @@ static int pn544_hci_i2c_fw_download(void *phy_id, const char *firmware_name)
 static void pn544_hci_i2c_fw_work_complete(struct pn544_i2c_phy *phy,
 					   int result)
 {
-	pr_info(DRIVER_DESC ": Firmware Download Complete, result=%d\n", result);
+	pr_info("Firmware Download Complete, result=%d\n", result);
 
 	pn544_hci_i2c_disable(phy);
 
@@ -694,14 +690,14 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 	dev_dbg(&client->dev, "IRQ: %d\n", client->irq);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "Need I2C_FUNC_I2C\n");
+		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
 		return -ENODEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct pn544_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy) {
-		dev_err(&client->dev,
+		nfc_err(&client->dev,
 			"Cannot allocate memory for pn544 i2c phy.\n");
 		return -ENOMEM;
 	}
@@ -714,18 +710,18 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data\n");
+		nfc_err(&client->dev, "No platform data\n");
 		return -EINVAL;
 	}
 
 	if (pdata->request_resources == NULL) {
-		dev_err(&client->dev, "request_resources() missing\n");
+		nfc_err(&client->dev, "request_resources() missing\n");
 		return -EINVAL;
 	}
 
 	r = pdata->request_resources(client);
 	if (r) {
-		dev_err(&client->dev, "Cannot get platform resources\n");
+		nfc_err(&client->dev, "Cannot get platform resources\n");
 		return r;
 	}
 
@@ -739,7 +735,7 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				 PN544_HCI_I2C_DRIVER_NAME, phy);
 	if (r < 0) {
-		dev_err(&client->dev, "Unable to register IRQ handler\n");
+		nfc_err(&client->dev, "Unable to register IRQ handler\n");
 		goto err_rti;
 	}
 

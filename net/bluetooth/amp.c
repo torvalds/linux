@@ -14,9 +14,10 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>
 #include <net/bluetooth/hci_core.h>
-#include <net/bluetooth/a2mp.h>
-#include <net/bluetooth/amp.h>
 #include <crypto/hash.h>
+
+#include "a2mp.h"
+#include "amp.h"
 
 /* Remote AMP Controllers interface */
 void amp_ctrl_get(struct amp_ctrl *ctrl)
@@ -110,7 +111,7 @@ static u8 __next_handle(struct amp_mgr *mgr)
 struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 			     u8 remote_id, bool out)
 {
-	bdaddr_t *dst = mgr->l2cap_conn->dst;
+	bdaddr_t *dst = &mgr->l2cap_conn->hcon->dst;
 	struct hci_conn *hcon;
 
 	hcon = hci_conn_add(hdev, AMP_LINK, dst);
@@ -409,7 +410,8 @@ void amp_create_logical_link(struct l2cap_chan *chan)
 	struct hci_cp_create_accept_logical_link cp;
 	struct hci_dev *hdev;
 
-	BT_DBG("chan %p hs_hcon %p dst %pMR", chan, hs_hcon, chan->conn->dst);
+	BT_DBG("chan %p hs_hcon %p dst %pMR", chan, hs_hcon,
+	       &chan->conn->hcon->dst);
 
 	if (!hs_hcon)
 		return;

@@ -703,6 +703,10 @@ struct ath_hw_ops {
 	void (*spectral_scan_trigger)(struct ath_hw *ah);
 	void (*spectral_scan_wait)(struct ath_hw *ah);
 
+	void (*tx99_start)(struct ath_hw *ah, u32 qnum);
+	void (*tx99_stop)(struct ath_hw *ah);
+	void (*tx99_set_txpower)(struct ath_hw *ah, u8 power);
+
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	void (*set_bt_ant_diversity)(struct ath_hw *hw, bool enable);
 #endif

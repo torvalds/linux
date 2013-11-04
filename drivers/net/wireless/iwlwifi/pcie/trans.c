@@ -220,6 +220,9 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
+	/* Clear the interrupt in APMG if the NIC is in RFKILL */
+	iwl_write_prph(trans, APMG_RTC_INT_STT_REG, APMG_RTC_INT_STT_RFKILL);
+
 	set_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 
 out:
@@ -443,22 +446,138 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 	return ret;
 }
 
+static int iwl_pcie_secure_set(struct iwl_trans *trans, int cpu)
+{
+	int shift_param;
+	u32 address;
+	int ret = 0;
+
+	if (cpu == 1) {
+		shift_param = 0;
+		address = CSR_SECURE_BOOT_CPU1_STATUS_ADDR;
+	} else {
+		shift_param = 16;
+		address = CSR_SECURE_BOOT_CPU2_STATUS_ADDR;
+	}
+
+	/* set CPU to started */
+	iwl_trans_set_bits_mask(trans,
+				CSR_UCODE_LOAD_STATUS_ADDR,
+				CSR_CPU_STATUS_LOADING_STARTED << shift_param,
+				1);
+
+	/* set last complete descriptor number */
+	iwl_trans_set_bits_mask(trans,
+				CSR_UCODE_LOAD_STATUS_ADDR,
+				CSR_CPU_STATUS_NUM_OF_LAST_COMPLETED
+				<< shift_param,
+				1);
+
+	/* set last loaded block */
+	iwl_trans_set_bits_mask(trans,
+				CSR_UCODE_LOAD_STATUS_ADDR,
+				CSR_CPU_STATUS_NUM_OF_LAST_LOADED_BLOCK
+				<< shift_param,
+				1);
+
+	/* image loading complete */
+	iwl_trans_set_bits_mask(trans,
+				CSR_UCODE_LOAD_STATUS_ADDR,
+				CSR_CPU_STATUS_LOADING_COMPLETED
+				<< shift_param,
+				1);
+
+	/* set FH_TCSR_0_REG  */
+	iwl_trans_set_bits_mask(trans, FH_TCSR_0_REG0, 0x00400000, 1);
+
+	/* verify image verification started  */
+	ret = iwl_poll_bit(trans, address,
+			   CSR_SECURE_BOOT_CPU_STATUS_VERF_STATUS,
+			   CSR_SECURE_BOOT_CPU_STATUS_VERF_STATUS,
+			   CSR_SECURE_TIME_OUT);
+	if (ret < 0) {
+		IWL_ERR(trans, "secure boot process didn't start\n");
+		return ret;
+	}
+
+	/* wait for image verification to complete  */
+	ret = iwl_poll_bit(trans, address,
+			   CSR_SECURE_BOOT_CPU_STATUS_VERF_COMPLETED,
+			   CSR_SECURE_BOOT_CPU_STATUS_VERF_COMPLETED,
+			   CSR_SECURE_TIME_OUT);
+
+	if (ret < 0) {
+		IWL_ERR(trans, "Time out on secure boot process\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
 	int i, ret = 0;
 
-	for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
+	IWL_DEBUG_FW(trans,
+		     "working with %s image\n",
+		     image->is_secure ? "Secured" : "Non Secured");
+	IWL_DEBUG_FW(trans,
+		     "working with %s CPU\n",
+		     image->is_dual_cpus ? "Dual" : "Single");
+
+	/* configure the ucode to be ready to get the secured image */
+	if (image->is_secure) {
+		/* set secure boot inspector addresses */
+		iwl_write32(trans, CSR_SECURE_INSPECTOR_CODE_ADDR, 0);
+		iwl_write32(trans, CSR_SECURE_INSPECTOR_DATA_ADDR, 0);
+
+		/* release CPU1 reset if secure inspector image burned in OTP */
+		iwl_write32(trans, CSR_RESET, 0);
+	}
+
+	/* load to FW the binary sections of CPU1 */
+	IWL_DEBUG_INFO(trans, "Loading CPU1\n");
+	for (i = 0;
+	     i < IWL_UCODE_FIRST_SECTION_OF_SECOND_CPU;
+	     i++) {
 		if (!image->sec[i].data)
 			break;
-
 		ret = iwl_pcie_load_section(trans, i, &image->sec[i]);
 		if (ret)
 			return ret;
 	}
 
-	/* Remove all resets to allow NIC to operate */
-	iwl_write32(trans, CSR_RESET, 0);
+	/* configure the ucode to start secure process on CPU1 */
+	if (image->is_secure) {
+		/* config CPU1 to start secure protocol */
+		ret = iwl_pcie_secure_set(trans, 1);
+		if (ret)
+			return ret;
+	} else {
+		/* Remove all resets to allow NIC to operate */
+		iwl_write32(trans, CSR_RESET, 0);
+	}
+
+	if (image->is_dual_cpus) {
+		/* load to FW the binary sections of CPU2 */
+		IWL_DEBUG_INFO(trans, "working w/ DUAL CPUs - Loading CPU2\n");
+		for (i = IWL_UCODE_FIRST_SECTION_OF_SECOND_CPU;
+			i < IWL_UCODE_SECTION_MAX; i++) {
+			if (!image->sec[i].data)
+				break;
+			ret = iwl_pcie_load_section(trans, i, &image->sec[i]);
+			if (ret)
+				return ret;
+		}
+
+		if (image->is_secure) {
+			/* set CPU2 for secure protocol */
+			ret = iwl_pcie_secure_set(trans, 2);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return 0;
 }

@@ -3483,6 +3483,15 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
 					       u32 center_freq);
 
+/**
+ * reg_initiator_name - map regulatory request initiator enum to name
+ * @initiator: the regulatory request initiator
+ *
+ * You can use this to map the regulatory request initiator enum to a
+ * proper string representation.
+ */
+const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
+
 /*
  * callbacks for asynchronous cfg80211 methods, notification
  * functions and BSS handling helpers

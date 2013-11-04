@@ -19,10 +19,10 @@
 #include <linux/nfc.h>
 #include <net/nfc/nfc.h>
 
-#define DEV_ERR(_dev, fmt, args...) nfc_dev_err(&_dev->nfc_dev->dev, \
+#define DEV_ERR(_dev, fmt, args...) nfc_err(&_dev->nfc_dev->dev, \
 						"%s: " fmt, __func__, ## args)
 
-#define DEV_DBG(_dev, fmt, args...) nfc_dev_dbg(&_dev->nfc_dev->dev, \
+#define DEV_DBG(_dev, fmt, args...) dev_dbg(&_dev->nfc_dev->dev, \
 						"%s: " fmt, __func__, ## args)
 
 #define NFCSIM_VERSION "0.1"
@@ -64,7 +64,7 @@ static struct workqueue_struct *wq;
 
 static void nfcsim_cleanup_dev(struct nfcsim *dev, u8 shutdown)
 {
-	DEV_DBG(dev, "shutdown=%d", shutdown);
+	DEV_DBG(dev, "shutdown=%d\n", shutdown);
 
 	mutex_lock(&dev->lock);
 
@@ -84,7 +84,7 @@ static int nfcsim_target_found(struct nfcsim *dev)
 {
 	struct nfc_target nfc_tgt;
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	memset(&nfc_tgt, 0, sizeof(struct nfc_target));
 
@@ -98,7 +98,7 @@ static int nfcsim_dev_up(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	mutex_lock(&dev->lock);
 
@@ -113,7 +113,7 @@ static int nfcsim_dev_down(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	mutex_lock(&dev->lock);
 
@@ -143,7 +143,7 @@ static int nfcsim_dep_link_up(struct nfc_dev *nfc_dev,
 
 	remote_gb = nfc_get_local_general_bytes(peer->nfc_dev, &remote_gb_len);
 	if (!remote_gb) {
-		DEV_ERR(peer, "Can't get remote general bytes");
+		DEV_ERR(peer, "Can't get remote general bytes\n");
 
 		mutex_unlock(&peer->lock);
 		return -EINVAL;
@@ -155,7 +155,7 @@ static int nfcsim_dep_link_up(struct nfc_dev *nfc_dev,
 
 	rc = nfc_set_remote_general_bytes(nfc_dev, remote_gb, remote_gb_len);
 	if (rc) {
-		DEV_ERR(dev, "Can't set remote general bytes");
+		DEV_ERR(dev, "Can't set remote general bytes\n");
 		mutex_unlock(&dev->lock);
 		return rc;
 	}
@@ -172,7 +172,7 @@ static int nfcsim_dep_link_down(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	nfcsim_cleanup_dev(dev, 0);
 
@@ -188,7 +188,7 @@ static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
 	mutex_lock(&dev->lock);
 
 	if (dev->polling_mode != NFCSIM_POLL_NONE) {
-		DEV_ERR(dev, "Already in polling mode");
+		DEV_ERR(dev, "Already in polling mode\n");
 		rc = -EBUSY;
 		goto exit;
 	}
@@ -200,7 +200,7 @@ static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
 		dev->polling_mode |= NFCSIM_POLL_TARGET;
 
 	if (dev->polling_mode == NFCSIM_POLL_NONE) {
-		DEV_ERR(dev, "Unsupported polling mode");
+		DEV_ERR(dev, "Unsupported polling mode\n");
 		rc = -EINVAL;
 		goto exit;
 	}
@@ -210,7 +210,7 @@ static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
 
 	queue_delayed_work(wq, &dev->poll_work, 0);
 
-	DEV_DBG(dev, "Start polling: im: 0x%X, tm: 0x%X", im_protocols,
+	DEV_DBG(dev, "Start polling: im: 0x%X, tm: 0x%X\n", im_protocols,
 		tm_protocols);
 
 	rc = 0;
@@ -224,7 +224,7 @@ static void nfcsim_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "Stop poll");
+	DEV_DBG(dev, "Stop poll\n");
 
 	mutex_lock(&dev->lock);
 
@@ -240,7 +240,7 @@ static int nfcsim_activate_target(struct nfc_dev *nfc_dev,
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	return -ENOTSUPP;
 }
@@ -250,7 +250,7 @@ static void nfcsim_deactivate_target(struct nfc_dev *nfc_dev,
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 }
 
 static void nfcsim_wq_recv(struct work_struct *work)
@@ -267,7 +267,7 @@ static void nfcsim_wq_recv(struct work_struct *work)
 
 	if (dev->initiator) {
 		if (!dev->cb) {
-			DEV_ERR(dev, "Null recv callback");
+			DEV_ERR(dev, "Null recv callback\n");
 			dev_kfree_skb(dev->clone_skb);
 			goto exit;
 		}
@@ -310,7 +310,7 @@ static int nfcsim_tx(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	peer->clone_skb = skb_clone(skb, GFP_KERNEL);
 
 	if (!peer->clone_skb) {
-		DEV_ERR(dev, "skb_clone failed");
+		DEV_ERR(dev, "skb_clone failed\n");
 		mutex_unlock(&peer->lock);
 		err = -ENOMEM;
 		goto exit;
@@ -397,13 +397,13 @@ static void nfcsim_wq_poll(struct work_struct *work)
 	nfcsim_set_polling_mode(dev);
 
 	if (dev->curr_polling_mode == NFCSIM_POLL_NONE) {
-		DEV_DBG(dev, "Not polling");
+		DEV_DBG(dev, "Not polling\n");
 		goto unlock;
 	}
 
 	DEV_DBG(dev, "Polling as %s",
 		dev->curr_polling_mode == NFCSIM_POLL_INITIATOR ?
-		"initiator" : "target");
+		"initiator\n" : "target\n");
 
 	if (dev->curr_polling_mode == NFCSIM_POLL_TARGET)
 		goto sched_work;
