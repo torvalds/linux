@@ -226,9 +226,9 @@ static const u32 ext_diag_registers[] = {
 
 static inline int qlcnic_get_ring_regs_len(struct qlcnic_adapter *adapter)
 {
-	int ring_regs_cnt = (adapter->max_drv_tx_rings * 5) +
+	int ring_regs_cnt = (adapter->drv_tx_rings * 5) +
 			    (adapter->max_rds_rings * 2) +
-			    (adapter->max_sds_rings * 3) + 5;
+			    (adapter->drv_sds_rings * 3) + 5;
 	return ring_regs_cnt * sizeof(u32);
 }
 
@@ -530,8 +530,8 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	/* Marker btw regs and TX ring count */
 	regs_buff[i++] = 0xFFEFCDAB;
 
-	regs_buff[i++] = adapter->max_drv_tx_rings; /* No. of TX ring */
-	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+	regs_buff[i++] = adapter->drv_tx_rings; /* No. of TX ring */
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
 		regs_buff[i++] = le32_to_cpu(*(tx_ring->hw_consumer));
 		regs_buff[i++] = tx_ring->sw_consumer;
@@ -550,8 +550,8 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 		regs_buff[i++] = rds_rings->producer;
 	}
 
-	regs_buff[i++] = adapter->max_sds_rings; /* No. of SDS ring */
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+	regs_buff[i++] = adapter->drv_sds_rings; /* No. of SDS ring */
+	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &(recv_ctx->sds_rings[ring]);
 		regs_buff[i++] = readl(sds_ring->crb_sts_consumer);
 		regs_buff[i++] = sds_ring->consumer;
@@ -664,46 +664,88 @@ qlcnic_set_ringparam(struct net_device *dev,
 	return qlcnic_reset_context(adapter);
 }
 
+static int qlcnic_validate_ring_count(struct qlcnic_adapter *adapter,
+				      u8 rx_ring, u8 tx_ring)
+{
+	if (rx_ring != 0) {
+		if (rx_ring > adapter->max_sds_rings) {
+			netdev_err(adapter->netdev, "Invalid ring count, SDS ring count %d should not be greater than max %d driver sds rings.\n",
+				   rx_ring, adapter->max_sds_rings);
+			return -EINVAL;
+		}
+	}
+
+	 if (tx_ring != 0) {
+		if (qlcnic_82xx_check(adapter) &&
+		    (tx_ring > adapter->max_tx_rings)) {
+			netdev_err(adapter->netdev,
+				   "Invalid ring count, Tx ring count %d should not be greater than max %d driver Tx rings.\n",
+				   tx_ring, adapter->max_tx_rings);
+			return -EINVAL;
+		}
+
+		if (qlcnic_83xx_check(adapter) &&
+		    (tx_ring > QLCNIC_SINGLE_RING)) {
+			netdev_err(adapter->netdev,
+				   "Invalid ring count, Tx ring count %d should not be greater than %d driver Tx rings.\n",
+				   tx_ring, QLCNIC_SINGLE_RING);
+			 return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static void qlcnic_get_channels(struct net_device *dev,
 		struct ethtool_channels *channel)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	int min;
 
-	min = min_t(int, adapter->ahw->max_rx_ques, num_online_cpus());
-	channel->max_rx = rounddown_pow_of_two(min);
-	channel->max_tx = min_t(int, QLCNIC_MAX_TX_RINGS, num_online_cpus());
-
-	channel->rx_count = adapter->max_sds_rings;
-	channel->tx_count = adapter->max_drv_tx_rings;
+	channel->max_rx = adapter->max_sds_rings;
+	channel->max_tx = adapter->max_tx_rings;
+	channel->rx_count = adapter->drv_sds_rings;
+	channel->tx_count = adapter->drv_tx_rings;
 }
 
 static int qlcnic_set_channels(struct net_device *dev,
-		struct ethtool_channels *channel)
+			       struct ethtool_channels *channel)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int err;
-	int txq = 0;
 
 	if (channel->other_count || channel->combined_count)
 		return -EINVAL;
 
+	err = qlcnic_validate_ring_count(adapter, channel->rx_count,
+					 channel->tx_count);
+	if (err)
+		return err;
+
 	if (channel->rx_count) {
-		err = qlcnic_validate_max_rss(adapter, channel->rx_count);
-		if (err)
+		err = qlcnic_validate_rings(adapter, channel->rx_count,
+					    QLCNIC_RX_QUEUE);
+		if (err) {
+			netdev_err(dev, "Unable to configure %u SDS rings\n",
+				   channel->rx_count);
 			return err;
+		}
 	}
 
 	if (qlcnic_82xx_check(adapter) && channel->tx_count) {
-		err = qlcnic_validate_max_tx_rings(adapter, channel->tx_count);
-		if (err)
+		err = qlcnic_validate_rings(adapter, channel->tx_count,
+					    QLCNIC_TX_QUEUE);
+		if (err) {
+			netdev_err(dev, "Unable to configure %u Tx rings\n",
+				   channel->tx_count);
 			return err;
-		txq = channel->tx_count;
+		}
 	}
 
-	err = qlcnic_set_max_rss(adapter, channel->rx_count, txq);
-	netdev_info(dev, "allocated 0x%x sds rings and  0x%x tx rings\n",
-		    adapter->max_sds_rings, adapter->max_drv_tx_rings);
+	err = qlcnic_setup_rings(adapter, channel->rx_count,
+				 channel->tx_count);
+	netdev_info(dev, "Allocated %d SDS rings and %d Tx rings\n",
+		    adapter->drv_sds_rings, adapter->drv_tx_rings);
+
 	return err;
 }
 
@@ -905,7 +947,7 @@ static int qlcnic_irq_test(struct net_device *netdev)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
-	int ret, max_sds_rings = adapter->max_sds_rings;
+	int ret, drv_sds_rings = adapter->drv_sds_rings;
 
 	if (qlcnic_83xx_check(adapter))
 		return qlcnic_83xx_interrupt_test(netdev);
@@ -934,10 +976,10 @@ done:
 	qlcnic_free_mbx_args(&cmd);
 
 free_diag_res:
-	qlcnic_diag_free_res(netdev, max_sds_rings);
+	qlcnic_diag_free_res(netdev, drv_sds_rings);
 
 clear_diag_irq:
-	adapter->max_sds_rings = max_sds_rings;
+	adapter->drv_sds_rings = drv_sds_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 
 	return ret;
@@ -1013,8 +1055,8 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int max_drv_tx_rings = adapter->max_drv_tx_rings;
-	int max_sds_rings = adapter->max_sds_rings;
+	int drv_tx_rings = adapter->drv_tx_rings;
+	int drv_sds_rings = adapter->drv_sds_rings;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int loop = 0;
@@ -1069,11 +1111,11 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	qlcnic_clear_lb_mode(adapter, mode);
 
  free_res:
-	qlcnic_diag_free_res(netdev, max_sds_rings);
+	qlcnic_diag_free_res(netdev, drv_sds_rings);
 
  clear_it:
-	adapter->max_sds_rings = max_sds_rings;
-	adapter->max_drv_tx_rings = max_drv_tx_rings;
+	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return ret;
 }
@@ -1127,7 +1169,7 @@ qlcnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		break;
 	case ETH_SS_STATS:
 		num_stats = ARRAY_SIZE(qlcnic_tx_queue_stats_strings);
-		for (i = 0; i < adapter->max_drv_tx_rings; i++) {
+		for (i = 0; i < adapter->drv_tx_rings; i++) {
 			for (index = 0; index < num_stats; index++) {
 				sprintf(data, "tx_queue_%d %s", i,
 					qlcnic_tx_queue_stats_strings[index]);
@@ -1233,7 +1275,7 @@ static void qlcnic_update_stats(struct qlcnic_adapter *adapter)
 	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
 
-	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
 		adapter->stats.xmit_on += tx_ring->tx_stats.xmit_on;
 		adapter->stats.xmit_off += tx_ring->tx_stats.xmit_off;
@@ -1268,10 +1310,10 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 	int index, ret, length, size, tx_size, ring;
 	char *p;
 
-	tx_size = adapter->max_drv_tx_rings * QLCNIC_TX_STATS_LEN;
+	tx_size = adapter->drv_tx_rings * QLCNIC_TX_STATS_LEN;
 
 	memset(data, 0, tx_size * sizeof(u64));
-	for (ring = 0, index = 0; ring < adapter->max_drv_tx_rings; ring++) {
+	for (ring = 0, index = 0; ring < adapter->drv_tx_rings; ring++) {
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			tx_ring = &adapter->tx_ring[ring];
 			data = qlcnic_fill_tx_queue_stats(data, tx_ring);
@@ -1320,7 +1362,7 @@ static int qlcnic_set_led(struct net_device *dev,
 			  enum ethtool_phys_id_state state)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	int max_sds_rings = adapter->max_sds_rings;
+	int drv_sds_rings = adapter->drv_sds_rings;
 	int err = -EIO, active = 1;
 
 	if (qlcnic_83xx_check(adapter))
@@ -1378,7 +1420,7 @@ static int qlcnic_set_led(struct net_device *dev,
 	}
 
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
-		qlcnic_diag_free_res(dev, max_sds_rings);
+		qlcnic_diag_free_res(dev, drv_sds_rings);
 
 	if (!active || err)
 		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);

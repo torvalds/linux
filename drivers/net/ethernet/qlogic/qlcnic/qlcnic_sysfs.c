@@ -156,7 +156,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 				    const char *buf, size_t len)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	int err, max_sds_rings = adapter->max_sds_rings;
+	int err, drv_sds_rings = adapter->drv_sds_rings;
 	u16 beacon;
 	u8 h_beacon_state, b_state, b_rate;
 
@@ -211,7 +211,7 @@ static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
 	}
 
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
-		qlcnic_diag_free_res(adapter->netdev, max_sds_rings);
+		qlcnic_diag_free_res(adapter->netdev, drv_sds_rings);
 
 out:
 	if (!ahw->beacon_state)

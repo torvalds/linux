@@ -508,7 +508,11 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 		dev_warn(&adapter->pdev->dev,
 			 "Device does not support MSI interrupts\n");
 
-	err = qlcnic_setup_intr(adapter, 1, 0);
+	/* compute and set default and max tx/sds rings */
+	qlcnic_set_tx_ring_count(adapter, QLCNIC_SINGLE_RING);
+	qlcnic_set_sds_ring_count(adapter, QLCNIC_SINGLE_RING);
+
+	err = qlcnic_setup_intr(adapter);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to setup interrupt\n");
 		goto err_out_disable_msi;
