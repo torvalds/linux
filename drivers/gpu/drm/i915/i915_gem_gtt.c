@@ -869,11 +869,27 @@ static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
 	return snb_gmch_ctl << 20;
 }
 
+static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
+{
+	bdw_gmch_ctl >>= BDW_GMCH_GGMS_SHIFT;
+	bdw_gmch_ctl &= BDW_GMCH_GGMS_MASK;
+	if (bdw_gmch_ctl)
+		bdw_gmch_ctl = 1 << bdw_gmch_ctl;
+	return bdw_gmch_ctl << 20;
+}
+
 static inline size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
 	return snb_gmch_ctl << 25; /* 32 MB units */
+}
+
+static inline size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
+{
+	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
+	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
+	return bdw_gmch_ctl << 25; /* 32 MB units */
 }
 
 static int gen6_gmch_probe(struct drm_device *dev,
@@ -903,10 +919,16 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
-	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
 
-	*stolen = gen6_get_stolen_size(snb_gmch_ctl);
-	*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
+	if (IS_GEN8(dev)) {
+		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+		*gtt_total = (gtt_size / 8) << PAGE_SHIFT;
+		*stolen = gen8_get_stolen_size(snb_gmch_ctl);
+	} else {
+		gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
+		*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
+		*stolen = gen6_get_stolen_size(snb_gmch_ctl);
+	}
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
 	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
@@ -916,6 +938,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	if (!dev_priv->gtt.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		return -ENOMEM;
+
 	}
 
 	ret = setup_scratch_page(dev);
