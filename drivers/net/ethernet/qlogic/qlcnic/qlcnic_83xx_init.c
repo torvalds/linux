@@ -2190,12 +2190,16 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 			return err;
 	}
 
+	if (qlcnic_83xx_read_flash_descriptor_table(adapter) ||
+	    qlcnic_83xx_read_flash_mfg_id(adapter)) {
+		dev_err(&adapter->pdev->dev, "Failed reading flash mfg id\n");
+		err = -ENOTRECOVERABLE;
+		goto detach_mbx;
+	}
+
 	err = qlcnic_83xx_check_hw_status(adapter);
 	if (err)
 		goto detach_mbx;
-
-	if (!qlcnic_83xx_read_flash_descriptor_table(adapter))
-		qlcnic_83xx_read_flash_mfg_id(adapter);
 
 	err = qlcnic_83xx_get_fw_info(adapter);
 	if (err)
@@ -2203,7 +2207,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 
 	err = qlcnic_83xx_idc_init(adapter);
 	if (err)
-		goto clear_fw_info;
+		goto detach_mbx;
 
 	err = qlcnic_setup_intr(adapter, 0, 0);
 	if (err) {
@@ -2247,12 +2251,10 @@ disable_mbx_intr:
 disable_intr:
 	qlcnic_teardown_intr(adapter);
 
-clear_fw_info:
-	kfree(ahw->fw_info);
-
 detach_mbx:
 	qlcnic_83xx_detach_mailbox_work(adapter);
 	qlcnic_83xx_free_mailbox(ahw->mailbox);
+	ahw->mailbox = NULL;
 exit:
 	return err;
 }

@@ -325,7 +325,8 @@ inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
 
 inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapter)
 {
-	writel(1, adapter->tgt_mask_reg);
+	if (adapter->tgt_mask_reg)
+		writel(1, adapter->tgt_mask_reg);
 }
 
 /* Enable MSI-x and INT-x interrupts */
@@ -498,8 +499,11 @@ void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *adapter)
 		num_msix = 0;
 
 	msleep(20);
-	synchronize_irq(adapter->msix_entries[num_msix].vector);
-	free_irq(adapter->msix_entries[num_msix].vector, adapter);
+
+	if (adapter->msix_entries) {
+		synchronize_irq(adapter->msix_entries[num_msix].vector);
+		free_irq(adapter->msix_entries[num_msix].vector, adapter);
+	}
 }
 
 int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
@@ -759,6 +763,9 @@ int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *adapter,
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int cmd_type, err, opcode;
 	unsigned long timeout;
+
+	if (!mbx)
+		return -EIO;
 
 	opcode = LSW(cmd->req.arg[0]);
 	cmd_type = cmd->type;
@@ -3049,11 +3056,14 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 	int status = 0;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	/* Get port configuration info */
-	status = qlcnic_83xx_get_port_info(adapter);
-	/* Get Link Status related info */
-	config = qlcnic_83xx_test_link(adapter);
-	ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
+	if (!test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
+		/* Get port configuration info */
+		status = qlcnic_83xx_get_port_info(adapter);
+		/* Get Link Status related info */
+		config = qlcnic_83xx_test_link(adapter);
+		ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
+	}
+
 	/* hard code until there is a way to get it from flash */
 	ahw->board_type = QLCNIC_BRDTYPE_83XX_10G;
 
@@ -3530,6 +3540,9 @@ void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx)
 
 void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx)
 {
+	if (!mbx)
+		return;
+
 	destroy_workqueue(mbx->work_q);
 	kfree(mbx);
 }
@@ -3649,6 +3662,9 @@ static void qlcnic_83xx_encode_mbx_cmd(struct qlcnic_adapter *adapter,
 void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
+
+	if (!mbx)
+		return;
 
 	clear_bit(QLC_83XX_MBX_READY, &mbx->status);
 	complete(&mbx->completion);

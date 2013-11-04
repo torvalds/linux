@@ -961,6 +961,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_SRIOV_CAPABLE		11
 #define __QLCNIC_MBX_POLL_ENABLE	12
 #define __QLCNIC_DIAG_MODE		13
+#define __QLCNIC_MAINTENANCE_MODE	16
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2

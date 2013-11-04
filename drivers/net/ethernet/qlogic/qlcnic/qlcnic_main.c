@@ -2307,10 +2307,23 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		qlcnic_83xx_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
 		err = qlcnic_83xx_init(adapter, pci_using_dac);
+
 		if (err) {
-			dev_err(&pdev->dev, "%s: failed\n", __func__);
-			goto err_out_free_hw;
+			switch (err) {
+			case -ENOTRECOVERABLE:
+				dev_err(&pdev->dev, "Adapter initialization failed due to a faulty hardware. Please reboot\n");
+				dev_err(&pdev->dev, "If reboot doesn't help, please replace the adapter with new one and return the faulty adapter for repair\n");
+				goto err_out_free_hw;
+			case -ENOMEM:
+				dev_err(&pdev->dev, "Adapter initialization failed. Please reboot\n");
+				goto err_out_free_hw;
+			default:
+				dev_err(&pdev->dev, "Adapter initialization failed. A reboot may be required to recover from this failure\n");
+				dev_err(&pdev->dev, "If reboot does not help to recover from this failure, try a flash update of the adapter\n");
+				goto err_out_maintenance_mode;
+			}
 		}
+
 		if (qlcnic_sriov_vf_check(adapter))
 			return 0;
 	} else {
@@ -2412,8 +2425,16 @@ err_out_disable_pdev:
 	return err;
 
 err_out_maintenance_mode:
+	set_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state);
 	netdev->netdev_ops = &qlcnic_netdev_failed_ops;
 	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_failed_ops);
+	ahw->port_type = QLCNIC_XGBE;
+
+	if (qlcnic_83xx_check(adapter))
+		adapter->tgt_status_reg = NULL;
+	else
+		ahw->board_type = QLCNIC_BRDTYPE_P3P_10G_SFP_PLUS;
+
 	err = register_netdev(netdev);
 
 	if (err) {
@@ -2535,12 +2556,11 @@ static int qlcnic_resume(struct pci_dev *pdev)
 static int qlcnic_open(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	u32 state;
 	int err;
 
-	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state == QLCNIC_DEV_FAILED || state == QLCNIC_DEV_BADBAD) {
-		netdev_err(netdev, "%s: Device is in FAILED state\n", __func__);
+	if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
+		netdev_err(netdev, "%s: Device is in non-operational state\n",
+			   __func__);
 
 		return -EIO;
 	}
@@ -3253,8 +3273,9 @@ void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *adapter, u32 key)
 		return;
 
 	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state == QLCNIC_DEV_FAILED || state == QLCNIC_DEV_BADBAD) {
-		netdev_err(adapter->netdev, "%s: Device is in FAILED state\n",
+
+	if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
+		netdev_err(adapter->netdev, "%s: Device is in non-operational state\n",
 			   __func__);
 		qlcnic_api_unlock(adapter);
 

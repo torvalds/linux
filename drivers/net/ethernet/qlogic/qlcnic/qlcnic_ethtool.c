@@ -1685,7 +1685,6 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 	bool valid_mask = false;
 	int i, ret = 0;
-	u32 state;
 
 	switch (val->flag) {
 	case QLCNIC_FORCE_FW_DUMP_KEY:
@@ -1738,9 +1737,8 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 
 	case QLCNIC_SET_QUIESCENT:
 	case QLCNIC_RESET_QUIESCENT:
-		state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
-		if (state == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD))
-			netdev_info(netdev, "Device in FAILED state\n");
+		if (test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state))
+			netdev_info(netdev, "Device is in non-operational state\n");
 		break;
 
 	default:
