@@ -274,12 +274,6 @@ void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
 	if (label == NULL)
 		return;
 
-	if (nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL) == 0)
-		return;
-
-	if (NFS_SERVER(inode)->nfs_client->cl_minorversion < 2)
-		return;
-
 	if ((fattr->valid & NFS_ATTR_FATTR_V4_SECURITY_LABEL) && inode->i_security) {
 		error = security_inode_notifysecctx(inode, label->label,
 				label->len);
