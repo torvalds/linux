@@ -439,24 +439,20 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING) {
 			u32 v = readl(host->ioaddr + SDHCI_ACMD12_ERR);
 			u32 m = readl(host->ioaddr + ESDHC_MIX_CTRL);
-			new_val = readl(host->ioaddr + ESDHC_TUNING_CTRL);
-			if (val & SDHCI_CTRL_EXEC_TUNING) {
-				new_val |= ESDHC_STD_TUNING_EN |
-						ESDHC_TUNING_START_TAP;
-				v |= ESDHC_MIX_CTRL_EXE_TUNE;
-				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
+			if (val & SDHCI_CTRL_TUNED_CLK) {
+				v |= ESDHC_MIX_CTRL_SMPCLK_SEL;
 			} else {
-				new_val &= ~ESDHC_STD_TUNING_EN;
-				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
+				v &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
 				m &= ~ESDHC_MIX_CTRL_FBCLK_SEL;
 			}
 
-			if (val & SDHCI_CTRL_TUNED_CLK)
-				v |= ESDHC_MIX_CTRL_SMPCLK_SEL;
-			else
-				v &= ~ESDHC_MIX_CTRL_SMPCLK_SEL;
+			if (val & SDHCI_CTRL_EXEC_TUNING) {
+				v |= ESDHC_MIX_CTRL_EXE_TUNE;
+				m |= ESDHC_MIX_CTRL_FBCLK_SEL;
+			} else {
+				v &= ~ESDHC_MIX_CTRL_EXE_TUNE;
+			}
 
-			writel(new_val, host->ioaddr + ESDHC_TUNING_CTRL);
 			writel(v, host->ioaddr + SDHCI_ACMD12_ERR);
 			writel(m, host->ioaddr + ESDHC_MIX_CTRL);
 		}
@@ -1038,6 +1034,12 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
 		sdhci_esdhc_ops.platform_execute_tuning =
 					esdhc_executing_tuning;
+
+	if (imx_data->socdata->flags & ESDHC_FLAG_STD_TUNING)
+		writel(readl(host->ioaddr + ESDHC_TUNING_CTRL) |
+			ESDHC_STD_TUNING_EN | ESDHC_TUNING_START_TAP,
+			host->ioaddr + ESDHC_TUNING_CTRL);
+
 	boarddata = &imx_data->boarddata;
 	if (sdhci_esdhc_imx_probe_dt(pdev, boarddata) < 0) {
 		if (!host->mmc->parent->platform_data) {
