@@ -4034,6 +4034,8 @@ static inline int calc_reclaim_items_nr(struct btrfs_root *root, u64 to_reclaim)
 	return nr;
 }
 
+#define EXTENT_SIZE_PER_ITEM	(256 * 1024)
+
 /*
  * shrink metadata reservation for delalloc
  */
@@ -4049,6 +4051,10 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	unsigned long nr_pages;
 	int loops;
 	enum btrfs_reserve_flush_enum flush;
+
+	/* Calc the number of the pages we need flush for space reservation */
+	to_reclaim = calc_reclaim_items_nr(root, to_reclaim);
+	to_reclaim *= EXTENT_SIZE_PER_ITEM;
 
 	trans = (struct btrfs_trans_handle *)current->journal_info;
 	block_rsv = &root->fs_info->delalloc_block_rsv;
