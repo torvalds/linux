@@ -269,7 +269,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if (addr > 0)
 			break;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-		ret = put_user(child->thread.dac1, (u32 __user *)data);
+		ret = put_user(child->thread.debug.dac1, (u32 __user *)data);
 #else
 		dabr_fake = (
 			(child->thread.hw_brk.address & (~HW_BRK_TYPE_DABR)) |
