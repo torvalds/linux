@@ -108,6 +108,7 @@ void tzic_handle_irq(struct pt_regs *);
 #define imx27_handle_irq avic_handle_irq
 #define imx31_handle_irq avic_handle_irq
 #define imx35_handle_irq avic_handle_irq
+#define imx50_handle_irq tzic_handle_irq
 #define imx51_handle_irq tzic_handle_irq
 #define imx53_handle_irq tzic_handle_irq
 
