@@ -4227,7 +4227,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 		err = ret;
 		goto out;
 	}
-	btrfs_wait_all_ordered_extents(fs_info);
+	btrfs_wait_ordered_roots(fs_info, -1);
 
 	while (1) {
 		mutex_lock(&fs_info->cleaner_mutex);
