@@ -1045,13 +1045,9 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	}
 
 	op->type = OP_REG;
-	if (ctxt->d & ByteOp) {
-		op->addr.reg = decode_register(ctxt, reg, true);
-		op->bytes = 1;
-	} else {
-		op->addr.reg = decode_register(ctxt, reg, false);
-		op->bytes = ctxt->op_bytes;
-	}
+	op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+	op->addr.reg = decode_register(ctxt, reg, ctxt->d & ByteOp);
+
 	fetch_register_operand(op);
 	op->orig_val = op->val;
 }
