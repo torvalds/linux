@@ -420,11 +420,10 @@ enum {
 
 struct gfs2_quota_data {
 	struct list_head qd_list;
-	struct list_head qd_reclaim;
-
-	struct lockref qd_lockref;
-
 	struct kqid qd_id;
+	struct lockref qd_lockref;
+	struct list_head qd_lru;
+
 	unsigned long qd_flags;		/* QDF_... */
 
 	s64 qd_change;
