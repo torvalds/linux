@@ -146,17 +146,17 @@ asmlinkage void secondary_start_kernel(void)
 		cpu_ops[cpu]->cpu_postboot();
 
 	/*
+	 * Enable GIC and timers.
+	 */
+	notify_cpu_starting(cpu);
+
+	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
 	 * the CPU migration code to notice that the CPU is online
 	 * before we continue.
 	 */
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
-
-	/*
-	 * Enable GIC and timers.
-	 */
-	notify_cpu_starting(cpu);
 
 	local_irq_enable();
 	local_fiq_enable();
