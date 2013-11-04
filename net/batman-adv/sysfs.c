@@ -327,10 +327,10 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
-static void batadv_post_gw_deselect(struct net_device *net_dev)
+static void batadv_post_gw_reselect(struct net_device *net_dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	batadv_gw_deselect(bat_priv);
+	batadv_gw_reselect(bat_priv);
 }
 
 static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
@@ -415,7 +415,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	 * client mode re-activation. This is operation is performed in
 	 * batadv_gw_check_client_stop().
 	 */
-	batadv_gw_deselect(bat_priv);
+	batadv_gw_reselect(bat_priv);
 	/* always call batadv_gw_check_client_stop() before changing the gateway
 	 * state
 	 */
@@ -468,7 +468,7 @@ BATADV_ATTR_SIF_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * BATADV_JITTER,
 BATADV_ATTR_SIF_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, BATADV_TQ_MAX_VALUE,
 		     NULL);
 BATADV_ATTR_SIF_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, BATADV_TQ_MAX_VALUE,
-		     batadv_post_gw_deselect);
+		     batadv_post_gw_reselect);
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG

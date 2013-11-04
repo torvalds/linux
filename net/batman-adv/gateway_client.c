@@ -103,7 +103,18 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
 
-void batadv_gw_deselect(struct batadv_priv *bat_priv)
+/**
+ * batadv_gw_reselect - force a gateway reselection
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Set a flag to remind the GW component to perform a new gateway reselection.
+ * However this function does not ensure that the current gateway is going to be
+ * deselected. The reselection mechanism may elect the same gateway once again.
+ *
+ * This means that invoking batadv_gw_reselect() does not guarantee a gateway
+ * change and therefore a uevent is not necessarily expected.
+ */
+void batadv_gw_reselect(struct batadv_priv *bat_priv)
 {
 	atomic_set(&bat_priv->gw.reselect, 1);
 }
@@ -242,7 +253,7 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 
 		router = batadv_orig_node_get_router(next_gw->orig_node);
 		if (!router) {
-			batadv_gw_deselect(bat_priv);
+			batadv_gw_reselect(bat_priv);
 			goto out;
 		}
 	}
@@ -294,11 +305,11 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 
 	curr_gw_orig = batadv_gw_get_selected_orig(bat_priv);
 	if (!curr_gw_orig)
-		goto deselect;
+		goto reselect;
 
 	router_gw = batadv_orig_node_get_router(curr_gw_orig);
 	if (!router_gw)
-		goto deselect;
+		goto reselect;
 
 	/* this node already is the gateway */
 	if (curr_gw_orig == orig_node)
@@ -326,8 +337,8 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 		   "Restarting gateway selection: better gateway found (tq curr: %i, tq new: %i)\n",
 		   gw_tq_avg, orig_tq_avg);
 
-deselect:
-	batadv_gw_deselect(bat_priv);
+reselect:
+	batadv_gw_reselect(bat_priv);
 out:
 	if (curr_gw_orig)
 		batadv_orig_node_free_ref(curr_gw_orig);
@@ -457,7 +468,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		 */
 		curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 		if (gw_node == curr_gw)
-			batadv_gw_deselect(bat_priv);
+			batadv_gw_reselect(bat_priv);
 	}
 
 out:
@@ -483,7 +494,7 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 	struct batadv_gw_node *gw_node, *curr_gw;
 	struct hlist_node *node_tmp;
 	unsigned long timeout = msecs_to_jiffies(2 * BATADV_PURGE_TIMEOUT);
-	int do_deselect = 0;
+	int do_reselect = 0;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
@@ -497,7 +508,7 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 			continue;
 
 		if (curr_gw == gw_node)
-			do_deselect = 1;
+			do_reselect = 1;
 
 		hlist_del_rcu(&gw_node->list);
 		batadv_gw_node_free_ref(gw_node);
@@ -505,9 +516,9 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 
-	/* gw_deselect() needs to acquire the gw_list_lock */
-	if (do_deselect)
-		batadv_gw_deselect(bat_priv);
+	/* gw_reselect() needs to acquire the gw_list_lock */
+	if (do_reselect)
+		batadv_gw_reselect(bat_priv);
 
 	if (curr_gw)
 		batadv_gw_node_free_ref(curr_gw);

@@ -162,7 +162,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 	if ((down_curr == down_new) && (up_curr == up_new))
 		return count;
 
-	batadv_gw_deselect(bat_priv);
+	batadv_gw_reselect(bat_priv);
 	batadv_info(net_dev,
 		    "Changing gateway bandwidth from: '%u.%u/%u.%u MBit' to: '%u.%u/%u.%u MBit'\n",
 		    down_curr / 10, down_curr % 10, up_curr / 10, up_curr % 10,
