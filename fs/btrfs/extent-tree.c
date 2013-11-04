@@ -4034,15 +4034,14 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	u64 delalloc_bytes;
 	u64 max_reclaim;
 	long time_left;
-	unsigned long nr_pages = (2 * 1024 * 1024) >> PAGE_CACHE_SHIFT;
-	int loops = 0;
+	unsigned long nr_pages;
+	int loops;
 	enum btrfs_reserve_flush_enum flush;
 
 	trans = (struct btrfs_trans_handle *)current->journal_info;
 	block_rsv = &root->fs_info->delalloc_block_rsv;
 	space_info = block_rsv->space_info;
 
-	smp_mb();
 	delalloc_bytes = percpu_counter_sum_positive(
 						&root->fs_info->delalloc_bytes);
 	if (delalloc_bytes == 0) {
@@ -4052,6 +4051,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 		return;
 	}
 
+	loops = 0;
 	while (delalloc_bytes && loops < 3) {
 		max_reclaim = min(delalloc_bytes, to_reclaim);
 		nr_pages = max_reclaim >> PAGE_CACHE_SHIFT;
@@ -4082,7 +4082,6 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 			if (time_left)
 				break;
 		}
-		smp_mb();
 		delalloc_bytes = percpu_counter_sum_positive(
 						&root->fs_info->delalloc_bytes);
 	}
