@@ -406,6 +406,15 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	batadv_info(net_dev, "Changing gw mode from: %s to: %s\n",
 		    curr_gw_mode_str, buff);
 
+	/* Invoking batadv_gw_reselect() is not enough to really de-select the
+	 * current GW. It will only instruct the gateway client code to perform
+	 * a re-election the next time that this is needed.
+	 *
+	 * When gw client mode is being switched off the current GW must be
+	 * de-selected explicitly otherwise no GW_ADD uevent is thrown on
+	 * client mode re-activation. This is operation is performed in
+	 * batadv_gw_check_client_stop().
+	 */
 	batadv_gw_deselect(bat_priv);
 	/* always call batadv_gw_check_client_stop() before changing the gateway
 	 * state
