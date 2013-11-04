@@ -137,24 +137,23 @@ static void __rk29_wdt_stop(void)
 	wdt_writel(0x0a, RK29_WDT_CR);
 }
 
-static void rk29_wdt_stop(void)
+void rk29_wdt_stop(void)
 {
 	__rk29_wdt_stop();
 	clk_disable(wdt_clock);
 }
 
-/* timeout unit us */
-static int rk29_wdt_set_heartbeat(int timeout)
+/* timeout unit second */
+int rk29_wdt_set_heartbeat(int timeout)
 {
 	unsigned int freq = clk_get_rate(wdt_clock);
-	unsigned int count;
+	unsigned int long count;
 	unsigned int torr = 0;
 	unsigned int acc = 1;
 
 	if (timeout < 1)
 		return -EINVAL;
 
-//	freq /= 1000000;
 	count = timeout * freq;
 	count /= 0x10000;
 
@@ -170,7 +169,7 @@ static int rk29_wdt_set_heartbeat(int timeout)
 	return 0;
 }
 
-static void rk29_wdt_start(void)
+void rk29_wdt_start(void)
 {
 	unsigned long wtcon;
 	clk_enable(wdt_clock);
