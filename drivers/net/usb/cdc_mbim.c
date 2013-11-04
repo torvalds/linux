@@ -44,13 +44,11 @@ static int cdc_mbim_manage_power(struct usbnet *dev, int on)
 	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
 		/* need autopm_get/put here to ensure the usbcore sees the new value */
 		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
 		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
+		if (!rv)
+			usb_autopm_put_interface(dev->intf);
 	}
-err:
-	return rv;
+	return 0;
 }
 
 static int cdc_mbim_wdm_manage_power(struct usb_interface *intf, int status)
@@ -371,15 +369,13 @@ error:
 
 static int cdc_mbim_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	int ret = 0;
+	int ret = -ENODEV;
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct cdc_mbim_state *info = (void *)&dev->data;
 	struct cdc_ncm_ctx *ctx = info->ctx;
 
-	if (ctx == NULL) {
-		ret = -1;
+	if (!ctx)
 		goto error;
-	}
 
 	/*
 	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
@@ -412,7 +408,7 @@ static int cdc_mbim_resume(struct usb_interface *intf)
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && callsub && info->subdriver->suspend)
+	if (ret < 0 && callsub)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;

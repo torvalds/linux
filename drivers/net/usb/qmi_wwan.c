@@ -149,7 +149,7 @@ static const struct net_device_ops qmi_wwan_netdev_ops = {
 static int qmi_wwan_manage_power(struct usbnet *dev, int on)
 {
 	struct qmi_wwan_state *info = (void *)&dev->data;
-	int rv = 0;
+	int rv;
 
 	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__,
 		atomic_read(&info->pmcount), on);
@@ -160,13 +160,11 @@ static int qmi_wwan_manage_power(struct usbnet *dev, int on)
 		 * the new value
 		 */
 		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
 		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
+		if (!rv)
+			usb_autopm_put_interface(dev->intf);
 	}
-err:
-	return rv;
+	return 0;
 }
 
 static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
@@ -418,7 +416,7 @@ static int qmi_wwan_resume(struct usb_interface *intf)
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && callsub && info->subdriver->suspend)
+	if (ret < 0 && callsub)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
