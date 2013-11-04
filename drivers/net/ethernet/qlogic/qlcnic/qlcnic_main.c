@@ -3710,11 +3710,7 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 		cur_rings = adapter->drv_sds_rings;
 		strcpy(buf, "SDS");
 	} else if (queue_type == QLCNIC_TX_QUEUE) {
-		if (qlcnic_83xx_check(adapter))
-			max_hw_rings = QLCNIC_SINGLE_RING;
-		else
-			max_hw_rings = adapter->max_tx_rings;
-
+		max_hw_rings = adapter->max_tx_rings;
 		cur_rings = adapter->drv_tx_rings;
 		strcpy(buf, "Tx");
 	}

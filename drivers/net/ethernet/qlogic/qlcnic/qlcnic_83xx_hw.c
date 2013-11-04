@@ -1654,6 +1654,7 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u8 drv_sds_rings = adapter->drv_sds_rings;
+	u8 drv_tx_rings = adapter->drv_tx_rings;
 	int ret = 0, loop = 0;
 
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
@@ -1718,6 +1719,7 @@ free_diag_res:
 
 fail_diag_alloc:
 	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
@@ -3303,6 +3305,7 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
 	u8 val, drv_sds_rings = adapter->drv_sds_rings;
+	u8 drv_tx_rings = adapter->drv_tx_rings;
 	u32 data;
 	u16 intrpt_id, id;
 	int ret;
@@ -3359,6 +3362,7 @@ done:
 
 fail_diag_irq:
 	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	qlcnic_release_diag_lock(adapter);
 	return ret;
 }

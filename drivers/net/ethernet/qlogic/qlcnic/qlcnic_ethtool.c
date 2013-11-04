@@ -731,7 +731,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 		}
 	}
 
-	if (qlcnic_82xx_check(adapter) && channel->tx_count) {
+	if (channel->tx_count) {
 		err = qlcnic_validate_rings(adapter, channel->tx_count,
 					    QLCNIC_TX_QUEUE);
 		if (err) {

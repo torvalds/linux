@@ -2068,13 +2068,13 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 			return -EIO;
 
 		adapter->max_sds_rings = QLCNIC_MAX_VNIC_SDS_RINGS;
-		adapter->max_tx_rings = QLCNIC_SINGLE_RING;
+		adapter->max_tx_rings = QLCNIC_MAX_VNIC_TX_RINGS;
 	} else if (ret == QLC_83XX_DEFAULT_OPMODE) {
 		ahw->nic_mode = QLCNIC_DEFAULT_MODE;
 		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
 		adapter->max_sds_rings = ahw->max_rx_ques;
-		adapter->max_tx_rings = QLCNIC_SINGLE_RING;
+		adapter->max_tx_rings = ahw->max_tx_ques;
 	} else {
 		return -EIO;
 	}
@@ -2179,16 +2179,20 @@ static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
 
 static void qlcnic_83xx_init_rings(struct qlcnic_adapter *adapter)
 {
+	u8 rx_cnt = QLCNIC_DEF_SDS_RINGS;
+	u8 tx_cnt = QLCNIC_DEF_TX_RINGS;
+
 	adapter->max_tx_rings = QLCNIC_MAX_TX_RINGS;
 	adapter->max_sds_rings = QLCNIC_MAX_SDS_RINGS;
 
-	qlcnic_set_tx_ring_count(adapter, QLCNIC_SINGLE_RING);
+	if (!adapter->ahw->msix_supported) {
+		rx_cnt = QLCNIC_SINGLE_RING;
+		tx_cnt = QLCNIC_SINGLE_RING;
+	}
 
 	/* compute and set drv sds rings */
-	if (adapter->ahw->msix_supported)
-		qlcnic_set_sds_ring_count(adapter, QLCNIC_DEF_SDS_RINGS);
-	else
-		qlcnic_set_sds_ring_count(adapter, QLCNIC_SINGLE_RING);
+	qlcnic_set_tx_ring_count(adapter, tx_cnt);
+	qlcnic_set_sds_ring_count(adapter, rx_cnt);
 }
 
 int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)

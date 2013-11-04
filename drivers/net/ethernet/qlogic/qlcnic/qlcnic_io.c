@@ -581,10 +581,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			goto drop_packet;
 	}
 
-	if (qlcnic_check_multi_tx(adapter))
-		tx_ring = &adapter->tx_ring[skb_get_queue_mapping(skb)];
-	else
-		tx_ring = &adapter->tx_ring[0];
+	tx_ring = &adapter->tx_ring[skb_get_queue_mapping(skb)];
 	num_txd = tx_ring->num_desc;
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
