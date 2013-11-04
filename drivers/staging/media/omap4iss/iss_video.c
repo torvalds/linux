@@ -902,6 +902,12 @@ iss_video_g_input(struct file *file, void *fh, unsigned int *input)
 	return 0;
 }
 
+static int
+iss_video_s_input(struct file *file, void *fh, unsigned int input)
+{
+	return input == 0 ? 0 : -EINVAL;
+}
+
 static const struct v4l2_ioctl_ops iss_video_ioctl_ops = {
 	.vidioc_querycap		= iss_video_querycap,
 	.vidioc_g_fmt_vid_cap		= iss_video_get_format,
@@ -923,6 +929,7 @@ static const struct v4l2_ioctl_ops iss_video_ioctl_ops = {
 	.vidioc_streamoff		= iss_video_streamoff,
 	.vidioc_enum_input		= iss_video_enum_input,
 	.vidioc_g_input			= iss_video_g_input,
+	.vidioc_s_input			= iss_video_s_input,
 };
 
 /* -----------------------------------------------------------------------------
