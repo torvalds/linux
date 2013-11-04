@@ -97,10 +97,10 @@ static inline __le32 iwl_mvm_scan_max_out_time(struct ieee80211_vif *vif)
 
 static inline __le32 iwl_mvm_scan_suspend_time(struct ieee80211_vif *vif)
 {
-	if (vif->bss_conf.assoc)
-		return cpu_to_le32(vif->bss_conf.beacon_int);
-	else
+	if (!vif->bss_conf.assoc)
 		return 0;
+
+	return cpu_to_le32(ieee80211_tu_to_usec(vif->bss_conf.beacon_int));
 }
 
 static inline __le32
@@ -423,6 +423,11 @@ static bool iwl_mvm_scan_abort_notif(struct iwl_notif_wait_data *notif_wait,
 			return false;
 		}
 
+		/*
+		 * If scan cannot be aborted, it means that we had a
+		 * SCAN_COMPLETE_NOTIFICATION in the pipe and it called
+		 * ieee80211_scan_completed already.
+		 */
 		IWL_DEBUG_SCAN(mvm, "Scan cannot be aborted, exit now: %d\n",
 			       *resp);
 		return true;
@@ -446,14 +451,19 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 					       SCAN_COMPLETE_NOTIFICATION };
 	int ret;
 
+	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+		return;
+
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_abort,
 				   scan_abort_notif,
 				   ARRAY_SIZE(scan_abort_notif),
 				   iwl_mvm_scan_abort_notif, NULL);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD, CMD_SYNC, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_CMD,
+				   CMD_SYNC | CMD_SEND_IN_RFKILL, 0, NULL);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send SCAN_ABORT_CMD: %d\n", ret);
+		/* mac80211's state will be cleaned in the fw_restart flow */
 		goto out_remove_notif;
 	}
 

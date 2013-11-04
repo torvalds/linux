@@ -334,6 +334,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_DISABLE_VHT	= BIT(11),
 	IEEE80211_STA_DISABLE_80P80MHZ	= BIT(12),
 	IEEE80211_STA_DISABLE_160MHZ	= BIT(13),
+	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -893,6 +894,8 @@ struct tpt_led_trigger {
  *	that the scan completed.
  * @SCAN_ABORTED: Set for our scan work function when the driver reported
  *	a scan complete for an aborted scan.
+ * @SCAN_HW_CANCELLED: Set for our scan work function when the scan is being
+ *	cancelled.
  */
 enum {
 	SCAN_SW_SCANNING,
@@ -900,6 +903,7 @@ enum {
 	SCAN_ONCHANNEL_SCANNING,
 	SCAN_COMPLETED,
 	SCAN_ABORTED,
+	SCAN_HW_CANCELLED,
 };
 
 /**
