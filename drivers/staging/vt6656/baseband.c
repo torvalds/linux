@@ -48,7 +48,7 @@
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-u8 abyVT3184_AGC[] = {
+static u8 abyVT3184_AGC[] = {
     0x00,   //0
     0x00,   //1
     0x02,   //2
@@ -115,7 +115,7 @@ u8 abyVT3184_AGC[] = {
     0x3E    //3F
 };
 
-u8 abyVT3184_AL2230[] = {
+static u8 abyVT3184_AL2230[] = {
         0x31,//00
         0x00,
         0x00,
@@ -375,7 +375,7 @@ u8 abyVT3184_AL2230[] = {
 };
 
 //{{RobertYu:20060515, new BB setting for VT3226D0
-u8 abyVT3184_VT3226D0[] = {
+static u8 abyVT3184_VT3226D0[] = {
         0x31,//00
         0x00,
         0x00,
@@ -634,7 +634,7 @@ u8 abyVT3184_VT3226D0[] = {
         0x00,
 };
 
-const u16 awcFrameTime[MAX_RATE] =
+static const u16 awcFrameTime[MAX_RATE] =
 {10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
 
 /*

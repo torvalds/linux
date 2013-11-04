@@ -66,7 +66,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 //const u16 cwRXBCNTSFOff[MAX_RATE] =
 //{17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
 
-const u16 cwRXBCNTSFOff[MAX_RATE] =
+static const u16 cwRXBCNTSFOff[MAX_RATE] =
 {192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3};
 
 /*
@@ -205,7 +205,7 @@ static u16 swGetOFDMControlRate(struct vnt_private *pDevice, u16 wRateIdx)
  * Return Value: none
  *
  */
-void
+static void
 CARDvCalculateOFDMRParameter (
       u16 wRate,
       u8 byBBType,

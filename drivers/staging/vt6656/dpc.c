@@ -59,7 +59,7 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-const u8 acbyRxRate[MAX_RATE] =
+static const u8 acbyRxRate[MAX_RATE] =
 {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 
 static u8 s_byGetRateIdx(u8 byRate);

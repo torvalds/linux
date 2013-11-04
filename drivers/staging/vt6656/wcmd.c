@@ -224,7 +224,7 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pScanBSSID, PWLAN_IE_SSID pSSID,
 	PWLAN_IE_SUPP_RATES pCurrRates, PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
 {
@@ -266,7 +266,8 @@ struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
     return pTxPacket;
 }
 
-void vCommandTimerWait(struct vnt_private *pDevice, unsigned long MSecond)
+static void
+vCommandTimerWait(struct vnt_private *pDevice, unsigned long MSecond)
 {
 	schedule_delayed_work(&pDevice->run_command_work,
 						msecs_to_jiffies(MSecond));

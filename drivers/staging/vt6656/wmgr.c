@@ -2961,7 +2961,7 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wCurrBeaconPeriod,
 	u32 uCurrChannel, u16 wCurrATIMWinodw, u8 *pDstAddr,
 	PWLAN_IE_SSID pCurrSSID, u8 *pCurrBSSID,
@@ -3081,7 +3081,7 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pDAddr, u16 wCurrCapInfo,
 	u16 wListenInterval,
 	PWLAN_IE_SSID pCurrSSID,
@@ -3329,7 +3329,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pDAddr, u16 wCurrCapInfo,
 	u16 wListenInterval, PWLAN_IE_SSID pCurrSSID,
 	PWLAN_IE_SUPP_RATES pCurrRates,
@@ -3576,7 +3576,7 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wAssocStatus,
 	u16 wAssocAID, u8 *pDstAddr, PWLAN_IE_SUPP_RATES pCurrSuppRates,
 	PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
@@ -3642,7 +3642,7 @@ struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
  *
 -*/
 
-struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
+static struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wAssocStatus,
 	u16 wAssocAID, u8 *pDstAddr, PWLAN_IE_SUPP_RATES pCurrSuppRates,
 	PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
