@@ -46,9 +46,9 @@
 #include <../drivers/usb/net/usbnet.h>
 #endif
 
-#include "asix.h"
+#include "ax88179_178a.h"
 
-#define DRV_VERSION	"1.4.0"
+#define DRV_VERSION	"1.8.0"
 
 static char version[] =
 KERN_INFO "ASIX USB Ethernet Adapter:v" DRV_VERSION
@@ -358,8 +358,10 @@ static void ax88179_status(struct usbnet *dev, struct urb *urb)
 	link = event->link & AX_INT_PPLS_LINK;
 
 	if (netif_carrier_ok(dev->net) != link) {
-		if (link)
+		if (link) {
+			netif_carrier_on(dev->net);
 			usbnet_defer_kevent(dev, EVENT_LINK_RESET);
+		}
 		else
 			netif_carrier_off(dev->net);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
@@ -701,7 +703,6 @@ static struct ethtool_ops ax88179_ethtool_ops = {
 	.set_tso		= ax88179_set_tso,
 #endif
 };
-
 
 static void ax88179_set_multicast(struct net_device *net)
 {
@@ -1275,7 +1276,6 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 22)
 	dev->net->features |= NETIF_F_IPV6_CSUM;
 #endif
-	dev->net->features |= NETIF_F_SG | NETIF_F_TSO;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 	dev->net->hw_features |= NETIF_F_IP_CSUM;
@@ -1313,8 +1313,8 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 #endif
 	/* Configure default medium type => giga */
 	*tmp16 = AX_MEDIUM_RECEIVE_EN	 | AX_MEDIUM_TXFLOW_CTRLEN |
-		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_ALWAYS_ONE	   |
-		 AX_MEDIUM_FULL_DUPLEX	 | AX_MEDIUM_GIGAMODE;
+		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_FULL_DUPLEX   |
+		 AX_MEDIUM_GIGAMODE;
 
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			  2, 2, tmp16);
@@ -1462,7 +1462,8 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 		skb->len += 2;
 	}
 
-	skb_linearize(skb);
+	if (skb_linearize(skb))
+		return NULL;
 
 	headroom = skb_headroom(skb);
 	tailroom = skb_tailroom(skb);
@@ -1528,7 +1529,7 @@ static int ax88179_link_reset(struct usbnet *dev)
 	}
 
 	mode = AX_MEDIUM_RECEIVE_EN    | AX_MEDIUM_TXFLOW_CTRLEN |
-		   AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_ALWAYS_ONE;
+		   AX_MEDIUM_RXFLOW_CTRLEN;
 
 	ax88179_read_cmd(dev, AX_ACCESS_MAC, PHYSICAL_LINK_STATUS,
 			 1, 1, &link_sts, 0);
@@ -1648,7 +1649,6 @@ static int ax88179_reset(struct usbnet *dev)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 22)
 	dev->net->features |= NETIF_F_IPV6_CSUM;
 #endif
-	dev->net->features |= NETIF_F_SG | NETIF_F_TSO;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 	dev->net->hw_features |= NETIF_F_IP_CSUM;
@@ -1688,8 +1688,8 @@ static int ax88179_reset(struct usbnet *dev)
 
 	/* Configure default medium type => giga */
 	*tmp16 = AX_MEDIUM_RECEIVE_EN	 | AX_MEDIUM_TXFLOW_CTRLEN |
-		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_ALWAYS_ONE	   |
-		 AX_MEDIUM_FULL_DUPLEX	 | AX_MEDIUM_GIGAMODE;
+		 AX_MEDIUM_RXFLOW_CTRLEN | AX_MEDIUM_FULL_DUPLEX   |
+		 AX_MEDIUM_GIGAMODE;
 
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			  2, 2, tmp16);
@@ -1772,6 +1772,51 @@ static const struct driver_info sitecom_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
+static const struct driver_info lenovo_info = {
+	.description = "ThinkPad OneLinkDock USB GigaLAN",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+	.stop = ax88179_stop,
+#endif
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
+static const struct driver_info toshiba_info = {
+	.description = "Toshiba USB 3.0 to Gigabit LAN Adapter",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+	.stop = ax88179_stop,
+#endif
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
+static const struct driver_info samsung_info = {
+	.description = "Samsung USB Ethernet Adapter",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+	.stop = ax88179_stop,
+#endif
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
 static const struct usb_device_id	products[] = {
 {
 	/* ASIX AX88179 10/100/1000 */
@@ -1785,6 +1830,18 @@ static const struct usb_device_id	products[] = {
 	/* Sitecom USB 3.0 to Gigabit Adapter */
 	USB_DEVICE(0x0df6, 0x0072),
 	.driver_info = (unsigned long) &sitecom_info,
+}, {
+	/* ThinkPad OneLinkDock USB GigaLAN */
+	USB_DEVICE(0x17ef, 0x304b),
+	.driver_info = (unsigned long) &lenovo_info,
+}, {
+	/* Toshiba USB3.0 to Gigabit LAN Adapter */
+	USB_DEVICE(0x0930, 0x0a13),
+	.driver_info = (unsigned long) &toshiba_info,
+}, {
+	/* Samsung USB Ethernet Adapter */
+	USB_DEVICE(0x04e8, 0xa100),
+	.driver_info = (unsigned long) &samsung_info,
 },
 	{ },		/* END */
 };
