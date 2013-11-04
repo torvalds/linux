@@ -45,6 +45,8 @@
 #define  ESDHC_MIX_CTRL_FBCLK_SEL	(1 << 25)
 /* Bits 3 and 6 are not SDHCI standard definitions */
 #define  ESDHC_MIX_CTRL_SDHCI_MASK	0xb7
+/* Tuning bits */
+#define  ESDHC_MIX_CTRL_TUNING_MASK	0x03c00000
 
 /* dll control register */
 #define ESDHC_DLL_CTRL			0x60
@@ -562,7 +564,10 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		 * Do it manually here.
 		 */
 		if (esdhc_is_usdhc(imx_data)) {
-			writel(0, host->ioaddr + ESDHC_MIX_CTRL);
+			/* the tuning bits should be kept during reset */
+			new_val = readl(host->ioaddr + ESDHC_MIX_CTRL);
+			writel(new_val & ESDHC_MIX_CTRL_TUNING_MASK,
+					host->ioaddr + ESDHC_MIX_CTRL);
 			imx_data->is_ddr = 0;
 		}
 	}
