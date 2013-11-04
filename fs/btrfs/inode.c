@@ -5372,7 +5372,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	u32 sizes[2];
 	unsigned long ptr;
 	int ret;
-	int owner;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -5417,11 +5416,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	 * old info in the log.
 	 */
 	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
-
-	if (S_ISDIR(mode))
-		owner = 0;
-	else
-		owner = 1;
 
 	key[0].objectid = objectid;
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
