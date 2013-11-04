@@ -4222,7 +4222,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	printk(KERN_INFO "btrfs: relocating block group %llu flags %llu\n",
 	       rc->block_group->key.objectid, rc->block_group->flags);
 
-	ret = btrfs_start_all_delalloc_inodes(fs_info, 0);
+	ret = btrfs_start_delalloc_roots(fs_info, 0);
 	if (ret < 0) {
 		err = ret;
 		goto out;

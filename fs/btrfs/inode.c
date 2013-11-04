@@ -8306,8 +8306,7 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	return ret;
 }
 
-int btrfs_start_all_delalloc_inodes(struct btrfs_fs_info *fs_info,
-				    int delay_iput)
+int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput)
 {
 	struct btrfs_root *root;
 	struct list_head splice;

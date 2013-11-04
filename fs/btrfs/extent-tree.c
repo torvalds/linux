@@ -4016,7 +4016,7 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 		 * the filesystem is readonly(all dirty pages are written to
 		 * the disk).
 		 */
-		btrfs_start_all_delalloc_inodes(root->fs_info, 0);
+		btrfs_start_delalloc_roots(root->fs_info, 0);
 		if (!current->journal_info)
 			btrfs_wait_ordered_roots(root->fs_info, -1);
 	}

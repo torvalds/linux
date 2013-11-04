@@ -1629,7 +1629,7 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
 	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
-		return btrfs_start_all_delalloc_inodes(fs_info, 1);
+		return btrfs_start_delalloc_roots(fs_info, 1);
 	return 0;
 }
 
