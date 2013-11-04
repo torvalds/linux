@@ -195,9 +195,6 @@ config XTENSA_CALIBRATE_CCOUNT
 config SERIAL_CONSOLE
 	def_bool n
 
-config XTENSA_ISS_NETWORK
-	def_bool n
-
 menu "Bus options"
 
 config PCI
@@ -224,7 +221,6 @@ config XTENSA_PLATFORM_ISS
 	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
-	select XTENSA_ISS_NETWORK
 	help
 	  ISS is an acronym for Tensilica's Instruction Set Simulator.
 
