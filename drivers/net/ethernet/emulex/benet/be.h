@@ -696,6 +696,15 @@ static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
 	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 }
 
+static inline int fw_major_num(const char *fw_ver)
+{
+	int fw_major = 0;
+
+	sscanf(fw_ver, "%d.", &fw_major);
+
+	return fw_major;
+}
+
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, u8 link_status);

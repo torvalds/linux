@@ -3247,6 +3247,12 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, adapter->fw_on_flash);
 
+	if (BE2_chip(adapter) && fw_major_num(adapter->fw_ver) < 4) {
+		dev_err(dev, "Firmware on card is old(%s), IRQs may not work.",
+			adapter->fw_ver);
+		dev_err(dev, "Please upgrade firmware to version >= 4.0\n");
+	}
+
 	if (adapter->vlans_added)
 		be_vid_config(adapter);
 

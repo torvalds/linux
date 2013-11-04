@@ -244,25 +244,33 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 				     struct bgmac_slot_info *slot)
 {
 	struct device *dma_dev = bgmac->core->dma_dev;
+	struct sk_buff *skb;
+	dma_addr_t dma_addr;
 	struct bgmac_rx_header *rx;
 
 	/* Alloc skb */
-	slot->skb = netdev_alloc_skb(bgmac->net_dev, BGMAC_RX_BUF_SIZE);
-	if (!slot->skb)
+	skb = netdev_alloc_skb(bgmac->net_dev, BGMAC_RX_BUF_SIZE);
+	if (!skb)
 		return -ENOMEM;
 
 	/* Poison - if everything goes fine, hardware will overwrite it */
-	rx = (struct bgmac_rx_header *)slot->skb->data;
+	rx = (struct bgmac_rx_header *)skb->data;
 	rx->len = cpu_to_le16(0xdead);
 	rx->flags = cpu_to_le16(0xbeef);
 
 	/* Map skb for the DMA */
-	slot->dma_addr = dma_map_single(dma_dev, slot->skb->data,
-					BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dma_dev, slot->dma_addr)) {
+	dma_addr = dma_map_single(dma_dev, skb->data,
+				  BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dma_dev, dma_addr)) {
 		bgmac_err(bgmac, "DMA mapping error\n");
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
+
+	/* Update the slot */
+	slot->skb = skb;
+	slot->dma_addr = dma_addr;
+
 	if (slot->dma_addr & 0xC0000000)
 		bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 

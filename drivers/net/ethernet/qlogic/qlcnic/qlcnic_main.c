@@ -1131,7 +1131,10 @@ qlcnic_initialize_nic(struct qlcnic_adapter *adapter)
 		if (err == -EIO)
 			return err;
 		adapter->ahw->extra_capability[0] = temp;
+	} else {
+		adapter->ahw->extra_capability[0] = 0;
 	}
+
 	adapter->ahw->max_mac_filters = nic_info.max_mac_filters;
 	adapter->ahw->max_mtu = nic_info.max_mtu;
 
@@ -2159,8 +2162,7 @@ void qlcnic_set_drv_version(struct qlcnic_adapter *adapter)
 	else if (qlcnic_83xx_check(adapter))
 		fw_cmd = QLCNIC_CMD_83XX_SET_DRV_VER;
 
-	if ((ahw->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) &&
-	    (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_SET_DRV_VER))
+	if (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_SET_DRV_VER)
 		qlcnic_fw_cmd_set_drv_version(adapter, fw_cmd);
 }
 
