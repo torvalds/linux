@@ -607,8 +607,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		if (qlcnic_tx_avail(tx_ring) > TX_STOP_THRESH) {
 			netif_tx_start_queue(tx_ring->txq);
 		} else {
-			adapter->stats.xmit_off++;
-			tx_ring->xmit_off++;
+			tx_ring->tx_stats.xmit_off++;
 			return NETDEV_TX_BUSY;
 		}
 	}
@@ -669,9 +668,8 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (adapter->drv_mac_learn)
 		qlcnic_send_filter(adapter, first_desc, skb);
 
-	adapter->stats.txbytes += skb->len;
-	adapter->stats.xmitcalled++;
-	tx_ring->xmit_called++;
+	tx_ring->tx_stats.tx_bytes += skb->len;
+	tx_ring->tx_stats.xmit_called++;
 
 	qlcnic_update_cmd_producer(tx_ring);
 
@@ -805,8 +803,7 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter,
 					       PCI_DMA_TODEVICE);
 				frag->dma = 0ULL;
 			}
-			adapter->stats.xmitfinished++;
-			tx_ring->xmit_finished++;
+			tx_ring->tx_stats.xmit_finished++;
 			dev_kfree_skb_any(buffer->skb);
 			buffer->skb = NULL;
 		}
@@ -823,8 +820,7 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter,
 		    netif_carrier_ok(netdev)) {
 			if (qlcnic_tx_avail(tx_ring) > TX_STOP_THRESH) {
 				netif_tx_wake_queue(tx_ring->txq);
-				adapter->stats.xmit_on++;
-				tx_ring->xmit_on++;
+				tx_ring->tx_stats.xmit_on++;
 			}
 		}
 		adapter->tx_timeo_cnt = 0;

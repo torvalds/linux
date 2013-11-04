@@ -27,43 +27,36 @@ static const u32 qlcnic_fw_dump_level[] = {
 };
 
 static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
-	{"xmit_called", QLC_SIZEOF(stats.xmitcalled),
-		QLC_OFF(stats.xmitcalled)},
-	{"xmit_finished", QLC_SIZEOF(stats.xmitfinished),
-		QLC_OFF(stats.xmitfinished)},
-	{"rx_dropped", QLC_SIZEOF(stats.rxdropped), QLC_OFF(stats.rxdropped)},
-	{"tx_dropped", QLC_SIZEOF(stats.txdropped), QLC_OFF(stats.txdropped)},
-	{"csummed", QLC_SIZEOF(stats.csummed), QLC_OFF(stats.csummed)},
-	{"rx_pkts", QLC_SIZEOF(stats.rx_pkts), QLC_OFF(stats.rx_pkts)},
-	{"lro_pkts", QLC_SIZEOF(stats.lro_pkts), QLC_OFF(stats.lro_pkts)},
-	{"rx_bytes", QLC_SIZEOF(stats.rxbytes), QLC_OFF(stats.rxbytes)},
-	{"tx_bytes", QLC_SIZEOF(stats.txbytes), QLC_OFF(stats.txbytes)},
-	{"lrobytes", QLC_SIZEOF(stats.lrobytes), QLC_OFF(stats.lrobytes)},
-	{"lso_frames", QLC_SIZEOF(stats.lso_frames), QLC_OFF(stats.lso_frames)},
 	{"xmit_on", QLC_SIZEOF(stats.xmit_on), QLC_OFF(stats.xmit_on)},
 	{"xmit_off", QLC_SIZEOF(stats.xmit_off), QLC_OFF(stats.xmit_off)},
+	{"xmit_called", QLC_SIZEOF(stats.xmitcalled),
+	 QLC_OFF(stats.xmitcalled)},
+	{"xmit_finished", QLC_SIZEOF(stats.xmitfinished),
+	 QLC_OFF(stats.xmitfinished)},
+	{"tx dma map error", QLC_SIZEOF(stats.tx_dma_map_error),
+	 QLC_OFF(stats.tx_dma_map_error)},
+	{"tx_bytes", QLC_SIZEOF(stats.txbytes), QLC_OFF(stats.txbytes)},
+	{"tx_dropped", QLC_SIZEOF(stats.txdropped), QLC_OFF(stats.txdropped)},
+	{"rx dma map error", QLC_SIZEOF(stats.rx_dma_map_error),
+	 QLC_OFF(stats.rx_dma_map_error)},
+	{"rx_pkts", QLC_SIZEOF(stats.rx_pkts), QLC_OFF(stats.rx_pkts)},
+	{"rx_bytes", QLC_SIZEOF(stats.rxbytes), QLC_OFF(stats.rxbytes)},
+	{"rx_dropped", QLC_SIZEOF(stats.rxdropped), QLC_OFF(stats.rxdropped)},
+	{"null rxbuf", QLC_SIZEOF(stats.null_rxbuf), QLC_OFF(stats.null_rxbuf)},
+	{"csummed", QLC_SIZEOF(stats.csummed), QLC_OFF(stats.csummed)},
+	{"lro_pkts", QLC_SIZEOF(stats.lro_pkts), QLC_OFF(stats.lro_pkts)},
+	{"lrobytes", QLC_SIZEOF(stats.lrobytes), QLC_OFF(stats.lrobytes)},
+	{"lso_frames", QLC_SIZEOF(stats.lso_frames), QLC_OFF(stats.lso_frames)},
 	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
 	 QLC_OFF(stats.skb_alloc_failure)},
-	{"null rxbuf", QLC_SIZEOF(stats.null_rxbuf), QLC_OFF(stats.null_rxbuf)},
-	{"rx dma map error", QLC_SIZEOF(stats.rx_dma_map_error),
-					 QLC_OFF(stats.rx_dma_map_error)},
-	{"tx dma map error", QLC_SIZEOF(stats.tx_dma_map_error),
-					 QLC_OFF(stats.tx_dma_map_error)},
 	{"mac_filter_limit_overrun", QLC_SIZEOF(stats.mac_filter_limit_overrun),
-				QLC_OFF(stats.mac_filter_limit_overrun)},
+	 QLC_OFF(stats.mac_filter_limit_overrun)},
 	{"spurious intr", QLC_SIZEOF(stats.spurious_intr),
 	 QLC_OFF(stats.spurious_intr)},
 
 };
 
 static const char qlcnic_device_gstrings_stats[][ETH_GSTRING_LEN] = {
-	"rx unicast frames",
-	"rx multicast frames",
-	"rx broadcast frames",
-	"rx dropped frames",
-	"rx errors",
-	"rx local frames",
-	"rx numbytes",
 	"tx unicast frames",
 	"tx multicast frames",
 	"tx broadcast frames",
@@ -71,6 +64,13 @@ static const char qlcnic_device_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx errors",
 	"tx local frames",
 	"tx numbytes",
+	"rx unicast frames",
+	"rx multicast frames",
+	"rx broadcast frames",
+	"rx dropped frames",
+	"rx errors",
+	"rx local frames",
+	"rx numbytes",
 };
 
 static const char qlcnic_83xx_tx_stats_strings[][ETH_GSTRING_LEN] = {
@@ -126,12 +126,15 @@ static const char qlcnic_83xx_mac_stats_strings[][ETH_GSTRING_LEN] = {
 
 #define QLCNIC_STATS_LEN	ARRAY_SIZE(qlcnic_gstrings_stats)
 
-static const char qlcnic_tx_ring_stats_strings[][ETH_GSTRING_LEN] = {
+static const char qlcnic_tx_queue_stats_strings[][ETH_GSTRING_LEN] = {
 	"xmit_on",
 	"xmit_off",
 	"xmit_called",
 	"xmit_finished",
+	"tx_bytes",
 };
+
+#define QLCNIC_TX_STATS_LEN	ARRAY_SIZE(qlcnic_tx_queue_stats_strings)
 
 static const char qlcnic_83xx_rx_stats_strings[][ETH_GSTRING_LEN] = {
 	"ctx_rx_bytes",
@@ -1123,11 +1126,11 @@ qlcnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		       QLCNIC_TEST_LEN * ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_STATS:
-		num_stats = ARRAY_SIZE(qlcnic_tx_ring_stats_strings);
+		num_stats = ARRAY_SIZE(qlcnic_tx_queue_stats_strings);
 		for (i = 0; i < adapter->max_drv_tx_rings; i++) {
 			for (index = 0; index < num_stats; index++) {
-				sprintf(data, "tx_ring_%d %s", i,
-					qlcnic_tx_ring_stats_strings[index]);
+				sprintf(data, "tx_queue_%d %s", i,
+					qlcnic_tx_queue_stats_strings[index]);
 				data += ETH_GSTRING_LEN;
 			}
 		}
@@ -1225,6 +1228,36 @@ static u64 *qlcnic_fill_stats(u64 *data, void *stats, int type)
 	return data;
 }
 
+static void qlcnic_update_stats(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_host_tx_ring *tx_ring;
+	int ring;
+
+	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		tx_ring = &adapter->tx_ring[ring];
+		adapter->stats.xmit_on += tx_ring->tx_stats.xmit_on;
+		adapter->stats.xmit_off += tx_ring->tx_stats.xmit_off;
+		adapter->stats.xmitcalled += tx_ring->tx_stats.xmit_called;
+		adapter->stats.xmitfinished += tx_ring->tx_stats.xmit_finished;
+		adapter->stats.txbytes += tx_ring->tx_stats.tx_bytes;
+	}
+}
+
+static u64 *qlcnic_fill_tx_queue_stats(u64 *data, void *stats)
+{
+	struct qlcnic_host_tx_ring *tx_ring;
+
+	tx_ring = (struct qlcnic_host_tx_ring *)stats;
+
+	*data++ = QLCNIC_FILL_STATS(tx_ring->tx_stats.xmit_on);
+	*data++ = QLCNIC_FILL_STATS(tx_ring->tx_stats.xmit_off);
+	*data++ = QLCNIC_FILL_STATS(tx_ring->tx_stats.xmit_called);
+	*data++ = QLCNIC_FILL_STATS(tx_ring->tx_stats.xmit_finished);
+	*data++ = QLCNIC_FILL_STATS(tx_ring->tx_stats.tx_bytes);
+
+	return data;
+}
+
 static void qlcnic_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
@@ -1232,19 +1265,20 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 	struct qlcnic_host_tx_ring *tx_ring;
 	struct qlcnic_esw_statistics port_stats;
 	struct qlcnic_mac_statistics mac_stats;
-	int index, ret, length, size, ring;
+	int index, ret, length, size, tx_size, ring;
 	char *p;
 
-	memset(data, 0, adapter->max_drv_tx_rings * 4 * sizeof(u64));
+	tx_size = adapter->max_drv_tx_rings * QLCNIC_TX_STATS_LEN;
+
+	memset(data, 0, tx_size * sizeof(u64));
 	for (ring = 0, index = 0; ring < adapter->max_drv_tx_rings; ring++) {
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			tx_ring = &adapter->tx_ring[ring];
-			*data++ = tx_ring->xmit_on;
-			*data++ = tx_ring->xmit_off;
-			*data++ = tx_ring->xmit_called;
-			*data++ = tx_ring->xmit_finished;
+			data = qlcnic_fill_tx_queue_stats(data, tx_ring);
+			qlcnic_update_stats(adapter);
 		}
 	}
+
 	memset(data, 0, stats->n_stats * sizeof(u64));
 	length = QLCNIC_STATS_LEN;
 	for (index = 0; index < length; index++) {

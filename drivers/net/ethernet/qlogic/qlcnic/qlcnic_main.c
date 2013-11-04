@@ -2722,24 +2722,21 @@ static void qlcnic_tx_timeout(struct net_device *netdev)
 						      QLCNIC_FORCE_FW_DUMP_KEY);
 	} else {
 		netdev_info(netdev, "Tx timeout, reset adapter context.\n");
-		if (qlcnic_82xx_check(adapter)) {
-			for (ring = 0; ring < adapter->max_drv_tx_rings;
-			     ring++) {
-				tx_ring = &adapter->tx_ring[ring];
-				dev_info(&netdev->dev, "ring=%d\n", ring);
-				dev_info(&netdev->dev, "crb_intr_mask=%d\n",
-					 readl(tx_ring->crb_intr_mask));
-				dev_info(&netdev->dev, "producer=%d\n",
-					 readl(tx_ring->crb_cmd_producer));
-				dev_info(&netdev->dev, "sw_consumer = %d\n",
-					 tx_ring->sw_consumer);
-				dev_info(&netdev->dev, "hw_consumer = %d\n",
-					 le32_to_cpu(*(tx_ring->hw_consumer)));
-				dev_info(&netdev->dev, "xmit-on=%llu\n",
-					 tx_ring->xmit_on);
-				dev_info(&netdev->dev, "xmit-off=%llu\n",
-					 tx_ring->xmit_off);
-			}
+		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
+			tx_ring = &adapter->tx_ring[ring];
+			netdev_info(netdev, "Tx ring=%d\n", ring);
+			netdev_info(netdev,
+				    "crb_intr_mask=%d, producer=%d, sw_consumer=%d, hw_consumer=%d\n",
+				    readl(tx_ring->crb_intr_mask),
+				    readl(tx_ring->crb_cmd_producer),
+				    tx_ring->sw_consumer,
+				    le32_to_cpu(*(tx_ring->hw_consumer)));
+			netdev_info(netdev,
+				    "xmit_finished=%llu, xmit_called=%llu, xmit_on=%llu, xmit_off=%llu\n",
+				    tx_ring->tx_stats.xmit_finished,
+				    tx_ring->tx_stats.xmit_called,
+				    tx_ring->tx_stats.xmit_on,
+				    tx_ring->tx_stats.xmit_off);
 		}
 		adapter->ahw->reset_context = 1;
 	}

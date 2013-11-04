@@ -533,6 +533,14 @@ struct qlcnic_host_sds_ring {
 	char name[IFNAMSIZ + 12];
 } ____cacheline_internodealigned_in_smp;
 
+struct qlcnic_tx_queue_stats {
+	u64 xmit_on;
+	u64 xmit_off;
+	u64 xmit_called;
+	u64 xmit_finished;
+	u64 tx_bytes;
+};
+
 struct qlcnic_host_tx_ring {
 	int irq;
 	void __iomem *crb_intr_mask;
@@ -544,10 +552,7 @@ struct qlcnic_host_tx_ring {
 	u32 sw_consumer;
 	u32 num_desc;
 
-	u64 xmit_on;
-	u64 xmit_off;
-	u64 xmit_called;
-	u64 xmit_finished;
+	struct qlcnic_tx_queue_stats tx_stats;
 
 	void __iomem *crb_cmd_producer;
 	struct cmd_desc_type0 *desc_head;
