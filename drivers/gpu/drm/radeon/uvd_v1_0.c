@@ -212,8 +212,8 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* enable VCPU clock */
 	WREG32(UVD_VCPU_CNTL,  1 << 9);
 
-	/* enable UMC and NC0 */
-	WREG32_P(UVD_LMI_CTRL2, 1 << 13, ~((1 << 8) | (1 << 13)));
+	/* enable UMC */
+	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
 
 	/* boot up the VCPU */
 	WREG32(UVD_SOFT_RESET, 0);

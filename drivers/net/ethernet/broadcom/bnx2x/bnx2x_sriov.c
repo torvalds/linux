@@ -470,10 +470,10 @@ static int bnx2x_vfop_qdtor_cmd(struct bnx2x *bp,
 				 bnx2x_vfop_qdtor, cmd->done);
 		return bnx2x_vfop_transition(bp, vf, bnx2x_vfop_qdtor,
 					     cmd->block);
+	} else {
+		BNX2X_ERR("VF[%d] failed to add a vfop\n", vf->abs_vfid);
+		return -ENOMEM;
 	}
-	DP(BNX2X_MSG_IOV, "VF[%d] failed to add a vfop. rc %d\n",
-	   vf->abs_vfid, vfop->rc);
-	return -ENOMEM;
 }
 
 static void
@@ -3390,14 +3390,16 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 		rc = bnx2x_del_all_macs(bp, mac_obj, BNX2X_ETH_MAC, true);
 		if (rc) {
 			BNX2X_ERR("failed to delete eth macs\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		/* remove existing uc list macs */
 		rc = bnx2x_del_all_macs(bp, mac_obj, BNX2X_UC_LIST_MAC, true);
 		if (rc) {
 			BNX2X_ERR("failed to delete uc_list macs\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		/* configure the new mac to device */
@@ -3405,6 +3407,7 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 		bnx2x_set_mac_one(bp, (u8 *)&bulletin->mac, mac_obj, true,
 				  BNX2X_ETH_MAC, &ramrod_flags);
 
+out:
 		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_MAC);
 	}
 
@@ -3467,7 +3470,8 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 					  &ramrod_flags);
 		if (rc) {
 			BNX2X_ERR("failed to delete vlans\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		/* send queue update ramrod to configure default vlan and silent
@@ -3501,7 +3505,8 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 			rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
 			if (rc) {
 				BNX2X_ERR("failed to configure vlan\n");
-				return -EINVAL;
+				rc =  -EINVAL;
+				goto out;
 			}
 
 			/* configure default vlan to vf queue and set silent
@@ -3519,18 +3524,18 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 		rc = bnx2x_queue_state_change(bp, &q_params);
 		if (rc) {
 			BNX2X_ERR("Failed to configure default VLAN\n");
-			return rc;
+			goto out;
 		}
 
 		/* clear the flag indicating that this VF needs its vlan
-		 * (will only be set if the HV configured th Vlan before vf was
-		 * and we were called because the VF came up later
+		 * (will only be set if the HV configured the Vlan before vf was
+		 * up and we were called because the VF came up later
 		 */
+out:
 		vf->cfg_flags &= ~VF_CFG_VLAN;
-
 		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
 	}
-	return 0;
+	return rc;
 }
 
 /* crc is the first field in the bulletin board. Compute the crc over the

@@ -881,7 +881,9 @@ void bpf_jit_free(struct sk_filter *fp)
 	struct bpf_binary_header *header = (void *)addr;
 
 	if (fp->bpf_func == sk_run_filter)
-		return;
+		goto free_filter;
 	set_memory_rw(addr, header->pages);
 	module_free(NULL, header);
+free_filter:
+	kfree(fp);
 }

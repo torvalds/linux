@@ -976,6 +976,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 		if (t->parms.o_flags&GRE_SEQ)
 			addend += 4;
 	}
+	t->hlen = addend;
 
 	if (p->flags & IP6_TNL_F_CAP_XMIT) {
 		int strict = (ipv6_addr_type(&p->raddr) &
@@ -1002,8 +1003,6 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 		}
 		ip6_rt_put(rt);
 	}
-
-	t->hlen = addend;
 }
 
 static int ip6gre_tnl_change(struct ip6_tnl *t,
@@ -1173,9 +1172,8 @@ done:
 
 static int ip6gre_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct ip6_tnl *tunnel = netdev_priv(dev);
 	if (new_mtu < 68 ||
-	    new_mtu > 0xFFF8 - dev->hard_header_len - tunnel->hlen)
+	    new_mtu > 0xFFF8 - dev->hard_header_len)
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;

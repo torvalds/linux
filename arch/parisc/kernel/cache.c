@@ -602,7 +602,6 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 	}
 }
-EXPORT_SYMBOL_GPL(flush_cache_page);
 
 #ifdef CONFIG_PARISC_TMPALIAS
 
