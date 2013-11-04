@@ -98,6 +98,11 @@ static inline __wsum csum_unfold(__sum16 n)
 	return (__force __wsum)n;
 }
 
+static inline __wsum csum_partial_ext(const void *buff, int len, __wsum sum)
+{
+	return csum_partial(buff, len, sum);
+}
+
 #define CSUM_MANGLED_0 ((__force __sum16)0xffff)
 
 static inline void csum_replace4(__sum16 *sum, __be32 from, __be32 to)
