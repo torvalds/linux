@@ -2960,6 +2960,7 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
 				greset.d32);
 			break;
 		}
+		UDELAY(1);
 	} 
 	while (greset.b.csftrst == 1);		  
 
