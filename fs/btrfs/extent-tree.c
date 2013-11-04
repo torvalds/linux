@@ -4022,6 +4022,18 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 	}
 }
 
+static inline int calc_reclaim_items_nr(struct btrfs_root *root, u64 to_reclaim)
+{
+	u64 bytes;
+	int nr;
+
+	bytes = btrfs_calc_trans_metadata_size(root, 1);
+	nr = (int)div64_u64(to_reclaim, bytes);
+	if (!nr)
+		nr = 1;
+	return nr;
+}
+
 /*
  * shrink metadata reservation for delalloc
  */
@@ -4167,16 +4179,11 @@ static int flush_space(struct btrfs_root *root,
 	switch (state) {
 	case FLUSH_DELAYED_ITEMS_NR:
 	case FLUSH_DELAYED_ITEMS:
-		if (state == FLUSH_DELAYED_ITEMS_NR) {
-			u64 bytes = btrfs_calc_trans_metadata_size(root, 1);
-
-			nr = (int)div64_u64(num_bytes, bytes);
-			if (!nr)
-				nr = 1;
-			nr *= 2;
-		} else {
+		if (state == FLUSH_DELAYED_ITEMS_NR)
+			nr = calc_reclaim_items_nr(root, num_bytes) * 2;
+		else
 			nr = -1;
-		}
+
 		trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
