@@ -220,8 +220,7 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 	memset(desc, 0, sizeof(*desc));
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = (__force __u16)
-		(__constant_cpu_to_le16(0x0001));
+	desc->wHubCharacteristics = (__constant_cpu_to_le16(0x0001));
 	desc->bNbrPorts = VHCI_NPORTS;
 	desc->u.hs.DeviceRemovable[0] = 0xff;
 	desc->u.hs.DeviceRemovable[1] = 0xff;
@@ -348,8 +347,8 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					USB_PORT_STAT_ENABLE;
 			}
 		}
-		((u16 *) buf)[0] = cpu_to_le16(dum->port_status[rhport]);
-		((u16 *) buf)[1] = cpu_to_le16(dum->port_status[rhport] >> 16);
+		((__le16 *) buf)[0] = cpu_to_le16(dum->port_status[rhport]);
+		((__le16 *) buf)[1] = cpu_to_le16(dum->port_status[rhport] >> 16);
 
 		usbip_dbg_vhci_rh(" GetPortStatus bye %x %x\n", ((u16 *)buf)[0],
 				  ((u16 *)buf)[1]);
@@ -537,7 +536,7 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 			goto no_need_xmit;
 
 		case USB_REQ_GET_DESCRIPTOR:
-			if (ctrlreq->wValue == (USB_DT_DEVICE << 8))
+			if (ctrlreq->wValue == cpu_to_le16(USB_DT_DEVICE << 8))
 				usbip_dbg_vhci_hc("Not yet?: "
 						  "Get_Descriptor to device 0 "
 						  "(get max pipe size)\n");
