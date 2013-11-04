@@ -45,7 +45,7 @@
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 11 0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
 	flash: m25p80@0 {
@@ -59,7 +59,7 @@
 
 &fec {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_fec_1>;
+	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
 	status = "okay";
 };
@@ -68,7 +68,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
-	hog {
+	imx6sl-evk {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX6SL_PAD_KEY_ROW7__GPIO4_IO07    0x17059
@@ -80,19 +80,165 @@
 				MX6SL_PAD_KEY_COL5__GPIO4_IO02	0x80000000
 			>;
 		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX6SL_PAD_ECSPI1_MISO__ECSPI1_MISO	0x100b1
+				MX6SL_PAD_ECSPI1_MOSI__ECSPI1_MOSI	0x100b1
+				MX6SL_PAD_ECSPI1_SCLK__ECSPI1_SCLK	0x100b1
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX6SL_PAD_FEC_MDC__FEC_MDC		0x1b0b0
+				MX6SL_PAD_FEC_MDIO__FEC_MDIO		0x1b0b0
+				MX6SL_PAD_FEC_CRS_DV__FEC_RX_DV		0x1b0b0
+				MX6SL_PAD_FEC_RXD0__FEC_RX_DATA0	0x1b0b0
+				MX6SL_PAD_FEC_RXD1__FEC_RX_DATA1	0x1b0b0
+				MX6SL_PAD_FEC_TX_EN__FEC_TX_EN		0x1b0b0
+				MX6SL_PAD_FEC_TXD0__FEC_TX_DATA0	0x1b0b0
+				MX6SL_PAD_FEC_TXD1__FEC_TX_DATA1	0x1b0b0
+				MX6SL_PAD_FEC_REF_CLK__FEC_REF_OUT	0x4001b0a8
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX6SL_PAD_UART1_RXD__UART1_RX_DATA	0x1b0b1
+				MX6SL_PAD_UART1_TXD__UART1_TX_DATA	0x1b0b1
+			>;
+		};
+
+		pinctrl_usbotg1: usbotg1grp {
+			fsl,pins = <
+				MX6SL_PAD_EPDC_PWRCOM__USB_OTG1_ID	0x17059
+			>;
+		};
+
+		pinctrl_usdhc1: usdhc1grp {
+			fsl,pins = <
+				MX6SL_PAD_SD1_CMD__SD1_CMD		0x17059
+				MX6SL_PAD_SD1_CLK__SD1_CLK		0x10059
+				MX6SL_PAD_SD1_DAT0__SD1_DATA0		0x17059
+				MX6SL_PAD_SD1_DAT1__SD1_DATA1		0x17059
+				MX6SL_PAD_SD1_DAT2__SD1_DATA2		0x17059
+				MX6SL_PAD_SD1_DAT3__SD1_DATA3		0x17059
+				MX6SL_PAD_SD1_DAT4__SD1_DATA4		0x17059
+				MX6SL_PAD_SD1_DAT5__SD1_DATA5		0x17059
+				MX6SL_PAD_SD1_DAT6__SD1_DATA6		0x17059
+				MX6SL_PAD_SD1_DAT7__SD1_DATA7		0x17059
+			>;
+		};
+
+		pinctrl_usdhc1_100mhz: usdhc1grp100mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD1_CMD__SD1_CMD		0x170b9
+				MX6SL_PAD_SD1_CLK__SD1_CLK		0x100b9
+				MX6SL_PAD_SD1_DAT0__SD1_DATA0		0x170b9
+				MX6SL_PAD_SD1_DAT1__SD1_DATA1		0x170b9
+				MX6SL_PAD_SD1_DAT2__SD1_DATA2		0x170b9
+				MX6SL_PAD_SD1_DAT3__SD1_DATA3		0x170b9
+				MX6SL_PAD_SD1_DAT4__SD1_DATA4		0x170b9
+				MX6SL_PAD_SD1_DAT5__SD1_DATA5		0x170b9
+				MX6SL_PAD_SD1_DAT6__SD1_DATA6		0x170b9
+				MX6SL_PAD_SD1_DAT7__SD1_DATA7		0x170b9
+			>;
+		};
+
+		pinctrl_usdhc1_200mhz: usdhc1grp200mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD1_CMD__SD1_CMD		0x170f9
+				MX6SL_PAD_SD1_CLK__SD1_CLK		0x100f9
+				MX6SL_PAD_SD1_DAT0__SD1_DATA0		0x170f9
+				MX6SL_PAD_SD1_DAT1__SD1_DATA1		0x170f9
+				MX6SL_PAD_SD1_DAT2__SD1_DATA2		0x170f9
+				MX6SL_PAD_SD1_DAT3__SD1_DATA3		0x170f9
+				MX6SL_PAD_SD1_DAT4__SD1_DATA4		0x170f9
+				MX6SL_PAD_SD1_DAT5__SD1_DATA5		0x170f9
+				MX6SL_PAD_SD1_DAT6__SD1_DATA6		0x170f9
+				MX6SL_PAD_SD1_DAT7__SD1_DATA7		0x170f9
+			>;
+		};
+
+		pinctrl_usdhc2: usdhc2grp {
+			fsl,pins = <
+				MX6SL_PAD_SD2_CMD__SD2_CMD		0x17059
+				MX6SL_PAD_SD2_CLK__SD2_CLK		0x10059
+				MX6SL_PAD_SD2_DAT0__SD2_DATA0		0x17059
+				MX6SL_PAD_SD2_DAT1__SD2_DATA1		0x17059
+				MX6SL_PAD_SD2_DAT2__SD2_DATA2		0x17059
+				MX6SL_PAD_SD2_DAT3__SD2_DATA3		0x17059
+			>;
+		};
+
+		pinctrl_usdhc2_100mhz: usdhc2grp100mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD2_CMD__SD2_CMD		0x170b9
+				MX6SL_PAD_SD2_CLK__SD2_CLK		0x100b9
+				MX6SL_PAD_SD2_DAT0__SD2_DATA0		0x170b9
+				MX6SL_PAD_SD2_DAT1__SD2_DATA1		0x170b9
+				MX6SL_PAD_SD2_DAT2__SD2_DATA2		0x170b9
+				MX6SL_PAD_SD2_DAT3__SD2_DATA3		0x170b9
+			>;
+		};
+
+		pinctrl_usdhc2_200mhz: usdhc2grp200mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD2_CMD__SD2_CMD		0x170f9
+				MX6SL_PAD_SD2_CLK__SD2_CLK		0x100f9
+				MX6SL_PAD_SD2_DAT0__SD2_DATA0		0x170f9
+				MX6SL_PAD_SD2_DAT1__SD2_DATA1		0x170f9
+				MX6SL_PAD_SD2_DAT2__SD2_DATA2		0x170f9
+				MX6SL_PAD_SD2_DAT3__SD2_DATA3		0x170f9
+			>;
+		};
+
+		pinctrl_usdhc3: usdhc3grp {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x17059
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x10059
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x17059
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x17059
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x17059
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x17059
+			>;
+		};
+
+		pinctrl_usdhc3_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x170b9
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x100b9
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x170b9
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x170b9
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x170b9
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x170b9
+			>;
+		};
+
+		pinctrl_usdhc3_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x170f9
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x100f9
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x170f9
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x170f9
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x170f9
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x170f9
+			>;
+		};
 	};
 };
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_1>;
+	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &usbotg1 {
 	vbus-supply = <&reg_usb_otg1_vbus>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg1_1>;
+	pinctrl-0 = <&pinctrl_usbotg1>;
 	disable-over-current;
 	status = "okay";
 };
@@ -106,9 +252,9 @@
 
 &usdhc1 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc1_1>;
-	pinctrl-1 = <&pinctrl_usdhc1_1_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc1_1_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
 	cd-gpios = <&gpio4 7 0>;
 	wp-gpios = <&gpio4 6 0>;
@@ -117,9 +263,9 @@
 
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc2_1>;
-	pinctrl-1 = <&pinctrl_usdhc2_1_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc2_1_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	cd-gpios = <&gpio5 0 0>;
 	wp-gpios = <&gpio4 29 0>;
 	status = "okay";
@@ -127,9 +273,9 @@
 
 &usdhc3 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc3_1>;
-	pinctrl-1 = <&pinctrl_usdhc3_1_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc3_1_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	cd-gpios = <&gpio3 22 0>;
 	status = "okay";
 };
