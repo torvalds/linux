@@ -19,6 +19,7 @@ brcm	Broadcom Corporation
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
 chrp	Common Hardware Reference Platform
+chunghwa	Chunghwa Picture Tubes Ltd.
 cirrus	Cirrus Logic, Inc.
 cortina	Cortina Systems, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
