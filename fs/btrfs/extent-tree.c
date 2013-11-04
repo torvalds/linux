@@ -4079,9 +4079,19 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 		 * We need to wait for the async pages to actually start before
 		 * we do anything.
 		 */
-		wait_event(root->fs_info->async_submit_wait,
-			   !atomic_read(&root->fs_info->async_delalloc_pages));
+		max_reclaim = atomic_read(&root->fs_info->async_delalloc_pages);
+		if (!max_reclaim)
+			goto skip_async;
 
+		if (max_reclaim <= nr_pages)
+			max_reclaim = 0;
+		else
+			max_reclaim -= nr_pages;
+
+		wait_event(root->fs_info->async_submit_wait,
+			   atomic_read(&root->fs_info->async_delalloc_pages) <=
+			   (int)max_reclaim);
+skip_async:
 		if (!trans)
 			flush = BTRFS_RESERVE_FLUSH_ALL;
 		else
