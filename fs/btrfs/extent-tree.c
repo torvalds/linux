@@ -4047,7 +4047,8 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	if (delalloc_bytes == 0) {
 		if (trans)
 			return;
-		btrfs_wait_all_ordered_extents(root->fs_info);
+		if (wait_ordered)
+			btrfs_wait_all_ordered_extents(root->fs_info);
 		return;
 	}
 
