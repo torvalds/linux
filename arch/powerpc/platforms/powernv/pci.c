@@ -242,11 +242,15 @@ static void pnv_pci_config_check_eeh(struct pnv_phb *phb,
 	/*
 	 * Get the PE#. During the PCI probe stage, we might not
 	 * setup that yet. So all ER errors should be mapped to
-	 * PE#0
+	 * reserved PE.
 	 */
 	pe_no = PCI_DN(dn)->pe_number;
-	if (pe_no == IODA_INVALID_PE)
-		pe_no = 0;
+	if (pe_no == IODA_INVALID_PE) {
+		if (phb->type == PNV_PHB_P5IOC2)
+			pe_no = 0;
+		else
+			pe_no = phb->ioda.reserved_pe;
+	}
 
 	/* Read freeze status */
 	rc = opal_pci_eeh_freeze_status(phb->opal_id, pe_no, &fstate, &pcierr,

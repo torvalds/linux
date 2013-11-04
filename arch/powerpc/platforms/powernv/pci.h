@@ -125,6 +125,7 @@ struct pnv_phb {
 		struct {
 			/* Global bridge info */
 			unsigned int		total_pe;
+			unsigned int		reserved_pe;
 			unsigned int		m32_size;
 			unsigned int		m32_segsize;
 			unsigned int		m32_pci_base;
