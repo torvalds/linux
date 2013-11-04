@@ -644,8 +644,7 @@ static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
 
 	l = path->nodes[0];
 	slot = path->slots[0];
-	qgroup_limit = btrfs_item_ptr(l, path->slots[0],
-				      struct btrfs_qgroup_limit_item);
+	qgroup_limit = btrfs_item_ptr(l, slot, struct btrfs_qgroup_limit_item);
 	btrfs_set_qgroup_limit_flags(l, qgroup_limit, flags);
 	btrfs_set_qgroup_limit_max_rfer(l, qgroup_limit, max_rfer);
 	btrfs_set_qgroup_limit_max_excl(l, qgroup_limit, max_excl);
@@ -687,8 +686,7 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 
 	l = path->nodes[0];
 	slot = path->slots[0];
-	qgroup_info = btrfs_item_ptr(l, path->slots[0],
-				 struct btrfs_qgroup_info_item);
+	qgroup_info = btrfs_item_ptr(l, slot, struct btrfs_qgroup_info_item);
 	btrfs_set_qgroup_info_generation(l, qgroup_info, trans->transid);
 	btrfs_set_qgroup_info_rfer(l, qgroup_info, qgroup->rfer);
 	btrfs_set_qgroup_info_rfer_cmpr(l, qgroup_info, qgroup->rfer_cmpr);
@@ -1349,7 +1347,6 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 			     struct btrfs_delayed_ref_node *node,
 			     struct btrfs_delayed_extent_op *extent_op)
 {
-	struct btrfs_key ins;
 	struct btrfs_root *quota_root;
 	u64 ref_root;
 	struct btrfs_qgroup *qgroup;
@@ -1362,10 +1359,6 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 		return 0;
 
 	BUG_ON(!fs_info->quota_root);
-
-	ins.objectid = node->bytenr;
-	ins.offset = node->num_bytes;
-	ins.type = BTRFS_EXTENT_ITEM_KEY;
 
 	if (node->type == BTRFS_TREE_BLOCK_REF_KEY ||
 	    node->type == BTRFS_SHARED_BLOCK_REF_KEY) {
