@@ -39,8 +39,8 @@ static const struct coreclk_ratio a370_coreclk_ratios[] __initconst = {
 };
 
 static const u32 a370_tclk_freqs[] __initconst = {
-	16600000,
-	20000000,
+	166000000,
+	200000000,
 };
 
 static u32 __init a370_get_tclk_freq(void __iomem *sar)

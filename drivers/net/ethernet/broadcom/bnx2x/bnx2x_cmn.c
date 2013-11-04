@@ -2545,10 +2545,6 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 	}
 
-	/* Allocated memory for FW statistics  */
-	if (bnx2x_alloc_fw_stats_mem(bp))
-		LOAD_ERROR_EXIT(bp, load_error0);
-
 	/* need to be done after alloc mem, since it's self adjusting to amount
 	 * of memory available for RSS queues
 	 */
@@ -2557,6 +2553,10 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		BNX2X_ERR("Unable to allocate memory for fps\n");
 		LOAD_ERROR_EXIT(bp, load_error0);
 	}
+
+	/* Allocated memory for FW statistics  */
+	if (bnx2x_alloc_fw_stats_mem(bp))
+		LOAD_ERROR_EXIT(bp, load_error0);
 
 	/* request pf to initialize status blocks */
 	if (IS_VF(bp)) {
@@ -2812,8 +2812,8 @@ load_error1:
 	if (IS_PF(bp))
 		bnx2x_clear_pf_load(bp);
 load_error0:
-	bnx2x_free_fp_mem(bp);
 	bnx2x_free_fw_stats_mem(bp);
+	bnx2x_free_fp_mem(bp);
 	bnx2x_free_mem(bp);
 
 	return rc;

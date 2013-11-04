@@ -840,6 +840,16 @@ int be_load_fw(struct be_adapter *adapter, u8 *func);
 bool be_is_wol_supported(struct be_adapter *adapter);
 bool be_pause_supported(struct be_adapter *adapter);
 u32 be_get_fw_log_level(struct be_adapter *adapter);
+
+static inline int fw_major_num(const char *fw_ver)
+{
+	int fw_major = 0;
+
+	sscanf(fw_ver, "%d.", &fw_major);
+
+	return fw_major;
+}
+
 int be_update_queues(struct be_adapter *adapter);
 int be_poll(struct napi_struct *napi, int budget);
 

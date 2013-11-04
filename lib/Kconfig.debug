@@ -983,7 +983,7 @@ config DEBUG_KOBJECT
 
 config DEBUG_KOBJECT_RELEASE
 	bool "kobject release debugging"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_OBJECTS_TIMERS
 	help
 	  kobjects are reference counted objects.  This means that their
 	  last reference count put is not predictable, and the kobject can

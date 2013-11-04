@@ -2276,9 +2276,9 @@ int qlcnic_83xx_get_nic_info(struct qlcnic_adapter *adapter,
 		temp = (cmd.rsp.arg[8] & 0x7FFE0000) >> 17;
 		npar_info->max_linkspeed_reg_offset = temp;
 	}
-	if (npar_info->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS)
-		memcpy(ahw->extra_capability, &cmd.rsp.arg[16],
-		       sizeof(ahw->extra_capability));
+
+	memcpy(ahw->extra_capability, &cmd.rsp.arg[16],
+	       sizeof(ahw->extra_capability));
 
 out:
 	qlcnic_free_mbx_args(&cmd);

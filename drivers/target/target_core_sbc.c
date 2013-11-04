@@ -263,6 +263,11 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 			sectors, cmd->se_dev->dev_attrib.max_write_same_len);
 		return TCM_INVALID_CDB_FIELD;
 	}
+	/* We always have ANC_SUP == 0 so setting ANCHOR is always an error */
+	if (flags[0] & 0x10) {
+		pr_warn("WRITE SAME with ANCHOR not supported\n");
+		return TCM_INVALID_CDB_FIELD;
+	}
 	/*
 	 * Special case for WRITE_SAME w/ UNMAP=1 that ends up getting
 	 * translated into block discard requests within backend code.

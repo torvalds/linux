@@ -785,8 +785,6 @@ void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter)
 
 #define QLCNIC_ENABLE_IPV4_LRO		1
 #define QLCNIC_ENABLE_IPV6_LRO		2
-#define QLCNIC_NO_DEST_IPV4_CHECK	(1 << 8)
-#define QLCNIC_NO_DEST_IPV6_CHECK	(2 << 8)
 
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 {
@@ -806,11 +804,10 @@ int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 
 	word = 0;
 	if (enable) {
-		word = QLCNIC_ENABLE_IPV4_LRO | QLCNIC_NO_DEST_IPV4_CHECK;
+		word = QLCNIC_ENABLE_IPV4_LRO;
 		if (adapter->ahw->extra_capability[0] &
 		    QLCNIC_FW_CAP2_HW_LRO_IPV6)
-			word |= QLCNIC_ENABLE_IPV6_LRO |
-				QLCNIC_NO_DEST_IPV6_CHECK;
+			word |= QLCNIC_ENABLE_IPV6_LRO;
 	}
 
 	req.words[0] = cpu_to_le64(word);
