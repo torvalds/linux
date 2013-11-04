@@ -2421,7 +2421,6 @@ setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 	struct btrfs_free_space *entry = NULL;
 	struct btrfs_free_space *last;
 	struct rb_node *node;
-	u64 window_start;
 	u64 window_free;
 	u64 max_extent;
 	u64 total_size = 0;
@@ -2443,7 +2442,6 @@ setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
 	}
 
-	window_start = entry->offset;
 	window_free = entry->bytes;
 	max_extent = entry->bytes;
 	first = entry;
