@@ -322,12 +322,16 @@ static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ret = ath10k_wmi_peer_create(ar, vdev_id, addr);
-	if (ret)
+	if (ret) {
+		ath10k_warn("Failed to create wmi peer: %i\n", ret);
 		return ret;
+	}
 
 	ret = ath10k_wait_for_peer_created(ar, vdev_id, addr);
-	if (ret)
+	if (ret) {
+		ath10k_warn("Failed to wait for created wmi peer: %i\n", ret);
 		return ret;
+	}
 
 	return 0;
 }
@@ -2404,8 +2408,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			ret = ath10k_peer_create(ar, arvif->vdev_id,
 						 info->bssid);
 			if (ret)
-				ath10k_warn("Failed to add peer: %pM for VDEV: %d\n",
-					    info->bssid, arvif->vdev_id);
+				ath10k_warn("Failed to add peer %pM for vdev %d when changin bssid: %i\n",
+					    info->bssid, arvif->vdev_id, ret);
 
 			if (vif->type == NL80211_IFTYPE_STATION) {
 				/*
@@ -2687,8 +2691,8 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 
 		ret = ath10k_peer_create(ar, arvif->vdev_id, sta->addr);
 		if (ret)
-			ath10k_warn("Failed to add peer: %pM for VDEV: %d\n",
-				    sta->addr, arvif->vdev_id);
+			ath10k_warn("Failed to add peer %pM for vdev %d when adding a new sta: %i\n",
+				    sta->addr, arvif->vdev_id, ret);
 	} else if ((old_state == IEEE80211_STA_NONE &&
 		    new_state == IEEE80211_STA_NOTEXIST)) {
 		/*
