@@ -366,11 +366,6 @@ static struct bin_attribute edid_attr = {
  * properties (so far, connection status, dpms, mode list & edid) and
  * generate a hotplug event so userspace knows there's a new connector
  * available.
- *
- * Note:
- * This routine should only be called *once* for each registered connector.
- * A second call for an already registered connector will trigger the BUG_ON
- * below.
  */
 int drm_sysfs_connector_add(struct drm_connector *connector)
 {
@@ -383,7 +378,6 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	if (connector->kdev)
 		return 0;
 
-	/* We shouldn't get called more than once for the same connector */
 	connector->kdev = device_create(drm_class, dev->primary->kdev,
 					0, connector, "card%d-%s",
 					dev->primary->index, drm_get_connector_name(connector));
