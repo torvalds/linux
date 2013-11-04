@@ -37,6 +37,7 @@ typedef ppc_opcode_t uprobe_opcode_t;
 struct arch_uprobe {
 	union {
 		u8	insn[MAX_UINSN_BYTES];
+		u8	ixol[MAX_UINSN_BYTES];
 		u32	ainsn;
 	};
 };
