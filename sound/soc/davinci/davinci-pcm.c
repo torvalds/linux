@@ -238,7 +238,7 @@ static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)
 	print_buf_info(prtd->ram_channel, "i ram_channel");
 	pr_debug("davinci_pcm: link=%d, status=0x%x\n", link, ch_status);
 
-	if (unlikely(ch_status != DMA_COMPLETE))
+	if (unlikely(ch_status != EDMA_DMA_COMPLETE))
 		return;
 
 	if (snd_pcm_running(substream)) {
