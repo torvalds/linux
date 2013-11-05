@@ -212,6 +212,12 @@ static void reg_kfree_last_request(void)
 		kfree_rcu(lr, rcu_head);
 }
 
+static void reg_update_last_request(struct regulatory_request *request)
+{
+	reg_kfree_last_request();
+	rcu_assign_pointer(last_request, request);
+}
+
 static void reset_regdomains(bool full_reset,
 			     const struct ieee80211_regdomain *new_regdom)
 {
@@ -238,8 +244,7 @@ static void reset_regdomains(bool full_reset,
 	if (!full_reset)
 		return;
 
-	reg_kfree_last_request();
-	rcu_assign_pointer(last_request, &core_request_world);
+	reg_update_last_request(&core_request_world);
 }
 
 /*
@@ -1364,8 +1369,7 @@ reg_process_hint_core(struct regulatory_request *core_request)
 	core_request->intersect = false;
 	core_request->processed = false;
 
-	reg_kfree_last_request();
-	rcu_assign_pointer(last_request, core_request);
+	reg_update_last_request(core_request);
 
 	if (call_crda(core_request->alpha2))
 		return REG_REQ_IGNORE;
@@ -1432,8 +1436,7 @@ reg_process_hint_user(struct regulatory_request *user_request)
 	user_request->intersect = treatment == REG_REQ_INTERSECT;
 	user_request->processed = false;
 
-	reg_kfree_last_request();
-	rcu_assign_pointer(last_request, user_request);
+	reg_update_last_request(user_request);
 
 	user_alpha2[0] = user_request->alpha2[0];
 	user_alpha2[1] = user_request->alpha2[1];
@@ -1505,8 +1508,7 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	driver_request->intersect = treatment == REG_REQ_INTERSECT;
 	driver_request->processed = false;
 
-	reg_kfree_last_request();
-	rcu_assign_pointer(last_request, driver_request);
+	reg_update_last_request(driver_request);
 
 	/*
 	 * Since CRDA will not be called in this case as we already
@@ -1604,8 +1606,7 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	country_ie_request->intersect = false;
 	country_ie_request->processed = false;
 
-	reg_kfree_last_request();
-	rcu_assign_pointer(last_request, country_ie_request);
+	reg_update_last_request(country_ie_request);
 
 	if (call_crda(country_ie_request->alpha2))
 		return REG_REQ_IGNORE;
