@@ -19,12 +19,6 @@
 #define mod_plink_timer(s, t) (mod_timer(&s->plink_timer, \
 				jiffies + HZ * t / 1000))
 
-/* We only need a valid sta if user configured a minimum rssi_threshold. */
-#define rssi_threshold_check(sta, sdata) \
-		(sdata->u.mesh.mshcfg.rssi_threshold == 0 ||\
-		(sta && (s8) -ewma_read(&sta->avg_signal) > \
-		sdata->u.mesh.mshcfg.rssi_threshold))
-
 enum plink_event {
 	PLINK_UNDEFINED,
 	OPN_ACPT,
@@ -62,6 +56,16 @@ static const char * const mplevents[] = {
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_self_protected_actioncode action,
 			       u8 *da, __le16 llid, __le16 plid, __le16 reason);
+
+
+/* We only need a valid sta if user configured a minimum rssi_threshold. */
+static bool rssi_threshold_check(struct ieee80211_sub_if_data *sdata,
+				 struct sta_info *sta)
+{
+	s32 rssi_threshold = sdata->u.mesh.mshcfg.rssi_threshold;
+	return rssi_threshold == 0 ||
+	       (sta && (s8) -ewma_read(&sta->avg_signal) > rssi_threshold);
+}
 
 /**
  * mesh_plink_fsm_restart - restart a mesh peer link finite state machine
@@ -518,7 +522,7 @@ void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 	    sta->plink_state == NL80211_PLINK_LISTEN &&
 	    sdata->u.mesh.accepting_plinks &&
 	    sdata->u.mesh.mshcfg.auto_open_plinks &&
-	    rssi_threshold_check(sta, sdata))
+	    rssi_threshold_check(sdata, sta))
 		changed = mesh_plink_open(sta);
 
 	ieee80211_mps_frame_release(sta, elems);
@@ -776,7 +780,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 			mesh_matches_local(sdata, &elems);
 
 	if (ftype == WLAN_SP_MESH_PEERING_OPEN &&
-	    !rssi_threshold_check(sta, sdata)) {
+	    !rssi_threshold_check(sdata, sta)) {
 		mpl_dbg(sdata, "Mesh plink: %pM does not meet rssi threshold\n",
 			mgmt->sa);
 		rcu_read_unlock();
