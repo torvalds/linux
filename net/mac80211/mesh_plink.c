@@ -671,8 +671,7 @@ static void mesh_plink_close(struct ieee80211_sub_if_data *sdata,
 
 	sta->reason = reason;
 	sta->plink_state = NL80211_PLINK_HOLDING;
-	if (!mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout))
-		sta->ignore_plink_timer = true;
+	mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout);
 }
 
 static u32 mesh_plink_establish(struct ieee80211_sub_if_data *sdata,
