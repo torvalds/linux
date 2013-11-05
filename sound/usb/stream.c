@@ -587,6 +587,7 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 
 			num_channels = as->bNrChannels;
 			format = le32_to_cpu(as->bmFormats);
+			chconfig = le32_to_cpu(as->bmChannelConfig);
 
 			/* lookup the terminal associated to this interface
 			 * to extract the clock */
@@ -594,7 +595,8 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 									    as->bTerminalLink);
 			if (input_term) {
 				clock = input_term->bCSourceID;
-				chconfig = le32_to_cpu(input_term->bmChannelConfig);
+				if (!chconfig && (num_channels == input_term->bNrChannels))
+					chconfig = le32_to_cpu(input_term->bmChannelConfig);
 				break;
 			}
 
