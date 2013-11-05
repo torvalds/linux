@@ -464,7 +464,7 @@ static int si4713_checkrev(struct si4713_device *sdev)
 		v4l2_info(&sdev->sd, "chip found @ 0x%02x (%s)\n",
 				client->addr << 1, client->adapter->name);
 	} else {
-		v4l2_err(&sdev->sd, "Invalid product number\n");
+		v4l2_err(&sdev->sd, "Invalid product number 0x%X\n", resp[1]);
 		rval = -EINVAL;
 	}
 	return rval;
