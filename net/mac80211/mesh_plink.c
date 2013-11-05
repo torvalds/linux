@@ -615,9 +615,40 @@ static inline void mesh_plink_timer_set(struct sta_info *sta, int timeout)
 	add_timer(&sta->plink_timer);
 }
 
+static bool llid_in_use(struct ieee80211_sub_if_data *sdata,
+			__le16 llid)
+{
+	struct ieee80211_local *local = sdata->local;
+	bool in_use = false;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (!memcmp(&sta->llid, &llid, sizeof(llid))) {
+			in_use = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return in_use;
+}
+
+static __le16 mesh_get_new_llid(struct ieee80211_sub_if_data *sdata)
+{
+	u16 llid;
+
+	do {
+		get_random_bytes(&llid, sizeof(llid));
+		/* for mesh PS we still only have the AID range for TIM bits */
+		llid = (llid % IEEE80211_MAX_AID) + 1;
+	} while (llid_in_use(sdata, cpu_to_le16(llid)));
+
+	return cpu_to_le16(llid);
+}
+
 u32 mesh_plink_open(struct sta_info *sta)
 {
-	__le16 llid;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u32 changed;
 
@@ -625,8 +656,7 @@ u32 mesh_plink_open(struct sta_info *sta)
 		return 0;
 
 	spin_lock_bh(&sta->lock);
-	get_random_bytes(&llid, 2);
-	sta->llid = llid;
+	sta->llid = mesh_get_new_llid(sdata);
 	if (sta->plink_state != NL80211_PLINK_LISTEN &&
 	    sta->plink_state != NL80211_PLINK_BLOCKED) {
 		spin_unlock_bh(&sta->lock);
@@ -643,7 +673,7 @@ u32 mesh_plink_open(struct sta_info *sta)
 	changed = ieee80211_mps_local_status_update(sdata);
 
 	mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_OPEN,
-			    sta->sta.addr, llid, 0, 0);
+			    sta->sta.addr, sta->llid, 0, 0);
 	return changed;
 }
 
@@ -719,7 +749,7 @@ static u32 mesh_plink_fsm(struct ieee80211_sub_if_data *sdata,
 			break;
 		case OPN_ACPT:
 			sta->plink_state = NL80211_PLINK_OPN_RCVD;
-			get_random_bytes(&sta->llid, 2);
+			sta->llid = mesh_get_new_llid(sdata);
 			mesh_plink_timer_set(sta,
 					     mshcfg->dot11MeshRetryTimeout);
 
