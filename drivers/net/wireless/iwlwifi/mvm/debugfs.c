@@ -342,6 +342,7 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 	case MVM_DEBUGFS_PM_DISABLE_POWER_OFF:
 		IWL_DEBUG_POWER(mvm, "disable_power_off=%d\n", val);
 		dbgfs_pm->disable_power_off = val;
+		break;
 	case MVM_DEBUGFS_PM_LPRX_ENA:
 		IWL_DEBUG_POWER(mvm, "lprx %s\n", val ? "enabled" : "disabled");
 		dbgfs_pm->lprx_ena = val;

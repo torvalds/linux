@@ -151,13 +151,11 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	enum iwl_ucode_type old_type = mvm->cur_ucode;
 	static const u8 alive_cmd[] = { MVM_ALIVE };
 
-	mvm->cur_ucode = ucode_type;
 	fw = iwl_get_ucode_image(mvm, ucode_type);
-
-	mvm->ucode_loaded = false;
-
-	if (!fw)
+	if (WARN_ON(!fw))
 		return -EINVAL;
+	mvm->cur_ucode = ucode_type;
+	mvm->ucode_loaded = false;
 
 	iwl_init_notification_wait(&mvm->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),

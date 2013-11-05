@@ -164,8 +164,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_TIMING_BEACON_ONLY |
 		    IEEE80211_HW_CONNECTION_MONITOR |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_UAPSD;
+		    IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
 	hw->queues = mvm->first_agg_queue;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
@@ -179,6 +178,12 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
 	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT) {
+		hw->flags |= IEEE80211_HW_SUPPORTS_UAPSD;
+		hw->uapsd_queues = IWL_UAPSD_AC_INFO;
+		hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
+	}
 
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
@@ -204,8 +209,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
-	hw->uapsd_queues = IWL_UAPSD_AC_INFO;
-	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 
 	/* Extract MAC address */
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
@@ -861,7 +864,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		/* reset rssi values */
 		mvmvif->bf_data.ave_beacon_signal = 0;
 
-		if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)) {
+		if (!(mvm->fw->ucode_capa.flags &
+					IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)) {
 			/* Workaround for FW bug, otherwise FW disables device
 			 * power save upon disassociation
 			 */
