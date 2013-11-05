@@ -55,7 +55,8 @@ static int tpa6130a2_i2c_read(int reg)
 	struct tpa6130a2_data *data;
 	int val;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	/* If powered off, return the cached value */
@@ -77,7 +78,8 @@ static int tpa6130a2_i2c_write(int reg, u8 value)
 	struct tpa6130a2_data *data;
 	int val = 0;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (data->power_state) {
@@ -98,7 +100,8 @@ static u8 tpa6130a2_read(int reg)
 {
 	struct tpa6130a2_data *data;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return 0;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	return data->regs[reg];
@@ -109,7 +112,8 @@ static int tpa6130a2_initialize(void)
 	struct tpa6130a2_data *data;
 	int i, ret = 0;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	for (i = 1; i < TPA6130A2_REG_VERSION; i++) {
@@ -127,7 +131,8 @@ static int tpa6130a2_power(u8 power)
 	u8	val;
 	int	ret = 0;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
@@ -193,7 +198,8 @@ static int tpa6130a2_get_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
@@ -223,7 +229,8 @@ static int tpa6130a2_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int val = (ucontrol->value.integer.value[0] & mask);
 	unsigned int val_reg;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (WARN_ON(!tpa6130a2_client))
+		return -EINVAL;
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (invert)
