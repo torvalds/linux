@@ -574,8 +574,9 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 	switch (event) {
 	case SH_MOBILE_LCDC_EVENT_DISPLAY_CONNECT:
 		/* HDMI plug in */
+		console_lock();
 		if (lock_fb_info(info)) {
-			console_lock();
+
 
 			ch->display.width = monspec->max_x * 10;
 			ch->display.height = monspec->max_y * 10;
@@ -594,19 +595,20 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 				fb_set_suspend(info, 0);
 			}
 
-			console_unlock();
+
 			unlock_fb_info(info);
 		}
+		console_unlock();
 		break;
 
 	case SH_MOBILE_LCDC_EVENT_DISPLAY_DISCONNECT:
 		/* HDMI disconnect */
+		console_lock();
 		if (lock_fb_info(info)) {
-			console_lock();
 			fb_set_suspend(info, 1);
-			console_unlock();
 			unlock_fb_info(info);
 		}
+		console_unlock();
 		break;
 
 	case SH_MOBILE_LCDC_EVENT_DISPLAY_MODE:
