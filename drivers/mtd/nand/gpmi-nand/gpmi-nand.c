@@ -1732,7 +1732,7 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
+	this = devm_kzalloc(&pdev->dev, sizeof(*this), GFP_KERNEL);
 	if (!this) {
 		pr_err("Failed to allocate per-device memory\n");
 		return -ENOMEM;
@@ -1762,7 +1762,6 @@ exit_nfc_init:
 	release_resources(this);
 exit_acquire_resources:
 	dev_err(this->dev, "driver registration failed: %d\n", ret);
-	kfree(this);
 
 	return ret;
 }
@@ -1773,7 +1772,6 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 
 	gpmi_nfc_exit(this);
 	release_resources(this);
-	kfree(this);
 	return 0;
 }
 
