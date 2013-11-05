@@ -1597,12 +1597,39 @@ nfsd4_opnum_in_range(struct nfsd4_compoundargs *argp, struct nfsd4_op *op)
 	return true;
 }
 
+/*
+ * Return a rough estimate of the maximum possible reply size.  Note the
+ * estimate includes rpc headers so is meant to be passed to
+ * svc_reserve, not svc_reserve_auth.
+ *
+ * Also note the current compound encoding permits only one operation to
+ * use pages beyond the first one, so the maximum possible length is the
+ * maximum over these values, not the sum.
+ */
+static int nfsd4_max_reply(u32 opnum)
+{
+	switch (opnum) {
+	case OP_READLINK:
+	case OP_READDIR:
+		/*
+		 * Both of these ops take a single page for data and put
+		 * the head and tail in another page:
+		 */
+		return 2 * PAGE_SIZE;
+	case OP_READ:
+		return INT_MAX;
+	default:
+		return PAGE_SIZE;
+	}
+}
+
 static __be32
 nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 {
 	DECODE_HEAD;
 	struct nfsd4_op *op;
 	bool cachethis = false;
+	int max_reply = PAGE_SIZE;
 	int i;
 
 	READ_BUF(4);
@@ -1652,10 +1679,14 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		 * op in the compound wants to be cached:
 		 */
 		cachethis |= nfsd4_cache_this_op(op);
+
+		max_reply = max(max_reply, nfsd4_max_reply(op->opnum));
 	}
 	/* Sessions make the DRC unnecessary: */
 	if (argp->minorversion)
 		cachethis = false;
+	if (max_reply != INT_MAX)
+		svc_reserve(argp->rqstp, max_reply);
 	argp->rqstp->rq_cachetype = cachethis ? RC_REPLBUFF : RC_NOCACHE;
 
 	DECODE_TAIL;
