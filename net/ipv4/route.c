@@ -1036,6 +1036,10 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	bool new = false;
 
 	bh_lock_sock(sk);
+
+	if (!ip_sk_accept_pmtu(sk))
+		goto out;
+
 	rt = (struct rtable *) __sk_dst_get(sk);
 
 	if (sock_owned_by_user(sk) || !rt) {
