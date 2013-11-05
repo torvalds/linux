@@ -32,7 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/genalloc.h>
 
-#define SRAM_GRANULARITY	32
+#define SRAM_GRANULARITY	4096
 
 struct sram_dev {
 	struct gen_pool *pool;
