@@ -435,8 +435,8 @@ nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv84_fifo_oclass = {
+struct nouveau_oclass *
+nv84_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_fifo_ctor,

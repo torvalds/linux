@@ -720,8 +720,8 @@ nvc0_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_fifo_oclass = {
+struct nouveau_oclass *
+nvc0_fifo_oclass = &(struct nouveau_oclass) {
 	.handle = NV_ENGINE(FIFO, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_fifo_ctor,

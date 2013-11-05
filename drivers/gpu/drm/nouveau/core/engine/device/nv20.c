@@ -60,7 +60,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv20_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
@@ -79,7 +79,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv25_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
@@ -98,7 +98,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv25_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
@@ -117,7 +117,7 @@ nv20_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] = &nv04_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv04_vmmgr_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nv04_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] = &nv17_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv2a_graph_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
