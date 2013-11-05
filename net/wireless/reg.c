@@ -2192,12 +2192,12 @@ static void print_regdomain_info(const struct ieee80211_regdomain *rd)
 }
 
 /* Takes ownership of rd only if it doesn't fail */
-static int __set_regdom(const struct ieee80211_regdomain *rd)
+static int __set_regdom(const struct ieee80211_regdomain *rd,
+			struct regulatory_request *lr)
 {
 	const struct ieee80211_regdomain *regd;
 	const struct ieee80211_regdomain *intersected_rd = NULL;
 	struct wiphy *request_wiphy;
-	struct regulatory_request *lr = get_last_request();
 
 	/* Some basic sanity checks first */
 
@@ -2323,7 +2323,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	lr = get_last_request();
 
 	/* Note that this doesn't update the wiphys, this is done below */
-	r = __set_regdom(rd);
+	r = __set_regdom(rd, lr);
 	if (r) {
 		if (r == -EALREADY)
 			reg_set_request_processed();
