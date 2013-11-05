@@ -163,10 +163,11 @@ struct iss_video {
 	/* Pipeline state */
 	struct iss_pipeline pipe;
 	struct mutex stream_lock;	/* pipeline and stream states */
+	bool error;
 
 	/* Video buffers queue */
 	struct vb2_queue *queue;
-	spinlock_t qlock;	/* Spinlock for dmaqueue */
+	spinlock_t qlock;		/* protects dmaqueue and error */
 	struct list_head dmaqueue;
 	enum iss_video_dmaqueue_flags dmaqueue_flags;
 	struct vb2_alloc_ctx *alloc_ctx;
@@ -194,6 +195,7 @@ int omap4iss_video_register(struct iss_video *video,
 			    struct v4l2_device *vdev);
 void omap4iss_video_unregister(struct iss_video *video);
 struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video);
+void omap4iss_video_cancel_stream(struct iss_video *video);
 struct media_pad *omap4iss_video_remote_pad(struct iss_video *video);
 
 const struct iss_format_info *

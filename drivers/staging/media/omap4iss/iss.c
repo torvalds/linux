@@ -693,6 +693,23 @@ int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
 }
 
 /*
+ * omap4iss_pipeline_cancel_stream - Cancel stream on a pipeline
+ * @pipe: ISS pipeline
+ *
+ * Cancelling a stream mark all buffers on all video nodes in the pipeline as
+ * erroneous and makes sure no new buffer can be queued. This function is called
+ * when a fatal error that prevents any further operation on the pipeline
+ * occurs.
+ */
+void omap4iss_pipeline_cancel_stream(struct iss_pipeline *pipe)
+{
+	if (pipe->input)
+		omap4iss_video_cancel_stream(pipe->input);
+	if (pipe->output)
+		omap4iss_video_cancel_stream(pipe->output);
+}
+
+/*
  * iss_pipeline_is_last - Verify if entity has an enabled link to the output
  *			  video node
  * @me: ISS module's media entity

@@ -328,6 +328,15 @@ static int iss_video_buf_prepare(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < size)
 		return -ENOBUFS;
 
+	/* Refuse to prepare the buffer is the video node has registered an
+	 * error. We don't need to take any lock here as the operation is
+	 * inherently racy. The authoritative check will be performed in the
+	 * queue handler, which can't return an error, this check is just a best
+	 * effort to notify userspace as early as possible.
+	 */
+	if (unlikely(video->error))
+		return -EIO;
+
 	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	if (!IS_ALIGNED(addr, 32)) {
 		dev_dbg(video->iss->dev,
@@ -346,12 +355,20 @@ static void iss_video_buf_queue(struct vb2_buffer *vb)
 	struct iss_video *video = vfh->video;
 	struct iss_buffer *buffer = container_of(vb, struct iss_buffer, vb);
 	struct iss_pipeline *pipe = to_iss_pipeline(&video->video.entity);
-	unsigned int empty;
 	unsigned long flags;
+	bool empty;
 
 	spin_lock_irqsave(&video->qlock, flags);
+
+	if (unlikely(video->error)) {
+		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+		spin_unlock_irqrestore(&video->qlock, flags);
+		return;
+	}
+
 	empty = list_empty(&video->dmaqueue);
 	list_add_tail(&buffer->list, &video->dmaqueue);
+
 	spin_unlock_irqrestore(&video->qlock, flags);
 
 	if (empty) {
@@ -469,6 +486,33 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	spin_unlock_irqrestore(&video->qlock, flags);
 	buf->vb.state = VB2_BUF_STATE_ACTIVE;
 	return buf;
+}
+
+/*
+ * omap4iss_video_cancel_stream - Cancel stream on a video node
+ * @video: ISS video object
+ *
+ * Cancelling a stream mark all buffers on the video node as erroneous and makes
+ * sure no new buffer can be queued.
+ */
+void omap4iss_video_cancel_stream(struct iss_video *video)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&video->qlock, flags);
+
+	while (!list_empty(&video->dmaqueue)) {
+		struct iss_buffer *buf;
+
+		buf = list_first_entry(&video->dmaqueue, struct iss_buffer,
+				       list);
+		list_del(&buf->list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+	}
+
+	video->error = true;
+
+	spin_unlock_irqrestore(&video->qlock, flags);
 }
 
 /* -----------------------------------------------------------------------------
@@ -852,6 +896,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->queue = &vfh->queue;
 	INIT_LIST_HEAD(&video->dmaqueue);
 	spin_lock_init(&video->qlock);
+	video->error = false;
 	atomic_set(&pipe->frame_number, -1);
 
 	ret = vb2_streamon(&vfh->queue, type);

@@ -131,6 +131,7 @@ int omap4iss_module_sync_is_stopping(wait_queue_head_t *wait,
 
 int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
 				 enum iss_pipeline_stream_state state);
+void omap4iss_pipeline_cancel_stream(struct iss_pipeline *pipe);
 
 void omap4iss_configure_bridge(struct iss_device *iss,
 			       enum ipipeif_input_entity input);
