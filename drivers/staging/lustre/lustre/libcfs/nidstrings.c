@@ -60,7 +60,7 @@ static int       libcfs_nidstring_idx = 0;
 
 static spinlock_t libcfs_nidstring_lock;
 
-void libcfs_init_nidstrings (void)
+void libcfs_init_nidstrings(void)
 {
 	spin_lock_init(&libcfs_nidstring_lock);
 }
@@ -69,7 +69,7 @@ void libcfs_init_nidstrings (void)
 # define NIDSTR_UNLOCK(f) spin_unlock_irqrestore(&libcfs_nidstring_lock, f)
 
 static char *
-libcfs_next_nidstring (void)
+libcfs_next_nidstring(void)
 {
 	char	  *str;
 	unsigned long  flags;
@@ -475,7 +475,7 @@ libcfs_str2nid(const char *str)
 		sep = str + strlen(str);
 		net = LNET_MKNET(SOCKLND, 0);
 		nf = libcfs_lnd2netstrfns(SOCKLND);
-		LASSERT (nf != NULL);
+		LASSERT(nf != NULL);
 	}
 
 	if (!nf->nf_str2addr(str, (int)(sep - str), &addr))
