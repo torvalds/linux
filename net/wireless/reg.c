@@ -1337,7 +1337,7 @@ get_reg_request_treatment(struct wiphy *wiphy,
 
 	switch (pending_request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
-		return REG_REQ_OK;
+		return REG_REQ_IGNORE;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		if (reg_request_cell_base(lr)) {
 			/* Trust a Cell base station over the AP's country IE */
@@ -1443,6 +1443,33 @@ static void reg_set_request_processed(void)
 }
 
 /**
+ * reg_process_hint_core - process core regulatory requests
+ * @pending_request: a pending core regulatory request
+ *
+ * The wireless subsystem can use this function to process
+ * a regulatory request issued by the regulatory core.
+ *
+ * Returns one of the different reg request treatment values.
+ */
+static enum reg_request_treatment
+reg_process_hint_core(struct regulatory_request *core_request)
+{
+	struct regulatory_request *lr;
+
+	lr = get_last_request();
+	if (lr != &core_request_world && lr)
+		kfree_rcu(lr, rcu_head);
+
+	core_request->intersect = false;
+	core_request->processed = false;
+	rcu_assign_pointer(last_request, core_request);
+
+	if (call_crda(core_request->alpha2))
+		return REG_REQ_IGNORE;
+	return REG_REQ_OK;
+}
+
+/**
  * __regulatory_hint - hint to the wireless core a regulatory domain
  * @wiphy: if the hint comes from country information from an AP, this
  *	is required to be set to the wiphy that received the information
@@ -1540,6 +1567,7 @@ new_request:
 static void reg_process_hint(struct regulatory_request *reg_request)
 {
 	struct wiphy *wiphy = NULL;
+	enum reg_request_treatment treatment;
 
 	if (WARN_ON(!reg_request->alpha2))
 		return;
@@ -1552,7 +1580,21 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		return;
 	}
 
-	switch (__regulatory_hint(wiphy, reg_request)) {
+	switch (reg_request->initiator) {
+	case NL80211_REGDOM_SET_BY_CORE:
+		reg_process_hint_core(reg_request);
+		return;
+	case NL80211_REGDOM_SET_BY_USER:
+	case NL80211_REGDOM_SET_BY_DRIVER:
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		treatment = __regulatory_hint(wiphy, reg_request);
+		break;
+	default:
+		WARN(1, "invalid initiator %d\n", reg_request->initiator);
+		return;
+	}
+
+	switch (treatment) {
 	case REG_REQ_ALREADY_SET:
 		/* This is required so that the orig_* parameters are saved */
 		if (wiphy && wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
