@@ -160,6 +160,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 						   0x00, 0x00};
 	static const uint8_t ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
 						    0x00, 0x00};
+	enum batadv_dhcp_recipient dhcp_rcp = BATADV_DHCP_NO;
+	uint8_t *dst_hint = NULL, chaddr[ETH_ALEN];
 	struct vlan_ethhdr *vhdr;
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
@@ -167,6 +169,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	bool do_bcast = false, client_added;
 	unsigned short vid;
 	uint32_t seqno;
+	int gw_mode;
 
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dropped;
@@ -213,36 +216,39 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	if (batadv_compare_eth(ethhdr->h_dest, ectp_addr))
 		goto dropped;
 
+	gw_mode = atomic_read(&bat_priv->gw_mode);
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		do_bcast = true;
-
-		switch (atomic_read(&bat_priv->gw_mode)) {
-		case BATADV_GW_MODE_SERVER:
-			/* gateway servers should not send dhcp
-			 * requests into the mesh
-			 */
-			ret = batadv_gw_is_dhcp_target(skb, &header_len);
-			if (ret)
-				goto dropped;
-			break;
-		case BATADV_GW_MODE_CLIENT:
-			/* gateway clients should send dhcp requests
-			 * via unicast to their gateway
-			 */
-			ret = batadv_gw_is_dhcp_target(skb, &header_len);
-			if (ret)
-				do_bcast = false;
-			break;
-		case BATADV_GW_MODE_OFF:
-		default:
-			break;
+		/* if gw mode is off, broadcast every packet */
+		if (gw_mode == BATADV_GW_MODE_OFF) {
+			do_bcast = true;
+			goto send;
 		}
 
-		/* reminder: ethhdr might have become unusable from here on
-		 * (batadv_gw_is_dhcp_target() might have reallocated skb data)
+		dhcp_rcp = batadv_gw_dhcp_recipient_get(skb, &header_len,
+							chaddr);
+		/* skb->data may have been modified by
+		 * batadv_gw_dhcp_recipient_get()
 		 */
+		ethhdr = (struct ethhdr *)skb->data;
+		/* if gw_mode is on, broadcast any non-DHCP message.
+		 * All the DHCP packets are going to be sent as unicast
+		 */
+		if (dhcp_rcp == BATADV_DHCP_NO) {
+			do_bcast = true;
+			goto send;
+		}
+
+		if (dhcp_rcp == BATADV_DHCP_TO_CLIENT)
+			dst_hint = chaddr;
+		else if ((gw_mode == BATADV_GW_MODE_SERVER) &&
+			 (dhcp_rcp == BATADV_DHCP_TO_SERVER))
+			/* gateways should not forward any DHCP message if
+			 * directed to a DHCP server
+			 */
+			goto dropped;
 	}
 
+send:
 	batadv_skb_set_priority(skb, 0);
 
 	/* ethernet packet should be broadcasted */
@@ -288,22 +294,22 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 	/* unicast packet */
 	} else {
-		if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_OFF) {
+		/* DHCP packets going to a server will use the GW feature */
+		if (dhcp_rcp == BATADV_DHCP_TO_SERVER) {
 			ret = batadv_gw_out_of_range(bat_priv, skb);
 			if (ret)
 				goto dropped;
-		}
-
-		if (batadv_dat_snoop_outgoing_arp_request(bat_priv, skb))
-			goto dropped;
-
-		batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
-
-		if (is_multicast_ether_addr(ethhdr->h_dest))
 			ret = batadv_send_skb_via_gw(bat_priv, skb, vid);
-		else
-			ret = batadv_send_skb_via_tt(bat_priv, skb, vid);
+		} else {
+			if (batadv_dat_snoop_outgoing_arp_request(bat_priv,
+								  skb))
+				goto dropped;
 
+			batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
+
+			ret = batadv_send_skb_via_tt(bat_priv, skb, dst_hint,
+						     vid);
+		}
 		if (ret == NET_XMIT_DROP)
 			goto dropped_freed;
 	}

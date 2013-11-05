@@ -1037,9 +1037,9 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	if (hdr_size == sizeof(struct batadv_unicast_4addr_packet))
 		err = batadv_send_skb_via_tt_4addr(bat_priv, skb_new,
 						   BATADV_P_DAT_CACHE_REPLY,
-						   vid);
+						   NULL, vid);
 	else
-		err = batadv_send_skb_via_tt(bat_priv, skb_new, vid);
+		err = batadv_send_skb_via_tt(bat_priv, skb_new, NULL, vid);
 
 	if (err != NET_XMIT_DROP) {
 		batadv_inc_counter(bat_priv, BATADV_CNT_DAT_CACHED_REPLY_TX);

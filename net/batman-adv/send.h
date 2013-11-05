@@ -38,7 +38,8 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 					   int packet_subtype);
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype, unsigned short vid);
+				   int packet_subtype, uint8_t *dst_hint,
+				   unsigned short vid);
 int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid);
 
@@ -55,11 +56,11 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
  * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
-					 struct sk_buff *skb,
+					 struct sk_buff *skb, uint8_t *dst_hint,
 					 unsigned short vid)
 {
 	return batadv_send_skb_via_tt_generic(bat_priv, skb, BATADV_UNICAST, 0,
-					      vid);
+					      dst_hint, vid);
 }
 
 /**
@@ -79,11 +80,12 @@ static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
 static inline int batadv_send_skb_via_tt_4addr(struct batadv_priv *bat_priv,
 					       struct sk_buff *skb,
 					       int packet_subtype,
+					       uint8_t *dst_hint,
 					       unsigned short vid)
 {
 	return batadv_send_skb_via_tt_generic(bat_priv, skb,
 					      BATADV_UNICAST_4ADDR,
-					      packet_subtype, vid);
+					      packet_subtype, dst_hint, vid);
 }
 
 #endif /* _NET_BATMAN_ADV_SEND_H_ */

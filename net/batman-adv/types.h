@@ -34,6 +34,18 @@
 #endif /* CONFIG_BATMAN_ADV_DAT */
 
 /**
+ * enum batadv_dhcp_recipient - dhcp destination
+ * @BATADV_DHCP_NO: packet is not a dhcp message
+ * @BATADV_DHCP_TO_SERVER: dhcp message is directed to a server
+ * @BATADV_DHCP_TO_CLIENT: dhcp message is directed to a client
+ */
+enum batadv_dhcp_recipient {
+	BATADV_DHCP_NO = 0,
+	BATADV_DHCP_TO_SERVER,
+	BATADV_DHCP_TO_CLIENT,
+};
+
+/**
  * BATADV_TT_REMOTE_MASK - bitmask selecting the flags that are sent over the
  *  wire only
  */

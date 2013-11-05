@@ -319,13 +319,23 @@ out:
  */
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype, unsigned short vid)
+				   int packet_subtype, uint8_t *dst_hint,
+				   unsigned short vid)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_orig_node *orig_node;
+	uint8_t *src, *dst;
 
-	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-					     ethhdr->h_dest, vid);
+	src = ethhdr->h_source;
+	dst = ethhdr->h_dest;
+
+	/* if we got an hint! let's send the packet to this client (if any) */
+	if (dst_hint) {
+		src = NULL;
+		dst = dst_hint;
+	}
+	orig_node = batadv_transtable_search(bat_priv, src, dst, vid);
+
 	return batadv_send_skb_unicast(bat_priv, skb, packet_type,
 				       packet_subtype, orig_node, vid);
 }

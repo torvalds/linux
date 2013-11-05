@@ -28,11 +28,17 @@
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 
-/* This is the offset of the options field in a dhcp packet starting at
- * the beginning of the dhcp header
+/* These are the offsets of the "hw type" and "hw address length" in the dhcp
+ * packet starting at the beginning of the dhcp header
  */
-#define BATADV_DHCP_OPTIONS_OFFSET 240
-#define BATADV_DHCP_REQUEST 3
+#define BATADV_DHCP_HTYPE_OFFSET	1
+#define BATADV_DHCP_HLEN_OFFSET		2
+/* Value of htype representing Ethernet */
+#define BATADV_DHCP_HTYPE_ETHERNET	0x01
+/* This is the offset of the "chaddr" field in the dhcp packet starting at the
+ * beginning of the dhcp header
+ */
+#define BATADV_DHCP_CHADDR_OFFSET	28
 
 static void batadv_gw_node_free_ref(struct batadv_gw_node *gw_node)
 {
@@ -596,80 +602,39 @@ out:
 	return 0;
 }
 
-/* this call might reallocate skb data */
-static bool batadv_is_type_dhcprequest(struct sk_buff *skb, int header_len)
+/**
+ * batadv_gw_dhcp_recipient_get - check if a packet is a DHCP message
+ * @skb: the packet to check
+ * @header_len: a pointer to the batman-adv header size
+ * @chaddr: buffer where the client address will be stored. Valid
+ *  only if the function returns BATADV_DHCP_TO_CLIENT
+ *
+ * Returns:
+ * - BATADV_DHCP_NO if the packet is not a dhcp message or if there was an error
+ *   while parsing it
+ * - BATADV_DHCP_TO_SERVER if this is a message going to the DHCP server
+ * - BATADV_DHCP_TO_CLIENT if this is a message going to a DHCP client
+ *
+ * This function may re-allocate the data buffer of the skb passed as argument.
+ */
+enum batadv_dhcp_recipient
+batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
+			     uint8_t *chaddr)
 {
-	int ret = false;
-	unsigned char *p;
-	int pkt_len;
-
-	if (skb_linearize(skb) < 0)
-		goto out;
-
-	pkt_len = skb_headlen(skb);
-
-	if (pkt_len < header_len + BATADV_DHCP_OPTIONS_OFFSET + 1)
-		goto out;
-
-	p = skb->data + header_len + BATADV_DHCP_OPTIONS_OFFSET;
-	pkt_len -= header_len + BATADV_DHCP_OPTIONS_OFFSET + 1;
-
-	/* Access the dhcp option lists. Each entry is made up by:
-	 * - octet 1: option type
-	 * - octet 2: option data len (only if type != 255 and 0)
-	 * - octet 3: option data
-	 */
-	while (*p != 255 && !ret) {
-		/* p now points to the first octet: option type */
-		if (*p == 53) {
-			/* type 53 is the message type option.
-			 * Jump the len octet and go to the data octet
-			 */
-			if (pkt_len < 2)
-				goto out;
-			p += 2;
-
-			/* check if the message type is what we need */
-			if (*p == BATADV_DHCP_REQUEST)
-				ret = true;
-			break;
-		} else if (*p == 0) {
-			/* option type 0 (padding), just go forward */
-			if (pkt_len < 1)
-				goto out;
-			pkt_len--;
-			p++;
-		} else {
-			/* This is any other option. So we get the length... */
-			if (pkt_len < 1)
-				goto out;
-			pkt_len--;
-			p++;
-
-			/* ...and then we jump over the data */
-			if (pkt_len < 1 + (*p))
-				goto out;
-			pkt_len -= 1 + (*p);
-			p += 1 + (*p);
-		}
-	}
-out:
-	return ret;
-}
-
-/* this call might reallocate skb data */
-bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
-{
+	enum batadv_dhcp_recipient ret = BATADV_DHCP_NO;
 	struct ethhdr *ethhdr;
 	struct iphdr *iphdr;
 	struct ipv6hdr *ipv6hdr;
 	struct udphdr *udphdr;
 	struct vlan_ethhdr *vhdr;
+	int chaddr_offset;
 	__be16 proto;
+	uint8_t *p;
 
 	/* check for ethernet header */
 	if (!pskb_may_pull(skb, *header_len + ETH_HLEN))
-		return false;
+		return BATADV_DHCP_NO;
+
 	ethhdr = (struct ethhdr *)skb->data;
 	proto = ethhdr->h_proto;
 	*header_len += ETH_HLEN;
@@ -677,7 +642,7 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	/* check for initial vlan header */
 	if (proto == htons(ETH_P_8021Q)) {
 		if (!pskb_may_pull(skb, *header_len + VLAN_HLEN))
-			return false;
+			return BATADV_DHCP_NO;
 
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		proto = vhdr->h_vlan_encapsulated_proto;
@@ -688,32 +653,34 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	switch (proto) {
 	case htons(ETH_P_IP):
 		if (!pskb_may_pull(skb, *header_len + sizeof(*iphdr)))
-			return false;
+			return BATADV_DHCP_NO;
+
 		iphdr = (struct iphdr *)(skb->data + *header_len);
 		*header_len += iphdr->ihl * 4;
 
 		/* check for udp header */
 		if (iphdr->protocol != IPPROTO_UDP)
-			return false;
+			return BATADV_DHCP_NO;
 
 		break;
 	case htons(ETH_P_IPV6):
 		if (!pskb_may_pull(skb, *header_len + sizeof(*ipv6hdr)))
-			return false;
+			return BATADV_DHCP_NO;
+
 		ipv6hdr = (struct ipv6hdr *)(skb->data + *header_len);
 		*header_len += sizeof(*ipv6hdr);
 
 		/* check for udp header */
 		if (ipv6hdr->nexthdr != IPPROTO_UDP)
-			return false;
+			return BATADV_DHCP_NO;
 
 		break;
 	default:
-		return false;
+		return BATADV_DHCP_NO;
 	}
 
 	if (!pskb_may_pull(skb, *header_len + sizeof(*udphdr)))
-		return false;
+		return BATADV_DHCP_NO;
 
 	/* skb->data might have been reallocated by pskb_may_pull() */
 	ethhdr = (struct ethhdr *)skb->data;
@@ -724,17 +691,40 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	*header_len += sizeof(*udphdr);
 
 	/* check for bootp port */
-	if ((proto == htons(ETH_P_IP)) &&
-	    (udphdr->dest != htons(67)))
-		return false;
+	switch (proto) {
+	case htons(ETH_P_IP):
+		if (udphdr->dest == htons(67))
+			ret = BATADV_DHCP_TO_SERVER;
+		else if (udphdr->source == htons(67))
+			ret = BATADV_DHCP_TO_CLIENT;
+		break;
+	case htons(ETH_P_IPV6):
+		if (udphdr->dest == htons(547))
+			ret = BATADV_DHCP_TO_SERVER;
+		else if (udphdr->source == htons(547))
+			ret = BATADV_DHCP_TO_CLIENT;
+		break;
+	}
 
-	if ((proto == htons(ETH_P_IPV6)) &&
-	    (udphdr->dest != htons(547)))
-		return false;
+	chaddr_offset = *header_len + BATADV_DHCP_CHADDR_OFFSET;
+	/* store the client address if the message is going to a client */
+	if (ret == BATADV_DHCP_TO_CLIENT &&
+	    pskb_may_pull(skb, chaddr_offset + ETH_ALEN)) {
+		/* check if the DHCP packet carries an Ethernet DHCP */
+		p = skb->data + *header_len + BATADV_DHCP_HTYPE_OFFSET;
+		if (*p != BATADV_DHCP_HTYPE_ETHERNET)
+			return BATADV_DHCP_NO;
 
-	return true;
+		/* check if the DHCP packet carries a valid Ethernet address */
+		p = skb->data + *header_len + BATADV_DHCP_HLEN_OFFSET;
+		if (*p != ETH_ALEN)
+			return BATADV_DHCP_NO;
+
+		memcpy(chaddr, skb->data + chaddr_offset, ETH_ALEN);
+	}
+
+	return ret;
 }
-
 /**
  * batadv_gw_out_of_range - check if the dhcp request destination is the best gw
  * @bat_priv: the bat priv with all the soft interface information
@@ -748,6 +738,7 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
  * false otherwise.
  *
  * This call might reallocate skb data.
+ * Must be invoked only when the DHCP packet is going TO a DHCP SERVER.
  */
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 			    struct sk_buff *skb)
@@ -755,19 +746,13 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_gw_node *gw_node = NULL, *curr_gw = NULL;
-	struct ethhdr *ethhdr;
-	bool ret, out_of_range = false;
-	unsigned int header_len = 0;
+	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
+	bool out_of_range = false;
 	uint8_t curr_tq_avg;
 	unsigned short vid;
 
 	vid = batadv_get_vid(skb, 0);
 
-	ret = batadv_gw_is_dhcp_target(skb, &header_len);
-	if (!ret)
-		goto out;
-
-	ethhdr = (struct ethhdr *)skb->data;
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 						 ethhdr->h_dest, vid);
 	if (!orig_dst_node)
@@ -775,10 +760,6 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 	gw_node = batadv_gw_node_get(bat_priv, orig_dst_node);
 	if (!gw_node->bandwidth_down == 0)
-		goto out;
-
-	ret = batadv_is_type_dhcprequest(skb, header_len);
-	if (!ret)
 		goto out;
 
 	switch (atomic_read(&bat_priv->gw_mode)) {
