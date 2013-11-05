@@ -405,6 +405,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t status;
 	int try, precharge, clock = 0;
 	bool has_aux_irq = INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev);
+	uint32_t timeout;
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
 	 * lowest possible wakeup latency and so prevent the cpu from going into
@@ -418,6 +419,11 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		precharge = 3;
 	else
 		precharge = 5;
+
+	if (IS_BROADWELL(dev) && ch_ctl == DPA_AUX_CH_CTL)
+		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
+	else
+		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
 
 	intel_aux_display_runtime_get(dev_priv);
 
@@ -454,7 +460,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			I915_WRITE(ch_ctl,
 				   DP_AUX_CH_CTL_SEND_BUSY |
 				   (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
-				   DP_AUX_CH_CTL_TIME_OUT_400us |
+				   timeout |
 				   (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 				   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 				   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
