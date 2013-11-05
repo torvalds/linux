@@ -1202,6 +1202,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 			iwl_mvm_sf_update(mvm, vif, false);
 			iwl_mvm_power_vif_assoc(mvm, vif);
+			if (vif->p2p)
+				iwl_mvm_ref(mvm, IWL_MVM_REF_P2P_CLIENT);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/*
 			 * If update fails - SF might be running in associated
@@ -1219,6 +1221,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			ret = iwl_mvm_update_quotas(mvm, NULL);
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
+
+			if (vif->p2p)
+				iwl_mvm_unref(mvm, IWL_MVM_REF_P2P_CLIENT);
 		}
 
 		iwl_mvm_recalc_multicast(mvm);
@@ -1327,6 +1332,8 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif);
 
+	iwl_mvm_ref(mvm, IWL_MVM_REF_AP_IBSS);
+
 	iwl_mvm_bt_coex_vif_change(mvm);
 
 	mutex_unlock(&mvm->mutex);
@@ -1359,6 +1366,8 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	mvmvif->ap_ibss_active = false;
 
 	iwl_mvm_bt_coex_vif_change(mvm);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_AP_IBSS);
 
 	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
