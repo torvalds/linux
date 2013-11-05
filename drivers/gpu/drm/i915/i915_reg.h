@@ -110,6 +110,9 @@
 #define RING_PP_DIR_DCLV(ring)		((ring)->mmio_base+0x220)
 #define   PP_DIR_DCLV_2G		0xffffffff
 
+#define GEN8_RING_PDP_UDW(ring, n)	((ring)->mmio_base+0x270 + ((n) * 8 + 4))
+#define GEN8_RING_PDP_LDW(ring, n)	((ring)->mmio_base+0x270 + (n) * 8)
+
 #define GAM_ECOCHK			0x4090
 #define   ECOCHK_SNB_BIT		(1<<10)
 #define   HSW_ECOCHK_ARB_PRIO_SOL	(1<<6)

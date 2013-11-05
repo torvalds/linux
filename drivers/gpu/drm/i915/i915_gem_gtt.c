@@ -195,6 +195,55 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
+/* Broadwell Page Directory Pointer Descriptors */
+static int gen8_write_pdp(struct intel_ring_buffer *ring, unsigned entry,
+			   uint64_t val)
+{
+	int ret;
+
+	BUG_ON(entry >= 4);
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, GEN8_RING_PDP_UDW(ring, entry));
+	intel_ring_emit(ring, (u32)(val >> 32));
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, GEN8_RING_PDP_LDW(ring, entry));
+	intel_ring_emit(ring, (u32)(val));
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int gen8_ppgtt_enable(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int i, j, ret;
+
+	/* bit of a hack to find the actual last used pd */
+	int used_pd = ppgtt->num_pd_entries / GEN8_PDES_PER_PAGE;
+
+	for_each_ring(ring, dev_priv, j) {
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	}
+
+	for (i = used_pd - 1; i >= 0; i--) {
+		dma_addr_t addr = ppgtt->pd_dma_addr[i];
+		for_each_ring(ring, dev_priv, j) {
+			ret = gen8_write_pdp(ring, i, addr);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
 static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 				   unsigned first_entry,
 				   unsigned num_entries,
@@ -326,6 +375,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
 	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
 	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
+	ppgtt->enable = gen8_ppgtt_enable;
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
