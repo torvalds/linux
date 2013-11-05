@@ -179,7 +179,8 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 		goto out_sleep;
 	}
 
-	ret = wl1271_cmd_interrogate(wl, ie_id, cmd, sizeof(*cmd));
+	ret = wl1271_cmd_interrogate(wl, ie_id, cmd,
+				     sizeof(struct acx_header), sizeof(*cmd));
 	if (ret < 0) {
 		wl1271_warning("testmode cmd interrogate failed: %d", ret);
 		goto out_free;
