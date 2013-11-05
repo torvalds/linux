@@ -585,6 +585,13 @@ static void ar9003_tx_gain_table_mode6(struct ath_hw *ah)
 			ar9580_1p0_type6_tx_gain_table);
 }
 
+static void ar9003_tx_gain_table_mode7(struct ath_hw *ah)
+{
+	if (AR_SREV_9340(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9340_cus227_tx_gain_table_1p0);
+}
+
 typedef void (*ath_txgain_tab)(struct ath_hw *ah);
 
 static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
@@ -597,6 +604,7 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 		ar9003_tx_gain_table_mode4,
 		ar9003_tx_gain_table_mode5,
 		ar9003_tx_gain_table_mode6,
+		ar9003_tx_gain_table_mode7,
 	};
 	int idx = ar9003_hw_get_tx_gain_idx(ah);
 
