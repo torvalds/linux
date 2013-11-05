@@ -36,7 +36,8 @@
 #include <subdev/vm.h>
 
 #include <engine/dmaobj.h>
-#include <engine/fifo.h>
+
+#include "nve0.h"
 
 #define _(a,b) { (a), ((1ULL << (a)) | (b)) }
 static const struct {
@@ -575,15 +576,64 @@ nve0_fifo_uevent_disable(struct nouveau_event *event, int index)
 	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);
 }
 
-static int
+int
+nve0_fifo_init(struct nouveau_object *object)
+{
+	struct nve0_fifo_priv *priv = (void *)object;
+	int ret, i;
+
+	ret = nouveau_fifo_init(&priv->base);
+	if (ret)
+		return ret;
+
+	/* enable all available PSUBFIFOs */
+	nv_wr32(priv, 0x000204, 0xffffffff);
+	priv->spoon_nr = hweight32(nv_rd32(priv, 0x000204));
+	nv_debug(priv, "%d subfifo(s)\n", priv->spoon_nr);
+
+	/* PSUBFIFO[n] */
+	for (i = 0; i < priv->spoon_nr; i++) {
+		nv_mask(priv, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
+		nv_wr32(priv, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
+		nv_wr32(priv, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
+	}
+
+	nv_wr32(priv, 0x002254, 0x10000000 | priv->user.bar.offset >> 12);
+
+	nv_wr32(priv, 0x002a00, 0xffffffff);
+	nv_wr32(priv, 0x002100, 0xffffffff);
+	nv_wr32(priv, 0x002140, 0x3fffffff);
+	return 0;
+}
+
+void
+nve0_fifo_dtor(struct nouveau_object *object)
+{
+	struct nve0_fifo_priv *priv = (void *)object;
+	int i;
+
+	nouveau_gpuobj_unmap(&priv->user.bar);
+	nouveau_gpuobj_ref(NULL, &priv->user.mem);
+
+	for (i = 0; i < FIFO_ENGINE_NR; i++) {
+		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[1]);
+		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[0]);
+	}
+
+	nouveau_fifo_destroy(&priv->base);
+}
+
+int
 nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
 {
+	struct nve0_fifo_impl *impl = (void *)oclass;
 	struct nve0_fifo_priv *priv;
 	int ret, i;
 
-	ret = nouveau_fifo_create(parent, engine, oclass, 0, 4095, &priv);
+	ret = nouveau_fifo_create(parent, engine, oclass, 0,
+				  impl->channels - 1, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -621,60 +671,14 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static void
-nve0_fifo_dtor(struct nouveau_object *object)
-{
-	struct nve0_fifo_priv *priv = (void *)object;
-	int i;
-
-	nouveau_gpuobj_unmap(&priv->user.bar);
-	nouveau_gpuobj_ref(NULL, &priv->user.mem);
-
-	for (i = 0; i < FIFO_ENGINE_NR; i++) {
-		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[1]);
-		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[0]);
-	}
-
-	nouveau_fifo_destroy(&priv->base);
-}
-
-static int
-nve0_fifo_init(struct nouveau_object *object)
-{
-	struct nve0_fifo_priv *priv = (void *)object;
-	int ret, i;
-
-	ret = nouveau_fifo_init(&priv->base);
-	if (ret)
-		return ret;
-
-	/* enable all available PSUBFIFOs */
-	nv_wr32(priv, 0x000204, 0xffffffff);
-	priv->spoon_nr = hweight32(nv_rd32(priv, 0x000204));
-	nv_debug(priv, "%d subfifo(s)\n", priv->spoon_nr);
-
-	/* PSUBFIFO[n] */
-	for (i = 0; i < priv->spoon_nr; i++) {
-		nv_mask(priv, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
-		nv_wr32(priv, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
-		nv_wr32(priv, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
-	}
-
-	nv_wr32(priv, 0x002254, 0x10000000 | priv->user.bar.offset >> 12);
-
-	nv_wr32(priv, 0x002a00, 0xffffffff);
-	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0x3fffffff);
-	return 0;
-}
-
 struct nouveau_oclass *
-nve0_fifo_oclass = &(struct nouveau_oclass) {
-	.handle = NV_ENGINE(FIFO, 0xe0),
-	.ofuncs = &(struct nouveau_ofuncs) {
+nve0_fifo_oclass = &(struct nve0_fifo_impl) {
+	.base.handle = NV_ENGINE(FIFO, 0xe0),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_fifo_ctor,
 		.dtor = nve0_fifo_dtor,
 		.init = nve0_fifo_init,
 		.fini = _nouveau_fifo_fini,
 	},
-};
+	.channels = 4096,
+}.base;
