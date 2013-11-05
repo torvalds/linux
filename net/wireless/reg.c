@@ -1539,31 +1539,32 @@ __reg_process_hint_country_ie(struct wiphy *wiphy,
 		return REG_REQ_ALREADY_SET;
 	}
 
-	last_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
-
 	if (unlikely(!is_an_alpha2(country_ie_request->alpha2)))
 		return -EINVAL;
-	if (lr->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-		if (last_wiphy != wiphy) {
-			/*
-			 * Two cards with two APs claiming different
-			 * Country IE alpha2s. We could
-			 * intersect them, but that seems unlikely
-			 * to be correct. Reject second one for now.
-			 */
-			if (regdom_changes(country_ie_request->alpha2))
-				return REG_REQ_IGNORE;
-			return REG_REQ_ALREADY_SET;
-		}
+
+	if (lr->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE)
+		return REG_REQ_OK;
+
+	last_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
+
+	if (last_wiphy != wiphy) {
 		/*
-		 * Two consecutive Country IE hints on the same wiphy.
-		 * This should be picked up early by the driver/stack
+		 * Two cards with two APs claiming different
+		 * Country IE alpha2s. We could
+		 * intersect them, but that seems unlikely
+		 * to be correct. Reject second one for now.
 		 */
-		if (WARN_ON(regdom_changes(country_ie_request->alpha2)))
-			return REG_REQ_OK;
+		if (regdom_changes(country_ie_request->alpha2))
+			return REG_REQ_IGNORE;
 		return REG_REQ_ALREADY_SET;
 	}
-	return REG_REQ_OK;
+	/*
+	 * Two consecutive Country IE hints on the same wiphy.
+	 * This should be picked up early by the driver/stack
+	 */
+	if (WARN_ON(regdom_changes(country_ie_request->alpha2)))
+		return REG_REQ_OK;
+	return REG_REQ_ALREADY_SET;
 }
 
 /**
