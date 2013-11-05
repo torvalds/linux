@@ -56,7 +56,7 @@
  */
 
 static char      libcfs_nidstrings[LNET_NIDSTR_COUNT][LNET_NIDSTR_SIZE];
-static int       libcfs_nidstring_idx = 0;
+static int       libcfs_nidstring_idx;
 
 static spinlock_t libcfs_nidstring_lock;
 
