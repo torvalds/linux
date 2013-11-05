@@ -199,7 +199,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			/* Compare specifiers */
 			match = 1;
 			for (i = 0; i < (addrsize + intsize); i++, imaplen--)
-				match = !((match_array[i] ^ *imap++) & imask[i]);
+				match &= !((match_array[i] ^ *imap++) & imask[i]);
 
 			pr_debug(" -> match=%d (imaplen=%d)\n", match, imaplen);
 
