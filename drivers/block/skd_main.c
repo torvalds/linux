@@ -4925,7 +4925,7 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 
 	pci_set_drvdata(pdev, skdev);
-	skdev->pdev = pdev;
+
 	skdev->disk->driverfs_dev = &pdev->dev;
 
 	for (i = 0; i < SKD_MAX_BARS; i++) {
