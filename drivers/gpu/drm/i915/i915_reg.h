@@ -665,6 +665,7 @@
 #define   RING_FAULT_FAULT_TYPE(x) ((x >> 1) & 0x3)
 #define   RING_FAULT_VALID	(1<<0)
 #define DONE_REG		0x40b0
+#define GEN8_PRIVATE_PAT	0x40e0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define VEBOX_HWS_PGA_GEN7	(0x04380)

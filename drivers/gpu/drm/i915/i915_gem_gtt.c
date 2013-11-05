@@ -58,12 +58,21 @@ typedef uint64_t gen8_gtt_pte_t;
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
 
+#define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
+#define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
+#define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
+#define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
+
 static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
 					     enum i915_cache_level level,
 					     bool valid)
 {
 	gen8_gtt_pte_t pte = valid ? _PAGE_PRESENT | _PAGE_RW : 0;
 	pte |= addr;
+	if (level != I915_CACHE_NONE)
+		pte |= PPAT_CACHED_INDEX;
+	else
+		pte |= PPAT_UNCACHED_INDEX;
 	return pte;
 }
 
@@ -806,6 +815,7 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 			*end -= 4096;
 	}
 }
+
 void i915_gem_setup_global_gtt(struct drm_device *dev,
 			       unsigned long start,
 			       unsigned long mappable_end,
@@ -1003,6 +1013,39 @@ static int ggtt_probe_common(struct drm_device *dev,
 	return ret;
 }
 
+/* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
+ * bits. When using advanced contexts each context stores its own PAT, but
+ * writing this data shouldn't be harmful even in those cases. */
+static void gen8_setup_private_ppat(struct drm_i915_private *dev_priv)
+{
+#define GEN8_PPAT_UC		(0<<0)
+#define GEN8_PPAT_WC		(1<<0)
+#define GEN8_PPAT_WT		(2<<0)
+#define GEN8_PPAT_WB		(3<<0)
+#define GEN8_PPAT_ELLC_OVERRIDE	(0<<2)
+/* FIXME(BDW): Bspec is completely confused about cache control bits. */
+#define GEN8_PPAT_LLC		(1<<2)
+#define GEN8_PPAT_LLCELLC	(2<<2)
+#define GEN8_PPAT_LLCeLLC	(3<<2)
+#define GEN8_PPAT_AGE(x)	(x<<4)
+#define GEN8_PPAT(i, x) ((uint64_t) (x) << ((i) * 8))
+	uint64_t pat;
+
+	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC)     | /* for normal objects, no eLLC */
+	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) | /* for something pointing to ptes? */
+	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) | /* for scanout with eLLC */
+	      GEN8_PPAT(3, GEN8_PPAT_UC)                     | /* Uncached objects, mostly for scanout */
+	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
+	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
+	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
+	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+
+	/* XXX: spec defines this as 2 distinct registers. It's unclear if a 64b
+	 * write would work. */
+	I915_WRITE(GEN8_PRIVATE_PAT, pat);
+	I915_WRITE(GEN8_PRIVATE_PAT + 4, pat >> 32);
+}
+
 static int gen8_gmch_probe(struct drm_device *dev,
 			   size_t *gtt_total,
 			   size_t *stolen,
@@ -1027,6 +1070,8 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	*gtt_total = (gtt_size / sizeof(gen8_gtt_pte_t)) << PAGE_SHIFT;
+
+	gen8_setup_private_ppat(dev_priv);
 
 	ret = ggtt_probe_common(dev, gtt_size);
 
