@@ -662,7 +662,7 @@ void rcu_nmi_exit(void)
  * rcu_is_watching(), the caller of __rcu_is_watching() must have at
  * least disabled preemption.
  */
-bool __rcu_is_watching(void)
+bool notrace __rcu_is_watching(void)
 {
 	return atomic_read(this_cpu_ptr(&rcu_dynticks.dynticks)) & 0x1;
 }
@@ -673,7 +673,7 @@ bool __rcu_is_watching(void)
  * If the current CPU is in its idle loop and is neither in an interrupt
  * or NMI handler, return true.
  */
-bool rcu_is_watching(void)
+bool notrace rcu_is_watching(void)
 {
 	int ret;
 
