@@ -302,13 +302,9 @@ void __init setup_arch(char **cmdline_p)
 	 * rather than the version from the bootloader. This makes call
 	 * stacks easier to understand and may allow us to unmap the
 	 * bootloader at some point.
-	 *
-	 * We need to keep the LWK handler that TBI installed in order to
-	 * be able to do inter-thread comms.
 	 */
 	for (i = 0; i <= TBID_SIGNUM_MAX; i++)
-		if (i != TBID_SIGNUM_LWK)
-			_pTBI->fnSigs[i] = __TBIUnExpXXX;
+		_pTBI->fnSigs[i] = __TBIUnExpXXX;
 
 	/* A Meta requirement is that the kernel is loaded (virtually)
 	 * at the PAGE_OFFSET.
