@@ -1292,6 +1292,10 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	enum ieee80211_band band;
 	unsigned int bands_set = 0;
 
+	WARN(!(wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY),
+	     "wiphy should have WIPHY_FLAG_CUSTOM_REGULATORY\n");
+	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (!wiphy->bands[band])
 			continue;

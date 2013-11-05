@@ -2441,7 +2441,9 @@ struct cfg80211_ops {
  * 	has its own custom regulatory domain and cannot identify the
  * 	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
  * 	we will disregard the first regulatory hint (when the
- * 	initiator is %REGDOM_SET_BY_CORE).
+ * 	initiator is %REGDOM_SET_BY_CORE). Drivers that use
+ * 	wiphy_apply_custom_regulatory() should have this flag set
+ * 	or the regulatory core will set it for wiphy.
  * @WIPHY_FLAG_STRICT_REGULATORY: tells us the driver for this device will
  *	ignore regulatory domain settings until it gets its own regulatory
  *	domain via its regulatory_hint() unless the regulatory hint is
@@ -3471,6 +3473,9 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
  * custom regulatory domain will be trusted completely and as such previous
  * default channel settings will be disregarded. If no rule is found for a
  * channel on the regulatory domain the channel will be disabled.
+ * Drivers using this for a wiphy should also set the wiphy flag
+ * WIPHY_FLAG_CUSTOM_REGULATORY or cfg80211 will set it for the wiphy
+ * that called this helper.
  */
 void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 				   const struct ieee80211_regdomain *regd);
