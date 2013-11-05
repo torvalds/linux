@@ -118,7 +118,8 @@ struct s_comet_reg
 	VINT32 ibcd_deact;       /* 4F  IBCD Deactivate Code */
 
 	VINT32 sigx_cfg;         /* 50  SIGX Cfg/Change of Signaling State */
-	VINT32 sigx_acc_cos;     /* 51  SIGX uP Access Sts/Change of Signaling State */
+	VINT32 sigx_acc_cos;     /* 51  SIGX
+				  * uP Access Sts/Change of Signaling State */
 	VINT32 sigx_iac_cos;     /* 52  SIGX Channel Indirect
 				  * Addr/Ctl/Change of Signaling State */
 	VINT32 sigx_idb_cos;     /* 53  SIGX Channel Indirect Data
@@ -131,8 +132,10 @@ struct s_comet_reg
 
 	VINT32 pmon_ies;         /* 58  PMON Intr Enable/Sts */
 	VINT32 pmon_fberr;       /* 59  PMON Framing Bit Err Cnt */
-	VINT32 pmon_feb_lsb;     /* 5A  PMON OFF/COFA/Far End Block Err Cnt (LSB) */
-	VINT32 pmon_feb_msb;     /* 5B  PMON OFF/COFA/Far End Block Err Cnt (MSB) */
+	VINT32 pmon_feb_lsb;     /* 5A  PMON
+				  * OFF/COFA/Far End Block Err Cnt (LSB) */
+	VINT32 pmon_feb_msb;     /* 5B  PMON
+				  * OFF/COFA/Far End Block Err Cnt (MSB) */
 	VINT32 pmon_bed_lsb;     /* 5C  PMON Bit/Err/CRCE Cnt (LSB) */
 	VINT32 pmon_bed_msb;     /* 5D  PMON Bit/Err/CRCE Cnt (MSB) */
 	VINT32 pmon_lvc_lsb;     /* 5E  PMON LVC Cnt (LSB) */
@@ -176,8 +179,10 @@ struct s_comet_reg
 	VINT32 t1_aprm_1sec_2;   /* 7B  T1 APRM One Second Content Octet 2 */
 	VINT32 t1_aprm_1sec_3;   /* 7C  T1 APRM One Second Content Octet 3 */
 	VINT32 t1_aprm_1sec_4;   /* 7D  T1 APRM One Second Content Octet 4 */
-	VINT32 t1_aprm_1sec_5;   /* 7E  T1 APRM One Second Content MSB (Octect 5) */
-	VINT32 t1_aprm_1sec_6;   /* 7F  T1 APRM One Second Content MSB (Octect 6) */
+	VINT32 t1_aprm_1sec_5;   /* 7E  T1 APRM
+				  * One Second Content MSB (Octect 5) */
+	VINT32 t1_aprm_1sec_6;   /* 7F  T1 APRM
+				  * One Second Content MSB (Octect 6) */
 
 	VINT32 e1_tran_cfg;      /* 80  E1 TRAN Cfg */
 	VINT32 e1_tran_txalarm;  /* 81  E1 TRAN TX Alarm/Diagnostic Ctl */
@@ -201,18 +206,23 @@ struct s_comet_reg
 	VINT32 e1_frmr_aopts;    /* 90  E1 FRMR Frame Alignment Options */
 	VINT32 e1_frmr_mopts;    /* 91  E1 FRMR Maintenance Mode Options */
 	VINT32 e1_frmr_ien;      /* 92  E1 FRMR Framing Sts Intr Enable */
-	VINT32 e1_frmr_mien;     /* 93  E1 FRMR Maintenance/Alarm Sts Intr Enable */
+	VINT32 e1_frmr_mien;     /* 93  E1 FRMR
+				  * Maintenance/Alarm Sts Intr Enable */
 	VINT32 e1_frmr_ists;     /* 94  E1 FRMR Framing Sts Intr Indication */
-	VINT32 e1_frmr_mists;    /* 95  E1 FRMR Maintenance/Alarm Sts Indication Enable */
+	VINT32 e1_frmr_mists;    /* 95  E1 FRMR
+				  * Maintenance/Alarm Sts Indication Enable */
 	VINT32 e1_frmr_sts;      /* 96  E1 FRMR Framing Sts */
 	VINT32 e1_frmr_masts;    /* 97  E1 FRMR Maintenance/Alarm Sts */
 	VINT32 e1_frmr_nat_bits; /* 98  E1 FRMR International/National Bits */
 	VINT32 e1_frmr_crc_lsb;  /* 99  E1 FRMR CRC Err Cnt - LSB */
 	VINT32 e1_frmr_crc_msb;  /* 9A  E1 FRMR CRC Err Cnt - MSB */
-	VINT32 e1_frmr_nat_ien;  /* 9B  E1 FRMR National Bit Codeword Intr Enables */
-	VINT32 e1_frmr_nat_ists; /* 9C  E1 FRMR National Bit Codeword Intr/Sts */
+	VINT32 e1_frmr_nat_ien;  /* 9B  E1 FRMR
+				  * National Bit Codeword Intr Enables */
+	VINT32 e1_frmr_nat_ists; /* 9C  E1 FRMR
+				  * National Bit Codeword Intr/Sts */
 	VINT32 e1_frmr_nat;      /* 9D  E1 FRMR National Bit Codewords */
-	VINT32 e1_frmr_fp_ien;   /* 9E  E1 FRMR Frame Pulse/Alarm Intr Enables */
+	VINT32 e1_frmr_fp_ien;   /* 9E  E1 FRMR
+				  * Frame Pulse/Alarm Intr Enables */
 	VINT32 e1_frmr_fp_ists;  /* 9F  E1 FRMR Frame Pulse/Alarm Intr/Sts */
 
 	VINT32 __resA0;          /* A0     Reserved */
@@ -304,7 +314,8 @@ struct s_comet_reg
 
 	VINT32 xlpg_cfg;         /* F0  XLPG Line Driver Cfg */
 	VINT32 xlpg_ctlsts;      /* F1  XLPG Ctl/Sts */
-	VINT32 xlpg_pwave_addr;  /* F2  XLPG Pulse Waveform Storage Write Addr */
+	VINT32 xlpg_pwave_addr;  /* F2  XLPG
+				  * Pulse Waveform Storage Write Addr */
 	VINT32 xlpg_pwave_data;  /* F3  XLPG Pulse Waveform Storage Data */
 	VINT32 xlpg_atest_pctl;  /* F4  XLPG Analog Test Positive Ctl */
 	VINT32 xlpg_atest_nctl;  /* F5  XLPG Analog Test Negative Ctl */
@@ -312,7 +323,8 @@ struct s_comet_reg
 	VINT32 _xlpg_resF7;      /* F7     XLPG Reserved */
 
 	VINT32 rlps_cfgsts;      /* F8  RLPS Cfg & Sts */
-	VINT32 rlps_alos_thresh; /* F9  RLPS ALOS Detection/Clearance Threshold */
+	VINT32 rlps_alos_thresh; /* F9  RLPS
+				  * ALOS Detection/Clearance Threshold */
 	VINT32 rlps_alos_dper;   /* FA  RLPS ALOS Detection Period */
 	VINT32 rlps_alos_cper;   /* FB  RLPS ALOS Clearance Period */
 	VINT32 rlps_eq_iaddr;    /* FC  RLPS Equalization Indirect Addr */
