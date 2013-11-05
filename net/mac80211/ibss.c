@@ -229,6 +229,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct beacon_data *presp;
 	enum nl80211_bss_scan_width scan_width;
 	bool have_higher_than_11mbit;
+	bool radar_required = false;
 	int err;
 
 	sdata_assert_lock(sdata);
@@ -273,6 +274,23 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		}
 		chandef.width = NL80211_CHAN_WIDTH_20;
 		chandef.center_freq1 = chan->center_freq;
+		/* check again for downgraded chandef */
+		if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
+			sdata_info(sdata,
+				   "Failed to join IBSS, beacons forbidden\n");
+			return;
+		}
+	}
+
+	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
+					    &chandef);
+	if (err > 0) {
+		if (!ifibss->userspace_handles_dfs) {
+			sdata_info(sdata,
+				   "Failed to join IBSS, DFS channel without control program\n");
+			return;
+		}
+		radar_required = true;
 	}
 
 	ieee80211_vif_release_channel(sdata);
@@ -297,6 +315,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	rcu_assign_pointer(ifibss->presp, presp);
 	mgmt = (void *)presp->head;
 
+	sdata->radar_required = radar_required;
 	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.beacon_int = beacon_int;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
@@ -443,60 +462,6 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				  basic_rates,
 				  cbss->capability,
 				  tsf, false);
-}
-
-static int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
-				     struct cfg80211_csa_settings *csa_settings)
-{
-	struct sk_buff *skb;
-	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-	struct ieee80211_local *local = sdata->local;
-	int freq;
-	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.chan_switch) +
-		      sizeof(mgmt->u.action.u.chan_switch);
-	u8 *pos;
-
-	skb = dev_alloc_skb(local->tx_headroom + hdr_len +
-			    5 +	/* channel switch announcement element */
-			    3);	/* secondary channel offset element */
-	if (!skb)
-		return -1;
-
-	skb_reserve(skb, local->tx_headroom);
-	mgmt = (struct ieee80211_mgmt *)skb_put(skb, hdr_len);
-	memset(mgmt, 0, hdr_len);
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_ACTION);
-
-	eth_broadcast_addr(mgmt->da);
-	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
-	mgmt->u.action.category = WLAN_CATEGORY_SPECTRUM_MGMT;
-	mgmt->u.action.u.chan_switch.action_code = WLAN_ACTION_SPCT_CHL_SWITCH;
-	pos = skb_put(skb, 5);
-	*pos++ = WLAN_EID_CHANNEL_SWITCH;			/* EID */
-	*pos++ = 3;						/* IE length */
-	*pos++ = csa_settings->block_tx ? 1 : 0;		/* CSA mode */
-	freq = csa_settings->chandef.chan->center_freq;
-	*pos++ = ieee80211_frequency_to_channel(freq);		/* channel */
-	*pos++ = csa_settings->count;				/* count */
-
-	if (csa_settings->chandef.width == NL80211_CHAN_WIDTH_40) {
-		enum nl80211_channel_type ch_type;
-
-		skb_put(skb, 3);
-		*pos++ = WLAN_EID_SECONDARY_CHANNEL_OFFSET;	/* EID */
-		*pos++ = 1;					/* IE length */
-		ch_type = cfg80211_get_chandef_type(&csa_settings->chandef);
-		if (ch_type == NL80211_CHAN_HT40PLUS)
-			*pos++ = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-		else
-			*pos++ = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-	}
-
-	ieee80211_tx_skb(sdata, skb);
-	return 0;
 }
 
 int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
@@ -796,19 +761,34 @@ static void ieee80211_csa_connection_drop_work(struct work_struct *work)
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
+static void ieee80211_ibss_csa_mark_radar(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+	int err;
+
+	/* if the current channel is a DFS channel, mark the channel as
+	 * unavailable.
+	 */
+	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
+					    &ifibss->chandef);
+	if (err > 0)
+		cfg80211_radar_event(sdata->local->hw.wiphy, &ifibss->chandef,
+				     GFP_ATOMIC);
+}
+
 static bool
 ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				  struct ieee802_11_elems *elems,
 				  bool beacon)
 {
 	struct cfg80211_csa_settings params;
+	struct ieee80211_csa_ie csa_ie;
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_chanctx *chanctx;
 	enum nl80211_channel_type ch_type;
 	int err, num_chanctx;
 	u32 sta_flags;
-	u8 mode;
 
 	if (sdata->vif.csa_active)
 		return true;
@@ -831,12 +811,10 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	memset(&params, 0, sizeof(params));
+	memset(&csa_ie, 0, sizeof(csa_ie));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems, beacon,
 					   ifibss->chandef.chan->band,
-					   sta_flags, ifibss->bssid,
-					   &params.count, &mode,
-					   &params.chandef);
-
+					   sta_flags, ifibss->bssid, &csa_ie);
 	/* can't switch to destination channel, fail */
 	if (err < 0)
 		goto disconnect;
@@ -844,6 +822,9 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	/* did not contain a CSA */
 	if (err)
 		return false;
+
+	params.count = csa_ie.count;
+	params.chandef = csa_ie.chandef;
 
 	if (ifibss->chandef.chan->band != params.chandef.chan->band)
 		goto disconnect;
@@ -880,8 +861,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		goto disconnect;
 	}
 
-	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, &params.chandef,
-				     IEEE80211_CHAN_DISABLED)) {
+	if (!cfg80211_reg_can_beacon(sdata->local->hw.wiphy, &params.chandef)) {
 		sdata_info(sdata,
 			   "IBSS %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
 			   ifibss->bssid,
@@ -897,10 +877,11 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (err < 0)
 		goto disconnect;
 	if (err) {
-		params.radar_required = true;
+		/* IBSS-DFS only allowed with a control program */
+		if (!ifibss->userspace_handles_dfs)
+			goto disconnect;
 
-		/* TODO: IBSS-DFS not (yet) supported, disconnect. */
-		goto disconnect;
+		params.radar_required = true;
 	}
 
 	rcu_read_lock();
@@ -931,7 +912,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		 "received channel switch announcement to go to channel %d MHz\n",
 		 params.chandef.chan->center_freq);
 
-	params.block_tx = !!mode;
+	params.block_tx = !!csa_ie.mode;
 
 	ieee80211_ibss_csa_beacon(sdata, &params);
 	sdata->csa_radar_required = params.radar_required;
@@ -947,11 +928,15 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	ieee80211_bss_info_change_notify(sdata, err);
 	drv_channel_switch_beacon(sdata, &params.chandef);
 
+	ieee80211_ibss_csa_mark_radar(sdata);
+
 	return true;
 disconnect:
 	ibss_dbg(sdata, "Can't handle channel switch, disconnect\n");
 	ieee80211_queue_work(&sdata->local->hw,
 			     &ifibss->csa_connection_drop_work);
+
+	ieee80211_ibss_csa_mark_radar(sdata);
 
 	return true;
 }
@@ -1688,6 +1673,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	sdata->u.ibss.privacy = params->privacy;
 	sdata->u.ibss.control_port = params->control_port;
+	sdata->u.ibss.userspace_handles_dfs = params->userspace_handles_dfs;
 	sdata->u.ibss.basic_rates = params->basic_rates;
 
 	/* fix basic_rates if channel does not support these rates */
