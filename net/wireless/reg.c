@@ -450,7 +450,7 @@ static int call_crda(const char *alpha2)
 	return kobject_uevent(&reg_pdev->dev.kobj, KOBJ_CHANGE);
 }
 
-static bool reg_is_valid_request(const char *alpha2)
+bool reg_is_valid_request(const char *alpha2)
 {
 	struct regulatory_request *lr = get_last_request();
 

@@ -18,6 +18,7 @@
 
 extern const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
 
+bool reg_is_valid_request(const char *alpha2);
 bool is_world_regdom(const char *alpha2);
 bool reg_supported_dfs_region(u8 dfs_region);
 
