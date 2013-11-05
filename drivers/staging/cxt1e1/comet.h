@@ -25,8 +25,7 @@
 
 #define VINT32  volatile u_int32_t
 
-struct s_comet_reg
-{
+struct s_comet_reg {
 	VINT32 gbl_cfg;      /* 00  Global Cfg */
 	VINT32 clkmon;       /* 01  Clk Monitor */
 	VINT32 rx_opt;       /* 02  RX Options */
