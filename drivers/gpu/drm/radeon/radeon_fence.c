@@ -510,6 +510,9 @@ int radeon_fence_wait_empty_locked(struct radeon_device *rdev, int ring)
 	int r;
 
 	seq[ring] = rdev->fence_drv[ring].sync_seq[ring];
+	if (!seq[ring])
+		return 0;
+
 	r = radeon_fence_wait_seq(rdev, seq, false, false);
 	if (r) {
 		if (r == -EDEADLK)
