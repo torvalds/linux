@@ -5406,47 +5406,44 @@ static int __init skd_init(void)
 	case SKD_IRQ_MSIX:
 		break;
 	default:
-		pr_info("skd_isr_type %d invalid, re-set to %d\n",
+		pr_err(PFX "skd_isr_type %d invalid, re-set to %d\n",
 		       skd_isr_type, SKD_IRQ_DEFAULT);
 		skd_isr_type = SKD_IRQ_DEFAULT;
 	}
 
-	if (skd_max_queue_depth < 1
-	    || skd_max_queue_depth > SKD_MAX_QUEUE_DEPTH) {
-		pr_info(
-		       "skd_max_queue_depth %d invalid, re-set to %d\n",
+	if (skd_max_queue_depth < 1 ||
+	    skd_max_queue_depth > SKD_MAX_QUEUE_DEPTH) {
+		pr_err(PFX "skd_max_queue_depth %d invalid, re-set to %d\n",
 		       skd_max_queue_depth, SKD_MAX_QUEUE_DEPTH_DEFAULT);
 		skd_max_queue_depth = SKD_MAX_QUEUE_DEPTH_DEFAULT;
 	}
 
 	if (skd_max_req_per_msg < 1 || skd_max_req_per_msg > 14) {
-		pr_info(
-		       "skd_max_req_per_msg %d invalid, re-set to %d\n",
+		pr_err(PFX "skd_max_req_per_msg %d invalid, re-set to %d\n",
 		       skd_max_req_per_msg, SKD_MAX_REQ_PER_MSG_DEFAULT);
 		skd_max_req_per_msg = SKD_MAX_REQ_PER_MSG_DEFAULT;
 	}
 
 	if (skd_sgs_per_request < 1 || skd_sgs_per_request > 4096) {
-		pr_info(
-		       "skd_sg_per_request %d invalid, re-set to %d\n",
+		pr_err(PFX "skd_sg_per_request %d invalid, re-set to %d\n",
 		       skd_sgs_per_request, SKD_N_SG_PER_REQ_DEFAULT);
 		skd_sgs_per_request = SKD_N_SG_PER_REQ_DEFAULT;
 	}
 
 	if (skd_dbg_level < 0 || skd_dbg_level > 2) {
-		pr_info("skd_dbg_level %d invalid, re-set to %d\n",
+		pr_err(PFX "skd_dbg_level %d invalid, re-set to %d\n",
 		       skd_dbg_level, 0);
 		skd_dbg_level = 0;
 	}
 
 	if (skd_isr_comp_limit < 0) {
-		pr_info("skd_isr_comp_limit %d invalid, set to %d\n",
+		pr_err(PFX "skd_isr_comp_limit %d invalid, set to %d\n",
 		       skd_isr_comp_limit, 0);
 		skd_isr_comp_limit = 0;
 	}
 
 	if (skd_max_pass_thru < 1 || skd_max_pass_thru > 50) {
-		pr_info("skd_max_pass_thru %d invalid, re-set to %d\n",
+		pr_err(PFX "skd_max_pass_thru %d invalid, re-set to %d\n",
 		       skd_max_pass_thru, SKD_N_SPECIAL_CONTEXT);
 		skd_max_pass_thru = SKD_N_SPECIAL_CONTEXT;
 	}
