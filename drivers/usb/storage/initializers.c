@@ -116,7 +116,7 @@ static int usb_stor_huawei_scsi_init(struct us_data *us)
     int idProduct;
 	idProduct = us->pusb_dev->descriptor.idProduct;
 	if(idProduct==0x1F01){
-	printk("This is SCSI HUAWEI HILINK Dongle\n");
+	//printk("This is SCSI HUAWEI HILINK Dongle\n");
 	int result = 0;
     int act_len = 0;
 	unsigned  char  cmd[32] =  {0x55,  0x53, 0x42,  0x43,  0x00, 0x00,  0x00, 0x00,
@@ -206,3 +206,15 @@ int usb_stor_zte_k4505_init(struct us_data *us)
 	    printk("usb_stor_bulk_transfer_buf performing result is %d, transfer the actual length=%d\n", result, act_len);
 		return (result ? 0 : -ENODEV);
 }
+
+int usb_stor_zte_init(struct us_data *us)
+{
+	     int result;
+		 result =usb_stor_control_msg(us,us->send_ctrl_pipe,
+		                                     0xA1,
+		                                     0xC0,
+		                                     0x01,0x0,NULL,0x0,1000);
+		 printk("usb_stor_zte_int result is %d\n",result);
+		 return 0;
+}
+
