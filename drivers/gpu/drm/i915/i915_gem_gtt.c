@@ -892,6 +892,66 @@ static inline size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
 	return bdw_gmch_ctl << 25; /* 32 MB units */
 }
 
+static int ggtt_probe_common(struct drm_device *dev,
+			     size_t gtt_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	phys_addr_t gtt_bus_addr;
+	int ret;
+
+	/* For Modern GENs the PTEs and register space are split in the BAR */
+	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
+		(pci_resource_len(dev->pdev, 0) / 2);
+
+	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
+	if (!dev_priv->gtt.gsm) {
+		DRM_ERROR("Failed to map the gtt page table\n");
+		return -ENOMEM;
+	}
+
+	ret = setup_scratch_page(dev);
+	if (ret) {
+		DRM_ERROR("Scratch setup failed\n");
+		/* iounmap will also get called at remove, but meh */
+		iounmap(dev_priv->gtt.gsm);
+	}
+
+	return ret;
+}
+
+static int gen8_gmch_probe(struct drm_device *dev,
+			   size_t *gtt_total,
+			   size_t *stolen,
+			   phys_addr_t *mappable_base,
+			   unsigned long *mappable_end)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned int gtt_size;
+	u16 snb_gmch_ctl;
+	int ret;
+
+	/* TODO: We're not aware of mappable constraints on gen8 yet */
+	*mappable_base = pci_resource_start(dev->pdev, 2);
+	*mappable_end = pci_resource_len(dev->pdev, 2);
+
+	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(39)))
+		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(39));
+
+	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+
+	*stolen = gen8_get_stolen_size(snb_gmch_ctl);
+
+	gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	*gtt_total = (gtt_size / 8) << PAGE_SHIFT;
+
+	ret = ggtt_probe_common(dev, gtt_size);
+
+	dev_priv->gtt.base.clear_range = NULL;
+	dev_priv->gtt.base.insert_entries = NULL;
+
+	return ret;
+}
+
 static int gen6_gmch_probe(struct drm_device *dev,
 			   size_t *gtt_total,
 			   size_t *stolen,
@@ -899,7 +959,6 @@ static int gen6_gmch_probe(struct drm_device *dev,
 			   unsigned long *mappable_end)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	phys_addr_t gtt_bus_addr;
 	unsigned int gtt_size;
 	u16 snb_gmch_ctl;
 	int ret;
@@ -920,30 +979,12 @@ static int gen6_gmch_probe(struct drm_device *dev,
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	if (IS_GEN8(dev)) {
-		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
-		*gtt_total = (gtt_size / 8) << PAGE_SHIFT;
-		*stolen = gen8_get_stolen_size(snb_gmch_ctl);
-	} else {
-		gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
-		*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
-		*stolen = gen6_get_stolen_size(snb_gmch_ctl);
-	}
+	*stolen = gen6_get_stolen_size(snb_gmch_ctl);
 
-	/* For Modern GENs the PTEs and register space are split in the BAR */
-	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
-		(pci_resource_len(dev->pdev, 0) / 2);
+	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
+	*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
 
-	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
-	if (!dev_priv->gtt.gsm) {
-		DRM_ERROR("Failed to map the gtt page table\n");
-		return -ENOMEM;
-
-	}
-
-	ret = setup_scratch_page(dev);
-	if (ret)
-		DRM_ERROR("Scratch setup failed\n");
+	ret = ggtt_probe_common(dev, gtt_size);
 
 	dev_priv->gtt.base.clear_range = gen6_ggtt_clear_range;
 	dev_priv->gtt.base.insert_entries = gen6_ggtt_insert_entries;
@@ -997,7 +1038,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen <= 5) {
 		gtt->gtt_probe = i915_gmch_probe;
 		gtt->base.cleanup = i915_gmch_remove;
-	} else {
+	} else if (INTEL_INFO(dev)->gen < 8) {
 		gtt->gtt_probe = gen6_gmch_probe;
 		gtt->base.cleanup = gen6_gmch_remove;
 		if (IS_HASWELL(dev) && dev_priv->ellc_size)
@@ -1010,6 +1051,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			gtt->base.pte_encode = ivb_pte_encode;
 		else
 			gtt->base.pte_encode = snb_pte_encode;
+	} else {
+		dev_priv->gtt.gtt_probe = gen8_gmch_probe;
+		dev_priv->gtt.base.cleanup = gen6_gmch_remove;
 	}
 
 	ret = gtt->gtt_probe(dev, &gtt->base.total, &gtt->stolen_size,
