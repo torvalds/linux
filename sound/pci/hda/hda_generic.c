@@ -3474,7 +3474,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		if (!multi)
 			err = create_single_cap_vol_ctl(codec, n, vol, sw,
 							inv_dmic);
-		else if (!multi_cap_vol)
+		else if (!multi_cap_vol && !inv_dmic)
 			err = create_bind_cap_vol_ctl(codec, n, vol, sw);
 		else
 			err = create_multi_cap_vol_ctl(codec);
