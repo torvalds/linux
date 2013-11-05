@@ -303,8 +303,10 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	int sad_count;
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
 			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
 	}
 
 	if (!radeon_connector) {
@@ -356,8 +358,10 @@ static void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder)
 	};
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
 			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
 	}
 
 	if (!radeon_connector) {

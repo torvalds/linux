@@ -98,6 +98,7 @@ extern int radeon_lockup_timeout;
 extern int radeon_fastfb;
 extern int radeon_dpm;
 extern int radeon_aspm;
+extern int radeon_runtime_pm;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -327,7 +328,6 @@ struct radeon_fence_driver {
 	/* sync_seq is protected by ring emission lock */
 	uint64_t			sync_seq[RADEON_NUM_RINGS];
 	atomic64_t			last_seq;
-	unsigned long			last_activity;
 	bool				initialized;
 };
 
@@ -832,6 +832,12 @@ struct radeon_mec {
 #define RADEON_VM_PTB_ALIGN_MASK (RADEON_VM_PTB_ALIGN_SIZE - 1)
 #define RADEON_VM_PTB_ALIGN(a) (((a) + RADEON_VM_PTB_ALIGN_MASK) & ~RADEON_VM_PTB_ALIGN_MASK)
 
+#define R600_PTE_VALID		(1 << 0)
+#define R600_PTE_SYSTEM		(1 << 1)
+#define R600_PTE_SNOOPED	(1 << 2)
+#define R600_PTE_READABLE	(1 << 5)
+#define R600_PTE_WRITEABLE	(1 << 6)
+
 struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
@@ -967,12 +973,8 @@ struct radeon_cs_reloc {
 struct radeon_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
-	int			kpage_idx[2];
-	uint32_t		*kpage[2];
 	uint32_t		*kdata;
 	void __user		*user_ptr;
-	int			last_copied_page;
-	int			last_page_index;
 };
 
 struct radeon_cs_parser {
@@ -1007,8 +1009,15 @@ struct radeon_cs_parser {
 	struct ww_acquire_ctx	ticket;
 };
 
-extern int radeon_cs_finish_pages(struct radeon_cs_parser *p);
-extern u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx);
+static inline u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
+{
+	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
+
+	if (ibc->kdata)
+		return ibc->kdata[idx];
+	return p->ib.ptr[idx];
+}
+
 
 struct radeon_cs_packet {
 	unsigned	idx;
@@ -1675,8 +1684,6 @@ struct radeon_asic {
 	struct {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
-
-		u32 pt_ring_index;
 		void (*set_page)(struct radeon_device *rdev,
 				 struct radeon_ib *ib,
 				 uint64_t pe,
@@ -2170,6 +2177,7 @@ struct radeon_device {
 	bool				need_dma32;
 	bool				accel_working;
 	bool				fastfb_working; /* IGP feature*/
+	bool				needs_reset;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
@@ -2212,6 +2220,9 @@ struct radeon_device {
 	/* clock, powergating flags */
 	u32 cg_flags;
 	u32 pg_flags;
+
+	struct dev_pm_domain vga_pm_domain;
+	bool have_disp_power_ref;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -2673,8 +2684,8 @@ extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
-extern int radeon_resume_kms(struct drm_device *dev);
-extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
+extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
+extern int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon);
 extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size);
 extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,

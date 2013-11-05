@@ -67,11 +67,6 @@ extern void si_init_uvd_internal_cg(struct radeon_device *rdev);
 extern int cik_sdma_resume(struct radeon_device *rdev);
 extern void cik_sdma_enable(struct radeon_device *rdev, bool enable);
 extern void cik_sdma_fini(struct radeon_device *rdev);
-extern void cik_sdma_vm_set_page(struct radeon_device *rdev,
-				 struct radeon_ib *ib,
-				 uint64_t pe,
-				 uint64_t addr, unsigned count,
-				 uint32_t incr, uint32_t flags);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
@@ -3094,6 +3089,85 @@ void cik_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
 }
 
+/**
+ * cik_copy_cpdma - copy pages using the CP DMA engine
+ *
+ * @rdev: radeon_device pointer
+ * @src_offset: src GPU address
+ * @dst_offset: dst GPU address
+ * @num_gpu_pages: number of GPU pages to xfer
+ * @fence: radeon fence object
+ *
+ * Copy GPU paging using the CP DMA engine (CIK+).
+ * Used by the radeon ttm implementation to move pages if
+ * registered as the asic copy callback.
+ */
+int cik_copy_cpdma(struct radeon_device *rdev,
+		   uint64_t src_offset, uint64_t dst_offset,
+		   unsigned num_gpu_pages,
+		   struct radeon_fence **fence)
+{
+	struct radeon_semaphore *sem = NULL;
+	int ring_index = rdev->asic->copy.blit_ring_index;
+	struct radeon_ring *ring = &rdev->ring[ring_index];
+	u32 size_in_bytes, cur_size_in_bytes, control;
+	int i, num_loops;
+	int r = 0;
+
+	r = radeon_semaphore_create(rdev, &sem);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		return r;
+	}
+
+	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
+	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
+	r = radeon_ring_lock(rdev, ring, num_loops * 7 + 18);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		radeon_semaphore_free(rdev, &sem, NULL);
+		return r;
+	}
+
+	if (radeon_fence_need_sync(*fence, ring->idx)) {
+		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
+					    ring->idx);
+		radeon_fence_note_sync(*fence, ring->idx);
+	} else {
+		radeon_semaphore_free(rdev, &sem, NULL);
+	}
+
+	for (i = 0; i < num_loops; i++) {
+		cur_size_in_bytes = size_in_bytes;
+		if (cur_size_in_bytes > 0x1fffff)
+			cur_size_in_bytes = 0x1fffff;
+		size_in_bytes -= cur_size_in_bytes;
+		control = 0;
+		if (size_in_bytes == 0)
+			control |= PACKET3_DMA_DATA_CP_SYNC;
+		radeon_ring_write(ring, PACKET3(PACKET3_DMA_DATA, 5));
+		radeon_ring_write(ring, control);
+		radeon_ring_write(ring, lower_32_bits(src_offset));
+		radeon_ring_write(ring, upper_32_bits(src_offset));
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
+		radeon_ring_write(ring, upper_32_bits(dst_offset));
+		radeon_ring_write(ring, cur_size_in_bytes);
+		src_offset += cur_size_in_bytes;
+		dst_offset += cur_size_in_bytes;
+	}
+
+	r = radeon_fence_emit(rdev, fence, ring->idx);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
+
+	radeon_ring_unlock_commit(rdev, ring);
+	radeon_semaphore_free(rdev, &sem, *fence);
+
+	return r;
+}
+
 /*
  * IB stuff
  */
@@ -4824,62 +4898,6 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	}
 }
 
-/**
- * cik_vm_set_page - update the page tables using sDMA
- *
- * @rdev: radeon_device pointer
- * @ib: indirect buffer to fill with commands
- * @pe: addr of the page entry
- * @addr: dst addr to write into pe
- * @count: number of page entries to update
- * @incr: increase next addr by incr bytes
- * @flags: access flags
- *
- * Update the page tables using CP or sDMA (CIK).
- */
-void cik_vm_set_page(struct radeon_device *rdev,
-		     struct radeon_ib *ib,
-		     uint64_t pe,
-		     uint64_t addr, unsigned count,
-		     uint32_t incr, uint32_t flags)
-{
-	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
-	uint64_t value;
-	unsigned ndw;
-
-	if (rdev->asic->vm.pt_ring_index == RADEON_RING_TYPE_GFX_INDEX) {
-		/* CP */
-		while (count) {
-			ndw = 2 + count * 2;
-			if (ndw > 0x3FFE)
-				ndw = 0x3FFE;
-
-			ib->ptr[ib->length_dw++] = PACKET3(PACKET3_WRITE_DATA, ndw);
-			ib->ptr[ib->length_dw++] = (WRITE_DATA_ENGINE_SEL(0) |
-						    WRITE_DATA_DST_SEL(1));
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-			for (; ndw > 2; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
-				addr += incr;
-				value |= r600_flags;
-				ib->ptr[ib->length_dw++] = value;
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			}
-		}
-	} else {
-		/* DMA */
-		cik_sdma_vm_set_page(rdev, ib, pe, addr, count, incr, flags);
-	}
-}
-
 /*
  * RLC
  * The RLC is a multi-purpose microengine that handles a
@@ -5546,7 +5564,7 @@ void cik_init_cp_pg_table(struct radeon_device *rdev)
 		}
 
 		for (i = 0; i < CP_ME_TABLE_SIZE; i ++) {
-			dst_ptr[bo_offset + i] = be32_to_cpu(fw_data[table_offset + i]);
+			dst_ptr[bo_offset + i] = cpu_to_le32(be32_to_cpu(fw_data[table_offset + i]));
 		}
 		bo_offset += CP_ME_TABLE_SIZE;
 	}
@@ -5768,52 +5786,53 @@ void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 	if (buffer == NULL)
 		return;
 
-	buffer[count++] = PACKET3(PACKET3_PREAMBLE_CNTL, 0);
-	buffer[count++] = PACKET3_PREAMBLE_BEGIN_CLEAR_STATE;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
 
-	buffer[count++] = PACKET3(PACKET3_CONTEXT_CONTROL, 1);
-	buffer[count++] = 0x80000000;
-	buffer[count++] = 0x80000000;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CONTEXT_CONTROL, 1));
+	buffer[count++] = cpu_to_le32(0x80000000);
+	buffer[count++] = cpu_to_le32(0x80000000);
 
 	for (sect = rdev->rlc.cs_data; sect->section != NULL; ++sect) {
 		for (ext = sect->section; ext->extent != NULL; ++ext) {
 			if (sect->id == SECT_CONTEXT) {
-				buffer[count++] = PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count);
-				buffer[count++] = ext->reg_index - 0xa000;
+				buffer[count++] =
+					cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count));
+				buffer[count++] = cpu_to_le32(ext->reg_index - 0xa000);
 				for (i = 0; i < ext->reg_count; i++)
-					buffer[count++] = ext->extent[i];
+					buffer[count++] = cpu_to_le32(ext->extent[i]);
 			} else {
 				return;
 			}
 		}
 	}
 
-	buffer[count++] = PACKET3(PACKET3_SET_CONTEXT_REG, 2);
-	buffer[count++] = PA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, 2));
+	buffer[count++] = cpu_to_le32(PA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
-		buffer[count++] = 0x16000012;
-		buffer[count++] = 0x00000000;
+		buffer[count++] = cpu_to_le32(0x16000012);
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	case CHIP_KAVERI:
-		buffer[count++] = 0x00000000; /* XXX */
-		buffer[count++] = 0x00000000;
+		buffer[count++] = cpu_to_le32(0x00000000); /* XXX */
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	case CHIP_KABINI:
-		buffer[count++] = 0x00000000; /* XXX */
-		buffer[count++] = 0x00000000;
+		buffer[count++] = cpu_to_le32(0x00000000); /* XXX */
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	default:
-		buffer[count++] = 0x00000000;
-		buffer[count++] = 0x00000000;
+		buffer[count++] = cpu_to_le32(0x00000000);
+		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
 	}
 
-	buffer[count++] = PACKET3(PACKET3_PREAMBLE_CNTL, 0);
-	buffer[count++] = PACKET3_PREAMBLE_END_CLEAR_STATE;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
 
-	buffer[count++] = PACKET3(PACKET3_CLEAR_STATE, 0);
-	buffer[count++] = 0;
+	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CLEAR_STATE, 0));
+	buffer[count++] = cpu_to_le32(0);
 }
 
 static void cik_init_pg(struct radeon_device *rdev)
@@ -7108,7 +7127,7 @@ static int cik_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     CP_RB0_RPTR, CP_RB0_WPTR,
-			     RADEON_CP_PACKET2);
+			     PACKET3(PACKET3_NOP, 0x3FFF));
 	if (r)
 		return r;
 
@@ -7416,6 +7435,70 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
+}
+
+void dce8_program_fmt(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int bpc = 0;
+	u32 tmp = 0;
+	enum radeon_connector_dither dither = RADEON_FMT_DITHER_DISABLE;
+
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		bpc = radeon_get_monitor_bpc(connector);
+		dither = radeon_connector->dither;
+	}
+
+	/* LVDS/eDP FMT is set up by atom */
+	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
+		return;
+
+	/* not needed for analog */
+	if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1) ||
+	    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2))
+		return;
+
+	if (bpc == 0)
+		return;
+
+	switch (bpc) {
+	case 6:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= (FMT_FRAME_RANDOM_ENABLE | FMT_HIGHPASS_RANDOM_ENABLE |
+				FMT_SPATIAL_DITHER_EN | FMT_SPATIAL_DITHER_DEPTH(0));
+		else
+			tmp |= (FMT_TRUNCATE_EN | FMT_TRUNCATE_DEPTH(0));
+		break;
+	case 8:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= (FMT_FRAME_RANDOM_ENABLE | FMT_HIGHPASS_RANDOM_ENABLE |
+				FMT_RGB_RANDOM_ENABLE |
+				FMT_SPATIAL_DITHER_EN | FMT_SPATIAL_DITHER_DEPTH(1));
+		else
+			tmp |= (FMT_TRUNCATE_EN | FMT_TRUNCATE_DEPTH(1));
+		break;
+	case 10:
+		if (dither == RADEON_FMT_DITHER_ENABLE)
+			/* XXX sort out optimal dither settings */
+			tmp |= (FMT_FRAME_RANDOM_ENABLE | FMT_HIGHPASS_RANDOM_ENABLE |
+				FMT_RGB_RANDOM_ENABLE |
+				FMT_SPATIAL_DITHER_EN | FMT_SPATIAL_DITHER_DEPTH(2));
+		else
+			tmp |= (FMT_TRUNCATE_EN | FMT_TRUNCATE_DEPTH(2));
+		break;
+	default:
+		/* not needed */
+		break;
+	}
+
+	WREG32(FMT_BIT_DEPTH_CONTROL + radeon_crtc->crtc_offset, tmp);
 }
 
 /* display watermark setup */
