@@ -2291,9 +2291,8 @@ static int reg_set_rd_driver(const struct ieee80211_regdomain *rd,
 	return 0;
 }
 
-/* Takes ownership of rd only if it doesn't fail */
-static int __set_regdom(const struct ieee80211_regdomain *rd,
-			struct regulatory_request *lr)
+static int reg_set_rd_country_ie(const struct ieee80211_regdomain *rd,
+				 struct regulatory_request *country_ie_request)
 {
 	struct wiphy *request_wiphy;
 
@@ -2313,13 +2312,13 @@ static int __set_regdom(const struct ieee80211_regdomain *rd,
 		return -EINVAL;
 	}
 
-	request_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
+	request_wiphy = wiphy_idx_to_wiphy(country_ie_request->wiphy_idx);
 	if (!request_wiphy) {
 		schedule_delayed_work(&reg_timeout, 0);
 		return -ENODEV;
 	}
 
-	if (lr->intersect)
+	if (country_ie_request->intersect)
 		return -EINVAL;
 
 	reset_regdomains(false, rd);
@@ -2355,7 +2354,7 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 		r = reg_set_rd_driver(rd, lr);
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		r = __set_regdom(rd, lr);
+		r = reg_set_rd_country_ie(rd, lr);
 		break;
 	default:
 		WARN(1, "invalid initiator %d\n", lr->initiator);
