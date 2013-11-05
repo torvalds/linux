@@ -617,15 +617,15 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 	return machine__process_event(machine, event, sample);
 }
 
-void thread__find_addr_map(struct thread *self,
+void thread__find_addr_map(struct thread *thread,
 			   struct machine *machine, u8 cpumode,
 			   enum map_type type, u64 addr,
 			   struct addr_location *al)
 {
-	struct map_groups *mg = &self->mg;
+	struct map_groups *mg = &thread->mg;
 	bool load_map = false;
 
-	al->thread = self;
+	al->thread = thread;
 	al->addr = addr;
 	al->cpumode = cpumode;
 	al->filtered = false;

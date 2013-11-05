@@ -84,7 +84,7 @@ struct hists {
 	u16			col_len[HISTC_NR_COLS];
 };
 
-struct hist_entry *__hists__add_entry(struct hists *self,
+struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
 				      struct symbol *parent,
 				      struct branch_info *bi,
@@ -93,34 +93,34 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__transaction_len(void);
-int hist_entry__sort_snprintf(struct hist_entry *self, char *bf, size_t size,
+int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
 void hist_entry__free(struct hist_entry *);
 
-void hists__output_resort(struct hists *self);
-void hists__collapse_resort(struct hists *self, struct ui_progress *prog);
+void hists__output_resort(struct hists *hists);
+void hists__collapse_resort(struct hists *hists, struct ui_progress *prog);
 
 void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
 void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h);
-void hists__inc_nr_events(struct hists *self, u32 type);
+void hists__inc_nr_events(struct hists *hists, u32 type);
 void events_stats__inc(struct events_stats *stats, u32 type);
 size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
-size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
+size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp);
 
-int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
-int hist_entry__annotate(struct hist_entry *self, size_t privsize);
+int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
+int hist_entry__annotate(struct hist_entry *he, size_t privsize);
 
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
 
-u16 hists__col_len(struct hists *self, enum hist_column col);
-void hists__set_col_len(struct hists *self, enum hist_column col, u16 len);
-bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
+u16 hists__col_len(struct hists *hists, enum hist_column col);
+void hists__set_col_len(struct hists *hists, enum hist_column col, u16 len);
+bool hists__new_col_len(struct hists *hists, enum hist_column col, u16 len);
 void hists__reset_col_len(struct hists *hists);
 void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
@@ -210,12 +210,9 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 	return 0;
 }
 
-static inline int hist_entry__tui_annotate(struct hist_entry *self
-					   __maybe_unused,
-					   struct perf_evsel *evsel
-					   __maybe_unused,
-					   struct hist_browser_timer *hbt
-					   __maybe_unused)
+static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
+					   struct perf_evsel *evsel __maybe_unused,
+					   struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
@@ -230,5 +227,5 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #define K_SWITCH_INPUT_DATA -3000
 #endif
 
-unsigned int hists__sort_list_width(struct hists *self);
+unsigned int hists__sort_list_width(struct hists *hists);
 #endif	/* __PERF_HIST_H */

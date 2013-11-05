@@ -16,11 +16,11 @@
 #include "perf_regs.h"
 #include "vdso.h"
 
-static int perf_session__open(struct perf_session *self)
+static int perf_session__open(struct perf_session *session)
 {
-	struct perf_data_file *file = self->file;
+	struct perf_data_file *file = session->file;
 
-	if (perf_session__read_header(self) < 0) {
+	if (perf_session__read_header(session) < 0) {
 		pr_err("incompatible file format (rerun with -v to learn more)");
 		return -1;
 	}
@@ -28,17 +28,17 @@ static int perf_session__open(struct perf_session *self)
 	if (perf_data_file__is_pipe(file))
 		return 0;
 
-	if (!perf_evlist__valid_sample_type(self->evlist)) {
+	if (!perf_evlist__valid_sample_type(session->evlist)) {
 		pr_err("non matching sample_type");
 		return -1;
 	}
 
-	if (!perf_evlist__valid_sample_id_all(self->evlist)) {
+	if (!perf_evlist__valid_sample_id_all(session->evlist)) {
 		pr_err("non matching sample_id_all");
 		return -1;
 	}
 
-	if (!perf_evlist__valid_read_format(self->evlist)) {
+	if (!perf_evlist__valid_read_format(session->evlist)) {
 		pr_err("non matching read_format");
 		return -1;
 	}
@@ -53,46 +53,45 @@ void perf_session__set_id_hdr_size(struct perf_session *session)
 	machines__set_id_hdr_size(&session->machines, id_hdr_size);
 }
 
-int perf_session__create_kernel_maps(struct perf_session *self)
+int perf_session__create_kernel_maps(struct perf_session *session)
 {
-	int ret = machine__create_kernel_maps(&self->machines.host);
+	int ret = machine__create_kernel_maps(&session->machines.host);
 
 	if (ret >= 0)
-		ret = machines__create_guest_kernel_maps(&self->machines);
+		ret = machines__create_guest_kernel_maps(&session->machines);
 	return ret;
 }
 
-static void perf_session__destroy_kernel_maps(struct perf_session *self)
+static void perf_session__destroy_kernel_maps(struct perf_session *session)
 {
-	machines__destroy_kernel_maps(&self->machines);
+	machines__destroy_kernel_maps(&session->machines);
 }
 
 struct perf_session *perf_session__new(struct perf_data_file *file,
 				       bool repipe, struct perf_tool *tool)
 {
-	struct perf_session *self;
+	struct perf_session *session = zalloc(sizeof(*session));
 
-	self = zalloc(sizeof(*self));
-	if (!self)
+	if (!session)
 		goto out;
 
-	self->repipe = repipe;
-	INIT_LIST_HEAD(&self->ordered_samples.samples);
-	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
-	INIT_LIST_HEAD(&self->ordered_samples.to_free);
-	machines__init(&self->machines);
+	session->repipe = repipe;
+	INIT_LIST_HEAD(&session->ordered_samples.samples);
+	INIT_LIST_HEAD(&session->ordered_samples.sample_cache);
+	INIT_LIST_HEAD(&session->ordered_samples.to_free);
+	machines__init(&session->machines);
 
 	if (file) {
 		if (perf_data_file__open(file))
 			goto out_delete;
 
-		self->file = file;
+		session->file = file;
 
 		if (perf_data_file__is_read(file)) {
-			if (perf_session__open(self) < 0)
+			if (perf_session__open(session) < 0)
 				goto out_close;
 
-			perf_session__set_id_hdr_size(self);
+			perf_session__set_id_hdr_size(session);
 		}
 	}
 
@@ -101,22 +100,22 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 		 * In O_RDONLY mode this will be performed when reading the
 		 * kernel MMAP event, in perf_event__process_mmap().
 		 */
-		if (perf_session__create_kernel_maps(self) < 0)
+		if (perf_session__create_kernel_maps(session) < 0)
 			goto out_delete;
 	}
 
 	if (tool && tool->ordering_requires_timestamps &&
-	    tool->ordered_samples && !perf_evlist__sample_id_all(self->evlist)) {
+	    tool->ordered_samples && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_samples = false;
 	}
 
-	return self;
+	return session;
 
  out_close:
 	perf_data_file__close(file);
  out_delete:
-	perf_session__delete(self);
+	perf_session__delete(session);
  out:
 	return NULL;
 }
@@ -147,16 +146,16 @@ static void perf_session_env__delete(struct perf_session_env *env)
 	free(env->pmu_mappings);
 }
 
-void perf_session__delete(struct perf_session *self)
+void perf_session__delete(struct perf_session *session)
 {
-	perf_session__destroy_kernel_maps(self);
-	perf_session__delete_dead_threads(self);
-	perf_session__delete_threads(self);
-	perf_session_env__delete(&self->header.env);
-	machines__exit(&self->machines);
-	if (self->file)
-		perf_data_file__close(self->file);
-	free(self);
+	perf_session__destroy_kernel_maps(session);
+	perf_session__delete_dead_threads(session);
+	perf_session__delete_threads(session);
+	perf_session_env__delete(&session->header.env);
+	machines__exit(&session->machines);
+	if (session->file)
+		perf_data_file__close(session->file);
+	free(session);
 	vdso__exit();
 }
 
@@ -1084,11 +1083,11 @@ static int perf_session__process_event(struct perf_session *session,
 					  file_offset);
 }
 
-void perf_event_header__bswap(struct perf_event_header *self)
+void perf_event_header__bswap(struct perf_event_header *hdr)
 {
-	self->type = bswap_32(self->type);
-	self->misc = bswap_16(self->misc);
-	self->size = bswap_16(self->size);
+	hdr->type = bswap_32(hdr->type);
+	hdr->misc = bswap_16(hdr->misc);
+	hdr->size = bswap_16(hdr->size);
 }
 
 struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
@@ -1096,9 +1095,9 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, 0, pid);
 }
 
-static struct thread *perf_session__register_idle_thread(struct perf_session *self)
+static struct thread *perf_session__register_idle_thread(struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(self, 0);
+	struct thread *thread = perf_session__findnew(session, 0);
 
 	if (thread == NULL || thread__set_comm(thread, "swapper", 0)) {
 		pr_err("problem inserting idle task.\n");
@@ -1150,10 +1149,10 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 
 volatile int session_done;
 
-static int __perf_session__process_pipe_events(struct perf_session *self,
+static int __perf_session__process_pipe_events(struct perf_session *session,
 					       struct perf_tool *tool)
 {
-	int fd = perf_data_file__fd(self->file);
+	int fd = perf_data_file__fd(session->file);
 	union perf_event *event;
 	uint32_t size, cur_size = 0;
 	void *buf = NULL;
@@ -1181,7 +1180,7 @@ more:
 		goto out_err;
 	}
 
-	if (self->header.needs_swap)
+	if (session->header.needs_swap)
 		perf_event_header__bswap(&event->header);
 
 	size = event->header.size;
@@ -1216,7 +1215,7 @@ more:
 		}
 	}
 
-	if ((skip = perf_session__process_event(self, event, tool, head)) < 0) {
+	if ((skip = perf_session__process_event(session, event, tool, head)) < 0) {
 		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d\n",
 		       head, event->header.size, event->header.type);
 		err = -EINVAL;
@@ -1232,12 +1231,12 @@ more:
 		goto more;
 done:
 	/* do the final flush for ordered samples */
-	self->ordered_samples.next_flush = ULLONG_MAX;
-	err = flush_sample_queue(self, tool);
+	session->ordered_samples.next_flush = ULLONG_MAX;
+	err = flush_sample_queue(session, tool);
 out_err:
 	free(buf);
-	perf_session__warn_about_errors(self, tool);
-	perf_session_free_sample_buffers(self);
+	perf_session__warn_about_errors(session, tool);
+	perf_session_free_sample_buffers(session);
 	return err;
 }
 
@@ -1377,22 +1376,22 @@ out_err:
 	return err;
 }
 
-int perf_session__process_events(struct perf_session *self,
+int perf_session__process_events(struct perf_session *session,
 				 struct perf_tool *tool)
 {
-	u64 size = perf_data_file__size(self->file);
+	u64 size = perf_data_file__size(session->file);
 	int err;
 
-	if (perf_session__register_idle_thread(self) == NULL)
+	if (perf_session__register_idle_thread(session) == NULL)
 		return -ENOMEM;
 
-	if (!perf_data_file__is_pipe(self->file))
-		err = __perf_session__process_events(self,
-						     self->header.data_offset,
-						     self->header.data_size,
+	if (!perf_data_file__is_pipe(session->file))
+		err = __perf_session__process_events(session,
+						     session->header.data_offset,
+						     session->header.data_size,
 						     size, tool);
 	else
-		err = __perf_session__process_pipe_events(self, tool);
+		err = __perf_session__process_pipe_events(session, tool);
 
 	return err;
 }
@@ -1441,15 +1440,15 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 	return 0;
 }
 
-size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
+size_t perf_session__fprintf_dsos(struct perf_session *session, FILE *fp)
 {
-	return machines__fprintf_dsos(&self->machines, fp);
+	return machines__fprintf_dsos(&session->machines, fp);
 }
 
-size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
+size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp,
 					  bool (skip)(struct dso *dso, int parm), int parm)
 {
-	return machines__fprintf_dsos_buildid(&self->machines, fp, skip, parm);
+	return machines__fprintf_dsos_buildid(&session->machines, fp, skip, parm);
 }
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)

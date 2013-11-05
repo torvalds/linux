@@ -88,7 +88,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
 
-union perf_event *perf_evlist__mmap_read(struct perf_evlist *self, int idx);
+union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx);
 
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 
