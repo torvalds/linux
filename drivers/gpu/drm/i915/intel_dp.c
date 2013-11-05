@@ -1611,6 +1611,7 @@ static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
 	uint32_t max_sleep_time = 0x1f;
 	uint32_t idle_frames = 1;
 	uint32_t val = 0x0;
+	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
 	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) {
 		val |= EDP_PSR_LINK_STANDBY;
@@ -1621,7 +1622,7 @@ static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
 		val |= EDP_PSR_LINK_DISABLE;
 
 	I915_WRITE(EDP_PSR_CTL(dev), val |
-		   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES |
+		   IS_BROADWELL(dev) ? 0 : link_entry_time |
 		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
 		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
 		   EDP_PSR_ENABLE);

@@ -1961,8 +1961,8 @@
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
 #define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
-/* HSW eDP PSR registers */
-#define EDP_PSR_BASE(dev)			0x64800
+/* HSW+ eDP PSR registers */
+#define EDP_PSR_BASE(dev)                       (IS_HASWELL(dev) ? 0x64800 : 0x6f800)
 #define EDP_PSR_CTL(dev)			(EDP_PSR_BASE(dev) + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   EDP_PSR_LINK_DISABLE			(0<<27)
