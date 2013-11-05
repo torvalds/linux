@@ -1353,7 +1353,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 		for_each_pipe(pipe) {
-			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS)
+			if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
 				drm_handle_vblank(dev, pipe);
 
 			if (pipe_stats[pipe] & PLANE_FLIPDONE_INT_STATUS_VLV) {
