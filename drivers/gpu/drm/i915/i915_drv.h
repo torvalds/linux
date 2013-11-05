@@ -2411,8 +2411,8 @@ u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 		     enum intel_sbi_destination destination);
 
-int vlv_gpu_freq(int ddr_freq, int val);
-int vlv_freq_opcode(int ddr_freq, int val);
+int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
+int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)

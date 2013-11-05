@@ -3609,9 +3609,9 @@ static void vlv_update_rps_cur_delay(struct drm_i915_private *dev_priv)
 
 	if (pval != dev_priv->rps.cur_delay)
 		DRM_DEBUG_DRIVER("Punit overrode GPU freq: %d MHz (%u) requested, but got %d Mhz (%u)\n",
-				 vlv_gpu_freq(dev_priv->mem_freq, dev_priv->rps.cur_delay),
+				 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_delay),
 				 dev_priv->rps.cur_delay,
-				 vlv_gpu_freq(dev_priv->mem_freq, pval), pval);
+				 vlv_gpu_freq(dev_priv, pval), pval);
 
 	dev_priv->rps.cur_delay = pval;
 }
@@ -3629,10 +3629,9 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	vlv_update_rps_cur_delay(dev_priv);
 
 	DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.cur_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_delay),
 			 dev_priv->rps.cur_delay,
-			 vlv_gpu_freq(dev_priv->mem_freq, val), val);
+			 vlv_gpu_freq(dev_priv, val), val);
 
 	if (val == dev_priv->rps.cur_delay)
 		return;
@@ -3641,7 +3640,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 
 	dev_priv->rps.cur_delay = val;
 
-	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv->mem_freq, val));
+	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv, val));
 }
 
 static void gen6_disable_rps_interrupts(struct drm_device *dev)
@@ -4070,32 +4069,27 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	dev_priv->rps.cur_delay = (val >> 8) & 0xff;
 	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.cur_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_delay),
 			 dev_priv->rps.cur_delay);
 
 	dev_priv->rps.max_delay = valleyview_rps_max_freq(dev_priv);
 	dev_priv->rps.hw_max = dev_priv->rps.max_delay;
 	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.max_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay),
 			 dev_priv->rps.max_delay);
 
 	dev_priv->rps.rpe_delay = valleyview_rps_rpe_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.rpe_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
 
 	dev_priv->rps.min_delay = valleyview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.min_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay),
 			 dev_priv->rps.min_delay);
 
 	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv->mem_freq,
-				      dev_priv->rps.rpe_delay),
+			 vlv_gpu_freq(dev_priv, dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
@@ -5945,12 +5939,12 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-int vlv_gpu_freq(int ddr_freq, int val)
+int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
 	int div;
 
 	/* 4 x czclk */
-	switch (ddr_freq) {
+	switch (dev_priv->mem_freq) {
 	case 800:
 		div = 10;
 		break;
@@ -5964,15 +5958,15 @@ int vlv_gpu_freq(int ddr_freq, int val)
 		return -1;
 	}
 
-	return DIV_ROUND_CLOSEST(ddr_freq * (val + 6 - 0xbd), 4 * div);
+	return DIV_ROUND_CLOSEST(dev_priv->mem_freq * (val + 6 - 0xbd), 4 * div);
 }
 
-int vlv_freq_opcode(int ddr_freq, int val)
+int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	int mul;
 
 	/* 4 x czclk */
-	switch (ddr_freq) {
+	switch (dev_priv->mem_freq) {
 	case 800:
 		mul = 10;
 		break;
@@ -5986,7 +5980,7 @@ int vlv_freq_opcode(int ddr_freq, int val)
 		return -1;
 	}
 
-	return DIV_ROUND_CLOSEST(4 * mul * val, ddr_freq) + 0xbd - 6;
+	return DIV_ROUND_CLOSEST(4 * mul * val, dev_priv->mem_freq) + 0xbd - 6;
 }
 
 void intel_pm_init(struct drm_device *dev)

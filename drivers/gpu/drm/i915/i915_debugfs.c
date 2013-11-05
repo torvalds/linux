@@ -974,15 +974,14 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 
 		val = vlv_punit_read(dev_priv, PUNIT_FUSE_BUS1);
 		seq_printf(m, "max GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv->mem_freq, val));
+			   vlv_gpu_freq(dev_priv, val));
 
 		val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM);
 		seq_printf(m, "min GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv->mem_freq, val));
+			   vlv_gpu_freq(dev_priv, val));
 
 		seq_printf(m, "current GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv->mem_freq,
-					(freq_sts >> 8) & 0xff));
+			   vlv_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_puts(m, "no P-state info available\n");
@@ -2725,8 +2724,7 @@ i915_max_freq_get(void *data, u64 *val)
 		return ret;
 
 	if (IS_VALLEYVIEW(dev))
-		*val = vlv_gpu_freq(dev_priv->mem_freq,
-				    dev_priv->rps.max_delay);
+		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.max_delay);
 	else
 		*val = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -2756,7 +2754,7 @@ i915_max_freq_set(void *data, u64 val)
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
 	if (IS_VALLEYVIEW(dev)) {
-		val = vlv_freq_opcode(dev_priv->mem_freq, val);
+		val = vlv_freq_opcode(dev_priv, val);
 		dev_priv->rps.max_delay = val;
 		gen6_set_rps(dev, val);
 	} else {
@@ -2791,8 +2789,7 @@ i915_min_freq_get(void *data, u64 *val)
 		return ret;
 
 	if (IS_VALLEYVIEW(dev))
-		*val = vlv_gpu_freq(dev_priv->mem_freq,
-				    dev_priv->rps.min_delay);
+		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.min_delay);
 	else
 		*val = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -2822,7 +2819,7 @@ i915_min_freq_set(void *data, u64 val)
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
 	if (IS_VALLEYVIEW(dev)) {
-		val = vlv_freq_opcode(dev_priv->mem_freq, val);
+		val = vlv_freq_opcode(dev_priv, val);
 		dev_priv->rps.min_delay = val;
 		valleyview_set_rps(dev, val);
 	} else {
