@@ -2142,7 +2142,6 @@ err_no_card:
 	if (host->dma_chan)
 		dma_release_channel(host->dma_chan);
 err_nand_ioremap:
-	platform_driver_unregister(&atmel_nand_nfc_driver);
 	return res;
 }
 
