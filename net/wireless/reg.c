@@ -1526,8 +1526,7 @@ new_request:
 }
 
 /* This processes *all* regulatory hints */
-static void reg_process_hint(struct regulatory_request *reg_request,
-			     enum nl80211_reg_initiator reg_initiator)
+static void reg_process_hint(struct regulatory_request *reg_request)
 {
 	struct wiphy *wiphy = NULL;
 
@@ -1537,7 +1536,7 @@ static void reg_process_hint(struct regulatory_request *reg_request,
 	if (reg_request->wiphy_idx != WIPHY_IDX_INVALID)
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
 
-	if (reg_initiator == NL80211_REGDOM_SET_BY_DRIVER && !wiphy) {
+	if (reg_request->initiator == NL80211_REGDOM_SET_BY_DRIVER && !wiphy) {
 		kfree(reg_request);
 		return;
 	}
@@ -1546,10 +1545,10 @@ static void reg_process_hint(struct regulatory_request *reg_request,
 	case REG_REQ_ALREADY_SET:
 		/* This is required so that the orig_* parameters are saved */
 		if (wiphy && wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
-			wiphy_update_regulatory(wiphy, reg_initiator);
+			wiphy_update_regulatory(wiphy, reg_request->initiator);
 		break;
 	default:
-		if (reg_initiator == NL80211_REGDOM_SET_BY_USER)
+		if (reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
 			schedule_delayed_work(&reg_timeout,
 					      msecs_to_jiffies(3142));
 		break;
@@ -1587,7 +1586,7 @@ static void reg_process_pending_hints(void)
 
 	spin_unlock(&reg_requests_lock);
 
-	reg_process_hint(reg_request, reg_request->initiator);
+	reg_process_hint(reg_request);
 }
 
 /* Processes beacon hints -- this has nothing to do with country IEs */
