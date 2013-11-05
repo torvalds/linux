@@ -471,7 +471,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 
 	/* Check magic value */
 	magic = readl(vm_dev->base + VIRTIO_MMIO_MAGIC_VALUE);
-	if (memcmp(&magic, "virt", 4) != 0) {
+	if (magic != ('v' | 'i' << 8 | 'r' << 16 | 't' << 24)) {
 		dev_warn(&pdev->dev, "Wrong magic value 0x%08lx!\n", magic);
 		return -ENODEV;
 	}
