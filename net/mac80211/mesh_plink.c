@@ -700,7 +700,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 	enum plink_event event;
 	enum ieee80211_self_protected_actioncode ftype;
 	size_t baselen;
-	bool matches_local = true;
+	bool matches_local;
 	u8 ie_len;
 	u8 *baseaddr;
 	u32 changed = 0;
@@ -771,11 +771,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 
 	sta = sta_info_get(sdata, mgmt->sa);
-	if (!sta && ftype != WLAN_SP_MESH_PEERING_OPEN) {
-		mpl_dbg(sdata, "Mesh plink: cls or cnf from unknown peer\n");
-		rcu_read_unlock();
-		return;
-	}
+
+	matches_local = ftype == WLAN_SP_MESH_PEERING_CLOSE ||
+			mesh_matches_local(sdata, &elems);
 
 	if (ftype == WLAN_SP_MESH_PEERING_OPEN &&
 	    !rssi_threshold_check(sta, sdata)) {
@@ -785,22 +783,41 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (sta && !test_sta_flag(sta, WLAN_STA_AUTH)) {
-		mpl_dbg(sdata, "Mesh plink: Action frame from non-authed peer\n");
-		rcu_read_unlock();
-		return;
-	}
-
-	if (sta && sta->plink_state == NL80211_PLINK_BLOCKED) {
-		rcu_read_unlock();
-		return;
+	if (!sta) {
+		if (ftype != WLAN_SP_MESH_PEERING_OPEN) {
+			mpl_dbg(sdata, "Mesh plink: cls or cnf from unknown peer\n");
+			rcu_read_unlock();
+			return;
+		}
+		/* ftype == WLAN_SP_MESH_PEERING_OPEN */
+		if (!mesh_plink_free_count(sdata)) {
+			mpl_dbg(sdata, "Mesh plink error: no more free plinks\n");
+			rcu_read_unlock();
+			return;
+		}
+		/* deny open request from non-matching peer */
+		if (!matches_local) {
+			rcu_read_unlock();
+			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
+					    mgmt->sa, 0, plid,
+					    cpu_to_le16(WLAN_REASON_MESH_CONFIG));
+			return;
+		}
+	} else {
+		if (!test_sta_flag(sta, WLAN_STA_AUTH)) {
+			mpl_dbg(sdata, "Mesh plink: Action frame from non-authed peer\n");
+			rcu_read_unlock();
+			return;
+		}
+		if (sta->plink_state == NL80211_PLINK_BLOCKED) {
+			rcu_read_unlock();
+			return;
+		}
 	}
 
 	/* Now we will figure out the appropriate event... */
 	event = PLINK_UNDEFINED;
-	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
-	    !mesh_matches_local(sdata, &elems)) {
-		matches_local = false;
+	if (!matches_local) {
 		switch (ftype) {
 		case WLAN_SP_MESH_PEERING_OPEN:
 			event = OPN_RJCT;
@@ -813,22 +830,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (!sta && !matches_local) {
-		rcu_read_unlock();
-		llid = 0;
-		mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
-				    mgmt->sa, llid, plid,
-				    cpu_to_le16(WLAN_REASON_MESH_CONFIG));
-		return;
-	} else if (!sta) {
-		/* ftype == WLAN_SP_MESH_PEERING_OPEN */
-		if (!mesh_plink_free_count(sdata)) {
-			mpl_dbg(sdata, "Mesh plink error: no more free plinks\n");
-			rcu_read_unlock();
-			return;
-		}
+	if (!sta)
 		event = OPN_ACPT;
-	} else if (matches_local) {
+	else if (matches_local) {
 		switch (ftype) {
 		case WLAN_SP_MESH_PEERING_OPEN:
 			if (!mesh_plink_free_count(sdata) ||
