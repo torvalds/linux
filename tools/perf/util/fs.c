@@ -9,6 +9,11 @@ static const char * const sysfs__fs_known_mountpoints[] = {
 	0,
 };
 
+static const char * const procfs__known_mountpoints[] = {
+	"/proc",
+	0,
+};
+
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
@@ -18,7 +23,8 @@ struct fs {
 };
 
 enum {
-	FS__SYSFS = 0,
+	FS__SYSFS  = 0,
+	FS__PROCFS = 1,
 };
 
 static struct fs fs__entries[] = {
@@ -26,6 +32,11 @@ static struct fs fs__entries[] = {
 		.name	= "sysfs",
 		.mounts	= sysfs__fs_known_mountpoints,
 		.magic	= SYSFS_MAGIC,
+	},
+	[FS__PROCFS] = {
+		.name	= "proc",
+		.mounts	= procfs__known_mountpoints,
+		.magic	= PROC_SUPER_MAGIC,
 	},
 };
 
@@ -104,4 +115,5 @@ const char *name##__mountpoint(void)	\
 	return fs__mountpoint(idx);	\
 }
 
-FS__MOUNTPOINT(sysfs, FS__SYSFS);
+FS__MOUNTPOINT(sysfs,  FS__SYSFS);
+FS__MOUNTPOINT(procfs, FS__PROCFS);
