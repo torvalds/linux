@@ -757,40 +757,33 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 	    !rssi_threshold_check(sdata, sta)) {
 		mpl_dbg(sdata, "Mesh plink: %pM does not meet rssi threshold\n",
 			mgmt->sa);
-		rcu_read_unlock();
-		return;
+		goto unlock_rcu;
 	}
 
 	if (!sta) {
 		if (ftype != WLAN_SP_MESH_PEERING_OPEN) {
 			mpl_dbg(sdata, "Mesh plink: cls or cnf from unknown peer\n");
-			rcu_read_unlock();
-			return;
+			goto unlock_rcu;
 		}
 		/* ftype == WLAN_SP_MESH_PEERING_OPEN */
 		if (!mesh_plink_free_count(sdata)) {
 			mpl_dbg(sdata, "Mesh plink error: no more free plinks\n");
-			rcu_read_unlock();
-			return;
+			goto unlock_rcu;
 		}
 		/* deny open request from non-matching peer */
 		if (!matches_local) {
-			rcu_read_unlock();
 			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
 					    mgmt->sa, 0, plid,
 					    cpu_to_le16(WLAN_REASON_MESH_CONFIG));
-			return;
+			goto unlock_rcu;
 		}
 	} else {
 		if (!test_sta_flag(sta, WLAN_STA_AUTH)) {
 			mpl_dbg(sdata, "Mesh plink: Action frame from non-authed peer\n");
-			rcu_read_unlock();
-			return;
+			goto unlock_rcu;
 		}
-		if (sta->plink_state == NL80211_PLINK_BLOCKED) {
-			rcu_read_unlock();
-			return;
-		}
+		if (sta->plink_state == NL80211_PLINK_BLOCKED)
+			goto unlock_rcu;
 	}
 
 	/* Now we will figure out the appropriate event... */
@@ -839,8 +832,7 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 			break;
 		default:
 			mpl_dbg(sdata, "Mesh plink: unknown frame subtype\n");
-			rcu_read_unlock();
-			return;
+			goto unlock_rcu;
 		}
 	}
 
@@ -850,8 +842,7 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 		sta = mesh_sta_info_get(sdata, mgmt->sa, elems);
 		if (!sta) {
 			mpl_dbg(sdata, "Mesh plink: failed to init peer!\n");
-			rcu_read_unlock();
-			return;
+			goto unlock_rcu;
 		}
 	}
 
@@ -998,6 +989,7 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+unlock_rcu:
 	rcu_read_unlock();
 
 	if (changed)
