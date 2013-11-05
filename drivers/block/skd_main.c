@@ -2590,6 +2590,7 @@ static void skd_do_inq_page_da(struct skd_device *skdev,
 			       volatile struct fit_comp_error_info *skerr,
 			       uint8_t *cdb, uint8_t *buf)
 {
+	struct pci_dev *pdev = skdev->pdev;
 	unsigned max_bytes;
 	struct driver_inquiry_data inq;
 	u16 val;
@@ -2601,36 +2602,22 @@ static void skd_do_inq_page_da(struct skd_device *skdev,
 
 	inq.page_code = DRIVER_INQ_EVPD_PAGE_CODE;
 
-	if (skdev->pdev && skdev->pdev->bus) {
-		skd_get_link_info(skdev->pdev,
-				  &inq.pcie_link_speed, &inq.pcie_link_lanes);
-		inq.pcie_bus_number = cpu_to_be16(skdev->pdev->bus->number);
-		inq.pcie_device_number = PCI_SLOT(skdev->pdev->devfn);
-		inq.pcie_function_number = PCI_FUNC(skdev->pdev->devfn);
+	skd_get_link_info(pdev, &inq.pcie_link_speed, &inq.pcie_link_lanes);
+	inq.pcie_bus_number = cpu_to_be16(pdev->bus->number);
+	inq.pcie_device_number = PCI_SLOT(pdev->devfn);
+	inq.pcie_function_number = PCI_FUNC(pdev->devfn);
 
-		pci_read_config_word(skdev->pdev, PCI_VENDOR_ID, &val);
-		inq.pcie_vendor_id = cpu_to_be16(val);
+	pci_read_config_word(pdev, PCI_VENDOR_ID, &val);
+	inq.pcie_vendor_id = cpu_to_be16(val);
 
-		pci_read_config_word(skdev->pdev, PCI_DEVICE_ID, &val);
-		inq.pcie_device_id = cpu_to_be16(val);
+	pci_read_config_word(pdev, PCI_DEVICE_ID, &val);
+	inq.pcie_device_id = cpu_to_be16(val);
 
-		pci_read_config_word(skdev->pdev, PCI_SUBSYSTEM_VENDOR_ID,
-				     &val);
-		inq.pcie_subsystem_vendor_id = cpu_to_be16(val);
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &val);
+	inq.pcie_subsystem_vendor_id = cpu_to_be16(val);
 
-		pci_read_config_word(skdev->pdev, PCI_SUBSYSTEM_ID, &val);
-		inq.pcie_subsystem_device_id = cpu_to_be16(val);
-	} else {
-		inq.pcie_bus_number = 0xFFFF;
-		inq.pcie_device_number = 0xFF;
-		inq.pcie_function_number = 0xFF;
-		inq.pcie_link_speed = 0xFF;
-		inq.pcie_link_lanes = 0xFF;
-		inq.pcie_vendor_id = 0xFFFF;
-		inq.pcie_device_id = 0xFFFF;
-		inq.pcie_subsystem_vendor_id = 0xFFFF;
-		inq.pcie_subsystem_device_id = 0xFFFF;
-	}
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &val);
+	inq.pcie_subsystem_device_id = cpu_to_be16(val);
 
 	/* Driver version, fixed lenth, padded with spaces on the right */
 	inq.driver_version_length = sizeof(inq.driver_version);
