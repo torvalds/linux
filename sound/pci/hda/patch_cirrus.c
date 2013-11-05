@@ -611,6 +611,7 @@ static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
 	/* codec SSID */
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
+	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS4208_GPIO0),
 	{} /* terminator */
 };
 
