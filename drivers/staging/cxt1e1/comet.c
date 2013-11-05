@@ -302,13 +302,15 @@ void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode, int cl
 		pci_write_32((u_int32_t *) &comet->brif_fpcfg, 0x00);
 		if ((moreParams & CFG_CLK_PORT_MASK) == CFG_CLK_PORT_INTERNAL) {
 			if (cxt1e1_log_level >= LOG_SBEBUG12)
-				pr_info(">> %s: clockmaster internal clock\n", __func__);
+				pr_info(">> %s: clockmaster internal clock\n",
+					__func__);
 			/* internal oscillator */
 			pci_write_32((u_int32_t *) &comet->tx_time, 0x0d);
 		} else {
 			/* external clock source */
 			if (cxt1e1_log_level >= LOG_SBEBUG12)
-				pr_info(">> %s: clockmaster external clock\n", __func__);
+				pr_info(">> %s: clockmaster external clock\n",
+					__func__);
 			/* loop timing(external) */
 			pci_write_32((u_int32_t *) &comet->tx_time, 0x09);
 		}
@@ -421,11 +423,13 @@ WrtXmtWaveformTbl(ci_t *ci, struct s_comet_reg *comet,
 
 	for (sample = 0; sample < COMET_NUM_SAMPLES; sample++) {
 		for (unit = 0; unit < COMET_NUM_UNITS; unit++)
-			WrtXmtWaveform(ci, comet, sample, unit, table[sample][unit]);
+			WrtXmtWaveform(ci, comet, sample, unit,
+					table[sample][unit]);
 		}
 
     /* Enable transmitter and set output amplitude */
-	pci_write_32((u_int32_t *) &comet->xlpg_cfg, table[COMET_NUM_SAMPLES][0]);
+	pci_write_32((u_int32_t *) &comet->xlpg_cfg,
+			table[COMET_NUM_SAMPLES][0]);
 }
 
 
@@ -453,7 +457,8 @@ WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 		/* for write order preservation when Optimizing driver */
 		pci_flush_write(ci);
 		/* write the addr, initiate a read */
-		pci_write_32((u_int32_t *) &comet->rlps_eq_iaddr, (u_int8_t) ramaddr);
+		pci_write_32((u_int32_t *) &comet->rlps_eq_iaddr,
+				(u_int8_t) ramaddr);
 		/* for write order preservation when Optimizing driver */
 		pci_flush_write(ci);
 		/*
@@ -466,9 +471,12 @@ WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 	}
 
 	value = *table++;
-	pci_write_32((u_int32_t *) &comet->rlps_idata3, (u_int8_t) (value >> 24));
-	pci_write_32((u_int32_t *) &comet->rlps_idata2, (u_int8_t) (value >> 16));
-	pci_write_32((u_int32_t *) &comet->rlps_idata1, (u_int8_t) (value >> 8));
+	pci_write_32((u_int32_t *) &comet->rlps_idata3,
+			(u_int8_t) (value >> 24));
+	pci_write_32((u_int32_t *) &comet->rlps_idata2,
+			(u_int8_t) (value >> 16));
+	pci_write_32((u_int32_t *) &comet->rlps_idata1,
+			(u_int8_t) (value >> 8));
 	pci_write_32((u_int32_t *) &comet->rlps_idata0, (u_int8_t) value);
 	 /* for write order preservation when Optimizing driver */
 	pci_flush_write(ci);
@@ -480,7 +488,8 @@ WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 		/* for write order preservation when optimizing driver */
 		pci_flush_write(ci);
 		/* write the addr, initiate a read */
-		pci_write_32((u_int32_t *) &comet->rlps_eq_iaddr, (u_int8_t) ramaddr);
+		pci_write_32((u_int32_t *) &comet->rlps_eq_iaddr,
+				(u_int8_t) ramaddr);
 		 /* for write order preservation when optimizing driver */
 		pci_flush_write(ci);
 
