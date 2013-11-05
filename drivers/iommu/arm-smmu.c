@@ -61,12 +61,13 @@
 #define ARM_SMMU_GR1(smmu)		((smmu)->base + (smmu)->pagesize)
 
 /* Page table bits */
-#define ARM_SMMU_PTE_PAGE		(((pteval_t)3) << 0)
+#define ARM_SMMU_PTE_XN			(((pteval_t)3) << 53)
 #define ARM_SMMU_PTE_CONT		(((pteval_t)1) << 52)
 #define ARM_SMMU_PTE_AF			(((pteval_t)1) << 10)
 #define ARM_SMMU_PTE_SH_NS		(((pteval_t)0) << 8)
 #define ARM_SMMU_PTE_SH_OS		(((pteval_t)2) << 8)
 #define ARM_SMMU_PTE_SH_IS		(((pteval_t)3) << 8)
+#define ARM_SMMU_PTE_PAGE		(((pteval_t)3) << 0)
 
 #if PAGE_SIZE == SZ_4K
 #define ARM_SMMU_PTE_CONT_ENTRIES	16
@@ -1205,7 +1206,7 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 				   unsigned long pfn, int flags, int stage)
 {
 	pte_t *pte, *start;
-	pteval_t pteval = ARM_SMMU_PTE_PAGE | ARM_SMMU_PTE_AF;
+	pteval_t pteval = ARM_SMMU_PTE_PAGE | ARM_SMMU_PTE_AF | ARM_SMMU_PTE_XN;
 
 	if (pmd_none(*pmd)) {
 		/* Allocate a new set of tables */
@@ -1244,7 +1245,9 @@ static int arm_smmu_alloc_init_pte(struct arm_smmu_device *smmu, pmd_t *pmd,
 	}
 
 	/* If no access, create a faulting entry to avoid TLB fills */
-	if (!(flags & (IOMMU_READ | IOMMU_WRITE)))
+	if (flags & IOMMU_EXEC)
+		pteval &= ~ARM_SMMU_PTE_XN;
+	else if (!(flags & (IOMMU_READ | IOMMU_WRITE)))
 		pteval &= ~ARM_SMMU_PTE_PAGE;
 
 	pteval |= ARM_SMMU_PTE_SH_IS;
