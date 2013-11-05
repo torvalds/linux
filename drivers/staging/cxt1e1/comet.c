@@ -28,9 +28,9 @@ extern int  cxt1e1_log_level;
 #define COMET_NUM_UNITS     5   /* Number of points per entry in table */
 
 /* forward references */
-static void SetPwrLevel(comet_t *comet);
-static void WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table);
-static void WrtXmtWaveformTbl(ci_t *ci, comet_t *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
+static void SetPwrLevel(struct s_comet_reg *comet);
+static void WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table);
+static void WrtXmtWaveformTbl(ci_t *ci, struct s_comet_reg *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
 
 
 void       *TWV_table[12] = {
@@ -58,7 +58,7 @@ lbo_tbl_lkup(int t1, int lbo) {
 	return lbo - 1;
 }
 
-void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
+void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode, int clockmaster,
 		u_int8_t moreParams)
 {
 	u_int8_t isT1mode;
@@ -396,7 +396,7 @@ void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
 ** Returns:     Nothing
 */
 static void
-WrtXmtWaveform(ci_t *ci, comet_t *comet, u_int32_t sample, u_int32_t unit, u_int8_t data)
+WrtXmtWaveform(ci_t *ci, struct s_comet_reg *comet, u_int32_t sample, u_int32_t unit, u_int8_t data)
 {
 	u_int8_t    WaveformAddr;
 
@@ -414,7 +414,7 @@ WrtXmtWaveform(ci_t *ci, comet_t *comet, u_int32_t sample, u_int32_t unit, u_int
 ** Returns:     Nothing
 */
 static void
-WrtXmtWaveformTbl(ci_t *ci, comet_t *comet,
+WrtXmtWaveformTbl(ci_t *ci, struct s_comet_reg *comet,
 		  u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS])
 {
 	u_int32_t sample, unit;
@@ -440,7 +440,7 @@ WrtXmtWaveformTbl(ci_t *ci, comet_t *comet,
 */
 
 static void
-WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table)
+WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 {
 	u_int32_t   ramaddr;
 	volatile u_int32_t value;
@@ -504,7 +504,7 @@ WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table)
 */
 
 static void
-SetPwrLevel(comet_t *comet)
+SetPwrLevel(struct s_comet_reg *comet)
 {
 	volatile u_int32_t temp;
 
@@ -546,7 +546,7 @@ SetPwrLevel(comet_t *comet)
 */
 #if 0
 static void
-SetCometOps(comet_t *comet)
+SetCometOps(struct s_comet_reg *comet)
 {
 	volatile u_int8_t rd_value;
 

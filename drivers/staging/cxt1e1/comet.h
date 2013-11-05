@@ -332,8 +332,6 @@ struct s_comet_reg {
 	VINT32 rlps_eq_cfg;      /* FF  RLPS Equalizer Cfg */
 };
 
-typedef struct s_comet_reg comet_t;
-
 /* 00AH: MDIAG Register bit definitions */
 #define COMET_MDIAG_ID5        0x40
 #define COMET_MDIAG_LBMASK     0x3F
@@ -349,7 +347,7 @@ typedef struct s_comet_reg comet_t;
 
 #ifdef __KERNEL__
 extern void
-init_comet(void *, comet_t *, u_int32_t, int, u_int8_t);
+init_comet(void *, struct s_comet_reg *, u_int32_t, int, u_int8_t);
 #endif
 
 #endif                          /* _INC_COMET_H_ */
