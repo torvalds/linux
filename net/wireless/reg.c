@@ -2199,6 +2199,39 @@ static int reg_set_rd_core(const struct ieee80211_regdomain *rd)
 	return 0;
 }
 
+static int reg_set_rd_user(const struct ieee80211_regdomain *rd,
+			   struct regulatory_request *user_request)
+{
+	const struct ieee80211_regdomain *intersected_rd = NULL;
+
+	if (is_world_regdom(rd->alpha2))
+		return -EINVAL;
+
+	if (!regdom_changes(rd->alpha2))
+		return -EALREADY;
+
+	if (!is_valid_rd(rd)) {
+		pr_err("Invalid regulatory domain detected:\n");
+		print_regdomain_info(rd);
+		return -EINVAL;
+	}
+
+	if (!user_request->intersect) {
+		reset_regdomains(false, rd);
+		return 0;
+	}
+
+	intersected_rd = regdom_intersect(rd, get_cfg80211_regdom());
+	if (!intersected_rd)
+		return -EINVAL;
+
+	kfree(rd);
+	rd = NULL;
+	reset_regdomains(false, intersected_rd);
+
+	return 0;
+}
+
 /* Takes ownership of rd only if it doesn't fail */
 static int __set_regdom(const struct ieee80211_regdomain *rd,
 			struct regulatory_request *lr)
@@ -2329,6 +2362,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 		r = reg_set_rd_core(rd);
 		break;
 	case NL80211_REGDOM_SET_BY_USER:
+		r = reg_set_rd_user(rd, lr);
+		break;
 	case NL80211_REGDOM_SET_BY_DRIVER:
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 		r = __set_regdom(rd, lr);
