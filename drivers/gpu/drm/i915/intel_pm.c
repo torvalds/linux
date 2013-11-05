@@ -5947,57 +5947,46 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 
 int vlv_gpu_freq(int ddr_freq, int val)
 {
-	int mult, base;
+	int div;
 
+	/* 4 x czclk */
 	switch (ddr_freq) {
 	case 800:
-		mult = 20;
-		base = 120;
+		div = 10;
 		break;
 	case 1066:
-		mult = 22;
-		base = 133;
+		div = 12;
 		break;
 	case 1333:
-		mult = 21;
-		base = 125;
+		div = 16;
 		break;
 	default:
 		return -1;
 	}
 
-	return ((val - 0xbd) * mult) + base;
+	return DIV_ROUND_CLOSEST(ddr_freq * (val + 6 - 0xbd), 4 * div);
 }
 
 int vlv_freq_opcode(int ddr_freq, int val)
 {
-	int mult, base;
+	int mul;
 
+	/* 4 x czclk */
 	switch (ddr_freq) {
 	case 800:
-		mult = 20;
-		base = 120;
+		mul = 10;
 		break;
 	case 1066:
-		mult = 22;
-		base = 133;
+		mul = 12;
 		break;
 	case 1333:
-		mult = 21;
-		base = 125;
+		mul = 16;
 		break;
 	default:
 		return -1;
 	}
 
-	val /= mult;
-	val -= base / mult;
-	val += 0xbd;
-
-	if (val > 0xea)
-		val = 0xea;
-
-	return val;
+	return DIV_ROUND_CLOSEST(4 * mul * val, ddr_freq) + 0xbd - 6;
 }
 
 void intel_pm_init(struct drm_device *dev)
