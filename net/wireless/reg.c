@@ -462,6 +462,14 @@ static int call_crda(const char *alpha2)
 	return kobject_uevent(&reg_pdev->dev.kobj, KOBJ_CHANGE);
 }
 
+static enum reg_request_treatment
+reg_call_crda(struct regulatory_request *request)
+{
+	if (call_crda(request->alpha2))
+		return REG_REQ_IGNORE;
+	return REG_REQ_OK;
+}
+
 bool reg_is_valid_request(const char *alpha2)
 {
 	struct regulatory_request *lr = get_last_request();
@@ -1371,9 +1379,7 @@ reg_process_hint_core(struct regulatory_request *core_request)
 
 	reg_update_last_request(core_request);
 
-	if (call_crda(core_request->alpha2))
-		return REG_REQ_IGNORE;
-	return REG_REQ_OK;
+	return reg_call_crda(core_request);
 }
 
 static enum reg_request_treatment
@@ -1441,9 +1447,7 @@ reg_process_hint_user(struct regulatory_request *user_request)
 	user_alpha2[0] = user_request->alpha2[0];
 	user_alpha2[1] = user_request->alpha2[1];
 
-	if (call_crda(user_request->alpha2))
-		return REG_REQ_IGNORE;
-	return REG_REQ_OK;
+	return reg_call_crda(user_request);
 }
 
 static enum reg_request_treatment
@@ -1521,9 +1525,7 @@ reg_process_hint_driver(struct wiphy *wiphy,
 		return treatment;
 	}
 
-	if (call_crda(driver_request->alpha2))
-		return REG_REQ_IGNORE;
-	return REG_REQ_OK;
+	return reg_call_crda(driver_request);
 }
 
 static enum reg_request_treatment
@@ -1608,9 +1610,7 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 
 	reg_update_last_request(country_ie_request);
 
-	if (call_crda(country_ie_request->alpha2))
-		return REG_REQ_IGNORE;
-	return REG_REQ_OK;
+	return reg_call_crda(country_ie_request);
 }
 
 /* This processes *all* regulatory hints */
