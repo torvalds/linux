@@ -158,7 +158,7 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
  *
  * The radix tree maps the upper portion of the TRB DMA address to a ring
  * segment that has the same upper portion of DMA addresses.  For example, say I
- * have segments of size 1KB, that are always 64-byte aligned.  A segment may
+ * have segments of size 1KB, that are always 1KB aligned.  A segment may
  * start at 0x10c91000 and end at 0x10c913f0.  If I use the upper 10 bits, the
  * key to the stream ID is 0x43244.  I can use the DMA address of the TRB to
  * pass the radix tree a key to get the right stream ID:
@@ -2375,11 +2375,12 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous
 	 * structure comprised of TRBs.  The TRBs must be 16 byte aligned,
-	 * however, the command ring segment needs 64-byte aligned segments,
-	 * so we pick the greater alignment need.
+	 * however, the command ring segment needs 64-byte aligned segments
+	 * and our use of dma addresses in the trb_address_map radix tree needs
+	 * TRB_SEGMENT_SIZE alignment, so we pick the greater alignment need.
 	 */
 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
-			TRB_SEGMENT_SIZE, 64, xhci->page_size);
+			TRB_SEGMENT_SIZE, TRB_SEGMENT_SIZE, xhci->page_size);
 
 	/* See Table 46 and Note on Figure 55 */
 	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,
