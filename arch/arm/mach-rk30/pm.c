@@ -231,8 +231,10 @@ static noinline void rk30_pm_dump_irq(void)
 	DUMP_GPIO_INT_STATUS(1);
 	DUMP_GPIO_INT_STATUS(2);
 	DUMP_GPIO_INT_STATUS(3);
-#if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
+#if GPIO_BANKS > 4
 	DUMP_GPIO_INT_STATUS(4);
+#endif
+#if GPIO_BANKS > 5
 	DUMP_GPIO_INT_STATUS(6);
 #endif
 }

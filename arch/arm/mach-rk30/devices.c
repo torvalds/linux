@@ -143,6 +143,45 @@ static struct rk29_pl330_platdata dmac1_pdata = {
 	},
 };
 
+#elif defined(CONFIG_ARCH_RK319X)
+
+static struct rk29_pl330_platdata dmac1_pdata = {
+	.peri = {
+		[0] = DMACH_MAX,
+		[1] = DMACH_MAX,
+		[2] = DMACH_MAX,
+		[3] = DMACH_MAX,
+		[4] = DMACH_I2S1_2CH_TX,
+		[5] = DMACH_I2S1_2CH_RX,
+		[6] = DMACH_SPDIF_TX,
+		[7] = DMACH_DMAC0_MEMTOMEM,
+		[8] = DMACH_MAX,
+		[9] = DMACH_MAX,
+		[10] = DMACH_MAX,
+		[11] = DMACH_MAX,
+		[12] = DMACH_MAX,
+		[13] = DMACH_MAX,
+		[14] = DMACH_MAX,
+		[15] = DMACH_MAX,
+		[16] = DMACH_MAX,
+		[17] = DMACH_MAX,
+		[18] = DMACH_MAX,
+		[19] = DMACH_MAX,
+		[20] = DMACH_MAX,
+		[21] = DMACH_MAX,
+		[22] = DMACH_MAX,
+		[23] = DMACH_MAX,
+		[24] = DMACH_MAX,
+		[25] = DMACH_MAX,
+		[26] = DMACH_MAX,
+		[27] = DMACH_MAX,
+		[28] = DMACH_MAX,
+		[29] = DMACH_MAX,
+		[30] = DMACH_MAX,
+		[31] = DMACH_MAX,
+	},
+};
+
 #else 
 
 static struct rk29_pl330_platdata dmac1_pdata = {
@@ -209,6 +248,47 @@ static struct resource resource_dmac2[] = {
 	},
 };
 
+#if defined(CONFIG_ARCH_RK319X)
+
+static struct rk29_pl330_platdata dmac2_pdata = {
+	.peri = {
+		[0] = DMACH_HSADC,
+		[1] = DMACH_SDMMC,
+		[2] = DMACH_SDIO,
+		[3] = DMACH_EMMC,
+		[4] = DMACH_UART0_TX,
+		[5] = DMACH_UART0_RX,
+		[6] = DMACH_UART1_TX,
+		[7] = DMACH_UART1_RX,
+		[8] = DMACH_UART2_TX,
+		[9] = DMACH_UART2_RX,
+		[10] = DMACH_UART3_TX,
+		[11] = DMACH_UART3_RX,
+		[12] = DMACH_SPI0_TX,
+		[13] = DMACH_SPI0_RX,
+		[14] = DMACH_SPI1_TX,
+		[15] = DMACH_SPI1_RX,
+		[16] = DMACH_DMAC1_MEMTOMEM,
+		[17] = DMACH_MAX,
+		[18] = DMACH_MAX,
+		[19] = DMACH_MAX,
+		[20] = DMACH_MAX,
+		[21] = DMACH_MAX,
+		[22] = DMACH_MAX,
+		[23] = DMACH_MAX,
+		[24] = DMACH_MAX,
+		[25] = DMACH_MAX,
+		[26] = DMACH_MAX,
+		[27] = DMACH_MAX,
+		[28] = DMACH_MAX,
+		[29] = DMACH_MAX,
+		[30] = DMACH_MAX,
+		[31] = DMACH_MAX,
+	},
+};
+
+#else
+
 static struct rk29_pl330_platdata dmac2_pdata = {
 	.peri = {
 		[0] = DMACH_HSADC,
@@ -245,6 +325,8 @@ static struct rk29_pl330_platdata dmac2_pdata = {
 		[31] = DMACH_MAX,
 	},
 };
+
+#endif
 
 static struct platform_device device_dmac2 = {
 	.name		= "rk29-pl330",
@@ -427,10 +509,28 @@ static void __init rk30_init_uart(void)
 #define I2C4_END        RK30_I2C4_PHYS + SZ_16K - 1
 #endif
 
+#if defined(CONFIG_ARCH_RK319X)
+#define I2C0_ADAP_TYPE  I2C_RK30_ADAP
+#define I2C0_START      RK319X_I2C0_PHYS
+#define I2C0_END        RK319X_I2C0_PHYS + RK319X_I2C0_SIZE - 1
+#define I2C1_ADAP_TYPE  I2C_RK30_ADAP
+#define I2C1_START      RK319X_I2C1_PHYS
+#define I2C1_END        RK319X_I2C1_PHYS + RK319X_I2C1_SIZE - 1
+#define I2C2_ADAP_TYPE  I2C_RK30_ADAP
+#define I2C2_START      RK319X_I2C2_PHYS
+#define I2C2_END        RK319X_I2C2_PHYS + RK319X_I2C2_SIZE - 1
+#define I2C3_ADAP_TYPE  I2C_RK30_ADAP
+#define I2C3_START      RK319X_I2C3_PHYS
+#define I2C3_END        RK319X_I2C3_PHYS + RK319X_I2C3_SIZE - 1
+#define I2C4_ADAP_TYPE  I2C_RK30_ADAP
+#define I2C4_START      RK319X_I2C4_PHYS
+#define I2C4_END        RK319X_I2C4_PHYS + RK319X_I2C4_SIZE - 1
+#endif
+
 #ifdef CONFIG_I2C0_RK30
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X)
 	.is_div_from_arm = 0,
 #else
 	.is_div_from_arm = 1,
@@ -467,7 +567,7 @@ static struct platform_device device_i2c0 = {
 #ifdef CONFIG_I2C1_RK30
 static struct rk30_i2c_platform_data default_i2c1_data = {
 	.bus_num = 1,
-#if defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X)
 	.is_div_from_arm = 0,
 #else
 	.is_div_from_arm = 1,
@@ -904,6 +1004,7 @@ static struct platform_device device_rga = {
 };
 #endif
 
+#ifdef IRQ_IPP
 static struct resource resource_ipp[] = {
 	[0] = {
 		.start = RK30_IPP_PHYS,
@@ -923,6 +1024,7 @@ static struct platform_device device_ipp = {
 	.num_resources	= ARRAY_SIZE(resource_ipp),
 	.resource	= resource_ipp,
 };
+#endif
 
 #ifdef CONFIG_SND_RK29_SOC_I2S
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
@@ -1230,7 +1332,7 @@ static struct resource resource_arm_pmu[] = {
 		.end	= IRQ_ARM_PMU + 1,
 		.flags	= IORESOURCE_IRQ,
 	},
-#if defined(CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X)
 	{
 		.start	= IRQ_ARM_PMU + 2,
 		.end	= IRQ_ARM_PMU + 2,
@@ -1260,7 +1362,9 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);
 #endif
+#ifdef IRQ_IPP
 	platform_device_register(&device_ipp);
+#endif
 
 #ifdef CONFIG_HDMI_RK30
 	platform_device_register(&device_hdmi);

@@ -61,7 +61,7 @@ static void __init rk30_l2_cache_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl, aux_ctrl_mask, data_latency_ctrl;
-#if defined(CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X)
 	data_latency_ctrl = L2_LATENCY(2, 3, 1);
 #else
 	unsigned int max_cpu_freq = 1608000; // kHz

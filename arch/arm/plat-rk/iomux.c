@@ -90,6 +90,11 @@ void iomux_set(unsigned int mode)
         //mask = (m.mux.mode < 2)?1:3;
         mask = 3;
         v = (m.mux.mode << (m.mux.off * 2)) + (mask << (m.mux.off * 2 + 16));
+#if defined(CONFIG_ARCH_RK319X)
+        if (m.mux.bank == 0)
+                addr = (unsigned int)RK319X_BB_GRF_BASE + BB_GRF_GPIO0A_IOMUX + 4 * (m.mux.goff - 0x0A);
+        else
+#endif
         addr = (unsigned int)GRF_IOMUX_BASE + 16 * m.mux.bank + 4 * (m.mux.goff - 0x0A);
 
         DBG("<%s> mode(0x%04x), reg_addr(0x%08x), set_value(0x%08x)\n", __func__, mode, addr, v);
@@ -108,6 +113,11 @@ int iomux_is_set(unsigned int mode)
 	}
         mask = 3;
         v = (m.mux.mode << (m.mux.off * 2)) + (mask << (m.mux.off * 2 + 16));
+#if defined(CONFIG_ARCH_RK319X)
+        if (m.mux.bank == 0)
+                addr = (unsigned int)RK319X_BB_GRF_BASE + BB_GRF_GPIO0A_IOMUX + 4 * (m.mux.goff - 0x0A);
+        else
+#endif
         addr = (unsigned int)GRF_IOMUX_BASE + 16 * m.mux.bank + 4 * (m.mux.goff - 0x0A);
 
         if((readl_relaxed((void *)addr) & v) != 0)

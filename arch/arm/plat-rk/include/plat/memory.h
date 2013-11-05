@@ -6,7 +6,11 @@
 /*
  * Physical DRAM offset.
  */
+#if defined(CONFIG_ARCH_RK319X)
+#define PLAT_PHYS_OFFSET	UL(0x00000000)
+#else
 #define PLAT_PHYS_OFFSET	UL(0x60000000)
+#endif
 
 #define CONSISTENT_DMA_SIZE	SZ_8M
 

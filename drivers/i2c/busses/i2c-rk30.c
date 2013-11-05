@@ -96,8 +96,11 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
 	}
+
+#if !defined(CONFIG_ARCH_RK319X)
         i2c->con_base = (void __iomem *)GRF_I2C_CON_BASE;
         i2c_adap_sel(i2c, pdata->bus_num, pdata->adap_type);
+#endif
 
         if(pdata->io_init)
 		pdata->io_init();

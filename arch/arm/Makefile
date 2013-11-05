@@ -176,6 +176,7 @@ machine-$(CONFIG_ARCH_RK2928)		:= rk2928
 machine-$(CONFIG_ARCH_RK3026)		:= rk3026
 machine-$(CONFIG_ARCH_RK30)		:= rk30
 machine-$(CONFIG_ARCH_RK3188)		:= rk3188
+machine-$(CONFIG_ARCH_RK319X)		:= rk319x
 machine-$(CONFIG_ARCH_RPC)		:= rpc
 machine-$(CONFIG_ARCH_S3C2410)		:= s3c2410 s3c2400 s3c2412 s3c2416 s3c2440 s3c2443
 machine-$(CONFIG_ARCH_S3C24A0)		:= s3c24a0

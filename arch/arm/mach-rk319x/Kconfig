@@ -1,0 +1,22 @@
+choice
+	prompt "Rockchip SoC Type"
+	depends on ARCH_RK319X
+
+config SOC_RK3190
+	bool "RK3190"
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+
+endchoice
+
+choice
+	prompt "RK3190 Board Type"
+	depends on SOC_RK3190
+
+config MACH_RK3190_TB
+	bool "RK3190 Top Board"
+
+config MACH_RK3190_FPGA
+	bool "RK3188 FPGA board"
+	select RK_FPGA
+
+endchoice

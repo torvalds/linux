@@ -186,6 +186,8 @@ static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2
 #elif defined(CONFIG_ARCH_RK30)
 static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2_BASE, RK30_GPIO3_BASE, 
 				RK30_GPIO4_BASE, 0, RK30_GPIO6_BASE};
+#elif defined(CONFIG_ARCH_RK319X)
+static void __iomem *gpio_base[] = {RK319X_GPIO0_BASE, RK319X_GPIO1_BASE, RK319X_GPIO2_BASE, RK319X_GPIO3_BASE, RK319X_GPIO4_BASE};
 #endif
 
 int sram_gpio_init(int gpio, struct sram_gpio_data *data)

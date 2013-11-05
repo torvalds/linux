@@ -35,6 +35,8 @@
 
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define MAX_PIN	RK30_PIN3_PD7
+#elif defined(CONFIG_ARCH_RK319X)
+#define MAX_PIN	RK30_PIN4_PD7
 #elif defined(CONFIG_ARCH_RK30)
 #define MAX_PIN	RK30_PIN6_PB7
 #elif defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
@@ -103,8 +105,10 @@ static struct rk30_gpio_bank rk30_gpio_banks[] = {
 	RK30_GPIO_BANK(1),
 	RK30_GPIO_BANK(2),
 	RK30_GPIO_BANK(3),
-#if defined(CONFIG_ARCH_RK30) && !defined(CONFIG_ARCH_RK3066B)
+#if GPIO_BANKS > 4
 	RK30_GPIO_BANK(4),
+#endif
+#if GPIO_BANKS > 5
 	RK30_GPIO_BANK(6),
 #endif
 };
@@ -334,7 +338,7 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, enu
 	void __iomem *base;
 	u32 val;
 
-#if defined(CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK319X)
 	/*
 	 * pull setting
 	 * 2'b00: Z(Noraml operaton)
@@ -357,6 +361,17 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, enu
 		return -EINVAL;
 	}
 
+#if defined(CONFIG_ARCH_RK319X)
+	if (bank->id == 0) {
+		base = RK319X_BB_GRF_BASE + BB_GRF_GPIO0A_PULL + ((offset / 8) * 4);
+		offset = (offset % 8) * 2;
+		__raw_writel((0x3 << (16 + offset)) | (val << offset), base);
+	} else {
+		base = RK319X_GRF_BASE + GRF_GPIO1A_PULL + (bank->id - 1) * 16 + ((offset / 8) * 4);
+		offset = (7 - (offset % 8)) * 2;
+		__raw_writel((0x3 << (16 + offset)) | (val << offset), base);
+	}
+#else
 	if (bank->id == 0 && offset < 12) {
 		base = RK30_PMU_BASE + PMU_GPIO0A_PULL + ((offset / 8) * 4);
 		offset = (offset % 8) * 2;
@@ -366,6 +381,7 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, enu
 		offset = (7 - (offset % 8)) * 2;
 		__raw_writel((0x3 << (16 + offset)) | (val << offset), base);
 	}
+#endif
 #else
 	/* RK30XX && RK292X */
 	/*

@@ -84,7 +84,7 @@ endchoice
 
 config EMMC_IO_3_3V
 	bool "Emmc io domain voltage select 3.3v"
-	depends on ARCH_RK3066B || ARCH_RK3188
+	depends on ARCH_RK3066B || ARCH_RK3188 || ARCH_RK319X
 
 config DDR_INIT_CHANGE_FREQ
 	bool "Enable change DDR frequence when ddr_init"
@@ -99,7 +99,7 @@ config DDR_SDRAM_FREQ
 
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
-	default y if ARCH_RK3066B || ARCH_RK3188
+	default y if ARCH_RK3066B || ARCH_RK3188 || ARCH_RK319X
 	select RK_SRAM_DMA if ARCH_RK30XX
 
 config DDR_TEST
@@ -179,13 +179,13 @@ config RK_EARLY_PRINTK
 config RK_DEBUG_UART
 	int "Debug UART"
 	default 1 if ARCH_RK29
-	default 2 if ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026
+	default 2 if ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026 || ARCH_RK319X
 	help
 	  Select a UART for debugging. -1 disable.
 
 config RK_USB_UART
 	bool "Support USB UART Bypass Function"
-	depends on (ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026) && (RK_DEBUG_UART = 2)
+	depends on (ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026 || ARCH_RK319X) && (RK_DEBUG_UART = 2)
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
@@ -196,7 +196,7 @@ config RK_CONSOLE_THREAD
 
 config RK_SRAM_DMA
 	bool "Sound DMA buffer in internal SRAM"
-	depends on ARCH_RK30 || ARCH_RK3188
+	depends on ARCH_RK30 || ARCH_RK3188 || ARCH_RK319X
 
 config RK_PL330_DMA
 	bool
@@ -222,7 +222,7 @@ config RK_TIMER
 
 config RK_USB_DETECT_BY_OTG_BVALID
 	bool "Wakeup system by OTG BVALID interrupt when USB OTG conneted"
-	depends on USB_GADGET && (ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026)
+	depends on USB_GADGET && (ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026 || ARCH_RK319X)
 	default y
 
 endif

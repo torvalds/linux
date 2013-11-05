@@ -6,7 +6,7 @@ comment "MMC/SD/SDIO Host Controller Drivers"
 
 config EMMC_RK
 	tristate "RK emmc controller suppport"
-	depends on ARCH_RK3188 || ARCH_RK3066B || ARCH_RK3026
+	depends on ARCH_RK3188 || ARCH_RK3066B || ARCH_RK3026 || ARCH_RK319X
 	default y
 	help
 		This selects the RK EMMC controller

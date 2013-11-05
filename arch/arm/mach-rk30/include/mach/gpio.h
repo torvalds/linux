@@ -6,6 +6,8 @@
 
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 #define GPIO_BANKS		4
+#elif defined(CONFIG_ARCH_RK319X)
+#define GPIO_BANKS		5
 #else
 #define GPIO_BANKS		7
 #endif
@@ -175,7 +177,9 @@
 #define	RK30_PIN4_PD5		(4*NUM_GROUP + PIN_BASE + 29)
 #define	RK30_PIN4_PD6		(4*NUM_GROUP + PIN_BASE + 30)
 #define	RK30_PIN4_PD7		(4*NUM_GROUP + PIN_BASE + 31)
+#endif
 
+#if GPIO_BANKS > 5
 #define	RK30_PIN6_PA0		(6*NUM_GROUP + PIN_BASE + 0)
 #define	RK30_PIN6_PA1		(6*NUM_GROUP + PIN_BASE + 1)
 #define	RK30_PIN6_PA2		(6*NUM_GROUP + PIN_BASE + 2)

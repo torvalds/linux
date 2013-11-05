@@ -5,7 +5,7 @@
 choice
 	prompt "ADC hardware drivers"
 	default ADC_RK29 if ARCH_RK29
-	default ADC_RK30 if ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026
+	default ADC_RK30 if ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026 || ARCH_RK319X
 
 config ADC_NULL
 	bool "NULL"
@@ -24,7 +24,7 @@ config ADC_RK29
 
 config ADC_RK30
 	bool "RK30 adc interface"
-        depends on ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026
+        depends on ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026 || ARCH_RK319X
 	help
 		This supports the use of the ADC interface on rk30 processors.
 endchoice

@@ -854,7 +854,7 @@ if I2C_RK30
 		default y
 		help
 			This supports the use of the I2C0 channel on RK Soc.
-		if I2C0_RK30
+		if I2C0_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
 			choice
 				prompt "I2C Controller Select"
 				config I2C0_CONTROLLER_RK29
@@ -868,7 +868,7 @@ if I2C_RK30
 		default y
 		help
 			This supports the use of the I2C1 channel on RK Soc.
-		if I2C1_RK30
+		if I2C1_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
 			choice
 				prompt "I2C Controller Select"
 				config I2C1_CONTROLLER_RK29
@@ -882,7 +882,7 @@ if I2C_RK30
 		default y
 		help
 			This supports the use of the I2C2 channel on RK Soc.
-		if I2C2_RK30
+		if I2C2_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
 			choice
 				prompt "I2C Controller Select"
 				config I2C2_CONTROLLER_RK29
@@ -897,7 +897,7 @@ if I2C_RK30
 		default y
 		help
 			This supports the use of the I2C3 channel on RK Soc.
-		if I2C3_RK30
+		if I2C3_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
 			choice
 				prompt "I2C Controller Select"
 				config I2C3_CONTROLLER_RK29
@@ -912,7 +912,7 @@ if I2C_RK30
 		default y
 		help
 			This supports the use of the I2C4 channel on RK Soc.
-		if I2C4_RK30
+		if I2C4_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
 			choice
 				prompt "I2C Controller Select"
 				config I2C4_CONTROLLER_RK29

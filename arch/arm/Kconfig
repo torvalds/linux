@@ -928,6 +928,22 @@ config ARCH_RK3188
 	help
 	  Support for Rockchip's RK3188 SoCs.
 
+config ARCH_RK319X
+	bool "Rockchip RK319X"
+	select PLAT_RK
+	select CPU_V7
+	select ARM_GIC
+	select RK_PL330_DMA
+	select RK_TIMER
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARM_ERRATA_761320 if SMP
+	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	help
+	  Support for Rockchip's RK319X SoCs.
+
 config PLAT_SPEAR
 	bool "ST SPEAr"
 	select ARM_AMBA
@@ -1034,6 +1050,7 @@ source "arch/arm/mach-rk2928/Kconfig"
 source "arch/arm/mach-rk3026/Kconfig"
 source "arch/arm/mach-rk30/Kconfig"
 source "arch/arm/mach-rk3188/Kconfig"
+source "arch/arm/mach-rk319x/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"
 
