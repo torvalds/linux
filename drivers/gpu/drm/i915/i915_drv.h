@@ -573,10 +573,21 @@ struct i915_gtt {
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
 	unsigned num_pd_entries;
-	struct page **pt_pages;
-	uint32_t pd_offset;
-	dma_addr_t *pt_dma_addr;
-
+	union {
+		struct page **pt_pages;
+		struct page *gen8_pt_pages;
+	};
+	struct page *pd_pages;
+	int num_pd_pages;
+	int num_pt_pages;
+	union {
+		uint32_t pd_offset;
+		dma_addr_t pd_dma_addr[4];
+	};
+	union {
+		dma_addr_t *pt_dma_addr;
+		dma_addr_t *gen8_pt_dma_addr[4];
+	};
 	int (*enable)(struct drm_device *dev);
 };
 

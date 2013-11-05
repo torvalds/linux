@@ -31,6 +31,7 @@
 #define GEN6_PPGTT_PD_ENTRIES 512
 #define I915_PPGTT_PT_ENTRIES (PAGE_SIZE / sizeof(gen6_gtt_pte_t))
 typedef uint64_t gen8_gtt_pte_t;
+typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 
 /* PPGTT stuff */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
@@ -57,6 +58,9 @@ typedef uint64_t gen8_gtt_pte_t;
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 #define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
+
+#define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
+#define GEN8_LEGACY_PDPS		4
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -175,6 +179,123 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 	}
 
 	return pte;
+}
+
+static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
+{
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
+	int i, j;
+
+	for (i = 0; i < ppgtt->num_pd_pages ; i++) {
+		if (ppgtt->pd_dma_addr[i]) {
+			pci_unmap_page(ppgtt->base.dev->pdev,
+				       ppgtt->pd_dma_addr[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+
+			for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+				dma_addr_t addr = ppgtt->gen8_pt_dma_addr[i][j];
+				if (addr)
+					pci_unmap_page(ppgtt->base.dev->pdev,
+						       addr,
+						       PAGE_SIZE,
+						       PCI_DMA_BIDIRECTIONAL);
+
+			}
+		}
+		kfree(ppgtt->gen8_pt_dma_addr[i]);
+	}
+
+	__free_pages(ppgtt->gen8_pt_pages, ppgtt->num_pt_pages << PAGE_SHIFT);
+	__free_pages(ppgtt->pd_pages, ppgtt->num_pd_pages << PAGE_SHIFT);
+}
+
+/**
+ * GEN8 legacy ppgtt programming is accomplished through 4 PDP registers with a
+ * net effect resembling a 2-level page table in normal x86 terms. Each PDP
+ * represents 1GB of memory
+ * 4 * 512 * 512 * 4096 = 4GB legacy 32b address space.
+ *
+ * TODO: Do something with the size parameter
+ **/
+static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
+{
+	struct page *pt_pages;
+	int i, j, ret = -ENOMEM;
+	const int max_pdp = DIV_ROUND_UP(size, 1 << 30);
+	const int num_pt_pages = GEN8_PDES_PER_PAGE * max_pdp;
+
+	if (size % (1<<30))
+		DRM_INFO("Pages will be wasted unless GTT size (%llu) is divisible by 1GB\n", size);
+
+	/* FIXME: split allocation into smaller pieces. For now we only ever do
+	 * this once, but with full PPGTT, the multiple contiguous allocations
+	 * will be bad.
+	 */
+	ppgtt->pd_pages = alloc_pages(GFP_KERNEL, get_order(max_pdp << PAGE_SHIFT));
+	if (!ppgtt->pd_pages)
+		return -ENOMEM;
+
+	pt_pages = alloc_pages(GFP_KERNEL, get_order(num_pt_pages << PAGE_SHIFT));
+	if (!pt_pages) {
+		__free_pages(ppgtt->pd_pages, get_order(max_pdp << PAGE_SHIFT));
+		return -ENOMEM;
+	}
+
+	ppgtt->gen8_pt_pages = pt_pages;
+	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
+	ppgtt->num_pt_pages = 1 << get_order(num_pt_pages << PAGE_SHIFT);
+	ppgtt->num_pd_entries = max_pdp * GEN8_PDES_PER_PAGE;
+	ppgtt->base.clear_range = NULL;
+	ppgtt->base.insert_entries = NULL;
+	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
+
+	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
+
+	/*
+	 * - Create a mapping for the page directories.
+	 * - For each page directory:
+	 *      allocate space for page table mappings.
+	 *      map each page table
+	 */
+	for (i = 0; i < max_pdp; i++) {
+		dma_addr_t temp;
+		temp = pci_map_page(ppgtt->base.dev->pdev,
+				    &ppgtt->pd_pages[i], 0,
+				    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(ppgtt->base.dev->pdev, temp))
+			goto err_out;
+
+		ppgtt->pd_dma_addr[i] = temp;
+
+		ppgtt->gen8_pt_dma_addr[i] = kmalloc(sizeof(dma_addr_t) * GEN8_PDES_PER_PAGE, GFP_KERNEL);
+		if (!ppgtt->gen8_pt_dma_addr[i])
+			goto err_out;
+
+		for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+			struct page *p = &pt_pages[i * GEN8_PDES_PER_PAGE + j];
+			temp = pci_map_page(ppgtt->base.dev->pdev,
+					    p, 0, PAGE_SIZE,
+					    PCI_DMA_BIDIRECTIONAL);
+
+			if (pci_dma_mapping_error(ppgtt->base.dev->pdev, temp))
+				goto err_out;
+
+			ppgtt->gen8_pt_dma_addr[i][j] = temp;
+		}
+	}
+
+	DRM_DEBUG_DRIVER("Allocated %d pages for page directories (%d wasted)\n",
+			 ppgtt->num_pd_pages, ppgtt->num_pd_pages - max_pdp);
+	DRM_DEBUG_DRIVER("Allocated %d pages for page tables (%lld wasted)\n",
+			 ppgtt->num_pt_pages,
+			 (ppgtt->num_pt_pages - num_pt_pages) +
+			 size % (1<<30));
+	return -ENOSYS; /* Not ready yet */
+
+err_out:
+	ppgtt->base.cleanup(&ppgtt->base);
+	return ret;
 }
 
 static void gen6_write_pdes(struct i915_hw_ppgtt *ppgtt)
@@ -430,7 +551,7 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 8)
 		ret = gen6_ppgtt_init(ppgtt);
 	else if (IS_GEN8(dev))
-		ret = -ENOSYS;
+		ret = gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
 		BUG();
 
