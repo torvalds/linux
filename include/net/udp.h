@@ -230,13 +230,13 @@ struct sock *__udp6_lib_lookup(struct net *net,
 } while(0)
 
 #if IS_ENABLED(CONFIG_IPV6)
-#define UDPX_INC_STATS_BH(sk, field) \
-	do { \
-		if ((sk)->sk_family == AF_INET) \
-			UDP_INC_STATS_BH(sock_net(sk), field, 0); \
-		else \
-			UDP6_INC_STATS_BH(sock_net(sk), field, 0); \
-	} while (0);
+#define UDPX_INC_STATS_BH(sk, field)					\
+do {									\
+	if ((sk)->sk_family == AF_INET)					\
+		UDP_INC_STATS_BH(sock_net(sk), field, 0);		\
+	else								\
+		UDP6_INC_STATS_BH(sock_net(sk), field, 0);		\
+} while (0)
 #else
 #define UDPX_INC_STATS_BH(sk, field) UDP_INC_STATS_BH(sock_net(sk), field, 0)
 #endif
