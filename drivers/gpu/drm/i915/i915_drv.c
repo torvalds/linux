@@ -155,7 +155,11 @@ MODULE_PARM_DESC(prefault_disable,
 		"Disable page prefaulting for pread/pwrite/reloc (default:false). For developers only.");
 
 static struct drm_driver driver;
+#if IS_ENABLED(CONFIG_AGP_INTEL)
 extern int intel_agp_enabled;
+#else
+static int intel_agp_enabled;
+#endif
 
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
