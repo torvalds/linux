@@ -2200,6 +2200,8 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		return -EINVAL;
 
 	if (is_world_regdom(rd->alpha2)) {
+		if (lr->initiator != NL80211_REGDOM_SET_BY_CORE)
+			return -EINVAL;
 		update_world_regdomain(rd);
 		return 0;
 	}
