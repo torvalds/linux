@@ -33,6 +33,7 @@
 
 #include "core.h"
 
+#define MAX_GPIO_BANKS		5
 #define MAX_NB_GPIO_PER_BANK	32
 
 struct at91_pinctrl_mux_ops;
