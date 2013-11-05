@@ -80,6 +80,19 @@ static inline gen8_gtt_pte_t gen8_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
+static inline gen8_ppgtt_pde_t gen8_pde_encode(struct drm_device *dev,
+					     dma_addr_t addr,
+					     enum i915_cache_level level)
+{
+	gen8_ppgtt_pde_t pde = _PAGE_PRESENT | _PAGE_RW;
+	pde |= addr;
+	if (level != I915_CACHE_NONE)
+		pde |= PPAT_CACHED_PDE_INDEX;
+	else
+		pde |= PPAT_UNCACHED_INDEX;
+	return pde;
+}
+
 static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level,
 				     bool valid)
@@ -283,6 +296,20 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 
 			ppgtt->gen8_pt_dma_addr[i][j] = temp;
 		}
+	}
+
+	/* For now, the PPGTT helper functions all require that the PDEs are
+	 * plugged in correctly. So we do that now/here. For aliasing PPGTT, we
+	 * will never need to touch the PDEs again */
+	for (i = 0; i < max_pdp; i++) {
+		gen8_ppgtt_pde_t *pd_vaddr;
+		pd_vaddr = kmap_atomic(&ppgtt->pd_pages[i]);
+		for (j = 0; j < GEN8_PDES_PER_PAGE; j++) {
+			dma_addr_t addr = ppgtt->gen8_pt_dma_addr[i][j];
+			pd_vaddr[j] = gen8_pde_encode(ppgtt->base.dev, addr,
+						      I915_CACHE_LLC);
+		}
+		kunmap_atomic(pd_vaddr);
 	}
 
 	DRM_DEBUG_DRIVER("Allocated %d pages for page directories (%d wasted)\n",
