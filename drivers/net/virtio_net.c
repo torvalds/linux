@@ -132,9 +132,6 @@ struct virtnet_info {
 	/* Does the affinity hint is set for virtqueues? */
 	bool affinity_hint_set;
 
-	/* Per-cpu variable to show the mapping from CPU to virtqueue */
-	int __percpu *vq_index;
-
 	/* CPU hot plug notifier */
 	struct notifier_block nb;
 };
@@ -1114,7 +1111,6 @@ static int virtnet_vlan_rx_kill_vid(struct net_device *dev,
 static void virtnet_clean_affinity(struct virtnet_info *vi, long hcpu)
 {
 	int i;
-	int cpu;
 
 	if (vi->affinity_hint_set) {
 		for (i = 0; i < vi->max_queue_pairs; i++) {
@@ -1123,16 +1119,6 @@ static void virtnet_clean_affinity(struct virtnet_info *vi, long hcpu)
 		}
 
 		vi->affinity_hint_set = false;
-	}
-
-	i = 0;
-	for_each_online_cpu(cpu) {
-		if (cpu == hcpu) {
-			*per_cpu_ptr(vi->vq_index, cpu) = -1;
-		} else {
-			*per_cpu_ptr(vi->vq_index, cpu) =
-				++i % vi->curr_queue_pairs;
-		}
 	}
 }
 
@@ -1155,7 +1141,7 @@ static void virtnet_set_affinity(struct virtnet_info *vi)
 	for_each_online_cpu(cpu) {
 		virtqueue_set_affinity(vi->rq[i].vq, cpu);
 		virtqueue_set_affinity(vi->sq[i].vq, cpu);
-		*per_cpu_ptr(vi->vq_index, cpu) = i;
+		netif_set_xps_queue(vi->dev, cpumask_of(cpu), i);
 		i++;
 	}
 
@@ -1269,28 +1255,6 @@ static int virtnet_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-/* To avoid contending a lock hold by a vcpu who would exit to host, select the
- * txq based on the processor id.
- */
-static u16 virtnet_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	int txq;
-	struct virtnet_info *vi = netdev_priv(dev);
-
-	if (skb_rx_queue_recorded(skb)) {
-		txq = skb_get_rx_queue(skb);
-	} else {
-		txq = *__this_cpu_ptr(vi->vq_index);
-		if (txq == -1)
-			txq = 0;
-	}
-
-	while (unlikely(txq >= dev->real_num_tx_queues))
-		txq -= dev->real_num_tx_queues;
-
-	return txq;
-}
-
 static const struct net_device_ops virtnet_netdev = {
 	.ndo_open            = virtnet_open,
 	.ndo_stop   	     = virtnet_close,
@@ -1302,7 +1266,6 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_get_stats64     = virtnet_stats,
 	.ndo_vlan_rx_add_vid = virtnet_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = virtnet_vlan_rx_kill_vid,
-	.ndo_select_queue     = virtnet_select_queue,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = virtnet_netpoll,
 #endif
@@ -1613,10 +1576,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (vi->stats == NULL)
 		goto free;
 
-	vi->vq_index = alloc_percpu(int);
-	if (vi->vq_index == NULL)
-		goto free_stats;
-
 	mutex_init(&vi->config_lock);
 	vi->config_enable = true;
 	INIT_WORK(&vi->config_work, virtnet_config_changed_work);
@@ -1643,7 +1602,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Allocate/initialize the rx/tx queues, and invoke find_vqs */
 	err = init_vqs(vi);
 	if (err)
-		goto free_index;
+		goto free_stats;
 
 	netif_set_real_num_tx_queues(dev, 1);
 	netif_set_real_num_rx_queues(dev, 1);
@@ -1696,8 +1655,6 @@ free_vqs:
 	virtnet_del_vqs(vi);
 	if (vi->alloc_frag.page)
 		put_page(vi->alloc_frag.page);
-free_index:
-	free_percpu(vi->vq_index);
 free_stats:
 	free_percpu(vi->stats);
 free:
@@ -1736,7 +1693,6 @@ static void virtnet_remove(struct virtio_device *vdev)
 
 	flush_work(&vi->config_work);
 
-	free_percpu(vi->vq_index);
 	free_percpu(vi->stats);
 	free_netdev(vi->dev);
 }
