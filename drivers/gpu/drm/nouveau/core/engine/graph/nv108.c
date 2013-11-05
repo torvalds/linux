@@ -29,7 +29,7 @@
  ******************************************************************************/
 
 static struct nouveau_oclass
-nvf0_graph_sclass[] = {
+nv108_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa140, &nouveau_object_ofuncs },
 	{ 0xa197, &nouveau_object_ofuncs },
@@ -41,71 +41,60 @@ nvf0_graph_sclass[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-struct nvc0_graph_init
-nvf0_graph_init_unk40xx[] = {
-	{ 0x40415c,   1, 0x04, 0x00000000 },
-	{ 0x404170,   1, 0x04, 0x00000000 },
-	{ 0x4041b4,   1, 0x04, 0x00000000 },
+static struct nvc0_graph_init
+nv108_graph_init_regs[] = {
+	{ 0x400080,   1, 0x04, 0x003083c2 },
+	{ 0x400088,   1, 0x04, 0x0001bfe7 },
+	{ 0x40008c,   1, 0x04, 0x00000000 },
+	{ 0x400090,   1, 0x04, 0x00000030 },
+	{ 0x40013c,   1, 0x04, 0x003901f7 },
+	{ 0x400140,   1, 0x04, 0x00000100 },
+	{ 0x400144,   1, 0x04, 0x00000000 },
+	{ 0x400148,   1, 0x04, 0x00000110 },
+	{ 0x400138,   1, 0x04, 0x00000000 },
+	{ 0x400130,   2, 0x04, 0x00000000 },
+	{ 0x400124,   1, 0x04, 0x00000002 },
 	{}
 };
 
-static struct nvc0_graph_init
-nvf0_graph_init_unk58xx[] = {
+struct nvc0_graph_init
+nv108_graph_init_unk58xx[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
-	{ 0x405900,   1, 0x04, 0x0000ff00 },
+	{ 0x405900,   1, 0x04, 0x00000000 },
 	{ 0x405908,   1, 0x04, 0x00000000 },
 	{ 0x405928,   1, 0x04, 0x00000000 },
 	{ 0x40592c,   1, 0x04, 0x00000000 },
 	{}
 };
 
-struct nvc0_graph_init
-nvf0_graph_init_unk70xx[] = {
-	{ 0x407010,   1, 0x04, 0x00000000 },
-	{ 0x407040,   1, 0x04, 0x80440424 },
-	{ 0x407048,   1, 0x04, 0x0000000a },
-	{}
-};
-
-struct nvc0_graph_init
-nvf0_graph_init_unk5bxx[] = {
-	{ 0x405b44,   1, 0x04, 0x00000000 },
-	{ 0x405b50,   1, 0x04, 0x00000000 },
-	{}
-};
-
 static struct nvc0_graph_init
-nvf0_graph_init_gpc[] = {
+nv108_graph_init_gpc[] = {
 	{ 0x418408,   1, 0x04, 0x00000000 },
-	{ 0x4184a0,   1, 0x04, 0x00000000 },
-	{ 0x4184a4,   2, 0x04, 0x00000000 },
+	{ 0x4184a0,   3, 0x04, 0x00000000 },
 	{ 0x418604,   1, 0x04, 0x00000000 },
 	{ 0x418680,   1, 0x04, 0x00000000 },
 	{ 0x418714,   1, 0x04, 0x00000000 },
-	{ 0x418384,   1, 0x04, 0x00000000 },
+	{ 0x418384,   2, 0x04, 0x00000000 },
 	{ 0x418814,   3, 0x04, 0x00000000 },
 	{ 0x418b04,   1, 0x04, 0x00000000 },
 	{ 0x4188c8,   2, 0x04, 0x00000000 },
 	{ 0x4188d0,   1, 0x04, 0x00010000 },
-	{ 0x4188d4,   1, 0x04, 0x00000001 },
+	{ 0x4188d4,   1, 0x04, 0x00000201 },
 	{ 0x418910,   1, 0x04, 0x00010001 },
 	{ 0x418914,   1, 0x04, 0x00000301 },
 	{ 0x418918,   1, 0x04, 0x00800000 },
 	{ 0x418980,   1, 0x04, 0x77777770 },
 	{ 0x418984,   3, 0x04, 0x77777777 },
 	{ 0x418c04,   1, 0x04, 0x00000000 },
-	{ 0x418c64,   1, 0x04, 0x00000000 },
-	{ 0x418c68,   1, 0x04, 0x00000000 },
+	{ 0x418c64,   2, 0x04, 0x00000000 },
 	{ 0x418c88,   1, 0x04, 0x00000000 },
 	{ 0x418cb4,   2, 0x04, 0x00000000 },
 	{ 0x418d00,   1, 0x04, 0x00000000 },
-	{ 0x418d28,   1, 0x04, 0x00000000 },
-	{ 0x418d2c,   1, 0x04, 0x00000000 },
+	{ 0x418d28,   2, 0x04, 0x00000000 },
 	{ 0x418f00,   1, 0x04, 0x00000400 },
 	{ 0x418f08,   1, 0x04, 0x00000000 },
-	{ 0x418f20,   1, 0x04, 0x00000000 },
-	{ 0x418f24,   1, 0x04, 0x00000000 },
+	{ 0x418f20,   2, 0x04, 0x00000000 },
 	{ 0x418e00,   1, 0x04, 0x00000000 },
 	{ 0x418e08,   1, 0x04, 0x00000000 },
 	{ 0x418e1c,   2, 0x04, 0x00000000 },
@@ -114,14 +103,13 @@ nvf0_graph_init_gpc[] = {
 	{}
 };
 
-struct nvc0_graph_init
-nvf0_graph_init_tpc[] = {
+static struct nvc0_graph_init
+nv108_graph_init_tpc[] = {
 	{ 0x419d0c,   1, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
 	{ 0x419ac8,   1, 0x04, 0x00000000 },
 	{ 0x419ab8,   1, 0x04, 0x000000e7 },
-	{ 0x419aec,   1, 0x04, 0x00000000 },
 	{ 0x419abc,   2, 0x04, 0x00000000 },
 	{ 0x419ab4,   1, 0x04, 0x00000000 },
 	{ 0x419aa8,   2, 0x04, 0x00000000 },
@@ -137,7 +125,7 @@ nvf0_graph_init_tpc[] = {
 	{ 0x419c84,   1, 0x04, 0x00010384 },
 	{ 0x419cbc,   1, 0x04, 0x281b3646 },
 	{ 0x419cc0,   2, 0x04, 0x00000000 },
-	{ 0x419c80,   1, 0x04, 0x00020230 },
+	{ 0x419c80,   1, 0x04, 0x00000230 },
 	{ 0x419ccc,   2, 0x04, 0x00000000 },
 	{ 0x419c0c,   1, 0x04, 0x00000000 },
 	{ 0x419e00,   1, 0x04, 0x00000080 },
@@ -156,7 +144,7 @@ nvf0_graph_init_tpc[] = {
 };
 
 static int
-nvf0_graph_fini(struct nouveau_object *object, bool suspend)
+nv108_graph_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nvc0_graph_priv *priv = (void *)object;
 	static const struct {
@@ -193,56 +181,56 @@ nvf0_graph_fini(struct nouveau_object *object, bool suspend)
 }
 
 static struct nvc0_graph_init *
-nvf0_graph_init_mmio[] = {
-	nve4_graph_init_regs,
+nv108_graph_init_mmio[] = {
+	nv108_graph_init_regs,
 	nvf0_graph_init_unk40xx,
 	nvc0_graph_init_unk44xx,
 	nvc0_graph_init_unk78xx,
 	nvc0_graph_init_unk60xx,
 	nvd9_graph_init_unk64xx,
-	nvf0_graph_init_unk58xx,
+	nv108_graph_init_unk58xx,
 	nvc0_graph_init_unk80xx,
 	nvf0_graph_init_unk70xx,
 	nvf0_graph_init_unk5bxx,
-	nvf0_graph_init_gpc,
-	nvf0_graph_init_tpc,
+	nv108_graph_init_gpc,
+	nv108_graph_init_tpc,
 	nve4_graph_init_unk,
 	nve4_graph_init_unk88xx,
 	NULL
 };
 
-#include "fuc/hubnvf0.fuc.h"
+#include "fuc/hubnv108.fuc5.h"
 
 static struct nvc0_graph_ucode
-nvf0_graph_fecs_ucode = {
-	.code.data = nvf0_grhub_code,
-	.code.size = sizeof(nvf0_grhub_code),
-	.data.data = nvf0_grhub_data,
-	.data.size = sizeof(nvf0_grhub_data),
+nv108_graph_fecs_ucode = {
+	.code.data = nv108_grhub_code,
+	.code.size = sizeof(nv108_grhub_code),
+	.data.data = nv108_grhub_data,
+	.data.size = sizeof(nv108_grhub_data),
 };
 
-#include "fuc/gpcnvf0.fuc.h"
+#include "fuc/gpcnv108.fuc5.h"
 
 static struct nvc0_graph_ucode
-nvf0_graph_gpccs_ucode = {
-	.code.data = nvf0_grgpc_code,
-	.code.size = sizeof(nvf0_grgpc_code),
-	.data.data = nvf0_grgpc_data,
-	.data.size = sizeof(nvf0_grgpc_data),
+nv108_graph_gpccs_ucode = {
+	.code.data = nv108_grgpc_code,
+	.code.size = sizeof(nv108_grgpc_code),
+	.data.data = nv108_grgpc_data,
+	.data.size = sizeof(nv108_grgpc_data),
 };
 
 struct nouveau_oclass *
-nvf0_graph_oclass = &(struct nvc0_graph_oclass) {
-	.base.handle = NV_ENGINE(GR, 0xf0),
+nv108_graph_oclass = &(struct nvc0_graph_oclass) {
+	.base.handle = NV_ENGINE(GR, 0x08),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_graph_ctor,
 		.dtor = nvc0_graph_dtor,
 		.init = nve4_graph_init,
-		.fini = nvf0_graph_fini,
+		.fini = nv108_graph_fini,
 	},
-	.cclass = &nvf0_grctx_oclass,
-	.sclass =  nvf0_graph_sclass,
-	.mmio = nvf0_graph_init_mmio,
-	.fecs.ucode = 0 ? &nvf0_graph_fecs_ucode : NULL,
-	.gpccs.ucode = &nvf0_graph_gpccs_ucode,
+	.cclass = &nv108_grctx_oclass,
+	.sclass =  nv108_graph_sclass,
+	.mmio = nv108_graph_init_mmio,
+	.fecs.ucode = 0 ? &nv108_graph_fecs_ucode : NULL,
+	.gpccs.ucode = &nv108_graph_gpccs_ucode,
 }.base;
