@@ -316,6 +316,16 @@ ip_set_init_counter(struct ip_set_counter *counter,
 		atomic64_set(&(counter)->packets, (long long)(ext->packets));
 }
 
+/* Netlink CB args */
+enum {
+	IPSET_CB_NET = 0,
+	IPSET_CB_DUMP,
+	IPSET_CB_INDEX,
+	IPSET_CB_ARG0,
+	IPSET_CB_ARG1,
+	IPSET_CB_ARG2,
+};
+
 /* register and unregister set references */
 extern ip_set_id_t ip_set_get_byname(struct net *net,
 				     const char *name, struct ip_set **set);

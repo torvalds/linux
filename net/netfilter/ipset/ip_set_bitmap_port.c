@@ -254,7 +254,7 @@ bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		return -ENOMEM;
 
 	map->elements = last_port - first_port + 1;
-	map->memsize = map->elements * sizeof(unsigned long);
+	map->memsize = bitmap_bytes(0, map->elements);
 	set->variant = &bitmap_port;
 	set->dsize = ip_set_elem_len(set, tb, 0);
 	if (!init_map_port(set, map, first_port, last_port)) {

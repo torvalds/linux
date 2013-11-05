@@ -490,14 +490,15 @@ list_set_list(const struct ip_set *set,
 {
 	const struct list_set *map = set->data;
 	struct nlattr *atd, *nested;
-	u32 i, first = cb->args[2];
+	u32 i, first = cb->args[IPSET_CB_ARG0];
 	const struct set_elem *e;
 
 	atd = ipset_nest_start(skb, IPSET_ATTR_ADT);
 	if (!atd)
 		return -EMSGSIZE;
-	for (; cb->args[2] < map->size; cb->args[2]++) {
-		i = cb->args[2];
+	for (; cb->args[IPSET_CB_ARG0] < map->size;
+	     cb->args[IPSET_CB_ARG0]++) {
+		i = cb->args[IPSET_CB_ARG0];
 		e = list_set_elem(set, map, i);
 		if (e->id == IPSET_INVALID_ID)
 			goto finish;
@@ -522,13 +523,13 @@ list_set_list(const struct ip_set *set,
 finish:
 	ipset_nest_end(skb, atd);
 	/* Set listing finished */
-	cb->args[2] = 0;
+	cb->args[IPSET_CB_ARG0] = 0;
 	return 0;
 
 nla_put_failure:
 	nla_nest_cancel(skb, nested);
 	if (unlikely(i == first)) {
-		cb->args[2] = 0;
+		cb->args[IPSET_CB_ARG0] = 0;
 		return -EMSGSIZE;
 	}
 	ipset_nest_end(skb, atd);

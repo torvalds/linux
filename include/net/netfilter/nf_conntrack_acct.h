@@ -19,17 +19,21 @@ struct nf_conn_counter {
 	atomic64_t bytes;
 };
 
+struct nf_conn_acct {
+	struct nf_conn_counter counter[IP_CT_DIR_MAX];
+};
+
 static inline
-struct nf_conn_counter *nf_conn_acct_find(const struct nf_conn *ct)
+struct nf_conn_acct *nf_conn_acct_find(const struct nf_conn *ct)
 {
 	return nf_ct_ext_find(ct, NF_CT_EXT_ACCT);
 }
 
 static inline
-struct nf_conn_counter *nf_ct_acct_ext_add(struct nf_conn *ct, gfp_t gfp)
+struct nf_conn_acct *nf_ct_acct_ext_add(struct nf_conn *ct, gfp_t gfp)
 {
 	struct net *net = nf_ct_net(ct);
-	struct nf_conn_counter *acct;
+	struct nf_conn_acct *acct;
 
 	if (!net->ct.sysctl_acct)
 		return NULL;
