@@ -213,10 +213,12 @@ static void mv_otg_start_host(struct mv_otg *mvotg, int on)
 
 	hcd = bus_to_hcd(otg->host);
 
-	if (on)
+	if (on) {
 		usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
-	else
+		device_wakeup_enable(hcd->self.controller);
+	} else {
 		usb_remove_hcd(hcd);
+	}
 #endif /* CONFIG_USB */
 }
 

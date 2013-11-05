@@ -348,6 +348,8 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	if (error)
 		goto err4;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	if (hub->ocic_notify) {
 		error = hub->ocic_notify(ohci_da8xx_ocic_handler);
 		if (!error)

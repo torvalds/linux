@@ -1645,6 +1645,8 @@ static int isp116x_probe(struct platform_device *pdev)
 	if (ret)
 		goto err6;
 
+	device_wakeup_enable(hcd->self.controller);
+
 	ret = create_debug_file(isp116x);
 	if (ret) {
 		ERR("Couldn't create debugfs entry\n");

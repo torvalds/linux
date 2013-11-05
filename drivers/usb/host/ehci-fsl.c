@@ -138,6 +138,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
+	device_wakeup_enable(hcd->self.controller);
 
 #ifdef CONFIG_USB_OTG
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {

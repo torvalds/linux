@@ -191,8 +191,10 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	ehci->caps = hcd->regs + 0x100;
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
+	if (rv == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return 0;
+	}
 
 err_irq:
 	usb_put_hcd(hcd);

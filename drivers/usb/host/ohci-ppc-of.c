@@ -147,8 +147,10 @@ static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 	ohci_hcd_init(ohci);
 
 	rv = usb_add_hcd(hcd, irq, 0);
-	if (rv == 0)
+	if (rv == 0) {
+		device_wakeup_enable(hcd->self.controller);
 		return 0;
+	}
 
 	/* by now, 440epx is known to show usb_23 erratum */
 	np = of_find_compatible_node(NULL, NULL, "ibm,usb-ehci-440epx");

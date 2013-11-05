@@ -151,6 +151,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd");
 		goto fail_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	priv->hcd = hcd;
 	platform_set_drvdata(pdev, priv);

@@ -367,6 +367,7 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	if (retval)
 		goto err3;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 err3:
 	iounmap(hcd->regs);

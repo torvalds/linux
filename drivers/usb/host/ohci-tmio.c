@@ -250,6 +250,7 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	if (ret)
 		goto err_add_hcd;
 
+	device_wakeup_enable(hcd->self.controller);
 	if (ret == 0)
 		return ret;
 

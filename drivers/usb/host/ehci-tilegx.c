@@ -170,6 +170,7 @@ static int ehci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, pdata->irq, IRQF_SHARED);
 	if (ret == 0) {
 		platform_set_drvdata(pdev, hcd);
+		device_wakeup_enable(hcd->self.controller);
 		return ret;
 	}
 

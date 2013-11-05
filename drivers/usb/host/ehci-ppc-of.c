@@ -169,6 +169,7 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 	if (rv)
 		goto err_ioremap;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
 err_ioremap:

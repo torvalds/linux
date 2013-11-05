@@ -5798,6 +5798,7 @@ static int fusbh200_hcd_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to add hcd with err %d\n", retval);
 		goto fail_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return retval;
 

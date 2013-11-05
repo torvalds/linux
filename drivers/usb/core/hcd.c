@@ -2712,12 +2712,6 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if (hcd->uses_new_polling && HCD_POLL_RH(hcd))
 		usb_hcd_poll_rh_status(hcd);
 
-	/*
-	 * Host controllers don't generate their own wakeup requests;
-	 * they only forward requests from the root hub.  Therefore
-	 * controllers should always be enabled for remote wakeup.
-	 */
-	device_wakeup_enable(hcd->self.controller);
 	return retval;
 
 error_create_attr_group:

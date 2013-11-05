@@ -1910,6 +1910,7 @@ static int imx21_probe(struct platform_device *pdev)
 		dev_err(imx21->dev, "usb_add_hcd() returned %d\n", ret);
 		goto failed_add_hcd;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 

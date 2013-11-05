@@ -217,6 +217,7 @@ static int jz4740_ohci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd: %d\n", ret);
 		goto err_disable;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 

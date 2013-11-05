@@ -2514,6 +2514,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add hcd\n");
 		goto clean_up3;
 	}
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 

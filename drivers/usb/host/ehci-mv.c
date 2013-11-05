@@ -257,6 +257,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 				"failed to add hcd with err %d\n", retval);
 			goto err_set_vbus;
 		}
+		device_wakeup_enable(hcd->self.controller);
 	}
 
 	if (pdata->private_init)

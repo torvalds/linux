@@ -395,6 +395,7 @@ static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 	if (retval != 0)
 		goto err_ioremap;
 
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
  err_ioremap:
