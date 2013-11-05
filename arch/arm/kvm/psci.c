@@ -71,6 +71,10 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 		vcpu_set_thumb(vcpu);
 	}
 
+	/* Propagate caller endianness */
+	if (kvm_vcpu_is_be(source_vcpu))
+		kvm_vcpu_set_be(vcpu);
+
 	*vcpu_pc(vcpu) = target_pc;
 	vcpu->arch.pause = false;
 	smp_mb();		/* Make sure the above is visible */
