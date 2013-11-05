@@ -106,7 +106,8 @@ void ieee80211_MFIE_Grate(struct ieee80211_device *ieee, u8 **tag_p)
 }
 
 
-void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p) {
+void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
+{
 	u8 *tag = *tag_p;
 
 	*tag++ = MFIE_TYPE_GENERIC; //0
@@ -129,7 +130,8 @@ void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	*tag_p = tag;
 }
 
-void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p) {
+void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
+{
 	u8 *tag = *tag_p;
 
         *tag++ = MFIE_TYPE_GENERIC; //0
