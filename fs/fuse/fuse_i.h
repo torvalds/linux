@@ -788,6 +788,8 @@ void fuse_invalidate_attr(struct inode *inode);
 
 void fuse_invalidate_entry_cache(struct dentry *entry);
 
+void fuse_invalidate_atime(struct inode *inode);
+
 /**
  * Acquire reference to fuse_conn
  */
