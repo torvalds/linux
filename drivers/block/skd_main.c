@@ -42,9 +42,6 @@
 #include <linux/wait.h>
 #include <linux/uio.h>
 #include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-#include <scsi/scsi_tcq.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/sg.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
