@@ -821,33 +821,25 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 
 	/* Now we will figure out the appropriate event... */
 	event = PLINK_UNDEFINED;
-	if (!matches_local) {
-		switch (ftype) {
-		case WLAN_SP_MESH_PEERING_OPEN:
-			event = OPN_RJCT;
-			break;
-		case WLAN_SP_MESH_PEERING_CONFIRM:
-			event = CNF_RJCT;
-			break;
-		default:
-			break;
-		}
-	}
 
 	if (!sta)
 		event = OPN_ACPT;
-	else if (matches_local) {
+	else {
 		switch (ftype) {
 		case WLAN_SP_MESH_PEERING_OPEN:
-			if (!mesh_plink_free_count(sdata) ||
-			    (sta->plid && sta->plid != plid))
+			if (!matches_local)
+				event = OPN_RJCT;
+			else if (!mesh_plink_free_count(sdata) ||
+				 (sta->plid && sta->plid != plid))
 				event = OPN_IGNR;
 			else
 				event = OPN_ACPT;
 			break;
 		case WLAN_SP_MESH_PEERING_CONFIRM:
-			if (!mesh_plink_free_count(sdata) ||
-			    (sta->llid != llid || sta->plid != plid))
+			if (!matches_local)
+				event = CNF_RJCT;
+			else if (!mesh_plink_free_count(sdata) ||
+				 (sta->llid != llid || sta->plid != plid))
 				event = CNF_IGNR;
 			else
 				event = CNF_ACPT;
