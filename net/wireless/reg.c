@@ -202,11 +202,20 @@ static char user_alpha2[2];
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
+static void reg_kfree_last_request(void)
+{
+	struct regulatory_request *lr;
+
+	lr = get_last_request();
+
+	if (lr != &core_request_world && lr)
+		kfree_rcu(lr, rcu_head);
+}
+
 static void reset_regdomains(bool full_reset,
 			     const struct ieee80211_regdomain *new_regdom)
 {
 	const struct ieee80211_regdomain *r;
-	struct regulatory_request *lr;
 
 	ASSERT_RTNL();
 
@@ -229,9 +238,7 @@ static void reset_regdomains(bool full_reset,
 	if (!full_reset)
 		return;
 
-	lr = get_last_request();
-	if (lr != &core_request_world && lr)
-		kfree_rcu(lr, rcu_head);
+	reg_kfree_last_request();
 	rcu_assign_pointer(last_request, &core_request_world);
 }
 
@@ -1353,14 +1360,11 @@ static void reg_set_request_processed(void)
 static enum reg_request_treatment
 reg_process_hint_core(struct regulatory_request *core_request)
 {
-	struct regulatory_request *lr;
-
-	lr = get_last_request();
-	if (lr != &core_request_world && lr)
-		kfree_rcu(lr, rcu_head);
 
 	core_request->intersect = false;
 	core_request->processed = false;
+
+	reg_kfree_last_request();
 	rcu_assign_pointer(last_request, core_request);
 
 	if (call_crda(core_request->alpha2))
@@ -1417,7 +1421,6 @@ static enum reg_request_treatment
 reg_process_hint_user(struct regulatory_request *user_request)
 {
 	enum reg_request_treatment treatment;
-	struct regulatory_request *lr;
 
 	treatment = __reg_process_hint_user(user_request);
 	if (treatment == REG_REQ_IGNORE ||
@@ -1426,12 +1429,10 @@ reg_process_hint_user(struct regulatory_request *user_request)
 		return treatment;
 	}
 
-	lr = get_last_request();
-	if (lr != &core_request_world && lr)
-		kfree_rcu(lr, rcu_head);
-
 	user_request->intersect = treatment == REG_REQ_INTERSECT;
 	user_request->processed = false;
+
+	reg_kfree_last_request();
 	rcu_assign_pointer(last_request, user_request);
 
 	user_alpha2[0] = user_request->alpha2[0];
@@ -1480,7 +1481,6 @@ reg_process_hint_driver(struct wiphy *wiphy,
 {
 	const struct ieee80211_regdomain *regd;
 	enum reg_request_treatment treatment;
-	struct regulatory_request *lr;
 
 	treatment = __reg_process_hint_driver(driver_request);
 
@@ -1501,12 +1501,11 @@ reg_process_hint_driver(struct wiphy *wiphy,
 		rcu_assign_pointer(wiphy->regd, regd);
 	}
 
-	lr = get_last_request();
-	if (lr != &core_request_world && lr)
-		kfree_rcu(lr, rcu_head);
 
 	driver_request->intersect = treatment == REG_REQ_INTERSECT;
 	driver_request->processed = false;
+
+	reg_kfree_last_request();
 	rcu_assign_pointer(last_request, driver_request);
 
 	/*
@@ -1581,7 +1580,6 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 			    struct regulatory_request *country_ie_request)
 {
 	enum reg_request_treatment treatment;
-	struct regulatory_request *lr;
 
 	treatment = __reg_process_hint_country_ie(wiphy, country_ie_request);
 
@@ -1603,12 +1601,10 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 		return REG_REQ_IGNORE;
 	}
 
-	lr = get_last_request();
-	if (lr != &core_request_world && lr)
-		kfree_rcu(lr, rcu_head);
-
 	country_ie_request->intersect = false;
 	country_ie_request->processed = false;
+
+	reg_kfree_last_request();
 	rcu_assign_pointer(last_request, country_ie_request);
 
 	if (call_crda(country_ie_request->alpha2))
