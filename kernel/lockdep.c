@@ -4224,7 +4224,7 @@ void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 	printk("\n%srcu_scheduler_active = %d, debug_locks = %d\n",
 	       !rcu_lockdep_current_cpu_online()
 			? "RCU used illegally from offline CPU!\n"
-			: rcu_is_cpu_idle()
+			: !rcu_is_watching()
 				? "RCU used illegally from idle CPU!\n"
 				: "",
 	       rcu_scheduler_active, debug_locks);
@@ -4247,7 +4247,7 @@ void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 	 * So complain bitterly if someone does call rcu_read_lock(),
 	 * rcu_read_lock_bh() and so on from extended quiescent states.
 	 */
-	if (rcu_is_cpu_idle())
+	if (!rcu_is_watching())
 		printk("RCU used illegally from extended quiescent state!\n");
 
 	lockdep_print_held_locks(curr);
