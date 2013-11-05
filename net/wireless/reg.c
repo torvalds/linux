@@ -2191,6 +2191,14 @@ static void print_regdomain_info(const struct ieee80211_regdomain *rd)
 	print_rd_rules(rd);
 }
 
+static int reg_set_rd_core(const struct ieee80211_regdomain *rd)
+{
+	if (!is_world_regdom(rd->alpha2))
+		return -EINVAL;
+	update_world_regdomain(rd);
+	return 0;
+}
+
 /* Takes ownership of rd only if it doesn't fail */
 static int __set_regdom(const struct ieee80211_regdomain *rd,
 			struct regulatory_request *lr)
@@ -2198,18 +2206,6 @@ static int __set_regdom(const struct ieee80211_regdomain *rd,
 	const struct ieee80211_regdomain *regd;
 	const struct ieee80211_regdomain *intersected_rd = NULL;
 	struct wiphy *request_wiphy;
-
-	/* Some basic sanity checks first */
-
-	if (!reg_is_valid_request(rd->alpha2))
-		return -EINVAL;
-
-	if (is_world_regdom(rd->alpha2)) {
-		if (lr->initiator != NL80211_REGDOM_SET_BY_CORE)
-			return -EINVAL;
-		update_world_regdomain(rd);
-		return 0;
-	}
 
 	if (!is_alpha2_set(rd->alpha2) && !is_an_alpha2(rd->alpha2) &&
 	    !is_unknown_alpha2(rd->alpha2))
@@ -2320,10 +2316,28 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	struct regulatory_request *lr;
 	int r;
 
+	if (!reg_is_valid_request(rd->alpha2)) {
+		kfree(rd);
+		return -EINVAL;
+	}
+
 	lr = get_last_request();
 
 	/* Note that this doesn't update the wiphys, this is done below */
-	r = __set_regdom(rd, lr);
+	switch (lr->initiator) {
+	case NL80211_REGDOM_SET_BY_CORE:
+		r = reg_set_rd_core(rd);
+		break;
+	case NL80211_REGDOM_SET_BY_USER:
+	case NL80211_REGDOM_SET_BY_DRIVER:
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		r = __set_regdom(rd, lr);
+		break;
+	default:
+		WARN(1, "invalid initiator %d\n", lr->initiator);
+		return -EINVAL;
+	}
+
 	if (r) {
 		if (r == -EALREADY)
 			reg_set_request_processed();
