@@ -177,6 +177,14 @@ static inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & ESR_EL2_FSC_TYPE;
 }
 
+static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
+{
+	if (vcpu_mode_is_32bit(vcpu))
+		*vcpu_cpsr(vcpu) |= COMPAT_PSR_E_BIT;
+	else
+		vcpu_sys_reg(vcpu, SCTLR_EL1) |= (1 << 25);
+}
+
 static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
 {
 	if (vcpu_mode_is_32bit(vcpu))

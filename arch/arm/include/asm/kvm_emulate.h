@@ -157,6 +157,11 @@ static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
 }
 
+static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
+{
+	*vcpu_cpsr(vcpu) |= PSR_E_BIT;
+}
+
 static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
 {
 	return !!(*vcpu_cpsr(vcpu) & PSR_E_BIT);
