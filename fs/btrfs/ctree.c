@@ -2461,32 +2461,32 @@ static int key_search(struct extent_buffer *b, struct btrfs_key *key,
 	return 0;
 }
 
-/* Proposed generic search function, meant to take the place of the
-* various small search helper functions throughout the code and standardize
-* the search interface. Right now, it only replaces the former __inode_info
-* in backref.c, and the former btrfs_find_root_ref in root-tree.c.
-*
-* If a null key is passed, it returns immediately after running
-* btrfs_search_slot, leaving the path filled as it is and passing its
-* return value upward. If a real key is passed, it will set the caller's
-* path to point to the first item in the tree after its specified
-* objectid, type, and offset for which objectid and type match the input.
-*/
-int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
+int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *found_path,
 		u64 iobjectid, u64 ioff, u8 key_type,
 		struct btrfs_key *found_key)
 {
 	int ret;
 	struct btrfs_key key;
 	struct extent_buffer *eb;
+	struct btrfs_path *path;
 
 	key.type = key_type;
 	key.objectid = iobjectid;
 	key.offset = ioff;
 
+	if (found_path == NULL) {
+		path = btrfs_alloc_path();
+		if (!path)
+			return -ENOMEM;
+	} else
+		path = found_path;
+
 	ret = btrfs_search_slot(NULL, fs_root, &key, path, 0, 0);
-	if ((ret < 0) || (found_key == NULL))
+	if ((ret < 0) || (found_key == NULL)) {
+		if (path != found_path)
+			btrfs_free_path(path);
 		return ret;
+	}
 
 	eb = path->nodes[0];
 	if (ret && path->slots[0] >= btrfs_header_nritems(eb)) {

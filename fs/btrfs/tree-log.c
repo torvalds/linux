@@ -1238,7 +1238,8 @@ static int insert_orphan_item(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root, u64 offset)
 {
 	int ret;
-	ret = btrfs_find_orphan_item(root, offset);
+	ret = btrfs_find_item(root, NULL, BTRFS_ORPHAN_OBJECTID,
+			offset, BTRFS_ORPHAN_ITEM_KEY, NULL);
 	if (ret > 0)
 		ret = btrfs_insert_orphan_item(trans, root, offset);
 	return ret;

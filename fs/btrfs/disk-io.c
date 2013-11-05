@@ -1608,7 +1608,8 @@ again:
 	if (ret)
 		goto fail;
 
-	ret = btrfs_find_orphan_item(fs_info->tree_root, location->objectid);
+	ret = btrfs_find_item(fs_info->tree_root, NULL, BTRFS_ORPHAN_OBJECTID,
+			location->objectid, BTRFS_ORPHAN_ITEM_KEY, NULL);
 	if (ret < 0)
 		goto fail;
 	if (ret == 0)
