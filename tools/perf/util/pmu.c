@@ -77,9 +77,8 @@ static int pmu_format(const char *name, struct list_head *format)
 {
 	struct stat st;
 	char path[PATH_MAX];
-	const char *sysfs;
+	const char *sysfs = sysfs__mountpoint();
 
-	sysfs = sysfs_find_mountpoint();
 	if (!sysfs)
 		return -1;
 
@@ -166,9 +165,8 @@ static int pmu_aliases(const char *name, struct list_head *head)
 {
 	struct stat st;
 	char path[PATH_MAX];
-	const char *sysfs;
+	const char *sysfs = sysfs__mountpoint();
 
-	sysfs = sysfs_find_mountpoint();
 	if (!sysfs)
 		return -1;
 
@@ -212,11 +210,10 @@ static int pmu_type(const char *name, __u32 *type)
 {
 	struct stat st;
 	char path[PATH_MAX];
-	const char *sysfs;
 	FILE *file;
 	int ret = 0;
+	const char *sysfs = sysfs__mountpoint();
 
-	sysfs = sysfs_find_mountpoint();
 	if (!sysfs)
 		return -1;
 
@@ -241,11 +238,10 @@ static int pmu_type(const char *name, __u32 *type)
 static void pmu_read_sysfs(void)
 {
 	char path[PATH_MAX];
-	const char *sysfs;
 	DIR *dir;
 	struct dirent *dent;
+	const char *sysfs = sysfs__mountpoint();
 
-	sysfs = sysfs_find_mountpoint();
 	if (!sysfs)
 		return;
 
@@ -270,11 +266,10 @@ static struct cpu_map *pmu_cpumask(const char *name)
 {
 	struct stat st;
 	char path[PATH_MAX];
-	const char *sysfs;
 	FILE *file;
 	struct cpu_map *cpus;
+	const char *sysfs = sysfs__mountpoint();
 
-	sysfs = sysfs_find_mountpoint();
 	if (!sysfs)
 		return NULL;
 

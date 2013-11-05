@@ -1456,7 +1456,7 @@ static int test_pmu(void)
 	int ret;
 
 	snprintf(path, PATH_MAX, "%s/bus/event_source/devices/cpu/format/",
-		 sysfs_find_mountpoint());
+		 sysfs__mountpoint());
 
 	ret = stat(path, &st);
 	if (ret)
@@ -1473,7 +1473,7 @@ static int test_pmu_events(void)
 	int ret;
 
 	snprintf(path, PATH_MAX, "%s/bus/event_source/devices/cpu/events/",
-		 sysfs_find_mountpoint());
+		 sysfs__mountpoint());
 
 	ret = stat(path, &st);
 	if (ret) {

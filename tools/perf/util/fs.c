@@ -88,7 +88,7 @@ static const char *fs__get_mountpoint(struct fs *fs)
 	return fs__read_mounts(fs) ? fs->path : NULL;
 }
 
-static const char *fs__find_mountpoint(int idx)
+static const char *fs__mountpoint(int idx)
 {
 	struct fs *fs = &fs__entries[idx];
 
@@ -98,10 +98,10 @@ static const char *fs__find_mountpoint(int idx)
 	return fs__get_mountpoint(fs);
 }
 
-#define FIND_MOUNTPOINT(name, idx)		\
-const char *name##_find_mountpoint(void)	\
-{						\
-	return fs__find_mountpoint(idx);	\
+#define FS__MOUNTPOINT(name, idx)	\
+const char *name##__mountpoint(void)	\
+{					\
+	return fs__mountpoint(idx);	\
 }
 
-FIND_MOUNTPOINT(sysfs, FS__SYSFS);
+FS__MOUNTPOINT(sysfs, FS__SYSFS);
