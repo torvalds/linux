@@ -5319,14 +5319,21 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 	switch ((val >> 6) & 3) {
 	case 0:
-	case 1:
 		dev_priv->mem_freq = 800;
 		break;
-	case 2:
+	case 1:
 		dev_priv->mem_freq = 1066;
 		break;
-	case 3:
+	case 2:
 		dev_priv->mem_freq = 1333;
+		break;
+	case 3:
+		/*
+		 * Probably a BIOS/Punit bug, or a new platform we don't
+		 * support yet.
+		 */
+		WARN(1, "invalid DDR freq detected, assuming 800MHz\n");
+		dev_priv->mem_freq = 800;
 		break;
 	}
 	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
