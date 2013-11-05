@@ -2,7 +2,7 @@
 #include "parse-events.h"
 #include "evsel.h"
 #include "evlist.h"
-#include "sysfs.h"
+#include "fs.h"
 #include <lk/debugfs.h>
 #include "tests.h"
 #include <linux/hw_breakpoint.h>

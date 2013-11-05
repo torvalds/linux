@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <dirent.h>
-#include "sysfs.h"
+#include "fs.h"
 #include "util.h"
 #include "pmu.h"
 #include "parse-events.h"

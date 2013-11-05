@@ -1,5 +1,5 @@
 #include "util.h"
-#include "sysfs.h"
+#include "fs.h"
 #include "../perf.h"
 #include "cpumap.h"
 #include <assert.h>
