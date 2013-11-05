@@ -800,12 +800,13 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	iwl_pcie_dump_csr(trans);
 	iwl_dump_fh(trans, NULL);
 
+	/* set the ERROR bit before we wake up the caller */
 	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
 	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 	wake_up(&trans_pcie->wait_command_queue);
 
 	local_bh_disable();
-	iwl_op_mode_nic_error(trans->op_mode);
+	iwl_nic_error(trans);
 	local_bh_enable();
 }
 
