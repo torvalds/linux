@@ -9493,9 +9493,13 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * mode set on this crtc.  For other crtcs we need to use the
 	 * adjusted_mode bits in the crtc directly.
 	 */
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev)) {
 		valleyview_modeset_global_pipes(dev, &prepare_pipes,
 						modeset_pipes, pipe_config);
+
+		/* may have added more to prepare_pipes than we should */
+		prepare_pipes &= ~disable_pipes;
+	}
 
 	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
 		intel_crtc_disable(&intel_crtc->base);
