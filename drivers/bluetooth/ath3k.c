@@ -57,7 +57,7 @@ struct ath3k_version {
 	unsigned char	reserved[0x07];
 };
 
-static struct usb_device_id ath3k_table[] = {
+static const struct usb_device_id ath3k_table[] = {
 	/* Atheros AR3011 */
 	{ USB_DEVICE(0x0CF3, 0x3000) },
 
@@ -112,7 +112,7 @@ MODULE_DEVICE_TABLE(usb, ath3k_table);
 #define BTUSB_ATH3012		0x80
 /* This table is to load patch and sysconfig files
  * for AR3012 */
-static struct usb_device_id ath3k_blist_tbl[] = {
+static const struct usb_device_id ath3k_blist_tbl[] = {
 
 	/* Atheros AR3012 with sflash firmware*/
 	{ USB_DEVICE(0x0CF3, 0x0036), .driver_info = BTUSB_ATH3012 },

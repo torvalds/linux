@@ -3212,7 +3212,7 @@ static void associate(struct atmel_private *priv, u16 frame_len, u16 subtype)
 	if (subtype == IEEE80211_STYPE_REASSOC_RESP &&
 	    status != WLAN_STATUS_ASSOC_DENIED_RATES &&
 	    status != WLAN_STATUS_CAPS_UNSUPPORTED &&
-	    priv->AssociationRequestRetryCnt < MAX_ASSOCIATION_RETRIES) {
+	    priv->ReAssociationRequestRetryCnt < MAX_ASSOCIATION_RETRIES) {
 		mod_timer(&priv->management_timer, jiffies + MGMT_JIFFIES);
 		priv->ReAssociationRequestRetryCnt++;
 		send_association_request(priv, 1);

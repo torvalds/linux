@@ -78,6 +78,22 @@ static inline void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	ath9k_hw_ops(ah)->antdiv_comb_conf_set(ah, antconf);
 }
 
+static inline void ath9k_hw_tx99_start(struct ath_hw *ah, u32 qnum)
+{
+	ath9k_hw_ops(ah)->tx99_start(ah, qnum);
+}
+
+static inline void ath9k_hw_tx99_stop(struct ath_hw *ah)
+{
+	ath9k_hw_ops(ah)->tx99_stop(ah);
+}
+
+static inline void ath9k_hw_tx99_set_txpower(struct ath_hw *ah, u8 power)
+{
+	if (ath9k_hw_ops(ah)->tx99_set_txpower)
+		ath9k_hw_ops(ah)->tx99_set_txpower(ah, power);
+}
+
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 
 static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)

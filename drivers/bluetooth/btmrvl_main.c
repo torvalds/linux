@@ -187,7 +187,6 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 cmd_no,
 
 	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
-	skb->dev = (void *) priv->btmrvl_dev.hcidev;
 	skb_queue_head(&priv->adapter->tx_queue, skb);
 
 	priv->btmrvl_dev.sendcmdflag = true;
@@ -356,25 +355,11 @@ static void btmrvl_free_adapter(struct btmrvl_private *priv)
 	priv->adapter = NULL;
 }
 
-static int btmrvl_ioctl(struct hci_dev *hdev,
-				unsigned int cmd, unsigned long arg)
+static int btmrvl_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	return -ENOIOCTLCMD;
-}
-
-static int btmrvl_send_frame(struct sk_buff *skb)
-{
-	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct btmrvl_private *priv = NULL;
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
 	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device");
-		return -ENODEV;
-	}
-
-	priv = hci_get_drvdata(hdev);
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
 		BT_ERR("Failed testing HCI_RUNING, flags=%lx", hdev->flags);
@@ -650,12 +635,11 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	priv->btmrvl_dev.hcidev = hdev;
 	hci_set_drvdata(hdev, priv);
 
-	hdev->bus = HCI_SDIO;
-	hdev->open = btmrvl_open;
+	hdev->bus   = HCI_SDIO;
+	hdev->open  = btmrvl_open;
 	hdev->close = btmrvl_close;
 	hdev->flush = btmrvl_flush;
-	hdev->send = btmrvl_send_frame;
-	hdev->ioctl = btmrvl_ioctl;
+	hdev->send  = btmrvl_send_frame;
 	hdev->setup = btmrvl_setup;
 
 	hdev->dev_type = priv->btmrvl_dev.dev_type;

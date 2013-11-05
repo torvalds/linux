@@ -19,6 +19,8 @@
 
 #include <linux/list.h>
 
+extern struct ath_dfs_pool_stats global_dfs_pool_stats;
+
 /**
  * struct pri_sequence - sequence of pulses matching one PRI
  * @head: list_head

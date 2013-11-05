@@ -362,6 +362,13 @@ struct mgmt_cp_set_static_address {
 } __packed;
 #define MGMT_SET_STATIC_ADDRESS_SIZE	6
 
+#define MGMT_OP_SET_SCAN_PARAMS		0x002C
+struct mgmt_cp_set_scan_params {
+	__le16	interval;
+	__le16	window;
+} __packed;
+#define MGMT_SET_SCAN_PARAMS_SIZE	4
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;

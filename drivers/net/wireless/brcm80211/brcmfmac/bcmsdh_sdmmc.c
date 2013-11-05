@@ -21,6 +21,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/sched.h>	/* request_irq() */
@@ -315,6 +316,8 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	int err;
 	struct brcmf_sdio_dev *sdiodev;
 	struct brcmf_bus *bus_if;
+	struct mmc_host *host;
+	uint max_blocks;
 
 	brcmf_dbg(SDIO, "Enter\n");
 	brcmf_dbg(SDIO, "Class=%x\n", func->class);
@@ -361,6 +364,20 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		brcmf_err("F2 error, probe failed %d...\n", err);
 		goto fail;
 	}
+
+	/*
+	 * determine host related variables after brcmf_sdio_probe()
+	 * as func->cur_blksize is properly set and F2 init has been
+	 * completed successfully.
+	 */
+	host = func->card->host;
+	sdiodev->sg_support = host->max_segs > 1;
+	max_blocks = min_t(uint, host->max_blk_count, 511u);
+	sdiodev->max_request_size = min_t(uint, host->max_req_size,
+					  max_blocks * func->cur_blksize);
+	sdiodev->max_segment_count = min_t(uint, host->max_segs,
+					   SG_MAX_SINGLE_ALLOC);
+	sdiodev->max_segment_size = host->max_seg_size;
 	brcmf_dbg(SDIO, "F2 init completed...\n");
 	return 0;
 

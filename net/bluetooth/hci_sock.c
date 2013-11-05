@@ -387,7 +387,6 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	__net_timestamp(skb);
 
 	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
-	skb->dev = (void *) hdev;
 	hci_send_to_sock(hdev, skb);
 	kfree_skb(skb);
 }
@@ -518,6 +517,9 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
 		return -EBUSY;
 
+	if (hdev->dev_type != HCI_BREDR)
+		return -EOPNOTSUPP;
+
 	switch (cmd) {
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
@@ -550,10 +552,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 		return hci_sock_blacklist_del(hdev, (void __user *) arg);
 	}
 
-	if (hdev->ioctl)
-		return hdev->ioctl(hdev, cmd, arg);
-
-	return -EINVAL;
+	return -ENOIOCTLCMD;
 }
 
 static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
@@ -942,7 +941,6 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	bt_cb(skb)->pkt_type = *((unsigned char *) skb->data);
 	skb_pull(skb, 1);
-	skb->dev = (void *) hdev;
 
 	if (hci_pi(sk)->channel == HCI_CHANNEL_RAW &&
 	    bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
