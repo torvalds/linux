@@ -5396,7 +5396,7 @@ static void skd_log_skreq(struct skd_device *skdev,
 
 static int __init skd_init(void)
 {
-	int rc = 0;
+	int rc = -ENOMEM;
 
 	pr_info(PFX " v%s-b%s loaded\n", DRV_VERSION, DRV_BUILD_ID);
 
@@ -5454,11 +5454,21 @@ static int __init skd_init(void)
 	/* Obtain major device number. */
 	rc = register_blkdev(0, DRV_NAME);
 	if (rc < 0)
-		return rc;
+		goto err_register_blkdev;
 
 	skd_major = rc;
 
-	return pci_register_driver(&skd_driver);
+	rc = pci_register_driver(&skd_driver);
+	if (rc < 0)
+		goto err_pci_register_driver;
+
+	return rc;
+
+err_pci_register_driver:
+	unregister_blkdev(skd_major, DRV_NAME);
+
+err_register_blkdev:
+	return rc;
 }
 
 static void __exit skd_exit(void)
