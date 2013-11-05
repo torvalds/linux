@@ -277,6 +277,32 @@ void cfg80211_set_dfs_state(struct wiphy *wiphy,
 				     width, dfs_state);
 }
 
+static u32 cfg80211_get_start_freq(u32 center_freq,
+				   u32 bandwidth)
+{
+	u32 start_freq;
+
+	if (bandwidth <= 20)
+		start_freq = center_freq;
+	else
+		start_freq = center_freq - bandwidth/2 + 10;
+
+	return start_freq;
+}
+
+static u32 cfg80211_get_end_freq(u32 center_freq,
+				 u32 bandwidth)
+{
+	u32 end_freq;
+
+	if (bandwidth <= 20)
+		end_freq = center_freq;
+	else
+		end_freq = center_freq + bandwidth/2 - 10;
+
+	return end_freq;
+}
+
 static int cfg80211_get_chans_dfs_required(struct wiphy *wiphy,
 					    u32 center_freq,
 					    u32 bandwidth)
@@ -284,13 +310,8 @@ static int cfg80211_get_chans_dfs_required(struct wiphy *wiphy,
 	struct ieee80211_channel *c;
 	u32 freq, start_freq, end_freq;
 
-	if (bandwidth <= 20) {
-		start_freq = center_freq;
-		end_freq = center_freq;
-	} else {
-		start_freq = center_freq - bandwidth/2 + 10;
-		end_freq = center_freq + bandwidth/2 - 10;
-	}
+	start_freq = cfg80211_get_start_freq(center_freq, bandwidth);
+	end_freq = cfg80211_get_end_freq(center_freq, bandwidth);
 
 	for (freq = start_freq; freq <= end_freq; freq += 20) {
 		c = ieee80211_get_channel(wiphy, freq);
@@ -337,13 +358,8 @@ static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 	struct ieee80211_channel *c;
 	u32 freq, start_freq, end_freq;
 
-	if (bandwidth <= 20) {
-		start_freq = center_freq;
-		end_freq = center_freq;
-	} else {
-		start_freq = center_freq - bandwidth/2 + 10;
-		end_freq = center_freq + bandwidth/2 - 10;
-	}
+	start_freq = cfg80211_get_start_freq(center_freq, bandwidth);
+	end_freq = cfg80211_get_end_freq(center_freq, bandwidth);
 
 	for (freq = start_freq; freq <= end_freq; freq += 20) {
 		c = ieee80211_get_channel(wiphy, freq);
