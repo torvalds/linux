@@ -40,6 +40,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <linux/nsproxy.h>
+#include <linux/reciprocal_div.h>
 
 #include "bonding.h"
 
@@ -1640,6 +1641,53 @@ out:
 static DEVICE_ATTR(lp_interval, S_IRUGO | S_IWUSR,
 		   bonding_show_lp_interval, bonding_store_lp_interval);
 
+static ssize_t bonding_show_packets_per_slave(struct device *d,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	int packets_per_slave = bond->params.packets_per_slave;
+
+	if (packets_per_slave > 1)
+		packets_per_slave = reciprocal_value(packets_per_slave);
+
+	return sprintf(buf, "%d\n", packets_per_slave);
+}
+
+static ssize_t bonding_store_packets_per_slave(struct device *d,
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no packets_per_slave value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (new_value < 0 || new_value > USHRT_MAX) {
+		pr_err("%s: packets_per_slave must be between 0 and %u\n",
+		       bond->dev->name, USHRT_MAX);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (bond->params.mode != BOND_MODE_ROUNDROBIN)
+		pr_warn("%s: Warning: packets_per_slave has effect only in balance-rr mode\n",
+			bond->dev->name);
+	if (new_value > 1)
+		bond->params.packets_per_slave = reciprocal_value(new_value);
+	else
+		bond->params.packets_per_slave = new_value;
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(packets_per_slave, S_IRUGO | S_IWUSR,
+		   bonding_show_packets_per_slave,
+		   bonding_store_packets_per_slave);
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -1671,6 +1719,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_resend_igmp.attr,
 	&dev_attr_min_links.attr,
 	&dev_attr_lp_interval.attr,
+	&dev_attr_packets_per_slave.attr,
 	NULL,
 };
 
