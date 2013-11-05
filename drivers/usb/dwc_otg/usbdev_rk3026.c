@@ -22,17 +22,9 @@
 
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h"
+
 #ifdef CONFIG_ARCH_RK3026
-
-#define GRF_REG_BASE RK2928_GRF_BASE
-#define USBOTG_SIZE    RK2928_USBOTG20_SIZE
-
-#define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x14c)
-
-#define USBGRF_UOC0_CON0	(GRF_REG_BASE+0x17c)
-#define USBGRF_UOC1_CON0    (GRF_REG_BASE+0X190)
-#define USBGRF_UOC1_CON1	(GRF_REG_BASE+0x194)
-
+#include "usbdev_rk3026_grf_regs.h"
 
 int dwc_otg_check_dpdm(void)
 {
@@ -108,8 +100,11 @@ void usb20otg_hw_init(void)
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON1);
     *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.
 #endif
+
     // usb phy config init
-    
+    pGRF_USBPHY_REG GRF_USBPHY0 = (pGRF_USBPHY_REG)GRF_USBPHY0_CON_BASE;
+    GRF_USBPHY0->CON0 = 0x00070007;//open pre-emphasize for otg
+
     // other hardware init
 #ifdef CONFIG_RK_CONFIG
     otg_drv_init(0);
@@ -295,7 +290,9 @@ static struct resource usb20_host_resource[] = {
 void usb20host_hw_init(void)
 {
     // usb phy config init
-
+    pGRF_USBPHY_REG GRF_USBPHY1 = (pGRF_USBPHY_REG)GRF_USBPHY1_CON_BASE;
+    GRF_USBPHY1->CON7 = 0x78000000;//host_discon_con 575mv
+    
     // other haredware init
 #ifdef CONFIG_RK_CONFIG
     host_drv_init(1);

@@ -1,0 +1,28 @@
+#ifndef __USBDEV_RK3026_GRF_REGS_H__
+#define __USBDEV_RK3026_GRF_REGS_H__
+
+#define GRF_REG_BASE RK2928_GRF_BASE
+#define USBOTG_SIZE    RK2928_USBOTG20_SIZE
+
+#define GRF_USBPHY0_CON_BASE     (GRF_REG_BASE+0x280)
+#define GRF_USBPHY1_CON_BASE     (GRF_REG_BASE+0x2a0)
+
+#define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x14c)
+
+#define USBGRF_UOC0_CON0	(GRF_REG_BASE+0x17c)
+#define USBGRF_UOC1_CON0    (GRF_REG_BASE+0X190)
+#define USBGRF_UOC1_CON1	(GRF_REG_BASE+0x194)
+
+typedef volatile struct tag_grf_usbphy_regs
+{
+    u32 CON0;
+    u32 CON1;
+    u32 CON2;
+    u32 CON3;
+    u32 CON4;
+    u32 CON5;
+    u32 CON6;
+    u32 CON7;
+} GRF_USBPHY_REG ,*pGRF_USBPHY_REG;
+
+#endif
