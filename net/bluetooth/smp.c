@@ -856,7 +856,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (hcon->type != LE_LINK) {
 		kfree_skb(skb);
-		return -ENOTSUPP;
+		return 0;
 	}
 
 	if (skb->len < 1) {
@@ -864,7 +864,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 		return -EILSEQ;
 	}
 
-	if (!test_bit(HCI_LE_ENABLED, &conn->hcon->hdev->dev_flags)) {
+	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags)) {
 		err = -ENOTSUPP;
 		reason = SMP_PAIRING_NOTSUPP;
 		goto done;
