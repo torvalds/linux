@@ -844,6 +844,7 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 			mpl_dbg(sdata, "Mesh plink: failed to init peer!\n");
 			goto unlock_rcu;
 		}
+		sta->plid = plid;
 	}
 
 	mpl_dbg(sdata, "peer %pM in state %s got event %s\n", mgmt->sa,
@@ -857,7 +858,6 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 			break;
 		case OPN_ACPT:
 			sta->plink_state = NL80211_PLINK_OPN_RCVD;
-			sta->plid = plid;
 			get_random_bytes(&llid, 2);
 			sta->llid = llid;
 			mesh_plink_timer_set(sta,
@@ -885,7 +885,6 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 		case OPN_ACPT:
 			/* retry timer is left untouched */
 			sta->plink_state = NL80211_PLINK_OPN_RCVD;
-			sta->plid = plid;
 			action = WLAN_SP_MESH_PEERING_CONFIRM;
 			break;
 		case CNF_ACPT:
