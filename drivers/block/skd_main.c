@@ -45,7 +45,7 @@
 #include <scsi/sg.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <asm-generic/unaligned.h>
+#include <asm/unaligned.h>
 
 #include "skd_s1120.h"
 
