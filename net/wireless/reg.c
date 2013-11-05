@@ -1222,14 +1222,30 @@ static void reg_process_ht_flags(struct wiphy *wiphy)
 		reg_process_ht_flags_band(wiphy, wiphy->bands[band]);
 }
 
+static void reg_call_notifier(struct wiphy *wiphy,
+			      struct regulatory_request *request)
+{
+	if (wiphy->reg_notifier)
+		wiphy->reg_notifier(wiphy, request);
+}
+
 static void wiphy_update_regulatory(struct wiphy *wiphy,
 				    enum nl80211_reg_initiator initiator)
 {
 	enum ieee80211_band band;
 	struct regulatory_request *lr = get_last_request();
 
-	if (ignore_reg_update(wiphy, initiator))
+	if (ignore_reg_update(wiphy, initiator)) {
+		/*
+		 * Regulatory updates set by CORE are ignored for custom
+		 * regulatory cards. Let us notify the changes to the driver,
+		 * as some drivers used this to restore its orig_* reg domain.
+		 */
+		if (initiator == NL80211_REGDOM_SET_BY_CORE &&
+		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+			reg_call_notifier(wiphy, lr);
 		return;
+	}
 
 	lr->dfs_region = get_cfg80211_regdom()->dfs_region;
 
@@ -1238,9 +1254,7 @@ static void wiphy_update_regulatory(struct wiphy *wiphy,
 
 	reg_process_beacons(wiphy);
 	reg_process_ht_flags(wiphy);
-
-	if (wiphy->reg_notifier)
-		wiphy->reg_notifier(wiphy, lr);
+	reg_call_notifier(wiphy, lr);
 }
 
 static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
@@ -1253,15 +1267,6 @@ static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		wiphy = &rdev->wiphy;
 		wiphy_update_regulatory(wiphy, initiator);
-		/*
-		 * Regulatory updates set by CORE are ignored for custom
-		 * regulatory cards. Let us notify the changes to the driver,
-		 * as some drivers used this to restore its orig_* reg domain.
-		 */
-		if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY &&
-		    wiphy->reg_notifier)
-			wiphy->reg_notifier(wiphy, get_last_request());
 	}
 }
 
