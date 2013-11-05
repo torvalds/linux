@@ -485,6 +485,9 @@ struct fuse_conn {
 	 * and hence races in setting them will not cause malfunction
 	 */
 
+	/** Is open/release not implemented by fs? */
+	unsigned no_open:1;
+
 	/** Is fsync not implemented by fs? */
 	unsigned no_fsync:1;
 
