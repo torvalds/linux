@@ -871,11 +871,9 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
 	rt = ip6_rt_copy(ort, daddr);
 
 	if (rt) {
-		if (!(rt->rt6i_flags & RTF_GATEWAY)) {
-			if (ort->rt6i_dst.plen != 128 &&
-			    ipv6_addr_equal(&ort->rt6i_dst.addr, daddr))
-				rt->rt6i_flags |= RTF_ANYCAST;
-		}
+		if (ort->rt6i_dst.plen != 128 &&
+		    ipv6_addr_equal(&ort->rt6i_dst.addr, daddr))
+			rt->rt6i_flags |= RTF_ANYCAST;
 
 		rt->rt6i_flags |= RTF_CACHE;
 
