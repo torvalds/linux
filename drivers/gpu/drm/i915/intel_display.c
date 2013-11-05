@@ -3894,24 +3894,17 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
-static int valleyview_get_vco(struct drm_i915_private *dev_priv)
+int valleyview_get_vco(struct drm_i915_private *dev_priv)
 {
-	int vco;
+	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
-	switch (dev_priv->mem_freq) {
-	default:
-	case 800:
-		vco = 800;
-		break;
-	case 1066:
-		vco = 1600;
-		break;
-	case 1333:
-		vco = 2000;
-		break;
-	}
+	/* Obtain SKU information */
+	mutex_lock(&dev_priv->dpio_lock);
+	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
+		CCK_FUSE_HPLL_FREQ_MASK;
+	mutex_unlock(&dev_priv->dpio_lock);
 
-	return vco;
+	return vco_freq[hpll_freq];
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */
