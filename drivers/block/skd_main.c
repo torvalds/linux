@@ -5465,8 +5465,8 @@ static void __exit skd_exit(void)
 {
 	pr_info(PFX " v%s-b%s unloading\n", DRV_VERSION, DRV_BUILD_ID);
 
-	unregister_blkdev(skd_major, DRV_NAME);
 	pci_unregister_driver(&skd_driver);
+	unregister_blkdev(skd_major, DRV_NAME);
 }
 
 module_init(skd_init);
