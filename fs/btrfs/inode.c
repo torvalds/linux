@@ -4673,9 +4673,9 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	}
 
 	err = -ENOENT;
-	ret = btrfs_find_root_ref(root->fs_info->tree_root, path,
-				  BTRFS_I(dir)->root->root_key.objectid,
-				  location->objectid);
+	ret = btrfs_find_item(root->fs_info->tree_root, path,
+				BTRFS_I(dir)->root->root_key.objectid,
+				location->objectid, BTRFS_ROOT_REF_KEY, NULL);
 	if (ret) {
 		if (ret < 0)
 			err = ret;

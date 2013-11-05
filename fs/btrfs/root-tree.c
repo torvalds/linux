@@ -400,21 +400,6 @@ out:
 	return err;
 }
 
-int btrfs_find_root_ref(struct btrfs_root *tree_root,
-		   struct btrfs_path *path,
-		   u64 root_id, u64 ref_id)
-{
-	struct btrfs_key key;
-	int ret;
-
-	key.objectid = root_id;
-	key.type = BTRFS_ROOT_REF_KEY;
-	key.offset = ref_id;
-
-	ret = btrfs_search_slot(NULL, tree_root, &key, path, 0, 0);
-	return ret;
-}
-
 /*
  * add a btrfs_root_ref item.  type is either BTRFS_ROOT_REF_KEY
  * or BTRFS_ROOT_BACKREF_KEY.

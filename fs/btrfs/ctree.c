@@ -2464,7 +2464,13 @@ static int key_search(struct extent_buffer *b, struct btrfs_key *key,
 /* Proposed generic search function, meant to take the place of the
 * various small search helper functions throughout the code and standardize
 * the search interface. Right now, it only replaces the former __inode_info
-* in backref.c.
+* in backref.c, and the former btrfs_find_root_ref in root-tree.c.
+*
+* If a null key is passed, it returns immediately after running
+* btrfs_search_slot, leaving the path filled as it is and passing its
+* return value upward. If a real key is passed, it will set the caller's
+* path to point to the first item in the tree after its specified
+* objectid, type, and offset for which objectid and type match the input.
 */
 int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
 		u64 iobjectid, u64 ioff, u8 key_type,
@@ -2479,7 +2485,7 @@ int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
 	key.offset = ioff;
 
 	ret = btrfs_search_slot(NULL, fs_root, &key, path, 0, 0);
-	if (ret < 0)
+	if ((ret < 0) || (found_key == NULL))
 		return ret;
 
 	eb = path->nodes[0];
