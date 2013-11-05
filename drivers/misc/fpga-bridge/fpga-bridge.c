@@ -213,5 +213,5 @@ MODULE_DESCRIPTION("FPGA Bridge Driver");
 MODULE_AUTHOR("Alan Tull <atull@altera.com>");
 MODULE_LICENSE("GPL v2");
 
-subsys_initcall(fpga_bridge_dev_init);
+core_initcall_sync(fpga_bridge_dev_init);
 module_exit(fpga_bridge_dev_exit);

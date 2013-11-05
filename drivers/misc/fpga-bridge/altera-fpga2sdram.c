@@ -201,7 +201,7 @@ static void __exit alt_fpga_bridge_exit(void)
 	platform_driver_unregister(&altera_fpga_driver);
 }
 
-module_init(alt_fpga_bridge_init);
+arch_initcall(alt_fpga_bridge_init);
 module_exit(alt_fpga_bridge_exit);
 
 MODULE_DESCRIPTION("Altera SoCFPGA FPGA to SDRAM Bridge");
