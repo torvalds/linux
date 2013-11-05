@@ -285,8 +285,17 @@ static int vti_rcv(struct sk_buff *skb)
 	tunnel = vti_tunnel_lookup(dev_net(skb->dev), iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
 		struct pcpu_tstats *tstats;
+		u32 oldmark = skb->mark;
+		int ret;
 
-		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+
+		/* temporarily mark the skb with the tunnel o_key, to
+		 * only match policies with this mark.
+		 */
+		skb->mark = be32_to_cpu(tunnel->parms.o_key);
+		ret = xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb);
+		skb->mark = oldmark;
+		if (!ret)
 			return -1;
 
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
@@ -295,7 +304,6 @@ static int vti_rcv(struct sk_buff *skb)
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
-		skb->mark = 0;
 		secpath_reset(skb);
 		skb->dev = tunnel->dev;
 		return 1;
@@ -327,7 +335,7 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(&fl4, 0, sizeof(fl4));
 	flowi4_init_output(&fl4, tunnel->parms.link,
-			   be32_to_cpu(tunnel->parms.i_key), RT_TOS(tos),
+			   be32_to_cpu(tunnel->parms.o_key), RT_TOS(tos),
 			   RT_SCOPE_UNIVERSE,
 			   IPPROTO_IPIP, 0,
 			   dst, tiph->saddr, 0, 0);
