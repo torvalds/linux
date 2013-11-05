@@ -478,6 +478,12 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
+	/* Until we get further testing... */
+	if (IS_GEN8(dev)) {
+		WARN_ON(!i915_preliminary_hw_support);
+		return 0;
+	}
+
 	if (i915_semaphores >= 0)
 		return i915_semaphores;
 
