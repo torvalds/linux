@@ -4899,6 +4899,14 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
+	if (!skd_major) {
+		rc = register_blkdev(0, DRV_NAME);
+		if (rc < 0)
+			goto err_out_regions;
+		BUG_ON(!rc);
+		skd_major = rc;
+	}
+
 	skdev = skd_construct(pdev);
 	if (skdev == NULL) {
 		rc = -ENOMEM;
@@ -5396,8 +5404,6 @@ static void skd_log_skreq(struct skd_device *skdev,
 
 static int __init skd_init(void)
 {
-	int rc = -ENOMEM;
-
 	pr_info(PFX " v%s-b%s loaded\n", DRV_VERSION, DRV_BUILD_ID);
 
 	switch (skd_isr_type) {
@@ -5448,24 +5454,7 @@ static int __init skd_init(void)
 		skd_max_pass_thru = SKD_N_SPECIAL_CONTEXT;
 	}
 
-	/* Obtain major device number. */
-	rc = register_blkdev(0, DRV_NAME);
-	if (rc < 0)
-		goto err_register_blkdev;
-
-	skd_major = rc;
-
-	rc = pci_register_driver(&skd_driver);
-	if (rc < 0)
-		goto err_pci_register_driver;
-
-	return rc;
-
-err_pci_register_driver:
-	unregister_blkdev(skd_major, DRV_NAME);
-
-err_register_blkdev:
-	return rc;
+	return pci_register_driver(&skd_driver);
 }
 
 static void __exit skd_exit(void)
@@ -5473,7 +5462,9 @@ static void __exit skd_exit(void)
 	pr_info(PFX " v%s-b%s unloading\n", DRV_VERSION, DRV_BUILD_ID);
 
 	pci_unregister_driver(&skd_driver);
-	unregister_blkdev(skd_major, DRV_NAME);
+
+	if (skd_major)
+		unregister_blkdev(skd_major, DRV_NAME);
 }
 
 module_init(skd_init);
