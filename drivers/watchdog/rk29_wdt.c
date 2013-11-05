@@ -32,7 +32,6 @@
 #include <linux/clk.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-
 #include <asm/mach/map.h>
 
 
@@ -146,14 +145,17 @@ void rk29_wdt_stop(void)
 /* timeout unit second */
 int rk29_wdt_set_heartbeat(int timeout)
 {
+	unsigned int count = 0;
+	unsigned int torr = 0, acc = 1, maxtime = 0;	
 	unsigned int freq = clk_get_rate(wdt_clock);
-	unsigned int long count;
-	unsigned int torr = 0;
-	unsigned int acc = 1;
 
 	if (timeout < 1)
 		return -EINVAL;
-
+	//0x80000000 is the max count of watch dog
+	maxtime = 0x80000000 / freq + 1;
+	if(timeout > maxtime)
+		timeout = maxtime;
+		
 	count = timeout * freq;
 	count /= 0x10000;
 
@@ -164,7 +166,7 @@ int rk29_wdt_set_heartbeat(int timeout)
 	if(torr > 15){
 		torr = 15;
 	}
-	DBG("%s:%d\n", __func__, torr);
+	DBG("%s:torr:%d, count:%d, maxtime:%d s\n", __func__, torr, count, maxtime);
 	wdt_writel(torr, RK29_WDT_TORR);
 	return 0;
 }
