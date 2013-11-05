@@ -198,7 +198,8 @@ static struct rsnd_mod_ops rsnd_scu_ops = {
 
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
 {
-	BUG_ON(id < 0 || id >= rsnd_scu_nr(priv));
+	if (WARN_ON(id < 0 || id >= rsnd_scu_nr(priv)))
+		id = 0;
 
 	return &((struct rsnd_scu *)(priv->scu) + id)->mod;
 }

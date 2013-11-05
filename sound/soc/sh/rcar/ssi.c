@@ -611,7 +611,8 @@ struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
 
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 {
-	BUG_ON(id < 0 || id >= rsnd_ssi_nr(priv));
+	if (WARN_ON(id < 0 || id >= rsnd_ssi_nr(priv)))
+		id = 0;
 
 	return &(((struct rsnd_ssiu *)(priv->ssiu))->ssi + id)->mod;
 }
