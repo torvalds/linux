@@ -189,3 +189,5 @@ source "drivers/gpu/drm/tilcdc/Kconfig"
 source "drivers/gpu/drm/qxl/Kconfig"
 
 source "drivers/gpu/drm/msm/Kconfig"
+
+source "drivers/gpu/drm/tegra/Kconfig"

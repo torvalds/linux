@@ -8,9 +8,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
 
 #include "drm.h"
 #include "dc.h"
@@ -150,7 +147,7 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 	rgb->output.dev = dc->dev;
 	rgb->output.of_node = np;
 
-	err = tegra_output_parse_dt(&rgb->output);
+	err = tegra_output_probe(&rgb->output);
 	if (err < 0)
 		return err;
 
@@ -173,6 +170,20 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 	}
 
 	dc->rgb = &rgb->output;
+
+	return 0;
+}
+
+int tegra_dc_rgb_remove(struct tegra_dc *dc)
+{
+	int err;
+
+	if (!dc->rgb)
+		return 0;
+
+	err = tegra_output_remove(dc->rgb);
+	if (err < 0)
+		return err;
 
 	return 0;
 }

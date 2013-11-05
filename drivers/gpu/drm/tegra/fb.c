@@ -10,8 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-
 #include "drm.h"
 #include "gem.h"
 
@@ -34,6 +32,26 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 		return NULL;
 
 	return fb->planes[index];
+}
+
+bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
+{
+	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+
+	if (fb->planes[0]->flags & TEGRA_BO_BOTTOM_UP)
+		return true;
+
+	return false;
+}
+
+bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer)
+{
+	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+
+	if (fb->planes[0]->flags & TEGRA_BO_TILED)
+		return true;
+
+	return false;
 }
 
 static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
@@ -190,7 +208,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	size = cmd.pitches[0] * cmd.height;
 
-	bo = tegra_bo_create(drm, size);
+	bo = tegra_bo_create(drm, size, 0);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -323,10 +341,10 @@ static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 
 static void tegra_fb_output_poll_changed(struct drm_device *drm)
 {
-	struct host1x_drm *host1x = drm->dev_private;
+	struct tegra_drm *tegra = drm->dev_private;
 
-	if (host1x->fbdev)
-		drm_fb_helper_hotplug_event(&host1x->fbdev->base);
+	if (tegra->fbdev)
+		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
 }
 
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
@@ -336,7 +354,7 @@ static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 
 int tegra_drm_fb_init(struct drm_device *drm)
 {
-	struct host1x_drm *host1x = drm->dev_private;
+	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_fbdev *fbdev;
 
 	drm->mode_config.min_width = 0;
@@ -352,16 +370,16 @@ int tegra_drm_fb_init(struct drm_device *drm)
 	if (IS_ERR(fbdev))
 		return PTR_ERR(fbdev);
 
-	host1x->fbdev = fbdev;
+	tegra->fbdev = fbdev;
 
 	return 0;
 }
 
 void tegra_drm_fb_exit(struct drm_device *drm)
 {
-	struct host1x_drm *host1x = drm->dev_private;
+	struct tegra_drm *tegra = drm->dev_private;
 
-	tegra_fbdev_free(host1x->fbdev);
+	tegra_fbdev_free(tegra->fbdev);
 }
 
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)

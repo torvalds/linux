@@ -19,14 +19,18 @@
 #ifndef __HOST1X_GEM_H
 #define __HOST1X_GEM_H
 
+#include <linux/host1x.h>
+
 #include <drm/drm.h>
 #include <drm/drmP.h>
 
-#include "host1x_bo.h"
+#define TEGRA_BO_TILED     (1 << 0)
+#define TEGRA_BO_BOTTOM_UP (1 << 1)
 
 struct tegra_bo {
 	struct drm_gem_object gem;
 	struct host1x_bo base;
+	unsigned long flags;
 	dma_addr_t paddr;
 	void *vaddr;
 };
@@ -38,11 +42,13 @@ static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)
 
 extern const struct host1x_bo_ops tegra_bo_ops;
 
-struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size);
+struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
+				 unsigned long flags);
 struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
-					    struct drm_device *drm,
-					    unsigned int size,
-					    unsigned int *handle);
+					     struct drm_device *drm,
+					     unsigned int size,
+					     unsigned long flags,
+					     unsigned int *handle);
 void tegra_bo_free_object(struct drm_gem_object *gem);
 int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 			 struct drm_mode_create_dumb *args);

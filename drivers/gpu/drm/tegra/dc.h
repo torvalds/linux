@@ -302,6 +302,7 @@
 #define DC_WIN_CSC_KVB				0x618
 
 #define DC_WIN_WIN_OPTIONS			0x700
+#define INVERT_V     (1 <<  2)
 #define COLOR_EXPAND (1 <<  6)
 #define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)
@@ -365,6 +366,10 @@
 #define DC_WIN_BUF_STRIDE			0x70b
 #define DC_WIN_UV_BUF_STRIDE			0x70c
 #define DC_WIN_BUFFER_ADDR_MODE			0x70d
+#define DC_WIN_BUFFER_ADDR_MODE_LINEAR		(0 <<  0)
+#define DC_WIN_BUFFER_ADDR_MODE_TILE		(1 <<  0)
+#define DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV	(0 << 16)
+#define DC_WIN_BUFFER_ADDR_MODE_TILE_UV		(1 << 16)
 #define DC_WIN_DV_CONTROL			0x70e
 
 #define DC_WIN_BLEND_NOKEY			0x70f

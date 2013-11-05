@@ -1,7 +1,7 @@
 /*
- * Tegra host1x Job
+ * Host1x init for Tegra114 SoCs
  *
- * Copyright (c) 2011-2013, NVIDIA Corporation.
+ * Copyright (c) 2013 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,39 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __HOST1X_JOB_H
-#define __HOST1X_JOB_H
+#ifndef HOST1X_HOST1X02_H
+#define HOST1X_HOST1X02_H
 
-struct host1x_job_gather {
-	u32 words;
-	dma_addr_t base;
-	struct host1x_bo *bo;
-	int offset;
-	bool handled;
-};
+struct host1x;
 
-struct host1x_cmdbuf {
-	u32 handle;
-	u32 offset;
-	u32 words;
-	u32 pad;
-};
-
-struct host1x_waitchk {
-	struct host1x_bo *bo;
-	u32 offset;
-	u32 syncpt_id;
-	u32 thresh;
-};
-
-struct host1x_job_unpin_data {
-	struct host1x_bo *bo;
-	struct sg_table *sgt;
-};
-
-/*
- * Dump contents of job to debug output.
- */
-void host1x_job_dump(struct device *dev, struct host1x_job *job);
+int host1x02_init(struct host1x *host);
 
 #endif

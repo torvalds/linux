@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, NVIDIA Corporation.
+ * Copyright (c) 2013 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,8 +48,8 @@
   *         of register <x>.
   */
 
-#ifndef __hw_host1x_uclass_host1x_h__
-#define __hw_host1x_uclass_host1x_h__
+#ifndef HOST1X_HW_HOST1X02_UCLASS_H
+#define HOST1X_HW_HOST1X02_UCLASS_H
 
 static inline u32 host1x_uclass_incr_syncpt_r(void)
 {
@@ -111,12 +111,6 @@ static inline u32 host1x_uclass_wait_syncpt_base_offset_f(u32 v)
 }
 #define HOST1X_UCLASS_WAIT_SYNCPT_BASE_OFFSET_F(v) \
 	host1x_uclass_wait_syncpt_base_offset_f(v)
-static inline u32 host1x_uclass_load_syncpt_base_r(void)
-{
-	return 0xb;
-}
-#define HOST1X_UCLASS_LOAD_SYNCPT_BASE \
-	host1x_uclass_load_syncpt_base_r()
 static inline u32 host1x_uclass_load_syncpt_base_base_indx_f(u32 v)
 {
 	return (v & 0xff) << 24;
@@ -177,4 +171,5 @@ static inline u32 host1x_uclass_indoff_rwn_read_v(void)
 }
 #define HOST1X_UCLASS_INDOFF_INDROFFSET_F(v) \
 	host1x_uclass_indoff_indroffset_f(v)
+
 #endif

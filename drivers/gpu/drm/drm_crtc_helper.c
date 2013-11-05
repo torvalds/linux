@@ -567,6 +567,14 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 				continue;
 
 			connector->encoder = NULL;
+
+			/*
+			 * drm_helper_disable_unused_functions() ought to be
+			 * doing this, but since we've decoupled the encoder
+			 * from the connector above, the required connection
+			 * between them is henceforth no longer available.
+			 */
+			connector->dpms = DRM_MODE_DPMS_OFF;
 		}
 	}
 
