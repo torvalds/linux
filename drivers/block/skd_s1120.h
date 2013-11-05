@@ -21,11 +21,9 @@
 #define  FIT_QCMD_QID_MASK              (0x3 << 1)
 #define  FIT_QCMD_QID0                  (0x0 << 1)
 #define  FIT_QCMD_QID_NORMAL            FIT_QCMD_QID0
-#ifndef SKD_OMIT_FROM_SRC_DIST
 #define  FIT_QCMD_QID1                  (0x1 << 1)
 #define  FIT_QCMD_QID2                  (0x2 << 1)
 #define  FIT_QCMD_QID3                  (0x3 << 1)
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 #define  FIT_QCMD_FLUSH_QUEUE           (0ull)      /* add QID */
 #define  FIT_QCMD_MSGSIZE_MASK          (0x3 << 4)
 #define  FIT_QCMD_MSGSIZE_64            (0x0 << 4)
@@ -39,13 +37,9 @@
  * Control, 32-bit r/w
  */
 #define FIT_CONTROL                 0x500u
-#ifndef SKD_OMIT_FROM_SRC_DIST
 #define  FIT_CR_HARD_RESET              (1u << 0u)
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 #define  FIT_CR_SOFT_RESET              (1u << 1u)
-#ifndef SKD_OMIT_FROM_SRC_DIST
 #define	 FIT_CR_DIS_TIMESTAMPS		(1u << 6u)
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 #define  FIT_CR_ENABLE_INTERRUPTS       (1u << 7u)
 
 /*
@@ -53,10 +47,8 @@
  */
 #define FIT_STATUS			0x510u
 #define FIT_SR_DRIVE_STATE_MASK		0x000000FFu
-#ifndef SKD_OMIT_FROM_SRC_DIST
 #define	FIT_SR_SIGNATURE		(0xFF << 8)
 #define	FIT_SR_PIO_DMA			(1 << 16)
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 #define FIT_SR_DRIVE_OFFLINE		0x00
 #define FIT_SR_DRIVE_INIT		0x01
 /* #define FIT_SR_DRIVE_READY		0x02 */
@@ -74,14 +66,12 @@
 #define FIT_SR_DEVICE_MISSING           0xFF
 #define FIT_SR__RESERVED		0xFFFFFF00u
 
-#ifndef SKD_OMIT_FROM_SRC_DIST
 /*
  * FIT_STATUS - Status register data definition
  */
 #define	FIT_SR_STATE_MASK		(0xFF << 0)
 #define	FIT_SR_SIGNATURE		(0xFF << 8)
 #define	FIT_SR_PIO_DMA			(1 << 16)
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 
 
 /*
@@ -189,10 +179,8 @@
 #define FIT_MFD_PM_SLEEP		        0x17u
 #define FIT_MFD_CMD_PROGRESS		    0x18u
 
-#ifndef SKD_OMIT_FROM_SRC_DIST
 #define FIT_MTD_DEBUG                   0xFEu
 #define FIT_MFD_DEBUG                   0xFFu
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 
 #define FIT_MFD_MASK			(0xFFu)
 #define FIT_MFD_DATA_MASK		(0xFFu)
@@ -248,7 +236,6 @@ struct fit_msg_hdr {
 #define FIT_PROTOCOL_MINOR_VER(mtd_val) ((mtd_val >> 16) & 0xF)
 #define FIT_PROTOCOL_MAJOR_VER(mtd_val) ((mtd_val >> 20) & 0xF)
 
-#ifndef SKD_OMIT_FROM_SRC_DIST
 /*
  * Format of a completion entry. The completion queue is circular
  * and must have at least as many entries as the maximum number
@@ -264,7 +251,6 @@ struct fit_msg_hdr {
  * Command_context is opaque and taken verbatim from the SSDI command.
  * All other fields are big endian.
  */
-#endif /* SKD_OMIT_FROM_SRC_DIST */
 #define FIT_PROTOCOL_VERSION_0          0
 
 /*
