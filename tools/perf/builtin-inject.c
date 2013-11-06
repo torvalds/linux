@@ -106,8 +106,8 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 				     struct perf_evsel *evsel,
 				     struct machine *machine)
 {
-	if (evsel->handler.func) {
-		inject_handler f = evsel->handler.func;
+	if (evsel->handler) {
+		inject_handler f = evsel->handler;
 		return f(tool, event, sample, evsel, machine);
 	}
 
@@ -383,11 +383,11 @@ static int __cmd_inject(struct perf_inject *inject)
 				if (perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
 					return -EINVAL;
 
-				evsel->handler.func = perf_inject__sched_switch;
+				evsel->handler = perf_inject__sched_switch;
 			} else if (!strcmp(name, "sched:sched_process_exit"))
-				evsel->handler.func = perf_inject__sched_process_exit;
+				evsel->handler = perf_inject__sched_process_exit;
 			else if (!strncmp(name, "sched:sched_stat_", 17))
-				evsel->handler.func = perf_inject__sched_stat;
+				evsel->handler = perf_inject__sched_stat;
 		}
 	}
 

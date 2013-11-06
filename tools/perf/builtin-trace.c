@@ -1570,7 +1570,7 @@ static int trace__process_sample(struct perf_tool *tool,
 	struct trace *trace = container_of(tool, struct trace, tool);
 	int err = 0;
 
-	tracepoint_handler handler = evsel->handler.func;
+	tracepoint_handler handler = evsel->handler;
 
 	if (skip_sample(trace, sample))
 		return 0;
@@ -1656,7 +1656,7 @@ static void perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 		return;
 	}
 
-	evsel->handler.func = trace__vfs_getname;
+	evsel->handler = trace__vfs_getname;
 	perf_evlist__add(evlist, evsel);
 }
 
@@ -1768,7 +1768,7 @@ again:
 				goto next_event;
 			}
 
-			handler = evsel->handler.func;
+			handler = evsel->handler;
 			handler(trace, evsel, &sample);
 next_event:
 			perf_evlist__mmap_consume(evlist, i);
