@@ -741,7 +741,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		dcs_r = 3;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid reg %d\n", reg);
 		return -EINVAL;
 	}
 
