@@ -1412,7 +1412,7 @@ static void dapm_seq_check_event(struct snd_soc_card *card,
 		power = 0;
 		break;
 	default:
-		BUG();
+		WARN(1, "Unknown event %d\n", event);
 		return;
 	}
 
@@ -2001,7 +2001,7 @@ static ssize_t dapm_bias_read_file(struct file *file, char __user *user_buf,
 		level = "Off\n";
 		break;
 	default:
-		BUG();
+		WARN(1, "Unknown bias_level %d\n", dapm->bias_level);
 		level = "Unknown\n";
 		break;
 	}
@@ -3416,7 +3416,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Unknown event %d\n", event);
 		return -EINVAL;
 	}
 

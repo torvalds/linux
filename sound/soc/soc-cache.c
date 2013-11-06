@@ -39,7 +39,8 @@ static bool snd_soc_set_cache_val(void *base, unsigned int idx,
 		break;
 	}
 	default:
-		BUG();
+		WARN(1, "Invalid word_size %d\n", word_size);
+		break;
 	}
 	return false;
 }
@@ -60,7 +61,8 @@ static unsigned int snd_soc_get_cache_val(const void *base, unsigned int idx,
 		return cache[idx];
 	}
 	default:
-		BUG();
+		WARN(1, "Invalid word_size %d\n", word_size);
+		break;
 	}
 	/* unreachable */
 	return -1;
