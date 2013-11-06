@@ -120,7 +120,7 @@ void context_tracking_user_enter(void)
  * instead of preempt_schedule() to exit user context if needed before
  * calling the scheduler.
  */
-void __sched notrace preempt_schedule_context(void)
+asmlinkage void __sched notrace preempt_schedule_context(void)
 {
 	enum ctx_state prev_ctx;
 
