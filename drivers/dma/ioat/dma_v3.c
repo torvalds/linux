@@ -1376,6 +1376,8 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 		goto free_resources;
 	}
 
+	memset(page_address(dest), 0, PAGE_SIZE);
+
 	/* test for non-zero parity sum */
 	op = IOAT_OP_XOR_VAL;
 
