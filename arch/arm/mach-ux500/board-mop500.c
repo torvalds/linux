@@ -46,33 +46,3 @@ struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
 };
-
-#ifdef CONFIG_STE_DMA40
-static struct stedma40_chan_cfg ssp0_dma_cfg_rx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_DEV_TO_MEM,
-	.dev_type = DB8500_DMA_DEV8_SSP0,
-};
-
-static struct stedma40_chan_cfg ssp0_dma_cfg_tx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_MEM_TO_DEV,
-	.dev_type = DB8500_DMA_DEV8_SSP0,
-};
-#endif
-
-struct pl022_ssp_controller ssp0_plat = {
-	.bus_id = 0,
-#ifdef CONFIG_STE_DMA40
-	.enable_dma = 1,
-	.dma_filter = stedma40_filter,
-	.dma_rx_param = &ssp0_dma_cfg_rx,
-	.dma_tx_param = &ssp0_dma_cfg_tx,
-#else
-	.enable_dma = 0,
-#endif
-	/* on this platform, gpio 31,142,144,214 &
-	 * 224 are connected as chip selects
-	 */
-	.num_chipselect = 5,
-};
