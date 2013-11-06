@@ -24,11 +24,18 @@ comment "SH-Mobile System Type"
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 
+config ARCH_R7S72100
+	bool "RZ/A1H (R7S72100)"
+
 config ARCH_R8A7791
 	bool "R-Car M2 (R8A77910)"
 	select RENESAS_IRQC
 
 comment "SH-Mobile Board Type"
+
+config MACH_GENMAI
+	bool "Genmai board"
+	depends on ARCH_R7S72100
 
 config MACH_KOELSCH
 	bool "Koelsch board"
