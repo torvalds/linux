@@ -6,7 +6,9 @@ static ssize_t show_type(struct sysdev_class *dev, struct sysdev_class_attribute
 {
 	const char *type;
 
-	if (cpu_is_rk3188())
+	if (cpu_is_rk319x())
+		type = "rk319x";
+	else if (cpu_is_rk3188())
 		type = "rk3188";
 	else if (cpu_is_rk3066b())
 		type = "rk3066b";
@@ -28,7 +30,9 @@ static ssize_t show_soc(struct sysdev_class *dev, struct sysdev_class_attribute 
 {
 	const char *soc;
 
-	if (soc_is_rk3188plus())
+	if (soc_is_rk3190())
+		soc = "rk3190";
+	else if (soc_is_rk3188plus())
 		soc = "rk3188+";
 	else if (soc_is_rk3188())
 		soc = "rk3188";

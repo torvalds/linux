@@ -33,7 +33,7 @@ static inline bool soc_is_rk2928l(void) { return false; }
 static inline bool soc_is_rk2926(void) { return false; }
 #endif
 
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK3026)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_ARCH_RK3026) || defined(CONFIG_ARCH_RK319X)
 static inline bool cpu_is_rk30xx(void)
 {
 	return readl_relaxed(RK30_ROM_BASE + 0x27f0) == 0x33303041
@@ -77,12 +77,21 @@ static inline bool cpu_is_rk3026(void)
 	    && readl_relaxed(RK30_ROM_BASE + 0x3ff8) == 0x30353239
 	    && readl_relaxed(RK30_ROM_BASE + 0x3ffc) == 0x56313031;
 }
+
+static inline bool cpu_is_rk319x(void)
+{
+	return readl_relaxed(RK30_ROM_BASE + 0x3ff0) == 0x33313042
+	    && readl_relaxed(RK30_ROM_BASE + 0x3ff4) == 0x32303133
+	    && readl_relaxed(RK30_ROM_BASE + 0x3ff8) == 0x30383237
+	    && readl_relaxed(RK30_ROM_BASE + 0x3ffc) == 0x56313031;
+}
 #else
 static inline bool cpu_is_rk30xx(void) { return false; }
 static inline bool cpu_is_rk3066b(void) { return false; }
 static inline bool soc_is_rk3188(void) { return false; }
 static inline bool soc_is_rk3188plus(void) { return false; }
 static inline bool cpu_is_rk3026(void) { return false; }
+static inline bool cpu_is_rk319x(void) { return false; }
 #endif
 
 #if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
@@ -151,6 +160,12 @@ static inline bool soc_is_rk3028a(void)
 #else
 static inline bool soc_is_rk3026(void) { return false; }
 static inline bool soc_is_rk3028a(void) { return false; }
+#endif
+
+#ifdef CONFIG_SOC_RK3190
+static inline bool soc_is_rk3190(void) { return true; }
+#else
+static inline bool soc_is_rk3190(void) { return false; }
 #endif
 
 #endif
