@@ -145,7 +145,7 @@ build_main_index = rm -rf $(main_idx); \
 		   cat $(HTML) >> $(main_idx)
 
 quiet_cmd_db2html = HTML    $@
-      cmd_db2html = xmlto xhtml $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
+      cmd_db2html = xmlto html $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
 		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/index.html"> \
         $(patsubst %.html,%,$(notdir $@))</a><p>' > $@
 
