@@ -1995,8 +1995,8 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 int audit_set_loginuid(kuid_t loginuid)
 {
 	struct task_struct *task = current;
-	unsigned int sessionid = -1;
-	kuid_t oldloginuid, oldsessionid;
+	unsigned int oldsessionid, sessionid = (unsigned int)-1;
+	kuid_t oldloginuid;
 	int rc;
 
 	oldloginuid = audit_get_loginuid(current);
