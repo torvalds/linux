@@ -234,6 +234,20 @@ static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitud
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
 	__s32 *value = report->field[0]->value;
 	__u32 expand_a, expand_b;
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return;
+	}
 
 	/* De-activate Auto-Center */
 	if (magnitude == 0) {
@@ -255,6 +269,16 @@ static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitud
 	} else {
 		expand_a = (0x0c * 0xaaaa) + 0x06 * (magnitude - 0xaaaa);
 		expand_b = (0x80 * 0xaaaa) + 0xff * (magnitude - 0xaaaa);
+	}
+
+	/* Adjust for non-MOMO wheels */
+	switch (entry->product_id) {
+	case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
+	case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
+		break;
+	default:
+		expand_a = expand_a >> 1;
+		break;
 	}
 
 	value[0] = 0xfe;
