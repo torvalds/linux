@@ -295,7 +295,7 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	sandybridge_blit_fbc_update(dev);
 
-	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
 }
 
 bool intel_fbc_enabled(struct drm_device *dev)
