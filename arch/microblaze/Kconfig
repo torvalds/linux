@@ -245,10 +245,6 @@ config MICROBLAZE_64K_PAGES
 
 endchoice
 
-config KERNEL_PAD
-	hex "Kernel PAD for unpacking" if ADVANCED_OPTIONS
-	default "0x80000" if MMU
-
 endmenu
 
 source "mm/Kconfig"
