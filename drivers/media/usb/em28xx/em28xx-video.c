@@ -1664,8 +1664,8 @@ static int em28xx_v4l2_close(struct file *filp)
 
 	em28xx_videodbg("users=%d\n", dev->users);
 
-	mutex_lock(&dev->lock);
 	vb2_fop_release(filp);
+	mutex_lock(&dev->lock);
 
 	if (dev->users == 1) {
 		/* the device is already disconnect,
