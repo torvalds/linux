@@ -31,17 +31,6 @@ config INFINIBAND_USER_ACCESS
 	  libibverbs, libibcm and a hardware driver library from
 	  <http://www.openfabrics.org/git/>.
 
-config INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-       bool "Experimental and unstable ABI for userspace access to flow steering verbs"
-       depends on INFINIBAND_USER_ACCESS
-       depends on STAGING
-	---help---
-	  The final ABI for userspace access to flow steering verbs
-	  has not been defined.  To use the current ABI, *WHICH WILL
-	  CHANGE IN THE FUTURE*, say Y here.
-
-	  If unsure, say N.
-
 config INFINIBAND_USER_MEM
 	bool
 	depends on INFINIBAND_USER_ACCESS != n

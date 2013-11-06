@@ -89,12 +89,10 @@ enum {
 	IB_USER_VERBS_CMD_OPEN_QP,
 };
 
-#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
 enum {
 	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
 	IB_USER_VERBS_EX_CMD_DESTROY_FLOW
 };
-#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -137,14 +135,12 @@ struct ib_uverbs_cmd_hdr {
 	__u16 out_words;
 };
 
-#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
 struct ib_uverbs_ex_cmd_hdr {
 	__u64 response;
 	__u16 provider_in_words;
 	__u16 provider_out_words;
 	__u32 cmd_hdr_reserved;
 };
-#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 struct ib_uverbs_get_context {
 	__u64 response;
@@ -707,7 +703,6 @@ struct ib_uverbs_detach_mcast {
 	__u64 driver_data[0];
 };
 
-#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
 struct ib_uverbs_flow_spec_hdr {
 	__u32 type;
 	__u16 size;
@@ -802,7 +797,6 @@ struct ib_uverbs_destroy_flow  {
 	__u32 comp_mask;
 	__u32 flow_handle;
 };
-#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 struct ib_uverbs_create_srq {
 	__u64 response;
