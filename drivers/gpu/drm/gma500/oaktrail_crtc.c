@@ -26,24 +26,10 @@
 #include "gma_display.h"
 #include "power.h"
 
-struct psb_intel_range_t {
-	int min, max;
-};
-
-struct oaktrail_limit_t {
-	struct psb_intel_range_t dot, m, p1;
-};
-
-struct oaktrail_clock_t {
-	/* derived values */
-	int dot;
-	int m;
-	int p1;
-};
-
-#define MRST_LIMIT_LVDS_100L	    0
-#define MRST_LIMIT_LVDS_83	    1
-#define MRST_LIMIT_LVDS_100	    2
+#define MRST_LIMIT_LVDS_100L	0
+#define MRST_LIMIT_LVDS_83	1
+#define MRST_LIMIT_LVDS_100	2
+#define MRST_LIMIT_SDVO		3
 
 #define MRST_DOT_MIN		  19750
 #define MRST_DOT_MAX		  120000
@@ -57,21 +43,40 @@ struct oaktrail_clock_t {
 #define MRST_P1_MAX_0		    7
 #define MRST_P1_MAX_1		    8
 
-static const struct oaktrail_limit_t oaktrail_limits[] = {
+static bool mrst_lvds_find_best_pll(const struct gma_limit_t *limit,
+				    struct drm_crtc *crtc, int target,
+				    int refclk, struct gma_clock_t *best_clock);
+
+static bool mrst_sdvo_find_best_pll(const struct gma_limit_t *limit,
+				    struct drm_crtc *crtc, int target,
+				    int refclk, struct gma_clock_t *best_clock);
+
+static const struct gma_limit_t mrst_limits[] = {
 	{			/* MRST_LIMIT_LVDS_100L */
 	 .dot = {.min = MRST_DOT_MIN, .max = MRST_DOT_MAX},
 	 .m = {.min = MRST_M_MIN_100L, .max = MRST_M_MAX_100L},
 	 .p1 = {.min = MRST_P1_MIN, .max = MRST_P1_MAX_1},
+	 .find_pll = mrst_lvds_find_best_pll,
 	 },
 	{			/* MRST_LIMIT_LVDS_83L */
 	 .dot = {.min = MRST_DOT_MIN, .max = MRST_DOT_MAX},
 	 .m = {.min = MRST_M_MIN_83, .max = MRST_M_MAX_83},
 	 .p1 = {.min = MRST_P1_MIN, .max = MRST_P1_MAX_0},
+	 .find_pll = mrst_lvds_find_best_pll,
 	 },
 	{			/* MRST_LIMIT_LVDS_100 */
 	 .dot = {.min = MRST_DOT_MIN, .max = MRST_DOT_MAX},
 	 .m = {.min = MRST_M_MIN_100, .max = MRST_M_MAX_100},
 	 .p1 = {.min = MRST_P1_MIN, .max = MRST_P1_MAX_1},
+	 .find_pll = mrst_lvds_find_best_pll,
+	 },
+	{			/* MRST_LIMIT_SDVO */
+	 .vco = {.min = 1400000, .max = 2800000},
+	 .n = {.min = 3, .max = 7},
+	 .m = {.min = 80, .max = 137},
+	 .p1 = {.min = 1, .max = 2},
+	 .p2 = {.dot_limit = 200000, .p2_slow = 10, .p2_fast = 10},
+	 .find_pll = mrst_sdvo_find_best_pll,
 	 },
 };
 
@@ -82,9 +87,10 @@ static const u32 oaktrail_m_converts[] = {
 	0x12, 0x09, 0x24, 0x32, 0x39, 0x1c,
 };
 
-static const struct oaktrail_limit_t *oaktrail_limit(struct drm_crtc *crtc)
+static const struct gma_limit_t *mrst_limit(struct drm_crtc *crtc,
+					    int refclk)
 {
-	const struct oaktrail_limit_t *limit = NULL;
+	const struct gma_limit_t *limit = NULL;
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -92,45 +98,100 @@ static const struct oaktrail_limit_t *oaktrail_limit(struct drm_crtc *crtc)
 	    || gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
 		switch (dev_priv->core_freq) {
 		case 100:
-			limit = &oaktrail_limits[MRST_LIMIT_LVDS_100L];
+			limit = &mrst_limits[MRST_LIMIT_LVDS_100L];
 			break;
 		case 166:
-			limit = &oaktrail_limits[MRST_LIMIT_LVDS_83];
+			limit = &mrst_limits[MRST_LIMIT_LVDS_83];
 			break;
 		case 200:
-			limit = &oaktrail_limits[MRST_LIMIT_LVDS_100];
+			limit = &mrst_limits[MRST_LIMIT_LVDS_100];
 			break;
 		}
+	} else if (gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO)) {
+		limit = &mrst_limits[MRST_LIMIT_SDVO];
 	} else {
 		limit = NULL;
-		dev_err(dev->dev, "oaktrail_limit Wrong display type.\n");
+		dev_err(dev->dev, "mrst_limit Wrong display type.\n");
 	}
 
 	return limit;
 }
 
 /** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
-static void oaktrail_clock(int refclk, struct oaktrail_clock_t *clock)
+static void mrst_lvds_clock(int refclk, struct gma_clock_t *clock)
 {
 	clock->dot = (refclk * clock->m) / (14 * clock->p1);
 }
 
-static void mrstPrintPll(char *prefix, struct oaktrail_clock_t *clock)
+static void mrst_print_pll(struct gma_clock_t *clock)
 {
-	pr_debug("%s: dotclock = %d,  m = %d, p1 = %d.\n",
-	     prefix, clock->dot, clock->m, clock->p1);
+	DRM_DEBUG_DRIVER("dotclock=%d,  m=%d, m1=%d, m2=%d, n=%d, p1=%d, p2=%d\n",
+			 clock->dot, clock->m, clock->m1, clock->m2, clock->n,
+			 clock->p1, clock->p2);
+}
+
+static bool mrst_sdvo_find_best_pll(const struct gma_limit_t *limit,
+				    struct drm_crtc *crtc, int target,
+				    int refclk, struct gma_clock_t *best_clock)
+{
+	struct gma_clock_t clock;
+	u32 target_vco, actual_freq;
+	s32 freq_error, min_error = 100000;
+
+	memset(best_clock, 0, sizeof(*best_clock));
+
+	for (clock.m = limit->m.min; clock.m <= limit->m.max; clock.m++) {
+		for (clock.n = limit->n.min; clock.n <= limit->n.max;
+		     clock.n++) {
+			for (clock.p1 = limit->p1.min;
+			     clock.p1 <= limit->p1.max; clock.p1++) {
+				/* p2 value always stored in p2_slow on SDVO */
+				clock.p = clock.p1 * limit->p2.p2_slow;
+				target_vco = target * clock.p;
+
+				/* VCO will increase at this point so break */
+				if (target_vco > limit->vco.max)
+					break;
+
+				if (target_vco < limit->vco.min)
+					continue;
+
+				actual_freq = (refclk * clock.m) /
+					      (clock.n * clock.p);
+				freq_error = 10000 -
+					     ((target * 10000) / actual_freq);
+
+				if (freq_error < -min_error) {
+					/* freq_error will start to decrease at
+					   this point so break */
+					break;
+				}
+
+				if (freq_error < 0)
+					freq_error = -freq_error;
+
+				if (freq_error < min_error) {
+					min_error = freq_error;
+					*best_clock = clock;
+				}
+			}
+		}
+		if (min_error == 0)
+			break;
+	}
+
+	return min_error == 0;
 }
 
 /**
  * Returns a set of divisors for the desired target clock with the given refclk,
  * or FALSE.  Divisor values are the actual divisors for
  */
-static bool
-mrstFindBestPLL(struct drm_crtc *crtc, int target, int refclk,
-		struct oaktrail_clock_t *best_clock)
+static bool mrst_lvds_find_best_pll(const struct gma_limit_t *limit,
+				    struct drm_crtc *crtc, int target,
+				    int refclk, struct gma_clock_t *best_clock)
 {
-	struct oaktrail_clock_t clock;
-	const struct oaktrail_limit_t *limit = oaktrail_limit(crtc);
+	struct gma_clock_t clock;
 	int err = target;
 
 	memset(best_clock, 0, sizeof(*best_clock));
@@ -140,7 +201,7 @@ mrstFindBestPLL(struct drm_crtc *crtc, int target, int refclk,
 		     clock.p1++) {
 			int this_err;
 
-			oaktrail_clock(refclk, &clock);
+			mrst_lvds_clock(refclk, &clock);
 
 			this_err = abs(clock.dot - target);
 			if (this_err < err) {
@@ -149,7 +210,6 @@ mrstFindBestPLL(struct drm_crtc *crtc, int target, int refclk,
 			}
 		}
 	}
-	dev_dbg(crtc->dev->dev, "mrstFindBestPLL err = %d.\n", err);
 	return err != target;
 }
 
@@ -297,7 +357,8 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk = 0;
-	struct oaktrail_clock_t clock;
+	struct gma_clock_t clock;
+	const struct gma_limit_t *limit;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false;
 	bool is_lvds = false;
@@ -418,21 +479,30 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_mipi)
 		goto oaktrail_crtc_mode_set_exit;
 
-	refclk = dev_priv->core_freq * 1000;
 
 	dpll = 0;		/*BIT16 = 0 for 100MHz reference */
 
-	ok = mrstFindBestPLL(crtc, adjusted_mode->clock, refclk, &clock);
+	refclk = is_sdvo ? 96000 : dev_priv->core_freq * 1000;
+	limit = mrst_limit(crtc, refclk);
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock,
+			     refclk, &clock);
 
-	if (!ok) {
-		dev_dbg(dev->dev, "mrstFindBestPLL fail in oaktrail_crtc_mode_set.\n");
-	} else {
-		dev_dbg(dev->dev, "oaktrail_crtc_mode_set pixel clock = %d,"
-			 "m = %x, p1 = %x.\n", clock.dot, clock.m,
-			 clock.p1);
+	if (is_sdvo) {
+		/* Convert calculated values to register values */
+		clock.p1 = (1L << (clock.p1 - 1));
+		clock.m -= 2;
+		clock.n = (1L << (clock.n - 1));
 	}
 
-	fp = oaktrail_m_converts[(clock.m - MRST_M_MIN)] << 8;
+	if (!ok)
+		DRM_ERROR("Failed to find proper PLL settings");
+
+	mrst_print_pll(&clock);
+
+	if (is_sdvo)
+		fp = clock.n << 16 | clock.m;
+	else
+		fp = oaktrail_m_converts[(clock.m - MRST_M_MIN)] << 8;
 
 	dpll |= DPLL_VGA_MODE_DIS;
 
@@ -456,11 +526,12 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 
 
 	/* compute bitmask from p1 value */
-	dpll |= (1 << (clock.p1 - 2)) << 17;
+	if (is_sdvo)
+		dpll |= clock.p1 << 16; // dpll |= (1 << (clock.p1 - 1)) << 16;
+	else
+		dpll |= (1 << (clock.p1 - 2)) << 17;
 
 	dpll |= DPLL_VCO_ENABLE;
-
-	mrstPrintPll("chosen", &clock);
 
 	if (dpll & DPLL_VCO_ENABLE) {
 		REG_WRITE(map->fp0, fp);
@@ -565,3 +636,9 @@ const struct drm_crtc_helper_funcs oaktrail_helper_funcs = {
 	.commit = gma_crtc_commit,
 };
 
+/* Not used yet */
+const struct gma_clock_funcs mrst_clock_funcs = {
+	.clock = mrst_lvds_clock,
+	.limit = mrst_limit,
+	.pll_is_valid = gma_pll_is_valid,
+};
