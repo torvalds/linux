@@ -47,8 +47,48 @@ static inline unsigned long find_zero(unsigned long mask)
 	return fls64(mask) >> 3;
 }
 
+#define zero_bytemask(mask) (mask)
+
 #else	/* __AARCH64EB__ */
 #include <asm-generic/word-at-a-time.h>
 #endif
+
+/*
+ * Load an unaligned word from kernel space.
+ *
+ * In the (very unlikely) case of the word being a page-crosser
+ * and the next page not being mapped, take the exception and
+ * return zeroes in the non-existing part.
+ */
+static inline unsigned long load_unaligned_zeropad(const void *addr)
+{
+	unsigned long ret, offset;
+
+	/* Load word from unaligned pointer addr */
+	asm(
+	"1:	ldr	%0, %3\n"
+	"2:\n"
+	"	.pushsection .fixup,\"ax\"\n"
+	"	.align 2\n"
+	"3:	and	%1, %2, #0x7\n"
+	"	bic	%2, %2, #0x7\n"
+	"	ldr	%0, [%2]\n"
+	"	lsl	%1, %1, #0x3\n"
+#ifndef __AARCH64EB__
+	"	lsr	%0, %0, %1\n"
+#else
+	"	lsl	%0, %0, %1\n"
+#endif
+	"	b	2b\n"
+	"	.popsection\n"
+	"	.pushsection __ex_table,\"a\"\n"
+	"	.align	3\n"
+	"	.quad	1b, 3b\n"
+	"	.popsection"
+	: "=&r" (ret), "=&r" (offset)
+	: "r" (addr), "Q" (*(unsigned long *)addr));
+
+	return ret;
+}
 
 #endif /* __ASM_WORD_AT_A_TIME_H */
