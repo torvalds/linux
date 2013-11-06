@@ -1238,7 +1238,7 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 					      HRTIMER_MODE_REL);
 		} else if (!info->enable_beacon) {
 			unsigned int count = 0;
-			ieee80211_iterate_active_interfaces(
+			ieee80211_iterate_active_interfaces_atomic(
 				data->hw, IEEE80211_IFACE_ITER_NORMAL,
 				mac80211_hwsim_bcn_en_iter, &count);
 			wiphy_debug(hw->wiphy, "  beaconing vifs remaining: %u",
