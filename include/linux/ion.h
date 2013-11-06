@@ -19,7 +19,8 @@
 
 #include <linux/types.h>
 
-struct ion_handle;
+typedef int ion_user_handle_t;
+
 /**
  * enum ion_heap_types - list of all possible types of heaps
  * @ION_HEAP_TYPE_SYSTEM:	 memory allocated via vmalloc
@@ -27,6 +28,7 @@ struct ion_handle;
  * @ION_HEAP_TYPE_CARVEOUT:	 memory allocated from a prereserved
  * 				 carveout heap, allocations are physically
  * 				 contiguous
+ * @ION_HEAP_TYPE_DMA:		 memory allocated via DMA API
  * @ION_NUM_HEAPS:		 helper for iterating over heaps, a bit mask
  * 				 is used to identify the heaps, so only 32
  * 				 total heap types are supported
@@ -36,6 +38,7 @@ enum ion_heap_type {
 	ION_HEAP_TYPE_SYSTEM_CONTIG,
 	ION_HEAP_TYPE_CARVEOUT,
 	ION_HEAP_TYPE_CHUNK,
+	ION_HEAP_TYPE_DMA,
 	ION_HEAP_TYPE_CUSTOM, /* must be last so device specific heaps always
 				 are at the end of this enum */
 	ION_NUM_HEAPS = 16,
@@ -44,6 +47,7 @@ enum ion_heap_type {
 #define ION_HEAP_SYSTEM_MASK		(1 << ION_HEAP_TYPE_SYSTEM)
 #define ION_HEAP_SYSTEM_CONTIG_MASK	(1 << ION_HEAP_TYPE_SYSTEM_CONTIG)
 #define ION_HEAP_CARVEOUT_MASK		(1 << ION_HEAP_TYPE_CARVEOUT)
+#define ION_HEAP_TYPE_DMA_MASK		(1 << ION_HEAP_TYPE_DMA)
 
 #define ION_NUM_HEAP_IDS		sizeof(unsigned int) * 8
 
@@ -60,6 +64,7 @@ enum ion_heap_type {
 					   caches must be managed manually */
 
 #ifdef __KERNEL__
+struct ion_handle;
 struct ion_device;
 struct ion_heap;
 struct ion_mapper;
@@ -105,7 +110,7 @@ struct ion_platform_heap {
  */
 struct ion_platform_data {
 	int nr;
-	struct ion_platform_heap heaps[];
+	struct ion_platform_heap *heaps;
 };
 
 /**
@@ -265,7 +270,7 @@ struct ion_allocation_data {
 	size_t align;
 	unsigned int heap_id_mask;
 	unsigned int flags;
-	struct ion_handle *handle;
+	ion_user_handle_t handle;
 };
 
 /**
@@ -279,7 +284,7 @@ struct ion_allocation_data {
  * provides the file descriptor and the kernel returns the handle.
  */
 struct ion_fd_data {
-	struct ion_handle *handle;
+	ion_user_handle_t handle;
 	int fd;
 };
 
@@ -288,7 +293,7 @@ struct ion_fd_data {
  * @handle:	a handle
  */
 struct ion_handle_data {
-	struct ion_handle *handle;
+	ion_user_handle_t handle;
 };
 
 /**
