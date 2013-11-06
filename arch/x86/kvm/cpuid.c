@@ -564,6 +564,7 @@ static bool sanity_check_entries(struct kvm_cpuid_entry2 __user *entries,
 				 __u32 num_entries, unsigned int ioctl_type)
 {
 	int i;
+	__u32 pad[3];
 
 	if (ioctl_type != KVM_GET_EMULATED_CPUID)
 		return false;
@@ -577,9 +578,10 @@ static bool sanity_check_entries(struct kvm_cpuid_entry2 __user *entries,
 	 * sheds a tear.
 	 */
 	for (i = 0; i < num_entries; i++) {
-		if (entries[i].padding[0] ||
-		    entries[i].padding[1] ||
-		    entries[i].padding[2])
+		if (copy_from_user(pad, entries[i].padding, sizeof(pad)))
+			return true;
+
+		if (pad[0] || pad[1] || pad[2])
 			return true;
 	}
 	return false;
