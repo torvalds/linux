@@ -1657,7 +1657,8 @@ deliver:
 			}
 			if (ret == -1)
 				l_ptr->next_in_no--;
-			break;
+			tipc_node_unlock(n_ptr);
+			continue;
 		case CHANGEOVER_PROTOCOL:
 			type = msg_type(msg);
 			if (link_recv_changeover_msg(&l_ptr, &buf)) {

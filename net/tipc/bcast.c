@@ -487,11 +487,13 @@ receive:
 			spin_lock_bh(&bc_lock);
 			bclink_accept_pkt(node, seqno);
 			bcl->stats.recv_fragments++;
-			if (ret > 0)
+			if (ret > 0) {
 				bcl->stats.recv_fragmented++;
+				spin_unlock_bh(&bc_lock);
+				goto receive;
+			}
 			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
-			tipc_net_route_msg(buf);
 		} else if (msg_user(msg) == NAME_DISTRIBUTOR) {
 			spin_lock_bh(&bc_lock);
 			bclink_accept_pkt(node, seqno);
