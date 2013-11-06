@@ -701,6 +701,14 @@ struct ib_uverbs_detach_mcast {
 };
 
 #ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
+struct ib_uverbs_flow_spec_hdr {
+	__u32 type;
+	__u16 size;
+	__u16 reserved;
+	/* followed by flow_spec */
+	__u64 flow_spec_data[0];
+};
+
 struct ib_uverbs_flow_eth_filter {
 	__u8  dst_mac[6];
 	__u8  src_mac[6];
@@ -709,9 +717,14 @@ struct ib_uverbs_flow_eth_filter {
 };
 
 struct ib_uverbs_flow_spec_eth {
-	__u32  type;
-	__u16  size;
-	__u16  reserved;
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
 	struct ib_uverbs_flow_eth_filter val;
 	struct ib_uverbs_flow_eth_filter mask;
 };
@@ -722,9 +735,14 @@ struct ib_uverbs_flow_ipv4_filter {
 };
 
 struct ib_uverbs_flow_spec_ipv4 {
-	__u32  type;
-	__u16  size;
-	__u16  reserved;
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
 	struct ib_uverbs_flow_ipv4_filter val;
 	struct ib_uverbs_flow_ipv4_filter mask;
 };
@@ -735,19 +753,27 @@ struct ib_uverbs_flow_tcp_udp_filter {
 };
 
 struct ib_uverbs_flow_spec_tcp_udp {
-	__u32  type;
-	__u16  size;
-	__u16  reserved;
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
 	struct ib_uverbs_flow_tcp_udp_filter val;
 	struct ib_uverbs_flow_tcp_udp_filter mask;
 };
 
 struct ib_uverbs_flow_spec {
 	union {
-		struct {
-			__u32 type;
-			__u16 size;
-			__u16 reserved;
+		union {
+			struct ib_uverbs_flow_spec_hdr hdr;
+			struct {
+				__u32 type;
+				__u16 size;
+				__u16 reserved;
+			};
 		};
 		struct ib_uverbs_flow_spec_eth	    eth;
 		struct ib_uverbs_flow_spec_ipv4    ipv4;
@@ -767,6 +793,7 @@ struct ib_uverbs_flow_attr {
 	 * struct ib_flow_spec_xxx
 	 * struct ib_flow_spec_yyy
 	 */
+	struct ib_uverbs_flow_spec_hdr flow_specs[0];
 };
 
 struct ib_uverbs_create_flow  {
