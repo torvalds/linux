@@ -279,7 +279,8 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
+		break;
 	}
 
 	return 0;
