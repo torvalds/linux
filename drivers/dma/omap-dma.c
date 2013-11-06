@@ -195,7 +195,6 @@ static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 
 	val = c->plat->dma_read(CCR, c->dma_ch);
 	val |= CCR_ENABLE;
-	mb();
 	c->plat->dma_write(val, CCR, c->dma_ch);
 }
 
@@ -300,6 +299,13 @@ static void omap_dma_start_desc(struct omap_chan *c)
 
 	c->desc = d = to_omap_dma_desc(&vd->tx);
 	c->sgidx = 0;
+
+	/*
+	 * This provides the necessary barrier to ensure data held in
+	 * DMA coherent memory is visible to the DMA engine prior to
+	 * the transfer starting.
+	 */
+	mb();
 
 	c->plat->dma_write(d->ccr, CCR, c->dma_ch);
 	if (dma_omap1())
