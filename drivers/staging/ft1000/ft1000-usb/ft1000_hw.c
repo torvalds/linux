@@ -1480,6 +1480,54 @@ static int dsp_broadcast_msg_id(struct ft1000_usb *dev)
 	return 0;
 }
 
+static int handle_misc_portid(struct ft1000_usb *dev)
+{
+	struct dpram_blk *pdpram_blk;
+	int i;
+
+	pdpram_blk = ft1000_get_buffer(&freercvpool);
+	if (pdpram_blk != NULL) {
+		if (ft1000_receive_cmd(dev, pdpram_blk->pbuffer,
+					MAX_CMD_SQSIZE)) {
+			/* Search for correct application block */
+			for (i = 0; i < MAX_NUM_APP; i++) {
+				if (dev->app_info[i].app_id
+						== ((struct pseudo_hdr *)
+						pdpram_blk->pbuffer)
+						->portdest)
+					break;
+				return -1;
+			}
+			if (i == MAX_NUM_APP) {
+				DEBUG("FT1000:ft1000_parse_dpram_msg: No application matching id = %d\n", ((struct pseudo_hdr *)pdpram_blk->pbuffer)->portdest);
+				ft1000_free_buffer(pdpram_blk, &freercvpool);
+			} else {
+				if (dev->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
+					ft1000_free_buffer(pdpram_blk,
+							&freercvpool);
+					return -1;
+				} else {
+					dev->app_info[i].nRxMsg++;
+					/* Put message into the appropriate
+					 * application block
+					 * */
+					list_add_tail(&pdpram_blk->list,
+							&dev->app_info[i]
+							.app_sqlist);
+					dev->app_info[i].NumOfMsg++;
+				}
+			}
+		} else {
+			ft1000_free_buffer(pdpram_blk, &freercvpool);
+			return -1;
+		}
+	} else {
+		DEBUG("Out of memory in free receive command pool\n");
+		return -1;
+	}
+	return 0;
+}
+
 int ft1000_poll(void* dev_id)
 {
     struct ft1000_usb *dev = (struct ft1000_usb *)dev_id;
@@ -1492,8 +1540,7 @@ int ft1000_poll(void* dev_id)
     u16 data;
     u16 modulo;
     u16 portid;
-	struct dpram_blk *pdpram_blk;
-	struct pseudo_hdr *ppseudo_hdr;
+
     if (ft1000_chkcard(dev) == FALSE) {
         DEBUG("ft1000_poll::ft1000_chkcard: failed\n");
         return -1;
@@ -1529,45 +1576,8 @@ int ft1000_poll(void* dev_id)
 			status = dsp_broadcast_msg_id(dev);
                        break;
                     default:
-                        pdpram_blk = ft1000_get_buffer (&freercvpool);
-
-                        if (pdpram_blk != NULL) {
-                           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE) ) {
-				ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
-                               // Search for correct application block
-                               for (i=0; i<MAX_NUM_APP; i++) {
-                                   if (dev->app_info[i].app_id == ppseudo_hdr->portdest) {
-                                       break;
-                                   }
-                               }
-
-                               if (i == MAX_NUM_APP) {
-                                   DEBUG("FT1000:ft1000_parse_dpram_msg: No application matching id = %d\n", ppseudo_hdr->portdest);
-                                   // Put memory back to free pool
-                                   ft1000_free_buffer(pdpram_blk, &freercvpool);
-                               }
-                               else {
-                                   if (dev->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
-	                               // Put memory back to free pool
-	                               ft1000_free_buffer(pdpram_blk, &freercvpool);
-                                   }
-                                   else {
-                                       dev->app_info[i].nRxMsg++;
-                                       // Put message into the appropriate application block
-                                       list_add_tail(&pdpram_blk->list, &dev->app_info[i].app_sqlist);
-            			       dev->app_info[i].NumOfMsg++;
-                                   }
-                               }
-                           }
-                           else {
-                               // Put memory back to free pool
-                               ft1000_free_buffer(pdpram_blk, &freercvpool);
-                           }
-                        }
-                        else {
-                            DEBUG("Out of memory in free receive command pool\n");
-                        }
-                        break;
+		       status = handle_misc_portid(dev);
+                       break;
                 }
             }
             else {
