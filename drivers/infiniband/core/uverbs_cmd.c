@@ -2602,7 +2602,7 @@ out_put:
 }
 
 #ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-static int kern_spec_to_ib_spec(struct ib_kern_spec *kern_spec,
+static int kern_spec_to_ib_spec(struct ib_uverbs_spec *kern_spec,
 				union ib_flow_spec *ib_spec)
 {
 	ib_spec->type = kern_spec->type;
@@ -2650,7 +2650,7 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	struct ib_uverbs_create_flow_resp resp;
 	struct ib_uobject		  *uobj;
 	struct ib_flow			  *flow_id;
-	struct ib_kern_flow_attr	  *kern_flow_attr;
+	struct ib_uverbs_flow_attr	  *kern_flow_attr;
 	struct ib_flow_attr		  *flow_attr;
 	struct ib_qp			  *qp;
 	int err = 0;
@@ -2676,7 +2676,7 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 
 	if (cmd.flow_attr.size > (in_len - sizeof(cmd)) ||
 	    cmd.flow_attr.size >
-	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_kern_spec)))
+	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_uverbs_spec)))
 		return -EINVAL;
 
 	if (cmd.flow_attr.num_of_specs) {
@@ -2725,16 +2725,16 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	kern_spec = kern_flow_attr + 1;
 	ib_spec = flow_attr + 1;
 	for (i = 0; i < flow_attr->num_of_specs &&
-	     cmd.flow_attr.size > offsetof(struct ib_kern_spec, reserved) &&
+	     cmd.flow_attr.size > offsetof(struct ib_uverbs_spec, reserved) &&
 	     cmd.flow_attr.size >=
-	     ((struct ib_kern_spec *)kern_spec)->size; i++) {
+	     ((struct ib_uverbs_spec *)kern_spec)->size; i++) {
 		err = kern_spec_to_ib_spec(kern_spec, ib_spec);
 		if (err)
 			goto err_free;
 		flow_attr->size +=
 			((union ib_flow_spec *) ib_spec)->size;
-		cmd.flow_attr.size -= ((struct ib_kern_spec *)kern_spec)->size;
-		kern_spec += ((struct ib_kern_spec *) kern_spec)->size;
+		cmd.flow_attr.size -= ((struct ib_uverbs_spec *)kern_spec)->size;
+		kern_spec += ((struct ib_uverbs_spec *) kern_spec)->size;
 		ib_spec += ((union ib_flow_spec *) ib_spec)->size;
 	}
 	if (cmd.flow_attr.size || (i != flow_attr->num_of_specs)) {

@@ -701,61 +701,61 @@ struct ib_uverbs_detach_mcast {
 };
 
 #ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-struct ib_kern_eth_filter {
+struct ib_uverbs_eth_filter {
 	__u8  dst_mac[6];
 	__u8  src_mac[6];
 	__be16 ether_type;
 	__be16 vlan_tag;
 };
 
-struct ib_kern_spec_eth {
+struct ib_uverbs_spec_eth {
 	__u32  type;
 	__u16  size;
 	__u16  reserved;
-	struct ib_kern_eth_filter val;
-	struct ib_kern_eth_filter mask;
+	struct ib_uverbs_eth_filter val;
+	struct ib_uverbs_eth_filter mask;
 };
 
-struct ib_kern_ipv4_filter {
+struct ib_uverbs_ipv4_filter {
 	__be32 src_ip;
 	__be32 dst_ip;
 };
 
-struct ib_kern_spec_ipv4 {
+struct ib_uverbs_spec_ipv4 {
 	__u32  type;
 	__u16  size;
 	__u16  reserved;
-	struct ib_kern_ipv4_filter val;
-	struct ib_kern_ipv4_filter mask;
+	struct ib_uverbs_ipv4_filter val;
+	struct ib_uverbs_ipv4_filter mask;
 };
 
-struct ib_kern_tcp_udp_filter {
+struct ib_uverbs_tcp_udp_filter {
 	__be16 dst_port;
 	__be16 src_port;
 };
 
-struct ib_kern_spec_tcp_udp {
+struct ib_uverbs_spec_tcp_udp {
 	__u32  type;
 	__u16  size;
 	__u16  reserved;
-	struct ib_kern_tcp_udp_filter val;
-	struct ib_kern_tcp_udp_filter mask;
+	struct ib_uverbs_tcp_udp_filter val;
+	struct ib_uverbs_tcp_udp_filter mask;
 };
 
-struct ib_kern_spec {
+struct ib_uverbs_spec {
 	union {
 		struct {
 			__u32 type;
 			__u16 size;
 			__u16 reserved;
 		};
-		struct ib_kern_spec_eth	    eth;
-		struct ib_kern_spec_ipv4    ipv4;
-		struct ib_kern_spec_tcp_udp tcp_udp;
+		struct ib_uverbs_spec_eth	    eth;
+		struct ib_uverbs_spec_ipv4    ipv4;
+		struct ib_uverbs_spec_tcp_udp tcp_udp;
 	};
 };
 
-struct ib_kern_flow_attr {
+struct ib_uverbs_flow_attr {
 	__u32 type;
 	__u16 size;
 	__u16 priority;
@@ -774,7 +774,7 @@ struct ib_uverbs_create_flow  {
 	__u32 reserved;
 	__u64 response;
 	__u32 qp_handle;
-	struct ib_kern_flow_attr flow_attr;
+	struct ib_uverbs_flow_attr flow_attr;
 };
 
 struct ib_uverbs_create_flow_resp {
