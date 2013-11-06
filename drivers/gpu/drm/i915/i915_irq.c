@@ -583,7 +583,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	 * Cook up a vblank counter by also checking the pixel
 	 * counter against vblank start.
 	 */
-	return ((high1 << 8) | low) + (pixel >= vbl_start);
+	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
 static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
