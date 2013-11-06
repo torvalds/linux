@@ -748,10 +748,10 @@ enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 	return intel_crtc->config.cpu_transcoder;
 }
 
-static void ironlake_wait_for_vblank(struct drm_device *dev, int pipe)
+static void g4x_wait_for_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 frame, frame_reg = PIPEFRAME(pipe);
+	u32 frame, frame_reg = PIPE_FRMCOUNT_GM45(pipe);
 
 	frame = I915_READ(frame_reg);
 
@@ -772,8 +772,8 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipestat_reg = PIPESTAT(pipe);
 
-	if (INTEL_INFO(dev)->gen >= 5) {
-		ironlake_wait_for_vblank(dev, pipe);
+	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+		g4x_wait_for_vblank(dev, pipe);
 		return;
 	}
 
