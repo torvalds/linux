@@ -319,13 +319,6 @@ int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			MSM_BO_SCANOUT | MSM_BO_WC, &args->handle);
 }
 
-int msm_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle)
-{
-	/* No special work needed, drop the reference and see what falls out */
-	return drm_gem_handle_delete(file, handle);
-}
-
 int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 		uint32_t handle, uint64_t *offset)
 {

@@ -469,8 +469,7 @@ size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
  * @count: Length of the @desc array
  * @mask: Bitmask of which elements of @desc are enabled
  * @stats: Buffer to update with the converted statistics.  The length
- *	of this array must be at least the number of set bits in the
- *	first @count bits of @mask.
+ *	of this array must be at least @count.
  * @dma_buf: DMA buffer containing hardware statistics
  * @accumulate: If set, the converted values will be added rather than
  *	directly stored to the corresponding elements of @stats
@@ -503,11 +502,9 @@ void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			}
 
 			if (accumulate)
-				*stats += val;
+				stats[index] += val;
 			else
-				*stats = val;
+				stats[index] = val;
 		}
-
-		++stats;
 	}
 }

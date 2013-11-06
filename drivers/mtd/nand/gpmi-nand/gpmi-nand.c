@@ -349,7 +349,7 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 
 int common_nfc_set_geometry(struct gpmi_nand_data *this)
 {
-	return set_geometry_by_ecc_info(this) ? 0 : legacy_set_geometry(this);
+	return legacy_set_geometry(this);
 }
 
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)

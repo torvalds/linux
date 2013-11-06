@@ -542,7 +542,7 @@ EXPORT_SYMBOL(d_drop);
  * If ref is non-zero, then decrement the refcount too.
  * Returns dentry requiring refcount drop, or NULL if we're done.
  */
-static inline struct dentry *
+static struct dentry *
 dentry_kill(struct dentry *dentry, int unlock_on_failure)
 	__releases(dentry->d_lock)
 {
@@ -630,7 +630,8 @@ repeat:
 			goto kill_it;
 	}
 
-	dentry->d_flags |= DCACHE_REFERENCED;
+	if (!(dentry->d_flags & DCACHE_REFERENCED))
+		dentry->d_flags |= DCACHE_REFERENCED;
 	dentry_lru_add(dentry);
 
 	dentry->d_lockref.count--;
@@ -1331,14 +1332,6 @@ rename_retry:
  * list is non-empty and continue searching.
  */
 
-/**
- * have_submounts - check for mounts over a dentry
- * @parent: dentry to check.
- *
- * Return true if the parent or its subdirectories contain
- * a mount point
- */
-
 static enum d_walk_ret check_mount(void *data, struct dentry *dentry)
 {
 	int *ret = data;
@@ -1349,6 +1342,13 @@ static enum d_walk_ret check_mount(void *data, struct dentry *dentry)
 	return D_WALK_CONTINUE;
 }
 
+/**
+ * have_submounts - check for mounts over a dentry
+ * @parent: dentry to check.
+ *
+ * Return true if the parent or its subdirectories contain
+ * a mount point
+ */
 int have_submounts(struct dentry *parent)
 {
 	int ret = 0;

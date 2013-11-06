@@ -28,6 +28,7 @@ ALC269/270/275/276/28x/29x
   alc269-dmic		Enable ALC269(VA) digital mic workaround
   alc271-dmic		Enable ALC271X digital mic workaround
   inv-dmic		Inverted internal mic workaround
+  headset-mic		Indicates a combined headset (headphone+mic) jack
   lenovo-dock   	Enables docking station I/O for some Lenovos
   dell-headset-multi	Headset jack, which can also be used as mic-in
   dell-headset-dock	Headset jack (without mic-in), and also dock I/O
@@ -294,6 +295,12 @@ Cirrus Logic CS4206/4207
 ========================
   mbp55		MacBook Pro 5,5
   imac27	IMac 27 Inch
+  auto		BIOS setup (default)
+
+Cirrus Logic CS4208
+===================
+  mba6		MacBook Air 6,1 and 6,2
+  gpio0		Enable GPIO 0 amp
   auto		BIOS setup (default)
 
 VIA VT17xx/VT18xx/VT20xx

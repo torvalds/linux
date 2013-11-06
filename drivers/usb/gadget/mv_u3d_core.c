@@ -645,6 +645,7 @@ static int  mv_u3d_ep_disable(struct usb_ep *_ep)
 	struct mv_u3d_ep *ep;
 	struct mv_u3d_ep_context *ep_context;
 	u32 epxcr, direction;
+	unsigned long flags;
 
 	if (!_ep)
 		return -EINVAL;
@@ -661,7 +662,9 @@ static int  mv_u3d_ep_disable(struct usb_ep *_ep)
 	direction = mv_u3d_ep_dir(ep);
 
 	/* nuke all pending requests (does flush) */
+	spin_lock_irqsave(&u3d->lock, flags);
 	mv_u3d_nuke(ep, -ESHUTDOWN);
+	spin_unlock_irqrestore(&u3d->lock, flags);
 
 	/* Disable the endpoint for Rx or Tx and reset the endpoint type */
 	if (direction == MV_U3D_EP_DIR_OUT) {

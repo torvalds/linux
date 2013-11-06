@@ -556,7 +556,7 @@ static const struct iio_info at91_adc_info = {
 
 static int at91_adc_probe(struct platform_device *pdev)
 {
-	unsigned int prsc, mstrclk, ticks, adc_clk, shtim;
+	unsigned int prsc, mstrclk, ticks, adc_clk, adc_clk_khz, shtim;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
@@ -649,6 +649,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	mstrclk = clk_get_rate(st->clk);
 	adc_clk = clk_get_rate(st->adc_clk);
+	adc_clk_khz = adc_clk / 1000;
 	prsc = (mstrclk / (2 * adc_clk)) - 1;
 
 	if (!st->startup_time) {
@@ -662,15 +663,15 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 * defined in the electrical characteristics of the board, divided by 8.
 	 * The formula thus is : Startup Time = (ticks + 1) * 8 / ADC Clock
 	 */
-	ticks = round_up((st->startup_time * adc_clk /
-			  1000000) - 1, 8) / 8;
+	ticks = round_up((st->startup_time * adc_clk_khz /
+			  1000) - 1, 8) / 8;
 	/*
 	 * a minimal Sample and Hold Time is necessary for the ADC to guarantee
 	 * the best converted final value between two channels selection
 	 * The formula thus is : Sample and Hold Time = (shtim + 1) / ADCClock
 	 */
-	shtim = round_up((st->sample_hold_time * adc_clk /
-			  1000000) - 1, 1);
+	shtim = round_up((st->sample_hold_time * adc_clk_khz /
+			  1000) - 1, 1);
 
 	reg = AT91_ADC_PRESCAL_(prsc) & st->registers->mr_prescal_mask;
 	reg |= AT91_ADC_STARTUP_(ticks) & st->registers->mr_startup_mask;

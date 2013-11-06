@@ -623,6 +623,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 			tunnel->err_count = 0;
 	}
 
+	tos = ip_tunnel_ecn_encap(tos, inner_iph, skb);
 	ttl = tnl_params->ttl;
 	if (ttl == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
@@ -641,18 +642,17 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	max_headroom = LL_RESERVED_SPACE(rt->dst.dev) + sizeof(struct iphdr)
 			+ rt->dst.header_len;
-	if (max_headroom > dev->needed_headroom) {
+	if (max_headroom > dev->needed_headroom)
 		dev->needed_headroom = max_headroom;
-		if (skb_cow_head(skb, dev->needed_headroom)) {
-			dev->stats.tx_dropped++;
-			dev_kfree_skb(skb);
-			return;
-		}
+
+	if (skb_cow_head(skb, dev->needed_headroom)) {
+		dev->stats.tx_dropped++;
+		dev_kfree_skb(skb);
+		return;
 	}
 
 	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, protocol,
-			    ip_tunnel_ecn_encap(tos, inner_iph, skb), ttl, df,
-			    !net_eq(tunnel->net, dev_net(dev)));
+			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
 	return;
@@ -853,8 +853,10 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 	/* FB netdevice is special: we have one, and only one per netns.
 	 * Allowing to move it to another netns is clearly unsafe.
 	 */
-	if (!IS_ERR(itn->fb_tunnel_dev))
+	if (!IS_ERR(itn->fb_tunnel_dev)) {
 		itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
+		ip_tunnel_add(itn, netdev_priv(itn->fb_tunnel_dev));
+	}
 	rtnl_unlock();
 
 	return PTR_RET(itn->fb_tunnel_dev);
@@ -884,8 +886,6 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 			if (!net_eq(dev_net(t->dev), net))
 				unregister_netdevice_queue(t->dev, head);
 	}
-	if (itn->fb_tunnel_dev)
-		unregister_netdevice_queue(itn->fb_tunnel_dev, head);
 }
 
 void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops)

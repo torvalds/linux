@@ -96,6 +96,11 @@
 			     <1 14 0xf08>,
 			     <1 11 0xf08>,
 			     <1 10 0xf08>;
+		/* Unfortunately we need this since some versions of U-Boot
+		 * on Exynos don't set the CNTFRQ register, so we need the
+		 * value from DT.
+		 */
+		clock-frequency = <24000000>;
 	};
 
 	mct@101C0000 {

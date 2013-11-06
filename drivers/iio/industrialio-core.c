@@ -848,13 +848,10 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(device);
-	if (indio_dev->chrdev.dev)
-		cdev_del(&indio_dev->chrdev);
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
-	iio_device_unregister_debugfs(indio_dev);
 
 	ida_simple_remove(&iio_ida, indio_dev->id);
 	kfree(indio_dev);
@@ -970,6 +967,8 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
 		return -EBUSY;
 
+	iio_device_get(indio_dev);
+
 	filp->private_data = indio_dev;
 
 	return 0;
@@ -983,6 +982,8 @@ static int iio_chrdev_release(struct inode *inode, struct file *filp)
 	struct iio_dev *indio_dev = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
 	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
+	iio_device_put(indio_dev);
+
 	return 0;
 }
 
@@ -1052,18 +1053,20 @@ int iio_device_register(struct iio_dev *indio_dev)
 		indio_dev->setup_ops == NULL)
 		indio_dev->setup_ops = &noop_ring_setup_ops;
 
-	ret = device_add(&indio_dev->dev);
-	if (ret < 0)
-		goto error_unreg_eventset;
 	cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
 	indio_dev->chrdev.owner = indio_dev->info->driver_module;
+	indio_dev->chrdev.kobj.parent = &indio_dev->dev.kobj;
 	ret = cdev_add(&indio_dev->chrdev, indio_dev->dev.devt, 1);
 	if (ret < 0)
-		goto error_del_device;
-	return 0;
+		goto error_unreg_eventset;
 
-error_del_device:
-	device_del(&indio_dev->dev);
+	ret = device_add(&indio_dev->dev);
+	if (ret < 0)
+		goto error_cdev_del;
+
+	return 0;
+error_cdev_del:
+	cdev_del(&indio_dev->chrdev);
 error_unreg_eventset:
 	iio_device_unregister_eventset(indio_dev);
 error_free_sysfs:
@@ -1078,9 +1081,17 @@ EXPORT_SYMBOL(iio_device_register);
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
 	mutex_lock(&indio_dev->info_exist_lock);
+
+	device_del(&indio_dev->dev);
+
+	if (indio_dev->chrdev.dev)
+		cdev_del(&indio_dev->chrdev);
+	iio_device_unregister_debugfs(indio_dev);
+
+	iio_disable_all_buffers(indio_dev);
+
 	indio_dev->info = NULL;
 	mutex_unlock(&indio_dev->info_exist_lock);
-	device_del(&indio_dev->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
 subsys_initcall(iio_init);

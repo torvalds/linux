@@ -94,13 +94,25 @@ static unsigned int udf_count_free(struct super_block *);
 static int udf_statfs(struct dentry *, struct kstatfs *);
 static int udf_show_options(struct seq_file *, struct dentry *);
 
-struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi)
+struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct super_block *sb)
 {
-	struct logicalVolIntegrityDesc *lvid =
-		(struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;
-	__u32 number_of_partitions = le32_to_cpu(lvid->numOfPartitions);
-	__u32 offset = number_of_partitions * 2 *
-				sizeof(uint32_t)/sizeof(uint8_t);
+	struct logicalVolIntegrityDesc *lvid;
+	unsigned int partnum;
+	unsigned int offset;
+
+	if (!UDF_SB(sb)->s_lvid_bh)
+		return NULL;
+	lvid = (struct logicalVolIntegrityDesc *)UDF_SB(sb)->s_lvid_bh->b_data;
+	partnum = le32_to_cpu(lvid->numOfPartitions);
+	if ((sb->s_blocksize - sizeof(struct logicalVolIntegrityDescImpUse) -
+	     offsetof(struct logicalVolIntegrityDesc, impUse)) /
+	     (2 * sizeof(uint32_t)) < partnum) {
+		udf_err(sb, "Logical volume integrity descriptor corrupted "
+			"(numOfPartitions = %u)!\n", partnum);
+		return NULL;
+	}
+	/* The offset is to skip freeSpaceTable and sizeTable arrays */
+	offset = partnum * 2 * sizeof(uint32_t);
 	return (struct logicalVolIntegrityDescImpUse *)&(lvid->impUse[offset]);
 }
 
@@ -629,9 +641,10 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	struct udf_options uopt;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	int error = 0;
+	struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sb);
 
-	if (sbi->s_lvid_bh) {
-		int write_rev = le16_to_cpu(udf_sb_lvidiu(sbi)->minUDFWriteRev);
+	if (lvidiu) {
+		int write_rev = le16_to_cpu(lvidiu->minUDFWriteRev);
 		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & MS_RDONLY))
 			return -EACCES;
 	}
@@ -1905,11 +1918,12 @@ static void udf_open_lvid(struct super_block *sb)
 
 	if (!bh)
 		return;
+	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+	lvidiu = udf_sb_lvidiu(sb);
+	if (!lvidiu)
+		return;
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
-	lvidiu = udf_sb_lvidiu(sbi);
-
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime,
@@ -1937,10 +1951,12 @@ static void udf_close_lvid(struct super_block *sb)
 
 	if (!bh)
 		return;
+	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+	lvidiu = udf_sb_lvidiu(sb);
+	if (!lvidiu)
+		return;
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
-	lvidiu = udf_sb_lvidiu(sbi);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, CURRENT_TIME);
@@ -2093,15 +2109,19 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	if (sbi->s_lvid_bh) {
 		struct logicalVolIntegrityDescImpUse *lvidiu =
-							udf_sb_lvidiu(sbi);
-		uint16_t minUDFReadRev = le16_to_cpu(lvidiu->minUDFReadRev);
-		uint16_t minUDFWriteRev = le16_to_cpu(lvidiu->minUDFWriteRev);
-		/* uint16_t maxUDFWriteRev =
-				le16_to_cpu(lvidiu->maxUDFWriteRev); */
+							udf_sb_lvidiu(sb);
+		uint16_t minUDFReadRev;
+		uint16_t minUDFWriteRev;
 
+		if (!lvidiu) {
+			ret = -EINVAL;
+			goto error_out;
+		}
+		minUDFReadRev = le16_to_cpu(lvidiu->minUDFReadRev);
+		minUDFWriteRev = le16_to_cpu(lvidiu->minUDFWriteRev);
 		if (minUDFReadRev > UDF_MAX_READ_VERSION) {
 			udf_err(sb, "minUDFReadRev=%x (max is %x)\n",
-				le16_to_cpu(lvidiu->minUDFReadRev),
+				minUDFReadRev,
 				UDF_MAX_READ_VERSION);
 			ret = -EINVAL;
 			goto error_out;
@@ -2265,11 +2285,7 @@ static int udf_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct logicalVolIntegrityDescImpUse *lvidiu;
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
-	if (sbi->s_lvid_bh != NULL)
-		lvidiu = udf_sb_lvidiu(sbi);
-	else
-		lvidiu = NULL;
-
+	lvidiu = udf_sb_lvidiu(sb);
 	buf->f_type = UDF_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = sbi->s_partmaps[sbi->s_partition].s_partition_len;

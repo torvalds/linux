@@ -968,7 +968,7 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(acpi_bus_get_device);
+EXPORT_SYMBOL(acpi_bus_get_device);
 
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *))
@@ -999,7 +999,6 @@ int acpi_device_add(struct acpi_device *device,
 	INIT_LIST_HEAD(&device->wakeup_list);
 	INIT_LIST_HEAD(&device->physical_node_list);
 	mutex_init(&device->physical_node_lock);
-	INIT_LIST_HEAD(&device->power_dependent);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
 	if (!new_bus_id) {
@@ -1121,7 +1120,7 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
 EXPORT_SYMBOL(acpi_bus_register_driver);
 
 /**
- * acpi_bus_unregister_driver - unregisters a driver with the APIC bus
+ * acpi_bus_unregister_driver - unregisters a driver with the ACPI bus
  * @driver: driver to unregister
  *
  * Unregisters a driver with the ACPI bus.  Searches the namespace for all

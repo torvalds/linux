@@ -552,9 +552,8 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 	struct acpiphp_func *func;
 	int max, pass;
 	LIST_HEAD(add_list);
-	int nr_found;
 
-	nr_found = acpiphp_rescan_slot(slot);
+	acpiphp_rescan_slot(slot);
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
 		list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -574,9 +573,6 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 		}
 	}
 	__pci_bus_assign_resources(bus, &add_list, NULL);
-	/* Nothing more to do here if there are no new devices on this bus. */
-	if (!nr_found && (slot->flags & SLOT_ENABLED))
-		return;
 
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(bus);
@@ -994,14 +990,16 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 
 		/*
 		 * This bridge should have been registered as a hotplug function
-		 * under its parent, so the context has to be there.  If not, we
-		 * are in deep goo.
+		 * under its parent, so the context should be there, unless the
+		 * parent is going to be handled by pciehp, in which case this
+		 * bridge is not interesting to us either.
 		 */
 		mutex_lock(&acpiphp_context_lock);
 		context = acpiphp_get_context(handle);
-		if (WARN_ON(!context)) {
+		if (!context) {
 			mutex_unlock(&acpiphp_context_lock);
 			put_device(&bus->dev);
+			pci_dev_put(bridge->pci_dev);
 			kfree(bridge);
 			return;
 		}

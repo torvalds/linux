@@ -40,6 +40,8 @@ enum regulator_status {
 };
 
 /**
+ * struct regulator_linear_range - specify linear voltage ranges
+ *
  * Specify a range of voltages for regulator_map_linar_range() and
  * regulator_list_linear_range().
  *

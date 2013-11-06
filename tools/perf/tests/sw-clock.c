@@ -78,7 +78,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE)
-			continue;
+			goto next_event;
 
 		err = perf_evlist__parse_sample(evlist, event, &sample);
 		if (err < 0) {
@@ -88,6 +88,8 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 
 		total_periods += sample.period;
 		nr_samples++;
+next_event:
+		perf_evlist__mmap_consume(evlist, 0);
 	}
 
 	if ((u64) nr_samples == total_periods) {

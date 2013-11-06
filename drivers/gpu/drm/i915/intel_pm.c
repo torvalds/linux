@@ -3864,8 +3864,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 				      dev_priv->rps.rpe_delay),
 			 dev_priv->rps.rpe_delay);
 
-	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
-
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
 	gen6_enable_rps_interrupts(dev);
@@ -4761,7 +4759,9 @@ static void cpt_init_clock_gating(struct drm_device *dev)
 	 * gating for the panel power sequencer or it will fail to
 	 * start up when no ports are active.
 	 */
-	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE |
+		   PCH_DPLUNIT_CLOCK_GATE_DISABLE |
+		   PCH_CPUNIT_CLOCK_GATE_DISABLE);
 	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
 		   DPLS_EDP_PPS_FIX_DIS);
 	/* The below fixes the weird display corruption, a few pixels shifted
@@ -4954,6 +4954,11 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 			GEN7_WA_FOR_GEN7_L3_CONTROL);
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER,
 			GEN7_WA_L3_CHICKEN_MODE);
+
+	/* L3 caching of data atomics doesn't work -- disable it. */
+	I915_WRITE(HSW_SCRATCH1, HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE);
+	I915_WRITE(HSW_ROW_CHICKEN3,
+		   _MASKED_BIT_ENABLE(HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE));
 
 	/* This is required by WaCatErrorRejectionIssue:hsw */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
@@ -5681,5 +5686,7 @@ void intel_pm_init(struct drm_device *dev)
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
+
+	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
 }
 
