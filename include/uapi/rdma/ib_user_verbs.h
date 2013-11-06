@@ -771,6 +771,7 @@ struct ib_kern_flow_attr {
 
 struct ib_uverbs_create_flow  {
 	__u32 comp_mask;
+	__u32 reserved;
 	__u64 response;
 	__u32 qp_handle;
 	struct ib_kern_flow_attr flow_attr;

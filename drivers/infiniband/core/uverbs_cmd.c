@@ -2657,7 +2657,6 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	void *kern_spec;
 	void *ib_spec;
 	int i;
-	int kern_attr_size;
 
 	if (out_len < sizeof(resp))
 		return -ENOSPC;
@@ -2672,32 +2671,28 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	     !capable(CAP_NET_ADMIN)) || !capable(CAP_NET_RAW))
 		return -EPERM;
 
-	if (cmd.flow_attr.num_of_specs < 0 ||
-	    cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
+	if (cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
 		return -EINVAL;
 
-	kern_attr_size = cmd.flow_attr.size - sizeof(cmd) -
-			 sizeof(struct ib_uverbs_cmd_hdr_ex);
-
-	if (cmd.flow_attr.size < 0 || cmd.flow_attr.size > in_len ||
-	    kern_attr_size < 0 || kern_attr_size >
+	if (cmd.flow_attr.size > (in_len - sizeof(cmd)) ||
+	    cmd.flow_attr.size >
 	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_kern_spec)))
 		return -EINVAL;
 
 	if (cmd.flow_attr.num_of_specs) {
-		kern_flow_attr = kmalloc(cmd.flow_attr.size, GFP_KERNEL);
+		kern_flow_attr = kmalloc(sizeof(*kern_flow_attr) + cmd.flow_attr.size,
+					 GFP_KERNEL);
 		if (!kern_flow_attr)
 			return -ENOMEM;
 
 		memcpy(kern_flow_attr, &cmd.flow_attr, sizeof(*kern_flow_attr));
 		if (copy_from_user(kern_flow_attr + 1, buf + sizeof(cmd),
-				   kern_attr_size)) {
+				   cmd.flow_attr.size)) {
 			err = -EFAULT;
 			goto err_free_attr;
 		}
 	} else {
 		kern_flow_attr = &cmd.flow_attr;
-		kern_attr_size = sizeof(cmd.flow_attr);
 	}
 
 	uobj = kmalloc(sizeof(*uobj), GFP_KERNEL);
@@ -2714,7 +2709,7 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 		goto err_uobj;
 	}
 
-	flow_attr = kmalloc(cmd.flow_attr.size, GFP_KERNEL);
+	flow_attr = kmalloc(sizeof(*flow_attr) + cmd.flow_attr.size, GFP_KERNEL);
 	if (!flow_attr) {
 		err = -ENOMEM;
 		goto err_put;
@@ -2729,19 +2724,22 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 
 	kern_spec = kern_flow_attr + 1;
 	ib_spec = flow_attr + 1;
-	for (i = 0; i < flow_attr->num_of_specs && kern_attr_size > 0; i++) {
+	for (i = 0; i < flow_attr->num_of_specs &&
+	     cmd.flow_attr.size > offsetof(struct ib_kern_spec, reserved) &&
+	     cmd.flow_attr.size >=
+	     ((struct ib_kern_spec *)kern_spec)->size; i++) {
 		err = kern_spec_to_ib_spec(kern_spec, ib_spec);
 		if (err)
 			goto err_free;
 		flow_attr->size +=
 			((union ib_flow_spec *) ib_spec)->size;
-		kern_attr_size -= ((struct ib_kern_spec *) kern_spec)->size;
+		cmd.flow_attr.size -= ((struct ib_kern_spec *)kern_spec)->size;
 		kern_spec += ((struct ib_kern_spec *) kern_spec)->size;
 		ib_spec += ((union ib_flow_spec *) ib_spec)->size;
 	}
-	if (kern_attr_size) {
-		pr_warn("create flow failed, %d bytes left from uverb cmd\n",
-			kern_attr_size);
+	if (cmd.flow_attr.size || (i != flow_attr->num_of_specs)) {
+		pr_warn("create flow failed, flow %d: %d bytes left from uverb cmd\n",
+			i, cmd.flow_attr.size);
 		goto err_free;
 	}
 	flow_id = ib_create_flow(qp, flow_attr, IB_FLOW_DOMAIN_USER);
