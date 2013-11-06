@@ -1944,15 +1944,16 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 			return 0;
 		}
 
-		/* Drop reservation, if we couldn't use reserved rgrp */
-		if (gfs2_rs_active(rs))
-			gfs2_rs_deltree(rs);
 check_rgrp:
 		/* Check for unlinked inodes which can be reclaimed */
 		if (rs->rs_rbm.rgd->rd_flags & GFS2_RDF_CHECK)
 			try_rgrp_unlink(rs->rs_rbm.rgd, &last_unlinked,
 					ip->i_no_addr);
 skip_rgrp:
+		/* Drop reservation, if we couldn't use reserved rgrp */
+		if (gfs2_rs_active(rs))
+			gfs2_rs_deltree(rs);
+
 		/* Unlock rgrp if required */
 		if (!rg_locked)
 			gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
