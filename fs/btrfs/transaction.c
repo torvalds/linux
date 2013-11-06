@@ -1480,7 +1480,7 @@ static void do_async_commit(struct work_struct *work)
 	 * We've got freeze protection passed with the transaction.
 	 * Tell lockdep about it.
 	 */
-	if (ac->newtrans->type < TRANS_JOIN_NOLOCK)
+	if (ac->newtrans->type & __TRANS_FREEZABLE)
 		rwsem_acquire_read(
 		     &ac->root->fs_info->sb->s_writers.lock_map[SB_FREEZE_FS-1],
 		     0, 1, _THIS_IP_);
@@ -1521,7 +1521,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 	 * Tell lockdep we've released the freeze rwsem, since the
 	 * async commit thread will be the one to unlock it.
 	 */
-	if (trans->type < TRANS_JOIN_NOLOCK)
+	if (ac->newtrans->type & __TRANS_FREEZABLE)
 		rwsem_release(
 			&root->fs_info->sb->s_writers.lock_map[SB_FREEZE_FS-1],
 			1, _THIS_IP_);
