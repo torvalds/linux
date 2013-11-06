@@ -533,7 +533,7 @@ also have
       found.  The count in 'mismatch_cnt' is the number of sectors
       that were re-written, or (for 'check') would have been
       re-written.  As most raid levels work in units of pages rather
-      than sectors, this my be larger than the number of actual errors
+      than sectors, this may be larger than the number of actual errors
       by a factor of the number of sectors in a page.
 
    bitmap_set_bits
