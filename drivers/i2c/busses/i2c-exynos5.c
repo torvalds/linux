@@ -702,10 +702,6 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c);
 
-	clk_disable_unprepare(i2c->clk);
-
-	return 0;
-
  err_clk:
 	clk_disable_unprepare(i2c->clk);
 	return ret;
@@ -716,7 +712,6 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
-	clk_disable_unprepare(i2c->clk);
 
 	return 0;
 }
