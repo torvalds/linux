@@ -940,6 +940,22 @@ static inline uint32_t REGISTER_READ_AUX(struct drm_device *dev, uint32_t reg)
 #define REG_READ(reg)	       REGISTER_READ(dev, (reg))
 #define REG_READ_AUX(reg)      REGISTER_READ_AUX(dev, (reg))
 
+/* Useful for post reads */
+static inline uint32_t REGISTER_READ_WITH_AUX(struct drm_device *dev,
+					      uint32_t reg, int aux)
+{
+	uint32_t val;
+
+	if (aux)
+		val = REG_READ_AUX(reg);
+	else
+		val = REG_READ(reg);
+
+	return val;
+}
+
+#define REG_READ_WITH_AUX(reg, aux) REGISTER_READ_WITH_AUX(dev, (reg), (aux))
+
 static inline void REGISTER_WRITE(struct drm_device *dev, uint32_t reg,
 				  uint32_t val)
 {
@@ -956,6 +972,17 @@ static inline void REGISTER_WRITE_AUX(struct drm_device *dev, uint32_t reg,
 
 #define REG_WRITE(reg, val)	REGISTER_WRITE(dev, (reg), (val))
 #define REG_WRITE_AUX(reg, val)	REGISTER_WRITE_AUX(dev, (reg), (val))
+
+static inline void REGISTER_WRITE_WITH_AUX(struct drm_device *dev, uint32_t reg,
+				      uint32_t val, int aux)
+{
+	if (aux)
+		REG_WRITE_AUX(reg, val);
+	else
+		REG_WRITE(reg, val);
+}
+
+#define REG_WRITE_WITH_AUX(reg, val, aux) REGISTER_WRITE_WITH_AUX(dev, (reg), (val), (aux))
 
 static inline void REGISTER_WRITE16(struct drm_device *dev,
 					uint32_t reg, uint32_t val)
