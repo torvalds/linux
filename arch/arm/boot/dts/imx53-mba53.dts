@@ -17,14 +17,6 @@
 	model = "TQ MBa53 starter kit";
 	compatible = "tq,mba53", "tq,tqma53", "fsl,imx53";
 
-	reg_backlight: fixed@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "lcd-supply";
-		gpio = <&gpio2 5 0>;
-		startup-delay-us = <5000>;
-		enable-active-low;
-	};
-
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm2 0 50000>;
@@ -43,12 +35,24 @@
 		status = "disabled";
 	};
 
-	reg_3p2v: 3p2v {
-		compatible = "regulator-fixed";
-		regulator-name = "3P2V";
-		regulator-min-microvolt = <3200000>;
-		regulator-max-microvolt = <3200000>;
-		regulator-always-on;
+	regulators {
+		compatible = "simple-bus";
+
+		reg_backlight: fixed@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "lcd-supply";
+			gpio = <&gpio2 5 0>;
+			startup-delay-us = <5000>;
+			enable-active-low;
+		};
+
+		reg_3p2v: 3p2v {
+			compatible = "regulator-fixed";
+			regulator-name = "3P2V";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
 	};
 
 	sound {
