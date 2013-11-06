@@ -1652,7 +1652,7 @@ deliver:
 				goto deliver;
 			}
 			if (ret == LINK_REASM_ERROR)
-				l_ptr->next_in_no--;
+				tipc_link_reset(l_ptr);
 			tipc_node_unlock(n_ptr);
 			continue;
 		case CHANGEOVER_PROTOCOL:
