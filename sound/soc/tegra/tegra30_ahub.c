@@ -24,8 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
-#include <linux/clk/tegra.h>
 #include <sound/soc.h>
 #include "tegra30_ahub.h"
 
@@ -301,27 +301,27 @@ int tegra30_ahub_unset_rx_cif_source(enum tegra30_ahub_rxcif rxcif)
 }
 EXPORT_SYMBOL_GPL(tegra30_ahub_unset_rx_cif_source);
 
-#define CLK_LIST_MASK_TEGRA30	BIT(0)
-#define CLK_LIST_MASK_TEGRA114	BIT(1)
+#define MOD_LIST_MASK_TEGRA30	BIT(0)
+#define MOD_LIST_MASK_TEGRA114	BIT(1)
 
-#define CLK_LIST_MASK_TEGRA30_OR_LATER \
-		(CLK_LIST_MASK_TEGRA30 | CLK_LIST_MASK_TEGRA114)
+#define MOD_LIST_MASK_TEGRA30_OR_LATER \
+		(MOD_LIST_MASK_TEGRA30 | MOD_LIST_MASK_TEGRA114)
 
 static const struct {
-	const char *clk_name;
-	u32 clk_list_mask;
-} configlink_clocks[] = {
-	{ "i2s0", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "i2s1", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "i2s2", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "i2s3", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "i2s4", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "dam0", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "dam1", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "dam2", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "spdif_in", CLK_LIST_MASK_TEGRA30_OR_LATER },
-	{ "amx", CLK_LIST_MASK_TEGRA114 },
-	{ "adx", CLK_LIST_MASK_TEGRA114 },
+	const char *rst_name;
+	u32 mod_list_mask;
+} configlink_mods[] = {
+	{ "i2s0", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s1", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s2", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s3", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s4", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "dam0", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "dam1", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "dam2", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "spdif", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "amx", MOD_LIST_MASK_TEGRA114 },
+	{ "adx", MOD_LIST_MASK_TEGRA114 },
 };
 
 #define LAST_REG(name) \
@@ -450,17 +450,17 @@ static const struct regmap_config tegra30_ahub_ahub_regmap_config = {
 };
 
 static struct tegra30_ahub_soc_data soc_data_tegra30 = {
-	.clk_list_mask = CLK_LIST_MASK_TEGRA30,
+	.mod_list_mask = MOD_LIST_MASK_TEGRA30,
 	.set_audio_cif = tegra30_ahub_set_cif,
 };
 
 static struct tegra30_ahub_soc_data soc_data_tegra114 = {
-	.clk_list_mask = CLK_LIST_MASK_TEGRA114,
+	.mod_list_mask = MOD_LIST_MASK_TEGRA114,
 	.set_audio_cif = tegra30_ahub_set_cif,
 };
 
 static struct tegra30_ahub_soc_data soc_data_tegra124 = {
-	.clk_list_mask = CLK_LIST_MASK_TEGRA114,
+	.mod_list_mask = MOD_LIST_MASK_TEGRA114,
 	.set_audio_cif = tegra124_ahub_set_cif,
 };
 
@@ -475,7 +475,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct tegra30_ahub_soc_data *soc_data;
-	struct clk *clk;
+	struct reset_control *rst;
 	int i;
 	struct resource *res0, *res1, *region;
 	u32 of_dma[2];
@@ -495,19 +495,24 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	 * operate correctly, all devices on this bus must be out of reset.
 	 * Ensure that here.
 	 */
-	for (i = 0; i < ARRAY_SIZE(configlink_clocks); i++) {
-		if (!(configlink_clocks[i].clk_list_mask &
-					soc_data->clk_list_mask))
+	for (i = 0; i < ARRAY_SIZE(configlink_mods); i++) {
+		if (!(configlink_mods[i].mod_list_mask &
+					soc_data->mod_list_mask))
 			continue;
-		clk = clk_get(&pdev->dev, configlink_clocks[i].clk_name);
-		if (IS_ERR(clk)) {
-			dev_err(&pdev->dev, "Can't get clock %s\n",
-				configlink_clocks[i].clk_name);
-			ret = PTR_ERR(clk);
+
+		rst = reset_control_get(&pdev->dev,
+					configlink_mods[i].rst_name);
+		if (IS_ERR(rst)) {
+			dev_err(&pdev->dev, "Can't get reset %s\n",
+				configlink_mods[i].rst_name);
+			ret = PTR_ERR(rst);
 			goto err;
 		}
-		tegra_periph_reset_deassert(clk);
-		clk_put(clk);
+
+		ret = reset_control_deassert(rst);
+		reset_control_put(rst);
+		if (ret)
+			goto err;
 	}
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
