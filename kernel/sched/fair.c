@@ -1000,7 +1000,7 @@ struct numa_stats {
  */
 static void update_numa_stats(struct numa_stats *ns, int nid)
 {
-	int cpu;
+	int cpu, cpus = 0;
 
 	memset(ns, 0, sizeof(*ns));
 	for_each_cpu(cpu, cpumask_of_node(nid)) {
@@ -1009,7 +1009,20 @@ static void update_numa_stats(struct numa_stats *ns, int nid)
 		ns->nr_running += rq->nr_running;
 		ns->load += weighted_cpuload(cpu);
 		ns->power += power_of(cpu);
+
+		cpus++;
 	}
+
+	/*
+	 * If we raced with hotplug and there are no CPUs left in our mask
+	 * the @ns structure is NULL'ed and task_numa_compare() will
+	 * not find this node attractive.
+	 *
+	 * We'll either bail at !has_capacity, or we'll detect a huge imbalance
+	 * and bail there.
+	 */
+	if (!cpus)
+		return;
 
 	ns->load = (ns->load * SCHED_POWER_SCALE) / ns->power;
 	ns->capacity = DIV_ROUND_CLOSEST(ns->power, SCHED_POWER_SCALE);
