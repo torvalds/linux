@@ -972,10 +972,9 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 *  Input:
 *    dev - network device structure
 *    pbuffer - caller supply address to buffer
-*    pnxtph - pointer to next pseudo header
 */
 static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
-			       int maxsz, u16 *pnxtph)
+			       int maxsz)
 {
 	u16 size;
 	int ret;
@@ -1445,7 +1444,6 @@ int ft1000_poll(void* dev_id)
     u16 data;
     u16 modulo;
     u16 portid;
-    u16 nxtph;
 	struct dpram_blk *pdpram_blk;
 	struct pseudo_hdr *ppseudo_hdr;
     unsigned long flags;
@@ -1489,10 +1487,9 @@ int ft1000_poll(void* dev_id)
         	           if ( (dev->app_info[i].DspBCMsgFlag) && (dev->app_info[i].fileobject) &&
                                          (dev->app_info[i].NumOfMsg < MAX_MSG_LIMIT)  )
 			   {
-			       nxtph = FT1000_DPRAM_RX_BASE + 2;
 			       pdpram_blk = ft1000_get_buffer (&freercvpool);
 			       if (pdpram_blk != NULL) {
-			           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE, &nxtph) ) {
+			           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE) ) {
 					ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
 				       // Put message into the appropriate application block
 				       dev->app_info[i].nRxMsg++;
@@ -1520,7 +1517,7 @@ int ft1000_poll(void* dev_id)
                         pdpram_blk = ft1000_get_buffer (&freercvpool);
 
                         if (pdpram_blk != NULL) {
-                           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE, &nxtph) ) {
+                           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE) ) {
 				ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
                                // Search for correct application block
                                for (i=0; i<MAX_NUM_APP; i++) {
