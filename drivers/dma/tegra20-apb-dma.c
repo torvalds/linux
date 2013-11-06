@@ -32,8 +32,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
-#include <linux/clk/tegra.h>
 
 #include "dmaengine.h"
 
@@ -208,6 +208,7 @@ struct tegra_dma {
 	struct dma_device		dma_dev;
 	struct device			*dev;
 	struct clk			*dma_clk;
+	struct reset_control		*rst;
 	spinlock_t			global_lock;
 	void __iomem			*base_addr;
 	const struct tegra_dma_chip_data *chip_data;
@@ -1282,6 +1283,12 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		return PTR_ERR(tdma->dma_clk);
 	}
 
+	tdma->rst = devm_reset_control_get(&pdev->dev, "dma");
+	if (IS_ERR(tdma->rst)) {
+		dev_err(&pdev->dev, "Error: Missing reset\n");
+		return PTR_ERR(tdma->rst);
+	}
+
 	spin_lock_init(&tdma->global_lock);
 
 	pm_runtime_enable(&pdev->dev);
@@ -1302,9 +1309,9 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Reset DMA controller */
-	tegra_periph_reset_assert(tdma->dma_clk);
+	reset_control_assert(tdma->rst);
 	udelay(2);
-	tegra_periph_reset_deassert(tdma->dma_clk);
+	reset_control_deassert(tdma->rst);
 
 	/* Enable global DMA registers */
 	tdma_write(tdma, TEGRA_APBDMA_GENERAL, TEGRA_APBDMA_GENERAL_ENABLE);
