@@ -393,7 +393,6 @@ struct tegra_clk_periph_gate {
 #define TEGRA_PERIPH_NO_DIV BIT(4)
 #define TEGRA_PERIPH_NO_GATE BIT(5)
 
-void tegra_periph_reset(struct tegra_clk_periph_gate *gate, bool assert);
 extern const struct clk_ops tegra_clk_periph_gate_ops;
 struct clk *tegra_clk_register_periph_gate(const char *name,
 		const char *parent_name, u8 gate_flags, void __iomem *clk_base,
