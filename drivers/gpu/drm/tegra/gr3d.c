@@ -279,7 +279,8 @@ static int gr3d_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_3D, gr3d->clk);
+	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_3D, gr3d->clk,
+						gr3d->rst);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to power up 3D unit\n");
 		return err;
@@ -287,7 +288,8 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	if (gr3d->clk_secondary) {
 		err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_3D1,
-							gr3d->clk_secondary);
+							gr3d->clk_secondary,
+							gr3d->rst_secondary);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"failed to power up secondary 3D unit\n");

@@ -955,7 +955,8 @@ static int tegra_pcie_power_on(struct tegra_pcie *pcie)
 	}
 
 	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_PCIE,
-						pcie->pex_clk);
+						pcie->pex_clk,
+						pcie->pex_rst);
 	if (err) {
 		dev_err(pcie->dev, "powerup sequence failed: %d\n", err);
 		return err;
