@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_timer.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r7s72100.h>
@@ -58,6 +59,26 @@ static inline void r7s72100_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
+
+static struct sh_timer_config mtu2_0_platform_data __initdata = {
+	.name = "MTU2_0",
+	.timer_bit = 0,
+	.channel_offset = -0x80,
+	.clockevent_rating = 200,
+};
+
+static struct resource mtu2_0_resources[] __initdata = {
+	DEFINE_RES_MEM(0xfcff0300, 0x27),
+	DEFINE_RES_IRQ(gic_iid(139)), /* MTU2 TGI0A */
+};
+
+#define r7s72100_register_mtu2(idx)					\
+	platform_device_register_resndata(&platform_bus, "sh_mtu2",	\
+					  idx, mtu2_##idx##_resources,	\
+					  ARRAY_SIZE(mtu2_##idx##_resources), \
+					  &mtu2_##idx##_platform_data,	\
+					  sizeof(struct sh_timer_config))
+
 void __init r7s72100_add_dt_devices(void)
 {
 	r7s72100_register_scif(SCIF0);
@@ -68,6 +89,7 @@ void __init r7s72100_add_dt_devices(void)
 	r7s72100_register_scif(SCIF5);
 	r7s72100_register_scif(SCIF6);
 	r7s72100_register_scif(SCIF7);
+	r7s72100_register_mtu2(0);
 }
 
 void __init r7s72100_init_early(void)
