@@ -147,7 +147,7 @@
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA30_CLK_DISP1>,
 				 <&tegra_car TEGRA30_CLK_PLL_P>;
-			clock-names = "disp1", "parent";
+			clock-names = "dc", "parent";
 
 			rgb {
 				status = "disabled";
@@ -160,7 +160,7 @@
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA30_CLK_DISP2>,
 				 <&tegra_car TEGRA30_CLK_PLL_P>;
-			clock-names = "disp2", "parent";
+			clock-names = "dc", "parent";
 
 			rgb {
 				status = "disabled";

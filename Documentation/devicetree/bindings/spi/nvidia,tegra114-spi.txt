@@ -6,8 +6,10 @@ Required properties:
 - interrupts: Should contain SPI interrupts.
 - nvidia,dma-request-selector : The Tegra DMA controller's phandle and
   request selector for this SPI controller.
-- This is also require clock named "spi" as per binding document
-  Documentation/devicetree/bindings/clock/clock-bindings.txt
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names : Must include the following entries:
+  - spi
 
 Recommended properties:
 - spi-max-frequency: Definition as per
@@ -22,5 +24,7 @@ spi@7000d600 {
 	spi-max-frequency = <25000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
+	clocks = <&tegra_car 44>;
+	clock-names = "spi";
 	status = "disabled";
 };

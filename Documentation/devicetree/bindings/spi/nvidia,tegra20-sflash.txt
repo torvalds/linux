@@ -6,6 +6,8 @@ Required properties:
 - interrupts: Should contain SFLASH interrupts.
 - nvidia,dma-request-selector : The Tegra DMA controller's phandle and
   request selector for this SFLASH controller.
+- clocks : Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
 
 Recommended properties:
 - spi-max-frequency: Definition as per
@@ -21,6 +23,6 @@ spi@7000c380 {
 	spi-max-frequency = <25000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
+	clocks = <&tegra_car 43>;
 	status = "disabled";
 };
-

@@ -5,6 +5,8 @@ Required properties:
 - reg: Should contain DMA registers location and length. This shuld include
   all of the per-channel registers.
 - interrupts: Should contain all of the per-channel DMA interrupts.
+- clocks: Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
 
 Examples:
 
@@ -27,4 +29,5 @@ apbdma: dma@6000a000 {
 		       0 149 0x04
 		       0 150 0x04
 		       0 151 0x04 >;
+	clocks = <&tegra_car 34>;
 };

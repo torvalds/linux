@@ -12,11 +12,24 @@ Required properties:
   If a single entry is present, the request selectors for the channels are
   assumed to be contiguous, and increment from this value.
   If multiple values are given, one value must be given per channel.
-- clocks : Must contain an entry for each required entry in clock-names.
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
 - clock-names : Must include the following entries:
-  - Tegra30: Requires d_audio, apbif, i2s0, i2s1, i2s2, i2s3, i2s4, dam0,
-    dam1, dam2, spdif_in.
-  - Tegra114: Additionally requires amx, adx.
+  Tegra30 and later:
+  - d_audio
+  - apbif
+  - i2s0
+  - i2s1
+  - i2s2
+  - i2s3
+  - i2s4
+  - dam0
+  - dam1
+  - dam2
+  - spdif_in
+  Tegra114 and later additionally require:
+  - amx
+  - adx
 - ranges : The bus address mapping for the configlink register bus.
   Can be empty since the mapping is 1:1.
 - #address-cells : For the configlink bus. Should be <1>;

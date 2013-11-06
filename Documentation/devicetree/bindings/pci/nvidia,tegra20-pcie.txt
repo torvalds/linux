@@ -42,14 +42,14 @@ Required properties:
     - 0xc2000000: prefetchable memory region
   Please refer to the standard PCI bus binding document for a more detailed
   explanation.
-- clocks: List of clock inputs of the controller. Must contain an entry for
-  each entry in the clock-names property.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
-  "pex": The Tegra clock of that name
-  "afi": The Tegra clock of that name
-  "pcie_xclk": The Tegra clock of that name
-  "pll_e": The Tegra clock of that name
-  "cml": The Tegra clock of that name (not required for Tegra20)
+  - pex
+  - afi
+  - pcie_xclk
+  - pll_e
+  - cml (not required for Tegra20)
 
 Root ports are defined as subnodes of the PCIe controller node.
 
