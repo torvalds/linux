@@ -181,7 +181,6 @@ static void omap_dma_clear_csr(struct omap_chan *c)
 static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 {
 	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
-	uint32_t val;
 
 	if (__dma_omap15xx(od->plat->dma_attr))
 		c->plat->dma_write(0, CPC, c->dma_ch);
@@ -193,9 +192,8 @@ static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 	/* Enable interrupts */
 	c->plat->dma_write(d->cicr, CICR, c->dma_ch);
 
-	val = c->plat->dma_read(CCR, c->dma_ch);
-	val |= CCR_ENABLE;
-	c->plat->dma_write(val, CCR, c->dma_ch);
+	/* Enable channel */
+	c->plat->dma_write(d->ccr | CCR_ENABLE, CCR, c->dma_ch);
 }
 
 static void omap_dma_stop(struct omap_chan *c)
