@@ -59,6 +59,7 @@ struct omap_desc {
 	int16_t fi;		/* for OMAP_DMA_SYNC_PACKET */
 	uint8_t es;		/* CSDP_DATA_TYPE_xxx */
 	uint32_t ccr;		/* CCR value */
+	uint16_t clnk_ctrl;	/* CLNK_CTRL value */
 	uint16_t cicr;		/* CICR value */
 	uint32_t csdp;		/* CSDP value */
 
@@ -186,18 +187,6 @@ static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 		c->plat->dma_write(0, CPC, c->dma_ch);
 	else
 		c->plat->dma_write(0, CDAC, c->dma_ch);
-
-	if (!__dma_omap15xx(od->plat->dma_attr) && c->cyclic) {
-		val = c->plat->dma_read(CLNK_CTRL, c->dma_ch);
-
-		if (dma_omap1())
-			val &= ~(1 << 14);
-
-		val |= c->dma_ch | CLNK_CTRL_ENABLE_LNK;
-
-		c->plat->dma_write(val, CLNK_CTRL, c->dma_ch);
-	} else if (od->plat->errata & DMA_ERRATA_PARALLEL_CHANNELS)
-		c->plat->dma_write(c->dma_ch, CLNK_CTRL, c->dma_ch);
 
 	omap_dma_clear_csr(c);
 
@@ -330,6 +319,7 @@ static void omap_dma_start_desc(struct omap_chan *c)
 	c->plat->dma_write(0, cxei, c->dma_ch);
 	c->plat->dma_write(d->fi, cxfi, c->dma_ch);
 	c->plat->dma_write(d->csdp, CSDP, c->dma_ch);
+	c->plat->dma_write(d->clnk_ctrl, CLNK_CTRL, c->dma_ch);
 
 	omap_dma_start_sg(c, d, 0);
 }
@@ -645,6 +635,8 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	}
 	if (od->plat->errata & DMA_ERRATA_IFRAME_BUFFERING)
 		d->ccr |= CCR_BUFFERING_DISABLE;
+	if (od->plat->errata & DMA_ERRATA_PARALLEL_CHANNELS)
+		d->clnk_ctrl = c->dma_ch;
 
 	/*
 	 * Build our scatterlist entries: each contains the address,
@@ -725,8 +717,6 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	d->sglen = 1;
 
 	d->ccr = 0;
-	if (__dma_omap15xx(od->plat->dma_attr))
-		d->ccr = CCR_AUTO_INIT | CCR_REPEAT;
 	if (dir == DMA_DEV_TO_MEM)
 		d->ccr |= CCR_DST_AMODE_POSTINC | CCR_SRC_AMODE_CONSTANT;
 	else
@@ -771,6 +761,11 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	}
 	if (od->plat->errata & DMA_ERRATA_IFRAME_BUFFERING)
 		d->ccr |= CCR_BUFFERING_DISABLE;
+
+	if (__dma_omap15xx(od->plat->dma_attr))
+		d->ccr |= CCR_AUTO_INIT | CCR_REPEAT;
+	else
+		d->clnk_ctrl = c->dma_ch | CLNK_CTRL_ENABLE_LNK;
 
 	c->cyclic = true;
 
