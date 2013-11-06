@@ -22,7 +22,6 @@
 #include "parse-events.h"
 
 #include "thread.h"
-#include "sort.h"
 
 extern regex_t parent_regex;
 extern const char *sort_order;
