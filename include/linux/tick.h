@@ -165,7 +165,7 @@ extern cpumask_var_t tick_nohz_full_mask;
 
 static inline bool tick_nohz_full_enabled(void)
 {
-	if (!static_key_false(&context_tracking_enabled))
+	if (!context_tracking_is_enabled())
 		return false;
 
 	return tick_nohz_full_running;

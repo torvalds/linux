@@ -22,6 +22,10 @@ struct context_tracking {
 extern struct static_key context_tracking_enabled;
 DECLARE_PER_CPU(struct context_tracking, context_tracking);
 
+static inline bool context_tracking_is_enabled(void)
+{
+	return static_key_false(&context_tracking_enabled);
+}
 static inline bool context_tracking_in_user(void)
 {
 	return __this_cpu_read(context_tracking.state) == IN_USER;
