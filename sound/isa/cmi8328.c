@@ -126,6 +126,7 @@ static void snd_cmi8328_cfg_write(u16 port, u8 reg, u8 val)
 	outb(val, port + 3);	/* yes, value goes to the same port as index */
 }
 
+#ifdef CONFIG_PM
 static void snd_cmi8328_cfg_save(u16 port, u8 cfg[])
 {
 	cfg[0] = snd_cmi8328_cfg_read(port, CFG1);
@@ -139,6 +140,7 @@ static void snd_cmi8328_cfg_restore(u16 port, u8 cfg[])
 	snd_cmi8328_cfg_write(port, CFG2, cfg[1]);
 	snd_cmi8328_cfg_write(port, CFG3, cfg[2]);
 }
+#endif /* CONFIG_PM */
 
 static int snd_cmi8328_mixer(struct snd_wss *chip)
 {
