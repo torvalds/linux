@@ -574,17 +574,6 @@ int lg4ff_init(struct hid_device *hid)
 	if (error)
 		return error;
 
-	/* Check if autocentering is available and
-	 * set the centering force to zero by default */
-	if (test_bit(FF_AUTOCENTER, dev->ffbit)) {
-		if (rev_maj == FFEX_REV_MAJ && rev_min == FFEX_REV_MIN)	/* Formula Force EX expects different autocentering command */
-			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_ffex;
-		else
-			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_default;
-
-		dev->ff->set_autocenter(dev, 0);
-	}
-
 	/* Get private driver data */
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
@@ -604,6 +593,17 @@ int lg4ff_init(struct hid_device *hid)
 	entry->min_range = lg4ff_devices[i].min_range;
 	entry->max_range = lg4ff_devices[i].max_range;
 	entry->set_range = lg4ff_devices[i].set_range;
+
+	/* Check if autocentering is available and
+	 * set the centering force to zero by default */
+	if (test_bit(FF_AUTOCENTER, dev->ffbit)) {
+		if (rev_maj == FFEX_REV_MAJ && rev_min == FFEX_REV_MIN)	/* Formula Force EX expects different autocentering command */
+			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_ffex;
+		else
+			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_default;
+
+		dev->ff->set_autocenter(dev, 0);
+	}
 
 	/* Create sysfs interface */
 	error = device_create_file(&hid->dev, &dev_attr_range);
