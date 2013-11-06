@@ -913,6 +913,10 @@
 			interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
 
+			dmas = <&dma 31 0 0x12>, /* Logical - DevToMem - HighPrio */
+			       <&dma 31 0 0x10>; /* Logical - MemToDev - HighPrio */
+			dma-names = "rx", "tx";
+
 			clocks = <&prcc_kclk 1 3>, <&prcc_pclk 1 3>;
 			clock-names = "msp", "apb_pclk";
 
@@ -924,6 +928,9 @@
 			reg = <0x80124000 0x1000>;
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 30 0 0x10>; /* Logical - MemToDev - HighPrio */
+			dma-names = "tx";
 
 			clocks = <&prcc_kclk 1 4>, <&prcc_pclk 1 4>;
 			clock-names = "msp", "apb_pclk";
@@ -938,6 +945,11 @@
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
 
+			dmas = <&dma 14 0 0x12>, /* Logical  - DevToMem - HighPrio */
+			       <&dma 14 1 0x19>; /* Physical Chan 1 - MemToDev
+                                                    HighPrio - Fixed */
+			dma-names = "rx", "tx";
+
 			clocks = <&prcc_kclk 2 3>, <&prcc_pclk 2 5>;
 			clock-names = "msp", "apb_pclk";
 
@@ -949,6 +961,9 @@
 			reg = <0x80125000 0x1000>;
 			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 30 0 0x12>; /* Logical - DevToMem - HighPrio */
+			dma-names = "rx";
 
 			clocks = <&prcc_kclk 1 10>, <&prcc_pclk 1 11>;
 			clock-names = "msp", "apb_pclk";
