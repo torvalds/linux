@@ -130,6 +130,7 @@ unlock:
 static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 {
 	struct kvm_s390_interrupt_info *inti;
+	int rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 
 	inti = kzalloc(sizeof(*inti), GFP_ATOMIC);
 	if (!inti)
@@ -139,6 +140,8 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	spin_lock_bh(&li->lock);
 	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		kfree(inti);
+		if ((action & ACTION_STORE_ON_STOP) != 0)
+			rc = -ESHUTDOWN;
 		goto out;
 	}
 	list_add_tail(&inti->list, &li->list);
@@ -150,7 +153,7 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 out:
 	spin_unlock_bh(&li->lock);
 
-	return SIGP_CC_ORDER_CODE_ACCEPTED;
+	return rc;
 }
 
 static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
@@ -174,6 +177,16 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int action)
 unlock:
 	spin_unlock(&fi->lock);
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", cpu_addr);
+
+	if ((action & ACTION_STORE_ON_STOP) != 0 && rc == -ESHUTDOWN) {
+		/* If the CPU has already been stopped, we still have
+		 * to save the status when doing stop-and-store. This
+		 * has to be done after unlocking all spinlocks. */
+		struct kvm_vcpu *dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_addr);
+		rc = kvm_s390_store_status_unloaded(dst_vcpu,
+						KVM_S390_STORE_STATUS_NOADDR);
+	}
+
 	return rc;
 }
 

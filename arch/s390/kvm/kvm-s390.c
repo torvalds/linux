@@ -885,7 +885,7 @@ static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, void *from,
  * KVM_S390_STORE_STATUS_NOADDR: -> 0x1200 on 64 bit
  * KVM_S390_STORE_STATUS_PREFIXED: -> prefix
  */
-int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
+int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	unsigned char archmode = 1;
 	int prefix;
@@ -902,15 +902,6 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 		prefix = 1;
 	} else
 		prefix = 0;
-
-	/*
-	 * The guest FPRS and ACRS are in the host FPRS/ACRS due to the lazy
-	 * copying in vcpu load/put. Lets update our copies before we save
-	 * it into the save area
-	 */
-	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
-	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
-	save_access_regs(vcpu->run->s.regs.acrs);
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, fp_regs),
 			vcpu->arch.guest_fpregs.fprs, 128, prefix))
@@ -954,6 +945,20 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 			&vcpu->arch.sie_block->gcr, 128, prefix))
 		return -EFAULT;
 	return 0;
+}
+
+int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
+{
+	/*
+	 * The guest FPRS and ACRS are in the host FPRS/ACRS due to the lazy
+	 * copying in vcpu load/put. Lets update our copies before we save
+	 * it into the save area
+	 */
+	save_fp_ctl(&vcpu->arch.guest_fpregs.fpc);
+	save_fp_regs(vcpu->arch.guest_fpregs.fprs);
+	save_access_regs(vcpu->run->s.regs.acrs);
+
+	return kvm_s390_store_status_unloaded(vcpu, addr);
 }
 
 static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
