@@ -66,15 +66,20 @@ struct f_hidg {
 	struct usb_endpoint_descriptor	*hs_in_ep_desc;
 	struct usb_endpoint_descriptor	*fs_out_ep_desc;
 	struct usb_endpoint_descriptor	*hs_out_ep_desc;
+	
+    struct usb_composite_dev        *u_cdev;
 
 	unsigned short  bypass_input;
 	bool connected;
+	bool  boot_protocol;//4   1 for boot protocol , 0 for report protocol
+	bool suspend;
 };
 
 static inline struct f_hidg *func_to_hidg(struct usb_function *f)
 {
 	return container_of(f, struct f_hidg, func);
 }
+void hidg_disconnect();
 
 /*-------------------------------------------------------------------------*/
 /*                           Static descriptors                            */
@@ -114,25 +119,11 @@ static struct usb_endpoint_descriptor hidg_hs_in_ep_desc = {
 				      * (struct hidg_func_descriptor)
 				      */
 };
-#if 0
-static struct usb_endpoint_descriptor hidg_hs_out_ep_desc = {
-	.bLength		= USB_DT_ENDPOINT_SIZE,
-	.bDescriptorType	= USB_DT_ENDPOINT,
-	.bEndpointAddress	= USB_DIR_OUT|0x02,
-	.bmAttributes		= USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize	  = cpu_to_le16(64),
-	.bInterval		= 4, /* FIXME: Add this field in the
-				      * HID gadget configuration?
-				      * (struct hidg_func_descriptor)
-				      */
-};
-#endif
 
 static struct usb_descriptor_header *hidg_hs_descriptors[] = {
 	(struct usb_descriptor_header *)&hidg_interface_desc,
 	(struct usb_descriptor_header *)&hidg_desc,
 	(struct usb_descriptor_header *)&hidg_hs_in_ep_desc,
-	//(struct usb_descriptor_header *)&hidg_hs_out_ep_desc,
 	NULL,
 };
 
@@ -149,31 +140,18 @@ static struct usb_endpoint_descriptor hidg_fs_in_ep_desc = {
 				       * (struct hidg_func_descriptor)
 				       */
 };
-#if 0
-static struct usb_endpoint_descriptor hidg_fs_out_ep_desc = {
-	.bLength		= USB_DT_ENDPOINT_SIZE,
-	.bDescriptorType	= USB_DT_ENDPOINT,
-	.bEndpointAddress	= USB_DIR_OUT|0x02,
-	.bmAttributes		= USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize	  = cpu_to_le16(64),
-	.bInterval		= 10, /* FIXME: Add this field in the
-				      * HID gadget configuration?
-				      * (struct hidg_func_descriptor)
-				      */
-};
-#endif
+
 static struct usb_descriptor_header *hidg_fs_descriptors[] = {
 	(struct usb_descriptor_header *)&hidg_interface_desc,
 	(struct usb_descriptor_header *)&hidg_desc,
 	(struct usb_descriptor_header *)&hidg_fs_in_ep_desc,
-	//(struct usb_descriptor_header *)&hidg_fs_out_ep_desc,
 	NULL,
 };
 
 /* hid descriptor for a keyboard */
 const struct hidg_func_descriptor my_hid_data = {
 	.subclass		= 1, /* No subclass */
-	.protocol		= 2, /* 1-Keyboard,2-mouse */
+	.protocol		= 1, /* 1-Keyboard,2-mouse */
 	.report_length		= 64,
 	.report_desc_length = 150,
 	.report_desc        = {
@@ -316,11 +294,9 @@ static void f_hidg_req_complete(struct usb_ep *ep, struct usb_request *req)
 	struct f_hidg *hidg = (struct f_hidg *)ep->driver_data;
 
 	if (req->status != 0) {
-		//ERROR(hidg->func.config->cdev,
-		//	"End Point Request ERROR: %d\n", req->status);
+        ;
 	}
 
-	hidg->write_pending = 0;
 	wake_up(&hidg->write_queue);
 }
 
@@ -383,6 +359,8 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 #endif
 	return count;
 }
+
+
 static void f_hid_queue_report(u8 *data, int len)
 {
     //this function will run in interrupt context 
@@ -401,9 +379,9 @@ static void f_hid_queue_report(u8 *data, int len)
         	hidg->req->complete = f_hidg_req_complete;
         	hidg->req->context  = hidg;
 
-        	status = usb_ep_queue(hidg->in_ep, hidg->req, GFP_ATOMIC);
-        	if (status < 0) {
-        		printk("usb_ep_queue error on int endpoint %zd\n", status);
+            status = usb_ep_queue(hidg->in_ep, hidg->req, GFP_ATOMIC);
+            if (status < 0) {
+            	//printk("usb_ep_queue error on int endpoint %zd\n", status);
         	}
 	    }
     //mutex_unlock(&hidg->lock);
@@ -458,12 +436,16 @@ static void f_hid_bypass_input_set(u8 bypass)
     }
 }
 
+void f_hid_wakeup()
+{
+    g_hidg->u_cdev->gadget->ops->wakeup(g_hidg->u_cdev->gadget);
+}
+
 struct kbd_report {
     u8        id;
     u8        command;
     u8        reserved;
     u8        key_array[6];
-
 }__attribute__ ((packed));
 
 struct consumer_report {
@@ -526,8 +508,14 @@ void f_hid_kbd_translate_report(struct hid_report *report, u8 *data)
                     }
                 }
             }
-        }     
-        f_hid_queue_report((u8 *)&k, sizeof(k));
+        } 
+        if(g_hidg->boot_protocol)
+            f_hid_queue_report((u8 *)&k+1, sizeof(k)-1);
+        else
+        {
+            f_hid_wakeup();
+            f_hid_queue_report((u8 *)&k, sizeof(k));
+        }
     }
 }
 EXPORT_SYMBOL(f_hid_kbd_translate_report);
@@ -552,7 +540,7 @@ struct mouse_report {
 void f_hid_mouse_translate_report(struct hid_report *report, u8 *data)
 {
 
-    if(f_hid_bypass_input_get())
+    if(f_hid_bypass_input_get() && !g_hidg->boot_protocol)
     {
         struct mouse_report m = {0};
         struct hid_field *field;
@@ -597,6 +585,8 @@ void f_hid_mouse_translate_report(struct hid_report *report, u8 *data)
                     m.wheel= field->value[j];
             }
         }
+        if(m.button_right || m.button_left)
+            f_hid_wakeup();
         f_hid_queue_report((u8 *)&m, sizeof(m));
     }
 }
@@ -609,19 +599,7 @@ EXPORT_SYMBOL(f_hid_mouse_translate_report);
 
 static unsigned int f_hidg_poll(struct file *file, poll_table *wait)
 {
-	struct f_hidg	*hidg  = file->private_data;
-	unsigned int	ret = 0;
-
-	poll_wait(file, &hidg->read_queue, wait);
-	poll_wait(file, &hidg->write_queue, wait);
-
-	if (WRITE_COND)
-		ret |= POLLOUT | POLLWRNORM;
-
-	if (READ_COND)
-		ret |= POLLIN | POLLRDNORM;
-
-	return ret;
+	return 0;
 }
 
 #undef WRITE_COND
@@ -658,7 +636,8 @@ void hidg_disconnect()
         g_hidg->connected = 0;
     }
 }
-DECLARE_DELAYED_WORK(hidg_cnt, hidg_connect);
+EXPORT_SYMBOL(hidg_disconnect);
+int hidg_start(struct usb_composite_dev *cdev);
 
 static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)
 {
@@ -672,7 +651,6 @@ static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_lock(&hidg->spinlock);
 
     if(!hidg->connected)
-        //schedule_delayed_work(&hidg_cnt, msecs_to_jiffies(200));
         hidg_connect();
     
 	hidg->set_report_buff = krealloc(hidg->set_report_buff,
@@ -794,8 +772,7 @@ static int hidg_ctrlrequest(struct usb_composite_dev *cdev,
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_GET_REPORT):
 		VDBG(cdev, "get_report\n");
-        return -EOPNOTSUPP;
-
+        return -EOPNOTSUPP;//this command bypass to rndis
 		/* send an empty report */
 		length = min_t(unsigned, length, hidg->report_length);
 		memset(req->buf, 0x0, length);
@@ -815,11 +792,23 @@ static int hidg_ctrlrequest(struct usb_composite_dev *cdev,
 		req->complete = hidg_set_report_complete;
 		goto respond;
 		break;
+		
+    case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
+          | HID_REQ_SET_IDLE):
+        VDBG(cdev, "set_report | wLenght=%d\n", ctrl->wLength);
+        req->context  = hidg;
+        req->complete = hidg_set_report_complete;
+        goto respond;
+        break;
 
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_SET_PROTOCOL):
 		VDBG(cdev, "set_protocol\n");
-		goto stall;
+		req->context  = hidg;
+		req->complete = hidg_set_report_complete;
+		hidg->boot_protocol = 1;
+		hidg_start(cdev);
+		goto respond;
 		break;
 
 	case ((USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_INTERFACE) << 8
@@ -830,6 +819,7 @@ static int hidg_ctrlrequest(struct usb_composite_dev *cdev,
 			length = min_t(unsigned short, length,
 						   hidg->report_desc_length);
 			memcpy(req->buf, hidg->report_desc, length);
+			hidg->boot_protocol = 0;
 			goto respond;
 			break;
 
@@ -874,8 +864,9 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct f_hidg				*hidg = func_to_hidg(f);
 	const struct usb_endpoint_descriptor	*ep_desc;
 	int status = 0;
-
 	VDBG(cdev, "hidg_set_alt intf:%d alt:%d\n", intf, alt);
+	
+    printk("^^^^^hidg_set_alt\n");
 
 	if (hidg->in_ep != NULL) {
 		/* restart endpoint */
@@ -895,18 +886,45 @@ fail:
 	return status;
 }
 
+int hidg_start(struct usb_composite_dev *cdev)
+{
+    printk("^^^^^hidg_start\n");
+	struct f_hidg				*hidg = g_hidg;
+	const struct usb_endpoint_descriptor	*ep_desc;
+	int status = 0;
+
+	if (hidg->in_ep != NULL) {
+		/* restart endpoint */
+		if (hidg->in_ep->driver_data != NULL)
+			usb_ep_disable(hidg->in_ep);
+
+		ep_desc = ep_choose(cdev->gadget,
+				hidg->hs_in_ep_desc, hidg->fs_in_ep_desc);
+		status = usb_ep_enable(hidg->in_ep, ep_desc);
+		if (status < 0) {
+			printk("Enable endpoint FAILED!\n");
+			goto fail;
+		}
+		hidg->in_ep->driver_data = hidg;
+	}
+fail:
+	return status;
+}
+
+
 const struct file_operations f_hidg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= f_hidg_open,
 	.release	= f_hidg_release,
 	.write		= NULL,//f_hidg_write,disable write to /dev/hidg0
 	.read		= f_hidg_read,
-	.poll		= f_hidg_poll,
+	.poll		= NULL,//f_hidg_poll,
 	.llseek		= noop_llseek,
 };
 
 static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 {
+    
 	struct usb_ep		*ep_in;
 	struct f_hidg		*hidg = func_to_hidg(f);
 	int			status;
@@ -924,16 +942,7 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ep_in->driver_data = c->cdev;	/* claim */
 	hidg->in_ep = ep_in;
-#if 0
-    /* allocate out endpoint*/
-   	ep_out = usb_ep_autoconfig(c->cdev->gadget, &hidg_fs_out_ep_desc);
-	if (!ep_out)
-		goto fail;
-	ep_out->driver_data = c->cdev;	/* claim */
-	hidg->out_ep = ep_out; 
 
-	printk("ep_out->name = %s\n",ep_out->name);
-#endif
 	/* preallocate request and buffer */
 	status = -ENOMEM;
 	hidg->req = usb_ep_alloc_request(hidg->in_ep, GFP_KERNEL);
@@ -1015,8 +1024,8 @@ fail:
 static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_hidg *hidg = func_to_hidg(f);
-
-    f_hid_bypass_input_set(0);
+    //f_hid_bypass_input_set(0);
+    hidg_disconnect();
 
 	device_destroy(hidg_class, MKDEV(major, hidg->minor));
 	cdev_del(&hidg->cdev);
@@ -1085,7 +1094,7 @@ int hidg_bind_config(struct usb_configuration *c,
 	if (!hidg)
 		return -ENOMEM;
 	g_hidg = hidg;
-	hidg->bypass_input = 0;
+	hidg->bypass_input = 1;
 	hidg->minor = index;
 	hidg->bInterfaceSubClass = fdesc->subclass;
 	hidg->bInterfaceProtocol = fdesc->protocol;
@@ -1112,6 +1121,7 @@ int hidg_bind_config(struct usb_configuration *c,
 		kfree(hidg);
 	else
         g_hidg = hidg;
+    g_hidg->u_cdev = c->cdev;
 	return status;
 }
 

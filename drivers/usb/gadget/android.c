@@ -164,6 +164,7 @@ static struct usb_configuration android_config_driver = {
 	.label		= "android",
 	.unbind		= android_unbind_config,
 	.bConfigurationValue = 1,
+	.bmAttributes = USB_CONFIG_ATT_SELFPOWER | USB_CONFIG_ATT_WAKEUP ,
 };
 
 static void android_work(struct work_struct *data)
