@@ -102,6 +102,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int retval = VM_FAULT_NOPAGE;
 	struct ttm_mem_type_manager *man =
 		&bdev->man[bo->mem.mem_type];
+	struct vm_area_struct cvma;
 
 	/*
 	 * Work around locking order reversal in fault / nopfn
@@ -164,26 +165,21 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/*
-	 * Strictly, we're not allowed to modify vma->vm_page_prot here,
-	 * since the mmap_sem is only held in read mode. However, we
-	 * modify only the caching bits of vma->vm_page_prot and
-	 * consider those bits protected by
-	 * the bo->mutex, as we should be the only writers.
-	 * There shouldn't really be any readers of these bits except
-	 * within vm_insert_mixed()? fork?
-	 *
-	 * TODO: Add a list of vmas to the bo, and change the
-	 * vma->vm_page_prot when the object changes caching policy, with
-	 * the correct locks held.
+	 * Make a local vma copy to modify the page_prot member
+	 * and vm_flags if necessary. The vma parameter is protected
+	 * by mmap_sem in write mode.
 	 */
+	cvma = *vma;
+	cvma.vm_page_prot = vm_get_page_prot(cvma.vm_flags);
+
 	if (bo->mem.bus.is_iomem) {
-		vma->vm_page_prot = ttm_io_prot(bo->mem.placement,
-						vma->vm_page_prot);
+		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
+						cvma.vm_page_prot);
 	} else {
 		ttm = bo->ttm;
-		vma->vm_page_prot = (bo->mem.placement & TTM_PL_FLAG_CACHED) ?
-		    vm_get_page_prot(vma->vm_flags) :
-		    ttm_io_prot(bo->mem.placement, vma->vm_page_prot);
+		if (!(bo->mem.placement & TTM_PL_FLAG_CACHED))
+			cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
+							cvma.vm_page_prot);
 
 		/* Allocate all page at once, most common usage */
 		if (ttm->bdev->driver->ttm_tt_populate(ttm)) {
@@ -210,7 +206,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			pfn = page_to_pfn(page);
 		}
 
-		ret = vm_insert_mixed(vma, address, pfn);
+		ret = vm_insert_mixed(&cvma, address, pfn);
 		/*
 		 * Somebody beat us to this PTE or prefaulting to
 		 * an already populated PTE, or prefaulting error.
