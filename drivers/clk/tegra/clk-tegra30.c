@@ -1427,7 +1427,8 @@ static void __init tegra30_clock_init(struct device_node *np)
 		BUG();
 	}
 
-	clks = tegra_clk_init(TEGRA30_CLK_CLK_MAX, TEGRA30_CLK_PERIPH_BANKS);
+	clks = tegra_clk_init(clk_base, TEGRA30_CLK_CLK_MAX,
+				TEGRA30_CLK_PERIPH_BANKS);
 	if (!clks)
 		return;
 
