@@ -451,28 +451,39 @@ static size_t omap_dma_desc_size_pos(struct omap_desc *d, dma_addr_t addr)
 	return size;
 }
 
+/*
+ * OMAP 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
+ * read before the DMA controller finished disabling the channel.
+ */
+static uint32_t omap_dma_chan_read_3_3(struct omap_chan *c, unsigned reg)
+{
+	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
+	uint32_t val;
+
+	val = omap_dma_chan_read(c, reg);
+	if (val == 0 && od->plat->errata & DMA_ERRATA_3_3)
+		val = omap_dma_chan_read(c, reg);
+
+	return val;
+}
+
 static dma_addr_t omap_dma_get_src_pos(struct omap_chan *c)
 {
 	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
-	dma_addr_t addr;
+	dma_addr_t addr, cdac;
 
-	if (__dma_omap15xx(od->plat->dma_attr))
+	if (__dma_omap15xx(od->plat->dma_attr)) {
 		addr = omap_dma_chan_read(c, CPC);
-	else
-		addr = omap_dma_chan_read(c, CSAC);
+	} else {
+		addr = omap_dma_chan_read_3_3(c, CSAC);
+		cdac = omap_dma_chan_read_3_3(c, CDAC);
 
-	if (od->plat->errata & DMA_ERRATA_3_3 && addr == 0)
-		addr = omap_dma_chan_read(c, CSAC);
-
-	if (!__dma_omap15xx(od->plat->dma_attr)) {
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
 		 * not been started (no data has been transferred so far).
 		 * Return the programmed source start address in this case.
 		 */
-		if (omap_dma_chan_read(c, CDAC))
-			addr = omap_dma_chan_read(c, CSAC);
-		else
+		if (cdac == 0)
 			addr = omap_dma_chan_read(c, CSSA);
 	}
 
@@ -487,21 +498,16 @@ static dma_addr_t omap_dma_get_dst_pos(struct omap_chan *c)
 	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
 	dma_addr_t addr;
 
-	if (__dma_omap15xx(od->plat->dma_attr))
+	if (__dma_omap15xx(od->plat->dma_attr)) {
 		addr = omap_dma_chan_read(c, CPC);
-	else
-		addr = omap_dma_chan_read(c, CDAC);
+	} else {
+		addr = omap_dma_chan_read_3_3(c, CDAC);
 
-	/*
-	 * omap 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
-	 * read before the DMA controller finished disabling the channel.
-	 */
-	if (!__dma_omap15xx(od->plat->dma_attr) && addr == 0) {
-		addr = omap_dma_chan_read(c, CDAC);
 		/*
-		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
-		 * Return the programmed destination start address in this case.
+		 * CDAC == 0 indicates that the DMA transfer on the channel
+		 * has not been started (no data has been transferred so
+		 * far).  Return the programmed destination start address in
+		 * this case.
 		 */
 		if (addr == 0)
 			addr = omap_dma_chan_read(c, CDSA);
