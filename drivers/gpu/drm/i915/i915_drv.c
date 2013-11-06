@@ -264,6 +264,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 static const struct intel_device_info intel_sandybridge_d_info = {
 	.gen = 6, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_fbc = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
 	.has_llc = 1,
 };
@@ -279,6 +280,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 #define GEN7_FEATURES  \
 	.gen = 7, .num_pipes = 3, \
 	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.has_llc = 1
 
@@ -291,7 +293,6 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
 	.is_mobile = 1,
-	.has_fbc = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_q_info = {
@@ -306,6 +307,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.has_fbc = 0, /* legal, last one wins */
 	.has_llc = 0, /* legal, last one wins */
 };
 
@@ -314,6 +316,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.has_fbc = 0, /* legal, last one wins */
 	.has_llc = 0, /* legal, last one wins */
 };
 
@@ -331,7 +334,6 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.is_mobile = 1,
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
-	.has_fbc = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 };
 
