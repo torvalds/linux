@@ -1091,7 +1091,8 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			put_task_struct(p);
 			timer->it.cpu.task = p = NULL;
 			timer->it.cpu.expires = 0;
-			goto out_unlock;
+			read_unlock(&tasklist_lock);
+			goto out;
 		} else if (unlikely(p->exit_state) && thread_group_empty(p)) {
 			/*
 			 * We've noticed that the thread is dead, but
@@ -1100,7 +1101,8 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			 */
 			cpu_timer_sample_group(timer->it_clock, p, &now);
 			clear_dead_task(timer, now);
-			goto out_unlock;
+			read_unlock(&tasklist_lock);
+			goto out;
 		}
 		spin_lock(&p->sighand->siglock);
 		cpu_timer_sample_group(timer->it_clock, p, &now);
@@ -1114,9 +1116,10 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	BUG_ON(!irqs_disabled());
 	arm_timer(timer);
 	spin_unlock(&p->sighand->siglock);
-
-out_unlock:
 	read_unlock(&tasklist_lock);
+
+	/* Kick full dynticks CPUs in case they need to tick on the new timer */
+	posix_cpu_timer_kick_nohz();
 
 out:
 	timer->it_overrun_last = timer->it_overrun;
@@ -1257,13 +1260,6 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 			cpu_timer_fire(timer);
 		spin_unlock(&timer->it_lock);
 	}
-
-	/*
-	 * In case some timers were rescheduled after the queue got emptied,
-	 * wake up full dynticks CPUs.
-	 */
-	if (tsk->signal->cputimer.running)
-		posix_cpu_timer_kick_nohz();
 }
 
 /*
