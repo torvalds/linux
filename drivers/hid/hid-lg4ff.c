@@ -196,6 +196,21 @@ static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *e
 	case FF_CONSTANT:
 		x = effect->u.ramp.start_level + 0x80;	/* 0x80 is no force */
 		CLAMP(x);
+
+		if (x == 0x80) {
+			/* De-activate force in slot-1*/
+			value[0] = 0x13;
+			value[1] = 0x00;
+			value[2] = 0x00;
+			value[3] = 0x00;
+			value[4] = 0x00;
+			value[5] = 0x00;
+			value[6] = 0x00;
+
+			hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+			return 0;
+		}
+
 		value[0] = 0x11;	/* Slot 1 */
 		value[1] = 0x08;
 		value[2] = x;
