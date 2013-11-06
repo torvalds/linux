@@ -246,8 +246,9 @@ static struct hist_entry *perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	struct hist_entry *he;
 
 	pthread_mutex_lock(&evsel->hists.lock);
-	he = __hists__add_entry(&evsel->hists, al, NULL, sample->period,
-				sample->weight, sample->transaction);
+	he = __hists__add_entry(&evsel->hists, al, NULL, NULL, NULL,
+				sample->period, sample->weight,
+				sample->transaction);
 	pthread_mutex_unlock(&evsel->hists.lock);
 	if (he == NULL)
 		return NULL;
@@ -1208,20 +1209,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (top.delay_secs < 1)
 		top.delay_secs = 1;
 
-	if (opts->user_interval != ULLONG_MAX)
-		opts->default_interval = opts->user_interval;
-	if (opts->user_freq != UINT_MAX)
-		opts->freq = opts->user_freq;
-
-	/*
-	 * User specified count overrides default frequency.
-	 */
-	if (opts->default_interval)
-		opts->freq = 0;
-	else if (opts->freq) {
-		opts->default_interval = opts->freq;
-	} else {
-		ui__error("frequency and count are zero, aborting\n");
+	if (perf_record_opts__config(opts)) {
 		status = -EINVAL;
 		goto out_delete_maps;
 	}

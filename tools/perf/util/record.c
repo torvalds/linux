@@ -2,6 +2,8 @@
 #include "evsel.h"
 #include "cpumap.h"
 #include "parse-events.h"
+#include "fs.h"
+#include "util.h"
 
 typedef void (*setup_probe_fn_t)(struct perf_evsel *evsel);
 
@@ -105,4 +107,73 @@ void perf_evlist__config(struct perf_evlist *evlist,
 	}
 
 	perf_evlist__set_id_pos(evlist);
+}
+
+static int get_max_rate(unsigned int *rate)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+
+	if (!procfs)
+		return -1;
+
+	snprintf(path, PATH_MAX,
+		 "%s/sys/kernel/perf_event_max_sample_rate", procfs);
+
+	return filename__read_int(path, (int *) rate);
+}
+
+static int perf_record_opts__config_freq(struct perf_record_opts *opts)
+{
+	bool user_freq = opts->user_freq != UINT_MAX;
+	unsigned int max_rate;
+
+	if (opts->user_interval != ULLONG_MAX)
+		opts->default_interval = opts->user_interval;
+	if (user_freq)
+		opts->freq = opts->user_freq;
+
+	/*
+	 * User specified count overrides default frequency.
+	 */
+	if (opts->default_interval)
+		opts->freq = 0;
+	else if (opts->freq) {
+		opts->default_interval = opts->freq;
+	} else {
+		pr_err("frequency and count are zero, aborting\n");
+		return -1;
+	}
+
+	if (get_max_rate(&max_rate))
+		return 0;
+
+	/*
+	 * User specified frequency is over current maximum.
+	 */
+	if (user_freq && (max_rate < opts->freq)) {
+		pr_err("Maximum frequency rate (%u) reached.\n"
+		   "Please use -F freq option with lower value or consider\n"
+		   "tweaking /proc/sys/kernel/perf_event_max_sample_rate.\n",
+		   max_rate);
+		return -1;
+	}
+
+	/*
+	 * Default frequency is over current maximum.
+	 */
+	if (max_rate < opts->freq) {
+		pr_warning("Lowering default frequency rate to %u.\n"
+			   "Please consider tweaking "
+			   "/proc/sys/kernel/perf_event_max_sample_rate.\n",
+			   max_rate);
+		opts->freq = max_rate;
+	}
+
+	return 0;
+}
+
+int perf_record_opts__config(struct perf_record_opts *opts)
+{
+	return perf_record_opts__config_freq(opts);
 }

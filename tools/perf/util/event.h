@@ -251,7 +251,8 @@ int perf_event__process(struct perf_tool *tool,
 			struct machine *machine);
 
 struct addr_location;
-int perf_event__preprocess_sample(const union perf_event *self,
+
+int perf_event__preprocess_sample(const union perf_event *event,
 				  struct machine *machine,
 				  struct addr_location *al,
 				  struct perf_sample *sample);

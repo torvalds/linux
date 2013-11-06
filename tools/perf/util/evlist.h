@@ -88,7 +88,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
 
-union perf_event *perf_evlist__mmap_read(struct perf_evlist *self, int idx);
+union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx);
 
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 
@@ -99,6 +99,7 @@ void perf_evlist__set_id_pos(struct perf_evlist *evlist);
 bool perf_can_sample_identifier(void);
 void perf_evlist__config(struct perf_evlist *evlist,
 			 struct perf_record_opts *opts);
+int perf_record_opts__config(struct perf_record_opts *opts);
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 				  struct perf_target *target,

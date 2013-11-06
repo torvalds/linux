@@ -62,15 +62,15 @@ static struct strfilter_node *strfilter_node__alloc(const char *op,
 						    struct strfilter_node *l,
 						    struct strfilter_node *r)
 {
-	struct strfilter_node *ret = zalloc(sizeof(struct strfilter_node));
+	struct strfilter_node *node = zalloc(sizeof(*node));
 
-	if (ret) {
-		ret->p = op;
-		ret->l = l;
-		ret->r = r;
+	if (node) {
+		node->p = op;
+		node->l = l;
+		node->r = r;
 	}
 
-	return ret;
+	return node;
 }
 
 static struct strfilter_node *strfilter_node__new(const char *s,
@@ -154,20 +154,20 @@ error:
  */
 struct strfilter *strfilter__new(const char *rules, const char **err)
 {
-	struct strfilter *ret = zalloc(sizeof(struct strfilter));
+	struct strfilter *filter = zalloc(sizeof(*filter));
 	const char *ep = NULL;
 
-	if (ret)
-		ret->root = strfilter_node__new(rules, &ep);
+	if (filter)
+		filter->root = strfilter_node__new(rules, &ep);
 
-	if (!ret || !ret->root || *ep != '\0') {
+	if (!filter || !filter->root || *ep != '\0') {
 		if (err)
 			*err = ep;
-		strfilter__delete(ret);
-		ret = NULL;
+		strfilter__delete(filter);
+		filter = NULL;
 	}
 
-	return ret;
+	return filter;
 }
 
 static bool strfilter_node__compare(struct strfilter_node *node,
@@ -191,9 +191,9 @@ static bool strfilter_node__compare(struct strfilter_node *node,
 }
 
 /* Return true if STR matches the filter rules */
-bool strfilter__compare(struct strfilter *node, const char *str)
+bool strfilter__compare(struct strfilter *filter, const char *str)
 {
-	if (!node)
+	if (!filter)
 		return false;
-	return strfilter_node__compare(node->root, str);
+	return strfilter_node__compare(filter->root, str);
 }

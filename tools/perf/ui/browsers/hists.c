@@ -1889,7 +1889,7 @@ out:
 	return key;
 }
 
-static bool filter_group_entries(struct ui_browser *self __maybe_unused,
+static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 				 void *entry)
 {
 	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);

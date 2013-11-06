@@ -958,20 +958,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (perf_evlist__create_maps(evsel_list, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
-	if (rec->opts.user_interval != ULLONG_MAX)
-		rec->opts.default_interval = rec->opts.user_interval;
-	if (rec->opts.user_freq != UINT_MAX)
-		rec->opts.freq = rec->opts.user_freq;
-
-	/*
-	 * User specified count overrides default frequency.
-	 */
-	if (rec->opts.default_interval)
-		rec->opts.freq = 0;
-	else if (rec->opts.freq) {
-		rec->opts.default_interval = rec->opts.freq;
-	} else {
-		ui__error("frequency and count are zero, aborting\n");
+	if (perf_record_opts__config(&rec->opts)) {
 		err = -EINVAL;
 		goto out_free_fd;
 	}
