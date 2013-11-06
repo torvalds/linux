@@ -1432,6 +1432,54 @@ out:
 	return status;
 }
 
+/* Check which application has registered for dsp broadcast messages */
+static int dsp_broadcast_msg_id(struct ft1000_usb *dev)
+{
+	struct dpram_blk *pdpram_blk;
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < MAX_NUM_APP; i++) {
+		if ((dev->app_info[i].DspBCMsgFlag)
+				&& (dev->app_info[i].fileobject)
+				&& (dev->app_info[i].NumOfMsg
+					< MAX_MSG_LIMIT)) {
+			pdpram_blk = ft1000_get_buffer(&freercvpool);
+			if (pdpram_blk != NULL) {
+				if (ft1000_receive_cmd(dev,
+							pdpram_blk->pbuffer,
+							MAX_CMD_SQSIZE)) {
+					/* Put message into the
+					 * appropriate application block
+					 * */
+					dev->app_info[i].nRxMsg++;
+					spin_lock_irqsave(&free_buff_lock,
+							flags);
+					list_add_tail(&pdpram_blk->list,
+							&dev->app_info[i]
+							.app_sqlist);
+					dev->app_info[i].NumOfMsg++;
+					spin_unlock_irqrestore(&free_buff_lock,
+							flags);
+					wake_up_interruptible(&dev->app_info[i]
+							.wait_dpram_msg);
+				} else {
+					dev->app_info[i].nRxMsgMiss++;
+					ft1000_free_buffer(pdpram_blk,
+							&freercvpool);
+					DEBUG("pdpram_blk::ft1000_get_buffer NULL\n");
+					return -1;
+				}
+			} else {
+				DEBUG("Out of memory in free receive command pool\n");
+				dev->app_info[i].nRxMsgMiss++;
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
 int ft1000_poll(void* dev_id)
 {
     struct ft1000_usb *dev = (struct ft1000_usb *)dev_id;
@@ -1446,8 +1494,6 @@ int ft1000_poll(void* dev_id)
     u16 portid;
 	struct dpram_blk *pdpram_blk;
 	struct pseudo_hdr *ppseudo_hdr;
-    unsigned long flags;
-
     if (ft1000_chkcard(dev) == FALSE) {
         DEBUG("ft1000_poll::ft1000_chkcard: failed\n");
         return -1;
@@ -1480,39 +1526,8 @@ int ft1000_poll(void* dev_id)
                             return status;
                         break;
                     case DSPBCMSGID:
-                        // This is a dsp broadcast message
-                        // Check which application has registered for dsp broadcast messages
-
-    	    	        for (i=0; i<MAX_NUM_APP; i++) {
-        	           if ( (dev->app_info[i].DspBCMsgFlag) && (dev->app_info[i].fileobject) &&
-                                         (dev->app_info[i].NumOfMsg < MAX_MSG_LIMIT)  )
-			   {
-			       pdpram_blk = ft1000_get_buffer (&freercvpool);
-			       if (pdpram_blk != NULL) {
-			           if ( ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE) ) {
-					ppseudo_hdr = (struct pseudo_hdr *)pdpram_blk->pbuffer;
-				       // Put message into the appropriate application block
-				       dev->app_info[i].nRxMsg++;
-				       spin_lock_irqsave(&free_buff_lock, flags);
-				       list_add_tail(&pdpram_blk->list, &dev->app_info[i].app_sqlist);
-				       dev->app_info[i].NumOfMsg++;
-				       spin_unlock_irqrestore(&free_buff_lock, flags);
-				       wake_up_interruptible(&dev->app_info[i].wait_dpram_msg);
-                                   }
-                                   else {
-				       dev->app_info[i].nRxMsgMiss++;
-				       // Put memory back to free pool
-				       ft1000_free_buffer(pdpram_blk, &freercvpool);
-				       DEBUG("pdpram_blk::ft1000_get_buffer NULL\n");
-                                   }
-                               }
-                               else {
-                                   DEBUG("Out of memory in free receive command pool\n");
-                                   dev->app_info[i].nRxMsgMiss++;
-                               }
-                           }
-	                }
-                        break;
+			status = dsp_broadcast_msg_id(dev);
+                       break;
                     default:
                         pdpram_blk = ft1000_get_buffer (&freercvpool);
 
