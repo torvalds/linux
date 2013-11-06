@@ -765,22 +765,6 @@ struct ib_uverbs_flow_spec_tcp_udp {
 	struct ib_uverbs_flow_tcp_udp_filter mask;
 };
 
-struct ib_uverbs_flow_spec {
-	union {
-		union {
-			struct ib_uverbs_flow_spec_hdr hdr;
-			struct {
-				__u32 type;
-				__u16 size;
-				__u16 reserved;
-			};
-		};
-		struct ib_uverbs_flow_spec_eth	    eth;
-		struct ib_uverbs_flow_spec_ipv4    ipv4;
-		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
-	};
-};
-
 struct ib_uverbs_flow_attr {
 	__u32 type;
 	__u16 size;
