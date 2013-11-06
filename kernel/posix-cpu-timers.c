@@ -608,7 +608,8 @@ static DECLARE_WORK(nohz_kick_work, nohz_kick_work_fn);
  */
 static void posix_cpu_timer_kick_nohz(void)
 {
-	schedule_work(&nohz_kick_work);
+	if (context_tracking_is_enabled())
+		schedule_work(&nohz_kick_work);
 }
 
 bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
