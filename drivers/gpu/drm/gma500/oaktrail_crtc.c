@@ -227,6 +227,8 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
+	int i;
+	int need_aux = gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ? 1 : 0;
 
 	if (pipe == 1) {
 		oaktrail_crtc_hdmi_dpms(crtc, mode);
@@ -243,35 +245,45 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		/* Enable the DPLL */
-		temp = REG_READ(map->dpll);
-		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			REG_WRITE(map->dpll, temp);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-		}
-		/* Enable the pipe */
-		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(map->conf, temp | PIPEACONF_ENABLE);
-		/* Enable the plane */
-		temp = REG_READ(map->cntr);
-		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			REG_WRITE(map->cntr,
-				  temp | DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-		}
+		for (i = 0; i <= need_aux; i++) {
+			/* Enable the DPLL */
+			temp = REG_READ_WITH_AUX(map->dpll, i);
+			if ((temp & DPLL_VCO_ENABLE) == 0) {
+				REG_WRITE_WITH_AUX(map->dpll, temp, i);
+				REG_READ_WITH_AUX(map->dpll, i);
+				/* Wait for the clocks to stabilize. */
+				udelay(150);
+				REG_WRITE_WITH_AUX(map->dpll,
+						   temp | DPLL_VCO_ENABLE, i);
+				REG_READ_WITH_AUX(map->dpll, i);
+				/* Wait for the clocks to stabilize. */
+				udelay(150);
+				REG_WRITE_WITH_AUX(map->dpll,
+						   temp | DPLL_VCO_ENABLE, i);
+				REG_READ_WITH_AUX(map->dpll, i);
+				/* Wait for the clocks to stabilize. */
+				udelay(150);
+			}
 
+			/* Enable the pipe */
+			temp = REG_READ_WITH_AUX(map->conf, i);
+			if ((temp & PIPEACONF_ENABLE) == 0) {
+				REG_WRITE_WITH_AUX(map->conf,
+						   temp | PIPEACONF_ENABLE, i);
+			}
+
+			/* Enable the plane */
+			temp = REG_READ_WITH_AUX(map->cntr, i);
+			if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
+				REG_WRITE_WITH_AUX(map->cntr,
+						   temp | DISPLAY_PLANE_ENABLE,
+						   i);
+				/* Flush the plane changes */
+				REG_WRITE_WITH_AUX(map->base,
+					REG_READ_WITH_AUX(map->base, i), i);
+			}
+
+		}
 		gma_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
@@ -283,35 +295,40 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 		 * if it's on this pipe */
 		/* psb_intel_crtc_dpms_video(crtc, FALSE); TODO */
 
-		/* Disable the VGA plane that we never use */
-		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
-		/* Disable display plane */
-		temp = REG_READ(map->cntr);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(map->cntr,
-				  temp & ~DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-			REG_READ(map->base);
-		}
+		for (i = 0; i <= need_aux; i++) {
+			/* Disable the VGA plane that we never use */
+			REG_WRITE_WITH_AUX(VGACNTRL, VGA_DISP_DISABLE, i);
+			/* Disable display plane */
+			temp = REG_READ_WITH_AUX(map->cntr, i);
+			if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
+				REG_WRITE_WITH_AUX(map->cntr,
+					temp & ~DISPLAY_PLANE_ENABLE, i);
+				/* Flush the plane changes */
+				REG_WRITE_WITH_AUX(map->base,
+						   REG_READ(map->base), i);
+				REG_READ_WITH_AUX(map->base, i);
+			}
 
-		/* Next, disable display pipes */
-		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_ENABLE) != 0) {
-			REG_WRITE(map->conf, temp & ~PIPEACONF_ENABLE);
-			REG_READ(map->conf);
-		}
-		/* Wait for for the pipe disable to take effect. */
-		gma_wait_for_vblank(dev);
+			/* Next, disable display pipes */
+			temp = REG_READ_WITH_AUX(map->conf, i);
+			if ((temp & PIPEACONF_ENABLE) != 0) {
+				REG_WRITE_WITH_AUX(map->conf,
+						   temp & ~PIPEACONF_ENABLE, i);
+				REG_READ_WITH_AUX(map->conf, i);
+			}
+			/* Wait for for the pipe disable to take effect. */
+			gma_wait_for_vblank(dev);
 
-		temp = REG_READ(map->dpll);
-		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			REG_WRITE(map->dpll, temp & ~DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-		}
+			temp = REG_READ_WITH_AUX(map->dpll, i);
+			if ((temp & DPLL_VCO_ENABLE) != 0) {
+				REG_WRITE_WITH_AUX(map->dpll,
+						   temp & ~DPLL_VCO_ENABLE, i);
+				REG_READ_WITH_AUX(map->dpll, i);
+			}
 
-		/* Wait for the clocks to turn off. */
-		udelay(150);
+			/* Wait for the clocks to turn off. */
+			udelay(150);
+		}
 		break;
 	}
 
@@ -367,6 +384,8 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	struct gma_encoder *gma_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
 	struct drm_connector *connector;
+	int i;
+	int need_aux = gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ? 1 : 0;
 
 	if (pipe == 1)
 		return oaktrail_crtc_hdmi_mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
@@ -401,15 +420,17 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* Disable the VGA plane that we never use */
-	REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
+	for (i = 0; i <= need_aux; i++)
+		REG_WRITE_WITH_AUX(VGACNTRL, VGA_DISP_DISABLE, i);
 
 	/* Disable the panel fitter if it was on our pipe */
 	if (oaktrail_panel_fitter_pipe(dev) == pipe)
 		REG_WRITE(PFIT_CONTROL, 0);
 
-	REG_WRITE(map->src,
-		  ((mode->crtc_hdisplay - 1) << 16) |
-		  (mode->crtc_vdisplay - 1));
+	for (i = 0; i <= need_aux; i++) {
+		REG_WRITE_WITH_AUX(map->src, ((mode->crtc_hdisplay - 1) << 16) |
+					     (mode->crtc_vdisplay - 1), i);
+	}
 
 	if (gma_encoder)
 		drm_object_property_get_value(&connector->base,
@@ -426,35 +447,39 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		offsetY = (adjusted_mode->crtc_vdisplay -
 			   mode->crtc_vdisplay) / 2;
 
-		REG_WRITE(map->htotal, (mode->crtc_hdisplay - 1) |
-			((adjusted_mode->crtc_htotal - 1) << 16));
-		REG_WRITE(map->vtotal, (mode->crtc_vdisplay - 1) |
-			((adjusted_mode->crtc_vtotal - 1) << 16));
-		REG_WRITE(map->hblank,
-			(adjusted_mode->crtc_hblank_start - offsetX - 1) |
-			((adjusted_mode->crtc_hblank_end - offsetX - 1) << 16));
-		REG_WRITE(map->hsync,
-			(adjusted_mode->crtc_hsync_start - offsetX - 1) |
-			((adjusted_mode->crtc_hsync_end - offsetX - 1) << 16));
-		REG_WRITE(map->vblank,
-			(adjusted_mode->crtc_vblank_start - offsetY - 1) |
-			((adjusted_mode->crtc_vblank_end - offsetY - 1) << 16));
-		REG_WRITE(map->vsync,
-			(adjusted_mode->crtc_vsync_start - offsetY - 1) |
-			((adjusted_mode->crtc_vsync_end - offsetY - 1) << 16));
+		for (i = 0; i <= need_aux; i++) {
+			REG_WRITE_WITH_AUX(map->htotal, (mode->crtc_hdisplay - 1) |
+				((adjusted_mode->crtc_htotal - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->vtotal, (mode->crtc_vdisplay - 1) |
+				((adjusted_mode->crtc_vtotal - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->hblank,
+				(adjusted_mode->crtc_hblank_start - offsetX - 1) |
+				((adjusted_mode->crtc_hblank_end - offsetX - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->hsync,
+				(adjusted_mode->crtc_hsync_start - offsetX - 1) |
+				((adjusted_mode->crtc_hsync_end - offsetX - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->vblank,
+				(adjusted_mode->crtc_vblank_start - offsetY - 1) |
+				((adjusted_mode->crtc_vblank_end - offsetY - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->vsync,
+				(adjusted_mode->crtc_vsync_start - offsetY - 1) |
+				((adjusted_mode->crtc_vsync_end - offsetY - 1) << 16), i);
+		}
 	} else {
-		REG_WRITE(map->htotal, (adjusted_mode->crtc_hdisplay - 1) |
-			((adjusted_mode->crtc_htotal - 1) << 16));
-		REG_WRITE(map->vtotal, (adjusted_mode->crtc_vdisplay - 1) |
-			((adjusted_mode->crtc_vtotal - 1) << 16));
-		REG_WRITE(map->hblank, (adjusted_mode->crtc_hblank_start - 1) |
-			((adjusted_mode->crtc_hblank_end - 1) << 16));
-		REG_WRITE(map->hsync, (adjusted_mode->crtc_hsync_start - 1) |
-			((adjusted_mode->crtc_hsync_end - 1) << 16));
-		REG_WRITE(map->vblank, (adjusted_mode->crtc_vblank_start - 1) |
-			((adjusted_mode->crtc_vblank_end - 1) << 16));
-		REG_WRITE(map->vsync, (adjusted_mode->crtc_vsync_start - 1) |
-			((adjusted_mode->crtc_vsync_end - 1) << 16));
+		for (i = 0; i <= need_aux; i++) {
+			REG_WRITE_WITH_AUX(map->htotal, (adjusted_mode->crtc_hdisplay - 1) |
+				((adjusted_mode->crtc_htotal - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->vtotal, (adjusted_mode->crtc_vdisplay - 1) |
+				((adjusted_mode->crtc_vtotal - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->hblank, (adjusted_mode->crtc_hblank_start - 1) |
+				((adjusted_mode->crtc_hblank_end - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->hsync, (adjusted_mode->crtc_hsync_start - 1) |
+				((adjusted_mode->crtc_hsync_end - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->vblank, (adjusted_mode->crtc_vblank_start - 1) |
+				((adjusted_mode->crtc_vblank_end - 1) << 16), i);
+			REG_WRITE_WITH_AUX(map->vsync, (adjusted_mode->crtc_vsync_start - 1) |
+				((adjusted_mode->crtc_vsync_end - 1) << 16), i);
+		}
 	}
 
 	/* Flush the plane changes */
@@ -534,31 +559,35 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	dpll |= DPLL_VCO_ENABLE;
 
 	if (dpll & DPLL_VCO_ENABLE) {
-		REG_WRITE(map->fp0, fp);
-		REG_WRITE(map->dpll, dpll & ~DPLL_VCO_ENABLE);
-		REG_READ(map->dpll);
-		/* Check the DPLLA lock bit PIPEACONF[29] */
-		udelay(150);
+		for (i = 0; i <= need_aux; i++) {
+			REG_WRITE_WITH_AUX(map->fp0, fp, i);
+			REG_WRITE_WITH_AUX(map->dpll, dpll & ~DPLL_VCO_ENABLE, i);
+			REG_READ_WITH_AUX(map->dpll, i);
+			/* Check the DPLLA lock bit PIPEACONF[29] */
+			udelay(150);
+		}
 	}
 
-	REG_WRITE(map->fp0, fp);
-	REG_WRITE(map->dpll, dpll);
-	REG_READ(map->dpll);
-	/* Wait for the clocks to stabilize. */
-	udelay(150);
+	for (i = 0; i <= need_aux; i++) {
+		REG_WRITE_WITH_AUX(map->fp0, fp, i);
+		REG_WRITE_WITH_AUX(map->dpll, dpll, i);
+		REG_READ_WITH_AUX(map->dpll, i);
+		/* Wait for the clocks to stabilize. */
+		udelay(150);
 
-	/* write it again -- the BIOS does, after all */
-	REG_WRITE(map->dpll, dpll);
-	REG_READ(map->dpll);
-	/* Wait for the clocks to stabilize. */
-	udelay(150);
+		/* write it again -- the BIOS does, after all */
+		REG_WRITE_WITH_AUX(map->dpll, dpll, i);
+		REG_READ_WITH_AUX(map->dpll, i);
+		/* Wait for the clocks to stabilize. */
+		udelay(150);
 
-	REG_WRITE(map->conf, pipeconf);
-	REG_READ(map->conf);
-	gma_wait_for_vblank(dev);
+		REG_WRITE_WITH_AUX(map->conf, pipeconf, i);
+		REG_READ_WITH_AUX(map->conf, i);
+		gma_wait_for_vblank(dev);
 
-	REG_WRITE(map->cntr, dspcntr);
-	gma_wait_for_vblank(dev);
+		REG_WRITE_WITH_AUX(map->cntr, dspcntr, i);
+		gma_wait_for_vblank(dev);
+	}
 
 oaktrail_crtc_mode_set_exit:
 	gma_power_end(dev);
