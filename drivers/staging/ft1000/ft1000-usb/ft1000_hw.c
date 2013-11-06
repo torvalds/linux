@@ -1486,46 +1486,35 @@ static int handle_misc_portid(struct ft1000_usb *dev)
 	int i;
 
 	pdpram_blk = ft1000_get_buffer(&freercvpool);
-	if (pdpram_blk != NULL) {
-		if (ft1000_receive_cmd(dev, pdpram_blk->pbuffer,
-					MAX_CMD_SQSIZE)) {
-			/* Search for correct application block */
-			for (i = 0; i < MAX_NUM_APP; i++) {
-				if (dev->app_info[i].app_id
-						== ((struct pseudo_hdr *)
-						pdpram_blk->pbuffer)
-						->portdest)
-					break;
-				return -1;
-			}
-			if (i == MAX_NUM_APP) {
-				DEBUG("FT1000:ft1000_parse_dpram_msg: No application matching id = %d\n", ((struct pseudo_hdr *)pdpram_blk->pbuffer)->portdest);
-				ft1000_free_buffer(pdpram_blk, &freercvpool);
-			} else {
-				if (dev->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
-					ft1000_free_buffer(pdpram_blk,
-							&freercvpool);
-					return -1;
-				} else {
-					dev->app_info[i].nRxMsg++;
-					/* Put message into the appropriate
-					 * application block
-					 * */
-					list_add_tail(&pdpram_blk->list,
-							&dev->app_info[i]
-							.app_sqlist);
-					dev->app_info[i].NumOfMsg++;
-				}
-			}
-		} else {
-			ft1000_free_buffer(pdpram_blk, &freercvpool);
-			return -1;
-		}
-	} else {
+	if (pdpram_blk == NULL) {
 		DEBUG("Out of memory in free receive command pool\n");
 		return -1;
 	}
+	if (!ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE))
+		goto exit_failure;
+
+	/* Search for correct application block */
+	for (i = 0; i < MAX_NUM_APP; i++) {
+		if (dev->app_info[i].app_id == ((struct pseudo_hdr *)
+					pdpram_blk->pbuffer)->portdest)
+			break;
+	}
+	if (i == MAX_NUM_APP) {
+		DEBUG("FT1000:ft1000_parse_dpram_msg: No application matching id = %d\n", ((struct pseudo_hdr *)pdpram_blk->pbuffer)->portdest);
+		goto exit_failure;
+	} else if (dev->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
+		goto exit_failure;
+	} else {
+		dev->app_info[i].nRxMsg++;
+		/* Put message into the appropriate application block */
+		list_add_tail(&pdpram_blk->list, &dev->app_info[i].app_sqlist);
+		dev->app_info[i].NumOfMsg++;
+	}
 	return 0;
+
+exit_failure:
+	ft1000_free_buffer(pdpram_blk, &freercvpool);
+	return -1;
 }
 
 int ft1000_poll(void* dev_id)
