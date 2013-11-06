@@ -32,8 +32,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 #include <linux/spi/spi.h>
-#include <linux/clk/tegra.h>
 
 #define SPI_COMMAND				0x000
 #define SPI_GO					BIT(30)
@@ -118,6 +118,7 @@ struct tegra_sflash_data {
 	spinlock_t				lock;
 
 	struct clk				*clk;
+	struct reset_control			*rst;
 	void __iomem				*base;
 	unsigned				irq;
 	u32					spi_max_frequency;
@@ -389,9 +390,9 @@ static irqreturn_t handle_cpu_based_xfer(struct tegra_sflash_data *tsd)
 		dev_err(tsd->dev,
 			"CpuXfer 0x%08x:0x%08x\n", tsd->command_reg,
 				tsd->dma_control_reg);
-		tegra_periph_reset_assert(tsd->clk);
+		reset_control_assert(tsd->rst);
 		udelay(2);
-		tegra_periph_reset_deassert(tsd->clk);
+		reset_control_deassert(tsd->rst);
 		complete(&tsd->xfer_completion);
 		goto exit;
 	}
@@ -505,6 +506,13 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
+	tsd->rst = devm_reset_control_get(&pdev->dev, "spi");
+	if (IS_ERR(tsd->rst)) {
+		dev_err(&pdev->dev, "can not get reset\n");
+		ret = PTR_ERR(tsd->rst);
+		goto exit_free_irq;
+	}
+
 	init_completion(&tsd->xfer_completion);
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
@@ -520,9 +528,9 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	}
 
 	/* Reset controller */
-	tegra_periph_reset_assert(tsd->clk);
+	reset_control_assert(tsd->rst);
 	udelay(2);
-	tegra_periph_reset_deassert(tsd->clk);
+	reset_control_deassert(tsd->rst);
 
 	tsd->def_command_reg  = SPI_M_S | SPI_CS_SW;
 	tegra_sflash_writel(tsd, tsd->def_command_reg, SPI_COMMAND);

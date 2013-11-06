@@ -17,7 +17,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk/tegra.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
@@ -34,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 #include <linux/spi/spi.h>
 
 #define SPI_COMMAND1				0x000
@@ -174,6 +174,7 @@ struct tegra_spi_data {
 	spinlock_t				lock;
 
 	struct clk				*clk;
+	struct reset_control			*rst;
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned				irq;
@@ -918,9 +919,9 @@ static irqreturn_t handle_cpu_based_xfer(struct tegra_spi_data *tspi)
 			tspi->status_reg);
 		dev_err(tspi->dev, "CpuXfer 0x%08x:0x%08x\n",
 			tspi->command1_reg, tspi->dma_control_reg);
-		tegra_periph_reset_assert(tspi->clk);
+		reset_control_assert(tspi->rst);
 		udelay(2);
-		tegra_periph_reset_deassert(tspi->clk);
+		reset_control_deassert(tspi->rst);
 		complete(&tspi->xfer_completion);
 		goto exit;
 	}
@@ -990,9 +991,9 @@ static irqreturn_t handle_dma_based_xfer(struct tegra_spi_data *tspi)
 			tspi->status_reg);
 		dev_err(tspi->dev, "DmaXfer 0x%08x:0x%08x\n",
 			tspi->command1_reg, tspi->dma_control_reg);
-		tegra_periph_reset_assert(tspi->clk);
+		reset_control_assert(tspi->rst);
 		udelay(2);
-		tegra_periph_reset_deassert(tspi->clk);
+		reset_control_deassert(tspi->rst);
 		complete(&tspi->xfer_completion);
 		spin_unlock_irqrestore(&tspi->lock, flags);
 		return IRQ_HANDLED;
@@ -1124,6 +1125,13 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(tspi->clk)) {
 		dev_err(&pdev->dev, "can not get clock\n");
 		ret = PTR_ERR(tspi->clk);
+		goto exit_free_irq;
+	}
+
+	tspi->rst = devm_reset_control_get(&pdev->dev, "spi");
+	if (IS_ERR(tspi->rst)) {
+		dev_err(&pdev->dev, "can not get reset\n");
+		ret = PTR_ERR(tspi->rst);
 		goto exit_free_irq;
 	}
 
