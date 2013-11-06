@@ -1398,10 +1398,12 @@ void ieee80211_dfs_cac_timer_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata =
 		container_of(delayed_work, struct ieee80211_sub_if_data,
 			     dfs_cac_timer_work);
+	struct cfg80211_chan_def chandef = sdata->vif.bss_conf.chandef;
 
 	ieee80211_vif_release_channel(sdata);
-
-	cfg80211_cac_event(sdata->dev, NL80211_RADAR_CAC_FINISHED, GFP_KERNEL);
+	cfg80211_cac_event(sdata->dev, &chandef,
+			   NL80211_RADAR_CAC_FINISHED,
+			   GFP_KERNEL);
 }
 
 /* MLME */

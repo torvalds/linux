@@ -2259,14 +2259,17 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
+	struct cfg80211_chan_def chandef;
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
 
 		if (sdata->wdev.cac_started) {
+			chandef = sdata->vif.bss_conf.chandef;
 			ieee80211_vif_release_channel(sdata);
 			cfg80211_cac_event(sdata->dev,
+					   &chandef,
 					   NL80211_RADAR_CAC_ABORTED,
 					   GFP_KERNEL);
 		}

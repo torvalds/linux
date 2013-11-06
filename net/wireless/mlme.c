@@ -763,12 +763,12 @@ void cfg80211_radar_event(struct wiphy *wiphy,
 EXPORT_SYMBOL(cfg80211_radar_event);
 
 void cfg80211_cac_event(struct net_device *netdev,
+			const struct cfg80211_chan_def *chandef,
 			enum nl80211_radar_event event, gfp_t gfp)
 {
 	struct wireless_dev *wdev = netdev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-	struct cfg80211_chan_def chandef;
 	unsigned long timeout;
 
 	trace_cfg80211_cac_event(netdev, event);
@@ -779,14 +779,12 @@ void cfg80211_cac_event(struct net_device *netdev,
 	if (WARN_ON(!wdev->channel))
 		return;
 
-	cfg80211_chandef_create(&chandef, wdev->channel, NL80211_CHAN_NO_HT);
-
 	switch (event) {
 	case NL80211_RADAR_CAC_FINISHED:
 		timeout = wdev->cac_start_time +
 			  msecs_to_jiffies(IEEE80211_DFS_MIN_CAC_TIME_MS);
 		WARN_ON(!time_after_eq(jiffies, timeout));
-		cfg80211_set_dfs_state(wiphy, &chandef, NL80211_DFS_AVAILABLE);
+		cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_AVAILABLE);
 		break;
 	case NL80211_RADAR_CAC_ABORTED:
 		break;
@@ -796,6 +794,6 @@ void cfg80211_cac_event(struct net_device *netdev,
 	}
 	wdev->cac_started = false;
 
-	nl80211_radar_notify(rdev, &chandef, event, netdev, gfp);
+	nl80211_radar_notify(rdev, chandef, event, netdev, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cac_event);
