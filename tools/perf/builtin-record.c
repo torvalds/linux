@@ -342,9 +342,28 @@ out:
 	return rc;
 }
 
+static void perf_record__init_features(struct perf_record *rec)
+{
+	struct perf_evlist *evsel_list = rec->evlist;
+	struct perf_session *session = rec->session;
+	int feat;
+
+	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
+		perf_header__set_feat(&session->header, feat);
+
+	if (rec->no_buildid)
+		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
+
+	if (!have_tracepoints(&evsel_list->entries))
+		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
+
+	if (!rec->opts.branch_stack)
+		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+}
+
 static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 {
-	int err, feat;
+	int err;
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
 	struct machine *machine;
@@ -371,17 +390,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->session = session;
 
-	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
-		perf_header__set_feat(&session->header, feat);
-
-	if (rec->no_buildid)
-		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
-
-	if (!have_tracepoints(&evsel_list->entries))
-		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
-
-	if (!rec->opts.branch_stack)
-		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+	perf_record__init_features(rec);
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &opts->target,
