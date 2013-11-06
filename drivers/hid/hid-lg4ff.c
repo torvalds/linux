@@ -218,12 +218,21 @@ static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitud
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
 	__s32 *value = report->field[0]->value;
+	__u32 expand_a, expand_b;
+
+	if (magnitude <= 0xaaaa) {
+		expand_a = 0x0c * magnitude;
+		expand_b = 0x80 * magnitude;
+	} else {
+		expand_a = (0x0c * 0xaaaa) + 0x06 * (magnitude - 0xaaaa);
+		expand_b = (0x80 * 0xaaaa) + 0xff * (magnitude - 0xaaaa);
+	}
 
 	value[0] = 0xfe;
 	value[1] = 0x0d;
-	value[2] = magnitude >> 13;
-	value[3] = magnitude >> 13;
-	value[4] = magnitude >> 8;
+	value[2] = expand_a / 0xaaaa;
+	value[3] = expand_a / 0xaaaa;
+	value[4] = expand_b / 0xaaaa;
 	value[5] = 0x00;
 	value[6] = 0x00;
 
