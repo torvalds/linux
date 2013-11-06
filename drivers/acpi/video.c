@@ -856,7 +856,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		 * or an index). Set the backlight to max_level in this case.
 		 */
 		for (i = 2; i < br->count; i++)
-			if (level_old == br->levels[i])
+			if (level == br->levels[i])
 				break;
 		if (i == br->count)
 			level = max_level;
