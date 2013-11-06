@@ -20,7 +20,7 @@ static inline bool vtime_accounting_enabled(void) { return true; }
 static inline bool vtime_accounting_enabled(void)
 {
 	if (context_tracking_is_enabled()) {
-		if (context_tracking_active())
+		if (context_tracking_cpu_is_enabled())
 			return true;
 	}
 
