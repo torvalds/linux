@@ -48,6 +48,12 @@ typedef uint32_t uint32;
 #define SysSrv_DdrMode          (RK30_CPU_AXI_BUS_BASE+0x10)
 #define SysSrv_ReadLatency      (RK30_CPU_AXI_BUS_BASE+0x14)
 
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3066B)
+#define SRAM_SIZE       RK30_IMEM_SIZE
+#elif defined(CONFIG_ARCH_RK3188)
+#define SRAM_SIZE       RK3188_IMEM_SIZE
+#endif
+
 #define ddr_print(x...) printk( "DDR DEBUG: " x )
 
 /***********************************
@@ -2842,7 +2848,7 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     isb();
     DDR_SAVE_SP(save_sp);
 
-    for(i=0;i<16;i++)
+    for(i=0;i<SRAM_SIZE/4096;i++) 
     {
         n=temp[1024*i];
         barrier();
@@ -3176,11 +3182,6 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz , struct ddr_freq_t ddr_f
     isb();
     DDR_SAVE_SP(save_sp);
 
-#if defined(CONFIG_ARCH_RK30)
-#define SRAM_SIZE       RK30_IMEM_SIZE
-#elif defined(CONFIG_ARCH_RK3188)
-#define SRAM_SIZE       RK3188_IMEM_SIZE
-#endif
     for(i=0;i<SRAM_SIZE/4096;i++)     
     {
         n=temp[1024*i];
@@ -3360,11 +3361,6 @@ else
     outer_flush_all();
     //flush_tlb_all();
 
-#if defined(CONFIG_ARCH_RK30)
-#define SRAM_SIZE       RK30_IMEM_SIZE
-#elif defined(CONFIG_ARCH_RK3188)
-#define SRAM_SIZE       RK3188_IMEM_SIZE
-#endif
     for(i=0;i<SRAM_SIZE/4096;i++)     
     {
         n=temp[1024*i];
@@ -3565,7 +3561,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 201300814 \n");
+    ddr_print("version 1.00 20131106 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
