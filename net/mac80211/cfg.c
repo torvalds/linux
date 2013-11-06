@@ -1368,7 +1368,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 			changed |=
 			      ieee80211_mps_set_sta_local_pm(sta,
 							     params->local_pm);
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_mbss_info_change_notify(sdata, changed);
 #endif
 	}
 
