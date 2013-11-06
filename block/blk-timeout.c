@@ -31,7 +31,7 @@ static int __init fail_io_timeout_debugfs(void)
 	struct dentry *dir = fault_create_debugfs_attr("fail_io_timeout",
 						NULL, &fail_io_timeout);
 
-	return IS_ERR(dir) ? PTR_ERR(dir) : 0;
+	return PTR_ERR_OR_ZERO(dir);
 }
 
 late_initcall(fail_io_timeout_debugfs);
