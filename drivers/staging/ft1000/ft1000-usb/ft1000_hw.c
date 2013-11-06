@@ -1445,34 +1445,28 @@ static int dsp_broadcast_msg_id(struct ft1000_usb *dev)
 				&& (dev->app_info[i].NumOfMsg
 					< MAX_MSG_LIMIT)) {
 			pdpram_blk = ft1000_get_buffer(&freercvpool);
-			if (pdpram_blk != NULL) {
-				if (ft1000_receive_cmd(dev,
-							pdpram_blk->pbuffer,
-							MAX_CMD_SQSIZE)) {
-					/* Put message into the
-					 * appropriate application block
-					 * */
-					dev->app_info[i].nRxMsg++;
-					spin_lock_irqsave(&free_buff_lock,
-							flags);
-					list_add_tail(&pdpram_blk->list,
-							&dev->app_info[i]
-							.app_sqlist);
-					dev->app_info[i].NumOfMsg++;
-					spin_unlock_irqrestore(&free_buff_lock,
-							flags);
-					wake_up_interruptible(&dev->app_info[i]
-							.wait_dpram_msg);
-				} else {
-					dev->app_info[i].nRxMsgMiss++;
-					ft1000_free_buffer(pdpram_blk,
-							&freercvpool);
-					DEBUG("pdpram_blk::ft1000_get_buffer NULL\n");
-					return -1;
-				}
-			} else {
+			if (pdpram_blk == NULL) {
 				DEBUG("Out of memory in free receive command pool\n");
 				dev->app_info[i].nRxMsgMiss++;
+				return -1;
+			}
+			if (ft1000_receive_cmd(dev, pdpram_blk->pbuffer,
+						MAX_CMD_SQSIZE)) {
+				/* Put message into the
+				 * appropriate application block
+				 */
+				dev->app_info[i].nRxMsg++;
+				spin_lock_irqsave(&free_buff_lock, flags);
+				list_add_tail(&pdpram_blk->list,
+						&dev->app_info[i] .app_sqlist);
+				dev->app_info[i].NumOfMsg++;
+				spin_unlock_irqrestore(&free_buff_lock, flags);
+				wake_up_interruptible(&dev->app_info[i]
+						.wait_dpram_msg);
+			} else {
+				dev->app_info[i].nRxMsgMiss++;
+				ft1000_free_buffer(pdpram_blk, &freercvpool);
+				DEBUG("pdpram_blk::ft1000_get_buffer NULL\n");
 				return -1;
 			}
 		}
