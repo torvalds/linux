@@ -25,7 +25,9 @@
 #define HARLEY_READ_OPERATION    0xc1
 #define HARLEY_WRITE_OPERATION   0x41
 
-//#define JDEBUG
+#if 0
+#define JDEBUG
+#endif
 
 static int ft1000_submit_rx_urb(struct ft1000_info *info);
 
@@ -65,7 +67,7 @@ static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 }
 
 /* returns the value in a register */
-int ft1000_read_register(struct ft1000_usb *ft1000dev, u16* Data,
+int ft1000_read_register(struct ft1000_usb *ft1000dev, u16 *Data,
 			 u16 nRegIndx)
 {
 	int ret = 0;
@@ -169,7 +171,8 @@ int ft1000_read_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer,
 }
 
 /* write into DPRAM a number of bytes */
-int ft1000_write_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u16 value, u8 highlow)
+int ft1000_write_dpram16(struct ft1000_usb *ft1000dev, u16 indx, u16 value,
+		u8 highlow)
 {
 	int ret = 0;
 	u8 request;
@@ -334,7 +337,7 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
 
 	if (temp & 0x0100)
-		msleep(10);
+		usleep_range(900, 1100);
 
 	/* check for odd word */
 	size = size + 2;
@@ -344,16 +347,17 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 		size += 4 - (size % 4);
 
 	ft1000_write_dpram32(ft1000dev, 0, commandbuf, size);
-	msleep(1);
+	usleep_range(900, 1100);
 	ft1000_write_register(ft1000dev, FT1000_DB_DPRAM_TX,
 			      FT1000_REG_DOORBELL);
-	msleep(1);
+	usleep_range(900, 1100);
 
 	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
 
-	if ((temp & 0x0100) == 0) {
-		//DEBUG("card_send_command: Message sent\n");
-	}
+#if 0
+	if ((temp & 0x0100) == 0)
+		DEBUG("card_send_command: Message sent\n");
+#endif
 
 }
 
@@ -498,7 +502,7 @@ static void ft1000_usb_transmit_complete(struct urb *urb)
 /* take an ethernet packet and convert it to a Flarion
 *  packet prior to sending it to the ASIC Downlink FIFO.
 */
-static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
+static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 {
 	struct ft1000_info *pInfo = netdev_priv(netdev);
 	struct ft1000_usb *pFt1000Dev = pInfo->priv;
@@ -641,8 +645,7 @@ static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
 	return &(info->stats);
 }
 
-static const struct net_device_ops ftnet_ops =
-{
+static const struct net_device_ops ftnet_ops = {
 	.ndo_open = &ft1000_open,
 	.ndo_stop = &ft1000_close,
 	.ndo_start_xmit = &ft1000_start_xmit,
@@ -687,14 +690,14 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 		card_nr[1] = '\0';
 		ret_val = kstrtou8(card_nr, 10, &gCardIndex);
 		if (ret_val) {
-			printk(KERN_ERR "Can't parse netdev\n");
+			netdev_err(ft1000dev->net, "Can't parse netdev\n");
 			goto err_net;
 		}
 
 		ft1000dev->CardNumber = gCardIndex;
 		DEBUG("card number = %d\n", ft1000dev->CardNumber);
 	} else {
-		printk(KERN_ERR "ft1000: Invalid device name\n");
+		netdev_err(ft1000dev->net, "ft1000: Invalid device name\n");
 		ret_val = -ENXIO;
 		goto err_net;
 	}
@@ -825,7 +828,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 		DEBUG("network driver is closed, return\n");
 		return 0;
 	}
-	// Read length
+	/* Read length */
 	len = urb->transfer_buffer_length;
 	lena = urb->actual_length;
 
@@ -942,8 +945,7 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	int status;
 
 	if (dev->fCondResetPend) {
-		DEBUG
-		    ("ft1000_hw:ft1000_chkcard:Card is being reset, return FALSE\n");
+		DEBUG("ft1000_hw:ft1000_chkcard:Card is being reset, return FALSE\n");
 		return TRUE;
 	}
 	/* Mask register is used to check for device presence since it is never
@@ -951,8 +953,7 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	 */
 	status = ft1000_read_register(dev, &tempword, FT1000_REG_SUP_IMASK);
 	if (tempword == 0) {
-		DEBUG
-		    ("ft1000_hw:ft1000_chkcard: IMASK = 0 Card not detected\n");
+		DEBUG("ft1000_hw:ft1000_chkcard: IMASK = 0 Card not detected\n");
 		return FALSE;
 	}
 	/* The system will return the value of 0xffff for the version register
@@ -961,8 +962,7 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	status = ft1000_read_register(dev, &tempword, FT1000_REG_ASIC_ID);
 	if (tempword != 0x1b01) {
 		dev->status |= FT1000_STATUS_CLOSING;
-		DEBUG
-		    ("ft1000_hw:ft1000_chkcard: Version = 0xffff Card not detected\n");
+		DEBUG("ft1000_hw:ft1000_chkcard: Version = 0xffff Card not detected\n");
 		return FALSE;
 	}
 	return TRUE;
@@ -1095,9 +1095,8 @@ static int ft1000_dsp_prov(void *arg)
 			ppseudo_hdr->portsrc = 0;
 			/* Calculate new checksum */
 			ppseudo_hdr->checksum = *pmsg++;
-			for (i = 1; i < 7; i++) {
+			for (i = 1; i < 7; i++)
 				ppseudo_hdr->checksum ^= *pmsg++;
-			}
 
 			TempShortBuf[0] = 0;
 			TempShortBuf[1] = htons(len);
@@ -1115,7 +1114,7 @@ static int ft1000_dsp_prov(void *arg)
 			kfree(ptr->pprov_data);
 			kfree(ptr);
 		}
-		msleep(10);
+		usleep_range(9000, 11000);
 	}
 
 	DEBUG("DSP Provisioning List Entry finished\n");
@@ -1171,154 +1170,179 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 	DEBUG("ft1000_proc_drvmsg:Command message type = 0x%x\n", msgtype);
 	switch (msgtype) {
 	case MEDIA_STATE:{
-			DEBUG
-			    ("ft1000_proc_drvmsg:Command message type = MEDIA_STATE");
-
-			pmediamsg = (struct media_msg *)&cmdbuffer[0];
-			if (info->ProgConStat != 0xFF) {
-				if (pmediamsg->state) {
-					DEBUG("Media is up\n");
-					if (info->mediastate == 0) {
-						if (dev->NetDevRegDone) {
-							netif_wake_queue(dev->
-									 net);
-						}
-						info->mediastate = 1;
-					}
-				} else {
-					DEBUG("Media is down\n");
-					if (info->mediastate == 1) {
-						info->mediastate = 0;
-						if (dev->NetDevRegDone) {
-						}
-						info->ConTm = 0;
-					}
+		DEBUG("ft1000_proc_drvmsg:Command message type = MEDIA_STATE");
+		pmediamsg = (struct media_msg *)&cmdbuffer[0];
+		if (info->ProgConStat != 0xFF) {
+			if (pmediamsg->state) {
+				DEBUG("Media is up\n");
+				if (info->mediastate == 0) {
+					if (dev->NetDevRegDone)
+						netif_wake_queue(dev->net);
+					info->mediastate = 1;
 				}
 			} else {
 				DEBUG("Media is down\n");
 				if (info->mediastate == 1) {
 					info->mediastate = 0;
-					info->ConTm = 0;
+					if (dev->NetDevRegDone)
+						info->ConTm = 0;
 				}
 			}
-			break;
+		} else {
+			DEBUG("Media is down\n");
+			if (info->mediastate == 1) {
+				info->mediastate = 0;
+				info->ConTm = 0;
+			}
 		}
+		break;
+	}
 	case DSP_INIT_MSG:{
-			DEBUG
-			    ("ft1000_proc_drvmsg:Command message type = DSP_INIT_MSG");
+		DEBUG("ft1000_proc_drvmsg:Command message type = DSP_INIT_MSG");
+		pdspinitmsg = (struct dsp_init_msg *)&cmdbuffer[2];
+		memcpy(info->DspVer, pdspinitmsg->DspVer, DSPVERSZ);
+		DEBUG("DSPVER = 0x%2x 0x%2x 0x%2x 0x%2x\n",
+		      info->DspVer[0], info->DspVer[1], info->DspVer[2],
+		      info->DspVer[3]);
+		memcpy(info->HwSerNum, pdspinitmsg->HwSerNum,
+		       HWSERNUMSZ);
+		memcpy(info->Sku, pdspinitmsg->Sku, SKUSZ);
+		memcpy(info->eui64, pdspinitmsg->eui64, EUISZ);
+		DEBUG("EUI64=%2x.%2x.%2x.%2x.%2x.%2x.%2x.%2x\n",
+		      info->eui64[0], info->eui64[1], info->eui64[2],
+		      info->eui64[3], info->eui64[4], info->eui64[5],
+		      info->eui64[6], info->eui64[7]);
+		dev->net->dev_addr[0] = info->eui64[0];
+		dev->net->dev_addr[1] = info->eui64[1];
+		dev->net->dev_addr[2] = info->eui64[2];
+		dev->net->dev_addr[3] = info->eui64[5];
+		dev->net->dev_addr[4] = info->eui64[6];
+		dev->net->dev_addr[5] = info->eui64[7];
 
-			pdspinitmsg = (struct dsp_init_msg *)&cmdbuffer[2];
-			memcpy(info->DspVer, pdspinitmsg->DspVer, DSPVERSZ);
-			DEBUG("DSPVER = 0x%2x 0x%2x 0x%2x 0x%2x\n",
-			      info->DspVer[0], info->DspVer[1], info->DspVer[2],
-			      info->DspVer[3]);
-			memcpy(info->HwSerNum, pdspinitmsg->HwSerNum,
-			       HWSERNUMSZ);
-			memcpy(info->Sku, pdspinitmsg->Sku, SKUSZ);
-			memcpy(info->eui64, pdspinitmsg->eui64, EUISZ);
-			DEBUG("EUI64=%2x.%2x.%2x.%2x.%2x.%2x.%2x.%2x\n",
-			      info->eui64[0], info->eui64[1], info->eui64[2],
-			      info->eui64[3], info->eui64[4], info->eui64[5],
-			      info->eui64[6], info->eui64[7]);
-			dev->net->dev_addr[0] = info->eui64[0];
-			dev->net->dev_addr[1] = info->eui64[1];
-			dev->net->dev_addr[2] = info->eui64[2];
-			dev->net->dev_addr[3] = info->eui64[5];
-			dev->net->dev_addr[4] = info->eui64[6];
-			dev->net->dev_addr[5] = info->eui64[7];
-
-			if (ntohs(pdspinitmsg->length) ==
-			    (sizeof(struct dsp_init_msg) - 20)) {
-				memcpy(info->ProductMode,
-				       pdspinitmsg->ProductMode, MODESZ);
-				memcpy(info->RfCalVer, pdspinitmsg->RfCalVer,
-				       CALVERSZ);
-				memcpy(info->RfCalDate, pdspinitmsg->RfCalDate,
-				       CALDATESZ);
-				DEBUG("RFCalVer = 0x%2x 0x%2x\n",
-				      info->RfCalVer[0], info->RfCalVer[1]);
-			}
-			break;
+		if (ntohs(pdspinitmsg->length) ==
+		    (sizeof(struct dsp_init_msg) - 20)) {
+			memcpy(info->ProductMode, pdspinitmsg->ProductMode,
+					MODESZ);
+			memcpy(info->RfCalVer, pdspinitmsg->RfCalVer, CALVERSZ);
+			memcpy(info->RfCalDate, pdspinitmsg->RfCalDate,
+			       CALDATESZ);
+			DEBUG("RFCalVer = 0x%2x 0x%2x\n", info->RfCalVer[0],
+					info->RfCalVer[1]);
 		}
+		break;
+	}
 	case DSP_PROVISION:{
-			DEBUG
-			    ("ft1000_proc_drvmsg:Command message type = DSP_PROVISION\n");
+		DEBUG("ft1000_proc_drvmsg:Command message type = DSP_PROVISION\n");
 
-			/* kick off dspprov routine to start provisioning
-			 * Send provisioning data to DSP
-			 */
-			if (list_empty(&info->prov_list) == 0) {
-				dev->fProvComplete = false;
-				status = ft1000_dsp_prov(dev);
-				if (status != 0)
-					goto out;
-			} else {
-				dev->fProvComplete = true;
-				status =
-				    ft1000_write_register(dev, FT1000_DB_HB,
-							  FT1000_REG_DOORBELL);
-				DEBUG
-				    ("FT1000:drivermsg:No more DSP provisioning data in dsp image\n");
-			}
-			DEBUG("ft1000_proc_drvmsg:DSP PROVISION is done\n");
-			break;
+		/* kick off dspprov routine to start provisioning
+		 * Send provisioning data to DSP
+		 */
+		if (list_empty(&info->prov_list) == 0) {
+			dev->fProvComplete = false;
+			status = ft1000_dsp_prov(dev);
+			if (status != 0)
+				goto out;
+		} else {
+			dev->fProvComplete = true;
+			status = ft1000_write_register(dev, FT1000_DB_HB,
+					FT1000_REG_DOORBELL);
+			DEBUG("FT1000:drivermsg:No more DSP provisioning data in dsp image\n");
 		}
+		DEBUG("ft1000_proc_drvmsg:DSP PROVISION is done\n");
+		break;
+	}
 	case DSP_STORE_INFO:{
-			DEBUG
-			    ("ft1000_proc_drvmsg:Command message type = DSP_STORE_INFO");
-
-			DEBUG("FT1000:drivermsg:Got DSP_STORE_INFO\n");
-			tempword = ntohs(pdrvmsg->length);
-			info->DSPInfoBlklen = tempword;
-			if (tempword < (MAX_DSP_SESS_REC - 4)) {
-				pmsg = (u16 *) &pdrvmsg->data[0];
-				for (i = 0; i < ((tempword + 1) / 2); i++) {
-					DEBUG
-					    ("FT1000:drivermsg:dsp info data = 0x%x\n",
-					     *pmsg);
-					info->DSPInfoBlk[i + 10] = *pmsg++;
-				}
-			} else {
-				info->DSPInfoBlklen = 0;
+		DEBUG("ft1000_proc_drvmsg:Command message type = DSP_STORE_INFO");
+		DEBUG("FT1000:drivermsg:Got DSP_STORE_INFO\n");
+		tempword = ntohs(pdrvmsg->length);
+		info->DSPInfoBlklen = tempword;
+		if (tempword < (MAX_DSP_SESS_REC - 4)) {
+			pmsg = (u16 *) &pdrvmsg->data[0];
+			for (i = 0; i < ((tempword + 1) / 2); i++) {
+				DEBUG("FT1000:drivermsg:dsp info data = 0x%x\n", *pmsg);
+				info->DSPInfoBlk[i + 10] = *pmsg++;
 			}
-			break;
+		} else {
+			info->DSPInfoBlklen = 0;
 		}
+		break;
+	}
 	case DSP_GET_INFO:{
-			DEBUG("FT1000:drivermsg:Got DSP_GET_INFO\n");
-			/* copy dsp info block to dsp */
-			dev->DrvMsgPend = 1;
-			/* allow any outstanding ioctl to finish */
+		DEBUG("FT1000:drivermsg:Got DSP_GET_INFO\n");
+		/* copy dsp info block to dsp */
+		dev->DrvMsgPend = 1;
+		/* allow any outstanding ioctl to finish */
+		mdelay(10);
+		status = ft1000_read_register(dev, &tempword,
+				FT1000_REG_DOORBELL);
+		if (tempword & FT1000_DB_DPRAM_TX) {
 			mdelay(10);
-			status =
-			    ft1000_read_register(dev, &tempword,
-						 FT1000_REG_DOORBELL);
+			status = ft1000_read_register(dev, &tempword,
+					FT1000_REG_DOORBELL);
 			if (tempword & FT1000_DB_DPRAM_TX) {
 				mdelay(10);
-				status =
-				    ft1000_read_register(dev, &tempword,
-							 FT1000_REG_DOORBELL);
-				if (tempword & FT1000_DB_DPRAM_TX) {
-					mdelay(10);
-					status =
-					    ft1000_read_register(dev, &tempword,
-								 FT1000_REG_DOORBELL);
-					if (tempword & FT1000_DB_DPRAM_TX)
-						break;
-				}
+				status = ft1000_read_register(dev, &tempword,
+						FT1000_REG_DOORBELL);
+				if (tempword & FT1000_DB_DPRAM_TX)
+					break;
 			}
-			/* Put message into Slow Queue
-			 * Form Pseudo header
-			 */
-			pmsg = (u16 *) info->DSPInfoBlk;
-			*pmsg++ = 0;
-			*pmsg++ =
-			    htons(info->DSPInfoBlklen + 20 +
-				  info->DSPInfoBlklen);
-			ppseudo_hdr =
-			    (struct pseudo_hdr *)(u16 *) &info->DSPInfoBlk[2];
-			ppseudo_hdr->length =
-			    htons(info->DSPInfoBlklen + 4 +
-				  info->DSPInfoBlklen);
+		}
+		/* Put message into Slow Queue Form Pseudo header */
+		pmsg = (u16 *) info->DSPInfoBlk;
+		*pmsg++ = 0;
+		*pmsg++ = htons(info->DSPInfoBlklen + 20 + info->DSPInfoBlklen);
+		ppseudo_hdr =
+		    (struct pseudo_hdr *)(u16 *) &info->DSPInfoBlk[2];
+		ppseudo_hdr->length = htons(info->DSPInfoBlklen + 4
+				+ info->DSPInfoBlklen);
+		ppseudo_hdr->source = 0x10;
+		ppseudo_hdr->destination = 0x20;
+		ppseudo_hdr->portdest = 0;
+		ppseudo_hdr->portsrc = 0;
+		ppseudo_hdr->sh_str_id = 0;
+		ppseudo_hdr->control = 0;
+		ppseudo_hdr->rsvd1 = 0;
+		ppseudo_hdr->rsvd2 = 0;
+		ppseudo_hdr->qos_class = 0;
+		/* Insert slow queue sequence number */
+		ppseudo_hdr->seq_num = info->squeseqnum++;
+		/* Insert application id */
+		ppseudo_hdr->portsrc = 0;
+		/* Calculate new checksum */
+		ppseudo_hdr->checksum = *pmsg++;
+		for (i = 1; i < 7; i++)
+			ppseudo_hdr->checksum ^= *pmsg++;
+
+		info->DSPInfoBlk[10] = 0x7200;
+		info->DSPInfoBlk[11] = htons(info->DSPInfoBlklen);
+		status = ft1000_write_dpram32(dev, 0,
+				(u8 *)&info->DSPInfoBlk[0],
+				(unsigned short)(info->DSPInfoBlklen + 22));
+		status = ft1000_write_register(dev, FT1000_DB_DPRAM_TX,
+				FT1000_REG_DOORBELL);
+		dev->DrvMsgPend = 0;
+		break;
+	}
+	case GET_DRV_ERR_RPT_MSG:{
+		DEBUG("FT1000:drivermsg:Got GET_DRV_ERR_RPT_MSG\n");
+		/* copy driver error message to dsp */
+		dev->DrvMsgPend = 1;
+		/* allow any outstanding ioctl to finish */
+		mdelay(10);
+		status = ft1000_read_register(dev, &tempword,
+				FT1000_REG_DOORBELL);
+		if (tempword & FT1000_DB_DPRAM_TX) {
+			mdelay(10);
+			status = ft1000_read_register(dev, &tempword,
+					FT1000_REG_DOORBELL);
+			if (tempword & FT1000_DB_DPRAM_TX)
+				mdelay(10);
+		}
+		if ((tempword & FT1000_DB_DPRAM_TX) == 0) {
+			/* Put message into Slow Queue Form Pseudo header */
+			pmsg = (u16 *) &tempbuffer[0];
+			ppseudo_hdr = (struct pseudo_hdr *)pmsg;
+			ppseudo_hdr->length = htons(0x0012);
 			ppseudo_hdr->source = 0x10;
 			ppseudo_hdr->destination = 0x20;
 			ppseudo_hdr->portdest = 0;
@@ -1337,90 +1361,28 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			for (i = 1; i < 7; i++)
 				ppseudo_hdr->checksum ^= *pmsg++;
 
-			info->DSPInfoBlk[10] = 0x7200;
-			info->DSPInfoBlk[11] = htons(info->DSPInfoBlklen);
-			status =
-			    ft1000_write_dpram32(dev, 0,
-						 (u8 *) &info->DSPInfoBlk[0],
-						 (unsigned short)(info->
-								  DSPInfoBlklen
-								  + 22));
-			status =
-			    ft1000_write_register(dev, FT1000_DB_DPRAM_TX,
-						  FT1000_REG_DOORBELL);
-			dev->DrvMsgPend = 0;
+			pmsg = (u16 *) &tempbuffer[16];
+			*pmsg++ = htons(RSP_DRV_ERR_RPT_MSG);
+			*pmsg++ = htons(0x000e);
+			*pmsg++ = htons(info->DSP_TIME[0]);
+			*pmsg++ = htons(info->DSP_TIME[1]);
+			*pmsg++ = htons(info->DSP_TIME[2]);
+			*pmsg++ = htons(info->DSP_TIME[3]);
+			convert.byte[0] = info->DspVer[0];
+			convert.byte[1] = info->DspVer[1];
+			*pmsg++ = convert.wrd;
+			convert.byte[0] = info->DspVer[2];
+			convert.byte[1] = info->DspVer[3];
+			*pmsg++ = convert.wrd;
+			*pmsg++ = htons(info->DrvErrNum);
 
-			break;
+			card_send_command(dev, (unsigned char *)&tempbuffer[0],
+					(u16)(0x0012 + PSEUDOSZ));
+			info->DrvErrNum = 0;
 		}
-
-	case GET_DRV_ERR_RPT_MSG:{
-			DEBUG("FT1000:drivermsg:Got GET_DRV_ERR_RPT_MSG\n");
-			/* copy driver error message to dsp */
-			dev->DrvMsgPend = 1;
-			/* allow any outstanding ioctl to finish */
-			mdelay(10);
-			status =
-			    ft1000_read_register(dev, &tempword,
-						 FT1000_REG_DOORBELL);
-			if (tempword & FT1000_DB_DPRAM_TX) {
-				mdelay(10);
-				status =
-				    ft1000_read_register(dev, &tempword,
-							 FT1000_REG_DOORBELL);
-				if (tempword & FT1000_DB_DPRAM_TX)
-					mdelay(10);
-			}
-
-			if ((tempword & FT1000_DB_DPRAM_TX) == 0) {
-				/* Put message into Slow Queue
-				 * Form Pseudo header
-				 */
-				pmsg = (u16 *) &tempbuffer[0];
-				ppseudo_hdr = (struct pseudo_hdr *)pmsg;
-				ppseudo_hdr->length = htons(0x0012);
-				ppseudo_hdr->source = 0x10;
-				ppseudo_hdr->destination = 0x20;
-				ppseudo_hdr->portdest = 0;
-				ppseudo_hdr->portsrc = 0;
-				ppseudo_hdr->sh_str_id = 0;
-				ppseudo_hdr->control = 0;
-				ppseudo_hdr->rsvd1 = 0;
-				ppseudo_hdr->rsvd2 = 0;
-				ppseudo_hdr->qos_class = 0;
-				/* Insert slow queue sequence number */
-				ppseudo_hdr->seq_num = info->squeseqnum++;
-				/* Insert application id */
-				ppseudo_hdr->portsrc = 0;
-				/* Calculate new checksum */
-				ppseudo_hdr->checksum = *pmsg++;
-				for (i = 1; i < 7; i++)
-					ppseudo_hdr->checksum ^= *pmsg++;
-
-				pmsg = (u16 *) &tempbuffer[16];
-				*pmsg++ = htons(RSP_DRV_ERR_RPT_MSG);
-				*pmsg++ = htons(0x000e);
-				*pmsg++ = htons(info->DSP_TIME[0]);
-				*pmsg++ = htons(info->DSP_TIME[1]);
-				*pmsg++ = htons(info->DSP_TIME[2]);
-				*pmsg++ = htons(info->DSP_TIME[3]);
-				convert.byte[0] = info->DspVer[0];
-				convert.byte[1] = info->DspVer[1];
-				*pmsg++ = convert.wrd;
-				convert.byte[0] = info->DspVer[2];
-				convert.byte[1] = info->DspVer[3];
-				*pmsg++ = convert.wrd;
-				*pmsg++ = htons(info->DrvErrNum);
-
-				card_send_command(dev,
-						 (unsigned char *)&tempbuffer[0],
-						 (u16) (0x0012 + PSEUDOSZ));
-				info->DrvErrNum = 0;
-			}
-			dev->DrvMsgPend = 0;
-
-			break;
-		}
-
+		dev->DrvMsgPend = 0;
+		break;
+	}
 	default:
 		break;
 	}
