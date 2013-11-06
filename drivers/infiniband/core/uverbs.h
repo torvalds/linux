@@ -47,6 +47,14 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
+#define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
+	do {								\
+		(udata)->inbuf  = (void __user *) (ibuf);		\
+		(udata)->outbuf = (void __user *) (obuf);		\
+		(udata)->inlen  = (ilen);				\
+		(udata)->outlen = (olen);				\
+	} while (0)
+
 /*
  * Our lifetime rules for these structs are the following:
  *
@@ -233,9 +241,17 @@ IB_UVERBS_DECLARE_CMD(destroy_srq);
 IB_UVERBS_DECLARE_CMD(create_xsrq);
 IB_UVERBS_DECLARE_CMD(open_xrcd);
 IB_UVERBS_DECLARE_CMD(close_xrcd);
+
 #ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-IB_UVERBS_DECLARE_CMD(create_flow);
-IB_UVERBS_DECLARE_CMD(destroy_flow);
+
+#define IB_UVERBS_DECLARE_EX_CMD(name)				\
+	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
+				struct ib_udata *ucore,		\
+				struct ib_udata *uhw)
+
+IB_UVERBS_DECLARE_EX_CMD(create_flow);
+IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
+
 #endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 #endif /* UVERBS_H */

@@ -87,11 +87,14 @@ enum {
 	IB_USER_VERBS_CMD_CLOSE_XRCD,
 	IB_USER_VERBS_CMD_CREATE_XSRQ,
 	IB_USER_VERBS_CMD_OPEN_QP,
-#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-	IB_USER_VERBS_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
-	IB_USER_VERBS_CMD_DESTROY_FLOW
-#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 };
+
+#ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
+enum {
+	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
+	IB_USER_VERBS_EX_CMD_DESTROY_FLOW
+};
+#endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -122,6 +125,12 @@ struct ib_uverbs_comp_event_desc {
  * the rest of the command struct based on these value.
  */
 
+#define IB_USER_VERBS_CMD_COMMAND_MASK 0xff
+#define IB_USER_VERBS_CMD_FLAGS_MASK 0xff000000u
+#define IB_USER_VERBS_CMD_FLAGS_SHIFT 24
+
+#define IB_USER_VERBS_CMD_FLAG_EXTENDED 0x80
+
 struct ib_uverbs_cmd_hdr {
 	__u32 command;
 	__u16 in_words;
@@ -129,10 +138,8 @@ struct ib_uverbs_cmd_hdr {
 };
 
 #ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-struct ib_uverbs_cmd_hdr_ex {
-	__u32 command;
-	__u16 in_words;
-	__u16 out_words;
+struct ib_uverbs_ex_cmd_hdr {
+	__u64 response;
 	__u16 provider_in_words;
 	__u16 provider_out_words;
 	__u32 cmd_hdr_reserved;
@@ -782,8 +789,6 @@ struct ib_uverbs_flow_attr {
 
 struct ib_uverbs_create_flow  {
 	__u32 comp_mask;
-	__u32 reserved;
-	__u64 response;
 	__u32 qp_handle;
 	struct ib_uverbs_flow_attr flow_attr;
 };

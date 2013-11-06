@@ -1692,9 +1692,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ibdev->ib_dev.destroy_flow	= mlx4_ib_destroy_flow;
 
 #ifdef CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING
-		ibdev->ib_dev.uverbs_cmd_mask	|=
-			(1ull << IB_USER_VERBS_CMD_CREATE_FLOW) |
-			(1ull << IB_USER_VERBS_CMD_DESTROY_FLOW);
+		ibdev->ib_dev.uverbs_ex_cmd_mask	|=
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 #endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 	}
 

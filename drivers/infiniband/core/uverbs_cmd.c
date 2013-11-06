@@ -58,14 +58,6 @@ static struct uverbs_lock_class xrcd_lock_class = { .name = "XRCD-uobj" };
 static struct uverbs_lock_class rule_lock_class = { .name = "RULE-uobj" };
 #endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
-#define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
-	do {								\
-		(udata)->inbuf  = (void __user *) (ibuf);		\
-		(udata)->outbuf = (void __user *) (obuf);		\
-		(udata)->inlen  = (ilen);				\
-		(udata)->outlen = (olen);				\
-	} while (0)
-
 /*
  * The ib_uobject locking scheme is as follows:
  *
@@ -2642,9 +2634,9 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 	return 0;
 }
 
-ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
-			      const char __user *buf, int in_len,
-			      int out_len)
+int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
+			     struct ib_udata *ucore,
+			     struct ib_udata *uhw)
 {
 	struct ib_uverbs_create_flow	  cmd;
 	struct ib_uverbs_create_flow_resp resp;
@@ -2658,11 +2650,15 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	void *ib_spec;
 	int i;
 
-	if (out_len < sizeof(resp))
+	if (ucore->outlen < sizeof(resp))
 		return -ENOSPC;
 
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
+	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	if (err)
+		return err;
+
+	ucore->inbuf += sizeof(cmd);
+	ucore->inlen -= sizeof(cmd);
 
 	if (cmd.comp_mask)
 		return -EINVAL;
@@ -2674,7 +2670,7 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	if (cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
 		return -EINVAL;
 
-	if (cmd.flow_attr.size > (in_len - sizeof(cmd)) ||
+	if (cmd.flow_attr.size > ucore->inlen ||
 	    cmd.flow_attr.size >
 	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_uverbs_flow_spec)))
 		return -EINVAL;
@@ -2686,11 +2682,10 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 			return -ENOMEM;
 
 		memcpy(kern_flow_attr, &cmd.flow_attr, sizeof(*kern_flow_attr));
-		if (copy_from_user(kern_flow_attr + 1, buf + sizeof(cmd),
-				   cmd.flow_attr.size)) {
-			err = -EFAULT;
+		err = ib_copy_from_udata(kern_flow_attr + 1, ucore,
+					 cmd.flow_attr.size);
+		if (err)
 			goto err_free_attr;
-		}
 	} else {
 		kern_flow_attr = &cmd.flow_attr;
 	}
@@ -2758,11 +2753,10 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	memset(&resp, 0, sizeof(resp));
 	resp.flow_handle = uobj->id;
 
-	if (copy_to_user((void __user *)(unsigned long) cmd.response,
-			 &resp, sizeof(resp))) {
-		err = -EFAULT;
+	err = ib_copy_to_udata(ucore,
+			       &resp, sizeof(resp));
+	if (err)
 		goto err_copy;
-	}
 
 	put_qp_read(qp);
 	mutex_lock(&file->mutex);
@@ -2775,7 +2769,7 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	kfree(flow_attr);
 	if (cmd.flow_attr.num_of_specs)
 		kfree(kern_flow_attr);
-	return in_len;
+	return 0;
 err_copy:
 	idr_remove_uobj(&ib_uverbs_rule_idr, uobj);
 destroy_flow:
@@ -2792,16 +2786,18 @@ err_free_attr:
 	return err;
 }
 
-ssize_t ib_uverbs_destroy_flow(struct ib_uverbs_file *file,
-			       const char __user *buf, int in_len,
-			       int out_len) {
+int ib_uverbs_ex_destroy_flow(struct ib_uverbs_file *file,
+			      struct ib_udata *ucore,
+			      struct ib_udata *uhw)
+{
 	struct ib_uverbs_destroy_flow	cmd;
 	struct ib_flow			*flow_id;
 	struct ib_uobject		*uobj;
 	int				ret;
 
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
+	ret = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = idr_write_uobj(&ib_uverbs_rule_idr, cmd.flow_handle,
 			      file->ucontext);
@@ -2823,7 +2819,7 @@ ssize_t ib_uverbs_destroy_flow(struct ib_uverbs_file *file,
 
 	put_uobj(uobj);
 
-	return ret ? ret : in_len;
+	return ret;
 }
 #endif /* CONFIG_INFINIBAND_EXPERIMENTAL_UVERBS_FLOW_STEERING */
 
