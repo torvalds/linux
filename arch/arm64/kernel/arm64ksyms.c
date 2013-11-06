@@ -29,13 +29,10 @@
 
 #include <asm/checksum.h>
 
-	/* user mem (segment) */
-EXPORT_SYMBOL(__strnlen_user);
-EXPORT_SYMBOL(__strncpy_from_user);
-
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
+	/* user mem (segment) */
 EXPORT_SYMBOL(__copy_from_user);
 EXPORT_SYMBOL(__copy_to_user);
 EXPORT_SYMBOL(__clear_user);
