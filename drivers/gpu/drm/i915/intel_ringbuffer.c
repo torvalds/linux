@@ -354,7 +354,7 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
-	if (flush_domains)
+	if (!invalidate_domains && flush_domains)
 		return gen7_ring_fbc_flush(ring, FBC_REND_NUKE);
 
 	return 0;
@@ -1838,7 +1838,7 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 	}
 	intel_ring_advance(ring);
 
-	if (IS_GEN7(dev) && flush)
+	if (IS_GEN7(dev) && !invalidate && flush)
 		return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
 
 	return 0;
