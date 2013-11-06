@@ -88,7 +88,8 @@ extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 					       __be16 vlan_proto, u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
-
+extern u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
+					u32 skprio);
 extern bool vlan_do_receive(struct sk_buff **skb);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
@@ -118,6 +119,12 @@ static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 {
 	BUG();
+	return 0;
+}
+
+static inline u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
+					       u32 skprio)
+{
 	return 0;
 }
 
