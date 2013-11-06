@@ -285,14 +285,16 @@ static int gen7_ring_fbc_flush(struct intel_ring_buffer *ring, u32 value)
 	if (!ring->fbc_dirty)
 		return 0;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(ring, 6);
 	if (ret)
 		return ret;
-	intel_ring_emit(ring, MI_NOOP);
 	/* WaFbcNukeOn3DBlt:ivb/hsw */
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, MSG_FBC_REND_STATE);
 	intel_ring_emit(ring, value);
+	intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) | MI_SRM_LRM_GLOBAL_GTT);
+	intel_ring_emit(ring, MSG_FBC_REND_STATE);
+	intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
 	intel_ring_advance(ring);
 
 	ring->fbc_dirty = false;
