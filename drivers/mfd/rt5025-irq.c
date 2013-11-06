@@ -38,7 +38,8 @@ struct rt5025_irq_info {
 	int intr_pin;
 	int irq;
 	int suspend;
-	int init_once;
+	int acin_cnt;
+	int usbin_cnt;
 };
 
 static void rt5025_work_func(struct work_struct *work)
@@ -115,12 +116,24 @@ static void rt5025_work_func(struct work_struct *work)
 			if (chg_event & (CHG_EVENT_CHSLPI_INAC | CHG_EVENT_CHSLPI_INUSB))
 			{
 				ii->chip->power_info->chg_term = 0;
+				if (chg_event & CHG_EVENT_CHSLPI_INAC)
+					ii->acin_cnt = 0;
+				if (chg_event & CHG_EVENT_CHSLPI_INUSB)
+					ii->usbin_cnt = 0;
+				
 			}
 
 			if (chg_event & (CHG_EVENT_INAC_PLUGIN | CHG_EVENT_INUSB_PLUGIN))
 			{
-				if (!ii->init_once)
+				RTINFO("acin_cnt %d, usbin_cnt %d\n", ii->acin_cnt, ii->usbin_cnt);
+				if (ii->acin_cnt == 0 && ii->usbin_cnt == 0)
 				{
+					#if 1
+					rt5025_charger_reset_and_reinit(ii->chip->power_info);
+					rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN1, irq_enable[0]);
+					rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]&(~RT5025_CHTERMI_MASK));
+					rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN3, irq_enable[2]);
+					#else
 					rt5025_set_charging_buck(ii->i2c, 0);
 					mdelay(50);
 					rt5025_set_charging_buck(ii->i2c, 1);
@@ -129,7 +142,14 @@ static void rt5025_work_func(struct work_struct *work)
 					mdelay(50);
 					rt5025_set_charging_buck(ii->i2c, 1);
 					mdelay(400);
+					#endif /* #if 1 */
 				}
+
+				if (chg_event & CHG_EVENT_INAC_PLUGIN)
+					ii->acin_cnt = 1;
+				if (chg_event & CHG_EVENT_INUSB_PLUGIN)
+					ii->usbin_cnt = 1;
+				RTINFO("acin_cnt %d, usbin_cnt %d\n", ii->acin_cnt, ii->usbin_cnt);
 			}
 
 			if (ii->chip->power_info->chg_term <= 3)
@@ -157,9 +177,6 @@ static void rt5025_work_func(struct work_struct *work)
 	if (irq_stat[5] & RT5025_FLG_VOLT)
 		rt5025_gauge_irq_handler(ii->chip->battery_info, irq_stat[5] & RT5025_FLG_VOLT);
 	#endif /* CONFIG_POWER_RT5025 */
-
-	if (ii->init_once)
-		ii->init_once = 0;
 
 	#if 1
 	rt5025_reg_write(ii->i2c, RT5025_REG_IRQEN2, irq_enable[1]);
@@ -273,7 +290,6 @@ static int __devinit rt5025_irq_probe(struct platform_device *pdev)
 	if (pdata->cb)
 		ii->event_cb = pdata->cb;
 	wake_lock_init(&ii->irq_wake_lock, WAKE_LOCK_SUSPEND, "rt_irq_wake");
-	ii->init_once = 1;
 
 	rt5025_irq_reg_init(ii, pdata->irq_data);
 	rt5025_interrupt_init(ii);

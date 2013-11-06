@@ -17,7 +17,7 @@
 #include <linux/android_alarm.h>
 
 #define RT5025_DEVICE_NAME "RT5025"
-#define RT5025_DRV_VER	   "1.0.6_R"
+#define RT5025_DRV_VER	   "1.0.8_R"
 
 enum {
 	RT5025_RSTDELAY1_100MS,
@@ -619,9 +619,11 @@ struct rt5025_platform_data {
 
 #ifdef CONFIG_MFD_RT5025_MISC
 extern void rt5025_power_off(void);
+extern int rt5025_cable_exist(void);
 #endif /* CONFIG_MFD_RT5025_MISC */
 
 #ifdef CONFIG_POWER_RT5025
+extern int rt5025_charger_reset_and_reinit(struct rt5025_power_info *);
 extern int rt5025_ext_set_charging_buck(int);
 extern int rt5025_set_charging_buck(struct i2c_client *, int);
 extern int rt5025_set_charging_current_switch(struct i2c_client *, int);

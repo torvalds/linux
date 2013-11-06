@@ -1177,37 +1177,69 @@ static void rt5025_pretrim(struct rt5025_battery_info *bi)
 }
 #endif
 
+static u16 get_crc16_value(u8* data, int size)
+{
+	u16 fcs = 0xffff;
+	int len = size;
+	int i = 0;
+	u16 temp = 0;
+
+	while (len > 0)
+	{
+		fcs = (u16)((fcs>>8)^crctab16[(fcs^data[i])&0xff]);
+		len--;
+		i++;
+	}
+	temp = (u16)~fcs;
+	return temp;
+}
+
+static int IsCrc16Good(u8* data, int size)
+{
+	u16 fcs = 0xffff;
+	int len = size;
+	int i = 0;
+
+	while (len>0)
+	{
+		fcs = (u16)((fcs>>8)^crctab16[((fcs^data[i])&0xff)]);
+		len--;
+		i++;
+	}
+	return (fcs == 0xf0b8);
+}
+
 static int rt5025_battery_parameter_backup(struct rt5025_battery_info *bi)
 {
-	u8 data[4];
+	u16 crc_value = 0;
+	u8 data[12]= {0};
 	RTINFO("\n");
 	//backup fcc_aging, rm, cycle_count, acc_dchg_cap
 	//fcc_aging
 	data[0] = (bi->fcc_aging>>8)&0xff;
 	data[1] = (bi->fcc_aging)&0xff;
-	rt5025_write_reg(bi->client, 0x21, data, 2);
-	//rm
-	data[0] = (bi->rm>>24)&0xff;
-	data[1] = (bi->rm>>16)&0xff;
-	data[2] = (bi->rm>>8)&0xff;
-	data[3] = (bi->rm)&0xff;
-	rt5025_write_reg(bi->client, 0x23, data, 4);
+	rt5025_write_reg(bi->client, 0x21, &data[0], 2);
 	//acc_dchg_cap
-	data[0] = (bi->acc_dchg_cap>>24)&0xff;
-	data[1] = (bi->acc_dchg_cap>>16)&0xff;
-	data[2] = (bi->acc_dchg_cap>>8)&0xff;
-	data[3] = (bi->acc_dchg_cap)&0xff;
-	rt5025_write_reg(bi->client, 0x27, data, 4);
+	data[2] = (bi->acc_dchg_cap>>24)&0xff;
+	data[3] = (bi->acc_dchg_cap>>16)&0xff;
+	data[4] = (bi->acc_dchg_cap>>8)&0xff;
+	data[5] = (bi->acc_dchg_cap)&0xff;
+	rt5025_write_reg(bi->client, 0x23, &data[2], 4);
 	//cycle_count
-	data[0] = (bi->cycle_cnt)&0xff;
-	rt5025_write_reg(bi->client, 0x2B, data, 1);
+	data[6] = (bi->cycle_cnt)&0xff;
+	rt5025_write_reg(bi->client, 0x27, &data[6], 1);
 	//soc
-	data[0] = (bi->soc)&0xff;
-	rt5025_write_reg(bi->client, 0x2C, data, 1);
+	data[7] = (bi->soc)&0xff;
+	rt5025_write_reg(bi->client, 0x28, &data[7], 1);
 	//gauge_timer
-	data[0] = (bi->pre_gauge_timer>>8)&0xff;
-	data[1] = bi->pre_gauge_timer&0xff;
-	rt5025_write_reg(bi->client, 0x2D, data, 2);
+	data[8] = (bi->pre_gauge_timer>>8)&0xff;
+	data[9] = bi->pre_gauge_timer&0xff;
+	rt5025_write_reg(bi->client, 0x29, &data[8], 2);
+	//CRC value
+	crc_value = get_crc16_value(data, 10);
+	data[10] = crc_value&0xff;
+	data[11] = (crc_value>>8)&0xff;
+	rt5025_write_reg(bi->client, 0x2b, &data[10], 2);
 	return 0;
 }
 
@@ -1219,20 +1251,17 @@ static int rt5025_battery_parameter_restore(struct rt5025_battery_info *bi)
 	//fcc_aging
 	rt5025_read_reg(bi->client, 0x21, data, 2);
 	bi->fcc = bi->fcc_aging = data[0]<<8 | data[1];
-	//rm
-	//rt5025_read_reg(bi->client, 0x23, data, 4);
-	//bi->rm = data[0]<<24 | data[1]<<16 | data[2]<<8 | data[3];
 	//acc_dchg_cap
-	rt5025_read_reg(bi->client, 0x27, data, 4);
+	rt5025_read_reg(bi->client, 0x23, data, 4);
 	bi->acc_dchg_cap = data[0]<<24 | data[1]<<16 | data[2]<<8 | data[3];
 	//cycle_count
-	rt5025_read_reg(bi->client, 0x2B, data, 1);
+	rt5025_read_reg(bi->client, 0x27, data, 1);
 	bi->cycle_cnt = data[0];
 	//soc
-	rt5025_read_reg(bi->client, 0x2C, data, 1);
+	rt5025_read_reg(bi->client, 0x28, data, 1);
 	bi->soc = bi->pre_soc = data[0];
 	//pre_gauge_timer
-	rt5025_read_reg(bi->client, 0x2D, data, 2);
+	rt5025_read_reg(bi->client, 0x29, data, 2);
 	bi->pre_gauge_timer = bi->gauge_timer = (data[0]<<8) + data[1];
 	
 	return 0;
@@ -1242,19 +1271,17 @@ static int rt5025_battery_parameter_restore(struct rt5025_battery_info *bi)
 // return value; 1-> initialized, 0-> no initial value
 static int rt5025_battery_parameter_initcheck(struct rt5025_battery_info *bi)
 {
-	u8 data[2];
-	u16 value;
+	u8 data[12] = {0};
 	int ret = 0;
 
-	if (rt5025_read_reg(bi->client, 0x21, data, 2) < 0)
+	if (rt5025_read_reg(bi->client, 0x21, data, 12)<0)
 	{
 		pr_err("%s: check initial value error\n", __func__);
+		return 0;
 	}
 	else
 	{
-		value = data[1]<<8 | data[0];
-		if (value)
-			ret = 1;
+		ret = IsCrc16Good(data, 12);
 	}
 	RTINFO("initial check = %d\n", ret);
 

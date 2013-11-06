@@ -22,7 +22,7 @@
 #include <linux/mfd/rt5025.h>
 #include <linux/power/rt5025-swjeita.h>
 
-#define TEMP_TOLERANCE	0  // 'c*10 gap for tolerance
+#define TEMP_TOLERANCE	30  // 'c*10 gap for tolerance
 
 static int rt5025_set_charging_cc_switch (struct i2c_client *i2c, int onoff)
 {

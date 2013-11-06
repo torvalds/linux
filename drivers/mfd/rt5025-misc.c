@@ -33,6 +33,21 @@ void rt5025_power_off(void)
 }
 EXPORT_SYMBOL(rt5025_power_off);
 
+int rt5025_cable_exist(void)
+{
+	int ret = 0;
+	ret = rt5025_reg_read(g_shdn, 0x01);
+	if (ret < 0)
+		return 0;
+	else
+	{
+		if (ret&0x3)
+			return 1;
+		return 0;
+	}
+}
+EXPORT_SYMBOL(rt5025_cable_exist);
+
 static int __devinit rt5025_misc_reg_init(struct i2c_client *client, struct rt5025_misc_data *md)
 {
 	int ret = 0;

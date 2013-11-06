@@ -290,8 +290,8 @@ static struct rt5025_power_data rt5025_power_data = {
 	.CHGControl4 = {
 		.bitfield = {
 			.AICR_CON = 1,
-			.AICR = RT5025_AICR_1A,
-			.ICC = RT5025_ICC_1A,
+			.AICR = RT5025_AICR_500MA,
+			.ICC = RT5025_ICC_0P5A,
 		},
 	},
 	.CHGControl5 = {

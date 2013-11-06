@@ -78,6 +78,32 @@ int rt5025_ext_set_charging_buck(int onoff)
 }
 EXPORT_SYMBOL(rt5025_ext_set_charging_buck);
 
+int rt5025_charger_reset_and_reinit(struct rt5025_power_info *pi)
+{
+	struct rt5025_platform_data *pdata = pi->dev->parent->platform_data;
+	int ret;
+
+	RTINFO("\n");
+
+	//do charger reset
+	ret = rt5025_reg_read(pi->i2c, RT5025_REG_CHGCTL4);
+	if (ret < 0)
+		return ret;
+	rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL4, ret|RT5025_CHGRST_MASK);
+	mdelay(200);
+
+	rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL2, pdata->power_data->CHGControl2.val);
+	rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL3, pdata->power_data->CHGControl3.val);
+	rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL4, pdata->power_data->CHGControl4.val);
+	rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL5, pdata->power_data->CHGControl5.val);
+	rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL6, pdata->power_data->CHGControl6.val);
+	//rt5025_reg_write(pi->i2c, RT5025_REG_CHGCTL7, pd->CHGControl7.val);
+	rt5025_assign_bits(pi->i2c, RT5025_REG_CHGCTL7, 0xEF, pdata->power_data->CHGControl7.val);
+	rt5025_reg_write(pi->i2c, 0xA9, 0x60 );
+	return 0;
+}
+EXPORT_SYMBOL(rt5025_charger_reset_and_reinit);
+
 static int rt5025_set_charging_current(struct i2c_client *i2c, int cur_value)
 {
 	int ret = 0;
@@ -255,7 +281,10 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 
 	//if (old_acval != new_acval || old_usbval != new_usbval)
 	if (new_acval || new_usbval)
+	{
+		info->usb_cnt = 0;
 		schedule_delayed_work(&info->usb_detect_work, 0); //no delay
+	}
 
 	new_chgval = (chgstatval&RT5025_CHGSTAT_MASK)>>RT5025_CHGSTAT_SHIFT;
 	
