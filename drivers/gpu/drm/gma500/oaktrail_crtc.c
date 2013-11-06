@@ -230,7 +230,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int i;
 	int need_aux = gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ? 1 : 0;
 
-	if (pipe == 1) {
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_HDMI)) {
 		oaktrail_crtc_hdmi_dpms(crtc, mode);
 		return;
 	}
@@ -387,7 +387,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	int i;
 	int need_aux = gma_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ? 1 : 0;
 
-	if (pipe == 1)
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_HDMI))
 		return oaktrail_crtc_hdmi_mode_set(crtc, mode, adjusted_mode, x, y, old_fb);
 
 	if (!gma_power_begin(dev, true))
