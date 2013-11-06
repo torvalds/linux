@@ -267,11 +267,19 @@ static long local_pci_probe(void *_ddi)
 	pm_runtime_get_sync(dev);
 	pci_dev->driver = pci_drv;
 	rc = pci_drv->probe(pci_dev, ddi->id);
-	if (rc) {
+	if (!rc)
+		return rc;
+	if (rc < 0) {
 		pci_dev->driver = NULL;
 		pm_runtime_put_sync(dev);
+		return rc;
 	}
-	return rc;
+	/*
+	 * Probe function should return < 0 for failure, 0 for success
+	 * Treat values > 0 as success, but warn.
+	 */
+	dev_warn(dev, "Driver probe function unexpectedly returned %d\n", rc);
+	return 0;
 }
 
 static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
