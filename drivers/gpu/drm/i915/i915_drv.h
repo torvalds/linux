@@ -1447,7 +1447,6 @@ typedef struct drm_i915_private {
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
 
-	bool hw_contexts_disabled;
 	uint32_t hw_context_size;
 	struct list_head context_list;
 
@@ -2151,7 +2150,7 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 }
 
 /* i915_gem_context.c */
-void i915_gem_context_init(struct drm_device *dev);
+int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,

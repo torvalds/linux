@@ -755,12 +755,9 @@ int i915_reset(struct drm_device *dev)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 			!dev_priv->ums.mm_suspended) {
-		bool hw_contexts_disabled = dev_priv->hw_contexts_disabled;
 		dev_priv->ums.mm_suspended = 0;
 
 		ret = i915_gem_init_hw(dev);
-		if (!hw_contexts_disabled && dev_priv->hw_contexts_disabled)
-			DRM_ERROR("HW contexts didn't survive reset\n");
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			DRM_ERROR("Failed hw init on reset %d\n", ret);

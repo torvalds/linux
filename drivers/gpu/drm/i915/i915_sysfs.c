@@ -181,12 +181,12 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
+	if (!HAS_HW_CONTEXTS(drm_dev))
+		return -ENXIO;
+
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
 		return ret;
-
-	if (dev_priv->hw_contexts_disabled)
-		return -ENXIO;
 
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
