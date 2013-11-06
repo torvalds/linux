@@ -77,11 +77,6 @@ struct perf_record {
 	off_t			post_processing_offset;
 };
 
-static void advance_output(struct perf_record *rec, size_t size)
-{
-	rec->bytes_written += size;
-}
-
 static int write_output(struct perf_record *rec, void *buf, size_t size)
 {
 	struct perf_data_file *file = &rec->file;
@@ -461,7 +456,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 				pr_err("Couldn't record tracing data.\n");
 				goto out_delete_session;
 			}
-			advance_output(rec, err);
+			rec->bytes_written += err;
 		}
 	}
 
