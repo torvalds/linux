@@ -339,14 +339,14 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 		DRM_DEBUG("User requested overclocking to %d\n",
 			  val * GT_FREQUENCY_MULTIPLIER);
 
-	if (dev_priv->rps.cur_delay > val) {
-		if (IS_VALLEYVIEW(dev_priv->dev))
-			valleyview_set_rps(dev_priv->dev, val);
-		else
-			gen6_set_rps(dev_priv->dev, val);
-	}
-
 	dev_priv->rps.max_delay = val;
+
+	if (dev_priv->rps.cur_delay > val) {
+		if (IS_VALLEYVIEW(dev))
+			valleyview_set_rps(dev, val);
+		else
+			gen6_set_rps(dev, val);
+	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -408,14 +408,14 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 		return -EINVAL;
 	}
 
+	dev_priv->rps.min_delay = val;
+
 	if (dev_priv->rps.cur_delay < val) {
 		if (IS_VALLEYVIEW(dev))
 			valleyview_set_rps(dev, val);
 		else
-			gen6_set_rps(dev_priv->dev, val);
+			gen6_set_rps(dev, val);
 	}
-
-	dev_priv->rps.min_delay = val;
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 

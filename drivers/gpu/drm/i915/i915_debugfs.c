@@ -2756,7 +2756,7 @@ i915_max_freq_set(void *data, u64 val)
 	if (IS_VALLEYVIEW(dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 		dev_priv->rps.max_delay = val;
-		gen6_set_rps(dev, val);
+		valleyview_set_rps(dev, val);
 	} else {
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 		dev_priv->rps.max_delay = val;
