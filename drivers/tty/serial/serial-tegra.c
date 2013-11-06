@@ -34,6 +34,7 @@
 #include <linux/of_device.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
@@ -43,8 +44,6 @@
 #include <linux/termios.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-
-#include <linux/clk/tegra.h>
 
 #define TEGRA_UART_TYPE				"TEGRA_UART"
 #define TX_EMPTY_STATUS				(UART_LSR_TEMT | UART_LSR_THRE)
@@ -103,6 +102,7 @@ struct tegra_uart_port {
 	const struct tegra_uart_chip_data	*cdata;
 
 	struct clk				*uart_clk;
+	struct reset_control			*rst;
 	unsigned int				current_baud;
 
 	/* Register shadow */
@@ -832,9 +832,9 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	clk_prepare_enable(tup->uart_clk);
 
 	/* Reset the UART controller to clear all previous status.*/
-	tegra_periph_reset_assert(tup->uart_clk);
+	reset_control_assert(tup->rst);
 	udelay(10);
-	tegra_periph_reset_deassert(tup->uart_clk);
+	reset_control_deassert(tup->rst);
 
 	tup->rx_in_progress = 0;
 	tup->tx_in_progress = 0;
@@ -1318,6 +1318,12 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	if (IS_ERR(tup->uart_clk)) {
 		dev_err(&pdev->dev, "Couldn't get the clock\n");
 		return PTR_ERR(tup->uart_clk);
+	}
+
+	tup->rst = devm_reset_control_get(&pdev->dev, "serial");
+	if (IS_ERR(tup->rst)) {
+		dev_err(&pdev->dev, "Couldn't get the reset\n");
+		return PTR_ERR(tup->rst);
 	}
 
 	u->iotype = UPIO_MEM32;
