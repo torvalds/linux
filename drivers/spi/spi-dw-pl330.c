@@ -21,6 +21,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/amba/bus.h>
 #include <linux/amba/pl330.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -165,7 +166,8 @@ static int spi_pl330_dma_transfer(struct dw_spi *dws, int cs_change)
 				&dws->tx_sgl,
 				1,
 				DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT);
+				DMA_PREP_INTERRUPT,
+				NULL);
 	txdesc->callback = spi_pl330_dma_done;
 	txdesc->callback_param = dws;
 
@@ -195,7 +197,8 @@ static int spi_pl330_dma_transfer(struct dw_spi *dws, int cs_change)
 				&dws->rx_sgl,
 				1,
 				DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT);
+				DMA_PREP_INTERRUPT,
+				NULL);
 	rxdesc->callback = spi_pl330_dma_done;
 	rxdesc->callback_param = dws;
 
