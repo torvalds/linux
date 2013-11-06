@@ -184,6 +184,11 @@ static int __devinit vmac_mii_probe(struct net_device *dev)
 	//unsigned long clock_rate;
 	int phy_addr, err;
 
+
+#if defined (CONFIG_PHY_PORT_NUM) && (CONFIG_PHY_PORT_NUM != 0)
+        if (ap->mii_bus->phy_map[CONFIG_PHY_PORT_NUM])
+            phydev = ap->mii_bus->phy_map[CONFIG_PHY_PORT_NUM];
+#else
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
 		if (ap->mii_bus->phy_map[phy_addr]) {
@@ -191,6 +196,7 @@ static int __devinit vmac_mii_probe(struct net_device *dev)
 			break;
 		}
 	}
+#endif
 
 	if (!phydev) {
 		dev_err(&dev->dev, "no PHY found\n");

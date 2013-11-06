@@ -38,3 +38,14 @@ choice
 
 endchoice
 
+config  PHY_PORT_NUM
+        int "phy port number selected (More than one port on Switch)"
+        depends on RK29_VMAC
+        default 0
+        help
+                 0:phy dev 0:00
+                 1:phy dev 0:01
+                 2:phy dev 0:02
+                      ---More---
+
+
