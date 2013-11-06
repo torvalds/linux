@@ -1569,9 +1569,7 @@ int __init init_module(void)
 
 	/* copy the parameters from insmod into the device structure */
 	devSMC9194 = smc_init(-1);
-	if (IS_ERR(devSMC9194))
-		return PTR_ERR(devSMC9194);
-	return 0;
+	return PTR_ERR_OR_ZERO(devSMC9194);
 }
 
 void __exit cleanup_module(void)
