@@ -257,11 +257,11 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 	return 0;
 }
 
-static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
+static void smp_failure(struct l2cap_conn *conn, u8 reason)
 {
 	struct hci_conn *hcon = conn->hcon;
 
-	if (send)
+	if (reason)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(reason),
 			     &reason);
 
@@ -406,7 +406,7 @@ static void confirm_work(struct work_struct *work)
 	return;
 
 error:
-	smp_failure(conn, reason, 1);
+	smp_failure(conn, reason);
 }
 
 static void random_work(struct work_struct *work)
@@ -490,7 +490,7 @@ static void random_work(struct work_struct *work)
 	return;
 
 error:
-	smp_failure(conn, reason, 1);
+	smp_failure(conn, reason);
 }
 
 static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
@@ -555,10 +555,10 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 		break;
 	case MGMT_OP_USER_PASSKEY_NEG_REPLY:
 	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
-		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED, 1);
+		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED);
 		return 0;
 	default:
-		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED, 1);
+		smp_failure(conn, SMP_PASSKEY_ENTRY_FAILED);
 		return -EOPNOTSUPP;
 	}
 
@@ -895,7 +895,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 		break;
 
 	case SMP_CMD_PAIRING_FAIL:
-		smp_failure(conn, skb->data[0], 0);
+		smp_failure(conn, 0);
 		reason = 0;
 		err = -EPERM;
 		break;
@@ -941,7 +941,7 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 
 done:
 	if (reason)
-		smp_failure(conn, reason, 1);
+		smp_failure(conn, reason);
 
 	kfree_skb(skb);
 	return err;
