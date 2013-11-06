@@ -82,9 +82,9 @@ static struct trace_array *graph_array;
  * to fill in space into DURATION column.
  */
 enum {
-	DURATION_FILL_FULL  = -1,
-	DURATION_FILL_START = -2,
-	DURATION_FILL_END   = -3,
+	FLAGS_FILL_FULL  = 1 << TRACE_GRAPH_PRINT_FILL_SHIFT,
+	FLAGS_FILL_START = 2 << TRACE_GRAPH_PRINT_FILL_SHIFT,
+	FLAGS_FILL_END   = 3 << TRACE_GRAPH_PRINT_FILL_SHIFT,
 };
 
 static enum print_line_t
@@ -702,7 +702,7 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 	}
 
 	/* No overhead */
-	ret = print_graph_duration(DURATION_FILL_START, s, flags);
+	ret = print_graph_duration(0, s, flags | FLAGS_FILL_START);
 	if (ret != TRACE_TYPE_HANDLED)
 		return ret;
 
@@ -714,7 +714,7 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	ret = print_graph_duration(DURATION_FILL_END, s, flags);
+	ret = print_graph_duration(0, s, flags | FLAGS_FILL_END);
 	if (ret != TRACE_TYPE_HANDLED)
 		return ret;
 
@@ -779,14 +779,14 @@ print_graph_duration(unsigned long long duration, struct trace_seq *s,
 			return TRACE_TYPE_HANDLED;
 
 	/* No real adata, just filling the column with spaces */
-	switch (duration) {
-	case DURATION_FILL_FULL:
+	switch (flags & TRACE_GRAPH_PRINT_FILL_MASK) {
+	case FLAGS_FILL_FULL:
 		ret = trace_seq_puts(s, "              |  ");
 		return ret ? TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;
-	case DURATION_FILL_START:
+	case FLAGS_FILL_START:
 		ret = trace_seq_puts(s, "  ");
 		return ret ? TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;
-	case DURATION_FILL_END:
+	case FLAGS_FILL_END:
 		ret = trace_seq_puts(s, " |");
 		return ret ? TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;
 	}
@@ -902,7 +902,7 @@ print_graph_entry_nested(struct trace_iterator *iter,
 	}
 
 	/* No time */
-	ret = print_graph_duration(DURATION_FILL_FULL, s, flags);
+	ret = print_graph_duration(0, s, flags | FLAGS_FILL_FULL);
 	if (ret != TRACE_TYPE_HANDLED)
 		return ret;
 
@@ -1222,7 +1222,7 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* No time */
-	ret = print_graph_duration(DURATION_FILL_FULL, s, flags);
+	ret = print_graph_duration(0, s, flags | FLAGS_FILL_FULL);
 	if (ret != TRACE_TYPE_HANDLED)
 		return ret;
 
