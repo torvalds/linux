@@ -88,6 +88,18 @@ enum port {
 };
 #define port_name(p) ((p) + 'A')
 
+#define I915_NUM_PHYS_VLV 1
+
+enum dpio_channel {
+	DPIO_CH0,
+	DPIO_CH1
+};
+
+enum dpio_phy {
+	DPIO_PHY0,
+	DPIO_PHY1
+};
+
 enum intel_display_power_domain {
 	POWER_DOMAIN_PIPE_A,
 	POWER_DOMAIN_PIPE_B,
@@ -1403,6 +1415,7 @@ typedef struct drm_i915_private {
 	int num_shared_dpll;
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
 	struct intel_ddi_plls ddi_plls;
+	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
 	/* Reclocking support */
 	bool render_reclock_avail;

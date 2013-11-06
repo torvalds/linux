@@ -1361,6 +1361,7 @@ static void intel_init_dpio(struct drm_device *dev)
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
+	DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
 	/*
 	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
 	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
@@ -1494,18 +1495,25 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(DPLL(pipe));
 }
 
-void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port)
+void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+		struct intel_digital_port *dport)
 {
 	u32 port_mask;
 
-	if (!port)
+	switch (dport->port) {
+	case PORT_B:
 		port_mask = DPLL_PORTB_READY_MASK;
-	else
+		break;
+	case PORT_C:
 		port_mask = DPLL_PORTC_READY_MASK;
+		break;
+	default:
+		BUG();
+	}
 
 	if (wait_for((I915_READ(DPLL(0)) & port_mask) == 0, 1000))
 		WARN(1, "timed out waiting for port %c ready: 0x%08x\n",
-		     'B' + port, I915_READ(DPLL(0)));
+		     'B' + dport->port, I915_READ(DPLL(0)));
 }
 
 /**

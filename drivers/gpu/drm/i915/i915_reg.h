@@ -452,6 +452,9 @@
 #define  DPIO_SFR_BYPASS		(1<<1)
 #define  DPIO_CMNRST			(1<<0)
 
+#define DPIO_PHY(pipe)			((pipe) >> 1)
+#define DPIO_PHY_IOSF_PORT(phy)		(dev_priv->dpio_phy_iosf_port[phy])
+
 /*
  * Per pipe/PLL DPIO regs
  */

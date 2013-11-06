@@ -1081,7 +1081,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
-	int port = vlv_dport_to_channel(dport);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 	u32 val;
 
@@ -1116,7 +1116,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	intel_enable_hdmi(encoder);
 
-	vlv_wait_port_ready(dev_priv, port);
+	vlv_wait_port_ready(dev_priv, dport);
 }
 
 static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
@@ -1126,7 +1126,7 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
-	int port = vlv_dport_to_channel(dport);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 
 	if (!IS_VALLEYVIEW(dev))
@@ -1159,7 +1159,7 @@ static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
-	int port = vlv_dport_to_channel(dport);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 
 	/* Reset lanes to avoid HDMI flicker (VLV w/a) */

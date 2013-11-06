@@ -1839,7 +1839,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	int port = vlv_dport_to_channel(dport);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 	struct edp_power_seq power_seq;
 	u32 val;
@@ -1866,7 +1866,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 
 	intel_enable_dp(encoder);
 
-	vlv_wait_port_ready(dev_priv, port);
+	vlv_wait_port_ready(dev_priv, dport);
 }
 
 static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
@@ -1876,7 +1876,7 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(encoder->base.crtc);
-	int port = vlv_dport_to_channel(dport);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 
 	/* Program Tx lane resets to default */
@@ -2033,7 +2033,7 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	unsigned long demph_reg_value, preemph_reg_value,
 		uniqtranscale_reg_value;
 	uint8_t train_set = intel_dp->train_set[0];
-	int port = vlv_dport_to_channel(dport);
+	enum dpio_channel port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
