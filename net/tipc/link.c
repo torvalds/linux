@@ -404,15 +404,9 @@ static void link_release_outqueue(struct tipc_link *l_ptr)
  */
 void tipc_link_reset_fragments(struct tipc_link *l_ptr)
 {
-	struct sk_buff *buf = l_ptr->defragm_buf;
-	struct sk_buff *next;
-
-	while (buf) {
-		next = buf->next;
-		kfree_skb(buf);
-		buf = next;
-	}
-	l_ptr->defragm_buf = NULL;
+	kfree_skb(l_ptr->reasm_head);
+	l_ptr->reasm_head = NULL;
+	l_ptr->reasm_tail = NULL;
 }
 
 /**
@@ -1649,13 +1643,15 @@ deliver:
 			continue;
 		case MSG_FRAGMENTER:
 			l_ptr->stats.recv_fragments++;
-			ret = tipc_link_recv_fragment(&l_ptr->defragm_buf,
-						      &buf, &msg);
-			if (ret == 1) {
+			ret = tipc_link_recv_fragment(&l_ptr->reasm_head,
+						      &l_ptr->reasm_tail,
+						      &buf);
+			if (ret == LINK_REASM_COMPLETE) {
 				l_ptr->stats.recv_fragmented++;
+				msg = buf_msg(buf);
 				goto deliver;
 			}
-			if (ret == -1)
+			if (ret == LINK_REASM_ERROR)
 				l_ptr->next_in_no--;
 			tipc_node_unlock(n_ptr);
 			continue;
@@ -2343,114 +2339,47 @@ static int link_send_long_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 }
 
 /*
- * A pending message being re-assembled must store certain values
- * to handle subsequent fragments correctly. The following functions
- * help storing these values in unused, available fields in the
- * pending message. This makes dynamic memory allocation unnecessary.
- */
-static void set_long_msg_seqno(struct sk_buff *buf, u32 seqno)
-{
-	msg_set_seqno(buf_msg(buf), seqno);
-}
-
-static u32 get_fragm_size(struct sk_buff *buf)
-{
-	return msg_ack(buf_msg(buf));
-}
-
-static void set_fragm_size(struct sk_buff *buf, u32 sz)
-{
-	msg_set_ack(buf_msg(buf), sz);
-}
-
-static u32 get_expected_frags(struct sk_buff *buf)
-{
-	return msg_bcast_ack(buf_msg(buf));
-}
-
-static void set_expected_frags(struct sk_buff *buf, u32 exp)
-{
-	msg_set_bcast_ack(buf_msg(buf), exp);
-}
-
-/*
  * tipc_link_recv_fragment(): Called with node lock on. Returns
  * the reassembled buffer if message is complete.
  */
-int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
-			    struct tipc_msg **m)
+int tipc_link_recv_fragment(struct sk_buff **head, struct sk_buff **tail,
+			    struct sk_buff **fbuf)
 {
-	struct sk_buff *prev = NULL;
-	struct sk_buff *fbuf = *fb;
-	struct tipc_msg *fragm = buf_msg(fbuf);
-	struct sk_buff *pbuf = *pending;
-	u32 long_msg_seq_no = msg_long_msgno(fragm);
+	struct sk_buff *frag = *fbuf;
+	struct tipc_msg *msg = buf_msg(frag);
+	u32 fragid = msg_type(msg);
+	bool headstolen;
+	int delta;
 
-	*fb = NULL;
-
-	/* Is there an incomplete message waiting for this fragment? */
-	while (pbuf && ((buf_seqno(pbuf) != long_msg_seq_no) ||
-			(msg_orignode(fragm) != msg_orignode(buf_msg(pbuf))))) {
-		prev = pbuf;
-		pbuf = pbuf->next;
-	}
-
-	if (!pbuf && (msg_type(fragm) == FIRST_FRAGMENT)) {
-		struct tipc_msg *imsg = (struct tipc_msg *)msg_data(fragm);
-		u32 msg_sz = msg_size(imsg);
-		u32 fragm_sz = msg_data_sz(fragm);
-		u32 exp_fragm_cnt;
-		u32 max =  TIPC_MAX_USER_MSG_SIZE + NAMED_H_SIZE;
-
-		if (msg_type(imsg) == TIPC_MCAST_MSG)
-			max = TIPC_MAX_USER_MSG_SIZE + MCAST_H_SIZE;
-		if (fragm_sz == 0 || msg_size(imsg) > max) {
-			kfree_skb(fbuf);
-			return 0;
-		}
-		exp_fragm_cnt = msg_sz / fragm_sz + !!(msg_sz % fragm_sz);
-		pbuf = tipc_buf_acquire(msg_size(imsg));
-		if (pbuf != NULL) {
-			pbuf->next = *pending;
-			*pending = pbuf;
-			skb_copy_to_linear_data(pbuf, imsg,
-						msg_data_sz(fragm));
-			/*  Prepare buffer for subsequent fragments. */
-			set_long_msg_seqno(pbuf, long_msg_seq_no);
-			set_fragm_size(pbuf, fragm_sz);
-			set_expected_frags(pbuf, exp_fragm_cnt - 1);
-		} else {
-			pr_debug("Link unable to reassemble fragmented message\n");
-			kfree_skb(fbuf);
-			return -1;
-		}
-		kfree_skb(fbuf);
+	skb_pull(frag, msg_hdr_sz(msg));
+	if (fragid == FIRST_FRAGMENT) {
+		if (*head || skb_unclone(frag, GFP_ATOMIC))
+			goto out_free;
+		*head = frag;
+		skb_frag_list_init(*head);
 		return 0;
-	} else if (pbuf && (msg_type(fragm) != FIRST_FRAGMENT)) {
-		u32 dsz = msg_data_sz(fragm);
-		u32 fsz = get_fragm_size(pbuf);
-		u32 crs = ((msg_fragm_no(fragm) - 1) * fsz);
-		u32 exp_frags = get_expected_frags(pbuf) - 1;
-		skb_copy_to_linear_data_offset(pbuf, crs,
-					       msg_data(fragm), dsz);
-		kfree_skb(fbuf);
-
-		/* Is message complete? */
-		if (exp_frags == 0) {
-			if (prev)
-				prev->next = pbuf->next;
-			else
-				*pending = pbuf->next;
-			msg_reset_reroute_cnt(buf_msg(pbuf));
-			*fb = pbuf;
-			*m = buf_msg(pbuf);
-			return 1;
-		}
-		set_expected_frags(pbuf, exp_frags);
-		return 0;
+	} else if (skb_try_coalesce(*head, frag, &headstolen, &delta)) {
+		kfree_skb_partial(frag, headstolen);
+	} else {
+		if (!*head)
+			goto out_free;
+		if (!skb_has_frag_list(*head))
+			skb_shinfo(*head)->frag_list = frag;
+		else
+			(*tail)->next = frag;
+		*tail = frag;
+		(*head)->truesize += frag->truesize;
 	}
-	kfree_skb(fbuf);
+	if (fragid == LAST_FRAGMENT) {
+		*fbuf = *head;
+		*tail = *head = NULL;
+		return LINK_REASM_COMPLETE;
+	}
 	return 0;
+out_free:
+	pr_warn_ratelimited("Link unable to reassemble fragmented message\n");
+	kfree_skb(*fbuf);
+	return LINK_REASM_ERROR;
 }
 
 static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance)
