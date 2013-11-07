@@ -92,7 +92,7 @@
 #define TEGRA30_CLK_OWR 71
 #define TEGRA30_CLK_AFI 72
 #define TEGRA30_CLK_CSITE 73
-#define TEGRA30_CLK_PCIEX 74
+/* 74 */
 #define TEGRA30_CLK_AVPUCQ 75
 #define TEGRA30_CLK_LA 76
 /* 77 */
