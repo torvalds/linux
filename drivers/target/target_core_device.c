@@ -92,6 +92,9 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
+		se_cmd->lun_ref_active = true;
 	}
 	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 
@@ -119,6 +122,9 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->orig_fe_lun = 0;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+
+		percpu_ref_get(&se_lun->lun_ref);
+		se_cmd->lun_ref_active = true;
 	}
 
 	/* Directly associate cmd with se_dev */
@@ -133,10 +139,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	else if (se_cmd->data_direction == DMA_FROM_DEVICE)
 		dev->read_bytes += se_cmd->data_length;
 	spin_unlock_irqrestore(&dev->stats_lock, flags);
-
-	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
-	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
-	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
 
 	return 0;
 }

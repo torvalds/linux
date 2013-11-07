@@ -575,15 +575,11 @@ static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 static void transport_lun_remove_cmd(struct se_cmd *cmd)
 {
 	struct se_lun *lun = cmd->se_lun;
-	unsigned long flags;
 
-	if (!lun)
+	if (!lun || !cmd->lun_ref_active)
 		return;
 
-	spin_lock_irqsave(&lun->lun_cmd_lock, flags);
-	if (!list_empty(&cmd->se_lun_node))
-		list_del_init(&cmd->se_lun_node);
-	spin_unlock_irqrestore(&lun->lun_cmd_lock, flags);
+	percpu_ref_put(&lun->lun_ref);
 }
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
@@ -2537,21 +2533,23 @@ check_cond:
 	spin_unlock_irqrestore(&lun->lun_cmd_lock, lun_flags);
 }
 
-static int transport_clear_lun_thread(void *p)
+static int transport_clear_lun_ref_thread(void *p)
 {
 	struct se_lun *lun = p;
 
-	__transport_clear_lun_from_sessions(lun);
+	percpu_ref_kill(&lun->lun_ref);
+
+	wait_for_completion(&lun->lun_ref_comp);
 	complete(&lun->lun_shutdown_comp);
 
 	return 0;
 }
 
-int transport_clear_lun_from_sessions(struct se_lun *lun)
+int transport_clear_lun_ref(struct se_lun *lun)
 {
 	struct task_struct *kt;
 
-	kt = kthread_run(transport_clear_lun_thread, lun,
+	kt = kthread_run(transport_clear_lun_ref_thread, lun,
 			"tcm_cl_%u", lun->unpacked_lun);
 	if (IS_ERR(kt)) {
 		pr_err("Unable to start clear_lun thread\n");

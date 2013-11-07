@@ -499,6 +499,9 @@ struct se_cmd {
 
 	/* backend private data */
 	void			*priv;
+
+	/* Used for lun->lun_ref counting */
+	bool			lun_ref_active;
 };
 
 struct se_ua {
@@ -757,6 +760,8 @@ struct se_lun {
 	struct se_port		*lun_sep;
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
+	struct completion	lun_ref_comp;
+	struct percpu_ref	lun_ref;
 };
 
 struct scsi_port_stats {
