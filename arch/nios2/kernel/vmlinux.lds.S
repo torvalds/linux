@@ -43,6 +43,13 @@ SECTIONS
 	} =0
 	_etext = .;
 
+	.got : {
+		*(.got.plt)
+		*(.igot.plt)
+		*(.got)
+		*(.igot)
+	}
+
 	EXCEPTION_TABLE(L1_CACHE_BYTES)
 
 	. = ALIGN(PAGE_SIZE);
