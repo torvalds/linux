@@ -260,6 +260,12 @@ ENDPROC(omap4_finish_suspend)
  */
 ENTRY(omap4_cpu_resume)
 	/*
+	 * ROM code operates in little endian mode, when we get control we
+	 * need to switch it back to big endian mode.
+	 */
+ARM_BE8(setend	be)
+
+	/*
 	 * Configure ACTRL and enable NS SMP bit access on CPU1 on HS device.
 	 * OMAP44XX EMU/HS devices - CPU0 SMP bit access is enabled in PPA
 	 * init and for CPU1, a secure PPA API provided. CPU0 must be ON

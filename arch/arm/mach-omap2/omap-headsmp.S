@@ -17,6 +17,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/assembler.h>
 
 #include "omap44xx.h"
 
@@ -58,6 +59,12 @@ hold:	ldr	r12,=0x103
 	bne	hold
 
 	/*
+	 * ROM code operates in little endian mode, when we get control we
+	 * need to switch it back to big endian mode.
+	 */
+ARM_BE8(setend be)
+
+	/*
 	 * we've been released from the wait loop,secondary_stack
 	 * should now contain the SVC stack for this core
 	 */
@@ -73,6 +80,12 @@ hold_2:	ldr	r12,=0x103
 	and	r4, r4, #0x0f
 	cmp	r0, r4
 	bne	hold_2
+
+	/*
+	 * ROM code operates in little endian mode, when we get control we
+	 * need to switch it back to big endian mode.
+	 */
+ARM_BE8(setend be)
 
 	/*
 	 * GIC distributor control register has changed between
