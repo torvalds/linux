@@ -1272,7 +1272,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->LastSeg = 1;
 	pdesc->TxBufferSize = skb->len;
 
-	pdesc->TxBuffAddr = cpu_to_le32(mapping);
+	pdesc->TxBuffAddr = mapping;
 }
 
 void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
@@ -1302,7 +1302,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 		entry_tmp->RATid = (u8)DESC_PACKET_TYPE_INIT;
 	}
 	entry->TxBufferSize = skb->len;
-	entry->TxBuffAddr = cpu_to_le32(mapping);
+	entry->TxBuffAddr = mapping;
 	entry->OWN = 1;
 }
 
