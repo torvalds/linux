@@ -2203,17 +2203,14 @@ static int gen8_enable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-	uint32_t imr;
 
 	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	imr = I915_READ(GEN8_DE_PIPE_IMR(pipe));
-	if ((imr & GEN8_PIPE_VBLANK) == 1) {
-		I915_WRITE(GEN8_DE_PIPE_IMR(pipe), imr & ~GEN8_PIPE_VBLANK);
-		POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
-	}
+	dev_priv->de_irq_mask[pipe] &= ~GEN8_PIPE_VBLANK;
+	I915_WRITE(GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
+	POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	return 0;
 }
@@ -2270,17 +2267,14 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-	uint32_t imr;
 
 	if (!i915_pipe_enabled(dev, pipe))
 		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	imr = I915_READ(GEN8_DE_PIPE_IMR(pipe));
-	if ((imr & GEN8_PIPE_VBLANK) == 0) {
-		I915_WRITE(GEN8_DE_PIPE_IMR(pipe), imr | GEN8_PIPE_VBLANK);
-		POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
-	}
+	dev_priv->de_irq_mask[pipe] |= GEN8_PIPE_VBLANK;
+	I915_WRITE(GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
+	POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
