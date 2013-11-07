@@ -452,15 +452,10 @@
 #define  DPIO_SFR_BYPASS		(1<<1)
 #define  DPIO_CMNRST			(1<<0)
 
-#define _DPIO_TX3_SWING_CTL4_A		0x690
-#define _DPIO_TX3_SWING_CTL4_B		0x2a90
-#define DPIO_TX3_SWING_CTL4(pipe) _PIPE(pipe, _DPIO_TX3_SWING_CTL4_A, \
-					_DPIO_TX3_SWING_CTL4_B)
-
 /*
  * Per pipe/PLL DPIO regs
  */
-#define _DPIO_DIV_A			0x800c
+#define _VLV_PLL_DW3_CH0		0x800c
 #define   DPIO_POST_DIV_SHIFT		(28) /* 3 bits */
 #define   DPIO_POST_DIV_DAC		0
 #define   DPIO_POST_DIV_HDMIDP		1 /* DAC 225-400M rate */
@@ -473,10 +468,10 @@
 #define   DPIO_ENABLE_CALIBRATION	(1<<11)
 #define   DPIO_M1DIV_SHIFT		(8) /* 3 bits */
 #define   DPIO_M2DIV_MASK		0xff
-#define _DPIO_DIV_B			0x802c
-#define DPIO_DIV(pipe) _PIPE(pipe, _DPIO_DIV_A, _DPIO_DIV_B)
+#define _VLV_PLL_DW3_CH1		0x802c
+#define VLV_PLL_DW3(ch) _PIPE(ch, _VLV_PLL_DW3_CH0, _VLV_PLL_DW3_CH1)
 
-#define _DPIO_REFSFR_A			0x8014
+#define _VLV_PLL_DW5_CH0		0x8014
 #define   DPIO_REFSEL_OVERRIDE		27
 #define   DPIO_PLL_MODESEL_SHIFT	24 /* 3 bits */
 #define   DPIO_BIAS_CURRENT_CTL_SHIFT	21 /* 3 bits, always 0x7 */
@@ -484,118 +479,112 @@
 #define   DPIO_PLL_REFCLK_SEL_MASK	3
 #define   DPIO_DRIVER_CTL_SHIFT		12 /* always set to 0x8 */
 #define   DPIO_CLK_BIAS_CTL_SHIFT	8 /* always set to 0x5 */
-#define _DPIO_REFSFR_B			0x8034
-#define DPIO_REFSFR(pipe) _PIPE(pipe, _DPIO_REFSFR_A, _DPIO_REFSFR_B)
+#define _VLV_PLL_DW5_CH1		0x8034
+#define VLV_PLL_DW5(ch) _PIPE(ch, _VLV_PLL_DW5_CH0, _VLV_PLL_DW5_CH1)
 
-#define _DPIO_CORE_CLK_A		0x801c
-#define _DPIO_CORE_CLK_B		0x803c
-#define DPIO_CORE_CLK(pipe) _PIPE(pipe, _DPIO_CORE_CLK_A, _DPIO_CORE_CLK_B)
+#define _VLV_PLL_DW7_CH0		0x801c
+#define _VLV_PLL_DW7_CH1		0x803c
+#define VLV_PLL_DW7(ch) _PIPE(ch, _VLV_PLL_DW7_CH0, _VLV_PLL_DW7_CH1)
 
-#define _DPIO_IREF_CTL_A		0x8040
-#define _DPIO_IREF_CTL_B		0x8060
-#define DPIO_IREF_CTL(pipe) _PIPE(pipe, _DPIO_IREF_CTL_A, _DPIO_IREF_CTL_B)
+#define _VLV_PLL_DW8_CH0		0x8040
+#define _VLV_PLL_DW8_CH1		0x8060
+#define VLV_PLL_DW8(ch) _PIPE(ch, _VLV_PLL_DW8_CH0, _VLV_PLL_DW8_CH1)
 
-#define DPIO_IREF_BCAST			0xc044
-#define _DPIO_IREF_A			0x8044
-#define _DPIO_IREF_B			0x8064
-#define DPIO_IREF(pipe) _PIPE(pipe, _DPIO_IREF_A, _DPIO_IREF_B)
+#define VLV_PLL_DW9_BCAST		0xc044
+#define _VLV_PLL_DW9_CH0		0x8044
+#define _VLV_PLL_DW9_CH1		0x8064
+#define VLV_PLL_DW9(ch) _PIPE(ch, _VLV_PLL_DW9_CH0, _VLV_PLL_DW9_CH1)
 
-#define _DPIO_PLL_CML_A			0x804c
-#define _DPIO_PLL_CML_B			0x806c
-#define DPIO_PLL_CML(pipe) _PIPE(pipe, _DPIO_PLL_CML_A, _DPIO_PLL_CML_B)
+#define _VLV_PLL_DW10_CH0		0x8048
+#define _VLV_PLL_DW10_CH1		0x8068
+#define VLV_PLL_DW10(ch) _PIPE(ch, _VLV_PLL_DW10_CH0, _VLV_PLL_DW10_CH1)
 
-#define _DPIO_LPF_COEFF_A		0x8048
-#define _DPIO_LPF_COEFF_B		0x8068
-#define DPIO_LPF_COEFF(pipe) _PIPE(pipe, _DPIO_LPF_COEFF_A, _DPIO_LPF_COEFF_B)
+#define _VLV_PLL_DW11_CH0		0x804c
+#define _VLV_PLL_DW11_CH1		0x806c
+#define VLV_PLL_DW11(ch) _PIPE(ch, _VLV_PLL_DW11_CH0, _VLV_PLL_DW11_CH1)
 
-#define DPIO_CALIBRATION		0x80ac
+/* Spec for ref block start counts at DW10 */
+#define VLV_REF_DW13			0x80ac
 
-#define DPIO_FASTCLK_DISABLE		0x8100
+#define VLV_CMN_DW0			0x8100
 
 /*
  * Per DDI channel DPIO regs
  */
 
-#define _DPIO_PCS_TX_0			0x8200
-#define _DPIO_PCS_TX_1			0x8400
+#define _VLV_PCS_DW0_CH0		0x8200
+#define _VLV_PCS_DW0_CH1		0x8400
 #define   DPIO_PCS_TX_LANE2_RESET	(1<<16)
 #define   DPIO_PCS_TX_LANE1_RESET	(1<<7)
-#define DPIO_PCS_TX(port) _PORT(port, _DPIO_PCS_TX_0, _DPIO_PCS_TX_1)
+#define VLV_PCS_DW0(ch) _PORT(ch, _VLV_PCS_DW0_CH0, _VLV_PCS_DW0_CH1)
 
-#define _DPIO_PCS_CLK_0			0x8204
-#define _DPIO_PCS_CLK_1			0x8404
+#define _VLV_PCS_DW1_CH0		0x8204
+#define _VLV_PCS_DW1_CH1		0x8404
 #define   DPIO_PCS_CLK_CRI_RXEB_EIOS_EN	(1<<22)
 #define   DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN (1<<21)
 #define   DPIO_PCS_CLK_DATAWIDTH_SHIFT	(6)
 #define   DPIO_PCS_CLK_SOFT_RESET	(1<<5)
-#define DPIO_PCS_CLK(port) _PORT(port, _DPIO_PCS_CLK_0, _DPIO_PCS_CLK_1)
+#define VLV_PCS_DW1(ch) _PORT(ch, _VLV_PCS_DW1_CH0, _VLV_PCS_DW1_CH1)
 
-#define _DPIO_PCS_CTL_OVR1_A		0x8224
-#define _DPIO_PCS_CTL_OVR1_B		0x8424
-#define DPIO_PCS_CTL_OVER1(port) _PORT(port, _DPIO_PCS_CTL_OVR1_A, \
-				       _DPIO_PCS_CTL_OVR1_B)
+#define _VLV_PCS_DW8_CH0		0x8220
+#define _VLV_PCS_DW8_CH1		0x8420
+#define VLV_PCS_DW8(ch) _PORT(ch, _VLV_PCS_DW8_CH0, _VLV_PCS_DW8_CH1)
 
-#define _DPIO_PCS_STAGGER0_A		0x822c
-#define _DPIO_PCS_STAGGER0_B		0x842c
-#define DPIO_PCS_STAGGER0(port) _PORT(port, _DPIO_PCS_STAGGER0_A, \
-				      _DPIO_PCS_STAGGER0_B)
+#define _VLV_PCS01_DW8_CH0		0x0220
+#define _VLV_PCS23_DW8_CH0		0x0420
+#define _VLV_PCS01_DW8_CH1		0x2620
+#define _VLV_PCS23_DW8_CH1		0x2820
+#define VLV_PCS01_DW8(port) _PORT(port, _VLV_PCS01_DW8_CH0, _VLV_PCS01_DW8_CH1)
+#define VLV_PCS23_DW8(port) _PORT(port, _VLV_PCS23_DW8_CH0, _VLV_PCS23_DW8_CH1)
 
-#define _DPIO_PCS_STAGGER1_A		0x8230
-#define _DPIO_PCS_STAGGER1_B		0x8430
-#define DPIO_PCS_STAGGER1(port) _PORT(port, _DPIO_PCS_STAGGER1_A, \
-				      _DPIO_PCS_STAGGER1_B)
+#define _VLV_PCS_DW9_CH0		0x8224
+#define _VLV_PCS_DW9_CH1		0x8424
+#define	VLV_PCS_DW9(ch) _PORT(ch, _VLV_PCS_DW9_CH0, _VLV_PCS_DW9_CH1)
 
-#define _DPIO_PCS_CLOCKBUF0_A		0x8238
-#define _DPIO_PCS_CLOCKBUF0_B		0x8438
-#define DPIO_PCS_CLOCKBUF0(port) _PORT(port, _DPIO_PCS_CLOCKBUF0_A, \
-				       _DPIO_PCS_CLOCKBUF0_B)
+#define _VLV_PCS_DW11_CH0		0x822c
+#define _VLV_PCS_DW11_CH1		0x842c
+#define VLV_PCS_DW11(ch) _PORT(ch, _VLV_PCS_DW11_CH0, _VLV_PCS_DW11_CH1)
 
-#define _DPIO_PCS_CLOCKBUF8_A		0x825c
-#define _DPIO_PCS_CLOCKBUF8_B		0x845c
-#define DPIO_PCS_CLOCKBUF8(port) _PORT(port, _DPIO_PCS_CLOCKBUF8_A, \
-				       _DPIO_PCS_CLOCKBUF8_B)
+#define _VLV_PCS_DW12_CH0		0x8230
+#define _VLV_PCS_DW12_CH1		0x8430
+#define VLV_PCS_DW12(ch) _PORT(ch, _VLV_PCS_DW12_CH0, _VLV_PCS_DW12_CH1)
 
-#define _DPIO_TX_SWING_CTL2_A		0x8288
-#define _DPIO_TX_SWING_CTL2_B		0x8488
-#define DPIO_TX_SWING_CTL2(port) _PORT(port, _DPIO_TX_SWING_CTL2_A, \
-				       _DPIO_TX_SWING_CTL2_B)
+#define _VLV_PCS_DW14_CH0		0x8238
+#define _VLV_PCS_DW14_CH1		0x8438
+#define	VLV_PCS_DW14(ch) _PORT(ch, _VLV_PCS_DW14_CH0, _VLV_PCS_DW14_CH1)
 
-#define _DPIO_TX_SWING_CTL3_A		0x828c
-#define _DPIO_TX_SWING_CTL3_B		0x848c
-#define DPIO_TX_SWING_CTL3(port) _PORT(port, _DPIO_TX_SWING_CTL3_A, \
-				       _DPIO_TX_SWING_CTL3_B)
+#define _VLV_PCS_DW23_CH0		0x825c
+#define _VLV_PCS_DW23_CH1		0x845c
+#define VLV_PCS_DW23(ch) _PORT(ch, _VLV_PCS_DW23_CH0, _VLV_PCS_DW23_CH1)
 
-#define _DPIO_TX_SWING_CTL4_A		0x8290
-#define _DPIO_TX_SWING_CTL4_B		0x8490
-#define DPIO_TX_SWING_CTL4(port) _PORT(port, _DPIO_TX_SWING_CTL4_A, \
-				       _DPIO_TX_SWING_CTL4_B)
+#define _VLV_TX_DW2_CH0			0x8288
+#define _VLV_TX_DW2_CH1			0x8488
+#define VLV_TX_DW2(ch) _PORT(ch, _VLV_TX_DW2_CH0, _VLV_TX_DW2_CH1)
 
-#define _DPIO_TX_OCALINIT_0		0x8294
-#define _DPIO_TX_OCALINIT_1		0x8494
+#define _VLV_TX_DW3_CH0			0x828c
+#define _VLV_TX_DW3_CH1			0x848c
+#define VLV_TX_DW3(ch) _PORT(ch, _VLV_TX_DW3_CH0, _VLV_TX_DW3_CH1)
+
+#define _VLV_TX_DW4_CH0			0x8290
+#define _VLV_TX_DW4_CH1			0x8490
+#define VLV_TX_DW4(ch) _PORT(ch, _VLV_TX_DW4_CH0, _VLV_TX_DW4_CH1)
+
+#define _VLV_TX3_DW4_CH0		0x690
+#define _VLV_TX3_DW4_CH1		0x2a90
+#define VLV_TX3_DW4(ch) _PORT(ch, _VLV_TX3_DW4_CH0, _VLV_TX3_DW4_CH1)
+
+#define _VLV_TX_DW5_CH0			0x8294
+#define _VLV_TX_DW5_CH1			0x8494
 #define   DPIO_TX_OCALINIT_EN		(1<<31)
-#define DPIO_TX_OCALINIT(port) _PORT(port, _DPIO_TX_OCALINIT_0, \
-				     _DPIO_TX_OCALINIT_1)
+#define VLV_TX_DW5(ch) _PORT(ch, _VLV_TX_DW5_CH0, _VLV_TX_DW5_CH1)
 
-#define _DPIO_TX_CTL_0			0x82ac
-#define _DPIO_TX_CTL_1			0x84ac
-#define DPIO_TX_CTL(port) _PORT(port, _DPIO_TX_CTL_0, _DPIO_TX_CTL_1)
+#define _VLV_TX_DW11_CH0		0x82ac
+#define _VLV_TX_DW11_CH1		0x84ac
+#define VLV_TX_DW11(ch) _PORT(ch, _VLV_TX_DW11_CH0, _VLV_TX_DW11_CH1)
 
-#define _DPIO_TX_LANE_0			0x82b8
-#define _DPIO_TX_LANE_1			0x84b8
-#define DPIO_TX_LANE(port) _PORT(port, _DPIO_TX_LANE_0, _DPIO_TX_LANE_1)
-
-#define _DPIO_DATA_CHANNEL1		0x8220
-#define _DPIO_DATA_CHANNEL2		0x8420
-#define DPIO_DATA_CHANNEL(port) _PORT(port, _DPIO_DATA_CHANNEL1, _DPIO_DATA_CHANNEL2)
-
-#define _DPIO_PORT0_PCS0		0x0220
-#define _DPIO_PORT0_PCS1		0x0420
-#define _DPIO_PORT1_PCS2		0x2620
-#define _DPIO_PORT1_PCS3		0x2820
-#define DPIO_DATA_LANE_A(port) _PORT(port, _DPIO_PORT0_PCS0, _DPIO_PORT1_PCS2)
-#define DPIO_DATA_LANE_B(port) _PORT(port, _DPIO_PORT0_PCS1, _DPIO_PORT1_PCS3)
-#define DPIO_DATA_CHANNEL1              0x8220
-#define DPIO_DATA_CHANNEL2              0x8420
+#define _VLV_TX_DW14_CH0		0x82b8
+#define _VLV_TX_DW14_CH1		0x84b8
+#define VLV_TX_DW14(ch) _PORT(ch, _VLV_TX_DW14_CH0, _VLV_TX_DW14_CH1)
 
 /*
  * Fence registers

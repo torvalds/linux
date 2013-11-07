@@ -1649,28 +1649,28 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
 
-	seq_printf(m, "DPIO_DIV_A: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_DIV_A));
-	seq_printf(m, "DPIO_DIV_B: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_DIV_B));
+	seq_printf(m, "DPIO PLL DW3 CH0 : 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW3(0)));
+	seq_printf(m, "DPIO PLL DW3 CH1: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW3(1)));
 
-	seq_printf(m, "DPIO_REFSFR_A: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_REFSFR_A));
-	seq_printf(m, "DPIO_REFSFR_B: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_REFSFR_B));
+	seq_printf(m, "DPIO PLL DW5 CH0: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW5(0)));
+	seq_printf(m, "DPIO PLL DW5 CH1: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW5(1)));
 
-	seq_printf(m, "DPIO_CORE_CLK_A: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_CORE_CLK_A));
-	seq_printf(m, "DPIO_CORE_CLK_B: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_CORE_CLK_B));
+	seq_printf(m, "DPIO PLL DW7 CH0: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW7(0)));
+	seq_printf(m, "DPIO PLL DW7 CH1: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW7(1)));
 
-	seq_printf(m, "DPIO_LPF_COEFF_A: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_LPF_COEFF_A));
-	seq_printf(m, "DPIO_LPF_COEFF_B: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, _DPIO_LPF_COEFF_B));
+	seq_printf(m, "DPIO PLL DW10 CH0: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW10(0)));
+	seq_printf(m, "DPIO PLL DW10 CH1: 0x%08x\n",
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_PLL_DW10(1)));
 
 	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
-		   vlv_dpio_read(dev_priv, PIPE_A, DPIO_FASTCLK_DISABLE));
+		   vlv_dpio_read(dev_priv, PIPE_A, VLV_CMN_DW0));
 
 	mutex_unlock(&dev_priv->dpio_lock);
 

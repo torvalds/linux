@@ -1090,36 +1090,28 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	/* Enable clock channels for this port */
 	mutex_lock(&dev_priv->dpio_lock);
-	val = vlv_dpio_read(dev_priv, pipe, DPIO_DATA_LANE_A(port));
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(port));
 	val = 0;
 	if (pipe)
 		val |= (1<<21);
 	else
 		val &= ~(1<<21);
 	val |= 0x001000c4;
-	vlv_dpio_write(dev_priv, pipe, DPIO_DATA_CHANNEL(port), val);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW8(port), val);
 
 	/* HDMI 1.0V-2dB */
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_OCALINIT(port), 0);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_SWING_CTL4(port),
-			 0x2b245f5f);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_SWING_CTL2(port),
-			 0x5578b83a);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_SWING_CTL3(port),
-			 0x0c782040);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX3_SWING_CTL4(port),
-			 0x2b247878);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_STAGGER0(port), 0x00030000);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_CTL_OVER1(port),
-			 0x00002000);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_OCALINIT(port),
-			 DPIO_TX_OCALINIT_EN);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(port), 0x2b245f5f);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(port), 0x5578b83a);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW3(port), 0x0c782040);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX3_DW4(port), 0x2b247878);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW11(port), 0x00030000);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), 0x00002000);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), DPIO_TX_OCALINIT_EN);
 
 	/* Program lane clock */
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_CLOCKBUF0(port),
-			 0x00760018);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_CLOCKBUF8(port),
-			 0x00400888);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 	mutex_unlock(&dev_priv->dpio_lock);
 
 	intel_enable_hdmi(encoder);
@@ -1142,24 +1134,22 @@ static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 
 	/* Program Tx lane resets to default */
 	mutex_lock(&dev_priv->dpio_lock);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_TX(port),
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_CLK(port),
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(port),
 			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
 			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
 			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
 			 DPIO_PCS_CLK_SOFT_RESET);
 
 	/* Fix up inter-pair skew failure */
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_STAGGER1(port), 0x00750f00);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_CTL(port), 0x00001500);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_LANE(port), 0x40400000);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW12(port), 0x00750f00);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW11(port), 0x00001500);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW14(port), 0x40400000);
 
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_CTL_OVER1(port),
-			 0x00002000);
-	vlv_dpio_write(dev_priv, pipe, DPIO_TX_OCALINIT(port),
-			 DPIO_TX_OCALINIT_EN);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), 0x00002000);
+	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), DPIO_TX_OCALINIT_EN);
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
@@ -1174,8 +1164,8 @@ static void vlv_hdmi_post_disable(struct intel_encoder *encoder)
 
 	/* Reset lanes to avoid HDMI flicker (VLV w/a) */
 	mutex_lock(&dev_priv->dpio_lock);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_TX(port), 0x00000000);
-	vlv_dpio_write(dev_priv, pipe, DPIO_PCS_CLK(port), 0x00e00060);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port), 0x00000000);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW1(port), 0x00e00060);
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
