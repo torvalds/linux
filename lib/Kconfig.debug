@@ -312,6 +312,15 @@ config MAGIC_SYSRQ
 	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
+config MAGIC_SYSRQ_DEFAULT_ENABLE
+	hex "Enable magic SysRq key functions by default"
+	depends on MAGIC_SYSRQ
+	default 0x1
+	help
+	  Specifies which SysRq key functions are enabled by default.
+	  This may be set to 1 or 0 to enable or disable them all, or
+	  to a bitmask as described in Documentation/sysrq.txt.
+
 config DEBUG_KERNEL
 	bool "Kernel debugging"
 	help

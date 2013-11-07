@@ -48,6 +48,7 @@
 #include <asm/prom.h>
 #include <asm/hvsi.h>
 #include <asm/udbg.h>
+#include <asm/machdep.h>
 
 #include "hvc_console.h"
 
@@ -457,7 +458,9 @@ void __init hvc_vio_init_early(void)
 	if (hvterm_priv0.proto == HV_PROTOCOL_HVSI)
 		goto out;
 #endif
-	add_preferred_console("hvc", 0, NULL);
+	/* Check whether the user has requested a different console. */
+	if (!strstr(cmd_line, "console="))
+		add_preferred_console("hvc", 0, NULL);
 	hvc_instantiate(0, 0, ops);
 out:
 	of_node_put(stdout_node);

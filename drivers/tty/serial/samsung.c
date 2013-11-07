@@ -407,7 +407,14 @@ static unsigned int s3c24xx_serial_get_mctrl(struct uart_port *port)
 
 static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* todo - possibly remove AFC and do manual CTS */
+	unsigned int umcon = rd_regl(port, S3C2410_UMCON);
+
+	if (mctrl & TIOCM_RTS)
+		umcon |= S3C2410_UMCOM_RTS_LOW;
+	else
+		umcon &= ~S3C2410_UMCOM_RTS_LOW;
+
+	wr_regl(port, S3C2410_UMCON, umcon);
 }
 
 static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
@@ -774,8 +781,6 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CSTOPB)
 		ulcon |= S3C2410_LCON_STOPB;
 
-	umcon = (termios->c_cflag & CRTSCTS) ? S3C2410_UMCOM_AFC : 0;
-
 	if (termios->c_cflag & PARENB) {
 		if (termios->c_cflag & PARODD)
 			ulcon |= S3C2410_LCON_PODD;
@@ -792,6 +797,15 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
+
+	umcon = rd_regl(port, S3C2410_UMCON);
+	if (termios->c_cflag & CRTSCTS) {
+		umcon |= S3C2410_UMCOM_AFC;
+		/* Disable RTS when RX FIFO contains 63 bytes */
+		umcon &= ~S3C2412_UMCON_AFC_8;
+	} else {
+		umcon &= ~S3C2410_UMCOM_AFC;
+	}
 	wr_regl(port, S3C2410_UMCON, umcon);
 
 	if (ourport->info->has_divslot)
@@ -1254,7 +1268,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	ourport->baudclk = ERR_PTR(-EINVAL);
 	ourport->info = ourport->drv_data->info;
 	ourport->cfg = (dev_get_platdata(&pdev->dev)) ?
-			(struct s3c2410_uartcfg *)dev_get_platdata(&pdev->dev) :
+			dev_get_platdata(&pdev->dev) :
 			ourport->drv_data->def_cfg;
 
 	ourport->port.fifosize = (ourport->info->fifosize) ?
