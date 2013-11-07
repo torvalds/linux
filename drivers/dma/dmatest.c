@@ -326,20 +326,6 @@ static void dmatest_callback(void *arg)
 	wake_up_all(done->wait);
 }
 
-static inline void unmap_src(struct device *dev, dma_addr_t *addr, size_t len,
-			     unsigned int count)
-{
-	while (count--)
-		dma_unmap_single(dev, addr[count], len, DMA_TO_DEVICE);
-}
-
-static inline void unmap_dst(struct device *dev, dma_addr_t *addr, size_t len,
-			     unsigned int count)
-{
-	while (count--)
-		dma_unmap_single(dev, addr[count], len, DMA_BIDIRECTIONAL);
-}
-
 static unsigned int min_odd(unsigned int x, unsigned int y)
 {
 	unsigned int val = min(x, y);
@@ -484,8 +470,9 @@ static int dmatest_func(void *data)
 	while (!kthread_should_stop()
 	       && !(params->iterations && total_tests >= params->iterations)) {
 		struct dma_async_tx_descriptor *tx = NULL;
-		dma_addr_t dma_srcs[src_cnt];
-		dma_addr_t dma_dsts[dst_cnt];
+		struct dmaengine_unmap_data *um;
+		dma_addr_t srcs[src_cnt];
+		dma_addr_t *dsts;
 		u8 align = 0;
 
 		total_tests++;
@@ -530,61 +517,75 @@ static int dmatest_func(void *data)
 			len = 1 << align;
 		total_len += len;
 
-		for (i = 0; i < src_cnt; i++) {
-			u8 *buf = thread->srcs[i] + src_off;
+		um = dmaengine_get_unmap_data(dev->dev, src_cnt+dst_cnt,
+					      GFP_KERNEL);
+		if (!um) {
+			failed_tests++;
+			result("unmap data NULL", total_tests,
+			       src_off, dst_off, len, ret);
+			continue;
+		}
 
-			dma_srcs[i] = dma_map_single(dev->dev, buf, len,
-						     DMA_TO_DEVICE);
-			ret = dma_mapping_error(dev->dev, dma_srcs[i]);
+		um->len = params->buf_size;
+		for (i = 0; i < src_cnt; i++) {
+			unsigned long buf = (unsigned long) thread->srcs[i];
+			struct page *pg = virt_to_page(buf);
+			unsigned pg_off = buf & ~PAGE_MASK;
+
+			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
+						   um->len, DMA_TO_DEVICE);
+			srcs[i] = um->addr[i] + src_off;
+			ret = dma_mapping_error(dev->dev, um->addr[i]);
 			if (ret) {
-				unmap_src(dev->dev, dma_srcs, len, i);
+				dmaengine_unmap_put(um);
 				result("src mapping error", total_tests,
 				       src_off, dst_off, len, ret);
 				failed_tests++;
 				continue;
 			}
+			um->to_cnt++;
 		}
 		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
+		dsts = &um->addr[src_cnt];
 		for (i = 0; i < dst_cnt; i++) {
-			dma_dsts[i] = dma_map_single(dev->dev, thread->dsts[i],
-						     params->buf_size,
-						     DMA_BIDIRECTIONAL);
-			ret = dma_mapping_error(dev->dev, dma_dsts[i]);
+			unsigned long buf = (unsigned long) thread->dsts[i];
+			struct page *pg = virt_to_page(buf);
+			unsigned pg_off = buf & ~PAGE_MASK;
+
+			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
+					       DMA_BIDIRECTIONAL);
+			ret = dma_mapping_error(dev->dev, dsts[i]);
 			if (ret) {
-				unmap_src(dev->dev, dma_srcs, len, src_cnt);
-				unmap_dst(dev->dev, dma_dsts, params->buf_size,
-					  i);
+				dmaengine_unmap_put(um);
 				result("dst mapping error", total_tests,
 				       src_off, dst_off, len, ret);
 				failed_tests++;
 				continue;
 			}
+			um->bidi_cnt++;
 		}
 
 		if (thread->type == DMA_MEMCPY)
 			tx = dev->device_prep_dma_memcpy(chan,
-							 dma_dsts[0] + dst_off,
-							 dma_srcs[0], len,
-							 flags);
+							 dsts[0] + dst_off,
+							 srcs[0], len, flags);
 		else if (thread->type == DMA_XOR)
 			tx = dev->device_prep_dma_xor(chan,
-						      dma_dsts[0] + dst_off,
-						      dma_srcs, src_cnt,
+						      dsts[0] + dst_off,
+						      srcs, src_cnt,
 						      len, flags);
 		else if (thread->type == DMA_PQ) {
 			dma_addr_t dma_pq[dst_cnt];
 
 			for (i = 0; i < dst_cnt; i++)
-				dma_pq[i] = dma_dsts[i] + dst_off;
-			tx = dev->device_prep_dma_pq(chan, dma_pq, dma_srcs,
+				dma_pq[i] = dsts[i] + dst_off;
+			tx = dev->device_prep_dma_pq(chan, dma_pq, srcs,
 						     src_cnt, pq_coefs,
 						     len, flags);
 		}
 
 		if (!tx) {
-			unmap_src(dev->dev, dma_srcs, len, src_cnt);
-			unmap_dst(dev->dev, dma_dsts, params->buf_size,
-				  dst_cnt);
+			dmaengine_unmap_put(um);
 			result("prep error", total_tests, src_off,
 			       dst_off, len, ret);
 			msleep(100);
@@ -598,6 +599,7 @@ static int dmatest_func(void *data)
 		cookie = tx->tx_submit(tx);
 
 		if (dma_submit_error(cookie)) {
+			dmaengine_unmap_put(um);
 			result("submit error", total_tests, src_off,
 			       dst_off, len, ret);
 			msleep(100);
@@ -620,11 +622,13 @@ static int dmatest_func(void *data)
 			 * free it this time?" dancing.  For now, just
 			 * leave it dangling.
 			 */
+			dmaengine_unmap_put(um);
 			result("test timed out", total_tests, src_off, dst_off,
 			       len, 0);
 			failed_tests++;
 			continue;
 		} else if (status != DMA_SUCCESS) {
+			dmaengine_unmap_put(um);
 			result(status == DMA_ERROR ?
 			       "completion error status" :
 			       "completion busy status", total_tests, src_off,
@@ -633,9 +637,7 @@ static int dmatest_func(void *data)
 			continue;
 		}
 
-		/* Unmap by myself */
-		unmap_src(dev->dev, dma_srcs, len, src_cnt);
-		unmap_dst(dev->dev, dma_dsts, params->buf_size, dst_cnt);
+		dmaengine_unmap_put(um);
 
 		if (params->noverify) {
 			dbg_result("test passed", total_tests, src_off, dst_off,
