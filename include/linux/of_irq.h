@@ -37,11 +37,19 @@ extern int of_irq_parse_one(struct device_node *device, int index,
 extern unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data);
 extern int of_irq_to_resource(struct device_node *dev, int index,
 			      struct resource *r);
-extern int of_irq_count(struct device_node *dev);
 extern int of_irq_to_resource_table(struct device_node *dev,
 		struct resource *res, int nr_irqs);
 
 extern void of_irq_init(const struct of_device_id *matches);
+
+#ifdef CONFIG_OF_IRQ
+extern int of_irq_count(struct device_node *dev);
+#else
+static inline int of_irq_count(struct device_node *dev)
+{
+	return 0;
+}
+#endif
 
 #if defined(CONFIG_OF)
 /*
