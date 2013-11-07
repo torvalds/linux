@@ -343,14 +343,6 @@ enum iwl_bt_coex_profile_traffic_load {
  */
 };
 
-
-static inline u8 num_of_ant(u8 mask)
-{
-	return  !!((mask) & ANT_A) +
-		!!((mask) & ANT_B) +
-		!!((mask) & ANT_C);
-}
-
 /* Initialize station's rate scaling information after adding station */
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  enum ieee80211_band band, bool init);
