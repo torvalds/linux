@@ -36,7 +36,6 @@ void lb_modexit(void);
 int lb_modinit(void);
 
 /* common utilities */
-struct usb_request *alloc_ep_req(struct usb_ep *ep, int len);
 void free_ep_req(struct usb_ep *ep, struct usb_request *req);
 void disable_endpoints(struct usb_composite_dev *cdev,
 		struct usb_ep *in, struct usb_ep *out,

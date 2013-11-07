@@ -21,6 +21,7 @@
 
 #include "g_zero.h"
 #include "gadget_chips.h"
+#include "u_f.h"
 
 /*
  * SOURCE/SINK FUNCTION ... a primary testing vehicle for USB peripheral
@@ -301,23 +302,9 @@ static struct usb_gadget_strings *sourcesink_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-struct usb_request *alloc_ep_req(struct usb_ep *ep, int len)
+static inline struct usb_request *ss_alloc_ep_req(struct usb_ep *ep, int len)
 {
-	struct usb_request      *req;
-
-	req = usb_ep_alloc_request(ep, GFP_ATOMIC);
-	if (req) {
-		if (len)
-			req->length = len;
-		else
-			req->length = buflen;
-		req->buf = kmalloc(req->length, GFP_ATOMIC);
-		if (!req->buf) {
-			usb_ep_free_request(ep, req);
-			req = NULL;
-		}
-	}
-	return req;
+	return alloc_ep_req(ep, len, buflen);
 }
 
 void free_ep_req(struct usb_ep *ep, struct usb_request *req)
@@ -628,10 +615,10 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 				break;
 			}
 			ep = is_in ? ss->iso_in_ep : ss->iso_out_ep;
-			req = alloc_ep_req(ep, size);
+			req = ss_alloc_ep_req(ep, size);
 		} else {
 			ep = is_in ? ss->in_ep : ss->out_ep;
-			req = alloc_ep_req(ep, 0);
+			req = ss_alloc_ep_req(ep, 0);
 		}
 
 		if (!req)
