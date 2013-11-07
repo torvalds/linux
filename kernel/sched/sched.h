@@ -81,11 +81,14 @@ extern void update_cpu_load_active(struct rq *this_rq);
  */
 #define RUNTIME_INF	((u64)~0ULL)
 
+static inline int fair_policy(int policy)
+{
+	return policy == SCHED_NORMAL || policy == SCHED_BATCH;
+}
+
 static inline int rt_policy(int policy)
 {
-	if (policy == SCHED_FIFO || policy == SCHED_RR)
-		return 1;
-	return 0;
+	return policy == SCHED_FIFO || policy == SCHED_RR;
 }
 
 static inline int task_has_rt_policy(struct task_struct *p)
