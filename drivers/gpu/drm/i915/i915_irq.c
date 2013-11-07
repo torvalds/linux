@@ -1793,8 +1793,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 			intel_finish_page_flip_plane(dev, pipe);
 		}
 
-		if (pipe_iir & GEN8_DE_PIPE_IRQ_ERRORS)
-			DRM_ERROR("Errors on pipe %c\n", 'A' + pipe);
+		if (pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS) {
+			DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
+				  pipe_name(pipe),
+				  pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS);
+		}
 
 		if (pipe_iir) {
 			ret = IRQ_HANDLED;
@@ -2863,9 +2866,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t de_pipe_enables = GEN8_PIPE_FLIP_DONE |
-				   GEN8_PIPE_SCAN_LINE_EVENT |
 				   GEN8_PIPE_VBLANK |
-				   GEN8_DE_PIPE_IRQ_ERRORS;
+				   GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 	int pipe;
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_enables;
 	dev_priv->de_irq_mask[PIPE_B] = ~de_pipe_enables;
