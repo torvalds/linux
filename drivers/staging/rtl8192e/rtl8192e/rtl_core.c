@@ -1843,7 +1843,7 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
 		struct tx_desc *entry = &ring->desc[ring->idx];
 		struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
-		pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
+		pci_unmap_single(priv->pdev, entry->TxBuffAddr,
 			skb->len, PCI_DMA_TODEVICE);
 		kfree_skb(skb);
 		ring->idx = (ring->idx + 1) % ring->entries;
@@ -1948,7 +1948,7 @@ static void rtl8192_tx_isr(struct net_device *dev, int prio)
 		}
 
 		skb = __skb_dequeue(&ring->queue);
-		pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
+		pci_unmap_single(priv->pdev, entry->TxBuffAddr,
 		skb->len, PCI_DMA_TODEVICE);
 
 		kfree_skb(skb);
@@ -2196,7 +2196,7 @@ void rtl8192_pci_resetdescring(struct net_device *dev)
 						 __skb_dequeue(&ring->queue);
 
 				pci_unmap_single(priv->pdev,
-						 le32_to_cpu(entry->TxBuffAddr),
+						 entry->TxBuffAddr,
 						 skb->len, PCI_DMA_TODEVICE);
 				kfree_skb(skb);
 				ring->idx = (ring->idx + 1) % ring->entries;
