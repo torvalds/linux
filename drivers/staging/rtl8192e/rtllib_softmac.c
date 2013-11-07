@@ -3633,7 +3633,7 @@ out:
 }
 EXPORT_SYMBOL(rtllib_wpa_supplicant_ioctl);
 
-void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
+static void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
 {
 	u8	OpMode;
 	u8	i;
@@ -3658,7 +3658,7 @@ void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
 
 }
 
-void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
+static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
 				    u8 asRsn)
 {
 	u8 i;
@@ -3684,7 +3684,7 @@ void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
 
 }
 
-void
+static void
 rtllib_MgntDisconnectAP(
 	struct rtllib_device *rtllib,
 	u8 asRsn
