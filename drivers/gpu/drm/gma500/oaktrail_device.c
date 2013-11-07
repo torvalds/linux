@@ -526,6 +526,7 @@ static int oaktrail_chip_setup(struct drm_device *dev)
 		psb_intel_opregion_init(dev);
 		psb_intel_init_bios(dev);
 	}
+	gma_intel_setup_gmbus(dev);
 	oaktrail_hdmi_setup(dev);
 	return 0;
 }
@@ -534,6 +535,7 @@ static void oaktrail_teardown(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
+	gma_intel_teardown_gmbus(dev);
 	oaktrail_hdmi_teardown(dev);
 	if (!dev_priv->has_gct)
 		psb_intel_destroy_bios(dev);
