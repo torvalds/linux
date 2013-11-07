@@ -36,6 +36,7 @@
 		compatible = "nvidia,tegra124-car";
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	gpio: gpio@6000d000 {
@@ -69,6 +70,8 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTA>;
+		resets = <&tegra_car 6>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
@@ -78,6 +81,8 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTB>;
+		resets = <&tegra_car 7>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
@@ -87,6 +92,8 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTC>;
+		resets = <&tegra_car 55>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
@@ -96,6 +103,8 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTD>;
+		resets = <&tegra_car 65>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
@@ -105,6 +114,8 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTE>;
+		resets = <&tegra_car 66>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
