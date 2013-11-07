@@ -1723,6 +1723,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	hrtimer_init(&p->dl.dl_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	p->dl.dl_runtime = p->dl.runtime = 0;
 	p->dl.dl_deadline = p->dl.deadline = 0;
+	p->dl.dl_period = 0;
 	p->dl.flags = 0;
 
 	INIT_LIST_HEAD(&p->rt.run_list);
@@ -3026,6 +3027,7 @@ __setparam_dl(struct task_struct *p, const struct sched_attr *attr)
 	init_dl_task_timer(dl_se);
 	dl_se->dl_runtime = attr->sched_runtime;
 	dl_se->dl_deadline = attr->sched_deadline;
+	dl_se->dl_period = attr->sched_period ?: dl_se->dl_deadline;
 	dl_se->flags = attr->sched_flags;
 	dl_se->dl_throttled = 0;
 	dl_se->dl_new = 1;
@@ -3067,19 +3069,23 @@ __getparam_dl(struct task_struct *p, struct sched_attr *attr)
 	attr->sched_priority = p->rt_priority;
 	attr->sched_runtime = dl_se->dl_runtime;
 	attr->sched_deadline = dl_se->dl_deadline;
+	attr->sched_period = dl_se->dl_period;
 	attr->sched_flags = dl_se->flags;
 }
 
 /*
  * This function validates the new parameters of a -deadline task.
  * We ask for the deadline not being zero, and greater or equal
- * than the runtime.
+ * than the runtime, as well as the period of being zero or
+ * greater than deadline.
  */
 static bool
 __checkparam_dl(const struct sched_attr *attr)
 {
 	return attr && attr->sched_deadline != 0 &&
-	       (s64)(attr->sched_deadline - attr->sched_runtime) >= 0;
+		(attr->sched_period == 0 ||
+		(s64)(attr->sched_period   - attr->sched_deadline) >= 0) &&
+		(s64)(attr->sched_deadline - attr->sched_runtime ) >= 0;
 }
 
 /*
