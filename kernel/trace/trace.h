@@ -364,6 +364,7 @@ struct tracer {
 	struct tracer_flags	*flags;
 	bool			print_max;
 	bool			enabled;
+	bool			allow_instances;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool			use_max_tr;
 #endif

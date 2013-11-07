@@ -96,6 +96,7 @@ struct tracer nop_trace __read_mostly =
 	.selftest	= trace_selftest_startup_nop,
 #endif
 	.flags		= &nop_flags,
-	.set_flag	= nop_set_flag
+	.set_flag	= nop_set_flag,
+	.allow_instances = true,
 };
 
