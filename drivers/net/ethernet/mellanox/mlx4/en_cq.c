@@ -45,16 +45,20 @@ static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 
 int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 		      struct mlx4_en_cq **pcq,
-		      int entries, int ring, enum cq_type mode)
+		      int entries, int ring, enum cq_type mode,
+		      int node)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	int err;
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, node);
 	if (!cq) {
-		en_err(priv, "Failed to allocate CQ structure\n");
-		return -ENOMEM;
+		cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+		if (!cq) {
+			en_err(priv, "Failed to allocate CQ structure\n");
+			return -ENOMEM;
+		}
 	}
 
 	cq->size = entries;
@@ -64,8 +68,13 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	cq->is_tx = mode;
 	spin_lock_init(&cq->lock);
 
+	/* Allocate HW buffers on provided NUMA node.
+	 * dev->numa_node is used in mtt range allocation flow.
+	 */
+	set_dev_node(&mdev->dev->pdev->dev, node);
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
 				cq->buf_size, 2 * PAGE_SIZE);
+	set_dev_node(&mdev->dev->pdev->dev, mdev->dev->numa_node);
 	if (err)
 		goto err_cq;
 
