@@ -36,7 +36,7 @@ static const struct super_operations sysfs_ops = {
 struct sysfs_dirent sysfs_root = {
 	.s_name		= "",
 	.s_count	= ATOMIC_INIT(1),
-	.s_flags	= SYSFS_DIR,
+	.s_flags	= SYSFS_DIR | (KOBJ_NS_TYPE_NONE << SYSFS_NS_TYPE_SHIFT),
 	.s_mode		= S_IFDIR | S_IRUGO | S_IXUGO,
 	.s_ino		= 1,
 };
@@ -77,8 +77,14 @@ static int sysfs_test_super(struct super_block *sb, void *data)
 {
 	struct sysfs_super_info *sb_info = sysfs_info(sb);
 	struct sysfs_super_info *info = data;
+	enum kobj_ns_type type;
+	int found = 1;
 
-	return sb_info->ns == info->ns;
+	for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++) {
+		if (sb_info->ns[type] != info->ns[type])
+			found = 0;
+	}
+	return found;
 }
 
 static int sysfs_set_super(struct super_block *sb, void *data)
@@ -92,7 +98,9 @@ static int sysfs_set_super(struct super_block *sb, void *data)
 
 static void free_sysfs_super_info(struct sysfs_super_info *info)
 {
-	kobj_ns_drop(KOBJ_NS_TYPE_NET, info->ns);
+	int type;
+	for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++)
+		kobj_ns_drop(type, info->ns[type]);
 	kfree(info);
 }
 
@@ -100,6 +108,7 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
 	struct sysfs_super_info *info;
+	enum kobj_ns_type type;
 	struct super_block *sb;
 	int error;
 
@@ -107,15 +116,18 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 		if (!capable(CAP_SYS_ADMIN) && !fs_fully_visible(fs_type))
 			return ERR_PTR(-EPERM);
 
-		if (!kobj_ns_current_may_mount(KOBJ_NS_TYPE_NET))
-			return ERR_PTR(-EPERM);
+		for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++) {
+			if (!kobj_ns_current_may_mount(type))
+				return ERR_PTR(-EPERM);
+		}
 	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
-	info->ns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
+	for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++)
+		info->ns[type] = kobj_ns_grab_current(type);
 
 	sb = sget(fs_type, sysfs_test_super, sysfs_set_super, flags, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)

@@ -30,14 +30,11 @@
 const void *kobject_namespace(struct kobject *kobj)
 {
 	const struct kobj_ns_type_operations *ns_ops = kobj_ns_ops(kobj);
-	const void *ns;
 
 	if (!ns_ops || ns_ops->type == KOBJ_NS_TYPE_NONE)
 		return NULL;
 
-	ns = kobj->ktype->namespace(kobj);
-	WARN_ON(!ns);	/* @kobj in a namespace is required to have !NULL tag */
-	return ns;
+	return kobj->ktype->namespace(kobj);
 }
 
 /*
