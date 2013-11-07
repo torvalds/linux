@@ -411,6 +411,12 @@ static void uas_data_cmplt(struct urb *urb)
 	if (sdb == NULL) {
 		WARN_ON_ONCE(1);
 	} else if (urb->status) {
+		if (urb->status != -ECONNRESET) {
+			uas_log_cmd_state(cmnd, __func__);
+			scmd_printk(KERN_ERR, cmnd,
+				"data cmplt err %d stream %d\n",
+				urb->status, urb->stream_id);
+		}
 		/* error: no data transfered */
 		sdb->resid = sdb->length;
 	} else {
@@ -418,6 +424,17 @@ static void uas_data_cmplt(struct urb *urb)
 	}
 	uas_try_complete(cmnd, __func__);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
+}
+
+static void uas_cmd_cmplt(struct urb *urb)
+{
+	struct scsi_cmnd *cmnd = urb->context;
+
+	if (urb->status) {
+		uas_log_cmd_state(cmnd, __func__);
+		scmd_printk(KERN_ERR, cmnd, "cmd cmplt err %d\n", urb->status);
+	}
+	usb_free_urb(urb);
 }
 
 static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
@@ -497,7 +514,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	memcpy(iu->cdb, cmnd->cmnd, cmnd->cmd_len);
 
 	usb_fill_bulk_urb(urb, udev, devinfo->cmd_pipe, iu, sizeof(*iu) + len,
-							usb_free_urb, NULL);
+							uas_cmd_cmplt, cmnd);
 	urb->transfer_flags |= URB_FREE_BUFFER;
  out:
 	return urb;
@@ -537,13 +554,15 @@ static int uas_submit_task_urb(struct scsi_cmnd *cmnd, gfp_t gfp,
 	}
 
 	usb_fill_bulk_urb(urb, udev, devinfo->cmd_pipe, iu, sizeof(*iu),
-			  usb_free_urb, NULL);
+			  uas_cmd_cmplt, cmnd);
 	urb->transfer_flags |= URB_FREE_BUFFER;
 
 	usb_anchor_urb(urb, &devinfo->cmd_urbs);
 	err = usb_submit_urb(urb, gfp);
 	if (err) {
 		usb_unanchor_urb(urb);
+		uas_log_cmd_state(cmnd, __func__);
+		scmd_printk(KERN_ERR, cmnd, "task submission err %d\n", err);
 		goto err;
 	}
 
@@ -560,20 +579,25 @@ err:
  * daft to me.
  */
 
-static struct urb *uas_submit_sense_urb(struct Scsi_Host *shost,
+static struct urb *uas_submit_sense_urb(struct scsi_cmnd *cmnd,
 					gfp_t gfp, unsigned int stream)
 {
+	struct Scsi_Host *shost = cmnd->device->host;
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	struct urb *urb;
+	int err;
 
 	urb = uas_alloc_sense_urb(devinfo, gfp, shost, stream);
 	if (!urb)
 		return NULL;
 	usb_anchor_urb(urb, &devinfo->sense_urbs);
-	if (usb_submit_urb(urb, gfp)) {
+	err = usb_submit_urb(urb, gfp);
+	if (err) {
 		usb_unanchor_urb(urb);
+		uas_log_cmd_state(cmnd, __func__);
 		shost_printk(KERN_INFO, shost,
-			     "sense urb submission failure\n");
+			     "sense urb submission error %d stream %d\n",
+			     err, stream);
 		usb_free_urb(urb);
 		return NULL;
 	}
@@ -585,11 +609,11 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 {
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb;
+	int err;
 
 	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
 	if (cmdinfo->state & SUBMIT_STATUS_URB) {
-		urb = uas_submit_sense_urb(cmnd->device->host, gfp,
-					   cmdinfo->stream);
+		urb = uas_submit_sense_urb(cmnd, gfp, cmdinfo->stream);
 		if (!urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~SUBMIT_STATUS_URB;
@@ -606,10 +630,13 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & SUBMIT_DATA_IN_URB) {
 		usb_anchor_urb(cmdinfo->data_in_urb, &devinfo->data_urbs);
-		if (usb_submit_urb(cmdinfo->data_in_urb, gfp)) {
+		err = usb_submit_urb(cmdinfo->data_in_urb, gfp);
+		if (err) {
 			usb_unanchor_urb(cmdinfo->data_in_urb);
+			uas_log_cmd_state(cmnd, __func__);
 			scmd_printk(KERN_INFO, cmnd,
-					"data in urb submission failure\n");
+				"data in urb submission error %d stream %d\n",
+				err, cmdinfo->data_in_urb->stream_id);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_IN_URB;
@@ -627,10 +654,13 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & SUBMIT_DATA_OUT_URB) {
 		usb_anchor_urb(cmdinfo->data_out_urb, &devinfo->data_urbs);
-		if (usb_submit_urb(cmdinfo->data_out_urb, gfp)) {
+		err = usb_submit_urb(cmdinfo->data_out_urb, gfp);
+		if (err) {
 			usb_unanchor_urb(cmdinfo->data_out_urb);
+			uas_log_cmd_state(cmnd, __func__);
 			scmd_printk(KERN_INFO, cmnd,
-					"data out urb submission failure\n");
+				"data out urb submission error %d stream %d\n",
+				err, cmdinfo->data_out_urb->stream_id);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_OUT_URB;
@@ -646,10 +676,12 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & SUBMIT_CMD_URB) {
 		usb_anchor_urb(cmdinfo->cmd_urb, &devinfo->cmd_urbs);
-		if (usb_submit_urb(cmdinfo->cmd_urb, gfp)) {
+		err = usb_submit_urb(cmdinfo->cmd_urb, gfp);
+		if (err) {
 			usb_unanchor_urb(cmdinfo->cmd_urb);
+			uas_log_cmd_state(cmnd, __func__);
 			scmd_printk(KERN_INFO, cmnd,
-					"cmd urb submission failure\n");
+				    "cmd urb submission error %d\n", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->cmd_urb = NULL;
@@ -760,7 +792,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 
 	devinfo->running_task = 1;
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	sense_urb = uas_submit_sense_urb(shost, GFP_NOIO,
+	sense_urb = uas_submit_sense_urb(cmnd, GFP_NOIO,
 					 devinfo->use_streams ? tag : 0);
 	if (!sense_urb) {
 		shost_printk(KERN_INFO, shost,
