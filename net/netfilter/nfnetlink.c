@@ -363,12 +363,14 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 	struct net *net = sock_net(skb->sk);
 	int msglen;
 
-	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-		return netlink_ack(skb, nlh, -EPERM);
-
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
 	    skb->len < nlh->nlmsg_len)
 		return;
+
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN)) {
+		netlink_ack(skb, nlh, -EPERM);
+		return;
+	}
 
 	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN) {
 		struct nfgenmsg *nfgenmsg;
