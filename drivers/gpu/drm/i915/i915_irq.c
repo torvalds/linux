@@ -966,10 +966,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
-	if (new_delay < (int)dev_priv->rps.min_delay)
-		new_delay = dev_priv->rps.min_delay;
-	if (new_delay > (int)dev_priv->rps.max_delay)
-		new_delay = dev_priv->rps.max_delay;
+	new_delay = clamp_t(int, new_delay,
+			    dev_priv->rps.min_delay, dev_priv->rps.max_delay);
 	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_delay;
 
 	if (IS_VALLEYVIEW(dev_priv->dev))
