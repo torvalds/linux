@@ -2249,11 +2249,11 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	n_tty_set_room(tty);
 	up_read(&tty->termios_rwsem);
 
-	mutex_unlock(&ldata->atomic_read_lock);
 	remove_wait_queue(&tty->read_wait, &wait);
-
 	if (!waitqueue_active(&tty->read_wait))
 		ldata->minimum_to_wake = minimum;
+
+	mutex_unlock(&ldata->atomic_read_lock);
 
 	__set_current_state(TASK_RUNNING);
 	if (b - buf)
