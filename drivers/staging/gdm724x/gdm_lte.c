@@ -44,9 +44,6 @@
  */
 #define DEFAULT_MTU_SIZE 1500
 
-#define gdm_lte_hci_send(n, d, l) (\
-	n->phy_dev->send_hci_func(n->phy_dev->priv_dev, d, l, NULL, NULL))
-
 #define gdm_lte_sdu_send(n, d, l, c, b, i, t) (\
 	n->phy_dev->send_sdu_func(n->phy_dev->priv_dev, d, l, n->pdn_table.dft_eps_id, 0, c, b, i, t))
 
@@ -507,7 +504,8 @@ static void gdm_lte_event_rcv(struct net_device *dev, u16 type, void *msg, int l
 {
 	struct nic *nic = netdev_priv(dev);
 
-	gdm_lte_hci_send(nic, msg, len);
+	nic->phy_dev->send_hci_func(nic->phy_dev->priv_dev, msg, len, NULL,
+				    NULL);
 }
 
 int gdm_lte_event_init(void)
