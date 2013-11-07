@@ -1677,7 +1677,6 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 
 void acpi_device_add_finalize(struct acpi_device *device)
 {
-	device->flags.match_driver = true;
 	dev_set_uevent_suppress(&device->dev, false);
 	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
 }
@@ -1916,8 +1915,12 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 		return AE_OK;
 
 	ret = acpi_scan_attach_handler(device);
-	if (ret)
-		return ret > 0 ? AE_OK : AE_CTRL_DEPTH;
+	if (ret < 0)
+		return AE_CTRL_DEPTH;
+
+	device->flags.match_driver = true;
+	if (ret > 0)
+		return AE_OK;
 
 	ret = device_attach(&device->dev);
 	return ret >= 0 ? AE_OK : AE_CTRL_DEPTH;
