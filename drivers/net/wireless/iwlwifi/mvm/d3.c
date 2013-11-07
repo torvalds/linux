@@ -1216,10 +1216,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (len >= sizeof(u32) * 2) {
 		mvm->d3_test_pme_ptr =
 			le32_to_cpup((__le32 *)d3_cfg_cmd.resp_pkt->data);
-	} else if (test) {
-		/* in test mode we require the pointer */
-		ret = -EIO;
-		goto out;
 	}
 #endif
 	iwl_free_resp(&d3_cfg_cmd);
@@ -1871,10 +1867,14 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 	u32 pme_asserted;
 
 	while (true) {
-		pme_asserted = iwl_trans_read_mem32(mvm->trans,
-						    mvm->d3_test_pme_ptr);
-		if (pme_asserted)
-			break;
+		/* read pme_ptr if available */
+		if (mvm->d3_test_pme_ptr) {
+			pme_asserted = iwl_trans_read_mem32(mvm->trans,
+						mvm->d3_test_pme_ptr);
+			if (pme_asserted)
+				break;
+		}
+
 		if (msleep_interruptible(100))
 			break;
 	}
