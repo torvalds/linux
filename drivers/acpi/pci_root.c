@@ -39,6 +39,8 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/apei.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
@@ -590,39 +592,10 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 		acpi_handle_err(handle, "cannot add bridge to acpi list\n");
 }
 
-static void handle_root_bridge_removal(struct acpi_device *device)
+static void hotplug_event_root(void *data, u32 type)
 {
-	acpi_status status;
-	struct acpi_eject_event *ej_event;
-
-	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
-	if (!ej_event) {
-		/* Inform firmware the hot-remove operation has error */
-		(void) acpi_evaluate_hotplug_ost(device->handle,
-					ACPI_NOTIFY_EJECT_REQUEST,
-					ACPI_OST_SC_NON_SPECIFIC_FAILURE,
-					NULL);
-		return;
-	}
-
-	ej_event->device = device;
-	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
-
-	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
-	if (ACPI_FAILURE(status))
-		kfree(ej_event);
-}
-
-static void _handle_hotplug_event_root(struct work_struct *work)
-{
+	acpi_handle handle = data;
 	struct acpi_pci_root *root;
-	struct acpi_hp_work *hp_work;
-	acpi_handle handle;
-	u32 type;
-
-	hp_work = container_of(work, struct acpi_hp_work, work);
-	handle = hp_work->handle;
-	type = hp_work->type;
 
 	acpi_scan_lock_acquire();
 
@@ -652,9 +625,15 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 		/* request device eject */
 		acpi_handle_printk(KERN_DEBUG, handle,
 				   "Device eject notify on %s\n", __func__);
-		if (root)
-			handle_root_bridge_removal(root->device);
-		break;
+		if (!root)
+			break;
+
+		get_device(&root->device->dev);
+
+		acpi_scan_lock_release();
+
+		acpi_bus_device_eject(root->device, ACPI_NOTIFY_EJECT_REQUEST);
+		return;
 	default:
 		acpi_handle_warn(handle,
 				 "notify_handler: unknown event type 0x%x\n",
@@ -663,14 +642,12 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 	}
 
 	acpi_scan_lock_release();
-	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 }
 
 static void handle_hotplug_event_root(acpi_handle handle, u32 type,
 					void *context)
 {
-	alloc_acpi_hp_work(handle, type, context,
-				_handle_hotplug_event_root);
+	acpi_hotplug_execute(hotplug_event_root, handle, type);
 }
 
 static acpi_status __init

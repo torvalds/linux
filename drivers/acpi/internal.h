@@ -26,11 +26,6 @@
 acpi_status acpi_os_initialize1(void);
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
-#ifdef	CONFIG_ACPI_PCI_SLOT
-void acpi_pci_slot_init(void);
-#else
-static inline void acpi_pci_slot_init(void) { }
-#endif
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
 void acpi_pci_root_hp_init(void);
@@ -92,6 +87,7 @@ void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 int acpi_bind_one(struct device *dev, acpi_handle handle);
 int acpi_unbind_one(struct device *dev);
+void acpi_bus_device_eject(void *data, u32 ost_src);
 
 /* --------------------------------------------------------------------------
                                   Power Resource

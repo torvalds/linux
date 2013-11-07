@@ -243,9 +243,6 @@ void acpi_os_gpe_count(u32 gpe_number);
 
 void acpi_os_fixed_event_count(u32 fixed_event_number);
 
-acpi_status
-acpi_os_hotplug_execute(acpi_osd_exec_callback function, void *context);
-
 #endif				/* __KERNEL__ */
 
 #endif				/* __ACLINUX_H__ */

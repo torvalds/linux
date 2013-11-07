@@ -875,21 +875,17 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		put_bridge(bridge);
 }
 
-static void hotplug_event_work(struct work_struct *work)
+static void hotplug_event_work(void *data, u32 type)
 {
-	struct acpiphp_context *context;
-	struct acpi_hp_work *hp_work;
+	struct acpiphp_context *context = data;
+	acpi_handle handle = context->handle;
 
-	hp_work = container_of(work, struct acpi_hp_work, work);
-	context = hp_work->context;
 	acpi_scan_lock_acquire();
 
-	hotplug_event(hp_work->handle, hp_work->type, context);
+	hotplug_event(handle, type, context);
 
 	acpi_scan_lock_release();
-	acpi_evaluate_hotplug_ost(hp_work->handle, hp_work->type,
-				  ACPI_OST_SC_SUCCESS, NULL);
-	kfree(hp_work); /* allocated in handle_hotplug_event() */
+	acpi_evaluate_hotplug_ost(handle, type, ACPI_OST_SC_SUCCESS, NULL);
 	put_bridge(context->func.parent);
 }
 
@@ -940,10 +936,10 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_get_context(handle);
-	if (context) {
+	if (context && !WARN_ON(context->handle != handle)) {
 		get_bridge(context->func.parent);
 		acpiphp_put_context(context);
-		alloc_acpi_hp_work(handle, type, context, hotplug_event_work);
+		acpi_hotplug_execute(hotplug_event_work, context, type);
 		mutex_unlock(&acpiphp_context_lock);
 		return;
 	}
