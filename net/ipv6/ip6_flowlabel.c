@@ -345,6 +345,8 @@ static int fl6_renew(struct ip6_flowlabel *fl, unsigned long linger, unsigned lo
 	expires = check_linger(expires);
 	if (!expires)
 		return -EPERM;
+
+	spin_lock_bh(&ip6_fl_lock);
 	fl->lastuse = jiffies;
 	if (time_before(fl->linger, linger))
 		fl->linger = linger;
@@ -352,6 +354,8 @@ static int fl6_renew(struct ip6_flowlabel *fl, unsigned long linger, unsigned lo
 		expires = fl->linger;
 	if (time_before(fl->expires, fl->lastuse + expires))
 		fl->expires = fl->lastuse + expires;
+	spin_unlock_bh(&ip6_fl_lock);
+
 	return 0;
 }
 
