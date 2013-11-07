@@ -339,11 +339,6 @@ struct acpi_bus_event {
 	u32 data;
 };
 
-struct acpi_eject_event {
-	struct acpi_device	*device;
-	u32		event;
-};
-
 struct acpi_hp_work {
 	struct work_struct work;
 	acpi_handle handle;

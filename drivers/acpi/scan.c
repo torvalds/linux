@@ -441,18 +441,8 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 					  NULL);
 }
 
-/**
- * acpi_bus_hot_remove_device: hot-remove a device and its children
- * @context: struct acpi_eject_event pointer (freed in this func)
- *
- * Hot-remove a device and its children. This function frees up the
- * memory space passed by arg context, so that the caller may call
- * this function asynchronously through acpi_os_hotplug_execute().
- */
-void acpi_bus_hot_remove_device(void *context)
+void __acpi_bus_hot_remove_device(struct acpi_device *device, u32 ost_src)
 {
-	struct acpi_eject_event *ej_event = context;
-	struct acpi_device *device = ej_event->device;
 	acpi_handle handle = device->handle;
 	int error;
 
@@ -461,13 +451,21 @@ void acpi_bus_hot_remove_device(void *context)
 
 	error = acpi_scan_hot_remove(device);
 	if (error && handle)
-		acpi_evaluate_hotplug_ost(handle, ej_event->event,
+		acpi_evaluate_hotplug_ost(handle, ost_src,
 					  ACPI_OST_SC_NON_SPECIFIC_FAILURE,
 					  NULL);
 
 	mutex_unlock(&acpi_scan_lock);
 	unlock_device_hotplug();
-	kfree(context);
+}
+
+/**
+ * acpi_bus_hot_remove_device: Hot-remove a device and its children.
+ * @context: Address of the ACPI device object to hot-remove.
+ */
+void acpi_bus_hot_remove_device(void *context)
+{
+	__acpi_bus_hot_remove_device(context, ACPI_NOTIFY_EJECT_REQUEST);
 }
 EXPORT_SYMBOL(acpi_bus_hot_remove_device);
 
@@ -497,15 +495,18 @@ static ssize_t power_state_show(struct device *dev,
 
 static DEVICE_ATTR(power_state, 0444, power_state_show, NULL);
 
+static void acpi_eject_store_work(void *context)
+{
+	__acpi_bus_hot_remove_device(context, ACPI_OST_EC_OSPM_EJECT);
+}
+
 static ssize_t
 acpi_eject_store(struct device *d, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct acpi_device *acpi_device = to_acpi_device(d);
-	struct acpi_eject_event *ej_event;
 	acpi_object_type not_used;
 	acpi_status status;
-	int ret;
 
 	if (!count || buf[0] != '1')
 		return -EINVAL;
@@ -518,28 +519,17 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	if (ACPI_FAILURE(status) || !acpi_device->flags.ejectable)
 		return -ENODEV;
 
-	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
-	if (!ej_event) {
-		ret = -ENOMEM;
-		goto err_out;
-	}
 	acpi_evaluate_hotplug_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
 				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
-	ej_event->device = acpi_device;
-	ej_event->event = ACPI_OST_EC_OSPM_EJECT;
 	get_device(&acpi_device->dev);
-	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
+	status = acpi_os_hotplug_execute(acpi_eject_store_work, acpi_device);
 	if (ACPI_SUCCESS(status))
 		return count;
 
 	put_device(&acpi_device->dev);
-	kfree(ej_event);
-	ret = status == AE_NO_MEMORY ? -ENOMEM : -EAGAIN;
-
- err_out:
 	acpi_evaluate_hotplug_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
 				  ACPI_OST_SC_NON_SPECIFIC_FAILURE, NULL);
-	return ret;
+	return status == AE_NO_MEMORY ? -ENOMEM : -EAGAIN;
 }
 
 static DEVICE_ATTR(eject, 0200, NULL, acpi_eject_store);

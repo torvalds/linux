@@ -593,27 +593,11 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 static void handle_root_bridge_removal(struct acpi_device *device)
 {
 	acpi_status status;
-	struct acpi_eject_event *ej_event;
-
-	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
-	if (!ej_event) {
-		/* Inform firmware the hot-remove operation has error */
-		(void) acpi_evaluate_hotplug_ost(device->handle,
-					ACPI_NOTIFY_EJECT_REQUEST,
-					ACPI_OST_SC_NON_SPECIFIC_FAILURE,
-					NULL);
-		return;
-	}
-
-	ej_event->device = device;
-	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
 
 	get_device(&device->dev);
-	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
-	if (ACPI_FAILURE(status)) {
+	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, device);
+	if (ACPI_FAILURE(status))
 		put_device(&device->dev);
-		kfree(ej_event);
-	}
 }
 
 static void _handle_hotplug_event_root(struct work_struct *work)
