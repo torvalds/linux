@@ -173,7 +173,7 @@ static inline u16 Mk16(u8 hi, u8 lo)
 
 static inline u16 Mk16_le(u16 *v)
 {
-	return le16_to_cpu(*v);
+	return *v;
 }
 
 
