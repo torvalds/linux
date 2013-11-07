@@ -15,7 +15,9 @@ Required properties:
 - bus-num : Number of the SPI bus to which the controller is connected.
 
 Optional properties:
-No optional properties
+- enable-dma : boolean, if present, then DMA is used for reads and writes
+- tx-dma-peri-id : peripheral request id for tx dma channel, required if enable-dma is present
+- rx-dma-peri-id : peripheral request id for rx dma channel, required if enable-dma is present
 
 Example:
 
@@ -31,4 +33,7 @@ Example:
 		num-chipselect = <4>;
 		fifo-depth = <128>;
 		bus-num = <2>;
+		enable-dma;
+		tx-dma-peri-id = <24>;
+		rx-dma-peri-id = <25>;
 	}

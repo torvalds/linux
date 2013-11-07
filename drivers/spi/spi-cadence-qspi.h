@@ -43,6 +43,9 @@ struct cqspi_platform_data {
 	unsigned int master_ref_clk_hz;
 	unsigned int ext_decoder;
 	unsigned int fifo_depth;
+	unsigned int enable_dma;
+	unsigned int tx_dma_peri_id;
+	unsigned int rx_dma_peri_id;
 	struct cqspi_flash_pdata f_pdata[CQSPI_MAX_CHIP_SELECT];
 };
 
@@ -72,6 +75,11 @@ struct struct_cqspi
 	int current_cs;
 	/* Is queue running */
 	bool running;
+	/* DMA support */
+	struct dma_chan *txchan;
+	struct dma_chan *rxchan;
+	dma_addr_t dma_addr;
+	int dma_done;
 };
 
 /* Kernel function hook */

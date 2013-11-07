@@ -36,6 +36,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/spi/spi.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include "spi-cadence-qspi.h"
 #include "spi-cadence-qspi-apb.h"
 
@@ -91,6 +93,8 @@ static void __hex_dump(unsigned int address_to_print,
 
 /****************************************************************************/
 
+#define CQSPI_NUMSGLREQBYTES (0)
+#define CQSPI_NUMBURSTREQBYTES (4)
 
 void cadence_qspi_apb_delay(struct struct_cqspi *cadence_qspi,
 	unsigned int ref_clk, unsigned int sclk_hz);
@@ -400,6 +404,183 @@ static int cadence_qspi_apb_command_write(void *reg_base, unsigned txlen,
 	return cadence_qspi_apb_exec_flash_cmd(reg_base, reg);
 }
 
+static void cadence_qspi_dma_done(void *arg)
+{
+	struct struct_cqspi *cadence_qspi = arg;
+	cadence_qspi->dma_done = 1;
+	wake_up(&cadence_qspi->waitqueue);
+}
+
+#define CQSPI_IS_DMA_READ (true)
+#define CQSPI_IS_DMA_WRITE (false)
+
+static void cadence_qspi_apb_dma_cleanup(
+	struct struct_cqspi *cadence_qspi,
+	unsigned datalen, bool do_read)
+{
+	struct platform_device *pdev = cadence_qspi->pdev;
+	dma_unmap_single(&pdev->dev, cadence_qspi->dma_addr,
+			datalen, do_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+}
+
+static int cadence_qspi_apb_dma_start(
+	struct struct_cqspi *cadence_qspi,
+	unsigned datalen, unsigned char *databuf,
+	bool do_read)
+{
+	struct platform_device *pdev = cadence_qspi->pdev;
+	struct cqspi_platform_data *pdata = pdev->dev.platform_data;
+	struct dma_chan *dmachan;
+	struct dma_slave_config dmaconf;
+	struct dma_async_tx_descriptor *dmadesc = NULL;
+	struct scatterlist sgl;
+	enum dma_data_direction data_direction;
+
+	if (do_read) {
+		dmachan = cadence_qspi->rxchan;
+		data_direction = DMA_FROM_DEVICE;
+		dmaconf.direction = DMA_DEV_TO_MEM;
+		dmaconf.src_addr = pdata->qspi_ahb_phy;
+		dmaconf.src_addr_width = 4;
+	} else {
+		dmachan = cadence_qspi->txchan;
+		data_direction = DMA_TO_DEVICE;
+		dmaconf.direction = DMA_MEM_TO_DEV;
+		dmaconf.dst_addr = pdata->qspi_ahb_phy;
+		dmaconf.dst_addr_width = 4;
+	}
+
+	/* map the buffer address */
+	cadence_qspi->dma_addr = dma_map_single(&pdev->dev,
+			databuf, datalen, data_direction);
+	if (dma_mapping_error(&pdev->dev, cadence_qspi->dma_addr)) {
+		dev_err(&pdev->dev, "dma_map_single failed\n");
+		return -EINVAL;
+	}
+
+	/* set up slave config */
+	dmachan->device->device_control(dmachan, DMA_SLAVE_CONFIG,
+		(unsigned long) &dmaconf);
+
+	/* get dmadesc, we use scatterlist API, with one
+		memory buffer in the list */
+	memset(&sgl, 0, sizeof(sgl));
+	sgl.dma_address = cadence_qspi->dma_addr;
+	sgl.length = datalen;
+
+	dmadesc = dmachan->device->device_prep_slave_sg(dmachan,
+				&sgl,
+				1,
+				dmaconf.direction,
+				DMA_PREP_INTERRUPT,
+				NULL);
+	if (!dmadesc) {
+		cadence_qspi_apb_dma_cleanup(cadence_qspi, datalen, do_read);
+		return -ENOMEM;
+	}
+	dmadesc->callback = cadence_qspi_dma_done;
+	dmadesc->callback_param = cadence_qspi;
+
+	/* start DMA */
+	cadence_qspi->dma_done = 0;
+	dmadesc->tx_submit(dmadesc);
+	dma_async_issue_pending(dmachan);
+
+	return 0;
+}
+
+static int cadence_qspi_apb_indirect_read_dma(
+	struct struct_cqspi *cadence_qspi,
+	unsigned rxlen, unsigned char *rxbuf)
+{
+	int ret = 0;
+	struct platform_device *pdev = cadence_qspi->pdev;
+	struct cqspi_platform_data *pdata = pdev->dev.platform_data;
+	void *reg_base = cadence_qspi->iobase;
+	unsigned int reg;
+	unsigned int timeout;
+	unsigned int watermark = CQSPI_REG_SRAM_THRESHOLD_BYTES;
+
+	if (rxlen < watermark)
+		watermark = rxlen;
+
+	ret = cadence_qspi_apb_dma_start(cadence_qspi,
+		rxlen, rxbuf, CQSPI_IS_DMA_READ);
+	if (ret)
+		return ret;
+
+	/* Set up qspi dma */
+	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
+	reg |= CQSPI_REG_CONFIG_DMA_MASK;
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
+
+	reg = (CQSPI_NUMBURSTREQBYTES << CQSPI_REG_DMA_BURST_LSB)
+		| (CQSPI_NUMSGLREQBYTES << CQSPI_REG_DMA_SINGLE_LSB);
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_DMA);
+
+	/* Set up QSPI transfer */
+	CQSPI_WRITEL(watermark, reg_base + CQSPI_REG_INDIRECTRDWATERMARK);
+	CQSPI_WRITEL(rxlen, reg_base + CQSPI_REG_INDIRECTRDBYTES);
+	CQSPI_WRITEL(pdata->fifo_depth - CQSPI_REG_SRAM_RESV_WORDS,
+		reg_base + CQSPI_REG_SRAMPARTITION);
+
+	/* Clear all interrupts. */
+	CQSPI_WRITEL(CQSPI_IRQ_STATUS_MASK, reg_base + CQSPI_REG_IRQSTATUS);
+
+	CQSPI_WRITEL(CQSPI_IRQ_MASK_RD, reg_base + CQSPI_REG_IRQMASK);
+
+	/* Start qspi */
+	reg = CQSPI_READL(reg_base + CQSPI_REG_INDIRECTRD);
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_INDIRECTRD);
+	CQSPI_WRITEL(CQSPI_REG_INDIRECTRD_START_MASK,
+			reg_base + CQSPI_REG_INDIRECTRD);
+
+	/* Wait for dma to finish */
+	if (!wait_event_interruptible_timeout(cadence_qspi->waitqueue,
+		cadence_qspi->dma_done, CQSPI_TIMEOUT_MS)) {
+		pr_err("QSPI: Indirect read DMA timeout\n");
+		ret = -ETIMEDOUT;
+	}
+
+	/* Check indirect done status */
+	timeout = cadence_qspi_init_timeout(CQSPI_TIMEOUT_MS);
+	while (cadence_qspi_check_timeout(timeout)) {
+		reg = CQSPI_READL(reg_base + CQSPI_REG_INDIRECTRD);
+		if (reg & CQSPI_REG_INDIRECTRD_DONE_MASK)
+			break;
+	}
+
+	if (!(reg & CQSPI_REG_INDIRECTRD_DONE_MASK)) {
+		pr_err("QSPI : Indirect read completion status error with reg 0x%08x\n",
+			reg);
+		ret = -ETIMEDOUT;
+	}
+
+	if (ret != 0) {
+		/* We had an error, cancel the indirect read */
+		CQSPI_WRITEL(CQSPI_REG_INDIRECTWR_CANCEL_MASK,
+			reg_base + CQSPI_REG_INDIRECTRD);
+		/* and cancel DMA */
+		dmaengine_terminate_all(cadence_qspi->rxchan);
+	}
+
+	/* Disable interrupt */
+	CQSPI_WRITEL(0, reg_base + CQSPI_REG_IRQMASK);
+
+	/* Clear indirect completion status */
+	CQSPI_WRITEL(CQSPI_REG_INDIRECTRD_DONE_MASK,
+		reg_base + CQSPI_REG_INDIRECTRD);
+
+	cadence_qspi_apb_dma_cleanup(cadence_qspi, rxlen, CQSPI_IS_DMA_READ);
+
+	/* Turn off qspi dma */
+	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
+	reg &= ~(CQSPI_REG_CONFIG_DMA_MASK);
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
+
+	return ret;
+}
+
 static int cadence_qspi_apb_indirect_read_setup(void *reg_base,
 	unsigned int ahb_phy_addr, unsigned txlen, const unsigned char *txbuf,
 	unsigned int addr_bytes)
@@ -599,6 +780,100 @@ static int cadence_qspi_apb_indirect_write_setup(void *reg_base,
 	reg |= (addr_bytes - 1);
 	CQSPI_WRITEL(reg, reg_base +  CQSPI_REG_SIZE);
 	return 0;
+}
+
+static int cadence_qspi_apb_indirect_write_dma(
+	struct struct_cqspi *cadence_qspi,
+	unsigned txlen, unsigned char *txbuf)
+{
+	int ret = 0;
+	void *reg_base = cadence_qspi->iobase;
+	unsigned int reg;
+	unsigned int timeout;
+
+	struct platform_device *pdev = cadence_qspi->pdev;
+	struct cqspi_platform_data *pdata = pdev->dev.platform_data;
+	struct cqspi_flash_pdata *f_pdata =
+			&(pdata->f_pdata[cadence_qspi->current_cs]);
+
+	pr_debug("%s txlen %d txbuf %p\n", __func__, txlen, txbuf);
+
+	ret = cadence_qspi_apb_dma_start(cadence_qspi,
+		txlen, txbuf, CQSPI_IS_DMA_WRITE);
+	if (ret)
+		return ret;
+
+	/* Set up qspi dma */
+	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
+	reg |= CQSPI_REG_CONFIG_DMA_MASK;
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
+
+	reg = (CQSPI_NUMBURSTREQBYTES << CQSPI_REG_DMA_BURST_LSB)
+		| (CQSPI_NUMSGLREQBYTES << CQSPI_REG_DMA_SINGLE_LSB);
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_DMA);
+
+	/* Set up QSPI transfer */
+	CQSPI_WRITEL(f_pdata->page_size,
+		reg_base + CQSPI_REG_INDIRECTWRWATERMARK);
+	CQSPI_WRITEL(txlen, reg_base + CQSPI_REG_INDIRECTWRBYTES);
+	CQSPI_WRITEL(CQSPI_REG_SRAM_PARTITION_WR,
+		reg_base + CQSPI_REG_SRAMPARTITION);
+
+	/* Clear all interrupts. */
+	CQSPI_WRITEL(CQSPI_IRQ_STATUS_MASK, reg_base + CQSPI_REG_IRQSTATUS);
+
+	CQSPI_WRITEL(CQSPI_IRQ_MASK_WR, reg_base + CQSPI_REG_IRQMASK);
+
+	/* Start qspi */
+	reg = CQSPI_READL(reg_base + CQSPI_REG_INDIRECTWR);
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_INDIRECTWR);
+	CQSPI_WRITEL(CQSPI_REG_INDIRECTWR_START_MASK,
+			reg_base + CQSPI_REG_INDIRECTWR);
+
+	/* Wait for dma to finish */
+	if (!wait_event_interruptible_timeout(cadence_qspi->waitqueue,
+		cadence_qspi->dma_done, CQSPI_TIMEOUT_MS)) {
+		pr_err("QSPI: Indirect write DMA timeout\n");
+		ret = -ETIMEDOUT;
+	}
+
+	/* Check indirect done status */
+	timeout = cadence_qspi_init_timeout(CQSPI_TIMEOUT_MS);
+	while (cadence_qspi_check_timeout(timeout)) {
+		reg = CQSPI_READL(reg_base + CQSPI_REG_INDIRECTWR);
+		if (reg & CQSPI_REG_INDIRECTWR_DONE_MASK)
+			break;
+	}
+
+	if (!(reg & CQSPI_REG_INDIRECTWR_DONE_MASK)) {
+		pr_err("QSPI : Indirect write completion status error with reg 0x%08x\n",
+			reg);
+		ret = -ETIMEDOUT;
+	}
+
+	if (ret != 0) {
+		/* We had an error, cancel the indirect write */
+		CQSPI_WRITEL(CQSPI_REG_INDIRECTWR_CANCEL_MASK,
+			reg_base + CQSPI_REG_INDIRECTWR);
+		/* and cancel DMA */
+		dmaengine_terminate_all(cadence_qspi->txchan);
+	}
+
+	/* Disable interrupt */
+	CQSPI_WRITEL(0, reg_base + CQSPI_REG_IRQMASK);
+
+	/* Clear indirect completion status */
+	CQSPI_WRITEL(CQSPI_REG_INDIRECTWR_DONE_MASK,
+		reg_base + CQSPI_REG_INDIRECTWR);
+
+	cadence_qspi_apb_dma_cleanup(cadence_qspi, txlen, CQSPI_IS_DMA_WRITE);
+
+	/* Turn off qspi dma */
+	reg = CQSPI_READL(reg_base + CQSPI_REG_CONFIG);
+	reg &= ~(CQSPI_REG_CONFIG_DMA_MASK);
+	CQSPI_WRITEL(reg, reg_base + CQSPI_REG_CONFIG);
+
+	return ret;
 }
 
 static int cadence_qspi_apb_indirect_write_execute(
@@ -901,17 +1176,29 @@ int cadence_qspi_apb_process_queue(struct struct_cqspi *cadence_qspi,
 			 ret = cadence_qspi_apb_indirect_read_setup(iobase,
 				 pdata->qspi_ahb_phy, cmd_xfer->len,
 				 cmd_xfer->tx_buf, spi->addr_width);
+			if (pdata->enable_dma) {
+				ret = cadence_qspi_apb_indirect_read_dma(
+					cadence_qspi, data_xfer->len,
+					data_xfer->rx_buf);
+			} else {
 			 ret = cadence_qspi_apb_indirect_read_execute(
 				cadence_qspi, data_xfer->len,
 				data_xfer->rx_buf);
+			}
 		 } else {
 			 /* Indirect write */
 			 ret = cadence_qspi_apb_indirect_write_setup(
 				 iobase, pdata->qspi_ahb_phy,
 				 cmd_xfer->len, cmd_xfer->tx_buf);
-			ret = cadence_qspi_apb_indirect_write_execute(
-				cadence_qspi, data_xfer->len,
-				data_xfer->tx_buf);
+			if (pdata->enable_dma) {
+				ret = cadence_qspi_apb_indirect_write_dma(
+					cadence_qspi, data_xfer->len,
+					(unsigned char *)data_xfer->tx_buf);
+			} else {
+				ret = cadence_qspi_apb_indirect_write_execute(
+					cadence_qspi, data_xfer->len,
+					data_xfer->tx_buf);
+			}
 		 }
 	 } else {
 		pr_err("QSPI : Unknown SPI transfer.\n");

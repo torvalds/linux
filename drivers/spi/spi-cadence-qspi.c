@@ -29,6 +29,8 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include "spi-cadence-qspi.h"
 #include "spi-cadence-qspi-apb.h"
 
@@ -260,6 +262,24 @@ static int cadence_qspi_of_get_pdata(struct platform_device *pdev)
 	}
 	pdata->fifo_depth = prop;
 
+	pdata->enable_dma = of_property_read_bool(np, "enable-dma");
+	dev_info(&pdev->dev, "DMA %senabled\n",
+		pdata->enable_dma ? "" : "NOT ");
+
+	if (pdata->enable_dma) {
+		if (of_property_read_u32(np, "tx-dma-peri-id", &prop)) {
+			dev_err(&pdev->dev, "couldn't determine tx-dma-peri-id\n");
+			return -ENXIO;
+		}
+		pdata->tx_dma_peri_id = prop;
+
+		if (of_property_read_u32(np, "rx-dma-peri-id", &prop)) {
+			dev_err(&pdev->dev, "couldn't determine rx-dma-peri-id\n");
+			return -ENXIO;
+		}
+		pdata->rx_dma_peri_id = prop;
+	}
+
 	/* Get flash devices platform data */
 	for_each_child_of_node(np, nc) {
 		if (of_property_read_u32(nc, "reg", &cs)) {
@@ -312,6 +332,62 @@ static int cadence_qspi_of_get_pdata(struct platform_device *pdev)
 		f_pdata->tslch_ns = prop;
 	}
 	return 0;
+}
+
+static void cadence_qspi_dma_shutdown(struct struct_cqspi *cadence_qspi)
+{
+	struct platform_device *pdev = cadence_qspi->pdev;
+	struct cqspi_platform_data *pdata = pdev->dev.platform_data;
+	if (cadence_qspi->txchan)
+		dma_release_channel(cadence_qspi->txchan);
+	if (cadence_qspi->rxchan)
+		dma_release_channel(cadence_qspi->rxchan);
+	pdata->enable_dma = 0;
+	cadence_qspi->rxchan = cadence_qspi->txchan = NULL;
+}
+
+static bool dma_channel_filter(struct dma_chan *chan, void *param)
+{
+	return (chan->chan_id == (unsigned int)param);
+}
+
+static void cadence_qspi_dma_init(struct struct_cqspi *cadence_qspi)
+{
+	struct platform_device *pdev = cadence_qspi->pdev;
+	struct cqspi_platform_data *pdata = pdev->dev.platform_data;
+	dma_cap_mask_t mask;
+	unsigned int channel_num;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	channel_num = pdata->tx_dma_peri_id;
+	cadence_qspi->txchan = dma_request_channel(mask,
+		dma_channel_filter, (void *)channel_num);
+	if (cadence_qspi->txchan)
+		dev_dbg(&pdev->dev, "TX channel %s %d selected\n",
+			dma_chan_name(cadence_qspi->txchan),
+			cadence_qspi->txchan->chan_id);
+	else
+		dev_err(&pdev->dev, "could not get dma channel %d\n",
+			channel_num);
+
+	channel_num = pdata->rx_dma_peri_id;
+	cadence_qspi->rxchan = dma_request_channel(mask,
+		dma_channel_filter, (void *)channel_num);
+	if (cadence_qspi->rxchan)
+		dev_dbg(&pdev->dev, "RX channel %s %d selected\n",
+			dma_chan_name(cadence_qspi->rxchan),
+			cadence_qspi->rxchan->chan_id);
+	else
+		dev_err(&pdev->dev, "could not get dma channel %d\n",
+			channel_num);
+
+	if (!cadence_qspi->rxchan  || !cadence_qspi->txchan) {
+		/* Error, fall back to non-dma mode */
+		cadence_qspi_dma_shutdown(cadence_qspi);
+		dev_info(&pdev->dev, "falling back to non-DMA operation\n");
+	}
 }
 
 static int cadence_qspi_probe(struct platform_device *pdev)
@@ -448,6 +524,9 @@ static int cadence_qspi_probe(struct platform_device *pdev)
 		goto err_of;
 	}
 
+	if (pdata->enable_dma)
+		cadence_qspi_dma_init(cadence_qspi);
+
 	dev_info(&pdev->dev, "Cadence QSPI controller driver\n");
 	return 0;
 
@@ -476,6 +555,8 @@ static int cadence_qspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct struct_cqspi *cadence_qspi = spi_master_get_devdata(master);
+
+	cadence_qspi_dma_shutdown(cadence_qspi);
 
 	cadence_qspi_apb_controller_disable(cadence_qspi->iobase);
 
