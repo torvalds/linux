@@ -28,6 +28,7 @@
 #include <drm/bridge/dw_hdmi.h>
 
 #include "dw_hdmi.h"
+#include "dw_hdmi-audio.h"
 
 #define HDMI_EDID_LEN		512
 
@@ -104,6 +105,7 @@ struct dw_hdmi {
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
 
+	struct platform_device *audio;
 	enum dw_hdmi_devtype dev_type;
 	struct device *dev;
 	struct clk *isfr_clk;
@@ -1732,7 +1734,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
+	struct platform_device_info pdevinfo;
 	struct device_node *ddc_node;
+	struct dw_hdmi_audio_data audio;
 	struct dw_hdmi *hdmi;
 	int ret;
 	u32 val = 1;
@@ -1860,6 +1864,23 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
 		    HDMI_IH_MUTE_PHY_STAT0);
 
+	memset(&pdevinfo, 0, sizeof(pdevinfo));
+	pdevinfo.parent = dev;
+	pdevinfo.id = PLATFORM_DEVID_AUTO;
+
+	if (hdmi_readb(hdmi, HDMI_CONFIG1_ID) & HDMI_CONFIG1_AHB) {
+		audio.phys = iores->start;
+		audio.base = hdmi->regs;
+		audio.irq = irq;
+		audio.hdmi = hdmi;
+
+		pdevinfo.name = "dw-hdmi-ahb-audio";
+		pdevinfo.data = &audio;
+		pdevinfo.size_data = sizeof(audio);
+		pdevinfo.dma_mask = DMA_BIT_MASK(32);
+		hdmi->audio = platform_device_register_full(&pdevinfo);
+	}
+
 	dev_set_drvdata(dev, hdmi);
 
 	return 0;
@@ -1876,6 +1897,9 @@ EXPORT_SYMBOL_GPL(dw_hdmi_bind);
 void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	if (hdmi->audio && !IS_ERR(hdmi->audio))
+		platform_device_unregister(hdmi->audio);
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
