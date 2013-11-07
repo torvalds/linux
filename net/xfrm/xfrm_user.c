@@ -1189,6 +1189,8 @@ static int verify_policy_type(u8 type)
 
 static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 {
+	int ret;
+
 	switch (p->share) {
 	case XFRM_SHARE_ANY:
 	case XFRM_SHARE_SESSION:
@@ -1224,7 +1226,13 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 		return -EINVAL;
 	}
 
-	return verify_policy_dir(p->dir);
+	ret = verify_policy_dir(p->dir);
+	if (ret)
+		return ret;
+	if (p->index && ((p->index & XFRM_POLICY_MAX) != p->dir))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int copy_from_user_sec_ctx(struct xfrm_policy *pol, struct nlattr **attrs)
