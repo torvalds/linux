@@ -270,6 +270,21 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 	}
 }
 
+static void broadwell_set_fifo_underrun_reporting(struct drm_device *dev,
+						  enum pipe pipe, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (enable)
+		dev_priv->de_irq_mask[pipe] &= ~GEN8_PIPE_FIFO_UNDERRUN;
+	else
+		dev_priv->de_irq_mask[pipe] |= GEN8_PIPE_FIFO_UNDERRUN;
+	I915_WRITE(GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
+	POSTING_READ(GEN8_DE_PIPE_IMR(pipe));
+}
+
 /**
  * ibx_display_interrupt_update - update SDEIMR
  * @dev_priv: driver private
@@ -382,6 +397,8 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN7(dev))
 		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable);
+	else if (IS_GEN8(dev))
+		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
 
 done:
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
@@ -1811,6 +1828,13 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (pipe_iir & GEN8_PIPE_CDCLK_CRC_DONE)
 			hsw_pipe_crc_irq_handler(dev, pipe);
 
+		if (pipe_iir & GEN8_PIPE_FIFO_UNDERRUN) {
+			if (intel_set_cpu_fifo_underrun_reporting(dev, pipe,
+								  false))
+				DRM_DEBUG_DRIVER("Pipe %c FIFO underrun\n",
+						 pipe_name(pipe));
+		}
+
 		if (pipe_iir & GEN8_DE_PIPE_IRQ_FAULT_ERRORS) {
 			DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
 				  pipe_name(pipe),
@@ -2896,6 +2920,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_enables = GEN8_PIPE_FLIP_DONE |
 				   GEN8_PIPE_VBLANK |
 				   GEN8_PIPE_CDCLK_CRC_DONE |
+				   GEN8_PIPE_FIFO_UNDERRUN |
 				   GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 	int pipe;
 	dev_priv->de_irq_mask[PIPE_A] = ~de_pipe_enables;

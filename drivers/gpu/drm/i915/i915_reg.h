@@ -4053,7 +4053,7 @@
 #define GEN8_DE_PIPE_IMR(pipe) (0x44404 + (0x10 * (pipe)))
 #define GEN8_DE_PIPE_IIR(pipe) (0x44408 + (0x10 * (pipe)))
 #define GEN8_DE_PIPE_IER(pipe) (0x4440c + (0x10 * (pipe)))
-#define  GEN8_PIPE_UNDERRUN		(1 << 31)
+#define  GEN8_PIPE_FIFO_UNDERRUN	(1 << 31)
 #define  GEN8_PIPE_CDCLK_CRC_ERROR	(1 << 29)
 #define  GEN8_PIPE_CDCLK_CRC_DONE	(1 << 28)
 #define  GEN8_PIPE_CURSOR_FAULT		(1 << 10)
