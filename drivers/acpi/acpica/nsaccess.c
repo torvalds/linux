@@ -240,7 +240,7 @@ acpi_status acpi_ns_root_initialize(void)
 		}
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	/* Save a handle to "_GPE", it is always present */

@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -83,11 +84,17 @@ acpi_status acpi_reset(void)
 		 * For I/O space, write directly to the OSL. This bypasses the port
 		 * validation mechanism, which may block a valid write to the reset
 		 * register.
-		 * Spec section 4.7.3.6 requires register width to be 8.
+		 *
+		 * NOTE:
+		 * The ACPI spec requires the reset register width to be 8, so we
+		 * hardcode it here and ignore the FADT value. This maintains
+		 * compatibility with other ACPI implementations that have allowed
+		 * BIOS code with bad register width values to go unnoticed.
 		 */
 		status =
 		    acpi_os_write_port((acpi_io_address) reset_reg->address,
-				       acpi_gbl_FADT.reset_value, 8);
+				       acpi_gbl_FADT.reset_value,
+				       ACPI_RESET_REGISTER_WIDTH);
 	} else {
 		/* Write the reset value to the reset register */
 
@@ -563,10 +570,10 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 		break;
 	}
 
-      cleanup1:
+cleanup1:
 	acpi_ut_remove_reference(info->return_object);
 
-      cleanup:
+cleanup:
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While evaluating Sleep State [%s]",

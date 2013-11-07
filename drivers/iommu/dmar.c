@@ -88,7 +88,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 			pr_warn("Device scope bus [%d] not found\n", scope->bus);
 			break;
 		}
-		pdev = pci_get_slot(bus, PCI_DEVFN(path->dev, path->fn));
+		pdev = pci_get_slot(bus, PCI_DEVFN(path->device, path->function));
 		if (!pdev) {
 			/* warning will be printed below */
 			break;
@@ -99,7 +99,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 	}
 	if (!pdev) {
 		pr_warn("Device scope device [%04x:%02x:%02x.%02x] not found\n",
-			segment, scope->bus, path->dev, path->fn);
+			segment, scope->bus, path->device, path->function);
 		*dev = NULL;
 		return 0;
 	}

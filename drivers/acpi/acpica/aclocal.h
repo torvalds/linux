@@ -1072,7 +1072,7 @@ struct acpi_db_method_info {
 	char *name;
 	u32 flags;
 	u32 num_loops;
-	char pathname[128];
+	char pathname[ACPI_DB_LINE_BUFFER_SIZE];
 	char **args;
 	acpi_object_type *types;
 
@@ -1094,6 +1094,7 @@ struct acpi_integrity_info {
 	u32 objects;
 };
 
+#define ACPI_DB_DISABLE_OUTPUT          0x00
 #define ACPI_DB_REDIRECTABLE_OUTPUT     0x01
 #define ACPI_DB_CONSOLE_OUTPUT          0x02
 #define ACPI_DB_DUPLICATE_OUTPUT        0x03

@@ -135,7 +135,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 
 		/* FACS only has signature and length fields */
 
-		ACPI_INFO((AE_INFO, "%4.4s %p %05X",
+		ACPI_INFO((AE_INFO, "%4.4s %p %06X",
 			   header->signature, ACPI_CAST_PTR(void, address),
 			   header->length));
 	} else if (ACPI_VALIDATE_RSDP_SIG(header->signature)) {
@@ -147,7 +147,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 					  header)->oem_id, ACPI_OEM_ID_SIZE);
 		acpi_tb_fix_string(local_header.oem_id, ACPI_OEM_ID_SIZE);
 
-		ACPI_INFO((AE_INFO, "RSDP %p %05X (v%.2d %6.6s)",
+		ACPI_INFO((AE_INFO, "RSDP %p %06X (v%.2d %6.6s)",
 			   ACPI_CAST_PTR(void, address),
 			   (ACPI_CAST_PTR(struct acpi_table_rsdp, header)->
 			    revision >
@@ -162,7 +162,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 		acpi_tb_cleanup_table_header(&local_header, header);
 
 		ACPI_INFO((AE_INFO,
-			   "%4.4s %p %05X (v%.2d %6.6s %8.8s %08X %4.4s %08X)",
+			   "%4.4s %p %06X (v%.2d %6.6s %8.8s %08X %4.4s %08X)",
 			   local_header.signature, ACPI_CAST_PTR(void, address),
 			   local_header.length, local_header.revision,
 			   local_header.oem_id, local_header.oem_table_id,

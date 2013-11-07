@@ -573,10 +573,10 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	status = acpi_ns_evaluate(info);
 	acpi_ut_remove_reference(args[1]);
 
-      cleanup2:
+cleanup2:
 	acpi_ut_remove_reference(args[0]);
 
-      cleanup1:
+cleanup1:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }
@@ -761,7 +761,7 @@ acpi_ev_orphan_ec_reg_method(struct acpi_namespace_node *ec_device_node)
 
 	status = acpi_evaluate_object(reg_method, NULL, &args, NULL);
 
-      exit:
+exit:
 	/* We ignore all errors from above, don't care */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);

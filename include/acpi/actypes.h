@@ -299,12 +299,56 @@ typedef u32 acpi_physical_address;
 #endif
 
 /*
- * All ACPICA functions that are available to the rest of the kernel are
- * tagged with this macro which can be defined as appropriate for the host.
+ * All ACPICA external functions that are available to the rest of the kernel
+ * are tagged with thes macros which can be defined as appropriate for the host.
+ *
+ * Notes:
+ * ACPI_EXPORT_SYMBOL_INIT is used for initialization and termination
+ * interfaces that may need special processing.
+ * ACPI_EXPORT_SYMBOL is used for all other public external functions.
  */
+#ifndef ACPI_EXPORT_SYMBOL_INIT
+#define ACPI_EXPORT_SYMBOL_INIT(symbol)
+#endif
+
 #ifndef ACPI_EXPORT_SYMBOL
 #define ACPI_EXPORT_SYMBOL(symbol)
 #endif
+
+/*
+ * Compiler/Clibrary-dependent debug initialization. Used for ACPICA
+ * utilities only.
+ */
+#ifndef ACPI_DEBUG_INITIALIZE
+#define ACPI_DEBUG_INITIALIZE()
+#endif
+
+/*******************************************************************************
+ *
+ * Configuration
+ *
+ ******************************************************************************/
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+/*
+ * Memory allocation tracking (used by acpi_exec to detect memory leaks)
+ */
+#define ACPI_MEM_PARAMETERS             _COMPONENT, _acpi_module_name, __LINE__
+#define ACPI_ALLOCATE(a)                acpi_ut_allocate_and_track ((acpi_size) (a), ACPI_MEM_PARAMETERS)
+#define ACPI_ALLOCATE_ZEROED(a)         acpi_ut_allocate_zeroed_and_track ((acpi_size) (a), ACPI_MEM_PARAMETERS)
+#define ACPI_FREE(a)                    acpi_ut_free_and_track (a, ACPI_MEM_PARAMETERS)
+#define ACPI_MEM_TRACKING(a)            a
+
+#else
+/*
+ * Normal memory allocation directly via the OS services layer
+ */
+#define ACPI_ALLOCATE(a)                acpi_os_allocate ((acpi_size) (a))
+#define ACPI_ALLOCATE_ZEROED(a)         acpi_os_allocate_zeroed ((acpi_size) (a))
+#define ACPI_FREE(a)                    acpi_os_free (a)
+#define ACPI_MEM_TRACKING(a)
+
+#endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
 
 /******************************************************************************
  *
@@ -322,6 +366,7 @@ typedef u32 acpi_physical_address;
 #define ACPI_PM1_REGISTER_WIDTH         16
 #define ACPI_PM2_REGISTER_WIDTH         8
 #define ACPI_PM_TIMER_WIDTH             32
+#define ACPI_RESET_REGISTER_WIDTH       8
 
 /* Names within the namespace are 4 bytes long */
 
@@ -891,9 +936,13 @@ struct acpi_buffer {
 	void *pointer;		/* pointer to buffer */
 };
 
-/* Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_LOCAL_BUFFER */
-
-#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.pointer)
+/*
+ * Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_BUFFER.
+ * Note: We use acpi_os_free here because acpi_os_allocate was used to allocate
+ * the buffer. This purposefully bypasses the internal allocation tracking
+ * mechanism (if it is enabled).
+ */
+#define ACPI_FREE_BUFFER(b)         acpi_os_free((b).pointer)
 
 /*
  * name_type for acpi_get_name
@@ -930,6 +979,16 @@ struct acpi_system_info {
 	u32 reserved2;
 	u32 debug_level;
 	u32 debug_layer;
+};
+
+/*
+ * System statistics returned by acpi_get_statistics()
+ */
+struct acpi_statistics {
+	u32 sci_count;
+	u32 gpe_count;
+	u32 fixed_event_count[ACPI_NUM_FIXED_EVENTS];
+	u32 method_count;
 };
 
 /* Table Event Types */

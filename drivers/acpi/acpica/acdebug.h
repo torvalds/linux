@@ -113,7 +113,8 @@ void acpi_db_display_handlers(void);
 ACPI_HW_DEPENDENT_RETURN_VOID(void
 			      acpi_db_generate_gpe(char *gpe_arg,
 						   char *block_arg))
- ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_generate_sci(void))
+
+ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_db_generate_sci(void))
 
 /*
  * dbconvert - miscellaneous conversion routines
@@ -242,6 +243,8 @@ void acpi_db_add_to_history(char *command_line);
 void acpi_db_display_history(void);
 
 char *acpi_db_get_from_history(char *command_num_arg);
+
+char *acpi_db_get_history_by_index(u32 commandd_num);
 
 /*
  * dbinput - user front-end to the AML debugger
