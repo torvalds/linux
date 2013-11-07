@@ -12,11 +12,13 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_edid.h>
 
 #include <sound/asoundef.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
+#include <sound/pcm_drm_eld.h>
 #include <sound/pcm_iec958.h>
 
 #include "dw_hdmi-audio.h"
@@ -285,6 +287,10 @@ static int dw_hdmi_open(struct snd_pcm_substream *substream)
 	int ret;
 
 	runtime->hw = dw_hdmi_hw;
+
+	ret = snd_pcm_hw_constraint_eld(runtime, dw->data.eld);
+	if (ret < 0)
+		return ret;
 
 	ret = snd_pcm_limit_hw_rates(runtime);
 	if (ret < 0)

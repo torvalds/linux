@@ -15,6 +15,7 @@ config DRM_DW_HDMI_AHB_AUDIO
 	tristate "Synopsis Designware AHB Audio interface"
 	depends on DRM_DW_HDMI && SND
 	select SND_PCM
+	select SND_PCM_ELD
 	select SND_PCM_IEC958
 	help
 	  Support the AHB Audio interface which is part of the Synopsis
