@@ -193,11 +193,12 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 
 		dm_init_edca_turbo(dev);
 
-		u4bAcParam = ((((u32)(qos_parameters->tx_op_limit[pAcParam])) <<
+		u4bAcParam = (((le16_to_cpu(
+					qos_parameters->tx_op_limit[pAcParam])) <<
 			     AC_PARAM_TXOP_LIMIT_OFFSET) |
-			     (((u32)(qos_parameters->cw_max[pAcParam])) <<
+			     ((le16_to_cpu(qos_parameters->cw_max[pAcParam])) <<
 			     AC_PARAM_ECW_MAX_OFFSET) |
-			     (((u32)(qos_parameters->cw_min[pAcParam])) <<
+			     ((le16_to_cpu(qos_parameters->cw_min[pAcParam])) <<
 			     AC_PARAM_ECW_MIN_OFFSET) |
 			     (((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
 
