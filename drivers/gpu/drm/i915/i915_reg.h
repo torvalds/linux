@@ -4031,15 +4031,12 @@
 #define  GEN8_DE_PIPE_C_IRQ		(1<<18)
 #define  GEN8_DE_PIPE_B_IRQ		(1<<17)
 #define  GEN8_DE_PIPE_A_IRQ		(1<<16)
+#define  GEN8_DE_PIPE_IRQ(pipe)		(1<<(16+pipe))
 #define  GEN8_GT_VECS_IRQ		(1<<6)
 #define  GEN8_GT_VCS2_IRQ		(1<<3)
 #define  GEN8_GT_VCS1_IRQ		(1<<2)
 #define  GEN8_GT_BCS_IRQ		(1<<1)
 #define  GEN8_GT_RCS_IRQ		(1<<0)
-/* Lazy definition */
-#define  GEN8_GT_IRQS			0x000000ff
-#define  GEN8_DE_IRQS			0x01ff0000
-#define  GEN8_RSVD_IRQS			0xB700ff00
 
 #define GEN8_GT_ISR(which) (0x44300 + (0x10 * (which)))
 #define GEN8_GT_IMR(which) (0x44304 + (0x10 * (which)))

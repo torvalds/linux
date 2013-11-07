@@ -1749,6 +1749,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	u32 master_ctl;
 	irqreturn_t ret = IRQ_NONE;
 	uint32_t tmp = 0;
+	enum pipe pipe;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1777,31 +1778,28 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		}
 	}
 
-	if (master_ctl & GEN8_DE_IRQS) {
-		int de_ret = 0;
-		int pipe;
-		for_each_pipe(pipe) {
-			uint32_t pipe_iir;
+	for_each_pipe(pipe) {
+		uint32_t pipe_iir;
 
-			pipe_iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
-			if (pipe_iir & GEN8_PIPE_VBLANK)
-				drm_handle_vblank(dev, pipe);
+		if (!(master_ctl & GEN8_DE_PIPE_IRQ(pipe)))
+			continue;
 
-			if (pipe_iir & GEN8_PIPE_FLIP_DONE) {
-				intel_prepare_page_flip(dev, pipe);
-				intel_finish_page_flip_plane(dev, pipe);
-			}
+		pipe_iir = I915_READ(GEN8_DE_PIPE_IIR(pipe));
+		if (pipe_iir & GEN8_PIPE_VBLANK)
+			drm_handle_vblank(dev, pipe);
 
-			if (pipe_iir & GEN8_DE_PIPE_IRQ_ERRORS)
-				DRM_ERROR("Errors on pipe %c\n", 'A' + pipe);
-
-			if (pipe_iir) {
-				de_ret++;
-				ret = IRQ_HANDLED;
-				I915_WRITE(GEN8_DE_PIPE_IIR(pipe), pipe_iir);
-			}
+		if (pipe_iir & GEN8_PIPE_FLIP_DONE) {
+			intel_prepare_page_flip(dev, pipe);
+			intel_finish_page_flip_plane(dev, pipe);
 		}
-		if (!de_ret)
+
+		if (pipe_iir & GEN8_DE_PIPE_IRQ_ERRORS)
+			DRM_ERROR("Errors on pipe %c\n", 'A' + pipe);
+
+		if (pipe_iir) {
+			ret = IRQ_HANDLED;
+			I915_WRITE(GEN8_DE_PIPE_IIR(pipe), pipe_iir);
+		} else
 			DRM_ERROR("The master control interrupt lied (DE PIPE)!\n");
 	}
 
