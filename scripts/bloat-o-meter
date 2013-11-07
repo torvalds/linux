@@ -19,7 +19,7 @@ def getsizes(file):
         size, type, name = l[:-1].split()
         if type in "tTdDbBrR":
             # strip generated symbols
-            if name[:6] == "__mod_": continue
+            if name.startswith("__mod_"): continue
             if name == "linux_banner": continue
             # statics and some other optimizations adds random .NUMBER
             name = re.sub(r'\.[0-9]+', '', name)
