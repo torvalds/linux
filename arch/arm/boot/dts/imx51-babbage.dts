@@ -148,7 +148,7 @@
 		spi-cs-high;
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <8 0x4>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
 
 		regulators {
 			sw1_reg: sw1 {

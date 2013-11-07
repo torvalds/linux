@@ -12,6 +12,7 @@
 
 #include "skeleton.dtsi"
 #include "imx51-pinfunc.h"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	aliases {
