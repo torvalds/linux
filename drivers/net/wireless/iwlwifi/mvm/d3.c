@@ -1533,8 +1533,14 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	struct iwl_mvm_d3_gtk_iter_data gtkdata = {
 		.status = status,
 	};
+	u32 disconnection_reasons =
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
+		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
 
 	if (!status || !vif->bss_conf.bssid)
+		return false;
+
+	if (le32_to_cpu(status->wakeup_reasons) & disconnection_reasons)
 		return false;
 
 	/* find last GTK that we used initially, if any */
