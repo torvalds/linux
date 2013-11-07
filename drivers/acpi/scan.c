@@ -125,8 +125,8 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
-static acpi_status acpi_bus_offline_companions(acpi_handle handle, u32 lvl,
-					       void *data, void **ret_p)
+static acpi_status acpi_bus_offline(acpi_handle handle, u32 lvl, void *data,
+				    void **ret_p)
 {
 	struct acpi_device *device = NULL;
 	struct acpi_device_physical_node *pn;
@@ -135,6 +135,11 @@ static acpi_status acpi_bus_offline_companions(acpi_handle handle, u32 lvl,
 
 	if (acpi_bus_get_device(handle, &device))
 		return AE_OK;
+
+	if (device->handler && !device->handler->hotplug.enabled) {
+		*ret_p = &device->dev;
+		return AE_SUPPORT;
+	}
 
 	mutex_lock(&device->physical_node_lock);
 
@@ -168,8 +173,8 @@ static acpi_status acpi_bus_offline_companions(acpi_handle handle, u32 lvl,
 	return status;
 }
 
-static acpi_status acpi_bus_online_companions(acpi_handle handle, u32 lvl,
-					      void *data, void **ret_p)
+static acpi_status acpi_bus_online(acpi_handle handle, u32 lvl, void *data,
+				   void **ret_p)
 {
 	struct acpi_device *device = NULL;
 	struct acpi_device_physical_node *pn;
@@ -214,26 +219,32 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	 * If the first pass is successful, the second one isn't needed, though.
 	 */
 	errdev = NULL;
-	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-			    NULL, acpi_bus_offline_companions,
-			    (void *)false, (void **)&errdev);
-	acpi_bus_offline_companions(handle, 0, (void *)false, (void **)&errdev);
+	status = acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				     NULL, acpi_bus_offline, (void *)false,
+				     (void **)&errdev);
+	if (status == AE_SUPPORT) {
+		dev_warn(errdev, "Offline disabled.\n");
+		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				    acpi_bus_online, NULL, NULL, NULL);
+		put_device(&device->dev);
+		return -EPERM;
+	}
+	acpi_bus_offline(handle, 0, (void *)false, (void **)&errdev);
 	if (errdev) {
 		errdev = NULL;
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    NULL, acpi_bus_offline_companions,
-				    (void *)true , (void **)&errdev);
+				    NULL, acpi_bus_offline, (void *)true,
+				    (void **)&errdev);
 		if (!errdev || acpi_force_hot_remove)
-			acpi_bus_offline_companions(handle, 0, (void *)true,
-						    (void **)&errdev);
+			acpi_bus_offline(handle, 0, (void *)true,
+					 (void **)&errdev);
 
 		if (errdev && !acpi_force_hot_remove) {
 			dev_warn(errdev, "Offline failed.\n");
-			acpi_bus_online_companions(handle, 0, NULL, NULL);
+			acpi_bus_online(handle, 0, NULL, NULL);
 			acpi_walk_namespace(ACPI_TYPE_ANY, handle,
-					    ACPI_UINT32_MAX,
-					    acpi_bus_online_companions, NULL,
-					    NULL, NULL);
+					    ACPI_UINT32_MAX, acpi_bus_online,
+					    NULL, NULL, NULL);
 			put_device(&device->dev);
 			return -EBUSY;
 		}
@@ -290,10 +301,9 @@ static void acpi_bus_device_eject(void *context)
 		goto err_out;
 
 	handler = device->handler;
-	if (!handler || !handler->hotplug.enabled) {
-		ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-		goto err_out;
-	}
+	if (!handler || !handler->hotplug.enabled)
+		goto err_support;
+
 	acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
 				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	if (handler->hotplug.mode == AHM_CONTAINER)
@@ -301,14 +311,19 @@ static void acpi_bus_device_eject(void *context)
 
 	get_device(&device->dev);
 	error = acpi_scan_hot_remove(device);
-	if (error)
+	if (error == -EPERM) {
+		goto err_support;
+	} else if (error) {
 		goto err_out;
+	}
 
  out:
 	mutex_unlock(&acpi_scan_lock);
 	unlock_device_hotplug();
 	return;
 
+ err_support:
+	ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
  err_out:
 	acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST, ost_code,
 				  NULL);
