@@ -707,24 +707,37 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_HDMIB: /* HDMI-B is basically DL-DVI; analog works fine */
-		if ((radeon_connector->audio == RADEON_AUDIO_ENABLE) ||
-		    (drm_detect_hdmi_monitor(radeon_connector->edid) &&
-		     (radeon_connector->audio == RADEON_AUDIO_AUTO)))
-			return ATOM_ENCODER_MODE_HDMI;
-		else if (radeon_connector->use_digital)
+		if (radeon_audio != 0) {
+			if (radeon_connector->use_digital &&
+			    (radeon_connector->audio == RADEON_AUDIO_ENABLE))
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (radeon_connector->use_digital)
+				return ATOM_ENCODER_MODE_DVI;
+			else
+				return ATOM_ENCODER_MODE_CRT;
+		} else if (radeon_connector->use_digital) {
 			return ATOM_ENCODER_MODE_DVI;
-		else
+		} else {
 			return ATOM_ENCODER_MODE_CRT;
+		}
 		break;
 	case DRM_MODE_CONNECTOR_DVID:
 	case DRM_MODE_CONNECTOR_HDMIA:
 	default:
-		if ((radeon_connector->audio == RADEON_AUDIO_ENABLE) ||
-		    (drm_detect_hdmi_monitor(radeon_connector->edid) &&
-		     (radeon_connector->audio == RADEON_AUDIO_AUTO)))
-			return ATOM_ENCODER_MODE_HDMI;
-		else
+		if (radeon_audio != 0) {
+			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
+				return ATOM_ENCODER_MODE_HDMI;
+			else
+				return ATOM_ENCODER_MODE_DVI;
+		} else {
 			return ATOM_ENCODER_MODE_DVI;
+		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
 		return ATOM_ENCODER_MODE_LVDS;
@@ -732,14 +745,19 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		dig_connector = radeon_connector->con_priv;
 		if ((dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-		    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
+		    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP)) {
 			return ATOM_ENCODER_MODE_DP;
-		else if ((radeon_connector->audio == RADEON_AUDIO_ENABLE) ||
-			 (drm_detect_hdmi_monitor(radeon_connector->edid) &&
-			  (radeon_connector->audio == RADEON_AUDIO_AUTO)))
-			return ATOM_ENCODER_MODE_HDMI;
-		else
+		} else if (radeon_audio != 0) {
+			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
+				return ATOM_ENCODER_MODE_HDMI;
+			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
+				return ATOM_ENCODER_MODE_HDMI;
+			else
+				return ATOM_ENCODER_MODE_DVI;
+		} else {
 			return ATOM_ENCODER_MODE_DVI;
+		}
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		return ATOM_ENCODER_MODE_DP;
@@ -1655,7 +1673,7 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 			 * does the same thing and more.
 			 */
 			if ((rdev->family != CHIP_RV710) && (rdev->family != CHIP_RV730) &&
-			    (rdev->family != CHIP_RS880))
+			    (rdev->family != CHIP_RS780) && (rdev->family != CHIP_RS880))
 				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 		}
 		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {

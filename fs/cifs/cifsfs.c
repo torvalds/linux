@@ -120,14 +120,16 @@ cifs_read_super(struct super_block *sb)
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
+	struct cifs_tcon *tcon;
 	int rc = 0;
 
 	cifs_sb = CIFS_SB(sb);
+	tcon = cifs_sb_master_tcon(cifs_sb);
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIXACL)
 		sb->s_flags |= MS_POSIXACL;
 
-	if (cifs_sb_master_tcon(cifs_sb)->ses->capabilities & CAP_LARGE_FILES)
+	if (tcon->ses->capabilities & tcon->ses->server->vals->cap_large_files)
 		sb->s_maxbytes = MAX_LFS_FILESIZE;
 	else
 		sb->s_maxbytes = MAX_NON_LFS;
@@ -147,7 +149,7 @@ cifs_read_super(struct super_block *sb)
 		goto out_no_root;
 	}
 
-	if (cifs_sb_master_tcon(cifs_sb)->nocase)
+	if (tcon->nocase)
 		sb->s_d_op = &cifs_ci_dentry_ops;
 	else
 		sb->s_d_op = &cifs_dentry_ops;

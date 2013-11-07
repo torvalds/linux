@@ -297,7 +297,7 @@ void flush_delayed_fput(void)
 	delayed_fput(NULL);
 }
 
-static DECLARE_WORK(delayed_fput_work, delayed_fput);
+static DECLARE_DELAYED_WORK(delayed_fput_work, delayed_fput);
 
 void fput(struct file *file)
 {
@@ -317,7 +317,7 @@ void fput(struct file *file)
 		}
 
 		if (llist_add(&file->f_u.fu_llist, &delayed_fput_list))
-			schedule_work(&delayed_fput_work);
+			schedule_delayed_work(&delayed_fput_work, 1);
 	}
 }
 

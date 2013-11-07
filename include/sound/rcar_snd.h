@@ -68,6 +68,7 @@ struct rsnd_scu_platform_info {
  *
  * A : generation
  */
+#define RSND_GEN_MASK	(0xF << 0)
 #define RSND_GEN1	(1 << 0) /* fixme */
 #define RSND_GEN2	(2 << 0) /* fixme */
 

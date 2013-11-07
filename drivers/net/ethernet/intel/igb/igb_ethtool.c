@@ -1607,6 +1607,9 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 			igb_write_phy_reg(hw, I347AT4_PAGE_SELECT, 0);
 			igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
 		}
+	} else if (hw->phy.type == e1000_phy_82580) {
+		/* enable MII loopback */
+		igb_write_phy_reg(hw, I82580_PHY_LBK_CTRL, 0x8041);
 	}
 
 	/* add small delay to avoid loopback test failure */
@@ -2651,6 +2654,8 @@ static int igb_set_eee(struct net_device *netdev,
 	if ((hw->mac.type < e1000_i350) ||
 	    (hw->phy.media_type != e1000_media_type_copper))
 		return -EOPNOTSUPP;
+
+	memset(&eee_curr, 0, sizeof(struct ethtool_eee));
 
 	ret_val = igb_get_eee(netdev, &eee_curr);
 	if (ret_val)

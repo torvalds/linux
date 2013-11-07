@@ -180,6 +180,9 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			dev_err(&adapter->pdev->dev,
 				"opcode %d-%d failed:status %d-%d\n",
 				opcode, subsystem, compl_status, extd_status);
+
+			if (extd_status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
+				return extd_status;
 		}
 	}
 done:
@@ -1195,7 +1198,6 @@ int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 
 	if (lancer_chip(adapter)) {
 		req->hdr.version = 1;
-		req->if_id = cpu_to_le16(adapter->if_handle);
 	} else if (BEx_chip(adapter)) {
 		if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC)
 			req->hdr.version = 2;
@@ -1203,6 +1205,8 @@ int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 		req->hdr.version = 2;
 	}
 
+	if (req->hdr.version > 0)
+		req->if_id = cpu_to_le16(adapter->if_handle);
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
 	req->ulp_num = BE_ULP1_NUM;
 	req->type = BE_ETH_TX_RING_TYPE_STANDARD;
@@ -1812,6 +1816,12 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 	} else if (flags & IFF_ALLMULTI) {
 		req->if_flags_mask = req->if_flags =
 				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+	} else if (flags & BE_FLAGS_VLAN_PROMISC) {
+		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
+
+		if (value == ON)
+			req->if_flags =
+				cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
 	} else {
 		struct netdev_hw_addr *ha;
 		int i = 0;

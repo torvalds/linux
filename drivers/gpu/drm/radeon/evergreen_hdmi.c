@@ -67,6 +67,9 @@ static void dce4_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	u8 *sadb;
 	int sad_count;
 
+	/* XXX: setting this register causes hangs on some asics */
+	return;
+
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder)
 			radeon_connector = to_radeon_connector(connector);
@@ -288,8 +291,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	/* fglrx clears sth in AFMT_AUDIO_PACKET_CONTROL2 here */
 
 	WREG32(HDMI_ACR_PACKET_CONTROL + offset,
-	       HDMI_ACR_AUTO_SEND | /* allow hw to sent ACR packets when required */
-	       HDMI_ACR_SOURCE); /* select SW CTS value */
+	       HDMI_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
 
 	evergreen_hdmi_update_ACR(encoder, mode->clock);
 
