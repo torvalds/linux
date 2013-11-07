@@ -3,7 +3,7 @@
  *
  *   vfs operations that deal with io control
  *
- *   Copyright (C) International Business Machines  Corp., 2005,2007
+ *   Copyright (C) International Business Machines  Corp., 2005,2013
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -34,13 +34,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
-#ifdef CONFIG_CIFS_POSIX
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
 	__u64	ExtAttrBits = 0;
-	__u64	ExtAttrMask = 0;
 	__u64   caps;
-#endif /* CONFIG_CIFS_POSIX */
 
 	xid = get_xid();
 
@@ -49,13 +46,14 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	cifs_sb = CIFS_SB(inode->i_sb);
 
 	switch (command) {
-#ifdef CONFIG_CIFS_POSIX
 		case FS_IOC_GETFLAGS:
 			if (pSMBFile == NULL)
 				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
 			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
+#ifdef CONFIG_CIFS_POSIX
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
+				__u64	ExtAttrMask = 0;
 				rc = CIFSGetExtAttr(xid, tcon,
 						    pSMBFile->fid.netfid,
 						    &ExtAttrBits, &ExtAttrMask);
@@ -63,29 +61,50 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 					rc = put_user(ExtAttrBits &
 						FS_FL_USER_VISIBLE,
 						(int __user *)arg);
+				if (rc != EOPNOTSUPP)
+					break;
+			}
+#endif /* CONFIG_CIFS_POSIX */
+			rc = 0;
+			if (CIFS_I(inode)->cifsAttrs & ATTR_COMPRESSED) {
+				/* add in the compressed bit */
+				ExtAttrBits = FS_COMPR_FL;
+				rc = put_user(ExtAttrBits & FS_FL_USER_VISIBLE,
+					      (int __user *)arg);
 			}
 			break;
-
 		case FS_IOC_SETFLAGS:
 			if (pSMBFile == NULL)
 				break;
 			tcon = tlink_tcon(pSMBFile->tlink);
 			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
-			if (CIFS_UNIX_EXTATTR_CAP & caps) {
-				if (get_user(ExtAttrBits, (int __user *)arg)) {
-					rc = -EFAULT;
-					break;
-				}
-				/*
-				 * rc = CIFSGetExtAttr(xid, tcon,
-				 *		       pSMBFile->fid.netfid,
-				 *		       extAttrBits,
-				 *		       &ExtAttrMask);
-				 */
+
+			if (get_user(ExtAttrBits, (int __user *)arg)) {
+				rc = -EFAULT;
+				break;
 			}
-			cifs_dbg(FYI, "set flags not implemented yet\n");
+
+			/*
+			 * if (CIFS_UNIX_EXTATTR_CAP & caps)
+			 *	rc = CIFSSetExtAttr(xid, tcon,
+			 *		       pSMBFile->fid.netfid,
+			 *		       extAttrBits,
+			 *		       &ExtAttrMask);
+			 * if (rc != EOPNOTSUPP)
+			 *	break;
+			 */
+
+			/* Currently only flag we can set is compressed flag */
+			if ((ExtAttrBits & FS_COMPR_FL) == 0)
+				break;
+
+			/* Try to set compress flag */
+			if (tcon->ses->server->ops->set_compression) {
+				rc = tcon->ses->server->ops->set_compression(
+							xid, tcon, pSMBFile);
+				cifs_dbg(FYI, "set compress flag rc %d\n", rc);
+			}
 			break;
-#endif /* CONFIG_CIFS_POSIX */
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");
 			break;

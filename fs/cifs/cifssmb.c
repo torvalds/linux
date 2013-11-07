@@ -3199,6 +3199,60 @@ qreparse_out:
 	return rc;
 }
 
+int
+CIFSSMB_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+		    __u16 fid)
+{
+	int rc = 0;
+	int bytes_returned;
+	struct smb_com_transaction_compr_ioctl_req *pSMB;
+	struct smb_com_transaction_ioctl_rsp *pSMBr;
+
+	cifs_dbg(FYI, "Set compression for %u\n", fid);
+	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	pSMB->compression_state = cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+
+	pSMB->TotalParameterCount = 0;
+	pSMB->TotalDataCount = __constant_cpu_to_le32(2);
+	pSMB->MaxParameterCount = 0;
+	pSMB->MaxDataCount = 0;
+	pSMB->MaxSetupCount = 4;
+	pSMB->Reserved = 0;
+	pSMB->ParameterOffset = 0;
+	pSMB->DataCount = __constant_cpu_to_le32(2);
+	pSMB->DataOffset =
+		cpu_to_le32(offsetof(struct smb_com_transaction_compr_ioctl_req,
+				compression_state) - 4);  /* 84 */
+	pSMB->SetupCount = 4;
+	pSMB->SubCommand = __constant_cpu_to_le16(NT_TRANSACT_IOCTL);
+	pSMB->ParameterCount = 0;
+	pSMB->FunctionCode = __constant_cpu_to_le32(FSCTL_SET_COMPRESSION);
+	pSMB->IsFsctl = 1; /* FSCTL */
+	pSMB->IsRootFlag = 0;
+	pSMB->Fid = fid; /* file handle always le */
+	/* 3 byte pad, followed by 2 byte compress state */
+	pSMB->ByteCount = __constant_cpu_to_le16(5);
+	inc_rfc1001_len(pSMB, 5);
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (rc)
+		cifs_dbg(FYI, "Send error in SetCompression = %d\n", rc);
+
+	cifs_buf_release(pSMB);
+
+	/*
+	 * Note: On -EAGAIN error only caller can retry on handle based calls
+	 * since file handle passed in no longer valid.
+	 */
+	return rc;
+}
+
+
 #ifdef CONFIG_CIFS_POSIX
 
 /*Convert an Access Control Entry from wire format to local POSIX xattr format*/

@@ -1137,6 +1137,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	cifs_dbg(FYI, "SMB2 IOCTL\n");
 
+	*out_data = NULL;
 	/* zero out returned data len, in case of error */
 	if (plen)
 		*plen = 0;
@@ -1182,11 +1183,23 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		req->Flags = 0;
 
 	iov[0].iov_base = (char *)req;
-	/* 4 for rfc1002 length field */
-	iov[0].iov_len = get_rfc1002_length(req) + 4;
 
-	if (indatalen)
-		inc_rfc1001_len(req, indatalen);
+	/*
+	 * If no input data, the size of ioctl struct in
+	 * protocol spec still includes a 1 byte data buffer,
+	 * but if input data passed to ioctl, we do not
+	 * want to double count this, so we do not send
+	 * the dummy one byte of data in iovec[0] if sending
+	 * input data (in iovec[1]). We also must add 4 bytes
+	 * in first iovec to allow for rfc1002 length field.
+	 */
+
+	if (indatalen) {
+		iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+		inc_rfc1001_len(req, indatalen - 1);
+	} else
+		iov[0].iov_len = get_rfc1002_length(req) + 4;
+
 
 	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buftype, 0);
 	rsp = (struct smb2_ioctl_rsp *)iov[0].iov_base;
@@ -1231,6 +1244,33 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	       *plen);
 ioctl_exit:
 	free_rsp_buf(resp_buftype, rsp);
+	return rc;
+}
+
+/*
+ *   Individual callers to ioctl worker function follow
+ */
+
+int
+SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
+		     u64 persistent_fid, u64 volatile_fid)
+{
+	int rc;
+	char *res_key = NULL;
+	struct  compress_ioctl fsctl_input;
+	char *ret_data = NULL;
+
+	fsctl_input.CompressionState =
+			__constant_cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+
+	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
+			FSCTL_SET_COMPRESSION, true /* is_fsctl */,
+			(char *)&fsctl_input /* data input */,
+			2 /* in data len */, &ret_data /* out data */, NULL);
+
+	cifs_dbg(FYI, "set compression rc %d\n", rc);
+	kfree(res_key);
+
 	return rc;
 }
 
@@ -2299,7 +2339,7 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SendReceive2(xid, ses, &iov, 1, &resp_buftype, 0);
 	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
-		goto qinf_exit;
+		goto qfsinf_exit;
 	}
 	rsp = (struct smb2_query_info_rsp *)iov.iov_base;
 
@@ -2311,7 +2351,70 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (!rc)
 		copy_fs_info_to_kstatfs(info, fsdata);
 
-qinf_exit:
+qfsinf_exit:
+	free_rsp_buf(resp_buftype, iov.iov_base);
+	return rc;
+}
+
+int
+SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
+	      u64 persistent_fid, u64 volatile_fid, int level)
+{
+	struct smb2_query_info_rsp *rsp = NULL;
+	struct kvec iov;
+	int rc = 0;
+	int resp_buftype, max_len, min_len;
+	struct cifs_ses *ses = tcon->ses;
+	unsigned int rsp_len, offset;
+
+	if (level == FS_DEVICE_INFORMATION) {
+		max_len = sizeof(FILE_SYSTEM_DEVICE_INFO);
+		min_len = sizeof(FILE_SYSTEM_DEVICE_INFO);
+	} else if (level == FS_ATTRIBUTE_INFORMATION) {
+		max_len = sizeof(FILE_SYSTEM_ATTRIBUTE_INFO);
+		min_len = MIN_FS_ATTR_INFO_SIZE;
+	} else if (level == FS_SECTOR_SIZE_INFORMATION) {
+		max_len = sizeof(struct smb3_fs_ss_info);
+		min_len = sizeof(struct smb3_fs_ss_info);
+	} else {
+		cifs_dbg(FYI, "Invalid qfsinfo level %d\n", level);
+		return -EINVAL;
+	}
+
+	rc = build_qfs_info_req(&iov, tcon, level, max_len,
+				persistent_fid, volatile_fid);
+	if (rc)
+		return rc;
+
+	rc = SendReceive2(xid, ses, &iov, 1, &resp_buftype, 0);
+	if (rc) {
+		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
+		goto qfsattr_exit;
+	}
+	rsp = (struct smb2_query_info_rsp *)iov.iov_base;
+
+	rsp_len = le32_to_cpu(rsp->OutputBufferLength);
+	offset = le16_to_cpu(rsp->OutputBufferOffset);
+	rc = validate_buf(offset, rsp_len, &rsp->hdr, min_len);
+	if (rc)
+		goto qfsattr_exit;
+
+	if (level == FS_ATTRIBUTE_INFORMATION)
+		memcpy(&tcon->fsAttrInfo, 4 /* RFC1001 len */ + offset
+			+ (char *)&rsp->hdr, min_t(unsigned int,
+			rsp_len, max_len));
+	else if (level == FS_DEVICE_INFORMATION)
+		memcpy(&tcon->fsDevInfo, 4 /* RFC1001 len */ + offset
+			+ (char *)&rsp->hdr, sizeof(FILE_SYSTEM_DEVICE_INFO));
+	else if (level == FS_SECTOR_SIZE_INFORMATION) {
+		struct smb3_fs_ss_info *ss_info = (struct smb3_fs_ss_info *)
+			(4 /* RFC1001 len */ + offset + (char *)&rsp->hdr);
+		tcon->ss_flags = le32_to_cpu(ss_info->Flags);
+		tcon->perf_sector_size =
+			le32_to_cpu(ss_info->PhysicalBytesPerSectorForPerf);
+	}
+
+qfsattr_exit:
 	free_rsp_buf(resp_buftype, iov.iov_base);
 	return rc;
 }
