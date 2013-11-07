@@ -45,19 +45,6 @@ do {									\
 	disable_fpu_hazard();						\
 } while (0)
 
-#define enable_fpu()							\
-do {									\
-	if (cpu_has_fpu)						\
-		__enable_fpu();						\
-} while (0)
-
-#define disable_fpu()							\
-do {									\
-	if (cpu_has_fpu)						\
-		__disable_fpu();					\
-} while (0)
-
-
 #define clear_fpu_owner()	clear_thread_flag(TIF_USEDFPU)
 
 static inline int __is_fpu_owner(void)
