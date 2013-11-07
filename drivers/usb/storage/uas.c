@@ -1091,6 +1091,45 @@ static int uas_post_reset(struct usb_interface *intf)
 	return 0;
 }
 
+static int uas_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct Scsi_Host *shost = usb_get_intfdata(intf);
+	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+
+	/* Wait for any pending requests to complete */
+	flush_work(&devinfo->work);
+	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000) == 0) {
+		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
+		return -ETIME;
+	}
+
+	return 0;
+}
+
+static int uas_resume(struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int uas_reset_resume(struct usb_interface *intf)
+{
+	struct Scsi_Host *shost = usb_get_intfdata(intf);
+	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	unsigned long flags;
+
+	if (uas_configure_endpoints(devinfo) != 0) {
+		shost_printk(KERN_ERR, shost,
+			     "%s: alloc streams error after reset", __func__);
+		return -EIO;
+	}
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	scsi_report_bus_reset(shost, 0);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	return 0;
+}
+
 static void uas_disconnect(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
@@ -1114,6 +1153,9 @@ static struct usb_driver uas_driver = {
 	.disconnect = uas_disconnect,
 	.pre_reset = uas_pre_reset,
 	.post_reset = uas_post_reset,
+	.suspend = uas_suspend,
+	.resume = uas_resume,
+	.reset_resume = uas_reset_resume,
 	.id_table = uas_usb_ids,
 };
 
