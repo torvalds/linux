@@ -45,6 +45,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 	netfs->primary_index->def		= &fscache_fsdef_netfs_def;
 	netfs->primary_index->parent		= &fscache_fsdef_index;
 	netfs->primary_index->netfs_data	= netfs;
+	netfs->primary_index->flags		= 1 << FSCACHE_COOKIE_ENABLED;
 
 	atomic_inc(&netfs->primary_index->parent->usage);
 	atomic_inc(&netfs->primary_index->parent->n_children);

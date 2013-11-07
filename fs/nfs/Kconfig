@@ -140,6 +140,17 @@ config NFS_V4_1_IMPLEMENTATION_ID_DOMAIN
 	  If the NFS client is unchanged from the upstream kernel, this
 	  option should be set to the default "kernel.org".
 
+config NFS_V4_1_MIGRATION
+	bool "NFSv4.1 client support for migration"
+	depends on NFS_V4_1
+	default n
+	help
+	  This option makes the NFS client advertise to NFSv4.1 servers that
+          it can support NFSv4 migration.
+
+          The NFSv4.1 pieces of the Linux NFSv4 migration implementation are
+          still experimental.  If you are not an NFSv4 developer, say N here.
+
 config NFS_V4_SECURITY_LABEL
 	bool
 	depends on NFS_V4_2 && SECURITY

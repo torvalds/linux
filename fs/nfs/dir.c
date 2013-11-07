@@ -1139,7 +1139,13 @@ out_zap_parent:
 	if (inode && S_ISDIR(inode->i_mode)) {
 		/* Purge readdir caches. */
 		nfs_zap_caches(inode);
-		if (dentry->d_flags & DCACHE_DISCONNECTED)
+		/*
+		 * We can't d_drop the root of a disconnected tree:
+		 * its d_hash is on the s_anon list and d_drop() would hide
+		 * it from shrink_dcache_for_unmount(), leading to busy
+		 * inodes on unmount and further oopses.
+		 */
+		if (IS_ROOT(dentry))
 			goto out_valid;
 	}
 	/* If we have submounts, don't unhash ! */
@@ -1381,7 +1387,7 @@ static struct nfs_open_context *create_nfs_open_context(struct dentry *dentry, i
 
 static int do_open(struct inode *inode, struct file *filp)
 {
-	nfs_fscache_set_inode_cookie(inode, filp);
+	nfs_fscache_open_file(inode, filp);
 	return 0;
 }
 
