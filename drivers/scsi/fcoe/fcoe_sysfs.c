@@ -553,16 +553,20 @@ static struct device_type fcoe_fcf_device_type = {
 	.release = fcoe_fcf_device_release,
 };
 
-static struct bus_attribute fcoe_bus_attr_group[] = {
-	__ATTR(ctlr_create, S_IWUSR, NULL, fcoe_ctlr_create_store),
-	__ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store),
-	__ATTR_NULL
+static BUS_ATTR(ctlr_create, S_IWUSR, NULL, fcoe_ctlr_create_store);
+static BUS_ATTR(ctlr_destroy, S_IWUSR, NULL, fcoe_ctlr_destroy_store);
+
+static struct attribute *fcoe_bus_attrs[] = {
+	&bus_attr_ctlr_create.attr,
+	&bus_attr_ctlr_destroy.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(fcoe_bus);
 
 static struct bus_type fcoe_bus_type = {
 	.name = "fcoe",
 	.match = &fcoe_bus_match,
-	.bus_attrs = fcoe_bus_attr_group,
+	.bus_groups = fcoe_bus_groups,
 };
 
 /**

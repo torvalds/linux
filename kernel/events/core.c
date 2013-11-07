@@ -6292,6 +6292,7 @@ type_show(struct device *dev, struct device_attribute *attr, char *page)
 
 	return snprintf(page, PAGE_SIZE-1, "%d\n", pmu->type);
 }
+static DEVICE_ATTR_RO(type);
 
 static ssize_t
 perf_event_mux_interval_ms_show(struct device *dev,
@@ -6336,17 +6337,19 @@ perf_event_mux_interval_ms_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(perf_event_mux_interval_ms);
 
-static struct device_attribute pmu_dev_attrs[] = {
-	__ATTR_RO(type),
-	__ATTR_RW(perf_event_mux_interval_ms),
-	__ATTR_NULL,
+static struct attribute *pmu_dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_perf_event_mux_interval_ms.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(pmu_dev);
 
 static int pmu_bus_running;
 static struct bus_type pmu_bus = {
 	.name		= "event_source",
-	.dev_attrs	= pmu_dev_attrs,
+	.dev_groups	= pmu_dev_groups,
 };
 
 static void pmu_dev_release(struct device *dev)

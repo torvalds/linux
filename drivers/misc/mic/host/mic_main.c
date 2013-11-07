@@ -374,8 +374,7 @@ static int mic_probe(struct pci_dev *pdev,
 			"device_create_with_groups failed rc %d\n", rc);
 		goto smpt_uninit;
 	}
-	mdev->state_sysfs = sysfs_get_dirent(mdev->sdev->kobj.sd,
-		NULL, "state");
+	mdev->state_sysfs = sysfs_get_dirent(mdev->sdev->kobj.sd, "state");
 	if (!mdev->state_sysfs) {
 		rc = -ENODEV;
 		dev_err(&pdev->dev, "sysfs_get_dirent failed rc %d\n", rc);

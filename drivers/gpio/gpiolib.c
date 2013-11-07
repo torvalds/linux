@@ -408,7 +408,7 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 
 	if (!value_sd) {
-		value_sd = sysfs_get_dirent(dev->kobj.sd, NULL, "value");
+		value_sd = sysfs_get_dirent(dev->kobj.sd, "value");
 		if (!value_sd) {
 			ret = -ENODEV;
 			goto err_out;

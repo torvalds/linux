@@ -655,7 +655,7 @@ static const struct mmc_host_ops mvsd_ops = {
 	.enable_sdio_irq	= mvsd_enable_sdio_irq,
 };
 
-static void __init
+static void
 mv_conf_mbus_windows(struct mvsd_host *host,
 		     const struct mbus_dram_target_info *dram)
 {
@@ -677,7 +677,7 @@ mv_conf_mbus_windows(struct mvsd_host *host,
 	}
 }
 
-static int __init mvsd_probe(struct platform_device *pdev)
+static int mvsd_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mmc_host *mmc = NULL;
@@ -819,7 +819,7 @@ out:
 	return ret;
 }
 
-static int __exit mvsd_remove(struct platform_device *pdev)
+static int mvsd_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
@@ -872,7 +872,8 @@ static const struct of_device_id mvsdio_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, mvsdio_dt_ids);
 
 static struct platform_driver mvsd_driver = {
-	.remove		= __exit_p(mvsd_remove),
+	.probe		= mvsd_probe,
+	.remove		= mvsd_remove,
 	.suspend	= mvsd_suspend,
 	.resume		= mvsd_resume,
 	.driver		= {
@@ -881,7 +882,7 @@ static struct platform_driver mvsd_driver = {
 	},
 };
 
-module_platform_driver_probe(mvsd_driver, mvsd_probe);
+module_platform_driver(mvsd_driver);
 
 /* maximum card clock frequency (default 50MHz) */
 module_param(maxfreq, int, 0);

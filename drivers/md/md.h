@@ -501,7 +501,7 @@ extern struct attribute_group md_bitmap_group;
 static inline struct sysfs_dirent *sysfs_get_dirent_safe(struct sysfs_dirent *sd, char *name)
 {
 	if (sd)
-		return sysfs_get_dirent(sd, NULL, name);
+		return sysfs_get_dirent(sd, name);
 	return sd;
 }
 static inline void sysfs_notify_dirent_safe(struct sysfs_dirent *sd)

@@ -29,13 +29,11 @@ struct sysfs_elem_symlink {
 };
 
 struct sysfs_elem_attr {
-	struct attribute	*attr;
+	union {
+		struct attribute	*attr;
+		struct bin_attribute	*bin_attr;
+	};
 	struct sysfs_open_dirent *open;
-};
-
-struct sysfs_elem_bin_attr {
-	struct bin_attribute	*bin_attr;
-	struct hlist_head	buffers;
 };
 
 struct sysfs_inode_attrs {
@@ -74,7 +72,6 @@ struct sysfs_dirent {
 		struct sysfs_elem_dir		s_dir;
 		struct sysfs_elem_symlink	s_symlink;
 		struct sysfs_elem_attr		s_attr;
-		struct sysfs_elem_bin_attr	s_bin_attr;
 	};
 
 	unsigned short		s_flags;
@@ -93,11 +90,8 @@ struct sysfs_dirent {
 #define SYSFS_COPY_NAME			(SYSFS_DIR | SYSFS_KOBJ_LINK)
 #define SYSFS_ACTIVE_REF		(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR)
 
-/* identify any namespace tag on sysfs_dirents */
-#define SYSFS_NS_TYPE_MASK		0xf00
-#define SYSFS_NS_TYPE_SHIFT		8
-
-#define SYSFS_FLAG_MASK			~(SYSFS_NS_TYPE_MASK|SYSFS_TYPE_MASK)
+#define SYSFS_FLAG_MASK			~SYSFS_TYPE_MASK
+#define SYSFS_FLAG_HAS_NS		0x01000
 #define SYSFS_FLAG_REMOVED		0x02000
 
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
@@ -105,16 +99,8 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
 
-/*
- * Return any namespace tags on this dirent.
- * enum kobj_ns_type is defined in linux/kobject.h
- */
-static inline enum kobj_ns_type sysfs_ns_type(struct sysfs_dirent *sd)
-{
-	return (sd->s_flags & SYSFS_NS_TYPE_MASK) >> SYSFS_NS_TYPE_SHIFT;
-}
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
+
 #define sysfs_dirent_init_lockdep(sd)				\
 do {								\
 	struct attribute *attr = sd->s_attr.attr;		\
@@ -124,15 +110,31 @@ do {								\
 								\
 	lockdep_init_map(&sd->dep_map, "s_active", key, 0);	\
 } while (0)
+
+/* Test for attributes that want to ignore lockdep for read-locking */
+static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
+{
+	int type = sysfs_type(sd);
+
+	return (type == SYSFS_KOBJ_ATTR || type == SYSFS_KOBJ_BIN_ATTR) &&
+		sd->s_attr.attr->ignore_lockdep;
+}
+
 #else
+
 #define sysfs_dirent_init_lockdep(sd) do {} while (0)
+
+static inline bool sysfs_ignore_lockdep(struct sysfs_dirent *sd)
+{
+	return true;
+}
+
 #endif
 
 /*
  * Context structure to be used while adding/removing nodes.
  */
 struct sysfs_addrm_cxt {
-	struct sysfs_dirent	*parent_sd;
 	struct sysfs_dirent	*removed;
 };
 
@@ -141,12 +143,13 @@ struct sysfs_addrm_cxt {
  */
 
 /*
- * Each sb is associated with a set of namespace tags (i.e.
- * the network namespace of the task which mounted this sysfs
- * instance).
+ * Each sb is associated with one namespace tag, currently the network
+ * namespace of the task which mounted this sysfs instance.  If multiple
+ * tags become necessary, make the following an array and compare
+ * sysfs_dirent tag against every entry.
  */
 struct sysfs_super_info {
-	void *ns[KOBJ_NS_TYPES];
+	void *ns;
 };
 #define sysfs_info(SB) ((struct sysfs_super_info *)(SB->s_fs_info))
 extern struct sysfs_dirent sysfs_root;
@@ -156,38 +159,37 @@ extern struct kmem_cache *sysfs_dir_cachep;
  * dir.c
  */
 extern struct mutex sysfs_mutex;
-extern spinlock_t sysfs_assoc_lock;
+extern spinlock_t sysfs_symlink_target_lock;
 extern const struct dentry_operations sysfs_dentry_ops;
 
 extern const struct file_operations sysfs_dir_operations;
 extern const struct inode_operations sysfs_dir_inode_operations;
 
-struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd);
 struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
 void sysfs_put_active(struct sysfs_dirent *sd);
-void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
-		       struct sysfs_dirent *parent_sd);
-int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
-int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
-void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
+void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt);
+void sysfs_warn_dup(struct sysfs_dirent *parent, const char *name);
+int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
+		    struct sysfs_dirent *parent_sd);
+int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
+		  struct sysfs_dirent *parent_sd);
+void sysfs_remove(struct sysfs_dirent *sd);
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name,
+			  const void *ns);
 void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt);
 
 struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
-				       const void *ns,
-				       const unsigned char *name);
-struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
-				      const void *ns,
-				      const unsigned char *name);
+				       const unsigned char *name,
+				       const void *ns);
 struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type);
 
 void release_sysfs_dirent(struct sysfs_dirent *sd);
 
 int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			struct sysfs_dirent **p_sd);
-void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
 int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,
-		 const void *ns, const char *new_name);
+		 const char *new_name, const void *new_ns);
 
 static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
 {
@@ -218,25 +220,21 @@ int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		   size_t size, int flags);
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns,
-			  const char *name);
 int sysfs_inode_init(void);
 
 /*
  * file.c
  */
 extern const struct file_operations sysfs_file_operations;
+extern const struct file_operations sysfs_bin_operations;
 
 int sysfs_add_file(struct sysfs_dirent *dir_sd,
 		   const struct attribute *attr, int type);
 
-int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
-			const struct attribute *attr, int type, umode_t amode);
-/*
- * bin.c
- */
-extern const struct file_operations bin_fops;
-void unmap_bin_file(struct sysfs_dirent *attr_sd);
+int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
+			   const struct attribute *attr, int type,
+			   umode_t amode, const void *ns);
+void sysfs_unmap_bin_file(struct sysfs_dirent *sd);
 
 /*
  * symlink.c
