@@ -332,16 +332,15 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	}
 
-	/*Set FIFO Watermarks*/
-	REG_WRITE(DSPARB, 0x3FFF);
-	REG_WRITE(DSPFW1, 0x3F88080A);
-	REG_WRITE(DSPFW2, 0x0b060808);
+	/* Set FIFO Watermarks (values taken from EMGD) */
+	REG_WRITE(DSPARB, 0x3f80);
+	REG_WRITE(DSPFW1, 0x3f8f0404);
+	REG_WRITE(DSPFW2, 0x04040f04);
 	REG_WRITE(DSPFW3, 0x0);
-	REG_WRITE(DSPFW4, 0x08030404);
+	REG_WRITE(DSPFW4, 0x04040404);
 	REG_WRITE(DSPFW5, 0x04040404);
 	REG_WRITE(DSPFW6, 0x78);
-	REG_WRITE(0x70400, REG_READ(0x70400) | 0x4000);
-	/* Must write Bit 14 of the Chicken Bit Register */
+	REG_WRITE(DSPCHICKENBIT, REG_READ(DSPCHICKENBIT) | 0xc040);
 
 	gma_power_end(dev);
 }
