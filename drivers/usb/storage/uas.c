@@ -133,7 +133,7 @@ static void uas_do_work(struct work_struct *work)
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
 						      SCp);
-		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
+		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_NOIO);
 		if (!err) {
 			cmdinfo->state &= ~IS_IN_WORK_LIST;
 			list_del(&cmdinfo->work);
@@ -745,7 +745,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 
 	devinfo->running_task = 1;
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	sense_urb = uas_submit_sense_urb(shost, GFP_ATOMIC, tag);
+	sense_urb = uas_submit_sense_urb(shost, GFP_NOIO, tag);
 	if (!sense_urb) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit sense urb failed\n",
@@ -754,7 +754,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return FAILED;
 	}
-	if (uas_submit_task_urb(cmnd, GFP_ATOMIC, function, tag)) {
+	if (uas_submit_task_urb(cmnd, GFP_NOIO, function, tag)) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit task mgmt urb failed\n",
 			     __func__, fname);
