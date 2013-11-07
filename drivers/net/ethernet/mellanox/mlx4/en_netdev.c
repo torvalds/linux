@@ -102,6 +102,7 @@ struct mlx4_en_filter {
 	struct list_head next;
 	struct work_struct work;
 
+	u8     ip_proto;
 	__be32 src_ip;
 	__be32 dst_ip;
 	__be16 src_port;
@@ -120,14 +121,26 @@ struct mlx4_en_filter {
 
 static void mlx4_en_filter_rfs_expire(struct mlx4_en_priv *priv);
 
+static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
+{
+	switch (ip_proto) {
+	case IPPROTO_UDP:
+		return MLX4_NET_TRANS_RULE_ID_UDP;
+	case IPPROTO_TCP:
+		return MLX4_NET_TRANS_RULE_ID_TCP;
+	default:
+		return -EPROTONOSUPPORT;
+	}
+};
+
 static void mlx4_en_filter_work(struct work_struct *work)
 {
 	struct mlx4_en_filter *filter = container_of(work,
 						     struct mlx4_en_filter,
 						     work);
 	struct mlx4_en_priv *priv = filter->priv;
-	struct mlx4_spec_list spec_tcp = {
-		.id = MLX4_NET_TRANS_RULE_ID_TCP,
+	struct mlx4_spec_list spec_tcp_udp = {
+		.id = mlx4_ip_proto_to_trans_rule_id(filter->ip_proto),
 		{
 			.tcp_udp = {
 				.dst_port = filter->dst_port,
@@ -163,9 +176,14 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	int rc;
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
+	if (spec_tcp_udp.id < 0) {
+		en_warn(priv, "RFS: ignoring unsupported ip protocol (%d)\n",
+			filter->ip_proto);
+		goto ignore;
+	}
 	list_add_tail(&spec_eth.list, &rule.list);
 	list_add_tail(&spec_ip.list, &rule.list);
-	list_add_tail(&spec_tcp.list, &rule.list);
+	list_add_tail(&spec_tcp_udp.list, &rule.list);
 
 	rule.qpn = priv->rss_map.qps[filter->rxq_index].qpn;
 	memcpy(spec_eth.eth.dst_mac, priv->dev->dev_addr, ETH_ALEN);
@@ -183,6 +201,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	if (rc)
 		en_err(priv, "Error attaching flow. err = %d\n", rc);
 
+ignore:
 	mlx4_en_filter_rfs_expire(priv);
 
 	filter->activated = 1;
@@ -206,8 +225,8 @@ filter_hash_bucket(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
 
 static struct mlx4_en_filter *
 mlx4_en_filter_alloc(struct mlx4_en_priv *priv, int rxq_index, __be32 src_ip,
-		     __be32 dst_ip, __be16 src_port, __be16 dst_port,
-		     u32 flow_id)
+		     __be32 dst_ip, u8 ip_proto, __be16 src_port,
+		     __be16 dst_port, u32 flow_id)
 {
 	struct mlx4_en_filter *filter = NULL;
 
@@ -221,6 +240,7 @@ mlx4_en_filter_alloc(struct mlx4_en_priv *priv, int rxq_index, __be32 src_ip,
 
 	filter->src_ip = src_ip;
 	filter->dst_ip = dst_ip;
+	filter->ip_proto = ip_proto;
 	filter->src_port = src_port;
 	filter->dst_port = dst_port;
 
@@ -252,7 +272,7 @@ static void mlx4_en_filter_free(struct mlx4_en_filter *filter)
 
 static inline struct mlx4_en_filter *
 mlx4_en_filter_find(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
-		    __be16 src_port, __be16 dst_port)
+		    u8 ip_proto, __be16 src_port, __be16 dst_port)
 {
 	struct mlx4_en_filter *filter;
 	struct mlx4_en_filter *ret = NULL;
@@ -263,6 +283,7 @@ mlx4_en_filter_find(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
 			     filter_chain) {
 		if (filter->src_ip == src_ip &&
 		    filter->dst_ip == dst_ip &&
+		    filter->ip_proto == ip_proto &&
 		    filter->src_port == src_port &&
 		    filter->dst_port == dst_port) {
 			ret = filter;
@@ -281,6 +302,7 @@ mlx4_en_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	struct mlx4_en_filter *filter;
 	const struct iphdr *ip;
 	const __be16 *ports;
+	u8 ip_proto;
 	__be32 src_ip;
 	__be32 dst_ip;
 	__be16 src_port;
@@ -295,18 +317,19 @@ mlx4_en_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	if (ip_is_fragment(ip))
 		return -EPROTONOSUPPORT;
 
+	if ((ip->protocol != IPPROTO_TCP) && (ip->protocol != IPPROTO_UDP))
+		return -EPROTONOSUPPORT;
 	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
 
+	ip_proto = ip->protocol;
 	src_ip = ip->saddr;
 	dst_ip = ip->daddr;
 	src_port = ports[0];
 	dst_port = ports[1];
 
-	if (ip->protocol != IPPROTO_TCP)
-		return -EPROTONOSUPPORT;
-
 	spin_lock_bh(&priv->filters_lock);
-	filter = mlx4_en_filter_find(priv, src_ip, dst_ip, src_port, dst_port);
+	filter = mlx4_en_filter_find(priv, src_ip, dst_ip, ip_proto,
+				     src_port, dst_port);
 	if (filter) {
 		if (filter->rxq_index == rxq_index)
 			goto out;
@@ -314,7 +337,7 @@ mlx4_en_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		filter->rxq_index = rxq_index;
 	} else {
 		filter = mlx4_en_filter_alloc(priv, rxq_index,
-					      src_ip, dst_ip,
+					      src_ip, dst_ip, ip_proto,
 					      src_port, dst_port, flow_id);
 		if (!filter) {
 			ret = -ENOMEM;
