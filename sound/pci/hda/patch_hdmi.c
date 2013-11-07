@@ -1561,10 +1561,7 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 			       &per_pin->eld_ctl->id);
  unlock:
-	if ((codec->vendor_id & 0xffff0000) == 0x10020000)
-		ret = true; /* AMD codecs create ELD by itself */
-	else
-		ret = !repoll || !pin_eld->monitor_present || pin_eld->eld_valid;
+	ret = !repoll || !pin_eld->monitor_present || pin_eld->eld_valid;
 
 	jack = snd_hda_jack_tbl_get(codec, pin_nid);
 	if (jack)
