@@ -1132,7 +1132,7 @@ struct net_device {
 	unsigned long		mem_end;	/* shared mem end	*/
 	unsigned long		mem_start;	/* shared mem start	*/
 	unsigned long		base_addr;	/* device I/O address	*/
-	unsigned int		irq;		/* device IRQ number	*/
+	int			irq;		/* device IRQ number	*/
 
 	/*
 	 *	Some hardware also needs these fields, but they are not
