@@ -201,18 +201,14 @@ static struct bio *bl_add_page_to_bio(struct bio *bio, int npg, int rw,
 static void bl_end_io_read(struct bio *bio, int err)
 {
 	struct parallel_io *par = bio->bi_private;
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec;
+	int i;
 
-	do {
-		struct page *page = bvec->bv_page;
+	if (!err)
+		bio_for_each_segment_all(bvec, bio, i)
+			SetPageUptodate(bvec->bv_page);
 
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
-		if (uptodate)
-			SetPageUptodate(page);
-	} while (bvec >= bio->bi_io_vec);
-	if (!uptodate) {
+	if (err) {
 		struct nfs_read_data *rdata = par->data;
 		struct nfs_pgio_header *header = rdata->header;
 
@@ -383,20 +379,16 @@ static void mark_extents_written(struct pnfs_block_layout *bl,
 static void bl_end_io_write_zero(struct bio *bio, int err)
 {
 	struct parallel_io *par = bio->bi_private;
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec;
+	int i;
 
-	do {
-		struct page *page = bvec->bv_page;
-
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
+	bio_for_each_segment_all(bvec, bio, i) {
 		/* This is the zeroing page we added */
-		end_page_writeback(page);
-		page_cache_release(page);
-	} while (bvec >= bio->bi_io_vec);
+		end_page_writeback(bvec->bv_page);
+		page_cache_release(bvec->bv_page);
+	}
 
-	if (unlikely(!uptodate)) {
+	if (unlikely(err)) {
 		struct nfs_write_data *data = par->data;
 		struct nfs_pgio_header *header = data->header;
 

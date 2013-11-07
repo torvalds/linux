@@ -65,9 +65,9 @@ static void ext4_finish_bio(struct bio *bio)
 {
 	int i;
 	int error = !test_bit(BIO_UPTODATE, &bio->bi_flags);
+	struct bio_vec *bvec;
 
-	for (i = 0; i < bio->bi_vcnt; i++) {
-		struct bio_vec *bvec = &bio->bi_io_vec[i];
+	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		struct buffer_head *bh, *head;
 		unsigned bio_start = bvec->bv_offset;

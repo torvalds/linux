@@ -56,22 +56,18 @@ static DECLARE_WAIT_QUEUE_HEAD(wq);
 static void writeseg_end_io(struct bio *bio, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec;
+	int i;
 	struct super_block *sb = bio->bi_private;
 	struct logfs_super *super = logfs_super(sb);
-	struct page *page;
 
 	BUG_ON(!uptodate); /* FIXME: Retry io or write elsewhere */
 	BUG_ON(err);
-	BUG_ON(bio->bi_vcnt == 0);
-	do {
-		page = bvec->bv_page;
-		if (--bvec >= bio->bi_io_vec)
-			prefetchw(&bvec->bv_page->flags);
 
-		end_page_writeback(page);
-		page_cache_release(page);
-	} while (bvec >= bio->bi_io_vec);
+	bio_for_each_segment_all(bvec, bio, i) {
+		end_page_writeback(bvec->bv_page);
+		page_cache_release(bvec->bv_page);
+	}
 	bio_put(bio);
 	if (atomic_dec_and_test(&super->s_pending_writes))
 		wake_up(&wq);
