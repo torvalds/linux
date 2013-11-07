@@ -44,11 +44,18 @@ static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 
 
 int mlx4_en_create_cq(struct mlx4_en_priv *priv,
-		      struct mlx4_en_cq *cq,
+		      struct mlx4_en_cq **pcq,
 		      int entries, int ring, enum cq_type mode)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_cq *cq;
 	int err;
+
+	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	if (!cq) {
+		en_err(priv, "Failed to allocate CQ structure\n");
+		return -ENOMEM;
+	}
 
 	cq->size = entries;
 	cq->buf_size = cq->size * mdev->dev->caps.cqe_size;
@@ -60,14 +67,22 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
 				cq->buf_size, 2 * PAGE_SIZE);
 	if (err)
-		return err;
+		goto err_cq;
 
 	err = mlx4_en_map_buffer(&cq->wqres.buf);
 	if (err)
-		mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
-	else
-		cq->buf = (struct mlx4_cqe *) cq->wqres.buf.direct.buf;
+		goto err_res;
 
+	cq->buf = (struct mlx4_cqe *)cq->wqres.buf.direct.buf;
+	*pcq = cq;
+
+	return 0;
+
+err_res:
+	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
+err_cq:
+	kfree(cq);
+	*pcq = NULL;
 	return err;
 }
 
@@ -117,12 +132,12 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		struct mlx4_en_cq *rx_cq;
 
 		cq_idx = cq_idx % priv->rx_ring_num;
-		rx_cq = &priv->rx_cq[cq_idx];
+		rx_cq = priv->rx_cq[cq_idx];
 		cq->vector = rx_cq->vector;
 	}
 
 	if (!cq->is_tx)
-		cq->size = priv->rx_ring[cq->ring].actual_size;
+		cq->size = priv->rx_ring[cq->ring]->actual_size;
 
 	if ((cq->is_tx && priv->hwtstamp_config.tx_type) ||
 	    (!cq->is_tx && priv->hwtstamp_config.rx_filter))
@@ -146,9 +161,10 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	return 0;
 }
 
-void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
+void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_cq *cq = *pcq;
 
 	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
@@ -157,6 +173,8 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	cq->vector = 0;
 	cq->buf_size = 0;
 	cq->buf = NULL;
+	kfree(cq);
+	*pcq = NULL;
 }
 
 void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)

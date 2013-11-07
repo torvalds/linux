@@ -140,18 +140,18 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->port_stats.rx_chksum_good = 0;
 	priv->port_stats.rx_chksum_none = 0;
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		stats->rx_packets += priv->rx_ring[i].packets;
-		stats->rx_bytes += priv->rx_ring[i].bytes;
-		priv->port_stats.rx_chksum_good += priv->rx_ring[i].csum_ok;
-		priv->port_stats.rx_chksum_none += priv->rx_ring[i].csum_none;
+		stats->rx_packets += priv->rx_ring[i]->packets;
+		stats->rx_bytes += priv->rx_ring[i]->bytes;
+		priv->port_stats.rx_chksum_good += priv->rx_ring[i]->csum_ok;
+		priv->port_stats.rx_chksum_none += priv->rx_ring[i]->csum_none;
 	}
 	stats->tx_packets = 0;
 	stats->tx_bytes = 0;
 	priv->port_stats.tx_chksum_offload = 0;
 	for (i = 0; i < priv->tx_ring_num; i++) {
-		stats->tx_packets += priv->tx_ring[i].packets;
-		stats->tx_bytes += priv->tx_ring[i].bytes;
-		priv->port_stats.tx_chksum_offload += priv->tx_ring[i].tx_csum;
+		stats->tx_packets += priv->tx_ring[i]->packets;
+		stats->tx_bytes += priv->tx_ring[i]->bytes;
+		priv->port_stats.tx_chksum_offload += priv->tx_ring[i]->tx_csum;
 	}
 
 	stats->rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +
