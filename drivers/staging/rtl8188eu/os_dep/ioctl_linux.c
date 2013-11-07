@@ -7228,25 +7228,25 @@ static int rtw_mp_thermal(struct net_device *dev,
 	if (copy_from_user(extra, wrqu->pointer, wrqu->length))
 		return -EFAULT;
 
-	 bwrite = strncmp(extra, "write", 6); /*  strncmp true is 0 */
+	bwrite = strncmp(extra, "write", 6); /*  strncmp true is 0 */
 
-	 Hal_GetThermalMeter(padapter, &val);
+	Hal_GetThermalMeter(padapter, &val);
 
-	 if (bwrite == 0) {
-			EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size, false);
-			if (2 > max_available_size) {
-				DBG_88E("no available efuse!\n");
-				return -EFAULT;
-			}
-			if (rtw_efuse_map_write(padapter, addr, cnt, &val) == _FAIL) {
-				DBG_88E("rtw_efuse_map_write error\n");
-				return -EFAULT;
-			} else {
-				 sprintf(extra, " efuse write ok :%d", val);
-			}
-	 } else {
-			 sprintf(extra, "%d", val);
-	 }
+	if (bwrite == 0) {
+		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size, false);
+		if (2 > max_available_size) {
+			DBG_88E("no available efuse!\n");
+			return -EFAULT;
+		}
+		if (rtw_efuse_map_write(padapter, addr, cnt, &val) == _FAIL) {
+			DBG_88E("rtw_efuse_map_write error\n");
+			return -EFAULT;
+		} else {
+			 sprintf(extra, " efuse write ok :%d", val);
+		}
+	} else {
+		 sprintf(extra, "%d", val);
+	}
 	wrqu->length = strlen(extra);
 
 	return 0;
