@@ -20,7 +20,6 @@
 #include <linux/freezer.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
-#include <linux/ion.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
@@ -37,6 +36,7 @@
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
 
+#include "ion.h"
 #include "ion_priv.h"
 #include "compat_ion.h"
 

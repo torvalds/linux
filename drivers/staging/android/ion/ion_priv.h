@@ -17,7 +17,6 @@
 #ifndef _ION_PRIV_H
 #define _ION_PRIV_H
 
-#include <linux/ion.h>
 #include <linux/kref.h>
 #include <linux/mm_types.h>
 #include <linux/mutex.h>
@@ -25,6 +24,8 @@
 #include <linux/sched.h>
 #include <linux/shrinker.h>
 #include <linux/types.h>
+
+#include "ion.h"
 
 struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 
