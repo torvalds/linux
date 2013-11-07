@@ -1,6 +1,6 @@
-/* include/linux/if_pppopns.h
+/* include/uapi/linux/if_pppolac.h
  *
- * Header for PPP on PPTP Network Server / PPPoPNS Socket (RFC 2637)
+ * Header for PPP on L2TP Access Concentrator / PPPoLAC Socket (RFC 2661)
  *
  * Copyright (C) 2009 Google, Inc.
  * Author: Chia-chi Yeh <chiachi@android.com>
@@ -15,9 +15,19 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __LINUX_IF_PPPOPNS_H
-#define __LINUX_IF_PPPOPNS_H
+#ifndef _UAPI_LINUX_IF_PPPOLAC_H
+#define _UAPI_LINUX_IF_PPPOLAC_H
 
-#include <uapi/linux/if_pppopns.h>
+#include <linux/socket.h>
+#include <linux/types.h>
 
-#endif /* __LINUX_IF_PPPOPNS_H */
+struct sockaddr_pppolac {
+	sa_family_t	sa_family;	/* AF_PPPOX */
+	unsigned int	sa_protocol;	/* PX_PROTO_OLAC */
+	int		udp_socket;
+	struct __attribute__((packed)) {
+		__u16	tunnel, session;
+	} local, remote;
+} __attribute__((packed));
+
+#endif /* _UAPI_LINUX_IF_PPPOLAC_H */
