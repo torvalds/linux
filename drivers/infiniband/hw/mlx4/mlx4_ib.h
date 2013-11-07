@@ -494,6 +494,7 @@ struct mlx4_ib_dev {
 	struct kobject	       *dev_ports_parent[MLX4_MFUNC_MAX];
 	struct mlx4_ib_iov_port	iov_ports[MLX4_MAX_PORTS];
 	struct pkey_mgt		pkeys;
+	int steering_support;
 };
 
 struct ib_event_work {
