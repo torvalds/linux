@@ -164,7 +164,7 @@ struct symbol {
 	unsigned int vmlinux:1;    /* 1 if symbol is defined in vmlinux */
 	unsigned int kernel:1;     /* 1 if symbol is from kernel
 				    *  (only for external modules) **/
-	unsigned int preloaded:1;  /* 1 if symbol from Module.symvers */
+	unsigned int preloaded:1;  /* 1 if symbol from Module.symvers, or crc */
 	enum export  export;       /* Type of export */
 	char name[0];
 };
@@ -332,8 +332,11 @@ static void sym_update_crc(const char *name, struct module *mod,
 {
 	struct symbol *s = find_symbol(name);
 
-	if (!s)
+	if (!s) {
 		s = new_symbol(name, mod, export);
+		/* Don't complain when we find it later. */
+		s->preloaded = 1;
+	}
 	s->crc = crc;
 	s->crc_valid = 1;
 }
