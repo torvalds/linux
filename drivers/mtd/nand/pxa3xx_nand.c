@@ -258,6 +258,25 @@ static struct pxa3xx_nand_flash builtin_flash_types[] = {
 /* convert nano-seconds to nand flash controller clock cycles */
 #define ns2cycle(ns, clk)	(int)((ns) * (clk / 1000000) / 1000)
 
+static struct of_device_id pxa3xx_nand_dt_ids[] = {
+	{
+		.compatible = "marvell,pxa3xx-nand",
+		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, pxa3xx_nand_dt_ids);
+
+static enum pxa3xx_nand_variant
+pxa3xx_nand_get_variant(struct platform_device *pdev)
+{
+	const struct of_device_id *of_id =
+			of_match_device(pxa3xx_nand_dt_ids, &pdev->dev);
+	if (!of_id)
+		return PXA3XX_NAND_VARIANT_PXA;
+	return (enum pxa3xx_nand_variant)of_id->data;
+}
+
 static void pxa3xx_nand_set_timing(struct pxa3xx_nand_host *host,
 				   const struct pxa3xx_nand_timing *t)
 {
@@ -1125,6 +1144,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->pdev = pdev;
+	info->variant = pxa3xx_nand_get_variant(pdev);
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		mtd = (struct mtd_info *)((unsigned int)&info[1] +
 		      (sizeof(*mtd) + sizeof(*host)) * cs);
@@ -1259,25 +1279,6 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id pxa3xx_nand_dt_ids[] = {
-	{
-		.compatible = "marvell,pxa3xx-nand",
-		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
-	},
-	{}
-};
-MODULE_DEVICE_TABLE(of, pxa3xx_nand_dt_ids);
-
-static enum pxa3xx_nand_variant
-pxa3xx_nand_get_variant(struct platform_device *pdev)
-{
-	const struct of_device_id *of_id =
-			of_match_device(pxa3xx_nand_dt_ids, &pdev->dev);
-	if (!of_id)
-		return PXA3XX_NAND_VARIANT_PXA;
-	return (enum pxa3xx_nand_variant)of_id->data;
-}
-
 static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 {
 	struct pxa3xx_nand_platform_data *pdata;
@@ -1334,7 +1335,6 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	}
 
 	info = platform_get_drvdata(pdev);
-	info->variant = pxa3xx_nand_get_variant(pdev);
 	probe_success = 0;
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		struct mtd_info *mtd = info->host[cs]->mtd;
