@@ -1821,6 +1821,22 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 			DRM_ERROR("The master control interrupt lied (DE PIPE)!\n");
 	}
 
+	if (!HAS_PCH_NOP(dev) && master_ctl & GEN8_DE_PCH_IRQ) {
+		/*
+		 * FIXME(BDW): Assume for now that the new interrupt handling
+		 * scheme also closed the SDE interrupt handling race we've seen
+		 * on older pch-split platforms. But this needs testing.
+		 */
+		u32 pch_iir = I915_READ(SDEIIR);
+
+		cpt_irq_handler(dev, pch_iir);
+
+		if (pch_iir) {
+			I915_WRITE(SDEIIR, pch_iir);
+			ret = IRQ_HANDLED;
+		}
+	}
+
 	I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
