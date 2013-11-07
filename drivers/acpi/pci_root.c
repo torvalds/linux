@@ -592,17 +592,10 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 		acpi_handle_err(handle, "cannot add bridge to acpi list\n");
 }
 
-static void _handle_hotplug_event_root(struct work_struct *work)
+static void hotplug_event_root(void *data, u32 type)
 {
+	acpi_handle handle = data;
 	struct acpi_pci_root *root;
-	struct acpi_hp_work *hp_work;
-	acpi_handle handle;
-	u32 type;
-
-	hp_work = container_of(work, struct acpi_hp_work, work);
-	handle = hp_work->handle;
-	type = hp_work->type;
-	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 
 	acpi_scan_lock_acquire();
 
@@ -654,8 +647,7 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 static void handle_hotplug_event_root(acpi_handle handle, u32 type,
 					void *context)
 {
-	alloc_acpi_hp_work(handle, type, context,
-				_handle_hotplug_event_root);
+	acpi_hotplug_execute(hotplug_event_root, handle, type);
 }
 
 static acpi_status __init

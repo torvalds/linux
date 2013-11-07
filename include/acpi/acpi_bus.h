@@ -339,15 +339,6 @@ struct acpi_bus_event {
 	u32 data;
 };
 
-struct acpi_hp_work {
-	struct work_struct work;
-	acpi_handle handle;
-	u32 type;
-	void *context;
-};
-void alloc_acpi_hp_work(acpi_handle handle, u32 type, void *context,
-			void (*func)(struct work_struct *work));
-
 extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
 void acpi_bus_private_data_handler(acpi_handle, void *);
@@ -393,6 +384,9 @@ int acpi_match_device_ids(struct acpi_device *device,
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
 
+typedef void (*acpi_hp_callback)(void *data, u32 src);
+
+acpi_status acpi_hotplug_execute(acpi_hp_callback func, void *data, u32 src);
 
 /**
  * module_acpi_driver(acpi_driver) - Helper macro for registering an ACPI driver

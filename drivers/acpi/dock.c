@@ -671,39 +671,20 @@ static void dock_notify(struct dock_station *ds, u32 event)
 	}
 }
 
-struct dock_data {
-	struct dock_station *ds;
-	u32 event;
-};
-
-static void acpi_dock_deferred_cb(void *context)
+static void acpi_dock_deferred_cb(void *data, u32 event)
 {
-	struct dock_data *data = context;
-
 	acpi_scan_lock_acquire();
-	dock_notify(data->ds, data->event);
+	dock_notify(data, event);
 	acpi_scan_lock_release();
-	kfree(data);
 }
 
 static void dock_notify_handler(acpi_handle handle, u32 event, void *data)
 {
-	struct dock_data *dd;
-
 	if (event != ACPI_NOTIFY_BUS_CHECK && event != ACPI_NOTIFY_DEVICE_CHECK
 	   && event != ACPI_NOTIFY_EJECT_REQUEST)
 		return;
 
-	dd = kmalloc(sizeof(*dd), GFP_KERNEL);
-	if (dd) {
-		acpi_status status;
-
-		dd->ds = data;
-		dd->event = event;
-		status = acpi_os_hotplug_execute(acpi_dock_deferred_cb, dd);
-		if (ACPI_FAILURE(status))
-			kfree(dd);
-	}
+	acpi_hotplug_execute(acpi_dock_deferred_cb, data, event);
 }
 
 /**

@@ -200,9 +200,6 @@ acpi_status
 acpi_os_execute(acpi_execute_type type,
 		acpi_osd_exec_callback function, void *context);
 
-acpi_status
-acpi_os_hotplug_execute(acpi_osd_exec_callback function, void *context);
-
 void acpi_os_wait_events_complete(void);
 
 void acpi_os_sleep(u64 milliseconds);
