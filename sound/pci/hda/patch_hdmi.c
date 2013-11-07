@@ -1477,6 +1477,7 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 
 static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
+	struct hda_jack_tbl *jack;
 	struct hda_codec *codec = per_pin->codec;
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld = &spec->temp_eld;
@@ -1564,6 +1565,11 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		ret = true; /* AMD codecs create ELD by itself */
 	else
 		ret = !repoll || !pin_eld->monitor_present || pin_eld->eld_valid;
+
+	jack = snd_hda_jack_tbl_get(codec, pin_nid);
+	if (jack)
+		jack->block_report = !ret;
+
 	mutex_unlock(&per_pin->lock);
 	return ret;
 }
