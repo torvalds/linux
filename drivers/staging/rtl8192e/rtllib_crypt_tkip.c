@@ -752,13 +752,13 @@ static struct lib80211_crypto_ops rtllib_crypt_tkip = {
 };
 
 
-int __init rtllib_crypto_tkip_init(void)
+static int __init rtllib_crypto_tkip_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_tkip);
 }
 
 
-void __exit rtllib_crypto_tkip_exit(void)
+static void __exit rtllib_crypto_tkip_exit(void)
 {
 	lib80211_unregister_crypto_ops(&rtllib_crypt_tkip);
 }
