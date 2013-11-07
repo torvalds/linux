@@ -1,5 +1,5 @@
-#ifndef UAPI_SOUND_FIREWIRE_H_INCLUDED
-#define UAPI_SOUND_FIREWIRE_H_INCLUDED
+#ifndef _UAPI_SOUND_FIREWIRE_H_INCLUDED
+#define _UAPI_SOUND_FIREWIRE_H_INCLUDED
 
 #include <linux/ioctl.h>
 
@@ -48,4 +48,4 @@ struct snd_firewire_get_info {
  * Returns -EBUSY if the driver is already streaming.
  */
 
-#endif
+#endif /* _UAPI_SOUND_FIREWIRE_H_INCLUDED */
