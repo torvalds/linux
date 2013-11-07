@@ -26,16 +26,21 @@ static struct dvb_frontend_ops m88ds3103_ops;
 static int m88ds3103_wr_regs(struct m88ds3103_priv *priv,
 		u8 reg, const u8 *val, int len)
 {
+#define MAX_WR_LEN 32
+#define MAX_WR_XFER_LEN (MAX_WR_LEN + 1)
 	int ret;
-	u8 buf[1 + len];
+	u8 buf[MAX_WR_XFER_LEN];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg->i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
+
+	if (WARN_ON(len > MAX_WR_LEN))
+		return -EINVAL;
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
@@ -59,8 +64,10 @@ static int m88ds3103_wr_regs(struct m88ds3103_priv *priv,
 static int m88ds3103_rd_regs(struct m88ds3103_priv *priv,
 		u8 reg, u8 *val, int len)
 {
+#define MAX_RD_LEN 3
+#define MAX_RD_XFER_LEN (MAX_RD_LEN)
 	int ret;
-	u8 buf[len];
+	u8 buf[MAX_RD_XFER_LEN];
 	struct i2c_msg msg[2] = {
 		{
 			.addr = priv->cfg->i2c_addr,
@@ -70,10 +77,13 @@ static int m88ds3103_rd_regs(struct m88ds3103_priv *priv,
 		}, {
 			.addr = priv->cfg->i2c_addr,
 			.flags = I2C_M_RD,
-			.len = sizeof(buf),
+			.len = len,
 			.buf = buf,
 		}
 	};
+
+	if (WARN_ON(len > MAX_RD_LEN))
+		return -EINVAL;
 
 	mutex_lock(&priv->i2c_mutex);
 	ret = i2c_transfer(priv->i2c, msg, 2);
