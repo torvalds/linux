@@ -531,6 +531,7 @@ struct iwl_mvm {
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;
 	u32 d3_test_pme_ptr;
+	struct ieee80211_vif *keep_vif;
 #endif
 #endif
 

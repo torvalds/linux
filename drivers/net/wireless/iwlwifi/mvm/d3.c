@@ -1807,6 +1807,10 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	iwl_mvm_read_d3_sram(mvm);
 
 	keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (keep)
+		mvm->keep_vif = vif;
+#endif
 	/* has unlocked the mutex, so skip that */
 	goto out;
 
@@ -1863,6 +1867,7 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 		return err;
 	}
 	mvm->d3_test_active = true;
+	mvm->keep_vif = NULL;
 	return 0;
 }
 
@@ -1891,6 +1896,10 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 static void iwl_mvm_d3_test_disconn_work_iter(void *_data, u8 *mac,
 					      struct ieee80211_vif *vif)
 {
+	/* skip the one we keep connection on */
+	if (_data == vif)
+		return;
+
 	if (vif->type == NL80211_IFTYPE_STATION)
 		ieee80211_connection_loss(vif);
 }
@@ -1917,7 +1926,7 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_d3_test_disconn_work_iter, NULL);
+		iwl_mvm_d3_test_disconn_work_iter, mvm->keep_vif);
 
 	ieee80211_wake_queues(mvm->hw);
 
