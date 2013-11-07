@@ -219,15 +219,19 @@ static int lm3560_set_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
 		break;
 
 	case V4L2_CID_FLASH_STROBE:
-		if (flash->led_mode != V4L2_FLASH_LED_MODE_FLASH)
-			return -EBUSY;
+		if (flash->led_mode != V4L2_FLASH_LED_MODE_FLASH) {
+			rval = -EBUSY;
+			goto err_out;
+		}
 		flash->led_mode = V4L2_FLASH_LED_MODE_FLASH;
 		rval = lm3560_mode_ctrl(flash);
 		break;
 
 	case V4L2_CID_FLASH_STROBE_STOP:
-		if (flash->led_mode != V4L2_FLASH_LED_MODE_FLASH)
-			return -EBUSY;
+		if (flash->led_mode != V4L2_FLASH_LED_MODE_FLASH) {
+			rval = -EBUSY;
+			goto err_out;
+		}
 		flash->led_mode = V4L2_FLASH_LED_MODE_NONE;
 		rval = lm3560_mode_ctrl(flash);
 		break;
@@ -247,8 +251,8 @@ static int lm3560_set_ctrl(struct v4l2_ctrl *ctrl, enum lm3560_led_id led_no)
 		break;
 	}
 
-	mutex_unlock(&flash->lock);
 err_out:
+	mutex_unlock(&flash->lock);
 	return rval;
 }
 
