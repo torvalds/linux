@@ -44,9 +44,6 @@
  */
 #define DEFAULT_MTU_SIZE 1500
 
-#define gdm_dev_endian(n) (\
-	n->phy_dev->get_endian(n->phy_dev->priv_dev))
-
 #define gdm_lte_hci_send(n, d, l) (\
 	n->phy_dev->send_hci_func(n->phy_dev->priv_dev, d, l, NULL, NULL))
 
@@ -500,7 +497,10 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 	sscanf(dev->name, "lte%d", &idx);
 
 	return netlink_send(lte_event.sock, idx, 0, buf,
-			    gdm_dev16_to_cpu(gdm_dev_endian(nic), hci->len) + HCI_HEADER_SIZE);
+			    gdm_dev16_to_cpu(
+				    nic->phy_dev->get_endian(
+					    nic->phy_dev->priv_dev), hci->len)
+			    + HCI_HEADER_SIZE);
 }
 
 static void gdm_lte_event_rcv(struct net_device *dev, u16 type, void *msg, int len)
@@ -685,8 +685,14 @@ static void gdm_lte_pdn_table(struct net_device *dev, char *buf, int len)
 
 	if (pdn_table->activate) {
 		nic->pdn_table.activate = pdn_table->activate;
-		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(gdm_dev_endian(nic), pdn_table->dft_eps_id);
-		nic->pdn_table.nic_type = gdm_dev32_to_cpu(gdm_dev_endian(nic), pdn_table->nic_type);
+		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(
+						nic->phy_dev->get_endian(
+							nic->phy_dev->priv_dev),
+						pdn_table->dft_eps_id);
+		nic->pdn_table.nic_type = gdm_dev32_to_cpu(
+						nic->phy_dev->get_endian(
+							nic->phy_dev->priv_dev),
+						pdn_table->nic_type);
 
 		netdev_info(dev, "pdn activated, nic_type=0x%x\n",
 			    nic->pdn_table.nic_type);
