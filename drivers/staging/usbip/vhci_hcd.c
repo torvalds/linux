@@ -999,12 +999,6 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 
 	usbip_dbg_vhci_hc("name %s id %d\n", pdev->name, pdev->id);
 
-	/* will be removed */
-	if (pdev->dev.dma_mask) {
-		dev_info(&pdev->dev, "vhci_hcd DMA not supported\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * Allocate and initialize hcd.
 	 * Our private data is also allocated automatically.
@@ -1146,11 +1140,11 @@ static int __init vhci_hcd_init(void)
 		return -ENODEV;
 
 	ret = platform_driver_register(&vhci_driver);
-	if (ret < 0)
+	if (ret)
 		goto err_driver_register;
 
 	ret = platform_device_register(&the_pdev);
-	if (ret < 0)
+	if (ret)
 		goto err_platform_device_register;
 
 	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");

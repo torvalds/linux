@@ -36,18 +36,10 @@
 #define AD7998_ALERT_STAT_REG			0x1
 #define AD7998_CONF_REG				0x2
 #define AD7998_CYCLE_TMR_REG			0x3
-#define AD7998_DATALOW_CH1_REG			0x4
-#define AD7998_DATAHIGH_CH1_REG			0x5
-#define AD7998_HYST_CH1_REG			0x6
-#define AD7998_DATALOW_CH2_REG			0x7
-#define AD7998_DATAHIGH_CH2_REG			0x8
-#define AD7998_HYST_CH2_REG			0x9
-#define AD7998_DATALOW_CH3_REG			0xA
-#define AD7998_DATAHIGH_CH3_REG			0xB
-#define AD7998_HYST_CH3_REG			0xC
-#define AD7998_DATALOW_CH4_REG			0xD
-#define AD7998_DATAHIGH_CH4_REG			0xE
-#define AD7998_HYST_CH4_REG			0xF
+
+#define AD7998_DATALOW_REG(x)			((x) * 3 + 0x4)
+#define AD7998_DATAHIGH_REG(x)			((x) * 3 + 0x5)
+#define AD7998_HYST_REG(x)			((x) * 3 + 0x6)
 
 #define AD7998_CYC_MASK				0x7
 #define AD7998_CYC_DIS				0x0

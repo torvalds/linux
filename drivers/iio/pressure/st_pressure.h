@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
 
+#define LPS001WP_PRESS_DEV_NAME		"lps001wp"
 #define LPS331AP_PRESS_DEV_NAME		"lps331ap"
 
 /**

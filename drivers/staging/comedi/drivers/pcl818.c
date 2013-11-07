@@ -289,7 +289,6 @@ struct pcl818_private {
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	short *ai_data;		/*  data buffer */
 	unsigned int ai_timer1;	/*  timers */
 	unsigned int ai_timer2;
 	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
@@ -418,21 +417,15 @@ static int pcl818_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-   DIGITAL OUTPUT MODE0, 818 cards
-
-   only one sample per call is supported
-*/
 static int pcl818_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	s->state &= ~data[0];
-	s->state |= (data[0] & data[1]);
-
-	outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
-	outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
+		outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
+	}
 
 	data[1] = s->state;
 
@@ -449,7 +442,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	int low;
+	unsigned char low;
 	int timeout = 50;	/* wait max 50us */
 
 	while (timeout--) {
@@ -511,7 +504,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, bufptr;
 	unsigned long flags;
-	short *ptr;
+	unsigned short *ptr;
 
 	disable_dma(devpriv->dma);
 	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
@@ -534,7 +527,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 	devpriv->dma_runs_to_end--;
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
-	ptr = (short *)devpriv->dmabuf[1 - devpriv->next_dma_buf];
+	ptr = (unsigned short *)devpriv->dmabuf[1 - devpriv->next_dma_buf];
 
 	len = devpriv->hwdmasize[0] >> 1;
 	bufptr = 0;
@@ -588,7 +581,8 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	int i, len, lo;
+	int i, len;
+	unsigned char lo;
 
 	outb(0, dev->iobase + PCL818_FI_INTCLR);	/*  clear fifo int request */
 
@@ -806,8 +800,9 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 		devpriv->neverending_ai = 1;	/* well, user want neverending */
 
 	if (mode == 1) {
-		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
+		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg,
 					  TRIG_ROUND_NEAREST);
 		if (divisor1 == 1) {	/* PCL718/818 crash if any divisor is set to 1 */
 			divisor1 = 2;
@@ -1040,9 +1035,9 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
-					  &divisor2, &cmd->convert_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base,
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (cmd->convert_arg < board->ns_min)
 			cmd->convert_arg = board->ns_min;
 		if (tmp != cmd->convert_arg)
@@ -1077,7 +1072,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 
@@ -1438,9 +1432,9 @@ no_dma:
 
 	/* select 1/10MHz oscilator */
 	if ((it->options[3] == 0) || (it->options[3] == 10))
-		devpriv->i8253_osc_base = 100;
+		devpriv->i8253_osc_base = I8254_OSC_BASE_10MHZ;
 	else
-		devpriv->i8253_osc_base = 1000;
+		devpriv->i8253_osc_base = I8254_OSC_BASE_1MHZ;
 
 	/* max sampling speed */
 	devpriv->ns_min = board->ns_min;

@@ -85,7 +85,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 				value &= ~(GET_PWR_CFG_MASK(pwrcfgcmd));
 				value |= (GET_PWR_CFG_VALUE(pwrcfgcmd) & GET_PWR_CFG_MASK(pwrcfgcmd));
 
-				/*  Write the value back to sytem register */
+				/*  Write the value back to system register */
 				rtw_write8(padapter, offset, value);
 				break;
 			case PWR_CMD_POLLING:

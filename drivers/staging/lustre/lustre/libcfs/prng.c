@@ -70,7 +70,7 @@ static unsigned int seed_y = 362436069;
  * cfs_rand - creates new seeds
  *
  * First it creates new seeds from the previous seeds. Then it generates a
- * new psuedo random number for use.
+ * new pseudo random number for use.
  *
  * Returns a pseudo-random 32-bit integer
  */
@@ -84,7 +84,7 @@ unsigned int cfs_rand(void)
 EXPORT_SYMBOL(cfs_rand);
 
 /**
- * cfs_srand - sets the inital seed
+ * cfs_srand - sets the initial seed
  * @seed1 : (seed_x) should have the most entropy in the low bits of the word
  * @seed2 : (seed_y) should have the most entropy in the high bits of the word
  *

@@ -68,6 +68,11 @@ struct imx_drm_connector {
 	struct module				*owner;
 };
 
+int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
+{
+	return crtc->pipe;
+}
+
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
@@ -110,18 +115,12 @@ int imx_drm_crtc_panel_format_pins(struct drm_crtc *crtc, u32 encoder_type,
 	struct imx_drm_crtc *imx_crtc;
 	struct imx_drm_crtc_helper_funcs *helper;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list)
 		if (imx_crtc->crtc == crtc)
 			goto found;
 
-	mutex_unlock(&imxdrm->mutex);
-
 	return -EINVAL;
 found:
-	mutex_unlock(&imxdrm->mutex);
-
 	helper = &imx_crtc->imx_drm_helper_funcs;
 	if (helper->set_interface_pix_fmt)
 		return helper->set_interface_pix_fmt(crtc,
@@ -189,6 +188,18 @@ static void imx_drm_disable_vblank(struct drm_device *drm, int crtc)
 		return;
 
 	imx_drm_crtc->imx_drm_helper_funcs.disable_vblank(imx_drm_crtc->crtc);
+}
+
+static void imx_drm_driver_preclose(struct drm_device *drm,
+		struct drm_file *file)
+{
+	int i;
+
+	if (!file->is_master)
+		return;
+
+	for (i = 0; i < 4; i++)
+		imx_drm_disable_vblank(drm , i);
 }
 
 static const struct file_operations imx_drm_driver_fops = {
@@ -647,20 +658,14 @@ int imx_drm_encoder_get_mux_id(struct imx_drm_encoder *imx_drm_encoder,
 	struct imx_drm_crtc *imx_crtc;
 	int i = 0;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list) {
 		if (imx_crtc->crtc == crtc)
 			goto found;
 		i++;
 	}
 
-	mutex_unlock(&imxdrm->mutex);
-
 	return -EINVAL;
 found:
-	mutex_unlock(&imxdrm->mutex);
-
 	return i;
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_get_mux_id);
@@ -774,16 +779,26 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 };
 
 static struct drm_driver imx_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
+	.preclose		= imx_drm_driver_preclose,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
+	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
+	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
+	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
+	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= imx_drm_enable_vblank,
 	.disable_vblank		= imx_drm_disable_vblank,
@@ -837,8 +852,8 @@ static int __init imx_drm_init(void)
 	INIT_LIST_HEAD(&imx_drm_device->encoder_list);
 
 	imx_drm_pdev = platform_device_register_simple("imx-drm", -1, NULL, 0);
-	if (!imx_drm_pdev) {
-		ret = -EINVAL;
+	if (IS_ERR(imx_drm_pdev)) {
+		ret = PTR_ERR(imx_drm_pdev);
 		goto err_pdev;
 	}
 

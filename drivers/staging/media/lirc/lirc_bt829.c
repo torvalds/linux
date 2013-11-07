@@ -132,7 +132,7 @@ int init_module(void)
 	atir_driver.minor       = -1;
 	atir_driver.code_length = 8;
 	atir_driver.sample_rate = 10;
-	atir_driver.data        = 0;
+	atir_driver.data        = NULL;
 	atir_driver.add_to_buf  = atir_add_to_buf;
 	atir_driver.set_use_inc = atir_set_use_inc;
 	atir_driver.set_use_dec = atir_set_use_dec;
@@ -159,7 +159,7 @@ void cleanup_module(void)
 static int atir_init_start(void)
 {
 	pci_addr_lin = ioremap(pci_addr_phys + DATA_PCI_OFF, 0x400);
-	if (pci_addr_lin == 0) {
+	if (!pci_addr_lin) {
 		pr_info("pci mem must be mapped\n");
 		return 0;
 	}

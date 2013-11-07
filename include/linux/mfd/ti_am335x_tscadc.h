@@ -46,16 +46,24 @@
 /* Step Enable */
 #define STEPENB_MASK		(0x1FFFF << 0)
 #define STEPENB(val)		((val) << 0)
+#define ENB(val)			(1 << (val))
+#define STPENB_STEPENB		STEPENB(0x1FFFF)
+#define STPENB_STEPENB_TC	STEPENB(0x1FFF)
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
 #define IRQENB_FIFO0THRES	BIT(2)
+#define IRQENB_FIFO0OVRRUN	BIT(3)
+#define IRQENB_FIFO0UNDRFLW	BIT(4)
 #define IRQENB_FIFO1THRES	BIT(5)
+#define IRQENB_FIFO1OVRRUN	BIT(6)
+#define IRQENB_FIFO1UNDRFLW	BIT(7)
 #define IRQENB_PENUP		BIT(9)
 
 /* Step Configuration */
 #define STEPCONFIG_MODE_MASK	(3 << 0)
 #define STEPCONFIG_MODE(val)	((val) << 0)
+#define STEPCONFIG_MODE_SWCNT	STEPCONFIG_MODE(1)
 #define STEPCONFIG_MODE_HWSYNC	STEPCONFIG_MODE(2)
 #define STEPCONFIG_AVG_MASK	(7 << 2)
 #define STEPCONFIG_AVG(val)	((val) << 2)
@@ -123,6 +131,7 @@
 #define ADC_CLK			3000000
 #define TOTAL_STEPS		16
 #define TOTAL_CHANNELS		8
+#define FIFO1_THRESHOLD		19
 
 /*
 * ADC runs at 3MHz, and it takes

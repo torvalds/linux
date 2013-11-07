@@ -904,7 +904,7 @@ int	dgap_parsefile(char **in, int Remove)
 /*
  * dgap_sindex: much like index(), but it looks for a match of any character in
  * the group, and returns that position.  If the first character is a ^, then
- * this will match the first occurence not in that group.
+ * this will match the first occurrence not in that group.
  */
 static char *dgap_sindex (char *string, char *group)
 {
@@ -1013,8 +1013,10 @@ static void dgap_err(char *s)
 static struct cnode *dgap_newnode(int t)
 {
 	struct cnode *n;
-	if ( (n = (struct cnode *) kmalloc(sizeof(struct cnode ), GFP_ATOMIC) ) != NULL) {
-		memset( (char *)n, 0, sizeof(struct cnode ) );
+
+	n = kmalloc(sizeof(struct cnode), GFP_ATOMIC);
+	if (n != NULL) {
+		memset((char *)n, 0, sizeof(struct cnode));
 		n->type = t;
 	}
 	return(n);
@@ -1150,7 +1152,7 @@ uint dgap_config_get_altpin(struct board_t *bd)
 
 /*
  * Given a specific type of board, if found, detached link and 
- * returns the first occurance in the list.
+ * returns the first occurrence in the list.
  */
 struct cnode *dgap_find_config(int type, int bus, int slot)
 {

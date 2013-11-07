@@ -65,9 +65,9 @@ EXPORT_SYMBOL(obd_memory);
 					      msg)
 # define ASSERT_KERNEL_CTXT(msg) LASSERTF(segment_eq(get_fs(), get_ds()), msg)
 #else
-# define ASSERT_CTXT_MAGIC(magic) do {} while(0)
-# define ASSERT_NOT_KERNEL_CTXT(msg) do {} while(0)
-# define ASSERT_KERNEL_CTXT(msg) do {} while(0)
+# define ASSERT_CTXT_MAGIC(magic) do {} while (0)
+# define ASSERT_NOT_KERNEL_CTXT(msg) do {} while (0)
+# define ASSERT_KERNEL_CTXT(msg) do {} while (0)
 #endif
 
 static void push_group_info(struct lvfs_run_ctxt *save,
@@ -80,7 +80,8 @@ static void push_group_info(struct lvfs_run_ctxt *save,
 		struct cred *cred;
 		task_lock(current);
 		save->group_info = current_cred()->group_info;
-		if ((cred = prepare_creds())) {
+		cred = prepare_creds();
+		if (cred) {
 			cred->group_info = ginfo;
 			commit_creds(cred);
 		}
@@ -96,7 +97,8 @@ static void pop_group_info(struct lvfs_run_ctxt *save,
 	} else {
 		struct cred *cred;
 		task_lock(current);
-		if ((cred = prepare_creds())) {
+		cred = prepare_creds();
+		if (cred) {
 			cred->group_info = save->group_info;
 			commit_creds(cred);
 		}
@@ -112,7 +114,7 @@ void push_ctxt(struct lvfs_run_ctxt *save, struct lvfs_run_ctxt *new_ctx,
 	if (new_ctx->dt != NULL)
 		return;
 
-	//ASSERT_NOT_KERNEL_CTXT("already in kernel context!\n");
+	/* ASSERT_NOT_KERNEL_CTXT("already in kernel context!\n"); */
 	ASSERT_CTXT_MAGIC(new_ctx->magic);
 	OBD_SET_CTXT_MAGIC(save);
 
@@ -137,7 +139,8 @@ void push_ctxt(struct lvfs_run_ctxt *save, struct lvfs_run_ctxt *new_ctx,
 		save->luc.luc_fsgid = current_fsgid();
 		save->luc.luc_cap = current_cap();
 
-		if ((cred = prepare_creds())) {
+		cred = prepare_creds();
+		if (cred) {
 			cred->uid = uc->luc_uid;
 			cred->gid = uc->luc_gid;
 			cred->fsuid = uc->luc_fsuid;
@@ -180,7 +183,8 @@ void pop_ctxt(struct lvfs_run_ctxt *saved, struct lvfs_run_ctxt *new_ctx,
 	current->fs->umask = saved->luc.luc_umask;
 	if (uc) {
 		struct cred *cred;
-		if ((cred = prepare_creds())) {
+		cred = prepare_creds();
+		if (cred) {
 			cred->uid = saved->luc.luc_uid;
 			cred->gid = saved->luc.luc_gid;
 			cred->fsuid = saved->luc.luc_fsuid;
@@ -253,32 +257,32 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 		return 0;
 
 	switch (field) {
-		case LPROCFS_FIELDS_FLAGS_CONFIG:
-			ret = header->lc_config;
-			break;
-		case LPROCFS_FIELDS_FLAGS_SUM:
-			ret = lc->lc_sum;
-			if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
-				ret += lc->lc_sum_irq;
-			break;
-		case LPROCFS_FIELDS_FLAGS_MIN:
-			ret = lc->lc_min;
-			break;
-		case LPROCFS_FIELDS_FLAGS_MAX:
-			ret = lc->lc_max;
-			break;
-		case LPROCFS_FIELDS_FLAGS_AVG:
-			ret = (lc->lc_max - lc->lc_min) / 2;
-			break;
-		case LPROCFS_FIELDS_FLAGS_SUMSQUARE:
-			ret = lc->lc_sumsquare;
-			break;
-		case LPROCFS_FIELDS_FLAGS_COUNT:
-			ret = lc->lc_count;
-			break;
-		default:
-			break;
-	};
+	case LPROCFS_FIELDS_FLAGS_CONFIG:
+		ret = header->lc_config;
+		break;
+	case LPROCFS_FIELDS_FLAGS_SUM:
+		ret = lc->lc_sum;
+		if ((flags & LPROCFS_STATS_FLAG_IRQ_SAFE) != 0)
+			ret += lc->lc_sum_irq;
+		break;
+	case LPROCFS_FIELDS_FLAGS_MIN:
+		ret = lc->lc_min;
+		break;
+	case LPROCFS_FIELDS_FLAGS_MAX:
+		ret = lc->lc_max;
+		break;
+	case LPROCFS_FIELDS_FLAGS_AVG:
+		ret = (lc->lc_max - lc->lc_min) / 2;
+		break;
+	case LPROCFS_FIELDS_FLAGS_SUMSQUARE:
+		ret = lc->lc_sumsquare;
+		break;
+	case LPROCFS_FIELDS_FLAGS_COUNT:
+		ret = lc->lc_count;
+		break;
+	default:
+		break;
+	}
 
 	return ret;
 }

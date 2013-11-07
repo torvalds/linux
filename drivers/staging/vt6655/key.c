@@ -141,7 +141,7 @@ bool KeybGetKey(
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
 		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if (dwKeyIndex == 0xFFFFFFFF) {
 				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
@@ -208,7 +208,7 @@ bool KeybSetKey(
 			j = i;
 		}
 		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			// found table already exist
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
 				// Pairwise key
@@ -385,7 +385,7 @@ bool KeybRemoveKey(
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
 		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
 				pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 				s_vCheckKeyTableValid(pTable, dwIoBase);
@@ -429,7 +429,7 @@ bool KeybRemoveAllKey(
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
 		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 			for (u = 0; u < MAX_GROUP_KEY; u++) {
 				pTable->KeyTable[i].GroupKey[u].bKeyValid = false;
@@ -512,7 +512,7 @@ bool KeybGetTransmitKey(
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
 		if ((pTable->KeyTable[i].bInUse == true) &&
-		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
+		    ether_addr_equal(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 			if (dwKeyType == PAIRWISE_KEY) {
 				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);

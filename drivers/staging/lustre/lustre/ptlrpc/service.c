@@ -263,7 +263,7 @@ static struct ptlrpc_hr_service		ptlrpc_hr;
  */
 static void rs_batch_init(struct rs_batch *b)
 {
-	memset(b, 0, sizeof *b);
+	memset(b, 0, sizeof(*b));
 	INIT_LIST_HEAD(&b->rsb_replies);
 }
 
@@ -1306,12 +1306,12 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
 
-	OBD_ALLOC(reqcopy, sizeof *reqcopy);
+	OBD_ALLOC(reqcopy, sizeof(*reqcopy));
 	if (reqcopy == NULL)
 		return -ENOMEM;
 	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
 	if (!reqmsg) {
-		OBD_FREE(reqcopy, sizeof *reqcopy);
+		OBD_FREE(reqcopy, sizeof(*reqcopy));
 		return -ENOMEM;
 	}
 
@@ -1370,7 +1370,7 @@ out_put:
 out:
 	sptlrpc_svc_ctx_decref(reqcopy);
 	OBD_FREE_LARGE(reqmsg, req->rq_reqlen);
-	OBD_FREE(reqcopy, sizeof *reqcopy);
+	OBD_FREE(reqcopy, sizeof(*reqcopy));
 	return rc;
 }
 

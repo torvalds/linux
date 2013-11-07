@@ -338,7 +338,7 @@ struct	sta_priv {
 	 */
 	struct sta_info *sta_aid[NUM_STA];
 
-	u16 sta_dz_bitmap;/* only support 15 stations, staion aid bitmap
+	u16 sta_dz_bitmap;/* only support 15 stations, station aid bitmap
 			   * for sleeping sta. */
 	u16 tim_bitmap;	/* only support 15 stations, aid=0~15 mapping
 			 * bit0~bit15 */

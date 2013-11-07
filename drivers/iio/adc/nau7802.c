@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/log2.h>
+#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -569,7 +570,7 @@ static struct i2c_driver nau7802_driver = {
 	.id_table = nau7802_i2c_id,
 	.driver = {
 		   .name = "nau7802",
-		   .of_match_table = of_match_ptr(nau7802_dt_ids),
+		   .of_match_table = nau7802_dt_ids,
 	},
 };
 

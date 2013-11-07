@@ -45,9 +45,7 @@ static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
 					   struct comedi_insn *insn,
 					   unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	if (comedi_dio_update_state(s, data)) {
 		outb(s->state & 0xff, dev->iobase + AIO_IIRO_16_RELAY_0_7);
 		outb((s->state >> 8) & 0xff,
 		     dev->iobase + AIO_IIRO_16_RELAY_8_15);

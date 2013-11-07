@@ -183,6 +183,10 @@
 
 			lradc@80050000 {
 				status = "okay";
+				fsl,lradc-touchscreen-wires = <4>;
+				fsl,ave-ctrl = <4>;
+				fsl,ave-delay = <2>;
+				fsl,settling = <10>;
 			};
 
 			i2c0: i2c@80058000 {

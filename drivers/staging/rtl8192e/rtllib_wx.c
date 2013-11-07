@@ -753,7 +753,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 		/* leave break out intentionly */
 
 	case IW_MLME_DISASSOC:
-		if (deauth == true)
+		if (deauth)
 			printk(KERN_INFO "disauth packet !\n");
 		else
 			printk(KERN_INFO "dis associate packet!\n");

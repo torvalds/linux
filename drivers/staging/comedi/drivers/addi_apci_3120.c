@@ -164,7 +164,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = this_board->i_NbrDiChannel;
 	s->range_table = &range_digital;
-	s->io_bits = 0;	/* all bits input */
 	s->insn_bits = apci3120_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
@@ -176,7 +175,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = this_board->i_DoMaxdata;
 	s->len_chanlist = this_board->i_NbrDoChannel;
 	s->range_table = &range_digital;
-	s->io_bits = 0xf;	/* all bits output */
 	s->insn_bits = apci3120_do_insn_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */

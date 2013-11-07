@@ -464,7 +464,7 @@ static void _InitRetryFunction(struct adapter *Adapter)
 /*-----------------------------------------------------------------------------
  * Function:	usb_AggSettingTxUpdate()
  *
- * Overview:	Seperate TX/RX parameters update independent for TP detection and
+ * Overview:	Separate TX/RX parameters update independent for TP detection and
  *			dynamic TX/RX aggreagtion parameters update.
  *
  * Input:			struct adapter *
@@ -473,7 +473,7 @@ static void _InitRetryFunction(struct adapter *Adapter)
  *
  * Revised History:
  *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
+ *	12/10/2010	MHC		Separate to smaller function.
  *
  *---------------------------------------------------------------------------*/
 static void usb_AggSettingTxUpdate(struct adapter *Adapter)
@@ -496,7 +496,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 /*-----------------------------------------------------------------------------
  * Function:	usb_AggSettingRxUpdate()
  *
- * Overview:	Seperate TX/RX parameters update independent for TP detection and
+ * Overview:	Separate TX/RX parameters update independent for TP detection and
  *			dynamic TX/RX aggreagtion parameters update.
  *
  * Input:			struct adapter *
@@ -505,7 +505,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
  *
  * Revised History:
  *	When		Who		Remark
- *	12/10/2010	MHC		Seperate to smaller function.
+ *	12/10/2010	MHC		Separate to smaller function.
  *
  *---------------------------------------------------------------------------*/
 static void
@@ -847,7 +847,7 @@ _func_enter_;
 
 	/*  */
 	/*  Init CR MACTXEN, MACRXEN after setting RxFF boundary REG_TRXFF_BNDY to patch */
-	/*  Hw bug which Hw initials RxFF boundry size to a value which is larger than the real Rx buffer size in 88E. */
+	/*  Hw bug which Hw initials RxFF boundary size to a value which is larger than the real Rx buffer size in 88E. */
 	/*  */
 	/*  Enable MACTXEN/MACRXEN block */
 	value16 = rtw_read16(Adapter, REG_CR);

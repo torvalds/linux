@@ -232,9 +232,6 @@ static inline int ll_namei_to_lookup_intent_flag(int flag)
 	return flag;
 }
 
-# define ll_mrf_ret void
-# define LL_MRF_RETURN(rc)
-
 #include <linux/fs.h>
 
 # define ll_umode_t	umode_t

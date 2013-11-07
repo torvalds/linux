@@ -297,7 +297,7 @@ static loff_t vvp_pgcache_id_pack(struct vvp_pgcache_id *id)
 		((__u64)id->vpi_bucket << PGC_OBJ_SHIFT);
 }
 
-static int vvp_pgcache_obj_get(cfs_hash_t *hs, cfs_hash_bd_t *bd,
+static int vvp_pgcache_obj_get(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			       struct hlist_node *hnode, void *data)
 {
 	struct vvp_pgcache_id   *id  = data;

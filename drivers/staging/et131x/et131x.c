@@ -493,10 +493,7 @@ struct et131x_adapter {
 	spinlock_t send_hw_lock;
 
 	spinlock_t rcv_lock;
-	spinlock_t rcv_pend_lock;
 	spinlock_t fbr_lock;
-
-	spinlock_t phy_lock;
 
 	/* Packet Filter and look ahead size */
 	u32 packet_filter;
@@ -2777,10 +2774,9 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 		adapter->net_stats.rx_packets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (adapter->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK) {
-			dev_warn(&adapter->pdev->dev,
-				    "RFD's are running out\n");
-		}
+		if (adapter->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK)
+			dev_warn(&adapter->pdev->dev, "RFD's are running out\n");
+
 		count++;
 	}
 
@@ -2906,8 +2902,9 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	 * number of fragments. If needed, we can call this function,
 	 * although it is less efficient.
 	 */
-	if (nr_frags > 23)
-		return -EIO;
+
+	/* nr_frags should be no more than 18. */
+	BUILD_BUG_ON(MAX_SKB_FRAGS + 1 > 23);
 
 	memset(desc, 0, sizeof(struct tx_desc) * (nr_frags + 1));
 
@@ -3100,11 +3097,10 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 		shbufva = (u16 *) skb->data;
 
 		if ((shbufva[0] == 0xffff) &&
-		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff)) {
+		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff))
 			tcb->flags |= FMP_DEST_BROAD;
-		} else if ((shbufva[0] & 0x3) == 0x0001) {
+		else if ((shbufva[0] & 0x3) == 0x0001)
 			tcb->flags |=  FMP_DEST_MULTI;
-		}
 	}
 
 	tcb->next = NULL;
@@ -3926,9 +3922,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	spin_lock_init(&adapter->tcb_ready_qlock);
 	spin_lock_init(&adapter->send_hw_lock);
 	spin_lock_init(&adapter->rcv_lock);
-	spin_lock_init(&adapter->rcv_pend_lock);
 	spin_lock_init(&adapter->fbr_lock);
-	spin_lock_init(&adapter->phy_lock);
 
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
 
