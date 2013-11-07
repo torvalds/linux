@@ -345,9 +345,11 @@ static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 		if (max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
 			rdev->pm.sideport_bandwidth.full)
 			max_bandwidth = rdev->pm.sideport_bandwidth;
-		read_delay_latency.full = dfixed_const(370 * 800 * 1000);
-		read_delay_latency.full = dfixed_div(read_delay_latency,
-			rdev->pm.igp_sideport_mclk);
+		read_delay_latency.full = dfixed_const(370 * 800);
+		a.full = dfixed_const(1000);
+		b.full = dfixed_div(rdev->pm.igp_sideport_mclk, a);
+		read_delay_latency.full = dfixed_div(read_delay_latency, b);
+		read_delay_latency.full = dfixed_mul(read_delay_latency, a);
 	} else {
 		if (max_bandwidth.full > rdev->pm.k8_bandwidth.full &&
 			rdev->pm.k8_bandwidth.full)
@@ -488,14 +490,10 @@ static void rs690_compute_mode_priority(struct radeon_device *rdev,
 		}
 		if (wm0->priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
 		if (wm0->priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark_max.full;
 		if (wm1->priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
 		if (wm1->priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark_max.full;
 		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
@@ -526,8 +524,6 @@ static void rs690_compute_mode_priority(struct radeon_device *rdev,
 		}
 		if (wm0->priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark.full;
-		if (dfixed_trunc(priority_mark02) < 0)
-			priority_mark02.full = 0;
 		if (wm0->priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0->priority_mark_max.full;
 		*d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
@@ -555,8 +551,6 @@ static void rs690_compute_mode_priority(struct radeon_device *rdev,
 		}
 		if (wm1->priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark.full;
-		if (dfixed_trunc(priority_mark12) < 0)
-			priority_mark12.full = 0;
 		if (wm1->priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1->priority_mark_max.full;
 		*d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
