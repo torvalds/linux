@@ -60,6 +60,54 @@
 
 /********** Clock Source Device *********/
 
+#ifdef CONFIG_ARC_HAS_RTC
+
+#define AUX_RTC_CTRL	0x103
+#define AUX_RTC_LOW	0x104
+#define AUX_RTC_HIGH	0x105
+
+int arc_counter_setup(void)
+{
+	write_aux_reg(AUX_RTC_CTRL, 1);
+
+	/* Not usable in SMP */
+	return !IS_ENABLED(CONFIG_SMP);
+}
+
+static cycle_t arc_counter_read(struct clocksource *cs)
+{
+	unsigned long status;
+	union {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		struct { u32 high, low; };
+#else
+		struct { u32 low, high; };
+#endif
+		cycle_t  full;
+	} stamp;
+
+
+	__asm__ __volatile(
+	"1:						\n"
+	"	lr		%0, [AUX_RTC_LOW]	\n"
+	"	lr		%1, [AUX_RTC_HIGH]	\n"
+	"	lr		%2, [AUX_RTC_CTRL]	\n"
+	"	bbit0.nt	%2, 31, 1b		\n"
+	: "=r" (stamp.low), "=r" (stamp.high), "=r" (status));
+
+	return stamp.full;
+}
+
+static struct clocksource arc_counter = {
+	.name   = "ARCv2 RTC",
+	.rating = 350,
+	.read   = arc_counter_read,
+	.mask   = CLOCKSOURCE_MASK(64),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+#else /* !CONFIG_ARC_HAS_RTC */
+
 /*
  * set 32bit TIMER1 to keep counting monotonically and wraparound
  */
@@ -85,6 +133,8 @@ static struct clocksource arc_counter = {
 	.mask   = CLOCKSOURCE_MASK(32),
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+#endif
 
 /********** Clock Event Device *********/
 
