@@ -53,9 +53,6 @@
 #define gdm_lte_sdu_send(n, d, l, c, b, i, t) (\
 	n->phy_dev->send_sdu_func(n->phy_dev->priv_dev, d, l, n->pdn_table.dft_eps_id, 0, c, b, i, t))
 
-#define gdm_lte_rcv_with_cb(n, c, b, e) (\
-	n->rcv_func(n->priv_dev, c, b, e))
-
 #define IP_VERSION_4	4
 #define IP_VERSION_6	6
 
@@ -762,7 +759,7 @@ void start_rx_proc(struct phy_dev *phy_dev)
 	int i;
 
 	for (i = 0; i < MAX_RX_SUBMIT_COUNT; i++)
-		gdm_lte_rcv_with_cb(phy_dev, rx_complete, phy_dev, USB_COMPLETE);
+		phy_dev->rcv_func(phy_dev->priv_dev, rx_complete, phy_dev, USB_COMPLETE);
 }
 
 static struct net_device_ops gdm_netdev_ops = {
