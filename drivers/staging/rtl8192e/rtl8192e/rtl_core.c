@@ -562,8 +562,8 @@ void rtl8192_update_cap(struct net_device *dev, u16 cap)
 }
 
 static struct rtllib_qos_parameters def_qos_parameters = {
-	{3, 3, 3, 3},
-	{7, 7, 7, 7},
+	{cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3)},
+	{cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7)},
 	{2, 2, 2, 2},
 	{0, 0, 0, 0},
 	{0, 0, 0, 0}
@@ -2009,7 +2009,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
 
 	header = (struct rtllib_hdr_1addr *)(((u8 *)skb->data) + fwinfo_size);
-	fc = header->frame_ctl;
+	fc = le16_to_cpu(header->frame_ctl);
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
 	pda_addr = header->addr1;
@@ -2099,7 +2099,7 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 				dev_kfree_skb_any(skb);
 				return -1;
 			}
-			entry->BufferAddress = cpu_to_le32(*mapping);
+			entry->BufferAddress = *mapping;
 
 			entry->Length = priv->rxbuffersize;
 			entry->OWN = 1;
@@ -2135,8 +2135,8 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
 
 	for (i = 0; i < entries; i++)
 		ring[i].NextDescAddress =
-			cpu_to_le32((u32)dma + ((i + 1) % entries) *
-			sizeof(*ring));
+			(u32)dma + ((i + 1) % entries) *
+			sizeof(*ring);
 
 	return 0;
 }
@@ -2398,7 +2398,7 @@ static void rtl8192_rx_normal(struct net_device *dev)
 			}
 		}
 done:
-		pdesc->BufferAddress = cpu_to_le32(*((dma_addr_t *)skb->cb));
+		pdesc->BufferAddress = *((dma_addr_t *)skb->cb);
 		pdesc->OWN = 1;
 		pdesc->Length = priv->rxbuffersize;
 		if (priv->rx_idx[rx_queue_idx] == priv->rxringcount-1)
