@@ -8,6 +8,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -88,39 +90,6 @@ MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 #define PATTERN_OVERWRITE	0x20
 #define PATTERN_COUNT_MASK	0x1f
 
-enum dmatest_error_type {
-	DMATEST_ET_OK,
-	DMATEST_ET_MAP_SRC,
-	DMATEST_ET_MAP_DST,
-	DMATEST_ET_PREP,
-	DMATEST_ET_SUBMIT,
-	DMATEST_ET_TIMEOUT,
-	DMATEST_ET_DMA_ERROR,
-	DMATEST_ET_DMA_IN_PROGRESS,
-	DMATEST_ET_VERIFY,
-};
-
-struct dmatest_thread_result {
-	struct list_head	node;
-	unsigned int		n;
-	unsigned int		src_off;
-	unsigned int		dst_off;
-	unsigned int		len;
-	enum dmatest_error_type	type;
-	union {
-		unsigned long		data;
-		dma_cookie_t		cookie;
-		enum dma_status		status;
-		int			error;
-	};
-};
-
-struct dmatest_result {
-	struct list_head	node;
-	char			*name;
-	struct list_head	results;
-};
-
 struct dmatest_info;
 
 struct dmatest_thread {
@@ -180,10 +149,6 @@ struct dmatest_info {
 
 	/* debugfs related stuff */
 	struct dentry		*root;
-
-	/* Test results */
-	struct list_head	results;
-	struct mutex		results_lock;
 };
 
 static struct dmatest_info test_info;
@@ -337,100 +302,19 @@ static unsigned int min_odd(unsigned int x, unsigned int y)
 	return val % 2 ? val : val - 1;
 }
 
-static char *thread_result_get(const char *name,
-		struct dmatest_thread_result *tr)
+static void result(const char *err, unsigned int n, unsigned int src_off,
+		   unsigned int dst_off, unsigned int len, unsigned long data)
 {
-	static const char * const messages[] = {
-		[DMATEST_ET_OK]			= "No errors",
-		[DMATEST_ET_MAP_SRC]		= "src mapping error",
-		[DMATEST_ET_MAP_DST]		= "dst mapping error",
-		[DMATEST_ET_PREP]		= "prep error",
-		[DMATEST_ET_SUBMIT]		= "submit error",
-		[DMATEST_ET_TIMEOUT]		= "test timed out",
-		[DMATEST_ET_DMA_ERROR]		=
-			"got completion callback (DMA_ERROR)",
-		[DMATEST_ET_DMA_IN_PROGRESS]	=
-			"got completion callback (DMA_IN_PROGRESS)",
-		[DMATEST_ET_VERIFY]		= "errors",
-	};
-	static char buf[512];
-
-	snprintf(buf, sizeof(buf) - 1,
-		 "%s: #%u: %s with src_off=0x%x ""dst_off=0x%x len=0x%x (%lu)",
-		 name, tr->n, messages[tr->type], tr->src_off, tr->dst_off,
-		 tr->len, tr->data);
-
-	return buf;
+	pr_info("%s: result #%u: '%s' with src_off=0x%x ""dst_off=0x%x len=0x%x (%lu)",
+		current->comm, n, err, src_off, dst_off, len, data);
 }
 
-static int thread_result_add(struct dmatest_info *info,
-		struct dmatest_result *r, enum dmatest_error_type type,
-		unsigned int n, unsigned int src_off, unsigned int dst_off,
-		unsigned int len, unsigned long data)
+static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
+		       unsigned int dst_off, unsigned int len,
+		       unsigned long data)
 {
-	struct dmatest_thread_result *tr;
-
-	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
-	if (!tr)
-		return -ENOMEM;
-
-	tr->type = type;
-	tr->n = n;
-	tr->src_off = src_off;
-	tr->dst_off = dst_off;
-	tr->len = len;
-	tr->data = data;
-
-	mutex_lock(&info->results_lock);
-	list_add_tail(&tr->node, &r->results);
-	mutex_unlock(&info->results_lock);
-
-	if (tr->type == DMATEST_ET_OK)
-		pr_debug("%s\n", thread_result_get(r->name, tr));
-	else
-		pr_warn("%s\n", thread_result_get(r->name, tr));
-
-	return 0;
-}
-
-static void result_free(struct dmatest_info *info, const char *name)
-{
-	struct dmatest_result *r, *_r;
-
-	mutex_lock(&info->results_lock);
-	list_for_each_entry_safe(r, _r, &info->results, node) {
-		struct dmatest_thread_result *tr, *_tr;
-
-		if (name && strcmp(r->name, name))
-			continue;
-
-		list_for_each_entry_safe(tr, _tr, &r->results, node) {
-			list_del(&tr->node);
-			kfree(tr);
-		}
-
-		kfree(r->name);
-		list_del(&r->node);
-		kfree(r);
-	}
-
-	mutex_unlock(&info->results_lock);
-}
-
-static struct dmatest_result *result_init(struct dmatest_info *info,
-		const char *name)
-{
-	struct dmatest_result *r;
-
-	r = kzalloc(sizeof(*r), GFP_KERNEL);
-	if (r) {
-		r->name = kstrdup(name, GFP_KERNEL);
-		INIT_LIST_HEAD(&r->results);
-		mutex_lock(&info->results_lock);
-		list_add_tail(&r->node, &info->results);
-		mutex_unlock(&info->results_lock);
-	}
-	return r;
+	pr_debug("%s: result #%u: '%s' with src_off=0x%x ""dst_off=0x%x len=0x%x (%lu)",
+		 current->comm, n, err, src_off, dst_off, len, data);
 }
 
 /*
@@ -456,7 +340,6 @@ static int dmatest_func(void *data)
 	struct dmatest_params	*params;
 	struct dma_chan		*chan;
 	struct dma_device	*dev;
-	const char		*thread_name;
 	unsigned int		src_off, dst_off, len;
 	unsigned int		error_count;
 	unsigned int		failed_tests = 0;
@@ -469,9 +352,7 @@ static int dmatest_func(void *data)
 	int			src_cnt;
 	int			dst_cnt;
 	int			i;
-	struct dmatest_result	*result;
 
-	thread_name = current->comm;
 	set_freezable();
 
 	ret = -ENOMEM;
@@ -500,10 +381,6 @@ static int dmatest_func(void *data)
 			pq_coefs[i] = 1;
 	} else
 		goto err_thread_type;
-
-	result = result_init(info, thread_name);
-	if (!result)
-		goto err_srcs;
 
 	thread->srcs = kcalloc(src_cnt+1, sizeof(u8 *), GFP_KERNEL);
 	if (!thread->srcs)
@@ -576,10 +453,8 @@ static int dmatest_func(void *data)
 			ret = dma_mapping_error(dev->dev, dma_srcs[i]);
 			if (ret) {
 				unmap_src(dev->dev, dma_srcs, len, i);
-				thread_result_add(info, result,
-						  DMATEST_ET_MAP_SRC,
-						  total_tests, src_off, dst_off,
-						  len, ret);
+				result("src mapping error", total_tests,
+				       src_off, dst_off, len, ret);
 				failed_tests++;
 				continue;
 			}
@@ -594,10 +469,8 @@ static int dmatest_func(void *data)
 				unmap_src(dev->dev, dma_srcs, len, src_cnt);
 				unmap_dst(dev->dev, dma_dsts, params->buf_size,
 					  i);
-				thread_result_add(info, result,
-						  DMATEST_ET_MAP_DST,
-						  total_tests, src_off, dst_off,
-						  len, ret);
+				result("dst mapping error", total_tests,
+				       src_off, dst_off, len, ret);
 				failed_tests++;
 				continue;
 			}
@@ -627,9 +500,8 @@ static int dmatest_func(void *data)
 			unmap_src(dev->dev, dma_srcs, len, src_cnt);
 			unmap_dst(dev->dev, dma_dsts, params->buf_size,
 				  dst_cnt);
-			thread_result_add(info, result, DMATEST_ET_PREP,
-					  total_tests, src_off, dst_off,
-					  len, 0);
+			result("prep error", total_tests, src_off,
+			       dst_off, len, ret);
 			msleep(100);
 			failed_tests++;
 			continue;
@@ -641,9 +513,8 @@ static int dmatest_func(void *data)
 		cookie = tx->tx_submit(tx);
 
 		if (dma_submit_error(cookie)) {
-			thread_result_add(info, result, DMATEST_ET_SUBMIT,
-					  total_tests, src_off, dst_off,
-					  len, cookie);
+			result("submit error", total_tests, src_off,
+			       dst_off, len, ret);
 			msleep(100);
 			failed_tests++;
 			continue;
@@ -664,17 +535,15 @@ static int dmatest_func(void *data)
 			 * free it this time?" dancing.  For now, just
 			 * leave it dangling.
 			 */
-			thread_result_add(info, result, DMATEST_ET_TIMEOUT,
-					  total_tests, src_off, dst_off,
-					  len, 0);
+			result("test timed out", total_tests, src_off, dst_off,
+			       len, 0);
 			failed_tests++;
 			continue;
 		} else if (status != DMA_SUCCESS) {
-			enum dmatest_error_type type = (status == DMA_ERROR) ?
-				DMATEST_ET_DMA_ERROR : DMATEST_ET_DMA_IN_PROGRESS;
-			thread_result_add(info, result, type,
-					  total_tests, src_off, dst_off,
-					  len, status);
+			result(status == DMA_ERROR ?
+			       "completion error status" :
+			       "completion busy status", total_tests, src_off,
+			       dst_off, len, ret);
 			failed_tests++;
 			continue;
 		}
@@ -685,7 +554,7 @@ static int dmatest_func(void *data)
 
 		error_count = 0;
 
-		pr_debug("%s: verifying source buffer...\n", thread_name);
+		pr_debug("%s: verifying source buffer...\n", current->comm);
 		error_count += dmatest_verify(thread->srcs, 0, src_off,
 				0, PATTERN_SRC, true);
 		error_count += dmatest_verify(thread->srcs, src_off,
@@ -695,8 +564,7 @@ static int dmatest_func(void *data)
 				params->buf_size, src_off + len,
 				PATTERN_SRC, true);
 
-		pr_debug("%s: verifying dest buffer...\n",
-				thread->task->comm);
+		pr_debug("%s: verifying dest buffer...\n", current->comm);
 		error_count += dmatest_verify(thread->dsts, 0, dst_off,
 				0, PATTERN_DST, false);
 		error_count += dmatest_verify(thread->dsts, dst_off,
@@ -707,14 +575,12 @@ static int dmatest_func(void *data)
 				PATTERN_DST, false);
 
 		if (error_count) {
-			thread_result_add(info, result, DMATEST_ET_VERIFY,
-					  total_tests, src_off, dst_off,
-					  len, error_count);
+			result("data error", total_tests, src_off, dst_off,
+			       len, error_count);
 			failed_tests++;
 		} else {
-			thread_result_add(info, result, DMATEST_ET_OK,
-					  total_tests, src_off, dst_off,
-					  len, 0);
+			dbg_result("test passed", total_tests, src_off, dst_off,
+				   len, 0);
 		}
 	}
 
@@ -731,8 +597,8 @@ err_srcbuf:
 err_srcs:
 	kfree(pq_coefs);
 err_thread_type:
-	pr_notice("%s: terminating after %u tests, %u failures (status %d)\n",
-			thread_name, total_tests, failed_tests, ret);
+	pr_info("%s: terminating after %u tests, %u failures (status %d)\n",
+		current->comm, total_tests, failed_tests, ret);
 
 	/* terminate all transfers on specified channels */
 	if (ret)
@@ -937,9 +803,6 @@ static int __restart_threaded_test(struct dmatest_info *info, bool run)
 	if (run == false)
 		return 0;
 
-	/* Clear results from previous run */
-	result_free(info, NULL);
-
 	/* Copy test parameters */
 	params->buf_size = test_buf_size;
 	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
@@ -1024,35 +887,6 @@ static const struct file_operations dtf_run_fops = {
 	.llseek	= default_llseek,
 };
 
-static int dtf_results_show(struct seq_file *sf, void *data)
-{
-	struct dmatest_info *info = sf->private;
-	struct dmatest_result *result;
-	struct dmatest_thread_result *tr;
-
-	mutex_lock(&info->results_lock);
-	list_for_each_entry(result, &info->results, node) {
-		list_for_each_entry(tr, &result->results, node)
-			seq_printf(sf, "%s\n",
-				thread_result_get(result->name, tr));
-	}
-
-	mutex_unlock(&info->results_lock);
-	return 0;
-}
-
-static int dtf_results_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dtf_results_show, inode->i_private);
-}
-
-static const struct file_operations dtf_results_fops = {
-	.open		= dtf_results_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int dmatest_register_dbgfs(struct dmatest_info *info)
 {
 	struct dentry *d;
@@ -1068,10 +902,6 @@ static int dmatest_register_dbgfs(struct dmatest_info *info)
 	/* Run or stop threaded test */
 	debugfs_create_file("run", S_IWUSR | S_IRUGO, info->root, info,
 			    &dtf_run_fops);
-
-	/* Results of test in progress */
-	debugfs_create_file("results", S_IRUGO, info->root, info,
-			    &dtf_results_fops);
 
 	return 0;
 
@@ -1089,9 +919,6 @@ static int __init dmatest_init(void)
 
 	mutex_init(&info->lock);
 	INIT_LIST_HEAD(&info->channels);
-
-	mutex_init(&info->results_lock);
-	INIT_LIST_HEAD(&info->results);
 
 	ret = dmatest_register_dbgfs(info);
 	if (ret)
@@ -1112,7 +939,6 @@ static void __exit dmatest_exit(void)
 
 	debugfs_remove_recursive(info->root);
 	stop_threaded_test(info);
-	result_free(info, NULL);
 }
 module_exit(dmatest_exit);
 
