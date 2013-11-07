@@ -1037,6 +1037,7 @@ enum {
 	ALC880_FIXUP_UNIWILL,
 	ALC880_FIXUP_UNIWILL_DIG,
 	ALC880_FIXUP_Z71V,
+	ALC880_FIXUP_ASUS_W5A,
 	ALC880_FIXUP_3ST_BASE,
 	ALC880_FIXUP_3ST,
 	ALC880_FIXUP_3ST_DIG,
@@ -1207,6 +1208,26 @@ static const struct hda_fixup alc880_fixups[] = {
 			{ }
 		}
 	},
+	[ALC880_FIXUP_ASUS_W5A] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			/* set up the whole pins as BIOS is utterly broken */
+			{ 0x14, 0x0121411f }, /* HP */
+			{ 0x15, 0x411111f0 }, /* N/A */
+			{ 0x16, 0x411111f0 }, /* N/A */
+			{ 0x17, 0x411111f0 }, /* N/A */
+			{ 0x18, 0x90a60160 }, /* mic */
+			{ 0x19, 0x411111f0 }, /* N/A */
+			{ 0x1a, 0x411111f0 }, /* N/A */
+			{ 0x1b, 0x411111f0 }, /* N/A */
+			{ 0x1c, 0x411111f0 }, /* N/A */
+			{ 0x1d, 0x411111f0 }, /* N/A */
+			{ 0x1e, 0xb743111e }, /* SPDIF out */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC880_FIXUP_GPIO1,
+	},
 	[ALC880_FIXUP_3ST_BASE] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
@@ -1328,6 +1349,7 @@ static const struct hda_fixup alc880_fixups[] = {
 
 static const struct snd_pci_quirk alc880_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x0f69, "Coeus G610P", ALC880_FIXUP_W810),
+	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS W5A", ALC880_FIXUP_ASUS_W5A),
 	SND_PCI_QUIRK(0x1043, 0x1964, "ASUS Z71V", ALC880_FIXUP_Z71V),
 	SND_PCI_QUIRK_VENDOR(0x1043, "ASUS", ALC880_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x1558, 0x5401, "Clevo GPIO2", ALC880_FIXUP_GPIO2),
