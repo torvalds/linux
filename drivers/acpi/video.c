@@ -504,14 +504,6 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion m4 Notebook PC"),
 		},
 	},
-	{
-	 .callback = video_ignore_initial_backlight,
-	 .ident = "HP 250 G1",
-	 .matches = {
-		DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP 250 G1 Notebook PC"),
-		},
-	},
 	{}
 };
 
@@ -856,9 +848,9 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		 * or an index). Set the backlight to max_level in this case.
 		 */
 		for (i = 2; i < br->count; i++)
-			if (level_old == br->levels[i])
+			if (level == br->levels[i])
 				break;
-		if (i == br->count)
+		if (i == br->count || !level)
 			level = max_level;
 	}
 
