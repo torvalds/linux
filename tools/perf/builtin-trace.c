@@ -149,10 +149,9 @@ static void perf_evsel__delete_priv(struct perf_evsel *evsel)
 	perf_evsel__delete(evsel);
 }
 
-static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction,
-						    void *handler, int idx)
+static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void *handler)
 {
-	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction, idx);
+	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	if (evsel) {
 		evsel->priv = malloc(sizeof(struct syscall_tp));
@@ -186,17 +185,16 @@ static int perf_evlist__add_syscall_newtp(struct perf_evlist *evlist,
 					  void *sys_exit_handler)
 {
 	int ret = -1;
-	int idx = evlist->nr_entries;
 	struct perf_evsel *sys_enter, *sys_exit;
 
-	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler, idx++);
+	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler);
 	if (sys_enter == NULL)
 		goto out;
 
 	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
 		goto out_delete_sys_enter;
 
-	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler, idx++);
+	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler);
 	if (sys_exit == NULL)
 		goto out_delete_sys_enter;
 
@@ -1824,8 +1822,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 
 static void perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname",
-						     evlist->nr_entries);
+	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
 	if (evsel == NULL)
 		return;
 

@@ -117,6 +117,8 @@ void perf_evlist__delete(struct perf_evlist *evlist)
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 {
 	list_add_tail(&entry->node, &evlist->entries);
+	entry->idx = evlist->nr_entries;
+
 	if (!evlist->nr_entries++)
 		perf_evlist__set_id_pos(evlist);
 }
@@ -165,7 +167,7 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 
 	event_attr_init(&attr);
 
-	evsel = perf_evsel__new(&attr, 0);
+	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
 		goto error;
 
@@ -190,7 +192,7 @@ static int perf_evlist__add_attrs(struct perf_evlist *evlist,
 	size_t i;
 
 	for (i = 0; i < nr_attrs; i++) {
-		evsel = perf_evsel__new(attrs + i, evlist->nr_entries + i);
+		evsel = perf_evsel__new_idx(attrs + i, evlist->nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
 		list_add_tail(&evsel->node, &head);
@@ -249,9 +251,8 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler)
 {
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = perf_evsel__newtp(sys, name);
 
-	evsel = perf_evsel__newtp(sys, name, evlist->nr_entries);
 	if (evsel == NULL)
 		return -1;
 

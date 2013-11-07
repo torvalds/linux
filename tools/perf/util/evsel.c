@@ -168,7 +168,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	perf_evsel__calc_id_pos(evsel);
 }
 
-struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
+struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
@@ -219,7 +219,7 @@ out:
 	return format;
 }
 
-struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx)
+struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
