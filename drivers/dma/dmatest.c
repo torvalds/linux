@@ -176,7 +176,7 @@ static unsigned long dmatest_random(void)
 {
 	unsigned long buf;
 
-	get_random_bytes(&buf, sizeof(buf));
+	prandom_bytes(&buf, sizeof(buf));
 	return buf;
 }
 
