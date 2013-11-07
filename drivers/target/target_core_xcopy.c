@@ -574,10 +574,8 @@ static int target_xcopy_init_pt_lun(
 		return -ENOMEM;
 	}
 	init_completion(&pt_cmd->se_lun->lun_shutdown_comp);
-	INIT_LIST_HEAD(&pt_cmd->se_lun->lun_cmd_list);
 	INIT_LIST_HEAD(&pt_cmd->se_lun->lun_acl_list);
 	spin_lock_init(&pt_cmd->se_lun->lun_acl_lock);
-	spin_lock_init(&pt_cmd->se_lun->lun_cmd_lock);
 	spin_lock_init(&pt_cmd->se_lun->lun_sep_lock);
 	init_completion(&pt_cmd->se_lun->lun_ref_comp);
 

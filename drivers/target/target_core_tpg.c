@@ -654,9 +654,7 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&lun->lun_acl_list);
-	INIT_LIST_HEAD(&lun->lun_cmd_list);
 	spin_lock_init(&lun->lun_acl_lock);
-	spin_lock_init(&lun->lun_cmd_lock);
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
@@ -706,9 +704,7 @@ int core_tpg_register(
 		atomic_set(&lun->lun_acl_count, 0);
 		init_completion(&lun->lun_shutdown_comp);
 		INIT_LIST_HEAD(&lun->lun_acl_list);
-		INIT_LIST_HEAD(&lun->lun_cmd_list);
 		spin_lock_init(&lun->lun_acl_lock);
-		spin_lock_init(&lun->lun_cmd_lock);
 		spin_lock_init(&lun->lun_sep_lock);
 		init_completion(&lun->lun_ref_comp);
 	}
@@ -849,14 +845,6 @@ int core_tpg_post_addlun(
 	return 0;
 }
 
-static void core_tpg_shutdown_lun(
-	struct se_portal_group *tpg,
-	struct se_lun *lun)
-{
-	core_clear_lun_from_tpg(lun, tpg);
-	transport_clear_lun_ref(lun);
-}
-
 struct se_lun *core_tpg_pre_dellun(
 	struct se_portal_group *tpg,
 	u32 unpacked_lun)
@@ -891,7 +879,8 @@ int core_tpg_post_dellun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun)
 {
-	core_tpg_shutdown_lun(tpg, lun);
+	core_clear_lun_from_tpg(lun, tpg);
+	transport_clear_lun_ref(lun);
 
 	core_dev_unexport(lun->lun_se_dev, tpg, lun);
 
