@@ -809,7 +809,7 @@ inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
 
 	auth->header.frame_ctl = RTLLIB_STYPE_AUTH;
 	if (challengelen)
-		auth->header.frame_ctl |= RTLLIB_FCTL_WEP;
+		auth->header.frame_ctl |= cpu_to_le16(RTLLIB_FCTL_WEP);
 
 	auth->header.duration_id = 0x013a;
 	memcpy(auth->header.addr1, beacon->bssid, ETH_ALEN);
@@ -921,8 +921,8 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 
 	if (ieee->short_slot && (ieee->current_network.capability &
 	    WLAN_CAPABILITY_SHORT_SLOT_TIME))
-		cpu_to_le16((beacon_buf->capability |=
-				 WLAN_CAPABILITY_SHORT_SLOT_TIME));
+		beacon_buf->capability |=
+			cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	if (encrypt)
