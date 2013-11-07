@@ -46,7 +46,7 @@ static struct clk *__init get_cpu_clk(int cpu)
 	return cpu_clk;
 }
 
-void __init set_secondary_cpus_clock(void)
+static void __init set_secondary_cpus_clock(void)
 {
 	int thiscpu, cpu;
 	unsigned long rate;
@@ -94,7 +94,7 @@ static void __init armada_xp_smp_init_cpus(void)
 	set_smp_cross_call(armada_mpic_send_doorbell);
 }
 
-void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
+static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 {
 	struct device_node *node;
 	struct resource res;
