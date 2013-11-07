@@ -285,7 +285,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
-static void acpi_bus_device_eject(struct acpi_device *device, u32 ost_src)
+void acpi_bus_device_eject(struct acpi_device *device, u32 ost_src)
 {
 	acpi_handle handle = device->handle;
 	struct acpi_scan_handler *handler;
@@ -409,7 +409,7 @@ static void acpi_hotplug_unsupported(acpi_handle handle, u32 type)
  * acpi_bus_hot_remove_device: Hot-remove a device and its children.
  * @context: Address of the ACPI device object to hot-remove.
  */
-void acpi_bus_hot_remove_device(void *context)
+static void acpi_bus_hot_remove_device(void *context)
 {
 	acpi_bus_device_eject(context, ACPI_NOTIFY_EJECT_REQUEST);
 }
