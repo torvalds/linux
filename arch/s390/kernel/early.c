@@ -206,6 +206,7 @@ static noinline __init void clear_bss_section(void)
  */
 static noinline __init void init_kernel_storage_key(void)
 {
+#if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
 
 	end_pfn = PFN_UP(__pa(&_end));
@@ -213,6 +214,7 @@ static noinline __init void init_kernel_storage_key(void)
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT,
 				     PAGE_DEFAULT_KEY, 0);
+#endif
 }
 
 static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);

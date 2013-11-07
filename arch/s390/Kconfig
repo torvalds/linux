@@ -99,6 +99,7 @@ config S390
 	select CLONE_BACKWARDS2
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES if !SMP
+	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL_OLD
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
@@ -234,6 +235,67 @@ config MARCH_ZEC12
 	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
 	  2827 series). The kernel will be slightly faster but will not work on
 	  older machines.
+
+endchoice
+
+config MARCH_G5_TUNE
+	def_bool TUNE_G5 || MARCH_G5 && TUNE_DEFAULT
+
+config MARCH_Z900_TUNE
+	def_bool TUNE_Z900 || MARCH_Z900 && TUNE_DEFAULT
+
+config MARCH_Z990_TUNE
+	def_bool TUNE_Z990 || MARCH_Z990 && TUNE_DEFAULT
+
+config MARCH_Z9_109_TUNE
+	def_bool TUNE_Z9_109 || MARCH_Z9_109 && TUNE_DEFAULT
+
+config MARCH_Z10_TUNE
+	def_bool TUNE_Z10 || MARCH_Z10 && TUNE_DEFAULT
+
+config MARCH_Z196_TUNE
+	def_bool TUNE_Z196 || MARCH_Z196 && TUNE_DEFAULT
+
+config MARCH_ZEC12_TUNE
+	def_bool TUNE_ZEC12 || MARCH_ZEC12 && TUNE_DEFAULT
+
+choice
+	prompt "Tune code generation"
+	default TUNE_DEFAULT
+	help
+	  Cause the compiler to tune (-mtune) the generated code for a machine.
+	  This will make the code run faster on the selected machine but
+	  somewhat slower on other machines.
+	  This option only changes how the compiler emits instructions, not the
+	  selection of instructions itself, so the resulting kernel will run on
+	  all other machines.
+
+config TUNE_DEFAULT
+	bool "Default"
+	help
+	  Tune the generated code for the target processor for which the kernel
+	  will be compiled.
+
+config TUNE_G5
+	bool "System/390 model G5 and G6"
+
+config TUNE_Z900
+	bool "IBM zSeries model z800 and z900"
+
+config TUNE_Z990
+	bool "IBM zSeries model z890 and z990"
+
+config TUNE_Z9_109
+	bool "IBM System z9"
+
+config TUNE_Z10
+	bool "IBM System z10"
+
+config TUNE_Z196
+	bool "IBM zEnterprise 114 and 196"
+
+config TUNE_ZEC12
+	bool "IBM zBC12 and zEC12"
 
 endchoice
 

@@ -22,6 +22,32 @@
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
 #define PTR_DIFF(x, y) ((unsigned long)(((char *) (x)) - ((unsigned long) (y))))
 
+struct dump_save_areas dump_save_areas;
+
+/*
+ * Allocate and add a save area for a CPU
+ */
+struct save_area *dump_save_area_create(int cpu)
+{
+	struct save_area **save_areas, *save_area;
+
+	save_area = kmalloc(sizeof(*save_area), GFP_KERNEL);
+	if (!save_area)
+		return NULL;
+	if (cpu + 1 > dump_save_areas.count) {
+		dump_save_areas.count = cpu + 1;
+		save_areas = krealloc(dump_save_areas.areas,
+				      dump_save_areas.count * sizeof(void *),
+				      GFP_KERNEL | __GFP_ZERO);
+		if (!save_areas) {
+			kfree(save_area);
+			return NULL;
+		}
+		dump_save_areas.areas = save_areas;
+	}
+	dump_save_areas.areas[cpu] = save_area;
+	return save_area;
+}
 
 /*
  * Return physical address for virtual address
@@ -45,7 +71,6 @@ static inline void *load_real_addr(void *addr)
 static int copy_from_realmem(void *dest, void *src, size_t count)
 {
 	unsigned long size;
-	int rc;
 
 	if (!count)
 		return 0;
@@ -451,8 +476,8 @@ static int get_cpu_cnt(void)
 {
 	int i, cpus = 0;
 
-	for (i = 0; zfcpdump_save_areas[i]; i++) {
-		if (zfcpdump_save_areas[i]->pref_reg == 0)
+	for (i = 0; i < dump_save_areas.count; i++) {
+		if (dump_save_areas.areas[i]->pref_reg == 0)
 			continue;
 		cpus++;
 	}
@@ -523,8 +548,8 @@ static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
 
 	ptr = nt_prpsinfo(ptr);
 
-	for (i = 0; zfcpdump_save_areas[i]; i++) {
-		sa = zfcpdump_save_areas[i];
+	for (i = 0; i < dump_save_areas.count; i++) {
+		sa = dump_save_areas.areas[i];
 		if (sa->pref_reg == 0)
 			continue;
 		ptr = fill_cpu_elf_notes(ptr, sa);

@@ -48,13 +48,6 @@ void detect_memory_layout(struct mem_chunk chunk[], unsigned long maxsize);
 void create_mem_hole(struct mem_chunk mem_chunk[], unsigned long addr,
 		     unsigned long size);
 
-#define PRIMARY_SPACE_MODE	0
-#define ACCESS_REGISTER_MODE	1
-#define SECONDARY_SPACE_MODE	2
-#define HOME_SPACE_MODE		3
-
-extern unsigned int s390_user_mode;
-
 /*
  * Machine features detected in head.S
  */

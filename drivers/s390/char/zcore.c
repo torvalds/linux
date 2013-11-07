@@ -151,7 +151,7 @@ static int __init init_cpu_info(enum arch_id arch)
 
 	/* get info for boot cpu from lowcore, stored in the HSA */
 
-	sa = kmalloc(sizeof(*sa), GFP_KERNEL);
+	sa = dump_save_area_create(0);
 	if (!sa)
 		return -ENOMEM;
 	if (memcpy_hsa_kernel(sa, sys_info.sa_base, sys_info.sa_size) < 0) {
@@ -159,7 +159,6 @@ static int __init init_cpu_info(enum arch_id arch)
 		kfree(sa);
 		return -EIO;
 	}
-	zfcpdump_save_areas[0] = sa;
 	return 0;
 }
 
@@ -246,24 +245,25 @@ static int copy_lc(void __user *buf, void *sa, int sa_off, int len)
 static int zcore_add_lc(char __user *buf, unsigned long start, size_t count)
 {
 	unsigned long end;
-	int i = 0;
+	int i;
 
 	if (count == 0)
 		return 0;
 
 	end = start + count;
-	while (zfcpdump_save_areas[i]) {
+	for (i = 0; i < dump_save_areas.count; i++) {
 		unsigned long cp_start, cp_end; /* copy range */
 		unsigned long sa_start, sa_end; /* save area range */
 		unsigned long prefix;
 		unsigned long sa_off, len, buf_off;
+		struct save_area *save_area = dump_save_areas.areas[i];
 
-		prefix = zfcpdump_save_areas[i]->pref_reg;
+		prefix = save_area->pref_reg;
 		sa_start = prefix + sys_info.sa_base;
 		sa_end = prefix + sys_info.sa_base + sys_info.sa_size;
 
 		if ((end < sa_start) || (start > sa_end))
-			goto next;
+			continue;
 		cp_start = max(start, sa_start);
 		cp_end = min(end, sa_end);
 
@@ -272,10 +272,8 @@ static int zcore_add_lc(char __user *buf, unsigned long start, size_t count)
 		len = cp_end - cp_start;
 
 		TRACE("copy_lc for: %lx\n", start);
-		if (copy_lc(buf + buf_off, zfcpdump_save_areas[i], sa_off, len))
+		if (copy_lc(buf + buf_off, save_area, sa_off, len))
 			return -EFAULT;
-next:
-		i++;
 	}
 	return 0;
 }
@@ -637,8 +635,8 @@ static void __init zcore_header_init(int arch, struct zcore_header *hdr,
 	hdr->num_pages = mem_size / PAGE_SIZE;
 	hdr->tod = get_tod_clock();
 	get_cpu_id(&hdr->cpu_id);
-	for (i = 0; zfcpdump_save_areas[i]; i++) {
-		prefix = zfcpdump_save_areas[i]->pref_reg;
+	for (i = 0; i < dump_save_areas.count; i++) {
+		prefix = dump_save_areas.areas[i]->pref_reg;
 		hdr->real_cpu_cnt++;
 		if (!prefix)
 			continue;
