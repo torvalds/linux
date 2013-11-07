@@ -40,10 +40,9 @@
 
 		clocks = <&tegra_car TEGRA30_CLK_PCIE>,
 			 <&tegra_car TEGRA30_CLK_AFI>,
-			 <&tegra_car TEGRA30_CLK_PCIEX>,
 			 <&tegra_car TEGRA30_CLK_PLL_E>,
 			 <&tegra_car TEGRA30_CLK_CML0>;
-		clock-names = "pex", "afi", "pcie_xclk", "pll_e", "cml";
+		clock-names = "pex", "afi", "pll_e", "cml";
 		resets = <&tegra_car 70>,
 		         <&tegra_car 72>,
 		         <&tegra_car 74>;
@@ -641,19 +640,8 @@
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		nvidia,dma-request-selector = <&apbdma 1>;
 		clocks = <&tegra_car TEGRA30_CLK_D_AUDIO>,
-			 <&tegra_car TEGRA30_CLK_APBIF>,
-			 <&tegra_car TEGRA30_CLK_I2S0>,
-			 <&tegra_car TEGRA30_CLK_I2S1>,
-			 <&tegra_car TEGRA30_CLK_I2S2>,
-			 <&tegra_car TEGRA30_CLK_I2S3>,
-			 <&tegra_car TEGRA30_CLK_I2S4>,
-			 <&tegra_car TEGRA30_CLK_DAM0>,
-			 <&tegra_car TEGRA30_CLK_DAM1>,
-			 <&tegra_car TEGRA30_CLK_DAM2>,
-			 <&tegra_car TEGRA30_CLK_SPDIF_IN>;
-		clock-names = "d_audio", "apbif", "i2s0", "i2s1", "i2s2",
-			      "i2s3", "i2s4", "dam0", "dam1", "dam2",
-			      "spdif_in";
+			 <&tegra_car TEGRA30_CLK_APBIF>;
+		clock-names = "d_audio", "apbif";
 		resets = <&tegra_car 106>, /* d_audio */
 			 <&tegra_car 107>, /* apbif */
 			 <&tegra_car 30>,  /* i2s0 */

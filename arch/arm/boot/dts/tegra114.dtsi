@@ -406,21 +406,8 @@
 			<&apbdma 12>, <&apbdma 13>, <&apbdma 14>,
 			<&apbdma 29>;
 		clocks = <&tegra_car TEGRA114_CLK_D_AUDIO>,
-			 <&tegra_car TEGRA114_CLK_APBIF>,
-			 <&tegra_car TEGRA114_CLK_I2S0>,
-			 <&tegra_car TEGRA114_CLK_I2S1>,
-			 <&tegra_car TEGRA114_CLK_I2S2>,
-			 <&tegra_car TEGRA114_CLK_I2S3>,
-			 <&tegra_car TEGRA114_CLK_I2S4>,
-			 <&tegra_car TEGRA114_CLK_DAM0>,
-			 <&tegra_car TEGRA114_CLK_DAM1>,
-			 <&tegra_car TEGRA114_CLK_DAM2>,
-			 <&tegra_car TEGRA114_CLK_SPDIF_IN>,
-			 <&tegra_car TEGRA114_CLK_AMX>,
-			 <&tegra_car TEGRA114_CLK_ADX>;
-		clock-names = "d_audio", "apbif", "i2s0", "i2s1", "i2s2",
-			      "i2s3", "i2s4", "dam0", "dam1", "dam2",
-			      "spdif_in", "amx", "adx";
+			 <&tegra_car TEGRA114_CLK_APBIF>;
+		clock-names = "d_audio", "apbif";
 		resets = <&tegra_car 106>, /* d_audio */
 			 <&tegra_car 107>, /* apbif */
 			 <&tegra_car 30>,  /* i2s0 */
