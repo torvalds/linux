@@ -139,8 +139,6 @@ MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
 #define VERBOSE_PRINTK_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
 
-static char printk_buf[4096];
-
 static int nrealreaders;
 static struct task_struct *writer_task;
 static struct task_struct **fakewriter_tasks;
@@ -376,7 +374,7 @@ struct rcu_torture_ops {
 	void (*call)(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
 	void (*cb_barrier)(void);
 	void (*fqs)(void);
-	int (*stats)(char *page);
+	void (*stats)(char *page);
 	int irq_capable;
 	int can_boost;
 	const char *name;
@@ -578,21 +576,19 @@ static void srcu_torture_barrier(void)
 	srcu_barrier(&srcu_ctl);
 }
 
-static int srcu_torture_stats(char *page)
+static void srcu_torture_stats(char *page)
 {
-	int cnt = 0;
 	int cpu;
 	int idx = srcu_ctl.completed & 0x1;
 
-	cnt += sprintf(&page[cnt], "%s%s per-CPU(idx=%d):",
+	page += sprintf(page, "%s%s per-CPU(idx=%d):",
 		       torture_type, TORTURE_FLAG, idx);
 	for_each_possible_cpu(cpu) {
-		cnt += sprintf(&page[cnt], " %d(%lu,%lu)", cpu,
+		page += sprintf(page, " %d(%lu,%lu)", cpu,
 			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[!idx],
 			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[idx]);
 	}
-	cnt += sprintf(&page[cnt], "\n");
-	return cnt;
+	sprintf(page, "\n");
 }
 
 static void srcu_torture_synchronize_expedited(void)
@@ -1052,10 +1048,9 @@ rcu_torture_reader(void *arg)
 /*
  * Create an RCU-torture statistics message in the specified buffer.
  */
-static int
+static void
 rcu_torture_printk(char *page)
 {
-	int cnt = 0;
 	int cpu;
 	int i;
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
@@ -1071,8 +1066,8 @@ rcu_torture_printk(char *page)
 		if (pipesummary[i] != 0)
 			break;
 	}
-	cnt += sprintf(&page[cnt], "%s%s ", torture_type, TORTURE_FLAG);
-	cnt += sprintf(&page[cnt],
+	page += sprintf(page, "%s%s ", torture_type, TORTURE_FLAG);
+	page += sprintf(page,
 		       "rtc: %p ver: %lu tfle: %d rta: %d rtaf: %d rtf: %d ",
 		       rcu_torture_current,
 		       rcu_torture_current_version,
@@ -1080,53 +1075,52 @@ rcu_torture_printk(char *page)
 		       atomic_read(&n_rcu_torture_alloc),
 		       atomic_read(&n_rcu_torture_alloc_fail),
 		       atomic_read(&n_rcu_torture_free));
-	cnt += sprintf(&page[cnt], "rtmbe: %d rtbke: %ld rtbre: %ld ",
+	page += sprintf(page, "rtmbe: %d rtbke: %ld rtbre: %ld ",
 		       atomic_read(&n_rcu_torture_mberror),
 		       n_rcu_torture_boost_ktrerror,
 		       n_rcu_torture_boost_rterror);
-	cnt += sprintf(&page[cnt], "rtbf: %ld rtb: %ld nt: %ld ",
+	page += sprintf(page, "rtbf: %ld rtb: %ld nt: %ld ",
 		       n_rcu_torture_boost_failure,
 		       n_rcu_torture_boosts,
 		       n_rcu_torture_timers);
-	cnt += sprintf(&page[cnt],
+	page += sprintf(page,
 		       "onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
 		       n_online_successes, n_online_attempts,
 		       n_offline_successes, n_offline_attempts,
 		       min_online, max_online,
 		       min_offline, max_offline,
 		       sum_online, sum_offline, HZ);
-	cnt += sprintf(&page[cnt], "barrier: %ld/%ld:%ld",
+	page += sprintf(page, "barrier: %ld/%ld:%ld",
 		       n_barrier_successes,
 		       n_barrier_attempts,
 		       n_rcu_torture_barrier_error);
-	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
+	page += sprintf(page, "\n%s%s ", torture_type, TORTURE_FLAG);
 	if (atomic_read(&n_rcu_torture_mberror) != 0 ||
 	    n_rcu_torture_barrier_error != 0 ||
 	    n_rcu_torture_boost_ktrerror != 0 ||
 	    n_rcu_torture_boost_rterror != 0 ||
 	    n_rcu_torture_boost_failure != 0 ||
 	    i > 1) {
-		cnt += sprintf(&page[cnt], "!!! ");
+		page += sprintf(page, "!!! ");
 		atomic_inc(&n_rcu_torture_error);
 		WARN_ON_ONCE(1);
 	}
-	cnt += sprintf(&page[cnt], "Reader Pipe: ");
+	page += sprintf(page, "Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
-		cnt += sprintf(&page[cnt], " %ld", pipesummary[i]);
-	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
-	cnt += sprintf(&page[cnt], "Reader Batch: ");
+		page += sprintf(page, " %ld", pipesummary[i]);
+	page += sprintf(page, "\n%s%s ", torture_type, TORTURE_FLAG);
+	page += sprintf(page, "Reader Batch: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
-		cnt += sprintf(&page[cnt], " %ld", batchsummary[i]);
-	cnt += sprintf(&page[cnt], "\n%s%s ", torture_type, TORTURE_FLAG);
-	cnt += sprintf(&page[cnt], "Free-Block Circulation: ");
+		page += sprintf(page, " %ld", batchsummary[i]);
+	page += sprintf(page, "\n%s%s ", torture_type, TORTURE_FLAG);
+	page += sprintf(page, "Free-Block Circulation: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
-		cnt += sprintf(&page[cnt], " %d",
+		page += sprintf(page, " %d",
 			       atomic_read(&rcu_torture_wcount[i]));
 	}
-	cnt += sprintf(&page[cnt], "\n");
+	page += sprintf(page, "\n");
 	if (cur_ops->stats)
-		cnt += cur_ops->stats(&page[cnt]);
-	return cnt;
+		cur_ops->stats(page);
 }
 
 /*
@@ -1140,10 +1134,17 @@ rcu_torture_printk(char *page)
 static void
 rcu_torture_stats_print(void)
 {
-	int cnt;
+	int size = nr_cpu_ids * 200 + 8192;
+	char *buf;
 
-	cnt = rcu_torture_printk(printk_buf);
-	pr_alert("%s", printk_buf);
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf) {
+		pr_err("rcu-torture: Out of memory, need: %d", size);
+		return;
+	}
+	rcu_torture_printk(buf);
+	pr_alert("%s", buf);
+	kfree(buf);
 }
 
 /*
