@@ -895,6 +895,23 @@ int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id)
 }
 EXPORT_SYMBOL_GPL(mlx4_flow_detach);
 
+int mlx4_FLOW_STEERING_IB_UC_QP_RANGE(struct mlx4_dev *dev, u32 min_range_qpn,
+				      u32 max_range_qpn)
+{
+	int err;
+	u64 in_param;
+
+	in_param = ((u64) min_range_qpn) << 32;
+	in_param |= ((u64) max_range_qpn) & 0xFFFFFFFF;
+
+	err = mlx4_cmd(dev, in_param, 0, 0,
+			MLX4_FLOW_STEERING_IB_UC_QP_RANGE,
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_FLOW_STEERING_IB_UC_QP_RANGE);
+
 int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol prot,
 			  enum mlx4_steer_type steer)

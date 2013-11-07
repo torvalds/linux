@@ -3844,6 +3844,16 @@ int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
+int mlx4_FLOW_STEERING_IB_UC_QP_RANGE_wrapper(struct mlx4_dev *dev, int slave,
+					      struct mlx4_vhcr *vhcr,
+					      struct mlx4_cmd_mailbox *inbox,
+					      struct mlx4_cmd_mailbox *outbox,
+					      struct mlx4_cmd_info *cmd)
+{
+	return -EPERM;
+}
+
+
 static void detach_qp(struct mlx4_dev *dev, int slave, struct res_qp *rqp)
 {
 	struct res_gid *rgid;
