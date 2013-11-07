@@ -1249,9 +1249,8 @@ iscsit_check_dataout_hdr(struct iscsi_conn *conn, unsigned char *buf,
 	int rc;
 
 	if (!payload_length) {
-		pr_err("DataOUT payload is ZERO, protocol error.\n");
-		return iscsit_add_reject(conn, ISCSI_REASON_PROTOCOL_ERROR,
-					 buf);
+		pr_warn("DataOUT payload is ZERO, ignoring.\n");
+		return 0;
 	}
 
 	/* iSCSI write */
@@ -1481,7 +1480,7 @@ EXPORT_SYMBOL(iscsit_check_dataout_payload);
 
 static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsi_cmd *cmd = NULL;
 	struct iscsi_data *hdr = (struct iscsi_data *)buf;
 	int rc;
 	bool data_crc_failed = false;
