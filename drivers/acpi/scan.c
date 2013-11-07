@@ -467,7 +467,6 @@ void acpi_bus_hot_remove_device(void *context)
 {
 	__acpi_bus_hot_remove_device(context, ACPI_NOTIFY_EJECT_REQUEST);
 }
-EXPORT_SYMBOL(acpi_bus_hot_remove_device);
 
 static ssize_t real_power_state_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)

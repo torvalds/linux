@@ -87,6 +87,7 @@ void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 int acpi_bind_one(struct device *dev, acpi_handle handle);
 int acpi_unbind_one(struct device *dev);
+void acpi_bus_hot_remove_device(void *context);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
