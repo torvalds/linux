@@ -554,12 +554,6 @@ static inline void msg_set_last_bcast(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 4, 16, 0xffff, n);
 }
 
-
-static inline u32 msg_fragm_no(struct tipc_msg *m)
-{
-	return msg_bits(m, 4, 16, 0xffff);
-}
-
 static inline void msg_set_fragm_no(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 16, 0xffff, n);
@@ -574,12 +568,6 @@ static inline u32 msg_next_sent(struct tipc_msg *m)
 static inline void msg_set_next_sent(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 4, 0, 0xffff, n);
-}
-
-
-static inline u32 msg_long_msgno(struct tipc_msg *m)
-{
-	return msg_bits(m, 4, 0, 0xffff);
 }
 
 static inline void msg_set_long_msgno(struct tipc_msg *m, u32 n)
