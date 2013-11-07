@@ -77,5 +77,9 @@ the parens represents additional information, e.g. error code, error counter,
 or status.  A test thread also emits a summary line at completion listing the
 number of tests executed, number that failed, and a result code.
 
+Example:
+	% dmesg | tail -n 1
+	dmatest: dma3chan0-copy0: summary 400000 tests, 0 failures iops: 61524 KB/s 246098 (0)
+
 The details of a data miscompare error are also emitted, but do not follow the
 above format.

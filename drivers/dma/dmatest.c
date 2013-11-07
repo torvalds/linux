@@ -325,6 +325,29 @@ static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
 		 current->comm, n, err, src_off, dst_off, len, data);
 }
 
+static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
+{
+	unsigned long long per_sec = 1000000;
+
+	if (runtime <= 0)
+		return 0;
+
+	/* drop precision until runtime is 32-bits */
+	while (runtime > UINT_MAX) {
+		runtime >>= 1;
+		per_sec <<= 1;
+	}
+
+	per_sec *= val;
+	do_div(per_sec, runtime);
+	return per_sec;
+}
+
+static unsigned long long dmatest_KBs(s64 runtime, unsigned long long len)
+{
+	return dmatest_persec(runtime, len >> 10);
+}
+
 /*
  * This function repeatedly tests DMA transfers of various lengths and
  * offsets for a given operation type until it is told to exit by
@@ -360,6 +383,9 @@ static int dmatest_func(void *data)
 	int			src_cnt;
 	int			dst_cnt;
 	int			i;
+	ktime_t			ktime;
+	s64			runtime = 0;
+	unsigned long long	total_len = 0;
 
 	set_freezable();
 
@@ -417,6 +443,7 @@ static int dmatest_func(void *data)
 	 */
 	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 
+	ktime = ktime_get();
 	while (!kthread_should_stop()
 	       && !(params->iterations && total_tests >= params->iterations)) {
 		struct dma_async_tx_descriptor *tx = NULL;
@@ -464,6 +491,7 @@ static int dmatest_func(void *data)
 		len = (len >> align) << align;
 		if (!len)
 			len = 1 << align;
+		total_len += len;
 
 		for (i = 0; i < src_cnt; i++) {
 			u8 *buf = thread->srcs[i] + src_off;
@@ -607,6 +635,7 @@ static int dmatest_func(void *data)
 				   len, 0);
 		}
 	}
+	runtime = ktime_us_delta(ktime_get(), ktime);
 
 	ret = 0;
 	for (i = 0; thread->dsts[i]; i++)
@@ -621,8 +650,10 @@ err_srcbuf:
 err_srcs:
 	kfree(pq_coefs);
 err_thread_type:
-	pr_info("%s: terminating after %u tests, %u failures (status %d)\n",
-		current->comm, total_tests, failed_tests, ret);
+	pr_info("%s: summary %u tests, %u failures %llu iops %llu KB/s (%d)\n",
+		current->comm, total_tests, failed_tests,
+		dmatest_persec(runtime, total_tests),
+		dmatest_KBs(runtime, total_len), ret);
 
 	/* terminate all transfers on specified channels */
 	if (ret)
