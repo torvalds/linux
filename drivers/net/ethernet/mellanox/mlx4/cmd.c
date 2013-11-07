@@ -1539,11 +1539,6 @@ out:
 	return ret;
 }
 
-static int calculate_transition(u16 oper_vlan, u16 admin_vlan)
-{
-	return (2 * (oper_vlan == MLX4_VGT) + (admin_vlan == MLX4_VGT));
-}
-
 static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 					    int slave, int port)
 {
@@ -1553,7 +1548,6 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	struct mlx4_dev *dev = &(priv->dev);
 	int err;
 	int admin_vlan_ix = NO_INDX;
-	enum mlx4_vlan_transition vlan_trans;
 
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 	vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
@@ -1563,12 +1557,8 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	    vp_oper->state.link_state == vp_admin->link_state)
 		return 0;
 
-	vlan_trans = calculate_transition(vp_oper->state.default_vlan,
-					  vp_admin->default_vlan);
-
 	if (!(priv->mfunc.master.slave_state[slave].active &&
-	      dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP &&
-	      vlan_trans == MLX4_VLAN_TRANSITION_VST_VST)) {
+	      dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP)) {
 		/* even if the UPDATE_QP command isn't supported, we still want
 		 * to set this VF link according to the admin directive
 		 */
@@ -1586,15 +1576,19 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 		return -ENOMEM;
 
 	if (vp_oper->state.default_vlan != vp_admin->default_vlan) {
-		err = __mlx4_register_vlan(&priv->dev, port,
-					   vp_admin->default_vlan,
-					   &admin_vlan_ix);
-		if (err) {
-			kfree(work);
-			mlx4_warn((&priv->dev),
-				  "No vlan resources slave %d, port %d\n",
-				  slave, port);
-			return err;
+		if (MLX4_VGT != vp_admin->default_vlan) {
+			err = __mlx4_register_vlan(&priv->dev, port,
+						   vp_admin->default_vlan,
+						   &admin_vlan_ix);
+			if (err) {
+				kfree(work);
+				mlx4_warn((&priv->dev),
+					  "No vlan resources slave %d, port %d\n",
+					  slave, port);
+				return err;
+			}
+		} else {
+			admin_vlan_ix = NO_INDX;
 		}
 		work->flags |= MLX4_VF_IMMED_VLAN_FLAG_VLAN;
 		mlx4_dbg((&(priv->dev)),
