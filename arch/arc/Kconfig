@@ -100,7 +100,7 @@ config ARC_CPU_750D
 
 config ARC_CPU_770
 	bool "ARC770"
-	select ARC_CPU_REL_4_10
+	select ARC_HAS_SWAPE
 	help
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
 	  This core has a bunch of cool new features:
@@ -302,13 +302,6 @@ config ARC_FPU_SAVE_RESTORE
 config ARC_CANT_LLSC
 	def_bool n
 
-menuconfig ARC_CPU_REL_4_10
-	bool "Enable support for Rel 4.10 features"
-	default n
-	help
-	  -ARC770 (and dependent features) enabled
-	  -ARC750 also shares some of the new features with 770
-
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
@@ -317,12 +310,10 @@ config ARC_HAS_LLSC
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
 	default y
-	depends on ARC_CPU_REL_4_10
 
 config ARC_HAS_RTSC
 	bool "Insn: RTSC (64-bit r/o cycle counter)"
 	default y
-	depends on ARC_CPU_REL_4_10
 	depends on !SMP
 
 endmenu   # "ARC CPU Configuration"
