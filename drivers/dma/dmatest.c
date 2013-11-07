@@ -623,8 +623,8 @@ static void dmatest_cleanup_channel(struct dmatest_chan *dtc)
 
 	list_for_each_entry_safe(thread, _thread, &dtc->threads, node) {
 		ret = kthread_stop(thread->task);
-		pr_debug("dmatest: thread %s exited with status %d\n",
-				thread->task->comm, ret);
+		pr_debug("thread %s exited with status %d\n",
+			 thread->task->comm, ret);
 		list_del(&thread->node);
 		kfree(thread);
 	}
@@ -656,9 +656,8 @@ static int dmatest_add_threads(struct dmatest_info *info,
 	for (i = 0; i < params->threads_per_chan; i++) {
 		thread = kzalloc(sizeof(struct dmatest_thread), GFP_KERNEL);
 		if (!thread) {
-			pr_warning("dmatest: No memory for %s-%s%u\n",
-				   dma_chan_name(chan), op, i);
-
+			pr_warn("No memory for %s-%s%u\n",
+				dma_chan_name(chan), op, i);
 			break;
 		}
 		thread->info = info;
@@ -668,8 +667,8 @@ static int dmatest_add_threads(struct dmatest_info *info,
 		thread->task = kthread_run(dmatest_func, thread, "%s-%s%u",
 				dma_chan_name(chan), op, i);
 		if (IS_ERR(thread->task)) {
-			pr_warning("dmatest: Failed to run thread %s-%s%u\n",
-					dma_chan_name(chan), op, i);
+			pr_warn("Failed to run thread %s-%s%u\n",
+				dma_chan_name(chan), op, i);
 			kfree(thread);
 			break;
 		}
@@ -692,7 +691,7 @@ static int dmatest_add_channel(struct dmatest_info *info,
 
 	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
-		pr_warning("dmatest: No memory for %s\n", dma_chan_name(chan));
+		pr_warn("No memory for %s\n", dma_chan_name(chan));
 		return -ENOMEM;
 	}
 
@@ -712,7 +711,7 @@ static int dmatest_add_channel(struct dmatest_info *info,
 		thread_count += cnt > 0 ? cnt : 0;
 	}
 
-	pr_info("dmatest: Started %u threads using %s\n",
+	pr_info("Started %u threads using %s\n",
 		thread_count, dma_chan_name(chan));
 
 	list_add_tail(&dtc->node, &info->channels);
@@ -779,7 +778,7 @@ static void __stop_threaded_test(struct dmatest_info *info)
 		list_del(&dtc->node);
 		chan = dtc->chan;
 		dmatest_cleanup_channel(dtc);
-		pr_debug("dmatest: dropped channel %s\n", dma_chan_name(chan));
+		pr_debug("dropped channel %s\n", dma_chan_name(chan));
 		dma_release_channel(chan);
 	}
 
@@ -906,7 +905,7 @@ static int dmatest_register_dbgfs(struct dmatest_info *info)
 	return 0;
 
 err_root:
-	pr_err("dmatest: Failed to initialize debugfs\n");
+	pr_err("Failed to initialize debugfs\n");
 	return -ENOMEM;
 }
 
