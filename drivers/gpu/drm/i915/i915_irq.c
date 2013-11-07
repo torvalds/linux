@@ -1778,6 +1778,21 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		}
 	}
 
+	if (master_ctl & GEN8_DE_PORT_IRQ) {
+		tmp = I915_READ(GEN8_DE_PORT_IIR);
+		if (tmp & GEN8_AUX_CHANNEL_A)
+			dp_aux_irq_handler(dev);
+		else if (tmp)
+			DRM_ERROR("Unexpected DE Port interrupt\n");
+		else
+			DRM_ERROR("The master control interrupt lied (DE PORT)!\n");
+
+		if (tmp) {
+			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
+			ret = IRQ_HANDLED;
+		}
+	}
+
 	for_each_pipe(pipe) {
 		uint32_t pipe_iir;
 
@@ -2883,8 +2898,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	}
 	POSTING_READ(GEN8_DE_PIPE_ISR(0));
 
-	I915_WRITE(GEN8_DE_PORT_IMR, ~_PORT_DP_A_HOTPLUG);
-	I915_WRITE(GEN8_DE_PORT_IER, _PORT_DP_A_HOTPLUG);
+	I915_WRITE(GEN8_DE_PORT_IMR, ~GEN8_AUX_CHANNEL_A);
+	I915_WRITE(GEN8_DE_PORT_IER, GEN8_AUX_CHANNEL_A);
 	POSTING_READ(GEN8_DE_PORT_IER);
 }
 

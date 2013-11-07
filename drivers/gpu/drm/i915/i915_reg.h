@@ -4073,7 +4073,8 @@
 #define GEN8_DE_PORT_IMR 0x44444
 #define GEN8_DE_PORT_IIR 0x44448
 #define GEN8_DE_PORT_IER 0x4444c
-#define  _PORT_DP_A_HOTPLUG		(1 << 3)
+#define  GEN8_PORT_DP_A_HOTPLUG		(1 << 3)
+#define  GEN8_AUX_CHANNEL_A		(1 << 0)
 
 #define GEN8_DE_MISC_ISR 0x44460
 #define GEN8_DE_MISC_IMR 0x44464
