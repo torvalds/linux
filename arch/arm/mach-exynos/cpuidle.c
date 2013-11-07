@@ -193,7 +193,7 @@ static void __init exynos5_core_down_clk(void)
 	__raw_writel(tmp, EXYNOS5_PWR_CTRL2);
 }
 
-static int __init exynos_cpuidle_probe(struct platform_device *pdev)
+static int exynos_cpuidle_probe(struct platform_device *pdev)
 {
 	int cpu_id, ret;
 	struct cpuidle_device *device;
@@ -206,7 +206,7 @@ static int __init exynos_cpuidle_probe(struct platform_device *pdev)
 
 	ret = cpuidle_register_driver(&exynos4_idle_driver);
 	if (ret) {
-		printk(KERN_ERR "CPUidle failed to register driver\n");
+		dev_err(&pdev->dev, "failed to register cpuidle driver\n");
 		return ret;
 	}
 
@@ -220,7 +220,7 @@ static int __init exynos_cpuidle_probe(struct platform_device *pdev)
 
 		ret = cpuidle_register_device(device);
 		if (ret) {
-			printk(KERN_ERR "CPUidle register device failed\n");
+			dev_err(&pdev->dev, "failed to register cpuidle device\n");
 			return ret;
 		}
 	}

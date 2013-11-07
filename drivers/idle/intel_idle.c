@@ -390,7 +390,7 @@ static int cpu_hotplug_notify(struct notifier_block *n,
 	int hotcpu = (unsigned long)hcpu;
 	struct cpuidle_device *dev;
 
-	switch (action & 0xf) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 
 		if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
