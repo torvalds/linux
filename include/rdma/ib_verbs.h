@@ -1100,13 +1100,14 @@ enum ib_flow_attr_type {
 enum ib_flow_spec_type {
 	/* L2 headers*/
 	IB_FLOW_SPEC_ETH	= 0x20,
+	IB_FLOW_SPEC_IB		= 0x22,
 	/* L3 header*/
 	IB_FLOW_SPEC_IPV4	= 0x30,
 	/* L4 headers*/
 	IB_FLOW_SPEC_TCP	= 0x40,
 	IB_FLOW_SPEC_UDP	= 0x41
 };
-
+#define IB_FLOW_SPEC_LAYER_MASK	0xF0
 #define IB_FLOW_SPEC_SUPPORT_LAYERS 4
 
 /* Flow steering rule priority is set according to it's domain.
@@ -1132,6 +1133,18 @@ struct ib_flow_spec_eth {
 	u16			  size;
 	struct ib_flow_eth_filter val;
 	struct ib_flow_eth_filter mask;
+};
+
+struct ib_flow_ib_filter {
+	__be16 dlid;
+	__u8   sl;
+};
+
+struct ib_flow_spec_ib {
+	enum ib_flow_spec_type	 type;
+	u16			 size;
+	struct ib_flow_ib_filter val;
+	struct ib_flow_ib_filter mask;
 };
 
 struct ib_flow_ipv4_filter {
@@ -1164,6 +1177,7 @@ union ib_flow_spec {
 		u16			size;
 	};
 	struct ib_flow_spec_eth		eth;
+	struct ib_flow_spec_ib		ib;
 	struct ib_flow_spec_ipv4        ipv4;
 	struct ib_flow_spec_tcp_udp	tcp_udp;
 };
