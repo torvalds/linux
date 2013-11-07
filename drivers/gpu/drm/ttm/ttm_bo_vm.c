@@ -41,6 +41,51 @@
 
 #define TTM_BO_VM_NUM_PREFAULT 16
 
+static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
+				struct vm_area_struct *vma,
+				struct vm_fault *vmf)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	int ret = 0;
+
+	spin_lock(&bdev->fence_lock);
+	if (likely(!test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)))
+		goto out_unlock;
+
+	/*
+	 * Quick non-stalling check for idle.
+	 */
+	ret = ttm_bo_wait(bo, false, false, true);
+	if (likely(ret == 0))
+		goto out_unlock;
+
+	/*
+	 * If possible, avoid waiting for GPU with mmap_sem
+	 * held.
+	 */
+	if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
+		ret = VM_FAULT_RETRY;
+		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
+			goto out_unlock;
+
+		up_read(&vma->vm_mm->mmap_sem);
+		(void) ttm_bo_wait(bo, false, true, false);
+		goto out_unlock;
+	}
+
+	/*
+	 * Ordinary wait.
+	 */
+	ret = ttm_bo_wait(bo, false, true, false);
+	if (unlikely(ret != 0))
+		ret = (ret != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
+			VM_FAULT_NOPAGE;
+
+out_unlock:
+	spin_unlock(&bdev->fence_lock);
+	return ret;
+}
+
 static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo = (struct ttm_buffer_object *)
@@ -91,18 +136,11 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * Wait for buffer data in transit, due to a pipelined
 	 * move.
 	 */
-
-	spin_lock(&bdev->fence_lock);
-	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
-		ret = ttm_bo_wait(bo, false, true, false);
-		spin_unlock(&bdev->fence_lock);
-		if (unlikely(ret != 0)) {
-			retval = (ret != -ERESTARTSYS) ?
-			    VM_FAULT_SIGBUS : VM_FAULT_NOPAGE;
-			goto out_unlock;
-		}
-	} else
-		spin_unlock(&bdev->fence_lock);
+	ret = ttm_bo_vm_fault_idle(bo, vma, vmf);
+	if (unlikely(ret != 0)) {
+		retval = ret;
+		goto out_unlock;
+	}
 
 	ret = ttm_mem_io_lock(man, true);
 	if (unlikely(ret != 0)) {
