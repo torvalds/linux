@@ -81,6 +81,15 @@ static inline unsigned int get_sysctl_timer_migration(void)
 extern unsigned int sysctl_sched_rt_period;
 extern int sysctl_sched_rt_runtime;
 
+/*
+ *  control SCHED_DEADLINE reservations:
+ *
+ *  /proc/sys/kernel/sched_dl_period_us
+ *  /proc/sys/kernel/sched_dl_runtime_us
+ */
+extern unsigned int sysctl_sched_dl_period;
+extern int sysctl_sched_dl_runtime;
+
 #ifdef CONFIG_CFS_BANDWIDTH
 extern unsigned int sysctl_sched_cfs_bandwidth_slice;
 #endif
@@ -96,6 +105,10 @@ extern int sched_rr_handler(struct ctl_table *table, int write,
 		loff_t *ppos);
 
 extern int sched_rt_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos);
+
+int sched_dl_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
 
