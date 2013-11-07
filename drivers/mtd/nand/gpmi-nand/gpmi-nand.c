@@ -352,6 +352,9 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 
 int common_nfc_set_geometry(struct gpmi_nand_data *this)
 {
+	if (of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc")
+		&& set_geometry_by_ecc_info(this))
+		return 0;
 	return legacy_set_geometry(this);
 }
 
