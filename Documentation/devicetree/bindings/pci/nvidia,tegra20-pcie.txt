@@ -47,9 +47,14 @@ Required properties:
 - clock-names: Must include the following entries:
   - pex
   - afi
-  - pcie_xclk
   - pll_e
   - cml (not required for Tegra20)
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - pex
+  - afi
+  - pcie_x
 
 Root ports are defined as subnodes of the PCIe controller node.
 
@@ -91,9 +96,10 @@ SoC DTSI:
 			  0x82000000 0 0xa0000000 0xa0000000 0 0x10000000   /* non-prefetchable memory */
 			  0xc2000000 0 0xb0000000 0xb0000000 0 0x10000000>; /* prefetchable memory */
 
-		clocks = <&tegra_car 70>, <&tegra_car 72>, <&tegra_car 74>,
-			 <&tegra_car 118>;
-		clock-names = "pex", "afi", "pcie_xclk", "pll_e";
+		clocks = <&tegra_car 70>, <&tegra_car 72>, <&tegra_car 118>;
+		clock-names = "pex", "afi", "pll_e";
+		resets = <&tegra_car 70>, <&tegra_car 72>, <&tegra_car 74>;
+		reset-names = "pex", "afi", "pcie_x";
 		status = "disabled";
 
 		pci@1,0 {

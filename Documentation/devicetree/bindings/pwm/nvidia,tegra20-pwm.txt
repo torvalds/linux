@@ -9,6 +9,10 @@ Required properties:
   the cells format.
 - clocks: Must contain one entry, for the module clock.
   See ../clocks/clock-bindings.txt for details.
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - pwm
 
 Example:
 
@@ -17,4 +21,6 @@ Example:
 		reg = <0x7000a000 0x100>;
 		#pwm-cells = <2>;
 		clocks = <&tegra_car 17>;
+		resets = <&tegra_car 17>;
+		reset-names = "pwm";
 	};

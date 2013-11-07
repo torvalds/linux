@@ -47,6 +47,10 @@ Required properties:
   - fast-clk
   Tegra114:
   - div-clk
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - i2c
 
 Example:
 
@@ -58,5 +62,7 @@ Example:
 		#size-cells = <0>;
 		clocks = <&tegra_car 12>, <&tegra_car 124>;
 		clock-names = "div-clk", "fast-clk";
+		resets = <&tegra_car 12>;
+		reset-names = "i2c";
 		status = "disabled";
 	};

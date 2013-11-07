@@ -10,6 +10,10 @@ Required properties:
   See ../clocks/clock-bindings.txt for details.
 - clock-names : Must include the following entries:
   - spi
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - spi
 
 Recommended properties:
 - spi-max-frequency: Definition as per
@@ -26,5 +30,7 @@ spi@7000d600 {
 	#size-cells = <0>;
 	clocks = <&tegra_car 44>;
 	clock-names = "spi";
+	resets = <&tegra_car 44>;
+	reset-names = "spi";
 	status = "disabled";
 };

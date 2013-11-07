@@ -8,6 +8,10 @@ Required properties:
   request selector for this SLINK controller.
 - clocks : Must contain one entry, for the module clock.
   See ../clocks/clock-bindings.txt for details.
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - spi
 
 Recommended properties:
 - spi-max-frequency: Definition as per
@@ -24,5 +28,7 @@ spi@7000d600 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	clocks = <&tegra_car 44>;
+	resets = <&tegra_car 44>;
+	reset-names = "spi";
 	status = "disabled";
 };

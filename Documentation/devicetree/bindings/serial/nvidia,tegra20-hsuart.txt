@@ -8,6 +8,10 @@ Required properties:
   request selector for this UART controller.
 - clocks: Must contain one entry, for the module clock.
   See ../clocks/clock-bindings.txt for details.
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - serial
 
 Optional properties:
 - nvidia,enable-modem-interrupt: Enable modem interrupts. Should be enable
@@ -23,5 +27,7 @@ serial@70006000 {
 	nvidia,dma-request-selector = <&apbdma 8>;
 	nvidia,enable-modem-interrupt;
 	clocks = <&tegra_car 6>;
+	resets = <&tegra_car 6>;
+	reset-names = "serial";
 	status = "disabled";
 };

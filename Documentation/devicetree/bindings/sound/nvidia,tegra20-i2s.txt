@@ -6,6 +6,10 @@ Required properties:
 - interrupts : Should contain I2S interrupt
 - clocks : Must contain one entry, for the module clock.
   See ../clocks/clock-bindings.txt for details.
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - i2s
 - nvidia,dma-request-selector : The Tegra DMA controller's phandle and
   request selector for this I2S controller
 
@@ -17,4 +21,6 @@ i2s@70002800 {
 	interrupts = < 45 >;
 	nvidia,dma-request-selector = < &apbdma 2 >;
 	clocks = <&tegra_car 11>;
+	resets = <&tegra_car 11>;
+	reset-names = "i2s";
 };

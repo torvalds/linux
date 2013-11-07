@@ -15,3 +15,7 @@ Required properties:
   - fast-clk
   Tegra114:
   - div-clk
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - i2c

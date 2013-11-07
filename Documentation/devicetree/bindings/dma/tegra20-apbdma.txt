@@ -7,6 +7,10 @@ Required properties:
 - interrupts: Should contain all of the per-channel DMA interrupts.
 - clocks: Must contain one entry, for the module clock.
   See ../clocks/clock-bindings.txt for details.
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - dma
 
 Examples:
 
@@ -30,4 +34,6 @@ apbdma: dma@6000a000 {
 		       0 150 0x04
 		       0 151 0x04 >;
 	clocks = <&tegra_car 34>;
+	resets = <&tegra_car 34>;
+	reset-names = "dma";
 };
