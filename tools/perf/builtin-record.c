@@ -74,13 +74,7 @@ struct perf_record {
 	bool			no_buildid;
 	bool			no_buildid_cache;
 	long			samples;
-	off_t			post_processing_offset;
 };
-
-static void advance_output(struct perf_record *rec, size_t size)
-{
-	rec->bytes_written += size;
-}
 
 static int write_output(struct perf_record *rec, void *buf, size_t size)
 {
@@ -252,13 +246,14 @@ static int process_buildids(struct perf_record *rec)
 {
 	struct perf_data_file *file  = &rec->file;
 	struct perf_session *session = rec->session;
+	u64 start = session->header.data_offset;
 
 	u64 size = lseek(file->fd, 0, SEEK_CUR);
 	if (size == 0)
 		return 0;
 
-	return __perf_session__process_events(session, rec->post_processing_offset,
-					      size - rec->post_processing_offset,
+	return __perf_session__process_events(session, start,
+					      size - start,
 					      size, &build_id__mark_dso_hit_ops);
 }
 
@@ -342,9 +337,28 @@ out:
 	return rc;
 }
 
+static void perf_record__init_features(struct perf_record *rec)
+{
+	struct perf_evlist *evsel_list = rec->evlist;
+	struct perf_session *session = rec->session;
+	int feat;
+
+	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
+		perf_header__set_feat(&session->header, feat);
+
+	if (rec->no_buildid)
+		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
+
+	if (!have_tracepoints(&evsel_list->entries))
+		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
+
+	if (!rec->opts.branch_stack)
+		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+}
+
 static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 {
-	int err, feat;
+	int err;
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
 	struct machine *machine;
@@ -371,17 +385,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->session = session;
 
-	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
-		perf_header__set_feat(&session->header, feat);
-
-	if (rec->no_buildid)
-		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
-
-	if (!have_tracepoints(&evsel_list->entries))
-		perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
-
-	if (!rec->opts.branch_stack)
-		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+	perf_record__init_features(rec);
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &opts->target,
@@ -425,8 +429,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		goto out_delete_session;
 	}
 
-	rec->post_processing_offset = lseek(file->fd, 0, SEEK_CUR);
-
 	machine = &session->machines.host;
 
 	if (file->is_pipe) {
@@ -452,7 +454,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 				pr_err("Couldn't record tracing data.\n");
 				goto out_delete_session;
 			}
-			advance_output(rec, err);
+			rec->bytes_written += err;
 		}
 	}
 

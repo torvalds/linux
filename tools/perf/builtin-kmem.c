@@ -317,8 +317,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 
-	if (evsel->handler.func != NULL) {
-		tracepoint_handler f = evsel->handler.func;
+	if (evsel->handler != NULL) {
+		tracepoint_handler f = evsel->handler;
 		return f(evsel, sample);
 	}
 

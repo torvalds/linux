@@ -483,8 +483,8 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (sample->cpu > numcpus)
 		numcpus = sample->cpu;
 
-	if (evsel->handler.func != NULL) {
-		tracepoint_handler f = evsel->handler.func;
+	if (evsel->handler != NULL) {
+		tracepoint_handler f = evsel->handler;
 		return f(evsel, sample);
 	}
 

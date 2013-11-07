@@ -255,7 +255,7 @@ int perf_evlist__add_newtp(struct perf_evlist *evlist,
 	if (evsel == NULL)
 		return -1;
 
-	evsel->handler.func = handler;
+	evsel->handler = handler;
 	perf_evlist__add(evlist, evsel);
 	return 0;
 }

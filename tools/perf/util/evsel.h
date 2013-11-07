@@ -74,10 +74,7 @@ struct perf_evsel {
 		off_t		id_offset;
 	};
 	struct cgroup_sel	*cgrp;
-	struct {
-		void		*func;
-		void		*data;
-	} handler;
+	void			*handler;
 	struct cpu_map		*cpus;
 	unsigned int		sample_size;
 	int			id_pos;
