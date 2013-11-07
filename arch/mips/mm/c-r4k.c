@@ -346,14 +346,8 @@ static void r4k_blast_scache_setup(void)
 
 static inline void local_r4k___flush_cache_all(void * args)
 {
-#if defined(CONFIG_CPU_LOONGSON2)
-	r4k_blast_scache();
-	return;
-#endif
-	r4k_blast_dcache();
-	r4k_blast_icache();
-
 	switch (current_cpu_type()) {
+	case CPU_LOONGSON2:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 	case CPU_R4400SC:
@@ -361,7 +355,18 @@ static inline void local_r4k___flush_cache_all(void * args)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+		/*
+		 * These caches are inclusive caches, that is, if something
+		 * is not cached in the S-cache, we know it also won't be
+		 * in one of the primary caches.
+		 */
 		r4k_blast_scache();
+		break;
+
+	default:
+		r4k_blast_dcache();
+		r4k_blast_icache();
+		break;
 	}
 }
 
@@ -572,8 +577,17 @@ static inline void local_r4k_flush_icache_range(unsigned long start, unsigned lo
 
 	if (end - start > icache_size)
 		r4k_blast_icache();
-	else
-		protected_blast_icache_range(start, end);
+	else {
+		switch (boot_cpu_type()) {
+		case CPU_LOONGSON2:
+			protected_blast_icache_range(start, end);
+			break;
+
+		default:
+			protected_loongson23_blast_icache_range(start, end);
+			break;
+		}
+	}
 }
 
 static inline void local_r4k_flush_icache_range_ipi(void *args)
@@ -1109,15 +1123,14 @@ static void probe_pcache(void)
 	case CPU_ALCHEMY:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
-	}
 
-#ifdef	CONFIG_CPU_LOONGSON2
-	/*
-	 * LOONGSON2 has 4 way icache, but when using indexed cache op,
-	 * one op will act on all 4 ways
-	 */
-	c->icache.ways = 1;
-#endif
+	case CPU_LOONGSON2:
+		/*
+		 * LOONGSON2 has 4 way icache, but when using indexed cache op,
+		 * one op will act on all 4 ways
+		 */
+		c->icache.ways = 1;
+	}
 
 	printk("Primary instruction cache %ldkB, %s, %s, linesize %d bytes.\n",
 	       icache_size >> 10,
@@ -1193,7 +1206,6 @@ static int probe_scache(void)
 	return 1;
 }
 
-#if defined(CONFIG_CPU_LOONGSON2)
 static void __init loongson2_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -1209,7 +1221,6 @@ static void __init loongson2_sc_init(void)
 
 	c->options |= MIPS_CPU_INCLUSIVE_CACHES;
 }
-#endif
 
 extern int r5k_sc_init(void);
 extern int rm7k_sc_init(void);
@@ -1259,11 +1270,10 @@ static void setup_scache(void)
 #endif
 		return;
 
-#if defined(CONFIG_CPU_LOONGSON2)
 	case CPU_LOONGSON2:
 		loongson2_sc_init();
 		return;
-#endif
+
 	case CPU_XLP:
 		/* don't need to worry about L2, fully coherent */
 		return;

@@ -245,7 +245,7 @@ static int nlm_parse_cpumask(cpumask_t *wakeup_mask)
 	return threadmode;
 
 unsupp:
-	panic("Unsupported CPU mask %lx\n",
+	panic("Unsupported CPU mask %lx",
 		(unsigned long)cpumask_bits(wakeup_mask)[0]);
 	return 0;
 }
