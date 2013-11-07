@@ -201,8 +201,8 @@ struct pxa3xx_nand_info {
 	int			use_spare;	/* use spare ? */
 	int			is_ready;
 
-	unsigned int		page_size;	/* page size of attached chip */
-	unsigned int		data_size;	/* data size in FIFO */
+	unsigned int		fifo_size;	/* max. data size in the FIFO */
+	unsigned int		data_size;	/* data to be read from FIFO */
 	unsigned int		oob_size;
 	int 			retcode;
 
@@ -303,16 +303,15 @@ static void pxa3xx_nand_set_timing(struct pxa3xx_nand_host *host,
 
 static void pxa3xx_set_datasize(struct pxa3xx_nand_info *info)
 {
-	struct pxa3xx_nand_host *host = info->host[info->cs];
 	int oob_enable = info->reg_ndcr & NDCR_SPARE_EN;
 
-	info->data_size = host->page_size;
+	info->data_size = info->fifo_size;
 	if (!oob_enable) {
 		info->oob_size = 0;
 		return;
 	}
 
-	switch (host->page_size) {
+	switch (info->fifo_size) {
 	case 2048:
 		info->oob_size = (info->use_ecc) ? 40 : 64;
 		break;
@@ -929,9 +928,12 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 	uint32_t ndcr = nand_readl(info, NDCR);
 
 	if (ndcr & NDCR_PAGE_SZ) {
+		/* Controller's FIFO size */
+		info->fifo_size = 2048;
 		host->page_size = 2048;
 		host->read_id_bytes = 4;
 	} else {
+		info->fifo_size = 512;
 		host->page_size = 512;
 		host->read_id_bytes = 2;
 	}
