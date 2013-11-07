@@ -199,10 +199,14 @@ static int hwahc_op_get_frame_number(struct usb_hcd *usb_hcd)
 {
 	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
+	struct wahc *wa = &hwahc->wa;
 
-	dev_err(wusbhc->dev, "%s (%p [%p]) UNIMPLEMENTED\n", __func__,
-		usb_hcd, hwahc);
-	return -ENOSYS;
+	/*
+	 * We cannot query the HWA for the WUSB time since that requires sending
+	 * a synchronous URB and this function can be called in_interrupt.
+	 * Instead, query the USB frame number for our parent and use that.
+	 */
+	return usb_get_current_frame_number(wa->usb_dev);
 }
 
 static int hwahc_op_urb_enqueue(struct usb_hcd *usb_hcd, struct urb *urb,
@@ -566,14 +570,10 @@ found:
 		goto error;
 	}
 	wa->wa_descr = wa_descr = (struct usb_wa_descriptor *) hdr;
-	/* Make LE fields CPU order */
-	wa_descr->bcdWAVersion = le16_to_cpu(wa_descr->bcdWAVersion);
-	wa_descr->wNumRPipes = le16_to_cpu(wa_descr->wNumRPipes);
-	wa_descr->wRPipeMaxBlock = le16_to_cpu(wa_descr->wRPipeMaxBlock);
-	if (wa_descr->bcdWAVersion > 0x0100)
+	if (le16_to_cpu(wa_descr->bcdWAVersion) > 0x0100)
 		dev_warn(dev, "Wire Adapter v%d.%d newer than groked v1.0\n",
-			 wa_descr->bcdWAVersion & 0xff00 >> 8,
-			 wa_descr->bcdWAVersion & 0x00ff);
+			 le16_to_cpu(wa_descr->bcdWAVersion) & 0xff00 >> 8,
+			 le16_to_cpu(wa_descr->bcdWAVersion) & 0x00ff);
 	result = 0;
 error:
 	return result;
@@ -679,7 +679,8 @@ static void hwahc_security_release(struct hwahc *hwahc)
 	/* nothing to do here so far... */
 }
 
-static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
+static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface,
+	kernel_ulong_t quirks)
 {
 	int result;
 	struct device *dev = &iface->dev;
@@ -724,7 +725,7 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface)
 		dev_err(dev, "Can't create WUSB HC structures: %d\n", result);
 		goto error_wusbhc_create;
 	}
-	result = wa_create(&hwahc->wa, iface);
+	result = wa_create(&hwahc->wa, iface, quirks);
 	if (result < 0)
 		goto error_wa_create;
 	return 0;
@@ -780,7 +781,7 @@ static int hwahc_probe(struct usb_interface *usb_iface,
 	wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	hwahc_init(hwahc);
-	result = hwahc_create(hwahc, usb_iface);
+	result = hwahc_create(hwahc, usb_iface, id->driver_info);
 	if (result < 0) {
 		dev_err(dev, "Cannot initialize internals: %d\n", result);
 		goto error_hwahc_create;
@@ -824,6 +825,12 @@ static void hwahc_disconnect(struct usb_interface *usb_iface)
 }
 
 static struct usb_device_id hwahc_id_table[] = {
+	/* Alereon 5310 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5310, 0xe0, 0x02, 0x01),
+	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC },
+	/* Alereon 5611 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5611, 0xe0, 0x02, 0x01),
+	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC },
 	/* FIXME: use class labels for this */
 	{ USB_INTERFACE_INFO(0xe0, 0x02, 0x01), },
 	{},

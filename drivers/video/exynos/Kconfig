@@ -16,6 +16,7 @@ if EXYNOS_VIDEO
 config EXYNOS_MIPI_DSI
 	bool "EXYNOS MIPI DSI driver support."
 	depends on ARCH_S5PV210 || ARCH_EXYNOS
+	select GENERIC_PHY
 	help
 	  This enables support for MIPI-DSI device.
 
@@ -29,7 +30,7 @@ config EXYNOS_LCD_S6E8AX0
 
 config EXYNOS_DP
 	bool "EXYNOS DP driver support"
-	depends on ARCH_EXYNOS
+	depends on OF && ARCH_EXYNOS
 	default n
 	help
 	  This enables support for DP device.
