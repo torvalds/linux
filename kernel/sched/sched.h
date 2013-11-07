@@ -107,6 +107,20 @@ static inline int task_has_dl_policy(struct task_struct *p)
 	return dl_policy(p->policy);
 }
 
+static inline int dl_time_before(u64 a, u64 b)
+{
+	return (s64)(a - b) < 0;
+}
+
+/*
+ * Tells if entity @a should preempt entity @b.
+ */
+static inline
+int dl_entity_preempt(struct sched_dl_entity *a, struct sched_dl_entity *b)
+{
+	return dl_time_before(a->deadline, b->deadline);
+}
+
 /*
  * This is the priority-queue data structure of the RT scheduling class:
  */

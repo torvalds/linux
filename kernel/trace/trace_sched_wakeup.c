@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/deadline.h>
 #include <trace/events/sched.h>
 #include "trace.h"
 
