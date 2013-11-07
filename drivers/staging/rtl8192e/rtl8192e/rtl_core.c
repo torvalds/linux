@@ -585,8 +585,6 @@ static void rtl8192_update_beacon(void *data)
 	rtl8192_update_cap(dev, net->capability);
 }
 
-int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
-
 static void rtl8192_qos_activate(void *data)
 {
 	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
@@ -2692,7 +2690,7 @@ out:
 }
 
 
-irqreturn_t rtl8192_interrupt(int irq, void *netdev)
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 {
 	struct net_device *dev = (struct net_device *) netdev;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);

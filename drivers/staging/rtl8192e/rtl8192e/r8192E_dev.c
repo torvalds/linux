@@ -30,7 +30,7 @@
 #include "rtl_dm.h"
 #include "rtl_wx.h"
 
-extern int WDCAPARA_ADD[];
+static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
 
 void rtl8192e_start_beacon(struct net_device *dev)
 {
