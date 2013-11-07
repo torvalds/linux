@@ -1444,7 +1444,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 			       power_list)->reg;
 
 	list_for_each_entry(w, pending, power_list) {
-		BUG_ON(reg != w->reg);
+		WARN_ON(reg != w->reg);
 		w->power = w->new_power;
 
 		mask |= w->mask << w->shift;
@@ -3329,8 +3329,9 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	u64 fmt;
 	int ret;
 
-	BUG_ON(!config);
-	BUG_ON(list_empty(&w->sources) || list_empty(&w->sinks));
+	if (WARN_ON(!config) ||
+	    WARN_ON(list_empty(&w->sources) || list_empty(&w->sinks)))
+		return -EINVAL;
 
 	/* We only support a single source and sink, pick the first */
 	source_p = list_first_entry(&w->sources, struct snd_soc_dapm_path,
@@ -3338,9 +3339,10 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	sink_p = list_first_entry(&w->sinks, struct snd_soc_dapm_path,
 				  list_source);
 
-	BUG_ON(!source_p || !sink_p);
-	BUG_ON(!sink_p->source || !source_p->sink);
-	BUG_ON(!source_p->source || !sink_p->sink);
+	if (WARN_ON(!source_p || !sink_p) ||
+	    WARN_ON(!sink_p->source || !source_p->sink) ||
+	    WARN_ON(!source_p->source || !sink_p->sink))
+		return -EINVAL;
 
 	source = source_p->source->priv;
 	sink = sink_p->sink->priv;
