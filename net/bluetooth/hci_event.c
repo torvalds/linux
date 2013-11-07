@@ -1779,6 +1779,7 @@ static u8 hci_to_mgmt_reason(u8 err)
 static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
+	u8 reason = hci_to_mgmt_reason(ev->reason);
 	struct hci_conn *conn;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
@@ -1792,17 +1793,15 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (ev->status == 0)
 		conn->state = BT_CLOSED;
 
-	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags)) {
-		if (ev->status) {
-			mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
-					       conn->dst_type, ev->status);
-		} else {
-			u8 reason = hci_to_mgmt_reason(ev->reason);
-
-			mgmt_device_disconnected(hdev, &conn->dst, conn->type,
-						 conn->dst_type, reason);
-		}
+	if (ev->status) {
+		mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
+				       conn->dst_type, ev->status);
+		goto unlock;
 	}
+
+	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+		mgmt_device_disconnected(hdev, &conn->dst, conn->type,
+					 conn->dst_type, reason);
 
 	if (ev->status == 0) {
 		u8 type = conn->type;
