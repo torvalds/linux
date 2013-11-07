@@ -123,7 +123,7 @@ static void __init intel_mid_time_init(void)
 	apbt_time_init();
 }
 
-static void __cpuinit intel_mid_arch_setup(void)
+static void intel_mid_arch_setup(void)
 {
 	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
 		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_PENWELL;
