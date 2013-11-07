@@ -19,17 +19,5 @@
 };
 
 /include/ "p1010rdb.dtsi"
-
-&phy0 {
-	interrupts = <3 1 0 0>;
-};
-
-&phy1 {
-	interrupts = <2 1 0 0>;
-};
-
-&phy2 {
-	interrupts = <2 1 0 0>;
-};
-
+/include/ "p1010rdb-pa.dtsi"
 /include/ "fsl/p1010si-post.dtsi"
