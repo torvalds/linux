@@ -134,7 +134,6 @@ struct imx_hdmi {
 	struct i2c_adapter *ddc;
 	void __iomem *regs;
 
-	unsigned long pixel_clk_rate;
 	unsigned int sample_rate;
 	int ratio;
 };
@@ -328,34 +327,25 @@ static unsigned int hdmi_compute_cts(unsigned int freq, unsigned long pixel_clk,
 		return (cts * ratio) / 100;
 }
 
-static void hdmi_get_pixel_clk(struct imx_hdmi *hdmi)
-{
-	unsigned long rate;
-
-	rate = 65000000; /* FIXME */
-
-	if (rate)
-		hdmi->pixel_clk_rate = rate;
-}
-
-static void hdmi_set_clk_regenerator(struct imx_hdmi *hdmi)
+static void hdmi_set_clk_regenerator(struct imx_hdmi *hdmi,
+	unsigned long pixel_clk)
 {
 	unsigned int clk_n, clk_cts;
 
-	clk_n = hdmi_compute_n(hdmi->sample_rate, hdmi->pixel_clk_rate,
+	clk_n = hdmi_compute_n(hdmi->sample_rate, pixel_clk,
 			       hdmi->ratio);
-	clk_cts = hdmi_compute_cts(hdmi->sample_rate, hdmi->pixel_clk_rate,
+	clk_cts = hdmi_compute_cts(hdmi->sample_rate, pixel_clk,
 				   hdmi->ratio);
 
 	if (!clk_cts) {
 		dev_dbg(hdmi->dev, "%s: pixel clock not supported: %lu\n",
-			 __func__, hdmi->pixel_clk_rate);
+			 __func__, pixel_clk);
 		return;
 	}
 
 	dev_dbg(hdmi->dev, "%s: samplerate=%d  ratio=%d  pixelclk=%lu  N=%d cts=%d\n",
 		__func__, hdmi->sample_rate, hdmi->ratio,
-		hdmi->pixel_clk_rate, clk_n, clk_cts);
+		pixel_clk, clk_n, clk_cts);
 
 	hdmi_set_clock_regenerator_n(hdmi, clk_n);
 	hdmi_regenerate_cts(hdmi, clk_cts);
@@ -363,32 +353,12 @@ static void hdmi_set_clk_regenerator(struct imx_hdmi *hdmi)
 
 static void hdmi_init_clk_regenerator(struct imx_hdmi *hdmi)
 {
-	unsigned int clk_n, clk_cts;
-
-	clk_n = hdmi_compute_n(hdmi->sample_rate, hdmi->pixel_clk_rate,
-			       hdmi->ratio);
-	clk_cts = hdmi_compute_cts(hdmi->sample_rate, hdmi->pixel_clk_rate,
-				   hdmi->ratio);
-
-	if (!clk_cts) {
-		dev_dbg(hdmi->dev, "%s: pixel clock not supported: %lu\n",
-			 __func__, hdmi->pixel_clk_rate);
-		return;
-	}
-
-	dev_dbg(hdmi->dev, "%s: samplerate=%d  ratio=%d  pixelclk=%lu  N=%d cts=%d\n",
-		__func__, hdmi->sample_rate, hdmi->ratio,
-		hdmi->pixel_clk_rate, clk_n, clk_cts);
-
-	hdmi_set_clock_regenerator_n(hdmi, clk_n);
-	hdmi_regenerate_cts(hdmi, clk_cts);
+	hdmi_set_clk_regenerator(hdmi, 74250000);
 }
 
 static void hdmi_clk_regenerator_update_pixel_clock(struct imx_hdmi *hdmi)
 {
-	/* Get pixel clock from ipu */
-	hdmi_get_pixel_clk(hdmi);
-	hdmi_set_clk_regenerator(hdmi);
+	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock);
 }
 
 /*
@@ -1636,6 +1606,8 @@ static int imx_hdmi_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hdmi->dev = &pdev->dev;
+	hdmi->sample_rate = 48000;
+	hdmi->ratio = 100;
 
 	if (of_id) {
 		const struct platform_device_id *device_id = of_id->data;
