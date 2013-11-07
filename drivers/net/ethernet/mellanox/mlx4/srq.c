@@ -189,8 +189,6 @@ int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, u32 cqn, u16 xrcd,
 	}
 
 	srq_context = mailbox->buf;
-	memset(srq_context, 0, sizeof *srq_context);
-
 	srq_context->state_logsize_srqn = cpu_to_be32((ilog2(srq->max) << 24) |
 						      srq->srqn);
 	srq_context->logstride          = srq->wqe_shift - 4;

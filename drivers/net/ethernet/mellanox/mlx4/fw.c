@@ -159,8 +159,6 @@ int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg)
 		return PTR_ERR(mailbox);
 	inbox = mailbox->buf;
 
-	memset(inbox, 0, MOD_STAT_CFG_IN_SIZE);
-
 	MLX4_PUT(inbox, cfg->log_pg_sz, MOD_STAT_CFG_PG_SZ_OFFSET);
 	MLX4_PUT(inbox, cfg->log_pg_sz_m, MOD_STAT_CFG_PG_SZ_M_OFFSET);
 
@@ -967,7 +965,6 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
-	memset(mailbox->buf, 0, MLX4_MAILBOX_SIZE);
 	pages = mailbox->buf;
 
 	for (mlx4_icm_first(icm, &iter);
@@ -1316,8 +1313,6 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		return PTR_ERR(mailbox);
 	inbox = mailbox->buf;
 
-	memset(inbox, 0, INIT_HCA_IN_SIZE);
-
 	*((u8 *) mailbox->buf + INIT_HCA_VERSION_OFFSET) = INIT_HCA_VERSION;
 
 	*((u8 *) mailbox->buf + INIT_HCA_CACHELINE_SZ_OFFSET) =
@@ -1615,8 +1610,6 @@ int mlx4_INIT_PORT(struct mlx4_dev *dev, int port)
 		if (IS_ERR(mailbox))
 			return PTR_ERR(mailbox);
 		inbox = mailbox->buf;
-
-		memset(inbox, 0, INIT_PORT_IN_SIZE);
 
 		flags = 0;
 		flags |= (dev->caps.vl_cap[port] & 0xf) << INIT_PORT_VL_SHIFT;

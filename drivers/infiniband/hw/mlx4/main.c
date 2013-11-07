@@ -526,7 +526,6 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	if (IS_ERR(mailbox))
 		return 0;
 
-	memset(mailbox->buf, 0, 256);
 	memcpy(mailbox->buf, props->node_desc, 64);
 	mlx4_cmd(to_mdev(ibdev)->dev, mailbox->dma, 1, 0,
 		 MLX4_CMD_SET_NODE, MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
@@ -546,8 +545,6 @@ static int mlx4_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_viols,
 	mailbox = mlx4_alloc_cmd_mailbox(dev->dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
-
-	memset(mailbox->buf, 0, 256);
 
 	if (dev->dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
 		*(u8 *) mailbox->buf	     = !!reset_qkey_viols << 6;
@@ -879,8 +876,6 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	struct mlx4_ib_dev *mdev = to_mdev(qp->device);
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_net_trans_rule_hw_ctrl *ctrl;
-	size_t rule_size = sizeof(struct mlx4_net_trans_rule_hw_ctrl) +
-			   (sizeof(struct _rule_hw) * flow_attr->num_of_specs);
 
 	static const u16 __mlx4_domain[] = {
 		[IB_FLOW_DOMAIN_USER] = MLX4_DOMAIN_UVERBS,
@@ -905,7 +900,6 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
-	memset(mailbox->buf, 0, rule_size);
 	ctrl = mailbox->buf;
 
 	ctrl->prio = cpu_to_be16(__mlx4_domain[domain] |
