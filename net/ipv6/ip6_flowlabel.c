@@ -41,7 +41,7 @@
 #define FL_MIN_LINGER	6	/* Minimal linger. It is set to 6sec specified
 				   in old IPv6 RFC. Well, it was reasonable value.
 				 */
-#define FL_MAX_LINGER	60	/* Maximal linger timeout */
+#define FL_MAX_LINGER	150	/* Maximal linger timeout */
 
 /* FL hash table */
 
