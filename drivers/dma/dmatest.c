@@ -66,6 +66,10 @@ module_param(timeout, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass -1 for infinite timeout");
 
+static bool noverify;
+module_param(noverify, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(noverify, "Disable random data setup and verification");
+
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -88,6 +92,7 @@ struct dmatest_params {
 	unsigned int	xor_sources;
 	unsigned int	pq_sources;
 	int		timeout;
+	bool		noverify;
 };
 
 /**
@@ -435,18 +440,30 @@ static int dmatest_func(void *data)
 			break;
 		}
 
-		len = dmatest_random() % params->buf_size + 1;
+		if (params->noverify) {
+			len = params->buf_size;
+			src_off = 0;
+			dst_off = 0;
+		} else {
+			len = dmatest_random() % params->buf_size + 1;
+			len = (len >> align) << align;
+			if (!len)
+				len = 1 << align;
+			src_off = dmatest_random() % (params->buf_size - len + 1);
+			dst_off = dmatest_random() % (params->buf_size - len + 1);
+
+			src_off = (src_off >> align) << align;
+			dst_off = (dst_off >> align) << align;
+
+			dmatest_init_srcs(thread->srcs, src_off, len,
+					  params->buf_size);
+			dmatest_init_dsts(thread->dsts, dst_off, len,
+					  params->buf_size);
+		}
+
 		len = (len >> align) << align;
 		if (!len)
 			len = 1 << align;
-		src_off = dmatest_random() % (params->buf_size - len + 1);
-		dst_off = dmatest_random() % (params->buf_size - len + 1);
-
-		src_off = (src_off >> align) << align;
-		dst_off = (dst_off >> align) << align;
-
-		dmatest_init_srcs(thread->srcs, src_off, len, params->buf_size);
-		dmatest_init_dsts(thread->dsts, dst_off, len, params->buf_size);
 
 		for (i = 0; i < src_cnt; i++) {
 			u8 *buf = thread->srcs[i] + src_off;
@@ -555,10 +572,14 @@ static int dmatest_func(void *data)
 		unmap_src(dev->dev, dma_srcs, len, src_cnt);
 		unmap_dst(dev->dev, dma_dsts, params->buf_size, dst_cnt);
 
-		error_count = 0;
+		if (params->noverify) {
+			dbg_result("test passed", total_tests, src_off, dst_off,
+				   len, 0);
+			continue;
+		}
 
 		pr_debug("%s: verifying source buffer...\n", current->comm);
-		error_count += dmatest_verify(thread->srcs, 0, src_off,
+		error_count = dmatest_verify(thread->srcs, 0, src_off,
 				0, PATTERN_SRC, true);
 		error_count += dmatest_verify(thread->srcs, src_off,
 				src_off + len, src_off,
@@ -773,6 +794,7 @@ static void run_threaded_test(struct dmatest_info *info)
 	params->xor_sources = xor_sources;
 	params->pq_sources = pq_sources;
 	params->timeout = timeout;
+	params->noverify = noverify;
 
 	request_channels(info, DMA_MEMCPY);
 	request_channels(info, DMA_XOR);
