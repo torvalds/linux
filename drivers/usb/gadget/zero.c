@@ -66,8 +66,8 @@ module_param(loopdefault, bool, S_IRUGO|S_IWUSR);
 static struct usb_zero_options gzero_options = {
 	.isoc_interval = 4,
 	.isoc_maxpacket = 1024,
-	.bulk_buflen = 4096,
-	.qlen = 32,
+	.bulk_buflen = GZERO_BULK_BUFLEN,
+	.qlen = GZERO_QLEN,
 };
 
 /*-------------------------------------------------------------------------*/
