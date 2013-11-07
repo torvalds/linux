@@ -70,6 +70,8 @@
 
 			timer@20300 {
 				compatible = "marvell,armada-xp-timer";
+				clocks = <&coreclk 2>, <&refclk>;
+				clock-names = "nbclk", "fixed";
 			};
 
 			coreclk: mvebu-sar@18230 {
@@ -167,6 +169,15 @@
 					0x184d0 0x4>;
 				status = "okay";
 			};
+		};
+	};
+
+	clocks {
+		/* 25 MHz reference crystal */
+		refclk: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
 		};
 	};
 };

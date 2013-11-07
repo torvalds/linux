@@ -236,12 +236,12 @@ static void sxps2_close(struct serio *pserio)
  */
 static int xps2_of_probe(struct platform_device *ofdev)
 {
-	struct resource r_irq; /* Interrupt resources */
 	struct resource r_mem; /* IO mem resources */
 	struct xps2data *drvdata;
 	struct serio *serio;
 	struct device *dev = &ofdev->dev;
 	resource_size_t remap_size, phys_addr;
+	unsigned int irq;
 	int error;
 
 	dev_info(dev, "Device Tree Probing \'%s\'\n",
@@ -255,7 +255,8 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Get IRQ for the device */
-	if (!of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq)) {
+	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	if (!irq) {
 		dev_err(dev, "no IRQ found\n");
 		return -ENODEV;
 	}
@@ -268,7 +269,7 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	}
 
 	spin_lock_init(&drvdata->lock);
-	drvdata->irq = r_irq.start;
+	drvdata->irq = irq;
 	drvdata->serio = serio;
 	drvdata->dev = dev;
 

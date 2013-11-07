@@ -264,7 +264,7 @@ resume_kernel:
 	disable_irq
 	lw	r8, [r28, TI_PRE_COUNT]
 	cmpz.c	r8
-	bne	r8, restore_all
+	bne	restore_all
 need_resched:
 	lw	r8, [r28, TI_FLAGS]
 	andri.c	r9, r8, _TIF_NEED_RESCHED
@@ -415,7 +415,7 @@ ENTRY(handle_sys)
 	sw	r9, [r0, PT_EPC]
 
 	cmpi.c	r27, __NR_syscalls 	# check syscall number
-	bgeu	illegal_syscall
+	bcs	illegal_syscall
 
 	slli	r8, r27, 2		# get syscall routine
 	la	r11, sys_call_table
