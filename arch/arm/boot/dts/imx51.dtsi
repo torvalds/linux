@@ -64,18 +64,18 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+		cpu: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a8";
 			reg = <0>;
-			clock-latency = <61036>; /* two CLK32 periods */
+			clock-latency = <62500>;
 			clocks = <&clks 24>;
-			clock-names = "cpu";
 			operating-points = <
-				/* kHz  uV (No regulator support) */
-				160000  0
-				800000  0
+				166000	1000000
+				600000	1050000
+				800000	1100000
 			>;
+			voltage-tolerance = <5>;
 		};
 	};
 
