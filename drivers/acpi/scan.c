@@ -285,10 +285,9 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
-static void acpi_bus_device_eject(void *context)
+static void acpi_bus_device_eject(struct acpi_device *device, u32 ost_src)
 {
-	acpi_handle handle = context;
-	struct acpi_device *device = NULL;
+	acpi_handle handle = device->handle;
 	struct acpi_scan_handler *handler;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	int error;
@@ -296,20 +295,19 @@ static void acpi_bus_device_eject(void *context)
 	lock_device_hotplug();
 	mutex_lock(&acpi_scan_lock);
 
-	acpi_bus_get_device(handle, &device);
-	if (!device)
-		goto err_out;
-
 	handler = device->handler;
-	if (!handler || !handler->hotplug.enabled)
+	if (!handler || !handler->hotplug.enabled) {
+		put_device(&device->dev);
 		goto err_support;
+	}
 
-	acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
-				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
+	if (ost_src == ACPI_NOTIFY_EJECT_REQUEST)
+		acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
+					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
+
 	if (handler->hotplug.mode == AHM_CONTAINER)
 		kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 
-	get_device(&device->dev);
 	error = acpi_scan_hot_remove(device);
 	if (error == -EPERM) {
 		goto err_support;
@@ -325,8 +323,7 @@ static void acpi_bus_device_eject(void *context)
  err_support:
 	ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
  err_out:
-	acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST, ost_code,
-				  NULL);
+	acpi_evaluate_hotplug_ost(handle, ost_src, ost_code, NULL);
 	goto out;
 }
 
@@ -408,10 +405,20 @@ static void acpi_hotplug_unsupported(acpi_handle handle, u32 type)
 	acpi_evaluate_hotplug_ost(handle, type, ost_status, NULL);
 }
 
+/**
+ * acpi_bus_hot_remove_device: Hot-remove a device and its children.
+ * @context: Address of the ACPI device object to hot-remove.
+ */
+void acpi_bus_hot_remove_device(void *context)
+{
+	acpi_bus_device_eject(context, ACPI_NOTIFY_EJECT_REQUEST);
+}
+
 static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 {
 	acpi_osd_exec_callback callback;
 	struct acpi_scan_handler *handler = data;
+	struct acpi_device *adev;
 	acpi_status status;
 
 	if (!handler->hotplug.enabled)
@@ -428,44 +435,29 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
-		callback = acpi_bus_device_eject;
-		break;
+		status = acpi_bus_get_device(handle, &adev);
+		if (ACPI_FAILURE(status))
+			goto err_out;
+
+		get_device(&adev->dev);
+		callback = acpi_bus_hot_remove_device;
+		status = acpi_os_hotplug_execute(callback, adev);
+		if (ACPI_SUCCESS(status))
+			return;
+
+		put_device(&adev->dev);
+		goto err_out;
 	default:
 		/* non-hotplug event; possibly handled by other handler */
 		return;
 	}
 	status = acpi_os_hotplug_execute(callback, handle);
-	if (ACPI_FAILURE(status))
-		acpi_evaluate_hotplug_ost(handle, type,
-					  ACPI_OST_SC_NON_SPECIFIC_FAILURE,
-					  NULL);
-}
+	if (ACPI_SUCCESS(status))
+		return;
 
-void __acpi_bus_hot_remove_device(struct acpi_device *device, u32 ost_src)
-{
-	acpi_handle handle = device->handle;
-	int error;
-
-	lock_device_hotplug();
-	mutex_lock(&acpi_scan_lock);
-
-	error = acpi_scan_hot_remove(device);
-	if (error && handle)
-		acpi_evaluate_hotplug_ost(handle, ost_src,
-					  ACPI_OST_SC_NON_SPECIFIC_FAILURE,
-					  NULL);
-
-	mutex_unlock(&acpi_scan_lock);
-	unlock_device_hotplug();
-}
-
-/**
- * acpi_bus_hot_remove_device: Hot-remove a device and its children.
- * @context: Address of the ACPI device object to hot-remove.
- */
-void acpi_bus_hot_remove_device(void *context)
-{
-	__acpi_bus_hot_remove_device(context, ACPI_NOTIFY_EJECT_REQUEST);
+ err_out:
+	acpi_evaluate_hotplug_ost(handle, type,
+				  ACPI_OST_SC_NON_SPECIFIC_FAILURE, NULL);
 }
 
 static ssize_t real_power_state_show(struct device *dev,
@@ -496,7 +488,7 @@ static DEVICE_ATTR(power_state, 0444, power_state_show, NULL);
 
 static void acpi_eject_store_work(void *context)
 {
-	__acpi_bus_hot_remove_device(context, ACPI_OST_EC_OSPM_EJECT);
+	acpi_bus_device_eject(context, ACPI_OST_EC_OSPM_EJECT);
 }
 
 static ssize_t
