@@ -164,7 +164,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	mxs_phy->clk = clk;
 
-	platform_set_drvdata(pdev, &mxs_phy->phy);
+	platform_set_drvdata(pdev, mxs_phy);
 
 	ret = usb_add_phy_dev(&mxs_phy->phy);
 	if (ret)
