@@ -192,6 +192,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
 		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
+	if (priv->hca_caps & IB_DEVICE_MANAGED_FLOW_STEERING)
+		init_attr.create_flags |= IB_QP_CREATE_NETIF_QP;
+
 	if (dev->features & NETIF_F_SG)
 		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
 
