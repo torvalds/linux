@@ -731,14 +731,14 @@ int i915_reset(struct drm_device *dev)
 		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
 		dev_priv->gpu_error.stop_rings = 0;
 		if (ret == -ENODEV) {
-			DRM_ERROR("Reset not implemented, but ignoring "
-				  "error for simulated gpu hangs\n");
+			DRM_INFO("Reset not implemented, but ignoring "
+				 "error for simulated gpu hangs\n");
 			ret = 0;
 		}
 	}
 
 	if (ret) {
-		DRM_ERROR("Failed to reset chip.\n");
+		DRM_ERROR("Failed to reset chip: %i\n", ret);
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
