@@ -734,12 +734,34 @@ static bool filter(struct dma_chan *chan, void *param)
 		return true;
 }
 
-static int run_threaded_test(struct dmatest_info *info)
+static void request_channels(struct dmatest_info *info,
+			     enum dma_transaction_type type)
 {
 	dma_cap_mask_t mask;
-	struct dma_chan *chan;
+
+	dma_cap_zero(mask);
+	dma_cap_set(type, mask);
+	for (;;) {
+		struct dmatest_params *params = &info->params;
+		struct dma_chan *chan;
+
+		chan = dma_request_channel(mask, filter, params);
+		if (chan) {
+			if (dmatest_add_channel(info, chan)) {
+				dma_release_channel(chan);
+				break; /* add_channel failed, punt */
+			}
+		} else
+			break; /* no more channels available */
+		if (params->max_channels &&
+		    info->nr_channels >= params->max_channels)
+			break; /* we have all we need */
+	}
+}
+
+static void run_threaded_test(struct dmatest_info *info)
+{
 	struct dmatest_params *params = &info->params;
-	int err = 0;
 
 	/* Copy test parameters */
 	params->buf_size = test_buf_size;
@@ -752,25 +774,10 @@ static int run_threaded_test(struct dmatest_info *info)
 	params->pq_sources = pq_sources;
 	params->timeout = timeout;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_MEMCPY, mask);
-	for (;;) {
-		chan = dma_request_channel(mask, filter, params);
-		if (chan) {
-			err = dmatest_add_channel(info, chan);
-			if (err) {
-				dma_release_channel(chan);
-				break; /* add_channel failed, punt */
-			}
-		} else
-			break; /* no more channels available */
-		if (params->max_channels &&
-		    info->nr_channels >= params->max_channels)
-			break; /* we have all we need */
-	}
-	return err;
+	request_channels(info, DMA_MEMCPY);
+	request_channels(info, DMA_XOR);
+	request_channels(info, DMA_PQ);
 }
-
 
 static void stop_threaded_test(struct dmatest_info *info)
 {
@@ -788,19 +795,19 @@ static void stop_threaded_test(struct dmatest_info *info)
 	info->nr_channels = 0;
 }
 
-static int restart_threaded_test(struct dmatest_info *info, bool run)
+static void restart_threaded_test(struct dmatest_info *info, bool run)
 {
 	/* we might be called early to set run=, defer running until all
 	 * parameters have been evaluated
 	 */
 	if (!info->did_init)
-		return 0;
+		return;
 
 	/* Stop any running test first */
 	stop_threaded_test(info);
 
 	/* Run test with new parameters */
-	return run_threaded_test(info);
+	run_threaded_test(info);
 }
 
 static bool is_threaded_test_run(struct dmatest_info *info)
@@ -850,7 +857,7 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 	if (is_threaded_test_run(info))
 		ret = -EBUSY;
 	else if (dmatest_run)
-		ret = restart_threaded_test(info, dmatest_run);
+		restart_threaded_test(info, dmatest_run);
 
 	mutex_unlock(&info->lock);
 
@@ -860,11 +867,10 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 static int __init dmatest_init(void)
 {
 	struct dmatest_info *info = &test_info;
-	int ret = 0;
 
 	if (dmatest_run) {
 		mutex_lock(&info->lock);
-		ret = run_threaded_test(info);
+		run_threaded_test(info);
 		mutex_unlock(&info->lock);
 	}
 
@@ -873,7 +879,7 @@ static int __init dmatest_init(void)
 	 */
 	info->did_init = true;
 
-	return ret;
+	return 0;
 }
 /* when compiled-in wait for drivers to load first */
 late_initcall(dmatest_init);
