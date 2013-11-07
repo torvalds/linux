@@ -2191,6 +2191,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	mutex_init(&priv->bf_mutex);
 
 	dev->rev_id = pdev->revision;
+	dev->numa_node = dev_to_node(&pdev->dev);
 	/* Detect if this device is a virtual function */
 	if (pci_dev_data & MLX4_PCI_DEV_IS_VF) {
 		/* When acting as pf, we normally skip vfs unless explicitly
