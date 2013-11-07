@@ -119,7 +119,7 @@ void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
 	*tag++ = 0x00;
 	*tag++ = 0x01;
 #ifdef SUPPORT_USPD
-	if(ieee->current_network.wmm_info & 0x80) {
+	if (ieee->current_network.wmm_info & 0x80) {
 		*tag++ = 0x0f|MAX_SP_Len;
 	} else {
 		*tag++ = MAX_SP_Len;
