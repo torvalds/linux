@@ -69,8 +69,6 @@ static const struct soc_data sdata[] = {
 static u32 min_cpufreq;
 static const u32 *fmask;
 
-/* serialize frequency changes  */
-static DEFINE_MUTEX(cpufreq_lock);
 static DEFINE_PER_CPU(struct cpu_data *, cpu_data);
 
 /* cpumask in a cluster */
@@ -253,26 +251,11 @@ static int __exit corenet_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 static int corenet_cpufreq_target(struct cpufreq_policy *policy,
 		unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	struct clk *parent;
-	int ret;
 	struct cpu_data *data = per_cpu(cpu_data, policy->cpu);
 
-	freqs.old = policy->cur;
-	freqs.new = data->table[index].frequency;
-
-	mutex_lock(&cpufreq_lock);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	parent = of_clk_get(data->parent, data->table[index].driver_data);
-	ret = clk_set_parent(data->clk, parent);
-	if (ret)
-		freqs.new = freqs.old;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	mutex_unlock(&cpufreq_lock);
-
-	return ret;
+	return clk_set_parent(data->clk, parent);
 }
 
 static struct cpufreq_driver ppc_corenet_cpufreq_driver = {

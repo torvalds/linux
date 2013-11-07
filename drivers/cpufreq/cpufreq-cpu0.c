@@ -37,20 +37,19 @@ static unsigned int cpu0_get_speed(unsigned int cpu)
 
 static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	struct dev_pm_opp *opp;
 	unsigned long volt = 0, volt_old = 0, tol = 0;
+	unsigned int old_freq, new_freq;
 	long freq_Hz, freq_exact;
 	int ret;
 
 	freq_Hz = clk_round_rate(cpu_clk, freq_table[index].frequency * 1000);
 	if (freq_Hz < 0)
 		freq_Hz = freq_table[index].frequency * 1000;
-	freq_exact = freq_Hz;
-	freqs.new = freq_Hz / 1000;
-	freqs.old = clk_get_rate(cpu_clk) / 1000;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	freq_exact = freq_Hz;
+	new_freq = freq_Hz / 1000;
+	old_freq = clk_get_rate(cpu_clk) / 1000;
 
 	if (!IS_ERR(cpu_reg)) {
 		rcu_read_lock();
@@ -58,9 +57,7 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 		if (IS_ERR(opp)) {
 			rcu_read_unlock();
 			pr_err("failed to find OPP for %ld\n", freq_Hz);
-			freqs.new = freqs.old;
-			ret = PTR_ERR(opp);
-			goto post_notify;
+			return PTR_ERR(opp);
 		}
 		volt = dev_pm_opp_get_voltage(opp);
 		rcu_read_unlock();
@@ -69,16 +66,15 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 	}
 
 	pr_debug("%u MHz, %ld mV --> %u MHz, %ld mV\n",
-		 freqs.old / 1000, volt_old ? volt_old / 1000 : -1,
-		 freqs.new / 1000, volt ? volt / 1000 : -1);
+		 old_freq / 1000, volt_old ? volt_old / 1000 : -1,
+		 new_freq / 1000, volt ? volt / 1000 : -1);
 
 	/* scaling up?  scale voltage before frequency */
-	if (!IS_ERR(cpu_reg) && freqs.new > freqs.old) {
+	if (!IS_ERR(cpu_reg) && new_freq > old_freq) {
 		ret = regulator_set_voltage_tol(cpu_reg, volt, tol);
 		if (ret) {
 			pr_err("failed to scale voltage up: %d\n", ret);
-			freqs.new = freqs.old;
-			goto post_notify;
+			return ret;
 		}
 	}
 
@@ -87,22 +83,17 @@ static int cpu0_set_target(struct cpufreq_policy *policy, unsigned int index)
 		pr_err("failed to set clock rate: %d\n", ret);
 		if (!IS_ERR(cpu_reg))
 			regulator_set_voltage_tol(cpu_reg, volt_old, tol);
-		freqs.new = freqs.old;
-		goto post_notify;
+		return ret;
 	}
 
 	/* scaling down?  scale voltage after frequency */
-	if (!IS_ERR(cpu_reg) && freqs.new < freqs.old) {
+	if (!IS_ERR(cpu_reg) && new_freq < old_freq) {
 		ret = regulator_set_voltage_tol(cpu_reg, volt, tol);
 		if (ret) {
 			pr_err("failed to scale voltage down: %d\n", ret);
-			clk_set_rate(cpu_clk, freqs.old * 1000);
-			freqs.new = freqs.old;
+			clk_set_rate(cpu_clk, old_freq * 1000);
 		}
 	}
-
-post_notify:
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }

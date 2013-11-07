@@ -42,14 +42,14 @@ static unsigned int imx6q_get_speed(unsigned int cpu)
 
 static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	struct dev_pm_opp *opp;
 	unsigned long freq_hz, volt, volt_old;
+	unsigned int old_freq, new_freq;
 	int ret;
 
-	freqs.new = freq_table[index].frequency;
-	freq_hz = freqs.new * 1000;
-	freqs.old = clk_get_rate(arm_clk) / 1000;
+	new_freq = freq_table[index].frequency;
+	freq_hz = new_freq * 1000;
+	old_freq = clk_get_rate(arm_clk) / 1000;
 
 	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
@@ -64,26 +64,23 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	volt_old = regulator_get_voltage(arm_reg);
 
 	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
-		freqs.old / 1000, volt_old / 1000,
-		freqs.new / 1000, volt / 1000);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+		old_freq / 1000, volt_old / 1000,
+		new_freq / 1000, volt / 1000);
 
 	/* scaling up?  scale voltage before frequency */
-	if (freqs.new > freqs.old) {
+	if (new_freq > old_freq) {
 		ret = regulator_set_voltage_tol(arm_reg, volt, 0);
 		if (ret) {
 			dev_err(cpu_dev,
 				"failed to scale vddarm up: %d\n", ret);
-			freqs.new = freqs.old;
-			goto post_notify;
+			return ret;
 		}
 
 		/*
 		 * Need to increase vddpu and vddsoc for safety
 		 * if we are about to run at 1.2 GHz.
 		 */
-		if (freqs.new == FREQ_1P2_GHZ / 1000) {
+		if (new_freq == FREQ_1P2_GHZ / 1000) {
 			regulator_set_voltage_tol(pu_reg,
 					PU_SOC_VOLTAGE_HIGH, 0);
 			regulator_set_voltage_tol(soc_reg,
@@ -103,21 +100,20 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	clk_set_parent(step_clk, pll2_pfd2_396m_clk);
 	clk_set_parent(pll1_sw_clk, step_clk);
 	if (freq_hz > clk_get_rate(pll2_pfd2_396m_clk)) {
-		clk_set_rate(pll1_sys_clk, freqs.new * 1000);
+		clk_set_rate(pll1_sys_clk, new_freq * 1000);
 		clk_set_parent(pll1_sw_clk, pll1_sys_clk);
 	}
 
 	/* Ensure the arm clock divider is what we expect */
-	ret = clk_set_rate(arm_clk, freqs.new * 1000);
+	ret = clk_set_rate(arm_clk, new_freq * 1000);
 	if (ret) {
 		dev_err(cpu_dev, "failed to set clock rate: %d\n", ret);
 		regulator_set_voltage_tol(arm_reg, volt_old, 0);
-		freqs.new = freqs.old;
-		goto post_notify;
+		return ret;
 	}
 
 	/* scaling down?  scale voltage after frequency */
-	if (freqs.new < freqs.old) {
+	if (new_freq < old_freq) {
 		ret = regulator_set_voltage_tol(arm_reg, volt, 0);
 		if (ret) {
 			dev_warn(cpu_dev,
@@ -125,7 +121,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 			ret = 0;
 		}
 
-		if (freqs.old == FREQ_1P2_GHZ / 1000) {
+		if (old_freq == FREQ_1P2_GHZ / 1000) {
 			regulator_set_voltage_tol(pu_reg,
 					PU_SOC_VOLTAGE_NORMAL, 0);
 			regulator_set_voltage_tol(soc_reg,
@@ -133,10 +129,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 		}
 	}
 
-post_notify:
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	return ret;
+	return 0;
 }
 
 static int imx6q_cpufreq_init(struct cpufreq_policy *policy)

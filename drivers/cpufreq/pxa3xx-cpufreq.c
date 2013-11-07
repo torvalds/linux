@@ -158,7 +158,6 @@ static unsigned int pxa3xx_cpufreq_get(unsigned int cpu)
 static int pxa3xx_cpufreq_set(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct pxa3xx_freq_info *next;
-	struct cpufreq_freqs freqs;
 	unsigned long flags;
 
 	if (policy->cpu != 0)
@@ -166,21 +165,10 @@ static int pxa3xx_cpufreq_set(struct cpufreq_policy *policy, unsigned int index)
 
 	next = &pxa3xx_freqs[index];
 
-	freqs.old = policy->cur;
-	freqs.new = next->cpufreq_mhz * 1000;
-
-	pr_debug("CPU frequency from %d MHz to %d MHz%s\n",
-			freqs.old / 1000, freqs.new / 1000,
-			(freqs.old == freqs.new) ? " (skipped)" : "");
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	local_irq_save(flags);
 	__update_core_freq(next);
 	__update_bus_freq(next);
 	local_irq_restore(flags);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

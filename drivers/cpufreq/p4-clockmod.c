@@ -107,14 +107,7 @@ static struct cpufreq_frequency_table p4clockmod_table[] = {
 
 static int cpufreq_p4_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	int i;
-
-	freqs.old = cpufreq_p4_get(policy->cpu);
-	freqs.new = stock_freq * p4clockmod_table[index].driver_data / 8;
-
-	/* notifiers */
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* run on each logical CPU,
 	 * see section 13.15.3 of IA32 Intel Architecture Software
@@ -122,9 +115,6 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy, unsigned int index)
 	 */
 	for_each_cpu(i, policy->cpus)
 		cpufreq_p4_setdc(i, p4clockmod_table[index].driver_data);
-
-	/* notifiers */
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

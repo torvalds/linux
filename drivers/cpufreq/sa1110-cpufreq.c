@@ -232,15 +232,11 @@ sdram_update_refresh(u_int cpu_khz, struct sdram_params *sdram)
 static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 {
 	struct sdram_params *sdram = &sdram_params;
-	struct cpufreq_freqs freqs;
 	struct sdram_info sd;
 	unsigned long flags;
 	unsigned int unused;
 
-	freqs.old = sa11x0_getspeed(0);
-	freqs.new = sa11x0_freq_table[ppcr].frequency;
-
-	sdram_calculate_timing(&sd, freqs.new, sdram);
+	sdram_calculate_timing(&sd, sa11x0_freq_table[ppcr].frequency, sdram);
 
 #if 0
 	/*
@@ -258,8 +254,6 @@ static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 	sd.mdcas[1] = 0xaaaaaaaa;
 	sd.mdcas[2] = 0xaaaaaaaa;
 #endif
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/*
 	 * The clock could be going away for some time.  Set the SDRAMs
@@ -305,9 +299,7 @@ static int sa1110_target(struct cpufreq_policy *policy, unsigned int ppcr)
 	/*
 	 * Now, return the SDRAM refresh back to normal.
 	 */
-	sdram_update_refresh(freqs.new, sdram);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	sdram_update_refresh(sa11x0_freq_table[ppcr].frequency, sdram);
 
 	return 0;
 }

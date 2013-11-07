@@ -30,9 +30,6 @@
 
 #include "ppc_cbe_cpufreq.h"
 
-static DEFINE_MUTEX(cbe_switch_mutex);
-
-
 /* the CBE supports an 8 step frequency scaling */
 static struct cpufreq_frequency_table cbe_freqs[] = {
 	{1,	0},
@@ -131,27 +128,13 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 static int cbe_cpufreq_target(struct cpufreq_policy *policy,
 			      unsigned int cbe_pmode_new)
 {
-	int rc;
-	struct cpufreq_freqs freqs;
-
-	freqs.old = policy->cur;
-	freqs.new = cbe_freqs[cbe_pmode_new].frequency;
-
-	mutex_lock(&cbe_switch_mutex);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	pr_debug("setting frequency for cpu %d to %d kHz, " \
 		 "1/%d of max frequency\n",
 		 policy->cpu,
 		 cbe_freqs[cbe_pmode_new].frequency,
 		 cbe_freqs[cbe_pmode_new].driver_data);
 
-	rc = set_pmode(policy->cpu, cbe_pmode_new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	mutex_unlock(&cbe_switch_mutex);
-
-	return rc;
+	return set_pmode(policy->cpu, cbe_pmode_new);
 }
 
 static struct cpufreq_driver cbe_cpufreq_driver = {

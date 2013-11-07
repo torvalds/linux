@@ -51,8 +51,6 @@
 static void __iomem *sdcpwr_mapbase;
 static void __iomem *sdcasr_mapbase;
 
-static DEFINE_MUTEX(pas_switch_mutex);
-
 /* Current astate, is used when waking up from power savings on
  * one core, in case the other core has switched states during
  * the idle time.
@@ -242,14 +240,7 @@ static int pas_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 static int pas_cpufreq_target(struct cpufreq_policy *policy,
 			      unsigned int pas_astate_new)
 {
-	struct cpufreq_freqs freqs;
 	int i;
-
-	freqs.old = policy->cur;
-	freqs.new = pas_freqs[pas_astate_new].frequency;
-
-	mutex_lock(&pas_switch_mutex);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	pr_debug("setting frequency for cpu %d to %d kHz, 1/%d of max frequency\n",
 		 policy->cpu,
@@ -261,10 +252,7 @@ static int pas_cpufreq_target(struct cpufreq_policy *policy,
 	for_each_online_cpu(i)
 		set_astate(i, pas_astate_new);
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	mutex_unlock(&pas_switch_mutex);
-
-	ppc_proc_freq = freqs.new * 1000ul;
+	ppc_proc_freq = pas_freqs[pas_astate_new].frequency * 1000ul;
 	return 0;
 }
 

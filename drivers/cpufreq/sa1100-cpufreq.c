@@ -180,22 +180,17 @@ static void sa1100_update_dram_timings(int current_speed, int new_speed)
 static int sa1100_target(struct cpufreq_policy *policy, unsigned int ppcr)
 {
 	unsigned int cur = sa11x0_getspeed(0);
-	struct cpufreq_freqs freqs;
+	unsigned int new_freq;
 
-	freqs.old = cur;
-	freqs.new = sa11x0_freq_table[ppcr].frequency;
+	new_freq = sa11x0_freq_table[ppcr].frequency;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
-	if (freqs.new > cur)
-		sa1100_update_dram_timings(cur, freqs.new);
+	if (new_freq > cur)
+		sa1100_update_dram_timings(cur, new_freq);
 
 	PPCR = ppcr;
 
-	if (freqs.new < cur)
-		sa1100_update_dram_timings(cur, freqs.new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+	if (new_freq < cur)
+		sa1100_update_dram_timings(cur, new_freq);
 
 	return 0;
 }

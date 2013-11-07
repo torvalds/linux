@@ -132,27 +132,23 @@ static int bfin_target(struct cpufreq_policy *policy, unsigned int index)
 #ifndef CONFIG_BF60x
 	unsigned int plldiv;
 #endif
-	struct cpufreq_freqs freqs;
 	static unsigned long lpj_ref;
 	static unsigned int  lpj_ref_freq;
+	unsigned int old_freq, new_freq;
 	int ret = 0;
 
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 	cycles_t cycles;
 #endif
 
-	freqs.old = bfin_getfreq_khz(0);
-	freqs.new = bfin_freq_table[index].frequency;
+	old_freq = bfin_getfreq_khz(0);
+	new_freq = bfin_freq_table[index].frequency;
 
-	pr_debug("cpufreq: changing cclk to %lu; target = %u, oldfreq = %u\n",
-			freqs.new, freqs.new, freqs.old);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 #ifndef CONFIG_BF60x
 	plldiv = (bfin_read_PLL_DIV() & SSEL) | dpm_state_table[index].csel;
 	bfin_write_PLL_DIV(plldiv);
 #else
-	ret = cpu_set_cclk(policy->cpu, freqs.new * 1000);
+	ret = cpu_set_cclk(policy->cpu, new_freq * 1000);
 	if (ret != 0) {
 		WARN_ONCE(ret, "cpufreq set freq failed %d\n", ret);
 		return ret;
@@ -168,17 +164,13 @@ static int bfin_target(struct cpufreq_policy *policy, unsigned int index)
 #endif
 	if (!lpj_ref_freq) {
 		lpj_ref = loops_per_jiffy;
-		lpj_ref_freq = freqs.old;
+		lpj_ref_freq = old_freq;
 	}
-	if (freqs.new != freqs.old) {
+	if (new_freq != old_freq) {
 		loops_per_jiffy = cpufreq_scale(lpj_ref,
-				lpj_ref_freq, freqs.new);
+				lpj_ref_freq, new_freq);
 	}
 
-	/* TODO: just test case for cycles clock source, remove later */
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	pr_debug("cpufreq: done\n");
 	return ret;
 }
 

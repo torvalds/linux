@@ -56,16 +56,7 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 static int sc520_freq_target(struct cpufreq_policy *policy, unsigned int state)
 {
 
-	struct cpufreq_freqs	freqs;
 	u8 clockspeed_reg;
-
-	freqs.old = sc520_freq_get_cpu_frequency(0);
-	freqs.new = sc520_freq_table[state].frequency;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
-	pr_debug("attempting to set frequency to %i kHz\n",
-			sc520_freq_table[state].frequency);
 
 	local_irq_disable();
 
@@ -73,8 +64,6 @@ static int sc520_freq_target(struct cpufreq_policy *policy, unsigned int state)
 	*cpuctl = clockspeed_reg | sc520_freq_table[state].driver_data;
 
 	local_irq_enable();
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

@@ -65,54 +65,46 @@ static unsigned int s3c64xx_cpufreq_get_speed(unsigned int cpu)
 static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 				      unsigned int index)
 {
-	int ret;
-	struct cpufreq_freqs freqs;
 	struct s3c64xx_dvfs *dvfs;
+	unsigned int old_freq, new_freq;
+	int ret;
 
-	freqs.old = clk_get_rate(armclk) / 1000;
-	freqs.new = s3c64xx_freq_table[index].frequency;
-	freqs.flags = 0;
+	old_freq = clk_get_rate(armclk) / 1000;
+	new_freq = s3c64xx_freq_table[index].frequency;
 	dvfs = &s3c64xx_dvfs_table[s3c64xx_freq_table[index].driver_data];
 
-	pr_debug("Transition %d-%dkHz\n", freqs.old, freqs.new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 #ifdef CONFIG_REGULATOR
-	if (vddarm && freqs.new > freqs.old) {
+	if (vddarm && new_freq > old_freq) {
 		ret = regulator_set_voltage(vddarm,
 					    dvfs->vddarm_min,
 					    dvfs->vddarm_max);
 		if (ret != 0) {
 			pr_err("Failed to set VDDARM for %dkHz: %d\n",
-			       freqs.new, ret);
-			freqs.new = freqs.old;
-			goto post_notify;
+			       new_freq, ret);
+			return ret;
 		}
 	}
 #endif
 
-	ret = clk_set_rate(armclk, freqs.new * 1000);
+	ret = clk_set_rate(armclk, new_freq * 1000);
 	if (ret < 0) {
 		pr_err("Failed to set rate %dkHz: %d\n",
-		       freqs.new, ret);
-		freqs.new = freqs.old;
+		       new_freq, ret);
+		return ret;
 	}
 
-post_notify:
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	if (ret)
-		goto err;
-
 #ifdef CONFIG_REGULATOR
-	if (vddarm && freqs.new < freqs.old) {
+	if (vddarm && new_freq < old_freq) {
 		ret = regulator_set_voltage(vddarm,
 					    dvfs->vddarm_min,
 					    dvfs->vddarm_max);
 		if (ret != 0) {
 			pr_err("Failed to set VDDARM for %dkHz: %d\n",
-			       freqs.new, ret);
-			goto err_clk;
+			       new_freq, ret);
+			if (clk_set_rate(armclk, old_freq * 1000) < 0)
+				pr_err("Failed to restore original clock rate\n");
+
+			return ret;
 		}
 	}
 #endif
@@ -121,14 +113,6 @@ post_notify:
 		 clk_get_rate(armclk) / 1000);
 
 	return 0;
-
-err_clk:
-	if (clk_set_rate(armclk, freqs.old * 1000) < 0)
-		pr_err("Failed to restore original clock rate\n");
-err:
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	return ret;
 }
 
 #ifdef CONFIG_REGULATOR
