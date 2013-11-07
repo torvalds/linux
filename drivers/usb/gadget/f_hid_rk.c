@@ -69,12 +69,12 @@ struct f_hidg {
 	
     struct usb_composite_dev        *u_cdev;
 
-	unsigned short  bypass_input;
 	bool connected;
 	bool  boot_protocol;//4   1 for boot protocol , 0 for report protocol
 	bool suspend;
 };
 
+bool  bypass_input = 0;
 static inline struct f_hidg *func_to_hidg(struct usb_function *f)
 {
 	return container_of(f, struct f_hidg, func);
@@ -398,7 +398,7 @@ unsigned int f_hid_bypass_input_get()
     if(!g_hidg)
         return 0;
     else
-        return g_hidg->bypass_input;
+        return bypass_input;
 }
 EXPORT_SYMBOL(f_hid_bypass_input_get);
 
@@ -426,12 +426,12 @@ static void f_hid_bypass_input_set(u8 bypass)
 
         if( bypass && (!current_state))
         {
-            g_hidg->bypass_input = 1;
+            bypass_input = 1;
         }
         if(!bypass && (current_state))
         {
             f_hid_send_idle_report();
-            g_hidg->bypass_input = 0;
+            bypass_input = 0;
         }
     }
 }
@@ -1024,7 +1024,6 @@ fail:
 static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_hidg *hidg = func_to_hidg(f);
-    //f_hid_bypass_input_set(0);
     hidg_disconnect();
 
 	device_destroy(hidg_class, MKDEV(major, hidg->minor));
@@ -1094,7 +1093,8 @@ int hidg_bind_config(struct usb_configuration *c,
 	if (!hidg)
 		return -ENOMEM;
 	g_hidg = hidg;
-	hidg->bypass_input = 1;
+	hidg->boot_protocol = 1;
+	hidg->connected = 0;
 	hidg->minor = index;
 	hidg->bInterfaceSubClass = fdesc->subclass;
 	hidg->bInterfaceProtocol = fdesc->protocol;
