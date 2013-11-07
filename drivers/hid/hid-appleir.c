@@ -297,6 +297,9 @@ static int appleir_probe(struct hid_device *hid, const struct hid_device_id *id)
 
 	appleir->hid = hid;
 
+	/* force input as some remotes bypass the input registration */
+	hid->quirks |= HID_QUIRK_HIDINPUT_FORCE;
+
 	spin_lock_init(&appleir->lock);
 	setup_timer(&appleir->key_up_timer,
 		    key_up_tick, (unsigned long) appleir);
