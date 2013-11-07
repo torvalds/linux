@@ -2243,6 +2243,9 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		if (time)
 			timeout = time;
 	}
+	n_tty_set_room(tty);
+	up_read(&tty->termios_rwsem);
+
 	mutex_unlock(&ldata->atomic_read_lock);
 	remove_wait_queue(&tty->read_wait, &wait);
 
@@ -2253,8 +2256,6 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	if (b - buf)
 		retval = b - buf;
 
-	n_tty_set_room(tty);
-	up_read(&tty->termios_rwsem);
 	return retval;
 }
 
