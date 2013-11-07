@@ -1140,7 +1140,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
  * Unsolicited events
  */
 
-static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
+static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
 
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
@@ -1166,8 +1166,8 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	if (pin_idx < 0)
 		return;
 
-	hdmi_present_sense(get_pin(spec, pin_idx), 1);
-	snd_hda_jack_report_sync(codec);
+	if (hdmi_present_sense(get_pin(spec, pin_idx), 1))
+		snd_hda_jack_report_sync(codec);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -1475,7 +1475,7 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 	return 0;
 }
 
-static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
+static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
 	struct hda_codec *codec = per_pin->codec;
 	struct hdmi_spec *spec = codec->spec;
@@ -1493,6 +1493,7 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	int present = snd_hda_pin_sense(codec, pin_nid);
 	bool update_eld = false;
 	bool eld_changed = false;
+	bool ret;
 
 	mutex_lock(&per_pin->lock);
 	pin_eld->monitor_present = !!(present & AC_PINSENSE_PRESENCE);
@@ -1559,7 +1560,12 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 			       &per_pin->eld_ctl->id);
  unlock:
+	if ((codec->vendor_id & 0xffff0000) == 0x10020000)
+		ret = true; /* AMD codecs create ELD by itself */
+	else
+		ret = !repoll || !pin_eld->monitor_present || pin_eld->eld_valid;
 	mutex_unlock(&per_pin->lock);
+	return ret;
 }
 
 static void hdmi_repoll_eld(struct work_struct *work)
@@ -1570,7 +1576,8 @@ static void hdmi_repoll_eld(struct work_struct *work)
 	if (per_pin->repoll_count++ > 6)
 		per_pin->repoll_count = 0;
 
-	hdmi_present_sense(per_pin, per_pin->repoll_count);
+	if (hdmi_present_sense(per_pin, per_pin->repoll_count))
+		snd_hda_jack_report_sync(per_pin->codec);
 }
 
 static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
