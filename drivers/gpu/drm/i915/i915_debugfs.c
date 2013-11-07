@@ -972,11 +972,11 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
-		val = vlv_punit_read(dev_priv, PUNIT_FUSE_BUS1);
+		val = valleyview_rps_max_freq(dev_priv);
 		seq_printf(m, "max GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv, val));
 
-		val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM);
+		val = valleyview_rps_min_freq(dev_priv);
 		seq_printf(m, "min GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv, val));
 
