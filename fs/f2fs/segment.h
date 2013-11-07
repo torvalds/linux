@@ -476,19 +476,51 @@ static inline int utilization(struct f2fs_sb_info *sbi)
 
 /*
  * Sometimes f2fs may be better to drop out-of-place update policy.
- * So, if fs utilization is over MIN_IPU_UTIL, then f2fs tries to write
- * data in the original place likewise other traditional file systems.
- * But, currently set 100 in percentage, which means it is disabled.
- * See below need_inplace_update().
+ * And, users can control the policy through sysfs entries.
+ * There are five policies with triggering conditions as follows.
+ * F2FS_IPU_FORCE - all the time,
+ * F2FS_IPU_SSR - if SSR mode is activated,
+ * F2FS_IPU_UTIL - if FS utilization is over threashold,
+ * F2FS_IPU_SSR_UTIL - if SSR mode is activated and FS utilization is over
+ *                     threashold,
+ * F2FS_IPUT_DISABLE - disable IPU. (=default option)
  */
-#define MIN_IPU_UTIL		100
+#define DEF_MIN_IPU_UTIL	70
+
+enum {
+	F2FS_IPU_FORCE,
+	F2FS_IPU_SSR,
+	F2FS_IPU_UTIL,
+	F2FS_IPU_SSR_UTIL,
+	F2FS_IPU_DISABLE,
+};
+
 static inline bool need_inplace_update(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+
+	/* IPU can be done only for the user data */
 	if (S_ISDIR(inode->i_mode))
 		return false;
-	if (need_SSR(sbi) && utilization(sbi) > MIN_IPU_UTIL)
+
+	switch (SM_I(sbi)->ipu_policy) {
+	case F2FS_IPU_FORCE:
 		return true;
+	case F2FS_IPU_SSR:
+		if (need_SSR(sbi))
+			return true;
+		break;
+	case F2FS_IPU_UTIL:
+		if (utilization(sbi) > SM_I(sbi)->min_ipu_util)
+			return true;
+		break;
+	case F2FS_IPU_SSR_UTIL:
+		if (need_SSR(sbi) && utilization(sbi) > SM_I(sbi)->min_ipu_util)
+			return true;
+		break;
+	case F2FS_IPU_DISABLE:
+		break;
+	}
 	return false;
 }
 

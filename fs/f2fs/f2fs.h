@@ -325,6 +325,9 @@ struct f2fs_sm_info {
 	struct list_head discard_list;		/* 4KB discard list */
 	int nr_discards;			/* # of discards in the list */
 	int max_discards;			/* max. discards to be issued */
+
+	unsigned int ipu_policy;	/* in-place-update policy */
+	unsigned int min_ipu_util;	/* in-place-update threshold */
 };
 
 /*

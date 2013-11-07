@@ -171,6 +171,17 @@ Files in /sys/fs/f2fs/<devname>
 			      conduct checkpoint to reclaim the prefree segments
 			      to free segments. By default, 100 segments, 200MB.
 
+ ipu_policy                   This parameter controls the policy of in-place
+                              updates in f2fs. There are five policies:
+                               0: F2FS_IPU_FORCE, 1: F2FS_IPU_SSR,
+                               2: F2FS_IPU_UTIL,  3: F2FS_IPU_SSR_UTIL,
+                               4: F2FS_IPU_DISABLE.
+
+ min_ipu_util                 This parameter controls the threshold to trigger
+                              in-place-updates. The number indicates percentage
+                              of the filesystem utilization, and used by
+                              F2FS_IPU_UTIL and F2FS_IPU_SSR_UTIL policies.
+
 ================================================================================
 USAGE
 ================================================================================
