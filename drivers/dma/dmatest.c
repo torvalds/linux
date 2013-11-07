@@ -21,10 +21,6 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
-#include <linux/ctype.h>
-#include <linux/debugfs.h>
-#include <linux/uaccess.h>
-#include <linux/seq_file.h>
 
 static unsigned int test_buf_size = 16384;
 module_param(test_buf_size, uint, S_IRUGO | S_IWUSR);
@@ -70,45 +66,6 @@ module_param(timeout, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass -1 for infinite timeout");
 
-/* Maximum amount of mismatched bytes in buffer to print */
-#define MAX_ERROR_COUNT		32
-
-/*
- * Initialization patterns. All bytes in the source buffer has bit 7
- * set, all bytes in the destination buffer has bit 7 cleared.
- *
- * Bit 6 is set for all bytes which are to be copied by the DMA
- * engine. Bit 5 is set for all bytes which are to be overwritten by
- * the DMA engine.
- *
- * The remaining bits are the inverse of a counter which increments by
- * one for each byte address.
- */
-#define PATTERN_SRC		0x80
-#define PATTERN_DST		0x00
-#define PATTERN_COPY		0x40
-#define PATTERN_OVERWRITE	0x20
-#define PATTERN_COUNT_MASK	0x1f
-
-struct dmatest_info;
-
-struct dmatest_thread {
-	struct list_head	node;
-	struct dmatest_info	*info;
-	struct task_struct	*task;
-	struct dma_chan		*chan;
-	u8			**srcs;
-	u8			**dsts;
-	enum dma_transaction_type type;
-	bool			done;
-};
-
-struct dmatest_chan {
-	struct list_head	node;
-	struct dma_chan		*chan;
-	struct list_head	threads;
-};
-
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -138,7 +95,7 @@ struct dmatest_params {
  * @params:		test parameters
  * @lock:		access protection to the fields of this structure
  */
-struct dmatest_info {
+static struct dmatest_info {
 	/* Test parameters */
 	struct dmatest_params	params;
 
@@ -146,12 +103,58 @@ struct dmatest_info {
 	struct list_head	channels;
 	unsigned int		nr_channels;
 	struct mutex		lock;
-
-	/* debugfs related stuff */
-	struct dentry		*root;
+	bool			did_init;
+} test_info = {
+	.channels = LIST_HEAD_INIT(test_info.channels),
+	.lock = __MUTEX_INITIALIZER(test_info.lock),
 };
 
-static struct dmatest_info test_info;
+static int dmatest_run_set(const char *val, const struct kernel_param *kp);
+static int dmatest_run_get(char *val, const struct kernel_param *kp);
+static struct kernel_param_ops run_ops = {
+	.set = dmatest_run_set,
+	.get = dmatest_run_get,
+};
+static bool dmatest_run;
+module_param_cb(run, &run_ops, &dmatest_run, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(run, "Run the test (default: false)");
+
+/* Maximum amount of mismatched bytes in buffer to print */
+#define MAX_ERROR_COUNT		32
+
+/*
+ * Initialization patterns. All bytes in the source buffer has bit 7
+ * set, all bytes in the destination buffer has bit 7 cleared.
+ *
+ * Bit 6 is set for all bytes which are to be copied by the DMA
+ * engine. Bit 5 is set for all bytes which are to be overwritten by
+ * the DMA engine.
+ *
+ * The remaining bits are the inverse of a counter which increments by
+ * one for each byte address.
+ */
+#define PATTERN_SRC		0x80
+#define PATTERN_DST		0x00
+#define PATTERN_COPY		0x40
+#define PATTERN_OVERWRITE	0x20
+#define PATTERN_COUNT_MASK	0x1f
+
+struct dmatest_thread {
+	struct list_head	node;
+	struct dmatest_info	*info;
+	struct task_struct	*task;
+	struct dma_chan		*chan;
+	u8			**srcs;
+	u8			**dsts;
+	enum dma_transaction_type type;
+	bool			done;
+};
+
+struct dmatest_chan {
+	struct list_head	node;
+	struct dma_chan		*chan;
+	struct list_head	threads;
+};
 
 static bool dmatest_match_channel(struct dmatest_params *params,
 		struct dma_chan *chan)
@@ -731,12 +734,23 @@ static bool filter(struct dma_chan *chan, void *param)
 		return true;
 }
 
-static int __run_threaded_test(struct dmatest_info *info)
+static int run_threaded_test(struct dmatest_info *info)
 {
 	dma_cap_mask_t mask;
 	struct dma_chan *chan;
 	struct dmatest_params *params = &info->params;
 	int err = 0;
+
+	/* Copy test parameters */
+	params->buf_size = test_buf_size;
+	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
+	strlcpy(params->device, strim(test_device), sizeof(params->device));
+	params->threads_per_chan = threads_per_chan;
+	params->max_channels = max_channels;
+	params->iterations = iterations;
+	params->xor_sources = xor_sources;
+	params->pq_sources = pq_sources;
+	params->timeout = timeout;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);
@@ -757,19 +771,8 @@ static int __run_threaded_test(struct dmatest_info *info)
 	return err;
 }
 
-#ifndef MODULE
-static int run_threaded_test(struct dmatest_info *info)
-{
-	int ret;
 
-	mutex_lock(&info->lock);
-	ret = __run_threaded_test(info);
-	mutex_unlock(&info->lock);
-	return ret;
-}
-#endif
-
-static void __stop_threaded_test(struct dmatest_info *info)
+static void stop_threaded_test(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc, *_dtc;
 	struct dma_chan *chan;
@@ -785,39 +788,22 @@ static void __stop_threaded_test(struct dmatest_info *info)
 	info->nr_channels = 0;
 }
 
-static void stop_threaded_test(struct dmatest_info *info)
+static int restart_threaded_test(struct dmatest_info *info, bool run)
 {
-	mutex_lock(&info->lock);
-	__stop_threaded_test(info);
-	mutex_unlock(&info->lock);
-}
-
-static int __restart_threaded_test(struct dmatest_info *info, bool run)
-{
-	struct dmatest_params *params = &info->params;
-
-	/* Stop any running test first */
-	__stop_threaded_test(info);
-
-	if (run == false)
+	/* we might be called early to set run=, defer running until all
+	 * parameters have been evaluated
+	 */
+	if (!info->did_init)
 		return 0;
 
-	/* Copy test parameters */
-	params->buf_size = test_buf_size;
-	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
-	strlcpy(params->device, strim(test_device), sizeof(params->device));
-	params->threads_per_chan = threads_per_chan;
-	params->max_channels = max_channels;
-	params->iterations = iterations;
-	params->xor_sources = xor_sources;
-	params->pq_sources = pq_sources;
-	params->timeout = timeout;
+	/* Stop any running test first */
+	stop_threaded_test(info);
 
 	/* Run test with new parameters */
-	return __run_threaded_test(info);
+	return run_threaded_test(info);
 }
 
-static bool __is_threaded_test_run(struct dmatest_info *info)
+static bool is_threaded_test_run(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc;
 
@@ -833,101 +819,61 @@ static bool __is_threaded_test_run(struct dmatest_info *info)
 	return false;
 }
 
-static ssize_t dtf_read_run(struct file *file, char __user *user_buf,
-		size_t count, loff_t *ppos)
+static int dmatest_run_get(char *val, const struct kernel_param *kp)
 {
-	struct dmatest_info *info = file->private_data;
-	char buf[3];
+	struct dmatest_info *info = &test_info;
 
 	mutex_lock(&info->lock);
-
-	if (__is_threaded_test_run(info)) {
-		buf[0] = 'Y';
+	if (is_threaded_test_run(info)) {
+		dmatest_run = true;
 	} else {
-		__stop_threaded_test(info);
-		buf[0] = 'N';
+		stop_threaded_test(info);
+		dmatest_run = false;
 	}
+	mutex_unlock(&info->lock);
+
+	return param_get_bool(val, kp);
+}
+
+static int dmatest_run_set(const char *val, const struct kernel_param *kp)
+{
+	struct dmatest_info *info = &test_info;
+	int ret;
+
+	mutex_lock(&info->lock);
+	ret = param_set_bool(val, kp);
+	if (ret) {
+		mutex_unlock(&info->lock);
+		return ret;
+	}
+
+	if (is_threaded_test_run(info))
+		ret = -EBUSY;
+	else if (dmatest_run)
+		ret = restart_threaded_test(info, dmatest_run);
 
 	mutex_unlock(&info->lock);
-	buf[1] = '\n';
-	buf[2] = 0x00;
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
-}
 
-static ssize_t dtf_write_run(struct file *file, const char __user *user_buf,
-		size_t count, loff_t *ppos)
-{
-	struct dmatest_info *info = file->private_data;
-	char buf[16];
-	bool bv;
-	int ret = 0;
-
-	if (copy_from_user(buf, user_buf, min(count, (sizeof(buf) - 1))))
-		return -EFAULT;
-
-	if (strtobool(buf, &bv) == 0) {
-		mutex_lock(&info->lock);
-
-		if (__is_threaded_test_run(info))
-			ret = -EBUSY;
-		else
-			ret = __restart_threaded_test(info, bv);
-
-		mutex_unlock(&info->lock);
-	}
-
-	return ret ? ret : count;
-}
-
-static const struct file_operations dtf_run_fops = {
-	.read	= dtf_read_run,
-	.write	= dtf_write_run,
-	.open	= simple_open,
-	.llseek	= default_llseek,
-};
-
-static int dmatest_register_dbgfs(struct dmatest_info *info)
-{
-	struct dentry *d;
-
-	d = debugfs_create_dir("dmatest", NULL);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
-	if (!d)
-		goto err_root;
-
-	info->root = d;
-
-	/* Run or stop threaded test */
-	debugfs_create_file("run", S_IWUSR | S_IRUGO, info->root, info,
-			    &dtf_run_fops);
-
-	return 0;
-
-err_root:
-	pr_err("Failed to initialize debugfs\n");
-	return -ENOMEM;
+	return ret;
 }
 
 static int __init dmatest_init(void)
 {
 	struct dmatest_info *info = &test_info;
-	int ret;
+	int ret = 0;
 
-	memset(info, 0, sizeof(*info));
+	if (dmatest_run) {
+		mutex_lock(&info->lock);
+		ret = run_threaded_test(info);
+		mutex_unlock(&info->lock);
+	}
 
-	mutex_init(&info->lock);
-	INIT_LIST_HEAD(&info->channels);
+	/* module parameters are stable, inittime tests are started,
+	 * let userspace take over 'run' control
+	 */
+	info->did_init = true;
 
-	ret = dmatest_register_dbgfs(info);
-	if (ret)
-		return ret;
-
-#ifdef MODULE
-	return 0;
-#else
-	return run_threaded_test(info);
-#endif
+	return ret;
 }
 /* when compiled-in wait for drivers to load first */
 late_initcall(dmatest_init);
@@ -936,8 +882,9 @@ static void __exit dmatest_exit(void)
 {
 	struct dmatest_info *info = &test_info;
 
-	debugfs_remove_recursive(info->root);
+	mutex_lock(&info->lock);
 	stop_threaded_test(info);
+	mutex_unlock(&info->lock);
 }
 module_exit(dmatest_exit);
 

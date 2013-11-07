@@ -15,17 +15,19 @@ be built as module or inside kernel. Let's consider those cases.
 
 	Part 2 - When dmatest is built as a module...
 
-After mounting debugfs and loading the module, the /sys/kernel/debug/dmatest
-folder with a file named 'run' nodes will be created.  'run' controls run and
-stop phases of the test.
-
-Note that in this case test will not run on load automatically.
-
 Example of usage:
+	% modprobe dmatest channel=dma0chan0 timeout=2000 iterations=1 run=1
+
+...or:
+	% modprobe dmatest
 	% echo dma0chan0 > /sys/module/dmatest/parameters/channel
 	% echo 2000 > /sys/module/dmatest/parameters/timeout
 	% echo 1 > /sys/module/dmatest/parameters/iterations
-	% echo 1 > /sys/kernel/debug/dmatest/run
+	% echo 1 > /sys/module/dmatest/parameters/run
+
+...or on the kernel command line:
+
+	dmatest.channel=dma0chan0 dmatest.timeout=2000 dmatest.iterations=1 dmatest.run=1
 
 Hint: available channel list could be extracted by running the following
 command:
@@ -42,7 +44,7 @@ The following command should return actual state of the test.
 
 To wait for test done the user may perform a busy loop that checks the state.
 
-	% while [ $(cat /sys/kernel/debug/dmatest/run) = "Y" ]
+	% while [ $(cat /sys/module/dmatest/parameters/run) = "Y" ]
 	> do
 	> 	echo -n "."
 	> 	sleep 1
