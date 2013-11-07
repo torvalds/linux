@@ -975,12 +975,12 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		/* After POR, we can run background GC thread.*/
 		err = start_gc_thread(sbi);
 		if (err)
-			goto fail;
+			goto free_gc;
 	}
 
 	err = f2fs_build_stats(sbi);
 	if (err)
-		goto fail;
+		goto free_gc;
 
 	if (f2fs_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, f2fs_proc_root);
@@ -1006,6 +1006,12 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 fail:
+	if (sbi->s_proc) {
+		remove_proc_entry("segment_info", sbi->s_proc);
+		remove_proc_entry(sb->s_id, f2fs_proc_root);
+	}
+	f2fs_destroy_stats(sbi);
+free_gc:
 	stop_gc_thread(sbi);
 free_root_inode:
 	dput(sb->s_root);
