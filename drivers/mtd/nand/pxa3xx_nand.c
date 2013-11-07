@@ -1145,6 +1145,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		chip->read_byte		= pxa3xx_nand_read_byte;
 		chip->read_buf		= pxa3xx_nand_read_buf;
 		chip->write_buf		= pxa3xx_nand_write_buf;
+		chip->options		|= NAND_NO_SUBPAGE_WRITE;
 	}
 
 	spin_lock_init(&chip->controller->lock);
