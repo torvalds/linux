@@ -39,17 +39,24 @@ stops.
 
 Note that running a new test will not stop any in progress test.
 
-The following command should return actual state of the test.
-	% cat /sys/kernel/debug/dmatest/run
+The following command returns the state of the test.
+	% cat /sys/module/dmatest/parameters/run
 
-To wait for test done the user may perform a busy loop that checks the state.
+To wait for test completion userpace can poll 'run' until it is false, or use
+the wait parameter.  Specifying 'wait=1' when loading the module causes module
+initialization to pause until a test run has completed, while reading
+/sys/module/dmatest/parameters/wait waits for any running test to complete
+before returning.  For example, the following scripts wait for 42 tests
+to complete before exiting.  Note that if 'iterations' is set to 'infinite' then
+waiting is disabled.
 
-	% while [ $(cat /sys/module/dmatest/parameters/run) = "Y" ]
-	> do
-	> 	echo -n "."
-	> 	sleep 1
-	> done
-	> echo
+Example:
+	% modprobe dmatest run=1 iterations=42 wait=1
+	% modprobe -r dmatest
+...or:
+	% modprobe dmatest run=1 iterations=42
+	% cat /sys/module/dmatest/parameters/wait
+	% modprobe -r dmatest
 
 	Part 3 - When built-in in the kernel...
 
@@ -79,7 +86,7 @@ number of tests executed, number that failed, and a result code.
 
 Example:
 	% dmesg | tail -n 1
-	dmatest: dma3chan0-copy0: summary 400000 tests, 0 failures iops: 61524 KB/s 246098 (0)
+	dmatest: dma0chan0-copy0: summary 1 test, 0 failures 1000 iops 100000 KB/s (0)
 
 The details of a data miscompare error are also emitted, but do not follow the
 above format.

@@ -161,6 +161,43 @@ struct dmatest_chan {
 	struct list_head	threads;
 };
 
+static DECLARE_WAIT_QUEUE_HEAD(thread_wait);
+static bool wait;
+
+static bool is_threaded_test_run(struct dmatest_info *info)
+{
+	struct dmatest_chan *dtc;
+
+	list_for_each_entry(dtc, &info->channels, node) {
+		struct dmatest_thread *thread;
+
+		list_for_each_entry(thread, &dtc->threads, node) {
+			if (!thread->done)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static int dmatest_wait_get(char *val, const struct kernel_param *kp)
+{
+	struct dmatest_info *info = &test_info;
+	struct dmatest_params *params = &info->params;
+
+	if (params->iterations)
+		wait_event(thread_wait, !is_threaded_test_run(info));
+	wait = true;
+	return param_get_bool(val, kp);
+}
+
+static struct kernel_param_ops wait_ops = {
+	.get = dmatest_wait_get,
+	.set = param_set_bool,
+};
+module_param_cb(wait, &wait_ops, &wait, S_IRUGO);
+MODULE_PARM_DESC(wait, "Wait for tests to complete (default: false)");
+
 static bool dmatest_match_channel(struct dmatest_params *params,
 		struct dma_chan *chan)
 {
@@ -660,12 +697,7 @@ err_thread_type:
 		dmaengine_terminate_all(chan);
 
 	thread->done = true;
-
-	if (params->iterations > 0)
-		while (!kthread_should_stop()) {
-			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait_dmatest_exit);
-			interruptible_sleep_on(&wait_dmatest_exit);
-		}
+	wake_up(&thread_wait);
 
 	return ret;
 }
@@ -681,6 +713,7 @@ static void dmatest_cleanup_channel(struct dmatest_chan *dtc)
 		pr_debug("thread %s exited with status %d\n",
 			 thread->task->comm, ret);
 		list_del(&thread->node);
+		put_task_struct(thread->task);
 		kfree(thread);
 	}
 
@@ -719,18 +752,19 @@ static int dmatest_add_threads(struct dmatest_info *info,
 		thread->chan = dtc->chan;
 		thread->type = type;
 		smp_wmb();
-		thread->task = kthread_run(dmatest_func, thread, "%s-%s%u",
+		thread->task = kthread_create(dmatest_func, thread, "%s-%s%u",
 				dma_chan_name(chan), op, i);
 		if (IS_ERR(thread->task)) {
-			pr_warn("Failed to run thread %s-%s%u\n",
+			pr_warn("Failed to create thread %s-%s%u\n",
 				dma_chan_name(chan), op, i);
 			kfree(thread);
 			break;
 		}
 
 		/* srcbuf and dstbuf are allocated by the thread itself */
-
+		get_task_struct(thread->task);
 		list_add_tail(&thread->node, &dtc->threads);
+		wake_up_process(thread->task);
 	}
 
 	return i;
@@ -863,22 +897,6 @@ static void restart_threaded_test(struct dmatest_info *info, bool run)
 	run_threaded_test(info);
 }
 
-static bool is_threaded_test_run(struct dmatest_info *info)
-{
-	struct dmatest_chan *dtc;
-
-	list_for_each_entry(dtc, &info->channels, node) {
-		struct dmatest_thread *thread;
-
-		list_for_each_entry(thread, &dtc->threads, node) {
-			if (!thread->done)
-				return true;
-		}
-	}
-
-	return false;
-}
-
 static int dmatest_run_get(char *val, const struct kernel_param *kp)
 {
 	struct dmatest_info *info = &test_info;
@@ -920,12 +938,16 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 static int __init dmatest_init(void)
 {
 	struct dmatest_info *info = &test_info;
+	struct dmatest_params *params = &info->params;
 
 	if (dmatest_run) {
 		mutex_lock(&info->lock);
 		run_threaded_test(info);
 		mutex_unlock(&info->lock);
 	}
+
+	if (params->iterations && wait)
+		wait_event(thread_wait, !is_threaded_test_run(info));
 
 	/* module parameters are stable, inittime tests are started,
 	 * let userspace take over 'run' control
