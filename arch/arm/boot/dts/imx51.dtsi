@@ -455,6 +455,8 @@
 			audmux: audmux@83fd0000 {
 				compatible = "fsl,imx51-audmux", "fsl,imx31-audmux";
 				reg = <0x83fd0000 0x4000>;
+				clocks = <&clks 0>;
+				clock-names = "audmux";
 				status = "disabled";
 			};
 
