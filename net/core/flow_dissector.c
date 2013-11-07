@@ -68,13 +68,13 @@ ip:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 		if (!iph || iph->ihl < 5)
 			return false;
+		nhoff += iph->ihl * 4;
 
+		ip_proto = iph->protocol;
 		if (ip_is_fragment(iph))
 			ip_proto = 0;
-		else
-			ip_proto = iph->protocol;
+
 		iph_to_flow_copy_addrs(flow, iph);
-		nhoff += iph->ihl * 4;
 		break;
 	}
 	case __constant_htons(ETH_P_IPV6): {
