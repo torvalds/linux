@@ -957,37 +957,24 @@ static int  pm2xxx_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
 	struct pm2xxx_charger *pm2;
-	int ret = 0;
 
 	pm2 = (struct pm2xxx_charger *)i2c_get_clientdata(pm2xxx_i2c_client);
-	if (!pm2) {
-		dev_err(pm2->dev, "no pm2xxx_charger data supplied\n");
-		ret = -EINVAL;
-		return ret;
-	}
-
 	clear_lpn_pin(pm2);
 
-	return ret;
+	return 0;
 }
 
 static int  pm2xxx_runtime_resume(struct device *dev)
 {
 	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
 	struct pm2xxx_charger *pm2;
-	int ret = 0;
 
 	pm2 = (struct pm2xxx_charger *)i2c_get_clientdata(pm2xxx_i2c_client);
-	if (!pm2) {
-		dev_err(pm2->dev, "no pm2xxx_charger data supplied\n");
-		ret = -EINVAL;
-		return ret;
-	}
 
 	if (gpio_is_valid(pm2->lpn_pin) && gpio_get_value(pm2->lpn_pin) == 0)
 		set_lpn_pin(pm2);
 
-	return ret;
+	return 0;
 }
 
 #endif
