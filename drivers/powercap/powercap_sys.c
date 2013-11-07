@@ -625,7 +625,7 @@ struct powercap_control_type *powercap_register_control_type(
 	control_type->ops = ops;
 	INIT_LIST_HEAD(&control_type->node);
 	control_type->dev.class = &powercap_class;
-	dev_set_name(&control_type->dev, name);
+	dev_set_name(&control_type->dev, "%s", name);
 	result = device_register(&control_type->dev);
 	if (result) {
 		if (control_type->allocated)
