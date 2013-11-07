@@ -46,6 +46,7 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_dbg.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/srp.h>
 #include <scsi/scsi_transport_srp.h>
 
@@ -1882,6 +1883,57 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	return 0;
 }
 
+/**
+ * srp_change_queue_type - changing device queue tag type
+ * @sdev: scsi device struct
+ * @tag_type: requested tag type
+ *
+ * Returns queue tag type.
+ */
+static int
+srp_change_queue_type(struct scsi_device *sdev, int tag_type)
+{
+	if (sdev->tagged_supported) {
+		scsi_set_tag_type(sdev, tag_type);
+		if (tag_type)
+			scsi_activate_tcq(sdev, sdev->queue_depth);
+		else
+			scsi_deactivate_tcq(sdev, sdev->queue_depth);
+	} else
+		tag_type = 0;
+
+	return tag_type;
+}
+
+/**
+ * srp_change_queue_depth - setting device queue depth
+ * @sdev: scsi device struct
+ * @qdepth: requested queue depth
+ * @reason: SCSI_QDEPTH_DEFAULT/SCSI_QDEPTH_QFULL/SCSI_QDEPTH_RAMP_UP
+ * (see include/scsi/scsi_host.h for definition)
+ *
+ * Returns queue depth.
+ */
+static int
+srp_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
+{
+	struct Scsi_Host *shost = sdev->host;
+	int max_depth;
+	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP) {
+		max_depth = shost->can_queue;
+		if (!sdev->tagged_supported)
+			max_depth = 1;
+		if (qdepth > max_depth)
+			qdepth = max_depth;
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	} else if (reason == SCSI_QDEPTH_QFULL)
+		scsi_track_queue_full(sdev, qdepth);
+	else
+		return -EOPNOTSUPP;
+
+	return sdev->queue_depth;
+}
+
 static int srp_send_tsk_mgmt(struct srp_target_port *target,
 			     u64 req_tag, unsigned int lun, u8 func)
 {
@@ -2173,6 +2225,8 @@ static struct scsi_host_template srp_template = {
 	.slave_configure		= srp_slave_configure,
 	.info				= srp_target_info,
 	.queuecommand			= srp_queuecommand,
+	.change_queue_depth             = srp_change_queue_depth,
+	.change_queue_type              = srp_change_queue_type,
 	.eh_abort_handler		= srp_abort,
 	.eh_device_reset_handler	= srp_reset_device,
 	.eh_host_reset_handler		= srp_reset_host,
