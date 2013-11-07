@@ -417,14 +417,20 @@ static int microMIPS32_to_MIPS32(union mips_instruction *insn_ptr)
 			case mm_mtc1_op:
 			case mm_cfc1_op:
 			case mm_ctc1_op:
+			case mm_mfhc1_op:
+			case mm_mthc1_op:
 				if (insn.mm_fp1_format.op == mm_mfc1_op)
 					op = mfc_op;
 				else if (insn.mm_fp1_format.op == mm_mtc1_op)
 					op = mtc_op;
 				else if (insn.mm_fp1_format.op == mm_cfc1_op)
 					op = cfc_op;
-				else
+				else if (insn.mm_fp1_format.op == mm_ctc1_op)
 					op = ctc_op;
+				else if (insn.mm_fp1_format.op == mm_mfhc1_op)
+					op = mfhc_op;
+				else
+					op = mthc_op;
 				mips32_insn.fp1_format.opcode = cop1_op;
 				mips32_insn.fp1_format.op = op;
 				mips32_insn.fp1_format.rt =

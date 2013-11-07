@@ -398,8 +398,10 @@ enum mm_32f_73_minor_op {
 	mm_movt1_op = 0xa5,
 	mm_ftruncw_op = 0xac,
 	mm_fneg1_op = 0xad,
+	mm_mfhc1_op = 0xc0,
 	mm_froundl_op = 0xcc,
 	mm_fcvtd1_op = 0xcd,
+	mm_mthc1_op = 0xe0,
 	mm_froundw_op = 0xec,
 	mm_fcvts1_op = 0xed,
 };
