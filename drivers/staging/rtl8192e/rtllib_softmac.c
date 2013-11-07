@@ -227,7 +227,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 	/* called with 2nd param 0, no mgmt lock required */
 	rtllib_sta_wakeup(ieee, 0);
 
-	if (header->frame_ctl == RTLLIB_STYPE_BEACON)
+	if (le16_to_cpu(header->frame_ctl) == RTLLIB_STYPE_BEACON)
 		tcb_desc->queue_index = BEACON_QUEUE;
 	else
 		tcb_desc->queue_index = MGNT_QUEUE;
