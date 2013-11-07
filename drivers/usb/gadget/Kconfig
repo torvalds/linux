@@ -689,12 +689,13 @@ config USB_CONFIGFS_MASS_STORAGE
 	  device (in much the same way as the "loop" device driver),
 	  specified as a module parameter or sysfs option.
 
-config USB_CONFIGFS_F_LB
-	boolean "Loopback function (for testing)"
+config USB_CONFIGFS_F_LB_SS
+	boolean "Loopback and sourcesink function (for testing)"
 	depends on USB_CONFIGFS
 	select USB_F_SS_LB
 	help
-	  It loops back a configurable number of transfers.
+	  Loopback function loops back a configurable number of transfers.
+	  Sourcesink function either sinks and sources bulk data.
 	  It also implements control requests, for "chapter 9" conformance.
 	  Make this be the first driver you try using on top of any new
 	  USB peripheral controller driver.  Then you can use host-side
