@@ -2314,7 +2314,7 @@ bool pl330_filter(struct dma_chan *chan, void *param)
 		return false;
 
 	peri_id = chan->private;
-	return *peri_id == (unsigned)param;
+	return *peri_id == (unsigned long)param;
 }
 EXPORT_SYMBOL(pl330_filter);
 
