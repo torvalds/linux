@@ -345,7 +345,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	for (i = 0; i < n_links; i++) {
 		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
 		ring->descriptors[i].addr =
-		    cpu_to_le32(async->buf_page_list[i].dma_addr);
+		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		ring->descriptors[i].next =
 		    cpu_to_le32(ring->descriptors_dma_addr + (i +
 							      1) *

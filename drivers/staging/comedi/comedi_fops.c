@@ -264,7 +264,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 		DPRINTK("subdevice is busy, cannot resize buffer\n");
 		return -EBUSY;
 	}
-	if (async->mmap_count) {
+	if (comedi_buf_is_mmapped(async)) {
 		DPRINTK("subdevice is mmapped, cannot resize buffer\n");
 		return -EBUSY;
 	}
@@ -647,7 +647,7 @@ static int is_device_busy(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		if (s->busy)
 			return 1;
-		if (s->async && s->async->mmap_count)
+		if (s->async && comedi_buf_is_mmapped(s->async))
 			return 1;
 	}
 
@@ -1899,28 +1899,18 @@ done:
 
 static void comedi_vm_open(struct vm_area_struct *area)
 {
-	struct comedi_async *async;
-	struct comedi_device *dev;
+	struct comedi_buf_map *bm;
 
-	async = area->vm_private_data;
-	dev = async->subdevice->device;
-
-	mutex_lock(&dev->mutex);
-	async->mmap_count++;
-	mutex_unlock(&dev->mutex);
+	bm = area->vm_private_data;
+	comedi_buf_map_get(bm);
 }
 
 static void comedi_vm_close(struct vm_area_struct *area)
 {
-	struct comedi_async *async;
-	struct comedi_device *dev;
+	struct comedi_buf_map *bm;
 
-	async = area->vm_private_data;
-	dev = async->subdevice->device;
-
-	mutex_lock(&dev->mutex);
-	async->mmap_count--;
-	mutex_unlock(&dev->mutex);
+	bm = area->vm_private_data;
+	comedi_buf_map_put(bm);
 }
 
 static struct vm_operations_struct comedi_vm_ops = {
@@ -1934,6 +1924,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
+	struct comedi_buf_map *bm;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
@@ -1980,8 +1971,13 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	n_pages = size >> PAGE_SHIFT;
+	bm = async->buf_map;
+	if (!bm || n_pages > bm->n_pages) {
+		retval = -EINVAL;
+		goto done;
+	}
 	for (i = 0; i < n_pages; ++i) {
-		struct comedi_buf_page *buf = &async->buf_page_list[i];
+		struct comedi_buf_page *buf = &bm->page_list[i];
 
 		if (remap_pfn_range(vma, start,
 				    page_to_pfn(virt_to_page(buf->virt_addr)),
@@ -1993,9 +1989,9 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	vma->vm_ops = &comedi_vm_ops;
-	vma->vm_private_data = async;
+	vma->vm_private_data = bm;
 
-	async->mmap_count++;
+	vma->vm_ops->open(vma);
 
 	retval = 0;
 done:

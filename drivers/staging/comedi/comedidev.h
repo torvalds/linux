@@ -104,18 +104,22 @@ struct comedi_buf_page {
 	dma_addr_t dma_addr;
 };
 
+struct comedi_buf_map {
+	struct device *dma_hw_dev;
+	struct comedi_buf_page *page_list;
+	unsigned int n_pages;
+	enum dma_data_direction dma_dir;
+	struct kref refcount;
+};
+
 struct comedi_async {
 	struct comedi_subdevice *subdevice;
 
 	void *prealloc_buf;	/* pre-allocated buffer */
 	unsigned int prealloc_bufsz;	/* buffer size, in bytes */
-	/* virtual and dma address of each page */
-	struct comedi_buf_page *buf_page_list;
-	unsigned n_buf_pages;	/* num elements in buf_page_list */
+	struct comedi_buf_map *buf_map;	/* map of buffer pages */
 
 	unsigned int max_bufsize;	/* maximum buffer size, bytes */
-	/* current number of mmaps of prealloc_buf */
-	unsigned int mmap_count;
 
 	/* byte count for writer (write completed) */
 	unsigned int buf_write_count;
