@@ -141,10 +141,7 @@ struct comedi_async {
 
 	wait_queue_head_t wait_head;
 
-	/* callback stuff */
 	unsigned int cb_mask;
-	int (*cb_func) (unsigned int flags, void *);
-	void *cb_arg;
 
 	int (*inttrig) (struct comedi_device *dev, struct comedi_subdevice *s,
 			unsigned int x);
@@ -240,7 +237,6 @@ void stop_polling(struct comedi_device *);
 
 /* subdevice runflags */
 enum subdevice_runflags {
-	SRF_USER = 0x00000001,
 	SRF_RT = 0x00000002,
 	/* indicates an COMEDI_CB_ERROR event has occurred since the last
 	 * command was started */

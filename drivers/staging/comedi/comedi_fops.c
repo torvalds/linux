@@ -1469,8 +1469,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & TRIG_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
-	comedi_set_subdevice_runflags(s, SRF_USER | SRF_ERROR | SRF_RUNNING,
-				      SRF_USER | SRF_RUNNING);
+	comedi_set_subdevice_runflags(s, SRF_ERROR | SRF_RUNNING, SRF_RUNNING);
 
 	/* set s->busy _after_ setting SRF_RUNNING flag to avoid race with
 	 * comedi_read() or comedi_write() */
@@ -1700,8 +1699,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 		return -EBUSY;
 
 	ret = do_cancel(dev, s);
-	if (comedi_get_subdevice_runflags(s) & SRF_USER)
-		wake_up_interruptible(&s->async->wait_head);
+	wake_up_interruptible(&s->async->wait_head);
 
 	return ret;
 }
@@ -2368,16 +2366,11 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (async->cb_mask & s->async->events) {
-		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
-			wake_up_interruptible(&async->wait_head);
-			if (s->subdev_flags & SDF_CMD_READ)
-				kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
-			if (s->subdev_flags & SDF_CMD_WRITE)
-				kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
-		} else {
-			if (async->cb_func)
-				async->cb_func(s->async->events, async->cb_arg);
-		}
+		wake_up_interruptible(&async->wait_head);
+		if (s->subdev_flags & SDF_CMD_READ)
+			kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
+		if (s->subdev_flags & SDF_CMD_WRITE)
+			kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
 	}
 	s->async->events = 0;
 }
