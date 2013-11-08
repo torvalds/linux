@@ -645,6 +645,8 @@ static void efx_start_datapath(struct efx_nic *efx)
 		WARN_ON(channel->rx_pkt_n_frags);
 	}
 
+	efx_ptp_start_datapath(efx);
+
 	if (netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
 }
@@ -658,6 +660,8 @@ static void efx_stop_datapath(struct efx_nic *efx)
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
+
+	efx_ptp_stop_datapath(efx);
 
 	/* Stop RX refill */
 	efx_for_each_channel(channel, efx) {
