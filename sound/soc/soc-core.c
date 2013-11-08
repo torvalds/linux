@@ -662,6 +662,8 @@ int snd_soc_suspend(struct device *dev)
 				codec->cache_sync = 1;
 				if (codec->using_regmap)
 					regcache_mark_dirty(codec->control_data);
+				/* deactivate pins to sleep state */
+				pinctrl_pm_select_sleep_state(codec->dev);
 				break;
 			default:
 				dev_dbg(codec->dev,
@@ -679,6 +681,9 @@ int snd_soc_suspend(struct device *dev)
 
 		if (cpu_dai->driver->suspend && cpu_dai->driver->ac97_control)
 			cpu_dai->driver->suspend(cpu_dai);
+
+		/* deactivate pins to sleep state */
+		pinctrl_pm_select_sleep_state(cpu_dai->dev);
 	}
 
 	if (card->suspend_post)
@@ -806,6 +811,16 @@ int snd_soc_resume(struct device *dev)
 	 */
 	if (list_empty(&card->codec_dev_list))
 		return 0;
+
+	/* activate pins from sleep state */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
+		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
+		if (cpu_dai->active)
+			pinctrl_pm_select_default_state(cpu_dai->dev);
+		if (codec_dai->active)
+			pinctrl_pm_select_default_state(codec_dai->dev);
+	}
 
 	/* AC97 devices might have other drivers hanging off them so
 	 * need to resume immediately.  Other drivers don't have that
@@ -1589,17 +1604,13 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 		soc_remove_codec(codec);
 }
 
-static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
-				    enum snd_soc_compress_type compress_type)
+static int snd_soc_init_codec_cache(struct snd_soc_codec *codec)
 {
 	int ret;
 
 	if (codec->cache_init)
 		return 0;
 
-	/* override the compress_type if necessary */
-	if (compress_type && codec->compress_type != compress_type)
-		codec->compress_type = compress_type;
 	ret = snd_soc_cache_init(codec);
 	if (ret < 0) {
 		dev_err(codec->dev,
@@ -1614,8 +1625,6 @@ static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec;
-	struct snd_soc_codec_conf *codec_conf;
-	enum snd_soc_compress_type compress_type;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i, order, dai_fmt;
 
@@ -1639,19 +1648,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	list_for_each_entry(codec, &codec_list, list) {
 		if (codec->cache_init)
 			continue;
-		/* by default we don't override the compress_type */
-		compress_type = 0;
-		/* check to see if we need to override the compress_type */
-		for (i = 0; i < card->num_configs; ++i) {
-			codec_conf = &card->codec_conf[i];
-			if (!strcmp(codec->name, codec_conf->dev_name)) {
-				compress_type = codec_conf->compress_type;
-				if (compress_type && compress_type
-				    != codec->compress_type)
-					break;
-			}
-		}
-		ret = snd_soc_init_codec_cache(codec, compress_type);
+		ret = snd_soc_init_codec_cache(codec);
 		if (ret < 0)
 			goto base_error;
 	}
@@ -1946,6 +1943,14 @@ int snd_soc_poweroff(struct device *dev)
 	}
 
 	snd_soc_dapm_shutdown(card);
+
+	/* deactivate pins to sleep state */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
+		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
+		pinctrl_pm_select_sleep_state(codec_dai->dev);
+		pinctrl_pm_select_sleep_state(cpu_dai->dev);
+	}
 
 	return 0;
 }
@@ -2297,13 +2302,6 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
 
-unsigned int snd_soc_bulk_write_raw(struct snd_soc_codec *codec,
-				    unsigned int reg, const void *data, size_t len)
-{
-	return codec->bulk_write_raw(codec, reg, data, len);
-}
-EXPORT_SYMBOL_GPL(snd_soc_bulk_write_raw);
-
 /**
  * snd_soc_update_bits - update codec register bits
  * @codec: audio codec
@@ -2576,8 +2574,9 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 
 	if (uinfo->value.enumerated.item > e->max - 1)
 		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
+	strlcpy(uinfo->value.enumerated.name,
+		e->texts[uinfo->value.enumerated.item],
+		sizeof(uinfo->value.enumerated.name));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_enum_double);
@@ -3791,6 +3790,16 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	if (ret != 0)
 		soc_cleanup_card_debugfs(card);
 
+	/* deactivate pins to sleep state */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
+		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
+		if (!codec_dai->active)
+			pinctrl_pm_select_sleep_state(codec_dai->dev);
+		if (!cpu_dai->active)
+			pinctrl_pm_select_sleep_state(cpu_dai->dev);
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_card);
@@ -4063,6 +4072,7 @@ __snd_soc_register_component(struct device *dev,
 
 	cmpnt->dev	= dev;
 	cmpnt->driver	= cmpnt_drv;
+	cmpnt->dai_drv	= dai_drv;
 	cmpnt->num_dai	= num_dai;
 
 	/*
@@ -4287,7 +4297,6 @@ int snd_soc_register_codec(struct device *dev,
 			   struct snd_soc_dai_driver *dai_drv,
 			   int num_dai)
 {
-	size_t reg_size;
 	struct snd_soc_codec *codec;
 	int ret, i;
 
@@ -4304,11 +4313,6 @@ int snd_soc_register_codec(struct device *dev,
 		goto fail_codec;
 	}
 
-	if (codec_drv->compress_type)
-		codec->compress_type = codec_drv->compress_type;
-	else
-		codec->compress_type = SND_SOC_FLAT_COMPRESSION;
-
 	codec->write = codec_drv->write;
 	codec->read = codec_drv->read;
 	codec->volatile_register = codec_drv->volatile_register;
@@ -4324,35 +4328,6 @@ int snd_soc_register_codec(struct device *dev,
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;
 	mutex_init(&codec->mutex);
-
-	/* allocate CODEC register cache */
-	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
-		reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
-		codec->reg_size = reg_size;
-		/* it is necessary to make a copy of the default register cache
-		 * because in the case of using a compression type that requires
-		 * the default register cache to be marked as the
-		 * kernel might have freed the array by the time we initialize
-		 * the cache.
-		 */
-		if (codec_drv->reg_cache_default) {
-			codec->reg_def_copy = kmemdup(codec_drv->reg_cache_default,
-						      reg_size, GFP_KERNEL);
-			if (!codec->reg_def_copy) {
-				ret = -ENOMEM;
-				goto fail_codec_name;
-			}
-		}
-	}
-
-	if (codec_drv->reg_access_size && codec_drv->reg_access_default) {
-		if (!codec->volatile_register)
-			codec->volatile_register = snd_soc_default_volatile_register;
-		if (!codec->readable_register)
-			codec->readable_register = snd_soc_default_readable_register;
-		if (!codec->writable_register)
-			codec->writable_register = snd_soc_default_writable_register;
-	}
 
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);
@@ -4412,7 +4387,6 @@ found:
 	dev_dbg(codec->dev, "ASoC: Unregistered codec '%s'\n", codec->name);
 
 	snd_soc_cache_exit(codec);
-	kfree(codec->reg_def_copy);
 	kfree(codec->name);
 	kfree(codec);
 }
@@ -4624,12 +4598,31 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 		if (pos->dev->of_node != args.np)
 			continue;
 
-		if (!pos->driver->of_xlate_dai_name) {
-			ret = -ENOSYS;
-			break;
+		if (pos->driver->of_xlate_dai_name) {
+			ret = pos->driver->of_xlate_dai_name(pos, &args, dai_name);
+		} else {
+			int id = -1;
+
+			switch (args.args_count) {
+			case 0:
+				id = 0; /* same as dai_drv[0] */
+				break;
+			case 1:
+				id = args.args[0];
+				break;
+			default:
+				/* not supported */
+				break;
+			}
+
+			if (id < 0 || id >= pos->num_dai) {
+				ret = -EINVAL;
+			} else {
+				*dai_name = pos->dai_drv[id].name;
+				ret = 0;
+			}
 		}
 
-		ret = pos->driver->of_xlate_dai_name(pos, &args, dai_name);
 		break;
 	}
 	mutex_unlock(&client_mutex);

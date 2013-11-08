@@ -331,7 +331,6 @@ struct soc_enum;
 struct snd_soc_jack;
 struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
-struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
 #include <sound/soc-dpcm.h>
 
@@ -347,10 +346,6 @@ enum snd_soc_control_type {
 	SND_SOC_I2C = 1,
 	SND_SOC_SPI,
 	SND_SOC_REGMAP,
-};
-
-enum snd_soc_compress_type {
-	SND_SOC_FLAT_COMPRESSION = 1,
 };
 
 enum snd_soc_pcm_subclass {
@@ -404,12 +399,6 @@ int snd_soc_cache_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int value);
 int snd_soc_cache_read(struct snd_soc_codec *codec,
 		       unsigned int reg, unsigned int *value);
-int snd_soc_default_volatile_register(struct snd_soc_codec *codec,
-				      unsigned int reg);
-int snd_soc_default_readable_register(struct snd_soc_codec *codec,
-				      unsigned int reg);
-int snd_soc_default_writable_register(struct snd_soc_codec *codec,
-				      unsigned int reg);
 int snd_soc_platform_read(struct snd_soc_platform *platform,
 					unsigned int reg);
 int snd_soc_platform_write(struct snd_soc_platform *platform,
@@ -543,22 +532,6 @@ int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
 /**
- * struct snd_soc_reg_access - Describes whether a given register is
- * readable, writable or volatile.
- *
- * @reg: the register number
- * @read: whether this register is readable
- * @write: whether this register is writable
- * @vol: whether this register is volatile
- */
-struct snd_soc_reg_access {
-	u16 reg;
-	u16 read;
-	u16 write;
-	u16 vol;
-};
-
-/**
  * struct snd_soc_jack_pin - Describes a pin to update based on jack detection
  *
  * @pin:    name of the pin to update
@@ -658,19 +631,6 @@ struct snd_soc_compr_ops {
 	int (*trigger)(struct snd_compr_stream *);
 };
 
-/* SoC cache ops */
-struct snd_soc_cache_ops {
-	const char *name;
-	enum snd_soc_compress_type id;
-	int (*init)(struct snd_soc_codec *codec);
-	int (*exit)(struct snd_soc_codec *codec);
-	int (*read)(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int *value);
-	int (*write)(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value);
-	int (*sync)(struct snd_soc_codec *codec);
-};
-
 /* component interface */
 struct snd_soc_component_driver {
 	const char *name;
@@ -684,9 +644,11 @@ struct snd_soc_component_driver {
 struct snd_soc_component {
 	const char *name;
 	int id;
-	int num_dai;
 	struct device *dev;
 	struct list_head list;
+
+	struct snd_soc_dai_driver *dai_drv;
+	int num_dai;
 
 	const struct snd_soc_component_driver *driver;
 };
@@ -704,8 +666,6 @@ struct snd_soc_codec {
 	struct list_head list;
 	struct list_head card_list;
 	int num_dai;
-	enum snd_soc_compress_type compress_type;
-	size_t reg_size;	/* reg_cache_size * reg_word_size */
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 	int (*writable_register)(struct snd_soc_codec *, unsigned int);
@@ -729,10 +689,7 @@ struct snd_soc_codec {
 	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
-	int (*bulk_write_raw)(struct snd_soc_codec *, unsigned int, const void *, size_t);
 	void *reg_cache;
-	const void *reg_def_copy;
-	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;
 	int val_bytes;
 
@@ -785,9 +742,6 @@ struct snd_soc_codec_driver {
 	short reg_cache_step;
 	short reg_word_size;
 	const void *reg_cache_default;
-	short reg_access_size;
-	const struct snd_soc_reg_access *reg_access_default;
-	enum snd_soc_compress_type compress_type;
 
 	/* codec bias level */
 	int (*set_bias_level)(struct snd_soc_codec *,
@@ -955,12 +909,6 @@ struct snd_soc_codec_conf {
 	 * associated per device
 	 */
 	const char *name_prefix;
-
-	/*
-	 * set this to the desired compression type if you want to
-	 * override the one supplied in codec->driver->compress_type
-	 */
-	enum snd_soc_compress_type compress_type;
 };
 
 struct snd_soc_aux_dev {
@@ -1132,8 +1080,6 @@ struct soc_enum {
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 unsigned int snd_soc_write(struct snd_soc_codec *codec,
 			   unsigned int reg, unsigned int val);
-unsigned int snd_soc_bulk_write_raw(struct snd_soc_codec *codec,
-				    unsigned int reg, const void *data, size_t len);
 
 /* device driver data */
 
