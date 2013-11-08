@@ -792,13 +792,13 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 	ath10k_pci_sleep(ar);
 }
 
-void ath10k_ce_disable_interrupts(struct ath10k *ar)
+int ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
 	int ce_id, ret;
 
 	ret = ath10k_pci_wake(ar);
 	if (ret)
-		return;
+		return ret;
 
 	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
 		u32 ctrl_addr = ath10k_ce_base_address(ce_id);
@@ -807,7 +807,10 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 		ath10k_ce_error_intr_disable(ar, ctrl_addr);
 		ath10k_ce_watermark_intr_disable(ar, ctrl_addr);
 	}
+
 	ath10k_pci_sleep(ar);
+
+	return 0;
 }
 
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
