@@ -156,9 +156,6 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	u8 *sadb;
 	int sad_count;
 
-	/* XXX: setting this register causes hangs on some asics */
-	return;
-
 	if (!dig->afmt->pin)
 		return;
 
