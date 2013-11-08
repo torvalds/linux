@@ -26,7 +26,8 @@
 
 #include "../integrity.h"
 
-enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_ASCII };
+enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_BINARY_NO_FIELD_LEN,
+		     IMA_SHOW_ASCII };
 enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 
 /* digest size for IMA, fits SHA1 or MD5 */
