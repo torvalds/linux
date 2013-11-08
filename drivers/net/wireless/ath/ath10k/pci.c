@@ -831,7 +831,7 @@ static int ath10k_pci_start_ce(struct ath10k *ar)
 	spin_lock_init(&ar_pci->compl_lock);
 	INIT_LIST_HEAD(&ar_pci->compl_process);
 
-	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		pipe_info = &ar_pci->pipe_info[pipe_num];
 
 		spin_lock_init(&pipe_info->pipe_lock);
@@ -924,7 +924,7 @@ static void ath10k_pci_cleanup_ce(struct ath10k *ar)
 	spin_unlock_bh(&ar_pci->compl_lock);
 
 	/* Free unused completions for each pipe. */
-	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		pipe_info = &ar_pci->pipe_info[pipe_num];
 
 		spin_lock_bh(&pipe_info->pipe_lock);
@@ -1166,7 +1166,7 @@ static int ath10k_pci_post_rx(struct ath10k *ar)
 	const struct ce_attr *attr;
 	int pipe_num, ret = 0;
 
-	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		pipe_info = &ar_pci->pipe_info[pipe_num];
 		attr = &host_ce_config_wlan[pipe_num];
 
@@ -1295,7 +1295,7 @@ static void ath10k_pci_buffer_cleanup(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int pipe_num;
 
-	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		struct ath10k_pci_pipe *pipe_info;
 
 		pipe_info = &ar_pci->pipe_info[pipe_num];
@@ -1310,7 +1310,7 @@ static void ath10k_pci_ce_deinit(struct ath10k *ar)
 	struct ath10k_pci_pipe *pipe_info;
 	int pipe_num;
 
-	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		pipe_info = &ar_pci->pipe_info[pipe_num];
 		if (pipe_info->ce_hdl) {
 			ath10k_ce_deinit(pipe_info->ce_hdl);
@@ -1755,7 +1755,7 @@ static int ath10k_pci_ce_init(struct ath10k *ar)
 	const struct ce_attr *attr;
 	int pipe_num;
 
-	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
 		pipe_info = &ar_pci->pipe_info[pipe_num];
 		pipe_info->pipe_num = pipe_num;
 		pipe_info->hif_ce_state = ar;
@@ -1772,13 +1772,12 @@ static int ath10k_pci_ce_init(struct ath10k *ar)
 			return -1;
 		}
 
-		if (pipe_num == ar_pci->ce_count - 1) {
+		if (pipe_num == CE_COUNT - 1) {
 			/*
 			 * Reserve the ultimate CE for
 			 * diagnostic Window support
 			 */
-			ar_pci->ce_diag =
-			ar_pci->pipe_info[ar_pci->ce_count - 1].ce_hdl;
+			ar_pci->ce_diag = pipe_info->ce_hdl;
 			continue;
 		}
 
@@ -2235,7 +2234,6 @@ static int ath10k_pci_start_intr(struct ath10k *ar)
 
 exit:
 	ar_pci->num_msi_intrs = num;
-	ar_pci->ce_count = CE_COUNT;
 	return ret;
 }
 

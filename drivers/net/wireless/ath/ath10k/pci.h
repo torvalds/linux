@@ -199,9 +199,6 @@ struct ath10k_pci {
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct msi_fw_err;
 
-	/* Number of Copy Engines supported */
-	unsigned int ce_count;
-
 	int started;
 
 	atomic_t keep_awake_count;

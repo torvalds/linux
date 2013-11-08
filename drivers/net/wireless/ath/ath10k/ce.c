@@ -731,7 +731,6 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 
 void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ce_id, ret;
 	u32 intr_summary;
 
@@ -741,7 +740,7 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 
 	intr_summary = CE_INTERRUPT_SUMMARY(ar);
 
-	for (ce_id = 0; intr_summary && (ce_id < ar_pci->ce_count); ce_id++) {
+	for (ce_id = 0; intr_summary && (ce_id < CE_COUNT); ce_id++) {
 		if (intr_summary & (1 << ce_id))
 			intr_summary &= ~(1 << ce_id);
 		else
@@ -785,16 +784,14 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 
 void ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ce_id, ret;
 
 	ret = ath10k_pci_wake(ar);
 	if (ret)
 		return;
 
-	for (ce_id = 0; ce_id < ar_pci->ce_count; ce_id++) {
-		struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
-		u32 ctrl_addr = ce_state->ctrl_addr;
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
+		u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
 	}
