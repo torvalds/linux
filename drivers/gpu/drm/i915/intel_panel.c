@@ -555,7 +555,7 @@ static void i9xx_set_backlight(struct intel_connector *connector, u32 level)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 tmp;
+	u32 tmp, mask;
 
 	if (is_backlight_combination_mode(dev)) {
 		u32 max = intel_panel_get_max_backlight(connector);
@@ -570,10 +570,14 @@ static void i9xx_set_backlight(struct intel_connector *connector, u32 level)
 		pci_write_config_byte(dev->pdev, PCI_LBPC, lbpc);
 	}
 
-	if (INTEL_INFO(dev)->gen < 4)
+	if (IS_GEN4(dev)) {
+		mask = BACKLIGHT_DUTY_CYCLE_MASK;
+	} else {
 		level <<= 1;
+		mask = BACKLIGHT_DUTY_CYCLE_MASK_PNV;
+	}
 
-	tmp = I915_READ(BLC_PWM_CTL) & ~BACKLIGHT_DUTY_CYCLE_MASK;
+	tmp = I915_READ(BLC_PWM_CTL) & ~mask;
 	I915_WRITE(BLC_PWM_CTL, tmp | level);
 }
 
