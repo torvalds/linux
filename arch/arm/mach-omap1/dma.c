@@ -33,7 +33,6 @@
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17
 
-static u32 errata;
 static u32 enable_1510_mode;
 
 static const struct omap_dma_reg reg_map[] = {
@@ -244,8 +243,9 @@ static void omap1_show_dma_caps(void)
 	return;
 }
 
-static u32 configure_dma_errata(void)
+static unsigned configure_dma_errata(void)
 {
+	unsigned errata = 0;
 
 	/*
 	 * Erratum 3.2/3.3: sometimes 0 is returned if CSAC/CDAC is

@@ -35,8 +35,6 @@
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
-static u32 errata;
-
 static struct omap_dma_dev_attr *d;
 
 static enum omap_reg_offsets dma_common_ch_end;
@@ -124,8 +122,9 @@ static void omap2_show_dma_caps(void)
 	return;
 }
 
-static u32 configure_dma_errata(void)
+static unsigned configure_dma_errata(void)
 {
+	unsigned errata = 0;
 
 	/*
 	 * Errata applicable for OMAP2430ES1.0 and all omap2420
