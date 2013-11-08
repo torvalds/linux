@@ -88,26 +88,26 @@ struct omap4_keypad {
 
 static int kbd_readl(struct omap4_keypad *keypad_data, u32 offset)
 {
-	return __raw_readl(keypad_data->base +
+	return readl_relaxed(keypad_data->base +
 				keypad_data->reg_offset + offset);
 }
 
 static void kbd_writel(struct omap4_keypad *keypad_data, u32 offset, u32 value)
 {
-	__raw_writel(value,
+	writel_relaxed(value,
 		     keypad_data->base + keypad_data->reg_offset + offset);
 }
 
 static int kbd_read_irqreg(struct omap4_keypad *keypad_data, u32 offset)
 {
-	return __raw_readl(keypad_data->base +
+	return readl_relaxed(keypad_data->base +
 				keypad_data->irqreg_offset + offset);
 }
 
 static void kbd_write_irqreg(struct omap4_keypad *keypad_data,
 			     u32 offset, u32 value)
 {
-	__raw_writel(value,
+	writel_relaxed(value,
 		     keypad_data->base + keypad_data->irqreg_offset + offset);
 }
 
@@ -311,7 +311,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
 		goto err_unmap;
 	}
-	rev = __raw_readl(keypad_data->base + OMAP4_KBD_REVISION);
+	rev = readl_relaxed(keypad_data->base + OMAP4_KBD_REVISION);
 	rev &= 0x03 << 30;
 	rev >>= 30;
 	switch (rev) {
