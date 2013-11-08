@@ -122,7 +122,7 @@ enum imx5_clks {
 	srtc_gate, pata_gate, sata_gate, spdif_xtal_sel, spdif0_sel,
 	spdif1_sel, spdif0_pred, spdif0_podf, spdif1_pred, spdif1_podf,
 	spdif0_com_s, spdif1_com_sel, spdif0_gate, spdif1_gate, spdif_ipg_gate,
-	ocram, clk_max
+	ocram, sahara_ipg_gate, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -285,6 +285,7 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 				spdif0_com_sel, ARRAY_SIZE(spdif0_com_sel), CLK_SET_RATE_PARENT);
 	clk[spdif0_gate] = imx_clk_gate2("spdif0_gate", "spdif0_com_sel", MXC_CCM_CCGR5, 26);
 	clk[spdif_ipg_gate] = imx_clk_gate2("spdif_ipg_gate", "ipg", MXC_CCM_CCGR5, 30);
+	clk[sahara_ipg_gate] = imx_clk_gate2("sahara_ipg_gate", "ipg", MXC_CCM_CCGR4, 14);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
