@@ -1409,6 +1409,7 @@ static void scsi_dump_inquiry(struct se_device *dev)
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct se_device *dev;
+	struct se_lun *xcopy_lun;
 
 	dev = hba->transport->alloc_device(hba, name);
 	if (!dev)
@@ -1470,6 +1471,14 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
 	dev->dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
 	dev->dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
+
+	xcopy_lun = &dev->xcopy_lun;
+	xcopy_lun->lun_se_dev = dev;
+	init_completion(&xcopy_lun->lun_shutdown_comp);
+	INIT_LIST_HEAD(&xcopy_lun->lun_acl_list);
+	spin_lock_init(&xcopy_lun->lun_acl_lock);
+	spin_lock_init(&xcopy_lun->lun_sep_lock);
+	init_completion(&xcopy_lun->lun_ref_comp);
 
 	return dev;
 }
