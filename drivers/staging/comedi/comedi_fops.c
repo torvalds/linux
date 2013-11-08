@@ -2023,38 +2023,77 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file_inode(file));
 	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	bool on_wait_queue = false;
+	bool attach_locked;
+	unsigned int old_detach_count;
 
 	if (!dev)
 		return -ENODEV;
 
+	/* Protect against device detachment during operation. */
+	down_read(&dev->attach_lock);
+	attach_locked = true;
+	old_detach_count = dev->detach_count;
+
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto out;
 	}
 
 	s = comedi_write_subdevice(dev, minor);
-	if (!s || !s->async)
-		return -EIO;
+	if (!s || !s->async) {
+		retval = -EIO;
+		goto out;
+	}
 
 	async = s->async;
 
 	if (!s->busy || !nbytes)
-		return 0;
-	if (s->busy != file)
-		return -EACCES;
+		goto out;
+	if (s->busy != file) {
+		retval = -EACCES;
+		goto out;
+	}
 
 	add_wait_queue(&async->wait_head, &wait);
+	on_wait_queue = true;
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
-				mutex_lock(&dev->mutex);
+				struct comedi_subdevice *new_s;
+
 				if (comedi_is_subdevice_in_error(s))
 					retval = -EPIPE;
 				else
 					retval = 0;
-				do_become_nonbusy(dev, s);
+				/*
+				 * To avoid deadlock, cannot acquire dev->mutex
+				 * while dev->attach_lock is held.  Need to
+				 * remove task from the async wait queue before
+				 * releasing dev->attach_lock, as it might not
+				 * be valid afterwards.
+				 */
+				remove_wait_queue(&async->wait_head, &wait);
+				on_wait_queue = false;
+				up_read(&dev->attach_lock);
+				attach_locked = false;
+				mutex_lock(&dev->mutex);
+				/*
+				 * Become non-busy unless things have changed
+				 * behind our back.  Checking dev->detach_count
+				 * is unchanged ought to be sufficient (unless
+				 * there have been 2**32 detaches in the
+				 * meantime!), but check the subdevice pointer
+				 * as well just in case.
+				 */
+				new_s = comedi_write_subdevice(dev, minor);
+				if (dev->attached &&
+				    old_detach_count == dev->detach_count &&
+				    s == new_s && new_s->async == async)
+					do_become_nonbusy(dev, s);
 				mutex_unlock(&dev->mutex);
 			}
 			break;
@@ -2104,8 +2143,12 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
+out:
+	if (on_wait_queue)
+		remove_wait_queue(&async->wait_head, &wait);
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&async->wait_head, &wait);
+	if (attach_locked)
+		up_read(&dev->attach_lock);
 
 	return count ? count : retval;
 }
