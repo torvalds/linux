@@ -482,7 +482,9 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 		dev_priv->map_mode = vmw_dma_map_populate;
 #endif
 
+#ifdef CONFIG_INTEL_IOMMU
 out_fixup:
+#endif
 	if (dev_priv->map_mode == vmw_dma_map_populate &&
 	    vmw_restrict_iommu)
 		dev_priv->map_mode = vmw_dma_map_bind;
