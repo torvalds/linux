@@ -1293,6 +1293,19 @@ int vme_slot_get(struct vme_dev *vdev)
 }
 EXPORT_SYMBOL(vme_slot_get);
 
+int vme_bus_num(struct vme_dev *vdev)
+{
+	struct vme_bridge *bridge;
+
+	bridge = vdev->bridge;
+	if (bridge == NULL) {
+		pr_err("Can't find VME bus\n");
+		return -EINVAL;
+	}
+
+	return bridge->num;
+}
+EXPORT_SYMBOL(vme_bus_num);
 
 /* - Bridge Registration --------------------------------------------------- */
 
