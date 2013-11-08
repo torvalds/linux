@@ -768,7 +768,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 	 * data at the tail to prevent a subsequent overrun */
 	while (ldata->echo_commit - tail >= ECHO_DISCARD_WATERMARK) {
 		if (echo_buf(ldata, tail) == ECHO_OP_START) {
-			if (echo_buf(ldata, tail) == ECHO_OP_ERASE_TAB)
+			if (echo_buf(ldata, tail + 1) == ECHO_OP_ERASE_TAB)
 				tail += 3;
 			else
 				tail += 2;
