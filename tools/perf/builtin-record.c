@@ -76,7 +76,7 @@ struct perf_record {
 	long			samples;
 };
 
-static int write_output(struct perf_record *rec, void *buf, size_t size)
+static int do_write_output(struct perf_record *rec, void *buf, size_t size)
 {
 	struct perf_data_file *file = &rec->file;
 
@@ -95,6 +95,11 @@ static int write_output(struct perf_record *rec, void *buf, size_t size)
 	}
 
 	return 0;
+}
+
+static int write_output(struct perf_record *rec, void *buf, size_t size)
+{
+	return do_write_output(rec, buf, size);
 }
 
 static int process_synthesized_event(struct perf_tool *tool,
