@@ -480,9 +480,6 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 		goto err_table;
 	}
 	mpt_entry = mailbox->buf;
-
-	memset(mpt_entry, 0, sizeof *mpt_entry);
-
 	mpt_entry->flags = cpu_to_be32(MLX4_MPT_FLAG_MIO	 |
 				       MLX4_MPT_FLAG_REGION	 |
 				       mr->access);
@@ -694,8 +691,6 @@ int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw)
 		goto err_table;
 	}
 	mpt_entry = mailbox->buf;
-
-	memset(mpt_entry, 0, sizeof(*mpt_entry));
 
 	/* Note that the MLX4_MPT_FLAG_REGION bit in mpt_entry->flags is turned
 	 * off, thus creating a memory window and not a memory region.

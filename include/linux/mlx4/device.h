@@ -662,6 +662,7 @@ struct mlx4_dev {
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
 	int			num_vfs;
+	int			numa_node;
 	int			oper_log_mgm_entry_size;
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
@@ -834,7 +835,7 @@ void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar);
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar);
-int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf);
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node);
 void mlx4_bf_free(struct mlx4_dev *dev, struct mlx4_bf *bf);
 
 int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
