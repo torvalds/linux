@@ -3,14 +3,14 @@ config DRM_TEGRA
 	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
 	depends on DRM
 	depends on RESET_CONTROLLER
-	select TEGRA_HOST1X
-	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER
+	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
+	select TEGRA_HOST1X
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 
