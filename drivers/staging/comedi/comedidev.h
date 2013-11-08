@@ -235,7 +235,6 @@ enum comedi_minor_bits {
 static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
 static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
 
-struct comedi_device *comedi_dev_from_minor(unsigned minor);
 struct comedi_device *comedi_dev_get_from_minor(unsigned minor);
 int comedi_dev_put(struct comedi_device *dev);
 

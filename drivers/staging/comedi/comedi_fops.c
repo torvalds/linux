@@ -189,34 +189,6 @@ static struct comedi_subdevice
 	return s;
 }
 
-static struct comedi_device *comedi_dev_from_board_minor(unsigned minor)
-{
-	struct comedi_device *dev;
-
-	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	mutex_lock(&comedi_board_minor_table_lock);
-	dev = comedi_board_minor_table[minor];
-	mutex_unlock(&comedi_board_minor_table_lock);
-	return dev;
-}
-
-static struct comedi_device *comedi_dev_from_subdevice_minor(unsigned minor)
-{
-	struct comedi_subdevice *s;
-
-	s = comedi_subdevice_from_minor(minor);
-	return s ? s->device : NULL;
-}
-
-struct comedi_device *comedi_dev_from_minor(unsigned minor)
-{
-	if (minor < COMEDI_NUM_BOARD_MINORS)
-		return comedi_dev_from_board_minor(minor);
-	else
-		return comedi_dev_from_subdevice_minor(minor);
-}
-EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
-
 static struct comedi_device *comedi_dev_get_from_board_minor(unsigned minor)
 {
 	struct comedi_device *dev;
