@@ -2307,9 +2307,6 @@ static void ath10k_pci_device_reset(struct ath10k *ar)
 	int i;
 	u32 val;
 
-	if (!SOC_GLOBAL_RESET_ADDRESS)
-		return;
-
 	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS,
 			       PCIE_SOC_WAKE_V_MASK);
 	for (i = 0; i < ATH_PCI_RESET_WAIT_MAX; i++) {
