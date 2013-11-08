@@ -2368,13 +2368,6 @@ static void audit_log_task(struct audit_buffer *ab)
 	audit_log_untrustedstring(ab, current->comm);
 }
 
-static void audit_log_abend(struct audit_buffer *ab, char *reason, long signr)
-{
-	audit_log_task(ab);
-	audit_log_format(ab, " reason=");
-	audit_log_string(ab, reason);
-	audit_log_format(ab, " sig=%ld", signr);
-}
 /**
  * audit_core_dumps - record information about processes that end abnormally
  * @signr: signal value
@@ -2395,7 +2388,8 @@ void audit_core_dumps(long signr)
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_ANOM_ABEND);
 	if (unlikely(!ab))
 		return;
-	audit_log_abend(ab, "memory violation", signr);
+	audit_log_task(ab);
+	audit_log_format(ab, " sig=%ld", signr);
 	audit_log_end(ab);
 }
 
