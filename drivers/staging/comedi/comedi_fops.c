@@ -328,7 +328,7 @@ static ssize_t max_read_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -338,6 +338,7 @@ static ssize_t max_read_buffer_kb_show(struct device *csdev,
 		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -358,7 +359,7 @@ static ssize_t max_read_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -370,6 +371,7 @@ static ssize_t max_read_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(max_read_buffer_kb);
@@ -382,7 +384,7 @@ static ssize_t read_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -392,6 +394,7 @@ static ssize_t read_buffer_kb_show(struct device *csdev,
 		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -412,7 +415,7 @@ static ssize_t read_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -424,6 +427,7 @@ static ssize_t read_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(read_buffer_kb);
@@ -437,7 +441,7 @@ static ssize_t max_write_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -447,6 +451,7 @@ static ssize_t max_write_buffer_kb_show(struct device *csdev,
 		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -467,7 +472,7 @@ static ssize_t max_write_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -479,6 +484,7 @@ static ssize_t max_write_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(max_write_buffer_kb);
@@ -491,7 +497,7 @@ static ssize_t write_buffer_kb_show(struct device *csdev,
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -501,6 +507,7 @@ static ssize_t write_buffer_kb_show(struct device *csdev,
 		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
@@ -521,7 +528,7 @@ static ssize_t write_buffer_kb_store(struct device *csdev,
 		return -EINVAL;
 	size *= 1024;
 
-	dev = comedi_dev_from_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (!dev)
 		return -ENODEV;
 
@@ -533,6 +540,7 @@ static ssize_t write_buffer_kb_store(struct device *csdev,
 		err = -EINVAL;
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
 	return err ? err : count;
 }
 static DEVICE_ATTR_RW(write_buffer_kb);
