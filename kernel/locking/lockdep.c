@@ -1232,7 +1232,7 @@ static int noop_count(struct lock_list *entry, void *data)
 	return 0;
 }
 
-unsigned long __lockdep_count_forward_deps(struct lock_list *this)
+static unsigned long __lockdep_count_forward_deps(struct lock_list *this)
 {
 	unsigned long  count = 0;
 	struct lock_list *uninitialized_var(target_entry);
@@ -1258,7 +1258,7 @@ unsigned long lockdep_count_forward_deps(struct lock_class *class)
 	return ret;
 }
 
-unsigned long __lockdep_count_backward_deps(struct lock_list *this)
+static unsigned long __lockdep_count_backward_deps(struct lock_list *this)
 {
 	unsigned long  count = 0;
 	struct lock_list *uninitialized_var(target_entry);
