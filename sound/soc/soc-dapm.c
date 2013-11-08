@@ -499,18 +499,22 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		int val;
 		struct soc_mixer_control *mc = (struct soc_mixer_control *)
 			w->kcontrol_news[i].private_value;
-		unsigned int reg = mc->reg;
+		int reg = mc->reg;
 		unsigned int shift = mc->shift;
 		int max = mc->max;
 		unsigned int mask = (1 << fls(max)) - 1;
 		unsigned int invert = mc->invert;
 
-		val = soc_widget_read(w, reg);
-		val = (val >> shift) & mask;
-		if (invert)
-			val = max - val;
+		if (reg != SND_SOC_NOPM) {
+			val = soc_widget_read(w, reg);
+			val = (val >> shift) & mask;
+			if (invert)
+				val = max - val;
+			p->connect = !!val;
+		} else {
+			p->connect = 0;
+		}
 
-		p->connect = !!val;
 	}
 	break;
 	case snd_soc_dapm_mux: {
@@ -1840,6 +1844,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 			 */
 			switch (w->id) {
 			case snd_soc_dapm_siggen:
+			case snd_soc_dapm_vmid:
 				break;
 			case snd_soc_dapm_supply:
 			case snd_soc_dapm_regulator_supply:
@@ -2791,7 +2796,7 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = codec->card;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
+	int reg = mc->reg;
 	unsigned int shift = mc->shift;
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
@@ -2804,7 +2809,7 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 			 kcontrol->id.name);
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-	if (dapm_kcontrol_is_powered(kcontrol))
+	if (dapm_kcontrol_is_powered(kcontrol) && reg != SND_SOC_NOPM)
 		val = (snd_soc_read(codec, reg) >> shift) & mask;
 	else
 		val = dapm_kcontrol_get_value(kcontrol);
@@ -2835,7 +2840,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = codec->card;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
+	int reg = mc->reg;
 	unsigned int shift = mc->shift;
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
@@ -2857,19 +2862,24 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
-	dapm_kcontrol_set_value(kcontrol, val);
+	change = dapm_kcontrol_set_value(kcontrol, val);
 
-	mask = mask << shift;
-	val = val << shift;
+	if (reg != SND_SOC_NOPM) {
+		mask = mask << shift;
+		val = val << shift;
 
-	change = snd_soc_test_bits(codec, reg, mask, val);
+		change = snd_soc_test_bits(codec, reg, mask, val);
+	}
+
 	if (change) {
-		update.kcontrol = kcontrol;
-		update.reg = reg;
-		update.mask = mask;
-		update.val = val;
+		if (reg != SND_SOC_NOPM) {
+			update.kcontrol = kcontrol;
+			update.reg = reg;
+			update.mask = mask;
+			update.val = val;
 
-		card->update = &update;
+			card->update = &update;
+		}
 
 		soc_dapm_mixer_update_power(card, kcontrol, connect);
 
