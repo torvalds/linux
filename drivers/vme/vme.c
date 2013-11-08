@@ -1274,7 +1274,7 @@ void vme_lm_free(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_lm_free);
 
-int vme_slot_get(struct vme_dev *vdev)
+int vme_slot_num(struct vme_dev *vdev)
 {
 	struct vme_bridge *bridge;
 
@@ -1285,13 +1285,13 @@ int vme_slot_get(struct vme_dev *vdev)
 	}
 
 	if (bridge->slot_get == NULL) {
-		printk(KERN_WARNING "vme_slot_get not supported\n");
+		printk(KERN_WARNING "vme_slot_num not supported\n");
 		return -EINVAL;
 	}
 
 	return bridge->slot_get(bridge);
 }
-EXPORT_SYMBOL(vme_slot_get);
+EXPORT_SYMBOL(vme_slot_num);
 
 int vme_bus_num(struct vme_dev *vdev)
 {
