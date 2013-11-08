@@ -1270,6 +1270,13 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 		 * Indicate the completion to higer layer to free
 		 * the buffer
 		 */
+
+		if (!netbuf) {
+			ath10k_warn("invalid sk_buff on CE %d - NULL pointer. firmware crashed?\n",
+				    ce_hdl->id);
+			continue;
+		}
+
 		ATH10K_SKB_CB(netbuf)->is_aborted = true;
 		ar_pci->msg_callbacks_current.tx_completion(ar,
 							    netbuf,
