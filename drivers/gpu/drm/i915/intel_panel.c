@@ -436,9 +436,6 @@ static u32 vlv_get_max_backlight(struct intel_connector *connector)
 	return _vlv_get_max_backlight(dev, pipe);
 }
 
-/* XXX: query mode clock or hardware clock and program max PWM appropriately
- * when it's 0.
- */
 static u32 intel_panel_get_max_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
@@ -466,15 +463,16 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_panel *panel = &connector->panel;
+
+	WARN_ON(panel->backlight.max == 0);
 
 	if (i915_panel_invert_brightness < 0)
 		return val;
 
 	if (i915_panel_invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
-		u32 max = intel_panel_get_max_backlight(connector);
-		if (max)
-			return max - val;
+		return panel->backlight.max - val;
 	}
 
 	return val;
@@ -555,17 +553,15 @@ static void i9xx_set_backlight(struct intel_connector *connector, u32 level)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_panel *panel = &connector->panel;
 	u32 tmp, mask;
 
+	WARN_ON(panel->backlight.max == 0);
+
 	if (is_backlight_combination_mode(dev)) {
-		u32 max = intel_panel_get_max_backlight(connector);
 		u8 lbpc;
 
-		/* we're screwed, but keep behaviour backwards compatible */
-		if (!max)
-			max = 1;
-
-		lbpc = level * 0xfe / max + 1;
+		lbpc = level * 0xfe / panel->backlight.max + 1;
 		level /= lbpc;
 		pci_write_config_byte(dev->pdev, PCI_LBPC, lbpc);
 	}
@@ -620,13 +616,10 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 
-	freq = intel_panel_get_max_backlight(connector);
-	if (!freq) {
-		/* we are screwed, bail out */
-		goto out;
-	}
+	WARN_ON(panel->backlight.max == 0);
 
-	/* scale to hardware, but be careful to not overflow */
+	/* scale to hardware max, but be careful to not overflow */
+	freq = panel->backlight.max;
 	if (freq < max)
 		level = level * freq / max;
 	else
@@ -638,7 +631,7 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 
 	if (panel->backlight.enabled)
 		intel_panel_actually_set_backlight(connector, level);
-out:
+
 	spin_unlock_irqrestore(&dev_priv->backlight_lock, flags);
 }
 
@@ -839,8 +832,13 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 
+	/* XXX: transitional, call to make sure freq is set */
+	intel_panel_get_max_backlight(connector);
+
+	WARN_ON(panel->backlight.max == 0);
+
 	if (panel->backlight.level == 0) {
-		panel->backlight.level = intel_panel_get_max_backlight(connector);
+		panel->backlight.level = panel->backlight.max;
 		if (panel->backlight.device)
 			panel->backlight.device->props.brightness =
 				panel->backlight.level;
@@ -960,7 +958,12 @@ static void intel_backlight_device_unregister(struct intel_connector *connector)
 }
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
-/* Note: The setup hooks can't assume pipe is set! */
+/*
+ * Note: The setup hooks can't assume pipe is set!
+ *
+ * XXX: Query mode clock or hardware clock and program PWM modulation frequency
+ * appropriately when it's 0. Use VBT and/or sane defaults.
+ */
 static int pch_setup_backlight(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
