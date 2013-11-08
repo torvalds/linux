@@ -494,6 +494,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
 	struct mxs_saif *master_saif;
 	u32 delay;
+	int ret;
 
 	master_saif = mxs_saif_get_master(saif);
 	if (!master_saif)
@@ -503,22 +504,36 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (saif->state == MXS_SAIF_STATE_RUNNING)
+			return 0;
+
 		dev_dbg(cpu_dai->dev, "start\n");
 
-		clk_enable(master_saif->clk);
-		if (!master_saif->mclk_in_use)
-			__raw_writel(BM_SAIF_CTRL_RUN,
-				master_saif->base + SAIF_CTRL + MXS_SET_ADDR);
+		ret = clk_enable(master_saif->clk);
+		if (ret) {
+			dev_err(saif->dev, "Failed to enable master clock\n");
+			return ret;
+		}
 
 		/*
 		 * If the saif's master is not himself, we also need to enable
 		 * itself clk for its internal basic logic to work.
 		 */
 		if (saif != master_saif) {
-			clk_enable(saif->clk);
+			ret = clk_enable(saif->clk);
+			if (ret) {
+				dev_err(saif->dev, "Failed to enable master clock\n");
+				clk_disable(master_saif->clk);
+				return ret;
+			}
+
 			__raw_writel(BM_SAIF_CTRL_RUN,
 				saif->base + SAIF_CTRL + MXS_SET_ADDR);
 		}
+
+		if (!master_saif->mclk_in_use)
+			__raw_writel(BM_SAIF_CTRL_RUN,
+				master_saif->base + SAIF_CTRL + MXS_SET_ADDR);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/*
@@ -543,6 +558,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		master_saif->ongoing = 1;
+		saif->state = MXS_SAIF_STATE_RUNNING;
 
 		dev_dbg(saif->dev, "CTRL 0x%x STAT 0x%x\n",
 			__raw_readl(saif->base + SAIF_CTRL),
@@ -555,6 +571,9 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (saif->state == MXS_SAIF_STATE_STOPPED)
+			return 0;
+
 		dev_dbg(cpu_dai->dev, "stop\n");
 
 		/* wait a while for the current sample to complete */
@@ -575,6 +594,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		master_saif->ongoing = 0;
+		saif->state = MXS_SAIF_STATE_STOPPED;
 
 		break;
 	default:
