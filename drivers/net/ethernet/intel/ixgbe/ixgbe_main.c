@@ -4164,7 +4164,7 @@ static void ixgbe_add_mac_filter(struct ixgbe_adapter *adapter,
 static void ixgbe_fwd_psrtype(struct ixgbe_fwd_adapter *vadapter)
 {
 	struct ixgbe_adapter *adapter = vadapter->real_adapter;
-	int rss_i = vadapter->netdev->real_num_rx_queues;
+	int rss_i = adapter->num_rx_queues_per_pool;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u16 pool = vadapter->pool;
 	u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
@@ -4315,8 +4315,6 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 	if (err)
 		goto fwd_queue_err;
 
-	queues = min_t(unsigned int,
-		       adapter->num_rx_queues_per_pool, vdev->num_rx_queues);
 	err = netif_set_real_num_rx_queues(vdev, queues);
 	if (err)
 		goto fwd_queue_err;
@@ -7540,9 +7538,15 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	struct ixgbe_adapter *adapter = netdev_priv(pdev);
 	int pool, err;
 
+#ifdef CONFIG_RPS
+	if (vdev->num_rx_queues != vdev->num_tx_queues) {
+		netdev_info(pdev, "%s: Only supports a single queue count for TX and RX\n",
+			    vdev->name);
+		return ERR_PTR(-EINVAL);
+	}
+#endif
 	/* Check for hardware restriction on number of rx/tx queues */
-	if (vdev->num_rx_queues != vdev->num_tx_queues ||
-	    vdev->num_tx_queues > IXGBE_MAX_L2A_QUEUES ||
+	if (vdev->num_tx_queues > IXGBE_MAX_L2A_QUEUES ||
 	    vdev->num_tx_queues == IXGBE_BAD_L2A_QUEUE) {
 		netdev_info(pdev,
 			    "%s: Supports RX/TX Queue counts 1,2, and 4\n",
@@ -7566,7 +7570,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	/* Enable VMDq flag so device will be set in VM mode */
 	adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED | IXGBE_FLAG_SRIOV_ENABLED;
 	adapter->ring_feature[RING_F_VMDQ].limit = adapter->num_rx_pools;
-	adapter->ring_feature[RING_F_RSS].limit = vdev->num_rx_queues;
+	adapter->ring_feature[RING_F_RSS].limit = vdev->num_tx_queues;
 
 	/* Force reinit of ring allocation with VMDQ enabled */
 	err = ixgbe_setup_tc(pdev, netdev_get_num_tc(pdev));
