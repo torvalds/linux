@@ -10418,6 +10418,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.queue_flip = intel_gen7_queue_flip;
 		break;
 	}
+
+	intel_panel_init_backlight_funcs(dev);
 }
 
 /*
