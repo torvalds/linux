@@ -142,7 +142,8 @@ BSSpSearchBSSList(
 		/* match BSSID first */
 		for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 			pCurrBSS = &(pMgmt->sBSSList[ii]);
-			if (pDevice->bLinkPass == false) pCurrBSS->bSelected = false;
+			if (pDevice->bLinkPass == false)
+				pCurrBSS->bSelected = false;
 			if ((pCurrBSS->bActive) &&
 			    (pCurrBSS->bSelected == false)) {
 				if (ether_addr_equal(pCurrBSS->abyBSSID,
@@ -940,7 +941,8 @@ BSSvSecondCallBack(
 		if (pDevice->bHWRadioOff == true) {
 			if (!(pDevice->byGPIO & GPIO0_DATA))
 			{
-				if (status == 1) goto start;
+				if (status == 1)
+					goto start;
 				status = 1;
 				CARDbRadioPowerOff(pDevice);
 				pMgmt->sNodeDBTable[0].bActive = false;
@@ -951,14 +953,16 @@ BSSvSecondCallBack(
 			}
 			if (pDevice->byGPIO & GPIO0_DATA)
 			{
-				if (status == 2) goto start;
+				if (status == 2)
+					goto start;
 				status = 2;
 				CARDbRadioPowerOn(pDevice);
 			}
 		} else {
 			if (pDevice->byGPIO & GPIO0_DATA)
 			{
-				if (status == 3) goto start;
+				if (status == 3)
+					goto start;
 				status = 3;
 				CARDbRadioPowerOff(pDevice);
 				pMgmt->sNodeDBTable[0].bActive = false;
@@ -969,7 +973,8 @@ BSSvSecondCallBack(
 			}
 			if (!(pDevice->byGPIO & GPIO0_DATA))
 			{
-				if (status == 4) goto start;
+				if (status == 4)
+					goto start;
 				status = 4;
 				CARDbRadioPowerOn(pDevice);
 			}
