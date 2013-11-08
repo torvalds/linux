@@ -297,7 +297,7 @@ int vmw_user_resource_lookup_handle(struct vmw_private *dev_priv,
 	if (unlikely(base == NULL))
 		return -EINVAL;
 
-	if (unlikely(base->object_type != converter->object_type))
+	if (unlikely(ttm_base_object_type(base) != converter->object_type))
 		goto out_bad_resource;
 
 	res = converter->base_obj_to_res(base);
