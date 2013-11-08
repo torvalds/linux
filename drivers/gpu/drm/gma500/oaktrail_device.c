@@ -40,6 +40,9 @@ static int oaktrail_output_init(struct drm_device *dev)
 		dev_err(dev->dev, "DSI is not supported\n");
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_init(dev, &dev_priv->mode_dev);
+
+	psb_intel_sdvo_init(dev, SDVOB);
+
 	return 0;
 }
 
