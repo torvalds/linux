@@ -1403,12 +1403,10 @@ static void uprobe_warn(struct task_struct *t, const char *msg)
 
 static void dup_xol_work(struct callback_head *work)
 {
-	kfree(work);
-
 	if (current->flags & PF_EXITING)
 		return;
 
-	if (!__create_xol_area(current->utask->vaddr))
+	if (!__create_xol_area(current->utask->dup_xol_addr))
 		uprobe_warn(current, "dup xol area");
 }
 
@@ -1419,7 +1417,6 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 {
 	struct uprobe_task *utask = current->utask;
 	struct mm_struct *mm = current->mm;
-	struct callback_head *work;
 	struct xol_area *area;
 
 	t->utask = NULL;
@@ -1441,14 +1438,9 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 	if (mm == t->mm)
 		return;
 
-	/* TODO: move it into the union in uprobe_task */
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
-	if (!work)
-		return uprobe_warn(t, "dup xol area");
-
-	t->utask->vaddr = area->vaddr;
-	init_task_work(work, dup_xol_work);
-	task_work_add(t, work, true);
+	t->utask->dup_xol_addr = area->vaddr;
+	init_task_work(&t->utask->dup_xol_work, dup_xol_work);
+	task_work_add(t, &t->utask->dup_xol_work, true);
 }
 
 /*

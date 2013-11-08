@@ -26,6 +26,7 @@
 
 #include <linux/errno.h>
 #include <linux/rbtree.h>
+#include <linux/types.h>
 
 struct vm_area_struct;
 struct mm_struct;
@@ -72,14 +73,24 @@ enum uprobe_task_state {
  */
 struct uprobe_task {
 	enum uprobe_task_state		state;
-	struct arch_uprobe_task		autask;
+
+	union {
+		struct {
+			struct arch_uprobe_task	autask;
+			unsigned long		vaddr;
+		};
+
+		struct {
+			struct callback_head	dup_xol_work;
+			unsigned long		dup_xol_addr;
+		};
+	};
+
+	struct uprobe			*active_uprobe;
+	unsigned long			xol_vaddr;
 
 	struct return_instance		*return_instances;
 	unsigned int			depth;
-	struct uprobe			*active_uprobe;
-
-	unsigned long			xol_vaddr;
-	unsigned long			vaddr;
 };
 
 /*
