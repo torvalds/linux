@@ -111,6 +111,14 @@ int comedi_dev_put(struct comedi_device *dev)
 		return kref_put(&dev->refcount, comedi_dev_kref_release);
 	return 1;
 }
+EXPORT_SYMBOL_GPL(comedi_dev_put);
+
+static struct comedi_device *comedi_dev_get(struct comedi_device *dev)
+{
+	if (dev)
+		kref_get(&dev->refcount);
+	return dev;
+}
 
 static void comedi_device_cleanup(struct comedi_device *dev)
 {
@@ -208,6 +216,40 @@ struct comedi_device *comedi_dev_from_minor(unsigned minor)
 		return comedi_dev_from_subdevice_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
+
+static struct comedi_device *comedi_dev_get_from_board_minor(unsigned minor)
+{
+	struct comedi_device *dev;
+
+	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
+	mutex_lock(&comedi_board_minor_table_lock);
+	dev = comedi_dev_get(comedi_board_minor_table[minor]);
+	mutex_unlock(&comedi_board_minor_table_lock);
+	return dev;
+}
+
+static struct comedi_device *comedi_dev_get_from_subdevice_minor(unsigned minor)
+{
+	struct comedi_device *dev;
+	struct comedi_subdevice *s;
+	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
+
+	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
+	s = comedi_subdevice_minor_table[i];
+	dev = comedi_dev_get(s ? s->device : NULL);
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
+	return dev;
+}
+
+struct comedi_device *comedi_dev_get_from_minor(unsigned minor)
+{
+	if (minor < COMEDI_NUM_BOARD_MINORS)
+		return comedi_dev_get_from_board_minor(minor);
+	else
+		return comedi_dev_get_from_subdevice_minor(minor);
+}
+EXPORT_SYMBOL_GPL(comedi_dev_get_from_minor);
 
 static struct comedi_subdevice *
 comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
