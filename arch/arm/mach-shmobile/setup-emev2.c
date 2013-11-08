@@ -48,8 +48,6 @@ void __init emev2_init_delay(void)
 	shmobile_setup_delay(533, 1, 3); /* Cortex-A9 @ 533MHz */
 }
 
-#ifdef CONFIG_USE_OF
-
 static void __init emev2_add_standard_devices_dt(void)
 {
 #ifdef CONFIG_COMMON_CLK
@@ -73,5 +71,3 @@ DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.init_late	= shmobile_init_late,
 	.dt_compat	= emev2_boards_compat_dt,
 MACHINE_END
-
-#endif /* CONFIG_USE_OF */
