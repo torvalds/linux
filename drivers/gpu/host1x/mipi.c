@@ -22,10 +22,13 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/host1x.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+
+#include "dev.h"
 
 #define MIPI_CAL_CTRL			0x00
 #define MIPI_CAL_CTRL_START		(1 << 0)
