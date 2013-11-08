@@ -264,7 +264,7 @@ static const struct snd_soc_dapm_widget wm8940_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AUX"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8940_dapm_routes[] = {
 	/* Mono output mixer */
 	{"Mono Mixer", "PCM Playback Switch", "DAC"},
 	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
@@ -295,21 +295,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	{"ADC", NULL, "Boost Mixer"},
 };
-
-static int wm8940_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(dapm, wm8940_dapm_widgets,
-					ARRAY_SIZE(wm8940_dapm_widgets));
-	if (ret)
-		goto error_ret;
-	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-error_ret:
-	return ret;
-}
 
 #define wm8940_reset(c) snd_soc_write(c, WM8940_SOFTRESET, 0);
 
@@ -716,11 +701,6 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	ret = snd_soc_add_codec_controls(codec, wm8940_snd_controls,
-			     ARRAY_SIZE(wm8940_snd_controls));
-	if (ret)
-		return ret;
-	ret = wm8940_add_widgets(codec);
 	return ret;
 }
 
@@ -736,6 +716,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.suspend =	wm8940_suspend,
 	.resume =	wm8940_resume,
 	.set_bias_level = wm8940_set_bias_level,
+	.controls =     wm8940_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8940_snd_controls),
+	.dapm_widgets = wm8940_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8940_dapm_widgets),
+	.dapm_routes =  wm8940_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8940_dapm_routes),
 	.reg_cache_size = ARRAY_SIZE(wm8940_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8940_reg_defaults,
