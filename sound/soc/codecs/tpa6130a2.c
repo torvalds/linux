@@ -30,6 +30,7 @@
 #include <sound/tpa6130a2-plat.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <linux/of_gpio.h>
 
 #include "tpa6130a2.h"
 
@@ -364,17 +365,12 @@ static int tpa6130a2_probe(struct i2c_client *client,
 {
 	struct device *dev;
 	struct tpa6130a2_data *data;
-	struct tpa6130a2_platform_data *pdata;
+	struct tpa6130a2_platform_data *pdata = client->dev.platform_data;
+	struct device_node *np = client->dev.of_node;
 	const char *regulator;
 	int ret;
 
 	dev = &client->dev;
-
-	if (client->dev.platform_data == NULL) {
-		dev_err(dev, "Platform data not set\n");
-		dump_stack();
-		return -ENODEV;
-	}
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
@@ -382,12 +378,20 @@ static int tpa6130a2_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
+	if (pdata) {
+		data->power_gpio = pdata->power_gpio;
+	} else if (np) {
+		data->power_gpio = of_get_named_gpio(np, "power-gpio", 0);
+	} else {
+		dev_err(dev, "Platform data not set\n");
+		dump_stack();
+		return -ENODEV;
+	}
+
 	tpa6130a2_client = client;
 
 	i2c_set_clientdata(tpa6130a2_client, data);
 
-	pdata = client->dev.platform_data;
-	data->power_gpio = pdata->power_gpio;
 	data->id = id->driver_data;
 
 	mutex_init(&data->mutex);
@@ -466,10 +470,20 @@ static const struct i2c_device_id tpa6130a2_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tpa6130a2_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id tpa6130a2_of_match[] = {
+	{ .compatible = "ti,tpa6130a2", },
+	{ .compatible = "ti,tpa6140a2" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tpa6130a2_of_match);
+#endif
+
 static struct i2c_driver tpa6130a2_i2c_driver = {
 	.driver = {
 		.name = "tpa6130a2",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(tpa6130a2_of_match),
 	},
 	.probe = tpa6130a2_probe,
 	.remove = tpa6130a2_remove,
