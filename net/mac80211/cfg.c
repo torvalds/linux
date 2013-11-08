@@ -3119,9 +3119,17 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		    params->chandef.chan->band)
 			return -EINVAL;
 
+		ifmsh->chsw_init = true;
+		if (!ifmsh->pre_value)
+			ifmsh->pre_value = 1;
+		else
+			ifmsh->pre_value++;
+
 		err = ieee80211_mesh_csa_beacon(sdata, params, true);
-		if (err < 0)
+		if (err < 0) {
+			ifmsh->chsw_init = false;
 			return err;
+		}
 		break;
 #endif
 	default:
