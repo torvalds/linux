@@ -188,6 +188,7 @@ int host1x_device_init(struct host1x_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(host1x_device_init);
 
 int host1x_device_exit(struct host1x_device *device)
 {
@@ -213,6 +214,7 @@ int host1x_device_exit(struct host1x_device *device)
 
 	return 0;
 }
+EXPORT_SYMBOL(host1x_device_exit);
 
 static int host1x_register_client(struct host1x *host1x,
 				  struct host1x_client *client)
