@@ -197,7 +197,7 @@ struct bucket {
 	uint8_t		disk_gen;
 	uint8_t		last_gc; /* Most out of date gen in the btree */
 	uint8_t		gc_gen;
-	uint16_t	gc_mark;
+	uint16_t	gc_mark; /* Bitfield used by GC. See below for field */
 };
 
 /*
@@ -209,7 +209,8 @@ BITMASK(GC_MARK,	 struct bucket, gc_mark, 0, 2);
 #define GC_MARK_RECLAIMABLE	0
 #define GC_MARK_DIRTY		1
 #define GC_MARK_METADATA	2
-BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, 14);
+BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, 13);
+BITMASK(GC_MOVE, struct bucket, gc_mark, 15, 1);
 
 #include "journal.h"
 #include "stats.h"
@@ -445,7 +446,6 @@ struct cache {
 	 * call prio_write() to keep gens from wrapping.
 	 */
 	uint8_t			need_save_prio;
-	unsigned		gc_move_threshold;
 
 	/*
 	 * If nonzero, we know we aren't going to find any buckets to invalidate

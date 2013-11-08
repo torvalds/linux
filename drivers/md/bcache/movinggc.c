@@ -25,10 +25,9 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 	unsigned i;
 
 	for (i = 0; i < KEY_PTRS(k); i++) {
-		struct cache *ca = PTR_CACHE(c, k, i);
 		struct bucket *g = PTR_BUCKET(c, k, i);
 
-		if (GC_SECTORS_USED(g) < ca->gc_move_threshold)
+		if (GC_MOVE(g))
 			return true;
 	}
 
@@ -227,9 +226,8 @@ void bch_moving_gc(struct cache_set *c)
 			sectors_to_move -= GC_SECTORS_USED(b);
 		}
 
-		ca->gc_move_threshold = bucket_heap_top(ca);
-
-		pr_debug("threshold %u", ca->gc_move_threshold);
+		while (heap_pop(&ca->heap, b, bucket_cmp))
+			SET_GC_MOVE(b, 1);
 	}
 
 	mutex_unlock(&c->bucket_lock);
