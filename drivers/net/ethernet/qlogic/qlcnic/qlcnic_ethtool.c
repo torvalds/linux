@@ -665,7 +665,7 @@ static int qlcnic_set_channels(struct net_device *dev,
 			return err;
 	}
 
-	if (channel->tx_count) {
+	if (qlcnic_82xx_check(adapter) && channel->tx_count) {
 		err = qlcnic_validate_max_tx_rings(adapter, channel->tx_count);
 		if (err)
 			return err;
@@ -1793,4 +1793,12 @@ const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops = {
 	.set_coalesce		= qlcnic_set_intr_coalesce,
 	.set_msglevel		= qlcnic_set_msglevel,
 	.get_msglevel		= qlcnic_get_msglevel,
+};
+
+const struct ethtool_ops qlcnic_ethtool_failed_ops = {
+	.get_settings		= qlcnic_get_settings,
+	.get_drvinfo		= qlcnic_get_drvinfo,
+	.set_msglevel		= qlcnic_set_msglevel,
+	.get_msglevel		= qlcnic_get_msglevel,
+	.set_dump		= qlcnic_set_dump,
 };

@@ -623,6 +623,7 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	int reply_bytes;
 	int ret;
 
+	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_check_edp(intel_dp);
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
@@ -665,7 +666,7 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				      reply, reply_bytes);
 		if (ret < 0) {
 			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
-			return ret;
+			goto out;
 		}
 
 		switch (reply[0] & AUX_NATIVE_REPLY_MASK) {
@@ -676,7 +677,8 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			break;
 		case AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		case AUX_NATIVE_REPLY_DEFER:
 			/*
 			 * For now, just give more slack to branch devices. We
@@ -694,7 +696,8 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		default:
 			DRM_ERROR("aux_ch invalid native reply 0x%02x\n",
 				  reply[0]);
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		}
 
 		switch (reply[0] & AUX_I2C_REPLY_MASK) {
@@ -702,22 +705,29 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 			if (mode == MODE_I2C_READ) {
 				*read_byte = reply[1];
 			}
-			return reply_bytes - 1;
+			ret = reply_bytes - 1;
+			goto out;
 		case AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		case AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
 			udelay(100);
 			break;
 		default:
 			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", reply[0]);
-			return -EREMOTEIO;
+			ret = -EREMOTEIO;
+			goto out;
 		}
 	}
 
 	DRM_ERROR("too many retries, giving up\n");
-	return -EREMOTEIO;
+	ret = -EREMOTEIO;
+
+out:
+	ironlake_edp_panel_vdd_off(intel_dp, false);
+	return ret;
 }
 
 static int
@@ -739,9 +749,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	intel_dp->adapter.algo_data = &intel_dp->algo;
 	intel_dp->adapter.dev.parent = intel_connector->base.kdev;
 
-	ironlake_edp_panel_vdd_on(intel_dp);
 	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return ret;
 }
 
@@ -1069,17 +1077,16 @@ void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 
 	if (!is_edp(intel_dp))
 		return;
-	DRM_DEBUG_KMS("Turn eDP VDD on\n");
 
 	WARN(intel_dp->want_panel_vdd,
 	     "eDP VDD already requested on\n");
 
 	intel_dp->want_panel_vdd = true;
 
-	if (ironlake_edp_have_panel_vdd(intel_dp)) {
-		DRM_DEBUG_KMS("eDP VDD already on\n");
+	if (ironlake_edp_have_panel_vdd(intel_dp))
 		return;
-	}
+
+	DRM_DEBUG_KMS("Turning eDP VDD on\n");
 
 	if (!ironlake_edp_have_panel_power(intel_dp))
 		ironlake_wait_panel_power_cycle(intel_dp);
@@ -1113,11 +1120,13 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	if (!intel_dp->want_panel_vdd && ironlake_edp_have_panel_vdd(intel_dp)) {
+		DRM_DEBUG_KMS("Turning eDP VDD off\n");
+
 		pp = ironlake_get_pp_control(intel_dp);
 		pp &= ~EDP_FORCE_VDD;
 
-		pp_stat_reg = _pp_ctrl_reg(intel_dp);
-		pp_ctrl_reg = _pp_stat_reg(intel_dp);
+		pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
+		pp_stat_reg = _pp_stat_reg(intel_dp);
 
 		I915_WRITE(pp_ctrl_reg, pp);
 		POSTING_READ(pp_ctrl_reg);
@@ -1145,7 +1154,6 @@ void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	if (!is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turn eDP VDD off %d\n", intel_dp->want_panel_vdd);
 	WARN(!intel_dp->want_panel_vdd, "eDP VDD not forced on");
 
 	intel_dp->want_panel_vdd = false;
@@ -1241,7 +1249,6 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = to_intel_crtc(intel_dig_port->base.base.crtc)->pipe;
 	u32 pp;
 	u32 pp_ctrl_reg;
 
@@ -1264,7 +1271,7 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
 
-	intel_panel_enable_backlight(dev, pipe);
+	intel_panel_enable_backlight(intel_dp->attached_connector);
 }
 
 void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
@@ -1277,7 +1284,7 @@ void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return;
 
-	intel_panel_disable_backlight(dev);
+	intel_panel_disable_backlight(intel_dp->attached_connector);
 
 	DRM_DEBUG_KMS("\n");
 	pp = ironlake_get_pp_control(intel_dp);
@@ -1476,6 +1483,26 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
 	pipe_config->adjusted_mode.crtc_clock = dotclock;
+
+	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp &&
+	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {
+		/*
+		 * This is a big fat ugly hack.
+		 *
+		 * Some machines in UEFI boot mode provide us a VBT that has 18
+		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
+		 * unknown we fail to light up. Yet the same BIOS boots up with
+		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
+		 * max, not what it tells us to use.
+		 *
+		 * Note: This will still be broken if the eDP panel is not lit
+		 * up by the BIOS, and thus we can't get the mode at module
+		 * load.
+		 */
+		DRM_DEBUG_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+			      pipe_config->pipe_bpp, dev_priv->vbt.edp_bpp);
+		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
+	}
 }
 
 static bool is_edp_psr(struct drm_device *dev)
@@ -1543,7 +1570,7 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 
 	/* Avoid continuous PSR exit by masking memup and hpd */
 	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
-		   EDP_PSR_DEBUG_MASK_HPD);
+		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
 	intel_dp->psr_setup_done = true;
 }
@@ -3256,7 +3283,8 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 		p_child = dev_priv->vbt.child_dev + i;
 
 		if (p_child->common.dvo_port == PORT_IDPD &&
-		    p_child->common.device_type == DEVICE_TYPE_eDP)
+		    (p_child->common.device_type & DEVICE_TYPE_eDP_BITS) ==
+		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
 			return true;
 	}
 	return false;
@@ -3478,7 +3506,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp,
 						      &power_seq);
 
-	ironlake_edp_panel_vdd_on(intel_dp);
 	edid = drm_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
@@ -3509,8 +3536,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		if (fixed_mode)
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
-
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode);
 	intel_panel_setup_backlight(connector);

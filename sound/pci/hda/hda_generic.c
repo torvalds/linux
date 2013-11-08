@@ -3531,7 +3531,7 @@ static int create_capture_mixers(struct hda_codec *codec)
 		if (!multi)
 			err = create_single_cap_vol_ctl(codec, n, vol, sw,
 							inv_dmic);
-		else if (!multi_cap_vol)
+		else if (!multi_cap_vol && !inv_dmic)
 			err = create_bind_cap_vol_ctl(codec, n, vol, sw);
 		else
 			err = create_multi_cap_vol_ctl(codec);
@@ -4475,9 +4475,11 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 					    true, &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
-		if (spec->vmaster_mute.hook)
+		if (spec->vmaster_mute.hook) {
 			snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute,
 						 spec->vmaster_mute_enum);
+			snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+		}
 	}
 
 	free_kctls(spec); /* no longer needed */

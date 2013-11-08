@@ -326,6 +326,7 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
+	unsigned long enabled_power_domains;
 	bool eld_vld;
 	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
@@ -629,6 +630,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
 struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc);
+enum pipe intel_get_pipe_from_connector(struct intel_connector *connector);
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
@@ -691,6 +693,7 @@ bool intel_crtc_active(struct drm_crtc *crtc);
 void i915_disable_vga_mem(struct drm_device *dev);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
+void intel_display_set_init_power(struct drm_device *dev, bool enable);
 
 
 /* intel_dp.c */
@@ -800,10 +803,11 @@ void intel_pch_panel_fitting(struct intel_crtc *crtc,
 void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 			      struct intel_crtc_config *pipe_config,
 			      int fitting_mode);
-void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max);
+void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
+			       u32 max);
 int intel_panel_setup_backlight(struct drm_connector *connector);
-void intel_panel_enable_backlight(struct drm_device *dev, enum pipe pipe);
-void intel_panel_disable_backlight(struct drm_device *dev);
+void intel_panel_enable_backlight(struct intel_connector *connector);
+void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_device *dev);
 enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
@@ -821,15 +825,15 @@ bool intel_fbc_enabled(struct drm_device *dev);
 void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
-int i915_init_power_well(struct drm_device *dev);
-void i915_remove_power_well(struct drm_device *dev);
+int intel_power_domains_init(struct drm_device *dev);
+void intel_power_domains_remove(struct drm_device *dev);
 bool intel_display_power_enabled(struct drm_device *dev,
 				 enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_device *dev,
 			     enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_device *dev,
 			     enum intel_display_power_domain domain);
-void intel_init_power_well(struct drm_device *dev);
+void intel_power_domains_init_hw(struct drm_device *dev);
 void intel_set_power_well(struct drm_device *dev, bool enable);
 void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);

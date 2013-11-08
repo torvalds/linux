@@ -90,6 +90,10 @@ struct mlx5_manage_pages_outbox {
 	__be64			pas[0];
 };
 
+enum {
+	MAX_RECLAIM_TIME_MSECS	= 5000,
+};
+
 static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u16 func_id)
 {
 	struct rb_root *root = &dev->priv.page_root;
@@ -279,6 +283,9 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	int err;
 	int i;
 
+	if (nclaimed)
+		*nclaimed = 0;
+
 	memset(&in, 0, sizeof(in));
 	outlen = sizeof(*out) + npages * sizeof(out->pas[0]);
 	out = mlx5_vzalloc(outlen);
@@ -388,20 +395,25 @@ static int optimal_reclaimed_pages(void)
 
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 {
-	unsigned long end = jiffies + msecs_to_jiffies(5000);
+	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 	struct fw_page *fwp;
 	struct rb_node *p;
+	int nclaimed = 0;
 	int err;
 
 	do {
 		p = rb_first(&dev->priv.page_root);
 		if (p) {
 			fwp = rb_entry(p, struct fw_page, rb_node);
-			err = reclaim_pages(dev, fwp->func_id, optimal_reclaimed_pages(), NULL);
+			err = reclaim_pages(dev, fwp->func_id,
+					    optimal_reclaimed_pages(),
+					    &nclaimed);
 			if (err) {
 				mlx5_core_warn(dev, "failed reclaiming pages (%d)\n", err);
 				return err;
 			}
+			if (nclaimed)
+				end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 		}
 		if (time_after(jiffies, end)) {
 			mlx5_core_warn(dev, "FW did not return all pages. giving up...\n");

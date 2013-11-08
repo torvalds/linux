@@ -444,7 +444,7 @@
 
 #define _DPIO_TX3_SWING_CTL4_A		0x690
 #define _DPIO_TX3_SWING_CTL4_B		0x2a90
-#define DPIO_TX3_SWING_CTL4(pipe) _PIPE(pipe, _DPIO_TX_SWING_CTL4_A, \
+#define DPIO_TX3_SWING_CTL4(pipe) _PIPE(pipe, _DPIO_TX3_SWING_CTL4_A, \
 					_DPIO_TX3_SWING_CTL4_B)
 
 /*
@@ -657,6 +657,10 @@
 #define   ARB_MODE_SWIZZLE_IVB	(1<<5)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
 #define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
+#define   RING_FAULT_GTTSEL_MASK (1<<11)
+#define   RING_FAULT_SRCID(x)	((x >> 3) & 0xff)
+#define   RING_FAULT_FAULT_TYPE(x) ((x >> 1) & 0x3)
+#define   RING_FAULT_VALID	(1<<0)
 #define DONE_REG		0x40b0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
@@ -718,6 +722,7 @@
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 #define DMA_FADD_I8XX	0x020d0
+#define RING_BBSTATE(base)	((base)+0x110)
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
@@ -1106,9 +1111,6 @@
 					     _HSW_PIPE_SLICE_CHICKEN_1_A, + \
 					     _HSW_PIPE_SLICE_CHICKEN_1_B)
 
-#define HSW_CLKGATE_DISABLE_PART_1	0x46500
-#define   HSW_DPFC_GATING_DISABLE	(1<<23)
-
 /*
  * GPIO regs
  */
@@ -1476,7 +1478,7 @@
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
-#define DCLK 0x5e04
+#define DCLK (MCHBAR_MIRROR_BASE_SNB + 0x5e04)
 
 /** 915-945 and GM965 MCH register controlling DRAM channel access */
 #define DCC			0x10200
@@ -1771,9 +1773,9 @@
 #define GEN6_GT_THREAD_STATUS_CORE_MASK 0x7
 #define GEN6_GT_THREAD_STATUS_CORE_MASK_HSW (0x7 | (0x07 << 16))
 
-#define GEN6_GT_PERF_STATUS	0x145948
-#define GEN6_RP_STATE_LIMITS	0x145994
-#define GEN6_RP_STATE_CAP	0x145998
+#define GEN6_GT_PERF_STATUS	(MCHBAR_MIRROR_BASE_SNB + 0x5948)
+#define GEN6_RP_STATE_LIMITS	(MCHBAR_MIRROR_BASE_SNB + 0x5994)
+#define GEN6_RP_STATE_CAP	(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 
 /*
  * Logical Context regs
@@ -1843,36 +1845,58 @@
 /* Pipe A CRC regs */
 #define _PIPE_CRC_CTL_A		(dev_priv->info->display_mmio_offset + 0x60050)
 #define   PIPE_CRC_ENABLE		(1 << 31)
+/* ivb+ source selection */
 #define   PIPE_CRC_SOURCE_PRIMARY_IVB	(0 << 29)
 #define   PIPE_CRC_SOURCE_SPRITE_IVB	(1 << 29)
 #define   PIPE_CRC_SOURCE_PF_IVB	(2 << 29)
+/* ilk+ source selection */
 #define   PIPE_CRC_SOURCE_PRIMARY_ILK	(0 << 28)
 #define   PIPE_CRC_SOURCE_SPRITE_ILK	(1 << 28)
 #define   PIPE_CRC_SOURCE_PIPE_ILK	(2 << 28)
 /* embedded DP port on the north display block, reserved on ivb */
 #define   PIPE_CRC_SOURCE_PORT_A_ILK	(4 << 28)
 #define   PIPE_CRC_SOURCE_FDI_ILK	(5 << 28) /* reserved on ivb */
+/* vlv source selection */
+#define   PIPE_CRC_SOURCE_PIPE_VLV	(0 << 27)
+#define   PIPE_CRC_SOURCE_HDMIB_VLV	(1 << 27)
+#define   PIPE_CRC_SOURCE_HDMIC_VLV	(2 << 27)
+/* with DP port the pipe source is invalid */
+#define   PIPE_CRC_SOURCE_DP_D_VLV	(3 << 27)
+#define   PIPE_CRC_SOURCE_DP_B_VLV	(6 << 27)
+#define   PIPE_CRC_SOURCE_DP_C_VLV	(7 << 27)
+/* gen3+ source selection */
+#define   PIPE_CRC_SOURCE_PIPE_I9XX	(0 << 28)
+#define   PIPE_CRC_SOURCE_SDVOB_I9XX	(1 << 28)
+#define   PIPE_CRC_SOURCE_SDVOC_I9XX	(2 << 28)
+/* with DP/TV port the pipe source is invalid */
+#define   PIPE_CRC_SOURCE_DP_D_G4X	(3 << 28)
+#define   PIPE_CRC_SOURCE_TV_PRE	(4 << 28)
+#define   PIPE_CRC_SOURCE_TV_POST	(5 << 28)
+#define   PIPE_CRC_SOURCE_DP_B_G4X	(6 << 28)
+#define   PIPE_CRC_SOURCE_DP_C_G4X	(7 << 28)
+/* gen2 doesn't have source selection bits */
+#define   PIPE_CRC_INCLUDE_BORDER_I8XX	(1 << 30)
+
 #define _PIPE_CRC_RES_1_A_IVB		0x60064
 #define _PIPE_CRC_RES_2_A_IVB		0x60068
 #define _PIPE_CRC_RES_3_A_IVB		0x6006c
 #define _PIPE_CRC_RES_4_A_IVB		0x60070
 #define _PIPE_CRC_RES_5_A_IVB		0x60074
 
-#define _PIPE_CRC_RES_RED_A_ILK		0x60060
-#define _PIPE_CRC_RES_GREEN_A_ILK	0x60064
-#define _PIPE_CRC_RES_BLUE_A_ILK	0x60068
-#define _PIPE_CRC_RES_RES1_A_ILK	0x6006c
-#define _PIPE_CRC_RES_RES2_A_ILK	0x60080
+#define _PIPE_CRC_RES_RED_A		(dev_priv->info->display_mmio_offset + 0x60060)
+#define _PIPE_CRC_RES_GREEN_A		(dev_priv->info->display_mmio_offset + 0x60064)
+#define _PIPE_CRC_RES_BLUE_A		(dev_priv->info->display_mmio_offset + 0x60068)
+#define _PIPE_CRC_RES_RES1_A_I915	(dev_priv->info->display_mmio_offset + 0x6006c)
+#define _PIPE_CRC_RES_RES2_A_G4X	(dev_priv->info->display_mmio_offset + 0x60080)
 
 /* Pipe B CRC regs */
-#define _PIPE_CRC_CTL_B			0x61050
 #define _PIPE_CRC_RES_1_B_IVB		0x61064
 #define _PIPE_CRC_RES_2_B_IVB		0x61068
 #define _PIPE_CRC_RES_3_B_IVB		0x6106c
 #define _PIPE_CRC_RES_4_B_IVB		0x61070
 #define _PIPE_CRC_RES_5_B_IVB		0x61074
 
-#define PIPE_CRC_CTL(pipe)	_PIPE(pipe, _PIPE_CRC_CTL_A, _PIPE_CRC_CTL_B)
+#define PIPE_CRC_CTL(pipe)	_PIPE_INC(pipe, _PIPE_CRC_CTL_A, 0x01000)
 #define PIPE_CRC_RES_1_IVB(pipe)	\
 	_PIPE(pipe, _PIPE_CRC_RES_1_A_IVB, _PIPE_CRC_RES_1_B_IVB)
 #define PIPE_CRC_RES_2_IVB(pipe)	\
@@ -1884,16 +1908,16 @@
 #define PIPE_CRC_RES_5_IVB(pipe)	\
 	_PIPE(pipe, _PIPE_CRC_RES_5_A_IVB, _PIPE_CRC_RES_5_B_IVB)
 
-#define PIPE_CRC_RES_RED_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_RED_A_ILK, 0x01000)
-#define PIPE_CRC_RES_GREEN_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_GREEN_A_ILK, 0x01000)
-#define PIPE_CRC_RES_BLUE_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_BLUE_A_ILK, 0x01000)
-#define PIPE_CRC_RES_RES1_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_RES1_A_ILK, 0x01000)
-#define PIPE_CRC_RES_RES2_ILK(pipe) \
-	_PIPE_INC(pipe, _PIPE_CRC_RES_RES2_A_ILK, 0x01000)
+#define PIPE_CRC_RES_RED(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RED_A, 0x01000)
+#define PIPE_CRC_RES_GREEN(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_GREEN_A, 0x01000)
+#define PIPE_CRC_RES_BLUE(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_BLUE_A, 0x01000)
+#define PIPE_CRC_RES_RES1_I915(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES1_A_I915, 0x01000)
+#define PIPE_CRC_RES_RES2_G4X(pipe) \
+	_PIPE_INC(pipe, _PIPE_CRC_RES_RES2_A_G4X, 0x01000)
 
 /* Pipe A timing regs */
 #define _HTOTAL_A	(dev_priv->info->display_mmio_offset + 0x60000)
@@ -2130,6 +2154,14 @@
 #define PCH_HDMIC	0xe1150
 #define PCH_HDMID	0xe1160
 
+#define PORT_DFT_I9XX				0x61150
+#define   DC_BALANCE_RESET			(1 << 25)
+#define PORT_DFT2_G4X				0x61154
+#define   DC_BALANCE_RESET_VLV			(1 << 31)
+#define   PIPE_SCRAMBLE_RESET_MASK		(0x3 << 0)
+#define   PIPE_B_SCRAMBLE_RESET			(1 << 1)
+#define   PIPE_A_SCRAMBLE_RESET			(1 << 0)
+
 /* Gen 3 SDVO bits: */
 #define   SDVO_ENABLE				(1 << 31)
 #define   SDVO_PIPE_SEL(pipe)			((pipe) << 30)
@@ -2362,6 +2394,21 @@
 #define		PFIT_HORIZ_SCALE_MASK_965	0x00001fff
 
 #define PFIT_AUTO_RATIOS (dev_priv->info->display_mmio_offset + 0x61238)
+
+#define _VLV_BLC_PWM_CTL2_A (dev_priv->info->display_mmio_offset + 0x61250)
+#define _VLV_BLC_PWM_CTL2_B (dev_priv->info->display_mmio_offset + 0x61350)
+#define VLV_BLC_PWM_CTL2(pipe) _PIPE(pipe, _VLV_BLC_PWM_CTL2_A, \
+				     _VLV_BLC_PWM_CTL2_B)
+
+#define _VLV_BLC_PWM_CTL_A (dev_priv->info->display_mmio_offset + 0x61254)
+#define _VLV_BLC_PWM_CTL_B (dev_priv->info->display_mmio_offset + 0x61354)
+#define VLV_BLC_PWM_CTL(pipe) _PIPE(pipe, _VLV_BLC_PWM_CTL_A, \
+				    _VLV_BLC_PWM_CTL_B)
+
+#define _VLV_BLC_HIST_CTL_A (dev_priv->info->display_mmio_offset + 0x61260)
+#define _VLV_BLC_HIST_CTL_B (dev_priv->info->display_mmio_offset + 0x61360)
+#define VLV_BLC_HIST_CTL(pipe) _PIPE(pipe, _VLV_BLC_HIST_CTL_A, \
+				     _VLV_BLC_HIST_CTL_B)
 
 /* Backlight control */
 #define BLC_PWM_CTL2	(dev_priv->info->display_mmio_offset + 0x61250) /* 965+ only */
@@ -3906,6 +3953,7 @@
 #define DE_SPRITEA_FLIP_DONE    (1 << 28)
 #define DE_PLANEB_FLIP_DONE     (1 << 27)
 #define DE_PLANEA_FLIP_DONE     (1 << 26)
+#define DE_PLANE_FLIP_DONE(plane) (1 << (26 + (plane)))
 #define DE_PCU_EVENT            (1 << 25)
 #define DE_GTT_FAULT            (1 << 24)
 #define DE_POISON               (1 << 23)
@@ -3922,12 +3970,15 @@
 #define DE_PIPEB_CRC_DONE	(1 << 10)
 #define DE_PIPEB_FIFO_UNDERRUN  (1 << 8)
 #define DE_PIPEA_VBLANK         (1 << 7)
+#define DE_PIPE_VBLANK(pipe)    (1 << (7 + 8*(pipe)))
 #define DE_PIPEA_EVEN_FIELD     (1 << 6)
 #define DE_PIPEA_ODD_FIELD      (1 << 5)
 #define DE_PIPEA_LINE_COMPARE   (1 << 4)
 #define DE_PIPEA_VSYNC          (1 << 3)
 #define DE_PIPEA_CRC_DONE	(1 << 2)
+#define DE_PIPE_CRC_DONE(pipe)	(1 << (2 + 8*(pipe)))
 #define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
+#define DE_PIPE_FIFO_UNDERRUN(pipe)  (1 << (8*(pipe)))
 
 /* More Ivybridge lolz */
 #define DE_ERR_INT_IVB			(1<<30)
@@ -3943,9 +3994,8 @@
 #define DE_PIPEB_VBLANK_IVB		(1<<5)
 #define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
 #define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
+#define DE_PLANE_FLIP_DONE_IVB(plane)	(1<< (3 + 5*(plane)))
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
-
-#define DE_PIPE_VBLANK_ILK(pipe)	(1 << ((pipe * 8) + 7))
 #define DE_PIPE_VBLANK_IVB(pipe)	(1 << (pipe * 5))
 
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */
@@ -4012,6 +4062,9 @@
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
 #define  GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB	(1<<11)
+
+#define HSW_SCRATCH1				0xb038
+#define  HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE	(1<<27)
 
 #define HSW_FUSE_STRAP		0x42014
 #define  HSW_CDCLK_LIMIT	(1 << 24)
@@ -4408,7 +4461,9 @@
 #define FDI_RX_CHICKEN(pipe) _PIPE(pipe, _FDI_RXA_CHICKEN, _FDI_RXB_CHICKEN)
 
 #define SOUTH_DSPCLK_GATE_D	0xc2020
+#define  PCH_DPLUNIT_CLOCK_GATE_DISABLE (1<<30)
 #define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1<<29)
+#define  PCH_CPUNIT_CLOCK_GATE_DISABLE (1<<14)
 #define  PCH_LP_PARTITION_LEVEL_DISABLE  (1<<12)
 
 /* CPU: FDI_TX */
@@ -4864,6 +4919,9 @@
 #define GEN7_ROW_CHICKEN2_GT2		0xf4f4
 #define   DOP_CLOCK_GATING_DISABLE	(1<<0)
 
+#define HSW_ROW_CHICKEN3		0xe49c
+#define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
+
 #define G4X_AUD_VID_DID			(dev_priv->info->display_mmio_offset + 0x62020)
 #define INTEL_AUDIO_DEVCL		0x808629FB
 #define INTEL_AUDIO_DEVBLC		0x80862801
@@ -4905,6 +4963,18 @@
 					CPT_AUD_CNTL_ST_B)
 #define CPT_AUD_CNTRL_ST2		0xE50C0
 
+#define VLV_HDMIW_HDMIEDID_A		(VLV_DISPLAY_BASE + 0x62050)
+#define VLV_HDMIW_HDMIEDID_B		(VLV_DISPLAY_BASE + 0x62150)
+#define VLV_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
+					VLV_HDMIW_HDMIEDID_A, \
+					VLV_HDMIW_HDMIEDID_B)
+#define VLV_AUD_CNTL_ST_A		(VLV_DISPLAY_BASE + 0x620B4)
+#define VLV_AUD_CNTL_ST_B		(VLV_DISPLAY_BASE + 0x621B4)
+#define VLV_AUD_CNTL_ST(pipe) _PIPE(pipe, \
+					VLV_AUD_CNTL_ST_A, \
+					VLV_AUD_CNTL_ST_B)
+#define VLV_AUD_CNTL_ST2		(VLV_DISPLAY_BASE + 0x620C0)
+
 /* These are the 4 32-bit write offset registers for each stream
  * output buffer.  It determines the offset from the
  * 3DSTATE_SO_BUFFERs that the next streamed vertex output goes to.
@@ -4921,6 +4991,12 @@
 #define CPT_AUD_CFG(pipe) _PIPE(pipe, \
 					CPT_AUD_CONFIG_A, \
 					CPT_AUD_CONFIG_B)
+#define VLV_AUD_CONFIG_A		(VLV_DISPLAY_BASE + 0x62000)
+#define VLV_AUD_CONFIG_B		(VLV_DISPLAY_BASE + 0x62100)
+#define VLV_AUD_CFG(pipe) _PIPE(pipe, \
+					VLV_AUD_CONFIG_A, \
+					VLV_AUD_CONFIG_B)
+
 #define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
 #define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
 #define   AUD_CONFIG_UPPER_N_SHIFT		20
