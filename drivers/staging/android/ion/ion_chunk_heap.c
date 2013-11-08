@@ -13,7 +13,6 @@
  * GNU General Public License for more details.
  *
  */
-//#include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
