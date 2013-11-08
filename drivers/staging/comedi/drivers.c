@@ -133,10 +133,12 @@ static void cleanup_device(struct comedi_device *dev)
 
 void comedi_device_detach(struct comedi_device *dev)
 {
+	down_write(&dev->attach_lock);
 	dev->attached = false;
 	if (dev->driver)
 		dev->driver->detach(dev);
 	cleanup_device(dev);
+	up_write(&dev->attach_lock);
 }
 
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -355,8 +357,9 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 	ret = __comedi_device_postconfig(dev);
 	if (ret < 0)
 		return ret;
-	smp_wmb();
+	down_write(&dev->attach_lock);
 	dev->attached = true;
+	up_write(&dev->attach_lock);
 	return 0;
 }
 
