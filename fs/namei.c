@@ -482,16 +482,6 @@ EXPORT_SYMBOL(path_put);
  * to restart the path walk from the beginning in ref-walk mode.
  */
 
-static inline void lock_rcu_walk(void)
-{
-	rcu_read_lock();
-}
-
-static inline void unlock_rcu_walk(void)
-{
-	rcu_read_unlock();
-}
-
 /**
  * unlazy_walk - try to switch to ref-walk mode.
  * @nd: nameidata pathwalk data
@@ -523,7 +513,7 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 
 	if (!lockref_get_not_dead(&parent->d_lockref)) {
 		nd->path.dentry = NULL;	
-		unlock_rcu_walk();
+		rcu_read_unlock();
 		return -ECHILD;
 	}
 
@@ -561,17 +551,17 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 		spin_unlock(&fs->lock);
 	}
 
-	unlock_rcu_walk();
+	rcu_read_unlock();
 	return 0;
 
 unlock_and_drop_dentry:
 	spin_unlock(&fs->lock);
 drop_dentry:
-	unlock_rcu_walk();
+	rcu_read_unlock();
 	dput(dentry);
 	goto drop_root_mnt;
 out:
-	unlock_rcu_walk();
+	rcu_read_unlock();
 drop_root_mnt:
 	if (!(nd->flags & LOOKUP_ROOT))
 		nd->root.mnt = NULL;
@@ -604,21 +594,21 @@ static int complete_walk(struct nameidata *nd)
 			nd->root.mnt = NULL;
 
 		if (!legitimize_mnt(nd->path.mnt, nd->m_seq)) {
-			unlock_rcu_walk();
+			rcu_read_unlock();
 			return -ECHILD;
 		}
 		if (unlikely(!lockref_get_not_dead(&dentry->d_lockref))) {
-			unlock_rcu_walk();
+			rcu_read_unlock();
 			mntput(nd->path.mnt);
 			return -ECHILD;
 		}
 		if (read_seqcount_retry(&dentry->d_seq, nd->seq)) {
-			unlock_rcu_walk();
+			rcu_read_unlock();
 			dput(dentry);
 			mntput(nd->path.mnt);
 			return -ECHILD;
 		}
-		unlock_rcu_walk();
+		rcu_read_unlock();
 	}
 
 	if (likely(!(nd->flags & LOOKUP_JUMPED)))
@@ -1174,7 +1164,7 @@ failed:
 	nd->flags &= ~LOOKUP_RCU;
 	if (!(nd->flags & LOOKUP_ROOT))
 		nd->root.mnt = NULL;
-	unlock_rcu_walk();
+	rcu_read_unlock();
 	return -ECHILD;
 }
 
@@ -1501,7 +1491,7 @@ static void terminate_walk(struct nameidata *nd)
 		nd->flags &= ~LOOKUP_RCU;
 		if (!(nd->flags & LOOKUP_ROOT))
 			nd->root.mnt = NULL;
-		unlock_rcu_walk();
+		rcu_read_unlock();
 	}
 }
 
@@ -1862,7 +1852,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 		nd->path = nd->root;
 		nd->inode = inode;
 		if (flags & LOOKUP_RCU) {
-			lock_rcu_walk();
+			rcu_read_lock();
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			nd->m_seq = read_seqbegin(&mount_lock);
 		} else {
@@ -1876,7 +1866,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	nd->m_seq = read_seqbegin(&mount_lock);
 	if (*name=='/') {
 		if (flags & LOOKUP_RCU) {
-			lock_rcu_walk();
+			rcu_read_lock();
 			set_root_rcu(nd);
 		} else {
 			set_root(nd);
@@ -1888,7 +1878,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			struct fs_struct *fs = current->fs;
 			unsigned seq;
 
-			lock_rcu_walk();
+			rcu_read_lock();
 
 			do {
 				seq = read_seqcount_begin(&fs->seq);
@@ -1920,7 +1910,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			if (f.need_put)
 				*fp = f.file;
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
-			lock_rcu_walk();
+			rcu_read_lock();
 		} else {
 			path_get(&nd->path);
 			fdput(f);
