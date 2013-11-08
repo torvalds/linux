@@ -92,9 +92,31 @@ out:
 static void wlcore_started_vifs_iter(void *data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	bool active = false;
 	int *count = (int *)data;
 
-	if (!vif->bss_conf.idle)
+	/*
+	 * count active interfaces according to interface type.
+	 * checking only bss_conf.idle is bad for some cases, e.g.
+	 * we don't want to count sta in p2p_find as active interface.
+	 */
+	switch (wlvif->bss_type) {
+	case BSS_TYPE_STA_BSS:
+		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+			active = true;
+		break;
+
+	case BSS_TYPE_AP_BSS:
+		if (wlvif->wl->active_sta_count > 0)
+			active = true;
+		break;
+
+	default:
+		break;
+	}
+
+	if (active)
 		(*count)++;
 }
 

@@ -2154,13 +2154,6 @@ static int __init rfcomm_init(void)
 		goto unregister;
 	}
 
-	if (bt_debugfs) {
-		rfcomm_dlc_debugfs = debugfs_create_file("rfcomm_dlc", 0444,
-				bt_debugfs, NULL, &rfcomm_dlc_debugfs_fops);
-		if (!rfcomm_dlc_debugfs)
-			BT_ERR("Failed to create RFCOMM debug file");
-	}
-
 	err = rfcomm_init_ttys();
 	if (err < 0)
 		goto stop;
@@ -2170,6 +2163,13 @@ static int __init rfcomm_init(void)
 		goto cleanup;
 
 	BT_INFO("RFCOMM ver %s", VERSION);
+
+	if (IS_ERR_OR_NULL(bt_debugfs))
+		return 0;
+
+	rfcomm_dlc_debugfs = debugfs_create_file("rfcomm_dlc", 0444,
+						 bt_debugfs, NULL,
+						 &rfcomm_dlc_debugfs_fops);
 
 	return 0;
 

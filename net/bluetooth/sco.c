@@ -1177,14 +1177,13 @@ int __init sco_init(void)
 		goto error;
 	}
 
-	if (bt_debugfs) {
-		sco_debugfs = debugfs_create_file("sco", 0444, bt_debugfs,
-						  NULL, &sco_debugfs_fops);
-		if (!sco_debugfs)
-			BT_ERR("Failed to create SCO debug file");
-	}
-
 	BT_INFO("SCO socket layer initialized");
+
+	if (IS_ERR_OR_NULL(bt_debugfs))
+		return 0;
+
+	sco_debugfs = debugfs_create_file("sco", 0444, bt_debugfs,
+					  NULL, &sco_debugfs_fops);
 
 	return 0;
 

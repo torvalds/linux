@@ -60,7 +60,8 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 	u16 status;
 	u16 poll_count = 0;
 
-	if (WARN_ON(unlikely(wl->state == WLCORE_STATE_RESTARTING)))
+	if (WARN_ON(wl->state == WLCORE_STATE_RESTARTING &&
+		    id != CMD_STOP_FWLOGGER))
 		return -EIO;
 
 	cmd = buf;
@@ -845,7 +846,8 @@ EXPORT_SYMBOL_GPL(wl1271_cmd_test);
  * @buf: buffer for the response, including all headers, must work with dma
  * @len: length of buf
  */
-int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len)
+int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf,
+			   size_t cmd_len, size_t res_len)
 {
 	struct acx_header *acx = buf;
 	int ret;
@@ -854,10 +856,10 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len)
 
 	acx->id = cpu_to_le16(id);
 
-	/* payload length, does not include any headers */
-	acx->len = cpu_to_le16(len - sizeof(*acx));
+	/* response payload length, does not include any headers */
+	acx->len = cpu_to_le16(res_len - sizeof(*acx));
 
-	ret = wl1271_cmd_send(wl, CMD_INTERROGATE, acx, sizeof(*acx), len);
+	ret = wl1271_cmd_send(wl, CMD_INTERROGATE, acx, cmd_len, res_len);
 	if (ret < 0)
 		wl1271_error("INTERROGATE command failed");
 

@@ -24,8 +24,8 @@
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems, bool beacon,
 				 enum ieee80211_band current_band,
-				 u32 sta_flags, u8 *bssid, u8 *count, u8 *mode,
-				 struct cfg80211_chan_def *new_chandef)
+				 u32 sta_flags, u8 *bssid,
+				 struct ieee80211_csa_ie *csa_ie)
 {
 	enum ieee80211_band new_band;
 	int new_freq;
@@ -62,16 +62,22 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 			return -EINVAL;
 		}
 		new_chan_no = elems->ext_chansw_ie->new_ch_num;
-		*count = elems->ext_chansw_ie->count;
-		*mode = elems->ext_chansw_ie->mode;
+		csa_ie->count = elems->ext_chansw_ie->count;
+		csa_ie->mode = elems->ext_chansw_ie->mode;
 	} else if (elems->ch_switch_ie) {
 		new_band = current_band;
 		new_chan_no = elems->ch_switch_ie->new_ch_num;
-		*count = elems->ch_switch_ie->count;
-		*mode = elems->ch_switch_ie->mode;
+		csa_ie->count = elems->ch_switch_ie->count;
+		csa_ie->mode = elems->ch_switch_ie->mode;
 	} else {
 		/* nothing here we understand */
 		return 1;
+	}
+
+	/* Mesh Channel Switch Parameters Element */
+	if (elems->mesh_chansw_params_ie) {
+		csa_ie->ttl = elems->mesh_chansw_params_ie->mesh_ttl;
+		csa_ie->mode = elems->mesh_chansw_params_ie->mesh_flags;
 	}
 
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
@@ -103,25 +109,26 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	default:
 		/* secondary_channel_offset was present but is invalid */
 	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
-		cfg80211_chandef_create(new_chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
 					NL80211_CHAN_HT20);
 		break;
 	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-		cfg80211_chandef_create(new_chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
 					NL80211_CHAN_HT40PLUS);
 		break;
 	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-		cfg80211_chandef_create(new_chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
 					NL80211_CHAN_HT40MINUS);
 		break;
 	case -1:
-		cfg80211_chandef_create(new_chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
 					NL80211_CHAN_NO_HT);
 		/* keep width for 5/10 MHz channels */
 		switch (sdata->vif.bss_conf.chandef.width) {
 		case NL80211_CHAN_WIDTH_5:
 		case NL80211_CHAN_WIDTH_10:
-			new_chandef->width = sdata->vif.bss_conf.chandef.width;
+			csa_ie->chandef.width =
+				sdata->vif.bss_conf.chandef.width;
 			break;
 		default:
 			break;
@@ -171,13 +178,13 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	/* if VHT data is there validate & use it */
 	if (new_vht_chandef.chan) {
 		if (!cfg80211_chandef_compatible(&new_vht_chandef,
-						 new_chandef)) {
+						 &csa_ie->chandef)) {
 			sdata_info(sdata,
 				   "BSS %pM: CSA has inconsistent channel data, disconnecting\n",
 				   bssid);
 			return -EINVAL;
 		}
-		*new_chandef = new_vht_chandef;
+		csa_ie->chandef = new_vht_chandef;
 	}
 
 	return 0;

@@ -456,11 +456,11 @@ static struct wlcore_conf wl18xx_conf = {
 		.always                        = 0,
 	},
 	.fwlog = {
-		.mode                         = WL12XX_FWLOG_ON_DEMAND,
+		.mode                         = WL12XX_FWLOG_CONTINUOUS,
 		.mem_blocks                   = 2,
 		.severity                     = 0,
 		.timestamp                    = WL12XX_FWLOG_TIMESTAMP_DISABLED,
-		.output                       = WL12XX_FWLOG_OUTPUT_HOST,
+		.output                       = WL12XX_FWLOG_OUTPUT_DBG_PINS,
 		.threshold                    = 0,
 	},
 	.rate = {
@@ -505,7 +505,7 @@ static struct wlcore_conf wl18xx_conf = {
 
 static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 	.ht = {
-		.mode				= HT_MODE_DEFAULT,
+		.mode				= HT_MODE_WIDE,
 	},
 	.phy = {
 		.phy_standalone			= 0x00,
@@ -516,7 +516,7 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.auto_detect			= 0x00,
 		.dedicated_fem			= FEM_NONE,
 		.low_band_component		= COMPONENT_3_WAY_SWITCH,
-		.low_band_component_type	= 0x04,
+		.low_band_component_type	= 0x05,
 		.high_band_component		= COMPONENT_2_WAY_SWITCH,
 		.high_band_component_type	= 0x09,
 		.tcxo_ldo_voltage		= 0x00,
@@ -556,15 +556,15 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.per_chan_pwr_limit_arr_11p	= { 0xff, 0xff, 0xff, 0xff,
 						    0xff, 0xff, 0xff },
 		.psat				= 0,
-		.low_power_val			= 0x08,
-		.med_power_val			= 0x12,
-		.high_power_val			= 0x18,
-		.low_power_val_2nd		= 0x05,
-		.med_power_val_2nd		= 0x0a,
-		.high_power_val_2nd		= 0x14,
 		.external_pa_dc2dc		= 0,
 		.number_of_assembled_ant2_4	= 2,
 		.number_of_assembled_ant5	= 1,
+		.low_power_val			= 0xff,
+		.med_power_val			= 0xff,
+		.high_power_val			= 0xff,
+		.low_power_val_2nd		= 0xff,
+		.med_power_val_2nd		= 0xff,
+		.high_power_val_2nd		= 0xff,
 		.tx_rf_margin			= 1,
 	},
 };
@@ -685,6 +685,9 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		ret = -ENODEV;
 		goto out;
 	}
+
+	wl->fw_mem_block_size = 272;
+	wl->fwlog_end = 0x40000000;
 
 	wl->scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
 	wl->scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
@@ -988,9 +991,10 @@ static int wl18xx_boot(struct wl1271 *wl)
 		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
 		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
 		INACTIVE_STA_EVENT_ID |
-		MAX_TX_FAILURE_EVENT_ID |
 		CHANNEL_SWITCH_COMPLETE_EVENT_ID |
 		DFS_CHANNELS_CONFIG_COMPLETE_EVENT;
+
+	wl->ap_event_mask = MAX_TX_FAILURE_EVENT_ID;
 
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
@@ -1604,6 +1608,11 @@ static bool wl18xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 	return lnk->allocated_pkts < thold;
 }
 
+static u32 wl18xx_convert_hwaddr(struct wl1271 *wl, u32 hwaddr)
+{
+	return hwaddr & ~0x80000000;
+}
+
 static int wl18xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl18xx_ops = {
@@ -1641,6 +1650,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 	.sta_rc_update	= wl18xx_sta_rc_update,
 	.set_peer_cap	= wl18xx_set_peer_cap,
+	.convert_hwaddr = wl18xx_convert_hwaddr,
 	.lnk_high_prio	= wl18xx_lnk_high_prio,
 	.lnk_low_prio	= wl18xx_lnk_low_prio,
 };

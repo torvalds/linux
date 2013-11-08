@@ -73,7 +73,6 @@
 #include "iwl-trans.h"
 #include "iwl-notif-wait.h"
 #include "iwl-eeprom-parse.h"
-#include "iwl-trans.h"
 #include "sta.h"
 #include "fw-api.h"
 #include "constants.h"

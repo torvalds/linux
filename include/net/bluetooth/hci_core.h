@@ -81,6 +81,7 @@ struct hci_conn_hash {
 struct bdaddr_list {
 	struct list_head list;
 	bdaddr_t bdaddr;
+	u8 bdaddr_type;
 };
 
 struct bt_uuid {
@@ -141,6 +142,7 @@ struct hci_dev {
 	__u8		dev_type;
 	bdaddr_t	bdaddr;
 	bdaddr_t	static_addr;
+	__u8		own_addr_type;
 	__u8		dev_name[HCI_MAX_NAME_LENGTH];
 	__u8		short_name[HCI_MAX_SHORT_NAME_LENGTH];
 	__u8		eir[HCI_MAX_EIR_LENGTH];
@@ -167,6 +169,9 @@ struct hci_dev {
 	__u8		page_scan_type;
 	__u16		le_scan_interval;
 	__u16		le_scan_window;
+	__u16		le_conn_min_interval;
+	__u16		le_conn_max_interval;
+	__u8		ssp_debug_mode;
 
 	__u16		devid_source;
 	__u16		devid_vendor;
@@ -283,6 +288,8 @@ struct hci_dev {
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_AD_LENGTH];
 	__u8			adv_data_len;
+	__u8			scan_rsp_data[HCI_MAX_AD_LENGTH];
+	__u8			scan_rsp_data_len;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
@@ -311,7 +318,6 @@ struct hci_conn {
 	__u8		attempt;
 	__u8		dev_class[3];
 	__u8		features[HCI_MAX_PAGES][8];
-	__u16		interval;
 	__u16		pkt_type;
 	__u16		link_policy;
 	__u32		link_mode;
@@ -339,8 +345,8 @@ struct hci_conn {
 	struct list_head chan_list;
 
 	struct delayed_work disc_work;
-	struct timer_list idle_timer;
-	struct timer_list auto_accept_timer;
+	struct delayed_work auto_accept_work;
+	struct delayed_work idle_work;
 
 	struct device	dev;
 
@@ -648,7 +654,7 @@ static inline void hci_conn_drop(struct hci_conn *conn)
 		switch (conn->type) {
 		case ACL_LINK:
 		case LE_LINK:
-			del_timer(&conn->idle_timer);
+			cancel_delayed_work(&conn->idle_work);
 			if (conn->state == BT_CONNECTED) {
 				timeo = conn->disc_timeout;
 				if (!conn->out)
@@ -729,7 +735,7 @@ int hci_get_auth_info(struct hci_dev *hdev, void __user *arg);
 int hci_inquiry(void __user *arg);
 
 struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
-					 bdaddr_t *bdaddr);
+					 bdaddr_t *bdaddr, u8 type);
 int hci_blacklist_clear(struct hci_dev *hdev);
 int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
@@ -764,8 +770,6 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count);
 int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count);
 
 void hci_init_sysfs(struct hci_dev *hdev);
-int hci_add_sysfs(struct hci_dev *hdev);
-void hci_del_sysfs(struct hci_dev *hdev);
 void hci_conn_init_sysfs(struct hci_conn *conn);
 void hci_conn_add_sysfs(struct hci_conn *conn);
 void hci_conn_del_sysfs(struct hci_conn *conn);
@@ -1008,34 +1012,6 @@ static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
 	return false;
 }
 
-static inline size_t eir_get_length(u8 *eir, size_t eir_len)
-{
-	size_t parsed = 0;
-
-	while (parsed < eir_len) {
-		u8 field_len = eir[0];
-
-		if (field_len == 0)
-			return parsed;
-
-		parsed += field_len + 1;
-		eir += field_len + 1;
-	}
-
-	return eir_len;
-}
-
-static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,
-				  u8 data_len)
-{
-	eir[eir_len++] = sizeof(type) + data_len;
-	eir[eir_len++] = type;
-	memcpy(&eir[eir_len], data, data_len);
-	eir_len += data_len;
-
-	return eir_len;
-}
-
 int hci_register_cb(struct hci_cb *hcb);
 int hci_unregister_cb(struct hci_cb *hcb);
 
@@ -1099,11 +1075,12 @@ void mgmt_index_added(struct hci_dev *hdev);
 void mgmt_index_removed(struct hci_dev *hdev);
 void mgmt_set_powered_failed(struct hci_dev *hdev, int err);
 int mgmt_powered(struct hci_dev *hdev, u8 powered);
-int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable);
-int mgmt_connectable(struct hci_dev *hdev, u8 connectable);
-int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
-int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
-		      bool persistent);
+void mgmt_discoverable_timeout(struct hci_dev *hdev);
+void mgmt_discoverable(struct hci_dev *hdev, u8 discoverable);
+void mgmt_connectable(struct hci_dev *hdev, u8 connectable);
+void mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
+void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
+		       bool persistent);
 void mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			   u8 addr_type, u32 flags, u8 *name, u8 name_len,
 			   u8 *dev_class);
@@ -1113,11 +1090,11 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			    u8 link_type, u8 addr_type, u8 status);
 void mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			 u8 addr_type, u8 status);
-int mgmt_pin_code_request(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 secure);
-int mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				 u8 status);
-int mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 status);
+void mgmt_pin_code_request(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 secure);
+void mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				  u8 status);
+void mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				      u8 status);
 int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			      u8 link_type, u8 addr_type, __le32 value,
 			      u8 confirm_hint);
@@ -1134,15 +1111,15 @@ int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 int mgmt_user_passkey_notify(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			     u8 link_type, u8 addr_type, u32 passkey,
 			     u8 entered);
-int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-		     u8 addr_type, u8 status);
-int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status);
-int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status);
-int mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
-				   u8 status);
-int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
-int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
-					    u8 *randomizer, u8 status);
+void mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+		      u8 addr_type, u8 status);
+void mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status);
+void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status);
+void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
+				    u8 status);
+void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
+void mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
+					     u8 *randomizer, u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u8 cfm_name,
 		       u8 ssp, u8 *eir, u16 eir_len);
@@ -1151,7 +1128,7 @@ void mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 void mgmt_discovering(struct hci_dev *hdev, u8 discovering);
 int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
-int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent);
+void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent);
 void mgmt_reenable_advertising(struct hci_dev *hdev);
 
 /* HCI info for socket */
@@ -1181,8 +1158,6 @@ struct hci_sec_filter {
 
 #define hci_req_lock(d)		mutex_lock(&d->req_lock)
 #define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
-
-void hci_update_ad(struct hci_request *req);
 
 void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 					u16 latency, u16 to_multiplier);
