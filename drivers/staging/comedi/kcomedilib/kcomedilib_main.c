@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 
 struct comedi_device *comedi_open(const char *filename)
 {
-	struct comedi_device *dev;
+	struct comedi_device *dev, *retval = NULL;
 	unsigned int minor;
 
 	if (strncmp(filename, "/dev/comedi", 11) != 0)
@@ -46,15 +46,19 @@ struct comedi_device *comedi_open(const char *filename)
 	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
 
-	dev = comedi_dev_from_minor(minor);
-
-	if (!dev || !dev->attached)
+	dev = comedi_dev_get_from_minor(minor);
+	if (!dev)
 		return NULL;
 
-	if (!try_module_get(dev->driver->module))
-		return NULL;
+	if (dev->attached && try_module_get(dev->driver->module))
+		retval = dev;
+	else
+		retval = NULL;
 
-	return dev;
+	if (retval == NULL)
+		comedi_dev_put(dev);
+
+	return retval;
 }
 EXPORT_SYMBOL_GPL(comedi_open);
 
@@ -63,6 +67,7 @@ int comedi_close(struct comedi_device *d)
 	struct comedi_device *dev = (struct comedi_device *)d;
 
 	module_put(dev->driver->module);
+	comedi_dev_put(dev);
 
 	return 0;
 }
