@@ -20,6 +20,8 @@
 		gpio2 = &gpio2;
 		serial0 = &auart0;
 		serial1 = &auart1;
+		spi0 = &ssp0;
+		spi1 = &ssp1;
 	};
 
 	cpus {
@@ -76,23 +78,21 @@
 				#size-cells = <1>;
 				reg = <0x8000c000 0x2000>, <0x8000a000 0x2000>;
 				reg-names = "gpmi-nand", "bch";
-				interrupts = <13>, <56>;
-				interrupt-names = "gpmi-dma", "bch";
+				interrupts = <56>;
+				interrupt-names = "bch";
 				clocks = <&clks 34>;
 				clock-names = "gpmi_io";
 				dmas = <&dma_apbh 4>;
 				dma-names = "rx-tx";
-				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
 
 			ssp0: ssp@80010000 {
 				reg = <0x80010000 0x2000>;
-				interrupts = <15 14>;
+				interrupts = <15>;
 				clocks = <&clks 33>;
 				dmas = <&dma_apbh 1>;
 				dma-names = "rx-tx";
-				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
 
@@ -366,11 +366,10 @@
 
 			ssp1: ssp@80034000 {
 				reg = <0x80034000 0x2000>;
-				interrupts = <2 20>;
+				interrupts = <2>;
 				clocks = <&clks 33>;
 				dmas = <&dma_apbh 2>;
 				dma-names = "rx-tx";
-				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
 
@@ -472,7 +471,7 @@
 			auart0: serial@8006c000 {
 				compatible = "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
-				interrupts = <24 25 23>;
+				interrupts = <24>;
 				clocks = <&clks 32>;
 				dmas = <&dma_apbx 6>, <&dma_apbx 7>;
 				dma-names = "rx", "tx";
@@ -482,7 +481,7 @@
 			auart1: serial@8006e000 {
 				compatible = "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
-				interrupts = <59 60 58>;
+				interrupts = <59>;
 				clocks = <&clks 32>;
 				dmas = <&dma_apbx 8>, <&dma_apbx 9>;
 				dma-names = "rx", "tx";

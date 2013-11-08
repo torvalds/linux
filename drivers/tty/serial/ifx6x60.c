@@ -1008,7 +1008,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	pl_data = (struct ifx_modem_platform_data *)spi->dev.platform_data;
+	pl_data = (struct ifx_modem_platform_data *)dev_get_platdata(&spi->dev);
 	if (!pl_data) {
 		dev_err(&spi->dev, "missing platform data!");
 		return -ENODEV;

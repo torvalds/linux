@@ -2100,7 +2100,7 @@ static int mv_udc_remove(struct platform_device *pdev)
 
 static int mv_udc_probe(struct platform_device *pdev)
 {
-	struct mv_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mv_udc *udc;
 	int retval = 0;
 	struct resource *r;
@@ -2118,7 +2118,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 	}
 
 	udc->done = &release_done;
-	udc->pdata = pdev->dev.platform_data;
+	udc->pdata = dev_get_platdata(&pdev->dev);
 	spin_lock_init(&udc->lock);
 
 	udc->dev = pdev;

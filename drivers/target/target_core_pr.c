@@ -4,7 +4,7 @@
  * This file contains SPC-3 compliant persistent reservations and
  * legacy SPC-2 reservations with compatible reservation handling (CRH=1)
  *
- * (c) Copyright 2009-2012 RisingTide Systems LLC.
+ * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -1949,7 +1949,7 @@ static int __core_scsi3_write_aptpl_to_file(
 		pr_debug("Error writing APTPL metadata file: %s\n", path);
 	fput(file);
 
-	return ret ? -EIO : 0;
+	return (ret < 0) ? -EIO : 0;
 }
 
 /*

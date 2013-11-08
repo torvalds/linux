@@ -505,14 +505,12 @@ int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 			   void *preproc_data)
 {
 	struct res_proc_context c;
-	acpi_handle not_used;
 	acpi_status status;
 
 	if (!adev || !adev->handle || !list_empty(list))
 		return -EINVAL;
 
-	status = acpi_get_handle(adev->handle, METHOD_NAME__CRS, &not_used);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(adev->handle, METHOD_NAME__CRS))
 		return 0;
 
 	c.list = list;

@@ -155,7 +155,6 @@ kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags
 static int libcfs_psdev_open(unsigned long flags, void *args)
 {
 	struct libcfs_device_userstate *ldu;
-	ENTRY;
 
 	try_module_get(THIS_MODULE);
 
@@ -166,14 +165,13 @@ static int libcfs_psdev_open(unsigned long flags, void *args)
 	}
 	*(struct libcfs_device_userstate **)args = ldu;
 
-	RETURN(0);
+	return 0;
 }
 
 /* called when closing /dev/device */
 static int libcfs_psdev_release(unsigned long flags, void *args)
 {
 	struct libcfs_device_userstate *ldu;
-	ENTRY;
 
 	ldu = (struct libcfs_device_userstate *)args;
 	if (ldu != NULL) {
@@ -182,7 +180,7 @@ static int libcfs_psdev_release(unsigned long flags, void *args)
 	}
 
 	module_put(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 static struct rw_semaphore ioctl_list_sem;
@@ -222,12 +220,11 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 			    void *arg, struct libcfs_ioctl_data *data)
 {
 	int err = -EINVAL;
-	ENTRY;
 
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
 		libcfs_debug_clear_buffer();
-		RETURN(0);
+		return 0;
 	/*
 	 * case IOC_LIBCFS_PANIC:
 	 * Handled in arch/cfs_module.c
@@ -235,9 +232,9 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	case IOC_LIBCFS_MARK_DEBUG:
 		if (data->ioc_inlbuf1 == NULL ||
 		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
-		RETURN(0);
+		return 0;
 #if LWT_SUPPORT
 	case IOC_LIBCFS_LWT_CONTROL:
 		err = lwt_control ((data->ioc_flags & 1) != 0,
@@ -301,7 +298,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 			ping(data);
 			symbol_put(kping_client);
 		}
-		RETURN(0);
+		return 0;
 	}
 
 	default: {
@@ -322,7 +319,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	}
 	}
 
-	RETURN(err);
+	return err;
 }
 
 static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *arg)
@@ -330,11 +327,10 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 	char    *buf;
 	struct libcfs_ioctl_data *data;
 	int err = 0;
-	ENTRY;
 
 	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
 	if (buf == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
 	if (libcfs_ioctl_getdata(buf, buf + 800, (void *)arg)) {
@@ -347,7 +343,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 
 out:
 	LIBCFS_FREE(buf, 1024);
-	RETURN(err);
+	return err;
 }
 
 
@@ -365,7 +361,7 @@ MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
 MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
 
-extern psdev_t libcfs_dev;
+extern struct miscdevice libcfs_dev;
 extern struct rw_semaphore cfs_tracefile_sem;
 extern struct mutex cfs_trace_thread_mutex;
 extern struct cfs_wi_sched *cfs_sched_rehash;
@@ -495,4 +491,6 @@ static void exit_libcfs_module(void)
 	libcfs_arch_cleanup();
 }
 
-cfs_module(libcfs, "1.0.0", init_libcfs_module, exit_libcfs_module);
+MODULE_VERSION("1.0.0");
+module_init(init_libcfs_module);
+module_exit(exit_libcfs_module);

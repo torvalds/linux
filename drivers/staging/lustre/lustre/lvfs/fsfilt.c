@@ -35,7 +35,6 @@
 #define DEBUG_SUBSYSTEM S_FILTER
 
 #include <linux/fs.h>
-#include <linux/jbd.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
@@ -68,7 +67,7 @@ int fsfilt_register_ops(struct fsfilt_operations *fs_ops)
 			CERROR("different operations for type %s\n",
 			       fs_ops->fs_type);
 			/* unlock fsfilt_types list */
-			RETURN(-EEXIST);
+			return -EEXIST;
 		}
 	} else {
 		try_module_get(THIS_MODULE);
@@ -120,7 +119,7 @@ struct fsfilt_operations *fsfilt_get_ops(const char *type)
 
 		if (rc) {
 			CERROR("Can't find %s interface\n", name);
-			RETURN(ERR_PTR(rc < 0 ? rc : -rc));
+			return ERR_PTR(rc < 0 ? rc : -rc);
 			/* unlock fsfilt_types list */
 		}
 	}

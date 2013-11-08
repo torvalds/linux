@@ -138,7 +138,7 @@ config SSB_DRIVER_MIPS
 
 config SSB_SFLASH
 	bool "SSB serial flash support"
-	depends on SSB_DRIVER_MIPS && BROKEN
+	depends on SSB_DRIVER_MIPS
 	default y
 
 # Assumption: We are on embedded, if we compile the MIPS core.

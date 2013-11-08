@@ -17,6 +17,16 @@ config OF_IOMMU
        def_bool y
        depends on OF
 
+config FSL_PAMU
+	bool "Freescale IOMMU support"
+	depends on PPC_E500MC
+	select IOMMU_API
+	select GENERIC_ALLOCATOR
+	help
+	  Freescale PAMU support. PAMU is the IOMMU present on Freescale QorIQ platforms.
+	  PAMU can authorize memory access, remap the memory address, and remap I/O
+	  transaction types.
+
 # MSM IOMMU support
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
@@ -42,7 +52,7 @@ config AMD_IOMMU
 	select PCI_PRI
 	select PCI_PASID
 	select IOMMU_API
-	depends on X86_64 && PCI && ACPI && X86_IO_APIC
+	depends on X86_64 && PCI && ACPI
 	---help---
 	  With this option you can enable support for AMD IOMMU hardware in
 	  your system. An IOMMU is a hardware component which provides

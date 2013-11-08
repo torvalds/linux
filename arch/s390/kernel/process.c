@@ -71,6 +71,7 @@ void arch_cpu_idle(void)
 	}
 	/* Halt the cpu and keep track of cpu time accounting. */
 	vtime_stop_cpu();
+	local_irq_enable();
 }
 
 void arch_cpu_idle_exit(void)

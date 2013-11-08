@@ -342,15 +342,16 @@ static struct clk_lookup dm646x_clks[] = {
 	CLK(NULL, "edma_tc1", &edma_tc1_clk),
 	CLK(NULL, "edma_tc2", &edma_tc2_clk),
 	CLK(NULL, "edma_tc3", &edma_tc3_clk),
-	CLK(NULL, "uart0", &uart0_clk),
-	CLK(NULL, "uart1", &uart1_clk),
-	CLK(NULL, "uart2", &uart2_clk),
+	CLK("serial8250.0", NULL, &uart0_clk),
+	CLK("serial8250.1", NULL, &uart1_clk),
+	CLK("serial8250.2", NULL, &uart2_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK(NULL, "gpio", &gpio_clk),
 	CLK("davinci-mcasp.0", NULL, &mcasp0_clk),
 	CLK("davinci-mcasp.1", NULL, &mcasp1_clk),
 	CLK(NULL, "aemif", &aemif_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
+	CLK("davinci_mdio.0", "fck", &emac_clk),
 	CLK(NULL, "pwm0", &pwm0_clk),
 	CLK(NULL, "pwm1", &pwm1_clk),
 	CLK(NULL, "timer0", &timer0_clk),
@@ -790,7 +791,7 @@ static struct davinci_timer_info dm646x_timer_info = {
 	.clocksource_id	= T0_TOP,
 };
 
-static struct plat_serial8250_port dm646x_serial_platform_data[] = {
+static struct plat_serial8250_port dm646x_serial0_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART0_BASE,
 		.irq		= IRQ_UARTINT0,
@@ -800,6 +801,11 @@ static struct plat_serial8250_port dm646x_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port dm646x_serial1_platform_data[] = {
+	{
 		.mapbase	= DAVINCI_UART1_BASE,
 		.irq		= IRQ_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
@@ -807,6 +813,11 @@ static struct plat_serial8250_port dm646x_serial_platform_data[] = {
 		.iotype		= UPIO_MEM32,
 		.regshift	= 2,
 	},
+	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port dm646x_serial2_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART2_BASE,
 		.irq		= IRQ_DM646X_UARTINT2,
@@ -816,16 +827,34 @@ static struct plat_serial8250_port dm646x_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
-		.flags		= 0
-	},
+		.flags	= 0,
+	}
 };
 
-static struct platform_device dm646x_serial_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= dm646x_serial_platform_data,
+struct platform_device dm646x_serial_device[] = {
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM,
+		.dev			= {
+			.platform_data	= dm646x_serial0_platform_data,
+		}
 	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM1,
+		.dev			= {
+			.platform_data	= dm646x_serial1_platform_data,
+		}
+	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM2,
+		.dev			= {
+			.platform_data	= dm646x_serial2_platform_data,
+		}
+	},
+	{
+	}
 };
 
 static struct davinci_soc_info davinci_soc_info_dm646x = {
@@ -849,7 +878,6 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 43, /* Only 33 usable */
 	.gpio_irq		= IRQ_DM646X_GPIOBNK0,
-	.serial_dev		= &dm646x_serial_device,
 	.emac_pdata		= &dm646x_emac_pdata,
 	.sram_dma		= 0x10010000,
 	.sram_len		= SZ_32K,
@@ -913,8 +941,6 @@ static int __init dm646x_init_devices(void)
 
 	platform_device_register(&dm646x_mdio_device);
 	platform_device_register(&dm646x_emac_device);
-	clk_add_alias(NULL, dev_name(&dm646x_mdio_device.dev),
-		      NULL, &dm646x_emac_device.dev);
 
 	return 0;
 }

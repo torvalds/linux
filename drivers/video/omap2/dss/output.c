@@ -34,9 +34,9 @@ int omapdss_output_set_device(struct omap_dss_device *out,
 
 	mutex_lock(&output_lock);
 
-	if (out->device) {
+	if (out->dst) {
 		DSSERR("output already has device %s connected to it\n",
-			out->device->name);
+			out->dst->name);
 		r = -EINVAL;
 		goto err;
 	}
@@ -47,8 +47,8 @@ int omapdss_output_set_device(struct omap_dss_device *out,
 		goto err;
 	}
 
-	out->device = dssdev;
-	dssdev->output = out;
+	out->dst = dssdev;
+	dssdev->src = out;
 
 	mutex_unlock(&output_lock);
 
@@ -66,21 +66,21 @@ int omapdss_output_unset_device(struct omap_dss_device *out)
 
 	mutex_lock(&output_lock);
 
-	if (!out->device) {
+	if (!out->dst) {
 		DSSERR("output doesn't have a device connected to it\n");
 		r = -EINVAL;
 		goto err;
 	}
 
-	if (out->device->state != OMAP_DSS_DISPLAY_DISABLED) {
+	if (out->dst->state != OMAP_DSS_DISPLAY_DISABLED) {
 		DSSERR("device %s is not disabled, cannot unset device\n",
-				out->device->name);
+				out->dst->name);
 		r = -EINVAL;
 		goto err;
 	}
 
-	out->device->output = NULL;
-	out->device = NULL;
+	out->dst->src = NULL;
+	out->dst = NULL;
 
 	mutex_unlock(&output_lock);
 
@@ -146,8 +146,8 @@ EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
-	while (dssdev->output)
-		dssdev = dssdev->output;
+	while (dssdev->src)
+		dssdev = dssdev->src;
 
 	if (dssdev->id != 0)
 		return omap_dss_get_device(dssdev);

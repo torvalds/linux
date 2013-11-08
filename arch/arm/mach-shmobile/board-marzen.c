@@ -1,8 +1,9 @@
 /*
  * marzen board support
  *
- * Copyright (C) 2011  Renesas Solutions Corp.
+ * Copyright (C) 2011, 2013  Renesas Solutions Corp.
  * Copyright (C) 2011  Magnus Damm
+ * Copyright (C) 2013  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/gpio-rcar.h>
+#include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
@@ -37,7 +39,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
-#include <mach/hardware.h>
+#include <media/soc_camera.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
@@ -57,7 +59,26 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
 };
 
-static struct rcar_phy_platform_data usb_phy_platform_data __initdata;
+/* USB PHY */
+static struct resource usb_phy_resources[] = {
+	[0] = {
+		.start		= 0xffe70800,
+		.end		= 0xffe70900 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct rcar_phy_platform_data usb_phy_platform_data;
+
+static struct platform_device usb_phy = {
+	.name		= "rcar_usb_phy",
+	.id		= -1,
+	.dev  = {
+		.platform_data = &usb_phy_platform_data,
+	},
+	.resource	= usb_phy_resources,
+	.num_resources	= ARRAY_SIZE(usb_phy_resources),
+};
 
 /* SMSC LAN89218 */
 static struct resource smsc911x_resources[] = {
@@ -178,12 +199,41 @@ static struct platform_device leds_device = {
 	},
 };
 
+static struct rcar_vin_platform_data vin_platform_data __initdata = {
+	.flags	= RCAR_VIN_BT656,
+};
+
+#define MARZEN_CAMERA(idx)					\
+static struct i2c_board_info camera##idx##_info = {		\
+	I2C_BOARD_INFO("adv7180", 0x20 + (idx)),		\
+};								\
+								\
+static struct soc_camera_link iclink##idx##_adv7180 = {		\
+	.bus_id		= 1 + 2 * (idx),			\
+	.i2c_adapter_id	= 0,					\
+	.board_info	= &camera##idx##_info,			\
+};								\
+								\
+static struct platform_device camera##idx##_device = {		\
+	.name	= "soc-camera-pdrv",				\
+	.id	= idx,						\
+	.dev	= {						\
+		.platform_data	= &iclink##idx##_adv7180,	\
+	},							\
+};
+
+MARZEN_CAMERA(0);
+MARZEN_CAMERA(1);
+
 static struct platform_device *marzen_devices[] __initdata = {
 	&eth_device,
 	&sdhi0_device,
 	&thermal_device,
 	&hspi_device,
 	&leds_device,
+	&usb_phy,
+	&camera0_device,
+	&camera1_device,
 };
 
 static const struct pinctrl_map marzen_pinctrl_map[] = {
@@ -219,6 +269,16 @@ static const struct pinctrl_map marzen_pinctrl_map[] = {
 	/* USB2 */
 	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.1", "pfc-r8a7779",
 				  "usb2", "usb2"),
+	/* VIN1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.1", "pfc-r8a7779",
+				  "vin1_clk", "vin1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.1", "pfc-r8a7779",
+				  "vin1_data8", "vin1"),
+	/* VIN3 */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.3", "pfc-r8a7779",
+				  "vin3_clk", "vin3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a7779-vin.3", "pfc-r8a7779",
+				  "vin3_data8", "vin3"),
 };
 
 static void __init marzen_init(void)
@@ -234,17 +294,23 @@ static void __init marzen_init(void)
 	r8a7779_init_irq_extpin(1); /* IRQ1 as individual interrupt */
 
 	r8a7779_add_standard_devices();
-	r8a7779_add_usb_phy_device(&usb_phy_platform_data);
+	r8a7779_add_vin_device(1, &vin_platform_data);
+	r8a7779_add_vin_device(3, &vin_platform_data);
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 
-MACHINE_START(MARZEN, "marzen")
+static const char *marzen_boards_compat_dt[] __initdata = {
+        "renesas,marzen",
+        NULL,
+};
+
+DT_MACHINE_START(MARZEN, "marzen")
 	.smp		= smp_ops(r8a7779_smp_ops),
 	.map_io		= r8a7779_map_io,
 	.init_early	= r8a7779_add_early_devices,
-	.nr_irqs	= NR_IRQS_LEGACY,
-	.init_irq	= r8a7779_init_irq,
+	.init_irq	= r8a7779_init_irq_dt,
 	.init_machine	= marzen_init,
 	.init_late	= r8a7779_init_late,
+	.dt_compat	= marzen_boards_compat_dt,
 	.init_time	= r8a7779_earlytimer_init,
 MACHINE_END

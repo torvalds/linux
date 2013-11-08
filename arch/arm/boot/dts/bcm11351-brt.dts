@@ -17,7 +17,7 @@
 
 / {
 	model = "BCM11351 BRT board";
-	compatible = "bcm,bcm11351-brt", "bcm,bcm11351";
+	compatible = "brcm,bcm11351-brt", "brcm,bcm11351";
 
 	memory {
 		reg = <0x80000000 0x40000000>; /* 1 GB */
@@ -27,18 +27,18 @@
 		status = "okay";
 	};
 
-	sdio0: sdio@0x3f180000 {
+	sdio1: sdio@3f180000 {
 		max-frequency = <48000000>;
 		status = "okay";
 	};
 
-	sdio1: sdio@0x3f190000 {
+	sdio2: sdio@3f190000 {
 		non-removable;
 		max-frequency = <48000000>;
 		status = "okay";
 	};
 
-	sdio3: sdio@0x3f1b0000 {
+	sdio4: sdio@3f1b0000 {
 		max-frequency = <48000000>;
 		status = "okay";
 	};

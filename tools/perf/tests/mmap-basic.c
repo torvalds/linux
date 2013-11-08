@@ -72,7 +72,7 @@ int test__basic_mmap(void)
 		}
 
 		evsels[i]->attr.wakeup_events = 1;
-		perf_evsel__set_sample_id(evsels[i]);
+		perf_evsel__set_sample_id(evsels[i], false);
 
 		perf_evlist__add(evlist, evsels[i]);
 
@@ -122,6 +122,7 @@ int test__basic_mmap(void)
 			goto out_munmap;
 		}
 		nr_events[evsel->idx]++;
+		perf_evlist__mmap_consume(evlist, 0);
 	}
 
 	err = 0;

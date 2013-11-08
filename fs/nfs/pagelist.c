@@ -328,6 +328,19 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init);
 
+static bool nfs_match_open_context(const struct nfs_open_context *ctx1,
+		const struct nfs_open_context *ctx2)
+{
+	return ctx1->cred == ctx2->cred && ctx1->state == ctx2->state;
+}
+
+static bool nfs_match_lock_context(const struct nfs_lock_context *l1,
+		const struct nfs_lock_context *l2)
+{
+	return l1->lockowner.l_owner == l2->lockowner.l_owner
+		&& l1->lockowner.l_pid == l2->lockowner.l_pid;
+}
+
 /**
  * nfs_can_coalesce_requests - test two requests for compatibility
  * @prev: pointer to nfs_page
@@ -343,13 +356,10 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 				      struct nfs_page *req,
 				      struct nfs_pageio_descriptor *pgio)
 {
-	if (req->wb_context->cred != prev->wb_context->cred)
+	if (!nfs_match_open_context(req->wb_context, prev->wb_context))
 		return false;
-	if (req->wb_lock_context->lockowner.l_owner != prev->wb_lock_context->lockowner.l_owner)
-		return false;
-	if (req->wb_lock_context->lockowner.l_pid != prev->wb_lock_context->lockowner.l_pid)
-		return false;
-	if (req->wb_context->state != prev->wb_context->state)
+	if (req->wb_context->dentry->d_inode->i_flock != NULL &&
+	    !nfs_match_lock_context(req->wb_lock_context, prev->wb_lock_context))
 		return false;
 	if (req->wb_pgbase != 0)
 		return false;

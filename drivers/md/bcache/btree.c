@@ -255,7 +255,7 @@ void bch_btree_node_read(struct btree *b)
 
 	return;
 err:
-	bch_cache_set_error(b->c, "io error reading bucket %lu",
+	bch_cache_set_error(b->c, "io error reading bucket %zu",
 			    PTR_BUCKET_NR(b->c, &b->key, 0));
 }
 
@@ -597,27 +597,22 @@ static int mca_reap(struct btree *b, struct closure *cl, unsigned min_order)
 	return 0;
 }
 
-static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
+static unsigned long bch_mca_scan(struct shrinker *shrink,
+				  struct shrink_control *sc)
 {
 	struct cache_set *c = container_of(shrink, struct cache_set, shrink);
 	struct btree *b, *t;
 	unsigned long i, nr = sc->nr_to_scan;
+	unsigned long freed = 0;
 
 	if (c->shrinker_disabled)
-		return 0;
+		return SHRINK_STOP;
 
 	if (c->try_harder)
-		return 0;
-
-	/*
-	 * If nr == 0, we're supposed to return the number of items we have
-	 * cached. Not allowed to return -1.
-	 */
-	if (!nr)
-		return mca_can_free(c) * c->btree_pages;
+		return SHRINK_STOP;
 
 	/* Return -1 if we can't do anything right now */
-	if (sc->gfp_mask & __GFP_WAIT)
+	if (sc->gfp_mask & __GFP_IO)
 		mutex_lock(&c->bucket_lock);
 	else if (!mutex_trylock(&c->bucket_lock))
 		return -1;
@@ -634,14 +629,14 @@ static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
 
 	i = 0;
 	list_for_each_entry_safe(b, t, &c->btree_cache_freeable, list) {
-		if (!nr)
+		if (freed >= nr)
 			break;
 
 		if (++i > 3 &&
 		    !mca_reap(b, NULL, 0)) {
 			mca_data_free(b);
 			rw_unlock(true, b);
-			--nr;
+			freed++;
 		}
 	}
 
@@ -652,7 +647,7 @@ static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	if (list_empty(&c->btree_cache))
 		goto out;
 
-	for (i = 0; nr && i < c->bucket_cache_used; i++) {
+	for (i = 0; (nr--) && i < c->bucket_cache_used; i++) {
 		b = list_first_entry(&c->btree_cache, struct btree, list);
 		list_rotate_left(&c->btree_cache);
 
@@ -661,14 +656,27 @@ static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
 			mca_bucket_free(b);
 			mca_data_free(b);
 			rw_unlock(true, b);
-			--nr;
+			freed++;
 		} else
 			b->accessed = 0;
 	}
 out:
-	nr = mca_can_free(c) * c->btree_pages;
 	mutex_unlock(&c->bucket_lock);
-	return nr;
+	return freed;
+}
+
+static unsigned long bch_mca_count(struct shrinker *shrink,
+				   struct shrink_control *sc)
+{
+	struct cache_set *c = container_of(shrink, struct cache_set, shrink);
+
+	if (c->shrinker_disabled)
+		return 0;
+
+	if (c->try_harder)
+		return 0;
+
+	return mca_can_free(c) * c->btree_pages;
 }
 
 void bch_btree_cache_free(struct cache_set *c)
@@ -737,7 +745,8 @@ int bch_btree_cache_alloc(struct cache_set *c)
 		c->verify_data = NULL;
 #endif
 
-	c->shrink.shrink = bch_mca_shrink;
+	c->shrink.count_objects = bch_mca_count;
+	c->shrink.scan_objects = bch_mca_scan;
 	c->shrink.seeks = 4;
 	c->shrink.batch = c->btree_pages * 2;
 	register_shrinker(&c->shrink);

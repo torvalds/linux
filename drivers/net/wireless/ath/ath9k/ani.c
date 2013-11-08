@@ -319,9 +319,6 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 			ah->ani_function = 0;
 	}
 
-	/* always allow mode (on/off) to be controlled */
-	ah->ani_function |= ATH9K_ANI_MODE;
-
 	ofdm_nil = max_t(int, ATH9K_ANI_OFDM_DEF_LEVEL,
 			 aniState->ofdmNoiseImmunityLevel);
 	cck_nil = max_t(int, ATH9K_ANI_CCK_DEF_LEVEL,

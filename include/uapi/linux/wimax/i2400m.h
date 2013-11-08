@@ -122,7 +122,7 @@
 #define __LINUX__WIMAX__I2400M_H__
 
 #include <linux/types.h>
-
+#include <linux/if_ether.h>
 
 /*
  * Host Device Interface (HDI) common to all busses
@@ -487,7 +487,7 @@ struct i2400m_tlv_l4_message_versions {
 struct i2400m_tlv_detailed_device_info {
 	struct i2400m_tlv_hdr hdr;
 	__u8 reserved1[400];
-	__u8 mac_address[6];
+	__u8 mac_address[ETH_ALEN];
 	__u8 reserved2[2];
 } __attribute__((packed));
 

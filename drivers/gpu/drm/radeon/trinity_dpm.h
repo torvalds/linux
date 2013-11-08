@@ -108,6 +108,7 @@ struct trinity_power_info {
 	bool enable_auto_thermal_throttling;
 	bool enable_dpm;
 	bool enable_sclk_ds;
+	bool enable_bapm;
 	bool uvd_dpm;
 	struct radeon_ps current_rps;
 	struct trinity_ps current_ps;
@@ -118,6 +119,7 @@ struct trinity_power_info {
 #define TRINITY_AT_DFLT            30
 
 /* trinity_smc.c */
+int trinity_dpm_bapm_enable(struct radeon_device *rdev, bool enable);
 int trinity_dpm_config(struct radeon_device *rdev, bool enable);
 int trinity_uvd_dpm_config(struct radeon_device *rdev);
 int trinity_dpm_force_state(struct radeon_device *rdev, u32 n);

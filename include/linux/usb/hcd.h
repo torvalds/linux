@@ -22,6 +22,7 @@
 #ifdef __KERNEL__
 
 #include <linux/rwsem.h>
+#include <linux/interrupt.h>
 
 #define MAX_TOPO_LEVEL		6
 
@@ -66,6 +67,13 @@
  */
 
 /*-------------------------------------------------------------------------*/
+
+struct giveback_urb_bh {
+	bool running;
+	spinlock_t lock;
+	struct list_head  head;
+	struct tasklet_struct bh;
+};
 
 struct usb_hcd {
 
@@ -138,6 +146,9 @@ struct usb_hcd {
 	resource_size_t		rsrc_start;	/* memory/io resource start */
 	resource_size_t		rsrc_len;	/* memory/io resource length */
 	unsigned		power_budget;	/* in mA, 0 = no limit */
+
+	struct giveback_urb_bh  high_prio_bh;
+	struct giveback_urb_bh  low_prio_bh;
 
 	/* bandwidth_mutex should be taken before adding or removing
 	 * any new bus bandwidth constraints:
@@ -221,6 +232,7 @@ struct hc_driver {
 #define	HCD_USB25	0x0030		/* Wireless USB 1.0 (USB 2.5)*/
 #define	HCD_USB3	0x0040		/* USB 3.0 */
 #define	HCD_MASK	0x0070
+#define	HCD_BH		0x0100		/* URB complete in BH context */
 
 	/* called to init HCD and root hub */
 	int	(*reset) (struct usb_hcd *hcd);
@@ -361,6 +373,11 @@ struct hc_driver {
 	int	(*find_raw_port_number)(struct usb_hcd *, int);
 };
 
+static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
+{
+	return hcd->driver->flags & HCD_BH;
+}
+
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
 extern int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 		int status);
@@ -411,7 +428,7 @@ extern int usb_hcd_pci_probe(struct pci_dev *dev,
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 extern const struct dev_pm_ops usb_hcd_pci_pm_ops;
 #endif
 #endif /* CONFIG_PCI */

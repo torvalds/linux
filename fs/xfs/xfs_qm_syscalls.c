@@ -20,6 +20,7 @@
 
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_format.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
@@ -37,7 +38,6 @@
 #include "xfs_error.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
-#include "xfs_utils.h"
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
@@ -247,9 +247,7 @@ xfs_qm_scall_trunc_qfile(
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_TRUNCATE_FILE);
-	error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
-				  XFS_TRANS_PERM_LOG_RES,
-				  XFS_ITRUNCATE_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
@@ -296,8 +294,10 @@ xfs_qm_scall_trunc_qfiles(
 
 	if (flags & XFS_DQ_USER)
 		error = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_uquotino);
-	if (flags & (XFS_DQ_GROUP|XFS_DQ_PROJ))
+	if (flags & XFS_DQ_GROUP)
 		error2 = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_gquotino);
+	if (flags & XFS_DQ_PROJ)
+		error2 = xfs_qm_scall_trunc_qfile(mp, mp->m_sb.sb_pquotino);
 
 	return error ? error : error2;
 }
@@ -404,6 +404,7 @@ xfs_qm_scall_quotaon(
 
 /*
  * Return quota status information, such as uquota-off, enforcements, etc.
+ * for Q_XGETQSTAT command.
  */
 int
 xfs_qm_scall_getqstat(
@@ -413,8 +414,10 @@ xfs_qm_scall_getqstat(
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_inode	*uip = NULL;
 	struct xfs_inode	*gip = NULL;
+	struct xfs_inode	*pip = NULL;
 	bool                    tempuqip = false;
 	bool                    tempgqip = false;
+	bool                    temppqip = false;
 
 	memset(out, 0, sizeof(fs_quota_stat_t));
 
@@ -424,16 +427,14 @@ xfs_qm_scall_getqstat(
 		out->qs_gquota.qfs_ino = NULLFSINO;
 		return (0);
 	}
+
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
 							(XFS_ALL_QUOTA_ACCT|
 							 XFS_ALL_QUOTA_ENFD));
-	out->qs_pad = 0;
-	out->qs_uquota.qfs_ino = mp->m_sb.sb_uquotino;
-	out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
-
 	if (q) {
 		uip = q->qi_uquotaip;
 		gip = q->qi_gquotaip;
+		pip = q->qi_pquotaip;
 	}
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
@@ -445,17 +446,121 @@ xfs_qm_scall_getqstat(
 					0, 0, &gip) == 0)
 			tempgqip = true;
 	}
+	/*
+	 * Q_XGETQSTAT doesn't have room for both group and project quotas.
+	 * So, allow the project quota values to be copied out only if
+	 * there is no group quota information available.
+	 */
+	if (!gip) {
+		if (!pip && mp->m_sb.sb_pquotino != NULLFSINO) {
+			if (xfs_iget(mp, NULL, mp->m_sb.sb_pquotino,
+						0, 0, &pip) == 0)
+				temppqip = true;
+		}
+	} else
+		pip = NULL;
+	if (uip) {
+		out->qs_uquota.qfs_ino = mp->m_sb.sb_uquotino;
+		out->qs_uquota.qfs_nblks = uip->i_d.di_nblocks;
+		out->qs_uquota.qfs_nextents = uip->i_d.di_nextents;
+		if (tempuqip)
+			IRELE(uip);
+	}
+
+	if (gip) {
+		out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
+		out->qs_gquota.qfs_nblks = gip->i_d.di_nblocks;
+		out->qs_gquota.qfs_nextents = gip->i_d.di_nextents;
+		if (tempgqip)
+			IRELE(gip);
+	}
+	if (pip) {
+		out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
+		out->qs_gquota.qfs_nblks = pip->i_d.di_nblocks;
+		out->qs_gquota.qfs_nextents = pip->i_d.di_nextents;
+		if (temppqip)
+			IRELE(pip);
+	}
+	if (q) {
+		out->qs_incoredqs = q->qi_dquots;
+		out->qs_btimelimit = q->qi_btimelimit;
+		out->qs_itimelimit = q->qi_itimelimit;
+		out->qs_rtbtimelimit = q->qi_rtbtimelimit;
+		out->qs_bwarnlimit = q->qi_bwarnlimit;
+		out->qs_iwarnlimit = q->qi_iwarnlimit;
+	}
+	return 0;
+}
+
+/*
+ * Return quota status information, such as uquota-off, enforcements, etc.
+ * for Q_XGETQSTATV command, to support separate project quota field.
+ */
+int
+xfs_qm_scall_getqstatv(
+	struct xfs_mount	*mp,
+	struct fs_quota_statv	*out)
+{
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
+	struct xfs_inode	*uip = NULL;
+	struct xfs_inode	*gip = NULL;
+	struct xfs_inode	*pip = NULL;
+	bool                    tempuqip = false;
+	bool                    tempgqip = false;
+	bool                    temppqip = false;
+
+	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
+		out->qs_uquota.qfs_ino = NULLFSINO;
+		out->qs_gquota.qfs_ino = NULLFSINO;
+		out->qs_pquota.qfs_ino = NULLFSINO;
+		return (0);
+	}
+
+	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
+							(XFS_ALL_QUOTA_ACCT|
+							 XFS_ALL_QUOTA_ENFD));
+	out->qs_uquota.qfs_ino = mp->m_sb.sb_uquotino;
+	out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
+	out->qs_pquota.qfs_ino = mp->m_sb.sb_pquotino;
+
+	if (q) {
+		uip = q->qi_uquotaip;
+		gip = q->qi_gquotaip;
+		pip = q->qi_pquotaip;
+	}
+	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
+		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
+					0, 0, &uip) == 0)
+			tempuqip = true;
+	}
+	if (!gip && mp->m_sb.sb_gquotino != NULLFSINO) {
+		if (xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
+					0, 0, &gip) == 0)
+			tempgqip = true;
+	}
+	if (!pip && mp->m_sb.sb_pquotino != NULLFSINO) {
+		if (xfs_iget(mp, NULL, mp->m_sb.sb_pquotino,
+					0, 0, &pip) == 0)
+			temppqip = true;
+	}
 	if (uip) {
 		out->qs_uquota.qfs_nblks = uip->i_d.di_nblocks;
 		out->qs_uquota.qfs_nextents = uip->i_d.di_nextents;
 		if (tempuqip)
 			IRELE(uip);
 	}
+
 	if (gip) {
 		out->qs_gquota.qfs_nblks = gip->i_d.di_nblocks;
 		out->qs_gquota.qfs_nextents = gip->i_d.di_nextents;
 		if (tempgqip)
 			IRELE(gip);
+	}
+	if (pip) {
+		out->qs_pquota.qfs_nblks = pip->i_d.di_nblocks;
+		out->qs_pquota.qfs_nextents = pip->i_d.di_nextents;
+		if (temppqip)
+			IRELE(pip);
 	}
 	if (q) {
 		out->qs_incoredqs = q->qi_dquots;
@@ -515,8 +620,7 @@ xfs_qm_scall_setqlim(
 	xfs_dqunlock(dqp);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
-	error = xfs_trans_reserve(tp, 0, XFS_QM_SETQLIM_LOG_RES(mp),
-				  0, 0, XFS_DEFAULT_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_setqlim, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
 		goto out_rele;
@@ -650,8 +754,7 @@ xfs_qm_log_quotaoff_end(
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QUOTAOFF_END);
 
-	error = xfs_trans_reserve(tp, 0, XFS_QM_QUOTAOFF_END_LOG_RES(mp),
-				  0, 0, XFS_DEFAULT_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_equotaoff, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
 		return (error);
@@ -684,8 +787,7 @@ xfs_qm_log_quotaoff(
 	uint			oldsbqflag=0;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QUOTAOFF);
-	error = xfs_trans_reserve(tp, 0, XFS_QM_QUOTAOFF_LOG_RES(mp),
-				  0, 0, XFS_DEFAULT_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_quotaoff, 0, 0);
 	if (error)
 		goto error0;
 

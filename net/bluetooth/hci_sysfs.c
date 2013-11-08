@@ -590,7 +590,7 @@ int __init bt_sysfs_init(void)
 
 	bt_class = class_create(THIS_MODULE, "bluetooth");
 
-	return PTR_RET(bt_class);
+	return PTR_ERR_OR_ZERO(bt_class);
 }
 
 void bt_sysfs_cleanup(void)

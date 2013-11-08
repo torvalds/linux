@@ -688,7 +688,7 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 	find_p2p_ie = true;
 	/*to find noa ie*/
 	while (ie + 1 < end) {
-		noa_len = READEF2BYTE(&ie[1]);
+		noa_len = READEF2BYTE((__le16 *)&ie[1]);
 		if (ie + 3 + ie[1] > end)
 			return;
 
@@ -717,13 +717,13 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 						 READEF1BYTE(ie+index);
 					index += 1;
 					p2pinfo->noa_duration[i] =
-						 READEF4BYTE(ie+index);
+						 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_interval[i] =
-						 READEF4BYTE(ie+index);
+						 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_start_time[i] =
-						 READEF4BYTE(ie+index);
+						 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 				}
 
@@ -780,7 +780,7 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 	RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "action frame find P2P IE.\n");
 	/*to find noa ie*/
 	while (ie + 1 < end) {
-		noa_len = READEF2BYTE(&ie[1]);
+		noa_len = READEF2BYTE((__le16 *)&ie[1]);
 		if (ie + 3 + ie[1] > end)
 			return;
 
@@ -809,13 +809,13 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 							 READEF1BYTE(ie+index);
 					index += 1;
 					p2pinfo->noa_duration[i] =
-							 READEF4BYTE(ie+index);
+							 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_interval[i] =
-							 READEF4BYTE(ie+index);
+							 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_start_time[i] =
-							 READEF4BYTE(ie+index);
+							 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 				}
 
@@ -923,7 +923,7 @@ void rtl_p2p_info(struct ieee80211_hw *hw, void *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (compare_ether_addr(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	/* check if this really is a beacon */

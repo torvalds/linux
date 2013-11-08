@@ -40,6 +40,15 @@
 
 			i2c0: i2c@f8010000 {
 				status = "okay";
+
+				qt1070: keyboard@1b {
+					compatible = "qt1070";
+					reg = <0x1b>;
+					interrupt-parent = <&pioA>;
+					interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_qt1070_irq>;
+				};
 			};
 
 			i2c1: i2c@f8014000 {
@@ -64,6 +73,13 @@
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
 							<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PA7 gpio CD pin pull up and deglitch */
+					};
+				};
+
+				qt1070 {
+					pinctrl_qt1070_irq: qt1070_irq {
+						atmel,pins =
+							<AT91_PIOA 2 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 				};
 			};
@@ -121,7 +137,7 @@
 
 		enter {
 			label = "Enter";
-			gpios = <&pioB 4 GPIO_ACTIVE_LOW>;
+			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};

@@ -43,8 +43,8 @@ static int tfp410_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dst->output = dssdev;
-	dssdev->device = dst;
+	dst->src = dssdev;
+	dssdev->dst = dst;
 
 	return 0;
 }
@@ -59,12 +59,12 @@ static void tfp410_disconnect(struct omap_dss_device *dssdev,
 	if (!omapdss_device_is_connected(dssdev))
 		return;
 
-	WARN_ON(dst != dssdev->device);
-	if (dst != dssdev->device)
+	WARN_ON(dst != dssdev->dst);
+	if (dst != dssdev->dst)
 		return;
 
-	dst->output = NULL;
-	dssdev->device = NULL;
+	dst->src = NULL;
+	dssdev->dst = NULL;
 
 	in->ops.dpi->disconnect(in, &ddata->dssdev);
 }
@@ -244,7 +244,7 @@ static int __exit tfp410_remove(struct platform_device *pdev)
 
 	WARN_ON(omapdss_device_is_connected(dssdev));
 	if (omapdss_device_is_connected(dssdev))
-		tfp410_disconnect(dssdev, dssdev->device);
+		tfp410_disconnect(dssdev, dssdev->dst);
 
 	omap_dss_put_device(in);
 

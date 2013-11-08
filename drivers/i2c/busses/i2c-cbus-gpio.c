@@ -233,8 +233,9 @@ static int cbus_i2c_probe(struct platform_device *pdev)
 		chost->clk_gpio = of_get_gpio(dnode, 0);
 		chost->dat_gpio = of_get_gpio(dnode, 1);
 		chost->sel_gpio = of_get_gpio(dnode, 2);
-	} else if (pdev->dev.platform_data) {
-		struct i2c_cbus_platform_data *pdata = pdev->dev.platform_data;
+	} else if (dev_get_platdata(&pdev->dev)) {
+		struct i2c_cbus_platform_data *pdata =
+			dev_get_platdata(&pdev->dev);
 		chost->clk_gpio = pdata->clk_gpio;
 		chost->dat_gpio = pdata->dat_gpio;
 		chost->sel_gpio = pdata->sel_gpio;

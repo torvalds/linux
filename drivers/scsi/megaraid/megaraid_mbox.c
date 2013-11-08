@@ -549,7 +549,7 @@ out_probe_one:
 
 /**
  * megaraid_detach_one - release framework resources and call LLD release routine
- * @pdev	: handle for our PCI cofiguration space
+ * @pdev	: handle for our PCI configuration space
  *
  * This routine is called during driver unload. We free all the allocated
  * resources and call the corresponding LLD so that it can also release all
@@ -979,7 +979,7 @@ megaraid_fini_mbox(adapter_t *adapter)
  * @adapter		: soft state of the raid controller
  *
  * Allocate and align the shared mailbox. This maibox is used to issue
- * all the commands. For IO based controllers, the mailbox is also regsitered
+ * all the commands. For IO based controllers, the mailbox is also registered
  * with the FW. Allocate memory for all commands as well.
  * This is our big allocator.
  */
@@ -2027,7 +2027,7 @@ megaraid_mbox_prepare_pthru(adapter_t *adapter, scb_t *scb,
  * @scb		: scsi control block
  * @scp		: scsi command from the mid-layer
  *
- * Prepare a command for the scsi physical devices. This rountine prepares
+ * Prepare a command for the scsi physical devices. This routine prepares
  * commands for devices which can take extended CDBs (>10 bytes).
  */
 static void
@@ -2586,7 +2586,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 }
 
 /**
- * megaraid_reset_handler - device reset hadler for mailbox based driver
+ * megaraid_reset_handler - device reset handler for mailbox based driver
  * @scp		: reference command
  *
  * Reset handler for the mailbox based controller. First try to find out if
@@ -3446,7 +3446,7 @@ megaraid_mbox_display_scb(adapter_t *adapter, scb_t *scb)
  * megaraid_mbox_setup_device_map - manage device ids
  * @adapter	: Driver's soft state
  *
- * Manange the device ids to have an appropriate mapping between the kernel
+ * Manage the device ids to have an appropriate mapping between the kernel
  * scsi addresses and megaraid scsi and logical drive addresses. We export
  * scsi devices on their actual addresses, whereas the logical drives are
  * exported on a virtual scsi channel.

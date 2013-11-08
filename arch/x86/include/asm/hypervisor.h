@@ -33,7 +33,7 @@ struct hypervisor_x86 {
 	const char	*name;
 
 	/* Detection routine */
-	bool		(*detect)(void);
+	uint32_t	(*detect)(void);
 
 	/* Adjust CPU feature bits (run once per CPU) */
 	void		(*set_cpu_features)(struct cpuinfo_x86 *);

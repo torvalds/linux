@@ -27,6 +27,8 @@
 #include <core/subdev.h>
 #include <core/printk.h>
 
+int nv_printk_suspend_level = NV_DBG_DEBUG;
+
 void
 nv_printk_(struct nouveau_object *object, const char *pfx, int level,
 	   const char *fmt, ...)
@@ -71,4 +73,21 @@ nv_printk_(struct nouveau_object *object, const char *pfx, int level,
 	va_start(args, fmt);
 	vprintk(mfmt, args);
 	va_end(args);
+}
+
+#define CONV_LEVEL(x) case NV_DBG_##x: return NV_PRINTK_##x
+
+const char *nv_printk_level_to_pfx(int level)
+{
+	switch (level) {
+	CONV_LEVEL(FATAL);
+	CONV_LEVEL(ERROR);
+	CONV_LEVEL(WARN);
+	CONV_LEVEL(INFO);
+	CONV_LEVEL(DEBUG);
+	CONV_LEVEL(PARANOIA);
+	CONV_LEVEL(TRACE);
+	CONV_LEVEL(SPAM);
+	}
+	return NV_PRINTK_DEBUG;
 }

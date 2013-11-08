@@ -93,7 +93,7 @@ static void __init vmware_platform_setup(void)
  * serial key should be enough, as this will always have a VMware
  * specific string when running under VMware hypervisor.
  */
-static bool __init vmware_platform(void)
+static uint32_t __init vmware_platform(void)
 {
 	if (cpu_has_hypervisor) {
 		unsigned int eax;
@@ -102,12 +102,12 @@ static bool __init vmware_platform(void)
 		cpuid(CPUID_VMWARE_INFO_LEAF, &eax, &hyper_vendor_id[0],
 		      &hyper_vendor_id[1], &hyper_vendor_id[2]);
 		if (!memcmp(hyper_vendor_id, "VMwareVMware", 12))
-			return true;
+			return CPUID_VMWARE_INFO_LEAF;
 	} else if (dmi_available && dmi_name_in_serial("VMware") &&
 		   __vmware_platform())
-		return true;
+		return 1;
 
-	return false;
+	return 0;
 }
 
 /*

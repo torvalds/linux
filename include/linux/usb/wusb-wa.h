@@ -66,6 +66,7 @@ enum {
 	WA_ENABLE = 0x01,
 	WA_RESET = 0x02,
 	RPIPE_PAUSE = 0x1,
+	RPIPE_STALL = 0x2,
 };
 
 /* Responses from Get Status request ([WUSB] section 8.3.1.6) */

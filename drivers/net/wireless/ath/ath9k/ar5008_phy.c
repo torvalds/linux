@@ -1160,8 +1160,6 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 		 */
 		WARN_ON(1);
 		break;
-	case ATH9K_ANI_PRESENT:
-		break;
 	default:
 		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
 		return false;

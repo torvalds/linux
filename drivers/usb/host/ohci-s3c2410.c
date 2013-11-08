@@ -38,12 +38,12 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc);
 
 static struct s3c2410_hcd_info *to_s3c2410_info(struct usb_hcd *hcd)
 {
-	return hcd->self.controller->platform_data;
+	return dev_get_platdata(hcd->self.controller);
 }
 
 static void s3c2410_start_hc(struct platform_device *dev, struct usb_hcd *hcd)
 {
-	struct s3c2410_hcd_info *info = dev->dev.platform_data;
+	struct s3c2410_hcd_info *info = dev_get_platdata(&dev->dev);
 
 	dev_dbg(&dev->dev, "s3c2410_start_hc:\n");
 
@@ -63,7 +63,7 @@ static void s3c2410_start_hc(struct platform_device *dev, struct usb_hcd *hcd)
 
 static void s3c2410_stop_hc(struct platform_device *dev)
 {
-	struct s3c2410_hcd_info *info = dev->dev.platform_data;
+	struct s3c2410_hcd_info *info = dev_get_platdata(&dev->dev);
 
 	dev_dbg(&dev->dev, "s3c2410_stop_hc:\n");
 
@@ -339,10 +339,11 @@ static int usb_hcd_s3c2410_probe(const struct hc_driver *driver,
 				  struct platform_device *dev)
 {
 	struct usb_hcd *hcd = NULL;
+	struct s3c2410_hcd_info *info = dev_get_platdata(&dev->dev);
 	int retval;
 
-	s3c2410_usb_set_power(dev->dev.platform_data, 1, 1);
-	s3c2410_usb_set_power(dev->dev.platform_data, 2, 1);
+	s3c2410_usb_set_power(info, 1, 1);
+	s3c2410_usb_set_power(info, 2, 1);
 
 	hcd = usb_create_hcd(driver, &dev->dev, "s3c24xx");
 	if (hcd == NULL)

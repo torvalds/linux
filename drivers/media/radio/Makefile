@@ -32,6 +32,7 @@ obj-$(CONFIG_RADIO_TEF6862) += tef6862.o
 obj-$(CONFIG_RADIO_TIMBERDALE) += radio-timb.o
 obj-$(CONFIG_RADIO_WL1273) += radio-wl1273.o
 obj-$(CONFIG_RADIO_WL128X) += wl128x/
+obj-$(CONFIG_RADIO_TEA575X) += tea575x.o
 
 shark2-objs := radio-shark2.o radio-tea5777.o
 

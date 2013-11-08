@@ -29,34 +29,21 @@
 
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
 
-static struct panel_acx565akm_data lcd_data = {
-	.reset_gpio	= RX51_LCD_RESET_GPIO,
+static struct connector_atv_platform_data rx51_tv_pdata = {
+	.name = "tv",
+	.source = "venc.0",
+	.connector_type = OMAP_DSS_VENC_TYPE_COMPOSITE,
+	.invert_polarity = false,
 };
 
-static struct omap_dss_device rx51_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "panel-acx565akm",
-	.type			= OMAP_DISPLAY_TYPE_SDI,
-	.phy.sdi.datapairs	= 2,
-	.data			= &lcd_data,
-};
-
-static struct omap_dss_device  rx51_tv_device = {
-	.name			= "tv",
-	.type			= OMAP_DISPLAY_TYPE_VENC,
-	.driver_name		= "venc",
-	.phy.venc.type	        = OMAP_DSS_VENC_TYPE_COMPOSITE,
-};
-
-static struct omap_dss_device *rx51_dss_devices[] = {
-	&rx51_lcd_device,
-	&rx51_tv_device,
+static struct platform_device rx51_tv_connector_device = {
+	.name                   = "connector-analog-tv",
+	.id                     = 0,
+	.dev.platform_data      = &rx51_tv_pdata,
 };
 
 static struct omap_dss_board_info rx51_dss_board_info = {
-	.num_devices	= ARRAY_SIZE(rx51_dss_devices),
-	.devices	= rx51_dss_devices,
-	.default_device	= &rx51_lcd_device,
+	.default_display_name = "lcd",
 };
 
 static int __init rx51_video_init(void)
@@ -70,6 +57,8 @@ static int __init rx51_video_init(void)
 	}
 
 	omap_display_init(&rx51_dss_board_info);
+
+	platform_device_register(&rx51_tv_connector_device);
 
 	return 0;
 }

@@ -1107,6 +1107,23 @@ struct pnfs_ds_commit_info {
 	struct pnfs_commit_bucket *buckets;
 };
 
+#define NFS4_OP_MAP_NUM_LONGS \
+	DIV_ROUND_UP(LAST_NFS4_OP, 8 * sizeof(unsigned long))
+#define NFS4_OP_MAP_NUM_WORDS \
+	(NFS4_OP_MAP_NUM_LONGS * sizeof(unsigned long) / sizeof(u32))
+struct nfs4_op_map {
+	union {
+		unsigned long longs[NFS4_OP_MAP_NUM_LONGS];
+		u32 words[NFS4_OP_MAP_NUM_WORDS];
+	} u;
+};
+
+struct nfs41_state_protection {
+	u32 how;
+	struct nfs4_op_map enforce;
+	struct nfs4_op_map allow;
+};
+
 #define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
@@ -1114,6 +1131,7 @@ struct nfs41_exchange_id_args {
 	unsigned int 			id_len;
 	char 				id[NFS4_EXCHANGE_ID_LEN];
 	u32				flags;
+	struct nfs41_state_protection	state_protect;
 };
 
 struct nfs41_server_owner {
@@ -1146,6 +1164,7 @@ struct nfs41_exchange_id_res {
 	struct nfs41_server_owner	*server_owner;
 	struct nfs41_server_scope	*server_scope;
 	struct nfs41_impl_id		*impl_id;
+	struct nfs41_state_protection	state_protect;
 };
 
 struct nfs41_create_session_args {
@@ -1419,12 +1438,12 @@ struct nfs_rpc_ops {
 	void	(*read_setup)   (struct nfs_read_data *, struct rpc_message *);
 	void	(*read_pageio_init)(struct nfs_pageio_descriptor *, struct inode *,
 				    const struct nfs_pgio_completion_ops *);
-	void	(*read_rpc_prepare)(struct rpc_task *, struct nfs_read_data *);
+	int	(*read_rpc_prepare)(struct rpc_task *, struct nfs_read_data *);
 	int	(*read_done)  (struct rpc_task *, struct nfs_read_data *);
 	void	(*write_setup)  (struct nfs_write_data *, struct rpc_message *);
 	void	(*write_pageio_init)(struct nfs_pageio_descriptor *, struct inode *, int,
 				     const struct nfs_pgio_completion_ops *);
-	void	(*write_rpc_prepare)(struct rpc_task *, struct nfs_write_data *);
+	int	(*write_rpc_prepare)(struct rpc_task *, struct nfs_write_data *);
 	int	(*write_done)  (struct rpc_task *, struct nfs_write_data *);
 	void	(*commit_setup) (struct nfs_commit_data *, struct rpc_message *);
 	void	(*commit_rpc_prepare)(struct rpc_task *, struct nfs_commit_data *);
@@ -1436,13 +1455,14 @@ struct nfs_rpc_ops {
 	struct inode * (*open_context) (struct inode *dir,
 				struct nfs_open_context *ctx,
 				int open_flags,
-				struct iattr *iattr);
+				struct iattr *iattr,
+				int *);
 	int (*have_delegation)(struct inode *, fmode_t);
 	int (*return_delegation)(struct inode *);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
 	struct nfs_client *
 		(*init_client) (struct nfs_client *, const struct rpc_timeout *,
-				const char *, rpc_authflavor_t);
+				const char *);
 	void	(*free_client) (struct nfs_client *);
 	struct nfs_server *(*create_server)(struct nfs_mount_info *, struct nfs_subversion *);
 	struct nfs_server *(*clone_server)(struct nfs_server *, struct nfs_fh *,

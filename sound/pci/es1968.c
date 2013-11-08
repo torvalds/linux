@@ -113,7 +113,7 @@
 #include <sound/initval.h>
 
 #ifdef CONFIG_SND_ES1968_RADIO
-#include <sound/tea575x-tuner.h>
+#include <media/tea575x.h>
 #endif
 
 #define CARD_NAME "ESS Maestro1/2"

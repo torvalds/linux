@@ -6,13 +6,13 @@ struct iscsit_transport {
 #define ISCSIT_TRANSPORT_NAME	16
 	char name[ISCSIT_TRANSPORT_NAME];
 	int transport_type;
+	int priv_size;
 	struct module *owner;
 	struct list_head t_node;
 	int (*iscsit_setup_np)(struct iscsi_np *, struct __kernel_sockaddr_storage *);
 	int (*iscsit_accept_np)(struct iscsi_np *, struct iscsi_conn *);
 	void (*iscsit_free_np)(struct iscsi_np *);
 	void (*iscsit_free_conn)(struct iscsi_conn *);
-	struct iscsi_cmd *(*iscsit_alloc_cmd)(struct iscsi_conn *, gfp_t);
 	int (*iscsit_get_login_rx)(struct iscsi_conn *, struct iscsi_login *);
 	int (*iscsit_put_login_tx)(struct iscsi_conn *, struct iscsi_login *, u32);
 	int (*iscsit_immediate_queue)(struct iscsi_conn *, struct iscsi_cmd *, int);
@@ -21,6 +21,11 @@ struct iscsit_transport {
 	int (*iscsit_queue_data_in)(struct iscsi_conn *, struct iscsi_cmd *);
 	int (*iscsit_queue_status)(struct iscsi_conn *, struct iscsi_cmd *);
 };
+
+static inline void *iscsit_priv_cmd(struct iscsi_cmd *cmd)
+{
+	return (void *)(cmd + 1);
+}
 
 /*
  * From iscsi_target_transport.c
@@ -92,3 +97,4 @@ extern int iscsit_tmr_post_handler(struct iscsi_cmd *, struct iscsi_conn *);
 extern struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *, gfp_t);
 extern int iscsit_sequence_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 			       unsigned char *, __be32);
+extern void iscsit_release_cmd(struct iscsi_cmd *);

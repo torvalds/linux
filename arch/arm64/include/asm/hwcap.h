@@ -43,6 +43,6 @@
 				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
 				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV)
 
-extern unsigned int elf_hwcap;
+extern unsigned long elf_hwcap;
 #endif
 #endif

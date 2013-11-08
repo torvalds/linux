@@ -169,7 +169,7 @@ static int mcp320x_probe(struct spi_device *spi)
 	const struct mcp3208_chip_info *chip_info;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*adc));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -193,15 +193,13 @@ static int mcp320x_probe(struct spi_device *spi)
 	spi_message_init_with_transfers(&adc->msg, adc->transfer,
 					ARRAY_SIZE(adc->transfer));
 
-	adc->reg = regulator_get(&spi->dev, "vref");
-	if (IS_ERR(adc->reg)) {
-		ret = PTR_ERR(adc->reg);
-		goto iio_free;
-	}
+	adc->reg = devm_regulator_get(&spi->dev, "vref");
+	if (IS_ERR(adc->reg))
+		return PTR_ERR(adc->reg);
 
 	ret = regulator_enable(adc->reg);
 	if (ret < 0)
-		goto reg_free;
+		return ret;
 
 	mutex_init(&adc->lock);
 
@@ -213,10 +211,6 @@ static int mcp320x_probe(struct spi_device *spi)
 
 reg_disable:
 	regulator_disable(adc->reg);
-reg_free:
-	regulator_put(adc->reg);
-iio_free:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -228,8 +222,6 @@ static int mcp320x_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(adc->reg);
-	regulator_put(adc->reg);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

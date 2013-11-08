@@ -67,6 +67,7 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -361,31 +362,27 @@ static int skel_dio_insn_bits(struct comedi_device *dev,
 
 static int skel_dio_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	int ret;
 
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << chan;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << chan);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	/* outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG); */
+	/*
+	 * The input or output configuration of each digital line is
+	 * configured by special insn_config instructions.
+	 *
+	 * chanspec contains the channel to be changed
+	 * data[0] contains the instruction to perform on the channel
+	 *
+	 * Normally the core provided comedi_dio_insn_config() function
+	 * can be used to handle the boilerplpate.
+	 */
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	/* Update the hardware to the new configuration */
+	/* outw(s->io_bits, dev->iobase + SKEL_DIO_CONFIG); */
 
 	return insn->n;
 }
@@ -484,10 +481,9 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* dev->board_name = thisboard->name; */
 
 	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 /*
  * Supported boards are usually either auto-attached via the
@@ -558,10 +554,9 @@ static int skel_auto_attach(struct comedi_device *dev,
 	dev->board_name = thisboard->name;
 
 	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* Enable the PCI device. */
 	ret = comedi_pci_enable(dev);

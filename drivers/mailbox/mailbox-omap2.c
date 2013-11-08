@@ -325,7 +325,6 @@ static int omap2_mbox_remove(struct platform_device *pdev)
 	kfree(privblk);
 	kfree(mboxblk);
 	kfree(list);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

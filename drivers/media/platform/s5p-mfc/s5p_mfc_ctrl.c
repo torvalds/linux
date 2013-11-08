@@ -164,7 +164,7 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 
 	mfc_debug_enter();
 
-	if (IS_MFCV6(dev)) {
+	if (IS_MFCV6_PLUS(dev)) {
 		/* Reset IP */
 		/*  except RISC, reset */
 		mfc_write(dev, 0xFEE, S5P_FIMV_MFC_RESET_V6);
@@ -213,7 +213,7 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 
 static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 {
-	if (IS_MFCV6(dev)) {
+	if (IS_MFCV6_PLUS(dev)) {
 		mfc_write(dev, dev->bank1, S5P_FIMV_RISC_BASE_ADDRESS_V6);
 		mfc_debug(2, "Base Address : %08x\n", dev->bank1);
 	} else {
@@ -226,7 +226,7 @@ static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 
 static inline void s5p_mfc_clear_cmds(struct s5p_mfc_dev *dev)
 {
-	if (IS_MFCV6(dev)) {
+	if (IS_MFCV6_PLUS(dev)) {
 		/* Zero initialization should be done before RESET.
 		 * Nothing to do here. */
 	} else {
@@ -264,7 +264,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	s5p_mfc_clear_cmds(dev);
 	/* 3. Release reset signal to the RISC */
 	s5p_mfc_clean_dev_int_flags(dev);
-	if (IS_MFCV6(dev))
+	if (IS_MFCV6_PLUS(dev))
 		mfc_write(dev, 0x1, S5P_FIMV_RISC_ON_V6);
 	else
 		mfc_write(dev, 0x3ff, S5P_FIMV_SW_RESET);
@@ -301,7 +301,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 		s5p_mfc_clock_off();
 		return -EIO;
 	}
-	if (IS_MFCV6(dev))
+	if (IS_MFCV6_PLUS(dev))
 		ver = mfc_read(dev, S5P_FIMV_FW_VERSION_V6);
 	else
 		ver = mfc_read(dev, S5P_FIMV_FW_VERSION);
@@ -380,7 +380,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 		return ret;
 	}
 	/* 4. Release reset signal to the RISC */
-	if (IS_MFCV6(dev))
+	if (IS_MFCV6_PLUS(dev))
 		mfc_write(dev, 0x1, S5P_FIMV_RISC_ON_V6);
 	else
 		mfc_write(dev, 0x3ff, S5P_FIMV_SW_RESET);

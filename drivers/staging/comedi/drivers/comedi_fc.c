@@ -19,6 +19,7 @@
     GNU General Public License for more details.
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include "comedi_fc.h"

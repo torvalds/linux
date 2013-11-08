@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>

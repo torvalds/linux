@@ -658,16 +658,11 @@ static int p9_client_flush(struct p9_client *c, struct p9_req_t *oldreq)
 
 	/*
 	 * if we haven't received a response for oldreq,
-	 * remove it from the list, and notify the transport
-	 * layer that the reply will never arrive.
+	 * remove it from the list
 	 */
-	spin_lock(&c->lock);
 	if (oldreq->status == REQ_STATUS_FLSH) {
+		spin_lock(&c->lock);
 		list_del(&oldreq->req_list);
-		spin_unlock(&c->lock);
-		if (c->trans_mod->cancelled)
-			c->trans_mod->cancelled(c, req);
-	} else {
 		spin_unlock(&c->lock);
 	}
 
@@ -992,6 +987,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 {
 	int err;
 	struct p9_client *clnt;
+	char *client_id;
 
 	err = 0;
 	clnt = kmalloc(sizeof(struct p9_client), GFP_KERNEL);
@@ -1000,6 +996,10 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 
 	clnt->trans_mod = NULL;
 	clnt->trans = NULL;
+
+	client_id = utsname()->nodename;
+	memcpy(clnt->name, client_id, strlen(client_id) + 1);
+
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
 

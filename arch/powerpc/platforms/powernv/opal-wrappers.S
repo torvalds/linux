@@ -111,3 +111,8 @@ OPAL_CALL(opal_pci_next_error,			OPAL_PCI_NEXT_ERROR);
 OPAL_CALL(opal_pci_poll,			OPAL_PCI_POLL);
 OPAL_CALL(opal_pci_msi_eoi,			OPAL_PCI_MSI_EOI);
 OPAL_CALL(opal_pci_get_phb_diag_data2,		OPAL_PCI_GET_PHB_DIAG_DATA2);
+OPAL_CALL(opal_xscom_read,			OPAL_XSCOM_READ);
+OPAL_CALL(opal_xscom_write,			OPAL_XSCOM_WRITE);
+OPAL_CALL(opal_lpc_read,			OPAL_LPC_READ);
+OPAL_CALL(opal_lpc_write,			OPAL_LPC_WRITE);
+OPAL_CALL(opal_return_cpu,			OPAL_RETURN_CPU);

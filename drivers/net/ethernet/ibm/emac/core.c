@@ -2312,7 +2312,7 @@ static int emac_check_deps(struct emac_instance *dev,
 		if (deps[i].ofdev == NULL)
 			continue;
 		if (deps[i].drvdata == NULL)
-			deps[i].drvdata = dev_get_drvdata(&deps[i].ofdev->dev);
+			deps[i].drvdata = platform_get_drvdata(deps[i].ofdev);
 		if (deps[i].drvdata != NULL)
 			there++;
 	}
@@ -2799,9 +2799,9 @@ static int emac_probe(struct platform_device *ofdev)
 		/*  display more info about what's missing ? */
 		goto err_reg_unmap;
 	}
-	dev->mal = dev_get_drvdata(&dev->mal_dev->dev);
+	dev->mal = platform_get_drvdata(dev->mal_dev);
 	if (dev->mdio_dev != NULL)
-		dev->mdio_instance = dev_get_drvdata(&dev->mdio_dev->dev);
+		dev->mdio_instance = platform_get_drvdata(dev->mdio_dev);
 
 	/* Register with MAL */
 	dev->commac.ops = &emac_commac_ops;
@@ -2892,7 +2892,7 @@ static int emac_probe(struct platform_device *ofdev)
 	 * fully initialized
 	 */
 	wmb();
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	/* There's a new kid in town ! Let's tell everybody */
 	wake_up_all(&emac_probe_wait);
@@ -2951,11 +2951,9 @@ static int emac_probe(struct platform_device *ofdev)
 
 static int emac_remove(struct platform_device *ofdev)
 {
-	struct emac_instance *dev = dev_get_drvdata(&ofdev->dev);
+	struct emac_instance *dev = platform_get_drvdata(ofdev);
 
 	DBG(dev, "remove" NL);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
 
 	unregister_netdev(dev->ndev);
 

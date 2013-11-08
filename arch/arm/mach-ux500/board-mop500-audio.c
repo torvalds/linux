@@ -17,7 +17,6 @@
 #include "ste-dma40-db8500.h"
 #include "board-mop500.h"
 #include "devices-db8500.h"
-#include "pins-db8500.h"
 
 static struct stedma40_chan_cfg msp0_dma_rx = {
 	.high_priority = true,

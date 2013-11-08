@@ -532,6 +532,7 @@
 #define  RX_MODE_RSS_ITBL_HASH_BITS_7	 0x00700000
 #define  RX_MODE_RSS_ENABLE		 0x00800000
 #define  RX_MODE_IPV6_CSUM_ENABLE	 0x01000000
+#define  RX_MODE_IPV4_FRAG_FIX		 0x02000000
 #define MAC_RX_STATUS			0x0000046c
 #define  RX_STATUS_REMOTE_TX_XOFFED	 0x00000001
 #define  RX_STATUS_XOFF_RCVD		 0x00000002
@@ -1818,12 +1819,21 @@
 #define TG3_EAV_REF_CLCK_CTL		0x00006908
 #define  TG3_EAV_REF_CLCK_CTL_STOP	 0x00000002
 #define  TG3_EAV_REF_CLCK_CTL_RESUME	 0x00000004
+#define  TG3_EAV_CTL_TSYNC_GPIO_MASK	 (0x3 << 16)
+#define  TG3_EAV_CTL_TSYNC_WDOG0	 (1 << 17)
+
+#define TG3_EAV_WATCHDOG0_LSB		0x00006918
+#define TG3_EAV_WATCHDOG0_MSB		0x0000691c
+#define  TG3_EAV_WATCHDOG0_EN		 (1 << 31)
+#define  TG3_EAV_WATCHDOG_MSB_MASK	0x7fffffff
+
 #define TG3_EAV_REF_CLK_CORRECT_CTL	0x00006928
 #define  TG3_EAV_REF_CLK_CORRECT_EN	 (1 << 31)
 #define  TG3_EAV_REF_CLK_CORRECT_NEG	 (1 << 30)
 
 #define TG3_EAV_REF_CLK_CORRECT_MASK	0xffffff
-/* 0x690c --> 0x7000 unused */
+
+/* 0x692c --> 0x7000 unused */
 
 /* NVRAM Control registers */
 #define NVRAM_CMD			0x00007000
@@ -3224,7 +3234,6 @@ struct tg3 {
 	u8				pci_lat_timer;
 
 	int				pci_fn;
-	int				pm_cap;
 	int				msi_cap;
 	int				pcix_cap;
 	int				pcie_readrq;

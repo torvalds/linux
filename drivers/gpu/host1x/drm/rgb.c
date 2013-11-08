@@ -147,6 +147,13 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 	if (!rgb)
 		return -ENOMEM;
 
+	rgb->output.dev = dc->dev;
+	rgb->output.of_node = np;
+
+	err = tegra_output_parse_dt(&rgb->output);
+	if (err < 0)
+		return err;
+
 	rgb->clk = devm_clk_get(dc->dev, NULL);
 	if (IS_ERR(rgb->clk)) {
 		dev_err(dc->dev, "failed to get clock\n");
@@ -164,13 +171,6 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
 		return err;
 	}
-
-	rgb->output.dev = dc->dev;
-	rgb->output.of_node = np;
-
-	err = tegra_output_parse_dt(&rgb->output);
-	if (err < 0)
-		return err;
 
 	dc->rgb = &rgb->output;
 

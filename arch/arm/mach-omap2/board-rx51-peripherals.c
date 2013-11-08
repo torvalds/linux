@@ -45,6 +45,8 @@
 #include <linux/platform_data/tsl2563.h>
 #include <linux/lis3lv02d.h>
 
+#include <video/omap-panel-data.h>
+
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
 #include <media/ir-rx51.h>
 #endif
@@ -165,38 +167,47 @@ static struct lp55xx_led_config rx51_lp5523_led_config[] = {
 		.name		= "lp5523:kb1",
 		.chan_nr	= 0,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb2",
 		.chan_nr	= 1,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb3",
 		.chan_nr	= 2,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb4",
 		.chan_nr	= 3,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:b",
 		.chan_nr	= 4,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:g",
 		.chan_nr	= 5,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:r",
 		.chan_nr	= 6,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb5",
 		.chan_nr	= 7,
 		.led_current	= 50,
+		.max_current	= 100,
 	}, {
 		.name		= "lp5523:kb6",
 		.chan_nr	= 8,
 		.led_current	= 50,
+		.max_current	= 100,
 	}
 };
 
@@ -226,6 +237,15 @@ static struct lp55xx_platform_data rx51_lp5523_platform_data = {
 };
 #endif
 
+#define RX51_LCD_RESET_GPIO	90
+
+static struct panel_acx565akm_platform_data acx_pdata = {
+	.name		= "lcd",
+	.source		= "sdi.0",
+	.reset_gpio	= RX51_LCD_RESET_GPIO,
+	.datapairs	= 2,
+};
+
 static struct omap2_mcspi_device_config wl1251_mcspi_config = {
 	.turbo_mode	= 0,
 };
@@ -254,6 +274,7 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.chip_select		= 2,
 		.max_speed_hz		= 6000000,
 		.controller_data	= &mipid_mcspi_config,
+		.platform_data		= &acx_pdata,
 	},
 	[RX51_SPI_TSC2005] = {
 		.modalias		= "tsc2005",

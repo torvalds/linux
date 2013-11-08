@@ -193,17 +193,6 @@ static struct acpi_driver irst_driver = {
 	},
 };
 
-static int irst_init(void)
-{
-	return acpi_bus_register_driver(&irst_driver);
-}
-
-static void irst_exit(void)
-{
-	acpi_bus_unregister_driver(&irst_driver);
-}
-
-module_init(irst_init);
-module_exit(irst_exit);
+module_acpi_driver(irst_driver);
 
 MODULE_DEVICE_TABLE(acpi, irst_ids);

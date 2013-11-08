@@ -39,18 +39,7 @@
 
 #include "mlx4.h"
 
-#define MGM_QPN_MASK       0x00FFFFFF
-#define MGM_BLCK_LB_BIT    30
-
 static const u8 zero_gid[16];	/* automatically initialized to 0 */
-
-struct mlx4_mgm {
-	__be32			next_gid_index;
-	__be32			members_count;
-	u32			reserved[2];
-	u8			gid[16];
-	__be32			qp[MLX4_MAX_QP_PER_MGM];
-};
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev)
 {

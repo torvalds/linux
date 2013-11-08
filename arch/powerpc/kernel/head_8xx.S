@@ -691,10 +691,6 @@ modified_instr:
 	b	151b
 #endif
 
-	.globl	giveup_fpu
-giveup_fpu:
-	blr
-
 /*
  * This is where the main kernel code starts.
  */

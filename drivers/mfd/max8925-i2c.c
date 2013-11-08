@@ -151,7 +151,7 @@ static int max8925_dt_init(struct device_node *np, struct device *dev,
 static int max8925_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	struct max8925_platform_data *pdata = client->dev.platform_data;
+	struct max8925_platform_data *pdata = dev_get_platdata(&client->dev);
 	static struct max8925_chip *chip;
 	struct device_node *node = client->dev.of_node;
 

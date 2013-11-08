@@ -8,6 +8,7 @@
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
  * Added OMAP4/5 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
+ * Added DRA7xxx specific defines - Sricharan R<r.sricharan@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +36,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
+#include <linux/of.h>
 
 /*
  * Test if multicore OMAP support is needed
@@ -102,6 +104,15 @@
 #  define MULTI_OMAP2
 # else
 #  define OMAP_NAME am43xx
+# endif
+#endif
+
+#ifdef CONFIG_SOC_DRA7XX
+# ifdef OMAP_NAME
+#  undef MULTI_OMAP2
+#  define MULTI_OMAP2
+# else
+#  define OMAP_NAME DRA7XX
 # endif
 #endif
 
@@ -233,6 +244,7 @@ IS_AM_SUBCLASS(437x, 0x437)
 #define cpu_is_omap447x()		0
 #define soc_is_omap54xx()		0
 #define soc_is_omap543x()		0
+#define soc_is_dra7xx()			0
 
 #if defined(MULTI_OMAP2)
 # if defined(CONFIG_ARCH_OMAP2)
@@ -377,6 +389,11 @@ IS_OMAP_TYPE(3430, 0x3430)
 # undef soc_is_omap543x
 # define soc_is_omap54xx()		is_omap54xx()
 # define soc_is_omap543x()		is_omap543x()
+#endif
+
+#if defined(CONFIG_SOC_DRA7XX)
+#undef soc_is_dra7xx
+#define soc_is_dra7xx()	(of_machine_is_compatible("ti,dra7"))
 #endif
 
 /* Various silicon revisions for omap2 */

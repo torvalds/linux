@@ -72,7 +72,19 @@ struct bcma_host_ops {
 /* Core-ID values. */
 #define BCMA_CORE_OOB_ROUTER		0x367	/* Out of band */
 #define BCMA_CORE_4706_CHIPCOMMON	0x500
+#define BCMA_CORE_PCIEG2		0x501
+#define BCMA_CORE_DMA			0x502
+#define BCMA_CORE_SDIO3			0x503
+#define BCMA_CORE_USB20			0x504
+#define BCMA_CORE_USB30			0x505
+#define BCMA_CORE_A9JTAG		0x506
+#define BCMA_CORE_DDR23			0x507
+#define BCMA_CORE_ROM			0x508
+#define BCMA_CORE_NAND			0x509
+#define BCMA_CORE_QSPI			0x50A
+#define BCMA_CORE_CHIPCOMMON_B		0x50B
 #define BCMA_CORE_4706_SOC_RAM		0x50E
+#define BCMA_CORE_ARMCA9		0x510
 #define BCMA_CORE_4706_MAC_GBIT		0x52D
 #define BCMA_CORE_AMEMC			0x52E	/* DDR1/2 memory controller core */
 #define BCMA_CORE_ALTA			0x534	/* I2S core */
@@ -177,6 +189,11 @@ struct bcma_host_ops {
 #define  BCMA_PKG_ID_BCM5357	11
 #define BCMA_CHIP_ID_BCM53572	53572
 #define  BCMA_PKG_ID_BCM47188	9
+#define BCMA_CHIP_ID_BCM4707	53010
+#define  BCMA_PKG_ID_BCM4707	1
+#define  BCMA_PKG_ID_BCM4708	2
+#define  BCMA_PKG_ID_BCM4709	0
+#define BCMA_CHIP_ID_BCM53018	53018
 
 /* Board types (on PCI usually equals to the subsystem dev id) */
 /* BCM4313 */

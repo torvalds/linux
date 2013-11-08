@@ -266,7 +266,6 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 
 		init_sync_kiocb(&kiocb, swap_file);
 		kiocb.ki_pos = page_file_offset(page);
-		kiocb.ki_left = PAGE_SIZE;
 		kiocb.ki_nbytes = PAGE_SIZE;
 
 		set_page_writeback(page);

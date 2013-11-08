@@ -56,8 +56,8 @@ MODULE_DEVICE_TABLE(usb, stub_table);
  * usbip_status shows the status of usbip-host as long as this driver is bound
  * to the target device.
  */
-static ssize_t show_status(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t usbip_status_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct stub_device *sdev = dev_get_drvdata(dev);
 	int status;
@@ -73,7 +73,7 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
-static DEVICE_ATTR(usbip_status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR_RO(usbip_status);
 
 /*
  * usbip_sockfd gets a socket descriptor of an established TCP connection that

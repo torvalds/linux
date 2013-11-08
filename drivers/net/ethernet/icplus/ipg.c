@@ -1004,7 +1004,7 @@ static struct net_device_stats *ipg_nic_get_stats(struct net_device *dev)
 	/* Check to see if the NIC has been initialized via nic_open,
 	 * before trying to read statistic registers.
 	 */
-	if (!test_bit(__LINK_STATE_START, &dev->state))
+	if (!netif_running(dev))
 		return &sp->stats;
 
 	sp->stats.rx_packets += ipg_r32(IPG_FRAMESRCVDOK);

@@ -154,7 +154,7 @@ static struct nand_ecclayout omap_oobinfo;
  */
 static uint8_t scan_ff_pattern[] = { 0xff };
 static struct nand_bbt_descr bb_descrip_flashbased = {
-	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
+	.options = NAND_BBT_SCANALLPAGES,
 	.offs = 0,
 	.len = 1,
 	.pattern = scan_ff_pattern,
@@ -1831,7 +1831,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	struct resource			*res;
 	struct mtd_part_parser_data	ppdata = {};
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "platform data missing\n");
 		return -ENODEV;
@@ -2087,7 +2087,6 @@ static int omap_nand_remove(struct platform_device *pdev)
 							mtd);
 	omap3_free_bch(&info->mtd);
 
-	platform_set_drvdata(pdev, NULL);
 	if (info->dma)
 		dma_release_channel(info->dma);
 

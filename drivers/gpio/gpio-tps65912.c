@@ -87,7 +87,7 @@ static struct gpio_chip template_chip = {
 static int tps65912_gpio_probe(struct platform_device *pdev)
 {
 	struct tps65912 *tps65912 = dev_get_drvdata(pdev->dev.parent);
-	struct tps65912_board *pdata = tps65912->dev->platform_data;
+	struct tps65912_board *pdata = dev_get_platdata(tps65912->dev);
 	struct tps65912_gpio_data *tps65912_gpio;
 	int ret;
 

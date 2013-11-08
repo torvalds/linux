@@ -885,8 +885,8 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 
 	ixgbe_ptp_reset(adapter);
 
-	/* set the flag that PTP has been enabled */
-	adapter->flags2 |= IXGBE_FLAG2_PTP_ENABLED;
+	/* enter the IXGBE_PTP_RUNNING state */
+	set_bit(__IXGBE_PTP_RUNNING, &adapter->state);
 
 	return;
 }
@@ -899,10 +899,12 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
  */
 void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
 {
-	/* stop the overflow check task */
-	adapter->flags2 &= ~(IXGBE_FLAG2_PTP_ENABLED |
-			     IXGBE_FLAG2_PTP_PPS_ENABLED);
+	/* Leave the IXGBE_PTP_RUNNING state. */
+	if (!test_and_clear_bit(__IXGBE_PTP_RUNNING, &adapter->state))
+		return;
 
+	/* stop the PPS signal */
+	adapter->flags2 &= ~IXGBE_FLAG2_PTP_PPS_ENABLED;
 	ixgbe_ptp_setup_sdp(adapter);
 
 	cancel_work_sync(&adapter->ptp_tx_work);

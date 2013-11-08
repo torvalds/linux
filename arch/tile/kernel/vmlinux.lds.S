@@ -5,7 +5,7 @@
 #include <hv/hypervisor.h>
 
 /* Text loads starting from the supervisor interrupt vector address. */
-#define TEXT_OFFSET MEM_SV_INTRPT
+#define TEXT_OFFSET MEM_SV_START
 
 OUTPUT_ARCH(tile)
 ENTRY(_start)
@@ -13,7 +13,7 @@ jiffies = jiffies_64;
 
 PHDRS
 {
-  intrpt1 PT_LOAD ;
+  intrpt PT_LOAD ;
   text PT_LOAD ;
   data PT_LOAD ;
 }
@@ -24,14 +24,17 @@ SECTIONS
   #define LOAD_OFFSET TEXT_OFFSET
 
   /* Interrupt vectors */
-  .intrpt1 (LOAD_OFFSET) : AT ( 0 )   /* put at the start of physical memory */
+  .intrpt (LOAD_OFFSET) : AT ( 0 )   /* put at the start of physical memory */
   {
     _text = .;
-    *(.intrpt1)
-  } :intrpt1 =0
+    *(.intrpt)
+  } :intrpt =0
 
   /* Hypervisor call vectors */
-  #include "hvglue.lds"
+  . = ALIGN(0x10000);
+  .hvglue : AT (ADDR(.hvglue) - LOAD_OFFSET) {
+    *(.hvglue)
+  } :NONE
 
   /* Now the real code */
   . = ALIGN(0x20000);
@@ -40,7 +43,11 @@ SECTIONS
     HEAD_TEXT
     SCHED_TEXT
     LOCK_TEXT
+    KPROBES_TEXT
+    IRQENTRY_TEXT
     __fix_text_end = .;   /* tile-cpack won't rearrange before this */
+    ALIGN_FUNCTION();
+    *(.hottext*)
     TEXT_TEXT
     *(.text.*)
     *(.coldtext*)
@@ -67,20 +74,8 @@ SECTIONS
   __init_end = .;
 
   _sdata = .;                   /* Start of data section */
-
   RO_DATA_SECTION(PAGE_SIZE)
-
-  /* initially writeable, then read-only */
-  . = ALIGN(PAGE_SIZE);
-  __w1data_begin = .;
-  .w1data : AT(ADDR(.w1data) - LOAD_OFFSET) {
-    VMLINUX_SYMBOL(__w1data_begin) = .;
-    *(.w1data)
-    VMLINUX_SYMBOL(__w1data_end) = .;
-  }
-
   RW_DATA_SECTION(L2_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
-
   _edata = .;
 
   EXCEPTION_TABLE(L2_CACHE_BYTES)

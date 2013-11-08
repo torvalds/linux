@@ -58,7 +58,7 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 
 static void tx4938ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	struct tx4938ide_platform_info *pdata = hwif->dev->platform_data;
+	struct tx4938ide_platform_info *pdata = dev_get_platdata(hwif->dev);
 	u8 safe = drive->pio_mode - XFER_PIO_0;
 	ide_drive_t *pair;
 
@@ -132,7 +132,7 @@ static int __init tx4938ide_probe(struct platform_device *pdev)
 	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
-	struct tx4938ide_platform_info *pdata = pdev->dev.platform_data;
+	struct tx4938ide_platform_info *pdata = dev_get_platdata(&pdev->dev);
 	int irq, ret, i;
 	unsigned long mapbase, mapctl;
 	struct ide_port_info d = tx4938ide_port_info;

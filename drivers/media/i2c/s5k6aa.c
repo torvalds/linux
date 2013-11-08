@@ -1003,7 +1003,7 @@ static int s5k6aa_enum_frame_interval(struct v4l2_subdev *sd,
 	const struct s5k6aa_interval *fi;
 	int ret = 0;
 
-	if (fie->index > ARRAY_SIZE(s5k6aa_intervals))
+	if (fie->index >= ARRAY_SIZE(s5k6aa_intervals))
 		return -EINVAL;
 
 	v4l_bound_align_image(&fie->width, S5K6AA_WIN_WIDTH_MIN,

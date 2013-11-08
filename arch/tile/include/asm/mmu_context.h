@@ -45,7 +45,7 @@ static inline void __install_page_table(pgd_t *pgdir, int asid, pgprot_t prot)
 
 static inline void install_page_table(pgd_t *pgdir, int asid)
 {
-	pte_t *ptep = virt_to_pte(NULL, (unsigned long)pgdir);
+	pte_t *ptep = virt_to_kpte((unsigned long)pgdir);
 	__install_page_table(pgdir, asid, *ptep);
 }
 

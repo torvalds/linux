@@ -118,7 +118,8 @@ anx9805_aux_chan_ctor(struct nouveau_object *parent,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &nouveau_i2c_aux_algo, &chan);
+				      &nouveau_i2c_aux_algo, &anx9805_aux_func,
+				      &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -140,8 +141,6 @@ anx9805_aux_chan_ctor(struct nouveau_object *parent,
 		struct i2c_algo_bit_data *algo = mast->adapter.algo_data;
 		algo->udelay = max(algo->udelay, 40);
 	}
-
-	chan->base.func = &anx9805_aux_func;
 	return 0;
 }
 
@@ -234,7 +233,8 @@ anx9805_ddc_port_ctor(struct nouveau_object *parent,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &anx9805_i2c_algo, &port);
+				      &anx9805_i2c_algo, &anx9805_i2c_func,
+				      &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -256,8 +256,6 @@ anx9805_ddc_port_ctor(struct nouveau_object *parent,
 		struct i2c_algo_bit_data *algo = mast->adapter.algo_data;
 		algo->udelay = max(algo->udelay, 40);
 	}
-
-	port->base.func = &anx9805_i2c_func;
 	return 0;
 }
 

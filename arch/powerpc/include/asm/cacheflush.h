@@ -32,13 +32,7 @@ extern void flush_dcache_page(struct page *page);
 
 extern void __flush_disable_L1(void);
 
-extern void __flush_icache_range(unsigned long, unsigned long);
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
-		__flush_icache_range(start, stop);
-}
-
+extern void flush_icache_range(unsigned long, unsigned long);
 extern void flush_icache_user_range(struct vm_area_struct *vma,
 				    struct page *page, unsigned long addr,
 				    int len);

@@ -1,6 +1,6 @@
 config CB710_CORE
 	tristate "ENE CB710/720 Flash memory card reader support"
-	depends on PCI && GENERIC_HARDIRQS
+	depends on PCI
 	help
 	  This option enables support for PCI ENE CB710/720 Flash memory card
 	  reader found in some laptops (ie. some versions of HP Compaq nx9500).

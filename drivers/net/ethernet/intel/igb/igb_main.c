@@ -62,7 +62,7 @@
 
 #define MAJ 5
 #define MIN 0
-#define BUILD 3
+#define BUILD 5
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
@@ -85,6 +85,8 @@ static DEFINE_PCI_DEVICE_TABLE(igb_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SERDES), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SGMII), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER_FLASHLESS), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SERDES_FLASHLESS), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SERDES), board_82575 },
@@ -1013,7 +1015,7 @@ static void igb_free_q_vector(struct igb_adapter *adapter, int v_idx)
 	adapter->q_vector[v_idx] = NULL;
 	netif_napi_del(&q_vector->napi);
 
-	/* ixgbe_get_stats64() might access the rings on this vector,
+	/* igb_get_stats64() might access the rings on this vector,
 	 * we must wait a grace period before freeing it.
 	 */
 	kfree_rcu(q_vector, rcu);
@@ -1669,6 +1671,8 @@ void igb_down(struct igb_adapter *adapter)
 
 	igb_irq_disable(adapter);
 
+	adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		napi_synchronize(&(adapter->q_vector[i]->napi));
 		napi_disable(&(adapter->q_vector[i]->napi));
@@ -1929,12 +1933,17 @@ void igb_set_fw_version(struct igb_adapter *adapter)
 	igb_get_fw_version(hw, &fw);
 
 	switch (hw->mac.type) {
+	case e1000_i210:
 	case e1000_i211:
-		snprintf(adapter->fw_version, sizeof(adapter->fw_version),
-			 "%2d.%2d-%d",
-			 fw.invm_major, fw.invm_minor, fw.invm_img_type);
-		break;
-
+		if (!(igb_get_flash_presence_i210(hw))) {
+			snprintf(adapter->fw_version,
+				 sizeof(adapter->fw_version),
+				 "%2d.%2d-%d",
+				 fw.invm_major, fw.invm_minor,
+				 fw.invm_img_type);
+			break;
+		}
+		/* fall through */
 	default:
 		/* if option is rom valid, display its version too */
 		if (fw.or_valid) {
@@ -1944,11 +1953,16 @@ void igb_set_fw_version(struct igb_adapter *adapter)
 				 fw.eep_major, fw.eep_minor, fw.etrack_id,
 				 fw.or_major, fw.or_build, fw.or_patch);
 		/* no option rom */
-		} else {
+		} else if (fw.etrack_id != 0X0000) {
 			snprintf(adapter->fw_version,
-				 sizeof(adapter->fw_version),
-				 "%d.%d, 0x%08x",
-				 fw.eep_major, fw.eep_minor, fw.etrack_id);
+			    sizeof(adapter->fw_version),
+			    "%d.%d, 0x%08x",
+			    fw.eep_major, fw.eep_minor, fw.etrack_id);
+		} else {
+		snprintf(adapter->fw_version,
+		    sizeof(adapter->fw_version),
+		    "%d.%d.%d",
+		    fw.eep_major, fw.eep_minor, fw.eep_build);
 		}
 		break;
 	}
@@ -2166,15 +2180,28 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	hw->mac.ops.reset_hw(hw);
 
-	/* make sure the NVM is good , i211 parts have special NVM that
-	 * doesn't contain a checksum
+	/* make sure the NVM is good , i211/i210 parts can have special NVM
+	 * that doesn't contain a checksum
 	 */
-	if (hw->mac.type != e1000_i211) {
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i211:
+		if (igb_get_flash_presence_i210(hw)) {
+			if (hw->nvm.ops.validate(hw) < 0) {
+				dev_err(&pdev->dev,
+					"The NVM Checksum Is Not Valid\n");
+				err = -EIO;
+				goto err_eeprom;
+			}
+		}
+		break;
+	default:
 		if (hw->nvm.ops.validate(hw) < 0) {
 			dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
 			err = -EIO;
 			goto err_eeprom;
 		}
+		break;
 	}
 
 	/* copy the MAC address out of the NVM */
@@ -2342,7 +2369,14 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			  "Width x1" : "unknown"), netdev->dev_addr);
 	}
 
-	ret_val = igb_read_part_string(hw, part_str, E1000_PBANUM_LENGTH);
+	if ((hw->mac.type >= e1000_i210 ||
+	     igb_get_flash_presence_i210(hw))) {
+		ret_val = igb_read_part_string(hw, part_str,
+					       E1000_PBANUM_LENGTH);
+	} else {
+		ret_val = -E1000_ERR_INVM_VALUE_NOT_FOUND;
+	}
+
 	if (ret_val)
 		strcpy(part_str, "Unknown");
 	dev_info(&pdev->dev, "%s: PBA No: %s\n", netdev->name, part_str);
@@ -2435,6 +2469,11 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	int old_vfs = pci_num_vf(pdev);
 	int err = 0;
 	int i;
+
+	if (!adapter->msix_entries) {
+		err = -EPERM;
+		goto out;
+	}
 
 	if (!num_vfs)
 		goto out;
@@ -3096,7 +3135,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 mrqc, rxcsum;
-	u32 j, num_rx_queues, shift = 0;
+	u32 j, num_rx_queues;
 	static const u32 rsskey[10] = { 0xDA565A6D, 0xC20E5B25, 0x3D256741,
 					0xB08FA343, 0xCB2BCAD0, 0xB4307BAE,
 					0xA32DCB77, 0x0CF23080, 0x3BB7426A,
@@ -3109,35 +3148,21 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	num_rx_queues = adapter->rss_queues;
 
 	switch (hw->mac.type) {
-	case e1000_82575:
-		shift = 6;
-		break;
 	case e1000_82576:
 		/* 82576 supports 2 RSS queues for SR-IOV */
-		if (adapter->vfs_allocated_count) {
-			shift = 3;
+		if (adapter->vfs_allocated_count)
 			num_rx_queues = 2;
-		}
 		break;
 	default:
 		break;
 	}
 
-	/* Populate the indirection table 4 entries at a time.  To do this
-	 * we are generating the results for n and n+2 and then interleaving
-	 * those with the results with n+1 and n+3.
-	 */
-	for (j = 0; j < 32; j++) {
-		/* first pass generates n and n+2 */
-		u32 base = ((j * 0x00040004) + 0x00020000) * num_rx_queues;
-		u32 reta = (base & 0x07800780) >> (7 - shift);
-
-		/* second pass generates n+1 and n+3 */
-		base += 0x00010001 * num_rx_queues;
-		reta |= (base & 0x07800780) << (1 + shift);
-
-		wr32(E1000_RETA(j), reta);
+	if (adapter->rss_indir_tbl_init != num_rx_queues) {
+		for (j = 0; j < IGB_RETA_SIZE; j++)
+			adapter->rss_indir_tbl[j] = (j * num_rx_queues) / IGB_RETA_SIZE;
+		adapter->rss_indir_tbl_init = num_rx_queues;
 	}
+	igb_write_rss_indir_tbl(adapter);
 
 	/* Disable raw packet checksumming so that RSS hash is placed in
 	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
@@ -3844,7 +3869,6 @@ bool igb_has_link(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
-	s32 ret_val = 0;
 
 	/* get_link_status is set on LSC (link status) interrupt or
 	 * rx sequence error interrupt.  get_link_status will stay
@@ -3853,20 +3877,26 @@ bool igb_has_link(struct igb_adapter *adapter)
 	 */
 	switch (hw->phy.media_type) {
 	case e1000_media_type_copper:
-		if (hw->mac.get_link_status) {
-			ret_val = hw->mac.ops.check_for_link(hw);
-			link_active = !hw->mac.get_link_status;
-		} else {
-			link_active = true;
-		}
-		break;
+		if (!hw->mac.get_link_status)
+			return true;
 	case e1000_media_type_internal_serdes:
-		ret_val = hw->mac.ops.check_for_link(hw);
-		link_active = hw->mac.serdes_has_link;
+		hw->mac.ops.check_for_link(hw);
+		link_active = !hw->mac.get_link_status;
 		break;
 	default:
 	case e1000_media_type_unknown:
 		break;
+	}
+
+	if (((hw->mac.type == e1000_i210) ||
+	     (hw->mac.type == e1000_i211)) &&
+	     (hw->phy.id == I210_I_PHY_ID)) {
+		if (!netif_carrier_ok(adapter->netdev)) {
+			adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+		} else if (!(adapter->flags & IGB_FLAG_NEED_LINK_UPDATE)) {
+			adapter->flags |= IGB_FLAG_NEED_LINK_UPDATE;
+			adapter->link_check_timeout = jiffies;
+		}
 	}
 
 	return link_active;
@@ -3913,6 +3943,14 @@ static void igb_watchdog_task(struct work_struct *work)
 	int i;
 
 	link = igb_has_link(adapter);
+
+	if (adapter->flags & IGB_FLAG_NEED_LINK_UPDATE) {
+		if (time_after(jiffies, (adapter->link_check_timeout + HZ)))
+			adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+		else
+			link = false;
+	}
+
 	if (link) {
 		/* Cancel scheduled suspend requests. */
 		pm_runtime_resume(netdev->dev.parent);
@@ -4037,9 +4075,14 @@ static void igb_watchdog_task(struct work_struct *work)
 	igb_ptp_rx_hang(adapter);
 
 	/* Reset the timer */
-	if (!test_bit(__IGB_DOWN, &adapter->state))
-		mod_timer(&adapter->watchdog_timer,
-			  round_jiffies(jiffies + 2 * HZ));
+	if (!test_bit(__IGB_DOWN, &adapter->state)) {
+		if (adapter->flags & IGB_FLAG_NEED_LINK_UPDATE)
+			mod_timer(&adapter->watchdog_timer,
+				  round_jiffies(jiffies +  HZ));
+		else
+			mod_timer(&adapter->watchdog_timer,
+				  round_jiffies(jiffies + 2 * HZ));
+	}
 }
 
 enum latency_range {
@@ -4814,6 +4857,10 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
+	/* adjust max frame to be at least the size of a standard frame */
+	if (max_frame < (ETH_FRAME_LEN + ETH_FCS_LEN))
+		max_frame = ETH_FRAME_LEN + ETH_FCS_LEN;
+
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		msleep(1);
 
@@ -4865,6 +4912,8 @@ void igb_update_stats(struct igb_adapter *adapter,
 
 	bytes = 0;
 	packets = 0;
+
+	rcu_read_lock();
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		u32 rqdpc = rd32(E1000_RQDPC(i));
 		struct igb_ring *ring = adapter->rx_ring[i];
@@ -4900,6 +4949,7 @@ void igb_update_stats(struct igb_adapter *adapter,
 	}
 	net_stats->tx_bytes = bytes;
 	net_stats->tx_packets = packets;
+	rcu_read_unlock();
 
 	/* read stats registers */
 	adapter->stats.crcerrs += rd32(E1000_CRCERRS);

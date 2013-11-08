@@ -274,7 +274,7 @@ acpi_cpufreq_cpu_init (
 
 	pr_debug("acpi_cpufreq_cpu_init\n");
 
-	data = kzalloc(sizeof(struct cpufreq_acpi_io), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return (-ENOMEM);
 
@@ -304,7 +304,7 @@ acpi_cpufreq_cpu_init (
 	}
 
 	/* alloc freq_table */
-	data->freq_table = kmalloc(sizeof(struct cpufreq_frequency_table) *
+	data->freq_table = kmalloc(sizeof(*data->freq_table) *
 	                           (data->acpi_data.state_count + 1),
 	                           GFP_KERNEL);
 	if (!data->freq_table) {
@@ -409,7 +409,6 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 	.init		= acpi_cpufreq_cpu_init,
 	.exit		= acpi_cpufreq_cpu_exit,
 	.name		= "acpi-cpufreq",
-	.owner		= THIS_MODULE,
 	.attr           = acpi_cpufreq_attr,
 };
 

@@ -133,8 +133,8 @@ struct rfd_struct
   unsigned char  last;		/* Bit15,Last Frame on List / Bit14,suspend */
   unsigned short next;		/* linkoffset to next RFD */
   unsigned short rbd_offset;	/* pointeroffset to RBD-buffer */
-  unsigned char  dest[6];	/* ethernet-address, destination */
-  unsigned char  source[6];	/* ethernet-address, source */
+  unsigned char  dest[ETH_ALEN];	/* ethernet-address, destination */
+  unsigned char  source[ETH_ALEN];	/* ethernet-address, source */
   unsigned short length;	/* 802.3 frame-length */
   unsigned short zero_dummy;	/* dummy */
 };

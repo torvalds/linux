@@ -39,12 +39,18 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 
-extern u32 __dtb_xlp_evp_begin[], __dtb_xlp_svp_begin[], __dtb_start[];
+extern u32 __dtb_xlp_evp_begin[], __dtb_xlp_svp_begin[],
+	__dtb_xlp_fvp_begin[], __dtb_start[];
 
 void __init *xlp_dt_init(void *fdtp)
 {
 	if (!fdtp) {
 		switch (current_cpu_data.processor_id & 0xff00) {
+#ifdef CONFIG_DT_XLP_FVP
+		case PRID_IMP_NETLOGIC_XLP2XX:
+			fdtp = __dtb_xlp_fvp_begin;
+			break;
+#endif
 #ifdef CONFIG_DT_XLP_SVP
 		case PRID_IMP_NETLOGIC_XLP3XX:
 			fdtp = __dtb_xlp_svp_begin;

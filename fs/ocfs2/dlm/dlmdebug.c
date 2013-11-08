@@ -96,7 +96,6 @@ static void __dlm_print_lock(struct dlm_lock *lock)
 
 void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 {
-	struct list_head *iter2;
 	struct dlm_lock *lock;
 	char buf[DLM_LOCKID_NAME_MAX];
 
@@ -118,18 +117,15 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	       res->inflight_locks, atomic_read(&res->asts_reserved));
 	dlm_print_lockres_refmap(res);
 	printk("  granted queue:\n");
-	list_for_each(iter2, &res->granted) {
-		lock = list_entry(iter2, struct dlm_lock, list);
+	list_for_each_entry(lock, &res->granted, list) {
 		__dlm_print_lock(lock);
 	}
 	printk("  converting queue:\n");
-	list_for_each(iter2, &res->converting) {
-		lock = list_entry(iter2, struct dlm_lock, list);
+	list_for_each_entry(lock, &res->converting, list) {
 		__dlm_print_lock(lock);
 	}
 	printk("  blocked queue:\n");
-	list_for_each(iter2, &res->blocked) {
-		lock = list_entry(iter2, struct dlm_lock, list);
+	list_for_each_entry(lock, &res->blocked, list) {
 		__dlm_print_lock(lock);
 	}
 }
@@ -446,7 +442,6 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 {
 	struct dlm_master_list_entry *mle;
 	struct hlist_head *bucket;
-	struct hlist_node *list;
 	int i, out = 0;
 	unsigned long total = 0, longest = 0, bucket_count = 0;
 
@@ -456,9 +451,7 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 	spin_lock(&dlm->master_lock);
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
 		bucket = dlm_master_hash(dlm, i);
-		hlist_for_each(list, bucket) {
-			mle = hlist_entry(list, struct dlm_master_list_entry,
-					  master_hash_node);
+		hlist_for_each_entry(mle, bucket, master_hash_node) {
 			++total;
 			++bucket_count;
 			if (len - out < 200)

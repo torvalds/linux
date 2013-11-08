@@ -57,6 +57,7 @@ void mei_amthif_reset_params(struct mei_device *dev)
 	dev->iamthif_ioctl = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
+	dev->iamthif_stall_timer = 0;
 }
 
 /**
@@ -418,15 +419,23 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 		struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
-	mutex_unlock(&dev->device_lock);
+
 	poll_wait(file, &dev->iamthif_cl.wait, wait);
+
 	mutex_lock(&dev->device_lock);
-	if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
-		dev->iamthif_file_object == file) {
+	if (!mei_cl_is_connected(&dev->iamthif_cl)) {
+
+		mask = POLLERR;
+
+	} else if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
+		   dev->iamthif_file_object == file) {
+
 		mask |= (POLLIN | POLLRDNORM);
 		dev_dbg(&dev->pdev->dev, "run next amthif cb\n");
 		mei_amthif_run_next_cmd(dev);
 	}
+	mutex_unlock(&dev->device_lock);
+
 	return mask;
 }
 

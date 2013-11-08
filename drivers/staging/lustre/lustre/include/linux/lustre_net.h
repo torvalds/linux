@@ -39,7 +39,6 @@
 #error Do not #include this file directly. #include <lustre_net.h> instead
 #endif
 
-#include <linux/version.h>
 #include <linux/workqueue.h>
 
 /* XXX Liang: should be moved to other header instead of here */

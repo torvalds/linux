@@ -31,7 +31,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <asm/mach-types.h>
 
 #include "mxs-saif.h"
 

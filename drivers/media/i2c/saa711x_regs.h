@@ -201,6 +201,25 @@
 #define R_FB_PULSE_C_POS_MSB                          0xfb
 #define R_FF_S_PLL_MAX_PHASE_ERR_THRESH_NUM_LINES     0xff
 
+/* SAA7113 bit-masks */
+#define SAA7113_R_08_HTC_OFFSET 3
+#define SAA7113_R_08_HTC_MASK (0x3 << SAA7113_R_08_HTC_OFFSET)
+#define SAA7113_R_08_FSEL 0x40
+#define SAA7113_R_08_AUFD 0x80
+
+#define SAA7113_R_10_VRLN_OFFSET 3
+#define SAA7113_R_10_VRLN_MASK (0x1 << SAA7113_R_10_VRLN_OFFSET)
+#define SAA7113_R_10_OFTS_OFFSET 6
+#define SAA7113_R_10_OFTS_MASK (0x3 << SAA7113_R_10_OFTS_OFFSET)
+
+#define SAA7113_R_12_RTS0_OFFSET 0
+#define SAA7113_R_12_RTS0_MASK (0xf << SAA7113_R_12_RTS0_OFFSET)
+#define SAA7113_R_12_RTS1_OFFSET 4
+#define SAA7113_R_12_RTS1_MASK (0xf << SAA7113_R_12_RTS1_OFFSET)
+
+#define SAA7113_R_13_ADLSB_OFFSET 7
+#define SAA7113_R_13_ADLSB_MASK (0x1 << SAA7113_R_13_ADLSB_OFFSET)
+
 #if 0
 /* Those structs will be used in the future for debug purposes */
 struct saa711x_reg_descr {

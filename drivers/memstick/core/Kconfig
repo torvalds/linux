@@ -24,3 +24,15 @@ config MSPRO_BLOCK
 	  support. This provides a block device driver, which you can use
 	  to mount the filesystem. Almost everyone wishing MemoryStick
 	  support should say Y or M here.
+
+config MS_BLOCK
+	tristate "MemoryStick Standard device driver"
+	depends on BLOCK
+	help
+	  Say Y here to enable the MemoryStick Standard device driver
+	  support. This provides a block device driver, which you can use
+	  to mount the filesystem.
+	  This driver works with old (bulky) MemoryStick and MemoryStick Duo
+	  but not PRO. Say Y if you have such card.
+	  Driver is new and not yet well tested, thus it can damage your card
+	  (even permanently)

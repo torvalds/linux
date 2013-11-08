@@ -31,6 +31,9 @@
 #define ST_PRESS_LSB_PER_MBAR			4096UL
 #define ST_PRESS_KPASCAL_NANO_SCALE		(100000000UL / \
 						 ST_PRESS_LSB_PER_MBAR)
+#define ST_PRESS_LSB_PER_CELSIUS		480UL
+#define ST_PRESS_CELSIUS_NANO_SCALE		(1000000000UL / \
+						 ST_PRESS_LSB_PER_CELSIUS)
 #define ST_PRESS_NUMBER_DATA_CHANNELS		1
 
 /* DEFAULT VALUE FOR SENSORS */
@@ -53,12 +56,13 @@
 #define ST_PRESS_1_FS_ADDR			0x23
 #define ST_PRESS_1_FS_MASK			0x30
 #define ST_PRESS_1_FS_AVL_1260_VAL		0x00
-#define ST_PRESS_1_FS_AVL_TEMP_GAIN		2083000
 #define ST_PRESS_1_FS_AVL_1260_GAIN		ST_PRESS_KPASCAL_NANO_SCALE
+#define ST_PRESS_1_FS_AVL_TEMP_GAIN		ST_PRESS_CELSIUS_NANO_SCALE
 #define ST_PRESS_1_BDU_ADDR			0x20
 #define ST_PRESS_1_BDU_MASK			0x04
 #define ST_PRESS_1_DRDY_IRQ_ADDR		0x22
-#define ST_PRESS_1_DRDY_IRQ_MASK		0x04
+#define ST_PRESS_1_DRDY_IRQ_INT1_MASK		0x04
+#define ST_PRESS_1_DRDY_IRQ_INT2_MASK		0x20
 #define ST_PRESS_1_MULTIREAD_BIT		true
 #define ST_PRESS_1_TEMP_OFFSET			42500
 
@@ -116,7 +120,8 @@ static const struct st_sensors st_press_sensors[] = {
 		},
 		.drdy_irq = {
 			.addr = ST_PRESS_1_DRDY_IRQ_ADDR,
-			.mask = ST_PRESS_1_DRDY_IRQ_MASK,
+			.mask_int1 = ST_PRESS_1_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_PRESS_1_DRDY_IRQ_INT2_MASK,
 		},
 		.multi_read_bit = ST_PRESS_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -202,7 +207,8 @@ static const struct iio_trigger_ops st_press_trigger_ops = {
 #define ST_PRESS_TRIGGER_OPS NULL
 #endif
 
-int st_press_common_probe(struct iio_dev *indio_dev)
+int st_press_common_probe(struct iio_dev *indio_dev,
+				struct st_sensors_platform_data *plat_data)
 {
 	int err;
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
@@ -224,7 +230,11 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 						&pdata->sensor->fs.fs_avl[0];
 	pdata->odr = pdata->sensor->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev);
+	if (!plat_data)
+		plat_data =
+			(struct st_sensors_platform_data *)&default_press_pdata;
+
+	err = st_sensors_init_sensor(indio_dev, plat_data);
 	if (err < 0)
 		goto st_press_common_probe_error;
 
@@ -265,7 +275,6 @@ void st_press_common_remove(struct iio_dev *indio_dev)
 		st_sensors_deallocate_trigger(indio_dev);
 		st_press_deallocate_ring(indio_dev);
 	}
-	iio_device_free(indio_dev);
 }
 EXPORT_SYMBOL(st_press_common_remove);
 

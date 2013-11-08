@@ -243,6 +243,32 @@ static int qt1070_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int qt1070_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct qt1070_data *data = i2c_get_clientdata(client);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(data->irq);
+
+	return 0;
+}
+
+static int qt1070_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct qt1070_data *data = i2c_get_clientdata(client);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(data->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(qt1070_pm_ops, qt1070_suspend, qt1070_resume);
+
 static const struct i2c_device_id qt1070_id[] = {
 	{ "qt1070", 0 },
 	{ },
@@ -253,6 +279,7 @@ static struct i2c_driver qt1070_driver = {
 	.driver	= {
 		.name	= "qt1070",
 		.owner	= THIS_MODULE,
+		.pm	= &qt1070_pm_ops,
 	},
 	.id_table	= qt1070_id,
 	.probe		= qt1070_probe,

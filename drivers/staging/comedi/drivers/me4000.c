@@ -40,6 +40,7 @@ broken.
 
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -1357,98 +1358,57 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 
 static int me4000_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned long tmp;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	unsigned int tmp;
+	int ret;
 
-	switch (data[0]) {
-	default:
-		return -EINVAL;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-	case INSN_CONFIG_DIO_INPUT:
-	case INSN_CONFIG_DIO_OUTPUT:
-		break;
-	}
+	if (chan < 8)
+		mask = 0x000000ff;
+	else if (chan < 16)
+		mask = 0x0000ff00;
+	else if (chan < 24)
+		mask = 0x00ff0000;
+	else
+		mask = 0xff000000;
 
-	/*
-	 * The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value INSN_CONFIG_DIO_INPUT or INSN_CONFIG_DIO_OUTPUT.
-	 * On the ME-4000 it is only possible to switch port wise (8 bit)
-	 */
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	tmp = inl(dev->iobase + ME4000_DIO_CTRL_REG);
+	tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_0 | ME4000_DIO_CTRL_BIT_MODE_1 |
+		 ME4000_DIO_CTRL_BIT_MODE_2 | ME4000_DIO_CTRL_BIT_MODE_3 |
+		 ME4000_DIO_CTRL_BIT_MODE_4 | ME4000_DIO_CTRL_BIT_MODE_5 |
+		 ME4000_DIO_CTRL_BIT_MODE_6 | ME4000_DIO_CTRL_BIT_MODE_7);
+	if (s->io_bits & 0x000000ff)
+		tmp |= ME4000_DIO_CTRL_BIT_MODE_0;
+	if (s->io_bits & 0x0000ff00)
+		tmp |= ME4000_DIO_CTRL_BIT_MODE_2;
+	if (s->io_bits & 0x00ff0000)
+		tmp |= ME4000_DIO_CTRL_BIT_MODE_4;
+	if (s->io_bits & 0xff000000)
+		tmp |= ME4000_DIO_CTRL_BIT_MODE_6;
 
-	if (data[0] == INSN_CONFIG_DIO_OUTPUT) {
-		if (chan < 8) {
-			s->io_bits |= 0xFF;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_0 |
-				 ME4000_DIO_CTRL_BIT_MODE_1);
-			tmp |= ME4000_DIO_CTRL_BIT_MODE_0;
-		} else if (chan < 16) {
-			/*
-			 * Chech for optoisolated ME-4000 version.
-			 * If one the first port is a fixed output
-			 * port and the second is a fixed input port.
-			 */
-			if (!inl(dev->iobase + ME4000_DIO_DIR_REG))
-				return -ENODEV;
-
-			s->io_bits |= 0xFF00;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_2 |
-				 ME4000_DIO_CTRL_BIT_MODE_3);
-			tmp |= ME4000_DIO_CTRL_BIT_MODE_2;
-		} else if (chan < 24) {
-			s->io_bits |= 0xFF0000;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_4 |
-				 ME4000_DIO_CTRL_BIT_MODE_5);
-			tmp |= ME4000_DIO_CTRL_BIT_MODE_4;
-		} else if (chan < 32) {
-			s->io_bits |= 0xFF000000;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_6 |
-				 ME4000_DIO_CTRL_BIT_MODE_7);
-			tmp |= ME4000_DIO_CTRL_BIT_MODE_6;
-		} else {
-			return -EINVAL;
-		}
-	} else {
-		if (chan < 8) {
-			/*
-			 * Chech for optoisolated ME-4000 version.
-			 * If one the first port is a fixed output
-			 * port and the second is a fixed input port.
-			 */
-			if (!inl(dev->iobase + ME4000_DIO_DIR_REG))
-				return -ENODEV;
-
-			s->io_bits &= ~0xFF;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_0 |
-				 ME4000_DIO_CTRL_BIT_MODE_1);
-		} else if (chan < 16) {
-			s->io_bits &= ~0xFF00;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_2 |
-				 ME4000_DIO_CTRL_BIT_MODE_3);
-		} else if (chan < 24) {
-			s->io_bits &= ~0xFF0000;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_4 |
-				 ME4000_DIO_CTRL_BIT_MODE_5);
-		} else if (chan < 32) {
-			s->io_bits &= ~0xFF000000;
-			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_6 |
-				 ME4000_DIO_CTRL_BIT_MODE_7);
-		} else {
-			return -EINVAL;
-		}
+	/*
+	 * Check for optoisolated ME-4000 version.
+	 * If one the first port is a fixed output
+	 * port and the second is a fixed input port.
+	 */
+	if (inl(dev->iobase + ME4000_DIO_DIR_REG)) {
+		s->io_bits |= 0x000000ff;
+		s->io_bits &= ~0x0000ff00;
+		tmp |= ME4000_DIO_CTRL_BIT_MODE_0;
+		tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_2 |
+			 ME4000_DIO_CTRL_BIT_MODE_3);
 	}
 
 	outl(tmp, dev->iobase + ME4000_DIO_CTRL_REG);
 
-	return 1;
+	return insn->n;
 }
 
 /*=============================================================================
@@ -1544,10 +1504,9 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = comedi_alloc_devpriv(dev, sizeof(*info));
 	if (!info)
 		return -ENOMEM;
-	dev->private = info;
 
 	result = comedi_pci_enable(dev);
 	if (result)

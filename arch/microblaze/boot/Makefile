@@ -2,12 +2,15 @@
 # arch/microblaze/boot/Makefile
 #
 
-targets := linux.bin linux.bin.gz simpleImage.%
+targets := linux.bin linux.bin.gz linux.bin.ub simpleImage.%
 
 OBJCOPYFLAGS := -R .note -R .comment -R .note.gnu.build-id -O binary
 
 $(obj)/linux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
+	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
+
+$(obj)/linux.bin.ub: $(obj)/linux.bin FORCE
 	$(call if_changed,uimage)
 	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
 
@@ -22,8 +25,6 @@ quiet_cmd_strip = STRIP   $@
 	cmd_strip = $(STRIP) -K microblaze_start -K _end -K __log_buf \
 				-K _fdt_start vmlinux -o $@
 
-UIMAGE_IN = $@
-UIMAGE_OUT = $@.ub
 UIMAGE_LOADADDR = $(CONFIG_KERNEL_BASE_ADDR)
 
 $(obj)/simpleImage.%: vmlinux FORCE

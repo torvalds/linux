@@ -49,7 +49,6 @@ struct fwspk {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	const struct device_info *device_info;
-	struct snd_pcm_substream *pcm;
 	struct mutex mutex;
 	struct cmp_connection connection;
 	struct amdtp_out_stream stream;
@@ -363,8 +362,7 @@ static int fwspk_create_pcm(struct fwspk *fwspk)
 		return err;
 	pcm->private_data = fwspk;
 	strcpy(pcm->name, fwspk->device_info->short_name);
-	fwspk->pcm = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	fwspk->pcm->ops = &ops;
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &ops);
 	return 0;
 }
 

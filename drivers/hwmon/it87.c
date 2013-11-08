@@ -1962,7 +1962,7 @@ exit:
 static void it87_remove_files(struct device *dev)
 {
 	struct it87_data *data = platform_get_drvdata(pdev);
-	struct it87_sio_data *sio_data = dev->platform_data;
+	struct it87_sio_data *sio_data = dev_get_platdata(dev);
 	int i;
 
 	sysfs_remove_group(&dev->kobj, &it87_group);
@@ -2014,7 +2014,7 @@ static int it87_probe(struct platform_device *pdev)
 	struct it87_data *data;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct it87_sio_data *sio_data = dev->platform_data;
+	struct it87_sio_data *sio_data = dev_get_platdata(dev);
 	int err = 0, i;
 	int enable_pwm_interface;
 	int fan_beep_need_rw;
@@ -2316,7 +2316,7 @@ static int it87_check_pwm(struct device *dev)
 /* Called when we have found a new IT87. */
 static void it87_init_device(struct platform_device *pdev)
 {
-	struct it87_sio_data *sio_data = pdev->dev.platform_data;
+	struct it87_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	struct it87_data *data = platform_get_drvdata(pdev);
 	int tmp, i;
 	u8 mask;

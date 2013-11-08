@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.600.18.00-rc1"
-#define MEGASAS_RELDATE				"May. 15, 2013"
-#define MEGASAS_EXT_VERSION			"Wed. May. 15 17:00:00 PDT 2013"
+#define MEGASAS_VERSION				"06.700.06.00-rc1"
+#define MEGASAS_RELDATE				"Aug. 31, 2013"
+#define MEGASAS_EXT_VERSION			"Sat. Aug. 31 17:00:00 PDT 2013"
 
 /*
  * Device IDs
@@ -170,6 +170,7 @@
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
+#define MR_DCMD_LD_LIST_QUERY			0x03010100
 
 #define MR_DCMD_CTRL_CACHE_FLUSH		0x01101000
 #define MR_FLUSH_CTRL_CACHE			0x01
@@ -345,6 +346,15 @@ enum MR_PD_QUERY_TYPE {
 	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST    = 5,
 };
 
+enum MR_LD_QUERY_TYPE {
+	MR_LD_QUERY_TYPE_ALL	         = 0,
+	MR_LD_QUERY_TYPE_EXPOSED_TO_HOST = 1,
+	MR_LD_QUERY_TYPE_USED_TGT_IDS    = 2,
+	MR_LD_QUERY_TYPE_CLUSTER_ACCESS  = 3,
+	MR_LD_QUERY_TYPE_CLUSTER_LOCALE  = 4,
+};
+
+
 #define MR_EVT_CFG_CLEARED                              0x0004
 #define MR_EVT_LD_STATE_CHANGE                          0x0051
 #define MR_EVT_PD_INSERTED                              0x005b
@@ -435,6 +445,14 @@ struct MR_LD_LIST {
 	} ldList[MAX_LOGICAL_DRIVES];
 } __packed;
 
+struct MR_LD_TARGETID_LIST {
+	u32	size;
+	u32	count;
+	u8	pad[3];
+	u8	targetId[MAX_LOGICAL_DRIVES];
+};
+
+
 /*
  * SAS controller properties
  */
@@ -474,21 +492,39 @@ struct megasas_ctrl_prop {
 	* a bit in the following structure.
 	*/
 	struct {
-		u32     copyBackDisabled            : 1;
-		u32     SMARTerEnabled              : 1;
-		u32     prCorrectUnconfiguredAreas  : 1;
-		u32     useFdeOnly                  : 1;
-		u32     disableNCQ                  : 1;
-		u32     SSDSMARTerEnabled           : 1;
-		u32     SSDPatrolReadEnabled        : 1;
-		u32     enableSpinDownUnconfigured  : 1;
-		u32     autoEnhancedImport          : 1;
-		u32     enableSecretKeyControl      : 1;
-		u32     disableOnlineCtrlReset      : 1;
-		u32     allowBootWithPinnedCache    : 1;
-		u32     disableSpinDownHS           : 1;
-		u32     enableJBOD                  : 1;
-		u32     reserved                    :18;
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:18;
+		u32     enableJBOD:1;
+		u32     disableSpinDownHS:1;
+		u32     allowBootWithPinnedCache:1;
+		u32     disableOnlineCtrlReset:1;
+		u32     enableSecretKeyControl:1;
+		u32     autoEnhancedImport:1;
+		u32     enableSpinDownUnconfigured:1;
+		u32     SSDPatrolReadEnabled:1;
+		u32     SSDSMARTerEnabled:1;
+		u32     disableNCQ:1;
+		u32     useFdeOnly:1;
+		u32     prCorrectUnconfiguredAreas:1;
+		u32     SMARTerEnabled:1;
+		u32     copyBackDisabled:1;
+#else
+		u32     copyBackDisabled:1;
+		u32     SMARTerEnabled:1;
+		u32     prCorrectUnconfiguredAreas:1;
+		u32     useFdeOnly:1;
+		u32     disableNCQ:1;
+		u32     SSDSMARTerEnabled:1;
+		u32     SSDPatrolReadEnabled:1;
+		u32     enableSpinDownUnconfigured:1;
+		u32     autoEnhancedImport:1;
+		u32     enableSecretKeyControl:1;
+		u32     disableOnlineCtrlReset:1;
+		u32     allowBootWithPinnedCache:1;
+		u32     disableSpinDownHS:1;
+		u32     enableJBOD:1;
+		u32     reserved:18;
+#endif
 	} OnOffProperties;
 	u8 autoSnapVDSpace;
 	u8 viewSpace;
@@ -802,6 +838,30 @@ struct megasas_ctrl_info {
 	u16 cacheMemorySize;                    /*7A2h */
 
 	struct {                                /*7A4h */
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:11;
+		u32     supportUnevenSpans:1;
+		u32     dedicatedHotSparesLimited:1;
+		u32     headlessMode:1;
+		u32     supportEmulatedDrives:1;
+		u32     supportResetNow:1;
+		u32     realTimeScheduler:1;
+		u32     supportSSDPatrolRead:1;
+		u32     supportPerfTuning:1;
+		u32     disableOnlinePFKChange:1;
+		u32     supportJBOD:1;
+		u32     supportBootTimePFKChange:1;
+		u32     supportSetLinkSpeed:1;
+		u32     supportEmergencySpares:1;
+		u32     supportSuspendResumeBGops:1;
+		u32     blockSSDWriteCacheChange:1;
+		u32     supportShieldState:1;
+		u32     supportLdBBMInfo:1;
+		u32     supportLdPIType3:1;
+		u32     supportLdPIType2:1;
+		u32     supportLdPIType1:1;
+		u32     supportPIcontroller:1;
+#else
 		u32     supportPIcontroller:1;
 		u32     supportLdPIType1:1;
 		u32     supportLdPIType2:1;
@@ -827,6 +887,7 @@ struct megasas_ctrl_info {
 
 		u32     supportUnevenSpans:1;
 		u32     reserved:11;
+#endif
 	} adapterOperations2;
 
 	u8  driverVersion[32];                  /*7A8h */
@@ -863,7 +924,7 @@ struct megasas_ctrl_info {
  * ===============================
  */
 #define MEGASAS_MAX_PD_CHANNELS			2
-#define MEGASAS_MAX_LD_CHANNELS			2
+#define MEGASAS_MAX_LD_CHANNELS			1
 #define MEGASAS_MAX_CHANNELS			(MEGASAS_MAX_PD_CHANNELS + \
 						MEGASAS_MAX_LD_CHANNELS)
 #define MEGASAS_MAX_DEV_PER_CHANNEL		128
@@ -1051,9 +1112,15 @@ union megasas_sgl_frame {
 
 typedef union _MFI_CAPABILITIES {
 	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:30;
+		u32     support_additional_msix:1;
+		u32     support_fp_remote_lun:1;
+#else
 		u32     support_fp_remote_lun:1;
 		u32     support_additional_msix:1;
 		u32     reserved:30;
+#endif
 	} mfi_capabilities;
 	u32     reg;
 } MFI_CAPABILITIES;
@@ -1655,5 +1722,17 @@ struct megasas_mgmt_info {
 	struct megasas_instance *instance[MAX_MGMT_ADAPTERS];
 	int max_index;
 };
+
+u8
+MR_BuildRaidContext(struct megasas_instance *instance,
+		    struct IO_REQUEST_INFO *io_info,
+		    struct RAID_CONTEXT *pRAID_Context,
+		    struct MR_FW_RAID_MAP_ALL *map, u8 **raidLUN);
+u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
+struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 
 #endif				/*LSI_MEGARAID_SAS_H */

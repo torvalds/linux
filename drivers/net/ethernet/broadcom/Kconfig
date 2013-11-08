@@ -130,7 +130,7 @@ config BNX2X_SRIOV
 
 config BGMAC
 	tristate "BCMA bus GBit core support"
-	depends on BCMA_HOST_SOC && HAS_DMA
+	depends on BCMA_HOST_SOC && HAS_DMA && BCM47XX
 	select PHYLIB
 	---help---
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.

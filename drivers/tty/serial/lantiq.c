@@ -318,7 +318,7 @@ lqasc_startup(struct uart_port *port)
 	struct ltq_uart_port *ltq_port = to_ltq_uart_port(port);
 	int retval;
 
-	if (ltq_port->clk)
+	if (!IS_ERR(ltq_port->clk))
 		clk_enable(ltq_port->clk);
 	port->uartclk = clk_get_rate(ltq_port->fpiclk);
 
@@ -386,7 +386,7 @@ lqasc_shutdown(struct uart_port *port)
 		port->membase + LTQ_ASC_RXFCON);
 	ltq_w32_mask(ASCTXFCON_TXFEN, ASCTXFCON_TXFFLU,
 		port->membase + LTQ_ASC_TXFCON);
-	if (ltq_port->clk)
+	if (!IS_ERR(ltq_port->clk))
 		clk_disable(ltq_port->clk);
 }
 
@@ -635,6 +635,9 @@ lqasc_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	port = &ltq_port->port;
+
+	if (!IS_ERR(ltq_port->clk))
+		clk_enable(ltq_port->clk);
 
 	port->uartclk = clk_get_rate(ltq_port->fpiclk);
 

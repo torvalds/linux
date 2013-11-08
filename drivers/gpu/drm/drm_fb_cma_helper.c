@@ -181,11 +181,11 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 
 #ifdef CONFIG_DEBUG_FS
-/**
+/*
  * drm_fb_cma_describe() - Helper to dump information about a single
  * CMA framebuffer object
  */
-void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
+static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
 	int i, n = drm_format_num_planes(fb->pixel_format);
@@ -199,7 +199,6 @@ void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 		drm_gem_cma_describe(fb_cma->obj[i], m);
 	}
 }
-EXPORT_SYMBOL_GPL(drm_fb_cma_describe);
 
 /**
  * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects

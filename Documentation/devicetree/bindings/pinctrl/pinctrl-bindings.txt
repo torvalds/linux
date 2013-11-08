@@ -127,21 +127,20 @@ whether there is any interaction between the child and intermediate parent
 nodes, is again defined entirely by the binding for the individual pin
 controller device.
 
-== Using generic pinconfig options ==
+== Generic pin configuration node content ==
 
-Generic pinconfig parameters can be used by defining a separate node containing
-the applicable parameters (and optional values), like:
+Many data items that are represented in a pin configuration node are common
+and generic. Pin control bindings should use the properties defined below
+where they are applicable; not all of these properties are relevant or useful
+for all hardware or binding structures. Each individual binding document
+should state which of these generic properties, if any, are used, and the
+structure of the DT nodes that contain these properties.
 
-pcfg_pull_up: pcfg_pull_up {
-	bias-pull-up;
-	drive-strength = <20>;
-};
+Supported generic properties are:
 
-This node should then be referenced in the appropriate pinctrl node as a phandle
-and parsed in the driver using the pinconf_generic_parse_dt_config function.
-
-Supported configuration parameters are:
-
+pins			- the list of pins that properties in the node
+			  apply to
+function		- the mux function to select
 bias-disable		- disable any pin bias
 bias-high-impedance	- high impedance mode ("third-state", "floating")
 bias-bus-hold		- latch weakly
@@ -160,7 +159,21 @@ low-power-disable	- disable low power mode
 output-low		- set the pin to output mode with low level
 output-high		- set the pin to output mode with high level
 
-Arguments for parameters:
+Some of the generic properties take arguments. For those that do, the
+arguments are described below.
+
+- pins takes a list of pin names or IDs as a required argument. The specific
+  binding for the hardware defines:
+  - Whether the entries are integers or strings, and their meaning.
+
+- function takes a list of function names/IDs as a required argument. The
+  specific binding for the hardware defines:
+  - Whether the entries are integers or strings, and their meaning.
+  - Whether only a single entry is allowed (which is applied to all entries
+    in the pins property), or whether there may alternatively be one entry per
+    entry in the pins property, in which case the list lengths must match, and
+    for each list index i, the function at list index i is applied to the pin
+    at list index i.
 
 - bias-pull-up, -down and -pin-default take as optional argument on hardware
   supporting it the pull strength in Ohm. bias-disable will disable the pull.
@@ -169,8 +182,6 @@ Arguments for parameters:
 
 - input-debounce takes the debounce time in usec as argument
   or 0 to disable debouncing
-
-All parameters not listed here, do not take an argument.
 
 More in-depth documentation on these parameters can be found in
 <include/linux/pinctrl/pinconfig-generic.h>

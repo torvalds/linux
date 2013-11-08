@@ -210,7 +210,7 @@ static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
 		!ieee80211_is_data(fc);
 }
 
-static void rc_send_low_broadcast(s8 *idx, u32 basic_rates,
+static void rc_send_low_basicrate(s8 *idx, u32 basic_rates,
 				  struct ieee80211_supported_band *sband)
 {
 	u8 i;
@@ -232,37 +232,28 @@ static void rc_send_low_broadcast(s8 *idx, u32 basic_rates,
 	/* could not find a basic rate; use original selection */
 }
 
-static inline s8
-rate_lowest_non_cck_index(struct ieee80211_supported_band *sband,
-			  struct ieee80211_sta *sta)
-{
-	int i;
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		struct ieee80211_rate *srate = &sband->bitrates[i];
-		if ((srate->bitrate == 10) || (srate->bitrate == 20) ||
-		    (srate->bitrate == 55) || (srate->bitrate == 110))
-			continue;
-
-		if (rate_supported(sta, sband->band, i))
-			return i;
-	}
-
-	/* No matching rate found */
-	return 0;
-}
-
 static void __rate_control_send_low(struct ieee80211_hw *hw,
 				    struct ieee80211_supported_band *sband,
 				    struct ieee80211_sta *sta,
 				    struct ieee80211_tx_info *info)
 {
-	if ((sband->band != IEEE80211_BAND_2GHZ) ||
-	    !(info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
-		info->control.rates[0].idx = rate_lowest_index(sband, sta);
-	else
-		info->control.rates[0].idx =
-			rate_lowest_non_cck_index(sband, sta);
+	int i;
+	u32 rate_flags =
+		ieee80211_chandef_rate_flags(&hw->conf.chandef);
+
+	if ((sband->band == IEEE80211_BAND_2GHZ) &&
+	    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
+		rate_flags |= IEEE80211_RATE_ERP_G;
+
+	info->control.rates[0].idx = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (!rate_supported(sta, sband->band, i))
+			continue;
+
+		info->control.rates[0].idx = i;
+		break;
+	}
+	WARN_ON_ONCE(i == sband->n_bitrates);
 
 	info->control.rates[0].count =
 		(info->flags & IEEE80211_TX_CTL_NO_ACK) ?
@@ -272,28 +263,37 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 }
 
 
-bool rate_control_send_low(struct ieee80211_sta *sta,
+bool rate_control_send_low(struct ieee80211_sta *pubsta,
 			   void *priv_sta,
 			   struct ieee80211_tx_rate_control *txrc)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	struct ieee80211_supported_band *sband = txrc->sband;
+	struct sta_info *sta;
 	int mcast_rate;
+	bool use_basicrate = false;
 
-	if (!sta || !priv_sta || rc_no_data_or_no_ack_use_min(txrc)) {
-		__rate_control_send_low(txrc->hw, sband, sta, info);
+	if (!pubsta || !priv_sta || rc_no_data_or_no_ack_use_min(txrc)) {
+		__rate_control_send_low(txrc->hw, sband, pubsta, info);
 
-		if (!sta && txrc->bss) {
+		if (!pubsta && txrc->bss) {
 			mcast_rate = txrc->bss_conf->mcast_rate[sband->band];
 			if (mcast_rate > 0) {
 				info->control.rates[0].idx = mcast_rate - 1;
 				return true;
 			}
+			use_basicrate = true;
+		} else if (pubsta) {
+			sta = container_of(pubsta, struct sta_info, sta);
+			if (ieee80211_vif_is_mesh(&sta->sdata->vif))
+				use_basicrate = true;
+		}
 
-			rc_send_low_broadcast(&info->control.rates[0].idx,
+		if (use_basicrate)
+			rc_send_low_basicrate(&info->control.rates[0].idx,
 					      txrc->bss_conf->basic_rates,
 					      sband);
-		}
+
 		return true;
 	}
 	return false;
@@ -585,6 +585,7 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 	u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
 	bool has_mcs_mask;
 	u32 mask;
+	u32 rate_flags;
 	int i;
 
 	/*
@@ -594,6 +595,12 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 	 */
 	mask = sdata->rc_rateidx_mask[info->band];
 	has_mcs_mask = sdata->rc_has_mcs_mask[info->band];
+	rate_flags =
+		ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
+	for (i = 0; i < sband->n_bitrates; i++)
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			mask &= ~BIT(i);
+
 	if (mask == (1 << sband->n_bitrates) - 1 && !has_mcs_mask)
 		return;
 

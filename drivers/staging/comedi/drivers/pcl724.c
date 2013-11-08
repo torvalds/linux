@@ -1,6 +1,6 @@
 /*
  * pcl724.c
- * Comedi driver for 8255 based ISA DIO boards
+ * Comedi driver for 8255 based ISA and PC/104 DIO boards
  *
  * Michal Dobes <dobes@tesnet.cz>
  */
@@ -14,6 +14,7 @@
  *	    (ADLink) ACL-7122 [acl7122]
  *	    (ADLink) ACL-7124 [acl7124]
  *	    (ADLink) PET-48DIO [pet48dio]
+ *	    (WinSystems) PCM-IO48 [pcmio48]
  * Author: Michal Dobes <dobes@tesnet.cz>
  * Status: untested
  *
@@ -25,10 +26,8 @@
  *	   1,  96:  96 DIO configuration
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
-#include <linux/delay.h>
 
 #include "8255.h"
 
@@ -69,6 +68,10 @@ static const struct pcl724_board boardtypes[] = {
 		.name		= "pet48dio",
 		.io_range	= 0x02,
 		.is_pet48	= 1,
+		.numofports	= 2,	/* 48 DIO channels */
+	}, {
+		.name		= "pcmio48",
+		.io_range	= 0x08,
 		.numofports	= 2,	/* 48 DIO channels */
 	},
 };
@@ -148,5 +151,5 @@ static struct comedi_driver pcl724_driver = {
 module_comedi_driver(pcl724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi driver for 8255 based ISA DIO boards");
+MODULE_DESCRIPTION("Comedi driver for 8255 based ISA and PC/104 DIO boards");
 MODULE_LICENSE("GPL");

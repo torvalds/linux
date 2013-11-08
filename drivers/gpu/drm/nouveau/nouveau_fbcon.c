@@ -454,7 +454,8 @@ nouveau_fbcon_init(struct drm_device *dev)
 	int preferred_bpp;
 	int ret;
 
-	if (!dev->mode_config.num_crtc)
+	if (!dev->mode_config.num_crtc ||
+	    (dev->pdev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
 		return 0;
 
 	fbcon = kzalloc(sizeof(struct nouveau_fbdev), GFP_KERNEL);
