@@ -769,7 +769,7 @@ static struct davinci_gpio_platform_data dm646x_gpio_platform_data = {
 int __init dm646x_gpio_register(void)
 {
 	return davinci_gpio_register(dm646x_gpio_resources,
-				     sizeof(dm646x_gpio_resources),
+				     ARRAY_SIZE(dm646x_gpio_resources),
 				     &dm646x_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/

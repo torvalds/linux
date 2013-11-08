@@ -792,7 +792,7 @@ static struct davinci_gpio_platform_data dm644_gpio_platform_data = {
 int __init dm644x_gpio_register(void)
 {
 	return davinci_gpio_register(dm644_gpio_resources,
-				     sizeof(dm644_gpio_resources),
+				     ARRAY_SIZE(dm644_gpio_resources),
 				     &dm644_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/

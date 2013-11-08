@@ -906,7 +906,7 @@ static struct davinci_gpio_platform_data dm355_gpio_platform_data = {
 int __init dm355_gpio_register(void)
 {
 	return davinci_gpio_register(dm355_gpio_resources,
-				     sizeof(dm355_gpio_resources),
+				     ARRAY_SIZE(dm355_gpio_resources),
 				     &dm355_gpio_platform_data);
 }
 /*----------------------------------------------------------------------*/
