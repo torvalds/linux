@@ -1697,8 +1697,8 @@ int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 	}
 
 	if (q->streaming) {
-		dprintk(1, "streamon: already streaming\n");
-		return -EBUSY;
+		dprintk(3, "streamon successful: already streaming\n");
+		return 0;
 	}
 
 	/*
@@ -1754,8 +1754,8 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 	}
 
 	if (!q->streaming) {
-		dprintk(1, "streamoff: not streaming\n");
-		return -EINVAL;
+		dprintk(3, "streamoff successful: not streaming\n");
+		return 0;
 	}
 
 	/*
