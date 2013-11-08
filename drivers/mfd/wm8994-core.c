@@ -25,18 +25,7 @@
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
 
-#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
-#include <sound/soc.h>
-#endif
-
-#if 0
-#define DBG(x...) printk(KERN_DEBUG x)
-#else
-#define DBG(x...) do { } while (0)
-#endif
 static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		       int bytes, void *dest)
 {
@@ -74,7 +63,7 @@ int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
 	ret = wm8994_read(wm8994, reg, 2, &val);
 
 	mutex_unlock(&wm8994->io_lock);
-	DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,be16_to_cpu(val));
+
 	if (ret < 0)
 		return ret;
 	else
@@ -135,7 +124,7 @@ int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
 	int ret;
 
 	val = cpu_to_be16(val);
-	DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,val);
+
 	mutex_lock(&wm8994->io_lock);
 
 	ret = wm8994_write(wm8994, reg, 2, &val);
@@ -255,13 +244,13 @@ static struct mfd_cell wm8994_devs[] = {
  * management.
  */
 static const char *wm8994_main_supplies[] = {
-//	"DBVDD",
-//	"DCVDD",
-//	"AVDD1",
-//	"AVDD2",
-//	"CPVDD",
-//	"SPKVDD1",
-//	"SPKVDD2",
+	"DBVDD",
+	"DCVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD1",
+	"SPKVDD2",
 };
 
 static const char *wm8958_main_supplies[] = {
@@ -279,16 +268,9 @@ static const char *wm8958_main_supplies[] = {
 #ifdef CONFIG_PM
 static int wm8994_suspend(struct device *dev)
 {
-	struct wm8994 *wm8994 = dev_get_drvdata(dev);	
+	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
-#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
-	printk("on wm8994-core.c wm8994_suspend\n");
-	if(snd_soc_incall_status(0,0))
-	{
-		DBG("incalling  cannot suspend\n");
-		return 0;
-	}
-#endif
+
 	/* Don't actually go through with the suspend if the CODEC is
 	 * still active (eg, for audio passthrough from CP. */
 	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
@@ -333,16 +315,9 @@ static int wm8994_suspend(struct device *dev)
 
 static int wm8994_resume(struct device *dev)
 {
-	struct wm8994 *wm8994 = dev_get_drvdata(dev);		
+	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
-#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
-	printk("on wm8994-core.c wm8994_resume\n");
-	if(snd_soc_incall_status(0,0))
-	{
-		DBG("incalling cannot resume\n");
-		return 0;
-	}
-#endif
+
 	/* We may have lied to the PM core about suspending */
 	if (!wm8994->suspended)
 		return 0;
@@ -610,28 +585,26 @@ static int wm8994_i2c_read_device(struct wm8994 *wm8994, unsigned short reg,
 static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
 				   int bytes, const void *src)
 {
-
 	struct i2c_client *i2c = wm8994->control_data;
-	struct i2c_msg xfer;	
-	unsigned char msg[bytes + 2];
+	struct i2c_msg xfer[2];
 	int ret;
 
 	reg = cpu_to_be16(reg);
-	memcpy(&msg[0], &reg, 2);
-	memcpy(&msg[2], src, bytes);
-	
-	xfer.addr = i2c->addr;
-	xfer.flags = i2c->flags;
-	xfer.len = bytes + 2;
-	xfer.buf = (char *)msg;
-	xfer.scl_rate = 100 * 1000;
-	xfer.udelay = i2c->udelay;
-	xfer.read_type = 0;
-	
-	ret = i2c_transfer(i2c->adapter, &xfer, 1);
+
+	xfer[0].addr = i2c->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 2;
+	xfer[0].buf = (char *)&reg;
+
+	xfer[1].addr = i2c->addr;
+	xfer[1].flags = I2C_M_NOSTART;
+	xfer[1].len = bytes;
+	xfer[1].buf = (char *)src;
+
+	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret < 0)
 		return ret;
-	if (ret != 1)
+	if (ret != 2)
 		return -EIO;
 
 	return 0;
@@ -641,7 +614,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;
-	
+
 	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
@@ -666,20 +639,6 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static void wm8994_i2c_shutdown(struct i2c_client *i2c)
-{
-	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
-
-	DBG("%s----%d\n",__FUNCTION__,__LINE__);
-	
-	//disable PA	
-	gpio_direction_output(pdata->PA_control_pin,GPIO_LOW);
-	if (gpio_is_valid(pdata->PA_control_pin))
-		gpio_free(pdata->PA_control_pin);
-
-}
-
 static const struct i2c_device_id wm8994_i2c_id[] = {
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
@@ -698,7 +657,6 @@ static struct i2c_driver wm8994_i2c_driver = {
 	},
 	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,
-	.shutdown = wm8994_i2c_shutdown,
 	.id_table = wm8994_i2c_id,
 };
 

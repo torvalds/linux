@@ -444,7 +444,6 @@ struct spi_transfer {
 	u8		bits_per_word;
 	u16		delay_usecs;
 	u32		speed_hz;
-	void			*state;
 
 	struct list_head transfer_list;
 };
@@ -610,21 +609,6 @@ spi_read(struct spi_device *spi, void *buf, size_t len)
 {
 	struct spi_transfer	t = {
 			.rx_buf		= buf,
-			.len		= len,
-		};
-	struct spi_message	m;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	return spi_sync(spi, &m);
-}
-
-static inline int
-spi_write_and_read(struct spi_device *spi, const void *tx_buf, void *rx_buf, size_t len)
-{
-	struct spi_transfer	t = {
-			.tx_buf		= tx_buf,
-			.rx_buf		= rx_buf,
 			.len		= len,
 		};
 	struct spi_message	m;

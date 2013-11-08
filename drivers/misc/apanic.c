@@ -193,13 +193,8 @@ static int apanic_proc_read(char *buffer, char **start, off_t offset,
 		ctx->mtd->writesize,
 		&len, ctx->bounce);
 
-#ifdef CONFIG_MTD_RKNAND
-	if (count > (ctx->mtd->writesize - page_offset))
-		count = ctx->mtd->writesize - page_offset;
-#else
 	if (page_offset)
 		count -= page_offset;
-#endif
 	memcpy(buffer, ctx->bounce + page_offset, count);
 
 	*start = count;
@@ -214,11 +209,6 @@ static int apanic_proc_read(char *buffer, char **start, off_t offset,
 static void mtd_panic_erase(void)
 {
 	struct apanic_data *ctx = &drv_ctx;
-#ifdef CONFIG_MTD_RKNAND
-	size_t wlen;
-	memset(ctx->bounce, 0, ctx->mtd->writesize);
-	ctx->mtd->write(ctx->mtd, 0, ctx->mtd->writesize, &wlen, ctx->bounce);
-#else
 	struct erase_info erase;
 	DECLARE_WAITQUEUE(wait, current);
 	wait_queue_head_t wait_q;
@@ -270,7 +260,6 @@ static void mtd_panic_erase(void)
 		schedule();
 		remove_wait_queue(&wait_q, &wait);
 	}
-#endif
 	printk(KERN_DEBUG "apanic: %s partition erased\n",
 	       CONFIG_APANIC_PLABEL);
 out:
@@ -342,18 +331,14 @@ static void mtd_panic_notify_add(struct mtd_info *mtd)
 
 	if (hdr->magic != PANIC_MAGIC) {
 		printk(KERN_INFO "apanic: No panic data available\n");
-#ifndef CONFIG_MTD_RKNAND
 		mtd_panic_erase();
-#endif
 		return;
 	}
 
 	if (hdr->version != PHDR_VERSION) {
 		printk(KERN_INFO "apanic: Version mismatch (%d != %d)\n",
 		       hdr->version, PHDR_VERSION);
-#ifndef CONFIG_MTD_RKNAND
 		mtd_panic_erase();
-#endif
 		return;
 	}
 
@@ -393,10 +378,8 @@ static void mtd_panic_notify_add(struct mtd_info *mtd)
 		}
 	}
 
-#ifndef CONFIG_MTD_RKNAND
 	if (!proc_entry_created)
 		mtd_panic_erase();
-#endif
 
 	return;
 out_err:
@@ -528,7 +511,7 @@ static int apanic(struct notifier_block *this, unsigned long event,
 		printk(KERN_EMERG "Crash partition in use!\n");
 		goto out;
 	}
-	console_offset = ctx->mtd->erasesize;
+	console_offset = ctx->mtd->writesize;
 
 	/*
 	 * Write out the console
@@ -548,9 +531,7 @@ static int apanic(struct notifier_block *this, unsigned long event,
 	if (!threads_offset)
 		threads_offset = ctx->mtd->writesize;
 
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
 	ram_console_enable_console(0);
-#endif
 
 	log_buf_clear();
 	show_state_filter(0);

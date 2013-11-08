@@ -44,20 +44,9 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#if defined(CONFIG_MT5931_MT6622)
-#include <linux/wakelock.h>
-#include "../mtk_wcn_bt/bt_hwctl.h"
-#endif
-
 #include "hci_uart.h"
 
 #define VERSION "2.2"
-
-#if defined(CONFIG_MT5931_MT6622)
-/* Add wake lock mechamism */
-#define WAKE_LOCK_TIMEOUT (5 * HZ)
-static struct wake_lock bt_wake_lock;
-#endif
 
 static int reset = 0;
 
@@ -144,18 +133,7 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 
 restart:
 	clear_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
-#if !defined(CONFIG_MT5931_MT6622)
-/*added by Barry,for broadcom 4325*/
-#ifdef CONFIG_BT_AUTOSLEEP
-#ifdef CONFIG_RFKILL_RK
-    extern int rfkill_rk_sleep_bt(bool bSleep);
-    rfkill_rk_sleep_bt(false);
-#else
-    //extern void bcm4325_sleep(unsigned long bSleep);
-    //bcm4325_sleep(0);
-#endif
-#endif
-#endif
+
 	while ((skb = hci_uart_dequeue(hu))) {
 		int len;
 
@@ -177,11 +155,6 @@ restart:
 		goto restart;
 
 	clear_bit(HCI_UART_SENDING, &hu->tx_state);
-
-#if defined(CONFIG_MT5931_MT6622)
-	/* Host can enter sleep after 5s no UART data */
-	wake_lock_timeout(&bt_wake_lock, WAKE_LOCK_TIMEOUT);
-#endif
 	return 0;
 }
 
@@ -195,9 +168,6 @@ static int hci_uart_open(struct hci_dev *hdev)
 
 	set_bit(HCI_RUNNING, &hdev->flags);
 
-#if defined(CONFIG_MT5931_MT6622)
-	mt_bt_enable_irq();
-#endif
 	return 0;
 }
 
@@ -231,9 +201,6 @@ static int hci_uart_close(struct hci_dev *hdev)
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
 
-#if defined(CONFIG_MT5931_MT6622)
-	mt_bt_disable_irq();
-#endif
 	hci_uart_flush(hdev);
 	hdev->flush = NULL;
 	return 0;
@@ -566,9 +533,6 @@ static int __init hci_uart_init(void)
 
 	BT_INFO("HCI UART driver ver %s", VERSION);
 
-#if defined(CONFIG_MT5931_MT6622)
-	wake_lock_init(&bt_wake_lock, WAKE_LOCK_SUSPEND, "bt");
-#endif
 	/* Register the tty discipline */
 
 	memset(&hci_uart_ldisc, 0, sizeof (hci_uart_ldisc));
@@ -599,14 +563,9 @@ static int __init hci_uart_init(void)
 	ll_init();
 #endif
 #ifdef CONFIG_BT_HCIUART_ATH3K
-       ath_init();
+	ath_init();
 #endif
-//Realtek_add_start	
-//add realtek h5 support	
-#ifdef CONFIG_BT_HCIUART_RTKH5
-	h5_init();
-#endif
-//Realtek_add_end	
+
 	return 0;
 }
 
@@ -627,17 +586,9 @@ static void __exit hci_uart_exit(void)
 	ath_deinit();
 #endif
 
-#ifdef CONFIG_BT_HCIUART_RTKH5
-	h5_deinit();
-#endif
-
 	/* Release tty registration of line discipline */
 	if ((err = tty_unregister_ldisc(N_HCI)))
 		BT_ERR("Can't unregister HCI line discipline (%d)", err);
-
-#if defined(CONFIG_MT5931_MT6622)
-	wake_lock_destroy(&bt_wake_lock);
-#endif
 }
 
 module_init(hci_uart_init);

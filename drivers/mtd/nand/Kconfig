@@ -416,12 +416,6 @@ config MTD_NAND_ATMEL_ECC_NONE
 
 endchoice
 
-config MTD_NAND_RK29
-        tristate "NAND Flash support for RK29sdk"
-        depends on ARCH_RK29
-        help
-          This enables the NAND flash controller on the RK29 SoC
-          
 config MTD_NAND_PXA3xx
 	tristate "Support for NAND flash devices on PXA3xx"
 	depends on PXA3xx || ARCH_MMP

@@ -85,7 +85,6 @@ void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
 	spin_lock_init(&queue->irqlock);
 	INIT_LIST_HEAD(&queue->mainqueue);
 	INIT_LIST_HEAD(&queue->irqqueue);
-	init_waitqueue_head(&queue->wait);  /* ddl@rock-chips.com : This design copied from video-buf */
 	queue->flags = drop_corrupted ? UVC_QUEUE_DROP_CORRUPTED : 0;
 	queue->type = type;
 }
@@ -302,8 +301,6 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 	list_add_tail(&buf->queue, &queue->irqqueue);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
-    wake_up_interruptible_sync(&queue->wait);     /* ddl@rock-chips.com : This design copied from video-buf */
-
 done:
 	mutex_unlock(&queue->mutex);
 	return ret;
@@ -317,19 +314,11 @@ static int uvc_queue_waiton(struct uvc_buffer *buf, int nonblocking)
 			buf->state != UVC_BUF_STATE_READY)
 			? 0 : -EAGAIN;
 	}
-#if 0
+
 	return wait_event_interruptible(buf->wait,
 		buf->state != UVC_BUF_STATE_QUEUED &&
 		buf->state != UVC_BUF_STATE_ACTIVE &&
 		buf->state != UVC_BUF_STATE_READY);
-#else
-	/* ddl@rock-chips.com: wait_event_interruptible -> wait_event_interruptible_timeout */
-	return wait_event_interruptible_timeout(buf->wait,
-		buf->state != UVC_BUF_STATE_QUEUED &&
-		buf->state != UVC_BUF_STATE_ACTIVE &&
-		buf->state != UVC_BUF_STATE_READY,
-		msecs_to_jiffies(800));
-#endif
 }
 
 /*
@@ -349,53 +338,17 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 			v4l2_buf->memory);
 		return -EINVAL;
 	}
-    /* ddl@rock-chips.com */
-    if (!(queue->flags & UVC_QUEUE_STREAMING)) {
-        printk("uvcvideo: Not streaming\n");
-		return -EINVAL;
-    }
 
 	mutex_lock(&queue->mutex);
-    /* ddl@rock-chips.com : This design copied from video-buf */
-checks:    
 	if (list_empty(&queue->mainqueue)) {
-        if (nonblocking) {
-			uvc_trace(UVC_TRACE_CAPTURE, "[E] Empty buffer queue.\n");
-    		ret = -EINVAL;
-    		goto done;
-		} else {
-		    //uvc_trace(UVC_TRACE_CAPTURE, "dequeue_buffer: waiting on buffer\n");
-            printk("dequeue_buffer: waiting on buffer\n");
-			/* Drop lock to avoid deadlock with qbuf */
-			mutex_unlock(&queue->mutex);
-
-			/* Checking list_empty and streaming is safe without
-			 * locks because we goto checks to validate while
-			 * holding locks before proceeding */
-			ret = wait_event_interruptible(queue->wait,
-				((!list_empty(&queue->mainqueue)) || (!(queue->flags & UVC_QUEUE_STREAMING))));
-			mutex_lock(&queue->mutex);
-
-			if (ret || (!(queue->flags & UVC_QUEUE_STREAMING))) {
-                printk("uvcvideo: Stream off\n");
-                goto done;
-			}
-
-			goto checks;
-		}	
+		uvc_trace(UVC_TRACE_CAPTURE, "[E] Empty buffer queue.\n");
+		ret = -EINVAL;
+		goto done;
 	}
 
 	buf = list_first_entry(&queue->mainqueue, struct uvc_buffer, stream);
-	if ((ret = uvc_queue_waiton(buf, nonblocking)) <= 0) {
-        /* ddl@rock-chips.com: It is timeout */
-        if (ret == 0) {
-            ret = -EINVAL;
-            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is timeout!!\n");
-        } else {
-            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is failed!!(ret:%d)\n",ret);
-        }
+	if ((ret = uvc_queue_waiton(buf, nonblocking)) < 0)
 		goto done;
-	}
 
 	uvc_trace(UVC_TRACE_CAPTURE, "Dequeuing buffer %u (%u, %u bytes).\n",
 		buf->buf.index, buf->state, buf->buf.bytesused);
@@ -599,7 +552,6 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 		queue->flags |= UVC_QUEUE_STREAMING;
 		queue->buf_used = 0;
 	} else {
-	    queue->flags &= ~UVC_QUEUE_STREAMING;
 		uvc_queue_cancel(queue, 0);
 		INIT_LIST_HEAD(&queue->mainqueue);
 
@@ -607,6 +559,8 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 			queue->buffer[i].error = 0;
 			queue->buffer[i].state = UVC_BUF_STATE_IDLE;
 		}
+
+		queue->flags &= ~UVC_QUEUE_STREAMING;
 	}
 
 done:
@@ -630,8 +584,6 @@ void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 {
 	struct uvc_buffer *buf;
 	unsigned long flags;
-
-    wake_up_interruptible_sync(&queue->wait);           /* ddl@rock-chips.com : This design copied from video-buf */
 
 	spin_lock_irqsave(&queue->irqlock, flags);
 	while (!list_empty(&queue->irqqueue)) {

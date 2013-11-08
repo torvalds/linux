@@ -58,9 +58,9 @@ struct mtd_blktrans_ops {
 
 	/* Access functions */
 	int (*readsect)(struct mtd_blktrans_dev *dev,
-		    unsigned long block,unsigned long nsect, char *buffer);
+		    unsigned long block, char *buffer);
 	int (*writesect)(struct mtd_blktrans_dev *dev,
-		     unsigned long block,unsigned long nsect, char *buffer);
+		     unsigned long block, char *buffer);
 	int (*discard)(struct mtd_blktrans_dev *dev,
 		       unsigned long block, unsigned nr_blocks);
 	void (*background)(struct mtd_blktrans_dev *dev);

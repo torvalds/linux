@@ -1236,19 +1236,6 @@ static int fat_read_root(struct inode *inode)
 	return 0;
 }
 
-static unsigned long calc_fat_clusters(struct super_block *sb)
-{
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-
-	/* Divide first to avoid overflow */
-	if (sbi->fat_bits != 12) {
-		unsigned long ent_per_sec = sb->s_blocksize * 8 / sbi->fat_bits;
-		return ent_per_sec * sbi->fat_length;
-	}
-
-	return sbi->fat_length * sb->s_blocksize * 8 / sbi->fat_bits;
-}
-
 /*
  * Read the super block of an MS-DOS FS.
  */
@@ -1295,7 +1282,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sb_min_blocksize(sb, 512);
 	bh = sb_bread(sb, 0);
 	if (bh == NULL) {
-		fat_msg(sb, KERN_DEBUG, "unable to read boot sector");
+		fat_msg(sb, KERN_ERR, "unable to read boot sector");
 		goto out_fail;
 	}
 
@@ -1361,7 +1348,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		}
 		bh = sb_bread(sb, 0);
 		if (bh == NULL) {
-			fat_msg(sb, KERN_DEBUG, "unable to read boot sector"
+			fat_msg(sb, KERN_ERR, "unable to read boot sector"
 			       " (logical sector size = %lu)",
 			       sb->s_blocksize);
 			goto out_fail;
@@ -1455,7 +1442,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		sbi->fat_bits = (total_clusters > MAX_FAT12) ? 16 : 12;
 
 	/* check that FAT table does not overflow */
-	fat_clusters = calc_fat_clusters(sb);
+	fat_clusters = sbi->fat_length * sb->s_blocksize * 8 / sbi->fat_bits;
 	total_clusters = min(total_clusters, fat_clusters - FAT_START_ENT);
 	if (total_clusters > MAX_FAT(sb)) {
 		if (!silent)

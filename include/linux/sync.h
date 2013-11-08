@@ -16,10 +16,8 @@
 #include <linux/types.h>
 #ifdef __KERNEL__
 
-#include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
@@ -41,14 +39,14 @@ struct sync_fence;
  *			 -1 if a will signabl before b
  * @free_pt:		called before sync_pt is freed
  * @release_obj:	called before sync_timeline is freed
- * @print_obj:		deprecated
- * @print_pt:		deprecated
+ * @print_obj:		print aditional debug information about sync_timeline.
+ *			  should not print a newline
+ * @print_pt:		print aditional debug information about sync_pt.
+ *			  should not print a newline
  * @fill_driver_data:	write implmentation specific driver data to data.
  *			  should return an error if there is not enough room
  *			  as specified by size.  This information is returned
  *			  to userspace by SYNC_IOC_FENCE_INFO.
- * @timeline_value_str: fill str with the value of the sync_timeline's counter
- * @pt_value_str:	fill str with the value of the sync_pt
  */
 struct sync_timeline_ops {
 	const char *driver_name;
@@ -68,27 +66,19 @@ struct sync_timeline_ops {
 	/* optional */
 	void (*release_obj)(struct sync_timeline *sync_timeline);
 
-	/* deprecated */
+	/* optional */
 	void (*print_obj)(struct seq_file *s,
 			  struct sync_timeline *sync_timeline);
 
-	/* deprecated */
+	/* optional */
 	void (*print_pt)(struct seq_file *s, struct sync_pt *sync_pt);
 
 	/* optional */
 	int (*fill_driver_data)(struct sync_pt *syncpt, void *data, int size);
-
-	/* optional */
-	void (*timeline_value_str)(struct sync_timeline *timeline, char *str,
-				   int size);
-
-	/* optional */
-	void (*pt_value_str)(struct sync_pt *pt, char *str, int size);
 };
 
 /**
  * struct sync_timeline - sync object
- * @kref:		reference count on fence.
  * @ops:		ops that define the implementaiton of the sync_timeline
  * @name:		name of the sync_timeline. Useful for debugging
  * @destoryed:		set when sync_timeline is destroyed
@@ -99,7 +89,6 @@ struct sync_timeline_ops {
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
 struct sync_timeline {
-	struct kref		kref;
 	const struct sync_timeline_ops	*ops;
 	char			name[32];
 
@@ -120,7 +109,6 @@ struct sync_timeline {
  * @parent:		sync_timeline to which this sync_pt belongs
  * @child_list:		membership in sync_timeline.child_list_head
  * @active_list:	membership in sync_timeline.active_list_head
- * @signaled_list:	membership in temorary signaled_list on stack
  * @fence:		sync_fence to which the sync_pt belongs
  * @pt_list:		membership in sync_fence.pt_list_head
  * @status:		1: signaled, 0:active, <0: error
@@ -132,7 +120,6 @@ struct sync_pt {
 	struct list_head	child_list;
 
 	struct list_head	active_list;
-	struct list_head	signaled_list;
 
 	struct sync_fence	*fence;
 	struct list_head	pt_list;
@@ -146,7 +133,6 @@ struct sync_pt {
 /**
  * struct sync_fence - sync fence
  * @file:		file representing this fence
- * @kref:		referenace count on fence.
  * @name:		name of sync_fence.  Useful for debugging
  * @pt_list_head:	list of sync_pts in ths fence.  immutable once fence
  *			  is created
@@ -159,7 +145,6 @@ struct sync_pt {
  */
 struct sync_fence {
 	struct file		*file;
-	struct kref		kref;
 	char			name[32];
 
 	/* this list is immutable once the fence is created */
@@ -174,10 +159,6 @@ struct sync_fence {
 	struct list_head	sync_fence_list;
 };
 
-struct sync_fence_waiter;
-typedef void (*sync_callback_t)(struct sync_fence *fence,
-				struct sync_fence_waiter *waiter);
-
 /**
  * struct sync_fence_waiter - metadata for asynchronous waiter on a fence
  * @waiter_list:	membership in sync_fence.waiter_list_head
@@ -187,14 +168,9 @@ typedef void (*sync_callback_t)(struct sync_fence *fence,
 struct sync_fence_waiter {
 	struct list_head	waiter_list;
 
-	sync_callback_t		callback;
+	void (*callback)(struct sync_fence *fence, void *data);
+	void *callback_data;
 };
-
-static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
-					  sync_callback_t callback)
-{
-	waiter->callback = callback;
-}
 
 /*
  * API for sync_timeline implementers
@@ -308,37 +284,24 @@ void sync_fence_install(struct sync_fence *fence, int fd);
 /**
  * sync_fence_wait_async() - registers and async wait on the fence
  * @fence:		fence to wait on
- * @waiter:		waiter callback struck
+ * @callback:		callback
+ * @callback_data	data to pass to the callback
  *
  * Returns 1 if @fence has already signaled.
  *
- * Registers a callback to be called when @fence signals or has an error.
- * @waiter should be initialized with sync_fence_waiter_init().
+ * Registers a callback to be called when @fence signals or has an error
  */
 int sync_fence_wait_async(struct sync_fence *fence,
-			  struct sync_fence_waiter *waiter);
-
-/**
- * sync_fence_cancel_async() - cancels an async wait
- * @fence:		fence to wait on
- * @waiter:		waiter callback struck
- *
- * returns 0 if waiter was removed from fence's async waiter list.
- * returns -ENOENT if waiter was not found on fence's async waiter list.
- *
- * Cancels a previously registered async wait.  Will fail gracefully if
- * @waiter was never registered or if @fence has already signaled @waiter.
- */
-int sync_fence_cancel_async(struct sync_fence *fence,
-			    struct sync_fence_waiter *waiter);
+			  void (*callback)(struct sync_fence *, void *data),
+			  void *callback_data);
 
 /**
  * sync_fence_wait() - wait on fence
  * @fence:	fence to wait on
  * @tiemout:	timeout in ms
  *
- * Wait for @fence to be signaled or have an error.  Waits indefinitely
- * if @timeout < 0
+ * Wait for @fence to be signaled or have an error.  Waits indefintly
+ * if @timeout = 0
  */
 int sync_fence_wait(struct sync_fence *fence, long timeout);
 
@@ -397,9 +360,9 @@ struct sync_fence_info_data {
 /**
  * DOC: SYNC_IOC_WAIT - wait for a fence to signal
  *
- * pass timeout in milliseconds.  Waits indefinitely timeout < 0.
+ * pass timeout in milliseconds.
  */
-#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __s32)
+#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __u32)
 
 /**
  * DOC: SYNC_IOC_MERGE - merge two fences

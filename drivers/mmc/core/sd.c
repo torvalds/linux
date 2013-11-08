@@ -23,7 +23,6 @@
 #include "mmc_ops.h"
 #include "sd.h"
 #include "sd_ops.h"
-#include "host.h"
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -215,7 +214,7 @@ static int mmc_decode_scr(struct mmc_card *card)
 static int mmc_read_ssr(struct mmc_card *card)
 {
 	unsigned int au, es, et, eo;
-	int err, i, max_au;
+	int err, i;
 	u32 *ssr;
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
@@ -239,14 +238,12 @@ static int mmc_read_ssr(struct mmc_card *card)
 	for (i = 0; i < 16; i++)
 		ssr[i] = be32_to_cpu(ssr[i]);
 
-	max_au = card->scr.sda_spec3 ? 0xF : 0x9;
 	/*
 	 * UNSTUFF_BITS only works with four u32s so we have to offset the
 	 * bitfield positions accordingly.
 	 */
 	au = UNSTUFF_BITS(ssr, 428 - 384, 4);
-    //if (au > 0 || au <= 9) {  //Modifyed by xbw at 2013-02-28
-	if (au > 0 && au <= max_au) {
+	if (au > 0 || au <= 9) {
 		card->ssr.au = 1 << (au + 4);
 		es = UNSTUFF_BITS(ssr, 408 - 384, 16);
 		et = UNSTUFF_BITS(ssr, 402 - 384, 6);
@@ -293,8 +290,7 @@ static int mmc_read_switch(struct mmc_card *card)
 	}
 
 	/* Find out the supported Bus Speed Modes. */
-    //err = mmc_sd_switch(card, 0, 0, 1, status);
-    err = mmc_sd_switch(card, 0, 0, 0, status);  //Modifyed by xbw at 2013-02-28
+	err = mmc_sd_switch(card, 0, 0, 1, status);
 	if (err) {
 		/*
 		 * If the host or the card can't do the switch,
@@ -313,9 +309,7 @@ static int mmc_read_switch(struct mmc_card *card)
 	if (status[13] & UHS_SDR50_BUS_SPEED)
 		card->sw_caps.hs_max_dtr = 50000000;
 
-    //mask the the SD Ver3.0 support,modifyed by xbw at 2012-8-09
-	//if (card->scr.sda_spec3) {
-	if(0) {
+	if (card->scr.sda_spec3) {
 		card->sw_caps.sd3_bus_mode = status[13];
 
 		/* Find out Driver Strengths supported by the card */
@@ -630,12 +624,8 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 		goto out;
 
 	/* SPI mode doesn't define CMD19 */
-	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning &&
-	    (card->sd_bus_speed == UHS_SDR50_BUS_SPEED ||
-	     card->sd_bus_speed == UHS_SDR104_BUS_SPEED))
-
-	    mmc_host_clk_hold(card->host);
-		err = card->host->ops->execute_tuning(card->host,MMC_SEND_TUNING_BLOCK);
+	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning)
+		err = card->host->ops->execute_tuning(card->host);
 
 out:
 	kfree(status);
@@ -728,13 +718,8 @@ int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid, u32 *rocr)
 
 try_again:
 	err = mmc_send_app_op_cond(host, ocr, rocr);
-	if (err) {
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-	    printk(KERN_WARNING "%s..%d..  ====*Identify the card as SD , but OCR error, so fail to initialize.[%s]\n", \
-	        __FUNCTION__, __LINE__, mmc_hostname(host));
-#endif
+	if (err)
 		return err;
-	}
 
 	/*
 	 * In case CCS and S18A in the response is set, start Signal Voltage
@@ -822,13 +807,6 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 				printk(KERN_WARNING
 				       "%s: read switch failed (attempt %d)\n",
 				       mmc_hostname(host), retries);
-
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-				if(0 == host->re_initialized_flags)
-				{
-					 break; //Added by xbw at 2011-06-21
-				}
-#endif
 			}
 		}
 #else
@@ -881,11 +859,6 @@ unsigned mmc_sd_get_max_clock(struct mmc_card *card)
 		if (max_dtr > card->sw_caps.hs_max_dtr)
 			max_dtr = card->sw_caps.hs_max_dtr;
 	} else if (max_dtr > card->csd.max_dtr) {
-
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-        //in order to expand the compatibility of card. Added by xbw@2011-03-21
-	    card->csd.max_dtr = (card->csd.max_dtr > SD_FPP_FREQ) ? SD_FPP_FREQ : (card->csd.max_dtr); 
-#endif
 		max_dtr = card->csd.max_dtr;
 	}
 
@@ -1056,15 +1029,6 @@ static void mmc_sd_detect(struct mmc_host *host)
 		err = mmc_send_status(host->card, NULL);
 		if (err) {
 			retries--;
-
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-		  if(0 == host->re_initialized_flags)
-			{
-				 retries = 0;
-				 break; //Added by xbw at 2011-06-21
-			}
-#endif
-
 			udelay(5);
 			continue;
 		}
@@ -1133,13 +1097,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 			       mmc_hostname(host), err, retries);
 			mdelay(5);
 			retries--;
-
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-			if(0 == host->re_initialized_flags)
-			{
-				 break; //Added by xbw at 2011-06-21
-			}
-#endif
 			continue;
 		}
 		break;
@@ -1198,10 +1155,6 @@ int mmc_attach_sd(struct mmc_host *host)
 {
 	int err;
 	u32 ocr;
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-	int retry_times = 3;
-#endif
-
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	int retries;
 #endif
@@ -1219,16 +1172,9 @@ int mmc_attach_sd(struct mmc_host *host)
 		host->ops->enable_preset_value(host, false);
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
-	if (err)
-		return 0xFF;//return err; Modifyed by xbw at 2011-11-17
-		
-    printk(KERN_INFO "\n%s..%d..  ===== Begin to identify card as SD-card. [%s]\n",\
-        __FUNCTION__, __LINE__, mmc_hostname(host));
-#else
 	if (err)
 		return err;
-#endif
+
 	mmc_sd_attach_bus_ops(host);
 	if (host->ocr_avail_sd)
 		host->ocr_avail = host->ocr_avail_sd;
@@ -1282,14 +1228,6 @@ int mmc_attach_sd(struct mmc_host *host)
 		err = mmc_sd_init_card(host, host->ocr, NULL);
 		if (err) {
 			retries--;
-
-	#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-			if(0 == host->re_initialized_flags)
-			{
-				 retries = 0;
-				 break; //Added by xbw at 2011-06-21
-			}
-	#endif
 			continue;
 		}
 		break;
@@ -1307,34 +1245,10 @@ int mmc_attach_sd(struct mmc_host *host)
 #endif
 
 	mmc_release_host(host);
-
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-//modifyed by xbw at 2011--04-11
-Retry_add:
-	err = mmc_add_card(host->card);
-	mmc_claim_host(host);
-	if (err)
-	{
-	    //retry add the card; Added by xbw
-        if((--retry_times >= 0))
-        {        
-            printk(KERN_WARNING "\n%s..%s..%d   ****error in add partition, so retry.  [%s]\n",__FUNCTION__,__FILE__,__LINE__, mmc_hostname(host));   
-            /* sleep some time */
-            set_current_state(TASK_INTERRUPTIBLE);
-            schedule_timeout(HZ/2);
-            
-            goto Retry_add;
-        }
-
-		goto remove_card;
-    
-	}
-#else
 	err = mmc_add_card(host->card);
 	mmc_claim_host(host);
 	if (err)
 		goto remove_card;
-#endif
 
 	return 0;
 

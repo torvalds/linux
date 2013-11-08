@@ -23,7 +23,6 @@ struct timed_gpio {
 	unsigned 	gpio;
 	int		max_timeout;
 	u8 		active_low;
-	int         adjust_time;
 };
 
 struct timed_gpio_platform_data {

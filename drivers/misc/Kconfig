@@ -399,16 +399,6 @@ config SENSORS_AK8975
 	  If you say yes here you get support for Asahi Kasei's
 	  orientation sensor AK8975.
 
-
-config SENSORS_AK8963
-       tristate "AK8963 compass support"
-       default n
-       depends on I2C
-       help
-         If you say yes here you get support for Asahi Kasei's
-         orientation sensor AK8963.
-
-
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -535,49 +525,12 @@ config APANIC_PLABEL
 	 If your platform uses a different flash partition label for storing
  	 crashdumps, enter it here.
 
-config MTK23D
-	bool "MTK6223D modem control driver"
-	default n	
-	
-config FM580X
-	bool "FM rda580x driver"
-
-config RK29_SC8800
-	bool "SC8800 misc driver"
-	default n
-
-config TDSC8800
-	bool "TDSC8800 modem control driver"
-	default n
-config MODEM_SOUND
-	bool "modem sound control driver"
-	default n
-config MODEM_MIC_SWITCH
-	bool "3g modem mic switch control"
-	depends on MODEM_SOUND
-	default n
-	
-config TCC_BT_DEV
-	tristate "TCC Bluetooth dev Control power"
-	default n
-	help
-	  If you say Y here, you can contorl the power of the BT H/W Module
-config AC_USB_SWITCH
-	bool "for androidComputer external usb devices switch"
-	default n
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
-source "drivers/misc/rk29_modem/Kconfig"
-source "drivers/misc/gps/Kconfig"
-source "drivers/misc/inv_mpu/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
-source "drivers/misc/bp/Kconfig"
-source "drivers/misc/rk2928_callpad_misc/Kconfig"
-source "drivers/misc/3g_module/Kconfig"
-source "drivers/misc/scaler/Kconfig"
+
 endif # MISC_DEVICES

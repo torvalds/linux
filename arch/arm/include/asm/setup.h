@@ -16,11 +16,7 @@
 
 #include <linux/types.h>
 
-#if defined(CONFIG_RK_CONFIG)||defined(CONFIG_MACH_RK_FAC)
-#define COMMAND_LINE_SIZE 65536
-#else
 #define COMMAND_LINE_SIZE 1024
-#endif
 
 /* The list ends with an ATAG_NONE node. */
 #define ATAG_NONE	0x00000000

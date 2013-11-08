@@ -53,18 +53,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/unistd.h>
-/***************
-*	 DEBUG
-****************/
-#define RESTART_DEBUG
-#ifdef RESTART_DEBUG
-#define restart_dbg(format, arg...) \
-	printk("RESTART_DEBUG : " format "\n" , ## arg)
-#else
-#define restart_dbg(format, arg...) do {} while (0)
-#endif
-
-
 
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a,b)	(-EINVAL)
@@ -345,11 +333,6 @@ void kernel_restart_prepare(char *cmd)
  */
 void kernel_restart(char *cmd)
 {
-	/*
-	*  debug trace
-	*/
-	restart_dbg("%s->%d->cmd=%s",__FUNCTION__,__LINE__,cmd);
-	
 	kernel_restart_prepare(cmd);
 	disable_nonboot_cpus();
 	if (!cmd)
@@ -440,11 +423,6 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	mutex_lock(&reboot_mutex);
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
-		/*
-		*  debug trace
-		*/
-		restart_dbg("%s->%d->cmd=%x",__FUNCTION__,__LINE__,cmd);
-		
 		kernel_restart(NULL);
 		break;
 
@@ -462,11 +440,6 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		panic("cannot halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
-		/*
-		*  debug trace
-		*/
-		restart_dbg("%s->%d->cmd=%x",__FUNCTION__,__LINE__,cmd);
-		
 		kernel_power_off();
 		do_exit(0);
 		break;
@@ -477,11 +450,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 			break;
 		}
 		buffer[sizeof(buffer) - 1] = '\0';
-		/*
-		*  debug trace
-		*/
-		restart_dbg("%s->%d->cmd=%x args=%s",__FUNCTION__,__LINE__,cmd,buffer);
-		
+
 		kernel_restart(buffer);
 		break;
 

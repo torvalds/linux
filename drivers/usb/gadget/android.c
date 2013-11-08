@@ -57,10 +57,6 @@
 #include "rndis.c"
 #include "u_ether.c"
 
-#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
-#include "f_hid_rk.c"
-#endif
-
 MODULE_AUTHOR("Mike Lockwood");
 MODULE_DESCRIPTION("Android Composite USB Driver");
 MODULE_LICENSE("GPL");
@@ -69,8 +65,8 @@ MODULE_VERSION("1.0");
 static const char longname[] = "Gadget Android";
 
 /* Default vendor and product IDs, overridden by userspace */
-#define VENDOR_ID		0x2207//0x18D1
-#define PRODUCT_ID		0x2910
+#define VENDOR_ID		0x18D1
+#define PRODUCT_ID		0x0001
 
 struct android_usb_function {
 	char *name;
@@ -164,7 +160,6 @@ static struct usb_configuration android_config_driver = {
 	.label		= "android",
 	.unbind		= android_unbind_config,
 	.bConfigurationValue = 1,
-	.bmAttributes = USB_CONFIG_ATT_SELFPOWER | USB_CONFIG_ATT_WAKEUP ,
 };
 
 static void android_work(struct work_struct *data)
@@ -613,12 +608,6 @@ static struct device_attribute *rndis_function_attributes[] = {
 	&dev_attr_vendorID,
 	NULL
 };
-static int rndis_function_ctrlrequest(struct android_usb_function *f,
-						struct usb_composite_dev *cdev,
-						const struct usb_ctrlrequest *c)
-{
-	return rndis_setup(cdev, c);
-}
 
 static struct android_usb_function rndis_function = {
 	.name		= "rndis",
@@ -626,7 +615,6 @@ static struct android_usb_function rndis_function = {
 	.cleanup	= rndis_function_cleanup,
 	.bind_config	= rndis_function_bind_config,
 	.unbind_config	= rndis_function_unbind_config,
-	.ctrlrequest    = rndis_function_ctrlrequest,
 	.attributes	= rndis_function_attributes,
 };
 
@@ -641,30 +629,15 @@ static int mass_storage_function_init(struct android_usb_function *f,
 {
 	struct mass_storage_function_config *config;
 	struct fsg_common *common;
-	int err,i;
-	char name[6];
+	int err;
 
 	config = kzalloc(sizeof(struct mass_storage_function_config),
 								GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
-#ifdef CONFIG_UMS_AS_CDROM  
-	config->fsg.nluns = 8;
-	config->fsg.luns[0].removable = 1;
-	config->fsg.luns[0].ro = 1;
-        config->fsg.luns[0].cdrom = 1;
-	for(i=1;i<config->fsg.nluns;i++)
-	{
-		config->fsg.luns[i].removable = 1;
-		config->fsg.luns[i].nofua = 1;
-	}
-#else
-	//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is false -------------------\n");
-	config->fsg.nluns = 2;
-	config->fsg.luns[0].removable = 1;
-	config->fsg.luns[1].removable = 1;
-#endif
 
+	config->fsg.nluns = 1;
+	config->fsg.luns[0].removable = 1;
 
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
@@ -672,20 +645,14 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		return PTR_ERR(common);
 	}
 
-	err = sysfs_create_link(&f->dev->kobj, &common->luns[0].dev.kobj,"lun");
-        if (err) {
-                kfree(config);
-                return err;
-        }
-	for(i=1;i<config->fsg.nluns;i++)
-	{
-		sprintf(name,"lun%d",i);
-        	err = sysfs_create_link(&f->dev->kobj, &common->luns[i].dev.kobj,&name);
-		if (err) {
-			kfree(config);
-			return err;
-		}
+	err = sysfs_create_link(&f->dev->kobj,
+				&common->luns[0].dev.kobj,
+				"lun");
+	if (err) {
+		kfree(config);
+		return err;
 	}
+
 	config->common = common;
 	f->config = config;
 	return 0;
@@ -719,11 +686,8 @@ static ssize_t mass_storage_inquiry_store(struct device *dev,
 	struct mass_storage_function_config *config = f->config;
 	if (size >= sizeof(config->common->inquiry_string))
 		return -EINVAL;
-	//if (sscanf(buf, "%s", config->common->inquiry_string) != 1)
-	//	return -EINVAL;
-	
-	memcpy(config->common->inquiry_string,buf,sizeof config->common->inquiry_string);
-
+	if (sscanf(buf, "%s", config->common->inquiry_string) != 1)
+		return -EINVAL;
 	return size;
 }
 
@@ -839,80 +803,6 @@ static struct android_usb_function audio_source_function = {
 	.attributes	= audio_source_function_attributes,
 };
 
-#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
-
-static int hidg_function_init(struct android_usb_function *f,
-			struct usb_composite_dev *cdev)
-{
-    ghid_setup(cdev->gadget, 1);
-    return 0;
-}
-
-static void hidg_function_cleanup(struct android_usb_function *f)
-{
-    ghid_cleanup();
-    return;
-}
-
-static int hidg_function_ctrlrequest(struct android_usb_function *f,
-                            struct usb_composite_dev *cdev,
-                            const struct usb_ctrlrequest *c)
-{   
-    return hidg_ctrlrequest(cdev, c);
-}
-
-static int hidg_function_bind_config(struct android_usb_function *f,
-						struct usb_configuration *c)
-{
-    if(my_hid_data.report_desc_length)
-        hidg_bind_config(c, &my_hid_data, 0);
-    return 0;
-}
-static int hidg_function_unbind_config(struct android_usb_function *f,
-						struct usb_configuration *c)
-{
-    return 0;
-}
-static ssize_t hidg_report_descriptor_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-    return sprintf(buf, "hid report_desc_length = %d\n", my_hid_data.report_desc_length);
-}
-
-static DEVICE_ATTR(report_descriptor, S_IRUGO | S_IWUSR, hidg_report_descriptor_show, NULL);
-
-static ssize_t hidg_bypass_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf," %s \n" ,
-	    f_hid_bypass_input_get()? "Input report bypass enable" : "Input report bypass disable");
-}
-
-static ssize_t hidg_bypass_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-    int bypass;
-    sscanf(buf, "%d", &bypass);
-    f_hid_bypass_input_set(bypass);
-	return size;
-}
-
-static DEVICE_ATTR(bypass_input, S_IRUGO | S_IWUSR, hidg_bypass_show, hidg_bypass_store);
-
-static struct device_attribute *hidg_function_attributes[] = 
-                {&dev_attr_bypass_input ,&dev_attr_report_descriptor ,NULL };
-
-
-static struct android_usb_function hidg_function = {
-	.name		= "hidg",
-	.init		= hidg_function_init,
-	.cleanup	= hidg_function_cleanup,
-	.bind_config	= hidg_function_bind_config,
-	.unbind_config  = hidg_function_unbind_config,
-	.ctrlrequest    = hidg_function_ctrlrequest,
-	.attributes     = hidg_function_attributes,
-};
-#endif
 static struct android_usb_function *supported_functions[] = {
 	&adb_function,
 	&acm_function,
@@ -922,11 +812,9 @@ static struct android_usb_function *supported_functions[] = {
 	&mass_storage_function,
 	&accessory_function,
 	&audio_source_function,
-#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
-	&hidg_function,
-#endif
 	NULL
 };
+
 
 static int android_init_functions(struct android_usb_function **functions,
 				  struct usb_composite_dev *cdev)
@@ -1336,6 +1224,7 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 	struct android_usb_function	*f;
 	int value = -EOPNOTSUPP;
 	unsigned long flags;
+
 	req->zero = 0;
 	req->complete = composite_setup_complete;
 	req->length = 0;
@@ -1383,9 +1272,6 @@ static void android_disconnect(struct usb_gadget *gadget)
 	   so we need to inform it when we are disconnected.
 	 */
 	acc_disconnect();
-#ifdef CONFIG_BYPASS_INPUT_TO_HIDG
-    hidg_disconnect();
-#endif
 
 	spin_lock_irqsave(&cdev->lock, flags);
 	dev->connected = 0;

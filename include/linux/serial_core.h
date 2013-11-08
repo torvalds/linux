@@ -181,10 +181,6 @@
 /* BCM63xx family SoCs */
 #define PORT_BCM63XX	89
 
-#define PORT_RK2818	90
-
-#define PORT_RK29	90
-
 /* Aeroflex Gaisler GRLIB APBUART */
 #define PORT_APBUART    90
 

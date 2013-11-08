@@ -92,9 +92,6 @@ static void gic_mask_irq(struct irq_data *d)
 	writel_relaxed(mask, gic_dist_base(d) + GIC_DIST_ENABLE_CLEAR + (gic_irq(d) / 32) * 4);
 	if (gic_arch_extn.irq_mask)
 		gic_arch_extn.irq_mask(d);
-#if defined(CONFIG_PLAT_RK) && !defined(CONFIG_SMP)
-	dsb();
-#endif
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -106,9 +103,6 @@ static void gic_unmask_irq(struct irq_data *d)
 	if (gic_arch_extn.irq_unmask)
 		gic_arch_extn.irq_unmask(d);
 	writel_relaxed(mask, gic_dist_base(d) + GIC_DIST_ENABLE_SET + (gic_irq(d) / 32) * 4);
-#if defined(CONFIG_PLAT_RK) && !defined(CONFIG_SMP)
-	dsb();
-#endif
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -121,9 +115,6 @@ static void gic_eoi_irq(struct irq_data *d)
 	}
 
 	writel_relaxed(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
-#ifdef CONFIG_PLAT_RK
-	dsb();
-#endif
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
@@ -212,9 +203,6 @@ static int gic_set_wake(struct irq_data *d, unsigned int on)
 {
 	int ret = -ENXIO;
 
-#ifdef CONFIG_PLAT_RK
-	return 0;
-#endif
 	if (gic_arch_extn.irq_set_wake)
 		ret = gic_arch_extn.irq_set_wake(d, on);
 
@@ -290,13 +278,8 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	 * Find out how many interrupts are supported.
 	 * The GIC only supports up to 1020 interrupt sources.
 	 */
-#ifdef CONFIG_ARCH_RK29
-	/* rk29 read GIC_DIST_CTR is 2, why? */
-	gic_irqs = NR_AIC_IRQS;
-#else
 	gic_irqs = readl_relaxed(base + GIC_DIST_CTR) & 0x1f;
 	gic_irqs = (gic_irqs + 1) * 32;
-#endif
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;
 

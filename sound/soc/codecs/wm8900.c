@@ -23,27 +23,17 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <mach/gpio.h>
-#include <mach/irqs.h>
-#include <mach/rk29_iomap.h>
 
 #include "wm8900.h"
-
-
-#if 0
-#define	WM8900_DBG(x...)	printk(KERN_INFO x)
-#else
-#define	WM8900_DBG(x...)
-#endif
 
 /* WM8900 register space */
 #define WM8900_REG_RESET	0x0
@@ -123,8 +113,8 @@
 #define WM8900_REG_CLOCKING1_BCLK_MASK  (~0x01e)
 #define WM8900_REG_CLOCKING1_OPCLK_MASK (~0x7000)
 
-#define WM8900_REG_CLOCKING2_ADC_CLKDIV 0x1c
-#define WM8900_REG_CLOCKING2_DAC_CLKDIV 0xe0
+#define WM8900_REG_CLOCKING2_ADC_CLKDIV 0xe0
+#define WM8900_REG_CLOCKING2_DAC_CLKDIV 0x1c
 
 #define WM8900_REG_DACCTRL_MUTE          0x004
 #define WM8900_REG_DACCTRL_DAC_SB_FILT   0x100
@@ -146,38 +136,9 @@
 #define WM8900_REG_HPCTL1_HP_SHORT2      0x04
 
 #define WM8900_LRC_MASK 0xfc00
-#define SPK_CON 		RK29_PIN6_PB6
-
-#define WM8900_NO_POWEROFF /* Do not close codec except suspend or poweroff */
-
-#define WM8900_IS_SHUTDOWN	0
-#define WM8900_IS_STARTUP	1
-
-#define WM8900_WORK_NULL	0
-#define WM8900_WORK_POWERDOWN_PLAYBACK	1
-#define WM8900_WORK_POWERDOWN_CAPTURE	2
-#define WM8900_WORK_POWERDOWN_PLAYBACK_CAPTURE	3
-#define WM8900_WORK_HW_SET 4
-
-static void wm8900_work(struct work_struct *work);
-
-static struct workqueue_struct *wm8900_workq;
-static DECLARE_DELAYED_WORK(delayed_work, wm8900_work);
-static int wm8900_current_status = WM8900_IS_SHUTDOWN, wm8900_work_type = WM8900_WORK_NULL;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-static struct snd_soc_codec_driver soc_codec_dev_wm8900;
-#endif
-static struct snd_soc_codec *wm8900_codec;
-static bool isSPKon = true;
 
 struct wm8900_priv {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	enum snd_soc_control_type control_type;
-#endif
-	struct snd_soc_codec codec;
-
-	u16 reg_cache[WM8900_MAXREG];
 
 	u32 fll_in; /* FLL input frequency */
 	u32 fll_out; /* FLL output frequency */
@@ -219,11 +180,7 @@ static const u16 wm8900_reg_defaults[WM8900_MAXREG] = {
 	/* Remaining registers all zero */
 };
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
-#else
-static int wm8900_volatile_register(unsigned int reg)
-#endif
 {
 	switch (reg) {
 	case WM8900_REG_ID:
@@ -235,144 +192,430 @@ static int wm8900_volatile_register(unsigned int reg)
 
 static void wm8900_reset(struct snd_soc_codec *codec)
 {
-	WM8900_DBG("Enter:%s, %d, codec=%p\n", __FUNCTION__, __LINE__,codec);
-
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
 
 	memcpy(codec->reg_cache, wm8900_reg_defaults,
 	       sizeof(wm8900_reg_defaults));
 }
 
-void codec_set_spk(bool on)
+static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
 {
-	isSPKon = on;
-	if (on) {
-#ifdef SPK_CON
-		gpio_set_value(SPK_CON, GPIO_HIGH);
-#endif
-	} else {
-#ifdef SPK_CON
-		gpio_set_value(SPK_CON, GPIO_LOW);
-#endif
+	struct snd_soc_codec *codec = w->codec;
+	u16 hpctl1 = snd_soc_read(codec, WM8900_REG_HPCTL1);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Clamp headphone outputs */
+		hpctl1 = WM8900_REG_HPCTL1_HP_CLAMP_IP |
+			WM8900_REG_HPCTL1_HP_CLAMP_OP;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		break;
+
+	case SND_SOC_DAPM_POST_PMU:
+		/* Enable the input stage */
+		hpctl1 &= ~WM8900_REG_HPCTL1_HP_CLAMP_IP;
+		hpctl1 |= WM8900_REG_HPCTL1_HP_SHORT |
+			WM8900_REG_HPCTL1_HP_SHORT2 |
+			WM8900_REG_HPCTL1_HP_IPSTAGE_ENA;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+
+		msleep(400);
+
+		/* Enable the output stage */
+		hpctl1 &= ~WM8900_REG_HPCTL1_HP_CLAMP_OP;
+		hpctl1 |= WM8900_REG_HPCTL1_HP_OPSTAGE_ENA;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+
+		/* Remove the shorts */
+		hpctl1 &= ~WM8900_REG_HPCTL1_HP_SHORT2;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		hpctl1 &= ~WM8900_REG_HPCTL1_HP_SHORT;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		/* Short the output */
+		hpctl1 |= WM8900_REG_HPCTL1_HP_SHORT;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+
+		/* Disable the output stage */
+		hpctl1 &= ~WM8900_REG_HPCTL1_HP_OPSTAGE_ENA;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+
+		/* Clamp the outputs and power down input */
+		hpctl1 |= WM8900_REG_HPCTL1_HP_CLAMP_IP |
+			WM8900_REG_HPCTL1_HP_CLAMP_OP;
+		hpctl1 &= ~WM8900_REG_HPCTL1_HP_IPSTAGE_ENA;
+		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		/* Disable everything */
+		snd_soc_write(codec, WM8900_REG_HPCTL1, 0);
+		break;
+
+	default:
+		BUG();
 	}
+
+	return 0;
 }
 
-EXPORT_SYMBOL_GPL(codec_set_spk);
+static const DECLARE_TLV_DB_SCALE(out_pga_tlv, -5700, 100, 0);
 
-static void wm8900_powerdown(void)
+static const DECLARE_TLV_DB_SCALE(out_mix_tlv, -1500, 300, 0);
+
+static const DECLARE_TLV_DB_SCALE(in_boost_tlv, -1200, 600, 0);
+
+static const DECLARE_TLV_DB_SCALE(in_pga_tlv, -1200, 100, 0);
+
+static const DECLARE_TLV_DB_SCALE(dac_boost_tlv, 0, 600, 0);
+
+static const DECLARE_TLV_DB_SCALE(dac_tlv, -7200, 75, 1);
+
+static const DECLARE_TLV_DB_SCALE(adc_svol_tlv, -3600, 300, 0);
+
+static const DECLARE_TLV_DB_SCALE(adc_tlv, -7200, 75, 1);
+
+static const char *mic_bias_level_txt[] = { "0.9*AVDD", "0.65*AVDD" };
+
+static const struct soc_enum mic_bias_level =
+SOC_ENUM_SINGLE(WM8900_REG_INCTL, 8, 2, mic_bias_level_txt);
+
+static const char *dac_mute_rate_txt[] = { "Fast", "Slow" };
+
+static const struct soc_enum dac_mute_rate =
+SOC_ENUM_SINGLE(WM8900_REG_DACCTRL, 7, 2, dac_mute_rate_txt);
+
+static const char *dac_deemphasis_txt[] = {
+	"Disabled", "32kHz", "44.1kHz", "48kHz"
+};
+
+static const struct soc_enum dac_deemphasis =
+SOC_ENUM_SINGLE(WM8900_REG_DACCTRL, 4, 4, dac_deemphasis_txt);
+
+static const char *adc_hpf_cut_txt[] = {
+	"Hi-fi mode", "Voice mode 1", "Voice mode 2", "Voice mode 3"
+};
+
+static const struct soc_enum adc_hpf_cut =
+SOC_ENUM_SINGLE(WM8900_REG_ADCCTRL, 5, 4, adc_hpf_cut_txt);
+
+static const char *lr_txt[] = {
+	"Left", "Right"
+};
+
+static const struct soc_enum aifl_src =
+SOC_ENUM_SINGLE(WM8900_REG_AUDIO1, 15, 2, lr_txt);
+
+static const struct soc_enum aifr_src =
+SOC_ENUM_SINGLE(WM8900_REG_AUDIO1, 14, 2, lr_txt);
+
+static const struct soc_enum dacl_src =
+SOC_ENUM_SINGLE(WM8900_REG_AUDIO2, 15, 2, lr_txt);
+
+static const struct soc_enum dacr_src =
+SOC_ENUM_SINGLE(WM8900_REG_AUDIO2, 14, 2, lr_txt);
+
+static const char *sidetone_txt[] = {
+	"Disabled", "Left ADC", "Right ADC"
+};
+
+static const struct soc_enum dacl_sidetone =
+SOC_ENUM_SINGLE(WM8900_REG_SIDETONE, 2, 3, sidetone_txt);
+
+static const struct soc_enum dacr_sidetone =
+SOC_ENUM_SINGLE(WM8900_REG_SIDETONE, 0, 3, sidetone_txt);
+
+static const struct snd_kcontrol_new wm8900_snd_controls[] = {
+SOC_ENUM("Mic Bias Level", mic_bias_level),
+
+SOC_SINGLE_TLV("Left Input PGA Volume", WM8900_REG_LINVOL, 0, 31, 0,
+	       in_pga_tlv),
+SOC_SINGLE("Left Input PGA Switch", WM8900_REG_LINVOL, 6, 1, 1),
+SOC_SINGLE("Left Input PGA ZC Switch", WM8900_REG_LINVOL, 7, 1, 0),
+
+SOC_SINGLE_TLV("Right Input PGA Volume", WM8900_REG_RINVOL, 0, 31, 0,
+	       in_pga_tlv),
+SOC_SINGLE("Right Input PGA Switch", WM8900_REG_RINVOL, 6, 1, 1),
+SOC_SINGLE("Right Input PGA ZC Switch", WM8900_REG_RINVOL, 7, 1, 0),
+
+SOC_SINGLE("DAC Soft Mute Switch", WM8900_REG_DACCTRL, 6, 1, 1),
+SOC_ENUM("DAC Mute Rate", dac_mute_rate),
+SOC_SINGLE("DAC Mono Switch", WM8900_REG_DACCTRL, 9, 1, 0),
+SOC_ENUM("DAC Deemphasis", dac_deemphasis),
+SOC_SINGLE("DAC Sigma-Delta Modulator Clock Switch", WM8900_REG_DACCTRL,
+	   12, 1, 0),
+
+SOC_SINGLE("ADC HPF Switch", WM8900_REG_ADCCTRL, 8, 1, 0),
+SOC_ENUM("ADC HPF Cut-Off", adc_hpf_cut),
+SOC_DOUBLE("ADC Invert Switch", WM8900_REG_ADCCTRL, 1, 0, 1, 0),
+SOC_SINGLE_TLV("Left ADC Sidetone Volume", WM8900_REG_SIDETONE, 9, 12, 0,
+	       adc_svol_tlv),
+SOC_SINGLE_TLV("Right ADC Sidetone Volume", WM8900_REG_SIDETONE, 5, 12, 0,
+	       adc_svol_tlv),
+SOC_ENUM("Left Digital Audio Source", aifl_src),
+SOC_ENUM("Right Digital Audio Source", aifr_src),
+
+SOC_SINGLE_TLV("DAC Input Boost Volume", WM8900_REG_AUDIO2, 10, 4, 0,
+	       dac_boost_tlv),
+SOC_ENUM("Left DAC Source", dacl_src),
+SOC_ENUM("Right DAC Source", dacr_src),
+SOC_ENUM("Left DAC Sidetone", dacl_sidetone),
+SOC_ENUM("Right DAC Sidetone", dacr_sidetone),
+SOC_DOUBLE("DAC Invert Switch", WM8900_REG_DACCTRL, 1, 0, 1, 0),
+
+SOC_DOUBLE_R_TLV("Digital Playback Volume",
+		 WM8900_REG_LDAC_DV, WM8900_REG_RDAC_DV,
+		 1, 96, 0, dac_tlv),
+SOC_DOUBLE_R_TLV("Digital Capture Volume",
+		 WM8900_REG_LADC_DV, WM8900_REG_RADC_DV, 1, 119, 0, adc_tlv),
+
+SOC_SINGLE_TLV("LINPUT3 Bypass Volume", WM8900_REG_LOUTMIXCTL1, 4, 7, 0,
+	       out_mix_tlv),
+SOC_SINGLE_TLV("RINPUT3 Bypass Volume", WM8900_REG_ROUTMIXCTL1, 4, 7, 0,
+	       out_mix_tlv),
+SOC_SINGLE_TLV("Left AUX Bypass Volume", WM8900_REG_AUXOUT_CTL, 4, 7, 0,
+	       out_mix_tlv),
+SOC_SINGLE_TLV("Right AUX Bypass Volume", WM8900_REG_AUXOUT_CTL, 0, 7, 0,
+	       out_mix_tlv),
+
+SOC_SINGLE_TLV("LeftIn to RightOut Mixer Volume", WM8900_REG_BYPASS1, 0, 7, 0,
+	       out_mix_tlv),
+SOC_SINGLE_TLV("LeftIn to LeftOut Mixer Volume", WM8900_REG_BYPASS1, 4, 7, 0,
+	       out_mix_tlv),
+SOC_SINGLE_TLV("RightIn to LeftOut Mixer Volume", WM8900_REG_BYPASS2, 0, 7, 0,
+	       out_mix_tlv),
+SOC_SINGLE_TLV("RightIn to RightOut Mixer Volume", WM8900_REG_BYPASS2, 4, 7, 0,
+	       out_mix_tlv),
+
+SOC_SINGLE_TLV("IN2L Boost Volume", WM8900_REG_INBOOSTMIX1, 0, 3, 0,
+	       in_boost_tlv),
+SOC_SINGLE_TLV("IN3L Boost Volume", WM8900_REG_INBOOSTMIX1, 4, 3, 0,
+	       in_boost_tlv),
+SOC_SINGLE_TLV("IN2R Boost Volume", WM8900_REG_INBOOSTMIX2, 0, 3, 0,
+	       in_boost_tlv),
+SOC_SINGLE_TLV("IN3R Boost Volume", WM8900_REG_INBOOSTMIX2, 4, 3, 0,
+	       in_boost_tlv),
+SOC_SINGLE_TLV("Left AUX Boost Volume", WM8900_REG_AUXBOOST, 4, 3, 0,
+	       in_boost_tlv),
+SOC_SINGLE_TLV("Right AUX Boost Volume", WM8900_REG_AUXBOOST, 0, 3, 0,
+	       in_boost_tlv),
+
+SOC_DOUBLE_R_TLV("LINEOUT1 Volume", WM8900_REG_LOUT1CTL, WM8900_REG_ROUT1CTL,
+	       0, 63, 0, out_pga_tlv),
+SOC_DOUBLE_R("LINEOUT1 Switch", WM8900_REG_LOUT1CTL, WM8900_REG_ROUT1CTL,
+	     6, 1, 1),
+SOC_DOUBLE_R("LINEOUT1 ZC Switch", WM8900_REG_LOUT1CTL, WM8900_REG_ROUT1CTL,
+	     7, 1, 0),
+
+SOC_DOUBLE_R_TLV("LINEOUT2 Volume",
+		 WM8900_REG_LOUT2CTL, WM8900_REG_ROUT2CTL,
+		 0, 63, 0, out_pga_tlv),
+SOC_DOUBLE_R("LINEOUT2 Switch",
+	     WM8900_REG_LOUT2CTL, WM8900_REG_ROUT2CTL, 6, 1, 1),
+SOC_DOUBLE_R("LINEOUT2 ZC Switch",
+	     WM8900_REG_LOUT2CTL, WM8900_REG_ROUT2CTL, 7, 1, 0),
+SOC_SINGLE("LINEOUT2 LP -12dB", WM8900_REG_LOUTMIXCTL1,
+	   0, 1, 1),
+
+};
+
+static const struct snd_kcontrol_new wm8900_dapm_loutput2_control =
+SOC_DAPM_SINGLE("LINEOUT2L Switch", WM8900_REG_POWER3, 6, 1, 0);
+
+static const struct snd_kcontrol_new wm8900_dapm_routput2_control =
+SOC_DAPM_SINGLE("LINEOUT2R Switch", WM8900_REG_POWER3, 5, 1, 0);
+
+static const struct snd_kcontrol_new wm8900_loutmix_controls[] = {
+SOC_DAPM_SINGLE("LINPUT3 Bypass Switch", WM8900_REG_LOUTMIXCTL1, 7, 1, 0),
+SOC_DAPM_SINGLE("AUX Bypass Switch", WM8900_REG_AUXOUT_CTL, 7, 1, 0),
+SOC_DAPM_SINGLE("Left Input Mixer Switch", WM8900_REG_BYPASS1, 7, 1, 0),
+SOC_DAPM_SINGLE("Right Input Mixer Switch", WM8900_REG_BYPASS2, 3, 1, 0),
+SOC_DAPM_SINGLE("DACL Switch", WM8900_REG_LOUTMIXCTL1, 8, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8900_routmix_controls[] = {
+SOC_DAPM_SINGLE("RINPUT3 Bypass Switch", WM8900_REG_ROUTMIXCTL1, 7, 1, 0),
+SOC_DAPM_SINGLE("AUX Bypass Switch", WM8900_REG_AUXOUT_CTL, 3, 1, 0),
+SOC_DAPM_SINGLE("Left Input Mixer Switch", WM8900_REG_BYPASS1, 3, 1, 0),
+SOC_DAPM_SINGLE("Right Input Mixer Switch", WM8900_REG_BYPASS2, 7, 1, 0),
+SOC_DAPM_SINGLE("DACR Switch", WM8900_REG_ROUTMIXCTL1, 8, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8900_linmix_controls[] = {
+SOC_DAPM_SINGLE("LINPUT2 Switch", WM8900_REG_INBOOSTMIX1, 2, 1, 1),
+SOC_DAPM_SINGLE("LINPUT3 Switch", WM8900_REG_INBOOSTMIX1, 6, 1, 1),
+SOC_DAPM_SINGLE("AUX Switch", WM8900_REG_AUXBOOST, 6, 1, 1),
+SOC_DAPM_SINGLE("Input PGA Switch", WM8900_REG_ADCPATH, 6, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8900_rinmix_controls[] = {
+SOC_DAPM_SINGLE("RINPUT2 Switch", WM8900_REG_INBOOSTMIX2, 2, 1, 1),
+SOC_DAPM_SINGLE("RINPUT3 Switch", WM8900_REG_INBOOSTMIX2, 6, 1, 1),
+SOC_DAPM_SINGLE("AUX Switch", WM8900_REG_AUXBOOST, 2, 1, 1),
+SOC_DAPM_SINGLE("Input PGA Switch", WM8900_REG_ADCPATH, 2, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8900_linpga_controls[] = {
+SOC_DAPM_SINGLE("LINPUT1 Switch", WM8900_REG_INCTL, 6, 1, 0),
+SOC_DAPM_SINGLE("LINPUT2 Switch", WM8900_REG_INCTL, 5, 1, 0),
+SOC_DAPM_SINGLE("LINPUT3 Switch", WM8900_REG_INCTL, 4, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8900_rinpga_controls[] = {
+SOC_DAPM_SINGLE("RINPUT1 Switch", WM8900_REG_INCTL, 2, 1, 0),
+SOC_DAPM_SINGLE("RINPUT2 Switch", WM8900_REG_INCTL, 1, 1, 0),
+SOC_DAPM_SINGLE("RINPUT3 Switch", WM8900_REG_INCTL, 0, 1, 0),
+};
+
+static const char *wm9700_lp_mux[] = { "Disabled", "Enabled" };
+
+static const struct soc_enum wm8900_lineout2_lp_mux =
+SOC_ENUM_SINGLE(WM8900_REG_LOUTMIXCTL1, 1, 2, wm9700_lp_mux);
+
+static const struct snd_kcontrol_new wm8900_lineout2_lp =
+SOC_DAPM_ENUM("Route", wm8900_lineout2_lp_mux);
+
+static const struct snd_soc_dapm_widget wm8900_dapm_widgets[] = {
+
+/* Externally visible pins */
+SND_SOC_DAPM_OUTPUT("LINEOUT1L"),
+SND_SOC_DAPM_OUTPUT("LINEOUT1R"),
+SND_SOC_DAPM_OUTPUT("LINEOUT2L"),
+SND_SOC_DAPM_OUTPUT("LINEOUT2R"),
+SND_SOC_DAPM_OUTPUT("HP_L"),
+SND_SOC_DAPM_OUTPUT("HP_R"),
+
+SND_SOC_DAPM_INPUT("RINPUT1"),
+SND_SOC_DAPM_INPUT("LINPUT1"),
+SND_SOC_DAPM_INPUT("RINPUT2"),
+SND_SOC_DAPM_INPUT("LINPUT2"),
+SND_SOC_DAPM_INPUT("RINPUT3"),
+SND_SOC_DAPM_INPUT("LINPUT3"),
+SND_SOC_DAPM_INPUT("AUX"),
+
+SND_SOC_DAPM_VMID("VMID"),
+
+/* Input */
+SND_SOC_DAPM_MIXER("Left Input PGA", WM8900_REG_POWER2, 3, 0,
+		   wm8900_linpga_controls,
+		   ARRAY_SIZE(wm8900_linpga_controls)),
+SND_SOC_DAPM_MIXER("Right Input PGA", WM8900_REG_POWER2, 2, 0,
+		   wm8900_rinpga_controls,
+		   ARRAY_SIZE(wm8900_rinpga_controls)),
+
+SND_SOC_DAPM_MIXER("Left Input Mixer", WM8900_REG_POWER2, 5, 0,
+		   wm8900_linmix_controls,
+		   ARRAY_SIZE(wm8900_linmix_controls)),
+SND_SOC_DAPM_MIXER("Right Input Mixer", WM8900_REG_POWER2, 4, 0,
+		   wm8900_rinmix_controls,
+		   ARRAY_SIZE(wm8900_rinmix_controls)),
+
+SND_SOC_DAPM_MICBIAS("Mic Bias", WM8900_REG_POWER1, 4, 0),
+
+SND_SOC_DAPM_ADC("ADCL", "Left HiFi Capture", WM8900_REG_POWER2, 1, 0),
+SND_SOC_DAPM_ADC("ADCR", "Right HiFi Capture", WM8900_REG_POWER2, 0, 0),
+
+/* Output */
+SND_SOC_DAPM_DAC("DACL", "Left HiFi Playback", WM8900_REG_POWER3, 1, 0),
+SND_SOC_DAPM_DAC("DACR", "Right HiFi Playback", WM8900_REG_POWER3, 0, 0),
+
+SND_SOC_DAPM_PGA_E("Headphone Amplifier", WM8900_REG_POWER3, 7, 0, NULL, 0,
+		   wm8900_hp_event,
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+
+SND_SOC_DAPM_PGA("LINEOUT1L PGA", WM8900_REG_POWER2, 8, 0, NULL, 0),
+SND_SOC_DAPM_PGA("LINEOUT1R PGA", WM8900_REG_POWER2, 7, 0, NULL, 0),
+
+SND_SOC_DAPM_MUX("LINEOUT2 LP", SND_SOC_NOPM, 0, 0, &wm8900_lineout2_lp),
+SND_SOC_DAPM_PGA("LINEOUT2L PGA", WM8900_REG_POWER3, 6, 0, NULL, 0),
+SND_SOC_DAPM_PGA("LINEOUT2R PGA", WM8900_REG_POWER3, 5, 0, NULL, 0),
+
+SND_SOC_DAPM_MIXER("Left Output Mixer", WM8900_REG_POWER3, 3, 0,
+		   wm8900_loutmix_controls,
+		   ARRAY_SIZE(wm8900_loutmix_controls)),
+SND_SOC_DAPM_MIXER("Right Output Mixer", WM8900_REG_POWER3, 2, 0,
+		   wm8900_routmix_controls,
+		   ARRAY_SIZE(wm8900_routmix_controls)),
+};
+
+/* Target, Path, Source */
+static const struct snd_soc_dapm_route audio_map[] = {
+/* Inputs */
+{"Left Input PGA", "LINPUT1 Switch", "LINPUT1"},
+{"Left Input PGA", "LINPUT2 Switch", "LINPUT2"},
+{"Left Input PGA", "LINPUT3 Switch", "LINPUT3"},
+
+{"Right Input PGA", "RINPUT1 Switch", "RINPUT1"},
+{"Right Input PGA", "RINPUT2 Switch", "RINPUT2"},
+{"Right Input PGA", "RINPUT3 Switch", "RINPUT3"},
+
+{"Left Input Mixer", "LINPUT2 Switch", "LINPUT2"},
+{"Left Input Mixer", "LINPUT3 Switch", "LINPUT3"},
+{"Left Input Mixer", "AUX Switch", "AUX"},
+{"Left Input Mixer", "Input PGA Switch", "Left Input PGA"},
+
+{"Right Input Mixer", "RINPUT2 Switch", "RINPUT2"},
+{"Right Input Mixer", "RINPUT3 Switch", "RINPUT3"},
+{"Right Input Mixer", "AUX Switch", "AUX"},
+{"Right Input Mixer", "Input PGA Switch", "Right Input PGA"},
+
+{"ADCL", NULL, "Left Input Mixer"},
+{"ADCR", NULL, "Right Input Mixer"},
+
+/* Outputs */
+{"LINEOUT1L", NULL, "LINEOUT1L PGA"},
+{"LINEOUT1L PGA", NULL, "Left Output Mixer"},
+{"LINEOUT1R", NULL, "LINEOUT1R PGA"},
+{"LINEOUT1R PGA", NULL, "Right Output Mixer"},
+
+{"LINEOUT2L PGA", NULL, "Left Output Mixer"},
+{"LINEOUT2 LP", "Disabled", "LINEOUT2L PGA"},
+{"LINEOUT2 LP", "Enabled", "Left Output Mixer"},
+{"LINEOUT2L", NULL, "LINEOUT2 LP"},
+
+{"LINEOUT2R PGA", NULL, "Right Output Mixer"},
+{"LINEOUT2 LP", "Disabled", "LINEOUT2R PGA"},
+{"LINEOUT2 LP", "Enabled", "Right Output Mixer"},
+{"LINEOUT2R", NULL, "LINEOUT2 LP"},
+
+{"Left Output Mixer", "LINPUT3 Bypass Switch", "LINPUT3"},
+{"Left Output Mixer", "AUX Bypass Switch", "AUX"},
+{"Left Output Mixer", "Left Input Mixer Switch", "Left Input Mixer"},
+{"Left Output Mixer", "Right Input Mixer Switch", "Right Input Mixer"},
+{"Left Output Mixer", "DACL Switch", "DACL"},
+
+{"Right Output Mixer", "RINPUT3 Bypass Switch", "RINPUT3"},
+{"Right Output Mixer", "AUX Bypass Switch", "AUX"},
+{"Right Output Mixer", "Left Input Mixer Switch", "Left Input Mixer"},
+{"Right Output Mixer", "Right Input Mixer Switch", "Right Input Mixer"},
+{"Right Output Mixer", "DACR Switch", "DACR"},
+
+/* Note that the headphone output stage needs to be connected
+ * externally to LINEOUT2 via DC blocking capacitors.  Other
+ * configurations are not supported.
+ *
+ * Note also that left and right headphone paths are treated as a
+ * mono path.
+ */
+{"Headphone Amplifier", NULL, "LINEOUT2 LP"},
+{"Headphone Amplifier", NULL, "LINEOUT2 LP"},
+{"HP_L", NULL, "Headphone Amplifier"},
+{"HP_R", NULL, "Headphone Amplifier"},
+};
+
+static int wm8900_add_widgets(struct snd_soc_codec *codec)
 {
-	printk("Power down wm8900\n");
-#ifndef WM8900_NO_POWEROFF
-	gpio_set_value(RK29_PIN1_PD6, GPIO_LOW);
-#endif
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_write(wm8900_codec, WM8900_REG_POWER1, 0x210D);
+	snd_soc_dapm_new_controls(dapm, wm8900_dapm_widgets,
+				  ARRAY_SIZE(wm8900_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	if (wm8900_current_status != WM8900_IS_SHUTDOWN) {
-#ifdef SPK_CON
-		gpio_set_value(SPK_CON, GPIO_LOW);
-#endif
-		msleep(20);
-		snd_soc_write(wm8900_codec, WM8900_REG_RESET, 0);
-		wm8900_current_status = WM8900_IS_SHUTDOWN;
-	}
-}
-
-static void wm8900_set_hw(struct snd_soc_codec *codec)
-{
-	u16 reg;
-
-	if (wm8900_current_status & WM8900_IS_STARTUP)
-		return;
-
-	printk("Power up wm8900\n");
-//CLK , PATH, VOL,POW.
-	
-	snd_soc_write(codec, WM8900_REG_HPCTL1, 0x30);
-	snd_soc_write(codec, WM8900_REG_POWER1, 0x0100);
-	snd_soc_write(codec, WM8900_REG_POWER3, 0x60);
-	snd_soc_write(codec, WM8900_REG_POWER1, 0x0101);
-	msleep(400);
-	snd_soc_write(codec, WM8900_REG_POWER1, 0x0109);
-	snd_soc_write(codec, WM8900_REG_ADDCTL, 0x02);
-	snd_soc_write(codec, WM8900_REG_POWER1, 0x09);
-	snd_soc_write(codec, WM8900_REG_POWER3, 0xEF);
-	snd_soc_write(codec, WM8900_REG_DACCTRL, WM8900_REG_DACCTRL_MUTE);
-	snd_soc_write(codec, WM8900_REG_LOUTMIXCTL1, 0x150);
-	snd_soc_write(codec, WM8900_REG_ROUTMIXCTL1, 0x150);
-
-	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xB0);
-	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xF0);
-	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xC0);
-
-	//for recorder
-	snd_soc_write(codec, WM8900_REG_POWER1, 0x210D);
-	snd_soc_write(codec, WM8900_REG_POWER2, 0xC1AF);
-
-	snd_soc_write(codec, WM8900_REG_LADC_DV, 0x01C0);
-	snd_soc_write(codec, WM8900_REG_RADC_DV, 0x01C0);
-
-	snd_soc_write(codec, WM8900_REG_INCTL, 0x0040);
-
-	snd_soc_write(codec, WM8900_REG_LINVOL, 0x011A);
-	snd_soc_write(codec, WM8900_REG_RINVOL, 0x011A);
-	snd_soc_write(codec, WM8900_REG_INBOOSTMIX1, 0x0042);
-	snd_soc_write(codec, WM8900_REG_INBOOSTMIX2, 0x0042);
-	snd_soc_write(codec, WM8900_REG_ADCPATH, 0x0055);
-
-	reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
-
-	reg &= ~WM8900_REG_DACCTRL_MUTE;
-	snd_soc_write(codec, WM8900_REG_DACCTRL, reg);
-
-	snd_soc_write(codec, WM8900_REG_LOUT1CTL, 0x130);
-	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x130);
-
-	/* Turn up vol slowly, for HP out pop noise */
-
-	for (reg = 0; reg <= 0x33; reg += 0x10) {
-			snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x100 + reg);
-			snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x100 + reg);
-			msleep(5);
-	}
-	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x133);
-	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x133);
-
-	msleep(20);
-
-#ifdef SPK_CON
-	if (isSPKon) {
-		gpio_set_value(SPK_CON, GPIO_HIGH);
-	}
-#endif
-#ifndef WM8900_NO_POWEROFF
-	msleep(350);
-	gpio_set_value(RK29_PIN1_PD6, GPIO_HIGH);
-#endif
-	wm8900_current_status |= WM8900_IS_STARTUP;
-}
-
-static void wm8900_work(struct work_struct *work)
-{
-        WM8900_DBG("Enter::wm8900_work : wm8900_work_type = %d\n", wm8900_work_type);
-
-        switch (wm8900_work_type) {
-        case WM8900_WORK_POWERDOWN_PLAYBACK :
-                break;
-        case WM8900_WORK_POWERDOWN_CAPTURE:
-                snd_soc_write(wm8900_codec, WM8900_REG_POWER1, 0x210D);
-                break;
-        case WM8900_WORK_POWERDOWN_PLAYBACK_CAPTURE:
-                wm8900_powerdown();
-                break;
-        case WM8900_WORK_HW_SET:
-                wm8900_set_hw(wm8900_codec);
-                break;
-        default:
-                break;
-        }
-
-        wm8900_work_type = WM8900_WORK_NULL;
+	return 0;
 }
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
@@ -380,15 +623,8 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	struct snd_soc_codec *codec = rtd->codec;
-#else
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-#endif
 	u16 reg;
-
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	reg = snd_soc_read(codec, WM8900_REG_AUDIO1) & ~0x60;
 
@@ -409,6 +645,17 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	snd_soc_write(codec, WM8900_REG_AUDIO1, reg);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
+
+		if (params_rate(params) <= 24000)
+			reg |= WM8900_REG_DACCTRL_DAC_SB_FILT;
+		else
+			reg &= ~WM8900_REG_DACCTRL_DAC_SB_FILT;
+
+		snd_soc_write(codec, WM8900_REG_DACCTRL, reg);
+	}
 
 	return 0;
 }
@@ -433,10 +680,8 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	unsigned int K, Ndiv, Nmod, target;
 	unsigned int div;
 
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-
 	BUG_ON(!Fout);
-        
+
 	/* The FLL must run at 90-100MHz which is then scaled down to
 	 * the output value by FLLCLK_DIV. */
 	target = Fout;
@@ -498,8 +743,6 @@ static int wm8900_set_fll(struct snd_soc_codec *codec,
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
 	unsigned int reg;
-
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	if (wm8900->fll_in == freq_in && wm8900->fll_out == freq_out)
 		return 0;
@@ -568,9 +811,6 @@ reenable:
 static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		int source, unsigned int freq_in, unsigned int freq_out)
 {
-
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-
 	return wm8900_set_fll(codec_dai->codec, pll_id, freq_in, freq_out);
 }
 
@@ -579,8 +819,6 @@ static int wm8900_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int reg;
-
-	WM8900_DBG("Enter:%s, %d, div_id=%d, div=%d \n", __FUNCTION__, __LINE__, div_id, div);
 
 	switch (div_id) {
 	case WM8900_BCLK_DIV:
@@ -631,8 +869,6 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int clocking1, aif1, aif3, aif4;
-
-	WM8900_DBG("Enter:%s, %d, fmt=0x%08X \n", __FUNCTION__, __LINE__, fmt);
 
 	clocking1 = snd_soc_read(codec, WM8900_REG_CLOCKING1);
 	aif1 = snd_soc_read(codec, WM8900_REG_AUDIO1);
@@ -743,139 +979,24 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 {
-	WM8900_DBG("Enter:%s, %d , mute = %d \n", __FUNCTION__, __LINE__, mute);
+	struct snd_soc_codec *codec = codec_dai->codec;
+	u16 reg;
+
+	reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
+
+	if (mute)
+		reg |= WM8900_REG_DACCTRL_MUTE;
+	else
+		reg &= ~WM8900_REG_DACCTRL_MUTE;
+
+	snd_soc_write(codec, WM8900_REG_DACCTRL, reg);
 
 	return 0;
 }
 
-static int wm8900_startup(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-#else
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_dai *codec_dai = machine->codec_dai;
-#endif
-
-	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
-		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
-
-	cancel_delayed_work_sync(&delayed_work);
-	wm8900_work_type = WM8900_WORK_NULL;
-
-	wm8900_set_hw(codec);
-
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE ||
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	     codec_dai->capture_active) {
-#else
-	     codec_dai->capture.active) {
-#endif
-		snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	} else if (!codec_dai->capture_active) {
-#else
-	} else if (!codec_dai->capture.active) {
-#endif
-		snd_soc_write(codec, WM8900_REG_POWER1, 0x210D);
-	}
-
-	return 0;
-}
-
-static void wm8900_shutdown(struct snd_pcm_substream *substream,
-			    struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-#else
-	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_dai *codec_dai = machine->codec_dai;
-#endif
-
-	WM8900_DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
-		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
-
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
-	    wm8900_work_type == WM8900_WORK_NULL) {
-		cancel_delayed_work_sync(&delayed_work);
-		wm8900_work_type = WM8900_WORK_POWERDOWN_CAPTURE;
-		queue_delayed_work(wm8900_workq, &delayed_work,
-			msecs_to_jiffies(3000));
-	}
-#ifdef WM8900_NO_POWEROFF
-	return; /* Let codec not going to power off for pop noise */
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	if (!codec_dai->capture_active && !codec_dai->playback_active) {
-#else
-	if (!codec_dai->capture.active && !codec_dai->playback.active) {
-#endif
-
-		cancel_delayed_work_sync(&delayed_work);
-		wm8900_work_type = WM8900_WORK_NULL;
-
-		/* If codec is already shutdown, return */
-		if (wm8900_current_status == WM8900_IS_SHUTDOWN)
-			return;
-
-		WM8900_DBG("Is going to power down wm8900\n");
-
-		wm8900_work_type = WM8900_WORK_POWERDOWN_PLAYBACK_CAPTURE;
-
-		/* If codec is useless, queue work to close it */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			queue_delayed_work(wm8900_workq, &delayed_work,
-				msecs_to_jiffies(1000));
-		} else {
-			queue_delayed_work(wm8900_workq, &delayed_work,
-				msecs_to_jiffies(3000));
-		}
-	}
-}
-
-static int wm8900_trigger(struct snd_pcm_substream *substream,
-			  int status,
-			  struct snd_soc_dai *dai)
-{	
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-#else
-	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_dai *codec_dai = machine->codec_dai;
-#endif
-
-	WM8900_DBG("Enter::%s----%d status = %d substream->stream:%s \n",__FUNCTION__, __LINE__, status,
-		   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");	
-
-	if(status == 1 || status == 0){
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-			codec_dai->playback_active = status;
-#else
-			codec_dai->playback.active = status;
-#endif
-		}else{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-			codec_dai->capture_active = status;
-#else
-			codec_dai->capture.active = status;
-#endif
-		}
-	}
-
-	return 0;
-}
-
-#define WM8900_RATES SNDRV_PCM_RATE_44100
+#define WM8900_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		      SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
+		      SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
 #define WM8900_PCM_FORMATS \
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
@@ -887,17 +1008,10 @@ static struct snd_soc_dai_ops wm8900_dai_ops = {
 	.set_pll	= wm8900_set_dai_pll,
 	.set_fmt	= wm8900_set_dai_fmt,
 	.digital_mute	= wm8900_digital_mute,
-	.startup	= wm8900_startup,
-	.shutdown	= wm8900_shutdown,
-	.trigger	= wm8900_trigger,
 };
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static struct snd_soc_dai_driver wm8900_dai = {
-#else
-struct snd_soc_dai wm8900_dai = {
-#endif
-	.name = "WM8900 HiFi",
+	.name = "wm8900-hifi",
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,
@@ -914,22 +1028,11 @@ struct snd_soc_dai wm8900_dai = {
 	 },
 	.ops = &wm8900_dai_ops,
 };
-EXPORT_SYMBOL_GPL(wm8900_dai);
 
 static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	u16 reg;
-
-	WM8900_DBG("Enter:%s, %d, level=0x%08X \n", __FUNCTION__, __LINE__, level);
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	codec->dapm.bias_level = level;
-#else
-	codec->bias_level = level;
-#endif
-	return 0;
-#if 0
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -947,7 +1050,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Charge capacitors if initial power up */
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* STARTUP_BIAS_ENA on */
 			snd_soc_write(codec, WM8900_REG_POWER1,
 				     WM8900_REG_POWER1_STARTUP_BIAS_ENA);
@@ -1015,44 +1118,21 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 			     WM8900_REG_POWER2_SYSCLK_ENA);
 		break;
 	}
-
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
-#endif
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_suspend(struct snd_soc_codec *codec, pm_message_t state)
-#else
-static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
-#endif
 {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-#endif
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
 	int ret;
 
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-
-	cancel_delayed_work_sync(&delayed_work);
-	wm8900_work_type = WM8900_WORK_NULL;
-
-#ifdef WM8900_NO_POWEROFF
-	wm8900_powerdown();
-#endif
-
 	/* Stop the FLL in an orderly fashion */
 	ret = wm8900_set_fll(codec, 0, 0, 0);
 	if (ret != 0) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 		dev_err(codec->dev, "Failed to stop FLL\n");
-#else
-		dev_err(&pdev->dev, "Failed to stop FLL\n");
-#endif
 		return ret;
 	}
 
@@ -1064,23 +1144,20 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_resume(struct snd_soc_codec *codec)
-#else
-static int wm8900_resume(struct platform_device *pdev)
-#endif
 {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-#endif
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
+	u16 *cache;
+	int i, ret;
 
+	cache = kmemdup(codec->reg_cache, sizeof(wm8900_reg_defaults),
+			GFP_KERNEL);
+
+	wm8900_reset(codec);
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Restart the FLL? */
 	if (wm8900->fll_out) {
-		int ret;
 		int fll_out = wm8900->fll_out;
 		int fll_in  = wm8900->fll_in;
 
@@ -1089,80 +1166,36 @@ static int wm8900_resume(struct platform_device *pdev)
 
 		ret = wm8900_set_fll(codec, 0, fll_in, fll_out);
 		if (ret != 0) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 			dev_err(codec->dev, "Failed to restart FLL\n");
-#else
-			dev_err(&pdev->dev, "Failed to restart FLL\n");
-#endif
 			return ret;
 		}
 	}
 
-#ifdef WM8900_NO_POWEROFF
-	if (wm8900_current_status == WM8900_IS_SHUTDOWN) {
-
-		cancel_delayed_work_sync(&delayed_work);
-		wm8900_work_type = WM8900_WORK_HW_SET;
-		queue_delayed_work(wm8900_workq, &delayed_work,
-		                   msecs_to_jiffies(1000));
-	}
-#endif
+	if (cache) {
+		for (i = 0; i < WM8900_MAXREG; i++)
+			snd_soc_write(codec, i, cache[i]);
+		kfree(cache);
+	} else
+		dev_err(codec->dev, "Unable to allocate register cache\n");
 
 	return 0;
 }
 
-#if 0
-static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8900_probe(struct snd_soc_codec *codec)
 {
-	struct wm8900_priv *wm8900;
-	struct snd_soc_codec *codec;
-	unsigned int reg;
-	int ret;
+	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0, reg;
 
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-        
-	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
-	if (wm8900 == NULL)
-		return -ENOMEM;
-
-	codec = &wm8900->codec;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	snd_soc_codec_set_drvdata(codec, wm8900);
-	codec->reg_cache = &wm8900->reg_cache[0];
-	codec->reg_cache_size = WM8900_MAXREG;
-#endif
-
-	mutex_init(&codec->mutex);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-#endif
-
-	codec->name = "WM8900";
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	codec->owner = THIS_MODULE;
-	codec->dai = &wm8900_dai;
-#endif
-	codec->num_dai = 1;
-	codec->control_data = i2c;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	codec->set_bias_level = wm8900_set_bias_level;
-	codec->volatile_register = wm8900_volatile_register;
-#endif
-	codec->dev = &i2c->dev;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8900->control_type);
 	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
 	}
 
 	reg = snd_soc_read(codec, WM8900_REG_ID);
 	if (reg != 0x8900) {
-		dev_err(&i2c->dev, "Device is not a WM8900 - ID %x\n", reg);
-		ret = -ENODEV;
-		goto err;
+		dev_err(codec->dev, "Device is not a WM8900 - ID %x\n", reg);
+		return -ENODEV;
 	}
 
 	wm8900_reset(codec);
@@ -1170,207 +1203,45 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	/* Turn the chip on */
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	wm8900_dai.dev = &i2c->dev;
-#endif
+	/* Latch the volume update bits */
+	snd_soc_write(codec, WM8900_REG_LINVOL,
+		      snd_soc_read(codec, WM8900_REG_LINVOL) | 0x100);
+	snd_soc_write(codec, WM8900_REG_RINVOL,
+		      snd_soc_read(codec, WM8900_REG_RINVOL) | 0x100);
+	snd_soc_write(codec, WM8900_REG_LOUT1CTL,
+		      snd_soc_read(codec, WM8900_REG_LOUT1CTL) | 0x100);
+	snd_soc_write(codec, WM8900_REG_ROUT1CTL,
+		      snd_soc_read(codec, WM8900_REG_ROUT1CTL) | 0x100);
+	snd_soc_write(codec, WM8900_REG_LOUT2CTL,
+		      snd_soc_read(codec, WM8900_REG_LOUT2CTL) | 0x100);
+	snd_soc_write(codec, WM8900_REG_ROUT2CTL,
+		      snd_soc_read(codec, WM8900_REG_ROUT2CTL) | 0x100);
+	snd_soc_write(codec, WM8900_REG_LDAC_DV,
+		      snd_soc_read(codec, WM8900_REG_LDAC_DV) | 0x100);
+	snd_soc_write(codec, WM8900_REG_RDAC_DV,
+		      snd_soc_read(codec, WM8900_REG_RDAC_DV) | 0x100);
+	snd_soc_write(codec, WM8900_REG_LADC_DV,
+		      snd_soc_read(codec, WM8900_REG_LADC_DV) | 0x100);
+	snd_soc_write(codec, WM8900_REG_RADC_DV,
+		      snd_soc_read(codec, WM8900_REG_RADC_DV) | 0x100);
 
-	wm8900_codec = codec;
+	/* Set the DAC and mixer output bias */
+	snd_soc_write(codec, WM8900_REG_OUTBIASCTL, 0x81);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_wm8900, &wm8900_dai, 1);
-#else
-	ret = snd_soc_register_codec(codec);
-#endif
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		goto err;
-	}
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	ret = snd_soc_register_dai(&wm8900_dai);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to register DAI: %d\n", ret);
-		goto err_codec;
-	}
-#endif
-
-	return ret;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-err_codec:
-	snd_soc_unregister_codec(codec);
-#endif
-err:
-	kfree(wm8900);
-	wm8900_codec = NULL;
-	return ret;
-}
-#else
-static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
-{
-	struct wm8900_priv *wm8900;
-	int ret;
-
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-
-	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
-	if (wm8900 == NULL)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, wm8900);
-	wm8900->control_type = SND_SOC_I2C;
-
-	ret =  snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_wm8900, &wm8900_dai, 1);
-	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		kfree(wm8900);
-	}
-	return ret;
-}
-#endif
-
-static __devexit int wm8900_i2c_remove(struct i2c_client *client)
-{
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
-#else
-	snd_soc_unregister_dai(&wm8900_dai);
-	snd_soc_unregister_codec(wm8900_codec);
-
-	wm8900_set_bias_level(wm8900_codec, SND_SOC_BIAS_OFF);
-
-	wm8900_dai.dev = NULL;
-	kfree(snd_soc_codec_get_drvdata(wm8900_codec));
-	wm8900_codec = NULL;
-#endif
+	snd_soc_add_controls(codec, wm8900_snd_controls,
+				ARRAY_SIZE(wm8900_snd_controls));
+	wm8900_add_widgets(codec);
 
 	return 0;
 }
 
-void wm8900_i2c_shutdown(struct i2c_client *client)
-{
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-	wm8900_powerdown();
-}
-
-static const struct i2c_device_id wm8900_i2c_id[] = {
-	{ "wm8900", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);
-
-static struct i2c_driver wm8900_i2c_driver = {
-	.driver = {
-		.name = "WM8900",
-		.owner = THIS_MODULE,
-	},
-	.probe = wm8900_i2c_probe,
-	.remove = __devexit_p(wm8900_i2c_remove),
-	.shutdown = wm8900_i2c_shutdown,
-	.id_table = wm8900_i2c_id,
-};
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-static int wm8900_probe(struct snd_soc_codec *codec)
-{
-	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-	wm8900_codec = codec;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8900->control_type);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-#else
-static int wm8900_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-#endif
-
-#ifndef WM8900_NO_POWEROFF
-	gpio_set_value(RK29_PIN1_PD6, GPIO_LOW);
-#endif
-
-	WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
-        
-	if (!wm8900_codec) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-		dev_err(codec->dev, "I2C client not yet instantiated\n");
-#else
-		dev_err(&pdev->dev, "I2C client not yet instantiated\n");
-#endif
-		return -ENODEV;
-	}
-
-#if defined(SPK_CON)
-	gpio_request(SPK_CON,NULL);
-	gpio_direction_output(SPK_CON, GPIO_LOW);
-#endif
-
-	codec = wm8900_codec;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-	socdev->card->codec = codec;
-
-	/* Register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to register new PCMs\n");
-		dev_err(&pdev->dev, "Failed to register new PCMs\n");
-		goto pcm_err;
-	}
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38))
-	wm8900_workq = create_freezable_workqueue("wm8900");
-#else
-	wm8900_workq = create_freezeable_workqueue("wm8900");
-#endif
-	if (wm8900_workq == NULL) {
-		kfree(codec);
-		return -ENOMEM;
-	}
-
-#ifdef WM8900_NO_POWEROFF
-	wm8900_set_hw(codec);
-#endif
-
-	return ret;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
-pcm_err:
-	return ret;
-#endif
-}
-
 /* power down chip */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static int wm8900_remove(struct snd_soc_codec *codec)
 {
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
-#else
-static int wm8900_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.probe =	wm8900_probe,
 	.remove =	wm8900_remove,
@@ -1382,25 +1253,118 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8900_reg_defaults,
 };
-#else
-struct snd_soc_codec_device soc_codec_dev_wm8900 = {
-	.probe = 	wm8900_probe,
-	.remove = 	wm8900_remove,
-	.suspend = 	wm8900_suspend,
-	.resume =	wm8900_resume,
+
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8900_spi_probe(struct spi_device *spi)
+{
+	struct wm8900_priv *wm8900;
+	int ret;
+
+	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
+	if (wm8900 == NULL)
+		return -ENOMEM;
+
+	wm8900->control_type = SND_SOC_SPI;
+	spi_set_drvdata(spi, wm8900);
+
+	ret = snd_soc_register_codec(&spi->dev,
+			&soc_codec_dev_wm8900, &wm8900_dai, 1);
+	if (ret < 0)
+		kfree(wm8900);
+	return ret;
+}
+
+static int __devexit wm8900_spi_remove(struct spi_device *spi)
+{
+	snd_soc_unregister_codec(&spi->dev);
+	kfree(spi_get_drvdata(spi));
+	return 0;
+}
+
+static struct spi_driver wm8900_spi_driver = {
+	.driver = {
+		.name	= "wm8900-codec",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8900_spi_probe,
+	.remove		= __devexit_p(wm8900_spi_remove),
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8900);
+#endif /* CONFIG_SPI_MASTER */
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
+{
+	struct wm8900_priv *wm8900;
+	int ret;
+
+	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
+	if (wm8900 == NULL)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, wm8900);
+	wm8900->control_type = SND_SOC_I2C;
+
+	ret =  snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm8900, &wm8900_dai, 1);
+	if (ret < 0)
+		kfree(wm8900);
+	return ret;
+}
+
+static __devexit int wm8900_i2c_remove(struct i2c_client *client)
+{
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
+	return 0;
+}
+
+static const struct i2c_device_id wm8900_i2c_id[] = {
+	{ "wm8900", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);
+
+static struct i2c_driver wm8900_i2c_driver = {
+	.driver = {
+		.name = "wm8900-codec",
+		.owner = THIS_MODULE,
+	},
+	.probe =    wm8900_i2c_probe,
+	.remove =   __devexit_p(wm8900_i2c_remove),
+	.id_table = wm8900_i2c_id,
+};
 #endif
 
 static int __init wm8900_modinit(void)
 {
-	return i2c_add_driver(&wm8900_i2c_driver);
+	int ret = 0;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	ret = i2c_add_driver(&wm8900_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register wm8900 I2C driver: %d\n",
+		       ret);
+	}
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	ret = spi_register_driver(&wm8900_spi_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register wm8900 SPI driver: %d\n",
+		       ret);
+	}
+#endif
+	return ret;
 }
 module_init(wm8900_modinit);
 
 static void __exit wm8900_exit(void)
 {
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8900_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8900_spi_driver);
+#endif
 }
 module_exit(wm8900_exit);
 

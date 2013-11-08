@@ -204,25 +204,6 @@ ENTRY(vfp_save_state)
 	mov	pc, lr
 ENDPROC(vfp_save_state)
 
-#ifdef CONFIG_ARCH_RK29
-ENTRY(vfp_load_state)
-	@ Save the current VFP state
-	@ r0 - save location
-	@ r1 - FPEXC
-	DBGSTR1	"save VFP state %p", r0
-	VFPFLDMIA r0, r2		@ save the working registers
-	ldmia   r0, {r1,r2,r3,r12}
-	tst	r1, #FPEXC_EX		@ is there additional state to save?
-	beq	1f
-	tst	r1, #FPEXC_FP2V		@ is there an FPINST2 to read?
-	beq	1f
-1:
-	VFPFMXR FPSCR, r2
-	VFPFMXR	FPEXC, r1
-	mov	pc, lr
-ENDPROC(vfp_load_state)
-#endif
-
 	.align
 vfp_current_hw_state_address:
 	.word	vfp_current_hw_state

@@ -29,7 +29,6 @@ config ARM
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_SHOW
-	select CPU_PM if (SUSPEND || CPU_IDLE)
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -859,91 +858,6 @@ config ARCH_OMAP
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
 
-config ARCH_RK29
-	bool "Rockchip RK29xx"
-	select PLAT_RK
-	select CPU_V7
-	select ARM_GIC
-	select PL330
-	select HIGHMEM
-	select ZONE_DMA
-	select ARM_L1_CACHE_SHIFT_6
-	help
-	  Support for Rockchip's RK29xx SoCs.
-
-config ARCH_RK2928
-	bool "Rockchip RK2928"
-	select PLAT_RK
-	select CPU_V7
-	select ARM_GIC
-	select RK_PL330_DMA
-	select MIGHT_HAVE_CACHE_L2X0
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
-	help
-	  Support for Rockchip's RK2928 SoCs.
-
-config ARCH_RK3026
-	bool "Rockchip RK3026/RK3028A"
-	select PLAT_RK
-	select CPU_V7
-	select ARM_GIC
-	select RK_PL330_DMA
-	select RK_TIMER
-	select HAVE_ARM_TWD if LOCAL_TIMERS
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
-	help
-	  Support for Rockchip's RK3026/RK3028A SoCs.
-
-config ARCH_RK30
-	bool "Rockchip RK30xx/RK3108/RK3168"
-	select PLAT_RK
-	select CPU_V7
-	select ARM_GIC
-	select RK_PL330_DMA
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select ARM_ERRATA_764369
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
-	help
-	  Support for Rockchip's RK30xx/RK3108/RK3168 SoCs.
-
-config ARCH_RK3188
-	bool "Rockchip RK3188"
-	select PLAT_RK
-	select CPU_V7
-	select ARM_GIC
-	select RK_PL330_DMA
-	select RK_TIMER
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select ARM_ERRATA_761320
-	select ARM_ERRATA_764369
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
-	help
-	  Support for Rockchip's RK3188 SoCs.
-
-config ARCH_RK319X
-	bool "Rockchip RK319X"
-	select PLAT_RK
-	select CPU_V7
-	select ARM_GIC
-	select RK_PL330_DMA
-	select RK_TIMER
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select ARM_ERRATA_761320 if SMP
-	select ARM_ERRATA_764369 if SMP
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_775420
-	help
-	  Support for Rockchip's RK319X SoCs.
-
 config PLAT_SPEAR
 	bool "ST SPEAr"
 	select ARM_AMBA
@@ -1044,14 +958,6 @@ source "arch/arm/mach-mmp/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
 
-source "arch/arm/plat-rk/Kconfig"
-source "arch/arm/mach-rk29/Kconfig"
-source "arch/arm/mach-rk2928/Kconfig"
-source "arch/arm/mach-rk3026/Kconfig"
-source "arch/arm/mach-rk30/Kconfig"
-source "arch/arm/mach-rk3188/Kconfig"
-source "arch/arm/mach-rk319x/Kconfig"
-
 source "arch/arm/mach-sa1100/Kconfig"
 
 source "arch/arm/plat-samsung/Kconfig"
@@ -1117,17 +1023,6 @@ config PLAT_ORION
 
 config PLAT_PXA
 	bool
-
-config PLAT_RK
-	bool
-	select CLKDEV_LOOKUP
-	select HAVE_SCHED_CLOCK
-	select ARCH_HAS_CPUFREQ
-	select GENERIC_CLOCKEVENTS
-	select ARCH_REQUIRE_GPIOLIB
-	select SYNC
-	select SW_SYNC
-	select SW_SYNC_USER
 
 config PLAT_VERSATILE
 	bool
@@ -1339,12 +1234,6 @@ config ARM_ERRATA_754327
 	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
 	  written polling loops from denying visibility of updates to memory.
 
-config ARM_ERRATA_761320
-	bool "ARM errata: no direct eviction"
-	depends on CPU_V7 && SMP
-	help
-	  This option enables the workaround for the 761320 Cortex-A9 erratum.
-
 config ARM_ERRATA_764369
 	bool "ARM errata: Data cache line maintenance operation by MVA may not succeed"
 	depends on CPU_V7 && SMP
@@ -1451,21 +1340,14 @@ menu "Kernel Features"
 
 source "kernel/time/Kconfig"
 
-config HAVE_SMP
-	bool
-	help
-	  This option should be selected by machines which have an SMP-
-	  capable CPU.
-
-	  The only effect of this option is to make the SMP-related
-	  options available to the user for configuration.
-
 config SMP
 	bool "Symmetric Multi-Processing"
 	depends on CPU_V6K || CPU_V7
 	depends on GENERIC_CLOCKEVENTS
-	depends on HAVE_SMP
-	depends on MMU
+	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
+		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
+		 ARCH_EXYNOS4 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
+		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE
 	select USE_GENERIC_SMP_HELPERS
 	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
 	help
@@ -1551,7 +1433,7 @@ config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP
 	default y
-	select HAVE_ARM_TWD if (!ARCH_MSM_SCORPIONMP && !EXYNOS4_MCT && !RK_TIMER)
+	select HAVE_ARM_TWD if (!ARCH_MSM_SCORPIONMP && !EXYNOS4_MCT)
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system

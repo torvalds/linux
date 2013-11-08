@@ -18,10 +18,6 @@
 
 #include "internals.h"
 
-#ifdef CONFIG_FIQ_DEBUGGER
-#include <mach/irqs.h>
-#endif
-
 /**
  *	irq_set_chip - set the irq chip for an irq
  *	@irq:	irq number
@@ -413,10 +409,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	 */
 	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
 		desc->istate |= IRQS_PENDING;
-#ifdef CONFIG_FIQ_DEBUGGER
-		if(irq != (CONFIG_RK_DEBUG_UART + IRQ_UART0))
-#endif
-			mask_irq(desc);
+		mask_irq(desc);
 		goto out;
 	}
 

@@ -139,7 +139,6 @@ obj-$(CONFIG_ULTRA) += smc-ultra.o 8390.o
 obj-$(CONFIG_ULTRAMCA) += smc-mca.o 8390.o
 obj-$(CONFIG_ULTRA32) += smc-ultra32.o 8390.o
 obj-$(CONFIG_E2100) += e2100.o 8390.o
-obj-$(CONFIG_RK29_VMAC) += rk29_vmac.o
 obj-$(CONFIG_ES3210) += es3210.o 8390.o
 obj-$(CONFIG_LNE390) += lne390.o 8390.o
 obj-$(CONFIG_NE3210) += ne3210.o 8390.o
@@ -310,5 +309,3 @@ obj-$(CONFIG_CAIF) += caif/
 obj-$(CONFIG_OCTEON_MGMT_ETHERNET) += octeon/
 obj-$(CONFIG_PCH_GBE) += pch_gbe/
 obj-$(CONFIG_TILE_NET) += tile/
-
-obj-$(CONFIG_RK29_VMAC) += eth_mac/

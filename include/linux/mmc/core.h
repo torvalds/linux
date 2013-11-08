@@ -117,7 +117,6 @@ struct mmc_data {
 
 	unsigned int		sg_len;		/* size of scatter list */
 	struct scatterlist	*sg;		/* I/O scatter list */
-	s32			host_cookie;	/* host private data */
 };
 
 struct mmc_request {
@@ -126,16 +125,13 @@ struct mmc_request {
 	struct mmc_data		*data;
 	struct mmc_command	*stop;
 
-	struct completion	completion;
+	void			*done_data;	/* completion data */
 	void			(*done)(struct mmc_request *);/* completion function */
 };
 
 struct mmc_host;
 struct mmc_card;
-struct mmc_async_req;
 
-extern struct mmc_async_req *mmc_start_req(struct mmc_host *,
-					   struct mmc_async_req *, int *);
 extern void mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
 extern int mmc_app_cmd(struct mmc_host *, struct mmc_card *);
@@ -159,7 +155,6 @@ extern int mmc_can_trim(struct mmc_card *card);
 extern int mmc_can_secure_erase_trim(struct mmc_card *card);
 extern int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 				   unsigned int nr);
-extern unsigned int mmc_calc_max_discard(struct mmc_card *card);
 
 extern int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
 

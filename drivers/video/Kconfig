@@ -32,7 +32,7 @@ config VGASTATE
 config VIDEO_OUTPUT_CONTROL
 	tristate "Lowlevel video output switch controls"
 	help
-	  This framework adds support for low-level control of the video
+	  This framework adds support for low-level control of the video 
 	  output switch.
 
 menuconfig FB
@@ -684,7 +684,7 @@ config FB_STI
 	  BIOS routines contained in a ROM chip in HP PA-RISC based machines.
 	  Enabling this option will implement the linux framebuffer device
 	  using calls to the STI BIOS routines for initialisation.
-
+	
 	  If you enable this option, you will get a planar framebuffer device
 	  /dev/fb which will work on the most common HP graphic cards of the
 	  NGLE family, including the artist chips (in the 7xx and Bxxx series),
@@ -1125,36 +1125,36 @@ config FB_I810
 	select FB_CFB_IMAGEBLIT
 	select VGASTATE
 	help
-	  This driver supports the on-board graphics built in to the Intel 810
+	  This driver supports the on-board graphics built in to the Intel 810 
           and 815 chipsets.  Say Y if you have and plan to use such a board.
 
           To compile this driver as a module, choose M here: the
 	  module will be called i810fb.
 
-          For more information, please read
+          For more information, please read 
 	  <file:Documentation/fb/intel810.txt>
 
 config FB_I810_GTF
 	bool "use VESA Generalized Timing Formula"
 	depends on FB_I810
 	help
-	  If you say Y, then the VESA standard, Generalized Timing Formula
+	  If you say Y, then the VESA standard, Generalized Timing Formula 
           or GTF, will be used to calculate the required video timing values
-	  per video mode.  Since the GTF allows nondiscrete timings
+	  per video mode.  Since the GTF allows nondiscrete timings 
           (nondiscrete being a range of values as opposed to discrete being a
-          set of values), you'll be able to use any combination of horizontal
+          set of values), you'll be able to use any combination of horizontal 
 	  and vertical resolutions, and vertical refresh rates without having
 	  to specify your own timing parameters.  This is especially useful
-	  to maximize the performance of an aging display, or if you just
-          have a display with nonstandard dimensions. A VESA compliant
+	  to maximize the performance of an aging display, or if you just 
+          have a display with nonstandard dimensions. A VESA compliant 
 	  monitor is recommended, but can still work with non-compliant ones.
-	  If you need or want this, then select this option. The timings may
-	  not be compliant with Intel's recommended values. Use at your own
+	  If you need or want this, then select this option. The timings may 
+	  not be compliant with Intel's recommended values. Use at your own 
 	  risk.
 
-          If you say N, the driver will revert to discrete video timings
+          If you say N, the driver will revert to discrete video timings 
 	  using a set recommended by Intel in their documentation.
-
+  
           If unsure, say N.
 
 config FB_I810_I2C
@@ -1272,10 +1272,10 @@ config FB_MATROX_G
 	  G450/G550 secondary head and digital output are supported without
 	  additional modules.
 
-	  The driver starts in monitor mode. You must use the matroxset tool
-	  (available at <ftp://platan.vc.cvut.cz/pub/linux/matrox-latest/>) to
-	  swap primary and secondary head outputs, or to change output mode.
-	  Secondary head driver always start in 640x480 resolution and you
+	  The driver starts in monitor mode. You must use the matroxset tool 
+	  (available at <ftp://platan.vc.cvut.cz/pub/linux/matrox-latest/>) to 
+	  swap primary and secondary head outputs, or to change output mode.  
+	  Secondary head driver always start in 640x480 resolution and you 
 	  must use fbset to change it.
 
 	  Do not forget that second head supports only 16 and 32 bpp
@@ -1358,7 +1358,7 @@ config FB_RADEON_I2C
 	select FB_DDC
 	default y
 	help
-	  Say Y here if you want DDC/I2C support for your Radeon board.
+	  Say Y here if you want DDC/I2C support for your Radeon board. 
 
 config FB_RADEON_BACKLIGHT
 	bool "Support for backlight control"
@@ -1592,7 +1592,7 @@ config FB_NEOMAGIC
 	select VGASTATE
 	help
 	  This driver supports notebooks with NeoMagic PCI chips.
-	  Say Y if you have such a graphics card.
+	  Say Y if you have such a graphics card. 
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called neofb.
@@ -1647,7 +1647,7 @@ config FB_VOODOO1
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
-	  Say Y here if you have a 3Dfx Voodoo Graphics (Voodoo1/sst1) or
+	  Say Y here if you have a 3Dfx Voodoo Graphics (Voodoo1/sst1) or 
 	  Voodoo2 (cvg) based graphics card.
 
 	  To compile this driver as a module, choose M here: the
@@ -2074,54 +2074,6 @@ config FB_S3C2410_DEBUG
 	  Turn on debugging messages. Note that you can set/unset at run time
 	  through sysfs
 
-config FB_RK29
-	tristate "RK29 lcd control"
-	depends on FB
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	---help---
-	  Framebuffer driver for RK29 Platform,select it if you using rk29
-
-config FB_WORK_IPP
-	bool "fb use ipp to scale UI or rotate video"
-	depends on FB_RK29
-	---help---
-	   this function be used scale-up UI when video, it only support RGB565 UI;
-	   it can use to rotate video .
-
-config FB_SCALING_OSD
-	bool "fb scale OSD support when video playing "
-	depends on FB_WORK_IPP
-	---help---
-	   this function be used scale-up UI when video, it only support RGB565 UI;
-
-config FB_SCALING_OSD_1080P
-	bool "fb scale OSD support when video playing in 1080P "
-	depends on FB_WORK_IPP && FB_SCALING_OSD
-	---help---
-	   this function be used scale-up UI when video, it only support RGB565 UI;
-	   should set SCALE_UI_1080P_VIDEO to 1 in android
-config FB_ROTATE_VIDEO
-	bool "fb video rotate support"
-	depends on FB_WORK_IPP
-	---help---
-		this function  can use to rotate video .
-config FB_MIRROR_X_Y
-	bool "fb video rotate support x y mirror"
-	depends on FB_ROTATE_VIDEO
-	---help---
-		this function  can use to x y mirror video .
-config CLOSE_WIN1_DYNAMIC
-	bool "close win1 dynamically when video"
-	depends on FB_RK29
-	---help---
-		this function  can close win1 when video and it have no data in fb0
-
-config FB_WIMO
-	bool "WiMo support"
-	depends on FB_RK29
-
 config FB_NUC900
         bool "NUC900 LCD framebuffer support"
         depends on FB && ARCH_W90X900
@@ -2438,14 +2390,6 @@ source "drivers/video/omap2/Kconfig"
 
 source "drivers/video/backlight/Kconfig"
 source "drivers/video/display/Kconfig"
-
-if ARCH_RK29
-source "drivers/video/hdmi/Kconfig"
-endif
-
-if !ARCH_RK29
-source "drivers/video/rockchip/Kconfig"
-endif
 
 if VT
 	source "drivers/video/console/Kconfig"

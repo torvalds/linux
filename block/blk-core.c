@@ -28,7 +28,6 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/fault-inject.h>
 #include <linux/list_sort.h>
-#include <linux/delay.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -348,51 +347,6 @@ void blk_put_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_put_queue);
 
-static void blk_drain_queue(struct request_queue *q)
-{
-	int i;
-
-	while (true) {
-		bool drain = false;
-
-		spin_lock_irq(q->queue_lock);
-
-		if (q->elevator)
-			elv_drain_elevator(q);
-
-		/*
-		 * This function might be called on a queue which failed
-		 * driver init after queue creation or is not yet fully
-		 * active yet.  Some drivers (e.g. fd and loop) get unhappy
-		 * in such cases.  Kick queue iff dispatch queue has
-		 * something on it and @q has request_fn set.
-		 */
-		if (!list_empty(&q->queue_head) && q->request_fn)
-			__blk_run_queue(q);
-
-		drain |= q->rq.elvpriv;
-//		drain |= q->request_fn_active;
-		/*
-		 * Unfortunately, requests are queued at and tracked from
-		 * multiple places and there's no single counter which can
-		 * be drained.  Check all the queues and counters.
-		 */
-//		drain |= !list_empty(&q->queue_head);
-		for (i = 0; i < 2; i++) {
-			drain |= q->rq.count[i];
-			drain |= q->in_flight[i];
-			drain |= !list_empty(&q->flush_queue[i]);
-		}
-
-		spin_unlock_irq(q->queue_lock);
-
-		if (!drain)
-			break;
-
-		msleep(10);
-	}
-}
-
 /*
  * Note: If a driver supplied the queue lock, it is disconnected
  * by this function. The actual state of the lock doesn't matter
@@ -401,31 +355,22 @@ static void blk_drain_queue(struct request_queue *q)
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
-	spinlock_t *lock = q->queue_lock;
+	/*
+	 * We know we have process context here, so we can be a little
+	 * cautious and ensure that pending block actions on this device
+	 * are done before moving on. Going into this function, we should
+	 * not have processes doing IO to this device.
+	 */
+	blk_sync_queue(q);
 
-	/* mark @q DEAD, no new request or merges will be allowed afterwards */
+	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
 	mutex_lock(&q->sysfs_lock);
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
-
-	spin_lock_irq(lock);
-	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
-	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
-	queue_flag_set(QUEUE_FLAG_DEAD, q);
+	mutex_unlock(&q->sysfs_lock);
 
 	if (q->queue_lock != &q->__queue_lock)
 		q->queue_lock = &q->__queue_lock;
 
-	spin_unlock_irq(lock);
-	mutex_unlock(&q->sysfs_lock);
-
-	/* drain all requests queued before DEAD marking */
-	blk_drain_queue(q);
-
-	/* @q won't process any more request, flush async actions */
-	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
-	blk_sync_queue(q);
-
-	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
@@ -731,19 +676,10 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 	return true;
 }
 
-/**
- * get_request - get a free request
- * @q: request_queue to allocate request from
- * @rw_flags: RW and SYNC flags
- * @bio: bio to allocate request for (can be %NULL)
- * @gfp_mask: allocation mask
- *
- * Get a free request from @q.  This function may fail under memory
- * pressure or if @q is dead.
- *
- * Must be callled with @q->queue_lock held and,
- * Returns %NULL on failure, with @q->queue_lock held.
- * Returns !%NULL on success, with @q->queue_lock *not held*.
+/*
+ * Get a free request, queue_lock must be held.
+ * Returns NULL on failure, with queue_lock held.
+ * Returns !NULL on success, with queue_lock *not held*.
  */
 static struct request *get_request(struct request_queue *q, int rw_flags,
 				   struct bio *bio, gfp_t gfp_mask)
@@ -753,9 +689,6 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	struct io_context *ioc = NULL;
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
 	int may_queue, priv = 0;
-
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		return NULL;
 
 	may_queue = elv_may_queue(q, rw_flags);
 	if (may_queue == ELV_MQUEUE_NO)
@@ -849,18 +782,11 @@ out:
 	return rq;
 }
 
-/**
- * get_request_wait - get a free request with retry
- * @q: request_queue to allocate request from
- * @rw_flags: RW and SYNC flags
- * @bio: bio to allocate request for (can be %NULL)
+/*
+ * No available requests for this queue, wait for some requests to become
+ * available.
  *
- * Get a free request from @q.  This function keeps retrying under memory
- * pressure and fails iff @q is dead.
- *
- * Must be callled with @q->queue_lock held and,
- * Returns %NULL on failure, with @q->queue_lock held.
- * Returns !%NULL on success, with @q->queue_lock *not held*.
+ * Called with q->queue_lock held, and returns with it unlocked.
  */
 static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 					struct bio *bio)
@@ -873,9 +799,6 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 		DEFINE_WAIT(wait);
 		struct io_context *ioc;
 		struct request_list *rl = &q->rq;
-
-		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-			return NULL;
 
 		prepare_to_wait_exclusive(&rl->wait[is_sync], &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -907,15 +830,19 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
 
+	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+		return NULL;
+
 	BUG_ON(rw != READ && rw != WRITE);
 
 	spin_lock_irq(q->queue_lock);
-	if (gfp_mask & __GFP_WAIT)
+	if (gfp_mask & __GFP_WAIT) {
 		rq = get_request_wait(q, rw, NULL);
-	else
+	} else {
 		rq = get_request(q, rw, NULL, gfp_mask);
-	if (!rq)
-		spin_unlock_irq(q->queue_lock);
+		if (!rq)
+			spin_unlock_irq(q->queue_lock);
+	}
 	/* q->queue_lock is unlocked at this point */
 
 	return rq;
@@ -1336,10 +1263,6 @@ get_rq:
 	 * Returns with the queue unlocked.
 	 */
 	req = get_request_wait(q, rw_flags, bio);
-	if (unlikely(!req)) {
-		bio_endio(bio, -ENODEV);	/* @q is dead */
-		goto out_unlock;
-	}
 
 	/*
 	 * After dropping the lock and possibly sleeping here, our request
@@ -1428,9 +1351,14 @@ static int __init setup_fail_make_request(char *str)
 }
 __setup("fail_make_request=", setup_fail_make_request);
 
-static bool should_fail_request(struct hd_struct *part, unsigned int bytes)
+static int should_fail_request(struct bio *bio)
 {
-	return part->make_it_fail && should_fail(&fail_make_request, bytes);
+	struct hd_struct *part = bio->bi_bdev->bd_part;
+
+	if (part_to_disk(part)->part0.make_it_fail || part->make_it_fail)
+		return should_fail(&fail_make_request, bio->bi_size);
+
+	return 0;
 }
 
 static int __init fail_make_request_debugfs(void)
@@ -1443,10 +1371,9 @@ late_initcall(fail_make_request_debugfs);
 
 #else /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline bool should_fail_request(struct hd_struct *part,
-					unsigned int bytes)
+static inline int should_fail_request(struct bio *bio)
 {
-	return false;
+	return 0;
 }
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
@@ -1529,7 +1456,6 @@ static inline void __generic_make_request(struct bio *bio)
 	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
-		struct hd_struct *part;
 
 		q = bdev_get_queue(bio->bi_bdev);
 		if (unlikely(!q)) {
@@ -1550,10 +1476,10 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		part = bio->bi_bdev->bd_part;
-		if (should_fail_request(part, bio->bi_size) ||
-		    should_fail_request(&part_to_disk(part)->part0,
-					bio->bi_size))
+		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+			goto end_io;
+
+		if (should_fail_request(bio))
 			goto end_io;
 
 		/*
@@ -1768,9 +1694,11 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	if (blk_rq_check_limits(q, rq))
 		return -EIO;
 
-	if (rq->rq_disk &&
-	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+	if (rq->rq_disk && rq->rq_disk->part0.make_it_fail &&
+	    should_fail(&fail_make_request, blk_rq_bytes(rq)))
 		return -EIO;
+#endif
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
@@ -2109,7 +2037,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 			error_type = "I/O";
 			break;
 		}
-		printk(KERN_DEBUG "end_request: %s error, dev %s, sector %llu\n",
+		printk(KERN_ERR "end_request: %s error, dev %s, sector %llu\n",
 		       error_type, req->rq_disk ? req->rq_disk->disk_name : "?",
 		       (unsigned long long)blk_rq_pos(req));
 	}

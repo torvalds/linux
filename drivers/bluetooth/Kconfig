@@ -70,16 +70,6 @@ config BT_HCIUART_ATH3K
 
 	  Say Y here to compile support for HCI UART ATH3K protocol.
 
-config BT_HCIUART_RTKH5
-	bool "Realtek H5 protocol support"
-	depends on BT_HCIUART
-	help
-	  Realtek H5 is serial protocol for communication 
-	  between Realtek Bluetooth device and host. This protocol is required for 
-	  Realtek uart h5 bluetooth controller
-
-	  Say Y here to compile support for Realtek HCI H5 protocol.
-
 config BT_HCIUART_LL
 	bool "HCILL protocol support"
 	depends on BT_HCIUART
@@ -217,34 +207,6 @@ config BT_MRVL_SDIO
 	  Say Y here to compile support for Marvell BT-over-SDIO driver
 	  into the kernel or say M to compile it as module.
 
-config BT_HCIBCM4325
-	tristate "HCI BCM4325 UART driver"
-	depends on  BT_HCIUART
-	help
-	  Bluetooth HCI BCM4325 UART driver.
-	  This driver provides the firmware loading mechanism for the Broadcom
-	  Blutonium based devices.
-
-	  Say Y here to compile support for HCI BCM4325 devices into the
-	  kernel or say M to compile it as module (bcm4325).
-
-if BT_HCIBCM4325
-choice
-        prompt "BD_ADDR read from"
-config IDBLOCK
-        bool "NAND ID block"
-config WIFI_MAC
-        bool "WIFI MAC+1"
-endchoice
-endif
-
-config BT_AUTOSLEEP
-	tristate "Bluetooth auto sleep"
-	depends on BT_HCIUART
-	help
-	  If the Bluetooth have no data transfer within three seconds, then 
-          it will automatically go to sleep until the arrival of new data
-
 config BT_ATH3K
 	tristate "Atheros firmware download driver"
 	depends on BT_HCIBTUSB
@@ -267,15 +229,4 @@ config BT_WILINK
 
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module.
-
-if BCM4330
-choice
-        prompt "Select the bluetooth module"
-        default BT_MODULE_NH660
-
-        config BT_MODULE_NH660
-        bool "AzureWave NH660"
-endchoice
-endif
-
 endmenu

@@ -6,21 +6,14 @@
 
 obj-$(CONFIG_VGASTATE)            += vgastate.o
 obj-y                             += fb_notify.o
-
 obj-$(CONFIG_FB)                  += fb.o
-ifdef CONFIG_MACH_RK29_2906
-fb.o: fb.uu
-	@echo "UUDE    fb.uu"
-	@uudecode fb.uu -o fb.o
-else
 fb-y                              := fbmem.o fbmon.o fbcmap.o fbsysfs.o \
                                      modedb.o fbcvt.o
 fb-objs                           := $(fb-y)
-endif
 
 obj-$(CONFIG_VT)		  += console/
 obj-$(CONFIG_LOGO)		  += logo/
-obj-y				  += backlight/ display/ hdmi/
+obj-y				  += backlight/ display/
 
 obj-$(CONFIG_FB_CFB_FILLRECT)  += cfbfillrect.o
 obj-$(CONFIG_FB_CFB_COPYAREA)  += cfbcopyarea.o
@@ -132,8 +125,6 @@ obj-$(CONFIG_FB_PNX4008_DUM)	  += pnx4008/
 obj-$(CONFIG_FB_PNX4008_DUM_RGB)  += pnx4008/
 obj-$(CONFIG_FB_IBM_GXT4500)	  += gxt4500.o
 obj-$(CONFIG_FB_PS3)		  += ps3fb.o
-obj-$(CONFIG_FB_RK29)             += rk29_fb.o
-obj-y                             += rockchip/
 obj-$(CONFIG_FB_SM501)            += sm501fb.o
 obj-$(CONFIG_FB_UDL)		  += udlfb.o
 obj-$(CONFIG_FB_XILINX)           += xilinxfb.o

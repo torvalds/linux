@@ -18,8 +18,6 @@
 #include <linux/string.h>
 #include "base.h"
 #include "power/power.h"
-#include "linux/usb.h"
-#include "devices_filter.h"
 
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
 
@@ -406,20 +404,7 @@ int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 	klist_iter_init_node(&bus->p->klist_drivers, &i,
 			     start ? &start->p->knode_bus : NULL);
 	while ((drv = next_driver(&i)) && !error)
-	{
-		if( !strcmp(drv->name, "usb-storage") && data )
-		{
-			struct usb_device *udev = interface_to_usbdev( to_usb_interface( (struct device *)data) );
-			usb_parameter usbp = {udev->descriptor.idVendor, udev->descriptor.idProduct, 
-        	                        udev->manufacturer, udev->product, NULL};
-			if( is_skip_device(&usbp) )
-			{
-				printk("Skip device\n");
-				continue;
-			}
-		}
 		error = fn(drv, data);
-        }
 	klist_iter_exit(&i);
 	return error;
 }
@@ -666,10 +651,7 @@ int bus_add_driver(struct device_driver *drv)
 	if (drv->bus->p->drivers_autoprobe) {
 		error = driver_attach(drv);
 		if (error)
-		{
-			printk(KERN_ERR "driver_attach failed\n");
 			goto out_unregister;
-		}
 	}
 	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
 	module_add_driver(drv->owner, drv);

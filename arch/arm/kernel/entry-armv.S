@@ -905,7 +905,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	ldmfd	sp!, {r7, pc}
 1:	.word	__ARM_NR_cmpxchg
 
-#elif __LINUX_ARM_ARCH__ < 6 || defined(CONFIG_CPU_DCACHE_DISABLE)
+#elif __LINUX_ARM_ARCH__ < 6
 
 #ifdef CONFIG_MMU
 

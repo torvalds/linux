@@ -22,8 +22,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65910.h>
 
-struct tps65910 *g_tps65910;
-
 static struct mfd_cell tps65910s[] = {
 	{
 		.name = "tps65910-pmic",
@@ -36,7 +34,6 @@ static struct mfd_cell tps65910s[] = {
 	},
 };
 
-#define TPS65910_SPEED 	200 * 1000
 
 static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 				  int bytes, void *dest)
@@ -44,30 +41,25 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	struct i2c_client *i2c = tps65910->i2c_client;
 	struct i2c_msg xfer[2];
 	int ret;
-	//int i;
 
 	/* Write register */
 	xfer[0].addr = i2c->addr;
 	xfer[0].flags = 0;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
-	xfer[0].scl_rate = TPS65910_SPEED;
 
 	/* Read data */
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_RD;
 	xfer[1].len = bytes;
 	xfer[1].buf = dest;
-	xfer[1].scl_rate = TPS65910_SPEED;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
-	//for(i=0;i<bytes;i++)
-	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg+i,*(u8 *)dest++);
 	if (ret == 2)
 		ret = 0;
 	else if (ret >= 0)
 		ret = -EIO;
-	
+
 	return ret;
 }
 
@@ -78,145 +70,20 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 	/* we add 1 byte for device register */
 	u8 msg[TPS65910_MAX_REGISTER + 1];
 	int ret;
-	//int i;
-	
+
 	if (bytes > TPS65910_MAX_REGISTER)
 		return -EINVAL;
-	
+
 	msg[0] = reg;
 	memcpy(&msg[1], src, bytes);
 
-	//for(i=0;i<bytes;i++)
-	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg+i,msg[i+1]);
-	
-	ret = i2c_master_normal_send(i2c, msg, bytes + 1,TPS65910_SPEED);
+	ret = i2c_master_send(i2c, msg, bytes + 1);
 	if (ret < 0)
 		return ret;
 	if (ret != bytes + 1)
 		return -EIO;
-
 	return 0;
 }
-
-static inline int tps65910_read(struct tps65910 *tps65910, u8 reg)
-{
-	u8 val;
-	int err;
-
-	err = tps65910->read(tps65910, reg, 1, &val);
-	if (err < 0)
-		return err;
-
-	return val;
-}
-
-static inline int tps65910_write(struct tps65910 *tps65910, u8 reg, u8 val)
-{
-	return tps65910->write(tps65910, reg, 1, &val);
-}
-
-int tps65910_reg_read(struct tps65910 *tps65910, u8 reg)
-{
-	int data;
-
-	mutex_lock(&tps65910->io_mutex);
-
-	data = tps65910_read(tps65910, reg);
-	if (data < 0)
-		dev_err(tps65910->dev, "Read from reg 0x%x failed\n", reg);
-
-	mutex_unlock(&tps65910->io_mutex);
-	return data;
-}
-EXPORT_SYMBOL_GPL(tps65910_reg_read);
-
-int tps65910_reg_write(struct tps65910 *tps65910, u8 reg, u8 val)
-{
-	int err;
-
-	mutex_lock(&tps65910->io_mutex);
-
-	err = tps65910_write(tps65910, reg, val);
-	if (err < 0)
-		dev_err(tps65910->dev, "Write for reg 0x%x failed\n", reg);
-
-	mutex_unlock(&tps65910->io_mutex);
-	return err;
-}
-EXPORT_SYMBOL_GPL(tps65910_reg_write);
-
-/**
- * tps65910_bulk_read: Read multiple tps65910 registers
- *
- * @tps65910: Device to read from
- * @reg: First register
- * @count: Number of registers
- * @buf: Buffer to fill.
- */
-int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
-		     int count, u8 *buf)
-{
-	int ret;
-                    
-#if defined(CONFIG_MFD_RK610)    
-	int i;             //Solve communication conflict when rk610 and 65910 on the same i2c 
-
-	mutex_lock(&tps65910->io_mutex);
-	for(i=0; i<count; i++){
-		ret = tps65910_read(tps65910, reg+i);
-		if(ret < 0){
-			printk("%s: failed read reg 0x%0x, ret = %d\n", __FUNCTION__, reg+i, ret);
-			mutex_unlock(&tps65910->io_mutex);
-			return ret;
-		}else{
-			buf[i] = ret & 0x000000FF;
-		}
-	}
-	mutex_unlock(&tps65910->io_mutex);
-#else
-	mutex_lock(&tps65910->io_mutex);
-	
-	ret = tps65910->read(tps65910, reg, count, buf);
-
-	mutex_unlock(&tps65910->io_mutex);
-#endif
-	return 0;
-
-}
-EXPORT_SYMBOL_GPL(tps65910_bulk_read);
-
-int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
-		     int count, u8 *buf)
-{
-	int ret;
-	
-#if defined(CONFIG_MFD_RK610)    
-	int i;       // //Solve communication conflict when rk610 and 65910 on the same i2c 
-
-	mutex_lock(&tps65910->io_mutex);
-	for(i=0; i<count; i++){
-		ret = tps65910_write(tps65910, reg+i, buf[i]);
-		if(ret < 0){
-			printk("%s: failed write reg=0x%0x, val=0x%0x, ret = %d\n", __FUNCTION__, reg+i, buf[i], ret);
-			mutex_unlock(&tps65910->io_mutex);
-			return ret;
-		}
-	}
-	mutex_unlock(&tps65910->io_mutex);
-#else
-	mutex_lock(&tps65910->io_mutex);
-	
-	ret = tps65910->write(tps65910, reg, count, buf);
-
-	mutex_unlock(&tps65910->io_mutex);
-#endif
-	return 0;
-
-}
-EXPORT_SYMBOL_GPL(tps65910_bulk_write);
-
-
-
 
 int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 {
@@ -226,14 +93,14 @@ int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 	mutex_lock(&tps65910->io_mutex);
 	err = tps65910_i2c_read(tps65910, reg, 1, &data);
 	if (err) {
-		dev_err(tps65910->dev, "%s:read from reg %x failed\n", __func__,reg);
+		dev_err(tps65910->dev, "read from reg %x failed\n", reg);
 		goto out;
 	}
 
 	data |= mask;
 	err = tps65910_i2c_write(tps65910, reg, 1, &data);
 	if (err)
-		dev_err(tps65910->dev, "%s:write to reg %x failed\n", __func__,reg);
+		dev_err(tps65910->dev, "write to reg %x failed\n", reg);
 
 out:
 	mutex_unlock(&tps65910->io_mutex);
@@ -253,7 +120,7 @@ int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 		goto out;
 	}
 
-	data &= ~mask;
+	data &= mask;
 	err = tps65910_i2c_write(tps65910, reg, 1, &data);
 	if (err)
 		dev_err(tps65910->dev, "write to reg %x failed\n", reg);
@@ -271,7 +138,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	struct tps65910_board *pmic_plat_data;
 	struct tps65910_platform_data *init_data;
 	int ret = 0;
-	
+
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 	if (!pmic_plat_data)
 		return -EINVAL;
@@ -281,7 +148,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	init_data->irq = pmic_plat_data->irq;
-	init_data->irq_base = pmic_plat_data->irq_base;
+	init_data->irq_base = pmic_plat_data->irq;
 
 	tps65910 = kzalloc(sizeof(struct tps65910), GFP_KERNEL);
 	if (tps65910 == NULL)
@@ -301,37 +168,12 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0)
 		goto err;
 
-	ret = tps65910_reg_read(tps65910,0x22);
-	if ((ret < 0) || (ret == 0xff)){
-		printk("The device is not tps65910\n");
-		goto err;
-	}
-	
-	g_tps65910 = tps65910;
-	
-	if (pmic_plat_data && pmic_plat_data->pre_init) {
-		ret = pmic_plat_data->pre_init(tps65910);
-		if (ret != 0) {
-			dev_err(tps65910->dev, "pre_init() failed: %d\n", ret);
-			goto err;
-		}
-	}
-
 	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
 
 	ret = tps65910_irq_init(tps65910, init_data->irq, init_data);
 	if (ret < 0)
 		goto err;
 
-	if (pmic_plat_data && pmic_plat_data->post_init) {
-		ret = pmic_plat_data->post_init(tps65910);
-		if (ret != 0) {
-			dev_err(tps65910->dev, "post_init() failed: %d\n", ret);
-			goto err;
-		}
-	}
-
-	printk("%s:irq=%d,irq_base=%d,gpio_base=%d\n",__func__,init_data->irq,init_data->irq_base,pmic_plat_data->gpio_base);
 	return ret;
 
 err:
@@ -339,36 +181,6 @@ err:
 	kfree(tps65910);
 	return ret;
 }
-
-
-int tps65910_device_shutdown(void)
-{
-	int val = 0;
-	int err = -1;
-	struct tps65910 *tps65910 = g_tps65910;
-	
-	printk("%s\n",__func__);
-
-	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL);
-        if (val<0) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
-        }
-	
-	val |= DEVCTRL_DEV_OFF_MASK;
-	val &= ~DEVCTRL_CK32K_CTRL_MASK;	//keep rtc
-	err = tps65910_reg_write(tps65910, TPS65910_DEVCTRL, val);
-	if (err) {
-		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-				\n", TPS65910_REG_VDIG1);
-		return err;
-	}
-	
-	return 0;	
-}
-EXPORT_SYMBOL_GPL(tps65910_device_shutdown);
-
-
 
 static int tps65910_i2c_remove(struct i2c_client *i2c)
 {
@@ -403,7 +215,7 @@ static int __init tps65910_i2c_init(void)
 	return i2c_add_driver(&tps65910_i2c_driver);
 }
 /* init early so consumer devices can complete system boot */
-subsys_initcall_sync(tps65910_i2c_init);
+subsys_initcall(tps65910_i2c_init);
 
 static void __exit tps65910_i2c_exit(void)
 {

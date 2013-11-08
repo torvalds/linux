@@ -1982,10 +1982,6 @@ static void layout_sections(struct module *mod, struct load_info *info)
 
 static void set_license(struct module *mod, const char *license)
 {
-#ifdef CONFIG_PLAT_RK
-	return;
-#endif
-
 	if (!license)
 		license = "unspecified";
 
@@ -2831,13 +2827,6 @@ static struct module *load_module(void __user *umod,
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
 
-#ifdef CONFIG_RK_CONFIG
-{
-	extern int module_parse_kernel_cmdline(const char *name, const struct kernel_param *params, unsigned num);
-	module_parse_kernel_cmdline(mod->name, mod->kp, mod->num_kp);
-}
-#endif
-
 	/* Module is ready to execute: parsing args may do that. */
 	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp, NULL);
 	if (err < 0)
@@ -3409,7 +3398,6 @@ EXPORT_SYMBOL_GPL(__module_text_address);
 /* Don't grab lock, we're oopsing. */
 void print_modules(void)
 {
-#ifndef CONFIG_PLAT_RK
 	struct module *mod;
 	char buf[8];
 
@@ -3422,7 +3410,6 @@ void print_modules(void)
 	if (last_unloaded_module[0])
 		printk(" [last unloaded: %s]", last_unloaded_module);
 	printk("\n");
-#endif
 }
 
 #ifdef CONFIG_MODVERSIONS

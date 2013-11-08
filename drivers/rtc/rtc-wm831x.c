@@ -428,22 +428,13 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 	int ret = 0;
-	struct rtc_time tm;
 
-	//printk("wm831x_rtc_probe\n");
 	wm831x_rtc = kzalloc(sizeof(*wm831x_rtc), GFP_KERNEL);
 	if (wm831x_rtc == NULL)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, wm831x_rtc);
 	wm831x_rtc->wm831x = wm831x;
-
-#ifdef CONFIG_ARCH_RK30
-	wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_1);
-	wm831x_set_bits(wm831x, WM831X_SECURITY_KEY, 0x9716, 0x9716);  //0x4090h bit15 is encrypted, if this bit need modify, we must write 0x4008h as 0x9716 first.
-	wm831x_set_bits(wm831x, WM831X_CLOCK_CONTROL_1, 0x8700, 0x8100); //open the clk out
-	wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_1);
-#endif
 
 	ret = wm831x_reg_read(wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
@@ -452,17 +443,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	}
 	if (ret & WM831X_RTC_ALM_ENA)
 		wm831x_rtc->alarm_enabled = 1;
-
-	ret = wm831x_rtc_readtime(&pdev->dev, &tm);
-	if (ret < 0 || tm.tm_year < 111) {
-		if (ret)
-			dev_err(&pdev->dev, "Failed to read RTC time\n");
-		else
-			dev_err(&pdev->dev, "Invalid RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
-				1900 + tm.tm_year, tm.tm_mon + 1, tm.tm_mday, tm.tm_wday,
-				tm.tm_hour, tm.tm_min, tm.tm_sec);
-		wm831x_rtc_set_mmss(&pdev->dev, 1293883200); // 2011-01-01 12:00:00
-	}
 
 	device_init_wakeup(&pdev->dev, 1);
 

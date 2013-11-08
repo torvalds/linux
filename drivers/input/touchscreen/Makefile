@@ -5,7 +5,7 @@
 # Each configuration option enables a list of files.
 
 wm97xx-ts-y := wm97xx-core.o
-obj-y                  			+= ct36x/
+
 obj-$(CONFIG_TOUCHSCREEN_88PM860X)	+= 88pm860x-ts.o
 obj-$(CONFIG_TOUCHSCREEN_AD7877)	+= ad7877.o
 obj-$(CONFIG_TOUCHSCREEN_AD7879)	+= ad7879.o
@@ -61,48 +61,3 @@ obj-$(CONFIG_TOUCHSCREEN_WM97XX_MAINSTONE)	+= mainstone-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_WM97XX_ZYLONITE)	+= zylonite-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_TPS6507X)	+= tps6507x-ts.o
-obj-$(CONFIG_TOUCHSCREEN_PCAP)		+= pcap_ts.o
-obj-$(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)	+= xpt2046_ts.o
-obj-$(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)	+= xpt2046_tslib_ts.o ts_lib/
-obj-$(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)	+= xpt2046_cbn_ts.o calibration_ts.o largenum_ts.o calib_iface_ts.o
-obj-$(CONFIG_TOUCHSCREEN_IT7250)	+= ctp_it7250.o
-obj-$(CONFIG_RK28_I2C_TS_NTP070)	+= ntp070.o
-obj-$(CONFIG_HANNSTAR_P1003)		+= hannstar_p1003.o
-obj-$(CONFIG_TOUCHSCREEN_IT7260)	+= it7260_ts.o
-obj-$(CONFIG_TOUCHSCREEN_IT7260_I2C)	+= IT7260_ts_i2c.o
-obj-$(CONFIG_SINTEK_3FA16)		+= sintek_3FA16.o
-obj-$(CONFIG_EETI_EGALAX)		+= eeti_egalax_i2c.o
-obj-$(CONFIG_ATMEL_MXT224)		+= atmel_maxtouch.o
-obj-$(CONFIG_ATMEL_MXT1386)		+= atmel_mxt1386.o
-obj-$(CONFIG_TOUCHSCREEN_GT801_IIC)	+= gt801_ts.o
-obj-$(CONFIG_TOUCHSCREEN_GT811_IIC)	+= gt811_ts.o
-obj-$(CONFIG_TOUCHSCREEN_86V_GT811_IIC)	+= 86v_gt811_ts.o
-obj-$(CONFIG_TOUCHSCREEN_GT82X_IIC)	+= goodix_touch_82x.o
-obj-$(CONFIG_TOUCHSCREEN_GT82X_IIC_760)	+= goodix_touch_82x_760.o
-obj-$(CONFIG_TOUCHSCREEN_GT818_IIC)	+= gt818_ts.o
-obj-$(CONFIG_TOUCHSCREEN_GT8110)        += gt8110_ts.o
-obj-$(CONFIG_TOUCHSCREEN_CT360_IIC)	+= ct360_ts.o
-obj-$(CONFIG_TOUCHSCREEN_ILI2102_IIC)	+= ili2102_ts.o
-obj-$(CONFIG_D70_L3188A)		+= goodix_touch.o
-obj-$(CONFIG_TOUCHSCREEN_GT8XX)                += rk29_i2c_goodix.o
-obj-$(CONFIG_TOUCHSCREEN_FT5406)	+= ft5406_ts.o
-obj-$(CONFIG_TOUCHSCREEN_FT5506)	+= ft5506_wgj.o
-obj-$(CONFIG_TOUCHSCREEN_FT5306)	+= ft5306_ts.o
-obj-$(CONFIG_TOUCHSCREEN_SITRONIX_A720)	+= sitronix_ts_a720.o
-obj-$(CONFIG_TOUCHSCREEN_FT5306_WPX2)        += ft5306_ts_wpx2.o
-obj-$(CONFIG_TOUCHSCREEN_FT5306_AV) += ft5306_ts_av.o
-obj-$(CONFIG_TOUCHSCREEN_GT819)		+= gt819.o
-obj-$(CONFIG_TOUCHSCREEN_CT36X)		+= ct36x_ts.o
-obj-$(CONFIG_TOUCHSCREEN_NAS)		+= nas_ts.o
-obj-$(CONFIG_LAIBAO_TS)		+= ft5x0x_i2c_ts.o
-obj-$(CONFIG_TOUCHSCREEN_PIXCIR)      += pixcir_i2c_ts.o
-obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK)      += rmi4/
-obj-$(CONFIG_TOUCHSCREEN_I30)	+= i30_ts.o
-obj-$(CONFIG_TOUCHSCREEN_BYD693X)	+= byd693x_ts.o
-obj-$(CONFIG_TOUCHSCREEN_FT5X0X)	+= ft5x0x.o
-obj-$(CONFIG_TOUCHSCREEN_GSLX680)	+= rockchip_gslX680.o
-obj-$(CONFIG_TOUCHSCREEN_GSLX680_RK3168)	+= rockchip_gslX680_rk3168.o
-obj-$(CONFIG_TOUCHSCREEN_GSLX680_RK3028)	+= rockchip_gslX680_rk3028.o
-# Make VTL TouchScreen Driver
-obj-$(CONFIG_TOUCHSCREEN_CT36XX)		+= ct36x_ts/
-obj-$(CONFIG_TP_760_TS)                    += tp_760_ts.o

@@ -821,10 +821,10 @@ static long __video_do_ioctl(struct file *file,
 	case VIDIOC_S_FMT:
 	{
 		struct v4l2_format *f = (struct v4l2_format *)arg;
-		
+
 		/* FIXME: Should be one dump per type */
 		dbgarg(cmd, "type=%s\n", prt_names(f->type, v4l2_type_names));
-		
+
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 			CLEAR_AFTER_FIELD(f, fmt.pix);
@@ -2252,7 +2252,7 @@ static unsigned long cmd_input_size(unsigned int cmd)
 		CMDINSIZE(ENCODER_CMD,		encoder_cmd,	flags);
 		CMDINSIZE(TRY_ENCODER_CMD,	encoder_cmd,	flags);
 		CMDINSIZE(G_SLICED_VBI_CAP,	sliced_vbi_cap,	type);
-		CMDINSIZE(ENUM_FRAMESIZES,	frmsizeenum,	reserved[1]);
+		CMDINSIZE(ENUM_FRAMESIZES,	frmsizeenum,	pixel_format);
 		CMDINSIZE(ENUM_FRAMEINTERVALS,	frmivalenum,	height);
 	default:
 		return _IOC_SIZE(cmd);

@@ -1023,7 +1023,7 @@ int spi_bus_unlock(struct spi_master *master)
 EXPORT_SYMBOL_GPL(spi_bus_unlock);
 
 /* portable code must never pass more than 32 bytes */
-#define	SPI_BUFSIZ	max(1028,SMP_CACHE_BYTES)
+#define	SPI_BUFSIZ	max(32,SMP_CACHE_BYTES)
 
 static u8	*buf;
 
@@ -1083,7 +1083,6 @@ int spi_write_then_read(struct spi_device *spi,
 	} else
 		local_buf = buf;
 
-	memset(local_buf, 0, SPI_BUFSIZ);
 	memcpy(local_buf, txbuf, n_tx);
 	x[0].tx_buf = local_buf;
 	x[1].rx_buf = local_buf + n_tx;

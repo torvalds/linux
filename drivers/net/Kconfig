@@ -251,17 +251,6 @@ config AX88796_93CX6
 	help
 	  Select this if your platform comes with an external 93CX6 eeprom.
 
-config RK29_VMAC
-	tristate "RK29 VMAC ethernet support"
-	depends on HAS_DMA
-	select MII
-	select PHYLIB
-	select CRC32
-	help
-	  MAC device present on rockchip rk29xx 
-
-source "drivers/net/eth_mac/Kconfig"
-
 config MACE
 	tristate "MACE (Power Mac ethernet) support"
 	depends on PPC_PMAC && PPC32
@@ -1004,17 +993,6 @@ config DM9000_DEBUGLEVEL
 	  The maximum level of debugging code compiled into the DM9000
 	  driver.
 
-if DM9000
-choice
-  prompt "choose control"
-	config DM9000_USE_NAND_CONTROL
-		tristate "DM9000 with NANDC Interface"
-
-	config DM9000_USE_NOR_CONTROL
-		tristate  "DM9000 with NOR Interface"
-endchoice
-endif
-	  
 config DM9000_FORCE_SIMPLE_PHY_POLL
 	bool "Force simple NSR based PHY polling"
 	depends on DM9000

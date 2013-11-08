@@ -31,7 +31,6 @@
 
 #include "u_ether.h"
 
-static gfp_t g_gfp_flags;
 
 /*
  * This component encapsulates the Ethernet link glue needed to provide
@@ -254,7 +253,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	 * but on at least one, checksumming fails otherwise.  Note:
 	 * RNDIS headers involve variable numbers of LE32 values.
 	 */
-	//skb_reserve(skb, NET_IP_ALIGN);
+	skb_reserve(skb, NET_IP_ALIGN);
 
 	req->buf = skb->data;
 	req->length = size;
@@ -578,21 +577,6 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 
 		length = skb->len;
 	}
-	
-	// for tx fixup
-	{
-		struct sk_buff *tx_skb;
-		if ((unsigned long)skb->data % 4) {
-			tx_skb = alloc_skb(skb->len + NET_IP_ALIGN, g_gfp_flags);
-			if (tx_skb)
-				memcpy(skb_put(tx_skb, skb->len), skb->data, skb->len);
-			dev_kfree_skb_any(skb);
-			skb = tx_skb;
-		}
-		length = skb->len;
-	}	
-	// for tx fixup
-	
 	req->buf = skb->data;
 	req->context = skb;
 	req->complete = tx_complete;
@@ -648,8 +632,6 @@ drop:
 static void eth_start(struct eth_dev *dev, gfp_t gfp_flags)
 {
 	DBG(dev, "%s\n", __func__);
-	
-	g_gfp_flags = gfp_flags;
 
 	/* fill the rx queue */
 	rx_fill(dev, gfp_flags);

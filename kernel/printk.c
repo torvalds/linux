@@ -1034,28 +1034,6 @@ out_restore_irqs:
 EXPORT_SYMBOL(printk);
 EXPORT_SYMBOL(vprintk);
 
-#ifdef CONFIG_PLAT_RK
-void pm_emit_log_char(char c)
-{
-	emit_log_char(c);
-}
-#endif
-
-#ifdef CONFIG_RK29_LAST_LOG
-void __init switch_log_buf(char *new_log_buf, int size)
-{
-	unsigned long flags;
-
-	if (!new_log_buf || log_buf_len > size)
-		return;
-
-	spin_lock_irqsave(&logbuf_lock, flags);
-	memcpy(new_log_buf, log_buf, min(log_buf_len, size));
-	log_buf = new_log_buf;
-	log_buf_len = size;
-	spin_unlock_irqrestore(&logbuf_lock, flags);
-}
-#endif /* CONFIG_RK29_LAST_LOG */
 #else
 
 static void call_console_drivers(unsigned start, unsigned end)

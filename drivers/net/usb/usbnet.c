@@ -49,9 +49,6 @@
 
 #define DRIVER_VERSION		"22-Aug-2005"
 
-static char version[] =
-KERN_INFO "USBNET Framwork for ASIX USB Ethernet Adapter:3.2.101 Beta6"
-	" " __TIME__ " " __DATE__ "\n";
 
 /*-------------------------------------------------------------------------*/
 
@@ -248,7 +245,7 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(usbnet_skb_return);
 
-
+
 /*-------------------------------------------------------------------------
  *
  * Network Device Driver (peer link to "Host Device", from USB host)
@@ -349,7 +346,7 @@ static int rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 		usb_free_urb (urb);
 		return -ENOMEM;
 	}
-	//skb_reserve (skb, NET_IP_ALIGN);  //ylz++
+	skb_reserve (skb, NET_IP_ALIGN);
 
 	entry = (struct skb_data *) skb->cb;
 	entry->urb = urb;
@@ -1103,30 +1100,6 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 			}
 		}
 	}
-	
-//$_rbox_$_modify_$_chenzhi
-//$_rbox_$_modify_$_begin
-/* data must be 4-byte aligned */
-        length = ((unsigned long)skb->data) & 0x3;
-        if (length) {
-                if (skb_cloned(skb) ||
-                    ((skb_headroom(skb) < length) &&
-                     (skb_tailroom(skb) < (4-length)))) {
-                        struct sk_buff *skb2;
-                        /* copy skb with proper alignment */
-                        skb2 = skb_copy_expand(skb, 0, 4, GFP_ATOMIC);
-                        dev_kfree_skb_any(skb);
-                        skb = skb2;
-                        if (!skb)
-                                goto drop;
-                } else {
-                        /* move data inside buffer */
-                        length = ((skb_headroom(skb) >= length) ? 0 : 4)-length;
-                        memmove(skb->data+length, skb->data, skb->len);
-                        skb_reserve(skb, length);
-                }
-        }
-//$_rbox_$_modify_$_end	
 	length = skb->len;
 
 	if (!(urb = usb_alloc_urb (0, GFP_ATOMIC))) {
@@ -1435,8 +1408,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	net->netdev_ops = &usbnet_netdev_ops;
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &usbnet_ethtool_ops;
-
-	info->flags |= FLAG_AVOID_UNLINK_URBS;
 
 	// allow device-specific bind/init procedures
 	// NOTE net->name still not usable ...

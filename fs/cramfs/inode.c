@@ -339,10 +339,8 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = CRAMFS_MAGIC;
 	buf->f_bsize = PAGE_CACHE_SIZE;
 	buf->f_blocks = CRAMFS_SB(sb)->blocks;
-	// modify by cmc for cts test
-	buf->f_bfree = 1; // 0
-	buf->f_bavail = 1; // 0
-	// end modify
+	buf->f_bfree = 0;
+	buf->f_bavail = 0;
 	buf->f_files = CRAMFS_SB(sb)->files;
 	buf->f_ffree = 0;
 	buf->f_fsid.val[0] = (u32)id;

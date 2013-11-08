@@ -28,9 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/unaligned.h>
 #include <asm/hardware/pl330.h>
-#include <mach/sram.h>
 
 /* Register and Bit field Definitions */
 #define DS		0x0
@@ -221,7 +219,7 @@
  * For typical scenario, at 1word/burst, 10MB and 20MB xfers per req
  * should be enough for P<->M and M<->M respectively.
  */
-#define MCODE_BUFF_PER_REQ	128
+#define MCODE_BUFF_PER_REQ	256
 
 /*
  * Mark a _pl330_req as free.
@@ -379,17 +377,10 @@ static inline u32 get_id(struct pl330_info *pi, u32 off)
 	void __iomem *regs = pi->base;
 	u32 id = 0;
 
-#ifdef CONFIG_PLAT_RK
-	id |= ((readl(regs + off + 0x0) & 0xff) << 0);
-	id |= ((readl(regs + off + 0x4) & 0xff) << 8);
-	id |= ((readl(regs + off + 0x8) & 0xff) << 16);
-	id |= ((readl(regs + off + 0xc) & 0xff) << 24);
-#else
 	id |= (readb(regs + off + 0x0) << 0);
 	id |= (readb(regs + off + 0x4) << 8);
 	id |= (readb(regs + off + 0x8) << 16);
 	id |= (readb(regs + off + 0xc) << 24);
-#endif
 
 	return id;
 }
@@ -402,7 +393,7 @@ static inline u32 _emit_ADDH(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAADDH;
 	buf[0] |= (da << 1);
-	put_unaligned(val, (u16 *)&buf[1]);	//*((u16 *)&buf[1]) = val;
+	*((u16 *)&buf[1]) = val;
 
 	PL330_DBGCMD_DUMP(SZ_DMAADDH, "\tDMAADDH %s %u\n",
 		da == 1 ? "DA" : "SA", val);
@@ -556,7 +547,7 @@ static inline u32 _emit_MOV(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAMOV;
 	buf[1] = dst;
-	put_unaligned(val, (u32 *)&buf[2]);	//*((u32 *)&buf[2]) = val;
+	*((u32 *)&buf[2]) = val;
 
 	PL330_DBGCMD_DUMP(SZ_DMAMOV, "\tDMAMOV %s 0x%x\n",
 		dst == SAR ? "SAR" : (dst == DAR ? "DAR" : "CCR"), val);
@@ -734,7 +725,7 @@ static inline u32 _emit_GO(unsigned dry_run, u8 buf[],
 
 	buf[1] = chan & 0x7;
 
-	put_unaligned(addr, (u32 *)&buf[2]);	//*((u32 *)&buf[2]) = addr;
+	*((u32 *)&buf[2]) = addr;
 
 	return SZ_DMAGO;
 }
@@ -999,10 +990,10 @@ static inline int _ldst_devtomem(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	while (cyc--) {
-		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
-		off += _emit_LDP(dry_run, &buf[off], BURST, pxs->r->peri);
+		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
+		off += _emit_LDP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_ST(dry_run, &buf[off], ALWAYS);
-		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);    //for sdmmc sdio
+		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
 	}
 
 	return off;
@@ -1014,10 +1005,10 @@ static inline int _ldst_memtodev(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	while (cyc--) {
-		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
+		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
 		off += _emit_LD(dry_run, &buf[off], ALWAYS);
-		off += _emit_STP(dry_run, &buf[off], BURST, pxs->r->peri);
-		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);     //for sdmmc sdio
+		off += _emit_STP(dry_run, &buf[off], SINGLE, pxs->r->peri);
+		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
 	}
 
 	return off;
@@ -1125,62 +1116,6 @@ static inline int _loop(unsigned dry_run, u8 buf[],
 	return off;
 }
 
-/* Returns bytes consumed and updates bursts */
-static inline int _loop_infiniteloop(unsigned dry_run, u8 buf[],
-		unsigned long bursts, const struct _xfer_spec *pxs, int ev)
-{
-	int cyc, off;
-	unsigned lcnt0, lcnt1, ljmp0, ljmp1, ljmpfe;
-	struct _arg_LPEND lpend;
-
-	off = 0;
-	ljmpfe = off;
-	lcnt0 = pxs->r->infiniteloop;
-	//hhb
-	/* Max iterations possible in DMALP is 256 */
-	if (bursts > 256) {
-		lcnt1 = 256;
-		cyc = bursts/256;    //cyc shuold be less than 8
-	} else {
-		lcnt1 = bursts;
-		cyc = 1;
-	}
-
-	/* forever loop */
-	off += _emit_MOV(dry_run, &buf[off], SAR, pxs->x->src_addr);
-	off += _emit_MOV(dry_run, &buf[off], DAR, pxs->x->dst_addr);
-
-	/* loop0 */
-	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
-	ljmp0 = off;
-
-	/* loop1 */
-	off += _emit_LP(dry_run, &buf[off], 1, lcnt1);
-	ljmp1 = off;
-	off += _bursts(dry_run, &buf[off], pxs, cyc);
-	lpend.cond = ALWAYS;
-	lpend.forever = false;
-	lpend.loop = 1;
-	lpend.bjump = off - ljmp1;
-	off += _emit_LPEND(dry_run, &buf[off], &lpend);
-	if(pxs->r->infiniteloop_sev)   //may be we don't need interrupt when dma transfer
-		off += _emit_SEV(dry_run, &buf[off], ev);
-	/* end loop1 */
-	lpend.cond = ALWAYS;
-	lpend.forever = false;
-	lpend.loop = 0;
-	lpend.bjump = off - ljmp0;
-	off += _emit_LPEND(dry_run, &buf[off], &lpend);
-	/* end loop0 */
-	lpend.cond = ALWAYS;
-	lpend.forever = true;
-	lpend.loop = 1;
-	lpend.bjump = off - ljmpfe;
-	off +=  _emit_LPEND(dry_run, &buf[off], &lpend);
-
-	return off;
-}
-
 static inline int _setup_loops(unsigned dry_run, u8 buf[],
 		const struct _xfer_spec *pxs)
 {
@@ -1215,20 +1150,6 @@ static inline int _setup_xfer(unsigned dry_run, u8 buf[],
 	return off;
 }
 
-static inline int _setup_xfer_infiniteloop(unsigned dry_run, u8 buf[],
-		const struct _xfer_spec *pxs, int ev)
-{
-	struct pl330_xfer *x = pxs->x;
-	u32 ccr = pxs->ccr;
-	unsigned long bursts = BYTE_TO_BURST(x->bytes, ccr);
-	int off = 0;
-
-	/* Setup Loop(s) */
-	off += _loop_infiniteloop(dry_run, &buf[off], bursts, pxs, ev);
-
-	return off;
-}
-
 /*
  * A req is a sequence of one or more xfer units.
  * Returns the number of bytes taken to setup the MC for the req.
@@ -1247,33 +1168,22 @@ static int _setup_req(unsigned dry_run, struct pl330_thread *thrd,
 	off += _emit_MOV(dry_run, &buf[off], CCR, pxs->ccr);
 
 	x = pxs->r->x;
-
-	if (!pxs->r->infiniteloop) {
-		do {
-			/* Error if xfer length is not aligned at burst size */
-			if (x->bytes % (BRST_SIZE(pxs->ccr)
-						* BRST_LEN(pxs->ccr)))
-				return -EINVAL;
-
-			pxs->x = x;
-			off += _setup_xfer(dry_run, &buf[off], pxs);
-
-			x = x->next;
-		} while (x);
-
-		/* DMASEV peripheral/event */
-		off += _emit_SEV(dry_run, &buf[off], thrd->ev);
-		/* DMAEND */
-		off += _emit_END(dry_run, &buf[off]);
-	} else {
+	do {
 		/* Error if xfer length is not aligned at burst size */
 		if (x->bytes % (BRST_SIZE(pxs->ccr) * BRST_LEN(pxs->ccr)))
 			return -EINVAL;
 
 		pxs->x = x;
-		off += _setup_xfer_infiniteloop
-				(dry_run, &buf[off], pxs, thrd->ev);
-	}
+		off += _setup_xfer(dry_run, &buf[off], pxs);
+
+		x = x->next;
+	} while (x);
+
+	/* DMASEV peripheral/event */
+	off += _emit_SEV(dry_run, &buf[off], thrd->ev);
+	/* DMAEND */
+	off += _emit_END(dry_run, &buf[off]);
+
 	return off;
 }
 
@@ -1371,17 +1281,17 @@ int pl330_submit_req(void *ch_id, struct pl330_req *r)
 		goto xfer_exit;
 	}
 
+	/* Prefer Secure Channel */
+	if (!_manager_ns(thrd))
+		r->cfg->nonsecure = 0;
+	else
+		r->cfg->nonsecure = 1;
+
 	/* Use last settings, if not provided */
-	if (r->cfg) {
-		/* Prefer Secure Channel */
-		if (!_manager_ns(thrd))
-			r->cfg->nonsecure = 0;
-		else
-			r->cfg->nonsecure = 1;
+	if (r->cfg)
 		ccr = _prepare_ccr(r->cfg);
-	} else {
+	else
 		ccr = readl(regs + CC(thrd->id));
-	}
 
 	/* If this req doesn't have valid xfer settings */
 	if (!_is_valid(ccr)) {
@@ -1558,13 +1468,10 @@ int pl330_update(const struct pl330_info *pi)
 			active -= 1;
 
 			rqdone = &thrd->req[active];
+			MARK_FREE(rqdone);
 
-			if (!rqdone->r->infiniteloop) {
-				MARK_FREE(rqdone);
-
-				/* Get going again ASAP */
-				_start(thrd);
-			}
+			/* Get going again ASAP */
+			_start(thrd);
 
 			/* For now, just make a list of callbacks to be done */
 			list_add_tail(&rqdone->rqd, &pl330->req_done);
@@ -1715,15 +1622,11 @@ static inline int _alloc_event(struct pl330_thread *thrd)
 
 	return -1;
 }
-//hhb@rock-chips.com
-#ifdef CONFIG_RK_SRAM_DMA
-static __attribute__((aligned(4))) __sramdata char i2s_mcode_buff[2][MCODE_BUFF_PER_REQ*2];
-#endif
 
 /* Upon success, returns IdentityToken for the
  * allocated channel, NULL otherwise.
  */
-void *pl330_request_channel(int id, const struct pl330_info *pi)
+void *pl330_request_channel(const struct pl330_info *pi)
 {
 	struct pl330_thread *thrd = NULL;
 	struct pl330_dmac *pl330;
@@ -1758,29 +1661,7 @@ void *pl330_request_channel(int id, const struct pl330_info *pi)
 		}
 		thrd = NULL;
 	}
-#ifdef CONFIG_RK_SRAM_DMA
-	switch(id) {
-		case 4:   	//DMACH_I2S0_8CH_TX
-		case 6:		//DMACH_I2S1_2CH_TX
-		case 9:		//DMACH_I2S2_2CH_TX
-			thrd->req[0].mc_bus = (u32)(RK30_IMEM_PHYS + ((void *)i2s_mcode_buff[0] - RK30_IMEM_BASE));
-			thrd->req[0].mc_cpu = (RK30_IMEM_NONCACHED + ((void *)i2s_mcode_buff[0] - RK30_IMEM_BASE));
-			thrd->req[1].mc_bus = thrd->req[0].mc_bus + MCODE_BUFF_PER_REQ;
-			thrd->req[1].mc_cpu = thrd->req[0].mc_cpu + MCODE_BUFF_PER_REQ;
-			break;
-		case 5:   	//DMACH_I2S0_8CH_RX
-		case 7:		//DMACH_I2S1_2CH_RX
-		case 10:	//DMACH_I2S2_2CH_RX
-			thrd->req[0].mc_bus = (u32)(RK30_IMEM_PHYS + ((void *)i2s_mcode_buff[1] - RK30_IMEM_BASE));
-			thrd->req[0].mc_cpu = (RK30_IMEM_NONCACHED + ((void *)i2s_mcode_buff[1] - RK30_IMEM_BASE));
-			thrd->req[1].mc_bus = thrd->req[0].mc_bus + MCODE_BUFF_PER_REQ;
-			thrd->req[1].mc_cpu = thrd->req[0].mc_cpu + MCODE_BUFF_PER_REQ;
-			break;
-		default:
-			break;
 
-	}
-#endif
 	spin_unlock_irqrestore(&pl330->lock, flags);
 
 	return thrd;

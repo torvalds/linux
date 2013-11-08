@@ -29,12 +29,6 @@ struct dm9000_plat_data {
 	unsigned int	flags;
 	unsigned char	dev_addr[6];
 
-	//gpio init&deinit	
-    int (*io_init)(void);
-    int (*io_deinit)(void);
-	int irq_pin;
-	int irq_pin_value;
-		
 	/* allow replacement IO routines */
 
 	void	(*inblk)(void __iomem *reg, void *data, int len);

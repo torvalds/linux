@@ -26,7 +26,6 @@
 #include <sound/tlv.h>
 
 #include "wm8993.h"
-#include "wm8994.h"
 #include "wm_hubs.h"
 
 const DECLARE_TLV_DB_SCALE(wm_hubs_spkmix_tlv, -300, 300, 0);
@@ -77,10 +76,10 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 
 	do {
 		count++;
-		msleep(100);
+		msleep(1);
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_0);
 		dev_dbg(codec->dev, "DC servo: %x\n", reg);
-	} while (reg & op && count < 4);
+	} while (reg & op && count < 400);
 
 	if (reg & op)
 		dev_err(codec->dev, "Timed out waiting for DC Servo %x\n",
@@ -213,14 +212,6 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new analogue_snd_controls[] = {
-//for mic mute		
-SOC_SINGLE_TLV("Main Mic Capture Volume", WM8993_RIGHT_LINE_INPUT_1_2_VOLUME, 0, 31, 0,
-		  inpga_tlv),
-SOC_SINGLE("Main Mic Capture Switch", WM8993_RIGHT_LINE_INPUT_1_2_VOLUME, 7, 1, 1),		
-SOC_SINGLE("Headset Mic Capture Switch", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 7, 1, 1),		
-SOC_SINGLE_TLV("Headset Mic Capture Volume", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 0, 31, 0,
-       inpga_tlv),		
-//end	
 SOC_SINGLE_TLV("IN1L Volume", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 0, 31, 0,
 	       inpga_tlv),
 SOC_SINGLE("IN1L Switch", WM8993_LEFT_LINE_INPUT_1_2_VOLUME, 7, 1, 1),
@@ -304,9 +295,7 @@ SOC_DOUBLE_R("Output ZC Switch", WM8993_LEFT_OPGA_VOLUME,
 	     WM8993_RIGHT_OPGA_VOLUME, 7, 1, 0),
 
 SOC_SINGLE("Earpiece Switch", WM8993_HPOUT2_VOLUME, 5, 1, 1),
-SOC_SINGLE_TLV("HPOUT2 Volume", WM8993_HPOUT2_VOLUME, 4, 1, 1, earpiece_tlv),
-SOC_DOUBLE_R_TLV("Earpiece Volume", WM8993_LEFT_OPGA_VOLUME, 
-		WM8993_RIGHT_OPGA_VOLUME, 0, 63, 0, outpga_tlv),
+SOC_SINGLE_TLV("Earpiece Volume", WM8993_HPOUT2_VOLUME, 4, 1, 1, earpiece_tlv),
 
 SOC_SINGLE_TLV("SPKL Input Volume", WM8993_SPKMIXL_ATTENUATION,
 	       5, 1, 1, wm_hubs_spkmix_tlv),
@@ -417,19 +406,6 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, WM8993_LEFT_OUTPUT_VOLUME,
-					WM8993_HPOUT1_VU ,
-					0 | 0);
-		snd_soc_update_bits(codec, WM8993_RIGHT_OUTPUT_VOLUME,
-					WM8993_HPOUT1_VU ,
-					0 | 0);
-		snd_soc_update_bits(codec, WM8993_LEFT_OUTPUT_VOLUME,
-					WM8993_HPOUT1_VU ,
-					WM8993_HPOUT1_VU );
-		snd_soc_update_bits(codec, WM8993_RIGHT_OUTPUT_VOLUME,
-					WM8993_HPOUT1_VU ,
-					WM8993_HPOUT1_VU );
-					
 		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,
 				    WM8993_CP_ENA, WM8993_CP_ENA);
 
@@ -677,17 +653,10 @@ SND_SOC_DAPM_MIXER("LINEOUT2N Mixer", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MIXER("LINEOUT2P Mixer", SND_SOC_NOPM, 0, 0,
 		   line2p_mix, ARRAY_SIZE(line2p_mix)),
 
-//SND_SOC_DAPM_PGA("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
-//		 NULL, 0),
-//SND_SOC_DAPM_PGA("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
-//		 NULL, 0),
-SND_SOC_DAPM_PGA_E("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
-		 NULL, 0,
-		 lineout_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_E("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
-		 NULL, 0,
-		 lineout_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-		 
+SND_SOC_DAPM_PGA("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
+		 NULL, 0),
+SND_SOC_DAPM_PGA("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
+		 NULL, 0),
 SND_SOC_DAPM_PGA("LINEOUT2N Driver", WM8993_POWER_MANAGEMENT_3, 11, 0,
 		 NULL, 0),
 SND_SOC_DAPM_PGA("LINEOUT2P Driver", WM8993_POWER_MANAGEMENT_3, 10, 0,

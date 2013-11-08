@@ -248,7 +248,6 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 			mem->vaddr, mem->size);
 		break;
 	case V4L2_MEMORY_OVERLAY:
-		break; /* ddl@rock-chips.com : nzy modify V4L2_MEMORY_OVERLAY   */
 	default:
 		dev_dbg(q->dev, "%s memory method OVERLAY/unknown\n",
 			__func__);

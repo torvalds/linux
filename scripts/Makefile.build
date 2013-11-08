@@ -463,12 +463,3 @@ endif
 # information in a variable se we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)
-
-
-# .uu -> .o
-# ---------------------------------------------------------------------------
-quiet_cmd_uudecode_o_uu = DECODE  $@
-      cmd_uudecode_o_uu = uudecode -o $@ $<
-
-$(obj)/%.o: $(src)/%.uu FORCE
-	$(call if_changed,uudecode_o_uu)

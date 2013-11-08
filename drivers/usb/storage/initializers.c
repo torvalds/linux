@@ -112,21 +112,7 @@ static int usb_stor_huawei_feature_init(struct us_data *us)
  * So it is  unnecessary to read its response.
  */
 static int usb_stor_huawei_scsi_init(struct us_data *us)
-{   
-    int idProduct;
-	idProduct = us->pusb_dev->descriptor.idProduct;
-	if(idProduct==0x1F01){
-	//printk("This is SCSI HUAWEI HILINK Dongle\n");
-	int result = 0;
-    int act_len = 0;
-	unsigned  char  cmd[32] =  {0x55,  0x53, 0x42,  0x43,  0x00, 0x00,  0x00, 0x00,
-	                            0x00,  0x00, 0x00,  0x00,  0x00,  0x00,  0x00, 0x11,
-	                            0x06,  0x30, 0x00,  0x00,  0x01,  0x00,  0x01, 0x00,
-	                            0x00,  0x00, 0x00,  0x00,  0x00,  0x00, 0x00};
-	 result = usb_stor_bulk_transfer_buf (us, us->send_bulk_pipe, cmd, 31, &act_len);
-	 printk("usb_stor_bulk_transfer_buf performing result is %d, transfer the actual length=%d\n", result, act_len);
-	 return result;
-	}else{
+{
 	int result = 0;
 	int act_len = 0;
 	struct bulk_cb_wrap *bcbw = (struct bulk_cb_wrap *) us->iobuf;
@@ -145,7 +131,6 @@ static int usb_stor_huawei_scsi_init(struct us_data *us)
 					US_BULK_CB_WRAP_LEN, &act_len);
 	US_DEBUGP("transfer actual length=%d, result=%d\n", act_len, result);
 	return result;
-	}
 }
 
 /*
@@ -191,30 +176,3 @@ int usb_stor_huawei_init(struct us_data *us)
 	}
 	return result;
 }
-
-int usb_stor_zte_k4505_init(struct us_data *us)
- {
-		int result = 0;
-		int act_len = 0;
-		unsigned char cmd[32] = {
-				 0x55,0x53,0x42,0x43,0x12,0x34,0x56,0x78,
-				 0x00,0x00,0x00,0x00,0x00,0x00,0x06,0x1b,
-				 0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x00,
-				 0x00,0x00,0x00,0x00,0x00,0x00,0x00
-				 };
-		result = usb_stor_bulk_transfer_buf (us, us->send_bulk_pipe, cmd, 31,&act_len);
-	    printk("usb_stor_bulk_transfer_buf performing result is %d, transfer the actual length=%d\n", result, act_len);
-		return (result ? 0 : -ENODEV);
-}
-
-int usb_stor_zte_init(struct us_data *us)
-{
-	     int result;
-		 result =usb_stor_control_msg(us,us->send_ctrl_pipe,
-		                                     0xA1,
-		                                     0xC0,
-		                                     0x01,0x0,NULL,0x0,1000);
-		 printk("usb_stor_zte_int result is %d\n",result);
-		 return 0;
-}
-

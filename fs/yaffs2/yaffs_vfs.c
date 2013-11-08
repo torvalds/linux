@@ -2217,9 +2217,6 @@ static struct super_block *yaffs_internal_read_super(int yaffs_version,
 	param->n_reserved_blocks = 5;
 	param->n_caches = (options.no_cache) ? 0 : 10;
 	param->inband_tags = options.inband_tags;
-#if defined(CONFIG_ARCH_RK2818) || defined(CONFIG_ARCH_RK29)
-	param->inband_tags = 1;
-#endif
 
 #ifdef CONFIG_YAFFS_DISABLE_LAZY_LOAD
 	param->disable_lazy_load = 1;

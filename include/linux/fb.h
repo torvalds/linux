@@ -19,15 +19,6 @@
 #define FBIOGETCMAP		0x4604
 #define FBIOPUTCMAP		0x4605
 #define FBIOPAN_DISPLAY		0x4606
-#define FBIOPUT_16OR32      0x4607
-#define FBIOPUT_FBPHYADD    0x4608
-#define FBIOPUT_SET_CURSOR_EN    0x4609
-#define FBIOPUT_SET_CURSOR_IMG    0x460a
-#define FBIOPUT_SET_CURSOR_POS    0x460b
-#define FBIOPUT_SET_CURSOR_CMAP    0x460c
-#define FBIOPUT_GET_CURSOR_RESOLUTION    0x460d
-#define FBIOPUT_GET_CURSOR_EN    0x460e
-
 #ifdef __KERNEL__
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
 #else
@@ -48,8 +39,6 @@
 #define FBIOPUT_MODEINFO        0x4617
 #define FBIOGET_DISPINFO        0x4618
 #define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
-
-
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
 #define FB_TYPE_PLANES			1	/* Non interleaved planes */

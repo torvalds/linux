@@ -1210,10 +1210,6 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	if (md)
 		mark_bbt_region(mtd, md);
 
-#ifdef CONFIG_MTD_NAND_RK29
-    extern void mark_reserve_region(struct mtd_info *mtd,struct nand_bbt_descr *td,struct nand_bbt_descr *md);
-    mark_reserve_region(mtd, td, md);
-#endif    
 	vfree(buf);
 	return res;
 }
@@ -1297,8 +1293,8 @@ static uint8_t mirror_pattern[] = {'1', 't', 'b', 'B' };
 
 static struct nand_bbt_descr bbt_main_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT /*| NAND_BBT_VERSION */| NAND_BBT_PERCHIP,
-	.offs =0,  //8,  // meet to rk2818 nandc spare
+		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+	.offs =	8,
 	.len = 4,
 	.veroffs = 12,
 	.maxblocks = 4,
@@ -1307,8 +1303,8 @@ static struct nand_bbt_descr bbt_main_descr = {
 
 static struct nand_bbt_descr bbt_mirror_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT /*| NAND_BBT_VERSION */| NAND_BBT_PERCHIP,
-	.offs =0,   //8,  // meet to rk2818 nandc spare
+		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+	.offs =	8,
 	.len = 4,
 	.veroffs = 12,
 	.maxblocks = 4,

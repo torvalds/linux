@@ -125,17 +125,6 @@ config REGULATOR_MAX8998
 	  via I2C bus. The provided regulator is suitable for S3C6410
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
-config REGULATOR_TPS65910
-	tristate "TI TPS65910/TPS65911 Power Regulators"
-	depends on MFD_TPS65910
-	help
-	  This driver supports TPS65910/TPS65911 voltage regulator chips.
-
-config REGULATOR_TPS65912
-	tristate "TI TPS65912 Power regulator"
-	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
-	help
-	    This driver supports TPS65912 voltage regulator chip.
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
@@ -170,13 +159,6 @@ config REGULATOR_WM8994
 	help
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
-
-config REGULATOR_RICOH619
-	tristate "RICOH 619 Power regulators"
-	depends on MFD_RICOH619
-	default n
-	help
-	  This driver supports regulator driver for RICOH619 PMIC.
 
 config REGULATOR_DA903X
 	tristate "Support regulators on Dialog Semiconductor DA9030/DA9034 PMIC"
@@ -266,52 +248,6 @@ config REGULATOR_TPS6507X
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
 
-config RK2818_REGULATOR_CHARGE
-	tristate "rk2818 Charger IC"
-	help
-	  Say Y to enable support for the current regulators charge on the RK2818.
-
-config RK2818_REGULATOR_LP8725
-	tristate "rk2818 pmic lp8725"
-	depends on I2C
-	help
-	  Say Y to enable support for the voltage regulators pmic lp8725 on the RK2818.
-
-config REGULATOR_ACT8891
-	tristate "Active Semi ACT8891 PMIC regulators"
-	depends on I2C
-	help
-	  Support the voltage and current regulators of the ACT8891 series of PMIC devices.
-
-config REGULATOR_ACT8931
-	tristate "Active Semi ACT8931 PMIC regulators"
-	depends on I2C
-	help
-	  Support the voltage and current regulators of the ACT8931 series of PMIC devices.
-
-config REGULATOR_ACT8846
-	tristate "Active Semi ACT8846 PMIC regulators"
-	depends on I2C
-	help
-	  Support the voltage and current regulators of the ACT8846 series of PMIC devices.
-
-config ACT8846_SUPPORT_RESET
-	tristate "ACT8846 PMIC SUPPORT RESET"
-	depends on REGULATOR_ACT8846=y
-	help
-	  Support short press key to restart.
-
-
-config RK29_PWM_REGULATOR
-	tristate "rk2918 pwm voltage regulator"
-	help
-	  Say Y to enable support for the voltage regulators charge on the RK2918.
-
-config RK30_PWM_REGULATOR
-	tristate "rk30 pwm voltage regulator for discrete dcdc or ldo"
-	help
-	  Say Y to enable support for the voltage regulators control on the RK30 .
-
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
 	depends on MFD_88PM860X=y
@@ -361,12 +297,11 @@ config REGULATOR_TPS6524X
 	  serial interface currently supported on the sequencer serial
 	  port controller.
 
-
-
-config REGULATOR_RT5025
-	bool "Richtek RT5025 PMIC Voltage regulstors"
-	depends on MFD_RT5025
+config REGULATOR_TPS65910
+	tristate "TI TPS65910 Power Regulator"
+	depends on MFD_TPS65910
 	help
-	  This driver supports voltage regulator in RT5025 PMIC chips.
+	  This driver supports TPS65910 voltage regulator chips.
+
 endif
 

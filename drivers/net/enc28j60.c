@@ -28,11 +28,9 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <mach/gpio.h>
 
 #include "enc28j60_hw.h"
 
-#define MAC_INT_PORT	RK2818_PIN_PE2
 #define DRV_NAME	"enc28j60"
 #define DRV_VERSION	"1.01"
 
@@ -1548,10 +1546,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 	struct net_device *dev;
 	struct enc28j60_net *priv;
 	int ret = 0;
-	unsigned long req_flags = IRQF_TRIGGER_FALLING;
-	int gpioToIrq = gpio_to_irq (MAC_INT_PORT);
-	
-	gpio_request(MAC_INT_PORT, "DRV_NAME");
+
 	if (netif_msg_drv(&debug))
 		dev_info(&spi->dev, DRV_NAME " Ethernet driver %s loaded\n",
 			DRV_VERSION);
@@ -1590,13 +1585,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 	/* Board setup must set the relevant edge trigger type;
 	 * level triggers won't currently work.
 	 */
-	gpio_pull_updown(MAC_INT_PORT, GPIOPullUp);	
-	if(gpioToIrq != -1)
-		ret = request_irq(gpioToIrq, enc28j60_irq,req_flags, "DRV_NAME", priv);
-	else
-		ret = -1;
-		
-	///ret = request_irq(spi->irq, enc28j60_irq, 0, DRV_NAME, priv);
+	ret = request_irq(spi->irq, enc28j60_irq, 0, DRV_NAME, priv);
 	if (ret < 0) {
 		if (netif_msg_probe(priv))
 			dev_err(&spi->dev, DRV_NAME ": request irq %d failed "

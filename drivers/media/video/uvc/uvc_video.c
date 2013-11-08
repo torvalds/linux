@@ -740,18 +740,14 @@ static void uvc_video_encode_bulk(struct urb *urb, struct uvc_streaming *stream,
 
 	urb->transfer_buffer_length = stream->urb_size - len;
 }
-/* ddl@rock-chips.com : uvc_video_complete is run in_interrupt(), so uvc decode operation delay run in tasklet for
-*    usb host reenable interrupt soon
-*/
-static void uvc_video_complete_fun (struct urb *urb)
-{    
+
+static void uvc_video_complete(struct urb *urb)
+{
 	struct uvc_streaming *stream = urb->context;
 	struct uvc_video_queue *queue = &stream->queue;
 	struct uvc_buffer *buf = NULL;
 	unsigned long flags;
 	int ret;
-	int i;
-	atomic_t *urb_state=NULL;
 
 	switch (urb->status) {
 	case 0:
@@ -771,66 +767,18 @@ static void uvc_video_complete_fun (struct urb *urb)
 		return;
 	}
 
-    for (i = 0; i < UVC_URBS; ++i) {    
-        if (stream->urb[i] == urb) {
-            urb_state = &stream->urb_state[i];
-            break;
-        }
-    }
-
-    if (urb_state == NULL) {
-        printk("urb(%p) cann't be finded in stream->urb(%p, %p, %p, %p, %p)\n",
-              urb,stream->urb[0],stream->urb[1],stream->urb[2],stream->urb[3],stream->urb[4]);
-        BUG();
-    }
-	
-	if (atomic_read(urb_state)==UrbDeactive) {
-	    printk(KERN_DEBUG "urb is deactive, this urb complete cancel!");
-		uvc_queue_cancel(queue, urb->status == -ESHUTDOWN);
-	    return;
-	}
-
 	spin_lock_irqsave(&queue->irqlock, flags);
 	if (!list_empty(&queue->irqqueue))
 		buf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
 				       queue);
-    spin_unlock_irqrestore(&queue->irqlock, flags);	
-    
+	spin_unlock_irqrestore(&queue->irqlock, flags);
+
 	stream->decode(urb, stream, buf);
-	
+
 	if ((ret = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
 		uvc_printk(KERN_ERR, "Failed to resubmit video URB (%d).\n",
 			ret);
 	}
-}
-static void uvc_video_complete_tasklet(unsigned long data)
-{
-    struct urb *urb = (struct urb*)data;   
-    
-    uvc_video_complete_fun(urb);    
-    
-    return;
-}
-static void uvc_video_complete(struct urb *urb)
-{
-    int i;
-    struct uvc_streaming *stream = urb->context;
-    struct tasklet_struct *tasklet = NULL;
-    atomic_t *urb_state;
-    
-    for (i = 0; i < UVC_URBS; ++i) {    
-        if (stream->urb[i] == urb) {
-            tasklet = stream->tasklet[i];
-            urb_state = &stream->urb_state[i];
-            break;
-        }
-    }
-
-    if ((tasklet != NULL)&&(atomic_read(urb_state)==UrbActive)) {
-        tasklet_schedule(tasklet);
-    } else {
-        uvc_video_complete_fun(urb);
-    }
 }
 
 /*
@@ -912,24 +860,15 @@ static void uvc_uninit_video(struct uvc_streaming *stream, int free_buffers)
 {
 	struct urb *urb;
 	unsigned int i;
-   
+
 	for (i = 0; i < UVC_URBS; ++i) {
 		urb = stream->urb[i];
 		if (urb == NULL)
 			continue;
-		else
-		    atomic_set(&stream->urb_state[i],UrbDeactive);
-		
-        if (stream->tasklet[i]) {
-            tasklet_kill(stream->tasklet[i]);
-            kfree(stream->tasklet[i]);
-            stream->tasklet[i] = NULL;
-        }
 
 		usb_kill_urb(urb);
 		usb_free_urb(urb);
 		stream->urb[i] = NULL;
-        
 	}
 
 	if (free_buffers)
@@ -983,15 +922,6 @@ static int uvc_init_video_isoc(struct uvc_streaming *stream,
 		}
 
 		stream->urb[i] = urb;
-        /* ddl@rock-chips.com  */
-        atomic_set(&stream->urb_state[i],UrbActive);
-        stream->tasklet[i] = kmalloc(sizeof(struct tasklet_struct), GFP_KERNEL);
-        if (stream->tasklet[i] == NULL) {
-            uvc_printk(KERN_ERR, "device %s requested tasklet memory fail!\n",
-				stream->dev->name);
-        } else {
-            tasklet_init(stream->tasklet[i], uvc_video_complete_tasklet, (unsigned long)urb);
-        }
 	}
 
 	return 0;
@@ -1043,15 +973,6 @@ static int uvc_init_video_bulk(struct uvc_streaming *stream,
 		urb->transfer_dma = stream->urb_dma[i];
 
 		stream->urb[i] = urb;
-
-        /* ddl@rock-chips.com  */
-        stream->tasklet[i] = kmalloc(sizeof(struct tasklet_struct), GFP_KERNEL);
-        if (stream->tasklet[i] == NULL) {
-            uvc_printk(KERN_ERR, "device %s requested tasklet memory fail!\n",
-				stream->dev->name);
-        } else {
-            tasklet_init(stream->tasklet[i], uvc_video_complete_tasklet, (unsigned long)urb);
-        }
 	}
 
 	return 0;
@@ -1328,14 +1249,11 @@ int uvc_video_init(struct uvc_streaming *stream)
 int uvc_video_enable(struct uvc_streaming *stream, int enable)
 {
 	int ret;
-    
+
 	if (!enable) {
-        if (stream->flags & UVC_QUEUE_STREAMING) {      /* ddl@rock-chips.com */
-            uvc_queue_enable(&stream->queue, 0);
-    		uvc_uninit_video(stream, 1);
-    		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
-    		stream->flags &= ~UVC_QUEUE_STREAMING;
-        }
+		uvc_uninit_video(stream, 1);
+		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
+		uvc_queue_enable(&stream->queue, 0);
 		return 0;
 	}
 
@@ -1349,7 +1267,7 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 		uvc_queue_enable(&stream->queue, 0);
 		return ret;
 	}
-    stream->flags |= UVC_QUEUE_STREAMING;
+
 	return uvc_init_video(stream, GFP_KERNEL);
 }
 

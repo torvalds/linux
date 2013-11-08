@@ -261,12 +261,6 @@ config GPIO_TC3589X
 	  This enables support for the GPIOs found on the TC3589X
 	  I/O Expander.
 
-config GPIO_TPS65912
-	tristate "TI TPS65912 GPIO"
-	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
-	help
-	  This driver supports TPS65912 gpio chip
-
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
@@ -438,45 +432,6 @@ config GPIO_UCB1400
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_gpio.
 
-config GPIO_PCA9554
-	bool "GPIO EXPANDER PCA9554"
-	depends on I2C
-	help
-	  Say yes here to access the PCA9554 GPIO EXPANDER
-
-config IOEXTEND_TCA6424
- 	bool "ROCKCHIP TCA6424 CONTROL"
-	depends on I2C
-	help
-	  Say yes here to access the TCA6424 GPIO EXPANDER
-
-config EXPANDED_GPIO_NUM  
-	int "setting the amount of expanded gpios"
-	help
-	  for tca6424, set 24
-	
-config EXPANDED_GPIO_IRQ_NUM
-	int "setting the amount of expanded gpio irqs"
-	help
-	  for tca6424, set 24	
-
-config EXPAND_GPIO_SOFT_INTERRUPT
-	bool "soft interrupt for expand gpio use"
-	help
-	  if you want expand gpio support interrupt,choose it
-
-config SPI_FPGA_GPIO_NUM  
-	default 96
-	int "setting the amount of fpga gpios"
-	help
-	  for fpga, set 96,no used ,set 0
-	
-config SPI_FPGA_GPIO_IRQ_NUM
-	default 16
-	int "setting the amount of fpga gpio irqs"
-	help
-	  for fpga, set 16,no used ,set 0	
-
 comment "MODULbus GPIO expanders:"
 
 config GPIO_JANZ_TTL
@@ -499,10 +454,4 @@ config GPIO_TPS65910
 	help
 	  Select this option to enable GPIO driver for the TPS65910
 	  chip family.
-config GPIO_RT5025
-	bool "Richtek RT5025 GPIO support"
-	depends on MFD_RT5025
-	default n
-	help
-	  This is the gpio driver for RT5025 PMIC.
 endif

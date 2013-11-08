@@ -323,13 +323,6 @@ config LEDS_BD2802
 	  This option enables support for BD2802GU RGB LED driver chips
 	  accessed via the I2C bus.
 
-config LEDS_ATT1272
-	tristate "LED driver for ATT1272 LED"
-	depends on LEDS_CLASS && I2C
-	help
-	  This option enables support for ATT1272 LED driver chips
-	  accessed via the I2C bus.
-
 config LEDS_INTEL_SS4200
 	tristate "LED driver for Intel NAS SS4200 series"
 	depends on LEDS_CLASS

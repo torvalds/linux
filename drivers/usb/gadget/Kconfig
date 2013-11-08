@@ -112,7 +112,6 @@ config	USB_GADGET_SELECTED
 choice
 	prompt "USB Peripheral Controller"
 	depends on USB_GADGET
-	default USB_GADGET_DWC_OTG
 	help
 	   A USB device uses a controller to talk to its host.
 	   Systems should have only one such upstream link.
@@ -544,19 +543,6 @@ config USB_LANGWELL
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config USB_GADGET_DWC_OTG
-	boolean "Synopsys DWC OTG Controller"
-	select USB_GADGET_DUALSPEED
-	help
-	  This driver provides USB Device Controller support for the
-	  Synopsys DesignWare USB OTG Core used on the Rockchip RK28.
-
-config USB_DWC_OTG
-	tristate
-	depends on USB_GADGET_DWC_OTG
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
 config USB_GADGET_EG20T
 	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR IOH(ML7213/ML7831) UDC"
 	depends on PCI
@@ -656,9 +642,9 @@ config USB_GADGET_DUALSPEED
 # USB Gadget Drivers
 #
 choice
-	bool "USB Gadget Drivers"
+	tristate "USB Gadget Drivers"
 	depends on USB_GADGET && USB_GADGET_SELECTED
-	default USB_G_ANDROID
+	default USB_ETH
 	help
 	  A Linux "Gadget Driver" talks to the USB Peripheral Controller
 	  driver through the abstract "gadget" API.  Some other operating
@@ -1079,18 +1065,4 @@ config USB_G_WEBCAM
 
 endchoice
 
-config BYPASS_INPUT_TO_HIDG
-        bool "Allow send reports form HID devices to PC"
-        depends on (USB_G_ANDROID && USB_GADGET_DWC_OTG) 
-        default n 
-        help
-	  If say "y" there will create a new gadget HIDG
-	  and HID reports form HID devices will be bypass to PC 
-
-config UMS_AS_CDROM
-       bool "Set mass storage as a virtual CDROM"
-       default n
-       help
-         Set mass storage as a virtual CDROM for drivers install.
-             
 endif # USB_GADGET

@@ -25,31 +25,14 @@ static int nologo;
 module_param(nologo, bool, 0);
 MODULE_PARM_DESC(nologo, "Disables startup logo");
 
-extern const struct linux_logo logo_cruz_clut224;
-const unsigned char password[32] = {
-    0x52, 0x4b, 0x20, 0x6c,
-    0x6f, 0x67, 0x6f, 0x20,
-    0x70, 0x61, 0x73, 0x73,
-    0x77, 0x6f, 0x72, 0x64,
-
-    0x31, 0x57, 0x8d, 0xeb,
-    0x18, 0x4b, 0xa9, 0x41,
-    0xd9, 0x47, 0xea, 0x2f,
-    0x7e, 0x60, 0xb1, 0x67
-};
-
 /* logo's are marked __initdata. Use __init_refok to tell
  * modpost that it is intended that this function uses data
  * marked __initdata.
  */
-__weak int get_battery_status(void)
-{
-	return 0;
-}
 const struct linux_logo * __init_refok fb_find_logo(int depth)
 {
-        struct linux_logo *logo = NULL;
-	const struct linux_logo *m_logo = NULL;
+	const struct linux_logo *logo = NULL;
+
 	if (nologo)
 		return NULL;
 
@@ -84,14 +67,6 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
 #endif
-#ifdef CONFIG_LOGO_PIPO_CLUT224
-		/* Generic Linux logo */
-		logo = &logo_pipo_clut224;
-#endif
-#ifdef CONFIG_LOGO_G3_CLUT224
-		/* Generic Linux logo */
-		logo = &logo_g3_clut224;
-#endif
 #ifdef CONFIG_LOGO_BLACKFIN_CLUT224
 		/* Blackfin Linux logo */
 		logo = &logo_blackfin_clut224;
@@ -125,43 +100,7 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		/* M32R Linux logo */
 		logo = &logo_m32r_clut224;
 #endif
-#ifdef CONFIG_LOGO_CRUZ_CLUT224
-                logo = &logo_cruz_clut224;
-#endif
-
-#ifdef CONFIG_LOGO_LINUX_800x480_CLUT224
-                logo = &logo_linux_800x480_clut224;
-#endif
-#ifdef CONFIG_LOGO_LOWERPOWER_WARNING
-		if( 1 ==  get_battery_status()){
-			logo = &logo_linux_lowerpower_clut224;
-		}
-#endif 
-
-		if (depth >= 24)
-		{
-			#ifdef  CONFIG_LOGO_LINUX_BMP
-			#ifdef CONFIG_LOGO_LINUX_BMP_SUNSET
-			logo = &logo_sunset_bmp;
-			#endif
-			
-			#ifdef CONFIG_LOGO_LINUX_BMP_ANDROID
-			logo = &logo_android_bmp;
-			#endif
-			
-			#endif	
-		}
-		else
-		{
-	  		logo->width = ((logo->data[0] << 8) + logo->data[1]);
-        		logo->height = ((logo->data[2] << 8) + logo->data[3]);
-        		logo->clutsize = logo->clut[0];
-        		logo->data += 4;
-        		logo->clut += 1;
-		}
 	}
-	m_logo = logo;
-	return m_logo;
-	
+	return logo;
 }
 EXPORT_SYMBOL_GPL(fb_find_logo);

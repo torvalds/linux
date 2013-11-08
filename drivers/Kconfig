@@ -52,10 +52,6 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
-source "drivers/adc/Kconfig"
-
-source "drivers/headset_observe/Kconfig"
-
 source "drivers/pps/Kconfig"
 
 source "drivers/ptp/Kconfig"
@@ -131,15 +127,5 @@ source "drivers/clk/Kconfig"
 source "drivers/hwspinlock/Kconfig"
 
 source "drivers/clocksource/Kconfig"
-
-source "drivers/cmmb/Kconfig"
-
-source "drivers/testcode/Kconfig"
-
-source "drivers/smc/Kconfig"
-
-source "drivers/cir/Kconfig"
-
-source "drivers/mtk_wcn_combo/Kconfig"
 
 endmenu

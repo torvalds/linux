@@ -259,57 +259,6 @@ SECTIONS
 		__tcm_end = .;
 	}
 #endif
-#ifdef CONFIG_PLAT_RK
-        /*
-	 * We align everything to a page boundary so we can
-	 * free it after init has commenced and SRAM contents have
-	 * been copied to its destination.
-	 */
-	.sram_start : {
-		. = ALIGN(PAGE_SIZE);
-		__sram_start = .;
-		__sram_code_start = .;
-	}
-
-	.text_sram_code SRAM_CODE_OFFSET : AT(__sram_code_start)
-	{
-		__ssram_code_text = .;
-		*(.sram.text)
-		*(.sram.rodata)
-		. = ALIGN(4);
-		__esram_code_text = .;
-	}
-
-	/*
-	 * Reset the dot pointer, this is needed to create the
-	 * relative __sram_data_start below (to be used as extern in code).
-	 */
-	. = ADDR(.sram_start) + SIZEOF(.sram_start) + SIZEOF(.text_sram_code);
-
-	.sram_data_start : {
-		__sram_data_start = .;
-	}
-
-	/* TODO: add remainder of ITCM as well, that can be used for data! */
-	.data_sram SRAM_CODE_OFFSET + SIZEOF(.text_sram_code) : AT(__sram_data_start)
-	{
-		. = ALIGN(4);
-		__ssram_data = .;
-		*(.sram.data)
-		. = ALIGN(4);
-		__esram_data = .;
-	}
-
-	/* Reset the dot pointer or the linker gets confused */
-	. = ADDR(.sram_data_start) + SIZEOF(.data_sram);
-
-	/* End marker for freeing TCM copy in linked object */
-	.sram_end : AT(ADDR(.sram_data_start) + SIZEOF(.data_sram)){
-		__sram_end = .;
-	}
-
-	. = ALIGN(PAGE_SIZE);
-#endif
 
 	NOTES
 

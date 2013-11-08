@@ -50,33 +50,12 @@ config WM831X_POWER
 	  Say Y here to enable support for the power management unit
 	  provided by Wolfson Microelectronics WM831x PMICs.
 
-config WM831X_CHARGER_DISPLAY
-	tristate "WM831X Charger display support"
-	depends on WM831X_POWER
-	help
-	  Say Y here to enable support for the power management unit
-	  provided by Wolfson Microelectronics WM831x Charger Display.  
-
-config WM831X_WITH_BATTERY
-	tristate "WM831X battery exist"
-	depends on WM831X_POWER
-	default n
-	help
-	  WM831X battery exist.
-
 config WM8350_POWER
         tristate "WM8350 PMU support"
         depends on MFD_WM8350
         help
           Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
-
-config BATTERY_RICOH619
-	tristate "Ricoh RC5T619 PMIC battery driver"
-	depends on MFD_RICOH619 && I2C && GENERIC_HARDIRQS
-	help
-	  Say Y to enable support for the battery control of the Ricoh RC5T619
-	  Power Management device.
 
 config TEST_POWER
 	tristate "Test power driver"
@@ -206,49 +185,6 @@ config CHARGER_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
 
-config BATTERY_STC3100
-	tristate "STC3100 battery driver"
-	depends on I2C && ARCH_RK29
-	help
-	  Say Y here to enable support for batteries with STC3100(I2C) chip.
-
-config BATTERY_BQ27510
-	tristate "BQ27510 battery driver"
-	select I2C_DEV_RK29
-	depends on I2C && ARCH_RK29
-	help
-	  Say Y here to enable support for batteries with BQ27510(I2C) chip.
-
-config BATTERY_BQ27541
-	tristate "BQ27541 battery driver"
-	select I2C_DEV_RK29
-	depends on I2C && ARCH_RK29
-	help
-	  Say Y here to enable support for batteries with BQ27541(I2C) chip.
-	
-config BATTERY_BQ3060
-	tristate "BQ3060 battery driver"
-	depends on I2C && ARCH_RK29
-	help
-	  Say Y here to enable support for batteries with BQ3060(I2C) chip.  
-
-config CHECK_BATT_CAPACITY
-	tristate "check the capacity in BQ27510 battery if 1000mah write capacity for BATT_CAPACITY_MAH"
-	depends on BATTERY_BQ27510 || BATTERY_BQ3060
-	default n
-
-config BATT_CAPACITY_MAH
-	depends on CHECK_BATT_CAPACITY
-	int "battery capacity (in mah)"
-	default 2200
-
-config NO_BATTERY_IC
-	tristate "no BQ27510 battery ic in board"
-	depends on BATTERY_BQ27510 || BATTERY_BQ27541 || BATTERY_BQ3060 
-	default n
-	help
-	  Say no BQ27510(I2C) chip in board .
-
 config BATTERY_JZ4740
 	tristate "Ingenic JZ4740 battery"
 	depends on MACH_JZ4740
@@ -289,13 +225,6 @@ config CHARGER_TWL4030
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
-config TWL6030_BCI_BATTERY
-	tristate "OMAP TWL6030 BCI Battery driver"
-	depends on TWL4030_CORE && TWL6030_GPADC
-	help
-	  Support for OMAP TWL6030 BCI Battery driver.
-	  This driver can give support for TWL6030 Battery Charge Interface.
-
 config CHARGER_GPIO
 	tristate "GPIO charger"
 	depends on GPIOLIB
@@ -305,84 +234,5 @@ config CHARGER_GPIO
 
 	  This driver can be build as a module. If so, the module will be
 	  called gpio-charger.
-
-config BATTERY_RK29_ADC
-	tristate "RK29 ADC Battery"
-	depends on ADC_RK29
-	help
-	  Say Y to enable support for the battery on the RK2918.
-
-config BATTERY_RK29_AC_CHARGE
-	tristate "RK29 AC CHARGE"
-	depends on BATTERY_RK29_ADC
-	help
-	  say Y to enable suspport for the AC battery charge
-
-config BATTERY_RK29_VOL3V8
-	tristate "the battery voltage is 3.8V"
-	depends on BATTERY_RK29_ADC
-	help
-          say Y to enable suspport for the battery voltage 3.8V
-
-config BATTERY_RK30_ADC
-        tristate "RK30 ADC Battery"
-        depends on ADC_RK30
-        help
-          Say Y to enable support for the battery on the RK30.
-
-config BATTERY_RK30_ADC_FAC
-        tristate "RK30 ADC Battery Factory"
-        depends on ADC_RK30
-        help
-          Say Y to enable support for the battery on the RK30.
-
-config BATTERY_RK30_AC_CHARGE
-        tristate "RK30 AC CHARGE"
-        depends on BATTERY_RK30_ADC||BATTERY_RK30_ADC_FAC
-        help
-          say Y to enable suspport for the AC battery charge
-
-config BATTERY_RK30_USB_CHARGE
-        tristate "RK30 USB CHARGE"
-        depends on BATTERY_RK30_ADC||BATTERY_RK30_ADC_FAC
-        help
-          say Y to enable suspport for the USB battery charge
-
-config BATTERY_RK30_VOL3V8
-       tristate "the battery voltage is 3.8V"
-        depends on BATTERY_RK30_ADC||BATTERY_RK30_ADC_FAC
-        help
-          say Y to enable suspport for the battery voltage 3.8V	
-	  
-config CW2015_BATTERY
-	tristate "CW2015 battery driver"
-	help
-	  Say Y to enable support for the cw2015 on the Rockchip
-
-config POWER_ON_CHARGER_DISPLAY
-	bool "Support charger display"
-
-config WM8326_VBAT_LOW_DETECTION
-	tristate "Support for WM8326 battery voltage detection."
-	default n
-
-config TWL60xx_VBAT_LOW_DETECTION
-	tristate "Support for twl60xx low battery detection."
-	default n
-	
-config POWER_RT5025
-	bool "RT5025 Pmic Chip Power Driver"
-	depends on MFD_RT5025
-	default n
-	help
-	  Enable RT5025 Power/Gauge part driver.
-
-config CHARGER_SMB347
-	tristate "Summit Microelectronics SMB347 Battery Charger"
-	depends on I2C
-	select REGMAP_I2C
-	help
-	  Say Y to include support for Summit Microelectronics SMB347
-	  Battery Charger.
 
 endif # POWER_SUPPLY

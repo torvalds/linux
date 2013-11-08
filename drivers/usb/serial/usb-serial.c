@@ -36,17 +36,13 @@
 #include <linux/usb/serial.h>
 #include <linux/kfifo.h>
 #include "pl2303.h"
-#include <linux/bp-auto.h>
-
 
 /*
  * Version Information
  */
 #define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
 #define DRIVER_DESC "USB Serial Driver core"
-#ifdef CONFIG_BP_AUTO
-extern int get_current_bp_id();
-#endif
+
 /* Driver structure we register with the USB core */
 static struct usb_driver usb_serial_driver = {
 	.name =		"usbserial",
@@ -57,11 +53,6 @@ static struct usb_driver usb_serial_driver = {
 	.no_dynamic_id = 	1,
 	.supports_autosuspend =	1,
 };
-#ifdef CONFIG_BP_AUTO
-static int BP_USB = 0;
-#define BP_USB_PORT     (SERIAL_TTY_MINORS - 10)
-#endif
-
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
    the MODULE_DEVICE_TABLE declarations in each serial driver
@@ -106,18 +97,12 @@ static struct usb_serial *get_free_serial(struct usb_serial *serial,
 {
 	unsigned int i, j;
 	int good_spot;
-	int a=0;
 
 	dbg("%s %d", __func__, num_ports);
 
 	*minor = 0;
 	mutex_lock(&table_lock);
-#ifdef CONFIG_BP_AUTO
-	if (BP_USB)
-		a= BP_USB_PORT;
-#endif
-
-	for (i = a; i < SERIAL_TTY_MINORS; ++i) {
+	for (i = 0; i < SERIAL_TTY_MINORS; ++i) {
 		if (serial_table[i])
 			continue;
 
@@ -1075,25 +1060,6 @@ int usb_serial_probe(struct usb_interface *interface,
 	} else {
 		serial->attached = 1;
 	}
-#ifdef CONFIG_BP_AUTO
-		int bp_id = get_current_bp_id();
-		if (((le16_to_cpu(dev->descriptor.idVendor) == 0x12D1 ) && (le16_to_cpu(dev->descriptor.idProduct) == 0x1001) && (bp_id == BP_ID_MU509))
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x19f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9013) && (bp_id == BP_ID_MW100))			
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x0E8D) && (le16_to_cpu(dev->descriptor.idProduct) == 0x00A2) && (bp_id == BP_ID_MT6229))
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x1782) && (le16_to_cpu(dev->descriptor.idProduct) == 0x0002) && (bp_id == BP_ID_U7501))
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x1782) && (le16_to_cpu(dev->descriptor.idProduct) == 0x4D00) && (bp_id == BP_ID_U7501))
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x21f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x2012) && (bp_id == BP_ID_SEW290))
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x1c9e) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9603) && (bp_id == BP_ID_U5501))
-			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x12d1) && (le16_to_cpu(dev->descriptor.idProduct) == 0x1506) && (bp_id == BP_ID_E1230S)) 
-		){
-			BP_USB =1;
-
-		}
-		else{
-			BP_USB = 0;
-		}
-		
-#endif
 
 	/* Avoid race with tty_open and serial_install by setting the
 	 * disconnected flag and not clearing it until all ports have been

@@ -233,10 +233,6 @@ struct fsg_lun {
 	struct file	*filp;
 	loff_t		file_length;
 	loff_t		num_sectors;
-#ifdef MAX_UNFLUSHED_PACKETS
-	unsigned int	unflushed_packet;
-	unsigned int	unflushed_bytes;
-#endif
 
 	unsigned int	initially_ro:1;
 	unsigned int	ro:1;
@@ -767,11 +763,8 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
 	int		rc = 0;
 
-#ifdef CONFIG_PLAT_RK
-	printk("store_file: \"%s\"\n", buf);
-#endif
 
-#ifndef CONFIG_USB_G_ANDROID
+#ifndef CONFIG_USB_ANDROID_MASS_STORAGE
 	/* disabled in android because we need to allow closing the backing file
 	 * if the media was removed
 	 */

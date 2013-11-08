@@ -88,8 +88,7 @@ static int __devinit i2c_gpio_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (!pdata)
 		return -ENXIO;
-	if(pdata->io_init)
-		pdata->io_init();
+
 	ret = -ENOMEM;
 	adap = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (!adap)

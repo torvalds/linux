@@ -91,14 +91,6 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If unsure, say Y.
 
-config USB_EHCI_RK
-	bool "Rockchip EHCI HSIC support"
-	depends on USB_EHCI_HCD 
-	select USB_EHCI_ROOT_HUB_TT
-	default y
-	---help---
-		Enables support for the onchip USB controller on the RK3108.
-
 config USB_EHCI_HCD_PMC_MSP
 	tristate "EHCI support for on-chip PMC MSP71xx USB controller"
 	depends on USB_EHCI_HCD && MSP_HAS_USB

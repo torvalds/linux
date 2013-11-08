@@ -38,7 +38,6 @@
 #include <asm/delay.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <mach/gpio.h>
 
 #include "dm9000.h"
 
@@ -136,6 +135,7 @@ typedef struct board_info {
 } board_info_t;
 
 /* debug code */
+
 #define dm9000_dbg(db, lev, msg...) do {		\
 	if ((lev) < CONFIG_DM9000_DEBUGLEVEL &&		\
 	    (lev) < db->debug_level) {			\
@@ -310,7 +310,7 @@ dm9000_read_locked(board_info_t *db, int reg)
 	unsigned long flags;
 	unsigned int ret;
 
-	spin_lock_irqsave(&db->lock, flags);	
+	spin_lock_irqsave(&db->lock, flags);
 	ret = ior(db, reg);
 	spin_unlock_irqrestore(&db->lock, flags);
 
@@ -365,9 +365,9 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 	}
 
 	mutex_lock(&db->addr_lock);
-	
+
 	spin_lock_irqsave(&db->lock, flags);
-		
+
 	iow(db, DM9000_EPAR, offset);
 	iow(db, DM9000_EPCR, EPCR_ERPRR);
 
@@ -377,9 +377,9 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 
 	/* delay for at-least 150uS */
 	msleep(1);
-	
+
 	spin_lock_irqsave(&db->lock, flags);
-	
+
 	iow(db, DM9000_EPCR, 0x0);
 
 	to[0] = ior(db, DM9000_EPDRL);
@@ -402,8 +402,8 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 		return;
 
 	mutex_lock(&db->addr_lock);
-	
-	spin_lock_irqsave(&db->lock, flags);	
+
+	spin_lock_irqsave(&db->lock, flags);
 	iow(db, DM9000_EPAR, offset);
 	iow(db, DM9000_EPDRH, data[1]);
 	iow(db, DM9000_EPDRL, data[0]);
@@ -413,7 +413,7 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 	dm9000_wait_eeprom(db);
 
 	mdelay(1);	/* wait at least 150uS to clear */
-	
+
 	spin_lock_irqsave(&db->lock, flags);
 	iow(db, DM9000_EPCR, 0);
 	spin_unlock_irqrestore(&db->lock, flags);
@@ -872,7 +872,7 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 
 	spin_lock_irqsave(&db->lock, flags);
-	
+
 	/* Move data to DM9000 TX RAM */
 	writeb(DM9000_MWCMD, db->io_addr);
 
@@ -891,7 +891,7 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_unlock_irqrestore(&db->lock, flags);
-	
+
 	/* free this SKB */
 	dev_kfree_skb(skb);
 
@@ -946,30 +946,20 @@ dm9000_rx(struct net_device *dev)
 	do {
 		ior(db, DM9000_MRCMDX);	/* Dummy read */
 
-		udelay(1);//add by lyx@20100713,or dm9000_rx will be error in high frequence
-
-		#if 1
-		/* Get most updated data */		
-		rxbyte = ior(db, DM9000_MRCMDX);	/* Dummy read */
-		#else
+		/* Get most updated data */
 		rxbyte = readb(db->io_data);
-		#endif
-		
+
 		/* Status check: this byte must be 0 or 1 */
 		if (rxbyte & DM9000_PKT_ERR) {
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
-			#if 0
 			iow(db, DM9000_RCR, 0x00);	/* Stop Device */
 			iow(db, DM9000_ISR, IMR_PAR);	/* Stop INT request */
-			#else
-			dm9000_reset(db);
-			#endif			
 			return;
 		}
 
 		if (!(rxbyte & DM9000_PKT_RDY))
 			return;
-		
+
 		/* A packet ready now  & Get status/length */
 		GoodPacket = true;
 		writeb(DM9000_MRCMD, db->io_addr);
@@ -1057,7 +1047,7 @@ static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 
 	/* A real interrupt coming */
 
-	/* holders of db->lock must always block IRQs */	
+	/* holders of db->lock must always block IRQs */
 	spin_lock_irqsave(&db->lock, flags);
 
 	/* Save previous register address */
@@ -1095,7 +1085,7 @@ static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
 	writeb(reg_save, db->io_addr);
 
 	spin_unlock_irqrestore(&db->lock, flags);
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -1165,7 +1155,7 @@ dm9000_open(struct net_device *dev)
 	if (irqflags == IRQF_TRIGGER_NONE)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
 
-	//irqflags |= IRQF_SHARED;
+	irqflags |= IRQF_SHARED;
 
 	/* GPIO0 on pre-activate PHY, Reg 1F is not set by reset */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
@@ -1215,7 +1205,7 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock,flags);
-	
+
 	/* Save previous register address */
 	reg_save = readb(db->io_addr);
 
@@ -1262,7 +1252,7 @@ dm9000_phy_write(struct net_device *dev,
 	mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock,flags);
-	
+
 	/* Save previous register address */
 	reg_save = readb(db->io_addr);
 
@@ -1280,7 +1270,7 @@ dm9000_phy_write(struct net_device *dev,
 
 	dm9000_msleep(db, 1);		/* Wait write complete */
 
-	spin_lock_irqsave(&db->lock,flags);	
+	spin_lock_irqsave(&db->lock,flags);
 	reg_save = readb(db->io_addr);
 
 	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
@@ -1454,29 +1444,8 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->io_addr;
+	ndev->irq	= db->irq_res->start;
 
-	//io init for dm9000 , modify by lyx@20100809
-	if (pdata && pdata->io_init) {
-		if (pdata->io_init()) {
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-	if (gpio_request(pdata->irq_pin, "dm9000 interrupt")) {
-		gpio_free(pdata->irq_pin);
-		if (pdata->io_deinit)
-			pdata->io_deinit();
-		printk("[fun:%s line:%d], request gpio for net interrupt fail\n", __func__,__LINE__);
-		ret = -EINVAL;
-		goto out;
-	}	
-	gpio_pull_updown(pdata->irq_pin, pdata->irq_pin_value);
-	gpio_direction_input(pdata->irq_pin);
-
-	ndev->irq = gpio_to_irq(pdata->irq_pin);
-	//ndev->irq = db->irq_res->start;
-	
 	/* ensure at least we have a default set of IO routines */
 	dm9000_set_io(db, iosize);
 
@@ -1610,9 +1579,6 @@ dm9000_probe(struct platform_device *pdev)
 		       ndev->name, dm9000_type_to_char(db->type),
 		       db->io_addr, db->io_data, ndev->irq,
 		       ndev->dev_addr, mac_src);
-
-	dm9000_shutdown(ndev);//add by lyx@20100713, reduce power consume
-
 	return 0;
 
 out:
@@ -1680,12 +1646,6 @@ static int __devexit
 dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
-
-	//deinit io for dm9000
-	gpio_free(pdata->irq_pin);
-	if (pdata && pdata->io_deinit)
-		pdata->io_deinit();
 
 	platform_set_drvdata(pdev, NULL);
 

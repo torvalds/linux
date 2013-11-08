@@ -100,8 +100,6 @@ struct f_rndis {
 	atomic_t			notify_count;
 };
 
-struct f_rndis		    *g_rndis;
-
 static inline struct f_rndis *func_to_rndis(struct usb_function *f)
 {
 	return container_of(f, struct f_rndis, port.func);
@@ -404,16 +402,16 @@ static void rndis_command_complete(struct usb_ep *ep, struct usb_request *req)
 }
 
 static int
-rndis_setup(struct usb_composite_dev *cdev, const struct usb_ctrlrequest *ctrl)
+rndis_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 {
-	//struct f_rndis		*rndis = func_to_rndis(f);
-	//struct usb_composite_dev *cdev = f->config->cdev;
-	struct f_rndis		*rndis = g_rndis;
+	struct f_rndis		*rndis = func_to_rndis(f);
+	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
+
 	/* composite driver infrastructure handles everything except
 	 * CDC class messages; interface activation uses set_alt().
 	 */
@@ -454,13 +452,12 @@ rndis_setup(struct usb_composite_dev *cdev, const struct usb_ctrlrequest *ctrl)
 		break;
 
 	default:
-	   
 invalid:
 		VDBG(cdev, "invalid control req%02x.%02x v%04x i%04x l%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
-		return -EOPNOTSUPP;
 	}
+
 	/* respond with data transfer or status phase? */
 	if (value >= 0) {
 		DBG(cdev, "rndis req%02x.%02x v%04x i%04x l%d\n",
@@ -851,9 +848,9 @@ rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	rndis->port.func.bind = rndis_bind;
 	rndis->port.func.unbind = rndis_unbind;
 	rndis->port.func.set_alt = rndis_set_alt;
-	//rndis->port.func.setup = rndis_setup;
+	rndis->port.func.setup = rndis_setup;
 	rndis->port.func.disable = rndis_disable;
-    g_rndis = rndis;
+
 	status = usb_add_function(c, &rndis->port.func);
 	if (status) {
 		kfree(rndis);

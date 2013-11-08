@@ -1,5 +1,6 @@
 # Display drivers
 
-display-objs				:= display-sys.o
+display-objs				:= display-sysfs.o
 
 obj-$(CONFIG_DISPLAY_SUPPORT)		+= display.o
+

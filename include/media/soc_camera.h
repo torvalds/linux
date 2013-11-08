@@ -68,7 +68,6 @@ struct soc_camera_host_ops {
 	void (*remove)(struct soc_camera_device *);
 	int (*suspend)(struct soc_camera_device *, pm_message_t);
 	int (*resume)(struct soc_camera_device *);
-    int (*enum_frameinervals)(struct soc_camera_device *, struct v4l2_frmivalenum *);/* ddl@rock-chips.com :Add ioctrl - VIDIOC_ENUM_FRAMEINTERVALS for soc-camera */
 	/*
 	 * .get_formats() is called for each client device format, but
 	 * .put_formats() is only called once. Further, if any of the calls to
@@ -103,9 +102,6 @@ struct soc_camera_host_ops {
 	unsigned int (*poll)(struct file *, poll_table *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
-
-    int (*s_stream)(struct soc_camera_device *, int enable);	/* ddl@rock-chips.com : Add stream control for host */
-
 };
 
 #define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)
@@ -132,7 +128,7 @@ struct soc_camera_link {
 	struct i2c_board_info *board_info;
 	const char *module_name;
 	void *priv;
-    void *priv_usr;                        /* ddl@rock-chips.com: add priv_usr */
+
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
 	int num_regulators;
@@ -146,7 +142,6 @@ struct soc_camera_link {
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
-	int (*powerdown)(struct device *, int);		/* ddl@rock-chisp.com : support sensor powerdown  */
 	/*
 	 * some platforms may support different data widths than the sensors
 	 * native ones due to different data line routing. Let the board code
@@ -217,11 +212,8 @@ struct soc_camera_ops {
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
-
 	const struct v4l2_queryctrl *controls;
-	struct v4l2_querymenu *menus;                /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 	int num_controls;
-	int num_menus;      /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 };
 
 #define SOCAM_SENSE_PCLK_CHANGED	(1 << 0)
@@ -278,10 +270,6 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 #define SOCAM_PCLK_SAMPLE_FALLING	(1 << 13)
 #define SOCAM_DATA_ACTIVE_HIGH		(1 << 14)
 #define SOCAM_DATA_ACTIVE_LOW		(1 << 15)
-
-#define SOCAM_MCLK_24MHZ   (1<<29)                                      /* ddl@rock-chips.com : add  */
-#define SOCAM_MCLK_27MHZ   (1<<30)
-#define SOCAM_MCLK_48MHZ   (1<<31)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_4 | SOCAM_DATAWIDTH_8 | \
 			      SOCAM_DATAWIDTH_9 | SOCAM_DATAWIDTH_10 | \

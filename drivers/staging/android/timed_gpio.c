@@ -20,12 +20,10 @@
 #include <linux/hrtimer.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
-#include <linux/wakelock.h>
-#include <linux/delay.h>
+
 #include "timed_output.h"
 #include "timed_gpio.h"
 
-#define GPIO_TYPE   0 
 
 struct timed_gpio_data {
 	struct timed_output_dev dev;
@@ -34,40 +32,14 @@ struct timed_gpio_data {
 	unsigned 	gpio;
 	int 		max_timeout;
 	u8 		active_low;
-	int             adjust_time;
-#if (GPIO_TYPE == 1)
-	struct work_struct 	timed_gpio_work;	
-#endif
-	struct wake_lock 	irq_wake;
 };
-
-#if (GPIO_TYPE == 1)
-static void timed_gpio_work_handler(struct work_struct *work)
-{
-	struct timed_gpio_data *data =
-		container_of(work, struct timed_gpio_data, timed_gpio_work);
-	int ret = 0,i = 0;
-	//set gpio several times once error happened
-	for(i=0; i<3; i++)
-	{
-		ret = gpio_direction_output(data->gpio, data->active_low ? 1 : 0);
-		if(!ret)		
-			break;
-		printk("%s:ret=%d,fail to set gpio and set again,i=%d\n",__FUNCTION__,ret,i);
-	}
-}
-#endif
 
 static enum hrtimer_restart gpio_timer_func(struct hrtimer *timer)
 {
 	struct timed_gpio_data *data =
 		container_of(timer, struct timed_gpio_data, timer);
-		
-#if (GPIO_TYPE == 0)
+
 	gpio_direction_output(data->gpio, data->active_low ? 1 : 0);
-#else	
-	schedule_work(&data->timed_gpio_work);
-#endif	
 	return HRTIMER_NORESTART;
 }
 
@@ -88,26 +60,24 @@ static void gpio_enable(struct timed_output_dev *dev, int value)
 {
 	struct timed_gpio_data	*data =
 		container_of(dev, struct timed_gpio_data, dev);
-	int ret = 0,i = 0;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&data->lock, flags);
 
 	/* cancel previous timer and set GPIO according to value */
 	hrtimer_cancel(&data->timer);
-	//set gpio several times once error happened
-	for(i=0; i<3; i++)
-	{
-		ret = gpio_direction_output(data->gpio, data->active_low ? !value : !!value);
-		if(!ret)		
-			break;
-		printk("%s:ret=%d,fail to set gpio and set again,i=%d\n",__FUNCTION__,ret,i);
-	}
+	gpio_direction_output(data->gpio, data->active_low ? !value : !!value);
+
 	if (value > 0) {
-		value += data->adjust_time;
 		if (value > data->max_timeout)
 			value = data->max_timeout;
+
 		hrtimer_start(&data->timer,
 			ktime_set(value / 1000, (value % 1000) * 1000000),
 			HRTIMER_MODE_REL);
 	}
+
+	spin_unlock_irqrestore(&data->lock, flags);
 }
 
 static int timed_gpio_probe(struct platform_device *pdev)
@@ -155,17 +125,10 @@ static int timed_gpio_probe(struct platform_device *pdev)
 		gpio_dat->gpio = cur_gpio->gpio;
 		gpio_dat->max_timeout = cur_gpio->max_timeout;
 		gpio_dat->active_low = cur_gpio->active_low;
-		gpio_dat->adjust_time = cur_gpio->adjust_time;
 		gpio_direction_output(gpio_dat->gpio, gpio_dat->active_low);
 	}
-#if (GPIO_TYPE == 1)
-    INIT_WORK(&gpio_dat->timed_gpio_work, timed_gpio_work_handler);
-#endif    
-	platform_set_drvdata(pdev, gpio_data);
-	wake_lock_init(&gpio_data->irq_wake, WAKE_LOCK_SUSPEND, "timed_gpio_wake");
 
-	gpio_enable(&gpio_data ->dev, 100);
-	printk("%s\n",__FUNCTION__);
+	platform_set_drvdata(pdev, gpio_data);
 
 	return 0;
 }
@@ -205,7 +168,7 @@ static void __exit timed_gpio_exit(void)
 	platform_driver_unregister(&timed_gpio_driver);
 }
 
-subsys_initcall(timed_gpio_init);
+module_init(timed_gpio_init);
 module_exit(timed_gpio_exit);
 
 MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");

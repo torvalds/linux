@@ -182,23 +182,8 @@ source "drivers/input/tablet/Kconfig"
 
 source "drivers/input/touchscreen/Kconfig"
 
-source "drivers/input/ts/Kconfig"
-
 source "drivers/input/misc/Kconfig"
 
-source "drivers/input/magnetometer/Kconfig"
-
-source "drivers/input/gsensor/Kconfig"
-
-source "drivers/input/gyroscope/Kconfig"
-
-source "drivers/input/jogball/Kconfig"
-
-source "drivers/input/lightsensor/Kconfig"
-
-source "drivers/input/sensors/Kconfig"
-
-source "drivers/input/remotectl/Kconfig"
 endif
 
 menu "Hardware I/O ports"

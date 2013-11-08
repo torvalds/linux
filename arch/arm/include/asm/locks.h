@@ -12,7 +12,7 @@
 #ifndef __ASM_PROC_LOCKS_H
 #define __ASM_PROC_LOCKS_H
 
-#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_DCACHE_DISABLE)
+#if __LINUX_ARM_ARCH__ >= 6
 
 #define __down_op(ptr,fail)			\
 	({					\

@@ -149,13 +149,8 @@ int nandmtd2_read_chunk_tags(struct yaffs_dev *dev, int nand_chunk,
 	if (local_data)
 		yaffs_release_temp_buffer(dev, data, __LINE__);
 
-#ifdef CONFIG_MTD_NAND_RK29
-	//dxj 20101221@ if return -EBADMSG then i think the page is badchunk so just set the eccResult=YAFFS_ECC_RESULT_NO_ERROR
-	if (tags && retval == -EBADMSG) {
-#else
 	if (tags && retval == -EBADMSG
 	    && tags->ecc_result == YAFFS_ECC_RESULT_NO_ERROR) {
-#endif
 		tags->ecc_result = YAFFS_ECC_RESULT_UNFIXED;
 		dev->n_ecc_unfixed++;
 	}

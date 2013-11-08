@@ -159,10 +159,6 @@ static struct attribute_group stats_attr_group = {
 static int freq_table_get_index(struct cpufreq_stats *stat, unsigned int freq)
 {
 	int index;
-#ifdef CONFIG_PLAT_RK
-	if (!stat->freq_table)
-		return -1;
-#endif
 	for (index = 0; index < stat->max_state; index++)
 		if (stat->freq_table[index] == freq)
 			return index;
@@ -219,9 +215,7 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 		goto error_out;
 
 	stat->cpu = cpu;
-#ifndef CONFIG_PLAT_RK
 	per_cpu(cpufreq_stats_table, cpu) = stat;
-#endif
 
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		unsigned int freq = table[i].frequency;
@@ -259,9 +253,6 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 	stat->last_time = get_jiffies_64();
 	stat->last_index = freq_table_get_index(stat, policy->cur);
 	spin_unlock(&cpufreq_stats_lock);
-#ifdef CONFIG_PLAT_RK
-	per_cpu(cpufreq_stats_table, cpu) = stat;
-#endif
 	cpufreq_cpu_put(data);
 	return 0;
 error_out:

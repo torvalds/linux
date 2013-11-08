@@ -27,7 +27,7 @@
 #define atomic_read(v)	(*(volatile int *)&(v)->counter)
 #define atomic_set(v,i)	(((v)->counter) = (i))
 
-#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_DCACHE_DISABLE)
+#if __LINUX_ARM_ARCH__ >= 6
 
 /*
  * ARMv6 UP and SMP safe atomic ops.  We use load exclusive and

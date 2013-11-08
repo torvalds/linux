@@ -12,15 +12,6 @@ menuconfig INPUT_MISC
 
 if INPUT_MISC
 
-config INPUT_LPSENSOR_ISL29028
-	tristate "isl29028 l/p sensor input support"
-
-config INPUT_LPSENSOR_CM3602
-	tristate "l/p sensor input support"
-
-config INPUT_LPSENSOR_AL3006
-	tristate "al3006 l/p sensor input support"
-
 config INPUT_88PM860X_ONKEY
 	tristate "88PM860x ONKEY support"
 	depends on MFD_88PM860X
@@ -284,26 +275,6 @@ config INPUT_TWL4030_PWRBUTTON
 	  To compile this driver as a module, choose M here. The module will
 	  be called twl4030_pwrbutton.
 
-config INPUT_TWL6030_PWRBUTTON
-	tristate "TWL6030 Power button Driver"
-	depends on TWL4030_CORE
-	help
-	  Say Y here if you want to enable power key reporting via the
-	  TWL6030 family of chips.
-
-	  To compile this driver as a module, choose M here. The module will
-	  be called twl6030_pwrbutton.
-
-config INPUT_RICOH619_PWRKEY
-	tristate "RICOH RC5T619 PMU PWRKEY driver"
-	depends on MFD_RICOH619
-	default n
-	help
-	  If you say yes here you get support for the RICOH RC5T619 PWRKEY module.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rc5t619-pwrkey.
-
 config INPUT_TWL4030_VIBRA
 	tristate "Support for TWL4030 Vibrator"
 	depends on TWL4030_CORE
@@ -338,11 +309,6 @@ config INPUT_GPIO
 	tristate "GPIO driver support"
 	help
 	  Say Y here if you want to support gpio based keys, wheels etc...
-
-
-config RK_BOARD_ID
-	tristate "get board id support"
-
 
 config HP_SDC_RTC
 	tristate "HP SDC Real Time Clock"

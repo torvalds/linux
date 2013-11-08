@@ -25,21 +25,21 @@
 #include <linux/mtd/blktrans.h>
 
 static int mtdblock_readsect(struct mtd_blktrans_dev *dev,
-			      unsigned long block, unsigned long nsect, char *buf)
+			      unsigned long block, char *buf)
 {
 	size_t retlen;
 
-	if (dev->mtd->read(dev->mtd, (block * 512), 512*nsect, &retlen, buf))
+	if (dev->mtd->read(dev->mtd, (block * 512), 512, &retlen, buf))
 		return 1;
 	return 0;
 }
 
 static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
-			      unsigned long block, unsigned long nsect, char *buf)
+			      unsigned long block, char *buf)
 {
 	size_t retlen;
 
-	if (dev->mtd->write(dev->mtd, (block * 512), 512*nsect, &retlen, buf))
+	if (dev->mtd->write(dev->mtd, (block * 512), 512, &retlen, buf))
 		return 1;
 	return 0;
 }

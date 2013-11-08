@@ -211,12 +211,6 @@ static struct mem_type mem_types[] = {
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
-	},
-	[MT_DEVICE_STRONGLY_ORDERED] = {  /* Guaranteed strongly ordered */
-		.prot_pte       = PROT_PTE_DEVICE,
-		.prot_l1        = PMD_TYPE_TABLE,
-		.prot_sect      = PROT_SECT_DEVICE | PMD_SECT_UNCACHED,
-		.domain         = DOMAIN_IO,
 	},	
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
@@ -312,10 +306,8 @@ static void __init build_mem_type_table(void)
 			cachepolicy = CPOLICY_WRITEBACK;
 		ecc_mask = 0;
 	}
-#ifndef CONFIG_PLAT_RK
 	if (is_smp())
 		cachepolicy = CPOLICY_WRITEALLOC;
-#endif
 
 	/*
 	 * Strip out features not present on earlier architectures.
@@ -361,7 +353,6 @@ static void __init build_mem_type_table(void)
 			mem_types[MT_DEVICE_NONSHARED].prot_sect |= PMD_SECT_XN;
 			mem_types[MT_DEVICE_CACHED].prot_sect |= PMD_SECT_XN;
 			mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_XN;
-			mem_types[MT_DEVICE_STRONGLY_ORDERED].prot_sect |= PMD_SECT_XN;
 		}
 		if (cpu_arch >= CPU_ARCH_ARMv7 && (cr & CR_TRE)) {
 			/*
@@ -736,11 +727,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(io_desc + i);
 }
 
-#if defined(CONFIG_PLAT_RK)
-static void * __initdata vmalloc_min = (void *)(VMALLOC_END - SZ_512M);
-#else
 static void * __initdata vmalloc_min = (void *)(VMALLOC_END - SZ_128M);
-#endif
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'

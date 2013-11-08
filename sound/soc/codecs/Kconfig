@@ -26,14 +26,11 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
-	select SND_SOC_CS42L52 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CX20442
 	select SND_SOC_DA7210 if I2C
 	select SND_SOC_DFBMCS320
-	select SND_SOC_ES8323 if SND_SOC_I2C_AND_SPI
-	select SND_SOC_ES8323_PCM if SND_SOC_I2C_AND_SPI
 	select SND_SOC_JZ4740_CODEC if SOC_JZ4740
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_MAX98088 if I2C
@@ -43,8 +40,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM3008
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
-	select SND_SOC_HDMI_I2S
-	select SND_SOC_HDMI_SPDIF
+	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
@@ -53,7 +49,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
-	select SND_SOC_TLV320AIC3111 if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL4030_CORE
 	select SND_SOC_UDA134X
@@ -78,20 +73,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
-	select SND_SOC_RT5621 if I2C
-	select SND_SOC_RT5631 if I2C
-	select SND_SOC_AK4396 if SPI_MASTER
-	select SND_SOC_RT5631_PHONE if I2C
-	select SND_SOC_RT5625 if I2C
-	select SND_SOC_RT5640 if I2C
-	select SND_SOC_RT3261 if I2C
-	select SND_SOC_RT3224 if I2C
-	select SND_SOC_RT5623 if I2C
-	select SND_SOC_RT5639 if I2C
-	select SND_SOC_RT5616 if I2C
-	select SND_SOC_RT5512 if I2C
-	select SND_SOC_RK610 if I2C
-	select SND_SOC_RK616 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8904 if I2C
 	select SND_SOC_WM8915 if I2C
@@ -115,7 +96,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
-	select SND_SOC_CX2070X if SND_SOC_I2C_AND_SPI
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
@@ -178,9 +158,6 @@ config SND_SOC_CQ0093VC
 config SND_SOC_CS42L51
 	tristate
 
-config SND_SOC_CS42L52
-	tristate
-
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate
@@ -214,8 +191,6 @@ config SND_SOC_DFBMCS320
 config SND_SOC_DMIC
 	tristate
 
-config SND_SOC_ES8323
-	tristate
 config SND_SOC_MAX98088
        tristate
 
@@ -235,10 +210,7 @@ config SND_SOC_SGTL5000
 config SND_SOC_SN95031
 	tristate
 
-config SND_SOC_HDMI_I2S
-	tristate
-
-config SND_SOC_HDMI_SPDIF
+config SND_SOC_SPDIF
 	tristate
 
 config SND_SOC_SSM2602
@@ -261,12 +233,6 @@ config SND_SOC_TLV320AIC3X
 	tristate
 
 config SND_SOC_TLV320DAC33
-	tristate
-
-config SND_SOC_TLV320AIC3111
-	tristate
-
-config SND_SOC_TLV320AIC326X
 	tristate
 
 config SND_SOC_TWL4030
@@ -339,42 +305,6 @@ config SND_SOC_WM8804
 config SND_SOC_WM8900
 	tristate
 
-config SND_SOC_RT5621
-	tristate
-
-config SND_SOC_RT5623
-	tristate
-
-config SND_SOC_RT5639
-	tristate
-	
-config SND_SOC_RT5616
-	tristate
-
-config SND_SOC_AK4396
-	tristate
-	
-config SND_SOC_RT5631
-	tristate
-	
-config SND_SOC_RT5631_PHONE
-	tristate
-	
-config SND_SOC_RT5625
-	tristate
-
-config SND_SOC_RT5640
-	select SND_HWDEP
-	tristate
-
-config SND_SOC_RT3224
-	select SND_HWDEP
-	tristate
-
-config SND_SOC_RT3261
-	select SND_HWDEP
-	tristate
-
 config SND_SOC_WM8903
 	tristate
 
@@ -441,18 +371,6 @@ config SND_SOC_WM9712
 config SND_SOC_WM9713
 	tristate
 
-config SND_SOC_RK1000
-	tristate
-#	depends on RK1000_CONTROL
-
-config SND_SOC_RK610
-	tristate
-	depends on MFD_RK610
-
-config SND_SOC_RK616
-	tristate
-	depends on MFD_RK616
-
 # Amp
 config SND_SOC_LM4857
 	tristate
@@ -468,16 +386,3 @@ config SND_SOC_WM2000
 
 config SND_SOC_WM9090
 	tristate
-
-config SND_SOC_RK2928
-	tristate
-	depends on ARCH_RK2928
-
-config SND_SOC_RK3026
-	tristate
-	depends on ARCH_RK3026
-
-config SND_SOC_RT5512
-       tristate
-config SND_SOC_CX2070X
-       tristate	

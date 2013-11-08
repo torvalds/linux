@@ -72,7 +72,6 @@ int wake_lock_active(struct wake_lock *lock);
  * number of jiffies until all active wake locks time out.
  */
 long has_wake_lock(int type);
-void print_active_wake_locks(int type);
 
 #else
 
@@ -85,7 +84,6 @@ static inline void wake_unlock(struct wake_lock *lock) {}
 
 static inline int wake_lock_active(struct wake_lock *lock) { return 0; }
 static inline long has_wake_lock(int type) { return 0; }
-static inline void print_active_wake_locks(int type) {}
 
 #endif
 

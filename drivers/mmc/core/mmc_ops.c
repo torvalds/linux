@@ -365,41 +365,6 @@ int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
 	return err;
 }
 
-static int __mmc_send_status(struct mmc_card *card, u32 *status,bool ignore_crc)
-{
-	int err;
-	struct mmc_command cmd = {0};
-
-	BUG_ON(!card);
-	BUG_ON(!card->host);
-
-	cmd.opcode = MMC_SEND_STATUS;
-	if (!mmc_host_is_spi(card->host))
-		cmd.arg = card->rca << 16;
-	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
-
-    if (ignore_crc)
-		cmd.flags &= ~MMC_RSP_CRC;
-
-	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err)
-		return err;
-
-	/* NOTE: callers are required to understand the difference
-	 * between "native" and SPI format status words!
-	 */
-	if (status)
-		*status = cmd.resp[0];
-
-	return 0;
-}
-
-int mmc_send_status(struct mmc_card *card, u32 *status)
-{
-	return __mmc_send_status(card, status, false);
-}
-
-
 /**
  *	mmc_switch - modify EXT_CSD register
  *	@card: the MMC card associated with the data transfer
@@ -417,7 +382,6 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	int err;
 	struct mmc_command cmd = {0};
 	u32 status;
-    bool ignore_crc = false;
 
 	BUG_ON(!card);
 	BUG_ON(!card->host);
@@ -434,19 +398,9 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	if (err)
 		return err;
 
-    /*
-	 * Must check status to be sure of no errors
-	 * If CMD13 is to check the busy completion of the timing change,
-	 * disable the check of CRC error.
-	 */
-	if (index == EXT_CSD_HS_TIMING &&
-	    !(card->host->caps & MMC_CAP_WAIT_WHILE_BUSY))
-		ignore_crc = true;
-    
-
 	/* Must check status to be sure of no errors */
 	do {
-		err = __mmc_send_status(card, &status,ignore_crc);
+		err = mmc_send_status(card, &status);
 		if (err)
 			return err;
 		if (card->host->caps & MMC_CAP_WAIT_WHILE_BUSY)
@@ -470,6 +424,31 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 }
 EXPORT_SYMBOL_GPL(mmc_switch);
 
+int mmc_send_status(struct mmc_card *card, u32 *status)
+{
+	int err;
+	struct mmc_command cmd = {0};
+
+	BUG_ON(!card);
+	BUG_ON(!card->host);
+
+	cmd.opcode = MMC_SEND_STATUS;
+	if (!mmc_host_is_spi(card->host))
+		cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
+
+	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
+	if (err)
+		return err;
+
+	/* NOTE: callers are required to understand the difference
+	 * between "native" and SPI format status words!
+	 */
+	if (status)
+		*status = cmd.resp[0];
+
+	return 0;
+}
 
 static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,

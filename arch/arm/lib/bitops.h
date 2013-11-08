@@ -1,4 +1,4 @@
-#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_DCACHE_DISABLE)
+#if __LINUX_ARM_ARCH__ >= 6
 	.macro	bitop, instr
 	ands	ip, r1, #3
 	strneb	r1, [ip]		@ assert word-aligned

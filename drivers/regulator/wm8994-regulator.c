@@ -21,12 +21,9 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-#include <linux/delay.h>
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/mfd/wm8994/pdata.h>
-
-#include <mach/iomux.h>
 
 struct wm8994_ldo {
 	int enable;
@@ -238,13 +235,9 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	}
 
 	ldo->wm8994 = wm8994;
-	
-	if(pdata->ldo[id].iomux_name != NULL)
-		rk29_mux_api_set(pdata->ldo[id].iomux_name, pdata->ldo[id].iomux_mode);
-	
+
 	if (pdata->ldo[id].enable && gpio_is_valid(pdata->ldo[id].enable)) {
 		ldo->enable = pdata->ldo[id].enable;
-		ldo->is_enabled = true;
 
 		ret = gpio_request(ldo->enable, "WM8994 LDO enable");
 		if (ret < 0) {
@@ -259,7 +252,6 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 				ret);
 			goto err_gpio;
 		}
-		msleep(50);
 	} else
 		ldo->is_enabled = true;
 

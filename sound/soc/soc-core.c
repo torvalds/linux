@@ -1032,21 +1032,6 @@ static struct snd_pcm_ops soc_pcm_ops = {
 	.pointer	= soc_pcm_pointer,
 };
 
-#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
-int snd_soc_incall_status(int read_or_write, int status)
-{
-	static int now_status = 0;
-	if(read_or_write == 1)
-	{//write
-		now_status = status;
-	}
-
-	return now_status;
-}
-EXPORT_SYMBOL_GPL(snd_soc_incall_status);
-#endif
-
-
 #ifdef CONFIG_PM_SLEEP
 /* powers down audio subsystem for suspend */
 int snd_soc_suspend(struct device *dev)
@@ -1054,14 +1039,7 @@ int snd_soc_suspend(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_codec *codec;
 	int i;
-	
-#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
-	if(snd_soc_incall_status(0,0))
-	{
-		printk("card is incall cannot into suspend\n");
-		return 0;
-	}
-#endif	
+
 	/* If the initialization of this soc device failed, there is no codec
 	 * associated with it. Just bail out in this case.
 	 */
@@ -1211,7 +1189,6 @@ static void soc_resume_deferred(struct work_struct *work)
 		 * left with bias OFF or STANDBY and suspended so we must now
 		 * resume.  Otherwise the suspend was suppressed.
 		 */
-
 		if (codec->driver->resume && codec->suspended) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
@@ -1282,14 +1259,7 @@ int snd_soc_resume(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	int i, ac97_control = 0;
-	
-#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
-	if(snd_soc_incall_status(0,0))
-	{
-		printk("card is incall cannot into suspend\n");
-		return 0;
-	}
-#endif
+
 	/* AC97 devices might have other drivers hanging off them so
 	 * need to resume immediately.  Other drivers don't have that
 	 * problem and may take a substantial amount of time to resume
@@ -1318,7 +1288,7 @@ EXPORT_SYMBOL_GPL(snd_soc_resume);
 
 static struct snd_soc_dai_ops null_dai_ops = {
 };
-#define CODEC_NAME_CMP
+
 static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
@@ -1327,14 +1297,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *codec_dai, *cpu_dai;
 	const char *platform_name;
-#ifdef CODEC_NAME_CMP
-	char *p_codec_name;
-	char *p_dai_codec_name;
-	char tmp_codec_name[50];
-	char tmp_dai_codec_name[50];
-	p_codec_name = tmp_codec_name;
-	p_dai_codec_name = tmp_dai_codec_name;
-#endif	
+
 	if (rtd->complete)
 		return 1;
 	dev_dbg(card->dev, "binding %s at idx %d\n", dai_link->name, num);
@@ -1361,15 +1324,7 @@ find_codec:
 
 	/* no, then find CODEC from registered CODECs*/
 	list_for_each_entry(codec, &codec_list, list) {
-#ifdef CODEC_NAME_CMP
-		strcpy(p_codec_name,codec->name);
-		strcpy(p_dai_codec_name,dai_link->codec_name);		
-#endif		
-		if (!strcmp(codec->name, dai_link->codec_name) 
-#ifdef CODEC_NAME_CMP			
-		||	!strcmp(strsep(&p_codec_name,"."), strsep(&p_dai_codec_name,"."))
-#endif
-			) {
+		if (!strcmp(codec->name, dai_link->codec_name)) {
 			rtd->codec = codec;
 
 			/* CODEC found, so find CODEC DAI from registered DAIs from this CODEC*/
@@ -3174,7 +3129,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r_sx);
 int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	/*struct soc_mixer_control *mc =
+	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int mask = (1<<mc->shift)-1;
@@ -3201,31 +3156,6 @@ int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 		if (ret < 0)
 			return ret;
 	}
-
-	return 0;*/		//sxj modify, this function have bug
-
-	struct soc_mixer_control *mc =
-         (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int mask = (1<<mc->shift)-1;
-	int min = mc->min;
-	int ret;
-	unsigned int val, valr, oval, ovalr;
-
-	val = ((ucontrol->value.integer.value[0]+min) & 0xff);
-	val &= mask;
-	valr = ((ucontrol->value.integer.value[1]+min) & 0xff);
-	valr &= mask;
-
-	ret = 0;
-	ret = snd_soc_update_bits_locked(codec, mc->reg, mask, val);
-	if(ret < 0)
-		return ret;
-
-	ret = snd_soc_update_bits_locked(codec, mc->rreg, mask, valr);
-
-	if(ret < 0)
-		return ret;
 
 	return 0;
 }

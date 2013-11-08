@@ -77,11 +77,6 @@ static void early_suspend(struct work_struct *work)
 	unsigned long irqflags;
 	int abort = 0;
 
-#ifdef CONFIG_PLAT_RK
-	if (system_state != SYSTEM_RUNNING)
-		return;
-#endif
-
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED)
@@ -108,14 +103,10 @@ static void early_suspend(struct work_struct *work)
 	}
 	mutex_unlock(&early_suspend_lock);
 
-#ifdef CONFIG_SUSPEND_SYNC_WORKQUEUE
-	suspend_sys_sync_queue();
-#else
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: sync\n");
 
 	sys_sync();
-#endif
 abort:
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED_AND_SUSPENDED)
@@ -128,11 +119,6 @@ static void late_resume(struct work_struct *work)
 	struct early_suspend *pos;
 	unsigned long irqflags;
 	int abort = 0;
-
-#ifdef CONFIG_PLAT_RK
-	if (system_state != SYSTEM_RUNNING)
-		return;
-#endif
 
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
@@ -167,11 +153,6 @@ void request_suspend_state(suspend_state_t new_state)
 {
 	unsigned long irqflags;
 	int old_sleep;
-
-#ifdef CONFIG_PLAT_RK
-	if (system_state != SYSTEM_RUNNING)
-		return;
-#endif
 
 	spin_lock_irqsave(&state_lock, irqflags);
 	old_sleep = state & SUSPEND_REQUESTED;

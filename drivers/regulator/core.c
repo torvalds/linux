@@ -914,7 +914,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-//	print_constraints(rdev);
+	print_constraints(rdev);
 out:
 	return ret;
 }
@@ -1779,42 +1779,11 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 
-	if (ret < 0) {
-	int ret_volt = 0;
-	msleep(1);
-	ret_volt = _regulator_get_voltage(rdev);
-	if (ret_volt == regulator->max_uV) {
-		ret = 0;
-	} else {
-		regulator->min_uV = 0;
-		regulator->max_uV = 0;
-		ret = -1;
-	}
-  }
-
 out:
 	mutex_unlock(&rdev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage);
-
-int regulator_set_suspend_voltage(struct regulator *regulator, int uV)
-{
-        struct regulator_dev *rdev = regulator->rdev;
-        int ret = 0;
-
-        if (rdev->desc->ops->set_suspend_voltage && uV > 0) {
-                ret = rdev->desc->ops->set_suspend_voltage(rdev, uV);
-                if (ret < 0) {
-                        printk(KERN_ERR "%s: failed to set voltage\n",
-                                __func__);
-                        return ret;
-                }
-        }
-
-        return ret;
-}
-EXPORT_SYMBOL_GPL(regulator_set_suspend_voltage);
 
 /**
  * regulator_set_voltage_time - get raise/fall time

@@ -168,6 +168,4 @@ source "drivers/usb/gadget/Kconfig"
 
 source "drivers/usb/otg/Kconfig"
 
-source "drivers/usb/dwc_otg/Kconfig"
-
 endif # USB_SUPPORT

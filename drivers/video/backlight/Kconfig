@@ -290,39 +290,6 @@ config BACKLIGHT_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp5520_bl.
 
-config BACKLIGHT_RK2818_BL
-        bool "rk2818 backlight driver"
-	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK2818
-	default y
-	help
-	  rk2818 backlight support.
-	  
-config BACKLIGHT_RK29_BL
-        bool "rk backlight driver"
-	depends on BACKLIGHT_CLASS_DEVICE && PLAT_RK
-	default y
-	help
-	  rk29 backlight support.	  
-
-config FIH_TOUCHKEY_LED
-        bool "fih touch key led driver"
-	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
-	help
-	  fih touch key led support.
-
-config BACKLIGHT_AW9364
-        bool "aw9364 backlight driver"
-	depends on BACKLIGHT_CLASS_DEVICE
-	help
-	  aw9364 backlight support.	 
-
-config BUTTON_LIGHT
-        bool "rk29 button light driver"
-	depends on BACKLIGHT_CLASS_DEVICE
-	default n
-	help
-	  rk29 button light support.	  
- 
 config BACKLIGHT_ADP8860
 	tristate "Backlight Driver for ADP8860/ADP8861/ADP8863 using WLED"
 	depends on BACKLIGHT_CLASS_DEVICE && I2C

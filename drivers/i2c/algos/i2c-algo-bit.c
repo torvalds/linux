@@ -384,7 +384,7 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		 * the SMBus PEC was wrong.
 		 */
 		} else if (retval == 0) {
-			dev_err(&i2c_adap->dev, "sendbytes: NAK bailout, addr is 0x%x.\n", msg->addr);
+			dev_err(&i2c_adap->dev, "sendbytes: NAK bailout.\n");
 			return -EIO;
 
 		/* Timeout; or (someday) lost arbitration
@@ -395,8 +395,8 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		 * to know or care about this ... it is *NOT* an error.
 		 */
 		} else {
-			dev_err(&i2c_adap->dev, "sendbytes: error %d, addr is 0x%x.\n",
-					retval, msg->addr);
+			dev_err(&i2c_adap->dev, "sendbytes: error %d\n",
+					retval);
 			return retval;
 		}
 	}
@@ -550,7 +550,6 @@ static int bit_xfer(struct i2c_adapter *i2c_adap,
 	}
 
 	bit_dbg(3, &i2c_adap->dev, "emitting start condition\n");
-	adap->udelay = 500 * 1000/msgs[0].scl_rate + 1;
 	i2c_start(adap);
 	for (i = 0; i < num; i++) {
 		pmsg = &msgs[i];

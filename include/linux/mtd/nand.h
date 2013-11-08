@@ -48,10 +48,6 @@ extern int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 /* unlocks specified locked blockes */
 extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
-#ifdef CONFIG_MTD_NAND_RK29
-#define RK29_RESERVE_BLOCK_NUM    5
-#endif
-
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 

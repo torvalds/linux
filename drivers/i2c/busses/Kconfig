@@ -838,175 +838,43 @@ config SCx200_I2C
 	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"
 	depends on SCx200_GPIO
 	select I2C_ALGOBIT
-
-config I2C_RK30
-	tristate "RK I2C Adapter"
-	depends on PLAT_RK && !ARCH_RK29
-	default y
 	help
-		This supports I2C Adapter on RK Soc.
+	  Enable the use of two GPIO pins of a SCx200 processor as an I2C bus.
 
-if I2C_RK30
-	comment "Now, there are five selectable I2C channels."
-	
-	config I2C0_RK30
-		bool "I2C0 Channel Support"
-		default y
-		help
-			This supports the use of the I2C0 channel on RK Soc.
-		if I2C0_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
-			choice
-				prompt "I2C Controller Select"
-				config I2C0_CONTROLLER_RK29
-					bool "With RK29 I2C Controller"
-				config I2C0_CONTROLLER_RK30
-					bool "With RK30 I2C Controller"
-			endchoice
-		endif
-	config I2C1_RK30
-		bool "I2C1 Channel Support"
-		default y
-		help
-			This supports the use of the I2C1 channel on RK Soc.
-		if I2C1_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
-			choice
-				prompt "I2C Controller Select"
-				config I2C1_CONTROLLER_RK29
-					bool "With RK29 I2C Controller"
-				config I2C1_CONTROLLER_RK30
-					bool "With RK30 I2C Controller"
-			endchoice
-		endif
-	config I2C2_RK30
-		bool "I2C2 Channel Support"
-		default y
-		help
-			This supports the use of the I2C2 channel on RK Soc.
-		if I2C2_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
-			choice
-				prompt "I2C Controller Select"
-				config I2C2_CONTROLLER_RK29
-					bool "With RK29 I2C Controller"
-				config I2C2_CONTROLLER_RK30
-					bool "With RK30 I2C Controller"
-			endchoice
-		endif
-	config I2C3_RK30
-		bool "I2C3 Channel Support"
-                depends on !HDMI_RK2928
-		default y
-		help
-			This supports the use of the I2C3 channel on RK Soc.
-		if I2C3_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
-			choice
-				prompt "I2C Controller Select"
-				config I2C3_CONTROLLER_RK29
-					bool "With RK29 I2C Controller"
-				config I2C3_CONTROLLER_RK30
-					bool "With RK30 I2C Controller"
-			endchoice
-		endif
-	config I2C4_RK30
-		bool "I2C4 Channel Support"
-	        depends on !ARCH_RK2928 && !ARCH_RK3026
-		default y
-		help
-			This supports the use of the I2C4 channel on RK Soc.
-		if I2C4_RK30 && (ARCH_RK30 || ARCH_RK3188 || ARCH_RK2928 || ARCH_RK3026)
-			choice
-				prompt "I2C Controller Select"
-				config I2C4_CONTROLLER_RK29
-					bool "With RK29 I2C Controller"
-				config I2C4_CONTROLLER_RK30
-					bool "With RK30 I2C Controller"
-			endchoice
-		endif
-        config I2C_GPIO_RK30
-                bool "Simulation with GPIO"
-                default n
-                select I2C_GPIO
-endif
-config I2C_RK29
-	tristate "RK29 i2c interface (I2C)"
-	depends on ARCH_RK29
-	default y
+	  If you don't know what to do here, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called scx200_i2c.
+
+	  This driver is deprecated and will be dropped soon. Use i2c-gpio
+	  (or scx200_acb) instead.
+
+config SCx200_I2C_SCL
+	int "GPIO pin used for SCL"
+	depends on SCx200_I2C
+	default "12"
 	help
-		This supports the use of the I2C interface(i2c0 ~ i2c3) on rk29 processors.
+	  Enter the GPIO pin number used for the SCL signal.  This value can
+	  also be specified with a module parameter.
 
-if I2C_RK29
-	comment "Now, there are four I2C interfaces selected by developer."
-	
-	config I2C0_RK29
-		bool "RK29 I2C0 interface support"
-		default y
-		depends on ARCH_RK29
-		help
-			This supports the use of the I2C0 interface on rk29 processors.
-		if I2C0_RK29
-			choice
-				prompt "I2C transfer mode select"
-				config RK29_I2C0_CONTROLLER
-					bool "With i2c controller"
-				config RK29_I2C0_GPIO
-					select I2C_GPIO
-					bool "Simulation with GPIO"
-			endchoice
-		endif
-	config I2C1_RK29
-		bool "RK29 I2C1 interface support"
-		default y
-		depends on ARCH_RK29
-		help
-			This supports the use of the I2C1 interface on rk29 processors.
-		if I2C1_RK29
-			choice
-				prompt "I2C transfer mode select"
-				config RK29_I2C1_CONTROLLER
-					bool "With i2c controller"
-				config RK29_I2C1_GPIO
-					select I2C_GPIO
-					bool "Simulation with GPIO"
-			endchoice
-		endif
+config SCx200_I2C_SDA
+	int "GPIO pin used for SDA"
+	depends on SCx200_I2C
+	default "13"
+	help
+	  Enter the GPIO pin number used for the SSA signal.  This value can
+	  also be specified with a module parameter.
 
-	config I2C2_RK29
-		bool "RK29 I2C2 interface support"
-		default y
-		depends on ARCH_RK29
-		help
-			This supports the use of the I2C2 interface on rk29 processors.
-		if I2C2_RK29
-			choice
-				prompt "I2C transfer mode select"
-				config RK29_I2C2_CONTROLLER
-					bool "With i2c controller"
-				config RK29_I2C2_GPIO
-					select I2C_GPIO
-					bool "Simulation with GPIO"
-			endchoice
-		endif
+config SCx200_ACB
+	tristate "Geode ACCESS.bus support"
+	depends on X86_32 && PCI
+	help
+	  Enable the use of the ACCESS.bus controllers on the Geode SCx200 and
+	  SC1100 processors and the CS5535 and CS5536 Geode companion devices.
 
-	config I2C3_RK29
-		bool "RK29 I2C3 interface support"
-		default y
-		depends on ARCH_RK29 && !UART3_CTS_RTS_RK29
-		help
-			This supports the use of the I2C3 interface on rk29 processors.
-		if I2C3_RK29
-			choice
-				prompt "I2C transfer mode select"
-				config RK29_I2C3_CONTROLLER
-					bool "With i2c controller"
-				config RK29_I2C3_GPIO
-					select I2C_GPIO
-					bool "Simulation with GPIO"
-			endchoice
-		endif
-endif
-config I2C_DEV_RK29
-	tristate "RK29 I2C device interface support"
-		default n
-		depends on I2C_RK29
-		help
-			Nothing
+	  If you don't know what to do here, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called scx200_acb.
+
 endmenu

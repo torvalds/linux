@@ -104,9 +104,6 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/cs5535_gpio/Kconfig"
 
-#source "drivers/staging/rk29/vivante/Kconfig"
-source "drivers/staging/rk29/ipp/Kconfig"
-
 source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/zcache/Kconfig"

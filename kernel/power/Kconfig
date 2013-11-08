@@ -295,18 +295,9 @@ config PM_RUNTIME_CLK
 	def_bool y
 	depends on PM_RUNTIME && HAVE_CLK
 
-config CPU_PM
-	bool
-	depends on SUSPEND || CPU_IDLE
-
 config SUSPEND_TIME
 	bool "Log time spent in suspend"
 	---help---
 	  Prints the time spent in suspend in the kernel log, and
 	  keeps statistics on the time spent in suspend in
 	  /sys/kernel/debug/suspend_time
-
-config SUSPEND_SYNC_WORKQUEUE
-	bool "Suspend sync in workqueue"
-	depends on WAKELOCK
-	default y

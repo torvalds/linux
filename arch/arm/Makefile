@@ -120,7 +120,7 @@ CHECKFLAGS	+= -D__arm__
 
 #Default value
 head-y		:= arch/arm/kernel/head$(MMUEXT).o arch/arm/kernel/init_task.o
-textofs-y	:= 0x00408000
+textofs-y	:= 0x00008000
 textofs-$(CONFIG_ARCH_CLPS711X) := 0x00028000
 # We don't want the htc bootloader to corrupt kernel during resume
 textofs-$(CONFIG_PM_H1940)      := 0x00108000
@@ -171,12 +171,6 @@ machine-$(CONFIG_ARCH_ORION5X)		:= orion5x
 machine-$(CONFIG_ARCH_PNX4008)		:= pnx4008
 machine-$(CONFIG_ARCH_PXA)		:= pxa
 machine-$(CONFIG_ARCH_REALVIEW)		:= realview
-machine-$(CONFIG_ARCH_RK29)   		:= rk29
-machine-$(CONFIG_ARCH_RK2928)		:= rk2928
-machine-$(CONFIG_ARCH_RK3026)		:= rk3026
-machine-$(CONFIG_ARCH_RK30)		:= rk30
-machine-$(CONFIG_ARCH_RK3188)		:= rk3188
-machine-$(CONFIG_ARCH_RK319X)		:= rk319x
 machine-$(CONFIG_ARCH_RPC)		:= rpc
 machine-$(CONFIG_ARCH_S3C2410)		:= s3c2410 s3c2400 s3c2412 s3c2416 s3c2440 s3c2443
 machine-$(CONFIG_ARCH_S3C24A0)		:= s3c24a0
@@ -213,7 +207,6 @@ plat-$(CONFIG_PLAT_IOP)		:= iop
 plat-$(CONFIG_PLAT_NOMADIK)	:= nomadik
 plat-$(CONFIG_PLAT_ORION)	:= orion
 plat-$(CONFIG_PLAT_PXA)		:= pxa
-plat-$(CONFIG_PLAT_RK)		:= rk
 plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx samsung
 plat-$(CONFIG_PLAT_S5P)		:= s5p samsung
 plat-$(CONFIG_PLAT_SPEAR)	:= spear
@@ -296,42 +289,8 @@ archclean:
 bp:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/bootpImage
 i zi:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
-PHONY += kernel.img zkernel.img
-
-ifdef CONFIG_MACH_RK29_2906
-kernel.img: Image FORCE
-	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/Image $(obj)/kernel.img RK2906
-	@echo '  RK2906 Image:  $@ is ready'
-else
-kernel.img: Image FORCE
-	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/Image $(obj)/kernel.img
-	@echo '  Image:  $@ is ready'
-endif
-
-zkernel.img: zImage FORCE
-	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/zImage $(obj)/kernel.img
-	@echo '  Image:  kernel.img is ready'
-
-ANDROID_RAMDISK_IMG := $(shell echo $(OUT) | sed -e 's/^.*\/out\/target\/product\//out\/target\/product\//')/ramdisk.img
-ANDROID_DIR := $(shell cd $(OUT)/../../../../ && pwd)
-ANDROID_PROCESSORS := $(shell grep 'processor' /proc/cpuinfo | wc -l)
-checkandroid: FORCE
-	$(Q)test -n "$(OUT)" || (echo "Run 'cd .. && . build/envsetup.sh && setpaths && cd -' first to build boot.img"; /bin/false)
-	$(Q)test -n "`which mkbootimg`" || (echo "No mkbootimg, try build..." && sudo -u `whoami` $(MAKE) -j$(ANDROID_PROCESSORS) -C $(ANDROID_DIR) mkbootimg $(ANDROID_RAMDISK_IMG))
-	$(Q)test -e $(OUT)/ramdisk.img || (echo "No $(OUT)/ramdisk.img, try build..." && sudo -u `whoami` $(MAKE) -j$(ANDROID_PROCESSORS) -C $(ANDROID_DIR) $(ANDROID_RAMDISK_IMG))
-
-PHONY += bootimg boot.img
-bootimg boot.img: zImage checkandroid FORCE
-	$(Q)cp -a $(obj)/arch/arm/boot/zImage $(OUT)/kernel
-	$(Q)mkbootimg --kernel $(OUT)/kernel --ramdisk $(OUT)/ramdisk.img --output $(OUT)/boot.img
-	@echo '  Image:  $(OUT)/boot.img is ready'
-	$Q[ -d $(ANDROID_DIR)/rockdev/Image/ ] && cp -a $(OUT)/boot.img $(ANDROID_DIR)/rockdev/Image/ && echo '  Image:  $(ANDROID_DIR)/rockdev/Image/boot.img is ready' || /bin/true
 
 define archhelp
-  echo  '  kernel.img    - Rockchip kernel image'
-  echo  '  zkernel.img   - Compressed Rockchip kernel image'
-  echo  '  boot.img'
-  echo  '  bootimg       - Android boot image'
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
   echo  '* xipImage      - XIP kernel image, if configured (arch/$(ARCH)/boot/xipImage)'
