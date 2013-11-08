@@ -279,8 +279,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	return 0;
 
 clk_fail:
-	if (!IS_ERR(data->codec_clk))
-		clk_disable_unprepare(data->codec_clk);
+	clk_disable_unprepare(data->codec_clk);
 fail:
 	if (ssi_np)
 		of_node_put(ssi_np);
@@ -310,6 +309,7 @@ static struct platform_driver imx_wm8962_driver = {
 	.driver = {
 		.name = "imx-wm8962",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_wm8962_dt_ids,
 	},
 	.probe = imx_wm8962_probe,

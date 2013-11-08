@@ -963,7 +963,7 @@ static bool fsl_spdif_readable_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool fsl_spdif_writeable_reg(struct device *dev, unsigned int reg)
@@ -982,7 +982,7 @@ static bool fsl_spdif_writeable_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config fsl_spdif_regmap_config = {
@@ -1107,11 +1107,6 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (IS_ERR(res)) {
-		dev_err(&pdev->dev, "could not determine device resources\n");
-		return PTR_ERR(res);
-	}
-
 	regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
