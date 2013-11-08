@@ -26,6 +26,7 @@
 #include <linux/stop_machine.h>
 #include <linux/stringify.h>
 #include <asm/traps.h>
+#include <asm/opcodes.h>
 #include <asm/cacheflush.h>
 
 #include "kprobes.h"
@@ -62,10 +63,10 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 #ifdef CONFIG_THUMB2_KERNEL
 	thumb = true;
 	addr &= ~1; /* Bit 0 would normally be set to indicate Thumb code */
-	insn = ((u16 *)addr)[0];
+	insn = __mem_to_opcode_thumb16(((u16 *)addr)[0]);
 	if (is_wide_instruction(insn)) {
-		insn <<= 16;
-		insn |= ((u16 *)addr)[1];
+		u16 inst2 = __mem_to_opcode_thumb16(((u16 *)addr)[1]);
+		insn = __opcode_thumb32_compose(insn, inst2);
 		decode_insn = thumb32_kprobe_decode_insn;
 	} else
 		decode_insn = thumb16_kprobe_decode_insn;
@@ -73,7 +74,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	thumb = false;
 	if (addr & 0x3)
 		return -EINVAL;
-	insn = *p->addr;
+	insn = __mem_to_opcode_arm(*p->addr);
 	decode_insn = arm_kprobe_decode_insn;
 #endif
 
