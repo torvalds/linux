@@ -51,7 +51,6 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	struct imx_pcm_runtime_data *iprtd =
 		container_of(hrt, struct imx_pcm_runtime_data, hrt);
 	struct snd_pcm_substream *substream = iprtd->substream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pt_regs regs;
 
 	if (!atomic_read(&iprtd->playing) && !atomic_read(&iprtd->capturing))
