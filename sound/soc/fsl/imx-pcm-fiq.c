@@ -39,8 +39,6 @@ struct imx_pcm_runtime_data {
 	unsigned int period;
 	int periods;
 	unsigned long offset;
-	unsigned long last_offset;
-	unsigned long size;
 	struct hrtimer hrt;
 	int poll_time_ns;
 	struct snd_pcm_substream *substream;
@@ -52,9 +50,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	struct imx_pcm_runtime_data *iprtd =
 		container_of(hrt, struct imx_pcm_runtime_data, hrt);
 	struct snd_pcm_substream *substream = iprtd->substream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pt_regs regs;
-	unsigned long delta;
 
 	if (!atomic_read(&iprtd->running))
 		return HRTIMER_NORESTART;
@@ -66,19 +62,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	else
 		iprtd->offset = regs.ARM_r9 & 0xffff;
 
-	/* How much data have we transferred since the last period report? */
-	if (iprtd->offset >= iprtd->last_offset)
-		delta = iprtd->offset - iprtd->last_offset;
-	else
-		delta = runtime->buffer_size + iprtd->offset
-			- iprtd->last_offset;
-
-	/* If we've transferred at least a period then report it and
-	 * reset our poll time */
-	if (delta >= iprtd->period) {
-		snd_pcm_period_elapsed(substream);
-		iprtd->last_offset = iprtd->offset;
-	}
+	snd_pcm_period_elapsed(substream);
 
 	hrtimer_forward_now(hrt, ns_to_ktime(iprtd->poll_time_ns));
 
@@ -95,11 +79,9 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 
-	iprtd->size = params_buffer_bytes(params);
 	iprtd->periods = params_periods(params);
-	iprtd->period = params_period_bytes(params) ;
+	iprtd->period = params_period_bytes(params);
 	iprtd->offset = 0;
-	iprtd->last_offset = 0;
 	iprtd->poll_time_ns = 1000000000 / params_rate(params) *
 				params_period_size(params);
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
