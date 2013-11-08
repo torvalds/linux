@@ -265,8 +265,8 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	* chip, otherwise it will lock up. So we skip resetting BCH on the MX23.
 	* On the other hand, the MX28 needs the reset, because one case has been
 	* seen where the BCH produced ECC errors constantly after 10000
-	* consecutive reboots. The latter case has not been seen on the MX23 yet,
-	* still we don't know if it could happen there as well.
+	* consecutive reboots. The latter case has not been seen on the MX23
+	* yet, still we don't know if it could happen there as well.
 	*/
 	ret = gpmi_reset_block(r->bch_regs, GPMI_IS_MX23(this));
 	if (ret)
@@ -353,7 +353,7 @@ static int gpmi_nfc_compute_hardware_timing(struct gpmi_nand_data *this,
 	improved_timing_is_available =
 		(target.tREA_in_ns  >= 0) &&
 		(target.tRLOH_in_ns >= 0) &&
-		(target.tRHOH_in_ns >= 0) ;
+		(target.tRHOH_in_ns >= 0);
 
 	/* Inspect the clock. */
 	nfc->clock_frequency_in_hz = clk_get_rate(r->clock[0]);
@@ -1003,7 +1003,7 @@ void gpmi_begin(struct gpmi_nand_data *this)
 	/* [1] Set HW_GPMI_TIMING0 */
 	reg = BF_GPMI_TIMING0_ADDRESS_SETUP(hw.address_setup_in_cycles) |
 		BF_GPMI_TIMING0_DATA_HOLD(hw.data_hold_in_cycles)         |
-		BF_GPMI_TIMING0_DATA_SETUP(hw.data_setup_in_cycles)       ;
+		BF_GPMI_TIMING0_DATA_SETUP(hw.data_setup_in_cycles);
 
 	writel(reg, gpmi_regs + HW_GPMI_TIMING0);
 
