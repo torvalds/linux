@@ -939,8 +939,7 @@ BSSvSecondCallBack(
 		cc = true;
 	} else if (cc == true) {
 		if (pDevice->bHWRadioOff == true) {
-			if (!(pDevice->byGPIO & GPIO0_DATA))
-			{
+			if (!(pDevice->byGPIO & GPIO0_DATA)) {
 				if (status == 1)
 					goto start;
 				status = 1;
@@ -951,16 +950,14 @@ BSSvSecondCallBack(
 				pDevice->bLinkPass = false;
 
 			}
-			if (pDevice->byGPIO & GPIO0_DATA)
-			{
+			if (pDevice->byGPIO & GPIO0_DATA) {
 				if (status == 2)
 					goto start;
 				status = 2;
 				CARDbRadioPowerOn(pDevice);
 			}
 		} else {
-			if (pDevice->byGPIO & GPIO0_DATA)
-			{
+			if (pDevice->byGPIO & GPIO0_DATA) {
 				if (status == 3)
 					goto start;
 				status = 3;
@@ -971,8 +968,7 @@ BSSvSecondCallBack(
 				pDevice->bLinkPass = false;
 
 			}
-			if (!(pDevice->byGPIO & GPIO0_DATA))
-			{
+			if (!(pDevice->byGPIO & GPIO0_DATA)) {
 				if (status == 4)
 					goto start;
 				status = 4;
@@ -1321,8 +1317,7 @@ BSSvUpdateNodeTxCounter(
 				    (wRate < RATE_18M)) {
 					pMgmt->sNodeDBTable[0].uTxFail[wRate] += byTxRetry;
 				} else if (byFallBack == AUTO_FB_0) {
-					for (ii = 0; ii < byTxRetry; ii++)
-					{
+					for (ii = 0; ii < byTxRetry; ii++) {
 						if (ii < 5)
 							wFallBackRate = awHWRetry0[wRate-RATE_18M][ii];
 						else
