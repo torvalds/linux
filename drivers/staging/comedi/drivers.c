@@ -95,7 +95,7 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
-static void cleanup_device(struct comedi_device *dev)
+static void comedi_device_detach_cleanup(struct comedi_device *dev)
 {
 	int i;
 	struct comedi_subdevice *s;
@@ -137,7 +137,7 @@ void comedi_device_detach(struct comedi_device *dev)
 	dev->attached = false;
 	if (dev->driver)
 		dev->driver->detach(dev);
-	cleanup_device(dev);
+	comedi_device_detach_cleanup(dev);
 	up_write(&dev->attach_lock);
 }
 
