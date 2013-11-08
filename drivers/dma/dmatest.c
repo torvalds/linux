@@ -70,6 +70,10 @@ static bool noverify;
 module_param(noverify, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(noverify, "Disable random data setup and verification");
 
+static bool verbose;
+module_param(verbose, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
+
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -336,7 +340,7 @@ static unsigned int min_odd(unsigned int x, unsigned int y)
 static void result(const char *err, unsigned int n, unsigned int src_off,
 		   unsigned int dst_off, unsigned int len, unsigned long data)
 {
-	pr_info("%s: result #%u: '%s' with src_off=0x%x ""dst_off=0x%x len=0x%x (%lu)",
+	pr_info("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)",
 		current->comm, n, err, src_off, dst_off, len, data);
 }
 
@@ -344,9 +348,16 @@ static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
 		       unsigned int dst_off, unsigned int len,
 		       unsigned long data)
 {
-	pr_debug("%s: result #%u: '%s' with src_off=0x%x ""dst_off=0x%x len=0x%x (%lu)",
-		 current->comm, n, err, src_off, dst_off, len, data);
+	pr_debug("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)",
+		   current->comm, n, err, src_off, dst_off, len, data);
 }
+
+#define verbose_result(err, n, src_off, dst_off, len, data) ({ \
+	if (verbose) \
+		result(err, n, src_off, dst_off, len, data); \
+	else \
+		dbg_result(err, n, src_off, dst_off, len, data); \
+})
 
 static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
 {
@@ -640,8 +651,8 @@ static int dmatest_func(void *data)
 		dmaengine_unmap_put(um);
 
 		if (params->noverify) {
-			dbg_result("test passed", total_tests, src_off, dst_off,
-				   len, 0);
+			verbose_result("test passed", total_tests, src_off,
+				       dst_off, len, 0);
 			continue;
 		}
 
@@ -670,8 +681,8 @@ static int dmatest_func(void *data)
 			       len, error_count);
 			failed_tests++;
 		} else {
-			dbg_result("test passed", total_tests, src_off, dst_off,
-				   len, 0);
+			verbose_result("test passed", total_tests, src_off,
+				       dst_off, len, 0);
 		}
 	}
 	runtime = ktime_us_delta(ktime_get(), ktime);
