@@ -23,6 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock_types.h>
 #include <linux/rwsem.h>
+#include <linux/kref.h>
 
 #include "comedi.h"
 
@@ -187,6 +188,7 @@ struct comedi_device {
 	spinlock_t spinlock;
 	struct mutex mutex;
 	struct rw_semaphore attach_lock;
+	struct kref refcount;
 
 	int n_subdevices;
 	struct comedi_subdevice *subdevices;

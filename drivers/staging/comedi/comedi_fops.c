@@ -89,10 +89,27 @@ static struct cdev comedi_cdev;
 
 static void comedi_device_init(struct comedi_device *dev)
 {
+	kref_init(&dev->refcount);
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
 	init_rwsem(&dev->attach_lock);
 	dev->minor = -1;
+}
+
+static void comedi_dev_kref_release(struct kref *kref)
+{
+	struct comedi_device *dev =
+		container_of(kref, struct comedi_device, refcount);
+
+	mutex_destroy(&dev->mutex);
+	kfree(dev);
+}
+
+int comedi_dev_put(struct comedi_device *dev)
+{
+	if (dev)
+		return kref_put(&dev->refcount, comedi_dev_kref_release);
+	return 1;
 }
 
 static void comedi_device_cleanup(struct comedi_device *dev)
@@ -112,7 +129,6 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 		dev->use_count--;
 	}
 	mutex_unlock(&dev->mutex);
-	mutex_destroy(&dev->mutex);
 }
 
 static bool comedi_clear_board_dev(struct comedi_device *dev)
@@ -148,7 +164,7 @@ static void comedi_free_board_dev(struct comedi_device *dev)
 				       MKDEV(COMEDI_MAJOR, dev->minor));
 		}
 		comedi_device_cleanup(dev);
-		kfree(dev);
+		comedi_dev_put(dev);
 	}
 }
 
@@ -2494,7 +2510,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	if (i == COMEDI_NUM_BOARD_MINORS) {
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
-		kfree(dev);
+		comedi_dev_put(dev);
 		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
 		return ERR_PTR(-EBUSY);
 	}
