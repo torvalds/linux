@@ -1828,11 +1828,8 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	int rc;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -1964,7 +1961,7 @@ static struct vm_operations_struct comedi_vm_ops = {
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	unsigned long start = vma->vm_start;
@@ -1972,9 +1969,6 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	int n_pages;
 	int i;
 	int retval;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -2043,11 +2037,8 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -2088,13 +2079,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	bool on_wait_queue = false;
 	bool attach_locked;
 	unsigned int old_detach_count;
-
-	if (!dev)
-		return -ENODEV;
 
 	/* Protect against device detachment during operation. */
 	down_read(&dev->attach_lock);
@@ -2227,13 +2215,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	unsigned int old_detach_count;
 	bool become_nonbusy = false;
 	bool attach_locked;
-
-	if (!dev)
-		return -ENODEV;
 
 	/* Protect against device detachment during operation. */
 	down_read(&dev->attach_lock);
@@ -2424,6 +2409,7 @@ ok:
 	}
 
 	dev->use_count++;
+	file->private_data = dev;
 	rc = 0;
 
 out:
@@ -2435,24 +2421,16 @@ out:
 
 static int comedi_fasync(int fd, struct file *file, int on)
 {
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
-
-	if (!dev)
-		return -ENODEV;
+	struct comedi_device *dev = file->private_data;
 
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
 static int comedi_close(struct inode *inode, struct file *file)
 {
-	const unsigned minor = iminor(inode);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = file->private_data;
 	struct comedi_subdevice *s = NULL;
 	int i;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
