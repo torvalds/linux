@@ -335,8 +335,8 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 		kfree(ppgtt->gen8_pt_dma_addr[i]);
 	}
 
-	__free_pages(ppgtt->gen8_pt_pages, ppgtt->num_pt_pages << PAGE_SHIFT);
-	__free_pages(ppgtt->pd_pages, ppgtt->num_pd_pages << PAGE_SHIFT);
+	__free_pages(ppgtt->gen8_pt_pages, get_order(ppgtt->num_pt_pages << PAGE_SHIFT));
+	__free_pages(ppgtt->pd_pages, get_order(ppgtt->num_pd_pages << PAGE_SHIFT));
 }
 
 /**
