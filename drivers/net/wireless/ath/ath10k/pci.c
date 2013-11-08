@@ -877,21 +877,26 @@ static int ath10k_pci_start_ce(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_stop_ce(struct ath10k *ar)
+static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_pci_compl *compl;
-	struct sk_buff *skb;
 	int i;
 
-	ath10k_ce_disable_interrupts(ar);
-
-	/* Cancel the pending tasklet */
 	tasklet_kill(&ar_pci->intr_tq);
 	tasklet_kill(&ar_pci->msi_fw_err);
 
 	for (i = 0; i < CE_COUNT; i++)
 		tasklet_kill(&ar_pci->pipe_info[i].intr);
+}
+
+static void ath10k_pci_stop_ce(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_pci_compl *compl;
+	struct sk_buff *skb;
+
+	ath10k_ce_disable_interrupts(ar);
+	ath10k_pci_kill_tasklet(ar);
 
 	/* Mark pending completions as aborted, so that upper layers free up
 	 * their associated resources */
