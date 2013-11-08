@@ -533,7 +533,7 @@ void intel_uncore_init(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = vlv_force_wake_put;
-	} else if (IS_HASWELL(dev)) {
+	} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __gen6_gt_force_wake_mt_get;
 		dev_priv->uncore.funcs.force_wake_put = __gen6_gt_force_wake_mt_put;
 	} else if (IS_IVYBRIDGE(dev)) {
