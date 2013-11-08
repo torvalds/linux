@@ -416,7 +416,6 @@ struct drm_i915_display_funcs {
 	/* pll clock increase/decrease */
 
 	int (*setup_backlight)(struct intel_connector *connector);
-	uint32_t (*get_max_backlight)(struct intel_connector *connector);
 	uint32_t (*get_backlight)(struct intel_connector *connector);
 	void (*set_backlight)(struct intel_connector *connector,
 			      uint32_t level);

@@ -325,132 +325,6 @@ out:
 	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
-static int is_backlight_combination_mode(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (IS_GEN4(dev))
-		return I915_READ(BLC_PWM_CTL2) & BLM_COMBINATION_MODE;
-
-	if (IS_GEN2(dev))
-		return I915_READ(BLC_PWM_CTL) & BLM_LEGACY_MODE;
-
-	return 0;
-}
-
-static u32 pch_get_max_backlight(struct intel_connector *connector)
-{
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val;
-
-	val = I915_READ(BLC_PWM_PCH_CTL2);
-	if (dev_priv->regfile.saveBLC_PWM_CTL2 == 0) {
-		dev_priv->regfile.saveBLC_PWM_CTL2 = val;
-	} else if (val == 0) {
-		val = dev_priv->regfile.saveBLC_PWM_CTL2;
-		I915_WRITE(BLC_PWM_PCH_CTL2, val);
-	}
-
-	val >>= 16;
-
-	return val;
-}
-
-static u32 i9xx_get_max_backlight(struct intel_connector *connector)
-{
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val;
-
-	val = I915_READ(BLC_PWM_CTL);
-	if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
-		dev_priv->regfile.saveBLC_PWM_CTL = val;
-	} else if (val == 0) {
-		val = dev_priv->regfile.saveBLC_PWM_CTL;
-		I915_WRITE(BLC_PWM_CTL, val);
-	}
-
-	val >>= 17;
-
-	if (is_backlight_combination_mode(dev))
-		val *= 0xff;
-
-	return val;
-}
-
-static u32 i965_get_max_backlight(struct intel_connector *connector)
-{
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val;
-
-	val = I915_READ(BLC_PWM_CTL);
-	if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
-		dev_priv->regfile.saveBLC_PWM_CTL = val;
-		dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
-	} else if (val == 0) {
-		val = dev_priv->regfile.saveBLC_PWM_CTL;
-		I915_WRITE(BLC_PWM_CTL, val);
-		I915_WRITE(BLC_PWM_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
-	}
-
-	val >>= 16;
-
-	if (is_backlight_combination_mode(dev))
-		val *= 0xff;
-
-	return val;
-}
-
-static u32 _vlv_get_max_backlight(struct drm_device *dev, enum pipe pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val;
-
-	val = I915_READ(VLV_BLC_PWM_CTL(pipe));
-	if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
-		dev_priv->regfile.saveBLC_PWM_CTL = val;
-		dev_priv->regfile.saveBLC_PWM_CTL2 =
-			I915_READ(VLV_BLC_PWM_CTL2(pipe));
-	} else if (val == 0) {
-		val = dev_priv->regfile.saveBLC_PWM_CTL;
-		I915_WRITE(VLV_BLC_PWM_CTL(pipe), val);
-		I915_WRITE(VLV_BLC_PWM_CTL2(pipe),
-			   dev_priv->regfile.saveBLC_PWM_CTL2);
-	}
-
-	if (!val)
-		val = 0x0f42ffff;
-
-	val >>= 16;
-
-	return val;
-}
-
-static u32 vlv_get_max_backlight(struct intel_connector *connector)
-{
-	struct drm_device *dev = connector->base.dev;
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
-
-	return _vlv_get_max_backlight(dev, pipe);
-}
-
-static u32 intel_panel_get_max_backlight(struct intel_connector *connector)
-{
-	struct drm_device *dev = connector->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 max;
-
-	WARN_ON_SMP(!spin_is_locked(&dev_priv->backlight_lock));
-
-	max = dev_priv->display.get_max_backlight(connector);
-
-	DRM_DEBUG_DRIVER("max backlight PWM = %d\n", max);
-
-	return max;
-}
-
 static int i915_panel_invert_brightness;
 MODULE_PARM_DESC(invert_brightness, "Invert backlight brightness "
 	"(-1 force normal, 0 machine defaults, 1 force inversion), please "
@@ -866,9 +740,6 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 
-	/* XXX: transitional, call to make sure freq is set */
-	intel_panel_get_max_backlight(connector);
-
 	WARN_ON(panel->backlight.max == 0);
 
 	if (panel->backlight.level == 0) {
@@ -1171,28 +1042,24 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 		dev_priv->display.disable_backlight = pch_disable_backlight;
 		dev_priv->display.set_backlight = pch_set_backlight;
 		dev_priv->display.get_backlight = pch_get_backlight;
-		dev_priv->display.get_max_backlight = pch_get_max_backlight;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.setup_backlight = vlv_setup_backlight;
 		dev_priv->display.enable_backlight = vlv_enable_backlight;
 		dev_priv->display.disable_backlight = vlv_disable_backlight;
 		dev_priv->display.set_backlight = vlv_set_backlight;
 		dev_priv->display.get_backlight = vlv_get_backlight;
-		dev_priv->display.get_max_backlight = vlv_get_max_backlight;
 	} else if (IS_GEN4(dev)) {
 		dev_priv->display.setup_backlight = i965_setup_backlight;
 		dev_priv->display.enable_backlight = i965_enable_backlight;
 		dev_priv->display.disable_backlight = i965_disable_backlight;
 		dev_priv->display.set_backlight = i9xx_set_backlight;
 		dev_priv->display.get_backlight = i9xx_get_backlight;
-		dev_priv->display.get_max_backlight = i965_get_max_backlight;
 	} else {
 		dev_priv->display.setup_backlight = i9xx_setup_backlight;
 		dev_priv->display.enable_backlight = i9xx_enable_backlight;
 		dev_priv->display.disable_backlight = i9xx_disable_backlight;
 		dev_priv->display.set_backlight = i9xx_set_backlight;
 		dev_priv->display.get_backlight = i9xx_get_backlight;
-		dev_priv->display.get_max_backlight = i9xx_get_max_backlight;
 	}
 }
 
