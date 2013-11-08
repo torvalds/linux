@@ -1075,116 +1075,6 @@ void shrink_dcache_sb(struct super_block *sb)
 EXPORT_SYMBOL(shrink_dcache_sb);
 
 /*
- * destroy a single subtree of dentries for unmount
- * - see the comments on shrink_dcache_for_umount() for a description of the
- *   locking
- */
-static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
-{
-	struct dentry *parent;
-
-	BUG_ON(!IS_ROOT(dentry));
-
-	for (;;) {
-		/* descend to the first leaf in the current subtree */
-		while (!list_empty(&dentry->d_subdirs))
-			dentry = list_entry(dentry->d_subdirs.next,
-					    struct dentry, d_u.d_child);
-
-		/* consume the dentries from this leaf up through its parents
-		 * until we find one with children or run out altogether */
-		do {
-			struct inode *inode;
-
-			/*
-			 * inform the fs that this dentry is about to be
-			 * unhashed and destroyed.
-			 */
-			if ((dentry->d_flags & DCACHE_OP_PRUNE) &&
-			    !d_unhashed(dentry))
-				dentry->d_op->d_prune(dentry);
-
-			dentry_lru_del(dentry);
-			__d_shrink(dentry);
-
-			if (dentry->d_lockref.count != 0) {
-				printk(KERN_ERR
-				       "BUG: Dentry %p{i=%lx,n=%s}"
-				       " still in use (%d)"
-				       " [unmount of %s %s]\n",
-				       dentry,
-				       dentry->d_inode ?
-				       dentry->d_inode->i_ino : 0UL,
-				       dentry->d_name.name,
-				       dentry->d_lockref.count,
-				       dentry->d_sb->s_type->name,
-				       dentry->d_sb->s_id);
-				BUG();
-			}
-
-			if (IS_ROOT(dentry)) {
-				parent = NULL;
-				list_del(&dentry->d_u.d_child);
-			} else {
-				parent = dentry->d_parent;
-				parent->d_lockref.count--;
-				list_del(&dentry->d_u.d_child);
-			}
-
-			inode = dentry->d_inode;
-			if (inode) {
-				dentry->d_inode = NULL;
-				hlist_del_init(&dentry->d_alias);
-				if (dentry->d_op && dentry->d_op->d_iput)
-					dentry->d_op->d_iput(dentry, inode);
-				else
-					iput(inode);
-			}
-
-			d_free(dentry);
-
-			/* finished when we fall off the top of the tree,
-			 * otherwise we ascend to the parent and move to the
-			 * next sibling if there is one */
-			if (!parent)
-				return;
-			dentry = parent;
-		} while (list_empty(&dentry->d_subdirs));
-
-		dentry = list_entry(dentry->d_subdirs.next,
-				    struct dentry, d_u.d_child);
-	}
-}
-
-/*
- * destroy the dentries attached to a superblock on unmounting
- * - we don't need to use dentry->d_lock because:
- *   - the superblock is detached from all mountings and open files, so the
- *     dentry trees will not be rearranged by the VFS
- *   - s_umount is write-locked, so the memory pressure shrinker will ignore
- *     any dentries belonging to this superblock that it comes across
- *   - the filesystem itself is no longer permitted to rearrange the dentries
- *     in this superblock
- */
-void shrink_dcache_for_umount(struct super_block *sb)
-{
-	struct dentry *dentry;
-
-	if (down_read_trylock(&sb->s_umount))
-		BUG();
-
-	dentry = sb->s_root;
-	sb->s_root = NULL;
-	dentry->d_lockref.count--;
-	shrink_dcache_for_umount_subtree(dentry);
-
-	while (!hlist_bl_empty(&sb->s_anon)) {
-		dentry = hlist_bl_entry(hlist_bl_first(&sb->s_anon), struct dentry, d_hash);
-		shrink_dcache_for_umount_subtree(dentry);
-	}
-}
-
-/*
  * This tries to ascend one level of parenthood, but
  * we can race with renaming, so we need to re-check
  * the parenthood after dropping the lock and check
@@ -1477,6 +1367,91 @@ void shrink_dcache_parent(struct dentry *parent)
 	}
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
+
+static enum d_walk_ret umount_collect(void *_data, struct dentry *dentry)
+{
+	struct select_data *data = _data;
+	enum d_walk_ret ret = D_WALK_CONTINUE;
+
+	if (dentry->d_lockref.count) {
+		dentry_lru_del(dentry);
+		if (likely(!list_empty(&dentry->d_subdirs)))
+			goto out;
+		if (dentry == data->start && dentry->d_lockref.count == 1)
+			goto out;
+		printk(KERN_ERR
+		       "BUG: Dentry %p{i=%lx,n=%s}"
+		       " still in use (%d)"
+		       " [unmount of %s %s]\n",
+		       dentry,
+		       dentry->d_inode ?
+		       dentry->d_inode->i_ino : 0UL,
+		       dentry->d_name.name,
+		       dentry->d_lockref.count,
+		       dentry->d_sb->s_type->name,
+		       dentry->d_sb->s_id);
+		BUG();
+	} else if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
+		/*
+		 * We can't use d_lru_shrink_move() because we
+		 * need to get the global LRU lock and do the
+		 * LRU accounting.
+		 */
+		if (dentry->d_flags & DCACHE_LRU_LIST)
+			d_lru_del(dentry);
+		d_shrink_add(dentry, &data->dispose);
+		data->found++;
+		ret = D_WALK_NORETRY;
+	}
+out:
+	if (data->found && need_resched())
+		ret = D_WALK_QUIT;
+	return ret;
+}
+
+/*
+ * destroy the dentries attached to a superblock on unmounting
+ */
+void shrink_dcache_for_umount(struct super_block *sb)
+{
+	struct dentry *dentry;
+
+	if (down_read_trylock(&sb->s_umount))
+		BUG();
+
+	dentry = sb->s_root;
+	sb->s_root = NULL;
+	for (;;) {
+		struct select_data data;
+
+		INIT_LIST_HEAD(&data.dispose);
+		data.start = dentry;
+		data.found = 0;
+
+		d_walk(dentry, &data, umount_collect, NULL);
+		if (!data.found)
+			break;
+
+		shrink_dentry_list(&data.dispose);
+		cond_resched();
+	}
+	d_drop(dentry);
+	dput(dentry);
+
+	while (!hlist_bl_empty(&sb->s_anon)) {
+		struct select_data data;
+		dentry = hlist_bl_entry(hlist_bl_first(&sb->s_anon), struct dentry, d_hash);
+
+		INIT_LIST_HEAD(&data.dispose);
+		data.start = NULL;
+		data.found = 0;
+
+		d_walk(dentry, &data, umount_collect, NULL);
+		if (data.found)
+			shrink_dentry_list(&data.dispose);
+		cond_resched();
+	}
+}
 
 static enum d_walk_ret check_and_collect(void *_data, struct dentry *dentry)
 {
