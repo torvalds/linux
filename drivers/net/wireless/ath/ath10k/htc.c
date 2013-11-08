@@ -539,14 +539,6 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 	u16 credit_count;
 	u16 credit_size;
 
-	INIT_COMPLETION(htc->ctl_resp);
-
-	status = ath10k_hif_start(htc->ar);
-	if (status) {
-		ath10k_err("could not start HIF (%d)\n", status);
-		goto err_start;
-	}
-
 	status = wait_for_completion_timeout(&htc->ctl_resp,
 					     ATH10K_HTC_WAIT_TIMEOUT_HZ);
 	if (status <= 0) {
@@ -554,15 +546,13 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 			status = -ETIMEDOUT;
 
 		ath10k_err("ctl_resp never came in (%d)\n", status);
-		goto err_target;
+		return status;
 	}
 
 	if (htc->control_resp_len < sizeof(msg->hdr) + sizeof(msg->ready)) {
 		ath10k_err("Invalid HTC ready msg len:%d\n",
 			   htc->control_resp_len);
-
-		status = -ECOMM;
-		goto err_target;
+		return -ECOMM;
 	}
 
 	msg = (struct ath10k_htc_msg *)htc->control_resp_buffer;
@@ -572,8 +562,7 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 
 	if (message_id != ATH10K_HTC_MSG_READY_ID) {
 		ath10k_err("Invalid HTC ready msg: 0x%x\n", message_id);
-		status = -ECOMM;
-		goto err_target;
+		return -ECOMM;
 	}
 
 	htc->total_transmit_credits = credit_count;
@@ -586,9 +575,8 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 
 	if ((htc->total_transmit_credits == 0) ||
 	    (htc->target_credit_size == 0)) {
-		status = -ECOMM;
 		ath10k_err("Invalid credit size received\n");
-		goto err_target;
+		return -ECOMM;
 	}
 
 	ath10k_htc_setup_target_buffer_assignments(htc);
@@ -605,14 +593,10 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 	status = ath10k_htc_connect_service(htc, &conn_req, &conn_resp);
 	if (status) {
 		ath10k_err("could not connect to htc service (%d)\n", status);
-		goto err_target;
+		return status;
 	}
 
 	return 0;
-err_target:
-	ath10k_hif_stop(htc->ar);
-err_start:
-	return status;
 }
 
 int ath10k_htc_connect_service(struct ath10k_htc *htc,

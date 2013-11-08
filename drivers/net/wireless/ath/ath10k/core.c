@@ -785,14 +785,22 @@ int ath10k_core_start(struct ath10k *ar)
 		goto err;
 	}
 
-	status = ath10k_htc_wait_target(&ar->htc);
-	if (status)
+	status = ath10k_hif_start(ar);
+	if (status) {
+		ath10k_err("could not start HIF: %d\n", status);
 		goto err_wmi_detach;
+	}
+
+	status = ath10k_htc_wait_target(&ar->htc);
+	if (status) {
+		ath10k_err("failed to connect to HTC: %d\n", status);
+		goto err_hif_stop;
+	}
 
 	status = ath10k_htt_attach(ar);
 	if (status) {
 		ath10k_err("could not attach htt (%d)\n", status);
-		goto err_wmi_detach;
+		goto err_hif_stop;
 	}
 
 	status = ath10k_init_connect_htc(ar);
@@ -831,6 +839,8 @@ err_disconnect_htc:
 	ath10k_htc_stop(&ar->htc);
 err_htt_detach:
 	ath10k_htt_detach(&ar->htt);
+err_hif_stop:
+	ath10k_hif_stop(ar);
 err_wmi_detach:
 	ath10k_wmi_detach(ar);
 err:
