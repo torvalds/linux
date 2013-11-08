@@ -1,1 +1,1 @@
-obj-y		:= enlighten.o hypercall.o grant-table.o
+obj-y		:= enlighten.o hypercall.o grant-table.o p2m.o mm.o
