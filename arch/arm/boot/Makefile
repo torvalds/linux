@@ -16,6 +16,7 @@ OBJCOPYFLAGS	:=-O binary -R .comment -S
 ifneq ($(MACHINE),)
 include $(MACHINE)/Makefile.boot
 endif
+include $(srctree)/arch/arm/boot/dts/Makefile
 
 # Note: the following conditions must always be true:
 #   ZRELADDR == virt_to_phys(PAGE_OFFSET + TEXT_OFFSET)
