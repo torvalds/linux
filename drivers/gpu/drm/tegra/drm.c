@@ -135,11 +135,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int num_relocs = args->num_relocs;
 	unsigned int num_waitchks = args->num_waitchks;
 	struct drm_tegra_cmdbuf __user *cmdbufs =
-		(void * __user)(uintptr_t)args->cmdbufs;
+		(void __user *)(uintptr_t)args->cmdbufs;
 	struct drm_tegra_reloc __user *relocs =
-		(void * __user)(uintptr_t)args->relocs;
+		(void __user *)(uintptr_t)args->relocs;
 	struct drm_tegra_waitchk __user *waitchks =
-		(void * __user)(uintptr_t)args->waitchks;
+		(void __user *)(uintptr_t)args->waitchks;
 	struct drm_tegra_syncpt syncpt;
 	struct host1x_job *job;
 	int err;
@@ -204,7 +204,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	if (err)
 		goto fail;
 
-	err = copy_from_user(&syncpt, (void * __user)(uintptr_t)args->syncpts,
+	err = copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
 			     sizeof(syncpt));
 	if (err)
 		goto fail;
