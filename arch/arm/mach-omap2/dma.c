@@ -251,13 +251,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	}
 
 	d = oh->dev_attr;
-	d->chan = kzalloc(sizeof(struct omap_dma_lch) *
-					(d->lch_count), GFP_KERNEL);
-
-	if (!d->chan) {
-		dev_err(&pdev->dev, "%s: kzalloc fail\n", __func__);
-		return -ENOMEM;
-	}
 
 	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
 		d->dev_caps |= HS_CHANNELS_RESERVED;

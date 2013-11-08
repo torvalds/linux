@@ -268,7 +268,6 @@ struct omap_dma_dev_attr {
 	u32 dev_caps;
 	u16 lch_count;
 	u16 chan_count;
-	struct omap_dma_lch *chan;
 };
 
 enum {

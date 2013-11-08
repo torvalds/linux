@@ -325,17 +325,6 @@ static int __init omap1_system_dma_init(void)
 	d->dev_caps		|= CLEAR_CSR_ON_READ;
 	d->dev_caps		|= IS_WORD_16;
 
-
-	d->chan = kzalloc(sizeof(struct omap_dma_lch) *
-					(d->lch_count), GFP_KERNEL);
-	if (!d->chan) {
-		dev_err(&pdev->dev,
-			"%s: Memory allocation failed for d->chan!\n",
-			__func__);
-		ret = -ENOMEM;
-		goto exit_release_d;
-	}
-
 	if (cpu_is_omap15xx())
 		d->chan_count = 9;
 	else if (cpu_is_omap16xx() || cpu_is_omap7xx()) {
@@ -359,14 +348,14 @@ static int __init omap1_system_dma_init(void)
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n",
 			__func__, pdev->name, pdev->id);
-		goto exit_release_chan;
+		goto exit_release_d;
 	}
 
 	ret = platform_device_add(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n",
 			__func__, pdev->name, pdev->id);
-		goto exit_release_chan;
+		goto exit_release_d;
 	}
 
 	dma_pdev = platform_device_register_full(&omap_dma_dev_info);
@@ -379,8 +368,6 @@ static int __init omap1_system_dma_init(void)
 
 exit_release_pdev:
 	platform_device_del(pdev);
-exit_release_chan:
-	kfree(d->chan);
 exit_release_d:
 	kfree(d);
 exit_release_p:
