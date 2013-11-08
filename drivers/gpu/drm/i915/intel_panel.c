@@ -1065,6 +1065,12 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 
 	panel->backlight.present = true;
 
+	DRM_DEBUG_KMS("backlight initialized, %s, brightness %u/%u, "
+		      "sysfs interface %sregistered\n",
+		      panel->backlight.enabled ? "enabled" : "disabled",
+		      panel->backlight.level, panel->backlight.max,
+		      panel->backlight.device ? "" : "not ");
+
 	return 0;
 }
 
