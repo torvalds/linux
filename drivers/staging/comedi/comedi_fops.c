@@ -91,6 +91,7 @@ static void comedi_device_init(struct comedi_device *dev)
 {
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
+	init_rwsem(&dev->attach_lock);
 	dev->minor = -1;
 }
 

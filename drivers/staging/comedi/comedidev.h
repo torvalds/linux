@@ -22,6 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 #include <linux/spinlock_types.h>
+#include <linux/rwsem.h>
 
 #include "comedi.h"
 
@@ -184,6 +185,7 @@ struct comedi_device {
 	bool ioenabled:1;
 	spinlock_t spinlock;
 	struct mutex mutex;
+	struct rw_semaphore attach_lock;
 
 	int n_subdevices;
 	struct comedi_subdevice *subdevices;
