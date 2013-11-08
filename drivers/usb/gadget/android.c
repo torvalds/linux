@@ -641,18 +641,23 @@ static int mass_storage_function_init(struct android_usb_function *f,
 {
 	struct mass_storage_function_config *config;
 	struct fsg_common *common;
-	int err;
+	int err,i;
+	char name[6];
 
 	config = kzalloc(sizeof(struct mass_storage_function_config),
 								GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
-#ifdef CONFIG_UMS_AS_CDROM   
-	//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is true++++++++++++++++++\n");   
-	config->fsg.nluns = 1;
+#ifdef CONFIG_UMS_AS_CDROM  
+	config->fsg.nluns = 8;
 	config->fsg.luns[0].removable = 1;
 	config->fsg.luns[0].ro = 1;
-    config->fsg.luns[0].cdrom = 1;
+        config->fsg.luns[0].cdrom = 1;
+	for(i=1;i<config->fsg.nluns;i++)
+	{
+		config->fsg.luns[i].removable = 1;
+		config->fsg.luns[i].nofua = 1;
+	}
 #else
 	//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is false -------------------\n");
 	config->fsg.nluns = 2;
@@ -667,17 +672,20 @@ static int mass_storage_function_init(struct android_usb_function *f,
 		return PTR_ERR(common);
 	}
 
-	err = sysfs_create_link(&f->dev->kobj,
-				&common->luns[0].dev.kobj,
-				"lun");
-#ifndef CONFIG_UMS_AS_CDROM 	
-		//printk(KERN_ERR "CONFIG_UMS_AS_CDROM is false -------------------\n");
-       err = sysfs_create_link(&f->dev->kobj, &common->luns[1].dev.kobj,"lun1");
-	if (err) {
-		kfree(config);
-		return err;
+	err = sysfs_create_link(&f->dev->kobj, &common->luns[0].dev.kobj,"lun");
+        if (err) {
+                kfree(config);
+                return err;
+        }
+	for(i=1;i<config->fsg.nluns;i++)
+	{
+		sprintf(name,"lun%d",i);
+        	err = sysfs_create_link(&f->dev->kobj, &common->luns[i].dev.kobj,&name);
+		if (err) {
+			kfree(config);
+			return err;
+		}
 	}
-#endif
 	config->common = common;
 	f->config = config;
 	return 0;
