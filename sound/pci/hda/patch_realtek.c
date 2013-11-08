@@ -577,25 +577,34 @@ static void alc_ssid_check(struct hda_codec *codec, const hda_nid_t *ports)
 /*
  * COEF access helper functions
  */
-static int alc_read_coef_idx(struct hda_codec *codec,
-			unsigned int coef_idx)
+
+static int alc_read_coefex_idx(struct hda_codec *codec,
+					hda_nid_t nid,
+					unsigned int coef_idx)
 {
 	unsigned int val;
-	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX,
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_COEF_INDEX,
 		    		coef_idx);
-	val = snd_hda_codec_read(codec, 0x20, 0,
+	val = snd_hda_codec_read(codec, nid, 0,
 			 	AC_VERB_GET_PROC_COEF, 0);
 	return val;
 }
 
-static void alc_write_coef_idx(struct hda_codec *codec, unsigned int coef_idx,
+#define alc_read_coef_idx(codec, coef_idx) \
+	alc_read_coefex_idx(codec, 0x20, coef_idx)
+
+static void alc_write_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
+							unsigned int coef_idx,
 							unsigned int coef_val)
 {
-	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_COEF_INDEX,
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_COEF_INDEX,
 			    coef_idx);
-	snd_hda_codec_write(codec, 0x20, 0, AC_VERB_SET_PROC_COEF,
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PROC_COEF,
 			    coef_val);
 }
+
+#define alc_write_coef_idx(codec, coef_idx, coef_val) \
+	alc_write_coefex_idx(codec, 0x20, coef_idx, coef_val)
 
 /* a special bypass for COEF 0; read the cached value at the second time */
 static unsigned int alc_get_coef0(struct hda_codec *codec)
@@ -3109,6 +3118,19 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 	int val;
 
 	switch (codec->vendor_id) {
+	case 0x10ec0255:
+		/* LDO and MISC control */
+		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
+		/* UAJ function set to menual mode */
+		alc_write_coef_idx(codec, 0x45, 0xd089);
+		/* Direct Drive HP Amp control(Set to verb control)*/
+		val = alc_read_coefex_idx(codec, 0x57, 0x05);
+		alc_write_coefex_idx(codec, 0x57, 0x05, val & ~(1<<14));
+		/* Set MIC2 Vref gate with HP */
+		alc_write_coef_idx(codec, 0x06, 0x6104);
+		/* Direct Drive HP Amp control */
+		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8aa6);
+		break;
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
 		alc_write_coef_idx(codec, 0x45, 0xc429);
@@ -3140,6 +3162,14 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 	int val;
 
 	switch (codec->vendor_id) {
+	case 0x10ec0255:
+		alc_write_coef_idx(codec, 0x45, 0xc489);
+		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
+		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8aa6);
+		/* Set MIC2 Vref gate to normal */
+		alc_write_coef_idx(codec, 0x06, 0x6100);
+		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
+		break;
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xc429);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
@@ -3171,6 +3201,12 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 static void alc_headset_mode_default(struct hda_codec *codec)
 {
 	switch (codec->vendor_id) {
+	case 0x10ec0255:
+		alc_write_coef_idx(codec, 0x45, 0xc089);
+		alc_write_coef_idx(codec, 0x45, 0xc489);
+		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
+		alc_write_coef_idx(codec, 0x49, 0x0049);
+		break;
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x06, 0x2100);
 		alc_write_coef_idx(codec, 0x32, 0x4ea3);
@@ -3194,6 +3230,12 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 static void alc_headset_mode_ctia(struct hda_codec *codec)
 {
 	switch (codec->vendor_id) {
+	case 0x10ec0255:
+		/* Set to CTIA type */
+		alc_write_coef_idx(codec, 0x45, 0xd489);
+		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
+		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
+		break;
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xd429);
 		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
@@ -3216,6 +3258,12 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 static void alc_headset_mode_omtp(struct hda_codec *codec)
 {
 	switch (codec->vendor_id) {
+	case 0x10ec0255:
+		/* Set to OMTP Type */
+		alc_write_coef_idx(codec, 0x45, 0xe489);
+		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
+		alc_write_coefex_idx(codec, 0x57, 0x03, 0x8ea6);
+		break;
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xe429);
 		alc_write_coef_idx(codec, 0x1b, 0x0c2b);
@@ -3241,6 +3289,15 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 
 	switch (codec->vendor_id) {
+	case 0x10ec0255:
+		/* combo jack auto switch control(Check type)*/
+		alc_write_coef_idx(codec, 0x45, 0xd089);
+		/* combo jack auto switch control(Vref conteol) */
+		alc_write_coef_idx(codec, 0x49, 0x0149);
+		msleep(300);
+		val = alc_read_coef_idx(codec, 0x46);
+		is_ctia = (val & 0x0070) == 0x0070;
+		break;
 	case 0x10ec0283:
 		alc_write_coef_idx(codec, 0x45, 0xd029);
 		msleep(300);
@@ -3385,6 +3442,21 @@ static void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
 	}
 	else
 		alc_fixup_headset_mode(codec, fix, action);
+}
+
+static void alc_fixup_headset_mode_alc255(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		/* Set to iphone type */
+		alc_write_coef_idx(codec, 0x1b, 0x880b);
+		alc_write_coef_idx(codec, 0x45, 0xd089);
+		alc_write_coef_idx(codec, 0x1b, 0x080b);
+		alc_write_coef_idx(codec, 0x46, 0x0004);
+		alc_write_coef_idx(codec, 0x1b, 0x0c0b);
+		msleep(30);
+	}
+	alc_fixup_headset_mode(codec, fix, action);
 }
 
 static void alc_fixup_headset_mode_alc668(struct hda_codec *codec,
@@ -3688,6 +3760,8 @@ enum {
 	ALC283_FIXUP_INT_MIC,
 	ALC290_FIXUP_MONO_SPEAKERS,
 	ALC269_FIXUP_THINKPAD_ACPI,
+	ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+	ALC255_FIXUP_HEADSET_MODE,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -3997,6 +4071,20 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC269_FIXUP_LIMIT_INT_MIC_BOOST
 	},
+	[ALC255_FIXUP_DELL1_MIC_NO_PRESENCE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x19, 0x01a1913c }, /* use as headset mic, without its own jack detect */
+			{ 0x1a, 0x01a1913d }, /* use as headphone mic, without its own jack detect */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC255_FIXUP_HEADSET_MODE
+	},
+	[ALC255_FIXUP_HEADSET_MODE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_headset_mode_alc255,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -4039,6 +4127,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0609, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0613, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0616, "Dell Vostro 5470", ALC290_FIXUP_MONO_SPEAKERS),
+	SND_PCI_QUIRK(0x1028, 0x061f, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1028, 0x063f, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x15cc, "Dell X5 Precision", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x15cd, "Dell X5 Precision", ALC269_FIXUP_DELL2_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC2),
