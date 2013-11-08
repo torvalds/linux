@@ -255,7 +255,7 @@ int ima_eventdigest_ng_init(struct integrity_iint_cache *iint,
 			    struct evm_ima_xattr_data *xattr_value,
 			    int xattr_len, struct ima_field_data *field_data)
 {
-	u8 *cur_digest = NULL, hash_algo = HASH_ALGO__LAST;
+	u8 *cur_digest = NULL, hash_algo = HASH_ALGO_SHA1;
 	u32 cur_digestsize = 0;
 
 	/* If iint is NULL, we are recording a violation. */
