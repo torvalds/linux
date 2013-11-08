@@ -1786,18 +1786,6 @@ static int ath10k_pci_ce_init(struct ath10k *ar)
 		pipe_info->buf_sz = (size_t) (attr->src_sz_max);
 	}
 
-	/*
-	 * Initially, establish CE completion handlers for use with BMI.
-	 * These are overwritten with generic handlers after we exit BMI phase.
-	 */
-	pipe_info = &ar_pci->pipe_info[BMI_CE_NUM_TO_TARG];
-	ath10k_ce_send_cb_register(pipe_info->ce_hdl,
-				   ath10k_pci_bmi_send_done, 0);
-
-	pipe_info = &ar_pci->pipe_info[BMI_CE_NUM_TO_HOST];
-	ath10k_ce_recv_cb_register(pipe_info->ce_hdl,
-				   ath10k_pci_bmi_recv_data);
-
 	return 0;
 }
 
@@ -1830,16 +1818,26 @@ static void ath10k_pci_fw_interrupt_handler(struct ath10k *ar)
 	ath10k_pci_sleep(ar);
 }
 
+static void ath10k_pci_start_bmi(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_pci_pipe *pipe;
+
+	/*
+	 * Initially, establish CE completion handlers for use with BMI.
+	 * These are overwritten with generic handlers after we exit BMI phase.
+	 */
+	pipe = &ar_pci->pipe_info[BMI_CE_NUM_TO_TARG];
+	ath10k_ce_send_cb_register(pipe->ce_hdl, ath10k_pci_bmi_send_done, 0);
+
+	pipe = &ar_pci->pipe_info[BMI_CE_NUM_TO_HOST];
+	ath10k_ce_recv_cb_register(pipe->ce_hdl, ath10k_pci_bmi_recv_data);
+}
+
 static int ath10k_pci_hif_power_up(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
-
-	ret = ath10k_pci_start_intr(ar);
-	if (ret) {
-		ath10k_err("could not start interrupt handling (%d)\n", ret);
-		goto err;
-	}
 
 	/*
 	 * Bring the target up cleanly.
@@ -1854,12 +1852,8 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	ret = ath10k_pci_device_reset(ar);
 	if (ret) {
 		ath10k_err("failed to reset target: %d\n", ret);
-		goto err_irq;
+		goto err;
 	}
-
-	ret = ath10k_pci_wait_for_target_init(ar);
-	if (ret)
-		goto err_irq;
 
 	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		/* Force AWAKE forever */
@@ -1869,25 +1863,54 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	if (ret)
 		goto err_ps;
 
-	ret = ath10k_pci_init_config(ar);
-	if (ret)
+	ret = ath10k_ce_disable_interrupts(ar);
+	if (ret) {
+		ath10k_err("failed to disable CE interrupts: %d\n", ret);
 		goto err_ce;
+	}
+
+	ret = ath10k_pci_start_intr(ar);
+	if (ret) {
+		ath10k_err("failed to start interrupt handling: %d\n", ret);
+		goto err_ce;
+	}
+
+	ret = ath10k_pci_wait_for_target_init(ar);
+	if (ret) {
+		ath10k_err("failed to wait for target to init: %d\n", ret);
+		goto err_irq;
+	}
+
+	ret = ath10k_ce_enable_err_irq(ar);
+	if (ret) {
+		ath10k_err("failed to enable CE error irq: %d\n", ret);
+		goto err_irq;
+	}
+
+	ret = ath10k_pci_init_config(ar);
+	if (ret) {
+		ath10k_err("failed to setup init config: %d\n", ret);
+		goto err_irq;
+	}
 
 	ret = ath10k_pci_wake_target_cpu(ar);
 	if (ret) {
 		ath10k_err("could not wake up target CPU (%d)\n", ret);
-		goto err_ce;
+		goto err_irq;
 	}
 
+	ath10k_pci_start_bmi(ar);
 	return 0;
 
+err_irq:
+	ath10k_ce_disable_interrupts(ar);
+	ath10k_pci_stop_intr(ar);
+	ath10k_pci_kill_tasklet(ar);
 err_ce:
 	ath10k_pci_ce_deinit(ar);
 err_ps:
 	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_sleep(ar);
-err_irq:
-	ath10k_pci_stop_intr(ar);
 err:
 	return ret;
 }
@@ -2156,7 +2179,7 @@ static int ath10k_pci_start_intr_legacy(struct ath10k *ar)
 	if (ret < 0)
 		return ret;
 
-	ret = ath10k_do_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
 	if (ret) {
 		free_irq(ar_pci->pdev->irq, ar);
 		ath10k_err("failed to wake up target: %d\n", ret);
@@ -2176,7 +2199,7 @@ static int ath10k_pci_start_intr_legacy(struct ath10k *ar)
 		  ar_pci->mem + (SOC_CORE_BASE_ADDRESS |
 				 PCIE_INTR_ENABLE_ADDRESS));
 
-	ath10k_do_pci_sleep(ar);
+	ath10k_pci_sleep(ar);
 	ath10k_info("legacy interrupt handling\n");
 	return 0;
 }
@@ -2252,7 +2275,7 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 	int wait_limit = 300; /* 3 sec */
 	int ret;
 
-	ret = ath10k_do_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
 	if (ret) {
 		ath10k_err("failed to wake up target: %d\n", ret);
 		return ret;
@@ -2277,7 +2300,7 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 	}
 
 out:
-	ath10k_do_pci_sleep(ar);
+	ath10k_pci_sleep(ar);
 	return ret;
 }
 

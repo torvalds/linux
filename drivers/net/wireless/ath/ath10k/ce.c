@@ -792,6 +792,21 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 	ath10k_pci_sleep(ar);
 }
 
+int ath10k_ce_enable_err_irq(struct ath10k *ar)
+{
+	int i, ret;
+
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < CE_COUNT; i++)
+		ath10k_ce_error_intr_enable(ar, ath10k_ce_base_address(i));
+
+	ath10k_pci_sleep(ar);
+	return 0;
+}
+
 int ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
 	int ce_id, ret;
@@ -1059,7 +1074,6 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 				const struct ce_attr *attr)
 {
 	struct ath10k_ce_pipe *ce_state;
-	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 	int ret;
 
 	/*
@@ -1104,9 +1118,6 @@ struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 			goto out;
 		}
 	}
-
-	/* Enable CE error interrupts */
-	ath10k_ce_error_intr_enable(ar, ctrl_addr);
 
 out:
 	ath10k_pci_sleep(ar);
