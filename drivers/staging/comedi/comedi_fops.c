@@ -177,7 +177,7 @@ static void comedi_free_board_dev(struct comedi_device *dev)
 }
 
 static struct comedi_subdevice
-*comedi_subdevice_from_minor(unsigned minor)
+*comedi_subdevice_from_minor(const struct comedi_device *dev, unsigned minor)
 {
 	struct comedi_subdevice *s;
 	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
@@ -185,6 +185,8 @@ static struct comedi_subdevice
 	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
 	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
+	if (s && s->device != dev)
+		s = NULL;
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	return s;
 }
@@ -229,10 +231,8 @@ comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
 	struct comedi_subdevice *s;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
-		s = comedi_subdevice_from_minor(minor);
-		if (!s || s->device != dev)
-			return NULL;
-		if (s->subdev_flags & SDF_CMD_READ)
+		s = comedi_subdevice_from_minor(dev, minor);
+		if (s == NULL || (s->subdev_flags & SDF_CMD_READ))
 			return s;
 	}
 	return dev->read_subdev;
@@ -244,10 +244,8 @@ comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 	struct comedi_subdevice *s;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
-		s = comedi_subdevice_from_minor(minor);
-		if (!s || s->device != dev)
-			return NULL;
-		if (s->subdev_flags & SDF_CMD_WRITE)
+		s = comedi_subdevice_from_minor(dev, minor);
+		if (s == NULL || (s->subdev_flags & SDF_CMD_WRITE))
 			return s;
 	}
 	return dev->write_subdev;
