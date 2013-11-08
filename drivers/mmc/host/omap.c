@@ -80,8 +80,8 @@
 #define mmc_omap2()	(!mmc_omap1())
 
 #define OMAP_MMC_REG(host, reg)		(OMAP_MMC_REG_##reg << (host)->reg_shift)
-#define OMAP_MMC_READ(host, reg)	__raw_readw((host)->virt_base + OMAP_MMC_REG(host, reg))
-#define OMAP_MMC_WRITE(host, reg, val)	__raw_writew((val), (host)->virt_base + OMAP_MMC_REG(host, reg))
+#define OMAP_MMC_READ(host, reg)        readw_relaxed((host)->virt_base + OMAP_MMC_REG(host, reg))
+#define OMAP_MMC_WRITE(host, reg, val)	writew_relaxed((val), (host)->virt_base + OMAP_MMC_REG(host, reg))
 
 /*
  * Command types

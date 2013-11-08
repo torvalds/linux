@@ -137,10 +137,10 @@
  * MMC Host controller read/write API's
  */
 #define OMAP_HSMMC_READ(base, reg)	\
-	__raw_readl((base) + OMAP_HSMMC_##reg)
+	readl_relaxed((base) + OMAP_HSMMC_##reg)
 
 #define OMAP_HSMMC_WRITE(base, reg, val) \
-	__raw_writel((val), (base) + OMAP_HSMMC_##reg)
+	writel_relaxed((val), (base) + OMAP_HSMMC_##reg)
 
 struct omap_hsmmc_next {
 	unsigned int	dma_len;
