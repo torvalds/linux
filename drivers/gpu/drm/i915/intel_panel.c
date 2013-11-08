@@ -788,8 +788,6 @@ static void vlv_enable_backlight(struct intel_connector *connector)
 	if (tmp & BLM_PWM_ENABLE)
 		return;
 
-	tmp &= ~BLM_PIPE_SELECT;
-	tmp |= BLM_PIPE(pipe);
 	tmp &= ~BLM_PWM_ENABLE;
 
 	I915_WRITE(VLV_BLC_PWM_CTL2(pipe), tmp);
