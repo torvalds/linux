@@ -19,8 +19,6 @@
 #include "msm_drv.h"
 #include "mdp4_kms.h"
 
-#include <mach/iommu.h>
-
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev);
 
 static int mdp4_hw_init(struct msm_kms *kms)

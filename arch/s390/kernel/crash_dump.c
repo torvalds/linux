@@ -40,28 +40,26 @@ static inline void *load_real_addr(void *addr)
 }
 
 /*
- * Copy up to one page to vmalloc or real memory
+ * Copy real to virtual or real memory
  */
-static ssize_t copy_page_real(void *buf, void *src, size_t csize)
+static int copy_from_realmem(void *dest, void *src, size_t count)
 {
-	size_t size;
+	unsigned long size;
+	int rc;
 
-	if (is_vmalloc_addr(buf)) {
-		BUG_ON(csize >= PAGE_SIZE);
-		/* If buf is not page aligned, copy first part */
-		size = min(roundup(__pa(buf), PAGE_SIZE) - __pa(buf), csize);
-		if (size) {
-			if (memcpy_real(load_real_addr(buf), src, size))
-				return -EFAULT;
-			buf += size;
-			src += size;
-		}
-		/* Copy second part */
-		size = csize - size;
-		return (size) ? memcpy_real(load_real_addr(buf), src, size) : 0;
-	} else {
-		return memcpy_real(buf, src, csize);
-	}
+	if (!count)
+		return 0;
+	if (!is_vmalloc_or_module_addr(dest))
+		return memcpy_real(dest, src, count);
+	do {
+		size = min(count, PAGE_SIZE - (__pa(dest) & ~PAGE_MASK));
+		if (memcpy_real(load_real_addr(dest), src, size))
+			return -EFAULT;
+		count -= size;
+		dest += size;
+		src += size;
+	} while (count);
+	return 0;
 }
 
 /*
@@ -114,7 +112,7 @@ static ssize_t copy_oldmem_page_kdump(char *buf, size_t csize,
 		rc = copy_to_user_real((void __force __user *) buf,
 				       (void *) src, csize);
 	else
-		rc = copy_page_real(buf, (void *) src, csize);
+		rc = copy_from_realmem(buf, (void *) src, csize);
 	return (rc == 0) ? rc : csize;
 }
 
@@ -210,7 +208,7 @@ int copy_from_oldmem(void *dest, void *src, size_t count)
 	if (OLDMEM_BASE) {
 		if ((unsigned long) src < OLDMEM_SIZE) {
 			copied = min(count, OLDMEM_SIZE - (unsigned long) src);
-			rc = memcpy_real(dest, src + OLDMEM_BASE, copied);
+			rc = copy_from_realmem(dest, src + OLDMEM_BASE, copied);
 			if (rc)
 				return rc;
 		}
@@ -223,7 +221,7 @@ int copy_from_oldmem(void *dest, void *src, size_t count)
 				return rc;
 		}
 	}
-	return memcpy_real(dest + copied, src + copied, count - copied);
+	return copy_from_realmem(dest + copied, src + copied, count - copied);
 }
 
 /*

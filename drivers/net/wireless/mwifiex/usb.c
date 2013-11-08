@@ -447,9 +447,6 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	 */
 	adapter->is_suspended = true;
 
-	for (i = 0; i < adapter->priv_num; i++)
-		netif_carrier_off(adapter->priv[i]->netdev);
-
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
 
@@ -508,10 +505,6 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 			mwifiex_usb_submit_rx_urb(&card->rx_cmd,
 						  MWIFIEX_RX_CMD_BUF_SIZE);
 	}
-
-	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]->media_connected)
-			netif_carrier_on(adapter->priv[i]->netdev);
 
 	/* Disable Host Sleep */
 	if (adapter->hs_activated)

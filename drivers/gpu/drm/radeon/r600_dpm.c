@@ -1084,7 +1084,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries[i].dclk =
 					le16_to_cpu(uvd_clk->usDClkLow) | (uvd_clk->ucDClkHigh << 16);
 				rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries[i].v =
-					le16_to_cpu(limits->entries[i].usVoltage);
+					le16_to_cpu(entry->usVoltage);
 				entry = (ATOM_PPLIB_UVD_Clock_Voltage_Limit_Record *)
 					((u8 *)entry + sizeof(ATOM_PPLIB_UVD_Clock_Voltage_Limit_Record));
 			}

@@ -113,7 +113,7 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 		unsigned int target_freq, unsigned int relation)
 {
 	struct cpufreq_freqs freqs;
-	unsigned long newfreq;
+	long newfreq;
 	struct clk *srcclk;
 	int index, ret, mult = 1;
 
