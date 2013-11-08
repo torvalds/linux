@@ -563,12 +563,13 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
+		s->busy = NULL;
+		wake_up_interruptible_all(&s->async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
 			"BUG: (?) do_become_nonbusy called with async=NULL\n");
+		s->busy = NULL;
 	}
-
-	s->busy = NULL;
 }
 
 static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -1700,7 +1701,6 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 		return -EBUSY;
 
 	ret = do_cancel(dev, s);
-	wake_up_interruptible(&s->async->wait_head);
 
 	return ret;
 }
