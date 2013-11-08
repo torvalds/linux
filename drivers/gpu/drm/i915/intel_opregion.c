@@ -876,7 +876,9 @@ int intel_opregion_setup(struct drm_device *dev)
 		return -ENOTSUPP;
 	}
 
+#ifdef CONFIG_ACPI
 	INIT_WORK(&opregion->asle_work, asle_work);
+#endif
 
 	base = acpi_os_ioremap(asls, OPREGION_SIZE);
 	if (!base)
