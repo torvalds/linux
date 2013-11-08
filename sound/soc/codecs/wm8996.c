@@ -608,7 +608,7 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 		wm8996_bg_disable(codec);
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -625,7 +625,7 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 		msleep(5);
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -646,7 +646,7 @@ static int rmv_short_event(struct snd_soc_dapm_widget *w,
 		wm8996->hpout_pending |= w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -767,7 +767,7 @@ static int dcs_start(struct snd_soc_dapm_widget *w,
 		wm8996->dcs_pending |= 1 << w->shift;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -1656,7 +1656,7 @@ static int wm8996_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrclk_rx_reg = WM8996_AIF2_RX_LRCLK_2;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -1768,7 +1768,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 		dsp_shift = WM8996_DSP2_DIV_SHIFT;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid dai id %d\n", dai->id);
 		return -EINVAL;
 	}
 
