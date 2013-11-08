@@ -844,13 +844,17 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 
 	intel_backlight_device_register(intel_connector);
 
+	panel->backlight.present = true;
+
 	return 0;
 }
 
 void intel_panel_destroy_backlight(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_panel *panel = &intel_connector->panel;
 
+	panel->backlight.present = false;
 	intel_backlight_device_unregister(intel_connector);
 }
 

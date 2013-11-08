@@ -159,6 +159,7 @@ struct intel_panel {
 
 	/* backlight */
 	struct {
+		bool present;
 		u32 level;
 		bool enabled;
 		struct backlight_device *device;
