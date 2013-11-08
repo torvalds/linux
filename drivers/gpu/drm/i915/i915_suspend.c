@@ -203,7 +203,7 @@ static void i915_save_display(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_save_display_reg(dev);
 
-	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
+	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 
 	/* LVDS state */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -241,7 +241,7 @@ static void i915_save_display(struct drm_device *dev)
 			dev_priv->regfile.saveLVDS = I915_READ(LVDS);
 	}
 
-	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
+	spin_unlock_irqrestore(&dev_priv->backlight_lock, flags);
 
 	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
 		dev_priv->regfile.savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
@@ -287,7 +287,7 @@ static void i915_restore_display(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_restore_display_reg(dev);
 
-	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
+	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 
 	/* LVDS state */
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
@@ -341,7 +341,7 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
 	}
 
-	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
+	spin_unlock_irqrestore(&dev_priv->backlight_lock, flags);
 
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_disable_fbc(dev);

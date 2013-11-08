@@ -1368,13 +1368,8 @@ typedef struct drm_i915_private {
 	struct intel_overlay *overlay;
 	unsigned int sprite_scaling_enabled;
 
-	/* backlight */
-	struct {
-		int level;
-		bool enabled;
-		spinlock_t lock; /* bl registers and the above bl fields */
-		struct backlight_device *device;
-	} backlight;
+	/* backlight registers and fields in struct intel_panel */
+	spinlock_t backlight_lock;
 
 	/* LVDS info */
 	bool no_aux_handshake;

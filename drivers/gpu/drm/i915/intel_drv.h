@@ -156,6 +156,13 @@ struct intel_encoder {
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
 	int fitting_mode;
+
+	/* backlight */
+	struct {
+		u32 level;
+		bool enabled;
+		struct backlight_device *device;
+	} backlight;
 };
 
 struct intel_connector {
