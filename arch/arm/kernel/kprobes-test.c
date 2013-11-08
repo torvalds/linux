@@ -113,7 +113,7 @@
  *	@ start of inline data...
  *	.ascii "mov r0, r7"	@ text title for test case
  *	.byte	0
- *	.align	2
+ *	.align	2, 0
  *
  *	@ TEST_ARG_REG
  *	.byte	ARG_TYPE_REG
