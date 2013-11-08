@@ -457,7 +457,7 @@ nouveau_display_suspend(struct drm_device *dev)
 
 	nouveau_display_fini(dev);
 
-	NV_SUSPEND(drm, "unpinning framebuffer(s)...\n");
+	NV_INFO(drm, "unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 

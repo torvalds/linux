@@ -105,7 +105,7 @@ nouveau_dbgopt(const char *optstr, const char *sub)
 				else if (!strncasecmpz(optstr, "warn", len))
 					level = NV_DBG_WARN;
 				else if (!strncasecmpz(optstr, "info", len))
-					level = NV_DBG_INFO;
+					level = NV_DBG_INFO_NORMAL;
 				else if (!strncasecmpz(optstr, "debug", len))
 					level = NV_DBG_DEBUG;
 				else if (!strncasecmpz(optstr, "trace", len))
