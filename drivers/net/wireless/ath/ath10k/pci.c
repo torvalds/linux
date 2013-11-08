@@ -1353,6 +1353,13 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_cleanup_ce(ar);
 	ath10k_pci_buffer_cleanup(ar);
 
+	/* Make the sure the device won't access any structures on the host by
+	 * resetting it. The device was fed with PCI CE ringbuffer
+	 * configuration during init. If ringbuffers are freed and the device
+	 * were to access them this could lead to memory corruption on the
+	 * host. */
+	ath10k_pci_device_reset(ar);
+
 	ar_pci->started = 0;
 }
 
@@ -1915,6 +1922,7 @@ err_irq:
 	ath10k_ce_disable_interrupts(ar);
 	ath10k_pci_stop_intr(ar);
 	ath10k_pci_kill_tasklet(ar);
+	ath10k_pci_device_reset(ar);
 err_ce:
 	ath10k_pci_ce_deinit(ar);
 err_ps:
@@ -1929,6 +1937,7 @@ static void ath10k_pci_hif_power_down(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	ath10k_pci_stop_intr(ar);
+	ath10k_pci_device_reset(ar);
 
 	ath10k_pci_ce_deinit(ar);
 	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
