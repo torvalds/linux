@@ -1,5 +1,5 @@
 config DRM_TEGRA
-	bool "NVIDIA Tegra DRM"
+	tristate "NVIDIA Tegra DRM"
 	depends on ARCH_TEGRA || ARCH_MULTIPLATFORM
 	depends on DRM
 	depends on RESET_CONTROLLER
