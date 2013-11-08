@@ -2132,8 +2132,7 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen >= 8) {
 		ring->irq_enable_mask =
-			(GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT) |
-			GT_RENDER_CS_MASTER_ERROR_INTERRUPT;
+			GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 		ring->irq_get = gen8_ring_get_irq;
 		ring->irq_put = gen8_ring_put_irq;
 		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
