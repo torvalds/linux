@@ -195,7 +195,7 @@ static DEFINE_SPINLOCK(list_lock);
 #define omap_aes_read(dd, offset)				\
 ({								\
 	int _read_ret;						\
-	_read_ret = __raw_readl(dd->io_base + offset);		\
+	_read_ret = readl_relaxed(dd->io_base + offset);		\
 	pr_debug("omap_aes_read(" #offset "=%#x)= %#x\n",	\
 		 offset, _read_ret);				\
 	_read_ret;						\
@@ -203,7 +203,7 @@ static DEFINE_SPINLOCK(list_lock);
 #else
 static inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
 {
-	return __raw_readl(dd->io_base + offset);
+	return readl_relaxed(dd->io_base + offset);
 }
 #endif
 
@@ -212,13 +212,13 @@ static inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
 	do {								\
 		pr_debug("omap_aes_write(" #offset "=%#x) value=%#x\n",	\
 			 offset, value);				\
-		__raw_writel(value, dd->io_base + offset);		\
+		writel_relaxed(value, dd->io_base + offset);		\
 	} while (0)
 #else
 static inline void omap_aes_write(struct omap_aes_dev *dd, u32 offset,
 				  u32 value)
 {
-	__raw_writel(value, dd->io_base + offset);
+	writel_relaxed(value, dd->io_base + offset);
 }
 #endif
 
