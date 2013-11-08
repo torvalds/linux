@@ -210,6 +210,11 @@ struct trace_array {
 	struct list_head	events;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	int			ref;
+#ifdef CONFIG_FUNCTION_TRACER
+	struct ftrace_ops	*ops;
+	/* function tracing enabled */
+	int			function_enabled;
+#endif
 };
 
 enum {
