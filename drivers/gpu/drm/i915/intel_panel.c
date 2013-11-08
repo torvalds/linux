@@ -709,16 +709,6 @@ static void intel_panel_init_backlight_regs(struct drm_device *dev)
 	}
 }
 
-static void intel_panel_init_backlight(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	intel_panel_init_backlight_regs(dev);
-
-	dev_priv->backlight.level = intel_panel_get_backlight(dev, 0);
-	dev_priv->backlight.enabled = dev_priv->backlight.level != 0;
-}
-
 enum drm_connector_status
 intel_panel_detect(struct drm_device *dev)
 {
@@ -742,7 +732,7 @@ intel_panel_detect(struct drm_device *dev)
 }
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
-static int intel_panel_update_status(struct backlight_device *bd)
+static int intel_backlight_device_update_status(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
 	struct drm_device *dev = connector->base.dev;
@@ -756,7 +746,7 @@ static int intel_panel_update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static int intel_panel_get_brightness(struct backlight_device *bd)
+static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
 	struct drm_device *dev = connector->base.dev;
@@ -771,19 +761,17 @@ static int intel_panel_get_brightness(struct backlight_device *bd)
 	return intel_panel_get_backlight(connector->base.dev, pipe);
 }
 
-static const struct backlight_ops intel_panel_bl_ops = {
-	.update_status = intel_panel_update_status,
-	.get_brightness = intel_panel_get_brightness,
+static const struct backlight_ops intel_backlight_device_ops = {
+	.update_status = intel_backlight_device_update_status,
+	.get_brightness = intel_backlight_device_get_brightness,
 };
 
-int intel_panel_setup_backlight(struct drm_connector *connector)
+static int intel_backlight_device_register(struct intel_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
+	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct backlight_properties props;
 	unsigned long flags;
-
-	intel_panel_init_backlight(dev);
 
 	if (WARN_ON(dev_priv->backlight.device))
 		return -ENODEV;
@@ -802,9 +790,9 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	}
 	dev_priv->backlight.device =
 		backlight_device_register("intel_backlight",
-					  connector->kdev,
-					  to_intel_connector(connector),
-					  &intel_panel_bl_ops, &props);
+					  connector->base.kdev,
+					  connector,
+					  &intel_backlight_device_ops, &props);
 
 	if (IS_ERR(dev_priv->backlight.device)) {
 		DRM_ERROR("Failed to register backlight: %ld\n",
@@ -815,26 +803,47 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	return 0;
 }
 
-void intel_panel_destroy_backlight(struct drm_device *dev)
+static void intel_backlight_device_unregister(struct intel_connector *connector)
 {
+	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	if (dev_priv->backlight.device) {
 		backlight_device_unregister(dev_priv->backlight.device);
 		dev_priv->backlight.device = NULL;
 	}
 }
-#else
+#else /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+static int intel_backlight_device_register(struct intel_connector *connector)
+{
+	return 0;
+}
+static void intel_backlight_device_unregister(struct intel_connector *connector)
+{
+}
+#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+
 int intel_panel_setup_backlight(struct drm_connector *connector)
 {
-	intel_panel_init_backlight(connector->dev);
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	intel_panel_init_backlight_regs(dev);
+
+	dev_priv->backlight.level = intel_panel_get_backlight(dev, 0);
+	dev_priv->backlight.enabled = dev_priv->backlight.level != 0;
+
+	intel_backlight_device_register(intel_connector);
+
 	return 0;
 }
 
-void intel_panel_destroy_backlight(struct drm_device *dev)
+void intel_panel_destroy_backlight(struct drm_connector *connector)
 {
-	return;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	intel_backlight_device_unregister(intel_connector);
 }
-#endif
 
 int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode)

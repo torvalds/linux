@@ -11070,12 +11070,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
 
-	/* destroy backlight, if any, before the connectors */
-	intel_panel_destroy_backlight(dev);
-
-	/* destroy the sysfs files before encoders/connectors */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	/* destroy the backlight and sysfs files before encoders/connectors */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		intel_panel_destroy_backlight(connector);
 		drm_sysfs_connector_remove(connector);
+	}
 
 	drm_mode_config_cleanup(dev);
 
