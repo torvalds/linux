@@ -243,6 +243,16 @@ static inline void ath10k_ce_error_intr_enable(struct ath10k *ar,
 			   misc_ie_addr | CE_ERROR_MASK);
 }
 
+static inline void ath10k_ce_error_intr_disable(struct ath10k *ar,
+						u32 ce_ctrl_addr)
+{
+	u32 misc_ie_addr = ath10k_pci_read32(ar,
+					     ce_ctrl_addr + MISC_IE_ADDRESS);
+
+	ath10k_pci_write32(ar, ce_ctrl_addr + MISC_IE_ADDRESS,
+			   misc_ie_addr & ~CE_ERROR_MASK);
+}
+
 static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 						     u32 ce_ctrl_addr,
 						     unsigned int mask)
@@ -794,6 +804,8 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 		u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
+		ath10k_ce_error_intr_disable(ar, ctrl_addr);
+		ath10k_ce_watermark_intr_disable(ar, ctrl_addr);
 	}
 	ath10k_pci_sleep(ar);
 }
