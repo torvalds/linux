@@ -662,7 +662,7 @@ void comedi_driver_unregister(struct comedi_driver *driver)
 
 	/* check for devices using this driver */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device *dev = comedi_dev_from_minor(i);
+		struct comedi_device *dev = comedi_dev_get_from_minor(i);
 
 		if (!dev)
 			continue;
@@ -676,6 +676,7 @@ void comedi_driver_unregister(struct comedi_driver *driver)
 			comedi_device_detach(dev);
 		}
 		mutex_unlock(&dev->mutex);
+		comedi_dev_put(dev);
 	}
 }
 EXPORT_SYMBOL_GPL(comedi_driver_unregister);
