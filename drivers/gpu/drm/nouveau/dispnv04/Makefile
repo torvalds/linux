@@ -5,6 +5,7 @@ nouveau-y += dispnv04/dac.o
 nouveau-y += dispnv04/dfp.o
 nouveau-y += dispnv04/disp.o
 nouveau-y += dispnv04/hw.o
+nouveau-y += dispnv04/overlay.o
 nouveau-y += dispnv04/tvmodesnv17.o
 nouveau-y += dispnv04/tvnv04.o
 nouveau-y += dispnv04/tvnv17.o

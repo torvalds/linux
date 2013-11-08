@@ -269,7 +269,8 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
 
-	if (nv_device(drm->device)->card_type == NV_10 &&
+	if ((nv_device(drm->device)->card_type == NV_10 ||
+	     nv_device(drm->device)->card_type == NV_11) &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
 	    nvbo->bo.mem.num_pages < vram_pages / 4) {
 		/*
@@ -982,7 +983,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		     bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_channel *chan = chan = drm->ttm.chan;
+	struct nouveau_channel *chan = drm->ttm.chan;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;

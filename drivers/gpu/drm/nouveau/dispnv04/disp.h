@@ -123,6 +123,9 @@ int nv04_tv_create(struct drm_connector *, struct dcb_output *);
 /* nv17_tv.c */
 int nv17_tv_create(struct drm_connector *, struct dcb_output *);
 
+/* overlay.c */
+void nouveau_overlay_init(struct drm_device *dev);
+
 static inline bool
 nv_two_heads(struct drm_device *dev)
 {

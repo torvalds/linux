@@ -541,6 +541,15 @@ nvd0_disp_base_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x6100a0, 0x00000000);
 	nv_wr32(priv, 0x6100b0, 0x00000307);
 
+	/* disable underflow reporting, preventing an intermittent issue
+	 * on some nve4 boards where the production vbios left this
+	 * setting enabled by default.
+	 *
+	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
+	 */
+	for (i = 0; i < priv->head.nr; i++)
+		nv_mask(priv, 0x616308 + (i * 0x800), 0x00000111, 0x00000010);
+
 	return 0;
 }
 
