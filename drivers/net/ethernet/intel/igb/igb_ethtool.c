@@ -2062,13 +2062,14 @@ static void igb_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_UCAST | WAKE_MCAST |
-			 WAKE_BCAST | WAKE_MAGIC |
-			 WAKE_PHY;
 	wol->wolopts = 0;
 
 	if (!(adapter->flags & IGB_FLAG_WOL_SUPPORTED))
 		return;
+
+	wol->supported = WAKE_UCAST | WAKE_MCAST |
+			 WAKE_BCAST | WAKE_MAGIC |
+			 WAKE_PHY;
 
 	/* apply any specific unsupported masks here */
 	switch (adapter->hw.device_id) {
