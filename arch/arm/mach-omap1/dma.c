@@ -263,9 +263,17 @@ static const struct platform_device_info omap_dma_dev_info = {
 	.dma_mask = DMA_BIT_MASK(32),
 };
 
+static struct omap_system_dma_plat_info dma_plat_info __initdata = {
+	.show_dma_caps	= omap1_show_dma_caps,
+	.clear_lch_regs	= omap1_clear_lch_regs,
+	.clear_dma	= omap1_clear_dma,
+	.dma_write	= dma_write,
+	.dma_read	= dma_read,
+};
+
 static int __init omap1_system_dma_init(void)
 {
-	struct omap_system_dma_plat_info	*p;
+	struct omap_system_dma_plat_info	p;
 	struct omap_dma_dev_attr		*d;
 	struct platform_device			*pdev, *dma_pdev;
 	int ret;
@@ -291,20 +299,12 @@ static int __init omap1_system_dma_init(void)
 		goto exit_iounmap;
 	}
 
-	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
-	if (!p) {
-		dev_err(&pdev->dev, "%s: Unable to allocate 'p' for %s\n",
-			__func__, pdev->name);
-		ret = -ENOMEM;
-		goto exit_iounmap;
-	}
-
 	d = kzalloc(sizeof(struct omap_dma_dev_attr), GFP_KERNEL);
 	if (!d) {
 		dev_err(&pdev->dev, "%s: Unable to allocate 'd' for %s\n",
 			__func__, pdev->name);
 		ret = -ENOMEM;
-		goto exit_release_p;
+		goto exit_iounmap;
 	}
 
 	d->lch_count		= OMAP1_LOGICAL_DMA_CH_COUNT;
@@ -334,17 +334,11 @@ static int __init omap1_system_dma_init(void)
 			d->chan_count = 9;
 	}
 
-	p->dma_attr = d;
+	p = dma_plat_info;
+	p.dma_attr = d;
+	p.errata = configure_dma_errata();
 
-	p->show_dma_caps	= omap1_show_dma_caps;
-	p->clear_lch_regs	= omap1_clear_lch_regs;
-	p->clear_dma		= omap1_clear_dma;
-	p->dma_write		= dma_write;
-	p->dma_read		= dma_read;
-
-	p->errata = configure_dma_errata();
-
-	ret = platform_device_add_data(pdev, p, sizeof(*p));
+	ret = platform_device_add_data(pdev, &p, sizeof(p));
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n",
 			__func__, pdev->name, pdev->id);
@@ -370,8 +364,6 @@ exit_release_pdev:
 	platform_device_del(pdev);
 exit_release_d:
 	kfree(d);
-exit_release_p:
-	kfree(p);
 exit_iounmap:
 	iounmap(dma_base);
 exit_device_put:

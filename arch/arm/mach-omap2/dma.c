@@ -35,8 +35,6 @@
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
-static struct omap_dma_dev_attr *d;
-
 static enum omap_reg_offsets dma_common_ch_end;
 
 static const struct omap_dma_reg reg_map[] = {
@@ -206,33 +204,27 @@ static unsigned configure_dma_errata(void)
 	return errata;
 }
 
+static struct omap_system_dma_plat_info dma_plat_info __initdata = {
+	.show_dma_caps	= omap2_show_dma_caps,
+	.clear_dma	= omap2_clear_dma,
+	.dma_write	= dma_write,
+	.dma_read	= dma_read,
+};
+
 /* One time initializations */
 static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device			*pdev;
-	struct omap_system_dma_plat_info	*p;
+	struct omap_system_dma_plat_info	p;
+	struct omap_dma_dev_attr		*d;
 	struct resource				*mem;
 	char					*name = "omap_dma_system";
 
-	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
-	if (!p) {
-		pr_err("%s: Unable to allocate pdata for %s:%s\n",
-			__func__, name, oh->name);
-		return -ENOMEM;
-	}
+	p = dma_plat_info;
+	p.dma_attr = (struct omap_dma_dev_attr *)oh->dev_attr;
+	p.errata = configure_dma_errata();
 
-	p->dma_attr		= (struct omap_dma_dev_attr *)oh->dev_attr;
-	p->show_dma_caps	= omap2_show_dma_caps;
-	p->clear_dma		= omap2_clear_dma;
-	p->dma_write		= dma_write;
-	p->dma_read		= dma_read;
-
-	p->clear_lch_regs	= NULL;
-
-	p->errata		= configure_dma_errata();
-
-	pdev = omap_device_build(name, 0, oh, p, sizeof(*p));
-	kfree(p);
+	pdev = omap_device_build(name, 0, oh, &p, sizeof(p));
 	if (IS_ERR(pdev)) {
 		pr_err("%s: Can't build omap_device for %s:%s.\n",
 			__func__, name, oh->name);
