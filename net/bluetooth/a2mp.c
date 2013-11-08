@@ -672,7 +672,8 @@ static void a2mp_chan_close_cb(struct l2cap_chan *chan)
 	l2cap_chan_put(chan);
 }
 
-static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state)
+static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state,
+				      int err)
 {
 	struct amp_mgr *mgr = chan->data;
 
@@ -709,6 +710,9 @@ static struct l2cap_ops a2mp_chan_ops = {
 	.teardown = l2cap_chan_no_teardown,
 	.ready = l2cap_chan_no_ready,
 	.defer = l2cap_chan_no_defer,
+	.resume = l2cap_chan_no_resume,
+	.set_shutdown = l2cap_chan_no_set_shutdown,
+	.get_sndtimeo = l2cap_chan_no_get_sndtimeo,
 };
 
 static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
@@ -831,6 +835,9 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb)
 {
 	struct amp_mgr *mgr;
+
+	if (conn->hcon->type != ACL_LINK)
+		return NULL;
 
 	mgr = amp_mgr_create(conn, false);
 	if (!mgr) {

@@ -27,8 +27,9 @@
 
 #include <linux/export.h>
 #include <linux/idr.h>
-
 #include <linux/rfkill.h>
+#include <linux/debugfs.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -54,6 +55,586 @@ static void hci_notify(struct hci_dev *hdev, int event)
 {
 	hci_sock_dev_event(hdev, event);
 }
+
+/* ---- HCI debugfs entries ---- */
+
+static ssize_t dut_mode_read(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_DUT_MODE, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	struct sk_buff *skb;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+	int err;
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return -ENETDOWN;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	if (enable == test_bit(HCI_DUT_MODE, &hdev->dev_flags))
+		return -EALREADY;
+
+	hci_req_lock(hdev);
+	if (enable)
+		skb = __hci_cmd_sync(hdev, HCI_OP_ENABLE_DUT_MODE, 0, NULL,
+				     HCI_CMD_TIMEOUT);
+	else
+		skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL,
+				     HCI_CMD_TIMEOUT);
+	hci_req_unlock(hdev);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	err = -bt_to_errno(skb->data[0]);
+	kfree_skb(skb);
+
+	if (err < 0)
+		return err;
+
+	change_bit(HCI_DUT_MODE, &hdev->dev_flags);
+
+	return count;
+}
+
+static const struct file_operations dut_mode_fops = {
+	.open		= simple_open,
+	.read		= dut_mode_read,
+	.write		= dut_mode_write,
+	.llseek		= default_llseek,
+};
+
+static int features_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	u8 p;
+
+	hci_dev_lock(hdev);
+	for (p = 0; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
+		seq_printf(f, "%2u: 0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x "
+			   "0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x\n", p,
+			   hdev->features[p][0], hdev->features[p][1],
+			   hdev->features[p][2], hdev->features[p][3],
+			   hdev->features[p][4], hdev->features[p][5],
+			   hdev->features[p][6], hdev->features[p][7]);
+	}
+	if (lmp_le_capable(hdev))
+		seq_printf(f, "LE: 0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x "
+			   "0x%2.2x 0x%2.2x 0x%2.2x 0x%2.2x\n",
+			   hdev->le_features[0], hdev->le_features[1],
+			   hdev->le_features[2], hdev->le_features[3],
+			   hdev->le_features[4], hdev->le_features[5],
+			   hdev->le_features[6], hdev->le_features[7]);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int features_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, features_show, inode->i_private);
+}
+
+static const struct file_operations features_fops = {
+	.open		= features_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int blacklist_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct bdaddr_list *b;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(b, &hdev->blacklist, list)
+		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int blacklist_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, blacklist_show, inode->i_private);
+}
+
+static const struct file_operations blacklist_fops = {
+	.open		= blacklist_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int uuids_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct bt_uuid *uuid;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(uuid, &hdev->uuids, list) {
+		u8 i, val[16];
+
+		/* The Bluetooth UUID values are stored in big endian,
+		 * but with reversed byte order. So convert them into
+		 * the right order for the %pUb modifier.
+		 */
+		for (i = 0; i < 16; i++)
+			val[i] = uuid->uuid[15 - i];
+
+		seq_printf(f, "%pUb\n", val);
+	}
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int uuids_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, uuids_show, inode->i_private);
+}
+
+static const struct file_operations uuids_fops = {
+	.open		= uuids_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int inquiry_cache_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct discovery_state *cache = &hdev->discovery;
+	struct inquiry_entry *e;
+
+	hci_dev_lock(hdev);
+
+	list_for_each_entry(e, &cache->all, all) {
+		struct inquiry_data *data = &e->data;
+		seq_printf(f, "%pMR %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
+			   &data->bdaddr,
+			   data->pscan_rep_mode, data->pscan_period_mode,
+			   data->pscan_mode, data->dev_class[2],
+			   data->dev_class[1], data->dev_class[0],
+			   __le16_to_cpu(data->clock_offset),
+			   data->rssi, data->ssp_mode, e->timestamp);
+	}
+
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int inquiry_cache_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, inquiry_cache_show, inode->i_private);
+}
+
+static const struct file_operations inquiry_cache_fops = {
+	.open		= inquiry_cache_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int link_keys_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	struct list_head *p, *n;
+
+	hci_dev_lock(hdev);
+	list_for_each_safe(p, n, &hdev->link_keys) {
+		struct link_key *key = list_entry(p, struct link_key, list);
+		seq_printf(f, "%pMR %u %*phN %u\n", &key->bdaddr, key->type,
+			   HCI_LINK_KEY_SIZE, key->val, key->pin_len);
+	}
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int link_keys_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, link_keys_show, inode->i_private);
+}
+
+static const struct file_operations link_keys_fops = {
+	.open		= link_keys_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static ssize_t use_debug_keys_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static const struct file_operations use_debug_keys_fops = {
+	.open		= simple_open,
+	.read		= use_debug_keys_read,
+	.llseek		= default_llseek,
+};
+
+static int dev_class_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+
+	hci_dev_lock(hdev);
+	seq_printf(f, "0x%.2x%.2x%.2x\n", hdev->dev_class[2],
+		   hdev->dev_class[1], hdev->dev_class[0]);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int dev_class_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dev_class_show, inode->i_private);
+}
+
+static const struct file_operations dev_class_fops = {
+	.open		= dev_class_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int voice_setting_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->voice_setting;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(voice_setting_fops, voice_setting_get,
+			NULL, "0x%4.4llx\n");
+
+static int auto_accept_delay_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	hdev->auto_accept_delay = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int auto_accept_delay_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->auto_accept_delay;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
+			auto_accept_delay_set, "%llu\n");
+
+static int ssp_debug_mode_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+	struct sk_buff *skb;
+	__u8 mode;
+	int err;
+
+	if (val != 0 && val != 1)
+		return -EINVAL;
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return -ENETDOWN;
+
+	hci_req_lock(hdev);
+	mode = val;
+	skb = __hci_cmd_sync(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE, sizeof(mode),
+			     &mode, HCI_CMD_TIMEOUT);
+	hci_req_unlock(hdev);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	err = -bt_to_errno(skb->data[0]);
+	kfree_skb(skb);
+
+	if (err < 0)
+		return err;
+
+	hci_dev_lock(hdev);
+	hdev->ssp_debug_mode = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int ssp_debug_mode_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->ssp_debug_mode;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ssp_debug_mode_fops, ssp_debug_mode_get,
+			ssp_debug_mode_set, "%llu\n");
+
+static int idle_timeout_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val != 0 && (val < 500 || val > 3600000))
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->idle_timeout = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int idle_timeout_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->idle_timeout;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(idle_timeout_fops, idle_timeout_get,
+			idle_timeout_set, "%llu\n");
+
+static int sniff_min_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val == 0 || val % 2 || val > hdev->sniff_max_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->sniff_min_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int sniff_min_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->sniff_min_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(sniff_min_interval_fops, sniff_min_interval_get,
+			sniff_min_interval_set, "%llu\n");
+
+static int sniff_max_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val == 0 || val % 2 || val < hdev->sniff_min_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->sniff_max_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int sniff_max_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->sniff_max_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(sniff_max_interval_fops, sniff_max_interval_get,
+			sniff_max_interval_set, "%llu\n");
+
+static int static_address_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+
+	hci_dev_lock(hdev);
+	seq_printf(f, "%pMR\n", &hdev->static_addr);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int static_address_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, static_address_show, inode->i_private);
+}
+
+static const struct file_operations static_address_fops = {
+	.open		= static_address_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int own_address_type_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val != 0 && val != 1)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->own_addr_type = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int own_address_type_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->own_addr_type;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(own_address_type_fops, own_address_type_get,
+			own_address_type_set, "%llu\n");
+
+static int long_term_keys_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	struct list_head *p, *n;
+
+	hci_dev_lock(hdev);
+	list_for_each_safe(p, n, &hdev->link_keys) {
+		struct smp_ltk *ltk = list_entry(p, struct smp_ltk, list);
+		seq_printf(f, "%pMR (type %u) %u %u %u %.4x %*phN %*phN\\n",
+			   &ltk->bdaddr, ltk->bdaddr_type, ltk->authenticated,
+			   ltk->type, ltk->enc_size, __le16_to_cpu(ltk->ediv),
+			   8, ltk->rand, 16, ltk->val);
+	}
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int long_term_keys_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, long_term_keys_show, inode->i_private);
+}
+
+static const struct file_operations long_term_keys_fops = {
+	.open		= long_term_keys_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int conn_min_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0006 || val > 0x0c80 || val > hdev->le_conn_max_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_conn_min_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int conn_min_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_conn_min_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(conn_min_interval_fops, conn_min_interval_get,
+			conn_min_interval_set, "%llu\n");
+
+static int conn_max_interval_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x0006 || val > 0x0c80 || val < hdev->le_conn_min_interval)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_conn_max_interval = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int conn_max_interval_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_conn_max_interval;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(conn_max_interval_fops, conn_max_interval_get,
+			conn_max_interval_set, "%llu\n");
 
 /* ---- HCI requests ---- */
 
@@ -556,6 +1137,14 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
 	if (lmp_ssp_capable(hdev)) {
+		/* When SSP is available, then the host features page
+		 * should also be available as well. However some
+		 * controllers list the max_page as 0 as long as SSP
+		 * has not been enabled. To achieve proper debugging
+		 * output, force the minimum max_page to 1 at least.
+		 */
+		hdev->max_page = 0x01;
+
 		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
 			u8 mode = 0x01;
 			hci_req_add(req, HCI_OP_WRITE_SSP_MODE,
@@ -686,8 +1275,17 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_setup_link_policy(req);
 
 	if (lmp_le_capable(hdev)) {
+		/* If the controller has a public BD_ADDR, then by
+		 * default use that one. If this is a LE only
+		 * controller without one, default to the random
+		 * address.
+		 */
+		if (bacmp(&hdev->bdaddr, BDADDR_ANY))
+			hdev->own_addr_type = ADDR_LE_DEV_PUBLIC;
+		else
+			hdev->own_addr_type = ADDR_LE_DEV_RANDOM;
+
 		hci_set_le_support(req);
-		hci_update_ad(req);
 	}
 
 	/* Read features beyond page 1 if available */
@@ -721,6 +1319,14 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
+	/* The Device Under Test (DUT) mode is special and available for
+	 * all controller types. So just create it early on.
+	 */
+	if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
+				    &dut_mode_fops);
+	}
+
 	/* HCI_BREDR covers both single-mode LE, BR/EDR and dual-mode
 	 * BR/EDR/LE type controllers. AMP controllers only need the
 	 * first stage init.
@@ -736,7 +1342,71 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	return __hci_req_sync(hdev, hci_init4_req, 0, HCI_INIT_TIMEOUT);
+	err = __hci_req_sync(hdev, hci_init4_req, 0, HCI_INIT_TIMEOUT);
+	if (err < 0)
+		return err;
+
+	/* Only create debugfs entries during the initial setup
+	 * phase and not every time the controller gets powered on.
+	 */
+	if (!test_bit(HCI_SETUP, &hdev->dev_flags))
+		return 0;
+
+	debugfs_create_file("features", 0444, hdev->debugfs, hdev,
+			    &features_fops);
+	debugfs_create_u16("manufacturer", 0444, hdev->debugfs,
+			   &hdev->manufacturer);
+	debugfs_create_u8("hci_version", 0444, hdev->debugfs, &hdev->hci_ver);
+	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
+	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
+			    &blacklist_fops);
+	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
+
+	if (lmp_bredr_capable(hdev)) {
+		debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
+				    hdev, &inquiry_cache_fops);
+		debugfs_create_file("link_keys", 0400, hdev->debugfs,
+				    hdev, &link_keys_fops);
+		debugfs_create_file("use_debug_keys", 0444, hdev->debugfs,
+				    hdev, &use_debug_keys_fops);
+		debugfs_create_file("dev_class", 0444, hdev->debugfs,
+				    hdev, &dev_class_fops);
+		debugfs_create_file("voice_setting", 0444, hdev->debugfs,
+				    hdev, &voice_setting_fops);
+	}
+
+	if (lmp_ssp_capable(hdev)) {
+		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
+				    hdev, &auto_accept_delay_fops);
+		debugfs_create_file("ssp_debug_mode", 0644, hdev->debugfs,
+				    hdev, &ssp_debug_mode_fops);
+	}
+
+	if (lmp_sniff_capable(hdev)) {
+		debugfs_create_file("idle_timeout", 0644, hdev->debugfs,
+				    hdev, &idle_timeout_fops);
+		debugfs_create_file("sniff_min_interval", 0644, hdev->debugfs,
+				    hdev, &sniff_min_interval_fops);
+		debugfs_create_file("sniff_max_interval", 0644, hdev->debugfs,
+				    hdev, &sniff_max_interval_fops);
+	}
+
+	if (lmp_le_capable(hdev)) {
+		debugfs_create_u8("white_list_size", 0444, hdev->debugfs,
+				  &hdev->le_white_list_size);
+		debugfs_create_file("static_address", 0444, hdev->debugfs,
+				   hdev, &static_address_fops);
+		debugfs_create_file("own_address_type", 0644, hdev->debugfs,
+				    hdev, &own_address_type_fops);
+		debugfs_create_file("long_term_keys", 0400, hdev->debugfs,
+				    hdev, &long_term_keys_fops);
+		debugfs_create_file("conn_min_interval", 0644, hdev->debugfs,
+				    hdev, &conn_min_interval_fops);
+		debugfs_create_file("conn_max_interval", 0644, hdev->debugfs,
+				    hdev, &conn_max_interval_fops);
+	}
+
+	return 0;
 }
 
 static void hci_scan_req(struct hci_request *req, unsigned long opt)
@@ -1127,89 +1797,6 @@ done:
 	return err;
 }
 
-static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
-{
-	u8 ad_len = 0, flags = 0;
-	size_t name_len;
-
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
-		flags |= LE_AD_GENERAL;
-
-	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
-		if (lmp_le_br_capable(hdev))
-			flags |= LE_AD_SIM_LE_BREDR_CTRL;
-		if (lmp_host_le_br_capable(hdev))
-			flags |= LE_AD_SIM_LE_BREDR_HOST;
-	} else {
-		flags |= LE_AD_NO_BREDR;
-	}
-
-	if (flags) {
-		BT_DBG("adv flags 0x%02x", flags);
-
-		ptr[0] = 2;
-		ptr[1] = EIR_FLAGS;
-		ptr[2] = flags;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID) {
-		ptr[0] = 2;
-		ptr[1] = EIR_TX_POWER;
-		ptr[2] = (u8) hdev->adv_tx_power;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	name_len = strlen(hdev->dev_name);
-	if (name_len > 0) {
-		size_t max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
-
-		if (name_len > max_len) {
-			name_len = max_len;
-			ptr[1] = EIR_NAME_SHORT;
-		} else
-			ptr[1] = EIR_NAME_COMPLETE;
-
-		ptr[0] = name_len + 1;
-
-		memcpy(ptr + 2, hdev->dev_name, name_len);
-
-		ad_len += (name_len + 2);
-		ptr += (name_len + 2);
-	}
-
-	return ad_len;
-}
-
-void hci_update_ad(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_data cp;
-	u8 len;
-
-	if (!lmp_le_capable(hdev))
-		return;
-
-	memset(&cp, 0, sizeof(cp));
-
-	len = create_ad(hdev, cp.data);
-
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
-		return;
-
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
-
-	cp.length = len;
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
-}
-
 static int hci_dev_do_open(struct hci_dev *hdev)
 {
 	int ret = 0;
@@ -1367,6 +1954,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		cancel_delayed_work(&hdev->discov_off);
 		hdev->discov_timeout = 0;
 		clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
 	}
 
 	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
@@ -1789,19 +2377,12 @@ static void hci_power_off(struct work_struct *work)
 static void hci_discov_off(struct work_struct *work)
 {
 	struct hci_dev *hdev;
-	u8 scan = SCAN_PAGE;
 
 	hdev = container_of(work, struct hci_dev, discov_off.work);
 
 	BT_DBG("%s", hdev->name);
 
-	hci_dev_lock(hdev);
-
-	hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
-
-	hdev->discov_timeout = 0;
-
-	hci_dev_unlock(hdev);
+	mgmt_discoverable_timeout(hdev);
 }
 
 int hci_uuids_clear(struct hci_dev *hdev)
@@ -2124,13 +2705,15 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 	return 0;
 }
 
-struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
+					 bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *b;
 
-	list_for_each_entry(b, &hdev->blacklist, list)
-		if (bacmp(bdaddr, &b->bdaddr) == 0)
+	list_for_each_entry(b, &hdev->blacklist, list) {
+		if (!bacmp(&b->bdaddr, bdaddr) && b->bdaddr_type == type)
 			return b;
+	}
 
 	return NULL;
 }
@@ -2140,9 +2723,7 @@ int hci_blacklist_clear(struct hci_dev *hdev)
 	struct list_head *p, *n;
 
 	list_for_each_safe(p, n, &hdev->blacklist) {
-		struct bdaddr_list *b;
-
-		b = list_entry(p, struct bdaddr_list, list);
+		struct bdaddr_list *b = list_entry(p, struct bdaddr_list, list);
 
 		list_del(p);
 		kfree(b);
@@ -2155,10 +2736,10 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
-	if (bacmp(bdaddr, BDADDR_ANY) == 0)
+	if (!bacmp(bdaddr, BDADDR_ANY))
 		return -EBADF;
 
-	if (hci_blacklist_lookup(hdev, bdaddr))
+	if (hci_blacklist_lookup(hdev, bdaddr, type))
 		return -EEXIST;
 
 	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
@@ -2166,6 +2747,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 		return -ENOMEM;
 
 	bacpy(&entry->bdaddr, bdaddr);
+	entry->bdaddr_type = type;
 
 	list_add(&entry->list, &hdev->blacklist);
 
@@ -2176,10 +2758,10 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
-	if (bacmp(bdaddr, BDADDR_ANY) == 0)
+	if (!bacmp(bdaddr, BDADDR_ANY))
 		return hci_blacklist_clear(hdev);
 
-	entry = hci_blacklist_lookup(hdev, bdaddr);
+	entry = hci_blacklist_lookup(hdev, bdaddr, type);
 	if (!entry)
 		return -ENOENT;
 
@@ -2287,6 +2869,8 @@ struct hci_dev *hci_alloc_dev(void)
 
 	hdev->le_scan_interval = 0x0060;
 	hdev->le_scan_window = 0x0030;
+	hdev->le_conn_min_interval = 0x0028;
+	hdev->le_conn_max_interval = 0x0038;
 
 	mutex_init(&hdev->lock);
 	mutex_init(&hdev->req_lock);
@@ -2376,7 +2960,12 @@ int hci_register_dev(struct hci_dev *hdev)
 		goto err;
 	}
 
-	error = hci_add_sysfs(hdev);
+	if (!IS_ERR_OR_NULL(bt_debugfs))
+		hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
+
+	dev_set_name(&hdev->dev, "%s", hdev->name);
+
+	error = device_add(&hdev->dev);
 	if (error < 0)
 		goto err_wqueue;
 
@@ -2464,7 +3053,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	hci_del_sysfs(hdev);
+	device_del(&hdev->dev);
+
+	debugfs_remove_recursive(hdev->debugfs);
 
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);

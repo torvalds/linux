@@ -845,7 +845,8 @@ static const struct ieee80211_iface_limit if_limits[] = {
 };
 
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
-	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_ADHOC) },
 };
 
 static const struct ieee80211_iface_combination if_comb[] = {

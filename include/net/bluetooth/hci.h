@@ -115,6 +115,7 @@ enum {
 	HCI_PAIRABLE,
 	HCI_SERVICE_CACHE,
 	HCI_DEBUG_KEYS,
+	HCI_DUT_MODE,
 	HCI_UNREGISTER,
 	HCI_USER_CHANNEL,
 
@@ -125,6 +126,7 @@ enum {
 	HCI_ADVERTISING,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
+	HCI_LIMITED_DISCOVERABLE,
 	HCI_LINK_SECURITY,
 	HCI_PERIODIC_INQ,
 	HCI_FAST_CONNECTABLE,
@@ -823,6 +825,12 @@ struct hci_rp_read_num_supported_iac {
 
 #define HCI_OP_READ_CURRENT_IAC_LAP	0x0c39
 
+#define HCI_OP_WRITE_CURRENT_IAC_LAP	0x0c3a
+struct hci_cp_write_current_iac_lap {
+	__u8	num_iac;
+	__u8	iac_lap[6];
+} __packed;
+
 #define HCI_OP_WRITE_INQUIRY_MODE	0x0c45
 
 #define HCI_MAX_EIR_LENGTH		240
@@ -1036,6 +1044,10 @@ struct hci_rp_write_remote_amp_assoc {
 	__u8     phy_handle;
 } __packed;
 
+#define HCI_OP_ENABLE_DUT_MODE		0x1803
+
+#define HCI_OP_WRITE_SSP_DEBUG_MODE	0x1804
+
 #define HCI_OP_LE_SET_EVENT_MASK	0x2001
 struct hci_cp_le_set_event_mask {
 	__u8     mask[8];
@@ -1055,11 +1067,6 @@ struct hci_rp_le_read_local_features {
 } __packed;
 
 #define HCI_OP_LE_SET_RANDOM_ADDR	0x2005
-
-#define LE_ADV_IND			0x00
-#define LE_ADV_DIRECT_IND		0x01
-#define LE_ADV_SCAN_IND			0x02
-#define LE_ADV_NONCONN_IND		0x03
 
 #define HCI_OP_LE_SET_ADV_PARAM		0x2006
 struct hci_cp_le_set_adv_param {
@@ -1083,6 +1090,12 @@ struct hci_rp_le_read_adv_tx_power {
 
 #define HCI_OP_LE_SET_ADV_DATA		0x2008
 struct hci_cp_le_set_adv_data {
+	__u8	length;
+	__u8	data[HCI_MAX_AD_LENGTH];
+} __packed;
+
+#define HCI_OP_LE_SET_SCAN_RSP_DATA	0x2009
+struct hci_cp_le_set_scan_rsp_data {
 	__u8	length;
 	__u8	data[HCI_MAX_AD_LENGTH];
 } __packed;
@@ -1567,11 +1580,11 @@ struct hci_ev_le_ltk_req {
 } __packed;
 
 /* Advertising report event types */
-#define ADV_IND		0x00
-#define ADV_DIRECT_IND	0x01
-#define ADV_SCAN_IND	0x02
-#define ADV_NONCONN_IND	0x03
-#define ADV_SCAN_RSP	0x04
+#define LE_ADV_IND		0x00
+#define LE_ADV_DIRECT_IND	0x01
+#define LE_ADV_SCAN_IND		0x02
+#define LE_ADV_NONCONN_IND	0x03
+#define LE_ADV_SCAN_RSP		0x04
 
 #define ADDR_LE_DEV_PUBLIC	0x00
 #define ADDR_LE_DEV_RANDOM	0x01
@@ -1778,7 +1791,5 @@ struct hci_inquiry_req {
 	__u8  num_rsp;
 };
 #define IREQ_CACHE_FLUSH 0x0001
-
-extern bool enable_hs;
 
 #endif /* __HCI_H */

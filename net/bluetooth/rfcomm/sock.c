@@ -1051,14 +1051,14 @@ int __init rfcomm_init_sockets(void)
 		goto error;
 	}
 
-	if (bt_debugfs) {
-		rfcomm_sock_debugfs = debugfs_create_file("rfcomm", 0444,
-				bt_debugfs, NULL, &rfcomm_sock_debugfs_fops);
-		if (!rfcomm_sock_debugfs)
-			BT_ERR("Failed to create RFCOMM debug file");
-	}
-
 	BT_INFO("RFCOMM socket layer initialized");
+
+	if (IS_ERR_OR_NULL(bt_debugfs))
+		return 0;
+
+	rfcomm_sock_debugfs = debugfs_create_file("rfcomm", 0444,
+						  bt_debugfs, NULL,
+						  &rfcomm_sock_debugfs_fops);
 
 	return 0;
 

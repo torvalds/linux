@@ -282,6 +282,7 @@ struct bt_skb_cb {
 	__u8 incoming;
 	__u16 expect;
 	__u8 force_active;
+	struct l2cap_chan *chan;
 	struct l2cap_ctrl control;
 	struct hci_req_ctrl req;
 	bdaddr_t bdaddr;

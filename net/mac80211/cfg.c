@@ -1059,6 +1059,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	/* abort any running channel switch */
 	sdata->vif.csa_active = false;
 	cancel_work_sync(&sdata->csa_finalize_work);
+	cancel_work_sync(&sdata->u.ap.request_smps_work);
 
 	/* turn off carrier for this interface and dependent VLANs */
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
@@ -1342,8 +1343,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 				sta->plink_state = params->plink_state;
 
 				ieee80211_mps_sta_status_update(sta);
-				changed |=
-				      ieee80211_mps_local_status_update(sdata);
+				changed |= ieee80211_mps_set_sta_local_pm(sta,
+						NL80211_MESH_POWER_UNKNOWN);
 				break;
 			default:
 				/*  nothing  */
@@ -1552,6 +1553,20 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		rate_control_rate_init(sta);
 
 	mutex_unlock(&local->sta_mtx);
+
+	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
+	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
+	    sta->known_smps_mode != sta->sdata->bss->req_smps &&
+	    test_sta_flag(sta, WLAN_STA_AUTHORIZED) &&
+	    sta_info_tx_streams(sta) != 1) {
+		ht_dbg(sta->sdata,
+		       "%pM just authorized and MIMO capable - update SMPS\n",
+		       sta->sta.addr);
+		ieee80211_send_smps_action(sta->sdata,
+			sta->sdata->bss->req_smps,
+			sta->sta.addr,
+			sta->sdata->vif.bss_conf.bssid);
+	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
@@ -2337,14 +2352,101 @@ static int ieee80211_testmode_dump(struct wiphy *wiphy,
 }
 #endif
 
-int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
-			     enum ieee80211_smps_mode smps_mode)
+int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
+				enum ieee80211_smps_mode smps_mode)
+{
+	struct sta_info *sta;
+	enum ieee80211_smps_mode old_req;
+	int i;
+
+	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP))
+		return -EINVAL;
+
+	if (sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+		return 0;
+
+	old_req = sdata->u.ap.req_smps;
+	sdata->u.ap.req_smps = smps_mode;
+
+	/* AUTOMATIC doesn't mean much for AP - don't allow it */
+	if (old_req == smps_mode ||
+	    smps_mode == IEEE80211_SMPS_AUTOMATIC)
+		return 0;
+
+	 /* If no associated stations, there's no need to do anything */
+	if (!atomic_read(&sdata->u.ap.num_mcast_sta)) {
+		sdata->smps_mode = smps_mode;
+		ieee80211_queue_work(&sdata->local->hw, &sdata->recalc_smps);
+		return 0;
+	}
+
+	ht_dbg(sdata,
+	       "SMSP %d requested in AP mode, sending Action frame to %d stations\n",
+	       smps_mode, atomic_read(&sdata->u.ap.num_mcast_sta));
+
+	mutex_lock(&sdata->local->sta_mtx);
+	for (i = 0; i < STA_HASH_SIZE; i++) {
+		for (sta = rcu_dereference_protected(sdata->local->sta_hash[i],
+				lockdep_is_held(&sdata->local->sta_mtx));
+		     sta;
+		     sta = rcu_dereference_protected(sta->hnext,
+				lockdep_is_held(&sdata->local->sta_mtx))) {
+			/*
+			 * Only stations associated to our AP and
+			 * associated VLANs
+			 */
+			if (sta->sdata->bss != &sdata->u.ap)
+				continue;
+
+			/* This station doesn't support MIMO - skip it */
+			if (sta_info_tx_streams(sta) == 1)
+				continue;
+
+			/*
+			 * Don't wake up a STA just to send the action frame
+			 * unless we are getting more restrictive.
+			 */
+			if (test_sta_flag(sta, WLAN_STA_PS_STA) &&
+			    !ieee80211_smps_is_restrictive(sta->known_smps_mode,
+							   smps_mode)) {
+				ht_dbg(sdata,
+				       "Won't send SMPS to sleeping STA %pM\n",
+				       sta->sta.addr);
+				continue;
+			}
+
+			/*
+			 * If the STA is not authorized, wait until it gets
+			 * authorized and the action frame will be sent then.
+			 */
+			if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+				continue;
+
+			ht_dbg(sdata, "Sending SMPS to %pM\n", sta->sta.addr);
+			ieee80211_send_smps_action(sdata, smps_mode,
+						   sta->sta.addr,
+						   sdata->vif.bss_conf.bssid);
+		}
+	}
+	mutex_unlock(&sdata->local->sta_mtx);
+
+	sdata->smps_mode = smps_mode;
+	ieee80211_queue_work(&sdata->local->hw, &sdata->recalc_smps);
+
+	return 0;
+}
+
+int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
+				 enum ieee80211_smps_mode smps_mode)
 {
 	const u8 *ap;
 	enum ieee80211_smps_mode old_req;
 	int err;
 
 	lockdep_assert_held(&sdata->wdev.mtx);
+
+	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return -EINVAL;
 
 	old_req = sdata->u.mgd.req_smps;
 	sdata->u.mgd.req_smps = smps_mode;
@@ -2402,7 +2504,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	/* no change, but if automatic follow powersave */
 	sdata_lock(sdata);
-	__ieee80211_request_smps(sdata, sdata->u.mgd.req_smps);
+	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.req_smps);
 	sdata_unlock(sdata);
 
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
@@ -2860,7 +2962,7 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     csa_finalize_work);
 	struct ieee80211_local *local = sdata->local;
-	int err, changed;
+	int err, changed = 0;
 
 	if (!ieee80211_sdata_running(sdata))
 		return;
@@ -2892,6 +2994,13 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	case NL80211_IFTYPE_ADHOC:
 		ieee80211_ibss_finish_csa(sdata);
 		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		err = ieee80211_mesh_finish_csa(sdata);
+		if (err < 0)
+			return;
+		break;
+#endif
 	default:
 		WARN_ON(1);
 		return;
@@ -2912,6 +3021,7 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_chanctx *chanctx;
+	struct ieee80211_if_mesh __maybe_unused *ifmsh;
 	int err, num_chanctx;
 
 	if (!list_empty(&local->roc_list) || local->scanning)
@@ -2995,6 +3105,26 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		if (err < 0)
 			return err;
 		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		ifmsh = &sdata->u.mesh;
+
+		if (!ifmsh->mesh_id)
+			return -EINVAL;
+
+		if (params->chandef.width != sdata->vif.bss_conf.chandef.width)
+			return -EINVAL;
+
+		/* changes into another band are not supported */
+		if (sdata->vif.bss_conf.chandef.chan->band !=
+		    params->chandef.chan->band)
+			return -EINVAL;
+
+		err = ieee80211_mesh_csa_beacon(sdata, params, true);
+		if (err < 0)
+			return err;
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -1499,12 +1499,11 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));
 
-	if (WARN_ON(test_and_set_bit(STATUS_HCMD_ACTIVE,
-				     &trans_pcie->status))) {
-		IWL_ERR(trans, "Command %s: a command is already active!\n",
-			get_cmd_string(trans_pcie, cmd->id));
+	if (WARN(test_and_set_bit(STATUS_HCMD_ACTIVE,
+				  &trans_pcie->status),
+		 "Command %s: a command is already active!\n",
+		 get_cmd_string(trans_pcie, cmd->id)))
 		return -EIO;
-	}
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 		       get_cmd_string(trans_pcie, cmd->id));

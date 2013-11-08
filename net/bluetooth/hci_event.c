@@ -195,6 +195,11 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 
 	memset(hdev->adv_data, 0, sizeof(hdev->adv_data));
 	hdev->adv_data_len = 0;
+
+	memset(hdev->scan_rsp_data, 0, sizeof(hdev->scan_rsp_data));
+	hdev->scan_rsp_data_len = 0;
+
+	hdev->ssp_debug_mode = 0;
 }
 
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
@@ -310,11 +315,6 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		set_bit(HCI_ISCAN, &hdev->flags);
 		if (!old_iscan)
 			mgmt_discoverable(hdev, 1);
-		if (hdev->discov_timeout > 0) {
-			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
-			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
-					   to);
-		}
 	} else if (old_iscan)
 		mgmt_discoverable(hdev, 0);
 
@@ -470,14 +470,13 @@ static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 	if (rp->status)
 		return;
 
-	hdev->hci_ver = rp->hci_ver;
-	hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
-	hdev->lmp_ver = rp->lmp_ver;
-	hdev->manufacturer = __le16_to_cpu(rp->manufacturer);
-	hdev->lmp_subver = __le16_to_cpu(rp->lmp_subver);
-
-	BT_DBG("%s manufacturer 0x%4.4x hci ver %d:%d", hdev->name,
-	       hdev->manufacturer, hdev->hci_ver, hdev->hci_rev);
+	if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+		hdev->hci_ver = rp->hci_ver;
+		hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
+		hdev->lmp_ver = rp->lmp_ver;
+		hdev->manufacturer = __le16_to_cpu(rp->manufacturer);
+		hdev->lmp_subver = __le16_to_cpu(rp->lmp_subver);
+	}
 }
 
 static void hci_cc_read_local_commands(struct hci_dev *hdev,
@@ -557,7 +556,8 @@ static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
 	if (rp->status)
 		return;
 
-	hdev->max_page = rp->max_page;
+	if (hdev->max_page < rp->max_page)
+		hdev->max_page = rp->max_page;
 
 	if (rp->page < HCI_MAX_PAGES)
 		memcpy(hdev->features[rp->page], rp->features, 8);
@@ -937,14 +937,6 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 			set_bit(HCI_ADVERTISING, &hdev->dev_flags);
 		else
 			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
-	}
-
-	if (*sent && !test_bit(HCI_INIT, &hdev->flags)) {
-		struct hci_request req;
-
-		hci_req_init(&req, hdev);
-		hci_update_ad(&req);
-		hci_req_run(&req, NULL);
 	}
 
 	hci_dev_unlock(hdev);
@@ -1702,7 +1694,7 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 				      &flags);
 
 	if ((mask & HCI_LM_ACCEPT) &&
-	    !hci_blacklist_lookup(hdev, &ev->bdaddr)) {
+	    !hci_blacklist_lookup(hdev, &ev->bdaddr, BDADDR_BREDR)) {
 		/* Connection accepted */
 		struct inquiry_entry *ie;
 		struct hci_conn *conn;
@@ -2559,7 +2551,6 @@ static void hci_mode_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
 		conn->mode = ev->mode;
-		conn->interval = __le16_to_cpu(ev->interval);
 
 		if (!test_and_clear_bit(HCI_CONN_MODE_CHANGE_PEND,
 					&conn->flags)) {
@@ -2941,6 +2932,23 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static inline size_t eir_get_length(u8 *eir, size_t eir_len)
+{
+	size_t parsed = 0;
+
+	while (parsed < eir_len) {
+		u8 field_len = eir[0];
+
+		if (field_len == 0)
+			return parsed;
+
+		parsed += field_len + 1;
+		eir += field_len + 1;
+	}
+
+	return eir_len;
+}
+
 static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 					    struct sk_buff *skb)
 {
@@ -3181,7 +3189,8 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 
 		if (hdev->auto_accept_delay > 0) {
 			int delay = msecs_to_jiffies(hdev->auto_accept_delay);
-			mod_timer(&conn->auto_accept_timer, jiffies + delay);
+			queue_delayed_work(conn->hdev->workqueue,
+					   &conn->auto_accept_work, delay);
 			goto unlock;
 		}
 

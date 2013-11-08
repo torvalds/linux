@@ -697,6 +697,18 @@ struct ieee80211_sec_chan_offs_ie {
 } __packed;
 
 /**
+ * struct ieee80211_mesh_chansw_params_ie - mesh channel switch parameters IE
+ *
+ * This structure represents the "Mesh Channel Switch Paramters element"
+ */
+struct ieee80211_mesh_chansw_params_ie {
+	u8 mesh_ttl;
+	u8 mesh_flags;
+	__le16 mesh_reason;
+	__le16 mesh_pre_value;
+} __packed;
+
+/**
  * struct ieee80211_wide_bw_chansw_ie - wide bandwidth channel switch IE
  */
 struct ieee80211_wide_bw_chansw_ie {
@@ -749,6 +761,14 @@ enum mesh_config_capab_flags {
 	IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING		= 0x20,
 	IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL	= 0x40,
 };
+
+/**
+ * mesh channel switch parameters element's flag indicator
+ *
+ */
+#define WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT BIT(0)
+#define WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR BIT(1)
+#define WLAN_EID_CHAN_SWITCH_PARAM_REASON BIT(2)
 
 /**
  * struct ieee80211_rann_ie

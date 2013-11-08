@@ -25,6 +25,7 @@
 /* Bluetooth address family and sockets. */
 
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <asm/ioctls.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -708,11 +709,16 @@ static struct net_proto_family bt_sock_family_ops = {
 	.create	= bt_sock_create,
 };
 
+struct dentry *bt_debugfs;
+EXPORT_SYMBOL_GPL(bt_debugfs);
+
 static int __init bt_init(void)
 {
 	int err;
 
 	BT_INFO("Core ver %s", VERSION);
+
+	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 
 	err = bt_sysfs_init();
 	if (err < 0)
@@ -754,7 +760,6 @@ error:
 
 static void __exit bt_exit(void)
 {
-
 	sco_exit();
 
 	l2cap_exit();
@@ -764,6 +769,8 @@ static void __exit bt_exit(void)
 	sock_unregister(PF_BLUETOOTH);
 
 	bt_sysfs_cleanup();
+
+	debugfs_remove_recursive(bt_debugfs);
 }
 
 subsys_initcall(bt_init);

@@ -707,11 +707,13 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 			if (c->dfs_state != NL80211_DFS_UNAVAILABLE)
 				continue;
 
-			timeout = c->dfs_state_entered +
-				  IEEE80211_DFS_MIN_NOP_TIME_MS;
+			timeout = c->dfs_state_entered + msecs_to_jiffies(
+					IEEE80211_DFS_MIN_NOP_TIME_MS);
 
 			if (time_after_eq(jiffies, timeout)) {
 				c->dfs_state = NL80211_DFS_USABLE;
+				c->dfs_state_entered = jiffies;
+
 				cfg80211_chandef_create(&chandef, c,
 							NL80211_CHAN_NO_HT);
 
