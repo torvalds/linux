@@ -73,12 +73,12 @@ struct omap_hcd {
 
 static inline void ehci_write(void __iomem *base, u32 reg, u32 val)
 {
-	__raw_writel(val, base + reg);
+	writel_relaxed(val, base + reg);
 }
 
 static inline u32 ehci_read(void __iomem *base, u32 reg)
 {
-	return __raw_readl(base + reg);
+	return readl_relaxed(base + reg);
 }
 
 /* configure so an HC device and id are always provided */
