@@ -1447,7 +1447,7 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 	if (!work)
 		return uprobe_warn(t, "dup xol area");
 
-	utask->vaddr = area->vaddr;
+	t->utask->vaddr = area->vaddr;
 	init_task_work(work, dup_xol_work);
 	task_work_add(t, work, true);
 }
