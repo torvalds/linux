@@ -341,6 +341,8 @@ static struct wm_adsp_region const *wm_adsp_find_region(struct wm_adsp *dsp,
 static unsigned int wm_adsp_region_to_reg(struct wm_adsp_region const *region,
 					  unsigned int offset)
 {
+	if (WARN_ON(!region))
+		return offset;
 	switch (region->type) {
 	case WMFW_ADSP1_PM:
 		return region->base + (offset * 3);
@@ -353,7 +355,7 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp_region const *region,
 	case WMFW_ADSP1_ZM:
 		return region->base + (offset * 2);
 	default:
-		WARN_ON(NULL != "Unknown memory region type");
+		WARN(1, "Unknown memory region type");
 		return offset;
 	}
 }
@@ -605,7 +607,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		break;
 
 	default:
-		BUG_ON(NULL == "Unknown DSP type");
+		WARN(1, "Unknown DSP type");
 		goto out_fw;
 	}
 
@@ -645,27 +647,22 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 			reg = offset;
 			break;
 		case WMFW_ADSP1_PM:
-			BUG_ON(!mem);
 			region_name = "PM";
 			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP1_DM:
-			BUG_ON(!mem);
 			region_name = "DM";
 			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP2_XM:
-			BUG_ON(!mem);
 			region_name = "XM";
 			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP2_YM:
-			BUG_ON(!mem);
 			region_name = "YM";
 			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
 		case WMFW_ADSP1_ZM:
-			BUG_ON(!mem);
 			region_name = "ZM";
 			reg = wm_adsp_region_to_reg(mem, offset);
 			break;
@@ -905,10 +902,8 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 		break;
 	}
 
-	if (mem == NULL) {
-		BUG_ON(mem != NULL);
+	if (WARN_ON(!mem))
 		return -EINVAL;
-	}
 
 	switch (dsp->type) {
 	case WMFW_ADSP1:
@@ -1002,7 +997,7 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 		break;
 
 	default:
-		BUG_ON(NULL == "Unknown DSP type");
+		WARN(1, "Unknown DSP type");
 		return -EINVAL;
 	}
 
@@ -1066,6 +1061,7 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			if (i + 1 < algs) {
 				region->len = be32_to_cpu(adsp1_alg[i + 1].dm);
 				region->len -= be32_to_cpu(adsp1_alg[i].dm);
+				region->len *= 4;
 				wm_adsp_create_control(dsp, region);
 			} else {
 				adsp_warn(dsp, "Missing length info for region DM with ID %x\n",
@@ -1083,6 +1079,7 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			if (i + 1 < algs) {
 				region->len = be32_to_cpu(adsp1_alg[i + 1].zm);
 				region->len -= be32_to_cpu(adsp1_alg[i].zm);
+				region->len *= 4;
 				wm_adsp_create_control(dsp, region);
 			} else {
 				adsp_warn(dsp, "Missing length info for region ZM with ID %x\n",
@@ -1112,6 +1109,7 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			if (i + 1 < algs) {
 				region->len = be32_to_cpu(adsp2_alg[i + 1].xm);
 				region->len -= be32_to_cpu(adsp2_alg[i].xm);
+				region->len *= 4;
 				wm_adsp_create_control(dsp, region);
 			} else {
 				adsp_warn(dsp, "Missing length info for region XM with ID %x\n",
@@ -1129,6 +1127,7 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			if (i + 1 < algs) {
 				region->len = be32_to_cpu(adsp2_alg[i + 1].ym);
 				region->len -= be32_to_cpu(adsp2_alg[i].ym);
+				region->len *= 4;
 				wm_adsp_create_control(dsp, region);
 			} else {
 				adsp_warn(dsp, "Missing length info for region YM with ID %x\n",
@@ -1146,6 +1145,7 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			if (i + 1 < algs) {
 				region->len = be32_to_cpu(adsp2_alg[i + 1].zm);
 				region->len -= be32_to_cpu(adsp2_alg[i].zm);
+				region->len *= 4;
 				wm_adsp_create_control(dsp, region);
 			} else {
 				adsp_warn(dsp, "Missing length info for region ZM with ID %x\n",

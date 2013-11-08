@@ -1272,8 +1272,8 @@ struct radeon_blacklist_clocks
 struct radeon_clock_and_voltage_limits {
 	u32 sclk;
 	u32 mclk;
-	u32 vddc;
-	u32 vddci;
+	u16 vddc;
+	u16 vddci;
 };
 
 struct radeon_clock_array {

@@ -372,7 +372,8 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 	offset = 0;
 	dsp = inforec->dsp_target;
 	wm0010->boot_failed = false;
-	BUG_ON(!list_empty(&xfer_list));
+	if (WARN_ON(!list_empty(&xfer_list)))
+		return -EINVAL;
 	init_completion(&done);
 
 	/* First record should be INFO */
