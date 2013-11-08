@@ -22,6 +22,6 @@ config BCM4329_FW_PATH
 config BCM4329_NVRAM_PATH
 	depends on BCM4329
 	string "NVRAM path"
-	default "/system/etc/firmware/nvram_B23.txt"
+	default "/proc/calibration"
 	---help---
 	  Path to the calibration file.

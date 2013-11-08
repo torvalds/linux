@@ -41,8 +41,6 @@
 #include <dhd_bus.h>
 #include <dhd_dbg.h>
 
-uint8 wlan_mac_addr[ETHER_ADDR_LEN];
-
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
@@ -517,7 +515,6 @@ dhd_prot_init(dhd_pub_t *dhd)
 		return ret;
 	}
 	memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
-        memcpy(wlan_mac_addr, buf, ETHER_ADDR_LEN);
 
 	dhd_os_proto_unblock(dhd);
 

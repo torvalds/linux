@@ -1,0 +1,81 @@
+config ATH9K_HW
+	tristate
+config ATH9K_COMMON
+	tristate
+
+config ATH9K
+	tristate "Atheros 802.11n wireless cards support"
+	depends on MAC80211
+	select ATH9K_HW
+	select MAC80211_LEDS
+	select LEDS_CLASS
+	select NEW_LEDS
+	select ATH9K_COMMON
+	---help---
+	  This module adds support for wireless adapters based on
+	  Atheros IEEE 802.11n AR5008, AR9001 and AR9002 family
+	  of chipsets. For a specific list of supported external
+	  cards, laptops that already ship with these cards and
+	  APs that come with these cards refer to to ath9k wiki
+	  products page:
+
+	  http://wireless.kernel.org/en/users/Drivers/ath9k/products
+
+	  If you choose to build a module, it'll be called ath9k.
+
+config ATH9K_PCI
+	bool "Atheros ath9k PCI/PCIe bus support"
+	depends on ATH9K && PCI
+	---help---
+	  This option enables the PCI bus support in ath9k.
+
+	  Say Y, if you have a compatible PCI/PCIe wireless card.
+
+config ATH9K_AHB
+	bool "Atheros ath9k AHB bus support"
+	depends on ATH9K
+	default n
+	---help---
+	  This option enables the AHB bus support in ath9k.
+
+	  Say Y, if you have a SoC with a compatible built-in
+	  wireless MAC. Say N if unsure.
+
+config ATH9K_DEBUGFS
+	bool "Atheros ath9k debugging"
+	depends on ATH9K && DEBUG_FS
+	---help---
+	  Say Y, if you need access to ath9k's statistics for
+	  interrupts, rate control, etc.
+
+	  Also required for changing debug message flags at run time.
+
+config ATH9K_RATE_CONTROL
+	bool "Atheros ath9k rate control"
+	depends on ATH9K
+	default y
+	---help---
+	  Say Y, if you want to use the ath9k specific rate control
+	  module instead of minstrel_ht.
+
+config ATH9K_HTC
+       tristate "Atheros HTC based wireless cards support"
+       depends on USB && MAC80211
+       select ATH9K_HW
+       select MAC80211_LEDS
+       select LEDS_CLASS
+       select NEW_LEDS
+       select ATH9K_COMMON
+       ---help---
+	 Support for Atheros HTC based cards.
+	 Chipsets supported: AR9271
+
+	 For more information: http://wireless.kernel.org/en/users/Drivers/ath9k_htc
+
+	 The built module will be ath9k_htc.
+
+config ATH9K_HTC_DEBUGFS
+	bool "Atheros ath9k_htc debugging"
+	depends on ATH9K_HTC && DEBUG_FS
+	---help---
+	  Say Y, if you need access to ath9k_htc's statistics.

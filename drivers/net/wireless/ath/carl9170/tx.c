@@ -1245,6 +1245,7 @@ static bool carl9170_tx_ps_drop(struct ar9170 *ar, struct sk_buff *skb)
 			atomic_dec(&ar->tx_ampdu_upload);
 
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+		carl9170_release_dev_space(ar, skb);
 		carl9170_tx_status(ar, skb, false);
 		return true;
 	}

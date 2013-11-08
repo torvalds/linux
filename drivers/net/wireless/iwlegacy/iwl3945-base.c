@@ -2763,7 +2763,7 @@ static void iwl3945_bg_alive_start(struct work_struct *data)
 	    container_of(data, struct iwl_priv, alive_start.work);
 
 	mutex_lock(&priv->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status) || priv->txq == NULL)
 		goto out;
 
 	iwl3945_alive_start(priv);
@@ -2910,14 +2910,13 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		IWL_WARN(priv, "Invalid scan band\n");
 		return -EIO;
 	}
-
 	/*
-	 * If active scaning is requested but a certain channel
-	 * is marked passive, we can do active scanning if we
-	 * detect transmissions.
+	 * If active scaning is requested but a certain channel is marked
+	 * passive, we can do active scanning if we detect transmissions. For
+	 * passive only scanning disable switching to active on any channel.
 	 */
 	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
-					IWL_GOOD_CRC_TH_DISABLED;
+					IWL_GOOD_CRC_TH_NEVER;
 
 	if (!priv->is_internal_short_scan) {
 		scan->tx_cmd.len = cpu_to_le16(
