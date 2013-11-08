@@ -53,7 +53,7 @@ static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info);
 static void ath10k_pci_stop_ce(struct ath10k *ar);
 static void ath10k_pci_device_reset(struct ath10k *ar);
-static int ath10k_pci_reset_target(struct ath10k *ar);
+static int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 static int ath10k_pci_start_intr(struct ath10k *ar);
 static void ath10k_pci_stop_intr(struct ath10k *ar);
 
@@ -1857,7 +1857,7 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	 */
 	ath10k_pci_device_reset(ar);
 
-	ret = ath10k_pci_reset_target(ar);
+	ret = ath10k_pci_wait_for_target_init(ar);
 	if (ret)
 		goto err_irq;
 
@@ -2257,7 +2257,7 @@ static void ath10k_pci_stop_intr(struct ath10k *ar)
 		pci_disable_msi(ar_pci->pdev);
 }
 
-static int ath10k_pci_reset_target(struct ath10k *ar)
+static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int wait_limit = 300; /* 3 sec */
