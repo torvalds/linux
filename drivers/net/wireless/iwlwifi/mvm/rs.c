@@ -298,7 +298,7 @@ static void rs_program_fix_rate(struct iwl_mvm *mvm,
 
 	if (lq_sta->dbg_fixed_rate) {
 		rs_fill_link_cmd(NULL, NULL, lq_sta, lq_sta->dbg_fixed_rate);
-		iwl_mvm_send_lq_cmd(lq_sta->drv, &lq_sta->lq, CMD_ASYNC, false);
+		iwl_mvm_send_lq_cmd(lq_sta->drv, &lq_sta->lq, false);
 	}
 }
 #endif
@@ -855,7 +855,7 @@ static void rs_tx_status(void *mvm_r, struct ieee80211_supported_band *sband,
 		lq_sta->missed_rate_counter++;
 		if (lq_sta->missed_rate_counter > IWL_MISSED_RATE_MAX) {
 			lq_sta->missed_rate_counter = 0;
-			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
+			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
 		}
 		/* Regardless, ignore this status info for outdated rate */
 		return;
@@ -1667,7 +1667,7 @@ static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 	/* Update uCode's rate table. */
 	rate = rate_n_flags_from_tbl(mvm, tbl, index);
 	rs_fill_link_cmd(mvm, sta, lq_sta, rate);
-	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
+	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
 }
 
 static u8 rs_get_tid(struct iwl_lq_sta *lq_data,
@@ -2064,7 +2064,7 @@ lq_update:
 				       "Switch current  mcs: %X index: %d\n",
 				       tbl->current_rate, index);
 			rs_fill_link_cmd(mvm, sta, lq_sta, tbl->current_rate);
-			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
+			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
 		} else {
 			done_search = 1;
 		}
@@ -2168,7 +2168,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, NULL, lq_sta, rate);
 	/* TODO restore station should remember the lq cmd */
-	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_SYNC, true);
+	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, true);
 }
 
 static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
@@ -2841,5 +2841,5 @@ int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			lq->flags &= ~LQ_FLAG_SET_STA_TLC_RTS_MSK;
 	}
 
-	return iwl_mvm_send_lq_cmd(mvm, lq, CMD_ASYNC, false);
+	return iwl_mvm_send_lq_cmd(mvm, lq, false);
 }
