@@ -131,13 +131,13 @@ struct omap_rng_dev {
 
 static inline u32 omap_rng_read(struct omap_rng_dev *priv, u16 reg)
 {
-	return __raw_readl(priv->base + priv->pdata->regs[reg]);
+	return readl_relaxed(priv->base + priv->pdata->regs[reg]);
 }
 
 static inline void omap_rng_write(struct omap_rng_dev *priv, u16 reg,
 				      u32 val)
 {
-	__raw_writel(val, priv->base + priv->pdata->regs[reg]);
+	writel_relaxed(val, priv->base + priv->pdata->regs[reg]);
 }
 
 static int omap_rng_data_present(struct hwrng *rng, int wait)
