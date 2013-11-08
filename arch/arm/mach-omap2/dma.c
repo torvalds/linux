@@ -35,80 +35,77 @@
 #include "omap_hwmod.h"
 #include "omap_device.h"
 
-#define OMAP2_DMA_STRIDE	0x60
-
 static u32 errata;
 
 static struct omap_dma_dev_attr *d;
 
 static enum omap_reg_offsets dma_common_ch_end;
 
-static u16 reg_map[] = {
-	[REVISION]		= 0x00,
-	[GCR]			= 0x78,
-	[IRQSTATUS_L0]		= 0x08,
-	[IRQSTATUS_L1]		= 0x0c,
-	[IRQSTATUS_L2]		= 0x10,
-	[IRQSTATUS_L3]		= 0x14,
-	[IRQENABLE_L0]		= 0x18,
-	[IRQENABLE_L1]		= 0x1c,
-	[IRQENABLE_L2]		= 0x20,
-	[IRQENABLE_L3]		= 0x24,
-	[SYSSTATUS]		= 0x28,
-	[OCP_SYSCONFIG]		= 0x2c,
-	[CAPS_0]		= 0x64,
-	[CAPS_2]		= 0x6c,
-	[CAPS_3]		= 0x70,
-	[CAPS_4]		= 0x74,
+static const struct omap_dma_reg reg_map[] = {
+	[REVISION]	= { 0x0000, 0x00, OMAP_DMA_REG_32BIT },
+	[GCR]		= { 0x0078, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQSTATUS_L0]	= { 0x0008, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQSTATUS_L1]	= { 0x000c, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQSTATUS_L2]	= { 0x0010, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQSTATUS_L3]	= { 0x0014, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQENABLE_L0]	= { 0x0018, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQENABLE_L1]	= { 0x001c, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQENABLE_L2]	= { 0x0020, 0x00, OMAP_DMA_REG_32BIT },
+	[IRQENABLE_L3]	= { 0x0024, 0x00, OMAP_DMA_REG_32BIT },
+	[SYSSTATUS]	= { 0x0028, 0x00, OMAP_DMA_REG_32BIT },
+	[OCP_SYSCONFIG]	= { 0x002c, 0x00, OMAP_DMA_REG_32BIT },
+	[CAPS_0]	= { 0x0064, 0x00, OMAP_DMA_REG_32BIT },
+	[CAPS_2]	= { 0x006c, 0x00, OMAP_DMA_REG_32BIT },
+	[CAPS_3]	= { 0x0070, 0x00, OMAP_DMA_REG_32BIT },
+	[CAPS_4]	= { 0x0074, 0x00, OMAP_DMA_REG_32BIT },
 
 	/* Common register offsets */
-	[CCR]			= 0x80,
-	[CLNK_CTRL]		= 0x84,
-	[CICR]			= 0x88,
-	[CSR]			= 0x8c,
-	[CSDP]			= 0x90,
-	[CEN]			= 0x94,
-	[CFN]			= 0x98,
-	[CSEI]			= 0xa4,
-	[CSFI]			= 0xa8,
-	[CDEI]			= 0xac,
-	[CDFI]			= 0xb0,
-	[CSAC]			= 0xb4,
-	[CDAC]			= 0xb8,
+	[CCR]		= { 0x0080, 0x60, OMAP_DMA_REG_32BIT },
+	[CLNK_CTRL]	= { 0x0084, 0x60, OMAP_DMA_REG_32BIT },
+	[CICR]		= { 0x0088, 0x60, OMAP_DMA_REG_32BIT },
+	[CSR]		= { 0x008c, 0x60, OMAP_DMA_REG_32BIT },
+	[CSDP]		= { 0x0090, 0x60, OMAP_DMA_REG_32BIT },
+	[CEN]		= { 0x0094, 0x60, OMAP_DMA_REG_32BIT },
+	[CFN]		= { 0x0098, 0x60, OMAP_DMA_REG_32BIT },
+	[CSEI]		= { 0x00a4, 0x60, OMAP_DMA_REG_32BIT },
+	[CSFI]		= { 0x00a8, 0x60, OMAP_DMA_REG_32BIT },
+	[CDEI]		= { 0x00ac, 0x60, OMAP_DMA_REG_32BIT },
+	[CDFI]		= { 0x00b0, 0x60, OMAP_DMA_REG_32BIT },
+	[CSAC]		= { 0x00b4, 0x60, OMAP_DMA_REG_32BIT },
+	[CDAC]		= { 0x00b8, 0x60, OMAP_DMA_REG_32BIT },
 
 	/* Channel specific register offsets */
-	[CSSA]			= 0x9c,
-	[CDSA]			= 0xa0,
-	[CCEN]			= 0xbc,
-	[CCFN]			= 0xc0,
-	[COLOR]			= 0xc4,
+	[CSSA]		= { 0x009c, 0x60, OMAP_DMA_REG_32BIT },
+	[CDSA]		= { 0x00a0, 0x60, OMAP_DMA_REG_32BIT },
+	[CCEN]		= { 0x00bc, 0x60, OMAP_DMA_REG_32BIT },
+	[CCFN]		= { 0x00c0, 0x60, OMAP_DMA_REG_32BIT },
+	[COLOR]		= { 0x00c4, 0x60, OMAP_DMA_REG_32BIT },
 
 	/* OMAP4 specific registers */
-	[CDP]			= 0xd0,
-	[CNDP]			= 0xd4,
-	[CCDN]			= 0xd8,
+	[CDP]		= { 0x00d0, 0x60, OMAP_DMA_REG_32BIT },
+	[CNDP]		= { 0x00d4, 0x60, OMAP_DMA_REG_32BIT },
+	[CCDN]		= { 0x00d8, 0x60, OMAP_DMA_REG_32BIT },
 };
 
 static void __iomem *dma_base;
 static inline void dma_write(u32 val, int reg, int lch)
 {
-	u8  stride;
-	u32 offset;
+	void __iomem *addr = dma_base;
 
-	stride = (reg >= CSDP) ? OMAP2_DMA_STRIDE : 0;
-	offset = reg_map[reg] + (stride * lch);
-	__raw_writel(val, dma_base + offset);
+	addr += reg_map[reg].offset;
+	addr += reg_map[reg].stride * lch;
+
+	__raw_writel(val, addr);
 }
 
 static inline u32 dma_read(int reg, int lch)
 {
-	u8 stride;
-	u32 offset, val;
+	void __iomem *addr = dma_base;
 
-	stride = (reg >= CSDP) ? OMAP2_DMA_STRIDE : 0;
-	offset = reg_map[reg] + (stride * lch);
-	val = __raw_readl(dma_base + offset);
-	return val;
+	addr += reg_map[reg].offset;
+	addr += reg_map[reg].stride * lch;
+
+	return __raw_readl(addr);
 }
 
 static void omap2_clear_dma(int lch)

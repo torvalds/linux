@@ -32,53 +32,52 @@
 
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17
-#define OMAP1_DMA_STRIDE		0x40
 
 static u32 errata;
 static u32 enable_1510_mode;
 
-static u16 reg_map[] = {
-	[GCR]		= 0x400,
-	[GSCR]		= 0x404,
-	[GRST1]		= 0x408,
-	[HW_ID]		= 0x442,
-	[PCH2_ID]	= 0x444,
-	[PCH0_ID]	= 0x446,
-	[PCH1_ID]	= 0x448,
-	[PCHG_ID]	= 0x44a,
-	[PCHD_ID]	= 0x44c,
-	[CAPS_0]	= 0x44e,
-	[CAPS_1]	= 0x452,
-	[CAPS_2]	= 0x456,
-	[CAPS_3]	= 0x458,
-	[CAPS_4]	= 0x45a,
-	[PCH2_SR]	= 0x460,
-	[PCH0_SR]	= 0x480,
-	[PCH1_SR]	= 0x482,
-	[PCHD_SR]	= 0x4c0,
+static const struct omap_dma_reg reg_map[] = {
+	[GCR]		= { 0x0400, 0x00, OMAP_DMA_REG_16BIT },
+	[GSCR]		= { 0x0404, 0x00, OMAP_DMA_REG_16BIT },
+	[GRST1]		= { 0x0408, 0x00, OMAP_DMA_REG_16BIT },
+	[HW_ID]		= { 0x0442, 0x00, OMAP_DMA_REG_16BIT },
+	[PCH2_ID]	= { 0x0444, 0x00, OMAP_DMA_REG_16BIT },
+	[PCH0_ID]	= { 0x0446, 0x00, OMAP_DMA_REG_16BIT },
+	[PCH1_ID]	= { 0x0448, 0x00, OMAP_DMA_REG_16BIT },
+	[PCHG_ID]	= { 0x044a, 0x00, OMAP_DMA_REG_16BIT },
+	[PCHD_ID]	= { 0x044c, 0x00, OMAP_DMA_REG_16BIT },
+	[CAPS_0]	= { 0x044e, 0x00, OMAP_DMA_REG_2X16BIT },
+	[CAPS_1]	= { 0x0452, 0x00, OMAP_DMA_REG_2X16BIT },
+	[CAPS_2]	= { 0x0456, 0x00, OMAP_DMA_REG_16BIT },
+	[CAPS_3]	= { 0x0458, 0x00, OMAP_DMA_REG_16BIT },
+	[CAPS_4]	= { 0x045a, 0x00, OMAP_DMA_REG_16BIT },
+	[PCH2_SR]	= { 0x0460, 0x00, OMAP_DMA_REG_16BIT },
+	[PCH0_SR]	= { 0x0480, 0x00, OMAP_DMA_REG_16BIT },
+	[PCH1_SR]	= { 0x0482, 0x00, OMAP_DMA_REG_16BIT },
+	[PCHD_SR]	= { 0x04c0, 0x00, OMAP_DMA_REG_16BIT },
 
 	/* Common Registers */
-	[CSDP]		= 0x00,
-	[CCR]		= 0x02,
-	[CICR]		= 0x04,
-	[CSR]		= 0x06,
-	[CEN]		= 0x10,
-	[CFN]		= 0x12,
-	[CSFI]		= 0x14,
-	[CSEI]		= 0x16,
-	[CPC]		= 0x18,	/* 15xx only */
-	[CSAC]		= 0x18,
-	[CDAC]		= 0x1a,
-	[CDEI]		= 0x1c,
-	[CDFI]		= 0x1e,
-	[CLNK_CTRL]	= 0x28,
+	[CSDP]		= { 0x0000, 0x40, OMAP_DMA_REG_16BIT },
+	[CCR]		= { 0x0002, 0x40, OMAP_DMA_REG_16BIT },
+	[CICR]		= { 0x0004, 0x40, OMAP_DMA_REG_16BIT },
+	[CSR]		= { 0x0006, 0x40, OMAP_DMA_REG_16BIT },
+	[CEN]		= { 0x0010, 0x40, OMAP_DMA_REG_16BIT },
+	[CFN]		= { 0x0012, 0x40, OMAP_DMA_REG_16BIT },
+	[CSFI]		= { 0x0014, 0x40, OMAP_DMA_REG_16BIT },
+	[CSEI]		= { 0x0016, 0x40, OMAP_DMA_REG_16BIT },
+	[CPC]		= { 0x0018, 0x40, OMAP_DMA_REG_16BIT },	/* 15xx only */
+	[CSAC]		= { 0x0018, 0x40, OMAP_DMA_REG_16BIT },
+	[CDAC]		= { 0x001a, 0x40, OMAP_DMA_REG_16BIT },
+	[CDEI]		= { 0x001c, 0x40, OMAP_DMA_REG_16BIT },
+	[CDFI]		= { 0x001e, 0x40, OMAP_DMA_REG_16BIT },
+	[CLNK_CTRL]	= { 0x0028, 0x40, OMAP_DMA_REG_16BIT },
 
 	/* Channel specific register offsets */
-	[CSSA]		= 0x08,
-	[CDSA]		= 0x0c,
-	[COLOR]		= 0x20,
-	[CCR2]		= 0x24,
-	[LCH_CTRL]	= 0x2a,
+	[CSSA]		= { 0x0008, 0x40, OMAP_DMA_REG_2X16BIT },
+	[CDSA]		= { 0x000c, 0x40, OMAP_DMA_REG_2X16BIT },
+	[COLOR]		= { 0x0020, 0x40, OMAP_DMA_REG_2X16BIT },
+	[CCR2]		= { 0x0024, 0x40, OMAP_DMA_REG_16BIT },
+	[LCH_CTRL]	= { 0x002a, 0x40, OMAP_DMA_REG_16BIT },
 };
 
 static struct resource res[] __initdata = {
@@ -179,36 +178,28 @@ static struct resource res[] __initdata = {
 static void __iomem *dma_base;
 static inline void dma_write(u32 val, int reg, int lch)
 {
-	u8  stride;
-	u32 offset;
+	void __iomem *addr = dma_base;
 
-	stride = (reg >= CPC) ? OMAP1_DMA_STRIDE : 0;
-	offset = reg_map[reg] + (stride * lch);
+	addr += reg_map[reg].offset;
+	addr += reg_map[reg].stride * lch;
 
-	__raw_writew(val, dma_base + offset);
-	if ((reg > CLNK_CTRL && reg < CCEN) ||
-			(reg > PCHD_ID && reg < CAPS_2)) {
-		u32 offset2 = reg_map[reg] + 2 + (stride * lch);
-		__raw_writew(val >> 16, dma_base + offset2);
-	}
+	__raw_writew(val, addr);
+	if (reg_map[reg].type == OMAP_DMA_REG_2X16BIT)
+		__raw_writew(val >> 16, addr + 2);
 }
 
 static inline u32 dma_read(int reg, int lch)
 {
-	u8 stride;
-	u32 offset, val;
+	void __iomem *addr = dma_base;
+	uint32_t val;
 
-	stride = (reg >= CPC) ? OMAP1_DMA_STRIDE : 0;
-	offset = reg_map[reg] + (stride * lch);
+	addr += reg_map[reg].offset;
+	addr += reg_map[reg].stride * lch;
 
-	val = __raw_readw(dma_base + offset);
-	if ((reg > CLNK_CTRL && reg < CCEN) ||
-			(reg > PCHD_ID && reg < CAPS_2)) {
-		u16 upper;
-		u32 offset2 = reg_map[reg] + 2 + (stride * lch);
-		upper = __raw_readw(dma_base + offset2);
-		val |= (upper << 16);
-	}
+	val = __raw_readw(addr);
+	if (reg_map[reg].type == OMAP_DMA_REG_2X16BIT)
+		val |= __raw_readw(addr + 2) << 16;
+
 	return val;
 }
 

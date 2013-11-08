@@ -271,6 +271,19 @@ struct omap_dma_dev_attr {
 	struct omap_dma_lch *chan;
 };
 
+enum {
+	OMAP_DMA_REG_NONE,
+	OMAP_DMA_REG_16BIT,
+	OMAP_DMA_REG_2X16BIT,
+	OMAP_DMA_REG_32BIT,
+};
+
+struct omap_dma_reg {
+	u16	offset;
+	u8	stride;
+	u8	type;
+};
+
 /* System DMA platform data structure */
 struct omap_system_dma_plat_info {
 	struct omap_dma_dev_attr *dma_attr;
