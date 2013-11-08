@@ -258,8 +258,8 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd,
 
 	if (usb_control_msg(usb_pcwd->udev, usb_sndctrlpipe(usb_pcwd->udev, 0),
 			HID_REQ_SET_REPORT, HID_DT_REPORT,
-			0x0200, usb_pcwd->interface_number, buf, sizeof(buf),
-			USB_COMMAND_TIMEOUT) != sizeof(buf)) {
+			0x0200, usb_pcwd->interface_number, buf, 6,
+			USB_COMMAND_TIMEOUT) != 6) {
 		dbg("usb_pcwd_send_command: error in usb_control_msg for "
 				"cmd 0x%x 0x%x 0x%x\n", cmd, *msb, *lsb);
 	}
