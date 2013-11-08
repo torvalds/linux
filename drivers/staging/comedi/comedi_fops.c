@@ -2348,7 +2348,8 @@ out:
 static int comedi_open(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
-	struct comedi_device *dev = comedi_dev_from_minor(minor);
+	struct comedi_device *dev = comedi_dev_get_from_minor(minor);
+	int rc;
 
 	if (!dev) {
 		DPRINTK("invalid minor number\n");
@@ -2373,8 +2374,8 @@ static int comedi_open(struct inode *inode, struct file *file)
 		goto ok;
 	if (!capable(CAP_NET_ADMIN) && dev->in_request_module) {
 		DPRINTK("in request module\n");
-		mutex_unlock(&dev->mutex);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto out;
 	}
 	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
 		goto ok;
@@ -2391,8 +2392,8 @@ static int comedi_open(struct inode *inode, struct file *file)
 
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
 		DPRINTK("not attached and not CAP_NET_ADMIN\n");
-		mutex_unlock(&dev->mutex);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto out;
 	}
 ok:
 	__module_get(THIS_MODULE);
@@ -2400,26 +2401,28 @@ ok:
 	if (dev->attached) {
 		if (!try_module_get(dev->driver->module)) {
 			module_put(THIS_MODULE);
-			mutex_unlock(&dev->mutex);
-			return -ENOSYS;
+			rc = -ENOSYS;
+			goto out;
 		}
 	}
 
 	if (dev->attached && dev->use_count == 0 && dev->open) {
-		int rc = dev->open(dev);
+		rc = dev->open(dev);
 		if (rc < 0) {
 			module_put(dev->driver->module);
 			module_put(THIS_MODULE);
-			mutex_unlock(&dev->mutex);
-			return rc;
+			goto out;
 		}
 	}
 
 	dev->use_count++;
+	rc = 0;
 
+out:
 	mutex_unlock(&dev->mutex);
-
-	return 0;
+	if (rc)
+		comedi_dev_put(dev);
+	return rc;
 }
 
 static int comedi_fasync(int fd, struct file *file, int on)
@@ -2465,6 +2468,7 @@ static int comedi_close(struct inode *inode, struct file *file)
 	dev->use_count--;
 
 	mutex_unlock(&dev->mutex);
+	comedi_dev_put(dev);
 
 	return 0;
 }
