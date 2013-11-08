@@ -52,7 +52,7 @@ static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 					     int num);
 static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info);
 static void ath10k_pci_stop_ce(struct ath10k *ar);
-static void ath10k_pci_device_reset(struct ath10k *ar);
+static int ath10k_pci_device_reset(struct ath10k *ar);
 static int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 static int ath10k_pci_start_intr(struct ath10k *ar);
 static void ath10k_pci_stop_intr(struct ath10k *ar);
@@ -524,21 +524,6 @@ static bool ath10k_pci_target_is_awake(struct ath10k *ar)
 	val = ioread32(mem + PCIE_LOCAL_BASE_ADDRESS +
 		       RTC_STATE_ADDRESS);
 	return (RTC_STATE_V_GET(val) == RTC_STATE_V_ON);
-}
-
-static int ath10k_pci_wait(struct ath10k *ar)
-{
-	int n = 100;
-
-	while (n-- && !ath10k_pci_target_is_awake(ar))
-		msleep(10);
-
-	if (n < 0) {
-		ath10k_warn("Unable to wakeup target\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
 }
 
 int ath10k_do_pci_wake(struct ath10k *ar)
@@ -1855,7 +1840,11 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	 * is in an unexpected state. We try to catch that here in order to
 	 * reset the Target and retry the probe.
 	 */
-	ath10k_pci_device_reset(ar);
+	ret = ath10k_pci_device_reset(ar);
+	if (ret) {
+		ath10k_err("failed to reset target: %d\n", ret);
+		goto err_irq;
+	}
 
 	ret = ath10k_pci_wait_for_target_init(ar);
 	if (ret)
@@ -2156,19 +2145,10 @@ static int ath10k_pci_start_intr_legacy(struct ath10k *ar)
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Make sure to wake the Target before enabling Legacy
-	 * Interrupt.
-	 */
-	iowrite32(PCIE_SOC_WAKE_V_MASK,
-		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
-		  PCIE_SOC_WAKE_ADDRESS);
-
-	ret = ath10k_pci_wait(ar);
+	ret = ath10k_do_pci_wake(ar);
 	if (ret) {
-		ath10k_warn("Failed to enable legacy interrupt, target did not wake up: %d\n",
-			    ret);
 		free_irq(ar_pci->pdev->irq, ar);
+		ath10k_err("failed to wake up target: %d\n", ret);
 		return ret;
 	}
 
@@ -2184,10 +2164,8 @@ static int ath10k_pci_start_intr_legacy(struct ath10k *ar)
 		  PCIE_INTR_CE_MASK_ALL,
 		  ar_pci->mem + (SOC_CORE_BASE_ADDRESS |
 				 PCIE_INTR_ENABLE_ADDRESS));
-	iowrite32(PCIE_SOC_WAKE_RESET,
-		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
-		  PCIE_SOC_WAKE_ADDRESS);
 
+	ath10k_do_pci_sleep(ar);
 	ath10k_info("legacy interrupt handling\n");
 	return 0;
 }
@@ -2263,15 +2241,9 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 	int wait_limit = 300; /* 3 sec */
 	int ret;
 
-	/* Wait for Target to finish initialization before we proceed. */
-	iowrite32(PCIE_SOC_WAKE_V_MASK,
-		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
-		  PCIE_SOC_WAKE_ADDRESS);
-
-	ret = ath10k_pci_wait(ar);
+	ret = ath10k_do_pci_wake(ar);
 	if (ret) {
-		ath10k_warn("Failed to reset target, target did not wake up: %d\n",
-			    ret);
+		ath10k_err("failed to wake up target: %d\n", ret);
 		return ret;
 	}
 
@@ -2288,31 +2260,26 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 	}
 
 	if (wait_limit < 0) {
-		ath10k_err("Target stalled\n");
-		iowrite32(PCIE_SOC_WAKE_RESET,
-			  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
-			  PCIE_SOC_WAKE_ADDRESS);
-		return -EIO;
+		ath10k_err("target stalled\n");
+		ret = -EIO;
+		goto out;
 	}
 
-	iowrite32(PCIE_SOC_WAKE_RESET,
-		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
-		  PCIE_SOC_WAKE_ADDRESS);
-
-	return 0;
+out:
+	ath10k_do_pci_sleep(ar);
+	return ret;
 }
 
-static void ath10k_pci_device_reset(struct ath10k *ar)
+static int ath10k_pci_device_reset(struct ath10k *ar)
 {
-	int i;
+	int i, ret;
 	u32 val;
 
-	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS,
-			       PCIE_SOC_WAKE_V_MASK);
-	for (i = 0; i < ATH_PCI_RESET_WAIT_MAX; i++) {
-		if (ath10k_pci_target_is_awake(ar))
-			break;
-		msleep(1);
+	ret = ath10k_do_pci_wake(ar);
+	if (ret) {
+		ath10k_err("failed to wake up target: %d\n",
+			   ret);
+		return ret;
 	}
 
 	/* Put Target, including PCIe, into RESET. */
@@ -2338,7 +2305,8 @@ static void ath10k_pci_device_reset(struct ath10k *ar)
 		msleep(1);
 	}
 
-	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS, PCIE_SOC_WAKE_RESET);
+	ath10k_do_pci_sleep(ar);
+	return 0;
 }
 
 static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
