@@ -38,11 +38,10 @@
 #define OMAP2_DMA_STRIDE	0x60
 
 static u32 errata;
-static u8 dma_stride;
 
 static struct omap_dma_dev_attr *d;
 
-static enum omap_reg_offsets dma_common_ch_start, dma_common_ch_end;
+static enum omap_reg_offsets dma_common_ch_end;
 
 static u16 reg_map[] = {
 	[REVISION]		= 0x00,
@@ -96,7 +95,7 @@ static inline void dma_write(u32 val, int reg, int lch)
 	u8  stride;
 	u32 offset;
 
-	stride = (reg >= dma_common_ch_start) ? dma_stride : 0;
+	stride = (reg >= CSDP) ? OMAP2_DMA_STRIDE : 0;
 	offset = reg_map[reg] + (stride * lch);
 	__raw_writel(val, dma_base + offset);
 }
@@ -106,7 +105,7 @@ static inline u32 dma_read(int reg, int lch)
 	u8 stride;
 	u32 offset, val;
 
-	stride = (reg >= dma_common_ch_start) ? dma_stride : 0;
+	stride = (reg >= CSDP) ? OMAP2_DMA_STRIDE : 0;
 	offset = reg_map[reg] + (stride * lch);
 	val = __raw_readl(dma_base + offset);
 	return val;
@@ -114,9 +113,9 @@ static inline u32 dma_read(int reg, int lch)
 
 static void omap2_clear_dma(int lch)
 {
-	int i = dma_common_ch_start;
+	int i;
 
-	for (; i <= dma_common_ch_end; i += 1)
+	for (i = CSDP; i <= dma_common_ch_end; i += 1)
 		dma_write(0, i, lch);
 }
 
@@ -218,9 +217,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	struct omap_system_dma_plat_info	*p;
 	struct resource				*mem;
 	char					*name = "omap_dma_system";
-
-	dma_stride		= OMAP2_DMA_STRIDE;
-	dma_common_ch_start	= CSDP;
 
 	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
 	if (!p) {

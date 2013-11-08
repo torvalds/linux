@@ -36,8 +36,6 @@
 
 static u32 errata;
 static u32 enable_1510_mode;
-static u8 dma_stride;
-static enum omap_reg_offsets dma_common_ch_start, dma_common_ch_end;
 
 static u16 reg_map[] = {
 	[GCR]		= 0x400,
@@ -184,7 +182,7 @@ static inline void dma_write(u32 val, int reg, int lch)
 	u8  stride;
 	u32 offset;
 
-	stride = (reg >= dma_common_ch_start) ? dma_stride : 0;
+	stride = (reg >= CPC) ? OMAP1_DMA_STRIDE : 0;
 	offset = reg_map[reg] + (stride * lch);
 
 	__raw_writew(val, dma_base + offset);
@@ -200,7 +198,7 @@ static inline u32 dma_read(int reg, int lch)
 	u8 stride;
 	u32 offset, val;
 
-	stride = (reg >= dma_common_ch_start) ? dma_stride : 0;
+	stride = (reg >= CPC) ? OMAP1_DMA_STRIDE : 0;
 	offset = reg_map[reg] + (stride * lch);
 
 	val = __raw_readw(dma_base + offset);
@@ -216,9 +214,9 @@ static inline u32 dma_read(int reg, int lch)
 
 static void omap1_clear_lch_regs(int lch)
 {
-	int i = dma_common_ch_start;
+	int i;
 
-	for (; i <= dma_common_ch_end; i += 1)
+	for (i = CPC; i <= COLOR; i += 1)
 		dma_write(0, i, lch);
 }
 
@@ -379,10 +377,6 @@ static int __init omap1_system_dma_init(void)
 			__func__, pdev->name, pdev->id);
 		goto exit_release_chan;
 	}
-
-	dma_stride		= OMAP1_DMA_STRIDE;
-	dma_common_ch_start	= CPC;
-	dma_common_ch_end	= COLOR;
 
 	dma_pdev = platform_device_register_full(&omap_dma_dev_info);
 	if (IS_ERR(dma_pdev)) {
