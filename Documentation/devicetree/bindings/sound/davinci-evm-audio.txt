@@ -1,0 +1,42 @@
+* Texas Instruments SoC audio setups with TLV320AIC3X Codec
+
+Required properties:
+- compatible : "ti,da830-evm-audio" : forDM365/DA8xx/OMAPL1x/AM33xx
+- ti,model : The user-visible name of this sound complex.
+- ti,audio-codec : The phandle of the TLV320AIC3x audio codec
+- ti,mcasp-controller : The phandle of the McASP controller
+- ti,codec-clock-rate : The Codec Clock rate (in Hz) applied to the Codec
+- ti,audio-routing : A list of the connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source. Valid names for sources and
+  sinks are the codec's pins, and the jacks on the board:
+
+  Board connectors:
+
+  * Headphone Jack
+  * Line Out
+  * Mic Jack
+  * Line In
+
+
+Example:
+
+sound {
+	compatible = "ti,da830-evm-audio";
+	ti,model = "DA830 EVM";
+	ti,audio-codec = <&tlv320aic3x>;
+	ti,mcasp-controller = <&mcasp1>;
+	ti,codec-clock-rate = <12000000>;
+	ti,audio-routing =
+		"Headphone Jack",       "HPLOUT",
+		"Headphone Jack",       "HPROUT",
+		"Line Out",             "LLOUT",
+		"Line Out",             "RLOUT",
+		"MIC3L",                "Mic Bias 2V",
+		"MIC3R",                "Mic Bias 2V",
+		"Mic Bias 2V",          "Mic Jack",
+		"LINE1L",               "Line In",
+		"LINE2L",               "Line In",
+		"LINE1R",               "Line In",
+		"LINE2R",               "Line In";
+};
