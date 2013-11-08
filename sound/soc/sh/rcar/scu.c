@@ -68,7 +68,7 @@ static int rsnd_scu_set_route(struct rsnd_priv *priv,
 		return 0;
 
 	id = rsnd_mod_id(mod);
-	if (id < 0 || id > ARRAY_SIZE(routes))
+	if (id < 0 || id >= ARRAY_SIZE(routes))
 		return -EIO;
 
 	/*
