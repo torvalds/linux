@@ -163,6 +163,8 @@ struct intel_panel {
 		u32 level;
 		u32 max;
 		bool enabled;
+		bool combination_mode;	/* gen 2/4 only */
+		bool active_low_pwm;
 		struct backlight_device *device;
 	} backlight;
 };
