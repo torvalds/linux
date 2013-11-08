@@ -888,6 +888,7 @@ static void ath10k_pci_stop_ce(struct ath10k *ar)
 
 	/* Cancel the pending tasklet */
 	tasklet_kill(&ar_pci->intr_tq);
+	tasklet_kill(&ar_pci->msi_fw_err);
 
 	for (i = 0; i < CE_COUNT; i++)
 		tasklet_kill(&ar_pci->pipe_info[i].intr);
