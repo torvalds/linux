@@ -163,9 +163,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct drm_tegra_cmdbuf cmdbuf;
 		struct host1x_bo *bo;
 
-		err = copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf));
-		if (err)
+		if (copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf))) {
+			err = -EFAULT;
 			goto fail;
+		}
 
 		bo = host1x_bo_lookup(drm, file, cmdbuf.handle);
 		if (!bo) {
@@ -178,10 +179,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		cmdbufs++;
 	}
 
-	err = copy_from_user(job->relocarray, relocs,
-			     sizeof(*relocs) * num_relocs);
-	if (err)
+	if (copy_from_user(job->relocarray, relocs,
+			   sizeof(*relocs) * num_relocs)) {
+		err = -EFAULT;
 		goto fail;
+	}
 
 	while (num_relocs--) {
 		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
@@ -199,15 +201,17 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 	}
 
-	err = copy_from_user(job->waitchk, waitchks,
-			     sizeof(*waitchks) * num_waitchks);
-	if (err)
+	if (copy_from_user(job->waitchk, waitchks,
+			   sizeof(*waitchks) * num_waitchks)) {
+		err = -EFAULT;
 		goto fail;
+	}
 
-	err = copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
-			     sizeof(syncpt));
-	if (err)
+	if (copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
+			   sizeof(syncpt))) {
+		err = -EFAULT;
 		goto fail;
+	}
 
 	job->is_addr_reg = context->client->ops->is_addr_reg;
 	job->syncpt_incrs = syncpt.incrs;
