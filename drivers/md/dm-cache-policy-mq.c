@@ -304,6 +304,15 @@ static void free_entry(struct entry_pool *ep, struct entry *e)
 	list_add(&e->list, &ep->free);
 }
 
+/*
+ * Returns NULL if the entry is free.
+ */
+static struct entry *epool_find(struct entry_pool *ep, dm_cblock_t cblock)
+{
+	struct entry *e = ep->entries + from_cblock(cblock);
+	return e->hlist.pprev ? e : NULL;
+}
+
 static bool epool_empty(struct entry_pool *ep)
 {
 	return list_empty(&ep->free);
@@ -1020,6 +1029,31 @@ static void mq_remove_mapping(struct dm_cache_policy *p, dm_oblock_t oblock)
 	mutex_unlock(&mq->lock);
 }
 
+static int __remove_cblock(struct mq_policy *mq, dm_cblock_t cblock)
+{
+	struct entry *e = epool_find(&mq->cache_pool, cblock);
+
+	if (!e)
+		return -ENODATA;
+
+	del(mq, e);
+	free_entry(&mq->cache_pool, e);
+
+	return 0;
+}
+
+static int mq_remove_cblock(struct dm_cache_policy *p, dm_cblock_t cblock)
+{
+	int r;
+	struct mq_policy *mq = to_mq_policy(p);
+
+	mutex_lock(&mq->lock);
+	r = __remove_cblock(mq, cblock);
+	mutex_unlock(&mq->lock);
+
+	return r;
+}
+
 static int __mq_writeback_work(struct mq_policy *mq, dm_oblock_t *oblock,
 			      dm_cblock_t *cblock)
 {
@@ -1139,6 +1173,7 @@ static void init_policy_functions(struct mq_policy *mq)
 	mq->policy.load_mapping = mq_load_mapping;
 	mq->policy.walk_mappings = mq_walk_mappings;
 	mq->policy.remove_mapping = mq_remove_mapping;
+	mq->policy.remove_cblock = mq_remove_cblock;
 	mq->policy.writeback_work = mq_writeback_work;
 	mq->policy.force_mapping = mq_force_mapping;
 	mq->policy.residency = mq_residency;
