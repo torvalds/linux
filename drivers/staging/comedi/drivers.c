@@ -133,6 +133,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 
 void comedi_device_detach(struct comedi_device *dev)
 {
+	comedi_device_cancel_all(dev);
 	down_write(&dev->attach_lock);
 	dev->attached = false;
 	if (dev->driver)

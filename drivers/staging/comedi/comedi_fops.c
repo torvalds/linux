@@ -584,6 +584,21 @@ static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return ret;
 }
 
+void comedi_device_cancel_all(struct comedi_device *dev)
+{
+	struct comedi_subdevice *s;
+	int i;
+
+	if (!dev->attached)
+		return;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+		if (s->async)
+			do_cancel(dev, s);
+	}
+}
+
 static int is_device_busy(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
