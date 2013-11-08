@@ -112,15 +112,6 @@ static inline u32 dma_read(int reg, int lch)
 	return val;
 }
 
-static inline void omap2_disable_irq_lch(int lch)
-{
-	u32 val;
-
-	val = dma_read(IRQENABLE_L0, lch);
-	val &= ~(1 << lch);
-	dma_write(val, IRQENABLE_L0, lch);
-}
-
 static void omap2_clear_dma(int lch)
 {
 	int i = dma_common_ch_start;
@@ -239,7 +230,6 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	}
 
 	p->dma_attr		= (struct omap_dma_dev_attr *)oh->dev_attr;
-	p->disable_irq_lch	= omap2_disable_irq_lch;
 	p->show_dma_caps	= omap2_show_dma_caps;
 	p->clear_dma		= omap2_clear_dma;
 	p->dma_write		= dma_write;

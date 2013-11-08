@@ -275,7 +275,6 @@ struct omap_dma_dev_attr {
 struct omap_system_dma_plat_info {
 	struct omap_dma_dev_attr *dma_attr;
 	u32 errata;
-	void (*disable_irq_lch)(int lch);
 	void (*show_dma_caps)(void);
 	void (*clear_lch_regs)(int lch);
 	void (*clear_dma)(int lch);

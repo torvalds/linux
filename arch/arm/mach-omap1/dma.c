@@ -363,7 +363,6 @@ static int __init omap1_system_dma_init(void)
 	p->clear_dma		= omap1_clear_dma;
 	p->dma_write		= dma_write;
 	p->dma_read		= dma_read;
-	p->disable_irq_lch	= NULL;
 
 	p->errata = configure_dma_errata();
 
