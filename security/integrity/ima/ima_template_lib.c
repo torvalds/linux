@@ -239,8 +239,8 @@ int ima_eventdigest_init(struct integrity_iint_cache *iint, struct file *file,
 	cur_digest = hash.hdr.digest;
 	cur_digestsize = hash.hdr.length;
 out:
-	return ima_eventdigest_init_common(cur_digest, cur_digestsize, -1,
-					   field_data, true);
+	return ima_eventdigest_init_common(cur_digest, cur_digestsize,
+					   HASH_ALGO__LAST, field_data, true);
 }
 
 /*
