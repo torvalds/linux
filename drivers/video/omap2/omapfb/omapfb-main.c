@@ -82,18 +82,18 @@ static void draw_pixel(struct fb_info *fbi, int x, int y, unsigned color)
 		g = g * 64 / 256;
 		b = b * 32 / 256;
 
-		__raw_writew((r << 11) | (g << 5) | (b << 0), p);
+		writew_relaxed((r << 11) | (g << 5) | (b << 0), p);
 	} else if (var->bits_per_pixel == 24) {
 		u8 __iomem *p = (u8 __iomem *)addr;
 		p += (y * line_len + x) * 3;
 
-		__raw_writeb(b, p + 0);
-		__raw_writeb(g, p + 1);
-		__raw_writeb(r, p + 2);
+		writeb_relaxed(b, p + 0);
+		writeb_relaxed(g, p + 1);
+		writeb_relaxed(r, p + 2);
 	} else if (var->bits_per_pixel == 32) {
 		u32 __iomem *p = (u32 __iomem *)addr;
 		p += y * line_len + x;
-		__raw_writel(color, p);
+		writel_relaxed(color, p);
 	}
 }
 

@@ -309,12 +309,12 @@ static struct {
 
 static inline void venc_write_reg(int idx, u32 val)
 {
-	__raw_writel(val, venc.base + idx);
+	writel_relaxed(val, venc.base + idx);
 }
 
 static inline u32 venc_read_reg(int idx)
 {
-	u32 l = __raw_readl(venc.base + idx);
+	u32 l = readl_relaxed(venc.base + idx);
 	return l;
 }
 

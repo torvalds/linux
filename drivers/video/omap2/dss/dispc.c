@@ -230,12 +230,12 @@ static unsigned long dispc_plane_lclk_rate(enum omap_plane plane);
 
 static inline void dispc_write_reg(const u16 idx, u32 val)
 {
-	__raw_writel(val, dispc.base + idx);
+	writel_relaxed(val, dispc.base + idx);
 }
 
 static inline u32 dispc_read_reg(const u16 idx)
 {
-	return __raw_readl(dispc.base + idx);
+	return readl_relaxed(dispc.base + idx);
 }
 
 static u32 mgr_fld_read(enum omap_channel channel, enum mgr_reg_fields regfld)

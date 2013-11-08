@@ -82,17 +82,17 @@ static bool vrfb_loaded;
 
 static void omap2_sms_write_rot_control(u32 val, unsigned ctx)
 {
-	__raw_writel(val, vrfb_base + SMS_ROT_CONTROL(ctx));
+	writel_relaxed(val, vrfb_base + SMS_ROT_CONTROL(ctx));
 }
 
 static void omap2_sms_write_rot_size(u32 val, unsigned ctx)
 {
-	__raw_writel(val, vrfb_base + SMS_ROT_SIZE(ctx));
+	writel_relaxed(val, vrfb_base + SMS_ROT_SIZE(ctx));
 }
 
 static void omap2_sms_write_rot_physical_ba(u32 val, unsigned ctx)
 {
-	__raw_writel(val, vrfb_base + SMS_ROT_PHYSICAL_BA(ctx));
+	writel_relaxed(val, vrfb_base + SMS_ROT_PHYSICAL_BA(ctx));
 }
 
 static inline void restore_hw_context(int ctx)

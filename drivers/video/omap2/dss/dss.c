@@ -103,12 +103,12 @@ static const char * const dss_generic_clk_source_names[] = {
 
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
 {
-	__raw_writel(val, dss.base + idx.idx);
+	writel_relaxed(val, dss.base + idx.idx);
 }
 
 static inline u32 dss_read_reg(const struct dss_reg idx)
 {
-	return __raw_readl(dss.base + idx.idx);
+	return readl_relaxed(dss.base + idx.idx);
 }
 
 #define SR(reg) \
