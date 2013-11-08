@@ -307,11 +307,6 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 	return (pte->val & 3) != 0;
 }
 
-static inline bool dma_pte_superpage(struct dma_pte *pte)
-{
-	return (pte->val & (1 << 7));
-}
-
 static inline int first_pte_in_page(struct dma_pte *pte)
 {
 	return !((unsigned long)pte & ~VTD_PAGE_MASK);
@@ -583,18 +578,17 @@ static void domain_update_iommu_snooping(struct dmar_domain *domain)
 
 static void domain_update_iommu_superpage(struct dmar_domain *domain)
 {
-	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu = NULL;
-	int mask = 0xf;
+	int i, mask = 0xf;
 
 	if (!intel_iommu_superpage) {
 		domain->iommu_superpage = 0;
 		return;
 	}
 
-	/* set iommu_superpage to the smallest common denominator */
-	for_each_active_iommu(iommu, drhd) {
-		mask &= cap_super_page_val(iommu->cap);
+	domain->iommu_superpage = 4; /* 1TiB */
+
+	for_each_set_bit(i, &domain->iommu_bmp, g_num_of_iommus) {
+		mask |= cap_super_page_val(g_iommus[i]->cap);
 		if (!mask) {
 			break;
 		}
@@ -737,23 +731,29 @@ out:
 }
 
 static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
-				      unsigned long pfn, int target_level)
+				      unsigned long pfn, int large_level)
 {
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	struct dma_pte *parent, *pte = NULL;
 	int level = agaw_to_level(domain->agaw);
-	int offset;
+	int offset, target_level;
 
 	BUG_ON(!domain->pgd);
 	BUG_ON(addr_width < BITS_PER_LONG && pfn >> addr_width);
 	parent = domain->pgd;
+
+	/* Search pte */
+	if (!large_level)
+		target_level = 1;
+	else
+		target_level = large_level;
 
 	while (level > 0) {
 		void *tmp_page;
 
 		offset = pfn_level_offset(pfn, level);
 		pte = &parent[offset];
-		if (!target_level && (dma_pte_superpage(pte) || !dma_pte_present(pte)))
+		if (!large_level && (pte->val & DMA_PTE_LARGE_PAGE))
 			break;
 		if (level == target_level)
 			break;
@@ -817,14 +817,13 @@ static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
 }
 
 /* clear last level pte, a tlb flush should be followed */
-static int dma_pte_clear_range(struct dmar_domain *domain,
+static void dma_pte_clear_range(struct dmar_domain *domain,
 				unsigned long start_pfn,
 				unsigned long last_pfn)
 {
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	unsigned int large_page = 1;
 	struct dma_pte *first_pte, *pte;
-	int order;
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
 	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
@@ -848,9 +847,6 @@ static int dma_pte_clear_range(struct dmar_domain *domain,
 				   (void *)pte - (void *)first_pte);
 
 	} while (start_pfn && start_pfn <= last_pfn);
-
-	order = (large_page - 1) * 9;
-	return order;
 }
 
 /* free page table pages. last level pte should already be cleared */
@@ -1793,17 +1789,10 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			if (!pte)
 				return -ENOMEM;
 			/* It is large page*/
-			if (largepage_lvl > 1) {
+			if (largepage_lvl > 1)
 				pteval |= DMA_PTE_LARGE_PAGE;
-				/* Ensure that old small page tables are removed to make room
-				   for superpage, if they exist. */
-				dma_pte_clear_range(domain, iov_pfn,
-						    iov_pfn + lvl_to_nr_pages(largepage_lvl) - 1);
-				dma_pte_free_pagetable(domain, iov_pfn,
-						       iov_pfn + lvl_to_nr_pages(largepage_lvl) - 1);
-			} else {
+			else
 				pteval &= ~(uint64_t)DMA_PTE_LARGE_PAGE;
-			}
 
 		}
 		/* We don't need lock here, nobody else
@@ -2289,39 +2278,8 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 	return 0;
 }
 
-static bool device_has_rmrr(struct pci_dev *dev)
-{
-	struct dmar_rmrr_unit *rmrr;
-	int i;
-
-	for_each_rmrr_units(rmrr) {
-		for (i = 0; i < rmrr->devices_cnt; i++) {
-			/*
-			 * Return TRUE if this RMRR contains the device that
-			 * is passed in.
-			 */
-			if (rmrr->devices[i] == dev)
-				return true;
-		}
-	}
-	return false;
-}
-
 static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 {
-
-	/*
-	 * We want to prevent any device associated with an RMRR from
-	 * getting placed into the SI Domain. This is done because
-	 * problems exist when devices are moved in and out of domains
-	 * and their respective RMRR info is lost. We exempt USB devices
-	 * from this process due to their usage of RMRRs that are known
-	 * to not be needed after BIOS hand-off to OS.
-	 */
-	if (device_has_rmrr(pdev) &&
-	    (pdev->class >> 8) != PCI_CLASS_SERIAL_USB)
-		return 0;
-
 	if ((iommu_identity_mapping & IDENTMAP_AZALIA) && IS_AZALIA(pdev))
 		return 1;
 
@@ -3611,8 +3569,6 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 			found = 1;
 	}
 
-	spin_unlock_irqrestore(&device_domain_lock, flags);
-
 	if (found == 0) {
 		unsigned long tmp_flags;
 		spin_lock_irqsave(&domain->iommu_lock, tmp_flags);
@@ -3629,6 +3585,8 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 			spin_unlock_irqrestore(&iommu->lock, tmp_flags);
 		}
 	}
+
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
 
 static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
@@ -3782,7 +3740,6 @@ static int intel_iommu_domain_init(struct iommu_domain *domain)
 		vm_domain_exit(dmar_domain);
 		return -ENOMEM;
 	}
-	domain_update_iommu_cap(dmar_domain);
 	domain->priv = dmar_domain;
 
 	return 0;
@@ -3908,15 +3865,14 @@ static int intel_iommu_unmap(struct iommu_domain *domain,
 {
 	struct dmar_domain *dmar_domain = domain->priv;
 	size_t size = PAGE_SIZE << gfp_order;
-	int order;
 
-	order = dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
+	dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
 			    (iova + size - 1) >> VTD_PAGE_SHIFT);
 
 	if (dmar_domain->max_addr == iova + size)
 		dmar_domain->max_addr = iova;
 
-	return order;
+	return gfp_order;
 }
 
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,

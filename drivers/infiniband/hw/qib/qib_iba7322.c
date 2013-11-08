@@ -4060,12 +4060,10 @@ static void qib_update_7322_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 	 */
 	if (hd >> IBA7322_HDRHEAD_PKTINT_SHIFT)
 		adjust_rcv_timeout(rcd, npkts);
+	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
+	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
-	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7322_hdrqempty(struct qib_ctxtdata *rcd)

@@ -332,11 +332,6 @@ static const struct usb_device_id	products [] = {
 	.driver_info = ZAURUS_PXA_INFO,
 },
 {
-	/* Motorola Rokr E6 */
-	USB_DEVICE_AND_INTERFACE_INFO(0x22b8, 0x6027, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &bogus_mdlm_info,
-}, {
 	/* Motorola MOTOMAGX phones */
 	USB_DEVICE_AND_INTERFACE_INFO(0x22b8, 0x6425, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
@@ -353,13 +348,6 @@ static const struct usb_device_id	products [] = {
 	.idProduct              = 0x0F02,	/* R-1000 */
 	ZAURUS_MASTER_INTERFACE,
 	.driver_info = OLYMPUS_MXL_INFO,
-},
-
-/* Logitech Harmony 900 - uses the pseudo-MDLM (BLAN) driver */
-{
-	USB_DEVICE_AND_INTERFACE_INFO(0x046d, 0xc11f, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &bogus_mdlm_info,
 },
 	{ },		// END
 };

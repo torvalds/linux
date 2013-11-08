@@ -357,7 +357,6 @@ struct acpi_predefined_data {
 	char *pathname;
 	const union acpi_predefined_info *predefined;
 	union acpi_operand_object *parent_package;
-	struct acpi_namespace_node *node;
 	u32 flags;
 	u8 node_flags;
 };

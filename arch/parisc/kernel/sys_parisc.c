@@ -73,8 +73,6 @@ static unsigned long get_shared_area(struct address_space *mapping,
 	struct vm_area_struct *vma;
 	int offset = mapping ? get_offset(mapping) : 0;
 
-	offset = (offset + (pgoff << PAGE_SHIFT)) & 0x3FF000;
-
 	addr = DCACHE_ALIGN(addr - offset) + offset;
 
 	for (vma = find_vma(current->mm, addr); ; vma = vma->vm_next) {

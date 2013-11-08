@@ -968,6 +968,7 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	proto = npindex_to_proto[npi];
 	put_unaligned_be16(proto, pp);
 
+	netif_stop_queue(dev);
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
 	return NETDEV_TX_OK;
@@ -1062,8 +1063,6 @@ ppp_xmit_process(struct ppp *ppp)
 		   code that we can accept some more. */
 		if (!ppp->xmit_pending && !skb_peek(&ppp->file.xq))
 			netif_wake_queue(ppp->dev);
-		else
-			netif_stop_queue(ppp->dev);
 	}
 	ppp_xmit_unlock(ppp);
 }
@@ -2020,22 +2019,14 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			continue;
 		}
 		if (PPP_MP_CB(p)->sequence != seq) {
-			u32 oldseq;
 			/* Fragment `seq' is missing.  If it is after
 			   minseq, it might arrive later, so stop here. */
 			if (seq_after(seq, minseq))
 				break;
 			/* Fragment `seq' is lost, keep going. */
 			lost = 1;
-			oldseq = seq;
 			seq = seq_before(minseq, PPP_MP_CB(p)->sequence)?
 				minseq + 1: PPP_MP_CB(p)->sequence;
-
-			if (ppp->debug & 1)
-				netdev_printk(KERN_DEBUG, ppp->dev,
-					      "lost frag %u..%u\n",
-					      oldseq, seq-1);
-
 			goto again;
 		}
 
@@ -2080,10 +2071,6 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			struct sk_buff *tmp2;
 
 			skb_queue_reverse_walk_from_safe(list, p, tmp2) {
-				if (ppp->debug & 1)
-					netdev_printk(KERN_DEBUG, ppp->dev,
-						      "discarding frag %u\n",
-						      PPP_MP_CB(p)->sequence);
 				__skb_unlink(p, list);
 				kfree_skb(p);
 			}
@@ -2099,17 +2086,6 @@ ppp_mp_reconstruct(struct ppp *ppp)
 		/* If we have discarded any fragments,
 		   signal a receive error. */
 		if (PPP_MP_CB(head)->sequence != ppp->nextseq) {
-			skb_queue_walk_safe(list, p, tmp) {
-				if (p == head)
-					break;
-				if (ppp->debug & 1)
-					netdev_printk(KERN_DEBUG, ppp->dev,
-						      "discarding frag %u\n",
-						      PPP_MP_CB(p)->sequence);
-				__skb_unlink(p, list);
-				kfree_skb(p);
-			}
-
 			if (ppp->debug & 1)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "  missed pkts %u..%u\n",

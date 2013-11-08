@@ -437,7 +437,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 
 	do {
 		level = __ffs(pending);
-		handle_nested_irq(level + chip->irq_base);
+		generic_handle_irq(level + chip->irq_base);
 
 		pending &= ~(1 << level);
 	} while (pending);
@@ -481,8 +481,8 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 			int irq = lvl + chip->irq_base;
 
 			irq_set_chip_data(irq, chip);
-			irq_set_chip(irq, &pca953x_irq_chip);
-			irq_set_nested_thread(irq, true);
+			irq_set_chip_and_handler(irq, &pca953x_irq_chip,
+						 handle_simple_irq);
 #ifdef CONFIG_ARM
 			set_irq_flags(irq, IRQF_VALID);
 #else

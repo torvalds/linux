@@ -110,10 +110,9 @@ static int bcma_register_cores(struct bcma_bus *bus)
 
 static void bcma_unregister_cores(struct bcma_bus *bus)
 {
-	struct bcma_device *core, *tmp;
+	struct bcma_device *core;
 
-	list_for_each_entry_safe(core, tmp, &bus->cores, list) {
-		list_del(&core->list);
+	list_for_each_entry(core, &bus->cores, list) {
 		if (core->dev_registered)
 			device_unregister(&core->dev);
 	}

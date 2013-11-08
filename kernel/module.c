@@ -2290,7 +2290,8 @@ static int copy_and_check(struct load_info *info,
 		return -ENOEXEC;
 
 	/* Suck in entire file: we'll want most of it. */
-	if ((hdr = vmalloc(len)) == NULL)
+	/* vmalloc barfs on "unusual" numbers.  Check here */
+	if (len > 64 * 1024 * 1024 || (hdr = vmalloc(len)) == NULL)
 		return -ENOMEM;
 
 	if (copy_from_user(hdr, umod, len) != 0) {
@@ -2603,10 +2604,6 @@ static int check_module_license_and_versions(struct module *mod)
 
 	/* driverloader was caught wrongly pretending to be under GPL */
 	if (strcmp(mod->name, "driverloader") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
-
-	/* lve claims to be GPL but upstream won't provide source */
-	if (strcmp(mod->name, "lve") == 0)
 		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
 
 #ifdef CONFIG_MODVERSIONS

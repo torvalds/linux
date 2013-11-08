@@ -8,7 +8,7 @@
 
 #ifdef __powerpc64__
 
-extern char __end_interrupts[];
+extern char _end[];
 
 static inline int in_kernel_text(unsigned long addr)
 {

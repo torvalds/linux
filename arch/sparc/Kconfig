@@ -53,7 +53,6 @@ config SPARC64
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select IRQ_PREFLOW_FASTEOI
-	select HAVE_C_RECORDMCOUNT
 
 config ARCH_DEFCONFIG
 	string
@@ -589,9 +588,6 @@ config SYSVIPC_COMPAT
 	bool
 	depends on COMPAT && SYSVIPC
 	default y
-
-config KEYS_COMPAT
-	def_bool y if COMPAT && KEYS
 
 endmenu
 

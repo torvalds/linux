@@ -763,8 +763,6 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 
 	copied = make_tx_wrbs(adapter, skb, wrb_cnt, dummy_wrb);
 	if (copied) {
-		int gso_segs = skb_shinfo(skb)->gso_segs;
-
 		/* record the sent skb in the sent_skb table */
 		BUG_ON(tx_obj->sent_skb_list[start]);
 		tx_obj->sent_skb_list[start] = skb;
@@ -782,7 +780,8 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 
 		be_txq_notify(adapter, txq->id, wrb_cnt);
 
-		be_tx_stats_update(adapter, wrb_cnt, copied, gso_segs, stopped);
+		be_tx_stats_update(adapter, wrb_cnt, copied,
+				skb_shinfo(skb)->gso_segs, stopped);
 	} else {
 		txq->head = start;
 		dev_kfree_skb_any(skb);

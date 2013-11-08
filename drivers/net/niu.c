@@ -9196,7 +9196,7 @@ static int __devinit niu_ldg_init(struct niu *np)
 
 	first_chan = 0;
 	for (i = 0; i < port; i++)
-		first_chan += parent->rxchan_per_port[i];
+		first_chan += parent->rxchan_per_port[port];
 	num_chan = parent->rxchan_per_port[port];
 
 	for (i = first_chan; i < (first_chan + num_chan); i++) {
@@ -9212,7 +9212,7 @@ static int __devinit niu_ldg_init(struct niu *np)
 
 	first_chan = 0;
 	for (i = 0; i < port; i++)
-		first_chan += parent->txchan_per_port[i];
+		first_chan += parent->txchan_per_port[port];
 	num_chan = parent->txchan_per_port[port];
 	for (i = first_chan; i < (first_chan + num_chan); i++) {
 		err = niu_ldg_assign_ldn(np, parent,

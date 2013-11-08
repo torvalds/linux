@@ -736,6 +736,7 @@ skip_rio:
 			vha->flags.rscn_queue_overflow = 1;
 		}
 
+		atomic_set(&vha->loop_state, LOOP_UPDATE);
 		atomic_set(&vha->loop_down_timer, 0);
 		vha->flags.management_server_logged_in = 0;
 

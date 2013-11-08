@@ -32,7 +32,6 @@
 #include <xen/page.h>
 #include <xen/events.h>
 
-#include <xen/hvc-console.h>
 #include "xen-ops.h"
 #include "mmu.h"
 
@@ -172,7 +171,6 @@ static void __init xen_fill_possible_map(void)
 static void __init xen_filter_cpu_maps(void)
 {
 	int i, rc;
-	unsigned int subtract = 0;
 
 	if (!xen_initial_domain())
 		return;
@@ -187,22 +185,8 @@ static void __init xen_filter_cpu_maps(void)
 		} else {
 			set_cpu_possible(i, false);
 			set_cpu_present(i, false);
-			subtract++;
 		}
 	}
-#ifdef CONFIG_HOTPLUG_CPU
-	/* This is akin to using 'nr_cpus' on the Linux command line.
-	 * Which is OK as when we use 'dom0_max_vcpus=X' we can only
-	 * have up to X, while nr_cpu_ids is greater than X. This
-	 * normally is not a problem, except when CPU hotplugging
-	 * is involved and then there might be more than X CPUs
-	 * in the guest - which will not work as there is no
-	 * hypercall to expand the max number of VCPUs an already
-	 * running guest has. So cap it up to X. */
-	if (subtract)
-		nr_cpu_ids = nr_cpu_ids - subtract;
-#endif
-
 }
 
 static void __init xen_smp_prepare_boot_cpu(void)
@@ -223,15 +207,6 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 	unsigned cpu;
 	unsigned int i;
 
-	if (skip_ioapic_setup) {
-		char *m = (max_cpus == 0) ?
-			"The nosmp parameter is incompatible with Xen; " \
-			"use Xen dom0_max_vcpus=1 parameter" :
-			"The noapic parameter is incompatible with Xen";
-
-		xen_raw_printk(m);
-		panic(m);
-	}
 	xen_init_lock_cpu(0);
 
 	smp_store_cpu_info(0);
@@ -546,6 +521,8 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	native_smp_prepare_cpus(max_cpus);
 	WARN_ON(xen_smp_intr_init(0));
 
+	if (!xen_have_vector_callback)
+		return;
 	xen_init_lock_cpu(0);
 	xen_init_spinlocks();
 }
@@ -569,8 +546,6 @@ static void xen_hvm_cpu_die(unsigned int cpu)
 
 void __init xen_hvm_smp_init(void)
 {
-	if (!xen_have_vector_callback)
-		return;
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
 	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
 	smp_ops.cpu_up = xen_hvm_cpu_up;

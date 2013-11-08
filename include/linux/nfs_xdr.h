@@ -262,7 +262,7 @@ struct nfs4_layoutcommit_res {
 struct nfs4_layoutcommit_data {
 	struct rpc_task task;
 	struct nfs_fattr fattr;
-	struct list_head lseg_list;
+	struct pnfs_layout_segment *lseg;
 	struct rpc_cred *cred;
 	struct nfs4_layoutcommit_args args;
 	struct nfs4_layoutcommit_res res;
@@ -1149,7 +1149,6 @@ struct nfs_rpc_ops {
 	const struct dentry_operations *dentry_ops;
 	const struct inode_operations *dir_inode_ops;
 	const struct inode_operations *file_inode_ops;
-	const struct file_operations *file_ops;
 
 	int	(*getroot) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fsinfo *);

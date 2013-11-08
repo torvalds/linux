@@ -379,10 +379,6 @@ static int i915_drm_freeze(struct drm_device *dev)
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
 
-	console_lock();
-	intel_fbdev_set_suspend(dev, 1);
-	console_unlock();
-
 	return 0;
 }
 
@@ -442,9 +438,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		drm_irq_install(dev);
 
 		/* Resume the modeset for every activated CRTC */
-		mutex_lock(&dev->mode_config.mutex);
 		drm_helper_resume_force_mode(dev);
-		mutex_unlock(&dev->mode_config.mutex);
 
 		if (IS_IRONLAKE_M(dev))
 			ironlake_enable_rc6(dev);
@@ -454,9 +448,6 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 	dev_priv->modeset_on_lid = 0;
 
-	console_lock();
-	intel_fbdev_set_suspend(dev, 0);
-	console_unlock();
 	return error;
 }
 

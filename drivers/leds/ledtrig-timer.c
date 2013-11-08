@@ -41,7 +41,6 @@ static ssize_t led_delay_on_store(struct device *dev,
 
 	if (count == size) {
 		led_blink_set(led_cdev, &state, &led_cdev->blink_delay_off);
-		led_cdev->blink_delay_on = state;
 		ret = count;
 	}
 
@@ -70,7 +69,6 @@ static ssize_t led_delay_off_store(struct device *dev,
 
 	if (count == size) {
 		led_blink_set(led_cdev, &led_cdev->blink_delay_on, &state);
-		led_cdev->blink_delay_off = state;
 		ret = count;
 	}
 

@@ -137,9 +137,8 @@
 #define HV_PM_CTRL		PHY_REG(770, 17)
 
 /* PHY Low Power Idle Control */
-#define I82579_LPI_CTRL				PHY_REG(772, 20)
-#define I82579_LPI_CTRL_ENABLE_MASK		0x6000
-#define I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT	0x80
+#define I82579_LPI_CTRL			PHY_REG(772, 20)
+#define I82579_LPI_CTRL_ENABLE_MASK	0x6000
 
 /* EMI Registers */
 #define I82579_EMI_ADDR         0x10
@@ -1612,7 +1611,6 @@ static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 status_reg = 0;
 	u32 mac_reg;
-	u16 phy_reg;
 
 	if (hw->mac.type != e1000_pch2lan)
 		goto out;
@@ -1627,19 +1625,12 @@ static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
 		mac_reg = er32(FEXTNVM4);
 		mac_reg &= ~E1000_FEXTNVM4_BEACON_DURATION_MASK;
 
-		ret_val = e1e_rphy(hw, I82579_LPI_CTRL, &phy_reg);
-		if (ret_val)
-			goto out;
-
-		if (status_reg & HV_M_STATUS_SPEED_1000) {
+		if (status_reg & HV_M_STATUS_SPEED_1000)
 			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_8USEC;
-			phy_reg &= ~I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
-		} else {
+		else
 			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_16USEC;
-			phy_reg |= I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
-		}
+
 		ew32(FEXTNVM4, mac_reg);
-		ret_val = e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
 	}
 
 out:

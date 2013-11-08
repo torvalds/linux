@@ -13,7 +13,6 @@
 
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>

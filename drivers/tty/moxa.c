@@ -1330,7 +1330,7 @@ static void moxa_start(struct tty_struct *tty)
 	if (ch == NULL)
 		return;
 
-	if (!test_bit(TXSTOPPED, &ch->statusflags))
+	if (!(ch->statusflags & TXSTOPPED))
 		return;
 
 	MoxaPortTxEnable(ch);

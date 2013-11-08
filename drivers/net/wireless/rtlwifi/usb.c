@@ -542,8 +542,8 @@ static void _rtl_rx_pre_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	WARN_ON(skb_queue_empty(&rx_queue));
 	while (!skb_queue_empty(&rx_queue)) {
 		_skb = skb_dequeue(&rx_queue);
-		_rtl_usb_rx_process_agg(hw, _skb);
-		ieee80211_rx_irqsafe(hw, _skb);
+		_rtl_usb_rx_process_agg(hw, skb);
+		ieee80211_rx_irqsafe(hw, skb);
 	}
 }
 
@@ -861,7 +861,6 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
 	u8 tid = 0;
 	u16 seq_number = 0;
 
-	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 	if (ieee80211_is_auth(fc)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, ("MAC80211_LINKING\n"));
 		rtl_ips_nic_on(hw);

@@ -702,13 +702,11 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 {
 	struct azx *chip = bus->private_data;
 	unsigned long timeout;
-	unsigned long loopcounter;
 	int do_poll = 0;
 
  again:
 	timeout = jiffies + msecs_to_jiffies(1000);
-
-	for (loopcounter = 0;; loopcounter++) {
+	for (;;) {
 		if (chip->polling_mode || do_poll) {
 			spin_lock_irq(&chip->reg_lock);
 			azx_update_rirb(chip);
@@ -724,7 +722,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		}
 		if (time_after(jiffies, timeout))
 			break;
-		if (bus->needs_damn_long_delay || loopcounter > 3000)
+		if (bus->needs_damn_long_delay)
 			msleep(2); /* temporary workaround */
 		else {
 			udelay(10);
@@ -2354,7 +2352,6 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01f6, "Dell Latitude 131L", POS_FIX_LPIB),
-	SND_PCI_QUIRK(0x1028, 0x02c6, "Dell Inspiron 1010", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell Inspiron 1120", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x103c, 0x306d, "HP dv3", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),

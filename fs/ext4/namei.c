@@ -1589,7 +1589,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			dxtrace(dx_show_index("node", frames[1].entries));
 			dxtrace(dx_show_index("node",
 			       ((struct dx_node *) bh2->b_data)->entries));
-			err = ext4_handle_dirty_metadata(handle, dir, bh2);
+			err = ext4_handle_dirty_metadata(handle, inode, bh2);
 			if (err)
 				goto journal_error;
 			brelse (bh2);
@@ -1615,7 +1615,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			if (err)
 				goto journal_error;
 		}
-		err = ext4_handle_dirty_metadata(handle, dir, frames[0].bh);
+		err = ext4_handle_dirty_metadata(handle, inode, frames[0].bh);
 		if (err) {
 			ext4_std_error(inode->i_sb, err);
 			goto cleanup;
@@ -1799,7 +1799,9 @@ retry:
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
+#ifdef CONFIG_EXT4_FS_XATTR
 		inode->i_op = &ext4_special_inode_operations;
+#endif
 		err = ext4_add_nondir(handle, dentry, inode);
 	}
 	ext4_journal_stop(handle);
@@ -1864,7 +1866,7 @@ retry:
 	ext4_set_de_type(dir->i_sb, de, S_IFDIR);
 	inode->i_nlink = 2;
 	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
-	err = ext4_handle_dirty_metadata(handle, inode, dir_block);
+	err = ext4_handle_dirty_metadata(handle, dir, dir_block);
 	if (err)
 		goto out_clear_inode;
 	err = ext4_mark_inode_dirty(handle, inode);
@@ -2262,11 +2264,9 @@ static int ext4_symlink(struct inode *dir,
 		/*
 		 * For non-fast symlinks, we just allocate inode and put it on
 		 * orphan list in the first transaction => we need bitmap,
-		 * group descriptor, sb, inode block, quota blocks, and
-		 * possibly selinux xattr blocks.
+		 * group descriptor, sb, inode block, quota blocks.
 		 */
-		credits = 4 + EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb) +
-			  EXT4_XATTR_TRANS_BLOCKS;
+		credits = 4 + EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb);
 	} else {
 		/*
 		 * Fast symlink. We have to add entry to directory
@@ -2538,7 +2538,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
 						cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext4_handle_dirty_metadata");
-		retval = ext4_handle_dirty_metadata(handle, old_inode, dir_bh);
+		retval = ext4_handle_dirty_metadata(handle, old_dir, dir_bh);
 		if (retval) {
 			ext4_std_error(old_dir->i_sb, retval);
 			goto end_rename;

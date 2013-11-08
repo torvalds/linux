@@ -615,7 +615,7 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 {
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa;
-	struct in6_addr mcaddr = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
+	struct in6_addr mcaddr;
 
 	idev = in6_dev_get(dev);
 	if (!idev)
@@ -623,6 +623,7 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 
 	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
+		addrconf_addr_solict_mult(&ifa->addr, &mcaddr);
 		ndisc_send_na(dev, NULL, &mcaddr, &ifa->addr,
 			      /*router=*/ !!idev->cnf.forwarding,
 			      /*solicited=*/ false, /*override=*/ true,
@@ -1243,7 +1244,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	rt = rt6_get_dflt_router(&ipv6_hdr(skb)->saddr, skb->dev);
 
 	if (rt)
-		neigh = dst_get_neighbour(&rt->dst);
+		neigh = rt->rt6i_nexthop;
 
 	if (rt && lifetime == 0) {
 		neigh_clone(neigh);
@@ -1264,7 +1265,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			return;
 		}
 
-		neigh = dst_get_neighbour(&rt->dst);
+		neigh = rt->rt6i_nexthop;
 		if (neigh == NULL) {
 			ND_PRINTK0(KERN_ERR
 				   "ICMPv6 RA: %s() got default router without neighbour.\n",

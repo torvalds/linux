@@ -1177,8 +1177,7 @@ static bool DAC960_V1_EnableMemoryMailboxInterface(DAC960_Controller_T
   int TimeoutCounter;
   int i;
 
-  memset(&CommandMailbox, 0, sizeof(DAC960_V1_CommandMailbox_T));
-
+  
   if (pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
 	return DAC960_Failure(Controller, "DMA mask out of range");
   Controller->BounceBufferLimit = DMA_BIT_MASK(32);
@@ -4628,8 +4627,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
   DAC960_Controller_T *Controller = Command->Controller;
   DAC960_CommandType_T CommandType = Command->CommandType;
   DAC960_V2_CommandMailbox_T *CommandMailbox = &Command->V2.CommandMailbox;
-  DAC960_V2_IOCTL_Opcode_T IOCTLOpcode = CommandMailbox->Common.IOCTL_Opcode;
-  DAC960_V2_CommandOpcode_T CommandOpcode = CommandMailbox->SCSI_10.CommandOpcode;
+  DAC960_V2_IOCTL_Opcode_T CommandOpcode = CommandMailbox->Common.IOCTL_Opcode;
   DAC960_V2_CommandStatus_T CommandStatus = Command->V2.CommandStatus;
 
   if (CommandType == DAC960_ReadCommand ||
@@ -4701,7 +4699,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
     {
       if (Controller->ShutdownMonitoringTimer)
 	      return;
-      if (IOCTLOpcode == DAC960_V2_GetControllerInfo)
+      if (CommandOpcode == DAC960_V2_GetControllerInfo)
 	{
 	  DAC960_V2_ControllerInfo_T *NewControllerInfo =
 	    Controller->V2.NewControllerInformation;
@@ -4721,14 +4719,14 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 	  memcpy(ControllerInfo, NewControllerInfo,
 		 sizeof(DAC960_V2_ControllerInfo_T));
 	}
-      else if (IOCTLOpcode == DAC960_V2_GetEvent)
+      else if (CommandOpcode == DAC960_V2_GetEvent)
 	{
 	  if (CommandStatus == DAC960_V2_NormalCompletion) {
 	    DAC960_V2_ReportEvent(Controller, Controller->V2.Event);
 	  }
 	  Controller->V2.NextEventSequenceNumber++;
 	}
-      else if (IOCTLOpcode == DAC960_V2_GetPhysicalDeviceInfoValid &&
+      else if (CommandOpcode == DAC960_V2_GetPhysicalDeviceInfoValid &&
 	       CommandStatus == DAC960_V2_NormalCompletion)
 	{
 	  DAC960_V2_PhysicalDeviceInfo_T *NewPhysicalDeviceInfo =
@@ -4917,7 +4915,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 	  NewPhysicalDeviceInfo->LogicalUnit++;
 	  Controller->V2.PhysicalDeviceIndex++;
 	}
-      else if (IOCTLOpcode == DAC960_V2_GetPhysicalDeviceInfoValid)
+      else if (CommandOpcode == DAC960_V2_GetPhysicalDeviceInfoValid)
 	{
 	  unsigned int DeviceIndex;
 	  for (DeviceIndex = Controller->V2.PhysicalDeviceIndex;
@@ -4940,7 +4938,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 	    }
 	  Controller->V2.NeedPhysicalDeviceInformation = false;
 	}
-      else if (IOCTLOpcode == DAC960_V2_GetLogicalDeviceInfoValid &&
+      else if (CommandOpcode == DAC960_V2_GetLogicalDeviceInfoValid &&
 	       CommandStatus == DAC960_V2_NormalCompletion)
 	{
 	  DAC960_V2_LogicalDeviceInfo_T *NewLogicalDeviceInfo =
@@ -5067,7 +5065,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 			 [LogicalDeviceNumber] = true;
 	  NewLogicalDeviceInfo->LogicalDeviceNumber++;
 	}
-      else if (IOCTLOpcode == DAC960_V2_GetLogicalDeviceInfoValid)
+      else if (CommandOpcode == DAC960_V2_GetLogicalDeviceInfoValid)
 	{
 	  int LogicalDriveNumber;
 	  for (LogicalDriveNumber = 0;

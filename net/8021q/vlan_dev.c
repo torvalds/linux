@@ -154,7 +154,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 		skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 	}
 
-	skb->dev = vlan_dev_info(dev)->real_dev;
+	skb_set_dev(skb, vlan_dev_info(dev)->real_dev);
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 
@@ -694,7 +694,7 @@ void vlan_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->priv_flags		|= IFF_802_1Q_VLAN;
-	dev->priv_flags		&= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
+	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 	dev->tx_queue_len	= 0;
 
 	dev->netdev_ops		= &vlan_netdev_ops;

@@ -166,7 +166,7 @@ static void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 	}
 
 	if (xfrm_aevent_is_on(xs_net(x)))
-		x->repl->notify(x, XFRM_REPLAY_UPDATE);
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 
 static int xfrm_replay_overflow_bmp(struct xfrm_state *x, struct sk_buff *skb)
@@ -293,7 +293,7 @@ static void xfrm_replay_advance_bmp(struct xfrm_state *x, __be32 net_seq)
 	}
 
 	if (xfrm_aevent_is_on(xs_net(x)))
-		x->repl->notify(x, XFRM_REPLAY_UPDATE);
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 
 static void xfrm_replay_notify_bmp(struct xfrm_state *x, int event)
@@ -437,18 +437,6 @@ err:
 	return -EINVAL;
 }
 
-static int xfrm_replay_recheck_esn(struct xfrm_state *x,
-				   struct sk_buff *skb, __be32 net_seq)
-{
-	if (unlikely(XFRM_SKB_CB(skb)->seq.input.hi !=
-		     htonl(xfrm_replay_seqhi(x, net_seq)))) {
-			x->stats.replay_window++;
-			return -EINVAL;
-	}
-
-	return xfrm_replay_check_esn(x, skb, net_seq);
-}
-
 static void xfrm_replay_advance_esn(struct xfrm_state *x, __be32 net_seq)
 {
 	unsigned int bitnr, nr, i;
@@ -514,13 +502,12 @@ static void xfrm_replay_advance_esn(struct xfrm_state *x, __be32 net_seq)
 	}
 
 	if (xfrm_aevent_is_on(xs_net(x)))
-		x->repl->notify(x, XFRM_REPLAY_UPDATE);
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 
 static struct xfrm_replay xfrm_replay_legacy = {
 	.advance	= xfrm_replay_advance,
 	.check		= xfrm_replay_check,
-	.recheck	= xfrm_replay_check,
 	.notify		= xfrm_replay_notify,
 	.overflow	= xfrm_replay_overflow,
 };
@@ -528,7 +515,6 @@ static struct xfrm_replay xfrm_replay_legacy = {
 static struct xfrm_replay xfrm_replay_bmp = {
 	.advance	= xfrm_replay_advance_bmp,
 	.check		= xfrm_replay_check_bmp,
-	.recheck	= xfrm_replay_check_bmp,
 	.notify		= xfrm_replay_notify_bmp,
 	.overflow	= xfrm_replay_overflow_bmp,
 };
@@ -536,7 +522,6 @@ static struct xfrm_replay xfrm_replay_bmp = {
 static struct xfrm_replay xfrm_replay_esn = {
 	.advance	= xfrm_replay_advance_esn,
 	.check		= xfrm_replay_check_esn,
-	.recheck	= xfrm_replay_recheck_esn,
 	.notify		= xfrm_replay_notify_bmp,
 	.overflow	= xfrm_replay_overflow_esn,
 };

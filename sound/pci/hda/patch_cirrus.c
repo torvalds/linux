@@ -508,7 +508,7 @@ static int add_volume(struct hda_codec *codec, const char *name,
 		      int index, unsigned int pval, int dir,
 		      struct snd_kcontrol **kctlp)
 {
-	char tmp[44];
+	char tmp[32];
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_IDX(tmp, index, 0, 0, HDA_OUTPUT);
 	knew.private_value = pval;
@@ -991,7 +991,7 @@ static const struct hda_verb cs_coef_init_verbs[] = {
 	  | 0x0400 /* Disable Coefficient Auto increment */
 	  )},
 	/* Beep */
-	{0x11, AC_VERB_SET_COEF_INDEX, IDX_BEEP_CFG},
+	{0x11, AC_VERB_SET_COEF_INDEX, IDX_DAC_CFG},
 	{0x11, AC_VERB_SET_PROC_COEF, 0x0007}, /* Enable Beep thru DAC1/2/3 */
 
 	{} /* terminator */

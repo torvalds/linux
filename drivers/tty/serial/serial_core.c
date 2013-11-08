@@ -91,9 +91,6 @@ static void __uart_start(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 
-	if (port->ops->wake_peer)
-		port->ops->wake_peer(port);
-
 	if (!uart_circ_empty(&state->xmit) && state->xmit.buf &&
 	    !tty->stopped && !tty->hw_stopped)
 		port->ops->start_tx(port);
@@ -2006,8 +2003,6 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		if (port->tty && port->tty->termios && termios.c_cflag == 0)
 			termios = *(port->tty->termios);
 
-		if (console_suspend_enabled)
-			uart_change_pm(state, 0);
 		uport->ops->set_termios(uport, &termios, NULL);
 		if (console_suspend_enabled)
 			console_start(uport->cons);
@@ -2328,7 +2323,6 @@ void uart_unregister_driver(struct uart_driver *drv)
 	tty_unregister_driver(p);
 	put_tty_driver(p);
 	kfree(drv->state);
-	drv->state = NULL;
 	drv->tty_driver = NULL;
 }
 

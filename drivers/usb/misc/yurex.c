@@ -99,7 +99,9 @@ static void yurex_delete(struct kref *kref)
 	usb_put_dev(dev->udev);
 	if (dev->cntl_urb) {
 		usb_kill_urb(dev->cntl_urb);
-		kfree(dev->cntl_req);
+		if (dev->cntl_req)
+			usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
+				dev->cntl_req, dev->cntl_urb->setup_dma);
 		if (dev->cntl_buffer)
 			usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
 				dev->cntl_buffer, dev->cntl_urb->transfer_dma);
@@ -232,7 +234,9 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	}
 
 	/* allocate buffer for control req */
-	dev->cntl_req = kmalloc(YUREX_BUF_SIZE, GFP_KERNEL);
+	dev->cntl_req = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
+					   GFP_KERNEL,
+					   &dev->cntl_urb->setup_dma);
 	if (!dev->cntl_req) {
 		err("Could not allocate cntl_req");
 		goto error;
@@ -282,7 +286,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 			 usb_rcvintpipe(dev->udev, dev->int_in_endpointAddr),
 			 dev->int_buffer, YUREX_BUF_SIZE, yurex_interrupt,
 			 dev, 1);
-	dev->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->cntl_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(dev->urb, GFP_KERNEL)) {
 		retval = -EIO;
 		err("Could not submitting URB");

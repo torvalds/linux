@@ -27,20 +27,18 @@
 
 #include "sdio_ops.h"
 
-static int process_sdio_pending_irqs(struct mmc_host *host)
+static int process_sdio_pending_irqs(struct mmc_card *card)
 {
-	struct mmc_card *card = host->card;
 	int i, ret, count;
 	unsigned char pending;
 	struct sdio_func *func;
 
 	/*
 	 * Optimization, if there is only 1 function interrupt registered
-	 * and we know an IRQ was signaled then call irq handler directly.
-	 * Otherwise do the full probe.
+	 * call irq handler directly
 	 */
 	func = card->sdio_single_irq;
-	if (func && host->sdio_irq_pending) {
+	if (func) {
 		func->irq_handler(func);
 		return 1;
 	}
@@ -117,8 +115,7 @@ static int sdio_irq_thread(void *_host)
 		ret = __mmc_claim_host(host, &host->sdio_irq_thread_abort);
 		if (ret)
 			break;
-		ret = process_sdio_pending_irqs(host);
-		host->sdio_irq_pending = false;
+		ret = process_sdio_pending_irqs(host->card);
 		mmc_release_host(host);
 
 		/*

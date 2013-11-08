@@ -471,7 +471,7 @@ static int rfcomm_get_dev_list(void __user *arg)
 
 	size = sizeof(*dl) + dev_num * sizeof(*di);
 
-	dl = kzalloc(size, GFP_KERNEL);
+	dl = kmalloc(size, GFP_KERNEL);
 	if (!dl)
 		return -ENOMEM;
 

@@ -103,14 +103,8 @@ static int sclhi(struct i2c_algo_bit_data *adap)
 		 * chips may hold it low ("clock stretching") while they
 		 * are processing data internally.
 		 */
-		if (time_after(jiffies, start + adap->timeout)) {
-			/* Test one last time, as we may have been preempted
-			 * between last check and timeout test.
-			 */
-			if (getscl(adap))
-				break;
+		if (time_after(jiffies, start + adap->timeout))
 			return -ETIMEDOUT;
-		}
 		cond_resched();
 	}
 #ifdef DEBUG
@@ -492,7 +486,7 @@ static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 
 	if (flags & I2C_M_TEN) {
 		/* a ten bit address */
-		addr = 0xf0 | ((msg->addr >> 7) & 0x06);
+		addr = 0xf0 | ((msg->addr >> 7) & 0x03);
 		bit_dbg(2, &i2c_adap->dev, "addr0: %d\n", addr);
 		/* try extended address code...*/
 		ret = try_address(i2c_adap, addr, retries);
@@ -502,7 +496,7 @@ static int bit_doAddress(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			return -EREMOTEIO;
 		}
 		/* the remaining 8 bit address */
-		ret = i2c_outb(i2c_adap, msg->addr & 0xff);
+		ret = i2c_outb(i2c_adap, msg->addr & 0x7f);
 		if ((ret != 1) && !nak_ok) {
 			/* the chip did not ack / xmission error occurred */
 			dev_err(&i2c_adap->dev, "died at 2nd address code\n");

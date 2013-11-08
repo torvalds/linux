@@ -753,28 +753,20 @@ jme_make_new_rx_buf(struct jme_adapter *jme, int i)
 	struct jme_ring *rxring = &(jme->rxring[0]);
 	struct jme_buffer_info *rxbi = rxring->bufinf + i;
 	struct sk_buff *skb;
-	dma_addr_t mapping;
 
 	skb = netdev_alloc_skb(jme->dev,
 		jme->dev->mtu + RX_EXTRA_LEN);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	mapping = pci_map_page(jme->pdev, virt_to_page(skb->data),
-			       offset_in_page(skb->data), skb_tailroom(skb),
-			       PCI_DMA_FROMDEVICE);
-	if (unlikely(pci_dma_mapping_error(jme->pdev, mapping))) {
-		dev_kfree_skb(skb);
-		return -ENOMEM;
-	}
-
-	if (likely(rxbi->mapping))
-		pci_unmap_page(jme->pdev, rxbi->mapping,
-			       rxbi->len, PCI_DMA_FROMDEVICE);
-
 	rxbi->skb = skb;
 	rxbi->len = skb_tailroom(skb);
-	rxbi->mapping = mapping;
+	rxbi->mapping = pci_map_page(jme->pdev,
+					virt_to_page(skb->data),
+					offset_in_page(skb->data),
+					rxbi->len,
+					PCI_DMA_FROMDEVICE);
+
 	return 0;
 }
 
@@ -2228,11 +2220,19 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 		((new_mtu) < IPV6_MIN_MTU))
 		return -EINVAL;
 
+	if (new_mtu > 4000) {
+		jme->reg_rxcs &= ~RXCS_FIFOTHNP;
+		jme->reg_rxcs |= RXCS_FIFOTHNP_64QW;
+		jme_restart_rx_engine(jme);
+	} else {
+		jme->reg_rxcs &= ~RXCS_FIFOTHNP;
+		jme->reg_rxcs |= RXCS_FIFOTHNP_128QW;
+		jme_restart_rx_engine(jme);
+	}
 
 	netdev->mtu = new_mtu;
 	netdev_update_features(netdev);
 
-	jme_restart_rx_engine(jme);
 	jme_reset_link(jme);
 
 	return 0;

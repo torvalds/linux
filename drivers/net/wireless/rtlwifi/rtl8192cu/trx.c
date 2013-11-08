@@ -549,16 +549,15 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 			       (tcb_desc->rts_use_shortpreamble ? 1 : 0)
 			       : (tcb_desc->rts_use_shortgi ? 1 : 0)));
 	if (mac->bw_40) {
-		if (rate_flag & IEEE80211_TX_RC_DUP_DATA) {
+		if (tcb_desc->packet_bw) {
 			SET_TX_DESC_DATA_BW(txdesc, 1);
 			SET_TX_DESC_DATA_SC(txdesc, 3);
-		} else if(rate_flag & IEEE80211_TX_RC_40_MHZ_WIDTH){
-			SET_TX_DESC_DATA_BW(txdesc, 1);
-			SET_TX_DESC_DATA_SC(txdesc, mac->cur_40_prime_sc);
 		} else {
 			SET_TX_DESC_DATA_BW(txdesc, 0);
-			SET_TX_DESC_DATA_SC(txdesc, 0);
-		}
+				if (rate_flag & IEEE80211_TX_RC_DUP_DATA)
+					SET_TX_DESC_DATA_SC(txdesc,
+							  mac->cur_40_prime_sc);
+			}
 	} else {
 		SET_TX_DESC_DATA_BW(txdesc, 0);
 		SET_TX_DESC_DATA_SC(txdesc, 0);

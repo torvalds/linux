@@ -4124,8 +4124,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 
 	/* special case for "." */
 	if (filp->f_pos == 0) {
-		over = filldir(dirent, ".", 1,
-			       filp->f_pos, btrfs_ino(inode), DT_DIR);
+		over = filldir(dirent, ".", 1, 1, btrfs_ino(inode), DT_DIR);
 		if (over)
 			return 0;
 		filp->f_pos = 1;
@@ -4134,7 +4133,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 	if (filp->f_pos == 1) {
 		u64 pino = parent_ino(filp->f_path.dentry);
 		over = filldir(dirent, "..", 2,
-			       filp->f_pos, pino, DT_DIR);
+			       2, pino, DT_DIR);
 		if (over)
 			return 0;
 		filp->f_pos = 2;

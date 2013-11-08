@@ -114,12 +114,10 @@ int __request_module(bool wait, const char *fmt, ...)
 	atomic_inc(&kmod_concurrent);
 	if (atomic_read(&kmod_concurrent) > max_modprobes) {
 		/* We may be blaming an innocent here, but unlikely */
-		if (kmod_loop_msg < 5) {
+		if (kmod_loop_msg++ < 5)
 			printk(KERN_ERR
 			       "request_module: runaway loop modprobe %s\n",
 			       module_name);
-			kmod_loop_msg++;
-		}
 		atomic_dec(&kmod_concurrent);
 		return -ENOMEM;
 	}

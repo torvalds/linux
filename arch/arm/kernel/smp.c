@@ -53,7 +53,6 @@ enum ipi_msg_type {
 	IPI_CALL_FUNC,
 	IPI_CALL_FUNC_SINGLE,
 	IPI_CPU_STOP,
-	IPI_CPU_BACKTRACE,
 };
 
 int __cpuinit __cpu_up(unsigned int cpu)
@@ -278,26 +277,20 @@ static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 asmlinkage void __cpuinit secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
-	unsigned int cpu;
+	unsigned int cpu = smp_processor_id();
 
-	/*
-	 * The identity mapping is uncached (strongly ordered), so
-	 * switch away from it before attempting any exclusive accesses.
-	 */
-	cpu_switch_mm(mm->pgd, mm);
-	enter_lazy_tlb(mm, current);
-	local_flush_tlb_all();
+	printk("CPU%u: Booted secondary processor\n", cpu);
 
 	/*
 	 * All kernel threads share the same mm context; grab a
 	 * reference and switch to it.
 	 */
-	cpu = smp_processor_id();
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
-
-	printk("CPU%u: Booted secondary processor\n", cpu);
+	cpu_switch_mm(mm->pgd, mm);
+	enter_lazy_tlb(mm, current);
+	local_flush_tlb_all();
 
 	cpu_init();
 	preempt_disable();
@@ -308,7 +301,17 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 */
 	platform_secondary_init(cpu);
 
+	/*
+	 * Enable local interrupts.
+	 */
 	notify_cpu_starting(cpu);
+	local_irq_enable();
+	local_fiq_enable();
+
+	/*
+	 * Setup the percpu timer for this CPU.
+	 */
+	percpu_timer_setup();
 
 	calibrate_delay();
 
@@ -320,21 +323,8 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * before we continue.
 	 */
 	set_cpu_online(cpu, true);
-
-	/*
-	 * Setup the percpu timer for this CPU.
-	 */
-	percpu_timer_setup();
-
 	while (!cpu_active(cpu))
 		cpu_relax();
-
-	/*
-	 * cpu_active bit is set, so it's safe to enable interrupts
-	 * now.
-	 */
-	local_irq_enable();
-	local_fiq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -415,7 +405,6 @@ static const char *ipi_types[NR_IPI] = {
 	S(IPI_CALL_FUNC, "Function call interrupts"),
 	S(IPI_CALL_FUNC_SINGLE, "Single function call interrupts"),
 	S(IPI_CPU_STOP, "CPU stop interrupts"),
-	S(IPI_CPU_BACKTRACE, "CPU backtrace"),
 };
 
 void show_ipi_list(struct seq_file *p, int prec)
@@ -456,7 +445,9 @@ static DEFINE_PER_CPU(struct clock_event_device, percpu_clockevent);
 static void ipi_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(percpu_clockevent);
+	irq_enter();
 	evt->event_handler(evt);
+	irq_exit();
 }
 
 #ifdef CONFIG_LOCAL_TIMERS
@@ -467,9 +458,7 @@ asmlinkage void __exception_irq_entry do_local_timer(struct pt_regs *regs)
 
 	if (local_timer_ack()) {
 		__inc_irq_stat(cpu, local_timer_irqs);
-		irq_enter();
 		ipi_timer();
-		irq_exit();
 	}
 
 	set_irq_regs(old_regs);
@@ -566,58 +555,6 @@ static void ipi_cpu_stop(unsigned int cpu)
 		cpu_relax();
 }
 
-static cpumask_t backtrace_mask;
-static DEFINE_RAW_SPINLOCK(backtrace_lock);
-
-/* "in progress" flag of arch_trigger_all_cpu_backtrace */
-static unsigned long backtrace_flag;
-
-void smp_send_all_cpu_backtrace(void)
-{
-	unsigned int this_cpu = smp_processor_id();
-	int i;
-
-	if (test_and_set_bit(0, &backtrace_flag))
-		/*
-		 * If there is already a trigger_all_cpu_backtrace() in progress
-		 * (backtrace_flag == 1), don't output double cpu dump infos.
-		 */
-		return;
-
-	cpumask_copy(&backtrace_mask, cpu_online_mask);
-	cpu_clear(this_cpu, backtrace_mask);
-
-	pr_info("Backtrace for cpu %d (current):\n", this_cpu);
-	dump_stack();
-
-	pr_info("\nsending IPI to all other CPUs:\n");
-	smp_cross_call(&backtrace_mask, IPI_CPU_BACKTRACE);
-
-	/* Wait for up to 10 seconds for all other CPUs to do the backtrace */
-	for (i = 0; i < 10 * 1000; i++) {
-		if (cpumask_empty(&backtrace_mask))
-			break;
-		mdelay(1);
-	}
-
-	clear_bit(0, &backtrace_flag);
-	smp_mb__after_clear_bit();
-}
-
-/*
- * ipi_cpu_backtrace - handle IPI from smp_send_all_cpu_backtrace()
- */
-static void ipi_cpu_backtrace(unsigned int cpu, struct pt_regs *regs)
-{
-	if (cpu_isset(cpu, backtrace_mask)) {
-		raw_spin_lock(&backtrace_lock);
-		pr_warning("IPI backtrace for cpu %d\n", cpu);
-		show_regs(regs);
-		raw_spin_unlock(&backtrace_lock);
-		cpu_clear(cpu, backtrace_mask);
-	}
-}
-
 /*
  * Main handler for inter-processor interrupts
  */
@@ -631,9 +568,7 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 
 	switch (ipinr) {
 	case IPI_TIMER:
-		irq_enter();
 		ipi_timer();
-		irq_exit();
 		break;
 
 	case IPI_RESCHEDULE:
@@ -641,25 +576,15 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CALL_FUNC:
-		irq_enter();
 		generic_smp_call_function_interrupt();
-		irq_exit();
 		break;
 
 	case IPI_CALL_FUNC_SINGLE:
-		irq_enter();
 		generic_smp_call_function_single_interrupt();
-		irq_exit();
 		break;
 
 	case IPI_CPU_STOP:
-		irq_enter();
 		ipi_cpu_stop(cpu);
-		irq_exit();
-		break;
-
-	case IPI_CPU_BACKTRACE:
-		ipi_cpu_backtrace(cpu, regs);
 		break;
 
 	default:

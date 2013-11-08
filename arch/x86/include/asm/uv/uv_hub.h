@@ -46,13 +46,6 @@
  *	PNODE   - the low N bits of the GNODE. The PNODE is the most useful variant
  *		  of the nasid for socket usage.
  *
- *	GPA	- (global physical address) a socket physical address converted
- *		  so that it can be used by the GRU as a global address. Socket
- *		  physical addresses 1) need additional NASID (node) bits added
- *		  to the high end of the address, and 2) unaliased if the
- *		  partition does not have a physical address 0. In addition, on
- *		  UV2 rev 1, GPAs need the gnode left shifted to bits 39 or 40.
- *
  *
  *  NumaLink Global Physical Address Format:
  *  +--------------------------------+---------------------+
@@ -148,8 +141,6 @@ struct uv_hub_info_s {
 	unsigned int		gnode_extra;
 	unsigned char		hub_revision;
 	unsigned char		apic_pnode_shift;
-	unsigned char		m_shift;
-	unsigned char		n_lshift;
 	unsigned long		gnode_upper;
 	unsigned long		lowmem_remap_top;
 	unsigned long		lowmem_remap_base;
@@ -184,16 +175,6 @@ static inline int is_uv1_hub(void)
 static inline int is_uv2_hub(void)
 {
 	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
-}
-
-static inline int is_uv2_1_hub(void)
-{
-	return uv_hub_info->hub_revision == UV2_HUB_REVISION_BASE;
-}
-
-static inline int is_uv2_2_hub(void)
-{
-	return uv_hub_info->hub_revision == UV2_HUB_REVISION_BASE + 1;
 }
 
 union uvh_apicid {
@@ -295,10 +276,7 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 {
 	if (paddr < uv_hub_info->lowmem_remap_top)
 		paddr |= uv_hub_info->lowmem_remap_base;
-	paddr |= uv_hub_info->gnode_upper;
-	paddr = ((paddr << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
-		((paddr >> uv_hub_info->m_val) << uv_hub_info->n_lshift);
-	return paddr;
+	return paddr | uv_hub_info->gnode_upper;
 }
 
 
@@ -318,23 +296,20 @@ uv_gpa_in_mmr_space(unsigned long gpa)
 /* UV global physical address --> socket phys RAM */
 static inline unsigned long uv_gpa_to_soc_phys_ram(unsigned long gpa)
 {
-	unsigned long paddr;
+	unsigned long paddr = gpa & uv_hub_info->gpa_mask;
 	unsigned long remap_base = uv_hub_info->lowmem_remap_base;
 	unsigned long remap_top =  uv_hub_info->lowmem_remap_top;
 
-	gpa = ((gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
-		((gpa >> uv_hub_info->n_lshift) << uv_hub_info->m_val);
-	paddr = gpa & uv_hub_info->gpa_mask;
 	if (paddr >= remap_base && paddr < remap_base + remap_top)
 		paddr -= remap_base;
 	return paddr;
 }
 
 
-/* gpa -> pnode */
+/* gnode -> pnode */
 static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
 {
-	return gpa >> uv_hub_info->n_lshift;
+	return gpa >> uv_hub_info->m_val;
 }
 
 /* gpa -> pnode */
@@ -343,12 +318,6 @@ static inline int uv_gpa_to_pnode(unsigned long gpa)
 	unsigned long n_mask = (1UL << uv_hub_info->n_val) - 1;
 
 	return uv_gpa_to_gnode(gpa) & n_mask;
-}
-
-/* gpa -> node offset*/
-static inline unsigned long uv_gpa_to_offset(unsigned long gpa)
-{
-	return (gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift;
 }
 
 /* pnode, offset --> socket virtual */

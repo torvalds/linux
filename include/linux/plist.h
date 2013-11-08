@@ -77,9 +77,14 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/spinlock_types.h>
 
 struct plist_head {
 	struct list_head node_list;
+#ifdef CONFIG_DEBUG_PI_LIST
+	raw_spinlock_t *rawlock;
+	spinlock_t *spinlock;
+#endif
 };
 
 struct plist_node {
@@ -88,13 +93,37 @@ struct plist_node {
 	struct list_head	node_list;
 };
 
+#ifdef CONFIG_DEBUG_PI_LIST
+# define PLIST_HEAD_LOCK_INIT(_lock)		.spinlock = _lock
+# define PLIST_HEAD_LOCK_INIT_RAW(_lock)	.rawlock = _lock
+#else
+# define PLIST_HEAD_LOCK_INIT(_lock)
+# define PLIST_HEAD_LOCK_INIT_RAW(_lock)
+#endif
+
+#define _PLIST_HEAD_INIT(head)				\
+	.node_list = LIST_HEAD_INIT((head).node_list)
+
 /**
  * PLIST_HEAD_INIT - static struct plist_head initializer
  * @head:	struct plist_head variable name
+ * @_lock:	lock to initialize for this list
  */
-#define PLIST_HEAD_INIT(head)				\
+#define PLIST_HEAD_INIT(head, _lock)			\
 {							\
-	.node_list = LIST_HEAD_INIT((head).node_list)	\
+	_PLIST_HEAD_INIT(head),				\
+	PLIST_HEAD_LOCK_INIT(&(_lock))			\
+}
+
+/**
+ * PLIST_HEAD_INIT_RAW - static struct plist_head initializer
+ * @head:	struct plist_head variable name
+ * @_lock:	lock to initialize for this list
+ */
+#define PLIST_HEAD_INIT_RAW(head, _lock)		\
+{							\
+	_PLIST_HEAD_INIT(head),				\
+	PLIST_HEAD_LOCK_INIT_RAW(&(_lock))		\
 }
 
 /**
@@ -112,11 +141,31 @@ struct plist_node {
 /**
  * plist_head_init - dynamic struct plist_head initializer
  * @head:	&struct plist_head pointer
+ * @lock:	spinlock protecting the list (debugging)
  */
 static inline void
-plist_head_init(struct plist_head *head)
+plist_head_init(struct plist_head *head, spinlock_t *lock)
 {
 	INIT_LIST_HEAD(&head->node_list);
+#ifdef CONFIG_DEBUG_PI_LIST
+	head->spinlock = lock;
+	head->rawlock = NULL;
+#endif
+}
+
+/**
+ * plist_head_init_raw - dynamic struct plist_head initializer
+ * @head:	&struct plist_head pointer
+ * @lock:	raw_spinlock protecting the list (debugging)
+ */
+static inline void
+plist_head_init_raw(struct plist_head *head, raw_spinlock_t *lock)
+{
+	INIT_LIST_HEAD(&head->node_list);
+#ifdef CONFIG_DEBUG_PI_LIST
+	head->rawlock = lock;
+	head->spinlock = NULL;
+#endif
 }
 
 /**

@@ -72,7 +72,7 @@ int sci_unsolicited_frame_control_construct(struct isci_host *ihost)
 	 */
 	buf_len = SCU_MAX_UNSOLICITED_FRAMES * SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
 	header_len = SCU_MAX_UNSOLICITED_FRAMES * sizeof(struct scu_unsolicited_frame_header);
-	size = buf_len + header_len + SCU_MAX_UNSOLICITED_FRAMES * sizeof(uf_control->address_table.array[0]);
+	size = buf_len + header_len + SCU_MAX_UNSOLICITED_FRAMES * sizeof(dma_addr_t);
 
 	/*
 	 * The Unsolicited Frame buffers are set at the start of the UF

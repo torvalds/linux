@@ -209,7 +209,7 @@ out:
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CR_MODE_INDEX, saved_cr_mode);
 
 	if (blue == 0x18) {
-		NV_DEBUG(dev, "Load detected on head A\n");
+		NV_INFO(dev, "Load detected on head A\n");
 		return connector_status_connected;
 	}
 
@@ -323,7 +323,7 @@ nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 
 	if (nv17_dac_sample_load(encoder) &
 	    NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
-		NV_DEBUG(dev, "Load detected on output %c\n",
+		NV_INFO(dev, "Load detected on output %c\n",
 			'@' + ffs(dcb->or));
 		return connector_status_connected;
 	} else {
@@ -398,7 +398,7 @@ static void nv04_dac_commit(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_DEBUG(dev, "Output %s is running on CRTC %d using output %c\n",
+	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
 		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
@@ -447,7 +447,7 @@ static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nv_encoder->last_dpms = mode;
 
-	NV_DEBUG(dev, "Setting dpms mode %d on vga encoder (output %d)\n",
+	NV_INFO(dev, "Setting dpms mode %d on vga encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
 	nv04_dac_update_dacclk(encoder, mode == DRM_MODE_DPMS_ON);

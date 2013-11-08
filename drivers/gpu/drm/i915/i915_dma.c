@@ -61,6 +61,7 @@ static void i915_write_hws_pga(struct drm_device *dev)
 static int i915_init_phys_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	/* Program Hardware Status Page */
 	dev_priv->status_page_dmah =
@@ -70,9 +71,10 @@ static int i915_init_phys_hws(struct drm_device *dev)
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
+	ring->status_page.page_addr =
+		(void __force __iomem *)dev_priv->status_page_dmah->vaddr;
 
-	memset_io((void __force __iomem *)dev_priv->status_page_dmah->vaddr,
-		  0, PAGE_SIZE);
+	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	i915_write_hws_pga(dev);
 
@@ -1451,14 +1453,6 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 
 	diff1 = now - dev_priv->last_time1;
 
-	/* Prevent division-by-zero if we are asking too fast.
-	 * Also, we don't get interesting results if we are polling
-	 * faster than once in 10ms, so just return the saved value
-	 * in such cases.
-	 */
-	if (diff1 <= 10)
-		return dev_priv->chipset_power;
-
 	count1 = I915_READ(DMIEC);
 	count2 = I915_READ(DDREC);
 	count3 = I915_READ(CSIEC);
@@ -1488,8 +1482,6 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 
 	dev_priv->last_count1 = total_count;
 	dev_priv->last_time1 = now;
-
-	dev_priv->chipset_power = ret;
 
 	return ret;
 }

@@ -22,7 +22,6 @@
 #include <linux/bitops.h>
 #include <linux/perf_event.h>
 #include <linux/ratelimit.h>
-#include <linux/bitops.h>
 #include <asm/fpumacro.h>
 
 enum direction {
@@ -374,11 +373,16 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 	}
 }
 
+static char popc_helper[] = {
+0, 1, 1, 2, 1, 2, 2, 3,
+1, 2, 2, 3, 2, 3, 3, 4, 
+};
+
 int handle_popc(u32 insn, struct pt_regs *regs)
 {
-	int from_kernel = (regs->tstate & TSTATE_PRIV) != 0;
-	int ret, rd = ((insn >> 25) & 0x1f);
 	u64 value;
+	int ret, i, rd = ((insn >> 25) & 0x1f);
+	int from_kernel = (regs->tstate & TSTATE_PRIV) != 0;
 	                        
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, 0);
 	if (insn & 0x2000) {
@@ -388,7 +392,10 @@ int handle_popc(u32 insn, struct pt_regs *regs)
 		maybe_flush_windows(0, insn & 0x1f, rd, from_kernel);
 		value = fetch_reg(insn & 0x1f, regs);
 	}
-	ret = hweight64(value);
+	for (ret = 0, i = 0; i < 16; i++) {
+		ret += popc_helper[value & 0xf];
+		value >>= 4;
+	}
 	if (rd < 16) {
 		if (rd)
 			regs->u_regs[rd] = ret;

@@ -161,10 +161,10 @@ static mfp_cfg_t cm_x3xx_mfp_cfg[] __initdata = {
 	GPIO99_GPIO,			/* Ethernet IRQ */
 
 	/* RTC GPIOs */
-	GPIO95_GPIO | MFP_LPM_DRIVE_HIGH,	/* RTC CS */
-	GPIO96_GPIO | MFP_LPM_DRIVE_HIGH,	/* RTC WR */
-	GPIO97_GPIO | MFP_LPM_DRIVE_HIGH,	/* RTC RD */
-	GPIO98_GPIO,				/* RTC IO */
+	GPIO95_GPIO,			/* RTC CS */
+	GPIO96_GPIO,			/* RTC WR */
+	GPIO97_GPIO,			/* RTC RD */
+	GPIO98_GPIO,			/* RTC IO */
 
 	/* Standard I2C */
 	GPIO21_I2C_SCL,

@@ -74,7 +74,7 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 		if (boarddata && gpio_is_valid(boarddata->cd_gpio)
 				&& gpio_get_value(boarddata->cd_gpio))
 			/* no card, if a valid gpio says so... */
-			val &= ~SDHCI_CARD_PRESENT;
+			val &= SDHCI_CARD_PRESENT;
 		else
 			/* ... in all other cases assume card is present */
 			val |= SDHCI_CARD_PRESENT;
@@ -139,9 +139,8 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		imx_data->scratchpad = val;
 		return;
 	case SDHCI_COMMAND:
-		if ((host->cmd->opcode == MMC_STOP_TRANSMISSION ||
-		     host->cmd->opcode == MMC_SET_BLOCK_COUNT) &&
-	            (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
+		if ((host->cmd->opcode == MMC_STOP_TRANSMISSION)
+			&& (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
 			val |= SDHCI_CMD_ABORTCMD;
 		writel(val << 16 | imx_data->scratchpad,
 			host->ioaddr + SDHCI_TRANSFER_MODE);
@@ -245,7 +244,8 @@ static int esdhc_pltfm_init(struct sdhci_host *host, struct sdhci_pltfm_data *pd
 	}
 	pltfm_host->priv = imx_data;
 
-	host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+	if (!cpu_is_mx25())
+		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
 	if (cpu_is_mx25() || cpu_is_mx35()) {
 		/* Fix errata ENGcm07207 present on i.MX25 and i.MX35 */

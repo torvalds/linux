@@ -544,7 +544,7 @@ config USB_LANGWELL
 	select USB_GADGET_SELECTED
 
 config USB_GADGET_EG20T
-	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR IOH(ML7213/ML7831) UDC"
+	boolean "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH UDC"
 	depends on PCI
 	select USB_GADGET_DUALSPEED
 	help
@@ -562,9 +562,8 @@ config USB_GADGET_EG20T
 
 	  This driver also can be used for OKI SEMICONDUCTOR's ML7213 which is
 	  for IVI(In-Vehicle Infotainment) use.
-	  ML7831 is for general purpose use.
-	  ML7213/ML7831 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
 
 config USB_EG20T
 	tristate
@@ -935,14 +934,6 @@ config USB_G_PRINTER
 
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
-
-config USB_G_ANDROID
-	boolean "Android Gadget"
-	depends on SWITCH
-	help
-	  The Android gadget driver supports multiple USB functions.
-	  The functions can be configured via a board file and may be
-	  enabled and disabled dynamically.
 
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"

@@ -248,8 +248,6 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 /* Final destructor for endpoint.  */
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
-	int i;
-
 	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
 
 	/* Free up the HMAC transform. */
@@ -271,9 +269,6 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	/* Cleanup. */
 	sctp_inq_free(&ep->base.inqueue);
 	sctp_bind_addr_free(&ep->base.bind_addr);
-
-	for (i = 0; i < SCTP_HOW_MANY_SECRETS; ++i)
-		memset(&ep->secret_key[i], 0, SCTP_SECRET_SIZE);
 
 	/* Remove and free the port */
 	if (sctp_sk(ep->base.sk)->bind_hash)

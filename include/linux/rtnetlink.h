@@ -600,9 +600,6 @@ struct tcamsg {
 #define TCA_ACT_TAB 1 /* attr type must be >=1 */	
 #define TCAA_MAX 1
 
-/* New extended info filters for IFLA_EXT_MASK */
-#define RTEXT_FILTER_VF		(1 << 0)
-
 /* End of information exported to user level */
 
 #ifdef __KERNEL__

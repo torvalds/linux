@@ -2543,7 +2543,7 @@ config S6GMAC
 source "drivers/net/stmmac/Kconfig"
 
 config PCH_GBE
-	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR IOH(ML7223/ML7831) GbE"
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR ML7223 IOH GbE"
 	depends on PCI
 	select MII
 	---help---
@@ -2556,11 +2556,10 @@ config PCH_GBE
 	  This driver enables Gigabit Ethernet function.
 
 	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
-	  Output Hub), ML7223/ML7831.
-	  ML7223 IOH is for MP(Media Phone) use. ML7831 IOH is for general
-	  purpose use.
-	  ML7223/ML7831 is companion chip for Intel Atom E6xx series.
-	  ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+	  Output Hub), ML7223.
+	  ML7223 IOH is for MP(Media Phone) use.
+	  ML7223 is companion chip for Intel Atom E6xx series.
+	  ML7223 is completely compatible for Intel EG20T PCH.
 
 endif # NETDEV_1000
 
@@ -3323,23 +3322,6 @@ config PPPOL2TP
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
 	  tunnels. L2TP is replacing PPTP for VPN uses.
-
-config PPPOLAC
-	tristate "PPP on L2TP Access Concentrator"
-	depends on PPP && INET
-	help
-	  L2TP (RFC 2661) is a tunneling protocol widely used in virtual private
-	  networks. This driver handles L2TP data packets between a UDP socket
-	  and a PPP channel, but only permits one session per socket. Thus it is
-	  fairly simple and suited for clients.
-
-config PPPOPNS
-	tristate "PPP on PPTP Network Server"
-	depends on PPP && INET
-	help
-	  PPTP (RFC 2637) is a tunneling protocol widely used in virtual private
-	  networks. This driver handles PPTP data packets between a RAW socket
-	  and a PPP channel. It is fairly simple and easy to use.
 
 config SLIP
 	tristate "SLIP (serial line) support"

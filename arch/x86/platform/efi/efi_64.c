@@ -38,7 +38,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 
-static pgd_t *save_pgd __initdata;
+static pgd_t save_pgd __initdata;
 static unsigned long efi_flags __initdata;
 
 static void __init early_code_mapping_set_exec(int executable)
@@ -61,20 +61,12 @@ static void __init early_code_mapping_set_exec(int executable)
 void __init efi_call_phys_prelog(void)
 {
 	unsigned long vaddress;
-	int pgd;
-	int n_pgds;
 
 	early_code_mapping_set_exec(1);
 	local_irq_save(efi_flags);
-
-	n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT), PGDIR_SIZE);
-	save_pgd = kmalloc(n_pgds * sizeof(pgd_t), GFP_KERNEL);
-
-	for (pgd = 0; pgd < n_pgds; pgd++) {
-		save_pgd[pgd] = *pgd_offset_k(pgd * PGDIR_SIZE);
-		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
-		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
-	}
+	vaddress = (unsigned long)__va(0x0UL);
+	save_pgd = *pgd_offset_k(0x0UL);
+	set_pgd(pgd_offset_k(0x0UL), *pgd_offset_k(vaddress));
 	__flush_tlb_all();
 }
 
@@ -83,11 +75,7 @@ void __init efi_call_phys_epilog(void)
 	/*
 	 * After the lock is released, the original page table is restored.
 	 */
-	int pgd;
-	int n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
-	for (pgd = 0; pgd < n_pgds; pgd++)
-		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), save_pgd[pgd]);
-	kfree(save_pgd);
+	set_pgd(pgd_offset_k(0x0UL), save_pgd);
 	__flush_tlb_all();
 	local_irq_restore(efi_flags);
 	early_code_mapping_set_exec(0);

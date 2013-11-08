@@ -145,12 +145,6 @@ const struct address_space_operations udf_aops = {
 	.bmap		= udf_bmap,
 };
 
-/*
- * Expand file stored in ICB to a normal one-block-file
- *
- * This function requires i_data_sem for writing and releases it.
- * This function requires i_mutex held
- */
 int udf_expand_file_adinicb(struct inode *inode)
 {
 	struct page *page;
@@ -169,15 +163,9 @@ int udf_expand_file_adinicb(struct inode *inode)
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
 		/* from now on we have normal address_space methods */
 		inode->i_data.a_ops = &udf_aops;
-		up_write(&iinfo->i_data_sem);
 		mark_inode_dirty(inode);
 		return 0;
 	}
-	/*
-	 * Release i_data_sem so that we can lock a page - page lock ranks
-	 * above i_data_sem. i_mutex still protects us against file changes.
-	 */
-	up_write(&iinfo->i_data_sem);
 
 	page = find_or_create_page(inode->i_mapping, 0, GFP_NOFS);
 	if (!page)
@@ -193,7 +181,6 @@ int udf_expand_file_adinicb(struct inode *inode)
 		SetPageUptodate(page);
 		kunmap(page);
 	}
-	down_write(&iinfo->i_data_sem);
 	memset(iinfo->i_ext.i_data + iinfo->i_lenEAttr, 0x00,
 	       iinfo->i_lenAlloc);
 	iinfo->i_lenAlloc = 0;
@@ -203,20 +190,17 @@ int udf_expand_file_adinicb(struct inode *inode)
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
 	/* from now on we have normal address_space methods */
 	inode->i_data.a_ops = &udf_aops;
-	up_write(&iinfo->i_data_sem);
 	err = inode->i_data.a_ops->writepage(page, &udf_wbc);
 	if (err) {
 		/* Restore everything back so that we don't lose data... */
 		lock_page(page);
 		kaddr = kmap(page);
-		down_write(&iinfo->i_data_sem);
 		memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr,
 		       inode->i_size);
 		kunmap(page);
 		unlock_page(page);
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
 		inode->i_data.a_ops = &udf_adinicb_aops;
-		up_write(&iinfo->i_data_sem);
 	}
 	page_cache_release(page);
 	mark_inode_dirty(inode);
@@ -575,7 +559,6 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	int goal = 0, pgoal = iinfo->i_location.logicalBlockNum;
 	int lastblock = 0;
-	bool isBeyondEOF;
 
 	prev_epos.offset = udf_file_entry_alloc_offset(inode);
 	prev_epos.block = iinfo->i_location;
@@ -654,7 +637,7 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	/* Are we beyond EOF? */
 	if (etype == -1) {
 		int ret;
-		isBeyondEOF = 1;
+
 		if (count) {
 			if (c)
 				laarr[0] = laarr[1];
@@ -697,7 +680,6 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 		endnum = c + 1;
 		lastblock = 1;
 	} else {
-		isBeyondEOF = 0;
 		endnum = startnum = ((count > 2) ? 2 : count);
 
 		/* if the current extent is in position 0,
@@ -740,13 +722,10 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 				goal, err);
 		if (!newblocknum) {
 			brelse(prev_epos.bh);
-			brelse(cur_epos.bh);
-			brelse(next_epos.bh);
 			*err = -ENOSPC;
 			return NULL;
 		}
-		if (isBeyondEOF)
-			iinfo->i_lenExtents += inode->i_sb->s_blocksize;
+		iinfo->i_lenExtents += inode->i_sb->s_blocksize;
 	}
 
 	/* if the extent the requsted block is located in contains multiple
@@ -773,8 +752,6 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	udf_update_extents(inode, laarr, startnum, endnum, &prev_epos);
 
 	brelse(prev_epos.bh);
-	brelse(cur_epos.bh);
-	brelse(next_epos.bh);
 
 	newblock = udf_get_pblock(inode->i_sb, newblocknum,
 				iinfo->i_location.partitionReferenceNum, 0);
@@ -1128,9 +1105,10 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 			if (bsize <
 			    (udf_file_entry_alloc_offset(inode) + newsize)) {
 				err = udf_expand_file_adinicb(inode);
-				if (err)
+				if (err) {
+					up_write(&iinfo->i_data_sem);
 					return err;
-				down_write(&iinfo->i_data_sem);
+				}
 			} else
 				iinfo->i_lenAlloc = newsize;
 		}

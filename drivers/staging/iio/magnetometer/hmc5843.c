@@ -520,9 +520,7 @@ static int hmc5843_detect(struct i2c_client *client,
 /* Called when we have found a new HMC5843. */
 static void hmc5843_init_client(struct i2c_client *client)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct hmc5843_data *data = iio_priv(indio_dev);
-
+	struct hmc5843_data *data = i2c_get_clientdata(client);
 	hmc5843_set_meas_conf(client, data->meas_conf);
 	hmc5843_set_rate(client, data->rate);
 	hmc5843_configure(client, data->operating_mode);

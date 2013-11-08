@@ -759,13 +759,8 @@ static int tps65910_list_voltage_dcdc(struct regulator_dev *dev,
 		mult = (selector / VDD1_2_NUM_VOLTS) + 1;
 		volt = VDD1_2_MIN_VOLT +
 				(selector % VDD1_2_NUM_VOLTS) * VDD1_2_OFFSET;
-		break;
 	case TPS65911_REG_VDDCTRL:
 		volt = VDDCTRL_MIN_VOLT + (selector * VDDCTRL_OFFSET);
-		break;
-	default:
-		BUG();
-		return -EINVAL;
 	}
 
 	return  volt * 100 * mult;
@@ -903,11 +898,9 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	case TPS65910:
 		pmic->get_ctrl_reg = &tps65910_get_ctrl_register;
 		info = tps65910_regs;
-		break;
 	case TPS65911:
 		pmic->get_ctrl_reg = &tps65911_get_ctrl_register;
 		info = tps65911_regs;
-		break;
 	default:
 		pr_err("Invalid tps chip version\n");
 		return -ENODEV;

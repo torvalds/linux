@@ -250,7 +250,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	do {
 		times->utime = cputime_add(times->utime, t->utime);
 		times->stime = cputime_add(times->stime, t->stime);
-		times->sum_exec_runtime += task_sched_runtime(t);
+		times->sum_exec_runtime += t->se.sum_exec_runtime;
 	} while_each_thread(tsk, t);
 out:
 	rcu_read_unlock();
@@ -274,7 +274,9 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 	struct task_cputime sum;
 	unsigned long flags;
 
+	spin_lock_irqsave(&cputimer->lock, flags);
 	if (!cputimer->running) {
+		cputimer->running = 1;
 		/*
 		 * The POSIX timer interface allows for absolute time expiry
 		 * values through the TIMER_ABSTIME flag, therefore we have
@@ -282,11 +284,8 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 * it.
 		 */
 		thread_group_cputime(tsk, &sum);
-		spin_lock_irqsave(&cputimer->lock, flags);
-		cputimer->running = 1;
 		update_gt_cputime(&cputimer->cputime, &sum);
-	} else
-		spin_lock_irqsave(&cputimer->lock, flags);
+	}
 	*times = cputimer->cputime;
 	spin_unlock_irqrestore(&cputimer->lock, flags);
 }
@@ -313,8 +312,7 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 		cpu->cpu = cputime.utime;
 		break;
 	case CPUCLOCK_SCHED:
-		thread_group_cputime(p, &cputime);
-		cpu->sched = cputime.sum_exec_runtime;
+		cpu->sched = thread_group_sched_runtime(p);
 		break;
 	}
 	return 0;

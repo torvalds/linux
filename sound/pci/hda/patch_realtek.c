@@ -397,7 +397,7 @@ struct alc_spec {
 	unsigned int auto_mic:1;
 	unsigned int automute:1;	/* HP automute enabled */
 	unsigned int detect_line:1;	/* Line-out detection enabled */
-	unsigned int automute_lines:1;	/* automute line-out as well; NOP when automute_hp_lo isn't set */
+	unsigned int automute_lines:1;	/* automute line-out as well */
 	unsigned int automute_hp_lo:1;	/* both HP and LO available */
 
 	/* other flags */
@@ -509,8 +509,6 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 	imux = &spec->input_mux[mux_idx];
 	if (!imux->num_items && mux_idx > 0)
 		imux = &spec->input_mux[0];
-	if (!imux->num_items)
-		return 0;
 
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
@@ -1163,7 +1161,7 @@ static void update_speakers(struct hda_codec *codec)
 	if (spec->autocfg.line_out_pins[0] == spec->autocfg.hp_pins[0] ||
 	    spec->autocfg.line_out_pins[0] == spec->autocfg.speaker_pins[0])
 		return;
-	if (!spec->automute || (spec->automute_hp_lo && !spec->automute_lines))
+	if (!spec->automute_lines || !spec->automute)
 		on = 0;
 	else
 		on = spec->jack_present;
@@ -1496,7 +1494,7 @@ static int alc_automute_mode_get(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	if (!spec->automute)
 		val = 0;
-	else if (!spec->automute_hp_lo || !spec->automute_lines)
+	else if (!spec->automute_lines)
 		val = 1;
 	else
 		val = 2;
@@ -1517,8 +1515,7 @@ static int alc_automute_mode_put(struct snd_kcontrol *kcontrol,
 		spec->automute = 0;
 		break;
 	case 1:
-		if (spec->automute &&
-		    (!spec->automute_hp_lo || !spec->automute_lines))
+		if (spec->automute && !spec->automute_lines)
 			return 0;
 		spec->automute = 1;
 		spec->automute_lines = 0;
@@ -1581,15 +1578,13 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 	if (present == 3)
 		spec->automute_hp_lo = 1; /* both HP and LO automute */
 
-	if (!cfg->speaker_pins[0] &&
-	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
+	if (!cfg->speaker_pins[0]) {
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
 		       sizeof(cfg->speaker_pins));
 		cfg->speaker_outs = cfg->line_outs;
 	}
 
-	if (!cfg->hp_pins[0] &&
-	    cfg->line_out_type == AUTO_PIN_HP_OUT) {
+	if (!cfg->hp_pins[0]) {
 		memcpy(cfg->hp_pins, cfg->line_out_pins,
 		       sizeof(cfg->hp_pins));
 		cfg->hp_outs = cfg->line_outs;
@@ -1608,7 +1603,6 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 		spec->automute_mode = ALC_AUTOMUTE_PIN;
 	}
 	if (spec->automute && cfg->line_out_pins[0] &&
-	    cfg->speaker_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
 		for (i = 0; i < cfg->line_outs; i++) {
@@ -1861,9 +1855,7 @@ do_sku:
 	 * 15   : 1 --> enable the function "Mute internal speaker
 	 *	        when the external headphone out jack is plugged"
 	 */
-	if (!spec->autocfg.hp_pins[0] &&
-	    !(spec->autocfg.line_out_pins[0] &&
-	      spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)) {
+	if (!spec->autocfg.hp_pins[0]) {
 		hda_nid_t nid;
 		tmp = (ass >> 11) & 0x3;	/* HP to chassis */
 		if (tmp == 0)
@@ -2090,27 +2082,25 @@ static void alc_auto_init_digital(struct hda_codec *codec)
 static void alc_auto_parse_digital(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int i, err, nums;
+	int i, err;
 	hda_nid_t dig_nid;
 
 	/* support multiple SPDIFs; the secondary is set up as a slave */
-	nums = 0;
 	for (i = 0; i < spec->autocfg.dig_outs; i++) {
 		err = snd_hda_get_connections(codec,
 					      spec->autocfg.dig_out_pins[i],
 					      &dig_nid, 1);
-		if (err <= 0)
+		if (err < 0)
 			continue;
-		if (!nums) {
+		if (!i) {
 			spec->multiout.dig_out_nid = dig_nid;
 			spec->dig_out_type = spec->autocfg.dig_out_type[0];
 		} else {
 			spec->multiout.slave_dig_outs = spec->slave_dig_outs;
-			if (nums >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
+			if (i >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
 				break;
-			spec->slave_dig_outs[nums - 1] = dig_nid;
+			spec->slave_dig_outs[i - 1] = dig_nid;
 		}
-		nums++;
 	}
 
 	if (spec->autocfg.dig_in_pin) {
@@ -5967,7 +5957,6 @@ static void fillup_priv_adc_nids(struct hda_codec *codec, const hda_nid_t *nids,
 	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 3, idx, dir))
 
 static const struct snd_pci_quirk beep_white_list[] = {
-	SND_PCI_QUIRK(0x1043, 0x103c, "ASUS", 1),
 	SND_PCI_QUIRK(0x1043, 0x829f, "ASUS", 1),
 	SND_PCI_QUIRK(0x1043, 0x83ce, "EeePC", 1),
 	SND_PCI_QUIRK(0x1043, 0x831a, "EeePC", 1),
@@ -16420,7 +16409,6 @@ static const struct alc_config_preset alc861_presets[] = {
 /* Pin config fixes */
 enum {
 	PINFIX_FSC_AMILO_PI1505,
-	PINFIX_ASUS_A6RP,
 };
 
 static const struct alc_fixup alc861_fixups[] = {
@@ -16432,19 +16420,9 @@ static const struct alc_fixup alc861_fixups[] = {
 			{ }
 		}
 	},
-	[PINFIX_ASUS_A6RP] = {
-		.type = ALC_FIXUP_VERBS,
-		.v.verbs = (const struct hda_verb[]) {
-			/* node 0x0f VREF seems controlling the master output */
-			{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
-			{ }
-		},
-	},
 };
 
 static const struct snd_pci_quirk alc861_fixup_tbl[] = {
-	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS A6Rp", PINFIX_ASUS_A6RP),
-	SND_PCI_QUIRK(0x1584, 0x2b01, "Haier W18", PINFIX_ASUS_A6RP),
 	SND_PCI_QUIRK(0x1734, 0x10c7, "FSC Amilo Pi1505", PINFIX_FSC_AMILO_PI1505),
 	{}
 };
@@ -20133,11 +20111,6 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0272, .name = "ALC272", .patch = patch_alc662 },
 	{ .id = 0x10ec0275, .name = "ALC275", .patch = patch_alc269 },
 	{ .id = 0x10ec0276, .name = "ALC276", .patch = patch_alc269 },
-	{ .id = 0x10ec0280, .name = "ALC280", .patch = patch_alc269 },
-	{ .id = 0x10ec0282, .name = "ALC282", .patch = patch_alc269 },
-	{ .id = 0x10ec0283, .name = "ALC283", .patch = patch_alc269 },
-	{ .id = 0x10ec0290, .name = "ALC290", .patch = patch_alc269 },
-	{ .id = 0x10ec0292, .name = "ALC292", .patch = patch_alc269 },
 	{ .id = 0x10ec0861, .rev = 0x100340, .name = "ALC660",
 	  .patch = patch_alc861 },
 	{ .id = 0x10ec0660, .name = "ALC660-VD", .patch = patch_alc861vd },
@@ -20146,8 +20119,6 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0662, .rev = 0x100002, .name = "ALC662 rev2",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0662, .rev = 0x100101, .name = "ALC662 rev1",
-	  .patch = patch_alc662 },
-	{ .id = 0x10ec0662, .rev = 0x100300, .name = "ALC662 rev3",
 	  .patch = patch_alc662 },
 	{ .id = 0x10ec0663, .name = "ALC663", .patch = patch_alc662 },
 	{ .id = 0x10ec0665, .name = "ALC665", .patch = patch_alc662 },

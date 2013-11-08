@@ -6,8 +6,6 @@ config UX500_SOC_COMMON
 	select ARM_GIC
 	select HAS_MTU
 	select ARM_ERRATA_753970
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
 
 menu "Ux500 SoC"
 

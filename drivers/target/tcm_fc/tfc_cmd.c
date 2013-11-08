@@ -371,12 +371,10 @@ static void ft_send_resp_status(struct fc_lport *lport,
 
 	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_DD_CMD_STATUS, 0);
 	sp = fr_seq(fp);
-	if (sp) {
+	if (sp)
 		lport->tt.seq_send(lport, sp, fp);
-		lport->tt.exch_done(sp);
-	} else {
+	else
 		lport->tt.frame_send(lport, fp);
-	}
 }
 
 /*

@@ -182,7 +182,7 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 	if (copy_from_user(&cpmode, argp, sizeof(cpmode)))
 		goto out;
 
-	mutex_lock(&nilfs->ns_snapshot_mount_mutex);
+	down_read(&inode->i_sb->s_umount);
 
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	ret = nilfs_cpfile_change_cpmode(
@@ -192,7 +192,7 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 	else
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 
-	mutex_unlock(&nilfs->ns_snapshot_mount_mutex);
+	up_read(&inode->i_sb->s_umount);
 out:
 	mnt_drop_write(filp->f_path.mnt);
 	return ret;
@@ -661,11 +661,8 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	if (ret < 0)
 		printk(KERN_ERR "NILFS: GC failed during preparation: "
 			"cannot read source blocks: err=%d\n", ret);
-	else {
-		if (nilfs_sb_need_update(nilfs))
-			set_nilfs_discontinued(nilfs);
+	else
 		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
-	}
 
 	nilfs_remove_all_gcinodes(nilfs);
 	clear_nilfs_gc_running(nilfs);
@@ -844,19 +841,6 @@ long nilfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case FS_IOC32_GETVERSION:
 		cmd = FS_IOC_GETVERSION;
-		break;
-	case NILFS_IOCTL_CHANGE_CPMODE:
-	case NILFS_IOCTL_DELETE_CHECKPOINT:
-	case NILFS_IOCTL_GET_CPINFO:
-	case NILFS_IOCTL_GET_CPSTAT:
-	case NILFS_IOCTL_GET_SUINFO:
-	case NILFS_IOCTL_GET_SUSTAT:
-	case NILFS_IOCTL_GET_VINFO:
-	case NILFS_IOCTL_GET_BDESCS:
-	case NILFS_IOCTL_CLEAN_SEGMENTS:
-	case NILFS_IOCTL_SYNC:
-	case NILFS_IOCTL_RESIZE:
-	case NILFS_IOCTL_SET_ALLOC_RANGE:
 		break;
 	default:
 		return -ENOIOCTLCMD;

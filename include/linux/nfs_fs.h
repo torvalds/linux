@@ -99,10 +99,9 @@ struct nfs_open_context {
 
 struct nfs_open_dir_context {
 	struct rpc_cred *cred;
-	unsigned long attr_gencount;
 	__u64 dir_cookie;
 	__u64 dup_cookie;
-	signed char duped;
+	int duped;
 };
 
 /*
@@ -261,6 +260,11 @@ static inline const struct nfs_rpc_ops *NFS_PROTO(const struct inode *inode)
 	return NFS_SERVER(inode)->nfs_client->rpc_ops;
 }
 
+static inline __be32 *NFS_COOKIEVERF(const struct inode *inode)
+{
+	return NFS_I(inode)->cookieverf;
+}
+
 static inline unsigned NFS_MINATTRTIMEO(const struct inode *inode)
 {
 	struct nfs_server *nfss = NFS_SERVER(inode);
@@ -405,9 +409,6 @@ extern const struct inode_operations nfs_file_inode_operations;
 extern const struct inode_operations nfs3_file_inode_operations;
 #endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_file_operations;
-#ifdef CONFIG_NFS_V4
-extern const struct file_operations nfs4_file_operations;
-#endif /* CONFIG_NFS_V4 */
 extern const struct address_space_operations nfs_file_aops;
 extern const struct address_space_operations nfs_dir_aops;
 

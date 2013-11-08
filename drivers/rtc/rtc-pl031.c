@@ -312,7 +312,6 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	int ret;
 	struct pl031_local *ldata;
 	struct rtc_class_ops *ops = id->data;
-	unsigned long time;
 
 	ret = amba_request_regions(adev, NULL);
 	if (ret)
@@ -340,26 +339,10 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_dbg(&adev->dev, "revision = 0x%01x\n", ldata->hw_revision);
 
 	/* Enable the clockwatch on ST Variants */
-	if (ldata->hw_designer == AMBA_VENDOR_ST)
+	if ((ldata->hw_designer == AMBA_VENDOR_ST) &&
+	    (ldata->hw_revision > 1))
 		writel(readl(ldata->base + RTC_CR) | RTC_CR_CWEN,
 		       ldata->base + RTC_CR);
-
-	/*
-	 * On ST PL031 variants, the RTC reset value does not provide correct
-	 * weekday for 2000-01-01. Correct the erroneous sunday to saturday.
-	 */
-	if (ldata->hw_designer == AMBA_VENDOR_ST) {
-		if (readl(ldata->base + RTC_YDR) == 0x2000) {
-			time = readl(ldata->base + RTC_DR);
-			if ((time &
-			     (RTC_MON_MASK | RTC_MDAY_MASK | RTC_WDAY_MASK))
-			    == 0x02120000) {
-				time = time | (0x7 << RTC_WDAY_SHIFT);
-				writel(0x2000, ldata->base + RTC_YLR);
-				writel(time, ldata->base + RTC_LR);
-			}
-		}
-	}
 
 	ldata->rtc = rtc_device_register("pl031", &adev->dev, ops,
 					THIS_MODULE);

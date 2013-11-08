@@ -146,6 +146,7 @@ static void __cpuinit init_amd_k6(struct cpuinfo_x86 *c)
 
 static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_SMP
 	/* calling is from identify_secondary_cpu() ? */
 	if (!c->cpu_index)
 		return;
@@ -189,6 +190,7 @@ static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 
 valid_k7:
 	;
+#endif
 }
 
 static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
@@ -551,34 +553,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			   a fallback anyways. */
 			strcpy(c->x86_model_id, "Hammer");
 			break;
-		}
-	}
-
-	/*
-	 * The way access filter has a performance penalty on some workloads.
-	 * Disable it on the affected CPUs.
-	 */
-	if ((c->x86 == 0x15) &&
-	    (c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
-		u64 val;
-
-		if (!rdmsrl_safe(0xc0011021, &val) && !(val & 0x1E)) {
-			val |= 0x1E;
-			checking_wrmsrl(0xc0011021, val);
-		}
-	}
-
-	/*
-	 * The way access filter has a performance penalty on some workloads.
-	 * Disable it on the affected CPUs.
-	 */
-	if ((c->x86 == 0x15) &&
-	    (c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
-		u64 val;
-
-		if (!rdmsrl_safe(0xc0011021, &val) && !(val & 0x1E)) {
-			val |= 0x1E;
-			checking_wrmsrl(0xc0011021, val);
 		}
 	}
 

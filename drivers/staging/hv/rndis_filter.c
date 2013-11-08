@@ -467,7 +467,7 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 	if (ret != 0)
 		goto Cleanup;
 
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto Cleanup;
@@ -543,7 +543,7 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	if (ret != 0)
 		goto Cleanup;
 
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
 
 	if (t == 0) {
 		ret = -1;
@@ -600,7 +600,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	}
 
 
-	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
 
 	if (t == 0) {
 		ret = -ETIMEDOUT;

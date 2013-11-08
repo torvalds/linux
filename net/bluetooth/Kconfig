@@ -6,7 +6,6 @@ menuconfig BT
 	tristate "Bluetooth subsystem support"
 	depends on NET && !S390
 	depends on RFKILL || !RFKILL
-	select CRYPTO
 	help
 	  Bluetooth is low-cost, low-power, short-range wireless technology.
 	  It was designed as a replacement for cables and other short-range
@@ -23,7 +22,6 @@ menuconfig BT
 	     BNEP Module (Bluetooth Network Encapsulation Protocol)
 	     CMTP Module (CAPI Message Transport Protocol)
 	     HIDP Module (Human Interface Device Protocol)
-	     SMP Module (Security Manager Protocol)
 
 	  Say Y here to compile Bluetooth support into the kernel or say M to
 	  compile it as module (bluetooth).
@@ -38,17 +36,10 @@ if BT != n
 config BT_L2CAP
 	bool "L2CAP protocol support"
 	select CRC16
-	select CRYPTO
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_AES
-	select CRYPTO_ECB
 	help
 	  L2CAP (Logical Link Control and Adaptation Protocol) provides
 	  connection oriented and connection-less data transport.  L2CAP
 	  support is required for most Bluetooth applications.
-
-	  Also included is support for SMP (Security Manager Protocol) which
-	  is the security layer on top of LE (Low Energy) links.
 
 config BT_SCO
 	bool "SCO links support"

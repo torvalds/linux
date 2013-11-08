@@ -2363,7 +2363,7 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 		netif_device_detach(dev);
 
 		/* Switch off MAC, remember WOL setting */
-		gp->asleep_wol = !!gp->wake_on_lan;
+		gp->asleep_wol = gp->wake_on_lan;
 		gem_do_stop(dev, gp->asleep_wol);
 	} else
 		gp->asleep_wol = 0;

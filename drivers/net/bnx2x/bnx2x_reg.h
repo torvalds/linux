@@ -1325,18 +1325,6 @@
    Latched ump_tx_parity; [31] MCP Latched scpad_parity; */
 #define MISC_REG_AEU_ENABLE4_PXP_0				 0xa108
 #define MISC_REG_AEU_ENABLE4_PXP_1				 0xa1a8
-/* [RW 32] fifth 32b for enabling the output for function 0 output0. Mapped
- * as follows: [0] PGLUE config_space; [1] PGLUE misc_flr; [2] PGLUE B RBC
- * attention [3] PGLUE B RBC parity; [4] ATC attention; [5] ATC parity; [6]
- * mstat0 attention; [7] mstat0 parity; [8] mstat1 attention; [9] mstat1
- * parity; [31-10] Reserved; */
-#define MISC_REG_AEU_ENABLE5_FUNC_0_OUT_0			 0xa688
-/* [RW 32] Fifth 32b for enabling the output for function 1 output0. Mapped
- * as follows: [0] PGLUE config_space; [1] PGLUE misc_flr; [2] PGLUE B RBC
- * attention [3] PGLUE B RBC parity; [4] ATC attention; [5] ATC parity; [6]
- * mstat0 attention; [7] mstat0 parity; [8] mstat1 attention; [9] mstat1
- * parity; [31-10] Reserved; */
-#define MISC_REG_AEU_ENABLE5_FUNC_1_OUT_0			 0xa6b0
 /* [RW 1] set/clr general attention 0; this will set/clr bit 94 in the aeu
    128 bit vector */
 #define MISC_REG_AEU_GENERAL_ATTN_0				 0xa000

@@ -777,17 +777,8 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
-	/* Log EDID retrieval status here. In particular with regard to
-	 * connectors with requires_extended_probe flag set, that will prevent
-	 * function radeon_dvi_detect() to fetch EDID on this connector,
-	 * as long as there is no valid EDID header found */
 	if (edid) {
-		DRM_INFO("Radeon display connector %s: Found valid EDID",
-				drm_get_connector_name(connector));
 		kfree(edid);
-	} else {
-		DRM_INFO("Radeon display connector %s: No monitor connected or invalid EDID",
-				drm_get_connector_name(connector));
 	}
 	return ret;
 }
@@ -1158,10 +1149,8 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	}
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (radeon_fb == NULL)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
 

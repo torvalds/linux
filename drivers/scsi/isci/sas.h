@@ -204,6 +204,8 @@ struct smp_req {
 	u8 req_data[0];
 }  __packed;
 
+#define SMP_RESP_HDR_SZ	4
+
 /*
  * struct sci_sas_address - This structure depicts how a SAS address is
  *    represented by SCI.

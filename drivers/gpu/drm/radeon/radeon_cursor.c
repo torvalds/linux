@@ -151,9 +151,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 			   uint32_t height)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct radeon_device *rdev = crtc->dev->dev_private;
 	struct drm_gem_object *obj;
-	struct radeon_bo *robj;
 	uint64_t gpu_addr;
 	int ret;
 
@@ -175,15 +173,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 		return -ENOENT;
 	}
 
-	robj = gem_to_radeon_bo(obj);
-	ret = radeon_bo_reserve(robj, false);
-	if (unlikely(ret != 0))
-		goto fail;
-	/* Only 27 bit offset for legacy cursor */
-	ret = radeon_bo_pin_restricted(robj, RADEON_GEM_DOMAIN_VRAM,
-				       ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27,
-				       &gpu_addr);
-	radeon_bo_unreserve(robj);
+	ret = radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
 	if (ret)
 		goto fail;
 
@@ -191,6 +181,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	radeon_crtc->cursor_height = height;
 
 	radeon_lock_cursor(crtc, true);
+	/* XXX only 27 bit offset for legacy cursor */
 	radeon_set_cursor(crtc, obj, gpu_addr);
 	radeon_show_cursor(crtc);
 	radeon_lock_cursor(crtc, false);
@@ -217,13 +208,6 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	int xorigin = 0, yorigin = 0;
 	int w = radeon_crtc->cursor_width;
 
-	if (ASIC_IS_AVIVO(rdev)) {
-		/* avivo cursor are offset into the total surface */
-		x += crtc->x;
-		y += crtc->y;
-	}
-	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
-
 	if (x < 0)
 		xorigin = -x + 1;
 	if (y < 0)
@@ -236,6 +220,11 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	if (ASIC_IS_AVIVO(rdev)) {
 		int i = 0;
 		struct drm_crtc *crtc_p;
+
+		/* avivo cursor are offset into the total surface */
+		x += crtc->x;
+		y += crtc->y;
+		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
 
 		/* avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
@@ -257,14 +246,8 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				if (!(cursor_end & 0x7f))
 					w--;
 			}
-			if (w <= 0) {
+			if (w <= 0)
 				w = 1;
-				cursor_end = x - xorigin + w;
-				if (!(cursor_end & 0x7f)) {
-					x--;
-					WARN_ON_ONCE(x < 0);
-				}
-			}
 		}
 	}
 

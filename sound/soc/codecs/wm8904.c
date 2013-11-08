@@ -868,7 +868,7 @@ SOC_ENUM("Right Capture Mode", rin_mode),
 SOC_DOUBLE_R("Capture Volume", WM8904_ANALOGUE_LEFT_INPUT_0,
 	     WM8904_ANALOGUE_RIGHT_INPUT_0, 0, 31, 0),
 SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
-	     WM8904_ANALOGUE_RIGHT_INPUT_0, 7, 1, 1),
+	     WM8904_ANALOGUE_RIGHT_INPUT_0, 7, 1, 0),
 
 SOC_SINGLE("High Pass Filter Switch", WM8904_ADC_DIGITAL_0, 4, 1, 0),
 SOC_ENUM("High Pass Filter Mode", hpf_mode),

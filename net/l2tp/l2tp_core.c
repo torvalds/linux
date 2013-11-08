@@ -1045,10 +1045,8 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
 		uhlen + hdr_len;
 	old_headroom = skb_headroom(skb);
-	if (skb_cow_head(skb, headroom)) {
-		dev_kfree_skb(skb);
+	if (skb_cow_head(skb, headroom))
 		goto abort;
-	}
 
 	new_headroom = skb_headroom(skb);
 	skb_orphan(skb);
@@ -1252,10 +1250,11 @@ static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 	/* Remove from tunnel list */
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_del_rcu(&tunnel->list);
-	kfree_rcu(tunnel, rcu);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	synchronize_rcu();
 
 	atomic_dec(&l2tp_tunnel_count);
+	kfree(tunnel);
 }
 
 /* Create a socket for the tunnel, if one isn't set up by

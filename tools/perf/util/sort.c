@@ -122,9 +122,6 @@ static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 		}
 	}
 	va_end(ap);
-
-	if (n >= (int)size)
-		return size - 1;
 	return n;
 }
 

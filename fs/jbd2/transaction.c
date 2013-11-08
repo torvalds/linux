@@ -178,8 +178,7 @@ repeat:
 		if (!new_transaction)
 			goto alloc_transaction;
 		write_lock(&journal->j_state_lock);
-		if (!journal->j_running_transaction &&
-		    !journal->j_barrier_count) {
+		if (!journal->j_running_transaction) {
 			jbd2_get_transaction(journal, new_transaction);
 			new_transaction = NULL;
 		}
@@ -1903,8 +1902,6 @@ zap_buffer_unlocked:
 	clear_buffer_mapped(bh);
 	clear_buffer_req(bh);
 	clear_buffer_new(bh);
-	clear_buffer_delay(bh);
-	clear_buffer_unwritten(bh);
 	bh->b_bdev = NULL;
 	return may_free;
 }

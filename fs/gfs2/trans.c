@@ -145,22 +145,14 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_bufdata *bd;
 
-	lock_buffer(bh);
-	gfs2_log_lock(sdp);
 	bd = bh->b_private;
 	if (bd)
 		gfs2_assert(sdp, bd->bd_gl == gl);
 	else {
-		gfs2_log_unlock(sdp);
-		unlock_buffer(bh);
 		gfs2_attach_bufdata(gl, bh, meta);
 		bd = bh->b_private;
-		lock_buffer(bh);
-		gfs2_log_lock(sdp);
 	}
 	lops_add(sdp, &bd->bd_le);
-	gfs2_log_unlock(sdp);
-	unlock_buffer(bh);
 }
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)

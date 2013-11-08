@@ -295,8 +295,7 @@ static struct sock *x25_find_listener(struct x25_address *addr,
 			 * Found a listening socket, now check the incoming
 			 * call user data vs this sockets call user data
 			 */
-			if (x25_sk(s)->cudmatchlength > 0 &&
-				skb->len >= x25_sk(s)->cudmatchlength) {
+			if(skb->len > 0 && x25_sk(s)->cudmatchlength > 0) {
 				if((memcmp(x25_sk(s)->calluserdata.cuddata,
 					skb->data,
 					x25_sk(s)->cudmatchlength)) == 0) {

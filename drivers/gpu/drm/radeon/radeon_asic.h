@@ -75,7 +75,7 @@ uint32_t r100_pll_rreg(struct radeon_device *rdev, uint32_t reg);
 int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
-		   unsigned num_gpu_pages,
+		   unsigned num_pages,
 		   struct radeon_fence *fence);
 int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
@@ -143,7 +143,7 @@ extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
 extern int r200_copy_dma(struct radeon_device *rdev,
 			 uint64_t src_offset,
 			 uint64_t dst_offset,
-			 unsigned num_gpu_pages,
+			 unsigned num_pages,
 			 struct radeon_fence *fence);
 void r200_set_safe_registers(struct radeon_device *rdev);
 
@@ -253,10 +253,13 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
  * rv515
  */
 struct rv515_mc_save {
+	u32 d1vga_control;
+	u32 d2vga_control;
 	u32 vga_render_control;
 	u32 vga_hdp_control;
+	u32 d1crtc_control;
+	u32 d2crtc_control;
 };
-
 int rv515_init(struct radeon_device *rdev);
 void rv515_fini(struct radeon_device *rdev);
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg);
@@ -308,7 +311,7 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
-		   unsigned num_gpu_pages, struct radeon_fence *fence);
+		   unsigned num_pages, struct radeon_fence *fence);
 void r600_hpd_init(struct radeon_device *rdev);
 void r600_hpd_fini(struct radeon_device *rdev);
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -384,10 +387,11 @@ void r700_cp_fini(struct radeon_device *rdev);
  * evergreen
  */
 struct evergreen_mc_save {
+	u32 vga_control[6];
 	u32 vga_render_control;
 	u32 vga_hdp_control;
+	u32 crtc_control[6];
 };
-
 void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev);
 int evergreen_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
@@ -399,7 +403,7 @@ void evergreen_bandwidth_update(struct radeon_device *rdev);
 void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int evergreen_copy_blit(struct radeon_device *rdev,
 			uint64_t src_offset, uint64_t dst_offset,
-			unsigned num_gpu_pages, struct radeon_fence *fence);
+			unsigned num_pages, struct radeon_fence *fence);
 void evergreen_hpd_init(struct radeon_device *rdev);
 void evergreen_hpd_fini(struct radeon_device *rdev);
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);

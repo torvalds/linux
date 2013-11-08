@@ -922,7 +922,6 @@ struct rt2x00_dev {
 	 * Powersaving work
 	 */
 	struct delayed_work autowakeup_work;
-	struct work_struct sleep_work;
 
 	/*
 	 * Data queue arrays for RX, TX, Beacon and ATIM.

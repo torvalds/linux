@@ -104,7 +104,7 @@ static void zfcp_unit_release(struct device *dev)
 {
 	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit, dev);
 
-	atomic_dec(&unit->port->units);
+	put_device(&unit->port->dev);
 	kfree(unit);
 }
 
@@ -119,27 +119,16 @@ static void zfcp_unit_release(struct device *dev)
 int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 {
 	struct zfcp_unit *unit;
-	int retval = 0;
-
-	mutex_lock(&zfcp_sysfs_port_units_mutex);
-	if (atomic_read(&port->units) == -1) {
-		/* port is already gone */
-		retval = -ENODEV;
-		goto out;
-	}
 
 	unit = zfcp_unit_find(port, fcp_lun);
 	if (unit) {
 		put_device(&unit->dev);
-		retval = -EEXIST;
-		goto out;
+		return -EEXIST;
 	}
 
 	unit = kzalloc(sizeof(struct zfcp_unit), GFP_KERNEL);
-	if (!unit) {
-		retval = -ENOMEM;
-		goto out;
-	}
+	if (!unit)
+		return -ENOMEM;
 
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;
@@ -150,23 +139,20 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	if (dev_set_name(&unit->dev, "0x%016llx",
 			 (unsigned long long) fcp_lun)) {
 		kfree(unit);
-		retval = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
+
+	get_device(&port->dev);
 
 	if (device_register(&unit->dev)) {
 		put_device(&unit->dev);
-		retval = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	if (sysfs_create_group(&unit->dev.kobj, &zfcp_sysfs_unit_attrs)) {
 		device_unregister(&unit->dev);
-		retval = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-
-	atomic_inc(&port->units); /* under zfcp_sysfs_port_units_mutex ! */
 
 	write_lock_irq(&port->unit_list_lock);
 	list_add_tail(&unit->list, &port->unit_list);
@@ -174,9 +160,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 
 	zfcp_unit_scsi_scan(unit);
 
-out:
-	mutex_unlock(&zfcp_sysfs_port_units_mutex);
-	return retval;
+	return 0;
 }
 
 /**

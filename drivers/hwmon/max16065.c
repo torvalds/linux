@@ -124,7 +124,7 @@ static inline int MV_TO_LIMIT(int mv, int range)
 
 static inline int ADC_TO_CURR(int adc, int gain)
 {
-	return adc * 1400000 / (gain * 255);
+	return adc * 1400000 / gain * 255;
 }
 
 /*

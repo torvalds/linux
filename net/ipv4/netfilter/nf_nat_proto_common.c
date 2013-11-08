@@ -12,7 +12,6 @@
 #include <linux/ip.h>
 
 #include <linux/netfilter.h>
-#include <net/secure_seq.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_rule.h>

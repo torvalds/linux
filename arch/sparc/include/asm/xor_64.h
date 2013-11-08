@@ -65,7 +65,6 @@ static struct xor_block_template xor_block_niagara = {
 #define XOR_SELECT_TEMPLATE(FASTEST) \
 	((tlb_type == hypervisor && \
 	  (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA2 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA3)) ? \
+	   sun4v_chip_type == SUN4V_CHIP_NIAGARA2)) ? \
 	 &xor_block_niagara : \
 	 &xor_block_VIS)

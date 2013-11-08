@@ -144,8 +144,6 @@ extern int radeon_bo_kmap(struct radeon_bo *bo, void **ptr);
 extern void radeon_bo_kunmap(struct radeon_bo *bo);
 extern void radeon_bo_unref(struct radeon_bo **bo);
 extern int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr);
-extern int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain,
-				    u64 max_offset, u64 *gpu_addr);
 extern int radeon_bo_unpin(struct radeon_bo *bo);
 extern int radeon_bo_evict_vram(struct radeon_device *rdev);
 extern void radeon_bo_force_delete(struct radeon_device *rdev);

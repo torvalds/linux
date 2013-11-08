@@ -764,7 +764,6 @@ static int hidp_session(void *arg)
 
 	up_write(&hidp_session_sem);
 
-	kfree(session->rd_data);
 	kfree(session);
 	return 0;
 }
@@ -842,8 +841,7 @@ static int hidp_setup_input(struct hidp_session *session,
 
 	err = input_register_device(input);
 	if (err < 0) {
-		input_free_device(input);
-		session->input = NULL;
+		hci_conn_put_device(session->conn);
 		return err;
 	}
 
@@ -936,7 +934,7 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->version = req->version;
 	hid->country = req->country;
 
-	strncpy(hid->name, req->name, sizeof(req->name) - 1);
+	strncpy(hid->name, req->name, 128);
 	strncpy(hid->phys, batostr(&bt_sk(session->ctrl_sock->sk)->src), 64);
 	strncpy(hid->uniq, batostr(&bt_sk(session->ctrl_sock->sk)->dst), 64);
 
@@ -1046,12 +1044,8 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	}
 
 	err = hid_add_device(session->hid);
-	if (err < 0) {
-		atomic_inc(&session->terminate);
-		wake_up_process(session->task);
-		up_write(&hidp_session_sem);
-		return err;
-	}
+	if (err < 0)
+		goto err_add_device;
 
 	if (session->input) {
 		hidp_send_ctrl_message(session,
@@ -1064,6 +1058,12 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	up_write(&hidp_session_sem);
 	return 0;
+
+err_add_device:
+	hid_destroy_device(session->hid);
+	session->hid = NULL;
+	atomic_inc(&session->terminate);
+	wake_up_process(session->task);
 
 unlink:
 	hidp_del_timer(session);
@@ -1090,6 +1090,7 @@ purge:
 failed:
 	up_write(&hidp_session_sem);
 
+	input_free_device(session->input);
 	kfree(session);
 	return err;
 }

@@ -806,7 +806,8 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	serial_omap_set_mctrl(&up->port, up->port.mctrl);
 	/* Software Flow Control Configuration */
-	serial_omap_configure_xonxoff(up, termios);
+	if (termios->c_iflag & (IXON | IXOFF))
+		serial_omap_configure_xonxoff(up, termios);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 	dev_dbg(up->port.dev, "serial_omap_set_termios+%d\n", up->pdev->id);

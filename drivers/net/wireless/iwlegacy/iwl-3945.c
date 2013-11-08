@@ -1747,11 +1747,7 @@ int iwl3945_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 
 		memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
-		/*
-		 * We do not commit tx power settings while channel changing,
-		 * do it now if tx power changed.
-		 */
-		iwl_legacy_set_tx_power(priv, priv->tx_power_next, false);
+
 		return 0;
 	}
 
@@ -1872,12 +1868,11 @@ static void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 					     _3945.thermal_periodic.work);
 
-	mutex_lock(&priv->mutex);
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) || priv->txq == NULL)
-		goto out;
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
 
+	mutex_lock(&priv->mutex);
 	iwl3945_reg_txpower_periodic(priv);
-out:
 	mutex_unlock(&priv->mutex);
 }
 

@@ -83,7 +83,8 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
 
 static void __init __free_pages_memory(unsigned long start, unsigned long end)
 {
-	unsigned long i, start_aligned, end_aligned;
+	int i;
+	unsigned long start_aligned, end_aligned;
 	int order = ilog2(BITS_PER_LONG);
 
 	start_aligned = (start + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);

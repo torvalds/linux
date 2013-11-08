@@ -1735,7 +1735,6 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 		ctrl |= E1000_CTRL_RST;
 
 	wr32(E1000_CTRL, ctrl);
-	wrfl();
 
 	/* Add delay to insure DEV_RST has time to complete */
 	if (global_device_reset)

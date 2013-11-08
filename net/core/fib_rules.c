@@ -384,8 +384,8 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		 */
 		list_for_each_entry(r, &ops->rules_list, list) {
 			if (r->action == FR_ACT_GOTO &&
-			    r->target == rule->pref &&
-			    rtnl_dereference(r->ctarget) == NULL) {
+			    r->target == rule->pref) {
+				BUG_ON(rtnl_dereference(r->ctarget) != NULL);
 				rcu_assign_pointer(r->ctarget, rule);
 				if (--ops->unresolved_rules == 0)
 					break;
@@ -740,9 +740,9 @@ static struct pernet_operations fib_rules_net_ops = {
 static int __init fib_rules_init(void)
 {
 	int err;
-	rtnl_register(PF_UNSPEC, RTM_NEWRULE, fib_nl_newrule, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_DELRULE, fib_nl_delrule, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, fib_nl_dumprule, NULL);
+	rtnl_register(PF_UNSPEC, RTM_NEWRULE, fib_nl_newrule, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELRULE, fib_nl_delrule, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, fib_nl_dumprule);
 
 	err = register_pernet_subsys(&fib_rules_net_ops);
 	if (err < 0)

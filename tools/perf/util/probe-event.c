@@ -1869,10 +1869,8 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 
 	pr_debug("Writing event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
-	if (ret < 0) {
-		ret = -errno;
+	if (ret < 0)
 		goto error;
-	}
 
 	printf("Remove event: %s\n", ent->s);
 	return 0;

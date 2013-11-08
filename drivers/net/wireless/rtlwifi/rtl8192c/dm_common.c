@@ -523,10 +523,6 @@ void rtl92c_dm_write_dig(struct ieee80211_hw *hw)
 		  dm_digtable.cur_igvalue, dm_digtable.pre_igvalue,
 		  dm_digtable.backoff_val));
 
-	dm_digtable.cur_igvalue += 2;
-	if (dm_digtable.cur_igvalue > 0x3f)
-		dm_digtable.cur_igvalue = 0x3f;
-
 	if (dm_digtable.pre_igvalue != dm_digtable.cur_igvalue) {
 		rtl_set_bbreg(hw, ROFDM0_XAAGCCORE1, 0x7f,
 			      dm_digtable.cur_igvalue);
@@ -1222,18 +1218,13 @@ static void rtl92c_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 				 ("PreState = %d, CurState = %d\n",
 				  p_ra->pre_ratr_state, p_ra->ratr_state));
 
-			/* Only the PCI card uses sta in the update rate table
-			 * callback routine */
-			if (rtlhal->interface == INTF_PCI) {
-				rcu_read_lock();
-				sta = ieee80211_find_sta(mac->vif, mac->bssid);
-			}
+			rcu_read_lock();
+			sta = ieee80211_find_sta(mac->vif, mac->bssid);
 			rtlpriv->cfg->ops->update_rate_tbl(hw, sta,
 					p_ra->ratr_state);
 
 			p_ra->pre_ratr_state = p_ra->ratr_state;
-			if (rtlhal->interface == INTF_PCI)
-				rcu_read_unlock();
+			rcu_read_unlock();
 		}
 	}
 }

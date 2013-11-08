@@ -355,7 +355,7 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 	 * resolution (think about autofs) and thus deadlocks could arise.
 	 */
 	if (cmds == Q_QUOTAON) {
-		ret = user_path_at(AT_FDCWD, addr, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &path);
+		ret = user_path_at(AT_FDCWD, addr, LOOKUP_FOLLOW, &path);
 		if (ret)
 			pathp = ERR_PTR(ret);
 		else

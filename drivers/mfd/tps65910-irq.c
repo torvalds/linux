@@ -178,10 +178,8 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
 		tps65910->irq_num = TPS65910_NUM_IRQ;
-		break;
 	case TPS65911:
 		tps65910->irq_num = TPS65911_NUM_IRQ;
-		break;
 	}
 
 	/* Register with genirq */

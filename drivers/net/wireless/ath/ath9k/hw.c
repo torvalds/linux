@@ -299,14 +299,6 @@ static void ath9k_hw_disablepcie(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 }
 
-static void ath9k_hw_aspm_init(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (common->bus_ops->aspm_init)
-		common->bus_ops->aspm_init(common);
-}
-
 /* This should work for all families including legacy */
 static bool ath9k_hw_chip_test(struct ath_hw *ah)
 {
@@ -367,6 +359,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.additional_swba_backoff = 0;
 	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
+	ah->config.pcie_powersave_enable = 0;
 	ah->config.pcie_clock_req = 0;
 	ah->config.pcie_waen = 0;
 	ah->config.analog_shiftreg = 1;
@@ -530,7 +523,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	if (ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
 		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI ||
-		    ((AR_SREV_9160(ah) || AR_SREV_9280(ah) || AR_SREV_9287(ah)) &&
+		    ((AR_SREV_9160(ah) || AR_SREV_9280(ah)) &&
 		     !ah->is_pciexpress)) {
 			ah->config.serialize_regmode =
 				SER_REG_MODE_ON;
@@ -584,7 +577,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 
 	if (ah->is_pciexpress)
-		ath9k_hw_aspm_init(ah);
+		ath9k_hw_configpcipowersave(ah, 0, 0);
 	else
 		ath9k_hw_disablepcie(ah);
 
@@ -682,24 +675,12 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 
 u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
-	int i = 0;
-
 	REG_CLR_BIT(ah, PLL3, PLL3_DO_MEAS_MASK);
 	udelay(100);
 	REG_SET_BIT(ah, PLL3, PLL3_DO_MEAS_MASK);
 
-	while ((REG_READ(ah, PLL4) & PLL4_MEAS_DONE) == 0) {
-
+	while ((REG_READ(ah, PLL4) & PLL4_MEAS_DONE) == 0)
 		udelay(100);
-
-		if (WARN_ON_ONCE(i >= 100)) {
-			ath_err(common, "PLL4 meaurement not done\n");
-			break;
-		}
-
-		i++;
-	}
 
 	return (REG_READ(ah, PLL3) & SQSUM_DVC_MASK) >> 3;
 }
@@ -1943,10 +1924,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->num_gpio_pins = AR9271_NUM_GPIO;
 	else if (AR_DEVID_7010(ah))
 		pCap->num_gpio_pins = AR7010_NUM_GPIO;
-	else if (AR_SREV_9300_20_OR_LATER(ah))
-		pCap->num_gpio_pins = AR9300_NUM_GPIO;
-	else if (AR_SREV_9287_11_OR_LATER(ah))
-		pCap->num_gpio_pins = AR9287_NUM_GPIO;
 	else if (AR_SREV_9285_12_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
 	else if (AR_SREV_9280_20_OR_LATER(ah))

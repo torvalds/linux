@@ -359,16 +359,13 @@ static int mct_u232_set_modem_ctrl(struct usb_serial *serial,
 			MCT_U232_SET_REQUEST_TYPE,
 			0, 0, buf, MCT_U232_SET_MODEM_CTRL_SIZE,
 			WDR_TIMEOUT);
-	kfree(buf);
-
-	dbg("set_modem_ctrl: state=0x%x ==> mcr=0x%x", control_state, mcr);
-
-	if (rc < 0) {
+	if (rc < 0)
 		dev_err(&serial->dev->dev,
 			"Set MODEM CTRL 0x%x failed (error = %d)\n", mcr, rc);
-		return rc;
-	}
-	return 0;
+	dbg("set_modem_ctrl: state=0x%x ==> mcr=0x%x", control_state, mcr);
+
+	kfree(buf);
+	return rc;
 } /* mct_u232_set_modem_ctrl */
 
 static int mct_u232_get_modem_stat(struct usb_serial *serial,
@@ -577,14 +574,12 @@ static void mct_u232_close(struct usb_serial_port *port)
 {
 	dbg("%s port %d", __func__, port->number);
 
-	/*
-	 * Must kill the read urb as it is actually an interrupt urb, which
-	 * generic close thus fails to kill.
-	 */
-	usb_kill_urb(port->read_urb);
-	usb_kill_urb(port->interrupt_in_urb);
-
-	usb_serial_generic_close(port);
+	if (port->serial->dev) {
+		/* shutdown our urbs */
+		usb_kill_urb(port->write_urb);
+		usb_kill_urb(port->read_urb);
+		usb_kill_urb(port->interrupt_in_urb);
+	}
 } /* mct_u232_close */
 
 

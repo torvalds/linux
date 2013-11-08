@@ -26,7 +26,7 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/platform_device.h>
+#include <linux/device.h>
 #include <linux/etherdevice.h>
 
 #include <asm/atomic.h>
@@ -86,10 +86,7 @@ struct f_rndis {
 	struct gether			port;
 	u8				ctrl_id, data_id;
 	u8				ethaddr[ETH_ALEN];
-	u32				vendorID;
-	const char			*manufacturer;
 	int				config;
-
 
 	struct rndis_ep_descs		fs;
 	struct rndis_ep_descs		hs;
@@ -190,11 +187,12 @@ static struct usb_interface_assoc_descriptor
 rndis_iad_descriptor = {
 	.bLength =		sizeof rndis_iad_descriptor,
 	.bDescriptorType =	USB_DT_INTERFACE_ASSOCIATION,
+
 	.bFirstInterface =	0, /* XXX, hardcoded */
 	.bInterfaceCount = 	2,	// control + data
 	.bFunctionClass =	USB_CLASS_COMM,
 	.bFunctionSubClass =	USB_CDC_SUBCLASS_ETHERNET,
-	.bFunctionProtocol =	USB_CDC_ACM_PROTO_VENDOR,
+	.bFunctionProtocol =	USB_CDC_PROTO_NONE,
 	/* .iFunction = DYNAMIC */
 };
 
@@ -488,10 +486,10 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_disable(rndis->notify);
 		} else {
 			VDBG(cdev, "init rndis ctrl %d\n", intf);
+			rndis->notify_desc = ep_choose(cdev->gadget,
+					rndis->hs.notify,
+					rndis->fs.notify);
 		}
-		rndis->notify_desc = ep_choose(cdev->gadget,
-				rndis->hs.notify,
-				rndis->fs.notify);
 		usb_ep_enable(rndis->notify, rndis->notify_desc);
 		rndis->notify->driver_data = rndis;
 
@@ -505,11 +503,11 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		if (!rndis->port.in) {
 			DBG(cdev, "init rndis\n");
+			rndis->port.in = ep_choose(cdev->gadget,
+					rndis->hs.in, rndis->fs.in);
+			rndis->port.out = ep_choose(cdev->gadget,
+					rndis->hs.out, rndis->fs.out);
 		}
-		rndis->port.in = ep_choose(cdev->gadget,
-				rndis->hs.in, rndis->fs.in);
-		rndis->port.out = ep_choose(cdev->gadget,
-				rndis->hs.out, rndis->fs.out);
 
 		/* Avoid ZLPs; they can be troublesome. */
 		rndis->port.is_zlp_ok = false;
@@ -708,9 +706,12 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->config, rndis->ethaddr);
 
-	if (rndis_set_param_vendor(rndis->config, rndis->vendorID,
-				   rndis->manufacturer))
-			goto fail;
+#if 0
+// FIXME
+	if (rndis_set_param_vendor(rndis->config, vendorID,
+				manufacturer))
+		goto fail0;
+#endif
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -785,8 +786,7 @@ static inline bool can_support_rndis(struct usb_configuration *c)
  * for calling @gether_cleanup() before module unload.
  */
 int
-rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-				u32 vendorID, const char *manufacturer)
+rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 {
 	struct f_rndis	*rndis;
 	int		status;
@@ -794,13 +794,13 @@ rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	if (!can_support_rndis(c) || !ethaddr)
 		return -EINVAL;
 
-	/* setup RNDIS itself */
-	status = rndis_init();
-	if (status < 0)
-		return status;
-
 	/* maybe allocate device-global string IDs */
 	if (rndis_string_defs[0].id == 0) {
+
+		/* ... and setup RNDIS itself */
+		status = rndis_init();
+		if (status < 0)
+			return status;
 
 		/* control interface label */
 		status = usb_string_id(c->cdev);
@@ -831,8 +831,6 @@ rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 		goto fail;
 
 	memcpy(rndis->ethaddr, ethaddr, ETH_ALEN);
-	rndis->vendorID = vendorID;
-	rndis->manufacturer = manufacturer;
 
 	/* RNDIS activates when the host changes this filter */
 	rndis->port.cdc_filter = 0;

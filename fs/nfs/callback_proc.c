@@ -324,7 +324,7 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 	dprintk("%s enter. slotid %d seqid %d\n",
 		__func__, args->csa_slotid, args->csa_sequenceid);
 
-	if (args->csa_slotid >= NFS41_BC_MAX_CALLBACKS)
+	if (args->csa_slotid > NFS41_BC_MAX_CALLBACKS)
 		return htonl(NFS4ERR_BADSLOT);
 
 	slot = tbl->slots + args->csa_slotid;
@@ -333,7 +333,7 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 	/* Normal */
 	if (likely(args->csa_sequenceid == slot->seq_nr + 1)) {
 		slot->seq_nr++;
-		goto out_ok;
+		return htonl(NFS4_OK);
 	}
 
 	/* Replay */
@@ -352,14 +352,11 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 	/* Wraparound */
 	if (args->csa_sequenceid == 1 && (slot->seq_nr + 1) == 0) {
 		slot->seq_nr = 1;
-		goto out_ok;
+		return htonl(NFS4_OK);
 	}
 
 	/* Misordered request */
 	return htonl(NFS4ERR_SEQ_MISORDERED);
-out_ok:
-	tbl->highest_used_slotid = args->csa_slotid;
-	return htonl(NFS4_OK);
 }
 
 /*
@@ -421,36 +418,25 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 			      struct cb_sequenceres *res,
 			      struct cb_process_state *cps)
 {
-	struct nfs4_slot_table *tbl;
 	struct nfs_client *clp;
 	int i;
 	__be32 status = htonl(NFS4ERR_BADSESSION);
+
+	cps->clp = NULL;
 
 	clp = nfs4_find_client_sessionid(args->csa_addr, &args->csa_sessionid);
 	if (clp == NULL)
 		goto out;
 
-	tbl = &clp->cl_session->bc_slot_table;
-
-	spin_lock(&tbl->slot_tbl_lock);
 	/* state manager is resetting the session */
 	if (test_bit(NFS4_SESSION_DRAINING, &clp->cl_session->session_state)) {
-		spin_unlock(&tbl->slot_tbl_lock);
-		status = htonl(NFS4ERR_DELAY);
-		/* Return NFS4ERR_BADSESSION if we're draining the session
-		 * in order to reset it.
-		 */
-		if (test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state))
-			status = htonl(NFS4ERR_BADSESSION);
+		status = NFS4ERR_DELAY;
 		goto out;
 	}
 
 	status = validate_seqid(&clp->cl_session->bc_slot_table, args);
-	spin_unlock(&tbl->slot_tbl_lock);
 	if (status)
 		goto out;
-
-	cps->slotid = args->csa_slotid;
 
 	/*
 	 * Check for pending referring calls.  If a match is found, a
@@ -468,6 +454,7 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	res->csr_slotid = args->csa_slotid;
 	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
+	nfs4_cb_take_slot(clp);
 
 out:
 	cps->clp = clp; /* put in nfs4_callback_compound */

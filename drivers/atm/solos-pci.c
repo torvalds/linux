@@ -967,11 +967,10 @@ static uint32_t fpga_tx(struct solos_card *card)
 	for (port = 0; tx_pending; tx_pending >>= 1, port++) {
 		if (tx_pending & 1) {
 			struct sk_buff *oldskb = card->tx_skb[port];
-			if (oldskb) {
+			if (oldskb)
 				pci_unmap_single(card->dev, SKB_CB(oldskb)->dma_addr,
 						 oldskb->len, PCI_DMA_TODEVICE);
-				card->tx_skb[port] = NULL;
-			}
+
 			spin_lock(&card->tx_queue_lock);
 			skb = skb_dequeue(&card->tx_queue[port]);
 			if (!skb)
@@ -985,7 +984,6 @@ static uint32_t fpga_tx(struct solos_card *card)
 			} else if (skb && card->using_dma) {
 				SKB_CB(skb)->dma_addr = pci_map_single(card->dev, skb->data,
 								       skb->len, PCI_DMA_TODEVICE);
-				card->tx_skb[port] = skb;
 				iowrite32(SKB_CB(skb)->dma_addr,
 					  card->config_regs + TX_DMA_ADDR(port));
 			}
@@ -1154,8 +1152,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		db_fpga_upgrade = db_firmware_upgrade = 0;
 	}
 
-	if (card->fpga_version >= DMA_SUPPORTED) {
-		pci_set_master(dev);
+	if (card->fpga_version >= DMA_SUPPORTED){
 		card->using_dma = 1;
 	} else {
 		card->using_dma = 0;

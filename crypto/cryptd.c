@@ -137,18 +137,13 @@ static void cryptd_queue_worker(struct work_struct *work)
 	struct crypto_async_request *req, *backlog;
 
 	cpu_queue = container_of(work, struct cryptd_cpu_queue, work);
-	/*
-	 * Only handle one request at a time to avoid hogging crypto workqueue.
-	 * preempt_disable/enable is used to prevent being preempted by
-	 * cryptd_enqueue_request(). local_bh_disable/enable is used to prevent
-	 * cryptd_enqueue_request() being accessed from software interrupts.
-	 */
-	local_bh_disable();
+	/* Only handle one request at a time to avoid hogging crypto
+	 * workqueue. preempt_disable/enable is used to prevent
+	 * being preempted by cryptd_enqueue_request() */
 	preempt_disable();
 	backlog = crypto_get_backlog(&cpu_queue->queue);
 	req = crypto_dequeue_request(&cpu_queue->queue);
 	preempt_enable();
-	local_bh_enable();
 
 	if (!req)
 		return;
@@ -950,7 +945,7 @@ static void __exit cryptd_exit(void)
 	crypto_unregister_template(&cryptd_tmpl);
 }
 
-subsys_initcall(cryptd_init);
+module_init(cryptd_init);
 module_exit(cryptd_exit);
 
 MODULE_LICENSE("GPL");

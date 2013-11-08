@@ -147,7 +147,7 @@ tcp_adv_win_scale - INTEGER
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
 	Possible values are [-31, 31], inclusive.
-	Default: 1
+	Default: 2
 
 tcp_allowed_congestion_control - STRING
 	Show/set the congestion control choices available to non-privileged
@@ -407,7 +407,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
 	case this value is ignored.
-	Default: between 87380B and 6MB, depending on RAM size.
+	Default: between 87380B and 4MB, depending on RAM size.
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
@@ -533,11 +533,6 @@ tcp_thin_dupack - BOOLEAN
 	For more information on thin streams, see
 	Documentation/networking/tcp-thin.txt
 	Default: 0
-
-tcp_challenge_ack_limit - INTEGER
-	Limits number of Challenge ACK sent per second, as recommended
-	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 100
 
 UDP variables:
 

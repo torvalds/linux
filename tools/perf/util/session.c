@@ -407,26 +407,20 @@ static void perf_event__read_swap(union perf_event *event)
 	event->read.id		 = bswap_64(event->read.id);
 }
 
-/* exported for swapping attributes in file header */
-void perf_event__attr_swap(struct perf_event_attr *attr)
-{
-	attr->type		= bswap_32(attr->type);
-	attr->size		= bswap_32(attr->size);
-	attr->config		= bswap_64(attr->config);
-	attr->sample_period	= bswap_64(attr->sample_period);
-	attr->sample_type	= bswap_64(attr->sample_type);
-	attr->read_format	= bswap_64(attr->read_format);
-	attr->wakeup_events	= bswap_32(attr->wakeup_events);
-	attr->bp_type		= bswap_32(attr->bp_type);
-	attr->bp_addr		= bswap_64(attr->bp_addr);
-	attr->bp_len		= bswap_64(attr->bp_len);
-}
-
-static void perf_event__hdr_attr_swap(union perf_event *event)
+static void perf_event__attr_swap(union perf_event *event)
 {
 	size_t size;
 
-	perf_event__attr_swap(&event->attr.attr);
+	event->attr.attr.type		= bswap_32(event->attr.attr.type);
+	event->attr.attr.size		= bswap_32(event->attr.attr.size);
+	event->attr.attr.config		= bswap_64(event->attr.attr.config);
+	event->attr.attr.sample_period	= bswap_64(event->attr.attr.sample_period);
+	event->attr.attr.sample_type	= bswap_64(event->attr.attr.sample_type);
+	event->attr.attr.read_format	= bswap_64(event->attr.attr.read_format);
+	event->attr.attr.wakeup_events	= bswap_32(event->attr.attr.wakeup_events);
+	event->attr.attr.bp_type	= bswap_32(event->attr.attr.bp_type);
+	event->attr.attr.bp_addr	= bswap_64(event->attr.attr.bp_addr);
+	event->attr.attr.bp_len		= bswap_64(event->attr.attr.bp_len);
 
 	size = event->header.size;
 	size -= (void *)&event->attr.id - (void *)event;
@@ -454,7 +448,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_LOST]		  = perf_event__all64_swap,
 	[PERF_RECORD_READ]		  = perf_event__read_swap,
 	[PERF_RECORD_SAMPLE]		  = perf_event__all64_swap,
-	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
+	[PERF_RECORD_HEADER_ATTR]	  = perf_event__attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
 	[PERF_RECORD_HEADER_BUILD_ID]	  = NULL,

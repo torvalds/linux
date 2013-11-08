@@ -40,7 +40,7 @@ static int softsynth_is_alive(struct spk_synth *synth);
 static unsigned char get_index(void);
 
 static struct miscdevice synth_device;
-static int init_pos;
+static int initialized;
 static int misc_registered;
 
 static struct var_t vars[] = {
@@ -194,7 +194,7 @@ static int softsynth_close(struct inode *inode, struct file *fp)
 	unsigned long flags;
 	spk_lock(flags);
 	synth_soft.alive = 0;
-	init_pos = 0;
+	initialized = 0;
 	spk_unlock(flags);
 	/* Make sure we let applications go before leaving */
 	speakup_start_ttys();
@@ -239,8 +239,13 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 			ch = '\x18';
 		} else if (synth_buffer_empty()) {
 			break;
-		} else if (init[init_pos]) {
-			ch = init[init_pos++];
+		} else if (!initialized) {
+			if (*init) {
+				ch = *init;
+				init++;
+			} else {
+				initialized = 1;
+			}
 		} else {
 			ch = synth_buffer_getc();
 		}

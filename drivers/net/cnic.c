@@ -605,12 +605,11 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 }
 EXPORT_SYMBOL(cnic_unregister_driver);
 
-static int cnic_init_id_tbl(struct cnic_id_tbl *id_tbl, u32 size, u32 start_id,
-			    u32 next)
+static int cnic_init_id_tbl(struct cnic_id_tbl *id_tbl, u32 size, u32 start_id)
 {
 	id_tbl->start = start_id;
 	id_tbl->max = size;
-	id_tbl->next = next;
+	id_tbl->next = 0;
 	spin_lock_init(&id_tbl->lock);
 	id_tbl->table = kzalloc(DIV_ROUND_UP(size, 32) * 4, GFP_KERNEL);
 	if (!id_tbl->table)
@@ -2779,10 +2778,13 @@ static u32 cnic_service_bnx2_queues(struct cnic_dev *dev)
 
 		/* Tell compiler that status_blk fields can change. */
 		barrier();
-		status_idx = (u16) *cp->kcq1.status_idx_ptr;
-		/* status block index must be read first */
-		rmb();
-		cp->kwq_con_idx = *cp->kwq_con_idx_ptr;
+		if (status_idx != *cp->kcq1.status_idx_ptr) {
+			status_idx = (u16) *cp->kcq1.status_idx_ptr;
+			/* status block index must be read first */
+			rmb();
+			cp->kwq_con_idx = *cp->kwq_con_idx_ptr;
+		} else
+			break;
 	}
 
 	CNIC_WR16(dev, cp->kcq1.io_addr, cp->kcq1.sw_prod_idx);
@@ -2906,6 +2908,8 @@ static u32 cnic_service_bnx2x_kcq(struct cnic_dev *dev, struct kcq_info *info)
 
 		/* Tell compiler that sblk fields can change. */
 		barrier();
+		if (last_status == *info->status_idx_ptr)
+			break;
 
 		last_status = *info->status_idx_ptr;
 		/* status block index must be read before reading the KCQ */
@@ -3768,13 +3772,7 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 		break;
 
 	case L4_KCQE_OPCODE_VALUE_CLOSE_RECEIVED:
-		/* after we already sent CLOSE_REQ */
-		if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags) &&
-		    !test_bit(SK_F_OFFLD_COMPLETE, &csk->flags) &&
-		    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP)
-			cp->close_conn(csk, L4_KCQE_OPCODE_VALUE_RESET_COMP);
-		else
-			cnic_cm_upcall(cp, csk, opcode);
+		cnic_cm_upcall(cp, csk, opcode);
 		break;
 	}
 	csk_put(csk);
@@ -3805,17 +3803,14 @@ static void cnic_cm_free_mem(struct cnic_dev *dev)
 static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	u32 port_id;
 
 	cp->csk_tbl = kzalloc(sizeof(struct cnic_sock) * MAX_CM_SK_TBL_SZ,
 			      GFP_KERNEL);
 	if (!cp->csk_tbl)
 		return -ENOMEM;
 
-	get_random_bytes(&port_id, sizeof(port_id));
-	port_id %= CNIC_LOCAL_PORT_RANGE;
 	if (cnic_init_id_tbl(&cp->csk_port_tbl, CNIC_LOCAL_PORT_RANGE,
-			     CNIC_LOCAL_PORT_MIN, port_id)) {
+			     CNIC_LOCAL_PORT_MIN)) {
 		cnic_cm_free_mem(dev);
 		return -ENOMEM;
 	}
@@ -3831,14 +3826,12 @@ static int cnic_ready_to_close(struct cnic_sock *csk, u32 opcode)
 	}
 
 	/* 1. If event opcode matches the expected event in csk->state
-	 * 2. If the expected event is CLOSE_COMP or RESET_COMP, we accept any
-	 *    event
+	 * 2. If the expected event is CLOSE_COMP, we accept any event
 	 * 3. If the expected event is 0, meaning the connection was never
 	 *    never established, we accept the opcode from cm_abort.
 	 */
 	if (opcode == csk->state || csk->state == 0 ||
-	    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP ||
-	    csk->state == L4_KCQE_OPCODE_VALUE_RESET_COMP) {
+	    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP) {
 		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags)) {
 			if (csk->state == 0)
 				csk->state = opcode;
@@ -4225,6 +4218,14 @@ static void cnic_enable_bnx2_int(struct cnic_dev *dev)
 		BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | cp->last_status_idx);
 }
 
+static void cnic_get_bnx2_iscsi_info(struct cnic_dev *dev)
+{
+	u32 max_conn;
+
+	max_conn = cnic_reg_rd_ind(dev, BNX2_FW_MAX_ISCSI_CONN);
+	dev->max_iscsi_conn = max_conn;
+}
+
 static void cnic_disable_bnx2_int_sync(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -4549,6 +4550,8 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 		return err;
 	}
 
+	cnic_get_bnx2_iscsi_info(dev);
+
 	return 0;
 }
 
@@ -4823,7 +4826,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	pfid = cp->pfid;
 
 	ret = cnic_init_id_tbl(&cp->cid_tbl, MAX_ISCSI_TBL_SZ,
-			       cp->iscsi_start_cid, 0);
+			       cp->iscsi_start_cid);
 
 	if (ret)
 		return -ENOMEM;
@@ -4831,7 +4834,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
 		ret = cnic_init_id_tbl(&cp->fcoe_cid_tbl,
 					BNX2X_FCOE_NUM_CONNECTIONS,
-					cp->fcoe_start_cid, 0);
+					cp->fcoe_start_cid);
 
 		if (ret)
 			return -ENOMEM;
@@ -5214,8 +5217,6 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	cdev->pcidev = pdev;
 	cp->chip_id = ethdev->chip_id;
 
-	cdev->max_iscsi_conn = ethdev->max_iscsi_conn;
-
 	cp->cnic_ops = &cnic_bnx2_ops;
 	cp->start_hw = cnic_start_bnx2_hw;
 	cp->stop_hw = cnic_stop_bnx2_hw;
@@ -5334,7 +5335,7 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 
 	dev = cnic_from_netdev(netdev);
 
-	if (!dev && (event == NETDEV_REGISTER || netif_running(netdev))) {
+	if (!dev && (event == NETDEV_REGISTER || event == NETDEV_UP)) {
 		/* Check for the hot-plug device */
 		dev = is_cnic_dev(netdev);
 		if (dev) {
@@ -5350,7 +5351,7 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 		else if (event == NETDEV_UNREGISTER)
 			cnic_ulp_exit(dev);
 
-		if (event == NETDEV_UP || (new_dev && netif_running(netdev))) {
+		if (event == NETDEV_UP) {
 			if (cnic_register_netdev(dev) != 0) {
 				cnic_put(dev);
 				goto done;

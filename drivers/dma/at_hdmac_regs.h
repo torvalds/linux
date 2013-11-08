@@ -319,27 +319,28 @@ static void atc_dump_lli(struct at_dma_chan *atchan, struct at_lli *lli)
 }
 
 
-static void atc_setup_irq(struct at_dma *atdma, int chan_id, int on)
+static void atc_setup_irq(struct at_dma_chan *atchan, int on)
 {
-	u32 ebci;
+	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+	u32		ebci;
 
 	/* enable interrupts on buffer transfer completion & error */
-	ebci =    AT_DMA_BTC(chan_id)
-		| AT_DMA_ERR(chan_id);
+	ebci =    AT_DMA_BTC(atchan->chan_common.chan_id)
+		| AT_DMA_ERR(atchan->chan_common.chan_id);
 	if (on)
 		dma_writel(atdma, EBCIER, ebci);
 	else
 		dma_writel(atdma, EBCIDR, ebci);
 }
 
-static void atc_enable_chan_irq(struct at_dma *atdma, int chan_id)
+static inline void atc_enable_irq(struct at_dma_chan *atchan)
 {
-	atc_setup_irq(atdma, chan_id, 1);
+	atc_setup_irq(atchan, 1);
 }
 
-static void atc_disable_chan_irq(struct at_dma *atdma, int chan_id)
+static inline void atc_disable_irq(struct at_dma_chan *atchan)
 {
-	atc_setup_irq(atdma, chan_id, 0);
+	atc_setup_irq(atchan, 0);
 }
 
 

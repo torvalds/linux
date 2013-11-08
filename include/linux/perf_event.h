@@ -807,7 +807,7 @@ struct perf_event {
 	struct hw_perf_event		hw;
 
 	struct perf_event_context	*ctx;
-	atomic_long_t			refcount;
+	struct file			*filp;
 
 	/*
 	 * These accumulate total time (in nanoseconds) that children

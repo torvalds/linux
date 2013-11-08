@@ -242,8 +242,12 @@ static void crash_kexec_wait_realmode(int cpu)
 
 		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
-			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
+			if (!cpu_possible(i)) {
 				break;
+			}
+			if (!cpu_online(i)) {
+				break;
+			}
 			msecs--;
 			mdelay(1);
 		}

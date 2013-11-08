@@ -353,21 +353,29 @@ static void __init sparse_early_usemaps_alloc_node(unsigned long**usemap_map,
 
 	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
 								 usemap_count);
-	if (!usemap) {
-		usemap = alloc_bootmem_node(NODE_DATA(nodeid), size * usemap_count);
-		if (!usemap) {
-			printk(KERN_WARNING "%s: allocation failed\n", __func__);
-			return;
+	if (usemap) {
+		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+			if (!present_section_nr(pnum))
+				continue;
+			usemap_map[pnum] = usemap;
+			usemap += size;
 		}
+		return;
 	}
 
-	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-		if (!present_section_nr(pnum))
-			continue;
-		usemap_map[pnum] = usemap;
-		usemap += size;
-		check_usemap_section_nr(nodeid, usemap_map[pnum]);
+	usemap = alloc_bootmem_node(NODE_DATA(nodeid), size * usemap_count);
+	if (usemap) {
+		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+			if (!present_section_nr(pnum))
+				continue;
+			usemap_map[pnum] = usemap;
+			usemap += size;
+			check_usemap_section_nr(nodeid, usemap_map[pnum]);
+		}
+		return;
 	}
+
+	printk(KERN_WARNING "%s: allocation failed\n", __func__);
 }
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
@@ -619,7 +627,7 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 {
 	return; /* XXX: Not implemented yet */
 }
-static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+static void free_map_bootmem(struct page *page, unsigned long nr_pages)
 {
 }
 #else
@@ -660,11 +668,10 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 			   get_order(sizeof(struct page) * nr_pages));
 }
 
-static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+static void free_map_bootmem(struct page *page, unsigned long nr_pages)
 {
 	unsigned long maps_section_nr, removing_section_nr, i;
 	unsigned long magic;
-	struct page *page = virt_to_page(memmap);
 
 	for (i = 0; i < nr_pages; i++, page++) {
 		magic = (unsigned long) page->lru.next;
@@ -713,10 +720,13 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
 	 */
 
 	if (memmap) {
+		struct page *memmap_page;
+		memmap_page = virt_to_page(memmap);
+
 		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
 			>> PAGE_SHIFT;
 
-		free_map_bootmem(memmap, nr_pages);
+		free_map_bootmem(memmap_page, nr_pages);
 	}
 }
 

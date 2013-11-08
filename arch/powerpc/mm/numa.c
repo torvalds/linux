@@ -1214,11 +1214,10 @@ int hot_add_node_scn_to_nid(unsigned long scn_addr)
 			break;
 		}
 
+		of_node_put(memory);
 		if (nid >= 0)
 			break;
 	}
-
-	of_node_put(memory);
 
 	return nid;
 }

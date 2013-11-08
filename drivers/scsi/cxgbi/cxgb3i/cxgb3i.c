@@ -913,7 +913,7 @@ static void l2t_put(struct cxgbi_sock *csk)
 	struct t3cdev *t3dev = (struct t3cdev *)csk->cdev->lldev;
 
 	if (csk->l2t) {
-		l2t_release(t3dev, csk->l2t);
+		l2t_release(L2DATA(t3dev), csk->l2t);
 		csk->l2t = NULL;
 		cxgbi_sock_put(csk);
 	}
@@ -985,7 +985,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		csk->saddr.sin_addr.s_addr = chba->ipv4addr;
 
 	csk->rss_qid = 0;
-	csk->l2t = t3_l2t_get(t3dev, dst_get_neighbour(dst), ndev);
+	csk->l2t = t3_l2t_get(t3dev, dst->neighbour, ndev);
 	if (!csk->l2t) {
 		pr_err("NO l2t available.\n");
 		return -EINVAL;

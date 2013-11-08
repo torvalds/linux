@@ -1256,7 +1256,7 @@ static void sm_remove_dev(struct mtd_blktrans_dev *dev)
 
 static struct mtd_blktrans_ops sm_ftl_ops = {
 	.name		= "smblk",
-	.major		= 0,
+	.major		= -1,
 	.part_bits	= SM_FTL_PARTN_BITS,
 	.blksize	= SM_SECTOR_SIZE,
 	.getgeo		= sm_getgeo,

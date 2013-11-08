@@ -24,7 +24,6 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
-#include <linux/random.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -482,15 +481,12 @@ static void hub_tt_work(struct work_struct *work)
 	int			limit = 100;
 
 	spin_lock_irqsave (&hub->tt.lock, flags);
-	while (!list_empty(&hub->tt.clear_list)) {
+	while (--limit && !list_empty (&hub->tt.clear_list)) {
 		struct list_head	*next;
 		struct usb_tt_clear	*clear;
 		struct usb_device	*hdev = hub->hdev;
 		const struct hc_driver	*drv;
 		int			status;
-
-		if (!hub->quiescing && --limit < 0)
-			break;
 
 		next = hub->tt.clear_list.next;
 		clear = list_entry (next, struct usb_tt_clear, clear_list);
@@ -709,26 +705,10 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	if (type == HUB_INIT3)
 		goto init3;
 
-	/* The superspeed hub except for root hub has to use Hub Depth
-	 * value as an offset into the route string to locate the bits
-	 * it uses to determine the downstream port number. So hub driver
-	 * should send a set hub depth request to superspeed hub after
-	 * the superspeed hub is set configuration in initialization or
-	 * reset procedure.
-	 *
-	 * After a resume, port power should still be on.
+	/* After a resume, port power should still be on.
 	 * For any other type of activation, turn it on.
 	 */
 	if (type != HUB_RESUME) {
-		if (hdev->parent && hub_is_superspeed(hdev)) {
-			ret = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
-					HUB_SET_DEPTH, USB_RT_HUB,
-					hdev->level - 1, 0, NULL, 0,
-					USB_CTRL_SET_TIMEOUT);
-			if (ret < 0)
-				dev_err(hub->intfdev,
-						"set hub depth failed\n");
-		}
 
 		/* Speed up system boot by using a delayed_work for the
 		 * hub's initial power-up delays.  This is pretty awkward
@@ -833,12 +813,6 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 					USB_PORT_FEAT_C_PORT_LINK_STATE);
 		}
 
-		if ((portchange & USB_PORT_STAT_C_BH_RESET) &&
-				hub_is_superspeed(hub->hdev)) {
-			need_debounce_delay = true;
-			clear_port_feature(hub->hdev, port1,
-					USB_PORT_FEAT_C_BH_PORT_RESET);
-		}
 		/* We can forget about a "removed" device when there's a
 		 * physical disconnect or the connect status changes.
 		 */
@@ -955,7 +929,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
 	if (hub->tt.hub)
-		flush_work_sync(&hub->tt.clear_work);
+		cancel_work_sync(&hub->tt.clear_work);
 }
 
 /* caller has locked the hub device */
@@ -1005,6 +979,18 @@ static int hub_configure(struct usb_hub *hub,
 	if (!hub->descriptor) {
 		ret = -ENOMEM;
 		goto fail;
+	}
+
+	if (hub_is_superspeed(hdev) && (hdev->parent != NULL)) {
+		ret = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
+				HUB_SET_DEPTH, USB_RT_HUB,
+				hdev->level - 1, 0, NULL, 0,
+				USB_CTRL_SET_TIMEOUT);
+
+		if (ret < 0) {
+			message = "can't set hub depth";
+			goto fail;
+		}
 	}
 
 	/* Request the entire hub descriptor.
@@ -1648,6 +1634,7 @@ void usb_disconnect(struct usb_device **pdev)
 {
 	struct usb_device	*udev = *pdev;
 	int			i;
+	struct usb_hcd		*hcd = bus_to_hcd(udev->bus);
 
 	if (!udev) {
 		pr_debug ("%s nodev\n", __func__);
@@ -1675,7 +1662,9 @@ void usb_disconnect(struct usb_device **pdev)
 	 * so that the hardware is now fully quiesced.
 	 */
 	dev_dbg (&udev->dev, "unregistering device\n");
+	mutex_lock(hcd->bandwidth_mutex);
 	usb_disable_device(udev, 0);
+	mutex_unlock(hcd->bandwidth_mutex);
 	usb_hcd_synchronize_unlinks(udev);
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -1906,14 +1895,6 @@ int usb_new_device(struct usb_device *udev)
 	/* Tell the world! */
 	announce_device(udev);
 
-	if (udev->serial)
-		add_device_randomness(udev->serial, strlen(udev->serial));
-	if (udev->product)
-		add_device_randomness(udev->product, strlen(udev->product));
-	if (udev->manufacturer)
-		add_device_randomness(udev->manufacturer,
-				      strlen(udev->manufacturer));
-
 	device_enable_async_suspend(&udev->dev);
 	/* Register the device.  The device driver is responsible
 	 * for configuring the device and invoking the add-device
@@ -2050,7 +2031,7 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define HUB_ROOT_RESET_TIME	50	/* times are in msec */
 #define HUB_SHORT_RESET_TIME	10
 #define HUB_LONG_RESET_TIME	200
-#define HUB_RESET_TIMEOUT	800
+#define HUB_RESET_TIMEOUT	500
 
 static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 				struct usb_device *udev, unsigned int delay)
@@ -2413,7 +2394,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 static int finish_port_resume(struct usb_device *udev)
 {
 	int	status = 0;
-	u16	devstatus = 0;
+	u16	devstatus;
 
 	/* caller owns the udev device lock */
 	dev_dbg(&udev->dev, "%s\n",
@@ -2458,13 +2439,7 @@ static int finish_port_resume(struct usb_device *udev)
 	if (status) {
 		dev_dbg(&udev->dev, "gone after usb resume? status %d\n",
 				status);
-	/*
-	 * There are a few quirky devices which violate the standard
-	 * by claiming to have remote wakeup enabled after a reset,
-	 * which crash if the feature is cleared, hence check for
-	 * udev->reset_resume
-	 */
-	} else if (udev->actconfig && !udev->reset_resume) {
+	} else if (udev->actconfig) {
 		le16_to_cpus(&devstatus);
 		if (devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) {
 			status = usb_control_msg(udev,

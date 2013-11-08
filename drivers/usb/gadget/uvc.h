@@ -29,7 +29,7 @@
 
 struct uvc_request_data
 {
-	__s32 length;
+	unsigned int length;
 	__u8 data[60];
 };
 

@@ -121,7 +121,7 @@
 
 /* Maximum sleep allowed via Sleep() operator */
 
-#define ACPI_MAX_SLEEP                  2000	/* Two seconds */
+#define ACPI_MAX_SLEEP                  20000	/* Two seconds */
 
 /******************************************************************************
  *

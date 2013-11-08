@@ -943,7 +943,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	if (usb_pipein(urb->pipe))
 		status |= TD_CTRL_SPD;
 
-	i = urb->num_mapped_sgs;
+	i = urb->num_sgs;
 	if (len > 0 && i > 0) {
 		sg = urb->sg;
 		data = sg_dma_address(sg);

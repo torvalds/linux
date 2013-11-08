@@ -1985,7 +1985,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	if (hw->bus.func == 0)
 		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
-	else if (hw->mac.type >= e1000_82580)
+	else if (hw->mac.type == e1000_82580)
 		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
 		                 NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
 		                 &eeprom_data);
@@ -4521,13 +4521,11 @@ void igb_update_stats(struct igb_adapter *adapter,
 	bytes = 0;
 	packets = 0;
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		u32 rqdpc = rd32(E1000_RQDPC(i));
+		u32 rqdpc_tmp = rd32(E1000_RQDPC(i)) & 0x0FFF;
 		struct igb_ring *ring = adapter->rx_ring[i];
 
-		if (rqdpc) {
-			ring->rx_stats.drops += rqdpc;
-			net_stats->rx_fifo_errors += rqdpc;
-		}
+		ring->rx_stats.drops += rqdpc_tmp;
+		net_stats->rx_fifo_errors += rqdpc_tmp;
 
 		do {
 			start = u64_stats_fetch_begin_bh(&ring->rx_syncp);

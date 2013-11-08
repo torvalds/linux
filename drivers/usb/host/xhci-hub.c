@@ -75,7 +75,7 @@ static void xhci_usb2_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 	 */
 	memset(port_removable, 0, sizeof(port_removable));
 	for (i = 0; i < ports; i++) {
-		portsc = xhci_readl(xhci, xhci->usb2_ports[i]);
+		portsc = xhci_readl(xhci, xhci->usb3_ports[i]);
 		/* If a device is removable, PORTSC reports a 0, same as in the
 		 * hub descriptor DeviceRemovable bits.
 		 */
@@ -392,20 +392,6 @@ static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
 	return max_ports;
 }
 
-/* Test and clear port RWC bit */
-void xhci_test_and_clear_bit(struct xhci_hcd *xhci, __le32 __iomem **port_array,
-				int port_id, u32 port_bit)
-{
-	u32 temp;
-
-	temp = xhci_readl(xhci, port_array[port_id]);
-	if (temp & port_bit) {
-		temp = xhci_port_state_to_neutral(temp);
-		temp |= port_bit;
-		xhci_writel(xhci, temp, port_array[port_id]);
-	}
-}
-
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -477,12 +463,11 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					&& (temp & PORT_POWER))
 				status |= USB_PORT_STAT_SUSPEND;
 		}
-		if ((temp & PORT_PLS_MASK) == XDEV_RESUME &&
-				!DEV_SUPERSPEED(temp)) {
+		if ((temp & PORT_PLS_MASK) == XDEV_RESUME) {
 			if ((temp & PORT_RESET) || !(temp & PORT_PE))
 				goto error;
-			if (time_after_eq(jiffies,
-					bus_state->resume_done[wIndex])) {
+			if (!DEV_SUPERSPEED(temp) && time_after_eq(jiffies,
+						bus_state->resume_done[wIndex])) {
 				xhci_dbg(xhci, "Resume USB2 port %d\n",
 					wIndex + 1);
 				bus_state->resume_done[wIndex] = 0;
@@ -502,14 +487,6 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				xhci_ring_device(xhci, slot_id);
 				bus_state->port_c_suspend |= 1 << wIndex;
 				bus_state->suspended_ports &= ~(1 << wIndex);
-			} else {
-				/*
-				 * The resume has been signaling for less than
-				 * 20ms. Report the port status as SUSPEND,
-				 * let the usbcore check port status again
-				 * and clear resume signaling later.
-				 */
-				status |= USB_PORT_STAT_SUSPEND;
 			}
 		}
 		if ((temp & PORT_PLS_MASK) == XDEV_U0
@@ -687,7 +664,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			xhci_dbg(xhci, "PORTSC %04x\n", temp);
 			if (temp & PORT_RESET)
 				goto error;
-			if ((temp & PORT_PLS_MASK) == XDEV_U3) {
+			if (temp & XDEV_U3) {
 				if ((temp & PORT_PE) == 0)
 					goto error;
 
@@ -775,7 +752,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	memset(buf, 0, retval);
 	status = 0;
 
-	mask = PORT_CSC | PORT_PEC | PORT_OCC | PORT_PLC | PORT_WRC;
+	mask = PORT_CSC | PORT_PEC | PORT_OCC | PORT_PLC;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
@@ -952,8 +929,12 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			/* Clear PLC */
-			xhci_test_and_clear_bit(xhci, port_array, port_index,
-						PORT_PLC);
+			temp = xhci_readl(xhci, port_array[port_index]);
+			if (temp & PORT_PLC) {
+				temp = xhci_port_state_to_neutral(temp);
+				temp |= PORT_PLC;
+				xhci_writel(xhci, temp, port_array[port_index]);
+			}
 
 			slot_id = xhci_find_slot_id_by_port(hcd,
 					xhci, port_index + 1);

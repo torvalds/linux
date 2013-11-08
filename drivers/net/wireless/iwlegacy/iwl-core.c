@@ -938,7 +938,7 @@ void iwl_legacy_irq_handle_error(struct iwl_priv *priv)
 					&priv->contexts[IWL_RXON_CTX_BSS]);
 #endif
 
-	wake_up(&priv->wait_command_queue);
+	wake_up_interruptible(&priv->wait_command_queue);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the INIT status bit */
@@ -1776,7 +1776,7 @@ int iwl_legacy_force_reset(struct iwl_priv *priv, int mode, bool external)
 		IWL_ERR(priv, "On demand firmware reload\n");
 		/* Set the FW error flag -- cleared on iwl_down */
 		set_bit(STATUS_FW_ERROR, &priv->status);
-		wake_up(&priv->wait_command_queue);
+		wake_up_interruptible(&priv->wait_command_queue);
 		/*
 		 * Keep the restart process from trying to send host
 		 * commands by clearing the INIT status bit

@@ -1252,9 +1252,7 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	ath_rc_priv->max_valid_rate = k;
 	ath_rc_sort_validrates(rate_table, ath_rc_priv);
-	ath_rc_priv->rate_max_phy = (k > 4) ?
-					ath_rc_priv->valid_rate_index[k-4] :
-					ath_rc_priv->valid_rate_index[k-1];
+	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
 	ath_rc_priv->rate_table = rate_table;
 
 	ath_dbg(common, ATH_DBG_CONFIG,
@@ -1328,7 +1326,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	fc = hdr->frame_control;
 	for (i = 0; i < sc->hw->max_rates; i++) {
 		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
-		if (rate->idx < 0 || !rate->count)
+		if (!rate->count)
 			break;
 
 		final_ts_idx = i;

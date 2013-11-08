@@ -1083,10 +1083,9 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 
 	used = pvc_is_used(pvc);
 
-	if (type == ARPHRD_ETHER) {
+	if (type == ARPHRD_ETHER)
 		dev = alloc_netdev(0, "pvceth%d", ether_setup);
-		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	} else
+	else
 		dev = alloc_netdev(0, "pvc%d", pvc_setup);
 
 	if (!dev) {

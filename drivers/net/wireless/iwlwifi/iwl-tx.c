@@ -802,8 +802,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
 
-	txq->time_stamp = jiffies;
-
 	iwlagn_unmap_tfd(priv, meta, &txq->tfds[index], PCI_DMA_BIDIRECTIONAL);
 
 	/* Input error checking is done when commands are added to queue. */
@@ -821,7 +819,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 		IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
-		wake_up(&priv->wait_command_queue);
+		wake_up_interruptible(&priv->wait_command_queue);
 	}
 
 	/* Mark as unmapped */

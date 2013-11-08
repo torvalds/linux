@@ -357,19 +357,10 @@ static int m41t80_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 static struct rtc_class_ops m41t80_rtc_ops = {
 	.read_time = m41t80_rtc_read_time,
 	.set_time = m41t80_rtc_set_time,
-	/*
-	 * XXX - m41t80 alarm functionality is reported broken.
-	 * until it is fixed, don't register alarm functions.
-	 *
 	.read_alarm = m41t80_rtc_read_alarm,
 	.set_alarm = m41t80_rtc_set_alarm,
-	*/
 	.proc = m41t80_rtc_proc,
-	/*
-	 * See above comment on broken alarm
-	 *
 	.alarm_irq_enable = m41t80_rtc_alarm_irq_enable,
-	*/
 };
 
 #if defined(CONFIG_RTC_INTF_SYSFS) || defined(CONFIG_RTC_INTF_SYSFS_MODULE)

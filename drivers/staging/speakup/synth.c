@@ -342,7 +342,7 @@ int synth_init(char *synth_name)
 
 	mutex_lock(&spk_mutex);
 	/* First, check if we already have it loaded. */
-	for (i = 0; i < MAXSYNTHS && synths[i] != NULL; i++)
+	for (i = 0; synths[i] != NULL && i < MAXSYNTHS; i++)
 		if (strcmp(synths[i]->name, synth_name) == 0)
 			synth = synths[i];
 
@@ -423,7 +423,7 @@ int synth_add(struct spk_synth *in_synth)
 	int i;
 	int status = 0;
 	mutex_lock(&spk_mutex);
-	for (i = 0; i < MAXSYNTHS && synths[i] != NULL; i++)
+	for (i = 0; synths[i] != NULL && i < MAXSYNTHS; i++)
 		/* synth_remove() is responsible for rotating the array down */
 		if (in_synth == synths[i]) {
 			mutex_unlock(&spk_mutex);

@@ -606,7 +606,6 @@ static void bdi_prune_sb(struct backing_dev_info *bdi)
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
-		bdi_set_min_ratio(bdi, 0);
 		trace_writeback_bdi_unregister(bdi);
 		bdi_prune_sb(bdi);
 		del_timer_sync(&bdi->wb.wakeup_timer);
@@ -685,14 +684,6 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	}
 
 	bdi_unregister(bdi);
-
-	/*
-	 * If bdi_unregister() had already been called earlier, the
-	 * wakeup_timer could still be armed because bdi_prune_sb()
-	 * can race with the bdi_wakeup_thread_delayed() calls from
-	 * __mark_inode_dirty().
-	 */
-	del_timer_sync(&bdi->wb.wakeup_timer);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);

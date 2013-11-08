@@ -320,10 +320,10 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 			pr_debug("AutoNeg specified along with Speed or Duplex, AutoNeg parameter ignored\n");
 			hw->phy.autoneg_advertised = opt.def;
 		} else {
-			int tmp = AutoNeg;
-
-			pch_gbe_validate_option(&tmp, &opt, adapter);
-			hw->phy.autoneg_advertised = tmp;
+			hw->phy.autoneg_advertised = AutoNeg;
+			pch_gbe_validate_option(
+				(int *)(&hw->phy.autoneg_advertised),
+				&opt, adapter);
 		}
 	}
 
@@ -494,10 +494,9 @@ void pch_gbe_check_options(struct pch_gbe_adapter *adapter)
 			.arg  = { .l = { .nr = (int)ARRAY_SIZE(fc_list),
 					 .p = fc_list } }
 		};
-		int tmp = FlowControl;
-
-		pch_gbe_validate_option(&tmp, &opt, adapter);
-		hw->mac.fc = tmp;
+		hw->mac.fc = FlowControl;
+		pch_gbe_validate_option((int *)(&hw->mac.fc),
+						&opt, adapter);
 	}
 
 	pch_gbe_check_copper_options(adapter);

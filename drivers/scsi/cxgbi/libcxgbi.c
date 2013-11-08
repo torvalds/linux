@@ -492,7 +492,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		goto err_out;
 	}
 	dst = &rt->dst;
-	ndev = dst_get_neighbour(dst)->dev;
+	ndev = dst->neighbour->dev;
 
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		pr_info("multi-cast route %pI4, port %u, dev %s.\n",
@@ -506,7 +506,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		ndev = ip_dev_find(&init_net, daddr->sin_addr.s_addr);
 		mtu = ndev->mtu;
 		pr_info("rt dev %s, loopback -> %s, mtu %u.\n",
-			dst_get_neighbour(dst)->dev->name, ndev->name, mtu);
+			dst->neighbour->dev->name, ndev->name, mtu);
 	}
 
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);

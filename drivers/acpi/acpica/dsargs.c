@@ -384,32 +384,8 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 
 	/* Execute the argument AML */
 
-	status = acpi_ds_execute_arguments(node, extra_desc->extra.scope_node,
+	status = acpi_ds_execute_arguments(node, node->parent,
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/* Validate the region address/length via the host OS */
-
-	status = acpi_os_validate_address(obj_desc->region.space_id,
-					  obj_desc->region.address,
-					  (acpi_size) obj_desc->region.length,
-					  acpi_ut_get_node_name(node));
-
-	if (ACPI_FAILURE(status)) {
-		/*
-		 * Invalid address/length. We will emit an error message and mark
-		 * the region as invalid, so that it will cause an additional error if
-		 * it is ever used. Then return AE_OK.
-		 */
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During address validation of OpRegion [%4.4s]",
-				node->name.ascii));
-		obj_desc->common.flags |= AOPOBJ_INVALID;
-		status = AE_OK;
-	}
-
 	return_ACPI_STATUS(status);
 }

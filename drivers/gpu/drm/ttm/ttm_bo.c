@@ -353,10 +353,8 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 
 		ret = ttm_tt_set_user(bo->ttm, current,
 				      bo->buffer_start, bo->num_pages);
-		if (unlikely(ret != 0)) {
+		if (unlikely(ret != 0))
 			ttm_tt_destroy(bo->ttm);
-			bo->ttm = NULL;
-		}
 		break;
 	default:
 		printk(KERN_ERR TTM_PFX "Illegal buffer object type\n");
@@ -392,13 +390,10 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	 * Create and bind a ttm if required.
 	 */
 
-	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
-		if (bo->ttm == NULL) {
-			bool zero = !(old_man->flags & TTM_MEMTYPE_FLAG_FIXED);
-			ret = ttm_bo_add_ttm(bo, zero);
-			if (ret)
-				goto out_err;
-		}
+	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED) && (bo->ttm == NULL)) {
+		ret = ttm_bo_add_ttm(bo, false);
+		if (ret)
+			goto out_err;
 
 		ret = ttm_tt_set_placement_caching(bo->ttm, mem->placement);
 		if (ret)
@@ -1809,7 +1804,6 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 			spin_unlock(&glob->lru_lock);
 			(void) ttm_bo_cleanup_refs(bo, false, false, false);
 			kref_put(&bo->list_kref, ttm_bo_release_list);
-			spin_lock(&glob->lru_lock);
 			continue;
 		}
 

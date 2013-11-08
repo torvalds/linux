@@ -113,18 +113,6 @@ config IP_NF_TARGET_REJECT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_REJECT_SKERR
-	bool "Force socket error when rejecting with icmp*"
-	depends on IP_NF_TARGET_REJECT
-	default n
-	help
-          This option enables turning a "--reject-with icmp*" into a matching
-          socket error also.
-	  The REJECT target normally allows sending an ICMP message. But it
-          leaves the local socket unaware of any ingress rejects.
-
-	  If unsure, say N.
-
 config IP_NF_TARGET_LOG
 	tristate "LOG target support"
 	default m if NETFILTER_ADVANCED=n

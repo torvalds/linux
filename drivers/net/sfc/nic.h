@@ -65,11 +65,6 @@ enum {
 #define FALCON_GMAC_LOOPBACKS			\
 	(1 << LOOPBACK_GMAC)
 
-/* Alignment of PCIe DMA boundaries (4KB) */
-#define EFX_PAGE_SIZE	4096
-/* Size and alignment of buffer table entries (same) */
-#define EFX_BUF_SIZE	EFX_PAGE_SIZE
-
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM
@@ -148,10 +143,12 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 /**
  * struct siena_nic_data - Siena NIC state
  * @mcdi: Management-Controller-to-Driver Interface
+ * @mcdi_smem: MCDI shared memory mapping. The mapping is always uncacheable.
  * @wol_filter_id: Wake-on-LAN packet filter id
  */
 struct siena_nic_data {
 	struct efx_mcdi_iface mcdi;
+	void __iomem *mcdi_smem;
 	int wol_filter_id;
 };
 

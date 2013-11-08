@@ -47,7 +47,6 @@ u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	u32 tmp = RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset);
-	int i;
 
 	/* Lock the graphics update lock */
 	tmp |= AVIVO_D1GRPH_UPDATE_LOCK;
@@ -67,11 +66,7 @@ u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	       (u32)crtc_base);
 
 	/* Wait for update_pending to go high. */
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		if (RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset) & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING)
-			break;
-		udelay(1);
-	}
+	while (!(RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset) & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING));
 	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
@@ -151,8 +146,6 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
-	if (rdev->family == CHIP_RV740)
-		WREG32(MC_VM_MD_L1_TLB3_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
@@ -543,6 +536,55 @@ static u32 r700_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	return backend_map;
 }
 
+static void rv770_program_channel_remap(struct radeon_device *rdev)
+{
+	u32 tcp_chan_steer, mc_shared_chremap, tmp;
+	bool force_no_swizzle;
+
+	switch (rdev->family) {
+	case CHIP_RV770:
+	case CHIP_RV730:
+		force_no_swizzle = false;
+		break;
+	case CHIP_RV710:
+	case CHIP_RV740:
+	default:
+		force_no_swizzle = true;
+		break;
+	}
+
+	tmp = RREG32(MC_SHARED_CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	case 1:
+	default:
+		/* default mapping */
+		mc_shared_chremap = 0x00fac688;
+		break;
+	case 2:
+	case 3:
+		if (force_no_swizzle)
+			mc_shared_chremap = 0x00fac688;
+		else
+			mc_shared_chremap = 0x00bbc298;
+		break;
+	}
+
+	if (rdev->family == CHIP_RV740)
+		tcp_chan_steer = 0x00ef2a60;
+	else
+		tcp_chan_steer = 0x00fac688;
+
+	/* RV770 CE has special chremap setup */
+	if (rdev->pdev->device == 0x944e) {
+		tcp_chan_steer = 0x00b08b08;
+		mc_shared_chremap = 0x00b08b08;
+	}
+
+	WREG32(TCP_CHAN_STEER, tcp_chan_steer);
+	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);
+}
+
 static void rv770_gpu_init(struct radeon_device *rdev)
 {
 	int i, j, num_qd_pipes;
@@ -741,6 +783,8 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	WREG32(GB_TILING_CONFIG, gb_tiling_config);
 	WREG32(DCP_TILING_CONFIG, (gb_tiling_config & 0xffff));
 	WREG32(HDP_TILING_CONFIG, (gb_tiling_config & 0xffff));
+
+	rv770_program_channel_remap(rdev);
 
 	WREG32(CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);

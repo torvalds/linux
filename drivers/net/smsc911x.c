@@ -1083,8 +1083,10 @@ smsc911x_rx_counterrors(struct net_device *dev, unsigned int rxstat)
 
 /* Quickly dumps bad packets */
 static void
-smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktwords)
+smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktbytes)
 {
+	unsigned int pktwords = (pktbytes + NET_IP_ALIGN + 3) >> 2;
+
 	if (likely(pktwords >= 4)) {
 		unsigned int timeout = 500;
 		unsigned int val;
@@ -1148,7 +1150,7 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 			continue;
 		}
 
-		skb = netdev_alloc_skb(dev, pktwords << 2);
+		skb = netdev_alloc_skb(dev, pktlength + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
 			SMSC_WARN(pdata, rx_err,
 				  "Unable to allocate skb for rx packet");
@@ -1158,12 +1160,14 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 			break;
 		}
 
-		pdata->ops->rx_readfifo(pdata,
-				 (unsigned int *)skb->data, pktwords);
+		skb->data = skb->head;
+		skb_reset_tail_pointer(skb);
 
 		/* Align IP on 16B boundary */
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pktlength - 4);
+		pdata->ops->rx_readfifo(pdata,
+				 (unsigned int *)skb->head, pktwords);
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_checksum_none_assert(skb);
 		netif_receive_skb(skb);
@@ -1386,7 +1390,7 @@ static int smsc911x_open(struct net_device *dev)
 	smsc911x_reg_write(pdata, FIFO_INT, temp);
 
 	/* set RX Data offset to 2 bytes for alignment */
-	smsc911x_reg_write(pdata, RX_CFG, (NET_IP_ALIGN << 8));
+	smsc911x_reg_write(pdata, RX_CFG, (2 << 8));
 
 	/* enable NAPI polling before enabling RX interrupts */
 	napi_enable(&pdata->napi);

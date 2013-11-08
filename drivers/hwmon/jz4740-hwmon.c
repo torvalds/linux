@@ -59,7 +59,7 @@ static ssize_t jz4740_hwmon_read_adcin(struct device *dev,
 {
 	struct jz4740_hwmon *hwmon = dev_get_drvdata(dev);
 	struct completion *completion = &hwmon->read_completion;
-	long t;
+	unsigned long t;
 	unsigned long val;
 	int ret;
 

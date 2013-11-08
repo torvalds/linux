@@ -511,11 +511,6 @@ static void __init read_obp_translations(void)
 		for (i = 0; i < prom_trans_ents; i++)
 			prom_trans[i].data &= ~0x0003fe0000000000UL;
 	}
-
-	/* Force execute bit on.  */
-	for (i = 0; i < prom_trans_ents; i++)
-		prom_trans[i].data |= (tlb_type == hypervisor ?
-				       _PAGE_EXEC_4V : _PAGE_EXEC_4U);
 }
 
 static void __init hypervisor_tlb_lock(unsigned long vaddr,
@@ -1602,44 +1597,6 @@ static void __init tsb_phys_patch(void)
 static struct hv_tsb_descr ktsb_descr[NUM_KTSB_DESCR];
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
-static void patch_one_ktsb_phys(unsigned int *start, unsigned int *end, unsigned long pa)
-{
-	pa >>= KTSB_PHYS_SHIFT;
-
-	while (start < end) {
-		unsigned int *ia = (unsigned int *)(unsigned long)*start;
-
-		ia[0] = (ia[0] & ~0x3fffff) | (pa >> 10);
-		__asm__ __volatile__("flush	%0" : : "r" (ia));
-
-		ia[1] = (ia[1] & ~0x3ff) | (pa & 0x3ff);
-		__asm__ __volatile__("flush	%0" : : "r" (ia + 1));
-
-		start++;
-	}
-}
-
-static void ktsb_phys_patch(void)
-{
-	extern unsigned int __swapper_tsb_phys_patch;
-	extern unsigned int __swapper_tsb_phys_patch_end;
-	unsigned long ktsb_pa;
-
-	ktsb_pa = kern_base + ((unsigned long)&swapper_tsb[0] - KERNBASE);
-	patch_one_ktsb_phys(&__swapper_tsb_phys_patch,
-			    &__swapper_tsb_phys_patch_end, ktsb_pa);
-#ifndef CONFIG_DEBUG_PAGEALLOC
-	{
-	extern unsigned int __swapper_4m_tsb_phys_patch;
-	extern unsigned int __swapper_4m_tsb_phys_patch_end;
-	ktsb_pa = (kern_base +
-		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
-	patch_one_ktsb_phys(&__swapper_4m_tsb_phys_patch,
-			    &__swapper_4m_tsb_phys_patch_end, ktsb_pa);
-	}
-#endif
-}
-
 static void __init sun4v_ktsb_init(void)
 {
 	unsigned long ktsb_pa;
@@ -1759,10 +1716,8 @@ void __init paging_init(void)
 		sun4u_pgprot_init();
 
 	if (tlb_type == cheetah_plus ||
-	    tlb_type == hypervisor) {
+	    tlb_type == hypervisor)
 		tsb_phys_patch();
-		ktsb_phys_patch();
-	}
 
 	if (tlb_type == hypervisor) {
 		sun4v_patch_tlb_handlers();
@@ -2118,9 +2073,6 @@ EXPORT_SYMBOL(_PAGE_CACHE);
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 unsigned long vmemmap_table[VMEMMAP_SIZE];
 
-static long __meminitdata addr_start, addr_end;
-static int __meminitdata node_start;
-
 int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 {
 	unsigned long vstart = (unsigned long) start;
@@ -2151,29 +2103,14 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 
 			*vmem_pp = pte_base | __pa(block);
 
-			/* check to see if we have contiguous blocks */
-			if (addr_end != addr || node_start != node) {
-				if (addr_start)
-					printk(KERN_DEBUG " [%lx-%lx] on node %d\n",
-					       addr_start, addr_end-1, node_start);
-				addr_start = addr;
-				node_start = node;
-			}
-			addr_end = addr + VMEMMAP_CHUNK;
+			printk(KERN_INFO "[%p-%p] page_structs=%lu "
+			       "node=%d entry=%lu/%lu\n", start, block, nr,
+			       node,
+			       addr >> VMEMMAP_CHUNK_SHIFT,
+			       VMEMMAP_SIZE);
 		}
 	}
 	return 0;
-}
-
-void __meminit vmemmap_populate_print_last(void)
-{
-	if (addr_start) {
-		printk(KERN_DEBUG " [%lx-%lx] on node %d\n",
-		       addr_start, addr_end-1, node_start);
-		addr_start = 0;
-		addr_end = 0;
-		node_start = 0;
-	}
 }
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 

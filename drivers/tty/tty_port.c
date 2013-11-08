@@ -227,6 +227,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 	int do_clocal = 0, retval;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
+	int cd;
 
 	/* block if port is in the process of being closed */
 	if (tty_hung_up_p(filp) || port->flags & ASYNC_CLOSING) {
@@ -283,14 +284,11 @@ int tty_port_block_til_ready(struct tty_port *port,
 				retval = -ERESTARTSYS;
 			break;
 		}
-		/*
-		 * Probe the carrier. For devices with no carrier detect
-		 * tty_port_carrier_raised will always return true.
-		 * Never ask drivers if CLOCAL is set, this causes troubles
-		 * on some hardware.
-		 */
+		/* Probe the carrier. For devices with no carrier detect this
+		   will always return true */
+		cd = tty_port_carrier_raised(port);
 		if (!(port->flags & ASYNC_CLOSING) &&
-				(do_clocal || tty_port_carrier_raised(port)))
+				(do_clocal || cd))
 			break;
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;

@@ -808,7 +808,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	next += temp;
 
 	temp = scnprintf (next, size, "uframe %04x\n",
-			ehci_read_frame_index(ehci));
+			ehci_readl(ehci, &ehci->regs->frame_index));
 	size -= temp;
 	next += temp;
 

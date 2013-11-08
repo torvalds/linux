@@ -394,10 +394,8 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if (rmidi == NULL)
 		return -ENODEV;
 
-	if (!try_module_get(rmidi->card->module)) {
-		snd_card_unref(rmidi->card);
+	if (!try_module_get(rmidi->card->module))
 		return -ENXIO;
-	}
 
 	mutex_lock(&rmidi->open_mutex);
 	card = rmidi->card;
@@ -439,10 +437,6 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 		mutex_unlock(&rmidi->open_mutex);
 		schedule();
 		mutex_lock(&rmidi->open_mutex);
-		if (rmidi->card->shutdown) {
-			err = -ENODEV;
-			break;
-		}
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
 			break;
@@ -461,7 +455,6 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 #endif
 	file->private_data = rawmidi_file;
 	mutex_unlock(&rmidi->open_mutex);
-	snd_card_unref(rmidi->card);
 	return 0;
 
  __error:
@@ -469,7 +462,6 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
  __error_card:
 	mutex_unlock(&rmidi->open_mutex);
 	module_put(rmidi->card->module);
-	snd_card_unref(rmidi->card);
 	return err;
 }
 
@@ -1014,8 +1006,6 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
 			spin_unlock_irq(&runtime->lock);
 			schedule();
 			remove_wait_queue(&runtime->sleep, &wait);
-			if (rfile->rmidi->card->shutdown)
-				return -ENODEV;
 			if (signal_pending(current))
 				return result > 0 ? result : -ERESTARTSYS;
 			if (!runtime->avail)
@@ -1259,8 +1249,6 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 			spin_unlock_irq(&runtime->lock);
 			timeout = schedule_timeout(30 * HZ);
 			remove_wait_queue(&runtime->sleep, &wait);
-			if (rfile->rmidi->card->shutdown)
-				return -ENODEV;
 			if (signal_pending(current))
 				return result > 0 ? result : -ERESTARTSYS;
 			if (!runtime->avail && !timeout)
@@ -1636,20 +1624,9 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 static int snd_rawmidi_dev_disconnect(struct snd_device *device)
 {
 	struct snd_rawmidi *rmidi = device->device_data;
-	int dir;
 
 	mutex_lock(&register_mutex);
-	mutex_lock(&rmidi->open_mutex);
-	wake_up(&rmidi->open_wait);
 	list_del_init(&rmidi->list);
-	for (dir = 0; dir < 2; dir++) {
-		struct snd_rawmidi_substream *s;
-		list_for_each_entry(s, &rmidi->streams[dir].substreams, list) {
-			if (s->runtime)
-				wake_up(&s->runtime->sleep);
-		}
-	}
-
 #ifdef CONFIG_SND_OSSEMUL
 	if (rmidi->ossreg) {
 		if ((int)rmidi->device == midi_map[rmidi->card->number]) {
@@ -1664,7 +1641,6 @@ static int snd_rawmidi_dev_disconnect(struct snd_device *device)
 	}
 #endif /* CONFIG_SND_OSSEMUL */
 	snd_unregister_device(SNDRV_DEVICE_TYPE_RAWMIDI, rmidi->card, rmidi->device);
-	mutex_unlock(&rmidi->open_mutex);
 	mutex_unlock(&register_mutex);
 	return 0;
 }

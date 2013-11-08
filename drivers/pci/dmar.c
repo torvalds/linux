@@ -1388,7 +1388,7 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 		return ret;
 	}
 
-	ret = request_irq(irq, dmar_fault, IRQF_NO_THREAD, iommu->name, iommu);
+	ret = request_irq(irq, dmar_fault, 0, iommu->name, iommu);
 	if (ret)
 		printk(KERN_ERR "IOMMU: can't request irq\n");
 	return ret;

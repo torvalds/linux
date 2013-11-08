@@ -985,8 +985,7 @@ void bsg_unregister_queue(struct request_queue *q)
 
 	mutex_lock(&bsg_mutex);
 	idr_remove(&bsg_minor_idr, bcd->minor);
-	if (q->kobj.sd)
-		sysfs_remove_link(&q->kobj, "bsg");
+	sysfs_remove_link(&q->kobj, "bsg");
 	device_unregister(bcd->class_dev);
 	bcd->class_dev = NULL;
 	kref_put(&bcd->ref, bsg_kref_release_function);

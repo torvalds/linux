@@ -34,7 +34,8 @@
 #define PAGESEL		0x13
 #define LAYER4		0x02
 #define LAYER2		0x01
-#define MAX_RXTS	64
+#define MAX_RXTS	4
+#define MAX_TXTS	4
 #define N_EXT_TS	1
 #define PSF_PTPVER	2
 #define PSF_EVNT	0x4000
@@ -217,7 +218,7 @@ static void phy2rxts(struct phy_rxts *p, struct rxts *rxts)
 	rxts->seqid = p->seqid;
 	rxts->msgtype = (p->msgtype >> 12) & 0xf;
 	rxts->hash = p->msgtype & 0x0fff;
-	rxts->tmo = jiffies + 2;
+	rxts->tmo = jiffies + HZ;
 }
 
 static u64 phy2txts(struct phy_txts *p)
@@ -875,19 +876,12 @@ static void dp83640_remove(struct phy_device *phydev)
 	struct dp83640_clock *clock;
 	struct list_head *this, *next;
 	struct dp83640_private *tmp, *dp83640 = phydev->priv;
-	struct sk_buff *skb;
 
 	if (phydev->addr == BROADCAST_ADDR)
 		return;
 
 	enable_status_frames(phydev, false);
 	cancel_work_sync(&dp83640->ts_work);
-
-	while ((skb = skb_dequeue(&dp83640->rx_queue)) != NULL)
-		kfree_skb(skb);
-
-	while ((skb = skb_dequeue(&dp83640->tx_queue)) != NULL)
-		skb_complete_tx_timestamp(skb, NULL);
 
 	clock = dp83640_clock_get(dp83640->clock);
 
@@ -1067,7 +1061,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 	struct dp83640_private *dp83640 = phydev->priv;
 
 	if (!dp83640->hwts_tx_en) {
-		skb_complete_tx_timestamp(skb, NULL);
+		kfree_skb(skb);
 		return;
 	}
 	skb_queue_tail(&dp83640->tx_queue, skb);

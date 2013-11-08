@@ -337,15 +337,15 @@ static unsigned long timer_reload;
 static void integrator_clocksource_init(u32 khz)
 {
 	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
-	u32 ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
+	u32 ctrl = TIMER_CTRL_ENABLE;
 
 	if (khz >= 1500) {
 		khz /= 16;
-		ctrl |= TIMER_CTRL_DIV16;
+		ctrl = TIMER_CTRL_DIV16;
 	}
 
-	writel(0xffff, base + TIMER_LOAD);
 	writel(ctrl, base + TIMER_CTRL);
+	writel(0xffff, base + TIMER_LOAD);
 
 	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
 		khz * 1000, 200, 16, clocksource_mmio_readl_down);

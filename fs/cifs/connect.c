@@ -1258,7 +1258,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			/* ignore */
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
-		} else if (strnicmp(data, "rw", 2) == 0 && strlen(data) == 2) {
+		} else if (strnicmp(data, "rw", 2) == 0) {
 			/* ignore */
 		} else if (strnicmp(data, "ro", 2) == 0) {
 			/* ignore */
@@ -1361,7 +1361,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->server_ino = 1;
 		} else if (strnicmp(data, "noserverino", 9) == 0) {
 			vol->server_ino = 0;
-		} else if (strnicmp(data, "rwpidforward", 12) == 0) {
+		} else if (strnicmp(data, "rwpidforward", 4) == 0) {
 			vol->rwpidforward = 1;
 		} else if (strnicmp(data, "cifsacl", 7) == 0) {
 			vol->cifs_acl = 1;
@@ -2767,10 +2767,10 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 
 /*
  * When the server doesn't allow large posix writes, only allow a wsize of
- * 2^17-1 minus the size of the WRITE_AND_X header. That allows for a write up
+ * 128k minus the size of the WRITE_AND_X header. That allows for a write up
  * to the maximum size described by RFC1002.
  */
-#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
+#define CIFS_MAX_RFC1002_WSIZE (128 * 1024 - sizeof(WRITE_REQ) + 4)
 
 /*
  * The default wsize is 1M. find_get_pages seems to return a maximum of 256
@@ -2838,8 +2838,7 @@ cleanup_volume_info_contents(struct smb_vol *volume_info)
 	kfree(volume_info->username);
 	kzfree(volume_info->password);
 	kfree(volume_info->UNC);
-	if (volume_info->UNCip != volume_info->UNC + 2)
-		kfree(volume_info->UNCip);
+	kfree(volume_info->UNCip);
 	kfree(volume_info->domainname);
 	kfree(volume_info->iocharset);
 	kfree(volume_info->prepath);
@@ -3004,7 +3003,7 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
-	int rc;
+	int rc = 0;
 	int xid;
 	struct cifs_ses *pSesInfo;
 	struct cifs_tcon *tcon;
@@ -3033,7 +3032,6 @@ try_mount_again:
 		FreeXid(xid);
 	}
 #endif
-	rc = 0;
 	tcon = NULL;
 	pSesInfo = NULL;
 	srvTcp = NULL;

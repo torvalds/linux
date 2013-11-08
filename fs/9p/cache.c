@@ -108,10 +108,11 @@ static uint16_t v9fs_cache_inode_get_key(const void *cookie_netfs_data,
 					 void *buffer, uint16_t bufmax)
 {
 	const struct v9fs_inode *v9inode = cookie_netfs_data;
-	memcpy(buffer, &v9inode->qid.path, sizeof(v9inode->qid.path));
+	memcpy(buffer, &v9inode->fscache_key->path,
+	       sizeof(v9inode->fscache_key->path));
 	P9_DPRINTK(P9_DEBUG_FSC, "inode %p get key %llu", &v9inode->vfs_inode,
-		   v9inode->qid.path);
-	return sizeof(v9inode->qid.path);
+		   v9inode->fscache_key->path);
+	return sizeof(v9inode->fscache_key->path);
 }
 
 static void v9fs_cache_inode_get_attr(const void *cookie_netfs_data,
@@ -128,10 +129,11 @@ static uint16_t v9fs_cache_inode_get_aux(const void *cookie_netfs_data,
 					 void *buffer, uint16_t buflen)
 {
 	const struct v9fs_inode *v9inode = cookie_netfs_data;
-	memcpy(buffer, &v9inode->qid.version, sizeof(v9inode->qid.version));
+	memcpy(buffer, &v9inode->fscache_key->version,
+	       sizeof(v9inode->fscache_key->version));
 	P9_DPRINTK(P9_DEBUG_FSC, "inode %p get aux %u", &v9inode->vfs_inode,
-		   v9inode->qid.version);
-	return sizeof(v9inode->qid.version);
+		   v9inode->fscache_key->version);
+	return sizeof(v9inode->fscache_key->version);
 }
 
 static enum
@@ -141,11 +143,11 @@ fscache_checkaux v9fs_cache_inode_check_aux(void *cookie_netfs_data,
 {
 	const struct v9fs_inode *v9inode = cookie_netfs_data;
 
-	if (buflen != sizeof(v9inode->qid.version))
+	if (buflen != sizeof(v9inode->fscache_key->version))
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
-	if (memcmp(buffer, &v9inode->qid.version,
-		   sizeof(v9inode->qid.version)))
+	if (memcmp(buffer, &v9inode->fscache_key->version,
+		   sizeof(v9inode->fscache_key->version)))
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	return FSCACHE_CHECKAUX_OKAY;

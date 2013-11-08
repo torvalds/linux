@@ -1227,7 +1227,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 		regs.len = reglen;
 
 	regbuf = vzalloc(reglen);
-	if (reglen && !regbuf)
+	if (!regbuf)
 		return -ENOMEM;
 
 	ops->get_regs(dev, &regs, regbuf);
@@ -1236,7 +1236,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (copy_to_user(useraddr, &regs, sizeof(regs)))
 		goto out;
 	useraddr += offsetof(struct ethtool_regs, data);
-	if (regbuf && copy_to_user(useraddr, regbuf, regs.len))
+	if (copy_to_user(useraddr, regbuf, regs.len))
 		goto out;
 	ret = 0;
 
@@ -1964,7 +1964,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_GTXCSUM:
 	case ETHTOOL_GSG:
-	case ETHTOOL_GSSET_INFO:
 	case ETHTOOL_GSTRINGS:
 	case ETHTOOL_GTSO:
 	case ETHTOOL_GPERMADDR:

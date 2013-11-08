@@ -1038,7 +1038,7 @@ select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	 */
 	if (curr && unlikely(rt_task(curr)) &&
 	    (curr->rt.nr_cpus_allowed < 2 ||
-	     curr->prio <= p->prio) &&
+	     curr->prio < p->prio) &&
 	    (p->rt.nr_cpus_allowed > 1)) {
 		int target = find_lowest_rq(p);
 
@@ -1390,11 +1390,6 @@ static int push_rt_task(struct rq *rq)
 	if (!next_task)
 		return 0;
 
-#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-       if (unlikely(task_running(rq, next_task)))
-               return 0;
-#endif
-
 retry:
 	if (unlikely(next_task == rq->curr)) {
 		WARN_ON(1);
@@ -1574,7 +1569,7 @@ static void task_woken_rt(struct rq *rq, struct task_struct *p)
 	    p->rt.nr_cpus_allowed > 1 &&
 	    rt_task(rq->curr) &&
 	    (rq->curr->rt.nr_cpus_allowed < 2 ||
-	     rq->curr->prio <= p->prio))
+	     rq->curr->prio < p->prio))
 		push_rt_tasks(rq);
 }
 

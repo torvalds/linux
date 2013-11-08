@@ -348,10 +348,9 @@ void blk_put_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_put_queue);
 
 /*
- * Note: If a driver supplied the queue lock, it is disconnected
- * by this function. The actual state of the lock doesn't matter
- * here as the request_queue isn't accessible after this point
- * (QUEUE_FLAG_DEAD is set) and no other requests will be queued.
+ * Note: If a driver supplied the queue lock, it should not zap that lock
+ * unexpectedly as some queue cleanup components like elevator_exit() and
+ * blk_throtl_exit() need queue lock.
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
@@ -368,8 +367,10 @@ void blk_cleanup_queue(struct request_queue *q)
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
 	mutex_unlock(&q->sysfs_lock);
 
-	if (q->queue_lock != &q->__queue_lock)
-		q->queue_lock = &q->__queue_lock;
+	if (q->elevator)
+		elevator_exit(q->elevator);
+
+	blk_throtl_exit(q);
 
 	blk_put_queue(q);
 }
@@ -418,7 +419,6 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->backing_dev_info.state = 0;
 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
 	q->backing_dev_info.name = "block";
-	q->node = node_id;
 
 	err = bdi_init(&q->backing_dev_info);
 	if (err) {
@@ -503,7 +503,7 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	if (!uninit_q)
 		return NULL;
 
-	q = blk_init_allocated_queue(uninit_q, rfn, lock);
+	q = blk_init_allocated_queue_node(uninit_q, rfn, lock, node_id);
 	if (!q)
 		blk_cleanup_queue(uninit_q);
 
@@ -515,9 +515,18 @@ struct request_queue *
 blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 			 spinlock_t *lock)
 {
+	return blk_init_allocated_queue_node(q, rfn, lock, -1);
+}
+EXPORT_SYMBOL(blk_init_allocated_queue);
+
+struct request_queue *
+blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
+			      spinlock_t *lock, int node_id)
+{
 	if (!q)
 		return NULL;
 
+	q->node = node_id;
 	if (blk_init_free_list(q))
 		return NULL;
 
@@ -547,7 +556,7 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 
 	return NULL;
 }
-EXPORT_SYMBOL(blk_init_allocated_queue);
+EXPORT_SYMBOL(blk_init_allocated_queue_node);
 
 int blk_get_queue(struct request_queue *q)
 {
@@ -829,9 +838,6 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
-
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		return NULL;
 
 	BUG_ON(rw != READ && rw != WRITE);
 

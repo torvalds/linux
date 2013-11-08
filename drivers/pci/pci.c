@@ -1905,7 +1905,7 @@ void pci_enable_ari(struct pci_dev *dev)
 {
 	int pos;
 	u32 cap;
-	u16 flags, ctrl;
+	u16 ctrl;
 	struct pci_dev *bridge;
 
 	if (!pci_is_pcie(dev) || dev->devfn)
@@ -1921,11 +1921,6 @@ void pci_enable_ari(struct pci_dev *dev)
 
 	pos = pci_pcie_cap(bridge);
 	if (!pos)
-		return;
-
-	/* ARI is a PCIe v2 feature */
-	pci_read_config_word(bridge, pos + PCI_EXP_FLAGS, &flags);
-	if ((flags & PCI_EXP_FLAGS_VERS) < 2)
 		return;
 
 	pci_read_config_dword(bridge, pos + PCI_EXP_DEVCAP2, &cap);

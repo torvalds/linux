@@ -719,12 +719,9 @@ static int vfp_set(struct task_struct *target,
 {
 	int ret;
 	struct thread_info *thread = task_thread_info(target);
-	struct vfp_hard_struct new_vfp;
+	struct vfp_hard_struct new_vfp = thread->vfpstate.hard;
 	const size_t user_fpregs_offset = offsetof(struct user_vfp, fpregs);
 	const size_t user_fpscr_offset = offsetof(struct user_vfp, fpscr);
-
-	vfp_sync_hwstate(thread);
-	new_vfp = thread->vfpstate.hard;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  &new_vfp.fpregs,
@@ -746,8 +743,9 @@ static int vfp_set(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	vfp_flush_hwstate(thread);
+	vfp_sync_hwstate(thread);
 	thread->vfpstate.hard = new_vfp;
+	vfp_flush_hwstate(thread);
 
 	return 0;
 }

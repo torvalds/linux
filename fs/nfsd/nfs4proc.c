@@ -156,8 +156,6 @@ do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 		!(open->op_share_access & NFS4_SHARE_ACCESS_WRITE))
 		return nfserr_inval;
 
-	accmode |= NFSD_MAY_READ_IF_EXEC;
-
 	if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
 		accmode |= NFSD_MAY_READ;
 	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
@@ -684,7 +682,7 @@ nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	readdir->rd_bmval[1] &= nfsd_suppattrs1(cstate->minorversion);
 	readdir->rd_bmval[2] &= nfsd_suppattrs2(cstate->minorversion);
 
-	if ((cookie == 1) || (cookie == 2) ||
+	if ((cookie > ~(u32)0) || (cookie == 1) || (cookie == 2) ||
 	    (cookie == 0 && memcmp(readdir->rd_verf.data, zeroverf.data, NFS4_VERIFIER_SIZE)))
 		return nfserr_bad_cookie;
 
@@ -812,7 +810,6 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      struct nfsd4_setattr *setattr)
 {
 	__be32 status = nfs_ok;
-	int err;
 
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
 		nfs4_lock_state();
@@ -824,9 +821,9 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			return status;
 		}
 	}
-	err = mnt_want_write(cstate->current_fh.fh_export->ex_path.mnt);
-	if (err)
-		return nfserrno(err);
+	status = mnt_want_write(cstate->current_fh.fh_export->ex_path.mnt);
+	if (status)
+		return status;
 	status = nfs_ok;
 
 	status = check_attr_support(rqstp, cstate, setattr->sa_bmval,
@@ -924,7 +921,7 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	count = 4 + (verify->ve_attrlen >> 2);
 	buf = kmalloc(count << 2, GFP_KERNEL);
 	if (!buf)
-		return nfserr_jukebox;
+		return nfserr_resource;
 
 	status = nfsd4_encode_fattr(&cstate->current_fh,
 				    cstate->current_fh.fh_export,

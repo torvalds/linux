@@ -307,11 +307,6 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 		return err;
 	if (enabled < 0 || enabled > 1)
 		return -EINVAL;
-	if (enabled == nt->enabled) {
-		printk(KERN_INFO "netconsole: network logging has already %s\n",
-				nt->enabled ? "started" : "stopped");
-		return -EINVAL;
-	}
 
 	if (enabled) {	/* 1 */
 
@@ -652,6 +647,7 @@ static int netconsole_netdev_event(struct notifier_block *this,
 							  flags);
 					dev_put(nt->np.dev);
 					nt->np.dev = NULL;
+					netconsole_target_put(nt);
 				}
 				nt->enabled = 0;
 				stopped = true;

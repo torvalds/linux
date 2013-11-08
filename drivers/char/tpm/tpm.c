@@ -383,9 +383,6 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 	u32 count, ordinal;
 	unsigned long stop;
 
-	if (bufsiz > TPM_BUFSIZE)
-		bufsiz = TPM_BUFSIZE;
-
 	count = be32_to_cpu(*((__be32 *) (buf + 2)));
 	ordinal = be32_to_cpu(*((__be32 *) (buf + 6)));
 	if (count == 0)
@@ -1019,20 +1016,17 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 		  size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
-	size_t in_size = size;
-	ssize_t out_size;
+	size_t in_size = size, out_size;
 
 	/* cannot perform a write until the read has cleared
-	   either via tpm_read or a user_read_timer timeout.
-	   This also prevents splitted buffered writes from blocking here.
-	*/
-	if (atomic_read(&chip->data_pending) != 0)
-		return -EBUSY;
-
-	if (in_size > TPM_BUFSIZE)
-		return -E2BIG;
+	   either via tpm_read or a user_read_timer timeout */
+	while (atomic_read(&chip->data_pending) != 0)
+		msleep(TPM_TIMEOUT);
 
 	mutex_lock(&chip->buffer_mutex);
+
+	if (in_size > TPM_BUFSIZE)
+		in_size = TPM_BUFSIZE;
 
 	if (copy_from_user
 	    (chip->data_buffer, (void __user *) buf, in_size)) {
@@ -1042,10 +1036,6 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 
 	/* atomic tpm command send and result receive */
 	out_size = tpm_transmit(chip, chip->data_buffer, TPM_BUFSIZE);
-	if (out_size < 0) {
-		mutex_unlock(&chip->buffer_mutex);
-		return out_size;
-	}
 
 	atomic_set(&chip->data_pending, out_size);
 	mutex_unlock(&chip->buffer_mutex);
@@ -1062,7 +1052,6 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 {
 	struct tpm_chip *chip = file->private_data;
 	ssize_t ret_size;
-	int rc;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
 	flush_work_sync(&chip->work);
@@ -1073,11 +1062,8 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 			ret_size = size;
 
 		mutex_lock(&chip->buffer_mutex);
-		rc = copy_to_user(buf, chip->data_buffer, ret_size);
-		memset(chip->data_buffer, 0, ret_size);
-		if (rc)
+		if (copy_to_user(buf, chip->data_buffer, ret_size))
 			ret_size = -EFAULT;
-
 		mutex_unlock(&chip->buffer_mutex);
 	}
 

@@ -28,7 +28,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
-#include <linux/math64.h>
+#include <asm/div64.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -547,6 +547,12 @@ static char *get_partition_name(int i)
 	return kstrdup(buf, GFP_KERNEL);
 }
 
+static uint64_t divide(uint64_t n, uint32_t d)
+{
+	do_div(n, d);
+	return n;
+}
+
 /*
  * Initialize the nandsim structure.
  *
@@ -575,7 +581,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.oobsz    = mtd->oobsize;
 	ns->geom.secsz    = mtd->erasesize;
 	ns->geom.pgszoob  = ns->geom.pgsz + ns->geom.oobsz;
-	ns->geom.pgnum    = div_u64(ns->geom.totsz, ns->geom.pgsz);
+	ns->geom.pgnum    = divide(ns->geom.totsz, ns->geom.pgsz);
 	ns->geom.totszoob = ns->geom.totsz + (uint64_t)ns->geom.pgnum * ns->geom.oobsz;
 	ns->geom.secshift = ffs(ns->geom.secsz) - 1;
 	ns->geom.pgshift  = chip->page_shift;
@@ -918,7 +924,7 @@ static int setup_wear_reporting(struct mtd_info *mtd)
 
 	if (!rptwear)
 		return 0;
-	wear_eb_count = div_u64(mtd->size, mtd->erasesize);
+	wear_eb_count = divide(mtd->size, mtd->erasesize);
 	mem = wear_eb_count * sizeof(unsigned long);
 	if (mem / sizeof(unsigned long) != wear_eb_count) {
 		NS_ERR("Too many erase blocks for wear reporting\n");
@@ -2355,7 +2361,6 @@ static int __init ns_init_module(void)
 		uint64_t new_size = (uint64_t)nsmtd->erasesize << overridesize;
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
-			retval = -EINVAL;
 			goto err_exit;
 		}
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */

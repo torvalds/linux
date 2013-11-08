@@ -610,11 +610,6 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mac->link_state = MAC80211_NOLINK;
 			memset(mac->bssid, 0, 6);
-
-			/* reset sec info */
-			rtl_cam_reset_sec_info(hw);
-
-			rtl_cam_reset_all_entry(hw);
 			mac->vendor = PEER_UNKNOWN;
 
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
@@ -1068,9 +1063,6 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		 *or clear all entry here.
 		 */
 		rtl_cam_delete_one_entry(hw, mac_addr, key_idx);
-
-		rtl_cam_reset_sec_info(hw);
-
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,

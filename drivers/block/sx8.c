@@ -1116,7 +1116,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 			break;
 		case MISC_GET_FW_VER: {
 			struct carm_fw_ver *ver = (struct carm_fw_ver *)
-				(mem + sizeof(struct carm_msg_get_fw_ver));
+				mem + sizeof(struct carm_msg_get_fw_ver);
 			if (!error) {
 				host->fw_ver = le32_to_cpu(ver->version);
 				host->flags |= (ver->features & FL_FW_VER_MASK);

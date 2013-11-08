@@ -740,13 +740,8 @@ static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
 		if (sblk->status & SD_STATUS_LINK_CHG)
 			work_exists = 1;
 	}
-
-	/* check for TX work to do */
-	if (sblk->idx[0].tx_consumer != tnapi->tx_cons)
-		work_exists = 1;
-
-	/* check for RX work to do */
-	if (tnapi->rx_rcb_prod_idx &&
+	/* check for RX/TX work to do */
+	if (sblk->idx[0].tx_consumer != tnapi->tx_cons ||
 	    *(tnapi->rx_rcb_prod_idx) != tnapi->rx_rcb_ptr)
 		work_exists = 1;
 
@@ -996,26 +991,14 @@ static int tg3_phy_auxctl_write(struct tg3 *tp, int reg, u32 set)
 	return tg3_writephy(tp, MII_TG3_AUX_CTRL, set | reg);
 }
 
-static int tg3_phy_toggle_auxctl_smdsp(struct tg3 *tp, bool enable)
-{
-	u32 val;
-	int err;
+#define TG3_PHY_AUXCTL_SMDSP_ENABLE(tp) \
+	tg3_phy_auxctl_write((tp), MII_TG3_AUXCTL_SHDWSEL_AUXCTL, \
+			     MII_TG3_AUXCTL_ACTL_SMDSP_ENA | \
+			     MII_TG3_AUXCTL_ACTL_TX_6DB)
 
-	err = tg3_phy_auxctl_read(tp, MII_TG3_AUXCTL_SHDWSEL_AUXCTL, &val);
-
-	if (err)
-		return err;
-	if (enable)
-
-		val |= MII_TG3_AUXCTL_ACTL_SMDSP_ENA;
-	else
-		val &= ~MII_TG3_AUXCTL_ACTL_SMDSP_ENA;
-
-	err = tg3_phy_auxctl_write((tp), MII_TG3_AUXCTL_SHDWSEL_AUXCTL,
-				   val | MII_TG3_AUXCTL_ACTL_TX_6DB);
-
-	return err;
-}
+#define TG3_PHY_AUXCTL_SMDSP_DISABLE(tp) \
+	tg3_phy_auxctl_write((tp), MII_TG3_AUXCTL_SHDWSEL_AUXCTL, \
+			     MII_TG3_AUXCTL_ACTL_TX_6DB);
 
 static int tg3_bmcr_reset(struct tg3 *tp)
 {
@@ -1787,7 +1770,7 @@ static void tg3_phy_apply_otp(struct tg3 *tp)
 
 	otp = tp->phy_otp;
 
-	if (tg3_phy_toggle_auxctl_smdsp(tp, true))
+	if (TG3_PHY_AUXCTL_SMDSP_ENABLE(tp))
 		return;
 
 	phy = ((otp & TG3_OTP_AGCTGT_MASK) >> TG3_OTP_AGCTGT_SHIFT);
@@ -1812,7 +1795,7 @@ static void tg3_phy_apply_otp(struct tg3 *tp)
 	      ((otp & TG3_OTP_RCOFF_MASK) >> TG3_OTP_RCOFF_SHIFT);
 	tg3_phydsp_write(tp, MII_TG3_DSP_EXP97, phy);
 
-	tg3_phy_toggle_auxctl_smdsp(tp, false);
+	TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 }
 
 static void tg3_phy_eee_adjust(struct tg3 *tp, u32 current_link_up)
@@ -1860,9 +1843,9 @@ static void tg3_phy_eee_enable(struct tg3 *tp)
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765) &&
-	    !tg3_phy_toggle_auxctl_smdsp(tp, true)) {
+	    !TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
 		tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, 0x0003);
-		tg3_phy_toggle_auxctl_smdsp(tp, false);
+		TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 	}
 
 	val = tr32(TG3_CPMU_EEE_MODE);
@@ -2007,7 +1990,7 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 			     (MII_TG3_CTRL_AS_MASTER |
 			      MII_TG3_CTRL_ENABLE_AS_MASTER));
 
-		err = tg3_phy_toggle_auxctl_smdsp(tp, true);
+		err = TG3_PHY_AUXCTL_SMDSP_ENABLE(tp);
 		if (err)
 			return err;
 
@@ -2028,7 +2011,7 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 	tg3_writephy(tp, MII_TG3_DSP_ADDRESS, 0x8200);
 	tg3_writephy(tp, MII_TG3_DSP_CONTROL, 0x0000);
 
-	tg3_phy_toggle_auxctl_smdsp(tp, false);
+	TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 
 	tg3_writephy(tp, MII_TG3_CTRL, phy9_orig);
 
@@ -2117,10 +2100,10 @@ static int tg3_phy_reset(struct tg3 *tp)
 
 out:
 	if ((tp->phy_flags & TG3_PHYFLG_ADC_BUG) &&
-	    !tg3_phy_toggle_auxctl_smdsp(tp, true)) {
+	    !TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
 		tg3_phydsp_write(tp, 0x201f, 0x2aaa);
 		tg3_phydsp_write(tp, 0x000a, 0x0323);
-		tg3_phy_toggle_auxctl_smdsp(tp, false);
+		TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 	}
 
 	if (tp->phy_flags & TG3_PHYFLG_5704_A0_BUG) {
@@ -2129,14 +2112,14 @@ out:
 	}
 
 	if (tp->phy_flags & TG3_PHYFLG_BER_BUG) {
-		if (!tg3_phy_toggle_auxctl_smdsp(tp, true)) {
+		if (!TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
 			tg3_phydsp_write(tp, 0x000a, 0x310b);
 			tg3_phydsp_write(tp, 0x201f, 0x9506);
 			tg3_phydsp_write(tp, 0x401f, 0x14e2);
-			tg3_phy_toggle_auxctl_smdsp(tp, false);
+			TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 		}
 	} else if (tp->phy_flags & TG3_PHYFLG_JITTER_BUG) {
-		if (!tg3_phy_toggle_auxctl_smdsp(tp, true)) {
+		if (!TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
 			tg3_writephy(tp, MII_TG3_DSP_ADDRESS, 0x000a);
 			if (tp->phy_flags & TG3_PHYFLG_ADJUST_TRIM) {
 				tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x110b);
@@ -2145,7 +2128,7 @@ out:
 			} else
 				tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x010b);
 
-			tg3_phy_toggle_auxctl_smdsp(tp, false);
+			TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 		}
 	}
 
@@ -2993,7 +2976,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	tw32(TG3_CPMU_EEE_MODE,
 	     tr32(TG3_CPMU_EEE_MODE) & ~TG3_CPMU_EEEMD_LPI_ENABLE);
 
-	err = tg3_phy_toggle_auxctl_smdsp(tp, true);
+	err = TG3_PHY_AUXCTL_SMDSP_ENABLE(tp);
 	if (!err) {
 		u32 err2;
 
@@ -3020,7 +3003,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 			val |= MDIO_AN_EEE_ADV_1000T;
 		err = tg3_phy_cl45_write(tp, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
 
-		err2 = tg3_phy_toggle_auxctl_smdsp(tp, false);
+		err2 = TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 		if (!err)
 			err = err2;
 	}
@@ -5233,9 +5216,6 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 			return work_done;
 	}
 
-	if (!tnapi->rx_rcb_prod_idx)
-		return work_done;
-
 	/* run RX thread, within the bounds set by NAPI.
 	 * All RX "locking" is done by ensuring outside
 	 * code synchronizes with tg3->napi.poll()
@@ -5673,9 +5653,6 @@ static void tg3_poll_controller(struct net_device *dev)
 {
 	int i;
 	struct tg3 *tp = netdev_priv(dev);
-
-	if (tg3_irq_sync(tp))
-		return;
 
 	for (i = 0; i < tp->irq_cnt; i++)
 		tg3_interrupt(tp->napi[i].irq_vec, &tp->napi[i]);
@@ -6649,12 +6626,6 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		 */
 		switch (i) {
 		default:
-			if (tg3_flag(tp, ENABLE_RSS)) {
-				tnapi->rx_rcb_prod_idx = NULL;
-				break;
-			}
-			/* Fall through */
-		case 1:
 			tnapi->rx_rcb_prod_idx = &sblk->idx[0].rx_producer;
 			break;
 		case 2:
@@ -7296,11 +7267,16 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32(TG3PCI_CLOCK_CTRL, tp->pci_clock_ctrl);
 	}
 
+	if (tg3_flag(tp, ENABLE_APE))
+		tp->mac_mode = MAC_MODE_APE_TX_EN |
+			       MAC_MODE_APE_RX_EN |
+			       MAC_MODE_TDE_ENABLE;
+
 	if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES) {
-		tp->mac_mode = MAC_MODE_PORT_MODE_TBI;
+		tp->mac_mode |= MAC_MODE_PORT_MODE_TBI;
 		val = tp->mac_mode;
 	} else if (tp->phy_flags & TG3_PHYFLG_MII_SERDES) {
-		tp->mac_mode = MAC_MODE_PORT_MODE_GMII;
+		tp->mac_mode |= MAC_MODE_PORT_MODE_GMII;
 		val = tp->mac_mode;
 	} else
 		val = 0;
@@ -8432,11 +8408,12 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		udelay(10);
 	}
 
-	tp->mac_mode |= MAC_MODE_TXSTAT_ENABLE | MAC_MODE_RXSTAT_ENABLE |
-			MAC_MODE_TDE_ENABLE | MAC_MODE_RDE_ENABLE |
-			MAC_MODE_FHDE_ENABLE;
 	if (tg3_flag(tp, ENABLE_APE))
-		tp->mac_mode |= MAC_MODE_APE_TX_EN | MAC_MODE_APE_RX_EN;
+		tp->mac_mode = MAC_MODE_APE_TX_EN | MAC_MODE_APE_RX_EN;
+	else
+		tp->mac_mode = 0;
+	tp->mac_mode |= MAC_MODE_TXSTAT_ENABLE | MAC_MODE_RXSTAT_ENABLE |
+		MAC_MODE_TDE_ENABLE | MAC_MODE_RDE_ENABLE | MAC_MODE_FHDE_ENABLE;
 	if (!tg3_flag(tp, 5705_PLUS) &&
 	    !(tp->phy_flags & TG3_PHYFLG_PHY_SERDES) &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700)
@@ -9011,7 +8988,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	 * Turn off MSI one shot mode.  Otherwise this test has no
 	 * observable way to know whether the interrupt was delivered.
 	 */
-	if (tg3_flag(tp, 57765_PLUS)) {
+	if (tg3_flag(tp, 57765_PLUS) && tg3_flag(tp, USING_MSI)) {
 		val = tr32(MSGINT_MODE) | MSGINT_MODE_ONE_SHOT_DISABLE;
 		tw32(MSGINT_MODE, val);
 	}
@@ -9039,10 +9016,6 @@ static int tg3_test_interrupt(struct tg3 *tp)
 			break;
 		}
 
-		if (tg3_flag(tp, 57765_PLUS) &&
-		    tnapi->hw_status->status_tag != tnapi->last_tag)
-			tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
-
 		msleep(10);
 	}
 
@@ -9057,7 +9030,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 
 	if (intr_ok) {
 		/* Reenable MSI one shot mode. */
-		if (tg3_flag(tp, 57765_PLUS)) {
+		if (tg3_flag(tp, 57765_PLUS) && tg3_flag(tp, USING_MSI)) {
 			val = tr32(MSGINT_MODE) & ~MSGINT_MODE_ONE_SHOT_DISABLE;
 			tw32(MSGINT_MODE, val);
 		}
@@ -12974,9 +12947,7 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 	}
 
 	if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES) &&
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
-	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720 ||
-	     (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 &&
+	    ((tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 &&
 	      tp->pci_chip_rev_id != CHIPREV_ID_5717_A0) ||
 	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
 	      tp->pci_chip_rev_id != CHIPREV_ID_57765_A0)))
@@ -13662,13 +13633,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tg3_flag(tp, HW_TSO_1) ||
 	    tg3_flag(tp, HW_TSO_2) ||
 	    tg3_flag(tp, HW_TSO_3) ||
-	    tp->fw_needed) {
-		/* For firmware TSO, assume ASF is disabled.
-		 * We'll disable TSO later if we discover ASF
-		 * is enabled in tg3_get_eeprom_hw_cfg().
-		 */
+	    (tp->fw_needed && !tg3_flag(tp, ENABLE_ASF)))
 		tg3_flag_set(tp, TSO_CAPABLE);
-	} else {
+	else {
 		tg3_flag_clear(tp, TSO_CAPABLE);
 		tg3_flag_clear(tp, TSO_BUG);
 		tp->fw_needed = NULL;
@@ -13704,9 +13671,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 */
 	tg3_flag_set(tp, 4G_DMA_BNDRY_BUG);
 
-	if (tg3_flag(tp, 5755_PLUS) ||
-		GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
-			tg3_flag_set(tp, SHORT_DMA_BUG);
+	if (tg3_flag(tp, 5755_PLUS))
+		tg3_flag_set(tp, SHORT_DMA_BUG);
 	else
 		tg3_flag_set(tp, 40BIT_DMA_LIMIT_BUG);
 
@@ -13906,12 +13872,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 * are not used to switch power.
 	 */
 	tg3_get_eeprom_hw_cfg(tp);
-
-	if (tp->fw_needed && tg3_flag(tp, ENABLE_ASF)) {
-		tg3_flag_clear(tp, TSO_CAPABLE);
-		tg3_flag_clear(tp, TSO_BUG);
-		tp->fw_needed = NULL;
-	}
 
 	if (tg3_flag(tp, ENABLE_APE)) {
 		/* Allow reads and writes to the
@@ -14996,7 +14956,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->pm_cap = pm_cap;
 	tp->rx_mode = TG3_DEF_RX_MODE;
 	tp->tx_mode = TG3_DEF_TX_MODE;
-	tp->irq_sync = 1;
 
 	if (tg3_debug > 0)
 		tp->msg_enable = tg3_debug;
@@ -15319,7 +15278,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 
 		cancel_work_sync(&tp->reset_task);
 
-		if (tg3_flag(tp, USE_PHYLIB)) {
+		if (!tg3_flag(tp, USE_PHYLIB)) {
 			tg3_phy_fini(tp);
 			tg3_mdio_fini(tp);
 		}

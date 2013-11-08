@@ -2187,7 +2187,7 @@ unknown_cmnd:
 		common->data_size_from_cmnd = 0;
 		sprintf(unknown, "Unknown x%02x", common->cmnd[0]);
 		reply = check_command(common, common->cmnd_size,
-				      DATA_DIR_UNKNOWN, ~0, 0, unknown);
+				      DATA_DIR_UNKNOWN, 0xff, 0, unknown);
 		if (reply == 0) {
 			common->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
@@ -3052,7 +3052,7 @@ static int fsg_bind_config(struct usb_composite_dev *cdev,
 	if (unlikely(!fsg))
 		return -ENOMEM;
 
-	fsg->function.name        = "mass_storage";
+	fsg->function.name        = FSG_DRIVER_DESC;
 	fsg->function.strings     = fsg_strings_array;
 	fsg->function.bind        = fsg_bind;
 	fsg->function.unbind      = fsg_unbind;

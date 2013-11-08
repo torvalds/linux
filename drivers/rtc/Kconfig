@@ -106,24 +106,6 @@ config RTC_INTF_DEV_UIE_EMUL
 	  clock several times per second, please enable this option
 	  only if you know that you really need it.
 
-config RTC_INTF_ALARM
-	bool "Android alarm driver"
-	depends on RTC_CLASS
-	default y
-	help
-	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
-	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
-	  Also provides an interface to set the wall time which must be used
-	  for elapsed realtime to work.
-
-config RTC_INTF_ALARM_DEV
-	bool "Android alarm device"
-	depends on RTC_INTF_ALARM
-	default y
-	help
-	  Exports the alarm interface to user-space.
-
-
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	help

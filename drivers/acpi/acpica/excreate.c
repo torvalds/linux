@@ -330,12 +330,6 @@ acpi_ex_create_region(u8 * aml_start,
 	region_obj2 = obj_desc->common.next_object;
 	region_obj2->extra.aml_start = aml_start;
 	region_obj2->extra.aml_length = aml_length;
-	if (walk_state->scope_info) {
-		region_obj2->extra.scope_node =
-		    walk_state->scope_info->scope.node;
-	} else {
-		region_obj2->extra.scope_node = node;
-	}
 
 	/* Init the region from the operands */
 

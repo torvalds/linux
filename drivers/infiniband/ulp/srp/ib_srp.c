@@ -568,62 +568,24 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 			scmnd->sc_data_direction);
 }
 
-/**
- * srp_claim_req - Take ownership of the scmnd associated with a request.
- * @target: SRP target port.
- * @req: SRP request.
- * @scmnd: If NULL, take ownership of @req->scmnd. If not NULL, only take
- *         ownership of @req->scmnd if it equals @scmnd.
- *
- * Return value:
- * Either NULL or a pointer to the SCSI command the caller became owner of.
- */
-static struct scsi_cmnd *srp_claim_req(struct srp_target_port *target,
-				       struct srp_request *req,
-				       struct scsi_cmnd *scmnd)
+static void srp_remove_req(struct srp_target_port *target,
+			   struct srp_request *req, s32 req_lim_delta)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&target->lock, flags);
-	if (!scmnd) {
-		scmnd = req->scmnd;
-		req->scmnd = NULL;
-	} else if (req->scmnd == scmnd) {
-		req->scmnd = NULL;
-	} else {
-		scmnd = NULL;
-	}
-	spin_unlock_irqrestore(&target->lock, flags);
-
-	return scmnd;
-}
-
-/**
- * srp_free_req() - Unmap data and add request to the free request list.
- */
-static void srp_free_req(struct srp_target_port *target,
-			 struct srp_request *req, struct scsi_cmnd *scmnd,
-			 s32 req_lim_delta)
-{
-	unsigned long flags;
-
-	srp_unmap_data(scmnd, target, req);
-
+	srp_unmap_data(req->scmnd, target, req);
 	spin_lock_irqsave(&target->lock, flags);
 	target->req_lim += req_lim_delta;
+	req->scmnd = NULL;
 	list_add_tail(&req->list, &target->free_reqs);
 	spin_unlock_irqrestore(&target->lock, flags);
 }
 
 static void srp_reset_req(struct srp_target_port *target, struct srp_request *req)
 {
-	struct scsi_cmnd *scmnd = srp_claim_req(target, req, NULL);
-
-	if (scmnd) {
-		srp_free_req(target, req, scmnd, 0);
-		scmnd->result = DID_RESET << 16;
-		scmnd->scsi_done(scmnd);
-	}
+	req->scmnd->result = DID_RESET << 16;
+	req->scmnd->scsi_done(req->scmnd);
+	srp_remove_req(target, req, 0);
 }
 
 static int srp_reconnect_target(struct srp_target_port *target)
@@ -1093,18 +1055,11 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 		complete(&target->tsk_mgmt_done);
 	} else {
 		req = &target->req_ring[rsp->tag];
-		scmnd = srp_claim_req(target, req, NULL);
-		if (!scmnd) {
+		scmnd = req->scmnd;
+		if (!scmnd)
 			shost_printk(KERN_ERR, target->scsi_host,
 				     "Null scmnd for RSP w/tag %016llx\n",
 				     (unsigned long long) rsp->tag);
-
-			spin_lock_irqsave(&target->lock, flags);
-			target->req_lim += be32_to_cpu(rsp->req_lim_delta);
-			spin_unlock_irqrestore(&target->lock, flags);
-
-			return;
-		}
 		scmnd->result = rsp->status;
 
 		if (rsp->flags & SRP_RSP_FLAG_SNSVALID) {
@@ -1119,9 +1074,7 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 		else if (rsp->flags & (SRP_RSP_FLAG_DIOVER | SRP_RSP_FLAG_DIUNDER))
 			scsi_set_resid(scmnd, be32_to_cpu(rsp->data_in_res_cnt));
 
-		srp_free_req(target, req, scmnd,
-			     be32_to_cpu(rsp->req_lim_delta));
-
+		srp_remove_req(target, req, be32_to_cpu(rsp->req_lim_delta));
 		scmnd->host_scribble = NULL;
 		scmnd->scsi_done(scmnd);
 	}
@@ -1660,18 +1613,25 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	struct srp_request *req = (struct srp_request *) scmnd->host_scribble;
+	int ret = SUCCESS;
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
-	if (!req || target->qp_in_error || !srp_claim_req(target, req, scmnd))
+	if (!req || target->qp_in_error)
 		return FAILED;
-	srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
-			  SRP_TSK_ABORT_TASK);
-	srp_free_req(target, req, scmnd, 0);
-	scmnd->result = DID_ABORT << 16;
-	scmnd->scsi_done(scmnd);
+	if (srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
+			      SRP_TSK_ABORT_TASK))
+		return FAILED;
 
-	return SUCCESS;
+	if (req->scmnd) {
+		if (!target->tsk_mgmt_status) {
+			srp_remove_req(target, req, 0);
+			scmnd->result = DID_ABORT << 16;
+		} else
+			ret = FAILED;
+	}
+
+	return ret;
 }
 
 static int srp_reset_device(struct scsi_cmnd *scmnd)
@@ -2167,8 +2127,6 @@ static ssize_t srp_create_target(struct device *dev,
 		return -ENOMEM;
 
 	target_host->transportt  = ib_srp_transport_template;
-	target_host->max_channel = 0;
-	target_host->max_id      = 1;
 	target_host->max_lun     = SRP_MAX_LUN;
 	target_host->max_cmd_len = sizeof ((struct srp_cmd *) (void *) 0L)->cdb;
 

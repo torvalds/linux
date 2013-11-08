@@ -432,7 +432,6 @@ enum data_queue_flags {
  * @flags: Entry flags, see &enum queue_entry_flags.
  * @status_lock: The mutex for protecting the start/stop/flush
  *	handling on this queue.
- * @tx_lock: Spinlock to serialize tx operations on this queue.
  * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
@@ -459,7 +458,6 @@ struct data_queue {
 	unsigned long flags;
 
 	struct mutex status_lock;
-	spinlock_t tx_lock;
 	spinlock_t index_lock;
 
 	unsigned int count;

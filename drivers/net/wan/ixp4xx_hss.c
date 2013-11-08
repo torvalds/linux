@@ -8,7 +8,6 @@
  * as published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>

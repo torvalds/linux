@@ -890,7 +890,7 @@ void __rt_mutex_init(struct rt_mutex *lock, const char *name)
 {
 	lock->owner = NULL;
 	raw_spin_lock_init(&lock->wait_lock);
-	plist_head_init(&lock->wait_list);
+	plist_head_init_raw(&lock->wait_list, &lock->wait_lock);
 
 	debug_rt_mutex_init(lock, name);
 }

@@ -26,17 +26,6 @@ static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 	/* Don't risk a hypervisor call if we're crashing */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
 		unsigned long addr;
-		int ret;
-
-		if (get_lppaca()->dtl_enable_mask) {
-			ret = unregister_dtl(hard_smp_processor_id());
-			if (ret) {
-				pr_err("WARNING: DTL deregistration for cpu "
-				       "%d (hw %d) failed with %d\n",
-				       smp_processor_id(),
-				       hard_smp_processor_id(), ret);
-			}
-		}
 
 		addr = __pa(get_slb_shadow());
 		if (unregister_slb_shadow(hard_smp_processor_id(), addr))

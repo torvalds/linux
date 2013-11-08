@@ -365,10 +365,8 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 	return 1;
 }
 
-static int magicmouse_setup_input(struct hid_device *hdev, struct hid_input *hi)
+static void magicmouse_setup_input(struct input_dev *input, struct hid_device *hdev)
 {
-	struct input_dev *input = hi->input;
-
 	__set_bit(EV_KEY, input->evbit);
 
 	if (input->id.product == USB_DEVICE_ID_APPLE_MAGICMOUSE) {
@@ -428,8 +426,6 @@ static int magicmouse_setup_input(struct hid_device *hdev, struct hid_input *hi)
 		__set_bit(EV_MSC, input->evbit);
 		__set_bit(MSC_RAW, input->mscbit);
 	}
-
-	return 0;
 }
 
 static int magicmouse_input_mapping(struct hid_device *hdev,
@@ -482,6 +478,12 @@ static int magicmouse_probe(struct hid_device *hdev,
 		goto err_free;
 	}
 
+	/* We do this after hid-input is done parsing reports so that
+	 * hid-input uses the most natural button and axis IDs.
+	 */
+	if (msc->input)
+		magicmouse_setup_input(msc->input, hdev);
+
 	if (id->product == USB_DEVICE_ID_APPLE_MAGICMOUSE)
 		report = hid_register_report(hdev, HID_INPUT_REPORT,
 			MOUSE_REPORT_ID);
@@ -499,17 +501,9 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 	report->size = 6;
 
-	/*
-	 * Some devices repond with 'invalid report id' when feature
-	 * report switching it into multitouch mode is sent to it.
-	 *
-	 * This results in -EIO from the _raw low-level transport callback,
-	 * but there seems to be no other way of switching the mode.
-	 * Thus the super-ugly hacky success check below.
-	 */
 	ret = hdev->hid_output_raw_report(hdev, feature, sizeof(feature),
 			HID_FEATURE_REPORT);
-	if (ret != -EIO && ret != sizeof(feature)) {
+	if (ret != sizeof(feature)) {
 		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;
 	}
@@ -546,7 +540,6 @@ static struct hid_driver magicmouse_driver = {
 	.remove = magicmouse_remove,
 	.raw_event = magicmouse_raw_event,
 	.input_mapping = magicmouse_input_mapping,
-	.input_register = magicmouse_setup_input,
 };
 
 static int __init magicmouse_init(void)

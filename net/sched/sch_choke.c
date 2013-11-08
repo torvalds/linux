@@ -225,7 +225,8 @@ struct choke_skb_cb {
 
 static inline struct choke_skb_cb *choke_skb_cb(const struct sk_buff *skb)
 {
-	qdisc_cb_private_validate(skb, sizeof(struct choke_skb_cb));
+	BUILD_BUG_ON(sizeof(skb->cb) <
+		sizeof(struct qdisc_skb_cb) + sizeof(struct choke_skb_cb));
 	return (struct choke_skb_cb *)qdisc_skb_cb(skb)->data;
 }
 

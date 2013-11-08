@@ -1032,6 +1032,37 @@ static int fd_wait_for_completion(unsigned long delay, timeout_fn function)
 	return 0;
 }
 
+static DEFINE_SPINLOCK(floppy_hlt_lock);
+static int hlt_disabled;
+static void floppy_disable_hlt(void)
+{
+	unsigned long flags;
+
+	WARN_ONCE(1, "floppy_disable_hlt() scheduled for removal in 2012");
+	spin_lock_irqsave(&floppy_hlt_lock, flags);
+	if (!hlt_disabled) {
+		hlt_disabled = 1;
+#ifdef HAVE_DISABLE_HLT
+		disable_hlt();
+#endif
+	}
+	spin_unlock_irqrestore(&floppy_hlt_lock, flags);
+}
+
+static void floppy_enable_hlt(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&floppy_hlt_lock, flags);
+	if (hlt_disabled) {
+		hlt_disabled = 0;
+#ifdef HAVE_DISABLE_HLT
+		enable_hlt();
+#endif
+	}
+	spin_unlock_irqrestore(&floppy_hlt_lock, flags);
+}
+
 static void setup_DMA(void)
 {
 	unsigned long f;
@@ -1076,6 +1107,7 @@ static void setup_DMA(void)
 	fd_enable_dma();
 	release_dma_lock(f);
 #endif
+	floppy_disable_hlt();
 }
 
 static void show_floppy(void);
@@ -1677,6 +1709,7 @@ irqreturn_t floppy_interrupt(int irq, void *dev_id)
 	fd_disable_dma();
 	release_dma_lock(f);
 
+	floppy_enable_hlt();
 	do_floppy = NULL;
 	if (fdc >= N_FDC || FDCS->address == -1) {
 		/* we don't even know which FDC is the culprit */
@@ -1824,6 +1857,8 @@ static void floppy_shutdown(unsigned long data)
 	if (initialized)
 		show_floppy();
 	cancel_activity();
+
+	floppy_enable_hlt();
 
 	flags = claim_dma_lock();
 	fd_disable_dma();
@@ -4163,7 +4198,6 @@ static int __init floppy_init(void)
 
 		disks[dr]->queue = blk_init_queue(do_fd_request, &floppy_lock);
 		if (!disks[dr]->queue) {
-			put_disk(disks[dr]);
 			err = -ENOMEM;
 			goto out_put_disk;
 		}
@@ -4216,7 +4250,7 @@ static int __init floppy_init(void)
 	use_virtual_dma = can_use_virtual_dma & 1;
 	fdc_state[0].address = FDC1;
 	if (fdc_state[0].address == -1) {
-		del_timer_sync(&fd_timeout);
+		del_timer(&fd_timeout);
 		err = -ENODEV;
 		goto out_unreg_region;
 	}
@@ -4227,7 +4261,7 @@ static int __init floppy_init(void)
 	fdc = 0;		/* reset fdc in case of unexpected interrupt */
 	err = floppy_grab_irq_and_dma();
 	if (err) {
-		del_timer_sync(&fd_timeout);
+		del_timer(&fd_timeout);
 		err = -EBUSY;
 		goto out_unreg_region;
 	}
@@ -4284,7 +4318,7 @@ static int __init floppy_init(void)
 		user_reset_fdc(-1, FD_RESET_ALWAYS, false);
 	}
 	fdc = 0;
-	del_timer_sync(&fd_timeout);
+	del_timer(&fd_timeout);
 	current_drive = 0;
 	initialized = true;
 	if (have_no_fdc) {
@@ -4334,7 +4368,7 @@ out_unreg_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 out_put_disk:
 	while (dr--) {
-		del_timer_sync(&motor_off_timer[dr]);
+		del_timer(&motor_off_timer[dr]);
 		if (disks[dr]->queue)
 			blk_cleanup_queue(disks[dr]->queue);
 		put_disk(disks[dr]);
@@ -4470,6 +4504,7 @@ static void floppy_release_irq_and_dma(void)
 #if N_FDC > 1
 	set_dor(1, ~8, 0);
 #endif
+	floppy_enable_hlt();
 
 	if (floppy_track_buffer && max_buffer_sectors) {
 		tmpsize = max_buffer_sectors * 1024;

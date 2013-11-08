@@ -750,10 +750,10 @@ static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
 	ssize_t ret;
 	char *p = NULL;
 
-	spin_lock_irq(&lo->lo_lock);
+	mutex_lock(&lo->lo_ctl_mutex);
 	if (lo->lo_backing_file)
 		p = d_path(&lo->lo_backing_file->f_path, buf, PAGE_SIZE - 1);
-	spin_unlock_irq(&lo->lo_lock);
+	mutex_unlock(&lo->lo_ctl_mutex);
 
 	if (IS_ERR_OR_NULL(p))
 		ret = PTR_ERR(p);
@@ -1007,9 +1007,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	kthread_stop(lo->lo_thread);
 
-	spin_lock_irq(&lo->lo_lock);
 	lo->lo_backing_file = NULL;
-	spin_unlock_irq(&lo->lo_lock);
 
 	loop_release_xfer(lo);
 	lo->transfer = NULL;

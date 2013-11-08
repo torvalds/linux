@@ -610,13 +610,9 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
-	if (var->bits_per_pixel > fb->bits_per_pixel ||
-	    var->xres > fb->width || var->yres > fb->height ||
-	    var->xres_virtual > fb->width || var->yres_virtual > fb->height) {
+	if (var->bits_per_pixel > fb->bits_per_pixel || var->xres > fb->width || var->yres > fb->height) {
 		DRM_DEBUG("fb userspace requested width/height/bpp is greater than current fb "
-			  "request %dx%d-%d (virtual %dx%d) > %dx%d-%d\n",
-			  var->xres, var->yres, var->bits_per_pixel,
-			  var->xres_virtual, var->yres_virtual,
+			  "object %dx%d-%d > %dx%d-%d\n", var->xres, var->yres, var->bits_per_pixel,
 			  fb->width, fb->height, fb->bits_per_pixel);
 		return -EINVAL;
 	}

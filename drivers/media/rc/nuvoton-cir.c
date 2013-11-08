@@ -624,6 +624,7 @@ static void nvt_dump_rx_buf(struct nvt_dev *nvt)
 static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
+	unsigned int count;
 	u32 carrier;
 	u8 sample;
 	int i;
@@ -636,37 +637,64 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 	if (nvt->carrier_detect_enabled)
 		carrier = nvt_rx_carrier_detect(nvt);
 
-	nvt_dbg_verbose("Processing buffer of len %d", nvt->pkts);
+	count = nvt->pkts;
+	nvt_dbg_verbose("Processing buffer of len %d", count);
 
 	init_ir_raw_event(&rawir);
 
-	for (i = 0; i < nvt->pkts; i++) {
+	for (i = 0; i < count; i++) {
+		nvt->pkts--;
 		sample = nvt->buf[i];
 
 		rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
 		rawir.duration = US_TO_NS((sample & BUF_LEN_MASK)
 					  * SAMPLE_PERIOD);
 
-		nvt_dbg("Storing %s with duration %d",
-			rawir.pulse ? "pulse" : "space", rawir.duration);
+		if ((sample & BUF_LEN_MASK) == BUF_LEN_MASK) {
+			if (nvt->rawir.pulse == rawir.pulse)
+				nvt->rawir.duration += rawir.duration;
+			else {
+				nvt->rawir.duration = rawir.duration;
+				nvt->rawir.pulse = rawir.pulse;
+			}
+			continue;
+		}
 
-		ir_raw_event_store_with_filter(nvt->rdev, &rawir);
+		rawir.duration += nvt->rawir.duration;
+
+		init_ir_raw_event(&nvt->rawir);
+		nvt->rawir.duration = 0;
+		nvt->rawir.pulse = rawir.pulse;
+
+		if (sample == BUF_PULSE_BIT)
+			rawir.pulse = false;
+
+		if (rawir.duration) {
+			nvt_dbg("Storing %s with duration %d",
+				rawir.pulse ? "pulse" : "space",
+				rawir.duration);
+
+			ir_raw_event_store_with_filter(nvt->rdev, &rawir);
+		}
 
 		/*
 		 * BUF_PULSE_BIT indicates end of IR data, BUF_REPEAT_BYTE
 		 * indicates end of IR signal, but new data incoming. In both
 		 * cases, it means we're ready to call ir_raw_event_handle
 		 */
-		if ((sample == BUF_PULSE_BIT) && (i + 1 < nvt->pkts)) {
+		if ((sample == BUF_PULSE_BIT) && nvt->pkts) {
 			nvt_dbg("Calling ir_raw_event_handle (signal end)\n");
 			ir_raw_event_handle(nvt->rdev);
 		}
 	}
 
-	nvt->pkts = 0;
-
 	nvt_dbg("Calling ir_raw_event_handle (buffer empty)\n");
 	ir_raw_event_handle(nvt->rdev);
+
+	if (nvt->pkts) {
+		nvt_dbg("Odd, pkts should be 0 now... (its %u)", nvt->pkts);
+		nvt->pkts = 0;
+	}
 
 	nvt_dbg_verbose("%s done", __func__);
 }
@@ -1026,6 +1054,25 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	spin_lock_init(&nvt->nvt_lock);
 	spin_lock_init(&nvt->tx.lock);
+	init_ir_raw_event(&nvt->rawir);
+
+	ret = -EBUSY;
+	/* now claim resources */
+	if (!request_region(nvt->cir_addr,
+			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
+		goto failure;
+
+	if (request_irq(nvt->cir_irq, nvt_cir_isr, IRQF_SHARED,
+			NVT_DRIVER_NAME, (void *)nvt))
+		goto failure;
+
+	if (!request_region(nvt->cir_wake_addr,
+			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
+		goto failure;
+
+	if (request_irq(nvt->cir_wake_irq, nvt_cir_wake_isr, IRQF_SHARED,
+			NVT_DRIVER_NAME, (void *)nvt))
+		goto failure;
 
 	pnp_set_drvdata(pdev, nvt);
 	nvt->pdev = pdev;
@@ -1072,24 +1119,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* tx bits */
 	rdev->tx_resolution = XYZ;
 #endif
-
-	ret = -EBUSY;
-	/* now claim resources */
-	if (!request_region(nvt->cir_addr,
-			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
-		goto failure;
-
-	if (request_irq(nvt->cir_irq, nvt_cir_isr, IRQF_SHARED,
-			NVT_DRIVER_NAME, (void *)nvt))
-		goto failure;
-
-	if (!request_region(nvt->cir_wake_addr,
-			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
-		goto failure;
-
-	if (request_irq(nvt->cir_wake_irq, nvt_cir_wake_isr, IRQF_SHARED,
-			NVT_DRIVER_NAME, (void *)nvt))
-		goto failure;
 
 	ret = rc_register_device(rdev);
 	if (ret)

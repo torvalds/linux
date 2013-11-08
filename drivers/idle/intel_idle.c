@@ -321,8 +321,7 @@ static int intel_idle_probe(void)
 	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &mwait_substates);
 
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED) ||
-	    !(ecx & CPUID5_ECX_INTERRUPT_BREAK) ||
-	    !mwait_substates)
+		!(ecx & CPUID5_ECX_INTERRUPT_BREAK))
 			return -ENODEV;
 
 	pr_debug(PREFIX "MWAIT substates: 0x%x\n", mwait_substates);
@@ -368,7 +367,7 @@ static int intel_idle_probe(void)
 	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
 		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
 	else {
-		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
+		smp_call_function(__setup_broadcast_timer, (void *)true, 1);
 		register_cpu_notifier(&setup_broadcast_notifier);
 	}
 
@@ -460,7 +459,7 @@ static int intel_idle_cpuidle_devices_init(void)
 		}
 	}
 	if (auto_demotion_disable_flags)
-		on_each_cpu(auto_demotion_disable, NULL, 1);
+		smp_call_function(auto_demotion_disable, NULL, 1);
 
 	return 0;
 }
@@ -500,7 +499,7 @@ static void __exit intel_idle_exit(void)
 	cpuidle_unregister_driver(&intel_idle_driver);
 
 	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE) {
-		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
+		smp_call_function(__setup_broadcast_timer, (void *)false, 1);
 		unregister_cpu_notifier(&setup_broadcast_notifier);
 	}
 

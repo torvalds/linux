@@ -685,8 +685,6 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 		 * OOB, ignore such double bit errors
 		 */
 		if (is_buf_blank(buf, mtd->writesize))
-			info->retcode = ERR_NONE;
-		else
 			mtd->ecc_stats.failed++;
 	}
 
@@ -815,7 +813,7 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 	info->page_size = ndcr & NDCR_PAGE_SZ ? 2048 : 512;
 	/* set info fields needed to read id */
 	info->read_id_bytes = (info->page_size == 2048) ? 4 : 2;
-	info->reg_ndcr = ndcr & ~NDCR_INT_MASK;
+	info->reg_ndcr = ndcr;
 	info->cmdset = &default_cmdset;
 
 	info->ndtr0cs0 = nand_readl(info, NDTR0CS0);
@@ -884,7 +882,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	struct pxa3xx_nand_info *info = mtd->priv;
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = pdev->dev.platform_data;
-	struct nand_flash_dev pxa3xx_flash_ids[2], *def = NULL;
+	struct nand_flash_dev pxa3xx_flash_ids[2] = { {NULL,}, {NULL,} };
 	const struct pxa3xx_nand_flash *f = NULL;
 	struct nand_chip *chip = mtd->priv;
 	uint32_t id = -1;
@@ -944,10 +942,8 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	pxa3xx_flash_ids[0].erasesize = f->page_size * f->page_per_block;
 	if (f->flash_width == 16)
 		pxa3xx_flash_ids[0].options = NAND_BUSWIDTH_16;
-	pxa3xx_flash_ids[1].name = NULL;
-	def = pxa3xx_flash_ids;
 KEEP_CONFIG:
-	if (nand_scan_ident(mtd, 1, def))
+	if (nand_scan_ident(mtd, 1, pxa3xx_flash_ids))
 		return -ENODEV;
 	/* calculate addressing information */
 	info->col_addr_cycles = (mtd->writesize >= 2048) ? 2 : 1;
@@ -958,9 +954,9 @@ KEEP_CONFIG:
 		info->row_addr_cycles = 2;
 	mtd->name = mtd_names[0];
 	chip->ecc.mode = NAND_ECC_HW;
-	chip->ecc.size = info->page_size;
+	chip->ecc.size = f->page_size;
 
-	chip->options = (info->reg_ndcr & NDCR_DWIDTH_M) ? NAND_BUSWIDTH_16 : 0;
+	chip->options = (f->flash_width == 16) ? NAND_BUSWIDTH_16 : 0;
 	chip->options |= NAND_NO_AUTOINCR;
 	chip->options |= NAND_NO_READRDY;
 

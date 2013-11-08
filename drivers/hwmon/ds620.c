@@ -72,7 +72,7 @@ struct ds620_data {
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
-	s16 temp[3];		/* Register values, word */
+	u16 temp[3];		/* Register values, word */
 };
 
 /*

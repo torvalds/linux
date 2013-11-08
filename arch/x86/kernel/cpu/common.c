@@ -15,7 +15,6 @@
 #include <asm/stackprotector.h>
 #include <asm/perf_event.h>
 #include <asm/mmu_context.h>
-#include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -676,7 +675,9 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
 
+#ifdef CONFIG_SMP
 	c->cpu_index = 0;
+#endif
 	filter_cpuid_features(c, false);
 
 	setup_smep(c);
@@ -759,7 +760,10 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		c->apicid = c->initial_apicid;
 # endif
 #endif
+
+#ifdef CONFIG_X86_HT
 		c->phys_proc_id = c->initial_apicid;
+#endif
 	}
 
 	setup_smep(c);
@@ -853,7 +857,6 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #endif
 
 	init_hypervisor(c);
-	x86_init_rdrand(c);
 
 	/*
 	 * Clear/Set all flags overriden by options, need do it

@@ -1571,8 +1571,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	u32 cmd, beacon0_valid, beacon1_valid;
 
 	if (!b43_is_mode(wl, NL80211_IFTYPE_AP) &&
-	    !b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT) &&
-	    !b43_is_mode(wl, NL80211_IFTYPE_ADHOC))
+	    !b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT))
 		return;
 
 	/* This is the bottom half of the asynchronous beacon update. */
@@ -2398,13 +2397,6 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		b43err(dev->wl, "YOUR FIRMWARE IS TOO OLD. Firmware from "
 		       "binary drivers older than version 4.x is unsupported. "
 		       "You must upgrade your firmware files.\n");
-		b43_print_fw_helptext(dev->wl, 1);
-		err = -EOPNOTSUPP;
-		goto error;
-	} else if (fwrev >= 598) {
-		b43err(dev->wl, "YOUR FIRMWARE IS TOO NEW. Support for "
-		       "firmware 598 and up requires kernel 3.2 or newer. You "
-		       "have to install older firmware or upgrade kernel.\n");
 		b43_print_fw_helptext(dev->wl, 1);
 		err = -EOPNOTSUPP;
 		goto error;

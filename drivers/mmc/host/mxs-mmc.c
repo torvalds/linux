@@ -278,10 +278,10 @@ static irqreturn_t mxs_mmc_irq_handler(int irq, void *dev_id)
 	writel(stat & MXS_MMC_IRQ_BITS,
 	       host->base + HW_SSP_CTRL1 + MXS_CLR_ADDR);
 
-	spin_unlock(&host->lock);
-
 	if ((stat & BM_SSP_CTRL1_SDIO_IRQ) && (stat & BM_SSP_CTRL1_SDIO_IRQ_EN))
 		mmc_signal_sdio_irq(host->mmc);
+
+	spin_unlock(&host->lock);
 
 	if (stat & BM_SSP_CTRL1_RESP_TIMEOUT_IRQ)
 		cmd->error = -ETIMEDOUT;
@@ -564,38 +564,40 @@ static void mxs_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static void mxs_mmc_set_clk_rate(struct mxs_mmc_host *host, unsigned int rate)
 {
-	unsigned int ssp_clk, ssp_sck;
-	u32 clock_divide, clock_rate;
+	unsigned int ssp_rate, bit_rate;
+	u32 div1, div2;
 	u32 val;
 
-	ssp_clk = clk_get_rate(host->clk);
+	ssp_rate = clk_get_rate(host->clk);
 
-	for (clock_divide = 2; clock_divide <= 254; clock_divide += 2) {
-		clock_rate = DIV_ROUND_UP(ssp_clk, rate * clock_divide);
-		clock_rate = (clock_rate > 0) ? clock_rate - 1 : 0;
-		if (clock_rate <= 255)
+	for (div1 = 2; div1 < 254; div1 += 2) {
+		div2 = ssp_rate / rate / div1;
+		if (div2 < 0x100)
 			break;
 	}
 
-	if (clock_divide > 254) {
+	if (div1 >= 254) {
 		dev_err(mmc_dev(host->mmc),
 			"%s: cannot set clock to %d\n", __func__, rate);
 		return;
 	}
 
-	ssp_sck = ssp_clk / clock_divide / (1 + clock_rate);
+	if (div2 == 0)
+		bit_rate = ssp_rate / div1;
+	else
+		bit_rate = ssp_rate / div1 / div2;
 
 	val = readl(host->base + HW_SSP_TIMING);
 	val &= ~(BM_SSP_TIMING_CLOCK_DIVIDE | BM_SSP_TIMING_CLOCK_RATE);
-	val |= BF_SSP(clock_divide, TIMING_CLOCK_DIVIDE);
-	val |= BF_SSP(clock_rate, TIMING_CLOCK_RATE);
+	val |= BF_SSP(div1, TIMING_CLOCK_DIVIDE);
+	val |= BF_SSP(div2 - 1, TIMING_CLOCK_RATE);
 	writel(val, host->base + HW_SSP_TIMING);
 
-	host->clk_rate = ssp_sck;
+	host->clk_rate = bit_rate;
 
 	dev_dbg(mmc_dev(host->mmc),
-		"%s: clock_divide %d, clock_rate %d, ssp_clk %d, rate_actual %d, rate_requested %d\n",
-		__func__, clock_divide, clock_rate, ssp_clk, ssp_sck, rate);
+		"%s: div1 %d, div2 %d, ssp %d, bit %d, rate %d\n",
+		__func__, div1, div2, ssp_rate, bit_rate, rate);
 }
 
 static void mxs_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)

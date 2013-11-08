@@ -455,20 +455,15 @@ static struct device_attribute fw_device_attributes[] = {
 static int read_rom(struct fw_device *device,
 		    int generation, int index, u32 *data)
 {
-	u64 offset = (CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4;
-	int i, rcode;
+	int rcode;
 
 	/* device->node_id, accessed below, must not be older than generation */
 	smp_rmb();
 
-	for (i = 10; i < 100; i += 10) {
-		rcode = fw_run_transaction(device->card,
-				TCODE_READ_QUADLET_REQUEST, device->node_id,
-				generation, device->max_speed, offset, data, 4);
-		if (rcode != RCODE_BUSY)
-			break;
-		msleep(i);
-	}
+	rcode = fw_run_transaction(device->card, TCODE_READ_QUADLET_REQUEST,
+			device->node_id, generation, device->max_speed,
+			(CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4,
+			data, 4);
 	be32_to_cpus(data);
 
 	return rcode;

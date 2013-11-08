@@ -88,12 +88,11 @@ static int hfs_parse_old_pmap(struct super_block *sb, struct old_pmap *pm,
 	return -ENOENT;
 }
 
-static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
-		struct new_pmap *pm, sector_t *part_start, sector_t *part_size)
+static int hfs_parse_new_pmap(struct super_block *sb, struct new_pmap *pm,
+		sector_t *part_start, sector_t *part_size)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	int size = be32_to_cpu(pm->pmMapBlkCnt);
-	int buf_size = hfsplus_min_io_size(sb);
 	int res;
 	int i = 0;
 
@@ -108,14 +107,11 @@ static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
 		if (++i >= size)
 			return -ENOENT;
 
-		pm = (struct new_pmap *)((u8 *)pm + HFSPLUS_SECTOR_SIZE);
-		if ((u8 *)pm - (u8 *)buf >= buf_size) {
-			res = hfsplus_submit_bio(sb,
-						 *part_start + HFS_PMAP_BLK + i,
-						 buf, (void **)&pm, READ);
-			if (res)
-				return res;
-		}
+		res = hfsplus_submit_bio(sb->s_bdev,
+					 *part_start + HFS_PMAP_BLK + i,
+					 pm, READ);
+		if (res)
+			return res;
 	} while (pm->pmSig == cpu_to_be16(HFS_NEW_PMAP_MAGIC));
 
 	return -ENOENT;
@@ -128,15 +124,15 @@ static int hfs_parse_new_pmap(struct super_block *sb, void *buf,
 int hfs_part_find(struct super_block *sb,
 		sector_t *part_start, sector_t *part_size)
 {
-	void *buf, *data;
+	void *data;
 	int res;
 
-	buf = kmalloc(hfsplus_min_io_size(sb), GFP_KERNEL);
-	if (!buf)
+	data = kmalloc(HFSPLUS_SECTOR_SIZE, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
-	res = hfsplus_submit_bio(sb, *part_start + HFS_PMAP_BLK,
-				 buf, &data, READ);
+	res = hfsplus_submit_bio(sb->s_bdev, *part_start + HFS_PMAP_BLK,
+				 data, READ);
 	if (res)
 		goto out;
 
@@ -145,13 +141,13 @@ int hfs_part_find(struct super_block *sb,
 		res = hfs_parse_old_pmap(sb, data, part_start, part_size);
 		break;
 	case HFS_NEW_PMAP_MAGIC:
-		res = hfs_parse_new_pmap(sb, buf, data, part_start, part_size);
+		res = hfs_parse_new_pmap(sb, data, part_start, part_size);
 		break;
 	default:
 		res = -ENOENT;
 		break;
 	}
 out:
-	kfree(buf);
+	kfree(data);
 	return res;
 }

@@ -54,9 +54,9 @@ extern struct kmem_cache *v9fs_inode_cache;
 
 struct inode *v9fs_alloc_inode(struct super_block *sb);
 void v9fs_destroy_inode(struct inode *inode);
-struct inode *v9fs_get_inode(struct super_block *sb, int mode, dev_t);
+struct inode *v9fs_get_inode(struct super_block *sb, int mode);
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, int mode, dev_t);
+		    struct inode *inode, int mode);
 void v9fs_evict_inode(struct inode *inode);
 ino_t v9fs_qid2ino(struct p9_qid *qid);
 void v9fs_stat2inode(struct p9_wstat *, struct inode *, struct super_block *);
@@ -82,6 +82,4 @@ static inline void v9fs_invalidate_inode_attr(struct inode *inode)
 	v9inode->cache_validity |= V9FS_INO_INVALID_ATTR;
 	return;
 }
-
-int v9fs_open_to_dotl_flags(int flags);
 #endif

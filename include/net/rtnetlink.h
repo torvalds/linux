@@ -6,14 +6,11 @@
 
 typedef int (*rtnl_doit_func)(struct sk_buff *, struct nlmsghdr *, void *);
 typedef int (*rtnl_dumpit_func)(struct sk_buff *, struct netlink_callback *);
-typedef u16 (*rtnl_calcit_func)(struct sk_buff *, struct nlmsghdr *);
 
 extern int	__rtnl_register(int protocol, int msgtype,
-				rtnl_doit_func, rtnl_dumpit_func,
-				rtnl_calcit_func);
+				rtnl_doit_func, rtnl_dumpit_func);
 extern void	rtnl_register(int protocol, int msgtype,
-			      rtnl_doit_func, rtnl_dumpit_func,
-			      rtnl_calcit_func);
+			      rtnl_doit_func, rtnl_dumpit_func);
 extern int	rtnl_unregister(int protocol, int msgtype);
 extern void	rtnl_unregister_all(int protocol);
 

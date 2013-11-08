@@ -44,7 +44,6 @@
 #define ATOM_CMD_SETSCLK	0x0A
 #define ATOM_CMD_SETMCLK	0x0B
 #define ATOM_CMD_SETPCLK	0x0C
-#define ATOM_CMD_SPDFANCNTL	0x39
 
 #define ATOM_DATA_FWI_PTR	0xC
 #define ATOM_DATA_IIO_PTR	0x32
@@ -138,7 +137,6 @@ struct atom_context {
 	int cs_equal, cs_above;
 	int io_mode;
 	uint32_t *scratch;
-	int scratch_size_bytes;
 };
 
 extern int atom_debug;

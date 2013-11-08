@@ -636,82 +636,82 @@ struct rx_buf_desc {
 #define SEG_BASE IPHASE5575_FRAG_CONTROL_REG_BASE  
 #define REASS_BASE IPHASE5575_REASS_CONTROL_REG_BASE  
 
-typedef volatile u_int	ffreg_t;
+typedef volatile u_int  freg_t;
 typedef u_int   rreg_t;
 
 typedef struct _ffredn_t {
-	ffreg_t	idlehead_high;	/* Idle cell header (high)		*/
-	ffreg_t	idlehead_low;	/* Idle cell header (low)		*/
-	ffreg_t	maxrate;	/* Maximum rate				*/
-	ffreg_t	stparms;	/* Traffic Management Parameters	*/
-	ffreg_t	abrubr_abr;	/* ABRUBR Priority Byte 1, TCR Byte 0	*/
-	ffreg_t	rm_type;	/*					*/
-	u_int	filler5[0x17 - 0x06];
-	ffreg_t	cmd_reg;	/* Command register			*/
-	u_int	filler18[0x20 - 0x18];
-	ffreg_t	cbr_base;	/* CBR Pointer Base			*/
-	ffreg_t	vbr_base;	/* VBR Pointer Base			*/
-	ffreg_t	abr_base;	/* ABR Pointer Base			*/
-	ffreg_t	ubr_base;	/* UBR Pointer Base			*/
-	u_int	filler24;
-	ffreg_t	vbrwq_base;	/* VBR Wait Queue Base			*/
-	ffreg_t	abrwq_base;	/* ABR Wait Queue Base			*/
-	ffreg_t	ubrwq_base;	/* UBR Wait Queue Base			*/
-	ffreg_t	vct_base;	/* Main VC Table Base			*/
-	ffreg_t	vcte_base;	/* Extended Main VC Table Base		*/
-	u_int	filler2a[0x2C - 0x2A];
-	ffreg_t	cbr_tab_beg;	/* CBR Table Begin			*/
-	ffreg_t	cbr_tab_end;	/* CBR Table End			*/
-	ffreg_t	cbr_pointer;	/* CBR Pointer				*/
-	u_int	filler2f[0x30 - 0x2F];
-	ffreg_t	prq_st_adr;	/* Packet Ready Queue Start Address	*/
-	ffreg_t	prq_ed_adr;	/* Packet Ready Queue End Address	*/
-	ffreg_t	prq_rd_ptr;	/* Packet Ready Queue read pointer	*/
-	ffreg_t	prq_wr_ptr;	/* Packet Ready Queue write pointer	*/
-	ffreg_t	tcq_st_adr;	/* Transmit Complete Queue Start Address*/
-	ffreg_t	tcq_ed_adr;	/* Transmit Complete Queue End Address	*/
-	ffreg_t	tcq_rd_ptr;	/* Transmit Complete Queue read pointer */
-	ffreg_t	tcq_wr_ptr;	/* Transmit Complete Queue write pointer*/
-	u_int	filler38[0x40 - 0x38];
-	ffreg_t	queue_base;	/* Base address for PRQ and TCQ		*/
-	ffreg_t	desc_base;	/* Base address of descriptor table	*/
-	u_int	filler42[0x45 - 0x42];
-	ffreg_t	mode_reg_0;	/* Mode register 0			*/
-	ffreg_t	mode_reg_1;	/* Mode register 1			*/
-	ffreg_t	intr_status_reg;/* Interrupt Status register		*/
-	ffreg_t	mask_reg;	/* Mask Register			*/
-	ffreg_t	cell_ctr_high1; /* Total cell transfer count (high)	*/
-	ffreg_t	cell_ctr_lo1;	/* Total cell transfer count (low)	*/
-	ffreg_t	state_reg;	/* Status register			*/
-	u_int	filler4c[0x58 - 0x4c];
-	ffreg_t	curr_desc_num;	/* Contains the current descriptor num	*/
-	ffreg_t	next_desc;	/* Next descriptor			*/
-	ffreg_t	next_vc;	/* Next VC				*/
-	u_int	filler5b[0x5d - 0x5b];
-	ffreg_t	present_slot_cnt;/* Present slot count			*/
-	u_int	filler5e[0x6a - 0x5e];
-	ffreg_t	new_desc_num;	/* New descriptor number		*/
-	ffreg_t	new_vc;		/* New VC				*/
-	ffreg_t	sched_tbl_ptr;	/* Schedule table pointer		*/
-	ffreg_t	vbrwq_wptr;	/* VBR wait queue write pointer		*/
-	ffreg_t	vbrwq_rptr;	/* VBR wait queue read pointer		*/
-	ffreg_t	abrwq_wptr;	/* ABR wait queue write pointer		*/
-	ffreg_t	abrwq_rptr;	/* ABR wait queue read pointer		*/
-	ffreg_t	ubrwq_wptr;	/* UBR wait queue write pointer		*/
-	ffreg_t	ubrwq_rptr;	/* UBR wait queue read pointer		*/
-	ffreg_t	cbr_vc;		/* CBR VC				*/
-	ffreg_t	vbr_sb_vc;	/* VBR SB VC				*/
-	ffreg_t	abr_sb_vc;	/* ABR SB VC				*/
-	ffreg_t	ubr_sb_vc;	/* UBR SB VC				*/
-	ffreg_t	vbr_next_link;	/* VBR next link			*/
-	ffreg_t	abr_next_link;	/* ABR next link			*/
-	ffreg_t	ubr_next_link;	/* UBR next link			*/
-	u_int	filler7a[0x7c-0x7a];
-	ffreg_t	out_rate_head;	/* Out of rate head			*/
-	u_int	filler7d[0xca-0x7d]; /* pad out to full address space	*/
-	ffreg_t	cell_ctr_high1_nc;/* Total cell transfer count (high)	*/
-	ffreg_t	cell_ctr_lo1_nc;/* Total cell transfer count (low)	*/
-	u_int	fillercc[0x100-0xcc]; /* pad out to full address space	 */
+        freg_t  idlehead_high;  /* Idle cell header (high)              */
+        freg_t  idlehead_low;   /* Idle cell header (low)               */
+        freg_t  maxrate;        /* Maximum rate                         */
+        freg_t  stparms;        /* Traffic Management Parameters        */
+        freg_t  abrubr_abr;     /* ABRUBR Priority Byte 1, TCR Byte 0   */
+        freg_t  rm_type;        /*                                      */
+        u_int   filler5[0x17 - 0x06];
+        freg_t  cmd_reg;        /* Command register                     */
+        u_int   filler18[0x20 - 0x18];
+        freg_t  cbr_base;       /* CBR Pointer Base                     */
+        freg_t  vbr_base;       /* VBR Pointer Base                     */
+        freg_t  abr_base;       /* ABR Pointer Base                     */
+        freg_t  ubr_base;       /* UBR Pointer Base                     */
+        u_int   filler24;
+        freg_t  vbrwq_base;     /* VBR Wait Queue Base                  */
+        freg_t  abrwq_base;     /* ABR Wait Queue Base                  */
+        freg_t  ubrwq_base;     /* UBR Wait Queue Base                  */
+        freg_t  vct_base;       /* Main VC Table Base                   */
+        freg_t  vcte_base;      /* Extended Main VC Table Base          */
+        u_int   filler2a[0x2C - 0x2A];
+        freg_t  cbr_tab_beg;    /* CBR Table Begin                      */
+        freg_t  cbr_tab_end;    /* CBR Table End                        */
+        freg_t  cbr_pointer;    /* CBR Pointer                          */
+        u_int   filler2f[0x30 - 0x2F];
+        freg_t  prq_st_adr;     /* Packet Ready Queue Start Address     */
+        freg_t  prq_ed_adr;     /* Packet Ready Queue End Address       */
+        freg_t  prq_rd_ptr;     /* Packet Ready Queue read pointer      */
+        freg_t  prq_wr_ptr;     /* Packet Ready Queue write pointer     */
+        freg_t  tcq_st_adr;     /* Transmit Complete Queue Start Address*/
+        freg_t  tcq_ed_adr;     /* Transmit Complete Queue End Address  */
+        freg_t  tcq_rd_ptr;     /* Transmit Complete Queue read pointer */
+        freg_t  tcq_wr_ptr;     /* Transmit Complete Queue write pointer*/
+        u_int   filler38[0x40 - 0x38];
+        freg_t  queue_base;     /* Base address for PRQ and TCQ         */
+        freg_t  desc_base;      /* Base address of descriptor table     */
+        u_int   filler42[0x45 - 0x42];
+        freg_t  mode_reg_0;     /* Mode register 0                      */
+        freg_t  mode_reg_1;     /* Mode register 1                      */
+        freg_t  intr_status_reg;/* Interrupt Status register            */
+        freg_t  mask_reg;       /* Mask Register                        */
+        freg_t  cell_ctr_high1; /* Total cell transfer count (high)     */
+        freg_t  cell_ctr_lo1;   /* Total cell transfer count (low)      */
+        freg_t  state_reg;      /* Status register                      */
+        u_int   filler4c[0x58 - 0x4c];
+        freg_t  curr_desc_num;  /* Contains the current descriptor num  */
+        freg_t  next_desc;      /* Next descriptor                      */
+        freg_t  next_vc;        /* Next VC                              */
+        u_int   filler5b[0x5d - 0x5b];
+        freg_t  present_slot_cnt;/* Present slot count                  */
+        u_int   filler5e[0x6a - 0x5e];
+        freg_t  new_desc_num;   /* New descriptor number                */
+        freg_t  new_vc;         /* New VC                               */
+        freg_t  sched_tbl_ptr;  /* Schedule table pointer               */
+        freg_t  vbrwq_wptr;     /* VBR wait queue write pointer         */
+        freg_t  vbrwq_rptr;     /* VBR wait queue read pointer          */
+        freg_t  abrwq_wptr;     /* ABR wait queue write pointer         */
+        freg_t  abrwq_rptr;     /* ABR wait queue read pointer          */
+        freg_t  ubrwq_wptr;     /* UBR wait queue write pointer         */
+        freg_t  ubrwq_rptr;     /* UBR wait queue read pointer          */
+        freg_t  cbr_vc;         /* CBR VC                               */
+        freg_t  vbr_sb_vc;      /* VBR SB VC                            */
+        freg_t  abr_sb_vc;      /* ABR SB VC                            */
+        freg_t  ubr_sb_vc;      /* UBR SB VC                            */
+        freg_t  vbr_next_link;  /* VBR next link                        */
+        freg_t  abr_next_link;  /* ABR next link                        */
+        freg_t  ubr_next_link;  /* UBR next link                        */
+        u_int   filler7a[0x7c-0x7a];
+        freg_t  out_rate_head;  /* Out of rate head                     */
+        u_int   filler7d[0xca-0x7d]; /* pad out to full address space   */
+        freg_t  cell_ctr_high1_nc;/* Total cell transfer count (high)   */
+        freg_t  cell_ctr_lo1_nc;/* Total cell transfer count (low)      */
+        u_int   fillercc[0x100-0xcc]; /* pad out to full address space   */
 } ffredn_t;
 
 typedef struct _rfredn_t {

@@ -57,7 +57,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
 	struct gen_pool_chunk *chunk;
 	int nbits = size >> pool->min_alloc_order;
 	int nbytes = sizeof(struct gen_pool_chunk) +
-				BITS_TO_LONGS(nbits) * sizeof(long);
+				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
 
 	chunk = kmalloc_node(nbytes, GFP_KERNEL | __GFP_ZERO, nid);
 	if (unlikely(chunk == NULL))

@@ -1269,8 +1269,10 @@ static int pcmcia_bus_add(struct pcmcia_socket *skt)
 
 static int pcmcia_bus_early_resume(struct pcmcia_socket *skt)
 {
-	if (!verify_cis_cache(skt))
+	if (!verify_cis_cache(skt)) {
+		pcmcia_put_socket(skt);
 		return 0;
+	}
 
 	dev_dbg(&skt->dev, "cis mismatch - different card\n");
 

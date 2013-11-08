@@ -181,7 +181,7 @@ int nfs_mount(struct nfs_mount_request *info)
 	else
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC_MNT];
 
-	status = rpc_call_sync(mnt_clnt, &msg, RPC_TASK_SOFT|RPC_TASK_TIMEOUT);
+	status = rpc_call_sync(mnt_clnt, &msg, 0);
 	rpc_shutdown_client(mnt_clnt);
 
 	if (status < 0)

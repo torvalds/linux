@@ -31,9 +31,6 @@ MODULE_DESCRIPTION("AMD Family 15h CPU processor power monitor");
 MODULE_AUTHOR("Andreas Herrmann <andreas.herrmann3@amd.com>");
 MODULE_LICENSE("GPL");
 
-/* Family 16h Northbridge's function 4 PCI ID */
-#define PCI_DEVICE_ID_AMD_16H_NB_F4	0x1534
-
 /* D18F3 */
 #define REG_NORTHBRIDGE_CAP		0xe8
 
@@ -63,15 +60,15 @@ static ssize_t show_power(struct device *dev,
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_RUNNING_AVERAGE, &val);
 	running_avg_capture = (val >> 4) & 0x3fffff;
-	running_avg_capture = sign_extend32(running_avg_capture, 21);
-	running_avg_range = (val & 0xf) + 1;
+	running_avg_capture = sign_extend32(running_avg_capture, 22);
+	running_avg_range = val & 0xf;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_LIMIT3, &val);
 
 	tdp_limit = val >> 16;
-	curr_pwr_watts = (tdp_limit + data->base_tdp) << running_avg_range;
-	curr_pwr_watts -= running_avg_capture;
+	curr_pwr_watts = tdp_limit + data->base_tdp -
+		(s32)(running_avg_capture >> (running_avg_range + 1));
 	curr_pwr_watts *= data->tdp_to_watts;
 
 	/*
@@ -81,7 +78,7 @@ static ssize_t show_power(struct device *dev,
 	 * scaling factor 1/(2^16).  For conversion we use
 	 * (10^6)/(2^16) = 15625/(2^10)
 	 */
-	curr_pwr_watts = (curr_pwr_watts * 15625) >> (10 + running_avg_range);
+	curr_pwr_watts = (curr_pwr_watts * 15625) >> 10;
 	return sprintf(buf, "%u\n", (unsigned int) curr_pwr_watts);
 }
 static DEVICE_ATTR(power1_input, S_IRUGO, show_power, NULL);
@@ -125,51 +122,6 @@ static bool __devinit fam15h_power_is_internal_node0(struct pci_dev *f4)
 	return true;
 }
 
-/*
- * Newer BKDG versions have an updated recommendation on how to properly
- * initialize the running average range (was: 0xE, now: 0x9). This avoids
- * counter saturations resulting in bogus power readings.
- * We correct this value ourselves to cope with older BIOSes.
- */
-static const struct pci_device_id affected_device[] = {
-	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
-	{ 0 }
-};
-
-static void tweak_runavg_range(struct pci_dev *pdev)
-{
-	u32 val;
-
-	/*
-	 * let this quirk apply only to the current version of the
-	 * northbridge, since future versions may change the behavior
-	 */
-	if (!pci_match_id(affected_device, pdev))
-		return;
-
-	pci_bus_read_config_dword(pdev->bus,
-		PCI_DEVFN(PCI_SLOT(pdev->devfn), 5),
-		REG_TDP_RUNNING_AVERAGE, &val);
-	if ((val & 0xf) != 0xe)
-		return;
-
-	val &= ~0xf;
-	val |=  0x9;
-	pci_bus_write_config_dword(pdev->bus,
-		PCI_DEVFN(PCI_SLOT(pdev->devfn), 5),
-		REG_TDP_RUNNING_AVERAGE, val);
-}
-
-#ifdef CONFIG_PM
-static int fam15h_power_resume(struct pci_dev *pdev)
-{
-	tweak_runavg_range(pdev);
-	return 0;
-}
-#else
-#define fam15h_power_resume NULL
-#endif
-
 static void __devinit fam15h_power_init_data(struct pci_dev *f4,
 					     struct fam15h_power_data *data)
 {
@@ -202,13 +154,6 @@ static int __devinit fam15h_power_probe(struct pci_dev *pdev,
 	struct fam15h_power_data *data;
 	struct device *dev;
 	int err;
-
-	/*
-	 * though we ignore every other northbridge, we still have to
-	 * do the tweaking on _each_ node in MCM processors as the counters
-	 * are working hand-in-hand
-	 */
-	tweak_runavg_range(pdev);
 
 	if (!fam15h_power_is_internal_node0(pdev)) {
 		err = -ENODEV;
@@ -259,7 +204,6 @@ static void __devexit fam15h_power_remove(struct pci_dev *pdev)
 
 static DEFINE_PCI_DEVICE_TABLE(fam15h_power_id_table) = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
-	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, fam15h_power_id_table);
@@ -269,7 +213,6 @@ static struct pci_driver fam15h_power_driver = {
 	.id_table = fam15h_power_id_table,
 	.probe = fam15h_power_probe,
 	.remove = __devexit_p(fam15h_power_remove),
-	.resume = fam15h_power_resume,
 };
 
 static int __init fam15h_power_init(void)

@@ -480,36 +480,16 @@ int bnx2fc_send_session_destroy_req(struct bnx2fc_hba *hba,
 	return rc;
 }
 
-static bool is_valid_lport(struct bnx2fc_hba *hba, struct fc_lport *lport)
-{
-	struct bnx2fc_lport *blport;
-
-	spin_lock_bh(&hba->hba_lock);
-	list_for_each_entry(blport, &hba->vports, list) {
-		if (blport->lport == lport) {
-			spin_unlock_bh(&hba->hba_lock);
-			return true;
-		}
-	}
-	spin_unlock_bh(&hba->hba_lock);
-	return false;
-
-}
-
-
 static void bnx2fc_unsol_els_work(struct work_struct *work)
 {
 	struct bnx2fc_unsol_els *unsol_els;
 	struct fc_lport *lport;
-	struct bnx2fc_hba *hba;
 	struct fc_frame *fp;
 
 	unsol_els = container_of(work, struct bnx2fc_unsol_els, unsol_els_work);
 	lport = unsol_els->lport;
 	fp = unsol_els->fp;
-	hba = unsol_els->hba;
-	if (is_valid_lport(hba, lport))
-		fc_exch_recv(lport, fp);
+	fc_exch_recv(lport, fp);
 	kfree(unsol_els);
 }
 
@@ -519,7 +499,6 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 {
 	struct fcoe_port *port = tgt->port;
 	struct fc_lport *lport = port->lport;
-	struct bnx2fc_hba *hba = port->priv;
 	struct bnx2fc_unsol_els *unsol_els;
 	struct fc_frame_header *fh;
 	struct fc_frame *fp;
@@ -580,7 +559,6 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 		fr_eof(fp) = FC_EOF_T;
 		fr_crc(fp) = cpu_to_le32(~crc);
 		unsol_els->lport = lport;
-		unsol_els->hba = hba;
 		unsol_els->fp = fp;
 		INIT_WORK(&unsol_els->unsol_els_work, bnx2fc_unsol_els_work);
 		queue_work(bnx2fc_wq, &unsol_els->unsol_els_work);

@@ -869,7 +869,7 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		}
 
 		return netlink_dump_start(idiagnl, skb, nlh,
-					  inet_diag_dump, NULL, 0);
+					  inet_diag_dump, NULL);
 	}
 
 	return inet_diag_get_exact(skb, nlh);

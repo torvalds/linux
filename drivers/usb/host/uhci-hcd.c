@@ -446,10 +446,6 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 		return IRQ_NONE;
 	uhci_writew(uhci, status, USBSTS);		/* Clear it */
 
-	spin_lock(&uhci->lock);
-	if (unlikely(!uhci->is_initialized))	/* not yet configured */
-		goto done;
-
 	if (status & ~(USBSTS_USBINT | USBSTS_ERROR | USBSTS_RD)) {
 		if (status & USBSTS_HSE)
 			dev_err(uhci_dev(uhci), "host system error, "
@@ -458,6 +454,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 			dev_err(uhci_dev(uhci), "host controller process "
 					"error, something bad happened!\n");
 		if (status & USBSTS_HCH) {
+			spin_lock(&uhci->lock);
 			if (uhci->rh_state >= UHCI_RH_RUNNING) {
 				dev_err(uhci_dev(uhci),
 					"host controller halted, "
@@ -475,15 +472,15 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 				 * pending unlinks */
 				mod_timer(&hcd->rh_timer, jiffies);
 			}
+			spin_unlock(&uhci->lock);
 		}
 	}
 
-	if (status & USBSTS_RD) {
-		spin_unlock(&uhci->lock);
+	if (status & USBSTS_RD)
 		usb_hcd_poll_rh_status(hcd);
-	} else {
+	else {
+		spin_lock(&uhci->lock);
 		uhci_scan_schedule(uhci);
- done:
 		spin_unlock(&uhci->lock);
 	}
 
@@ -661,9 +658,9 @@ static int uhci_start(struct usb_hcd *hcd)
 	 */
 	mb();
 
-	spin_lock_irq(&uhci->lock);
 	configure_hc(uhci);
 	uhci->is_initialized = 1;
+	spin_lock_irq(&uhci->lock);
 	start_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return 0;

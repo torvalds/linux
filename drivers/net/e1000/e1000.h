@@ -150,8 +150,6 @@ struct e1000_buffer {
 	unsigned long time_stamp;
 	u16 length;
 	u16 next_to_watch;
-	unsigned int segs;
-	unsigned int bytecount;
 	u16 mapped_as_page;
 };
 

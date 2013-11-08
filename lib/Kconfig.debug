@@ -667,9 +667,8 @@ config DEBUG_LOCKING_API_SELFTESTS
 	  mutexes and rwsems.
 
 config STACKTRACE
-	bool "Stacktrace"
+	bool
 	depends on STACKTRACE_SUPPORT
-	default y
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"

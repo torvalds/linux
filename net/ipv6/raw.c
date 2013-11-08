@@ -106,20 +106,21 @@ found:
  *	0 - deliver
  *	1 - block
  */
-static int icmpv6_filter(const struct sock *sk, const struct sk_buff *skb)
+static __inline__ int icmpv6_filter(struct sock *sk, struct sk_buff *skb)
 {
-	struct icmp6hdr *_hdr;
-	const struct icmp6hdr *hdr;
+	struct icmp6hdr *icmph;
+	struct raw6_sock *rp = raw6_sk(sk);
 
-	hdr = skb_header_pointer(skb, skb_transport_offset(skb),
-				 sizeof(_hdr), &_hdr);
-	if (hdr) {
-		const __u32 *data = &raw6_sk(sk)->filter.data[0];
-		unsigned int type = hdr->icmp6_type;
+	if (pskb_may_pull(skb, sizeof(struct icmp6hdr))) {
+		__u32 *data = &rp->filter.data[0];
+		int bit_nr;
 
-		return (data[type >> 5] & (1U << (type & 31))) != 0;
+		icmph = (struct icmp6hdr *) skb->data;
+		bit_nr = icmph->icmp6_type;
+
+		return (data[bit_nr >> 5] & (1 << (bit_nr & 31))) != 0;
 	}
-	return 1;
+	return 0;
 }
 
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)

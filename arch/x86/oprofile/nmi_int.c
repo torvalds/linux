@@ -55,7 +55,7 @@ u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
 	val |= counter_config->extra;
 	event &= model->event_mask ? model->event_mask : 0xFF;
 	val |= event & 0xFF;
-	val |= (u64)(event & 0x0F00) << 24;
+	val |= (event & 0x0F00) << 24;
 
 	return val;
 }

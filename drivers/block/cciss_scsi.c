@@ -763,7 +763,16 @@ static void complete_scsi_command(CommandList_struct *c, int timeout,
 		{
 			case CMD_TARGET_STATUS:
 				/* Pass it up to the upper layers... */
-				if (!ei->ScsiStatus) {
+				if( ei->ScsiStatus)
+                		{
+#if 0
+                    			printk(KERN_WARNING "cciss: cmd %p "
+						"has SCSI Status = %x\n",
+						c, ei->ScsiStatus);
+#endif
+					cmd->result |= (ei->ScsiStatus << 1);
+                		}
+				else {  /* scsi status is zero??? How??? */
 					
 	/* Ordinarily, this case should never happen, but there is a bug
 	   in some released firmware revisions that allows it to happen
@@ -795,7 +804,6 @@ static void complete_scsi_command(CommandList_struct *c, int timeout,
 				}
 			break;
 			case CMD_PROTOCOL_ERR:
-				cmd->result = DID_ERROR << 16;
 				dev_warn(&h->pdev->dev,
 					"%p has protocol error\n", c);
                         break;
@@ -858,7 +866,6 @@ cciss_scsi_detect(ctlr_info_t *h)
 	sh->can_queue = cciss_tape_cmds;
 	sh->sg_tablesize = h->maxsgentries;
 	sh->max_cmd_len = MAX_COMMAND_SIZE;
-	sh->max_sectors = h->cciss_max_sectors;
 
 	((struct cciss_scsi_adapter_data_t *) 
 		h->scsi_ctlr)->scsi_host = sh;
@@ -1403,7 +1410,7 @@ static void cciss_scatter_gather(ctlr_info_t *h, CommandList_struct *c,
 	/* track how many SG entries we are using */
 	if (request_nsgs > h->maxSG)
 		h->maxSG = request_nsgs;
-	c->Header.SGTotal = (u16) request_nsgs + chained;
+	c->Header.SGTotal = (__u8) request_nsgs + chained;
 	if (request_nsgs > h->max_cmd_sgentries)
 		c->Header.SGList = h->max_cmd_sgentries;
 	else

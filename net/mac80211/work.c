@@ -553,7 +553,7 @@ ieee80211_offchannel_tx(struct ieee80211_work *wk)
 		/*
 		 * After this, offchan_tx.frame remains but now is no
 		 * longer a valid pointer -- we still need it as the
-		 * cookie for canceling this work/status matching.
+		 * cookie for canceling this work.
 		 */
 		ieee80211_tx_skb(wk->sdata, wk->offchan_tx.frame);
 
@@ -973,14 +973,16 @@ static void ieee80211_work_work(struct work_struct *work)
 			if (on_oper_chan != on_oper_chan2) {
 				if (on_oper_chan2) {
 					/* going off oper channel, PS too */
-					ieee80211_offchannel_stop_vifs(local);
+					ieee80211_offchannel_stop_vifs(local,
+								       true);
 					ieee80211_hw_config(local, 0);
 				} else {
 					/* going on channel, but leave PS
 					 * off-channel. */
 					ieee80211_hw_config(local, 0);
 					ieee80211_offchannel_return(local,
-								    true);
+								    true,
+								    false);
 				}
 			} else if (tmp_chan_changed)
 				/* Still off-channel, but on some other
@@ -1058,13 +1060,14 @@ static void ieee80211_work_work(struct work_struct *work)
 			continue;
 		if (wk->chan != local->tmp_channel)
 			continue;
-		if (!ieee80211_work_ct_coexists(wk->chan_type,
-						local->tmp_channel_type))
+		if (ieee80211_work_ct_coexists(wk->chan_type,
+					       local->tmp_channel_type))
 			continue;
 		remain_off_channel = true;
 	}
 
 	if (!remain_off_channel && local->tmp_channel) {
+		bool on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 		local->tmp_channel = NULL;
 		/* If tmp_channel wasn't operating channel, then
 		 * we need to go back on-channel.
@@ -1074,7 +1077,7 @@ static void ieee80211_work_work(struct work_struct *work)
 		 * we still need to do a hardware config.  Currently,
 		 * we cannot be here while scanning, however.
 		 */
-		if (!ieee80211_cfg_on_oper_channel(local))
+		if (ieee80211_cfg_on_oper_channel(local) && !on_oper_chan)
 			ieee80211_hw_config(local, 0);
 
 		/* At the least, we need to disable offchannel_ps,
@@ -1083,7 +1086,7 @@ static void ieee80211_work_work(struct work_struct *work)
 		 * beaconing if we were already on-oper-channel
 		 * as a future optimization.
 		 */
-		ieee80211_offchannel_return(local, true);
+		ieee80211_offchannel_return(local, true, true);
 
 		/* give connection some time to breathe */
 		run_again(local, jiffies + HZ/2);

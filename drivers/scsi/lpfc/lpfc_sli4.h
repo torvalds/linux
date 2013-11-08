@@ -81,8 +81,6 @@
 	 (fc_hdr)->fh_f_ctl[1] <<  8 | \
 	 (fc_hdr)->fh_f_ctl[2])
 
-#define LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT 12000
-
 enum lpfc_sli4_queue_type {
 	LPFC_EQ,
 	LPFC_GCQ,

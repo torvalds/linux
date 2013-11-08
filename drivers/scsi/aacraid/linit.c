@@ -38,7 +38,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -1108,9 +1107,6 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		insert = &aac->entry;
 		unique_id++;
 	}
-
-	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
-			       PCIE_LINK_STATE_CLKPM);
 
 	error = pci_enable_device(pdev);
 	if (error)

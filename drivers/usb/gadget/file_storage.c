@@ -2553,7 +2553,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		fsg->data_size_from_cmnd = 0;
 		sprintf(unknown, "Unknown x%02x", fsg->cmnd[0]);
 		if ((reply = check_command(fsg, fsg->cmnd_size,
-				DATA_DIR_UNKNOWN, ~0, 0, unknown)) == 0) {
+				DATA_DIR_UNKNOWN, 0xff, 0, unknown)) == 0) {
 			fsg->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
 		}

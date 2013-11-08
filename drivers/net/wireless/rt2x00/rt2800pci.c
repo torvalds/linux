@@ -426,6 +426,7 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state)
 {
+	int mask = (state == STATE_RADIO_IRQ_ON);
 	u32 reg;
 	unsigned long flags;
 
@@ -447,14 +448,25 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	}
 
 	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
-	reg = 0;
-	if (state == STATE_RADIO_IRQ_ON) {
-		rt2x00_set_field32(&reg, INT_MASK_CSR_RX_DONE, 1);
-		rt2x00_set_field32(&reg, INT_MASK_CSR_TBTT, 1);
-		rt2x00_set_field32(&reg, INT_MASK_CSR_PRE_TBTT, 1);
-		rt2x00_set_field32(&reg, INT_MASK_CSR_TX_FIFO_STATUS, 1);
-		rt2x00_set_field32(&reg, INT_MASK_CSR_AUTO_WAKEUP, 1);
-	}
+	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RXDELAYINT, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_TXDELAYINT, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RX_DONE, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC0_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC1_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC2_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AC3_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_HCCA_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_MGMT_DMA_DONE, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_MCU_COMMAND, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RXTX_COHERENT, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_TBTT, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_PRE_TBTT, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_TX_FIFO_STATUS, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_AUTO_WAKEUP, mask);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_GPTIMER, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_RX_COHERENT, 0);
+	rt2x00_set_field32(&reg, INT_MASK_CSR_TX_COHERENT, 0);
 	rt2x00pci_register_write(rt2x00dev, INT_MASK_CSR, reg);
 	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
 
@@ -941,7 +953,6 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
-	u32 reg;
 
 	/*
 	 * Allocate eeprom data.
@@ -953,14 +964,6 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	retval = rt2800_init_eeprom(rt2x00dev);
 	if (retval)
 		return retval;
-
-	/*
-	 * Enable rfkill polling by setting GPIO direction of the
-	 * rfkill switch GPIO pin correctly.
-	 */
-	rt2x00pci_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT2, 1);
-	rt2x00pci_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
 
 	/*
 	 * Initialize hw specifications.
@@ -1155,7 +1158,6 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
 	{ PCI_DEVICE(0x1814, 0x5390) },
-	{ PCI_DEVICE(0x1814, 0x539f) },
 #endif
 	{ 0, }
 };

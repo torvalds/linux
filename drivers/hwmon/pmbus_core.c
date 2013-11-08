@@ -50,8 +50,7 @@
 						   lcrit_alarm, crit_alarm */
 #define PMBUS_IOUT_BOOLEANS_PER_PAGE	3	/* alarm, lcrit_alarm,
 						   crit_alarm */
-#define PMBUS_POUT_BOOLEANS_PER_PAGE	3	/* cap_alarm, alarm, crit_alarm
-						 */
+#define PMBUS_POUT_BOOLEANS_PER_PAGE	2	/* alarm, crit_alarm */
 #define PMBUS_MAX_BOOLEANS_PER_FAN	2	/* alarm, fault */
 #define PMBUS_MAX_BOOLEANS_PER_TEMP	4	/* min_alarm, max_alarm,
 						   lcrit_alarm, crit_alarm */

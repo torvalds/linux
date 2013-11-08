@@ -1104,17 +1104,9 @@ int uvc_video_suspend(struct uvc_streaming *stream)
  * buffers, making sure userspace applications are notified of the problem
  * instead of waiting forever.
  */
-int uvc_video_resume(struct uvc_streaming *stream, int reset)
+int uvc_video_resume(struct uvc_streaming *stream)
 {
 	int ret;
-
-	/* If the bus has been reset on resume, set the alternate setting to 0.
-	 * This should be the default value, but some devices crash or otherwise
-	 * misbehave if they don't receive a SET_INTERFACE request before any
-	 * other video control request.
-	 */
-	if (reset)
-		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 
 	stream->frozen = 0;
 

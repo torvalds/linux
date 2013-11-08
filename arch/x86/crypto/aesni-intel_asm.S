@@ -2460,12 +2460,10 @@ ENTRY(aesni_cbc_dec)
 	pxor IN3, STATE4
 	movaps IN4, IV
 #else
+	pxor (INP), STATE2
+	pxor 0x10(INP), STATE3
 	pxor IN1, STATE4
 	movaps IN2, IV
-	movups (INP), IN1
-	pxor IN1, STATE2
-	movups 0x10(INP), IN2
-	pxor IN2, STATE3
 #endif
 	movups STATE1, (OUTP)
 	movups STATE2, 0x10(OUTP)

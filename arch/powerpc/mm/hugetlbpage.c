@@ -390,7 +390,7 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
 {
 	unsigned long mask;
 	unsigned long pte_end;
-	struct page *head, *page, *tail;
+	struct page *head, *page;
 	pte_t pte;
 	int refs;
 
@@ -413,7 +413,6 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
 	head = pte_page(pte);
 
 	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
-	tail = page;
 	do {
 		VM_BUG_ON(compound_head(page) != head);
 		pages[*nr] = page;
@@ -429,20 +428,10 @@ static noinline int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long add
 
 	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
 		/* Could be optimized better */
-		*nr -= refs;
-		while (refs--)
-			put_page(head);
-		return 0;
-	}
-
-	/*
-	 * Any tail page need their mapcount reference taken before we
-	 * return.
-	 */
-	while (refs--) {
-		if (PageTail(tail))
-			get_huge_page_tail(tail);
-		tail++;
+		while (*nr) {
+			put_page(page);
+			(*nr)--;
+		}
 	}
 
 	return 1;

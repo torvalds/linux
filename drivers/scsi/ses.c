@@ -160,10 +160,6 @@ static unsigned char *ses_get_page2_descriptor(struct enclosure_device *edev,
 	return NULL;
 }
 
-/* For device slot and array device slot elements, byte 3 bit 6
- * is "fault sensed" while byte 3 bit 5 is "fault reqstd". As this
- * code stands these bits are shifted 4 positions right so in
- * sysfs they will appear as bits 2 and 1 respectively. Strange. */
 static void ses_get_fault(struct enclosure_device *edev,
 			  struct enclosure_component *ecomp)
 {
@@ -185,7 +181,7 @@ static int ses_set_fault(struct enclosure_device *edev,
 		/* zero is disabled */
 		break;
 	case ENCLOSURE_SETTING_ENABLED:
-		desc[3] = 0x20;
+		desc[2] = 0x02;
 		break;
 	default:
 		/* SES doesn't do the SGPIO blink settings */

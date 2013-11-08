@@ -762,14 +762,13 @@ void r600_hpd_init(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	struct drm_connector *connector;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	if (ASIC_IS_DCE3(rdev)) {
+		u32 tmp = DC_HPDx_CONNECTION_TIMER(0x9c4) | DC_HPDx_RX_INT_TIMER(0xfa);
+		if (ASIC_IS_DCE32(rdev))
+			tmp |= DC_HPDx_EN;
 
-		if (ASIC_IS_DCE3(rdev)) {
-			u32 tmp = DC_HPDx_CONNECTION_TIMER(0x9c4) | DC_HPDx_RX_INT_TIMER(0xfa);
-			if (ASIC_IS_DCE32(rdev))
-				tmp |= DC_HPDx_EN;
-
+		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 			switch (radeon_connector->hpd.hpd) {
 			case RADEON_HPD_1:
 				WREG32(DC_HPD1_CONTROL, tmp);
@@ -799,7 +798,10 @@ void r600_hpd_init(struct radeon_device *rdev)
 			default:
 				break;
 			}
-		} else {
+		}
+	} else {
+		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 			switch (radeon_connector->hpd.hpd) {
 			case RADEON_HPD_1:
 				WREG32(DC_HOT_PLUG_DETECT1_CONTROL, DC_HOT_PLUG_DETECTx_EN);
@@ -817,7 +819,6 @@ void r600_hpd_init(struct radeon_device *rdev)
 				break;
 			}
 		}
-		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 	}
 	if (rdev->irq.installed)
 		r600_irq_set(rdev);
@@ -2207,8 +2208,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
 	WREG32(CP_RB_RPTR_WR, 0);
-	rdev->cp.wptr = 0;
-	WREG32(CP_RB_WPTR, rdev->cp.wptr);
+	WREG32(CP_RB_WPTR, 0);
 
 	/* set the wb address whether it's enabled or not */
 	WREG32(CP_RB_RPTR_ADDR,
@@ -2233,6 +2233,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
 
 	rdev->cp.rptr = RREG32(CP_RB_RPTR);
+	rdev->cp.wptr = RREG32(CP_RB_WPTR);
 
 	r600_cp_start(rdev);
 	rdev->cp.ready = true;
@@ -2354,23 +2355,21 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
-		   uint64_t src_offset,
-		   uint64_t dst_offset,
-		   unsigned num_gpu_pages,
-		   struct radeon_fence *fence)
+		   uint64_t src_offset, uint64_t dst_offset,
+		   unsigned num_pages, struct radeon_fence *fence)
 {
 	int r;
 
 	mutex_lock(&rdev->r600_blit.mutex);
 	rdev->r600_blit.vb_ib = NULL;
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages * RADEON_GPU_PAGE_SIZE);
+	r = r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
 	if (r) {
 		if (rdev->r600_blit.vb_ib)
 			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages * RADEON_GPU_PAGE_SIZE);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
 	r600_blit_done_copy(rdev, fence);
 	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;

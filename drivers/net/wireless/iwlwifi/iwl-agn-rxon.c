@@ -411,24 +411,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	return 0;
 }
 
-void iwlagn_config_ht40(struct ieee80211_conf *conf,
-	struct iwl_rxon_context *ctx)
-{
-	if (conf_is_ht40_minus(conf)) {
-		ctx->ht.extension_chan_offset =
-			IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-		ctx->ht.is_40mhz = true;
-	} else if (conf_is_ht40_plus(conf)) {
-		ctx->ht.extension_chan_offset =
-			IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-		ctx->ht.is_40mhz = true;
-	} else {
-		ctx->ht.extension_chan_offset =
-			IEEE80211_HT_PARAM_CHA_SEC_NONE;
-		ctx->ht.is_40mhz = false;
-	}
-}
-
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -441,9 +423,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	IWL_DEBUG_MAC80211(priv, "changed %#x", changed);
 
 	mutex_lock(&priv->mutex);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		goto out;
 
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
@@ -491,11 +470,19 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 				ctx->ht.enabled = conf_is_ht(conf);
 
 			if (ctx->ht.enabled) {
-				/* if HT40 is used, it should not change
-				 * after associated except channel switch */
-				if (!ctx->ht.is_40mhz ||
-						!iwl_is_associated_ctx(ctx))
-					iwlagn_config_ht40(conf, ctx);
+				if (conf_is_ht40_minus(conf)) {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+					ctx->ht.is_40mhz = true;
+				} else if (conf_is_ht40_plus(conf)) {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+					ctx->ht.is_40mhz = true;
+				} else {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_NONE;
+					ctx->ht.is_40mhz = false;
+				}
 			} else
 				ctx->ht.is_40mhz = false;
 

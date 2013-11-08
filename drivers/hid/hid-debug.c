@@ -450,11 +450,6 @@ void hid_dump_field(struct hid_field *field, int n, struct seq_file *f) {
 		seq_printf(f, "Logical(");
 		hid_resolv_usage(field->logical, f); seq_printf(f, ")\n");
 	}
-	if (field->application) {
-		tab(n, f);
-		seq_printf(f, "Application(");
-		hid_resolv_usage(field->application, f); seq_printf(f, ")\n");
-	}
 	tab(n, f); seq_printf(f, "Usage(%d)\n", field->maxusage);
 	for (j = 0; j < field->maxusage; j++) {
 		tab(n+2, f); hid_resolv_usage(field->usage[j].hid, f); seq_printf(f, "\n");

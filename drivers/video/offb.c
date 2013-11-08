@@ -100,31 +100,35 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			  u_int transp, struct fb_info *info)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
+	int i, depth;
+	u32 *pal = info->pseudo_palette;
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
-		u32 *pal = info->pseudo_palette;
-		u32 cr = red >> (16 - info->var.red.length);
-		u32 cg = green >> (16 - info->var.green.length);
-		u32 cb = blue >> (16 - info->var.blue.length);
-		u32 value;
+	depth = info->var.bits_per_pixel;
+	if (depth == 16)
+		depth = (info->var.green.length == 5) ? 15 : 16;
 
-		if (regno >= 16)
-			return -EINVAL;
+	if (regno > 255 ||
+	    (depth == 16 && regno > 63) ||
+	    (depth == 15 && regno > 31))
+		return 1;
 
-		value = (cr << info->var.red.offset) |
-			(cg << info->var.green.offset) |
-			(cb << info->var.blue.offset);
-		if (info->var.transp.length > 0) {
-			u32 mask = (1 << info->var.transp.length) - 1;
-			mask <<= info->var.transp.offset;
-			value |= mask;
+	if (regno < 16) {
+		switch (depth) {
+		case 15:
+			pal[regno] = (regno << 10) | (regno << 5) | regno;
+			break;
+		case 16:
+			pal[regno] = (regno << 11) | (regno << 5) | regno;
+			break;
+		case 24:
+			pal[regno] = (regno << 16) | (regno << 8) | regno;
+			break;
+		case 32:
+			i = (regno << 8) | regno;
+			pal[regno] = (i << 16) | i;
+			break;
 		}
-		pal[regno] = value;
-		return 0;
 	}
-
-	if (regno > 255)
-		return -EINVAL;
 
 	red >>= 8;
 	green >>= 8;
@@ -377,7 +381,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 				int pitch, unsigned long address,
 				int foreign_endian, struct device_node *dp)
 {
-	unsigned long res_size = pitch * height;
+	unsigned long res_size = pitch * height * (depth + 7) / 8;
 	struct offb_par *par = &default_par;
 	unsigned long res_start = address;
 	struct fb_fix_screeninfo *fix;

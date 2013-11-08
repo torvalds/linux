@@ -39,13 +39,6 @@ system: Time spent by tasks of the cgroup in kernel mode.
 
 user and system are in USER_HZ unit.
 
-cpuacct.cpufreq file gives CPU time (in nanoseconds) spent at each CPU
-frequency. Platform hooks must be implemented inorder to properly track
-time at each CPU frequency.
-
-cpuacct.power file gives CPU power consumed (in milliWatt seconds). Platform
-must provide and implement power callback functions.
-
 cpuacct controller uses percpu_counter interface to collect user and
 system times. This has two side effects:
 

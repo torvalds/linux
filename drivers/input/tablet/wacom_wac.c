@@ -242,7 +242,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
 		input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
 		if (wacom->tool[0] != BTN_TOOL_MOUSE) {
-			input_report_abs(input, ABS_PRESSURE, data[6] | ((data[7] & 0x03) << 8));
+			input_report_abs(input, ABS_PRESSURE, data[6] | ((data[7] & 0x01) << 8));
 			input_report_key(input, BTN_TOUCH, data[1] & 0x01);
 			input_report_key(input, BTN_STYLUS, data[1] & 0x02);
 			input_report_key(input, BTN_STYLUS2, data[1] & 0x04);

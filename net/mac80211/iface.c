@@ -498,18 +498,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_configure_filter(local);
 		break;
 	default:
-		mutex_lock(&local->mtx);
-		if (local->hw_roc_dev == sdata->dev &&
-		    local->hw_roc_channel) {
-			/* ignore return value since this is racy */
-			drv_cancel_remain_on_channel(local);
-			ieee80211_queue_work(&local->hw, &local->hw_roc_done);
-		}
-		mutex_unlock(&local->mtx);
-
-		flush_work(&local->hw_roc_start);
-		flush_work(&local->hw_roc_done);
-
 		flush_work(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
@@ -711,7 +699,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
 	dev->destructor = free_netdev;
 }

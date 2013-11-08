@@ -126,7 +126,7 @@ static void linkwatch_schedule_work(int urgent)
 		return;
 
 	/* It's already running which is good enough. */
-	if (!__cancel_delayed_work(&linkwatch_work))
+	if (!cancel_delayed_work(&linkwatch_work))
 		return;
 
 	/* Otherwise we reschedule it again for immediate execution. */

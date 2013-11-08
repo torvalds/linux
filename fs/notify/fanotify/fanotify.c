@@ -21,7 +21,6 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 			if ((old->path.mnt == new->path.mnt) &&
 			    (old->path.dentry == new->path.dentry))
 				return true;
-			break;
 		case (FSNOTIFY_EVENT_NONE):
 			return true;
 		default:

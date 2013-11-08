@@ -146,8 +146,6 @@ static inline void pxa_ac97_warm_pxa27x(void)
 
 static inline void pxa_ac97_cold_pxa27x(void)
 {
-	unsigned int timeout;
-
 	GCR &=  GCR_COLD_RST;  /* clear everything but nCRST */
 	GCR &= ~GCR_COLD_RST;  /* then assert nCRST */
 
@@ -157,10 +155,8 @@ static inline void pxa_ac97_cold_pxa27x(void)
 	clk_enable(ac97conf_clk);
 	udelay(5);
 	clk_disable(ac97conf_clk);
-	GCR = GCR_COLD_RST | GCR_WARM_RST;
-	timeout = 100;     /* wait for the codec-ready bit to be set */
-	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
-		mdelay(1);
+	GCR = GCR_COLD_RST;
+	udelay(50);
 }
 #endif
 

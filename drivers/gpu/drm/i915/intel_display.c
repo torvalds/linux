@@ -2340,7 +2340,6 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
-	temp |= FDI_COMPOSITE_SYNC;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
 
 	reg = FDI_RX_CTL(pipe);
@@ -2348,7 +2347,6 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	temp &= ~FDI_LINK_TRAIN_AUTO;
 	temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 	temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
-	temp |= FDI_COMPOSITE_SYNC;
 	I915_WRITE(reg, temp | FDI_RX_ENABLE);
 
 	POSTING_READ(reg);
@@ -2696,26 +2694,18 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
 		 */
-		if (IS_IVYBRIDGE(dev))
-			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
-						 PF_PIPE_SEL_IVB(pipe));
-		else
-			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
 		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
 		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
 	}
-
-	/*
-	 * On ILK+ LUT must be loaded before the pipe is running but with
-	 * clocks enabled
-	 */
-	intel_crtc_load_lut(crtc);
 
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
 
 	if (is_pch_port)
 		ironlake_pch_enable(crtc);
+
+	intel_crtc_load_lut(crtc);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
@@ -4976,7 +4966,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	} else if (is_sdvo && is_tv)
 		factor = 20;
 
-	if (clock.m < factor * clock.n)
+	if (clock.m1 < factor * clock.n)
 		fp |= FP_CB_TUNE;
 
 	dpll = 0;
@@ -5269,7 +5259,7 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	int i;
 
 	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled || !intel_crtc->active)
+	if (!crtc->enabled)
 		return;
 
 	/* use legacy palette for Ironlake */
@@ -5340,31 +5330,6 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	I915_WRITE(CURBASE(pipe), base);
 }
 
-static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	bool visible = base != 0;
-
-	if (intel_crtc->cursor_visible != visible) {
-		uint32_t cntl = I915_READ(CURCNTR_IVB(pipe));
-		if (base) {
-			cntl &= ~CURSOR_MODE;
-			cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-		} else {
-			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			cntl |= CURSOR_MODE_DISABLE;
-		}
-		I915_WRITE(CURCNTR_IVB(pipe), cntl);
-
-		intel_crtc->cursor_visible = visible;
-	}
-	/* and commit changes on next vblank */
-	I915_WRITE(CURBASE_IVB(pipe), base);
-}
-
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
 static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 				     bool on)
@@ -5412,16 +5377,11 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	if (IS_IVYBRIDGE(dev)) {
-		I915_WRITE(CURPOS_IVB(pipe), pos);
-		ivb_update_cursor(crtc, base);
-	} else {
-		I915_WRITE(CURPOS(pipe), pos);
-		if (IS_845G(dev) || IS_I865G(dev))
-			i845_update_cursor(crtc, base);
-		else
-			i9xx_update_cursor(crtc, base);
-	}
+	I915_WRITE(CURPOS(pipe), pos);
+	if (IS_845G(dev) || IS_I865G(dev))
+		i845_update_cursor(crtc, base);
+	else
+		i9xx_update_cursor(crtc, base);
 
 	if (visible)
 		intel_mark_busy(dev, to_intel_framebuffer(crtc->fb)->obj);
@@ -6583,13 +6543,6 @@ static void intel_sanitize_modesetting(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg, val;
-	int i;
-
-	/* Clear any frame start delays used for debugging left by the BIOS */
-	for_each_pipe(i) {
-		reg = PIPECONF(i);
-		I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
-	}
 
 	if (HAS_PCH_SPLIT(dev))
 		return;
@@ -7412,27 +7365,9 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   I915_READ(ILK_DISPLAY_CHICKEN2) |
 		   ILK_ELPIN_409_SELECT);
 
-	/* WaDisableHiZPlanesWhenMSAAEnabled */
-	I915_WRITE(_3D_CHICKEN,
-		   _MASKED_BIT_ENABLE(_3D_CHICKEN_HIZ_PLANE_DISABLE_MSAA_4X_SNB));
-
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
-
-	/* According to the BSpec vol1g, bit 12 (RCPBUNIT) clock
-	 * gating disable must be set.  Failure to set it results in
-	 * flickering pixels due to Z write ordering failures after
-	 * some amount of runtime in the Mesa "fire" demo, and Unigine
-	 * Sanctuary and Tropics, and apparently anything else with
-	 * alpha test or pixel discard.
-	 *
-	 * According to the spec, bit 11 (RCCUNIT) must also be set,
-	 * but we didn't debug actual testcases to find it out.
-	 */
-	I915_WRITE(GEN6_UCGCTL2,
-		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
-		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
 	/*
 	 * According to the spec the following bits should be
@@ -7460,18 +7395,6 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 			   DISPPLANE_TRICKLE_FEED_DISABLE);
 }
 
-static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
-{
-	uint32_t reg = I915_READ(GEN7_FF_THREAD_MODE);
-
-	reg &= ~GEN7_FF_SCHED_MASK;
-	reg |= GEN7_FF_TS_SCHED_HW;
-	reg |= GEN7_FF_VS_SCHED_HW;
-	reg |= GEN7_FF_DS_SCHED_HW;
-
-	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
-}
-
 static void ivybridge_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7484,27 +7407,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	/* According to the spec, bit 13 (RCZUNIT) must be set on IVB.
-	 * This implements the WaDisableRCZUnitClockGating workaround.
-	 */
-	I915_WRITE(GEN6_UCGCTL2, GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
-
 	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
-
-	/* Apply the WaDisableRHWOOptimizationForRenderHang workaround. */
-	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
-		   GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC);
-
-	/* WaApplyL3ControlAndL3ChickenMode requires those two on Ivy Bridge */
-	I915_WRITE(GEN7_L3CNTLREG1,
-			GEN7_WA_FOR_GEN7_L3_CONTROL);
-	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER,
-			GEN7_WA_L3_CHICKEN_MODE);
-
-	/* This is required by WaCatErrorRejectionIssue */
-	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
-			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
-			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
 
 	for_each_pipe(pipe)
 		I915_WRITE(DSPCNTR(pipe),
@@ -7592,7 +7495,6 @@ static void ibx_init_clock_gating(struct drm_device *dev)
 static void cpt_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	/*
 	 * On Ibex Peak and Cougar Point, we need to disable clock
@@ -7602,9 +7504,6 @@ static void cpt_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
 		   DPLS_EDP_PPS_FIX_DIS);
-	/* Without this, mode sets may fail silently on FDI */
-	for_each_pipe(pipe)
-		I915_WRITE(TRANS_CHICKEN2(pipe), TRANS_AUTOTRAIN_GEN_STALL_DIS);
 }
 
 static void ironlake_teardown_rc6(struct drm_device *dev)
@@ -7622,8 +7521,6 @@ static void ironlake_teardown_rc6(struct drm_device *dev)
 		drm_gem_object_unreference(&dev_priv->pwrctx->base);
 		dev_priv->pwrctx = NULL;
 	}
-
-	gen7_setup_fixed_func_scheduler(dev_priv);
 }
 
 static void ironlake_disable_rc6(struct drm_device *dev)
@@ -8042,7 +7939,7 @@ void intel_modeset_init(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev) || IS_GEN7(dev))
+	if (IS_GEN6(dev))
 		gen6_enable_rps(dev_priv);
 
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
@@ -8084,7 +7981,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
-	if (IS_GEN6(dev) || IS_GEN7(dev))
+	if (IS_GEN6(dev))
 		gen6_disable_rps(dev);
 
 	if (IS_IRONLAKE_M(dev))

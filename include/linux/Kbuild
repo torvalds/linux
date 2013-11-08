@@ -366,7 +366,6 @@ header-y += tty.h
 header-y += types.h
 header-y += udf_fs_i.h
 header-y += udp.h
-header-y += uhid.h
 header-y += uinput.h
 header-y += uio.h
 header-y += ultrasound.h

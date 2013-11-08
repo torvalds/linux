@@ -502,6 +502,9 @@ static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 		ath9k_hw_ani_control(ah, ATH9K_ANI_CCK_WEAK_SIGNAL_THR,
 				     ATH9K_ANI_CCK_WEAK_SIG_THR);
 
+		ath9k_hw_setrxfilter(ah, ath9k_hw_getrxfilter(ah) |
+				     ATH9K_RX_FILTER_PHYERR);
+
 		ath9k_ani_restart(ah);
 		return;
 	}
@@ -522,6 +525,8 @@ static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 		ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 				     aniState->firstepLevel);
 
+	ath9k_hw_setrxfilter(ah, ath9k_hw_getrxfilter(ah) &
+			     ~ATH9K_RX_FILTER_PHYERR);
 	ath9k_ani_restart(ah);
 
 	ENABLE_REGWRITE_BUFFER(ah);

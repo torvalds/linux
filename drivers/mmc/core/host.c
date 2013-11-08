@@ -119,14 +119,14 @@ static void mmc_host_clk_gate_work(struct work_struct *work)
 }
 
 /**
- *	mmc_host_clk_hold - ungate hardware MCI clocks
+ *	mmc_host_clk_ungate - ungate hardware MCI clocks
  *	@host: host to ungate.
  *
  *	Makes sure the host ios.clock is restored to a non-zero value
  *	past this call.	Increase clock reference count and ungate clock
  *	if we're the first user.
  */
-void mmc_host_clk_hold(struct mmc_host *host)
+void mmc_host_clk_ungate(struct mmc_host *host)
 {
 	unsigned long flags;
 
@@ -164,14 +164,14 @@ static bool mmc_host_may_gate_card(struct mmc_card *card)
 }
 
 /**
- *	mmc_host_clk_release - gate off hardware MCI clocks
+ *	mmc_host_clk_gate - gate off hardware MCI clocks
  *	@host: host to gate.
  *
  *	Calls the host driver with ios.clock set to zero as often as possible
  *	in order to gate off hardware MCI clocks. Decrease clock reference
  *	count and schedule disabling of clock.
  */
-void mmc_host_clk_release(struct mmc_host *host)
+void mmc_host_clk_gate(struct mmc_host *host)
 {
 	unsigned long flags;
 
@@ -179,7 +179,7 @@ void mmc_host_clk_release(struct mmc_host *host)
 	host->clk_requests--;
 	if (mmc_host_may_gate_card(host->card) &&
 	    !host->clk_requests)
-		queue_work(system_nrt_wq, &host->clk_gate_work);
+		schedule_work(&host->clk_gate_work);
 	spin_unlock_irqrestore(&host->clk_lock, flags);
 }
 
@@ -231,7 +231,7 @@ static inline void mmc_host_clk_exit(struct mmc_host *host)
 	if (cancel_work_sync(&host->clk_gate_work))
 		mmc_host_clk_gate_delayed(host);
 	if (host->clk_gated)
-		mmc_host_clk_hold(host);
+		mmc_host_clk_ungate(host);
 	/* There should be only one user now */
 	WARN_ON(host->clk_requests > 1);
 }
@@ -284,8 +284,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
-	wake_lock_init(&host->detect_wake_lock, WAKE_LOCK_SUSPEND,
-		kasprintf(GFP_KERNEL, "%s_detect", mmc_hostname(host)));
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 	INIT_DELAYED_WORK_DEFERRABLE(&host->disable, mmc_host_deeper_disable);
 #ifdef CONFIG_PM
@@ -338,8 +336,7 @@ int mmc_add_host(struct mmc_host *host)
 #endif
 
 	mmc_start_host(host);
-	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
-		register_pm_notifier(&host->pm_notify);
+	register_pm_notifier(&host->pm_notify);
 
 	return 0;
 }
@@ -356,9 +353,7 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
-	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
-		unregister_pm_notifier(&host->pm_notify);
-
+	unregister_pm_notifier(&host->pm_notify);
 	mmc_stop_host(host);
 
 #ifdef CONFIG_DEBUG_FS
@@ -385,7 +380,6 @@ void mmc_free_host(struct mmc_host *host)
 	spin_lock(&mmc_host_lock);
 	idr_remove(&mmc_host_idr, host->index);
 	spin_unlock(&mmc_host_lock);
-	wake_lock_destroy(&host->detect_wake_lock);
 
 	put_device(&host->class_dev);
 }

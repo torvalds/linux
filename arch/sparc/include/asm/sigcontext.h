@@ -45,19 +45,6 @@ typedef struct {
 	int			si_mask;
 } __siginfo32_t;
 
-#define __SIGC_MAXWIN	7
-
-typedef struct {
-	unsigned long locals[8];
-	unsigned long ins[8];
-} __siginfo_reg_window;
-
-typedef struct {
-	int			wsaved;
-	__siginfo_reg_window	reg_window[__SIGC_MAXWIN];
-	unsigned long		rwbuf_stkptrs[__SIGC_MAXWIN];
-} __siginfo_rwin_t;
-
 #ifdef CONFIG_SPARC64
 typedef struct {
 	unsigned   int si_float_regs [64];
@@ -86,7 +73,6 @@ struct sigcontext {
 		unsigned long	ss_size;
 	}			sigc_stack;
 	unsigned long		sigc_mask;
-	__siginfo_rwin_t *	sigc_rwin_save;
 };
 
 #else

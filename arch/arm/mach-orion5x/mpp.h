@@ -65,8 +65,8 @@
 #define MPP8_GIGE               MPP(8,  0x1, 0, 0, 1,   1,   1)
 
 #define MPP9_UNUSED		MPP(9,  0x0, 0, 0, 1,   1,   1)
-#define MPP9_GPIO		MPP(9,  0x0, 1, 1, 1,   1,   1)
-#define MPP9_GIGE               MPP(9,  0x1, 0, 0, 1,   1,   1)
+#define MPP9_GPIO		MPP(9,  0x0, 0, 0, 1,   1,   1)
+#define MPP9_GIGE               MPP(9,  0x1, 1, 1, 1,   1,   1)
 
 #define MPP10_UNUSED		MPP(10, 0x0, 0, 0, 1,   1,   1)
 #define MPP10_GPIO		MPP(10, 0x0, 1, 1, 1,   1,   1)

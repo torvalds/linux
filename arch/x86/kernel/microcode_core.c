@@ -297,31 +297,20 @@ static ssize_t reload_store(struct sys_device *dev,
 			    const char *buf, size_t size)
 {
 	unsigned long val;
-	int cpu;
-	ssize_t ret = 0, tmp_ret;
+	int cpu = dev->id;
+	int ret = 0;
+	char *end;
 
-	/* allow reload only from the BSP */
-	if (boot_cpu_data.cpu_index != dev->id)
+	val = simple_strtoul(buf, &end, 0);
+	if (end == buf)
 		return -EINVAL;
 
-	ret = kstrtoul(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	if (val != 1)
-		return size;
-
-	get_online_cpus();
-	for_each_online_cpu(cpu) {
-		tmp_ret = reload_for_cpu(cpu);
-		if (tmp_ret != 0)
-			pr_warn("Error reloading microcode on CPU %d\n", cpu);
-
-		/* save retval of the first encountered reload error */
-		if (!ret)
-			ret = tmp_ret;
+	if (val == 1) {
+		get_online_cpus();
+		if (cpu_online(cpu))
+			ret = reload_for_cpu(cpu);
+		put_online_cpus();
 	}
-	put_online_cpus();
 
 	if (!ret)
 		ret = size;

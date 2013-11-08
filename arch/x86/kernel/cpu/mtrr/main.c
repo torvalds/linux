@@ -248,25 +248,6 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 	unsigned long flags;
 	int cpu;
 
-#ifdef CONFIG_SMP
-	/*
-	 * If this cpu is not yet active, we are in the cpu online path. There
-	 * can be no stop_machine() in parallel, as stop machine ensures this
-	 * by using get_online_cpus(). We can skip taking the stop_cpus_mutex,
-	 * as we don't need it and also we can't afford to block while waiting
-	 * for the mutex.
-	 *
-	 * If this cpu is active, we need to prevent stop_machine() happening
-	 * in parallel by taking the stop cpus mutex.
-	 *
-	 * Also, this is called in the context of cpu online path or in the
-	 * context where cpu hotplug is prevented. So checking the active status
-	 * of the raw_smp_processor_id() is safe.
-	 */
-	if (cpu_active(raw_smp_processor_id()))
-		mutex_lock(&stop_cpus_mutex);
-#endif
-
 	preempt_disable();
 
 	data.smp_reg = reg;
@@ -349,10 +330,6 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 
 	local_irq_restore(flags);
 	preempt_enable();
-#ifdef CONFIG_SMP
-	if (cpu_active(raw_smp_processor_id()))
-		mutex_unlock(&stop_cpus_mutex);
-#endif
 }
 
 /**

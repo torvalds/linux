@@ -22,7 +22,6 @@
  *
  * Authors: Dave Airlie
  *          Alex Deucher
- *          Jerome Glisse
  */
 #include "drmP.h"
 #include "radeon_drm.h"
@@ -116,7 +115,6 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 	u8 msg[20];
 	int msg_bytes = send_bytes + 4;
 	u8 ack;
-	unsigned retry;
 
 	if (send_bytes > 16)
 		return -1;
@@ -127,22 +125,20 @@ static int radeon_dp_aux_native_write(struct radeon_connector *radeon_connector,
 	msg[3] = (msg_bytes << 4) | (send_bytes - 1);
 	memcpy(&msg[4], send, send_bytes);
 
-	for (retry = 0; retry < 4; retry++) {
+	while (1) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, NULL, 0, delay, &ack);
-		if (ret == -EBUSY)
-			continue;
-		else if (ret < 0)
+		if (ret < 0)
 			return ret;
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
-			return send_bytes;
+			break;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
 		else
 			return -EIO;
 	}
 
-	return -EIO;
+	return send_bytes;
 }
 
 static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
@@ -153,31 +149,26 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 	int msg_bytes = 4;
 	u8 ack;
 	int ret;
-	unsigned retry;
 
 	msg[0] = address;
 	msg[1] = address >> 8;
 	msg[2] = AUX_NATIVE_READ << 4;
 	msg[3] = (msg_bytes << 4) | (recv_bytes - 1);
 
-	for (retry = 0; retry < 4; retry++) {
+	while (1) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, recv, recv_bytes, delay, &ack);
-		if (ret == -EBUSY)
-			continue;
-		else if (ret < 0)
+		if (ret == 0)
+			return -EPROTO;
+		if (ret < 0)
 			return ret;
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
 			return ret;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
-		else if (ret == 0)
-			return -EPROTO;
 		else
 			return -EIO;
 	}
-
-	return -EIO;
 }
 
 static void radeon_write_dpcd_reg(struct radeon_connector *radeon_connector,
@@ -241,9 +232,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	for (retry = 0; retry < 4; retry++) {
 		ret = radeon_process_aux_ch(auxch,
 					    msg, msg_bytes, reply, reply_bytes, 0, &ack);
-		if (ret == -EBUSY)
-			continue;
-		else if (ret < 0) {
+		if (ret < 0) {
 			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
 			return ret;
 		}
@@ -284,7 +273,7 @@ int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		}
 	}
 
-	DRM_DEBUG_KMS("aux i2c too many retries, giving up\n");
+	DRM_ERROR("aux i2c too many retries, giving up\n");
 	return -EREMOTEIO;
 }
 
@@ -554,7 +543,6 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	int panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
 
 	if (!ASIC_IS_DCE4(rdev))
@@ -562,20 +550,10 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 
 	if (radeon_connector_encoder_is_dp_bridge(connector))
 		panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
-	else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		u8 tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
-		if (tmp & 1)
-			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
-	}
 
 	atombios_dig_encoder_setup(encoder,
 				   ATOM_ENCODER_CMD_SETUP_PANEL_MODE,
 				   panel_mode);
-
-	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) &&
-	    (panel_mode == DP_PANEL_MODE_INTERNAL_DP2_MODE)) {
-		radeon_write_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_SET, 1);
-	}
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,
@@ -625,24 +603,13 @@ static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
 	ret = radeon_dp_aux_native_read(radeon_connector, DP_LANE0_1_STATUS,
 					link_status, DP_LINK_STATUS_SIZE, 100);
 	if (ret <= 0) {
+		DRM_ERROR("displayport link status failed\n");
 		return false;
 	}
 
 	DRM_DEBUG_KMS("link status %02x %02x %02x %02x %02x %02x\n",
 		  link_status[0], link_status[1], link_status[2],
 		  link_status[3], link_status[4], link_status[5]);
-	return true;
-}
-
-bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector)
-{
-	u8 link_status[DP_LINK_STATUS_SIZE];
-	struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
-
-	if (!radeon_dp_get_link_status(radeon_connector, link_status))
-		return false;
-	if (dp_channel_eq_ok(link_status, dig->dp_lane_count))
-		return false;
 	return true;
 }
 
@@ -660,7 +627,6 @@ struct radeon_dp_link_train_info {
 	u8 train_set[4];
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	u8 tries;
-	bool use_dpencoder;
 };
 
 static void radeon_dp_update_vs_emph(struct radeon_dp_link_train_info *dp_info)
@@ -680,7 +646,7 @@ static void radeon_dp_set_tp(struct radeon_dp_link_train_info *dp_info, int tp)
 	int rtp = 0;
 
 	/* set training pattern on the source */
-	if (ASIC_IS_DCE4(dp_info->rdev) || !dp_info->use_dpencoder) {
+	if (ASIC_IS_DCE4(dp_info->rdev)) {
 		switch (tp) {
 		case DP_TRAINING_PATTERN_1:
 			rtp = ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN1;
@@ -740,7 +706,7 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 	radeon_write_dpcd_reg(dp_info->radeon_connector, DP_LINK_BW_SET, tmp);
 
 	/* start training on the source */
-	if (ASIC_IS_DCE4(dp_info->rdev) || !dp_info->use_dpencoder)
+	if (ASIC_IS_DCE4(dp_info->rdev))
 		atombios_dig_encoder_setup(dp_info->encoder,
 					   ATOM_ENCODER_CMD_DP_LINK_TRAINING_START, 0);
 	else
@@ -765,7 +731,7 @@ static int radeon_dp_link_train_finish(struct radeon_dp_link_train_info *dp_info
 			      DP_TRAINING_PATTERN_DISABLE);
 
 	/* disable the training pattern on the source */
-	if (ASIC_IS_DCE4(dp_info->rdev) || !dp_info->use_dpencoder)
+	if (ASIC_IS_DCE4(dp_info->rdev))
 		atombios_dig_encoder_setup(dp_info->encoder,
 					   ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE, 0);
 	else
@@ -797,10 +763,8 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 		else
 			mdelay(dp_info->rd_interval * 4);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
-			DRM_ERROR("displayport link status failed\n");
+		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status))
 			break;
-		}
 
 		if (dp_clock_recovery_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			clock_recovery = true;
@@ -862,10 +826,8 @@ static int radeon_dp_link_train_ce(struct radeon_dp_link_train_info *dp_info)
 		else
 			mdelay(dp_info->rd_interval * 4);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
-			DRM_ERROR("displayport link status failed\n");
+		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status))
 			break;
-		}
 
 		if (dp_channel_eq_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			channel_eq = true;
@@ -907,8 +869,7 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
 	struct radeon_dp_link_train_info dp_info;
-	int index;
-	u8 tmp, frev, crev;
+ 	u8 tmp;
 
 	if (!radeon_encoder->enc_priv)
 		return;
@@ -922,18 +883,6 @@ void radeon_dp_link_train(struct drm_encoder *encoder,
 	if ((dig_connector->dp_sink_type != CONNECTOR_OBJECT_ID_DISPLAYPORT) &&
 	    (dig_connector->dp_sink_type != CONNECTOR_OBJECT_ID_eDP))
 		return;
-
-	/* DPEncoderService newer than 1.1 can't program properly the
-	 * training pattern. When facing such version use the
-	 * DIGXEncoderControl (X== 1 | 2)
-	 */
-	dp_info.use_dpencoder = true;
-	index = GetIndexIntoMasterTable(COMMAND, DPEncoderService);
-	if (atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev)) {
-		if (crev > 1) {
-			dp_info.use_dpencoder = false;
-		}
-	}
 
 	dp_info.enc_id = 0;
 	if (dig->dig_encoder)

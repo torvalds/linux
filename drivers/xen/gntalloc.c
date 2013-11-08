@@ -135,7 +135,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 		/* Grant foreign access to the page. */
 		gref->gref_id = gnttab_grant_foreign_access(op->domid,
 			pfn_to_mfn(page_to_pfn(gref->page)), readonly);
-		if ((int)gref->gref_id < 0) {
+		if (gref->gref_id < 0) {
 			rc = gref->gref_id;
 			goto undo;
 		}
@@ -280,7 +280,7 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 		goto out;
 	}
 
-	gref_ids = kcalloc(op.count, sizeof(gref_ids[0]), GFP_TEMPORARY);
+	gref_ids = kzalloc(sizeof(gref_ids[0]) * op.count, GFP_TEMPORARY);
 	if (!gref_ids) {
 		rc = -ENOMEM;
 		goto out;

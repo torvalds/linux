@@ -940,7 +940,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	sdata->u.ibss.state = IEEE80211_IBSS_MLME_SEARCH;
 	sdata->u.ibss.ibss_join_req = jiffies;
 
-	memcpy(sdata->u.ibss.ssid, params->ssid, params->ssid_len);
+	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
 	sdata->u.ibss.ssid_len = params->ssid_len;
 
 	mutex_unlock(&sdata->u.ibss.mtx);
@@ -965,6 +965,10 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&sdata->u.ibss.mtx);
 
+	sdata->u.ibss.state = IEEE80211_IBSS_MLME_SEARCH;
+	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
+	sdata->u.ibss.ssid_len = 0;
+
 	active_ibss = ieee80211_sta_active_ibss(sdata);
 
 	if (!active_ibss && !is_zero_ether_addr(ifibss->bssid)) {
@@ -984,10 +988,6 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 			cfg80211_put_bss(cbss);
 		}
 	}
-
-	ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
-	memset(ifibss->bssid, 0, ETH_ALEN);
-	ifibss->ssid_len = 0;
 
 	sta_info_flush(sdata->local, sdata);
 

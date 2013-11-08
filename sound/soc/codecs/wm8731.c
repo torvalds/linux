@@ -463,7 +463,6 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8731_PWR, 0xffff);
 		regulator_bulk_disable(ARRAY_SIZE(wm8731->supplies),
 				       wm8731->supplies);
-		codec->cache_sync = 1;
 		break;
 	}
 	codec->dapm.bias_level = level;

@@ -45,6 +45,13 @@ EXPORT_SYMBOL_GPL(ibft_addr);
 static const struct {
 	char *sign;
 } ibft_signs[] = {
+#ifdef CONFIG_ACPI
+	/*
+	 * One spec says "IBFT", the other says "iBFT". We have to check
+	 * for both.
+	 */
+	{ ACPI_SIG_IBFT },
+#endif
 	{ "iBFT" },
 	{ "BIFT" },	/* Broadcom iSCSI Offload */
 };
@@ -54,6 +61,14 @@ static const struct {
 #define IBFT_END 0x100000 /* 1MB */
 #define VGA_MEM 0xA0000 /* VGA buffer */
 #define VGA_SIZE 0x20000 /* 128kB */
+
+#ifdef CONFIG_ACPI
+static int __init acpi_find_ibft(struct acpi_table_header *header)
+{
+	ibft_addr = (struct acpi_table_ibft *)header;
+	return 0;
+}
+#endif /* CONFIG_ACPI */
 
 static int __init find_ibft_in_mem(void)
 {
@@ -79,7 +94,6 @@ static int __init find_ibft_in_mem(void)
 				 * the table cannot be valid. */
 				if (pos + len <= (IBFT_END-1)) {
 					ibft_addr = (struct acpi_table_ibft *)virt;
-					pr_info("iBFT found at 0x%lx.\n", pos);
 					goto done;
 				}
 			}
@@ -94,12 +108,20 @@ done:
  */
 unsigned long __init find_ibft_region(unsigned long *sizep)
 {
+#ifdef CONFIG_ACPI
+	int i;
+#endif
 	ibft_addr = NULL;
+
+#ifdef CONFIG_ACPI
+	for (i = 0; i < ARRAY_SIZE(ibft_signs) && !ibft_addr; i++)
+		acpi_table_parse(ibft_signs[i].sign, acpi_find_ibft);
+#endif /* CONFIG_ACPI */
 
 	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
 	 * only use ACPI for this */
 
-	if (!efi_enabled)
+	if (!ibft_addr && !efi_enabled)
 		find_ibft_in_mem();
 
 	if (ibft_addr) {

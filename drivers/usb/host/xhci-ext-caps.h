@@ -62,9 +62,8 @@
 /* USB Legacy Support Control and Status Register  - section 7.1.2 */
 /* Add this offset, plus the value of xECP in HCCPARAMS to the base address */
 #define XHCI_LEGACY_CONTROL_OFFSET	(0x04)
-/* bits 1:3, 5:12, and 17:19 need to be preserved; bits 21:28 should be zero */
-#define	XHCI_LEGACY_DISABLE_SMI		((0x7 << 1) + (0xff << 5) + (0x7 << 17))
-#define XHCI_LEGACY_SMI_EVENTS		(0x7 << 29)
+/* bits 1:2, 5:12, and 17:19 need to be preserved; bits 21:28 should be zero */
+#define	XHCI_LEGACY_DISABLE_SMI		((0x3 << 1) + (0xff << 5) + (0x7 << 17))
 
 /* command register values to disable interrupts and halt the HC */
 /* start/stop HC execution - do not write unless HC is halted*/

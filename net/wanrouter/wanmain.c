@@ -602,31 +602,36 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 		 * successfully, add it to the interface list.
 		 */
 
-#ifdef WANDEBUG
-		printk(KERN_INFO "%s: registering interface %s...\n",
-		       wanrouter_modname, dev->name);
-#endif
+		if (dev->name == NULL) {
+			err = -EINVAL;
+		} else {
 
-		err = register_netdev(dev);
-		if (!err) {
-			struct net_device *slave = NULL;
-			unsigned long smp_flags=0;
+			#ifdef WANDEBUG
+			printk(KERN_INFO "%s: registering interface %s...\n",
+				wanrouter_modname, dev->name);
+			#endif
 
-			lock_adapter_irq(&wandev->lock, &smp_flags);
+			err = register_netdev(dev);
+			if (!err) {
+				struct net_device *slave = NULL;
+				unsigned long smp_flags=0;
 
-			if (wandev->dev == NULL) {
-				wandev->dev = dev;
-			} else {
-				for (slave=wandev->dev;
-				     DEV_TO_SLAVE(slave);
-				     slave = DEV_TO_SLAVE(slave))
-					DEV_TO_SLAVE(slave) = dev;
+				lock_adapter_irq(&wandev->lock, &smp_flags);
+
+				if (wandev->dev == NULL) {
+					wandev->dev = dev;
+				} else {
+					for (slave=wandev->dev;
+					     DEV_TO_SLAVE(slave);
+					     slave = DEV_TO_SLAVE(slave))
+						DEV_TO_SLAVE(slave) = dev;
+				}
+				++wandev->ndev;
+
+				unlock_adapter_irq(&wandev->lock, &smp_flags);
+				err = 0;	/* done !!! */
+				goto out;
 			}
-			++wandev->ndev;
-
-			unlock_adapter_irq(&wandev->lock, &smp_flags);
-			err = 0;	/* done !!! */
-			goto out;
 		}
 		if (wandev->del_if)
 			wandev->del_if(wandev, dev);

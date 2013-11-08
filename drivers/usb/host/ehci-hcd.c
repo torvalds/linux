@@ -94,8 +94,7 @@ static const char	hcd_name [] = "ehci_hcd";
 #define EHCI_IAA_MSECS		10		/* arbitrary */
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
 #define EHCI_ASYNC_JIFFIES	(HZ/20)		/* async idle timeout */
-#define EHCI_SHRINK_JIFFIES	(DIV_ROUND_UP(HZ, 200) + 1)
-						/* 200-ms async qh unlink delay */
+#define EHCI_SHRINK_FRAMES	5		/* async qh unlink delay */
 
 /* Initial IRQ latency:  faster than hw default */
 static int log2_irq_thresh = 0;		// 0 to 6
@@ -153,7 +152,10 @@ timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
 			break;
 		/* case TIMER_ASYNC_SHRINK: */
 		default:
-			t = EHCI_SHRINK_JIFFIES;
+			/* add a jiffie since we synch against the
+			 * 8 KHz uframe counter.
+			 */
+			t = DIV_ROUND_UP(EHCI_SHRINK_FRAMES * HZ, 1000) + 1;
 			break;
 		}
 		mod_timer(&ehci->watchdog, t + jiffies);
@@ -761,35 +763,6 @@ static int ehci_run (struct usb_hcd *hcd)
 	return 0;
 }
 
-static int __maybe_unused ehci_setup (struct usb_hcd *hcd)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int retval;
-
-	ehci->regs = (void __iomem *)ehci->caps +
-	    HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-
-	ehci->sbrn = HCD_USB2;
-
-	retval = ehci_halt(ehci);
-	if (retval)
-		return retval;
-
-	/* data structure init */
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
-
-	return 0;
-}
-
 /*-------------------------------------------------------------------------*/
 
 static irqreturn_t ehci_irq (struct usb_hcd *hcd)
@@ -808,13 +781,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		goto dead;
 	}
 
-	/*
-	 * We don't use STS_FLR, but some controllers don't like it to
-	 * remain on, so mask it out along with the other status bits.
-	 */
-	masked_status = status & (INTR_MASK | STS_FLR);
-
 	/* Shared IRQ? */
+	masked_status = status & INTR_MASK;
 	if (!masked_status || unlikely(hcd->state == HC_STATE_HALT)) {
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
@@ -865,7 +833,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		pcd_status = status;
 
 		/* resume root hub? */
-		if (hcd->state == HC_STATE_SUSPENDED)
+		if (!(cmd & CMD_RUN))
 			usb_hcd_resume_root_hub(hcd);
 
 		/* get per-port change detect bits */
@@ -1193,7 +1161,8 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 static int ehci_get_frame (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	return (ehci_read_frame_index(ehci) >> 3) % ehci->periodic_size;
+	return (ehci_readl(ehci, &ehci->regs->frame_index) >> 3) %
+		ehci->periodic_size;
 }
 
 /*-------------------------------------------------------------------------*/

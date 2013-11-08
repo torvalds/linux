@@ -167,7 +167,7 @@ int iwl_legacy_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		goto out;
 	}
 
-	ret = wait_event_timeout(priv->wait_command_queue,
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
 			!test_bit(STATUS_HCMD_ACTIVE, &priv->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {

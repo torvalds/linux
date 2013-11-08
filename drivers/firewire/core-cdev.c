@@ -216,33 +216,15 @@ struct inbound_phy_packet_event {
 	struct fw_cdev_event_phy_packet phy_packet;
 };
 
-#ifdef CONFIG_COMPAT
-static void __user *u64_to_uptr(u64 value)
-{
-	if (is_compat_task())
-		return compat_ptr(value);
-	else
-		return (void __user *)(unsigned long)value;
-}
-
-static u64 uptr_to_u64(void __user *ptr)
-{
-	if (is_compat_task())
-		return ptr_to_compat(ptr);
-	else
-		return (u64)(unsigned long)ptr;
-}
-#else
-static inline void __user *u64_to_uptr(u64 value)
+static inline void __user *u64_to_uptr(__u64 value)
 {
 	return (void __user *)(unsigned long)value;
 }
 
-static inline u64 uptr_to_u64(void __user *ptr)
+static inline __u64 uptr_to_u64(void __user *ptr)
 {
-	return (u64)(unsigned long)ptr;
+	return (__u64)(unsigned long)ptr;
 }
-#endif /* CONFIG_COMPAT */
 
 static int fw_device_op_open(struct inode *inode, struct file *file)
 {
@@ -271,10 +253,13 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&client->wait);
 	init_waitqueue_head(&client->tx_flush_wait);
 	INIT_LIST_HEAD(&client->phy_receiver_link);
-	INIT_LIST_HEAD(&client->link);
 	kref_init(&client->kref);
 
 	file->private_data = client;
+
+	mutex_lock(&device->client_list_mutex);
+	list_add_tail(&client->link, &device->client_list);
+	mutex_unlock(&device->client_list_mutex);
 
 	return nonseekable_open(inode, file);
 }
@@ -466,20 +451,15 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 	if (ret != 0)
 		return -EFAULT;
 
-	mutex_lock(&client->device->client_list_mutex);
-
 	client->bus_reset_closure = a->bus_reset_closure;
 	if (a->bus_reset != 0) {
 		fill_bus_reset_event(&bus_reset, client);
-		/* unaligned size of bus_reset is 36 bytes */
-		ret = copy_to_user(u64_to_uptr(a->bus_reset), &bus_reset, 36);
+		if (copy_to_user(u64_to_uptr(a->bus_reset),
+				 &bus_reset, sizeof(bus_reset)))
+			return -EFAULT;
 	}
-	if (ret == 0 && list_empty(&client->link))
-		list_add_tail(&client->link, &client->device->client_list);
 
-	mutex_unlock(&client->device->client_list_mutex);
-
-	return ret ? -EFAULT : 0;
+	return 0;
 }
 
 static int add_client_resource(struct client *client,
@@ -1603,7 +1583,7 @@ static int dispatch_ioctl(struct client *client,
 	if (_IOC_TYPE(cmd) != '#' ||
 	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers) ||
 	    _IOC_SIZE(cmd) > sizeof(buffer))
-		return -ENOTTY;
+		return -EINVAL;
 
 	if (_IOC_DIR(cmd) == _IOC_READ)
 		memset(&buffer, 0, _IOC_SIZE(cmd));

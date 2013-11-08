@@ -620,8 +620,8 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 		i2c.y_data_mask = 0x80;
 	} else {
 		/* default masks for ddc pads */
-		i2c.mask_clk_mask = RADEON_GPIO_MASK_1;
-		i2c.mask_data_mask = RADEON_GPIO_MASK_0;
+		i2c.mask_clk_mask = RADEON_GPIO_EN_1;
+		i2c.mask_data_mask = RADEON_GPIO_EN_0;
 		i2c.a_clk_mask = RADEON_GPIO_A_1;
 		i2c.a_data_mask = RADEON_GPIO_A_0;
 		i2c.en_clk_mask = RADEON_GPIO_EN_1;
@@ -779,8 +779,7 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 				}
 			}
 		}
-	} else if ((rdev->family == CHIP_R200) ||
-		   (rdev->family >= CHIP_R300)) {
+	} else if (rdev->family >= CHIP_R200) {
 		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
@@ -2338,14 +2337,6 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 								   1),
 								  ATOM_DEVICE_CRT1_SUPPORT);
 				}
-				/* RV100 board with external TDMS bit mis-set.
-				 * Actually uses internal TMDS, clear the bit.
-				 */
-				if (dev->pdev->device == 0x5159 &&
-				    dev->pdev->subsystem_vendor == 0x1014 &&
-				    dev->pdev->subsystem_device == 0x029A) {
-					tmp &= ~(1 << 4);
-				}
 				if ((tmp >> 4) & 0x1) {
 					devices |= ATOM_DEVICE_DFP2_SUPPORT;
 					radeon_add_legacy_encoder(dev,
@@ -3285,14 +3276,6 @@ void radeon_combios_asic_init(struct drm_device *dev)
 	if (rdev->family == CHIP_RS480 &&
 	    rdev->pdev->subsystem_vendor == 0x103c &&
 	    rdev->pdev->subsystem_device == 0x30a4)
-		return;
-
-	/* quirk for rs4xx Compaq Presario V5245EU laptop to make it resume
-	 * - it hangs on resume inside the dynclk 1 table.
-	 */
-	if (rdev->family == CHIP_RS480 &&
-	    rdev->pdev->subsystem_vendor == 0x103c &&
-	    rdev->pdev->subsystem_device == 0x30ae)
 		return;
 
 	/* DYN CLK 1 */

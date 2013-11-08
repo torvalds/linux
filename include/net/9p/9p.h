@@ -278,30 +278,6 @@ enum p9_perm_t {
 	P9_DMSETVTX = 0x00010000,
 };
 
-/* 9p2000.L open flags */
-#define P9_DOTL_RDONLY        00000000
-#define P9_DOTL_WRONLY        00000001
-#define P9_DOTL_RDWR          00000002
-#define P9_DOTL_NOACCESS      00000003
-#define P9_DOTL_CREATE        00000100
-#define P9_DOTL_EXCL          00000200
-#define P9_DOTL_NOCTTY        00000400
-#define P9_DOTL_TRUNC         00001000
-#define P9_DOTL_APPEND        00002000
-#define P9_DOTL_NONBLOCK      00004000
-#define P9_DOTL_DSYNC         00010000
-#define P9_DOTL_FASYNC        00020000
-#define P9_DOTL_DIRECT        00040000
-#define P9_DOTL_LARGEFILE     00100000
-#define P9_DOTL_DIRECTORY     00200000
-#define P9_DOTL_NOFOLLOW      00400000
-#define P9_DOTL_NOATIME       01000000
-#define P9_DOTL_CLOEXEC       02000000
-#define P9_DOTL_SYNC          04000000
-
-/* 9p2000.L at flags */
-#define P9_DOTL_AT_REMOVEDIR		0x200
-
 /**
  * enum p9_qid_t - QID types
  * @P9_QTDIR: directory
@@ -343,11 +319,6 @@ enum p9_qid_t {
 
 /* Room for readdir header */
 #define P9_READDIRHDRSZ	24
-
-/* 9p2000.L lock type */
-#define P9_LOCK_TYPE_RDLCK 0
-#define P9_LOCK_TYPE_WRLCK 1
-#define P9_LOCK_TYPE_UNLCK 2
 
 /**
  * struct p9_str - length prefixed string type

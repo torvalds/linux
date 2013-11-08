@@ -34,12 +34,6 @@ static const struct dmi_system_id __initconst atk_force_new_if[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "SABERTOOTH X58")
 		}
-	}, {
-		/* Old interface reads the same sensor for fan0 and fan1 */
-		.ident = "Asus M5A78L",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "M5A78L")
-		}
 	},
 	{ }
 };

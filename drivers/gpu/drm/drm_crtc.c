@@ -1866,10 +1866,6 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (num_clips && clips_ptr) {
-		if (num_clips < 0 || num_clips > DRM_MODE_FB_DIRTY_MAX_CLIPS) {
-			ret = -EINVAL;
-			goto out_err1;
-		}
 		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;

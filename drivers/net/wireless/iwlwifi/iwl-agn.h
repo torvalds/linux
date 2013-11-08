@@ -152,8 +152,6 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf,
 			     u32 changes);
-void iwlagn_config_ht40(struct ieee80211_conf *conf,
-			struct iwl_rxon_context *ctx);
 
 /* uCode */
 void iwlagn_rx_calib_result(struct iwl_priv *priv,

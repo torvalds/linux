@@ -95,11 +95,9 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 	}
 }
 
-static inline u32 clear_shared_ind(void)
+static inline u32 shared_ind_set(void)
 {
-	if (!atomic_read(&q_indicators[TIQDIO_SHARED_IND].count))
-		return 0;
-	return xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 0);
+	return q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
 /**
@@ -109,7 +107,7 @@ static inline u32 clear_shared_ind(void)
  */
 static void tiqdio_thinint_handler(void *alsi, void *data)
 {
-	u32 si_used = clear_shared_ind();
+	u32 si_used = shared_ind_set();
 	struct qdio_q *q;
 
 	last_ai_time = S390_lowcore.int_clock;
@@ -152,6 +150,13 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 		qperf_inc(q, adapter_int);
 	}
 	rcu_read_unlock();
+
+	/*
+	 * If the shared indicator was used clear it now after all queues
+	 * were processed.
+	 */
+	if (si_used && shared_ind_set())
+		xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 0);
 }
 
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)

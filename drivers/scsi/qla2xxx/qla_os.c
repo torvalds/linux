@@ -1240,9 +1240,10 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 					qla2x00_sp_compl(ha, sp);
 				} else {
 					ctx = sp->ctx;
-					if (ctx->type == SRB_ELS_CMD_RPT ||
-					    ctx->type == SRB_ELS_CMD_HST ||
-					    ctx->type == SRB_CT_CMD) {
+					if (ctx->type == SRB_LOGIN_CMD ||
+					    ctx->type == SRB_LOGOUT_CMD) {
+						ctx->u.iocb_cmd->free(sp);
+					} else {
 						struct fc_bsg_job *bsg_job =
 						    ctx->u.bsg_job;
 						if (bsg_job->request->msgcode
@@ -1254,8 +1255,6 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 						kfree(sp->ctx);
 						mempool_free(sp,
 							ha->srb_mempool);
-					} else {
-						ctx->u.iocb_cmd->free(sp);
 					}
 				}
 			}
@@ -3406,9 +3405,9 @@ qla2x00_do_dpc(void *data)
 			    base_vha->host_no));
 		}
 
-		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED,
-		    &base_vha->dpc_flags)) {
+		if (test_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags)) {
 			qla2x00_update_fcports(base_vha);
+			clear_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
 		}
 
 		if (test_bit(ISP_QUIESCE_NEEDED, &base_vha->dpc_flags)) {

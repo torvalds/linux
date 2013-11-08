@@ -18,10 +18,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-static struct device_type mfd_dev_type = {
-	.name	= "mfd_device",
-};
-
 int mfd_cell_enable(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
@@ -91,7 +87,6 @@ static int mfd_add_device(struct device *parent, int id,
 		goto fail_device;
 
 	pdev->dev.parent = parent;
-	pdev->dev.type = &mfd_dev_type;
 
 	if (cell->pdata_size) {
 		ret = platform_device_add_data(pdev,
@@ -127,7 +122,7 @@ static int mfd_add_device(struct device *parent, int id,
 		}
 
 		if (!cell->ignore_resource_conflicts) {
-			ret = acpi_check_resource_conflict(&res[r]);
+			ret = acpi_check_resource_conflict(res);
 			if (ret)
 				goto fail_res;
 		}
@@ -187,15 +182,9 @@ EXPORT_SYMBOL(mfd_add_devices);
 
 static int mfd_remove_devices_fn(struct device *dev, void *c)
 {
-	struct platform_device *pdev;
-	const struct mfd_cell *cell;
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	atomic_t **usage_count = c;
-
-	if (dev->type != &mfd_dev_type)
-		return 0;
-
-	pdev = to_platform_device(dev);
-	cell = mfd_get_cell(pdev);
 
 	/* find the base address of usage_count pointers (for freeing) */
 	if (!*usage_count || (cell->usage_count < *usage_count))

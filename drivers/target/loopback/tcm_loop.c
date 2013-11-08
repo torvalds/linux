@@ -127,24 +127,6 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 		set_host_byte(sc, DID_NO_CONNECT);
 		return NULL;
 	}
-	/*
-	 * Because some userspace code via scsi-generic do not memset their
-	 * associated read buffers, go ahead and do that here for type
-	 * SCF_SCSI_CONTROL_SG_IO_CDB.  Also note that this is currently
-	 * guaranteed to be a single SGL for SCF_SCSI_CONTROL_SG_IO_CDB
-	 * by target core in transport_generic_allocate_tasks() ->
-	 * transport_generic_cmd_sequencer().
-	 */
-	if (se_cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB &&
-	    se_cmd->data_direction == DMA_FROM_DEVICE) {
-		struct scatterlist *sg = scsi_sglist(sc);
-		unsigned char *buf = kmap(sg_page(sg)) + sg->offset;
-
-		if (buf != NULL) {
-			memset(buf, 0, sg->length);
-			kunmap(sg_page(sg));
-		}
-	}
 
 	transport_device_setup_cmd(se_cmd);
 	return se_cmd;
@@ -905,9 +887,6 @@ static int tcm_loop_queue_data_in(struct se_cmd *se_cmd)
 
 	sc->result = SAM_STAT_GOOD;
 	set_host_byte(sc, DID_OK);
-	if ((se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT) ||
-	    (se_cmd->se_cmd_flags & SCF_UNDERFLOW_BIT))
-		scsi_set_resid(sc, se_cmd->residual_count);
 	sc->scsi_done(sc);
 	return 0;
 }
@@ -933,9 +912,6 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 		sc->result = se_cmd->scsi_status;
 
 	set_host_byte(sc, DID_OK);
-	if ((se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT) ||
-	    (se_cmd->se_cmd_flags & SCF_UNDERFLOW_BIT))
-		scsi_set_resid(sc, se_cmd->residual_count);
 	sc->scsi_done(sc);
 	return 0;
 }

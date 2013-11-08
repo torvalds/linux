@@ -462,16 +462,14 @@ static void st_scsi_execute_end(struct request *req, int uptodate)
 {
 	struct st_request *SRpnt = req->end_io_data;
 	struct scsi_tape *STp = SRpnt->stp;
-	struct bio *tmp;
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
 	STp->buffer->cmdstat.residual = req->resid_len;
 
-	tmp = SRpnt->bio;
 	if (SRpnt->waiting)
 		complete(SRpnt->waiting);
 
-	blk_rq_unmap_user(tmp);
+	blk_rq_unmap_user(SRpnt->bio);
 	__blk_put_request(req->q, req);
 }
 

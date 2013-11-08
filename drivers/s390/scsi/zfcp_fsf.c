@@ -219,7 +219,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		return;
 	}
 
-	zfcp_dbf_hba_fsf_uss("fssrh_4", req);
+	zfcp_dbf_hba_fsf_uss("fssrh_2", req);
 
 	switch (sr_buf->status_type) {
 	case FSF_STATUS_READ_PORT_CLOSED:
@@ -771,13 +771,11 @@ out:
 static void zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *req)
 {
 	struct scsi_device *sdev = req->data;
-	struct zfcp_scsi_dev *zfcp_sdev;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	union fsf_status_qual *fsq = &req->qtcb->header.fsf_status_qual;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
-
-	zfcp_sdev = sdev_to_zfcp(sdev);
 
 	switch (req->qtcb->header.fsf_status) {
 	case FSF_PORT_HANDLE_NOT_VALID:
@@ -887,7 +885,7 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
         case FSF_GOOD:
-		zfcp_dbf_san_res("fsscth2", req);
+		zfcp_dbf_san_res("fsscth1", req);
 		ct->status = 0;
 		break;
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
@@ -1732,14 +1730,12 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct scsi_device *sdev = req->data;
-	struct zfcp_scsi_dev *zfcp_sdev;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 	struct fsf_qtcb_bottom_support *bottom = &req->qtcb->bottom.support;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
-
-	zfcp_sdev = sdev_to_zfcp(sdev);
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			  ZFCP_STATUS_COMMON_ACCESS_BOXED |
@@ -1851,12 +1847,10 @@ out:
 static void zfcp_fsf_close_lun_handler(struct zfcp_fsf_req *req)
 {
 	struct scsi_device *sdev = req->data;
-	struct zfcp_scsi_dev *zfcp_sdev;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
-
-	zfcp_sdev = sdev_to_zfcp(sdev);
 
 	switch (req->qtcb->header.fsf_status) {
 	case FSF_PORT_HANDLE_NOT_VALID:
@@ -1947,7 +1941,7 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 {
 	struct fsf_qual_latency_info *lat_in;
 	struct latency_cont *lat = NULL;
-	struct zfcp_scsi_dev *zfcp_sdev;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scsi->device);
 	struct zfcp_blk_drv_data blktrc;
 	int ticks = req->adapter->timer_ticks;
 
@@ -1962,7 +1956,6 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 
 	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA &&
 	    !(req->status & ZFCP_STATUS_FSFREQ_ERROR)) {
-		zfcp_sdev = sdev_to_zfcp(scsi->device);
 		blktrc.flags |= ZFCP_BLK_LAT_VALID;
 		blktrc.channel_lat = lat_in->channel_lat * ticks;
 		blktrc.fabric_lat = lat_in->fabric_lat * ticks;
@@ -2000,13 +1993,11 @@ static void zfcp_fsf_fcp_handler_common(struct zfcp_fsf_req *req)
 {
 	struct scsi_cmnd *scmnd = req->data;
 	struct scsi_device *sdev = scmnd->device;
-	struct zfcp_scsi_dev *zfcp_sdev;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct fsf_qtcb_header *header = &req->qtcb->header;
 
 	if (unlikely(req->status & ZFCP_STATUS_FSFREQ_ERROR))
 		return;
-
-	zfcp_sdev = sdev_to_zfcp(sdev);
 
 	switch (header->fsf_status) {
 	case FSF_HANDLE_MISMATCH:

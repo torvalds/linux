@@ -136,8 +136,8 @@ int use_cop(unsigned long acop, struct mm_struct *mm)
 	if (!mm || !acop)
 		return -EINVAL;
 
-	/* The page_table_lock ensures mm_users won't change under us */
-	spin_lock(&mm->page_table_lock);
+	/* We need to make sure mm_users doesn't change */
+	down_read(&mm->mmap_sem);
 	spin_lock(mm->context.cop_lockp);
 
 	if (mm->context.cop_pid == COP_PID_NONE) {
@@ -164,7 +164,7 @@ int use_cop(unsigned long acop, struct mm_struct *mm)
 
 out:
 	spin_unlock(mm->context.cop_lockp);
-	spin_unlock(&mm->page_table_lock);
+	up_read(&mm->mmap_sem);
 
 	return ret;
 }
@@ -185,8 +185,8 @@ void drop_cop(unsigned long acop, struct mm_struct *mm)
 	if (WARN_ON_ONCE(!mm))
 		return;
 
-	/* The page_table_lock ensures mm_users won't change under us */
-	spin_lock(&mm->page_table_lock);
+	/* We need to make sure mm_users doesn't change */
+	down_read(&mm->mmap_sem);
 	spin_lock(mm->context.cop_lockp);
 
 	mm->context.acop &= ~acop;
@@ -213,7 +213,7 @@ void drop_cop(unsigned long acop, struct mm_struct *mm)
 	}
 
 	spin_unlock(mm->context.cop_lockp);
-	spin_unlock(&mm->page_table_lock);
+	up_read(&mm->mmap_sem);
 }
 EXPORT_SYMBOL_GPL(drop_cop);
 

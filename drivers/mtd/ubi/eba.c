@@ -1028,14 +1028,12 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * 'ubi_wl_put_peb()' function on the @ubi->move_mutex. In turn, we are
 	 * holding @ubi->move_mutex and go sleep on the LEB lock. So, if the
 	 * LEB is already locked, we just do not move it and return
-	 * %MOVE_RETRY. Note, we do not return %MOVE_CANCEL_RACE here because
-	 * we do not know the reasons of the contention - it may be just a
-	 * normal I/O on this LEB, so we want to re-try.
+	 * %MOVE_CANCEL_RACE, which means that UBI will re-try, but later.
 	 */
 	err = leb_write_trylock(ubi, vol_id, lnum);
 	if (err) {
 		dbg_wl("contention on LEB %d:%d, cancel", vol_id, lnum);
-		return MOVE_RETRY;
+		return MOVE_CANCEL_RACE;
 	}
 
 	/*

@@ -39,9 +39,6 @@
 static struct snd_minor *snd_oss_minors[SNDRV_OSS_MINORS];
 static DEFINE_MUTEX(sound_oss_mutex);
 
-/* NOTE: This function increments the refcount of the associated card like
- * snd_lookup_minor_data(); the caller must call snd_card_unref() appropriately
- */
 void *snd_lookup_oss_minor_data(unsigned int minor, int type)
 {
 	struct snd_minor *mreg;
@@ -51,11 +48,9 @@ void *snd_lookup_oss_minor_data(unsigned int minor, int type)
 		return NULL;
 	mutex_lock(&sound_oss_mutex);
 	mreg = snd_oss_minors[minor];
-	if (mreg && mreg->type == type) {
+	if (mreg && mreg->type == type)
 		private_data = mreg->private_data;
-		if (private_data && mreg->card_ptr)
-			atomic_inc(&mreg->card_ptr->refcount);
-	} else
+	else
 		private_data = NULL;
 	mutex_unlock(&sound_oss_mutex);
 	return private_data;
@@ -127,7 +122,6 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	preg->device = dev;
 	preg->f_ops = f_ops;
 	preg->private_data = private_data;
-	preg->card_ptr = card;
 	mutex_lock(&sound_oss_mutex);
 	snd_oss_minors[minor] = preg;
 	minor_unit = SNDRV_MINOR_OSS_DEVICE(minor);

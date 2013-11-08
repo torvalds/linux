@@ -785,10 +785,10 @@ static int blkio_policy_parse_and_set(char *buf,
 {
 	char *s[4], *p, *major_s = NULL, *minor_s = NULL;
 	int ret;
-	unsigned long major, minor;
+	unsigned long major, minor, temp;
 	int i = 0;
 	dev_t dev;
-	u64 temp;
+	u64 bps, iops;
 
 	memset(s, 0, sizeof(s));
 
@@ -826,23 +826,20 @@ static int blkio_policy_parse_and_set(char *buf,
 
 	dev = MKDEV(major, minor);
 
-	ret = strict_strtoull(s[1], 10, &temp);
+	ret = blkio_check_dev_num(dev);
 	if (ret)
-		return -EINVAL;
-
-	/* For rule removal, do not check for device presence. */
-	if (temp) {
-		ret = blkio_check_dev_num(dev);
-		if (ret)
-			return ret;
-	}
+		return ret;
 
 	newpn->dev = dev;
 
+	if (s[1] == NULL)
+		return -EINVAL;
+
 	switch (plid) {
 	case BLKIO_POLICY_PROP:
-		if ((temp < BLKIO_WEIGHT_MIN && temp > 0) ||
-		     temp > BLKIO_WEIGHT_MAX)
+		ret = strict_strtoul(s[1], 10, &temp);
+		if (ret || (temp < BLKIO_WEIGHT_MIN && temp > 0) ||
+			temp > BLKIO_WEIGHT_MAX)
 			return -EINVAL;
 
 		newpn->plid = plid;
@@ -853,18 +850,26 @@ static int blkio_policy_parse_and_set(char *buf,
 		switch(fileid) {
 		case BLKIO_THROTL_read_bps_device:
 		case BLKIO_THROTL_write_bps_device:
-			newpn->plid = plid;
-			newpn->fileid = fileid;
-			newpn->val.bps = temp;
-			break;
-		case BLKIO_THROTL_read_iops_device:
-		case BLKIO_THROTL_write_iops_device:
-			if (temp > THROTL_IOPS_MAX)
+			ret = strict_strtoull(s[1], 10, &bps);
+			if (ret)
 				return -EINVAL;
 
 			newpn->plid = plid;
 			newpn->fileid = fileid;
-			newpn->val.iops = (unsigned int)temp;
+			newpn->val.bps = bps;
+			break;
+		case BLKIO_THROTL_read_iops_device:
+		case BLKIO_THROTL_write_iops_device:
+			ret = strict_strtoull(s[1], 10, &iops);
+			if (ret)
+				return -EINVAL;
+
+			if (iops > THROTL_IOPS_MAX)
+				return -EINVAL;
+
+			newpn->plid = plid;
+			newpn->fileid = fileid;
+			newpn->val.iops = (unsigned int)iops;
 			break;
 		}
 		break;

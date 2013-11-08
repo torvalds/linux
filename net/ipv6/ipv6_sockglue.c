@@ -798,7 +798,6 @@ pref_skip_coa:
 		if (val < 0 || val > 255)
 			goto e_inval;
 		np->min_hopcount = val;
-		retv = 0;
 		break;
 	case IPV6_DONTFRAG:
 		np->dontfrag = valbool;
@@ -914,7 +913,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 }
 
 static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user *optlen, unsigned flags)
+		    char __user *optval, int __user *optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int len;
@@ -963,7 +962,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 		msg.msg_control = optval;
 		msg.msg_controllen = len;
-		msg.msg_flags = flags;
+		msg.msg_flags = 0;
 
 		lock_sock(sk);
 		skb = np->pktoptions;
@@ -1223,7 +1222,7 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 	if(level != SOL_IPV6)
 		return -ENOPROTOOPT;
 
-	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen, 0);
+	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IPV6_2292PKTOPTIONS) {
@@ -1265,8 +1264,7 @@ int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		return compat_mc_getsockopt(sk, level, optname, optval, optlen,
 			ipv6_getsockopt);
 
-	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen,
-				 MSG_CMSG_COMPAT);
+	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IPV6_2292PKTOPTIONS) {

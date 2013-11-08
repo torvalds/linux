@@ -446,18 +446,7 @@ static inline void legacy_pty_init(void) { }
 int pty_limit = NR_UNIX98_PTY_DEFAULT;
 static int pty_limit_min;
 static int pty_limit_max = NR_UNIX98_PTY_MAX;
-static int tty_count;
 static int pty_count;
-
-static inline void pty_inc_count(void)
-{
-	pty_count = (++tty_count) / 2;
-}
-
-static inline void pty_dec_count(void)
-{
-	pty_count = (--tty_count) / 2;
-}
 
 static struct cdev ptmx_cdev;
 
@@ -553,7 +542,6 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 
 static void pty_unix98_shutdown(struct tty_struct *tty)
 {
-	tty_driver_remove_tty(tty->driver, tty);
 	/* We have our own method as we don't use the tty index */
 	kfree(tty->termios);
 }
@@ -600,8 +588,7 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 	 */
 	tty_driver_kref_get(driver);
 	tty->count++;
-	pty_inc_count(); /* tty */
-	pty_inc_count(); /* tty->link */
+	pty_count++;
 	return 0;
 err_free_mem:
 	deinitialize_tty_struct(o_tty);
@@ -615,7 +602,7 @@ err_free_tty:
 
 static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
-	pty_dec_count();
+	pty_count--;
 }
 
 static const struct tty_operations ptm_unix98_ops = {
@@ -670,18 +657,12 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	nonseekable_open(inode, filp);
 
-	retval = tty_alloc_file(filp);
-	if (retval)
-		return retval;
-
 	/* find a device that is not in use. */
 	tty_lock();
 	index = devpts_new_index(inode);
 	tty_unlock();
-	if (index < 0) {
-		retval = index;
-		goto err_file;
-	}
+	if (index < 0)
+		return index;
 
 	mutex_lock(&tty_mutex);
 	tty_lock();
@@ -695,27 +676,27 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 
-	tty_add_file(tty, filp);
+	retval = tty_add_file(tty, filp);
+	if (retval)
+		goto out;
 
 	retval = devpts_pty_new(inode, tty->link);
 	if (retval)
-		goto err_release;
+		goto out1;
 
 	retval = ptm_driver->ops->open(tty, filp);
 	if (retval)
-		goto err_release;
-
+		goto out2;
+out1:
 	tty_unlock();
-	return 0;
-err_release:
+	return retval;
+out2:
 	tty_unlock();
 	tty_release(inode, filp);
 	return retval;
 out:
 	devpts_kill_index(inode, index);
 	tty_unlock();
-err_file:
-	tty_free_file(filp);
 	return retval;
 }
 

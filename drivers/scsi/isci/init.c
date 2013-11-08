@@ -454,10 +454,11 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	if (!orom)
 		orom = isci_request_oprom(pdev);
 
-	for (i = 0; orom && i < num_controllers(pdev); i++) {
+	for (i = 0; orom && i < ARRAY_SIZE(orom->ctrl); i++) {
 		if (sci_oem_parameters_validate(&orom->ctrl[i])) {
 			dev_warn(&pdev->dev,
 				 "[%d]: invalid oem parameters detected, falling back to firmware\n", i);
+			devm_kfree(&pdev->dev, orom);
 			orom = NULL;
 			break;
 		}

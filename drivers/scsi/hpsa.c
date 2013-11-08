@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -677,16 +676,6 @@ static void hpsa_scsi_replace_entry(struct ctlr_info *h, int hostno,
 	BUG_ON(entry < 0 || entry >= HPSA_MAX_SCSI_DEVS_PER_HBA);
 	removed[*nremoved] = h->dev[entry];
 	(*nremoved)++;
-
-	/*
-	 * New physical devices won't have target/lun assigned yet
-	 * so we need to preserve the values in the slot we are replacing.
-	 */
-	if (new_entry->target == -1) {
-		new_entry->target = h->dev[entry]->target;
-		new_entry->lun = h->dev[entry]->lun;
-	}
-
 	h->dev[entry] = new_entry;
 	added[*nadded] = new_entry;
 	(*nadded)++;
@@ -1209,9 +1198,8 @@ static void complete_scsi_command(struct CommandList *cp)
 	}
 		break;
 	case CMD_PROTOCOL_ERR:
-		cmd->result = DID_ERROR << 16;
 		dev_warn(&h->pdev->dev, "cp %p has "
-			"protocol error\n", cp);
+			"protocol error \n", cp);
 		break;
 	case CMD_HARDWARE_ERR:
 		cmd->result = DID_ERROR << 16;
@@ -1560,17 +1548,10 @@ static inline void hpsa_set_bus_target_lun(struct hpsa_scsi_dev_t *device,
 }
 
 static int hpsa_update_device_info(struct ctlr_info *h,
-	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device,
-	unsigned char *is_OBDR_device)
+	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device)
 {
-
-#define OBDR_SIG_OFFSET 43
-#define OBDR_TAPE_SIG "$DR-10"
-#define OBDR_SIG_LEN (sizeof(OBDR_TAPE_SIG) - 1)
-#define OBDR_TAPE_INQ_SIZE (OBDR_SIG_OFFSET + OBDR_SIG_LEN)
-
+#define OBDR_TAPE_INQ_SIZE 49
 	unsigned char *inq_buff;
-	unsigned char *obdr_sig;
 
 	inq_buff = kzalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
 	if (!inq_buff)
@@ -1601,16 +1582,6 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		hpsa_get_raid_level(h, scsi3addr, &this_device->raid_level);
 	else
 		this_device->raid_level = RAID_UNKNOWN;
-
-	if (is_OBDR_device) {
-		/* See if this is a One-Button-Disaster-Recovery device
-		 * by looking for "$DR-10" at offset 43 in inquiry data.
-		 */
-		obdr_sig = &inq_buff[OBDR_SIG_OFFSET];
-		*is_OBDR_device = (this_device->devtype == TYPE_ROM &&
-					strncmp(obdr_sig, OBDR_TAPE_SIG,
-						OBDR_SIG_LEN) == 0);
-	}
 
 	kfree(inq_buff);
 	return 0;
@@ -1655,26 +1626,30 @@ static void figure_bus_target_lun(struct ctlr_info *h,
 
 	if (is_logical_dev_addr_mode(lunaddrbytes)) {
 		/* logical device */
-		lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
-		if (is_msa2xxx(h, device)) {
-			/* msa2xxx way, put logicals on bus 1
-			 * and match target/lun numbers box
-			 * reports.
+		if (unlikely(is_scsi_rev_5(h))) {
+			/* p1210m, logical drives lun assignments
+			 * match SCSI REPORT LUNS data.
 			 */
-			*bus = 1;
-			*target = (lunid >> 16) & 0x3fff;
-			*lun = lunid & 0x00ff;
+			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
+			*bus = 0;
+			*target = 0;
+			*lun = (lunid & 0x3fff) + 1;
 		} else {
-			if (likely(is_scsi_rev_5(h))) {
-				/* All current smart arrays (circa 2011) */
-				*bus = 0;
-				*target = 0;
-				*lun = (lunid & 0x3fff) + 1;
+			/* not p1210m... */
+			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
+			if (is_msa2xxx(h, device)) {
+				/* msa2xxx way, put logicals on bus 1
+				 * and match target/lun numbers box
+				 * reports.
+				 */
+				*bus = 1;
+				*target = (lunid >> 16) & 0x3fff;
+				*lun = lunid & 0x00ff;
 			} else {
-				/* Traditional old smart array way. */
+				/* Traditional smart array way. */
 				*bus = 0;
-				*target = lunid & 0x3fff;
 				*lun = 0;
+				*target = lunid & 0x3fff;
 			}
 		}
 	} else {
@@ -1741,7 +1716,7 @@ static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
 		return 0;
 	}
 
-	if (hpsa_update_device_info(h, scsi3addr, this_device, NULL))
+	if (hpsa_update_device_info(h, scsi3addr, this_device))
 		return 0;
 	(*nmsa2xxx_enclosures)++;
 	hpsa_set_bus_target_lun(this_device, bus, target, 0);
@@ -1833,6 +1808,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	 */
 	struct ReportLUNdata *physdev_list = NULL;
 	struct ReportLUNdata *logdev_list = NULL;
+	unsigned char *inq_buff = NULL;
 	u32 nphysicals = 0;
 	u32 nlogicals = 0;
 	u32 ndev_allocated = 0;
@@ -1848,9 +1824,11 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		GFP_KERNEL);
 	physdev_list = kzalloc(reportlunsize, GFP_KERNEL);
 	logdev_list = kzalloc(reportlunsize, GFP_KERNEL);
+	inq_buff = kmalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
 	tmpdevice = kzalloc(sizeof(*tmpdevice), GFP_KERNEL);
 
-	if (!currentsd || !physdev_list || !logdev_list || !tmpdevice) {
+	if (!currentsd || !physdev_list || !logdev_list ||
+		!inq_buff || !tmpdevice) {
 		dev_err(&h->pdev->dev, "out of memory\n");
 		goto out;
 	}
@@ -1885,7 +1863,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	/* adjust our table of devices */
 	nmsa2xxx_enclosures = 0;
 	for (i = 0; i < nphysicals + nlogicals + 1; i++) {
-		u8 *lunaddrbytes, is_OBDR = 0;
+		u8 *lunaddrbytes;
 
 		/* Figure out where the LUN ID info is coming from */
 		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
@@ -1896,8 +1874,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 			continue;
 
 		/* Get device type, vendor, model, device id */
-		if (hpsa_update_device_info(h, lunaddrbytes, tmpdevice,
-							&is_OBDR))
+		if (hpsa_update_device_info(h, lunaddrbytes, tmpdevice))
 			continue; /* skip it if we can't talk to it. */
 		figure_bus_target_lun(h, lunaddrbytes, &bus, &target, &lun,
 			tmpdevice);
@@ -1921,7 +1898,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		hpsa_set_bus_target_lun(this_device, bus, target, lun);
 
 		switch (this_device->devtype) {
-		case TYPE_ROM:
+		case TYPE_ROM: {
 			/* We don't *really* support actual CD-ROM devices,
 			 * just "One Button Disaster Recovery" tape drive
 			 * which temporarily pretends to be a CD-ROM drive.
@@ -1929,8 +1906,15 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 			 * device by checking for "$DR-10" in bytes 43-48 of
 			 * the inquiry data.
 			 */
-			if (is_OBDR)
-				ncurrent++;
+				char obdr_sig[7];
+#define OBDR_TAPE_SIG "$DR-10"
+				strncpy(obdr_sig, &inq_buff[43], 6);
+				obdr_sig[6] = '\0';
+				if (strncmp(obdr_sig, OBDR_TAPE_SIG, 6) != 0)
+					/* Not OBDR device, ignore it. */
+					break;
+			}
+			ncurrent++;
 			break;
 		case TYPE_DISK:
 			if (i < nphysicals)
@@ -1963,6 +1947,7 @@ out:
 	for (i = 0; i < ndev_allocated; i++)
 		kfree(currentsd[i]);
 	kfree(currentsd);
+	kfree(inq_buff);
 	kfree(physdev_list);
 	kfree(logdev_list);
 }
@@ -2893,7 +2878,7 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.Timeout = 0; /* Don't time out */
 			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
 			c->Request.CDB[0] =  cmd;
-			c->Request.CDB[1] = HPSA_RESET_TYPE_LUN;
+			c->Request.CDB[1] = 0x03;  /* Reset target above */
 			/* If bytes 4-7 are zero, it means reset the */
 			/* LunID device */
 			c->Request.CDB[4] = 0x00;
@@ -3298,13 +3283,6 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		pmcsr |= PCI_D0;
 		pci_write_config_word(pdev, pos + PCI_PM_CTRL, pmcsr);
-
-		/*
-		 * The P600 requires a small delay when changing states.
-		 * Otherwise we may think the board did not reset and we bail.
-		 * This for kdump only and is particular to the P600.
-		 */
-		msleep(500);
 	}
 	return 0;
 }
@@ -3885,10 +3863,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
 		return -ENODEV;
 	}
-
-	pci_disable_link_state(h->pdev, PCIE_LINK_STATE_L0S |
-			       PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
-
 	err = pci_enable_device(h->pdev);
 	if (err) {
 		dev_warn(&h->pdev->dev, "unable to enable PCI device\n");
@@ -4034,10 +4008,10 @@ static int hpsa_request_irq(struct ctlr_info *h,
 
 	if (h->msix_vector || h->msi_vector)
 		rc = request_irq(h->intr[h->intr_mode], msixhandler,
-				0, h->devname, h);
+				IRQF_DISABLED, h->devname, h);
 	else
 		rc = request_irq(h->intr[h->intr_mode], intxhandler,
-				IRQF_SHARED, h->devname, h);
+				IRQF_DISABLED, h->devname, h);
 	if (rc) {
 		dev_err(&h->pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[h->intr_mode], h->devname);

@@ -112,7 +112,6 @@ int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
 					     u64 addr);
 
 void mem_bswap_64(void *src, int byte_size);
-void perf_event__attr_swap(struct perf_event_attr *attr);
 
 int perf_session__create_kernel_maps(struct perf_session *self);
 

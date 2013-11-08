@@ -74,17 +74,11 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 
 	/*
 	 * Ensure the task is not frozen.
-	 * Also, skip vfork and any other user process that freezer should skip.
+	 * Also, when a freshly created task is scheduled once, changes
+	 * its state to TASK_UNINTERRUPTIBLE without having ever been
+	 * switched out once, it musn't be checked.
 	 */
-	if (unlikely(t->flags & (PF_FROZEN | PF_FREEZER_SKIP)))
-	    return;
-
-	/*
-	 * When a freshly created task is scheduled once, changes its state to
-	 * TASK_UNINTERRUPTIBLE without having ever been switched out once, it
-	 * musn't be checked.
-	 */
-	if (unlikely(!switch_count))
+	if (unlikely(t->flags & PF_FROZEN || !switch_count))
 		return;
 
 	if (switch_count != t->last_switch_count) {

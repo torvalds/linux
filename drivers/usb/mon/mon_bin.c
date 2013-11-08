@@ -1101,7 +1101,7 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		nevents = mon_bin_queued(rp);
 
 		sp = (struct mon_bin_stats __user *)arg;
-		if (put_user(ndropped, &sp->dropped))
+		if (put_user(rp->cnt_lost, &sp->dropped))
 			return -EFAULT;
 		if (put_user(nevents, &sp->queued))
 			return -EFAULT;

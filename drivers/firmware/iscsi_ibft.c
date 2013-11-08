@@ -738,37 +738,6 @@ static void __exit ibft_exit(void)
 	ibft_cleanup();
 }
 
-#ifdef CONFIG_ACPI
-static const struct {
-	char *sign;
-} ibft_signs[] = {
-	/*
-	 * One spec says "IBFT", the other says "iBFT". We have to check
-	 * for both.
-	 */
-	{ ACPI_SIG_IBFT },
-	{ "iBFT" },
-};
-
-static void __init acpi_find_ibft_region(void)
-{
-	int i;
-	struct acpi_table_header *table = NULL;
-
-	if (acpi_disabled)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(ibft_signs) && !ibft_addr; i++) {
-		acpi_get_table(ibft_signs[i].sign, 0, &table);
-		ibft_addr = (struct acpi_table_ibft *)table;
-	}
-}
-#else
-static void __init acpi_find_ibft_region(void)
-{
-}
-#endif
-
 /*
  * ibft_init() - creates sysfs tree entries for the iBFT data.
  */
@@ -776,16 +745,9 @@ static int __init ibft_init(void)
 {
 	int rc = 0;
 
-	/*
-	   As on UEFI systems the setup_arch()/find_ibft_region()
-	   is called before ACPI tables are parsed and it only does
-	   legacy finding.
-	*/
-	if (!ibft_addr)
-		acpi_find_ibft_region();
-
 	if (ibft_addr) {
-		pr_info("iBFT detected.\n");
+		printk(KERN_INFO "iBFT detected at 0x%llx.\n",
+		       (u64)isa_virt_to_bus(ibft_addr));
 
 		rc = ibft_check_device();
 		if (rc)

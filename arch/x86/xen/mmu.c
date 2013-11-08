@@ -320,13 +320,8 @@ static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
 		unsigned long mfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
-		unsigned long pfn = mfn_to_pfn(mfn);
-
 		pteval_t flags = val & PTE_FLAGS_MASK;
-		if (unlikely(pfn == ~0))
-			val = flags & ~_PAGE_PRESENT;
-		else
-			val = ((pteval_t)pfn << PAGE_SHIFT) | flags;
+		val = ((pteval_t)mfn_to_pfn(mfn) << PAGE_SHIFT) | flags;
 	}
 
 	return val;
@@ -1631,19 +1626,15 @@ static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 void __init xen_setup_machphys_mapping(void)
 {
 	struct xen_machphys_mapping mapping;
+	unsigned long machine_to_phys_nr_ents;
 
 	if (HYPERVISOR_memory_op(XENMEM_machphys_mapping, &mapping) == 0) {
 		machine_to_phys_mapping = (unsigned long *)mapping.v_start;
-		machine_to_phys_nr = mapping.max_mfn + 1;
+		machine_to_phys_nr_ents = mapping.max_mfn + 1;
 	} else {
-		machine_to_phys_nr = MACH2PHYS_NR_ENTRIES;
+		machine_to_phys_nr_ents = MACH2PHYS_NR_ENTRIES;
 	}
-#ifdef CONFIG_X86_32
-	if ((machine_to_phys_mapping + machine_to_phys_nr)
-	    < machine_to_phys_mapping)
-		machine_to_phys_nr = (unsigned long *)NULL
-				     - machine_to_phys_mapping;
-#endif
+	machine_to_phys_order = fls(machine_to_phys_nr_ents - 1);
 }
 
 #ifdef CONFIG_X86_64

@@ -228,6 +228,12 @@ static void __put_ioctx(struct kioctx *ctx)
 	call_rcu(&ctx->rcu_head, ctx_rcu_free);
 }
 
+static inline void get_ioctx(struct kioctx *kioctx)
+{
+	BUG_ON(atomic_read(&kioctx->users) <= 0);
+	atomic_inc(&kioctx->users);
+}
+
 static inline int try_get_ioctx(struct kioctx *kioctx)
 {
 	return atomic_inc_not_zero(&kioctx->users);
@@ -267,7 +273,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	mm = ctx->mm = current->mm;
 	atomic_inc(&mm->mm_count);
 
-	atomic_set(&ctx->users, 2);
+	atomic_set(&ctx->users, 1);
 	spin_lock_init(&ctx->ctx_lock);
 	spin_lock_init(&ctx->ring_info.ring_lock);
 	init_waitqueue_head(&ctx->wait);
@@ -521,16 +527,11 @@ static void aio_fput_routine(struct work_struct *data)
 			fput(req->ki_filp);
 
 		/* Link the iocb into the context's free list */
-		rcu_read_lock();
 		spin_lock_irq(&ctx->ctx_lock);
 		really_put_req(ctx, req);
-		/*
-		 * at that point ctx might've been killed, but actual
-		 * freeing is RCU'd
-		 */
 		spin_unlock_irq(&ctx->ctx_lock);
-		rcu_read_unlock();
 
+		put_ioctx(ctx);
 		spin_lock_irq(&fput_lock);
 	}
 	spin_unlock_irq(&fput_lock);
@@ -561,6 +562,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 	 * this function will be executed w/out any aio kthread wakeup.
 	 */
 	if (unlikely(!fput_atomic(req->ki_filp))) {
+		get_ioctx(ctx);
 		spin_lock(&fput_lock);
 		list_add(&req->ki_list, &fput_head);
 		spin_unlock(&fput_lock);
@@ -1254,10 +1256,10 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 	ret = PTR_ERR(ioctx);
 	if (!IS_ERR(ioctx)) {
 		ret = put_user(ioctx->user_id, ctxp);
-		if (!ret) {
-			put_ioctx(ioctx);
+		if (!ret)
 			return 0;
-		}
+
+		get_ioctx(ioctx); /* io_destroy() expects us to hold a ref */
 		io_destroy(ioctx);
 	}
 
@@ -1395,10 +1397,6 @@ static ssize_t aio_setup_vectored_rw(int type, struct kiocb *kiocb, bool compat)
 	if (ret < 0)
 		goto out;
 
-	ret = rw_verify_area(type, kiocb->ki_filp, &kiocb->ki_pos, ret);
-	if (ret < 0)
-		goto out;
-
 	kiocb->ki_nr_segs = kiocb->ki_nbytes;
 	kiocb->ki_cur_seg = 0;
 	/* ki_nbytes/left now reflect bytes instead of segs */
@@ -1410,17 +1408,11 @@ out:
 	return ret;
 }
 
-static ssize_t aio_setup_single_vector(int type, struct file * file, struct kiocb *kiocb)
+static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
 {
-	int bytes;
-
-	bytes = rw_verify_area(type, file, &kiocb->ki_pos, kiocb->ki_left);
-	if (bytes < 0)
-		return bytes;
-
 	kiocb->ki_iovec = &kiocb->ki_inline_vec;
 	kiocb->ki_iovec->iov_base = kiocb->ki_buf;
-	kiocb->ki_iovec->iov_len = bytes;
+	kiocb->ki_iovec->iov_len = kiocb->ki_left;
 	kiocb->ki_nr_segs = 1;
 	kiocb->ki_cur_seg = 0;
 	return 0;
@@ -1445,7 +1437,10 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 		if (unlikely(!access_ok(VERIFY_WRITE, kiocb->ki_buf,
 			kiocb->ki_left)))
 			break;
-		ret = aio_setup_single_vector(READ, file, kiocb);
+		ret = security_file_permission(file, MAY_READ);
+		if (unlikely(ret))
+			break;
+		ret = aio_setup_single_vector(kiocb);
 		if (ret)
 			break;
 		ret = -EINVAL;
@@ -1460,7 +1455,10 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 		if (unlikely(!access_ok(VERIFY_READ, kiocb->ki_buf,
 			kiocb->ki_left)))
 			break;
-		ret = aio_setup_single_vector(WRITE, file, kiocb);
+		ret = security_file_permission(file, MAY_WRITE);
+		if (unlikely(ret))
+			break;
+		ret = aio_setup_single_vector(kiocb);
 		if (ret)
 			break;
 		ret = -EINVAL;
@@ -1470,6 +1468,9 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 	case IOCB_CMD_PREADV:
 		ret = -EBADF;
 		if (unlikely(!(file->f_mode & FMODE_READ)))
+			break;
+		ret = security_file_permission(file, MAY_READ);
+		if (unlikely(ret))
 			break;
 		ret = aio_setup_vectored_rw(READ, kiocb, compat);
 		if (ret)
@@ -1481,6 +1482,9 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb, bool compat)
 	case IOCB_CMD_PWRITEV:
 		ret = -EBADF;
 		if (unlikely(!(file->f_mode & FMODE_WRITE)))
+			break;
+		ret = security_file_permission(file, MAY_WRITE);
+		if (unlikely(ret))
 			break;
 		ret = aio_setup_vectored_rw(WRITE, kiocb, compat);
 		if (ret)

@@ -1507,14 +1507,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		switch (mode) {
 		case DRM_MODE_DPMS_ON:
 			args.ucAction = ATOM_ENABLE;
-			/* workaround for DVOOutputControl on some RS690 systems */
-			if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DDI) {
-				u32 reg = RREG32(RADEON_BIOS_3_SCRATCH);
-				WREG32(RADEON_BIOS_3_SCRATCH, reg & ~ATOM_S3_DFP2I_ACTIVE);
-				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-				WREG32(RADEON_BIOS_3_SCRATCH, reg);
-			} else
-				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 				args.ucAction = ATOM_LCD_BLON;
 				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -1755,12 +1748,9 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	/* DCE4/5 */
 	if (ASIC_IS_DCE4(rdev)) {
 		dig = radeon_encoder->enc_priv;
-		if (ASIC_IS_DCE41(rdev)) {
-			if (dig->linkb)
-				return 1;
-			else
-				return 0;
-		} else {
+		if (ASIC_IS_DCE41(rdev))
+			return radeon_crtc->crtc_id;
+		else {
 			switch (radeon_encoder->encoder_id) {
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 				if (dig->linkb)
@@ -2332,9 +2322,6 @@ radeon_add_atom_encoder(struct drm_device *dev,
 	case 2:
 	default:
 		encoder->possible_crtcs = 0x3;
-		break;
-	case 4:
-		encoder->possible_crtcs = 0xf;
 		break;
 	case 6:
 		encoder->possible_crtcs = 0x3f;

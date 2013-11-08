@@ -324,7 +324,7 @@ static int __devinit vt596_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
 	unsigned char temp;
-	int error;
+	int error = -ENODEV;
 
 	/* Determine the address of the SMBus areas */
 	if (force_addr) {
@@ -390,7 +390,6 @@ found:
 			dev_err(&pdev->dev, "SMBUS: Error: Host SMBus "
 				"controller not enabled! - upgrade BIOS or "
 				"use force=1\n");
-			error = -ENODEV;
 			goto release_region;
 		}
 	}
@@ -423,11 +422,9 @@ found:
 		 "SMBus Via Pro adapter at %04x", vt596_smba);
 
 	vt596_pdev = pci_dev_get(pdev);
-	error = i2c_add_adapter(&vt596_adapter);
-	if (error) {
+	if (i2c_add_adapter(&vt596_adapter)) {
 		pci_dev_put(vt596_pdev);
 		vt596_pdev = NULL;
-		goto release_region;
 	}
 
 	/* Always return failure here.  This is to allow other drivers to bind

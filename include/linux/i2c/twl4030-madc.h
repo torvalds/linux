@@ -129,10 +129,6 @@ enum sample_type {
 #define REG_BCICTL2             0x024
 #define TWL4030_BCI_ITHSENS	0x007
 
-/* Register and bits for GPBR1 register */
-#define TWL4030_REG_GPBR1		0x0c
-#define TWL4030_GPBR1_MADC_HFCLK_EN	(1 << 7)
-
 struct twl4030_madc_user_parms {
 	int channel;
 	int average;

@@ -215,9 +215,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 
 	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->dst.dev);
 	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		rcu_read_lock();
-		neigh_event_send(dst_get_neighbour(&rt->dst), NULL);
-		rcu_read_unlock();
+		neigh_event_send(rt->dst.neighbour, NULL);
 		ret = -ENODATA;
 		if (neigh)
 			goto release;
@@ -275,16 +273,14 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		goto put;
 	}
 
-	rcu_read_lock();
-	neigh = dst_get_neighbour(dst);
+	neigh = dst->neighbour;
 	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		if (neigh)
-			neigh_event_send(neigh, NULL);
+		neigh_event_send(dst->neighbour, NULL);
 		ret = -ENODATA;
-	} else {
-		ret = rdma_copy_addr(addr, dst->dev, neigh->ha);
+		goto put;
 	}
-	rcu_read_unlock();
+
+	ret = rdma_copy_addr(addr, dst->dev, neigh->ha);
 put:
 	dst_release(dst);
 	return ret;

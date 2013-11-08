@@ -365,5 +365,4 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task);
 int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
-int iser_alloc_rx_descriptors(struct iser_conn *ib_conn);
 #endif

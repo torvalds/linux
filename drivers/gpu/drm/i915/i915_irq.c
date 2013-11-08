@@ -306,14 +306,11 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
-	mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
 		if (encoder->hot_plug)
 			encoder->hot_plug(encoder);
-
-	mutex_unlock(&mode_config->mutex);
 
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
@@ -422,10 +419,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
-static void pch_irq_handler(struct drm_device *dev, u32 pch_iir)
+static void pch_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 pch_iir;
 	int pipe;
+
+	pch_iir = I915_READ(SDEIIR);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
@@ -524,7 +524,7 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PCH_EVENT_IVB) {
 		if (pch_iir & SDE_HOTPLUG_MASK_CPT)
 			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		pch_irq_handler(dev, pch_iir);
+		pch_irq_handler(dev);
 	}
 
 	if (pm_iir & GEN6_PM_DEFERRED_EVENTS) {
@@ -623,7 +623,7 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PCH_EVENT) {
 		if (pch_iir & hotplug_mask)
 			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		pch_irq_handler(dev, pch_iir);
+		pch_irq_handler(dev);
 	}
 
 	if (de_iir & DE_PCU_EVENT) {
@@ -817,7 +817,6 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
-	case 7:
 	case 6:
 		for (i = 0; i < 16; i++)
 			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
@@ -1662,7 +1661,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t acthd, instdone, instdone1, acthd_bsd, acthd_blt;
+	uint32_t acthd, instdone, instdone1;
 	bool err = false;
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
@@ -1676,21 +1675,16 @@ void i915_hangcheck_elapsed(unsigned long data)
 	}
 
 	if (INTEL_INFO(dev)->gen < 4) {
+		acthd = I915_READ(ACTHD);
 		instdone = I915_READ(INSTDONE);
 		instdone1 = 0;
 	} else {
+		acthd = I915_READ(ACTHD_I965);
 		instdone = I915_READ(INSTDONE_I965);
 		instdone1 = I915_READ(INSTDONE1);
 	}
-	acthd = intel_ring_get_active_head(&dev_priv->ring[RCS]);
-	acthd_bsd = HAS_BSD(dev) ?
-		intel_ring_get_active_head(&dev_priv->ring[VCS]) : 0;
-	acthd_blt = HAS_BLT(dev) ?
-		intel_ring_get_active_head(&dev_priv->ring[BCS]) : 0;
 
 	if (dev_priv->last_acthd == acthd &&
-	    dev_priv->last_acthd_bsd == acthd_bsd &&
-	    dev_priv->last_acthd_blt == acthd_blt &&
 	    dev_priv->last_instdone == instdone &&
 	    dev_priv->last_instdone1 == instdone1) {
 		if (dev_priv->hangcheck_count++ > 1) {
@@ -1722,8 +1716,6 @@ void i915_hangcheck_elapsed(unsigned long data)
 		dev_priv->hangcheck_count = 0;
 
 		dev_priv->last_acthd = acthd;
-		dev_priv->last_acthd_bsd = acthd_bsd;
-		dev_priv->last_acthd_blt = acthd_blt;
 		dev_priv->last_instdone = instdone;
 		dev_priv->last_instdone1 = instdone1;
 	}

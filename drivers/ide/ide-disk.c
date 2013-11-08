@@ -435,12 +435,7 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	if (!(rq->cmd_flags & REQ_FLUSH))
 		return BLKPREP_OK;
 
-	if (rq->special) {
-		cmd = rq->special;
-		memset(cmd, 0, sizeof(*cmd));
-	} else {
-		cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
-	}
+	cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
 
 	/* FIXME: map struct ide_taskfile on rq->cmd[] */
 	BUG_ON(cmd == NULL);

@@ -954,13 +954,8 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 	ring = &rtlpci->tx_ring[BEACON_QUEUE];
 	pskb = __skb_dequeue(&ring->queue);
-	if (pskb) {
-		struct rtl_tx_desc *entry = &ring->desc[ring->idx];
-		pci_unmap_single(rtlpci->pdev, rtlpriv->cfg->ops->get_desc(
-				 (u8 *) entry, true, HW_DESC_TXBUFF_ADDR),
-				 pskb->len, PCI_DMA_TODEVICE);
+	if (pskb)
 		kfree_skb(pskb);
-	}
 
 	/*NB: the beacon data buffer must be 32-bit aligned. */
 	pskb = ieee80211_beacon_get(hw, mac->vif);
@@ -1185,12 +1180,10 @@ static void _rtl_pci_free_tx_ring(struct ieee80211_hw *hw,
 		ring->idx = (ring->idx + 1) % ring->entries;
 	}
 
-	if (ring->desc) {
-		pci_free_consistent(rtlpci->pdev,
-				    sizeof(*ring->desc) * ring->entries,
-				    ring->desc, ring->dma);
-		ring->desc = NULL;
-	}
+	pci_free_consistent(rtlpci->pdev,
+			    sizeof(*ring->desc) * ring->entries,
+			    ring->desc, ring->dma);
+	ring->desc = NULL;
 }
 
 static void _rtl_pci_free_rx_ring(struct rtl_pci *rtlpci)
@@ -1214,14 +1207,12 @@ static void _rtl_pci_free_rx_ring(struct rtl_pci *rtlpci)
 			kfree_skb(skb);
 		}
 
-		if (rtlpci->rx_ring[rx_queue_idx].desc) {
-			pci_free_consistent(rtlpci->pdev,
+		pci_free_consistent(rtlpci->pdev,
 				    sizeof(*rtlpci->rx_ring[rx_queue_idx].
 					   desc) * rtlpci->rxringcount,
 				    rtlpci->rx_ring[rx_queue_idx].desc,
 				    rtlpci->rx_ring[rx_queue_idx].dma);
-			rtlpci->rx_ring[rx_queue_idx].desc = NULL;
-		}
+		rtlpci->rx_ring[rx_queue_idx].desc = NULL;
 	}
 }
 
@@ -1718,17 +1709,15 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	pcipriv->ndis_adapter.devnumber = PCI_SLOT(pdev->devfn);
 	pcipriv->ndis_adapter.funcnumber = PCI_FUNC(pdev->devfn);
 
-	if (bridge_pdev) {
-		/*find bridge info if available */
-		pcipriv->ndis_adapter.pcibridge_vendorid = bridge_pdev->vendor;
-		for (tmp = 0; tmp < PCI_BRIDGE_VENDOR_MAX; tmp++) {
-			if (bridge_pdev->vendor == pcibridge_vendors[tmp]) {
-				pcipriv->ndis_adapter.pcibridge_vendor = tmp;
-				RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-					 ("Pci Bridge Vendor is found index:"
-					 " %d\n", tmp));
-				break;
-			}
+	/*find bridge info */
+	pcipriv->ndis_adapter.pcibridge_vendorid = bridge_pdev->vendor;
+	for (tmp = 0; tmp < PCI_BRIDGE_VENDOR_MAX; tmp++) {
+		if (bridge_pdev->vendor == pcibridge_vendors[tmp]) {
+			pcipriv->ndis_adapter.pcibridge_vendor = tmp;
+			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+				 ("Pci Bridge Vendor is found index: %d\n",
+				  tmp));
+			break;
 		}
 	}
 
@@ -1988,7 +1977,6 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 		rtl_deinit_deferred_work(hw);
 		rtlpriv->intf_ops->adapter_stop(hw);
 	}
-	rtlpriv->cfg->ops->disable_interrupt(hw);
 
 	/*deinit rfkill */
 	rtl_deinit_rfkill(hw);

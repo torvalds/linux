@@ -767,7 +767,7 @@ static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __be32 *srcs)
 			break;
 		for (i=0; i<nsrcs; i++) {
 			/* skip inactive filters */
-			if (psf->sf_count[MCAST_INCLUDE] ||
+			if (pmc->sfcount[MCAST_INCLUDE] ||
 			    pmc->sfcount[MCAST_EXCLUDE] !=
 			    psf->sf_count[MCAST_EXCLUDE])
 				continue;
@@ -875,8 +875,6 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		 * to be intended in a v3 query.
 		 */
 		max_delay = IGMPV3_MRC(ih3->code)*(HZ/IGMP_TIMER_SCALE);
-		if (!max_delay)
-			max_delay = 1;	/* can't mod w/ 0 */
 	} else { /* v3 */
 		if (!pskb_may_pull(skb, sizeof(struct igmpv3_query)))
 			return;
@@ -1720,7 +1718,7 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 
 		pmc->sfcount[sfmode]--;
 		for (j=0; j<i; j++)
-			(void) ip_mc_del1_src(pmc, sfmode, &psfsrc[j]);
+			(void) ip_mc_del1_src(pmc, sfmode, &psfsrc[i]);
 	} else if (isexclude != (pmc->sfcount[MCAST_EXCLUDE] != 0)) {
 #ifdef CONFIG_IP_MULTICAST
 		struct ip_sf_list *psf;

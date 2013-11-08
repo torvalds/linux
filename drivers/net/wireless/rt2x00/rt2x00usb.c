@@ -262,20 +262,23 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
-	/*
-	 * Check if the frame was correctly uploaded
-	 */
-	if (urb->status)
-		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+
+	if (rt2x00dev->ops->lib->tx_dma_done)
+		rt2x00dev->ops->lib->tx_dma_done(entry);
+
 	/*
 	 * Report the frame as DMA done
 	 */
 	rt2x00lib_dmadone(entry);
 
-	if (rt2x00dev->ops->lib->tx_dma_done)
-		rt2x00dev->ops->lib->tx_dma_done(entry);
+	/*
+	 * Check if the frame was correctly uploaded
+	 */
+	if (urb->status)
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+
 	/*
 	 * Schedule the delayed work for reading the TX status
 	 * from the device.
@@ -426,8 +429,8 @@ void rt2x00usb_kick_queue(struct data_queue *queue)
 	case QID_RX:
 		if (!rt2x00queue_full(queue))
 			rt2x00queue_for_each_entry(queue,
-						   Q_INDEX,
 						   Q_INDEX_DONE,
+						   Q_INDEX,
 						   NULL,
 						   rt2x00usb_kick_rx_entry);
 		break;
@@ -870,8 +873,18 @@ int rt2x00usb_suspend(struct usb_interface *usb_intf, pm_message_t state)
 {
 	struct ieee80211_hw *hw = usb_get_intfdata(usb_intf);
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	int retval;
 
-	return rt2x00lib_suspend(rt2x00dev, state);
+	retval = rt2x00lib_suspend(rt2x00dev, state);
+	if (retval)
+		return retval;
+
+	/*
+	 * Decrease usbdev refcount.
+	 */
+	usb_put_dev(interface_to_usbdev(usb_intf));
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_suspend);
 
@@ -879,6 +892,8 @@ int rt2x00usb_resume(struct usb_interface *usb_intf)
 {
 	struct ieee80211_hw *hw = usb_get_intfdata(usb_intf);
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	usb_get_dev(interface_to_usbdev(usb_intf));
 
 	return rt2x00lib_resume(rt2x00dev);
 }

@@ -129,12 +129,6 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	 board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS),
 	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF_QP),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T1),
-	 board_X540 },
 
 	/* required last entry */
 	{0, }
@@ -1372,8 +1366,8 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		if (ring_is_rsc_enabled(rx_ring))
 			pkt_is_rsc = ixgbe_get_rsc_state(rx_desc);
 
-		/* linear means we are building an skb from multiple pages */
-		if (!skb_is_nonlinear(skb)) {
+		/* if this is a skb from previous receive DMA will be 0 */
+		if (rx_buffer_info->dma) {
 			u16 hlen;
 			if (pkt_is_rsc &&
 			    !(staterr & IXGBE_RXD_STAT_EOP) &&

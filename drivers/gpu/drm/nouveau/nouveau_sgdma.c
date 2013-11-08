@@ -37,11 +37,8 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 		return -ENOMEM;
 
 	nvbe->ttm_alloced = kmalloc(sizeof(bool) * num_pages, GFP_KERNEL);
-	if (!nvbe->ttm_alloced) {
-		kfree(nvbe->pages);
-		nvbe->pages = NULL;
+	if (!nvbe->ttm_alloced)
 		return -ENOMEM;
-	}
 
 	nvbe->nr_pages = 0;
 	while (num_pages--) {

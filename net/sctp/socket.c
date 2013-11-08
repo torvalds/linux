@@ -1160,14 +1160,8 @@ out_free:
 	SCTP_DEBUG_PRINTK("About to exit __sctp_connect() free asoc: %p"
 			  " kaddrs: %p err: %d\n",
 			  asoc, kaddrs, err);
-	if (asoc) {
-		/* sctp_primitive_ASSOCIATE may have added this association
-		 * To the hash table, try to unhash it, just in case, its a noop
-		 * if it wasn't hashed so we're safe
-		 */
-		sctp_unhash_established(asoc);
+	if (asoc)
 		sctp_association_free(asoc);
-	}
 	return err;
 }
 
@@ -1837,8 +1831,8 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	/* Break the message into multiple chunks of maximum size. */
 	datamsg = sctp_datamsg_from_user(asoc, sinfo, msg, msg_len);
-	if (IS_ERR(datamsg)) {
-		err = PTR_ERR(datamsg);
+	if (!datamsg) {
+		err = -ENOMEM;
 		goto out_free;
 	}
 
@@ -1877,10 +1871,8 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	goto out_unlock;
 
 out_free:
-	if (new_asoc) {
-		sctp_unhash_established(asoc);
+	if (new_asoc)
 		sctp_association_free(asoc);
-	}
 out_unlock:
 	sctp_release_sock(sk);
 
@@ -2137,6 +2129,8 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
 		return -EINVAL;
 	if (copy_from_user(&sp->autoclose, optval, optlen))
 		return -EFAULT;
+	/* make sure it won't exceed MAX_SCHEDULE_TIMEOUT */
+	sp->autoclose = min_t(long, sp->autoclose, MAX_SCHEDULE_TIMEOUT / HZ);
 
 	return 0;
 }
@@ -3304,7 +3298,7 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 
 	ret = sctp_auth_set_key(sctp_sk(sk)->ep, asoc, authkey);
 out:
-	kzfree(authkey);
+	kfree(authkey);
 	return ret;
 }
 
@@ -4017,10 +4011,9 @@ static int sctp_getsockopt_disable_fragments(struct sock *sk, int len,
 static int sctp_getsockopt_events(struct sock *sk, int len, char __user *optval,
 				  int __user *optlen)
 {
-	if (len <= 0)
+	if (len < sizeof(struct sctp_event_subscribe))
 		return -EINVAL;
-	if (len > sizeof(struct sctp_event_subscribe))
-		len = sizeof(struct sctp_event_subscribe);
+	len = sizeof(struct sctp_event_subscribe);
 	if (put_user(len, optlen))
 		return -EFAULT;
 	if (copy_to_user(optval, &sctp_sk(sk)->subscribe, len))

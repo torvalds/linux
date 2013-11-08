@@ -102,8 +102,7 @@ int user_update(struct key *key, const void *data, size_t datalen)
 		key->expiry = 0;
 	}
 
-	if (zap)
-		kfree_rcu(zap, rcu);
+	kfree_rcu(zap, rcu);
 
 error:
 	return ret;

@@ -161,10 +161,9 @@ static void del_nbp(struct net_bridge_port *p)
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
-/* Delete bridge device */
-void br_dev_delete(struct net_device *dev, struct list_head *head)
+/* called with RTNL */
+static void del_br(struct net_bridge *br, struct list_head *head)
 {
-	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p, *n;
 
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
@@ -232,7 +231,6 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
-	int res;
 
 	dev = alloc_netdev(sizeof(struct net_bridge), name,
 			   br_dev_setup);
@@ -241,12 +239,8 @@ int br_add_bridge(struct net *net, const char *name)
 		return -ENOMEM;
 
 	dev_net_set(dev, net);
-	dev->rtnl_link_ops = &br_link_ops;
 
-	res = register_netdev(dev);
-	if (res)
-		free_netdev(dev);
-	return res;
+	return register_netdev(dev);
 }
 
 int br_del_bridge(struct net *net, const char *name)
@@ -270,7 +264,7 @@ int br_del_bridge(struct net *net, const char *name)
 	}
 
 	else
-		br_dev_delete(dev, NULL);
+		del_br(netdev_priv(dev), NULL);
 
 	rtnl_unlock();
 	return ret;
@@ -447,7 +441,7 @@ void __net_exit br_net_exit(struct net *net)
 	rtnl_lock();
 	for_each_netdev(net, dev)
 		if (dev->priv_flags & IFF_EBRIDGE)
-			br_dev_delete(dev, &list);
+			del_br(netdev_priv(dev), &list);
 
 	unregister_netdevice_many(&list);
 	rtnl_unlock();

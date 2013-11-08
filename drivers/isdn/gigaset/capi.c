@@ -14,7 +14,6 @@
 #include "gigaset.h"
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/ratelimit.h>
 #include <linux/isdn/capilli.h>
 #include <linux/isdn/capicmd.h>
 #include <linux/isdn/capiutil.h>
@@ -223,13 +222,9 @@ get_appl(struct gigaset_capi_ctr *iif, u16 appl)
 static inline void dump_cmsg(enum debuglevel level, const char *tag, _cmsg *p)
 {
 #ifdef CONFIG_GIGASET_DEBUG
-	/* dump at most 20 messages in 20 secs */
-	static DEFINE_RATELIMIT_STATE(msg_dump_ratelimit, 20 * HZ, 20);
 	_cdebbuf *cdb;
 
 	if (!(gigaset_debuglevel & level))
-		return;
-	if (!___ratelimit(&msg_dump_ratelimit, tag))
 		return;
 
 	cdb = capi_cmsg2str(p);
@@ -263,8 +258,6 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 		CAPIMSG_APPID(data), CAPIMSG_MSGID(data), l,
 		CAPIMSG_CONTROL(data));
 	l -= 12;
-	if (l <= 0)
-		return;
 	dbgline = kmalloc(3*l, GFP_ATOMIC);
 	if (!dbgline)
 		return;
@@ -2065,6 +2058,12 @@ static void do_reset_b3_req(struct gigaset_capi_ctr *iif,
 }
 
 /*
+ * dump unsupported/ignored messages at most twice per minute,
+ * some apps send those very frequently
+ */
+static unsigned long ignored_msg_dump_time;
+
+/*
  * unsupported CAPI message handler
  */
 static void do_unsupported(struct gigaset_capi_ctr *iif,
@@ -2073,7 +2072,8 @@ static void do_unsupported(struct gigaset_capi_ctr *iif,
 {
 	/* decode message */
 	capi_message2cmsg(&iif->acmsg, skb->data);
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	if (printk_timed_ratelimit(&ignored_msg_dump_time, 30 * 1000))
+		dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
 	send_conf(iif, ap, skb, CapiMessageNotSupportedInCurrentState);
 }
 
@@ -2084,9 +2084,11 @@ static void do_nothing(struct gigaset_capi_ctr *iif,
 		       struct gigaset_capi_appl *ap,
 		       struct sk_buff *skb)
 {
-	/* decode message */
-	capi_message2cmsg(&iif->acmsg, skb->data);
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	if (printk_timed_ratelimit(&ignored_msg_dump_time, 30 * 1000)) {
+		/* decode message */
+		capi_message2cmsg(&iif->acmsg, skb->data);
+		dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	}
 	dev_kfree_skb_any(skb);
 }
 

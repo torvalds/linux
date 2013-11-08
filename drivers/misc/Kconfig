@@ -245,7 +245,8 @@ config SGI_XP
 
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
-	depends on PCI && X86 && MFD_CS5535
+	depends on PCI
+	depends on X86
 	default n
 	help
 	  This driver provides access to MFGPT functionality for other
@@ -391,14 +392,6 @@ config HMC6352
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
 
-config SENSORS_AK8975
-	tristate "AK8975 compass support"
-	default n
-	depends on I2C
-	help
-	  If you say yes here you get support for Asahi Kasei's
-	  orientation sensor AK8975.
-
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -442,10 +435,6 @@ config TI_DAC7512
 	  This driver can also be built as a module. If so, the module
 	  will be called ti_dac7512.
 
-config UID_STAT
-	bool "UID based statistics tracking exported to /proc/uid_stat"
-	default n
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on X86
@@ -483,7 +472,7 @@ config BMP085
 	  module will be called bmp085.
 
 config PCH_PHUB
-	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) PHUB"
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
@@ -491,39 +480,15 @@ config PCH_PHUB
 	  processor. The Topcliff has MAC address and Option ROM data in SROM.
 	  This driver can access MAC address and Option ROM data in SROM.
 
-	  This driver also can be used for LAPIS Semiconductor's IOH,
-	  ML7213/ML7223/ML7831.
-	  ML7213 which is for IVI(In-Vehicle Infotainment) use.
-	  ML7223 IOH is for MP(Media Phone) use.
-	  ML7831 IOH is for general purpose use.
-	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
+	  Output Hub), ML7213 and ML7223.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
+	  for MP(Media Phone) use.
+	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
-
-config WL127X_RFKILL
-	tristate "Bluetooth power control driver for TI wl127x"
-	depends on RFKILL
-	default n
-	---help---
-	 Creates an rfkill entry in sysfs for power control of Bluetooth
-	 TI wl127x chips.
-
-config APANIC
-	bool "Android kernel panic diagnostics driver"
-	default n
-	---help---
-	 Driver which handles kernel panics and attempts to write
-	 critical debugging data to flash.
-
-config APANIC_PLABEL
-	string "Android panic dump flash partition label"
-	depends on APANIC
-	default "kpanic"
-	---help---
-	 If your platform uses a different flash partition label for storing
- 	 crashdumps, enter it here.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

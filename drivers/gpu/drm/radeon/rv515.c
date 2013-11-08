@@ -281,8 +281,12 @@ int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
 
 void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 {
+	save->d1vga_control = RREG32(R_000330_D1VGA_CONTROL);
+	save->d2vga_control = RREG32(R_000338_D2VGA_CONTROL);
 	save->vga_render_control = RREG32(R_000300_VGA_RENDER_CONTROL);
 	save->vga_hdp_control = RREG32(R_000328_VGA_HDP_CONTROL);
+	save->d1crtc_control = RREG32(R_006080_D1CRTC_CONTROL);
+	save->d2crtc_control = RREG32(R_006880_D2CRTC_CONTROL);
 
 	/* Stop all video */
 	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
@@ -307,6 +311,15 @@ void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 	/* Unlock host access */
 	WREG32(R_000328_VGA_HDP_CONTROL, save->vga_hdp_control);
 	mdelay(1);
+	/* Restore video state */
+	WREG32(R_000330_D1VGA_CONTROL, save->d1vga_control);
+	WREG32(R_000338_D2VGA_CONTROL, save->d2vga_control);
+	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 1);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 1);
+	WREG32(R_006080_D1CRTC_CONTROL, save->d1crtc_control);
+	WREG32(R_006880_D2CRTC_CONTROL, save->d2crtc_control);
+	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 0);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
 	WREG32(R_000300_VGA_RENDER_CONTROL, save->vga_render_control);
 }
 

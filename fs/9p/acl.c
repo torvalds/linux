@@ -185,15 +185,12 @@ int v9fs_acl_chmod(struct dentry *dentry)
 }
 
 int v9fs_set_create_acl(struct dentry *dentry,
-			struct posix_acl **dpacl, struct posix_acl **pacl)
+			struct posix_acl *dpacl, struct posix_acl *pacl)
 {
-	if (dentry) {
-		v9fs_set_acl(dentry, ACL_TYPE_DEFAULT, *dpacl);
-		v9fs_set_acl(dentry, ACL_TYPE_ACCESS, *pacl);
-	}
-	posix_acl_release(*dpacl);
-	posix_acl_release(*pacl);
-	*dpacl = *pacl = NULL;
+	v9fs_set_acl(dentry, ACL_TYPE_DEFAULT, dpacl);
+	v9fs_set_acl(dentry, ACL_TYPE_ACCESS, pacl);
+	posix_acl_release(dpacl);
+	posix_acl_release(pacl);
 	return 0;
 }
 
@@ -215,11 +212,11 @@ int v9fs_acl_mode(struct inode *dir, mode_t *modep,
 		struct posix_acl *clone;
 
 		if (S_ISDIR(mode))
-			*dpacl = posix_acl_dup(acl);
+			*dpacl = acl;
 		clone = posix_acl_clone(acl, GFP_NOFS);
-		posix_acl_release(acl);
+		retval = -ENOMEM;
 		if (!clone)
-			return -ENOMEM;
+			goto cleanup;
 
 		retval = posix_acl_create_masq(clone, &mode);
 		if (retval < 0) {
@@ -228,12 +225,11 @@ int v9fs_acl_mode(struct inode *dir, mode_t *modep,
 		}
 		if (retval > 0)
 			*pacl = clone;
-		else
-			posix_acl_release(clone);
 	}
 	*modep  = mode;
 	return 0;
 cleanup:
+	posix_acl_release(acl);
 	return retval;
 
 }

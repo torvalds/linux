@@ -58,6 +58,3 @@ obj-$(CONFIG_WL12XX_PLATFORM_DATA)	+= wl12xx/
 obj-$(CONFIG_IWM)	+= iwmc3200wifi/
 
 obj-$(CONFIG_MWIFIEX)	+= mwifiex/
-
-obj-$(CONFIG_BCM4329)	+= bcm4329/
-obj-$(CONFIG_BCMDHD)	+= bcmdhd/

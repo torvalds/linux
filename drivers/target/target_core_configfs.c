@@ -3234,8 +3234,7 @@ static int __init target_core_init_configfs(void)
 	if (ret < 0)
 		goto out;
 
-	ret = core_dev_setup_virtual_lun0();
-	if (ret < 0)
+	if (core_dev_setup_virtual_lun0() < 0)
 		goto out;
 
 	return 0;

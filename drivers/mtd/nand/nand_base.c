@@ -2097,22 +2097,14 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 /**
  * nand_fill_oob - [Internal] Transfer client buffer to oob
- * @mtd:	MTD device structure
+ * @chip:	nand chip structure
  * @oob:	oob data buffer
  * @len:	oob data write length
  * @ops:	oob ops structure
  */
-static uint8_t *nand_fill_oob(struct mtd_info *mtd, uint8_t *oob, size_t len,
-			      struct mtd_oob_ops *ops)
+static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
+						struct mtd_oob_ops *ops)
 {
-	struct nand_chip *chip = mtd->priv;
-
-	/*
-	 * Initialise to all 0xFF, to avoid the possibility of left over OOB
-	 * data from a previous OOB read.
-	 */
-	memset(chip->oob_poi, 0xff, mtd->oobsize);
-
 	switch (ops->mode) {
 
 	case MTD_OOB_PLACE:
@@ -2209,6 +2201,10 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	    (chip->pagebuf << chip->page_shift) < (to + ops->len))
 		chip->pagebuf = -1;
 
+	/* If we're not given explicit OOB data, let it be 0xFF */
+	if (likely(!oob))
+		memset(chip->oob_poi, 0xff, mtd->oobsize);
+
 	/* Don't allow multipage oob writes with offset */
 	if (oob && ops->ooboffs && (ops->ooboffs + ops->ooblen > oobmaxlen))
 		return -EINVAL;
@@ -2230,11 +2226,8 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 
 		if (unlikely(oob)) {
 			size_t len = min(oobwritelen, oobmaxlen);
-			oob = nand_fill_oob(mtd, oob, len, ops);
+			oob = nand_fill_oob(chip, oob, len, ops);
 			oobwritelen -= len;
-		} else {
-			/* We still need to erase leftover OOB data */
-			memset(chip->oob_poi, 0xff, mtd->oobsize);
 		}
 
 		ret = chip->write_page(mtd, chip, wbuf, page, cached,
@@ -2408,8 +2401,10 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	if (page == chip->pagebuf)
 		chip->pagebuf = -1;
 
-	nand_fill_oob(mtd, ops->oobbuf, ops->ooblen, ops);
+	memset(chip->oob_poi, 0xff, mtd->oobsize);
+	nand_fill_oob(chip, ops->oobbuf, ops->ooblen, ops);
 	status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
+	memset(chip->oob_poi, 0xff, mtd->oobsize);
 
 	if (status)
 		return status;
@@ -3222,44 +3217,6 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 }
 EXPORT_SYMBOL(nand_scan_ident);
 
-static void nand_panic_wait(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd->priv;
-	int i;
-
-	if (chip->state != FL_READY)
-		for (i = 0; i < 40; i++) {
-			if (chip->dev_ready(mtd))
-				break;
-			mdelay(10);
-		}
-	chip->state = FL_READY;
-}
-
-static int nand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
-			    size_t *retlen, const u_char *buf)
-{
-	struct nand_chip *chip = mtd->priv;
-	int ret;
-
-	/* Do not allow reads past end of device */
-	if ((to + len) > mtd->size)
-		return -EINVAL;
-	if (!len)
-		return 0;
-
-	nand_panic_wait(mtd);
-
-	chip->ops.len = len;
-	chip->ops.datbuf = (uint8_t *)buf;
-	chip->ops.oobbuf = NULL;
-
-	ret = nand_do_write_ops(mtd, to, &chip->ops);
-
-	*retlen = chip->ops.retlen;
-	return ret;
-}
-
 
 /**
  * nand_scan_tail - [NAND Interface] Scan for the NAND device
@@ -3503,7 +3460,6 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->panic_write = panic_nand_write;
 	mtd->read_oob = nand_read_oob;
 	mtd->write_oob = nand_write_oob;
-	mtd->panic_write = nand_panic_write;
 	mtd->sync = nand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = NULL;

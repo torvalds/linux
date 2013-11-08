@@ -48,7 +48,6 @@
 #include <linux/audit.h>
 #include <linux/memcontrol.h>
 #include <linux/ftrace.h>
-#include <linux/proc_fs.h>
 #include <linux/profile.h>
 #include <linux/rmap.h>
 #include <linux/ksm.h>
@@ -68,7 +67,6 @@
 #include <linux/user-return-notifier.h>
 #include <linux/oom.h>
 #include <linux/khugepaged.h>
-#include <linux/signalfd.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -156,9 +154,6 @@ struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
-/* Notifier list called when a task struct is freed */
-static ATOMIC_NOTIFIER_HEAD(task_free_notifier);
-
 static void account_kernel_stack(struct thread_info *ti, int account)
 {
 	struct zone *zone = page_zone(virt_to_page(ti));
@@ -190,18 +185,6 @@ static inline void put_signal_struct(struct signal_struct *sig)
 		free_signal_struct(sig);
 }
 
-int task_free_register(struct notifier_block *n)
-{
-	return atomic_notifier_chain_register(&task_free_notifier, n);
-}
-EXPORT_SYMBOL(task_free_register);
-
-int task_free_unregister(struct notifier_block *n)
-{
-	return atomic_notifier_chain_unregister(&task_free_notifier, n);
-}
-EXPORT_SYMBOL(task_free_unregister);
-
 void __put_task_struct(struct task_struct *tsk)
 {
 	WARN_ON(!tsk->exit_state);
@@ -212,7 +195,6 @@ void __put_task_struct(struct task_struct *tsk)
 	delayacct_tsk_free(tsk);
 	put_signal_struct(tsk->signal);
 
-	atomic_notifier_call_chain(&task_free_notifier, 0, tsk);
 	if (!profile_handoff_task(tsk))
 		free_task(tsk);
 }
@@ -935,10 +917,8 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 
 void __cleanup_sighand(struct sighand_struct *sighand)
 {
-	if (atomic_dec_and_test(&sighand->count)) {
-		signalfd_cleanup(sighand);
+	if (atomic_dec_and_test(&sighand->count))
 		kmem_cache_free(sighand_cachep, sighand);
-	}
 }
 
 
@@ -1001,9 +981,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 #ifdef CONFIG_CGROUPS
 	init_rwsem(&sig->threadgroup_fork_lock);
 #endif
-#ifdef CONFIG_CPUSETS
-	seqcount_init(&tsk->mems_allowed_seq);
-#endif
 
 	sig->oom_adj = current->signal->oom_adj;
 	sig->oom_score_adj = current->signal->oom_score_adj;
@@ -1036,7 +1013,7 @@ static void rt_mutex_init_task(struct task_struct *p)
 {
 	raw_spin_lock_init(&p->pi_lock);
 #ifdef CONFIG_RT_MUTEXES
-	plist_head_init(&p->pi_waiters);
+	plist_head_init_raw(&p->pi_waiters, &p->pi_lock);
 	p->pi_blocked_on = NULL;
 #endif
 }
@@ -1398,8 +1375,6 @@ bad_fork_cleanup_io:
 	if (p->io_context)
 		exit_io_context(p);
 bad_fork_cleanup_namespaces:
-	if (unlikely(clone_flags & CLONE_NEWPID))
-		pid_ns_release_proc(p->nsproxy->pid_ns);
 	exit_task_namespaces(p);
 bad_fork_cleanup_mm:
 	if (p->mm) {

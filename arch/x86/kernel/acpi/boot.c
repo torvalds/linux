@@ -416,14 +416,12 @@ acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
 		return 0;
 	}
 
-	if (intsrc->source_irq == 0) {
+	if (intsrc->source_irq == 0 && intsrc->global_irq == 2) {
 		if (acpi_skip_timer_override) {
-			printk(PREFIX "BIOS IRQ0 override ignored.\n");
+			printk(PREFIX "BIOS IRQ0 pin2 override ignored.\n");
 			return 0;
 		}
-
-		if ((intsrc->global_irq == 2) && acpi_fix_pin2_polarity
-			&& (intsrc->inti_flags & ACPI_MADT_POLARITY_MASK)) {
+		if (acpi_fix_pin2_polarity && (intsrc->inti_flags & ACPI_MADT_POLARITY_MASK)) {
 			intsrc->inti_flags &= ~ACPI_MADT_POLARITY_MASK;
 			printk(PREFIX "BIOS IRQ0 pin2 override: forcing polarity to high active.\n");
 		}
@@ -1329,12 +1327,17 @@ static int __init dmi_disable_acpi(const struct dmi_system_id *d)
 }
 
 /*
- * Force ignoring BIOS IRQ0 override
+ * Force ignoring BIOS IRQ0 pin2 override
  */
 static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 {
+	/*
+	 * The ati_ixp4x0_rev() early PCI quirk should have set
+	 * the acpi_skip_timer_override flag already:
+	 */
 	if (!acpi_skip_timer_override) {
-		pr_notice("%s detected: Ignoring BIOS IRQ0 override\n",
+		WARN(1, KERN_ERR "ati_ixp4x0 quirk not complete.\n");
+		pr_notice("%s detected: Ignoring BIOS IRQ0 pin2 override\n",
 			d->ident);
 		acpi_skip_timer_override = 1;
 	}
@@ -1428,7 +1431,7 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
 	 * is enabled.  This input is incorrectly designated the
 	 * ISA IRQ 0 via an interrupt source override even though
 	 * it is wired to the output of the master 8259A and INTIN0
-	 * is not connected at all.  Force ignoring BIOS IRQ0
+	 * is not connected at all.  Force ignoring BIOS IRQ0 pin2
 	 * override in that cases.
 	 */
 	{
@@ -1461,14 +1464,6 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq 6715b"),
-		     },
-	 },
-	{
-	 .callback = dmi_ignore_irq0_timer_override,
-	 .ident = "FUJITSU SIEMENS",
-	 .matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "AMILO PRO V2030"),
 		     },
 	 },
 	{}

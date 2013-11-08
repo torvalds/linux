@@ -65,15 +65,6 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 			goto done;
 		}
 
-		/* Prevent excessive memory consumption, as well as integer
-		 * overflows.
-		 */
-		if (xmap->menu_count == 0 ||
-		    xmap->menu_count > UVC_MAX_CONTROL_MENU_ENTRIES) {
-			ret = -EINVAL;
-			goto done;
-		}
-
 		size = xmap->menu_count * sizeof(*map->menu_info);
 		map->menu_info = kmalloc(size, GFP_KERNEL);
 		if (map->menu_info == NULL) {
@@ -710,7 +701,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 					break;
 			}
 			pin = iterm->id;
-		} else if (index < selector->bNrInPins) {
+		} else if (pin < selector->bNrInPins) {
 			pin = selector->baSourceID[index];
 			list_for_each_entry(iterm, &chain->entities, chain) {
 				if (!UVC_ENTITY_IS_ITERM(iterm))

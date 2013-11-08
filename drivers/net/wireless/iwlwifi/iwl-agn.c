@@ -797,7 +797,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
 		priv->ucode_write_complete = 1;
-		wake_up(&priv->wait_command_queue);
+		wake_up_interruptible(&priv->wait_command_queue);
 	}
 
 	if (inta & ~handled) {
@@ -2440,12 +2440,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_SPECTRUM_MGMT |
 		    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
-	/*
-	 * Including the following line will crash some AP's.  This
-	 * workaround removes the stimulus which causes the crash until
-	 * the AP software can be fixed.
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
-	 */
 
 	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
@@ -2872,9 +2867,21 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 			/* Configure HT40 channels */
 			ctx->ht.enabled = conf_is_ht(conf);
-			if (ctx->ht.enabled)
-				iwlagn_config_ht40(conf, ctx);
-			else
+			if (ctx->ht.enabled) {
+				if (conf_is_ht40_minus(conf)) {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+					ctx->ht.is_40mhz = true;
+				} else if (conf_is_ht40_plus(conf)) {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+					ctx->ht.is_40mhz = true;
+				} else {
+					ctx->ht.extension_chan_offset =
+						IEEE80211_HT_PARAM_CHA_SEC_NONE;
+					ctx->ht.is_40mhz = false;
+				}
+			} else
 				ctx->ht.is_40mhz = false;
 
 			if ((le16_to_cpu(ctx->staging.channel) != ch))

@@ -1051,6 +1051,7 @@ static int efx_init_io(struct efx_nic *efx)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
+	bool use_wc;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
@@ -1101,8 +1102,21 @@ static int efx_init_io(struct efx_nic *efx)
 		rc = -EIO;
 		goto fail3;
 	}
-	efx->membase = ioremap_nocache(efx->membase_phys,
-				       efx->type->mem_map_size);
+
+	/* bug22643: If SR-IOV is enabled then tx push over a write combined
+	 * mapping is unsafe. We need to disable write combining in this case.
+	 * MSI is unsupported when SR-IOV is enabled, and the firmware will
+	 * have removed the MSI capability. So write combining is safe if
+	 * there is an MSI capability.
+	 */
+	use_wc = (!EFX_WORKAROUND_22643(efx) ||
+		  pci_find_capability(pci_dev, PCI_CAP_ID_MSI));
+	if (use_wc)
+		efx->membase = ioremap_wc(efx->membase_phys,
+					  efx->type->mem_map_size);
+	else
+		efx->membase = ioremap_nocache(efx->membase_phys,
+					       efx->type->mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not map memory BAR at %llx+%x\n",
@@ -1383,11 +1397,6 @@ static int efx_probe_all(struct efx_nic *efx)
 		goto fail2;
 	}
 
-	BUILD_BUG_ON(EFX_DEFAULT_DMAQ_SIZE < EFX_RXQ_MIN_ENT);
-	if (WARN_ON(EFX_DEFAULT_DMAQ_SIZE < EFX_TXQ_MIN_ENT(efx))) {
-		rc = -EINVAL;
-		goto fail3;
-	}
 	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 	rc = efx_probe_channels(efx);
 	if (rc)
@@ -1947,7 +1956,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &efx_netdev_ops;
 	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
-	net_dev->gso_max_segs = EFX_TSO_MAX_SEGS;
 
 	/* Clear MAC statistics */
 	efx->mac_op->update_stats(efx);

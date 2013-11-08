@@ -177,15 +177,6 @@ send_unreach(struct net *net, struct sk_buff *skb_in, unsigned char code,
 		skb_in->dev = net->loopback_dev;
 
 	icmpv6_send(skb_in, ICMPV6_DEST_UNREACH, code, 0);
-#ifdef CONFIG_IP6_NF_TARGET_REJECT_SKERR
-	if (skb_in->sk) {
-		icmpv6_err_convert(ICMPV6_DEST_UNREACH, code,
-				   &skb_in->sk->sk_err);
-		skb_in->sk->sk_error_report(skb_in->sk);
-		pr_debug("ip6t_REJECT: sk_err=%d for skb=%p sk=%p\n",
-			skb_in->sk->sk_err, skb_in, skb_in->sk);
-	}
-#endif
 }
 
 static unsigned int

@@ -200,8 +200,14 @@ void __init default_setup_apic_routing(void)
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */
 
-	if (!cmdline_apic && apic == &apic_default)
-		generic_bigsmp_probe();
+	if (!cmdline_apic && apic == &apic_default) {
+		struct apic *bigsmp = generic_bigsmp_probe();
+		if (bigsmp) {
+			apic = bigsmp;
+			printk(KERN_INFO "Overriding APIC driver with %s\n",
+			       apic->name);
+		}
+	}
 #endif
 
 	if (apic->setup_apic_routing)

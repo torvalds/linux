@@ -562,16 +562,7 @@ int cifs_get_file_info(struct file *filp)
 
 	xid = GetXid();
 	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);
-	switch (rc) {
-	case 0:
-		cifs_all_info_to_fattr(&fattr, &find_data, cifs_sb, false);
-		break;
-	case -EREMOTE:
-		cifs_create_dfs_fattr(&fattr, inode->i_sb);
-		rc = 0;
-		break;
-	case -EOPNOTSUPP:
-	case -EINVAL:
+	if (rc == -EOPNOTSUPP || rc == -EINVAL) {
 		/*
 		 * FIXME: legacy server -- fall back to path-based call?
 		 * for now, just skip revalidating and mark inode for
@@ -579,14 +570,18 @@ int cifs_get_file_info(struct file *filp)
 		 */
 		rc = 0;
 		CIFS_I(inode)->time = 0;
-	default:
 		goto cgfi_exit;
-	}
+	} else if (rc == -EREMOTE) {
+		cifs_create_dfs_fattr(&fattr, inode->i_sb);
+		rc = 0;
+	} else if (rc)
+		goto cgfi_exit;
 
 	/*
 	 * don't bother with SFU junk here -- just mark inode as needing
 	 * revalidation.
 	 */
+	cifs_all_info_to_fattr(&fattr, &find_data, cifs_sb, false);
 	fattr.cf_uniqueid = CIFS_I(inode)->uniqueid;
 	fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 	cifs_fattr_to_inode(inode, &fattr);
@@ -769,10 +764,20 @@ char *cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 	if (full_path == NULL)
 		return full_path;
 
-	if (dfsplen)
+	if (dfsplen) {
 		strncpy(full_path, tcon->treeName, dfsplen);
+		/* switch slash direction in prepath depending on whether
+		 * windows or posix style path names
+		 */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
+			int i;
+			for (i = 0; i < dfsplen; i++) {
+				if (full_path[i] == '\\')
+					full_path[i] = '/';
+			}
+		}
+	}
 	strncpy(full_path + dfsplen, vol->prepath, pplen);
-	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
 	full_path[dfsplen + pplen] = 0; /* add trailing null */
 	return full_path;
 }

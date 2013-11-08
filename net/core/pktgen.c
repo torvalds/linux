@@ -1070,9 +1070,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
 			return len;
-		if ((value > 0) &&
-		    (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
-			return -ENOTSUPP;
+
 		i += len;
 		pkt_dev->clone_skb = value;
 
@@ -1803,13 +1801,10 @@ static ssize_t pktgen_thread_write(struct file *file,
 			return -EFAULT;
 		i += len;
 		mutex_lock(&pktgen_thread_lock);
-		ret = pktgen_add_device(t, f);
+		pktgen_add_device(t, f);
 		mutex_unlock(&pktgen_thread_lock);
-		if (!ret) {
-			ret = count;
-			sprintf(pg_result, "OK: add_device=%s", f);
-		} else
-			sprintf(pg_result, "ERROR: can not add device %s", f);
+		ret = count;
+		sprintf(pg_result, "OK: add_device=%s", f);
 		goto out;
 	}
 
@@ -1935,7 +1930,7 @@ static int pktgen_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = ptr;
 
-	if (!net_eq(dev_net(dev), &init_net) || pktgen_exiting)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	/* It is OK that we do not hold the group lock right now,
@@ -2935,7 +2930,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		  sizeof(struct ipv6hdr) - sizeof(struct udphdr) -
 		  pkt_dev->pkt_overhead;
 
-	if (datalen < 0 || datalen < sizeof(struct pktgen_hdr)) {
+	if (datalen < sizeof(struct pktgen_hdr)) {
 		datalen = sizeof(struct pktgen_hdr);
 		if (net_ratelimit())
 			pr_info("increased datalen to %d\n", datalen);
@@ -3560,6 +3555,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->min_pkt_size = ETH_ZLEN;
 	pkt_dev->max_pkt_size = ETH_ZLEN;
 	pkt_dev->nfrags = 0;
+	pkt_dev->clone_skb = pg_clone_skb_d;
 	pkt_dev->delay = pg_delay_d;
 	pkt_dev->count = pg_count_d;
 	pkt_dev->sofar = 0;
@@ -3567,6 +3563,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->udp_src_max = 9;
 	pkt_dev->udp_dst_min = 9;
 	pkt_dev->udp_dst_max = 9;
+
 	pkt_dev->vlan_p = 0;
 	pkt_dev->vlan_cfi = 0;
 	pkt_dev->vlan_id = 0xffff;
@@ -3578,8 +3575,6 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	err = pktgen_setup_dev(pkt_dev, ifname);
 	if (err)
 		goto out1;
-	if (pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)
-		pkt_dev->clone_skb = pg_clone_skb_d;
 
 	pkt_dev->entry = proc_create_data(ifname, 0600, pg_proc_dir,
 					  &pktgen_if_fops, pkt_dev);
@@ -3758,18 +3753,12 @@ static void __exit pg_cleanup(void)
 {
 	struct pktgen_thread *t;
 	struct list_head *q, *n;
-	LIST_HEAD(list);
 
 	/* Stop all interfaces & threads */
 	pktgen_exiting = true;
 
-	mutex_lock(&pktgen_thread_lock);
-	list_splice_init(&pktgen_threads, &list);
-	mutex_unlock(&pktgen_thread_lock);
-
-	list_for_each_safe(q, n, &list) {
+	list_for_each_safe(q, n, &pktgen_threads) {
 		t = list_entry(q, struct pktgen_thread, th_list);
-		list_del(&t->th_list);
 		kthread_stop(t->tsk);
 		kfree(t);
 	}

@@ -38,8 +38,6 @@
 #include <linux/fs_struct.h>
 #include <linux/gfp.h>
 #include <linux/syscore_ops.h>
-#include <linux/version.h>
-#include <linux/ctype.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -47,8 +45,6 @@
 #include <linux/user_namespace.h>
 
 #include <linux/kmsg_dump.h>
-/* Move somewhere else to avoid recompiling? */
-#include <generated/utsrelease.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -334,7 +330,6 @@ void kernel_restart_prepare(char *cmd)
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
-	disable_nonboot_cpus();
 	if (!cmd)
 		printk(KERN_EMERG "Restarting system.\n");
 	else
@@ -1129,36 +1124,6 @@ DECLARE_RWSEM(uts_sem);
 #define override_architecture(name)	0
 #endif
 
-/*
- * Work around broken programs that cannot handle "Linux 3.0".
- * Instead we map 3.x to 2.6.40+x, so e.g. 3.0 would be 2.6.40
- */
-static int override_release(char __user *release, size_t len)
-{
-	int ret = 0;
-
-	if (current->personality & UNAME26) {
-		const char *rest = UTS_RELEASE;
-		char buf[65] = { 0 };
-		int ndots = 0;
-		unsigned v;
-		size_t copy;
-
-		while (*rest) {
-			if (*rest == '.' && ++ndots >= 3)
-				break;
-			if (!isdigit(*rest) && *rest != '.')
-				break;
-			rest++;
-		}
-		v = ((LINUX_VERSION_CODE >> 8) & 0xff) + 40;
-		copy = clamp_t(size_t, len, 1, sizeof(buf));
-		copy = scnprintf(buf, copy, "2.6.%u%s", v, rest);
-		ret = copy_to_user(release, buf, copy + 1);
-	}
-	return ret;
-}
-
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	int errno = 0;
@@ -1168,8 +1133,6 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 		errno = -EFAULT;
 	up_read(&uts_sem);
 
-	if (!errno && override_release(name->release, sizeof(name->release)))
-		errno = -EFAULT;
 	if (!errno && override_architecture(name))
 		errno = -EFAULT;
 	return errno;
@@ -1191,8 +1154,6 @@ SYSCALL_DEFINE1(uname, struct old_utsname __user *, name)
 		error = -EFAULT;
 	up_read(&uts_sem);
 
-	if (!error && override_release(name->release, sizeof(name->release)))
-		error = -EFAULT;
 	if (!error && override_architecture(name))
 		error = -EFAULT;
 	return error;
@@ -1226,8 +1187,6 @@ SYSCALL_DEFINE1(olduname, struct oldold_utsname __user *, name)
 	up_read(&uts_sem);
 
 	if (!error && override_architecture(name))
-		error = -EFAULT;
-	if (!error && override_release(name->release, sizeof(name->release)))
 		error = -EFAULT;
 	return error ? -EFAULT : 0;
 }

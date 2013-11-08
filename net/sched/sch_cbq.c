@@ -250,11 +250,10 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 			else if ((cl = defmap[res.classid & TC_PRIO_MAX]) == NULL)
 				cl = defmap[TC_PRIO_BESTEFFORT];
 
-			if (cl == NULL)
+			if (cl == NULL || cl->level >= head->level)
 				goto fallback;
 		}
-		if (cl->level >= head->level)
-			goto fallback;
+
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:

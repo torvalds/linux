@@ -531,9 +531,6 @@ static void sci_controller_process_completions(struct isci_host *ihost)
 			break;
 
 		case SCU_COMPLETION_TYPE_EVENT:
-			sci_controller_event_completion(ihost, ent);
-			break;
-
 		case SCU_COMPLETION_TYPE_NOTIFY: {
 			event_cycle ^= ((event_get+1) & SCU_MAX_EVENTS) <<
 				       (SMU_COMPLETION_QUEUE_GET_EVENT_CYCLE_BIT_SHIFT - SCU_MAX_EVENTS_SHIFT);

@@ -61,7 +61,6 @@
 #include <net/timewait_sock.h>
 #include <net/netdma.h>
 #include <net/inet_common.h>
-#include <net/secure_seq.h>
 
 #include <asm/uaccess.h>
 
@@ -605,8 +604,7 @@ static int tcp_v6_md5_do_add(struct sock *sk, const struct in6_addr *peer,
 			}
 			sk_nocaps_add(sk, NETIF_F_GSO_MASK);
 		}
-		if (tp->md5sig_info->entries6 == 0 &&
-			tcp_alloc_md5sig_pool(sk) == NULL) {
+		if (tcp_alloc_md5sig_pool(sk) == NULL) {
 			kfree(newkey);
 			return -ENOMEM;
 		}
@@ -615,9 +613,8 @@ static int tcp_v6_md5_do_add(struct sock *sk, const struct in6_addr *peer,
 				       (tp->md5sig_info->entries6 + 1)), GFP_ATOMIC);
 
 			if (!keys) {
+				tcp_free_md5sig_pool();
 				kfree(newkey);
-				if (tp->md5sig_info->entries6 == 0)
-					tcp_free_md5sig_pool();
 				return -ENOMEM;
 			}
 
@@ -663,7 +660,6 @@ static int tcp_v6_md5_do_del(struct sock *sk, const struct in6_addr *peer)
 				kfree(tp->md5sig_info->keys6);
 				tp->md5sig_info->keys6 = NULL;
 				tp->md5sig_info->alloced6 = 0;
-				tcp_free_md5sig_pool();
 			} else {
 				/* shrink the database */
 				if (tp->md5sig_info->entries6 != i)
@@ -672,6 +668,7 @@ static int tcp_v6_md5_do_del(struct sock *sk, const struct in6_addr *peer)
 						(tp->md5sig_info->entries6 - i)
 						* sizeof (tp->md5sig_info->keys6[0]));
 			}
+			tcp_free_md5sig_pool();
 			return 0;
 		}
 	}
@@ -1060,8 +1057,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	__tcp_v6_send_check(buff, &fl6.saddr, &fl6.daddr);
 
 	fl6.flowi6_proto = IPPROTO_TCP;
-	if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
-		fl6.flowi6_oif = inet6_iif(skb);
+	fl6.flowi6_oif = inet6_iif(skb);
 	fl6.fl6_dport = t1->dest;
 	fl6.fl6_sport = t1->source;
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
@@ -1097,7 +1093,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (sk)
-		key = tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->saddr);
+		key = tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->daddr);
 #endif
 
 	if (th->ack)
@@ -1410,8 +1406,6 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		newtp->af_specific = &tcp_sock_ipv6_mapped_specific;
 #endif
 
-		newnp->ipv6_ac_list = NULL;
-		newnp->ipv6_fl_list = NULL;
 		newnp->pktoptions  = NULL;
 		newnp->opt	   = NULL;
 		newnp->mcast_oif   = inet6_iif(skb);
@@ -1476,7 +1470,6 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	   First: no IPv4 options.
 	 */
 	newinet->inet_opt = NULL;
-	newnp->ipv6_ac_list = NULL;
 	newnp->ipv6_fl_list = NULL;
 
 	/* Clone RX bits */
@@ -1515,10 +1508,6 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
 	newtp->advmss = dst_metric_advmss(dst);
-	if (tcp_sk(sk)->rx_opt.user_mss &&
-	    tcp_sk(sk)->rx_opt.user_mss < newtp->advmss)
-		newtp->advmss = tcp_sk(sk)->rx_opt.user_mss;
-
 	tcp_initialize_rcv_mss(newsk);
 
 	newinet->inet_daddr = newinet->inet_saddr = LOOPBACK4_IPV6;

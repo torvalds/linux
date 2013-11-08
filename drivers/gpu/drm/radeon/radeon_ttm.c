@@ -277,12 +277,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		DRM_ERROR("Trying to move memory with CP turned off.\n");
 		return -EINVAL;
 	}
-
-	BUILD_BUG_ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
-
-	r = radeon_copy(rdev, old_start, new_start,
-			new_mem->num_pages * (PAGE_SIZE / RADEON_GPU_PAGE_SIZE), /* GPU pages */
-			fence);
+	r = radeon_copy(rdev, old_start, new_start, new_mem->num_pages, fence);
 	/* FIXME: handle copy error */
 	r = ttm_bo_move_accel_cleanup(bo, (void *)fence, NULL,
 				      evict, no_wait_reserve, no_wait_gpu, new_mem);

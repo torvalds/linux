@@ -631,6 +631,7 @@ asmlinkage unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
 		return -EFAULT;
 	if (a.offset & ~PAGE_MASK)
 		return -EINVAL;
+	a.addr = (unsigned long) compat_ptr(a.addr);
 	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
 			      a.offset >> PAGE_SHIFT);
 }
@@ -641,6 +642,7 @@ asmlinkage long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
 
 	if (copy_from_user(&a, arg, sizeof(a)))
 		return -EFAULT;
+	a.addr = (unsigned long) compat_ptr(a.addr);
 	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 }
 

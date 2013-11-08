@@ -274,9 +274,8 @@ extern void nfs_sb_active(struct super_block *sb);
 extern void nfs_sb_deactive(struct super_block *sb);
 
 /* namespace.c */
-#define NFS_PATH_CANONICAL 1
 extern char *nfs_path(char **p, struct dentry *dentry,
-		      char *buffer, ssize_t buflen, unsigned flags);
+		      char *buffer, ssize_t buflen);
 extern struct vfsmount *nfs_d_automount(struct path *path);
 
 /* getroot.c */
@@ -316,7 +315,7 @@ void nfs_commit_release_pages(struct nfs_write_data *data);
 
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
-		struct page *, struct page *, enum migrate_mode);
+		struct page *, struct page *);
 #else
 #define nfs_migrate_page NULL
 #endif
@@ -350,7 +349,7 @@ static inline char *nfs_devname(struct dentry *dentry,
 				char *buffer, ssize_t buflen)
 {
 	char *dummy;
-	return nfs_path(&dummy, dentry, buffer, buflen, NFS_PATH_CANONICAL);
+	return nfs_path(&dummy, dentry, buffer, buflen);
 }
 
 /*

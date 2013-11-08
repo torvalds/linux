@@ -182,8 +182,6 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
-	struct neighbour *neigh;
-	int res;
 
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUTMCAST, skb->len);
@@ -205,22 +203,10 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	rcu_read_lock();
-	if (dst->hh) {
-		int res = neigh_hh_output(dst->hh, skb);
-
-		rcu_read_unlock();
-		return res;
-	} else {
-		neigh = dst_get_neighbour(dst);
-		if (neigh) {
-			res = neigh->output(skb);
-
-			rcu_read_unlock();
-			return res;
-		}
-		rcu_read_unlock();
-	}
+	if (dst->hh)
+		return neigh_hh_output(dst->hh, skb);
+	else if (dst->neighbour)
+		return dst->neighbour->output(skb);
 
 	if (net_ratelimit())
 		printk(KERN_DEBUG "ip_finish_output2: No header cache and no neighbour!\n");
@@ -748,7 +734,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 			void *from, int length, int hh_len, int fragheaderlen,
-			int transhdrlen, int maxfraglen, unsigned int flags)
+			int transhdrlen, int mtu, unsigned int flags)
 {
 	struct sk_buff *skb;
 	int err;
@@ -781,7 +767,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb->csum = 0;
 
 		/* specify the length of each IP datagram fragment */
-		skb_shinfo(skb)->gso_size = maxfraglen - fragheaderlen;
+		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		__skb_queue_tail(queue, skb);
 	}
@@ -845,7 +831,7 @@ static int __ip_append_data(struct sock *sk,
 	    (rt->dst.dev->features & NETIF_F_UFO) && !rt->dst.header_len) {
 		err = ip_ufo_append_data(sk, queue, getfrag, from, length,
 					 hh_len, fragheaderlen, transhdrlen,
-					 maxfraglen, flags);
+					 mtu, flags);
 		if (err)
 			goto error;
 		return 0;

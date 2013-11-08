@@ -83,11 +83,8 @@ int sysctl_tcp_ecn __read_mostly = 2;
 EXPORT_SYMBOL(sysctl_tcp_ecn);
 int sysctl_tcp_dsack __read_mostly = 1;
 int sysctl_tcp_app_win __read_mostly = 31;
-int sysctl_tcp_adv_win_scale __read_mostly = 1;
+int sysctl_tcp_adv_win_scale __read_mostly = 2;
 EXPORT_SYMBOL(sysctl_tcp_adv_win_scale);
-
-/* rfc5961 challenge ack rate limiting */
-int sysctl_tcp_challenge_ack_limit = 100;
 
 int sysctl_tcp_stdurg __read_mostly;
 int sysctl_tcp_rfc1337 __read_mostly;
@@ -331,7 +328,6 @@ static void tcp_grow_window(struct sock *sk, struct sk_buff *skb)
 			incr = __tcp_grow_window(sk, skb);
 
 		if (incr) {
-			incr = max_t(int, incr, 2 * skb->len);
 			tp->rcv_ssthresh = min(tp->rcv_ssthresh + incr,
 					       tp->window_clamp);
 			inet_csk(sk)->icsk_ack.quick |= 1;
@@ -464,11 +460,8 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 		if (!win_dep) {
 			m -= (new_sample >> 3);
 			new_sample += m;
-		} else {
-			m <<= 3;
-			if (m < new_sample)
-				new_sample = m;
-		}
+		} else if (m < new_sample)
+			new_sample = m << 3;
 	} else {
 		/* No previous measure. */
 		new_sample = m << 3;
@@ -1122,7 +1115,7 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
 		return 0;
 
 	/* ...Then it's D-SACK, and must reside below snd_una completely */
-	if (after(end_seq, tp->snd_una))
+	if (!after(end_seq, tp->snd_una))
 		return 0;
 
 	if (!before(start_seq, tp->undo_marker))
@@ -1296,26 +1289,25 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
-/* Mark the given newly-SACKed range as such, adjusting counters and hints. */
-static u8 tcp_sacktag_one(struct sock *sk,
-			  struct tcp_sacktag_state *state, u8 sacked,
-			  u32 start_seq, u32 end_seq,
+static u8 tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
+			  struct tcp_sacktag_state *state,
 			  int dup_sack, int pcount)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	u8 sacked = TCP_SKB_CB(skb)->sacked;
 	int fack_count = state->fack_count;
 
 	/* Account D-SACK for retransmitted packet. */
 	if (dup_sack && (sacked & TCPCB_RETRANS)) {
 		if (tp->undo_marker && tp->undo_retrans &&
-		    after(end_seq, tp->undo_marker))
+		    after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
 			tp->undo_retrans--;
 		if (sacked & TCPCB_SACKED_ACKED)
 			state->reord = min(fack_count, state->reord);
 	}
 
 	/* Nothing to do; acked frame is about to be dropped (was ACKed). */
-	if (!after(end_seq, tp->snd_una))
+	if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
 		return sacked;
 
 	if (!(sacked & TCPCB_SACKED_ACKED)) {
@@ -1334,13 +1326,13 @@ static u8 tcp_sacktag_one(struct sock *sk,
 				/* New sack for not retransmitted frame,
 				 * which was in hole. It is reordering.
 				 */
-				if (before(start_seq,
+				if (before(TCP_SKB_CB(skb)->seq,
 					   tcp_highest_sack_seq(tp)))
 					state->reord = min(fack_count,
 							   state->reord);
 
 				/* SACK enhanced F-RTO (RFC4138; Appendix B) */
-				if (!after(end_seq, tp->frto_highmark))
+				if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
 					state->flag |= FLAG_ONLY_ORIG_SACKED;
 			}
 
@@ -1358,7 +1350,8 @@ static u8 tcp_sacktag_one(struct sock *sk,
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
 		if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
-		    before(start_seq, TCP_SKB_CB(tp->lost_skb_hint)->seq))
+		    before(TCP_SKB_CB(skb)->seq,
+			   TCP_SKB_CB(tp->lost_skb_hint)->seq))
 			tp->lost_cnt_hint += pcount;
 
 		if (fack_count > tp->fackets_out)
@@ -1377,9 +1370,6 @@ static u8 tcp_sacktag_one(struct sock *sk,
 	return sacked;
 }
 
-/* Shift newly-SACKed bytes from this skb to the immediately previous
- * already-SACKed sk_buff. Mark the newly-SACKed bytes as such.
- */
 static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 			   struct tcp_sacktag_state *state,
 			   unsigned int pcount, int shifted, int mss,
@@ -1387,21 +1377,12 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *prev = tcp_write_queue_prev(sk, skb);
-	u32 start_seq = TCP_SKB_CB(skb)->seq;	/* start of newly-SACKed */
-	u32 end_seq = start_seq + shifted;	/* end of newly-SACKed */
 
 	BUG_ON(!pcount);
 
-	/* Adjust counters and hints for the newly sacked sequence
-	 * range but discard the return value since prev is already
-	 * marked. We must tag the range first because the seq
-	 * advancement below implicitly advances
-	 * tcp_highest_sack_seq() when skb is highest_sack.
-	 */
-	tcp_sacktag_one(sk, state, TCP_SKB_CB(skb)->sacked,
-			start_seq, end_seq, dup_sack, pcount);
-
-	if (skb == tp->lost_skb_hint)
+	/* Tweak before seqno plays */
+	if (!tcp_is_fack(tp) && tcp_is_sack(tp) && tp->lost_skb_hint &&
+	    !before(TCP_SKB_CB(tp->lost_skb_hint)->seq, TCP_SKB_CB(skb)->seq))
 		tp->lost_cnt_hint += pcount;
 
 	TCP_SKB_CB(prev)->end_seq += shifted;
@@ -1426,6 +1407,9 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 		skb_shinfo(skb)->gso_size = 0;
 		skb_shinfo(skb)->gso_type = 0;
 	}
+
+	/* We discard results */
+	tcp_sacktag_one(skb, sk, state, dup_sack, pcount);
 
 	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
@@ -1574,10 +1558,6 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 		}
 	}
 
-	/* tcp_sacktag_one() won't SACK-tag ranges below snd_una */
-	if (!after(TCP_SKB_CB(skb)->seq + len, tp->snd_una))
-		goto fallback;
-
 	if (!skb_shift(prev, skb, len))
 		goto fallback;
 	if (!tcp_shifted_skb(sk, skb, state, pcount, len, mss, dup_sack))
@@ -1668,14 +1648,10 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 			break;
 
 		if (in_sack) {
-			TCP_SKB_CB(skb)->sacked =
-				tcp_sacktag_one(sk,
-						state,
-						TCP_SKB_CB(skb)->sacked,
-						TCP_SKB_CB(skb)->seq,
-						TCP_SKB_CB(skb)->end_seq,
-						dup_sack,
-						tcp_skb_pcount(skb));
+			TCP_SKB_CB(skb)->sacked = tcp_sacktag_one(skb, sk,
+								  state,
+								  dup_sack,
+								  tcp_skb_pcount(skb));
 
 			if (!before(TCP_SKB_CB(skb)->seq,
 				    tcp_highest_sack_seq(tp)))
@@ -2560,7 +2536,6 @@ static void tcp_mark_head_lost(struct sock *sk, int packets, int mark_head)
 
 		if (cnt > packets) {
 			if ((tcp_is_sack(tp) && !tcp_is_fack(tp)) ||
-			    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED) ||
 			    (oldcnt >= packets))
 				break;
 
@@ -3588,11 +3563,6 @@ static int tcp_process_frto(struct sock *sk, int flag)
 		}
 	} else {
 		if (!(flag & FLAG_DATA_ACKED) && (tp->frto_counter == 1)) {
-			if (!tcp_packets_in_flight(tp)) {
-				tcp_enter_frto_loss(sk, 2, flag);
-				return true;
-			}
-
 			/* Prevent sending of new data. */
 			tp->snd_cwnd = min(tp->snd_cwnd,
 					   tcp_packets_in_flight(tp));
@@ -3641,24 +3611,6 @@ static int tcp_process_frto(struct sock *sk, int flag)
 	return 0;
 }
 
-/* RFC 5961 7 [ACK Throttling] */
-static void tcp_send_challenge_ack(struct sock *sk)
-{
-	/* unprotected vars, we dont care of overwrites */
-	static u32 challenge_timestamp;
-	static unsigned int challenge_count;
-	u32 now = jiffies / HZ;
-
-	if (now != challenge_timestamp) {
-		challenge_timestamp = now;
-		challenge_count = 0;
-	}
-	if (++challenge_count <= sysctl_tcp_challenge_ack_limit) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPCHALLENGEACK);
-		tcp_send_ack(sk);
-	}
-}
-
 /* This routine deals with incoming acks, but not outgoing ones. */
 static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 {
@@ -3675,14 +3627,8 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	/* If the ack is older than previous acks
 	 * then we can probably ignore it.
 	 */
-	if (before(ack, prior_snd_una)) {
-		/* RFC 5961 5.2 [Blind Data Injection Attack].[Mitigation] */
-		if (before(ack, prior_snd_una - tp->max_window)) {
-			tcp_send_challenge_ack(sk);
-			return -1;
-		}
+	if (before(ack, prior_snd_una))
 		goto old_ack;
-	}
 
 	/* If the ack includes data we haven't sent yet, discard
 	 * this segment (RFC793 Section 3.9).
@@ -5200,8 +5146,8 @@ out:
 /* Does PAWS and seqno based validation of an incoming segment, flags will
  * play significant role here.
  */
-static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
-				  struct tcphdr *th, int syn_inerr)
+static int tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
+			      struct tcphdr *th, int syn_inerr)
 {
 	u8 *hash_location;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -5226,48 +5172,38 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 		 * an acknowledgment should be sent in reply (unless the RST
 		 * bit is set, if so drop the segment and return)".
 		 */
-		if (!th->rst) {
-			if (th->syn)
-				goto syn_challenge;
+		if (!th->rst)
 			tcp_send_dupack(sk, skb);
-		}
 		goto discard;
 	}
 
 	/* Step 2: check RST bit */
 	if (th->rst) {
-		/* RFC 5961 3.2 :
-		 * If sequence number exactly matches RCV.NXT, then
-		 *     RESET the connection
-		 * else
-		 *     Send a challenge ACK
-		 */
-		if (TCP_SKB_CB(skb)->seq == tp->rcv_nxt)
-			tcp_reset(sk);
-		else
-			tcp_send_challenge_ack(sk);
+		tcp_reset(sk);
 		goto discard;
 	}
+
+	/* ts_recent update must be made after we are sure that the packet
+	 * is in window.
+	 */
+	tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
 	/* step 3: check security and precedence [ignored] */
 
-	/* step 4: Check for a SYN
-	 * RFC 5691 4.2 : Send a challenge ack
-	 */
-	if (th->syn) {
-syn_challenge:
+	/* step 4: Check for a SYN in window. */
+	if (th->syn && !before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt)) {
 		if (syn_inerr)
 			TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNCHALLENGE);
-		tcp_send_challenge_ack(sk);
-		goto discard;
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONSYN);
+		tcp_reset(sk);
+		return -1;
 	}
 
-	return true;
+	return 1;
 
 discard:
 	__kfree_skb(skb);
-	return false;
+	return 0;
 }
 
 /*
@@ -5297,6 +5233,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			struct tcphdr *th, unsigned len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	int res;
 
 	/*
 	 *	Header prediction.
@@ -5381,9 +5318,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			if (tp->copied_seq == tp->rcv_nxt &&
 			    len - tcp_header_len <= tp->ucopy.len) {
 #ifdef CONFIG_NET_DMA
-				if (tp->ucopy.task == current &&
-				    sock_owned_by_user(sk) &&
-				    tcp_dma_try_early_copy(sk, skb, tcp_header_len)) {
+				if (tcp_dma_try_early_copy(sk, skb, tcp_header_len)) {
 					copied_early = 1;
 					eaten = 1;
 				}
@@ -5476,17 +5411,13 @@ slow_path:
 	 *	Standard slow path.
 	 */
 
-	if (!tcp_validate_incoming(sk, skb, th, 1))
-		return 0;
+	res = tcp_validate_incoming(sk, skb, th, 1);
+	if (res <= 0)
+		return -res;
 
 step5:
 	if (th->ack && tcp_ack(sk, skb, FLAG_SLOWPATH) < 0)
 		goto discard;
-
-	/* ts_recent update must be made after we are sure that the packet
-	 * is in window.
-	 */
-	tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
 	tcp_rcv_rtt_measure_ts(sk, skb);
 
@@ -5792,6 +5723,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	int queued = 0;
+	int res;
 
 	tp->rx_opt.saw_tstamp = 0;
 
@@ -5807,8 +5739,6 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			goto discard;
 
 		if (th->syn) {
-			if (th->fin)
-				goto discard;
 			if (icsk->icsk_af_ops->conn_request(sk, skb) < 0)
 				return 1;
 
@@ -5846,8 +5776,9 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 	}
 
-	if (!tcp_validate_incoming(sk, skb, th, 0))
-		return 0;
+	res = tcp_validate_incoming(sk, skb, th, 0);
+	if (res <= 0)
+		return -res;
 
 	/* step 5: check the ACK field */
 	if (th->ack) {
@@ -5963,11 +5894,6 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		}
 	} else
 		goto discard;
-
-	/* ts_recent update must be made after we are sure that the packet
-	 * is in window.
-	 */
-	tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
 	/* step 6: check the URG bit */
 	tcp_urg(sk, skb, th);

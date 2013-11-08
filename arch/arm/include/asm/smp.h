@@ -93,6 +93,4 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
  */
 extern void show_local_irqs(struct seq_file *, int);
 
-extern void smp_send_all_cpu_backtrace(void);
-
 #endif /* ifndef __ASM_ARM_SMP_H */

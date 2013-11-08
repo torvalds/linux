@@ -30,7 +30,6 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
-#include <linux/ctype.h>
 #include <linux/slab.h>
 #include <sound/ac97_codec.h>
 #include <sound/core.h>
@@ -1125,7 +1124,6 @@ int snd_soc_suspend(struct device *dev)
 			case SND_SOC_BIAS_OFF:
 				codec->driver->suspend(codec, PMSG_SUSPEND);
 				codec->suspended = 1;
-				codec->cache_sync = 1;
 				break;
 			default:
 				dev_dbg(codec->dev, "CODEC is on over suspend\n");
@@ -1258,7 +1256,7 @@ static void soc_resume_deferred(struct work_struct *work)
 int snd_soc_resume(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
-	int i, ac97_control = 0;
+	int i;
 
 	/* AC97 devices might have other drivers hanging off them so
 	 * need to resume immediately.  Other drivers don't have that
@@ -1267,15 +1265,14 @@ int snd_soc_resume(struct device *dev)
 	 */
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
-		ac97_control |= cpu_dai->driver->ac97_control;
-	}
-	if (ac97_control) {
-		dev_dbg(dev, "Resuming AC97 immediately\n");
-		soc_resume_deferred(&card->deferred_resume_work);
-	} else {
-		dev_dbg(dev, "Scheduling resume work\n");
-		if (!schedule_work(&card->deferred_resume_work))
-			dev_err(dev, "resume work item may be lost\n");
+		if (cpu_dai->driver->ac97_control) {
+			dev_dbg(dev, "Resuming AC97 immediately\n");
+			soc_resume_deferred(&card->deferred_resume_work);
+		} else {
+			dev_dbg(dev, "Scheduling resume work\n");
+			if (!schedule_work(&card->deferred_resume_work))
+				dev_err(dev, "resume work item may be lost\n");
+		}
 	}
 
 	return 0;
@@ -1932,20 +1929,9 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		 "%s", card->name);
 	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
 		 "%s", card->long_name ? card->long_name : card->name);
-	snprintf(card->snd_card->driver, sizeof(card->snd_card->driver),
-		 "%s", card->driver_name ? card->driver_name : card->name);
-	for (i = 0; i < ARRAY_SIZE(card->snd_card->driver); i++) {
-		switch (card->snd_card->driver[i]) {
-		case '_':
-		case '-':
-		case '\0':
-			break;
-		default:
-			if (!isalnum(card->snd_card->driver[i]))
-				card->snd_card->driver[i] = '_';
-			break;
-		}
-	}
+	if (card->driver_name)
+		strlcpy(card->snd_card->driver, card->driver_name,
+			sizeof(card->snd_card->driver));
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);

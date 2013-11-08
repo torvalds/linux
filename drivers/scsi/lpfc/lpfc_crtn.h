@@ -432,7 +432,6 @@ void lpfc_handle_rrq_active(struct lpfc_hba *);
 int lpfc_send_rrq(struct lpfc_hba *, struct lpfc_node_rrq *);
 int lpfc_set_rrq_active(struct lpfc_hba *, struct lpfc_nodelist *,
 	uint16_t, uint16_t, uint16_t);
-uint16_t lpfc_sli4_xri_inrange(struct lpfc_hba *, uint16_t);
 void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
 void lpfc_cleanup_vports_rrqs(struct lpfc_vport *, struct lpfc_nodelist *);
 struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
@@ -440,4 +439,3 @@ struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
 int lpfc_wr_object(struct lpfc_hba *, struct list_head *, uint32_t, uint32_t *);
 /* functions to support SR-IOV */
 int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);
-uint16_t lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *);

@@ -30,11 +30,6 @@ int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
 	struct dib0700_state *st = d->priv;
 	int ret;
 
-	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
-
 	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0),
 				  REQUEST_GET_VERSION,
 				  USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
@@ -51,7 +46,6 @@ int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
 	if (fwtype != NULL)
 		*fwtype     = (st->buf[12] << 24) | (st->buf[13] << 16) |
 			(st->buf[14] << 8) | st->buf[15];
-	mutex_unlock(&d->usb_mutex);
 	return ret;
 }
 
@@ -114,12 +108,7 @@ int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen
 int dib0700_set_gpio(struct dvb_usb_device *d, enum dib07x0_gpios gpio, u8 gpio_dir, u8 gpio_val)
 {
 	struct dib0700_state *st = d->priv;
-	int ret;
-
-	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
+	s16 ret;
 
 	st->buf[0] = REQUEST_SET_GPIO;
 	st->buf[1] = gpio;
@@ -127,7 +116,6 @@ int dib0700_set_gpio(struct dvb_usb_device *d, enum dib07x0_gpios gpio, u8 gpio_
 
 	ret = dib0700_ctrl_wr(d, st->buf, 3);
 
-	mutex_unlock(&d->usb_mutex);
 	return ret;
 }
 
@@ -137,11 +125,6 @@ static int dib0700_set_usb_xfer_len(struct dvb_usb_device *d, u16 nb_ts_packets)
 	int ret;
 
 	if (st->fw_version >= 0x10201) {
-		if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-			deb_info("could not acquire lock");
-			return 0;
-		}
-
 		st->buf[0] = REQUEST_SET_USB_XFER_LEN;
 		st->buf[1] = (nb_ts_packets >> 8) & 0xff;
 		st->buf[2] = nb_ts_packets & 0xff;
@@ -149,7 +132,6 @@ static int dib0700_set_usb_xfer_len(struct dvb_usb_device *d, u16 nb_ts_packets)
 		deb_info("set the USB xfer len to %i Ts packet\n", nb_ts_packets);
 
 		ret = dib0700_ctrl_wr(d, st->buf, 3);
-		mutex_unlock(&d->usb_mutex);
 	} else {
 		deb_info("this firmware does not allow to change the USB xfer len\n");
 		ret = -EIO;
@@ -226,10 +208,6 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 
 		} else {
 			/* Write request */
-			if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-				deb_info("could not acquire lock");
-				return 0;
-			}
 			st->buf[0] = REQUEST_NEW_I2C_WRITE;
 			st->buf[1] = msg[i].addr << 1;
 			st->buf[2] = (en_start << 7) | (en_stop << 6) |
@@ -249,7 +227,6 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 USB_TYPE_VENDOR | USB_DIR_OUT,
 						 0, 0, st->buf, msg[i].len + 4,
 						 USB_CTRL_GET_TIMEOUT);
-			mutex_unlock(&d->usb_mutex);
 			if (result < 0) {
 				deb_info("i2c write error (status = %d)\n", result);
 				break;
@@ -272,10 +249,6 @@ static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
-	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
 
 	for (i = 0; i < num; i++) {
 		/* fill in the address */
@@ -306,7 +279,6 @@ static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
 				break;
 		}
 	}
-	mutex_unlock(&d->usb_mutex);
 	mutex_unlock(&d->i2c_mutex);
 
 	return i;
@@ -365,12 +337,7 @@ static int dib0700_set_clock(struct dvb_usb_device *d, u8 en_pll,
 	u16 pll_loopdiv, u16 free_div, u16 dsuScaler)
 {
 	struct dib0700_state *st = d->priv;
-	int ret;
-
-	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
+	s16 ret;
 
 	st->buf[0] = REQUEST_SET_CLOCK;
 	st->buf[1] = (en_pll << 7) | (pll_src << 6) |
@@ -385,7 +352,6 @@ static int dib0700_set_clock(struct dvb_usb_device *d, u8 en_pll,
 	st->buf[9] =  dsuScaler         & 0xff; /* LSB */
 
 	ret = dib0700_ctrl_wr(d, st->buf, 10);
-	mutex_unlock(&d->usb_mutex);
 
 	return ret;
 }
@@ -394,15 +360,9 @@ int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz)
 {
 	struct dib0700_state *st = d->priv;
 	u16 divider;
-	int ret;
 
 	if (scl_kHz == 0)
 		return -EINVAL;
-
-	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
 
 	st->buf[0] = REQUEST_SET_I2C_PARAM;
 	divider = (u16) (30000 / scl_kHz);
@@ -419,11 +379,7 @@ int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz)
 	deb_info("setting I2C speed: %04x %04x %04x (%d kHz).",
 		(st->buf[2] << 8) | (st->buf[3]), (st->buf[4] << 8) |
 		st->buf[5], (st->buf[6] << 8) | st->buf[7], scl_kHz);
-
-	ret = dib0700_ctrl_wr(d, st->buf, 8);
-	mutex_unlock(&d->usb_mutex);
-
-	return ret;
+	return dib0700_ctrl_wr(d, st->buf, 8);
 }
 
 
@@ -559,11 +515,6 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 		}
 	}
 
-	if (mutex_lock_interruptible(&adap->dev->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
-
 	st->buf[0] = REQUEST_ENABLE_VIDEO;
 	/* this bit gives a kind of command,
 	 * rather than enabling something or not */
@@ -597,10 +548,7 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	deb_info("data for streaming: %x %x\n", st->buf[1], st->buf[2]);
 
-	ret = dib0700_ctrl_wr(adap->dev, st->buf, 4);
-	mutex_unlock(&adap->dev->usb_mutex);
-
-	return ret;
+	return dib0700_ctrl_wr(adap->dev, st->buf, 4);
 }
 
 int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
@@ -608,11 +556,6 @@ int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 	struct dvb_usb_device *d = rc->priv;
 	struct dib0700_state *st = d->priv;
 	int new_proto, ret;
-
-	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		deb_info("could not acquire lock");
-		return 0;
-	}
 
 	st->buf[0] = REQUEST_SET_RC;
 	st->buf[1] = 0;
@@ -624,29 +567,23 @@ int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 	else if (rc_type == RC_TYPE_NEC)
 		new_proto = 0;
 	else if (rc_type == RC_TYPE_RC6) {
-		if (st->fw_version < 0x10200) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (st->fw_version < 0x10200)
+			return -EINVAL;
 
 		new_proto = 2;
-	} else {
-		ret = -EINVAL;
-		goto out;
-	}
+	} else
+		return -EINVAL;
 
 	st->buf[1] = new_proto;
 
 	ret = dib0700_ctrl_wr(d, st->buf, 3);
 	if (ret < 0) {
 		err("ir protocol setup failed");
-		goto out;
+		return ret;
 	}
 
 	d->props.rc.core.protocol = rc_type;
 
-out:
-	mutex_unlock(&d->usb_mutex);
 	return ret;
 }
 

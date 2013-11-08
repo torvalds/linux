@@ -474,22 +474,17 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		befs_data_stream *data = &befs_ino->i_data.ds;
 		befs_off_t len = data->size;
 
-		if (len == 0) {
-			befs_error(sb, "Long symlink with illegal length");
+		befs_debug(sb, "Follow long symlink");
+
+		link = kmalloc(len, GFP_NOFS);
+		if (!link) {
+			link = ERR_PTR(-ENOMEM);
+		} else if (befs_read_lsymlink(sb, data, link, len) != len) {
+			kfree(link);
+			befs_error(sb, "Failed to read entire long symlink");
 			link = ERR_PTR(-EIO);
 		} else {
-			befs_debug(sb, "Follow long symlink");
-
-			link = kmalloc(len, GFP_NOFS);
-			if (!link) {
-				link = ERR_PTR(-ENOMEM);
-			} else if (befs_read_lsymlink(sb, data, link, len) != len) {
-				kfree(link);
-				befs_error(sb, "Failed to read entire long symlink");
-				link = ERR_PTR(-EIO);
-			} else {
-				link[len - 1] = '\0';
-			}
+			link[len - 1] = '\0';
 		}
 	} else {
 		link = befs_ino->i_data.symlink;

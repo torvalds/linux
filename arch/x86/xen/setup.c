@@ -15,7 +15,6 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
-#include <asm/numa.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -186,31 +185,6 @@ static unsigned long __init xen_set_identity(const struct e820entry *list,
 					PFN_UP(start_pci), PFN_DOWN(last));
 	return identity;
 }
-
-static unsigned long __init xen_get_max_pages(void)
-{
-	unsigned long max_pages = MAX_DOMAIN_PAGES;
-	domid_t domid = DOMID_SELF;
-	int ret;
-
-	/*
-	 * For the initial domain we use the maximum reservation as
-	 * the maximum page.
-	 *
-	 * For guest domains the current maximum reservation reflects
-	 * the current maximum rather than the static maximum. In this
-	 * case the e820 map provided to us will cover the static
-	 * maximum region.
-	 */
-	if (xen_initial_domain()) {
-		ret = HYPERVISOR_memory_op(XENMEM_maximum_reservation, &domid);
-		if (ret > 0)
-			max_pages = ret;
-	}
-
-	return min(max_pages, MAX_DOMAIN_PAGES);
-}
-
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
@@ -318,14 +292,6 @@ char * __init xen_memory_setup(void)
 			"XEN START INFO");
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
-
-	extra_limit = xen_get_max_pages();
-	if (max_pfn + extra_pages > extra_limit) {
-		if (extra_limit > max_pfn)
-			extra_pages = extra_limit - max_pfn;
-		else
-			extra_pages = 0;
-	}
 
 	extra_pages += xen_return_unused_memory(xen_start_info->nr_pages, &e820);
 
@@ -464,7 +430,4 @@ void __init xen_arch_setup(void)
 	boot_option_idle_override = IDLE_HALT;
 
 	fiddle_vdso();
-#ifdef CONFIG_NUMA
-	numa_off = 1;
-#endif
 }
