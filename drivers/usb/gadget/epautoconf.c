@@ -58,7 +58,7 @@ ep_matches (
 		return 0;
 
 	/* only support ep0 for portable CONTROL traffic */
-	type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	type = usb_endpoint_type(desc);
 	if (USB_ENDPOINT_XFER_CONTROL == type)
 		return 0;
 
