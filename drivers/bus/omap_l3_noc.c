@@ -72,7 +72,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		 * to determine the source
 		 */
 		base = l3->l3_base[i];
-		err_reg = __raw_readl(base + l3_flagmux[i] +
+		err_reg = readl_relaxed(base + l3_flagmux[i] +
 					+ L3_FLAGMUX_REGERR0 + (inttype << 3));
 
 		/* Get the corresponding error and analyse */
@@ -82,9 +82,9 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 			/* Read the stderrlog_main_source from clk domain */
 			l3_targ_base = base + *(l3_targ[i] + err_src);
-			std_err_main =  __raw_readl(l3_targ_base +
+			std_err_main =  readl_relaxed(l3_targ_base +
 					L3_TARG_STDERRLOG_MAIN);
-			masterid = __raw_readl(l3_targ_base +
+			masterid = readl_relaxed(l3_targ_base +
 					L3_TARG_STDERRLOG_MSTADDR);
 
 			switch (std_err_main & CUSTOM_ERROR) {
@@ -93,7 +93,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 					l3_targ_inst_name[i][err_src];
 				WARN(true, "L3 standard error: TARGET:%s at address 0x%x\n",
 					target_name,
-					__raw_readl(l3_targ_base +
+					readl_relaxed(l3_targ_base +
 						L3_TARG_STDERRLOG_SLVOFSLSB));
 				/* clear the std error log*/
 				clear = std_err_main | CLEAR_STDERR_LOG;
