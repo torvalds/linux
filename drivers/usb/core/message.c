@@ -1293,8 +1293,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	struct usb_interface *iface;
 	struct usb_host_interface *alt;
 	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
-	int ret;
-	int manual = 0;
+	int i, ret, manual = 0;
 	unsigned int epaddr;
 	unsigned int pipe;
 
@@ -1329,6 +1328,10 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		mutex_unlock(hcd->bandwidth_mutex);
 		return -ENOMEM;
 	}
+	/* Changing alt-setting also frees any allocated streams */
+	for (i = 0; i < iface->cur_altsetting->desc.bNumEndpoints; i++)
+		iface->cur_altsetting->endpoint[i].streams = 0;
+
 	ret = usb_hcd_alloc_bandwidth(dev, NULL, iface->cur_altsetting, alt);
 	if (ret < 0) {
 		dev_info(&dev->dev, "Not enough bandwidth for altsetting %d\n",

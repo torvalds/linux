@@ -5131,7 +5131,7 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	struct usb_hcd			*hcd = bus_to_hcd(udev->bus);
 	struct usb_device_descriptor	descriptor = udev->descriptor;
 	struct usb_host_bos		*bos;
-	int 				i, ret = 0;
+	int				i, j, ret = 0;
 	int				port1 = udev->portnum;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
@@ -5257,6 +5257,9 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 				ret);
 			goto re_enumerate;
 		}
+		/* Resetting also frees any allocated streams */
+		for (j = 0; j < intf->cur_altsetting->desc.bNumEndpoints; j++)
+			intf->cur_altsetting->endpoint[j].streams = 0;
 	}
 
 done:
