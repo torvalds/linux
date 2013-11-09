@@ -75,39 +75,6 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 	{""}
 };
 
-#if	CONFIG_ACPI_BLACKLIST_YEAR
-
-static int __init blacklist_by_year(void)
-{
-	int year;
-
-	/* Doesn't exist? Likely an old system */
-	if (!dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL)) {
-		printk(KERN_ERR PREFIX "no DMI BIOS year, "
-			"acpi=force is required to enable ACPI\n" );
-		return 1;
-	}
-	/* 0? Likely a buggy new BIOS */
-	if (year == 0) {
-		printk(KERN_ERR PREFIX "DMI BIOS year==0, "
-			"assuming ACPI-capable machine\n" );
-		return 0;
-	}
-	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
-		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), "
-		       "acpi=force is required to enable ACPI\n",
-		       year, CONFIG_ACPI_BLACKLIST_YEAR);
-		return 1;
-	}
-	return 0;
-}
-#else
-static inline int blacklist_by_year(void)
-{
-	return 0;
-}
-#endif
-
 int __init acpi_blacklisted(void)
 {
 	int i = 0;
@@ -165,8 +132,6 @@ int __init acpi_blacklisted(void)
 			i++;
 		}
 	}
-
-	blacklisted += blacklist_by_year();
 
 	dmi_check_system(acpi_osi_dmi_table);
 
