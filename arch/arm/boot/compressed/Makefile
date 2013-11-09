@@ -68,7 +68,7 @@ else
 endif
 endif
 
-ifeq ($(CONFIG_ARCH_SHMOBILE),y)
+ifeq ($(CONFIG_ARCH_SHMOBILE_LEGACY),y)
 OBJS		+= head-shmobile.o
 endif
 
