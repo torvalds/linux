@@ -2242,6 +2242,33 @@ static int rs_vht_highest_rx_mcs_index(struct ieee80211_sta_vht_cap *vht_cap,
 	return -1;
 }
 
+static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
+				     struct ieee80211_sta_vht_cap *vht_cap,
+				     struct iwl_lq_sta *lq_sta)
+{
+	int i;
+	int highest_mcs = rs_vht_highest_rx_mcs_index(vht_cap, 1);
+
+	if (highest_mcs >= IWL_RATE_MCS_0_INDEX) {
+		for (i = IWL_RATE_MCS_0_INDEX; i <= highest_mcs; i++) {
+			if (i == IWL_RATE_9M_INDEX)
+				continue;
+
+			lq_sta->active_siso_rate |= BIT(i);
+		}
+	}
+
+	highest_mcs = rs_vht_highest_rx_mcs_index(vht_cap, 2);
+	if (highest_mcs >= IWL_RATE_MCS_0_INDEX) {
+		for (i = IWL_RATE_MCS_0_INDEX; i <= highest_mcs; i++) {
+			if (i == IWL_RATE_9M_INDEX)
+				continue;
+
+			lq_sta->active_mimo2_rate |= BIT(i);
+		}
+	}
+}
+
 /*
  * Called after adding a new station to initialize rate scaling
  */
@@ -2308,27 +2335,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 		lq_sta->is_vht = false;
 	} else {
-		int highest_mcs = rs_vht_highest_rx_mcs_index(vht_cap, 1);
-		if (highest_mcs >= IWL_RATE_MCS_0_INDEX) {
-			for (i = IWL_RATE_MCS_0_INDEX; i <= highest_mcs; i++) {
-				if (i == IWL_RATE_9M_INDEX)
-					continue;
-
-				lq_sta->active_siso_rate |= BIT(i);
-			}
-		}
-
-		highest_mcs = rs_vht_highest_rx_mcs_index(vht_cap, 2);
-		if (highest_mcs >= IWL_RATE_MCS_0_INDEX) {
-			for (i = IWL_RATE_MCS_0_INDEX; i <= highest_mcs; i++) {
-				if (i == IWL_RATE_9M_INDEX)
-					continue;
-
-				lq_sta->active_mimo2_rate |= BIT(i);
-			}
-		}
-
-		/* TODO: avoid MCS9 in 20Mhz which isn't valid for 11ac */
+		rs_vht_set_enabled_rates(sta, vht_cap, lq_sta);
 		lq_sta->is_vht = true;
 	}
 
