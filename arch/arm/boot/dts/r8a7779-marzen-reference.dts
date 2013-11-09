@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "r8a7779.dtsi"
+#include "r8a7779.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
