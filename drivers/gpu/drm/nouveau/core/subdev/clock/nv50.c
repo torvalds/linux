@@ -197,7 +197,7 @@ nv50_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 	case nv_clk_src_href:
 		return 100000; /* PCIE reference clock */
 	case nv_clk_src_hclk:
-		return (u64)clk->read(clk, nv_clk_src_href) * 27778 / 10000;
+		return div_u64((u64)clk->read(clk, nv_clk_src_href) * 27778, 10000);
 	case nv_clk_src_hclkm3:
 		return clk->read(clk, nv_clk_src_hclk) * 3;
 	case nv_clk_src_hclkm3d2:
