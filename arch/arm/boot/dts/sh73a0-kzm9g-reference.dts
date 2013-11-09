@@ -83,7 +83,7 @@
 		reg = <0x10000000 0x100>;
 		phy-mode = "mii";
 		interrupt-parent = <&irqpin0>;
-		interrupts = <3 IRQ_TYPE_NONE>;	/* active low */
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		reg-io-width = <4>;
 		smsc,irq-push-pull;
 		smsc,save-mac-address;
