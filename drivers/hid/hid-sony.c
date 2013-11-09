@@ -614,6 +614,54 @@ static void buzz_remove(struct hid_device *hdev)
 	drv_data->extra = NULL;
 }
 
+#ifdef CONFIG_SONY_FF
+static int sony_play_effect(struct input_dev *dev, void *data,
+			    struct ff_effect *effect)
+{
+	unsigned char buf[] = {
+		0x01,
+		0x00, 0xff, 0x00, 0xff, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x03,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0xff, 0x27, 0x10, 0x00, 0x32,
+		0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	__u8 left;
+	__u8 right;
+	struct hid_device *hid = input_get_drvdata(dev);
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	left = effect->u.rumble.strong_magnitude / 256;
+	right = effect->u.rumble.weak_magnitude ? 1 : 0;
+
+	buf[3] = right;
+	buf[5] = left;
+
+	return hid->hid_output_raw_report(hid, buf, sizeof(buf),
+					  HID_OUTPUT_REPORT);
+}
+
+static int sony_init_ff(struct hid_device *hdev)
+{
+	struct hid_input *hidinput = list_entry(hdev->inputs.next,
+						struct hid_input, list);
+	struct input_dev *input_dev = hidinput->input;
+
+	input_set_capability(input_dev, EV_FF, FF_RUMBLE);
+	return input_ff_create_memless(input_dev, NULL, sony_play_effect);
+}
+
+#else
+static int sony_init_ff(struct hid_device *hdev)
+{
+	return 0;
+}
+#endif
+
 static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
@@ -660,6 +708,10 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	else
 		ret = 0;
 
+	if (ret < 0)
+		goto err_stop;
+
+	ret = sony_init_ff(hdev);
 	if (ret < 0)
 		goto err_stop;
 
