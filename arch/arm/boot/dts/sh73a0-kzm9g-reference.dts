@@ -12,7 +12,7 @@
  */
 
 /dts-v1/;
-/include/ "sh73a0.dtsi"
+#include "sh73a0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {

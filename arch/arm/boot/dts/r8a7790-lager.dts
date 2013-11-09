@@ -9,7 +9,7 @@
  */
 
 /dts-v1/;
-/include/ "r8a7790.dtsi"
+#include "r8a7790.dtsi"
 
 / {
 	model = "Lager";
