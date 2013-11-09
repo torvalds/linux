@@ -353,7 +353,7 @@ static inline u8 num_of_ant(u8 mask)
 
 /* Initialize station's rate scaling information after adding station */
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  enum ieee80211_band band);
+			  enum ieee80211_band band, bool init);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
