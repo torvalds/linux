@@ -200,7 +200,7 @@ int usb_serial_generic_write(struct tty_struct *tty,
 		return 0;
 
 	count = kfifo_in_locked(&port->write_fifo, buf, count, &port->lock);
-	result = usb_serial_generic_write_start(port, GFP_KERNEL);
+	result = usb_serial_generic_write_start(port, GFP_ATOMIC);
 	if (result)
 		return result;
 
