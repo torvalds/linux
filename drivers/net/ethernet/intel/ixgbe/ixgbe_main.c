@@ -4251,8 +4251,8 @@ static void ixgbe_disable_fwd_ring(struct ixgbe_fwd_adapter *vadapter,
 	rx_ring->l2_accel_priv = NULL;
 }
 
-int ixgbe_fwd_ring_down(struct net_device *vdev,
-			struct ixgbe_fwd_adapter *accel)
+static int ixgbe_fwd_ring_down(struct net_device *vdev,
+			       struct ixgbe_fwd_adapter *accel)
 {
 	struct ixgbe_adapter *adapter = accel->real_adapter;
 	unsigned int rxbase = accel->rx_base_queue;
