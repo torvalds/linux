@@ -2250,6 +2250,9 @@ static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
 		}
 	}
 
+	if (sta->rx_nss < 2)
+		return;
+
 	highest_mcs = rs_vht_highest_rx_mcs_index(vht_cap, 2);
 	if (highest_mcs >= IWL_RATE_MCS_0_INDEX) {
 		for (i = IWL_RATE_MCS_0_INDEX; i <= highest_mcs; i++) {
