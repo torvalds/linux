@@ -10,6 +10,7 @@
 
 /dts-v1/;
 #include "r8a73a4.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "APE6EVM";
@@ -40,7 +41,7 @@
 			compatible = "smsc,lan9118", "smsc,lan9115";
 			reg = <0x08000000 0x1000>;
 			interrupt-parent = <&irqc1>;
-			interrupts = <8 0x4>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "mii";
 			reg-io-width = <4>;
 			smsc,irq-active-high;

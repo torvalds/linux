@@ -12,6 +12,7 @@
 /dts-v1/;
 #include "r8a7779.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "marzen";
@@ -43,7 +44,7 @@
 
 		phy-mode = "mii";
 		interrupt-parent = <&irqpin0>;
-		interrupts = <1 0>; /* IRQ1: hwirq 1 on irqpin0 */
+		interrupts = <1 IRQ_TYPE_NONE>; /* IRQ1: hwirq 1 on irqpin0 */
 		reg-io-width = <4>;
 		vddvario-supply = <&fixedregulator3v3>;
 		vdd33a-supply = <&fixedregulator3v3>;
