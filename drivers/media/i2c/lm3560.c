@@ -448,14 +448,14 @@ static int lm3560_probe(struct i2c_client *client,
 	if (rval < 0)
 		return rval;
 
+	i2c_set_clientdata(client, flash);
+
 	return 0;
 }
 
 static int lm3560_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
-	struct lm3560_flash *flash = container_of(subdev, struct lm3560_flash,
-						  subdev_led[LM3560_LED_MAX]);
+	struct lm3560_flash *flash = i2c_get_clientdata(client);
 	unsigned int i;
 
 	for (i = LM3560_LED0; i < LM3560_LED_MAX; i++) {
