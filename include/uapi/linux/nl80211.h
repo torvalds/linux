@@ -1515,6 +1515,11 @@ enum nl80211_commands {
  *	to react to radar events, e.g. initiate a channel switch or leave the
  *	IBSS network.
  *
+ * @NL80211_ATTR_SUPPORT_5_MHZ: A flag indicating that the device supports
+ *	5 MHz channel bandwidth.
+ * @NL80211_ATTR_SUPPORT_10_MHZ: A flag indicating that the device supports
+ *	10 MHz channel bandwidth.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1830,6 +1835,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_SUPPORTED_OPER_CLASSES,
 
 	NL80211_ATTR_HANDLE_DFS,
+
+	NL80211_ATTR_SUPPORT_5_MHZ,
+	NL80211_ATTR_SUPPORT_10_MHZ,
 
 	/* add attributes here, update the policy in nl80211.c */
 

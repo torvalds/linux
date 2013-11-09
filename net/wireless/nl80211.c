@@ -1228,10 +1228,6 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *dev,
 		if ((dev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP) &&
 		    nla_put_flag(msg, NL80211_ATTR_TDLS_EXTERNAL_SETUP))
 			goto nla_put_failure;
-		if ((dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_5_10_MHZ) &&
-		    nla_put_flag(msg, WIPHY_FLAG_SUPPORTS_5_10_MHZ))
-			goto nla_put_failure;
-
 		state->split_start++;
 		if (state->split)
 			break;
@@ -1558,6 +1554,11 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *dev,
 		break;
 	case 10:
 		if (nl80211_send_coalesce(msg, dev))
+			goto nla_put_failure;
+
+		if ((dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_5_10_MHZ) &&
+		    (nla_put_flag(msg, NL80211_ATTR_SUPPORT_5_MHZ) ||
+		     nla_put_flag(msg, NL80211_ATTR_SUPPORT_10_MHZ)))
 			goto nla_put_failure;
 
 		/* done */
