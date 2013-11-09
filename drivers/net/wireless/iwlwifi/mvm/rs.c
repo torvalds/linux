@@ -2241,6 +2241,11 @@ static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
 			if (i == IWL_RATE_9M_INDEX)
 				continue;
 
+			/* VHT MCS9 isn't valid for 20Mhz for NSS=1,2 */
+			if (i == IWL_RATE_MCS_9_INDEX &&
+			    sta->bandwidth == IEEE80211_STA_RX_BW_20)
+				continue;
+
 			lq_sta->active_siso_rate |= BIT(i);
 		}
 	}
@@ -2249,6 +2254,11 @@ static void rs_vht_set_enabled_rates(struct ieee80211_sta *sta,
 	if (highest_mcs >= IWL_RATE_MCS_0_INDEX) {
 		for (i = IWL_RATE_MCS_0_INDEX; i <= highest_mcs; i++) {
 			if (i == IWL_RATE_9M_INDEX)
+				continue;
+
+			/* VHT MCS9 isn't valid for 20Mhz for NSS=1,2 */
+			if (i == IWL_RATE_MCS_9_INDEX &&
+			    sta->bandwidth == IEEE80211_STA_RX_BW_20)
 				continue;
 
 			lq_sta->active_mimo2_rate |= BIT(i);
