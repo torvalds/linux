@@ -1406,13 +1406,6 @@ static int imx_hdmi_connector_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static int imx_hdmi_connector_mode_valid(struct drm_connector *connector,
-			  struct drm_display_mode *mode)
-{
-
-	return MODE_OK;
-}
-
 static struct drm_encoder *imx_hdmi_connector_best_encoder(struct drm_connector
 							   *connector)
 {
@@ -1501,7 +1494,7 @@ static struct drm_connector_funcs imx_hdmi_connector_funcs = {
 
 static struct drm_connector_helper_funcs imx_hdmi_connector_helper_funcs = {
 	.get_modes = imx_hdmi_connector_get_modes,
-	.mode_valid = imx_hdmi_connector_mode_valid,
+	.mode_valid = imx_drm_connector_mode_valid,
 	.best_encoder = imx_hdmi_connector_best_encoder,
 };
 

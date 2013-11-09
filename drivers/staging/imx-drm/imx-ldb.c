@@ -120,12 +120,6 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
-static int imx_ldb_connector_mode_valid(struct drm_connector *connector,
-			  struct drm_display_mode *mode)
-{
-	return 0;
-}
-
 static struct drm_encoder *imx_ldb_connector_best_encoder(
 		struct drm_connector *connector)
 {
@@ -329,7 +323,7 @@ static struct drm_connector_funcs imx_ldb_connector_funcs = {
 static struct drm_connector_helper_funcs imx_ldb_connector_helper_funcs = {
 	.get_modes = imx_ldb_connector_get_modes,
 	.best_encoder = imx_ldb_connector_best_encoder,
-	.mode_valid = imx_ldb_connector_mode_valid,
+	.mode_valid = imx_drm_connector_mode_valid,
 };
 
 static struct drm_encoder_funcs imx_ldb_encoder_funcs = {

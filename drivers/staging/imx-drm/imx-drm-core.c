@@ -211,6 +211,13 @@ static const struct file_operations imx_drm_driver_fops = {
 	.llseek = noop_llseek,
 };
 
+int imx_drm_connector_mode_valid(struct drm_connector *connector,
+	struct drm_display_mode *mode)
+{
+	return MODE_OK;
+}
+EXPORT_SYMBOL(imx_drm_connector_mode_valid);
+
 static struct imx_drm_device *imx_drm_device;
 
 static struct imx_drm_device *__imx_drm_device(void)

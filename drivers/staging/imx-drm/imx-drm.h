@@ -68,4 +68,7 @@ int imx_drm_encoder_get_mux_id(struct drm_encoder *encoder);
 int imx_drm_encoder_add_possible_crtcs(struct imx_drm_encoder *imx_drm_encoder,
 		struct device_node *np);
 
+int imx_drm_connector_mode_valid(struct drm_connector *connector,
+	struct drm_display_mode *mode);
+
 #endif /* _IMX_DRM_H_ */
