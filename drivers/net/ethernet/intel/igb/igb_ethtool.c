@@ -146,6 +146,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct e1000_sfp_flags *eth_flags = &dev_spec->eth_flags;
 	u32 status;
 
+	status = rd32(E1000_STATUS);
 	if (hw->phy.media_type == e1000_media_type_copper) {
 
 		ecmd->supported = (SUPPORTED_10baseT_Half |
@@ -169,13 +170,22 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->transceiver = XCVR_INTERNAL;
 	} else {
 		ecmd->supported = (SUPPORTED_FIBRE |
+				   SUPPORTED_1000baseKX_Full |
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
-		ecmd->advertising = ADVERTISED_FIBRE;
-
-		if ((eth_flags->e1000_base_lx) || (eth_flags->e1000_base_sx)) {
-			ecmd->supported |= SUPPORTED_1000baseT_Full;
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		ecmd->advertising = (ADVERTISED_FIBRE |
+				     ADVERTISED_1000baseKX_Full);
+		if (hw->mac.type == e1000_i354) {
+			if ((hw->device_id ==
+			     E1000_DEV_ID_I354_BACKPLANE_2_5GBPS) &&
+			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+				ecmd->supported |= SUPPORTED_2500baseX_Full;
+				ecmd->supported &=
+					~SUPPORTED_1000baseKX_Full;
+				ecmd->advertising |= ADVERTISED_2500baseX_Full;
+				ecmd->advertising &=
+					~ADVERTISED_1000baseKX_Full;
+			}
 		}
 		if (eth_flags->e100_base_fx) {
 			ecmd->supported |= SUPPORTED_100baseT_Full;
@@ -187,35 +197,29 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->port = PORT_FIBRE;
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
-
 	if (hw->mac.autoneg != 1)
 		ecmd->advertising &= ~(ADVERTISED_Pause |
 				       ADVERTISED_Asym_Pause);
 
-	if (hw->fc.requested_mode == e1000_fc_full)
+	switch (hw->fc.requested_mode) {
+	case e1000_fc_full:
 		ecmd->advertising |= ADVERTISED_Pause;
-	else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+		break;
+	case e1000_fc_rx_pause:
 		ecmd->advertising |= (ADVERTISED_Pause |
 				      ADVERTISED_Asym_Pause);
-	else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+		break;
+	case e1000_fc_tx_pause:
 		ecmd->advertising |=  ADVERTISED_Asym_Pause;
-	else
+		break;
+	default:
 		ecmd->advertising &= ~(ADVERTISED_Pause |
 				       ADVERTISED_Asym_Pause);
-
-	status = rd32(E1000_STATUS);
-
+	}
 	if (status & E1000_STATUS_LU) {
-		if (hw->mac.type == e1000_i354) {
-			if ((status & E1000_STATUS_2P5_SKU) &&
-			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
-				ecmd->supported = SUPPORTED_2500baseX_Full;
-				ecmd->advertising = ADVERTISED_2500baseX_Full;
-				ecmd->speed = SPEED_2500;
-			} else {
-				ecmd->supported = SUPPORTED_1000baseT_Full;
-				ecmd->advertising = ADVERTISED_1000baseT_Full;
-			}
+		if ((status & E1000_STATUS_2P5_SKU) &&
+		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+			ecmd->speed = SPEED_2500;
 		} else if (status & E1000_STATUS_SPEED_1000) {
 			ecmd->speed = SPEED_1000;
 		} else if (status & E1000_STATUS_SPEED_100) {
@@ -232,7 +236,6 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->speed = -1;
 		ecmd->duplex = -1;
 	}
-
 	if ((hw->phy.media_type == e1000_media_type_fiber) ||
 	    hw->mac.autoneg)
 		ecmd->autoneg = AUTONEG_ENABLE;
