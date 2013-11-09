@@ -330,7 +330,7 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned 
 int __weak
 set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	return uprobe_write_opcode(mm, vaddr, *(uprobe_opcode_t *)auprobe->insn);
+	return uprobe_write_opcode(mm, vaddr, *(uprobe_opcode_t *)&auprobe->insn);
 }
 
 static int match_uprobe(struct uprobe *l, struct uprobe *r)
@@ -529,8 +529,8 @@ static int copy_insn(struct uprobe *uprobe, struct file *filp)
 {
 	struct address_space *mapping = uprobe->inode->i_mapping;
 	loff_t offs = uprobe->offset;
-	void *insn = uprobe->arch.insn;
-	int size = MAX_UINSN_BYTES;
+	void *insn = &uprobe->arch.insn;
+	int size = sizeof(uprobe->arch.insn);
 	int len, err = -EIO;
 
 	/* Copy only available bytes, -EIO if nothing was read */
@@ -569,7 +569,7 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 		goto out;
 
 	ret = -ENOTSUPP;
-	if (is_trap_insn((uprobe_opcode_t *)uprobe->arch.insn))
+	if (is_trap_insn((uprobe_opcode_t *)&uprobe->arch.insn))
 		goto out;
 
 	ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, vaddr);
@@ -1264,7 +1264,7 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 
 	/* Initialize the slot */
 	copy_to_page(area->page, xol_vaddr,
-			uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
+			&uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
 	/*
 	 * We probably need flush_icache_user_range() but it needs vma.
 	 * This should work on supported architectures too.
