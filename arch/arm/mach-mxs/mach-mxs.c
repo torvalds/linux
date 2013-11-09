@@ -157,6 +157,7 @@ enum mac_oui {
 	OUI_FSL,
 	OUI_DENX,
 	OUI_CRYSTALFONTZ,
+	OUI_I2SE,
 };
 
 static void __init update_fec_mac_prop(enum mac_oui oui)
@@ -210,6 +211,11 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 			macaddr[0] = 0x58;
 			macaddr[1] = 0xb9;
 			macaddr[2] = 0xe1;
+			break;
+		case OUI_I2SE:
+			macaddr[0] = 0x00;
+			macaddr[1] = 0x01;
+			macaddr[2] = 0x87;
 			break;
 		}
 		val = ocotp[i];
@@ -328,6 +334,11 @@ static void __init tx28_post_init(void)
 static void __init crystalfontz_init(void)
 {
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+}
+
+static void __init duckbill_init(void)
+{
+	update_fec_mac_prop(OUI_I2SE);
 }
 
 static void __init m28cu3_init(void)
@@ -462,6 +473,8 @@ static void __init mxs_machine_init(void)
 		apx4devkit_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10036"))
 		crystalfontz_init();
+	else if (of_machine_is_compatible("i2se,duckbill"))
+		duckbill_init();
 	else if (of_machine_is_compatible("msr,m28cu3"))
 		m28cu3_init();
 
