@@ -1033,8 +1033,8 @@ static int dmx_section_feed_release_filter(struct dmx_section_feed *feed,
 	}
 
 	if (feed->is_filtering) {
-		/* release dvbdmx->mutex as far as 
-		   it is acquired by stop_filtering() itself */
+		/* release dvbdmx->mutex as far as it is
+		   acquired by stop_filtering() itself */
 		mutex_unlock(&dvbdmx->mutex);
 		feed->stop_filtering(feed);
 		mutex_lock(&dvbdmx->mutex);
