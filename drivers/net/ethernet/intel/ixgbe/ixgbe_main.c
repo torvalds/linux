@@ -133,7 +133,7 @@ static struct notifier_block dca_notifier = {
 static unsigned int max_vfs;
 module_param(max_vfs, uint, 0);
 MODULE_PARM_DESC(max_vfs,
-		 "Maximum number of virtual functions to allocate per physical function - default is zero and maximum value is 63");
+		 "Maximum number of virtual functions to allocate per physical function - default is zero and maximum value is 63. (Deprecated)");
 #endif /* CONFIG_PCI_IOV */
 
 static unsigned int allow_unsupported_sfp;
@@ -5023,11 +5023,20 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	hw->fc.disable_fc_autoneg = ixgbe_device_supports_autoneg_fc(hw);
 
 #ifdef CONFIG_PCI_IOV
-	/* assign number of SR-IOV VFs */
-	if (hw->mac.type != ixgbe_mac_82598EB)
-		adapter->num_vfs = (max_vfs > 63) ? 0 : max_vfs;
+	if (max_vfs > 0)
+		e_dev_warn("Enabling SR-IOV VFs using the max_vfs module parameter is deprecated - please use the pci sysfs interface instead.\n");
 
-#endif
+	/* assign number of SR-IOV VFs */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		if (max_vfs > 63) {
+			adapter->num_vfs = 0;
+			e_dev_warn("max_vfs parameter out of range. Not assigning any SR-IOV VFs\n");
+		} else {
+			adapter->num_vfs = max_vfs;
+		}
+	}
+#endif /* CONFIG_PCI_IOV */
+
 	/* enable itr by default in dynamic mode */
 	adapter->rx_itr_setting = 1;
 	adapter->tx_itr_setting = 1;

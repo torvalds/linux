@@ -129,10 +129,6 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 	if (!pre_existing_vfs && !adapter->num_vfs)
 		return;
 
-	if (!pre_existing_vfs)
-		dev_warn(&adapter->pdev->dev,
-			 "Enabling SR-IOV VFs using the module parameter is deprecated - please use the pci sysfs interface.\n");
-
 	/* If there are pre-existing VFs then we have to force
 	 * use of that many - over ride any module parameter value.
 	 * This may result from the user unloading the PF driver
