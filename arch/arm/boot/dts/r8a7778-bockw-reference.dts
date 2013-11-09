@@ -16,6 +16,7 @@
 
 /dts-v1/;
 #include "r8a7778.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "bockw";
@@ -45,7 +46,7 @@
 
 		phy-mode = "mii";
 		interrupt-parent = <&irqpin>;
-		interrupts = <0 0>; /* IRQ0: hwirq 0 on irqpin */
+		interrupts = <0 IRQ_TYPE_NONE>; /* IRQ0: hwirq 0 on irqpin */
 		reg-io-width = <4>;
 		vddvario-supply = <&fixedregulator3v3>;
 		vdd33a-supply = <&fixedregulator3v3>;

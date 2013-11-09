@@ -14,6 +14,7 @@
 /dts-v1/;
 #include "sh73a0.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "KZM-A9-GT";
@@ -82,7 +83,7 @@
 		reg = <0x10000000 0x100>;
 		phy-mode = "mii";
 		interrupt-parent = <&irqpin0>;
-		interrupts = <3 0>;	/* active low */
+		interrupts = <3 IRQ_TYPE_NONE>;	/* active low */
 		reg-io-width = <4>;
 		smsc,irq-push-pull;
 		smsc,save-mac-address;
