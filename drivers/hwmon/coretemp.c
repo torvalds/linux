@@ -368,12 +368,12 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		if (cpu_has_tjmax(c))
 			dev_warn(dev, "Unable to read TjMax from CPU %u\n", id);
 	} else {
-		val = (eax >> 16) & 0xff;
+		val = (eax >> 16) & 0x7f;
 		/*
 		 * If the TjMax is not plausible, an assumption
 		 * will be used
 		 */
-		if (val) {
+		if (val >= 85) {
 			dev_dbg(dev, "TjMax is %d degrees C\n", val);
 			return val * 1000;
 		}
