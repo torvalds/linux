@@ -119,11 +119,10 @@ void squashfs_decompressor_destroy(struct squashfs_sb_info *msblk)
 			kfree(decomp_strm);
 			stream->avail_decomp--;
 		}
+		WARN_ON(stream->avail_decomp);
+		kfree(stream->comp_opts);
+		kfree(stream);
 	}
-
-	WARN_ON(stream->avail_decomp);
-	kfree(stream->comp_opts);
-	kfree(stream);
 }
 
 
