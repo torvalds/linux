@@ -706,13 +706,28 @@ out:
 
 static int f2fs_read_data_page(struct file *file, struct page *page)
 {
-	return mpage_readpage(page, get_data_block);
+	struct inode *inode = page->mapping->host;
+	int ret;
+
+	/* If the file has inline data, try to read it directlly */
+	if (f2fs_has_inline_data(inode))
+		ret = f2fs_read_inline_data(inode, page);
+	else
+		ret = mpage_readpage(page, get_data_block);
+
+	return ret;
 }
 
 static int f2fs_read_data_pages(struct file *file,
 			struct address_space *mapping,
 			struct list_head *pages, unsigned nr_pages)
 {
+	struct inode *inode = file->f_mapping->host;
+
+	/* If the file has inline data, skip readpages */
+	if (f2fs_has_inline_data(inode))
+		return 0;
+
 	return mpage_readpages(mapping, pages, nr_pages, get_data_block);
 }
 
@@ -761,7 +776,7 @@ static int f2fs_write_data_page(struct page *page,
 	loff_t i_size = i_size_read(inode);
 	const pgoff_t end_index = ((unsigned long long) i_size)
 							>> PAGE_CACHE_SHIFT;
-	unsigned offset;
+	unsigned offset = 0;
 	bool need_balance_fs = false;
 	int err = 0;
 	struct f2fs_io_info fio = {
@@ -799,7 +814,15 @@ write:
 		err = do_write_data_page(page, &fio);
 	} else {
 		f2fs_lock_op(sbi);
-		err = do_write_data_page(page, &fio);
+
+		if (f2fs_has_inline_data(inode) || f2fs_may_inline(inode)) {
+			err = f2fs_write_inline_data(inode, page, offset);
+			f2fs_unlock_op(sbi);
+			goto out;
+		} else {
+			err = do_write_data_page(page, &fio);
+		}
+
 		f2fs_unlock_op(sbi);
 		need_balance_fs = true;
 	}
@@ -888,6 +911,15 @@ repeat:
 		return -ENOMEM;
 	*pagep = page;
 
+	if ((pos + len) < MAX_INLINE_DATA) {
+		if (f2fs_has_inline_data(inode))
+			goto inline_data;
+	} else if (f2fs_has_inline_data(inode)) {
+		err = f2fs_convert_inline_data(inode, page, flags);
+		if (err)
+			return err;
+	}
+
 	f2fs_lock_op(sbi);
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
@@ -897,7 +929,7 @@ repeat:
 		f2fs_put_page(page, 1);
 		return err;
 	}
-
+inline_data:
 	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
 		return 0;
 
@@ -913,7 +945,10 @@ repeat:
 	if (dn.data_blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 	} else {
-		err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
+		if (f2fs_has_inline_data(inode))
+			err = f2fs_read_inline_data(inode, page);
+		else
+			err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
 							READ_SYNC);
 		if (err)
 			return err;
@@ -976,6 +1011,10 @@ static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+
+	/* Let buffer I/O handle the inline data case. */
+	if (f2fs_has_inline_data(inode))
+		return 0;
 
 	if (check_direct_IO(inode, rw, iov, offset, nr_segs))
 		return 0;

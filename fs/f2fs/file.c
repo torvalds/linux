@@ -257,8 +257,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	unsigned int blocksize = inode->i_sb->s_blocksize;
 	struct dnode_of_data dn;
 	pgoff_t free_from;
-	int count = 0;
-	int err;
+	int count = 0, err = 0;
 
 	trace_f2fs_truncate_blocks_enter(inode, from);
 
@@ -266,6 +265,10 @@ static int truncate_blocks(struct inode *inode, u64 from)
 			((from + blocksize - 1) >> (sbi->log_blocksize));
 
 	f2fs_lock_op(sbi);
+
+	if (f2fs_has_inline_data(inode))
+		goto done;
+
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, free_from, LOOKUP_NODE);
 	if (err) {
@@ -292,6 +295,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	f2fs_put_dnode(&dn);
 free_next:
 	err = truncate_inode_blocks(inode, free_from);
+done:
 	f2fs_unlock_op(sbi);
 
 	/* lastly zero out the first data page */
@@ -367,8 +371,17 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 			attr->ia_size != i_size_read(inode)) {
+		if (f2fs_has_inline_data(inode) &&
+				(attr->ia_size > MAX_INLINE_DATA)) {
+			unsigned flags = AOP_FLAG_NOFS;
+			err = f2fs_convert_inline_data(inode, NULL, flags);
+			if (err)
+				return err;
+		}
+
 		truncate_setsize(inode, attr->ia_size);
-		f2fs_truncate(inode);
+		if (!f2fs_has_inline_data(inode))
+			f2fs_truncate(inode);
 		f2fs_balance_fs(F2FS_SB(inode->i_sb));
 	}
 
@@ -450,6 +463,26 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	loff_t off_start, off_end;
 	int ret = 0;
 
+	if (f2fs_has_inline_data(inode)) {
+		struct page *page;
+		unsigned flags = AOP_FLAG_NOFS;
+		page = grab_cache_page_write_begin(inode->i_mapping, 0, flags);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+		if (offset + len > MAX_INLINE_DATA) {
+			ret = f2fs_convert_inline_data(inode, page, flags);
+			f2fs_put_page(page, 1);
+			if (ret)
+				return ret;
+		} else {
+			zero_user_segment(page, offset, offset + len);
+			SetPageUptodate(page);
+			set_page_dirty(page);
+			f2fs_put_page(page, 1);
+			return ret;
+		}
+	}
+
 	pg_start = ((unsigned long long) offset) >> PAGE_CACHE_SHIFT;
 	pg_end = ((unsigned long long) offset + len) >> PAGE_CACHE_SHIFT;
 
@@ -495,6 +528,12 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	loff_t new_size = i_size_read(inode);
 	loff_t off_start, off_end;
 	int ret = 0;
+
+	if (f2fs_has_inline_data(inode) && (offset + len > MAX_INLINE_DATA)) {
+		ret = f2fs_convert_inline_data(inode, NULL, AOP_FLAG_NOFS);
+		if (ret)
+			return ret;
+	}
 
 	ret = inode_newsize_ok(inode, (len + offset));
 	if (ret)
