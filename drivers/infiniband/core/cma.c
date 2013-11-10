@@ -1452,7 +1452,6 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 {
 	struct rdma_cm_id *new_cm_id;
 	struct rdma_id_private *listen_id, *conn_id;
-	struct net_device *dev = NULL;
 	struct rdma_cm_event event;
 	int ret;
 	struct ib_device_attr attr;
@@ -1530,8 +1529,6 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	cma_deref_id(conn_id);
 
 out:
-	if (dev)
-		dev_put(dev);
 	mutex_unlock(&listen_id->handler_mutex);
 	return ret;
 }
