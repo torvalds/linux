@@ -768,13 +768,28 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 		return -EINVAL;
 	}
 
+	/*
+	 * HDMI VSDB latency format:
+	 * separately for both audio and video:
+	 *  0          field not valid or unknown latency
+	 *  [1..251]   msecs = (x-1)*2  (max 500ms with x = 251 = 0xfb)
+	 *  255        audio/video not supported
+	 *
+	 * HDA latency format:
+	 * single value indicating video latency relative to audio:
+	 *  0          unknown or 0ms
+	 *  [1..250]   msecs = x*2  (max 500ms with x = 250 = 0xfa)
+	 *  [251..255] reserved
+	 */
 	aud_synch = snd_hda_codec_read(codec, nid, 0, ATI_VERB_GET_AUDIO_VIDEO_DELAY, 0);
 	if ((aud_synch & ATI_DELAY_VIDEO_LATENCY) && (aud_synch & ATI_DELAY_AUDIO_LATENCY)) {
-		int video_latency = (aud_synch & ATI_DELAY_VIDEO_LATENCY) - 1;
-		int audio_latency = ((aud_synch & ATI_DELAY_AUDIO_LATENCY) >> 8) - 1;
+		int video_latency_hdmi = (aud_synch & ATI_DELAY_VIDEO_LATENCY);
+		int audio_latency_hdmi = (aud_synch & ATI_DELAY_AUDIO_LATENCY) >> 8;
 
-		if (video_latency > audio_latency)
-			buf[6] = min(video_latency - audio_latency, 0xfa);
+		if (video_latency_hdmi <= 0xfb && audio_latency_hdmi <= 0xfb &&
+		    video_latency_hdmi > audio_latency_hdmi)
+			buf[6] = video_latency_hdmi - audio_latency_hdmi;
+		/* else unknown/invalid or 0ms or video ahead of audio, so use zero */
 	}
 
 	/* Baseline length */
