@@ -497,7 +497,7 @@ static void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
 	  */
 		RF_WriteReg(dev, 0x0f, (priv->XtalCal_Xin<<5) |
 			    (priv->XtalCal_Xout<<1) | BIT11 | BIT9); mdelay(1);
-		printk("ZEBRA_Config_85BASIC_HardCode(): (%02x)\n",
+		netdev_info(dev, "ZEBRA_Config_85BASIC_HardCode(): (%02x)\n",
 		      (priv->XtalCal_Xin<<5) | (priv->XtalCal_Xout<<1) |
 		       BIT11 | BIT9);
 	} else {
@@ -1125,7 +1125,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 				 *	to be stuck here.
 				 */
 				if (RFWaitCounter > 1000) { /* 1sec */
-					printk("MgntActSet_RF_State(): Wait too long to set RF\n");
+					netdev_info(dev, "MgntActSet_RF_State(): Wait too long to set RF\n");
 					/* TODO: Reset RF state? */
 					return false;
 				}
