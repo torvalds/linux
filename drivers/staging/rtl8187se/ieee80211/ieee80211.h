@@ -90,6 +90,9 @@
 
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
+extern int ieee80211_crypto_tkip_init(void);
+extern void ieee80211_crypto_tkip_exit(void);
+
 //by amy for ps
 typedef struct ieee_param {
 	u32 cmd;
