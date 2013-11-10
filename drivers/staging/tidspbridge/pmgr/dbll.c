@@ -1398,7 +1398,7 @@ void find_symbol_callback(void *elem, void *user_data)
  * @sym_addr_output:	Symbol Output address
  * @name_output:		String with the dsp symbol
  *
- * 	This function retrieves the dsp symbol from the dsp binary.
+ *	This function retrieves the dsp symbol from the dsp binary.
  */
 bool dbll_find_dsp_symbol(struct dbll_library_obj *zl_lib, u32 address,
 				u32 offset_range, u32 *sym_addr_output,
