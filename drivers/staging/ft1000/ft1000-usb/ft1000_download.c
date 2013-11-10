@@ -81,29 +81,29 @@
 #define  DWNLD_MAG1_PS_HDR_LOC        0x03
 
 struct dsp_file_hdr {
-   long              version_id;          // Version ID of this image format.
-   long              package_id;          // Package ID of code release.
-   long              build_date;          // Date/time stamp when file was built.
-   long              commands_offset;     // Offset to attached commands in Pseudo Hdr format.
-   long              loader_offset;       // Offset to bootloader code.
-   long              loader_code_address; // Start address of bootloader.
-   long              loader_code_end;     // Where bootloader code ends.
-   long              loader_code_size;
-   long              version_data_offset; // Offset were scrambled version data begins.
-   long              version_data_size;   // Size, in words, of scrambled version data.
-   long              nDspImages;          // Number of DSP images in file.
+	long              version_id;          // Version ID of this image format.
+	long              package_id;          // Package ID of code release.
+	long              build_date;          // Date/time stamp when file was built.
+	long              commands_offset;     // Offset to attached commands in Pseudo Hdr format.
+	long              loader_offset;       // Offset to bootloader code.
+	long              loader_code_address; // Start address of bootloader.
+	long              loader_code_end;     // Where bootloader code ends.
+	long              loader_code_size;
+	long              version_data_offset; // Offset were scrambled version data begins.
+	long              version_data_size;   // Size, in words, of scrambled version data.
+	long              nDspImages;          // Number of DSP images in file.
 };
 
 #pragma pack(1)
 struct dsp_image_info {
-   long              coff_date;           // Date/time when DSP Coff image was built.
-   long              begin_offset;        // Offset in file where image begins.
-   long              end_offset;          // Offset in file where image begins.
-   long              run_address;         // On chip Start address of DSP code.
-   long              image_size;          // Size of image.
-   long              version;             // Embedded version # of DSP code.
-   unsigned short    checksum;            // DSP File checksum
-   unsigned short    pad1;
+	long              coff_date;           // Date/time when DSP Coff image was built.
+	long              begin_offset;        // Offset in file where image begins.
+	long              end_offset;          // Offset in file where image begins.
+	long              run_address;         // On chip Start address of DSP code.
+	long              image_size;          // Size of image.
+	long              version;             // Embedded version # of DSP code.
+	unsigned short    checksum;            // DSP File checksum
+	unsigned short    pad1;
 };
 
 
@@ -201,7 +201,7 @@ static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 }
 
 /* write the handshake value to the handshake location */
-static void put_handshake(struct ft1000_usb *ft1000dev,u16 handshake_value)
+static void put_handshake(struct ft1000_usb *ft1000dev, u16 handshake_value)
 {
 	u32 tempx;
 	u16 tempword;
@@ -267,11 +267,12 @@ static u16 get_handshake_usb(struct ft1000_usb *ft1000dev, u16 expected_value)
 	return HANDSHAKE_TIMEOUT_VALUE;
 }
 
-static void put_handshake_usb(struct ft1000_usb *ft1000dev,u16 handshake_value)
+static void put_handshake_usb(struct ft1000_usb *ft1000dev, u16 handshake_value)
 {
 	int i;
 
-        for (i=0; i<1000; i++);
+	for (i = 0; i < 1000; i++)
+		;
 }
 
 static u16 get_request_type(struct ft1000_usb *ft1000dev)
@@ -508,9 +509,9 @@ static int write_blk(struct ft1000_usb *ft1000dev, u16 **pUsFile, u8 **pUcFile,
 	return status;
 }
 
-static void usb_dnld_complete (struct urb *urb)
+static void usb_dnld_complete(struct urb *urb)
 {
-    //DEBUG("****** usb_dnld_complete\n");
+	//DEBUG("****** usb_dnld_complete\n");
 }
 
 /* writes a block of DSP image to DPRAM
@@ -835,7 +836,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					 * Position ASIC DPRAM auto-increment pointer.
 					 */
 
-					data = (u16 *) & mailbox_data->data[0];
+					data = (u16 *) &mailbox_data->data[0];
 					dpram = (u16) DWNLD_MAG1_PS_HDR_LOC;
 					if (word_length & 0x1)
 						word_length++;
@@ -849,7 +850,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 						status =
 						    fix_ft1000_write_dpram32
 						    (ft1000dev, dpram++,
-						     (u8 *) & templong);
+						     (u8 *) &templong);
 
 					}
 					break;
@@ -1056,12 +1057,12 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
       // Check if Card is present
       status = Harley_Read_Register(&temp, FT1000_REG_SUP_IMASK);
       if ( (status != NDIS_STATUS_SUCCESS) || (temp == 0x0000) ) {
-          break;
+	break;
       }
 
       status = Harley_Read_Register(&temp, FT1000_REG_ASIC_ID);
       if ( (status != NDIS_STATUS_SUCCESS) || (temp == 0xffff) ) {
-          break;
+	break;
       }
 ****/
 
