@@ -1053,7 +1053,7 @@ CARDbAdd_PMKID_Candidate(
 	for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
 		pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
 		if (!memcmp(pCandidateList->BSSID, pbyBSSID, ETH_ALEN)) {
-			if ((bRSNCapExist == true) && (wRSNCap & BIT0)) {
+			if (bRSNCapExist && (wRSNCap & BIT0)) {
 				pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
 			} else {
 				pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
@@ -1064,7 +1064,7 @@ CARDbAdd_PMKID_Candidate(
 
 	// New Candidate
 	pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[pDevice->gsPMKIDCandidate.NumCandidates];
-	if ((bRSNCapExist == true) && (wRSNCap & BIT0)) {
+	if (bRSNCapExist && (wRSNCap & BIT0)) {
 		pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
 	} else {
 		pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
@@ -1190,7 +1190,7 @@ CARDbStartMeasure(
 		}
 	} while (pDevice->uNumOfMeasureEIDs != 0);
 
-	if (bExpired == false) {
+	if (!bExpired) {
 		MACvSelectPage1(pDevice->PortOffset);
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MSRSTART, LODWORD(qwStartTSF));
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MSRSTART + 4, HIDWORD(qwStartTSF));
@@ -1280,7 +1280,7 @@ CARDbSetQuiet(
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	unsigned int ii = 0;
 
-	if (bResetQuiet == true) {
+	if (bResetQuiet) {
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_MSRCTL, (MSRCTL_QUIETTXCHK | MSRCTL_QUIETEN));
 		for (ii = 0; ii < MAX_QUIET_COUNT; ii++) {
 			pDevice->sQuiet[ii].bEnable = false;

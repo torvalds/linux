@@ -284,16 +284,15 @@ PSbSendNullPacket(
 	PSMgmtObject        pMgmt = pDevice->pMgmt;
 	unsigned int uIdx;
 
-	if (pDevice->bLinkPass == false) {
+	if (!pDevice->bLinkPass) {
 		return false;
 	}
 #ifdef TxInSleep
-	if ((pDevice->bEnablePSMode == false) &&
-	    (pDevice->fTxDataInSleep == false)) {
+	if (!pDevice->bEnablePSMode && !pDevice->fTxDataInSleep) {
 		return false;
 	}
 #else
-	if (pDevice->bEnablePSMode == false) {
+	if (!pDevice->bEnablePSMode) {
 		return false;
 	}
 #endif

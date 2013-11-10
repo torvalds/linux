@@ -192,7 +192,7 @@ WPA2vParseRSN(
 					break;
 			} //for
 
-			if (bUseGK == true) {
+			if (bUseGK) {
 				if (j != 1) {
 					// invalid CSS, This should be only PK CSS.
 					return;
@@ -335,7 +335,7 @@ WPA2uSetIEs(
 		pRSNIEs->len += 2;
 
 		if ((pMgmt->gsPMKIDCache.BSSIDInfoCount > 0) &&
-		    (pMgmt->bRoaming == true) &&
+		    pMgmt->bRoaming &&
 		    (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
 			// RSN PMKID
 			pwPMKID = (unsigned short *)(&pRSNIEs->abyRSN[18]);  // Point to PMKID count
