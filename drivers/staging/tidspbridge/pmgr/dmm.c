@@ -477,9 +477,9 @@ u32 dmm_mem_map_dump(struct dmm_object *dmm_mgr)
 	spin_unlock(&dmm_mgr->dmm_lock);
 	printk(KERN_INFO "Total DSP VA FREE memory = %d Mbytes\n",
 	       freemem / (1024 * 1024));
-	printk(KERN_INFO "Total DSP VA USED memory= %d Mbytes \n",
+	printk(KERN_INFO "Total DSP VA USED memory= %d Mbytes\n",
 	       (((table_size * PG_SIZE4K) - freemem)) / (1024 * 1024));
-	printk(KERN_INFO "DSP VA - Biggest FREE block = %d Mbytes \n\n",
+	printk(KERN_INFO "DSP VA - Biggest FREE block = %d Mbytes\n\n",
 	       (bigsize * PG_SIZE4K / (1024 * 1024)));
 
 	return 0;
