@@ -601,6 +601,8 @@ static int __init sunxi_spdif_init(void)
 	if (ret != 0 || !spdif_used)
 		return -ENODEV;
 
+	spdif_handle = gpio_request_ex("spdif_para", NULL);
+
 	ret = platform_device_register(&sunxi_spdif_device);
 	if (ret < 0)
 		return ret;
