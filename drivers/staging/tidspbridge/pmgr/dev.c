@@ -916,8 +916,8 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 
 	/* Local helper macro: */
 #define  STORE_FXN(cast, pfn) \
-    (intf_fxns->pfn = ((drv_fxns->pfn != NULL) ? drv_fxns->pfn : \
-    (cast)fxn_not_implemented))
+	(intf_fxns->pfn = ((drv_fxns->pfn != NULL) ? drv_fxns->pfn : \
+			   (cast)fxn_not_implemented))
 
 	bridge_version = MAKEVERSION(drv_fxns->brd_api_major_version,
 				     drv_fxns->brd_api_minor_version);
