@@ -165,8 +165,8 @@ static int tuntap_open(struct iss_net_private *lp)
 
 	fd = simc_open("/dev/net/tun", 02, 0); /* O_RDWR */
 	if (fd < 0) {
-		pr_err("Failed to open /dev/net/tun, returned %d (errno = %d)\n",
-		       fd, errno);
+		pr_err("%s: failed to open /dev/net/tun, returned %d (errno = %d)\n",
+		       lp->dev->name, fd, errno);
 		return fd;
 	}
 
@@ -176,8 +176,8 @@ static int tuntap_open(struct iss_net_private *lp)
 
 	err = simc_ioctl(fd, TUNSETIFF, &ifr);
 	if (err < 0) {
-		pr_err("Failed to set interface, returned %d (errno = %d)\n",
-		       err, errno);
+		pr_err("%s: failed to set interface %s, returned %d (errno = %d)\n",
+		       lp->dev->name, dev_name, err, errno);
 		simc_close(fd);
 		return err;
 	}
@@ -232,11 +232,13 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 	if (*init == ',') {
 		rem = split_if_spec(init + 1, &mac_str, &dev_name);
 		if (rem != NULL) {
-			pr_err("Extra garbage on specification : '%s'\n", rem);
+			pr_err("%s: extra garbage on specification : '%s'\n",
+			       dev->name, rem);
 			return 0;
 		}
 	} else if (*init != '\0') {
-		pr_err("Invalid argument: %s. Skipping device!\n", init);
+		pr_err("%s: invalid argument: %s. Skipping device!\n",
+		       dev->name, init);
 		return 0;
 	}
 
@@ -260,8 +262,6 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 	lp->tp.write = tuntap_write;
 	lp->tp.protocol = tuntap_protocol;
 	lp->tp.poll = tuntap_poll;
-
-	pr_info("TUN/TAP backend -\n");
 
 	return 1;
 }
@@ -435,7 +435,7 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	} else {
 		netif_start_queue(dev);
-		pr_err("iss_net_start_xmit: failed(%d)\n", len);
+		pr_err("%s: %s failed(%d)\n", dev->name, __func__, len);
 	}
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -538,7 +538,8 @@ static int iss_net_configure(int index, char *init)
 	 */
 
 	if (!tuntap_probe(lp, index, init)) {
-		pr_err("Invalid arguments. Skipping device!\n");
+		pr_err("%s: invalid arguments. Skipping device!\n",
+		       dev->name);
 		goto errout;
 	}
 
@@ -570,7 +571,7 @@ static int iss_net_configure(int index, char *init)
 	rtnl_unlock();
 
 	if (err) {
-		pr_err("Error registering net device!\n");
+		pr_err("%s: error registering net device!\n", dev->name);
 		/* XXX: should we call ->remove() here? */
 		free_netdev(dev);
 		return 1;
