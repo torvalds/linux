@@ -606,7 +606,7 @@ int dev_get_node_manager(struct dev_object *hdev_obj,
  *  ======== dev_get_symbol ========
  */
 int dev_get_symbol(struct dev_object *hdev_obj,
-			  const char *str_sym, u32 * pul_value)
+			  const char *str_sym, u32 *pul_value)
 {
 	int status = 0;
 	struct cod_manager *cod_mgr;
