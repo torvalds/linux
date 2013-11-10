@@ -56,7 +56,6 @@ static LIST_HEAD(devices);
 
 struct tuntap_info {
 	char dev_name[IFNAMSIZ];
-	int fixed_config;
 	int fd;
 };
 
@@ -164,11 +163,6 @@ static int tuntap_open(struct iss_net_private *lp)
 	int err = -EINVAL;
 	int fd;
 
-	/* We currently only support a fixed configuration. */
-
-	if (!lp->tp.info.tuntap.fixed_config)
-		return -EINVAL;
-
 	fd = simc_open("/dev/net/tun", 02, 0); /* O_RDWR */
 	if (fd < 0) {
 		pr_err("Failed to open /dev/net/tun, returned %d (errno = %d)\n",
@@ -220,8 +214,7 @@ static int tuntap_poll(struct iss_net_private *lp)
 }
 
 /*
- * Currently only a device name is supported.
- * ethX=tuntap[,[mac address][,[device name]]]
+ * ethX=tuntap,[mac address],device name
  */
 
 static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
@@ -247,12 +240,13 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 		return 0;
 	}
 
-	if (dev_name) {
-		strlcpy(lp->tp.info.tuntap.dev_name, dev_name,
-			 sizeof(lp->tp.info.tuntap.dev_name));
-		lp->tp.info.tuntap.fixed_config = 1;
-	} else
-		strcpy(lp->tp.info.tuntap.dev_name, TRANSPORT_TUNTAP_NAME);
+	if (!dev_name) {
+		pr_err("%s: missing tuntap device name\n", dev->name);
+		return 0;
+	}
+
+	strlcpy(lp->tp.info.tuntap.dev_name, dev_name,
+		sizeof(lp->tp.info.tuntap.dev_name));
 
 	setup_etheraddr(dev, mac_str);
 
