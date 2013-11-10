@@ -359,7 +359,7 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa, u32 ul_seg_id)
  *      Return the communication memory manager object for this device.
  *      This is typically called from the client process.
  */
-int cmm_get_handle(void *hprocessor, struct cmm_object ** ph_cmm_mgr)
+int cmm_get_handle(void *hprocessor, struct cmm_object **ph_cmm_mgr)
 {
 	int status = 0;
 	struct dev_object *hdev_obj;
@@ -828,7 +828,7 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
  *  Purpose:
  *      Set/Get translator info.
  */
-int cmm_xlator_info(struct cmm_xlatorobject *xlator, u8 ** paddr,
+int cmm_xlator_info(struct cmm_xlatorobject *xlator, u8 **paddr,
 			   u32 ul_size, u32 segm_id, bool set_info)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
