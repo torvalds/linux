@@ -915,10 +915,10 @@ static struct dynload_symbol *dbll_find_symbol(struct dynamic_loader_sym *this,
 			status = dbll_get_addr((struct dbll_library_obj *)lib,
 					       (char *)name, &dbll_sym);
 			if (!status) {
-				status =
-				    dbll_get_c_addr((struct dbll_library_obj *)
-						    lib, (char *)name,
-						    &dbll_sym);
+				status = dbll_get_c_addr(
+						(struct dbll_library_obj *)
+						lib, (char *)name,
+						&dbll_sym);
 			}
 		}
 	}
