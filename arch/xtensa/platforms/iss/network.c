@@ -681,7 +681,7 @@ static int __init iss_net_setup(char *str)
 
 #undef ERR
 
-__setup("eth=", iss_net_setup);
+__setup("eth", iss_net_setup);
 
 /*
  * Initialize all ISS Ethernet devices previously registered in iss_net_setup.
