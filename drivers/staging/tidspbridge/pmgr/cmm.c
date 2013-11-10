@@ -449,8 +449,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	struct cmm_mnode *new_node;
 	s32 slot_seg;
 
-	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x "
-			"dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n",
+	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n",
 			__func__, dw_gpp_base_pa, ul_size, dsp_addr_offset,
 			dw_dsp_base, ul_dsp_size, gpp_base_va);
 
