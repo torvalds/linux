@@ -64,6 +64,22 @@ int reserve_new_block(struct dnode_of_data *dn)
 	return 0;
 }
 
+int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
+{
+	bool need_put = dn->inode_page ? false : true;
+	int err;
+
+	err = get_dnode_of_data(dn, index, ALLOC_NODE);
+	if (err)
+		return err;
+	if (dn->data_blkaddr == NULL_ADDR)
+		err = reserve_new_block(dn);
+
+	if (need_put)
+		f2fs_put_dnode(dn);
+	return err;
+}
+
 static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 					struct buffer_head *bh_result)
 {
@@ -314,19 +330,10 @@ struct page *get_new_data_page(struct inode *inode,
 	int err;
 
 	set_new_dnode(&dn, inode, npage, npage, 0);
-	err = get_dnode_of_data(&dn, index, ALLOC_NODE);
+	err = f2fs_reserve_block(&dn, index);
 	if (err)
 		return ERR_PTR(err);
 
-	if (dn.data_blkaddr == NULL_ADDR) {
-		if (reserve_new_block(&dn)) {
-			if (!npage)
-				f2fs_put_dnode(&dn);
-			return ERR_PTR(-ENOSPC);
-		}
-	}
-	if (!npage)
-		f2fs_put_dnode(&dn);
 repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page)
@@ -707,20 +714,14 @@ repeat:
 	*pagep = page;
 
 	f2fs_lock_op(sbi);
-
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	err = get_dnode_of_data(&dn, index, ALLOC_NODE);
-	if (err)
-		goto err;
-
-	if (dn.data_blkaddr == NULL_ADDR)
-		err = reserve_new_block(&dn);
-
-	f2fs_put_dnode(&dn);
-	if (err)
-		goto err;
-
+	err = f2fs_reserve_block(&dn, index);
 	f2fs_unlock_op(sbi);
+
+	if (err) {
+		f2fs_put_page(page, 1);
+		return err;
+	}
 
 	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
 		return 0;
@@ -754,11 +755,6 @@ out:
 	SetPageUptodate(page);
 	clear_cold_data(page);
 	return 0;
-
-err:
-	f2fs_unlock_op(sbi);
-	f2fs_put_page(page, 1);
-	return err;
 }
 
 static int f2fs_write_end(struct file *file,

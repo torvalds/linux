@@ -33,7 +33,6 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	block_t old_blk_addr;
 	struct dnode_of_data dn;
 	int err;
 
@@ -44,24 +43,10 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 	/* block allocation */
 	f2fs_lock_op(sbi);
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	err = get_dnode_of_data(&dn, page->index, ALLOC_NODE);
-	if (err) {
-		f2fs_unlock_op(sbi);
-		goto out;
-	}
-
-	old_blk_addr = dn.data_blkaddr;
-
-	if (old_blk_addr == NULL_ADDR) {
-		err = reserve_new_block(&dn);
-		if (err) {
-			f2fs_put_dnode(&dn);
-			f2fs_unlock_op(sbi);
-			goto out;
-		}
-	}
-	f2fs_put_dnode(&dn);
+	err = f2fs_reserve_block(&dn, page->index);
 	f2fs_unlock_op(sbi);
+	if (err)
+		goto out;
 
 	file_update_time(vma->vm_file);
 	lock_page(page);
@@ -532,22 +517,11 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 
 		f2fs_lock_op(sbi);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
-		ret = get_dnode_of_data(&dn, index, ALLOC_NODE);
-		if (ret) {
-			f2fs_unlock_op(sbi);
-			break;
-		}
-
-		if (dn.data_blkaddr == NULL_ADDR) {
-			ret = reserve_new_block(&dn);
-			if (ret) {
-				f2fs_put_dnode(&dn);
-				f2fs_unlock_op(sbi);
-				break;
-			}
-		}
-		f2fs_put_dnode(&dn);
+		ret = f2fs_reserve_block(&dn, index);
 		f2fs_unlock_op(sbi);
+		if (ret)
+			break;
+
 
 		if (pg_start == pg_end)
 			new_size = offset + len;
