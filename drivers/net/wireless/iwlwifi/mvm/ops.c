@@ -760,7 +760,7 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 			ieee80211_scan_completed(mvm->hw, true);
 			break;
 		case IWL_MVM_SCAN_SCHED:
-			ieee80211_sched_scan_stopped(mvm->hw);
+			/* Sched scan will be restarted by mac80211. */
 			break;
 		}
 
