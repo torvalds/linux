@@ -586,7 +586,53 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 8) {
+		int i;
+		seq_printf(m, "Master Interrupt Control:\t%08x\n",
+			   I915_READ(GEN8_MASTER_IRQ));
+
+		for (i = 0; i < 4; i++) {
+			seq_printf(m, "GT Interrupt IMR %d:\t%08x\n",
+				   i, I915_READ(GEN8_GT_IMR(i)));
+			seq_printf(m, "GT Interrupt IIR %d:\t%08x\n",
+				   i, I915_READ(GEN8_GT_IIR(i)));
+			seq_printf(m, "GT Interrupt IER %d:\t%08x\n",
+				   i, I915_READ(GEN8_GT_IER(i)));
+		}
+
+		for_each_pipe(i) {
+			seq_printf(m, "Pipe %c IMR:\t%08x\n",
+				   pipe_name(i),
+				   I915_READ(GEN8_DE_PIPE_IMR(i)));
+			seq_printf(m, "Pipe %c IIR:\t%08x\n",
+				   pipe_name(i),
+				   I915_READ(GEN8_DE_PIPE_IIR(i)));
+			seq_printf(m, "Pipe %c IER:\t%08x\n",
+				   pipe_name(i),
+				   I915_READ(GEN8_DE_PIPE_IER(i)));
+		}
+
+		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
+			   I915_READ(GEN8_DE_PORT_IMR));
+		seq_printf(m, "Display Engine port interrupt identity:\t%08x\n",
+			   I915_READ(GEN8_DE_PORT_IIR));
+		seq_printf(m, "Display Engine port interrupt enable:\t%08x\n",
+			   I915_READ(GEN8_DE_PORT_IER));
+
+		seq_printf(m, "Display Engine misc interrupt mask:\t%08x\n",
+			   I915_READ(GEN8_DE_MISC_IMR));
+		seq_printf(m, "Display Engine misc interrupt identity:\t%08x\n",
+			   I915_READ(GEN8_DE_MISC_IIR));
+		seq_printf(m, "Display Engine misc interrupt enable:\t%08x\n",
+			   I915_READ(GEN8_DE_MISC_IER));
+
+		seq_printf(m, "PCU interrupt mask:\t%08x\n",
+			   I915_READ(GEN8_PCU_IMR));
+		seq_printf(m, "PCU interrupt identity:\t%08x\n",
+			   I915_READ(GEN8_PCU_IIR));
+		seq_printf(m, "PCU interrupt enable:\t%08x\n",
+			   I915_READ(GEN8_PCU_IER));
+	} else if (IS_VALLEYVIEW(dev)) {
 		seq_printf(m, "Display IER:\t%08x\n",
 			   I915_READ(VLV_IER));
 		seq_printf(m, "Display IIR:\t%08x\n",
@@ -658,7 +704,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
 	for_each_ring(ring, dev_priv, i) {
-		if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		if (INTEL_INFO(dev)->gen >= 6) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
 				   ring->name, I915_READ_IMR(ring));
@@ -1577,7 +1623,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 			   I915_READ16(C0DRB3));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
 			   I915_READ16(C1DRB3));
-	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "MAD_DIMM_C0 = 0x%08x\n",
 			   I915_READ(MAD_DIMM_C0));
 		seq_printf(m, "MAD_DIMM_C1 = 0x%08x\n",
@@ -1586,8 +1632,12 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 			   I915_READ(MAD_DIMM_C2));
 		seq_printf(m, "TILECTL = 0x%08x\n",
 			   I915_READ(TILECTL));
-		seq_printf(m, "ARB_MODE = 0x%08x\n",
-			   I915_READ(ARB_MODE));
+		if (IS_GEN8(dev))
+			seq_printf(m, "GAMTARBMODE = 0x%08x\n",
+				   I915_READ(GAMTARBMODE));
+		else
+			seq_printf(m, "ARB_MODE = 0x%08x\n",
+				   I915_READ(ARB_MODE));
 		seq_printf(m, "DISP_ARB_CTL = 0x%08x\n",
 			   I915_READ(DISP_ARB_CTL));
 	}
@@ -1596,18 +1646,37 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_ppgtt_info(struct seq_file *m, void *data)
+static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	int i, ret;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int unused, i;
 
+	if (!ppgtt)
+		return;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	seq_printf(m, "Page directories: %d\n", ppgtt->num_pd_pages);
+	seq_printf(m, "Page tables: %d\n", ppgtt->num_pt_pages);
+	for_each_ring(ring, dev_priv, unused) {
+		seq_printf(m, "%s\n", ring->name);
+		for (i = 0; i < 4; i++) {
+			u32 offset = 0x270 + i * 8;
+			u64 pdp = I915_READ(ring->mmio_base + offset + 4);
+			pdp <<= 32;
+			pdp |= I915_READ(ring->mmio_base + offset);
+			for (i = 0; i < 4; i++)
+				seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
+		}
+	}
+}
+
+static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i;
+
 	if (INTEL_INFO(dev)->gen == 6)
 		seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
 
@@ -1626,6 +1695,22 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
 	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
+}
+
+static int i915_ppgtt_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+
+	int ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (INTEL_INFO(dev)->gen >= 8)
+		gen8_ppgtt_info(m, dev);
+	else if (INTEL_INFO(dev)->gen >= 6)
+		gen6_ppgtt_info(m, dev);
+
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;

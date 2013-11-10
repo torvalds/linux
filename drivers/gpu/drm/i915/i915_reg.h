@@ -110,6 +110,9 @@
 #define RING_PP_DIR_DCLV(ring)		((ring)->mmio_base+0x220)
 #define   PP_DIR_DCLV_2G		0xffffffff
 
+#define GEN8_RING_PDP_UDW(ring, n)	((ring)->mmio_base+0x270 + ((n) * 8 + 4))
+#define GEN8_RING_PDP_LDW(ring, n)	((ring)->mmio_base+0x270 + (n) * 8)
+
 #define GAM_ECOCHK			0x4090
 #define   ECOCHK_SNB_BIT		(1<<10)
 #define   HSW_ECOCHK_ARB_PRIO_SOL	(1<<6)
@@ -247,6 +250,7 @@
 #define   MI_BATCH_NON_SECURE_HSW 	(1<<13)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
+#define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
 #define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
@@ -655,6 +659,9 @@
 #define ARB_MODE		0x04030
 #define   ARB_MODE_SWIZZLE_SNB	(1<<4)
 #define   ARB_MODE_SWIZZLE_IVB	(1<<5)
+#define GAMTARBMODE		0x04a08
+#define   ARB_MODE_BWGTLB_DISABLE (1<<9)
+#define   ARB_MODE_SWIZZLE_BDW	(1<<1)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
 #define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
 #define   RING_FAULT_GTTSEL_MASK (1<<11)
@@ -662,6 +669,7 @@
 #define   RING_FAULT_FAULT_TYPE(x) ((x >> 1) & 0x3)
 #define   RING_FAULT_VALID	(1<<0)
 #define DONE_REG		0x40b0
+#define GEN8_PRIVATE_PAT	0x40e0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define VEBOX_HWS_PGA_GEN7	(0x04380)
@@ -741,6 +749,7 @@
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
 #define DERRMR		0x44050
+/* Note that HBLANK events are reserved on bdw+ */
 #define   DERRMR_PIPEA_SCANLINE		(1<<0)
 #define   DERRMR_PIPEA_PRI_FLIP_DONE	(1<<1)
 #define   DERRMR_PIPEA_SPR_FLIP_DONE	(1<<2)
@@ -774,6 +783,7 @@
 #define _3D_CHICKEN3	0x02090
 #define  _3D_CHICKEN_SF_DISABLE_OBJEND_CULL		(1 << 10)
 #define  _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL		(1 << 5)
+#define  _3D_CHICKEN_SDE_LIMIT_FIFO_POLY_DEPTH(x)	((x)<<1)
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
@@ -1820,6 +1830,9 @@
  * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
+/* Same as Haswell, but 72064 bytes now. */
+#define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
+
 
 #define VLV_CLK_CTL2			0x101104
 #define   CLK_CTL2_CZCOUNT_30NS_SHIFT	28
@@ -1950,8 +1963,8 @@
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
 #define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
-/* HSW eDP PSR registers */
-#define EDP_PSR_BASE(dev)			0x64800
+/* HSW+ eDP PSR registers */
+#define EDP_PSR_BASE(dev)                       (IS_HASWELL(dev) ? 0x64800 : 0x6f800)
 #define EDP_PSR_CTL(dev)			(EDP_PSR_BASE(dev) + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   EDP_PSR_LINK_DISABLE			(0<<27)
@@ -3241,6 +3254,18 @@
 #define PIPEFRAMEPIXEL(pipe)  _PIPE(pipe, _PIPEAFRAMEPIXEL, _PIPEBFRAMEPIXEL)
 #define PIPESTAT(pipe) _PIPE(pipe, _PIPEASTAT, _PIPEBSTAT)
 
+#define _PIPE_MISC_A			0x70030
+#define _PIPE_MISC_B			0x71030
+#define   PIPEMISC_DITHER_BPC_MASK	(7<<5)
+#define   PIPEMISC_DITHER_8_BPC		(0<<5)
+#define   PIPEMISC_DITHER_10_BPC	(1<<5)
+#define   PIPEMISC_DITHER_6_BPC		(2<<5)
+#define   PIPEMISC_DITHER_12_BPC	(3<<5)
+#define   PIPEMISC_DITHER_ENABLE	(1<<4)
+#define   PIPEMISC_DITHER_TYPE_MASK	(3<<2)
+#define   PIPEMISC_DITHER_TYPE_SP	(0<<2)
+#define PIPEMISC(pipe) _PIPE(pipe, _PIPE_MISC_A, _PIPE_MISC_B)
+
 #define VLV_DPFLIPSTAT				(VLV_DISPLAY_BASE + 0x70028)
 #define   PIPEB_LINE_COMPARE_INT_EN		(1<<29)
 #define   PIPEB_HLINE_INT_EN			(1<<28)
@@ -3371,6 +3396,7 @@
 #define  WM1_LP_LATENCY_MASK	(0x7f<<24)
 #define  WM1_LP_FBC_MASK	(0xf<<20)
 #define  WM1_LP_FBC_SHIFT	20
+#define  WM1_LP_FBC_SHIFT_BDW	19
 #define  WM1_LP_SR_MASK		(0x7ff<<8)
 #define  WM1_LP_SR_SHIFT	8
 #define  WM1_LP_CURSOR_MASK	(0xff)
@@ -4011,6 +4037,71 @@
 #define GTIIR   0x44018
 #define GTIER   0x4401c
 
+#define GEN8_MASTER_IRQ			0x44200
+#define  GEN8_MASTER_IRQ_CONTROL	(1<<31)
+#define  GEN8_PCU_IRQ			(1<<30)
+#define  GEN8_DE_PCH_IRQ		(1<<23)
+#define  GEN8_DE_MISC_IRQ		(1<<22)
+#define  GEN8_DE_PORT_IRQ		(1<<20)
+#define  GEN8_DE_PIPE_C_IRQ		(1<<18)
+#define  GEN8_DE_PIPE_B_IRQ		(1<<17)
+#define  GEN8_DE_PIPE_A_IRQ		(1<<16)
+#define  GEN8_DE_PIPE_IRQ(pipe)		(1<<(16+pipe))
+#define  GEN8_GT_VECS_IRQ		(1<<6)
+#define  GEN8_GT_VCS2_IRQ		(1<<3)
+#define  GEN8_GT_VCS1_IRQ		(1<<2)
+#define  GEN8_GT_BCS_IRQ		(1<<1)
+#define  GEN8_GT_RCS_IRQ		(1<<0)
+
+#define GEN8_GT_ISR(which) (0x44300 + (0x10 * (which)))
+#define GEN8_GT_IMR(which) (0x44304 + (0x10 * (which)))
+#define GEN8_GT_IIR(which) (0x44308 + (0x10 * (which)))
+#define GEN8_GT_IER(which) (0x4430c + (0x10 * (which)))
+
+#define GEN8_BCS_IRQ_SHIFT 16
+#define GEN8_RCS_IRQ_SHIFT 0
+#define GEN8_VCS2_IRQ_SHIFT 16
+#define GEN8_VCS1_IRQ_SHIFT 0
+#define GEN8_VECS_IRQ_SHIFT 0
+
+#define GEN8_DE_PIPE_ISR(pipe) (0x44400 + (0x10 * (pipe)))
+#define GEN8_DE_PIPE_IMR(pipe) (0x44404 + (0x10 * (pipe)))
+#define GEN8_DE_PIPE_IIR(pipe) (0x44408 + (0x10 * (pipe)))
+#define GEN8_DE_PIPE_IER(pipe) (0x4440c + (0x10 * (pipe)))
+#define  GEN8_PIPE_FIFO_UNDERRUN	(1 << 31)
+#define  GEN8_PIPE_CDCLK_CRC_ERROR	(1 << 29)
+#define  GEN8_PIPE_CDCLK_CRC_DONE	(1 << 28)
+#define  GEN8_PIPE_CURSOR_FAULT		(1 << 10)
+#define  GEN8_PIPE_SPRITE_FAULT		(1 << 9)
+#define  GEN8_PIPE_PRIMARY_FAULT	(1 << 8)
+#define  GEN8_PIPE_SPRITE_FLIP_DONE	(1 << 5)
+#define  GEN8_PIPE_FLIP_DONE		(1 << 4)
+#define  GEN8_PIPE_SCAN_LINE_EVENT	(1 << 2)
+#define  GEN8_PIPE_VSYNC		(1 << 1)
+#define  GEN8_PIPE_VBLANK		(1 << 0)
+#define GEN8_DE_PIPE_IRQ_FAULT_ERRORS \
+	(GEN8_PIPE_CURSOR_FAULT | \
+	 GEN8_PIPE_SPRITE_FAULT | \
+	 GEN8_PIPE_PRIMARY_FAULT)
+
+#define GEN8_DE_PORT_ISR 0x44440
+#define GEN8_DE_PORT_IMR 0x44444
+#define GEN8_DE_PORT_IIR 0x44448
+#define GEN8_DE_PORT_IER 0x4444c
+#define  GEN8_PORT_DP_A_HOTPLUG		(1 << 3)
+#define  GEN8_AUX_CHANNEL_A		(1 << 0)
+
+#define GEN8_DE_MISC_ISR 0x44460
+#define GEN8_DE_MISC_IMR 0x44464
+#define GEN8_DE_MISC_IIR 0x44468
+#define GEN8_DE_MISC_IER 0x4446c
+#define  GEN8_DE_MISC_GSE		(1 << 27)
+
+#define GEN8_PCU_ISR 0x444e0
+#define GEN8_PCU_IMR 0x444e4
+#define GEN8_PCU_IIR 0x444e8
+#define GEN8_PCU_IER 0x444ec
+
 #define ILK_DISPLAY_CHICKEN2	0x42004
 /* Required on all Ironlake and Sandybridge according to the B-Spec. */
 #define  ILK_ELPIN_409_SELECT	(1 << 25)
@@ -4036,7 +4127,13 @@
 # define CHICKEN3_DGMG_DONE_FIX_DISABLE		(1 << 2)
 
 #define CHICKEN_PAR1_1		0x42080
+#define  DPA_MASK_VBLANK_SRD	(1 << 15)
 #define  FORCE_ARB_IDLE_PLANES	(1 << 14)
+
+#define _CHICKEN_PIPESL_1_A	0x420b0
+#define _CHICKEN_PIPESL_1_B	0x420b4
+#define  DPRS_MASK_VBLANK_SRD	(1 << 0)
+#define CHICKEN_PIPESL_1(pipe) _PIPE(pipe, _CHICKEN_PIPESL_1_A, _CHICKEN_PIPESL_1_B)
 
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
@@ -4048,6 +4145,8 @@
 /* GEN7 chicken */
 #define GEN7_COMMON_SLICE_CHICKEN1		0x7010
 # define GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC	((1<<10) | (1<<26))
+#define COMMON_SLICE_CHICKEN2			0x7014
+# define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE	(1<<0)
 
 #define GEN7_L3CNTLREG1				0xB01C
 #define  GEN7_WA_FOR_GEN7_L3_CONTROL			0x3C4FFF8C
@@ -4876,6 +4975,7 @@
 #define   GEN6_PCODE_WRITE_D_COMP		0x11
 #define   GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
 #define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
+#define   DISPLAY_IPS_CONTROL			0x19
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 #define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
@@ -4913,6 +5013,7 @@
 #define GEN7_HALF_SLICE_CHICKEN1	0xe100 /* IVB GT1 + VLV */
 #define GEN7_HALF_SLICE_CHICKEN1_GT2	0xf100
 #define   GEN7_MAX_PS_THREAD_DEP		(8<<12)
+#define   GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE	(1<<10)
 #define   GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE	(1<<3)
 
 #define GEN7_ROW_CHICKEN2		0xe4f4
@@ -4921,6 +5022,10 @@
 
 #define HSW_ROW_CHICKEN3		0xe49c
 #define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
+
+#define HALF_SLICE_CHICKEN3		0xe184
+#define   GEN8_CENTROID_PIXEL_OPT_DIS	(1<<8)
+#define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1<<1)
 
 #define G4X_AUD_VID_DID			(dev_priv->info->display_mmio_offset + 0x62020)
 #define INTEL_AUDIO_DEVCL		0x808629FB
@@ -5139,6 +5244,7 @@
 #define DDI_BUF_CTL_B				0x64100
 #define DDI_BUF_CTL(port) _PORT(port, DDI_BUF_CTL_A, DDI_BUF_CTL_B)
 #define  DDI_BUF_CTL_ENABLE			(1<<31)
+/* Haswell */
 #define  DDI_BUF_EMP_400MV_0DB_HSW		(0<<24)   /* Sel0 */
 #define  DDI_BUF_EMP_400MV_3_5DB_HSW		(1<<24)   /* Sel1 */
 #define  DDI_BUF_EMP_400MV_6DB_HSW		(2<<24)   /* Sel2 */
@@ -5148,6 +5254,16 @@
 #define  DDI_BUF_EMP_600MV_6DB_HSW		(6<<24)   /* Sel6 */
 #define  DDI_BUF_EMP_800MV_0DB_HSW		(7<<24)   /* Sel7 */
 #define  DDI_BUF_EMP_800MV_3_5DB_HSW		(8<<24)   /* Sel8 */
+/* Broadwell */
+#define  DDI_BUF_EMP_400MV_0DB_BDW		(0<<24)   /* Sel0 */
+#define  DDI_BUF_EMP_400MV_3_5DB_BDW		(1<<24)   /* Sel1 */
+#define  DDI_BUF_EMP_400MV_6DB_BDW		(2<<24)   /* Sel2 */
+#define  DDI_BUF_EMP_600MV_0DB_BDW		(3<<24)   /* Sel3 */
+#define  DDI_BUF_EMP_600MV_3_5DB_BDW		(4<<24)   /* Sel4 */
+#define  DDI_BUF_EMP_600MV_6DB_BDW		(5<<24)   /* Sel5 */
+#define  DDI_BUF_EMP_800MV_0DB_BDW		(6<<24)   /* Sel6 */
+#define  DDI_BUF_EMP_800MV_3_5DB_BDW		(7<<24)   /* Sel7 */
+#define  DDI_BUF_EMP_1200MV_0DB_BDW		(8<<24)   /* Sel8 */
 #define  DDI_BUF_EMP_MASK			(0xf<<24)
 #define  DDI_BUF_PORT_REVERSAL			(1<<16)
 #define  DDI_BUF_IS_IDLE			(1<<7)
@@ -5257,6 +5373,9 @@
 #define  LCPLL_PLL_LOCK			(1<<30)
 #define  LCPLL_CLK_FREQ_MASK		(3<<26)
 #define  LCPLL_CLK_FREQ_450		(0<<26)
+#define  LCPLL_CLK_FREQ_54O_BDW		(1<<26)
+#define  LCPLL_CLK_FREQ_337_5_BDW	(2<<26)
+#define  LCPLL_CLK_FREQ_675_BDW		(3<<26)
 #define  LCPLL_CD_CLOCK_DISABLE		(1<<25)
 #define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
 #define  LCPLL_POWER_DOWN_ALLOW		(1<<22)

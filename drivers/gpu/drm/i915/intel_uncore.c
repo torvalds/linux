@@ -93,7 +93,7 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 {
 	u32 forcewake_ack;
 
-	if (IS_HASWELL(dev_priv->dev))
+	if (IS_HASWELL(dev_priv->dev) || IS_GEN8(dev_priv->dev))
 		forcewake_ack = FORCEWAKE_ACK_HSW;
 	else
 		forcewake_ack = FORCEWAKE_MT_ACK;
@@ -112,7 +112,8 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
 	/* WaRsForcewakeWaitTC0:ivb,hsw */
-	__gen6_gt_wait_for_thread_c0(dev_priv);
+	if (INTEL_INFO(dev_priv->dev)->gen < 8)
+		__gen6_gt_wait_for_thread_c0(dev_priv);
 }
 
 static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
@@ -459,6 +460,46 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
 }
 
+static const u32 gen8_shadowed_regs[] = {
+	FORCEWAKE_MT,
+	GEN6_RPNSWREQ,
+	GEN6_RC_VIDEO_FREQ,
+	RING_TAIL(RENDER_RING_BASE),
+	RING_TAIL(GEN6_BSD_RING_BASE),
+	RING_TAIL(VEBOX_RING_BASE),
+	RING_TAIL(BLT_RING_BASE),
+	/* TODO: Other registers are not yet used */
+};
+
+static bool is_gen8_shadowed(struct drm_i915_private *dev_priv, u32 reg)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(gen8_shadowed_regs); i++)
+		if (reg == gen8_shadowed_regs[i])
+			return true;
+
+	return false;
+}
+
+#define __gen8_write(x) \
+static void \
+gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+	bool __needs_put = !is_gen8_shadowed(dev_priv, reg); \
+	REG_WRITE_HEADER; \
+	if (__needs_put) { \
+		dev_priv->uncore.funcs.force_wake_get(dev_priv); \
+	} \
+	__raw_i915_write##x(dev_priv, reg, val); \
+	if (__needs_put) { \
+		dev_priv->uncore.funcs.force_wake_put(dev_priv); \
+	} \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+}
+
+__gen8_write(8)
+__gen8_write(16)
+__gen8_write(32)
+__gen8_write(64)
 __hsw_write(8)
 __hsw_write(16)
 __hsw_write(32)
@@ -476,6 +517,7 @@ __gen4_write(16)
 __gen4_write(32)
 __gen4_write(64)
 
+#undef __gen8_write
 #undef __hsw_write
 #undef __gen6_write
 #undef __gen5_write
@@ -492,7 +534,7 @@ void intel_uncore_init(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = vlv_force_wake_put;
-	} else if (IS_HASWELL(dev)) {
+	} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __gen6_gt_force_wake_mt_get;
 		dev_priv->uncore.funcs.force_wake_put = __gen6_gt_force_wake_mt_put;
 	} else if (IS_IVYBRIDGE(dev)) {
@@ -534,6 +576,16 @@ void intel_uncore_init(struct drm_device *dev)
 	}
 
 	switch (INTEL_INFO(dev)->gen) {
+	default:
+		dev_priv->uncore.funcs.mmio_writeb  = gen8_write8;
+		dev_priv->uncore.funcs.mmio_writew  = gen8_write16;
+		dev_priv->uncore.funcs.mmio_writel  = gen8_write32;
+		dev_priv->uncore.funcs.mmio_writeq  = gen8_write64;
+		dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
+		dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
+		dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
+		dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+		break;
 	case 7:
 	case 6:
 		if (IS_HASWELL(dev)) {

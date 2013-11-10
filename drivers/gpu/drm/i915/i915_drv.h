@@ -118,6 +118,10 @@ enum intel_display_power_domain {
 #define HSW_ALWAYS_ON_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PIPE_A) |		\
 	BIT(POWER_DOMAIN_TRANSCODER_EDP))
+#define BDW_ALWAYS_ON_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PIPE_A) |		\
+	BIT(POWER_DOMAIN_TRANSCODER_EDP) |	\
+	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER))
 
 enum hpd_pin {
 	HPD_NONE = 0,
@@ -575,10 +579,21 @@ struct i915_gtt {
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
 	unsigned num_pd_entries;
-	struct page **pt_pages;
-	uint32_t pd_offset;
-	dma_addr_t *pt_dma_addr;
-
+	union {
+		struct page **pt_pages;
+		struct page *gen8_pt_pages;
+	};
+	struct page *pd_pages;
+	int num_pd_pages;
+	int num_pt_pages;
+	union {
+		uint32_t pd_offset;
+		dma_addr_t pd_dma_addr[4];
+	};
+	union {
+		dma_addr_t *pt_dma_addr;
+		dma_addr_t *gen8_pt_dma_addr[4];
+	};
 	int (*enable)(struct drm_device *dev);
 };
 
@@ -1322,7 +1337,10 @@ typedef struct drm_i915_private {
 	struct mutex dpio_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
-	u32 irq_mask;
+	union {
+		u32 irq_mask;
+		u32 de_irq_mask[I915_MAX_PIPES];
+	};
 	u32 gt_irq_mask;
 	u32 pm_irq_mask;
 
@@ -1733,6 +1751,7 @@ struct drm_i915_file_private {
 				 (dev)->pdev->device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
+#define IS_BROADWELL(dev)	(INTEL_INFO(dev)->gen == 8)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0xFF00) == 0x0C00)
@@ -1754,6 +1773,7 @@ struct drm_i915_file_private {
 #define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
 #define IS_GEN7(dev)	(INTEL_INFO(dev)->gen == 7)
+#define IS_GEN8(dev)	(INTEL_INFO(dev)->gen == 8)
 
 #define RENDER_RING		(1<<RCS)
 #define BSD_RING		(1<<VCS)
@@ -1790,12 +1810,12 @@ struct drm_i915_file_private {
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
-#define HAS_IPS(dev)		(IS_ULT(dev))
+#define HAS_IPS(dev)		(IS_ULT(dev) || IS_BROADWELL(dev))
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
-#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
+#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev) || IS_BROADWELL(dev))
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
-#define HAS_PSR(dev)		(IS_HASWELL(dev))
+#define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00

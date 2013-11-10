@@ -847,7 +847,7 @@ static int hdmi_portclock_limit(struct intel_hdmi *hdmi)
 
 	if (IS_G4X(dev))
 		return 165000;
-	else if (IS_HASWELL(dev))
+	else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8)
 		return 300000;
 	else
 		return 225000;

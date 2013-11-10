@@ -2156,7 +2156,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	else
 		dspcntr &= ~DISPPLANE_TILED;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		dspcntr &= ~DISPPLANE_TRICKLE_FEED_DISABLE;
 	else
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
@@ -2176,7 +2176,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_MODIFY_DISPBASE(DSPSURF(plane),
 			     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
@@ -3393,15 +3393,26 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	 * only after intel_enable_plane. And intel_enable_plane already waits
 	 * for a vblank, so all we need to do here is to enable the IPS bit. */
 	assert_plane_enabled(dev_priv, crtc->plane);
-	I915_WRITE(IPS_CTL, IPS_ENABLE);
-
-	/* The bit only becomes 1 in the next vblank, so this wait here is
-	 * essentially intel_wait_for_vblank. If we don't have this and don't
-	 * wait for vblanks until the end of crtc_enable, then the HW state
-	 * readout code will complain that the expected IPS_CTL value is not the
-	 * one we read. */
-	if (wait_for(I915_READ_NOTRACE(IPS_CTL) & IPS_ENABLE, 50))
-		DRM_ERROR("Timed out waiting for IPS enable\n");
+	if (IS_BROADWELL(crtc->base.dev)) {
+		mutex_lock(&dev_priv->rps.hw_lock);
+		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
+		mutex_unlock(&dev_priv->rps.hw_lock);
+		/* Quoting Art Runyan: "its not safe to expect any particular
+		 * value in IPS_CTL bit 31 after enabling IPS through the
+		 * mailbox." Therefore we need to defer waiting on the state
+		 * change.
+		 * TODO: need to fix this for state checker
+		 */
+	} else {
+		I915_WRITE(IPS_CTL, IPS_ENABLE);
+		/* The bit only becomes 1 in the next vblank, so this wait here
+		 * is essentially intel_wait_for_vblank. If we don't have this
+		 * and don't wait for vblanks until the end of crtc_enable, then
+		 * the HW state readout code will complain that the expected
+		 * IPS_CTL value is not the one we read. */
+		if (wait_for(I915_READ_NOTRACE(IPS_CTL) & IPS_ENABLE, 50))
+			DRM_ERROR("Timed out waiting for IPS enable\n");
+	}
 }
 
 void hsw_disable_ips(struct intel_crtc *crtc)
@@ -3413,7 +3424,12 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 		return;
 
 	assert_plane_enabled(dev_priv, crtc->plane);
-	I915_WRITE(IPS_CTL, 0);
+	if (IS_BROADWELL(crtc->base.dev)) {
+		mutex_lock(&dev_priv->rps.hw_lock);
+		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
+		mutex_unlock(&dev_priv->rps.hw_lock);
+	} else
+		I915_WRITE(IPS_CTL, 0);
 	POSTING_READ(IPS_CTL);
 
 	/* We need to wait for a vblank before we can disable the plane. */
@@ -4244,7 +4260,7 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		return false;
 	}
 
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		if (pipe_config->fdi_lanes > 2) {
 			DRM_DEBUG_KMS("only 2 lanes on haswell, required: %i lanes\n",
 				      pipe_config->fdi_lanes);
@@ -5818,14 +5834,16 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 
 static void haswell_set_pipeconf(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	uint32_t val;
 
 	val = 0;
 
-	if (intel_crtc->config.dither)
+	if (IS_HASWELL(dev) && intel_crtc->config.dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
 	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
@@ -5838,6 +5856,33 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 
 	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
 	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
+
+	if (IS_BROADWELL(dev)) {
+		val = 0;
+
+		switch (intel_crtc->config.pipe_bpp) {
+		case 18:
+			val |= PIPEMISC_DITHER_6_BPC;
+			break;
+		case 24:
+			val |= PIPEMISC_DITHER_8_BPC;
+			break;
+		case 30:
+			val |= PIPEMISC_DITHER_10_BPC;
+			break;
+		case 36:
+			val |= PIPEMISC_DITHER_12_BPC;
+			break;
+		default:
+			/* Case prevented by pipe_config_set_bpp. */
+			BUG();
+		}
+
+		if (intel_crtc->config.dither)
+			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
+
+		I915_WRITE(PIPEMISC(pipe), val);
+	}
 }
 
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
@@ -7159,7 +7204,7 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev)) {
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
 		}
@@ -7215,7 +7260,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(CURPOS_IVB(pipe), pos);
 		ivb_update_cursor(crtc, base);
 	} else {
@@ -10337,7 +10382,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 			dev_priv->display.modeset_global_resources =
 				ivb_modeset_global_resources;
-		} else if (IS_HASWELL(dev)) {
+		} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
 			dev_priv->display.modeset_global_resources =
@@ -10369,6 +10414,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.queue_flip = intel_gen6_queue_flip;
 		break;
 	case 7:
+	case 8: /* FIXME(BDW): Check that the gen8 RCS flip works. */
 		dev_priv->display.queue_flip = intel_gen7_queue_flip;
 		break;
 	}
