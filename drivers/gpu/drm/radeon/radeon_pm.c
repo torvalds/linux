@@ -1256,6 +1256,7 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_BONAIRE:
 	case CHIP_KABINI:
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		/* DPM requires the RLC, RV770+ dGPU requires SMC */
 		if (!rdev->rlc_fw)
 			rdev->pm.pm_method = PM_METHOD_PROFILE;

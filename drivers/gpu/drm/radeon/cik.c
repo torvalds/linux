@@ -41,6 +41,14 @@ MODULE_FIRMWARE("radeon/BONAIRE_mc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_rlc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_sdma.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_smc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_pfp.bin");
+MODULE_FIRMWARE("radeon/HAWAII_me.bin");
+MODULE_FIRMWARE("radeon/HAWAII_ce.bin");
+MODULE_FIRMWARE("radeon/HAWAII_mec.bin");
+MODULE_FIRMWARE("radeon/HAWAII_mc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_rlc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_sdma.bin");
+MODULE_FIRMWARE("radeon/HAWAII_smc.bin");
 MODULE_FIRMWARE("radeon/KAVERI_pfp.bin");
 MODULE_FIRMWARE("radeon/KAVERI_me.bin");
 MODULE_FIRMWARE("radeon/KAVERI_ce.bin");
@@ -1297,6 +1305,171 @@ static const u32 kalindi_mgcg_cgcg_init[] =
 	0xd80c, 0xff000ff0, 0x00000100
 };
 
+static const u32 hawaii_golden_spm_registers[] =
+{
+	0x30800, 0xe0ffffff, 0xe0000000
+};
+
+static const u32 hawaii_golden_common_registers[] =
+{
+	0x30800, 0xffffffff, 0xe0000000,
+	0x28350, 0xffffffff, 0x3a00161a,
+	0x28354, 0xffffffff, 0x0000002e,
+	0x9a10, 0xffffffff, 0x00018208,
+	0x98f8, 0xffffffff, 0x12011003
+};
+
+static const u32 hawaii_golden_registers[] =
+{
+	0x3354, 0x00000333, 0x00000333,
+	0x9a10, 0x00010000, 0x00058208,
+	0x9830, 0xffffffff, 0x00000000,
+	0x9834, 0xf00fffff, 0x00000400,
+	0x9838, 0x0002021c, 0x00020200,
+	0xc78, 0x00000080, 0x00000000,
+	0x5bb0, 0x000000f0, 0x00000070,
+	0x5bc0, 0xf0311fff, 0x80300000,
+	0x350c, 0x00810000, 0x408af000,
+	0x7030, 0x31000111, 0x00000011,
+	0x2f48, 0x73773777, 0x12010001,
+	0x2120, 0x0000007f, 0x0000001b,
+	0x21dc, 0x00007fb6, 0x00002191,
+	0x3628, 0x0000003f, 0x0000000a,
+	0x362c, 0x0000003f, 0x0000000a,
+	0x2ae4, 0x00073ffe, 0x000022a2,
+	0x240c, 0x000007ff, 0x00000000,
+	0x8bf0, 0x00002001, 0x00000001,
+	0x8b24, 0xffffffff, 0x00ffffff,
+	0x30a04, 0x0000ff0f, 0x00000000,
+	0x28a4c, 0x07ffffff, 0x06000000,
+	0x3e78, 0x00000001, 0x00000002,
+	0xc768, 0x00000008, 0x00000008,
+	0xc770, 0x00000f00, 0x00000800,
+	0xc774, 0x00000f00, 0x00000800,
+	0xc798, 0x00ffffff, 0x00ff7fbf,
+	0xc79c, 0x00ffffff, 0x00ff7faf,
+	0x8c00, 0x000000ff, 0x00000800,
+	0xe40, 0x00001fff, 0x00001fff,
+	0x9060, 0x0000007f, 0x00000020,
+	0x9508, 0x00010000, 0x00010000,
+	0xae00, 0x00100000, 0x000ff07c,
+	0xac14, 0x000003ff, 0x0000000f,
+	0xac10, 0xffffffff, 0x7564fdec,
+	0xac0c, 0xffffffff, 0x3120b9a8,
+	0xac08, 0x20000000, 0x0f9c0000
+};
+
+static const u32 hawaii_mgcg_cgcg_init[] =
+{
+	0xc420, 0xffffffff, 0xfffffffd,
+	0x30800, 0xffffffff, 0xe0000000,
+	0x3c2a0, 0xffffffff, 0x00000100,
+	0x3c208, 0xffffffff, 0x00000100,
+	0x3c2c0, 0xffffffff, 0x00000100,
+	0x3c2c8, 0xffffffff, 0x00000100,
+	0x3c2c4, 0xffffffff, 0x00000100,
+	0x55e4, 0xffffffff, 0x00200100,
+	0x3c280, 0xffffffff, 0x00000100,
+	0x3c214, 0xffffffff, 0x06000100,
+	0x3c220, 0xffffffff, 0x00000100,
+	0x3c218, 0xffffffff, 0x06000100,
+	0x3c204, 0xffffffff, 0x00000100,
+	0x3c2e0, 0xffffffff, 0x00000100,
+	0x3c224, 0xffffffff, 0x00000100,
+	0x3c200, 0xffffffff, 0x00000100,
+	0x3c230, 0xffffffff, 0x00000100,
+	0x3c234, 0xffffffff, 0x00000100,
+	0x3c250, 0xffffffff, 0x00000100,
+	0x3c254, 0xffffffff, 0x00000100,
+	0x3c258, 0xffffffff, 0x00000100,
+	0x3c25c, 0xffffffff, 0x00000100,
+	0x3c260, 0xffffffff, 0x00000100,
+	0x3c27c, 0xffffffff, 0x00000100,
+	0x3c278, 0xffffffff, 0x00000100,
+	0x3c210, 0xffffffff, 0x06000100,
+	0x3c290, 0xffffffff, 0x00000100,
+	0x3c274, 0xffffffff, 0x00000100,
+	0x3c2b4, 0xffffffff, 0x00000100,
+	0x3c2b0, 0xffffffff, 0x00000100,
+	0x3c270, 0xffffffff, 0x00000100,
+	0x30800, 0xffffffff, 0xe0000000,
+	0x3c020, 0xffffffff, 0x00010000,
+	0x3c024, 0xffffffff, 0x00030002,
+	0x3c028, 0xffffffff, 0x00040007,
+	0x3c02c, 0xffffffff, 0x00060005,
+	0x3c030, 0xffffffff, 0x00090008,
+	0x3c034, 0xffffffff, 0x00010000,
+	0x3c038, 0xffffffff, 0x00030002,
+	0x3c03c, 0xffffffff, 0x00040007,
+	0x3c040, 0xffffffff, 0x00060005,
+	0x3c044, 0xffffffff, 0x00090008,
+	0x3c048, 0xffffffff, 0x00010000,
+	0x3c04c, 0xffffffff, 0x00030002,
+	0x3c050, 0xffffffff, 0x00040007,
+	0x3c054, 0xffffffff, 0x00060005,
+	0x3c058, 0xffffffff, 0x00090008,
+	0x3c05c, 0xffffffff, 0x00010000,
+	0x3c060, 0xffffffff, 0x00030002,
+	0x3c064, 0xffffffff, 0x00040007,
+	0x3c068, 0xffffffff, 0x00060005,
+	0x3c06c, 0xffffffff, 0x00090008,
+	0x3c070, 0xffffffff, 0x00010000,
+	0x3c074, 0xffffffff, 0x00030002,
+	0x3c078, 0xffffffff, 0x00040007,
+	0x3c07c, 0xffffffff, 0x00060005,
+	0x3c080, 0xffffffff, 0x00090008,
+	0x3c084, 0xffffffff, 0x00010000,
+	0x3c088, 0xffffffff, 0x00030002,
+	0x3c08c, 0xffffffff, 0x00040007,
+	0x3c090, 0xffffffff, 0x00060005,
+	0x3c094, 0xffffffff, 0x00090008,
+	0x3c098, 0xffffffff, 0x00010000,
+	0x3c09c, 0xffffffff, 0x00030002,
+	0x3c0a0, 0xffffffff, 0x00040007,
+	0x3c0a4, 0xffffffff, 0x00060005,
+	0x3c0a8, 0xffffffff, 0x00090008,
+	0x3c0ac, 0xffffffff, 0x00010000,
+	0x3c0b0, 0xffffffff, 0x00030002,
+	0x3c0b4, 0xffffffff, 0x00040007,
+	0x3c0b8, 0xffffffff, 0x00060005,
+	0x3c0bc, 0xffffffff, 0x00090008,
+	0x3c0c0, 0xffffffff, 0x00010000,
+	0x3c0c4, 0xffffffff, 0x00030002,
+	0x3c0c8, 0xffffffff, 0x00040007,
+	0x3c0cc, 0xffffffff, 0x00060005,
+	0x3c0d0, 0xffffffff, 0x00090008,
+	0x3c0d4, 0xffffffff, 0x00010000,
+	0x3c0d8, 0xffffffff, 0x00030002,
+	0x3c0dc, 0xffffffff, 0x00040007,
+	0x3c0e0, 0xffffffff, 0x00060005,
+	0x3c0e4, 0xffffffff, 0x00090008,
+	0x3c0e8, 0xffffffff, 0x00010000,
+	0x3c0ec, 0xffffffff, 0x00030002,
+	0x3c0f0, 0xffffffff, 0x00040007,
+	0x3c0f4, 0xffffffff, 0x00060005,
+	0x3c0f8, 0xffffffff, 0x00090008,
+	0xc318, 0xffffffff, 0x00020200,
+	0x3350, 0xffffffff, 0x00000200,
+	0x15c0, 0xffffffff, 0x00000400,
+	0x55e8, 0xffffffff, 0x00000000,
+	0x2f50, 0xffffffff, 0x00000902,
+	0x3c000, 0xffffffff, 0x96940200,
+	0x8708, 0xffffffff, 0x00900100,
+	0xc424, 0xffffffff, 0x0020003f,
+	0x38, 0xffffffff, 0x0140001c,
+	0x3c, 0x000f0000, 0x000f0000,
+	0x220, 0xffffffff, 0xc060000c,
+	0x224, 0xc0000fff, 0x00000100,
+	0xf90, 0xffffffff, 0x00000100,
+	0xf98, 0x00000101, 0x00000000,
+	0x20a8, 0xffffffff, 0x00000104,
+	0x55e4, 0xff000fff, 0x00000100,
+	0x30cc, 0xc0000fff, 0x00000104,
+	0xc1e4, 0x00000001, 0x00000001,
+	0xd00c, 0xff000ff0, 0x00000100,
+	0xd80c, 0xff000ff0, 0x00000100
+};
+
 static void cik_init_golden_registers(struct radeon_device *rdev)
 {
 	switch (rdev->family) {
@@ -1341,6 +1514,20 @@ static void cik_init_golden_registers(struct radeon_device *rdev)
 		radeon_program_register_sequence(rdev,
 						 spectre_golden_spm_registers,
 						 (const u32)ARRAY_SIZE(spectre_golden_spm_registers));
+		break;
+	case CHIP_HAWAII:
+		radeon_program_register_sequence(rdev,
+						 hawaii_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(hawaii_mgcg_cgcg_init));
+		radeon_program_register_sequence(rdev,
+						 hawaii_golden_registers,
+						 (const u32)ARRAY_SIZE(hawaii_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 hawaii_golden_common_registers,
+						 (const u32)ARRAY_SIZE(hawaii_golden_common_registers));
+		radeon_program_register_sequence(rdev,
+						 hawaii_golden_spm_registers,
+						 (const u32)ARRAY_SIZE(hawaii_golden_spm_registers));
 		break;
 	default:
 		break;
@@ -1449,6 +1636,35 @@ static const u32 bonaire_io_mc_regs[BONAIRE_IO_MC_REGS_SIZE][2] =
 	{0x0000009f, 0x00b48000}
 };
 
+#define HAWAII_IO_MC_REGS_SIZE 22
+
+static const u32 hawaii_io_mc_regs[HAWAII_IO_MC_REGS_SIZE][2] =
+{
+	{0x0000007d, 0x40000000},
+	{0x0000007e, 0x40180304},
+	{0x0000007f, 0x0000ff00},
+	{0x00000081, 0x00000000},
+	{0x00000083, 0x00000800},
+	{0x00000086, 0x00000000},
+	{0x00000087, 0x00000100},
+	{0x00000088, 0x00020100},
+	{0x00000089, 0x00000000},
+	{0x0000008b, 0x00040000},
+	{0x0000008c, 0x00000100},
+	{0x0000008e, 0xff010000},
+	{0x00000090, 0xffffefff},
+	{0x00000091, 0xfff3efff},
+	{0x00000092, 0xfff3efbf},
+	{0x00000093, 0xf7ffffff},
+	{0x00000094, 0xffffff7f},
+	{0x00000095, 0x00000fff},
+	{0x00000096, 0x00116fff},
+	{0x00000097, 0x60010000},
+	{0x00000098, 0x10010000},
+	{0x0000009f, 0x00c79000}
+};
+
+
 /**
  * cik_srbm_select - select specific register instances
  *
@@ -1493,11 +1709,17 @@ static int ci_mc_load_microcode(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
-	default:
 		io_mc_regs = (u32 *)&bonaire_io_mc_regs;
 		ucode_size = CIK_MC_UCODE_SIZE;
 		regs_size = BONAIRE_IO_MC_REGS_SIZE;
 		break;
+	case CHIP_HAWAII:
+		io_mc_regs = (u32 *)&hawaii_io_mc_regs;
+		ucode_size = HAWAII_MC_UCODE_SIZE;
+		regs_size = HAWAII_IO_MC_REGS_SIZE;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	running = RREG32(MC_SEQ_SUP_CNTL) & RUN_MASK;
@@ -1559,8 +1781,8 @@ static int cik_init_microcode(struct radeon_device *rdev)
 {
 	const char *chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size,
-		mec_req_size, rlc_req_size, mc_req_size,
-		sdma_req_size, smc_req_size;
+		mec_req_size, rlc_req_size, mc_req_size = 0,
+		sdma_req_size, smc_req_size = 0;
 	char fw_name[30];
 	int err;
 
@@ -1577,6 +1799,17 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		mc_req_size = CIK_MC_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
 		smc_req_size = ALIGN(BONAIRE_SMC_UCODE_SIZE, 4);
+		break;
+	case CHIP_HAWAII:
+		chip_name = "HAWAII";
+		pfp_req_size = CIK_PFP_UCODE_SIZE * 4;
+		me_req_size = CIK_ME_UCODE_SIZE * 4;
+		ce_req_size = CIK_CE_UCODE_SIZE * 4;
+		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
+		rlc_req_size = BONAIRE_RLC_UCODE_SIZE * 4;
+		mc_req_size = HAWAII_MC_UCODE_SIZE * 4;
+		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
+		smc_req_size = ALIGN(HAWAII_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_KAVERI:
 		chip_name = "KAVERI";
@@ -1758,9 +1991,227 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 
 	num_pipe_configs = rdev->config.cik.max_tile_pipes;
 	if (num_pipe_configs > 8)
-		num_pipe_configs = 8; /* ??? */
+		num_pipe_configs = 16;
 
-	if (num_pipe_configs == 8) {
+	if (num_pipe_configs == 16) {
+		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++) {
+			switch (reg_offset) {
+			case 0:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(ADDR_SURF_TILE_SPLIT_64B));
+				break;
+			case 1:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(ADDR_SURF_TILE_SPLIT_128B));
+				break;
+			case 2:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(ADDR_SURF_TILE_SPLIT_256B));
+				break;
+			case 3:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(ADDR_SURF_TILE_SPLIT_512B));
+				break;
+			case 4:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(split_equal_to_row_size));
+				break;
+			case 5:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING));
+				break;
+			case 6:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(ADDR_SURF_TILE_SPLIT_256B));
+				break;
+			case 7:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DEPTH_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 TILE_SPLIT(split_equal_to_row_size));
+				break;
+			case 8:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_LINEAR_ALIGNED) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16));
+				break;
+			case 9:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING));
+				break;
+			case 10:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 11:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_8x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 12:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_DISPLAY_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 13:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING));
+				break;
+			case 14:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 16:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_8x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 17:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_THIN_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 27:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING));
+				break;
+			case 28:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 29:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_8x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			case 30:
+				gb_tile_moden = (ARRAY_MODE(ARRAY_PRT_2D_TILED_THIN1) |
+						 MICRO_TILE_MODE_NEW(ADDR_SURF_ROTATED_MICRO_TILING) |
+						 PIPE_CONFIG(ADDR_SURF_P16_32x32_16x16) |
+						 SAMPLE_SPLIT(ADDR_SURF_SAMPLE_SPLIT_2));
+				break;
+			default:
+				gb_tile_moden = 0;
+				break;
+			}
+			rdev->config.cik.tile_mode_array[reg_offset] = gb_tile_moden;
+			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
+		}
+		for (reg_offset = 0; reg_offset < num_secondary_tile_mode_states; reg_offset++) {
+			switch (reg_offset) {
+			case 0:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 1:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 2:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 3:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 4:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 5:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_4_BANK));
+				break;
+			case 6:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_2_BANK));
+				break;
+			case 8:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 9:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 10:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_16_BANK));
+				break;
+			case 11:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_8_BANK));
+				break;
+			case 12:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_4_BANK));
+				break;
+			case 13:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_2_BANK));
+				break;
+			case 14:
+				gb_tile_moden = (BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
+						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
+						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1) |
+						 NUM_BANKS(ADDR_SURF_2_BANK));
+				break;
+			default:
+				gb_tile_moden = 0;
+				break;
+			}
+			WREG32(GB_MACROTILE_MODE0 + (reg_offset * 4), gb_tile_moden);
+		}
+	} else if (num_pipe_configs == 8) {
 		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++) {
 			switch (reg_offset) {
 			case 0:
@@ -2645,7 +3096,10 @@ static void cik_setup_rb(struct radeon_device *rdev,
 		for (j = 0; j < sh_per_se; j++) {
 			cik_select_se_sh(rdev, i, j);
 			data = cik_get_rb_disabled(rdev, max_rb_num, se_num, sh_per_se);
-			disabled_rbs |= data << ((i * sh_per_se + j) * CIK_RB_BITMAP_WIDTH_PER_SH);
+			if (rdev->family == CHIP_HAWAII)
+				disabled_rbs |= data << ((i * sh_per_se + j) * HAWAII_RB_BITMAP_WIDTH_PER_SH);
+			else
+				disabled_rbs |= data << ((i * sh_per_se + j) * CIK_RB_BITMAP_WIDTH_PER_SH);
 		}
 	}
 	cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
@@ -2662,6 +3116,12 @@ static void cik_setup_rb(struct radeon_device *rdev,
 		data = 0;
 		for (j = 0; j < sh_per_se; j++) {
 			switch (enabled_rbs & 3) {
+			case 0:
+				if (j == 0)
+					data |= PKR_MAP(RASTER_CONFIG_RB_MAP_3);
+				else
+					data |= PKR_MAP(RASTER_CONFIG_RB_MAP_0);
+				break;
 			case 1:
 				data |= (RASTER_CONFIG_RB_MAP_0 << (i * sh_per_se + j) * 2);
 				break;
@@ -2713,6 +3173,23 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
 		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
 		gb_addr_config = BONAIRE_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_HAWAII:
+		rdev->config.cik.max_shader_engines = 4;
+		rdev->config.cik.max_tile_pipes = 16;
+		rdev->config.cik.max_cu_per_sh = 11;
+		rdev->config.cik.max_sh_per_se = 1;
+		rdev->config.cik.max_backends_per_se = 4;
+		rdev->config.cik.max_texture_channel_caches = 16;
+		rdev->config.cik.max_gprs = 256;
+		rdev->config.cik.max_gs_threads = 32;
+		rdev->config.cik.max_hw_contexts = 8;
+
+		rdev->config.cik.sc_prim_fifo_size_frontend = 0x20;
+		rdev->config.cik.sc_prim_fifo_size_backend = 0x100;
+		rdev->config.cik.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cik.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = HAWAII_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_KAVERI:
 		rdev->config.cik.max_shader_engines = 1;
@@ -3477,7 +3954,8 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	int r;
 
 	WREG32(CP_SEM_WAIT_TIMER, 0x0);
-	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
+	if (rdev->family != CHIP_HAWAII)
+		WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
@@ -4814,11 +5292,16 @@ void cik_vm_fini(struct radeon_device *rdev)
 static void cik_vm_decode_fault(struct radeon_device *rdev,
 				u32 status, u32 addr, u32 mc_client)
 {
-	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	u32 mc_id;
 	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
 	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
 	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
 		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
+
+	if (rdev->family == CHIP_HAWAII)
+		mc_id = (status & HAWAII_MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	else
+		mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
 
 	printk("VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
 	       protections, vmid, addr,
@@ -5076,6 +5559,7 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
 	default:
 		size = BONAIRE_RLC_UCODE_SIZE;
 		break;
@@ -5831,6 +6315,10 @@ void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 	case CHIP_KABINI:
 		buffer[count++] = cpu_to_le32(0x00000000); /* XXX */
 		buffer[count++] = cpu_to_le32(0x00000000);
+		break;
+	case CHIP_HAWAII:
+		buffer[count++] = 0x3a00161a;
+		buffer[count++] = 0x0000002e;
 		break;
 	default:
 		buffer[count++] = cpu_to_le32(0x00000000);

@@ -25,8 +25,10 @@
 #define CIK_H
 
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
+#define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
 
-#define CIK_RB_BITMAP_WIDTH_PER_SH  2
+#define CIK_RB_BITMAP_WIDTH_PER_SH     2
+#define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
 /* DIDT IND registers */
 #define DIDT_SQ_CTRL0                                     0x0
@@ -499,6 +501,7 @@
 		 * bit 4: write
 		 */
 #define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		HAWAII_MEMORY_CLIENT_ID_MASK		(0x1ff << 12)
 #define		MEMORY_CLIENT_ID_SHIFT			12
 #define		MEMORY_CLIENT_RW_MASK			(1 << 24)
 #define		MEMORY_CLIENT_RW_SHIFT			24
@@ -1162,6 +1165,8 @@
 #              define	ADDR_SURF_P8_32x32_16x16		12
 #              define	ADDR_SURF_P8_32x32_16x32		13
 #              define	ADDR_SURF_P8_32x64_32x32		14
+#              define	ADDR_SURF_P16_32x32_8x16		16
+#              define	ADDR_SURF_P16_32x32_16x16		17
 #       define TILE_SPLIT(x)					((x) << 11)
 #              define	ADDR_SURF_TILE_SPLIT_64B		0
 #              define	ADDR_SURF_TILE_SPLIT_128B		1
@@ -1455,6 +1460,7 @@
 #       define RASTER_CONFIG_RB_MAP_1                   1
 #       define RASTER_CONFIG_RB_MAP_2                   2
 #       define RASTER_CONFIG_RB_MAP_3                   3
+#define		PKR_MAP(x)				((x) << 8)
 
 #define VGT_EVENT_INITIATOR                             0x28a90
 #       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)

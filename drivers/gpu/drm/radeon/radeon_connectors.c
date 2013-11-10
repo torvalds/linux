@@ -1728,9 +1728,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (radeon_audio != 0)
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
-							   (radeon_audio == 1) ?
-							   RADEON_AUDIO_AUTO :
-							   RADEON_AUDIO_DISABLE);
+							   RADEON_AUDIO_AUTO);
 
 			subpixel_order = SubPixelHorizontalRGB;
 			connector->interlace_allowed = true;
@@ -1828,9 +1826,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (ASIC_IS_DCE2(rdev) && (radeon_audio != 0)) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
-							   (radeon_audio == 1) ?
-							   RADEON_AUDIO_AUTO :
-							   RADEON_AUDIO_DISABLE);
+							   RADEON_AUDIO_AUTO);
 			}
 			if (ASIC_IS_AVIVO(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
@@ -1880,9 +1876,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (ASIC_IS_DCE2(rdev) && (radeon_audio != 0)) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
-							   (radeon_audio == 1) ?
-							   RADEON_AUDIO_AUTO :
-							   RADEON_AUDIO_DISABLE);
+							   RADEON_AUDIO_AUTO);
 			}
 			if (ASIC_IS_AVIVO(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
@@ -1931,9 +1925,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (ASIC_IS_DCE2(rdev) && (radeon_audio != 0)) {
 				drm_object_attach_property(&radeon_connector->base.base,
 							   rdev->mode_info.audio_property,
-							   (radeon_audio == 1) ?
-							   RADEON_AUDIO_AUTO :
-							   RADEON_AUDIO_DISABLE);
+							   RADEON_AUDIO_AUTO);
 			}
 			if (ASIC_IS_AVIVO(rdev)) {
 				drm_object_attach_property(&radeon_connector->base.base,
