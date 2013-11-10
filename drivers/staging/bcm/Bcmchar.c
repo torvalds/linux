@@ -160,7 +160,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	struct bcm_ioctl_buffer IoBuffer;
 	int bytes;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Parameters Passed to control IOCTL cmd=0x%X arg=0x%lX", cmd, arg);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+			"Parameters Passed to control IOCTL cmd=0x%X arg=0x%lX",
+			cmd, arg);
 
 	if (_IOC_TYPE(cmd) != BCM_IOCTL)
 		return -EFAULT;
