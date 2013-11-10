@@ -2332,10 +2332,10 @@ vMgrCreateOwnIBSS(
 	}
 
 	// Disable Protect Mode
-	pDevice->bProtectMode = 0;
+	pDevice->bProtectMode = false;
 	MACvDisableProtectMD(pDevice->PortOffset);
 
-	pDevice->bBarkerPreambleMd = 0;
+	pDevice->bBarkerPreambleMd = false;
 	MACvDisableBarkerPreambleMd(pDevice->PortOffset);
 
 	// Kyle Test 2003.11.04
