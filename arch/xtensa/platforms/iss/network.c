@@ -38,7 +38,7 @@
 #define DRIVER_NAME "iss-netdev"
 #define ETH_MAX_PACKET 1500
 #define ETH_HEADER_OTHER 14
-#define ISS_NET_TIMER_VALUE (2 * HZ)
+#define ISS_NET_TIMER_VALUE (HZ / 10)
 
 
 static DEFINE_SPINLOCK(opened_lock);
