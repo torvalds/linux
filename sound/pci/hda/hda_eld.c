@@ -792,11 +792,14 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 		/* else unknown/invalid or 0ms or video ahead of audio, so use zero */
 	}
 
-	/* Baseline length */
-	buf[2] = pos - 4;
-
 	/* SAD count */
 	buf[5] |= ((pos - ELD_FIXED_BYTES - sink_desc_len) / 3) << 4;
+
+	/* Baseline ELD block length is 4-byte aligned */
+	pos = round_up(pos, 4);
+
+	/* Baseline ELD length (4-byte header is not counted in) */
+	buf[2] = (pos - 4) / 4;
 
 	*eld_size = pos;
 
