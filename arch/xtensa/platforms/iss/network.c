@@ -545,6 +545,13 @@ static int iss_net_configure(int index, char *init)
 		};
 
 	/*
+	 * If this name ends up conflicting with an existing registered
+	 * netdevice, that is OK, register_netdev{,ice}() will notice this
+	 * and fail.
+	 */
+	snprintf(dev->name, sizeof(dev->name), "eth%d", index);
+
+	/*
 	 * Try all transport protocols.
 	 * Note: more protocols can be added by adding '&& !X_init(lp, eth)'.
 	 */
@@ -574,13 +581,6 @@ static int iss_net_configure(int index, char *init)
 	lp->pdev.name = DRIVER_NAME;
 	platform_device_register(&lp->pdev);
 	SET_NETDEV_DEV(dev, &lp->pdev.dev);
-
-	/*
-	 * If this name ends up conflicting with an existing registered
-	 * netdevice, that is OK, register_netdev{,ice}() will notice this
-	 * and fail.
-	 */
-	snprintf(dev->name, sizeof(dev->name), "eth%d", index);
 
 	dev->netdev_ops = &iss_netdev_ops;
 	dev->mtu = lp->mtu;
