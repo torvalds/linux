@@ -467,15 +467,14 @@ static void iss_net_tx_timeout(struct net_device *dev)
 
 static int iss_net_set_mac(struct net_device *dev, void *addr)
 {
-#if 0
 	struct iss_net_private *lp = netdev_priv(dev);
 	struct sockaddr *hwaddr = addr;
 
+	if (!is_valid_ether_addr(hwaddr->sa_data))
+		return -EADDRNOTAVAIL;
 	spin_lock(&lp->lock);
 	memcpy(dev->dev_addr, hwaddr->sa_data, ETH_ALEN);
 	spin_unlock(&lp->lock);
-#endif
-
 	return 0;
 }
 
