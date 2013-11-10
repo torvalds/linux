@@ -153,6 +153,7 @@ void lockref_mark_dead(struct lockref *lockref)
 	assert_spin_locked(&lockref->lock);
 	lockref->count = -128;
 }
+EXPORT_SYMBOL(lockref_mark_dead);
 
 /**
  * lockref_get_not_dead - Increments count unless the ref is dead
