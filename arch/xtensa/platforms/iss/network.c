@@ -81,9 +81,6 @@ struct iss_net_private {
 	int index;
 	int mtu;
 
-	unsigned char mac[ETH_ALEN];
-	int have_mac;
-
 	struct {
 		union {
 			struct tuntap_info tuntap;
@@ -123,43 +120,40 @@ static char *split_if_spec(char *str, ...)
 	return str;
 }
 
-
-/* Return the IP address as a string for a given device. */
-
-static void dev_ip_addr(void *d, char *buf, char *bin_buf)
-{
-	struct net_device *dev = d;
-	struct in_device *ip = dev->ip_ptr;
-	struct in_ifaddr *in;
-	__be32 addr;
-
-	if (ip == NULL || ip->ifa_list == NULL) {
-		pr_warn("Device not assigned an IP address!\n");
-		return;
-	}
-
-	in = ip->ifa_list;
-
-	addr = in->ifa_address;
-	sprintf(buf, "%d.%d.%d.%d", addr & 0xff, (addr >> 8) & 0xff,
-		(addr >> 16) & 0xff, addr >> 24);
-
-	if (bin_buf) {
-		bin_buf[0] = addr & 0xff;
-		bin_buf[1] = (addr >> 8) & 0xff;
-		bin_buf[2] = (addr >> 16) & 0xff;
-		bin_buf[3] = addr >> 24;
-	}
-}
-
 /* Set Ethernet address of the specified device. */
 
-static inline void set_ether_mac(void *d, unsigned char *addr)
+static void setup_etheraddr(struct net_device *dev, char *str)
 {
-	struct net_device *dev = d;
-	memcpy(dev->dev_addr, addr, ETH_ALEN);
-}
+	unsigned char *addr = dev->dev_addr;
 
+	if (str == NULL)
+		goto random;
+
+	if (!mac_pton(str, addr)) {
+		pr_err("%s: failed to parse '%s' as an ethernet address\n",
+		       dev->name, str);
+		goto random;
+	}
+	if (is_multicast_ether_addr(addr)) {
+		pr_err("%s: attempt to assign a multicast ethernet address\n",
+		       dev->name);
+		goto random;
+	}
+	if (!is_valid_ether_addr(addr)) {
+		pr_err("%s: attempt to assign an invalid ethernet address\n",
+		       dev->name);
+		goto random;
+	}
+	if (!is_local_ether_addr(addr))
+		pr_warn("%s: assigning a globally valid ethernet address\n",
+			dev->name);
+	return;
+
+random:
+	pr_info("%s: choosing a random ethernet address\n",
+		dev->name);
+	eth_hw_addr_random(dev);
+}
 
 /* ======================= TUNTAP TRANSPORT INTERFACE ====================== */
 
@@ -232,6 +226,7 @@ static int tuntap_poll(struct iss_net_private *lp)
 
 static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 {
+	struct net_device *dev = lp->dev;
 	char *dev_name = NULL, *mac_str = NULL, *rem = NULL;
 
 	/* Transport should be 'tuntap': ethX=tuntap,mac,dev_name */
@@ -259,6 +254,7 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 	} else
 		strcpy(lp->tp.info.tuntap.dev_name, TRANSPORT_TUNTAP_NAME);
 
+	setup_etheraddr(dev, mac_str);
 
 	lp->mtu = TRANSPORT_TUNTAP_MTU;
 
@@ -369,7 +365,6 @@ static void iss_net_timer(unsigned long priv)
 static int iss_net_open(struct net_device *dev)
 {
 	struct iss_net_private *lp = netdev_priv(dev);
-	char addr[sizeof("255.255.255.255\0")];
 	int err;
 
 	spin_lock(&lp->lock);
@@ -377,11 +372,6 @@ static int iss_net_open(struct net_device *dev)
 	err = lp->tp.open(lp);
 	if (err < 0)
 		goto out;
-
-	if (!lp->have_mac) {
-		dev_ip_addr(dev, addr, &lp->mac[2]);
-		set_ether_mac(dev, lp->mac);
-	}
 
 	netif_start_queue(dev);
 
@@ -540,8 +530,6 @@ static int iss_net_configure(int index, char *init)
 		.lock			= __SPIN_LOCK_UNLOCKED(lp.lock),
 		.dev			= dev,
 		.index			= index,
-		.mac			= { 0xfe, 0xfd, 0x0, 0x0, 0x0, 0x0 },
-		.have_mac		= 0,
 		};
 
 	/*
@@ -561,10 +549,7 @@ static int iss_net_configure(int index, char *init)
 		goto errout;
 	}
 
-	printk(KERN_INFO "Netdevice %d ", index);
-	if (lp->have_mac)
-		printk("(%pM) ", lp->mac);
-	printk(": ");
+	pr_info("Netdevice %d (%pM)\n", index, dev->dev_addr);
 
 	/* sysfs register */
 
