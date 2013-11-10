@@ -680,7 +680,7 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 
 	spkalloc = snd_hda_codec_read(codec, nid, 0, ATI_VERB_GET_SPEAKER_ALLOCATION, 0);
 
-	if (!spkalloc) {
+	if (spkalloc <= 0) {
 		snd_printd(KERN_INFO "HDMI ATI/AMD: no speaker allocation for ELD\n");
 		return -EINVAL;
 	}
@@ -741,6 +741,9 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 
 		snd_hda_codec_write(codec, nid, 0, ATI_VERB_SET_AUDIO_DESCRIPTOR, i << 3);
 		ati_sad = snd_hda_codec_read(codec, nid, 0, ATI_VERB_GET_AUDIO_DESCRIPTOR, 0);
+
+		if (ati_sad <= 0)
+			continue;
 
 		if (ati_sad & ATI_AUDIODESC_RATES) {
 			/* format is supported, copy SAD as-is */
