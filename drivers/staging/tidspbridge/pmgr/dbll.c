@@ -378,8 +378,8 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p psize: %p, "
-		"status 0x%x\n", __func__, lib, name, paddr, psize, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p psize: %p, status 0x%x\n",
+			__func__, lib, name, paddr, psize, status);
 
 	return status;
 }
@@ -705,8 +705,8 @@ func_cont:
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, "
-		"status 0x%x\n", __func__, lib, name, buf, size, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, status 0x%x\n",
+			__func__, lib, name, buf, size, status);
 	return status;
 }
 
@@ -1172,8 +1172,7 @@ func_cont:
 		if (!run_addr_flag)
 			info->run_addr = info->load_addr;
 		info->context = (u32) rmm_addr_obj.segid;
-		dev_dbg(bridge, "%s: %s base = 0x%x len = 0x%x, "
-			"info->run_addr 0x%x, info->load_addr 0x%x\n",
+		dev_dbg(bridge, "%s: %s base = 0x%x len = 0x%x, info->run_addr 0x%x, info->load_addr 0x%x\n",
 			__func__, info->name, info->load_addr / DSPWORDSIZE,
 			info->size / DSPWORDSIZE, info->run_addr,
 			info->load_addr);
