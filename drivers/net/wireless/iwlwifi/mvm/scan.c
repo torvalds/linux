@@ -817,11 +817,10 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending scheduled scan with filtering, filter len %d\n",
 			       req->n_match_sets);
-		scan_req.flags |=
-				cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_FILTER_SSID);
 	} else {
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending Scheduled scan without filtering\n");
+		scan_req.flags |= cpu_to_le16(IWL_SCAN_OFFLOAD_FLAG_PASS_ALL);
 	}
 
 	return iwl_mvm_send_cmd_pdu(mvm, SCAN_OFFLOAD_REQUEST_CMD, CMD_SYNC,
