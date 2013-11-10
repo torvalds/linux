@@ -271,8 +271,6 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nop);
 
 	return 0;
-
-	return err;
 }
 
 static int usb_phy_gen_xceiv_remove(struct platform_device *pdev)

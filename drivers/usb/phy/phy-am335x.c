@@ -66,8 +66,6 @@ static int am335x_phy_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, am_phy);
 
 	return 0;
-
-	return ret;
 }
 
 static int am335x_phy_remove(struct platform_device *pdev)
