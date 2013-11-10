@@ -169,7 +169,7 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 		}
 	} else {
 		cbHeaderSize += WLAN_HDR_ADDR3_LEN;
-	};
+	}
 
 	pbyRxBuffer = (unsigned char *)(pbyRxBufferAddr + cbHeaderSize);
 	if (ether_addr_equal(pbyRxBuffer, pDevice->abySNAP_Bridgetunnel)) {
@@ -263,7 +263,7 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 				psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
 			}
 		}
-	};
+	}
 	*pcbHeaderSize = cbHeaderSize;
 }
 
@@ -592,7 +592,7 @@ device_receive_frame(
 			}
 		} else {
 			// Control Frame
-		};
+		}
 		return false;
 	} else {
 		if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {

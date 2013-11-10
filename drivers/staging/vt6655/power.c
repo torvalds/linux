@@ -260,7 +260,7 @@ PSvSendPSPOLL(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
 	} else {
 //        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
-	};
+	}
 
 	return;
 }

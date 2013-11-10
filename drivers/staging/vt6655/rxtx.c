@@ -2212,7 +2212,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 	else {
 		bNeedACK = true;
 		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-	};
+	}
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
@@ -2686,7 +2686,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 		}
 		bNeedACK = true;
 		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-	};
+	}
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {

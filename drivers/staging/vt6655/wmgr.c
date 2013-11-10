@@ -1719,7 +1719,7 @@ s_vMgrRxDeauthentication(
 		}
 		/* else, ignore it.  TODO: IBSS authentication service
 		   would be implemented here */
-	};
+	}
 	return;
 }
 
@@ -2092,10 +2092,10 @@ s_vMgrRxBeacon(
 					pMgmt->bInTIM = sFrame.pTIM->byVirtBitMap[uLocateByteIndex] & byTIMBitOn ? true : false;
 				} else {
 					pMgmt->bInTIM = false;
-				};
+				}
 			} else {
 				pMgmt->bInTIM = false;
-			};
+			}
 
 			if (pMgmt->bInTIM ||
 			    (pMgmt->bMulticastTIM && (pMgmt->byDTIMCount == 0))) {
@@ -2671,7 +2671,7 @@ vMgrJoinBSSBegin(
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "End of Join AP -- A/B/G Action\n");
 		} else {
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
-		};
+		}
 
 	} else {
 		// ad-hoc mode BSS
@@ -2740,8 +2740,8 @@ vMgrJoinBSSBegin(
 			bMgrPrepareBeaconToSend((void *)pDevice, pMgmt);
 		} else {
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
-		};
-	};
+		}
+	}
 	return;
 }
 

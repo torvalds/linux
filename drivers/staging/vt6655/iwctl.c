@@ -1632,7 +1632,7 @@ int iwctl_giwsens(struct net_device *dev,
 		wrq->value = ldBm;
 	} else {
 		wrq->value = 0;
-	};
+	}
 	wrq->disabled = (wrq->value == 0);
 	wrq->fixed = 1;
 

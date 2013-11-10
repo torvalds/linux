@@ -1221,7 +1221,7 @@ start:
 				bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 				bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, NULL);
 				pDevice->uAutoReConnectTime = 0;
-			};
+			}
 		}
 		if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
 			if (pDevice->bUpdateBBVGA)
