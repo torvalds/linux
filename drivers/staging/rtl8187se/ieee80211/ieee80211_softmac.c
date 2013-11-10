@@ -132,17 +132,15 @@ void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
 void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
-
-        *tag++ = MFIE_TYPE_GENERIC; //0
-        *tag++ = 7;
-        *tag++ = 0x00;
-        *tag++ = 0xe0;
-        *tag++ = 0x4c;
-        *tag++ = 0x01;//5
-        *tag++ = 0x02;
-        *tag++ = 0x11;
+	*tag++ = MFIE_TYPE_GENERIC; //0
+	*tag++ = 7;
 	*tag++ = 0x00;
-
+	*tag++ = 0xe0;
+	*tag++ = 0x4c;
+	*tag++ = 0x01;//5
+	*tag++ = 0x02;
+	*tag++ = 0x11;
+	*tag++ = 0x00;
 	*tag_p = tag;
 	printk(KERN_ALERT "This is enable turbo mode IE process\n");
 }
