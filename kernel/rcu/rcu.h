@@ -96,7 +96,7 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
 }
 #endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
-extern void kfree(const void *);
+void kfree(const void *);
 
 static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 {
